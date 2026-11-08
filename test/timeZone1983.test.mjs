@@ -2,17 +2,20 @@
 // (America/Vancouver) but cannot map Windows' 'British Columbia Standard Time', so Date fell back to the zone's base offset, UTC-8
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync as readRaw } from "node:fs";
+// v0.1.103 release CI: the Windows runner checks the sources out with CRLF, so the text pins compare LF text
+const readFileSync = (p, enc) => readRaw(p, enc).replace(/\r\n/g, "\n");
 import { createRequire } from "node:module";
 const { zoneOverride, ianaForWindowsZone, applyToWebContents } = createRequire(import.meta.url)("../electron/timeZoneFix.js");
 
+// resolved: null stands for "the ICU could not name the zone" (undefined would let the default read THIS computer's zone: UTC on CI)
 test("only an unresolved Windows zone that is listed is forced", () => {
   const bc = () => "British Columbia Standard Time\r\n";
-  assert.equal(zoneOverride({ platform: "win32", resolved: undefined, readWindowsZone: bc }), "America/Vancouver");
+  assert.equal(zoneOverride({ platform: "win32", resolved: null, readWindowsZone: bc }), "America/Vancouver");
   assert.equal(zoneOverride({ platform: "win32", resolved: "America/Vancouver", readWindowsZone: bc }), null); // the ICU maps it: leave it
-  assert.equal(zoneOverride({ platform: "darwin", resolved: undefined, readWindowsZone: bc }), null);
-  assert.equal(zoneOverride({ platform: "win32", resolved: undefined, readWindowsZone: () => "Mars Standard Time" }), null);
-  assert.equal(zoneOverride({ platform: "win32", resolved: undefined, readWindowsZone: () => { throw new Error("no tzutil"); } }), null);
+  assert.equal(zoneOverride({ platform: "darwin", resolved: null, readWindowsZone: bc }), null);
+  assert.equal(zoneOverride({ platform: "win32", resolved: null, readWindowsZone: () => "Mars Standard Time" }), null);
+  assert.equal(zoneOverride({ platform: "win32", resolved: null, readWindowsZone: () => { throw new Error("no tzutil"); } }), null);
   assert.equal(ianaForWindowsZone("  British Columbia Standard Time "), "America/Vancouver");
 });
 

@@ -2,7 +2,9 @@
 // of each other: with nowhere free, they are now left out (and counted) instead of overprinted
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync as readRaw } from "node:fs";
+// v0.1.103 release CI: the Windows runner checks the sources out with CRLF, so the text pins compare LF text
+const readFileSync = (p, enc) => readRaw(p, enc).replace(/\r\n/g, "\n");
 import { placeLabels, resolveLabels } from "../src/lib/sectionLabels.js";
 
 const overlap = (a, b) => a.x - a.w / 2 < b.x + b.w / 2 && b.x - b.w / 2 < a.x + a.w / 2 && a.y - a.h < b.y && b.y - b.h < a.y;

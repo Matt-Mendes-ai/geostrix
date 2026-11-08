@@ -1,7 +1,9 @@
 // TASKS.csv #1351 — big GeoTIFFs: read by byte range, decoded a tile at a time (no whole-file read, no full-size decode)
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync as readRaw } from "node:fs";
+// v0.1.103 release CI: the Windows runner checks the sources out with CRLF, so the text pins compare LF text
+const readFileSync = (p, enc) => readRaw(p, enc).replace(/\r\n/g, "\n");
 import { readTiledReduced, streamPlan, rangedTiffSource, openTiff, readRastersCapped, shrinkBand, MAX_STREAM_SAMPLES, MAX_DECODE_SAMPLES } from "../src/lib/raster.js";
 import { writeArrayBuffer } from "geotiff";
 

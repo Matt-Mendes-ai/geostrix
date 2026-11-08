@@ -3,7 +3,9 @@
 // draped survey continued to 150 m); this pins the pins, the freeze, the job API and the app's wiring.
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync as readRaw } from "node:fs";
+// v0.1.103 release CI: the Windows runner checks the sources out with CRLF, so the text pins compare LF text
+const readFileSync = (p, enc) => readRaw(p, enc).replace(/\r\n/g, "\n");
 import { SURVEY_METHODS } from "../src/lib/geophysSurveys.js";
 
 const read = (p) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
