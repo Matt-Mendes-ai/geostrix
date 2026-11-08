@@ -134,6 +134,30 @@ def main():
           "value": [float(i % 6 + i // 6) for i in range(36)], "nx": 11, "ny": 11, "cell": 25.0, "x0": 0.0, "yTop": 250.0}
     r = run_job("pfields", sp)
     assert r.get("values") and r.get("points") == 36, f"spline: {list(r)[:8]}"
+
+    # TASKS.csv #2007 (release smoke test) — Harmonica's Euler deconvolution and equivalent sources, frozen: a point mass 300 m down
+    import math
+    def gz(x, y, z, xs, ys, zs, mass):
+        dx, dy, dz = x - xs, y - ys, z - zs
+        return 1e5 * 6.674e-11 * mass * dz / (dx * dx + dy * dy + dz * dz) ** 1.5
+    n, dx = 41, 20.0
+    x0, ytop = 500000.0, 6000000.0 + dx * (n - 1)
+    xs, ys = x0 + 400.0, 6000000.0 + 400.0
+    vals = [gz(x0 + dx * i, ytop - dx * j, 0.0, xs, ys, -300.0, 5e11) for j in range(n) for i in range(n)]
+    eu = {"op": "euler", "nx": n, "ny": n, "dx": dx, "dy": dx, "x0": x0, "yTop": ytop, "structural_index": 2, "window": 200.0,
+          "observation_elevation": 0.0, "values": base64.b64encode(struct.pack(f"<{n * n}f", *vals)).decode()}
+    r = run_job("pfields", eu)
+    near = [d for d, x, y in zip(r.get("depth") or [], r.get("x") or [], r.get("y") or []) if math.hypot(x - xs, y - ys) < 200]
+    assert near, f"euler: no solution near the mass ({r.get('count')} solutions)"
+    near.sort()
+    print(f"euler: {r.get('count')} solutions; median depth near the mass {near[len(near) // 2]:.0f} m (true 300)")
+    pts = [(500000.0 + (k * 37 % 50) * 20.0, 6000000.0 + (k * 11 % 40) * 25.0) for k in range(200)]
+    es = {"op": "eqs", "x": [p[0] for p in pts], "y": [p[1] for p in pts], "z": [50.0] * 200,
+          "value": [gz(p[0], p[1], 50.0, 500500.0, 6000500.0, -200.0, 3e11) for p in pts],
+          "cell": 50.0, "elevation": 100.0, "region": [500050.0, 500950.0, 6000050.0, 6000950.0]}
+    r = run_job("pfields", es)
+    assert r.get("values") and r.get("readings") == 200, f"eqs: {list(r)[:8]}"
+    print(f"eqs: {r.get('nx')} x {r.get('ny')} grid, misfit {r.get('rms_misfit')}")
     print("SMOKE PASSED")
 
 
