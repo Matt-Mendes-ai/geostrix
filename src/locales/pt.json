@@ -9159,5 +9159,8 @@
   "File to join by sample ID": "Arquivo para unir por ID da amostra",
   "Empty on every row, so left unticked: {list} ({n} columns).": "Vazias em todas as linhas, por isso ficam desmarcadas: {list} ({n} colunas).",
   "No sample has {requires} all together (they may come from different files, e.g. a lab assay and a pXRF reading).": "Nenhuma amostra tem {requires} ao mesmo tempo (podem vir de arquivos diferentes, por ex. uma análise de laboratório e uma leitura pXRF).",
-  "None of these samples has {list}.": "Nenhuma destas amostras tem {list}."
+  "None of these samples has {list}.": "Nenhuma destas amostras tem {list}.",
+  "Data included ({n})": "Dados incluídos ({n})",
+  "{label} (unsaved changes)": "{label} (alterações não salvas)",
+  "Close {label}": "Fechar {label}"
 }

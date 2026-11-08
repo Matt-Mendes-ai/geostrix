@@ -103,10 +103,24 @@ print(json.dumps(sorted(out, key=lambda x: x["name"].lower())))
   }
 }
 
+// TASKS.csv #2008 (release smoke test) — data that ships with the app and is not a package: each folder under public/ that carries its own
+// README.txt + LICENSE.txt (the FGDC lithology patterns, #1995: public domain, repackaged CC0) is listed with that text, so Help ->
+// Third-party licences names it.
+export function bundledData() {
+  const out = [];
+  const fgdc = path.join(ROOT, "public", "patterns", "fgdc");
+  if (existsSync(path.join(fgdc, "LICENSE.txt"))) {
+    const readme = existsSync(path.join(fgdc, "README.txt")) ? readFileSync(path.join(fgdc, "README.txt"), "utf8").trim() : "";
+    out.push({ name: "FGDC lithology patterns (FGDC-STD-013-2006), repackaged by Daven Quinn", version: "", license: "CC0-1.0 (public domain)",
+      url: "https://github.com/davenquinn/geologic-patterns", text: [readme, readFileSync(path.join(fgdc, "LICENSE.txt"), "utf8").trim()].filter(Boolean).join("\n\n") });
+  }
+  return out;
+}
+
 export function writeThirdPartyLicenses() {
-  const js = javascriptPackages(), py = pythonPackages();
+  const js = javascriptPackages(), py = pythonPackages(), data = bundledData();
   const own = { name: "GeoStrix", license: "MIT", text: readFileSync(path.join(ROOT, "LICENSE"), "utf8").trim() };
-  const out = { generated: new Date().toISOString().slice(0, 10), geostrix: own, javascript: js, python: py.list, pythonNote: py.note };
+  const out = { generated: new Date().toISOString().slice(0, 10), geostrix: own, javascript: js, python: py.list, pythonNote: py.note, data }; // data: #2008
   mkdirSync(path.join(ROOT, "public", "licenses"), { recursive: true });
   writeFileSync(path.join(ROOT, "public", "licenses", "third-party.json"), JSON.stringify(out));
   return { js: js.length, py: py.list.length, note: py.note };

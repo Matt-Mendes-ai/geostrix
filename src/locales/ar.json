@@ -9159,5 +9159,8 @@
   "File to join by sample ID": "ملف للربط حسب معرّف العينة",
   "Empty on every row, so left unticked: {list} ({n} columns).": "فارغة في كل الصفوف، لذا تُركت دون تحديد: {list} ({n} أعمدة).",
   "No sample has {requires} all together (they may come from different files, e.g. a lab assay and a pXRF reading).": "لا تحتوي أي عينة على {requires} معًا (قد تأتي من ملفات مختلفة، مثل تحليل مختبر وقراءة pXRF).",
-  "None of these samples has {list}.": "لا تحتوي أي من هذه العينات على {list}."
+  "None of these samples has {list}.": "لا تحتوي أي من هذه العينات على {list}.",
+  "Data included ({n})": "البيانات المضمّنة ({n})",
+  "{label} (unsaved changes)": "{label} (تغييرات غير محفوظة)",
+  "Close {label}": "إغلاق {label}"
 }

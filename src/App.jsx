@@ -622,11 +622,11 @@ function WorkspaceTabBar({ tabs, activeTabId, activeDirty, activeName, onSwitch,
           <div key={t.id} className={`ge-tab ${isActive ? "active" : ""}`} title={label}>
             <button type="button" className="ge-tab-switch" onClick={() => onSwitch(t.id)}
               aria-current={isActive ? "true" : undefined} // TASKS.csv #388
-              aria-label={`${label}${dirty ? " (unsaved changes)" : ""}`}>
+              aria-label={dirty ? tr("{label} (unsaved changes)", { label }) : label}> {/* tr: the release smoke test (TASKS.csv #2008) */}
               {dirty && <span className="ge-tab-dot" title={tr("Unsaved changes")} />}
               <span className="ge-tab-label">{label}</span>
             </button>
-            <button type="button" className="ge-tab-close" onClick={() => onClose(t.id)} title={tr("Close project")} aria-label={`Close ${label}`}>
+            <button type="button" className="ge-tab-close" onClick={() => onClose(t.id)} title={tr("Close project")} aria-label={tr("Close {label}", { label })}>
               <X size={12} aria-hidden="true" />
             </button>
           </div>

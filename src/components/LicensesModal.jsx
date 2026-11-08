@@ -24,6 +24,7 @@ export default function LicensesModal({ onClose }) {
   const filter = (list) => (q.trim() ? list.filter((p) => `${p.name} ${p.license}`.toLowerCase().includes(q.trim().toLowerCase())) : list);
   const js = useMemo(() => (data ? filter(data.javascript) : []), [data, q]);
   const py = useMemo(() => (data ? filter(data.python) : []), [data, q]);
+  const bundled = useMemo(() => (data ? filter(data.data || []) : []), [data, q]); // TASKS.csv #2008 — data shipped with the app (the FGDC patterns)
 
   const row = (kind, p) => {
     const key = `${kind}:${p.name}`, isOpen = open === key;
@@ -67,6 +68,8 @@ export default function LicensesModal({ onClose }) {
               <div style={heading}>{tr("Python engine ({py})", { py: py.length })}</div>
               {data.pythonNote && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>{data.pythonNote}</div>}
               {py.map((p) => row("py", p))}
+              {bundled.length > 0 && <div style={heading}>{tr("Data included ({n})", { n: bundled.length })}</div>}
+              {bundled.map((p) => row("data", p))}
               {addon?.available && (
                 <>
                   <div style={heading}>{tr("Add-ons")}</div>

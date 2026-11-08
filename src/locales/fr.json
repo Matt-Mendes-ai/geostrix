@@ -9159,5 +9159,8 @@
   "File to join by sample ID": "Fichier à joindre par ID d'échantillon",
   "Empty on every row, so left unticked: {list} ({n} columns).": "Vides sur toutes les lignes, donc laissées décochées : {list} ({n} colonnes).",
   "No sample has {requires} all together (they may come from different files, e.g. a lab assay and a pXRF reading).": "Aucun échantillon n'a {requires} à la fois (ils peuvent venir de fichiers différents, p. ex. une analyse de laboratoire et une lecture pXRF).",
-  "None of these samples has {list}.": "Aucun de ces échantillons n'a {list}."
+  "None of these samples has {list}.": "Aucun de ces échantillons n'a {list}.",
+  "Data included ({n})": "Données incluses ({n})",
+  "{label} (unsaved changes)": "{label} (modifications non enregistrées)",
+  "Close {label}": "Fermer {label}"
 }
