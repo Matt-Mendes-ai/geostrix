@@ -300,6 +300,7 @@ export default function ModellingCodesPane({ litho, modellingCodes, setModelling
 
       <div className="ge-section-label" style={{ marginTop: 12 }}>{tr("Codes (youngest at the top)")}</div>
       <div style={small}>{tr("Order sets which unit is younger where two meet; a code you haven't placed keeps the order of the stack you run.")}</div>
+      <div style={small}>{tr("Roles are suggested from each code's name and, when the import kept a notes column, from what its intervals say (dyke, lost core, monzonite ...). A code nothing recognises is assumed stratigraphic: check the roles before modelling.")}</div>{/* #2046 */}
       {codes.map((c, i) => (
         <div key={c.name} style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 4 }}>
           <input type="color" value={c.color || colorForLithology(c.name)} onChange={(e) => setCode(c.name, { color: e.target.value })} aria-label={tr("Colour of {name}", { name: c.name })} style={{ width: 22, height: 20, padding: 0, border: "none", background: "none" }} />

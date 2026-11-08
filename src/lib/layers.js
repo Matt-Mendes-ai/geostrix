@@ -159,12 +159,12 @@ const ROLE_PATTERNS = [
   [/^(bx|brx|breccia|hbx)$/, "breccia"],
   [/^(dyk|dyke|dike|dk)$/, "dyke"],
   [/^(vein|vn|qv|qtzv|qzv)$/, "vein"],
-  [/^(nr|nrcv|norec|nrec|lost|core ?loss|void|cavity)$/, "no recovery"],
+  [/^(nr|nrcv|norec|nrec|ncr|lost|core ?loss|void|cavity)$/, "no recovery"], // ncr: #2046 (Woodjam: lost core and a tricone precollar)
   // TASKS.csv #1688 (review #1645, Copley) — hydrothermal / igneous breccia codes, fine-grained dyke codes (IFGD: intermediate fine-grained
   // dyke; MFGD, FFGD), two- and three-letter *DK codes, and the common intrusive-rock codes (DIOR, GRDR, QFP, MZ, GD ...) were all
   // 'stratigraphic', so every breccia contact in COP-23-0001 became a top of the host volcanics. Whole codes only; suggestions.
   [/^(hybx|hbrx|hydbx|hydbrx|igbx|ibx)$/, "breccia"],
-  [/^[a-z]{2}gd$|^[a-z]{1,2}dk$/, "dyke"],
+  [/^[a-z]{2}gd$|^[a-z]{1,2}dk$|^[a-z]{1,2}dyk$/, "dyke"], // *dyk: #2046 (Woodjam FDyk / MDyk / IDyk)
   [/^(dior|diorite|grdr|grd|granodiorite|qfp|fp|qp|qfpp|mz|mzn|qmz|monzonite|gd|porph|porphyry|tonl|tonalite|syen|syenite)$/, "dyke"],
   // TASKS.csv #1541 (review #1497, Lawyers) — whole WORDS inside a longer code too: 'Felsic Dyke', 'Mafic Dyke', 'I-Mafic' (intrusive),
   // 'No Recovery', 'Sand' were all 'stratigraphic' and offered in the Strat. stack. Still not a prefix of a word ('FAULTED LMST' and
@@ -175,9 +175,45 @@ const ROLE_PATTERNS = [
   [/\b(veins?)\b/, "vein"],
   [/^(sand|gravel|till|alluvium|alluvial|colluvium|colluvial|glacial till|moraine|cover)$|\b(alluvium|colluvium|glacial)\b/, "overburden"],
 ];
+// TASKS.csv #2046 (review #2013, Woodjam) — a code the name rules do not know is read from the notes logged with it, when the
+// import kept a notes / description column: Woodjam's BMM ('... polymict breccia ... magmatic matrix'), its 13 intrusive I-codes
+// ('monzonite', 'diorite') and NCR ('Lost Core Interval', 'Tricone through overburden') all defaulted to 'stratigraphic', so lost
+// core and dykes made false unit tops. A role wins when at least half of the code's rows that carry a note say it. The store
+// registers the result (setLithologyNoteRoles) whenever the lithology layer changes; names still come first.
+const NOTE_RULES = [
+  [/\b(lost core|core loss|no (core )?recovery|tricone|pre-?collar|casing)\b/, "no recovery"],
+  [/\b(fault breccia|fault gouge|flt (breccia|bx|gouge)|gouge)\b/, "fault"], // Woodjam UTB 'fault breccia', UTG 'flt gouge'
+  [/\b(dykes?|dikes?)\b/, "dyke"],
+  [/\bbreccia\b[^.;]*\b(magmatic|hydrothermal|intrusive|igneous)\b|\b(magmatic|hydrothermal|intrusive|igneous)\b[^.;]*\bbreccia\b/, "breccia"],
+  [/\b(q(t)?z ?monz(onite)?|monz(onite)?|monzodiorite|qmz|dior(ite)?|granodiorite|grdr|granite|tonalite|syenite|gabbro|porphyry|intrusions?|intrusive)\b/, "dyke"], // monz / dior: logged abbreviations (Woodjam 'mg qtz monz')
+];
+const NOT_NOTES = new Set(["hole_id", "value", "_src", "codes", "all_codes", "alt_style", "from", "to", "mcode", "source"]);
+export function lithologyNoteRoles(rows) {
+  const by = new Map(); // code -> { noted, hits: { role: n } }
+  for (const r of rows || []) {
+    if (!r || r.value == null) continue;
+    let text = "";
+    for (const [k, v] of Object.entries(r)) if (!NOT_NOTES.has(k) && typeof v === "string" && v.length > 3) text += " " + v;
+    if (!text) continue;
+    const key = String(r.value).trim().toLowerCase();
+    let e = by.get(key); if (!e) by.set(key, (e = { noted: 0, hits: {} }));
+    e.noted++;
+    const t = text.toLowerCase();
+    const hit = NOTE_RULES.find(([re]) => re.test(t));
+    if (hit) e.hits[hit[1]] = (e.hits[hit[1]] || 0) + 1;
+  }
+  const out = new Map();
+  by.forEach((e, key) => {
+    const best = Object.entries(e.hits).sort((a, b) => b[1] - a[1])[0];
+    if (best && best[1] >= e.noted / 2) out.set(key, best[0]);
+  });
+  return out;
+}
+let noteRoles = null;
+export function setLithologyNoteRoles(map) { noteRoles = map && map.size ? map : null; }
 export function roleForLithology(u) {
   const k = String(u || "").trim().toLowerCase();
-  return UNIT_ROLES[k] || ROLE_PATTERNS.find(([re]) => re.test(k))?.[1] || "stratigraphic";
+  return UNIT_ROLES[k] || ROLE_PATTERNS.find(([re]) => re.test(k))?.[1] || noteRoles?.get(k) || "stratigraphic";
 }
 // Cross-cutting = doesn't belong in an ordered, non-crossing stratigraphic pile (see the Stack tool's
 // own scope comment in ViewerModule.jsx) — faults, dykes, breccia bodies and veins (#1369) all qualify.

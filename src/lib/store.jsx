@@ -14,7 +14,7 @@ import { FIELD_KEYS, FIELDS, UNDO_KEYS, DIRTY_KEYS, PROJECT_VERSION, EMPTY_LAYER
 import { saveFile, saveFileTo, openFile, autosaveWrite, autosaveWriteParts /* #1975 */, autosaveRead, autosaveQuarantine, autosaveClear, dbConnect as dbConnectIpc, dbDisconnect as dbDisconnectIpc } from "./desktop.js";
 import { normalizeDesurveyMethod } from "./desurvey.js";
 import { readCellBudget, saveCellBudget } from "./estimationMeta.js"; // TASKS.csv #1970
-import { nextGroupColour } from "./layers.js"; // TASKS.csv #1377
+import { nextGroupColour, lithologyNoteRoles, setLithologyNoteRoles } from "./layers.js"; // TASKS.csv #1377; note roles: #2046
 import { freeSpot } from "./layoutPlace.js"; // TASKS.csv #1484
 
 const StoreContext = createContext(null);
@@ -128,6 +128,9 @@ export function StoreProvider({ children }) {
   const [collars, setCollars] = useState([]);
   const [survey, setSurvey] = useState([]);
   const [layers, setLayers] = useState({ ...EMPTY_LAYERS });
+  // TASKS.csv #2046 — the lithology codes' roles read from their logged notes, registered during render (not in an effect) so the
+  // Modelling codes roles computed in this same render already see them
+  useMemo(() => setLithologyNoteRoles(lithologyNoteRoles(layers.litho)), [layers.litho]);
   const [assays, setAssays] = useState([]);
   const [assayElements, setAssayElements] = useState([]);
   const presentAssayElements = useMemo(() => elementsWithValues(assayElements, assays), [assayElements, assays]); // TASKS.csv #1679
