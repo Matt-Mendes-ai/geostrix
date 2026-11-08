@@ -9225,5 +9225,13 @@
   "{n} of the drilled holes have no survey and no azimuth / dip and are taken as vertical.": "{n} dos furos perfurados não têm levantamento nem azimute / mergulho e são tomados como verticais.",
   "{n} collar(s) whose status is proposed are not counted.": "{n} boca(s) com status proposto não são contadas.",
   "{h} of the holes have {symbol} values{v}.": "{h} dos furos têm valores de {symbol}{v}.",
-  "; {q} QC sample(s) left out": "; {q} amostra(s) de controle de fora"
+  "; {q} QC sample(s) left out": "; {q} amostra(s) de controle de fora",
+  "The interpolated {symbol} grid never crosses {numericCutoff} {unit} — no shell to extract.": "A grade interpolada de {symbol} nunca cruza {numericCutoff} {unit}: não há envoltória a extrair.",
+  "{above} composite(s) are at or above the cutoff; {e} grid cell(s) were estimated, the highest at {hi} {unit}.": "{above} composto(s) estão no teor de corte ou acima; {e} célula(s) foram estimadas, a mais alta em {hi} {unit}.",
+  "With Min holes {k} a cell needs samples from {k} holes within {r} m, so the blocks around the high composites of widely spaced holes are not estimated: try Min holes 1 (one hole's grade, said in the result) or a wider search.": "Com Mín. furos {k}, uma célula precisa de amostras de {k} furos a até {r} m, então os blocos ao redor dos compostos altos de furos muito espaçados não são estimados: tente Mín. furos 1 (o teor de um só furo, indicado no resultado) ou uma busca mais ampla.",
+  "Try a lower cutoff or a larger search radius.": "Tente um teor de corte menor ou um raio de busca maior.",
+  "Try a lower cutoff, a larger search radius, or a smaller cell size.": "Tente um teor de corte menor, um raio de busca maior ou uma célula menor.",
+  "No {symbol} shell at {numericCutoff} {unit}: the grid has no surface to extract.": "Nenhuma envoltória de {symbol} a {numericCutoff} {unit}: a grade não tem superfície a extrair.",
+  "The cells at or above the cutoff have no estimated neighbours to close a surface against: tick \"Close shell artificially at the search-radius boundary\" (its volume is then an assumption), widen the search{v}.": "As células no teor de corte ou acima não têm vizinhas estimadas contra as quais fechar uma superfície: marque \"Fechar a envoltória artificialmente no limite do raio de busca\" (o volume passa a ser uma suposição), amplie a busca{v}.",
+  ", or lower Min holes from {k} to 1": ", ou baixe Mín. furos de {k} para 1"
 }

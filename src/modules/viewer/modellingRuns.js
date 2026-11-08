@@ -2077,6 +2077,7 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
         const pad = Math.max(0, numericPadding);
         const bounds = { xmin: xr.min - pad, xmax: xr.max + pad, ymin: yr.min - pad, ymax: yr.max + pad, zmin: zr.min - pad, zmax: zr.max + pad };
         let cs = Math.max(0.5, numericCellSize); // let: #1416
+        let cellRefit = false; // #2063 — the budget chose the cell: a smaller one is not on offer
         // TASKS.csv #292 — the search radius is never allowed to be unbounded any more. An unlimited
         // search made every sample a candidate for every cell: measured at 62,500 cells x 5,000 points
         // that is 81 s of blocked main thread (250 s at the MAX_BLOCKS cap), versus 0.2 s with a real
@@ -2107,7 +2108,7 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
           const fitNotice = { ...notice("Cell size set to {fit} m: at the default {cs} m this extent needs {n} blocks, over the {budget}-block budget. A finer cell needs a larger block budget in the Grade shell pane.", { fit, cs, n: blocksNeeded.toLocaleString(), budget: blockBudget.toLocaleString() }), level: "info" };
           setNotices((p) => [...p, fitNotice]);
           setNumericCellSize?.(fit);
-          cs = fit; blocksNeeded = gridBlockCount(bounds, cs);
+          cs = fit; blocksNeeded = gridBlockCount(bounds, cs); cellRefit = true;
         }
         if (blocksNeeded > blockBudget) {
           const fit = cellToFit(bounds, blockBudget, cs);
@@ -2148,7 +2149,21 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
         const mc = marchingCubes(gsCap.values, grid.nx, grid.ny, grid.nz, numericCutoff, {
           origin: grid.origin, spacing: grid.cellSize, noData: numericCloseShell ? "outside" : "skip",
         });
-        if (!mc.faces.length) throw new Error(tr("The interpolated {symbol} grid never crosses {numericCutoff} {unit} — no shell to extract (try a lower cutoff, a larger search radius, or a smaller cell size).", { symbol, numericCutoff, unit }));
+        // TASKS.csv #2063 (review #2013, Woodjam) — say what the run found and what removed it: with Min holes 2 at a 50 m search on holes
+        // 67-360 m apart no block round the 132 composites above 3000 ppm saw two holes, and the message blamed the cutoff, the radius and
+        // a cell size the block budget had just chosen
+        if (!mc.faces.length) {
+          let hi = -Infinity; for (const v of grid.values) if (Number.isFinite(v) && v > hi) hi = v;
+          const mh = Math.max(1, numericMinHoles), r = Math.round(effectiveRadius);
+          const facts = " " + tr("{above} composite(s) are at or above the cutoff; {e} grid cell(s) were estimated, the highest at {hi} {unit}.", { above, e: grid.estimated.toLocaleString(), hi: Number.isFinite(hi) ? +hi.toPrecision(3) : "—", unit });
+          // #2063 — cells above the cutoff with no estimated neighbour: the surface has nothing to close against (Woodjam: 36 cells, the highest 8,330 ppm)
+          const isolated = hi >= numericCutoff && !numericCloseShell;
+          const advice = " " + (isolated ? tr("The cells at or above the cutoff have no estimated neighbours to close a surface against: tick \"Close shell artificially at the search-radius boundary\" (its volume is then an assumption), widen the search{v}.", { v: mh > 1 ? tr(", or lower Min holes from {k} to 1", { k: mh }) : "" })
+            : mh > 1
+            ? tr("With Min holes {k} a cell needs samples from {k} holes within {r} m, so the blocks around the high composites of widely spaced holes are not estimated: try Min holes 1 (one hole's grade, said in the result) or a wider search.", { k: mh, r })
+            : cellRefit ? tr("Try a lower cutoff or a larger search radius.") : tr("Try a lower cutoff, a larger search radius, or a smaller cell size."));
+          throw new Error((isolated ? tr("No {symbol} shell at {numericCutoff} {unit}: the grid has no surface to extract.", { symbol, numericCutoff, unit }) : tr("The interpolated {symbol} grid never crosses {numericCutoff} {unit} — no shell to extract.", { symbol, numericCutoff, unit })) + facts + advice);
+        }
         // TASKS.csv #1735 (review #1645, Copley) — are the composites at/above the cutoff INSIDE the shell built to show them? With
         // Min holes 2 on holes 100-1,350 m apart, the blocks round the only Cu intercept had one hole and were not estimated, so
         // the "Cu > 1000 ppm" shell closed where two holes converge, 90-110 m away, and held no composite at all.

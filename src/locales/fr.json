@@ -9225,5 +9225,13 @@
   "{n} of the drilled holes have no survey and no azimuth / dip and are taken as vertical.": "{n} des sondages forés n'ont ni levé ni azimut / pendage et sont pris comme verticaux.",
   "{n} collar(s) whose status is proposed are not counted.": "{n} collet(s) au statut proposé ne sont pas comptés.",
   "{h} of the holes have {symbol} values{v}.": "{h} des sondages ont des valeurs de {symbol}{v}.",
-  "; {q} QC sample(s) left out": " ; {q} échantillon(s) de contrôle laissé(s) de côté"
+  "; {q} QC sample(s) left out": " ; {q} échantillon(s) de contrôle laissé(s) de côté",
+  "The interpolated {symbol} grid never crosses {numericCutoff} {unit} — no shell to extract.": "La grille interpolée de {symbol} n'atteint jamais {numericCutoff} {unit} : aucune enveloppe à extraire.",
+  "{above} composite(s) are at or above the cutoff; {e} grid cell(s) were estimated, the highest at {hi} {unit}.": "{above} composite(s) sont au seuil ou au-dessus ; {e} cellule(s) ont été estimées, la plus haute à {hi} {unit}.",
+  "With Min holes {k} a cell needs samples from {k} holes within {r} m, so the blocks around the high composites of widely spaced holes are not estimated: try Min holes 1 (one hole's grade, said in the result) or a wider search.": "Avec Min. sondages {k}, une cellule a besoin d'échantillons de {k} sondages à moins de {r} m : les blocs autour des composites élevés de sondages très espacés ne sont pas estimés. Essayez Min. sondages 1 (la teneur d'un seul sondage, signalée dans le résultat) ou une recherche plus large.",
+  "Try a lower cutoff or a larger search radius.": "Essayez un seuil plus bas ou un rayon de recherche plus grand.",
+  "Try a lower cutoff, a larger search radius, or a smaller cell size.": "Essayez un seuil plus bas, un rayon de recherche plus grand ou une cellule plus petite.",
+  "No {symbol} shell at {numericCutoff} {unit}: the grid has no surface to extract.": "Aucune enveloppe de {symbol} à {numericCutoff} {unit} : la grille n'a pas de surface à extraire.",
+  "The cells at or above the cutoff have no estimated neighbours to close a surface against: tick \"Close shell artificially at the search-radius boundary\" (its volume is then an assumption), widen the search{v}.": "Les cellules au seuil ou au-dessus n'ont pas de voisines estimées contre lesquelles fermer une surface : cochez « Fermer artificiellement l'enveloppe à la limite du rayon de recherche » (son volume devient une hypothèse), élargissez la recherche{v}.",
+  ", or lower Min holes from {k} to 1": ", ou abaissez Min. sondages de {k} à 1"
 }
