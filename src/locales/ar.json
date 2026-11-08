@@ -9137,5 +9137,6 @@
   "Made from the terrain \"{name}\", which has since been replaced: it still shows that ground, draped on the new one. Remove it and make it again from the current terrain (Maps > Terrain > Hillshade, slope, aspect…).": "صُنع من التضاريس \"{name}\" التي استُبدلت منذ ذلك الحين: لا يزال يعرض تلك الأرض مكسوّاً على الجديدة. احذفه وأعد صنعه من التضاريس الحالية (الخرائط > التضاريس > التظليل والانحدار والاتجاه…).",
   "Exact fit: three points always fit this transform exactly, so they cannot show an error. Add a fourth point to check the others.": "ملاءمة تامة: ثلاث نقاط تلائم هذا التحويل دائماً بدقة، فلا يمكنها إظهار خطأ. أضف نقطة رابعة للتحقق من الأخرى.",
   "Transform fit — RMSE {rmse} m.": "ملاءمة التحويل — جذر متوسط مربع الخطأ {rmse} م.",
-  "Transform fit — RMSE {rmse} project units.": "ملاءمة التحويل — جذر متوسط مربع الخطأ {rmse} من وحدات المشروع."
+  "Transform fit — RMSE {rmse} project units.": "ملاءمة التحويل — جذر متوسط مربع الخطأ {rmse} من وحدات المشروع.",
+  "Project collars and layer extents": "فوهات المشروع وامتدادات الطبقات"
 }

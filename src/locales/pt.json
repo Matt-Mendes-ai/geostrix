@@ -9137,5 +9137,6 @@
   "Made from the terrain \"{name}\", which has since been replaced: it still shows that ground, draped on the new one. Remove it and make it again from the current terrain (Maps > Terrain > Hillshade, slope, aspect…).": "Feito a partir do terreno \"{name}\", que já foi substituído: ainda mostra aquele solo, ajustado ao novo. Remova-o e faça-o de novo a partir do terreno atual (Mapas > Terreno > Sombreamento, declividade, orientação…).",
   "Exact fit: three points always fit this transform exactly, so they cannot show an error. Add a fourth point to check the others.": "Ajuste exato: três pontos sempre ajustam esta transformação exatamente, então não podem mostrar um erro. Adicione um quarto ponto para conferir os outros.",
   "Transform fit — RMSE {rmse} m.": "Ajuste da transformação — RMSE {rmse} m.",
-  "Transform fit — RMSE {rmse} project units.": "Ajuste da transformação — RMSE {rmse} unidades do projeto."
+  "Transform fit — RMSE {rmse} project units.": "Ajuste da transformação — RMSE {rmse} unidades do projeto.",
+  "Project collars and layer extents": "Colares do projeto e extensões das camadas"
 }

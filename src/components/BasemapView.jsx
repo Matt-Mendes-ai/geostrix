@@ -6,7 +6,8 @@ import { getSavedLayerId, saveLayerId, getSavedTracestrackKey, saveTracestrackKe
 import { fetchAndCacheTile } from "../lib/tileCache.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
-import { useSetTaskProgress } from "../lib/store.jsx";
+import { useSetTaskProgress, useStore } from "../lib/store.jsx"; // useStore: #1629
+import { reprojectXY } from "../lib/reproject.js"; // TASKS.csv #1629
 import { Download } from "./icons.js";
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 
@@ -67,6 +68,20 @@ export default function BasemapView({
   // TASKS.csv #1465 (review #1352) — offline (or with the tile server blocked) the picker was a grid of broken-image icons with no
   // word: failed tiles are hidden, and once several fail with none loaded the map says why
   const [tileState, setTileState] = useState({ ok: 0, failed: 0 });
+  // TASKS.csv #1629 (review #1497, Lawyers) — offline the picker was a blank grey map with the seeded box: the project's own collars are
+  // drawn (and each offered area's outline) from data in hand, so an area can be drawn with reference; a tile that failed is not asked
+  // for again (94 tiles were each requested twice)
+  const failedTiles = useRef(new Set());
+  const { collars = [], project } = useStore();
+  const collarLonLat = useMemo(() => {
+    const epsg = project?.epsg;
+    if (!epsg || !collars.length) return [];
+    const pts = collars.filter((c) => Number.isFinite(c.x) && Number.isFinite(c.y));
+    const step = Math.max(1, Math.ceil(pts.length / 3000));
+    const out = [];
+    for (let i = 0; i < pts.length; i += step) { const q = reprojectXY(pts[i].x, pts[i].y, epsg, 4326); if (q && Number.isFinite(q.x) && Number.isFinite(q.y)) out.push([q.x, q.y]); }
+    return out;
+  }, [collars, project?.epsg]);
   const [subMode, setSubMode] = useState(mode === "draw" ? "draw" : "pan");
   const dragRef = useRef(null);
   const [baseLayerId, setBaseLayerId] = useState(getSavedLayerId());
@@ -312,7 +327,7 @@ export default function BasemapView({
         onMouseLeave={onMouseUp}
         onWheel={(e) => { e.preventDefault(); changeZoom(e.deltaY < 0 ? 1 : -1); }}
       >
-        {tiles.map((t) => (
+        {tiles.filter((t) => !failedTiles.current.has(tileUrlFor(effectiveLayerId, zoom, t.x, t.y, tracestrackKey))).map((t) => (
           <CachedTile
             key={t.key}
             layerId={effectiveLayerId}
@@ -323,7 +338,7 @@ export default function BasemapView({
             alt=""
             draggable={false}
             style={{ position: "absolute", left: t.tx * TILE + offsetX, top: t.y * TILE + offsetY, width: TILE, height: TILE, userSelect: "none" }}
-            onError={(e) => { e.currentTarget.style.visibility = "hidden"; setTileState((s) => ({ ...s, failed: s.failed + 1 })); }}
+            onError={(e) => { e.currentTarget.style.visibility = "hidden"; failedTiles.current.add(tileUrlFor(effectiveLayerId, zoom, t.x, t.y, tracestrackKey)); setTileState((s) => ({ ...s, failed: s.failed + 1 })); }}
             onLoad={() => setTileState((s) => (s.ok ? s : { ...s, ok: 1 }))}
           />
         ))}
@@ -331,6 +346,15 @@ export default function BasemapView({
           <div style={{ position: "absolute", left: 12, top: 12, right: 60, padding: "8px 10px", background: "rgba(255,255,255,0.92)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", pointerEvents: "none" }}>
             {tr("The map tiles could not be loaded (offline, or the tile server is blocked). The area can still be drawn here or chosen from the list.")}
           </div>
+        )}
+        {center && (collarLonLat.length > 0 || (areaOptions || []).length > 0) && ( /* #1629 — the project's own reference, offline or not */
+          <svg width={size.w} height={size.h} style={{ position: "absolute", left: 0, top: 0, pointerEvents: "none" }} aria-label={tr("Project collars and layer extents")}>
+            {(areaOptions || []).map((o) => { const a = lonLatToWorldPx(o.bboxLonLat[0], o.bboxLonLat[3], zoom), b = lonLatToWorldPx(o.bboxLonLat[2], o.bboxLonLat[1], zoom); return (
+              <g key={o.id}><rect x={a.wx + offsetX} y={a.wy + offsetY} width={Math.max(1, b.wx - a.wx)} height={Math.max(1, b.wy - a.wy)} fill="none" stroke="#5a6472" strokeWidth="1" strokeDasharray="4 3" />
+                <text x={a.wx + offsetX + 3} y={a.wy + offsetY + 11} fontSize="10" fill="#3d4652" style={{ paintOrder: "stroke", stroke: "#fff", strokeWidth: 2.5 }}>{o.label}</text></g>
+            ); })}
+            {collarLonLat.map(([lo, la], i) => { const p = lonLatToWorldPx(lo, la, zoom); return <circle key={i} cx={p.wx + offsetX} cy={p.wy + offsetY} r="2.5" fill="#1a2028" stroke="#fff" strokeWidth="0.8" />; })}
+          </svg>
         )}
         {markerPx && (
           <div style={{ position: "absolute", left: markerPx.x - 7, top: markerPx.y - 18, width: 14, height: 18, pointerEvents: "none" }}>
@@ -398,7 +422,7 @@ export default function BasemapView({
             </select>
           )}
           <div style={{ flex: 1 }} />
-          {extraControls && extraControls(bbox)}
+          {extraControls && <div style={{ whiteSpace: "nowrap" }}>{extraControls(bbox)}</div>}{/* #1629 — on its own, wrapping the bar, not squeezed into a column */}
           {bbox && (
             <div style={{ fontSize: "var(--font-size-sm)", color: "#5a6472", marginRight: 10 }}>
               ~{(bbox[2] - bbox[0]).toFixed(3)}° × {(bbox[3] - bbox[1]).toFixed(3)}°
@@ -420,7 +444,7 @@ export default function BasemapView({
 
 const overlayStyle = { position: "fixed", inset: 0, zIndex: 500, background: "var(--color-bg)", display: "flex", flexDirection: "column" };
 const topBarStyle = { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", borderBottom: "1px solid var(--color-divider)" };
-const bottomBarStyle = { display: "flex", alignItems: "center", gap: 8, padding: "8px 14px", borderTop: "1px solid var(--color-divider)" };
+const bottomBarStyle = { display: "flex", alignItems: "center", gap: 8, rowGap: 6, flexWrap: "wrap", padding: "8px 14px", borderTop: "1px solid var(--color-divider)" }; // flexWrap: #1629
 const iconBtnStyle = { width: 28, height: 28, borderRadius: 6, border: "1px solid var(--color-border-light)", background: "var(--color-bg)", color: "#3a4048", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" };
 const zoomCtrlStyle = { position: "absolute", top: 10, right: 10, display: "flex", flexDirection: "column", gap: 4 };
 const toolBtnStyle = { display: "flex", alignItems: "center", gap: 5, padding: "6px 10px", borderRadius: 6, border: "1px solid var(--color-border-light)", background: "var(--color-bg)", color: "#3a4048", fontSize: "var(--font-size-base)", cursor: "pointer" };
