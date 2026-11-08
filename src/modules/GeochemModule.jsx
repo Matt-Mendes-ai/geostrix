@@ -946,6 +946,10 @@ export default function GeochemModule() {
     saveFile({ suggestedName: "assays.csv", filters: [{ name: "CSV", extensions: ["csv"] }], content: csv });
   };
 
+  // TASKS.csv #1682 (review #1645, Copley) — the Simple ribbon follows the data: the surface-sample tools wait in Advanced until there are
+  // surface samples (a drill-only project showed four of them greyed out), and QAQC / Correlation / Compositing join Simple once there are
+  // drill assays (they were behind '+15 Show all')
+  const hasSurfaceData = !!(surfaceSamples.length || surfaceElements.length || surfaceQc?.records?.length);
   return (
     <div
       className="ge-body"
@@ -976,21 +980,21 @@ export default function GeochemModule() {
             <RibbonButton icon={Scale} label="Isocon" tone="analyse" disabled={!assayElements.length} disabledReason="Import assays first" title="Isocon / mass-change calculator" onClick={() => setIsoconOpen(true)} />
           </RibbonGroup>
           <RibbonGroup label="Analyze">
-            <RibbonButton advanced icon={Grid3x3} label="Correlation" tone="analyse" disabled={!assayElements.length && !surfaceElements.length} disabledReason="Import assays or surface samples first" title="Correlation matrix" onClick={() => setCorrOpen(true)} />
+            <RibbonButton advanced={!assayElements.length && !surfaceElements.length} icon={Grid3x3} label="Correlation" tone="analyse" disabled={!assayElements.length && !surfaceElements.length} disabledReason="Import assays or surface samples first" title="Correlation matrix" onClick={() => setCorrOpen(true)} />
             <RibbonButton icon={GBarChart} label="Grade stats" tone="analyse" disabled={!(assayElements.length || surfaceElements.length)} disabledReason="Import assays or surface samples first" title="Grade statistics (assays or surface samples)" onClick={() => setGradeStatsOpen(true)} />
-            <RibbonButton icon={GBarChart} label="Thresholds" tone="analyse" disabled={!surfaceElements.length} disabledReason="Import surface samples first" title="Anomaly thresholds for soil and stream-sediment samples, judged within populations" onClick={() => setThresholdsOpen(true)} />{/* TASKS.csv #841 */}
-            <RibbonButton icon={GMapPin} label="Plan map" tone="output" disabled={!surfaceSamples.length} disabledReason="Import surface samples first" title="Surface samples in plan, classed by the saved threshold, over a block-model level slice: to Layout or PNG" onClick={() => setPlanMapOpen(true)} />{/* TASKS.csv #1792 / #1864 */}
+            <RibbonButton advanced={!hasSurfaceData} icon={GBarChart} label="Thresholds" tone="analyse" disabled={!surfaceElements.length} disabledReason="Import surface samples first" title="Anomaly thresholds for soil and stream-sediment samples, judged within populations" onClick={() => setThresholdsOpen(true)} />{/* TASKS.csv #841 */}
+            <RibbonButton advanced={!hasSurfaceData} icon={GMapPin} label="Plan map" tone="output" disabled={!surfaceSamples.length} disabledReason="Import surface samples first" title="Surface samples in plan, classed by the saved threshold, over a block-model level slice: to Layout or PNG" onClick={() => setPlanMapOpen(true)} />{/* TASKS.csv #1792 / #1864 */}
             <RibbonButton advanced icon={GBarChart} label="Level surveys" tone="analyse" disabled={!surfaceElements.length} disabledReason="Import surface samples first" title="Bring one survey's values to another's level (tie samples first), as a new column" onClick={() => setLevellingOpen(true)} />{/* TASKS.csv #1001 */}
-            <RibbonButton icon={GBarChart} label="Domains" tone="analyse" disabled={surfaceElements.length < 2} disabledReason="Import surface samples with several elements first" title="Geochemical domains: log-ratio principal components and k-means on the surface samples, written back as a column for the Thresholds populations" onClick={() => setDomainsOpen(true)} />{/* TASKS.csv #852 */}
-            <RibbonButton icon={GMapPin} label="Catchments" tone="analyse" disabled={!surfaceSamples.length} disabledReason="Import surface samples first" title="Stream-sediment catchments from the terrain: dilution correction (Hawkes), drainage ranking, follow-up reaches" onClick={() => setCatchmentsOpen(true)} />{/* TASKS.csv #845 */}
+            <RibbonButton advanced={!hasSurfaceData} icon={GBarChart} label="Domains" tone="analyse" disabled={surfaceElements.length < 2} disabledReason="Import surface samples with several elements first" title="Geochemical domains: log-ratio principal components and k-means on the surface samples, written back as a column for the Thresholds populations" onClick={() => setDomainsOpen(true)} />{/* TASKS.csv #852 */}
+            <RibbonButton advanced={!hasSurfaceData} icon={GMapPin} label="Catchments" tone="analyse" disabled={!surfaceSamples.length} disabledReason="Import surface samples first" title="Stream-sediment catchments from the terrain: dilution correction (Hawkes), drainage ranking, follow-up reaches" onClick={() => setCatchmentsOpen(true)} />{/* TASKS.csv #845 */}
             <RibbonButton icon={GMapPin} label="Plan survey" tone="data" title="Plan a soil grid or stream-sediment sites, numbered with your QC inserts: GPX, KML, CSV and a printable field sheet" onClick={() => setPlannerOpen(true)} />{/* TASKS.csv #844 */}
-            <RibbonButton advanced icon={ShieldCheck} label="QAQC" tone="analyse" disabled={!assayElements.length} disabledReason="Import assays first" title="QAQC: standards, blanks, duplicates" onClick={() => setQaqcOpen(true)} />
-            <RibbonButton icon={ShieldCheck} label="Surface QAQC" tone="analyse" disabled={!(surfaceSamples.length || surfaceQc?.records?.length)} disabledReason="Import surface samples first" title="QA/QC of soil and stream-sediment programs: lab certificates, your standards, blanks and duplicates, insertion rates per batch" onClick={() => setSurfaceQcOpen(true)} />{/* TASKS.csv #842 */}
+            <RibbonButton advanced={!assayElements.length} icon={ShieldCheck} label="QAQC" tone="analyse" disabled={!assayElements.length} disabledReason="Import assays first" title="QAQC: standards, blanks, duplicates" onClick={() => setQaqcOpen(true)} />
+            <RibbonButton advanced={!hasSurfaceData} icon={ShieldCheck} label="Surface QAQC" tone="analyse" disabled={!(surfaceSamples.length || surfaceQc?.records?.length)} disabledReason="Import surface samples first" title="QA/QC of soil and stream-sediment programs: lab certificates, your standards, blanks and duplicates, insertion rates per batch" onClick={() => setSurfaceQcOpen(true)} />{/* TASKS.csv #842 */}
             <RibbonButton advanced icon={TerminalSquare} label="SQL" tone="data" disabled={!assayElements.length && !surfaceSamples.length} disabledReason="Import assays or surface samples first" title="SQL workspace" onClick={() => setSqlOpen(true)} />
           </RibbonGroup>
           <RibbonGroup label="Report">
             <RibbonButton icon={GAward} label="Best intercepts" tone="output" disabled={!assayElements.length} disabledReason="Import assays first" title="Best-intercept report" onClick={() => setBestIntOpen(true)} />
-            <RibbonButton advanced icon={GRows} label="Compositing" tone="output" disabled={!assayElements.length} disabledReason="Import assays first" title="Downhole compositing" onClick={() => setCompositingOpen(true)} />
+            <RibbonButton advanced={!assayElements.length} icon={GRows} label="Compositing" tone="output" disabled={!assayElements.length} disabledReason="Import assays first" title="Downhole compositing" onClick={() => setCompositingOpen(true)} />
           </RibbonGroup>
           <RibbonGroup label="Export">
             <RibbonButton advanced icon={GSheet} label="Assays CSV" tone="output" disabled={!assayElements.length} disabledReason="Import assays first" title="Assays → CSV" onClick={exportAssaysCSV} />
