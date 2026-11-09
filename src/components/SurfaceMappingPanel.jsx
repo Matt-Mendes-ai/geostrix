@@ -62,7 +62,10 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
   // and true north (they are stored in grid north since #547)
   const exportStructSet = async (s, fmt) => {
     try {
-      const epsg = await ensureExportCrs(project); if (!epsg) return;
+      // TASKS.csv #2267 (review #2174) — the CSV needs no CRS: on a project with none it is written in the project's own grid, the true-north
+      // columns left blank; KML and GeoPackage still ask
+      const local = project?.crsSet === false && fmt === "csv";
+      const epsg = local ? null : await ensureExportCrs(project); if (!local && !epsg) return;
       const ox = await import("../lib/overlayExport.js");
       const { sampleTerrainElevation } = await import("../lib/viewer/geomath.js");
       const zAt = terrain ? (x, y) => sampleTerrainElevation(terrain, x, y) : null; // #1206

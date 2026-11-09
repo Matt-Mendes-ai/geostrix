@@ -4438,7 +4438,10 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     if (!plannedHoles.length) { setNotices((p) => [...p, notice("No planned drillholes to export yet.")]); return; }
     const { rigRows, rigKML, rigGPX } = await import("../lib/rigExport.js"); // TASKS.csv #397; loaded on first export (#476)
     const today = new Date().toISOString().slice(0, 10);
-    const epsg = await ensureExportCrs(project); if (!epsg) return; // TASKS.csv #1021 — lat / lon and true / magnetic azimuths need the real CRS
+    // TASKS.csv #1021 — lat / lon and true / magnetic azimuths need the real CRS; #2254 — a CSV on a project with no CRS is written in its own
+    // grid (E / N / RL, grid azimuth, dip, length, target, toe), lat / lon and true / magnetic left blank; KML / GPX still ask
+    const local = project?.crsSet === false && format === "csv";
+    const epsg = local ? null : await ensureExportCrs(project); if (!local && !epsg) return;
     const rows = rigRows(plannedHoles, epsg, today, plannedHoleTrace);
     const base = `${(project.name || "project").replace(/[^\w\- ]/g, "")}_planned_holes`;
     const noLatLon = rows.filter((r) => r.lat === "").length;
@@ -4446,7 +4449,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     let res;
     if (format === "kml") res = await saveFile({ quiet: "success", suggestedName: `${base}.kml`, filters: [{ name: "KML", extensions: ["kml"] }], content: rigKML(rows, `${project.name || "GeoStrix"} planned holes`), encoding: "text" });
     else if (format === "gpx") res = await saveFile({ quiet: "success", suggestedName: `${base}.gpx`, filters: [{ name: "GPX", extensions: ["gpx"] }], content: rigGPX(rows), encoding: "text" });
-    else res = await saveFile({ quiet: "success", suggestedName: `${base}.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: await toExportCsv(rows.map((r) => ({ ...r, crs: `EPSG:${epsg}` }))) /* #1053 — x / y CRS (lat / lon were already WGS84) */, encoding: "text" });
+    else res = await saveFile({ quiet: "success", suggestedName: `${base}.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: await toExportCsv(rows.map((r) => ({ ...r, crs: epsg ? `EPSG:${epsg}` : "not set (project grid)" }))) /* #1053 — x / y CRS (lat / lon were already WGS84) */, encoding: "text" });
     if (res.ok) setNotices((p) => [...p, notice("Exported {plannedHoles} planned hole(s) to {format}{v}.{v2}{v3}", { plannedHoles: plannedHoles.length, format: format.toUpperCase(), v: rows[0]?.declination_deg !== "" ? tr(" — magnetic azimuths use the IGRF-14 declination for {today} ({declination_deg}° at the first collar); recheck it if drilling is months away", { today, declination_deg: rows[0].declination_deg }) : "", v2: noLatLon ? tr(" {noLatLon} hole(s) have no latitude/longitude (project CRS not convertible) and are missing from KML/GPX.", { noLatLon }) : "", v3: noMag && !noLatLon ? tr(" {noMag} hole(s) have no magnetic azimuth.", { noMag }) : "" })]);
   }, [plannedHoles, project]);
 
