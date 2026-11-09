@@ -63,6 +63,29 @@ export function joinByProduct(cells, byCells) {
 // TASKS.csv #1353 (review #1352, Silvertip) — with no terrain the pit took ONE flat ground at the top of the highest block,
 // above every collar: 100-140 m of air was costed as waste and a paying Zn pit came out empty. The collars are surveyed points on
 // the ground: interpolated between them (inverse distance, the 4 nearest), they stand in for the terrain. collars: [{ x, y, z }].
+// TASKS.csv #2217 (review #2174, WA underground mine) — the collars are a ground surface only for surface drilling. Collars drilled from
+// underground levels (RL 82-352 under a surface at about 390, 12 holes drilled upward) made the estimate drop 3,855 of 36,267 blocks
+// 'above the ground', the upholes' grade with them. -> { underground, upward, stacked }: holes drilled upward (a collar or survey dip
+// below 0, stored as degrees below horizontal, #339) and pairs of collars within 5 m in plan but over 10 m apart in elevation. Counted
+// against the project's size: Woodjam's surface compilation (544 collars) has 2 duplicate collars with conflicting elevations, the WA
+// mine 12 upholes in 245 holes. Upward holes: at least 2 and 2 % of the holes; stacked pairs: at least 3 and 5 % of the collars.
+export function collarsLookUnderground(collars, survey = []) {
+  const up = new Set();
+  for (const c of collars || []) if (Number.isFinite(c?.dip) && c.dip < 0) up.add(c.hole_id);
+  for (const s of survey || []) if (Number.isFinite(s?.dip) && s.dip < 0) up.add(s.hole_id);
+  const pts = (collars || []).filter((c) => Number.isFinite(c?.x) && Number.isFinite(c?.y) && Number.isFinite(c?.z));
+  const cells = new Map(), key = (i, j) => `${i},${j}`;
+  let stacked = 0;
+  for (const c of pts) {
+    const i = Math.floor(c.x / 5), j = Math.floor(c.y / 5);
+    for (let di = -1; di <= 1; di++) for (let dj = -1; dj <= 1; dj++) for (const o of cells.get(key(i + di, j + dj)) || []) {
+      if (Math.hypot(o.x - c.x, o.y - c.y) <= 5 && Math.abs(o.z - c.z) > 10) stacked++;
+    }
+    (cells.get(key(i, j)) || cells.set(key(i, j), []).get(key(i, j))).push(c);
+  }
+  const n = Math.max(1, (collars || []).length);
+  return { underground: up.size >= Math.max(2, 0.02 * n) || stacked >= Math.max(3, 0.05 * n), upward: up.size, stacked };
+}
 export function collarGround(collars) {
   const pts = (collars || []).filter((c) => Number.isFinite(c?.x) && Number.isFinite(c?.y) && Number.isFinite(c?.z));
   if (!pts.length) return null;

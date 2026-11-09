@@ -29,6 +29,7 @@ import { numericSourceChoices, sourceAssays, logPoints, unlogValue } from "../li
 import DomainCaps from "./DomainCaps.jsx"; // TASKS.csv #1571
 import { solidChoices } from "../lib/solidChoices.js"; // TASKS.csv #1578
 import { lazyModal } from "../lib/lazyModal.jsx";
+import { collarsLookUnderground } from "../lib/pitShell.js"; // TASKS.csv #2217
 const GradeTonnageModal = lazyModal(() => import("./GradeTonnageModal.jsx")); // TASKS.csv #1577 — from the result, not only from Geophysics
 
 // TASKS.csv #117 — grade estimation into block models (not just display). Micromine-specialist AND
@@ -211,6 +212,9 @@ export default function GradeEstimationModal({ assays: assaysProp, assayElements
   }, [areaString, drillBox]);
   const gridBox = shellBox ? (drillBox ? overlapBox(shellBox, drillBox) || shellBox : shellBox) : areaBox ? (overlapBox(areaBox, drillBox) || areaBox) : gridMode === "checked" && checkedBounds ? checkedBounds : drillBox;
   const [belowGround, setBelowGround] = useState(() => keep("belowGround", true)); // TASKS.csv #803 — drop blocks whose centre is above the terrain
+  // TASKS.csv #2217 — with no terrain the "ground" is interpolated between the collars: not a ground at all when the holes were drilled from underground
+  const underground = useMemo(() => (groundSource === "collars" ? collarsLookUnderground(collars, survey) : null), [groundSource, collars, survey]);
+  const cutAtGround = belowGround && !underground?.underground;
   const [modelName, setModelName] = useState("");
   const [result, setResult] = useState(null); // { cells, blocksEstimated, blocksSkipped, grid, samplePointCount, droppedCount } | null
   const [error, setError] = useState("");
@@ -450,7 +454,7 @@ export default function GradeEstimationModal({ assays: assaysProp, assayElements
           est.blocksSkipped += outsideArea; est.blocksEstimated = est.cells.length;
           est.cutOutsideArea = outsideArea;
         }
-        if (groundAt && belowGround) {
+        if (groundAt && cutAtGround) { // cutAtGround: #2217
           const before = est.cells.length;
           est.cells = est.cells.filter((c) => { const g = groundAt(c.x, c.y); return !(Number.isFinite(g) && c.z > g); });
           const cut = before - est.cells.length;
@@ -655,9 +659,10 @@ export default function GradeEstimationModal({ assays: assaysProp, assayElements
           {/* TASKS.csv #803 */}
           {groundAt && (
             <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", cursor: "pointer" }} title={groundSource === "collars" ? tr("The grid is padded around the samples, so near the surface its top layers can be in the air. With no terrain loaded the ground is interpolated between the collar elevations (as the pit shell takes it); ticked, a block whose centre is above it is left out.") : tr("The grid is padded around the samples, so near the surface its top layers can be in the air. Ticked, a block whose centre is above the terrain is left out.")}>
-              <input type="checkbox" checked={belowGround} onChange={(e) => setBelowGround(e.target.checked)} />{groundSource === "collars" ? tr("Only blocks below the ground (interpolated between the collars: no terrain)") : tr("Only blocks below the terrain surface")}
+              <input type="checkbox" checked={cutAtGround} disabled={!!underground?.underground} onChange={(e) => setBelowGround(e.target.checked)} />{groundSource === "collars" ? tr("Only blocks below the ground (interpolated between the collars: no terrain)") : tr("Only blocks below the terrain surface")}
             </label>
           )}
+          {underground?.underground && <div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", margin: "2px 0 6px 22px", lineHeight: 1.4 }}>{tr("Off: the collars look like underground collars ({upward} hole(s) drilled upward, {stacked} pair(s) of collars stacked over each other), so they are not a ground surface and no block is cut. Load a terrain to cut at the surface.", { upward: underground.upward, stacked: underground.stacked })}</div>}{/* #2217 */}
           {/* TASKS.csv #517 — a modelled unit volume (or an imported closed solid) as a hard domain boundary */}
           {volumeShells.length > 0 && (
             <label style={fieldLabel} title={tr("Only samples inside this closed solid inform the estimate, and only blocks whose centre is inside it are kept — e.g. Au inside the modelled DACT. Build unit volumes from an implicit model (3D Modelling, after a stack run: Add unit volumes).")}>{tr("Restrict to a modelled volume")}<select value={shellId} onChange={(e) => setShellId(e.target.value)} style={inp} aria-label={tr("Restrict to a modelled volume")}>
