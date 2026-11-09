@@ -611,6 +611,11 @@ ppm; the 14 Superseded rows dropped), the gamma log's no-data codes (-1 and -1,8
 (43,923 readings), and the gamma log loads as the numeric custom layer "Gamma eU3O8 (ppm)" through `src/lib/sampleWaUranium.js`
 rather than by hand. The sample is the fifth card on the empty 3D View and the fifth entry of File > Open Sample Project.
 
+Correction, 2026-11-09 (TASKS #2323): the geology table keeps every re-log with a `Superseded` flag, and 13,624 of its 22,407 rows are
+superseded versions that overlap the current log in 407 holes. The first build of the sample (shipped in v0.1.106) included them all; the
+sample's lithology is now the 8,783 current intervals, with the company's stratigraphic unit carried as a `strat` column. The 22,407 figure
+elsewhere in this report is the raw table's row count, which is right; any conclusion drawn from it about logged metres is 2.5 times too high.
+
 ## 7. Proposed TASKS rows (module, feature, priority, notes) — paste-ready, pending Matt's approval
 
 Each row's notes name the evidence (file under C:\GeoStrixData\wa-drillholes) and the code to touch. Priorities follow the brief: wrong numbers

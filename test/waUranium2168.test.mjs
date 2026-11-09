@@ -24,7 +24,7 @@ test("each drill table goes to its layer with every required column mapped", () 
   assert.ok(table("collars.csv").headers.some((h) => EPSG_COL_ALIASES.includes(h.toLowerCase())), "the collars carry an epsg column");
 });
 
-test("430 vertical holes in MGA zone 51, a survey station for each, 22,407 lithology intervals", () => {
+test("430 vertical holes in MGA zone 51, a survey station for each, 8,783 current lithology intervals that do not overlap", () => {
   const c = table("collars.csv").rows;
   assert.equal(c.length, 430);
   assert.equal(WA_URANIUM_EPSG, 28351);
@@ -34,9 +34,16 @@ test("430 vertical holes in MGA zone 51, a survey station for each, 22,407 litho
   assert.equal(sv.length, 430);
   c.forEach((r) => assert.ok(holes.has(r.hole_id), r.hole_id));
   assert.ok(sv.every((r) => r.depth === 0 && r.dip === -90), "every hole is vertical");
+  // TASKS.csv #2323 — the current log only: the first build shipped the 13,624 superseded re-logs too (22,407 rows, 14,983 overlapping pairs)
   const li = table("litho.csv").rows;
-  assert.equal(li.length, 22407);
+  assert.equal(li.length, 8783);
   assert.ok(li.every((r) => r.to > r.from && r.lithology));
+  assert.ok(li.filter((r) => r.strat).length > 8500, "the stratigraphic unit rides along");
+  const byHole = new Map();
+  li.forEach((r) => { if (!byHole.has(r.hole_id)) byHole.set(r.hole_id, []); byHole.get(r.hole_id).push([r.from, r.to]); });
+  let overlaps = 0;
+  byHole.forEach((iv) => { iv.sort((a, b) => a[0] - b[0]); for (let k = 1; k < iv.length; k++) if (iv[k][0] < iv[k - 1][1] - 1e-9) overlaps++; });
+  assert.ok(overlaps <= 5, `${overlaps} overlapping lithology intervals (5 are in the company's current log)`);
   assert.equal(table("alt.csv").rows.length, 2003);
 });
 

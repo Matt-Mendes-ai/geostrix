@@ -34,8 +34,11 @@ const holes = new Set(collars.map((c) => c.hole_id));
 write("survey.csv", ["hole_id", "depth", "azimuth", "dip"], read("survey.csv").map((r) => ({ hole_id: txt(r.Hole_ID), depth: num(r.Depth), azimuth: num(r.AMG_Azimuth), dip: num(r.Dip) }))
   .filter((r) => holes.has(r.hole_id) && r.depth != null && r.azimuth != null && r.dip != null));
 
-// lithology: the primary code, its oxidation state and the geologist's comment
-write("litho.csv", ["hole_id", "from", "to", "lithology", "oxidation", "description"], read("geology.csv").map((r) => ({ hole_id: txt(r.Hole_ID), from: num(r.From), to: num(r.To), lithology: txt(r.Lith1_Code), oxidation: txt(r.Lith1_Oxidation), description: txt(r.Comments) }))
+// lithology: the CURRENT log only. The table keeps every re-log: 13,624 of its 22,407 rows are flagged Superseded = TRUE and overlap the
+// current intervals in 407 holes (TASKS.csv #2323: the first build of this sample shipped them all). The primary code, the company's
+// stratigraphic unit (QA, I, H, G2, G1, F2 ... Dcb: the palaeochannel sequence down to basement), the oxidation state and the comment.
+write("litho.csv", ["hole_id", "from", "to", "lithology", "strat", "oxidation", "description"], read("geology.csv").filter((r) => txt(r.Superseded).toUpperCase() !== "TRUE")
+  .map((r) => ({ hole_id: txt(r.Hole_ID), from: num(r.From), to: num(r.To), lithology: txt(r.Lith1_Code), strat: txt(r.Lith1_Strat), oxidation: txt(r.Lith1_Oxidation), description: txt(r.Comments) }))
   .filter((r) => holes.has(r.hole_id) && r.from != null && r.to != null && r.to > r.from && r.lithology));
 
 // alteration: first code and intensity
