@@ -22,7 +22,7 @@ test("Identify lists a collar's fields and its kept columns", () => {
 
 test("wired: the import keeps them and says so; the marker carries its collar; Identify reads it", () => {
   const p = readFileSync(new URL("../src/modules/viewer/useImportPipeline.js", import.meta.url), "utf8");
-  assert.match(p, /\.\.\.surfaceAttrs\(r, attrCols\), \/\/ #1504/);
+  assert.match(p, /\.\.\.(withHoleType\()?surfaceAttrs\(r, attrCols\)(, r\))?, \/\/ #1504/); // withHoleType: #2161
   assert.match(p, /more column\(s\) kept with each hole/);
   assert.match(p, /no survey loaded, so each hole is drawn straight/);
   const v = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");

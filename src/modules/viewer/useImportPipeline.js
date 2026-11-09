@@ -24,6 +24,7 @@ const isXlsxName = (name) => /\.xlsx$/i.test(String(name || "")); // TASKS.csv #
 import { buildLayer, sameMapLayer } from "../../lib/mapLayerBuild.js"; // TASKS.csv #609; sameMapLayer: #2019
 import { askAdoptCrs } from "../../lib/adoptCrs.js"; // TASKS.csv #607
 import { requestProjectCrs } from "../../lib/projectCrsRequest.js"; // TASKS.csv #615
+import { holeTypeColumn, normalizeHoleType } from "../../lib/holeType.js"; // TASKS.csv #2161
 import { isNullSentinel, LAYER_META, TARGET_SCHEMAS, guessColumn, guessColumnExact, guessMapping, guessTargetFor, schemaSatisfied, num, replaceRowsByHole, keepDerivedPicks, isDerivedPick, replaceNote, EPSG_COL_ALIASES, diffCollarImport, mergeCollar, minMax, pickRankedCollarRows } from "../../lib/layers.js";
 import { alterationStyleFromName, styledAltValue } from "../../lib/viewer/importHelpers.js"; // TASKS.csv #1511
 import { fillDownHoleIds, numberedSiblings, allCodesOf, normInterval, applyCustomFields, normNumericInterval, normStructure, skippedRowsText, strikeStats, loadRaster, looksLikeAssay, isSurfaceSampleTable, parseVectorFile, groupShapefileParts, orderImportFiles } from "../../lib/viewer/importHelpers.js"; // groupShapefileParts / orderImportFiles: #600
@@ -336,6 +337,9 @@ export function useImportPipeline(ctx) {
       // TASKS.csv #1504 (review #1497, Lawyers) — the collar file's other columns (year, drill type, prospect, status, dates, comments)
       // were dropped without a word: kept as attrs (the surface-sample rule, #841: a column with up to 100 distinct values, or free text)
       const attrCols = surfaceAttrColumns(allRows.length ? Object.keys(allRows[0]) : [], ranked.rows, { ...mapping, _epsg: perRowEpsgCol || null, ...Object.fromEntries((customFields || []).map((f, k) => [`_c${k}`, f.column])) });
+      // TASKS.csv #2161 — the drilling method normalized ("hole type": RC, Diamond (DD), RC + diamond tail, Aircore (AC), RAB...) beside the file's own column
+      const htCol = holeTypeColumn(allRows.length ? Object.keys(allRows[0]) : []);
+      const withHoleType = (a, r) => { const ht = htCol ? normalizeHoleType(r[htCol]) : null; return ht ? { attrs: { ...(a.attrs || {}), "hole type": ht } } : a; };
       let rows = ranked.rows.map((r) => applyCustomFields({
         // TASKS.csv #337 — num(): a blank cell is missing (NaN), not 0 (a blank RL used to put the collar at sea level).
         hole_id: String(r[mapping.hole_id] ?? "").trim(), x: num(r[mapping.x]), y: num(r[mapping.y]), z: num(r[mapping.z]),
@@ -345,7 +349,7 @@ export function useImportPipeline(ctx) {
         // Per-row source EPSG (TASKS.csv #205), carried alongside the row only long enough to drive
         // the reprojection pass below — stripped before the collar is stored.
         _rowEpsg: perRowEpsgCol ? String(r[perRowEpsgCol] ?? "").trim() : "",
-        ...surfaceAttrs(r, attrCols), // #1504
+        ...withHoleType(surfaceAttrs(r, attrCols), r), // #1504; hole type: #2161
       }, r, customFields));
       // TASKS.csv #337 — a collar without all three coordinates can't be placed; skip it and say which,
       // instead of the old behaviour of keeping it at z = 0.
