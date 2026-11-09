@@ -483,6 +483,7 @@ export default function GeochemModule() {
     // on its element so the immobile-element tools can say when a partial digestion measured them
     const chosen = elements.filter((e) => e.checked).map((e) => { const ms = format === "wide" ? methodsIn(allRows, methodColumnFor(modal.headers || Object.keys(allRows[0] || {}), e.symbol)) : selectedMethod ? [String(selectedMethod)] : []; return ms.length ? { ...e, methods: ms } : e; });
     if (!mapping.hole_id || !mapping.from || !mapping.to) { setNotices((p) => [...p, errorNotice(tr("Map hole ID, from, and to columns."))]); return; }
+    if (!chosen.length) { setNotices((p) => [...p, errorNotice(tr("Tick or add at least one element to import."))]); return; } // TASKS.csv #2183
     // TASKS.csv #1963 — a table pulled from a database: its record (profile, schema, table, these element and option choices)
     if (modal.file?.dbSource?.profile && store.setDbImports) { const rec = dbImportRecord(modal, modal.file.dbSource, "assays"); if (rec) store.setDbImports((prev) => upsertDbImport(prev, rec)); }
     // TASKS.csv #334 — the project keeps ONE unit per element (assayElements) and valueIn reads every

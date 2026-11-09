@@ -61,7 +61,7 @@ test("cancelling between chunks stops the scan", async () => {
 
 test("the dialog waits for the check before Import, and says so", () => {
   const src = readFileSync(new URL("../src/components/AssayImportModal.jsx", import.meta.url), "utf8");
-  assert.ok(src.includes("disabled={!!modal.busy || !scan}"));
+  assert.ok(src.includes("disabled={!!modal.busy || !scan || checkedCount === 0}")); // checkedCount: #2183
   assert.ok(src.includes('tr("Checking the values for negatives, zeros and empty cells… {pct}%"'));
   assert.ok(!src.includes("negByColumn"), "no per-column rescans left");
 });

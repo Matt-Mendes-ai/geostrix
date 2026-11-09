@@ -9446,5 +9446,6 @@
   "{fileName}: {n} value(s) written as a no-data code (-999, -999.25, -9999, -99999) were read as missing: {cols}.": "{fileName}: {n} valor(es) escritos como código sem dado (-999, -999.25, -9999, -99999) foram lidos como ausentes: {cols}.",
   "Weathering": "Intemperismo",
   "blank code": "código em branco",
-  "{col} is blank on {pct} % of the rows ({n} of {m}): those rows have no code and are skipped.": "{col} está em branco em {pct} % das linhas ({n} de {m}): essas linhas não têm código e são ignoradas."
+  "{col} is blank on {pct} % of the rows ({n} of {m}): those rows have no code and are skipped.": "{col} está em branco em {pct} % das linhas ({n} de {m}): essas linhas não têm código e são ignoradas.",
+  "Tick or add at least one element to import.": "Marque ou adicione ao menos um elemento para importar."
 }

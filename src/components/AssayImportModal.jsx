@@ -250,7 +250,9 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
 
         <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: "1px solid var(--color-border)" }}>
           <button onClick={onCancel} style={{ ...btn(false), flex: 1 }}>{tr("Cancel")}</button>
-          <button onClick={onCommit} disabled={!!modal.busy || !scan} /* !scan: #2164 */ style={{ ...btn(true), flex: 2, opacity: modal.busy || !scan ? 0.6 : 1 }}>{modal.busy ? tr("Importing…") : tr(checkedCount === 1 ? "Import {checkedCount} element" : "Import {checkedCount} elements", { checkedCount })}</button>{/* busy: #583 */}
+          {/* TASKS.csv #2183 (review #2174) — 'Import 0 elements' committed 10,422 intervals with no values */}
+          {checkedCount === 0 && !modal.busy && scan && <div role="note" style={{ alignSelf: "center", flex: 2, fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)" }}>{tr("Tick or add at least one element to import.")}</div>}
+          <button onClick={onCommit} disabled={!!modal.busy || !scan || checkedCount === 0} /* !scan: #2164; 0 elements: #2183 */ style={{ ...btn(true), flex: 2, opacity: modal.busy || !scan || checkedCount === 0 ? 0.6 : 1 }}>{modal.busy ? tr("Importing…") : tr(checkedCount === 1 ? "Import {checkedCount} element" : "Import {checkedCount} elements", { checkedCount })}</button>{/* busy: #583 */}
         </div>
       </div>
     </div>
