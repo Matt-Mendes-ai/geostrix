@@ -54,7 +54,7 @@ export default function DownholeLogsPane({ layers, customLayers = [], assays = [
   const vs = useMemo(() => (data && el ? logVsAssay(data.assays, data.symbol, assays, el, elementUnits) : null), [data, assays, el, elementUnits]);
   const unitOf = (u) => (u === "as logged" ? "" : u);
   // TASKS.csv #1595 — against a block model evaluated onto the holes (Block models > Evaluate onto drillholes)
-  const onHoles = useMemo(() => customLayers.filter((l) => (l.rows || []).some((r) => r.modelled && r.numeric)) /* rows from Evaluate (the store's copy keeps only id / name / rows) */, [customLayers]);
+  const onHoles = useMemo(() => customLayers.filter((l) => (l.rows || []).some((r) => r.modelled && (r.numeric || (typeof r.value === "number" && Number.isFinite(r.value))))) /* rows from Evaluate (the store's copy keeps only id / name / rows). #2240: and drops 'numeric', so a modelled row with a number counts (categorical evaluations carry text) */, [customLayers]);
   const [modelLayerId, setModelLayerId] = useState("");
   const modelLayer = onHoles.find((l) => String(l.id) === modelLayerId) || onHoles[0] || null;
   const vm = useMemo(() => (data && modelLayer ? logVsModel(data.assays, data.symbol, modelLayer.rows) : null), [data, modelLayer]);
