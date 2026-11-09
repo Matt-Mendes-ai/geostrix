@@ -90,6 +90,7 @@ import { lidarResultToProject, CLASS_NAMES } from "../lib/lidar.js"; // TASKS.cs
 import { fillNoData } from "../lib/demFill.js"; // TASKS.csv #1994
 import { offersGradeTonnage } from "../lib/gradeTonnage.js"; // TASKS.csv #1592
 import { collarsLookUnderground } from "../lib/pitShell.js"; // TASKS.csv #2263
+import { projectTargetEpsg } from "../lib/projectTarget.js"; // TASKS.csv #2287 — no reprojection INTO the placeholder CRS
 const GradeTonnageModal = lazyModal(() => import("../components/GradeTonnageModal.jsx")); // TASKS.csv #1052 — loaded when opened
 
 // TASKS.csv #309 — the format reference that USED to be this tab's entire empty state: a twelve-line
@@ -403,7 +404,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     if (!file) return;
     setRasterError({ info: true, text: tr("Importing {name}…", { name: file.name }) }); // a large GeoTIFF takes a few seconds
     try {
-      const { raster, msg } = await buildRasterImport(file, { epsg: project?.epsg, defaultElevation, chooseProjectEpsg: projectEpsgChooser({ isEmpty: projectIsEmpty, setEpsg, fileName: file.name }) }); // #607
+      const { raster, msg } = await buildRasterImport(file, { epsg: projectTargetEpsg(project), defaultElevation, chooseProjectEpsg: projectEpsgChooser({ isEmpty: projectIsEmpty, setEpsg, fileName: file.name }) }); // #607
       const drape = rasterDrapeElevation({ collars, voxelModels, surfaceSamples, bbox: raster.bbox, rasters, fileName: file.name }); // #1856; #1505
       addRaster({ ...raster, elevation: drape.z });
       setRasterError({ info: true, text: tr("{msg} (Tip: raster imports now have their own \"Raster\" tab — this drop still works here too.)", { msg: `${msg} ${drapeElevationNote(drape)}` }) });
@@ -885,7 +886,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       // in the import handlers), as the map-layer importer does: alone, a zone 9N file landed 409 km off as 'it states no CRS'
       const parts = file.shpParts || {};
       const parsed = name.endsWith(".zip") ? await parseShapefileZip(buf) : parseShapefileParts({ shp: new Uint8Array(buf), dbf: parts.dbf ? new Uint8Array(await parts.dbf.arrayBuffer()) : null, cpg: parts.cpg ? await parts.cpg.text() : null }, 0, parts.prj ? await parts.prj.text() : null);
-      const r = await vectorToBoundaryPolylines(parsed, project?.epsg);
+      const r = await vectorToBoundaryPolylines(parsed, projectTargetEpsg(project));
       // TASKS.csv #2122 (review #2013, Woodjam) — points are not a boundary or a claim: 8 collars became an empty '0 part(s)' boundary,
       // 691 an empty 'Active' claim of 0 ha
       if (!r.polylines.length) throw new Error(parsed.geomType === "point"
@@ -902,7 +903,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       const parts = [];
       for (const layer of layers) {
         if (!layer.features.length) continue;
-        const r = await vectorToBoundaryPolylines(layer, project?.epsg);
+        const r = await vectorToBoundaryPolylines(layer, projectTargetEpsg(project));
         if (r.polylines.length) parts.push({ ...r, table: layer.name });
       }
       if (!parts.length) throw new Error(tr("No usable features found in this GeoPackage."));

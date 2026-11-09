@@ -15,7 +15,9 @@ export async function vectorToBoundaryPolylines(parsed, projectEpsg) {
     await Promise.all([getProj4Def(src), getProj4Def(dst)]); // registry codes load on demand (#834)
     T = pointTransform(src, dst);
     note = T ? tr("reprojected from EPSG:{src} to EPSG:{dst}", { src, dst }) : tr("its CRS (EPSG:{src}) could not be converted: the coordinates were taken as EPSG:{dst}, check where it lies", { src, dst });
-  } else if (src) note = null; // already the project CRS
+  } else if (src && !dst) note = tr("the project has no coordinate system yet: its EPSG:{src} coordinates were kept as they are, check where it lies", { src }); // #2287
+  else if (src) note = null; // already the project CRS
+  else if (!dst) note = tr("neither the file nor the project states a coordinate system: the coordinates were kept as they are, check where it lies"); // #2287
   else note = parsed.prjWkt ? tr("its .prj names a CRS GeoStrix does not recognize: the coordinates were taken as EPSG:{dst}, check where it lies", { dst })
     : tr("it states no CRS: the coordinates were taken as EPSG:{dst}, check where it lies", { dst });
   const closed = parsed.geomType === "polygon";

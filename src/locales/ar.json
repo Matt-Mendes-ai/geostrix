@@ -9383,5 +9383,7 @@
   "The collars look like underground drill positions ({upward} hole(s) drilled upward, {stacked} pair(s) of collars stacked over each other): they are not used as the ground. Load a terrain (Maps > Terrain) for the real surface.": "تبدو الفوهات مواقع حفر تحت الأرض ({upward} ثقب محفور إلى أعلى، {stacked} زوج من الفوهات المتراكبة): لا تُستخدم سطحًا للأرض. حمّل تضاريس (الخرائط > التضاريس) للسطح الحقيقي.",
   "Local grid (no coordinate system set)": "شبكة محلية (لم يُحدَّد نظام إحداثيات)",
   "Coordinate grid (labelled)": "شبكة إحداثيات (مع تسميات)",
-  "This project has no coordinate system set, so true and magnetic north can't be computed. Set the CRS in the status bar; the plain arrow shows grid north.": "لا يملك هذا المشروع نظام إحداثيات محددًا، لذا لا يمكن حساب الشمال الحقيقي ولا المغناطيسي. حدِّد نظام الإحداثيات في شريط الحالة؛ يُظهر السهم البسيط شمال الشبكة."
+  "This project has no coordinate system set, so true and magnetic north can't be computed. Set the CRS in the status bar; the plain arrow shows grid north.": "لا يملك هذا المشروع نظام إحداثيات محددًا، لذا لا يمكن حساب الشمال الحقيقي ولا المغناطيسي. حدِّد نظام الإحداثيات في شريط الحالة؛ يُظهر السهم البسيط شمال الشبكة.",
+  "the project has no coordinate system yet: its EPSG:{src} coordinates were kept as they are, check where it lies": "لا يملك المشروع نظام إحداثيات بعد: احتُفظ بإحداثياته EPSG:{src} كما هي، تحقق من موقعه",
+  "neither the file nor the project states a coordinate system: the coordinates were kept as they are, check where it lies": "لا يذكر الملف ولا المشروع نظام إحداثيات: احتُفظ بالإحداثيات كما هي، تحقق من موقعه"
 }

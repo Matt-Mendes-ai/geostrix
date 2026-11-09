@@ -37,6 +37,7 @@ import { readGeoPackageNear, GPKG_IN_PLACE_BYTES } from "../lib/gpkgInPlace.js";
 import { canReadGpkgInPlace, tabSiblingShapefile } from "../lib/desktop.js"; // tabSiblingShapefile: #1349
 import CoveringLayers from "./CoveringLayers.jsx"; // TASKS.csv #1823
 import { graduatedStyle, graduatedCategories, parseBreaks, isNumericField } from "../lib/mapGraduated.js"; // TASKS.csv #1600
+import { projectTargetEpsg } from "../lib/projectTarget.js"; // TASKS.csv #2287 — no reprojection INTO the placeholder CRS
 
 export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { // part: "maps" | "structures" | null = both (TASKS.csv #458)
   const {
@@ -98,7 +99,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
     const failed = [];
     const looseShp = {};
     files.forEach((f) => { const m = lower(f).match(/\.(shp|dbf|prj|cpg)$/); if (m) (looseShp[base(f)] ||= {})[m[1]] = f; }); // #415 .cpg
-    let projectEpsg = project?.epsg, empty = projectIsEmpty; // #607 — the first layer of an empty project may set its CRS
+    let projectEpsg = projectTargetEpsg(project), empty = projectIsEmpty; // projectTargetEpsg: #2287 // #607 — the first layer of an empty project may set its CRS
     // TASKS.csv #1325 — everything is read first, then sorted, and only then added: see reviewTables below
     const queued = [];
     const addParsed = (parsed, sourceName, opts = {}) => { queued.push({ parsed, sourceName, opts }); };

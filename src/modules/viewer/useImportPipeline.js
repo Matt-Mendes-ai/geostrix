@@ -33,6 +33,7 @@ import { requestModuleAction, useModuleAction } from "../../lib/menuRequests.js"
 import { autoExtraFields, companionLayer } from "../../lib/viewer/autoExtras.js"; // TASKS.csv #1501
 import { surfaceAttrColumns, surfaceAttrs } from "../../lib/geochem.js"; // TASKS.csv #1504 — unmapped collar columns kept as attrs
 import { rasterDrapeElevation, drapeElevationNote } from "../../lib/drapeElevation.js"; // TASKS.csv #1505
+import { projectTargetEpsg } from "../../lib/projectTarget.js"; // TASKS.csv #2287 — no reprojection INTO the placeholder CRS
 
 const AZ_TARGETS = new Set(["collars", "survey", "structure"]); // TASKS.csv #1647 — tables with an azimuth
 
@@ -91,7 +92,7 @@ export function useImportPipeline(ctx) {
     adoptCrsIfEmpty(guessEpsgFromPrjWkt(parsed.prjWkt), file.name); // #607
     const live = importStateRef.current;
     const sourceName = file.name.replace(/\.(shp|zip)$/i, "");
-    const layer = buildLayer({ ...parsed, epsg: guessEpsgFromPrjWkt(parsed.prjWkt) }, { sourceName, projectEpsg: live.project?.epsg, qml: null, sourceOverride: null });
+    const layer = buildLayer({ ...parsed, epsg: guessEpsgFromPrjWkt(parsed.prjWkt) }, { sourceName, projectEpsg: projectTargetEpsg(live.project), qml: null, sourceOverride: null });
     if (!layer) { setNotices((p) => [...p, notice("{name}: no usable line / polygon features.", { name: file.name })]); return; }
     const twin = sameMapLayer(live.mapLayers, layer); // #2019 — the same file again: not a second copy
     if (twin) { setNotices((p) => [...p, notice("{name} is already in Map layers as \"{layer}\" ({features}): not added again.", { name: file.name, layer: twin.name, features: featureCountText(layer.features.length, layer.geomType) })]); return; }
@@ -146,7 +147,7 @@ export function useImportPipeline(ctx) {
       try {
         const live = importStateRef.current;
         const chooseProjectEpsg = (src, cur) => adoptCrsIfEmpty(src, file.name) || cur; // #607
-        const { raster, msg } = await (await loadRaster()).buildRasterImport(file, { epsg: live.project?.epsg ?? project?.epsg, defaultElevation, chooseProjectEpsg });
+        const { raster, msg } = await (await loadRaster()).buildRasterImport(file, { epsg: projectTargetEpsg(live.project || project), defaultElevation, chooseProjectEpsg });
         const drape = rasterDrapeElevation({ collars: live.collars || collars, voxelModels: live.voxelModels || [], surfaceSamples: live.surfaceSamples || [], bbox: raster.bbox, rasters: live.rasters || [], fileName: file.name }); // #1505
         addRaster({ ...raster, elevation: drape.z });
         setNotices((p) => [...p, notice("{msg} {v} Set its opacity (or a Source CRS, if it landed in the wrong place) on the Maps tab.", { msg, v: drapeElevationNote(drape) })]);
