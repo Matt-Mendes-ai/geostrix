@@ -409,7 +409,11 @@ export function syncSurfaceStructures(group, cache, surfaceStructures, { origin,
       inst.setMatrixAt(i, m);
       inst.setColorAt(i, col.set(STRUCTURE_CLASS_COLORS[r.cls] || STRUCTURE_CLASS_COLORS.other));
       down.set(Math.sin(dd) * Math.cos(dp), -Math.sin(dp), -Math.cos(dd) * Math.cos(dp)).multiplyScalar(size * 0.75);
-      tickPos.set([p.x, p.y, p.z, p.x + down.x, p.y + down.y, p.z + down.z], i * 6);
+      // TASKS.csv #2084 (review #2013, Surface Geology) — the tick lay IN the disc's plane, inside its thin slab: from above the top face hid it
+      // except past the rim, so 35° -> 120 and 35° -> 300 drew the same ellipse. It now sits just above the upper face (along the pole), so in
+      // plan it runs from the centre toward the dip direction, long for a shallow dip, short for a steep one.
+      const lx = pole.x * size * 0.04, ly = pole.y * size * 0.04, lz = pole.z * size * 0.04;
+      tickPos.set([p.x + lx, p.y + ly, p.z + lz, p.x + lx + down.x, p.y + ly + down.y, p.z + lz + down.z], i * 6);
     });
     inst.instanceMatrix.needsUpdate = true;
     if (inst.instanceColor) inst.instanceColor.needsUpdate = true;
