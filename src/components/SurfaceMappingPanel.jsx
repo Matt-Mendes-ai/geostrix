@@ -411,7 +411,9 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
     // TASKS.csv #547 — dip directions / strikes measured from true or magnetic north -> project grid north, per location
     let northNote = "", rows = out.rows;
     if (north.ref !== "grid") {
-      if (!dst) { setStructMsg({ ok: false, text: tr("The project has no coordinate system yet, so true / magnetic north can't be converted to grid north. Choose the project CRS first.") }); return; }
+      // TASKS.csv #2262 — dst is the PLACEHOLDER epsg while the CRS is not set (truthy), so this message never showed and the convergence of
+      // BC UTM 9N was applied to a WA mine grid: test crsSet too
+      if (!dst || project?.crsSet === false) { setStructMsg({ ok: false, text: tr("The project has no coordinate system yet, so true / magnetic north can't be converted to grid north. Choose the project CRS first.") }); return; }
       if (north.ref === "magnetic") { try { await loadIgrf(); } catch { setStructMsg({ ok: false, text: tr("Couldn't load the magnetic field model (IGRF) — nothing was imported.") }); return; } }
       const c = bearingsToGrid(out.rows, north.ref, dst, north.date);
       rows = c.rows;
@@ -455,7 +457,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
       </div>
       <SourceCrsField
         value={mapSourceEpsg} onChange={(c) => setMapSourceEpsg(c === "" ? "" : String(c))}
-        defaultText={tr("From the file (.prj / GeoPackage), else the project CRS ({v})", { v: crsName(project?.epsg) || tr("EPSG:{v}", { v: project?.epsg ?? "?" }) })}
+        defaultText={project?.crsSet === false ? tr("From the file (.prj / GeoPackage), else the project CRS (not chosen yet)") /* #2262 */ : tr("From the file (.prj / GeoPackage), else the project CRS ({v})", { v: crsName(project?.epsg) || tr("EPSG:{v}", { v: project?.epsg ?? "?" }) })}
         title={tr("Leave it on the file's own CRS. Change it when a shapefile has no .prj or a wrong one.")}
       />
       <button onClick={() => mapInput.current.click()} style={pBtn} disabled={busy} title={tr("Formats: GeoPackage, shapefile (.zip / .shp), MapInfo .tab / .mif, .gpx, .geojson, .kml")}>
@@ -651,7 +653,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
           )}
           <SourceCrsField
             value={pendingStruct.sourceEpsg ?? ""} onChange={(c) => setPendingStruct((p) => ({ ...p, sourceEpsg: c === "" ? "" : String(c) }))}
-            defaultText={tr("Same as project — {v}", { v: crsName(project?.epsg) || tr("EPSG:{v}", { v: project?.epsg ?? "?" }) })}
+            defaultText={project?.crsSet === false ? tr("The project CRS — not chosen yet") /* #2262 */ : tr("Same as project — {v}", { v: crsName(project?.epsg) || tr("EPSG:{v}", { v: project?.epsg ?? "?" }) })}
             title={tr("The CRS of this file's easting/northing. It is reprojected into the project CRS on import.")}
           />
           <AzimuthRefPicker value={pendingStruct.north} onChange={(n) => setPendingStruct((p) => ({ ...p, north: n }))} selectStyle={select} labelStyle={lbl} rowStyle={row} />
