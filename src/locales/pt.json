@@ -9482,5 +9482,7 @@
   "Outline anyway?": "Delinear mesmo assim?",
   "Cancelled: nothing was outlined.": "Cancelado: nada foi delineado.",
   "Outlining level {k} of {n}: cancel": "Delineando o nível {k} de {n}: cancelar",
-  "Outlining: cancel": "Delineando: cancelar"
+  "Outlining: cancel": "Delineando: cancelar",
+  "Showing {n} of {total}: narrow them with the filters above, or": "Mostrando {n} de {total}: restrinja com os filtros acima, ou",
+  "Show {k} more": "Mostrar mais {k}"
 }

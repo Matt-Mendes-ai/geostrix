@@ -9020,7 +9020,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       )}
       {interceptsModalOpen && (
         <BoundaryInterceptsModal
-          intercepts={computeIntercepts()}
+          getIntercepts={computeIntercepts}
           excludedIntercepts={excludedIntercepts}
           softIntercepts={softIntercepts}
           onToggle={toggleExcludedIntercept}

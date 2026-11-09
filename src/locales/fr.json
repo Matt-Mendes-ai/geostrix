@@ -9482,5 +9482,7 @@
   "Outline anyway?": "Délimiter quand même ?",
   "Cancelled: nothing was outlined.": "Annulé : rien n'a été délimité.",
   "Outlining level {k} of {n}: cancel": "Délimitation du niveau {k} sur {n} : annuler",
-  "Outlining: cancel": "Délimitation : annuler"
+  "Outlining: cancel": "Délimitation : annuler",
+  "Showing {n} of {total}: narrow them with the filters above, or": "{n} sur {total} affichés : affinez avec les filtres ci-dessus, ou",
+  "Show {k} more": "Afficher {k} de plus"
 }

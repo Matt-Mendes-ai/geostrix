@@ -9482,5 +9482,7 @@
   "Outline anyway?": "أترسم الحدود على أي حال؟",
   "Cancelled: nothing was outlined.": "أُلغي: لم تُرسم أي حدود.",
   "Outlining level {k} of {n}: cancel": "رسم المستوى {k} من {n}: إلغاء",
-  "Outlining: cancel": "جارٍ الرسم: إلغاء"
+  "Outlining: cancel": "جارٍ الرسم: إلغاء",
+  "Showing {n} of {total}: narrow them with the filters above, or": "يُعرض {n} من {total}: ضيّقها بالمرشحات أعلاه، أو",
+  "Show {k} more": "اعرض {k} أخرى"
 }

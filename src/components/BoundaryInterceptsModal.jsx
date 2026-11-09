@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { X, Milestone, CheckSquare, Square, Download, Circle, Layers, Plus, Trash2 } from "./icons.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { toExportCsv, crsCell } from "../lib/tabular.js"; // TASKS.csv #444; crsCell: #1053
@@ -30,8 +30,16 @@ import { usePrompt } from "./usePrompt.jsx"; // TASKS.csv #1779
 // sets every pick of it anywhere on the property is forced onto a single surface.
 // The set column only appears once a set has been created and selected for editing, so the table is
 // unchanged for anyone not using the feature.
-export default function BoundaryInterceptsModal({ intercepts, excludedIntercepts, softIntercepts, onToggle, onToggleSoft, onCancel,
+// TASKS.csv #2209 (review #2174, WA gold) — 13,759 intercepts: the 3D view passed computeIntercepts() as a prop, so every viewer change
+// (a layer eye, a hover) recomputed them and re-rendered every row: 1.2-2.1 s per toggle and a 670 MB heap while open. Now the modal takes
+// one snapshot when it opens (getIntercepts), shows the rows a page at a time, and keeps the row elements until what they show changes.
+export const INTERCEPT_PAGE = 500;
+export default function BoundaryInterceptsModal({ intercepts: interceptsProp = null, getIntercepts = null, excludedIntercepts, softIntercepts, onToggle, onToggleSoft, onCancel,
   interceptSets = [], onAddSet, onRenameSet, onDeleteSet, onToggleInSet, onSetMembership }) {
+  const [snapshot] = useState(() => (getIntercepts ? getIntercepts() || [] : null)); // #2209 — computed once, when the modal opens
+  const intercepts = snapshot || interceptsProp || [];
+  const handlers = useRef(null);
+  handlers.current = { onToggle, onToggleSoft, onToggleInSet }; // the memoized rows call the latest handlers
   const [askPrompt, promptEl] = usePrompt(); // TASKS.csv #1779 — window.prompt throws in Electron
   const { project } = useStore(); // #1053
   useEscapeKey(onCancel); // TASKS.csv #238
@@ -58,6 +66,34 @@ export default function BoundaryInterceptsModal({ intercepts, excludedIntercepts
     (unitFilter === "all" || i.unit === unitFilter) &&
     (!holeFilter || i.hole_id.toLowerCase().includes(holeFilter.toLowerCase()))
   ), [intercepts, layerFilter, unitFilter, holeFilter]);
+
+  const [limit, setLimit] = useState(INTERCEPT_PAGE); // #2209 — a page of rows; filters narrow, "Show more" adds a page
+  useEffect(() => { setLimit(INTERCEPT_PAGE); }, [layerFilter, unitFilter, holeFilter]);
+  const editingId = editingSet?.id || "";
+  const rowEls = useMemo(() => shown.slice(0, limit).map((i) => {
+    const excluded = excludedSet.has(i.id);
+    const soft = softSet.has(i.id);
+    return (
+      <tr key={i.id} style={{ borderTop: "1px solid var(--color-border-subtle)", opacity: excluded ? 0.45 : 1 }}>
+        <td role="button" tabIndex={0} onKeyDown={activateOnKey} style={{ ...td, cursor: "pointer" }} onClick={() => handlers.current.onToggle(i.id)} title={excluded ? tr("Excluded — click to include") : tr("Included — click to exclude")}>
+          {excluded ? <Square size={14} color="#55606e" /> : <CheckSquare size={14} color="#7fd9c9" />}
+        </td>
+        <td role="button" tabIndex={0} onKeyDown={activateOnKey} style={{ ...td, cursor: excluded ? "default" : "pointer" }} onClick={() => !excluded && handlers.current.onToggleSoft(i.id)} title={soft ? tr("Soft (approximate) — click to make hard again") : tr("Hard (exact) — click to make soft")}>
+          {soft ? <Circle size={12} color="#e2a63c" fill="#e2a63c" /> : <Circle size={12} color="#c7ccd3" />}
+        </td>
+        {editingId && (
+          <td role="button" tabIndex={0} onKeyDown={activateOnKey} style={{ ...td, cursor: "pointer" }} onClick={() => handlers.current.onToggleInSet?.(editingId, i.id)} title={memberSet.has(i.id) ? tr("In the set being edited — click to remove") : tr("Not in the set being edited — click to add")}>
+            {memberSet.has(i.id) ? <CheckSquare size={14} color="#8a6a1f" /> : <Square size={14} color="#c7ccd3" />}
+          </td>
+        )}
+        <td style={td}>{i.layerLabel}</td>
+        <td style={td}>{i.hole_id}</td>
+        <td style={td}>{i.unit}</td>
+        <td style={td}>{i.from.toFixed(1)}</td>
+        <td style={{ ...td, color: "var(--color-text-secondary)" }}>{i.x.toFixed(0)}, {i.y.toFixed(0)}, {i.z.toFixed(0)}</td>
+      </tr>
+    );
+  }), [shown, limit, excludedSet, softSet, memberSet, editingId]);
 
   const excludedCount = intercepts.filter((i) => excludedSet.has(i.id)).length;
   const softCount = intercepts.filter((i) => softSet.has(i.id)).length;
@@ -155,32 +191,15 @@ export default function BoundaryInterceptsModal({ intercepts, excludedIntercepts
                   </tr>
                 </thead>
                 <tbody>
-                  {shown.map((i) => {
-                    const excluded = excludedSet.has(i.id);
-                    const soft = softSet.has(i.id);
-                    return (
-                      <tr key={i.id} style={{ borderTop: "1px solid var(--color-border-subtle)", opacity: excluded ? 0.45 : 1 }}>
-                        <td role="button" tabIndex={0} onKeyDown={activateOnKey} style={{ ...td, cursor: "pointer" }} onClick={() => onToggle(i.id)} title={excluded ? tr("Excluded — click to include") : tr("Included — click to exclude")}>
-                          {excluded ? <Square size={14} color="#55606e" /> : <CheckSquare size={14} color="#7fd9c9" />}
-                        </td>
-                        <td role="button" tabIndex={0} onKeyDown={activateOnKey} style={{ ...td, cursor: excluded ? "default" : "pointer" }} onClick={() => !excluded && onToggleSoft(i.id)} title={soft ? tr("Soft (approximate) — click to make hard again") : tr("Hard (exact) — click to make soft")}>
-                          {soft ? <Circle size={12} color="#e2a63c" fill="#e2a63c" /> : <Circle size={12} color="#c7ccd3" />}
-                        </td>
-                        {editingSet && (
-                          <td role="button" tabIndex={0} onKeyDown={activateOnKey} style={{ ...td, cursor: "pointer" }} onClick={() => onToggleInSet?.(editingSet.id, i.id)} title={memberSet.has(i.id) ? tr("In the set being edited — click to remove") : tr("Not in the set being edited — click to add")}>
-                            {memberSet.has(i.id) ? <CheckSquare size={14} color="#8a6a1f" /> : <Square size={14} color="#c7ccd3" />}
-                          </td>
-                        )}
-                        <td style={td}>{i.layerLabel}</td>
-                        <td style={td}>{i.hole_id}</td>
-                        <td style={td}>{i.unit}</td>
-                        <td style={td}>{i.from.toFixed(1)}</td>
-                        <td style={{ ...td, color: "var(--color-text-secondary)" }}>{i.x.toFixed(0)}, {i.y.toFixed(0)}, {i.z.toFixed(0)}</td>
-                      </tr>
-                    );
-                  })}
+                  {rowEls}
                 </tbody>
               </table>
+              {shown.length > limit && ( /* #2209 */
+                <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", borderTop: "1px solid var(--color-border-subtle)", fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>
+                  {tr("Showing {n} of {total}: narrow them with the filters above, or", { n: limit.toLocaleString(), total: shown.length.toLocaleString() })}
+                  <button onClick={() => setLimit((l) => l + INTERCEPT_PAGE)} style={miniBtn}>{tr("Show {k} more", { k: Math.min(INTERCEPT_PAGE, shown.length - limit).toLocaleString() })}</button>
+                </div>
+              )}
             </div>
           )}
         </div>
