@@ -24,6 +24,7 @@ import { groupOverlaps, groupOfCode } from "../../lib/lithoGroups.js"; // TASKS.
 import GradeTonnageLauncher from "../../components/GradeTonnageLauncher.jsx"; // TASKS.csv #1577
 import { useStore } from "../../lib/store.jsx";
 import { numericLayerFields } from "../../lib/evidenceSources.js"; // TASKS.csv #1574 — the numeric fields of a log (intensity 1-3)
+import { intensityVocabFields } from "../../lib/intensityVocab.js"; // TASKS.csv #2230 — intensity letters (W / M / S / I) ranked
 import { numericSourceChoices, findNumericSource, sourceAssays } from "../../lib/numericSources.js"; // TASKS.csv #1741 — logs and numeric layer fields as a grade-shell source
 import { excludeQAQC } from "../../lib/qaqc.js"; // TASKS.csv #2060 — the proposed cutoff without the QC inserts (this file loads lazily, so qaqc.js stays off the startup path)
 import { checkedHoleCount } from "../../lib/modelArea.js"; // TASKS.csv #1546
@@ -279,6 +280,8 @@ export default function ModellingPanes(props) {
   // direction, and 'Run' only then said there was nothing to model: each type with its picks and how many are oriented
   const structCounts = useMemo(() => { const m = new Map(); for (const r of layers.structure || []) { const k = String(r.value ?? ""); const e = m.get(k) || { n: 0, k: 0 }; e.n++; if (Number.isFinite(Number(r.dip)) && Number.isFinite(Number(r.azimuth)) && r.dip !== null && r.azimuth !== null && r.dip !== "" && r.azimuth !== "") e.k++; m.set(k, e); } return m; }, [layers.structure]);
   const altNumericFields = useMemo(() => numericLayerFields(altSourceRows, { min: 3 }).filter((f) => f !== "from" && f !== "to"), [altSourceRows]);
+  const altVocabFields = useMemo(() => intensityVocabFields(altSourceRows, { min: 3 }), [altSourceRows]); // #2230
+  const altVocab = altVocabFields.find((v) => v.field === altSource.field) || null;
   const mcodesView = useMemo(() => ({ scene: sceneRef, groups: layerGroupsRef, camera: cameraRef, renderer: rendererRef, traces: tracesRef, activity: lastActivityRef, dragHook: viewDragHookRef }), [sceneRef, layerGroupsRef, cameraRef, rendererRef, tracesRef, lastActivityRef, viewDragHookRef]);
   const topsOfUnit = useCallback((unit) => {
     const runs = codedRuns(layers.litho || [], modellingCodes, mcGroupOf);
@@ -883,7 +886,7 @@ export default function ModellingPanes(props) {
             closed envelope with no assumed up-direction. Runs in-app, no sidecar. */}
         <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("Builds a closed halo envelope for one assemblage: every logged alteration interval becomes a 0/1 \"altered?\" sample down its hole, interpolated onto a grid, iso-surfaced at 0.5. Unlike the lithology/structural tools this makes no assumption about which way is \"up\" — a halo wraps its conduit rather than draping like a contact. Runs in-app, no Python engine needed.")}</div>
         {alt_units.some((u) => isNotLogged(u)) && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6 }}>{tr("Not offered: {v} (intervals with no assemblage logged).", { v: alt_units.filter((u) => isNotLogged(u)).map((u) => `"${u}"`).join(", ") })}</div>}
-        {(altCustomLayers.length > 0 || altNumericFields.length > 0 || (storeLayers.vein || []).length > 0) && ( // TASKS.csv #1574 — which log, and an intensity floor; vein: #2050
+        {(altCustomLayers.length > 0 || altNumericFields.length > 0 || altVocabFields.length > 0 || (storeLayers.vein || []).length > 0) && ( // TASKS.csv #1574 — which log, and an intensity floor; vein: #2050
           <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 8 }}>
             {(altCustomLayers.length > 0 || (storeLayers.vein || []).length > 0 || (storeLayers.litho || []).length > 0) && (
               <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
@@ -896,15 +899,21 @@ export default function ModellingPanes(props) {
                 </select>
               </label>
             )}
-            {altNumericFields.length > 0 && (
+            {(altNumericFields.length > 0 || altVocabFields.length > 0) && (
               <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }} title={tr("Only the intervals whose field is at or above this value become altered samples; the rest count as unaltered, which is what closes the halo.")}>
                 <span style={{ flexShrink: 0 }}>{tr("Only where")}</span>
-                <select aria-label={tr("Intensity field")} value={altSource.field} onChange={(e) => setAltSource((s) => ({ ...s, field: e.target.value }))} style={{ flex: 1, minWidth: 0, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "4px 6px", color: "var(--color-text)" }}>
+                <select aria-label={tr("Intensity field")} value={altSource.field} onChange={(e) => { const f = e.target.value, v = altVocabFields.find((x) => x.field === f); setAltSource((s) => ({ ...s, field: f, vocab: !!v, min: v ? String(v.levels[Math.min(1, v.levels.length - 1)].rank) : s.min, minLabel: v ? v.levels[Math.min(1, v.levels.length - 1)].label : null })); }} style={{ flex: 1, minWidth: 0, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "4px 6px", color: "var(--color-text)" }}>
                   <option value="">{tr("(no filter)")}</option>
                   {altNumericFields.map((f) => <option key={f} value={f}>{f}</option>)}
+                  {altVocabFields.map((v) => <option key={v.field} value={v.field}>{`${v.field} (${v.levels.map((l) => l.label).join(" / ")})`}</option>)}{/* #2230 */}
                 </select>
                 <span>≥</span>
-                <input type="number" step="any" aria-label={tr("At least")} value={altSource.min} disabled={!altSource.field} onChange={(e) => setAltSource((s) => ({ ...s, min: e.target.value }))} style={{ width: 64, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "4px 6px", color: "var(--color-text)" }} />
+                {altVocab ? (
+                  <select aria-label={tr("At least")} value={altSource.min} onChange={(e) => { const label = e.target.selectedOptions[0]?.text || null; setAltSource((s) => ({ ...s, min: e.target.value, minLabel: label })); }} style={{ width: 64, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "4px 6px", color: "var(--color-text)" }}>
+                    {[...new Map(altVocab.levels.map((l) => [l.rank, l])).values()].map((l) => <option key={l.rank} value={String(l.rank)}>{altVocab.levels.filter((x) => x.rank === l.rank).map((x) => x.label).join(" / ")}</option>)}
+                  </select>
+                ) :
+                <input type="number" step="any" aria-label={tr("At least")} value={altSource.min} disabled={!altSource.field} onChange={(e) => setAltSource((s) => ({ ...s, min: e.target.value }))} style={{ width: 64, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "4px 6px", color: "var(--color-text)" }} />}
               </label>
             )}
           </div>
@@ -915,7 +924,7 @@ export default function ModellingPanes(props) {
             {altSourceCodes.map((u) => (altLoggedM.get(u) > 0 ? <option key={u} value={u}>{u}</option> : <option key={u} value={u} disabled>{tr("{code} (no logged length)", { code: u })}</option>))}{/* #1421; #1740 — 'Unknown' is not an assemblage; #1574 — the chosen layer's codes */}
           </select>
           <button
-            onClick={() => runAlterationModel(alterationTarget, {}, altSource.layer === "alt" && !altSource.field ? null : { layer: altSource.layer, field: altSource.field || null, min: altSource.field ? Number(altSource.min) : null })}
+            onClick={() => runAlterationModel(alterationTarget, {}, altSource.layer === "alt" && !altSource.field ? null : { layer: altSource.layer, field: altSource.field || null, min: altSource.field ? Number(altSource.min) : null, vocab: !!(altSource.field && altSource.vocab), minLabel: altSource.minLabel || null /* #2230 */ })}
             disabled={!alterationTarget || alterationBusy}
             title={tr("Build a closed alteration-halo envelope from the logged intervals (runs in-app)")}
             aria-label={tr("Build a closed alteration-halo envelope from the logged intervals (runs in-app)")}

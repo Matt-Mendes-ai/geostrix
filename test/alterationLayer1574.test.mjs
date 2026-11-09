@@ -21,15 +21,15 @@ test("the run takes a source layer and an intensity floor; the pane offers the l
   const r = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8");
   assert.match(r, /const runAlterationModel = \(target, bodyOpts = \{\}, source = null\) => \{/);
   assert.match(r, /const customSrc = !isCode && source\?\.layer\?\.startsWith\("custom:"\) \? \(customLayers \|\| \[\]\)\.find\(\(c\) => String\(c\.id\) === source\.layer\.slice\(7\)\) \|\| null : null;/);
-  assert.match(r, /String\(r\.value\) === String\(altValue\) && \(!minField \|\| Number\(r\[minField\.field\]\) >= minField\.min\)/);
+  assert.match(r, /String\(r\.value\) === String\(altValue\) && \(!minField \|\| \(minField\.vocab \? \(intensityRank\(r\[minField\.field\]\) \?\? -1\) : Number\(r\[minField\.field\]\)\) >= minField\.min\)/); // letters ranked since #2230
   assert.match(r, /const altRows = \(\(customSrc \? customSrc\.rows : layers\[sourceKey\]\) \|\| \[\]\)/);
-  assert.match(r, /\$\{sourceKey === "vein" \? "Vein set envelope" : sourceKey === "litho" \? "Envelope" : "Alteration halo"\}: \$\{customSrc \? `\$\{customSrc\.name\} ` : ""\}\$\{altValue\}\$\{minField \? ` \(\$\{minField\.field\} ≥ \$\{minField\.min\}\)` : ""\}/); // vein: #2050
+  assert.match(r, /\$\{sourceKey === "vein" \? "Vein set envelope" : sourceKey === "litho" \? "Envelope" : "Alteration halo"\}: \$\{customSrc \? `\$\{customSrc\.name\} ` : ""\}\$\{altValue\}\$\{minField \? ` \(\$\{minField\.field\} ≥ \$\{minField\.vocab \? \(minField\.label \|\| minField\.min\) : minField\.min\}\)` : ""\}/); // vein: #2050; the letter: #2230
   const p = readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8");
   assert.match(p, /<select aria-label=\{tr\("Code"\)\} value=\{alterationTarget\}/);
   assert.doesNotMatch(p, /aria-label=\{tr\("Assemblage"\)\}/);
   assert.match(p, /aria-label=\{tr\("Alteration layer"\)\}/);
   assert.match(p, /aria-label=\{tr\("Intensity field"\)\}/);
-  assert.match(p, /runAlterationModel\(alterationTarget, \{\}, altSource\.layer === "alt" && !altSource\.field \? null : \{ layer: altSource\.layer, field: altSource\.field \|\| null, min: altSource\.field \? Number\(altSource\.min\) : null \}\)/);
+  assert.match(p, /runAlterationModel\(alterationTarget, \{\}, altSource\.layer === "alt" && !altSource\.field \? null : \{ layer: altSource\.layer, field: altSource\.field \|\| null, min: altSource\.field \? Number\(altSource\.min\) : null, vocab: !!\(altSource\.field && altSource\.vocab\), minLabel: altSource\.minLabel \|\| null \/\* #2230 \*\/ \}\)/);
   // a categorical custom layer: one whose values are not numbers
   assert.match(p, /customLayersAll\.filter\(\(c\) => \(c\.rows \|\| \[\]\)\.some\(\(r\) => r\.value != null && r\.value !== "" && !Number\.isFinite\(Number\(r\.value\)\)\)\)/);
 });

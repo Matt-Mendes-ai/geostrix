@@ -2,6 +2,7 @@
 // model run instead of at startup. Bodies unchanged: each run reads the context snapshot it was started with
 // (exactly what the old useCallback closures saw), and mcRef is the hook's live ref (#599).
 import * as THREE from "three";
+import { intensityRank, INTENSITY_SCALE } from "../../lib/intensityVocab.js"; // TASKS.csv #2230
 import { baselineNotice, oneHoleDipNotice } from "../../lib/modelCheckBaseline.js"; // TASKS.csv #1687
 import { desurveyHole } from "../../lib/desurvey.js";
 import { missOverHalfCell, restrictRowsToHoles, checkedHoleCount } from "../../lib/modelArea.js"; // TASKS.csv #1546; restrictRowsToHoles, checkedHoleCount: #2059
@@ -1604,17 +1605,17 @@ export function createModellingRuns(ctx, mcRef) {
     if (!target) return;
     const isCode = String(target).startsWith("mcode:");
     const customSrc = !isCode && source?.layer?.startsWith("custom:") ? (customLayers || []).find((c) => String(c.id) === source.layer.slice(7)) || null : null;
-    const minField = !isCode && source?.field && Number.isFinite(Number(source.min)) ? { field: source.field, min: Number(source.min) } : null;
+    const minField = !isCode && source?.field && Number.isFinite(Number(source.min)) ? { field: source.field, min: Number(source.min), vocab: !!source.vocab, label: source.minLabel || null } : null; // vocab, label: #2230
     const anisotropy = trendWarp(isCode ? "implicit" : "alteration"); // TASKS.csv #650
     const searchSetting = isCode ? bodyOpts.search || 0 : alterationSearchRadius, cellSetting = isCode ? bodyOpts.cell || 0 : alterationCellSize;
     const altValue = isCode ? String(target).slice(6) : target, sourceKey = isCode ? "litho" : source?.layer === "vein" ? "vein" : source?.layer === "litho" ? "litho" : "alt"; // vein: #2050; litho: #2226
-    const isTargetRow = (r) => (isCode ? effectiveCode(r, modellingCodes, mcodeGroupOf) === altValue : String(r.value) === String(altValue) && (!minField || Number(r[minField.field]) >= minField.min)); // minField: #1574
+    const isTargetRow = (r) => (isCode ? effectiveCode(r, modellingCodes, mcodeGroupOf) === altValue : String(r.value) === String(altValue) && (!minField || (minField.vocab ? (intensityRank(r[minField.field]) ?? -1) : Number(r[minField.field])) >= minField.min)); // minField: #1574; vocab (letters ranked): #2230
     const traces = tracesRef.current;
     if (!traces.length) { setNotices((p) => [...p, noCollarsNotice(isCode ? tr("the unit body") : tr("the alteration model"), layers, assays)]); return; }
 
     const domain = domains.find((d) => d.id === modelDomainId);
     const o = originRef.current;
-    const label = isCode ? `Unit body: ${altValue}` : `${sourceKey === "vein" ? "Vein set envelope" : sourceKey === "litho" ? "Envelope" : "Alteration halo"}: ${customSrc ? `${customSrc.name} ` : ""}${altValue}${minField ? ` (${minField.field} ≥ ${minField.min})` : ""}`; // #1574; vein: #2050
+    const label = isCode ? `Unit body: ${altValue}` : `${sourceKey === "vein" ? "Vein set envelope" : sourceKey === "litho" ? "Envelope" : "Alteration halo"}: ${customSrc ? `${customSrc.name} ` : ""}${altValue}${minField ? ` (${minField.field} ≥ ${minField.vocab ? (minField.label || minField.min) : minField.min})` : ""}`; // #1574; vein: #2050
     setAlterationBusy(true);
     setTaskProgress?.({ label, pct: 20 });
     // Deferred exactly like runNumericModel (see its comment) so the busy state paints before the
@@ -1757,7 +1758,8 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
         const closure = mc.closingVertices > 0 ? "artificial" : "natural";
         // TASKS.csv #276 — provenance for this surface, so the panel and every export can stamp it.
         const params = {
-          tool: isCode ? "unit body (indicator envelope)" : "alteration halo (indicator envelope)", target: altValue, isoLevel: iso, ...(bodies.count > 1 ? { bodies: bodies.count, keptLargestOnly: !!bodyOpts.largest } : {}), // #1339
+          tool: isCode ? "unit body (indicator envelope)" : "alteration halo (indicator envelope)", target: altValue, isoLevel: iso,
+          ...(minField ? { intensityFloor: { field: minField.field, atLeast: minField.vocab ? (minField.label || minField.min) : minField.min, ...(minField.vocab ? { rank: minField.min, scale: INTENSITY_SCALE } : {}) } } : {}), // #2230 ...(bodies.count > 1 ? { bodies: bodies.count, keptLargestOnly: !!bodyOpts.largest } : {}), // #1339
           method: "idw2", searchRadiusM: radius, searchRadiusAuto: !(searchSetting > 0),
           ...(anisotropy.enabled ? { searchEllipsoidM: [1, scl.major / scl.semiMajor, scl.major / scl.minor].map((f) => Math.round(radius * f * 10) / 10) } : {}), // #656
           cellSizeM: cell, cellSizeAuto: !(cellSetting > 0), cellSizeCoarsened: coarsened,
