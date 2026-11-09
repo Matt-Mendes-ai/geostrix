@@ -6,6 +6,7 @@
 import { modelAirValue } from "./surfacePlan.js";
 import { t as tr } from "./i18n.js";
 import { median } from "./arrayStats.js";
+import { collarsLookUnderground } from "./pitShell.js"; // TASKS.csv #2269
 
 const medianOf = (zs) => { const z = zs.filter(Number.isFinite); return z.length ? median(z) : null; }; // #1114 — the shared median
 const meets = (c, b) => !b || (c.x + (c.dx || 0) / 2 >= b[0] && c.x - (c.dx || 0) / 2 <= b[2] && c.y + (c.dy || 0) / 2 >= b[1] && c.y - (c.dy || 0) / 2 <= b[3]);
@@ -33,6 +34,23 @@ export function defaultDrapeElevation({ collars = [], voxelModels = [], surfaceS
   const s = medianOf((surfaceSamples || []).map((r) => r.z));
   if (s != null) return { z: s, source: "samples" };
   return { z: 0, source: "none" };
+}
+
+// TASKS.csv #2269 (review #2174, WA lode gold) — where a map DRAWN with no terrain lies. The clicks fell on the scene's origin plane
+// (205 m RL there, half-way down holes drilled from underground) and the layer took that. The highest collar on a project drilled from
+// underground (the nearest the surface the data knows), else the map-layer rule above. -> { z, source }
+export function planElevation({ collars = [], survey = [], voxelModels = [], surfaceSamples = [], bbox = null } = {}) {
+  const zs = (collars || []).map((c) => c?.z).filter(Number.isFinite);
+  if (zs.length > 1 && collarsLookUnderground(collars, survey).underground) return { z: Math.max(...zs), source: "highest-collar" };
+  return defaultDrapeElevation({ collars, voxelModels, surfaceSamples, bbox });
+}
+export function planElevationText(d) {
+  const z = Math.round(d.z).toLocaleString();
+  if (d.source === "highest-collar") return tr("No terrain: drawn flat at {z} m RL, the highest collar (the collars look underground). Change Elev. on the layer's card, or load a terrain to drape it.", { z });
+  if (d.source === "collars") return tr("No terrain: drawn flat at {z} m RL, the median collar elevation. Change Elev. on the layer's card, or load a terrain to drape it.", { z });
+  if (d.source === "model") return tr("No terrain: drawn flat at {z} m RL, the top of the block model. Change Elev. on the layer's card, or load a terrain to drape it.", { z });
+  if (d.source === "samples") return tr("No terrain: drawn flat at {z} m RL, the median surface-sample elevation. Change Elev. on the layer's card, or load a terrain to drape it.", { z });
+  return tr("No terrain: drawn flat at {z} m RL. Change Elev. on the layer's card, or load a terrain to drape it.", { z });
 }
 
 // TASKS.csv #1505 (review #1497, Lawyers) — where a NEW RASTER goes. Three grids all landed at the median collar elevation: they

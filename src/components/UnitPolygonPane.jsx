@@ -10,13 +10,16 @@ import { NEW_LAYER, uniqueLayerName, isDrawnGeologyLayer, geologyPolygonLayer, a
 import { activateOnKey } from "../lib/a11y.js";
 import { pBtn, smallSel } from "../lib/sidebarStyles.js";
 import { t as tr } from "../lib/i18n.js";
+import { planElevation, planElevationText } from "../lib/drapeElevation.js"; // TASKS.csv #2269
 
 const note = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 };
 const row = { display: "flex", alignItems: "center", gap: 6, justifyContent: "space-between", fontSize: "var(--font-size-sm)" };
 
 // drawing: the 3D view's state { on, points: [{ x, y, z }], finishSeq }; onStart / onUndo / onCancel / onDone drive it.
 export default function UnitPolygonPane({ drawing, onStart, onUndo, onCancel, onDone, onClose }) {
-  const { mapLayers, addMapLayer, updateMapLayer } = useStore();
+  const { mapLayers, addMapLayer, updateMapLayer, terrain, collars, survey, voxelModels, surfaceSamples } = useStore();
+  // TASKS.csv #2269 — with no terrain the clicks land on the scene's origin plane: the map goes at a stated plan elevation instead
+  const plan = useMemo(() => (terrain ? null : planElevation({ collars, survey, voxelModels, surfaceSamples })), [terrain, collars, survey, voxelModels, surfaceSamples]);
   const mine = useMemo(() => mapLayers.filter(isDrawnGeologyLayer), [mapLayers]);
   const [layerPick, setLayerPick] = useState("");
   const layerId = layerPick || mine[0]?.id || NEW_LAYER;
@@ -42,10 +45,10 @@ export default function UnitPolygonPane({ drawing, onStart, onUndo, onCancel, on
       target = { ...fresh, name: uniqueLayerName(fresh.name, mapLayers) };
       id = addMapLayer(target); setLayerPick(id); setNewName("");
     }
-    const next = addUnitPolygon(target, pts, { unit: unit.trim(), note: noteText.trim() });
+    const next = addUnitPolygon(target, pts, { unit: unit.trim(), note: noteText.trim() }, plan ? { elevation: plan.z } : {});
     updateMapLayer(id, () => ({ ...next, id }));
     const f = next.features[next.features.length - 1];
-    setNoteText(""); setMsg(tr("Added a {unit} polygon of {ha} ha to \"{layer}\".", { unit: f.attributes.unit, ha: (f.attributes.area_m2 / 10000).toFixed(2), layer: next.name }));
+    setNoteText(""); setMsg(tr("Added a {unit} polygon of {ha} ha to \"{layer}\".", { unit: f.attributes.unit, ha: (f.attributes.area_m2 / 10000).toFixed(2), layer: next.name }) + (plan ? " " + tr("It lies flat at {z} m RL (no terrain).", { z: Math.round(next.elevation).toLocaleString() }) : ""));
     onDone();
   };
   // a double-click in the 3D view ends the polygon (ViewerModule bumps finishSeq)
@@ -59,6 +62,7 @@ export default function UnitPolygonPane({ drawing, onStart, onUndo, onCancel, on
       <TaskPaneHeader title={tr("Unit polygons")} helpId="unit-polygons" icon={Shapes} tone="data" onClose={onClose} />
       <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
         <div style={note}>{tr("Draw the outline of a map unit by clicking its corners in the 3D view (Top view works best); the last click joins the first. The polygons are a geology map layer with a unit field: it drapes on the terrain, exports as Shapefile or GeoPackage, prints in the Layout legend, and Model it can build a 3D model from it.")}</div>
+        {plan && <div role="note" style={{ ...note, color: "var(--color-warn-text)" }}>{planElevationText(plan)}</div>}{/* #2269 */}
         <label style={row}>{tr("Layer")}
           <select value={layerId} onChange={(e) => setLayerPick(e.target.value)} style={{ ...smallSel, maxWidth: 170 }} aria-label={tr("Drawn geology layer")}>
             {mine.map((l) => <option key={l.id} value={l.id}>{l.name} ({l.features.length})</option>)}

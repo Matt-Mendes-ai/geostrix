@@ -88,7 +88,8 @@ function withBbox(layer) {
 // points: [{ x, y, z? }] world; attrs: { name, type, survey, confidence, note }. -> the layer with the line appended, or
 // the layer unchanged when the line has fewer than two distinct points. With no terrain the layer sits flat at its
 // `elevation`: the first line sets it to the median elevation of the clicks, so the lines sit at the survey, not at 0.
-export function addInterpretationLine(layer, points, attrs = {}) {
+// opts.elevation (#2269): the elevation a first line sets when the clicks hit nothing (no terrain, no grid), in place of their median
+export function addInterpretationLine(layer, points, attrs = {}, opts = {}) {
   const pts = points.filter((p, i) => i === 0 || Math.hypot(p.x - points[i - 1].x, p.y - points[i - 1].y) > 0.01);
   if (pts.length < 2) return layer;
   const type = INTERPRETATION_TYPES.some((t) => t.value === attrs.type) ? attrs.type : "other";
@@ -97,7 +98,7 @@ export function addInterpretationLine(layer, points, attrs = {}) {
     parts: [pts.map((p) => [r2(p.x), r2(p.y)])],
     attributes: { name: attrs.name || `${typeLabel(type)} ${n}`, type, survey: attrs.survey ?? layer.survey ?? "", confidence: CONFIDENCE.includes(attrs.confidence) ? attrs.confidence : "probable", length_m: Math.round(lineLengthM(pts)), note: attrs.note || "" },
   };
-  const z = median(pts.map((p) => p.z)); // NaN with no elevations
+  const z = Number.isFinite(opts.elevation) ? opts.elevation : median(pts.map((p) => p.z)); // NaN with no elevations
   const elevation = layer.features.length === 0 && Number.isFinite(z) ? r2(z) : layer.elevation;
   const attitude = attrs.attitude || {};
   Object.assign(feature.attributes, attitude);
@@ -137,7 +138,7 @@ function withUnitBbox(layer) {
 }
 // points: [{ x, y, z? }] world, the corners in click order (a last click on the first corner is dropped); attrs: { unit, note }.
 // -> the layer with the closed polygon appended, or unchanged with fewer than three distinct corners.
-export function addUnitPolygon(layer, points, attrs = {}) {
+export function addUnitPolygon(layer, points, attrs = {}, opts = {}) { // opts.elevation: #2269
   let pts = points.filter((p, i) => i === 0 || Math.hypot(p.x - points[i - 1].x, p.y - points[i - 1].y) > 0.01);
   if (pts.length > 3 && Math.hypot(pts[pts.length - 1].x - pts[0].x, pts[pts.length - 1].y - pts[0].y) <= 0.01) pts = pts.slice(0, -1);
   if (pts.length < 3) return layer;
@@ -145,7 +146,7 @@ export function addUnitPolygon(layer, points, attrs = {}) {
   ring.push(ring[0]);
   const unit = String(attrs.unit || "").trim() || "Unit";
   const feature = { parts: [ring], attributes: { unit, area_m2: Math.round(ringArea(ring)), note: attrs.note || "" } };
-  const z = median(pts.map((p) => p.z));
+  const z = Number.isFinite(opts.elevation) ? opts.elevation : median(pts.map((p) => p.z));
   const elevation = layer.features.length === 0 && Number.isFinite(z) ? r2(z) : layer.elevation;
   return withUnitBbox({ ...layer, elevation, features: [...layer.features, feature] });
 }

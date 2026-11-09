@@ -10,6 +10,7 @@ import { attitudeOf, attitudeAttrs, INTERPRETATION_TYPES, CONFIDENCE, NEW_LAYER,
 import { activateOnKey } from "../lib/a11y.js";
 import { pBtn, smallSel } from "../lib/sidebarStyles.js";
 import { t as tr } from "../lib/i18n.js";
+import { planElevation, planElevationText } from "../lib/drapeElevation.js"; // TASKS.csv #2269
 
 const note = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 };
 const row = { display: "flex", alignItems: "center", gap: 6, justifyContent: "space-between", fontSize: "var(--font-size-sm)" };
@@ -17,7 +18,10 @@ const row = { display: "flex", alignItems: "center", gap: 6, justifyContent: "sp
 // drawing: the 3D view's state { on, points: [{ x, y, z }], finishSeq }; onStart / onUndo / onCancel / onDone drive it.
 // presetSurvey: the survey a Geophysics-tab button named (TASKS.csv #1152), or null.
 export default function InterpretPane({ drawing, onStart, onUndo, onCancel, onDone, presetSurvey, onClose }) {
-  const { mapLayers, addMapLayer, updateMapLayer, layers, rasters } = useStore();
+  const { mapLayers, addMapLayer, updateMapLayer, layers, rasters, terrain, collars, survey: holeSurvey, voxelModels, surfaceSamples } = useStore(); // holeSurvey: the drillhole survey, not the geophysics one picked below
+  // TASKS.csv #2269 — no terrain and no grid shown for the clicks to land on: they fall on the scene's origin plane, so the lines go at a
+  // stated plan elevation instead (on a shown grid the clicks keep its elevation, as before)
+  const plan = useMemo(() => (terrain || (rasters || []).some((r) => r.visible !== false) ? null : planElevation({ collars, survey: holeSurvey, voxelModels, surfaceSamples })), [terrain, rasters, collars, holeSurvey, voxelModels, surfaceSamples]);
   // TASKS.csv #1432 (review #1352) — the surveys that still have points: geophysSurveys keeps a cleared survey's settings (units, method),
   // so listing its keys offered 'synthetic_mag_TEST.csv' after Clear had removed all 441 of its points
   const surveys = useMemo(() => {
@@ -52,7 +56,7 @@ export default function InterpretPane({ drawing, onStart, onUndo, onCancel, onDo
       target = { ...fresh, name: uniqueLayerName(fresh.name, mine) }; // TASKS.csv #1157
       id = addMapLayer(target); setLayerPick(id); setNewName("");
     }
-    const next = addInterpretationLine(target, pts, attrs);
+    const next = addInterpretationLine(target, pts, attrs, plan ? { elevation: plan.z } : {});
     updateMapLayer(id, () => ({ ...next, id }));
     setName(""); setNoteText(""); setAngle(""); setDirection(""); setMsg(tr("Added \"{name}\" to \"{layer}\" ({m} m).", { name: next.features[next.features.length - 1].attributes.name, layer: next.name, m: Math.round(lineLengthM(pts)).toLocaleString() }));
     onDone();
@@ -68,6 +72,7 @@ export default function InterpretPane({ drawing, onStart, onUndo, onCancel, onDo
       <TaskPaneHeader title={tr("Interpretation lines")} helpId="interpretation-lines" icon={PenTool} tone="analyse" onClose={onClose} />
       <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
         <div style={note}>{tr("Draw faults, contacts and lineaments over a survey in the 3D view (Top view works best). Each set of lines is a map layer: it drapes on the terrain, exports as Shapefile, GeoPackage, KML or DXF, and prints in the Layout legend.")}</div>
+        {plan && <div role="note" style={{ ...note, color: "var(--color-warn-text)" }}>{planElevationText(plan)}</div>}{/* #2269 */}
         <label style={row}>{tr("Survey")}
           <select value={survey} onChange={(e) => { setSurvey(e.target.value); setLayerPick(""); }} style={{ ...smallSel, maxWidth: 170 }} aria-label={tr("Survey the lines are drawn on")}>
             <option value="">{tr("(none named)")}</option>
