@@ -8,7 +8,7 @@ const loadKml = () => import("../kml.js");
 const loadLas = () => import("../las.js"); // TASKS.csv #492 — on demand
 const loadXlsx = () => import("../xlsx.js");
 const loadShapefile = () => import("../shapefile.js");
-import { num, isOverturnedValue, targetFromName, guessTargetFor, guessColumn, TARGET_SCHEMAS } from "../layers.js";
+import { num, isOverturnedValue, targetFromName, guessTargetFor, guessColumn, TARGET_SCHEMAS, INTERVAL_FROM_ALIASES, INTERVAL_TO_ALIASES, normHeader } from "../layers.js"; // INTERVAL_*: #2150
 const tabular = () => import("../tabular.js"); // TASKS.csv #1493 — the CSV engine (papaparse) loads with the first table, not at launch
 import { t as tr } from "../i18n.js"; // TASKS.csv #786 — messages in the interface language
 import { checkGpkgSize } from "../gpkgSize.js"; // TASKS.csv #1716
@@ -146,7 +146,10 @@ export function looksLikeAssay(headers, fileName = "") {
   headers.forEach((h) => { if (NOT_GRADE.test(String(h).replace(/_/g, " "))) return; const s = isElementColumn(h); if (s) syms.add(s); });
   if (syms.size >= 4) return true;
   const hs = headers.map((h) => String(h).trim());
-  return syms.size >= 1 && hs.some((h) => FROM_COL.test(h)) && hs.some((h) => TO_COL.test(h)) && (hs.some((h) => SAMPLE_COL.test(h)) || /assay/i.test(String(fileName)));
+  // TASKS.csv #2150 (WA review #2148) — SAMPFROM / SAMPTO (WAMEX gold_small assays_1: Au, AuRp1, Au1) were not from / to here, so 10,422
+  // gold assays went to Veins by their SAMPLETYPE column: the interval schemas' own from / to names count too
+  const isFrom = (h) => FROM_COL.test(h) || INTERVAL_FROM_ALIASES.includes(normHeader(h)), isTo = (h) => TO_COL.test(h) || INTERVAL_TO_ALIASES.includes(normHeader(h));
+  return syms.size >= 1 && hs.some(isFrom) && hs.some(isTo) && (hs.some((h) => SAMPLE_COL.test(h)) || /assay/i.test(String(fileName)));
 }
 
 // TASKS.csv #600 / #975 — the coordinate names surface-sample exports use (MX-style e_utm / n_utm included), shared by

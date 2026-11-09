@@ -3,6 +3,7 @@
 // ============================================================
 import { voxelStretch } from "./voxelStretch.js"; // TASKS.csv #1812
 import { guessStructureColumns } from "./mapLayers.js"; // TASKS.csv #426
+import { isElementColumn } from "./geochem.js"; // TASKS.csv #2150
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 
 // Bug found during the UBC-mesh-coarsening perf fix (real repro: a 432,000-value array crashed with
@@ -980,7 +981,11 @@ export function guessTarget(headers) {
   // Veins and alteration share the "assemblage" alias (both schemas list it), so a CSV that uses
   // "type"/"vein_type" rather than "assemblage" is checked first to disambiguate the common case
   // (see sample_data's own vein.csv, which uses a "type" column).
-  if (has("vein_type") || (has("type") && !has("assemblage"))) return "vein";
+  // TASKS.csv #2150 (WA review #2148) — the bare "type" rule took a gold assay table (SAMPLETYPE, Au, AuRp1) as a vein log. A type column
+  // that is the sample's, the hole's or the lab's is not a vein type, and a table with element columns is not a vein log.
+  const veinishType = base.some((h) => /type/.test(h) && !/^(samp(le)?|hole|drill|dh|qc|lab|assay|analy(sis|te)|method|survey|instr(ument)?|data|record|point|row)_?type/.test(h));
+  const elements = headers.some((h) => isElementColumn(h));
+  if (has("vein_type") || (veinishType && !elements && !has("assemblage"))) return "vein";
   if (has("assemblage")) return "alt";
   if (has("from") && has("to")) return "litho";
   if (has("depth")) return "structure";
