@@ -9388,5 +9388,8 @@
   "neither the file nor the project states a coordinate system: the coordinates were kept as they are, check where it lies": "لا يذكر الملف ولا المشروع نظام إحداثيات: احتُفظ بالإحداثيات كما هي، تحقق من موقعه",
   "{code} (Lithology)": "{code} (الصخارة)",
   "Lithology (a code set as an envelope)": "الصخارة (مجموعة رموز كغلاف)",
-  "Nothing to model yet: there is no Veins log, and no lithology code is cross-cutting. If your veins are logged as lithology codes, set their role to cross-cutting in Modelling codes.": "لا شيء للنمذجة بعد: لا يوجد سجل عروق ولا رمز صخارة قاطع. إذا كانت عروقك مسجلة كرموز صخارة، فاجعل دورها قاطعًا في رموز النمذجة."
+  "Nothing to model yet: there is no Veins log, and no lithology code is cross-cutting. If your veins are logged as lithology codes, set their role to cross-cutting in Modelling codes.": "لا شيء للنمذجة بعد: لا يوجد سجل عروق ولا رمز صخارة قاطع. إذا كانت عروقك مسجلة كرموز صخارة، فاجعل دورها قاطعًا في رموز النمذجة.",
+  "From the nearest existing collars (the hole each needs to reach the target):": "من أقرب الفوهات الموجودة (الثقب الذي تحتاجه كل منها لبلوغ الهدف):",
+  "{id}: az {az}°, dip {dip}°, {len} m": "{id}: سمت {az}°، ميل {dip}°، {len} م",
+  "Plan from {id}": "خطّط من {id}"
 }

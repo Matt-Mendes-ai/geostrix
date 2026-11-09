@@ -6,7 +6,7 @@ import { activateOnKey, iconAction } from "../lib/a11y.js";
 import { t as tr } from "../lib/i18n.js";
 import { colors } from "../lib/theme.js";
 import { lazyModal } from "../lib/lazyModal.jsx";
-import { solveOrientationToTarget, plannedTrace, solveCollarForTarget, isShallowDip, SHALLOW_DIP_DEG } from "../lib/holePlanning.js"; // solveCollarForTarget / shallow: TASKS.csv #1835
+import { solveOrientationToTarget, plannedTrace, solveCollarForTarget, isShallowDip, SHALLOW_DIP_DEG, nearestCollarsToTarget } from "../lib/holePlanning.js"; // nearestCollarsToTarget: #2250; // solveCollarForTarget / shallow: TASKS.csv #1835
 import { azimuthToGridOffset, loadIgrf, wrap360 } from "../lib/azimuthRef.js"; // TASKS.csv #1729
 import { planGeometryKey, drilledTraceIndex, isTargetModel, targetBandIndex, planChecks, COLLAR_ZONE_M } from "../lib/plannedHoleChecks.js"; // TASKS.csv #1039; COLLAR_ZONE_M: #1454
 import { piercePoints as surfacePierces } from "../lib/piercePoints.js"; // TASKS.csv #1009
@@ -107,6 +107,14 @@ export function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint, 
     setDraft((p) => ({ ...p, azimuth: Math.round(shown * 10) / 10, dip: Math.round(dip * 10) / 10, length: Math.round((distance + PAST_TARGET_M) * 10) / 10 })); // #1456 — past the target
     setUpward(dip > 0); // #1557 — a target above the collar: an upward hole, said
   };
+  // TASKS.csv #2250 — from the existing collars nearest the target (an underground rig stands at a cuddy): each with the hole it needs
+  const nearest = useMemo(() => (targetReady ? nearestCollarsToTarget(collars, { x: Number(target.x), y: Number(target.y), z: Number(target.z) }) : []), [targetReady, collars, target]);
+  const planFromNearest = (n) => {
+    setFromCollarId(n.hole_id);
+    const shown = azOffset ? wrap360(n.azimuth - azOffset.offset) : n.azimuth;
+    setDraft((p) => ({ ...p, name: p.name || `${n.hole_id}-target`, x: n.x, y: n.y, z: n.z, azimuth: Math.round(shown * 10) / 10, dip: Math.round(n.dip * 10) / 10, length: Math.round((n.length + PAST_TARGET_M) * 10) / 10 }));
+    setZSource(`collar ${n.hole_id}`); setCollarNote(null); setUpward(n.dip > 0);
+  };
   // TASKS.csv #1835 — the other way round: keep the dip and azimuth, move the collar to where that line through the target meets
   // the terrain (or the typed Elev when no terrain is loaded)
   const collarReady = targetReady && Number(draft.dip) < 0 && !isNaN(Number(draft.azimuth)) && !!azOffset && (!!ground || (draft.z !== "" && !isNaN(Number(draft.z)))); // ground: #2100
@@ -190,6 +198,17 @@ export function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint, 
         {upward && <div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 4, lineHeight: 1.4 }}>{tr("The target is above the collar, so the solved hole points upward. From a surface collar that is not a hole you can drill: check the target's elevation.")}</div>}
         <button onClick={solveTarget} disabled={!targetReady || !fromReady} style={{ ...miniBtn, width: "100%", background: targetReady && fromReady ? "var(--color-selected-bg)" : "var(--color-bg-subtle)", borderColor: targetReady && fromReady ? "var(--color-selected-border)" : "var(--color-border-light)", opacity: targetReady && fromReady ? 1 : 0.5 }}>{tr("Solve az/dip/length to target")}</button>
         <button onClick={solveCollar} disabled={!collarReady} style={{ ...miniBtn, width: "100%", marginTop: 4, opacity: collarReady ? 1 : 0.5 }} title={tr("Keep the azimuth and dip above and move the collar: to where a line through the target at that dip meets the terrain, or the typed Elev when no terrain is loaded")}>{tr("Solve collar for this dip/azimuth")}</button>{/* #1835 */}
+        {nearest.length > 0 && collars.length > 1 && (
+          <div style={{ marginTop: 6 }}>{/* TASKS.csv #2250 */}
+            <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 3 }}>{tr("From the nearest existing collars (the hole each needs to reach the target):")}</div>
+            {nearest.map((n) => (
+              <div key={n.hole_id} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-xs)", marginBottom: 2 }}>
+                <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{tr("{id}: az {az}°, dip {dip}°, {len} m", { id: n.hole_id, az: Math.round(n.azimuth), dip: (n.dip > 0 ? "+" : "") + Math.round(n.dip), len: Math.round(n.length) })}</span>
+                <button onClick={() => planFromNearest(n)} style={{ ...miniBtn, padding: "1px 7px" }} aria-label={tr("Plan from {id}", { id: n.hole_id })}>{tr("Use")}</button>
+              </div>
+            ))}
+          </div>
+        )}
         {collarNote && <div role="note" style={{ fontSize: "var(--font-size-xs)", color: collarNote.warn ? "var(--color-warn-text)" : "var(--color-text-muted)", marginTop: 4, lineHeight: 1.4 }}>{collarNote.text}</div>}
       </div>
     </div>

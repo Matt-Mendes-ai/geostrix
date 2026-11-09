@@ -9388,5 +9388,8 @@
   "neither the file nor the project states a coordinate system: the coordinates were kept as they are, check where it lies": "nem o arquivo nem o projeto indicam um sistema de coordenadas: as coordenadas foram mantidas como estão; verifique onde fica",
   "{code} (Lithology)": "{code} (Litologia)",
   "Lithology (a code set as an envelope)": "Litologia (um conjunto de códigos como envoltória)",
-  "Nothing to model yet: there is no Veins log, and no lithology code is cross-cutting. If your veins are logged as lithology codes, set their role to cross-cutting in Modelling codes.": "Ainda não há nada para modelar: não há registro de veios e nenhum código de litologia é transversal. Se os seus veios estão registrados como códigos de litologia, defina o papel deles como transversal em Códigos de modelagem."
+  "Nothing to model yet: there is no Veins log, and no lithology code is cross-cutting. If your veins are logged as lithology codes, set their role to cross-cutting in Modelling codes.": "Ainda não há nada para modelar: não há registro de veios e nenhum código de litologia é transversal. Se os seus veios estão registrados como códigos de litologia, defina o papel deles como transversal em Códigos de modelagem.",
+  "From the nearest existing collars (the hole each needs to reach the target):": "A partir dos colares existentes mais próximos (o furo que cada um precisa para atingir o alvo):",
+  "{id}: az {az}°, dip {dip}°, {len} m": "{id}: az {az}°, mergulho {dip}°, {len} m",
+  "Plan from {id}": "Planejar a partir de {id}"
 }

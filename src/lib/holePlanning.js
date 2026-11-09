@@ -80,6 +80,20 @@ export function solveOrientationToTarget(collar, target) {
   return { azimuth, dip, length, horizontal, vertical: dDown };
 }
 
+// TASKS.csv #2250 (review #2174, underground planning) — a rig stands where a collar already is: the n existing collars nearest the target
+// (3D distance) with the azimuth, dip (negative down, positive for an uphole) and length a straight hole from each needs. The planner solved
+// a 523 m hole from a collar picked by hand where a 60 m hole from the nearest cuddy would do. -> [{ hole_id, x, y, z, azimuth, dip, length }]
+export function nearestCollarsToTarget(collars, target, n = 5) {
+  if (!target || ![target.x, target.y, target.z].every(Number.isFinite)) return [];
+  return (collars || [])
+    .filter((c) => [c?.x, c?.y, c?.z].every(Number.isFinite))
+    .map((c) => ({ c, d: Math.hypot(c.x - target.x, c.y - target.y, c.z - target.z) }))
+    .filter((e) => e.d > 1e-6)
+    .sort((a, b) => a.d - b.d)
+    .slice(0, n)
+    .map(({ c }) => { const s = solveOrientationToTarget(c, target); return { hole_id: c.hole_id, x: c.x, y: c.y, z: c.z, azimuth: s.azimuth, dip: s.dip, length: s.length }; });
+}
+
 // ---------------------------------------------------------------------------------------------
 // 1b. Forward check: how close does an EXISTING plan actually get to a target point?
 // ---------------------------------------------------------------------------------------------
