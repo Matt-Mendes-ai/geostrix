@@ -137,6 +137,8 @@ export function pickElementColumns(headers, rows, stats = null) {
     let n = 0, max = -Infinity;
     if (stats?.has(h)) ({ n, max } = stats.get(h));
     else for (const r of rows) { const v = parseAssayValue(r[h]); if (v != null && Number.isFinite(v)) { n++; if (v > max) max = v; } }
+    // TASKS.csv #2185 — a column of words (P_TSA_A_Mineral1 = IntChlorite) is no element, whatever its header starts with
+    if (!n && rows?.length) { let text = 0; for (let i = 0; i < rows.length && i < 200; i++) { const s = String(rows[i]?.[h] ?? "").trim(); if (s && !/^[<>]?\s*[-+]?[\d.]/.test(s)) text++; } if (text) return; }
     if (!bySym.has(sym)) bySym.set(sym, []);
     // #2157 — a lab repeat / duplicate / check column (AuRp1, Au-Rp1, Au_Rep, Au_Dup, Au_Check) is never the main column beside one that is not
     const repeat = /^[a-z]{1,2}[\s_-]*(rp|rep|repeat|dup|duplicate|chk|check|r)\d*([\s_-]|$)/i.test(String(h).replace(/\(.*?\)/g, "").trim());

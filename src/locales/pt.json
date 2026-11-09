@@ -9447,5 +9447,6 @@
   "Weathering": "Intemperismo",
   "blank code": "código em branco",
   "{col} is blank on {pct} % of the rows ({n} of {m}): those rows have no code and are skipped.": "{col} está em branco em {pct} % das linhas ({n} de {m}): essas linhas não têm código e são ignoradas.",
-  "Tick or add at least one element to import.": "Marque ou adicione ao menos um elemento para importar."
+  "Tick or add at least one element to import.": "Marque ou adicione ao menos um elemento para importar.",
+  "{name} is assay data: it is open in the Geochem assay import, which asks which columns are elements. Not assays? Cancel there and use + Add CSV layer in the 3D View's sidebar to import it as a layer of your own.": "{name} são dados de análise: está aberto na importação de análises do Geoquímica, que pergunta quais colunas são elementos. Não são análises? Cancele lá e use + Adicionar camada CSV na barra lateral da Vista 3D para importá-lo como uma camada própria."
 }

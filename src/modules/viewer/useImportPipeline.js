@@ -117,7 +117,7 @@ export function useImportPipeline(ctx) {
       if (err || !data || !data.length) { setNotices((p) => [...p, notice("{name}: couldn't read {v}.", { name: file.name, v: err ? "file (" + err + ")" : tr("— no rows found") })]); return; }
       if (isMapGeometry(meta) && forceTarget !== "custom") { sendToMapLayers(file, meta.vector); return; } // #609
       const headers = meta?.headers || Object.keys(data[0]);
-      if (!forceTarget && looksLikeAssay(headers, file.name)) { // file.name: #1105
+      if (!forceTarget && looksLikeAssay(headers, file.name, data)) { // file.name: #1105; data: #2185
         assayHandoffRef.current.push(assayHandoffOf(file, data, headers, meta)); handOverAssays(); // #1350; #2016
         return;
       }
@@ -192,7 +192,7 @@ export function useImportPipeline(ctx) {
     // An assay table (from the Browser panel or Connect to database) is handed to Geochem's assay dialog, which needs
     // the element checklist, instead of a notice telling the user to go there.
     // #952 — a long table (analyte + value columns, one row per element) has no element columns to count
-    if (looksLikeAssay(headers, sourceName) || (await import("../../lib/longAssays.js")).detectLongAssay(headers)) { // on demand: off the startup bundle
+    if (looksLikeAssay(headers, sourceName, rows) || (await import("../../lib/longAssays.js")).detectLongAssay(headers)) { // rows: #2185 — // on demand: off the startup bundle
       setDbModalOpen(false);
       requestModuleAction("import-assay-rows", { headers, rows, sourceName, dbSource });
       goToModule("geochem");
@@ -720,7 +720,7 @@ export function useImportPipeline(ctx) {
     if (!files.length) return;
     goToModule("geochem");
     requestModuleAction("import-assay-file", { files }); // #1652 — all of them, in turn
-    setNotices((p) => [...p, notice("{name} is assay data: it is open in the Geochem assay import, which asks which columns are elements.", { name: files[0].name }),
+    setNotices((p) => [...p, notice("{name} is assay data: it is open in the Geochem assay import, which asks which columns are elements. Not assays? Cancel there and use + Add CSV layer in the 3D View's sidebar to import it as a layer of your own.", { name: files[0].name }), // the way out: #2185
       ...(files.length > 1 ? [notice("{n} more assay file(s) follow in the Geochem import, one after another: {list}.", { n: files.length - 1, list: files.slice(1).map((f) => f.name).join(", ") })] : [])]);
   };
   const processImportQueue = useCallback(() => {
@@ -739,7 +739,7 @@ export function useImportPipeline(ctx) {
       if (isMapGeometry(meta)) { sendToMapLayers(file, meta.vector); processImportQueue(); return; } // #609
       const headers = meta?.headers || Object.keys(data[0]);
       if (meta?.note) setNotices((p) => [...p, `${file.name}:${meta.note}`]);
-      if (looksLikeAssay(headers, file.name)) { // file.name: #1105
+      if (looksLikeAssay(headers, file.name, data)) { // file.name: #1105; data: #2185
         assayHandoffRef.current.push(assayHandoffOf(file, data, headers, meta)); // #1350 — to the Geochem import when the queue is done; #2016
         processImportQueue();
         return;

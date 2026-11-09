@@ -2,7 +2,7 @@
 // GeoPackage / raster loaders), moved unchanged from the top of ViewerModule.jsx with their comments; used by
 // modules/viewer/useImportPipeline.js and ViewerModule.jsx.
 import { guessEpsgFromPrjWkt } from "../reproject.js";
-import { isElementColumn } from "../geochem.js"; // TASKS.csv #600
+import { isElementColumn, parseAssayValue } from "../geochem.js"; // TASKS.csv #600; parseAssayValue: #2185
 // TASKS.csv #552 — the KML / xlsx / shapefile readers load on first use (they were ~20 kB of startup JavaScript)
 const loadKml = () => import("../kml.js");
 const loadLas = () => import("../las.js"); // TASKS.csv #492 — on demand
@@ -134,16 +134,29 @@ export const loadRaster = () => import("../raster.js");
 // headers that are exactly a symbol: a real ARIS assay export (Au_gpt_BESTEL ...) and a pXRF export were
 // not recognised as assays and were offered as vein / alteration layers instead. Words that start with a
 // symbol but are descriptive ("Ag status", "Au certificate") are not element columns.
-const NOT_GRADE = /\b(status|certificate|cert|laboratory|lab|method|date|completed|analys(is|ed)|comment|flag|qc|batch|job|error|err|lod|dl)\b/i;
+const NOT_GRADE = /\b(status|certificate|cert|laboratory|lab|method|date|completed|analys(is|ed)|comment|flag|qc|batch|job|error|err|lod|dl|tsa|swir|weight\d*|mineral\d*)\b/i; // tsa / swir / weight / mineral: #2185 (P_TSA_A_Weight1 is no phosphorus)
 // TASKS.csv #1105 (review #1016, Micromine user) — fewer than four elements is the normal case for a gold project's
 // DHASSAY (HOLE, FROM, TO, SAMPLE, AU [, AG]): such a file was guessed as a lithology layer with an empty value field.
 // It is assays too when it has from / to, at least one element column, and a sample-id column or "assay" in its name.
 // #2149 — dfrom / dto, start / end depth and m_from / m_to too
 const FROM_COL = /^(from|from_m|m_?from|dfrom|depth_?from|from_?depth|start_?depth|depth_?start)$/i, TO_COL = /^(to|to_m|m_?to|dto|depth_?to|to_?depth|end_?depth|depth_?end)$/i;
 const SAMPLE_COL = /^(sample|samp|sample_?(id|no|num|number)|samp_?(id|no)|sampleid|sampno)$/i;
-export function looksLikeAssay(headers, fileName = "") {
+// TASKS.csv #2185 (review #2174, WA gold) — an element column holds numbers: a hyperspectral mineral table (P_TSA_A_Mineral1 = IntChlorite,
+// FeChlorite) read as phosphorus by its header alone and went to the Geochem assay dialog as "1 element (P)". With rows, a candidate column
+// counts only if one of its first 50 filled cells is a number (or a "<x" / ">x" grade).
+export function columnHasNumbers(rows, h, sample = 50) {
+  let seen = 0;
+  for (const r of rows || []) {
+    const v = r?.[h];
+    if (v == null || String(v).trim() === "") continue;
+    if (Number.isFinite(parseAssayValue(v))) return true;
+    if (++seen >= sample) return false;
+  }
+  return seen === 0; // an empty column says nothing either way: kept as before
+}
+export function looksLikeAssay(headers, fileName = "", rows = null) {
   const syms = new Set();
-  headers.forEach((h) => { if (NOT_GRADE.test(String(h).replace(/_/g, " "))) return; const s = isElementColumn(h); if (s) syms.add(s); });
+  headers.forEach((h) => { if (NOT_GRADE.test(String(h).replace(/_/g, " "))) return; const s = isElementColumn(h); if (s && (!rows || columnHasNumbers(rows, h))) syms.add(s); }); // rows: #2185
   if (syms.size >= 4) return true;
   const hs = headers.map((h) => String(h).trim());
   // TASKS.csv #2150 (WA review #2148) — SAMPFROM / SAMPTO (WAMEX gold_small assays_1: Au, AuRp1, Au1) were not from / to here, so 10,422
