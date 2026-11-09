@@ -9439,5 +9439,8 @@
   "The {col} column names a local grid ({name}), not a map projection: no CRS here places these collars on the map.": "يسمّي العمود {col} شبكة محلية ({name})، لا إسقاطًا خرائطيًا: لا يضع أي نظام إحداثيات هنا هذه الفوهات على الخريطة.",
   "{n} of {of} collars have eastings {x0}–{x1} and northings {y0}–{y1}, which no UTM / MGA zone has: they look like a local mine grid.": "لدى {n} من أصل {of} فوهة شرقيات {x0}–{x1} وشماليات {y0}–{y1} لا توجد في أي منطقة UTM / MGA: تبدو شبكة منجم محلية.",
   "{file}: the {col} column says {name} (EPSG:{code}), chosen below. Check it on the map, then use it. They are placed as they are, with no conversion.": "{file}: يذكر العمود {col} ‏{name} ‏(EPSG:{code})، وهو المختار أدناه. تحقّق منه على الخريطة ثم استخدمه. توضع كما هي دون تحويل.",
-  "{shown} of {total} shown: type a name, zone or EPSG code to find the others.": "يُعرض {shown} من {total}: اكتب اسمًا أو منطقة أو رمز EPSG للعثور على البقية."
+  "{shown} of {total} shown: type a name, zone or EPSG code to find the others.": "يُعرض {shown} من {total}: اكتب اسمًا أو منطقة أو رمز EPSG للعثور على البقية.",
+  "{n} cell(s) written as below detection (\"<LOD\", BDL, ND...) read at half their column's detection limit.": "{n} خلية مكتوبة كأقل من حد الكشف (\"<LOD\"، BDL، ND...) قُرئت عند نصف حد الكشف في عمودها.",
+  "{n} cell(s) written as below detection left blank: their column ({list}) states no detection limit to use.": "تُركت {n} خلية مكتوبة كأقل من حد الكشف فارغة: عمودها ({list}) لا يذكر حد كشف يمكن استخدامه.",
+  "{n} cell(s) marked not assayed (NULL, X, N/A, NS, -...) left blank.": "تُركت {n} خلية معلَّمة بأنها غير محلَّلة (NULL، X، N/A، NS، -...) فارغة."
 }

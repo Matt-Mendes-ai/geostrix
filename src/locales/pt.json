@@ -9439,5 +9439,8 @@
   "The {col} column names a local grid ({name}), not a map projection: no CRS here places these collars on the map.": "A coluna {col} nomeia uma grade local ({name}), não uma projeção cartográfica: nenhum SRC daqui posiciona estes colares no mapa.",
   "{n} of {of} collars have eastings {x0}–{x1} and northings {y0}–{y1}, which no UTM / MGA zone has: they look like a local mine grid.": "{n} de {of} colares têm estes {x0}–{x1} e nortes {y0}–{y1}, que nenhuma zona UTM / MGA tem: parecem uma grade local de mina.",
   "{file}: the {col} column says {name} (EPSG:{code}), chosen below. Check it on the map, then use it. They are placed as they are, with no conversion.": "{file}: a coluna {col} indica {name} (EPSG:{code}), escolhido abaixo. Confira no mapa e depois use-o. São posicionados como estão, sem conversão.",
-  "{shown} of {total} shown: type a name, zone or EPSG code to find the others.": "{shown} de {total} exibidos: digite um nome, zona ou código EPSG para encontrar os outros."
+  "{shown} of {total} shown: type a name, zone or EPSG code to find the others.": "{shown} de {total} exibidos: digite um nome, zona ou código EPSG para encontrar os outros.",
+  "{n} cell(s) written as below detection (\"<LOD\", BDL, ND...) read at half their column's detection limit.": "{n} célula(s) escritas como abaixo do limite de detecção (\"<LOD\", BDL, ND...) lidas na metade do limite de detecção da coluna.",
+  "{n} cell(s) written as below detection left blank: their column ({list}) states no detection limit to use.": "{n} célula(s) escritas como abaixo do limite de detecção ficaram em branco: a coluna ({list}) não indica um limite de detecção a usar.",
+  "{n} cell(s) marked not assayed (NULL, X, N/A, NS, -...) left blank.": "{n} célula(s) marcadas como não analisadas (NULL, X, N/A, NS, -...) ficaram em branco."
 }

@@ -213,18 +213,46 @@ export const NO_DATA_SENTINEL_MAX = -99;
 // TASKS.csv #1648 (review #1645, Copley) — some databases write an OVER-limit result as a negative too: Copley's K -10 (">10 %", beside
 // 8.4-9.9 % neighbours, column maximum 9.89) and Mn -10000 (">10,000 ppm", maximum 9,447) were read as "<10" = 5 % K and as no-data.
 // A code whose size is at or above the column's largest positive value, and no more than twice it, is that column's upper limit.
-export const isOverLimitCode = (value, colMax) => value < 0 && colMax > 0 && -value >= colMax && -value <= 2 * colMax;
+// #2158 — never -1 or -9: those are no-data codes (4.1 M WAMEX cells), and a gold column topping out at 0.52 read "-1" as ">1 g/t"
+export const isOverLimitCode = (value, colMax) => value < 0 && value !== -1 && value !== -9 && colMax > 0 && -value >= colMax && -value <= 2 * colMax;
 export function columnPositiveMax(rows, header) {
   let max = 0;
   for (let i = 0; i < (rows || []).length; i++) { const v = parseAssayValue(rows[i][header]); if (v != null && v > max) max = v; }
   return max;
 }
+// TASKS.csv #2158 (WA drillhole review) — notations with no number: below detection ("< LOD", "<LOD", "<DL", BDL, ND, "<" alone: 6 M
+// WAMEX cells) and not assayed (NULL, X, N/L, "-", NA, N/A, NS, NR, LNS / IS: insufficient sample). Both used to read as an unexplained blank.
+export const BDL_TEXT = /^(<\s*(lod|l\.o\.d\.?|dl|d\.l\.?|ldl|mdl)?|bdl|b\.d\.l\.?|nd|n\.d\.?|below detection( limit)?)$/i;
+export const NOT_ASSAYED_TEXT = /^(null|x|n\/l|-+|na|n\/a|n\.a\.?|ns|n\/s|n\.s\.?|nr|not (analysed|analyzed|assayed|received)|lns|is|nss)$/i;
+// #2158 — a column's detection limit, from the lab's own notation: the most common '<x', else the most common small negative code
+// (-0.01 = "<0.01", magnitude under 1). -> number or null (the smallest reading is NOT taken here: it is no limit)
+export function columnDetectionLimit(cells) {
+  const lt = new Map(), neg = new Map();
+  for (const raw of cells || []) {
+    if (raw == null) continue;
+    if (typeof raw === "number") { if (raw < 0 && raw > -1) neg.set(-raw, (neg.get(-raw) || 0) + 1); continue; }
+    const s = String(raw).trim();
+    if (s.startsWith("<")) { const x = parseFloat(s.slice(1)); if (x > 0) lt.set(x, (lt.get(x) || 0) + 1); continue; }
+    const v = parseFloat(s);
+    if (v < 0 && v > -1) neg.set(-v, (neg.get(-v) || 0) + 1);
+  }
+  const top = (m) => { let best = null, n = -1; m.forEach((c, x) => { if (c > n || (c === n && x < best)) { best = x; n = c; } }); return best; };
+  return lt.size ? top(lt) : neg.size ? top(neg) : null;
+}
 // colMax (optional, #1648): the column's largest positive value; a code at that limit -> its size, qualifier '>' (kind "neg_over")
-export function readAssayCell(raw, negativeMode = "bdl", colMax = 0) {
+// dl (optional, #2158): the column's detection limit (columnDetectionLimit). A below-detection notation is read at half of it ("txt_bdl"), or
+// left blank with no limit to use ("txt_bdl_nodl"); -1 and -9 in a column whose limit is something else are no-data codes, not "<1" / "<9".
+export function readAssayCell(raw, negativeMode = "bdl", colMax = 0, dl = null) {
+  if (typeof raw === "string") {
+    const s = raw.trim();
+    if (s && BDL_TEXT.test(s)) return dl > 0 ? { value: dl / 2, qualifier: "<", kind: "txt_bdl" } : { value: null, qualifier: null, kind: "txt_bdl_nodl" };
+    if (s && NOT_ASSAYED_TEXT.test(s)) return { value: null, qualifier: null, kind: "na_text" };
+  }
   const value = parseAssayValue(raw);
   const qualifier = assayQualifier(raw);
   if (value == null || value >= 0) return { value, qualifier, kind: null };
   if (negativeMode !== "missing" && isOverLimitCode(value, colMax)) return { value: -value, qualifier: ">", kind: "neg_over" };
+  if (dl > 0 && (value === -1 || value === -9) && Math.abs(value) !== dl) return { value: null, qualifier: null, kind: "neg_missing" }; // #2158
   if (value <= NO_DATA_SENTINEL_MAX || negativeMode === "missing") return { value: null, qualifier: null, kind: "neg_missing" };
   return { value: Math.abs(value) / 2, qualifier: "<", kind: "neg_bdl" };
 }

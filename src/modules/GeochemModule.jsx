@@ -20,7 +20,7 @@ import { useStore, useSetTaskProgress } from "../lib/store.jsx"; // useSetTaskPr
 import { elementColumnStats } from "../lib/assayColumnScan.js"; // TASKS.csv #2164
 const ELEMENT_SCAN_CHUNKED_ROWS = 50000; // #2164 — below this the element columns are counted at once
 import { saveFile, loadSampleFiles } from "../lib/desktop.js"; // loadSampleFiles: TASKS.csv #391
-import { isElementColumn, inferUnit, pickElementColumns, assayExportRows, parseAssayValue, valueIn, readAssayCell, columnPositiveMax, convertUnit, mergeAssayRows, holesWithChangedIntervals, dropHoleAssays, blankDetectionLimit, isBlankAssayCell, oxideOfHeader, fromOxideHeader, oxideUnit, surfaceAttrColumns, surfaceAttrs, mergeSurfaceSamples, otherMediumTwins } from "../lib/geochem.js"; // otherMediumTwins: #2085
+import { columnDetectionLimit, isElementColumn, inferUnit, pickElementColumns, assayExportRows, parseAssayValue, valueIn, readAssayCell, columnPositiveMax, convertUnit, mergeAssayRows, holesWithChangedIntervals, dropHoleAssays, blankDetectionLimit, isBlankAssayCell, oxideOfHeader, fromOxideHeader, oxideUnit, surfaceAttrColumns, surfaceAttrs, mergeSurfaceSamples, otherMediumTwins } from "../lib/geochem.js"; // otherMediumTwins: #2085
 import { DIAGRAMS, SPIDER_DIAGRAMS, GEOCHEM_METHODS, diagramExportRows, protolithForSample, PROVISIONAL_ALTERATION_BOXES, GEOCHEM_LABELS, reeProfile, loggedCodeAt, isSedimentaryCode, mergeClassRuns, FITTED_PROTOLITH, fitLeastAlteredBox, nameAiUpTrend } from "../lib/geochemDiagrams.js"; // fitted: #2028; nameAiUpTrend: #2145
 import { qcRecordFromFileRow, emptySurfaceQc, looksLikeQcTypeColumn, mergeQcRecords } from "../lib/surfaceQaqc.js"; // TASKS.csv #842; looksLikeQcTypeColumn, mergeQcRecords: #1794
 import { mapInChunks } from "../lib/mapInChunks.js"; // TASKS.csv #583
@@ -495,14 +495,18 @@ export default function GeochemModule() {
     // TASKS.csv #333 — negative lab/database codes resolved at import (see readAssayCell).
     const negativeMode = modal.negativeMode || "bdl";
     let negBdl = 0, negMissing = 0, negOver = 0;
+    const textCodes = { bdl: 0, nodl: 0, na: 0, nodlCols: new Set() }; // #2158
     // #1648 — each column's largest positive value, once: a negative code at that size is its upper limit
     const colMaxCache = new Map();
     const colMaxOf = (header) => { if (modal.overLimitCodes === false) return 0; let m = colMaxCache.get(header); if (m === undefined) { m = columnPositiveMax(modal.allRows, header); colMaxCache.set(header, m); } return m; };
     const oxideNotes = new Set(); // #403
     const oxideCache = new Map(); // #583 — per header, not per cell (2.3 M lookups on a 190,000-row file)
     const oxideOf = (header) => { let o = oxideCache.get(header); if (o === undefined) { o = oxideOfHeader(header) || null; oxideCache.set(header, o); } return o; };
+    const dlCache = new Map(); // #2158 — each column's detection limit, once
+    const dlOf = (header) => { let d = dlCache.get(header); if (d === undefined) { d = columnDetectionLimit((modal.allRows || []).map((r) => r[header])); dlCache.set(header, d); } return d; };
     const read = (raw, sym, header) => {
-      const c = readAssayCell(raw, negativeMode, colMaxOf(header));
+      const c = readAssayCell(raw, negativeMode, colMaxOf(header), dlOf(header));
+      if (c.kind === "txt_bdl") textCodes.bdl++; else if (c.kind === "txt_bdl_nodl") { textCodes.nodl++; textCodes.nodlCols.add(sym); } else if (c.kind === "na_text") textCodes.na++; // #2158
       if (c.kind === "neg_bdl") negBdl++;
       else if (c.kind === "neg_missing") negMissing++;
       else if (c.kind === "neg_over") negOver++;
@@ -653,6 +657,9 @@ export default function GeochemModule() {
       zeroBdl ? tr("{n} zero value(s) read as below detection (stored as \"<\" at half the smallest reading in their column).", { n: zeroBdl }) : null, // #1677
       zeroNoLimit ? tr("{n} zero value(s) left out: their column has no reading above zero to set a detection limit.", { n: zeroNoLimit }) : null,
       negOver ? tr("{n} negative value(s) read as over the upper limit (e.g. -10 → \">10\", stored at the limit).", { n: negOver }) : null, // #1648
+      textCodes.bdl ? tr("{n} cell(s) written as below detection (\"<LOD\", BDL, ND...) read at half their column's detection limit.", { n: textCodes.bdl.toLocaleString() }) : null, // #2158
+      textCodes.nodl ? tr("{n} cell(s) written as below detection left blank: their column ({list}) states no detection limit to use.", { n: textCodes.nodl.toLocaleString(), list: [...textCodes.nodlCols].join(", ") }) : null,
+      textCodes.na ? tr("{n} cell(s) marked not assayed (NULL, X, N/A, NS, -...) left blank.", { n: textCodes.na.toLocaleString() }) : null,
       mergedCount ? tr("{n} interval(s) were already loaded and were updated in place, not duplicated.", { n: mergedCount }) : null,
       (() => { // #541 — ids that miss a collar only by case / spaces / hyphens
         const ids = new Set(collars.map((c) => c.hole_id)); if (!ids.size) return null;
@@ -796,6 +803,8 @@ export default function GeochemModule() {
     const converted = chosen.filter((e) => existingUnit[e.symbol] && existingUnit[e.symbol] !== e.unit);
     let negBdl = 0, negMissing = 0;
     const overLimitFilled = new Map(); // #600 — as in commitAssayImport
+    const svDlCache = new Map(); // #2158 — each column's detection limit, for '<LOD' / BDL and the -1 / -9 codes
+    const svDlOf = (h) => { let d = svDlCache.get(h); if (d === undefined) { d = columnDetectionLimit((modal.allRows || []).map((x) => x[h])); svDlCache.set(h, d); } return d; };
     // TASKS.csv #600 — surface samples in another CRS are reprojected into the project CRS like collars are
     // (they used to be stored as-is, so an MX soil file in UTM 10 sat ~400 km from collars reprojected to UTM 9).
     const fromEpsg = modal.sourceEpsg ? Number(modal.sourceEpsg) : null;
@@ -825,7 +834,7 @@ export default function GeochemModule() {
       const bdl = []; // TASKS.csv #841 — elements reported below detection (stored at half the limit), for the censored share
       const nd = []; // TASKS.csv #931 — elements a public layer reported as 0 (below detection or not analysed: it does not say), no value
       chosen.forEach((e) => {
-        const c = readAssayCell(r[e.header]);
+        const c = readAssayCell(r[e.header], "bdl", 0, svDlOf(e.header)); // svDlOf: #2158
         if (c.qualifier === "<") bdl.push(e.symbol);
         else if (c.value != null && !c.qualifier && flagCols.has(e.symbol) && flagQualifier(r[flagCols.get(e.symbol)]) === "<") { bdl.push(e.symbol); flaggedLo.set(e.symbol, (flaggedLo.get(e.symbol) || 0) + 1); } // #2018
         if (c.value == null && r.zeroReported?.includes(e.header)) nd.push(e.symbol);
