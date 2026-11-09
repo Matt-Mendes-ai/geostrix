@@ -9385,5 +9385,8 @@
   "Coordinate grid (labelled)": "Cuadrícula de coordenadas (rotulada)",
   "This project has no coordinate system set, so true and magnetic north can't be computed. Set the CRS in the status bar; the plain arrow shows grid north.": "Este proyecto no tiene un sistema de coordenadas definido, así que no se pueden calcular el norte verdadero ni el magnético. Defina el SRC en la barra de estado; la flecha simple muestra el norte de cuadrícula.",
   "the project has no coordinate system yet: its EPSG:{src} coordinates were kept as they are, check where it lies": "el proyecto aún no tiene sistema de coordenadas: sus coordenadas EPSG:{src} se conservaron tal cual; compruebe dónde queda",
-  "neither the file nor the project states a coordinate system: the coordinates were kept as they are, check where it lies": "ni el archivo ni el proyecto indican un sistema de coordenadas: las coordenadas se conservaron tal cual; compruebe dónde queda"
+  "neither the file nor the project states a coordinate system: the coordinates were kept as they are, check where it lies": "ni el archivo ni el proyecto indican un sistema de coordenadas: las coordenadas se conservaron tal cual; compruebe dónde queda",
+  "{code} (Lithology)": "{code} (Litología)",
+  "Lithology (a code set as an envelope)": "Litología (un conjunto de códigos como envolvente)",
+  "Nothing to model yet: there is no Veins log, and no lithology code is cross-cutting. If your veins are logged as lithology codes, set their role to cross-cutting in Modelling codes.": "Aún no hay nada que modelar: no hay registro de vetas y ningún código de litología es transversal. Si sus vetas están registradas como códigos de litología, defina su rol como transversal en Códigos de modelado."
 }

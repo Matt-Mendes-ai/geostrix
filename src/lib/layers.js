@@ -226,6 +226,15 @@ export function roleForLithology(u) {
 }
 // Cross-cutting = doesn't belong in an ordered, non-crossing stratigraphic pile (see the Stack tool's
 // own scope comment in ViewerModule.jsx) — faults, dykes, breccia bodies and veins (#1369) all qualify.
+// TASKS.csv #2226 (review #2174, WA lode gold) — the Vein / dyke tool listed only the Veins log: a company that logs its veins as lithology codes
+// (VQZ 207, VCB 227 intervals) had an empty list and no word why. Its codes: the Veins log's, then the lithology codes that are cross-cutting
+// (the Modelling codes role, else the suggestion from the name or the notes), as 'litho:<code>'.
+export function veinSourceUnits(layers, modellingCodes = null) {
+  const seen = (rows) => [...new Set((rows || []).map((r) => r?.value).filter((v) => v != null && String(v).trim() !== ""))];
+  const set = new Map((modellingCodes?.codes || []).map((c) => [c.name, c.role]));
+  const crossCutting = (v) => (set.get(v) || mcodeRoleOf(roleForLithology(v))) === "cross-cutting";
+  return [...seen(layers?.vein), ...seen(layers?.litho).filter(crossCutting).map((v) => `litho:${v}`)];
+}
 export function isCrossCuttingRole(role) { return role === "fault" || role === "dyke" || role === "breccia" || role === "vein"; }
 // a Modelling codes role from a unit role (#599 roles: stratigraphic / overburden / cross-cutting / ignore)
 export function mcodeRoleOf(role) { return role === "overburden" ? "overburden" : role === "no recovery" ? "ignore" : isCrossCuttingRole(role) ? "cross-cutting" : "stratigraphic"; }

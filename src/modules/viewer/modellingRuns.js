@@ -1607,14 +1607,14 @@ export function createModellingRuns(ctx, mcRef) {
     const minField = !isCode && source?.field && Number.isFinite(Number(source.min)) ? { field: source.field, min: Number(source.min) } : null;
     const anisotropy = trendWarp(isCode ? "implicit" : "alteration"); // TASKS.csv #650
     const searchSetting = isCode ? bodyOpts.search || 0 : alterationSearchRadius, cellSetting = isCode ? bodyOpts.cell || 0 : alterationCellSize;
-    const altValue = isCode ? String(target).slice(6) : target, sourceKey = isCode ? "litho" : source?.layer === "vein" ? "vein" : "alt"; // vein: #2050
+    const altValue = isCode ? String(target).slice(6) : target, sourceKey = isCode ? "litho" : source?.layer === "vein" ? "vein" : source?.layer === "litho" ? "litho" : "alt"; // vein: #2050; litho: #2226
     const isTargetRow = (r) => (isCode ? effectiveCode(r, modellingCodes, mcodeGroupOf) === altValue : String(r.value) === String(altValue) && (!minField || Number(r[minField.field]) >= minField.min)); // minField: #1574
     const traces = tracesRef.current;
     if (!traces.length) { setNotices((p) => [...p, noCollarsNotice(isCode ? tr("the unit body") : tr("the alteration model"), layers, assays)]); return; }
 
     const domain = domains.find((d) => d.id === modelDomainId);
     const o = originRef.current;
-    const label = isCode ? `Unit body: ${altValue}` : `${sourceKey === "vein" ? "Vein set envelope" : "Alteration halo"}: ${customSrc ? `${customSrc.name} ` : ""}${altValue}${minField ? ` (${minField.field} ≥ ${minField.min})` : ""}`; // #1574; vein: #2050
+    const label = isCode ? `Unit body: ${altValue}` : `${sourceKey === "vein" ? "Vein set envelope" : sourceKey === "litho" ? "Envelope" : "Alteration halo"}: ${customSrc ? `${customSrc.name} ` : ""}${altValue}${minField ? ` (${minField.field} ≥ ${minField.min})` : ""}`; // #1574; vein: #2050
     setAlterationBusy(true);
     setTaskProgress?.({ label, pct: 20 });
     // Deferred exactly like runNumericModel (see its comment) so the busy state paints before the
@@ -1815,8 +1815,10 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
   // machinery models a scalar field with an assumed polarity and would have to be run twice, once per
   // contact, with nothing tying the two runs together — exactly the failure mode this row exists to
   // avoid.
-  const runVeinModel = (veinValue) => {
-    if (!veinValue) return;
+  const runVeinModel = (veinPick) => {
+    if (!veinPick) return;
+    // TASKS.csv #2226 — 'litho:<code>': a vein logged as a lithology code
+    const veinLayer = String(veinPick).startsWith("litho:") ? "litho" : "vein", veinValue = veinLayer === "litho" ? String(veinPick).slice(6) : veinPick;
     const traces = tracesRef.current;
     if (!traces.length) { setNotices((p) => [...p, noCollarsNotice(tr("the vein model"), layers, assays)]); return; }
     const o = originRef.current;
@@ -1829,10 +1831,10 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
       try {
         const { buildVeinModel } = await import("../../lib/vein.js"); // #144; loaded on first use (#476)
         const traceOf = new Map(traces.map((t) => [t.hole_id, t]));
-        const rows = (layers.vein || []).filter((r) => r.value === veinValue && r.hole_id != null
+        const rows = (layers[veinLayer] || []).filter((r) => r.value === veinValue && r.hole_id != null
           && r.from != null && r.to != null && !isNaN(r.from) && !isNaN(r.to) && Number(r.to) > Number(r.from)
-          && !excludedIntercepts.includes(interceptId("vein", r)) // #84 — reviewed-out intercepts never model
-          && interceptInActiveSet(interceptId("vein", r))); // #52 (c) — restricted to the active intercept set, if any
+          && !excludedIntercepts.includes(interceptId(veinLayer, r)) // #84 — reviewed-out intercepts never model
+          && interceptInActiveSet(interceptId(veinLayer, r))); // #52 (c) — restricted to the active intercept set, if any
         if (!rows.length) throw new Error(tr("No \"{veinValue}\" intervals found — nothing to model.", { veinValue }));
         // TASKS.csv #354 — back-to-back rows of this vein in one hole are one intercept (HW of the first,
         // FW of the last), not several thin ones that the midplane/thickness fit would read as separate veins.

@@ -269,7 +269,7 @@ export default function ModellingPanes(props) {
   const [altSource, setAltSource] = useState({ layer: "alt", field: "", min: "" });
   const altCustomLayers = useMemo(() => customLayersAll.filter((c) => (c.rows || []).some((r) => r.value != null && r.value !== "" && !Number.isFinite(Number(r.value)))), [customLayersAll]);
   // TASKS.csv #2050 — the Vein log too: a vein SET (stockwork) is modelled as an envelope of where it occurs, floored on its density
-  const altSourceRows = useMemo(() => (altSource.layer === "alt" ? storeLayers.alt || [] : altSource.layer === "vein" ? storeLayers.vein || [] : altCustomLayers.find((c) => `custom:${c.id}` === altSource.layer)?.rows || []), [altSource.layer, storeLayers.alt, altCustomLayers]);
+  const altSourceRows = useMemo(() => (altSource.layer === "alt" ? storeLayers.alt || [] : altSource.layer === "vein" ? storeLayers.vein || [] : altSource.layer === "litho" ? storeLayers.litho || [] : altCustomLayers.find((c) => `custom:${c.id}` === altSource.layer)?.rows || []), [altSource.layer, storeLayers.alt, altCustomLayers]);
   const altSourceCodes = useMemo(() => (altSource.layer === "alt" ? alt_units.filter((u) => !isNotLogged(u)) : [...new Set(altSourceRows.map((r) => String(r.value ?? "")).filter((v) => v && !isNotLogged(v)))].sort()), [altSource.layer, alt_units, altSourceRows]);
   // TASKS.csv #1421 (review #1352, Silvertip) — a code logged only as zero-length points (POT) cannot make a halo: it failed with
   // 'indicator never crosses 0.5'. The logged metres per code, so those are shown disabled and say why.
@@ -884,12 +884,13 @@ export default function ModellingPanes(props) {
         {alt_units.some((u) => isNotLogged(u)) && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6 }}>{tr("Not offered: {v} (intervals with no assemblage logged).", { v: alt_units.filter((u) => isNotLogged(u)).map((u) => `"${u}"`).join(", ") })}</div>}
         {(altCustomLayers.length > 0 || altNumericFields.length > 0 || (storeLayers.vein || []).length > 0) && ( // TASKS.csv #1574 — which log, and an intensity floor; vein: #2050
           <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 8 }}>
-            {(altCustomLayers.length > 0 || (storeLayers.vein || []).length > 0) && (
+            {(altCustomLayers.length > 0 || (storeLayers.vein || []).length > 0 || (storeLayers.litho || []).length > 0) && (
               <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
                 <span style={{ flexShrink: 0 }}>{tr("Layer")}</span>
                 <select aria-label={tr("Alteration layer")} value={altSource.layer} onChange={(e) => { setAltSource({ layer: e.target.value, field: "", min: "" }); setAlterationTarget(""); }} style={{ flex: 1, minWidth: 0, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "4px 6px", color: "var(--color-text)" }}>
                   <option value="alt">{tr("Alteration")}</option>
                   {(storeLayers.vein || []).length > 0 && <option value="vein">{tr("Veins (a vein set as an envelope)")}</option>}{/* #2050 */}
+                  {(storeLayers.litho || []).length > 0 && <option value="litho">{tr("Lithology (a code set as an envelope)")}</option>}{/* #2226 */}
                   {altCustomLayers.map((c) => <option key={c.id} value={`custom:${c.id}`}>{tr("{name} (custom layer)", { name: c.name })}</option>)}
                 </select>
               </label>
@@ -936,10 +937,11 @@ export default function ModellingPanes(props) {
         {toolPane === "vein" && (<>
         {paneHeader("Vein / dyke modelling", Waves, "model")}
         <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("Models a vein or dyke as a PAIR of contacts: each logged interval's from-depth and to-depth are the two walls of one structure. A midplane is fitted through the intercept midpoints and a TRUE-thickness field (downhole length corrected for how obliquely each hole cuts the vein) is interpolated over it; the hangingwall and footwall are that midplane offset by half the thickness each way, so they stay a consistent thickness apart and cannot cross. Runs in-app, no Python engine needed.")}</div>
+        {vein_units.length === 0 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 6, lineHeight: 1.4 }}>{tr("Nothing to model yet: there is no Veins log, and no lithology code is cross-cutting. If your veins are logged as lithology codes, set their role to cross-cutting in Modelling codes.")}</div>}{/* #2226 */}
         <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
           <select aria-label={tr("Vein or dyke")} value={veinTarget} onChange={(e) => setVeinTarget(e.target.value)} style={{ width: 0, flex: 1, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)" }}>
             <option value="">{tr("Choose a vein / dyke…")}</option>
-            {vein_units.map((u) => <option key={u} value={u}>{u}</option>)}
+            {vein_units.map((u) => <option key={u} value={u}>{u.startsWith("litho:") ? tr("{code} (Lithology)", { code: u.slice(6) }) : u}</option>)}{/* #2226 */}
           </select>
           <button
             onClick={() => runVeinModel(veinTarget)}

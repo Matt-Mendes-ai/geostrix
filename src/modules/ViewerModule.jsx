@@ -137,7 +137,7 @@ import { unitShell, meshVolume, blockUnitStats } from "../lib/unitVolumes.js"; /
 const ModellingCodesPane = React.lazy(() => import("../components/ModellingCodesPane.jsx")); // TASKS.csv #599 — modelling view only, so loaded on demand (#476 budget)
 import { resolveLayerStyle, cleanLayerStyle, TUBE_SEGMENTS } from "../lib/layerStyle.js"; // TASKS.csv #635
 import { lithoPatternMap, withSectionPatterns } from "../lib/lithoPatterns.js"; // #1995
-import { LAYER_META, colorForLithology, rqdColor, magColor, distinctValues, minMax, colorForVoxelValue, makeVoxelColorResolverRGB, roleForLithology, groupMcodeRole, isCrossCuttingRole, colorForMedium } from "../lib/layers.js";
+import { LAYER_META, colorForLithology, rqdColor, magColor, distinctValues, minMax, colorForVoxelValue, makeVoxelColorResolverRGB, roleForLithology, groupMcodeRole, isCrossCuttingRole, colorForMedium, veinSourceUnits } from "../lib/layers.js";
 import { computeMeshVolume } from "../lib/volumetrics.js";
 import { sceneVertsToWorldFlat } from "../lib/meshFlat.js"; // TASKS.csv #600 — the exporters (meshExport.js) load on first export
 import { useSculpt } from "../lib/useSculpt.js"; // TASKS.csv #145 — manual surface editing
@@ -3209,7 +3209,7 @@ ${describeTrend(t)}` };
   const lithoGroupRole = (g) => { const roles = new Set((g.codes || []).map(roleForLithology)); return roles.size === 1 ? [...roles][0] : null; };
   const lithoGroupCrossCuts = (g) => (g.codes || []).some((c) => isCrossCuttingRole(roleForLithology(c)));
   const alt_units = distinctValues(layers.alt || []).map(([v]) => v);
-  const vein_units = distinctValues(layers.vein || []).map(([v]) => v); // TASKS.csv #144
+  const vein_units = veinSourceUnits(layers, modellingCodes); // TASKS.csv #144; lithology vein codes: #2226
   const struct_types = distinctValues(layers.structure || []).map(([v]) => v);
 
   // The sidebar's notices list sits below the (potentially long) Holes list, so on a property with

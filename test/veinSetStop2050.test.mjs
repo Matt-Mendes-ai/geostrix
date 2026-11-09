@@ -18,5 +18,5 @@ test("the halo takes the Vein log as its source: a vein set as an envelope", () 
   const p = readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
   assert.match(p, /altSource\.layer === "vein" \? storeLayers\.vein \|\| \[\]/);
   assert.match(p, /<option value="vein">\{tr\("Veins \(a vein set as an envelope\)"\)\}<\/option>/);
-  assert.match(r, /sourceKey = isCode \? "litho" : source\?\.layer === "vein" \? "vein" : "alt";/);
+  assert.match(r, /sourceKey = isCode \? "litho" : source\?\.layer === "vein" \? "vein" : source\?\.layer === "litho" \? "litho" : "alt";/); // litho: #2226
 });

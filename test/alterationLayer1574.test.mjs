@@ -23,7 +23,7 @@ test("the run takes a source layer and an intensity floor; the pane offers the l
   assert.match(r, /const customSrc = !isCode && source\?\.layer\?\.startsWith\("custom:"\) \? \(customLayers \|\| \[\]\)\.find\(\(c\) => String\(c\.id\) === source\.layer\.slice\(7\)\) \|\| null : null;/);
   assert.match(r, /String\(r\.value\) === String\(altValue\) && \(!minField \|\| Number\(r\[minField\.field\]\) >= minField\.min\)/);
   assert.match(r, /const altRows = \(\(customSrc \? customSrc\.rows : layers\[sourceKey\]\) \|\| \[\]\)/);
-  assert.match(r, /\$\{sourceKey === "vein" \? "Vein set envelope" : "Alteration halo"\}: \$\{customSrc \? `\$\{customSrc\.name\} ` : ""\}\$\{altValue\}\$\{minField \? ` \(\$\{minField\.field\} ≥ \$\{minField\.min\}\)` : ""\}/); // vein: #2050
+  assert.match(r, /\$\{sourceKey === "vein" \? "Vein set envelope" : sourceKey === "litho" \? "Envelope" : "Alteration halo"\}: \$\{customSrc \? `\$\{customSrc\.name\} ` : ""\}\$\{altValue\}\$\{minField \? ` \(\$\{minField\.field\} ≥ \$\{minField\.min\}\)` : ""\}/); // vein: #2050
   const p = readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8");
   assert.match(p, /<select aria-label=\{tr\("Code"\)\} value=\{alterationTarget\}/);
   assert.doesNotMatch(p, /aria-label=\{tr\("Assemblage"\)\}/);

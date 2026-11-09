@@ -9385,5 +9385,8 @@
   "Coordinate grid (labelled)": "شبكة إحداثيات (مع تسميات)",
   "This project has no coordinate system set, so true and magnetic north can't be computed. Set the CRS in the status bar; the plain arrow shows grid north.": "لا يملك هذا المشروع نظام إحداثيات محددًا، لذا لا يمكن حساب الشمال الحقيقي ولا المغناطيسي. حدِّد نظام الإحداثيات في شريط الحالة؛ يُظهر السهم البسيط شمال الشبكة.",
   "the project has no coordinate system yet: its EPSG:{src} coordinates were kept as they are, check where it lies": "لا يملك المشروع نظام إحداثيات بعد: احتُفظ بإحداثياته EPSG:{src} كما هي، تحقق من موقعه",
-  "neither the file nor the project states a coordinate system: the coordinates were kept as they are, check where it lies": "لا يذكر الملف ولا المشروع نظام إحداثيات: احتُفظ بالإحداثيات كما هي، تحقق من موقعه"
+  "neither the file nor the project states a coordinate system: the coordinates were kept as they are, check where it lies": "لا يذكر الملف ولا المشروع نظام إحداثيات: احتُفظ بالإحداثيات كما هي، تحقق من موقعه",
+  "{code} (Lithology)": "{code} (الصخارة)",
+  "Lithology (a code set as an envelope)": "الصخارة (مجموعة رموز كغلاف)",
+  "Nothing to model yet: there is no Veins log, and no lithology code is cross-cutting. If your veins are logged as lithology codes, set their role to cross-cutting in Modelling codes.": "لا شيء للنمذجة بعد: لا يوجد سجل عروق ولا رمز صخارة قاطع. إذا كانت عروقك مسجلة كرموز صخارة، فاجعل دورها قاطعًا في رموز النمذجة."
 }
