@@ -138,7 +138,8 @@ const NOT_GRADE = /\b(status|certificate|cert|laboratory|lab|method|date|complet
 // TASKS.csv #1105 (review #1016, Micromine user) — fewer than four elements is the normal case for a gold project's
 // DHASSAY (HOLE, FROM, TO, SAMPLE, AU [, AG]): such a file was guessed as a lithology layer with an empty value field.
 // It is assays too when it has from / to, at least one element column, and a sample-id column or "assay" in its name.
-const FROM_COL = /^(from|from_m|mfrom|depth_?from|from_?depth)$/i, TO_COL = /^(to|to_m|mto|depth_?to|to_?depth)$/i;
+// #2149 — dfrom / dto, start / end depth and m_from / m_to too
+const FROM_COL = /^(from|from_m|m_?from|dfrom|depth_?from|from_?depth|start_?depth|depth_?start)$/i, TO_COL = /^(to|to_m|m_?to|dto|depth_?to|to_?depth|end_?depth|depth_?end)$/i;
 const SAMPLE_COL = /^(sample|samp|sample_?(id|no|num|number)|samp_?(id|no)|sampleid|sampno)$/i;
 export function looksLikeAssay(headers, fileName = "") {
   const syms = new Set();

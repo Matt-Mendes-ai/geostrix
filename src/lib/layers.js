@@ -660,11 +660,16 @@ export const LAYER_META = {
 // ============================================================
 // generic CSV import: target schemas + column-mapping helpers
 // ============================================================
+// TASKS.csv #2149 (WA drillhole database review #2148) — mTo is the commonest unmatched column in WAMEX (14,164 files) and
+// DMIRS's own harmonized pair is FromDepth / ToDepth: "to" is too short for the substring pass, so every such interval table
+// opened with To empty and Import disabled. One list for the interval schemas, the custom layer and the assay dialog.
+export const INTERVAL_FROM_ALIASES = ["from", "from_m", "depth_from", "from_depth", "fromdepth", "depthfrom", "mfrom", "m_from", "dfrom", "geolfrom", "sampfrom", "geol_from", "samp_from", "interval_from", "start_depth", "startdepth", "depth_start"];
+export const INTERVAL_TO_ALIASES = ["to", "to_m", "depth_to", "to_depth", "todepth", "depthto", "mto", "m_to", "dto", "geolto", "sampto", "geol_to", "samp_to", "interval_to", "end_depth", "enddepth", "depth_end"];
 function intervalFields(valueAliases, extraAliases, numeric, descriptionAliases) {
   const fields = [
     { key: "hole_id", label: "Hole ID", required: true, aliases: ["hole_id", "holeid", "hole", "bhid", "dhid", "ddh", "ddh_id", "ddh_no"] },
-    { key: "from", label: "From", required: true, aliases: ["from", "from_m", "depth_from", "from_depth", "geolfrom", "sampfrom", "geol_from", "samp_from", "interval_from", "m_from"] },
-    { key: "to", label: "To", required: true, aliases: ["to", "to_m", "depth_to", "to_depth", "geolto", "sampto", "geol_to", "samp_to", "interval_to", "m_to"] },
+    { key: "from", label: "From", required: true, aliases: INTERVAL_FROM_ALIASES },
+    { key: "to", label: "To", required: true, aliases: INTERVAL_TO_ALIASES },
     // TASKS.csv #320 — "value"/"val" as LAST-resort aliases: a hand-built hole_id,from,to,value file left
     // Value unmapped. Appended, so every layer's own names (litho, rock_type...) still win.
     { key: "value", label: numeric ? "Value (numeric)" : "Value", required: true, aliases: [...valueAliases, ...["value", "val"].filter((a) => !valueAliases.includes(a))] },
@@ -752,8 +757,8 @@ export const TARGET_SCHEMAS = {
   ] },
   custom: { label: "Custom layer", fields: [
     { key: "hole_id", label: "Hole ID", required: true, aliases: ["hole_id", "holeid", "hole", "bhid", "dhid", "ddh", "ddh_id", "ddh_no"] },
-    { key: "from", label: "From (leave unset if point data)", required: false, aliases: ["from", "from_m", "depth_from", "from_depth", "geolfrom", "sampfrom", "geol_from", "samp_from", "interval_from", "m_from"] },
-    { key: "to", label: "To (leave unset if point data)", required: false, aliases: ["to", "to_m", "depth_to", "to_depth", "geolto", "sampto", "geol_to", "samp_to", "interval_to", "m_to"] },
+    { key: "from", label: "From (leave unset if point data)", required: false, aliases: INTERVAL_FROM_ALIASES },
+    { key: "to", label: "To (leave unset if point data)", required: false, aliases: INTERVAL_TO_ALIASES },
     { key: "depth", label: "Depth (for point data)", required: false, aliases: ["depth", "at", "md"] },
     { key: "value", label: "Value / category", required: true, aliases: ["value", "label"] },
   ] },
@@ -841,6 +846,9 @@ export function guessMapping(target, headers) {
   schema.fields.forEach((f) => { mapping[f.key] = guessColumn(headers, f.aliases); });
   // TASKS.csv #1071 — "Hole_Length" / "Hole_Depth" matched "hole" in the substring pass and became the Hole ID
   if (mapping.hole_id && /(length|depth|_len$|_m$|azi|dip|elev)/.test(normHeader(mapping.hole_id))) mapping.hole_id = "";
+  // TASKS.csv #2149 — the point-data Depth took FromDepth by substring ("depth" inside it) next to From = FromDepth: an interval table's
+  // from / to column is never also its point depth
+  if (mapping.depth && (mapping.depth === mapping.from || mapping.depth === mapping.to)) mapping.depth = "";
   // TASKS.csv #1345 (42807Z) — MAG_INSTRUMENT matched "mag" and the mag-sus log loaded 0 of 6,264 rows: a numeric layer's value is
   // never the instrument, the logger, a date or a comment
   const notAValue = (h) => /(instrument|device|logged|entered|_by$|date|comment|desc|model|serial|srm_name|photo)/.test(normHeader(h));
@@ -889,7 +897,7 @@ export function guessColumn(headers, aliases) {
 }
 // TASKS.csv #1345 (ARIS 42807Z) — "val" matched inside "GEO_INTERVAL_D" (inter-VAL), so an acQuire alteration log was coloured by
 // each interval's length. A last-resort alias that is a fragment of common words matches a whole header only.
-const WHOLE_ONLY = new Set(["val"]);
+const WHOLE_ONLY = new Set(["val", "mto", "dto", "dfrom"]); // mto / dto / dfrom: #2149 (fragments: "comMTOtal", "oDTOp")
 export function guessTarget(headers) {
   // #600 (40958Z): the normalised forms too ("Mag Avg" -> mag_avg, "Specific Gravity" -> specific_gravity)
   const lower = [...new Set(headers.flatMap((h) => [h.toLowerCase(), normHeader(h)]))];

@@ -31,8 +31,8 @@ export function detectLongAssay(headers) {
     method: pick(headers, ["analysis_code", "method", "method_code", "lab_method", "analytical_method", "procedure"]),
     flag: pick(headers, ["flag", "qualifier", "result_flag", "detection_flag", "remark_code"]),
     hole: pick(headers, ["hole_id", "holeid", "bhid", "dhid", "hole", "hole_name"]),
-    from: pick(headers, ["from", "from_m", "depth_from", "sample_from", "sampfrom", "mfrom"]),
-    to: pick(headers, ["to", "to_m", "depth_to", "sample_to", "sampto", "mto"]),
+    from: pick(headers, ["from", "from_m", "depth_from", "from_depth", "fromdepth", "depthfrom", "sample_from", "sampfrom", "samp_from", "mfrom", "m_from", "dfrom", "start_depth", "startdepth"]), // #2149
+    to: pick(headers, ["to", "to_m", "depth_to", "to_depth", "todepth", "depthto", "sample_to", "sampto", "samp_to", "mto", "m_to", "dto", "end_depth", "enddepth"]), // #2149
     sample: pick(headers, ["sample_id", "sampleid", "sample_no", "sample_number", "sample"]),
   };
 }
