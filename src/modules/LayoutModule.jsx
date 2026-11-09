@@ -1206,6 +1206,8 @@ export default function LayoutModule() {
               const at = vp ? vp.targetWorld : collars.length ? { x: collars.reduce((t, c) => t + c.x, 0) / collars.length, y: collars.reduce((t, c) => t + c.y, 0) / collars.length } : null;
               const date = sel.declDate || new Date().toISOString().slice(0, 10);
               const compute = () => {
+                // TASKS.csv #2299 — not from the placeholder CRS: true and magnetic north need the map's real location
+                if (project?.crsSet === false) { updateSelected({ decl: null, declError: tr("This project has no coordinate system set, so true and magnetic north can't be computed. Set the CRS in the status bar; the plain arrow shows grid north.") }); return; }
                 const o = at && project?.epsg ? azimuthToGridOffset("magnetic", at.x, at.y, project.epsg, date) : null;
                 if (!o) { updateSelected({ decl: null, declError: at ? "Couldn't compute it for this project's coordinate system or date." : "Needs a viewport capture or collars to know where the map is." }); return; }
                 updateSelected({ decl: { convergence: o.convergence, declination: o.declination, date, at }, declError: null });
@@ -1274,7 +1276,7 @@ export default function LayoutModule() {
               </div>
             )}
             {sel.type === "viewport" && (
-              <ViewportControls
+              <ViewportControls crsUnset={project?.crsSet === false}
                 sel={sel} themes={themes} updateSelected={updateSelected} syncNotice={syncNotice}
                 onRefresh={() => startViewportRender(sel.themeId, sel.id, sel.trueScale, { fixedScale: sel.fixedScale, elementW: sel.w, elementH: sel.h })}
                 onRebind={(themeId) => startViewportRender(themeId, sel.id, sel.trueScale, { fixedScale: sel.fixedScale, elementW: sel.w, elementH: sel.h })}
@@ -1852,7 +1854,7 @@ function SectionScaleControls({ sel, pageW, pageH, updateSelected }) {
   );
 }
 
-function ViewportControls({ sel, themes, updateSelected, onRefresh, onRebind, onEnter, onFit, onRescale, onSyncScaleBar, onSyncNorth, syncNotice, others = [], allViewports = [], hasHoles = true }) {
+function ViewportControls({ sel, themes, updateSelected, onRefresh, onRebind, onEnter, onFit, onRescale, onSyncScaleBar, onSyncNorth, syncNotice, others = [], allViewports = [], hasHoles = true, crsUnset = false }) {
   // TASKS.csv #907 — the scale picker: a preset, "custom" (a typed 1:N), or free (whatever the 3D view frames)
   const [customScale, setCustomScale] = useState(false);
   const scaleChoice = customScale || (sel.fixedScale > 0 && !SCALE_PRESETS.includes(sel.fixedScale)) ? "custom" : sel.fixedScale > 0 ? String(sel.fixedScale) : "";
@@ -1871,7 +1873,7 @@ function ViewportControls({ sel, themes, updateSelected, onRefresh, onRebind, on
       )}
       <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: gridOk ? "var(--color-text)" : "var(--color-text-muted)", marginBottom: 6, cursor: gridOk ? "pointer" : "default" }}
         title={gridOk ? tr("Draw labelled easting/northing lines over this view") : tr("Needs a top-down, true-scale capture: set the 3D view to Top, tick true scale, and refresh this viewport.")}>
-        <input type="checkbox" disabled={!gridOk} checked={!!sel.utmGrid && gridOk} onChange={(e) => updateSelected({ utmGrid: e.target.checked })} />{tr("UTM grid (labelled)")}{gridOk && sel.utmGrid && (
+        <input type="checkbox" disabled={!gridOk} checked={!!sel.utmGrid && gridOk} onChange={(e) => updateSelected({ utmGrid: e.target.checked })} />{crsUnset ? tr("Coordinate grid (labelled)") /* #2300: local metres are not UTM */ : tr("UTM grid (labelled)")}{gridOk && sel.utmGrid && (
           <input type="number" min="1" step="any" placeholder={tr("auto")} value={sel.utmGridStep || ""} onChange={(e) => updateSelected({ utmGridStep: Number(e.target.value) || 0 })}
             aria-label={tr("Grid spacing (m)")} title={tr("Grid spacing in metres (blank = automatic)")} style={{ width: 60, marginLeft: "auto", fontSize: "var(--font-size-sm)" }} />
         )}
@@ -2070,14 +2072,17 @@ function Handles({ which, onStart, at = {} }) {
 // TASKS.csv #909 — the dynamic-text context of a page, and the fill
 const PLACEHOLDER = /\{(project|date|page|pages|pagename|scale|crs|credits)\}/g; // credits: TASKS.csv #949
 // TASKS.csv #947 — a map frame with a UTM grid never said which datum and zone: {crs} and the grid's caption print it
-function crsText(epsg) {
+// TASKS.csv #2300 (review #2174) — with the CRS not set, project.epsg is a placeholder (BC UTM 9N): the title block and grid caption named it on a
+// WA mine grid. Only a chosen CRS is named.
+function crsText(epsg, crsSet = true) {
+  if (crsSet === false) return tr("Local grid (no coordinate system set)");
   if (!epsg) return "";
   const name = crsName(epsg);
   return name ? `${name} (EPSG:${epsg})` : `EPSG:${epsg}`;
 }
 function textContextFor(els, project, page, index, count, collars = null, credits = "") {
   const today = new Date(), p2 = (v) => String(v).padStart(2, "0"); // #1489 — ISO: '11/2/2026' read as 11 February to many readers
-  return { project: project?.name || "", date: `${today.getFullYear()}-${p2(today.getMonth() + 1)}-${p2(today.getDate())}`, page: String(index + 1), pages: String(count), pagename: page?.name || "", scale: pageScaleText(els), crs: crsText(project?.epsg), credits, collars, els, pageH: pagePx(pageFormatOf(page)).h, pageW: pagePx(pageFormatOf(page)).w /* #2134 */ }; // collars: the #911 table; els: the #912 overview; pageH: #1480
+  return { project: project?.name || "", date: `${today.getFullYear()}-${p2(today.getMonth() + 1)}-${p2(today.getDate())}`, page: String(index + 1), pages: String(count), pagename: page?.name || "", scale: pageScaleText(els), crs: crsText(project?.epsg, project?.crsSet), credits, collars, els, pageH: pagePx(pageFormatOf(page)).h, pageW: pagePx(pageFormatOf(page)).w /* #2134 */ }; // collars: the #911 table; els: the #912 overview; pageH: #1480
 }
 const fillText = (text, ctx) => (ctx && typeof text === "string" && text.includes("{") ? text.replace(PLACEHOLDER, (m, k) => (ctx[k] != null ? ctx[k] : m)) : text);
 
