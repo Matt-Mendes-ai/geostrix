@@ -368,19 +368,27 @@ function upperBound(sorted, t) { let lo = 0, hi = sorted.length; while (lo < hi)
 // TASKS.csv #1456 (review #1352, Silvertip) — the highest-scoring places of an overlay, to plan a hole to: the best cells, each at least
 // minSepM from those already taken (the 2nd-best cell is usually the best one's neighbour, the same target). Cell centres as the
 // grid places them (x0 + i dx, yTop - j dy). -> [{ i, j, x, y, score }], best first
+// TASKS.csv #2255 (review #2174, WA gold) — the top five fuzzy cells all scored 0.629 (and the five posteriors 0.272): a plateau of equal
+// cells ranked by array order, without a word. Equal scores (to 1e-6) are now ranked by the mean score of the 3 x 3 cells around them (a cell
+// inside a high patch before one at its edge), and a cell tied with another listed one is flagged. -> [{ i, j, x, y, score, around, tied }]
 export function topCells(score, g, { n = 5, minSepM = null } = {}) {
   if (!score || !g) return [];
   const sep = minSepM > 0 ? minSepM : 5 * Math.max(g.dx, g.dy);
+  const around = (k) => { const i = k % g.nx, j = Math.floor(k / g.nx); let s = 0, c = 0; for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) { const ii = i + di, jj = j + dj; if (ii < 0 || jj < 0 || ii >= g.nx || jj >= g.ny) continue; const v = score[jj * g.nx + ii]; if (Number.isFinite(v)) { s += v; c++; } } return c ? s / c : -Infinity; };
   const idx = [];
   for (let k = 0; k < score.length; k++) if (Number.isFinite(score[k])) idx.push(k);
   idx.sort((a, b) => score[b] - score[a]);
+  // only the leading run of each tied value needs the neighbourhood key: re-sort the cells whose score equals one of the best few
+  const cut = Math.min(idx.length, 2000), memo = new Map(), aroundOf = (k) => { let v = memo.get(k); if (v === undefined) memo.set(k, (v = around(k))); return v; };
+  const head = idx.slice(0, cut).sort((a, b) => (Math.abs(score[b] - score[a]) > 1e-6 ? score[b] - score[a] : aroundOf(b) - aroundOf(a)));
   const out = [];
-  for (const k of idx) {
+  for (const k of head.concat(idx.slice(cut))) {
     const i = k % g.nx, j = Math.floor(k / g.nx), x = g.x0 + i * g.dx, y = g.yTop - j * g.dy;
     if (out.some((c) => Math.hypot(c.x - x, c.y - y) < sep)) continue;
-    out.push({ i, j, x, y, score: score[k] });
+    out.push({ i, j, x, y, score: score[k], around: aroundOf(k) });
     if (out.length >= n) break;
   }
+  out.forEach((c) => { c.tied = out.some((d) => d !== c && Math.abs(d.score - c.score) <= 1e-6); });
   return out;
 }
 

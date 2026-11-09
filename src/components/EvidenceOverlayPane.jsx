@@ -503,9 +503,10 @@ function TopPlaces({ score, grid, onPlanTo, note, pBtn, posterior = false }) {
   return (
     <div style={{ marginTop: 4 }}>
       <div style={{ color: "var(--color-text-secondary)" }}>{posterior ? tr("Highest posterior (at least {d} m apart):", { d: Math.round(5 * Math.max(grid.dx, grid.dy)) }) : tr("Highest fuzzy scores (at least {d} m apart):", { d: Math.round(5 * Math.max(grid.dx, grid.dy)) })}</div>
+      {top.some((c) => c.tied) && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("Some of these score the same (a plateau of equal cells): those are ranked by the mean score of the cells around them, so treat their order as a tie.")}</div>}{/* #2255 */}
       {top.map((c, k) => (
         <div key={k} style={{ ...note, display: "flex", alignItems: "center", gap: 6, color: "var(--color-text-secondary)" }}>
-          <span style={{ flex: 1, minWidth: 0 }}>{tr("{k}. {score} at E {x}, N {y}", { k: k + 1, score: fmt(c.score, 3), x: Math.round(c.x).toLocaleString(), y: Math.round(c.y).toLocaleString() })}</span>
+          <span style={{ flex: 1, minWidth: 0 }}>{tr("{k}. {score} at E {x}, N {y}", { k: k + 1, score: fmt(c.score, 3), x: Math.round(c.x).toLocaleString(), y: Math.round(c.y).toLocaleString() })}{c.tied ? " " + tr("(tied)") : ""}</span>
           {onPlanTo && <button type="button" style={{ ...pBtn, padding: "2px 7px", flexShrink: 0 }} onClick={() => onPlanTo({ x: c.x, y: c.y, z: null })} title={tr("Opens Planned holes with this easting and northing as the target; type the target elevation there (the score is in plan, it has no depth).")}>{tr("Plan a hole to here")}</button>}
         </div>
       ))}
