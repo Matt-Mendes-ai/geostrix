@@ -368,6 +368,8 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
           <option value="">{tr("+ add evidence…")}</option>
           {sources.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
         </select>
+        {/* TASKS.csv #2010 — a multiband satellite picture becomes evidence through a band ratio, made in Maps */}
+        {pictureRasters.length > 0 && <div style={note}>{tr("A multiband satellite scene (Sentinel-2, Landsat, ASTER) scores after a band ratio: Maps > Spectral index makes iron oxide, clay / hydroxyl or your own ratio (b4 / b2…) as a raster with values, listed here.")}</div>}
         {pictureRasters.length > 0 && <div style={note}>{tr("{n} raster(s) are pictures without values ({names}): a colour image has no numbers to score. Import the data grid (a single-band GeoTIFF, .grd or .gxf) to use it as evidence.", { n: pictureRasters.length, names: pictureRasters.slice(0, 3).map((r) => r.name).join(", ") + (pictureRasters.length > 3 ? ", …" : "") })}</div>}{/* #1567 */}
         {grid && !sources.length && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("Nothing in this project can be used as evidence yet. Evidence comes from a raster with values, a map layer, surface samples, a geophysics survey, a block model, assays or logged structures.")}</div>}
         {layers.map((l) => (

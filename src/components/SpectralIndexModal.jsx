@@ -44,6 +44,9 @@ export default function SpectralIndexModal({ epsg, defaultElevation, sourceEpsg,
   const [sceneId, setSceneId] = useState("");
   const [progress, setProgress] = useState(null);
   const [maskVeg, setMaskVeg] = useState(false); // #789: opt-in (blanks forest, adds the NIR band to the download)
+  // TASKS.csv #2010 — the NDVI above which a pixel counts as vegetated, entered by the user (0.4 was fixed; it starts there, said in the label)
+  const [vegMax, setVegMax] = useState(String(VEG_NDVI_MAX));
+  const vegMaxN = Number.isFinite(Number(vegMax)) && Number(vegMax) > -1 && Number(vegMax) < 1 ? Number(vegMax) : VEG_NDVI_MAX;
 
   const fetchMode = mode === "fetch";
   const activeSensor = fetchMode ? IMAGERY_SOURCES[source].sensor : sensor;
@@ -109,11 +112,11 @@ export default function SpectralIndexModal({ epsg, defaultElevation, sourceEpsg,
       bandFn: (bands, isNoData) => {
         // #928 — a reflective file is converted to reflectance first (fetched scenes already are)
         if (!fetchMode && reflective) { encGuessed = dnEnc === "auto"; encUsed = encGuessed ? detectEncoding(Object.values(map).map((b) => bands[Number(b) - 1]).filter(Boolean), sensorKey, { bits }) : dnEnc; }
-        const r = evaluateIndex(bands, map, expr, { isNoData, floor: reflective ? "auto" : 0, veg: vegOn ? { nir: sens.nir, red: sens.red } : null, dnScale: sens.dnScale || 10000, encoding: encUsed }); ({ blank, dark, vegetated } = r); total = r.values.length; return r.values;
+        const r = evaluateIndex(bands, map, expr, { isNoData, floor: reflective ? "auto" : 0, veg: vegOn ? { nir: sens.nir, red: sens.red, max: vegMaxN } : null, dnScale: sens.dnScale || 10000, encoding: encUsed }); ({ blank, dark, vegetated } = r); total = r.values.length; return r.values;
       },
     });
     const masks = (dark ? (encUsed === "byte" ? tr(" Of those, {dark} had a band at 1 or 2 of 255 (near black): a ratio there is noise and would take over the colour scale.", { dark: dark.toLocaleString() }) : tr(" Of those, {dark} had a band under 1% reflectance (dark forest, shadow): a ratio there is noise and would take over the colour scale.", { dark: dark.toLocaleString() })) : "") // #2124
-      + (vegetated ? tr(vegetated === 1 ? " {vegetated} vegetated pixel (NDVI above {max}) was left out." : " {vegetated} vegetated pixels (NDVI above {max}) were left out.", { vegetated: vegetated.toLocaleString(), max: VEG_NDVI_MAX }) : "")
+      + (vegetated ? tr(vegetated === 1 ? " {vegetated} vegetated pixel (NDVI above {max}) was left out." : " {vegetated} vegetated pixels (NDVI above {max}) were left out.", { vegetated: vegetated.toLocaleString(), max: vegMaxN }) : "")
       + (reflective && maskVeg && !vegOn ? tr(" Vegetation was not masked: {v} not mapped to a file band.", { v: vegRoles.join(" / ") }) : "");
     const note = tr(" Index {expr}{v}.{v2}{v3}{v4} An index is a ratio of surface signals, not a mineral map: vegetation, snow, water and shadow change it, and only exposed rock or soil means anything.", { expr, v: fetchMode ? "" : tr(" with {v}", { v: parsed.uses.map((r) => `${r} = band ${map[r]}`).join(", ") }), v2: sourceNote || "", v3: blank ? tr(blank === 1 ? " {blank} pixel is blank ({v2}%: masked, at 0 / nodata / negative, or a division by zero)." : " {blank} pixels are blank ({v2}%: masked, at 0 / nodata / negative, or a division by zero).", { blank: blank.toLocaleString(), v2: ((100 * blank) / Math.max(1, total)).toPrecision(2) }) + masks : masks, v4: isCustom ? "" : encUsed === "byte" ? " " + tr(preset.what) : tr(" {what} Pixel size of the source: {pixel}.", { what: tr(preset.what), pixel: SENSORS[sensorKey].pixel }) }); // #2124: not the sensor's pixel
     const encNote = encUsed ? " " + tr("Pixel values read as: {v}{d}.", { v: tr(DN_ENCODINGS[encUsed].label), d: encGuessed ? tr(encUsed === "byte" ? " (the file is 8-bit; choose it under \"Pixel values\" if that is wrong)" : " (guessed from the values; choose it under \"Pixel values\" if that is wrong)") : "" }) : ""; // #928
@@ -219,7 +222,14 @@ export default function SpectralIndexModal({ epsg, defaultElevation, sourceEpsg,
             {reflective && sens.nir && (
               <label style={{ ...small, display: "flex", alignItems: "flex-start", gap: 6, marginTop: 8 }}>
                 <input type="checkbox" checked={maskVeg} onChange={(e) => setMaskVeg(e.target.checked)} style={{ marginTop: 2 }} />
-                <span>{tr("Leave out vegetation (NDVI above {max}, from {nir} and {red}): iron and clay ratios only mean something on exposed rock and soil, so the colours then compare rock with rock.{v}", { max: VEG_NDVI_MAX, nir: sens.nir, red: sens.red, v: fetchMode ? tr(" Downloads one more band.") : "" })}{/* #1472 — nothing is downloaded from a file */}</span>
+                <span>{tr("Leave out vegetation (NDVI above {max}, from {nir} and {red}): iron and clay ratios only mean something on exposed rock and soil, so the colours then compare rock with rock.{v}", { max: vegMaxN, nir: sens.nir, red: sens.red, v: fetchMode ? tr(" Downloads one more band.") : "" })}{/* #1472 — nothing is downloaded from a file */}</span>
+              </label>
+            )}
+            {reflective && sens.nir && maskVeg && ( /* TASKS.csv #2010 — the threshold is the user's */
+              <label style={{ ...small, display: "flex", alignItems: "center", gap: 6, marginTop: 4, marginLeft: 22 }}>
+                {tr("Vegetated above NDVI")}
+                <input type="number" step="0.05" min="-1" max="1" value={vegMax} onChange={(e) => setVegMax(e.target.value)} aria-label={tr("NDVI above which a pixel is vegetated")} style={{ width: 64, fontSize: "var(--font-size-sm)" }} />
+                <span>{tr("(a common starting value is 0.4; dry or sparse cover reads lower)")}</span>
               </label>
             )}
           </div>

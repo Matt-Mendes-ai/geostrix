@@ -9324,5 +9324,9 @@
   "Add the {n} sample(s) as {media} anyway? They sit on samples already in the project ({had}). Cancel stops the import.": "Adicionar mesmo assim as {n} amostras como {media}? Elas ficam sobre amostras já no projeto ({had}). Cancelar interrompe a importação.",
   "{n} sample(s) were added as {media} at the positions of samples already in the project as {had}.": "{n} amostra(s) foram adicionadas como {media} nas posições de amostras já no projeto como {had}.",
   "Surface sample import cancelled: nothing was added.": "Importação de amostras de superfície cancelada: nada foi adicionado.",
-  "The file's \"{col}\" column holds {list}; with no medium column chosen, every row is imported as {medium}.": "A coluna \"{col}\" do arquivo contém {list}; sem coluna de meio escolhida, cada linha é importada como {medium}."
+  "The file's \"{col}\" column holds {list}; with no medium column chosen, every row is imported as {medium}.": "A coluna \"{col}\" do arquivo contém {list}; sem coluna de meio escolhida, cada linha é importada como {medium}.",
+  "Vegetated above NDVI": "Vegetação acima de NDVI",
+  "NDVI above which a pixel is vegetated": "NDVI acima do qual um pixel é vegetação",
+  "(a common starting value is 0.4; dry or sparse cover reads lower)": "(um valor inicial comum é 0,4; cobertura seca ou esparsa dá valores menores)",
+  "A multiband satellite scene (Sentinel-2, Landsat, ASTER) scores after a band ratio: Maps > Spectral index makes iron oxide, clay / hydroxyl or your own ratio (b4 / b2…) as a raster with values, listed here.": "Uma cena de satélite multibanda (Sentinel-2, Landsat, ASTER) pontua após uma razão de bandas: Mapas > Índice espectral cria óxido de ferro, argila / hidroxila ou a sua própria razão (b4 / b2…) como um raster com valores, listado aqui."
 }
