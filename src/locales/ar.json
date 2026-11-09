@@ -1293,7 +1293,7 @@
   "No .shp data found.": "لم يُعثر على بيانات .shp.",
   "No usable Point/PolyLine/Polygon features found in this shapefile (or every feature's shape type isn't one GeoStrix reads).": "لم يُعثر على معالم Point/PolyLine/Polygon صالحة في shapefile هذا (أو أن نوع شكل كل معلم لا يقرؤه GeoStrix).",
   "No usable vertices/faces found — this OBJ has no `v` and `f` lines this importer could read.": "لم يُعثر على رؤوس/أوجه صالحة — لا يحوي ملف OBJ هذا أسطر `v` و`f` يستطيع هذا المستورد قراءتها.",
-  "Unsupported solid format \"{v}\" — import a .dxf (3DFACE / polyface mesh), .obj or Leapfrog .msh file.": "صيغة جسم غير مدعومة «{v}» — استورد ملف .dxf ‏(3DFACE / شبكة متعددة الأوجه) أو .obj أو .msh من Leapfrog.",
+  "Unsupported solid format \"{v}\" — import a .dxf (3DFACE / polyface mesh), .obj, Leapfrog .msh or GOCAD .ts file.": "صيغة جسم غير مدعومة «{v}» — استورد ملف .dxf ‏(3DFACE / شبكة متعددة الأوجه) أو .obj أو .msh من Leapfrog أو .ts من GOCAD.",
   "The solid import worker stopped unexpectedly.": "توقفت عملية استيراد الجسم بشكل غير متوقع.",
   "Unexpected \"{v}\" at position {v2}.": "«{v}» غير متوقع في الموضع {v2}.",
   "The expression is empty.": "التعبير فارغ.",
@@ -9409,5 +9409,13 @@
   "No project area yet: draw an area on the map, or load holes, samples or a map first.": "لا توجد منطقة مشروع بعد: ارسم منطقة على الخريطة، أو حمّل أولًا ثقوب حفر أو عينات أو خريطة.",
   "Add the geology for this area": "أضف جيولوجيا هذه المنطقة",
   "Map units at the centre of this area": "الوحدات الخرائطية في مركز هذه المنطقة",
-  "Draw the area to fetch Macrostrat geology for": "ارسم المنطقة التي تُجلب لها جيولوجيا Macrostrat"
+  "Draw the area to fetch Macrostrat geology for": "ارسم المنطقة التي تُجلب لها جيولوجيا Macrostrat",
+  "No GOCAD TSurf with triangles in this file{v}.": "لا يوجد TSurf من GOCAD بمثلثات في هذا الملف{v}.",
+  " (it holds {list})": " (يحتوي على {list})",
+  "no GOCAD PLine with segments in it": "لا يحتوي على أي PLine من GOCAD بقطع مستقيمة",
+  "Imported \"{name}\" as {n} boundary layer(s) ({lines} line(s)) with their own elevations — edit or remove them under Geophysics → Boundaries. GOCAD coordinates are assumed to already be in the project's coordinate system{v}.": "استُورد «{name}» كـ {n} طبقة حدود ({lines} خط) بارتفاعاتها الخاصة — حرّرها أو احذفها في الجيوفيزياء ← الحدود. يُفترض أن إحداثيات GOCAD في نظام إحداثيات المشروع بالفعل{v}.",
+  " (the file names \"{crs}\")": " (يذكر الملف «{crs}»)",
+  "{name}: couldn't read GOCAD ({message}).": "{name}: تعذّرت قراءة GOCAD ({message}).",
+  "{names}: GOCAD point sets are read as point surveys: drop them on the Geophysics tab, or use Geophysics > Point survey > Import survey.": "{names}: تُقرأ مجموعات نقاط GOCAD كمسوحات نقطية: أفلتها في تبويب الجيوفيزياء، أو استخدم الجيوفيزياء > مسح نقطي > استيراد مسح.",
+  "no GOCAD VSet with points in it": "لا يحتوي على أي VSet من GOCAD بنقاط"
 }

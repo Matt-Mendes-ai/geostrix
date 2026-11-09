@@ -1293,7 +1293,7 @@
   "No .shp data found.": "No se encontraron datos .shp.",
   "No usable Point/PolyLine/Polygon features found in this shapefile (or every feature's shape type isn't one GeoStrix reads).": "No se encontraron entidades Point/PolyLine/Polygon utilizables en este shapefile (o el tipo de geometría de cada entidad no es uno que GeoStrix lea).",
   "No usable vertices/faces found — this OBJ has no `v` and `f` lines this importer could read.": "No se encontraron vértices/caras utilizables — este OBJ no tiene líneas `v` y `f` que este importador pueda leer.",
-  "Unsupported solid format \"{v}\" — import a .dxf (3DFACE / polyface mesh), .obj or Leapfrog .msh file.": "Formato de sólido no compatible «{v}» — importe un archivo .dxf (3DFACE / malla poliface), .obj o .msh de Leapfrog.",
+  "Unsupported solid format \"{v}\" — import a .dxf (3DFACE / polyface mesh), .obj, Leapfrog .msh or GOCAD .ts file.": "Formato de sólido no compatible «{v}» — importe un archivo .dxf (3DFACE / malla poliface), .obj, .msh de Leapfrog o .ts de GOCAD.",
   "The solid import worker stopped unexpectedly.": "El proceso de importación de sólidos se detuvo inesperadamente.",
   "Unexpected \"{v}\" at position {v2}.": "«{v}» inesperado en la posición {v2}.",
   "The expression is empty.": "La expresión está vacía.",
@@ -9409,5 +9409,13 @@
   "No project area yet: draw an area on the map, or load holes, samples or a map first.": "Todavía no hay área del proyecto: dibuje un área en el mapa, o cargue antes sondajes, muestras o un mapa.",
   "Add the geology for this area": "Añadir la geología de esta área",
   "Map units at the centre of this area": "Unidades del mapa en el centro de esta área",
-  "Draw the area to fetch Macrostrat geology for": "Dibuje el área para la que obtener la geología de Macrostrat"
+  "Draw the area to fetch Macrostrat geology for": "Dibuje el área para la que obtener la geología de Macrostrat",
+  "No GOCAD TSurf with triangles in this file{v}.": "No hay ningún TSurf de GOCAD con triángulos en este archivo{v}.",
+  " (it holds {list})": " (contiene {list})",
+  "no GOCAD PLine with segments in it": "no contiene ninguna PLine de GOCAD con segmentos",
+  "Imported \"{name}\" as {n} boundary layer(s) ({lines} line(s)) with their own elevations — edit or remove them under Geophysics → Boundaries. GOCAD coordinates are assumed to already be in the project's coordinate system{v}.": "Se importó «{name}» como {n} capa(s) de límites ({lines} línea(s)) con sus propias cotas — edítelas o elimínelas en Geofísica → Límites. Se asume que las coordenadas GOCAD ya están en el sistema de coordenadas del proyecto{v}.",
+  " (the file names \"{crs}\")": " (el archivo indica «{crs}»)",
+  "{name}: couldn't read GOCAD ({message}).": "{name}: no se pudo leer el GOCAD ({message}).",
+  "{names}: GOCAD point sets are read as point surveys: drop them on the Geophysics tab, or use Geophysics > Point survey > Import survey.": "{names}: los conjuntos de puntos GOCAD se leen como levantamientos de puntos: suéltelos en la pestaña Geofísica, o use Geofísica > Levantamiento de puntos > Importar levantamiento.",
+  "no GOCAD VSet with points in it": "no contiene ningún VSet de GOCAD con puntos"
 }

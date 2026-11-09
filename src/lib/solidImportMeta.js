@@ -2,7 +2,7 @@
 // kept apart so the DXF / OBJ parsers load only when a solid is actually imported.
 export const SOLID_FACE_WARN = 1_000_000;
 
-export const SOLID_IMPORT_EXTENSIONS = ".dxf,.obj,.msh"; // .msh: Leapfrog meshes, TASKS.csv #1991
+export const SOLID_IMPORT_EXTENSIONS = ".dxf,.obj,.msh,.ts,.gp"; // .msh: Leapfrog meshes, TASKS.csv #1991; .ts / .gp: GOCAD, #1992
 
 export function solidBounds(parts) {
   const mn = [Infinity, Infinity, Infinity], mx = [-Infinity, -Infinity, -Infinity];

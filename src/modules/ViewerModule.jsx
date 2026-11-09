@@ -3895,7 +3895,7 @@ ${describeTrend(t)}` };
       }
       const bounds = solidBounds(solid.parts);
       const o = originRef.current;
-      const label = file.name.replace(/\.(dxf|obj|msh)$/i, "");
+      const label = file.name.replace(/\.(dxf|obj|msh|ts|gp)$/i, "");
       const stamp = Date.now();
       const box = new THREE.Box3();
       const added = solid.parts.map((part, k) => {

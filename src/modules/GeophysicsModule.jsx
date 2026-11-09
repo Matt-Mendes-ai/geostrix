@@ -1177,9 +1177,27 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       setXyzError({ info: false, text: tr("Could not parse {name}: {message}", { name: dat?.name || dfn?.name, message: err.message }) });
     }
   };
+  // TASKS.csv #1992 — a GOCAD VSet (.vs): its points (Z as elevation, ZPOSITIVE Depth turned round) and their PROPERTIES as columns, into
+  // the same column picker. Several VSets in one file are one survey with a 'set' column (their names).
+  const importVSet = async (file) => {
+    setXyzError(null);
+    try {
+      const { parseGocad } = await import("../lib/gocad.js");
+      const sets = parseGocad(await file.text()).filter((o) => o.type.toLowerCase() === "vset" && o.points.length);
+      if (!sets.length) throw new Error(tr("no GOCAD VSet with points in it"));
+      const props = [...new Set(sets.flatMap((o) => o.properties))];
+      const columns = ["X", "Y", "Z", ...props, ...(sets.length > 1 ? ["set"] : [])];
+      const rows = sets.flatMap((o) => o.points.map((pt) => { const r = { X: pt.x, Y: pt.y, Z: pt.z }; o.properties.forEach((k, i) => { r[k] = pt.values[i]; }); if (sets.length > 1) r.set = o.name; return r; }));
+      const g = guessXyzChannels(columns.filter((c) => c !== "set"), rows);
+      setXyzPending({ fileName: file.name, columns, rows, source: "csv", xCol: "X", yCol: "Y", zCol: "Z", valueCol: props.includes(g.value) ? g.value : props[0] || "Z", lineCol: "", ...cleaningDefaults(columns) });
+    } catch (err) {
+      setXyzError({ info: false, text: tr("Could not parse {name}: {message}", { name: file.name, message: err.message }) });
+    }
+  };
   const importXYZFiles = async (fileList) => {
     const all = Array.from(fileList || []);
     { const pair = gdfPair(all); if (pair) { importGdf(pair); return; } } // #1990
+    { const vs = all.find((f) => /\.vs$/i.test(f.name)); if (vs) { importVSet(vs); return; } } // #1992
     const gpsFiles = all.filter((f) => /\.(txt|gpx|wpt)$/i.test(f.name)), files = all.filter((f) => !gpsFiles.includes(f));
     if (!files.length) { setXyzError({ info: false, text: tr("Select at least one survey file with the GPS file.") }); return; }
     if (files.length === 1 && !gpsFiles.length) { importXYZFile(files[0]); return; }
@@ -1558,6 +1576,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         const xyzs = xyzAll.filter((f) => !wbs.includes(f));
         if (wbs.length) { setFdemDrop(wbs); setGeoPane("fdem"); }
         { const pair = gdfPair(files); if (pair) importGdf(pair); } // TASKS.csv #1990 — an ASEG-GDF2 .dfn + .dat dropped together
+        { const vs = files.find((f) => /\.vs$/i.test(f.name)); if (vs) importVSet(vs); } // TASKS.csv #1992 — a GOCAD point set
         // TASKS.csv #603 — a closed format (Geosoft .gdb / binary .grd, .dwg, Access) says how to get it out; such
         // files used to be ignored here without a word
         const advice = files.map((f) => unreadableFormatAdvice(f.name)).filter(Boolean);
@@ -1567,7 +1586,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         const lidarFiles = [];
         for (const f of lasFiles) { const b = new Uint8Array(await f.slice(0, 4).arrayBuffer()); if (/\.laz$/i.test(f.name) || (b[0] === 0x4c && b[1] === 0x41 && b[2] === 0x53 && b[3] === 0x46)) lidarFiles.push(f); else advice.push(tr("{name} is a LAS well log: drop it on the 3D View, which reads downhole logs.", { name: f.name })); }
         if (lidarFiles.length) { if (geoPane === "terrain") openLidar(lidarFiles[0]); else { goToModule("maps"); requestModuleAction("maps-lidar", { file: lidarFiles[0] }); } if (lidarFiles.length > 1) advice.push(tr("Opened \"{name}\". Lidar files are imported one at a time: import it, then drop the next.", { name: lidarFiles[0].name })); }
-        const other = files.filter((f) => !/\.(csv|tiff?|gxf|ply|dxf|xyz|edi|las|laz)$/i.test(f.name) && !unreadableFormatAdvice(f.name)).map((f) => f.name);
+        const other = files.filter((f) => !/\.(csv|tiff?|gxf|ply|dxf|xyz|edi|las|laz|vs)$/i.test(f.name) && !(/\.(dfn|dat)$/i.test(f.name) && gdfPair(files)) /* #1990 / #1992: read above */ && !unreadableFormatAdvice(f.name)).map((f) => f.name);
         if (other.length) advice.push(tr("Not imported from this drop: {names}. Dropped here, this tab reads CSV, GeoTIFF, GXF, XYZ, PLY / DXF, EDI (MT soundings) and LAS / LAZ lidar; a UBC mesh and model go through Block models.", { names: other.slice(0, 6).join(", ") + (other.length > 6 ? " …" : "") }));
         // TASKS.csv #1989 — MT / AMT soundings go to their own pane, which reads them
         const edis = files.filter((f) => /\.edi$/i.test(f.name));
@@ -1660,7 +1679,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         <input
           ref={xyzInput}
           type="file"
-          accept=".xyz,.fld,.bse,.txt,.gpx,.wpt,.dfn,.dat"
+          accept=".xyz,.fld,.bse,.txt,.gpx,.wpt,.dfn,.dat,.vs"
           multiple
           style={{ display: "none" }}
           onChange={(e) => { importXYZFiles(e.target.files); e.target.value = ""; }}

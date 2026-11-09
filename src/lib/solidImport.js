@@ -25,6 +25,7 @@ import { SOLID_FACE_WARN, SOLID_IMPORT_EXTENSIONS, solidBounds } from "./solidIm
 export { SOLID_FACE_WARN, SOLID_IMPORT_EXTENSIONS, solidBounds };
 import { createDXFMeshParser, lineFeeder } from "./dxf.js";
 import { parseLeapfrogMsh } from "./leapfrogMsh.js"; // TASKS.csv #1991
+import { createGocadParser, gocadCrsText } from "./gocad.js"; // TASKS.csv #1992
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 
 // Above this the import asks first: fine on a gaming PC, slow to orbit on the modest laptops GeoStrix is
@@ -88,14 +89,39 @@ export function createOBJMeshParser() {
 }
 export function parseOBJMesh(text) { const p = createOBJMeshParser(); p.feed(text); return p.finish(); }
 
+// TASKS.csv #1992 — GOCAD TSurf (.ts, or the TSurfs of a .gp group): one part per surface object, named by its HEADER name. PLine and
+// VSet objects in the same file are counted for the note (they are imported elsewhere: boundaries, point surveys).
+export function createGocadMeshParser() {
+  const g = createGocadParser();
+  const lines = lineFeeder(g.feedLine);
+  return {
+    feed: (text) => lines.feed(text),
+    finish() {
+      lines.end();
+      const objs = g.finish(), surfs = objs.filter((o) => o.type.toLowerCase() === "tsurf" && o.triangleCount > 0);
+      if (!surfs.length) throw new Error(tr("No GOCAD TSurf with triangles in this file{v}.", { v: objs.length ? tr(" (it holds {list})", { list: objs.map((o) => o.type).join(", ") }) : "" }));
+      const parts = surfs.map((o) => ({ layer: o.name, positions: o.positions, indices: o.indices }));
+      const others = objs.filter((o) => !surfs.includes(o));
+      return { parts, triangleCount: surfs.reduce((s, o) => s + o.triangleCount, 0), vertexCount: surfs.reduce((s, o) => s + o.vertexCount, 0),
+        gocad: { surfaces: surfs.length, others: others.map((o) => o.type), crs: gocadCrsText(surfs[0].crs), depthDown: surfs.some((o) => o.crs.zSign < 0), skippedLines: objs.reduce((s, o) => s + o.skippedLines, 0) } };
+    },
+  };
+}
+
 
 function parserFor(fileName) {
   const name = String(fileName || "").toLowerCase();
   if (name.endsWith(".dxf")) return { format: "DXF", parser: createDXFMeshParser() };
   if (name.endsWith(".obj")) return { format: "OBJ", parser: createOBJMeshParser() };
-  throw new Error(tr("Unsupported solid format \"{v}\" — import a .dxf (3DFACE / polyface mesh), .obj or Leapfrog .msh file.", { v: name.split(".").pop() }));
+  if (name.endsWith(".ts") || name.endsWith(".gp")) return { format: "GOCAD", parser: createGocadMeshParser() }; // #1992
+  throw new Error(tr("Unsupported solid format \"{v}\" — import a .dxf (3DFACE / polyface mesh), .obj, Leapfrog .msh or GOCAD .ts file.", { v: name.split(".").pop() }));
 }
 function describe(format, m) {
+  if (format === "GOCAD") { // #1992
+    const g = m.gocad;
+    return [`TSurf objects: ${g.surfaces}`, g.depthDown ? "Z read as depth (ZPOSITIVE Depth), made elevation" : "", g.crs ? `the file names its coordinate system "${g.crs}"` : "",
+      g.others.length ? `${g.others.length} other object(s) not read here (${[...new Set(g.others)].join(", ")})` : "", g.skippedLines ? `${g.skippedLines} line(s) skipped` : ""].filter(Boolean).join(", ");
+  }
   const layers = m.parts.length > 1 ? `, ${m.parts.length} ${format === "DXF" ? "layers" : "objects"}` : "";
   if (format === "DXF") return `${m.nFaceEntities} 3DFACE entit${m.nFaceEntities === 1 ? "y" : "ies"}${m.nPolyfaceMeshes ? `, ${m.nPolyfaceMeshes} polyface mesh${m.nPolyfaceMeshes === 1 ? "" : "es"}` : ""}${layers}`;
   return `${m.quads ? `${m.quads} quad(s) triangulated` : "all faces triangular"}${m.ngons ? `, ${m.ngons} n-gon(s) fan-triangulated` : ""}${layers}`;

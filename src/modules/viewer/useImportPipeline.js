@@ -155,6 +155,18 @@ export function useImportPipeline(ctx) {
       } catch (err) { setNotices((p) => [...p, errorNotice(`${file.name}: ${err.message}`)]); } // #739
       return;
     }
+    // TASKS.csv #1992 — a GOCAD PLine (.pl): one boundary layer per PLine object, its vertices' own elevations kept
+    if (/\.pl$/.test(name)) {
+      try {
+        const { parseGocad, gocadCrsText } = await import("../../lib/gocad.js");
+        const objs = parseGocad(await file.text()), plines = objs.filter((o) => o.type.toLowerCase() === "pline" && o.lines.length);
+        if (!plines.length) throw new Error(tr("no GOCAD PLine with segments in it"));
+        for (const o of plines) addBoundary({ name: o.name, polylines: o.lines, closedFlags: o.lines.map(() => false), useVertexZ: true, elevation: defaultElevation });
+        const crs = gocadCrsText(plines[0].crs);
+        setNotices((p) => [...p, notice("Imported \"{name}\" as {n} boundary layer(s) ({lines} line(s)) with their own elevations — edit or remove them under Geophysics → Boundaries. GOCAD coordinates are assumed to already be in the project's coordinate system{v}.", { name: file.name, n: plines.length, lines: plines.reduce((s, o) => s + o.lines.length, 0), v: crs ? tr(" (the file names \"{crs}\")", { crs }) : "" })]);
+      } catch (err) { setNotices((p) => [...p, errorNotice(tr("{name}: couldn't read GOCAD ({message}).", { name: file.name, message: err.message }))]); }
+      return;
+    }
     if (/\.dxf$/.test(name)) {
       try {
         // TASKS.csv #408 — one boundary per DXF layer, keeping Z; a face-only DXF is a solid.
@@ -752,8 +764,10 @@ export function useImportPipeline(ctx) {
     // TASKS.csv #600 (40958Z) — grids (.tif/.gxf), CAD lines / solids (.dxf) and .obj solids dropped here used to
     // be refused ("Only .csv … can be dropped") although the Browser panel and the Raster / 3D Modelling buttons
     // import them: they go to those same handlers (importBrowserFile / importSolidFile), outside the table queue.
-    const direct = grouped.files.filter((f) => /\.(tiff?|gxf|grd|dxf|obj)$/i.test(f.name)); // grd: #1347
-    for (const f of direct) { if (/\.obj$/i.test(f.name)) importSolidFile(f); else await importBrowserFile(f); }
+    const direct = grouped.files.filter((f) => /\.(tiff?|gxf|grd|dxf|obj|ts|gp|pl)$/i.test(f.name)); // grd: #1347; ts / gp / pl: GOCAD, #1992
+    for (const f of direct) { if (/\.(obj|ts|gp)$/i.test(f.name)) importSolidFile(f); else await importBrowserFile(f); }
+    // TASKS.csv #1992 — a GOCAD VSet (points with properties) is a point survey: read on the Geophysics tab
+    const vsNames = grouped.files.filter((f) => /\.vs$/i.test(f.name)).map((f) => f.name);
     // TASKS.csv #1991 — a Leapfrog .msh is a solid; a UBC-GIF tensor mesh (also .msh, text 'NX NY NZ') is a block model mesh
     const mshAdvice = [];
     for (const f of grouped.files.filter((x) => /\.msh$/i.test(x.name))) {
@@ -765,6 +779,7 @@ export function useImportPipeline(ctx) {
     // TASKS.csv #603 — a closed format (Geosoft .gdb / .grd, .dwg, Access) gets the way out, not "unrecognized"
     const advised = grouped.files.map((f) => unreadableFormatAdvice(f.name)).filter(Boolean);
     advised.push(...mshAdvice);
+    if (vsNames.length) advised.push(notice("{names}: GOCAD point sets are read as point surveys: drop them on the Geophysics tab, or use Geophysics > Point survey > Import survey.", { names: vsNames.slice(0, 4).join(", ") + (vsNames.length > 4 ? " …" : "") }));
     // TASKS.csv #1989 — MT / AMT soundings are read on the Geophysics tab, not here
     const ediNames = grouped.files.filter((f) => /\.edi$/i.test(f.name)).map((f) => f.name);
     if (ediNames.length) advised.push(notice("{names}: MT / AMT soundings are read on the Geophysics tab. Drop the .edi files there, or use Geophysics > MT / AMT.", { names: ediNames.slice(0, 4).join(", ") + (ediNames.length > 4 ? " …" : "") }));
@@ -780,7 +795,7 @@ export function useImportPipeline(ctx) {
       advised.push(notice(lidarNames.length > 1 ? "{names}: lidar point clouds, read in Maps > Terrain one at a time. The first is open there; drop the others there after it." : "{names}: a lidar point cloud, opened in Maps > Terrain.", { names: lidarNames.slice(0, 4).join(", ") + (lidarNames.length > 4 ? " …" : "") }));
     }
     if (advised.length) setNotices((p) => [...p, ...advised]);
-    const skipped = grouped.files.length - files.length - direct.length - advised.length - (mshCount - mshAdvice.length) /* #1991: the Leapfrog meshes went to the solid import */ - Math.max(0, ediNames.length - 1) /* #1989: one notice for all of them */ - Math.max(0, lidarNames.length - 1) /* #1994 */ + grouped.unmatched.length;
+    const skipped = grouped.files.length - files.length - direct.length - advised.length - (mshCount - mshAdvice.length) /* #1991: the Leapfrog meshes went to the solid import */ - Math.max(0, vsNames.length - 1) /* #1992 */ - Math.max(0, ediNames.length - 1) /* #1989: one notice for all of them */ - Math.max(0, lidarNames.length - 1) /* #1994 */ + grouped.unmatched.length;
     if (!files.length) {
       if (!direct.length && !advised.length && !mshCount) setNotices((p) => [...p, notice("Only .csv, .xlsx, .zip (shapefile), .shp, .gpkg, .kml/.kmz, .las logs, GeoTIFF / .gxf grids and .dxf / .obj files can be dropped in directly.")]);
       else if (skipped) setNotices((p) => [...p, notice("{skipped} unrecognized file(s) skipped.", { skipped })]);
