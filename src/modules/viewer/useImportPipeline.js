@@ -99,7 +99,7 @@ export function useImportPipeline(ctx) {
     adoptCrsIfEmpty(guessEpsgFromPrjWkt(parsed.prjWkt), file.name); // #607
     const live = importStateRef.current;
     const sourceName = file.name.replace(/\.(shp|zip)$/i, "");
-    const layer = buildLayer({ ...parsed, epsg: guessEpsgFromPrjWkt(parsed.prjWkt) }, { sourceName, projectEpsg: projectTargetEpsg(live.project), qml: null, sourceOverride: null });
+    const layer = buildLayer({ ...parsed, epsg: guessEpsgFromPrjWkt(parsed.prjWkt) }, { sourceName, projectEpsg: projectTargetEpsg(live.project), tie: tieOf(live.project) /* #2320 */, qml: null, sourceOverride: null });
     if (!layer) { setNotices((p) => [...p, notice("{name}: no usable line / polygon features.", { name: file.name })]); return; }
     const twin = sameMapLayer(live.mapLayers, layer); // #2019 — the same file again: not a second copy
     if (twin) { setNotices((p) => [...p, notice("{name} is already in Map layers as \"{layer}\" ({features}): not added again.", { name: file.name, layer: twin.name, features: featureCountText(layer.features.length, layer.geomType) })]); return; }

@@ -78,6 +78,7 @@ import { methodColumnFor, methodsIn, partialDigestionFor } from "../lib/digestio
 import { axisOf, xyDiagram } from "../lib/geochemXY.js"; // TASKS.csv #1678
 import { numericSourceChoices } from "../lib/numericSources.js"; // TASKS.csv #1678
 import { requestProjectCrs } from "../lib/projectCrsRequest.js"; // TASKS.csv #1445
+import { tieOf, fileToLocal } from "../lib/localGridTie.js"; // TASKS.csv #2320
 import { flagColumns, flagQualifier, censoredSamples } from "../lib/assayFlags.js"; // TASKS.csv #2018
 import { groupShapefileParts, parseVectorFile } from "../lib/viewer/importHelpers.js"; // TASKS.csv #2016
 const VECTOR_FILE = /\.(shp|zip|gpkg|kml|kmz)$/i; // #2016 — sample points from GIS files
@@ -845,7 +846,9 @@ export default function GeochemModule() {
     }
     const adopted = askAdoptCrs({ isEmpty: projectIsEmpty, currentEpsg: toEpsg, declaredEpsg: fromEpsg, fileName: modal.fileName, at: rowAt }); // #607
     if (adopted) { setEpsg(adopted); toEpsg = adopted; setNotices((p) => [...p, notice("Project CRS set to {v} (EPSG:{adopted}) from {fileName}.", { v: crsName(adopted), adopted, fileName: modal.fileName })]); }
-    const doReproject = fromEpsg && toEpsg && fromEpsg !== toEpsg;
+    // TASKS.csv #2320 — a local-grid project: samples in a CRS come into the grid through its tie; with no tie their numbers are kept
+    const gridTie = tieOf(project), localNoTie = project?.crsSet === false && project?.localGrid && !gridTie;
+    const doReproject = !localNoTie && fromEpsg && toEpsg && fromEpsg !== toEpsg;
     let reprojectFailed = 0;
     const allHeaders = modal.headers || Object.keys(allRows[0] || {});
     // TASKS.csv #842 — a parent / original-sample column pairs a field duplicate with its original
@@ -880,7 +883,7 @@ export default function GeochemModule() {
       }
       let x = num(r[mapping.x]), y = num(r[mapping.y]);
       if (doReproject && Number.isFinite(x) && Number.isFinite(y)) {
-        const p = reprojectXY(x, y, fromEpsg, toEpsg);
+        const p = gridTie ? fileToLocal(gridTie, x, y, fromEpsg) : reprojectXY(x, y, fromEpsg, toEpsg); // gridTie: #2320
         if (p) ({ x, y } = p); else { reprojectFailed++; x = NaN; }
       }
       return {

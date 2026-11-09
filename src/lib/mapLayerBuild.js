@@ -1,6 +1,7 @@
 // TASKS.csv #609 — builds a store-ready map layer (Map layers, #316) from a parsed vector layer. Moved out of
 // SurfaceMappingPanel.jsx so the 3D view's drop can send a line / polygon shapefile to Map layers too.
 import { CATEGORICAL_SAFE_COLORS } from "./layers.js";
+import { fileToLocal } from "./localGridTie.js"; // TASKS.csv #2320
 import { reprojectXY, getProj4DefSync, prjRefusal, datumNote } from "./reproject.js";
 import { autoCategories, applyQmlToCategories, guessStyleField, normalizeMapLayer } from "./mapLayers.js";
 import { graduatedStyle, isIdField } from "./mapGraduated.js"; // TASKS.csv #1600
@@ -34,13 +35,17 @@ export function projectClipBox(points) {
 // clipTo (optional, #1715): [xmin, ymin, xmax, ymax] in the project CRS — features whose extent lies wholly outside are left out BEFORE
 // reprojection (a province-wide map: 33,532 polygons, none within 70 km of Copley, froze the window 28 s and took the autosave to 113 MB).
 // The result carries clipped: { kept, total }; when nothing is inside, { outside: total } (and no layer).
-export function buildLayer(parsed, { sourceName, projectEpsg, qml, sourceOverride, clipTo = null }) {
+// tie (TASKS.csv #2320): a local-grid project's tie (lib/localGridTie.js): a file with a CRS comes INTO the grid through it
+export function buildLayer(parsed, { sourceName, projectEpsg, qml, sourceOverride, clipTo = null, tie = null }) {
   // #488 — a Source CRS chosen in the panel wins over the file's own (.prj / GeoPackage) CRS
   const src = sourceOverride ? Number(sourceOverride) : parsed.epsg ? Number(parsed.epsg) : null;
   const dst = projectEpsg ? Number(projectEpsg) : null;
   let transform;
   let crsNote;
-  if (src && dst && src !== dst && getProj4DefSync(src) && getProj4DefSync(dst)) {
+  if (tie && src && (Number(src) === Number(tie.epsg) || getProj4DefSync(src))) { // #2320
+    transform = (x, y) => { const r = fileToLocal(tie, x, y, src); return r ? [r.x, r.y] : [x, y]; };
+    crsNote = `brought into the local grid through its tie to EPSG:${tie.epsg} (from EPSG:${src})`;
+  } else if (src && dst && src !== dst && getProj4DefSync(src) && getProj4DefSync(dst)) {
     transform = (x, y) => { const r = reprojectXY(x, y, src, dst); return r ? [r.x, r.y] : [x, y]; };
     const datum = datumNote(src); // #1244 — NAD27 and the like: how good the shift is
     crsNote = `reprojected EPSG:${src} → EPSG:${dst}${datum ? ` ⚠ ${datum}` : ""}`;

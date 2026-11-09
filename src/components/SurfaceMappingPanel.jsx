@@ -38,6 +38,7 @@ import { canReadGpkgInPlace, tabSiblingShapefile } from "../lib/desktop.js"; // 
 import CoveringLayers from "./CoveringLayers.jsx"; // TASKS.csv #1823
 import { graduatedStyle, graduatedCategories, parseBreaks, isNumericField } from "../lib/mapGraduated.js"; // TASKS.csv #1600
 import { projectTargetEpsg } from "../lib/projectTarget.js"; // TASKS.csv #2287 — no reprojection INTO the placeholder CRS
+import { tieOf, fileToLocal, bearingToLocal } from "../lib/localGridTie.js"; // TASKS.csv #2320
 import { collarsLookUnderground } from "../lib/pitShell.js"; // TASKS.csv #2265
 
 export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { // part: "maps" | "structures" | null = both (TASKS.csv #458)
@@ -118,7 +119,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
       if (adopted) { setEpsg(adopted); projectEpsg = adopted; done.push(tr("project CRS set to EPSG:{epsg}", { epsg: adopted })); }
       empty = false;
       // #1715 — clipped to the project area (collars, surface samples) when there is one
-      let layer = buildLayer(parsed, { sourceName, projectEpsg, qml, sourceOverride: mapSourceEpsg, clipTo: projectClipBox([...(collars || []), ...(surfaceSamples || [])]) });
+      let layer = buildLayer(parsed, { sourceName, projectEpsg, qml, sourceOverride: mapSourceEpsg, tie: tieOf(project) /* #2320 */, clipTo: projectClipBox([...(collars || []), ...(surfaceSamples || [])]) });
       if (layer?.outside) { failed.push(tr("{name}: none of its {n} features comes within reach of the project's holes and samples, so nothing was imported (check its CRS if it should).", { name: sourceName, n: layer.outside.toLocaleString() })); return; }
       if (!layer) { failed.push(tr("{name}: no usable features", { name: `${sourceName}${parsed.name ? ` (${parsed.name})` : ""}` })); return; }
       // #1325 — a layer with no units to tell apart gets a colour of its own: a batch used to be one amber
@@ -273,7 +274,12 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
       const counts = new Map();
       tables.forEach((t) => { if (t.epsg) counts.set(t.epsg, (counts.get(t.epsg) || 0) + 1); });
       const common = Number(projectEpsg) || [...counts].sort((a, b) => b[1] - a[1])[0]?.[0] || null;
+      const reviewTie = tieOf(project); // TASKS.csv #2320 — on a tied local grid the boxes are compared in grid metres, through the tie
       const toCommon = (b, epsg) => {
+        if (reviewTie && Number(epsg)) {
+          const c = [[b[0], b[1]], [b[2], b[1]], [b[2], b[3]], [b[0], b[3]]].map(([x, y]) => fileToLocal(reviewTie, x, y, epsg));
+          return c.every(Boolean) ? [Math.min(...c.map((p) => p.x)), Math.min(...c.map((p) => p.y)), Math.max(...c.map((p) => p.x)), Math.max(...c.map((p) => p.y))] : null;
+        }
         if (Number(epsg) === common) return b;
         if (!common || !getProj4DefSync(epsg) || !getProj4DefSync(common)) return null;
         const c = [[b[0], b[1]], [b[2], b[1]], [b[2], b[3]], [b[0], b[3]]].map(([x, y]) => reprojectXY(x, y, epsg, common));
@@ -403,7 +409,19 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
     }
     const src = Number(p.sourceEpsg), dst = Number(project?.epsg);
     let crsNote = "";
-    if (src && dst && src !== dst) {
+    const gridTie = tieOf(project); // TASKS.csv #2320 — a local-grid project: a file with a CRS comes into the grid through its tie
+    if (gridTie && src && src !== dst) {
+      let n = 0;
+      out.rows.forEach((r) => {
+        const t = fileToLocal(gridTie, r.x, r.y, src);
+        if (!t) return;
+        r.x = t.x; r.y = t.y; n++;
+        if (north.ref === "grid" && Number.isFinite(r.dipDir)) { r.dipDir = bearingToLocal(gridTie, r.dipDir); if (Number.isFinite(r.strike)) r.strike = bearingToLocal(gridTie, r.strike); }
+      });
+      crsNote = " " + tr("{n} brought into the local grid through its tie to EPSG:{tie}.", { n, tie: gridTie.epsg });
+    } else if (project?.crsSet === false && project?.localGrid) {
+      // a local grid with no tie: the numbers are kept (never 'reprojected' into the placeholder CRS)
+    } else if (src && dst && src !== dst) {
       // #547 — a true / magnetic bearing doesn't depend on the CRS: only grid bearings are turned with the grid
       const gridNorth = north.ref === "grid";
       if (!getProj4DefSync(src) || !getProj4DefSync(dst)) { setStructMsg({ ok: false, text: tr("EPSG:{src} isn't a CRS GeoStrix can reproject from — leave it as the project's EPSG:{dst} if the coordinates are already in it.", { src, dst }) }); return; }

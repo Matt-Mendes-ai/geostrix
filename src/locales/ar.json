@@ -9555,5 +9555,6 @@
   "Every reading (no bins)": "كل قراءة (بلا فواصل)",
   "{fileName}: {n} downhole log channel(s) imported as numeric layers{v}: {list}. The first is shown; the others are in the Layers list.": "{fileName}: استُوردت {n} قناة تسجيل بئري كطبقات رقمية{v}: {list}. تُعرض الأولى؛ والبقية في قائمة الطبقات.",
   ", averaged to {b} m bins (mean, with min and max)": "، مُتوسَّطة على فواصل {b} م (المتوسط مع الأدنى والأعلى)",
-  ", every reading kept": "، مع حفظ كل قراءة"
+  ", every reading kept": "، مع حفظ كل قراءة",
+  "{n} brought into the local grid through its tie to EPSG:{tie}.": "جُلب {n} إلى الشبكة المحلية عبر ربطها بـ EPSG:{tie}."
 }

@@ -9555,5 +9555,6 @@
   "Every reading (no bins)": "Cada lectura (sin intervalos)",
   "{fileName}: {n} downhole log channel(s) imported as numeric layers{v}: {list}. The first is shown; the others are in the Layers list.": "{fileName}: {n} canal(es) de registro de pozo importados como capas numéricas{v}: {list}. Se muestra el primero; los demás están en la lista de capas.",
   ", averaged to {b} m bins (mean, with min and max)": ", promediados a intervalos de {b} m (media, con mín. y máx.)",
-  ", every reading kept": ", conservando cada lectura"
+  ", every reading kept": ", conservando cada lectura",
+  "{n} brought into the local grid through its tie to EPSG:{tie}.": "{n} traídas a la grilla local a través de su amarre a EPSG:{tie}."
 }
