@@ -57,8 +57,9 @@ test("macrostratUnitFeatures: polygons clipped to their tile and the area, holes
   for (const [lon, lat] of first) assert.ok(lon >= lonMin - 1e-6 && lon <= lonMax + 1e-6 && lat >= latMin - 1e-6 && lat <= latMax + 1e-6, `${lon} ${lat}`);
   assert.equal(first.length, 5); // the clipped square, closed
   assert.deepEqual(r.features[0].attributes, { unit: "Alluvium", age: "Quaternary", lith: "alluvium", descrip: "", legend_id: 1, map: "BC digital geology" });
+  // #2315: "Far away" has no polygon in the area, so it is not a unit of this layer any more
   // none of these carries an age model, so the legend sorts them by name (same names in tile order)
-  assert.deepEqual(r.units.map((u) => [u.unit, u.color]), [["Alluvium", "#f9f97f"], ["Far away", "#f9f97f"], ["Granite (granite, Jurassic)", null], ["Granite (granite, Cretaceous)", "#f9f97f"], ["Granite (diorite)", "#f9f97f"]]);
+  assert.deepEqual(r.units.map((u) => [u.unit, u.color]), [["Alluvium", "#f9f97f"], ["Granite (granite, Jurassic)", null], ["Granite (granite, Cretaceous)", "#f9f97f"], ["Granite (diorite)", "#f9f97f"]]);
   // a box over the north-west quarter only (tile y runs down, so the big square sits in the north-west): it shrinks to the box
   const midLon = (lonMin + lonMax) / 2, midLat = (latMin + latMax) / 2;
   const corner = macrostratUnitFeatures([tile], [lonMin, midLat, midLon, latMax]);

@@ -39,6 +39,8 @@ export default function RasterLegend({ raster: r, updateRaster, compact = false 
     );
   }
   const n = legend.units.length, title = tr("Legend: {n} map units", { n });
+  // TASKS.csv #2315 — a legend saved before it was cut to the area listed the whole tiles' units: offer to read it again
+  const stale = isMacrostrat(r) && !legend.inArea && !!r.provenance?.areaLonLat;
   return (
     <div style={wrap}>
       <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} style={link}>{open ? tr("Hide the legend") : title}</button>
@@ -54,9 +56,11 @@ export default function RasterLegend({ raster: r, updateRaster, compact = false 
               </span>
             </div>
           ))}
+          {stale && <div style={{ color: "var(--color-warn-text)" }}>{tr("This legend was read before GeoStrix cut it to the drape's area, so it can list units of the surrounding tiles that are not on the map.")}{" "}<button type="button" onClick={fetchLegend} disabled={!!busy} style={link}>{busy || tr("Fetch it again for the area only")}</button></div>}
+          {err && <div role="status" style={{ color: "var(--color-danger-text)" }}>{err}</div>}
           {legend.lines?.length > 0 && <div style={{ color: "var(--color-text-secondary)" }}>{tr("Also drawn, as lines: {list}.", { list: legend.lines.map((l) => `${l.count} ${l.type}`).join(", ") })}</div>}
           <div style={{ color: "var(--color-text-muted)", marginTop: 3 }}>
-            {tr("The units in the {n} tiles the drape was drawn from (zoom {z}). Colours as Macrostrat lists them: the map adds relief shading, so the drape is darker in places.", { n: legend.tiles, z: legend.zoom })}
+            {tr(legend.inArea ? "The units inside the drape's area, read from the {n} tiles it was drawn from (zoom {z}). Colours as Macrostrat lists them: the map adds relief shading, so the drape is darker in places." : "The units in the {n} tiles the drape was drawn from (zoom {z}). Colours as Macrostrat lists them: the map adds relief shading, so the drape is darker in places.", { n: legend.tiles, z: legend.zoom })}
             {legend.failedTiles ? " " + tr("{n} of {total} tiles could not be read: their units may be missing here.", { n: legend.failedTiles, total: legend.tiles }) : ""}
           </div>
           {legend.sources?.map((s) => <div key={s} style={{ color: "var(--color-text-muted)" }}>{tr("Map: {source}", { source: s })}</div>)}

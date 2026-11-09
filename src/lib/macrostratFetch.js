@@ -3,7 +3,7 @@
 import { macrostratFetch } from "./desktop.js";
 import { reprojectImageRGBA, getProj4DefSync } from "./reproject.js";
 import { wmsImageSize, wmsPixelMetres } from "./webLayers.js";
-import { MACROSTRAT_TILE_URL, MACROSTRAT_MVT_URL, MACROSTRAT_API, MACROSTRAT_CREDIT, planMacrostratTiles, mercatorToLonLat, parseMacrostratUnits, parseMacrostratSources, tilePixelMetres, outputLongPx, macrostratLegend, macrostratUnitFeatures } from "./macrostrat.js"; // MVT / legend: #2011; unit features: #2012
+import { MACROSTRAT_TILE_URL, MACROSTRAT_MVT_URL, MACROSTRAT_API, MACROSTRAT_CREDIT, planMacrostratTiles, mercatorToLonLat, parseMacrostratUnits, parseMacrostratSources, tilePixelMetres, outputLongPx, macrostratLegend, macrostratUnitFeatures, macrostratLayersInArea } from "./macrostrat.js"; // MVT / legend: #2011; unit features: #2012
 import { parseLithologies, parseIntervals } from "./macrostratColours.js";
 import { readVectorTile } from "./mvt.js"; // TASKS.csv #2011
 import { buildLayer } from "./mapLayerBuild.js"; // TASKS.csv #2012
@@ -93,7 +93,7 @@ async function fetchMacrostratTiles(bboxLonLat, onProgress) {
 }
 export async function fetchMacrostratLegend({ bboxLonLat, onProgress }) {
   const { plan, count, tiles, failed } = await fetchMacrostratTiles(bboxLonLat, onProgress);
-  return { ...macrostratLegend(tiles.map((t) => t.layers)), zoom: plan.z, tiles: count, failedTiles: failed.length, fetched: new Date().toISOString().slice(0, 10) };
+  return { ...macrostratLegend(macrostratLayersInArea(tiles, bboxLonLat)), inArea: true /* #2315 */, zoom: plan.z, tiles: count, failedTiles: failed.length, fetched: new Date().toISOString().slice(0, 10) };
 }
 
 // TASKS.csv #2012 — the units as a geology map layer (polygons with a unit field, Macrostrat's colours), reprojected into the project

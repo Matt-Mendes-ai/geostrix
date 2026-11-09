@@ -113,13 +113,42 @@ export function clipRing(ring, [x0, y0, x1, y1]) {
   return out;
 }
 
+// TASKS.csv #2315 (Matt: "the legend doesn't match the map. It looks like there is only this purple unit on the map but legend shows a
+// bunch") — a vector tile covers far more than a small area (about 10 km at zoom 12), so a legend read from whole tiles listed every unit
+// of the neighbourhood. tiles: [{ z, x, y, layers }] -> the same tiles' layers keeping only the unit polygons with some area inside
+// bboxLonLat (each tile's own square too: the tiles overlap by a buffer) and the lines with a vertex inside it.
+export function macrostratLayersInArea(tiles, bboxLonLat) {
+  if (!bboxLonLat) return (tiles || []).map((t) => t.layers);
+  return (tiles || []).map((t) => (t.layers || []).map((l) => {
+    if (l.name !== "units" && l.name !== "lines") return l;
+    const ext = l.extent || 4096;
+    const [bx0, by0] = lonLatToTilePx(t.z, t.x, t.y, ext, bboxLonLat[0], bboxLonLat[3]), [bx1, by1] = lonLatToTilePx(t.z, t.x, t.y, ext, bboxLonLat[2], bboxLonLat[1]);
+    const box = [Math.max(0, bx0), Math.max(0, by0), Math.min(ext, bx1), Math.min(ext, by1)];
+    if (!(box[2] > box[0] && box[3] > box[1])) return { ...l, features: [] };
+    const inBox = ([x, y]) => x >= box[0] && x <= box[2] && y >= box[1] && y <= box[3];
+    const minArea = Math.max(1e-6, (box[2] - box[0]) * (box[3] - box[1]) * 1e-6); // a sliver along the edge is not a unit on the map
+    const keep = (f) => {
+      if (!f.geometry?.length) return false;
+      if (f.type !== "polygon") return f.geometry.some((part) => part.some(inBox));
+      let area = 0; // outer rings add, holes (negative in tile coordinates) take away
+      for (const raw of f.geometry) {
+        const open = raw.length > 1 && raw[0][0] === raw[raw.length - 1][0] && raw[0][1] === raw[raw.length - 1][1] ? raw.slice(0, -1) : raw;
+        const ring = clipRing(open, box);
+        if (ring.length >= 3) area += ringArea2(ring);
+      }
+      return area > minArea;
+    };
+    return { ...l, features: (l.features || []).filter(keep) };
+  }));
+}
+
 // tiles: [{ z, x, y, layers }] (layers: readVectorTile output) -> { features, units, sources }: polygon features in longitude /
 // latitude for buildLayer(), each with a `unit` field (the legend entry's name, told apart by its lithology when two entries share one),
 // its age, lithology, description, legend id and map. Each polygon is clipped to its own tile's square (the tiles overlap by a buffer,
 // which would double the boundaries) and to the area; a hole stays a further part of its polygon (the map is drawn even-odd). Pieces of
 // one unit in neighbouring tiles stay separate polygons: a seam between the same unit is not a contact, so Model it is not misled.
 export function macrostratUnitFeatures(tiles, bboxLonLat) {
-  const legend = macrostratLegend((tiles || []).map((t) => t.layers));
+  const legend = macrostratLegend(macrostratLayersInArea(tiles, bboxLonLat)); // #2315: the units in the area only
   // the unit field: the legend entry's name; two entries with one name are told apart by lithology, then by age
   const count = (fn) => { const m = new Map(); for (const u of legend.units) { const k = fn(u); m.set(k, (m.get(k) || 0) + 1); } return m; };
   const byName = count((u) => u.name), withLith = (u) => (u.lith ? `${u.name} (${u.lith})` : u.name), byLith = count(withLith);
