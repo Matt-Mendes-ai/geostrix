@@ -236,6 +236,11 @@ export function useImportPipeline(ctx) {
     // TASKS.csv #396 — convert azimuths measured from true or magnetic north to the project grid, per hole
     // location (declination and convergence vary across a property). Returns the rows plus a notice.
     const applyAzimuthRef = (rows, locate) => {
+      // TASKS.csv #2179 (review #2174, WA mine grid) — with no project CRS chosen, true / magnetic north (and another CRS's grid north)
+      // were converted with the PLACEHOLDER's grid convergence (EPSG:3156, British Columbia) for a Western Australian mine grid
+      const crsUnset = (importStateRef.current.project || project)?.crsSet === false;
+      const converting = (azimuthRef && azimuthRef !== "grid") || (azimuthGridEpsg && target !== "collars");
+      if (crsUnset && converting && rows.some((r) => Number.isFinite(r.azimuth))) return { rows, note: tr(" The azimuths could not be converted to grid north and were left as they are in the file: that needs the project CRS, which isn't chosen yet (status bar). Choose it, then import this file again."), crsUnset: true };
       if (!azimuthRef || azimuthRef === "grid") return applyGridOf(rows, locate);
       const epsg = (importStateRef.current.project || project)?.epsg;
       const cache = new Map();

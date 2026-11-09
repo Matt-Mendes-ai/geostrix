@@ -9363,5 +9363,8 @@
   "OK — open it anyway.": "موافق: افتحه على أي حال.",
   "Cancel — don't open it (split the file, or keep only the rows and columns you need, and open the parts).": "إلغاء: لا تفتحه (قسّم الملف، أو احتفظ فقط بالصفوف والأعمدة التي تحتاجها، وافتح الأجزاء).",
   "not opened: it needs more memory than this computer can safely give it": "لم يُفتح: يحتاج إلى ذاكرة أكثر مما يستطيع هذا الحاسوب توفيره بأمان",
-  "the file reader stopped ({error}); the file is too large to read another way": "توقف قارئ الملفات ({error})؛ الملف كبير جدًا لقراءته بطريقة أخرى"
+  "the file reader stopped ({error}); the file is too large to read another way": "توقف قارئ الملفات ({error})؛ الملف كبير جدًا لقراءته بطريقة أخرى",
+  " The azimuths could not be converted to grid north and were left as they are in the file: that needs the project CRS, which isn't chosen yet (status bar). Choose it, then import this file again.": " تعذّر تحويل السموت إلى شمال الشبكة وبقيت كما هي في الملف: يتطلب ذلك نظام إحداثيات المشروع، ولم يُختر بعد (شريط الحالة). اختره ثم أعد استيراد هذا الملف.",
+  "The project CRS — not chosen yet": "نظام إحداثيات المشروع — لم يُختر بعد",
+  "— the same place on both grids (surveyed pins, a re-located hole), with project coordinates in the project CRS, which isn't chosen yet: choose it first (status bar). Leave Source CRS above blank. A 4-parameter similarity (scale, rotation, shift) is fitted; local coordinates in feet are handled by the fitted scale.": "— المكان نفسه على الشبكتين (أوتاد مرفوعة، ثقب أعيد تحديد موقعه)، بإحداثيات المشروع في نظام إحداثيات المشروع، ولم يُختر بعد: اختره أولًا (شريط الحالة). اترك نظام الإحداثيات المصدر أعلاه فارغًا. يُلاءَم تشابه رباعي المعاملات (مقياس، دوران، إزاحة)؛ وتُعالَج الإحداثيات المحلية بالأقدام بالمقياس الملاءَم."
 }
