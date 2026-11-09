@@ -54,7 +54,7 @@ import { useMenuKeys } from "../lib/useMenuKeys.js"; // TASKS.csv #730
 import { t as tr } from "../lib/i18n.js";
 import EmptyViewerBody from "./viewer/EmptyViewerBody.jsx"; // TASKS.csv #1448
 import { featureCountText } from "../lib/featureCount.js"; // #1448 — "77 polygons", translated
-import { drillDepthBelowOrigin, gridWallHeight } from "../lib/viewer/gridDepth.js"; // #1405
+import { buildGridGroup, gridPlacement } from "../lib/viewer/gridGroup.js"; // #1405; moved out, placed and labelled: #2211
 import { paramRows } from "../lib/paramRows.js"; // #1378
 import { visibleSceneBox } from "../lib/viewer/fitAll.js"; // #1407
 import { tx } from "../lib/i18nRich.js"; // TASKS.csv #786 // TASKS.csv #786 — "tr": this file uses t as a local name
@@ -414,31 +414,7 @@ function collarColorFor(bg) {
 // assayColorFor: lib/legendGroups.js (TASKS.csv #725)
 // assaySizeFor / assayPassesCutoff: lib/viewer/assaySize.js (moved for the #1084 size cap, TASKS.csv #1533)
 
-// Builds the grid display object(s) into a fresh THREE.Group from scratch — called whenever
-// gridConfig changes. "ground" is the original flat XZ grid; "3d" adds two vertical wall grids
-// (rotated copies of the same GridHelper) forming an open corner/box, similar to the reference
-// grid frame in implicit-modelling tools — useful for judging depth/extent, not just plan position.
-function buildGridGroup(config, depth = 0) { // depth: #1405 — the drilling's depth below the origin
-  const group = new THREE.Group(); group.name = "gridHelpers";
-  if (!config.visible) return group;
-  const size = Math.max(1, config.size) || 1000;
-  const divisions = Math.max(1, Math.round(config.divisions) || 20);
-  const color = new THREE.Color(config.color || DEFAULT_GRID.color); // TASKS.csv #308 — one source of truth for the default
-  const mkGrid = () => new THREE.GridHelper(size, divisions, color, color);
-  group.add(mkGrid()); // ground plane (XZ, y=0) — same as the original always-on grid
-  if (config.mode === "3d") {
-    const back = mkGrid(); // rotate XZ -> XY, forms the "north" wall
-    const h = gridWallHeight(size, divisions, depth); // #1405 — below the ground grid (y 0 = the mean collar elevation), as deep as the drilling
-    back.rotation.x = Math.PI / 2; back.scale.set(1, 1, h / size); // local z -> world -y after the turn
-    back.position.set(0, -h / 2, -size / 2);
-    group.add(back);
-    const side = mkGrid(); // rotate XZ -> ZY, forms the "west" wall
-    side.rotation.z = Math.PI / 2; side.scale.set(h / size, 1, 1); // local x -> world y
-    side.position.set(-size / 2, -h / 2, 0);
-    group.add(side);
-  }
-  return group;
-}
+// buildGridGroup: lib/viewer/gridGroup.js (TASKS.csv #2211)
 function disposeThreeGroup(group) {
   // TASKS.csv #312 — skip shared prototype geometries (module-level singletons still referenced by
   // every other layer), and give an InstancedMesh batch its own .dispose() so its instance buffers
@@ -2597,6 +2573,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
             else if (now - zr.at > 400 && needsSymbolRebuild(surfaceSymbolMppRef.current, mpp)) { zr.at = Infinity; buildSurfaceSamplesRef.current(); }
           }
         }
+        if (gridGroupRef.current?.userData.labels) fitScreenLabels(gridGroupRef.current.userData.labels, camera, mount.clientHeight); // #2211
         if (sectionLinesGroupRef.current?.children.length) fitScreenLabels(sectionLinesGroupRef.current, camera, mount.clientHeight); // #1126 — section end labels
         fitContourLabels(boundaryGroupRef.current, camera, mount.clientWidth, mount.clientHeight); // #1466 / #1622
         renderer.setViewport(0, 0, mount.clientWidth, mount.clientHeight);
@@ -2738,10 +2715,10 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   useEffect(() => {
     if (!sceneRef.current) return;
     if (gridGroupRef.current) { sceneRef.current.remove(gridGroupRef.current); disposeThreeGroup(gridGroupRef.current); }
-    const group = buildGridGroup(gridConfig, drillDepthBelowOrigin(collars));
+    const group = buildGridGroup(gridConfig, gridPlacement(collars, survey), DEFAULT_GRID.color);
     sceneRef.current.add(group);
     gridGroupRef.current = group;
-  }, [gridConfig, collars]);
+  }, [gridConfig, collars, survey]);
 
   // ---------- TASKS.csv #650: "View" a structural trend — its ellipsoid, plane and major axis at the drilling's centre ----------
   const trendPreviewRef = useRef(null);
