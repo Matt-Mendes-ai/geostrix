@@ -12,7 +12,7 @@ import { guessDcipColumns, parseDcipRows, parseDcipWhitespaceText, lineGeometry,
 import { renderDcipSectionPng, sig3, rampRange } from "../lib/dcipSectionImage.js"; // sig3: #322; rampRange: #2073
 import { parseRes2dinv } from "../lib/res2dinv.js"; // TASKS.csv #826
 import { confirmDestructive } from "../lib/confirmDestructive.js"; // TASKS.csv #322 — a saved line (and its inversion) is not in Undo
-import { stampLines, withStamp } from "../lib/provenance.js";
+import { stampLines, withStamp, stampEpsg } from "../lib/provenance.js";
 import { version as APP_VERSION } from "../../package.json";
 import { logStops, sequentialStops, divergingStops, fitVerdict, ipFitOf, ipFitStored, outsideDataRange } from "../lib/inversion.js"; // ipFitOf: #970, shared with the 3D panel; outsideDataRange: #2072
 import { subscribeInversionJob, startInversionJob, cancelInversionJob } from "../lib/inversionJobs.js";
@@ -501,7 +501,7 @@ export default function DcipPanel({ pBtn, numInput, resultSlot = null }) {
       )}
       {msg && <div role="status" style={{ ...small, marginTop: 6, color: msg.ok ? "var(--color-text-secondary)" : "var(--color-danger-fg)" }}>{msg.text}</div>}
       {job?.error && <div style={{ ...small, marginTop: 6, color: "var(--color-danger-fg)" }}>{job.error}</div>}
-      {last && <InResultArea slot={resultSlot}><SectionResult last={last} cutoff={Number(opts.supportCutoff) || 0} epsg={project?.epsg} pBtn={pBtn} large={!!resultSlot} /></InResultArea>}
+      {last && <InResultArea slot={resultSlot}><SectionResult last={last} cutoff={Number(opts.supportCutoff) || 0} epsg={stampEpsg(project)} pBtn={pBtn} large={!!resultSlot} /></InResultArea>}
       <DcipMergePanel pBtn={pBtn} numInput={numInput} />
       <Dcip3dPanel pBtn={pBtn} numInput={numInput} />
       <Dcip3dArrayPanel pBtn={pBtn} numInput={numInput} />

@@ -8,6 +8,7 @@ import { lazyModal } from "../lib/lazyModal.jsx";
 import { isGradeTonnageModel } from "../lib/gradeTonnage.js";
 import { pBtn, smallSel } from "../lib/sidebarStyles.js";
 import { t as tr } from "../lib/i18n.js";
+import { stampEpsg } from "../lib/provenance.js"; // TASKS.csv #2195
 const GradeTonnageModal = lazyModal(() => import("./GradeTonnageModal.jsx"));
 
 export const isGradeEstimate = (m) => isGradeTonnageModel(m) && m?.cells?.length > 0 && (/^estimate-|^geoml$/.test(String(m.source || "")) || !!m.params?.element);
@@ -30,7 +31,7 @@ export default function GradeTonnageLauncher() {
       <button type="button" onClick={() => setOpen(true)} style={pBtn} title={tr("Tonnage and mean grade above a series of cutoffs (an exploration target, not a Mineral Resource)")}>
         <Scale size={14} />{" "}{models.length > 1 ? tr("Grade-tonnage table…") : tr("Grade-tonnage table: {name}…", { name: model.name })}
       </button>
-      {open && <GradeTonnageModal model={model} epsg={project?.epsg ?? null} onClose={() => setOpen(false)} />}
+      {open && <GradeTonnageModal model={model} epsg={stampEpsg(project)} onClose={() => setOpen(false)} />}
     </div>
   );
 }

@@ -4,7 +4,7 @@ import { useStore } from "../lib/store.jsx";
 import { runDataQC, collarTerrainOffsets, qcIssueRows } from "../lib/dataQC.js"; // qcIssueRows: #1111
 import { saveFile } from "../lib/desktop.js";
 import { toExportCsv } from "../lib/tabular.js";
-import { stampLines, withStamp } from "../lib/provenance.js";
+import { stampLines, withStamp, stampEpsg } from "../lib/provenance.js";
 import { normalizeDesurveyMethod } from "../lib/desurvey.js";
 import { version as APP_VERSION } from "../../package.json";
 import { useVirtualRows } from "../lib/useVirtualRows.js";
@@ -66,7 +66,7 @@ export default function DataQCModal({ onCancel }) {
   // TASKS.csv #1111 — every issue (not just the filtered view) as a CSV, stamped with the project, CRS, desurvey method,
   // the thresholds used and the counts
   const exportIssues = () => {
-    const stamp = stampLines({ tool: "Drillhole data QA/QC", version: APP_VERSION, epsg: project?.epsg, params: [
+    const stamp = stampLines({ tool: "Drillhole data QA/QC", version: APP_VERSION, epsg: stampEpsg(project) /* #2195 */, params: [
       `Project: ${project?.name || "untitled"} | desurvey: ${normalizeDesurveyMethod(project?.desurveyMethod)}`,
       `Holes: ${collars.length} collars, ${survey.length} survey stations | dogleg warning ${ranWith.current.warnDeg} deg / 30 m, error ${Math.max(10, ranWith.current.warnDeg)}${terrain ? ` | collar vs terrain threshold ${ranWith.current.terrainThreshold} m` : ""}`,
       `Issues: ${result.summary.error || 0} error(s), ${result.summary.warning || 0} warning(s), ${result.summary.info || 0} information`,

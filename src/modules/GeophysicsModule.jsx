@@ -28,7 +28,7 @@ import { parseDEMFiles, buildRasterImport, terrainToGeoTIFFArrayBuffer } from ".
 import { boundaryAreaHectares } from "../lib/geoprocessing.js";
 import { saveFile, safeFileName } from "../lib/desktop.js"; // safeFileName: #1114
 import { blockModelCsvText, blockModelParamLines } from "../lib/blockModelExport.js"; // TASKS.csv #411; #1041
-import { stampLines, withStamp, stampBeside, stampPlacement } from "../lib/provenance.js"; // TASKS.csv #404/#411
+import { stampLines, withStamp, stampBeside, stampPlacement, stampEpsg } from "../lib/provenance.js"; // TASKS.csv #404/#411
 import { version as APP_VERSION } from "../../package.json"; // TASKS.csv #529
 import InfoButton from "../components/InfoButton.jsx";
 import { fetchSRTMTerrain, collarGroundMisfit, findBetterUtmZone } from "../lib/srtmFetch.js";
@@ -298,7 +298,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
   const exportSurvey = (key) => {
     const meta = geophysSurveys[key] || {}, pts = rows.filter((r) => surveyKey(r) === key);
     const { rows: out, valueName } = surveyExportRows(pts, meta);
-    const stamp = stampLines({ tool: "Geophysics survey points", version: APP_VERSION, epsg: project?.epsg, params: [
+    const stamp = stampLines({ tool: "Geophysics survey points", version: APP_VERSION, epsg: stampEpsg(project) /* #2195 */, params: [
       `Survey: ${key} | ${pts.length} point(s) | method: ${meta.method ? SURVEY_METHODS[meta.method]?.label || meta.method : "not set"} | units: ${meta.units || "not set"}`,
       `${valueName}: the value as stored in GeoStrix (after any diurnal correction or levelling applied at import) | z: ${Z_MEANINGS[meta.zMeaning] || "as imported"}${pts.some((r) => Number.isFinite(r.zAgl)) ? " | height_agl: the radar-altimeter height the elevation was computed from" : ""}`,
     ] });
@@ -2485,7 +2485,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
           </label>
         )}
         {voxelModels.map((v) => (
-          <VoxelModelRow key={v.id} epsg={project?.epsg} /* #1052 */ others={voxelModels} /* #1808 */ model={v} onUpdate={updateVoxelModel} onRemove={removeVoxelModel} onEvaluate={evaluateOnHoles} onExportPackage={exportModelPackage} onShell={(m, opts = {}) => { goToModule("viewer"); requestModuleAction("voxel-shell", { id: m.id, model: m, largestOnly: !!opts.largestOnly }); }} /* #1780; largestOnly: #1840 */ onTerrain={terrainFromModelTop} /* #1806 */ getEpsg={() => ensureExportCrs(project)} /* #1021 */ csvNames={bmNames} stampChoice={bmStamp} />
+          <VoxelModelRow key={v.id} epsg={stampEpsg(project)} /* #1052 */ others={voxelModels} /* #1808 */ model={v} onUpdate={updateVoxelModel} onRemove={removeVoxelModel} onEvaluate={evaluateOnHoles} onExportPackage={exportModelPackage} onShell={(m, opts = {}) => { goToModule("viewer"); requestModuleAction("voxel-shell", { id: m.id, model: m, largestOnly: !!opts.largestOnly }); }} /* #1780; largestOnly: #1840 */ onTerrain={terrainFromModelTop} /* #1806 */ getEpsg={() => ensureExportCrs(project)} /* #1021 */ csvNames={bmNames} stampChoice={bmStamp} />
         ))}
 
         <div style={{ marginTop: 16, fontSize: "var(--font-size-base)", color: "var(--color-text-caption)", lineHeight: 1.6 }}>

@@ -2,7 +2,7 @@ import React, { useMemo, useState } from "react";
 import { X, Download } from "./icons.js";
 import { valueIn, resolvedSegments, histogramWantsLog, gradeUnitLabel } from "../lib/geochem.js"; // gradeUnitLabel: #1680 // resolvedSegments: #1099; histogramWantsLog: #1524
 import { useStore } from "../lib/store.jsx";
-import { stampLines, withStamp, ASSAY_READING_RULES } from "../lib/provenance.js"; // TASKS.csv #1099
+import { stampLines, withStamp, ASSAY_READING_RULES, stampEpsg } from "../lib/provenance.js"; // TASKS.csv #1099
 import { version as APP_VERSION } from "../../package.json";
 import { excludeQAQC, labAssays } from "../lib/qaqc.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
@@ -215,7 +215,7 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
     // TASKS.csv #1099 — the unit in the column names and a provenance stamp, as every other estimation-adjacent CSV (#404)
     const unit = (source === "surface" ? surfaceElementUnits[symbol] : elementUnits[symbol]) || "ppm";
     const rowsOut = gradeStatsRows(groups, { unit, label: (k) => (domainKey === "litho" ? domainLabel(k) : k), weighted: weightingActive }); // #1083 — rows in lib, tested
-    const stamp = stampLines({ tool: "Grade statistics", version: APP_VERSION, epsg: project?.epsg, params: [
+    const stamp = stampLines({ tool: "Grade statistics", version: APP_VERSION, epsg: stampEpsg(project) /* #2195 */, params: [
       `Element: ${symbol} (${unit}) | source: ${source === "surface" ? "surface samples (one sample = weight 1)" : "drillhole assays"} | domains: ${domainKey ? domainName(domainKey) : "none (all samples)"}`,
       `Basis: ${weightingActive ? "length-weighted (interval length)" : "unweighted arithmetic"}; sample (n-1) variance`,
       ...(source === "surface" ? [] : [

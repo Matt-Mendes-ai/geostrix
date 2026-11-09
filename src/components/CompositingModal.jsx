@@ -6,7 +6,7 @@ import { customDomainOptions, isCategoricalLayer } from "../lib/customDomains.js
 import { compositeDownhole, countDuplicateAssayIntervals, capAudit, capAuditText, gradeUnitLabel } from "../lib/geochem.js"; // gradeUnitLabel: #1680
 import CapAuditHint from "./CapAuditHint.jsx"; // TASKS.csv #533
 import { excludeQAQC, labAssays } from "../lib/qaqc.js";
-import { stampLines, withStamp, ASSAY_READING_RULES } from "../lib/provenance.js"; // TASKS.csv #404
+import { stampLines, withStamp, ASSAY_READING_RULES, stampEpsg } from "../lib/provenance.js"; // TASKS.csv #404
 import { desurveyHole } from "../lib/desurvey.js"; // TASKS.csv #411
 import { compositeRows } from "../lib/drillReportExport.js"; // TASKS.csv #1083
 import { useStore } from "../lib/store.jsx";
@@ -91,7 +91,7 @@ export default function CompositingModal({ assays: assaysIn, assayElements, laye
   const exportCSV = () => {
     const rows = compositeRows(results, { symbol, unit, traces: tracesByHole, domainColumn: domainKey ? domainMeta.label : null, domainLabel }); // #1083 — in lib, tested
     // TASKS.csv #404 — the parameters behind these composites, at the top of the file.
-    const stamp = stampLines({ tool: "Downhole compositing", version: APP_VERSION, epsg: project?.epsg, params: [
+    const stamp = stampLines({ tool: "Downhole compositing", version: APP_VERSION, epsg: stampEpsg(project) /* #2195 */, params: [
       `Coordinates: from/to/mid of each composite on traces desurveyed by ${desurveyMethod || "minimum curvature"} (blank = hole has no collar)`,
       `Element: ${symbol} (${unit}) | composite length: ${length} m | min coverage: ${Math.round(minCoverage * 100)}% | high-grade cap: ${capValue === "" ? "none" : `${capValue} ${unit} (applied to raw intervals before compositing)`}`,
       ...(capValue === "" ? [] : [`Capping audit: ${capAuditText(capAudit(compAssays, symbol, unit, elementUnits, Number(capValue)), unit)}`]), // #533

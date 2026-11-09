@@ -2,7 +2,7 @@ import React, { useMemo, useState } from "react";
 import { X, Download } from "./icons.js";
 import { saveFile } from "../lib/desktop.js";
 import { classifyQAQCRow, excludedQAQCIds, standardGroups, standardSeries, blankRows, duplicatePairs, duplicateSummary, DUP_RPD_LIMITS, DUP_KIND_LABELS, suggestDetectionLimit, orderForControlChart, DEFAULT_QAQC_PATTERNS } from "../lib/qaqc.js";
-import { stampLines, withStamp } from "../lib/provenance.js"; // TASKS.csv #534 — stamped exports
+import { stampLines, withStamp, stampEpsg } from "../lib/provenance.js"; // TASKS.csv #534 — stamped exports
 import { version as APP_VERSION } from "../../package.json";
 import { useStore } from "../lib/store.jsx"; // TASKS.csv #400 — certified values live in the project
 import { useEscapeKey } from "../lib/useEscapeKey.js";
@@ -86,7 +86,7 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
     }
     if (!rows || !rows.length) return;
     // TASKS.csv #534 — what these figures were judged against travels with them
-    const stamp = stampLines({ tool: "QAQC", version: APP_VERSION, epsg: project?.epsg, params: [
+    const stamp = stampLines({ tool: "QAQC", version: APP_VERSION, epsg: stampEpsg(project) /* #2195 */, params: [
       `Element: ${symbol} (${unit}) | detection limit: ${dl ? `${dl} ${unit}` : "not set"}`,
       tab === "standards" && activeGroup ? `Standard ${activeGroup.id}: ${series.limits?.certified ? `certified mean ${series.limits.mean} ± ${series.limits.sd} (1 SD, from the certificate)` : "no certificate values: self-referencing mean ± 2SD/3SD"} | order: ${ordered.bySampleId ? "sample id" : "import order (no sample ids)"}` : "",
       tab === "blanks" ? `Blank limit: ${dl ? `${blankMult} x DL = ${blankLimit} ${unit}` : `${blankThreshold} ${unit} (manual; no detection limit set)`}` : "",

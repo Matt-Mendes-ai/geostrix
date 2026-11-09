@@ -12,11 +12,14 @@ export const NOT_A_RESOURCE = "GeoStrix exploration output — not a Mineral Res
 // downstream grade depends on.
 export const ASSAY_READING_RULES = "Assay reading: '<x' (below detection) = x/2; '>x' (over-range) = x, a minimum; negative codes -0.005 style = half the absolute value unless chosen otherwise at import, <= -99 = not assayed.";
 
+// TASKS.csv #2195 (review #2174, WA gold) — every Geochem CSV stamped 'Project CRS: EPSG:3156' (the placeholder) while the status bar said
+// 'CRS: not set'. The CRS to stamp for a project: its code once chosen, else "unset" (stamped as not set, never as a code).
+export const stampEpsg = (project) => (project?.crsSet === false ? "unset" : project?.epsg ?? null);
 export function stampLines({ tool, version, epsg, params = [] }) {
   return [
     NOT_A_RESOURCE,
     `Tool: ${tool}${version ? ` | GeoStrix ${version}` : ""} | generated ${new Date().toISOString()}`,
-    ...(epsg ? [`Project CRS: EPSG:${epsg}`] : []),
+    ...(epsg === "unset" ? ["Project CRS: not set (the coordinates are the project's own numbers, with no real-world reference)"] : epsg ? [`Project CRS: EPSG:${epsg}`] : []), // unset: #2195
     ...params.filter(Boolean),
   ];
 }

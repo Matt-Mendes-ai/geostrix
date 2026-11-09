@@ -30,6 +30,7 @@ import DomainCaps from "./DomainCaps.jsx"; // TASKS.csv #1571
 import { solidChoices } from "../lib/solidChoices.js"; // TASKS.csv #1578
 import { lazyModal } from "../lib/lazyModal.jsx";
 import { collarsLookUnderground } from "../lib/pitShell.js"; // TASKS.csv #2217
+import { stampEpsg } from "../lib/provenance.js"; // TASKS.csv #2195
 const GradeTonnageModal = lazyModal(() => import("./GradeTonnageModal.jsx")); // TASKS.csv #1577 — from the result, not only from Geophysics
 
 // TASKS.csv #117 — grade estimation into block models (not just display). Micromine-specialist AND
@@ -846,7 +847,7 @@ export default function GradeEstimationModal({ assays: assaysProp, assayElements
                   <div style={{ marginTop: 5, color: "var(--color-text-muted)" }}>{tr("Only blocks whose informing composites bracket them on all three axes, from at least two holes, count as interpolated. Everything else with a value is being carried outward from the data rather than between it — a real number, but not an interpolation.")}</div>
                 </div>
               )}
-              {result.blocksEstimated > 0 && result.nnCells && <EstimateCheck cells={result.cells} nnCells={result.nnCells} points={result.checkPoints} unit={gradeUnitLabel(symbol, unit) /* #2218: display only */} symbol={symbol} method={result.params.method} epsg={project?.epsg ?? null} composited={result.params.composited !== false} />}
+              {result.blocksEstimated > 0 && result.nnCells && <EstimateCheck cells={result.cells} nnCells={result.nnCells} points={result.checkPoints} unit={gradeUnitLabel(symbol, unit) /* #2218: display only */} symbol={symbol} method={result.params.method} epsg={stampEpsg(project)} composited={result.params.composited !== false} />}
               {result.blocksEstimated > 0 && (
                 <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 4 }}>
                   <input placeholder={modelName.trim() ? "" : resultName() /* #1737 — the name the result will get, not the form's current settings */} value={modelName} onChange={(e) => { setModelName(e.target.value); setAdded(false); setAddedSupport(false); }} style={{ ...inp, flex: 1, width: "auto" }} />
@@ -875,7 +876,7 @@ export default function GradeEstimationModal({ assays: assaysProp, assayElements
             </div>
           )}
 
-          {gtOpen && result && <GradeTonnageModal model={{ name: resultName(), source: `estimate-${result.params?.method || method}`, cells: result.cells, params: result.params }} epsg={project?.epsg ?? null} onClose={() => setGtOpen(false)} />}{/* #1577 */}
+          {gtOpen && result && <GradeTonnageModal model={{ name: resultName(), source: `estimate-${result.params?.method || method}`, cells: result.cells, params: result.params }} epsg={stampEpsg(project)} onClose={() => setGtOpen(false)} />}{/* #1577 */}
           {/* TASKS.csv #269 — the closing paragraph now names every assumption the estimate actually
               makes, not just the missing-kriging one. */}
           <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", borderRadius: 6, padding: "8px 9px", lineHeight: 1.5 }}>
