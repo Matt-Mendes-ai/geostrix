@@ -322,6 +322,21 @@ export function fitLeastAlteredBox(points) {
 // (midway between the minerals) was tried and measured on Woodjam: whole-rock K/Al of the 429 samples logged Pot has a median of 0.30
 // (plagioclase keeps most of the Al), so every potassic sample would have been called phyllic. The trend keeps one name that says both;
 // how to split it is left as a decision (TASKS.csv #2145).
+// TASKS.csv #2145 (Matt 2026-11-08: option (b), falling back to (a)) — the AI-up trend is named from the LOGGED alteration where the sample
+// lies in a code the user marks potassic or phyllic; everywhere else it keeps the joint name. No K/Al or (K+Na)/Al cutoff (#264).
+// guessTrendRole: a first suggestion from the code's own words, shown for the user to confirm or change, never applied unseen.
+export function guessTrendRole(code) {
+  const tokens = String(code || "").toLowerCase().split(/[^a-z]+/).filter(Boolean);
+  if (tokens.some((t) => /^(pot|ksp|kspar|kfs|kfeld|kfelds|biot|bio|secbio|kbt)/.test(t) || t === "k")) return "potassic";
+  if (tokens.some((t) => /^(phyl|ser|sericit|qsp|musc)/.test(t) || t === "qs")) return "phyllic";
+  return null;
+}
+export const LOGGED_TREND_CLASS = { potassic: "SER-POT", phyllic: "SER-PHY" };
+// a box-plot class and the logged alteration code at the sample -> the class to store ('SER' stays 'SER' unless the code is marked)
+export function nameAiUpTrend(cls, loggedCode, trendRoles) {
+  if (cls !== "SER" || !loggedCode || !trendRoles) return cls;
+  return LOGGED_TREND_CLASS[trendRoles[loggedCode]] || cls;
+}
 // A starting guess from a logged code (editable per code in the app).
 // TASKS.csv #1517 (review #1497, Lawyers) — a sedimentary or cover code never guesses a volcanic protolith ('Sand' matched /and/ and became
 // andesite, dolomite /dol/ basalt); dolerite is named; 'Intermed' / intermediate / latite / trachyandesite guess andesite (83,426 of
@@ -422,7 +437,8 @@ export const GEOCHEM_METHODS = {
 };
 
 export const GEOCHEM_LABELS = {
-  SER: "Sericite / K-feldspar trend (phyllic or potassic)" /* #2028 — the up trend of a porphyry is potassic as often as phyllic */, CHL: "Chlorite-pyrite trend", EPI: "Epidote-calcite trend", FRESH: "Weak/fresh (older 50/50 quadrants)",
+  SER: "Sericite / K-feldspar trend (phyllic or potassic)" /* #2028 — the up trend of a porphyry is potassic as often as phyllic */,
+  "SER-POT": "Potassic (AI-up trend, named from the logged alteration)", "SER-PHY": "Phyllic (AI-up trend, named from the logged alteration)" /* #2145 */, CHL: "Chlorite-pyrite trend", EPI: "Epidote-calcite trend", FRESH: "Weak/fresh (older 50/50 quadrants)",
   // TASKS.csv #503 — protolith-box classes (EPI is now 'epidote-calcite', the down-right trend)
   "LA-FIT": "Least altered (box of your least-altered samples)", // #2028
   "LA-RHY": "Least altered (rhyolite box)", "LA-DAC": "Least altered (dacite box)", "LA-AND": "Least altered (andesite box)", "LA-BAS": "Least altered (basalt box)",

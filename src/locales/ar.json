@@ -9417,5 +9417,13 @@
   " (the file names \"{crs}\")": " (يذكر الملف «{crs}»)",
   "{name}: couldn't read GOCAD ({message}).": "{name}: تعذّرت قراءة GOCAD ({message}).",
   "{names}: GOCAD point sets are read as point surveys: drop them on the Geophysics tab, or use Geophysics > Point survey > Import survey.": "{names}: تُقرأ مجموعات نقاط GOCAD كمسوحات نقطية: أفلتها في تبويب الجيوفيزياء، أو استخدم الجيوفيزياء > مسح نقطي > استيراد مسح.",
-  "no GOCAD VSet with points in it": "لا يحتوي على أي VSet من GOCAD بنقاط"
+  "no GOCAD VSet with points in it": "لا يحتوي على أي VSet من GOCAD بنقاط",
+  "Naming the AI-up trend from the log": "تسمية اتجاه ارتفاع AI من السجل",
+  "The AI-up trend is potassic (K-feldspar, biotite) or phyllic (sericite), and whole-rock chemistry cannot tell them apart reliably. Where a sample on it lies in a logged alteration code marked below, it is named from the log; elsewhere it keeps the joint name and the Molar K/Al vs Na/Al diagram is the place to look. The marks are suggested from the code names: check them.": "اتجاه ارتفاع AI بوتاسي (فلسبار K، بيوتيت) أو فيليكي (سيريسيت)، ولا تستطيع كيمياء الصخر الكلي التمييز بينهما بثقة. حيث تقع عينة من هذا الاتجاه في رمز تحوّل مسجّل مؤشَّر أدناه، تُسمّى من السجل؛ وفي غير ذلك تحتفظ بالاسم المشترك ويكون مخطط K/Al مقابل Na/Al المولي هو المرجع. الإشارات مقترحة من أسماء الرموز: تحقّق منها.",
+  "AI-up trend name for {c}": "اسم اتجاه ارتفاع AI لـ {c}",
+  "— neither": "— لا هذا ولا ذاك",
+  "potassic": "بوتاسي",
+  "phyllic": "فيليكي",
+  " AI-up trend: {log} sample(s) named potassic or phyllic from the logged alteration, {chem} by geochemistry only (joint name; the Molar K/Al vs Na/Al diagram separates them).": " اتجاه ارتفاع AI: {log} عينة سُمّيت بوتاسية أو فيليكية من التحوّل المسجّل، و{chem} بالجيوكيمياء فقط (اسم مشترك؛ مخطط K/Al مقابل Na/Al المولي يفصل بينها).",
+  " AI-up trend: all {chem} sample(s) by geochemistry only (joint name; no logged code is marked potassic or phyllic; the Molar K/Al vs Na/Al diagram separates them).": " اتجاه ارتفاع AI: جميع العينات الـ {chem} بالجيوكيمياء فقط (اسم مشترك؛ لا يوجد رمز مسجّل مؤشَّر بوتاسيًا أو فيليكيًا؛ مخطط K/Al مقابل Na/Al المولي يفصل بينها)."
 }

@@ -24,7 +24,7 @@ test("the caption no longer calls the plot the standard for every deposit; the d
   assert.doesNotMatch(DIAGRAMS.boxplot.caption, /Standard for VMS\/epithermal/);
   assert.match(DIAGRAMS.boxplot.caption, /the Molar K\/Al vs Na\/Al diagram tells them apart/);
   assert.match(m, /<option value=\{FITTED_PROTOLITH\} disabled=\{!altCodes\.length\}>/);
-  assert.match(m, /onRun\(\{ boxes, map, source, fitCodes \}\)/);
+  assert.match(m, /onRun\(\{ boxes, map, source, fitCodes(, trendRoles)? \}\)/ /* trendRoles: #2145 */);
   assert.match(g, /fitted = fitLeastAlteredBox\(pts\);/);
   assert.match(g, /altCodes=\{\[\.\.\.new Set\(\(layers\.alt \|\| \[\]\)/);
 });

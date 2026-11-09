@@ -5,7 +5,7 @@ import { iconAction } from "../lib/a11y.js"; // TASKS.csv #687
 // fig. 6) and are edited here; they are saved with the project. The classification itself is
 // lib/geochem.js classifyAlterationBox (tested).
 import React, { useMemo, useState } from "react";
-import { PROTOLITHS, PROVISIONAL_ALTERATION_BOXES, guessProtolith, FITTED_PROTOLITH } from "../lib/geochemDiagrams.js"; // fitted: #2028
+import { PROTOLITHS, PROVISIONAL_ALTERATION_BOXES, guessProtolith, FITTED_PROTOLITH, guessTrendRole } from "../lib/geochemDiagrams.js"; // fitted: #2028; trend: #2145
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 
@@ -20,6 +20,8 @@ export default function AlterationBoxModal({ saved, lithoCodes, altCodes = [], o
   // TASKS.csv #2028 — the codes of the project's own least-altered rock (Unalt, Propy…): the box is fitted to those samples
   const [fitCodes, setFitCodes] = useState(() => (saved?.fitCodes || altCodes.filter((c) => /^(unalt|fresh|least|lalt|none|na)$/i.test(c))).filter((c) => altCodes.includes(c)));
   const fittedMode = source === FITTED_PROTOLITH;
+  // TASKS.csv #2145 — which logged alteration codes are potassic / phyllic: suggested from the code names, the user's to confirm
+  const [trendRoles, setTrendRoles] = useState(() => Object.fromEntries(altCodes.map((c) => [c, saved?.trendRoles && c in saved.trendRoles ? saved.trendRoles[c] : guessTrendRole(c)])));
   const setLimit = (p, axis, i, v) => setBoxes((b) => ({ ...b, [p]: { ...b[p], [axis]: b[p][axis].map((x, k) => (k === i ? Number(v) : x)) } }));
   const valid = PROTOLITHS.every((p) => boxes[p] && boxes[p].ai[0] < boxes[p].ai[1] && boxes[p].ccpi[0] < boxes[p].ccpi[1]);
   const num = { width: 52, padding: "2px 4px", border: "1px solid var(--color-border)", borderRadius: 4, fontSize: "var(--font-size-sm)", background: "var(--color-bg)", color: "var(--color-text)" };
@@ -66,6 +68,23 @@ export default function AlterationBoxModal({ saved, lithoCodes, altCodes = [], o
           </div>
         )}
 
+        {altCodes.length > 0 && (<>{/* #2145 */}
+          <div className="ge-section-label" style={{ marginTop: 12 }}>{tr("Naming the AI-up trend from the log")}</div>
+          <div style={small}>{tr("The AI-up trend is potassic (K-feldspar, biotite) or phyllic (sericite), and whole-rock chemistry cannot tell them apart reliably. Where a sample on it lies in a logged alteration code marked below, it is named from the log; elsewhere it keeps the joint name and the Molar K/Al vs Na/Al diagram is the place to look. The marks are suggested from the code names: check them.")}</div>
+          <div style={{ marginTop: 4, display: "grid", gridTemplateColumns: "1fr 1fr", gap: "3px 12px" }}>
+            {altCodes.map((c) => (
+              <label key={c} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <span style={{ width: 70, overflow: "hidden", textOverflow: "ellipsis" }} title={c}>{c}</span>
+                <select value={trendRoles[c] || ""} onChange={(e) => setTrendRoles((m) => ({ ...m, [c]: e.target.value || null }))} aria-label={tr("AI-up trend name for {c}", { c })} style={{ ...num, width: 110 }}>
+                  <option value="">{tr("— neither")}</option>
+                  <option value="potassic">{tr("potassic")}</option>
+                  <option value="phyllic">{tr("phyllic")}</option>
+                </select>
+              </label>
+            ))}
+          </div>
+        </>)}
+
         <div className="ge-section-label" style={{ marginTop: 12, display: "flex", justifyContent: "space-between" }}>
           <span>{tr("Least-altered boxes")}</span>
           {!provisional && <span style={{ cursor: "pointer", textTransform: "none", letterSpacing: 0 }} {...iconAction(() => setBoxes(PROVISIONAL_ALTERATION_BOXES), tr("Reset to provisional boxes"))}>{tr("Reset to provisional")}</span>}
@@ -89,7 +108,7 @@ export default function AlterationBoxModal({ saved, lithoCodes, altCodes = [], o
 
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 14 }}>
           <button onClick={onCancel} style={{ padding: "5px 12px" }}>{tr("Cancel")}</button>
-          <button disabled={!valid || (fittedMode && !fitCodes.length)} onClick={() => onRun({ boxes, map, source, fitCodes })} style={{ padding: "5px 12px", fontWeight: 600, opacity: valid && !(fittedMode && !fitCodes.length) ? 1 : 0.5 }}>{tr("Classify")}</button>
+          <button disabled={!valid || (fittedMode && !fitCodes.length)} onClick={() => onRun({ boxes, map, source, fitCodes, trendRoles })} style={{ padding: "5px 12px", fontWeight: 600, opacity: valid && !(fittedMode && !fitCodes.length) ? 1 : 0.5 }}>{tr("Classify")}</button>
         </div>
       </div>
     </div>

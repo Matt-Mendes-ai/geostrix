@@ -260,7 +260,8 @@ export function mcodeRoleOf(role) { return role === "overburden" ? "overburden" 
 // red-green discrimination; OX kept but KSP shifted toward a cooler plum so the two no longer share
 // the same reddish-brown hue family.
 export const ALT_COLORS = { CARB: "#b8c4c8", KSP: "#7a4a72", MAG: "#4a4a4a", OX: "#b5622c", PRO: "#4a6b4a", QSP: "#d4b06a", SIL: "#e8e2d0", UNK: "#6a6a6a",
-  SER: "#c79a4a", CHL: "#5a8f52", EPI: "#7a9e6a", FRESH: "#5a6472" };
+  SER: "#c79a4a", CHL: "#5a8f52", EPI: "#7a9e6a", FRESH: "#5a6472",
+  "SER-POT": "#94507f", "SER-PHY": "#e0b860" }; // TASKS.csv #2145 — the AI-up trend named from the log: K-feldspar's plum, sericite's gold
 export function colorForAlteration(a) { return ALT_COLORS[(a || "").toUpperCase()] || categoricalSafeColor("alt", a); }
 
 // TASKS.csv #249 (colorblind-safety review) — QZ-CB was a pale green nearly identical to CARB

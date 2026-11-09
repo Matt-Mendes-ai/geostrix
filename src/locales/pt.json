@@ -9417,5 +9417,13 @@
   " (the file names \"{crs}\")": " (o arquivo indica “{crs}”)",
   "{name}: couldn't read GOCAD ({message}).": "{name}: não foi possível ler o GOCAD ({message}).",
   "{names}: GOCAD point sets are read as point surveys: drop them on the Geophysics tab, or use Geophysics > Point survey > Import survey.": "{names}: conjuntos de pontos GOCAD são lidos como levantamentos de pontos: solte-os na aba Geofísica, ou use Geofísica > Levantamento de pontos > Importar levantamento.",
-  "no GOCAD VSet with points in it": "não contém nenhum VSet do GOCAD com pontos"
+  "no GOCAD VSet with points in it": "não contém nenhum VSet do GOCAD com pontos",
+  "Naming the AI-up trend from the log": "Nomear a tendência de AI alto pelo registro",
+  "The AI-up trend is potassic (K-feldspar, biotite) or phyllic (sericite), and whole-rock chemistry cannot tell them apart reliably. Where a sample on it lies in a logged alteration code marked below, it is named from the log; elsewhere it keeps the joint name and the Molar K/Al vs Na/Al diagram is the place to look. The marks are suggested from the code names: check them.": "A tendência de AI alto é potássica (feldspato K, biotita) ou fílica (sericita), e a química de rocha total não as distingue com segurança. Onde uma amostra dessa tendência cai em um código de alteração registrado marcado abaixo, ela é nomeada pelo registro; no resto mantém o nome conjunto e o diagrama molar K/Al vs Na/Al é onde olhar. As marcas são sugeridas a partir dos nomes dos códigos: confira-as.",
+  "AI-up trend name for {c}": "Nome da tendência de AI alto para {c}",
+  "— neither": "— nenhum",
+  "potassic": "potássica",
+  "phyllic": "fílica",
+  " AI-up trend: {log} sample(s) named potassic or phyllic from the logged alteration, {chem} by geochemistry only (joint name; the Molar K/Al vs Na/Al diagram separates them).": " Tendência de AI alto: {log} amostra(s) nomeada(s) potássica ou fílica pela alteração registrada, {chem} só pela geoquímica (nome conjunto; o diagrama molar K/Al vs Na/Al as separa).",
+  " AI-up trend: all {chem} sample(s) by geochemistry only (joint name; no logged code is marked potassic or phyllic; the Molar K/Al vs Na/Al diagram separates them).": " Tendência de AI alto: todas as {chem} amostra(s) só pela geoquímica (nome conjunto; nenhum código registrado está marcado como potássico ou fílico; o diagrama molar K/Al vs Na/Al as separa)."
 }

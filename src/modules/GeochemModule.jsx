@@ -21,7 +21,7 @@ import { elementColumnStats } from "../lib/assayColumnScan.js"; // TASKS.csv #21
 const ELEMENT_SCAN_CHUNKED_ROWS = 50000; // #2164 — below this the element columns are counted at once
 import { saveFile, loadSampleFiles } from "../lib/desktop.js"; // loadSampleFiles: TASKS.csv #391
 import { isElementColumn, inferUnit, pickElementColumns, assayExportRows, parseAssayValue, valueIn, readAssayCell, columnPositiveMax, convertUnit, mergeAssayRows, holesWithChangedIntervals, dropHoleAssays, blankDetectionLimit, isBlankAssayCell, oxideOfHeader, fromOxideHeader, surfaceAttrColumns, surfaceAttrs, mergeSurfaceSamples, otherMediumTwins } from "../lib/geochem.js"; // otherMediumTwins: #2085
-import { DIAGRAMS, SPIDER_DIAGRAMS, GEOCHEM_METHODS, diagramExportRows, protolithForSample, PROVISIONAL_ALTERATION_BOXES, GEOCHEM_LABELS, reeProfile, loggedCodeAt, isSedimentaryCode, mergeClassRuns, FITTED_PROTOLITH, fitLeastAlteredBox } from "../lib/geochemDiagrams.js"; // fitted: #2028
+import { DIAGRAMS, SPIDER_DIAGRAMS, GEOCHEM_METHODS, diagramExportRows, protolithForSample, PROVISIONAL_ALTERATION_BOXES, GEOCHEM_LABELS, reeProfile, loggedCodeAt, isSedimentaryCode, mergeClassRuns, FITTED_PROTOLITH, fitLeastAlteredBox, nameAiUpTrend } from "../lib/geochemDiagrams.js"; // fitted: #2028; nameAiUpTrend: #2145
 import { qcRecordFromFileRow, emptySurfaceQc, looksLikeQcTypeColumn, mergeQcRecords } from "../lib/surfaceQaqc.js"; // TASKS.csv #842; looksLikeQcTypeColumn, mergeQcRecords: #1794
 import { mapInChunks } from "../lib/mapInChunks.js"; // TASKS.csv #583
 import { detectLongAssay, pivotLongAssays, longAssayNote } from "../lib/longAssays.js"; // TASKS.csv #623
@@ -941,9 +941,12 @@ export default function GeochemModule() {
     const labRows = labAll.filter((a) => classifyQAQCRow(a) === "regular"), qcLeft = labAll.length - labRows.length; // #2027 — a standard or a blank is not a rock to classify (it made zero-length intervals on real holes)
     // TASKS.csv #2028 — 'box from my least-altered samples': fitted to the AI / CCPI of the samples whose logged alteration is one of the codes chosen
     let fitted = null;
+    // the logged alteration by hole: the fitted box (#2028) and the AI-up trend's name (#2145) read it
+    const altByHole = new Map();
+    if (altSetup) (layers.alt || []).forEach((r) => { if (!altByHole.has(r.hole_id)) altByHole.set(r.hole_id, []); altByHole.get(r.hole_id).push(r); });
+    const trendRoles = altSetup?.trendRoles && Object.values(altSetup.trendRoles).some(Boolean) ? altSetup.trendRoles : null;
+    const trendBasis = { log: 0, chem: 0 }; // #2145 — how each AI-up sample was named
     if (altSetup?.source === FITTED_PROTOLITH) {
-      const altByHole = new Map();
-      (layers.alt || []).forEach((r) => { if (!altByHole.has(r.hole_id)) altByHole.set(r.hole_id, []); altByHole.get(r.hole_id).push(r); });
       const codes = new Set(altSetup.fitCodes || []);
       const pts = labRows.filter((a) => codes.has(loggedCodeAt(a, altByHole))).map((a) => { const q = DIAGRAMS.boxplot.project(a, elementUnits); return q ? { ai: q.y, ccpi: q.x } : null; }).filter(Boolean);
       fitted = fitLeastAlteredBox(pts);
@@ -958,8 +961,9 @@ export default function GeochemModule() {
         opts = { protolith, boxes: altSetup.boxes };
       }
       if (method.volcanicOnly) { const code = loggedCodeAt(a, lithoByHole); if (isSedimentaryCode(code)) { sedSkipped[code] = (sedSkipped[code] || 0) + 1; return null; } }
-      const value = method.classify(a.values, elementUnits, a, opts);
+      let value = method.classify(a.values, elementUnits, a, opts);
       if (!value) return null;
+      if (value === "SER" && altSetup) { value = nameAiUpTrend(value, trendRoles ? loggedCodeAt(a, altByHole) : null, trendRoles); trendBasis[value === "SER" ? "chem" : "log"]++; } // #2145
       counts[value] = (counts[value] || 0) + 1;
       return { hole_id: a.hole_id, from: a.from, to: a.to, value };
     }).filter(Boolean);
@@ -971,10 +975,11 @@ export default function GeochemModule() {
     const countList = Object.entries(counts).sort((x, y) => y[1] - x[1]).map(([k, n]) => `${GEOCHEM_LABELS[k] || k} ${n}`).join(", ");
     const detail = altSetup ? tr(countList ? " {v}.{v2}{v3} Screening level: protolith assumed." : "{v2}{v3} Screening level: protolith assumed.", { v: countList, v2: noProtolith ? tr(" {noProtolith} sample(s) not classified: no protolith (unmapped lithology code or no logged interval).", { noProtolith }) : "", v3: JSON.stringify(altSetup.boxes) === JSON.stringify(PROVISIONAL_ALTERATION_BOXES) ? tr(" Box limits are the PROVISIONAL defaults (not yet checked against Large et al. 2001).") : tr(" Box limits: your edited values.") }) : "";
     const fitText = fitted ? tr(" Least-altered box fitted to the {n} samples logged {codes}: AI {a0}–{a1}, CCPI {c0}–{c1} (5th to 95th percentile).", { n: fitted.n, codes: (altSetup.fitCodes || []).join(", "), a0: fitted.ai[0], a1: fitted.ai[1], c0: fitted.ccpi[0], c1: fitted.ccpi[1] }) : ""; // #2028
+    const trendText = trendBasis.log + trendBasis.chem ? (trendBasis.log ? tr(" AI-up trend: {log} sample(s) named potassic or phyllic from the logged alteration, {chem} by geochemistry only (joint name; the Molar K/Al vs Na/Al diagram separates them).", trendBasis) : tr(" AI-up trend: all {chem} sample(s) by geochemistry only (joint name; no logged code is marked potassic or phyllic; the Molar K/Al vs Na/Al diagram separates them).", trendBasis)) : ""; // #2145
     const sedN = Object.values(sedSkipped).reduce((s, n) => s + n, 0);
     const sedText = sedN ? tr(" {n} sample(s) in logged sedimentary or carbonate codes ({codes}) were not classified: this classifier is for volcanic rocks.", { n: sedN, codes: Object.entries(sedSkipped).sort((x, y) => y[1] - x[1]).map(([k, n]) => `${k} ${n}`).join(", ") }) : "";
     const jensenText = methodKey === "litho_jensen" ? tr(" The classes are a simplified threshold split of the cation ternary, not the published Jensen fields.") : "";
-    setNotices((p) => [...p, notice(runs.length ? "Generated {rows} intervals from {n} samples → {v} layer (touching samples of one class are joined).{detail} Switch to 3D View to see it." : "No interval was generated from {n} samples, so the {v} layer is empty.{detail}", { rows: runs.length, n: rows.length, v: method.target === "litho" ? tr("Lithology (geochem)") : tr("Alteration (geochem)"), detail: (fitted ? (countList ? ` ${countList}.` : "") + fitText + tr(" Screening level.") : detail) + sedText + jensenText })]); // fitted: #2028
+    setNotices((p) => [...p, notice(runs.length ? "Generated {rows} intervals from {n} samples → {v} layer (touching samples of one class are joined).{detail} Switch to 3D View to see it." : "No interval was generated from {n} samples, so the {v} layer is empty.{detail}", { rows: runs.length, n: rows.length, v: method.target === "litho" ? tr("Lithology (geochem)") : tr("Alteration (geochem)"), detail: (fitted ? (countList ? ` ${countList}.` : "") + fitText + tr(" Screening level.") : detail) + trendText + sedText + jensenText })]); // fitted: #2028; trendText: #2145
     { const pd = partialDigestionFor(assayElements, method.requires); if (pd.length) setNotices((p) => [...p, notice("Partial digestion: {list}. A four-acid or aqua-regia digestion does not fully dissolve zircon and other resistant minerals, so Zr and Hf (and partly Nb, Ta, Y and the REE) read low and the fields shift. Immobile-element diagrams and classifiers need a total (fusion / lithium-borate) digestion.", { list: pd.map(([s, m]) => `${s} ${m}`).join(", ") })]); } // #1518
   };
 

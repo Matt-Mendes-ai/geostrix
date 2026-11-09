@@ -9417,5 +9417,13 @@
   " (the file names \"{crs}\")": " (le fichier indique « {crs} »)",
   "{name}: couldn't read GOCAD ({message}).": "{name} : impossible de lire le GOCAD ({message}).",
   "{names}: GOCAD point sets are read as point surveys: drop them on the Geophysics tab, or use Geophysics > Point survey > Import survey.": "{names} : les ensembles de points GOCAD se lisent comme des levés ponctuels : déposez-les dans l'onglet Géophysique, ou utilisez Géophysique > Levé ponctuel > Importer un levé.",
-  "no GOCAD VSet with points in it": "il ne contient aucun VSet GOCAD avec des points"
+  "no GOCAD VSet with points in it": "il ne contient aucun VSet GOCAD avec des points",
+  "Naming the AI-up trend from the log": "Nommer la tendance AI croissant d'après le log",
+  "The AI-up trend is potassic (K-feldspar, biotite) or phyllic (sericite), and whole-rock chemistry cannot tell them apart reliably. Where a sample on it lies in a logged alteration code marked below, it is named from the log; elsewhere it keeps the joint name and the Molar K/Al vs Na/Al diagram is the place to look. The marks are suggested from the code names: check them.": "La tendance AI croissant est potassique (feldspath K, biotite) ou phyllique (séricite), et la chimie roche totale ne les distingue pas de façon fiable. Là où un échantillon de cette tendance tombe dans un code d'altération logué marqué ci-dessous, il est nommé d'après le log ; ailleurs il garde le nom commun et le diagramme molaire K/Al vs Na/Al est l'endroit où regarder. Les marques sont suggérées d'après les noms des codes : vérifiez-les.",
+  "AI-up trend name for {c}": "Nom de la tendance AI croissant pour {c}",
+  "— neither": "— aucun",
+  "potassic": "potassique",
+  "phyllic": "phyllique",
+  " AI-up trend: {log} sample(s) named potassic or phyllic from the logged alteration, {chem} by geochemistry only (joint name; the Molar K/Al vs Na/Al diagram separates them).": " Tendance AI croissant : {log} échantillon(s) nommé(s) potassique ou phyllique d'après l'altération loguée, {chem} par la géochimie seule (nom commun ; le diagramme molaire K/Al vs Na/Al les sépare).",
+  " AI-up trend: all {chem} sample(s) by geochemistry only (joint name; no logged code is marked potassic or phyllic; the Molar K/Al vs Na/Al diagram separates them).": " Tendance AI croissant : les {chem} échantillon(s) par la géochimie seule (nom commun ; aucun code logué n'est marqué potassique ou phyllique ; le diagramme molaire K/Al vs Na/Al les sépare)."
 }
