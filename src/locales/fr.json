@@ -9328,5 +9328,7 @@
   "Vegetated above NDVI": "Végétation au-dessus d'un NDVI de",
   "NDVI above which a pixel is vegetated": "NDVI au-dessus duquel un pixel est de la végétation",
   "(a common starting value is 0.4; dry or sparse cover reads lower)": "(une valeur de départ courante est 0,4 ; un couvert sec ou clairsemé donne moins)",
-  "A multiband satellite scene (Sentinel-2, Landsat, ASTER) scores after a band ratio: Maps > Spectral index makes iron oxide, clay / hydroxyl or your own ratio (b4 / b2…) as a raster with values, listed here.": "Une scène satellite multibande (Sentinel-2, Landsat, ASTER) se note après un rapport de bandes : Cartes > Indice spectral crée oxyde de fer, argile / hydroxyle ou votre propre rapport (b4 / b2…) en raster à valeurs, listé ici."
+  "A multiband satellite scene (Sentinel-2, Landsat, ASTER) scores after a band ratio: Maps > Spectral index makes iron oxide, clay / hydroxyl or your own ratio (b4 / b2…) as a raster with values, listed here.": "Une scène satellite multibande (Sentinel-2, Landsat, ASTER) se note après un rapport de bandes : Cartes > Indice spectral crée oxyde de fer, argile / hydroxyle ou votre propre rapport (b4 / b2…) en raster à valeurs, listé ici.",
+  "colours over {v}–{v2} ohm·m (log: dark red conductive → light blue resistive; the 2nd–98th percentile of the cells the data see, the model runs {a}–{b})": "couleurs sur {v}–{v2} ohm·m (log : rouge foncé conducteur → bleu clair résistant ; 2e au 98e centile des cellules que les données voient ; le modèle va de {a} à {b})",
+  "colours over 0–{v} mV/V (the 98th percentile of the cells the data see; the model runs to {b})": "couleurs sur 0–{v} mV/V (98e centile des cellules que les données voient ; le modèle va jusqu'à {b})"
 }

@@ -1,7 +1,7 @@
 // TASKS.csv #1084 — the 3D View's toolbar and sidebar rows, moved out of ViewerModule.jsx when it reached its size cap
 // (test/viewerModuleSize1084.test.mjs). Unchanged code: ViewToolbar, ContextItem, HoleRow, LayerRow, LayerQuickPanel,
 // VoxelRangeRow, distToSegment and the shared sidebar styles, plus the two lazy modals only they use.
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import { Bookmark, BookmarkPlus, Camera, ChevronDown, ChevronUp, Database, Download, RefreshCw, Eye, EyeOff, FileBarChart2, Grid3x3, Info, LayoutTemplate, ListFilter, Maximize2, Milestone, PenTool, Pencil, Ruler, Scissors, ShieldAlert, TerminalSquare, Trash2, Upload, X, SquareSplitVertical, Rows3, Layers3, Crosshair, Map as MapIcon, Compass, Target, Mountain, Shapes, Palette } from "../../components/icons.js";
 import { Ribbon, RibbonGroup, RibbonButton, RIBBON_TONES } from "../../components/Ribbon.jsx";
 import HoverToolInfo from "../../components/HoverToolInfo.jsx";
@@ -446,8 +446,15 @@ export function distToSegment(px, py, ax, ay, bx, by) {
 // (model.logScale) gets log-stepped sliders: a linear step over 15-15,000 ohm.m put 2-3 positions in the 100-600 ohm.m range.
 export function VoxelRangeRow({ model, onUpdate, compact = false, onShell = null, others = null }) {
   const sameCells = others ? coincidentModels(model, others) : []; // TASKS.csv #1808 — drawn into each other
-  const [dispMin, setDispMin] = useState(Number.isFinite(model.threshold) ? model.threshold : model.min);
-  const [dispMax, setDispMax] = useState(Number.isFinite(model.rangeMax) ? model.rangeMax : model.max);
+  // TASKS.csv #2073 (review #2013, Geophysics) — a model whose colour range is narrower than its cells (an inversion voxel stretched over the
+  // 2nd-98th percentile) showed three maxima: the Max box 8,801 (rangeMax = the largest cell, set by addVoxelModel), the slider's end 1,385
+  // and 'Range' 1,385. The boxes now show the band inside the model's range; at the ends the stored bound is the cells' own extent, so no
+  // cell beyond the colour range is hidden.
+  const ext = useMemo(() => { let lo = Infinity, hi = -Infinity; for (const c of model.cells || []) { if (c.value < lo) lo = c.value; if (c.value > hi) hi = c.value; } return { lo: Math.min(lo, model.min), hi: Math.max(hi, model.max) }; }, [model.cells, model.min, model.max]);
+  const shown = (v, fallback) => Math.min(Math.max(Number.isFinite(v) ? v : fallback, model.min), model.max);
+  const storeMin = (v) => (v <= model.min ? ext.lo : v), storeMax = (v) => (v >= model.max ? ext.hi : v);
+  const [dispMin, setDispMin] = useState(shown(model.threshold, model.min));
+  const [dispMax, setDispMax] = useState(shown(model.rangeMax, model.max));
   const useLog = !!model.logScale && model.min > 0 && model.max > model.min;
   const toS = (v) => (useLog ? Math.log10(Math.max(model.min, v)) : v), fromS = (s) => (useLog ? 10 ** s : s);
   const sMin = toS(model.min), sMax = toS(model.max), sStep = (sMax - sMin) / 200 || 0.01;
@@ -461,15 +468,16 @@ export function VoxelRangeRow({ model, onUpdate, compact = false, onShell = null
   // view was not drawing. Not while this row's own 150 ms push is pending, or the thumb would jump back under the mouse.
   useEffect(() => {
     if (debounceRef.current) return;
-    setDispMin(Number.isFinite(model.threshold) ? model.threshold : model.min);
-    setDispMax(Number.isFinite(model.rangeMax) ? model.rangeMax : model.max);
+    setDispMin(shown(model.threshold, model.min));
+    setDispMax(shown(model.rangeMax, model.max));
   }, [model.threshold, model.rangeMax, model.min, model.max]);
-  const onMinInput = (v) => { setDispMin(v); push({ threshold: v }); };
-  const onMaxInput = (v) => { setDispMax(v); push({ rangeMax: v }); };
-  const reset = () => { setDispMin(model.min); setDispMax(model.max); onUpdate(model.id, { threshold: model.min, rangeMax: model.max }); };
-  const visibleCount = model.cells.filter((c) => c.value >= dispMin && c.value <= dispMax && voxelCellSupported(model, c)).length;
+  const onMinInput = (v) => { setDispMin(v); push({ threshold: storeMin(v) }); };
+  const onMaxInput = (v) => { setDispMax(v); push({ rangeMax: storeMax(v) }); };
+  const reset = () => { setDispMin(model.min); setDispMax(model.max); onUpdate(model.id, { threshold: ext.lo, rangeMax: ext.hi }); };
+  const bandLo = storeMin(dispMin), bandHi = storeMax(dispMax); // what the 3D view applies
+  const visibleCount = model.cells.filter((c) => c.value >= bandLo && c.value <= bandHi && voxelCellSupported(model, c)).length;
   const isFiltered = dispMin > model.min || dispMax < model.max;
-  const isBand = isFiltered && isTargetModel({ ...model, threshold: dispMin, rangeMax: dispMax }); // #1832 — a cutoff that only hides air is no band
+  const isBand = isFiltered && isTargetModel({ ...model, threshold: bandLo, rangeMax: bandHi }); // #1832 — a cutoff that only hides air is no band
   const [largestOnly, setLargestOnly] = useState(false); // TASKS.csv #1840 — one target body, not every speck in the range
   return (
     <div style={compact ? { marginTop: 6, fontSize: "var(--font-size-base)" } : { marginTop: 8, padding: "8px 9px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-base)" }}>
@@ -483,12 +491,12 @@ export function VoxelRangeRow({ model, onUpdate, compact = false, onShell = null
       <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 6 }}>
         <span style={{ color: "var(--color-text-faint)", width: 30, flexShrink: 0 }}>{tr("Min")}</span>
         <input type="range" min={sMin} max={sMax} step={sStep} value={toS(dispMin)} onChange={(e) => onMinInput(Math.min(fromS(Number(e.target.value)), dispMax))} style={{ flex: 1, minWidth: 0 }} title={useLog ? tr("Log-stepped: the model's values span decades") : undefined} />
-        <VoxelRangeNumber value={dispMin} label={tr("Lowest value shown of \"{name}\"", { name: model.name })} onCommit={(v) => { const x = Math.min(Math.max(v, model.min), dispMax); setDispMin(x); onUpdate(model.id, { threshold: x }); }} />
+        <VoxelRangeNumber value={dispMin} label={tr("Lowest value shown of \"{name}\"", { name: model.name })} onCommit={(v) => { const x = Math.min(Math.max(v, model.min), dispMax); setDispMin(x); onUpdate(model.id, { threshold: storeMin(x) }); }} />
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 4 }}>
         <span style={{ color: "var(--color-text-faint)", width: 30, flexShrink: 0 }}>{tr("Max")}</span>
         <input type="range" min={sMin} max={sMax} step={sStep} value={toS(dispMax)} onChange={(e) => onMaxInput(Math.max(fromS(Number(e.target.value)), dispMin))} style={{ flex: 1, minWidth: 0 }} title={useLog ? tr("Log-stepped: the model's values span decades") : undefined} />
-        <VoxelRangeNumber value={dispMax} label={tr("Highest value shown of \"{name}\"", { name: model.name })} onCommit={(v) => { const x = Math.max(Math.min(v, model.max), dispMin); setDispMax(x); onUpdate(model.id, { rangeMax: x }); }} />
+        <VoxelRangeNumber value={dispMax} label={tr("Highest value shown of \"{name}\"", { name: model.name })} onCommit={(v) => { const x = Math.max(Math.min(v, model.max), dispMin); setDispMax(x); onUpdate(model.id, { rangeMax: storeMax(x) }); }} />
       </div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 4, fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>
         <span>{tr("Showing {visibleCount} of {cells} cell(s)", { visibleCount: visibleCount.toLocaleString(), cells: model.cells.length.toLocaleString() })}</span>

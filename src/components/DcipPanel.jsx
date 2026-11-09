@@ -9,7 +9,7 @@ import { Upload, Play, Download, Trash2 } from "./icons.js";
 import { useStore, useSetTaskProgress } from "../lib/store.jsx";
 import { parseTableFile, decodeTableBytes, toExportCsv } from "../lib/tabular.js";
 import { guessDcipColumns, parseDcipRows, parseDcipWhitespaceText, lineGeometry, lineFromTwoPoints, terrainProfile, slopeToHorizontalFromProfile, slopeToHorizontalFromStations, readingsToHorizontal, pseudoPositions, dataFitRows, worstReadings, sectionCells, slimDcipResult, savedLineToFile, sectionTableRows, suggestModelDepth, deepestPseudoDepth, columnReach, smoothReachLine } from "../lib/dcip.js";
-import { renderDcipSectionPng, sig3 } from "../lib/dcipSectionImage.js"; // sig3: #322
+import { renderDcipSectionPng, sig3, rampRange } from "../lib/dcipSectionImage.js"; // sig3: #322; rampRange: #2073
 import { parseRes2dinv } from "../lib/res2dinv.js"; // TASKS.csv #826
 import { confirmDestructive } from "../lib/confirmDestructive.js"; // TASKS.csv #322 — a saved line (and its inversion) is not in Undo
 import { stampLines, withStamp } from "../lib/provenance.js";
@@ -549,7 +549,11 @@ function SectionResult({ last, cutoff, epsg, pBtn, large = false }) {
   const s0 = arrMin(c.s.map((s, i) => s - c.ds[i] / 2)), s1 = arrMax(c.s.map((s, i) => s + c.ds[i] / 2));
   const z0 = arrMin(c.z.map((z, i) => z - c.dz[i] / 2)), z1 = arrMax(c.z.map((z, i) => z + c.dz[i] / 2));
   const sx = (W - 10) / (s1 - s0), sz = (H - 10) / (z1 - z0);
-  const model = field === "resistivity" ? { stops: logStops(arrMin(vals), arrMax(vals)), colorMode: "continuous" } : { stops: sequentialStops(0, arrMax(vals)), colorMode: "continuous" };
+  // TASKS.csv #2073 (review #2013, Geophysics) — the on-screen section stretched its colours over every cell (0.017-8,800 ohm·m, 5.7 decades,
+  // set by cells the data barely see) while the data spanned 1.1: the geology sat in one orange band. Same range as the exported image
+  // (#1096): the 2nd-98th percentile of the cells the data see; values beyond take the end colours.
+  const ramp = useMemo(() => rampRange(vals, env, cutoff, field === "resistivity"), [vals, env, cutoff, field]);
+  const model = field === "resistivity" ? { stops: logStops(ramp.lo, ramp.hi), colorMode: "continuous" } : { stops: sequentialStops(0, ramp.hi), colorMode: "continuous" };
   return (
     <div style={{ marginTop: 10 }}>
       <div className="ge-section-label">{tr("Result — {name}", { name: last.name })}</div>
@@ -576,7 +580,7 @@ function SectionResult({ last, cutoff, epsg, pBtn, large = false }) {
       {reach && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)" }}>{tr("Dashed line = DOI index {doiT} (Oldenburg & Li; median over 5 columns): below it the resistivity follows the reference model, not the data. The data reach a median {median} m per column by the DOI index, {median2} m by the support cutoff ({cutoff}).{v}", { doiT, median: reach.doi.median.toFixed(0), median2: reach.sup.median.toFixed(0), cutoff, v: doiFits ? tr(" The two reference runs fit {v} the target{v2}.", { v: doiFits.map((v) => `${v.toFixed(2)}×`).join(" and "), v2: doiFits.some((v) => v < 0.5) ? tr(" — unequal fits inflate the index, so read the line as approximate") : "" }) : "" })}</div>}
       {doiFailed && <div role="alert" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-danger-fg)" }}>{tr("Depth-of-investigation check not shown: a reference run did not fit the data ({v} the target), so the index would measure that failure, not the depth the data reach.", { v: doiFits.map((v) => `${v.toFixed(2)}×`).join(" and ") })}</div>}
       <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>
-        {tr("{v} · {v2} m × {v3} m, vertical exaggeration {v4}× ·", { v: field === "resistivity" ? tr("{v}–{v2} ohm·m (log colours: dark red conductive → light blue resistive)", { v: sig3(arrMin(vals)), v2: sig3(arrMax(vals)) }) : `0–${sig3(arrMax(vals))} mV/V`, v2: (s1 - s0).toFixed(0), v3: (z1 - z0).toFixed(0), v4: (sz / sx).toFixed(1) })}{" "}<svg width="14" height="9" style={{ verticalAlign: "middle" }} aria-hidden="true"><rect width="14" height="9" fill={`url(#${hatchId})`} stroke={HATCH.line} strokeWidth="0.5" /></svg>{" "}{tr("hatched = barely seen by the data. {v}", { v: imported ? tr("Imported from the contractor's files (kept in the project).") : last.restored ? tr("Inverted {v} (kept in the project).", { v: last.restored.slice(0, 10) }) : tr("Added to Block models (3D, along the line).") })}
+        {tr("{v} · {v2} m × {v3} m, vertical exaggeration {v4}× ·", { v: field === "resistivity" ? tr("colours over {v}–{v2} ohm·m (log: dark red conductive → light blue resistive; the 2nd–98th percentile of the cells the data see, the model runs {a}–{b})", { v: sig3(ramp.lo), v2: sig3(ramp.hi), a: sig3(arrMin(vals)), b: sig3(arrMax(vals)) }) : tr("colours over 0–{v} mV/V (the 98th percentile of the cells the data see; the model runs to {b})", { v: sig3(ramp.hi), b: sig3(arrMax(vals)) }), v2: (s1 - s0).toFixed(0), v3: (z1 - z0).toFixed(0), v4: (sz / sx).toFixed(1) })}{" "}<svg width="14" height="9" style={{ verticalAlign: "middle" }} aria-hidden="true"><rect width="14" height="9" fill={`url(#${hatchId})`} stroke={HATCH.line} strokeWidth="0.5" /></svg>{" "}{tr("hatched = barely seen by the data. {v}", { v: imported ? tr("Imported from the contractor's files (kept in the project).") : last.restored ? tr("Inverted {v} (kept in the project).", { v: last.restored.slice(0, 10) }) : tr("Added to Block models (3D, along the line).") })}
       </div>
       <div style={{ display: "flex", gap: 4, marginTop: 6, flexWrap: "wrap" }}>
         <button onClick={() => exportCsv(last, epsg, cutoff)} style={{ ...pBtn, width: "auto", flex: 1 }} title={tr("Every section cell: distance, x / y (project CRS), elevation, size, values, support")}><Download size={14} />{" "}{tr("CSV")}</button>
@@ -672,7 +676,9 @@ function lineVoxelModels(result, geom, { name, thick, cut, params, kinds, dataRh
       if (!vals.length && kind === "observed" && seen) vals = cells.filter((_, i) => seen[i]).map((x) => x.value);
       if (!vals.length) vals = all;
       let lo = arrMin(vals), hi = arrMax(vals);
-      if (kind === "extrapolated") { lo = percentile(vals, 0.02); hi = percentile(vals, 0.98); }
+      // #2073 — the observed resistivity voxel on the same 2nd-98th percentile as the section and the extrapolated voxel (its min / max set the
+      // colours and the legend; the range filter keeps every cell, VoxelRangeRow)
+      if (kind === "extrapolated" || method === "dc") { lo = percentile(vals, 0.02); hi = percentile(vals, 0.98); }
       const stops = method === "dc" ? logStops(lo, hi) : sequentialStops(0, kind === "observed" ? percentile(vals, 0.98) : hi); // p98: a few spikes do not wash the line out
       const ipFit = method === "ip" && result.ip ? { ip: { phiD: result.ip.phi_d, target: result.target, ...ipFitStored(result) } } : {};
       out.push({
