@@ -27,7 +27,7 @@ import { requestProjectCrs } from "../../lib/projectCrsRequest.js"; // TASKS.csv
 import { holeTypeColumn, normalizeHoleType } from "../../lib/holeType.js"; // TASKS.csv #2161
 import { isNullSentinel, LAYER_META, TARGET_SCHEMAS, guessColumn, guessColumnExact, guessMapping, guessTargetFor, schemaSatisfied, num, replaceRowsByHole, keepDerivedPicks, isDerivedPick, replaceNote, EPSG_COL_ALIASES, diffCollarImport, mergeCollar, minMax, pickRankedCollarRows } from "../../lib/layers.js";
 import { alterationStyleFromName, styledAltValue, isBlankCode } from "../../lib/viewer/importHelpers.js"; // TASKS.csv #1511; isBlankCode: #2182
-import { fillDownHoleIds, numberedSiblings, allCodesOf, normInterval, applyCustomFields, normNumericInterval, normStructure, skippedRowsText, strikeStats, loadRaster, looksLikeAssay, isSurfaceSampleTable, parseVectorFile, groupShapefileParts, orderImportFiles } from "../../lib/viewer/importHelpers.js"; // groupShapefileParts / orderImportFiles: #600
+import { fillDownHoleIds, numberedSiblings, allCodesOf, normInterval, applyCustomFields, normNumericInterval, normStructure, skippedRowsText, strikeStats, loadRaster, looksLikeAssay, isSurfaceSampleTable, looksLikeSurfaceSamples /* #2268 */, parseVectorFile, groupShapefileParts, orderImportFiles } from "../../lib/viewer/importHelpers.js"; // groupShapefileParts / orderImportFiles: #600
 import { unreadableFormatAdvice } from "../../lib/unreadableFormats.js"; // TASKS.csv #603
 import { t as tr } from "../../lib/i18n.js"; // TASKS.csv #786
 import { requestModuleAction, useModuleAction } from "../../lib/menuRequests.js"; // TASKS.csv #917; useModuleAction: #2019
@@ -117,7 +117,7 @@ export function useImportPipeline(ctx) {
       if (err || !data || !data.length) { setNotices((p) => [...p, notice("{name}: couldn't read {v}.", { name: file.name, v: err ? "file (" + err + ")" : tr("— no rows found") })]); return; }
       if (isMapGeometry(meta) && forceTarget !== "custom") { sendToMapLayers(file, meta.vector); return; } // #609
       const headers = meta?.headers || Object.keys(data[0]);
-      if (!forceTarget && looksLikeAssay(headers, file.name, data)) { // file.name: #1105; data: #2185
+      if (!forceTarget && (looksLikeAssay(headers, file.name, data) || looksLikeSurfaceSamples(headers, data))) { // file.name: #1105; data: #2185; soils: #2268
         assayHandoffRef.current.push(assayHandoffOf(file, data, headers, meta)); handOverAssays(); // #1350; #2016
         return;
       }
@@ -712,15 +712,20 @@ export function useImportPipeline(ctx) {
   // TASKS.csv #2016 (review #2013, Import) — a point shapefile / GeoPackage / KML of samples was handed to Geochem as its File, which read the
   // binary .shp as text ('0 elements recognized', NUL column names). Its rows are already read here: they go on with their headers and the
   // CRS of its .prj / SRS (a CSV or workbook still goes as the File, which Geochem reads itself).
-  const assayHandoffOf = (file, rows, headers, meta) => (/\.(shp|zip|gpkg|kml|kmz)$/i.test(file.name) || meta?.vector
-    ? { name: file.name, parsedTable: { headers, rows, sourceEpsg: meta?.detectedEpsg || null } }
-    : file);
+  const assayHandoffOf = (file, rows, headers, meta) => {
+    if (isSurfaceSampleTable(headers)) surfaceHandoffRef.current.add(file.name); // #2268 — said as surface samples, where Geochem opens them
+    return /\.(shp|zip|gpkg|kml|kmz)$/i.test(file.name) || meta?.vector
+      ? { name: file.name, parsedTable: { headers, rows, sourceEpsg: meta?.detectedEpsg || null } }
+      : file;
+  };
+  const surfaceHandoffRef = useRef(new Set());
   const handOverAssays = () => {
     const files = assayHandoffRef.current.splice(0);
     if (!files.length) return;
     goToModule("geochem");
     requestModuleAction("import-assay-file", { files }); // #1652 — all of them, in turn
-    setNotices((p) => [...p, notice("{name} is assay data: it is open in the Geochem assay import, which asks which columns are elements. Not assays? Cancel there and use + Add CSV layer in the 3D View's sidebar to import it as a layer of your own.", { name: files[0].name }), // the way out: #2185
+    const surface = surfaceHandoffRef.current.has(files[0].name); surfaceHandoffRef.current.clear();
+    setNotices((p) => [...p, surface ? notice("{name} looks like a table of surface samples (coordinates, no from / to, no hole ID), so it opened in Geochem's surface-sample import, where you choose the elements. Not samples? Cancel there and use + Add CSV layer in the 3D View's sidebar to import it as a layer of your own.", { name: files[0].name }) /* #2268 */ : notice("{name} is assay data: it is open in the Geochem assay import, which asks which columns are elements. Not assays? Cancel there and use + Add CSV layer in the 3D View's sidebar to import it as a layer of your own.", { name: files[0].name }), // the way out: #2185
       ...(files.length > 1 ? [notice("{n} more assay file(s) follow in the Geochem import, one after another: {list}.", { n: files.length - 1, list: files.slice(1).map((f) => f.name).join(", ") })] : [])]);
   };
   const processImportQueue = useCallback(() => {
@@ -739,7 +744,7 @@ export function useImportPipeline(ctx) {
       if (isMapGeometry(meta)) { sendToMapLayers(file, meta.vector); processImportQueue(); return; } // #609
       const headers = meta?.headers || Object.keys(data[0]);
       if (meta?.note) setNotices((p) => [...p, `${file.name}:${meta.note}`]);
-      if (looksLikeAssay(headers, file.name, data)) { // file.name: #1105; data: #2185
+      if (looksLikeAssay(headers, file.name, data) || looksLikeSurfaceSamples(headers, data)) { // file.name: #1105; data: #2185; soils: #2268
         assayHandoffRef.current.push(assayHandoffOf(file, data, headers, meta)); // #1350 — to the Geochem import when the queue is done; #2016
         processImportQueue();
         return;

@@ -7,7 +7,7 @@ const rd = (f) => readFileSync(new URL(f, import.meta.url), "utf8").replace(/\r\
 const p = rd("../src/modules/viewer/useImportPipeline.js"), g = rd("../src/modules/GeochemModule.jsx"), m = rd("../src/components/SurfaceImportModal.jsx");
 
 test("the 3D view hands a GIS file's parsed rows, headers and CRS to Geochem, a CSV / workbook its File", () => {
-  assert.match(p, /const assayHandoffOf = \(file, rows, headers, meta\) => \(\/\\.\(shp\|zip\|gpkg\|kml\|kmz\)\$\/i\.test\(file\.name\) \|\| meta\?\.vector/);
+  assert.match(p, /const assayHandoffOf = \(file, rows, headers, meta\) => \{[\s\S]{0,300}?return \/\\.\(shp\|zip\|gpkg\|kml\|kmz\)\$\/i\.test\(file\.name\) \|\| meta\?\.vector/); // a block since #2268
   assert.match(p, /\? \{ name: file\.name, parsedTable: \{ headers, rows, sourceEpsg: meta\?\.detectedEpsg \|\| null \} \}/);
   assert.equal((p.match(/assayHandoffRef\.current\.push\(assayHandoffOf\(file, data, headers, meta\)\)/g) || []).length, 2);
 });

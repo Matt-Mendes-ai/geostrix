@@ -8,7 +8,7 @@ const loadKml = () => import("../kml.js");
 const loadLas = () => import("../las.js"); // TASKS.csv #492 — on demand
 const loadXlsx = () => import("../xlsx.js");
 const loadShapefile = () => import("../shapefile.js");
-import { num, isOverturnedValue, targetFromName, guessTargetFor, guessColumn, TARGET_SCHEMAS, INTERVAL_FROM_ALIASES, INTERVAL_TO_ALIASES, normHeader } from "../layers.js"; // INTERVAL_*: #2150
+import { num, isOverturnedValue, targetFromName, guessTargetFor, guessColumn, guessColumnExact /* #2268 */, TARGET_SCHEMAS, INTERVAL_FROM_ALIASES, INTERVAL_TO_ALIASES, normHeader } from "../layers.js"; // INTERVAL_*: #2150
 const tabular = () => import("../tabular.js"); // TASKS.csv #1493 — the CSV engine (papaparse) loads with the first table, not at launch
 import { t as tr } from "../i18n.js"; // TASKS.csv #786 — messages in the interface language
 import { checkGpkgSize } from "../gpkgSize.js"; // TASKS.csv #1716
@@ -178,6 +178,18 @@ export function isSurfaceSampleTable(headers) {
   const intervalAliases = (key) => TARGET_SCHEMAS.litho.fields.find((f) => f.key === key).aliases;
   return !!guessColumn(headers, SURFACE_XY_ALIASES.x) && !!guessColumn(headers, SURFACE_XY_ALIASES.y)
     && !guessColumn(headers, intervalAliases("from")) && !guessColumn(headers, intervalAliases("to"));
+}
+// TASKS.csv #2268 (review #2174, Surface Geology) — a soil table with two elements (sample_id, east, north, Au_ppb, As_ppm, medium) failed
+// looksLikeAssay (four elements, or from / to) and a 3D-view drop opened the drillhole dialog ('Hole ID *'), while Geochem took it as
+// surface samples at once. Coordinates, no from / to, no hole ID, no hole length or dip (not a collar table, not outcrop structures),
+// and at least one element column with numbers: surface samples.
+export function looksLikeSurfaceSamples(headers, rows = null) {
+  if (!isSurfaceSampleTable(headers)) return false;
+  const collar = (k) => TARGET_SCHEMAS.collars.fields.find((f) => f.key === k).aliases;
+  if (guessColumn(headers, collar("hole_id")) || guessColumnExact(headers, collar("length")) || guessColumnExact(headers, collar("dip"))) return false;
+  if (headers.some((h) => /^(dip_?dir(ection)?|dipdir|strike|azimuth)$/i.test(String(h).trim()))) return false;
+  const coords = new Set([guessColumn(headers, SURFACE_XY_ALIASES.x), guessColumn(headers, SURFACE_XY_ALIASES.y), guessColumn(headers, collar("z"))]); // 'y' is no yttrium
+  return headers.some((h) => !coords.has(h) && !NOT_GRADE.test(String(h).replace(/_/g, " ")) && isElementColumn(h) && (!rows || (columnHasNumbers(rows, h) && rows.some((r) => String(r?.[h] ?? "").trim() !== "")))); // a blank column is no evidence here
 }
 
 // TASKS.csv #190/#191 — user request: "let's do those 3" (shapefile import, GeoPackage export,
