@@ -142,6 +142,9 @@ function validateSurveyAndTrajectory(collars, survey, { doglegWarn = 3, doglegEr
   // interval on it vanish from 3D, sections and modelling), and no length means it is drawn 300 m long.
   // #2014 (review #2013, Woodjam) — such a hole is now drawn as an ASSUMED vertical hole (desurvey.js holeAttitudeAssumed), so this
   // is a warning about an assumption, not an error about a hole that vanished; it was 534 errors on a 544-collar district compilation.
+  // TASKS.csv #2169 — a collar imported with no elevation sits at an assumed one (collarElevation.js)
+  const zHow = { terrain: () => tr("on the terrain"), median: () => tr("at the median collar elevation"), zero: () => tr("at 0 m") };
+  collars.filter((c) => c.zAssumed).forEach((c) => pushIssue(issues, "warning", "Collars", c.hole_id, tr("No elevation in the collar file — placed {how} ({z} m), an ASSUMED elevation: everything on the hole sits at that height. Add the collar RL and re-import the collars.", { how: (zHow[c.zAssumed] || zHow.zero)(), z: Number.isFinite(c.z) ? Math.round(c.z) : "?" })));
   const untraceable = noSurvey.filter((c) => !Number.isFinite(c.azimuth) || !Number.isFinite(c.dip));
   untraceable.forEach((c) => pushIssue(issues, "warning", "Survey", c.hole_id, tr("No survey rows and no collar azimuth/dip — drawn as an ASSUMED vertical hole (dashed in the 3D view), and every interval, assay and pick on it is placed on that assumption. Add the collar azimuth and dip, or a survey.")));
   const traceable = noSurvey.filter((c) => !untraceable.includes(c));

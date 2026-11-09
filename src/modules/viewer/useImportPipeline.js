@@ -14,6 +14,8 @@ import { errorNotice, notice, appendNotice } from "../../lib/notices.js"; // TAS
 import * as THREE from "three";
 import { reprojectXY, pointTransform, turnGridBearing, bearingTurn, crsName, guessEpsgFromPrjWkt } from "../../lib/reproject.js";
 import { surveyAzimuthDipAt, holeAttitudeAssumed } from "../../lib/desurvey.js"; // holeAttitudeAssumed: #2014
+import { fillMissingCollarZ, settleAssumedZ } from "../../lib/collarElevation.js"; // TASKS.csv #2169
+import { terrainGroundAt } from "../../lib/viewer/geomath.js"; // #2169 — a collar with no elevation on the terrain
 import { azimuthToGridOffset, wrap360, loadIgrf, detectAzimuthRef } from "../../lib/azimuthRef.js"; // loadIgrf: #552; detectAzimuthRef: #1647
 import { orientFromAlphaBeta, reorientAlphaBetaPicks } from "../../lib/coreOrientation.js";
 import { fitSimilarity, parseControlPoints, transformImportRows } from "../../lib/localGrid.js";
@@ -322,9 +324,10 @@ export function useImportPipeline(ctx) {
       }, r, customFields));
       // TASKS.csv #337 — a collar without all three coordinates can't be placed; skip it and say which,
       // instead of the old behaviour of keeping it at z = 0.
-      const noCoords = rows.filter((r) => r.hole_id && !(Number.isFinite(r.x) && Number.isFinite(r.y) && Number.isFinite(r.z))).map((r) => r.hole_id);
-      rows = rows.filter((r) => r.hole_id && Number.isFinite(r.x) && Number.isFinite(r.y) && Number.isFinite(r.z));
-      if (noCoords.length) setNotices((p) => [...p, notice("{fileName}: {noCoords} collar(s) skipped — missing or non-numeric X, Y or Z ({v}{v2}). Fix them in the file and re-import.", { fileName, noCoords: noCoords.length, v: noCoords.slice(0, 8).join(", "), v2: noCoords.length > 8 ? ", …" : "" })]);
+      // TASKS.csv #2169 — a blank ELEVATION no longer skips the collar: it gets an assumed one after reprojection (fillMissingCollarZ below)
+      const noCoords = rows.filter((r) => r.hole_id && !(Number.isFinite(r.x) && Number.isFinite(r.y))).map((r) => r.hole_id);
+      rows = rows.filter((r) => r.hole_id && Number.isFinite(r.x) && Number.isFinite(r.y));
+      if (noCoords.length) setNotices((p) => [...p, notice("{fileName}: {noCoords} collar(s) skipped — missing or non-numeric X or Y ({v}{v2}). Fix them in the file and re-import.", { fileName, noCoords: noCoords.length, v: noCoords.slice(0, 8).join(", "), v2: noCoords.length > 8 ? ", …" : "" })]);
       // TASKS.csv #120 — on-the-fly reprojection for general vector layers. Collars are the primary
       // absolute-world-coordinate import in this app (every other layer is hole-relative and inherits
       // its position by desurveying against a collar+survey trace), so reprojecting here is what
@@ -384,6 +387,10 @@ export function useImportPipeline(ctx) {
         reprojectNote = parts.length ? tr(" On import: {parts}.", { parts: parts.join("; ") }) : "";
       }
       rows = rows.map(({ _rowEpsg, ...rest }) => rest);
+      // TASKS.csv #2169 — collars with no elevation: the terrain at the collar, else the median collar elevation, else 0 m, flagged
+      const terrainNow = importStateRef.current.terrain;
+      const zFill = fillMissingCollarZ(rows, { existing: importStateRef.current.collars || [], groundAt: terrainNow ? (x, y) => terrainGroundAt(terrainNow, x, y) : null });
+      rows = zFill.rows;
 
       // TASKS.csv #283 — this used to be a bare last-write-wins merge
       // (`new Map([...collars, ...rows].map(c => [c.hole_id, c]))`): re-dropping a collar file
@@ -417,7 +424,7 @@ export function useImportPipeline(ctx) {
       // #600 — merged field by field (mergeCollar): a value the file lacks never wipes the existing one, and
       // a value the existing collar lacks is filled in even when the overwrite was declined.
       const prevById = new Map(liveCollars.map((c) => [c.hole_id, c]));
-      const applied = rows.map((r) => (prevById.has(r.hole_id) ? mergeCollar(prevById.get(r.hole_id), r, overwriteExisting) : r));
+      const applied = rows.map((r) => (prevById.has(r.hole_id) ? settleAssumedZ(mergeCollar(prevById.get(r.hole_id), r, overwriteExisting), r) : r)); // settleAssumedZ: #2169
       setCollars((prev) => Array.from(new Map([...prev, ...applied].map((c) => [c.hole_id, c])).values()));
       reorientAfter(new Set(applied.map((r) => r.hole_id)), null, applied, fileName); // #548 — a collar's az / dip orients a hole without a survey
       setVisibleHoles((prev) => ({ ...prev, ...Object.fromEntries(applied.map((r) => [r.hole_id, true])) }));
@@ -436,6 +443,14 @@ export function useImportPipeline(ctx) {
       const assumedVertical = applied.filter((c) => !surveyedHoles.has(c.hole_id) && holeAttitudeAssumed(c, []));
       if (assumedVertical.length) parts.push(tr("{n} hole(s) have no azimuth / dip and no survey: drawn as ASSUMED vertical holes (a collar marker and a dashed stick of the hole length), flagged in Data QC", { n: assumedVertical.length }));
       if (!surveyedHoles.size && assumedVertical.length < applied.length) parts.push(tr("no survey loaded, so each hole is drawn straight from its collar azimuth, dip and length")); // #1504
+      { // TASKS.csv #2169 — said in the notice, with how each was placed
+        const zc = zFill.counts, how = [];
+        if (zc.terrain) how.push(tr("{n} on the terrain", { n: zc.terrain }));
+        if (zc.median) how.push(tr("{n} at the median collar elevation ({z} m)", { n: zc.median, z: Math.round(zFill.medianZ) }));
+        if (zc.zero) how.push(tr("{n} at 0 m (no terrain and no other elevation)", { n: zc.zero }));
+        if (how.length) parts.push(tr("{n} collar(s) had no elevation and were placed at an ASSUMED one ({how}), flagged in Data QC", { n: zc.terrain + zc.median + zc.zero, how: how.join(", ") }));
+        if (zc.kept) parts.push(tr("{n} hole(s) with no elevation in the file kept the one they already had", { n: zc.kept }));
+      }
       if (diff.duplicatesInFile.length) parts.push(tr("{duplicatesInFile} duplicate hole_id row(s) WITHIN the file itself (the last row of each hole won: {v})", { duplicatesInFile: diff.duplicatesInFile.length, v: [...new Set(diff.duplicatesInFile)].slice(0, 5).join(", ") }));
       setNotices((p) => [...p, notice("Loaded {size} collars from {fileName}{v}.{reprojectNote}{note}", { size: new Set(rows.map((r) => r.hole_id)).size, fileName, v: parts.length ? ` — ${parts.join("; ")}` : "", reprojectNote, note: azc.note })]);
     } else if (target === "survey") {

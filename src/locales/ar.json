@@ -9348,5 +9348,15 @@
   "WA uranium gamma log could not be loaded: {message}": "تعذّر تحميل تسجيل غاما ليورانيوم أستراليا الغربية: {message}",
   "The WA uranium sample's assays and gamma log could not be loaded: {message}": "تعذّر تحميل تحاليل وتسجيل غاما لعينة يورانيوم أستراليا الغربية: {message}",
   "Checking the values for negatives, zeros and empty cells… {pct}%": "جارٍ فحص القيم بحثًا عن القيم السالبة والأصفار والخلايا الفارغة… {pct}%",
-  "Checking the element columns of {name}…": "جارٍ فحص أعمدة العناصر في {name}…"
+  "Checking the element columns of {name}…": "جارٍ فحص أعمدة العناصر في {name}…",
+  "{fileName}: {noCoords} collar(s) skipped — missing or non-numeric X or Y ({v}{v2}). Fix them in the file and re-import.": "{fileName}: تم تخطي {noCoords} فوهة — X أو Y مفقود أو غير رقمي ({v}{v2}). صحّحها في الملف وأعد الاستيراد.",
+  "{n} on the terrain": "{n} على التضاريس",
+  "{n} at the median collar elevation ({z} m)": "{n} عند الارتفاع الوسيط للفوهات ({z} م)",
+  "{n} at 0 m (no terrain and no other elevation)": "{n} عند 0 م (لا تضاريس ولا ارتفاع آخر)",
+  "{n} collar(s) had no elevation and were placed at an ASSUMED one ({how}), flagged in Data QC": "{n} فوهة بلا ارتفاع وُضعت عند ارتفاع مفترض ({how})، مُعلَّمة في فحص البيانات",
+  "{n} hole(s) with no elevation in the file kept the one they already had": "احتفظ {n} ثقب بلا ارتفاع في الملف بالارتفاع الذي كان لديه",
+  "on the terrain": "على التضاريس",
+  "at the median collar elevation": "عند الارتفاع الوسيط للفوهات",
+  "at 0 m": "عند 0 م",
+  "No elevation in the collar file — placed {how} ({z} m), an ASSUMED elevation: everything on the hole sits at that height. Add the collar RL and re-import the collars.": "لا ارتفاع في ملف الفوهات — وُضعت {how} ({z} م)، وهو ارتفاع مفترض: كل ما على الثقب عند هذا الارتفاع. أضف منسوب الفوهة وأعد استيراد الفوهات."
 }

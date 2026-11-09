@@ -9348,5 +9348,15 @@
   "WA uranium gamma log could not be loaded: {message}": "Não foi possível carregar o perfil gama do urânio da Austrália Ocidental: {message}",
   "The WA uranium sample's assays and gamma log could not be loaded: {message}": "Não foi possível carregar as análises nem o perfil gama do exemplo de urânio da Austrália Ocidental: {message}",
   "Checking the values for negatives, zeros and empty cells… {pct}%": "Verificando os valores em busca de negativos, zeros e células vazias… {pct}%",
-  "Checking the element columns of {name}…": "Verificando as colunas de elementos de {name}…"
+  "Checking the element columns of {name}…": "Verificando as colunas de elementos de {name}…",
+  "{fileName}: {noCoords} collar(s) skipped — missing or non-numeric X or Y ({v}{v2}). Fix them in the file and re-import.": "{fileName}: {noCoords} colar(es) ignorado(s): X ou Y ausente ou não numérico ({v}{v2}). Corrija no arquivo e importe novamente.",
+  "{n} on the terrain": "{n} sobre o terreno",
+  "{n} at the median collar elevation ({z} m)": "{n} na elevação mediana dos colares ({z} m)",
+  "{n} at 0 m (no terrain and no other elevation)": "{n} a 0 m (sem terreno nem outra elevação)",
+  "{n} collar(s) had no elevation and were placed at an ASSUMED one ({how}), flagged in Data QC": "{n} colar(es) não tinham elevação e foram colocados numa elevação PRESUMIDA ({how}), sinalizados no Controle de dados",
+  "{n} hole(s) with no elevation in the file kept the one they already had": "{n} furo(s) sem elevação no arquivo mantiveram a que já tinham",
+  "on the terrain": "sobre o terreno",
+  "at the median collar elevation": "na elevação mediana dos colares",
+  "at 0 m": "a 0 m",
+  "No elevation in the collar file — placed {how} ({z} m), an ASSUMED elevation: everything on the hole sits at that height. Add the collar RL and re-import the collars.": "Sem elevação no arquivo de colares: colocado {how} ({z} m), uma elevação PRESUMIDA; tudo no furo fica nessa altura. Adicione a cota do colar e importe os colares novamente."
 }

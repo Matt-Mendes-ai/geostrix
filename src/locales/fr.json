@@ -9348,5 +9348,15 @@
   "WA uranium gamma log could not be loaded: {message}": "La diagraphie gamma de l'uranium d'Australie-Occidentale n'a pas pu être chargée : {message}",
   "The WA uranium sample's assays and gamma log could not be loaded: {message}": "Les analyses et la diagraphie gamma de l'exemple d'uranium d'Australie-Occidentale n'ont pas pu être chargées : {message}",
   "Checking the values for negatives, zeros and empty cells… {pct}%": "Vérification des valeurs (négatives, nulles, cellules vides)… {pct} %",
-  "Checking the element columns of {name}…": "Vérification des colonnes d'éléments de {name}…"
+  "Checking the element columns of {name}…": "Vérification des colonnes d'éléments de {name}…",
+  "{fileName}: {noCoords} collar(s) skipped — missing or non-numeric X or Y ({v}{v2}). Fix them in the file and re-import.": "{fileName} : {noCoords} collet(s) ignoré(s) — X ou Y manquant ou non numérique ({v}{v2}). Corrigez-les dans le fichier et réimportez.",
+  "{n} on the terrain": "{n} sur le terrain",
+  "{n} at the median collar elevation ({z} m)": "{n} à l'altitude médiane des collets ({z} m)",
+  "{n} at 0 m (no terrain and no other elevation)": "{n} à 0 m (ni terrain ni autre altitude)",
+  "{n} collar(s) had no elevation and were placed at an ASSUMED one ({how}), flagged in Data QC": "{n} collet(s) sans altitude ont été placés à une altitude SUPPOSÉE ({how}), signalés dans le Contrôle des données",
+  "{n} hole(s) with no elevation in the file kept the one they already had": "{n} sondage(s) sans altitude dans le fichier ont gardé celle qu'ils avaient",
+  "on the terrain": "sur le terrain",
+  "at the median collar elevation": "à l'altitude médiane des collets",
+  "at 0 m": "à 0 m",
+  "No elevation in the collar file — placed {how} ({z} m), an ASSUMED elevation: everything on the hole sits at that height. Add the collar RL and re-import the collars.": "Pas d'altitude dans le fichier des collets — placé {how} ({z} m), une altitude SUPPOSÉE : tout le sondage est à cette hauteur. Ajoutez l'altitude du collet et réimportez les collets."
 }

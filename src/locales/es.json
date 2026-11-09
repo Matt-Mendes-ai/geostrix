@@ -9348,5 +9348,15 @@
   "WA uranium gamma log could not be loaded: {message}": "No se pudo cargar el registro gamma del uranio de Australia Occidental: {message}",
   "The WA uranium sample's assays and gamma log could not be loaded: {message}": "No se pudieron cargar los ensayes ni el registro gamma del ejemplo de uranio de Australia Occidental: {message}",
   "Checking the values for negatives, zeros and empty cells… {pct}%": "Revisando los valores en busca de negativos, ceros y celdas vacías… {pct}%",
-  "Checking the element columns of {name}…": "Revisando las columnas de elementos de {name}…"
+  "Checking the element columns of {name}…": "Revisando las columnas de elementos de {name}…",
+  "{fileName}: {noCoords} collar(s) skipped — missing or non-numeric X or Y ({v}{v2}). Fix them in the file and re-import.": "{fileName}: se omitieron {noCoords} collar(es): X o Y faltante o no numérica ({v}{v2}). Corríjalos en el archivo y vuelva a importar.",
+  "{n} on the terrain": "{n} sobre el terreno",
+  "{n} at the median collar elevation ({z} m)": "{n} a la elevación mediana de los collares ({z} m)",
+  "{n} at 0 m (no terrain and no other elevation)": "{n} a 0 m (sin terreno ni otra elevación)",
+  "{n} collar(s) had no elevation and were placed at an ASSUMED one ({how}), flagged in Data QC": "{n} collar(es) no tenían elevación y se colocaron a una elevación SUPUESTA ({how}), marcados en Control de datos",
+  "{n} hole(s) with no elevation in the file kept the one they already had": "{n} sondaje(s) sin elevación en el archivo conservaron la que ya tenían",
+  "on the terrain": "sobre el terreno",
+  "at the median collar elevation": "a la elevación mediana de los collares",
+  "at 0 m": "a 0 m",
+  "No elevation in the collar file — placed {how} ({z} m), an ASSUMED elevation: everything on the hole sits at that height. Add the collar RL and re-import the collars.": "Sin elevación en el archivo de collares: colocado {how} ({z} m), una elevación SUPUESTA; todo lo del sondaje queda a esa altura. Agregue la cota del collar y vuelva a importar los collares."
 }
