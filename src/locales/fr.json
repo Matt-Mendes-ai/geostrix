@@ -9306,5 +9306,15 @@
   "the top of {model}": "le sommet de {model}",
   "the surface samples' median elevation": "l'élévation médiane des échantillons de surface",
   "no elevation known": "aucune élévation connue",
-  " Type code(s) {codes} are classed as Other: not a fault, breccia, vein, contact, joint, bedding, foliation or cleavage code GeoStrix knows. Rename them in the file to class them.": " Les codes de type {codes} sont classés Autre : ce ne sont pas des codes de faille, brèche, veine, contact, diaclase, litage, foliation ou clivage que GeoStrix connaît. Renommez-les dans le fichier pour les classer."
+  " Type code(s) {codes} are classed as Other: not a fault, breccia, vein, contact, joint, bedding, foliation or cleavage code GeoStrix knows. Rename them in the file to class them.": " Les codes de type {codes} sont classés Autre : ce ne sont pas des codes de faille, brèche, veine, contact, diaclase, litage, foliation ou clivage que GeoStrix connaît. Renommez-les dans le fichier pour les classer.",
+  "Dip quadrant": "Quadrant de pendage",
+  "Strikes": "Directions",
+  "Strike convention": "Convention de direction",
+  "Used for rows with a strike and no dip direction (and no dip quadrant). Right-hand rule: the plane dips to the right of the strike, dip direction = strike + 90°. Left-hand rule: to the left, strike − 90°.": "Utilisé pour les lignes avec une direction et sans direction de pendage (ni quadrant). Règle de la main droite : le plan plonge à droite de la direction, direction de pendage = direction + 90°. Règle de la main gauche : à gauche, direction − 90°.",
+  "Right-hand rule (dip direction = strike + 90°)": "Règle de la main droite (direction de pendage = direction + 90°)",
+  "Left-hand rule (dip direction = strike − 90°)": "Règle de la main gauche (direction de pendage = direction − 90°)",
+  " {derivedFromStrike} dip direction(s) derived from strike by the left-hand rule (strike − 90°).": " {derivedFromStrike} direction(s) de pendage déduites de la direction par la règle de la main gauche (direction − 90°).",
+  " {n} dip direction(s) taken from the strike and the dip quadrant.": " {n} direction(s) de pendage tirées de la direction et du quadrant de pendage.",
+  " {n} dip quadrant(s) could not be read (not N, NE, E…), so the strike convention was used there.": " {n} quadrant(s) de pendage illisible(s) (pas N, NE, E…) : la convention de direction a été utilisée.",
+  " {rhrMismatches} row(s) have a strike and dip direction that aren't 90° apart by the left-hand rule — the dip direction was used; check whether those strikes are right-hand-rule.": " {rhrMismatches} ligne(s) ont une direction et une direction de pendage qui ne sont pas à 90° selon la règle de la main gauche : la direction de pendage a été utilisée ; vérifiez si ces directions suivent la règle de la main droite."
 }

@@ -9306,5 +9306,15 @@
   "the top of {model}": "أعلى {model}",
   "the surface samples' median elevation": "الارتفاع الوسيط للعينات السطحية",
   "no elevation known": "لا ارتفاع معروف",
-  " Type code(s) {codes} are classed as Other: not a fault, breccia, vein, contact, joint, bedding, foliation or cleavage code GeoStrix knows. Rename them in the file to class them.": " رموز النوع {codes} مصنفة «أخرى»: ليست رموز صدع أو بريشيا أو عرق أو تماس أو فاصل أو تطبق أو تورق أو انفصام يعرفها GeoStrix. أعد تسميتها في الملف لتصنيفها."
+  " Type code(s) {codes} are classed as Other: not a fault, breccia, vein, contact, joint, bedding, foliation or cleavage code GeoStrix knows. Rename them in the file to class them.": " رموز النوع {codes} مصنفة «أخرى»: ليست رموز صدع أو بريشيا أو عرق أو تماس أو فاصل أو تطبق أو تورق أو انفصام يعرفها GeoStrix. أعد تسميتها في الملف لتصنيفها.",
+  "Dip quadrant": "ربع الميل",
+  "Strikes": "المضارب",
+  "Strike convention": "اصطلاح المضرب",
+  "Used for rows with a strike and no dip direction (and no dip quadrant). Right-hand rule: the plane dips to the right of the strike, dip direction = strike + 90°. Left-hand rule: to the left, strike − 90°.": "يُستخدم للصفوف التي فيها مضرب بلا اتجاه ميل (ولا ربع ميل). قاعدة اليد اليمنى: يميل المستوى إلى يمين المضرب، اتجاه الميل = المضرب + 90°. قاعدة اليد اليسرى: إلى اليسار، المضرب − 90°.",
+  "Right-hand rule (dip direction = strike + 90°)": "قاعدة اليد اليمنى (اتجاه الميل = المضرب + 90°)",
+  "Left-hand rule (dip direction = strike − 90°)": "قاعدة اليد اليسرى (اتجاه الميل = المضرب − 90°)",
+  " {derivedFromStrike} dip direction(s) derived from strike by the left-hand rule (strike − 90°).": " {derivedFromStrike} اتجاه/اتجاهات ميل مشتقة من المضرب بقاعدة اليد اليسرى (المضرب − 90°).",
+  " {n} dip direction(s) taken from the strike and the dip quadrant.": " {n} اتجاه/اتجاهات ميل مأخوذة من المضرب وربع الميل.",
+  " {n} dip quadrant(s) could not be read (not N, NE, E…), so the strike convention was used there.": " تعذّرت قراءة {n} ربع/أرباع ميل (ليست N أو NE أو E…)، فاستُخدم اصطلاح المضرب هناك.",
+  " {rhrMismatches} row(s) have a strike and dip direction that aren't 90° apart by the left-hand rule — the dip direction was used; check whether those strikes are right-hand-rule.": " في {rhrMismatches} صف/صفوف لا يفصل بين المضرب واتجاه الميل 90° بقاعدة اليد اليسرى: استُخدم اتجاه الميل؛ تحقق مما إذا كانت هذه المضارب بقاعدة اليد اليمنى."
 }

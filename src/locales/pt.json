@@ -9306,5 +9306,15 @@
   "the top of {model}": "o topo de {model}",
   "the surface samples' median elevation": "a elevação mediana das amostras de superfície",
   "no elevation known": "nenhuma elevação conhecida",
-  " Type code(s) {codes} are classed as Other: not a fault, breccia, vein, contact, joint, bedding, foliation or cleavage code GeoStrix knows. Rename them in the file to class them.": " Os códigos de tipo {codes} são classificados como Outro: não são um código de falha, brecha, veio, contato, junta, acamamento, foliação ou clivagem que o GeoStrix conheça. Renomeie-os no arquivo para classificá-los."
+  " Type code(s) {codes} are classed as Other: not a fault, breccia, vein, contact, joint, bedding, foliation or cleavage code GeoStrix knows. Rename them in the file to class them.": " Os códigos de tipo {codes} são classificados como Outro: não são um código de falha, brecha, veio, contato, junta, acamamento, foliação ou clivagem que o GeoStrix conheça. Renomeie-os no arquivo para classificá-los.",
+  "Dip quadrant": "Quadrante de mergulho",
+  "Strikes": "Direções",
+  "Strike convention": "Convenção da direção",
+  "Used for rows with a strike and no dip direction (and no dip quadrant). Right-hand rule: the plane dips to the right of the strike, dip direction = strike + 90°. Left-hand rule: to the left, strike − 90°.": "Usado nas linhas com direção e sem sentido de mergulho (nem quadrante). Regra da mão direita: o plano mergulha à direita da direção, sentido de mergulho = direção + 90°. Regra da mão esquerda: à esquerda, direção − 90°.",
+  "Right-hand rule (dip direction = strike + 90°)": "Regra da mão direita (sentido de mergulho = direção + 90°)",
+  "Left-hand rule (dip direction = strike − 90°)": "Regra da mão esquerda (sentido de mergulho = direção − 90°)",
+  " {derivedFromStrike} dip direction(s) derived from strike by the left-hand rule (strike − 90°).": " {derivedFromStrike} sentido(s) de mergulho derivados da direção pela regra da mão esquerda (direção − 90°).",
+  " {n} dip direction(s) taken from the strike and the dip quadrant.": " {n} sentido(s) de mergulho obtidos da direção e do quadrante de mergulho.",
+  " {n} dip quadrant(s) could not be read (not N, NE, E…), so the strike convention was used there.": " {n} quadrante(s) de mergulho não puderam ser lidos (não são N, NE, E…), então ali foi usada a convenção da direção.",
+  " {rhrMismatches} row(s) have a strike and dip direction that aren't 90° apart by the left-hand rule — the dip direction was used; check whether those strikes are right-hand-rule.": " {rhrMismatches} linha(s) têm direção e sentido de mergulho que não estão a 90° pela regra da mão esquerda: foi usado o sentido de mergulho; verifique se essas direções seguem a regra da mão direita."
 }

@@ -431,7 +431,8 @@ export function guessStructureColumns(headers) {
   // TASKS.csv #1442 (review #1352) — the field station: it was dropped, so a symbol on the map or a row of the CSV / KML / GeoPackage
   // could not be traced back to the notebook
   const station = take([(n) => n === "station" || n === "stn" || n === "stationid" || n === "site" || n === "siteid" || n === "waypoint" || n === "wpt" || n === "pointid" || n === "id", (n) => n.startsWith("station")]);
-  return { x, y, z, strike, dip, dipDir, type, comment, station };
+  const dipQuad = take([(n) => n === "dipquadrant" || n === "dipquad" || n === "quadrant" || n === "dipq" || n === "dipsense" || n === "dipside"]); // #2083
+  return { x, y, z, strike, dip, dipDir, type, comment, station, dipQuad };
 }
 
 // Normalizes a structure type string to a short canonical class used for colouring and filtering.
@@ -480,7 +481,13 @@ export function parseStructureRows(rawRows, cols) {
     return Number.isFinite(n) ? n : null;
   };
   const rows = [];
-  let skipped = 0, derivedFromStrike = 0, rhrMismatches = 0;
+  // TASKS.csv #2083 (review #2013, Surface Geology) — a strike-only file was always read by the right-hand rule: a left-hand-rule notebook
+  // imported every plane facing 180° the wrong way, unseen. cols.strikeRule 'rhr' (dip direction = strike + 90, the default) or 'lhr'
+  // (strike - 90); cols.dipQuad, a column of dip quadrants (N, NE, E… or 'SW'), settles each row by the side the plane dips to.
+  const rule = cols.strikeRule === "lhr" ? "lhr" : "rhr", offset = rule === "lhr" ? 270 : 90;
+  const QUAD = { n: 0, nne: 22.5, ne: 45, ene: 67.5, e: 90, ese: 112.5, se: 135, sse: 157.5, s: 180, ssw: 202.5, sw: 225, wsw: 247.5, w: 270, wnw: 292.5, nw: 315, nnw: 337.5 };
+  const angDiff = (a, b) => { const d = Math.abs((((a - b) % 360) + 360) % 360); return Math.min(d, 360 - d); };
+  let skipped = 0, derivedFromStrike = 0, rhrMismatches = 0, fromQuadrant = 0, quadrantUnread = 0;
   rawRows.forEach((r) => {
     const x = num(r[cols.x]), y = num(r[cols.y]), dip = num(r[cols.dip]);
     let dipDir = cols.dipDir ? num(r[cols.dipDir]) : null;
@@ -488,15 +495,17 @@ export function parseStructureRows(rawRows, cols) {
     if (x == null || y == null || dip == null || dip < 0 || dip > 90) { skipped++; return; }
     if (dipDir == null) {
       if (strike == null) { skipped++; return; }
-      dipDir = (strike + 90) % 360; derivedFromStrike++;
+      const q = cols.dipQuad ? String(r[cols.dipQuad] ?? "").trim().toLowerCase() : "";
+      if (q && q in QUAD) { const a = (strike + 90) % 360, b = (strike + 270) % 360; dipDir = angDiff(a, QUAD[q]) <= angDiff(b, QUAD[q]) ? a : b; fromQuadrant++; }
+      else { if (q) quadrantUnread++; dipDir = (strike + offset) % 360; derivedFromStrike++; }
     } else if (strike != null) {
-      const d = Math.abs((((dipDir - strike) % 360) + 360) % 360 - 90);
+      const d = Math.abs((((dipDir - strike) % 360) + 360) % 360 - offset);
       if (d > 2 && d < 358) rhrMismatches++;
     }
     const type = cols.type ? String(r[cols.type] ?? "") : "";
     rows.push({ x, y, z: cols.z ? num(r[cols.z]) : null, dip, dipDir: ((dipDir % 360) + 360) % 360, strike, type, cls: structureClass(type), ...(cols.station ? { station: String(r[cols.station] ?? "").trim() } : {}), comment: cols.comment ? String(r[cols.comment] ?? "") : "" });
   });
-  return { rows, skipped, derivedFromStrike, rhrMismatches };
+  return { rows, skipped, derivedFromStrike, rhrMismatches, fromQuadrant, quadrantUnread, strikeRule: rule };
 }
 
 // Upward-pointing unit pole (E, N, Up) of a plane with dip direction/dip.

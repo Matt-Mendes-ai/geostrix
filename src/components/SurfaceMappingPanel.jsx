@@ -428,8 +428,10 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
       ok: !out.skipped,
       text: tr("Imported {rows} measurement(s) from {name}.", { rows: out.rows.length, name: p.name })
         + (out.skipped ? tr(" Skipped {skipped} row(s) missing coordinates or a valid 0–90° dip.", { skipped: out.skipped }) : "")
-        + (out.derivedFromStrike ? tr(" {derivedFromStrike} dip direction(s) derived from strike by the right-hand rule.", { derivedFromStrike: out.derivedFromStrike }) : "")
-        + (out.rhrMismatches ? tr(" {rhrMismatches} row(s) have a strike and dip direction that aren't 90° apart — the dip direction was used; check whether those strikes are left-hand-rule.", { rhrMismatches: out.rhrMismatches }) : "")
+        + (out.derivedFromStrike ? (out.strikeRule === "lhr" ? tr(" {derivedFromStrike} dip direction(s) derived from strike by the left-hand rule (strike − 90°).", { derivedFromStrike: out.derivedFromStrike }) : tr(" {derivedFromStrike} dip direction(s) derived from strike by the right-hand rule.", { derivedFromStrike: out.derivedFromStrike })) : "")
+        + (out.fromQuadrant ? tr(" {n} dip direction(s) taken from the strike and the dip quadrant.", { n: out.fromQuadrant }) : "") // #2083
+        + (out.quadrantUnread ? tr(" {n} dip quadrant(s) could not be read (not N, NE, E…), so the strike convention was used there.", { n: out.quadrantUnread }) : "")
+        + (out.rhrMismatches ? (out.strikeRule === "lhr" ? tr(" {rhrMismatches} row(s) have a strike and dip direction that aren't 90° apart by the left-hand rule — the dip direction was used; check whether those strikes are right-hand-rule.", { rhrMismatches: out.rhrMismatches }) : tr(" {rhrMismatches} row(s) have a strike and dip direction that aren't 90° apart — the dip direction was used; check whether those strikes are left-hand-rule.", { rhrMismatches: out.rhrMismatches })) : "")
         + (noZ ? (terrain ? tr(" {noZ} had no elevation and sit on the terrain{v}.", { noZ, v: "" }) : tr(" {noZ} had no elevation: drawn flat until a terrain is loaded (Maps > Terrain), then placed on it.", { noZ })) : "") // #1448 — they were said to 'sit on the terrain' with none loaded
         + (otherTypes.length ? tr(" Type code(s) {codes} are classed as Other: not a fault, breccia, vein, contact, joint, bedding, foliation or cleavage code GeoStrix knows. Rename them in the file to class them.", { codes: otherTypes.slice(0, 8).join(", ") + (otherTypes.length > 8 ? "…" : "") }) : "") // #2082
         + crsNote + northNote,
@@ -629,7 +631,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
       {pendingStruct && (
         <div style={card}>
           <div style={{ color: "var(--color-text)", marginBottom: 4 }}>{tr("{name}: {rows} rows — check the columns", { name: pendingStruct.name, rows: pendingStruct.rows.length })}</div>
-          {[["x", tr("Easting")], ["y", tr("Northing")], ["z", tr("Elevation")], ["dip", tr("Dip")], ["dipDir", tr("Dip dir.")], ["strike", tr("Strike")], ["type", tr("Type")], ["station", tr("Station")], ["comment", tr("Comments")]].map(([k, label]) => ( /* station: #1442 */
+          {[["x", tr("Easting")], ["y", tr("Northing")], ["z", tr("Elevation")], ["dip", tr("Dip")], ["dipDir", tr("Dip dir.")], ["strike", tr("Strike")], ["dipQuad", tr("Dip quadrant")], ["type", tr("Type")], ["station", tr("Station")], ["comment", tr("Comments")]].map(([k, label]) => ( /* station: #1442; dipQuad: #2083 */
             <div key={k} style={row}>
               <span style={lbl}>{label}</span>
               <select value={pendingStruct.cols[k] || ""} onChange={(e) => setPendingStruct((p) => ({ ...p, cols: { ...p.cols, [k]: e.target.value || null } }))} style={select}>
@@ -638,6 +640,15 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
               </select>
             </div>
           ))}
+          {pendingStruct.cols.strike && ( /* TASKS.csv #2083 — how a strike becomes a dip direction where the file gives none */
+            <div style={row} title={tr("Used for rows with a strike and no dip direction (and no dip quadrant). Right-hand rule: the plane dips to the right of the strike, dip direction = strike + 90°. Left-hand rule: to the left, strike − 90°.")}>
+              <span style={lbl}>{tr("Strikes")}</span>
+              <select value={pendingStruct.cols.strikeRule || "rhr"} onChange={(e) => setPendingStruct((p) => ({ ...p, cols: { ...p.cols, strikeRule: e.target.value } }))} style={select} aria-label={tr("Strike convention")}>
+                <option value="rhr">{tr("Right-hand rule (dip direction = strike + 90°)")}</option>
+                <option value="lhr">{tr("Left-hand rule (dip direction = strike − 90°)")}</option>
+              </select>
+            </div>
+          )}
           <SourceCrsField
             value={pendingStruct.sourceEpsg ?? ""} onChange={(c) => setPendingStruct((p) => ({ ...p, sourceEpsg: c === "" ? "" : String(c) }))}
             defaultText={tr("Same as project — {v}", { v: crsName(project?.epsg) || tr("EPSG:{v}", { v: project?.epsg ?? "?" }) })}
