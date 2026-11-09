@@ -696,7 +696,7 @@ export const TARGET_SCHEMAS = {
     { key: "z", label: "Elevation (Z)", required: true, aliases: ["z", "elevation", "elev", "rl", "utm_z"] },
     { key: "azimuth", label: "Azimuth (for straight holes w/ no survey)", required: false, aliases: ["azimuth", "azim_grid", "azi", "az", "brg", "bearing", "collar_az", "hole_az"] }, // collar_az / hole_az: #1655 (acQuire's Collar_Az_D; 'az' alone matches a whole header only) // az / brg / bearing: #546; azim_grid: GeoStrix's own collar export (#577) — exact, so it beats azim_true
     { key: "dip", label: "Dip (for straight holes w/ no survey)", required: false, aliases: ["dip", "inclination", "incl"] }, // #605: inclination (MX-style collar sheets)
-    { key: "length", label: "Hole length (optional)", required: false, aliases: ["length", "total_depth", "eoh", "max_depth", "hole_length", "actual depth", "actual_depth", "final_depth", "final depth", "depth"] }, // #600: "Actual depth" before a planned "Target depth"
+    { key: "length", label: "Hole length (optional)", required: false, aliases: ["length", "total_depth", "eoh", "max_depth", "hole_length", "actual depth", "actual_depth", "final_depth", "final depth", "td", "depth"] }, // td: #2151 (WAMEX); #600: "Actual depth" before a planned "Target depth"
   ], dipConvention: true },
   survey: { label: "Survey", fields: [
     { key: "hole_id", label: "Hole ID", required: true, aliases: ["hole_id", "holeid", "hole", "bhid", "dhid", "ddh", "ddh_id", "ddh_no"] },
@@ -840,6 +840,29 @@ export function replaceNote(res, what) {
 // "DipDirection", "dip_dir", "DipDir" and "dd" are the DIRECTION and must not be taken as the dip:
 // guessColumn's substring pass matched "dip" inside "DipDirection" first, so a HoleID,Depth,Type,
 // DipDirection,Dip_deg file mapped DIP to the dip-direction column and left azimuth unmapped.
+// TASKS.csv #2151 (WA review #2148) — collar coordinates named for their grid: MGA_East / MGA_North, GDA94_E / GDA94_N, AMG_E, GBMG_East,
+// Nat_East, Local_E, with MGA_RL / Orig_RL. Three of six WA collar files were not collars (Veins / Custom, Import disabled) and these names
+// miss x / y about 9,000 times each in the database. An east and a north column count only as a PAIR with the same prefix (so "Dip_E" or
+// "Line_E" + "Station_N" never do); a one-letter suffix needs its underscore. -> [{ prefix, x, y, z }], map grids (MGA / GDA / AMG / UTM)
+// first and local / mine grids last; z is the same grid's RL / elevation when the file has one.
+const GRID_COL = /^([a-z][a-z0-9]*?)(?:_(e|n|x|y|z)|_?(east|easting|north|northing|rl|elev|elevation))$/;
+const GRID_AXIS = { e: "x", x: "x", east: "x", easting: "x", n: "y", y: "y", north: "y", northing: "y", z: "z", rl: "z", elev: "z", elevation: "z" };
+const gridRank = (p) => (/^(mga|gda|amg|utm|map|grid|nat)/.test(p) ? 0 : /^(local|loc|mine|orig|old|site)/.test(p) ? 2 : 1);
+export function gridCoordinateColumns(headers) {
+  const by = new Map();
+  for (const h of headers || []) {
+    const m = GRID_COL.exec(normHeader(h));
+    if (!m) continue;
+    const axis = GRID_AXIS[m[2] || m[3]];
+    if (!by.has(m[1])) by.set(m[1], {});
+    const g = by.get(m[1]);
+    if (!g[axis]) g[axis] = h;
+  }
+  return [...by].filter(([, g]) => g.x && g.y).map(([prefix, g]) => ({ prefix, x: g.x, y: g.y, z: g.z || "" }))
+    .sort((a, b) => gridRank(a.prefix) - gridRank(b.prefix));
+}
+// any RL / elevation column of a grid ("Orig_RL" beside GBMG_East / GBMG_North), for a pair with no z of its own
+const gridElevation = (headers) => (headers || []).find((h) => { const m = GRID_COL.exec(normHeader(h)); return m && GRID_AXIS[m[2] || m[3]] === "z"; }) || "";
 export function guessMapping(target, headers) {
   const schema = TARGET_SCHEMAS[target];
   const mapping = {};
@@ -850,6 +873,15 @@ export function guessMapping(target, headers) {
   // TASKS.csv #2149 — the point-data Depth took FromDepth by substring ("depth" inside it) next to From = FromDepth: an interval table's
   // from / to column is never also its point depth
   if (mapping.depth && (mapping.depth === mapping.from || mapping.depth === mapping.to)) mapping.depth = "";
+  // TASKS.csv #2151 — a collar file whose coordinates are named for their grid: the best grid pair, unless plain x / y names are there
+  if (target === "collars") {
+    const g = gridCoordinateColumns(headers)[0];
+    const plain = (key) => guessColumnExact(headers, schema.fields.find((f) => f.key === key).aliases);
+    if (g && !(plain("x") && plain("y"))) {
+      mapping.x = g.x; mapping.y = g.y;
+      if (!plain("z")) mapping.z = g.z || gridElevation(headers) || mapping.z;
+    } else if (!mapping.z) mapping.z = gridElevation(headers);
+  }
   // TASKS.csv #1345 (42807Z) — MAG_INSTRUMENT matched "mag" and the mag-sus log loaded 0 of 6,264 rows: a numeric layer's value is
   // never the instrument, the logger, a date or a comment
   const notAValue = (h) => /(instrument|device|logged|entered|_by$|date|comment|desc|model|serial|srm_name|photo)/.test(normHeader(h));
@@ -921,6 +953,8 @@ export function guessTarget(headers) {
   const hasNorth = has("northing") || hasCol("y") || hasCol("utm_n") || hasCol("utmn") || hasCol("north");
   const hasElev = has("elevation") || hasCol("z") || hasCol("rl") || hasCol("elev") || hasCol("utm_z");
   if (!has("from") && hasEast && hasNorth && hasElev) return "collars";
+  // TASKS.csv #2151 — MGA_East / MGA_North / MGA_RL, GDA94_E / GDA94_N, GBMG_East / GBMG_North + Orig_RL: a grid pair and an elevation
+  if (!has("from") && !has("depth_from") && gridCoordinateColumns(headers).length && (hasElev || gridElevation(headers))) return "collars";
   // Structure picks checked before survey: real bug found here — a structure CSV with columns
   // like depth_m/inferred_dip_deg/assumed_dip_azimuth satisfies the survey check below (it has
   // "azimuth", "depth", and no "from"), AND guessColumn's substring matching resolves survey's
