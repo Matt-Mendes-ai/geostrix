@@ -4647,7 +4647,11 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     // disposed here, since every future rebuild and every other layer still references them, and an
     // InstancedMesh batch needs its own .dispose() to release its instance buffers (disposing the
     // geometry/material alone would not, and the geometry is a shared prototype anyway).
-    Object.values(groups).forEach((g) => { while (g.children.length) { const c = g.children.pop(); if (!c.geometry?.userData?.sharedProto) c.geometry?.dispose?.(); c.material?.map?.dispose?.(); c.material?.dispose?.(); c.dispose?.(); } });
+    // #2170 — old materials are disposed AFTER the new scene has drawn, and only those no new object uses: disposing them first released every
+    // shader program, recompiled on the next frame (5 s per commit on a 20,000-hole project)
+    const oldMats = [];
+    Object.values(groups).forEach((g) => { while (g.children.length) { const c = g.children.pop(); if (!c.geometry?.userData?.sharedProto) c.geometry?.dispose?.(); c.material?.map?.dispose?.(); if (c.material) oldMats.push(c.material); c.dispose?.(); } });
+    setTimeout(() => { const live = new Set(); Object.values(groups).forEach((g) => g.traverse((o) => o.material && live.add(o.material))); oldMats.forEach((m) => { if (!live.has(m)) m.dispose?.(); }); }, 1500);
     const labelAnchors = []; // #1277 — one per hole, drawn after the loop and again on a label-mode change
     if (!collars.length) {
       setDataLoaded(false);
@@ -4830,6 +4834,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       sg: numericRangeFor("sg", layers.sg),
     };
     const buildErrors = [];
+    const traceById = new Map(tracesRef.current.map((t) => [t.hole_id, t])); // #2170: was a filter per hole, O(holes²) (11.8 s at 20,544)
     collars.forEach((c) => {
      try {
       const hs = surveyByHole.get(c.hole_id) || [];
@@ -4838,8 +4843,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       const assumedVertical = holeAttitudeAssumed(c, hs); // #2014 — no survey rows and no collar azimuth / dip: drawn as a vertical stick, dashed, and the tip says so
       const pts = raw.map((p) => ({ md: p.md, x: p.x - ox, y: p.z - oz, z: -(p.y - oy) })), look = traceLookup(pts); // look: #1500 — binary search instead of a scan per interval
       allTraces.push(pts);
-      tracesRef.current = tracesRef.current.filter((t) => t.hole_id !== c.hole_id);
-      tracesRef.current.push({ hole_id: c.hole_id, pts, wx: raw.map((p) => p.x), wy: raw.map((p) => p.y), wz: raw.map((p) => p.z) });
+      traceById.delete(c.hole_id);
+      traceById.set(c.hole_id, { hole_id: c.hole_id, pts, wx: raw.map((p) => p.x), wy: raw.map((p) => p.y), wz: raw.map((p) => p.z) });
 
       if (!collarMaterialRef.current) collarMaterialRef.current = new THREE.MeshBasicMaterial({ color: collarColorFor(bgColorRef.current) }); // #378
       const marker = new THREE.Mesh(PROTO_SPHERE_12, collarMaterialRef.current); // TASKS.csv #312 — shared prototype + scale (was SphereGeometry(3.2, 12, 12))
@@ -5038,6 +5043,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
        buildErrors.push(`${c.hole_id}: ${err.message}`);
      }
     });
+    tracesRef.current = [...traceById.values()];
 
     // Bug fix (user report: imported a real OMF block model — resistivity.omf — into a project that
     // already had drillholes loaded, and it just never appeared, no matter how they panned/zoomed).
