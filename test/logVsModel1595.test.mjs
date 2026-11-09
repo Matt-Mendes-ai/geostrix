@@ -22,6 +22,6 @@ test("another hole, no overlap, or too few pairs: nothing invented", () => {
 
 test("the pane offers the evaluated models; the Evaluate message points to it", () => {
   const p = fs.readFileSync("src/components/DownholeLogsPane.jsx", "utf8");
-  assert.match(p, /customLayers\.filter\(\(l\) => \(l\.rows \|\| \[\]\)\.some\(\(r\) => r\.modelled && r\.numeric\)\)/);
+  assert.match(p, /customLayers\.filter\(\(l\) => \(l\.rows \|\| \[\]\)\.some\(\(r\) => r\.modelled && \(r\.numeric \|\| \(typeof r\.value === \"number\" && Number\.isFinite\(r\.value\)\)\)\)\)/); // #2240: the store copy drops 'numeric'
   assert.match(fs.readFileSync("src/modules/GeophysicsModule.jsx", "utf8"), /or Downhole logs for a cross-plot against one\./);
 });
