@@ -9401,5 +9401,13 @@
   "{name}: a UBC-GIF mesh. Load it with its model file in Geophysics > Block models.": "{name} : un maillage UBC-GIF. Chargez-le avec son fichier de modèle dans Géophysique > Modèles de blocs.",
   "The units inside the drape's area, read from the {n} tiles it was drawn from (zoom {z}). Colours as Macrostrat lists them: the map adds relief shading, so the drape is darker in places.": "Les unités à l'intérieur de la zone du drapé, lues dans les {n} tuiles qui l'ont dessiné (zoom {z}). Couleurs telles que Macrostrat les donne : la carte ajoute un ombrage du relief, le drapé est donc plus sombre par endroits.",
   "This legend was read before GeoStrix cut it to the drape's area, so it can list units of the surrounding tiles that are not on the map.": "Cette légende a été lue avant que GeoStrix ne la limite à la zone du drapé : elle peut lister des unités des tuiles voisines absentes de la carte.",
-  "Fetch it again for the area only": "La récupérer à nouveau pour la zone seulement"
+  "Fetch it again for the area only": "La récupérer à nouveau pour la zone seulement",
+  "Area: drawn on the map, {size}": "Zone : dessinée sur la carte, {size}",
+  "Area: the project area, {size}": "Zone : la zone du projet, {size}",
+  "Area: none yet": "Zone : aucune pour l'instant",
+  "Use the project area": "Utiliser la zone du projet",
+  "No project area yet: draw an area on the map, or load holes, samples or a map first.": "Pas encore de zone de projet : dessinez une zone sur la carte, ou chargez d'abord des sondages, des échantillons ou une carte.",
+  "Add the geology for this area": "Ajouter la géologie de cette zone",
+  "Map units at the centre of this area": "Unités cartographiques au centre de cette zone",
+  "Draw the area to fetch Macrostrat geology for": "Dessinez la zone pour laquelle récupérer la géologie Macrostrat"
 }

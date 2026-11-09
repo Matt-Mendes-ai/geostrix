@@ -9401,5 +9401,13 @@
   "{name}: a UBC-GIF mesh. Load it with its model file in Geophysics > Block models.": "{name}: شبكة UBC-GIF. حمّلها مع ملف النموذج في الجيوفيزياء > النماذج الكتلية.",
   "The units inside the drape's area, read from the {n} tiles it was drawn from (zoom {z}). Colours as Macrostrat lists them: the map adds relief shading, so the drape is darker in places.": "الوحدات داخل منطقة الطبقة المكسوّة، مقروءة من {n} بلاطة رُسمت منها (التكبير {z}). الألوان كما يسردها Macrostrat: تضيف الخريطة تظليلًا للتضاريس، لذا تكون الطبقة أغمق في بعض المواضع.",
   "This legend was read before GeoStrix cut it to the drape's area, so it can list units of the surrounding tiles that are not on the map.": "قُرئت هذه المفتاحية قبل أن يقصّها GeoStrix على منطقة الطبقة، لذا قد تسرد وحدات من البلاطات المجاورة غير موجودة على الخريطة.",
-  "Fetch it again for the area only": "اجلبها مجددًا للمنطقة فقط"
+  "Fetch it again for the area only": "اجلبها مجددًا للمنطقة فقط",
+  "Area: drawn on the map, {size}": "المنطقة: مرسومة على الخريطة، {size}",
+  "Area: the project area, {size}": "المنطقة: منطقة المشروع، {size}",
+  "Area: none yet": "المنطقة: لا شيء بعد",
+  "Use the project area": "استخدم منطقة المشروع",
+  "No project area yet: draw an area on the map, or load holes, samples or a map first.": "لا توجد منطقة مشروع بعد: ارسم منطقة على الخريطة، أو حمّل أولًا ثقوب حفر أو عينات أو خريطة.",
+  "Add the geology for this area": "أضف جيولوجيا هذه المنطقة",
+  "Map units at the centre of this area": "الوحدات الخرائطية في مركز هذه المنطقة",
+  "Draw the area to fetch Macrostrat geology for": "ارسم المنطقة التي تُجلب لها جيولوجيا Macrostrat"
 }
