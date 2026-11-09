@@ -240,6 +240,9 @@ export function createModellingRuns(ctx, mcRef) {
     const [ymin, ymax] = pad(yr.min, yr.max);
     const [zmin, zmax] = pad(zr.min, zr.max);
     const extent = [xmin, xmax, ymin, ymax, zmin, zmax];
+    // TASKS.csv #2229 (review #2174, WA gold) — how far the box actually reaches past the data on each axis (the reach notice gave only the clip
+    // distance: '91 m past its contacts' for a box ~297 m past them, 2.48 km2 for a 0.41 km2 footprint)
+    const boxPadM = { x: xr.min - xmin, y: yr.min - ymin, z: zr.min - zmin };
 
     // TASKS.csv #52 (a) — a named function now, because the sensitivity realisations below must go
     // through exactly the same warp as the base request (perturbation happens in real metres/degrees
@@ -486,7 +489,7 @@ export function createModellingRuns(ctx, mcRef) {
     // TASKS.csv #1054 — what each fault offset, as GemPy applied it, and the limit no choice here can lift
     if (res.faultOffsets && Object.keys(res.faultOffsets).length) setNotices((p) => [...p, notice("Faults as solved: {list}. Each fault runs through the whole model box (GemPy here cannot end a fault).", { list: Object.entries(res.faultOffsets).map(([f, u]) => tr("{fault} offsets {units}", { fault: f, units: u.length ? u.join(", ") : tr("nothing") })).join("; ") })]);
     if (res.orientationsDeduplicated > 0) setNotices((p) => [...p, notice("{orientationsDeduplicated} repeated orientation(s) were given to GemPy once rather than once per unit: in an onlap stack every unit shares one field, so the copies added solve time but no information.", { orientationsDeduplicated: res.orientationsDeduplicated })]);
-    if (reachNotes.length) setNotices((p) => [...p, notice("Surfaces stop near their own contacts: {list}. The model box was sized to these contacts, not to every hole in the project. Model settings changes the distance or fills the box.", { list: reachNotes.join("; ") })]);
+    if (reachNotes.length) setNotices((p) => [...p, notice("Surfaces stop near their own contacts: {list}. For the solver the model box reaches {px} m (east-west), {py} m (north-south) and {pz} m (vertically) past these contacts, so its cells are {cell} m; the surfaces are cut back to the distances above. It was sized to these contacts, not to every hole in the project. Model settings changes the distance or fills the box.", { list: reachNotes.join("; "), px: Math.round(boxPadM.x), py: Math.round(boxPadM.y), pz: Math.round(boxPadM.z), cell: Math.round(Math.max(xmax - xmin, ymax - ymin, zmax - zmin) / modelResolution) }) /* box pads, cells: #2229 */]);
     if (missing.length) setNotices((p) => [...p, notice("GemPy returned no mesh for: {missing} (try adding more points or a wider spread of orientations for those).", { missing: missing.join(", ") })]);
     if (nonFinite.length) setNotices((p) => [...p, notice("GemPy returned some invalid (NaN) vertices — the surface is shown without the triangles that used them, so it may have holes: {nonFinite}. Usually too few points / orientations for the extent or resolution.", { nonFinite: nonFinite.join("; ") })]); // #314
     // TASKS.csv #356 — model vs logs, and unit volumes, from the lithology block. Every logged interval of a

@@ -6749,7 +6749,6 @@
   "Extend past them by": "التمديد بعدها بمقدار",
   "How far a surface runs past its own contacts (m)": "مدى امتداد السطح بعد تماساته (م)",
   "{label}: {m} m past its {n} contact point(s)": "{label}: {m} م بعد نقاط تماسه البالغة {n}",
-  "Surfaces stop near their own contacts: {list}. The model box was sized to these contacts, not to every hole in the project. Model settings changes the distance or fills the box.": "تتوقف الأسطح قرب تماساتها: {list}. ضُبط صندوق النموذج على هذه التماسات لا على كل ثقوب الحفر في المشروع. تتيح إعدادات النموذج تغيير المسافة أو ملء الصندوق.",
   "Leave hole {h} out of the selection": "استبعاد ثقب الحفر {h} من التحديد",
   "{code} already holds {others} other interval(s) in {holes} hole(s).": "يضم {code} بالفعل {others} فاصلًا آخر في {holes} ثقب حفر.",
   "Replace them": "استبدالها",
@@ -9562,5 +9561,6 @@
   "Values on {p}% of the grid.": "قيم على {p}% من الشبكة.",
   "Values on {p}% of the grid only: with fuzzy AND, the algebraic product or gamma every other cell scores nothing.": "قيم على {p}% فقط من الشبكة: مع AND الضبابي أو الضرب الجبري أو غاما لا تحصل بقية الخلايا على أي درجة.",
   "{v} cells have every evidence, so the score is empty or nearly so. Fewest values: {list}. Combine with fuzzy OR or the algebraic sum (they skip a missing evidence), or remove those.": "لدى {v} خلية كل الأدلة، فالدرجة فارغة أو تكاد. الأقل قيمًا: {list}. اجمع بـ OR الضبابي أو الجمع الجبري (يتجاوزان الدليل الناقص)، أو أزل تلك.",
-  "Auto cell and search from the hole spacing along the traces ({t} m at depth): the collars of these holes cluster ({c} m apart: fans drilled from shared sites), so their spacing says nothing about the rock between the holes.": "الخلية والبحث التلقائيان من تباعد الثقوب على امتداد مساراتها ({t} م في العمق): فوهات هذه الثقوب متجمعة (بينها {c} م: مراوح محفورة من مواقع مشتركة)، فتباعدها لا يقول شيئًا عن الصخر بين الثقوب."
+  "Auto cell and search from the hole spacing along the traces ({t} m at depth): the collars of these holes cluster ({c} m apart: fans drilled from shared sites), so their spacing says nothing about the rock between the holes.": "الخلية والبحث التلقائيان من تباعد الثقوب على امتداد مساراتها ({t} م في العمق): فوهات هذه الثقوب متجمعة (بينها {c} م: مراوح محفورة من مواقع مشتركة)، فتباعدها لا يقول شيئًا عن الصخر بين الثقوب.",
+  "Surfaces stop near their own contacts: {list}. For the solver the model box reaches {px} m (east-west), {py} m (north-south) and {pz} m (vertically) past these contacts, so its cells are {cell} m; the surfaces are cut back to the distances above. It was sized to these contacts, not to every hole in the project. Model settings changes the distance or fills the box.": "تتوقف الأسطح قرب تماساتها: {list}. يمتد صندوق النموذج للحلّال {px} م (شرق-غرب) و{py} م (شمال-جنوب) و{pz} م (عموديًا) بعد هذه التماسات، فخلاياه {cell} م؛ وتُقص الأسطح إلى المسافات أعلاه. حُدد حجمه بهذه التماسات لا بكل ثقب في المشروع. تغيّر إعدادات النموذج المسافة أو تملأ الصندوق."
 }
