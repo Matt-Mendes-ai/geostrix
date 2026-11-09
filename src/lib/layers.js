@@ -1017,10 +1017,15 @@ export function guessTarget(headers) {
   // (see sample_data's own vein.csv, which uses a "type" column).
   // TASKS.csv #2150 (WA review #2148) — the bare "type" rule took a gold assay table (SAMPLETYPE, Au, AuRp1) as a vein log. A type column
   // that is the sample's, the hole's or the lab's is not a vein type, and a table with element columns is not a vein log.
-  const veinishType = base.some((h) => /type/.test(h) && !/^(samp(le)?|hole|drill|dh|qc|lab|assay|analy(sis|te)|method|survey|instr(ument)?|data|record|point|row)_?type/.test(h));
+  // #2189 — anywhere in the name, not only at its start: WAMEX's dsHoleType (the drilling method by interval) went to Veins
+  const NOT_VEIN_TYPE = /(samp(le)?|hole|drill|dh|qc|lab|assay|analy(sis|te)|method|survey|instr(ument)?|data|record|point|row|rig|bit|core)_?type/;
+  const typeCols = base.filter((h) => /type/.test(h));
+  const veinishType = typeCols.some((h) => !NOT_VEIN_TYPE.test(h));
   const elements = headers.some((h) => isElementColumn(h));
   if (has("vein_type") || (veinishType && !elements && !has("assemblage"))) return "vein";
   if (has("assemblage")) return "alt";
+  // #2189 — an interval table whose only 'type' is the hole's / drilling's, with nothing geological to colour by, is a custom layer
+  if (has("from") && typeCols.length && !veinishType && !any(/lith|rock|unit|formation|strat/)) return "custom";
   if (has("from") && has("to")) return "litho";
   if (has("depth")) return "structure";
   return "custom";
