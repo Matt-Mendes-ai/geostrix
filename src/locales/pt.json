@@ -9358,5 +9358,10 @@
   "on the terrain": "sobre o terreno",
   "at the median collar elevation": "na elevação mediana dos colares",
   "at 0 m": "a 0 m",
-  "No elevation in the collar file — placed {how} ({z} m), an ASSUMED elevation: everything on the hole sits at that height. Add the collar RL and re-import the collars.": "Sem elevação no arquivo de colares: colocado {how} ({z} m), uma elevação PRESUMIDA; tudo no furo fica nessa altura. Adicione a cota do colar e importe os colares novamente."
+  "No elevation in the collar file — placed {how} ({z} m), an ASSUMED elevation: everything on the hole sits at that height. Add the collar RL and re-import the collars.": "Sem elevação no arquivo de colares: colocado {how} ({z} m), uma elevação PRESUMIDA; tudo no furo fica nessa altura. Adicione a cota do colar e importe os colares novamente.",
+  "{name} is a very large table: about {rows} rows × {cols} columns. Opening it needs roughly {gb} GB of memory, which can close GeoStrix on this computer.": "{name} é uma tabela muito grande: cerca de {rows} linhas × {cols} colunas. Abri-la precisa de aproximadamente {gb} GB de memória, o que pode fechar o GeoStrix neste computador.",
+  "OK — open it anyway.": "OK: abrir mesmo assim.",
+  "Cancel — don't open it (split the file, or keep only the rows and columns you need, and open the parts).": "Cancelar: não abrir (divida o arquivo, ou mantenha só as linhas e colunas necessárias, e abra as partes).",
+  "not opened: it needs more memory than this computer can safely give it": "não aberto: precisa de mais memória do que este computador pode fornecer com segurança",
+  "the file reader stopped ({error}); the file is too large to read another way": "o leitor de arquivos parou ({error}); o arquivo é grande demais para ser lido de outra forma"
 }

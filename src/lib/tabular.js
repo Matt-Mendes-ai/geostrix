@@ -273,9 +273,40 @@ function parseInWorker(buf, opts) {
     worker.postMessage({ buf, opts }, [buf]);
   });
 }
+// TASKS.csv #2171 (WA review #2148) — a 380 MB assay table (3.1 M rows x 85 columns) never reached its dialog: 6.5 GB working set, then
+// every GeoStrix process exited. Read as columns, each cell costs about 9 bytes (a Float64 and a kind byte, arrays grown by doubling)
+// on top of the file buffer and its UTF-16 text, so that table needed some 4-5 GB before anything was drawn. Before parsing, the
+// rows x columns are estimated from the first 1 MB and a table needing more than TABLE_MEMORY_BUDGET is not opened unasked.
+export const TABLE_MEMORY_BUDGET = 2e9;
+export async function estimateTableMemory(file) {
+  const head = await file.slice(0, 1 << 20).text();
+  const lines = head.split(/\r?\n/);
+  if (file.size > head.length && lines.length > 1) lines.pop(); // a cut last line
+  const header = lines[0] || "";
+  const delim = [",", "\t", ";", "|"].reduce((a, d) => (header.split(d).length > header.split(a).length ? d : a), ",");
+  const cols = Math.max(1, header.split(delim).length);
+  const dataLines = Math.max(1, lines.length - 1);
+  const used = lines.reduce((n, l) => n + l.length + 1, 0);
+  const rows = Math.round(Math.max(0, file.size - (header.length + 1)) / Math.max(1, (used - header.length - 1) / dataLines));
+  return { rows, cols, bytes: rows * cols * 9 * 1.5 + file.size * 3 };
+}
+// -> true to go on. confirm: injectable (tests); with no window (Node) the table is read.
+export async function confirmTableSize(file, { budget = TABLE_MEMORY_BUDGET, confirm = typeof window !== "undefined" ? (m) => window.confirm(m) : null } = {}) {
+  if (!confirm || !(file?.size > budget / 12)) return true; // a file under budget / 12 can never reach the budget
+  const e = await estimateTableMemory(file);
+  if (e.bytes <= budget) return true;
+  return confirm(tr("{name} is a very large table: about {rows} rows × {cols} columns. Opening it needs roughly {gb} GB of memory, which can close GeoStrix on this computer.", { name: file.name, rows: e.rows.toLocaleString(), cols: e.cols, gb: (e.bytes / 1e9).toFixed(1) })
+    + "\n\n" + tr("OK — open it anyway.") + "\n" + tr("Cancel — don't open it (split the file, or keep only the rows and columns you need, and open the parts)."));
+}
+// #2171 — a worker that failed on a big file (out of memory) is not retried on the window's own thread: that took the whole app down
+const MAIN_THREAD_RETRY_MAX = 64e6;
 export async function parseTableFile(file, opts) {
+  if (!(opts?.sizeChecked) && !(await confirmTableSize(file))) throw new Error(tr("not opened: it needs more memory than this computer can safely give it"));
   if (typeof Worker !== "undefined" && file.size >= WORKER_MIN_BYTES) {
-    try { return await parseInWorker(await file.arrayBuffer(), opts || {}); } catch { /* read here instead */ }
+    try { return await parseInWorker(await file.arrayBuffer(), opts || {}); } catch (err) {
+      if (file.size >= MAIN_THREAD_RETRY_MAX) throw new Error(tr("the file reader stopped ({error}); the file is too large to read another way", { error: err?.message || String(err) }));
+      /* read here instead */
+    }
   }
   const { text, encoding } = decodeTableBytes(await file.arrayBuffer());
   return encodingNote(parseTableText(text, opts), encoding);
