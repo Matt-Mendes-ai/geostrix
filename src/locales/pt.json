@@ -9485,5 +9485,6 @@
   "Outlining: cancel": "Delineando: cancelar",
   "Showing {n} of {total}: narrow them with the filters above, or": "Mostrando {n} de {total}: restrinja com os filtros acima, ou",
   "Show {k} more": "Mostrar mais {k}",
-  "Hole ids: a label 'ID +n' stands for n more hole(s) piercing within a few pixels (hover it for the list); {hidden} label(s) had no free spot and are left out. Zoom in to separate them, or hover a pierce point.": "IDs de furo: um rótulo 'ID +n' representa mais n furo(s) que cruzam a poucos pixels (passe o cursor para a lista); {hidden} rótulo(s) não tinham espaço livre e foram omitidos. Aproxime para separá-los, ou passe o cursor sobre um ponto de interseção."
+  "Hole ids: a label 'ID +n' stands for n more hole(s) piercing within a few pixels (hover it for the list); {hidden} label(s) had no free spot and are left out. Zoom in to separate them, or hover a pierce point.": "IDs de furo: um rótulo 'ID +n' representa mais n furo(s) que cruzam a poucos pixels (passe o cursor para a lista); {hidden} rótulo(s) não tinham espaço livre e foram omitidos. Aproxime para separá-los, ou passe o cursor sobre um ponto de interseção.",
+  "This shell is {n} separate pieces, not one continuous body.": "Esta envoltória são {n} peças separadas, não um corpo contínuo."
 }

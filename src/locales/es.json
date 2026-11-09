@@ -9485,5 +9485,6 @@
   "Outlining: cancel": "Delineando: cancelar",
   "Showing {n} of {total}: narrow them with the filters above, or": "Se muestran {n} de {total}: acótelos con los filtros de arriba, o",
   "Show {k} more": "Mostrar {k} más",
-  "Hole ids: a label 'ID +n' stands for n more hole(s) piercing within a few pixels (hover it for the list); {hidden} label(s) had no free spot and are left out. Zoom in to separate them, or hover a pierce point.": "IDs de sondaje: una etiqueta 'ID +n' representa n sondaje(s) más que perforan a pocos píxeles (pase el cursor para la lista); {hidden} etiqueta(s) no tenían lugar libre y se omiten. Acerque para separarlas, o pase el cursor sobre un punto de intersección."
+  "Hole ids: a label 'ID +n' stands for n more hole(s) piercing within a few pixels (hover it for the list); {hidden} label(s) had no free spot and are left out. Zoom in to separate them, or hover a pierce point.": "IDs de sondaje: una etiqueta 'ID +n' representa n sondaje(s) más que perforan a pocos píxeles (pase el cursor para la lista); {hidden} etiqueta(s) no tenían lugar libre y se omiten. Acerque para separarlas, o pase el cursor sobre un punto de intersección.",
+  "This shell is {n} separate pieces, not one continuous body.": "Esta envolvente son {n} piezas separadas, no un cuerpo continuo."
 }
