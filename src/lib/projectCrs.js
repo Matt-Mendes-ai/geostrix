@@ -109,6 +109,22 @@ export function collarCentreLonLat(collars, epsg) {
   return Number.isFinite(lon) && Number.isFinite(lat) && Math.abs(lat) <= 90 && Math.abs(lon) <= 180.0001 ? { lon, lat } : null;
 }
 
+// TASKS.csv #2181 (review #2174, WA gold) — the landing check used the median only: 3 collars on a local grid among 5 in MGA landed 400 km
+// away and passed as "1 km from where you said". -> { far, total, km } : the collars more than `maxKm` from the median landing point.
+export function collarSpread(collars, epsg, maxKm = 50) {
+  const pts = (collars || []).filter((c) => Number.isFinite(c.x) && Number.isFinite(c.y));
+  const mid = collarCentreLonLat(pts, epsg);
+  if (!mid || pts.length < 2) return null;
+  const T = pointTransform(epsg, 4326);
+  let far = 0, worst = 0;
+  for (const c of pts) {
+    const [lon, lat] = T(c.x, c.y);
+    const km = Number.isFinite(lon) && Number.isFinite(lat) ? Math.hypot((lat - mid.lat) * 111.2, (lon - mid.lon) * 111.2 * Math.cos((mid.lat * Math.PI) / 180)) : Infinity;
+    if (km > maxKm) { far++; worst = Math.max(worst, Number.isFinite(km) ? km : worst); }
+  }
+  return { far, total: pts.length, km: Math.round(worst) };
+}
+
 export const formatLonLat = ({ lon, lat }) => `${Math.abs(lat).toFixed(3)}° ${lat >= 0 ? "N" : "S"}, ${Math.abs(lon).toFixed(3)}° ${lon >= 0 ? "E" : "W"}`;
 
 // "52.2, -121.3", "52.2 N 121.3 W", "-23.5 -46.6" -> { lat, lon } (lat first, as people say it), or null.

@@ -620,11 +620,21 @@ export function useImportPipeline(ctx) {
     if (m.target !== "collars" || live.project?.crsSet !== false || m.sourceEpsg || m.perRowEpsgCol || m.localGridOn) return;
     const xc = m.mapping?.x, yc = m.mapping?.y;
     const pts = xc && yc ? (m.allRows || []).map((r) => ({ x: parseFloat(String(r[xc]).replace(",", ".")), y: parseFloat(String(r[yc]).replace(",", ".")) })).filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y)) : null;
-    const { epsgFromColumns } = await import("../../lib/crsFromColumns.js"); // #1345 — the headers may name it
-    const named = epsgFromColumns(m.headers || Object.keys((m.allRows || [])[0] || {}));
-    const chosen = await requestProjectCrs(named
-      ? tr("{file}: the column names say these collars are in EPSG:{code}, chosen below. Check it on the map, then use it. They are placed as they are, with no conversion.", { file: String(m.fileName).replace(/ \(\d+ more queued\)$/, ""), code: named })
-      : `${String(m.fileName).replace(/ \(\d+ more queued\)$/, "")}: which coordinate system are these collar coordinates in? They are placed as they are, with no conversion.`, pts, named);
+    const { epsgFromColumns, gridFrameFromRows, smallGridCoordinates } = await import("../../lib/crsFromColumns.js"); // #1345 — the headers may name it
+    const hdrs = m.headers || Object.keys((m.allRows || [])[0] || {}), file = String(m.fileName).replace(/ \(\d+ more queued\)$/, "");
+    // TASKS.csv #2155 / #2156 / #2181 — or the rows' own grid name (GRIDNAME = MGA94_51), a local grid, frames mixed in one file, eastings no zone has
+    const frame = gridFrameFromRows(hdrs, m.allRows), small = smallGridCoordinates(pts);
+    const byHeader = epsgFromColumns(hdrs), named = byHeader || frame?.epsg || null;
+    const fr = (g) => tr("{name}: {n} row(s)", { name: g.name, n: g.rows });
+    const warn = [
+      frame?.mixed ? tr("The {col} column names more than one frame ({list}): these rows are not in one coordinate system, so no single CRS places them all. Import the groups as separate files.", { col: frame.cols.join(" / "), list: frame.groups.slice(0, 4).map(fr).join(", ") }) : "",
+      !frame?.mixed && frame?.local ? tr("The {col} column names a local grid ({name}), not a map projection: no CRS here places these collars on the map.", { col: frame.cols.join(" / "), name: frame.groups[0].name }) : "",
+      small && !frame?.local ? tr("{n} of {of} collars have eastings {x0}–{x1} and northings {y0}–{y1}, which no UTM / MGA zone has: they look like a local mine grid.", { n: small.n, of: small.of, x0: Math.round(small.x[0]).toLocaleString(), x1: Math.round(small.x[1]).toLocaleString(), y0: Math.round(small.y[0]).toLocaleString(), y1: Math.round(small.y[1]).toLocaleString() }) : "",
+    ].filter(Boolean).join(" ");
+    const chosen = await requestProjectCrs((named
+      ? (byHeader ? tr("{file}: the column names say these collars are in EPSG:{code}, chosen below. Check it on the map, then use it. They are placed as they are, with no conversion.", { file, code: named })
+        : tr("{file}: the {col} column says {name} (EPSG:{code}), chosen below. Check it on the map, then use it. They are placed as they are, with no conversion.", { file, col: frame.cols.join(" / "), name: frame.groups[0].name, code: named }))
+      : `${file}: which coordinate system are these collar coordinates in? They are placed as they are, with no conversion.`) + (warn ? ` ${warn}` : ""), pts, named);
     if (chosen) importStateRef.current = { ...importStateRef.current, project: { ...importStateRef.current.project, epsg: chosen, crsSet: true } };
   };
 

@@ -242,6 +242,7 @@ const WKT_DATUMS = [
   ["NAD27", "North_American_1927", "NAD_1927"], ["WGS 84", "WGS_1984", "WGS_1984"], ["SIRGAS 2000", "SIRGAS_2000", "SIRGAS_2000"],
   ["SAD69", "South_American_1969", "SAD_1969"], ["GDA2020", "GDA2020", "GDA2020"], ["GDA94", "GDA_1994", "GDA_1994"],
   ["ETRS89", "ETRS_1989", "ETRS_1989"], ["NZGD2000", "NZGD_2000", "NZGD_2000"],
+  ["AGD84", "Australian_1984", "AGD_1984"], ["AGD66", "Australian_1966", "AGD_1966"], // TASKS.csv #2155 — the ESRI names (AGD_1984_AMG_Zone_51)
 ];
 const wktNum = (v) => { const n = Number(v); return Number.isInteger(n) ? `${n}.0` : String(n); };
 const wktParam = (name, v) => `PARAMETER["${name}",${wktNum(v)}]`;

@@ -2,6 +2,63 @@
 // ("NAD83_9N_SUR_X", "UTM East NAD83_U10"): the CRS question opens with that answer already chosen. Only the systems a
 // header can name without doubt: NAD83 / NAD27 UTM north (North America) and WGS 84 UTM with its hemisphere. A CSRS
 // realisation is not guessed (its zones do not follow one numbering). -> EPSG code or null; null when headers disagree.
+// TASKS.csv #2155 / #2156 / #2181 (WA drillhole and WA gold reviews) — a collar file that names its grid in its VALUES: GRIDNAME = MGA94_51,
+// NAT_Grid_ID = MGA94_Z50, Datum + Zone, COORDSYS = GDA94_51S, LL_Grid_ID = LL_WGS84, or a local grid (MINE, PAN, WALLABY). Every test
+// project asked the CRS question although the file said MGA94_51. One grid name -> EPSG; a name no system matches -> a local grid;
+// rows in several frames (5 MGA94_51 + 3 WALLABY) are said, never averaged.
+const GRID_NAME_COLS = /^(grid_?name|grid|grid_?id|nat_?grid_?id|mga_?grid_?id|ll_?grid_?id|map_?grid|coord_?sys(tem)?|coordinate_?system|crs_?name|datum|projection|proj|zone|utm_?zone)$/;
+const normCol = (h) => String(h ?? "").trim().toLowerCase().replace(/[\s-]+/g, "_");
+export function epsgFromGridName(text) {
+  const raw = String(text ?? "").trim();
+  if (!raw) return null;
+  const s = raw.toUpperCase().replace(/[\s_.\-/]+/g, " ").trim();
+  const geo = /^(LL|LATLONG|LATLON|GEO(GRAPHIC)?|LONLAT)\b|\b(LL|LAT ?LONG?|GEOGRAPHIC)$/.test(s);
+  const datum = /GDA ?2020|MGA ?2020/.test(s) ? "GDA2020" : /GDA ?94|MGA ?94|\bMGA\b|\bGDA\b/.test(s) ? "GDA94" : /AGD ?84|AMG ?84/.test(s) ? "AGD84"
+    : /AGD ?66|AMG ?66/.test(s) ? "AGD66" : /\bAMG\b/.test(s) ? "AMG?" : /WGS ?84/.test(s) ? "WGS84" : /NAD ?83/.test(s) ? "NAD83" : /NAD ?27/.test(s) ? "NAD27" : null;
+  if (geo || (datum && !/\d/.test(s.replace(/GDA ?2020|MGA ?2020|GDA ?94|MGA ?94|AGD ?84|AMG ?84|AGD ?66|AMG ?66|WGS ?84|NAD ?83|NAD ?27/g, "")) && /^(LL |GEO)/.test(s))) {
+    const g = { GDA2020: 7844, GDA94: 4283, AGD84: 4203, AGD66: 4202, WGS84: 4326, NAD83: 4269, NAD27: 4267 }[datum || "WGS84"];
+    return g ? { epsg: g } : { unknown: true };
+  }
+  if (!datum) return /UTM|\bZONE\b|\bZ ?\d\d\b/.test(s) ? { unknown: true } : { local: true };
+  const rest = s.replace(/GDA ?2020|MGA ?2020|GDA ?94|MGA ?94|AGD ?84|AMG ?84|AGD ?66|AMG ?66|WGS ?84|NAD ?83|NAD ?27|\bMGA\b|\bGDA\b|\bAMG\b|\bUTM\b/g, " ");
+  const m = /(?:^|\D)Z?(?:ONE)? ?(\d{1,2}) ?([NS])?(?!\d)/.exec(rest);
+  const zone = m ? Number(m[1]) : null, hemi = m?.[2] || null;
+  if (datum === "AMG?") return { unknown: true, why: "amg" }; // AMG zone with no 66 / 84: the datum is not known
+  if (!zone) return { unknown: true };
+  const range = { GDA2020: [46, 59, 7800], GDA94: [48, 58, 28300], AGD84: [49, 56, 20300], AGD66: [49, 58, 20200] }[datum];
+  if (range) return zone >= range[0] && zone <= range[1] ? { epsg: range[2] + zone } : { unknown: true };
+  if (datum === "WGS84") return zone >= 1 && zone <= 60 && hemi ? { epsg: (hemi === "S" ? 32700 : 32600) + zone } : { unknown: true };
+  if (datum === "NAD83" && zone >= 1 && zone <= 23) return { epsg: 26900 + zone };
+  if (datum === "NAD27" && zone >= 1 && zone <= 22) return { epsg: 26700 + zone };
+  return { unknown: true };
+}
+// -> null (no grid column), or { cols, groups: [{ name, rows, epsg, local, unknown }], epsg (one frame named), mixed, local (all local) }
+export function gridFrameFromRows(headers, rows) {
+  const cols = (headers || []).filter((h) => GRID_NAME_COLS.test(normCol(h)));
+  if (!cols.length) return null;
+  const by = new Map();
+  for (const r of rows || []) {
+    const name = cols.map((c) => String(r?.[c] ?? "").trim()).filter(Boolean).join(" ");
+    if (!name) continue;
+    if (!by.has(name)) by.set(name, { name, rows: 0, ...(epsgFromGridName(name) || {}) });
+    by.get(name).rows++;
+  }
+  if (!by.size) return null;
+  const groups = [...by.values()].sort((a, b) => b.rows - a.rows);
+  // frames: an EPSG code, or the local grid's own name; two spellings of one EPSG are one frame
+  const frames = new Set(groups.map((g) => (g.epsg ? `E${g.epsg}` : `N${g.name.toUpperCase()}`)));
+  return { cols, groups, epsg: frames.size === 1 && groups[0].epsg ? groups[0].epsg : null, mixed: frames.size > 1, local: groups.every((g) => g.local) };
+}
+// #2156 — eastings no UTM / MGA zone has (false easting 500,000 m: about 166,000 to 834,000 m), or no hemisphere's northings: a local grid
+export function smallGridCoordinates(points) {
+  const ps = (points || []).filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y) && (Math.abs(p.x) > 360 || Math.abs(p.y) > 360));
+  if (!ps.length) return null;
+  const small = ps.filter((p) => p.x < 100000 || p.x > 900000 || p.y < 0 || p.y > 10000000);
+  if (small.length < ps.length / 2) return null;
+  const xs = small.map((p) => p.x), ys = small.map((p) => p.y);
+  return { n: small.length, of: ps.length, x: [Math.min(...xs), Math.max(...xs)], y: [Math.min(...ys), Math.max(...ys)] };
+}
+
 export function epsgFromColumns(headers) {
   const found = new Set();
   for (const h of headers || []) {

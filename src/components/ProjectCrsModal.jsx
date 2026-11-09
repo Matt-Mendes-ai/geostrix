@@ -11,7 +11,7 @@ import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay } from "../lib/modalStyles.js";
 import { activateOnKey } from "../lib/a11y.js";
 import { crsName, datumNote, loadEpsgRegistry, onEpsgRegistry } from "../lib/reproject.js";
-import { crsCandidatesAt, localCrsAt, parseLatLon, collarCentreLonLat, formatLonLat } from "../lib/projectCrs.js";
+import { crsCandidatesAt, localCrsAt, parseLatLon, collarCentreLonLat, formatLonLat, collarSpread } from "../lib/projectCrs.js"; // collarSpread: #2181
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 
 const CrsWorldMap = React.lazy(() => import("./CrsWorldMap.jsx")); // #1330
@@ -40,6 +40,7 @@ export default function ProjectCrsModal({ reason, points, suggested = null, onDo
     </div>
   );
   const landing = choice ? collarCentreLonLat(collars, choice) : null;
+  const spread = landing ? collarSpread(collars, choice) : null; // #2181
   const relabel = project.crsSet && !projectIsEmpty && choice && choice !== Number(project.epsg);
   const kmFromStated = landing && at ? Math.round(Math.hypot((landing.lat - at.lat) * 111, (landing.lon - at.lon) * 111 * Math.cos((at.lat * Math.PI) / 180))) : null;
 
@@ -96,6 +97,7 @@ export default function ProjectCrsModal({ reason, points, suggested = null, onDo
                     ? <span style={{ color: "var(--color-danger-fg)", fontWeight: 600 }}>{" "}{tr("That is {kmFromStated} km from where you said: almost certainly the wrong CRS or UTM zone.", { kmFromStated: kmFromStated.toLocaleString() })}</span>
                     : tr(" If that isn't the project, this is the wrong CRS or zone.")}</div>
                 : <div style={{ color: "var(--color-danger-fg)" }}>{tr("The collar coordinates don't fit this CRS (they land off the globe), so it is the wrong one.")}</div>)}
+              {spread?.far > 0 && <div style={{ color: "var(--color-danger-fg)", fontWeight: 600 }}>{tr("{far} of the {total} collars land more than 50 km from the others (up to {km} km): they are not all in one coordinate frame, so no single CRS places them all.", { far: spread.far, total: spread.total, km: spread.km.toLocaleString() })}</div>}{/* #2181 */}
               {datumNote(choice) && <div style={{ color: "var(--color-warn-text)" }}>⚠ {datumNote(choice)}</div>}
               {relabel && <div style={{ color: "var(--color-text-secondary)" }}>{tr("This relabels the project: no coordinates change. To convert data into another CRS, use \"Reproject all data\" in the Maps tab (Project CRS).")}</div>}
               </div>

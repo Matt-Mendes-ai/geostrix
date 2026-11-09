@@ -130,6 +130,8 @@ const NAD83_CSRS_UTM = {
 const GRS80_ZERO = "+ellps=GRS80 +towgs84=0,0,0,0,0,0,0";
 const SAD69_BRAZIL = "+ellps=aust_SA +towgs84=-66.87,4.37,-38.52,0,0,0,0";
 const SAD69_TAG = "Brazil datum shift, ~5 m";
+const AGD84_SHIFT = "+ellps=aust_SA +towgs84=-117.763,-51.51,139.061,0.292,0.443,0.277,-0.191"; // #2155 — EPSG:1280 / 1669
+const AGD66_SHIFT = "+ellps=aust_SA +towgs84=-117.808,-51.536,137.784,0.303,0.446,0.234,-0.29"; // #2155 — EPSG:15979
 const REGISTRY = new Map(); // code -> { def, name }
 {
   const reg = (code, def, name) => REGISTRY.set(code, { def, name });
@@ -155,6 +157,15 @@ const REGISTRY = new Map(); // code -> { def, name }
   reg(6738, utm(59, true, GRS80_ZERO), "GDA94 / MGA zone 59");
   reg(7844, geog(GRS80_ZERO), "GDA2020 (longitude / latitude)");
   for (let z = 46; z <= 59; z++) reg(7800 + z, utm(z, true, GRS80_ZERO), `GDA2020 / MGA zone ${z}`);
+  // TASKS.csv #2155 (WA drillhole review) — older Australian data on AGD84 / AGD66, the Australian Map Grid (AMG). The Australian National
+  // Spheroid with EPSG's national datum shifts, read from PROJ's own database (QGIS 3.30 proj.db): AGD84 to GDA94 (2), EPSG:1280, 1 m (the
+  // same parameters as AGD84 to WGS 84 (7), EPSG:1669); AGD66 to GDA94 (12), EPSG:15979, 3 m. EPSG gives them as coordinate-frame
+  // rotations; +towgs84 takes position-vector signs, so the rotations are negated. Checked against PROJ 9.1 (cs2cs, its grid-based best
+  // path): AGD84 AMG 51 (400000, 6800000) lands within 0.6 m of PROJ. Zones as EPSG keeps them current (AGD84 49-56, AGD66 49-58).
+  reg(4203, geog(AGD84_SHIFT), "AGD84 (longitude / latitude)");
+  for (let z = 49; z <= 56; z++) reg(20300 + z, utm(z, true, AGD84_SHIFT), `AGD84 / AMG zone ${z}`);
+  reg(4202, geog(AGD66_SHIFT), "AGD66 (longitude / latitude)");
+  for (let z = 49; z <= 58; z++) reg(20200 + z, utm(z, true, AGD66_SHIFT), `AGD66 / AMG zone ${z}`);
   // Europe
   reg(4258, geog(GRS80_ZERO), "ETRS89 (longitude / latitude)");
   for (let z = 28; z <= 37; z++) reg(25800 + z, utm(z, false, GRS80_ZERO), `ETRS89 / UTM zone ${z}N`);
@@ -180,6 +191,9 @@ export function datumNote(epsg) {
     if (flags & 1) notes.push(tr("A more accurate grid-based shift exists, which GeoStrix doesn't include yet."));
     return notes.length ? notes.join(" ") : null;
   }
+  // #2155 — AGD: a national 7-parameter fit, not the NTv2 grids PROJ prefers
+  if (REGISTRY.get(c)?.def.includes(AGD84_SHIFT)) return tr("AGD84: EPSG's national datum shift is applied (EPSG:1280, about 1 m). The NTv2 grid is more accurate and is not included.");
+  if (REGISTRY.get(c)?.def.includes(AGD66_SHIFT)) return tr("AGD66: EPSG's national datum shift is applied (EPSG:15979, about 3 m). The NTv2 grid and the state fits are more accurate and are not included.");
   if (REGISTRY.get(c)?.def.includes(SAD69_BRAZIL)) {
     return tr("SAD69: Brazil's IBGE datum shift is applied (EPSG:1877, about 5 m in Brazil). Elsewhere in South America the right shift differs by country and this can be 10–25 m out. Not survey-grade.");
   }
@@ -419,6 +433,14 @@ function guessEpsgFromPrjName(wkt) {
     for (const [code, e] of REGISTRY) if (prefix && e.name === `${prefix} / MGA zone ${zone}`) return code;
     return null;
   }
+  // TASKS.csv #2155 — the Australian Map Grid on AGD84 / AGD66 (AGD_1984_AMG_Zone_51)
+  const amg = w.match(/AMG[_ ]ZONE[_ ]?(\d{2})/);
+  if (amg) {
+    const zone = Number(amg[1]);
+    const prefix = /AGD_?1984|AGD84|AUSTRALIAN_1984/.test(w) ? "AGD84" : /AGD_?1966|AGD66|AUSTRALIAN_1966/.test(w) ? "AGD66" : null;
+    for (const [code, e] of REGISTRY) if (prefix && e.name === `${prefix} / AMG zone ${zone}`) return code;
+    return null;
+  }
   if (w.includes("CANADA_ATLAS_LAMBERT") && w.includes("CSRS")) return 3979; // #415
   if (w.includes("MERCATOR_AUXILIARY_SPHERE") || w.includes("PSEUDO-MERCATOR") || w.includes("PSEUDO_MERCATOR") || w.includes("WEB_MERCATOR")) return 3857; // #415
   if (w.includes("NEW_ZEALAND_TRANSVERSE_MERCATOR") || w.includes("NZGD_2000_NEW_ZEALAND_TRANSVERSE") || w.includes("NZTM")) return 2193;
@@ -427,6 +449,8 @@ function guessEpsgFromPrjName(wkt) {
     // #489 — national frames before WGS 84 (their WKT may carry a TOWGS84[...] clause)
     if (w.includes("SIRGAS")) return 4674;
     if (w.includes("SAD_1969") || w.includes("SAD69") || w.includes("SOUTH_AMERICAN_1969")) return 4618;
+    if (/AUSTRALIAN_1984|AGD_?1984|AGD84/.test(w)) return 4203; // #2155
+    if (/AUSTRALIAN_1966|AGD_?1966|AGD66/.test(w)) return 4202;
     if (w.includes("GDA2020")) return 7844;
     if (w.includes("GDA_1994") || w.includes("GDA94")) return 4283;
     if (w.includes("ETRS")) return 4258;
