@@ -29,7 +29,7 @@ test("a tool that needs the real world says first it is not available on the gri
 
 test("the store, the dialog's third answer, the status bar and the imports", () => {
   const st = readFileSync(new URL("../src/lib/store.jsx", import.meta.url), "utf8");
-  assert.match(st, /const setLocalGrid = useCallback\(\(name\) => setProject\(\(p\) => \(\{ \.\.\.p, crsSet: false, localGrid: \{ name: String\(name \?\? ""\)\.trim\(\) \} \}\)\), \[\]\);/);
+  assert.match(st, /const setLocalGrid = useCallback\(\(name\) => setProject\(\(p\) => \(\{ \.\.\.p, crsSet: false, localGrid: \{ \.\.\.\(p\.localGrid \|\| \{\}\), name: String\(name \?\? ""\)\.trim\(\) \} \}\)\), \[\]\);/); // keeps a tie (#2288)
   assert.match(st, /epsg, crsSet: true, localGrid: null \}\)\), \[\]\);/); // a chosen CRS ends the local grid
   const m = readFileSync(new URL("../src/components/ProjectCrsModal.jsx", import.meta.url), "utf8");
   assert.match(m, /These are local mine-grid coordinates: keep them, no CRS/);

@@ -943,7 +943,9 @@ export function StoreProvider({ children }) {
   const setEpsg = useCallback((epsg) => setProject((p) => ({ ...p, epsg, crsSet: true, localGrid: null })), []); // #615 — any explicit choice sets it (and ends a local grid, #2180)
   // TASKS.csv #2180 (review #2174, WA gold) — a local mine grid with no CRS is a project state of its own: coordinates kept as they are, no
   // placeholder CRS used for anything that needs the real world, and no CRS question on each later file. name: the grid's own name, or ""
-  const setLocalGrid = useCallback((name) => setProject((p) => ({ ...p, crsSet: false, localGrid: { name: String(name ?? "").trim() } })), []);
+  const setLocalGrid = useCallback((name) => setProject((p) => ({ ...p, crsSet: false, localGrid: { ...(p.localGrid || {}), name: String(name ?? "").trim() } })), []);
+  // TASKS.csv #2288 — the local grid's tie to a real CRS (lib/localGridTie.js), or null to remove it
+  const setLocalGridTie = useCallback((tie) => setProject((p) => ({ ...p, crsSet: false, localGrid: { name: "", ...(p.localGrid || {}), tie: tie || null } })), []);
   // TASKS.csv #485 — Cartography: move EVERYTHING in the open project into another CRS (projectReproject.js for
   // the coordinates, rasterImagesReproject.js for the drape pictures), then reload it through the normal load
   // path so the 3D view rebuilds every object (generated surfaces are only re-read from the store on a load).
@@ -1649,7 +1651,7 @@ export function StoreProvider({ children }) {
   }, [activeLayoutPageId, clearUndoHistory]);
 
   const value = {
-    project, setEpsg, setLocalGrid /* #2180 */, setProjectName, reprojectProjectTo, reprojectObjectTo, // #485 / #486
+    project, setEpsg, setLocalGrid /* #2180 */, setLocalGridTie /* #2288 */, setProjectName, reprojectProjectTo, reprojectObjectTo, // #485 / #486
     sampleRequest, requestSampleProject, clearSampleRequest, // TASKS.csv #1120
     projectIsEmpty: !hasWork, // TASKS.csv #607 — nothing loaded yet (same test as autosave): an import may adopt its CRS
     desurveyMethod, setDesurveyMethod, // TASKS.csv #135

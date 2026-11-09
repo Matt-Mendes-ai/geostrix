@@ -19,6 +19,7 @@ import { terrainGroundAt } from "../../lib/viewer/geomath.js"; // #2169 — a co
 import { azimuthToGridOffset, wrap360, loadIgrf, detectAzimuthRef } from "../../lib/azimuthRef.js"; // loadIgrf: #552; detectAzimuthRef: #1647
 import { orientFromAlphaBeta, reorientAlphaBetaPicks } from "../../lib/coreOrientation.js";
 import { fitSimilarity, parseControlPoints, transformImportRows } from "../../lib/localGrid.js";
+import { tieOf, fileToLocal, bearingToLocal } from "../../lib/localGridTie.js"; // TASKS.csv #2288
 import { loadSampleFiles } from "../../lib/desktop.js";
 const isXlsxName = (name) => /\.xlsx$/i.test(String(name || "")); // TASKS.csv #605 (same test as xlsx.js; the reader itself loads on demand, #552)
 import { buildLayer, sameMapLayer } from "../../lib/mapLayerBuild.js"; // TASKS.csv #609; sameMapLayer: #2019
@@ -73,6 +74,9 @@ export function useImportPipeline(ctx) {
   // TASKS.csv #607 — an empty project may take the file's declared CRS (lib/adoptCrs.js). Returns the CRS to import into.
   const adoptCrsIfEmpty = (declared, fileName) => {
     const live = importStateRef.current;
+    // TASKS.csv #2288 — a local-grid project (#2180) keeps its grid: a file's declared CRS is brought in through the tie, never adopted
+    // (found live: an MGA collar file silently ended the local grid and set EPSG:28351 as the project CRS)
+    if (live.project?.crsSet === false && live.project?.localGrid) return null;
     // TASKS.csv #615 — a project whose CRS was never chosen simply takes the file's declared one
     if (live.project?.crsSet === false && Number(declared) > 0 && crsName(declared) && live.setEpsg) {
       const d = Number(declared);
@@ -376,7 +380,24 @@ export function useImportPipeline(ctx) {
       const declaredEpsg = rowCodes.length === 1 && (!sourceEpsg || Number(sourceEpsg) === Number(rowCodes[0])) ? rowCodes[0] : (!rowCodes.length ? sourceEpsg : null);
       if (declaredEpsg) adoptCrsIfEmpty(declaredEpsg, fileName);
       const liveProject = importStateRef.current.project || project; // stale-closure fix, see liveCollars below
-      if (liveProject?.epsg && (perRowEpsgCol || (sourceEpsg && Number(sourceEpsg) !== Number(liveProject.epsg)))) {
+      // TASKS.csv #2288 — a local-grid project (#2180): rows that declare a CRS go INTO the grid through its tie; with no tie they stay as
+      // they are (never 'reprojected' into the placeholder EPSG), and the notice says which
+      const gridTie = liveProject?.crsSet === false && liveProject?.localGrid ? tieOf(liveProject) : null;
+      if (liveProject?.crsSet === false && liveProject?.localGrid && (perRowEpsgCol || sourceEpsg)) {
+        let moved = 0, kept = 0, failed = 0;
+        rows.forEach((r) => {
+          const fromEpsg = Number(r._rowEpsg || sourceEpsg) || null;
+          if (!fromEpsg) { kept++; return; }
+          if (!gridTie) { kept++; return; }
+          const p = fileToLocal(gridTie, r.x, r.y, fromEpsg);
+          if (!p) { failed++; return; }
+          r.x = p.x; r.y = p.y; moved++;
+          if (Number.isFinite(r.azimuth) && (!azimuthRef || azimuthRef === "grid")) r.azimuth = bearingToLocal(gridTie, r.azimuth);
+        });
+        reprojectNote = gridTie
+          ? " " + tr("On import: {moved} row(s) brought into the local grid through its tie to EPSG:{tie}{v}.", { moved, tie: gridTie.epsg, v: failed ? tr("; {failed} could not be placed and kept their numbers", { failed }) : "" })
+          : " " + tr("The file declares a coordinate system, but this project is on a local mine grid with no tie to one: the {kept} row(s) keep their numbers. Tie the grid to a CRS in Maps > Project CRS to bring such files in.", { kept });
+      } else if (liveProject?.epsg && (perRowEpsgCol || (sourceEpsg && Number(sourceEpsg) !== Number(liveProject.epsg)))) {
         const toEpsg = liveProject.epsg;
         const groups = new Map(); // fromEpsg key ("" = fall back to global sourceEpsg) -> rows in that group
         rows.forEach((r) => {
