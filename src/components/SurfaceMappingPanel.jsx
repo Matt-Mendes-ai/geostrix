@@ -4,7 +4,7 @@
 //   * Surface structures: outcrop strike/dip CSVs rendered as dip symbols on the terrain.
 // Its own component rather than more inline JSX in GeophysicsModule (already ~1,500 lines); it talks
 // to the store directly, the same way AddWebLayerModal does.
-import React, { useRef, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import SourceCrsField from "../components/SourceCrsField.jsx"; // TASKS.csv #488
 import AzimuthRefPicker from "./AzimuthRefPicker.jsx"; // TASKS.csv #547
 import { bearingsToGrid, northRefText, loadIgrf } from "../lib/azimuthRef.js";
@@ -19,7 +19,7 @@ import { buildLayer, findField, autoColorFor, projectClipBox } from "../lib/mapL
 import { askAdoptCrs } from "../lib/adoptCrs.js"; // TASKS.csv #607
 import {
   parseQmlStyle, autoCategories, applyQmlToCategories,
-  guessStructureColumns, parseStructureRows, STRUCTURE_CLASS_COLORS, STRUCTURE_CLASS_LABELS,
+  guessStructureColumns, parseStructureRows, STRUCTURE_CLASS_COLORS, STRUCTURE_CLASS_LABELS, STRUCTURE_CLASSES, structureClass, structureCodeKey, /* #2266 */
 } from "../lib/mapLayers.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
@@ -45,7 +45,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
     project, terrain, projectIsEmpty, setEpsg, // #607
     mapLayers, addMapLayer, updateMapLayer, removeMapLayer,
     surfaceStructures, addSurfaceStructureSet, updateSurfaceStructureSet, removeSurfaceStructureSet,
-  collars = [], /* #1325 */ surfaceSamples = [], /* #1715 */ survey = [], layers = {}, desurveyMethod, viewerUiState, /* #1719 */ } = useStore();
+  collars = [], /* #1325 */ surfaceSamples = [], /* #1715 */ survey = [], layers = {}, desurveyMethod, viewerUiState, /* #1719 */ setStructureCodeClasses /* #2266 */ } = useStore();
   const mapInput = useRef(null);
   const qmlInput = useRef(null);
   const qmlTargetRef = useRef(null);
@@ -388,8 +388,19 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
       setStructMsg({ ok: false, text: tr("Pick at least easting, northing, dip, and either dip direction or strike.") });
       return;
     }
-    const out = parseStructureRows(p.rows, p.cols);
+    // TASKS.csv #2266 — the classes picked on the card for codes no rule knows, kept for this project (later imports, typed measurements)
+    const picked = Object.fromEntries(Object.entries(p.codeClasses || {}).filter(([, v]) => v && v !== "other"));
+    const codeClasses = { ...(project?.structureCodeClasses || {}), ...picked };
+    const out = parseStructureRows(p.rows, p.cols, codeClasses);
     if (!out.rows.length) { setStructMsg({ ok: false, text: tr("No rows had usable coordinates and dip.") }); return; }
+    if (Object.keys(picked).length) {
+      setStructureCodeClasses(picked);
+      // the sets already loaded with those codes take the class too, so one code is not two classes in the project
+      surfaceStructures.forEach((set) => {
+        if (!(set.rows || []).some((r) => picked[structureCodeKey(r.type)] && r.cls !== picked[structureCodeKey(r.type)])) return;
+        updateSurfaceStructureSet(set.id, { rows: set.rows.map((r) => (picked[structureCodeKey(r.type)] ? { ...r, cls: picked[structureCodeKey(r.type)] } : r)) });
+      });
+    }
     const src = Number(p.sourceEpsg), dst = Number(project?.epsg);
     let crsNote = "";
     if (src && dst && src !== dst) {
@@ -440,12 +451,20 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
         + (out.quadrantUnread ? tr(" {n} dip quadrant(s) could not be read (not N, NE, E…), so the strike convention was used there.", { n: out.quadrantUnread }) : "")
         + (out.rhrMismatches ? (out.strikeRule === "lhr" ? tr(" {rhrMismatches} row(s) have a strike and dip direction that aren't 90° apart by the left-hand rule — the dip direction was used; check whether those strikes are right-hand-rule.", { rhrMismatches: out.rhrMismatches }) : tr(" {rhrMismatches} row(s) have a strike and dip direction that aren't 90° apart — the dip direction was used; check whether those strikes are left-hand-rule.", { rhrMismatches: out.rhrMismatches })) : "")
         + (noZ ? (terrain ? tr(" {noZ} had no elevation and sit on the terrain{v}.", { noZ, v: "" }) : tr(" {noZ} had no elevation: drawn flat until a terrain is loaded (Maps > Terrain), then placed on it.", { noZ })) : "") // #1448 — they were said to 'sit on the terrain' with none loaded
-        + (otherTypes.length ? tr(" Type code(s) {codes} are classed as Other: not a fault, breccia, vein, contact, joint, bedding, foliation or cleavage code GeoStrix knows. Rename them in the file to class them.", { codes: otherTypes.slice(0, 8).join(", ") + (otherTypes.length > 8 ? "…" : "") }) : "") // #2082
+        + (otherTypes.length ? tr(" Type code(s) {codes} are classed as Other: not a fault, breccia, vein, contact, joint, bedding, foliation or cleavage code GeoStrix knows. Pick a class for each on the import card (kept for this project), or rename them in the file.", { codes: otherTypes.slice(0, 8).join(", ") + (otherTypes.length > 8 ? "…" : "") }) : "") // #2082
         + crsNote + northNote,
     });
     setPendingStruct(null);
   };
 
+  // TASKS.csv #2266 — the pending file's type codes that would be Other (no rule, no class kept for this project), most frequent first
+  const unknownCodes = useMemo(() => {
+    const col = pendingStruct?.cols?.type;
+    if (!col || pendingStruct.typed) return [];
+    const m = new Map();
+    pendingStruct.rows.forEach((r) => { const k = structureCodeKey(r[col]); if (k && structureClass(k, project?.structureCodeClasses) === "other") m.set(k, (m.get(k) || 0) + 1); });
+    return [...m].sort((a, b) => b[1] - a[1]);
+  }, [pendingStruct?.rows, pendingStruct?.cols?.type, pendingStruct?.typed, project?.structureCodeClasses]);
   const card = { marginTop: 10, padding: "9px 10px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-base)" };
   const row = { display: "flex", alignItems: "center", gap: 6, marginTop: 7 };
   const lbl = { color: "var(--color-text-faint)", width: 58, flexShrink: 0 };
@@ -666,6 +685,20 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
             title={tr("The CRS of this file's easting/northing. It is reprojected into the project CRS on import.")}
           />
           <AzimuthRefPicker value={pendingStruct.north} onChange={(n) => setPendingStruct((p) => ({ ...p, north: n }))} selectStyle={select} labelStyle={lbl} rowStyle={row} />
+          {unknownCodes.length > 0 && ( /* TASKS.csv #2266 — a class for each type code no rule knows, in place of 'rename them in the file' */
+            <div style={{ marginTop: 7 }}>
+              <div style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)", lineHeight: 1.4 }}>{tr("Type codes GeoStrix doesn't know would be classed Other. Pick a class for each (kept for this project):")}</div>
+              {unknownCodes.slice(0, 12).map(([code, n]) => (
+                <div key={code} style={row}>
+                  <span style={{ ...lbl, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={code}>{code} ({n})</span>
+                  <select value={pendingStruct.codeClasses?.[code] || "other"} onChange={(e) => setPendingStruct((p) => ({ ...p, codeClasses: { ...(p.codeClasses || {}), [code]: e.target.value } }))} style={select} aria-label={tr("Class for code {code}", { code })}>
+                    {STRUCTURE_CLASSES.map((c) => <option key={c} value={c}>{tr(STRUCTURE_CLASS_LABELS[c])}</option>)}
+                  </select>
+                </div>
+              ))}
+              {unknownCodes.length > 12 && <div style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)" }}>{tr("and {n} more code(s)", { n: unknownCodes.length - 12 })}</div>}
+            </div>
+          )}
           <div style={{ display: "flex", gap: 6, marginTop: 9 }}>
             <button onClick={commitStructs} style={{ ...pBtn, marginBottom: 0, justifyContent: "center" }}>{tr("Import")}</button>
             <button onClick={() => setPendingStruct(null)} style={{ ...pBtn, marginBottom: 0, justifyContent: "center" }}>{tr("Cancel")}</button>

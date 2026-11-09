@@ -9305,7 +9305,6 @@
   "the top of {model}": "أعلى {model}",
   "the surface samples' median elevation": "الارتفاع الوسيط للعينات السطحية",
   "no elevation known": "لا ارتفاع معروف",
-  " Type code(s) {codes} are classed as Other: not a fault, breccia, vein, contact, joint, bedding, foliation or cleavage code GeoStrix knows. Rename them in the file to class them.": " رموز النوع {codes} مصنفة «أخرى»: ليست رموز صدع أو بريشيا أو عرق أو تماس أو فاصل أو تطبق أو تورق أو انفصام يعرفها GeoStrix. أعد تسميتها في الملف لتصنيفها.",
   "Dip quadrant": "ربع الميل",
   "Strikes": "المضارب",
   "Strike convention": "اصطلاح المضرب",
@@ -9465,5 +9464,10 @@
   "No terrain, and the collars look underground: the collar is placed where this line meets a surface through the drill collars (a level between drill positions, not the ground), {h} m from the target in plan. Type the drill level's RL, or load a terrain.": "لا تضاريس، والفوهات تبدو تحت الأرض: توضع الفوهة حيث يلتقي هذا الخط بسطح يمر بفوهات الحفر (مستوى بين مواقع الحفر، لا سطح الأرض)، على بُعد {h} م من الهدف في المسقط. أدخل منسوب مستوى الحفر، أو حمّل تضاريس.",
   "No terrain is loaded and the collars look underground: the Elev is on a surface through the drill collars, a level between drill positions, not the ground (the flat plane through the data would have given {p} m). Type the drill level's RL, or load a terrain.": "لا توجد تضاريس محمّلة والفوهات تبدو تحت الأرض: الارتفاع على سطح يمر بفوهات الحفر، مستوى بين مواقع الحفر لا سطح الأرض (كان المستوى المار بالبيانات سيعطي {p} م). أدخل منسوب مستوى الحفر، أو حمّل تضاريس.",
   "The collars look underground ({upward} hole(s) drilled upward, {stacked} pair(s) of collars stacked over each other): these points would be the first logged unit at the drill positions on the mine levels, not a subcrop map. Make them anyway?": "تبدو الفوهات تحت الأرض ({upward} ثقب محفور إلى الأعلى، {stacked} زوج من الفوهات فوق بعضها): ستكون هذه النقاط أول وحدة مسجّلة عند مواقع الحفر في مستويات المنجم، لا خريطة تحت المكشف. أإنشاؤها على أي حال؟",
-  "Units at the collars": "الوحدات عند الفوهات"
+  "Units at the collars": "الوحدات عند الفوهات",
+  "Type codes GeoStrix doesn't know would be classed Other. Pick a class for each (kept for this project):": "رموز الأنواع التي لا يعرفها GeoStrix ستُصنَّف «أخرى». اختر صنفًا لكل منها (يُحفظ لهذا المشروع):",
+  "Class for code {code}": "صنف الرمز {code}",
+  "and {n} more code(s)": "و{n} رمز آخر",
+  "No orientation to build from: none of the {n} outcrop measurement(s) is in a class ticked under 'Orientations from' ({other} are classed Other), and no contact dip could be fitted from the map traces on this terrain. Tick a class above, or give the type codes a class when importing them in Surface Geology.": "لا توجد اتجاهات للبناء: لا يقع أي من قياسات المكاشف الـ{n} في صنف محدَّد تحت «الاتجاهات من» ({other} مصنفة «أخرى»)، ولم يمكن ملاءمة ميل أي تماس من آثار الخريطة على هذه التضاريس. حدِّد صنفًا أعلاه، أو أعطِ رموز الأنواع صنفًا عند استيرادها في جيولوجيا السطح.",
+  " Type code(s) {codes} are classed as Other: not a fault, breccia, vein, contact, joint, bedding, foliation or cleavage code GeoStrix knows. Pick a class for each on the import card (kept for this project), or rename them in the file.": " رموز النوع {codes} مصنفة «أخرى»: ليست رموز صدع أو بريشيا أو عرق أو تماس أو فاصل أو تطبق أو تورق أو انفصام يعرفها GeoStrix. اختر صنفًا لكل منها في بطاقة الاستيراد (يُحفظ لهذا المشروع)، أو أعد تسميتها في الملف."
 }

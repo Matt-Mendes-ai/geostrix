@@ -9305,7 +9305,6 @@
   "the top of {model}": "o topo de {model}",
   "the surface samples' median elevation": "a elevação mediana das amostras de superfície",
   "no elevation known": "nenhuma elevação conhecida",
-  " Type code(s) {codes} are classed as Other: not a fault, breccia, vein, contact, joint, bedding, foliation or cleavage code GeoStrix knows. Rename them in the file to class them.": " Os códigos de tipo {codes} são classificados como Outro: não são um código de falha, brecha, veio, contato, junta, acamamento, foliação ou clivagem que o GeoStrix conheça. Renomeie-os no arquivo para classificá-los.",
   "Dip quadrant": "Quadrante de mergulho",
   "Strikes": "Direções",
   "Strike convention": "Convenção da direção",
@@ -9465,5 +9464,10 @@
   "No terrain, and the collars look underground: the collar is placed where this line meets a surface through the drill collars (a level between drill positions, not the ground), {h} m from the target in plan. Type the drill level's RL, or load a terrain.": "Sem terreno, e os colares parecem subterrâneos: o colar é posto onde esta linha encontra uma superfície pelos colares (um nível entre posições de perfuração, não o terreno), a {h} m do alvo em planta. Informe o RL do nível de perfuração ou carregue um terreno.",
   "No terrain is loaded and the collars look underground: the Elev is on a surface through the drill collars, a level between drill positions, not the ground (the flat plane through the data would have given {p} m). Type the drill level's RL, or load a terrain.": "Nenhum terreno carregado e os colares parecem subterrâneos: a cota está numa superfície pelos colares, um nível entre posições de perfuração, não o terreno (o plano pelos dados daria {p} m). Informe o RL do nível de perfuração ou carregue um terreno.",
   "The collars look underground ({upward} hole(s) drilled upward, {stacked} pair(s) of collars stacked over each other): these points would be the first logged unit at the drill positions on the mine levels, not a subcrop map. Make them anyway?": "Os colares parecem subterrâneos ({upward} furo(s) perfurados para cima, {stacked} par(es) de colares sobrepostos): estes pontos seriam a primeira unidade registrada nas posições de perfuração dos níveis da mina, não um mapa de subafloramento. Criá-los mesmo assim?",
-  "Units at the collars": "Unidades nos colares"
+  "Units at the collars": "Unidades nos colares",
+  "Type codes GeoStrix doesn't know would be classed Other. Pick a class for each (kept for this project):": "Os códigos de tipo que o GeoStrix não conhece ficariam como Outro. Escolha uma classe para cada um (guardada neste projeto):",
+  "Class for code {code}": "Classe para o código {code}",
+  "and {n} more code(s)": "e mais {n} código(s)",
+  "No orientation to build from: none of the {n} outcrop measurement(s) is in a class ticked under 'Orientations from' ({other} are classed Other), and no contact dip could be fitted from the map traces on this terrain. Tick a class above, or give the type codes a class when importing them in Surface Geology.": "Nenhuma orientação para construir: nenhuma das {n} medição(ões) de afloramento está numa classe marcada em 'Orientações de' ({other} estão classificadas como Outro), e nenhum mergulho de contato pôde ser ajustado pelos traços do mapa neste terreno. Marque uma classe acima, ou dê uma classe aos códigos de tipo ao importá-los em Geologia de superfície.",
+  " Type code(s) {codes} are classed as Other: not a fault, breccia, vein, contact, joint, bedding, foliation or cleavage code GeoStrix knows. Pick a class for each on the import card (kept for this project), or rename them in the file.": " Os códigos de tipo {codes} são classificados como Outro: não são um código de falha, brecha, veio, contato, junta, acamamento, foliação ou clivagem que o GeoStrix conheça. Escolha uma classe para cada um no cartão de importação (guardada neste projeto), ou renomeie-os no arquivo."
 }

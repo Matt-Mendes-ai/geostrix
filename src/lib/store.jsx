@@ -1014,6 +1014,8 @@ export function StoreProvider({ children }) {
   // back "minimumCurvature" and nothing about an existing project changes.
   const desurveyMethod = normalizeDesurveyMethod(project.desurveyMethod);
   const setDesurveyMethod = useCallback((m) => setProject((p) => ({ ...p, desurveyMethod: normalizeDesurveyMethod(m) })), []);
+  // TASKS.csv #2266 — the class a structure type code no rule knows was given (code -> class), kept with the project like desurveyMethod
+  const setStructureCodeClasses = useCallback((m) => setProject((p) => ({ ...p, structureCodeClasses: { ...(p.structureCodeClasses || {}), ...m } })), []);
 
   const mergeLayer = useCallback((key, rows) => setLayers((p) => ({ ...p, [key]: [...(p[key] || []), ...rows] })), []);
   const replaceLayer = useCallback((key, rows) => setLayers((p) => ({ ...p, [key]: rows })), []);
@@ -1648,6 +1650,7 @@ export function StoreProvider({ children }) {
     sampleRequest, requestSampleProject, clearSampleRequest, // TASKS.csv #1120
     projectIsEmpty: !hasWork, // TASKS.csv #607 — nothing loaded yet (same test as autosave): an import may adopt its CRS
     desurveyMethod, setDesurveyMethod, // TASKS.csv #135
+    setStructureCodeClasses, // #2266
     collars, setCollars,
     survey, setSurvey,
     layers, setLayers, mergeLayer, replaceLayer,

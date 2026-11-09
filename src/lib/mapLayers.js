@@ -438,17 +438,24 @@ export function guessStructureColumns(headers) {
 // Normalizes a structure type string to a short canonical class used for colouring and filtering.
 // TASKS.csv #2082 (review #2013, Surface Geology) — the drillhole logs' own abbreviations (FLT, FLTG, FLTBX, FRAC, CF, BRX…, BC acQuire style) all
 // fell into 'Other' because only whole words were tested: a code (or its first token) is read first, then the words as before.
+// TASKS.csv #2266 (review #2174, WA lode gold) — that log's SH / SC (shear, S-C fabric), the VN* family (VNM, VNS, VNX, VNQ…), CNL (crenulation),
+// SO (S-zero) and DYK all fell into Other: added. A code no rule knows can be given a class per project on the import card (codeClasses).
 const CODE_CLASS = [
-  [/^(flt\w*|fz|flz|shr|shz|sz|gge|gouge)$/, "fault"],
+  [/^(flt\w*|fz|flz|sh|shr|shz|shear\w*|sz|sc|scz|gge|gouge)$/, "fault"],
   [/^(bx|brx|bxx|brec\w*)$/, "breccia"],
-  [/^(vn|vns|qv|qtzv|vein\w*)$/, "vein"],
-  [/^(cf|con|cont|ctc|ctct)$/, "contact"],
+  [/^(vn\w*|vbr|qv|qzv|qtzv|vein\w*)$/, "vein"],
+  [/^(cf|con|cont|ctc|ctct|dyk|dyke|dk)$/, "contact"],
   [/^(frac\w*|fr|frx|jt|jnt|jts)$/, "joint"],
-  [/^(bd|bdg|bed\w*|ss0|s0)$/, "bedding"],
+  [/^(bd|bdg|bed\w*|ss0|s0|so)$/, "bedding"],
   [/^(fol|fo|s1|s2)$/, "foliation"],
-  [/^(clv|clvg)$/, "cleavage"],
+  [/^(clv|clvg|cnl|cren\w*|crn|s3)$/, "cleavage"],
 ];
-export function structureClass(t) {
+export const STRUCTURE_CLASSES = ["fault", "breccia", "vein", "contact", "joint", "bedding", "foliation", "cleavage", "other"];
+// The key a per-project class choice is stored under: the type as written, trimmed and upper-cased
+export const structureCodeKey = (t) => String(t ?? "").trim().toUpperCase();
+export function structureClass(t, codeClasses = null) {
+  const own = codeClasses && codeClasses[structureCodeKey(t)]; // #2266 — the project's own choice first
+  if (own && STRUCTURE_CLASSES.includes(own)) return own;
   const s = String(t || "").toLowerCase();
   const first = s.trim().split(/[^a-z0-9]+/).filter(Boolean)[0] || "";
   for (const [re, cls] of CODE_CLASS) if (re.test(first)) return cls; // #2082
@@ -469,7 +476,7 @@ export function structureClass(t) {
 // rhrMismatches } — a mismatch is a row whose recorded strike and dip direction don't differ by 90°,
 // reported (not corrected) because it usually means a left-hand-rule strike or a typo, and only the
 // geologist knows which.
-export function parseStructureRows(rawRows, cols) {
+export function parseStructureRows(rawRows, cols, codeClasses = null) {
   // TASKS.csv #430 — the old /[^\d.+-eE]/ held a RANGE '+'..'e' (digits, capitals, a-e), so "65 deg" became
   // "65de" and "dip 65" "dip65" and both were skipped. Strip degree marks and a leading label only; anything
   // else that isn't a plain number (e.g. quadrant "N45E") still counts as skipped, never guessed.
@@ -503,7 +510,7 @@ export function parseStructureRows(rawRows, cols) {
       if (d > 2 && d < 358) rhrMismatches++;
     }
     const type = cols.type ? String(r[cols.type] ?? "") : "";
-    rows.push({ x, y, z: cols.z ? num(r[cols.z]) : null, dip, dipDir: ((dipDir % 360) + 360) % 360, strike, type, cls: structureClass(type), ...(cols.station ? { station: String(r[cols.station] ?? "").trim() } : {}), comment: cols.comment ? String(r[cols.comment] ?? "") : "" });
+    rows.push({ x, y, z: cols.z ? num(r[cols.z]) : null, dip, dipDir: ((dipDir % 360) + 360) % 360, strike, type, cls: structureClass(type, codeClasses), ...(cols.station ? { station: String(r[cols.station] ?? "").trim() } : {}), comment: cols.comment ? String(r[cols.comment] ?? "") : "" });
   });
   return { rows, skipped, derivedFromStrike, rhrMismatches, fromQuadrant, quadrantUnread, strikeRule: rule };
 }
