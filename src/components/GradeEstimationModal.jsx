@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { buildMeshQuery, isPointInsideMesh, isMeshClosed } from "../lib/meshQuery.js"; // TASKS.csv #517
 import { validateSolid } from "../lib/meshValidate.js"; // TASKS.csv #860
 import { X, Play } from "./icons.js";
-import { compositeDownhole, rawSampleIntervals, PRECIOUS_METALS, capAudit, lengthWeightedPercentile } from "../lib/geochem.js"; // rawSampleIntervals: #571; lengthWeightedPercentile: #1573
+import { compositeDownhole, rawSampleIntervals, PRECIOUS_METALS, capAudit, lengthWeightedPercentile, gradeUnitLabel } from "../lib/geochem.js"; // gradeUnitLabel: #2218; // rawSampleIntervals: #571; lengthWeightedPercentile: #1573
 import CapAuditHint from "./CapAuditHint.jsx"; // TASKS.csv #533
 import EstimateCheck from "./EstimateCheck.jsx"; // TASKS.csv #1051
 import { excludeQAQC, labAssays } from "../lib/qaqc.js"; // TASKS.csv #266
@@ -602,7 +602,7 @@ export default function GradeEstimationModal({ assays: assaysProp, assayElements
           </div>
           {/* TASKS.csv #533 — P97.5 / P99 caps and the capping audit (samples cut, metal removed) */}
           {domainRowsSel && useComposites && <DomainCaps assays={srcAssays} symbol={symbol} unit={unit} elementUnits={elementUnits} domainRows={domainRowsSel} caps={capByDomain} setCaps={setCapByDomain} />}{/* #1571 */}
-          <CapAuditHint assays={srcAssays} symbol={symbol} unit={unit} elementUnits={elementUnits} capValue={Number.isFinite(capValue) && capValue > 0 ? capValue : null} onSetCap={(v) => setCapValue(Number(v.toPrecision(4)))} unitLabel={PRECIOUS_METALS.has(symbol) && unit === "ppm" ? "g/t" : unit} />
+          <CapAuditHint assays={srcAssays} symbol={symbol} unit={unit} unitLabel={gradeUnitLabel(symbol, unit)} /* #2218 */ elementUnits={elementUnits} capValue={Number.isFinite(capValue) && capValue > 0 ? capValue : null} onSetCap={(v) => setCapValue(Number(v.toPrecision(4)))} unitLabel={PRECIOUS_METALS.has(symbol) && unit === "ppm" ? "g/t" : unit} />
 
           {/* TASKS.csv #259 — CV > 150% means a skewed, outlier-driven distribution: the classic setup
               for an uncapped bonanza assay driving IDW² over its whole search neighbourhood. */}
@@ -770,7 +770,7 @@ export default function GradeEstimationModal({ assays: assaysProp, assayElements
               {result.rawStats && (result.rawStats.duplicatesSkipped > 0 || result.rawStats.overlappingRows > 0) && (
                 <div>{tr("Raw assays: {duplicatesSkipped} exact duplicate row(s) left out; {overlappingRows} overlapping row(s) resolved into segments at the mean of the overlapping results.", { duplicatesSkipped: result.rawStats.duplicatesSkipped, overlappingRows: result.rawStats.overlappingRows })}</div>
               )}
-              {result.params?.capValue != null && <div>{tr("Grades capped at {cap} {unit} before estimating.", { cap: result.params.capValue, unit: result.params.capUnit || "" })}</div>}{/* #1736 — said in the result */}
+              {result.params?.capValue != null && <div>{tr("Grades capped at {cap} {unit} before estimating.", { cap: result.params.capValue, unit: result.params.capUnit ? gradeUnitLabel(symbol, result.params.capUnit) : "" /* #2218 */ })}</div>}{/* #1736 — said in the result */}
               <div>{tr("{blocksEstimated} block(s) estimated, {blocksSkipped} left un-estimated (no sample within search radius / below min-samples / below min distinct holes).", { blocksEstimated: result.blocksEstimated.toLocaleString(), blocksSkipped: result.blocksSkipped.toLocaleString() })}</div>
               {(() => { // TASKS.csv #1738 — a zero-block run says which rule emptied it and what would change that
                 const adv = zeroBlockAdvice({ blocksEstimated: result.blocksEstimated, searchRadiusM: result.params?.searchRadiusM ?? searchRadius, minHoles: result.params?.minHoles ?? minHoles, spacing });
@@ -841,7 +841,7 @@ export default function GradeEstimationModal({ assays: assaysProp, assayElements
                   <div style={{ marginTop: 5, color: "var(--color-text-muted)" }}>{tr("Only blocks whose informing composites bracket them on all three axes, from at least two holes, count as interpolated. Everything else with a value is being carried outward from the data rather than between it — a real number, but not an interpolation.")}</div>
                 </div>
               )}
-              {result.blocksEstimated > 0 && result.nnCells && <EstimateCheck cells={result.cells} nnCells={result.nnCells} points={result.checkPoints} unit={unit} symbol={symbol} method={result.params.method} epsg={project?.epsg ?? null} composited={result.params.composited !== false} />}
+              {result.blocksEstimated > 0 && result.nnCells && <EstimateCheck cells={result.cells} nnCells={result.nnCells} points={result.checkPoints} unit={gradeUnitLabel(symbol, unit) /* #2218: display only */} symbol={symbol} method={result.params.method} epsg={project?.epsg ?? null} composited={result.params.composited !== false} />}
               {result.blocksEstimated > 0 && (
                 <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 4 }}>
                   <input placeholder={modelName.trim() ? "" : resultName() /* #1737 — the name the result will get, not the form's current settings */} value={modelName} onChange={(e) => { setModelName(e.target.value); setAdded(false); setAddedSupport(false); }} style={{ ...inp, flex: 1, width: "auto" }} />

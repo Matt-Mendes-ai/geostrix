@@ -6,6 +6,7 @@
 import { LAYER_META, CATEGORICAL_SAFE_COLORS, colorForMedium } from "./layers.js";
 import { STRUCTURE_CLASS_COLORS, STRUCTURE_CLASS_LABELS } from "./mapLayers.js"; // TASKS.csv #1437
 import { legendScale } from "./legendScale.js";
+import { gradeUnitLabel } from "./geochem.js"; // TASKS.csv #2218
 
 // the per-element identity hues of assay markers (moved from ViewerModule; TASKS.csv #306)
 export const ASSAY_ELEMENT_COLORS = [0, 1, 2, 3, 4, 5, 6, 7, 11, 14, 15, 8, 10, 13].map((i) => CATEGORICAL_SAFE_COLORS[i]);
@@ -105,7 +106,10 @@ export function voxelLegendGroups(voxelModels) {
     const hi = Number.isFinite(m.rangeMax) ? Math.min(m.max, m.rangeMax) : m.max;
     // TASKS.csv #356 — a model of named classes (e.g. the implicit model's units) gets swatches, not a numeric ramp.
     if (m.valueLabels && m.stops?.length) { groups.push({ key: `voxel_${m.id}`, label: m.name, items: m.stops.filter((st) => st.value >= lo && st.value <= hi).map((st) => [m.valueLabels[st.value] ?? String(st.value), st.color]) }); return; }
-    groups.push(scaleLegendGroup(`voxel_${m.id}`, m.property && !m.name.includes(m.property) ? `${m.name} — ${m.property}` : m.name, m, lo, hi)); // #711 — say what the values are
+    const base = m.property && !m.name.includes(m.property) ? `${m.name} — ${m.property}` : m.name;
+    // TASKS.csv #2218 — the unit too ('Au estimate (idw2, 10m, r50m) (g/t)'): the legend gave the range with none
+    const u = m.params?.unit ? (m.params?.element ? gradeUnitLabel(m.params.element, m.params.unit) : m.params.unit) : null;
+    groups.push(scaleLegendGroup(`voxel_${m.id}`, u && !base.includes(`(${u})`) && !base.includes(` ${u} `) ? `${base} (${u})` : base, m, lo, hi)); // #711 — say what the values are
   });
   return groups;
 }

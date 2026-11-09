@@ -17,6 +17,7 @@ import { gradeTonnageTable, gradeTonnageRows, autoCutoffs, metalOf, sgSummary, E
 import { useStore } from "../lib/store.jsx"; // TASKS.csv #1216
 import { isMeshClosed } from "../lib/meshQuery.js"; // TASKS.csv #2061
 import { version as APP_VERSION } from "../../package.json";
+import { gradeUnitLabel } from "../lib/geochem.js"; // TASKS.csv #2218
 
 const fmt = (v, d = 0) => (v == null || !Number.isFinite(v) ? "—" : v.toLocaleString(undefined, { maximumFractionDigits: d }));
 const sig = (v) => (v == null || !Number.isFinite(v) ? "—" : Number(v.toPrecision(3)).toLocaleString());
@@ -26,7 +27,8 @@ export default function GradeTonnageModal({ model, epsg, onClose }) {
   useEscapeKey(onClose);
   useFocusTrap();
   const unit = valueUnit(model), metal = metalOf(unit);
-  const element = model.params?.element || null, mcols = metalColumns(metal, element); // #1577 — kg and troy oz for a precious metal, t otherwise
+  const element = model.params?.element || null, mcols = metalColumns(metal, element); // #1577
+  const unitL = element && unit ? gradeUnitLabel(element, unit) : unit; // TASKS.csv #2218 — the label (g/t for gold in ppm); unit stays for the sums and the CSV — kg and troy oz for a precious metal, t otherwise
   const [cutoffText, setCutoffText] = useState(() => autoCutoffs(model.cells, { element, unit }).join(", "));
   const [density, setDensity] = useState("");
   const { layers, generatedSurfaces = [] } = useStore();
@@ -90,7 +92,7 @@ export default function GradeTonnageModal({ model, epsg, onClose }) {
           <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
         </div>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", marginBottom: 10 }}>
-          <label style={{ display: "flex", alignItems: "center", gap: 6, flex: 1, minWidth: 260 }}>{tr("Cutoffs ({unit})", { unit: unit || tr("no unit stated") })}
+          <label style={{ display: "flex", alignItems: "center", gap: 6, flex: 1, minWidth: 260 }}>{tr("Cutoffs ({unit})", { unit: unitL || tr("no unit stated") })}
             <input value={cutoffText} onChange={(e) => setCutoffText(e.target.value)} style={{ ...inp, flex: 1 }} aria-label={tr("Cutoffs, separated by commas")} /></label>
           <label style={{ display: "flex", alignItems: "center", gap: 6 }}>{tr("Density (t/m³)")}
             <input type="number" min={0} step={0.01} value={density} placeholder={tr("required for tonnes")} onChange={(e) => { setDensity(e.target.value); setFromSg(false); }} style={{ ...inp, width: 120 }} /></label>
@@ -152,7 +154,7 @@ export default function GradeTonnageModal({ model, epsg, onClose }) {
             <text x={W - R + 4} y={T + 8} fontSize="10" fill="#c0392b">{compact(g1)}</text>
             <text x={L} y={H - 10} fontSize="10" fill="#55606e">{sig(x0)}</text>
             <text x={W - R} y={H - 10} fontSize="10" textAnchor="end" fill="#55606e">{sig(x1)}</text>
-            <text x={(L + W - R) / 2} y={H - 4} fontSize="10" textAnchor="middle" fill="#55606e">{tr("cutoff ({unit})", { unit: unit || "?" })}</text>
+            <text x={(L + W - R) / 2} y={H - 4} fontSize="10" textAnchor="middle" fill="#55606e">{tr("cutoff ({unit})", { unit: unitL || "?" })}</text>
             <text x={L + 6} y={T + 10} fontSize="10" fill="#2f6fe0">{rho ? tr("tonnes") : tr("volume (m³)")}</text>
             <text x={W - R - 6} y={T + 10} fontSize="10" textAnchor="end" fill="#c0392b">{tr("mean grade")}</text>
           </svg>

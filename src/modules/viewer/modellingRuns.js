@@ -12,7 +12,7 @@ import { makeRng, perturbPoints, perturbOrientation, pointsToMeshDistance, sprea
 import { colorForLithology, colorForAlteration, colorForStructure, minMax, roleForLithology, groupMcodeRole } from "../../lib/layers.js";
 import { computeMeshVolume } from "../../lib/volumetrics.js";
 import { MAX_BLOCKS, SUPPORT_COLORS, MAX_BLOCK_BUDGET, gridBlockCount, cellToFit, NUMERIC_CELL_DEFAULT } from "../../lib/estimationMeta.js"; // NUMERIC_CELL_DEFAULT: #1416; // budget: #625 // #552 — the estimator itself loads in the run functions
-import { compositeDownhole, rawSampleIntervals, capAudit, capAuditText } from "../../lib/geochem.js"; // capAudit: #533; rawSampleIntervals: #571
+import { compositeDownhole, rawSampleIntervals, capAudit, capAuditText, gradeUnitLabel } from "../../lib/geochem.js"; // capAudit: #533; rawSampleIntervals: #571
 import { excludeQAQC } from "../../lib/qaqc.js";
 import { errorNotice, notice, appendNotice, infoNotice } from "../../lib/notices.js"; // infoNotice: #2047
 import { noCollarsNotice } from "../../lib/noCollars.js"; // TASKS.csv #1841 — what is waiting for collars
@@ -2019,7 +2019,8 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
     if (!Number.isFinite(numericCutoff)) { setNotices((p) => [...p, notice("Enter a numeric cutoff grade.")]); return; }
     const elementUnits = Object.fromEntries((numSrc ? srcData.assayElements : assayElements).map((e) => [e.symbol, e.unit]));
     const unit = elementUnits[symbol] || "ppm";
-    const label = `${symbol} > ${numericCutoff} ${unit} shell`;
+    const unitL = gradeUnitLabel(symbol, unit); // TASKS.csv #2218 — what a person reads: 'Au > 1 g/t shell' (#1680); unit stays the stored one
+    const label = `${symbol} > ${numericCutoff} ${unitL} shell`;
     setNumericBusy(true);
     setTaskProgress?.({ label, pct: 20 });
     setTimeout(async () => {
@@ -2074,7 +2075,7 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
           if (points.length < rawPoints.length) setNotices((q) => [...q, notice("Domain \"{name}\": excluded {v} of {rawPoints} assay sample point(s) outside the domain.", { name: gradeDomain.name, v: rawPoints.length - points.length, rawPoints: rawPoints.length })]);
         }
         const above = points.filter((p) => p.value >= numericCutoff).length;
-        if (!above) throw new Error(tr("None of the {points} sample points reach the {numericCutoff} {unit} cutoff — nothing to enclose. Lower the cutoff.", { points: points.length, numericCutoff, unit }));
+        if (!above) throw new Error(tr("None of the {points} sample points reach the {numericCutoff} {unit} cutoff — nothing to enclose. Lower the cutoff.", { points: points.length, numericCutoff, unit: unitL }));
 
         // TASKS.csv #273/#86 — anisotropy: warp every sample into the space where the declared ellipsoid
         // is a sphere, grid and iso-surface there with the isotropic search this tool already does, then
@@ -2174,14 +2175,14 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
         if (!mc.faces.length) {
           let hi = -Infinity; for (const v of grid.values) if (Number.isFinite(v) && v > hi) hi = v;
           const mh = Math.max(1, numericMinHoles), r = Math.round(effectiveRadius);
-          const facts = " " + tr("{above} composite(s) are at or above the cutoff; {e} grid cell(s) were estimated, the highest at {hi} {unit}.", { above, e: grid.estimated.toLocaleString(), hi: Number.isFinite(hi) ? +hi.toPrecision(3) : "—", unit });
+          const facts = " " + tr("{above} composite(s) are at or above the cutoff; {e} grid cell(s) were estimated, the highest at {hi} {unit}.", { above, e: grid.estimated.toLocaleString(), hi: Number.isFinite(hi) ? +hi.toPrecision(3) : "—", unit: unitL });
           // #2063 — cells above the cutoff with no estimated neighbour: the surface has nothing to close against (Woodjam: 36 cells, the highest 8,330 ppm)
           const isolated = hi >= numericCutoff && !numericCloseShell;
           const advice = " " + (isolated ? tr("The cells at or above the cutoff have no estimated neighbours to close a surface against: tick \"Close shell artificially at the search-radius boundary\" (its volume is then an assumption), widen the search{v}.", { v: mh > 1 ? tr(", or lower Min holes from {k} to 1", { k: mh }) : "" })
             : mh > 1
             ? tr("With Min holes {k} a cell needs samples from {k} holes within {r} m, so the blocks around the high composites of widely spaced holes are not estimated: try Min holes 1 (one hole's grade, said in the result) or a wider search.", { k: mh, r })
             : cellRefit ? tr("Try a lower cutoff or a larger search radius.") : tr("Try a lower cutoff, a larger search radius, or a smaller cell size."));
-          throw new Error((isolated ? tr("No {symbol} shell at {numericCutoff} {unit}: the grid has no surface to extract.", { symbol, numericCutoff, unit }) : tr("The interpolated {symbol} grid never crosses {numericCutoff} {unit} — no shell to extract.", { symbol, numericCutoff, unit })) + facts + advice);
+          throw new Error((isolated ? tr("No {symbol} shell at {numericCutoff} {unit}: the grid has no surface to extract.", { symbol, numericCutoff, unit: unitL }) : tr("The interpolated {symbol} grid never crosses {numericCutoff} {unit} — no shell to extract.", { symbol, numericCutoff, unit: unitL })) + facts + advice);
         }
         // TASKS.csv #1735 (review #1645, Copley) — are the composites at/above the cutoff INSIDE the shell built to show them? With
         // Min holes 2 on holes 100-1,350 m apart, the blocks round the only Cu intercept had one hole and were not estimated, so
@@ -2286,10 +2287,10 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
             ? (mh > 1 ? "\"{label}\" contains NONE of the {above} composite(s) at/above {cutoff} {unit}: with Min holes {minHoles} the blocks around them had too few holes and were not estimated, so the shell closed where {minHoles} holes converge, away from the samples. Its volume is not the mineralization. Run with Min holes 1 (its blocks are flagged as informed by one hole) or a wider search to see where the grade was drilled."
               : "\"{label}\" contains NONE of the {above} composite(s) at/above {cutoff} {unit}: no block around them was estimated (the search radius), so the shell is not where the grade was drilled.")
             : "\"{label}\" leaves {outside} of its {above} composite(s) at/above {cutoff} {unit} outside the shell ({noData} of them on blocks that were not estimated): the Min holes rule ({minHoles}) or the search radius removed the blocks around them, so the shell is smaller than the drilled grade.",
-            { label, above: inShell.above, outside: inShell.outside + inShell.noData, noData: inShell.noData, cutoff: numericCutoff, unit, minHoles: mh })]);
+            { label, above: inShell.above, outside: inShell.outside + inShell.noData, noData: inShell.noData, cutoff: numericCutoff, unit: unitL, minHoles: mh })]);
         }
         // TASKS.csv #533 — say what the cap did: samples cut and share of metal removed (on the same QC-excluded raw samples)
-        if (Number.isFinite(numericCapValue) && numericCapValue > 0) setNotices((p) => [...p, `"${label}" ${capAuditText(capAudit(srcAssays, symbol, unit, elementUnits, numericCapValue), unit)}.`]);
+        if (Number.isFinite(numericCapValue) && numericCapValue > 0) setNotices((p) => [...p, `"${label}" ${capAuditText(capAudit(srcAssays, symbol, unit, elementUnits, numericCapValue), unitL)}.`]);
         // TASKS.csv #91/#92 — say what the model is actually supported by, for the whole grid and for
         // the shell surface itself, and point at the sidebar toggle that draws it.
         if (grid.supportCounts) setNotices((p) => [...p, { ...notice("\"{label}\" data support — grid: {v}. Shell surface vertices: {v2}. Only \"interpolated\" means the composites that produced that part of the shell bracket it on all three axes from at least two holes; everything else is grade carried outward from the data. Expand the surface in the list and use \"Colour by data support\" to see where. This is a geometric data-support measure, NOT a statistical confidence or a kriging variance.", { label, v: summarizeSupport(grid.supportCounts).replace(/\.$/, ""), v2: summarizeSupport(surfCounts).replace(/\.$/, "") /* #1423 */ }), level: "info" /* #1418: the counts name "unsupported" cells, which read as an error */ }]);
