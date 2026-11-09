@@ -26,6 +26,7 @@ import DcipMergePanel from "./DcipMergePanel.jsx"; // TASKS.csv #640
 import Dcip3dPanel from "./Dcip3dPanel.jsx"; // TASKS.csv #643
 import Dcip3dArrayPanel from "./Dcip3dArrayPanel.jsx"; // TASKS.csv #1967 — a 3D array from its electrode coordinates
 import { percentile } from "../lib/sectionMerge.js";
+import { pseudoFrame, pseudoColourScale } from "../lib/pseudosectionPlot.js"; // TASKS.csv #2074
 import { parseStationFile, matchStationLine, fitStationLine, stationGroundProfile, linePlacement } from "../lib/dcipStations.js";
 import { reprojectXY, getProj4DefSync } from "../lib/reproject.js";
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
@@ -509,18 +510,46 @@ export default function DcipPanel({ pBtn, numInput, resultSlot = null }) {
 }
 
 // the data as a pseudosection: each reading at its mid-point / pseudo-depth, coloured by log resistivity
+// TASKS.csv #2074 — with a station axis, a pseudo-depth axis, a colour bar, a Resistivity / Chargeability toggle and the plotting convention
 function Pseudosection({ parsed, large = false }) {
-  const pts = pseudoPositions(parsed.readings);
-  const W = 300, H = 110;
-  const smin = arrMin(pts.map((p) => p.s)), smax = arrMax(pts.map((p) => p.s)), dmax = arrMax(pts.map((p) => p.depth)) || 1;
-  const model = { stops: logStops(arrMin(parsed.rho), arrMax(parsed.rho)), colorMode: "continuous" };
-  const x = (s) => 8 + ((s - smin) / (smax - smin || 1)) * (W - 16), y = (d) => 8 + (d / dmax) * (H - 16);
+  const hasIp = Array.isArray(parsed.ip) && parsed.ip.some(Number.isFinite);
+  const [kind, setKind] = useState("resistivity");
+  const field = hasIp ? kind : "resistivity";
+  const pts = useMemo(() => pseudoPositions(parsed.readings), [parsed.readings]);
+  const f = useMemo(() => pseudoFrame(pts, large ? { W: 640, H: 260 } : {}), [pts, large]); // large: drawn bigger, not scaled up (labels stay small)
+  const vals = field === "resistivity" ? parsed.rho : parsed.ip;
+  const sc = useMemo(() => pseudoColourScale(vals, field), [vals, field]);
+  const { W, H } = f;
+  const label = field === "resistivity" ? tr("Apparent resistivity pseudosection") : tr("Apparent chargeability pseudosection");
+  const tick = { fontSize: 8, fill: "var(--color-text-muted)" };
+  const BW = Math.round(W / 2);
   return (
     <div style={{ marginTop: 8 }}>
-      <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{tr("Data (pseudosection): apparent resistivity {v}–{v2} ohm·m", { v: sig3(arrMin(parsed.rho)), v2: sig3(arrMax(parsed.rho)) })}</div>
-      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} role="img" aria-label={tr("Apparent resistivity pseudosection")} style={{ display: "block", width: "100%", maxWidth: large ? "none" : W, height: "auto", background: "var(--color-bg-subtle)", borderRadius: 4 }}>
-        {pts.map((p, i) => <circle key={i} cx={x(p.s)} cy={y(p.depth)} r={2.6} fill={colorForVoxelValue(model, parsed.rho[i])} />)}
+      <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+        <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{field === "resistivity"
+          ? tr("Data (pseudosection): apparent resistivity {v}–{v2} ohm·m", { v: sig3(arrMin(parsed.rho)), v2: sig3(arrMax(parsed.rho)) })
+          : tr("Data (pseudosection): apparent chargeability {v}–{v2} mV/V", { v: sig3(arrMin(parsed.ip.filter(Number.isFinite))), v2: sig3(arrMax(parsed.ip.filter(Number.isFinite))) })}</span>
+        {hasIp && [["resistivity", tr("Resistivity")], ["chargeability", tr("Chargeability")]].map(([v, l]) => (
+          <button key={v} onClick={() => setKind(v)} aria-pressed={v === field} style={{ fontSize: "var(--font-size-xs)", padding: "1px 7px", border: "1px solid var(--color-border)", borderRadius: 4, background: v === field ? "var(--color-selected-bg)" : "var(--color-bg)", color: "var(--color-text)", cursor: "pointer" }}>{l}</button>
+        ))}
+      </div>
+      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} role="img" aria-label={label} style={{ display: "block", width: "100%", maxWidth: W, height: "auto", background: "var(--color-bg-subtle)", borderRadius: 4 }}>
+        {f.sTicks.map((s) => <g key={`s${s}`}><line x1={f.x(s)} x2={f.x(s)} y1={H - f.bottom} y2={H - f.bottom + 3} stroke="var(--color-text-muted)" strokeWidth={0.6} /><text x={f.x(s)} y={H - f.bottom + 11} textAnchor="middle" style={tick}>{sig3(s)}</text></g>)}
+        {f.dTicks.map((d) => <g key={`d${d}`}><line x1={f.left - 3} x2={f.left} y1={f.y(d)} y2={f.y(d)} stroke="var(--color-text-muted)" strokeWidth={0.6} /><text x={f.left - 5} y={f.y(d) + 3} textAnchor="end" style={tick}>{sig3(d)}</text></g>)}
+        <line x1={f.left} x2={W - f.right} y1={H - f.bottom} y2={H - f.bottom} stroke="var(--color-border)" strokeWidth={0.6} />
+        <line x1={f.left} x2={f.left} y1={f.top} y2={H - f.bottom} stroke="var(--color-border)" strokeWidth={0.6} />
+        <text x={(f.left + W - f.right) / 2} y={H - 1} textAnchor="middle" style={tick}>{tr("Distance along the line (m)")}</text>
+        <text transform={`translate(8 ${(f.top + H - f.bottom) / 2}) rotate(-90)`} textAnchor="middle" style={tick}>{tr("Pseudo-depth (m)")}</text>
+        {pts.map((p, i) => { const v = vals[i]; const ok = sc && Number.isFinite(v) && (!sc.log || v > 0); return <circle key={i} cx={f.x(p.s)} cy={f.y(p.depth)} r={2.6} fill={ok ? colorForVoxelValue(sc.model, v) : "var(--color-text-muted)"} />; })}
       </svg>
+      {sc && (
+        <svg width={W} height={22} viewBox={`0 0 ${W} 22`} role="img" aria-label={tr("Colour bar, {v}–{v2} {unit}", { v: sig3(sc.lo), v2: sig3(sc.hi), unit: sc.unit })} style={{ display: "block", width: "100%", maxWidth: W, height: "auto", marginTop: 2 }}>
+          {sc.bar.map((v, i) => <rect key={i} x={f.left + (i * BW) / sc.bar.length} y={1} width={BW / sc.bar.length + 0.3} height={8} fill={colorForVoxelValue(sc.model, v)} />)}
+          {sc.labels.map((v, i) => <text key={i} x={f.left + (i * BW) / 2} y={19} textAnchor={i === 0 ? "start" : i === 2 ? "end" : "middle"} style={tick}>{sig3(v)}</text>)}
+          <text x={f.left + BW + 6} y={8} style={tick}>{sc.log ? tr("{unit}, log scale", { unit: sc.unit }) : sc.unit}</text>
+        </svg>
+      )}
+      <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 2, lineHeight: 1.35 }}>{tr("Each reading is plotted at the mid-point between the current electrode(s) and the centre of the potential dipole (the A electrode alone when B is remote), at a pseudo-depth of half their separation. Contractors and other programs use other conventions, so compare shapes rather than depths.")}{sc && sc.usable < vals.length ? " " + tr("{n} reading(s) with no usable value are grey.", { n: vals.length - sc.usable }) : ""}</div>
     </div>
   );
 }

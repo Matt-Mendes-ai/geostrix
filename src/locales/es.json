@@ -9330,5 +9330,12 @@
   "(a common starting value is 0.4; dry or sparse cover reads lower)": "(un valor inicial común es 0,4; la cobertura seca o escasa da valores menores)",
   "A multiband satellite scene (Sentinel-2, Landsat, ASTER) scores after a band ratio: Maps > Spectral index makes iron oxide, clay / hydroxyl or your own ratio (b4 / b2…) as a raster with values, listed here.": "Una escena satelital multibanda (Sentinel-2, Landsat, ASTER) puntúa tras un cociente de bandas: Mapas > Índice espectral crea óxido de hierro, arcilla / hidroxilo o su propio cociente (b4 / b2…) como un ráster con valores, que aparece aquí.",
   "colours over {v}–{v2} ohm·m (log: dark red conductive → light blue resistive; the 2nd–98th percentile of the cells the data see, the model runs {a}–{b})": "colores sobre {v}–{v2} ohm·m (log: rojo oscuro conductor → azul claro resistivo; percentiles 2 a 98 de las celdas que ven los datos; el modelo va de {a} a {b})",
-  "colours over 0–{v} mV/V (the 98th percentile of the cells the data see; the model runs to {b})": "colores sobre 0–{v} mV/V (percentil 98 de las celdas que ven los datos; el modelo llega a {b})"
+  "colours over 0–{v} mV/V (the 98th percentile of the cells the data see; the model runs to {b})": "colores sobre 0–{v} mV/V (percentil 98 de las celdas que ven los datos; el modelo llega a {b})",
+  "Apparent chargeability pseudosection": "Pseudosección de cargabilidad aparente",
+  "Data (pseudosection): apparent chargeability {v}–{v2} mV/V": "Datos (pseudosección): cargabilidad aparente {v}–{v2} mV/V",
+  "Distance along the line (m)": "Distancia a lo largo de la línea (m)",
+  "Pseudo-depth (m)": "Pseudoprofundidad (m)",
+  "Colour bar, {v}–{v2} {unit}": "Barra de colores, {v}–{v2} {unit}",
+  "Each reading is plotted at the mid-point between the current electrode(s) and the centre of the potential dipole (the A electrode alone when B is remote), at a pseudo-depth of half their separation. Contractors and other programs use other conventions, so compare shapes rather than depths.": "Cada lectura se representa en el punto medio entre el o los electrodos de corriente y el centro del dipolo de potencial (solo el electrodo A cuando B es remoto), a una pseudoprofundidad igual a la mitad de su separación. Los contratistas y otros programas usan otras convenciones, así que compare formas y no profundidades.",
+  "{n} reading(s) with no usable value are grey.": "{n} lectura(s) sin valor utilizable aparecen en gris."
 }

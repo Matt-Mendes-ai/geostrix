@@ -9330,5 +9330,12 @@
   "(a common starting value is 0.4; dry or sparse cover reads lower)": "(قيمة البداية الشائعة 0.4؛ الغطاء الجاف أو المتناثر يعطي قيمًا أقل)",
   "A multiband satellite scene (Sentinel-2, Landsat, ASTER) scores after a band ratio: Maps > Spectral index makes iron oxide, clay / hydroxyl or your own ratio (b4 / b2…) as a raster with values, listed here.": "تُقيَّم صورة القمر الصناعي متعددة النطاقات (Sentinel-2 وLandsat وASTER) بعد نسبة نطاقات: الخرائط > المؤشر الطيفي ينشئ أكسيد الحديد أو الطين / الهيدروكسيل أو نسبتك الخاصة (b4 / b2…) نقطيةً ذات قيم تظهر هنا.",
   "colours over {v}–{v2} ohm·m (log: dark red conductive → light blue resistive; the 2nd–98th percentile of the cells the data see, the model runs {a}–{b})": "الألوان على {v}–{v2} أوم·م (لوغاريتمي: أحمر داكن موصل ← أزرق فاتح مقاوم؛ من المئين الثاني إلى الثامن والتسعين للخلايا التي تراها البيانات؛ يمتد النموذج من {a} إلى {b})",
-  "colours over 0–{v} mV/V (the 98th percentile of the cells the data see; the model runs to {b})": "الألوان على 0–{v} مللي فولت/فولت (المئين الثامن والتسعون للخلايا التي تراها البيانات؛ يصل النموذج إلى {b})"
+  "colours over 0–{v} mV/V (the 98th percentile of the cells the data see; the model runs to {b})": "الألوان على 0–{v} مللي فولت/فولت (المئين الثامن والتسعون للخلايا التي تراها البيانات؛ يصل النموذج إلى {b})",
+  "Apparent chargeability pseudosection": "مقطع زائف للشحنية الظاهرية",
+  "Data (pseudosection): apparent chargeability {v}–{v2} mV/V": "البيانات (مقطع زائف): الشحنية الظاهرية {v}–{v2} مللي فولت/فولت",
+  "Distance along the line (m)": "المسافة على طول الخط (م)",
+  "Pseudo-depth (m)": "العمق الزائف (م)",
+  "Colour bar, {v}–{v2} {unit}": "شريط الألوان، {v}–{v2} {unit}",
+  "Each reading is plotted at the mid-point between the current electrode(s) and the centre of the potential dipole (the A electrode alone when B is remote), at a pseudo-depth of half their separation. Contractors and other programs use other conventions, so compare shapes rather than depths.": "تُرسم كل قراءة في منتصف المسافة بين قطب (أقطاب) التيار ومركز ثنائي قطب الجهد (القطب A وحده عندما يكون B بعيدًا)، على عمق زائف يساوي نصف المسافة بينهما. يستخدم المقاولون والبرامج الأخرى اصطلاحات مختلفة، لذا قارن الأشكال لا الأعماق.",
+  "{n} reading(s) with no usable value are grey.": "تظهر {n} قراءة بلا قيمة صالحة باللون الرمادي."
 }

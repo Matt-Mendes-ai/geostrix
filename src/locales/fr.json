@@ -9330,5 +9330,12 @@
   "(a common starting value is 0.4; dry or sparse cover reads lower)": "(une valeur de départ courante est 0,4 ; un couvert sec ou clairsemé donne moins)",
   "A multiband satellite scene (Sentinel-2, Landsat, ASTER) scores after a band ratio: Maps > Spectral index makes iron oxide, clay / hydroxyl or your own ratio (b4 / b2…) as a raster with values, listed here.": "Une scène satellite multibande (Sentinel-2, Landsat, ASTER) se note après un rapport de bandes : Cartes > Indice spectral crée oxyde de fer, argile / hydroxyle ou votre propre rapport (b4 / b2…) en raster à valeurs, listé ici.",
   "colours over {v}–{v2} ohm·m (log: dark red conductive → light blue resistive; the 2nd–98th percentile of the cells the data see, the model runs {a}–{b})": "couleurs sur {v}–{v2} ohm·m (log : rouge foncé conducteur → bleu clair résistant ; 2e au 98e centile des cellules que les données voient ; le modèle va de {a} à {b})",
-  "colours over 0–{v} mV/V (the 98th percentile of the cells the data see; the model runs to {b})": "couleurs sur 0–{v} mV/V (98e centile des cellules que les données voient ; le modèle va jusqu'à {b})"
+  "colours over 0–{v} mV/V (the 98th percentile of the cells the data see; the model runs to {b})": "couleurs sur 0–{v} mV/V (98e centile des cellules que les données voient ; le modèle va jusqu'à {b})",
+  "Apparent chargeability pseudosection": "Pseudo-section de chargeabilité apparente",
+  "Data (pseudosection): apparent chargeability {v}–{v2} mV/V": "Données (pseudo-section) : chargeabilité apparente {v}–{v2} mV/V",
+  "Distance along the line (m)": "Distance le long de la ligne (m)",
+  "Pseudo-depth (m)": "Pseudo-profondeur (m)",
+  "Colour bar, {v}–{v2} {unit}": "Barre de couleurs, {v}–{v2} {unit}",
+  "Each reading is plotted at the mid-point between the current electrode(s) and the centre of the potential dipole (the A electrode alone when B is remote), at a pseudo-depth of half their separation. Contractors and other programs use other conventions, so compare shapes rather than depths.": "Chaque lecture est placée au milieu entre la ou les électrodes de courant et le centre du dipôle de potentiel (l'électrode A seule quand B est à l'infini), à une pseudo-profondeur égale à la moitié de leur écartement. Les entrepreneurs et d'autres logiciels utilisent d'autres conventions : comparez les formes plutôt que les profondeurs.",
+  "{n} reading(s) with no usable value are grey.": "{n} lecture(s) sans valeur utilisable sont en gris."
 }
