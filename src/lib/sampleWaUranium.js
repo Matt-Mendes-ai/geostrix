@@ -1,4 +1,4 @@
-// TASKS.csv #2168 — the parts of the Western Australian calcrete-uranium sample (sample_data/wa_uranium, WAMEX report A87304) that
+// TASKS.csv #2168 — the parts of the Western Australian palaeochannel-uranium sample (sample_data/wa_uranium, WAMEX report A87304) that
 // are not drillhole tables: the multi-element assays (into Geochem) and the downhole gamma / eU3O8 log, which has no built-in layer
 // yet (the downhole-log target is TASKS.csv #2160) and is loaded as a numeric custom point layer: drawn along the holes in the 3D View,
 // offered by the Downhole Logs pane and the numeric sources of the modelling tools (lib/numericSources.js). The collar, survey,

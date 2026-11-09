@@ -19,7 +19,7 @@ export default [
     howto: {
       sample: "any",
       steps: [
-        "Open a sample project: File > Open Sample Project, then Harry, Woodjam, Perk-Rocky, Silvertip or WA calcrete uranium.",
+        "Open a sample project: File > Open Sample Project, then Harry, Woodjam, Perk-Rocky, Silvertip or WA palaeochannel uranium.",
         "Open a tool from the ribbon, for example Geophysics > Block models.",
         "Click the ? in the tool's header to read its page beside it.",
         "Press F1 at any time for the list of pages and the search box.",

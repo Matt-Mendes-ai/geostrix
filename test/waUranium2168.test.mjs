@@ -1,4 +1,4 @@
-// TASKS.csv #2168 — the WA calcrete-uranium sample (WAMEX report A87304): every drill table is recognized as its layer with no
+// TASKS.csv #2168 — the WA palaeochannel-uranium sample (WAMEX report A87304): every drill table is recognized as its layer with no
 // question, the assays and the gamma log read as the loader reads them, and the sample is offered everywhere the others are
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -71,6 +71,6 @@ test("gamma log: 43,923 eU3O8 readings over 423 holes, none negative, as a custo
 test("the sample is offered on the empty 3D View and names its tab", () => {
   assert.ok(sampleCardsFor("viewer").some((c) => c.id === "wa_uranium"));
   assert.ok(sampleCardsFor("surface").some((c) => c.id === "wa_uranium"));
-  assert.equal(sampleProjectName("wa_uranium", "Untitled project"), "WA calcrete uranium (sample)");
+  assert.equal(sampleProjectName("wa_uranium", "Untitled project"), "WA palaeochannel uranium (sample)");
   assert.equal(sampleProjectName("wa_uranium", "My project"), "My project");
 });

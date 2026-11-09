@@ -1,6 +1,6 @@
 // TASKS.csv #2168 — builds sample_data/wa_uranium/ from one open-file report (A87304) of the Western Australian WAMEX mineral
-// drillhole database (DEMIRS, CC BY 4.0): a calcrete-hosted uranium prospect on the south-western edge of the Canning Basin, 430
-// aircore and diamond holes drilled 2009-2010, with downhole gamma logs (eU3O8), multi-element assays, lithology and alteration logs.
+// drillhole database (DEMIRS, CC BY 4.0): a sediment-hosted uranium prospect in a lignite-bearing palaeochannel about 240 km
+// east-north-east of Kalgoorlie (not calcrete-hosted, as first labelled: TASKS.csv #2324), 430 aircore and diamond holes drilled 2009-2010, with downhole gamma logs (eU3O8), multi-element assays, lithology and alteration logs.
 // The input is the report's tables as exported from the database by the WA drillhole review (docs/ideas/wa-drillhole-database-review.md:
 // one column per attribute, the company's column names, values verbatim); this script renames the columns to GeoStrix's own, joins the
 // lab's several method columns per element into one, thins the gamma log and drops the database's no-data codes. Nothing is invented.

@@ -128,7 +128,7 @@ that phrasing), that's a flag this task deserves a *real* verification pass now 
   `scripts/samples/build-woodjam.mjs`. `sample_data/silvertip/` (TASKS.csv #1346, ARIS 42807: 9 deep 2024 holes with
   acQuire logs and oriented core, assays, rock / soil / stream samples) is built by `scripts/samples/build-silvertip.mjs`.
   `sample_data/wa_uranium/` (TASKS.csv #2168, WAMEX report A87304, CC BY 4.0: 430 shallow aircore / diamond holes of a Western
-  Australian calcrete-uranium prospect with lithology, alteration, multi-element assays and a downhole gamma / eU3O8 log, loaded
+  Australian palaeochannel (lignite-hosted) uranium prospect with lithology, alteration, multi-element assays and a downhole gamma / eU3O8 log, loaded
   as a numeric custom layer) is built by `scripts/samples/build-wa-uranium.mjs` from the WA drillhole review's export
   (docs/ideas/wa-drillhole-database-review.md). The 3D View's empty state offers all the samples (with `perk_rocky/`, surface mapping).
   Each has its own README explaining exactly what's real vs. synthetic — read those before

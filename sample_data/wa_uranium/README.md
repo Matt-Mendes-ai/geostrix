@@ -1,10 +1,16 @@
-# WA calcrete uranium — real exploration data (WAMEX report A87304, Western Australia)
+# WA palaeochannel uranium — real exploration data (WAMEX report A87304, Western Australia)
 
-430 aircore and diamond holes drilled in 2009-2010 on a calcrete-hosted uranium prospect at the south-western edge of the Canning
-Basin, Western Australia, from one open-file company report (A87304) in the State's WAMEX mineral drillhole database. Everything
-here is real company data as released by the State; **nothing is synthesized**. The tables were only re-shaped into tidy CSVs with
-column names GeoStrix recognizes, so "Sample: WA calcrete uranium" imports them without questions. Company and personnel names from
-the source are not included.
+430 aircore and diamond holes drilled in 2009-2010 on a sediment-hosted uranium prospect in a buried palaeochannel, about 240 km
+east-north-east of Kalgoorlie, Western Australia (30.0° S, 123.8° E), from one open-file company report (A87304) in the State's WAMEX
+mineral drillhole database. Everything here is real company data as released by the State; **nothing is synthesized**. The tables
+were only re-shaped into tidy CSVs with column names GeoStrix recognizes, so "Sample: WA palaeochannel uranium" imports them without
+questions. Company and personnel names from the source are not included.
+
+What the data say about the deposit (counted from these files, not taken from a report): the uranium sits 37-52 m below surface in
+the lower part of the channel fill (the company's units E3, E2, E1) and the top of the basement (Dcb); of the assayed uranium, 38 %
+is in lignite (LIG), 17 % in lignitic and carbonaceous clays (LIC, CBC), and most of the rest in the claystone and sandstone around
+them. Calcrete is logged in nine intervals and carries none of it. Until 2026-11-09 this sample was labelled "calcrete uranium" on
+the edge of the Canning Basin: both were wrong (TASKS.csv #2324), and the logs, not the label, are the evidence.
 
 Regenerate from the database export with:
 
@@ -18,8 +24,8 @@ per-report CSVs, with the company's own column names, are this script's input).
 Coordinates: **GDA94 / MGA zone 51 (EPSG:28351)**, the company's `MGA_East` / `MGA_North` / `MGA_RL`. The collars carry an `epsg`
 column with that code, so a drop of the file asks no CRS question either.
 
-What makes it different from the other samples: a deposit style and a drilling style none of them has (shallow aircore over a
-calcrete palaeochannel, uranium grade read from gamma logs rather than assays), a company lithology / regolith code set to try the
+What makes it different from the other samples: a deposit style and a drilling style none of them has (shallow vertical aircore
+through a flat-lying, lignite-bearing channel fill, uranium grade read from gamma logs as well as assays), a company lithology / regolith code set to try the
 code thesaurus on, and a real multi-element table whose lab reported each element under several method columns.
 
 ## Files
