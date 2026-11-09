@@ -89,6 +89,7 @@ import LidarImportBox from "../components/LidarImportBox.jsx"; // TASKS.csv #199
 import { lidarResultToProject, CLASS_NAMES } from "../lib/lidar.js"; // TASKS.csv #1994 — small, and the box imports it anyway
 import { fillNoData } from "../lib/demFill.js"; // TASKS.csv #1994
 import { offersGradeTonnage } from "../lib/gradeTonnage.js"; // TASKS.csv #1592
+import { collarsLookUnderground } from "../lib/pitShell.js"; // TASKS.csv #2263
 const GradeTonnageModal = lazyModal(() => import("../components/GradeTonnageModal.jsx")); // TASKS.csv #1052 — loaded when opened
 
 // TASKS.csv #309 — the format reference that USED to be this tab's entire empty state: a twelve-line
@@ -489,7 +490,11 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     setTerrainBusy(true);
     try {
       const { points, samples, collars: nc } = projectZPoints;
-      await finishPointsTerrain({ points, lines: [], what: tr("{s} surface sample(s) and {c} collar(s) of this project", { s: samples, c: nc }), name: "Terrain from samples and collars", sourceFile: "project surface samples and collars", reprojected: false });
+      // TASKS.csv #2263 (review #2174) — collars drilled from underground levels make a surface through the mine, not the ground (a TIN at
+      // RL 102-351 under a surface near 400): ask, and name it for what it is
+      const ug = collarsLookUnderground(collars, survey);
+      if (ug.underground && !window.confirm(tr("The collars look like underground collars ({upward} hole(s) drilled upward, {stacked} pair(s) of collars stacked over each other): a surface through them runs through the mine levels, not the ground.", { upward: ug.upward, stacked: ug.stacked }) + "\n\n" + tr("OK — build it anyway, named 'Surface through the collars'.") + "\n" + tr("Cancel — don't build it (import a DEM or fetch SRTM for the real ground)."))) return;
+      await finishPointsTerrain({ points, lines: [], what: tr("{s} surface sample(s) and {c} collar(s) of this project", { s: samples, c: nc }), name: ug.underground ? "Surface through the collars" : "Terrain from samples and collars", sourceFile: "project surface samples and collars", reprojected: false }); // name: #2263
     } catch (err) {
       setTerrainError({ info: false, text: err.message });
     } finally {
