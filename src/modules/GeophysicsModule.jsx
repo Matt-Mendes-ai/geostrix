@@ -81,6 +81,7 @@ import { vectorToBoundaryPolylines, claimsFromVector, isAreaBoundary } from "../
 import { clampCellBudget, MIN_CELL_BUDGET, MAX_BLOCK_MODEL_BUDGET } from "../lib/estimationMeta.js"; // TASKS.csv #1074
 import { checkGpkgSize } from "../lib/gpkgSize.js"; // TASKS.csv #1716
 import { sniffTable, estimateRows, streamTableRows, streamXyzRows, headText } from "../lib/streamTable.js"; // TASKS.csv #1351
+import { parseDfn, parseGdfText, streamGdfRows, gdfPair } from "../lib/asegGdf.js"; // TASKS.csv #1990 — ASEG-GDF2
 import { useSetTaskProgress } from "../lib/store.jsx"; // TASKS.csv #1351
 // TASKS.csv #1351 — a point-survey CSV over this size is streamed and thinned on the way in instead of read whole
 const STREAM_FROM_BYTES = 150e6;
@@ -1104,7 +1105,8 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     setXyzPending((q) => (q ? { ...q, streaming: true } : q));
     try {
       const onProgress = (f) => setTaskProgress?.({ label, pct: Math.round(f * 100) });
-      const { rows, seen } = st.kind === "xyz" // #1351 — a Geosoft .xyz, by parseXYZ's rules
+      const { rows, seen } = st.kind === "gdf" ? await streamGdfRows(st.file, { layout: st.layout, keep, every: st.keepEvery, onProgress }) // #1990
+        : st.kind === "xyz" // #1351 — a Geosoft .xyz, by parseXYZ's rules
         ? await streamXyzRows(st.file, { columns: st.columns, keep, every: st.keepEvery, onProgress })
         : await streamTableRows(st.file, { delimiter: st.delimiter, headers: st.headers, keep, every: st.keepEvery, skipLines: st.skipLines, onProgress });
       setTaskProgress?.(null);
@@ -1155,8 +1157,29 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     }
   };
   // TASKS.csv #1329 — several files: one set of columns for all, read one at a time so nothing holds every raw row at once. GPS files in the selection go with the surveys named like them.
+  // TASKS.csv #1990 — an ASEG-GDF2 survey: the .dfn names the columns and their widths, the .dat holds the records (streamed when big)
+  const importGdf = async ({ dfn, dat }) => {
+    setXyzError(null);
+    try {
+      const layout = parseDfn(await dfn.text());
+      if (!layout.columns.length) throw new Error(tr("{name} defines no data fields", { name: dfn.name }));
+      const big = dat.size > STREAM_FROM_BYTES;
+      const text = big ? await headText(dat) : await dat.text();
+      const { rows, seen } = parseGdfText(text, layout);
+      if (!rows.length) throw new Error(tr("no line of {name} matches the record layout in {dfn}", { name: dat.name, dfn: dfn.name }));
+      const columns = layout.columns, g = guessXyzChannels(columns, rows);
+      const estimate = big ? Math.round((seen / Math.max(1, text.length)) * dat.size) : seen;
+      setXyzPending({ fileName: dat.name, columns, rows, source: "csv", xCol: guessColumn(columns, XY_NAME_HINTS.x), yCol: guessColumn(columns, XY_NAME_HINTS.y), zCol: g.z, valueCol: g.value,
+        lineCol: columns.find((c) => /^(line|line_?no|lineno|flight|flight_?line)$/i.test(c)) || "", ...cleaningDefaults(columns),
+        ...(big ? { stream: { file: dat, kind: "gdf", layout, columns, estimate, keepEvery: suggestKeepEvery(estimate, undefined, (layers.geophys_pts || []).length) } } : {}) });
+      if (big) setXyzError({ info: true, text: tr("\"{name}\" is {v} MB, about {rows} readings: too big to read whole on most computers. Check the columns and how many readings to keep below, then Import: the file is read in pieces and only the kept readings and columns are held.", { name: dat.name, v: (dat.size / 1e6).toFixed(0), rows: estimate.toLocaleString() }) });
+    } catch (err) {
+      setXyzError({ info: false, text: tr("Could not parse {name}: {message}", { name: dat?.name || dfn?.name, message: err.message }) });
+    }
+  };
   const importXYZFiles = async (fileList) => {
     const all = Array.from(fileList || []);
+    { const pair = gdfPair(all); if (pair) { importGdf(pair); return; } } // #1990
     const gpsFiles = all.filter((f) => /\.(txt|gpx|wpt)$/i.test(f.name)), files = all.filter((f) => !gpsFiles.includes(f));
     if (!files.length) { setXyzError({ info: false, text: tr("Select at least one survey file with the GPS file.") }); return; }
     if (files.length === 1 && !gpsFiles.length) { importXYZFile(files[0]); return; }
@@ -1534,6 +1557,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         for (const f of xyzAll) { const head = await f.slice(0, 400).text().catch(() => ""); if (/^\s*\/INFO\s*[\r\n]+\s*\/[^\n]*Workbench/i.test(head)) wbs.push(f); }
         const xyzs = xyzAll.filter((f) => !wbs.includes(f));
         if (wbs.length) { setFdemDrop(wbs); setGeoPane("fdem"); }
+        { const pair = gdfPair(files); if (pair) importGdf(pair); } // TASKS.csv #1990 — an ASEG-GDF2 .dfn + .dat dropped together
         // TASKS.csv #603 — a closed format (Geosoft .gdb / binary .grd, .dwg, Access) says how to get it out; such
         // files used to be ignored here without a word
         const advice = files.map((f) => unreadableFormatAdvice(f.name)).filter(Boolean);
@@ -1636,7 +1660,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         <input
           ref={xyzInput}
           type="file"
-          accept=".xyz,.fld,.bse,.txt,.gpx,.wpt"
+          accept=".xyz,.fld,.bse,.txt,.gpx,.wpt,.dfn,.dat"
           multiple
           style={{ display: "none" }}
           onChange={(e) => { importXYZFiles(e.target.files); e.target.value = ""; }}

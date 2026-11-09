@@ -9391,5 +9391,7 @@
   "Nothing to model yet: there is no Veins log, and no lithology code is cross-cutting. If your veins are logged as lithology codes, set their role to cross-cutting in Modelling codes.": "Ainda não há nada para modelar: não há registro de veios e nenhum código de litologia é transversal. Se os seus veios estão registrados como códigos de litologia, defina o papel deles como transversal em Códigos de modelagem.",
   "From the nearest existing collars (the hole each needs to reach the target):": "A partir dos colares existentes mais próximos (o furo que cada um precisa para atingir o alvo):",
   "{id}: az {az}°, dip {dip}°, {len} m": "{id}: az {az}°, mergulho {dip}°, {len} m",
-  "Plan from {id}": "Planejar a partir de {id}"
+  "Plan from {id}": "Planejar a partir de {id}",
+  "{name} defines no data fields": "{name} não define campos de dados",
+  "no line of {name} matches the record layout in {dfn}": "nenhuma linha de {name} corresponde ao formato de registro de {dfn}"
 }
