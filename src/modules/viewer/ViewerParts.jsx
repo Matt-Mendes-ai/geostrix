@@ -301,6 +301,28 @@ export function OrphanHoles({ layers, assays, collars, onOpenStripLog }) {
   );
 }
 
+// TASKS.csv #2173 — the sidebar's hole list rendered a row (eye, zoom, section, strip-log icons) for EVERY hole: 10,544 holes made
+// 265,000 elements in the page, and every layout of the window took about 0.5 s (the legend fit, the ribbon, each frame). It shows the
+// first HOLE_ROWS_STEP of the holes the filter matches, and 'Show more' adds the next; a new filter starts again from the top.
+export const HOLE_ROWS_STEP = 300;
+export function HoleRowList({ holes, filterKey, visibleHoles, onToggle, onOpenStripLog, onSection, onZoom }) {
+  const [limit, setLimit] = useState(HOLE_ROWS_STEP);
+  useEffect(() => { setLimit(HOLE_ROWS_STEP); }, [filterKey]);
+  const rest = holes.length - limit;
+  return (
+    <>
+      {holes.slice(0, limit).map((c) => (
+        <HoleRow key={c.hole_id} hole_id={c.hole_id} visible={visibleHoles[c.hole_id]} onToggle={onToggle} onOpenStripLog={onOpenStripLog} onSection={onSection} onZoom={onZoom} />
+      ))}
+      {rest > 0 && (
+        <button onClick={() => setLimit((n) => n + HOLE_ROWS_STEP)} style={{ ...pBtn, marginTop: 4 }} title={tr("The list shows {n} holes at a time; the filter above finds any hole by its ID", { n: HOLE_ROWS_STEP })}>
+          {tr("Show {n} more ({rest} not listed)", { n: Math.min(HOLE_ROWS_STEP, rest), rest: rest.toLocaleString() })}
+        </button>
+      )}
+    </>
+  );
+}
+
 export const HoleRow = React.memo(function HoleRow({ hole_id, visible, onToggle, onOpenStripLog, onSection, onZoom }) {
   return (
     <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => onToggle(hole_id)} style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 8px", borderRadius: 5, cursor: "pointer", fontSize: "var(--font-size-base)", color: visible === false ? "var(--color-text-disabled)" : "var(--color-text)" }}>

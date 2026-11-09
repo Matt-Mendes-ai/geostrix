@@ -7,7 +7,8 @@ const s = readFileSync(new URL("../src/components/ViewportFigureOverlay.jsx", im
 
 test("the legend gives up rows (ramps last) until it ends above the scale bar, and counts them", () => {
   assert.match(s, /const limit = scaleRef\.current \? scaleRef\.current\.getBoundingClientRect\(\)\.top - 6 :/);
-  assert.match(s, /setFit\(\(f\) => \(f\.items > 1 \? \{ \.\.\.f, items: f\.items - 1 \} : f\.ramps > 1 \? \{ \.\.\.f, ramps: f\.ramps - 1 \} : f\)\)/);
+  // #2173: several rows per step (the overflow / 17 px) from the rows actually shown; items first, then ramps, bounded at 1 + 1
+  assert.ok(s.includes("setFit((f) => (f.items > 1 && shownNow > 1 ? { ...f, items: Math.max(1, Math.min(f.items, shownNow) - k) } : f.ramps > 1 ? { ...f, ramps: f.ramps - 1 } : f));"));
   assert.match(s, /const hiddenCount = total - shown\.length \+ \(allRamps\.length - ramps\.length\);/);
   assert.match(s, /<div ref=\{scaleRef\} style=\{\{ \.\.\.card, position: "absolute", bottom: 12/);
 });

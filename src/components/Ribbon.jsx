@@ -56,7 +56,9 @@ export function Ribbon({ children, show = true, label = "Tools" }) {
   useLayoutEffect(() => {
     const el = innerRef.current;
     if (!el) return;
-    const key = `${mode}|${el.clientWidth}|${[...el.querySelectorAll(".ge-ribbon-label")].map((x) => x.textContent).join("|")}`;
+    // TASKS.csv #2173 — no clientWidth here: reading it on every render forced a layout of the whole page each time the module re-rendered
+    // (1.1 s while a 10,544-hole project opened). A width change is the ResizeObserver's job below; textContent needs no layout.
+    const key = `${mode}|${[...el.querySelectorAll(".ge-ribbon-label")].map((x) => x.textContent).join("|")}`;
     if (key !== fitKey.current) { fitKey.current = key; fit(); }
   });
   useEffect(() => {
