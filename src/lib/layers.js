@@ -895,13 +895,26 @@ export function gridCoordinateColumns(headers) {
 }
 // any RL / elevation column of a grid ("Orig_RL" beside GBMG_East / GBMG_North), for a pair with no z of its own
 const gridElevation = (headers) => (headers || []).find((h) => { const m = GRID_COL.exec(normHeader(h)); return m && GRID_AXIS[m[2] || m[3]] === "z"; }) || "";
+// TASKS.csv #2152 — columns that name a hole's attribute, never its id; and columns that are not the hole's measured length / azimuth / dip
+const HOLE_ID_VETO = /(length|depth|_len$|_m$|azi|dip|elev|type|status|parent|purpose|path|diam)/;
+const NOT_MEASURED = /(comment|cmnts?|nominal|planned|plan_|design|target|(^|_)ref(_|$)|precollar|pre_collar|boco|tofr|water)/;
 export function guessMapping(target, headers) {
   const schema = TARGET_SCHEMAS[target];
   const mapping = {};
   if (!schema) return mapping;
   schema.fields.forEach((f) => { mapping[f.key] = guessColumn(headers, f.aliases); });
   // TASKS.csv #1071 — "Hole_Length" / "Hole_Depth" matched "hole" in the substring pass and became the Hole ID
-  if (mapping.hole_id && /(length|depth|_len$|_m$|azi|dip|elev)/.test(normHeader(mapping.hole_id))) mapping.hole_id = "";
+  // TASKS.csv #2152 (WA drillhole review) — and Hole_Type / Hole_Status / Parent_Hole_ID / Hole_Purpose / Hole_Diameter did too: the id is
+  // guessed again among the other columns (HoleNo, Hole_Name), and left blank when none is left
+  const reguess = (key, veto) => {
+    if (!mapping[key] || !veto.test(normHeader(mapping[key]))) return;
+    const f = schema.fields.find((x) => x.key === key);
+    mapping[key] = f ? guessColumn(headers.filter((h) => !veto.test(normHeader(h))), f.aliases) : "";
+  };
+  reguess("hole_id", HOLE_ID_VETO);
+  // #2152 — a planned, nominal, design or comment column, or the depth of a regolith boundary (pre-collar, BOCO, TOFR, water), is not the
+  // hole's measured length, azimuth or dip ("depth" inside Precollar_Depth won the length; Nominal_Azimuth, Azimuth_Ref the azimuth)
+  if (target === "collars" || target === "survey") for (const k of ["length", "azimuth", "dip", "depth"]) reguess(k, NOT_MEASURED);
   // TASKS.csv #2149 — the point-data Depth took FromDepth by substring ("depth" inside it) next to From = FromDepth: an interval table's
   // from / to column is never also its point depth
   if (mapping.depth && (mapping.depth === mapping.from || mapping.depth === mapping.to)) mapping.depth = "";
@@ -916,7 +929,9 @@ export function guessMapping(target, headers) {
   }
   // TASKS.csv #1345 (42807Z) — MAG_INSTRUMENT matched "mag" and the mag-sus log loaded 0 of 6,264 rows: a numeric layer's value is
   // never the instrument, the logger, a date or a comment
-  const notAValue = (h) => /(instrument|device|logged|entered|_by$|date|comment|desc|model|serial|srm_name|photo)/.test(normHeader(h));
+  // #2152 — nor a comment (Cmnts_Core_Recovery won Recovery % over Core_Rec_Pct), a nominal / planned / reference / original value, or a
+  // regolith boundary depth
+  const notAValue = (h) => /(instrument|device|logged|entered|_by$|date|comment|cmnts?|desc|model|serial|srm_name|photo|nominal|planned|(^|_)ref(_|$)|orig|precollar|pre_collar|boco|tofr|water)/.test(normHeader(h));
   if (schema.fields.some((f) => f.key === "value" && /numeric/.test(f.label)) && mapping.value && notAValue(mapping.value)) {
     const vf = schema.fields.find((f) => f.key === "value");
     mapping.value = guessColumn(headers.filter((h) => !notAValue(h)), vf.aliases);
