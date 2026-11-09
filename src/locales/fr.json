@@ -9558,5 +9558,8 @@
   ", every reading kept": ", chaque lecture gardée",
   "{n} brought into the local grid through its tie to EPSG:{tie}.": "{n} ramenée(s) dans la grille locale par son rattachement à EPSG:{tie}.",
   " (suggested {suggested} m from the drill-site spacing)": " (suggéré {suggested} m d'après l'espacement des sites de forage)",
-  "The lags stop at {max} m; the {sites} drill sites are typically {typ} m apart (nearest {near} m, up to {far} m): raise the lag or the number of lags to see continuity between holes.": "Les pas s'arrêtent à {max} m ; les {sites} sites de forage sont typiquement à {typ} m (le plus proche {near} m, jusqu'à {far} m) : augmentez le pas ou le nombre de pas pour voir la continuité entre sondages."
+  "The lags stop at {max} m; the {sites} drill sites are typically {typ} m apart (nearest {near} m, up to {far} m): raise the lag or the number of lags to see continuity between holes.": "Les pas s'arrêtent à {max} m ; les {sites} sites de forage sont typiquement à {typ} m (le plus proche {near} m, jusqu'à {far} m) : augmentez le pas ou le nombre de pas pour voir la continuité entre sondages.",
+  "Values on {p}% of the grid.": "Des valeurs sur {p} % de la grille.",
+  "Values on {p}% of the grid only: with fuzzy AND, the algebraic product or gamma every other cell scores nothing.": "Des valeurs sur {p} % de la grille seulement : avec le ET flou, le produit algébrique ou gamma, toutes les autres cellules n'ont pas de score.",
+  "{v} cells have every evidence, so the score is empty or nearly so. Fewest values: {list}. Combine with fuzzy OR or the algebraic sum (they skip a missing evidence), or remove those.": "{v} cellules ont toutes les évidences : le score est vide ou presque. Le moins de valeurs : {list}. Combinez avec le OU flou ou la somme algébrique (ils ignorent une évidence manquante), ou retirez celles-ci."
 }

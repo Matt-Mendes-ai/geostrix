@@ -9558,5 +9558,8 @@
   ", every reading kept": "، مع حفظ كل قراءة",
   "{n} brought into the local grid through its tie to EPSG:{tie}.": "جُلب {n} إلى الشبكة المحلية عبر ربطها بـ EPSG:{tie}.",
   " (suggested {suggested} m from the drill-site spacing)": " (مقترح {suggested} م من تباعد مواقع الحفر)",
-  "The lags stop at {max} m; the {sites} drill sites are typically {typ} m apart (nearest {near} m, up to {far} m): raise the lag or the number of lags to see continuity between holes.": "تتوقف الفواصل عند {max} م؛ تتباعد مواقع الحفر الـ{sites} عادةً {typ} م (الأقرب {near} م، وحتى {far} م): زد الفاصل أو عدد الفواصل لرؤية الاستمرارية بين الثقوب."
+  "The lags stop at {max} m; the {sites} drill sites are typically {typ} m apart (nearest {near} m, up to {far} m): raise the lag or the number of lags to see continuity between holes.": "تتوقف الفواصل عند {max} م؛ تتباعد مواقع الحفر الـ{sites} عادةً {typ} م (الأقرب {near} م، وحتى {far} م): زد الفاصل أو عدد الفواصل لرؤية الاستمرارية بين الثقوب.",
+  "Values on {p}% of the grid.": "قيم على {p}% من الشبكة.",
+  "Values on {p}% of the grid only: with fuzzy AND, the algebraic product or gamma every other cell scores nothing.": "قيم على {p}% فقط من الشبكة: مع AND الضبابي أو الضرب الجبري أو غاما لا تحصل بقية الخلايا على أي درجة.",
+  "{v} cells have every evidence, so the score is empty or nearly so. Fewest values: {list}. Combine with fuzzy OR or the algebraic sum (they skip a missing evidence), or remove those.": "لدى {v} خلية كل الأدلة، فالدرجة فارغة أو تكاد. الأقل قيمًا: {list}. اجمع بـ OR الضبابي أو الجمع الجبري (يتجاوزان الدليل الناقص)، أو أزل تلك."
 }

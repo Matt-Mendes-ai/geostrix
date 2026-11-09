@@ -204,6 +204,22 @@ export const FUZZY_OPERATORS = ["and", "or", "product", "sum", "gamma"];
 // members: [Float32Array]. AND / product / gamma: a cell with any NaN member -> NaN (every evidence must speak). TASKS.csv #1162 —
 // OR / algebraic sum: an evidence with no value there is absent, not a veto (a geologist uses OR to reach past the drilling with the
 // survey), so only a cell with NO evidence at all is NaN.
+// TASKS.csv #2252 (review #2174, WA gold) — one evidence with values on one hole (Recovery %, 263 readings) emptied the whole gamma score: the
+// share of the grid each evidence has a value on, and the ones that leave a strict operator (and / product / gamma) little or nothing.
+export function evidenceCoverage(values) {
+  const n = values?.length || 0;
+  if (!n) return 0;
+  let k = 0;
+  for (let i = 0; i < n; i++) if (Number.isFinite(values[i])) k++;
+  return k / n;
+}
+export const LOW_COVERAGE = 0.05;
+// -> the cards (with their coverage) to name when the score is empty or nearly so, lowest first; [] when the score is fine or the operator
+// is lenient (or / sum skip a missing evidence)
+export function scoreBlockers(layers, nValid, n, operator) {
+  if (operator === "or" || operator === "sum" || !n || nValid / n >= LOW_COVERAGE) return [];
+  return (layers || []).map((l) => ({ label: l.label, coverage: evidenceCoverage(l.values) })).sort((a, b) => a.coverage - b.coverage).slice(0, 3);
+}
 export function fuzzyCombine(members, operator = "gamma", gamma = 0.9) {
   const n = members[0]?.length || 0, out = new Float32Array(n), lenient = operator === "or" || operator === "sum";
   for (let i = 0; i < n; i++) {

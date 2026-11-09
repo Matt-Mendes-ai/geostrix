@@ -9558,5 +9558,8 @@
   ", every reading kept": ", conservando cada lectura",
   "{n} brought into the local grid through its tie to EPSG:{tie}.": "{n} traídas a la grilla local a través de su amarre a EPSG:{tie}.",
   " (suggested {suggested} m from the drill-site spacing)": " (sugerido {suggested} m según el espaciamiento de los sitios de perforación)",
-  "The lags stop at {max} m; the {sites} drill sites are typically {typ} m apart (nearest {near} m, up to {far} m): raise the lag or the number of lags to see continuity between holes.": "Los lags terminan en {max} m; los {sites} sitios de perforación están típicamente a {typ} m (el más cercano {near} m, hasta {far} m): aumente el lag o el número de lags para ver la continuidad entre sondajes."
+  "The lags stop at {max} m; the {sites} drill sites are typically {typ} m apart (nearest {near} m, up to {far} m): raise the lag or the number of lags to see continuity between holes.": "Los lags terminan en {max} m; los {sites} sitios de perforación están típicamente a {typ} m (el más cercano {near} m, hasta {far} m): aumente el lag o el número de lags para ver la continuidad entre sondajes.",
+  "Values on {p}% of the grid.": "Valores en el {p}% de la grilla.",
+  "Values on {p}% of the grid only: with fuzzy AND, the algebraic product or gamma every other cell scores nothing.": "Valores solo en el {p}% de la grilla: con AND difuso, el producto algebraico o gamma todas las demás celdas quedan sin puntaje.",
+  "{v} cells have every evidence, so the score is empty or nearly so. Fewest values: {list}. Combine with fuzzy OR or the algebraic sum (they skip a missing evidence), or remove those.": "{v} celdas tienen todas las evidencias, así que el puntaje está vacío o casi. Menos valores: {list}. Combine con OR difuso o la suma algebraica (omiten una evidencia faltante), o quite esas."
 }

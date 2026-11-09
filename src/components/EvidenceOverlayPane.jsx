@@ -12,6 +12,7 @@ import { mainClusters } from "../lib/dataClusters.js"; // TASKS.csv #1449 / #145
 import { quantileSorted } from "../lib/arrayStats.js"; // TASKS.csv #1281
 import { defaultEvidenceEnds, gradeEndsFromSamples } from "../lib/evidenceEnds.js"; // TASKS.csv #1565; gradeEndsFromSamples: #2099
 import { topCells } from "../lib/evidence.js"; // TASKS.csv #1456
+import { evidenceCoverage, LOW_COVERAGE, scoreBlockers } from "../lib/evidence.js"; // TASKS.csv #2252
 import { evidenceGrid, evidenceExtent, rasterEvidence, distanceEvidence, pointEvidence, sampleValues, membership, fuzzyCombine, FUZZY_OPERATORS, trainingCells, trainingCoverage, bestCutoff, MIN_SIDE, posterior, predictionArea, scoreImage, isOverlayOutput, coveringLayers } from "../lib/evidence.js"; // coveringLayers: #1563
 import { cachedEvidence, evidenceDeps, gridSignature } from "../lib/evidenceCache.js"; // TASKS.csv #1457, #1560
 import { DRILL_REACH_M, surveyNames, surveyPoints, reachFromSpacing, reachFromNeighbours, voxelColumnEvidence, voxelZRange, holeTraces, holeGradePoints, structureCodes, structureParts, drilledParts /* #1456 */, rasterFloorZ, elementsWithValues, numericLayerFields, layerFieldPoints, zoneCodes, zoneParts } from "../lib/evidenceSources.js"; // numericLayerFields, layerFieldPoints, zoneCodes, zoneParts: TASKS.csv #1728 // TASKS.csv #1154; elementsWithValues: #1723
@@ -300,7 +301,7 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
     const nValid = valid.reduce((a, v) => a + v, 0);
     let atMin = 0; // #1555 — how many scored cells sit at the lowest score (one evidence's membership vetoed them)
     for (let k = 0; k < n; k++) if (valid[k] && fuzzy[k] <= minScore + 1e-6) atMin++;
-    const out = { fuzzy, nValid, n, atMin, minScore: nValid ? minScore : NaN, wofe: null, pa: null, paPost: null };
+    const out = { fuzzy, nValid, n, atMin, minScore: nValid ? minScore : NaN, wofe: null, pa: null, paPost: null, blockers: scoreBlockers(layers, nValid, n, operator) }; // blockers: #2252
     const D = trainingCells(grid, trainingPoints, valid);
     out.cover = trainingPoints.length ? trainingCoverage(grid, trainingPoints, valid) : null; // #1558
     if (D.size >= 3) {
@@ -375,6 +376,7 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
         {layers.map((l) => (
           <div key={l.id} style={{ border: "1px solid var(--color-border)", borderRadius: 6, padding: 6, display: "flex", flexDirection: "column", gap: 4 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 4 }}><span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "var(--color-text)" }} title={l.label}>{l.label}</span><button type="button" style={linkBtn} onClick={() => { setLayers((L) => L.filter((x) => x.id !== l.id)); setResult(null); }} aria-label={tr("Remove this evidence")}>×</button></div>
+            {l.values?.length > 0 && (() => { const c = evidenceCoverage(l.values); return <div style={{ fontSize: "var(--font-size-xs)", color: c < LOW_COVERAGE ? "var(--color-warn-text)" : "var(--color-text-muted)" }}>{c < LOW_COVERAGE ? tr("Values on {p}% of the grid only: with fuzzy AND, the algebraic product or gamma every other cell scores nothing.", { p: (c * 100).toFixed(c < 0.01 ? 2 : 1) }) : tr("Values on {p}% of the grid.", { p: Math.round(c * 100) })}</div>; })()}{/* #2252 */}
             {l.kind === "distance" && (() => { const ml = mapLayers.find((x) => String(x.id) === String(l.ref)); const vals = l.field ? [...new Set((ml?.features || []).map((f) => String(f.attributes?.[l.field] ?? "")))].slice(0, 60) : []; return (
               <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
                 <select value={l.field} onChange={(e) => updateLayer(l.id, { field: e.target.value, value: "" }, false)} style={sel} aria-label={tr("Only features where")}><option value="">{tr("every feature")}</option>{(ml?.fields || []).map((f) => <option key={f} value={f}>{f}</option>)}</select>
@@ -437,11 +439,12 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
         )}
         {result && (
           <>
+            {result.blockers?.length > 0 && <div role="alert" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", lineHeight: 1.45 }}>{tr("{v} cells have every evidence, so the score is empty or nearly so. Fewest values: {list}. Combine with fuzzy OR or the algebraic sum (they skip a missing evidence), or remove those.", { v: result.nValid.toLocaleString(), list: result.blockers.map((b) => `${b.label} (${(b.coverage * 100).toFixed(b.coverage < 0.01 ? 2 : 1)}%)`).join(", ") })}</div>}{/* #2252 */}
             <div style={note}>{tr("Fuzzy score on {v} of {n} cells (the rest lack an evidence).", { v: result.nValid.toLocaleString(), n: result.n.toLocaleString() })}{result.fewPoints != null ? " " + tr("Only {k} occurrence cells: weights of evidence need at least 3.", { k: result.fewPoints }) : ""}</div>
             {result.nValid > 0 && result.atMin / result.nValid > 0.5 && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("{p}% of the scored cells sit at the lowest score ({v}): an evidence's membership is at its floor there and the operator keeps the floor. The top cells are only those no evidence vetoed, not the most favourable. Turn on the 0.01–0.99 floor, widen the 0 = points, or combine with OR / algebraic sum.", { p: Math.round((100 * result.atMin) / result.nValid), v: fmt(result.minScore) })}</div>}{/* #1555 */}
             <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-              <button type="button" style={pBtn} onClick={() => toMap("fuzzy")}>{tr("Fuzzy score → map")}</button>
-              <button type="button" style={{ ...pBtn, display: "flex", alignItems: "center", gap: 4 }} onClick={() => toTif("fuzzy")}><Download size={12} />GeoTIFF</button>
+              <button type="button" style={{ ...pBtn, opacity: result.nValid ? 1 : 0.5 }} disabled={!result.nValid} onClick={() => toMap("fuzzy")}>{tr("Fuzzy score → map")}</button>
+              <button type="button" style={{ ...pBtn, display: "flex", alignItems: "center", gap: 4, opacity: result.nValid ? 1 : 0.5 }} disabled={!result.nValid} onClick={() => toTif("fuzzy")}><Download size={12} />GeoTIFF</button>{/* #2252 — never an empty score */}
             </div>
             <TopPlaces score={result.fuzzy} grid={grid} onPlanTo={onPlanTo} note={note} pBtn={pBtn} /* #1456 */ />
             {!result.wofe && result.wofeNone && ( /* TASKS.csv #2098 */
