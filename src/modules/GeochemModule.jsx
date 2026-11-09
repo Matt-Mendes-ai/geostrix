@@ -1101,7 +1101,7 @@ export default function GeochemModule() {
           </RibbonGroup>
           <RibbonGroup advanced label="Calculate">
             <RibbonButton icon={Sigma} label="Calc. element" tone="analyse" disabled={!assayElements.length && !surfaceElements.length} disabledReason="Import assays or surface samples first" active={!!calc} title="Add a calculated element from a formula (AI, CCPI, ratios...) — usable everywhere a real element is" onClick={() => setCalc((c) => (c ? null : { name: "", expr: "", unit: "index", msg: null, source: assayElements.length ? "assays" : "surface" }))} />{/* source: TASKS.csv #1799 */}
-            <RibbonButton icon={Scale} label="Isocon" tone="analyse" disabled={!assayElements.length} disabledReason="Import assays first" title="Isocon / mass-change calculator" onClick={() => setIsoconOpen(true)} />
+            <RibbonButton icon={Scale} label="Isocon" tone="analyse" disabled={assayElements.filter((e) => !e.calculated).length < 2} disabledReason={assayElements.length ? "Isocon needs at least two assayed elements, one of them immobile (Al, Ti, Zr)" : "Import assays first"} /* #2197 */ title="Isocon / mass-change calculator" onClick={() => setIsoconOpen(true)} />
           </RibbonGroup>
           <RibbonGroup label="Analyze">
             <RibbonButton advanced={!assayElements.length && !surfaceElements.length} icon={Grid3x3} label="Correlation" tone="analyse" disabled={!assayElements.length && !surfaceElements.length} disabledReason="Import assays or surface samples first" title="Correlation matrix" onClick={() => setCorrOpen(true)} />

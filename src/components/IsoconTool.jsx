@@ -27,6 +27,7 @@ import { isoconRows } from "../lib/analysisExports.js"; // TASKS.csv #1083
 // see Grant (1986) "The isocon diagram — a simple solution to Gresens' equation" and MacLean &
 // Barrett (1993) for the VMS-alteration application this is aimed at.
 const DEFAULT_IMMOBILE = ["Al", "Ti", "Zr"];
+const USUAL_IMMOBILE = ["Al", "Ti", "Zr", "Nb", "Y", "Hf", "Th"]; // #2197 — the elements usually taken as immobile
 
 export default function IsoconTool({ assays, assayElements, onClose }) {
   useEscapeKey(onClose); // TASKS.csv #238
@@ -120,6 +121,22 @@ export default function IsoconTool({ assays, assayElements, onClose }) {
     saveFile({ suggestedName: "isocon_mass_balance.csv", filters: [{ name: "CSV", extensions: ["csv"] }], content: header + csv });
   };
 
+  // TASKS.csv #2197 (review #2174, WA gold) — with gold the only element the dialog opened normally, listed every interval and offered Au as
+  // 'immobile', and only said it could not run once both groups were filled. Isocon needs a suite with an immobile element: said at once.
+  const immobileKnown = concSymbols.filter((s) => USUAL_IMMOBILE.includes(s));
+  if (concSymbols.length < 2) {
+    return (
+      <div style={overlay} {...backdropProps(onClose)}>
+        <div style={{ ...panel, width: 460 }} role="dialog" aria-modal="true" aria-label={tr("Isocon / mass-change calculator")} onClick={(e) => e.stopPropagation()}>
+          <div style={header}>
+            <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{tr("Isocon / mass-change calculator")}</div>
+            <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
+          </div>
+          <div role="note" style={{ padding: 16, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", lineHeight: 1.5 }}>{tr("Isocon compares a multi-element suite between a precursor and an altered rock, anchored on an element that stayed put (Al, Ti, Zr, Nb or Y). This project's assays have {list} only, so there is nothing to calculate.", { list: concSymbols.join(", ") || "—" })}</div>
+        </div>
+      </div>
+    );
+  }
   return (
     <div style={overlay} {...backdropProps(onClose)}>
       <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
@@ -132,6 +149,7 @@ export default function IsoconTool({ assays, assayElements, onClose }) {
         </div>
 
         <div style={{ padding: 16, overflowY: "auto", display: "flex", flexDirection: "column", gap: 14 }}>
+          {!immobileKnown.length && <div role="note" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)" }}>{tr("None of Al, Ti, Zr, Nb or Y is in this project's assays. Isocon rests on an element that stayed put: pick one you know was immobile here, or the result means little.")}</div>}{/* #2197 */}
           <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", lineHeight: 1.5 }}>{tr("Check intervals into a")}{" "}<b style={{ color: "var(--color-success-fg)" }}>{tr("precursor")}</b>{" "}{tr("group (least-altered equivalent of the protolith) and an")}{" "}<b style={{ color: "var(--color-danger-fg)" }}>{tr("altered")}</b>{" "}{tr("group (the rock you want the mass change of). Each group is averaged in ppm. Pick which elements were immobile during alteration — Al, Ti, Zr are reasonable first choices for many hydrothermal systems, but confirm with an immobile-element plot (e.g. Th/Yb vs Nb/Yb, or the Zr/TiO₂ vs Nb/Y diagram) first if unsure.")}</div>
 
           <input
