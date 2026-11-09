@@ -50,3 +50,13 @@ test("#2315 wiring: the legend fetch cuts to the area and marks it; an old legen
   assert.match(r, /const stale = isMacrostrat\(r\) && !legend\.inArea && !!r\.provenance\?\.areaLonLat;/);
   assert.match(r, /Fetch it again for the area only/);
 });
+
+test("#2315 the map layer has one category per unit name (no repeats when two legend entries share a name, lithology and age)", () => {
+  const f = read("src/lib/macrostratFetch.js");
+  assert.match(f, /units\.filter\(\(u\) => counts\[u\.unit\] && !seenUnit\.has\(u\.unit\) && seenUnit\.add\(u\.unit\)\)/);
+  // the case seen live: two Nicola Group entries with the same name, lithology and age get the same unit name
+  const twin = (id) => ({ id: null, type: "polygon", properties: { legend_id: id, name: "Nicola Group", age: "Upper Triassic", lith: "basaltic volcanic rocks", color: "#aa66cc" }, geometry: [sq(1850, 1850, 2150, 2150)] });
+  const t2 = { z, x, y, layers: [{ name: "units", extent: ext, features: [twin(11), twin(12), unit(13, "Nicola Group", [sq(1800, 1800, 1900, 1900)])] }] };
+  const names = macrostratUnitFeatures([t2], area).units.map((u) => u.unit);
+  assert.equal(names.filter((n) => n === "Nicola Group (basaltic volcanic rocks, Upper Triassic)").length, 2); // the source of the repeat the filter removes
+});

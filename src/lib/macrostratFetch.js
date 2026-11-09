@@ -108,7 +108,9 @@ export async function fetchMacrostratMapLayer({ bboxLonLat, projectEpsg, onProgr
   if (!built?.features?.length) throw new Error(tr("Macrostrat has no map unit polygons in this area."));
   const counts = {};
   for (const f of built.features) counts[f.attributes.unit] = (counts[f.attributes.unit] || 0) + 1;
-  const categories = units.filter((u) => counts[u.unit]).map((u) => ({ value: u.unit, label: u.unit, color: u.color || "#777777", outline: null, visible: true, count: counts[u.unit] }));
+  // #2315 — entries with one name, lithology and age (from different source maps) share a unit name: one category each, not a repeat
+  const seenUnit = new Set();
+  const categories = units.filter((u) => counts[u.unit] && !seenUnit.has(u.unit) && seenUnit.add(u.unit)).map((u) => ({ value: u.unit, label: u.unit, color: u.color || "#777777", outline: null, visible: true, count: counts[u.unit] }));
   const fetched = new Date().toISOString().slice(0, 10);
   return { layer: { ...built, name, styleField: "unit", categories, lineWidthM: 2, credit: MACROSTRAT_CREDIT, macrostrat: { zoom: plan.z, tiles: count, failedTiles: failed.length, fetched, areaLonLat: bboxLonLat, sources } },
     polygons: built.features.length, units: categories.length, zoom: plan.z, tiles: count, failedTiles: failed.length };
