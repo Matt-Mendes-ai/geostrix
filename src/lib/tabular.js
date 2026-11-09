@@ -5,6 +5,7 @@
 // lived only in the outcrop-structure importer. On the writing side, a hand-built `join(",")` corrupted any
 // field containing a comma or quote. Pure (no DOM, no Electron): unit-tested in Node.
 import Papa from "papaparse";
+import { requestTableSubset as requestTableSubsetEv } from "./tableSubsetRequest.js"; // TASKS.csv #2177
 import { normalizeCommaDecimals } from "./numberLocale.js";
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 
@@ -134,19 +135,31 @@ export function spaceTableToTabs(text) {
   if (same < 0.8 * sample.length) return null;
   return text.split(/\r?\n/).map((l) => (l.trim() ? l.trim().split(/\s+/).join("\t") : "")).join("\n");
 }
-export function parseTableText(text, { comments = "#", columnar = false } = {}) {
+// keep (TASKS.csv #2177): the header names to read; every other column is never held (a table over the memory budget, its columns chosen)
+export function parseTableText(text, { comments = "#", columnar = false, keep = null } = {}) {
   ({ text } = stripLeadingComments(text, comments)); // #720
   const spaced = spaceTableToTabs(text); // #2017
   if (spaced != null) text = spaced;
   let preamble = 0, banner = false;
   ({ text, skipped: preamble, banner } = skipPreamble(text)); // #1666; banner: #1665
   // TASKS.csv #611 — a big table can be held as COLUMNS (see parseTableColumns); null = not eligible, read as rows
-  if (columnar && text.length >= COLUMNAR_MIN_CHARS) { const c = parseTableColumns(text, { comments: false }); if (c) return c; }
+  if (columnar && text.length >= COLUMNAR_MIN_CHARS) { const c = parseTableColumns(text, { comments: false, keep }); if (c) return c; }
   // #600 (performance) — Papa asks once per CELL; the answer depends only on the header, so cache it per header.
   const typed = new Map();
   const idLike = ID_LIKE_VALUE_IN.test(text) ? idLikeColumns(text) : null; // #1071 — only scanned when such a value exists
   const dynamicTyping = (field) => { let v = typed.get(field); if (v === undefined) { v = !isIdentifierHeader(field) && !idLike?.has(field); typed.set(field, v); } return v; };
-  const res = Papa.parse(text, { header: true, dynamicTyping, skipEmptyLines: true, comments: false });
+  let res;
+  if (keep?.length) { // #2177 — row by row, each row cut to the kept columns at once, so the dropped ones never accumulate
+    const want = new Set(keep), data = [], errors = [];
+    let fields = null, kept = null;
+    const meta = Papa.parse(text, { header: true, dynamicTyping, skipEmptyLines: true, comments: false, step: (r) => {
+      if (!kept) { fields = r.meta.fields || []; kept = fields.filter((f) => want.has(f)); }
+      if (r.errors?.length) errors.push(...r.errors);
+      const o = {}; for (const f of kept) o[f] = r.data[f]; data.push(o);
+    } }).meta;
+    res = { data, errors, meta: { ...meta, fields: kept || (meta.fields || []).filter((f) => want.has(f)) } };
+    void fields;
+  } else res = Papa.parse(text, { header: true, dynamicTyping, skipEmptyLines: true, comments: false });
   // TASKS.csv #600 (40958Z, performance) — in a COMMA-delimited file a comma-decimal value can only exist quoted
   // ("1,5"), so when the raw text has no quoted comma number the column-by-column scan (every row x column:
   // 1.4 s of a 4.4 s parse on an 83,670 x 109 assay export) is skipped. Semicolon / tab files are scanned as before.
@@ -183,12 +196,12 @@ export function parseTableColumns(text, opts) {
 // TASKS.csv #583 — the two halves of parseTableColumns, split so the parse can run in a worker (tabular.worker.js):
 // parseColumnsRaw -> { headers, cols, n, errors } is plain data (typed arrays transferable, text arrays cloneable);
 // rowsFromColumns wraps it as the accessor rows on the thread that uses them (getters can't be posted).
-export function parseColumnsRaw(text, { comments = "#" } = {}) {
+export function parseColumnsRaw(text, { comments = "#", keep = null } = {}) { // keep: #2177
   ({ text } = stripLeadingComments(text, comments)); // #720 — only before the header
   ({ text } = skipPreamble(text)); // #1666
   if (QUOTED_COMMA_NUMBER.test(text)) return null;
   const idLike = ID_LIKE_VALUE_IN.test(text) ? idLikeColumns(text) : null; // #1071
-  let headers = null, typed = null, cols = null, n = 0, cap = 4096, bad = false, delimiter = null;
+  let headers = null, typed = null, cols = null, n = 0, cap = 4096, bad = false, delimiter = null, width = 0, idx = null;
   const errors = [];
   const grow = () => {
     cap *= 2;
@@ -206,16 +219,18 @@ export function parseColumnsRaw(text, { comments = "#" } = {}) {
       delimiter = delimiter || res.meta.delimiter;
       const a = res.data;
       if (!headers) {
-        headers = a;
+        headers = a; width = a.length;
         if (delimiter !== "," || new Set(headers).size !== headers.length) { bad = true; p.abort(); return; }
+        idx = headers.map((_, j) => j);
+        if (keep?.length) { const want = new Set(keep); idx = idx.filter((j) => want.has(headers[j])); headers = idx.map((j) => headers[j]); } // #2177
         typed = headers.map((h) => !isIdentifierHeader(h) && !idLike?.has(h));
         cols = typed.map((t) => (t ? { num: new Float64Array(cap), kind: new Uint8Array(cap), other: [], pool: new Map() } : { txt: [], pool: new Map() }));
         return;
       }
-      if (a.length !== headers.length) { bad = true; p.abort(); return; }
+      if (a.length !== width) { bad = true; p.abort(); return; }
       if (n === cap) grow();
-      for (let j = 0; j < a.length; j++) {
-        const v = a[j], c = cols[j];
+      for (let q = 0; q < idx.length; q++) {
+        const v = a[idx[q]], c = cols[q];
         if (c.txt) { let s = c.pool.get(v); if (s === undefined) { s = v; c.pool.set(v, v); } c.txt.push(s); continue; }
         if (v === "") { c.kind[n] = K_NULL; continue; }
         if (FLOAT.test(v)) { const x = parseFloat(v); if (x > -MAX_FLOAT && x < MAX_FLOAT) { c.num[n] = x; c.kind[n] = K_NUM; continue; } }
@@ -292,26 +307,50 @@ export async function estimateTableMemory(file) {
   const rows = Math.round(Math.max(0, file.size - (header.length + 1)) / Math.max(1, (used - header.length - 1) / dataLines));
   return { rows, cols, bytes: rows * cols * 9 * 1.5 + file.size * 3 };
 }
-// -> true to go on. confirm: injectable (tests); with no window (Node) the table is read.
-export async function confirmTableSize(file, { budget = TABLE_MEMORY_BUDGET, confirm = typeof window !== "undefined" ? (m) => window.confirm(m) : null } = {}) {
+// TASKS.csv #2177 (Matt's decision 2026-11-09) — over the budget, the columns are chosen BEFORE the full read, so every kept value stays
+// exact: the estimate per column count, and the header names from the first 1 MB. -> { rows, cols, headers, fixed, perColumn }
+export async function tableColumnsPreview(file) {
+  const e = await estimateTableMemory(file);
+  const head = await file.slice(0, 1 << 16).text();
+  const first = (head.split(/\r?\n/)[0] || "").replace(/^\uFEFF/, "");
+  const delim = [",", "\t", ";", "|"].reduce((a, d) => (first.split(d).length > first.split(a).length ? d : a), ",");
+  const headers = first.split(delim).map((h) => h.trim().replace(/^"(.*)"$/, "$1"));
+  return { ...e, headers, fixed: file.size * 3, perColumn: e.rows * 9 * 1.5 };
+}
+export { subsetBytes } from "./tableSubsetRequest.js"; // #2177
+const requestTableSubset = (file, preview) => requestTableSubsetEv(file, preview, TABLE_MEMORY_BUDGET);
+// -> true to go on (whole table), { keep: [header...] } (only those columns), or false. confirm: injectable (tests); with no window (Node)
+// the table is read.
+export async function confirmTableSize(file, { budget = TABLE_MEMORY_BUDGET, confirm = typeof window !== "undefined" ? (m) => window.confirm(m) : null, choose = requestTableSubset } = {}) {
   if (!confirm || !(file?.size > budget / 12)) return true; // a file under budget / 12 can never reach the budget
   const e = await estimateTableMemory(file);
   if (e.bytes <= budget) return true;
+  const chosen = choose ? await choose(file, await tableColumnsPreview(file)) : null; // #2177
+  if (chosen != null) return chosen;
   return confirm(tr("{name} is a very large table: about {rows} rows × {cols} columns. Opening it needs roughly {gb} GB of memory, which can close GeoStrix on this computer.", { name: file.name, rows: e.rows.toLocaleString(), cols: e.cols, gb: (e.bytes / 1e9).toFixed(1) })
     + "\n\n" + tr("OK — open it anyway.") + "\n" + tr("Cancel — don't open it (split the file, or keep only the rows and columns you need, and open the parts)."));
 }
 // #2171 — a worker that failed on a big file (out of memory) is not retried on the window's own thread: that took the whole app down
 const MAIN_THREAD_RETRY_MAX = 64e6;
 export async function parseTableFile(file, opts) {
-  if (!(opts?.sizeChecked) && !(await confirmTableSize(file))) throw new Error(tr("not opened: it needs more memory than this computer can safely give it"));
+  if (!(opts?.sizeChecked)) {
+    const ok = await confirmTableSize(file);
+    if (!ok) throw new Error(tr("not opened: it needs more memory than this computer can safely give it"));
+    if (ok.keep?.length) opts = { ...(opts || {}), keep: ok.keep }; // #2177 — only the chosen columns are read
+  }
   if (typeof Worker !== "undefined" && file.size >= WORKER_MIN_BYTES) {
-    try { return await parseInWorker(await file.arrayBuffer(), opts || {}); } catch (err) {
+    try { return subsetNote(await parseInWorker(await file.arrayBuffer(), opts || {}), opts); } catch (err) {
       if (file.size >= MAIN_THREAD_RETRY_MAX) throw new Error(tr("the file reader stopped ({error}); the file is too large to read another way", { error: err?.message || String(err) }));
       /* read here instead */
     }
   }
   const { text, encoding } = decodeTableBytes(await file.arrayBuffer());
-  return encodingNote(parseTableText(text, opts), encoding);
+  return subsetNote(encodingNote(parseTableText(text, opts), encoding), opts);
+}
+// #2177 — said with the rows, so the import notice can carry it
+function subsetNote(out, opts) {
+  if (!opts?.keep?.length) return out;
+  return { ...out, subset: opts.keep, note: [out.note, tr("Only {k} chosen column(s) were read, to fit in memory: {list}.", { k: opts.keep.length, list: opts.keep.slice(0, 12).join(", ") + (opts.keep.length > 12 ? ", ..." : "") })].filter(Boolean).join(" ") };
 }
 
 // Rows (objects, or { fields, data }) -> CSV text with correct quoting (commas, quotes, newlines).

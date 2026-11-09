@@ -9530,5 +9530,18 @@
   "Remove the tie": "Retirer le rattachement",
   "On import: {moved} row(s) brought into the local grid through its tie to EPSG:{tie}{v}.": "À l'import : {moved} ligne(s) ramenée(s) dans la grille locale par son rattachement à EPSG:{tie}{v}.",
   "; {failed} could not be placed and kept their numbers": " ; {failed} n'ont pu être placée(s) et gardent leurs nombres",
-  "The file declares a coordinate system, but this project is on a local mine grid with no tie to one: the {kept} row(s) keep their numbers. Tie the grid to a CRS in Maps > Project CRS to bring such files in.": "Le fichier déclare un système de coordonnées, mais ce projet est sur une grille locale de mine sans rattachement : les {kept} ligne(s) gardent leurs nombres. Rattachez la grille à un SCR dans Cartes > SCR du projet pour ramener de tels fichiers."
+  "The file declares a coordinate system, but this project is on a local mine grid with no tie to one: the {kept} row(s) keep their numbers. Tie the grid to a CRS in Maps > Project CRS to bring such files in.": "Le fichier déclare un système de coordonnées, mais ce projet est sur une grille locale de mine sans rattachement : les {kept} ligne(s) gardent leurs nombres. Rattachez la grille à un SCR dans Cartes > SCR du projet pour ramener de tels fichiers.",
+  "Choose the columns to read": "Choisissez les colonnes à lire",
+  "{name} is a very large table: about {rows} rows × {cols} columns, roughly {gb} GB of memory to open whole. Tick the columns you need: only those are read, every value exact.": "{name} est une très grande table : environ {rows} lignes × {cols} colonnes, à peu près {gb} Go de mémoire pour l'ouvrir entière. Cochez les colonnes nécessaires : seules celles-ci sont lues, chaque valeur exacte.",
+  "Filter columns": "Filtrer les colonnes",
+  "Tick shown": "Cocher l'affichage",
+  "Untick shown": "Décocher l'affichage",
+  "Columns": "Colonnes",
+  "{k} of {n} columns: about {gb} GB. Fits (up to about {room} columns at this many rows).": "{k} colonnes sur {n} : environ {gb} Go. Ça tient (jusqu'à environ {room} colonnes pour ce nombre de lignes).",
+  "{k} of {n} columns: about {gb} GB, more than this computer can safely give (about {room} columns fit).": "{k} colonnes sur {n} : environ {gb} Go, plus que cet ordinateur ne peut fournir sans risque (environ {room} colonnes tiennent).",
+  "Don't open it": "Ne pas l'ouvrir",
+  "Every column: this can close GeoStrix on this computer.": "Toutes les colonnes : cela peut fermer GeoStrix sur cet ordinateur.",
+  "Open it whole anyway": "L'ouvrir entière quand même",
+  "Read the {k} column(s)": "Lire les {k} colonne(s)",
+  "Only {k} chosen column(s) were read, to fit in memory: {list}.": "Seules {k} colonne(s) choisie(s) ont été lues, pour tenir en mémoire : {list}."
 }

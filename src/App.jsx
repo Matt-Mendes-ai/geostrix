@@ -4,6 +4,7 @@ import { t as tr, LANGUAGES, currentLanguage, setLanguage } from "./lib/i18n.js"
 import { oncePerWindow } from "./lib/oncePerWindow.js"; // TASKS.csv #1163
 import { requestModuleAction } from "./lib/menuRequests.js"; // TASKS.csv #565
 import { onProjectCrsRequest, requestProjectCrs } from "./lib/projectCrsRequest.js"; // TASKS.csv #615
+import { onTableSubsetRequest } from "./lib/tableSubsetRequest.js"; // TASKS.csv #2177
 import { FileDown, Box, FlaskConical, Radio, Layout, Save, FolderOpen, FilePlus2, RotateCcw, X, Undo2, Redo2, Plus, Layers3, Target, FileBarChart2, Map as MapIcon, Compass, Pickaxe } from "./components/icons.js"; // Compass: #820
 import { crsName, getProj4DefSync, loadEpsgRegistry, onEpsgRegistry, isMetricProjectedEpsg } from "./lib/reproject.js"; // TASKS.csv #485; #834 registry; #1148
 import { useStore, useCursorValue, useTaskProgressValue, FreezeStore } from "./lib/store.jsx";
@@ -38,6 +39,7 @@ const HelpPane = React.lazy(() => import("./components/HelpPane.jsx")); // TASKS
 const ReportProblemModal = React.lazy(() => import("./components/ReportProblemModal.jsx")); // TASKS.csv #598
 const LicensesModal = React.lazy(() => import("./components/LicensesModal.jsx")); // TASKS.csv #639
 const ProjectCrsModal = React.lazy(() => import("./components/ProjectCrsModal.jsx")); // TASKS.csv #615
+const TableColumnsModal = React.lazy(() => import("./components/TableColumnsModal.jsx")); // TASKS.csv #2177
 const DegreesProjectBanner = React.lazy(() => import("./components/DegreesProjectBanner.jsx")); // TASKS.csv #1148
 const ProjectReportModal = React.lazy(() => import("./components/ProjectReportModal.jsx"));
 
@@ -145,6 +147,9 @@ export default function App() {
   const [crsRequest, setCrsRequest] = useState(null); // { reason, resolvers: [] }
   useEffect(() => onProjectCrsRequest(({ reason, points, suggested, resolve }) => setCrsRequest((cur) => (cur ? { ...cur, resolvers: [...cur.resolvers, resolve] } : { reason, points, suggested, resolvers: [resolve] }))), []);
   const finishCrsRequest = (epsg) => setCrsRequest((cur) => { cur?.resolvers.forEach((r) => r(epsg)); return null; });
+  // TASKS.csv #2177 — a table too large for memory: its columns chosen before the read (lib/tabular.js asks)
+  const [subsetRequest, setSubsetRequest] = useState(null);
+  useEffect(() => onTableSubsetRequest((d) => setSubsetRequest(d)), []);
   const [shortcutsTab, setShortcutsTab] = useState(null); // null | "shortcuts" | "python" (#391) | "about"
   const [helpAt, setHelpAt] = useState(null); // TASKS.csv #1966 — { id, n } while the Help panel is open (n re-opens it at a new page)
   useEffect(() => onHelpOpen((id) => setHelpAt({ id, n: Date.now() })), []);
@@ -585,6 +590,7 @@ export default function App() {
 
       <StatusBar onEpsg={() => requestProjectCrs()} pyStatus={pyStatus} updater={updater} onHelp={() => setShortcutsTab("shortcuts")} onPython={() => setShortcutsTab("python")} />
       <ExportToast />
+      {subsetRequest && <Suspense fallback={null}><TableColumnsModal name={subsetRequest.name} preview={subsetRequest.preview} budget={subsetRequest.budget} onDone={(v) => { subsetRequest.resolve(v); setSubsetRequest(null); }} /></Suspense>}
       {crsRequest && <Suspense fallback={null}><ProjectCrsModal reason={crsRequest.reason} points={crsRequest.points} suggested={crsRequest.suggested} onDone={finishCrsRequest} /></Suspense>}
       {licensesOpen && <Suspense fallback={null}><LicensesModal onClose={() => setLicensesOpen(false)} /></Suspense>}
       {reportProblem && <Suspense fallback={null}><ReportProblemModal screenshot={reportProblem.screenshot} crashed={reportProblem.crashed} onClose={() => setReportProblem(null)} /></Suspense>}

@@ -9530,5 +9530,18 @@
   "Remove the tie": "أزل الربط",
   "On import: {moved} row(s) brought into the local grid through its tie to EPSG:{tie}{v}.": "عند الاستيراد: جُلب {moved} صفًا إلى الشبكة المحلية عبر ربطها بـ EPSG:{tie}{v}.",
   "; {failed} could not be placed and kept their numbers": "؛ {failed} تعذّر وضعها فاحتفظت بأرقامها",
-  "The file declares a coordinate system, but this project is on a local mine grid with no tie to one: the {kept} row(s) keep their numbers. Tie the grid to a CRS in Maps > Project CRS to bring such files in.": "يعلن الملف نظام إحداثيات، لكن هذا المشروع على شبكة منجم محلية غير مربوطة بأي نظام: تحتفظ الصفوف الـ{kept} بأرقامها. اربط الشبكة بنظام إحداثيات في الخرائط > نظام إحداثيات المشروع لجلب مثل هذه الملفات."
+  "The file declares a coordinate system, but this project is on a local mine grid with no tie to one: the {kept} row(s) keep their numbers. Tie the grid to a CRS in Maps > Project CRS to bring such files in.": "يعلن الملف نظام إحداثيات، لكن هذا المشروع على شبكة منجم محلية غير مربوطة بأي نظام: تحتفظ الصفوف الـ{kept} بأرقامها. اربط الشبكة بنظام إحداثيات في الخرائط > نظام إحداثيات المشروع لجلب مثل هذه الملفات.",
+  "Choose the columns to read": "اختر الأعمدة المراد قراءتها",
+  "{name} is a very large table: about {rows} rows × {cols} columns, roughly {gb} GB of memory to open whole. Tick the columns you need: only those are read, every value exact.": "{name} جدول كبير جدًا: نحو {rows} صف × {cols} عمود، ويحتاج قرابة {gb} غيغابايت من الذاكرة لفتحه كاملًا. حدّد الأعمدة التي تحتاجها: تُقرأ هي وحدها، وكل قيمة كما هي.",
+  "Filter columns": "تصفية الأعمدة",
+  "Tick shown": "حدّد المعروضة",
+  "Untick shown": "ألغِ تحديد المعروضة",
+  "Columns": "الأعمدة",
+  "{k} of {n} columns: about {gb} GB. Fits (up to about {room} columns at this many rows).": "{k} من {n} عمود: نحو {gb} غيغابايت. يتسع (حتى نحو {room} عمود بهذا العدد من الصفوف).",
+  "{k} of {n} columns: about {gb} GB, more than this computer can safely give (about {room} columns fit).": "{k} من {n} عمود: نحو {gb} غيغابايت، أكثر مما يستطيع هذا الحاسوب منحه بأمان (يتسع نحو {room} عمود).",
+  "Don't open it": "لا تفتحه",
+  "Every column: this can close GeoStrix on this computer.": "كل الأعمدة: قد يُغلق هذا GeoStrix على هذا الحاسوب.",
+  "Open it whole anyway": "افتحه كاملًا على أي حال",
+  "Read the {k} column(s)": "اقرأ الأعمدة الـ{k}",
+  "Only {k} chosen column(s) were read, to fit in memory: {list}.": "قُرئت {k} عمود مختار فقط لتتسع الذاكرة: {list}."
 }

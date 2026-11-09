@@ -45,6 +45,6 @@ test("the WA composite assays (380 MB, 3.1 M rows x 85) would be asked about", a
 test("parseTableFile asks first, and a failed worker on a big file is reported, not retried on the window's thread", () => {
   const src = readFileSync(new URL("../src/lib/tabular.js", import.meta.url), "utf8").replace(/\r\n/g, "\n");
   const body = src.slice(src.indexOf("export async function parseTableFile("), src.indexOf("// Rows (objects, or { fields, data }) -> CSV text"));
-  assert.ok(body.includes("if (!(opts?.sizeChecked) && !(await confirmTableSize(file))) throw new Error("));
+  assert.ok(body.includes("if (!(opts?.sizeChecked)) {") && body.includes("const ok = await confirmTableSize(file);") && body.includes("if (!ok) throw new Error(")); // a chosen column subset comes back too since #2177
   assert.ok(body.includes("if (file.size >= MAIN_THREAD_RETRY_MAX) throw new Error("));
 });

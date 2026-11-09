@@ -9530,5 +9530,18 @@
   "Remove the tie": "Remover a amarração",
   "On import: {moved} row(s) brought into the local grid through its tie to EPSG:{tie}{v}.": "Na importação: {moved} linha(s) trazidas para a grade local pela amarração a EPSG:{tie}{v}.",
   "; {failed} could not be placed and kept their numbers": "; {failed} não puderam ser posicionadas e mantêm seus números",
-  "The file declares a coordinate system, but this project is on a local mine grid with no tie to one: the {kept} row(s) keep their numbers. Tie the grid to a CRS in Maps > Project CRS to bring such files in.": "O arquivo declara um sistema de coordenadas, mas este projeto está numa grade local de mina sem amarração a um: as {kept} linha(s) mantêm seus números. Amarre a grade a um SRC em Mapas > SRC do projeto para trazer esses arquivos."
+  "The file declares a coordinate system, but this project is on a local mine grid with no tie to one: the {kept} row(s) keep their numbers. Tie the grid to a CRS in Maps > Project CRS to bring such files in.": "O arquivo declara um sistema de coordenadas, mas este projeto está numa grade local de mina sem amarração a um: as {kept} linha(s) mantêm seus números. Amarre a grade a um SRC em Mapas > SRC do projeto para trazer esses arquivos.",
+  "Choose the columns to read": "Escolha as colunas a ler",
+  "{name} is a very large table: about {rows} rows × {cols} columns, roughly {gb} GB of memory to open whole. Tick the columns you need: only those are read, every value exact.": "{name} é uma tabela muito grande: cerca de {rows} linhas × {cols} colunas, aproximadamente {gb} GB de memória para abri-la inteira. Marque as colunas de que precisa: só essas são lidas, cada valor exato.",
+  "Filter columns": "Filtrar colunas",
+  "Tick shown": "Marcar as mostradas",
+  "Untick shown": "Desmarcar as mostradas",
+  "Columns": "Colunas",
+  "{k} of {n} columns: about {gb} GB. Fits (up to about {room} columns at this many rows).": "{k} de {n} colunas: cerca de {gb} GB. Cabe (até cerca de {room} colunas com estas linhas).",
+  "{k} of {n} columns: about {gb} GB, more than this computer can safely give (about {room} columns fit).": "{k} de {n} colunas: cerca de {gb} GB, mais do que este computador pode dar com segurança (cabem cerca de {room} colunas).",
+  "Don't open it": "Não abrir",
+  "Every column: this can close GeoStrix on this computer.": "Todas as colunas: isto pode fechar o GeoStrix neste computador.",
+  "Open it whole anyway": "Abrir inteira mesmo assim",
+  "Read the {k} column(s)": "Ler as {k} coluna(s)",
+  "Only {k} chosen column(s) were read, to fit in memory: {list}.": "Só {k} coluna(s) escolhidas foram lidas, para caber na memória: {list}."
 }
