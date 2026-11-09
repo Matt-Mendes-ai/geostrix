@@ -181,12 +181,19 @@ const ROLE_PATTERNS = [
 // ('monzonite', 'diorite') and NCR ('Lost Core Interval', 'Tricone through overburden') all defaulted to 'stratigraphic', so lost
 // core and dykes made false unit tops. A role wins when at least half of the code's rows that carry a note say it. The store
 // registers the result (setLithologyNoteRoles) whenever the lithology layer changes; names still come first.
+// TASKS.csv #2227 (review #2174, WA lode gold) — the WA log's vein, shear and no-recovery codes (VQZ 'vuggy qtz', BSZ 'as previous sz',
+// NPRC 'shotcrete' / 'cement!' / 'core not present', NLST 'tray thrown out') were all 'stratigraphic', so 36 % of a unit's run starts sat
+// under them as false tops. Read from the notes, never from a code prefix (V*, B*, N* mean other things on other deposits).
 const NOTE_RULES = [
-  [/\b(lost core|core loss|no (core )?recovery|tricone|pre-?collar|casing)\b/, "no recovery"],
+  [/\b(lost core|core loss|no (core )?recovery|tricone|pre-?collar|casing|shotcrete|cement|not present|thrown out)\b/, "no recovery"], // shotcrete…: #2227
   [/\b(fault breccia|fault gouge|flt (breccia|bx|gouge)|gouge)\b/, "fault"], // Woodjam UTB 'fault breccia', UTG 'flt gouge'
+  [/\b(shear( zone)?|sz|fault zone)\b/, "fault"], // #2227 — a shear zone cuts the pile like a fault (BSZ 'carbonate veins within the shear')
   [/\b(dykes?|dikes?)\b/, "dyke"],
   [/\bbreccia\b[^.;]*\b(magmatic|hydrothermal|intrusive|igneous)\b|\b(magmatic|hydrothermal|intrusive|igneous)\b[^.;]*\bbreccia\b/, "breccia"],
   [/\b(q(t)?z ?monz(onite)?|monz(onite)?|monzodiorite|qmz|dior(ite)?|granodiorite|grdr|granite|tonalite|syenite|gabbro|porphyry|intrusions?|intrusive)\b/, "dyke"], // monz / dior: logged abbreviations (Woodjam 'mg qtz monz')
+  // #2227 — a vein only when the note STARTS by describing one ('laminated qtz vein', 'vuggy qtz', 'qcb breccia'): host-rock notes mention veins
+  // all the time (Woodjam's ICMOQ 'qtz monz … strg vein alt', its BX '… stockwork of qtz veining'), and those are not vein codes. Last, after the intrusive words.
+  [/^\W*(((laminated|vuggy|massive|banded|white|milky|grey) )?(q(t)?z|quartz|qcb|carb(onate)?|cb)?[ -]?(veins?|vein breccia)\b|(vuggy|laminated) (q(t)?z|quartz)\b|qcb\b)/, "vein"],
 ];
 const NOT_NOTES = new Set(["hole_id", "value", "_src", "codes", "all_codes", "alt_style", "from", "to", "mcode", "source"]);
 export function lithologyNoteRoles(rows) {
@@ -214,6 +221,7 @@ let noteRoles = null;
 export function setLithologyNoteRoles(map) { noteRoles = map && map.size ? map : null; }
 export function roleForLithology(u) {
   const k = String(u || "").trim().toLowerCase();
+  if (k === "unknown") return "no recovery"; // TASKS.csv #2227 — the label blank cells import as (#2182) is not logged rock: never a unit, never a role from notes
   return UNIT_ROLES[k] || ROLE_PATTERNS.find(([re]) => re.test(k))?.[1] || noteRoles?.get(k) || "stratigraphic";
 }
 // Cross-cutting = doesn't belong in an ordered, non-crossing stratigraphic pile (see the Stack tool's
