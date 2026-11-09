@@ -9457,5 +9457,8 @@
   "The project's coordinate system is not chosen yet, so a true or magnetic bearing cannot be turned to grid north here. Choose the CRS (status bar), or enter the bearing as grid north.": "Le système de coordonnées du projet n'est pas encore choisi : un azimut vrai ou magnétique ne peut pas être ramené au nord du quadrillage ici. Choisissez le SCR (barre d'état) ou saisissez l'azimut en nord du quadrillage.",
   "Coordinate system not chosen yet": "Système de coordonnées pas encore choisi",
   "The coordinates are the project's own numbers: GeoStrix cannot place them on Earth until you choose the CRS they are in (Project CRS, left).": "Les coordonnées sont les nombres propres au projet : GeoStrix ne peut les placer sur Terre qu'une fois choisi leur SCR (SCR du projet, à gauche).",
-  "The project's coordinate system is not chosen yet, so there is no CRS to reproject a layer into. Choose it under Project CRS first.": "Le système de coordonnées du projet n'est pas encore choisi : il n'y a pas de SCR vers lequel reprojeter une couche. Choisissez-le d'abord sous SCR du projet."
+  "The project's coordinate system is not chosen yet, so there is no CRS to reproject a layer into. Choose it under Project CRS first.": "Le système de coordonnées du projet n'est pas encore choisi : il n'y a pas de SCR vers lequel reprojeter une couche. Choisissez-le d'abord sous SCR du projet.",
+  "Your {n} collars would be at {where}.": "Vos {n} collets seraient à {where}.",
+  "Your collars do not fit this CRS (they land off the globe).": "Vos collets ne vont pas dans ce SCR (ils tombent hors du globe).",
+  "That is near a pole: almost certainly not the CRS these coordinates are in.": "C'est près d'un pôle : presque certainement pas le SCR de ces coordonnées."
 }

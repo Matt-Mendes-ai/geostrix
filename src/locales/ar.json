@@ -9457,5 +9457,8 @@
   "The project's coordinate system is not chosen yet, so a true or magnetic bearing cannot be turned to grid north here. Choose the CRS (status bar), or enter the bearing as grid north.": "لم يُختر نظام إحداثيات المشروع بعد، لذا لا يمكن هنا تحويل اتجاه حقيقي أو مغناطيسي إلى شمال الشبكة. اختر نظام الإحداثيات (شريط الحالة)، أو أدخل الاتجاه بشمال الشبكة.",
   "Coordinate system not chosen yet": "لم يُختر نظام الإحداثيات بعد",
   "The coordinates are the project's own numbers: GeoStrix cannot place them on Earth until you choose the CRS they are in (Project CRS, left).": "الإحداثيات أرقام خاصة بالمشروع: لا يستطيع GeoStrix وضعها على الأرض حتى تختار نظام الإحداثيات الذي هي فيه (نظام إحداثيات المشروع، يسارًا).",
-  "The project's coordinate system is not chosen yet, so there is no CRS to reproject a layer into. Choose it under Project CRS first.": "لم يُختر نظام إحداثيات المشروع بعد، فلا يوجد نظام إحداثيات يُعاد إسقاط طبقة إليه. اختره أولًا في نظام إحداثيات المشروع."
+  "The project's coordinate system is not chosen yet, so there is no CRS to reproject a layer into. Choose it under Project CRS first.": "لم يُختر نظام إحداثيات المشروع بعد، فلا يوجد نظام إحداثيات يُعاد إسقاط طبقة إليه. اختره أولًا في نظام إحداثيات المشروع.",
+  "Your {n} collars would be at {where}.": "ستكون فوهاتك الـ {n} عند {where}.",
+  "Your collars do not fit this CRS (they land off the globe).": "لا تتوافق فوهاتك مع نظام الإحداثيات هذا (تقع خارج الكرة الأرضية).",
+  "That is near a pole: almost certainly not the CRS these coordinates are in.": "هذا قرب أحد القطبين: على الأرجح ليس نظام الإحداثيات الذي فيه هذه الإحداثيات."
 }

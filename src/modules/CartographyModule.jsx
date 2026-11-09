@@ -27,6 +27,8 @@ import { saveFile } from "../lib/desktop.js";
 import SourceCrsField from "../components/SourceCrsField.jsx";
 import { readShapefileLayers, reprojectShapefileZip, reportShapefileText, readGeoTiffInfo, reprojectGeoTiff, reportGeoTiffText, reprojectTableRows } from "../lib/fileReproject.js"; // #487
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786 — messages in the interface language
+import { collarCentreLonLat, collarSpread, formatLonLat } from "../lib/projectCrs.js"; // TASKS.csv #2291
+import { smallGridCoordinates } from "../lib/crsFromColumns.js"; // TASKS.csv #2291
 
 const btn = { display: "flex", alignItems: "center", justifyContent: "center", gap: 7, width: "100%", padding: "8px 10px", marginTop: 8, background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, color: "var(--color-text)", fontSize: "var(--font-size-base)", cursor: "pointer", fontFamily: "inherit" };
 const primary = { ...btn, background: "var(--color-accent)", borderColor: "var(--color-accent-dark)", color: "#fff" };
@@ -190,6 +192,20 @@ export default function CartographyModule({ embedded = false, forcePane = null }
               <div role="alert" style={{ ...note, color: "var(--color-warn-text-strong)" }}>
                 {tr("{v} is geographic (latitude/longitude in degrees). The 3D view, hole depths, distances and grids all work in metres, so the project needs a projected CRS — for British Columbia, NAD83 / UTM zone 9N or 10N, or NAD83 / BC Albers. To hand data to someone in WGS 84, use", { v: nameOf(newCrs) })}{" "}<b>{tr("A file")}</b>{" "}{tr("in the ribbon above: it writes a reprojected copy and leaves the project as it is.")}</div>
             )}
+            {/* TASKS.csv #2291 (review #2174) — the status-bar dialog's landing check, here too: the pane set GDA94 / MGA 51 on a local mine grid
+                with no word, and the 245 collars "were" in the Southern Ocean */}
+            {(changing || project.crsSet === false) && newCrs && !isGeographic(newCrs) && (store.collars || []).length > 0 && (() => {
+              const cols = store.collars, at = collarCentreLonLat(cols, newCrs), spread = at ? collarSpread(cols, newCrs) : null, small = smallGridCoordinates(cols);
+              const odd = !at || Math.abs(at.lat) > 75;
+              return (
+                <div role="note" style={{ ...note, color: odd || spread?.far || small ? "var(--color-warn-text-strong)" : undefined }}>
+                  {at ? tr("Your {n} collars would be at {where}.", { n: cols.length, where: formatLonLat(at) }) : tr("Your collars do not fit this CRS (they land off the globe).")}
+                  {at && odd ? " " + tr("That is near a pole: almost certainly not the CRS these coordinates are in.") : ""}
+                  {spread?.far ? " " + tr("{far} of the {total} collars land more than 50 km from the others (up to {km} km): they are not all in one coordinate frame, so no single CRS places them all.", { far: spread.far, total: spread.total, km: spread.km.toLocaleString() }) : ""}
+                  {small ? " " + tr("{n} of {of} collars have eastings {x0}–{x1} and northings {y0}–{y1}, which no UTM / MGA zone has: they look like a local mine grid.", { n: small.n, of: small.of, x0: Math.round(small.x[0]).toLocaleString(), x1: Math.round(small.x[1]).toLocaleString(), y0: Math.round(small.y[0]).toLocaleString(), y1: Math.round(small.y[1]).toLocaleString() }) : ""}
+                </div>
+              );
+            })()}
             {(changing || project.crsSet === false) && newCrs && !isGeographic(newCrs) && (
               hasData && project.crsSet !== false ? ( /* #615 — "reproject FROM" an unchosen placeholder means nothing: only set the label */
                 <>
