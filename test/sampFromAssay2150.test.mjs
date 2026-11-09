@@ -26,3 +26,13 @@ test("a real vein log still goes to Veins", () => {
   assert.equal(guessTarget(["HoleID", "From", "To", "Vein_Type", "Width_cm"]), "vein");
   assert.equal(guessTargetFor(["hole_id", "from", "to", "type"], "veins.csv"), "vein");
 });
+
+// #2150 follow-up (WA review) — WAMEX names the only gold column Au1: a numbered repeat of a two-letter symbol is an element column
+import { isElementColumn } from "../src/lib/geochem.js";
+test("Au1 / AuRp1 / AU1 are gold; CO2, SN1 and one-letter codes are not elements", () => {
+  for (const [h, sym] of [["Au1", "Au"], ["AuRp1", "Au"], ["AuDup2", "Au"], ["AU1", "Au"], ["Ag2", "Ag"], ["Au1_ppm", "Au"], ["Co2", "Co"], ["Sn1", "Sn"]]) assert.equal(isElementColumn(h), sym, h);
+  for (const h of ["CO2", "CO3", "SN1", "W1", "S1", "K2", "Hole1", "Lith1", "co2"]) assert.equal(isElementColumn(h), false, h);
+  const onlyAu1 = ["HOLEID", "SAMPLEID", "SAMPFROM", "SAMPTO", "SAMPLETYPE", "Au1"];
+  assert.equal(looksLikeAssay(onlyAu1, "assays_2.csv"), true);
+  assert.notEqual(guessTarget(onlyAu1), "vein");
+});

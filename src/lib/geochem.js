@@ -30,7 +30,18 @@ export function isElementColumn(header) {
   if (ox) return ox.symbol;
   const cleaned = String(header).replace(/\(.*?\)/g, " "); // drop parenthetical units, e.g. "Au (ppm)"
   const first = cleaned.split(/[\s_-]+/)[0].trim();
-  return ELEMENT_SYMBOLS.find((s) => s.toLowerCase() === first.toLowerCase()) || false;
+  return ELEMENT_SYMBOLS.find((s) => s.toLowerCase() === first.toLowerCase()) || numberedElement(first) || false;
+}
+// TASKS.csv #2150 follow-up (WA review: WAMEX gold_small) — a numbered repeat of a two-letter symbol: Au1, Ag2, AuRp1, AuDup1, AU1.
+// The symbol keeps its own case (Co2 = cobalt) or is all capitals; CO2 / CO3 and SN1 are not cobalt or tin, and the
+// one-letter symbols (S1, W1, K2, U1) are left out: too often a code or a width.
+const NUMBERED = /^([A-Z][a-z]|[A-Z]{2})(?:Rp|RP|rp|R|Dup|DUP|dup|D)?\d{1,2}$/;
+const NOT_NUMBERED = /^(CO[23]|SN\d{1,2})$/; // all capitals only: carbon dioxide / carbonate, a sample number (Sn1 is tin)
+function numberedElement(token) {
+  const m = NUMBERED.exec(token);
+  if (!m || NOT_NUMBERED.test(token)) return false;
+  const sym = m[1][0] + m[1][1].toLowerCase();
+  return ELEMENT_SYMBOLS.includes(sym) ? sym : false;
 }
 
 // TASKS.csv #403 — whole-rock oxide columns. Values are stored as ELEMENT wt% (everything downstream —
