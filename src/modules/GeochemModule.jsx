@@ -180,7 +180,9 @@ export default function GeochemModule() {
   const elementUnits = useMemo(() => Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])), [assayElements]);
   // TASKS.csv #1678 — the X-Y scatter's axes: elements, then the numeric downhole logs and custom-layer fields (read at each sample's depth)
   const xyChoices = useMemo(() => numericSourceChoices({ layers: store.layers, customLayers: store.customLayers }), [store.layers, store.customLayers]);
-  const xyKeyX = xyX || (assayElements[0] ? `el:${assayElements[0].symbol}` : ""), xyKeyY = xyY || (assayElements[1] ? `el:${assayElements[1].symbol}` : "");
+  // TASKS.csv #2193 (review #2174) — with one element Y defaulted to '' and the select showed its first option (Au) over an empty plot: the
+  // second element, else the first downhole log (Au vs RQD / recovery), else the one element again; never a blank shown as a choice
+  const xyKeyX = xyX || (assayElements[0] ? `el:${assayElements[0].symbol}` : ""), xyKeyY = xyY || (assayElements[1] ? `el:${assayElements[1].symbol}` : xyChoices[0]?.key || (assayElements[0] ? `el:${assayElements[0].symbol}` : ""));
   const xyDiag = useMemo(() => {
     if (diagramId !== "xy") return null;
     const choice = (key) => { if (!key) return null; if (key.startsWith("el:")) { const e = assayElements.find((x) => x.symbol === key.slice(3)); return e ? { kind: "element", symbol: e.symbol, unit: e.unit } : null; } return xyChoices.find((c) => c.key === key) || null; };
@@ -1204,6 +1206,7 @@ export default function GeochemModule() {
               {[["X", xyKeyX, setXyX], ["Y", xyKeyY, setXyY]].map(([axis, value, set]) => (
                 <label key={axis} style={{ display: "flex", gap: 4, alignItems: "center", fontSize: 11.5, color: "#55606e" }}>{axis}
                   <select aria-label={tr("{axis} axis", { axis })} value={value} onChange={(e) => set(e.target.value)} style={{ ...selectStyle, padding: "5px 8px", maxWidth: 220 }}>
+                    {!value && <option value="">{tr("— choose —")}</option>}{/* #2193 */}
                     <optgroup label={tr("Elements")}>{assayElements.map((e) => <option key={e.symbol} value={`el:${e.symbol}`}>{e.unit ? `${e.symbol} (${e.unit})` : e.symbol}</option>)}</optgroup>
                     {xyChoices.length > 0 && <optgroup label={tr("Downhole logs and custom fields (at each sample's depth)")}>{xyChoices.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}</optgroup>}
                   </select>
