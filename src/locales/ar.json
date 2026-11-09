@@ -9346,5 +9346,7 @@
   "WA uranium assays could not be loaded: {message}": "تعذّر تحميل تحاليل يورانيوم أستراليا الغربية: {message}",
   "WA uranium gamma log: {rows} eU3O8 readings (every 0.5 m, cased probe) added as the custom layer \"{name}\" — along the holes in the 3D View, and a log in Downhole Logs and the modelling tools' numeric sources.": "تسجيل غاما ليورانيوم أستراليا الغربية: {rows} قراءة eU3O8 (كل 0.5 م، مجس مغلّف) أُضيفت كطبقة مخصصة \"{name}\": على امتداد الثقوب في العرض ثلاثي الأبعاد، وكتسجيل في تسجيلات الثقوب وفي المصادر الرقمية لأدوات النمذجة.",
   "WA uranium gamma log could not be loaded: {message}": "تعذّر تحميل تسجيل غاما ليورانيوم أستراليا الغربية: {message}",
-  "The WA uranium sample's assays and gamma log could not be loaded: {message}": "تعذّر تحميل تحاليل وتسجيل غاما لعينة يورانيوم أستراليا الغربية: {message}"
+  "The WA uranium sample's assays and gamma log could not be loaded: {message}": "تعذّر تحميل تحاليل وتسجيل غاما لعينة يورانيوم أستراليا الغربية: {message}",
+  "Checking the values for negatives, zeros and empty cells… {pct}%": "جارٍ فحص القيم بحثًا عن القيم السالبة والأصفار والخلايا الفارغة… {pct}%",
+  "Checking the element columns of {name}…": "جارٍ فحص أعمدة العناصر في {name}…"
 }

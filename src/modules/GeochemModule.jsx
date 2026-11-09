@@ -16,7 +16,9 @@ import { MapPin as GMapPin, Triangle as GTriangle, Shapes as GShapes, BarChart3 
 import { Upload, Download, FlaskConical, Beaker, Scale, Grid3x3, ShieldCheck, TerminalSquare, Sigma, FileCheck, X, AlertTriangle, Globe, Database } from "../components/icons.js";
 import { noticeText, noticeLevel, errorNotice, notice } from "../lib/notices.js"; // TASKS.csv #729
 import { addCalculatedElement, CALC_PRESETS } from "../lib/calcElement.js"; // TASKS.csv #401
-import { useStore } from "../lib/store.jsx";
+import { useStore, useSetTaskProgress } from "../lib/store.jsx"; // useSetTaskProgress: #2164
+import { elementColumnStats } from "../lib/assayColumnScan.js"; // TASKS.csv #2164
+const ELEMENT_SCAN_CHUNKED_ROWS = 50000; // #2164 — below this the element columns are counted at once
 import { saveFile, loadSampleFiles } from "../lib/desktop.js"; // loadSampleFiles: TASKS.csv #391
 import { isElementColumn, inferUnit, pickElementColumns, assayExportRows, parseAssayValue, valueIn, readAssayCell, columnPositiveMax, convertUnit, mergeAssayRows, holesWithChangedIntervals, dropHoleAssays, blankDetectionLimit, isBlankAssayCell, oxideOfHeader, fromOxideHeader, surfaceAttrColumns, surfaceAttrs, mergeSurfaceSamples, otherMediumTwins } from "../lib/geochem.js"; // otherMediumTwins: #2085
 import { DIAGRAMS, SPIDER_DIAGRAMS, GEOCHEM_METHODS, diagramExportRows, protolithForSample, PROVISIONAL_ALTERATION_BOXES, GEOCHEM_LABELS, reeProfile, loggedCodeAt, isSedimentaryCode, mergeClassRuns, FITTED_PROTOLITH, fitLeastAlteredBox } from "../lib/geochemDiagrams.js"; // fitted: #2028
@@ -89,6 +91,7 @@ const SURFACE_ID_ALIASES = ["sample_id", "sampleid", "samp_num", "sample_num", "
 
 export default function GeochemModule() {
   const store = useStore();
+  const setTaskProgress = useSetTaskProgress(); // #2164
   const keptScope = scopeOf(store.getProjectToken()); // TASKS.csv #1284 — survives a tab switch
   const { assays, setAssays, assayElements, setAssayElements, surfaceSamples, setSurfaceSamples, surfaceElements, setSurfaceElements, geochemThresholds, setGeochemThresholds, surfaceQc, setSurfaceQc, mapLayers, replaceLayer, layers, collars, survey, boundaries, alterationBoxes, setAlterationBoxes, project, projectIsEmpty, setEpsg, viewerUiState } = store; // viewerUiState: #1091 (the 3D legend's colour edits)
   const [altBoxOpen, setAltBoxOpen] = useState(false); // TASKS.csv #503
@@ -302,7 +305,10 @@ export default function GeochemModule() {
     }));
   };
   const handleFile = (file, isPxrf, preset = null) => { // preset: #716 — dialog defaults for a known file
-    return readSampleTable(file).catch((e) => { setNotices((p) => [...p, errorNotice(tr("{name}: {error}", { name: file.name, error: e?.message || String(e) }))]); return { rows: [], headers: [], note: "", failed: true }; }).then((t) => {
+    // TASKS.csv #2164 — a big file says it is being read (110 MB took 6-30 s with nothing on screen)
+    const readLabel = file.size >= 20e6 ? tr("Reading {name}…", { name: file.name }) : null;
+    if (readLabel) setTaskProgress({ label: readLabel, indeterminate: true });
+    return readSampleTable(file).finally(() => { if (readLabel) setTaskProgress((cur) => (cur?.label === readLabel ? null : cur)); }).catch((e) => { setNotices((p) => [...p, errorNotice(tr("{name}: {error}", { name: file.name, error: e?.message || String(e) }))]); return { rows: [], headers: [], note: "", failed: true }; }).then((t) => {
         if (t.failed) return; // TASKS.csv #444 — shared reader: comma decimals + encoding fallback; #611 big files held as columns
         const res = { data: t.rows, meta: { fields: t.headers }, note: t.note };
         // TASKS.csv #284 — comma-decimal (European-locale) assay values parse as strings, which
@@ -366,8 +372,18 @@ export default function GeochemModule() {
       // other candidates this dedupe didn't pick, or a column the auto-detector missed entirely.
       // TASKS.csv #600 / #542 — the most complete column per element, an over-limit (ore-grade) column when one
       // exists, descriptive / error columns skipped, implausible default-% units corrected (pickElementColumns).
-      const elements = pickElementColumns(headers, data).map((e) => ({ ...e, mainHeader: e.header, checked: e.n > 0 })); // #1389 — a column with no value in any row stays unticked
-      setAssayModal({ file, fileName: file.name, format: "wide", isPxrf, headers, sampleRows: data.slice(0, 5), allRows: data, mapping: { hole_id: holeCol, from: fromCol, to: toCol }, qc: qcColumns(headers), methods: [], selectedMethod: null, elements, ...preset });
+      // TASKS.csv #2164 — a big table's element columns are counted in one chunked pass (status-bar progress) before the dialog opens: one
+      // pass per column on the main thread froze the window (0.85 s on 590,000 rows x 30 elements)
+      const openWide = (stats) => {
+        const elements = pickElementColumns(headers, data, stats).map((e) => ({ ...e, mainHeader: e.header, checked: e.n > 0 })); // #1389 — a column with no value in any row stays unticked
+        setAssayModal({ file, fileName: file.name, format: "wide", isPxrf, headers, sampleRows: data.slice(0, 5), allRows: data, mapping: { hole_id: holeCol, from: fromCol, to: toCol }, qc: qcColumns(headers), methods: [], selectedMethod: null, elements, ...preset });
+      };
+      if (data.length < ELEMENT_SCAN_CHUNKED_ROWS) { openWide(null); return; }
+      const scanLabel = tr("Checking the element columns of {name}…", { name: file.name });
+      setTaskProgress({ label: scanLabel, pct: 0 });
+      elementColumnStats(data, headers, { onProgress: (f) => setTaskProgress((cur) => (cur?.label === scanLabel ? { ...cur, pct: f * 100 } : cur)) })
+        .then(openWide)
+        .finally(() => setTaskProgress((cur) => (cur?.label === scanLabel ? null : cur)));
     }
   };
 

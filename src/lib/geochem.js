@@ -96,7 +96,8 @@ export function inferUnit(header, symbol) {
 // the main unit). A default-% element whose values run above 100 cannot be % and is read as ppm (Cr 1-665).
 // rows: the parsed rows (header -> raw cell). Returns [{ symbol, header, unit, alts, overLimit }].
 const DESCRIPTIVE_COLUMN = /\b(status|certificate|cert|laboratory|lab|method|workflow|date|completed|analys(is|ed)|comment|flag|qc|batch|job|lod|dl|plot)\b/i;
-export function pickElementColumns(headers, rows) {
+// stats (optional, #2164): Map(header -> { n, max }) counted beforehand in chunks (assayColumnScan.js elementColumnStats)
+export function pickElementColumns(headers, rows, stats = null) {
   const bySym = new Map();
   headers.forEach((h, order) => {
     const sym = isElementColumn(h);
@@ -104,7 +105,8 @@ export function pickElementColumns(headers, rows) {
     const words = String(h).replace(/[_]/g, " ");
     if (DESCRIPTIVE_COLUMN.test(words) || /error/i.test(h)) return;
     let n = 0, max = -Infinity;
-    for (const r of rows) { const v = parseAssayValue(r[h]); if (v != null && Number.isFinite(v)) { n++; if (v > max) max = v; } }
+    if (stats?.has(h)) ({ n, max } = stats.get(h));
+    else for (const r of rows) { const v = parseAssayValue(r[h]); if (v != null && Number.isFinite(v)) { n++; if (v > max) max = v; } }
     if (!bySym.has(sym)) bySym.set(sym, []);
     bySym.get(sym).push({ header: h, n, max, order, exact: String(h).trim() === sym });
   });

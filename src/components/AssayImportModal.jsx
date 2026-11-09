@@ -1,7 +1,8 @@
 import { QC_COLUMN_KEYS } from "../lib/assayQcColumns.js"; // TASKS.csv #1184
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { X } from "./icons.js";
-import { isElementColumn, inferUnit, ELEMENT_SYMBOLS, parseAssayValue, NO_DATA_SENTINEL_MAX, isBlankAssayCell, unitAssumed, isOverLimitCode } from "../lib/geochem.js";
+import { isElementColumn, inferUnit, ELEMENT_SYMBOLS, NO_DATA_SENTINEL_MAX, unitAssumed } from "../lib/geochem.js";
+import { scanAssayColumns, negativeSummary, zeroCount, blankCount } from "../lib/assayColumnScan.js"; // TASKS.csv #2164
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay } from "../lib/modalStyles.js";
@@ -13,60 +14,26 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
   useEscapeKey(onCancel); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
   const checkedCount = modal.elements.filter((e) => e.checked).length;
-  // TASKS.csv #333 — count negative numbers in the columns being imported, so the user decides what they
-  // mean before they become grades.
-  // TASKS.csv #583 — counted per COLUMN once and cached (ticking an element re-sums, it doesn't rescan), with plain
-  // loops: the old flatMap built one array of every checked cell (12 x 190,000 = 2.3 M entries) on every tick.
-  const negByColumn = useMemo(() => new Map(), [modal.allRows]);
-  const negativesOf = (h) => {
-    let c = negByColumn.get(h);
-    if (!c) {
-      c = { codes: 0, sentinels: 0, over: 0, overCode: null };
-      const rows = modal.allRows;
-      let max = 0; // #1648 — the column's largest positive value: a negative code at that size is its upper limit
-      for (let i = 0; i < rows.length; i++) { const v = parseAssayValue(rows[i][h]); if (v != null && v > max) max = v; }
-      for (let i = 0; i < rows.length; i++) {
-        const v = parseAssayValue(rows[i][h]);
-        if (v == null || v >= 0) continue;
-        if (isOverLimitCode(v, max)) { c.over++; c.overCode = v; } else if (v <= NO_DATA_SENTINEL_MAX) c.sentinels++; else c.codes++;
-      }
-      negByColumn.set(h, c);
-    }
-    return c;
-  };
-  const negatives = useMemo(() => {
-    const hs = modal.format === "long" ? [modal.mapping.value] : modal.elements.filter((e) => e.checked).map((e) => e.header);
-    // #1648 — over-limit codes are counted apart, and fall back into the other two when the user turns their reading off
-    const overOn = modal.overLimitCodes !== false;
-    return hs.reduce((t, h) => {
-      const c = negativesOf(h);
-      const over = overOn ? c.over : 0, back = overOn ? 0 : c.over;
-      return { codes: t.codes + c.codes + (back && c.overCode > NO_DATA_SENTINEL_MAX ? back : 0), sentinels: t.sentinels + c.sentinels + (back && c.overCode <= NO_DATA_SENTINEL_MAX ? back : 0), over: t.over + over,
-        overCols: c.over ? [...t.overCols, `${h} ${c.overCode} (×${c.over})`] : t.overCols, overAny: t.overAny + c.over };
-    }, { codes: 0, sentinels: 0, over: 0, overCols: [], overAny: 0 });
-  }, [modal.allRows, modal.elements, modal.format, modal.mapping.value]);
-  // TASKS.csv #1677 — exact zeros in the columns being imported (in a pXRF file: 'not detected')
-  const zeros = useMemo(() => {
-    const hs = modal.format === "long" ? [modal.mapping.value] : modal.elements.filter((e) => e.checked).map((e) => e.header);
-    let n = 0;
-    for (const r of modal.allRows) for (const h of hs) if (parseAssayValue(r[h]) === 0) n++;
-    return n;
-  }, [modal.allRows, modal.elements, modal.format, modal.mapping.value]);
-  // TASKS.csv #502 — empty element cells (in rows that have at least one result: a row with none had nothing
-  // analysed). The user says what they mean for this file; GeochemModule applies it.
-  const blanks = useMemo(() => {
-    const rows = modal.allRows;
-    if (modal.format === "long") { let n = 0; for (let i = 0; i < rows.length; i++) if (isBlankAssayCell(rows[i][modal.mapping.value])) n++; return n; }
-    const cols = modal.elements.filter((e) => e.checked).map((e) => e.header);
-    let n = 0;
-    for (let i = 0; i < rows.length; i++) {
-      const r = rows[i];
-      let empty = 0;
-      for (let j = 0; j < cols.length; j++) if (isBlankAssayCell(r[cols[j]])) empty++;
-      if (empty < cols.length) n += empty;
-    }
-    return n;
-  }, [modal.allRows, modal.elements, modal.format, modal.mapping.value]);
+  // TASKS.csv #333 — count negative numbers in the columns being imported, so the user decides what they mean before they become grades;
+  // #1677 exact zeros; #502 empty cells. TASKS.csv #2164 — one chunked pass over the rows for every candidate column (assayColumnScan.js),
+  // so a 590,000-row file no longer freezes the window before the dialog paints; ticking an element re-sums per-column results (#583).
+  const scanHeaders = modal.format === "long" ? [modal.mapping.value].filter(Boolean) : [...new Set(modal.elements.map((e) => e.header).filter(Boolean))];
+  const scanKey = scanHeaders.join("\u0001");
+  const [scan, setScan] = useState(null);
+  const [scanPct, setScanPct] = useState(0);
+  useEffect(() => {
+    let cancelled = false;
+    setScan(null); setScanPct(0);
+    scanAssayColumns(modal.allRows || [], scanHeaders, { onProgress: (f) => { if (!cancelled) setScanPct(f); }, isCancelled: () => cancelled })
+      .then((st) => { if (!cancelled && st) setScan(st); });
+    return () => { cancelled = true; };
+  }, [modal.allRows, scanKey]); // scanKey stands for scanHeaders
+  const importedHeaders = modal.format === "long" ? [modal.mapping.value] : modal.elements.filter((e) => e.checked).map((e) => e.header);
+  const NONE = { codes: 0, sentinels: 0, over: 0, overCols: [], overAny: 0 };
+  // #1648 — over-limit codes are counted apart, and fall back into the other two when the user turns their reading off
+  const negatives = scan ? negativeSummary(scan, importedHeaders, modal.overLimitCodes !== false) : NONE;
+  const zeros = scan ? zeroCount(scan, importedHeaders) : 0;
+  const blanks = useMemo(() => (scan ? blankCount(scan, importedHeaders, { long: modal.format === "long" }) : 0), [scan, importedHeaders.join("\u0001"), modal.format]);
   // TASKS.csv #334 — elements already in the project under a different unit get converted on import.
   const unitClashes = modal.elements.filter((e) => e.checked && existingUnits[e.symbol] && existingUnits[e.symbol] !== e.unit);
   // TASKS.csv #210 — manual "add a column the auto-detector missed" control, wide format only (long
@@ -237,6 +204,9 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
           )}
         </div>
 
+        {!scan && (modal.allRows || []).length > 0 && ( /* TASKS.csv #2164 — the values are being checked; the questions below depend on them */
+          <div role="status" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", padding: "0 16px 8px" }}>{tr("Checking the values for negatives, zeros and empty cells… {pct}%", { pct: Math.round(scanPct * 100) })}</div>
+        )}
         {(negatives.codes > 0 || negatives.sentinels > 0 || negatives.overAny > 0 || unitClashes.length > 0 || blanks > 0 || zeros > 0) && (
           <div style={{ padding: "10px 16px", borderTop: "1px solid var(--color-border)", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", display: "flex", flexDirection: "column", gap: 6 }}>
             {negatives.overAny > 0 && ( /* TASKS.csv #1648 */
@@ -280,7 +250,7 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
 
         <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: "1px solid var(--color-border)" }}>
           <button onClick={onCancel} style={{ ...btn(false), flex: 1 }}>{tr("Cancel")}</button>
-          <button onClick={onCommit} disabled={!!modal.busy} style={{ ...btn(true), flex: 2, opacity: modal.busy ? 0.6 : 1 }}>{modal.busy ? tr("Importing…") : tr(checkedCount === 1 ? "Import {checkedCount} element" : "Import {checkedCount} elements", { checkedCount })}</button>{/* busy: #583 */}
+          <button onClick={onCommit} disabled={!!modal.busy || !scan} /* !scan: #2164 */ style={{ ...btn(true), flex: 2, opacity: modal.busy || !scan ? 0.6 : 1 }}>{modal.busy ? tr("Importing…") : tr(checkedCount === 1 ? "Import {checkedCount} element" : "Import {checkedCount} elements", { checkedCount })}</button>{/* busy: #583 */}
         </div>
       </div>
     </div>

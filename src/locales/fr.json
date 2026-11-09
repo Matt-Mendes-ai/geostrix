@@ -9346,5 +9346,7 @@
   "WA uranium assays could not be loaded: {message}": "Les analyses de l'uranium d'Australie-Occidentale n'ont pas pu être chargées : {message}",
   "WA uranium gamma log: {rows} eU3O8 readings (every 0.5 m, cased probe) added as the custom layer \"{name}\" — along the holes in the 3D View, and a log in Downhole Logs and the modelling tools' numeric sources.": "Diagraphie gamma de l'uranium d'Australie-Occidentale : {rows} lectures d'eU3O8 (tous les 0,5 m, sonde tubée) ajoutées comme couche personnalisée « {name} » : le long des sondages dans la Vue 3D, et comme diagraphie dans Diagraphies et dans les sources numériques des outils de modélisation.",
   "WA uranium gamma log could not be loaded: {message}": "La diagraphie gamma de l'uranium d'Australie-Occidentale n'a pas pu être chargée : {message}",
-  "The WA uranium sample's assays and gamma log could not be loaded: {message}": "Les analyses et la diagraphie gamma de l'exemple d'uranium d'Australie-Occidentale n'ont pas pu être chargées : {message}"
+  "The WA uranium sample's assays and gamma log could not be loaded: {message}": "Les analyses et la diagraphie gamma de l'exemple d'uranium d'Australie-Occidentale n'ont pas pu être chargées : {message}",
+  "Checking the values for negatives, zeros and empty cells… {pct}%": "Vérification des valeurs (négatives, nulles, cellules vides)… {pct} %",
+  "Checking the element columns of {name}…": "Vérification des colonnes d'éléments de {name}…"
 }
