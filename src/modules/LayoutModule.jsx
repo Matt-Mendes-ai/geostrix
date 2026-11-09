@@ -636,7 +636,9 @@ export default function LayoutModule() {
       Object.assign(base, fitDrillPlan(collars, base.w, base.h, SCALE_PRESETS) || { scale: 10000, centre: { x: 0, y: 0 } });
     }
     if (type === "table") { base.source = "collars"; base.title = "Drillhole collars"; base.w = 520; base.fontPt = 7; Object.assign(base, placeCollarTable(elements, A4, { w: 520, fontPt: 7, total: collars.length })); /* #1638 fits the sheet; #2135 free space */ base.frameWidth = 1; }
-    if (type !== "logo") setElements((els) => [...els, base]);
+    // TASKS.csv #2302 (review #2174) — a drill plan ties the page's starter scale bar as a snapshot does (#1320): a '100 m' bar at 1:2,380 stood
+    // beside a 1:20,000 plan
+    if (type !== "logo") setElements((els) => (type === "drillplan" ? tieStarterFurniture([...els, base], base) : [...els, base]));
     setSelected(type !== "logo" ? id : null);
   };
 

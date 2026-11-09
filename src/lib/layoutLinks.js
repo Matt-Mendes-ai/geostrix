@@ -81,7 +81,7 @@ export function tieStarterFurniture(els, view, { bar: wantBar = true, north: wan
     if (starter) els = els.map((el) => (el === starter ? { id: `look_${view.id}`, type: "text", x: Math.max(0, (el.x || 0) - 60), y: el.y || 40, w: 160, text: sectionLookText(view.sectionAzimuth), boundTo: view.id } : el));
   }
   const { w: imgW, h: imgH } = capturedSize(view);
-  const ppm = view.type === "viewport" ? (view.worldHeightAtTarget && imgH ? imgH / view.worldHeightAtTarget : 0) : (view.worldWidthAtCaptureM && imgW ? imgW / view.worldWidthAtCaptureM : 0);
+  const ppm = view.type === "viewport" ? (view.worldHeightAtTarget && imgH ? imgH / view.worldHeightAtTarget : 0) : view.type === "drillplan" ? pxPerMetre(view.scale) /* #2302 */ : (view.worldWidthAtCaptureM && imgW ? imgW / view.worldWidthAtCaptureM : 0);
   const bar = wantBar && ppm > 0 ? els.find((el) => el.type === "scale" && !el.boundTo && !el.pxPerMeter && el.meters === 100) : null;
   const north = wantNorth && view.cameraAzimuthDeg != null ? els.find((el) => el.type === "north" && el.rotation == null) : null;
   if (!bar && !north) return els;
