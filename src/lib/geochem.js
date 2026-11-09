@@ -1049,6 +1049,22 @@ export function surfaceAttrs(row, cols) {
 // TASKS.csv #1794 (review #1646, Kodiak) — a numeric id matches without its leading zeros: Excel dropped them in Kodiak's soil data sheet
 // ('45601') but not in its assay sheet ('045601'), and the join added 135 duplicate sites at the same coordinates.
 export const sampleIdKey = (id) => { const t = String(id ?? "").trim(); return /^\d+$/.test(t) ? t.replace(/^0+(?=\d)/, "") : t; };
+// TASKS.csv #2085 (review #2013, Surface Geology) — a re-import of the same soil ids with the medium set to 'rock chip' made 49 duplicates at the
+// same coordinates: the merge key is id + medium, so a wrong medium slipped past it with no word. -> the incoming rows whose sample id is
+// already in the project under ANOTHER medium within tol metres: { n, media: { medium: count }, existing: Map(row -> its medium) }.
+export function otherMediumTwins(prev, rows, tol = 1) {
+  const byId = new Map();
+  for (const s of prev || []) { if (!s?.sample_id) continue; const k = sampleIdKey(s.sample_id); if (!byId.has(k)) byId.set(k, []); byId.get(k).push(s); }
+  const existing = new Map(), media = {};
+  for (const r of rows || []) {
+    if (!r?.sample_id) continue;
+    const same = (byId.get(sampleIdKey(r.sample_id)) || []);
+    if (same.some((s) => s.medium === r.medium)) continue; // an ordinary update
+    const twin = same.find((s) => Math.hypot(s.x - r.x, s.y - r.y) <= tol);
+    if (twin) { existing.set(r, twin.medium); media[twin.medium] = (media[twin.medium] || 0) + 1; }
+  }
+  return { n: existing.size, media, existing };
+}
 export function mergeSurfaceSamples(prev, rows) {
   const keyOf = (s) => (s.sample_id ? `${sampleIdKey(s.sample_id)}\u0000${s.medium}` : null);
   const at = new Map();

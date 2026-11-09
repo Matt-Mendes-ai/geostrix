@@ -9316,5 +9316,13 @@
   " {derivedFromStrike} dip direction(s) derived from strike by the left-hand rule (strike − 90°).": " {derivedFromStrike} sentido(s) de mergulho derivados da direção pela regra da mão esquerda (direção − 90°).",
   " {n} dip direction(s) taken from the strike and the dip quadrant.": " {n} sentido(s) de mergulho obtidos da direção e do quadrante de mergulho.",
   " {n} dip quadrant(s) could not be read (not N, NE, E…), so the strike convention was used there.": " {n} quadrante(s) de mergulho não puderam ser lidos (não são N, NE, E…), então ali foi usada a convenção da direção.",
-  " {rhrMismatches} row(s) have a strike and dip direction that aren't 90° apart by the left-hand rule — the dip direction was used; check whether those strikes are right-hand-rule.": " {rhrMismatches} linha(s) têm direção e sentido de mergulho que não estão a 90° pela regra da mão esquerda: foi usado o sentido de mergulho; verifique se essas direções seguem a regra da mão direita."
+  " {rhrMismatches} row(s) have a strike and dip direction that aren't 90° apart by the left-hand rule — the dip direction was used; check whether those strikes are right-hand-rule.": " {rhrMismatches} linha(s) têm direção e sentido de mergulho que não estão a 90° pela regra da mão esquerda: foi usado o sentido de mergulho; verifique se essas direções seguem a regra da mão direita.",
+  "{n} of these sample ids are already in the project at the same positions (within 1 m), as {had}; this import would add them as {media}.": "{n} destes IDs de amostra já estão no projeto nas mesmas posições (a menos de 1 m), como {had}; esta importação os adicionaria como {media}.",
+  "OK — update those samples (they keep their medium).": "OK: atualizar essas amostras (mantêm o meio).",
+  "Cancel — choose whether to add them as new samples.": "Cancelar: escolher se adiciona como novas amostras.",
+  "{n} sample id(s) matched samples already in the project as {had} at the same positions: those were updated, keeping their medium.": "{n} ID(s) de amostra coincidiram com amostras já no projeto como {had} nas mesmas posições: foram atualizadas, mantendo o meio.",
+  "Add the {n} sample(s) as {media} anyway? They sit on samples already in the project ({had}). Cancel stops the import.": "Adicionar mesmo assim as {n} amostras como {media}? Elas ficam sobre amostras já no projeto ({had}). Cancelar interrompe a importação.",
+  "{n} sample(s) were added as {media} at the positions of samples already in the project as {had}.": "{n} amostra(s) foram adicionadas como {media} nas posições de amostras já no projeto como {had}.",
+  "Surface sample import cancelled: nothing was added.": "Importação de amostras de superfície cancelada: nada foi adicionado.",
+  "The file's \"{col}\" column holds {list}; with no medium column chosen, every row is imported as {medium}.": "A coluna \"{col}\" do arquivo contém {list}; sem coluna de meio escolhida, cada linha é importada como {medium}."
 }

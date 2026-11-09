@@ -105,6 +105,15 @@ export default function SurfaceImportModal({ modal, onChange, onCancel, onCommit
               {SURFACE_MEDIA.map((m) => <option key={m} value={m}>{m}</option>)}
             </select>
           </div>
+          {!modal.mapping.medium && (() => { // TASKS.csv #2085 — what the file's own medium column holds, when it is not used
+            const col = modal.headers.find((h) => /^(medium|sample_?medium|samp_?type|sample_?type|smpl_?medium)$/i.test(String(h).trim()));
+            if (!col) return null;
+            const counts = new Map();
+            for (const r of modal.allRows || []) { const v = String(r[col] ?? "").trim(); if (v) counts.set(v, (counts.get(v) || 0) + 1); }
+            if (!counts.size) return null;
+            const list = [...counts].sort((a, b) => b[1] - a[1]).slice(0, 4).map(([v, n]) => `${v} ${n}`).join(", ");
+            return <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", margin: "-4px 0 8px 130px", lineHeight: 1.4 }}>{tr("The file's \"{col}\" column holds {list}; with no medium column chosen, every row is imported as {medium}.", { col, list, medium: modal.defaultMedium })}</div>;
+          })()}
           {/* TASKS.csv #1794 (review #1646, Kodiak) — the QC type apart from the medium: REG / DUP / STD / BLK / Control mark inserts, not media */}
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }} title={tr("The column that marks standards, blanks and duplicates (REG / DUP / STD / BLK / Control ...). Those rows are kept for Surface QAQC, not drawn as samples. Left on none, the medium column is read for these labels, as before.")}>
             <div style={{ width: 120, fontSize: "var(--font-size-base)", color: "var(--color-text)" }}>{tr("QC type")}</div>

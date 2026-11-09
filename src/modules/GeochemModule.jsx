@@ -18,7 +18,7 @@ import { noticeText, noticeLevel, errorNotice, notice } from "../lib/notices.js"
 import { addCalculatedElement, CALC_PRESETS } from "../lib/calcElement.js"; // TASKS.csv #401
 import { useStore } from "../lib/store.jsx";
 import { saveFile, loadSampleFiles } from "../lib/desktop.js"; // loadSampleFiles: TASKS.csv #391
-import { isElementColumn, inferUnit, pickElementColumns, assayExportRows, parseAssayValue, valueIn, readAssayCell, columnPositiveMax, convertUnit, mergeAssayRows, holesWithChangedIntervals, dropHoleAssays, blankDetectionLimit, isBlankAssayCell, oxideOfHeader, fromOxideHeader, surfaceAttrColumns, surfaceAttrs, mergeSurfaceSamples } from "../lib/geochem.js";
+import { isElementColumn, inferUnit, pickElementColumns, assayExportRows, parseAssayValue, valueIn, readAssayCell, columnPositiveMax, convertUnit, mergeAssayRows, holesWithChangedIntervals, dropHoleAssays, blankDetectionLimit, isBlankAssayCell, oxideOfHeader, fromOxideHeader, surfaceAttrColumns, surfaceAttrs, mergeSurfaceSamples, otherMediumTwins } from "../lib/geochem.js"; // otherMediumTwins: #2085
 import { DIAGRAMS, SPIDER_DIAGRAMS, GEOCHEM_METHODS, diagramExportRows, protolithForSample, PROVISIONAL_ALTERATION_BOXES, GEOCHEM_LABELS, reeProfile, loggedCodeAt, isSedimentaryCode, mergeClassRuns, FITTED_PROTOLITH, fitLeastAlteredBox } from "../lib/geochemDiagrams.js"; // fitted: #2028
 import { qcRecordFromFileRow, emptySurfaceQc, looksLikeQcTypeColumn, mergeQcRecords } from "../lib/surfaceQaqc.js"; // TASKS.csv #842; looksLikeQcTypeColumn, mergeQcRecords: #1794
 import { mapInChunks } from "../lib/mapInChunks.js"; // TASKS.csv #583
@@ -846,7 +846,20 @@ export default function GeochemModule() {
     });
     // TASKS.csv #1664 (review #1646, Kodiak) — a sample row with no coordinates was dropped with no word (181 Kodiak control rows vanished
     // before #1794 classed them as QC): every one left out is counted in the notice (a reprojection failure is counted on its own)
-    const rows = mappedRows.filter((r) => r && Number.isFinite(r.x) && Number.isFinite(r.y));
+    let rows = mappedRows.filter((r) => r && Number.isFinite(r.x) && Number.isFinite(r.y));
+    // TASKS.csv #2085 — sample ids already in the project under another medium at the same place: update them, or add them anyway, asked
+    let twinNote = "";
+    const twins = otherMediumTwins(surfaceSamples, rows);
+    if (twins.n) {
+      const had = Object.entries(twins.media).map(([m, k]) => `${m} ${k}`).join(", ");
+      const newMedia = [...new Set([...twins.existing.keys()].map((r) => r.medium))].join(", ");
+      if (window.confirm(tr("{n} of these sample ids are already in the project at the same positions (within 1 m), as {had}; this import would add them as {media}.", { n: twins.n, had, media: newMedia }) + "\n\n" + tr("OK — update those samples (they keep their medium).") + "\n" + tr("Cancel — choose whether to add them as new samples."))) {
+        rows = rows.map((r) => (twins.existing.has(r) ? { ...r, medium: twins.existing.get(r) } : r));
+        twinNote = tr("{n} sample id(s) matched samples already in the project as {had} at the same positions: those were updated, keeping their medium.", { n: twins.n, had });
+      } else if (window.confirm(tr("Add the {n} sample(s) as {media} anyway? They sit on samples already in the project ({had}). Cancel stops the import.", { n: twins.n, media: newMedia, had }))) {
+        twinNote = tr("{n} sample(s) were added as {media} at the positions of samples already in the project as {had}.", { n: twins.n, media: newMedia, had });
+      } else { setNotices((p) => [...p, notice("Surface sample import cancelled: nothing was added.")]); return; }
+    }
     const noXY = mappedRows.filter((r) => r && !(Number.isFinite(r.x) && Number.isFinite(r.y))).length - reprojectFailed;
     const noZ = rows.filter((r) => r.z == null).length;
     // TASKS.csv #842; #1794 — merged by kind and sample id: a re-import replaces the QC records it already brought instead of doubling them
@@ -859,6 +872,7 @@ export default function GeochemModule() {
     setSurfaceElements((prev) => { const merged = new Map(prev.map((e) => [e.symbol, e])); chosen.forEach((e) => { if (!merged.has(e.symbol)) merged.set(e.symbol, oxideOfHeader(e.header) ? { ...e, unit: "%" } : e); }); return Array.from(merged.values()); }); // #403
     const extra = [
       modal.publicNote || null, // TASKS.csv #846
+      twinNote || null, // #2085
       qcMerge?.replaced ? tr("{n} QC insert(s) were already held from an earlier import and were updated, not added again.", { n: qcMerge.replaced }) : null, // #1794
       merged.updated ? tr("{updated} of them matched samples already in the project by sample id and medium and updated them ({added} added).", { updated: merged.updated, added: merged.added }) : null, // #954
       converted.length ? `Converted ${converted.map((e) => `${e.symbol} ${e.unit} → ${existingUnit[e.symbol]}`).join(", ")} to match the unit already used in this project.` : null,
