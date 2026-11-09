@@ -3067,7 +3067,7 @@
   "MN": "ش.م",
   "TN": "ش.ح",
   "No CRS chosen": "لم يُختر نظام إحداثيات",
-  "Search: name, zone or EPSG code (e.g. 9N, Albers, 32722)": "البحث: الاسم أو المنطقة أو رمز EPSG (مثل 9N، Albers، 32722)",
+  "Search: name, zone or EPSG code (e.g. 9N, MGA 51, Albers, 32722)": "البحث: الاسم أو المنطقة أو رمز EPSG (مثل 9N، MGA 51، Albers، 32722)",
   "Search coordinate reference systems": "البحث في أنظمة الإحداثيات المرجعية",
   "Coordinate reference systems": "أنظمة الإحداثيات المرجعية",
   "No CRS matches. GeoStrix builds only the CRSs it has verified definitions for.": "لا نظام إحداثيات مطابق. يبني GeoStrix فقط الأنظمة التي لديه تعريفات موثقة لها.",
@@ -9438,5 +9438,6 @@
   "The {col} column names more than one frame ({list}): these rows are not in one coordinate system, so no single CRS places them all. Import the groups as separate files.": "يسمّي العمود {col} أكثر من إطار ({list}): هذه الصفوف ليست في نظام إحداثيات واحد، فلا يضعها نظام إحداثيات واحد كلها. استورد المجموعات كملفات منفصلة.",
   "The {col} column names a local grid ({name}), not a map projection: no CRS here places these collars on the map.": "يسمّي العمود {col} شبكة محلية ({name})، لا إسقاطًا خرائطيًا: لا يضع أي نظام إحداثيات هنا هذه الفوهات على الخريطة.",
   "{n} of {of} collars have eastings {x0}–{x1} and northings {y0}–{y1}, which no UTM / MGA zone has: they look like a local mine grid.": "لدى {n} من أصل {of} فوهة شرقيات {x0}–{x1} وشماليات {y0}–{y1} لا توجد في أي منطقة UTM / MGA: تبدو شبكة منجم محلية.",
-  "{file}: the {col} column says {name} (EPSG:{code}), chosen below. Check it on the map, then use it. They are placed as they are, with no conversion.": "{file}: يذكر العمود {col} ‏{name} ‏(EPSG:{code})، وهو المختار أدناه. تحقّق منه على الخريطة ثم استخدمه. توضع كما هي دون تحويل."
+  "{file}: the {col} column says {name} (EPSG:{code}), chosen below. Check it on the map, then use it. They are placed as they are, with no conversion.": "{file}: يذكر العمود {col} ‏{name} ‏(EPSG:{code})، وهو المختار أدناه. تحقّق منه على الخريطة ثم استخدمه. توضع كما هي دون تحويل.",
+  "{shown} of {total} shown: type a name, zone or EPSG code to find the others.": "يُعرض {shown} من {total}: اكتب اسمًا أو منطقة أو رمز EPSG للعثور على البقية."
 }

@@ -3067,7 +3067,7 @@
   "MN": "NM",
   "TN": "NV",
   "No CRS chosen": "Ningún SRC elegido",
-  "Search: name, zone or EPSG code (e.g. 9N, Albers, 32722)": "Buscar: nombre, zona o código EPSG (p. ej. 9N, Albers, 32722)",
+  "Search: name, zone or EPSG code (e.g. 9N, MGA 51, Albers, 32722)": "Buscar: nombre, zona o código EPSG (p. ej. 9N, MGA 51, Albers, 32722)",
   "Search coordinate reference systems": "Buscar sistemas de referencia de coordenadas",
   "Coordinate reference systems": "Sistemas de referencia de coordenadas",
   "No CRS matches. GeoStrix builds only the CRSs it has verified definitions for.": "Ningún SRC coincide. GeoStrix arma solo los SRC para los que tiene definiciones verificadas.",
@@ -9438,5 +9438,6 @@
   "The {col} column names more than one frame ({list}): these rows are not in one coordinate system, so no single CRS places them all. Import the groups as separate files.": "La columna {col} nombra más de un marco ({list}): estas filas no están en un mismo sistema de coordenadas, así que ningún SRC único las ubica a todas. Importe los grupos como archivos separados.",
   "The {col} column names a local grid ({name}), not a map projection: no CRS here places these collars on the map.": "La columna {col} nombra una malla local ({name}), no una proyección cartográfica: ningún SRC de aquí ubica estos collares en el mapa.",
   "{n} of {of} collars have eastings {x0}–{x1} and northings {y0}–{y1}, which no UTM / MGA zone has: they look like a local mine grid.": "{n} de {of} collares tienen estes {x0}–{x1} y nortes {y0}–{y1}, que ninguna zona UTM / MGA tiene: parecen una malla local de mina.",
-  "{file}: the {col} column says {name} (EPSG:{code}), chosen below. Check it on the map, then use it. They are placed as they are, with no conversion.": "{file}: la columna {col} indica {name} (EPSG:{code}), elegido abajo. Verifíquelo en el mapa y luego úselo. Se colocan tal cual, sin conversión."
+  "{file}: the {col} column says {name} (EPSG:{code}), chosen below. Check it on the map, then use it. They are placed as they are, with no conversion.": "{file}: la columna {col} indica {name} (EPSG:{code}), elegido abajo. Verifíquelo en el mapa y luego úselo. Se colocan tal cual, sin conversión.",
+  "{shown} of {total} shown: type a name, zone or EPSG code to find the others.": "Se muestran {shown} de {total}: escriba un nombre, zona o código EPSG para encontrar los demás."
 }
