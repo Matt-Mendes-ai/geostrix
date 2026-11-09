@@ -9556,5 +9556,7 @@
   "{fileName}: {n} downhole log channel(s) imported as numeric layers{v}: {list}. The first is shown; the others are in the Layers list.": "{fileName}: {n} canal(is) de perfilagem importados como camadas numéricas{v}: {list}. O primeiro é mostrado; os outros estão na lista de camadas.",
   ", averaged to {b} m bins (mean, with min and max)": ", com média em intervalos de {b} m (média, com mín. e máx.)",
   ", every reading kept": ", mantendo cada leitura",
-  "{n} brought into the local grid through its tie to EPSG:{tie}.": "{n} trazidas para a grade local pela amarração a EPSG:{tie}."
+  "{n} brought into the local grid through its tie to EPSG:{tie}.": "{n} trazidas para a grade local pela amarração a EPSG:{tie}.",
+  " (suggested {suggested} m from the drill-site spacing)": " (sugerido {suggested} m pelo espaçamento dos locais de sondagem)",
+  "The lags stop at {max} m; the {sites} drill sites are typically {typ} m apart (nearest {near} m, up to {far} m): raise the lag or the number of lags to see continuity between holes.": "Os lags param em {max} m; os {sites} locais de sondagem estão tipicamente a {typ} m (o mais próximo {near} m, até {far} m): aumente o lag ou o número de lags para ver a continuidade entre furos."
 }

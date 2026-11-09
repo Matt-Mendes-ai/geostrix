@@ -419,6 +419,18 @@ export function suggestBetweenHoleLag(points) {
   return nn[Math.floor(nn.length / 2)];
 }
 
+// TASKS.csv #2221 (review #2174, WA gold) — 'Between holes only' suggested 4.6 m on a deposit whose drill sites are 27-226 m apart: holes
+// fanned from one underground site are under a metre apart at the collar, so the nearest composite in ANOTHER hole is close by. Between
+// holes, the scale is the spacing of the drill SITES (holeSpacing.js: collars within 25 m are one site): half the typical (median
+// nearest-site) spacing, and as many lags as reach the farthest site's nearest neighbour. -> { lag, nLags, spacing } | null
+export function siteSpacingLag(spacing, maxLags = 30) {
+  if (!spacing || !(spacing.medianM > 0)) return null;
+  const lag = Math.max(1, Math.round(spacing.medianM / 2));
+  return { lag, nLags: Math.min(maxLags, Math.max(6, Math.ceil(spacing.farthestM / lag))), spacing };
+}
+// the lags stop short of the drill spacing: the variogram cannot show continuity between holes
+export const lagsShortOfSpacing = (lag, nLags, spacing) => !!spacing && lag * nLags < spacing.medianM;
+
 // A sane default lag distance for a point set: the median nearest-neighbour distance, which is the
 // finest structure the data can actually resolve. Guessing this badly is the most common way to get a
 // meaningless-looking variogram (too small = empty bins and noise, too large = every structure

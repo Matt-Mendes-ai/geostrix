@@ -7,7 +7,8 @@ import { samplePointsFromIntervals } from "../lib/estimation.js";
 import { desurveyHole } from "../lib/desurvey.js";
 import {
   experimentalVariogram, fitVariogramModel, variogramModelValue, VARIOGRAM_MODELS,
-  VALUE_TRANSFORMS, applyValueTransform, groupPointsByDomain, suggestLagDistance, suggestBetweenHoleLag, variogramStationarity } from "../lib/variogram.js";
+  VALUE_TRANSFORMS, applyValueTransform, groupPointsByDomain, suggestLagDistance, suggestBetweenHoleLag, variogramStationarity, siteSpacingLag, lagsShortOfSpacing } from "../lib/variogram.js";
+import { holeSpacingSummary } from "../lib/holeSpacing.js"; // TASKS.csv #2221
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay, backdropProps } from "../lib/modalStyles.js";
@@ -122,16 +123,21 @@ export default function VariogramModal({ assays, assayElements, layers, collars,
         const { points: tPoints, capValue } = applyValueTransform(points, transform, capPercentile);
         // TASKS.csv #1027 — downhole pairs: the downhole spacing; all / between-hole pairs: the spacing between holes
         const between = holeMode === "downhole" ? null : suggestBetweenHoleLag(tPoints);
-        const suggested = between != null ? between / 4 : suggestLagDistance(tPoints); // a quarter of it, as ordinary kriging's fit
+        // TASKS.csv #2221 — the drill sites of the holes in this run (collars within 25 m are one site)
+        const holesIn = new Set(tPoints.map((p) => p.hole_id));
+        const spacing = holeMode === "downhole" ? null : holeSpacingSummary((collars || []).filter((c) => holesIn.has(c.hole_id)));
+        const site = holeMode === "between" ? siteSpacingLag(spacing) : null;
+        const suggested = site ? site.lag : between != null ? between / 4 : suggestLagDistance(tPoints); // a quarter of it, as ordinary kriging's fit
         const lag = lagDistance > 0 ? lagDistance : Math.max(1, Math.round(suggested || 10));
+        const nLagsUsed = site && !(lagDistance > 0) ? Math.max(nLags, site.nLags) : nLags; // #2221 — auto lag between sites: out to the farthest one
 
         const direction = directional
           ? { azimuth, dip, angleTol, bandwidth: bandwidth > 0 ? bandwidth : null }
           : null;
-        const vg = experimentalVariogram(tPoints, { lagDistance: lag, nLags, lagTolerance, holeMode, direction });
+        const vg = experimentalVariogram(tPoints, { lagDistance: lag, nLags: nLagsUsed, lagTolerance, holeMode, direction });
         const fit = fitVariogramModel(vg.bins, { model });
         setResult({
-          vg, fit, lag, suggested, capValue, domainLabel,
+          vg, fit, lag, suggested, capValue, domainLabel, spacing, nLagsUsed, fromSites: !!site, // #2221
           nComposites: points.length, dropped, transform, model,
           nIntervals: intervals.length,
         });
@@ -268,9 +274,12 @@ export default function VariogramModal({ assays, assayElements, layers, collars,
           {result && plot && (
             <>
               <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
-                {tr("{nComposites} composites{v}{v2} · {nPairsUsed} pairs used · lag {lag} m{v4}{v5}{v6}", { nComposites: result.nComposites.toLocaleString(), v: result.domainLabel ? tr(" in domain \"{domainLabel}\"", { domainLabel: result.domainLabel }) : "", v2: !result.vg.subsampled ? "" : result.vg.holesTotal != null ? tr(" ({used} of {total} holes, whole holes, for the pair loop)", { used: result.vg.holesUsed.toLocaleString(), total: result.vg.holesTotal.toLocaleString() }) /* #1572 */ : result.vg.firstPairLag != null ? tr(" (subsampled to {nPoints} for the pair loop; no pairs closer than {h} m — Downhole only resolves the nugget)", { nPoints: result.vg.nPoints.toLocaleString(), h: result.vg.firstPairLag.toFixed(1) }) : tr(" (subsampled to {nPoints} for the pair loop)", { nPoints: result.vg.nPoints.toLocaleString() }), nPairsUsed: result.vg.nPairsUsed.toLocaleString(), lag: result.lag, v4: result.suggested != null ? tr(" (suggested {suggested} m)", { suggested: result.suggested.toFixed(1) }) : "", v5: result.dropped ? tr(" · {dropped} composites could not be placed in 3D", { dropped: result.dropped }) : "", v6: result.capValue != null ? tr(" · capped at {capValue}", { capValue: +Number(result.capValue).toPrecision(4) /* #1420: was 2.7857037499998807 */ }) : "" })}
+                {tr("{nComposites} composites{v}{v2} · {nPairsUsed} pairs used · lag {lag} m{v4}{v5}{v6}", { nComposites: result.nComposites.toLocaleString(), v: result.domainLabel ? tr(" in domain \"{domainLabel}\"", { domainLabel: result.domainLabel }) : "", v2: !result.vg.subsampled ? "" : result.vg.holesTotal != null ? tr(" ({used} of {total} holes, whole holes, for the pair loop)", { used: result.vg.holesUsed.toLocaleString(), total: result.vg.holesTotal.toLocaleString() }) /* #1572 */ : result.vg.firstPairLag != null ? tr(" (subsampled to {nPoints} for the pair loop; no pairs closer than {h} m — Downhole only resolves the nugget)", { nPoints: result.vg.nPoints.toLocaleString(), h: result.vg.firstPairLag.toFixed(1) }) : tr(" (subsampled to {nPoints} for the pair loop)", { nPoints: result.vg.nPoints.toLocaleString() }), nPairsUsed: result.vg.nPairsUsed.toLocaleString(), lag: result.lag, v4: result.suggested != null ? (result.fromSites ? tr(" (suggested {suggested} m from the drill-site spacing)", { suggested: result.suggested.toFixed(1) }) : tr(" (suggested {suggested} m)", { suggested: result.suggested.toFixed(1) })) : "", v5: result.dropped ? tr(" · {dropped} composites could not be placed in 3D", { dropped: result.dropped }) : "", v6: result.capValue != null ? tr(" · capped at {capValue}", { capValue: +Number(result.capValue).toPrecision(4) /* #1420: was 2.7857037499998807 */ }) : "" })}
               </div>
 
+              {lagsShortOfSpacing(result.lag, result.nLagsUsed, result.spacing) && ( /* TASKS.csv #2221 */
+                <div role="note" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", lineHeight: 1.45 }}>{tr("The lags stop at {max} m; the {sites} drill sites are typically {typ} m apart (nearest {near} m, up to {far} m): raise the lag or the number of lags to see continuity between holes.", { max: Math.round(result.lag * result.nLagsUsed), sites: result.spacing.sites, typ: Math.round(result.spacing.medianM), near: Math.round(result.spacing.nearestM), far: Math.round(result.spacing.farthestM) })}</div>
+              )}
               {/* flexShrink: 0 + an explicit aspectRatio are both load-bearing, not decoration. This
                   modal's body is a `display:flex; flexDirection:column` container, and an SVG with only
                   width="100%" and a viewBox has no intrinsic height a flex item can be sized from — it
