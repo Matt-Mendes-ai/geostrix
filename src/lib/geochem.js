@@ -165,6 +165,18 @@ export function pickElementColumns(headers, rows, stats = null) {
   return out;
 }
 
+// TASKS.csv #2194 (review #2174, WA gold) — a WAMEX / acQuire assay table carries the lab's repeats as columns beside the element (Au, AuRp1,
+// AuRp2; Au_Rpt, Au_Dup, AU_CHK). They had no role in the import and QAQC found 0 duplicates. -> [{ header, symbol }] for the chosen
+// elements' repeat columns (never the column the element itself is read from).
+export function repeatColumns(headers, chosen) {
+  const out = [];
+  for (const e of chosen || []) {
+    const re = new RegExp(`^${e.symbol}[\\s_-]*(rp|rpt|rep|repeat|dup|duplicate|chk|check|re-?assay)\\d*$`, "i");
+    for (const h of headers || []) if (h !== e.header && re.test(String(h).replace(/\(.*?\)/g, "").trim())) out.push({ header: h, symbol: e.symbol });
+  }
+  return out;
+}
+
 // TASKS.csv #270 (LOW-1) - elements whose grade is universally quoted in g/t rather than ppm. The two
 // units are numerically identical for a solid (g/tonne = mg/kg = ppm), so this only ever changes the
 // LABEL next to a cutoff/cap field - but a cutoff typed one order of magnitude out is a real risk, and

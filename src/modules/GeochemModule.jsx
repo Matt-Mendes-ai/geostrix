@@ -20,7 +20,7 @@ import { useStore, useSetTaskProgress } from "../lib/store.jsx"; // useSetTaskPr
 import { elementColumnStats } from "../lib/assayColumnScan.js"; // TASKS.csv #2164
 const ELEMENT_SCAN_CHUNKED_ROWS = 50000; // #2164 — below this the element columns are counted at once
 import { saveFile, loadSampleFiles } from "../lib/desktop.js"; // loadSampleFiles: TASKS.csv #391
-import { columnDetectionLimit, isElementColumn, inferUnit, pickElementColumns, assayExportRows, parseAssayValue, valueIn, readAssayCell, columnPositiveMax, convertUnit, mergeAssayRows, holesWithChangedIntervals, dropHoleAssays, blankDetectionLimit, isBlankAssayCell, oxideOfHeader, fromOxideHeader, oxideUnit, surfaceAttrColumns, surfaceAttrs, mergeSurfaceSamples, otherMediumTwins } from "../lib/geochem.js"; // otherMediumTwins: #2085
+import { repeatColumns, columnDetectionLimit, isElementColumn, inferUnit, pickElementColumns, assayExportRows, parseAssayValue, valueIn, readAssayCell, columnPositiveMax, convertUnit, mergeAssayRows, holesWithChangedIntervals, dropHoleAssays, blankDetectionLimit, isBlankAssayCell, oxideOfHeader, fromOxideHeader, oxideUnit, surfaceAttrColumns, surfaceAttrs, mergeSurfaceSamples, otherMediumTwins } from "../lib/geochem.js"; // otherMediumTwins: #2085
 import { DIAGRAMS, SPIDER_DIAGRAMS, GEOCHEM_METHODS, diagramExportRows, protolithForSample, PROVISIONAL_ALTERATION_BOXES, GEOCHEM_LABELS, reeProfile, loggedCodeAt, isSedimentaryCode, mergeClassRuns, FITTED_PROTOLITH, fitLeastAlteredBox, nameAiUpTrend } from "../lib/geochemDiagrams.js"; // fitted: #2028; nameAiUpTrend: #2145
 import { qcRecordFromFileRow, emptySurfaceQc, looksLikeQcTypeColumn, mergeQcRecords } from "../lib/surfaceQaqc.js"; // TASKS.csv #842; looksLikeQcTypeColumn, mergeQcRecords: #1794
 import { mapInChunks } from "../lib/mapInChunks.js"; // TASKS.csv #583
@@ -568,6 +568,7 @@ export default function GeochemModule() {
     // TASKS.csv #2018 — a '<el>_flag' column beside an element (LDL / UDL) gives its rows their qualifier; the value is kept as the file has it
     const flagCols = format === "wide" ? flagColumns(modal.headers || Object.keys(allRows[0] || {}), chosen) : new Map();
     const flagged = new Map(); // symbol -> { lo, hi }
+    const repeatsKept = new Map(); // #2194 — repeat column -> rows kept as QC duplicates
     if (format === "wide") {
       // TASKS.csv #583 — built in chunks that yield to the UI (190,000 rows x 12 elements was a 1.45 s freeze)
       if (allRows.length > 20000) setAssayModal((m) => (m ? { ...m, busy: true } : m));
@@ -609,6 +610,25 @@ export default function GeochemModule() {
         return tagQC(out, r);
       });
       setAssayModal((m) => (m ? { ...m, busy: false } : m));
+      // TASKS.csv #2194 — each lab repeat cell (AuRp1, Au_Dup...) becomes a QC duplicate row on its original's interval, its parent the
+      // original's sample id: QAQC's duplicate pairing reads it ("lab repeat" = a pulp repeat, #534)
+      if (modal.keepRepeats !== false) {
+        for (const rc of repeatColumns(modal.headers || Object.keys(allRows[0] || {}), chosen)) {
+          let n = 0;
+          allRows.forEach((r, i) => {
+            const cell = r[rc.header];
+            if (isBlankAssayCell(cell)) return;
+            const { v, q } = read(cell, rc.symbol, rc.header);
+            if (v == null) return;
+            const orig = rows[i], sid = orig?.sample_id ?? null;
+            const rep = { hole_id: orig?.hole_id ?? String(r[mapping.hole_id] ?? "").trim(), from: num(r[mapping.from]), to: num(r[mapping.to]), values: { [rc.symbol]: v }, source: "assay",
+              ...(modal.fileName ? { srcFile: modal.fileName } : {}), sample_type: "lab repeat", sample_id: `${sid ?? `${r[mapping.hole_id]}:${r[mapping.from]}`}#${rc.header}`, ...(sid ? { parent_id: sid } : {}) };
+            if (q) rep.qualifiers = { [rc.symbol]: q };
+            rows.push(rep); n++;
+          });
+          if (n) repeatsKept.set(rc.header, n);
+        }
+      }
       const before = rows.length;
       rows = rows.filter(validInterval);
       skippedNoDepth = before - rows.length;
@@ -660,6 +680,7 @@ export default function GeochemModule() {
       zeroBdl ? tr("{n} zero value(s) read as below detection (stored as \"<\" at half the smallest reading in their column).", { n: zeroBdl }) : null, // #1677
       zeroNoLimit ? tr("{n} zero value(s) left out: their column has no reading above zero to set a detection limit.", { n: zeroNoLimit }) : null,
       negOver ? tr("{n} negative value(s) read as over the upper limit (e.g. -10 → \">10\", stored at the limit).", { n: negOver }) : null, // #1648
+      repeatsKept.size ? tr("{n} lab repeat(s) kept as QC duplicates of their samples ({list}): QAQC > Duplicates pairs them.", { n: [...repeatsKept.values()].reduce((a, b) => a + b, 0).toLocaleString(), list: [...repeatsKept].map(([h, k]) => `${h} ${k}`).join(", ") }) : null, // #2194
       textCodes.bdl ? tr("{n} cell(s) written as below detection (\"<LOD\", BDL, ND...) read at half their column's detection limit.", { n: textCodes.bdl.toLocaleString() }) : null, // #2158
       textCodes.nodl ? tr("{n} cell(s) written as below detection left blank: their column ({list}) states no detection limit to use.", { n: textCodes.nodl.toLocaleString(), list: [...textCodes.nodlCols].join(", ") }) : null,
       textCodes.na ? tr("{n} cell(s) marked not assayed (NULL, X, N/A, NS, -...) left blank.", { n: textCodes.na.toLocaleString() }) : null,

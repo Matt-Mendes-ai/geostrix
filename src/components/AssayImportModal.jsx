@@ -1,7 +1,7 @@
 import { QC_COLUMN_KEYS } from "../lib/assayQcColumns.js"; // TASKS.csv #1184
 import React, { useEffect, useMemo, useState } from "react";
 import { X } from "./icons.js";
-import { isElementColumn, inferUnit, ELEMENT_SYMBOLS, NO_DATA_SENTINEL_MAX, unitAssumed } from "../lib/geochem.js";
+import { isElementColumn, inferUnit, ELEMENT_SYMBOLS, NO_DATA_SENTINEL_MAX, unitAssumed, repeatColumns } from "../lib/geochem.js"; // repeatColumns: #2194
 import { scanAssayColumns, negativeSummary, zeroCount, blankCount } from "../lib/assayColumnScan.js"; // TASKS.csv #2164
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
@@ -248,6 +248,12 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
           </div>
         )}
 
+        {/* TASKS.csv #2194 — the lab repeat columns beside the chosen elements (AuRp1, Au_Dup...), kept as QC duplicates unless unticked */}
+        {modal.format !== "long" && (() => { const reps = repeatColumns(modal.headers || [], modal.elements.filter((e) => e.checked)); return reps.length ? (
+          <label style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 16px", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
+            <input type="checkbox" checked={modal.keepRepeats !== false} onChange={(e) => onChange({ ...modal, keepRepeats: e.target.checked })} />
+            {tr("Keep the lab repeats as QC duplicates ({list})", { list: reps.map((r) => r.header).join(", ") })}
+          </label>) : null; })()}
         <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: "1px solid var(--color-border)" }}>
           <button onClick={onCancel} style={{ ...btn(false), flex: 1 }}>{tr("Cancel")}</button>
           {/* TASKS.csv #2183 (review #2174) — 'Import 0 elements' committed 10,422 intervals with no values */}
