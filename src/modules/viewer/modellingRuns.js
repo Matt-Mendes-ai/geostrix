@@ -1635,7 +1635,8 @@ export function createModellingRuns(ctx, mcRef) {
         // Auto parameters come from the spacing of the holes that actually carry alteration logging,
         // not every collar in the project — a regional hole 5 km away shouldn't set the halo's scale.
         const loggedHoles = new Set(altRows.map((r) => r.hole_id));
-        const auto = autoHaloParams(collars.filter((c) => loggedHoles.has(c.hole_id)));
+        const auto = autoHaloParams(collars.filter((c) => loggedHoles.has(c.hole_id)), tracesRef.current || null); // traces: #2228 — fans share a collar
+        if (auto.fromTraces && !(searchSetting > 0 && cellSetting > 0)) setNotices((p) => [...p, notice("Auto cell and search from the hole spacing along the traces ({t} m at depth): the collars of these holes cluster ({c} m apart: fans drilled from shared sites), so their spacing says nothing about the rock between the holes.", { t: Math.round(auto.spacing), c: auto.collarSpacing != null ? auto.collarSpacing.toFixed(2) : "?" })]);
         // TASKS.csv #1683 — a unit body's auto cell and search come from the code's own logged runs (an alteration halo keeps the
         // hole-spacing rule: it is a halo around the holes, not a logged body)
         const codeRuns = isCode ? mergedRuns(targetRows) : [];

@@ -160,11 +160,39 @@ export function medianCollarSpacing(collarList) {
 // and the halo breaks into one blob per hole); cell size ~1/8 of the radius, which resolves the
 // envelope without exploding the grid. Both are clamped to sane absolute bounds for the degenerate
 // cases (a single hole, or two collars a metre apart).
-export function autoHaloParams(collarList) {
-  const spacing = medianCollarSpacing(collarList);
+// TASKS.csv #2228 (review #2174, WA gold) — the hole spacing ALONG THE TRACES: stations every stepM down each hole (world x / y / z of the
+// desurveyed trace: { hole_id, pts: [{ md }], wx, wy, wz }), each one's distance to the nearest station on another hole, median. Fans
+// drilled from one underground site share a collar (0.59 m apart on the WA project) but spread apart at depth, where the halo is built.
+export function traceSpacing(traces, holes = null, stepM = 25, maxStations = 4000) {
+  const st = [];
+  for (const t of traces || []) {
+    if (holes && !holes.has(t.hole_id)) continue;
+    const pts = t.pts || [], wx = t.wx || [], wy = t.wy || [], wz = t.wz || [];
+    let next = 0;
+    for (let i = 0; i < pts.length; i++) if (Number(pts[i].md) >= next && [wx[i], wy[i], wz[i]].every(Number.isFinite)) { st.push({ h: t.hole_id, x: wx[i], y: wy[i], z: wz[i] }); next = Number(pts[i].md) + stepM; }
+  }
+  if (new Set(st.map((s) => s.h)).size < 2) return null;
+  const sample = st.length > maxStations ? st.filter((_, i) => i % Math.ceil(st.length / maxStations) === 0) : st;
+  const nn = [];
+  for (const a of sample) {
+    let best = Infinity;
+    for (const b of st) { if (b.h === a.h) continue; const d = (a.x - b.x) ** 2 + (a.y - b.y) ** 2 + (a.z - b.z) ** 2; if (d < best) best = d; }
+    if (best < Infinity) nn.push(Math.sqrt(best));
+  }
+  nn.sort((p, q) => p - q);
+  return nn.length ? nn[nn.length >> 1] : null;
+}
+// traces (optional, #2228): with collars clustered in fans (their spacing under a quarter of the spacing along the traces) the scale is
+// the traces' spacing at depth, and the result says so (fromTraces, collarSpacing)
+export function autoHaloParams(collarList, traces = null) {
+  const collarSpacing = medianCollarSpacing(collarList);
+  const holes = traces ? new Set((collarList || []).map((c) => c.hole_id)) : null;
+  const tSp = traces ? traceSpacing(traces, holes) : null;
+  const fromTraces = tSp != null && (collarSpacing == null || collarSpacing < 0.25 * tSp);
+  const spacing = fromTraces ? tSp : collarSpacing;
   const radius = Math.min(1000, Math.max(15, (spacing || 60) * 1.2));
   const cell = Math.min(50, Math.max(1, radius / 8));
-  return { radius, cell, spacing };
+  return { radius, cell, spacing, ...(fromTraces ? { fromTraces: true, collarSpacing } : {}) };
 }
 
 // TASKS.csv #1683 (review #1645, Copley) — a unit body's auto cell and search come from the unit's OWN logged runs, not from the
