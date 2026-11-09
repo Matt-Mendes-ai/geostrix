@@ -22,7 +22,7 @@ export default function CrsPicker({ value, onChange, label, height = 190, hideMa
   // read "no MGA zones" although typing found them. The zones that cover the project's own location come first, and the count says
   // the list goes on.
   const nearby = useMemo(() => { if (!crsSet || !projectEpsg) return []; const c = collarCentreLonLat(collars || [], projectEpsg); return c ? crsCandidatesAt(c.lon, c.lat).map((x) => x.code) : []; }, [crsSet, projectEpsg, collars]);
-  const ranked = useMemo(() => rankCrs(all, q, [projectEpsg, value, ...nearby]), [q, all, projectEpsg, value, nearby]);
+  const ranked = useMemo(() => rankCrs(all, q, [crsSet ? projectEpsg : null /* #2289: never the placeholder on top */, value, ...nearby]), [q, all, crsSet, projectEpsg, value, nearby]);
   const shown = useMemo(() => ranked.slice(0, MAX_SHOWN), [ranked]); // #1469
   const current = value ? crsName(value) : null;
   return (

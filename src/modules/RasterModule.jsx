@@ -316,6 +316,12 @@ export default function RasterModule({ embedded = false } = {}) {
 
   // TASKS.csv #784 — the spectral index dialog, with the same ready-made areas as the satellite picker
   const openSpectral = async () => {
+    // TASKS.csv #2292 (review #2174) — the one online tool not gated by the CRS: it offered 'Around the drillholes' from the placeholder
+    if (project?.crsSet === false) {
+      const chosen = await ensureProjectCrs(project, tr("Imagery is downloaded for the place your coordinates point to, so the project needs its coordinate system first."));
+      if (chosen) setTimeout(() => openSpectralRef.current?.(), 0);
+      return;
+    }
     const seed = await defaultSatBboxLonLat();
     const opts = await buildSatAreaOptions();
     setSpectralAreas([...(seed ? [{ id: "holes", label: tr("Around the drillholes"), bboxLonLat: seed }] : []), ...opts]);
@@ -396,13 +402,13 @@ export default function RasterModule({ embedded = false } = {}) {
             <RibbonButton icon={Rainbow} label="Spectral index" tone="data" title="Quartz / carbonate / mafic indices from ASTER thermal emissivity, iron-oxide and clay ratios from Sentinel-2 or Landsat, or your own band arithmetic, from a multiband GeoTIFF" onClick={openSpectral} />
           </RibbonGroup>
         </Ribbon>
-        <div className="ge-section-label" style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>{tr("Raster drape")}<InfoButton title={tr("Raster drape")} text={tr("Import a georeferenced GeoTIFF (mag/radiometrics grid, orthophoto, whatever), or a Geosoft .gxf grid export (the plain-text Geosoft interchange format; the proprietary binary .grd isn't supported, no public spec to implement against), as a flat plane in the 3D view — set its elevation and opacity below once imported, or drape it onto a terrain surface (import one under Maps → Terrain first). If the file's coordinates aren't already in the project's EPSG ({v}), set Source CRS below and the raster is reprojected on import. Drag files in anywhere on this page, or use the button below.", { v: project?.epsg ?? "?" })} />
+        <div className="ge-section-label" style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>{tr("Raster drape")}<InfoButton title={tr("Raster drape")} text={tr("Import a georeferenced GeoTIFF (mag/radiometrics grid, orthophoto, whatever), or a Geosoft .gxf grid export (the plain-text Geosoft interchange format; the proprietary binary .grd isn't supported, no public spec to implement against), as a flat plane in the 3D view — set its elevation and opacity below once imported, or drape it onto a terrain surface (import one under Maps → Terrain first). If the file's coordinates aren't already in the project's EPSG ({v}), set Source CRS below and the raster is reprojected on import. Drag files in anywhere on this page, or use the button below.", { v: project?.crsSet === false ? tr("not chosen yet") : project?.epsg ?? "?" } /* #2289 */)} />
         </div>
         {/* TASKS.csv #287 — Source CRS override. Sits ABOVE the import button (and applies to
             drag-dropped files too) because it has to be set before the file is read, not after. */}
         <SourceCrsField
           value={sourceEpsg} onChange={(c) => setSourceEpsg(c === "" ? "" : String(c))}
-          defaultText={tr("From the file's own tag, else the project CRS ({crs})", { crs: crsName(project?.epsg) || `EPSG:${project?.epsg ?? "?"}` })}
+          defaultText={project?.crsSet === false ? tr("The project CRS — not chosen yet") /* #2289 */ : tr("From the file's own tag, else the project CRS ({crs})", { crs: crsName(project?.epsg) || `EPSG:${project?.epsg ?? "?"}` })}
           title={tr("The CRS the file's own coordinates are in. Leave it on the file's tag for a GeoTIFF; set it for a .gxf (that format has no CRS tag) or when a file's tag is wrong — the raster is then reprojected into the project CRS on import.")}
         />
         <label style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }} title={tr("For a drone or contractor orthophoto: keeps up to 4096 px on the long side instead of 2048, so a 2 km image shows about 0.5 m rather than 1 m. Uses about four times the graphics memory and a larger project file. Import the image again after changing this.")}>

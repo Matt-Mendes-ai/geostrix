@@ -106,6 +106,7 @@ export default function CartographyModule({ embedded = false, forcePane = null }
   const [objFrom, setObjFrom] = useState(null);
   const obj = inventory.find((i) => i.key === objKey);
   const moveObject = () => run(async () => {
+    if (project?.crsSet === false) throw new Error(tr("The project's coordinate system is not chosen yet, so there is no CRS to reproject a layer into. Choose it under Project CRS first.")); // #2290
     const report = await reprojectObjectTo({ kind: obj.kind, id: obj.id }, Number(objFrom), { rotateAzimuths: rotate });
     setMsg({ ok: true, text: reportText(report, `${obj.label} moved from ${nameOf(objFrom)} into the project CRS, ${nameOf(project.epsg)}`) });
   });
@@ -181,7 +182,7 @@ export default function CartographyModule({ embedded = false, forcePane = null }
           <>
             <TaskPaneHeader icon={Globe2} title="Project CRS" />
             <div style={note}>{tr("Every file you import is reprojected into this CRS (its own")}{" "}<em>{tr("Source CRS")}</em>{" "}{tr("box says what the file is in). Current:")}{" "}<b>{project.crsSet === false ? tr("not chosen yet") : nameOf(project.epsg)}</b>.{project.crsSet === false ? tr(" Pick the CRS your coordinates are in — nothing is converted.") : ""}</div>
-            <div style={{ marginTop: 12 }}><CrsPicker label={tr("Change to")} value={newCrs || project.epsg} onChange={setNewCrs} /></div>
+            <div style={{ marginTop: 12 }}><CrsPicker label={tr("Change to")} value={newCrs || (project.crsSet === false ? null : project.epsg) /* #2289: the placeholder is not a current choice */} onChange={setNewCrs} /></div>
             {changing && isGeographic(newCrs) && (
               /* TASKS.csv #613 — a geographic CRS (WGS 84 lat/long, NAD83 geographic…) can't be the project CRS: the 3D
                  scene, depths, distances and grids are metres, so collars in degrees put every hole on one point with
@@ -211,7 +212,9 @@ export default function CartographyModule({ embedded = false, forcePane = null }
           <>
             <TaskPaneHeader icon={Layers} title="Reproject a layer" />
             <div style={note}>{tr("For something that landed in the wrong place because it was imported with the wrong CRS: pick it, say which CRS its coordinates are")}{" "}<em>{tr("really")}</em>{" "}{tr("in, and it is moved into the project CRS ({v}).", { v: nameOf(project.epsg) })}</div>
-            {inventory.length ? (
+            {project.crsSet === false ? ( /* TASKS.csv #2290 — a local-grid boundary was moved 10,700 km into the placeholder */
+              <div style={box(true)}>{tr("The project's coordinate system is not chosen yet, so there is no CRS to reproject a layer into. Choose it under Project CRS first.")}</div>
+            ) : inventory.length ? (
               <>
                 <select value={objKey} onChange={(e) => setObjKey(e.target.value)} style={{ ...selectStyle, marginTop: 10 }} aria-label={tr("Layer to reproject")}>
                   <option value="">{tr("Choose a layer…")}</option>
@@ -286,6 +289,12 @@ export default function CartographyModule({ embedded = false, forcePane = null }
 
       {/* main area: the project's CRS at a glance, and what is loaded */}
       <div style={{ flex: 1, overflowY: "auto", padding: "22px 26px", color: "var(--color-text)" }}>
+        {project.crsSet === false ? ( /* TASKS.csv #2289 — the placeholder is not the project's CRS: no name, code or location from it */
+          <>
+            <div style={{ fontSize: "var(--font-size-xl)", fontWeight: 600 }}>{tr("Coordinate system not chosen yet")}</div>
+            <div style={{ ...note, fontSize: "var(--font-size-base)" }}>{tr("The coordinates are the project's own numbers: GeoStrix cannot place them on Earth until you choose the CRS they are in (Project CRS, left).")}</div>
+          </>
+        ) : (<>
         <div style={{ fontSize: "var(--font-size-xl)", fontWeight: 600 }}>{crsName(project.epsg) || tr("Unrecognized CRS")}</div>
         <div style={{ color: "var(--color-text-muted)", marginTop: 2 }}>{tr("EPSG:{epsg} · {v}", { epsg: project.epsg, v: metric === true ? tr("projected, metres") : metric === false ? tr("geographic (degrees) — distances, volumes and grids need a projected CRS") : tr("GeoStrix has no definition for this code: imports cannot be reprojected into it") })}</div>
         {lonLat && (
@@ -293,6 +302,7 @@ export default function CartographyModule({ embedded = false, forcePane = null }
             {convergence != null && <>{" "}{tr("· grid convergence here {v}{convergence}° (true north is {v2}° {v3} of grid north)", { v: convergence >= 0 ? "+" : "", convergence: convergence.toFixed(2), v2: Math.abs(convergence).toFixed(2), v3: convergence >= 0 ? tr("east") : tr("west") })}</>}
           </div>
         )}
+        </>)}
         <div style={{ marginTop: 18, fontSize: "var(--font-size-sm)", color: "var(--color-text-caption)", textTransform: "uppercase", letterSpacing: 0.5 }}>{tr("Loaded data ({inventory})", { inventory: inventory.length })}</div>
         {inventory.length ? (
           <ul style={{ margin: "6px 0 0", paddingLeft: 18, lineHeight: 1.7, color: "var(--color-text-secondary)" }}>

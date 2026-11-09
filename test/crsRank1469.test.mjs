@@ -29,5 +29,5 @@ test("on the real list, 'UTM zone 9N' puts NAD83 / UTM zone 9N in the first two 
 
 test("CrsPicker uses it with the project CRS and the current value", () => {
   const s = readFileSync(new URL("../src/components/CrsPicker.jsx", import.meta.url), "utf8");
-  assert.match(s, /rankCrs\(all, q, \[projectEpsg, value(, \.\.\.nearby)?\]\)/); // nearby: #2243
+  assert.match(s, /rankCrs\(all, q, \[(crsSet \? projectEpsg : null[^\]]*|projectEpsg), value(, \.\.\.nearby)?\]\)/); // nearby: #2243; crsSet: #2289
 });

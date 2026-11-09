@@ -20,6 +20,6 @@ test("#2243 an empty search puts the project location's zones first", () => {
   const first = rankCrs(listSupportedCrs(), "", [28351, null, ...near]).slice(0, near.length + 1).map((c) => c.code);
   assert.ok(near.every((c) => first.includes(c)));
   const src = readFileSync(new URL("../src/components/CrsPicker.jsx", import.meta.url), "utf8");
-  assert.match(src, /rankCrs\(all, q, \[projectEpsg, value, \.\.\.nearby\]\)/);
+  assert.match(src, /rankCrs\(all, q, \[crsSet \? projectEpsg : null[^\]]*, value, \.\.\.nearby\]\)/); // crsSet: #2289
   assert.match(src, /of \{total\} shown: type a name, zone or EPSG code to find the others/);
 });
