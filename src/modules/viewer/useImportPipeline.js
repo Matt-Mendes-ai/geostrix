@@ -34,6 +34,7 @@ import { autoExtraFields, companionLayer } from "../../lib/viewer/autoExtras.js"
 import { surfaceAttrColumns, surfaceAttrs } from "../../lib/geochem.js"; // TASKS.csv #1504 — unmapped collar columns kept as attrs
 import { rasterDrapeElevation, drapeElevationNote } from "../../lib/drapeElevation.js"; // TASKS.csv #1505
 import { projectTargetEpsg } from "../../lib/projectTarget.js"; // TASKS.csv #2287 — no reprojection INTO the placeholder CRS
+import { looksLikeUbcMesh } from "../../lib/leapfrogMsh.js"; // TASKS.csv #1991
 
 const AZ_TARGETS = new Set(["collars", "survey", "structure"]); // TASKS.csv #1647 — tables with an azimuth
 
@@ -753,9 +754,17 @@ export function useImportPipeline(ctx) {
     // import them: they go to those same handlers (importBrowserFile / importSolidFile), outside the table queue.
     const direct = grouped.files.filter((f) => /\.(tiff?|gxf|grd|dxf|obj)$/i.test(f.name)); // grd: #1347
     for (const f of direct) { if (/\.obj$/i.test(f.name)) importSolidFile(f); else await importBrowserFile(f); }
+    // TASKS.csv #1991 — a Leapfrog .msh is a solid; a UBC-GIF tensor mesh (also .msh, text 'NX NY NZ') is a block model mesh
+    const mshAdvice = [];
+    for (const f of grouped.files.filter((x) => /\.msh$/i.test(x.name))) {
+      if (looksLikeUbcMesh(new Uint8Array(await f.slice(0, 400).arrayBuffer()))) mshAdvice.push(notice("{name}: a UBC-GIF mesh. Load it with its model file in Geophysics > Block models.", { name: f.name }));
+      else importSolidFile(f);
+    }
+    const mshCount = grouped.files.filter((x) => /\.msh$/i.test(x.name)).length;
     let files = grouped.files.filter((f) => /\.(csv|zip|gpkg|shp|kml|kmz|xlsx|las)$/i.test(f.name)); // kml/kmz: #424, xlsx: #605, las: #492
     // TASKS.csv #603 — a closed format (Geosoft .gdb / .grd, .dwg, Access) gets the way out, not "unrecognized"
     const advised = grouped.files.map((f) => unreadableFormatAdvice(f.name)).filter(Boolean);
+    advised.push(...mshAdvice);
     // TASKS.csv #1989 — MT / AMT soundings are read on the Geophysics tab, not here
     const ediNames = grouped.files.filter((f) => /\.edi$/i.test(f.name)).map((f) => f.name);
     if (ediNames.length) advised.push(notice("{names}: MT / AMT soundings are read on the Geophysics tab. Drop the .edi files there, or use Geophysics > MT / AMT.", { names: ediNames.slice(0, 4).join(", ") + (ediNames.length > 4 ? " …" : "") }));
@@ -771,9 +780,9 @@ export function useImportPipeline(ctx) {
       advised.push(notice(lidarNames.length > 1 ? "{names}: lidar point clouds, read in Maps > Terrain one at a time. The first is open there; drop the others there after it." : "{names}: a lidar point cloud, opened in Maps > Terrain.", { names: lidarNames.slice(0, 4).join(", ") + (lidarNames.length > 4 ? " …" : "") }));
     }
     if (advised.length) setNotices((p) => [...p, ...advised]);
-    const skipped = grouped.files.length - files.length - direct.length - advised.length - Math.max(0, ediNames.length - 1) /* #1989: one notice for all of them */ - Math.max(0, lidarNames.length - 1) /* #1994 */ + grouped.unmatched.length;
+    const skipped = grouped.files.length - files.length - direct.length - advised.length - (mshCount - mshAdvice.length) /* #1991: the Leapfrog meshes went to the solid import */ - Math.max(0, ediNames.length - 1) /* #1989: one notice for all of them */ - Math.max(0, lidarNames.length - 1) /* #1994 */ + grouped.unmatched.length;
     if (!files.length) {
-      if (!direct.length && !advised.length) setNotices((p) => [...p, notice("Only .csv, .xlsx, .zip (shapefile), .shp, .gpkg, .kml/.kmz, .las logs, GeoTIFF / .gxf grids and .dxf / .obj files can be dropped in directly.")]);
+      if (!direct.length && !advised.length && !mshCount) setNotices((p) => [...p, notice("Only .csv, .xlsx, .zip (shapefile), .shp, .gpkg, .kml/.kmz, .las logs, GeoTIFF / .gxf grids and .dxf / .obj files can be dropped in directly.")]);
       else if (skipped) setNotices((p) => [...p, notice("{skipped} unrecognized file(s) skipped.", { skipped })]);
       return;
     }

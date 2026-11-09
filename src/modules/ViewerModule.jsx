@@ -3895,7 +3895,7 @@ ${describeTrend(t)}` };
       }
       const bounds = solidBounds(solid.parts);
       const o = originRef.current;
-      const label = file.name.replace(/\.(dxf|obj)$/i, "");
+      const label = file.name.replace(/\.(dxf|obj|msh)$/i, "");
       const stamp = Date.now();
       const box = new THREE.Box3();
       const added = solid.parts.map((part, k) => {
@@ -7903,8 +7903,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         <button
           onClick={() => importSolidRef.current?.click()}
           style={{ ...pBtn, marginBottom: 8 }}
-          title={tr("Import a DXF (3DFACE / polyface mesh) or OBJ solid — pit shell, stope design, or a wireframe from another package — and overlay it on the drillholes. Coordinates are used as-is, in the project CRS.")}
-        ><Box size={14} />{" "}{tr("Import solid (DXF / OBJ)…")}</button>
+          title={tr("Import a DXF (3DFACE / polyface mesh), OBJ or Leapfrog .msh solid — pit shell, stope design, or a wireframe from another package — and overlay it on the drillholes. Coordinates are used as-is, in the project CRS.")}
+        ><Box size={14} />{" "}{tr("Import solid (DXF / OBJ / MSH)…")}</button>
         {/* TASKS.csv #802 — solid blocks (unit volumes / a block model) from the surfaces in this list */}
         <button
           onClick={() => setSurfaceSolidsOpen((v) => !v)}

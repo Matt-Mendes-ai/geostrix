@@ -24,6 +24,7 @@
 import { SOLID_FACE_WARN, SOLID_IMPORT_EXTENSIONS, solidBounds } from "./solidImportMeta.js"; // #552
 export { SOLID_FACE_WARN, SOLID_IMPORT_EXTENSIONS, solidBounds };
 import { createDXFMeshParser, lineFeeder } from "./dxf.js";
+import { parseLeapfrogMsh } from "./leapfrogMsh.js"; // TASKS.csv #1991
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 
 // Above this the import asks first: fine on a gaming PC, slow to orbit on the modest laptops GeoStrix is
@@ -92,7 +93,7 @@ function parserFor(fileName) {
   const name = String(fileName || "").toLowerCase();
   if (name.endsWith(".dxf")) return { format: "DXF", parser: createDXFMeshParser() };
   if (name.endsWith(".obj")) return { format: "OBJ", parser: createOBJMeshParser() };
-  throw new Error(tr("Unsupported solid format \"{v}\" — import a .dxf (3DFACE / polyface mesh) or .obj file.", { v: name.split(".").pop() }));
+  throw new Error(tr("Unsupported solid format \"{v}\" — import a .dxf (3DFACE / polyface mesh), .obj or Leapfrog .msh file.", { v: name.split(".").pop() }));
 }
 function describe(format, m) {
   const layers = m.parts.length > 1 ? `, ${m.parts.length} ${format === "DXF" ? "layers" : "objects"}` : "";
@@ -100,8 +101,17 @@ function describe(format, m) {
   return `${m.quads ? `${m.quads} quad(s) triangulated` : "all faces triangular"}${m.ngons ? `, ${m.ngons} n-gon(s) fan-triangulated` : ""}${layers}`;
 }
 
+// TASKS.csv #1991 — a Leapfrog .msh (text header + binary triangles / vertices), one part named after the file
+function leapfrog(fileName, data) {
+  const bytes = typeof data === "string" ? Uint8Array.from(data, (c) => c.charCodeAt(0) & 255) : data;
+  const base = String(fileName).split(/[\\/]/).pop().replace(/\.msh$/i, "");
+  const m = parseLeapfrogMsh(bytes, { name: base });
+  return { ...m, format: "Leapfrog MSH", note: `Leapfrog mesh${m.skipped.length ? `, ${m.skipped.join(" / ")} block(s) not read` : ""}` };
+}
+
 // A file's text already in memory.
 export function parseSolidFile(fileName, text) {
+  if (/\.msh$/i.test(String(fileName))) return leapfrog(fileName, text); // #1991: binary (bytes, or a string of byte codes)
   const { format, parser } = parserFor(fileName);
   parser.feed(text);
   const m = parser.finish();
@@ -110,6 +120,7 @@ export function parseSolidFile(fileName, text) {
 
 // A File / Blob, streamed in chunks (never one big string). onProgress(bytesRead, totalBytes).
 export async function parseSolidFileStream(file, onProgress) {
+  if (/\.msh$/i.test(file.name)) { const buf = await file.arrayBuffer(); onProgress?.(file.size, file.size); return leapfrog(file.name, buf); } // #1991
   const { format, parser } = parserFor(file.name);
   const reader = file.stream().getReader();
   const dec = new TextDecoder();
