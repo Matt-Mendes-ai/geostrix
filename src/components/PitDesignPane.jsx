@@ -13,6 +13,7 @@ import { buildDXF } from "../lib/dxf.js";
 import { toExportCsv, crsCell } from "../lib/tabular.js";
 import { saveFile } from "../lib/desktop.js";
 import { pBtn, smallSel } from "../lib/sidebarStyles.js";
+import UndergroundOreNote from "./UndergroundOreNote.jsx"; // TASKS.csv #2277
 import { t as tr } from "../lib/i18n.js";
 
 const row = { display: "flex", alignItems: "center", gap: 6, justifyContent: "space-between", marginTop: 4, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" };
@@ -207,6 +208,7 @@ export default function PitDesignPane({ surfaces = [], worldPositionsOf, onAdd, 
           ))}
         </div>
       )}
+      {pit && <UndergroundOreNote model={model} cutoff={pit.params?.cutoffGrade} />}{/* #2277 */}
       {msg && <div style={warn}>{msg}</div>}
       {res && (
         <div style={{ marginTop: 8, padding: "7px 8px", border: "1px solid var(--color-border)", borderRadius: 6, background: "var(--color-bg-subtle)" }}>

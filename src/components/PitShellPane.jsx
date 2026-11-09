@@ -13,6 +13,7 @@ import { categoricalModels } from "../lib/geologyForward.js";
 import { gradeCandidate } from "../lib/gradeCandidate.js"; // #1848
 import { runPitShellAsync } from "../lib/pitShellClient.js";
 import { pBtn, smallSel } from "../lib/sidebarStyles.js";
+import UndergroundOreNote from "./UndergroundOreNote.jsx"; // TASKS.csv #2277
 import { t as tr } from "../lib/i18n.js";
 
 const row = { display: "flex", alignItems: "center", gap: 6, justifyContent: "space-between", marginTop: 4, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" };
@@ -282,6 +283,7 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove,
           {line(tr("Grid cell"), `${res.cell.map((v) => Math.round(v * 10) / 10).join(" × ")} m`)}
           {line(tr("Solved in"), `${res.seconds} s`)}
           {res.support && res.oreExtrapolatedShare > 0.5 && <div style={warn}>{tr("Most of this ore is in blocks the estimate classed as extrapolated: the pit rests on grades the drilling does not surround.")}</div>}
+          <UndergroundOreNote model={model} cutoff={res.cutoff ?? cutoff} />
           {(res.slopeDeg > 65 || res.maxDepth > 500) && <div style={warn}>{tr("Steeper than 65° overall or deeper than 500 m is beyond most open pits: treat it as a sign the body is an underground question.")}</div>}
           {res.groundSource === "collars" && <div style={note}>{tr("The ground is interpolated between the collars, not a terrain.")}</div>}
           {res.groundSource === "model top" && <div style={note}>{tr("The ground is the top of the block model's columns, interpolated between them, not a terrain.")}</div>}{/* #1850 */}

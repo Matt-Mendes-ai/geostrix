@@ -86,6 +86,25 @@ export function collarsLookUnderground(collars, survey = []) {
   const n = Math.max(1, (collars || []).length);
   return { underground: up.size >= Math.max(2, 0.02 * n) || stacked >= Math.max(3, 0.05 * n), upward: up.size, stacked };
 }
+// TASKS.csv #2277 (review #2174, WA lode gold) — how far the ore-grade blocks (value at or above the cut-off grade) lie below the highest
+// collar, the nearest the surface the data knows: the pit's own depth is measured from its ground, which on a project drilled from
+// underground is a surface through the drill positions. -> null (no collar, no cut-off, no ore block) or { top, min, median, max, n, underground }
+export function oreDepthBelowCollars(cells, cutoff, collars, survey = []) {
+  const zs = (collars || []).map((c) => c?.z).filter(Number.isFinite);
+  if (!zs.length || !Number.isFinite(cutoff)) return null;
+  let top = -Infinity;
+  for (const z of zs) if (z > top) top = z;
+  const d = [];
+  for (const c of cells || []) if (Number.isFinite(c?.value) && c.value >= cutoff && Number.isFinite(c.z)) d.push(top - c.z);
+  if (!d.length) return null;
+  d.sort((a, b) => a - b);
+  return { top, min: d[0], median: d[Math.floor(d.length / 2)], max: d[d.length - 1], n: d.length, underground: collarsLookUnderground(collars, survey).underground };
+}
+// When the depth is worth a verdict: the ore's median 200 m or more below the highest collar (deeper than most open pits' ore), or 100 m
+// with the collars underground (drill positions on mine levels: the ore is reached from there). Warning thresholds, not facts about a deposit.
+export const DEEP_ORE_M = 200, DEEP_ORE_UNDERGROUND_M = 100;
+export const undergroundOreVerdict = (d) => !!d && d.median >= (d.underground ? DEEP_ORE_UNDERGROUND_M : DEEP_ORE_M);
+
 export function collarGround(collars) {
   const pts = (collars || []).filter((c) => Number.isFinite(c?.x) && Number.isFinite(c?.y) && Number.isFinite(c?.z));
   if (!pts.length) return null;

@@ -16,6 +16,7 @@ import { valueUnit } from "../lib/blockModelExport.js";
 import { toExportCsv, crsCell } from "../lib/tabular.js";
 import { saveFile } from "../lib/desktop.js";
 import { pBtn, smallSel } from "../lib/sidebarStyles.js";
+import UndergroundOreNote from "./UndergroundOreNote.jsx"; // TASKS.csv #2277
 import { t as tr } from "../lib/i18n.js";
 
 const row = { display: "flex", alignItems: "center", gap: 6, justifyContent: "space-between", marginTop: 4, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" };
@@ -135,6 +136,7 @@ export default function NestedPitsPane({ surfaces = [], onAdd, onToggle, onRemov
           ? <button onClick={run} disabled={!factors.length || byMissing} style={{ ...pBtn, marginTop: 8, opacity: factors.length && !byMissing ? 1 : 0.5 }}><Layers size={14} /> {tr("Run the series")}</button>
           : <button onClick={cancel} style={{ ...pBtn, marginTop: 8 }}>{tr("Solving shell {i} of {n}: cancel", { i: (busy.idx || 0) + 1, n: busy.of || factors.length })}</button>}
       </>)}
+      {lastPit && <UndergroundOreNote model={model} cutoff={lastPit.params?.cutoffGrade} />}{/* #2277 */}
       {msg && <div style={warn}>{msg}</div>}
       {res && (
         <div style={{ marginTop: 8 }}>
