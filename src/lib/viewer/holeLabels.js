@@ -13,13 +13,32 @@ export function syncHoleLabels(group, anchors, mode, makeSprite) {
   if (!group) return 0;
   while (group.children.length) { const c = group.children.pop(); c.material?.map?.dispose?.(); c.material?.dispose?.(); c.geometry?.dispose?.(); }
   if (mode === "none") return 0;
-  for (const a of anchors || []) {
-    const sprite = makeSprite(holeLabelText(a, mode));
+  for (const g of groupSharedCollars(anchors || [])) {
+    const a = g[0];
+    // TASKS.csv #2208 — a fan of holes from one collar (an underground cuddy) gets ONE label, 'WB0817D +6', its ids in the tip
+    const sprite = makeSprite(g.length > 1 ? `${holeLabelText(a, mode)} +${g.length - 1}` : holeLabelText(a, mode));
     sprite.position.set(a.x, a.y + 6, a.z); // above the collar marker, as before
-    sprite.userData = { tip: `${a.id}\nLabel` };
+    sprite.userData = { tip: g.length > 1 ? g.map((x) => x.id).join("\n") : `${a.id}\nLabel` };
     group.add(sprite);
   }
   return group.children.length;
+}
+// TASKS.csv #2208 (review #2174, WA underground fans) — collars within `tol` scene units (metres) of one another, in anchor order: fans
+// of 2-7 holes from one cuddy put their labels a few pixels apart, overprinted into fragments at Fit. A 3D grid hash keeps it O(n).
+export function groupSharedCollars(anchors, tol = 1) {
+  const cells = new Map(), groups = [];
+  const cell = (v) => Math.floor(v / tol);
+  for (const a of anchors) {
+    const cx = cell(a.x), cy = cell(a.y), cz = cell(a.z);
+    let home = null;
+    for (let dx = -1; dx <= 1 && !home; dx++) for (let dy = -1; dy <= 1 && !home; dy++) for (let dz = -1; dz <= 1 && !home; dz++) {
+      for (const g of cells.get(`${cx + dx},${cy + dy},${cz + dz}`) || []) { const h = g[0]; if (Math.hypot(h.x - a.x, h.y - a.y, h.z - a.z) <= tol) { home = g; break; } }
+    }
+    if (home) { home.push(a); continue; }
+    const g = [a]; groups.push(g);
+    const k = `${cx},${cy},${cz}`; if (!cells.has(k)) cells.set(k, []); cells.get(k).push(g);
+  }
+  return groups;
 }
 
 // TASKS.csv #1294 — labels keep their on-screen size while collars close up, so at Fit five of them overprinted into nothing. When the camera has stopped (never
