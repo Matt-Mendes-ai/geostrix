@@ -738,16 +738,16 @@ export const TARGET_SCHEMAS = {
   ], dipConvention: true },
   // TASKS.csv #600 — Lith_Code / Lith1_Code / Rock_Code before the generic "unit": a real ARIS export has
   // Lith_Code (filled) beside Lith_Group_Unit (blank on every row), and "unit" picked the blank one.
-  litho: { label: "Lithology", fields: intervalFields(["lithology", "lith_code", "lith1_code", "lith1_gf_code", "lithcode", "rock_code", "rock_type", "rocktype", "litho", "lith", "rock", "unit", "litho_unit"], null, false, ["description", "comments", "comment", "notes", "desc", "lith_desc", "lith1_local_comments"]) },
+  litho: { label: "Lithology", fields: intervalFields(["lithology", "lith_code", "lith1_code", "lith1_gf_code", "lithcode", "lithology1", "lith1", "rock1", "geol_rock1", "maj_lithcode", "major_lithcode", /* #2153 */ "rock_code", "rock_type", "rocktype", "litho", "lith", "rock", "unit", "litho_unit"], null, false, ["description", "comments", "comment", "notes", "desc", "lith_desc", "lith1_local_comments"]) },
   // TASKS.csv #600 — the column names real logging exports use (acQuire / MX Deposit, seen in BC ARIS reports):
   // numbered primary columns (Alt1_Code, Min1_Code / Min_Code1, Vein1_Comp / Vein_Type1, MagSus1, Ave_Reading,
   // BulkDens_Calc, SG_D). Listed FIRST so the primary (1st) column wins over a later one.
   alt: { label: "Alteration", fields: [
-    ...intervalFields(["alt1_code", "alt_code", "alt_assemblage", "alt_rx_min1_type", "alt_min1_type", "alt_min_1_type", "assemblage", "alteration"]), // alt_rx_min1_type: #1345 (acQuire)
+    ...intervalFields(["alt1_code", "alt_code", "alt_assemblage", "alt_rx_min1_type", "alt_min1_type", "alt_min_1_type", "alt1_mineral", "alt_mineral", "alt1_min", "altn1", "alt1_style", "alt2_code", "assemblage", "alteration"]), // alt_rx_min1_type: #1345 (acQuire); alt1_mineral…: #2153 / #2184 (WAMEX)
     // TASKS.csv #1511 — intensity as logged (text: "3", "W", "strong"), as structural zones keep it (#604)
     { key: "intensity", label: "Intensity (optional)", required: false, aliases: ["alt1_intensity", "alt_intensity", "alt1_int", "alt_int", "alteration_intensity", "intensity"] },
   ] },
-  vein: { label: "Veins", fields: intervalFields(["vein1_comp", "vein_type1", "vein1_type", "vein_comp", "assemblage", "type", "vein_type", "type_code"]) }, // type_code: 40958Z "Vein type"
+  vein: { label: "Veins", fields: intervalFields(["vein1_comp", "vein_type1", "vein1_type", "vein_comp", "vein1_code", "vein_code", "vein2_code", "veins", "assemblage", "type", "vein_type", "type_code"]) }, // type_code: 40958Z "Vein type"; vein1_code / veins: #2153
   breccia: { label: "Breccia", fields: intervalFields(["breccia_type", "brecc_type", "brx_type", "bx_type", "bx_class", "breccia", "assemblage", "genesis", "type"]) }, // TASKS.csv #608; bx_class: #1345
   // TASKS.csv #604 — structure logged as zones (from / to + code + intensity + alpha), Matt 2026-10-21: "keep it as
   // intervals, as a layer of structural zones". Intensity stays text (Copley "4", Woodjam "M"); alpha is the zone's
@@ -760,7 +760,7 @@ export const TARGET_SCHEMAS = {
   mnlgy: { label: "Mineralization", fields: intervalFields(["min1_code", "min_code1", "min_code", "min_mnlgy", "sul_min_1", "sulph_min_1", "mineral"], ["min1_pct", "min_pct1", "min_int_pct", "sul_min_1_pct", "percent", "pct"]) }, // sul_min_1: #1345 (acQuire sulphide log)
   geotech: { label: "Geotech (numeric)", fields: intervalFields(["rqd_pct", "rqd_pct_d", "rqq_pct_d", "rqd", "value"], null, true) }, // #1345: the percent column before REC_RQD_M (metres)
   recovery: { label: "Recovery % (numeric)", fields: intervalFields(["recovery_pct", "recovery", "rec_pct", "rec_pct_d", "core_recovery", "value"], null, true) },
-  sg: { label: "Specific gravity (numeric)", fields: intervalFields(["sg", "sg_d", "bulkdens_calc", "sg_calc", "specific_gravity", "specific_grav", "bulk_density", "density", "value"], null, true) },
+  sg: { label: "Specific gravity (numeric)", fields: intervalFields(["sg", "sg_d", "bulkdens_calc", "sg_calc", "specific_gravity", "specific_grav", "bulk_density", "density", "reading", "value"], null, true) }, // reading: #2153 (beside Weight_Wet / Weight_Dry)
   // TASKS.csv #605 — mag sus is often logged as POINT readings (depth + value, an MX-style "Mag Susc" sheet), so a
   // Depth column is an alternative to From / To (oneOf below; the reading is placed at that depth).
   magsusc: { label: "Mag. susceptibility (numeric)", oneOf: [["from", "to"], ["depth"]], fields: [
@@ -1035,9 +1035,16 @@ export function guessTarget(headers) {
   // #600 (40958Z) — a domain log ("Domain Type": waste / ore zone...) is not veins (the bare "type" rule below) nor
   // lithology: a custom layer, so the dialog asks instead of committing it into Veins.
   if (has("from") && any(/(^|_)domain(_type|_code|_name)?$/)) return "custom";
-  if (has("from") && any(/^vein\d*_(comp|type)\d*$/)) return "vein";
+  if (has("from") && any(/^vein\d*_(comp|type|code)\d*$|^veins$/)) return "vein"; // code / veins: TASKS.csv #2153 (WAMEX Vein2_Code, "Veins")
   if (has("from") && any(/^brecc|^breccia|^brx(_|$)|^bx_(type|code)$/)) return "breccia"; // #608 (MX: brecc_lith)
   if (has("from") && any(/^alt\d*_code$|^alt_assemblage$/)) return "alt";
+  // TASKS.csv #2153 (WA drillhole review) — a geology log's primary lithology column (Lithology1, Lith1, Rock1, GEOL_Rock1, LithCode, Maj Lithcode)
+  // makes it a lithology log before its other columns are read: Alt1_Mineral / Min1_Type sent WAMEX geology_1 / geology_4 to Mineralization
+  if (has("from") && any(/^(geol_)?(maj(or)?_)?(lith(ology)?|rock|lith_?code)\d*(_code)?\d*$/)) return "litho";
+  // #2153 — an alteration log named by its mineral or style (Alt1_Mineral, Alt1_Style, AltN1), not by a code
+  if (has("from") && any(/^alt\d*_(mineral|min|style)$|^altn\d+$/)) return "alt";
+  // #2153 — a density log read as wet and dry weights with the result in "Reading"
+  if (has("from") && any(/^weight_?wet$|^wet_?weight$/) && any(/^weight_?dry$|^dry_?weight$/)) return "sg";
   // TASKS.csv #604 — a structure log by interval (GEOLFROM / GEOLTO + Struc_Code, From / To + Structure_Type): a
   // layer of structural zones. It used to fall to lithology (Copley) or, by its name, to point structure picks.
   if (has("from") && any(/^struc(t|ture)?_?(code|type)$/)) return "structzone";
