@@ -47,19 +47,32 @@ const azRefOf = (v) => {
 // A filled grid column is read as grid north; else a filled true-north column is read and converted; a corrected column filled on
 // only some rows is a mix (the dialog asks); with neither, an instrument column of gyros only is a hint of true north (the dialog
 // opens with it pre-set; nothing is converted unseen). -> adds azimuthCol (the column to read) and hint.
-const GN_COLS = /^(azimuth|azi|az)[\s_-]*(corrected[\s_-]*)?(gn|grid)$|^grid[\s_-]*(azimuth|azi|az)$/i;
+// TASKS.csv #2154 (WA drillhole review) — the north is often only in the column's NAME: a map grid (AMG_AZIMUTH, MGA_Azimuth, Azimuth_UTM,
+// GDA94_Azi) is grid north, Azimuth_MAG magnetic north. Lithium / nickel / iron files went in as grid north with their true or magnetic azimuths.
+const GN_COLS = /^(azimuth|azi|az)[\s_-]*(corrected[\s_-]*)?(gn|grid|utm|mga|amg|gda|map)\d*$|^(grid|utm|mga|amg|gda|map)\d*[\s_-]*(azimuth|azi|az)$/i;
+const MN_COLS = /^(azimuth|azi|az)[\s_-]*(mag|magnetic|mn)$|^(mag|magnetic)[\s_-]*(azimuth|azi|az)$/i;
+// #2154 — WAMEX's AZIMUTHGRIDNAME: the grid the azimuths are measured in (MGA94_51, AMG84_51, LOCAL); a north word is read as such
+const GRID_NAME_COLS = /^(azimuth|azi|az)[\s_-]*grid[\s_-]*name$/i;
 const TN_COLS = /^(azimuth|azi|az)[\s_-]*(corrected[\s_-]*)?(tn|true)$|^true[\s_-]*(azimuth|azi|az)$/i;
 const INSTRUMENT_COLS = /^(instrument|survey[\s_-]*(tool|instrument|method|type)|tool|method)$/i;
 function correctedColumns(headers, rows) {
   const hs = headers || [];
   const filled = (c) => { let n = 0, all = 0; for (const r of rows || []) { all++; const v = r?.[c]; if (v != null && String(v).trim() !== "" && Number.isFinite(Number(v))) n++; } return { n, all }; };
-  for (const [re, ref] of [[GN_COLS, "grid"], [TN_COLS, "true"]]) {
+  // #2154 — every named column with values, in this order of preference: grid, true, magnetic. Two of them: the first is read and the
+  // others are listed (`also`), so the dialog can say which one was taken
+  const named = [];
+  for (const [re, ref] of [[GN_COLS, "grid"], [TN_COLS, "true"], [MN_COLS, "magnetic"]]) {
     const col = hs.find((h) => re.test(String(h).trim()));
     if (!col) continue;
     const { n, all } = filled(col);
-    if (!n) continue; // an empty corrected column says nothing
+    if (n) named.push({ col, ref, n, all }); // an empty corrected column says nothing
+  }
+  if (named.length) {
+    const { col, ref, n, all } = named[0];
     if (n < all) return { ref: null, col, mixed: true, azimuthCol: null, partial: { col, n, all } };
-    return { ref, col, mixed: false, azimuthCol: col };
+    // a plain Azimuth beside a named one is the raw reading the named one corrects (MX / acQuire sheets, #2015): not a rival
+    const also = named.slice(1).map((x) => ({ col: x.col, ref: x.ref }));
+    return { ref, col, mixed: false, azimuthCol: col, ...(also.length ? { also } : {}) };
   }
   const inst = hs.find((h) => INSTRUMENT_COLS.test(String(h).trim()));
   if (inst) {
@@ -72,7 +85,20 @@ function correctedColumns(headers, rows) {
 
 export function detectAzimuthRef(headers, rows) {
   const col = (headers || []).find((h) => AZ_REF_COLS.includes(String(h).trim().toLowerCase()));
-  if (!col) return correctedColumns(headers, rows); // #2015
+  if (!col) {
+    // #2154 — a grid-name column: any filled value means grid azimuths (in that grid), unless it is a north word
+    const gcol = (headers || []).find((h) => GRID_NAME_COLS.test(String(h).trim()));
+    if (gcol) {
+      const seen = new Set();
+      for (const r of rows || []) { const v = String(r?.[gcol] ?? "").trim(); if (v) seen.add(azRefOf(v) || "grid"); }
+      if (seen.size) {
+        const byName = correctedColumns(headers, rows);
+        if (byName?.azimuthCol && byName.ref !== "grid") return byName; // a true / magnetic column's own name says more
+        return { ref: seen.size === 1 ? [...seen][0] : null, col: gcol, mixed: seen.size > 1, ...(byName?.azimuthCol ? { azimuthCol: byName.azimuthCol } : {}) };
+      }
+    }
+    return correctedColumns(headers, rows); // #2015
+  }
   const seen = new Set();
   for (const r of rows || []) { const ref = azRefOf(r?.[col]); if (ref) seen.add(ref); }
   if (!seen.size) return null;

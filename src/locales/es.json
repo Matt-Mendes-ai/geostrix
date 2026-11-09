@@ -9425,5 +9425,10 @@
   "potassic": "potásica",
   "phyllic": "fílica",
   " AI-up trend: {log} sample(s) named potassic or phyllic from the logged alteration, {chem} by geochemistry only (joint name; the Molar K/Al vs Na/Al diagram separates them).": " Tendencia de AI alto: {log} muestra(s) nombrada(s) potásica o fílica según la alteración registrada, {chem} solo por geoquímica (nombre conjunto; el diagrama molar K/Al vs Na/Al las separa).",
-  " AI-up trend: all {chem} sample(s) by geochemistry only (joint name; no logged code is marked potassic or phyllic; the Molar K/Al vs Na/Al diagram separates them).": " Tendencia de AI alto: las {chem} muestra(s) solo por geoquímica (nombre conjunto; ningún código registrado está marcado como potásico o fílico; el diagrama molar K/Al vs Na/Al las separa)."
+  " AI-up trend: all {chem} sample(s) by geochemistry only (joint name; no logged code is marked potassic or phyllic; the Molar K/Al vs Na/Al diagram separates them).": " Tendencia de AI alto: las {chem} muestra(s) solo por geoquímica (nombre conjunto; ningún código registrado está marcado como potásico o fílico; el diagrama molar K/Al vs Na/Al las separa).",
+  "magnetic north, converted to grid": "norte magnético, convertido a cuadrícula",
+  " North reference from the {col} column ({north}).": " Referencia de norte tomada de la columna {col} ({north}).",
+  " {n} station(s) in {h} hole(s) point upward (a positive dip, read with negative = down): upholes, or a sign error in the file?": " {n} estación(es) en {h} sondaje(s) apuntan hacia arriba (buzamiento positivo, leído con negativo = abajo): ¿sondajes ascendentes o un error de signo en el archivo?",
+  " {n} hole(s) still have no survey ({ids}).": " {n} sondaje(s) siguen sin levantamiento de desviación ({ids}).",
+  "This file has more than one azimuth column: {list}. {col} is read. To read another, pick it as the Azimuth column above and set the north below to match.": "Este archivo tiene más de una columna de azimut: {list}. Se lee {col}. Para leer otra, elíjala como columna de Azimut arriba y ajuste el norte abajo en consecuencia."
 }

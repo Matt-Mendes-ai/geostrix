@@ -31,6 +31,14 @@ export function autoExtraFields(headers, rows, mapping, { maxDistinct = 100, exc
   return out;
 }
 
+// TASKS.csv #2187 (review #2174, WA gold) — a survey's method / instrument / surveyor column (SURVTYPE GYRO / REFLEX / COLLAR, SurveyBy)
+// has no field and was dropped: it is kept as an extra field (Identify lists it) by default, the dialog's custom fields.
+const SURVEY_METHOD = /^(surv(ey)?[\s_-]*(type|method|tool|by|instrument|company|contractor)|instrument|method|tool|survey[\s_-]*instrument)$/i;
+export function surveyMethodFields(headers, rows) {
+  return (headers || []).filter((h) => SURVEY_METHOD.test(String(h).trim()) && (rows || []).some((r) => String(r?.[h] ?? "").trim() !== ""))
+    .map((h) => ({ column: h, name: String(h), type: "category" }));
+}
+
 // A second layer the same file fills: a Geotech (RQD %) table's recovery percentage column -> Recovery %. -> { target, column } or null
 export function companionLayer(target, headers) {
   if (target !== "geotech") return null;

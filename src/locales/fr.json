@@ -9425,5 +9425,10 @@
   "potassic": "potassique",
   "phyllic": "phyllique",
   " AI-up trend: {log} sample(s) named potassic or phyllic from the logged alteration, {chem} by geochemistry only (joint name; the Molar K/Al vs Na/Al diagram separates them).": " Tendance AI croissant : {log} échantillon(s) nommé(s) potassique ou phyllique d'après l'altération loguée, {chem} par la géochimie seule (nom commun ; le diagramme molaire K/Al vs Na/Al les sépare).",
-  " AI-up trend: all {chem} sample(s) by geochemistry only (joint name; no logged code is marked potassic or phyllic; the Molar K/Al vs Na/Al diagram separates them).": " Tendance AI croissant : les {chem} échantillon(s) par la géochimie seule (nom commun ; aucun code logué n'est marqué potassique ou phyllique ; le diagramme molaire K/Al vs Na/Al les sépare)."
+  " AI-up trend: all {chem} sample(s) by geochemistry only (joint name; no logged code is marked potassic or phyllic; the Molar K/Al vs Na/Al diagram separates them).": " Tendance AI croissant : les {chem} échantillon(s) par la géochimie seule (nom commun ; aucun code logué n'est marqué potassique ou phyllique ; le diagramme molaire K/Al vs Na/Al les sépare).",
+  "magnetic north, converted to grid": "nord magnétique, converti en nord du quadrillage",
+  " North reference from the {col} column ({north}).": " Référence du nord lue dans la colonne {col} ({north}).",
+  " {n} station(s) in {h} hole(s) point upward (a positive dip, read with negative = down): upholes, or a sign error in the file?": " {n} station(s) dans {h} sondage(s) pointent vers le haut (pendage positif, lu avec négatif = vers le bas) : sondages montants, ou une erreur de signe dans le fichier ?",
+  " {n} hole(s) still have no survey ({ids}).": " {n} sondage(s) n'ont toujours pas de levé de déviation ({ids}).",
+  "This file has more than one azimuth column: {list}. {col} is read. To read another, pick it as the Azimuth column above and set the north below to match.": "Ce fichier a plus d'une colonne d'azimut : {list}. {col} est lue. Pour en lire une autre, choisissez-la comme colonne Azimut ci-dessus et réglez le nord ci-dessous en conséquence."
 }

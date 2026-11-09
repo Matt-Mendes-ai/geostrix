@@ -9425,5 +9425,10 @@
   "potassic": "بوتاسي",
   "phyllic": "فيليكي",
   " AI-up trend: {log} sample(s) named potassic or phyllic from the logged alteration, {chem} by geochemistry only (joint name; the Molar K/Al vs Na/Al diagram separates them).": " اتجاه ارتفاع AI: {log} عينة سُمّيت بوتاسية أو فيليكية من التحوّل المسجّل، و{chem} بالجيوكيمياء فقط (اسم مشترك؛ مخطط K/Al مقابل Na/Al المولي يفصل بينها).",
-  " AI-up trend: all {chem} sample(s) by geochemistry only (joint name; no logged code is marked potassic or phyllic; the Molar K/Al vs Na/Al diagram separates them).": " اتجاه ارتفاع AI: جميع العينات الـ {chem} بالجيوكيمياء فقط (اسم مشترك؛ لا يوجد رمز مسجّل مؤشَّر بوتاسيًا أو فيليكيًا؛ مخطط K/Al مقابل Na/Al المولي يفصل بينها)."
+  " AI-up trend: all {chem} sample(s) by geochemistry only (joint name; no logged code is marked potassic or phyllic; the Molar K/Al vs Na/Al diagram separates them).": " اتجاه ارتفاع AI: جميع العينات الـ {chem} بالجيوكيمياء فقط (اسم مشترك؛ لا يوجد رمز مسجّل مؤشَّر بوتاسيًا أو فيليكيًا؛ مخطط K/Al مقابل Na/Al المولي يفصل بينها).",
+  "magnetic north, converted to grid": "الشمال المغناطيسي، محوَّل إلى شمال الشبكة",
+  " North reference from the {col} column ({north}).": " مرجع الشمال من العمود {col} ({north}).",
+  " {n} station(s) in {h} hole(s) point upward (a positive dip, read with negative = down): upholes, or a sign error in the file?": " {n} محطة في {h} ثقب تتجه إلى الأعلى (ميل موجب، يُقرأ مع سالب = إلى الأسفل): ثقوب صاعدة، أم خطأ في الإشارة في الملف؟",
+  " {n} hole(s) still have no survey ({ids}).": " لا يزال {n} ثقبًا بلا مسح انحراف ({ids}).",
+  "This file has more than one azimuth column: {list}. {col} is read. To read another, pick it as the Azimuth column above and set the north below to match.": "يحتوي هذا الملف على أكثر من عمود سمت: {list}. يُقرأ {col}. لقراءة عمود آخر، اختره كعمود السمت أعلاه واضبط الشمال أدناه ليوافقه."
 }

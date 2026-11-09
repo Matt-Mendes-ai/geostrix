@@ -31,7 +31,7 @@ test("an AZIMUTHTYPE column still decides first (#1647)", () => {
 });
 test("wired: the corrected column is mapped, a hint opens the dialog, the notice names the column", () => {
   assert.equal((p.match(/azColFor\(target, headers, (data|rows), /g) || []).length, 3);
-  assert.match(p, /!azDetected\.hint\)/);
+  assert.match(p, /!azDetected\.hint( && !azDetected\.also)?\)/); // also: #2154
   assert.match(p, /f\.key === "azimuth" && azColPicked && mapping\.azimuth === azColPicked/); // still committed unseen (the live run opened the dialog without it)
   assert.match(p, /tr\(" Azimuths read from the \{col\} column \(\{north\}\)\."/);
 });

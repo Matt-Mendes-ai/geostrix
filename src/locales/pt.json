@@ -9425,5 +9425,10 @@
   "potassic": "potássica",
   "phyllic": "fílica",
   " AI-up trend: {log} sample(s) named potassic or phyllic from the logged alteration, {chem} by geochemistry only (joint name; the Molar K/Al vs Na/Al diagram separates them).": " Tendência de AI alto: {log} amostra(s) nomeada(s) potássica ou fílica pela alteração registrada, {chem} só pela geoquímica (nome conjunto; o diagrama molar K/Al vs Na/Al as separa).",
-  " AI-up trend: all {chem} sample(s) by geochemistry only (joint name; no logged code is marked potassic or phyllic; the Molar K/Al vs Na/Al diagram separates them).": " Tendência de AI alto: todas as {chem} amostra(s) só pela geoquímica (nome conjunto; nenhum código registrado está marcado como potássico ou fílico; o diagrama molar K/Al vs Na/Al as separa)."
+  " AI-up trend: all {chem} sample(s) by geochemistry only (joint name; no logged code is marked potassic or phyllic; the Molar K/Al vs Na/Al diagram separates them).": " Tendência de AI alto: todas as {chem} amostra(s) só pela geoquímica (nome conjunto; nenhum código registrado está marcado como potássico ou fílico; o diagrama molar K/Al vs Na/Al as separa).",
+  "magnetic north, converted to grid": "norte magnético, convertido para quadrícula",
+  " North reference from the {col} column ({north}).": " Referência de norte tirada da coluna {col} ({north}).",
+  " {n} station(s) in {h} hole(s) point upward (a positive dip, read with negative = down): upholes, or a sign error in the file?": " {n} estação(ões) em {h} furo(s) apontam para cima (mergulho positivo, lido com negativo = para baixo): furos ascendentes ou um erro de sinal no arquivo?",
+  " {n} hole(s) still have no survey ({ids}).": " {n} furo(s) ainda não têm levantamento de desvio ({ids}).",
+  "This file has more than one azimuth column: {list}. {col} is read. To read another, pick it as the Azimuth column above and set the north below to match.": "Este arquivo tem mais de uma coluna de azimute: {list}. {col} é lida. Para ler outra, escolha-a como coluna de Azimute acima e ajuste o norte abaixo de acordo."
 }

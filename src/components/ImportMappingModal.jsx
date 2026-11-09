@@ -250,6 +250,7 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
             <div style={{ marginTop: 14 }}>
               <div style={label}>{tr("Azimuths in this file are measured from")}</div>
               {modal.azimuthRefFrom && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 4 }}>{tr("Set from the file's {col} column.", { col: modal.azimuthRefFrom })}</div>}{/* #1647 */}
+              {modal.azimuthRefAlso?.length > 0 && <div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 4 }}>{tr("This file has more than one azimuth column: {list}. {col} is read. To read another, pick it as the Azimuth column above and set the north below to match.", { list: [modal.azimuthRefFrom, ...modal.azimuthRefAlso.map((a) => a.col)].join(", "), col: modal.azimuthRefFrom })}</div>}{/* #2154 */}
               <div style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: "var(--font-size-base)" }}>
                 {Object.entries(AZIMUTH_REFS).map(([k, text]) => (
                   <label key={k} style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
