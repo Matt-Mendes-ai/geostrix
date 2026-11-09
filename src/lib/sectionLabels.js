@@ -112,3 +112,16 @@ export function resolveLabels(specs, obstacles = [], { gap = 1.5, bounds = null,
   });
   return out;
 }
+
+// TASKS.csv #2212 (review #2174, WA gold) — a level plan through underground fans: 160-200 hole ids on top of each other. Points (screen
+// px) within `radius` of a group's first point join it: one label stands for the group ('WB0705UD +3'). points: [{ key, id, x, y }] in
+// draw order -> [{ key, x, y, ids }] (ids unique, in order).
+export function clusterLabelPoints(points, radius = 8) {
+  const groups = [], r2 = radius * radius;
+  for (const p of points || []) {
+    const g = groups.find((q) => (q.x - p.x) ** 2 + (q.y - p.y) ** 2 <= r2);
+    if (g) { if (!g.ids.includes(p.id)) g.ids.push(p.id); } else groups.push({ key: p.key, x: p.x, y: p.y, ids: [p.id] });
+  }
+  return groups;
+}
+export const groupLabelText = (ids) => (ids.length > 1 ? `${ids[0]} +${ids.length - 1}` : ids[0] || "");

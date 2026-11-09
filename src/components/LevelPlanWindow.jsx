@@ -9,7 +9,7 @@ import { exportSvgMarkup } from "../lib/svgExport.js"; // TASKS.csv #1048 — th
 import { levelPlanFurniture } from "../lib/figureFurniture.js"; // TASKS.csv #1017
 import { saveFile } from "../lib/desktop.js"; // TASKS.csv #1114 — the native save dialog, as every other export (#444)
 import { planLegend } from "../lib/levelPlanLegend.js"; // TASKS.csv #1404
-import { resolveLabels } from "../lib/sectionLabels.js"; // TASKS.csv #1404 — the sections' label declutter (#1144)
+import { resolveLabels, clusterLabelPoints, groupLabelText } from "../lib/sectionLabels.js"; // TASKS.csv #1404 — the sections' label declutter (#1144); clusters: #2212
 import { LAYER_META } from "../lib/layers.js";
 import { usePrompt } from "./usePrompt.jsx"; // TASKS.csv #1779
 
@@ -109,6 +109,17 @@ export default function LevelPlanWindow({ build, zRange, defaultRl, onClose, onS
   if (!frame) return null;
   const { X, Y, s } = frame;
   const path = (line) => line.map(([x, y], i) => `${i ? "L" : "M"}${X(x).toFixed(1)},${Y(y).toFixed(1)}`).join(" ");
+  // TASKS.csv #2212 (review #2174) — the hole ids: pierce points within a symbol's reach share one label ('ID +n', the ids in its tooltip),
+  // and a label with no free spot near its point is left out, not printed over another (the section window's #1536 rule)
+  const idLabels = labels ? (() => {
+    const groups = clusterLabelPoints(data.holes.flatMap((h) => h.pierce.map((pc, i) => ({ key: `${h.hole_id}_${i}`, id: h.hole_id, x: X(pc.x), y: Y(pc.y) }))), 8);
+    const placed = resolveLabels(
+      groups.map((g) => ({ key: g.key, text: groupLabelText(g.ids), ids: g.ids, size: 10.5, prio: 2, optional: true, cands: [{ x: g.x + 6, y: g.y - 5, anchor: "start" }, { x: g.x + 6, y: g.y + 13, anchor: "start" }, { x: g.x - 6, y: g.y - 5, anchor: "end" }, { x: g.x - 6, y: g.y + 13, anchor: "end" }] })),
+      data.holes.flatMap((h) => h.pierce.map((pc) => ({ x: X(pc.x), y: Y(pc.y) + 5, w: 11, h: 11 }))),
+      { bounds: [2, W - 2], yBounds: [20, H - 2] },
+    );
+    return { placed, hidden: groups.length - placed.length, grouped: groups.reduce((n, g) => n + (g.ids.length > 1 ? g.ids.length - 1 : 0), 0) };
+  })() : null;
 
   const toWorld = (e) => toWorldF(frame, e, svgRef.current);
   const onClick = (e) => { if (drawing && !dragRef.current?.moved) { const q = toWorld(e); setPts((p) => [...p, q]); } };
@@ -217,11 +228,7 @@ export default function LevelPlanWindow({ build, zRange, defaultRl, onClose, onS
             </g>
           )))}
           {/* #1404 — hole ids through the sections' declutter (#1144): a fan's collars no longer print over each other */}
-          {labels && resolveLabels(
-            data.holes.flatMap((h) => h.pierce.map((pc, i) => { const x = X(pc.x), y = Y(pc.y); return { key: `${h.hole_id}_${i}`, text: h.hole_id, size: 10.5, prio: 2, cands: [{ x: x + 6, y: y - 5, anchor: "start" }, { x: x + 6, y: y + 13, anchor: "start" }, { x: x - 6, y: y - 5, anchor: "end" }, { x: x - 6, y: y + 13, anchor: "end" }] }; })),
-            data.holes.flatMap((h) => h.pierce.map((pc) => ({ x: X(pc.x), y: Y(pc.y) + 5, w: 11, h: 11 }))),
-            { bounds: [2, W - 2], yBounds: [20, H - 2] },
-          ).map((l) => <g key={`hl${l.key}`}>{l.leaderFrom && <line x1={l.leaderFrom.x} y1={l.leaderFrom.y} x2={l.x} y2={l.y - 4} stroke="#7a8494" strokeWidth={0.6} />}<text x={l.x} y={l.y} fontSize="10.5" textAnchor={l.anchor} fill="#1a2028" stroke="#ffffff" strokeWidth={2.5} paintOrder="stroke">{l.text}</text></g>)}
+          {idLabels && idLabels.placed.map((l) => <g key={`hl${l.key}`}>{l.leaderFrom && <line x1={l.leaderFrom.x} y1={l.leaderFrom.y} x2={l.x} y2={l.y - 4} stroke="#7a8494" strokeWidth={0.6} />}<text x={l.x} y={l.y} fontSize="10.5" textAnchor={l.anchor} fill="#1a2028" stroke="#ffffff" strokeWidth={2.5} paintOrder="stroke">{l.text}{l.ids.length > 1 && <title>{l.ids.join(", ")}</title>}</text></g>)}{/* #2212 */}
           {/* the outline being drawn */}
           {pts.length > 0 && <path d={path(hover && drawing ? [...pts, hover] : pts) + (pts.length > 2 && !drawing ? " Z" : "")} stroke="#d1495b" strokeWidth={1.8} fill="rgba(209,73,91,0.08)" />}
           {pts.map((p, i) => <circle key={`d${i}`} cx={X(p[0])} cy={Y(p[1])} r={2.6} fill="#d1495b" />)}
@@ -233,6 +240,7 @@ export default function LevelPlanWindow({ build, zRange, defaultRl, onClose, onS
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
           <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", flex: 1, minWidth: 260 }}>
             {tr("{pierceCount} {v} at {rl} m · {inSlab} {v2} in the slab · {voxelSlices} {v3} and {surfaceCuts} {v4} cut · equal E / N scale · wheel to zoom, drag to pan, double-click to reset. Hover a pierce point for its logs and assays.", { pierceCount, v: tr(pierceCount === 1 ? "pierce point" : "pierce points"), rl, inSlab, v2: tr(inSlab === 1 ? "hole" : "holes"), voxelSlices: data.voxelSlices.length, v3: tr(data.voxelSlices.length === 1 ? "block model" : "block models"), surfaceCuts: data.surfaceCuts.length, v4: tr(data.surfaceCuts.length === 1 ? "surface" : "surfaces") })}</div>
+          {idLabels && (idLabels.hidden > 0 || idLabels.grouped > 0) && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", flexBasis: "100%" }}>{tr("Hole ids: a label 'ID +n' stands for n more hole(s) piercing within a few pixels (hover it for the list); {hidden} label(s) had no free spot and are left out. Zoom in to separate them, or hover a pierce point.", { hidden: idLabels.hidden })}</div>}{/* #2212 */}
           {!drawing
             ? <button style={btn} onClick={() => { setDrawing(true); setPts([]); setNote(tr("Click points on the plan; Save outline when done.")); }}><Pencil size={14} />{" "}{tr("Draw outline")}</button>
             : <><button style={btn} onClick={saveOutline}><Check size={14} />{" "}{tr("Save outline")}</button><button style={btn} onClick={() => { setDrawing(false); setPts([]); setNote(null); }}>{tr("Cancel")}</button></>}
