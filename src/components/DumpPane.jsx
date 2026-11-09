@@ -7,7 +7,7 @@ import { Mountain, Box } from "./icons.js";
 import { TaskPaneHeader } from "./Ribbon.jsx";
 import { useStore } from "../lib/store.jsx";
 import { dumpFromFootprint, looseTonnes } from "../lib/dumpDesign.js";
-import { collarGround } from "../lib/pitShell.js";
+import { collarGround, collarsLookUnderground } from "../lib/pitShell.js";
 import { terrainGroundAt } from "../lib/viewer/geomath.js";
 import { stringStats } from "../lib/designStrings.js";
 import { pBtn, smallSel } from "../lib/sidebarStyles.js";
@@ -32,8 +32,10 @@ export default function DumpPane({ surfaces = [], onAdd, onClose }) {
   const busy = useRef(false);
   const footprint = footprints.find((s) => s.id === f.stringId) || footprints[0] || null;
   const pit = pits.find((s) => s.id === f.pitId) || null;
-  const groundAt = useMemo(() => (terrain ? (x, y) => terrainGroundAt(terrain, x, y) : collarGround(collars)), [terrain, collars]);
-  const groundSource = terrain ? "terrain" : collarGround(collars) ? "collars" : "flat";
+  // TASKS.csv #2276 — not the surface between UNDERGROUND collars (a dump stood 168 m high at RL 86-250 under a surface near 400)
+  const ug = useMemo(() => (terrain ? null : collarsLookUnderground(collars)), [terrain, collars]);
+  const groundAt = useMemo(() => (terrain ? (x, y) => terrainGroundAt(terrain, x, y) : ug?.underground ? null : collarGround(collars)), [terrain, collars, ug]);
+  const groundSource = terrain ? "terrain" : groundAt ? "collars" : "flat"; // groundAt: #2276
   const centre = useMemo(() => { if (!footprint) return null; const st = stringStats(footprint.vertices, true); const cx = (st.box[0] + st.box[3]) / 2, cy = (st.box[1] + st.box[4]) / 2; const g = groundAt ? groundAt(cx, cy) : NaN; return { x: cx, y: cy, ground: Number.isFinite(g) ? g : (st.box[2] + st.box[5]) / 2, area: st.area }; }, [footprint, groundAt]);
   const set = (k) => (e) => { setF((p) => ({ ...p, [k]: e.target.value })); setMsg(null); };
   const v = (k) => (f[k] === "" ? null : Number(f[k]));
@@ -69,6 +71,7 @@ export default function DumpPane({ surfaces = [], onAdd, onClose }) {
       {!footprints.length && <div style={warn}>{tr("It needs a closed design string as the footprint: draw one with the Strings tool first.")}</div>}
       {footprints.length > 0 && (<>
         <label style={row}>{tr("Footprint")}<select value={footprint?.id || ""} onChange={set("stringId")} style={{ ...smallSel, width: 0, flex: 1, minWidth: 0 }} aria-label={tr("Footprint string")}>{footprints.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></label>
+        {ug?.underground && <div style={note}>{tr("The collars look like underground drill positions ({upward} hole(s) drilled upward, {stacked} pair(s) of collars stacked over each other): they are not used as the ground. Load a terrain (Maps > Terrain) for the real surface.", { upward: ug.upward, stacked: ug.stacked })}</div>}{/* #2276 */}
         {centre && <div style={note}>{tr("{a} ha; the ground at its centre is {g} m ({src}).", { a: (centre.area / 10000).toFixed(2), g: Math.round(centre.ground), src: groundSource === "terrain" ? tr("the terrain") : groundSource === "collars" ? tr("interpolated between the collars") : tr("no terrain or collars: the footprint's own elevation, flat") })}</div>}
         {field("crestZ", tr("Crest elevation (m)"), { placeholder: centre ? String(Math.round(centre.ground)) : "" })}
         {field("repose", tr("Angle of repose (°)"), { min: 1, max: 89 })}

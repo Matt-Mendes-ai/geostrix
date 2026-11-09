@@ -18,7 +18,7 @@ import { toExportCsv, crsCell } from "../lib/tabular.js";
 import { saveFile } from "../lib/desktop.js";
 import { iconAction } from "../lib/a11y.js";
 import { pBtn, smallSel } from "../lib/sidebarStyles.js";
-import { collarGround } from "../lib/pitShell.js"; // #1905
+import { collarGround, collarsLookUnderground } from "../lib/pitShell.js"; // #1905
 import { terrainGroundAt } from "../lib/viewer/geomath.js";
 import { t as tr } from "../lib/i18n.js";
 import StringManager from "./StringManager.jsx"; // TASKS.csv #1968 — many strings at once
@@ -49,7 +49,9 @@ export default function DesignStringsPane({ view, onAdd, onClose, surfaces = [],
   const [activeId, setActiveId] = useState(() => designStrings[designStrings.length - 1]?.id ?? null);
   const [drawing, setDrawing] = useState(false);
   // #1905 — the ground: the terrain, else interpolated between the collars (as the pit and dump panes take it); the default target
-  const groundAt = useMemo(() => (terrain ? (x, y) => terrainGroundAt(terrain, x, y) : collarGround(collars)), [terrain, collars]);
+  // TASKS.csv #2276 — strings were draped 260 m underground on the surface between the cuddies
+  const ug = useMemo(() => (terrain ? null : collarsLookUnderground(collars)), [terrain, collars]);
+  const groundAt = useMemo(() => (terrain ? (x, y) => terrainGroundAt(terrain, x, y) : ug?.underground ? null : collarGround(collars)), [terrain, collars, ug]);
   const [target, setTargetState] = useState(draw.target || (groundAt ? "ground" : "hit"));
   const [planeZ, setPlaneZState] = useState(draw.planeZ);
   const [snap, setSnapState] = useState(draw.snap);

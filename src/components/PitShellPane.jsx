@@ -137,6 +137,7 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove,
       setRes(null); kept = null;
       if (r.failed || r.empty) {
         setMsg(r.empty ? tr("At these inputs no block pays for the rock over it, so there is no pit. Cut-off grade {c} {unit}.", { c: Number(r.cutoff.toPrecision(3)), unit })
+          : r.failed === "underground" ? tr("The collars look like underground drill positions ({upward} hole(s) drilled upward, {stacked} pair(s) of collars stacked over each other): no ground surface is known, so no pit is cut from them. Load a terrain (Maps > Terrain) for the real surface.", { upward: r.underground?.upward ?? 0, stacked: r.underground?.stacked ?? 0 }) /* #2276 */
           : r.failed === "by-grid" ? tr("\"{by}\" is not on the same grid as \"{model}\": no block centre matches. Estimate the by-product with the same cell size over the same area (the same holes or area box) and run again.", { by: byModel?.name || "?", model: model.name }) // #1917
           : r.failed === "by-units" ? tr("The by-product model's grade unit cannot be priced.")
           : tr("The block model has no blocks with values."));

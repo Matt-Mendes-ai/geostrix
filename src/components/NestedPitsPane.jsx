@@ -76,6 +76,7 @@ export default function NestedPitsPane({ surfaces = [], onAdd, onToggle, onRemov
       job.current = runPitSeriesAsync(model, { ...inputs, unit, element }, factors, { rate, discountPct: Number.isFinite(discount) ? discount : null, terrain, collars, byModel /* #1917 */, onProgress: (p) => setBusy(p) });
       const r = await job.current.promise;
       if (r.cancelled) { setMsg(tr("Cancelled: nothing was added.")); return; }
+      if (r.failed === "underground") { setMsg(tr("The collars look like underground drill positions ({upward} hole(s) drilled upward, {stacked} pair(s) of collars stacked over each other): no ground surface is known, so no pit is cut from them. Load a terrain (Maps > Terrain) for the real surface.", { upward: r.underground?.upward ?? 0, stacked: r.underground?.stacked ?? 0 })); return; } // #2276
       if (r.failed || r.empty) { setMsg(r.empty ? tr("At these inputs no block pays for the rock over it at the largest factor, so there is no pit.") : tr("The series failed: {v}", { v: r.failed })); return; }
       const seconds = Math.round((performance.now() - t0) / 100) / 10;
       if (kept?.seriesId && onRemove) surfaces.filter((s) => s.params?.seriesId === kept.seriesId).forEach((s) => onRemove(s.id)); // #1931 — the earlier series' shells go

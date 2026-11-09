@@ -90,6 +90,7 @@ export default function PitDesignPane({ surfaces = [], worldPositionsOf, onAdd, 
       const r = await job.current.promise;
       if (r.cancelled) { setMsg(tr("Cancelled: nothing was added.")); return; }
       if (r.failed === "area-empty") { setMsg(tr("No column of the shell lies inside \"{name}\": move or enlarge the area, or pick another.", { name: area?.name || "?" })); return; } // #1916
+      if (r.failed === "underground") { setMsg(tr("The collars look like underground drill positions ({upward} hole(s) drilled upward, {stacked} pair(s) of collars stacked over each other): no ground surface is known, so no pit is cut from them. Load a terrain (Maps > Terrain) for the real surface.", { upward: r.underground?.upward ?? 0, stacked: r.underground?.stacked ?? 0 })); return; } // #2276
       if (r.failed) { setMsg(tr("The design failed: {v}", { v: r.failed })); return; }
       if (!r.benches.length) { setMsg(tr("No bench fits: the shell is shallower than one bench height.")); return; }
       if (r.benches.length === 1 && !r.daylights && r.faceRun < r.cell) { setMsg(tr("One bench only: a face run of {r} m is narrower than the {c} m design grid, so the walls could not be drawn. Use a flatter face, a taller bench or a berm.", { r: r.faceRun.toFixed(2), c: r.cell.toFixed(1) })); return; } // #1902
