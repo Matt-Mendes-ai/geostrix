@@ -68,3 +68,19 @@ export function drillPlanGeometry(el, collars) {
   }
   return { w, h, ppm, holes };
 }
+
+// TASKS.csv #2301 (review #2174, WA gold) — the location plan had no coordinates at all. A grid at a round spacing (el.gridM, else about five
+// lines across the frame: 1 / 2 / 2.5 / 5 x 10^n m; 0 = no grid), with easting labels along the top and northing labels down the left, in the
+// project's own metres. -> { spacing, xs: [{ px, label }], ys: [{ px, label }] } or null
+export function drillPlanGrid(el) {
+  const w = el.w || 600, h = el.h || 400, ppm = pxPerMetre(el.scale), cx = el.centre?.x ?? 0, cy = el.centre?.y ?? 0;
+  if (el.gridM === 0 || !(ppm > 0)) return null;
+  let spacing = Number(el.gridM);
+  if (!(spacing > 0)) { const raw = w / ppm / 5, mag = 10 ** Math.floor(Math.log10(raw)); spacing = [1, 2, 2.5, 5, 10].map((m) => m * mag).find((v) => v >= raw); }
+  const x0 = cx - w / 2 / ppm, x1 = cx + w / 2 / ppm, y0 = cy - h / 2 / ppm, y1 = cy + h / 2 / ppm;
+  const fmt = (v) => Math.round(v).toLocaleString("en-US");
+  const xs = [], ys = [];
+  for (let x = Math.ceil(x0 / spacing) * spacing; x <= x1 && xs.length < 200; x += spacing) xs.push({ px: w / 2 + (x - cx) * ppm, label: `${fmt(x)} E` });
+  for (let y = Math.ceil(y0 / spacing) * spacing; y <= y1 && ys.length < 200; y += spacing) ys.push({ px: h / 2 - (y - cy) * ppm, label: `${fmt(y)} N` });
+  return { spacing, xs, ys };
+}

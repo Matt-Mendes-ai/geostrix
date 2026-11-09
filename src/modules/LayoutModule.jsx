@@ -1343,6 +1343,7 @@ export default function LayoutModule() {
                 <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", display: "block", marginBottom: 6 }}>{tr("Scale 1 :")}<select value={String(sel.scale)} onChange={(e) => updateSelected({ scale: Number(e.target.value) })} style={{ ...inp, marginTop: 4 }}>
                   {[...new Set([...SCALE_PRESETS, sel.scale])].sort((a, b) => a - b).map((s) => <option key={s} value={String(s)}>{Number(s).toLocaleString()}</option>)}
                 </select></label>
+                <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }} title={tr("The coordinate grid's spacing in metres. Blank: about five lines across the frame; 0: no grid.")}>{tr("Grid (m)")}<input type="number" min="0" step="any" value={sel.gridM ?? ""} placeholder={tr("auto")} onChange={(e) => updateSelected({ gridM: e.target.value === "" ? undefined : Number(e.target.value) })} style={{ width: 80 }} aria-label={tr("Grid spacing (m)")} /></label>{/* #2301 */}
                 <div style={{ display: "flex", gap: 6 }}>
                   <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>{tr("Centre E")}<input type="number" value={Math.round(sel.centre?.x || 0)} onChange={(e) => updateSelected({ centre: { ...sel.centre, x: Number(e.target.value) } })} style={inp} /></label>
                   <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>{tr("Centre N")}<input type="number" value={Math.round(sel.centre?.y || 0)} onChange={(e) => updateSelected({ centre: { ...sel.centre, y: Number(e.target.value) } })} style={inp} /></label>
@@ -2094,7 +2095,9 @@ function crsText(epsg, crsSet = true) {
 }
 function textContextFor(els, project, page, index, count, collars = null, credits = "") {
   const today = new Date(), p2 = (v) => String(v).padStart(2, "0"); // #1489 — ISO: '11/2/2026' read as 11 February to many readers
-  return { project: project?.name || "", date: `${today.getFullYear()}-${p2(today.getMonth() + 1)}-${p2(today.getDate())}`, page: String(index + 1), pages: String(count), pagename: page?.name || "", scale: pageScaleText(els), crs: crsText(project?.epsg, project?.crsSet), credits, collars, els, pageH: pagePx(pageFormatOf(page)).h, pageW: pagePx(pageFormatOf(page)).w /* #2134 */ }; // collars: the #911 table; els: the #912 overview; pageH: #1480
+  // gridCaption (#2301): what a drill plan's grid numbers are
+  const gridCaption = project?.crsSet === false ? (project?.localGrid?.name ? `local grid: ${project.localGrid.name}` : "local mine grid, no CRS") : project?.epsg ? `EPSG:${project.epsg}` : "";
+  return { gridCaption, project: project?.name || "", date: `${today.getFullYear()}-${p2(today.getMonth() + 1)}-${p2(today.getDate())}`, page: String(index + 1), pages: String(count), pagename: page?.name || "", scale: pageScaleText(els), crs: crsText(project?.epsg, project?.crsSet), credits, collars, els, pageH: pagePx(pageFormatOf(page)).h, pageW: pagePx(pageFormatOf(page)).w /* #2134 */ }; // collars: the #911 table; els: the #912 overview; pageH: #1480
 }
 const fillText = (text, ctx) => (ctx && typeof text === "string" && text.includes("{") ? text.replace(PLACEHOLDER, (m, k) => (ctx[k] != null ? ctx[k] : m)) : text);
 
@@ -2335,7 +2338,7 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
   // TASKS.csv #19 — shapes/annotation tools
   if (el.type === "drillplan") return ( /* TASKS.csv #1639 */
     <div style={{ ...wrap, width: el.w, height: el.h, border: frameBorder(el), boxSizing: "content-box" }} onMouseDown={onDown} data-el-id={el.id} {...kb}>
-      <DrillPlanElement el={el} collars={ctx?.collars || []} />
+      <DrillPlanElement el={el} collars={ctx?.collars || []} gridCaption={ctx?.gridCaption || ""} />{/* gridCaption: #2301 */}
       {handles}
     </div>
   );
