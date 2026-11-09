@@ -262,11 +262,13 @@ function parseInWorker(buf, opts) {
   return new Promise((resolve, reject) => {
     let worker;
     try { worker = new Worker(new URL("./tabular.worker.js", import.meta.url), { type: "module" }); } catch (err) { reject(err); return; }
+    const parts = []; // #2175 — rows sent in parts (tabular.worker.js)
     worker.onmessage = (e) => {
-      worker.terminate();
       const d = e.data || {};
+      if (d.type === "rows-part") { parts.push(d.rows); return; }
+      worker.terminate();
       if (d.type === "columns") resolve(encodingNote(rowsFromColumns(d.raw), d.encoding));
-      else if (d.type === "rows") resolve(encodingNote(d.out, d.encoding));
+      else if (d.type === "rows") resolve(encodingNote(d.out.rows ? d.out : { ...d.out, rows: [].concat(...parts) }, d.encoding));
       else reject(new Error(d.message || tr("The file reader stopped.")));
     };
     worker.onerror = (e) => { e.preventDefault?.(); worker.terminate(); reject(new Error(e.message || tr("worker failed"))); };

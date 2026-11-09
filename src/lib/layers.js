@@ -196,14 +196,20 @@ const NOTE_RULES = [
   [/^\W*(((laminated|vuggy|massive|banded|white|milky|grey) )?(q(t)?z|quartz|qcb|carb(onate)?|cb)?[ -]?(veins?|vein breccia)\b|(vuggy|laminated) (q(t)?z|quartz)\b|qcb\b)/, "vein"],
 ];
 const NOT_NOTES = new Set(["hole_id", "value", "_src", "codes", "all_codes", "alt_style", "from", "to", "mcode", "source"]);
+// TASKS.csv #2175 — the store re-runs this on every lithology change: 1.5 M rows took 1.1 s on the main thread. A code's role is a majority of
+// its noted rows, so its first NOTE_SAMPLE noted rows decide it; after that its rows are skipped before any text is built.
+const NOTE_SAMPLE = 400;
 export function lithologyNoteRoles(rows) {
   const by = new Map(); // code -> { noted, hits: { role: n } }
+  const lastKey = { raw: undefined, key: "" }; // logs run code by code: reuse the last key while the raw value repeats
   for (const r of rows || []) {
     if (!r || r.value == null) continue;
+    if (r.value !== lastKey.raw) { lastKey.raw = r.value; lastKey.key = String(r.value).trim().toLowerCase(); }
+    if (by.get(lastKey.key)?.noted >= NOTE_SAMPLE) continue;
     let text = "";
     for (const [k, v] of Object.entries(r)) if (!NOT_NOTES.has(k) && typeof v === "string" && v.length > 3) text += " " + v;
     if (!text) continue;
-    const key = String(r.value).trim().toLowerCase();
+    const key = lastKey.key;
     let e = by.get(key); if (!e) by.set(key, (e = { noted: 0, hits: {} }));
     e.noted++;
     const t = text.toLowerCase();
@@ -229,8 +235,16 @@ export function roleForLithology(u) {
 // TASKS.csv #2226 (review #2174, WA lode gold) — the Vein / dyke tool listed only the Veins log: a company that logs its veins as lithology codes
 // (VQZ 207, VCB 227 intervals) had an empty list and no word why. Its codes: the Veins log's, then the lithology codes that are cross-cutting
 // (the Modelling codes role, else the suggestion from the name or the notes), as 'litho:<code>'.
+// #2175 — ViewerModule calls this on every render: the distinct codes of a rows array are kept until the array changes (a 1.5 M-row log was
+// scanned again on each render)
+const DISTINCT_CODES = new WeakMap();
 export function veinSourceUnits(layers, modellingCodes = null) {
-  const seen = (rows) => [...new Set((rows || []).map((r) => r?.value).filter((v) => v != null && String(v).trim() !== ""))];
+  const seen = (rows) => {
+    if (!rows) return [];
+    let v = DISTINCT_CODES.get(rows);
+    if (!v) { const s = new Set(); for (const r of rows) { const x = r?.value; if (x != null && String(x).trim() !== "") s.add(x); } v = [...s]; DISTINCT_CODES.set(rows, v); }
+    return v;
+  };
   const set = new Map((modellingCodes?.codes || []).map((c) => [c.name, c.role]));
   const crossCutting = (v) => (set.get(v) || mcodeRoleOf(roleForLithology(v))) === "cross-cutting";
   return [...seen(layers?.vein), ...seen(layers?.litho).filter(crossCutting).map((v) => `litho:${v}`)];
