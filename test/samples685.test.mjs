@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 
-const roots = ["sample_data", "sample_data/harry_property", "sample_data/woodjam"];
+const roots = ["sample_data", "sample_data/harry_property", "sample_data/woodjam", "sample_data/silvertip", "sample_data/wa_uranium"]; // wa_uranium: TASKS.csv #2168
 test("no interval in a shipped sample runs backwards (from > to)", () => {
   let files = 0;
   for (const root of roots) {

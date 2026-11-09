@@ -6041,6 +6041,14 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       } catch (e) { setNotices((p) => [...p, errorNotice(tr("The Silvertip sample's assays and surface samples could not be loaded: {message}", { message: e.message }))]); }
       return;
     }
+    if (ok && which === "wa_uranium") { // TASKS.csv #2168 — assays into Geochem, the gamma log as a numeric custom layer (the store hydrates its group)
+      try {
+        const { loadWaUraniumExtras } = await import("../lib/sampleWaUranium.js");
+        const notes = await loadWaUraniumExtras(async (rel) => (await loadSampleFiles("wa_uranium", [rel]))[0], { setAssays, setAssayElements, addCustomLayer: (l) => setStoreCustomLayers((p) => [...(p || []), l]) }, { existingElements: assayElements });
+        setNotices((p) => [...p, ...notes]);
+      } catch (e) { setNotices((p) => [...p, errorNotice(tr("The WA uranium sample's assays and gamma log could not be loaded: {message}", { message: e.message }))]); }
+      return;
+    }
     if (ok && which === "harry") { // TASKS.csv #1124 — Harry's assays into Geochem with the drillhole tables
       try {
         const { loadHarryAssays } = await import("../lib/sampleHarry.js");

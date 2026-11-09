@@ -1,0 +1,47 @@
+# WA calcrete uranium — real exploration data (WAMEX report A87304, Western Australia)
+
+430 aircore and diamond holes drilled in 2009-2010 on a calcrete-hosted uranium prospect at the south-western edge of the Canning
+Basin, Western Australia, from one open-file company report (A87304) in the State's WAMEX mineral drillhole database. Everything
+here is real company data as released by the State; **nothing is synthesized**. The tables were only re-shaped into tidy CSVs with
+column names GeoStrix recognizes, so "Sample: WA calcrete uranium" imports them without questions. Company and personnel names from
+the source are not included.
+
+Regenerate from the database export with:
+
+```
+node scripts/samples/build-wa-uranium.mjs "<path to the WA drillhole review's projects\uranium\csv folder>"
+```
+
+(the review in `docs/ideas/wa-drillhole-database-review.md` streams the report's tables out of the State's bcp-format export; its
+per-report CSVs, with the company's own column names, are this script's input).
+
+Coordinates: **GDA94 / MGA zone 51 (EPSG:28351)**, the company's `MGA_East` / `MGA_North` / `MGA_RL`. The collars carry an `epsg`
+column with that code, so a drop of the file asks no CRS question either.
+
+What makes it different from the other samples: a deposit style and a drilling style none of them has (shallow aircore over a
+calcrete palaeochannel, uranium grade read from gamma logs rather than assays), a company lithology / regolith code set to try the
+code thesaurus on, and a real multi-element table whose lab reported each element under several method columns.
+
+## Files
+
+| File | Rows | What was taken |
+|---|---:|---|
+| `collars.csv` | 430 | hole_id, x, y, z (the company's RL, 318-347 m), length (33-93 m), hole_type (412 AC, 18 DDH), epsg (28351) |
+| `survey.csv` | 430 | one collar station per hole: depth 0, grid azimuth, dip. Every hole was drilled vertically (dip -90) |
+| `litho.csv` | 22,407 | the primary lithology code (`Lith1_Code`: 23 codes, SST / SAN / CLS / CLY / CBC / LIG ...), its oxidation state (`Lith1_Oxidation`) and the geologist's comment |
+| `alt.csv` | 2,003 | first alteration code (CAL, CAR, GOE, HEM, LIM, PYR, SER, SIL) and its intensity (W / M / S) |
+| `assays.csv` | 9,862 | multi-element results for 424 holes: U, Th, V, Cu, Pb, Zn, Ni, Co, As, Ce, La, Nd, Pr, Sm, Ba and S in ppm; Fe, Ca, K and Al in %. The lab reported each element under several method columns (the database suffixes them `_100`, `_101` ...) and each sample was analysed by one method set, so the columns are joined into one value per element, fullest column first; S is joined as ppm (one method reported it in %, 53 core samples, converted). U is present for 9,733 samples (1,637 above 100 ppm, 215 above 1,000 ppm). "X" and "N/L" (not analysed) became blank; 83 negative values are the lab's below-detection codes and GeoStrix reads them as such. The 14 rows the database marks Superseded are left out |
+| `gamma.csv` | 43,923 | downhole gamma for 423 holes: raw counts per second and eU3O8 (ppm, cased probe), every 10th reading (0.5 m) of the 439,780 logged at 5 cm. The database's no-data codes (eU3O8 of -1 and -1,830,000,000; a raw count of 10,700,000 cps) are dropped. Loaded as the numeric custom layer "Gamma eU3O8 (ppm)": drawn along the holes in the 3D View, a log in Downhole Logs and a numeric source for the modelling tools |
+
+Not included: the report's pXRF readings, hyperspectral indices and drilling-detail tables (left out to keep the sample small; the
+review's export has them), and 9 of every 10 gamma readings (regenerate without the `i % 10` filter in the build script to keep them all).
+
+## Licence and attribution
+
+Derived from "Mineral exploration drillholes (open file)", WAMEX company mineral drillhole database, © State of Western Australia
+(Department of Energy, Mines, Industry Regulation and Safety) 2024, licensed under Creative Commons Attribution 4.0 International
+(https://creativecommons.org/licenses/by/4.0/). Changes: one report's drillhole tables re-shaped into these CSVs with GeoStrix's
+column names, the lab's method columns joined into one value per element, the gamma log thinned to every 10th reading and the
+database's no-data codes removed; no value was altered beyond the one unit conversion noted above. DEMIRS does not endorse GeoStrix.
+The source carries this disclaimer: the department and the State cannot guarantee the accuracy, currency or completeness of the
+information; locations are as reported by the company.

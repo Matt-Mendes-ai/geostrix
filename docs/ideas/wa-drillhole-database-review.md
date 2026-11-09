@@ -605,6 +605,12 @@ value) and has to be added as a custom layer with eU3O8_ppm picked by hand, whic
 bundling: it is the only sample with a downhole log and a uranium / calcrete deposit style. The licence allows it (CC BY 4.0 with the
 attribution in the README; no company or personnel names are in the files; the README carries the State's disclaimer).
 
+Bundled on 2026-11-08 as `sample_data/wa_uranium/` (TASKS #2168, the T20 row below): the build script moved to `scripts/samples/`,
+the lab's method columns are now joined into one value per element (U present for 9,733 of 9,862 samples instead of 5,060; S joined as
+ppm; the 14 Superseded rows dropped), the gamma log's no-data codes (-1 and -1,830,000,000 eU3O8; a 10,700,000 cps count) are removed
+(43,923 readings), and the gamma log loads as the numeric custom layer "Gamma eU3O8 (ppm)" through `src/lib/sampleWaUranium.js`
+rather than by hand. The sample is the fifth card on the empty 3D View and the fifth entry of File > Open Sample Project.
+
 ## 7. Proposed TASKS rows (module, feature, priority, notes) — paste-ready, pending Matt's approval
 
 Each row's notes name the evidence (file under C:\GeoStrixData\wa-drillholes) and the code to touch. Priorities follow the brief: wrong numbers

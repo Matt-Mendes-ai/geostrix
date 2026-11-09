@@ -817,6 +817,12 @@ export function useImportPipeline(ctx) {
       files: ["collars.csv", "survey.csv", "litho.csv", "alt.csv", "breccia.csv", "vein.csv", "mnlgy.csv", "struct_zones.csv", "geotech.csv", "recovery.csv", "magsusc.csv", "structure.csv"],
       notice: "Loading the Silvertip sample project — 9 deep diamond drillholes from 2024 (to 1,323 m) with their logs, surveys, oriented structures and assays, plus 168 rock, 282 soil and 156 stream-sediment samples, all from BC's public assessment report #42807. Nothing in it is synthesized (sample_data/silvertip/README.md).",
     },
+    // TASKS.csv #2168 — WAMEX report A87304 (Western Australia, CC BY 4.0); its assays and gamma log are loaded by the caller (lib/sampleWaUranium.js)
+    wa_uranium: {
+      dir: "wa_uranium", epsg: 28351, crs: "GDA94 / MGA zone 51",
+      files: ["collars.csv", "survey.csv", "litho.csv", "alt.csv"],
+      notice: "Loading the Western Australian calcrete-uranium sample project — 430 aircore and diamond drillholes from 2009-2010 with their lithology and alteration logs, multi-element assays and a downhole gamma / eU3O8 log, from the State's open-file WAMEX drillhole database (report A87304, CC BY 4.0). Nothing in it is synthesized (sample_data/wa_uranium/README.md).",
+    },
   };
   const loadSampleProject = async (which = "harry") => {
     if (sampleLoading || importActiveRef.current) return false;
