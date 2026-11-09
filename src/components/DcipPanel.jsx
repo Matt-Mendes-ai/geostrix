@@ -29,6 +29,7 @@ import { percentile } from "../lib/sectionMerge.js";
 import { pseudoFrame, pseudoColourScale } from "../lib/pseudosectionPlot.js"; // TASKS.csv #2074
 import { parseStationFile, matchStationLine, fitStationLine, stationGroundProfile, linePlacement } from "../lib/dcipStations.js";
 import { reprojectXY, getProj4DefSync } from "../lib/reproject.js";
+import { projectTargetEpsg } from "../lib/projectTarget.js"; // TASKS.csv #2242
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { isDcip2dMeshText, looksLikeDcip2dModel, parseDcip2dMesh, parseDcip2dModel, parseDcip2dTopo, dcip2dSection, meshCore } from "../lib/ubc2d.js"; // TASKS.csv #1348
 
@@ -190,7 +191,7 @@ export default function DcipPanel({ pBtn, numInput, resultSlot = null }) {
     const stated = files.find((x) => x.epsg)?.epsg;
     const adopted = stated ? askAdoptCrs({ isEmpty: projectIsEmpty, currentEpsg: project?.epsg, declaredEpsg: stated, fileName: files.find((x) => x.epsg).name }) : null;
     if (adopted) setEpsg(adopted);
-    const dst = Number(adopted || project?.epsg);
+    const dst = Number(adopted || projectTargetEpsg(project)); // #2242
     const to = (x, y, from) => { if (!from || !dst || from === dst) return [x, y]; const q = reprojectXY(x, y, from, dst); return q ? [q.x, q.y] : [x, y]; };
     let kept = 0, readings = 0; const unplaced = [];
     for (let i = 0; i < lineFiles.length; i++) {
@@ -235,7 +236,7 @@ export default function DcipPanel({ pBtn, numInput, resultSlot = null }) {
     setStationFile(null);
     let list = sf.lines[lineKey].map((p) => ({ s: p.s, x: p.x, y: p.y, z: p.z }));
     let crsText = sf.crsNote ? ` (${sf.crsNote})` : "";
-    const dst = Number(project?.epsg);
+    const dst = Number(projectTargetEpsg(project)); // #2242 — no reprojection INTO the placeholder while the CRS is not set (#2287's rule)
     if (sf.epsg && dst && sf.epsg !== dst) {
       if (getProj4DefSync(sf.epsg) && getProj4DefSync(dst)) {
         list = list.map((p) => { const q = reprojectXY(p.x, p.y, sf.epsg, dst); return q ? { ...p, x: q.x, y: q.y } : p; });
@@ -335,7 +336,7 @@ export default function DcipPanel({ pBtn, numInput, resultSlot = null }) {
       mesh: { cellM: num(opts.cell), depthM: num(opts.depth), verticalCellM: num(opts.cell) / 2 },
       geometricFactor: (opts.geomFactor || "flat") === "flat" ? "flat ground (the file's apparent resistivities use nominal electrode spacings)" : "electrodes on the topography (the file's apparent resistivities are already topography-corrected)", // #580
       uncertainty: { resistivityPercent: num(opts.pct) || 0, resistivityFloor: num(opts.floor) || 0, ...(parsed.ip ? { chargeabilityPercent: num(opts.ipPct) || 0, chargeabilityFloorMvV: num(opts.ipFloor) || 0 } : {}), source: parsed.err && (opts.errKind === "rhoPct" || (opts.errKind === "ipMvV" && parsed.ip)) ? `entered by user; per-reading floor from the file's column ${mapping.err} (${opts.errKind === "rhoPct" ? "resistivity error, %" : "chargeability error, mV/V"})` : "entered by user" },
-      crs: `EPSG:${project?.epsg}`, interpretation: "One smooth model that fits the data to the stated uncertainty (2.5D: the ground is assumed not to change along strike, across the line). Deep and edge cells are poorly constrained — see the support.",
+      crs: project?.crsSet === false ? "not set" : `EPSG:${project?.epsg}`, // #2242 interpretation: "One smooth model that fits the data to the stated uncertainty (2.5D: the ground is assumed not to change along strike, across the line). Deep and edge cells are poorly constrained — see the support.",
     };
     const token = getProjectToken();
     const res = await startInversionJob(request, meta, {
@@ -435,7 +436,7 @@ export default function DcipPanel({ pBtn, numInput, resultSlot = null }) {
               <button onClick={() => setLine((l) => ({ ...l, stations: null }))} style={{ ...pBtn, width: "auto", padding: "2px 6px", marginBottom: 0 }} title={tr("Stop using the station elevations (the placement stays)")}>{tr("Clear")}</button>
             </div>
           )}
-          <div style={{ ...small, margin: "6px 0 4px" }}>{tr("Or type two points on the line: the position in the data file and that point's x / y in the project's coordinate system{v} — from the GPS file, a map or the field notes.{v2}", { v: project?.epsg ? ` (EPSG:${project.epsg})` : "", v2: span ? tr(" Already filled with the first and last electrode ({v} and {v2} m) — look up those two stations.", { v: span[0], v2: span[1] }) : "" })}</div>
+          <div style={{ ...small, margin: "6px 0 4px" }}>{tr("Or type two points on the line: the position in the data file and that point's x / y in the project's coordinate system{v} — from the GPS file, a map or the field notes.{v2}", { v: project?.epsg && project?.crsSet !== false /* #2242 */ ? ` (EPSG:${project.epsg})` : "", v2: span ? tr(" Already filled with the first and last electrode ({v} and {v2} m) — look up those two stations.", { v: span[0], v2: span[1] }) : "" })}</div>
           {[["1", "s1", "x1", "y1", span && Number(shownPts.s1) === span[0] ? tr("first electrode") : ""], ["2", "s2", "x2", "y2", span && Number(shownPts.s2) === span[1] ? tr("last electrode") : ""]].map(([n, sk, xk, yk, tag]) => (
             <div key={n} style={row} title={tr("Point {n}: its position along the line in the data file's distances, and its coordinates in the project CRS.", { n })}>
               <span style={lbl}>{tr("Point {n}", { n })}{tag ? <span style={{ color: "var(--color-text-muted)" }}> ({tag})</span> : null}</span>

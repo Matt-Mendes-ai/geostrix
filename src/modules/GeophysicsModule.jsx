@@ -1664,7 +1664,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
             blank, x/y is assumed to already be in the project's EPSG (unchanged behavior). */}
         <SourceCrsField
           value={geophysSourceEpsg} onChange={(c) => setGeophysSourceEpsg(c === "" ? "" : String(c))}
-          defaultText={tr("Same as project — {crs} (longitude/latitude columns: WGS 84)", { crs: crsName(project?.epsg) || `EPSG:${project?.epsg ?? "?"}` })}
+          defaultText={project?.crsSet === false ? tr("The project CRS — not chosen yet") /* #2242: never the placeholder as the project's */ : tr("Same as project — {crs} (longitude/latitude columns: WGS 84)", { crs: crsName(project?.epsg) || `EPSG:${project?.epsg ?? "?"}` })}
           title={tr("The CRS these points' x/y are in. They are reprojected into the project CRS on import.")}
         />
 
