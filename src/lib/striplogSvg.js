@@ -14,7 +14,7 @@
 // litho/alteration/vein/geotech — the always-available columns — and skips the assay track (which
 // StripLog's interactive version needs a user-picked element for anyway, not meaningful to default
 // per-hole in an unattended batch run).
-import { LAYER_META, UNIT_NAMES, colorForAlteration, colorForVein, colorForBreccia, colorForStructZone, rqdColor } from "./layers.js";
+import { LAYER_META, UNIT_NAMES, colorForAlteration, colorForVein, colorForBreccia, colorForStructZone, colorForWeathering, rqdColor } from "./layers.js"; // weathering: #2162
 import { arrMax } from "./arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 import { FIGURE_FONT } from "./svgExport.js"; // TASKS.csv #1089
@@ -95,11 +95,12 @@ export function buildStripLogSvgMarkup({ holeId, collars, layers, legendOverride
   const vein = (layers.vein || []).filter((r) => r.hole_id === holeId).sort((a, b) => a.from - b.from);
   const breccia = (layers.breccia || []).filter((r) => r.hole_id === holeId).sort((a, b) => a.from - b.from); // #608
   const structzone = (layers.structzone || []).filter((r) => r.hole_id === holeId).sort((a, b) => a.from - b.from); // #604
+  const weath = (layers.weath || []).filter((r) => r.hole_id === holeId).sort((a, b) => a.from - b.from); // #2162
   const geotech = (layers.geotech || []).filter((r) => r.hole_id === holeId).sort((a, b) => a.from - b.from);
   const mnlgy = (layers.mnlgy || []).filter((r) => r.hole_id === holeId).sort((a, b) => a.from - b.from); // #684
   const syms = (assaySymbols || []).filter(Boolean).slice(0, 3); // #1480
   const holeAssays = syms.length ? (assays || []).filter((a) => a.hole_id === holeId && a.source !== "pXRF" && Number.isFinite(a.from) && Number.isFinite(a.to)).sort((a, b) => a.from - b.from) : [];
-  const maxDepth = Math.max(collar?.length || 0, arrMax(litho.map((r) => r.to)), arrMax(alt.map((r) => r.to)), arrMax(vein.map((r) => r.to)), arrMax(breccia.map((r) => r.to)), arrMax(structzone.map((r) => r.to)), arrMax(geotech.map((r) => r.to)), arrMax(mnlgy.map((r) => r.to)), 0, arrMax(holeAssays.map((a) => a.to))); // holeAssays: #1480
+  const maxDepth = Math.max(collar?.length || 0, arrMax(litho.map((r) => r.to)), arrMax(alt.map((r) => r.to)), arrMax(vein.map((r) => r.to)), arrMax(breccia.map((r) => r.to)), arrMax(structzone.map((r) => r.to)), arrMax(weath.map((r) => r.to)), arrMax(geotech.map((r) => r.to)), arrMax(mnlgy.map((r) => r.to)), 0, arrMax(holeAssays.map((a) => a.to))); // holeAssays: #1480
   if (maxDepth <= 0) return null;
 
   const pxPerMeter = Math.max(1, Math.min(8, 900 / maxDepth));
@@ -111,6 +112,7 @@ export function buildStripLogSvgMarkup({ holeId, collars, layers, legendOverride
     { label: "Vein", rows: vein, kind: "tick", colorFn: colorOf("vein", colorForVein) },
     { label: "Bx", rows: breccia, kind: "fill", colorFn: colorOf("breccia", colorForBreccia), nameFn: nameOf("breccia") }, // #608
     ...(structzone.length ? [{ label: "SZ", rows: structzone, kind: "fill", colorFn: colorOf("structzone", colorForStructZone), nameFn: nameOf("structzone") }] : []), // #604
+    ...(weath.length ? [{ label: "Wx", rows: weath, kind: "fill", colorFn: colorOf("weath", colorForWeathering), nameFn: nameOf("weath") }] : []), // #2162
     { label: "Min.", rows: mnlgy, kind: "fill", colorFn: colorOf("mnlgy", LAYER_META.mnlgy.colorFn), nameFn: nameOf("mnlgy") }, // #684 — intervals as blocks, from = to as a line
     { label: "RQD%", rows: geotech, kind: "bar", max: 100 },
   ].filter((t) => t.rows.length);

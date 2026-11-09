@@ -3,7 +3,7 @@
 // assessment report's estimation domain and was not offered). A layer of numbers is not a domain (#1413), a point layer has no
 // interval to be in, and a layer whose intervals overlap in the same hole (vein types) has no single domain at a depth: offered,
 // flagged, with the share of overlapping intervals so the dialogs can say how a depth is resolved. Pure.
-const BUILT_IN = ["litho", "alt", "vein", "breccia", "structzone", "geotech"];
+const BUILT_IN = ["litho", "alt", "vein", "breccia", "weath", "structzone", "geotech"]; // weath: #2162
 
 export function isNumericLayer(rows) {
   let n = 0, num = 0;

@@ -274,6 +274,15 @@ export function colorForVein(v) { return VEIN_COLORS[(v || "").toUpperCase()] ||
 // are their own layer; they used to be detected as Alteration and merged into it.
 export const BRECCIA_COLORS = { MONOMICT: "#9a7f63", POLYMICT: "#b0552f", HYDROTHERMAL: "#c9a03c", FAULT: "#6f5f86", TECTONIC: "#6f5f86", MAGMATIC: "#a3486a", PHREATOMAGMATIC: "#4f7f8f", CRACKLE: "#d4b98a", MOSAIC: "#8f9a5a" };
 export function colorForBreccia(v) { return BRECCIA_COLORS[(v || "").toUpperCase()] || categoricalSafeColor("breccia", v); }
+// TASKS.csv #2162 (WA drillhole review) — weathering / oxidation / regolith codes as a ramp from fresh rock (grey) through the weathering
+// grades to the oxidised, saprolite and cover profile (warm colours), so a section reads as the profile does; other codes get a colour of their own.
+export const WEATH_COLORS = {
+  FR: "#5b6770", FRESH: "#5b6770", F: "#5b6770", SW: "#7f8a6c", SLW: "#7f8a6c", MW: "#a8975a", MOD: "#a8975a", HW: "#c47a3a", CW: "#b4552c", XW: "#b4552c", EW: "#b4552c",
+  OX: "#a23b1f", OXD: "#a23b1f", OXIDE: "#a23b1f", TR: "#c79a4a", TRANS: "#c79a4a", TRN: "#c79a4a", TZ: "#c79a4a", PO: "#c79a4a",
+  SAP: "#c98b42", USAP: "#d4943e", LSAP: "#b8864a", SAPRK: "#9c8c66", SPRK: "#9c8c66", SR: "#9c8c66",
+  COV: "#e3cf8a", CVR: "#e3cf8a", TPT: "#e3cf8a", TRNP: "#e3cf8a", ALL: "#e3cf8a", LAT: "#7a2e1a", FERR: "#7a2e1a", DUR: "#8c4a2a", CLAY: "#d9b98c", MOT: "#c9a27a",
+};
+export function colorForWeathering(v) { return WEATH_COLORS[String(v || "").toUpperCase().replace(/[\s_-]+/g, "")] || categoricalSafeColor("weath", v); }
 
 export const MIN_COLORS = { ACA: "#c8c8d8", CPY: "#d4af37", GAL: "#6a6a78", PO: "#8a6a45", PY: "#d4c060", SPH: "#6a3a2a" };
 export function colorForMineral(m) { return MIN_COLORS[(m || "").toUpperCase()] || categoricalSafeColor("mineral", m); }
@@ -669,6 +678,7 @@ export const LAYER_META = {
   alt:      { label: "Alteration",     kind: "interval", radius: 3.4, opacity: 0.4,  colorFn: colorForAlteration, numeric: false },
   vein:     { label: "Veins",          kind: "interval", radius: 1.0, opacity: 0.9,  colorFn: colorForVein, numeric: false },
   breccia:  { label: "Breccia",        kind: "interval", radius: 1.6, opacity: 0.85, colorFn: colorForBreccia, numeric: false }, // TASKS.csv #608
+  weath:    { label: "Weathering",     kind: "interval", radius: 3.0, opacity: 0.5,  colorFn: colorForWeathering, numeric: false }, // TASKS.csv #2162 — weathering / oxidation / regolith
   geotech:  { label: "Geotech (RQD%)", kind: "interval", radius: 4.6, opacity: 0.35, colorFn: null, numeric: true },
   // TASKS.csv #137 — Micromine-specialist audit finding: recovery% and SG are routinely logged as
   // intervals feeding tonnage/density calculations for resource estimates, alongside RQD/lithology —
@@ -748,6 +758,8 @@ export const TARGET_SCHEMAS = {
     { key: "intensity", label: "Intensity (optional)", required: false, aliases: ["alt1_intensity", "alt_intensity", "alt1_int", "alt_int", "alteration_intensity", "intensity"] },
   ] },
   vein: { label: "Veins", fields: intervalFields(["vein1_comp", "vein_type1", "vein1_type", "vein_comp", "vein1_code", "vein_code", "vein2_code", "veins", "assemblage", "type", "vein_type", "type_code"]) }, // type_code: 40958Z "Vein type"; vein1_code / veins: #2153
+  // TASKS.csv #2162 — WA weathering (5,096 files), oxidation (2,237) and regolith (3,217) logs: one layer, whichever word the file uses
+  weath: { label: "Weathering", fields: intervalFields(["weathering", "weath", "weath_code", "weathering_code", "weath1", "weath_code1", "oxidation", "oxid", "oxidation_state", "ox_state", "oxide_zone", "redox", "regolith", "regol", "regolith_code", "regolith_unit", "reg_code"], null, false, ["description", "comments", "comment", "notes", "desc"]) },
   breccia: { label: "Breccia", fields: intervalFields(["breccia_type", "brecc_type", "brx_type", "bx_type", "bx_class", "breccia", "assemblage", "genesis", "type"]) }, // TASKS.csv #608; bx_class: #1345
   // TASKS.csv #604 — structure logged as zones (from / to + code + intensity + alpha), Matt 2026-10-21: "keep it as
   // intervals, as a layer of structural zones". Intensity stays text (Copley "4", Woodjam "M"); alpha is the zone's
@@ -1047,6 +1059,8 @@ export function guessTarget(headers) {
   // TASKS.csv #2153 (WA drillhole review) — a geology log's primary lithology column (Lithology1, Lith1, Rock1, GEOL_Rock1, LithCode, Maj Lithcode)
   // makes it a lithology log before its other columns are read: Alt1_Mineral / Min1_Type sent WAMEX geology_1 / geology_4 to Mineralization
   if (has("from") && any(/^(geol_)?(maj(or)?_)?(lith(ology)?|rock|lith_?code)\d*(_code)?\d*$/)) return "litho";
+  // #2162 — a weathering / oxidation / regolith log
+  if (has("from") && any(/^(weath(ering)?|oxid(ation)?|ox_?state|oxide_?zone|redox|regol(ith)?|reg)(_?(code|state|type|zone|class|unit|grade))?\d*$/)) return "weath";
   // #2153 — an alteration log named by its mineral or style (Alt1_Mineral, Alt1_Style, AltN1), not by a code
   if (has("from") && any(/^alt\d*_(mineral|min|style)$|^altn\d+$/)) return "alt";
   // #2153 — a density log read as wet and dry weights with the result in "Reading"
@@ -1095,7 +1109,7 @@ export function guessTarget(headers) {
 // otherwise the header-based guess stands. Assays are recognised separately (looksLikeAssay).
 const NAME_HINTS = [
   [/collar|coordinates|\bheaders?\b/, "collars"], [/survey/, "survey"], [/litholog|\blitho/, "litho"],
-  [/alteration|\balt\b/, "alt"], [/mineral/, "mnlgy"], [/\bveins?\b(?!\s*min)/, "vein"], /* "Vein Min" is a mineral list (40958Z) */ [/breccia|\bbrx\b|\bbx\b/, "breccia"], [/geotech|\brqd\b/, "geotech"],
+  [/\bweathering|\boxidation|\bregolith/, "weath"] /* #2162 */, [/alteration|\balt\b/, "alt"], [/mineral/, "mnlgy"], [/\bveins?\b(?!\s*min)/, "vein"], /* "Vein Min" is a mineral list (40958Z) */ [/breccia|\bbrx\b|\bbx\b/, "breccia"], [/geotech|\brqd\b/, "geotech"],
   [/recovery/, "recovery"], [/specific.?gravity|\bsg\b|density/, "sg"], [/mag.?sus|magnetic/, "magsusc"], [/struct\w*\s+(interval|zone)/, "structzone"] /* #604 */, [/struct/, "structure"],
 ];
 export function targetFromName(name) {
@@ -1112,7 +1126,7 @@ export function schemaSatisfied(target, mapping) {
 // Logs with no built-in layer, named for what they hold: ask, as a custom layer. #600 (40958Z): a void / cavity log is not veins (its bare
 // "Type" column hit the vein rule); #1345: a UV fluorescence log is not lithology; #1502 (40958Z): Oxidation, Silicification and
 // OriCore (the core-orientation marks) were all guessed as Lithology from a generic code / description column.
-const CUSTOM_LOG_NAMES = /\b(voids?|cavit(y|ies))\b|fluoresc|\boxidation|\bweathering|silicif|\bori(ented)?[\s_-]*core\b|\boricore\b/i;
+const CUSTOM_LOG_NAMES = /\b(voids?|cavit(y|ies))\b|fluoresc|silicif|\bori(ented)?[\s_-]*core\b|\boricore\b/i; // oxidation / weathering: their own layer since #2162
 export function guessTargetFor(headers, name) {
   if (CUSTOM_LOG_NAMES.test(String(name || ""))) return "custom";
   const hint = targetFromName(name);

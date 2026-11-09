@@ -19,7 +19,7 @@ import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Spac
 
 // TASKS.csv #1515 / #1678 — interval layers only: magsusc and structure are point readings (no from / to), and as domains they gave
 // "(unclassified) 1537 / 0.15 1 / 0.515 1"
-const DOMAIN_LAYER_KEYS = ["litho", "alt", "vein", "breccia", "structzone", "geotech"];
+const DOMAIN_LAYER_KEYS = ["litho", "alt", "vein", "breccia", "weath", "structzone", "geotech"]; // weath: #2162
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 import { fontSizes } from "../lib/theme.js"; // TASKS.csv #385 — SVG font-size attributes on the type scale
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786

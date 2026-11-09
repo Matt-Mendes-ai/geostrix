@@ -22,7 +22,7 @@ export function assayColorFor(value, idx, style) {
 }
 
 // the categorical layers a legend lists, in order (ViewerModule's CATEGORY_LAYER_KEYS)
-export const LEGEND_CATEGORY_KEYS = ["litho", "alt", "vein", "breccia", "structzone", "litho_gc", "alt_gc", "mnlgy", "structure"];
+export const LEGEND_CATEGORY_KEYS = ["litho", "alt", "vein", "breccia", "weath" /* #2162 */, "structzone", "litho_gc", "alt_gc", "mnlgy", "structure"];
 
 export const fmtLegendValue = (v) => (Math.abs(v) >= 1000 || v === 0 ? v.toFixed(0) : Math.abs(v) >= 10 ? v.toFixed(1) : Math.abs(v) >= 0.1 ? v.toFixed(2) : v.toPrecision(2));
 

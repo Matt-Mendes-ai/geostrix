@@ -9443,5 +9443,6 @@
   "{n} cell(s) written as below detection (\"<LOD\", BDL, ND...) read at half their column's detection limit.": "{n} cellule(s) notées sous la limite de détection (\"<LOD\", BDL, ND...) lues à la moitié de la limite de détection de leur colonne.",
   "{n} cell(s) written as below detection left blank: their column ({list}) states no detection limit to use.": "{n} cellule(s) notées sous la limite de détection laissées vides : leur colonne ({list}) n'indique aucune limite de détection utilisable.",
   "{n} cell(s) marked not assayed (NULL, X, N/A, NS, -...) left blank.": "{n} cellule(s) marquées non analysées (NULL, X, N/A, NS, -...) laissées vides.",
-  "{fileName}: {n} value(s) written as a no-data code (-999, -999.25, -9999, -99999) were read as missing: {cols}.": "{fileName} : {n} valeur(s) écrites comme code sans donnée (-999, -999.25, -9999, -99999) lues comme manquantes : {cols}."
+  "{fileName}: {n} value(s) written as a no-data code (-999, -999.25, -9999, -99999) were read as missing: {cols}.": "{fileName} : {n} valeur(s) écrites comme code sans donnée (-999, -999.25, -9999, -99999) lues comme manquantes : {cols}.",
+  "Weathering": "Altération météorique"
 }

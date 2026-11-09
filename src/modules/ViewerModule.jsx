@@ -334,11 +334,11 @@ function captureHiRes(renderer, cssW, cssH, draw, outW = cssW, outH = cssH, long
   }
 }
 
-const DEFAULT_LAYER_VISIBLE = { litho: true, alt: false, vein: false, breccia: false, structzone: false, geotech: false, recovery: false, sg: false, mnlgy: false, magsusc: false, structure: false, litho_gc: false, alt_gc: false, geophys_pts: true, surface_samples: true };
+const DEFAULT_LAYER_VISIBLE = { litho: true, alt: false, vein: false, breccia: false, weath: false, structzone: false, geotech: false, recovery: false, sg: false, mnlgy: false, magsusc: false, structure: false, litho_gc: false, alt_gc: false, geophys_pts: true, surface_samples: true };
 // TASKS.csv #76 — every sidebar layer key that can be sorted into a named group, same set the
 // generic upload loop + geophys_pts special case used to enumerate separately.
 // TASKS.csv #137 added recovery/sg — same interval-kind layers as geotech, just different fields.
-const ALL_LAYER_KEYS = ["litho", "alt", "vein", "breccia", "structzone", "mnlgy", "geotech", "recovery", "sg", "magsusc", "structure", "litho_gc", "alt_gc", "geophys_pts"];
+const ALL_LAYER_KEYS = ["litho", "alt", "vein", "breccia", "weath", "structzone", "mnlgy", "geotech", "recovery", "sg", "magsusc", "structure", "litho_gc", "alt_gc", "geophys_pts"];
 // TASKS.csv #308 (1) — the default grid colour used to be #30394a, a near-black slate at full opacity
 // on a light background. Measured 11.60:1 contrast against white, against ~2.8:1 for a mid lithology
 // colour, i.e. the reference grid had roughly 4x the contrast of the data it exists to reference, and
@@ -504,7 +504,7 @@ const UP_Y = new THREE.Vector3(0, 1, 0), DIR_TMP = new THREE.Vector3(); // #1500
 // TASKS.csv #1528 (review #1497, Lawyers) — the layers whose opacity is one number for every member (default: the layer's
 // own), so an Opacity change is applied in place; mineralization (0.85 intervals, 1 for points) and structures (discs + opaque
 // pins) still rebuild. One Opacity tick on Geotech froze Lawyers 19.9 s rebuilding every drillhole.
-const FAST_OPACITY_KEYS = new Set(["litho", "alt", "vein", "breccia", "structzone", "geotech", "recovery", "sg", "litho_gc", "alt_gc", "magsusc"]);
+const FAST_OPACITY_KEYS = new Set(["litho", "alt", "vein", "breccia", "weath", "structzone", "geotech", "recovery", "sg", "litho_gc", "alt_gc", "magsusc"]);
 const isFastOpacityKey = (k) => FAST_OPACITY_KEYS.has(k) || k.startsWith("custom:");
 function applyGroupOpacity(group, op) {
   const transparent = op < 1;
@@ -4805,7 +4805,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       litho: groupByHole(layers.litho), alt: groupByHole(layers.alt), vein: groupByHole(layers.vein),
       geotech: groupByHole(layers.geotech), litho_gc: groupByHole(layers.litho_gc), alt_gc: groupByHole(layers.alt_gc),
       mnlgy: groupByHole(layers.mnlgy), magsusc: groupByHole(layers.magsusc), structure: groupByHole(layers.structure),
-      recovery: groupByHole(layers.recovery), sg: groupByHole(layers.sg), breccia: groupByHole(layers.breccia), structzone: groupByHole(layers.structzone), // #608, #604
+      recovery: groupByHole(layers.recovery), sg: groupByHole(layers.sg), breccia: groupByHole(layers.breccia), weath: groupByHole(layers.weath), structzone: groupByHole(layers.structzone), // #608, #2162, #604
     };
     const customRowsByHoleByLayer = new Map(customLayers.map((l) => [l.id, groupByHole(l.rows)]));
     // TASKS.csv #209 — same quadratic-scan fix as the groupByHole comment above already applied to
@@ -4936,6 +4936,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       buildIntervalTube("vein");
       buildIntervalTube("breccia"); // #608
       buildIntervalTube("structzone"); // #604
+      buildIntervalTube("weath"); // #2162
       buildIntervalTube("geotech");
       buildIntervalTube("recovery");
       buildIntervalTube("sg");
@@ -6581,7 +6582,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     // is computed once here too, same values that effect's globalPointRanges.sg would produce.
     const sgVals = (layers.sg || []).filter((r) => holeIds.has(r.hole_id) && isRowVisible("sg", r)).map((r) => r.value).filter((v) => typeof v === "number" && !isNaN(v));
     const sgRange = minMax(sgVals);
-    ["litho", "alt", "vein", "breccia", "structzone", "geotech", "recovery", "sg", "litho_gc", "alt_gc"].forEach((key) => {
+    ["litho", "alt", "vein", "breccia", "weath", "structzone", "geotech", "recovery", "sg", "litho_gc", "alt_gc"].forEach((key) => {
       if (scope.layerKeys != null ? !scope.layerKeys.includes(key) : !layerVisible[key]) return;
       const meta = LAYER_META[key];
       (layers[key] || []).forEach((row) => {
@@ -6802,7 +6803,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     // pixel — deliberately excludes geotech/mag.susc./assay values (their color encodes a continuous
     // number, and assay point labels embed the sample's own grade, so deduping those would produce
     // either a meaningless single swatch or one row per sample rather than a bounded category list).
-    const legendPrefixes = ["litho", "alt", "vein", "breccia", "structzone", "litho_gc", "alt_gc"].map((k) => `${LAYER_META[k].label}: `);
+    const legendPrefixes = ["litho", "alt", "vein", "breccia", "weath", "structzone", "litho_gc", "alt_gc"].map((k) => `${LAYER_META[k].label}: `);
     const legendSeen = new Set();
     const legendItems = [];
     intervals.forEach((r) => {

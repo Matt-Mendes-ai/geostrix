@@ -26,7 +26,7 @@ import { fontSizes } from "../lib/theme.js";
 import { pBtn as sidebarBtn, smallSel } from "../lib/sidebarStyles.js"; // TASKS.csv #997
 import { t as tr } from "../lib/i18n.js";
 import { LAYER_META } from "../lib/layers.js"; // TASKS.csv #1728
-const CODED_LAYERS = ["litho", "alt", "vein", "breccia", "mnlgy", "structzone", "litho_gc", "alt_gc"]; // TASKS.csv #1455 — the coded logs offered as "distance to"
+const CODED_LAYERS = ["litho", "alt", "vein", "breccia", "weath", "mnlgy", "structzone", "litho_gc", "alt_gc"]; // TASKS.csv #1455 — the coded logs offered as "distance to"
 import { SURVEY_METHODS } from "../lib/geophysSurveys.js"; // TASKS.csv #1209
 
 const fmt = (v, d = 2) => (v == null || !Number.isFinite(v) ? "—" : Math.abs(v) >= 1000 ? Math.round(v).toLocaleString() : Math.abs(v) >= 10 ? v.toFixed(1) : Math.abs(v) >= 0.1 || v === 0 ? v.toFixed(d) : v.toPrecision(2)); // a small cutoff keeps its digits, not "-0.00"

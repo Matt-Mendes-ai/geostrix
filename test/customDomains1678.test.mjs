@@ -18,7 +18,7 @@ test("Grade stats and Compositing list them; Grade stats no longer offers point 
   const g = readFileSync(new URL("../src/components/GradeStatistics.jsx", import.meta.url), "utf8");
   const c = readFileSync(new URL("../src/components/CompositingModal.jsx", import.meta.url), "utf8");
   assert.ok(g.includes("customDomains.map((d) =>") && c.includes("customDomains.map((d) =>"));
-  assert.ok(g.includes('const DOMAIN_LAYER_KEYS = ["litho", "alt", "vein", "breccia", "structzone", "geotech"];'));
+  assert.ok(g.includes('const DOMAIN_LAYER_KEYS = ["litho", "alt", "vein", "breccia", "weath", "structzone", "geotech"]; // weath: #2162'));
 });
 
 import { isCategoricalLayer, domainIndex, domainAtMid } from "../src/lib/customDomains.js";

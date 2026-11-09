@@ -2,7 +2,7 @@ import { fillLanes } from "../lib/stripLanes.js"; // TASKS.csv #1254
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { lithoPatternMap, loadPatternTiles, patternDefs, patternFill, FGDC_PATTERNS, patternForUnit } from "../lib/lithoPatterns.js"; // TASKS.csv #1995
 import { X, Download } from "./icons.js";
-import { LAYER_META, UNIT_NAMES, colorForAlteration, colorForVein, colorForBreccia, colorForStructZone, colorForStructure } from "../lib/layers.js";
+import { LAYER_META, UNIT_NAMES, colorForAlteration, colorForVein, colorForBreccia, colorForStructZone, colorForStructure, colorForWeathering } from "../lib/layers.js"; // weathering: #2162
 import { logFrac, valueRange, recoveryMax, alphaTick, holeStructures } from "../lib/stripTracks.js"; // TASKS.csv #1400
 import { valueIn } from "../lib/geochem.js";
 import { saveFile } from "../lib/desktop.js";
@@ -67,6 +67,7 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
   const alt = useMemo(() => (layers.alt || []).filter((r) => r.hole_id === holeId).sort((a, b) => a.from - b.from), [layers.alt, holeId]);
   const vein = useMemo(() => (layers.vein || []).filter((r) => r.hole_id === holeId).sort((a, b) => a.from - b.from), [layers.vein, holeId]);
   const breccia = useMemo(() => (layers.breccia || []).filter((r) => r.hole_id === holeId).sort((a, b) => a.from - b.from), [layers.breccia, holeId]); // #608
+  const weath = useMemo(() => (layers.weath || []).filter((r) => r.hole_id === holeId).sort((a, b) => a.from - b.from), [layers.weath, holeId]); // #2162
   const structzone = useMemo(() => (layers.structzone || []).filter((r) => r.hole_id === holeId).sort((a, b) => a.from - b.from), [layers.structzone, holeId]); // #604
   const mnlgy = useMemo(() => (layers.mnlgy || []).filter((r) => r.hole_id === holeId).sort((a, b) => a.from - b.from), [layers.mnlgy, holeId]); // #684
   const geotech = useMemo(() => (layers.geotech || []).filter((r) => r.hole_id === holeId).sort((a, b) => a.from - b.from), [layers.geotech, holeId]);
@@ -111,7 +112,7 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
   const collar = collars.find((c) => c.hole_id === holeId);
   const maxDepth = Math.max(
     collar?.length || 0,
-    arrMax(litho.map((r) => r.to)), arrMax(alt.map((r) => r.to)), arrMax(vein.map((r) => r.to)), arrMax(geotech.map((r) => r.to)), arrMax(recovery.map((r) => r.to)), arrMax(structs.map((s) => s.depth)), arrMax(breccia.map((r) => r.to)), arrMax(structzone.map((r) => r.to)), arrMax(mnlgy.map((r) => r.to)),
+    arrMax(litho.map((r) => r.to)), arrMax(alt.map((r) => r.to)), arrMax(vein.map((r) => r.to)), arrMax(geotech.map((r) => r.to)), arrMax(recovery.map((r) => r.to)), arrMax(structs.map((s) => s.depth)), arrMax(breccia.map((r) => r.to)), arrMax(weath.map((r) => r.to)), arrMax(structzone.map((r) => r.to)), arrMax(mnlgy.map((r) => r.to)),
     arrMax(holeAssays.map((a) => a.to)),
     1);
 
@@ -148,6 +149,7 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
     ...modelledLayers.filter((ml) => ml.rows?.[0]?.numeric).map((ml) => { const rows = (ml.rows || []).filter((r) => r.hole_id === holeId).sort((a, b) => a.from - b.from); return { key: `modelledN_${ml.id}`, label: "Model", title: `${ml.name}${ml.unit ? ` (${ml.unit})` : ""}`, rows, kind: "bar", max: rows.reduce((m, r) => Math.max(m, r.value), 0), scaleLabel: true, colorOf: (r) => r.modelColor }; }).filter((t) => t.rows.length),
     { key: "alt", label: "Alt.", rows: alt, kind: "fill", colorFn: (v) => fill("alt", colorForAlteration, v), nameFn: labelFor ? (v) => labelFor("alt", v) : null },
     { key: "vein", label: "Vein", rows: vein, kind: "tick", colorFn: (v) => fill("vein", colorForVein, v), nameFn: nameOf("vein") }, // #1289 — renamed categories on every track
+    ...((layers.weath || []).length ? [{ key: "weath", label: "Wx", title: "Weathering", rows: weath, kind: "fill", colorFn: (v) => fill("weath", colorForWeathering, v), nameFn: nameOf("weath") }] : []), // #2162
     ...((layers.breccia || []).length ? [{ key: "breccia", label: "Bx", title: "Breccia", rows: breccia, kind: "fill", colorFn: (v) => fill("breccia", colorForBreccia, v), nameFn: nameOf("breccia") }] : []), // #608 — only in projects with breccia logs
     ...((layers.structzone || []).length ? [{ key: "structzone", label: "SZ", title: "Structural zones", rows: structzone, kind: "fill", colorFn: (v) => fill("structzone", colorForStructZone, v), nameFn: nameOf("structzone") }] : []), // #604
     // TASKS.csv #684 — the mineralisation log: an interval row is a block over its depths (Woodjam: up to 69 m), a

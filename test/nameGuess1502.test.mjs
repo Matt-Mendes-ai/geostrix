@@ -16,8 +16,8 @@ test("a file shaped like the named layer keeps it, its unknown value column left
 });
 
 test("logs with no built-in layer ask, as a custom layer", () => {
-  assert.equal(guessTargetFor(H("HoleID,From,To,Code,Description"), "Oxidation.csv"), "custom");
-  assert.equal(guessTargetFor(H("HoleID,From,To,Code,Description"), "weathering_log.csv"), "custom");
+  assert.equal(guessTargetFor(H("HoleID,From,To,Code,Description"), "Oxidation.csv"), "weath"); // #2162
+  assert.equal(guessTargetFor(H("HoleID,From,To,Code,Description"), "weathering_log.csv"), "weath"); // #2162: weathering has its own layer now
   assert.equal(guessTargetFor(H("HoleID,From,To,Intensity,Comments"), "Silicification.csv"), "custom");
   assert.equal(guessTargetFor(H("HoleID,From,To,Quality,Comments"), "OriCore.csv"), "custom");
   assert.equal(guessTargetFor(H("HoleID,From,To,Quality"), "oriented_core.csv"), "custom");

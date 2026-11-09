@@ -17,7 +17,7 @@ import { LAYER_META } from "./layers.js";
 const LAYER_COLUMNS = {
   litho: ["lithology", "lithology"], litho_gc: ["lithology", "lithology_geochem"],
   alt: ["alteration", "alteration"], alt_gc: ["alteration", "alteration_geochem"],
-  vein: ["vein_type", "veins"], breccia: ["breccia_type", "breccia"],
+  vein: ["vein_type", "veins"], breccia: ["breccia_type", "breccia"], weath: ["weathering", "weathering"], // weath: #2162
   geotech: ["rqd_pct", "geotech_rqd"], recovery: ["recovery_pct", "recovery"], sg: ["sg", "specific_gravity"],
   mnlgy: ["mineral", "mineralization"], magsusc: ["mag_sus", "mag_sus"],
   structzone: ["structure_code", "structure_zones"], structure: ["structure_type", "structure"],
