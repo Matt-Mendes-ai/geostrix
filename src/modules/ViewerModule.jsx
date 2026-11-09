@@ -116,7 +116,7 @@ const DesignStringsPane = React.lazy(() => import("../components/DesignStringsPa
 const NestedPitsPane = React.lazy(() => import("../components/NestedPitsPane.jsx")); // TASKS.csv #1875
 const StopesPane = React.lazy(() => import("../components/StopesPane.jsx")); // TASKS.csv #1879
 import StopeRunRows from "./viewer/StopeRunRows.jsx"; // TASKS.csv #1968
-import { collarGround } from "../lib/pitShell.js"; // TASKS.csv #1616 — the estimate's ground without a terrain
+import { collarGround, collarsLookUnderground } from "../lib/pitShell.js"; // TASKS.csv #1616 — the estimate's ground without a terrain
 let solidSeq = 0; // TASKS.csv #1887 — distinct ids for solids added within one millisecond
 import { hitLabel } from "../lib/viewer/hitLabel.js"; // TASKS.csv #1891 (moved out, #1084 size cap)
 import { customColour, customLegendGroups, customFields } from "../lib/customColour.js"; // TASKS.csv #1697
@@ -1101,8 +1101,9 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   // offline) were invisible on every tab. Off a loaded terrain (or over its fill) a sample stays unplaced, as before.
   const surfaceFlatZ = useMemo(() => {
     const med = (rows) => { const z = rows.map((r) => r.z).filter(Number.isFinite).sort((x, y) => x - y); return z.length ? z[z.length >> 1] : null; };
-    return med(collars) ?? med(surfaceSamples) ?? 0;
-  }, [collars, surfaceSamples]);
+    // #2264: collars drilled from underground put the median 200 m down; the highest collar is the nearest the surface
+    return (collars.length > 1 && collarsLookUnderground(collars, survey).underground ? Math.max(...collars.map((c) => c.z).filter(Number.isFinite)) : null) ?? med(collars) ?? med(surfaceSamples) ?? 0;
+  }, [collars, survey, surfaceSamples]);
   const placedRef = useRef(null);
   const placedSurfaceSamples = useMemo(() => {
     if (surfaceSamples.every((r) => Number.isFinite(r.z))) return surfaceSamples;
@@ -7592,7 +7593,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             </div></div>
             {surfaceSamplesFlat - surfaceSamplesFlatOutside > 0 && ( // TASKS.csv #1818
               <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", padding: "2px 2px 4px", lineHeight: 1.4 }}>
-                {tr("{n} surface sample(s) have no elevation and there is no terrain: drawn flat at {z} m (the median collar or sample elevation). Load a terrain (Maps > Terrain) to place them on the ground.", { n: surfaceSamplesFlat - surfaceSamplesFlatOutside, z: Math.round(surfaceFlatZ) })}
+                {tr("{n} surface sample(s) have no elevation and there is no terrain: drawn flat at {z} m (the median collar, the highest on an underground project, or the samples' own). Load a terrain (Maps > Terrain) to place them on the ground.", { n: surfaceSamplesFlat - surfaceSamplesFlatOutside, z: Math.round(surfaceFlatZ) })}
               </div>
             )}
             {surfaceSamplesFlatOutside > 0 && ( // TASKS.csv #1806

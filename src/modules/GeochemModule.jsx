@@ -931,7 +931,7 @@ export default function GeochemModule() {
       overLimitFilled.size ? `Over-limit samples filled from the ore-grade column: ${[...overLimitFilled].map(([sym, n]) => `${sym} ${n}`).join(", ")}.` : null,
       qcRecords.length ? `${qcRecords.length} QC insert(s) (${["standard", "blank", "duplicate"].map((k) => `${qcRecords.filter((q) => q.kind === k).length} ${k}`).join(", ")}) kept apart for Surface QA/QC, not as samples.` : null,
       noXY > 0 ? tr("{n} row(s) with no easting / northing were left out (not QC inserts: their type was not standard, blank or duplicate).", { n: noXY }) : null, // #1664
-      noZ ? `${noZ} sample(s) have no elevation${zeroMissing ? ` (a 0 in the "${mapping.z}" column is read as no elevation)` : ""} — the 3D view places them on the terrain.` : null,
+      noZ ? `${noZ} sample(s) have no elevation${zeroMissing ? ` (a 0 in the "${mapping.z}" column is read as no elevation)` : ""} — ${store.terrain ? "the 3D view places them on the terrain" : "with no terrain the 3D view draws them flat (at the highest collar on a project drilled from underground, else the median collar) until a terrain is loaded"}.` : null, // no terrain: #2264
       doReproject ? `Reprojected from EPSG:${fromEpsg} to the project's EPSG:${toEpsg}${reprojectFailed ? ` (${reprojectFailed} row(s) could not be converted and were skipped)` : ""}.` : null,
     ].filter(Boolean).join(" ");
     setNotices((p) => [...p, notice("Loaded {rows} surface samples ({chosen} elements). Switch to 3D View to see them.{v}", { rows: rows.length, chosen: chosen.length, v: extra ? " " + extra : "" })]);

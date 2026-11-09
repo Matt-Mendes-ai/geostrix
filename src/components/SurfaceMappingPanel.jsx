@@ -38,6 +38,7 @@ import { canReadGpkgInPlace, tabSiblingShapefile } from "../lib/desktop.js"; // 
 import CoveringLayers from "./CoveringLayers.jsx"; // TASKS.csv #1823
 import { graduatedStyle, graduatedCategories, parseBreaks, isNumericField } from "../lib/mapGraduated.js"; // TASKS.csv #1600
 import { projectTargetEpsg } from "../lib/projectTarget.js"; // TASKS.csv #2287 — no reprojection INTO the placeholder CRS
+import { collarsLookUnderground } from "../lib/pitShell.js"; // TASKS.csv #2265
 
 export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { // part: "maps" | "structures" | null = both (TASKS.csv #458)
   const {
@@ -474,9 +475,13 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
       {/* TASKS.csv #1719 (review #1645, Copley) — the collars' top-of-hole lithology as a starting map */}
       {collars.length > 0 && (layers.litho || []).length > 0 && (
         <button onClick={() => {
+          // TASKS.csv #2265 (review #2174) — on a project drilled from underground the 'top of each hole' is a drill position on a mine level,
+          // not the surface: asked first, named for what it is. (Its NPRC / Unknown 'units' are cover since #2227: roleForLithology reads the notes.)
+          const ug = collarsLookUnderground(collars, survey);
+          if (ug.underground && !window.confirm(tr("The collars look underground ({upward} hole(s) drilled upward, {stacked} pair(s) of collars stacked over each other): these points would be the first logged unit at the drill positions on the mine levels, not a subcrop map. Make them anyway?", { upward: ug.upward, stacked: ug.stacked }))) return;
           const pts = collarSubcrop({ collars, survey, litho: layers.litho, desurveyMethod });
           if (!pts.length) { setMapMsg({ ok: false, text: tr("No hole has a logged unit under its overburden / casing to place.") }); return; }
-          const base = tr("Subcrop from collars");
+          const base = ug.underground ? tr("Units at the collars") : tr("Subcrop from collars"); // #2265
           let name = base; for (let k = 2; mapLayers.some((l) => l.name === name); k++) name = `${base} (${k})`;
           const layer = subcropLayer(pts, name, (u) => categoryColor(viewerUiState?.legendOverride?.litho?.[u], LAYER_META.litho, u));
           addMapLayer({ ...layer, drapeMode: terrain ? "terrain" : "file" });
