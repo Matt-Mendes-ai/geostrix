@@ -10,7 +10,7 @@ import { solveOrientationToTarget, plannedTrace, solveCollarForTarget, isShallow
 import { azimuthToGridOffset, loadIgrf, wrap360 } from "../lib/azimuthRef.js"; // TASKS.csv #1729
 import { planGeometryKey, drilledTraceIndex, isTargetModel, targetBandIndex, planChecks, COLLAR_ZONE_M } from "../lib/plannedHoleChecks.js"; // TASKS.csv #1039; COLLAR_ZONE_M: #1454
 import { piercePoints as surfacePierces } from "../lib/piercePoints.js"; // TASKS.csv #1009
-import { collarGround } from "../lib/pitShell.js"; // TASKS.csv #2100 — the ground between the collars when there is no terrain
+import { collarGround, collarsLookUnderground } from "../lib/pitShell.js"; // TASKS.csv #2100 — the ground between the collars when there is no terrain; underground: #2251 / #2253
 
 const PlannedHoleTargeting = lazyModal(() => import("./PlannedHoleTargeting.jsx")); // TASKS.csv #119
 // the same one-line wrapper ViewerModule keeps (see its plannedHoleTrace comment): holePlanning.plannedTrace builds every plan's trace
@@ -53,7 +53,7 @@ function solveAzDipToTarget(from, to) {
 // the target typed or handed over is saved on the new hole (its Target panel opened empty and had to be typed again), and the
 // solve runs PAST_TARGET_M beyond it like that panel's default (the first solve ended the hole on the target, 14 m into the zone)
 const PAST_TARGET_M = 30;
-export function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint, collars, noTerrain, presetTarget = null, epsg = null, groundAt = null }) {
+export function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint, collars, noTerrain, presetTarget = null, epsg = null, groundAt = null, survey = null }) {
   const [draft, setDraft] = useState({ name: "", x: "", y: "", z: "", azimuth: 0, dip: -60, length: 100 });
   // TASKS.csv #1835 (review #1646, Kodiak) — where the collar's Elev came from, kept on the hole and written to the rig sheet
   // (z_source): a picked Elev is whatever the click hit (the top of an IP cell, there), and it reached the CSV / GPX unmarked
@@ -62,6 +62,9 @@ export function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint, 
   // and the dump already use, #1557 / #1616), before a flat plane: Woodjam's pick read 967 m where the collars around stand at 1,001-1,019 m
   const collarZ = useMemo(() => (!groundAt && collars?.length ? collarGround(collars) : null), [groundAt, collars]);
   const ground = groundAt || collarZ;
+  // TASKS.csv #2251 / #2253 (review #2174, WA gold) — on a project drilled from underground the surface through the collars is a level between
+  // drill positions, not the ground, and an uphole is a normal design: said so, in place of the surface-drilling wording
+  const underground = useMemo(() => !groundAt && (collars?.length || 0) > 1 && collarsLookUnderground(collars, survey || []).underground, [groundAt, collars, survey]);
   const [collarNote, setCollarNote] = useState(null);
   // TASKS.csv #1729 (review #1645, Copley) — which north the typed azimuth is from. Stored holes stay grid (every check and the rig
   // sheet read grid); a true or magnetic entry is converted at the collar and kept beside it. Copley designs in true north: typed as
@@ -127,7 +130,7 @@ export function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint, 
     const onCollars = r.source === "terrain" && !groundAt; // #2100 — 'terrain' from the solver means the ground function it was given
     setZSource(onCollars ? "solved on the ground interpolated between the collars (no terrain)" : r.source === "terrain" ? "solved on the terrain" : "solved at the typed elevation");
     setCollarNote({ warn: r.source !== "terrain" || onCollars, text: onCollars
-      ? tr("No terrain: the collar is placed where this line meets the ground interpolated between the nearest collars, {h} m from the target in plan. Check that elevation before using it, or load a terrain.", { h: Math.round(r.horizontal) })
+      ? (underground ? tr("No terrain, and the collars look underground: the collar is placed where this line meets a surface through the drill collars (a level between drill positions, not the ground), {h} m from the target in plan. Type the drill level's RL, or load a terrain.", { h: Math.round(r.horizontal) }) /* #2253 */ : tr("No terrain: the collar is placed where this line meets the ground interpolated between the nearest collars, {h} m from the target in plan. Check that elevation before using it, or load a terrain.", { h: Math.round(r.horizontal) }))
       : r.source === "terrain"
       ? tr("Collar placed where this line meets the terrain, {h} m from the target in plan; the length runs {m} m past the target.", { h: Math.round(r.horizontal), m: PAST_TARGET_M })
       : tr("No terrain: the collar is placed at the typed Elev {z} m, {h} m from the target in plan. Check that elevation against the ground before using it.", { z: Math.round(r.z * 10) / 10, h: Math.round(r.horizontal) }) });
@@ -187,7 +190,7 @@ export function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint, 
         <button onClick={submit} disabled={!canAdd} style={{ ...miniBtn, flex: 1, background: canAdd ? "var(--color-selected-bg)" : "var(--color-bg-subtle)", borderColor: canAdd ? "var(--color-selected-border)" : "var(--color-border-light)", opacity: canAdd ? 1 : 0.5 }}>{tr("+ Add hole")}</button>
       </div>
       {/* TASKS.csv #1182 — with no terrain a click on empty space gets its Elev from a flat plane at the data's origin, and that value reached the rig sheet's CSV and GPX unmarked */}
-      {noTerrain && pickedPoint && <div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginTop: 4, lineHeight: 1.4 }}>{zSource.startsWith("the ground interpolated") ? tr("No terrain is loaded: the Elev is the ground interpolated between the nearest collars (the flat plane through the data would have given {p} m). Check it before using it, or load a terrain.", { p: Math.round(pickedPoint.z) }) : tr("No terrain is loaded, so a picked Elev is whatever the click hit, or a flat plane through the data. Check it before using it, or load a terrain.")}</div>}{/* #2100 */}
+      {noTerrain && pickedPoint && <div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginTop: 4, lineHeight: 1.4 }}>{zSource.startsWith("the ground interpolated") ? tr(underground ? "No terrain is loaded and the collars look underground: the Elev is on a surface through the drill collars, a level between drill positions, not the ground (the flat plane through the data would have given {p} m). Type the drill level's RL, or load a terrain." /* #2253 */ : "No terrain is loaded: the Elev is the ground interpolated between the nearest collars (the flat plane through the data would have given {p} m). Check it before using it, or load a terrain.", { p: Math.round(pickedPoint.z) }) : tr("No terrain is loaded, so a picked Elev is whatever the click hit, or a flat plane through the data. Check it before using it, or load a terrain.")}</div>}{/* #2100 */}
       <div style={{ borderTop: "1px solid var(--color-border)", marginTop: 7, paddingTop: 7 }}>
         <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 4 }}>{tr("Solve azimuth/dip/length to hit a target from the E/N/Elev above (the length runs {m} m past it; the target is kept on the hole)", { m: PAST_TARGET_M })}</div>
         <div style={{ display: "flex", gap: 4, marginBottom: 5 }}>
@@ -195,7 +198,7 @@ export function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint, 
           <NumField label={tr("Target N")} value={target.y} onChange={(v) => setTarget((p) => ({ ...p, y: v }))} />
           <NumField label={tr("Target Elev")} value={target.z} onChange={(v) => setTarget((p) => ({ ...p, z: v }))} />
         </div>
-        {upward && <div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 4, lineHeight: 1.4 }}>{tr("The target is above the collar, so the solved hole points upward. From a surface collar that is not a hole you can drill: check the target's elevation.")}</div>}
+        {upward && <div role="note" style={{ fontSize: "var(--font-size-xs)", color: underground ? "var(--color-text-secondary)" : "var(--color-warn-text)", marginBottom: 4, lineHeight: 1.4 }}>{underground ? tr("The target is above the collar, so the solved hole is an uphole: normal from underground development (this project's collars look underground). From a surface collar it could not be drilled.") /* #2251 */ : tr("The target is above the collar, so the solved hole points upward. From a surface collar that is not a hole you can drill: check the target's elevation.")}</div>}
         <button onClick={solveTarget} disabled={!targetReady || !fromReady} style={{ ...miniBtn, width: "100%", background: targetReady && fromReady ? "var(--color-selected-bg)" : "var(--color-bg-subtle)", borderColor: targetReady && fromReady ? "var(--color-selected-border)" : "var(--color-border-light)", opacity: targetReady && fromReady ? 1 : 0.5 }}>{tr("Solve az/dip/length to target")}</button>
         <button onClick={solveCollar} disabled={!collarReady} style={{ ...miniBtn, width: "100%", marginTop: 4, opacity: collarReady ? 1 : 0.5 }} title={tr("Keep the azimuth and dip above and move the collar: to where a line through the target at that dip meets the terrain, or the typed Elev when no terrain is loaded")}>{tr("Solve collar for this dip/azimuth")}</button>{/* #1835 */}
         {nearest.length > 0 && collars.length > 1 && (

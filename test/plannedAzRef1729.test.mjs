@@ -17,5 +17,5 @@ test("#1729 the form converts at the collar and keeps what was typed; the row ed
   assert.ok(p.includes("wrap360(azimuth - azOffset.offset)"), "a solved bearing is shown in the chosen north");
   assert.ok(p.includes('tr("Az° grid")'));
   const v = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
-  assert.ok(v.includes("collars={collars} epsg={project?.epsg} />"));
+  assert.ok(v.includes("collars={collars} epsg={project?.epsg} survey={survey} />")); // survey: #2251
 });
