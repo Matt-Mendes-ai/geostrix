@@ -1132,7 +1132,7 @@
   "Request failed for {url}": "فشل الطلب لـ {url}",
   "Request failed (HTTP {status}) for {url}": "فشل الطلب (HTTP {status}) لـ {url}",
   "Update checks require the desktop app.": "يتطلب التحقق من التحديثات تطبيق سطح المكتب.",
-  "Another program is using the Python engine's port (127.0.0.1:8765), so GeoStrix did not send it your data. Close that program (or restart the computer) and try again.": "برنامج آخر يستخدم منفذ محرك Python ‏(127.0.0.1:8765)، لذا لم يرسل GeoStrix بياناتك إليه. أغلق ذلك البرنامج (أو أعد تشغيل الحاسوب) وحاول مجددًا.",
+  "Another program is using the Python engine's port (127.0.0.1:{port}), so GeoStrix did not send it your data. Close that program (or restart the computer) and try again.": "برنامج آخر يستخدم منفذ محرك Python ‏(127.0.0.1:{port})، لذا لم يرسل GeoStrix بياناتك إليه. أغلق ذلك البرنامج (أو أعد تشغيل الحاسوب) وحاول مجددًا.",
   "{v} has no base-station readings GeoStrix can read (expected rows of \"time  nT\" such as \"07:55:05.0  57117.85 99\").": "لا يحوي {v} قراءات محطة أساس يستطيع GeoStrix قراءتها (متوقع: صفوف «الوقت  nT» مثل «07:55:05.0  57117.85 99»).",
   "This file": "هذا الملف",
   "Load at least one base-station file.": "حمّل ملف محطة أساس واحدًا على الأقل.",

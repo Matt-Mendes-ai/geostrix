@@ -51,6 +51,14 @@ let mainWindow = null;
 const { maxSectionWindows, maxSectionTabs } = require("./sectionCap.js"); // TASKS.csv #1276, #1303
 let pySidecar = null; // Python FastAPI sidecar process (optional — see startPythonSidecar below)
 const PY_SIDECAR_PORT = 8765;
+// TASKS.csv #2241 (review #2174) — a second GeoStrix on the same computer could not use the Python engine: 8765 was taken by the first one's,
+// every tool failed with "Another program is using the Python engine's port" and the status bar showed the OTHER instance's engine as on.
+// Each instance now starts its engine on the first free port from 8765 (8765 whenever it is free, so a single GeoStrix is unchanged) and
+// tells its window which port that is (the "sidecar-port" IPC below).
+let sidecarPort = PY_SIDECAR_PORT;
+const { pickSidecarPort: pickFreePort } = require("./sidecarPort.js");
+const pickSidecarPort = () => pickFreePort(PY_SIDECAR_PORT, 40);
+let sidecarStarting = null; // one start at a time (the port check is asynchronous)
 
 // ---------- TASKS.csv #345 — only the app's own pages may navigate, open windows or call IPC ----------
 // Before this, nothing stopped a renderer from being navigated away from the app (a file dropped outside
@@ -171,7 +179,13 @@ app.on("web-contents-created", (_e, contents) => {
 // model or invert. The renderer now asks for it (the "sidecar-ensure" IPC below) the first time a feature
 // actually needs Python; the call is idempotent, so a running sidecar is left alone. Returns true when this
 // call spawned it (the caller then waits for /health), false when it was already running.
-function startPythonSidecar() {
+async function startPythonSidecar() {
+  if (pySidecar) return false;
+  if (sidecarStarting) return sidecarStarting;
+  sidecarStarting = (async () => { sidecarPort = await pickSidecarPort(); return startPythonSidecarOn(); })();
+  try { return await sidecarStarting; } finally { sidecarStarting = null; }
+}
+function startPythonSidecarOn() {
   if (pySidecar) return false;
   const frozenName = process.platform === "win32" ? "geostrix-sidecar.exe" : "geostrix-sidecar";
   // TASKS.csv #321 — the sidecar is now a --onedir build (see python-sidecar/build_sidecar.js): its exe
@@ -183,7 +197,7 @@ function startPythonSidecar() {
   const [cmd, args] = useFrozen
     ? [frozenPath, []]
     : [process.env.GEOSTRIX_PYTHON || (process.platform === "win32" ? "python" : "python3"),
-       ["-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", String(PY_SIDECAR_PORT)]];
+       ["-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", String(sidecarPort)]]; // sidecarPort: #2241
 
   // TASKS.csv #314 — keep the sidecar's output in a PACKAGED build instead of discarding it.
   //
@@ -219,7 +233,7 @@ function startPythonSidecar() {
       // minutes, and 127.0.0.1 is reachable from anything on this machine, including web pages open in a
       // browser. A random per-launch secret, required on every request except /health, means only this
       // app's renderer (which fetches it over IPC below) can drive it.
-      env: { ...process.env, GEOSTRIX_SIDECAR_TOKEN: SIDECAR_TOKEN, ...blasThreadEnv() },
+      env: { ...process.env, GEOSTRIX_SIDECAR_TOKEN: SIDECAR_TOKEN, GEOSTRIX_SIDECAR_PORT: String(sidecarPort) /* #2241: the frozen engine reads it */, ...blasThreadEnv() },
       // TASKS.csv #481 — the frozen sidecar is a console executable; without this Windows opened a black
       // command-prompt window beside GeoStrix whenever the engine started (user report, 2026-09-26).
       windowsHide: true,
@@ -301,7 +315,8 @@ const SIDECAR_TOKEN = require("crypto").randomBytes(32).toString("hex");
 ipcMain.handle("sidecar-token", () => SIDECAR_TOKEN);
 // TASKS.csv #440 — start on first use; "sidecar-running" lets the status bar say "starts when needed"
 // without polling a port nobody is listening on.
-ipcMain.handle("sidecar-ensure", () => ({ spawned: startPythonSidecar(), running: pySidecar !== null }));
+ipcMain.handle("sidecar-ensure", async () => ({ spawned: await startPythonSidecar(), running: pySidecar !== null }));
+ipcMain.handle("sidecar-port", () => sidecarPort); // TASKS.csv #2241
 ipcMain.handle("sidecar-running", () => pySidecar !== null);
 
 // TASKS.csv #638 — optional add-ons (electron/addons.js): the geoML predictive-modelling engine, downloaded on request,

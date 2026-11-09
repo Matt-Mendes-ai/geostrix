@@ -462,7 +462,10 @@ export function onUpdaterEvent(cb) {
 // wrapped so a connection failure (Python not installed, deps missing, sidecar still booting) comes
 // back as a normal { ok: false } result — never a thrown/unhandled rejection — since these features
 // are always optional extras on top of an app that works fully without them.
-const PY_SIDECAR_BASE = "http://127.0.0.1:8765";
+// TASKS.csv #2241 — the engine's port is the one this instance's main process chose (8765, or the next free one when another GeoStrix
+// holds 8765); asked each time, since it is chosen when the engine first starts. A plain-browser dev session uses 8765.
+const sidecarPort = async () => { try { return (d?.getSidecarPort && (await d.getSidecarPort())) || 8765; } catch { return 8765; } };
+const sidecarBase = async () => `http://127.0.0.1:${await sidecarPort()}`;
 
 // TASKS.csv #321 — the sidecar requires a per-launch token (electron/main.js). Fetched once over IPC and
 // sent on every request. In a plain-browser dev session there is no Electron, no token, and a hand-started
@@ -481,10 +484,10 @@ export async function sidecarProof(token, nonce) {
 }
 async function verifySidecarIdentity(token) {
   const nonce = hex(crypto.getRandomValues(new Uint8Array(24)));
-  const res = await fetch(`${PY_SIDECAR_BASE}/health?nonce=${nonce}`, { signal: AbortSignal.timeout(3000) });
+  const res = await fetch(`${await sidecarBase()}/health?nonce=${nonce}`, { signal: AbortSignal.timeout(3000) });
   const j = await res.json().catch(() => ({}));
   if (j?.proof !== (await sidecarProof(token, nonce))) {
-    const e = new Error(tr("Another program is using the Python engine's port (127.0.0.1:8765), so GeoStrix did not send it your data. Close that program (or restart the computer) and try again."));
+    const e = new Error(tr("Another program is using the Python engine's port (127.0.0.1:{port}), so GeoStrix did not send it your data. Close that program (or restart the computer) and try again.", { port: await sidecarPort() }));
     e.code = "SIDECAR_IDENTITY";
     throw e;
   }
@@ -535,7 +538,7 @@ const DEV_PIP_HINT = () => (d ? "" : " (Running from source: pip install -r pyth
 async function sidecarJson(path, { method = "GET", body, timeoutMs = 30000, signal } = {}) {
   await ensureSidecarUp();
   try {
-    const res = await fetch(`${PY_SIDECAR_BASE}${path}`, {
+    const res = await fetch(`${await sidecarBase()}${path}`, {
       method,
       headers: await sidecarHeaders(body !== undefined ? { "Content-Type": "application/json" } : {}),
       body: body !== undefined ? JSON.stringify(body) : undefined,
@@ -652,7 +655,7 @@ async function runSidecarJobKind(kind, request, { signal = null, onProgress = nu
 
 export async function pythonHealth() {
   try {
-    const res = await fetch(`${PY_SIDECAR_BASE}/health`, { signal: AbortSignal.timeout(2000) }); // #353: /health needs no token — never send it before the identity check
+    const res = await fetch(`${await sidecarBase()}/health`, { signal: AbortSignal.timeout(2000) }); // #353: /health needs no token — never send it before the identity check
     if (!res.ok) return { ok: false, error: `Sidecar returned HTTP ${res.status}` };
     const data = await res.json();
     return { ok: true, ...data };
@@ -743,7 +746,7 @@ export async function pythonImplicitModel(extent, surfaces, opts = {}) {
 async function pythonImplicitModelSync(extent, surfaces, opts = {}) {
   await ensureSidecarUp(); // #440
   try {
-    const res = await fetch(`${PY_SIDECAR_BASE}/implicit-model`, {
+    const res = await fetch(`${await sidecarBase()}/implicit-model`, {
       method: "POST",
       headers: await sidecarHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify({

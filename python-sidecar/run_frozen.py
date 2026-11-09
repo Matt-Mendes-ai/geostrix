@@ -14,6 +14,7 @@ already 127.0.0.1-only pre-freeze, see app/main.py's own CORS comment for why th
 threaded through as CLI args — one fewer thing that can drift between the two sides of this spawn.
 """
 import multiprocessing
+import os
 
 import uvicorn
 
@@ -23,4 +24,5 @@ if __name__ == "__main__":
     # task instead of starting a second web server.
     multiprocessing.freeze_support()
     from app.main import app
-    uvicorn.run(app, host="127.0.0.1", port=8765, log_level="info")
+    # TASKS.csv #2241 — the port the app chose (the first free one from 8765), passed in the environment; 8765 when run by hand
+    uvicorn.run(app, host="127.0.0.1", port=int(os.environ.get("GEOSTRIX_SIDECAR_PORT", "8765")), log_level="info")

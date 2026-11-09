@@ -1132,7 +1132,7 @@
   "Request failed for {url}": "Échec de la requête pour {url}",
   "Request failed (HTTP {status}) for {url}": "Échec de la requête (HTTP {status}) pour {url}",
   "Update checks require the desktop app.": "Les vérifications de mise à jour nécessitent l'application de bureau.",
-  "Another program is using the Python engine's port (127.0.0.1:8765), so GeoStrix did not send it your data. Close that program (or restart the computer) and try again.": "Un autre programme utilise le port du moteur Python (127.0.0.1:8765), donc GeoStrix ne lui a pas envoyé vos données. Fermez ce programme (ou redémarrez l'ordinateur) et réessayez.",
+  "Another program is using the Python engine's port (127.0.0.1:{port}), so GeoStrix did not send it your data. Close that program (or restart the computer) and try again.": "Un autre programme utilise le port du moteur Python (127.0.0.1:{port}), donc GeoStrix ne lui a pas envoyé vos données. Fermez ce programme (ou redémarrez l'ordinateur) et réessayez.",
   "{v} has no base-station readings GeoStrix can read (expected rows of \"time  nT\" such as \"07:55:05.0  57117.85 99\").": "{v} n'a aucune lecture de station de base que GeoStrix peut lire (attendu : des lignes « heure  nT » comme « 07:55:05.0  57117.85 99 »).",
   "This file": "Ce fichier",
   "Load at least one base-station file.": "Chargez au moins un fichier de station de base.",
