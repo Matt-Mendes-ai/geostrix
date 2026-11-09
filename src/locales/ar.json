@@ -9453,5 +9453,6 @@
   "Keep the lab repeats as QC duplicates ({list})": "الاحتفاظ بالإعادات المخبرية كنسخ مكررة لضبط الجودة ({list})",
   "Isocon compares a multi-element suite between a precursor and an altered rock, anchored on an element that stayed put (Al, Ti, Zr, Nb or Y). This project's assays have {list} only, so there is nothing to calculate.": "يقارن Isocon مجموعة متعددة العناصر بين صخر سلف وصخر متحوّل، مثبّتة على عنصر لم يتحرك (Al أو Ti أو Zr أو Nb أو Y). تحاليل هذا المشروع فيها {list} فقط، فلا شيء يُحسب.",
   "None of Al, Ti, Zr, Nb or Y is in this project's assays. Isocon rests on an element that stayed put: pick one you know was immobile here, or the result means little.": "لا يوجد أي من Al أو Ti أو Zr أو Nb أو Y في تحاليل هذا المشروع. يعتمد Isocon على عنصر لم يتحرك: اختر عنصرًا تعرف أنه كان ثابتًا هنا، وإلا فللنتيجة معنى ضئيل.",
-  "Isocon needs at least two assayed elements, one of them immobile (Al, Ti, Zr)": "يحتاج Isocon إلى عنصرين محلَّلين على الأقل، أحدهما ثابت (Al، Ti، Zr)"
+  "Isocon needs at least two assayed elements, one of them immobile (Al, Ti, Zr)": "يحتاج Isocon إلى عنصرين محلَّلين على الأقل، أحدهما ثابت (Al، Ti، Zr)",
+  "The project's coordinate system is not chosen yet, so a true or magnetic bearing cannot be turned to grid north here. Choose the CRS (status bar), or enter the bearing as grid north.": "لم يُختر نظام إحداثيات المشروع بعد، لذا لا يمكن هنا تحويل اتجاه حقيقي أو مغناطيسي إلى شمال الشبكة. اختر نظام الإحداثيات (شريط الحالة)، أو أدخل الاتجاه بشمال الشبكة."
 }

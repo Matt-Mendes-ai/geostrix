@@ -57,6 +57,9 @@ export default function CoreOrientationCalculator({ collars, survey, fieldStruct
       const c = collars.find((x) => x.hole_id === holeId);
       if (!c) { setNewRefMsg(tr("Pick a hole above first — a true / magnetic bearing is converted to grid north at its collar.")); return; }
       if (newRefNorth.ref === "magnetic" && !newRefNorth.date) { setNewRefMsg(tr("Enter the date the reference was measured (the declination depends on it).")); return; }
+      // TASKS.csv #2231 (review #2174, WA gold) — with the CRS not set the placeholder EPSG:3156 was used, so a WA bearing was turned by a
+      // northern-BC convergence / declination. No conversion without a real CRS: said, nothing saved.
+      if (project?.crsSet === false) { setNewRefMsg(tr("The project's coordinate system is not chosen yet, so a true or magnetic bearing cannot be turned to grid north here. Choose the CRS (status bar), or enter the bearing as grid north.")); return; }
       let o = null;
       try { if (newRefNorth.ref === "magnetic") await loadIgrf(); o = azimuthToGridOffset(newRefNorth.ref, c.x, c.y, project?.epsg, newRefNorth.date); } catch { o = null; }
       if (!o) { setNewRefMsg(tr("Couldn't convert to grid north here (no project CRS, or a date outside IGRF's range).")); return; }
