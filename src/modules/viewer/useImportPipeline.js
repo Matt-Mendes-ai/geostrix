@@ -26,7 +26,7 @@ import { askAdoptCrs } from "../../lib/adoptCrs.js"; // TASKS.csv #607
 import { requestProjectCrs } from "../../lib/projectCrsRequest.js"; // TASKS.csv #615
 import { holeTypeColumn, normalizeHoleType } from "../../lib/holeType.js"; // TASKS.csv #2161
 import { isNullSentinel, LAYER_META, TARGET_SCHEMAS, guessColumn, guessColumnExact, guessMapping, guessTargetFor, schemaSatisfied, num, replaceRowsByHole, keepDerivedPicks, isDerivedPick, replaceNote, EPSG_COL_ALIASES, diffCollarImport, mergeCollar, minMax, pickRankedCollarRows } from "../../lib/layers.js";
-import { alterationStyleFromName, styledAltValue } from "../../lib/viewer/importHelpers.js"; // TASKS.csv #1511
+import { alterationStyleFromName, styledAltValue, isBlankCode } from "../../lib/viewer/importHelpers.js"; // TASKS.csv #1511; isBlankCode: #2182
 import { fillDownHoleIds, numberedSiblings, allCodesOf, normInterval, applyCustomFields, normNumericInterval, normStructure, skippedRowsText, strikeStats, loadRaster, looksLikeAssay, isSurfaceSampleTable, parseVectorFile, groupShapefileParts, orderImportFiles } from "../../lib/viewer/importHelpers.js"; // groupShapefileParts / orderImportFiles: #600
 import { unreadableFormatAdvice } from "../../lib/unreadableFormats.js"; // TASKS.csv #603
 import { t as tr } from "../../lib/i18n.js"; // TASKS.csv #786
@@ -598,7 +598,9 @@ export function useImportPipeline(ctx) {
         const r = numeric ? normNumericInterval(raw, mapping, customFields) : normInterval(raw, mapping, customFields);
         if (sib) { const a = allCodesOf(raw, sib); if (a.extra) { r.all_codes = a.all; r.codes = a.codes; codesKept += a.extra; codesRows++; } } // codes: #1650
         if (altStyle) { r.value = styleCode(r.value); r.alt_style = altStyle; if (Array.isArray(r.codes)) r.codes = r.codes.map(styleCode); } // #1511
-        const why = !r.hole_id ? "no hole id" : isNaN(r.from) ? "no from" : numeric && isNaN(r.value) ? "no value" : null;
+        // #2182 — a blank code: the next numbered code if the row has one (Min_Code2), else the row is skipped and counted, not 'Unknown'
+        if (!numeric && isBlankCode(raw[mapping.value])) { const next = Array.isArray(r.codes) ? r.codes.find((c) => !isBlankCode(c)) : null; if (next) r.value = String(next).trim(); else r.value = null; }
+        const why = !r.hole_id ? "no hole id" : isNaN(r.from) ? "no from" : numeric && isNaN(r.value) ? "no value" : !numeric && r.value == null ? "no code" : null;
         if (why) { dropped.push({ reason: why, example: why === "no from" ? raw[mapping.from] : why === "no value" ? raw[mapping.value] : null }); return null; }
         return { ...r, _src: fileName };
       }).filter(Boolean);

@@ -4,7 +4,7 @@ import { crsName } from "../lib/reproject.js"; // TASKS.csv #488
 import SourceCrsField from "../components/SourceCrsField.jsx"; // TASKS.csv #488
 import { X } from "./icons.js";
 import { TARGET_SCHEMAS, guessMapping, LAYER_META } from "../lib/layers.js";
-import { alterationStyleFromName } from "../lib/viewer/importHelpers.js"; // TASKS.csv #1511
+import { alterationStyleFromName, blankShare } from "../lib/viewer/importHelpers.js"; // TASKS.csv #1511; blankShare: #2182
 import { AZIMUTH_REFS } from "../lib/azimuthRef.js"; // TASKS.csv #396
 import { fitSimilarity, parseControlPoints } from "../lib/localGrid.js"; // TASKS.csv #412
 import { useEscapeKey } from "../lib/useEscapeKey.js";
@@ -94,6 +94,8 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
                 <option value="">{tr("— none —")}</option>
                 {modal.headers.map((h) => <option key={h} value={h}>{h}</option>)}
               </select>
+              {/* TASKS.csv #2182 — a coded log's Value column blank on many rows: those rows are skipped, said before the import */}
+              {f.key === "value" && !fieldNeedsNumber(f) && modal.target !== "custom" && modal.mapping.value && (() => { const b = blankShare(modal.allRows, modal.mapping.value); return b && b.blank / b.total >= 0.2 ? <div role="note" style={{ flexBasis: "100%", marginInlineStart: 220, fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)" }}>{tr("{col} is blank on {pct} % of the rows ({n} of {m}): those rows have no code and are skipped.", { col: modal.mapping.value, pct: Math.round((100 * b.blank) / b.total), n: b.blank.toLocaleString(), m: b.total.toLocaleString() })}</div> : null; })()}
               {fieldNeedsNumber(f) && modal.mapping[f.key] && columnHasNoNumbers(modal.sampleRows, modal.mapping[f.key]) && <div role="alert" style={{ flexBasis: "100%", marginInlineStart: 220, fontSize: "var(--font-size-sm)", color: "var(--color-danger-icon)" }}>{tr("\"{col}\" has no numbers in the preview rows: {field} needs a number.", { col: modal.mapping[f.key], field: tr(f.label) })}</div>}
             </div>
           ))}

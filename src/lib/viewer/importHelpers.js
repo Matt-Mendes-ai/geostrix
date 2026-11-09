@@ -373,12 +373,22 @@ const SKIP_REASONS = {
   "no depth": () => tr("blank or non-numeric depth"),
   "no from": () => tr("blank or non-numeric From"),
   "no value": () => tr("value not a number"),
+  "no code": () => tr("blank code"), // #2182
 };
+// TASKS.csv #2182 (review #2174, WA gold) — a coded log's row with a blank code cell is not a logged interval: it was imported as 'Unknown'
+// (11,432 of geology_4's 11,558 rows as Mineralization) and drew an 'Unknown' tube down every hole. The share blank, for the dialog.
+export const isBlankCode = (v) => v == null || String(v).trim() === "";
+export function blankShare(rows, col) {
+  if (!col || !rows?.length) return null;
+  let blank = 0;
+  for (const r of rows) if (isBlankCode(r[col])) blank++;
+  return { blank, total: rows.length };
+}
 export function skippedRowsText(dropped, total) {
   if (!dropped?.length) return "";
   const by = new Map();
   for (const d of dropped) { const e = by.get(d.reason) || by.set(d.reason, { n: 0, ex: [] }).get(d.reason); e.n++; const x = d.example == null || String(d.example).trim() === "" ? "(blank)" : String(d.example).trim(); if (e.ex.length < 3 && !e.ex.includes(x)) e.ex.push(x); }
-  const parts = [...by].map(([r, e]) => `${e.n} ${(SKIP_REASONS[r] || (() => r))()}${e.ex.length && r !== "no hole id" ? ` (${e.ex.join(", ")})` : ""}`);
+  const parts = [...by].map(([r, e]) => `${e.n} ${(SKIP_REASONS[r] || (() => r))()}${e.ex.length && r !== "no hole id" && r !== "no code" ? ` (${e.ex.join(", ")})` : ""}`);
   return ` ${tr("Skipped {n} of {m} row(s): {why}.", { n: dropped.length, m: total, why: parts.join("; ") })}`;
 }
 
