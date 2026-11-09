@@ -9486,5 +9486,6 @@
   "Showing {n} of {total}: narrow them with the filters above, or": "يُعرض {n} من {total}: ضيّقها بالمرشحات أعلاه، أو",
   "Show {k} more": "اعرض {k} أخرى",
   "Hole ids: a label 'ID +n' stands for n more hole(s) piercing within a few pixels (hover it for the list); {hidden} label(s) had no free spot and are left out. Zoom in to separate them, or hover a pierce point.": "معرّفات الثقوب: الملصق «ID +n» يمثل n ثقبًا آخر يخترق على بُعد بضع بكسلات (مرّر المؤشر لرؤية القائمة)؛ {hidden} ملصق لم يجد مكانًا فارغًا فحُذف. قرّب للفصل بينها، أو مرّر المؤشر على نقطة اختراق.",
-  "This shell is {n} separate pieces, not one continuous body.": "هذا الغلاف {n} قطعة منفصلة، لا جسم واحد متصل."
+  "This shell is {n} separate pieces, not one continuous body.": "هذا الغلاف {n} قطعة منفصلة، لا جسم واحد متصل.",
+  "Running uncapped: this element's coefficient of variation is {cv}%, so a few high assays can drive the shell. Estimation caps it at P99 by default.": "بلا سقف: معامل اختلاف هذا العنصر {cv}%، فقد تتحكم بضع تحاليل عالية في الغلاف. يضع التقدير سقفًا عند P99 افتراضيًا."
 }

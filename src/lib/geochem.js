@@ -1204,3 +1204,15 @@ export function carbonateShare(samples, elementUnits) {
   for (const s of samples || []) { const v = s?.values?.Ca == null ? null : valueIn(s, "Ca", "%", elementUnits || {}); if (v == null || !Number.isFinite(v)) continue; n++; if (v >= 10) hi++; }
   return n ? hi / n : null;
 }
+
+// TASKS.csv #2222 — the default-cap screen shared by the grade shell pane (the Estimation dialog's #1573 rule)
+export const CAP_CV_PCT = 150; // the #1573 screen
+// sample stdev / mean as a percentage, as GradeStatistics and the Estimation dialog compute it; null under 3 values or a mean of 0
+export function elementCvPct(assays, symbol) {
+  const vals = (assays || []).map((a) => a.values?.[symbol]).filter((v) => Number.isFinite(v));
+  if (vals.length < 3) return null;
+  const mean = vals.reduce((t, v) => t + v, 0) / vals.length;
+  if (!(mean > 0)) return null;
+  const variance = vals.reduce((t, v) => t + (v - mean) ** 2, 0) / (vals.length - 1);
+  return (Math.sqrt(variance) / mean) * 100;
+}

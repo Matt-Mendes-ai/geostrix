@@ -9486,5 +9486,6 @@
   "Showing {n} of {total}: narrow them with the filters above, or": "{n} sur {total} affichés : affinez avec les filtres ci-dessus, ou",
   "Show {k} more": "Afficher {k} de plus",
   "Hole ids: a label 'ID +n' stands for n more hole(s) piercing within a few pixels (hover it for the list); {hidden} label(s) had no free spot and are left out. Zoom in to separate them, or hover a pierce point.": "ID de sondage : une étiquette « ID +n » représente n sondage(s) de plus perçant à quelques pixels (survolez-la pour la liste) ; {hidden} étiquette(s) sans place libre sont omises. Zoomez pour les séparer, ou survolez un point de percée.",
-  "This shell is {n} separate pieces, not one continuous body.": "Cette enveloppe est en {n} morceaux séparés, pas un corps continu."
+  "This shell is {n} separate pieces, not one continuous body.": "Cette enveloppe est en {n} morceaux séparés, pas un corps continu.",
+  "Running uncapped: this element's coefficient of variation is {cv}%, so a few high assays can drive the shell. Estimation caps it at P99 by default.": "Sans écrêtage : le coefficient de variation de cet élément est de {cv} %, donc quelques teneurs élevées peuvent dominer l'enveloppe. L'estimation l'écrête au P99 par défaut."
 }
