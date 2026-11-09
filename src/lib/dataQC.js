@@ -27,7 +27,7 @@ function pushIssue(issues, severity, category, holeId, message) {
 }
 
 // ---- Collars ----
-function validateCollars(collars) {
+function validateCollars(collars, survey = []) { // survey: #2186
   const issues = [];
   const seenIds = new Map(); // hole_id -> count
   const seenCoords = new Map(); // "x,y" (rounded) -> [hole_id]
@@ -64,7 +64,16 @@ function validateCollars(collars) {
   // that is a pad (info). Only holes that also share their azimuth and dip (to 1 degree) are a possible duplicate (warning). 39 fan holes
   // were worded as duplicates beside the 4 real ones.
   const byId = new Map(collars.map((c) => [c.hole_id || "(blank)", c]));
-  const orient = (id) => { const c = byId.get(id) || {}; return Number.isFinite(c.azimuth) && Number.isFinite(c.dip) ? `${Math.round(c.azimuth)}|${Math.round(Math.abs(c.dip))}` : null; };
+  // TASKS.csv #2186 (review #2174, WA gold) — collar files of underground mines carry no azimuth / dip (the surveys do), so every cuddy's
+  // fan was a 'duplicate' warning (50 on the WA project): the first survey station's attitude is used when the collar has none
+  const firstStation = new Map();
+  for (const s of survey || []) { if (!Number.isFinite(s.depth) || !Number.isFinite(s.azimuth) || !Number.isFinite(s.dip)) continue; const f = firstStation.get(s.hole_id); if (!f || s.depth < f.depth) firstStation.set(s.hole_id, s); }
+  const orient = (id) => {
+    const c = byId.get(id) || {};
+    if (Number.isFinite(c.azimuth) && Number.isFinite(c.dip)) return `${Math.round(c.azimuth)}|${Math.round(Math.abs(c.dip))}`;
+    const s = firstStation.get(id);
+    return s ? `${Math.round(s.azimuth)}|${Math.round(Math.abs(s.dip))}${s.dip < 0 ? "u" : ""}` : null; // an uphole beside a downhole of one |dip| is not the same hole
+  };
   seenCoords.forEach((ids, key) => {
     const unique = Array.from(new Set(ids));
     const canTell = unique.length > 1 && unique.every((id) => orient(id) != null); // without azimuth / dip a fan cannot be told: the old warning below
@@ -521,7 +530,7 @@ export function runDataQC({ project, collars, survey, layers, boundaries, assays
 
   const issues = [
     ...validateProject(project),
-    ...validateCollars(collars),
+    ...validateCollars(collars, survey), // survey: #2186
     ...validateCollarsVsTerrain(collars, terrain, terrainThreshold), // #558
     ...validateSurveyAndTrajectory(collars, survey, { doglegWarn, doglegError }), // #545
     ...validateIntervalLayer(layers.litho || [], "Lithology", collarIds, holeLengths),
