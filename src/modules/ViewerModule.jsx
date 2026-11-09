@@ -4331,7 +4331,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     const mesh = implicitMeshesRef.current[id];
     const surf = implicitSurfaces.find((s) => s.id === id);
     if (!mesh?.geometry || !surf) return;
-    const epsg = await ensureExportCrs(project); if (!epsg) return; // TASKS.csv #1021 — not the placeholder
+    const crsUnset = project?.crsSet === false; // #2225: a mesh's numbers ARE the local grid; no CRS is asked or written
+    const epsg = crsUnset ? null : await ensureExportCrs(project); if (!crsUnset && !epsg) return; // TASKS.csv #1021 — not the placeholder
     const baseName = (surf.name || "surface").replace(/[^a-z0-9_-]+/gi, "_").toLowerCase();
     // TASKS.csv #269 — every exported mesh carries its own parameter provenance + the "not a Mineral
     // Resource estimate" stamp, so it can't come back later stripped of the assumptions behind it.
@@ -4339,7 +4340,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     // TASKS.csv #1028 (review #1016) — "Enclosed volume" only for a closed mesh: an open sheet has no inside, and the
     // signed-tetrahedron sum it got depends on the scene origin (1.65 / 165 / 137 Mm3 for one sheet)
     const vol = computeMeshVolume(mesh.geometry);
-    const extra = { epsg, densityTPerM3: surf.density ?? null, volumeM3: vol.watertight ? vol.volumeM3 : null, ...(vol.watertight ? {} : { openSurface: true }) };
+    const extra = { epsg, crsUnset, densityTPerM3: surf.density ?? null, volumeM3: vol.watertight ? vol.volumeM3 : null, ...(vol.watertight ? {} : { openSurface: true }) };
     // TASKS.csv #145 — a hand-sculpted surface must not leave this app claiming to be a clean
     // interpolation of its stated parameters. The edit log travels with the mesh (see
     // meshExport.js's provenanceLines, where it is stamped ahead of every parameter line), including
@@ -4384,7 +4385,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         // TASKS.csv #798 — legacy VTK polydata for ParaView / PyVista (pv.read)
         const { surfaceToVtk } = await import("../lib/vtkExport.js");
         const { vertices, indices } = sceneVertsToWorld(mesh.geometry, originRef.current);
-        const content = surfaceToVtk(surf.name, vertices, indices, `v${APP_VERSION} | EPSG:${epsg}${surf.editCount > 0 ? `, hand-edited ${surf.editCount} time(s)` : ""}`, supportedOf(vertices, indices)); // #1103
+        const content = surfaceToVtk(surf.name, vertices, indices, `v${APP_VERSION} | ${epsg ? `EPSG:${epsg}` : "local grid, no CRS"}${surf.editCount > 0 ? `, hand-edited ${surf.editCount} time(s)` : ""}`, supportedOf(vertices, indices)); // #1103
         res = await saveFile({ quiet: true, suggestedName: `${baseName}.vtk`, filters: [{ name: "VTK (legacy)", extensions: ["vtk"] }], content, encoding: "text" });
       } else if (format === "omf") {
         // TASKS.csv #411 — OMF v1 for Leapfrog / Datamine / Vulcan / Micromine (writer loaded on first use)

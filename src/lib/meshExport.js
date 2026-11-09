@@ -91,6 +91,7 @@ export function provenanceLines(name, provenance, extra = {}) {
     out.push(`Manual edits move vertices only; triangle connectivity is unchanged, so the mesh is exactly as watertight (or not) as it was when generated.`);
   }
   if (extra.epsg) out.push(`Project CRS: EPSG:${extra.epsg}`);
+  else if (extra.crsUnset) out.push("Project CRS: not set (local grid, coordinates as imported)"); // TASKS.csv #2225
   // #1053 — the mesh's own box, in the coordinates written to the file (the params extent below is not)
   if (extra.worldBox) out.push(`Mesh extent (exported coordinates): E ${extra.worldBox[0].toFixed(1)} to ${extra.worldBox[3].toFixed(1)}, N ${extra.worldBox[1].toFixed(1)} to ${extra.worldBox[4].toFixed(1)}, elevation ${extra.worldBox[2].toFixed(1)} to ${extra.worldBox[5].toFixed(1)} m`);
   if (extra.densityTPerM3 != null) out.push(`Bulk density used for tonnage: ${extra.densityTPerM3} t/m3 (assumed, not measured)`);
