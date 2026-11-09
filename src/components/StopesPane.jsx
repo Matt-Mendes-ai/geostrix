@@ -2,11 +2,12 @@
 // minimum mining width, a dilution skin, each patch a stope outline and a solid with its diluted tonnes and grade. The underground
 // counterpart of the pit shell for a high-grade body. Maths in lib/stopeOutlines.js. Outlines, not a stope optimizer: no
 // geotechnical, access or sequencing check. Every number is the user's (#264).
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Box, Download, Layers3 } from "./icons.js";
 import { TaskPaneHeader } from "./Ribbon.jsx";
 import { useStore } from "../lib/store.jsx";
-import { stopeOutlines, stopeRows } from "../lib/stopeOutlines.js";
+import { stopeRows } from "../lib/stopeOutlines.js";
+import { runStopeOutlinesAsync } from "../lib/stopeOutlinesClient.js"; // TASKS.csv #2279 — off the UI thread
 import { gradeCandidate } from "../lib/gradeCandidate.js"; // #1848
 import { categoricalModels } from "../lib/geologyForward.js";
 import { valueUnit } from "../lib/blockModelExport.js";
@@ -16,7 +17,7 @@ import { saveFile } from "../lib/desktop.js";
 import { pBtn, smallSel } from "../lib/sidebarStyles.js";
 import { t as tr } from "../lib/i18n.js";
 import { stopeRuns, stopeIdsOnLevel, stopeStringIds } from "../lib/stopeRuns.js"; // TASKS.csv #1968
-import { pitCeiling, ceilingLookup } from "../lib/pitCeiling.js"; // TASKS.csv #1964
+import { pitCeiling } from "../lib/pitCeiling.js"; // TASKS.csv #1964 (the lookup is built in the worker, #2279)
 
 const row = { display: "flex", alignItems: "center", gap: 6, justifyContent: "space-between", marginTop: 4, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" };
 const note = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 };
@@ -37,6 +38,9 @@ export default function StopesPane({ onAdd, onRemove, onClose, stopes = [], onSh
   const [res, setRes] = useState(() => kept);
   const [msg, setMsg] = useState(null);
   const [added, setAdded] = useState({ solids: false, strings: false });
+  const [busy, setBusy] = useState(null); // #2279 — null, or { level, levels } while the worker runs
+  const job = useRef(null);
+  useEffect(() => () => job.current?.cancel(), []); // a closed pane stops its run
   const model = models.find((m) => (m.id ?? m.name) === f.modelId) || null;
   const pits = useMemo(() => surfaces.filter((s) => s.type === "pit_shell" || s.type === "pit_design"), [surfaces]); // #1964
   const pit = pits.find((s) => s.id === f.pitId) || null;
@@ -49,8 +53,10 @@ export default function StopesPane({ onAdd, onRemove, onClose, stopes = [], onSh
   const rangeBad = v("zMin") != null && v("zMax") != null && !(v("zMax") > v("zMin")); // #1893
   const dipTyped = v("dip") != null || v("dipDir") != null, dipBad = dipTyped && !(v("dip") > 0 && v("dip") < 90 && v("dipDir") != null && v("dipDir") >= 0 && v("dipDir") <= 360); // #1953 — both or neither
   const missing = !model || !(v("cutoff") >= 0) || !(v("levelH") > 0) || !(v("density") > 0) || rangeBad || dipBad;
-  const run = () => {
-    if (missing) return;
+  const run = async () => {
+    if (missing || busy) return;
+    // #2279 — a level interval under the block height, said BEFORE the run (it came after a 3 s run)
+    if (blockH > 0 && v("levelH") < blockH - 1e-9 && !window.confirm(tr("Levels under {h} m are slices of the same block: the per-level figures repeat.", { h: blockH }) + " " + tr("Outline anyway?"))) return;
     const t0 = performance.now();
     // TASKS.csv #1964 — the pit as a ceiling sampled on the model's own columns over the pit's footprint
     let ceilingAt = null;
@@ -63,11 +69,16 @@ export default function StopesPane({ onAdd, onRemove, onClose, stopes = [], onSh
       const x0 = c0.x + Math.floor((ax - c0.x) / dx) * dx, y0 = c0.y + Math.floor((ay - c0.y) / dy) * dy;
       const frame = { x0, y0, dx, dy, nx: Math.ceil((bx - x0) / dx) + 1, ny: Math.ceil((by - y0) / dy) + 1 };
       if (frame.nx * frame.ny > 4_000_000) { setMsg(tr("The model has too many columns ({n}) for this tool.", { n: frame.nx * frame.ny })); return; }
-      ceilingAt = ceilingLookup(pitCeiling(P, mesh.indices, frame), frame);
+      ceilingAt = { values: pitCeiling(P, mesh.indices, frame), frame }; // #2279 — the grid goes to the worker, which builds the lookup
     }
     let r;
-    try { r = stopeOutlines(model, { cutoff: v("cutoff"), levelH: v("levelH"), zMin: v("zMin"), zMax: v("zMax"), minWidth: v("minWidth") || 0, minLength: v("minLength") || 0, skin: v("skin") || 0, density: v("density"), dipDeg: dipTyped ? v("dip") : null, dipDirDeg: dipTyped ? v("dipDir") : null /* #1953 */, ceilingAt, pillar: pit ? v("pillar") || 0 : 0 /* #1964 */ }); }
-    catch (e) { kept = null; setRes(null); setMsg(tr("The outlines failed: {error}", { error: e?.message || String(e) })); return; } // #1884 — never a silent stale result
+    setBusy({ level: 0, levels: 0 }); setMsg(null);
+    try {
+      job.current = runStopeOutlinesAsync(model, { cutoff: v("cutoff"), levelH: v("levelH"), zMin: v("zMin"), zMax: v("zMax"), minWidth: v("minWidth") || 0, minLength: v("minLength") || 0, skin: v("skin") || 0, density: v("density"), dipDeg: dipTyped ? v("dip") : null, dipDirDeg: dipTyped ? v("dipDir") : null /* #1953 */, pillar: pit ? v("pillar") || 0 : 0 /* #1964 */ }, ceilingAt, (level, levels) => setBusy({ level, levels }));
+      r = await job.current.promise;
+    } catch (e) { kept = null; setRes(null); setMsg(tr("The outlines failed: {error}", { error: e?.message || String(e) })); return; } // #1884 — never a silent stale result
+    finally { job.current = null; setBusy(null); }
+    if (r?.cancelled) { setMsg(tr("Cancelled: nothing was outlined.")); return; }
     if (!r) { setMsg(tr("Nothing to outline: the model has no blocks with sizes.")); return; }
     if (r.failed === "range") { setMsg(tr("From RL must be below To RL.")); return; }
     if (r.failed) { setMsg(tr("The model has too many columns ({n}) for this tool.", { n: r.columns })); return; }
@@ -134,7 +145,9 @@ export default function StopesPane({ onAdd, onRemove, onClose, stopes = [], onSh
         {sg && !f.density && <div style={{ ...note, marginTop: 2 }}><button onClick={() => setF((p) => ({ ...p, density: String(sg.mean) }))} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "1px 6px" }}>{tr("Use the logged mean, {v}", { v: sg.mean })}</button></div>}
         {model && <div style={note}>{tr("Columns of {dx} × {dy} m (the model's blocks); widths and skins round to whole columns.", { dx: model.cells[0]?.dx ?? "?", dy: model.cells[0]?.dy ?? "?" })}</div>}
         {rangeBad && <div style={warn}>{tr("From RL must be below To RL.")}</div>}
-        <button onClick={run} disabled={missing} style={{ ...pBtn, marginTop: 8, opacity: missing ? 0.5 : 1 }}><Layers3 size={14} /> {tr("Outline the stopes")}</button>
+        {!busy
+          ? <button onClick={run} disabled={missing} style={{ ...pBtn, marginTop: 8, opacity: missing ? 0.5 : 1 }}><Layers3 size={14} /> {tr("Outline the stopes")}</button>
+          : <button onClick={() => job.current?.cancel()} style={{ ...pBtn, marginTop: 8 }}>{busy.levels ? tr("Outlining level {k} of {n}: cancel", { k: busy.level, n: busy.levels }) : tr("Outlining: cancel")}</button>}{/* #2279 */}
         {missing && !rangeBad && <div style={note}>{tr("Enter the cut-off, the level interval and the density: none has a default.")}</div>}
       </>)}
       {msg && <div style={warn}>{msg}</div>}

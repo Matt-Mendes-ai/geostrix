@@ -9478,5 +9478,9 @@
   "No terrain: drawn flat at {z} m RL. Change Elev. on the layer's card, or load a terrain to drape it.": "Pas de terrain : dessiné à plat à {z} m RL. Changez Élév. sur la carte de la couche, ou chargez un terrain pour le draper.",
   "It lies flat at {z} m RL (no terrain).": "Il est à plat à {z} m RL (pas de terrain).",
   "The ore-grade blocks lie {min}–{max} m below the highest collar ({top} m RL; {median} m at the median), and the collars look underground: this is an underground question (Stope outlines), not an open pit.": "Les blocs à teneur de minerai sont à {min}–{max} m sous le collet le plus haut ({top} m RL ; {median} m en médiane), et les collets semblent souterrains : c'est une question souterraine (Contours de chantiers), pas une fosse à ciel ouvert.",
-  "The ore-grade blocks lie {min}–{max} m below the highest collar ({top} m RL; {median} m at the median): deep for an open pit. Compare Stope outlines before reading this pit as a mine.": "Les blocs à teneur de minerai sont à {min}–{max} m sous le collet le plus haut ({top} m RL ; {median} m en médiane) : profond pour une fosse à ciel ouvert. Comparez avec Contours de chantiers avant de lire cette fosse comme une mine."
+  "The ore-grade blocks lie {min}–{max} m below the highest collar ({top} m RL; {median} m at the median): deep for an open pit. Compare Stope outlines before reading this pit as a mine.": "Les blocs à teneur de minerai sont à {min}–{max} m sous le collet le plus haut ({top} m RL ; {median} m en médiane) : profond pour une fosse à ciel ouvert. Comparez avec Contours de chantiers avant de lire cette fosse comme une mine.",
+  "Outline anyway?": "Délimiter quand même ?",
+  "Cancelled: nothing was outlined.": "Annulé : rien n'a été délimité.",
+  "Outlining level {k} of {n}: cancel": "Délimitation du niveau {k} sur {n} : annuler",
+  "Outlining: cancel": "Délimitation : annuler"
 }

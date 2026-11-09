@@ -9478,5 +9478,9 @@
   "No terrain: drawn flat at {z} m RL. Change Elev. on the layer's card, or load a terrain to drape it.": "Sem terreno: desenhado plano a {z} m RL. Mude Elev. no cartão da camada, ou carregue um terreno para drapejá-lo.",
   "It lies flat at {z} m RL (no terrain).": "Fica plano a {z} m RL (sem terreno).",
   "The ore-grade blocks lie {min}–{max} m below the highest collar ({top} m RL; {median} m at the median), and the collars look underground: this is an underground question (Stope outlines), not an open pit.": "Os blocos com teor de minério estão {min}–{max} m abaixo do colar mais alto ({top} m RL; {median} m na mediana), e os colares parecem subterrâneos: é uma questão subterrânea (Contornos de realces), não uma cava a céu aberto.",
-  "The ore-grade blocks lie {min}–{max} m below the highest collar ({top} m RL; {median} m at the median): deep for an open pit. Compare Stope outlines before reading this pit as a mine.": "Os blocos com teor de minério estão {min}–{max} m abaixo do colar mais alto ({top} m RL; {median} m na mediana): profundo para uma cava a céu aberto. Compare com Contornos de realces antes de ler esta cava como uma mina."
+  "The ore-grade blocks lie {min}–{max} m below the highest collar ({top} m RL; {median} m at the median): deep for an open pit. Compare Stope outlines before reading this pit as a mine.": "Os blocos com teor de minério estão {min}–{max} m abaixo do colar mais alto ({top} m RL; {median} m na mediana): profundo para uma cava a céu aberto. Compare com Contornos de realces antes de ler esta cava como uma mina.",
+  "Outline anyway?": "Delinear mesmo assim?",
+  "Cancelled: nothing was outlined.": "Cancelado: nada foi delineado.",
+  "Outlining level {k} of {n}: cancel": "Delineando o nível {k} de {n}: cancelar",
+  "Outlining: cancel": "Delineando: cancelar"
 }

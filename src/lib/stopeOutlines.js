@@ -26,7 +26,7 @@ const fin = Number.isFinite;
 // NaN (the pit's mesh does not reach there) leaves the column open, and so does a surface at or above the top of the column's
 // blocks: the pit mines nothing there (a shell's unmined columns sit at the ground), so no pillar is kept under the ground. Ore columns shut this way are counted (pitShut), and so are the
 // skin columns the pit takes, so no stope reaches into the pit's volume.
-export function stopeOutlines(model, { cutoff, levelH, zMin = null, zMax = null, minWidth = 0, minLength = 0, skin = 0, density = 1, dipDeg = null, dipDirDeg = null, ceilingAt = null, pillar = 0 } = {}) {
+export function stopeOutlines(model, { cutoff, levelH, zMin = null, zMax = null, minWidth = 0, minLength = 0, skin = 0, density = 1, dipDeg = null, dipDirDeg = null, ceilingAt = null, pillar = 0, onLevel = null } = {}) { // onLevel(k, n): #2279, the worker's progress
   const cells0 = (model?.cells || []).filter((c) => fin(c.x) && fin(c.y) && fin(c.z) && c.dx > 0 && c.dy > 0 && c.dz > 0);
   if (!cells0.length || !(levelH > 0) || !fin(cutoff)) return null;
   const dipping = fin(dipDeg) && dipDeg > 0 && dipDeg < 90 && fin(dipDirDeg);
@@ -68,7 +68,9 @@ export function stopeOutlines(model, { cutoff, levelH, zMin = null, zMax = null,
   const inside = (mask, i, j) => i >= 0 && i < nx && j >= 0 && j < ny && mask[j * nx + i];
   const erode = (mask, offsets) => { const out = new Uint8Array(N); for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) { let keep = 1; for (const [a, b] of offsets) if (!inside(mask, i + a, j + b)) { keep = 0; break; } out[j * nx + i] = keep; } return out; };
   const dilate = (mask, offsets) => { const out = new Uint8Array(N); for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) { if (!mask[j * nx + i]) continue; for (const [a, b] of offsets) { const ii = i + a, jj = j + b; if (ii >= 0 && ii < nx && jj >= 0 && jj < ny) out[jj * nx + ii] = 1; } } return out; };
+  const nLevels = Math.max(1, Math.ceil((to - from - 1e-9) / levelH)); let levelNo = 0; // #2279
   for (let rl = from; rl < to - 1e-9; rl += levelH) {
+    onLevel?.(++levelNo, nLevels);
     const top = Math.min(rl + levelH, to);
     const t = new Float64Array(N), m = new Float64Array(N), cover = new Float64Array(N); // cover: the slab height the blocks fill (#1919)
     // TASKS.csv #2107 (review #2013, Woodjam) — the tonnes and metal of the BLOCKS at or above the cut-off, per column: 'Ore above

@@ -9478,5 +9478,9 @@
   "No terrain: drawn flat at {z} m RL. Change Elev. on the layer's card, or load a terrain to drape it.": "لا تضاريس: يُرسم مستويًا عند {z} م منسوب. غيّر الارتفاع في بطاقة الطبقة، أو حمّل تضاريس لإلباسها.",
   "It lies flat at {z} m RL (no terrain).": "يقع مستويًا عند {z} م منسوب (لا تضاريس).",
   "The ore-grade blocks lie {min}–{max} m below the highest collar ({top} m RL; {median} m at the median), and the collars look underground: this is an underground question (Stope outlines), not an open pit.": "تقع كتل الخام على عمق {min}–{max} م تحت أعلى فوهة ({top} م منسوب؛ {median} م في الوسيط)، والفوهات تبدو تحت الأرض: هذه مسألة تعدين تحت الأرض (مخططات الردهات)، لا حفرة مفتوحة.",
-  "The ore-grade blocks lie {min}–{max} m below the highest collar ({top} m RL; {median} m at the median): deep for an open pit. Compare Stope outlines before reading this pit as a mine.": "تقع كتل الخام على عمق {min}–{max} م تحت أعلى فوهة ({top} م منسوب؛ {median} م في الوسيط): عميقة لحفرة مفتوحة. قارن بمخططات الردهات قبل قراءة هذه الحفرة كمنجم."
+  "The ore-grade blocks lie {min}–{max} m below the highest collar ({top} m RL; {median} m at the median): deep for an open pit. Compare Stope outlines before reading this pit as a mine.": "تقع كتل الخام على عمق {min}–{max} م تحت أعلى فوهة ({top} م منسوب؛ {median} م في الوسيط): عميقة لحفرة مفتوحة. قارن بمخططات الردهات قبل قراءة هذه الحفرة كمنجم.",
+  "Outline anyway?": "أترسم الحدود على أي حال؟",
+  "Cancelled: nothing was outlined.": "أُلغي: لم تُرسم أي حدود.",
+  "Outlining level {k} of {n}: cancel": "رسم المستوى {k} من {n}: إلغاء",
+  "Outlining: cancel": "جارٍ الرسم: إلغاء"
 }
