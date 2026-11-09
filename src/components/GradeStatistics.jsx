@@ -317,7 +317,7 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
 
               {/* TASKS.csv #1388 */}
               <div>
-                <div style={label}>{tr("Log-probability plot — {symbol} ({v}){v2}", { symbol, v: elementUnits[symbol] || tr("ppm"), v2: weightingActive ? tr(", length-weighted") : "" })}</div>
+                <div style={label}>{tr("Log-probability plot — {symbol} ({v}){v2}", { symbol, v: gradeUnitLabel(symbol, elementUnits[symbol]) /* #2192 */, v2: weightingActive ? tr(", length-weighted") : "" })}</div>
                 <ProbPlot prob={prob} cap={capFx ? capValue : null} domainLabel={domainLabel} unit={gradeUnitLabel(symbol, elementUnits[symbol])} />
                 <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginTop: 4 }}>
                   <span>{tr("P97.5 = {a}, P99 = {b} {unit} (the percentiles Compositing offers as caps)", { a: gradeText(prob.p975), b: gradeText(prob.p99), unit: gradeUnitLabel(symbol, elementUnits[symbol]) })}</span>

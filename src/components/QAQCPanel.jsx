@@ -17,6 +17,7 @@ const TABS = ["standards", "blanks", "duplicates"];
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 import { fontSizes } from "../lib/theme.js"; // TASKS.csv #385 — SVG font-size attributes on the type scale
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
+import { gradeUnitLabel } from "../lib/geochem.js"; // TASKS.csv #2192 — g/t for a precious metal stored in ppm (#1680)
 import { toExportCsv } from "../lib/tabular.js"; // TASKS.csv #1022 — every exported CSV: all columns, formula cells escaped
 import { qaqcStandardRows, qaqcBlankRows, qaqcDuplicateRows } from "../lib/analysisExports.js"; // TASKS.csv #1083
 import { pxrfVsLab, sampleTypesSeen } from "../lib/pxrfVsLab.js"; // TASKS.csv #1675
@@ -36,6 +37,7 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
   // project format does not change). The blank limit becomes a multiple of it (default 5x DL) and the duplicate pair
   // floor defaults to 10x DL; without a DL the old manual threshold applies. Units: the element's own.
   const unit = elementUnits[symbol] || "ppm";
+  const unitL = gradeUnitLabel(symbol, unit); // #2192 — the label on screen (g/t for a precious metal in ppm, #1680); exports keep unit
   const dl = assayElements.find((e) => e.symbol === symbol)?.detectionLimit ?? null;
   const dlSuggestion = useMemo(() => suggestDetectionLimit(assays, symbol), [assays, symbol]);
   const setDetectionLimit = (v) => setAssayElements?.((prev) => prev.map((e) => (e.symbol === symbol ? { ...e, detectionLimit: v > 0 ? v : null } : e)));
@@ -123,7 +125,7 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
               </select>
             </label>
             {/* TASKS.csv #534 — the element's detection limit, saved with the project */}
-            <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }} title={tr("The lab's lower detection limit for this element. Blanks are judged against a multiple of it and duplicate pairs near it are not counted. Saved with the project.")}>{tr("Detection limit ({unit})", { unit })}<input key={`${symbol}|${dl}`} type="number" min={0} step="any" defaultValue={dl ?? ""} placeholder={tr("not set")} onBlur={(e) => setDetectionLimit(Number(e.target.value))} onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }} style={{ ...sel, display: "block", marginTop: 4, width: 100 }} aria-label={tr("Detection limit")} />
+            <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }} title={tr("The lab's lower detection limit for this element. Blanks are judged against a multiple of it and duplicate pairs near it are not counted. Saved with the project.")}>{tr("Detection limit ({unit})", { unit: unitL })}<input key={`${symbol}|${dl}`} type="number" min={0} step="any" defaultValue={dl ?? ""} placeholder={tr("not set")} onBlur={(e) => setDetectionLimit(Number(e.target.value))} onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }} style={{ ...sel, display: "block", marginTop: 4, width: 100 }} aria-label={tr("Detection limit")} />
             </label>
             {dlSuggestion.limit != null && dlSuggestion.limit !== dl && (
               <button type="button" onClick={() => setDetectionLimit(dlSuggestion.limit)} style={{ ...tabBtn, alignSelf: "flex-end" }} title={dlSuggestion.basis === "lt" ? tr("The lab reported {n} result(s) as '<{limit}'", { n: dlSuggestion.n, limit: dlSuggestion.limit }) : tr("No '<x' results: the lowest reported value (an upper bound on the limit)")}>
@@ -166,7 +168,7 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
                     <div style={label}>{tr("Control chart — {symbol} ({v}), {v2}", { symbol, v: elementUnits[symbol] || tr("ppm"), v2: series.limits.certified ? tr("CERTIFIED mean ± 2SD/3SD (from the certificate)") : tr("self-referencing mean ± 2SD/3SD (enter the certificate values below for certified limits)") })}
                     </div>
                     {/* TASKS.csv #400 — certificate values, saved with the project */}
-                    <CertInputs key={`${activeGroup.id}|${symbol}`} cert={cert} unit={elementUnits[symbol] || "ppm"} onSave={(c) => setCrmCertificate?.(activeGroup.id, symbol, c)} />
+                    <CertInputs key={`${activeGroup.id}|${symbol}`} cert={cert} unit={unitL} onSave={(c) => setCrmCertificate?.(activeGroup.id, symbol, c)} />
                     <ControlChart points={series.points} limits={series.limits} />
                     <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{tr("Plotted in {v}.", { v: ordered.bySampleId ? tr("sample-id order") : tr("the order the rows were imported (no sample ids: re-imports and merges can reorder them)") })}</div>
                     <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
@@ -184,12 +186,12 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
           {tab === "blanks" && (
             <>
               {dl ? (
-                <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("Contamination limit: multiple of the detection limit ({dl} {unit})", { dl, unit })}<span style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
+                <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("Contamination limit: multiple of the detection limit ({dl} {unit})", { dl, unit: unitL })}<span style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
                     <input type="number" min={1} step="any" value={blankMult} onChange={(e) => setBlankMult(Math.max(1, Number(e.target.value) || 5))} style={{ ...sel, width: 70 }} aria-label={tr("Blank limit as a multiple of the detection limit")} />{tr("× DL =")}{" "}<b>{Number((blankMult * dl).toPrecision(4))} {unit}</b>
                   </span>
                 </label>
               ) : (
-                <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("Contamination threshold ({unit}) — set the element's detection limit above to judge blanks against a multiple of it (5x DL)", { unit })}<input type="number" step="any" value={blankThreshold} onChange={(e) => setBlankThreshold(Number(e.target.value))} style={{ ...sel, display: "block", marginTop: 4, width: 100 }} />
+                <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("Contamination threshold ({unit}) — set the element's detection limit above to judge blanks against a multiple of it (5x DL)", { unit: unitL })}<input type="number" step="any" value={blankThreshold} onChange={(e) => setBlankThreshold(Number(e.target.value))} style={{ ...sel, display: "block", marginTop: 4, width: 100 }} />
                 </label>
               )}
               {blanks.length === 0 ? (
@@ -225,7 +227,7 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
             ) : (
               <>
                 <div style={label}>{tr("Relative % difference (RPD) — {symbol}, {dups} {v}", { symbol, dups: dups.length, v: tr(dups.length === 1 ? "pair" : "pairs") })}</div>
-                <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }} title={tr("RPD near the detection limit is meaningless. Pairs below this mean are greyed and not counted.")}>{tr("Ignore pairs with a mean below ({unit}){v}", { unit, v: dl ? tr(" — default 10 × DL = {v}", { v: Number((10 * dl).toPrecision(4)) }) : tr(", e.g. 10× detection limit") })}
+                <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }} title={tr("RPD near the detection limit is meaningless. Pairs below this mean are greyed and not counted.")}>{tr("Ignore pairs with a mean below ({unit}){v}", { unit: unitL, v: dl ? tr(" — default 10 × DL = {v}", { v: Number((10 * dl).toPrecision(4)) }) : tr(", e.g. 10× detection limit") })}
                   <input type="number" min={0} step="any" value={dupMin} placeholder={dl ? String(Number((10 * dl).toPrecision(4))) : "0"} onChange={(e) => setDupMin(e.target.value)} style={{ ...sel, display: "block", marginTop: 4, width: 100 }} aria-label={tr("Minimum pair mean")} />
                 </label>
                 <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)" }}>
