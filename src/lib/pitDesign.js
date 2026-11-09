@@ -33,11 +33,22 @@ export const MAX_DESIGN_CELLS = 1000000; // #1916: was 250,000; a Treaty Creek s
 
 // TASKS.csv #1916 — the design cell a shell will get at these benches, before the run: the mined box (metres) widened by every
 // bench's reach, at a quarter of the reach, coarsened by 1.25 until the grid fits the cell budget. Also whether a face fits in it.
-export function predictDesignCell({ boxW, boxH, depth, shellCell, benchH, berm, batterDeg, maxCells = MAX_DESIGN_CELLS }) {
-  if (!(benchH > 0) || !(berm >= 0) || !(batterDeg > 0 && batterDeg < 90)) return null;
+// TASKS.csv #2278 (review #2174, WA gold) — the prediction padded with the overall reach and the shell's maxDepthM, the run with the widest
+// sector reach plus the ramp's width and the benches from the highest ground: 'the 4.7 m faces are drawn' then a 5.2 m cell and no faces.
+// Both now take their reaches from designReaches, and the pane passes the shell's crest-to-floor height as the depth.
+const sectorParam = (sectors, bearing, key, base) => { const s = sectors ? sectors[sectorOfBearing(bearing)] : null, v = s ? Number(s[key]) : NaN; return Number.isFinite(v) && (key === "berm" ? v >= 0 : v > 0 && v < 90) ? v : base; };
+export const rampIsOn = (ramp) => !!ramp && Number(ramp.widthM) > 0 && Number(ramp.gradientPct) > 0 && Number.isFinite(Number(ramp.azimuthDeg));
+export function designReaches({ benchH, berm, batterDeg, sectors = null, ramp = null }) {
   const faceRun = benchH / Math.tan(batterDeg * RAD), reach = faceRun + berm;
-  const pad = (Math.ceil(Math.max(0, depth) / benchH) + 1) * reach + shellCell, w = boxW + 2 * pad, h = boxH + 2 * pad;
-  let cell = Math.max(0.5, Math.min(reach / 4, shellCell)), coarsened = false;
+  const reachAt = (b) => benchH / Math.tan(sectorParam(sectors, b, "batterDeg", batterDeg) * RAD) + sectorParam(sectors, b, "berm", berm);
+  const all = DESIGN_SECTORS.map((k, i) => reachAt(i * 45));
+  return { faceRun, reach, reachMax: Math.max(reach, ...all) + (rampIsOn(ramp) ? Number(ramp.widthM) : 0), reachMin: Math.min(reach, ...all) };
+}
+export function predictDesignCell({ boxW, boxH, depth, shellCell, benchH, berm, batterDeg, sectors = null, ramp = null, maxCells = MAX_DESIGN_CELLS }) {
+  if (!(benchH > 0) || !(berm >= 0) || !(batterDeg > 0 && batterDeg < 90)) return null;
+  const { faceRun, reach, reachMax, reachMin } = designReaches({ benchH, berm, batterDeg, sectors, ramp }); // #2278 — as the run pads
+  const pad = (Math.ceil(Math.max(0, depth) / benchH) + 1) * reachMax + shellCell, w = boxW + 2 * pad, h = boxH + 2 * pad;
+  let cell = Math.max(0.5, Math.min(reachMin / 4, shellCell)), coarsened = false;
   const n = () => (Math.ceil(w / cell) + 1) * (Math.ceil(h / cell) + 1);
   while (n() > maxCells) { cell *= 1.25; coarsened = true; }
   return { cell, faceRun, reach, coarsened, facesDrawn: faceRun >= cell };
@@ -120,14 +131,14 @@ export function benchedPit(shell, { groundAt = null, cells = [], cutoff = Infini
   const tanB = Math.tan(batterDeg * RAD), faceRun = benchH / tanB, reach = faceRun + berm;
   const interRampDeg = Math.atan(benchH / reach) / RAD;
   // #1952 — the batter and berm for a bearing: the sector's own when typed, else the overall
-  const secParam = (bearing, key, base) => { const s = sectors ? sectors[sectorOfBearing(bearing)] : null, v = s ? Number(s[key]) : NaN; return Number.isFinite(v) && (key === "berm" ? v >= 0 : v > 0 && v < 90) ? v : base; };
+  const secParam = (bearing, key, base) => sectorParam(sectors, bearing, key, base); // #2278 — shared with the prediction
   const batterAt = (b) => secParam(b, "batterDeg", batterDeg), bermAt = (b) => secParam(b, "berm", berm);
   const faceRunAt = (b) => benchH / Math.tan(batterAt(b) * RAD), reachAt = (b) => faceRunAt(b) + bermAt(b);
   const sectorsUsed = sectors ? Object.fromEntries(DESIGN_SECTORS.map((k, i) => [k, { batterDeg: batterAt(i * 45), berm: bermAt(i * 45) }])) : null;
   // #1948 — the ramp's figures; rampW widens the reach wherever the road runs
-  const rampOn = !!ramp && Number(ramp.widthM) > 0 && Number(ramp.gradientPct) > 0 && Number.isFinite(Number(ramp.azimuthDeg));
+  const rampOn = rampIsOn(ramp);
   const rampW = rampOn ? Number(ramp.widthM) : 0, rampRun = rampOn ? benchH / (Number(ramp.gradientPct) / 100) : 0, turn = rampOn && ramp.turn === "anticlockwise" ? -1 : 1;
-  const reachMax = Math.max(reach, ...DESIGN_SECTORS.map((k, i) => reachAt(i * 45))) + rampW, reachMin = Math.min(reach, ...DESIGN_SECTORS.map((k, i) => reachAt(i * 45)));
+  const { reachMax, reachMin } = designReaches({ benchH, berm, batterDeg, sectors, ramp }); // #2278 — the prediction's figures
   const rampState = rampOn ? { theta: normDeg(Number(ramp.azimuthDeg)), arcs: [], lengthM: 0, needsSwitchback: false, stoppedAt: null, centre: [], edgeIn: [], edgeOut: [] } : null;
   // the bench RLs the shell's floors take
   let floorRL = Infinity, floorMax = -Infinity, sx0 = Infinity, sx1 = -Infinity, sy0 = Infinity, sy1 = -Infinity;
