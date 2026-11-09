@@ -11,7 +11,7 @@ import { isMeshClosed } from "../lib/meshQuery.js";
 import { solidChoices } from "../lib/solidChoices.js"; // TASKS.csv #1564
 import { unitShell } from "../lib/unitVolumes.js";
 import { undrilledZones, defaultCellSize } from "../lib/undrilledZones.js";
-import { collarGround } from "../lib/pitShell.js"; // TASKS.csv #1557 — the ground between the collars
+import { collarGround, collarsLookUnderground } from "../lib/pitShell.js"; // TASKS.csv #1557 — the ground between the collars; #2249: unless they are underground
 import { unitSupport } from "../lib/unitSupport.js"; // TASKS.csv #1725 — a one-hole / extrapolated shell is said
 import { terrainGroundAt } from "../lib/viewer/geomath.js";
 import { pBtn, smallSel } from "../lib/sidebarStyles.js";
@@ -80,9 +80,11 @@ export default function UndrilledZonesPane({ solids = [], onAdd, onClose, onPlan
       try {
         const t = traces();
         // #1557 — blocks above the ground are not the unit: the terrain, else the ground between the collars (as the pit shell, #1353)
-        const groundAt = terrain ? (x, y) => terrainGroundAt(terrain, x, y) : collarGround(collars);
+        // TASKS.csv #2249 — collars drilled from underground are not the ground: 15 % of a 1 g/t shell (48 % of the 3 g/t) was dropped as "air"
+        const ug = terrain ? null : collarsLookUnderground(collars, survey);
+        const groundAt = terrain ? (x, y) => terrainGroundAt(terrain, x, y) : ug?.underground ? null : collarGround(collars);
         const r = undrilledZones({ solid: unit, traces: t.traces, coverM: Number(coverM), cellM: Number(cellText) || 0, insideOnly, minZoneM3: Number(minText) || 0, groundAt });
-        setResult({ ...r, unitName: unit.name, coverM: Number(coverM), insideOnly, holes: t, groundFrom: terrain ? "terrain" : groundAt ? "collars" : null });
+        setResult({ ...r, unitName: unit.name, coverM: Number(coverM), insideOnly, holes: t, groundFrom: terrain ? "terrain" : groundAt ? "collars" : null, underground: ug?.underground ? ug : null });
       } catch (e) { setMsg({ ok: false, text: e.message }); }
       setBusy(false);
     }, 30);
@@ -145,6 +147,7 @@ export default function UndrilledZonesPane({ solids = [], onAdd, onClose, onPlan
             {supportText && openV > 0 && <div style={{ ...note, color: "var(--color-warn-text)" }}>{supportText}</div>}{/* #1725 — beside the zones and their Plan buttons */}
             <div style={{ color: openV > 0 ? "var(--color-text)" : "var(--color-text-secondary)", fontWeight: 600 }}>
               {result.zones.length ? tr(result.zones.length === 1 ? "Not covered: {v} in 1 zone." : "Not covered: {v} in {n} zones.", { v: mm3(openV), n: result.zones.length }) : tr("Every part of the unit is within the distance of a hole.")}</div>
+            {result.underground && <div style={note}>{tr("No part of the solid was cut as air: the collars look like underground collars ({upward} hole(s) drilled upward, {stacked} pair(s) of collars stacked over each other), so they are not a ground surface. Load a terrain to cut at the surface.", { upward: result.underground.upward, stacked: result.underground.stacked })}</div>}{/* #2249 */}
             {result.aboveGroundCells > 0 && <div style={note}>{tr(result.groundFrom === "terrain" ? "{v} of the solid lies above the terrain and was left out (air, not the unit)." : "{v} of the solid lies above the ground between the collars and was left out (air, not the unit; load a terrain for the real surface).", { v: mm3(result.aboveGroundCells * result.cellVolume) })}</div>}
             {result.ignored.zones > 0 && <div style={note}>{tr(result.ignored.zones === 1 ? "1 smaller gap ({v}) left out." : "{n} smaller gaps ({v}) left out.", { n: result.ignored.zones, v: mm3(result.ignored.cells * result.cellVolume) })}</div>}
             {result.zones.slice(0, 8).map((z, i) => (
