@@ -30,7 +30,15 @@ export function isElementColumn(header) {
   if (ox) return ox.symbol;
   const cleaned = String(header).replace(/\(.*?\)/g, " "); // drop parenthetical units, e.g. "Au (ppm)"
   const first = cleaned.split(/[\s_-]+/)[0].trim();
-  return ELEMENT_SYMBOLS.find((s) => s.toLowerCase() === first.toLowerCase()) || numberedElement(first) || false;
+  return ELEMENT_SYMBOLS.find((s) => s.toLowerCase() === first.toLowerCase()) || numberedElement(first) || gluedUnitElement(first) || false;
+}
+// TASKS.csv #2157 (WA drillhole review) — the unit glued to the symbol: AUPPB, AUPPM, PTPPB, CUPCT, NIPC (336 / 226 / 147 WAMEX files)
+const GLUED_UNIT = /^([A-Za-z]{1,2})(ppb|ppm|pct|pc|gpt)$/i;
+function gluedUnitElement(token) {
+  const m = GLUED_UNIT.exec(token);
+  if (!m) return false;
+  const sym = m[1].length === 1 ? m[1].toUpperCase() : m[1][0].toUpperCase() + m[1][1].toLowerCase();
+  return ELEMENT_SYMBOLS.includes(sym) ? sym : false;
 }
 // TASKS.csv #2150 follow-up (WA review: WAMEX gold_small) — a numbered repeat of a two-letter symbol: Au1, Ag2, AuRp1, AuDup1, AU1.
 // The symbol keeps its own case (Co2 = cobalt) or is all capitals; CO2 / CO3 and SN1 are not cobalt or tin, and the
@@ -55,7 +63,15 @@ const OXIDE_HEADERS = {
   SiO2: ["Si", 2.1392], TiO2: ["Ti", 1.6681], Al2O3: ["Al", 1.8895], Fe2O3: ["Fe", 1.4297], FeO: ["Fe", 1.2865],
   MnO: ["Mn", 1.2912], MgO: ["Mg", 1.6583], CaO: ["Ca", 1.3992], Na2O: ["Na", 1.3480], K2O: ["K", 1.2046],
   P2O5: ["P", 2.2914], Cr2O3: ["Cr", 1.4615], BaO: ["Ba", 1.1165], SrO: ["Sr", 1.1826], ZrO2: ["Zr", 1.3508],
+  // TASKS.csv #2157 (WA drillhole review) — the commodity and trace oxides of WA lithium, nickel, iron and rare-element assays (Li2O and Ta2O5,
+  // the lithium project's commodities, were dropped). Oxide / element mass ratios from IUPAC atomic weights (Li 6.94, O 15.999, ...).
+  Li2O: ["Li", 2.1527], Ta2O5: ["Ta", 1.221], Nb2O5: ["Nb", 1.4305], Rb2O: ["Rb", 1.0936], Cs2O: ["Cs", 1.0602], SnO2: ["Sn", 1.2695],
+  As2O3: ["As", 1.3203], NiO: ["Ni", 1.2726], PbO: ["Pb", 1.0772], Sb2O3: ["Sb", 1.1971], ZnO: ["Zn", 1.2447], CoO: ["Co", 1.2715],
+  ThO2: ["Th", 1.1379], CuO: ["Cu", 1.2518], U3O8: ["U", 1.1792], La2O3: ["La", 1.1728], Bi2O3: ["Bi", 1.1148], WO3: ["W", 1.2611],
+  HfO2: ["Hf", 1.1793], CeO2: ["Ce", 1.2284], Y2O3: ["Y", 1.2699], V2O5: ["V", 1.7852], SO3: ["S", 2.4971],
 };
+// #2157 — misspellings seen in WA lab exports: a zero for the letter O
+const OXIDE_TYPOS = { al203: "Al2O3", si02: "SiO2", ti02: "TiO2", fe203: "Fe2O3", p205: "P2O5", k20: "K2O", na20: "Na2O", mg0: "MgO", ca0: "CaO", mn0: "MnO" };
 // TASKS.csv #600 (40958Z, performance) — the answer depends only on the header, and importers ask once per CELL:
 // 83,670 x 49 cells spent ~6 s of a 10.8 s assay commit here. Cached per header (frozen: callers only read it).
 const OXIDE_CACHE = new Map();
@@ -72,7 +88,7 @@ function oxideOfHeaderUncached(header) {
   const first = String(header).replace(/\(.*?\)/g, " ").split(/[\s_-]+/)[0].trim();
   // As written, then without a total-iron suffix ("Fe2O3T", "FeOtot"), then without a "T" prefix ("TFe2O3").
   const candidates = [first, first.replace(/(tot|total|T|t)$/, ""), first.replace(/^T/, "")];
-  const key = candidates.map((c) => Object.keys(OXIDE_HEADERS).find((k) => k.toLowerCase() === c.toLowerCase())).find(Boolean);
+  const key = candidates.map((c) => Object.keys(OXIDE_HEADERS).find((k) => k.toLowerCase() === c.toLowerCase()) || OXIDE_TYPOS[c.toLowerCase()]).find(Boolean); // typos: #2157
   if (!key) return null;
   const [symbol, factor] = OXIDE_HEADERS[key];
   return { oxide: key, symbol, factor };
@@ -83,16 +99,19 @@ export function fromOxideHeader(value, header) {
   const ox = oxideOfHeader(header);
   return ox ? value / ox.factor : value;
 }
+// TASKS.csv #718 — whole-rock oxides are wt% (was implied by Cr / Mn / P being on MAJOR_PCT); #2157 — unless the header says ppm / ppb
+// (Ta2O5_ppm: 85 ppm Ta2O5 was read as 85 % and stored as 696,150 ppm Ta). The unit an oxide column's values are in.
+export const oxideUnit = (header) => { const h = String(header).toLowerCase(); return h.includes("ppb") ? "ppb" : h.includes("ppm") ? "ppm" : "%"; };
 export function inferUnit(header, symbol) {
-  if (oxideOfHeader(header)) return "%"; // TASKS.csv #718 — whole-rock oxides are wt% (was implied by Cr / Mn / P being on MAJOR_PCT)
   const h = String(header).toLowerCase();
+  if (oxideOfHeader(header)) return oxideUnit(header);
   if (h.includes("ppb")) return "ppb";
   // TASKS.csv #210 — "gpt" (grams per tonne) is the standard unit lab reports use for Au/Ag/Pt/Pd
   // grades and is numerically identical to ppm for a solid (g/tonne = mg/kg = ppm), so it belongs in
   // the same bucket as ppm here — this only affects which unit shows up in the display dropdown and
   // valueIn()'s unit-conversion bucketing, not the raw stored value.
   if (h.includes("ppm") || h.includes("gpt") || h.includes("g/t")) return "ppm";
-  if (h.includes("pct") || h.includes("%")) return "%";
+  if (h.includes("pct") || h.includes("%") || /percent|(^|[\s_-]|[a-z])pc$|wt_?pc/.test(h)) return "%"; // percent / pc / wt_pc: #2157
   if (symbol === "Au") return "ppm";
   return MAJOR_PCT.has(symbol) ? "%" : "ppm";
 }
@@ -119,11 +138,13 @@ export function pickElementColumns(headers, rows, stats = null) {
     if (stats?.has(h)) ({ n, max } = stats.get(h));
     else for (const r of rows) { const v = parseAssayValue(r[h]); if (v != null && Number.isFinite(v)) { n++; if (v > max) max = v; } }
     if (!bySym.has(sym)) bySym.set(sym, []);
-    bySym.get(sym).push({ header: h, n, max, order, exact: String(h).trim() === sym });
+    // #2157 — a lab repeat / duplicate / check column (AuRp1, Au-Rp1, Au_Rep, Au_Dup, Au_Check) is never the main column beside one that is not
+    const repeat = /^[a-z]{1,2}[\s_-]*(rp|rep|repeat|dup|duplicate|chk|check|r)\d*([\s_-]|$)/i.test(String(h).replace(/\(.*?\)/g, "").trim());
+    bySym.get(sym).push({ header: h, n, max, order, exact: String(h).trim() === sym, repeat });
   });
   const out = [];
   bySym.forEach((cands, symbol) => {
-    const sorted = [...cands].sort((a, b) => b.n - a.n || Number(b.exact) - Number(a.exact) || a.order - b.order);
+    const sorted = [...cands].sort((a, b) => Number(a.repeat) - Number(b.repeat) || b.n - a.n || Number(b.exact) - Number(a.exact) || a.order - b.order); // repeat: #2157
     const main = sorted[0];
     let unit = inferUnit(main.header, symbol);
     const unitInHeader = /ppm|ppb|gpt|g\/t|pct|%/i.test(main.header);

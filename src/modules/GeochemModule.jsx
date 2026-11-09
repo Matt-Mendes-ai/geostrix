@@ -20,7 +20,7 @@ import { useStore, useSetTaskProgress } from "../lib/store.jsx"; // useSetTaskPr
 import { elementColumnStats } from "../lib/assayColumnScan.js"; // TASKS.csv #2164
 const ELEMENT_SCAN_CHUNKED_ROWS = 50000; // #2164 — below this the element columns are counted at once
 import { saveFile, loadSampleFiles } from "../lib/desktop.js"; // loadSampleFiles: TASKS.csv #391
-import { isElementColumn, inferUnit, pickElementColumns, assayExportRows, parseAssayValue, valueIn, readAssayCell, columnPositiveMax, convertUnit, mergeAssayRows, holesWithChangedIntervals, dropHoleAssays, blankDetectionLimit, isBlankAssayCell, oxideOfHeader, fromOxideHeader, surfaceAttrColumns, surfaceAttrs, mergeSurfaceSamples, otherMediumTwins } from "../lib/geochem.js"; // otherMediumTwins: #2085
+import { isElementColumn, inferUnit, pickElementColumns, assayExportRows, parseAssayValue, valueIn, readAssayCell, columnPositiveMax, convertUnit, mergeAssayRows, holesWithChangedIntervals, dropHoleAssays, blankDetectionLimit, isBlankAssayCell, oxideOfHeader, fromOxideHeader, oxideUnit, surfaceAttrColumns, surfaceAttrs, mergeSurfaceSamples, otherMediumTwins } from "../lib/geochem.js"; // otherMediumTwins: #2085
 import { DIAGRAMS, SPIDER_DIAGRAMS, GEOCHEM_METHODS, diagramExportRows, protolithForSample, PROVISIONAL_ALTERATION_BOXES, GEOCHEM_LABELS, reeProfile, loggedCodeAt, isSedimentaryCode, mergeClassRuns, FITTED_PROTOLITH, fitLeastAlteredBox, nameAiUpTrend } from "../lib/geochemDiagrams.js"; // fitted: #2028; nameAiUpTrend: #2145
 import { qcRecordFromFileRow, emptySurfaceQc, looksLikeQcTypeColumn, mergeQcRecords } from "../lib/surfaceQaqc.js"; // TASKS.csv #842; looksLikeQcTypeColumn, mergeQcRecords: #1794
 import { mapInChunks } from "../lib/mapInChunks.js"; // TASKS.csv #583
@@ -511,7 +511,7 @@ export default function GeochemModule() {
       const ox = oxideOf(header);
       if (ox && c.value != null) oxideNotes.add(`${ox.oxide} → ${ox.symbol} (÷${ox.factor})`);
       const elemPct = ox ? fromOxideHeader(c.value, header) : c.value;
-      return { v: e ? convertUnit(elemPct, ox ? "%" : e.unit, existingUnit[sym] || (ox ? "%" : e.unit)) : elemPct, q: c.qualifier };
+      return { v: e ? convertUnit(elemPct, ox ? oxideUnit(header) : e.unit, existingUnit[sym] || (ox ? oxideUnit(header) : e.unit)) : elemPct, q: c.qualifier }; // oxideUnit: #2157
     };
     // TASKS.csv #400 — keep a QC-type and a sample-id column when the file has them (acQuire / MX exports
     // mark standards / blanks / duplicates there, under the real hole_id). Auto-detected by header name.
@@ -643,7 +643,7 @@ export default function GeochemModule() {
     const { merged: mergedCount, repeatedInFile } = mergeRes;
     setAssays((prev) => (prev === assays ? mergeRes.rows : mergeAssayRows(replaceHoles.length ? dropHoleAssays(prev, replaceHoles) : prev, rows).rows));
     // Existing elements keep their unit (#334); only new symbols add an entry.
-    setAssayElements((prev) => { const merged = new Map(prev.map((e) => [e.symbol, e])); chosen.forEach((e) => { if (merged.has(e.symbol) && e.methods) { const m = merged.get(e.symbol); merged.set(e.symbol, { ...m, methods: [...new Set([...(m.methods || []), ...e.methods])] }); } /* #1518 */ if (!merged.has(e.symbol)) merged.set(e.symbol, oxideOfHeader(e.header) ? { ...e, unit: "%" } : e); }); return Array.from(merged.values()); }); // #403: oxide-sourced elements are stored in %
+    setAssayElements((prev) => { const merged = new Map(prev.map((e) => [e.symbol, e])); chosen.forEach((e) => { if (merged.has(e.symbol) && e.methods) { const m = merged.get(e.symbol); merged.set(e.symbol, { ...m, methods: [...new Set([...(m.methods || []), ...e.methods])] }); } /* #1518 */ if (!merged.has(e.symbol)) merged.set(e.symbol, oxideOfHeader(e.header) ? { ...e, unit: oxideUnit(e.header) } : e); }); return Array.from(merged.values()); }); // #403: oxide-sourced elements are stored in % (#2157: or the ppm / ppb the header says)
     if (!colorElement && chosen.length) setColorElement((chosen.find((e) => e.symbol === "Au") || chosen[0]).symbol);
     const more = (list, k) => list.slice(0, k).map((h) => h.hole_id).join(", ") + (list.length > k ? ", …" : "");
     const extra = [
@@ -831,7 +831,7 @@ export default function GeochemModule() {
         if (c.value == null && r.zeroReported?.includes(e.header)) nd.push(e.symbol);
         if (c.kind === "neg_bdl") negBdl++; else if (c.kind === "neg_missing") negMissing++;
         const ox = oxideOfHeader(e.header); // TASKS.csv #403
-        let v = convertUnit(fromOxideHeader(c.value, e.header), ox ? "%" : e.unit, existingUnit[e.symbol] || (ox ? "%" : e.unit));
+        let v = convertUnit(fromOxideHeader(c.value, e.header), ox ? oxideUnit(e.header) : e.unit, existingUnit[e.symbol] || (ox ? oxideUnit(e.header) : e.unit)); // oxideUnit: #2157
         const ol = e.overLimit && e.header === e.mainHeader ? e.overLimit : null;
         if (ol && parseAssayValue(r[e.header]) === ol.limit) {
           const og = parseAssayValue(r[ol.header]);
@@ -885,7 +885,7 @@ export default function GeochemModule() {
     // current samples (not inside the setter) so the notice can say how many were updated.
     const merged = mergeSurfaceSamples(surfaceSamples, rows);
     setSurfaceSamples(merged.samples);
-    setSurfaceElements((prev) => { const merged = new Map(prev.map((e) => [e.symbol, e])); chosen.forEach((e) => { if (!merged.has(e.symbol)) merged.set(e.symbol, oxideOfHeader(e.header) ? { ...e, unit: "%" } : e); }); return Array.from(merged.values()); }); // #403
+    setSurfaceElements((prev) => { const merged = new Map(prev.map((e) => [e.symbol, e])); chosen.forEach((e) => { if (!merged.has(e.symbol)) merged.set(e.symbol, oxideOfHeader(e.header) ? { ...e, unit: oxideUnit(e.header) } : e); }); return Array.from(merged.values()); }); // #403; oxideUnit: #2157
     const extra = [
       modal.publicNote || null, // TASKS.csv #846
       twinNote || null, // #2085
