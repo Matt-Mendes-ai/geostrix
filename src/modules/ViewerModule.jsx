@@ -5521,9 +5521,10 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   useEffect(() => {
     let cancelled = false;
     const { x, y } = originRef.current;
+    if (project?.crsSet === false) { setProjectLonLat(null); return undefined; } // #2207: never the placeholder CRS (a WA grid read as BC UTM)
     toLonLat(x, y, project?.epsg).then((ll) => { if (!cancelled) setProjectLonLat(ll); });
     return () => { cancelled = true; };
-  }, [collars, terrain, project?.epsg, rebuildSeq, deferRound]);
+  }, [collars, terrain, project?.epsg, project?.crsSet, rebuildSeq, deferRound]);
 
   // ---- rebuild voxel / block models (TASKS.csv #27/#28) ----
   // One THREE.InstancedMesh per model, cheap to move/scale per-instance via instanceMatrix rather
@@ -8542,6 +8543,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         {showLocator && (
           <div style={{ position: "absolute", bottom: 12, right: 12 }}>
             <LocatorMap
+              crsUnset={project?.crsSet === false}
               lon={projectLonLat?.lon}
               lat={projectLonLat?.lat}
               onClose={() => setShowLocator(false)}

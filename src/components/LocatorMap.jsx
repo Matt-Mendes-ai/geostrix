@@ -30,7 +30,7 @@ function lonLatToWorldPx(lon, lat, zoom) {
   return { worldPxX, worldPxY };
 }
 
-export default function LocatorMap({ lon, lat, zoom = 12, onClose, onExpand }) {
+export default function LocatorMap({ lon, lat, zoom = 12, onClose, onExpand, crsUnset = false }) {
   const [baseLayerId, setBaseLayerId] = useState(getSavedLayerId());
   const [tracestrackKey, setTracestrackKey] = useState(getSavedTracestrackKey());
   const [layerPickerOpen, setLayerPickerOpen] = useState(false);
@@ -57,7 +57,7 @@ export default function LocatorMap({ lon, lat, zoom = 12, onClose, onExpand }) {
   if (!layout) {
     return (
       <div style={panelStyle}>
-        <div style={{ padding: 10, fontSize: "var(--font-size-sm)", color: "var(--color-text-caption)", textAlign: "center" }}>{tr("No real-world location yet — import collars (or a georeferenced raster/terrain) first.")}</div>
+        <div style={{ padding: 10, fontSize: "var(--font-size-sm)", color: "var(--color-text-caption)", textAlign: "center" }}>{crsUnset ? tr("The project's coordinate system isn't set, so it has no real-world location yet. Set it from the CRS box in the status bar.") /* TASKS.csv #2207 */ : tr("No real-world location yet — import collars (or a georeferenced raster/terrain) first.")}</div>
         <button onClick={onClose} title={tr("Hide locator map")} style={closeBtnStyle}><X size={12} /></button>
       </div>
     );

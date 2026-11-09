@@ -9368,5 +9368,6 @@
   "The project CRS — not chosen yet": "نظام إحداثيات المشروع — لم يُختر بعد",
   "— the same place on both grids (surveyed pins, a re-located hole), with project coordinates in the project CRS, which isn't chosen yet: choose it first (status bar). Leave Source CRS above blank. A 4-parameter similarity (scale, rotation, shift) is fitted; local coordinates in feet are handled by the fitted scale.": "— المكان نفسه على الشبكتين (أوتاد مرفوعة، ثقب أعيد تحديد موقعه)، بإحداثيات المشروع في نظام إحداثيات المشروع، ولم يُختر بعد: اختره أولًا (شريط الحالة). اترك نظام الإحداثيات المصدر أعلاه فارغًا. يُلاءَم تشابه رباعي المعاملات (مقياس، دوران، إزاحة)؛ وتُعالَج الإحداثيات المحلية بالأقدام بالمقياس الملاءَم.",
   "The list shows {n} holes at a time; the filter above finds any hole by its ID": "تعرض القائمة {n} ثقبًا في كل مرة؛ يجد المرشّح أعلاه أي ثقب بمعرّفه",
-  "Show {n} more ({rest} not listed)": "عرض {n} أخرى ({rest} غير مدرجة)"
+  "Show {n} more ({rest} not listed)": "عرض {n} أخرى ({rest} غير مدرجة)",
+  "The project's coordinate system isn't set, so it has no real-world location yet. Set it from the CRS box in the status bar.": "لم يُحدَّد نظام إحداثيات المشروع، لذا ليس له موقع حقيقي بعد. حدِّده من خانة نظام الإحداثيات في شريط الحالة."
 }

@@ -9368,5 +9368,6 @@
   "The project CRS — not chosen yet": "O SRC do projeto — ainda não escolhido",
   "— the same place on both grids (surveyed pins, a re-located hole), with project coordinates in the project CRS, which isn't chosen yet: choose it first (status bar). Leave Source CRS above blank. A 4-parameter similarity (scale, rotation, shift) is fitted; local coordinates in feet are handled by the fitted scale.": "— o mesmo lugar nas duas grades (marcos levantados, um furo relocado), com coordenadas do projeto no SRC do projeto, que ainda não foi escolhido: escolha-o primeiro (barra de status). Deixe em branco o SRC de origem acima. Ajusta-se uma similaridade de 4 parâmetros (escala, rotação, deslocamento); coordenadas locais em pés são tratadas pela escala ajustada.",
   "The list shows {n} holes at a time; the filter above finds any hole by its ID": "A lista mostra {n} furos de cada vez; o filtro acima encontra qualquer furo pelo ID",
-  "Show {n} more ({rest} not listed)": "Mostrar mais {n} ({rest} não listados)"
+  "Show {n} more ({rest} not listed)": "Mostrar mais {n} ({rest} não listados)",
+  "The project's coordinate system isn't set, so it has no real-world location yet. Set it from the CRS box in the status bar.": "O sistema de coordenadas do projeto não está definido, então ainda não tem localização real. Defina-o no campo SRC da barra de status."
 }

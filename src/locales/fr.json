@@ -9368,5 +9368,6 @@
   "The project CRS — not chosen yet": "Le SCR du projet — pas encore choisi",
   "— the same place on both grids (surveyed pins, a re-located hole), with project coordinates in the project CRS, which isn't chosen yet: choose it first (status bar). Leave Source CRS above blank. A 4-parameter similarity (scale, rotation, shift) is fitted; local coordinates in feet are handled by the fitted scale.": "— le même endroit sur les deux quadrillages (repères levés, un sondage relocalisé), avec les coordonnées du projet dans le SCR du projet, qui n'est pas encore choisi : choisissez-le d'abord (barre d'état). Laissez vide le SCR source ci-dessus. Une similitude à 4 paramètres (échelle, rotation, translation) est ajustée ; des coordonnées locales en pieds sont gérées par l'échelle ajustée.",
   "The list shows {n} holes at a time; the filter above finds any hole by its ID": "La liste montre {n} sondages à la fois ; le filtre ci-dessus trouve n'importe quel sondage par son identifiant",
-  "Show {n} more ({rest} not listed)": "Afficher {n} de plus ({rest} non listés)"
+  "Show {n} more ({rest} not listed)": "Afficher {n} de plus ({rest} non listés)",
+  "The project's coordinate system isn't set, so it has no real-world location yet. Set it from the CRS box in the status bar.": "Le système de coordonnées du projet n'est pas défini : il n'a donc pas encore d'emplacement réel. Définissez-le depuis la case SCR de la barre d'état."
 }
