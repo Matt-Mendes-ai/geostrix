@@ -142,6 +142,9 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
   // TASKS.csv #1709 — stations that sit down the holes are not survey stations (Copley's susceptibility log was offered as 2,619 TMI stations)
   const downhole = useMemo(() => downholeLikeness(rows, collars, terrain ? (x, y) => terrainElevationAt(terrain, x, y) : null), [rows, collars, terrain]);
   const crsIssue = crsProblem(project?.epsg);
+  // TASKS.csv #2238 (review #2174) — with the CRS not set, project.epsg is the placeholder (BC UTM 9N): IGRF and the grid convergence were computed
+  // for a spot in the Pacific (32,624 nT, +20.5°) instead of the Yilgarn (56,906 nT, -62.7°). Both need the survey's real location.
+  const crsUnset = project?.crsSet === false;
   // TASKS.csv #1589 (review #1497, Lawyers) — how much of the survey the terrain covers, said BEFORE Estimate (the review found out
   // after: '275 station(s) fell outside the terrain'); and a ground surface from the stations' own elevations when there is none
   const coverage = useMemo(() => {
@@ -231,6 +234,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
     const cx = stations.reduce((s, p) => s + p[0], 0) / stations.length;
     const cy = stations.reduce((s, p) => s + p[1], 0) / stations.length;
     let decl = null;
+    if (method === "mag" && crsUnset) return { problems: [tr("A magnetic inversion needs the project CRS: the declination is turned to grid north at the survey's real location. Set the CRS in the status bar first.")] }; // #2238
     if (method === "mag") { decl = gridDeclination(num(field.declination), cx, cy, project.epsg); if (!decl) return { problems: [tr("Could not compute grid convergence for this CRS.")] }; }
     const cell = num(mesh.coreCell);
     const padReach = cell * (1.3 + 1.69 + 2.197 + 2.856 + 3.713 + 4.827) + 3 * cell;
@@ -275,6 +279,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
 
   const computeIgrf = async () => {
     if (!rows.length) return;
+    if (crsUnset) { setMsg({ ok: false, text: tr("IGRF needs the survey's real-world location, and the project CRS isn't set: set it in the status bar first.") }); return; } // #2238
     const d = decimalYear(field.date);
     if (!Number.isFinite(d)) { setMsg({ ok: false, text: tr("Enter the survey date first — the field changes by tens of nT per year.") }); return; }
     const cx = xs.reduce((a, b) => a + b, 0) / xs.length, cy = ys.reduce((a, b) => a + b, 0) / ys.length;
@@ -565,8 +570,9 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
                 {[["strength", tr("Strength (nT)")], ["inclination", tr("Inclination (°)")], ["declination", tr("Declination (° true)")]].map(([k, l]) => (
                   <div key={k} style={row}><span style={lbl}>{l}</span><input type="number" value={field[k]} onChange={(e) => setField((p) => ({ ...p, [k]: e.target.value, source: "entered by user" }))} style={inp} /></div>
                 ))}
-                <button onClick={computeIgrf} disabled={!field.date || !rows.length} style={{ ...pBtn, marginTop: 7, marginBottom: 0, opacity: field.date && rows.length ? 1 : 0.5 }} title={tr("Fill the three values from the IGRF-14 model for the survey date at the survey centre. Your survey report's values take precedence.")}>
+                <button onClick={computeIgrf} disabled={!field.date || !rows.length || crsUnset} style={{ ...pBtn, marginTop: 7, marginBottom: 0, opacity: field.date && rows.length && !crsUnset ? 1 : 0.5 }} title={tr("Fill the three values from the IGRF-14 model for the survey date at the survey centre. Your survey report's values take precedence.")}>
                   <Compass size={14} />{" "}{tr("Compute from IGRF-14 for the survey date")}</button>
+                {crsUnset && <div style={{ ...small, marginTop: 4, color: "var(--color-warn-text)" }}>{tr("IGRF needs the survey's real-world location, and the project CRS isn't set: set it in the status bar first.")}</div>}{/* #2238 */}
                 {field.source && <div style={{ ...small, marginTop: 4 }}>{tr("Source: {source}", { source: field.source })}</div>}
               </>)}
               {step(method === "mag" ? 3 : 2, tr("Uncertainty & mesh"), <>
