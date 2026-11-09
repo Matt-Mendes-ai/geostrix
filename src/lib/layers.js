@@ -806,12 +806,18 @@ export const TARGET_SCHEMAS = {
 // sea level, a blank survey dip made the hole horizontal and a blank RQD read as 0 %. Common no-data
 // spellings count as blank too.
 const NO_DATA_TEXT = new Set(["", "na", "n/a", "nan", "null", "none", "-", "--", "nd"]);
+// TASKS.csv #2159 (WA drillhole review) — the numeric no-data codes of drillhole databases and LAS logs (las.js COMMON_NULLS): 101,078
+// WAMEX density readings of -999 / -999.25 imported as densities, collar PCDEPTH -999, X_east -99999. Read as missing wherever num() reads
+// a collar, survey or interval number. Exact values only: -998 or -1000 stay numbers.
+export const NULL_SENTINELS = new Set([-999, -999.25, -9999, -99999, -999999]);
+export const isNullSentinel = (v) => NULL_SENTINELS.has(typeof v === "number" ? v : Number(String(v ?? "").trim()));
 export function num(v) {
   if (v == null) return NaN;
-  if (typeof v === "number") return v;
+  if (typeof v === "number") return NULL_SENTINELS.has(v) ? NaN : v;
   const s = String(v).trim();
   if (NO_DATA_TEXT.has(s.toLowerCase())) return NaN;
-  return Number(s);
+  const n = Number(s);
+  return NULL_SENTINELS.has(n) ? NaN : n; // #2159
 }
 
 // TASKS.csv #336 — re-importing a hole's rows REPLACES that hole's existing rows instead of appending a

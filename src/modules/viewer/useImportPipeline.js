@@ -24,7 +24,7 @@ const isXlsxName = (name) => /\.xlsx$/i.test(String(name || "")); // TASKS.csv #
 import { buildLayer, sameMapLayer } from "../../lib/mapLayerBuild.js"; // TASKS.csv #609; sameMapLayer: #2019
 import { askAdoptCrs } from "../../lib/adoptCrs.js"; // TASKS.csv #607
 import { requestProjectCrs } from "../../lib/projectCrsRequest.js"; // TASKS.csv #615
-import { LAYER_META, TARGET_SCHEMAS, guessColumn, guessColumnExact, guessMapping, guessTargetFor, schemaSatisfied, num, replaceRowsByHole, keepDerivedPicks, isDerivedPick, replaceNote, EPSG_COL_ALIASES, diffCollarImport, mergeCollar, minMax, pickRankedCollarRows } from "../../lib/layers.js";
+import { isNullSentinel, LAYER_META, TARGET_SCHEMAS, guessColumn, guessColumnExact, guessMapping, guessTargetFor, schemaSatisfied, num, replaceRowsByHole, keepDerivedPicks, isDerivedPick, replaceNote, EPSG_COL_ALIASES, diffCollarImport, mergeCollar, minMax, pickRankedCollarRows } from "../../lib/layers.js";
 import { alterationStyleFromName, styledAltValue } from "../../lib/viewer/importHelpers.js"; // TASKS.csv #1511
 import { fillDownHoleIds, numberedSiblings, allCodesOf, normInterval, applyCustomFields, normNumericInterval, normStructure, skippedRowsText, strikeStats, loadRaster, looksLikeAssay, isSurfaceSampleTable, parseVectorFile, groupShapefileParts, orderImportFiles } from "../../lib/viewer/importHelpers.js"; // groupShapefileParts / orderImportFiles: #600
 import { unreadableFormatAdvice } from "../../lib/unreadableFormats.js"; // TASKS.csv #603
@@ -247,6 +247,12 @@ export function useImportPipeline(ctx) {
     // TASKS.csv #1506 (review #1497) — the dialog's title carries the drop's queue count ("Min Domain.csv (10 more queued)"), and it
     // became the custom layer's name, each row's source (_src) and every notice: the bare file name from here on
     const fileName = String(shownName ?? "").replace(/ \(\d+ more queued\)$/, "");
+    // TASKS.csv #2159 — the mapped columns' no-data codes (-999, -999.25, -9999, -99999), read as missing by num(): counted and said once
+    {
+      const cols = [...new Set(Object.values(mapping || {}).filter(Boolean))], hits = new Map();
+      for (const r of allRows || []) for (const c of cols) { const v = r[c]; if (v != null && v !== "" && isNullSentinel(v)) hits.set(c, (hits.get(c) || 0) + 1); }
+      if (hits.size) setNotices((p) => [...p, notice("{fileName}: {n} value(s) written as a no-data code (-999, -999.25, -9999, -99999) were read as missing: {cols}.", { fileName, n: [...hits.values()].reduce((a, b) => a + b, 0).toLocaleString(), cols: [...hits].map(([c, k]) => `${c} ${k.toLocaleString()}`).join(", ") })]);
+    }
     // TASKS.csv #396 — convert azimuths measured from true or magnetic north to the project grid, per hole
     // location (declination and convergence vary across a property). Returns the rows plus a notice.
     const applyAzimuthRef = (rows, locate) => {
