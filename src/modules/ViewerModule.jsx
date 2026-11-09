@@ -6185,7 +6185,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     if (!features.length) { setNotices((p) => [...p, notice("Nothing to export for \"{label}\" — no rows with usable/desurveyed coordinates.", { label })]); return; }
     try {
       const { buildShapefileZip } = await import("../lib/shapefile.js"); // #552 — on demand
-      const epsg = await ensureExportCrs(project); if (!epsg) return; // #1021 — the .prj
+      const epsg = project?.crsSet === false ? null : await ensureExportCrs(project); if (!epsg && project?.crsSet !== false) return; // #1021; #2295: no CRS = no .prj
       const zipBytes = buildShapefileZip({ features, geomType, epsg, baseName: label, keepFieldCase: !!built, flat: !!built?.flat }); // #1025; #1246 — a map layer keeps its field names
       const res = await saveFile({ quiet: true, // TASKS.csv #576 — awaited: success only when it was written
         suggestedName: `${label.replace(/[^a-z0-9_-]+/gi, "_").toLowerCase()}.zip`,
@@ -6206,7 +6206,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     if (!features.length) { setNotices((p) => [...p, notice("Nothing to export for \"{label}\" — no rows with usable/desurveyed coordinates.", { label })]); return; }
     try {
       const tableName = label.replace(/[^a-zA-Z0-9_]+/g, "_") || "layer";
-      const epsg = await ensureExportCrs(project); if (!epsg) return; // #1021 — the layer's SRS
+      const epsg = project?.crsSet === false ? null : await ensureExportCrs(project); if (!epsg && project?.crsSet !== false) return; // #1021; #2295: srs -1
       const gpkgBytes = await (await loadGpkg()).buildGeoPackage([{ name: tableName, features, geomType, epsg }]); // #439 lazy
       const res = await saveFile({ quiet: true, // TASKS.csv #576 — awaited: success only when it was written
         suggestedName: `${label.replace(/[^a-z0-9_-]+/gi, "_").toLowerCase()}.gpkg`,

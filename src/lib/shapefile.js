@@ -416,6 +416,7 @@ export function shapefileZipFiles({ features, geomType, epsg, baseName = "export
   ];
   const wkt = prjWktFor(epsg);
   if (wkt) zipFiles.push({ name: `${name}.prj`, data: strBytes(wkt) });
+  else if (epsg == null) zipFiles.push({ name: `${name}_READ_ME.txt`, data: strBytes("No .prj: the project's coordinate system was not chosen, so these are the project's own grid coordinates (a local mine grid, perhaps), with no real-world reference. Give the layer its CRS in your GIS if you know it.") }); // TASKS.csv #2295
   else zipFiles.push({ name: `${name}_READ_ME.txt`, data: strBytes(`No .prj was generated — EPSG:${epsg} isn't one of the codes GeoStrix has a built-in projection definition for (see reproject.js). This shapefile's coordinates are in EPSG:${epsg} — set that manually as the layer's CRS in your GIS software if it doesn't prompt you.`) });
   return zipFiles;
 }
