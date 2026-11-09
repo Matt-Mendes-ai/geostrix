@@ -20,7 +20,18 @@ export function onProjectCrsRequest(handler) {
 // asks first when the project's CRS was never chosen. null = the user put it off.
 export async function ensureProjectCrs(project, reason) {
   if (project?.crsSet) return Number(project.epsg);
-  return requestProjectCrs(reason);
+  return requestProjectCrs(localGridFirst(project, reason));
+}
+// TASKS.csv #2180 — on a local-grid project the dialog says first that the tool needs real-world coordinates and is not available on the grid;
+// it opens on 'Keep the local grid' (no CRS: the tool is not run), or a CRS can be chosen if the coordinates are really in one
+export function isLocalGrid(project) { return project?.crsSet === false && !!project?.localGrid; }
+export function localGridName(project) { return String(project?.localGrid?.name || "").trim(); }
+function localGridFirst(project, reason) {
+  if (!isLocalGrid(project)) return reason;
+  const lead = localGridName(project)
+    ? tr("This project is on the local mine grid \"{name}\", with no coordinate system: this needs real-world coordinates, so it is not available. Keep the local grid, or choose the CRS the coordinates are really in.", { name: localGridName(project) })
+    : tr("This project is on a local mine grid, with no coordinate system: this needs real-world coordinates, so it is not available. Keep the local grid, or choose the CRS the coordinates are really in.");
+  return reason ? `${lead} ${reason}` : lead;
 }
 
 // TASKS.csv #1021 (review #1016: QGIS / GIS, geophysicist, exploration geologist, UX) — an export that puts the data on
@@ -30,5 +41,6 @@ export async function ensureProjectCrs(project, reason) {
 export async function ensureExportCrs(project) {
   if (project?.crsSet && project?.epsg) return Number(project.epsg);
   if (project?.crsSet !== false && project?.epsg) return Number(project.epsg); // a project from before #615 counts as chosen
+  if (isLocalGrid(project)) return requestProjectCrs(localGridFirst(project, "")); // #2180
   return requestProjectCrs(tr("This export places your data on Earth (latitude / longitude, a .prj, a GeoTIFF's coordinate system), but the project's coordinate system was never chosen — only a placeholder is set, and the file would put your data in the wrong place. Choose it first."));
 }

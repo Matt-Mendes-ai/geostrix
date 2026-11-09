@@ -6,7 +6,7 @@ import { readFileSync } from "node:fs";
 
 test("wired: asked before the adopt step, only when unset, undeclared and not latitude / longitude", () => {
   const g = readFileSync(new URL("../src/modules/GeochemModule.jsx", import.meta.url), "utf8");
-  const i = g.indexOf("if (project?.crsSet === false && !fromEpsg && !rowAt) {"), j = g.indexOf("const adopted = askAdoptCrs({ isEmpty: projectIsEmpty, currentEpsg: toEpsg, declaredEpsg: fromEpsg, fileName: modal.fileName, at: rowAt });");
+  const i = g.indexOf("if (project?.crsSet === false && !project?.localGrid /* #2180 */ && !fromEpsg && !rowAt) {"), j = g.indexOf("const adopted = askAdoptCrs({ isEmpty: projectIsEmpty, currentEpsg: toEpsg, declaredEpsg: fromEpsg, fileName: modal.fileName, at: rowAt });");
   assert.ok(i > 0 && j > i);
   assert.ok(g.slice(i, j).includes("await requestProjectCrs(") && g.slice(i, j).includes("if (picked) toEpsg = Number(picked);"));
   assert.ok(g.includes("const commitSurfaceImport = async (modal) => {"));

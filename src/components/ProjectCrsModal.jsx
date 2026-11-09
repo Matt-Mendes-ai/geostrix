@@ -13,14 +13,21 @@ import { activateOnKey } from "../lib/a11y.js";
 import { crsName, datumNote, loadEpsgRegistry, onEpsgRegistry } from "../lib/reproject.js";
 import { crsCandidatesAt, localCrsAt, parseLatLon, collarCentreLonLat, formatLonLat, collarSpread } from "../lib/projectCrs.js"; // collarSpread: #2181
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
+import { smallGridCoordinates } from "../lib/crsFromColumns.js"; // TASKS.csv #2180 — a local grid pre-selected by the magnitude check
 
 const CrsWorldMap = React.lazy(() => import("./CrsWorldMap.jsx")); // #1330
 
 export default function ProjectCrsModal({ reason, points, suggested = null, onDone }) {
-  const { project, collars: storeCollars, setEpsg, projectIsEmpty } = useStore();
+  const { project, collars: storeCollars, setEpsg, setLocalGrid, projectIsEmpty } = useStore();
   const collars = points?.length ? points : storeCollars; // the file being imported, when there is one
   const [where, setWhere] = useState("");
-  const [choice, setChoice] = useState(project.crsSet ? Number(project.epsg) : suggested ? Number(suggested) : null); // suggested: #1345
+  const [choice, setChoiceRaw] = useState(project.crsSet ? Number(project.epsg) : suggested ? Number(suggested) : null); // suggested: #1345
+  // TASKS.csv #2180 — the third answer: local mine-grid coordinates, kept, no CRS. Pre-selected on a local-grid project, or when the
+  // coordinates are ones no UTM / MGA zone has (and the file named no CRS)
+  const smallGrid = useMemo(() => smallGridCoordinates((points?.length ? points : storeCollars) || []), [points, storeCollars]);
+  const [localMode, setLocalMode] = useState(() => !project.crsSet && (!!project.localGrid || (!suggested && !!smallGrid)));
+  const [gridName, setGridName] = useState(project.localGrid?.name || "");
+  const setChoice = (c) => { setChoiceRaw(c); setLocalMode(false); };
   const [searchAll, setSearchAll] = useState(false);
   const cancel = () => onDone(null);
   useEscapeKey(cancel);
@@ -45,6 +52,7 @@ export default function ProjectCrsModal({ reason, points, suggested = null, onDo
   const kmFromStated = landing && at ? Math.round(Math.hypot((landing.lat - at.lat) * 111, (landing.lon - at.lon) * 111 * Math.cos((at.lat * Math.PI) / 180))) : null;
 
   const use = () => { if (!choice) return; setEpsg(choice); onDone(choice); };
+  const keepLocal = () => { setLocalGrid(gridName); onDone(null); }; // #2180 — no CRS: callers place the coordinates as they are
 
   return (
     <div style={overlay}>
@@ -53,7 +61,7 @@ export default function ProjectCrsModal({ reason, points, suggested = null, onDo
           <div>
             <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{tr("Project coordinate system")}</div>
             <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>
-              {project.crsSet ? <>{tr("Now: {v} · EPSG:{epsg}", { v: crsName(project.epsg) || tr("Unrecognized CRS"), epsg: project.epsg })}</> : tr("Not set yet. Choose the CRS your collar coordinates are in.")}
+              {project.crsSet ? <>{tr("Now: {v} · EPSG:{epsg}", { v: crsName(project.epsg) || tr("Unrecognized CRS"), epsg: project.epsg })}</> : project.localGrid ? (project.localGrid.name ? tr("Now: the local mine grid \"{name}\", no CRS", { name: project.localGrid.name }) : tr("Now: a local mine grid, no CRS")) : tr("Not set yet. Choose the CRS your collar coordinates are in.")}
             </div>
           </div>
           <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={cancel} />
@@ -61,6 +69,13 @@ export default function ProjectCrsModal({ reason, points, suggested = null, onDo
         <div style={{ padding: 16, overflowY: "auto", display: "flex", flexDirection: "column", gap: 12 }}>
           {reason && <div style={{ ...note, color: "var(--color-text)" }}>{reason}</div>}
           <div style={note}>{tr("GeoStrix places every file, terrain and online map with this CRS. A collar CSV doesn't say which CRS it is in, and the numbers alone can't tell one UTM zone from the next.")}</div>
+          {/* TASKS.csv #2180 — the third answer */}
+          <div role="radio" aria-checked={localMode} tabIndex={0} onClick={() => setLocalMode(true)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setLocalMode(true); } }}
+            style={{ border: `1px solid ${localMode ? "var(--color-accent)" : "var(--color-border)"}`, background: localMode ? "var(--color-selected-bg)" : "transparent", borderRadius: 6, padding: "8px 10px", cursor: "pointer", fontSize: "var(--font-size-sm)", lineHeight: 1.45 }}>
+            <div style={{ color: "var(--color-text)", fontWeight: 600 }}>{tr("These are local mine-grid coordinates: keep them, no CRS")}</div>
+            <div style={{ color: "var(--color-text-muted)" }}>{smallGrid && !project.localGrid ? tr("{n} of {of} coordinates are ones no UTM / MGA zone has (eastings {x0}–{x1}), so this is chosen.", { n: smallGrid.n, of: smallGrid.of, x0: Math.round(smallGrid.x[0]).toLocaleString(), x1: Math.round(smallGrid.x[1]).toLocaleString() }) + " " : ""}{tr("Everything stays in the grid's own metres and later files are not asked again. Terrain and imagery downloads, basemaps, Macrostrat, true / magnetic north and exports with a coordinate system (.prj, KML, GeoPackage) say they are not available until a CRS is chosen.")}</div>
+            {localMode && <input value={gridName} onClick={(e) => e.stopPropagation()} onChange={(e) => setGridName(e.target.value)} placeholder={tr("Grid name (optional), e.g. Wallaby mine grid")} aria-label={tr("Local grid name")} style={{ ...inp, marginTop: 6 }} />}
+          </div>
 
           <div>
             <div style={label}>{tr("Where is the project? (latitude, longitude — roughly is enough)")}</div>
@@ -106,7 +121,9 @@ export default function ProjectCrsModal({ reason, points, suggested = null, onDo
         </div>
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, padding: "10px 16px", borderTop: "1px solid var(--color-border)" }}>
           <button type="button" style={btn(false)} onClick={cancel}>{project.crsSet ? tr("Cancel") : tr("Decide later")}</button>
-          <button type="button" style={btn(true)} disabled={!choice} onClick={use}>{choice ? tr("Use {v}", { v: crsName(choice) || tr("EPSG:{choice}", { choice }) }) : tr("Choose a CRS")}</button>
+          {localMode
+            ? <button type="button" style={btn(true)} onClick={keepLocal}>{tr("Keep the local grid")}</button>
+            : <button type="button" style={btn(true)} disabled={!choice} onClick={use}>{choice ? tr("Use {v}", { v: crsName(choice) || tr("EPSG:{choice}", { choice }) }) : tr("Choose a CRS")}</button>}
         </div>
       </div>
     </div>

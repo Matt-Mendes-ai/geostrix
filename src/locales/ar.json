@@ -9487,5 +9487,17 @@
   "Show {k} more": "اعرض {k} أخرى",
   "Hole ids: a label 'ID +n' stands for n more hole(s) piercing within a few pixels (hover it for the list); {hidden} label(s) had no free spot and are left out. Zoom in to separate them, or hover a pierce point.": "معرّفات الثقوب: الملصق «ID +n» يمثل n ثقبًا آخر يخترق على بُعد بضع بكسلات (مرّر المؤشر لرؤية القائمة)؛ {hidden} ملصق لم يجد مكانًا فارغًا فحُذف. قرّب للفصل بينها، أو مرّر المؤشر على نقطة اختراق.",
   "This shell is {n} separate pieces, not one continuous body.": "هذا الغلاف {n} قطعة منفصلة، لا جسم واحد متصل.",
-  "Running uncapped: this element's coefficient of variation is {cv}%, so a few high assays can drive the shell. Estimation caps it at P99 by default.": "بلا سقف: معامل اختلاف هذا العنصر {cv}%، فقد تتحكم بضع تحاليل عالية في الغلاف. يضع التقدير سقفًا عند P99 افتراضيًا."
+  "Running uncapped: this element's coefficient of variation is {cv}%, so a few high assays can drive the shell. Estimation caps it at P99 by default.": "بلا سقف: معامل اختلاف هذا العنصر {cv}%، فقد تتحكم بضع تحاليل عالية في الغلاف. يضع التقدير سقفًا عند P99 افتراضيًا.",
+  "This project is on the local mine grid \"{name}\", with no coordinate system: this needs real-world coordinates, so it is not available. Keep the local grid, or choose the CRS the coordinates are really in.": "هذا المشروع على شبكة المنجم المحلية «{name}» بلا نظام إحداثيات: هذا يحتاج إحداثيات حقيقية، فهو غير متاح. أبقِ الشبكة المحلية، أو اختر نظام الإحداثيات الذي تقع فيه الإحداثيات فعلًا.",
+  "This project is on a local mine grid, with no coordinate system: this needs real-world coordinates, so it is not available. Keep the local grid, or choose the CRS the coordinates are really in.": "هذا المشروع على شبكة منجم محلية بلا نظام إحداثيات: هذا يحتاج إحداثيات حقيقية، فهو غير متاح. أبقِ الشبكة المحلية، أو اختر نظام الإحداثيات الذي تقع فيه الإحداثيات فعلًا.",
+  "Now: the local mine grid \"{name}\", no CRS": "الآن: شبكة المنجم المحلية «{name}»، بلا نظام إحداثيات",
+  "Now: a local mine grid, no CRS": "الآن: شبكة منجم محلية، بلا نظام إحداثيات",
+  "These are local mine-grid coordinates: keep them, no CRS": "هذه إحداثيات شبكة منجم محلية: أبقها، بلا نظام إحداثيات",
+  "{n} of {of} coordinates are ones no UTM / MGA zone has (eastings {x0}–{x1}), so this is chosen.": "{n} من {of} إحداثيات لا تقع في أي نطاق UTM / MGA (الشرقيات {x0}–{x1})، لذا اختير هذا.",
+  "Everything stays in the grid's own metres and later files are not asked again. Terrain and imagery downloads, basemaps, Macrostrat, true / magnetic north and exports with a coordinate system (.prj, KML, GeoPackage) say they are not available until a CRS is chosen.": "يبقى كل شيء بأمتار الشبكة نفسها ولا يُسأل عن الملفات اللاحقة مجددًا. تنزيل التضاريس والصور والخرائط الأساسية وMacrostrat والشمال الحقيقي / المغناطيسي والتصديرات ذات نظام الإحداثيات (.prj وKML وGeoPackage) تُعلن أنها غير متاحة حتى يُختار نظام إحداثيات.",
+  "Grid name (optional), e.g. Wallaby mine grid": "اسم الشبكة (اختياري)، مثل شبكة منجم Wallaby",
+  "Local grid name": "اسم الشبكة المحلية",
+  "Keep the local grid": "أبقِ الشبكة المحلية",
+  "Local mine-grid coordinates, no coordinate system: terrain and imagery downloads, basemaps and exports with a CRS are not available. Click to choose a CRS.": "إحداثيات شبكة منجم محلية بلا نظام إحداثيات: تنزيل التضاريس والصور والخرائط الأساسية والتصديرات ذات نظام الإحداثيات غير متاحة. انقر لاختيار نظام إحداثيات.",
+  "Local grid": "شبكة محلية"
 }

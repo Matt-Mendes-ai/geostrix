@@ -759,7 +759,9 @@ function StatusBar({ onEpsg, pyStatus, updater, onHelp, onPython }) {
       {/* TASKS.csv #485 — the old inline box relabelled the project without moving any data; the CRS is now set
           (and data optionally reprojected) in the Cartography tab. */}
       {/* TASKS.csv #615 — until the user chooses it, the CRS is a placeholder and says so */}
-      {project.crsSet === false
+      {project.crsSet === false && project.localGrid /* TASKS.csv #2180 — a local mine grid, said as such */
+        ? <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={onEpsg} title={tr("Local mine-grid coordinates, no coordinate system: terrain and imagery downloads, basemaps and exports with a CRS are not available. Click to choose a CRS.")} style={{ cursor: "pointer" }}>{tr("Local grid")}{project.localGrid.name ? <>{": "}<span className="val">{project.localGrid.name}</span></> : null}</span>
+        : project.crsSet === false
         ? <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={onEpsg} title={tr("The project's coordinate system hasn't been chosen — click to set it (needed for terrain, imagery and any file with its own CRS)")} style={{ cursor: "pointer", color: "var(--color-warn-text-strong)" }}>{tr("CRS:")}{" "}<span className="val">{tr("not set")}</span></span>
         : <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={onEpsg} title={tr("{crs} — click to change the project CRS (reprojection tools: Maps tab)", { crs: crsName(project.epsg) || tr("Unrecognized CRS") })} style={{ cursor: "pointer" }}>{tr("EPSG:")}{" "}<span className="val">{project.epsg}</span></span>}
       {/* TASKS.csv #135 — desurvey method. Sits next to EPSG because it's the same kind of thing: a

@@ -838,7 +838,7 @@ export default function GeochemModule() {
     // TASKS.csv #1445 (review #1352) — the dialog says 'GeoStrix asks on import' when the project CRS was never chosen, and nothing asked:
     // rocks.csv came in with the project still 'CRS: not set'. Now it asks, as a collar import does, showing where the samples would land
     // (projected coordinates; latitude / longitude goes through the adopt step below, #1148). 'Decide later' imports them as before.
-    if (project?.crsSet === false && !fromEpsg && !rowAt) {
+    if (project?.crsSet === false && !project?.localGrid /* #2180 */ && !fromEpsg && !rowAt) {
       const pts = allRows.slice(0, 2000).map((r) => ({ x: num(r[mapping.x]), y: num(r[mapping.y]) })).filter((q) => Number.isFinite(q.x) && Number.isFinite(q.y));
       const picked = await requestProjectCrs(tr("These samples' coordinates need the project's coordinate system: choose the one they are in."), pts);
       if (picked) toEpsg = Number(picked);

@@ -629,7 +629,7 @@ export function useImportPipeline(ctx) {
   // answer). "Decide later" imports them anyway; the status bar keeps saying "CRS: not set".
   const askCrsForCollars = async (m) => {
     const live = importStateRef.current;
-    if (m.target !== "collars" || live.project?.crsSet !== false || m.sourceEpsg || m.perRowEpsgCol || m.localGridOn) return;
+    if (m.target !== "collars" || live.project?.crsSet !== false || live.project?.localGrid || m.sourceEpsg || m.perRowEpsgCol || m.localGridOn) return; // localGrid: #2180 — not asked again
     const xc = m.mapping?.x, yc = m.mapping?.y;
     const pts = xc && yc ? (m.allRows || []).map((r) => ({ x: parseFloat(String(r[xc]).replace(",", ".")), y: parseFloat(String(r[yc]).replace(",", ".")) })).filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y)) : null;
     const { epsgFromColumns, gridFrameFromRows, smallGridCoordinates } = await import("../../lib/crsFromColumns.js"); // #1345 — the headers may name it
