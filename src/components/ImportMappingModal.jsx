@@ -14,6 +14,8 @@ import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { fieldNeedsNumber, columnHasNoNumbers } from "../lib/importChecks.js"; // TASKS.csv #1257
 import { customFromPrevious } from "../lib/viewer/customMapping.js"; // TASKS.csv #1654
+import LogChannelsBox from "./LogChannelsBox.jsx"; // TASKS.csv #2160 — one numeric layer per log channel
+import { logChannelsFor } from "../lib/downholeLogChannels.js";
 
 
 export default function ImportMappingModal({ modal, onChange, onCancel, onCommit, projectEpsg, replaceInfo = null }) { // replaceInfo: #1649
@@ -106,6 +108,7 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
               source actually carries). Carried straight through to the attribute table (which
               already derives its columns from whatever keys a row has) and, for interval layers, the
               hover tooltip shows one named "description" specifically — see ViewerModule.jsx. */}
+          <LogChannelsBox modal={modal} onChange={onChange} sel={sel} />{/* #2160 */}
           <div style={{ marginTop: 4, marginBottom: 14 }}>
             <div style={label}>{tr("Extra fields (optional)")}</div>
             {customFields.map((cf, i) => (
@@ -332,7 +335,8 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
             (onCommit already validates and refuses cleanly), just avoidable friction. The per-row "*"/
             red-border cues above already exist; this just stops the click from being possible at all. */}
         {(() => {
-          const missingRequired = schema.fields.filter((f) => f.required && !modal.mapping[f.key])
+          const logOn = !!logChannelsFor(modal.target, modal.headers, modal.allRows || modal.sampleRows || [], modal.mapping, modal.logChannels); // #2160 — the channels are the values
+          const missingRequired = schema.fields.filter((f) => f.required && !modal.mapping[f.key] && !(logOn && f.key === "value"))
             .concat(schema.oneOf && !schema.oneOf.some((keys) => keys.every((k) => modal.mapping[k])) ? [{ key: "oneOf", label: "From + To, or Depth" }] : []); // #605
           return (
             <div style={{ display: "flex", flexDirection: "column", gap: 6, padding: "12px 16px", borderTop: "1px solid var(--color-border)" }}>

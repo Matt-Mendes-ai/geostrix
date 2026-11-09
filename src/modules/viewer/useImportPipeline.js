@@ -20,6 +20,7 @@ import { azimuthToGridOffset, wrap360, loadIgrf, detectAzimuthRef } from "../../
 import { orientFromAlphaBeta, reorientAlphaBetaPicks } from "../../lib/coreOrientation.js";
 import { fitSimilarity, parseControlPoints, transformImportRows } from "../../lib/localGrid.js";
 import { tieOf, fileToLocal, bearingToLocal } from "../../lib/localGridTie.js"; // TASKS.csv #2288
+import { logChannelsFor, defaultLogBin, logChannelRows, unitFromHeader } from "../../lib/downholeLogChannels.js"; // TASKS.csv #2160
 import { loadSampleFiles } from "../../lib/desktop.js";
 const isXlsxName = (name) => /\.xlsx$/i.test(String(name || "")); // TASKS.csv #605 (same test as xlsx.js; the reader itself loads on demand, #552)
 import { buildLayer, sameMapLayer } from "../../lib/mapLayerBuild.js"; // TASKS.csv #609; sameMapLayer: #2019
@@ -313,7 +314,8 @@ export function useImportPipeline(ctx) {
     }
     const liveCollarAt = (() => { const m = new Map((importStateRef.current.collars || []).map((c) => [c.hole_id, c])); return (r) => m.get(r.hole_id) || null; })();
     const schema = TARGET_SCHEMAS[target];
-    const missing = schema.fields.filter((f) => f.required && !mapping[f.key]);
+    const logChans = logChannelsFor(target, Object.keys(allRows[0] || {}), allRows, mapping, data.logChannels); // #2160 — the channels are the values
+    const missing = schema.fields.filter((f) => f.required && !mapping[f.key] && !(logChans && f.key === "value"));
     if (missing.length) { setNotices((p) => [...p, notice("{fileName}: map required field(s) — {v}", { fileName, v: missing.map((f) => f.label).join(", ") })]); return false; }
     // TASKS.csv #1963 — a table pulled from a database: its record (profile, schema, table, these choices) for "Reload from database"
     if (dbSource?.profile && setDbImports) { const rec = dbImportRecord(data, dbSource, target); if (rec) setDbImports((prev) => upsertDbImport(prev, rec)); }
@@ -589,6 +591,28 @@ export function useImportPipeline(ctx) {
       { const holes = new Set(rows.map((r) => r.hole_id)), saved = (importStateRef.current.layers?.structure || []).filter((r) => isDerivedPick(r) && holes.has(r.hole_id)).length; if (saved) setNotices((p) => [...p, tr("{saved} pick(s) from the Core orientation calculator were kept in these holes.", { saved })]); } // #1234
       setLayerVisible((p) => ({ ...p, structure: true }));
       setNotices((p) => [...p, appendNotice(notice("Loaded {rows} structure points from {fileName}.", { rows: rows.length, fileName }), skippedRowsText(stDropped, allRows.length))]); // #1070
+    } else if (logChans) {
+      // TASKS.csv #2160 (Matt's decision 2026-11-09) — a downhole log: one numeric layer per ticked channel, the unit from the column
+      // name; binned (mean, min, max per bin) when chosen, which the dialog proposes when the readings would not fit
+      const chans = logChans;
+      const binM = data.logBinM !== undefined ? data.logBinM : defaultLogBin(allRows.length, chans.length);
+      const base = String(fileName).replace(/\.(csv|txt|las|xlsx?)$/i, "");
+      const made = [];
+      chans.forEach((col, k) => {
+        const out = logChannelRows(allRows, mapping, col, binM);
+        if (!out.rows.length) return;
+        const unit = unitFromHeader(col);
+        const id = `custom_${Date.now()}_${k}`;
+        const group = new THREE.Group(); group.name = id;
+        layerGroupsRef.current[id] = group;
+        sceneRef.current.getObjectByName("root").add(group);
+        const name = `${base}: ${col}`;
+        const rowsOut = out.rows.map((r) => ({ ...r, _src: fileName }));
+        setCustomLayers((p) => [...p, { id, name, rows: rowsOut, group, unit: unit || undefined, ...(out.binned ? { binM, notes: `Binned on import to ${binM} m: mean of ${out.readings} reading(s), with each bin's min and max (fields min, max, n). Source: ${fileName}.` } : {}) }]);
+        setCustomVisible((p) => ({ ...p, [id]: k === 0 }));
+        made.push(`${col}${unit ? ` (${unit})` : ""}: ${out.rows.length.toLocaleString()}${out.skipped ? ` (${out.skipped} without a number)` : ""}`);
+      });
+      setNotices((p) => [...p, tr("{fileName}: {n} downhole log channel(s) imported as numeric layers{v}: {list}. The first is shown; the others are in the Layers list.", { fileName, n: made.length, v: binM ? tr(", averaged to {b} m bins (mean, with min and max)", { b: binM }) : tr(", every reading kept"), list: made.join("; ") })]);
     } else if (target === "custom") {
       const rows = allRows.map((r) => applyCustomFields({
         hole_id: String(r[mapping.hole_id] ?? "").trim(),

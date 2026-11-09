@@ -9543,5 +9543,17 @@
   "Every column: this can close GeoStrix on this computer.": "كل الأعمدة: قد يُغلق هذا GeoStrix على هذا الحاسوب.",
   "Open it whole anyway": "افتحه كاملًا على أي حال",
   "Read the {k} column(s)": "اقرأ الأعمدة الـ{k}",
-  "Only {k} chosen column(s) were read, to fit in memory: {list}.": "قُرئت {k} عمود مختار فقط لتتسع الذاكرة: {list}."
+  "Only {k} chosen column(s) were read, to fit in memory: {list}.": "قُرئت {k} عمود مختار فقط لتتسع الذاكرة: {list}.",
+  "Downhole log channels": "قنوات التسجيل البئري",
+  "Each ticked channel becomes its own numeric layer, named after the column. Untick all to import only the value column above as one layer.": "تصبح كل قناة محدَّدة طبقة رقمية خاصة بها باسم العمود. ألغِ تحديد الكل لاستيراد عمود القيمة أعلاه وحده كطبقة واحدة.",
+  "Import channel {c}": "استيراد القناة {c}",
+  "{n} readings × {k} channel(s) is more than GeoStrix keeps reading by reading on this computer: they are averaged to a bin (mean, with the bin's minimum and maximum kept), stated in the notice and the layer. The file stays the source.": "{n} قراءة × {k} قناة أكثر مما يحفظه GeoStrix قراءةً قراءة على هذا الحاسوب: تُحسب متوسطاتها لكل فاصل (المتوسط مع الحد الأدنى والأعلى للفاصل)، ويُذكر ذلك في الإشعار وفي الطبقة. يبقى الملف هو المصدر.",
+  "Readings averaged to a bin (mean, with its minimum and maximum).": "قراءات مُتوسَّطة لكل فاصل (المتوسط مع حده الأدنى والأعلى).",
+  "Log bin": "فاصل التسجيل",
+  "0.5 m bins": "فواصل 0.5 م",
+  "1 m bins": "فواصل 1 م",
+  "Every reading (no bins)": "كل قراءة (بلا فواصل)",
+  "{fileName}: {n} downhole log channel(s) imported as numeric layers{v}: {list}. The first is shown; the others are in the Layers list.": "{fileName}: استُوردت {n} قناة تسجيل بئري كطبقات رقمية{v}: {list}. تُعرض الأولى؛ والبقية في قائمة الطبقات.",
+  ", averaged to {b} m bins (mean, with min and max)": "، مُتوسَّطة على فواصل {b} م (المتوسط مع الأدنى والأعلى)",
+  ", every reading kept": "، مع حفظ كل قراءة"
 }

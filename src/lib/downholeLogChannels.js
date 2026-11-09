@@ -1,0 +1,90 @@
+// TASKS.csv #2160 (WA drillhole review #2148; Matt's decision 2026-11-09) — downhole geophysical logs: gamma (cps / API), density (g/cc),
+// susceptibility (SI), caliper, conductivity / resistivity, eU3O8, at point depths and several channels per file (a LAS goes through las.js
+// to the same shape). One numeric layer per channel the user ticks; readings kept raw when they fit the memory budget, above it binned
+// (mean, min and max per 0.5 m or 1 m, the user's choice), the bin stated. Pure: no UI.
+
+// a column that names a log channel; and one that is an id / depth / coordinate column (never a channel)
+const CHANNEL = /gamma|\bgrs?\b|\bngam|\bcps\b|\bapi\b|densit|\bdens\b|\bsg\b|suscep|\bmsus|\bmag[\s_-]*sus|calip|\bcal\b|conduct|resist|\bres\b|ohm|eu3o8|\beu\b|\bek\b|\bth\b.*ppm|neutron|sonic|velocity|temperat|\bk[\s_-]*%|\bu[\s_-]*ppm/i;
+const NOT_CHANNEL = /^(hole|holeid|hole_id|bhid|dhid|site|depth|md|dept|from|to|x|y|z|east|north|rl|elev|date|time|comment|remark|tool|run|probe|operator|company|project)$/i;
+// the unit a header names: "Density_Best (g/cc)", "Gamma_cps", "Suscep_SI", "eU3O8_cased_ppm", "RES_ohmm"
+const UNITS = [
+  [/\bcps\b|_cps\b|counts?[\s_]*per[\s_]*sec/i, "cps"], [/\bapi\b|_api\b/i, "API"], [/g\s*\/\s*cc|g\/cm3|g\s*cm-?3|\bgcc\b|_gcc\b/i, "g/cc"],
+  [/\bsi\b|_si\b|x\s*10-?3|e-?3\s*si/i, "SI"], [/ppm/i, "ppm"], [/ohm[\s.-]*m|ohmm|_ohm/i, "ohm.m"], [/ms\s*\/\s*m|mmho|_msm\b/i, "mS/m"],
+  [/\bmm\b|_mm\b/i, "mm"], [/\bin\b|inch/i, "in"], [/%|pct|percent/i, "%"], [/deg\s*c|°c|_degc/i, "°C"], [/us\s*\/\s*(ft|m)/i, "µs/m"],
+];
+export function unitFromHeader(h) {
+  const s = String(h ?? "");
+  const par = /\(([^)]+)\)|\[([^\]]+)\]/.exec(s);
+  if (par) { const u = (par[1] || par[2]).trim(); if (u && u.length <= 12) return u; }
+  for (const [re, u] of UNITS) if (re.test(s)) return u;
+  return "";
+}
+const isNum = (v) => v !== null && v !== "" && Number.isFinite(typeof v === "number" ? v : Number(String(v).replace(",", ".")));
+// the columns of a point-depth table that hold numeric readings (the hole and depth columns left out): [{ col, unit, named }] —
+// named: the header names a known log channel (pre-ticked); other numeric columns are offered unticked
+export function logChannelColumns(headers, rows, mapping = {}, sample = 200) {
+  const skip = new Set([mapping.hole_id, mapping.depth, mapping.from, mapping.to, mapping.x, mapping.y, mapping.z].filter(Boolean));
+  const out = [];
+  for (const h of headers || []) {
+    if (skip.has(h) || NOT_CHANNEL.test(String(h).trim().replace(/\s+/g, "_"))) continue;
+    let seen = 0, nums = 0;
+    for (const r of rows || []) { const v = r?.[h]; if (v == null || v === "") continue; seen++; if (isNum(v)) nums++; if (seen >= sample) break; }
+    if (!seen || nums / seen < 0.8) continue;
+    out.push({ col: h, unit: unitFromHeader(h), named: CHANNEL.test(String(h)) });
+  }
+  return out;
+}
+// a table that is a downhole log rather than an SG / lithology / mag-susc layer: point depths, and two or more channel columns, or one that
+// only a log has (gamma, cps, API, eU3O8, caliper, conductivity / resistivity)
+export function looksLikeLogTable(headers) {
+  const hs = (headers || []).map((h) => String(h));
+  const named = hs.filter((h) => CHANNEL.test(h) && !NOT_CHANNEL.test(h.trim()));
+  if (!named.length) return false;
+  if (hs.some((h) => /^alpha/i.test(h.trim())) && hs.some((h) => /^beta/i.test(h.trim()))) return false; // oriented core: its 'Gamma' is an angle (#604's Woodjam event log)
+  if (hs.some((h) => /^(from|to|depth_?from|depth_?to|geolfrom|geolto|sampfrom|sampto|m_?from|m_?to)$/i.test(h.trim()))) return false; // interval tables are not point logs
+  if (!hs.some((h) => /^(depth|md|dept|depth_?m|depth_?\(m\)|depth_?metres?|sampdepth)$/i.test(h.trim().replace(/\s+/g, "_")))) return false;
+  return named.length >= 2 || named.some((h) => /gamma|\bgrs?\b|cps|\bapi\b|eu3o8|calip|conduct|resist|ohm/i.test(h));
+}
+
+// TASKS.csv #2160 — readings kept raw while the layers stay under this many values in all; above it binning is offered (decision (2))
+export const LOG_RAW_BUDGET = 1_000_000;
+export const needsBinning = (readings, channels) => readings * Math.max(1, channels) > LOG_RAW_BUDGET;
+
+// one channel's layer rows. binM null: a row per reading { hole_id, depth, value }; binM > 0: per hole, per bin [k*binM, (k+1)*binM):
+// { hole_id, from, to, value (mean), min, max, n }. Readings with no number are left out (counted in skipped).
+export function logChannelRows(rows, mapping, col, binM = null) {
+  const num = (v) => (typeof v === "number" ? v : Number(String(v ?? "").replace(",", ".")));
+  const pts = [];
+  let skipped = 0;
+  for (const r of rows || []) {
+    const hole = String(r?.[mapping.hole_id] ?? "").trim(), d = num(r?.[mapping.depth]), v = r?.[col];
+    if (!hole || !Number.isFinite(d) || !isNum(v)) { skipped++; continue; }
+    pts.push({ hole_id: hole, depth: d, value: num(v) });
+  }
+  if (!(binM > 0)) return { rows: pts, skipped, binned: false };
+  const bins = new Map();
+  for (const p of pts) {
+    const k = Math.floor(p.depth / binM + 1e-9), key = `${p.hole_id}\u0000${k}`;
+    let b = bins.get(key);
+    if (!b) bins.set(key, (b = { hole_id: p.hole_id, k, sum: 0, n: 0, min: Infinity, max: -Infinity }));
+    b.sum += p.value; b.n++; if (p.value < b.min) b.min = p.value; if (p.value > b.max) b.max = p.value;
+  }
+  const r4 = (v) => Math.round(v * 1e4) / 1e4;
+  const out = [...bins.values()].sort((a, b) => (a.hole_id < b.hole_id ? -1 : a.hole_id > b.hole_id ? 1 : a.k - b.k))
+    .map((b) => ({ hole_id: b.hole_id, from: r4(b.k * binM), to: r4((b.k + 1) * binM), value: b.sum / b.n, min: b.min, max: b.max, n: b.n }));
+  return { rows: out, skipped, binned: true, readings: pts.length };
+}
+// the channels ticked when the dialog opens: the columns named as log channels (null: none named, the one-layer path as before)
+export function defaultLogChannels(channels) {
+  const named = (channels || []).filter((c) => c.named).map((c) => c.col);
+  return named.length ? named : null;
+}
+// the bin offered by default: 0.5 m when the readings would not fit, else none (raw)
+export const defaultLogBin = (readings, channels) => (needsBinning(readings, channels) ? 0.5 : null);
+// the channels an import will make layers of: the user's choice, else the named ones; null when this is not a point-depth custom layer
+// (the dialog, its required-field check and the commit all ask this one function)
+export function logChannelsFor(target, headers, rows, mapping, chosen) {
+  if (target !== "custom" || !mapping?.depth || mapping?.from) return null;
+  const list = chosen ?? defaultLogChannels(logChannelColumns(headers, rows, mapping));
+  return list?.length ? list : null;
+}

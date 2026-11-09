@@ -25,8 +25,10 @@ export function stylingTracker() {
 
 // #1656 — the 3D View's mirror of its custom layers into the store: the previous list when nothing changed (it rebuilt an identical list
 // of new objects after every open, and the undo watcher, which compares by reference, counted that as an edit)
+// TASKS.csv #2160 — and a layer's unit, its bin and its notes (a downhole log binned on import says so in the saved project too)
+const KEEP = ["unit", "binM", "notes"];
 export function mirrorCustomLayers(prev, local) {
-  const next = local.map(({ id, name, rows }) => ({ id, name, rows }));
+  const next = local.map((l) => { const o = { id: l.id, name: l.name, rows: l.rows }; for (const k of KEEP) if (l[k] != null) o[k] = l[k]; return o; });
   const p = prev || [];
-  return p.length === next.length && next.every((l, i) => p[i] && p[i].id === l.id && p[i].name === l.name && p[i].rows === l.rows) ? prev : next;
+  return p.length === next.length && next.every((l, i) => p[i] && p[i].id === l.id && p[i].name === l.name && p[i].rows === l.rows && KEEP.every((k) => p[i][k] === l[k])) ? prev : next;
 }

@@ -2,6 +2,7 @@
 // Layer metadata, colors, and generic CSV import mapping helpers
 // ============================================================
 import { voxelStretch } from "./voxelStretch.js"; // TASKS.csv #1812
+import { looksLikeLogTable } from "./downholeLogChannels.js"; // TASKS.csv #2160
 import { guessStructureColumns } from "./mapLayers.js"; // TASKS.csv #426
 import { isElementColumn } from "./geochem.js"; // TASKS.csv #2150
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
@@ -1140,6 +1141,7 @@ export function guessTargetFor(headers, name) {
     const interval = hint === "structure" && guessMapping("structzone", headers).to;
     if (!interval && TARGET_SCHEMAS[hint]?.fields.every((f) => !f.required || f.key === "value" || m[f.key])) return hint;
   }
+  if (looksLikeLogTable(headers)) return "custom"; // TASKS.csv #2160 — a gamma / density / susceptibility log, not SG or Lithology (after the name hint)
   return guessTarget(headers);
 }
 export function getCol(row, keys) {

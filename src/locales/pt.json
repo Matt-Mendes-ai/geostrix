@@ -9543,5 +9543,17 @@
   "Every column: this can close GeoStrix on this computer.": "Todas as colunas: isto pode fechar o GeoStrix neste computador.",
   "Open it whole anyway": "Abrir inteira mesmo assim",
   "Read the {k} column(s)": "Ler as {k} coluna(s)",
-  "Only {k} chosen column(s) were read, to fit in memory: {list}.": "Só {k} coluna(s) escolhidas foram lidas, para caber na memória: {list}."
+  "Only {k} chosen column(s) were read, to fit in memory: {list}.": "Só {k} coluna(s) escolhidas foram lidas, para caber na memória: {list}.",
+  "Downhole log channels": "Canais da perfilagem de furo",
+  "Each ticked channel becomes its own numeric layer, named after the column. Untick all to import only the value column above as one layer.": "Cada canal marcado vira sua própria camada numérica, com o nome da coluna. Desmarque todos para importar só a coluna de valor acima como uma camada.",
+  "Import channel {c}": "Importar o canal {c}",
+  "{n} readings × {k} channel(s) is more than GeoStrix keeps reading by reading on this computer: they are averaged to a bin (mean, with the bin's minimum and maximum kept), stated in the notice and the layer. The file stays the source.": "{n} leituras × {k} canal(is) é mais do que o GeoStrix guarda leitura a leitura neste computador: são feitas médias por intervalo (média, mantendo o mínimo e o máximo do intervalo), informado no aviso e na camada. O arquivo continua sendo a fonte.",
+  "Readings averaged to a bin (mean, with its minimum and maximum).": "Leituras com média por intervalo (média, com seu mínimo e máximo).",
+  "Log bin": "Intervalo da perfilagem",
+  "0.5 m bins": "Intervalos de 0,5 m",
+  "1 m bins": "Intervalos de 1 m",
+  "Every reading (no bins)": "Cada leitura (sem intervalos)",
+  "{fileName}: {n} downhole log channel(s) imported as numeric layers{v}: {list}. The first is shown; the others are in the Layers list.": "{fileName}: {n} canal(is) de perfilagem importados como camadas numéricas{v}: {list}. O primeiro é mostrado; os outros estão na lista de camadas.",
+  ", averaged to {b} m bins (mean, with min and max)": ", com média em intervalos de {b} m (média, com mín. e máx.)",
+  ", every reading kept": ", mantendo cada leitura"
 }

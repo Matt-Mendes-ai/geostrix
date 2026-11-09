@@ -9543,5 +9543,17 @@
   "Every column: this can close GeoStrix on this computer.": "Toutes les colonnes : cela peut fermer GeoStrix sur cet ordinateur.",
   "Open it whole anyway": "L'ouvrir entière quand même",
   "Read the {k} column(s)": "Lire les {k} colonne(s)",
-  "Only {k} chosen column(s) were read, to fit in memory: {list}.": "Seules {k} colonne(s) choisie(s) ont été lues, pour tenir en mémoire : {list}."
+  "Only {k} chosen column(s) were read, to fit in memory: {list}.": "Seules {k} colonne(s) choisie(s) ont été lues, pour tenir en mémoire : {list}.",
+  "Downhole log channels": "Canaux de diagraphie",
+  "Each ticked channel becomes its own numeric layer, named after the column. Untick all to import only the value column above as one layer.": "Chaque canal coché devient sa propre couche numérique, au nom de la colonne. Décochez tout pour n'importer que la colonne de valeur ci-dessus en une couche.",
+  "Import channel {c}": "Importer le canal {c}",
+  "{n} readings × {k} channel(s) is more than GeoStrix keeps reading by reading on this computer: they are averaged to a bin (mean, with the bin's minimum and maximum kept), stated in the notice and the layer. The file stays the source.": "{n} lectures × {k} canal(aux) dépasse ce que GeoStrix garde lecture par lecture sur cet ordinateur : elles sont moyennées par pas (moyenne, avec le minimum et le maximum du pas), indiqué dans l'avis et la couche. Le fichier reste la source.",
+  "Readings averaged to a bin (mean, with its minimum and maximum).": "Lectures moyennées par pas (moyenne, avec son minimum et son maximum).",
+  "Log bin": "Pas de la diagraphie",
+  "0.5 m bins": "Pas de 0,5 m",
+  "1 m bins": "Pas de 1 m",
+  "Every reading (no bins)": "Chaque lecture (sans pas)",
+  "{fileName}: {n} downhole log channel(s) imported as numeric layers{v}: {list}. The first is shown; the others are in the Layers list.": "{fileName} : {n} canal(aux) de diagraphie importé(s) en couches numériques{v} : {list}. Le premier est affiché ; les autres sont dans la liste des couches.",
+  ", averaged to {b} m bins (mean, with min and max)": ", moyennés par pas de {b} m (moyenne, avec min et max)",
+  ", every reading kept": ", chaque lecture gardée"
 }
