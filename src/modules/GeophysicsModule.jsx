@@ -71,7 +71,7 @@ import { unreadableFormatAdvice } from "../lib/unreadableFormats.js"; // TASKS.c
 import { t as tr } from "../lib/i18n.js";
 import { guessVoxelProperty, isLogProperty } from "../lib/voxelProperty.js"; // TASKS.csv #1786
 import { cloudShape } from "../lib/cloudShape.js"; // TASKS.csv #1783
-import { defaultDrapeElevation, rasterDrapeElevation, drapeElevationNote } from "../lib/drapeElevation.js"; // TASKS.csv #1856; rasterDrapeElevation: #1505
+import { defaultDrapeElevation, rasterDrapeElevation, drapeElevationNote, planElevation } from "../lib/drapeElevation.js"; // planElevation: #2294; // TASKS.csv #1856; rasterDrapeElevation: #1505
 import { collarTerrainOffset } from "../lib/terrainCheck.js"; // TASKS.csv #1620
 import { voxelStretch, sortedShownValues } from "../lib/voxelStretch.js"; // TASKS.csv #1812 / #1781
 import { VoxelRangeRow } from "./viewer/ViewerParts.jsx"; // TASKS.csv #1780
@@ -396,6 +396,9 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
   // per-raster elevation slider below moves it.
   const drapeAt = useMemo(() => defaultDrapeElevation({ collars, voxelModels, surfaceSamples }), [collars, voxelModels, surfaceSamples]); // #2075 — and where it came from
   const defaultElevation = drapeAt.z; // #1856
+  // TASKS.csv #2294 — boundaries and claims are surface features: on a project drilled from underground the highest collar (the #2269 rule), not
+  // the collar median, a mine level half-way down the fans
+  const boundaryElevation = useMemo(() => planElevation({ collars, survey, voxelModels, surfaceSamples }).z, [collars, survey, voxelModels, surfaceSamples]);
 
   // TASKS.csv — raster import UI itself moved to its own Raster module (user request); this stays
   // here ONLY so a .tif/.gxf dropped directly on the Geophysics tab (see onDrop below) still imports
@@ -923,7 +926,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         const shapePolylines = await shapeFileToPolylines(file);
         if (shapePolylines?.multi) { // #1970 — a GeoPackage with several tables: one boundary per table
           for (const p of shapePolylines.multi) {
-            addBoundary({ name: `${file.name}: ${p.table}`, polylines: p.polylines, closedFlags: p.closedFlags, elevation: defaultElevation });
+            addBoundary({ name: `${file.name}: ${p.table}`, polylines: p.polylines, closedFlags: p.closedFlags, elevation: boundaryElevation });
             imported++;
             if (p.note) dxfNotes.push(`${file.name}: ${p.table}: ${p.note}`);
           }
@@ -932,7 +935,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         if (!shapePolylines && /\.dxf$/i.test(file.name)) {
           // TASKS.csv #408 — one boundary per DXF layer, keeping 3D elevations.
           const specs = dxfToBoundaries(await file.text(), file.name);
-          specs.forEach((sp) => { addBoundary({ ...sp, elevation: defaultElevation }); imported++; });
+          specs.forEach((sp) => { addBoundary({ ...sp, elevation: boundaryElevation }); imported++; });
           const sk = dxfSkippedText(specs[0]?.dxfSkipped); // #550 — say what was left out
           if (sk || specs[0]?.dxfZerosDropped) dxfNotes.push(`${file.name}: ${[specs[0]?.dxfZerosDropped ? "every string had elevation 0, read as a 2D plan" : "", sk].filter(Boolean).join("; ")}`);
           continue;
@@ -945,7 +948,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
           const text = await file.text();
           ({ polylines } = parsePLYBoundary(text));
         }
-        addBoundary({ name: file.name, polylines, ...(closedFlags ? { closedFlags } : {}), elevation: defaultElevation });
+        addBoundary({ name: file.name, polylines, ...(closedFlags ? { closedFlags } : {}), elevation: boundaryElevation });
         imported++;
       } catch (err) {
         if (err.facesOnly) { solids.push(file); continue; } // TASKS.csv #1503 — 3DFACE / polyface only: a solid, for the 3D View's solid import
@@ -987,7 +990,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         const shapePolylines = await shapeFileToPolylines(file);
         const base = file.name.replace(/\.(ply|dxf|zip|shp|gpkg|kml|kmz|gpx|geojson|json)$/i, "");
         const addClaim = (c) => {
-          addBoundary({ name: c.name, polylines: c.polylines, ...(c.closedFlags ? { closedFlags: c.closedFlags } : {}), elevation: defaultElevation, kind: "claim", status: "active", tenureNumber: c.tenureNumber || "", expiryDate: c.expiryDate || "", color: claimStatusColor("active") });
+          addBoundary({ name: c.name, polylines: c.polylines, ...(c.closedFlags ? { closedFlags: c.closedFlags } : {}), elevation: boundaryElevation, kind: "claim", status: "active", tenureNumber: c.tenureNumber || "", expiryDate: c.expiryDate || "", color: claimStatusColor("active") });
           imported++;
         };
         // TASKS.csv #2122 — a claim is an area: a file of open lines (the 9 IP lines became nine 0 ha 'claims') goes to Boundaries instead

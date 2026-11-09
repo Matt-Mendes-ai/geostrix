@@ -35,7 +35,7 @@ import { t as tr } from "../../lib/i18n.js"; // TASKS.csv #786
 import { requestModuleAction, useModuleAction } from "../../lib/menuRequests.js"; // TASKS.csv #917; useModuleAction: #2019
 import { autoExtraFields, companionLayer, surveyMethodFields } from "../../lib/viewer/autoExtras.js"; // TASKS.csv #1501; surveyMethodFields: #2187
 import { surfaceAttrColumns, surfaceAttrs } from "../../lib/geochem.js"; // TASKS.csv #1504 — unmapped collar columns kept as attrs
-import { rasterDrapeElevation, drapeElevationNote } from "../../lib/drapeElevation.js"; // TASKS.csv #1505
+import { rasterDrapeElevation, drapeElevationNote, planElevation } from "../../lib/drapeElevation.js"; // TASKS.csv #1505; planElevation: #2294
 import { projectTargetEpsg } from "../../lib/projectTarget.js"; // TASKS.csv #2287 — no reprojection INTO the placeholder CRS
 import { looksLikeUbcMesh } from "../../lib/leapfrogMsh.js"; // TASKS.csv #1991
 
@@ -149,7 +149,8 @@ export function useImportPipeline(ctx) {
     const name = (file?.name || "").toLowerCase();
     // Drape elevation default, the rule RasterModule / GeophysicsModule use (#1505: above the collars under it, stacked over an
     // earlier raster, or at the depth the file name says). The per-raster elevation control on the Maps tab moves it after.
-    const defaultElevation = collars.length ? collars.reduce((s, c) => s + c.z, 0) / collars.length : 0;
+    // TASKS.csv #2294 — DXF lines without their own z: the #2269 rule (the highest collar on a project drilled from underground)
+    const liveNow = importStateRef.current, defaultElevation = planElevation({ collars: liveNow.collars || collars, survey: liveNow.survey || [], voxelModels: liveNow.voxelModels || [], surfaceSamples: liveNow.surfaceSamples || [] }).z;
     if (/\.(tiff?|gxf|grd)$/.test(name)) { // grd: #1347
       try {
         const live = importStateRef.current;

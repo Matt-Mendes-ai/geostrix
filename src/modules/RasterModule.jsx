@@ -463,7 +463,9 @@ export default function RasterModule({ embedded = false } = {}) {
         {spectralOpen && ( // TASKS.csv #783
           <SpectralIndexModal epsg={project?.epsg} defaultElevation={defaultElevation} sourceEpsg={sourceEpsg} areaOptions={spectralAreas}
             onClose={() => setSpectralOpen(false)}
-            onImport={(raster, msg) => { [].concat(raster).forEach((r) => addRaster({ ...r, elevation: defaultElevation })); /* an array: the #807 depth + wavelength maps */ setSpectralOpen(false); setError({ info: true, text: msg }); }} />
+            onImport={(raster, msg) => { // TASKS.csv #2294 — placed as a GeoTIFF of the same footprint is (#1505), and said
+              const list = [].concat(raster), drape = rasterDrapeElevation({ collars, voxelModels, surfaceSamples, bbox: list[0]?.bbox, rasters, fileName: list[0]?.name });
+              list.forEach((r, k) => addRaster({ ...r, elevation: drape.z + k * 5 })); /* an array: the #807 depth + wavelength maps, stacked 5 m apart */ setSpectralOpen(false); setError({ info: true, text: `${msg} ${drapeElevationNote(drape)}` }); }} />
         )}
         {/* projectEpsg: TASKS.csv #290 — lets the tie-point table declare its own CRS. */}
         {georefOpen && (
@@ -471,9 +473,12 @@ export default function RasterModule({ embedded = false } = {}) {
             projectEpsg={project?.epsg}
             onClose={() => setGeorefOpen(false)}
             onImport={(raster) => {
-              addRaster({ ...raster, elevation: defaultElevation });
+              // TASKS.csv #2294 (review #2174) — a scan of the same footprint as a GeoTIFF landed at the collar median (an underground level,
+              // mid-way through the fans) while the GeoTIFF went 5 m above the highest collar under it: the same rule now, and said
+              const drape = rasterDrapeElevation({ collars, voxelModels, surfaceSamples, bbox: raster.bbox, rasters, fileName: raster.name });
+              addRaster({ ...raster, elevation: drape.z });
               setGeorefOpen(false);
-              setError({ info: true, text: tr("Georeferenced and imported \"{name}\".", { name: raster.name }) });
+              setError({ info: true, text: tr("Georeferenced and imported \"{name}\".", { name: raster.name }) + " " + drapeElevationNote(drape) });
             }}
           />
         )}
