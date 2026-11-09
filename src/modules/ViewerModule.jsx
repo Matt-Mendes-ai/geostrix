@@ -1766,7 +1766,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   }, [bgColor]);
   // TASKS.csv #1504 — holes coloured by a collar field (lib/viewer/holeColours.js): a pass over the built litho group, after each rebuild
   useEffect(() => {
-    const g = layerGroupsRef.current?.litho;
+    const g = layerGroupsRef.current?.holes; // #2319
     if (!g || (!holeScheme && !holeColouredRef.current)) return;
     applyHoleColours(g, holeScheme, { collarMaterial: collarMaterialRef.current, collarsById: new Map(collars.map((c) => [String(c.hole_id), c])) });
     holeColouredRef.current = !!holeScheme;
@@ -2127,6 +2127,8 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
     // get one: driven by its own toggle (holeLabelMode), built/cleared by the generic Object.values(groups)
     // loops the rebuild effect already uses, no special-casing needed there.
     const holeLabelGroup = new THREE.Group(); holeLabelGroup.name = "hole_labels"; root.add(holeLabelGroup); groups.hole_labels = holeLabelGroup;
+    // TASKS.csv #2319 — collar markers and traces: their own group, so the Lithology eye hides the intervals only (user report)
+    const holeGroup = new THREE.Group(); holeGroup.name = "holes"; root.add(holeGroup); groups.holes = holeGroup;
     // TASKS.csv #1443 — the dip labels of the outcrop sets and the id / value labels of the surface samples, decluttered like the hole labels
     for (const name of ["outcrop_labels", "sample_labels"]) { const lg = new THREE.Group(); lg.name = name; root.add(lg); groups[name] = lg; }
     layerGroupsRef.current = groups;
@@ -4833,14 +4835,14 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       marker.scale.setScalar(3.2);
       marker.position.set(pts[0].x, pts[0].y, pts[0].z);
       marker.userData = { tip: `${c.hole_id}\ncollar${assumedVertical ? `\n${tr("no azimuth / dip and no survey: drawn as an ASSUMED vertical hole")}` : ""}`, collar: c }; // collar: #1504 — Identify lists its fields; #2014
-      groups.litho.add(marker);
+      groups.holes.add(marker); // #2319
 
       const traceLine = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts.map((p) => new THREE.Vector3(p.x, p.y, p.z))), assumedVertical
         ? new THREE.LineDashedMaterial({ color: 0x445064, dashSize: 4, gapSize: 4, transparent: true, opacity: 0.5 }) // #2014 — dashed, like a planned hole: this stick is an assumption
         : new THREE.LineBasicMaterial({ color: 0x445064, transparent: true, opacity: 0.5 }));
       if (assumedVertical) traceLine.computeLineDistances();
       traceLine.userData = { holeId: c.hole_id }; // #1533
-      groups.litho.add(traceLine);
+      groups.holes.add(traceLine);
 
       // TASKS.csv #131 — collar (hole) labels, opt-in via holeLabelMode; #1277 — drawn from these anchors by syncHoleLabels
       labelAnchors.push({ id: c.hole_id, x: pts[0].x, y: pts[0].y, z: pts[0].z, zWorld: c.z, depth: pts.length ? pts[pts.length - 1].md : 0 });

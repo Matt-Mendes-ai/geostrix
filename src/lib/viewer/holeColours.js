@@ -25,7 +25,7 @@ export function holeColourScheme(collars, field) {
   };
 }
 
-// The litho group's collar markers (userData.collar) and trace lines (Line with userData.holeId). A batched marker (more than ~24
+// The holes group's (the litho group's before #2319) collar markers (userData.collar) and trace lines (Line with userData.holeId). A batched marker (more than ~24
 // holes, layerBatches.js) is not in the group's children (#1540: reached through its batch, eachLayerMember) and shares its
 // pick-only material's colour with every other: it gets its own, and its batch is re-synced.
 export function applyHoleColours(group, scheme, { collarMaterial, collarsById } = {}) {
