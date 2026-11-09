@@ -14,8 +14,8 @@ test("regional presets: 1:250,000, 1:500,000 and 1:1,000,000", () => {
 test("the fit says how many holes it framed and how many are only assumed vertical", () => {
   const at = L.indexOf("const fitViewport = async (sel) =>");
   const body = L.slice(at, L.indexOf("\n  };", at));
-  assert.match(body, /!surveyed\.has\(c\.hole_id\) && \(!Number\.isFinite\(c\.azimuth\) \|\| !Number\.isFinite\(c\.dip\)\)/);
-  assert.match(body, /updateSelected\(\{ fixedScale: scale, trueScale: true, fitInfo: nHoles \? \{ scale, holes: nHoles, assumed \} : null \}\);/);
+  assert.match(body, /!surveyedIds\.has\(c\.hole_id\) && \(!Number\.isFinite\(c\.azimuth\) \|\| !Number\.isFinite\(c\.dip\)\)/);
+  assert.match(body, /fitInfo: nHoles \? \{ scale, holes: nHoles, assumed, \.\.\.\(assumed && scaleDrilled < scale \? \{ drilledScale: scaleDrilled \} : \{\}\) \} : null/); // #2304: blamed only when they widen it
   // shown under the button while the scale is still the fitted one (a notice was cleared by the refresh re-selecting the frame)
   assert.match(L, /\{sel\.fitInfo && sel\.fitInfo\.scale === sel\.fixedScale && \(/);
   assert.match(L, /drawn as assumed vertical holes\) and widen the frame/);

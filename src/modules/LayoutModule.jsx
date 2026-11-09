@@ -446,10 +446,15 @@ export default function LayoutModule() {
   // there and exact for a top-down view.
   const fitViewport = async (sel) => {
     const pts = [];
-    for (const c of collars || []) if (Number.isFinite(c.x) && Number.isFinite(c.y)) pts.push([c.x, c.y]);
+    // TASKS.csv #2304 (review #2174) — the points of the holes drawn as assumed verticals (no survey, no azimuth / dip) kept apart too, so
+    // the note blames them only when they do widen the frame (on the WA project they sit inside the fans)
+    const surveyedIds = new Set((survey || []).map((s) => s.hole_id));
+    const isAssumed = (c) => !surveyedIds.has(c.hole_id) && (!Number.isFinite(c.azimuth) || !Number.isFinite(c.dip));
+    const assumedIds = new Set((collars || []).filter(isAssumed).map((c) => c.hole_id)), ptsDrilled = [];
+    for (const c of collars || []) if (Number.isFinite(c.x) && Number.isFinite(c.y)) { pts.push([c.x, c.y]); if (!assumedIds.has(c.hole_id)) ptsDrilled.push([c.x, c.y]); }
     // #1476 — the holes, not only their collars: Silvertip's 1,300 m fans ran off the frame. Each desurveyed trace point counts.
     const { holeTraces } = await import("../lib/evidenceSources.js"); // loaded on use: not on the startup path
-    for (const t of holeTraces(collars, survey, project?.desurveyMethod).values()) for (const p of t) if (Number.isFinite(p.x) && Number.isFinite(p.y)) pts.push([p.x, p.y]);
+    for (const [hid, t] of holeTraces(collars, survey, project?.desurveyMethod)) for (const p of t) if (Number.isFinite(p.x) && Number.isFinite(p.y)) { pts.push([p.x, p.y]); if (!assumedIds.has(hid)) ptsDrilled.push([p.x, p.y]); }
     // #1866 (review #1646, Kodiak) — no holes: the visible block models' ground footprint first (the 2 km IP model was a speck at
     // 1:300,000 when the 19 x 31 km soil program decided the fit), then the samples, the map layers, the boundaries
     if (!pts.length) { const { modelFootprint } = await import("../lib/surfacePlan.js"); for (const m of voxelModels || []) { if (m.visible === false) continue; const b = modelFootprint(m); if (b) pts.push([b[0], b[1]], [b[2], b[3]]); } }
@@ -463,16 +468,21 @@ export default function LayoutModule() {
     const um = (u0 + u1) / 2, vm = (v0 + v1) / 2; // the box's middle, back to world (the inverse of the rotation above)
     const centreWorld = { x: um * cb - vm * sb, y: -(um * sb + vm * cb) };
     const frameWm = (sel.w / 96) * 0.0254, frameHm = (sel.h / 96) * 0.0254;
-    const need = Math.max(((u1 - u0) * 1.1) / frameWm, ((v1 - v0) * 1.1) / frameHm, 1);
-    const mag = 10 ** Math.floor(Math.log10(need));
-    const scale = [1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10].map((m) => Math.round(m * mag)).find((n) => n >= need);
+    const roundScaleFor = (U0, U1, V0, V1) => { const nd = Math.max(((U1 - U0) * 1.1) / frameWm, ((V1 - V0) * 1.1) / frameHm, 1); const mg = 10 ** Math.floor(Math.log10(nd)); return [1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10].map((m) => Math.round(m * mg)).find((n) => n >= nd); };
+    const scale = roundScaleFor(u0, u1, v0, v1);
+    // #2304 — the scale the drilled holes alone would take: the assumed ones widen the frame only when it is smaller
+    let scaleDrilled = scale;
+    if (assumedIds.size && ptsDrilled.length && ptsDrilled.length < pts.length) {
+      let a0 = Infinity, a1 = -Infinity, b0 = Infinity, b1 = -Infinity;
+      for (const [E, N] of ptsDrilled) { const u = E * cb - N * sb, v = -(E * sb + N * cb); if (u < a0) a0 = u; if (u > a1) a1 = u; if (v < b0) b0 = v; if (v > b1) b1 = v; }
+      scaleDrilled = roundScaleFor(a0, a1, b0, b1);
+    }
     // TASKS.csv #2132 (review #2013, Woodjam) — what was fitted, kept on the viewport and shown under the Fit button while the scale is the
     // fitted one: 534 district collars with no survey and no azimuth / dip (drawn as assumed vertical holes since #2014) took the fit to
     // 1:500,000 with the 10 drilled holes as specks, and nothing said why. (A notice would be cleared by the refresh re-selecting the frame.)
     const nHoles = (collars || []).filter((c) => Number.isFinite(c.x) && Number.isFinite(c.y)).length;
-    const surveyed = new Set((survey || []).map((s) => s.hole_id));
-    const assumed = (collars || []).filter((c) => Number.isFinite(c.x) && Number.isFinite(c.y) && !surveyed.has(c.hole_id) && (!Number.isFinite(c.azimuth) || !Number.isFinite(c.dip))).length;
-    updateSelected({ fixedScale: scale, trueScale: true, fitInfo: nHoles ? { scale, holes: nHoles, assumed } : null });
+    const assumed = (collars || []).filter((c) => Number.isFinite(c.x) && Number.isFinite(c.y) && assumedIds.has(c.hole_id)).length;
+    updateSelected({ fixedScale: scale, trueScale: true, fitInfo: nHoles ? { scale, holes: nHoles, assumed, ...(assumed && scaleDrilled < scale ? { drilledScale: scaleDrilled } : {}) } : null }); // drilledScale: #2304
     startViewportRender(sel.themeId, sel.id, true, { fixedScale: scale, elementW: sel.w, elementH: sel.h, centreWorld });
   };
   // TASKS.csv #906 — a resize handle was pressed (see Handles / the resize branch of the drag effect above)
@@ -1949,9 +1959,9 @@ function ViewportControls({ sel, themes, updateSelected, onRefresh, onRebind, on
       <button onClick={onFit} disabled={sel.refreshing} title={hasHoles ? tr("Pick the round scale at which all the drillholes (or the surface samples / boundaries) fit this frame, centre the view on them, and refresh") : tr("Pick the round scale at which the visible block models (else the surface samples, map layers or boundaries) fit this frame, centre the view on them, and refresh")} style={{ ...pBtn, opacity: sel.refreshing ? 0.6 : 1 }}>
         <Maximize2 size={14} />{" "}{hasHoles ? tr("Fit the holes at a round scale") : tr("Fit the data at a round scale")}</button>
       {sel.fitInfo && sel.fitInfo.scale === sel.fixedScale && ( /* TASKS.csv #2132 — what the fit framed */
-        <div style={{ fontSize: "var(--font-size-xs)", color: sel.fitInfo.assumed ? "var(--color-warn-text)" : "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>
+        <div style={{ fontSize: "var(--font-size-xs)", color: sel.fitInfo.drilledScale ? "var(--color-warn-text)" : "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>
           {tr("Fitted {n} hole(s) at 1:{scale}.", { n: sel.fitInfo.holes.toLocaleString(), scale: sel.fitInfo.scale.toLocaleString() })}
-          {sel.fitInfo.assumed > 0 && " " + tr("{k} of them have no survey and no azimuth / dip (drawn as assumed vertical holes) and widen the frame; for the drilled holes only, set the scale by hand or remove those collars.", { k: sel.fitInfo.assumed.toLocaleString() })}
+          {sel.fitInfo.drilledScale > 0 && " " + tr("{k} of them have no survey and no azimuth / dip (drawn as assumed vertical holes) and widen the frame: the drilled holes alone would fit at 1:{s}. Set the scale by hand, or remove those collars.", { k: sel.fitInfo.assumed.toLocaleString(), s: sel.fitInfo.drilledScale.toLocaleString() })}{/* #2304 — only when they do */}
         </div>
       )}
       {sel.fixedScale > 0 && (
