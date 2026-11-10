@@ -7,6 +7,7 @@ import { modelGround, boxTallerThanDrilling } from "../../lib/modelGround.js"; /
 import { roundVolume, loggedVolumeCheck } from "../../lib/volumeCheck.js"; // TASKS.csv #2530
 import { taskSlot, rampProgress } from "../../lib/taskSlot.js"; // TASKS.csv #2379; rampProgress: #2383
 import { stackOrderFromHoles } from "../../lib/stackOrderFromHoles.js"; // TASKS.csv #2382
+import { rockWithoutRows } from "../../lib/unloggedGaps.js"; // TASKS.csv #2380
 import { stackOrderAtHoles } from "../../lib/stackOrderAtHoles.js"; // TASKS.csv #2376
 import { intensityRank, INTENSITY_SCALE } from "../../lib/intensityVocab.js"; // TASKS.csv #2230
 import { baselineNotice, oneHoleDipNotice } from "../../lib/modelCheckBaseline.js"; // TASKS.csv #1687
@@ -1749,6 +1750,15 @@ export function createModellingRuns(ctx, mcRef) {
             intervals.push({ hole_id: r.hole_id, from: seg.from, to: seg.to, avgGrade: isTarget ? 1 : 0 });
           });
         });
+        // TASKS.csv #2380 (review #2325, WA uranium) — logged rock with no alteration row: unknown (as before) or, when asked, unaltered (a 0).
+        // Said either way, with the metres, so a halo that grew through such gaps (SIL: 715 Mm³ from 2 m silcrete rows) is explained.
+        const gaps = !isCode && sourceKey === "alt" && !customSrc ? rockWithoutRows(layers.litho || [], altRows) : null;
+        if (gaps && gaps.metres > 0) {
+          if (bodyOpts.unloggedZero) gaps.rows.forEach((r) => splitIntervalForSampling(r.from, r.to, subLen).forEach((seg) => intervals.push({ hole_id: r.hole_id, from: seg.from, to: seg.to, avgGrade: 0 })));
+          setNotices((p) => [...p, bodyOpts.unloggedZero
+            ? notice("{m} m of logged rock in {n} hole(s) with no alteration row counted as unaltered (0), so the halo closes there.", { m: Math.round(gaps.metres).toLocaleString(), n: gaps.holes })
+            : notice("{m} m of logged rock in {n} hole(s) has no alteration row and counted as unknown, not unaltered, so nothing pulls the halo in there. If this log records alteration only where seen, tick \"Count logged rock with no alteration row as unaltered\".", { m: Math.round(gaps.metres).toLocaleString(), n: gaps.holes })]);
+        }
         const { points: worldPts, dropped } = samplePointsFromIntervals(intervals, collars, survey, desurveyHole, desurveyMethod); // #135
         if (!worldPts.length) throw new Error(isCode ? tr("No sample points could be placed in 3D — check that the logged holes have collars.") : tr("No alteration sample points could be placed in 3D — check that the logged holes have collars."));
 

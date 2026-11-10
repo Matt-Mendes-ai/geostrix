@@ -29,7 +29,7 @@ test("the run takes a source layer and an intensity floor; the pane offers the l
   assert.doesNotMatch(p, /aria-label=\{tr\("Assemblage"\)\}/);
   assert.match(p, /aria-label=\{tr\("Alteration layer"\)\}/);
   assert.match(p, /aria-label=\{tr\("Intensity field"\)\}/);
-  assert.match(p, /runAlterationModel\(alterationTarget, \{\}, altSource\.layer === "alt" && !altSource\.field \? null : \{ layer: altSource\.layer, field: altSource\.field \|\| null, min: altSource\.field \? Number\(altSource\.min\) : null, vocab: !!\(altSource\.field && altSource\.vocab\), minLabel: altSource\.minLabel \|\| null \/\* #2230 \*\/ \}\)/);
+  assert.match(p, /runAlterationModel\(alterationTarget, \{[^}]*\}( \/\* #2380 \*\/)?, altSource\.layer === "alt" && !altSource\.field \? null : \{ layer: altSource\.layer, field: altSource\.field \|\| null, min: altSource\.field \? Number\(altSource\.min\) : null, vocab: !!\(altSource\.field && altSource\.vocab\), minLabel: altSource\.minLabel \|\| null \/\* #2230 \*\/ \}\)/);
   // a categorical custom layer: one whose values are not numbers
   assert.match(p, /customLayersAll\.filter\(\(c\) => \(c\.rows \|\| \[\]\)\.some\(\(r\) => r\.value != null && r\.value !== "" && !Number\.isFinite\(Number\(r\.value\)\)\)\)/);
 });

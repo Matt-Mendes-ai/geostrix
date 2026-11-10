@@ -9758,5 +9758,9 @@
   "Share of readings above {v} per code, highest first: {list}.": "Proporção de leituras acima de {v} por código, do maior para o menor: {list}.",
   "Mean per code, highest first: {list}.": "Média por código, do maior para o menor: {list}.",
   "P90 per code, highest first: {list}.": "P90 por código, do maior para o menor: {list}.",
-  "Contours…": "Curvas de nível…"
+  "Contours…": "Curvas de nível…",
+  "{m} m of logged rock in {n} hole(s) with no alteration row counted as unaltered (0), so the halo closes there.": "{m} m de rocha descrita em {n} furo(s) sem linha de alteração contados como não alterados (0), então o halo se fecha ali.",
+  "{m} m of logged rock in {n} hole(s) has no alteration row and counted as unknown, not unaltered, so nothing pulls the halo in there. If this log records alteration only where seen, tick \"Count logged rock with no alteration row as unaltered\".": "{m} m de rocha descrita em {n} furo(s) não têm linha de alteração e foram contados como desconhecidos, não como não alterados, então nada contém o halo ali. Se este registro anota a alteração só onde é vista, marque \"Contar a rocha descrita sem linha de alteração como não alterada\".",
+  "Count logged rock with no alteration row as unaltered": "Contar a rocha descrita sem linha de alteração como não alterada",
+  "For a log that records alteration only where it is seen: the rock logged in Lithology between its rows counts as unaltered, which closes the halo there. Off: that rock is unknown.": "Para um registro que anota a alteração só onde é vista: a rocha descrita em Litologia entre as suas linhas conta como não alterada, o que fecha o halo ali. Desligado: essa rocha é desconhecida."
 }

@@ -918,6 +918,7 @@ export default function ModellingPanes(props) {
                 </select>
               </label>
             )}
+              {altSource.layer === "alt" && <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginTop: 4 }} title={tr("For a log that records alteration only where it is seen: the rock logged in Lithology between its rows counts as unaltered, which closes the halo there. Off: that rock is unknown.")}><input type="checkbox" checked={!!altSource.unloggedZero} onChange={(e) => setAltSource((x) => ({ ...x, unloggedZero: e.target.checked }))} />{tr("Count logged rock with no alteration row as unaltered")}</label>}{/* #2380 */}
             {(altNumericFields.length > 0 || altVocabFields.length > 0) && (
               <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }} title={tr("Only the intervals whose field is at or above this value become altered samples; the rest count as unaltered, which is what closes the halo.")}>
                 <span style={{ flexShrink: 0 }}>{tr("Only where")}</span>
@@ -943,7 +944,7 @@ export default function ModellingPanes(props) {
             {altSourceCodes.map((u) => (altLoggedM.get(u) > 0 ? <option key={u} value={u}>{u}</option> : <option key={u} value={u} disabled>{tr("{code} (no logged length)", { code: u })}</option>))}{/* #1421; #1740 — 'Unknown' is not an assemblage; #1574 — the chosen layer's codes */}
           </select>
           <button
-            onClick={() => runAlterationModel(alterationTarget, {}, altSource.layer === "alt" && !altSource.field ? null : { layer: altSource.layer, field: altSource.field || null, min: altSource.field ? Number(altSource.min) : null, vocab: !!(altSource.field && altSource.vocab), minLabel: altSource.minLabel || null /* #2230 */ })}
+            onClick={() => runAlterationModel(alterationTarget, { unloggedZero: altSource.layer === "alt" && !!altSource.unloggedZero } /* #2380 */, altSource.layer === "alt" && !altSource.field ? null : { layer: altSource.layer, field: altSource.field || null, min: altSource.field ? Number(altSource.min) : null, vocab: !!(altSource.field && altSource.vocab), minLabel: altSource.minLabel || null /* #2230 */ })}
             disabled={!alterationTarget || alterationBusy}
             title={tr("Build a closed alteration-halo envelope from the logged intervals (runs in-app)")}
             aria-label={tr("Build a closed alteration-halo envelope from the logged intervals (runs in-app)")}
