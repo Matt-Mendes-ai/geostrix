@@ -184,6 +184,7 @@ import { findOnTraceWorld, findOnTrace, traceLookup, pointInDomain, SOLID_SURFAC
 import { syncRasterDrapes, syncBoundaries, syncMapLayers, syncSectionImages, syncSurfaceStructures, syncOmfObjects, syncTerrain, outcropLabelItems } from "../lib/viewer/sceneBuilders.js"; // TASKS.csv #693; outcropLabelItems: #1443
 import { syncDrawLods, dropDrawLod } from "../lib/viewer/drawLod.js"; // TASKS.csv #795
 import { useModelling } from "./viewer/useModelling.js";
+import { useUnitSource } from "./viewer/useUnitSource.js"; // TASKS.csv #2378
 import { pBtn, smallSel } from "../lib/sidebarStyles.js"; // TASKS.csv #704 // TASKS.csv #445 step 2
 import { isMarkedQcRow } from "../lib/qaqcCore.js"; // TASKS.csv #601; qaqcCore: #1345
 import { isAreaBoundary } from "../lib/boundaryImport.js"; // TASKS.csv #1466
@@ -1383,7 +1384,8 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   const [modelDomainId, setModelDomainId] = useState("");
   // TASKS.csv #1546 — Model area: "all" | "checked" (the checked holes only feed the modelling tools)
   const [modelArea, setModelArea] = useState("all");
-  const modelLayers = useMemo(() => (modelArea === "checked" ? restrictLayersToHoles(layers, visibleHoles) : layers), [layers, modelArea, visibleHoles]);
+  const { unitLayers, unitField, setUnitField, unitFields } = useUnitSource(layers); // #2378 — which Lithology field is the unit
+  const modelLayers = useMemo(() => (modelArea === "checked" ? restrictLayersToHoles(unitLayers, visibleHoles) : unitLayers), [unitLayers, modelArea, visibleHoles]);
   // TASKS.csv #52 (c) — which named intercept set (store.interceptSets) the modelling tools are
   // restricted to. Session state, not persisted, for exactly the reason modelDomainId isn't: the SETS
   // are project data and are saved; which one you happen to have selected right now is a UI choice.
@@ -3152,19 +3154,9 @@ ${describeTrend(t)}` };
   }, [interactiveViewportSession, applyTheme, resolveViewportRender]);
 
   // ---------- TASKS.csv #29: implicit surface modelling (GemPy), first pass ----------
-  // Scope of this first pass, deliberately kept narrow: model ONE contact surface at a time (the
-  // top of a chosen lithology unit), from whatever data is already in the project — no new import
-  // type, no UI for hand-picking which points/orientations to use. Interface points come from every
-  // litho interval's top-of-unit depth (row.from) across all holes where that unit occurs; orientation
-  // data comes from the structure layer (preferring "CON"/contact picks, falling back to any
-  // structure pick if there are no contacts logged) — both already sit in the store, desurveyed via
-  // the same tracesRef used to draw everything else, so points/orientations are computed in the same
-  // local scene coordinate system the rest of the viewer already uses (origin at the collar
-  // centroid, Y = elevation/up, Z = -northing offset) rather than raw world coordinates — that way
-  // the mesh GemPy returns can be added to the scene with zero extra transform. What this does NOT
-  // do yet: multi-surface stratigraphic stacks, faults, or picking which points feed the model by
-  // hand — see TASKS.csv for the follow-up items this opens up.
-  const litho_units = distinctValues(layers.litho || []).map(([v]) => v);
+  // Interface points: each unit's top contacts; orientations: the structure picks (contacts first); both in the scene frame (origin at
+  // the collar centroid, Y up, Z = -northing), so GemPy's mesh goes into the scene with no transform.
+  const litho_units = distinctValues(unitLayers.litho || []).map(([v]) => v);
   // TASKS.csv #176 — lithology groups (store.lithoGroups) sit alongside raw codes in the Implicit
   // model / Stratigraphic stack pickers, value-namespaced as `group:<id>` so the existing raw-code
   // value space (a raw code string is used verbatim as the <option> value) is untouched. The
@@ -3178,8 +3170,8 @@ ${describeTrend(t)}` };
   const modellingCodeList = useMemo(() => {
     const named = new Set([...Object.values(modellingCodes?.assign || {}), ...(modellingCodes?.codes || []).map((c) => c.name)]);
     if (!named.size) return [];
-    return codesInUse(layers.litho, modellingCodes, mcGroupOf, mcodeDefaultRole).filter((c) => named.has(c.name));
-  }, [modellingCodes, layers.litho, mcGroupOf]);
+    return codesInUse(unitLayers.litho, modellingCodes, mcGroupOf, mcodeDefaultRole).filter((c) => named.has(c.name));
+  }, [modellingCodes, unitLayers.litho, mcGroupOf]);
   const lithoGroupKey = (g) => `group:${g.id}`;
   // TASKS.csv #810 — what a drawn section contact can be tagged with: modelling codes and group names as well as the
   // logged codes, so a contact can feed a "X (code)" or group unit (the picker used to offer logged codes only)
@@ -3712,7 +3704,7 @@ ${describeTrend(t)}` };
     const exactRows = lb.intervals ? lb.intervals.map((q) => ({ hole_id: q.hole_id, from: q.from, to: q.to, value: q.modelled ?? ABOVE_TOPS, logged: q.logged })) : null;
     const samples = [];
     tracesRef.current.forEach((t) => {
-      (importStateRef.current.layers?.litho || []).forEach((r) => {
+      (unitLayers.litho || []).forEach((r) => { // #2378
         if (r.hole_id !== t.hole_id || !Number.isFinite(r.from) || !Number.isFinite(r.to) || r.to <= r.from) return;
         const p = findOnTrace(t.pts, (r.from + r.to) / 2);
         if (!p) return;
@@ -3785,6 +3777,7 @@ ${describeTrend(t)}` };
     interceptInActiveSet,
     isSameProject,
     layers: modelLayers, // TASKS.csv #1546 — the checked holes only, when Model area says so
+    unitLitho: unitLayers.litho, unitField, // #2378
     modelArea, visibleHoles, // TASKS.csv #2059 — the grade shell reads assays, not layers: it applies the area itself
     lithoGroups,
     modellingCodes, // TASKS.csv #599
@@ -6427,12 +6420,12 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     if (mcConnectFrom) {
       if (row.hole_id === mcConnectFrom.hole_id) { setNotices((p) => [...p, notice("Connect: pick the matching interval in ANOTHER hole (or press the connect button again to cancel).")]); return; }
       const code = effectiveCode(mcConnectFrom, modellingCodes, mcGroupOf);
-      setModellingCodes((p) => connectIntervals(p, mcConnectFrom, row, layers.litho, mcGroupOf));
+      setModellingCodes((p) => connectIntervals(p, mcConnectFrom, row, unitLayers.litho, mcGroupOf));
       setNotices((p) => [...p, notice("{hole_id} {v}–{v2} m ({value}) connected to {hole_id2}: modelling code {code}.", { hole_id: row.hole_id, v: Number(row.from).toFixed(1), v2: Number(row.to).toFixed(1), value: row.value, hole_id2: mcConnectFrom.hole_id, code })]);
       setMcConnectFrom(null);
     }
     setMcSelected(row);
-  }, [mcPickMode, mode, mcConnectFrom, modellingCodes, mcGroupOf, layers.litho, pickHits, setModellingCodes]);
+  }, [mcPickMode, mode, mcConnectFrom, modellingCodes, mcGroupOf, unitLayers.litho, pickHits, setModellingCodes]);
   // TASKS.csv #811 — a click (not a drag) in the 3D view while an explicit surface is picking: the hits go to the
   // Explicit surface panel (loaded on demand), which turns them into a pick
   const explicitClickRef = useRef(null);
@@ -6508,7 +6501,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       if (!ta || !tb) return;
       const pa = findOnTrace(ta.pts, (a.from + a.to) / 2), pb = findOnTrace(tb.pts, (b.from + b.to) / 2);
       if (!pa || !pb) return;
-      const rowA = (layers.litho || []).find((r) => r.hole_id === a.hole_id && Math.abs(Number(r.from) - a.from) < 1e-3);
+      const rowA = (unitLayers.litho || []).find((r) => r.hole_id === a.hole_id && Math.abs(Number(r.from) - a.from) < 1e-3);
       const code = rowA ? effectiveCode(rowA, modellingCodes, mcGroupOf) : null;
       const color = (code && codeInfo(modellingCodes, code).color) || (rowA ? colorForLithology(rowA.value) : "#ffd400");
       const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(pa.x, pa.y, pa.z), new THREE.Vector3(pb.x, pb.y, pb.z)]), new THREE.LineBasicMaterial({ color, depthTest: false, transparent: true, opacity: 0.9 }));
@@ -6528,7 +6521,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     highlight(mcSelected, "#ffd400");
     if (mcConnectFrom && mcConnectFrom !== mcSelected) highlight(mcConnectFrom, "#ff8a00");
     lastActivityRef.current = Date.now();
-  }, [modellingCodes, mcSelected, mcConnectFrom, mode, layers.litho, collars, survey, mcGroupOf]);
+  }, [modellingCodes, mcSelected, mcConnectFrom, mode, unitLayers.litho, collars, survey, mcGroupOf]);
   // TASKS.csv #121 follow-up — user request: "let's kinda merge the two buttons, we really only need
   // one" (originally shipped as two separate toolbar buttons, Ruler for distance and Shapes for area).
   // One toolbar button now turns measuring on (defaulting to distance) or off; while it's on, a small
@@ -7863,7 +7856,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         {sidebarTab === "modelling" && (<>
         {MODELLING_PANES.has(toolPane) && (
           <Suspense fallback={null}>
-            <ModellingPanes {...{ visibleHoles, stackBreaks, setStackBreaks, orientationReachM, setOrientationReachM, /* #1170 */ tracesSeq, /* #888 */ explicitTrend, /* #881 */ camState, sectionImages, setDigitizeImageId, /* #824 */ runMapModel, MapModelPanel, viewDragHookRef, sceneRef, layerGroupsRef, /* #1333 */ cameraRef, rendererRef, explicitOverlayRef, ExplicitSurfacePanel, ModellingCodesPane, PredictivePanel, SurfaceGeologyProjection, TrendsPanel, activeInterceptSet, activeInterceptSetId, addLithoGroup, addStackUnit, addVoxelModel, addWorldMeshSurface, alt_units, alterationBusy, alterationCellSize, alterationSearchRadius, alterationTarget, askPrompt, assayElements, assays, clipToDomainBoundary, clipToTopo, limitToContacts, setLimitToContacts, contactReachM, setContactReachM, collars, desurveyMethod, domains, emptyPaneHint, expandedLithoGroupId, explicitClickRef, explicitPickFor, explicitSnap, explicitSurfaces, faultCandidates, implicitBusy, implicitGroupRef, implicitMeshesRef, implicitSurfaces, implicitTarget, includeSectionContacts, interceptSets, isLithoGroupKey, isMcodeKey, lastActivityRef, layers, lithoGroupCrossCuts, lithoGroupKey, lithoGroupRole, lithoGroups, litho_units, mapConstraint, mapLayers, mcConnectFrom, mcGroupOf, mcPickMode, mcSelected, mcodeDefaultRole, miniField, modelDomainId, modelArea, setModelArea, /* #1546 */ modelResolution, modellingCodeList, modellingCodes, moveStackUnit, numericBudgetHint, numericBusy, numericCapValue, numericCellSize, numericCloseShell, numericCompositeLength, numericCutoff, numericIncludeQAQC, numericMaxBlocks, numericMethod, numericVariogram, setNumericVariogram, /* #1015 */ numericMinCoverage, numericMinHoles, numericPadding, numericSearchRadius, numericSymbol, numericUseComposites, orientTypes, orientTypesSel, originRef, paneHeader, projectMapContact, rangeMultiplier, removeImplicitSurface, removeLithoGroup, removeStackUnit, resolveLithoTarget, runAlterationModel, runImplicitModel, runNumericModel, runStackModel, runStructuralModel, runVeinModel, searchEllipsoid, sections, sensBudget, sensN, sensOpen, sensSigmaDeg, sensSigmaPos, setActiveInterceptSetId, setAlterationCellSize, setAlterationSearchRadius, setAlterationTarget, setClipToDomainBoundary, setClipToTopo, setCoreOrientOpen, setExpandedLithoGroupId, setExplicitPickFor, setExplicitSnap, setExplicitSurfaces, setFenceOpen, setGradeEstOpen, setImplicitSurfaces, setImplicitTarget, setIncludeSectionContacts, setMapConstraint, setMcConnectFrom, setMcPickMode, setMcSelected, setModelDomainId, setModelResolution, setModellingCodes, setNotices, setNumericBudgetHint, setNumericCapValue, setNumericCellSize, setNumericCloseShell, setNumericCompositeLength, setNumericCutoff, setNumericIncludeQAQC, setNumericMaxBlocks, setNumericMethod, setNumericMinCoverage, setNumericMinHoles, setNumericPadding, setNumericSearchRadius, setNumericSymbol, setNumericUseComposites, setOrientTypesSel, setRangeMultiplier, setSearchEllipsoid, setSensBudget, setSensN, setSensOpen, setSensSigmaDeg, setSensSigmaPos, setSmoothClusters, setStackAdd, setStackFaults, setStackRelation, setStereonetOpen, setStructuralTarget, setStructuralTrends, setSurfaceDetail, setTadpoleOpen, setThinPicks, setThinWindowM, setTrendPreviewId, setVariogramOpen, setVeinCellSize, setVeinDip, setVeinDipDir, setVeinSearchRadius, setVeinTarget, smoothClusters, stackAdd, stackFaults, stackFaultOffsets, setStackFaultOffsets, /* #1054 */ stackRelation, stackUnits, struct_types, structuralTarget, structuralTrends, structurePicksWithHoleAttitude, structureTypes, surfaceDetail, surfaceStructures, survey, terrain, thinPicks, thinWindowM, toolPane, tracesRef, trendFor, trendPreviewId, updateLithoGroup, veinBusy, veinCellSize, veinDip, veinDipDir, veinSearchRadius, veinTarget, vein_units, worldPointFromHits }} />
+            <ModellingPanes {...{ visibleHoles, stackBreaks, setStackBreaks, orientationReachM, setOrientationReachM, /* #1170 */ tracesSeq, /* #888 */ explicitTrend, /* #881 */ camState, sectionImages, setDigitizeImageId, /* #824 */ runMapModel, MapModelPanel, viewDragHookRef, sceneRef, layerGroupsRef, /* #1333 */ cameraRef, rendererRef, explicitOverlayRef, ExplicitSurfacePanel, ModellingCodesPane, PredictivePanel, SurfaceGeologyProjection, TrendsPanel, activeInterceptSet, activeInterceptSetId, addLithoGroup, addStackUnit, addVoxelModel, addWorldMeshSurface, alt_units, alterationBusy, alterationCellSize, alterationSearchRadius, alterationTarget, askPrompt, assayElements, assays, clipToDomainBoundary, clipToTopo, limitToContacts, setLimitToContacts, contactReachM, setContactReachM, collars, desurveyMethod, domains, emptyPaneHint, expandedLithoGroupId, explicitClickRef, explicitPickFor, explicitSnap, explicitSurfaces, faultCandidates, implicitBusy, implicitGroupRef, implicitMeshesRef, implicitSurfaces, implicitTarget, includeSectionContacts, interceptSets, isLithoGroupKey, isMcodeKey, lastActivityRef, layers: unitLayers, unitField, setUnitField, unitFields, /* #2378 */ lithoGroupCrossCuts, lithoGroupKey, lithoGroupRole, lithoGroups, litho_units, mapConstraint, mapLayers, mcConnectFrom, mcGroupOf, mcPickMode, mcSelected, mcodeDefaultRole, miniField, modelDomainId, modelArea, setModelArea, /* #1546 */ modelResolution, modellingCodeList, modellingCodes, moveStackUnit, numericBudgetHint, numericBusy, numericCapValue, numericCellSize, numericCloseShell, numericCompositeLength, numericCutoff, numericIncludeQAQC, numericMaxBlocks, numericMethod, numericVariogram, setNumericVariogram, /* #1015 */ numericMinCoverage, numericMinHoles, numericPadding, numericSearchRadius, numericSymbol, numericUseComposites, orientTypes, orientTypesSel, originRef, paneHeader, projectMapContact, rangeMultiplier, removeImplicitSurface, removeLithoGroup, removeStackUnit, resolveLithoTarget, runAlterationModel, runImplicitModel, runNumericModel, runStackModel, runStructuralModel, runVeinModel, searchEllipsoid, sections, sensBudget, sensN, sensOpen, sensSigmaDeg, sensSigmaPos, setActiveInterceptSetId, setAlterationCellSize, setAlterationSearchRadius, setAlterationTarget, setClipToDomainBoundary, setClipToTopo, setCoreOrientOpen, setExpandedLithoGroupId, setExplicitPickFor, setExplicitSnap, setExplicitSurfaces, setFenceOpen, setGradeEstOpen, setImplicitSurfaces, setImplicitTarget, setIncludeSectionContacts, setMapConstraint, setMcConnectFrom, setMcPickMode, setMcSelected, setModelDomainId, setModelResolution, setModellingCodes, setNotices, setNumericBudgetHint, setNumericCapValue, setNumericCellSize, setNumericCloseShell, setNumericCompositeLength, setNumericCutoff, setNumericIncludeQAQC, setNumericMaxBlocks, setNumericMethod, setNumericMinCoverage, setNumericMinHoles, setNumericPadding, setNumericSearchRadius, setNumericSymbol, setNumericUseComposites, setOrientTypesSel, setRangeMultiplier, setSearchEllipsoid, setSensBudget, setSensN, setSensOpen, setSensSigmaDeg, setSensSigmaPos, setSmoothClusters, setStackAdd, setStackFaults, setStackRelation, setStereonetOpen, setStructuralTarget, setStructuralTrends, setSurfaceDetail, setTadpoleOpen, setThinPicks, setThinWindowM, setTrendPreviewId, setVariogramOpen, setVeinCellSize, setVeinDip, setVeinDipDir, setVeinSearchRadius, setVeinTarget, smoothClusters, stackAdd, stackFaults, stackFaultOffsets, setStackFaultOffsets, /* #1054 */ stackRelation, stackUnits, struct_types, structuralTarget, structuralTrends, structurePicksWithHoleAttitude, structureTypes, surfaceDetail, surfaceStructures, survey, terrain, thinPicks, thinWindowM, toolPane, tracesRef, trendFor, trendPreviewId, updateLithoGroup, veinBusy, veinCellSize, veinDip, veinDipDir, veinSearchRadius, veinTarget, vein_units, worldPointFromHits }} />
           </Suspense>
         )}{/* TASKS.csv #693 — loaded on demand */}
         {toolPane && <div className="ge-pane-end" role="separator" />}{/* #458 */}

@@ -97,6 +97,7 @@ export default function ModellingPanes(props) {
     miniField,
     modelDomainId,
     modelArea, setModelArea, // TASKS.csv #1546
+    unitField, setUnitField, unitFields, // TASKS.csv #2378
     modelResolution,
     modellingCodeList,
     modellingCodes,
@@ -321,6 +322,19 @@ export default function ModellingPanes(props) {
           <option value="all">{tr("Whole property")}</option>
           <option value="checked">{tr("Holes checked in the Holes list ({n} of {m})", { n: checkedHoleCount(collars, visibleHoles).checked, m: checkedHoleCount(collars, visibleHoles).all })}</option>
         </select>
+        {/* TASKS.csv #2378 (review #2325, WA uranium) — rock code and stratigraphic unit logged on the same intervals: which one the tools model */}
+        {(unitFields || []).length > 0 && setUnitField && (
+          <>
+            <div className="ge-section-label" style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 8 }}>
+              <span>{tr("Model the units from")}</span>
+              <InfoButton title={tr("Model the units from")} width={280} text={tr("Which field of the Lithology rows every modelling tool on this tab reads as the unit: the Lithology code, or an extra field imported with it (a stratigraphic unit, a formation). The Strat. stack, Implicit surface, Litho groups, Modelling codes and the unit lists all follow it; the 3D view and the logs keep showing the Lithology code. Rows with nothing in the chosen field are left out of the models.")} />
+            </div>
+            <select aria-label={tr("Model the units from")} value={unitField || ""} onChange={(e) => setUnitField(e.target.value)} style={{ width: "100%", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)" }}>
+              <option value="">{tr("Lithology code")}</option>
+              {(unitFields || []).map((f) => <option key={f.name} value={f.name}>{tr("{field} (extra field, {n} values)", { field: f.name, n: f.distinct })}</option>)}
+            </select>
+          </>
+        )}
         {/* TASKS.csv #52 (c) — named intercept sets. Sits with the Domain selector because it is the
             same kind of control: both narrow WHICH picks feed every tool below, one spatially and one
             by hand. */}

@@ -61,6 +61,7 @@ export function createModellingRuns(ctx, mcRef) {
     apiToScene,
     assayElements,
     assays,
+    unitLitho, unitField, // TASKS.csv #2378 — the Lithology rows with the unit from the chosen field (all holes), and that field
     customLayers, // TASKS.csv #1739 — a vein's logged angle to core axis may sit on a custom interval layer
     clipToDomainBoundary,
     clipToTopo,
@@ -312,7 +313,7 @@ export function createModellingRuns(ctx, mcRef) {
     // block cell a midpoint falls in (one cell is 50-110 m on a real extent at 36^3)
     const evalRows = [];
     traces.forEach((t) => {
-      (importStateRef.current.layers?.litho || []).forEach((r) => {
+      (unitLitho || importStateRef.current.layers?.litho || []).forEach((r) => { // #2378 — the unit as the tools read it
         if (r.hole_id !== t.hole_id || !Number.isFinite(r.from) || !Number.isFinite(r.to) || r.to <= r.from) return;
         const p = findOnTrace(t.pts, (r.from + r.to) / 2);
         if (!p) return;
@@ -467,6 +468,7 @@ export function createModellingRuns(ctx, mcRef) {
         tool: specs.length > 1 ? "stratigraphic stack (GemPy)" : "implicit surface (GemPy)",
         surface: spec.meshName, sourcePoints: spec.points.length, orientations: spec.orientations.length,
         relation, resolution: [modelResolution, modelResolution, modelResolution],
+        ...(unitField ? { unitsFrom: unitField } : {}), // #2378 — the Lithology field the units were read from
         surfaceDetail: res.surfaceDetail ?? 4, // #766 — GemPy's octree level for the mesh (4 = its floor)
         gempyRange: res.rangeUsed ?? null, gempyRangeDefault: res.rangeDefault ?? null, engineDtype: res.precision ?? "float64", // engineDtype: #767 (an older engine solved in float64)
         gempyRangeMultiplier: rangeMultiplier || null, gempyCO: res.cO ?? null,

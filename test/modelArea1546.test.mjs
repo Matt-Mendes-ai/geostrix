@@ -32,7 +32,7 @@ test("the half-cell rule", () => {
 
 test("the viewer feeds the modelling tools the checked holes when Model area says so; the pane offers it; the fit notice advises", () => {
   const v = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
-  assert.match(v, /const modelLayers = useMemo\(\(\) => \(modelArea === "checked" \? restrictLayersToHoles\(layers, visibleHoles\) : layers\), \[layers, modelArea, visibleHoles\]\);/);
+  assert.match(v, /const modelLayers = useMemo\(\(\) => \(modelArea === "checked" \? restrictLayersToHoles\(unitLayers, visibleHoles\) : unitLayers\), \[unitLayers, modelArea, visibleHoles\]\);/);
   assert.match(v, /    layers: modelLayers, \/\/ TASKS\.csv #1546/);
   assert.match(v, /modelDomainId, modelArea, setModelArea, \/\* #1546 \*\/ modelResolution,/);
   const p = readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8");
