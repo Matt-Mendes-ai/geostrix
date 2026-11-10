@@ -6,6 +6,8 @@ import { desurveyHole, pointOnTrace } from "./desurvey.js";
 import { voxelCellSupported } from "./viewer/geomath.js";
 import { surveyKey } from "./geophysSurveys.js";
 import { valueIn } from "./geochem.js";
+import { modelGround } from "./modelGround.js"; // TASKS.csv #2447
+import { median } from "./arrayStats.js"; // TASKS.csv #2447
 
 export const DRILL_REACH_M = 250;
 const GRADE_BIN_M = 25;
@@ -129,6 +131,18 @@ export function rasterFloorZ(traces) {
   let low = Infinity;
   for (const t of traces.values()) for (const p of t) if (p.z < low) low = p.z;
   return Number.isFinite(low) ? Math.floor(low / 10) * 10 - 10 : null;
+}
+
+// TASKS.csv #2447 / #2576 (reviews #2325 / #2486) — where a plan-view score map goes: draped on the terrain; with none, on the collar
+// surface (the collars of surface drilling are on the ground: #1353, #2470), the viewer drawing it under the holes; collars that look
+// underground (#2217) are no ground, and the map stays flat under the drilling (#1204). -> { drapeMode, elevation?, kind }
+// elevation, on the collar surface: the collars' median, for a reader of the flat level (an export, a project whose collars go)
+export function scoreRasterPlacement(terrain, collars, survey, traces) {
+  if (terrain) return { drapeMode: "terrain", kind: "terrain" };
+  const g = modelGround(null, collars, survey);
+  if (g.ground) return { drapeMode: "collars", kind: "collars", elevation: Math.round(median((collars || []).map((c) => c?.z))) };
+  const z = rasterFloorZ(traces);
+  return { drapeMode: "flat", kind: z != null ? "floor" : "flat", ...(z != null ? { elevation: z } : {}) };
 }
 
 export function holeTraces(collars, survey, method) {

@@ -176,7 +176,7 @@ import { objectVisibilityBundle, applyObjectVisibility } from "../lib/viewer/the
 import { LABEL_PX, makeTextSprite, fitScreenLabels, fitContourLabels } from "../lib/viewer/textSprite.js"; // TASKS.csv #1443 — moved out of this file; fitContourLabels: #1466
 import { restrictLayersToHoles } from "../lib/modelArea.js"; // TASKS.csv #1546
 import { gradeText } from "../lib/gradeText.js"; // #2515
-import { pickOnCollarSurface } from "./viewer/pickGround.js"; // #2574
+import { pickOnView } from "./viewer/pickGround.js"; // #2574; #2447
 import { syncHoleLabels, declutterHoleLabels, withEveryLabel, syncTextLabels, sampleLabelItems } from "../lib/viewer/holeLabels.js"; // withEveryLabel: TASKS.csv #1770; syncTextLabels / sampleLabelText: #1443
 import { PickStandIn, PICK_ONLY_LAYER } from "../lib/viewer/pickStandIn.js"; // TASKS.csv #1500
 import { syncBatchedInstances, buildLayerBatches, eachLayerMember } from "../lib/viewer/layerBatches.js"; // moved out (size cap, #1084)
@@ -5461,7 +5461,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
 
   // ---------- rebuild raster drapes (TASKS.csv #24, #81) ----------
   // moved to lib/viewer/sceneBuilders.js syncRasterDrapes (TASKS.csv #693); its comments explain the build
-  useEffect(() => { if (rasterGroupRef.current && !buildDefer.skip()) syncRasterDrapes(rasterGroupRef.current, rasterMeshesRef.current, rasters, { origin: originRef.current, terrain, renderer: rendererRef.current }); }, [rasters, collars, terrain, rebuildSeq, deferRound]);
+  useEffect(() => { if (rasterGroupRef.current && !buildDefer.skip()) syncRasterDrapes(rasterGroupRef.current, rasterMeshesRef.current, rasters, { origin: originRef.current, terrain, renderer: rendererRef.current, collars }); }, [rasters, collars, terrain, rebuildSeq, deferRound]);
 
   // ---------- rebuild boundary polylines (Geosoft .ply import) ----------
   // moved to lib/viewer/sceneBuilders.js syncBoundaries (TASKS.csv #693); its comments explain the build
@@ -6356,7 +6356,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     const mx = ((e.clientX - rect.left) / rect.width) * 2 - 1, my = -((e.clientY - rect.top) / rect.height) * 2 + 1;
     const raycaster = new THREE.Raycaster();
     raycaster.setFromCamera(new THREE.Vector2(mx, my), cameraRef.current);
-    const world = pickOnCollarSurface(raycaster.ray, worldPointFromHits(raycaster, pickHits(raycaster).filter((h) => !h.object.userData.flatRaster)), terrain ? null : collars, originRef.current); // #1453; #2574
+    const hits = pickHits(raycaster), world = pickOnView(raycaster.ray, hits, (h) => worldPointFromHits(raycaster, h), terrain ? null : collars, originRef.current); // #1453; #2574; #2447
     if (!world) return;
     setPickedHolePoint(world);
     setPickHoleMode(false);

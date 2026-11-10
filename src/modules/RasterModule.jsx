@@ -589,13 +589,20 @@ export default function RasterModule({ embedded = false } = {}) {
               </div>
             )}
             <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7, cursor: terrain ? "pointer" : "default", opacity: terrain ? 1 : 0.45 }}>
-              <input type="checkbox" checked={r.drapeMode === "terrain"} disabled={!terrain}
+              <input type="checkbox" checked={r.drapeMode === "terrain" || (r.drapeMode === "collars" && !!terrain)} disabled={!terrain}
                 onChange={(e) => updateRaster(r.id, { drapeMode: e.target.checked ? "terrain" : "flat" })} />
               <span style={{ color: "var(--color-text-caption)" }}>{tr("Drape on terrain{v}", { v: !terrain ? tr(" (import a DEM under Maps → Terrain first)") : "" })}</span>
             </label>
-            <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7, opacity: r.drapeMode === "terrain" ? 0.4 : 1 }}>
+            {/* TASKS.csv #2447 — with no terrain, on the collar surface (a score map's default), drawn under the holes */}
+            {!terrain && collars.length >= 3 && (
+              <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7, cursor: "pointer" }}>
+                <input type="checkbox" checked={r.drapeMode === "collars"} onChange={(e) => updateRaster(r.id, { drapeMode: e.target.checked ? "collars" : "flat" })} />
+                <span style={{ color: "var(--color-text-caption)" }}>{tr("On the ground between the collars (no terrain): the holes are drawn over it")}</span>
+              </label>
+            )}
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7, opacity: r.drapeMode === "terrain" || r.drapeMode === "collars" ? 0.4 : 1 }}>
               <span style={{ color: "var(--color-text-faint)", width: 46, flexShrink: 0 }}>{tr("Elev.")}</span>
-              <input type="number" value={Math.round(r.elevation)} disabled={r.drapeMode === "terrain"} onChange={(e) => updateRaster(r.id, { elevation: Number(e.target.value) })} style={numInput} />
+              <input type="number" value={Math.round(r.elevation)} disabled={r.drapeMode === "terrain" || r.drapeMode === "collars"} onChange={(e) => updateRaster(r.id, { elevation: Number(e.target.value) })} style={numInput} />
             </div>
             {r.grid && !r.ternary && <RasterColourControls raster={r} onUpdate={updateRaster} inputStyle={numInput} />}{/* #1236 */}
             {r.grid && <GridContourControls raster={r} inputStyle={numInput} />}{/* #1622 — contours of a geochemistry grid; #2398 — of any raster that keeps its grid (a TMI, an eU grid) */}

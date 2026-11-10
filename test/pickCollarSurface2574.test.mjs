@@ -32,5 +32,5 @@ test("a hit on a real object, or a project with terrain, is left as it is", () =
   const flat = planeHit();
   assert.equal(pickOnCollarSurface(ray, flat, null, origin), flat);
   const v = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
-  assert.match(v, /pickOnCollarSurface\(raycaster\.ray, worldPointFromHits\(raycaster, pickHits\(raycaster\)\.filter\(\(h\) => !h\.object\.userData\.flatRaster\)\), terrain \? null : collars, originRef\.current\)/);
+  assert.match(v, /pickOnView\(raycaster\.ray, hits, \(h\) => worldPointFromHits\(raycaster, h\), terrain \? null : collars, originRef\.current\)/); // #2447: pickOnView ends in pickOnCollarSurface
 });

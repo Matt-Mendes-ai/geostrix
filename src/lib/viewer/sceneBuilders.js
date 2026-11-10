@@ -12,6 +12,22 @@ import { buildAdaptiveTerrain } from "../terrainMesh.js"; // TASKS.csv #796
 import { keyedCanvas } from "../rasterKey.js"; // TASKS.csv #1623
 import { contourLabelSpots, indexLevels } from "../contourLabels.js"; // TASKS.csv #1466 / #1622
 import { makeTextSprite } from "./textSprite.js"; // TASKS.csv #1466 / #1622
+import { collarGround } from "../pitShell.js"; // TASKS.csv #2447
+
+// TASKS.csv #2447 / #2576 (reviews #2325 / #2486) — a raster drawn on the collar surface (drapeMode "collars", a project with no terrain): a
+// score map at the round level under the deepest hole (#1204) sat 43-137 m off its holes in Top view, the view being in perspective. The
+// collars of surface drilling are surveyed points on the ground (#1353, #2470), so the sheet follows them. It is drawn first and writes no
+// depth, so the holes, collars and models are drawn over it, never dimmed under a 75 % sheet.
+const collarIds = new WeakMap();
+let collarSeq = 0;
+const collarsKey = (collars) => { if (!collarIds.has(collars)) collarIds.set(collars, ++collarSeq); return collarIds.get(collars); };
+export const COLLAR_DRAPE_SEG = 64;
+export function collarDrapeMaterial(material) {
+  material.transparent = false; // the opaque list, drawn before the holes
+  material.blending = THREE.CustomBlending; // still blended at its opacity (CustomBlending keeps the alpha an opaque material drops)
+  material.depthWrite = false;
+  return material;
+}
 
 // ---------- rebuild raster drapes (TASKS.csv #24, #81) ----------
 // Deliberately its own effect, not folded into the geometry-rebuild effect above: rasters come from
@@ -21,7 +37,7 @@ import { makeTextSprite } from "./textSprite.js"; // TASKS.csv #1466 / #1622
 // stay aligned — reads originRef.current, which the effect above keeps current, and this effect is
 // declared after it so within one render pass the origin is already up to date), or `terrain`
 // changes (a "drape on terrain" raster needs to re-sample if the terrain surface itself changed).
-export function syncRasterDrapes(group, cache, rasters, { origin, terrain, renderer }) {
+export function syncRasterDrapes(group, cache, rasters, { origin, terrain, renderer, collars = null }) {
   const wantedIds = new Set(rasters.map((r) => r.id));
   // Drop meshes for rasters that were removed.
   Object.keys(cache).forEach((id) => {
@@ -40,11 +56,12 @@ export function syncRasterDrapes(group, cache, rasters, { origin, terrain, rende
     // TASKS.csv #81 — "drape on terrain" only actually applies if a terrain surface exists; a
     // raster imported before any terrain was loaded (or with drapeMode explicitly "flat") stays a
     // flat plane at `elevation`, same as #24's original behavior.
-    const drapeOnTerrain = r.drapeMode === "terrain" && !!terrain;
+    const drapeOnTerrain = (r.drapeMode === "terrain" || r.drapeMode === "collars") && !!terrain; // "collars": on a terrain once there is one (#2447)
+    const ground = r.drapeMode === "collars" && !terrain && collars?.length >= 3 ? collarGround(collars) : null; // #2447
     // Rebuild geometry when the drape MODE changes (flat <-> terrain) or the terrain surface itself
     // changes (a re-imported/updated terrain would otherwise leave a stale drape shape) — everything
     // else (opacity, elevation for flat mode) is a cheap in-place update on the existing mesh.
-    const geoKey = `${drapeOnTerrain ? `terrain:${terrain.id}` : "flat"}${r.colourStyle ? JSON.stringify(r.colourStyle) : ""}${r.keyColour && !r.grid ? `|key:${r.keyColour}` : ""}`; // #1236 — a new style is a new texture; #1623 a keyed-out colour too
+    const geoKey = `${drapeOnTerrain ? `terrain:${terrain.id}` : ground ? `collars:${collarsKey(collars)}` : "flat"}${r.colourStyle ? JSON.stringify(r.colourStyle) : ""}${r.keyColour && !r.grid ? `|key:${r.keyColour}` : ""}`; // #1236 — a new style is a new texture; #1623 a keyed-out colour too
     let mesh = cache[r.id];
     if (mesh && mesh.userData.geoKey !== geoKey) {
       // Dispose geometry AND material/texture here — the `!mesh` branch below always builds a fresh
@@ -68,8 +85,15 @@ export function syncRasterDrapes(group, cache, rasters, { origin, terrain, rende
       // resolution the source grid didn't have (see raster.js's MAX_TEXTURE_SIZE comment).
       texture.anisotropy = renderer?.capabilities?.getMaxAnisotropy?.() ?? 1;
       const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true, opacity: r.opacity ?? 0.85, side: THREE.DoubleSide, depthWrite: false });
+      if (ground) collarDrapeMaterial(material); // #2447
       let geometry;
-      if (drapeOnTerrain) {
+      if (ground) { // #2447 — sampled on the collar surface, lifted clear of the collars' own discs
+        geometry = new THREE.PlaneGeometry(w, h, COLLAR_DRAPE_SEG, COLLAR_DRAPE_SEG);
+        const pos = geometry.attributes.position;
+        for (let i = 0; i < pos.count; i++) pos.setZ(i, ground(cx + pos.getX(i), cy + pos.getY(i)) - oz + 0.15);
+        pos.needsUpdate = true;
+        geometry.computeVertexNormals();
+      } else if (drapeOnTerrain) {
         // Bug fix (user report: "image is not draping correctly... zones of discrepancies"). Two
         // compounding issues here, both about how closely this mesh actually hugs the terrain mesh
         // underneath it: (1) SEG was a flat 48 regardless of how much of the terrain's own (up to
@@ -112,6 +136,7 @@ export function syncRasterDrapes(group, cache, rasters, { origin, terrain, rende
       // TASKS.csv #1453 — a raster not draped on a terrain floats at a chosen level (a fuzzy score sat at 170 m on Silvertip): a
       // collar picked on it took that elevation, ~1,230 m under the pads. Collar picks pass through it (ViewerModule onPickHoleClick).
       mesh.userData.flatRaster = !drapeOnTerrain;
+      if (ground) { mesh.renderOrder = -1; mesh.userData.collarDrape = true; } // #2447: drawn first, under everything else
       group.add(mesh);
       cache[r.id] = mesh;
     } else {
@@ -122,7 +147,7 @@ export function syncRasterDrapes(group, cache, rasters, { origin, terrain, rende
     mesh.visible = r.visible !== false;
     // A terrain-draped mesh's vertices already carry their own (terrain-relative) elevation — only
     // its X/Z footprint comes from cx/cy; a flat drape's single elevation still comes from `r.elevation`.
-    mesh.position.set(cx - ox, drapeOnTerrain ? 0 : elevation - oz, -(cy - oy));
+    mesh.position.set(cx - ox, drapeOnTerrain || ground ? 0 : elevation - oz, -(cy - oy));
   });
 }
 

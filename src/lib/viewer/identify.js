@@ -124,7 +124,7 @@ function describe(hit, ctx) {
     const v = rasterValueAt(rs.grid, world.e, world.n), fields = [];
     if (v != null) fields.push([tr("Value"), num(v, 4)]);
     if (rs.params?.tool) fields.push([tr("Made with"), rs.params.tool]);
-    fields.push([tr("Drape"), rs.drapeMode === "terrain" ? tr("On the terrain") : tr("Flat at {z} m", { z: num(rs.elevation ?? 0, 1) })]);
+    fields.push([tr("Drape"), rs.drapeMode === "terrain" ? tr("On the terrain") : rs.drapeMode === "collars" ? tr("On the ground between the collars") /* #2447 */ : tr("Flat at {z} m", { z: num(rs.elevation ?? 0, 1) })]);
     return { ...base, backdrop: true, layer: tr("Rasters"), title: rs.name, fields };
   }
   const ml = ctx.mapLayerOf(o);
