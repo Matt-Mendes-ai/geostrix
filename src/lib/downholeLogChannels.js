@@ -61,22 +61,49 @@ export function readingDepth(r, mapping) {
   return NaN;
 }
 
+// TASKS.csv #2332 (review #2325, WA uranium) — no-data codes in a log channel: eU3O8 of -1 (545 rows) and -1.83E+09 (10 rows), Raw_cps of
+// 10.7 million beside a maximum of 54,938, went in as readings (the layer's mean -41,600 ppm). A value is questioned when it is one of the
+// usual null sentinels, negative in a unit that cannot be (ppm, cps, g/cc, %, API, ohm.m, mS/m, mm, in), or more than 1,000 times the
+// channel's own 99th percentile either way (-1.83E+09 in a channel of unknown unit too). -> { n, codes: [[value, count]], values: Set } | null
+const SENTINELS = new Set([-999, -999.25, -9999, -99999, -999999]);
+const NON_NEGATIVE_UNITS = new Set(["ppm", "cps", "g/cc", "%", "API", "ohm.m", "mS/m", "mm", "in"]);
+export function channelNoData(rows, col, unit = "") {
+  const num = (v) => (typeof v === "number" ? v : Number(String(v ?? "").replace(",", ".")));
+  const vals = [];
+  for (const r of rows || []) { const v = r?.[col]; if (isNum(v)) vals.push(num(v)); }
+  if (!vals.length) return null;
+  // the 99th percentile of the positive readings, from at most 20,000 of them spread through the file
+  const pos = vals.filter((v) => v > 0), step = Math.max(1, Math.floor(pos.length / 20000)), sample = [];
+  for (let i = 0; i < pos.length; i += step) sample.push(pos[i]);
+  sample.sort((a, b) => a - b);
+  const p99 = sample.length ? sample[Math.min(sample.length - 1, Math.floor(0.99 * (sample.length - 1)))] : null;
+  const noNeg = NON_NEGATIVE_UNITS.has(unit), codes = new Map();
+  for (const v of vals) if (SENTINELS.has(v) || (noNeg && v < 0) || (p99 > 0 && Math.abs(v) > 1000 * p99)) codes.set(v, (codes.get(v) || 0) + 1);
+  if (!codes.size) return null;
+  let n = 0; for (const c of codes.values()) n += c;
+  return { n, codes: [...codes].sort((a, b) => b[1] - a[1]), values: new Set(codes.keys()) };
+}
+// "-1 × 545, -1.83E+09 × 10" (the first few)
+export const noDataText = (nd, k = 4) => nd.codes.slice(0, k).map(([v, c]) => `${Math.abs(v) >= 1e6 ? v.toExponential(2).toUpperCase().replace("E+", "E+0").replace(/E\+0(\d\d)/, "E+$1") : v} × ${c}`).join(", ") + (nd.codes.length > k ? ", …" : "");
+
 // TASKS.csv #2160 — readings kept raw while the layers stay under this many values in all; above it binning is offered (decision (2))
 export const LOG_RAW_BUDGET = 1_000_000;
 export const needsBinning = (readings, channels) => readings * Math.max(1, channels) > LOG_RAW_BUDGET;
 
 // one channel's layer rows. binM null: a row per reading { hole_id, depth, value }; binM > 0: per hole, per bin [k*binM, (k+1)*binM):
 // { hole_id, from, to, value (mean), min, max, n }. Readings with no number are left out (counted in skipped).
-export function logChannelRows(rows, mapping, col, binM = null) {
+// drop (#2332): a Set of values left out as no-data codes (counted in dropped)
+export function logChannelRows(rows, mapping, col, binM = null, drop = null) {
   const num = (v) => (typeof v === "number" ? v : Number(String(v ?? "").replace(",", ".")));
   const pts = [];
-  let skipped = 0;
+  let skipped = 0, dropped = 0;
   for (const r of rows || []) {
     const hole = String(r?.[mapping.hole_id] ?? "").trim(), d = readingDepth(r, mapping), v = r?.[col]; // #2329 — or the From / To middle
     if (!hole || !Number.isFinite(d) || !isNum(v)) { skipped++; continue; }
+    if (drop && drop.has(num(v))) { dropped++; continue; } // #2332
     pts.push({ hole_id: hole, depth: d, value: num(v) });
   }
-  if (!(binM > 0)) return { rows: pts, skipped, binned: false };
+  if (!(binM > 0)) return { rows: pts, skipped, dropped, binned: false };
   const bins = new Map();
   for (const p of pts) {
     const k = Math.floor(p.depth / binM + 1e-9), key = `${p.hole_id}\u0000${k}`;
@@ -87,7 +114,7 @@ export function logChannelRows(rows, mapping, col, binM = null) {
   const r4 = (v) => Math.round(v * 1e4) / 1e4;
   const out = [...bins.values()].sort((a, b) => (a.hole_id < b.hole_id ? -1 : a.hole_id > b.hole_id ? 1 : a.k - b.k))
     .map((b) => ({ hole_id: b.hole_id, from: r4(b.k * binM), to: r4((b.k + 1) * binM), value: b.sum / b.n, min: b.min, max: b.max, n: b.n }));
-  return { rows: out, skipped, binned: true, readings: pts.length };
+  return { rows: out, skipped, dropped, binned: true, readings: pts.length };
 }
 // the channels ticked when the dialog opens: the columns named as log channels (null: none named, the one-layer path as before)
 export function defaultLogChannels(channels) {

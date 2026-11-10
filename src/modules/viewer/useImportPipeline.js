@@ -20,7 +20,7 @@ import { azimuthToGridOffset, wrap360, loadIgrf, detectAzimuthRef } from "../../
 import { orientFromAlphaBeta, reorientAlphaBetaPicks } from "../../lib/coreOrientation.js";
 import { fitSimilarity, parseControlPoints, transformImportRows } from "../../lib/localGrid.js";
 import { tieOf, fileToLocal, bearingToLocal } from "../../lib/localGridTie.js"; // TASKS.csv #2288
-import { logChannelsFor, defaultLogBin, logChannelRows, unitFromHeader } from "../../lib/downholeLogChannels.js"; // TASKS.csv #2160
+import { logChannelsFor, defaultLogBin, logChannelRows, unitFromHeader, channelNoData, noDataText } from "../../lib/downholeLogChannels.js"; // TASKS.csv #2160; no-data: #2332
 import { loadSampleFiles } from "../../lib/desktop.js";
 const isXlsxName = (name) => /\.xlsx$/i.test(String(name || "")); // TASKS.csv #605 (same test as xlsx.js; the reader itself loads on demand, #552)
 import { buildLayer, sameMapLayer } from "../../lib/mapLayerBuild.js"; // TASKS.csv #609; sameMapLayer: #2019
@@ -601,7 +601,8 @@ export function useImportPipeline(ctx) {
       const base = String(fileName).replace(/\.(csv|txt|las|xlsx?)$/i, "");
       const made = [];
       chans.forEach((col, k) => {
-        const out = logChannelRows(allRows, mapping, col, binM);
+        const nd = data.logKeepNoData ? null : channelNoData(allRows, col, unitFromHeader(col)); // #2332 — no-data codes left out unless kept
+        const out = logChannelRows(allRows, mapping, col, binM, nd?.values || null);
         if (!out.rows.length) return;
         const unit = unitFromHeader(col);
         const id = `custom_${Date.now()}_${k}`;
@@ -613,9 +614,10 @@ export function useImportPipeline(ctx) {
         // TASKS.csv #2329 — a From / To log: each reading placed at its interval's middle, said in the layer's notes (project text: English)
         const mid = !mapping.depth && mapping.from && mapping.to ? `Each reading placed at the middle of its ${mapping.from}-${mapping.to} interval.` : "";
         const binNote = out.binned ? `Binned on import to ${binM} m: mean of ${out.readings} reading(s), with each bin's min and max (fields min, max, n). Source: ${fileName}.` : "";
-        setCustomLayers((p) => [...p, { id, name, rows: rowsOut, group, unit: unit || undefined, ...(out.binned ? { binM } : {}), ...(binNote || mid ? { notes: [binNote, mid].filter(Boolean).join(" ") } : {}) }]);
+        const ndNote = nd && out.dropped ? `Left out on import as no-data codes: ${out.dropped} value(s) (${noDataText(nd)}).` : ""; // #2332
+        setCustomLayers((p) => [...p, { id, name, rows: rowsOut, group, unit: unit || undefined, ...(out.binned ? { binM } : {}), ...(binNote || mid || ndNote ? { notes: [binNote, mid, ndNote].filter(Boolean).join(" ") } : {}) }]);
         setCustomVisible((p) => ({ ...p, [id]: k === 0 }));
-        made.push(`${col}${unit ? ` (${unit})` : ""}: ${out.rows.length.toLocaleString()}${out.skipped ? ` (${out.skipped} without a number)` : ""}`);
+        made.push(`${col}${unit ? ` (${unit})` : ""}: ${out.rows.length.toLocaleString()}${out.skipped ? ` (${out.skipped} without a number)` : ""}${out.dropped ? ` (${out.dropped.toLocaleString()} no-data value(s) left out: ${noDataText(nd)})` : ""}`); // dropped: #2332
       });
       setNotices((p) => [...p, tr("{fileName}: {n} downhole log channel(s) imported as numeric layers{v}: {list}. The first is shown; the others are in the Layers list.", { fileName, n: made.length, v: binM ? tr(", averaged to {b} m bins (mean, with min and max)", { b: binM }) : tr(", every reading kept"), list: made.join("; ") })]);
     } else if (target === "custom") {

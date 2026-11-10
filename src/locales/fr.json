@@ -9604,5 +9604,7 @@
   "No positive {symbol} values in the drill assays.": "Aucune valeur positive de {symbol} dans les analyses de sondage.",
   "Import surface samples or drill assays first": "Importez d'abord des échantillons de surface ou des analyses de sondage",
   "Anomaly thresholds for soil and stream-sediment samples, and length-weighted for drill assays, judged within populations": "Seuils d'anomalie pour les échantillons de sol et de sédiments de ruisseau, et pondérés par la longueur pour les analyses de sondage, jugés dans chaque population",
-  "Each reading is placed at the middle of its From–To interval ({from} to {to}): a log at short steps, not intervals of a rock unit.": "Chaque lecture est placée au milieu de son intervalle De–À ({from} à {to}) : une diagraphie à pas courts, pas des intervalles d'une unité de roche."
+  "Each reading is placed at the middle of its From–To interval ({from} to {to}): a log at short steps, not intervals of a rock unit.": "Chaque lecture est placée au milieu de son intervalle De–À ({from} à {to}) : une diagraphie à pas courts, pas des intervalles d'une unité de roche.",
+  "{col}: {n} value(s) look like no-data codes ({codes}): a null sentinel, a negative {unit}, or more than 1,000 times the channel's 99th percentile.": "{col} : {n} valeur(s) ressemblent à des codes sans donnée ({codes}) : une sentinelle nulle, un {unit} négatif ou plus de 1 000 fois le 99e centile du canal.",
+  "Leave them out (said in the notice and the layer notes)": "Les laisser de côté (indiqué dans l'avis et les notes de la couche)"
 }

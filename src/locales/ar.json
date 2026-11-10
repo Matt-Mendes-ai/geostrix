@@ -9604,5 +9604,7 @@
   "No positive {symbol} values in the drill assays.": "لا توجد قيم موجبة لـ {symbol} في تحاليل الثقوب.",
   "Import surface samples or drill assays first": "استورد العينات السطحية أو تحاليل الثقوب أولًا",
   "Anomaly thresholds for soil and stream-sediment samples, and length-weighted for drill assays, judged within populations": "عتبات الشذوذ لعينات التربة ورواسب المجاري، ومرجّحة بالطول لتحاليل الثقوب، تُقيَّم داخل كل مجتمع",
-  "Each reading is placed at the middle of its From–To interval ({from} to {to}): a log at short steps, not intervals of a rock unit.": "توضع كل قراءة في منتصف فاصلها من–إلى ({from} إلى {to}): تسجيل بخطوات قصيرة، لا فواصل وحدة صخرية."
+  "Each reading is placed at the middle of its From–To interval ({from} to {to}): a log at short steps, not intervals of a rock unit.": "توضع كل قراءة في منتصف فاصلها من–إلى ({from} إلى {to}): تسجيل بخطوات قصيرة، لا فواصل وحدة صخرية.",
+  "{col}: {n} value(s) look like no-data codes ({codes}): a null sentinel, a negative {unit}, or more than 1,000 times the channel's 99th percentile.": "{col}: تبدو {n} قيمة رموزًا لانعدام البيانات ({codes}): قيمة فارغة متعارف عليها، أو {unit} سالب، أو أكثر من 1000 ضعف المئين 99 للقناة.",
+  "Leave them out (said in the notice and the layer notes)": "استبعدها (يُذكر ذلك في الإشعار وملاحظات الطبقة)"
 }

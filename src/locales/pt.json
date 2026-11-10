@@ -9604,5 +9604,7 @@
   "No positive {symbol} values in the drill assays.": "Não há valores positivos de {symbol} nas análises de furos.",
   "Import surface samples or drill assays first": "Importe primeiro amostras de superfície ou análises de furos",
   "Anomaly thresholds for soil and stream-sediment samples, and length-weighted for drill assays, judged within populations": "Limiares de anomalia para amostras de solo e sedimento de corrente, e ponderados pelo comprimento para análises de furos, julgados em cada população",
-  "Each reading is placed at the middle of its From–To interval ({from} to {to}): a log at short steps, not intervals of a rock unit.": "Cada leitura é colocada no meio do seu intervalo De–Até ({from} a {to}): uma perfilagem a passos curtos, não intervalos de uma unidade de rocha."
+  "Each reading is placed at the middle of its From–To interval ({from} to {to}): a log at short steps, not intervals of a rock unit.": "Cada leitura é colocada no meio do seu intervalo De–Até ({from} a {to}): uma perfilagem a passos curtos, não intervalos de uma unidade de rocha.",
+  "{col}: {n} value(s) look like no-data codes ({codes}): a null sentinel, a negative {unit}, or more than 1,000 times the channel's 99th percentile.": "{col}: {n} valor(es) parecem códigos sem dado ({codes}): um sentinela nulo, um {unit} negativo ou mais de 1.000 vezes o percentil 99 do canal.",
+  "Leave them out (said in the notice and the layer notes)": "Deixá-los de fora (dito no aviso e nas notas da camada)"
 }
