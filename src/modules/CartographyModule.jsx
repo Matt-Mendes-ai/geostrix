@@ -30,6 +30,7 @@ import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786 — messages in the 
 import { collarCentreLonLat, collarSpread, formatLonLat } from "../lib/projectCrs.js"; // TASKS.csv #2291
 import { smallGridCoordinates } from "../lib/crsFromColumns.js"; // TASKS.csv #2291
 const LocalGridPanel = React.lazy(() => import("../components/LocalGridPanel.jsx")); // TASKS.csv #2288 — on demand
+const MineGridPanel = React.lazy(() => import("../components/MineGridPanel.jsx")); // TASKS.csv #2586 — on demand
 
 const btn = { display: "flex", alignItems: "center", justifyContent: "center", gap: 7, width: "100%", padding: "8px 10px", marginTop: 8, background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, color: "var(--color-text)", fontSize: "var(--font-size-base)", cursor: "pointer", fontFamily: "inherit" };
 const primary = { ...btn, background: "var(--color-accent)", borderColor: "var(--color-accent-dark)", color: "#fff" };
@@ -186,6 +187,7 @@ export default function CartographyModule({ embedded = false, forcePane = null }
           <>
             <TaskPaneHeader icon={Globe2} title="Project CRS" />
             {project.crsSet === false && <React.Suspense fallback={null}><LocalGridPanel /></React.Suspense>}{/* #2180 / #2288 — keep a local mine grid, tie it to a CRS */}
+            {project.crsSet !== false && project.epsg && <React.Suspense fallback={null}><MineGridPanel /></React.Suspense>}{/* #2586 — a mine grid beside the CRS */}
             <div style={note}>{tr("Every file you import is reprojected into this CRS (its own")}{" "}<em>{tr("Source CRS")}</em>{" "}{tr("box says what the file is in). Current:")}{" "}<b>{project.crsSet === false ? tr("not chosen yet") : nameOf(project.epsg)}</b>.{project.crsSet === false ? tr(" Pick the CRS your coordinates are in — nothing is converted.") : ""}</div>
             <div style={{ marginTop: 12 }}><CrsPicker label={tr("Change to")} value={newCrs || (project.crsSet === false ? null : project.epsg) /* #2289: the placeholder is not a current choice */} onChange={setNewCrs} /></div>
             {changing && isGeographic(newCrs) && (

@@ -20,6 +20,7 @@ import { azimuthToGridOffset, wrap360, loadIgrf, detectAzimuthRef } from "../../
 import { orientFromAlphaBeta, reorientAlphaBetaPicks } from "../../lib/coreOrientation.js";
 import { fitSimilarity, parseControlPoints, transformImportRows } from "../../lib/localGrid.js";
 import { tieOf, fileToLocal, bearingToLocal } from "../../lib/localGridTie.js"; // TASKS.csv #2288
+import { mineGridOf } from "../../lib/mineGrid.js"; // TASKS.csv #2586
 import { logChannelsFor, defaultLogBin, logChannelRows, unitFromHeader, channelNoData, noDataText } from "../../lib/downholeLogChannels.js"; // TASKS.csv #2160; no-data: #2332
 import { loadSampleFiles } from "../../lib/desktop.js";
 const isXlsxName = (name) => /\.xlsx$/i.test(String(name || "")); // TASKS.csv #605 (same test as xlsx.js; the reader itself loads on demand, #552)
@@ -101,7 +102,7 @@ export function useImportPipeline(ctx) {
     adoptCrsIfEmpty(guessEpsgFromPrjWkt(parsed.prjWkt), file.name); // #607
     const live = importStateRef.current;
     const sourceName = file.name.replace(/\.(shp|zip)$/i, "");
-    const layer = buildLayer({ ...parsed, epsg: guessEpsgFromPrjWkt(parsed.prjWkt) }, { sourceName, projectEpsg: projectTargetEpsg(live.project), tie: tieOf(live.project) /* #2320 */, qml: null, sourceOverride: null });
+    const layer = buildLayer({ ...parsed, epsg: guessEpsgFromPrjWkt(parsed.prjWkt) }, { sourceName, projectEpsg: projectTargetEpsg(live.project), tie: tieOf(live.project) /* #2320 */, mineGrid: mineGridOf(live.project), collars: live.collars /* #2586 */, qml: null, sourceOverride: null });
     if (!layer) { setNotices((p) => [...p, notice("{name}: no usable line / polygon features.", { name: file.name })]); return; }
     const twin = sameMapLayer(live.mapLayers, layer); // #2019 — the same file again: not a second copy
     if (twin) { setNotices((p) => [...p, notice("{name} is already in Map layers as \"{layer}\" ({features}): not added again.", { name: file.name, layer: twin.name, features: featureCountText(layer.features.length, layer.geomType) })]); return; }

@@ -4,6 +4,7 @@
 // their modules (RasterModule, GeophysicsModule's map panes, CartographyModule), shown here "embedded": this tab owns the ribbon,
 // each button picks the pane (and, for an import, asks the module to start it through a module action, #565).
 import React, { useState } from "react";
+import { mineGridOf } from "../lib/mineGrid.js"; // TASKS.csv #2586
 import { Ribbon, RibbonGroup, RibbonButton } from "../components/Ribbon.jsx";
 import { Image, Satellite, Mountain, MapPinned, Map as MapIcon, Globe, Globe2, Shapes, Flag, Layers, FileSpreadsheet, Rainbow } from "../components/icons.js";
 import { requestModuleAction, useModuleAction } from "../lib/menuRequests.js";
@@ -55,7 +56,7 @@ export default function MapsModule() {
         const got = crsReady ? await new Promise((res) => parseVectorFile(f, (rows, err, meta) => res({ err, meta }))) : null;
         const vec = got?.meta?.vector;
         if (!vec || got.err || got.meta?.layerOptions || !vec.geomType || vec.geomType === "point") { toViewer.push(f); continue; }
-        const layer = buildLayer({ ...vec, epsg: guessEpsgFromPrjWkt(vec.prjWkt) }, { sourceName: f.name.replace(/\.(shp|zip)$/i, ""), projectEpsg: projectTargetEpsg(project), qml: null, sourceOverride: null });
+        const layer = buildLayer({ ...vec, epsg: guessEpsgFromPrjWkt(vec.prjWkt) }, { sourceName: f.name.replace(/\.(shp|zip)$/i, ""), projectEpsg: projectTargetEpsg(project), qml: null, sourceOverride: null, mineGrid: mineGridOf(project), collars /* #2586 */ });
         if (!layer?.features?.length) { notes.push(tr("{name}: no usable line / polygon features.", { name: f.name })); continue; }
         const twin = sameMapLayer(mapLayers, layer);
         if (twin) { notes.push(tr("{name} is already in Map layers as \"{layer}\" ({features}): not added again.", { name: f.name, layer: twin.name, features: featureCountText(layer.features.length, layer.geomType) })); continue; }

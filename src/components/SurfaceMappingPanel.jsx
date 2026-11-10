@@ -39,6 +39,7 @@ import CoveringLayers from "./CoveringLayers.jsx"; // TASKS.csv #1823
 import { graduatedStyle, graduatedCategories, parseBreaks, isNumericField } from "../lib/mapGraduated.js"; // TASKS.csv #1600
 import { projectTargetEpsg } from "../lib/projectTarget.js"; // TASKS.csv #2287 — no reprojection INTO the placeholder CRS
 import { tieOf, fileToLocal, bearingToLocal } from "../lib/localGridTie.js"; // TASKS.csv #2320
+import { mineGridOf } from "../lib/mineGrid.js"; // TASKS.csv #2586
 import { collarsLookUnderground } from "../lib/pitShell.js"; // TASKS.csv #2265
 
 export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { // part: "maps" | "structures" | null = both (TASKS.csv #458)
@@ -119,7 +120,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
       if (adopted) { setEpsg(adopted); projectEpsg = adopted; done.push(tr("project CRS set to EPSG:{epsg}", { epsg: adopted })); }
       empty = false;
       // #1715 — clipped to the project area (collars, surface samples) when there is one
-      let layer = buildLayer(parsed, { sourceName, projectEpsg, qml, sourceOverride: mapSourceEpsg, tie: tieOf(project) /* #2320 */, clipTo: projectClipBox([...(collars || []), ...(surfaceSamples || [])]) });
+      let layer = buildLayer(parsed, { sourceName, projectEpsg, qml, sourceOverride: mapSourceEpsg, tie: tieOf(project) /* #2320 */, mineGrid: mapSourceEpsg ? null : mineGridOf(project), collars /* #2586 */, clipTo: projectClipBox([...(collars || []), ...(surfaceSamples || [])]) });
       if (layer?.outside) { failed.push(tr("{name}: none of its {n} features comes within reach of the project's holes and samples, so nothing was imported (check its CRS if it should).", { name: sourceName, n: layer.outside.toLocaleString() })); return; }
       if (!layer) { failed.push(tr("{name}: no usable features", { name: `${sourceName}${parsed.name ? ` (${parsed.name})` : ""}` })); return; }
       // #1325 — a layer with no units to tell apart gets a colour of its own: a batch used to be one amber

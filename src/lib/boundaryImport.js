@@ -4,13 +4,16 @@
 // assumed to be in the project CRS: a BC Albers (EPSG:3005) tenure shapefile landed 5,036 km away with 77 of 131 rings.
 import { getProj4Def, guessEpsgFromPrjWkt, pointTransform } from "./reproject.js";
 import { t as tr } from "./i18n.js"; // TASKS.csv #1974 — the CRS notes in the interface language
+import { readsAsMineGrid, mineToProject, kmFromCollars, partsBox } from "./mineGrid.js"; // TASKS.csv #2586
 
 // parsed: { features: [{ geometry, parts? }], geomType, epsg?, prjWkt? } (parseShapefileZip / a parseGeoPackage layer)
 // -> { polylines: [[{x, y}]], closedFlags, sourceEpsg, note } — note says what was done with the CRS, in the interface language
-export async function vectorToBoundaryPolylines(parsed, projectEpsg) {
+// mineGrid / collars (TASKS.csv #2586): a project's mine grid beside its CRS (lib/mineGrid.js mineGridOf) and its collars: a file with no CRS
+// whose coordinates lie on that grid is read on it; one that does not is told how far from the collars it landed
+export async function vectorToBoundaryPolylines(parsed, projectEpsg, { mineGrid = null, collars = null } = {}) {
   const dst = Number(projectEpsg) || null;
   const src = Number(parsed.epsg) || (parsed.prjWkt ? guessEpsgFromPrjWkt(parsed.prjWkt) : null) || null;
-  let T = null, note;
+  let T = null, note, mineGridUsed = false;
   if (src && dst && src !== dst) {
     await Promise.all([getProj4Def(src), getProj4Def(dst)]); // registry codes load on demand (#834)
     T = pointTransform(src, dst);
@@ -18,8 +21,20 @@ export async function vectorToBoundaryPolylines(parsed, projectEpsg) {
   } else if (src && !dst) note = tr("the project has no coordinate system yet: its EPSG:{src} coordinates were kept as they are, check where it lies", { src }); // #2287
   else if (src) note = null; // already the project CRS
   else if (!dst) note = tr("neither the file nor the project states a coordinate system: the coordinates were kept as they are, check where it lies"); // #2287
-  else note = parsed.prjWkt ? tr("its .prj names a CRS GeoStrix does not recognize: the coordinates were taken as EPSG:{dst}, check where it lies", { dst })
-    : tr("it states no CRS: the coordinates were taken as EPSG:{dst}, check where it lies", { dst });
+  else {
+    const box = partsBox((parsed.features || []).flatMap((f) => (f.parts?.length ? f.parts : [f.geometry])));
+    if (!parsed.prjWkt && readsAsMineGrid(box, mineGrid, collars, dst)) { // #2586
+      const M = mineToProject(mineGrid, dst);
+      T = (x, y) => M(x, y);
+      mineGridUsed = true;
+      note = tr("it states no CRS, and its coordinates lie on the project's mine grid{grid} where the collars are: read on that grid and brought into EPSG:{dst} through its tie", { grid: mineGrid.name ? ` (${mineGrid.name})` : "", dst });
+    } else {
+      const km = kmFromCollars(box, collars);
+      const far = km != null && km > 20 ? tr(" (it landed {km} km from the collars)", { km: Math.round(km).toLocaleString() }) : ""; // #2586
+      note = (parsed.prjWkt ? tr("its .prj names a CRS GeoStrix does not recognize: the coordinates were taken as EPSG:{dst}, check where it lies", { dst })
+        : tr("it states no CRS: the coordinates were taken as EPSG:{dst}, check where it lies", { dst })) + far;
+    }
+  }
   const closed = parsed.geomType === "polygon";
   const polylines = [], closedFlags = [], featureOf = []; // featureOf: TASKS.csv #1970 — the feature each polyline came from
   (parsed.features || []).forEach((f, fi) => {
@@ -31,7 +46,7 @@ export async function vectorToBoundaryPolylines(parsed, projectEpsg) {
       closedFlags.push(closed);
     }
   });
-  return { polylines, closedFlags, featureOf, attributes: (parsed.features || []).map((f) => f.attributes || {}), sourceEpsg: src, note };
+  return { polylines, closedFlags, featureOf, attributes: (parsed.features || []).map((f) => f.attributes || {}), sourceEpsg: src, note, ...(mineGridUsed ? { mineGrid: true } : {}) };
 }
 
 // TASKS.csv #1970 — a tenure file (BC Mineral Titles Online, a GeoPackage of claims) holds one feature per claim: each becomes

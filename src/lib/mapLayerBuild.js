@@ -1,6 +1,7 @@
 // TASKS.csv #609 — builds a store-ready map layer (Map layers, #316) from a parsed vector layer. Moved out of
 // SurfaceMappingPanel.jsx so the 3D view's drop can send a line / polygon shapefile to Map layers too.
 import { CATEGORICAL_SAFE_COLORS } from "./layers.js";
+import { readsAsMineGrid, mineToProject, partsBox } from "./mineGrid.js"; // TASKS.csv #2586
 import { fileToLocal } from "./localGridTie.js"; // TASKS.csv #2320
 import { reprojectXY, getProj4DefSync, prjRefusal, datumNote } from "./reproject.js";
 import { autoCategories, applyQmlToCategories, guessStyleField, normalizeMapLayer } from "./mapLayers.js";
@@ -36,7 +37,8 @@ export function projectClipBox(points) {
 // reprojection (a province-wide map: 33,532 polygons, none within 70 km of Copley, froze the window 28 s and took the autosave to 113 MB).
 // The result carries clipped: { kept, total }; when nothing is inside, { outside: total } (and no layer).
 // tie (TASKS.csv #2320): a local-grid project's tie (lib/localGridTie.js): a file with a CRS comes INTO the grid through it
-export function buildLayer(parsed, { sourceName, projectEpsg, qml, sourceOverride, clipTo = null, tie = null }) {
+// mineGrid / collars (TASKS.csv #2586): as lib/boundaryImport.js — a file with no CRS whose coordinates lie on the project's mine grid
+export function buildLayer(parsed, { sourceName, projectEpsg, qml, sourceOverride, clipTo = null, tie = null, mineGrid = null, collars = null }) {
   // #488 — a Source CRS chosen in the panel wins over the file's own (.prj / GeoPackage) CRS
   const src = sourceOverride ? Number(sourceOverride) : parsed.epsg ? Number(parsed.epsg) : null;
   const dst = projectEpsg ? Number(projectEpsg) : null;
@@ -53,7 +55,11 @@ export function buildLayer(parsed, { sourceName, projectEpsg, qml, sourceOverrid
     crsNote = `source EPSG:${src} could not be reprojected — assumed to already match EPSG:${dst}`;
   } else if (!src) {
     const refused = prjRefusal(parsed.prjWkt); // #1243
-    crsNote = refused ? `its .prj (${refused}) matches no CRS GeoStrix knows — assumed EPSG:${dst ?? "?"}; set the Source CRS if that is wrong` : `no CRS in file — assumed EPSG:${dst ?? "?"}`;
+    const box = mineGrid ? partsBox((parsed.features || []).flatMap((f) => (f.parts?.length ? f.parts : [f.geometry || []]))) : null;
+    if (!refused && box && readsAsMineGrid(box, mineGrid, collars, dst)) { // #2586
+      transform = mineToProject(mineGrid, dst);
+      crsNote = `no CRS in file; its coordinates lie on the project's mine grid${mineGrid.name ? ` (${mineGrid.name})` : ""} where the collars are — read on that grid, into EPSG:${dst} through its tie`;
+    } else crsNote = refused ? `its .prj (${refused}) matches no CRS GeoStrix knows — assumed EPSG:${dst ?? "?"}; set the Source CRS if that is wrong` : `no CRS in file — assumed EPSG:${dst ?? "?"}`;
   } else {
     crsNote = `EPSG:${src}`;
   }

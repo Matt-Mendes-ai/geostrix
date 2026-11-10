@@ -77,6 +77,7 @@ import { voxelStretch, sortedShownValues } from "../lib/voxelStretch.js"; // TAS
 import { VoxelRangeRow } from "./viewer/ViewerParts.jsx"; // TASKS.csv #1780
 import { terrainFromBlockModel } from "../lib/terrainFromModel.js"; // TASKS.csv #1806
 import { guessQualityColumn, filterSignalQuality, despikeAlongLines } from "../lib/surveyClean.js"; // TASKS.csv #1583 // TASKS.csv #786
+import { mineGridOf } from "../lib/mineGrid.js"; // TASKS.csv #2586
 import { vectorToBoundaryPolylines, claimsFromVector, isAreaBoundary } from "../lib/boundaryImport.js"; // TASKS.csv #1035; claims per feature: #1970; isAreaBoundary: #1466
 import { clampCellBudget, MIN_CELL_BUDGET, MAX_BLOCK_MODEL_BUDGET } from "../lib/estimationMeta.js"; // TASKS.csv #1074
 import { checkGpkgSize } from "../lib/gpkgSize.js"; // TASKS.csv #1716
@@ -890,13 +891,13 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       // in the import handlers), as the map-layer importer does: alone, a zone 9N file landed 409 km off as 'it states no CRS'
       const parts = file.shpParts || {};
       const parsed = name.endsWith(".zip") ? await parseShapefileZip(buf) : parseShapefileParts({ shp: new Uint8Array(buf), dbf: parts.dbf ? new Uint8Array(await parts.dbf.arrayBuffer()) : null, cpg: parts.cpg ? await parts.cpg.text() : null }, 0, parts.prj ? await parts.prj.text() : null);
-      const r = await vectorToBoundaryPolylines(parsed, projectTargetEpsg(project));
+      const r = await vectorToBoundaryPolylines(parsed, projectTargetEpsg(project), { mineGrid: mineGridOf(project), collars }); // mineGrid: #2586
       // TASKS.csv #2122 (review #2013, Woodjam) — points are not a boundary or a claim: 8 collars became an empty '0 part(s)' boundary,
       // 691 an empty 'Active' claim of 0 ha
       if (!r.polylines.length) throw new Error(parsed.geomType === "point"
         ? tr("it holds points, not lines or polygons: import collars in the 3D View, samples in Geochem, or any points as a map layer in Surface Geology.")
         : tr("no lines or polygons were found in it."));
-      if (name.endsWith(".shp") && !parts.prj && !parsed.prjWkt) r.note = tr("no .prj was read with it (select the .zip, or the .prj with the .shp): the coordinates were taken as EPSG:{dst}, check where it lies", { dst: project?.epsg });
+      if (name.endsWith(".shp") && !parts.prj && !parsed.prjWkt && !r.mineGrid /* #2586 */) r.note = tr("no .prj was read with it (select the .zip, or the .prj with the .shp): the coordinates were taken as EPSG:{dst}, check where it lies", { dst: project?.epsg });
       return r;
     }
     if (name.endsWith(".gpkg")) {
@@ -907,7 +908,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       const parts = [];
       for (const layer of layers) {
         if (!layer.features.length) continue;
-        const r = await vectorToBoundaryPolylines(layer, projectTargetEpsg(project));
+        const r = await vectorToBoundaryPolylines(layer, projectTargetEpsg(project), { mineGrid: mineGridOf(project), collars }); // #2586
         if (r.polylines.length) parts.push({ ...r, table: layer.name });
       }
       if (!parts.length) throw new Error(tr("No usable features found in this GeoPackage."));
