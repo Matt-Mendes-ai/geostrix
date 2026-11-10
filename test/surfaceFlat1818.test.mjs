@@ -10,7 +10,7 @@ const v = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.ur
 
 test("no terrain: a sample without a z is placed flat at the median collar / sample elevation, and the panel says so", () => {
   assert.ok(v.includes("?? med(collars) ?? med(surfaceSamples) ?? 0;")); // #2264: the highest collar first on an underground project
-  assert.ok(v.includes(": !b || !inside ? { ...r, z: surfaceFlatZ, zFlat: true, ...(b ? { zOutside: true } : {}) } : null;")); // TASKS.csv #1806 — outside the terrain's footprint: flat too
+  assert.ok(v.includes(": !b || !inside || tin ? { ...r, z: surfaceFlatZ, zFlat: true, ...(b ? { zOutside: true } : {}) } : null;")); // TASKS.csv #1806 — outside the terrain's footprint: flat too; over a TIN's void too (#2406)
   assert.ok(v.includes("drawn flat at {z} m (the median collar, the highest on an underground project, or the samples' own)")); // #2264
 });
 

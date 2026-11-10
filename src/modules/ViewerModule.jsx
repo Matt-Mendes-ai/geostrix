@@ -1091,7 +1091,8 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
       // TASKS.csv #1806 — outside the terrain's footprint (a terrain from an inversion mesh's top covers the IP box only) a sample
       // is still drawn flat, as with no terrain; over the terrain's fill (a void of the DEM) it stays unplaced (#927)
       const inside = !!b && r.x >= b[0] && r.x <= b[2] && r.y >= b[1] && r.y <= b[3];
-      const out = Number.isFinite(z) ? { ...r, z, zDraped: true } : !b || !inside ? { ...r, z: surfaceFlatZ, zFlat: true, ...(b ? { zOutside: true } : {}) } : null;
+      const tin = terrain?.source?.kind === "tin from points"; // #2406 — a TIN's void has no data, not a DEM hole: flat, as outside
+      const out = Number.isFinite(z) ? { ...r, z, zDraped: true } : !b || !inside || tin ? { ...r, z: surfaceFlatZ, zFlat: true, ...(b ? { zOutside: true } : {}) } : null;
       if (out) placedSrc.set(out, r);
       return out;
     }).filter(Boolean);
