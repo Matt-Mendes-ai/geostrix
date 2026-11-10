@@ -19,7 +19,7 @@ export default function HoleFilterBar({ collars, filter, setFilter, visibleHoles
         <select value="" aria-label={tr("Filter holes by a collar field")} onChange={(e) => { if (e.target.value) setFilter(e.target.value); }}
           style={{ width: "100%", boxSizing: "border-box", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, padding: "3px 6px", fontSize: "var(--font-size-sm)", color: "var(--color-text)", marginBottom: 4 }}>
           <option value="">{tr("By a collar field…")}</option>
-          {choices.map((ch) => <optgroup key={ch.key} label={ch.key}>{ch.values.map((v) => <option key={v} value={`${ch.key}=${v.replace(/\s+/g, "_")}`}>{`${ch.key} = ${v}`}</option>)}</optgroup>)}
+          {choices.map((ch) => <optgroup key={ch.key} label={ch.key}>{ch.values.map((v) => <option key={v} value={`${ch.key.replace(/\s+/g, "_")}=${v.replace(/\s+/g, "_")}`}>{/* key too: #2488 ("hole type=…" split into two terms) */}{`${ch.key} = ${v}`}</option>)}</optgroup>)}
         </select>
       )}
       {choices.length > 0 && setColourBy && ( /* TASKS.csv #1504 — colour the collars and traces by a collar field; the legend lists the values */

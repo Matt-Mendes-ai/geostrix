@@ -24,11 +24,13 @@ export function collarsMatching(collars, filter) {
   const terms = String(filter || "").split(/[,\s]+/).filter(Boolean);
   const attrTerms = terms.filter((t) => t.includes("=")).map((t) => { const i = t.indexOf("="); return [norm(t.slice(0, i)), norm(t.slice(i + 1))]; }).filter(([k]) => k);
   const idTerms = terms.filter((t) => !t.includes("=")).map(norm);
-  const attrOf = (c, k) => { const a = c?.attrs || {}; const key = Object.keys(a).find((x) => norm(x) === k); return key == null ? null : norm(a[key]); };
+  // TASKS.csv #2488 — every field whose name reads the same ('hole_type', the file's column, and 'hole type', the class beside it): the
+  // first one found answered alone, so the class's picks matched 0 holes on a project that has both
+  const attrsOf = (c, k) => { const a = c?.attrs || {}; return Object.keys(a).filter((x) => norm(x) === k).map((x) => norm(a[x])); };
   return (collars || []).filter((c) => {
     const id = norm(c.hole_id);
     if (idTerms.length && !idTerms.some((t) => id.includes(t))) return false;
-    return attrTerms.every(([k, v]) => { const got = attrOf(c, k); return got != null && (got === v || got.split(/[^a-z0-9.]+/).includes(v)); });
+    return attrTerms.every(([k, v]) => attrsOf(c, k).some((got) => got === v || got.split(/[^a-z0-9.]+/).includes(v)));
   });
 }
 // The collar fields worth offering as a pick: 2 to 30 distinct values over the holes. -> [{ key, values: [...] }]

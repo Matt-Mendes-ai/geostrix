@@ -17,7 +17,7 @@ export function normalizeHoleType(raw) {
   const t = s.replace(/[\s_-]+/g, "");
   if (/^(RC\/?DD|RCD|RCDD|RC\+DD|RCDDH|RC\/DDH|RCDT)$/.test(t)) return "RC + diamond tail";
   if (/^(DD|DDH|D|DIAMOND|DIA|CORE|NQ\d?|HQ\d?|PQ\d?|BQ|DDT|DDHW|DDW)$/.test(t)) return "Diamond (DD)";
-  if (/^(RC|GCRC|RCGC|REVERSECIRCULATION|RCP|RCH)$/.test(t)) return "RC";
+  if (/^(RC|GCRC|RCGC|REVERSECIRCULATION|RCP|RCH)$/.test(t)) return "Reverse circulation (RC)"; // in full like the others: #2488
   if (/^(RCAC|ACRC)$/.test(t)) return "RC / aircore";
   if (/^(AC|AIRCORE|AIRC|ACH)$/.test(t)) return "Aircore (AC)";
   if (/^(RAB|PHRAB|RABH)$/.test(t)) return "RAB";

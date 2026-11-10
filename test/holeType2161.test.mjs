@@ -10,8 +10,8 @@ test("#2161 the column, whatever it is called", () => {
 });
 
 test("#2161 the spellings", () => {
-  const want = { RC: "RC", GCRC: "RC", DD: "Diamond (DD)", DDH: "Diamond (DD)", D: "Diamond (DD)", "RC/DD": "RC + diamond tail", RCD: "RC + diamond tail", RAB: "RAB", PHRAB: "RAB",
-    AC: "Aircore (AC)", AIRCORE: "Aircore (AC)", "AIR CORE": "Aircore (AC)", RCAC: "RC / aircore", VAC: "Vacuum", AU: "Auger", AUGER: "Auger", NR: "Not stated", DRILLHOLE: "Not stated", rc: "RC" };
+  const want = { RC: "Reverse circulation (RC)", GCRC: "Reverse circulation (RC)", DD: "Diamond (DD)", DDH: "Diamond (DD)", D: "Diamond (DD)", "RC/DD": "RC + diamond tail", RCD: "RC + diamond tail", RAB: "RAB", PHRAB: "RAB",
+    AC: "Aircore (AC)", AIRCORE: "Aircore (AC)", "AIR CORE": "Aircore (AC)", RCAC: "RC / aircore", VAC: "Vacuum", AU: "Auger", AUGER: "Auger", NR: "Not stated", DRILLHOLE: "Not stated", rc: "Reverse circulation (RC)" }; // #2488: RC in full
   for (const [raw, cls] of Object.entries(want)) assert.equal(normalizeHoleType(raw), cls, raw);
   assert.equal(normalizeHoleType(""), null); assert.equal(normalizeHoleType("Costean"), "COSTEAN"); // unknown: kept as written
 });
