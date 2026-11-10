@@ -3,6 +3,7 @@
 // and a bench-by-bench table. Geometry in lib/pitDesign.js, off the UI thread (pitDesignClient.js). Every number is the user's
 // (#264): no bench, berm or face angle is assumed.
 import React, { useMemo, useRef, useState } from "react";
+import { metalAmountText, elementOfModel } from "../lib/pitShell.js"; // TASKS.csv #2434
 import { Layers3, Eye, EyeOff, Trash2, Download } from "./icons.js";
 import { confirmDestructive } from "../lib/confirmDestructive.js"; // #1498
 import { TaskPaneHeader } from "./Ribbon.jsx";
@@ -21,7 +22,6 @@ const note = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)"
 const warn = { ...note, color: "var(--color-warn-text-strong)", marginTop: 4 };
 const num = { ...smallSel, width: 84 };
 const big = (v) => new Intl.NumberFormat(undefined, { notation: "compact", maximumSignificantDigits: 3 }).format(v);
-const G_PER_OZ = 31.1034768;
 const EMPTY = { benchH: "", berm: "", batterDeg: "", datum: "", rampAz: "", rampTurn: "clockwise", rampGrade: "", rampW: "", sectors: {} }; // ramp*: #1948; sectors: #1952
 const SECTOR_GRID = [["NW", "N", "NE"], ["W", null, "E"], ["SW", "S", "SE"]];
 const SECTORS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
@@ -133,7 +133,7 @@ export default function PitDesignPane({ surfaces = [], worldPositionsOf, onAdd, 
     const sh = r.shell, shOre = Number(sh.oreTonnes), shMetal = Number(sh.containedMetal), shGrade = Number(sh.meanGrade);
     if (!(shOre > 0 && shMetal > 0 && shGrade > 0) || r.totals.meanGrade == null) return null;
     const perUnit = shMetal / (shOre * shGrade), m = r.totals.oreT * r.totals.meanGrade * perUnit;
-    return sh.containedMetalUnit === "g" ? `${big(m / G_PER_OZ)} oz` : `${big(m)} t`;
+    return metalAmountText(m, sh.containedMetalUnit, elementOfModel({ params: { element: sh.element }, name: sh.blockModel }), big); // #2434 — the Pit shell's words
   };
   const gradeText = (g) => (g == null ? "—" : `${Number(g.toPrecision(3))} ${unit}`);
 

@@ -11,7 +11,7 @@ import { useStore } from "../lib/store.jsx";
 import { runPitSeriesAsync } from "../lib/pitSeriesClient.js";
 import { gradeCandidate } from "../lib/gradeCandidate.js"; // #1848
 import { categoricalModels } from "../lib/geologyForward.js";
-import { PRICE_UNITS, pitMetalOf, elementOfModel } from "../lib/pitShell.js";
+import { PRICE_UNITS, pitMetalOf, elementOfModel, priceUnitsFor, metalAmountText } from "../lib/pitShell.js"; // priceUnitsFor / metalAmountText: TASKS.csv #2434
 import { valueUnit } from "../lib/blockModelExport.js";
 import { toExportCsv, crsCell } from "../lib/tabular.js";
 import { saveFile } from "../lib/desktop.js";
@@ -61,7 +61,7 @@ export default function NestedPitsPane({ surfaces = [], onAdd, onToggle, onRemov
   const unit = inputs ? (model && valueUnit(model)) || inputs.unit || lastPit?.params?.gradeUnit || "" : "";
   const element = elementOfModel(model);
   const metal = unit ? pitMetalOf(unit, element) : null;
-  const priceLabel = metal && inputs ? (PRICE_UNITS[metal.unit].find(([k]) => k === inputs.priceUnit) || [])[1] || "" : "";
+  const priceLabel = metal && inputs ? ((priceUnitsFor(metal, element) || []).find(([k]) => k === inputs.priceUnit) || [])[1] || "" : "";
   // TASKS.csv #1917 — the shell's by-product model, for the series; gone from the project: the series cannot run as the shell did
   const byModel = inputs?.by ? models.find((m) => (m.id ?? m.name) === inputs.by.modelId) || models.find((m) => m.name === lastPit?.params?.byProduct?.blockModel) || null : null;
   const byMissing = !!inputs?.by && !byModel, byEl = inputs?.by?.element || byModel?.name || "";
@@ -105,7 +105,7 @@ export default function NestedPitsPane({ surfaces = [], onAdd, onToggle, onRemov
     });
   };
   const shownState = (i) => { const r = res.runs[i]; const s = shells.find((x) => x.params?.seriesId === res.seriesId && x.params?.revenueFactor === r.rf); return s ? (s.visible ? "on" : "off") : null; };
-  const metalText = (r) => { const m = r.metalU * res.metalFactor; return res.metalUnit === "g" ? `${big(m / G_PER_OZ)} oz` : `${big(m)} t`; };
+  const metalText = (r) => metalAmountText(r.metalU * res.metalFactor, res.metalUnit, element, big); // #2434 — the Pit shell's words
   const byMetalText = (r) => { const m = (r.metalU2 || 0) * res.byMetalFactor; return res.byMetalUnit === "g" ? `${big(m / G_PER_OZ)} oz` : `${big(m)} t`; }; // #1917
   const exportCsv = () => saveFile({ suggestedName: "nested_pits.csv", filters: [{ name: "CSV", extensions: ["csv"] }], content: toExportCsv([
     ...res.runs.map((r) => ({ section: "shell", revenue_factor: r.rf, price: res.price, price_unit: res.priceLabel, ore_t: Math.round(r.oreT), [`mean_grade_${res.unit.replace("%", "pct")}`]: r.meanGrade == null ? "" : +r.meanGrade.toPrecision(4), contained_metal: Math.round(r.metalU * res.metalFactor), metal_unit: res.metalUnit, waste_t: Math.round(r.wasteT), strip_ratio: r.stripRatio == null ? "" : +r.stripRatio.toFixed(2), max_depth_m: Math.round(r.maxDepth), undiscounted_margin_at_entered_price: Math.round(r.moneyBase), years_to_mine: r.years == null ? "" : +r.years.toFixed(2), npv: r.npv == null ? "" : Math.round(r.npv), ...(inputs?.by && res.byMetalUnit ? { by_product: byEl, by_product_mean_grade: r.meanGrade2 == null ? "" : +r.meanGrade2.toPrecision(4), by_product_contained_metal: Math.round((r.metalU2 || 0) * res.byMetalFactor), by_product_metal_unit: res.byMetalUnit } : {}) /* #1917 */, crs: crsCell(project) })),
