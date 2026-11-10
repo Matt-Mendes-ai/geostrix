@@ -9678,5 +9678,7 @@
   "Off: a block whose nearest composite has no code is left un-estimated, and the result says how many. On: those blocks are estimated from the composites with no code, as one more domain.": "Désactivé : un bloc dont le composite le plus proche n'a pas de code reste non estimé, et le résultat dit combien. Activé : ces blocs sont estimés à partir des composites sans code, comme un domaine de plus.",
   "Estimate the samples with no code as a domain of their own": "Estimer les échantillons sans code comme un domaine à part",
   "{n} of them because their nearest composite has no {domain} code ({c} of {all} composites have none): the domain search does not estimate them. Tick 'Estimate the samples with no code as a domain of their own' to fill them from those composites.": "{n} d'entre eux parce que leur composite le plus proche n'a pas de code {domain} ({c} sur {all} composites n'en ont pas) : la recherche par domaine ne les estime pas. Cochez « Estimer les échantillons sans code comme un domaine à part » pour les remplir à partir de ces composites.",
-  "domain": "domaine"
+  "domain": "domaine",
+  "Reading the hole-based cards at the new Level…": "Lecture des cartes de sondages au nouveau niveau…",
+  "The Level is applied when you press Enter or leave the field.": "Le niveau s'applique quand vous appuyez sur Entrée ou quittez le champ."
 }

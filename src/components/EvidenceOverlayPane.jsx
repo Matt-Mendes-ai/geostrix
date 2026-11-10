@@ -127,7 +127,14 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
   const cellTyped = Number(gridCell) > 0 ? Number(gridCell) : null;
   // TASKS.csv #2326 (review #2174, WA gold) — a Level (RL from / to) for every hole-based card and the block columns without their own band
   const [levelText, setLevelText] = useState(["", ""]);
-  const level = useMemo(() => { const v = levelText.map((t) => (t === "" ? null : Number(t))).map((x) => (Number.isFinite(x) ? x : null)); return v[0] == null && v[1] == null ? null : { zMin: v[0] != null && v[1] != null ? Math.min(v[0], v[1]) : v[0], zMax: v[0] != null && v[1] != null ? Math.max(v[0], v[1]) : v[1] }; }, [levelText]);
+  // TASKS.csv #2575 (review #2486, WA lithium) — every keystroke in the Level re-read every hole-based card (18.8 s of frozen window for one
+  // Level with seven cards on 2,248 holes): the typed text is a draft, applied on Enter, on leaving the field, or after 600 ms without typing
+  const [levelApplied, setLevelApplied] = useState(["", ""]);
+  useEffect(() => { const t = setTimeout(() => setLevelApplied((a) => (a[0] === levelText[0] && a[1] === levelText[1] ? a : levelText)), 600); return () => clearTimeout(t); }, [levelText]);
+  const applyLevelNow = () => setLevelApplied((a) => (a[0] === levelText[0] && a[1] === levelText[1] ? a : levelText));
+  const levelPending = levelText[0] !== levelApplied[0] || levelText[1] !== levelApplied[1];
+  const [levelBusy, setLevelBusy] = useState(false);
+  const level = useMemo(() => { const v = levelApplied.map((t) => (t === "" ? null : Number(t))).map((x) => (Number.isFinite(x) ? x : null)); return v[0] == null && v[1] == null ? null : { zMin: v[0] != null && v[1] != null ? Math.min(v[0], v[1]) : v[0], zMax: v[0] != null && v[1] != null ? Math.max(v[0], v[1]) : v[1] }; }, [levelApplied]);
   const grid = useMemo(() => {
     if (terrain && gridArea === "all" && !cellTyped) return evidenceGrid({ terrain });
     const ext = evidenceExtent(gridArea, extents, gridBox.map((v) => (v === "" ? NaN : Number(v))));
@@ -232,8 +239,14 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
   useEffect(() => {
     if (levelSeen.current === levelKey) return;
     levelSeen.current = levelKey;
-    setLayers((L) => L.map((l) => { if (!LEVEL_KINDS.has(l.kind)) return l; const v = computeValues(l, l); return v ? { ...l, values: v } : l; }));
-    setResult(null);
+    // #2575 — said first (the work is synchronous), then done once for the whole Level
+    if (!layers.some((l) => LEVEL_KINDS.has(l.kind))) { setResult(null); return undefined; }
+    setLevelBusy(true);
+    const t = setTimeout(() => {
+      setLayers((L) => L.map((l) => { if (!LEVEL_KINDS.has(l.kind)) return l; const v = computeValues(l, l); return v ? { ...l, values: v } : l; }));
+      setResult(null); setLevelBusy(false);
+    }, 40);
+    return () => clearTimeout(t);
   }, [levelKey]);
   // TASKS.csv #1003 — the recipe is saved with the project (evidenceOverlay, format v18): which sources, their memberships
   // and filters, the operator and the training points; not the values, which are recomputed from the sources. Restored
@@ -249,7 +262,7 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
     if (R.grid) { setGridArea(R.grid.area || "all"); setGridCell(R.grid.cell > 0 ? String(R.grid.cell) : ""); if (Array.isArray(R.grid.box)) setGridBox(R.grid.box.map((v) => (Number.isFinite(v) ? String(v) : ""))); } // #1450
     setFloor(Number.isFinite(R.floor) ? R.floor : 0); // #1555: a recipe saved before the floor existed keeps its 0-1 ramps
     const lvSaved = R.level && (Number.isFinite(R.level.zMin) || Number.isFinite(R.level.zMax)) ? { zMin: Number.isFinite(R.level.zMin) ? R.level.zMin : null, zMax: Number.isFinite(R.level.zMax) ? R.level.zMax : null } : null; // #2326
-    if (lvSaved) { setLevelText([lvSaved.zMin != null ? String(lvSaved.zMin) : "", lvSaved.zMax != null ? String(lvSaved.zMax) : ""]); levelSeen.current = `${lvSaved.zMin ?? ""}:${lvSaved.zMax ?? ""}`; }
+    if (lvSaved) { const lt = [lvSaved.zMin != null ? String(lvSaved.zMin) : "", lvSaved.zMax != null ? String(lvSaved.zMax) : ""]; setLevelText(lt); setLevelApplied(lt); levelSeen.current = `${lvSaved.zMin ?? ""}:${lvSaved.zMax ?? ""}`; } // applied: #2575
     if (R.training) setTraining((t) => ({ ...t, ...R.training }));
     const missing = [];
     const back = (R.layers || []).flatMap((l) => {
@@ -396,7 +409,8 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
             <option value="box">{tr("a box (typed)")}</option>
           </select></label>
           <label style={row} title={tr("Blank = automatic: the longest side / 500, coarsened if the grid would pass its cell limit. A soil grid at 25-50 m wants a cell of about half its spacing.")}>{tr("Cell (m)")}<input type="number" min="1" step="5" value={gridCell} placeholder={tr("auto")} onChange={(e) => { setGridCell(e.target.value); setResult(null); }} style={{ ...sel, width: 64 }} aria-label={tr("Grid cell size (m)")} /></label>
-          <label style={row} title={tr("Blank = every depth. On a deposit drilled from underground, the hole-based cards otherwise project every depth onto one plan.")}>{tr("Level RL (m)")}<input type="number" step="10" value={levelText[0]} placeholder={tr("from")} onChange={(e) => setLevelText((t) => [e.target.value, t[1]])} style={{ ...sel, width: 64 }} aria-label={tr("Level from (m RL)")} />–<input type="number" step="10" value={levelText[1]} placeholder={tr("to")} onChange={(e) => setLevelText((t) => [t[0], e.target.value])} style={{ ...sel, width: 64 }} aria-label={tr("Level to (m RL)")} /></label>{/* #2326 */}
+          <label style={row} title={tr("Blank = every depth. On a deposit drilled from underground, the hole-based cards otherwise project every depth onto one plan.")}>{tr("Level RL (m)")}<input type="number" step="10" value={levelText[0]} placeholder={tr("from")} onChange={(e) => setLevelText((t) => [e.target.value, t[1]])} onBlur={applyLevelNow} onKeyDown={(e) => { if (e.key === "Enter") applyLevelNow(); }} style={{ ...sel, width: 64 }} aria-label={tr("Level from (m RL)")} />–<input type="number" step="10" value={levelText[1]} placeholder={tr("to")} onChange={(e) => setLevelText((t) => [t[0], e.target.value])} onBlur={applyLevelNow} onKeyDown={(e) => { if (e.key === "Enter") applyLevelNow(); }} style={{ ...sel, width: 64 }} aria-label={tr("Level to (m RL)")} /></label>
+          {(levelPending || levelBusy) && <div role="status" style={{ ...note, marginTop: 2 }}>{levelBusy ? tr("Reading the hole-based cards at the new Level…") : tr("The Level is applied when you press Enter or leave the field.")}</div>}{/* #2575 */}{/* #2326 */}
         </div>
         {gridArea === "box" && (
           <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
