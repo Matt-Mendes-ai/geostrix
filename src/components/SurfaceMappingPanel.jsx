@@ -28,7 +28,7 @@ import MapImportReview from "./MapImportReview.jsx"; // TASKS.csv #1325
 import { classifyTables, needsImportReview, isCoveringPolygon } from "../lib/mapImportReview.js";
 import { CATEGORICAL_SAFE_COLORS } from "../lib/layers.js";
 import { saveFile } from "../lib/desktop.js";
-import { collarSubcrop, subcropLayer } from "../lib/collarSubcrop.js"; // TASKS.csv #1719
+import { collarSubcrop, subcropLayer, roleWithCodes } from "../lib/collarSubcrop.js"; // TASKS.csv #1719; roleWithCodes: #2407
 import { categoryColor, LAYER_META } from "../lib/layers.js"; // TASKS.csv #1719 — the logs' own colours
 import { ensureExportCrs } from "../lib/projectCrsRequest.js"; // TASKS.csv #1021
 import { toExportCsv } from "../lib/tabular.js";
@@ -47,7 +47,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
     project, terrain, projectIsEmpty, setEpsg, // #607
     mapLayers, addMapLayer, updateMapLayer, removeMapLayer,
     surfaceStructures, addSurfaceStructureSet, updateSurfaceStructureSet, removeSurfaceStructureSet,
-  collars = [], /* #1325 */ surfaceSamples = [], /* #1715 */ survey = [], layers = {}, desurveyMethod, viewerUiState, /* #1719 */ setStructureCodeClasses /* #2266 */ } = useStore();
+  collars = [], /* #1325 */ surfaceSamples = [], /* #1715 */ survey = [], layers = {}, desurveyMethod, viewerUiState, /* #1719 */ setStructureCodeClasses /* #2266 */, modellingCodes /* #2407 */ } = useStore();
   const mapInput = useRef(null);
   const qmlInput = useRef(null);
   const qmlTargetRef = useRef(null);
@@ -517,7 +517,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
           // not the surface: asked first, named for what it is. (Its NPRC / Unknown 'units' are cover since #2227: roleForLithology reads the notes.)
           const ug = collarsLookUnderground(collars, survey);
           if (ug.underground && !window.confirm(tr("The collars look underground ({upward} hole(s) drilled upward, {stacked} pair(s) of collars stacked over each other): these points would be the first logged unit at the drill positions on the mine levels, not a subcrop map. Make them anyway?", { upward: ug.upward, stacked: ug.stacked }))) return;
-          const pts = collarSubcrop({ collars, survey, litho: layers.litho, desurveyMethod });
+          const pts = collarSubcrop({ collars, survey, litho: layers.litho, desurveyMethod, roleOf: roleWithCodes(modellingCodes) }); // roleOf: #2407
           if (!pts.length) { setMapMsg({ ok: false, text: tr("No hole has a logged unit under its overburden / casing to place.") }); return; }
           const base = ug.underground ? tr("Units at the collars") : tr("Subcrop from collars"); // #2265
           let name = base; for (let k = 2; mapLayers.some((l) => l.name === name); k++) name = `${base} (${k})`;

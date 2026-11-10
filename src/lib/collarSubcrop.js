@@ -7,6 +7,15 @@ import { roleForLithology, colorForLithology } from "./layers.js";
 
 const SKIP = new Set(["overburden", "no recovery"]);
 
+// TASKS.csv #2407 (review #2325, WA uranium) — the role a code was given in 3D Modelling > Modelling codes wins over the guess from its name:
+// with QA (the Quaternary cover) set to overburden, the "subcrop map" was still 408 points of QA, as roleForLithology knows only names
+// like OVB / OB / CAS / NR. modellingCodes: { codes: [{ name, role }] }
+export function roleWithCodes(modellingCodes) {
+  const set = new Map();
+  for (const c of modellingCodes?.codes || []) if (c?.name != null && c.role) set.set(String(c.name).trim(), c.role);
+  return set.size ? (value) => set.get(String(value).trim()) ?? roleForLithology(value) : roleForLithology;
+}
+
 // -> [{ hole_id, unit, from, to, cover (m of skipped intervals above), x, y, z }], one per hole with a logged unit under its cover
 export function collarSubcrop({ collars, survey, litho, desurveyMethod, roleOf = roleForLithology }) {
   const byHoleSurvey = new Map(), byHoleLitho = new Map();

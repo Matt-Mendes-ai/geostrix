@@ -49,7 +49,7 @@ test("as a point map layer coloured by unit", () => {
 
 test("wired on Surface Geology > Map layers", () => {
   const s = readFileSync(new URL("../src/components/SurfaceMappingPanel.jsx", import.meta.url), "utf8");
-  assert.match(s, /collarSubcrop\(\{ collars, survey, litho: layers\.litho, desurveyMethod \}\)/);
+  assert.match(s, /collarSubcrop\(\{ collars, survey, litho: layers\.litho, desurveyMethod(, roleOf: roleWithCodes\(modellingCodes\))? \}\)/);
   assert.match(s, /addMapLayer\(\{ \.\.\.layer, drapeMode: terrain \? "terrain" : "file" \}\)/);
 });
 
