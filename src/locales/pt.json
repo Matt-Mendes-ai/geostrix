@@ -9631,5 +9631,10 @@
   "+{k} col.": "+{k} col.",
   "{sym} is also in {k} more method column(s): {list}. Ticked: a sample with no value in \"{header}\" takes the first of them that has one (in that column's own unit). {several} of {any} rows carry two or more.": "{sym} também está em mais {k} coluna(s) de método: {list}. Marcado: uma amostra sem valor em \"{header}\" usa a primeira delas que tiver um (na unidade dessa coluna). {several} de {any} linhas têm dois ou mais.",
   "Join the method columns of {sym}": "Unir as colunas de método de {sym}",
-  "Method columns joined (a sample's value from the first column that has one): {list}.": "Colunas de método unidas (o valor de uma amostra vem da primeira coluna que o tem): {list}."
+  "Method columns joined (a sample's value from the first column that has one): {list}.": "Colunas de método unidas (o valor de uma amostra vem da primeira coluna que o tem): {list}.",
+  "{n} legend is out of step with its viewport: the viewport was refreshed after the legend was loaded, and the legend's rows were edited, so they were kept. Export anyway?": "{n} legenda está defasada da sua vista: a vista foi atualizada depois de a legenda ser carregada, e as linhas da legenda foram editadas, por isso foram mantidas. Exportar mesmo assim?",
+  "{n} legends are out of step with their viewports: each viewport was refreshed after its legend was loaded, and the legend's rows were edited, so they were kept. Export anyway?": "{n} legendas estão defasadas das suas vistas: cada vista foi atualizada depois de a sua legenda ser carregada, e as linhas da legenda foram editadas, por isso foram mantidas. Exportar mesmo assim?",
+  "The bound legend reloaded with the refreshed viewport.": "A legenda vinculada foi recarregada com a vista atualizada.",
+  "Out of step with its viewport: the viewport was refreshed after these rows were loaded, and they were edited (or loaded before this check existed), so they were kept. Load from view to update them.": "Defasada da sua vista: a vista foi atualizada depois de estas linhas serem carregadas, e elas foram editadas (ou carregadas antes de esta verificação existir), por isso foram mantidas. Use Carregar da vista para atualizá-las.",
+  "Captured {when}. Changes in the 3D view since then show after a refresh.": "Capturada {when}. As mudanças na vista 3D desde então aparecem após atualizar."
 }

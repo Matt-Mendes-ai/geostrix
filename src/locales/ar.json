@@ -9631,5 +9631,10 @@
   "+{k} col.": "+{k} عمود",
   "{sym} is also in {k} more method column(s): {list}. Ticked: a sample with no value in \"{header}\" takes the first of them that has one (in that column's own unit). {several} of {any} rows carry two or more.": "يرد {sym} أيضًا في {k} عمود طريقة آخر: {list}. عند التحديد: العينة التي لا قيمة لها في «{header}» تأخذ أول عمود منها فيه قيمة (بوحدة ذلك العمود). {several} من {any} صفًا تحوي قيمتين أو أكثر.",
   "Join the method columns of {sym}": "ضم أعمدة الطرق لـ {sym}",
-  "Method columns joined (a sample's value from the first column that has one): {list}.": "أعمدة الطرق المضمومة (قيمة العينة من أول عمود فيه قيمة): {list}."
+  "Method columns joined (a sample's value from the first column that has one): {list}.": "أعمدة الطرق المضمومة (قيمة العينة من أول عمود فيه قيمة): {list}.",
+  "{n} legend is out of step with its viewport: the viewport was refreshed after the legend was loaded, and the legend's rows were edited, so they were kept. Export anyway?": "{n} مفتاح خريطة لا يطابق عرضه: حُدِّث العرض بعد تحميل المفتاح، وعُدِّلت صفوفه فأُبقيت. هل تريد التصدير على أي حال؟",
+  "{n} legends are out of step with their viewports: each viewport was refreshed after its legend was loaded, and the legend's rows were edited, so they were kept. Export anyway?": "{n} مفاتيح خرائط لا تطابق عروضها: حُدِّث كل عرض بعد تحميل مفتاحه، وعُدِّلت صفوف المفتاح فأُبقيت. هل تريد التصدير على أي حال؟",
+  "The bound legend reloaded with the refreshed viewport.": "أُعيد تحميل مفتاح الخريطة المرتبط مع العرض المحدَّث.",
+  "Out of step with its viewport: the viewport was refreshed after these rows were loaded, and they were edited (or loaded before this check existed), so they were kept. Load from view to update them.": "لا يطابق عرضه: حُدِّث العرض بعد تحميل هذه الصفوف، وقد عُدِّلت (أو حُمِّلت قبل وجود هذا الفحص) فأُبقيت. استخدم «تحميل من العرض» لتحديثها.",
+  "Captured {when}. Changes in the 3D view since then show after a refresh.": "التُقط {when}. تظهر التغييرات في العرض ثلاثي الأبعاد منذ ذلك الحين بعد التحديث."
 }

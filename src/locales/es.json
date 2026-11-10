@@ -9631,5 +9631,10 @@
   "+{k} col.": "+{k} col.",
   "{sym} is also in {k} more method column(s): {list}. Ticked: a sample with no value in \"{header}\" takes the first of them that has one (in that column's own unit). {several} of {any} rows carry two or more.": "{sym} también está en {k} columna(s) de método más: {list}. Marcado: una muestra sin valor en \"{header}\" toma la primera de ellas que tenga uno (en la unidad de esa columna). {several} de {any} filas tienen dos o más.",
   "Join the method columns of {sym}": "Unir las columnas de método de {sym}",
-  "Method columns joined (a sample's value from the first column that has one): {list}.": "Columnas de método unidas (el valor de una muestra viene de la primera columna que lo tiene): {list}."
+  "Method columns joined (a sample's value from the first column that has one): {list}.": "Columnas de método unidas (el valor de una muestra viene de la primera columna que lo tiene): {list}.",
+  "{n} legend is out of step with its viewport: the viewport was refreshed after the legend was loaded, and the legend's rows were edited, so they were kept. Export anyway?": "{n} leyenda no coincide con su vista: la vista se actualizó después de cargar la leyenda, y sus filas se editaron, así que se conservaron. ¿Exportar de todos modos?",
+  "{n} legends are out of step with their viewports: each viewport was refreshed after its legend was loaded, and the legend's rows were edited, so they were kept. Export anyway?": "{n} leyendas no coinciden con sus vistas: cada vista se actualizó después de cargar su leyenda, y las filas de la leyenda se editaron, así que se conservaron. ¿Exportar de todos modos?",
+  "The bound legend reloaded with the refreshed viewport.": "La leyenda vinculada se recargó con la vista actualizada.",
+  "Out of step with its viewport: the viewport was refreshed after these rows were loaded, and they were edited (or loaded before this check existed), so they were kept. Load from view to update them.": "No coincide con su vista: la vista se actualizó después de cargar estas filas, y se editaron (o se cargaron antes de que existiera esta comprobación), así que se conservaron. Use Cargar desde la vista para actualizarlas.",
+  "Captured {when}. Changes in the 3D view since then show after a refresh.": "Capturada {when}. Los cambios en la vista 3D desde entonces aparecen tras actualizar."
 }

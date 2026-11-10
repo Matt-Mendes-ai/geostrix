@@ -52,6 +52,7 @@ import { freeSpot, placeCollarTable } from "../lib/layoutPlace.js"; // TASKS.csv
 import { roundScale } from "../lib/layoutGeometry.js"; // TASKS.csv #1486
 import { numericClips, numericLayerColorFn } from "../lib/numericClip.js"; // TASKS.csv #1482
 import { categoryColor, categoryLabel } from "../lib/layers.js"; // TASKS.csv #1289
+import { legendSyncState, staleBoundLegends } from "../lib/layoutLegendSync.js"; // TASKS.csv #2471
 // (The page size used to be a fixed `const A4 = { w: 1123, h: 794 }` here; it is now per page — see
 // `A4` inside the component, kept under that name so every existing use follows the chosen format.)
 const SCALE_BAR_PX = 180; // default/initial bar length (px) for a freshly-added, never-synced scale bar
@@ -175,6 +176,9 @@ export default function LayoutModule() {
       const off = [...pg.querySelectorAll("[data-el-id]")].filter((e) => { const b = e.getBoundingClientRect(); return b.width > 0 && (b.right > r.right + 1 || b.bottom > r.bottom + 1 || b.left < r.left - 1 || b.top < r.top - 1); }).length;
       if (off && !window.confirm(tr("{n} element(s) on this page reach past its edge and will be cut off in the export. Export anyway?", { n: off }))) return;
     }
+    // TASKS.csv #2471 — a legend whose viewport was refreshed after it was loaded, and whose rows were edited, still lists the old view
+    const staleLegends = staleBoundLegends(layoutPages).length;
+    if (staleLegends && !window.confirm(tr(staleLegends === 1 ? "{n} legend is out of step with its viewport: the viewport was refreshed after the legend was loaded, and the legend's rows were edited, so they were kept. Export anyway?" : "{n} legends are out of step with their viewports: each viewport was refreshed after its legend was loaded, and the legend's rows were edited, so they were kept. Export anyway?", { n: staleLegends }))) return;
     setPrinting(layoutPrintRequest);
   }, [layoutPrintRequest]);
   useEffect(() => {
@@ -629,7 +633,7 @@ export default function LayoutModule() {
       const ranked = rankLegendGroups(items), kept = firstLegendGroups(ranked), left = legendGroupCount(ranked) - legendGroupCount(kept);
       base.items = items.length ? (left > 0 ? [...kept, [tr("+ {n} more group(s): Load from view adds them", { n: left }), null, { heading: true }]] : kept) : [["Item", "#55606e"]];
       const viewports = elements.filter((el) => el.type === "viewport");
-      if (viewports.length === 1) base.boundViewportId = viewports[0].id;
+      if (viewports.length === 1) Object.assign(base, { boundViewportId: viewports[0].id, loadedItems: base.items, loadedCapturedAt: viewports[0].capturedAt || null }); // stamp: #2471
       Object.assign(base, freeSpot(elements, 220, Math.min(A4.h - 80, 30 + 15 * base.items.length), A4)); // #1484
     }
     // TASKS.csv #19 — shapes/annotation
@@ -959,12 +963,16 @@ export default function LayoutModule() {
     const items = legendGroupsToItems(capLegendGroups(groups, 12, (n) => tr("+ {n} more (fewer intervals; edit the legend to add them)", { n })));
     return { groups, items };
   };
-  const syncLegendFromView = (legendId) => {
+  // TASKS.csv #2471 — auto: the bound viewport was refreshed and the legend's rows were the loaded ones (legendSyncState "reload");
+  // each load records the rows and the capture it came from (loadedItems / loadedCapturedAt), so a later refresh can tell
+  const syncLegendFromView = (legendId, { auto = false } = {}) => {
     const legend = elements.find((el) => el.id === legendId);
     if (!legend) return;
-    if (!legend.boundViewportId) { setSyncNotice(tr("Pick a bound viewport or cross-section above first.")); return; }
+    const say = auto ? () => {} : setSyncNotice;
+    if (!legend.boundViewportId) { say(tr("Pick a bound viewport or cross-section above first.")); return; }
     const vp = elements.find((el) => el.id === legend.boundViewportId);
-    if (!vp) { setSyncNotice(tr("That viewport/section no longer exists on this page — pick a different one.")); return; }
+    if (!vp) { say(tr("That viewport/section no longer exists on this page — pick a different one.")); return; }
+    const stamp = (items) => ({ items, loadedItems: items, loadedCapturedAt: vp.capturedAt || null, autoReloaded: auto }); // autoReloaded: said in the viewport's sidebar
 
     // Cross-section snapshots (type "image") carry their own pre-computed legendItems — the exact
     // {label,color} pairs drawn in that section (litho/alt/vein/structure), built once in
@@ -973,19 +981,19 @@ export default function LayoutModule() {
     // "sync" just means "refresh from whatever this snapshot was captured with".
     if (vp.type === "image") {
       const items = groupSectionLegend(vp.legendItems); // #1127 — a snapshot taken before grouping is grouped here
-      if (!items.length) { setSyncNotice(tr("This cross-section snapshot has no litho/alteration/vein/structure data to show — nothing to load.")); return; }
-      setElements((els) => els.map((el) => el.id === legendId ? { ...el, items } : el));
+      if (!items.length) { say(tr("This cross-section snapshot has no litho/alteration/vein/structure data to show — nothing to load.")); return; }
+      setElements((els) => els.map((el) => el.id === legendId ? { ...el, ...stamp(items) } : el));
       setSyncNotice(tr(items.length === 1 ? "Loaded {items} category from \"{v2}\"." : "Loaded {items} categories from \"{v2}\".", { items: items.length, v2: vp.label || vp.id }));
       return;
     }
 
     // TASKS.csv #948 — a viewport captured from the current view (no theme) carries that view's own settings
     const theme = themes.find((t) => t.id === vp.themeId) || (!vp.themeId && vp.viewState ? { ...vp.viewState, name: tr("the current view") } : null);
-    if (!theme) { setSyncNotice(tr("This viewport's saved theme could no longer be found (it may have been renamed or deleted) — rebind the viewport to a theme in its own panel, or resave that theme, then sync again.")); return; }
+    if (!theme) { say(tr("This viewport's saved theme could no longer be found (it may have been renamed or deleted) — rebind the viewport to a theme in its own panel, or resave that theme, then sync again.")); return; }
     const frameHoles = holesInFrame(vp, collars); // #1633 — a top-down true-scale frame: what it shows; else the whole view
     const { groups, items } = legendFromView(theme, { frameHoles, frame: frameTest(vp) }); // frame: #2134
-    if (!items.length) { setElements((els) => els.map((el) => el.id === legendId ? { ...el, items: [] } : el)); setSyncNotice(tr("Nothing that view shows has a legend: no visible category layer, assay classes, block model, surface samples, map layer or boundary.")); return; }
-    setElements((els) => els.map((el) => el.id === legendId ? { ...el, items } : el));
+    if (!items.length) { setElements((els) => els.map((el) => el.id === legendId ? { ...el, ...stamp([]) } : el)); setSyncNotice(tr("Nothing that view shows has a legend: no visible category layer, assay classes, block model, surface samples, map layer or boundary.")); return; }
+    setElements((els) => els.map((el) => el.id === legendId ? { ...el, ...stamp(items) } : el));
     setSyncNotice(tr(groups.length === 1 ? "Loaded {n} legend group from \"{name}\"." : "Loaded {n} legend groups from \"{name}\".", { n: groups.length, name: theme.name })
       + (frameHoles ? tr(" Categories from the {h} of {all} holes inside the frame.", { h: frameHoles.size, all: collars.length }) : "")
       + (() => { // #2134 — the collars with no survey or attitude are drawn as assumed vertical holes (#2014): say how many of those counted
@@ -995,6 +1003,12 @@ export default function LayoutModule() {
         return a ? tr(a === 1 ? " {a} of them has no survey or attitude and is drawn as an assumed vertical hole." : " {a} of them have no survey or attitude and are drawn as assumed vertical holes.", { a }) : "";
       })());
   };
+
+  // TASKS.csv #2471 — a refreshed viewport reloads the legends bound to it whose rows are still the loaded ones
+  useEffect(() => {
+    const byId = new Map(elements.map((e) => [e.id, e]));
+    elements.filter((e) => e.type === "legend" && legendSyncState(e, byId.get(e.boundViewportId)) === "reload").forEach((l) => syncLegendFromView(l.id, { auto: true }));
+  }, [elements]);
 
   // TASKS.csv #78 — drag-and-drop as a consistent import method. Layout's own "asset" is an image
   // (logo aside, which stays its own small fixed-size button flow since it's meant to be one
@@ -1260,6 +1274,10 @@ export default function LayoutModule() {
                 </label>
                 <button onClick={() => syncLegendFromView(sel.id)} disabled={!sel.boundViewportId} style={{ ...pBtn, opacity: sel.boundViewportId ? 1 : 0.5 }}>
                   <RefreshCw size={12} />{" "}{tr("Load from view / section")}</button>
+                {legendSyncState(sel, elements.find((el) => el.id === sel.boundViewportId)) === "stale" && ( /* TASKS.csv #2471 */
+                  <div role="status" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text-strong)", margin: "4px 0 8px", lineHeight: 1.4 }}>
+                    {tr("Out of step with its viewport: the viewport was refreshed after these rows were loaded, and they were edited (or loaded before this check existed), so they were kept. Load from view to update them.")}</div>
+                )}
                 {syncNotice && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-accent-dark)", margin: "4px 0 8px", lineHeight: 1.4 }}>{syncNotice}</div>}
                 {sel.items.map(([name, color, opt], i) => (
                   <div key={i} style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 5 }}>
@@ -1289,6 +1307,7 @@ export default function LayoutModule() {
             )}
             {sel.type === "viewport" && (
               <ViewportControls crsUnset={project?.crsSet === false}
+                legendReloaded={elements.some((el) => el.type === "legend" && el.boundViewportId === sel.id && el.autoReloaded && el.loadedCapturedAt === sel.capturedAt)} /* #2471 */
                 sel={sel} themes={themes} updateSelected={updateSelected} syncNotice={syncNotice}
                 onRefresh={() => startViewportRender(sel.themeId, sel.id, sel.trueScale, { fixedScale: sel.fixedScale, elementW: sel.w, elementH: sel.h })}
                 onRebind={(themeId) => startViewportRender(themeId, sel.id, sel.trueScale, { fixedScale: sel.fixedScale, elementW: sel.w, elementH: sel.h })}
@@ -1867,7 +1886,7 @@ function SectionScaleControls({ sel, pageW, pageH, updateSelected }) {
   );
 }
 
-function ViewportControls({ sel, themes, updateSelected, onRefresh, onRebind, onEnter, onFit, onRescale, onSyncScaleBar, onSyncNorth, syncNotice, others = [], allViewports = [], hasHoles = true, crsUnset = false }) {
+function ViewportControls({ legendReloaded = false, sel, themes, updateSelected, onRefresh, onRebind, onEnter, onFit, onRescale, onSyncScaleBar, onSyncNorth, syncNotice, others = [], allViewports = [], hasHoles = true, crsUnset = false }) {
   // TASKS.csv #907 — the scale picker: a preset, "custom" (a typed 1:N), or free (whatever the 3D view frames)
   const [customScale, setCustomScale] = useState(false);
   const scaleChoice = customScale || (sel.fixedScale > 0 && !SCALE_PRESETS.includes(sel.fixedScale)) ? "custom" : sel.fixedScale > 0 ? String(sel.fixedScale) : "";
@@ -1908,6 +1927,8 @@ function ViewportControls({ sel, themes, updateSelected, onRefresh, onRebind, on
       <button onClick={onRefresh} disabled={sel.refreshing} style={{ ...pBtn, opacity: sel.refreshing ? 0.6 : 1 }}>
         <RefreshCw size={14} /> {sel.refreshing ? tr("Rendering…") : tr("Refresh from theme")}
       </button>
+      {/* TASKS.csv #2471 — when the picture was taken: the 3D view may have changed since */}
+      {sel.capturedAt > 0 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: -4, marginBottom: 6, lineHeight: 1.4 }}>{tr("Captured {when}. Changes in the 3D view since then show after a refresh.", { when: new Date(sel.capturedAt).toLocaleString([], { dateStyle: "medium", timeStyle: "short" }) })}{legendReloaded ? " " + tr("The bound legend reloaded with the refreshed viewport.") : ""}</div>}
       {/* TASKS.csv #198 (part 3) — QGIS-style "enter" a viewport: switches to the 3D View tab with
           this viewport's theme/camera live, ready for real orbit/pan/zoom, instead of an instant
           re-render. See startInteractiveViewportEdit above and ViewerModule's interactive-session
