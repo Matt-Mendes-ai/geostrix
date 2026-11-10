@@ -9656,5 +9656,7 @@
   "cubic": "مكعب",
   "flat search": "بحث مسطح",
   "sphere": "كرة",
-  "trend": "اتجاه"
+  "trend": "اتجاه",
+  "{sym} is stored in \"{u}\", which this preset cannot convert to {to}.": "{sym} مخزن بوحدة \"{u}\"، ولا يستطيع هذا الإعداد المسبق تحويلها إلى {to}.",
+  "Read in {list}, converted from the stored units where they differ.": "تُقرأ بوحدات {list}، محوَّلة من الوحدات المخزنة حيث تختلف."
 }

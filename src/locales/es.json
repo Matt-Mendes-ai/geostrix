@@ -9656,5 +9656,7 @@
   "cubic": "cúbica",
   "flat search": "búsqueda plana",
   "sphere": "esfera",
-  "trend": "tendencia"
+  "trend": "tendencia",
+  "{sym} is stored in \"{u}\", which this preset cannot convert to {to}.": "{sym} está almacenado en \"{u}\", que este ajuste predefinido no puede convertir a {to}.",
+  "Read in {list}, converted from the stored units where they differ.": "Leídos en {list}, convertidos desde las unidades almacenadas donde difieren."
 }

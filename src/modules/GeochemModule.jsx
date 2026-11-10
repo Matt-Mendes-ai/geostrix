@@ -1171,7 +1171,7 @@ export default function GeochemModule() {
             <div className="ge-section-label" style={{ marginTop: 18 }}>{tr("Calculated element")}</div>
               <div style={{ padding: 8, border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-sm)", display: "flex", flexDirection: "column", gap: 6 }}>
                 {assayElements.length > 0 && surfaceElements.length > 0 && <label style={{ display: "flex", alignItems: "center", gap: 6 }}>{tr("Data source")}<select value={onSurface ? "surface" : "assays"} onChange={(e) => setCalc((c) => ({ ...c, source: e.target.value, msg: null }))} style={{ fontSize: "var(--font-size-sm)" }} aria-label={tr("Data source")}><option value="assays">{tr("Drillhole assays")}</option><option value="surface">{tr("Surface samples")}</option></select></label>}
-                <select value="" onChange={(e) => { const p = CALC_PRESETS.find((x) => x.name === e.target.value); if (p) setCalc((c) => ({ source: c?.source, name: p.name, expr: p.expr, unit: "index", msg: { ok: true, text: `${tr(p.label)}. ${tr(p.unitNote)}.` } })); }} style={{ fontSize: "var(--font-size-sm)" }} aria-label={tr("Preset")}>
+                <select value="" onChange={(e) => { const p = CALC_PRESETS.find((x) => x.name === e.target.value); if (p) setCalc((c) => ({ source: c?.source, name: p.name, expr: p.expr, unit: "index", preset: p, msg: { ok: true, text: `${tr(p.label)}. ${tr(p.unitNote)}. ${tr("Read in {list}, converted from the stored units where they differ.", { list: Object.entries(p.units || {}).map(([s, u]) => `${s} ${u}`).join(", ") })}` } })); }} /* preset / units: #2500 */ style={{ fontSize: "var(--font-size-sm)" }} aria-label={tr("Preset")}>
                   <option value="">{tr("Preset… (or write your own below)")}</option>
                   {CALC_PRESETS.map((p) => <option key={p.name} value={p.name} disabled={!p.needs.every((s) => calcEls.some((e) => e.symbol === s))}>{tr(p.label)}{p.needs.every((s) => calcEls.some((e) => e.symbol === s)) ? "" : tr(" — needs {list}", { list: p.needs.join(", ") })}</option>)}
                 </select>
@@ -1185,14 +1185,14 @@ export default function GeochemModule() {
                   <button style={{ ...genBtn, flex: 1 }} onClick={() => {
                     try {
                       if (onSurface) { // #1799 — stored on the surface samples like an imported element: plan map, thresholds, grade stats take it
-                        const r = addCalculatedElement(surfaceSamples, surfaceElements, calc.name, calc.expr, calc.unit || "index");
+                        const r = addCalculatedElement(surfaceSamples, surfaceElements, calc.name, calc.expr, calc.unit || "index", { readUnits: calc.preset && calc.expr === calc.preset.expr ? calc.preset.units : null }); // #2500
                         setSurfaceSamples(r.assays);
                         setSurfaceElements((prev) => [...prev, r.element]);
                         setNotices((p) => [...p, notice("Added calculated element {symbol} = {expr} on {computed} surface sample(s) (range {min}–{max}){v}. The plan map, thresholds, grade stats and correlation can use it. It is not recalculated if the samples are re-imported.", { symbol: r.element.symbol, expr: r.element.calculated.expr, computed: r.computed.toLocaleString(), min: r.min.toFixed(2), max: r.max.toFixed(2), v: r.skipped ? tr("; {skipped} sample(s) missing an element in the formula have no value", { skipped: r.skipped.toLocaleString() }) : "" })]);
                         setCalc(null);
                         return;
                       }
-                      const r = addCalculatedElement(assays, assayElements, calc.name, calc.expr, calc.unit || "index"); // unit: #1749
+                      const r = addCalculatedElement(assays, assayElements, calc.name, calc.expr, calc.unit || "index", { readUnits: calc.preset && calc.expr === calc.preset.expr ? calc.preset.units : null }); // unit: #1749; readUnits: #2500 (a preset's formula as given)
                       setAssays(r.assays);
                       setAssayElements((prev) => [...prev, r.element]);
                       setNotices((p) => [...p, notice("Added calculated element {symbol} = {expr} on {computed} assay interval(s) (range {min}–{max}){v}. It can now be shown downhole, in 3D and on sections like any element. It is not recalculated if assays are re-imported.", { symbol: r.element.symbol, expr: r.element.calculated.expr, computed: r.computed.toLocaleString(), min: r.min.toFixed(2), max: r.max.toFixed(2), v: r.skipped ? tr("; {skipped} interval(s) missing an element in the formula have no value", { skipped: r.skipped.toLocaleString() }) : "" })]);
