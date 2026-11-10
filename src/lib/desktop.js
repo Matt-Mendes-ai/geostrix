@@ -83,6 +83,12 @@ export async function openFile({ filters } = {}) {
   });
 }
 
+// TASKS.csv #2516 — every section pop-out closes when another project is loaded (the browser fallback's tabs cannot be closed from here)
+export async function closeSectionWindows() {
+  if (d?.closeSectionWindows) return d.closeSectionWindows();
+  return { ok: false, fallback: true };
+}
+
 export async function openSectionWindow(payload) {
   if (d) return d.openSectionWindow(payload);
   // browser fallback: new tab won't share memory; we stash in sessionStorage keyed by id. Reuses the

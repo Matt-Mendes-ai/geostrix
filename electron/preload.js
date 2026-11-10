@@ -18,6 +18,7 @@ contextBridge.exposeInMainWorld("desktop", {
   addonStop: (id) => ipcRenderer.invoke("addon-stop", id),
   onAddonEvent: (cb) => { const h = (_e, ev) => cb(ev); ipcRenderer.on("addon-event", h); return () => ipcRenderer.removeListener("addon-event", h); },
   openSectionWindow: (payload) => ipcRenderer.invoke("open-section-window", payload),
+  closeSectionWindows: () => ipcRenderer.invoke("close-section-windows"), // TASKS.csv #2516
   sendSectionSnapshot: (payload) => ipcRenderer.invoke("section-snapshot", payload),
   onSectionSnapshot: (cb) => { const h = (_e, d) => cb(d); ipcRenderer.on("section-snapshot", h); return () => ipcRenderer.removeListener("section-snapshot", h); },
   sendSectionContacts: (payload) => ipcRenderer.invoke("section-contacts", payload),

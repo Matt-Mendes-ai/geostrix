@@ -13,6 +13,7 @@ import ExportToast from "./components/ExportToast.jsx"; // TASKS.csv #1042 — e
 const UpdatePrompt = React.lazy(() => import("./components/UpdatePrompt.jsx")); // TASKS.csv #915 — loaded only when an update exists
 import { activateOnKey } from "./lib/a11y.js"; // TASKS.csv #296 — keyboard-reachable icon-only controls
 import { DESURVEY_METHODS } from "./lib/desurvey.js"; // TASKS.csv #135 — status-bar desurvey-method picker
+import { closeSectionWindows } from "./lib/desktop.js"; // TASKS.csv #2516
 import { EXPORT_RESULT_EVENT, onMenu, onSectionSnapshot, onSectionContacts, takeLaunchFile, onLaunchFile, pythonHealth, isSidecarRunning, onUpdaterEvent, downloadUpdate, installUpdate, isDesktop, setDirtyState, captureWindow, problemReportInfo } from "./lib/desktop.js";
 import ViewerModule from "./modules/ViewerModule.jsx";
 // TASKS.csv #438 — memoised so a store write while the viewer is hidden (FreezeStore below) skips it entirely
@@ -334,6 +335,15 @@ export default function App() {
     });
     return off;
   }, [addLayoutImage]);
+
+  // TASKS.csv #2516 — a section pop-out belongs to the project it was opened from: a new, opened or switched project (viewerUiStateSeq
+  // bumps on every load) closes them, so a closed project's section can never be snapshotted or saved into the next one
+  const loadSeqRef = useRef(store.viewerUiStateSeq);
+  useEffect(() => {
+    if (loadSeqRef.current === store.viewerUiStateSeq) return;
+    loadSeqRef.current = store.viewerUiStateSeq;
+    closeSectionWindows();
+  }, [store.viewerUiStateSeq]);
 
   // Same cross-process relay pattern as the snapshot listener above, for a cross-section pop-out's
   // drawn contacts (interpreted lithological contacts on the 2D section — see SectionWindow.jsx and

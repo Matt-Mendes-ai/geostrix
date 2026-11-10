@@ -706,6 +706,18 @@ ipcMain.handle("open-section-window", (_e, payload) => {
   return { id };
 });
 
+// TASKS.csv #2516 (review #2486, WA lithium) — a section pop-out shows the project it was opened from: after Close project its window
+// stayed live, and its Snapshot to Layout wrote the closed project's section and legend into the new project's page. The main window
+// asks for every section window to close when another project is loaded (new, opened, a tab switched or closed). The close was already
+// confirmed for the project, so the windows go without their own unsaved-contacts prompt (#1323).
+ipcMain.handle("close-section-windows", (ev) => {
+  if (!mainWindow || BrowserWindow.fromWebContents(ev.sender) !== mainWindow) return { ok: false };
+  const hosts = [...sectionHosts].filter((w) => !w.isDestroyed());
+  sectionTabs.clear(); sectionPayloads.clear(); sectionUnsaved.clear();
+  hosts.forEach((w) => w.destroy());
+  return { ok: true, closed: hosts.length };
+});
+
 // push updated section data to an existing pop-out (live sync from main window)
 // A section pop-out window is a separate renderer with its own JS heap — it doesn't share the main
 // window's React store. When the user clicks "Snapshot to Layout" in a section window, it can't call
