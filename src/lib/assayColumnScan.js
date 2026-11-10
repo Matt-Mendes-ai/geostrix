@@ -2,7 +2,7 @@
 // cell of every ticked column before it could paint: four passes over a 590,000-row x 30-element file (71 M cell reads through the
 // columnar row getters) froze the window for 3.1 s. One pass over the rows reads every candidate column at once, in chunks that
 // yield to the window between them, with progress; ticking an element re-sums the per-column results without a rescan (#583).
-import { parseAssayValue, isBlankAssayCell, isOverLimitCode, NO_DATA_SENTINEL_MAX, isElementColumn } from "./geochem.js";
+import { parseAssayValue, isBlankAssayCell, isOverLimitCode, isNoDataCode, isElementColumn } from "./geochem.js"; // isNoDataCode: #2336
 
 const yieldToWindow = () => new Promise((resolve) => setTimeout(resolve, 0));
 
@@ -38,23 +38,25 @@ export async function scanAssayColumns(rows, headers, { chunk = 25000, onProgres
 // one column's negatives by kind: over-limit codes (#1648), no-data sentinels and below-detection codes (#333)
 export function columnNegatives(s) {
   if (s._neg) return s._neg;
-  const c = { codes: 0, sentinels: 0, over: 0, overCode: null };
+  const c = { codes: 0, sentinels: 0, over: 0, overCode: null, sentinelCodes: new Map() }; // sentinelCodes: #2336 — value -> count
   for (const v of s.negs) {
-    if (isOverLimitCode(v, s.max)) { c.over++; c.overCode = v; } else if (v <= NO_DATA_SENTINEL_MAX) c.sentinels++; else c.codes++;
+    if (isOverLimitCode(v, s.max)) { c.over++; c.overCode = v; } else if (isNoDataCode(v, s.max)) { c.sentinels++; c.sentinelCodes.set(v, (c.sentinelCodes.get(v) || 0) + 1); } else c.codes++;
   }
   return (s._neg = c);
 }
 
 // the dialog's negatives summary over the columns being imported; overOn false = over-limit codes fall back into the other two
 export function negativeSummary(stats, hs, overOn = true) {
-  const t = { codes: 0, sentinels: 0, over: 0, overCols: [], overAny: 0 };
+  const t = { codes: 0, sentinels: 0, over: 0, overCols: [], overAny: 0, sentinelCols: [] }; // sentinelCols: #2336 — "P: -9999 ×20"
   for (const h of hs) {
     const s = stats.get(h);
     if (!s) continue;
     const c = columnNegatives(s);
     const back = overOn ? 0 : c.over;
-    t.codes += c.codes + (back && c.overCode > NO_DATA_SENTINEL_MAX ? back : 0);
-    t.sentinels += c.sentinels + (back && c.overCode <= NO_DATA_SENTINEL_MAX ? back : 0);
+    const backNoData = back && isNoDataCode(c.overCode, s.max); // #2336
+    t.codes += c.codes + (back && !backNoData ? back : 0);
+    t.sentinels += c.sentinels + (backNoData ? back : 0);
+    if (c.sentinelCodes.size) t.sentinelCols.push(`${h}: ${[...c.sentinelCodes].map(([v, n]) => `${v} ×${n}`).join(", ")}`);
     t.over += overOn ? c.over : 0;
     if (c.over) t.overCols.push(`${h} ${c.overCode} (×${c.over})`);
     t.overAny += c.over;

@@ -503,14 +503,15 @@ export default function GeochemModule() {
     const textCodes = { bdl: 0, nodl: 0, na: 0, nodlCols: new Set() }; // #2158
     // #1648 — each column's largest positive value, once: a negative code at that size is its upper limit
     const colMaxCache = new Map();
-    const colMaxOf = (header) => { if (modal.overLimitCodes === false) return 0; let m = colMaxCache.get(header); if (m === undefined) { m = columnPositiveMax(modal.allRows, header); colMaxCache.set(header, m); } return m; };
+    const posMaxOf = (header) => { let m = colMaxCache.get(header); if (m === undefined) { m = columnPositiveMax(modal.allRows, header); colMaxCache.set(header, m); } return m; }; // #2336
+    const colMaxOf = (header) => (modal.overLimitCodes === false ? 0 : posMaxOf(header));
     const oxideNotes = new Set(); // #403
     const oxideCache = new Map(); // #583 — per header, not per cell (2.3 M lookups on a 190,000-row file)
     const oxideOf = (header) => { let o = oxideCache.get(header); if (o === undefined) { o = oxideOfHeader(header) || null; oxideCache.set(header, o); } return o; };
     const dlCache = new Map(); // #2158 — each column's detection limit, once
     const dlOf = (header) => { let d = dlCache.get(header); if (d === undefined) { d = columnDetectionLimit((modal.allRows || []).map((r) => r[header])); dlCache.set(header, d); } return d; };
     const read = (raw, sym, header) => {
-      const c = readAssayCell(raw, negativeMode, colMaxOf(header), dlOf(header));
+      const c = readAssayCell(raw, negativeMode, colMaxOf(header), dlOf(header), posMaxOf(header)); // posMax: #2336
       if (c.kind === "txt_bdl") textCodes.bdl++; else if (c.kind === "txt_bdl_nodl") { textCodes.nodl++; textCodes.nodlCols.add(sym); } else if (c.kind === "na_text") textCodes.na++; // #2158
       if (c.kind === "neg_bdl") negBdl++;
       else if (c.kind === "neg_missing") negMissing++;
@@ -600,7 +601,7 @@ export default function GeochemModule() {
           // TASKS.csv #2328 — joined method columns: a sample with no value here takes the first other method column that has one, in its own unit
           if (v == null && e.join && e.methodCols?.length && e.header === e.mainHeader) {
             for (const mc of e.methodCols) {
-              const c2 = readAssayCell(r[mc.header], negativeMode, colMaxOf(mc.header), dlOf(mc.header));
+              const c2 = readAssayCell(r[mc.header], negativeMode, colMaxOf(mc.header), dlOf(mc.header), posMaxOf(mc.header));
               if (c2.value == null) continue;
               v = convertUnit(c2.value, mc.unit, existingUnit[e.symbol] || e.unit); q = c2.qualifier || null; valueSources[e.symbol] = mc.header;
               const m = methodJoined.get(e.symbol) || new Map(); m.set(mc.header, (m.get(mc.header) || 0) + 1); methodJoined.set(e.symbol, m);

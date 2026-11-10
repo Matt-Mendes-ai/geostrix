@@ -1,7 +1,7 @@
 import { QC_COLUMN_KEYS } from "../lib/assayQcColumns.js"; // TASKS.csv #1184
 import React, { useEffect, useMemo, useState } from "react";
 import { X } from "./icons.js";
-import { isElementColumn, inferUnit, ELEMENT_SYMBOLS, NO_DATA_SENTINEL_MAX, unitAssumed, repeatColumns } from "../lib/geochem.js"; // repeatColumns: #2194
+import { isElementColumn, inferUnit, ELEMENT_SYMBOLS, unitAssumed, repeatColumns } from "../lib/geochem.js"; // repeatColumns: #2194
 import { scanAssayColumns, negativeSummary, zeroCount, blankCount } from "../lib/assayColumnScan.js"; // TASKS.csv #2164
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
@@ -221,7 +221,7 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
             )}
             {negatives.codes > 0 && (
               <div>
-                <div style={{ color: "var(--color-text)", marginBottom: 4 }}>{tr("{codes} negative value(s) between {NO_DATA_SENTINEL_MAX} and 0. Assays can't be negative, so these are codes. What do they mean?", { codes: negatives.codes, NO_DATA_SENTINEL_MAX })}</div>
+                <div style={{ color: "var(--color-text)", marginBottom: 4 }}>{tr("{codes} negative value(s) no bigger than their column's own values (-0.005; -100 in a column of 100 to 500). Assays can't be negative, so these are codes. What do they mean?", { codes: negatives.codes })}{/* #2336 */}</div>
                 <label style={{ display: "flex", gap: 6, alignItems: "center", cursor: "pointer" }}>
                   <input type="radio" name="negmode" checked={(modal.negativeMode || "bdl") === "bdl"} onChange={() => onChange({ ...modal, negativeMode: "bdl" })} />{tr("Below detection (-0.005 means \"<0.005\"; stored at half and flagged \"<\")")}</label>
                 <label style={{ display: "flex", gap: 6, alignItems: "center", cursor: "pointer" }}>
@@ -247,7 +247,7 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
                   <input type="radio" name="blankmode" checked={modal.blankMode === "bdl"} onChange={() => onChange({ ...modal, blankMode: "bdl" })} />{tr("Below detection — stored as \"<DL\" at half the limit (the lab's most common \"<\" limit in that column, else its lowest value)")}</label>
               </div>
             )}
-            {negatives.sentinels > 0 && <div>{tr("{sentinels} value(s) at or below {NO_DATA_SENTINEL_MAX} (e.g. -9999) will be treated as not assayed: they are no-data codes, not grades.", { sentinels: negatives.sentinels, NO_DATA_SENTINEL_MAX })}</div>}
+            {negatives.sentinels > 0 && <div>{tr("{sentinels} value(s) will be treated as not assayed: {list}. They are -99 / -999 / -9999 codes or bigger than anything else in their column, so they are no-data codes, not grades.", { sentinels: negatives.sentinels, list: (negatives.sentinelCols || []).join("; ") })}</div>}{/* #2336 — the codes found, not an example */}
             {unitClashes.length > 0 && <div>{tr("Already in this project in another unit: {v}. These values will be converted to the project's unit so earlier assays keep their meaning.", { v: unitClashes.map((e) => tr("{symbol} (file {unit}, project {projectUnit})", { symbol: e.symbol, unit: e.unit, projectUnit: existingUnits[e.symbol] })).join(", ") })}</div>}
           </div>
         )}

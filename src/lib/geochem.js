@@ -231,6 +231,16 @@ export function assayQualifier(raw) {
 // sample lost". Values at or below this threshold are no-data sentinels; values between it and 0 are
 // below-detection codes unless the user says otherwise at import.
 export const NO_DATA_SENTINEL_MAX = -99;
+// TASKS.csv #2336 (review #2325, WA uranium) — "at or below -99" is not enough on its own: P = -100 on 20 rows beside P values of 100-500 ppm
+// is the lab's "<100" (as -0.1, -1, -5, -10, -20, -50 are in the same file), and it was read as not assayed. A code at or below -99 is
+// no-data when it is all nines (-99, -999, -9999) or bigger than anything the column reports; else it is that column's detection limit.
+// posMax: the column's largest positive value (0 / unknown: the fixed threshold alone, as before)
+const ALL_NINES = /^9+(\.9+)?$/;
+export function isNoDataCode(value, posMax = 0) {
+  if (!(value <= NO_DATA_SENTINEL_MAX)) return false;
+  const x = -value;
+  return ALL_NINES.test(String(x)) || !(posMax > 0) || x > posMax;
+}
 // raw cell -> { value, qualifier, kind } with negative codes resolved:
 //   mode "bdl"     (default) -0.005 -> 0.0025 with qualifier '<' (same half-detection rule as "<0.005")
 //   mode "missing"           -0.005 -> not assayed
@@ -267,7 +277,8 @@ export function columnDetectionLimit(cells) {
 // colMax (optional, #1648): the column's largest positive value; a code at that limit -> its size, qualifier '>' (kind "neg_over")
 // dl (optional, #2158): the column's detection limit (columnDetectionLimit). A below-detection notation is read at half of it ("txt_bdl"), or
 // left blank with no limit to use ("txt_bdl_nodl"); -1 and -9 in a column whose limit is something else are no-data codes, not "<1" / "<9".
-export function readAssayCell(raw, negativeMode = "bdl", colMax = 0, dl = null) {
+// posMax (optional, #2336): the column's largest positive value whatever the over-limit choice, for isNoDataCode
+export function readAssayCell(raw, negativeMode = "bdl", colMax = 0, dl = null, posMax = colMax) {
   if (typeof raw === "string") {
     const s = raw.trim();
     if (s && BDL_TEXT.test(s)) return dl > 0 ? { value: dl / 2, qualifier: "<", kind: "txt_bdl" } : { value: null, qualifier: null, kind: "txt_bdl_nodl" };
@@ -278,7 +289,7 @@ export function readAssayCell(raw, negativeMode = "bdl", colMax = 0, dl = null) 
   if (value == null || value >= 0) return { value, qualifier, kind: null };
   if (negativeMode !== "missing" && isOverLimitCode(value, colMax)) return { value: -value, qualifier: ">", kind: "neg_over" };
   if (dl > 0 && (value === -1 || value === -9) && Math.abs(value) !== dl) return { value: null, qualifier: null, kind: "neg_missing" }; // #2158
-  if (value <= NO_DATA_SENTINEL_MAX || negativeMode === "missing") return { value: null, qualifier: null, kind: "neg_missing" };
+  if (isNoDataCode(value, posMax) || negativeMode === "missing") return { value: null, qualifier: null, kind: "neg_missing" }; // #2336
   return { value: Math.abs(value) / 2, qualifier: "<", kind: "neg_bdl" };
 }
 

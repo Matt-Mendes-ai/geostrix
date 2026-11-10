@@ -33,7 +33,7 @@ test("#2158 -1 and -9: no-data codes when the column's limit is something else; 
 
 test("#2158 wiring: the assay commit passes each column's limit and says the counts", () => {
   const g = readFileSync(new URL("../src/modules/GeochemModule.jsx", import.meta.url), "utf8");
-  assert.match(g, /readAssayCell\(raw, negativeMode, colMaxOf\(header\), dlOf\(header\)\)/);
+  assert.match(g, /readAssayCell\(raw, negativeMode, colMaxOf\(header\), dlOf\(header\)(, posMaxOf\(header\))?\)/); // posMaxOf: #2336
   assert.match(g, /cell\(s\) marked not assayed/);
 });
 

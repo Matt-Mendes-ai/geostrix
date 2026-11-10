@@ -9719,5 +9719,7 @@
   "Mine grid control points": "نقاط ضبط شبكة المنجم",
   "{rms} m RMS over {n} point(s)": "{rms} م RMS على {n} نقطة",
   "Save the mine grid": "حفظ شبكة المنجم",
-  "The mine grid was removed.": "أُزيلت شبكة المنجم."
+  "The mine grid was removed.": "أُزيلت شبكة المنجم.",
+  "{codes} negative value(s) no bigger than their column's own values (-0.005; -100 in a column of 100 to 500). Assays can't be negative, so these are codes. What do they mean?": "{codes} قيمة سالبة لا تتجاوز قيم عمودها (-0.005؛ -100 في عمود من 100 إلى 500). لا يمكن أن تكون التحاليل سالبة، لذا فهذه رموز. ماذا تعني؟",
+  "{sentinels} value(s) will be treated as not assayed: {list}. They are -99 / -999 / -9999 codes or bigger than anything else in their column, so they are no-data codes, not grades.": "{sentinels} قيمة ستُعامل على أنها غير محللة: {list}. إنها رموز -99 / -999 / -9999 أو أكبر من أي قيمة أخرى في عمودها، لذا فهي رموز لانعدام البيانات، لا محتويات."
 }
