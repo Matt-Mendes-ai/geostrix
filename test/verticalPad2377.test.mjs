@@ -24,7 +24,7 @@ test("floors and the cap; no traces keeps the old pad", () => {
 
 test("the run pads z with it (box spans the whole drilled column too), and keeps reachPad for x / y and under a trend", () => {
   const m = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8");
-  assert.match(m, /const colR = minMax\(allApiPts\.map\(\(p\) => p\.z\)\), vPad = !anisotropy\.enabled && reachLib\?\.verticalPad \? reachLib\.verticalPad\(zr\.max - zr\.min, colR\.max - colR\.min, MODEL_EXTENT_PAD_M\) : null;/);
+  assert.match(m, /const colR = \(reachLib\?\.drilledColumn \? reachLib\.drilledColumn\(allApiPts, \{ xmin, xmax, ymin, ymax \}\) : null\) \|\| zr, vPad = !anisotropy\.enabled && reachLib\?\.verticalPad \? reachLib\.verticalPad\(zr\.max - zr\.min, colR\.max - colR\.min, MODEL_EXTENT_PAD_M\) : null;/);
   assert.match(m, /const \[zmin, zmax\] = vPad != null \? \[Math\.min\(zr\.min, colR\.min\) - vPad, Math\.max\(zr\.max, colR\.max\) \+ vPad\] : pad\(zr\.min, zr\.max\);/);
   assert.match(m, /const \[xmin, xmax\] = pad\(xr\.min, xr\.max\);/);
 });

@@ -238,9 +238,9 @@ export function createModellingRuns(ctx, mcRef) {
     const pad = (lo, hi) => { const span = Math.max(1, hi - lo); const p = reachLib ? reachLib.reachPad(span, longestSpan, reachBoxM, MODEL_EXTENT_PAD_M) : Math.min(span * 0.15, MODEL_EXTENT_PAD_M); return [lo - p, hi + p]; };
     const [xmin, xmax] = pad(xr.min, xr.max);
     const [ymin, ymax] = pad(yr.min, yr.max);
-    // TASKS.csv #2377 — z padded from the drilled column (every trace point's height range), not the lateral span / margin; with a trend
-    // (anisotropy warps the axes) or no traces, as before
-    const colR = minMax(allApiPts.map((p) => p.z)), vPad = !anisotropy.enabled && reachLib?.verticalPad ? reachLib.verticalPad(zr.max - zr.min, colR.max - colR.min, MODEL_EXTENT_PAD_M) : null;
+    // TASKS.csv #2377 — z padded from the drilled column, not the lateral span / margin; with a trend (anisotropy warps the axes) or no
+    // traces, as before. #2528 — the column of the traces inside this box only (the project's whole column made 1,183 m of box for 20 m holes)
+    const colR = (reachLib?.drilledColumn ? reachLib.drilledColumn(allApiPts, { xmin, xmax, ymin, ymax }) : null) || zr, vPad = !anisotropy.enabled && reachLib?.verticalPad ? reachLib.verticalPad(zr.max - zr.min, colR.max - colR.min, MODEL_EXTENT_PAD_M) : null;
     const [zmin, zmax] = vPad != null ? [Math.min(zr.min, colR.min) - vPad, Math.max(zr.max, colR.max) + vPad] : pad(zr.min, zr.max);
     const extent = [xmin, xmax, ymin, ymax, zmin, zmax];
     // TASKS.csv #2229 (review #2174, WA gold) — how far the box actually reaches past the data on each axis (the reach notice gave only the clip

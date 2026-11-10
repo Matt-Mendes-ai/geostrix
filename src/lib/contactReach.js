@@ -104,6 +104,17 @@ export function reachPad(span, longestSpan, marginM, capM) {
 // lateral span or the lateral reach margin: reachPad on z gave an 80 m column 2.3-2.5 km of height (a 36-cell solve, cells 64-70 m thick,
 // surfaces from RL -30 to 805 m, 'LIG 168.59 km3'). Half the drilled column, at least 20 m and at least 15 % of the contacts' own height,
 // capped as the lateral pad. columnM: the drilling's height; null (no traces) -> null, the caller keeps reachPad.
+// TASKS.csv #2528 (review #2486, WA lithium) — the drilled column under the model's own footprint: the height range of the trace points
+// inside the lateral box. #2377 took every trace in the project, so a model of 15-20 m bench holes in one corner got a box from the
+// project's highest collar to its deepest toe plus half that again (RL -557 to 626, 1,183 m). null when no trace point lies inside.
+export function drilledColumn(points, box) {
+  let lo = Infinity, hi = -Infinity;
+  for (const p of points || []) {
+    if (!(p.x >= box.xmin && p.x <= box.xmax && p.y >= box.ymin && p.y <= box.ymax) || !Number.isFinite(p.z)) continue;
+    if (p.z < lo) lo = p.z; if (p.z > hi) hi = p.z;
+  }
+  return Number.isFinite(lo) ? { min: lo, max: hi } : null;
+}
 export function verticalPad(zSpan, columnM, capM) {
   if (!(Number.isFinite(columnM) && columnM > 0)) return null;
   return Math.min(Math.max(20, 0.5 * columnM, Math.max(1, zSpan) * 0.15), capM);
