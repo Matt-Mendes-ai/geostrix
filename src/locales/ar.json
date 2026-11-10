@@ -9661,5 +9661,7 @@
   "Read in {list}, converted from the stored units where they differ.": "تُقرأ بوحدات {list}، محوَّلة من الوحدات المخزنة حيث تختلف.",
   "{n} sample(s) left out: a ratio with a below-detection operand is not a point ({list}).": "استُبعدت {n} عينة: النسبة التي أحد حديها تحت حد الكشف ليست نقطة ({list}).",
   "{el} below detection in {n}": "{el} تحت حد الكشف في {n}",
-  " {n} sample(s) were not classified: a below-detection operand is not a measurement ({list}).": " لم تُصنَّف {n} عينة: الحد الذي تحت حد الكشف ليس قياسًا ({list})."
+  " {n} sample(s) were not classified: a below-detection operand is not a measurement ({list}).": " لم تُصنَّف {n} عينة: الحد الذي تحت حد الكشف ليس قياسًا ({list}).",
+  "{fileName}: the control points turn these mine-grid coordinates into map coordinates. Which coordinate system are the control points' map coordinates in? The collars are placed in it.": "{fileName}: تحوّل نقاط التحكم إحداثيات شبكة المنجم هذه إلى إحداثيات خريطة. في أي نظام إحداثيات تقع إحداثيات الخريطة لنقاط التحكم؟ توضع الفوهات فيه.",
+  "{fileName}: the local-grid transform needs the coordinate system its control points are in, and none was chosen. Nothing was imported.": "{fileName}: يحتاج تحويل الشبكة المحلية إلى نظام إحداثيات نقاط التحكم، ولم يُختر أي نظام. لم يُستورد شيء."
 }

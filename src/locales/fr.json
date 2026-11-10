@@ -9661,5 +9661,7 @@
   "Read in {list}, converted from the stored units where they differ.": "Lus en {list}, convertis depuis les unités stockées là où elles diffèrent.",
   "{n} sample(s) left out: a ratio with a below-detection operand is not a point ({list}).": "{n} échantillon(s) écartés : un rapport dont un terme est sous la limite de détection n'est pas un point ({list}).",
   "{el} below detection in {n}": "{el} sous la détection dans {n}",
-  " {n} sample(s) were not classified: a below-detection operand is not a measurement ({list}).": " {n} échantillon(s) n'ont pas été classés : un terme sous la limite de détection n'est pas une mesure ({list})."
+  " {n} sample(s) were not classified: a below-detection operand is not a measurement ({list}).": " {n} échantillon(s) n'ont pas été classés : un terme sous la limite de détection n'est pas une mesure ({list}).",
+  "{fileName}: the control points turn these mine-grid coordinates into map coordinates. Which coordinate system are the control points' map coordinates in? The collars are placed in it.": "{fileName} : les points de contrôle transforment ces coordonnées de grille minière en coordonnées cartographiques. Dans quel système de coordonnées sont les coordonnées cartographiques des points de contrôle ? Les collets y sont placés.",
+  "{fileName}: the local-grid transform needs the coordinate system its control points are in, and none was chosen. Nothing was imported.": "{fileName} : la transformation de grille locale demande le système de coordonnées de ses points de contrôle, et aucun n'a été choisi. Rien n'a été importé."
 }

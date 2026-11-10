@@ -738,11 +738,22 @@ export function useImportPipeline(ctx) {
           setNotices((p) => [...p, notice("{fileName}: a local-grid transform gives project coordinates directly — clear Source CRS (it is set to EPSG:{sourceEpsg}). Nothing was imported.", { fileName: importModal.fileName, sourceEpsg: importModal.sourceEpsg })]);
           return;
         }
+        // TASKS.csv #2489 (review #2486, WA lithium) — the control points' map side is in some CRS, and on a project with none chosen (a
+        // local-grid project, #2180) the notice said the collars moved 'to EPSG:3156', the placeholder, and nothing asked. Ask which CRS the
+        // control points are in, with the collars where they would land as the check; none chosen, nothing is imported (as the tick says).
+        if (importStateRef.current.project?.crsSet === false) {
+          const xc = importModal.mapping?.x, yc = importModal.mapping?.y;
+          const landed = transformImportRows(importModal.allRows, importModal.mapping, { units, grid, zShift: 0 }).rows;
+          const pts = xc && yc ? landed.map((r) => ({ x: parseFloat(String(r[xc])), y: parseFloat(String(r[yc])) })).filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y)) : null;
+          const chosen = await requestProjectCrs(tr("{fileName}: the control points turn these mine-grid coordinates into map coordinates. Which coordinate system are the control points' map coordinates in? The collars are placed in it.", { fileName: importModal.fileName }), pts, null);
+          if (!chosen) { setNotices((p) => [...p, notice("{fileName}: the local-grid transform needs the coordinate system its control points are in, and none was chosen. Nothing was imported.", { fileName: importModal.fileName })]); return; }
+          importStateRef.current = { ...importStateRef.current, project: { ...importStateRef.current.project, epsg: chosen, crsSet: true, localGrid: null } };
+        }
       }
       const zShift = importModal.target === "collars" ? Number(importModal.zShift) || 0 : 0;
       const t = transformImportRows(importModal.allRows, importModal.mapping, { units, grid, zShift });
       modalData = { ...importModal, allRows: t.rows };
-      setNotices((p) => [...p, `${importModal.fileName}:${units === "ft" ? " depths/lengths" + (importModal.mapping.z ? tr(" and elevations") : "") + " converted from feet to metres (x 0.3048)." : ""}${grid ? tr(" {moved} collar(s) moved from the local grid to EPSG:{v} (scale {scale}, rotation {rotationDeg}°, RMS {rmsM} m over {n} control points){v2}.", { moved: t.moved, v: project?.epsg, scale: grid.scale.toFixed(6), rotationDeg: grid.rotationDeg.toFixed(3), rmsM: grid.rmsM.toFixed(2), n: grid.n, v2: t.turned ? tr("; {turned} azimuth(s) turned with the grid ({v}°)", { turned: t.turned, v: (-grid.rotationDeg).toFixed(3) }) : "" }) : ""}${zShift ? tr(" Elevations shifted by {zShift} m.", { zShift }) : ""}`]);
+      setNotices((p) => [...p, `${importModal.fileName}:${units === "ft" ? " depths/lengths" + (importModal.mapping.z ? tr(" and elevations") : "") + " converted from feet to metres (x 0.3048)." : ""}${grid ? tr(" {moved} collar(s) moved from the local grid to EPSG:{v} (scale {scale}, rotation {rotationDeg}°, RMS {rmsM} m over {n} control points){v2}.", { moved: t.moved, v: importStateRef.current.project?.epsg ?? project?.epsg /* #2489: the CRS just chosen, never a placeholder */, scale: grid.scale.toFixed(6), rotationDeg: grid.rotationDeg.toFixed(3), rmsM: grid.rmsM.toFixed(2), n: grid.n, v2: t.turned ? tr("; {turned} azimuth(s) turned with the grid ({v}°)", { turned: t.turned, v: (-grid.rotationDeg).toFixed(3) }) : "" }) : ""}${zShift ? tr(" Elevations shifted by {zShift} m.", { zShift }) : ""}`]);
     }
     commitImportData(modalData);
     setImportModal(null);
