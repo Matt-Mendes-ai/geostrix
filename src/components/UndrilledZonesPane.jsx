@@ -10,7 +10,8 @@ import { plannedTrace } from "../lib/holePlanning.js";
 import { isMeshClosed } from "../lib/meshQuery.js";
 import { solidChoices } from "../lib/solidChoices.js"; // TASKS.csv #1564
 import { unitShell } from "../lib/unitVolumes.js";
-import { undrilledZones, defaultCellSize } from "../lib/undrilledZones.js";
+import { undrilledZones, defaultCellSize, defaultCoverM } from "../lib/undrilledZones.js"; // defaultCoverM: #2452
+import { medianSiteSpacing } from "../lib/evidenceSources.js"; // TASKS.csv #2452
 import { collarGround, collarsLookUnderground } from "../lib/pitShell.js"; // TASKS.csv #1557 — the ground between the collars; #2249: unless they are underground
 import { unitSupport } from "../lib/unitSupport.js"; // TASKS.csv #1725 — a one-hole / extrapolated shell is said
 import { terrainGroundAt } from "../lib/viewer/geomath.js";
@@ -31,7 +32,10 @@ let lastResult = null;
 export default function UndrilledZonesPane({ solids = [], onAdd, onClose, onPlanTo = null }) {
   const { collars = [], survey = [], plannedHoles = [], desurveyMethod, terrain } = useStore(); // terrain: #1557
   const [unitId, setUnitId] = useState("");
-  const [coverM, setCoverM] = useState(25);
+  // TASKS.csv #2452 (review #2325, WA uranium) — "Covered within" from the drilling: half the median drill-site spacing (sites 77 m apart ->
+  // 40 m), not 25 m whatever the spacing (83 % of the 200 ppm sheet "not covered" on the WA grid, as one zone)
+  const siteSpacing = useMemo(() => medianSiteSpacing(drilledCollars(collars).collars), [collars]);
+  const [coverM, setCoverM] = useState(() => defaultCoverM(siteSpacing));
   const [cellText, setCellText] = useState("");
   const [insideOnly, setInsideOnly] = useState(false);
   const [withPlanned, setWithPlanned] = useState(false);
@@ -131,6 +135,7 @@ export default function UndrilledZonesPane({ solids = [], onAdd, onClose, onPlan
         {unit && !support && unit.type === "geophysical_shell" && <div style={note}>{tr("\"{name}\" was cut from a block model that records no drillhole support per cell (an imported or geophysical model), so nothing here says how well drilled its shape is.", { name: unit.name })}</div>}{/* #2096 */}
         <label style={row} title={tr("A block of the unit counts as covered when a drillhole passes within this distance of it")}>{tr("Covered within (m of a hole)")}
           <input type="number" min="1" step="5" value={coverM} onChange={(e) => setCoverM(Math.max(0, Number(e.target.value) || 0))} style={{ ...smallSel, width: 70 }} /></label>
+        {siteSpacing > 0 && <div style={note}>{tr("Drill sites are typically {s} m apart; covered within starts at half that.", { s: Math.round(siteSpacing) })}</div>}{/* #2452 */}
         <label style={row}>{tr("Block size (m)")}
           <input type="number" min="0" step="any" value={cellText} placeholder={autoCell ? tr("auto {v}", { v: autoCell }) : tr("auto")} onChange={(e) => setCellText(e.target.value)} style={{ ...smallSel, width: 70 }} /></label>
         <label style={row} title={tr("Gaps smaller than this are left out of the zones (they are counted)")}>{tr("Ignore gaps under (m³)")}

@@ -39,6 +39,10 @@ export function meshBox(positions, pad = 0) {
 // TASKS.csv #1568 (review #1497, Lawyers) — when half the distance did not fit (a 5.3 x 6.2 x 0.9 km box at 12.5 m is 15 M blocks) the size
 // fell straight back to the box's own (50 m for a 25 m distance: every block 125,000 m3, and 'covered' decided by where the grid fell).
 // Now the finest size that fits the budget, from half the distance up: 25 m there (1.9 M blocks).
+// TASKS.csv #2452 — the starting cover distance: half the median drill-site spacing (lib/evidenceSources.js medianSiteSpacing), to the
+// nearest 5 m and at least 5 m; 25 m with no spacing (fewer than two sites)
+export const defaultCoverM = (siteSpacingM) => (siteSpacingM > 0 ? Math.max(5, Math.round(siteSpacingM / 2 / 5) * 5) : 25);
+
 export function defaultCellSize(positions, coverM, target = 300_000, maxCells = 2_000_000) {
   const e = meshBox(positions);
   let c = suggestCellSize(e, target);
