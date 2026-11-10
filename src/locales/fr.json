@@ -9746,5 +9746,6 @@
   "Search radius {r} m: 2.5 times the {m} m typical spacing, so a block between two holes reaches both.": "Rayon de recherche {r} m : 2,5 fois l'espacement typique de {m} m, pour qu'un bloc entre deux sondages les atteigne tous les deux.",
   "{n} bins of {b} m, in {u}{v}.": "{n} intervalles de {b} m, en {u}{v}.",
   "{n} readings, in {u}{v}.": "{n} lectures, en {u}{v}.",
-  "the layer's own units": "les unités propres de la couche"
+  "the layer's own units": "les unités propres de la couche",
+  "{t} elapsed": "{t} écoulé"
 }

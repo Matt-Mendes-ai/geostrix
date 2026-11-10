@@ -5,7 +5,7 @@ import * as THREE from "three";
 import { buildMeshQuery } from "../../lib/meshQuery.js"; // TASKS.csv #2376
 import { modelGround, boxTallerThanDrilling } from "../../lib/modelGround.js"; // TASKS.csv #2470
 import { roundVolume, loggedVolumeCheck } from "../../lib/volumeCheck.js"; // TASKS.csv #2530
-import { taskSlot } from "../../lib/taskSlot.js"; // TASKS.csv #2379
+import { taskSlot, rampProgress } from "../../lib/taskSlot.js"; // TASKS.csv #2379; rampProgress: #2383
 import { stackOrderAtHoles } from "../../lib/stackOrderAtHoles.js"; // TASKS.csv #2376
 import { intensityRank, INTENSITY_SCALE } from "../../lib/intensityVocab.js"; // TASKS.csv #2230
 import { baselineNotice, oneHoleDipNotice } from "../../lib/modelCheckBaseline.js"; // TASKS.csv #1687
@@ -311,8 +311,11 @@ export function createModellingRuns(ctx, mcRef) {
     const abortController = new AbortController();
     modelAbortControllerRef.current = abortController;
     setTaskProgress?.({ label, pct: 8, onCancel: () => abortController.abort("user-cancelled") });
+    // TASKS.csv #2383 (review #2325, WA uranium) — the ramp read 90 % from 18 s into an eleven-minute run. After 10 s it is no longer a
+    // guess at a percentage: an indeterminate bar with the time elapsed (rampProgress, lib/taskSlot.js)
+    const rampStarted = Date.now();
     const rampTimer = setInterval(() => {
-      setTaskProgress?.((cur) => (cur && cur.label === label ? { ...cur, pct: Math.min(90, cur.pct + 6 + Math.random() * 8) } : cur));
+      setTaskProgress?.((cur) => (cur && cur.label === label ? rampProgress(cur, (Date.now() - rampStarted) / 1000) : cur));
     }, 500);
     const solveStartedAt = performance.now(); // TASKS.csv #52 (a) — the measured per-run cost that budgets the sensitivity ensemble
     const projectToken = getProjectToken(); // #466
@@ -500,6 +503,7 @@ export function createModellingRuns(ctx, mcRef) {
         ...(fit ? { contactFit: { points: fit.n, typicalMissM: +fit.typical.toFixed(2), worstMissM: +fit.worst.toFixed(2), meshCellM: Math.round(fit.cell) } } : {}), // #1171
         ...(smoothReports.find((r) => r.meshName === spec.meshName) ? { clusteredContactsSmoothed: (({ smoothed, total, skipped }) => ({ smoothed, of: total, ...(skipped ? { skipped } : {}), method: "KDE (Scott, in the contacts' plane), nugget on points >= 2x even density and >= 0.5 of the max (von Harten et al. 2021)" }))(smoothReports.find((r) => r.meshName === spec.meshName)) } : {}), // #761
         generatedAt: new Date().toISOString(),
+        solveSeconds: Math.round(baseSolveSeconds * 10) / 10, // #2383 — what this run cost, for the next one of its size
         // TASKS.csv #1101 — the points and orientations this run sent for this surface (world, unwarped, with nuggets)
         runId, inputs: captureInputs(spec, sidecarSpecs[specIndex], originRef.current),
         ...(res.faultOffsets ? { faultOffsets: res.faultOffsets } : {}), // #1054 — which units each fault offset in this run

@@ -9746,5 +9746,6 @@
   "Search radius {r} m: 2.5 times the {m} m typical spacing, so a block between two holes reaches both.": "نصف قطر البحث {r} م: 2.5 ضعف التباعد المعتاد {m} م، كي تصل الكتلة الواقعة بين ثقبين إلى كليهما.",
   "{n} bins of {b} m, in {u}{v}.": "{n} فترة بطول {b} م، بوحدة {u}{v}.",
   "{n} readings, in {u}{v}.": "{n} قراءة، بوحدة {u}{v}.",
-  "the layer's own units": "وحدات الطبقة نفسها"
+  "the layer's own units": "وحدات الطبقة نفسها",
+  "{t} elapsed": "مضى {t}"
 }

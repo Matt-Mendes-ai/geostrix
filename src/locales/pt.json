@@ -9746,5 +9746,6 @@
   "Search radius {r} m: 2.5 times the {m} m typical spacing, so a block between two holes reaches both.": "Raio de busca {r} m: 2,5 vezes o espaçamento típico de {m} m, para que um bloco entre dois furos alcance ambos.",
   "{n} bins of {b} m, in {u}{v}.": "{n} intervalos de {b} m, em {u}{v}.",
   "{n} readings, in {u}{v}.": "{n} leituras, em {u}{v}.",
-  "the layer's own units": "as unidades próprias da camada"
+  "the layer's own units": "as unidades próprias da camada",
+  "{t} elapsed": "{t} decorrido"
 }

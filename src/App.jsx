@@ -715,6 +715,7 @@ function StatusBar({ onEpsg, pyStatus, updater, onHelp, onPython }) {
           </span>
           <span style={{ maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{taskProgress.label}</span>
           {!taskProgress.indeterminate && <span className="val">{pct}%</span>}
+          {taskProgress.indeterminate && taskProgress.elapsedS != null && <span className="val">{tr("{t} elapsed", { t: `${Math.floor(taskProgress.elapsedS / 60)}:${String(taskProgress.elapsedS % 60).padStart(2, "0")}` })}</span>}{/* #2383 */}
           {/* TASKS.csv #231 — a real GemPy run can take 80s+ with no way to back out short of force-
               quitting the app; onCancel is only set by callers that actually support cancellation
               (currently the implicit-modelling tools), so this button only appears where it works. */}
