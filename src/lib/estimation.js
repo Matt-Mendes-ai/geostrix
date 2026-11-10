@@ -14,7 +14,7 @@
 // still routinely used for early-stage/scoping estimates). The variogram-modelling UI now exists (#147, the Variogram
 // tool fits nugget / sill / range); TASKS.csv #709 adds ordinary kriging with it (method "ok", okEstimate below):
 // point kriging at the block centre with the nearest maxSamples composites, the kriging variance reported per block.
-import { blockReach, worldReach, gridShape } from "./blockReach.js"; // TASKS.csv #1416
+import { blockReach, worldReach, verticalReach, gridShape } from "./blockReach.js"; // TASKS.csv #1416
 import { MAX_BLOCKS, MAX_BLOCK_BUDGET, SUPPORT_COLORS, ESTIMATION_METHODS } from "./estimationMeta.js"; // #552; budget: #625
 export { MAX_BLOCKS, SUPPORT_COLORS, ESTIMATION_METHODS };
 import { pointOnTrace } from "./desurvey.js";
@@ -145,7 +145,7 @@ export function estimateBlockModel(samplePoints, opts) {
   const { bounds, cellSize, method = "idw2", searchRadius = null, minSamples = 1, maxSamples = 16, minHoles = 1, maxPerHole = 0, lengthWeight = true, restrictToDomain = false } = opts;
   // TASKS.csv #1416 — the blocks any composite can reach (lib/blockReach.js): the budget counts them, the loop skips the rest
   // (opts.noReach: the whole box, for the tests that hold the two equal)
-  const reachInfo = opts.noReach ? null : blockReach(samplePoints, bounds, cellSize, worldReach(searchRadius, opts.trend));
+  const reachInfo = opts.noReach ? null : blockReach(samplePoints, bounds, cellSize, worldReach(searchRadius, opts.trend), { rz: verticalReach(searchRadius, opts.trend) /* #2418 */ });
   const { dx, dy, dz, nx, ny, nz, totalBlocks } = gridDims(bounds, cellSize, opts.maxBlocks, reachInfo); // maxBlocks: #626
   const mask = reachInfo?.mask || null;
   if (!samplePoints.length) return { cells: [], blocksEstimated: 0, blocksSkipped: totalBlocks, singleHoleCells: 0 };
@@ -1065,7 +1065,7 @@ export function estimateDenseGrid(samplePoints, opts) {
   const wantSupport = !!opts.support;
   // TASKS.csv #1416 — nodes out of every sample's reach stay NaN without a search (the grid itself is kept whole: marching
   // cubes needs every node, so the budget here is still the box's)
-  const denseMask = opts.noReach ? null : blockReach(samplePoints, bounds, { dx, dy, dz }, worldReach(searchRadius, opts.trend)).mask;
+  const denseMask = opts.noReach ? null : blockReach(samplePoints, bounds, { dx, dy, dz }, worldReach(searchRadius, opts.trend), { rz: verticalReach(searchRadius, opts.trend) /* #2418 */ }).mask;
   const tw = twK || withTrend(samplePoints, opts); // #650
   const est0 = makeCellEstimator(tw.pts, { ...estOpts, support: wantSupport, bracketTol: Math.min(dx, dy, dz) / 2 });
   const est = tw.q ? (x, y, z) => est0(...tw.q(x, y, z)) : est0;

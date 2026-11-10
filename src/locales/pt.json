@@ -9641,5 +9641,20 @@
   "Flatter than the shell's walls ({f}–{s}° for a typed {t}°): the design will take more waste than the shell counted.": "Mais suave que os taludes da cava ({f}–{s}° para {t}° digitado): o projeto vai retirar mais estéril do que a cava contou.",
   "Steeper than the shell's walls ({f}–{s}° for a typed {t}°): the design stands inside them, which the shell's economics did not test.": "Mais íngreme que os taludes da cava ({f}–{s}° para {t}° digitado): o projeto fica dentro deles, o que a economia da cava não testou.",
   "Weights of evidence over the {n} drilled cells (cells with a {sym} sample): {d} with a hole over the cut-off against {m} without. Undrilled ground is not counted as barren; the posterior is the chance that a hole drilled in a cell would meet the cut-off.": "Pesos de evidência sobre as {n} células perfuradas (células com uma amostra de {sym}): {d} com um furo acima do teor de corte contra {m} sem. O terreno não perfurado não é contado como estéril; a probabilidade posterior é a chance de um furo perfurado numa célula atingir o teor de corte.",
-  "{h} of the {n} drilled cells hold a hole over the cut-off: weights of evidence need at least 3 without one to weigh against.": "{h} das {n} células perfuradas têm um furo acima do teor de corte: os pesos de evidência precisam de pelo menos 3 sem ele para comparar."
+  "{h} of the {n} drilled cells hold a hole over the cut-off: weights of evidence need at least 3 without one to weigh against.": "{h} das {n} células perfuradas têm um furo acima do teor de corte: os pesos de evidência precisam de pelo menos 3 sem ele para comparar.",
+  "A flat search needs a search radius.": "Uma busca plana precisa de um raio de busca.",
+  "Cell E × N (m)": "Célula E × N (m)",
+  "Cell height (m)": "Altura da célula (m)",
+  "Flatten the search: the reach up and down from a block, with the search radius across. Blank = a sphere of the search radius.": "Achatar a busca: o alcance para cima e para baixo a partir de um bloco, com o raio de busca na horizontal. Em branco = uma esfera do raio de busca.",
+  "Less than the search radius, or it is a sphere.": "Menor que o raio de busca, ou é uma esfera.",
+  "The block height on its own, for a flat, thin body: a seam, a palaeochannel, a laterite. Blank = the same as the cell size (cubic).": "A altura do bloco à parte, para um corpo plano e fino: uma camada, um paleocanal, uma laterita. Em branco = igual ao tamanho da célula (cúbica).",
+  "The search is flat: {r} m across and {v} m up and down (typed in this dialog), there is": "A busca é plana: {r} m na horizontal e {v} m para cima e para baixo (digitada neste diálogo), não há",
+  "The structural trend \"{name}\" shapes the search; clear it in 3D Modelling → Model settings to type a flat search here.": "A tendência estrutural \"{name}\" dá forma à busca; remova-a em Modelagem 3D → Configurações do modelo para digitar aqui uma busca plana.",
+  "These holes look flat-lying at the drilling's scale: {v}% of {n} holes are within 5° of vertical, and the sampled interval (median {span} m) is a small part of the {sp} m hole spacing. A flat search fits that: {r} m across and {h} m up and down, on {c} × {c} × {ch} m cells.": "Estes furos parecem sub-horizontais na escala da sondagem: {v}% de {n} furos estão a menos de 5° da vertical, e o intervalo amostrado (mediana {span} m) é uma parte pequena do espaçamento de {sp} m. Uma busca plana se ajusta a isso: {r} m na horizontal e {h} m para cima e para baixo, em células de {c} × {c} × {ch} m.",
+  "Use it": "Usar",
+  "Vertical reach (m)": "Alcance vertical (m)",
+  "cubic": "cúbica",
+  "flat search": "busca plana",
+  "sphere": "esfera",
+  "trend": "tendência"
 }

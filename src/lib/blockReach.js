@@ -24,9 +24,13 @@ export function gridShape(bounds, cell) {
 
 // points: [{x, y, z}] in the grid's frame. radius: metres (null / 0 / Infinity = every block is reachable).
 // -> { total, reach, mask (Uint8Array, 1 = reachable) | null when every block is, tooBig: the box is over REACH_MAX_GRID }
-export function blockReach(points, bounds, cell, radius, { margin = 0 } = {}) {
+// TASKS.csv #2418 — rz: a vertical reach shorter than the radius (a flat search, whose short axis is vertical: verticalReach below),
+// so the mask is the flat ellipsoid around each point, not the sphere: a 195 m x 3 m search on WA uranium counted 2.5 M blocks
+// reaching 195 m above and below the holes, where a few per cent of them can be estimated.
+export function blockReach(points, bounds, cell, radius, { margin = 0, rz = null } = {}) {
   const g = gridShape(bounds, cell);
   const R = radius > 0 && Number.isFinite(radius) ? radius + Math.max(0, margin) : null;
+  const Rz = R && rz > 0 && Number.isFinite(rz) ? Math.min(R, rz + Math.max(0, margin)) : R, kz = R ? R / Rz : 1;
   if (!R) return { ...g, reach: g.total, mask: null };
   if (g.total > REACH_MAX_GRID) return { ...g, reach: NaN, mask: null, tooBig: true };
   const { dx, dy, dz, nx, ny, nz } = g;
@@ -37,9 +41,9 @@ export function blockReach(points, bounds, cell, radius, { margin = 0 } = {}) {
   for (let k = 0; k < points.length; k++) {
     const p = points[k];
     if (!Number.isFinite(p.x) || !Number.isFinite(p.y) || !Number.isFinite(p.z)) continue;
-    const iz0 = lo(p.z - R, z0, dz), iz1 = hi(p.z + R, z0, dz, nz);
+    const iz0 = lo(p.z - Rz, z0, dz), iz1 = hi(p.z + Rz, z0, dz, nz);
     for (let iz = iz0; iz <= iz1; iz++) {
-      const ez = z0 + iz * dz - p.z, r2z = R2 - ez * ez;
+      const ez = (z0 + iz * dz - p.z) * kz, r2z = R2 - ez * ez; // kz: #2418, the vertical stretched to the radius
       if (r2z < 0) continue;
       const ry = Math.sqrt(r2z), iy0 = lo(p.y - ry, y0, dy), iy1 = hi(p.y + ry, y0, dy, ny);
       for (let iy = iy0; iy <= iy1; iy++) {
@@ -63,6 +67,15 @@ export function worldReach(searchRadius, trend) {
   return searchRadius / m;
 }
 
+// #2418 — the vertical semi-axis of a search whose short axis is vertical (a flat search: dip 0), or null (any other shape keeps the
+// sphere of worldReach, which contains it). trend: { basis, scales } as the engine takes it.
+export function verticalReach(searchRadius, trend) {
+  const s = trend?.scales, minor = trend?.basis?.minor;
+  if (!(searchRadius > 0) || !Number.isFinite(searchRadius) || !s || !minor || !(s.minor > 1)) return null;
+  if (Math.abs(minor.z) < 0.9999 || Math.min(s.major, s.semiMajor) < 1 - 1e-9) return null;
+  return searchRadius / s.minor;
+}
+
 // polylines (desurveyed traces: [{x, y, z}]) -> points no more than `step` apart along them, and the margin that makes a reach
 // computed from them a superset of the reach of any point on the lines (half the step)
 export function densifyTraces(traces, step) {
@@ -81,14 +94,16 @@ export function densifyTraces(traces, step) {
 }
 
 // the smallest cell (from `from` up, 2 % steps rounded to 0.5 m, as cellToFit) whose reachable blocks fit the budget
+// #2418 — dz: a fixed cell height (the fit then sizes the plan cell only)
 export function cellToFitReach(points, bounds, radius, budget, from, opts = {}) {
   let c = Math.max(0.5, from);
   for (let i = 0; i < 400 && c < 1e5; i++) {
-    const r = blockReach(points, bounds, c, radius, opts);
+    const r = blockReach(points, bounds, opts.dz > 0 ? { dx: c, dy: c, dz: opts.dz } : c, radius, opts);
     if (!r.tooBig && r.reach <= budget) return c;
     // jump ahead by the cube root of the overshoot (reach scales about with 1 / cell^3), never less than one 2 % step
     const ratio = r.tooBig ? 8 : r.reach / budget;
-    const next = Math.max(Math.ceil((c * 1.02) * 2) / 2, Math.floor(c * Math.cbrt(ratio) * 0.98 * 2) / 2);
+    const root = opts.dz > 0 ? Math.sqrt(ratio) : Math.cbrt(ratio); // #2418 — with a fixed height the reach scales with 1 / cell^2
+    const next = Math.max(Math.ceil((c * 1.02) * 2) / 2, Math.floor(c * root * 0.98 * 2) / 2);
     c = next > c ? next : c + 0.5;
   }
   return c;
@@ -99,9 +114,9 @@ export function cellToFitReach(points, bounds, radius, budget, from, opts = {}) 
 // a 5 x 6 km box). traces: desurveyed holes [[{x, y, z}]]; cell3: { dx, dy, dz }; from: the cell size the fit searches start at;
 // fit10: also the smallest cell from 10 m (#1570, a box that changed). -> { reach, tooBig, fitCell, fitCellMax, fit10 } (null where
 // not asked or not needed; the fits only when the current cell is over the budget, as the dialog shows them).
-export function reachSummary({ traces, bounds, cell3, radius, budget, maxBudget = null, from, fitAllowed = true, fit10 = false }) {
+export function reachSummary({ traces, bounds, cell3, radius, rz = null, fixedDz = null, budget, maxBudget = null, from, fitAllowed = true, fit10 = false }) {
   const d = densifyTraces(traces, Math.min(cell3.dx, cell3.dy, cell3.dz, radius) / 2);
-  const opts = { margin: d.margin };
+  const opts = { margin: d.margin, rz, dz: fixedDz }; // rz / dz: #2418
   const r = blockReach(d.points, bounds, cell3, radius, opts);
   const over = !!r.tooBig || r.reach > budget;
   return {

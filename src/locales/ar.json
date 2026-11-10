@@ -9641,5 +9641,20 @@
   "Flatter than the shell's walls ({f}–{s}° for a typed {t}°): the design will take more waste than the shell counted.": "أقل انحدارًا من جدران الغلاف ({f}–{s}° لزاوية مُدخلة {t}°): سيأخذ التصميم ركامًا أكثر مما حسبه الغلاف.",
   "Steeper than the shell's walls ({f}–{s}° for a typed {t}°): the design stands inside them, which the shell's economics did not test.": "أشد انحدارًا من جدران الغلاف ({f}–{s}° لزاوية مُدخلة {t}°): يقع التصميم داخلها، وهو ما لم تختبره اقتصاديات الغلاف.",
   "Weights of evidence over the {n} drilled cells (cells with a {sym} sample): {d} with a hole over the cut-off against {m} without. Undrilled ground is not counted as barren; the posterior is the chance that a hole drilled in a cell would meet the cut-off.": "أوزان الدليل على {n} خلية محفورة (خلايا فيها عينة {sym}): {d} فيها ثقب فوق حد القطع مقابل {m} بدونه. لا تُحسب الأرض غير المحفورة عقيمة؛ والاحتمال اللاحق هو فرصة أن يبلغ ثقب يُحفر في خلية حد القطع.",
-  "{h} of the {n} drilled cells hold a hole over the cut-off: weights of evidence need at least 3 without one to weigh against.": "{h} من {n} خلية محفورة فيها ثقب فوق حد القطع: تحتاج أوزان الدليل إلى 3 خلايا على الأقل بدونه للمقارنة."
+  "{h} of the {n} drilled cells hold a hole over the cut-off: weights of evidence need at least 3 without one to weigh against.": "{h} من {n} خلية محفورة فيها ثقب فوق حد القطع: تحتاج أوزان الدليل إلى 3 خلايا على الأقل بدونه للمقارنة.",
+  "A flat search needs a search radius.": "يحتاج البحث المسطح إلى نصف قطر بحث.",
+  "Cell E × N (m)": "الخلية شرق × شمال (م)",
+  "Cell height (m)": "ارتفاع الخلية (م)",
+  "Flatten the search: the reach up and down from a block, with the search radius across. Blank = a sphere of the search radius.": "تسطيح البحث: المدى صعودًا ونزولًا من الكتلة، مع نصف قطر البحث أفقيًا. فارغ = كرة بنصف قطر البحث.",
+  "Less than the search radius, or it is a sphere.": "أقل من نصف قطر البحث، وإلا فهو كرة.",
+  "The block height on its own, for a flat, thin body: a seam, a palaeochannel, a laterite. Blank = the same as the cell size (cubic).": "ارتفاع الكتلة وحده، لجسم مسطح ورقيق: طبقة، قناة قديمة، لاتيريت. فارغ = مثل حجم الخلية (مكعب).",
+  "The search is flat: {r} m across and {v} m up and down (typed in this dialog), there is": "البحث مسطح: {r} م أفقيًا و{v} م صعودًا ونزولًا (مُدخل في هذا الحوار)، ولا يوجد",
+  "The structural trend \"{name}\" shapes the search; clear it in 3D Modelling → Model settings to type a flat search here.": "يحدد الاتجاه البنيوي \"{name}\" شكل البحث؛ أزله في النمذجة ثلاثية الأبعاد ← إعدادات النموذج لإدخال بحث مسطح هنا.",
+  "These holes look flat-lying at the drilling's scale: {v}% of {n} holes are within 5° of vertical, and the sampled interval (median {span} m) is a small part of the {sp} m hole spacing. A flat search fits that: {r} m across and {h} m up and down, on {c} × {c} × {ch} m cells.": "تبدو هذه الثقوب أفقية على مقياس الحفر: {v}% من {n} ثقبًا ضمن 5° من الرأسي، والمقطع المأخوذ منه العينات (الوسيط {span} م) جزء صغير من تباعد الثقوب البالغ {sp} م. يناسب ذلك بحث مسطح: {r} م أفقيًا و{h} م صعودًا ونزولًا، على خلايا {c} × {c} × {ch} م.",
+  "Use it": "استخدمه",
+  "Vertical reach (m)": "المدى الرأسي (م)",
+  "cubic": "مكعب",
+  "flat search": "بحث مسطح",
+  "sphere": "كرة",
+  "trend": "اتجاه"
 }

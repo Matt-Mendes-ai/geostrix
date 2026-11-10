@@ -21,6 +21,7 @@ import { pointInPolygon } from "../lib/pointInPolygon.js"; // TASKS.csv #1570 //
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 import { trendBasis, trendSearchScales, describeTrend } from "../lib/trend.js"; // TASKS.csv #650
+import { flatSearchTrend, flatSearchProposal } from "../lib/estimationShape.js"; // TASKS.csv #2418
 import { t as tr } from "../lib/i18n.js";
 import { holeSpacingSummary, zeroBlockAdvice } from "../lib/holeSpacing.js"; // TASKS.csv #1738
 import { topCompositesWithoutBlocks } from "../lib/shellSupport.js"; // TASKS.csv #1735 // TASKS.csv #786
@@ -46,7 +47,7 @@ const GradeTonnageModal = lazyModal(() => import("./GradeTonnageModal.jsx")); //
 // model not in the project, a cap kept for another element) starts at its default.
 const lastEstimateSettings = new Map(); // project key -> settings
 export const estimateSettingsKey = (project) => String(project?.id ?? project?.name ?? "");
-export default function GradeEstimationModal({ assays: assaysProp, assayElements: assayElementsProp, layers, collars, survey, onAddModel, onClose, volumeShells = [], trend = null, groundAt = null, groundSource = null, checkedHoleIds = null, areaStrings = [] }) { // groundAt: TASKS.csv #803; groundSource "terrain" | "collars": #1616
+export default function GradeEstimationModal({ assays: assaysProp, assayElements: assayElementsProp, layers, collars, survey, onAddModel, onClose, volumeShells = [], trend: modelTrend = null, groundAt = null, groundSource = null, checkedHoleIds = null, areaStrings = [] }) { // groundAt: TASKS.csv #803; groundSource "terrain" | "collars": #1616
   useEscapeKey(onClose); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
   const { desurveyMethod, voxelModels, project, customLayers = [] } = useStore(); // TASKS.csv #135 — estimation samples must sit on the same trace the 3D view draws; customLayers: #1571
@@ -161,6 +162,9 @@ export default function GradeEstimationModal({ assays: assaysProp, assayElements
   // 'Use null m blocks' and set it to null, and back on 'Fit to the drilling' the window died. A remembered null is read as the default too.
   const [cellSize, setCellSizeRaw] = useState(() => { const v = Number(keep("cellSize", 10)); return Number.isFinite(v) && v > 0 ? v : 10; });
   const setCellSize = (v) => setCellSizeRaw((p) => { const n = typeof v === "function" ? v(p) : v; return Number.isFinite(n) && n > 0 ? n : p; });
+  // TASKS.csv #2418 — a cell height of its own (blank = cubic) and a flat search typed here (the vertical reach; blank = a sphere)
+  const [cellHeight, setCellHeight] = useState(() => { const v = Number(keep("cellHeight", "")); return Number.isFinite(v) && v > 0 ? v : ""; });
+  const [flatReach, setFlatReach] = useState(() => { const v = Number(keep("flatReach", "")); return Number.isFinite(v) && v > 0 ? v : ""; });
   // TASKS.csv #724 — the grid: "data" (the drilling's box + padding, as before), "model:<id>" (an existing block model's
   // cell size and origin, so the estimate's centroids coincide with it), or "origin" (the cell size above on a typed origin)
   const [gridMode, setGridMode] = useState(() => keep("gridMode", "data", (g) => !g.startsWith("model:") || (voxelModels || []).some((m) => m.id === g.slice(6))));
@@ -176,6 +180,9 @@ export default function GradeEstimationModal({ assays: assaysProp, assayElements
   const [vgNugget, setVgNugget] = useState(() => (sameElement ? keep("vgNugget", "") : "")), [vgSill, setVgSill] = useState(() => (sameElement ? keep("vgSill", "") : "")), [vgRange, setVgRange] = useState(() => (sameElement ? keep("vgRange", "") : ""));
   const [addedKv, setAddedKv] = useState(false);
   const [searchRadius, setSearchRadius] = useState(() => keep("searchRadius", 50));
+  // #2418 — the model's structural trend when one is chosen for block estimation; otherwise the flat search typed in the dialog
+  const flatTrend = !modelTrend ? flatSearchTrend(searchRadius, flatReach, tr("flat search")) : null;
+  const trend = modelTrend || flatTrend;
   const [minSamples, setMinSamples] = useState(() => keep("minSamples", 1));
   const [minHoles, setMinHoles] = useState(() => keep("minHoles", 2));          // TASKS.csv #258
   const [materialHoles, setMaterialHoles] = useState(() => keep("materialHoles", true)); // TASKS.csv #1573 — a second hole must carry at least 5 % of the weight
@@ -255,8 +262,9 @@ export default function GradeEstimationModal({ assays: assaysProp, assayElements
   }, [symbol, elementCV]); // the cap and the assays are read when the element or its CV changes, on purpose
   const matched = gridMode.startsWith("model:") ? latticeModels.find((x) => x.m.id === gridMode.slice(6)) || null : null;
   const originOk = [originE, originN, originZ].every((v) => v !== "" && Number.isFinite(Number(v)));
-  const lattice = matched ? matched.L : gridMode === "origin" && originOk ? { dx: cellSize, dy: cellSize, dz: cellSize, ox: Number(originE), oy: Number(originN), oz: Number(originZ) } : null;
-  const cell3 = lattice ? { dx: lattice.dx, dy: lattice.dy, dz: lattice.dz } : { dx: cellSize, dy: cellSize, dz: cellSize };
+  const cellDz = cellHeight > 0 ? cellHeight : cellSize; // #2418
+  const lattice = matched ? matched.L : gridMode === "origin" && originOk ? { dx: cellSize, dy: cellSize, dz: cellDz, ox: Number(originE), oy: Number(originN), oz: Number(originZ) } : null;
+  const cell3 = lattice ? { dx: lattice.dx, dy: lattice.dy, dz: lattice.dz } : { dx: cellSize, dy: cellSize, dz: cellDz };
   const dataBounds = gridBox ? { // #521 — the traces' box (collar box only as a fallback)
     xmin: gridBox.xmin - padding, xmax: gridBox.xmax + padding,
     ymin: gridBox.ymin - padding, ymax: gridBox.ymax + padding,
@@ -280,8 +288,8 @@ export default function GradeEstimationModal({ assays: assaysProp, assayElements
   const reachClient = useRef(null);
   if (!reachClient.current) reachClient.current = makeReachClient();
   useEffect(() => () => reachClient.current?.stop(), []);
-  const reachArgs = traceBounds?.traces?.length && reachRadius && bounds ? { traces: traceBounds.traces, bounds: { xmin: bounds.xmin, xmax: bounds.xmax, ymin: bounds.ymin, ymax: bounds.ymax, zmin: bounds.zmin, zmax: bounds.zmax }, cell3: { dx: cell3.dx, dy: cell3.dy, dz: cell3.dz }, radius: reachRadius, budget: blockBudget, maxBudget: MAX_BLOCK_MODEL_BUDGET, from: cellSize, fitAllowed: !matched } : null;
-  const reachKey = reachArgs ? JSON.stringify([reachArgs.bounds, reachArgs.cell3, reachRadius, blockBudget, cellSize, !!matched, traceBounds.traces.length]) : null;
+  const reachArgs = traceBounds?.traces?.length && reachRadius && bounds ? { traces: traceBounds.traces, bounds: { xmin: bounds.xmin, xmax: bounds.xmax, ymin: bounds.ymin, ymax: bounds.ymax, zmin: bounds.zmin, zmax: bounds.zmax }, cell3: { dx: cell3.dx, dy: cell3.dy, dz: cell3.dz }, radius: reachRadius, rz: flatTrend ? flatReach : null, fixedDz: cellHeight > 0 && !matched ? cellHeight : null /* #2418 */, budget: blockBudget, maxBudget: MAX_BLOCK_MODEL_BUDGET, from: cellSize, fitAllowed: !matched } : null;
+  const reachKey = reachArgs ? JSON.stringify([reachArgs.bounds, reachArgs.cell3, reachRadius, reachArgs.rz, reachArgs.fixedDz, blockBudget, cellSize, !!matched, traceBounds.traces.length]) : null;
   const [reachState, setReachState] = useState(null); // { key, reach, tooBig, fitCell, fitCellMax }
   useEffect(() => {
     if (!reachArgs) return undefined;
@@ -296,7 +304,19 @@ export default function GradeEstimationModal({ assays: assaysProp, assayElements
   const reach = reachArgs && !reachPending && reachState && !reachState.failed ? { reach: reachState.reach, tooBig: reachState.tooBig } : null;
   const blocksInReach = reach ? (reach.tooBig ? Infinity : reach.reach) : totalBlocksPreview;
   const overLimit = !reachPending && blocksInReach > blockBudget; // #626; #1416 — the blocks in reach
-  const cellLabel = matched ? (cell3.dx === cell3.dy && cell3.dy === cell3.dz ? cell3.dx : `${cell3.dx}×${cell3.dy}×${cell3.dz}`) : cellSize; // #724 — names say the real block size
+  // TASKS.csv #2418 — the data's case for a flat search (near-vertical holes, a sampled span far shorter than the hole spacing), offered
+  const sampledSpans = useMemo(() => {
+    const m = new Map();
+    for (const a of srcAssays) {
+      const f = Number(a.from), t = Number(a.to);
+      if (!Number.isFinite(a.values?.[symbol]) || !Number.isFinite(f) || !Number.isFinite(t)) continue;
+      const p = m.get(a.hole_id); if (!p) m.set(a.hole_id, [f, t]); else { if (f < p[0]) p[0] = f; if (t > p[1]) p[1] = t; }
+    }
+    return [...m.values()].map(([f, t]) => t - f);
+  }, [srcAssays, symbol]);
+  const flatProposal = useMemo(() => (modelTrend || matched ? null : flatSearchProposal({ traces: traceBounds?.traces, spans: sampledSpans, spacingM: spacing?.medianM, compositeM: useComposites ? compositeLength : 2 })), [modelTrend, matched, traceBounds, sampledSpans, spacing, useComposites, compositeLength]);
+  const proposalApplied = !!flatProposal && Number(flatReach) === flatProposal.reachV && Number(searchRadius) === flatProposal.radius && cellSize === flatProposal.cell && Number(cellHeight) === flatProposal.cellHeight;
+  const cellLabel = matched || cell3.dz !== cell3.dx ? (cell3.dx === cell3.dy && cell3.dy === cell3.dz ? cell3.dx : `${cell3.dx}×${cell3.dy}×${cell3.dz}`) : cellSize; // #724 — names say the real block size; #2418 a cell height
   const fitCell = overLimit && bounds && !matched ? (reachArgs ? reachState?.fitCell ?? null : cellToFit(bounds, blockBudget, cellSize)) : null;
   const fitCellMax = overLimit && bounds && !matched && blockBudget < MAX_BLOCK_MODEL_BUDGET ? (reachArgs ? reachState?.fitCellMax ?? null : cellToFit(bounds, MAX_BLOCK_MODEL_BUDGET, cellSize)) : null;
   // TASKS.csv #1416 (review #1352) — the default 10 m cell could not run on Silvertip (2.3 M blocks over the budget, Run disabled): the
@@ -317,7 +337,7 @@ export default function GradeEstimationModal({ assays: assaysProp, assayElements
 
   // #1580 — what to restore next time: kept current every render, stored when the dialog closes
   const remember = useRef(null);
-  remember.current = { sourceKey, logValues, symbol, useComposites, compositeLength, minCoverage, domainKey, capByDomain, padding, cellSize, gridMode, originE, originN, originZ, method, vgModel, vgNugget, vgSill, vgRange, searchRadius, minSamples, minHoles, materialHoles, maxSamples, maxPerHole, capValue, capAuto, includeQAQC, restrictToDomain, classifySupport, shellId, belowGround };
+  remember.current = { sourceKey, logValues, symbol, useComposites, compositeLength, minCoverage, domainKey, capByDomain, padding, cellSize, cellHeight, flatReach, gridMode, originE, originN, originZ, method, vgModel, vgNugget, vgSill, vgRange, searchRadius, minSamples, minHoles, materialHoles, maxSamples, maxPerHole, capValue, capAuto, includeQAQC, restrictToDomain, classifySupport, shellId, belowGround };
   const settingsKey = estimateSettingsKey(project);
   useEffect(() => () => { lastEstimateSettings.set(settingsKey, remember.current); }, [settingsKey]);
   // TASKS.csv #520 — the estimate runs in a worker: the window keeps repainting, shows progress and can be cancelled
@@ -419,7 +439,7 @@ export default function GradeEstimationModal({ assays: assaysProp, assayElements
         // "Add to project"), and travel with the block model into the project file.
         let outsideArea = 0; // #1570 — set below when a design-string area drops blocks; params read it, so it is declared first
         const params = {
-          tool: "Grade estimation", element: symbol, method, cellSizeM: matched ? [cell3.dx, cell3.dy, cell3.dz] : cellSize, paddingM: padding,
+          tool: "Grade estimation", element: symbol, method, cellSizeM: matched || cell3.dz !== cell3.dx ? [cell3.dx, cell3.dy, cell3.dz] : cellSize, paddingM: padding,
           ...(lattice ? { gridOrigin: [lattice.ox, lattice.oy, lattice.oz], gridMatched: matched ? matched.m.name : "typed origin" } : {}), // #724
           gridFrom: shellBox ? `box of the restricting solid "${shellBox.name}" within the drilling` : areaString ? `inside the closed design string "${areaString.name}" (${outsideArea} block(s) outside it dropped)` : gridMode === "checked" && checkedBounds ? `desurveyed traces of the ${checkedBounds.holes} checked hole(s)` : traceBounds ? `desurveyed traces of ${traceBounds.holes} assayed hole(s)` : "collar box (no hole could be desurveyed)", // #521; #1570
           searchRadiusM: searchRadius > 0 ? searchRadius : Math.round(gridDiagonal), searchRadiusWasUnlimited: !(searchRadius > 0), ...(supportRef > 0 ? { supportScoredAgainstM: Math.round(supportRef) } : {}), // #1411
@@ -477,7 +497,7 @@ export default function GradeEstimationModal({ assays: assaysProp, assayElements
         }
         // TASKS.csv #1735 (review #1645, Copley) — the highest composites with no estimated block within a cell of them: the
         // two-hole rule left the only Cu intercept without a block and put the copper 90-110 m away
-        est.topUnsupported = topCompositesWithoutBlocks(points, est.cells, matched ? Math.max(cell3.dx, cell3.dy, cell3.dz) : Number(cellSize));
+        est.topUnsupported = topCompositesWithoutBlocks(points, est.cells, Math.max(cell3.dx, cell3.dy, cell3.dz)); // #2418: the real cell
         setResult({ ...est, params, nnCells: method === "nn" ? est.cells : nnEst.cells, checkPoints: points, samplePointCount: points.length, droppedCount: dropped, clampedCount: clamped, beyondTraceCount: beyondTrace, rawStats, intervalCount: intervals.length });
         setAdded(false); setAddedSupport(false); setAddedKv(false); // a fresh run invalidates every "Added ✓" state
       } catch (e) {
@@ -580,6 +600,12 @@ export default function GradeEstimationModal({ assays: assaysProp, assayElements
                 <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", flex: "1 1 160px" }}>{tr("Blank = fitted to these composites when you run. Values in the estimated unit ({unit}), squared for nugget and sill.", { unit })}</div>
               </div>
             )}
+            {flatProposal && !proposalApplied && ( /* TASKS.csv #2418 — offered, from these holes; never applied by itself */
+              <div role="note" style={{ fontSize: "var(--font-size-sm)", marginBottom: 6, lineHeight: 1.45, padding: "6px 8px", border: "1px solid var(--color-border)", borderRadius: 6 }}>
+                {tr("These holes look flat-lying at the drilling's scale: {v}% of {n} holes are within 5° of vertical, and the sampled interval (median {span} m) is a small part of the {sp} m hole spacing. A flat search fits that: {r} m across and {h} m up and down, on {c} × {c} × {ch} m cells.", { v: Math.round(flatProposal.vertical * 100), n: flatProposal.holes, span: Math.round(flatProposal.spanM), sp: Math.round(flatProposal.spacingM), r: flatProposal.radius, h: flatProposal.reachV, c: flatProposal.cell, ch: flatProposal.cellHeight })}{" "}
+                <button type="button" onClick={() => { cellTouched.current = true; setAutoCell(null); setSearchRadius(flatProposal.radius); setFlatReach(flatProposal.reachV); setCellSize(flatProposal.cell); setCellHeight(flatProposal.cellHeight); }} style={{ fontSize: "var(--font-size-sm)" }}>{tr("Use it")}</button>
+              </div>
+            )}
             {spacing && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 4, lineHeight: 1.4 }}>{tr(spacing.sites === 2 ? "Holes: the two drill sites are {near} m apart. Two holes must both lie within the search radius of a block for it to count (Min distinct holes)." : "Holes: {sites} drill sites, the nearest {near} m apart, typically {median} m from the next (up to {far} m). Two holes must both lie within the search radius of a block for it to count (Min distinct holes).", { sites: spacing.sites, near: Math.round(spacing.nearestM), median: Math.round(spacing.medianM), far: Math.round(spacing.farthestM) })}</div>}{/* #1738 */}
             <label style={fieldLabel} title={tr("No sample within this distance of a block leaves it un-estimated (no cell), rather than extrapolating grade far from any real data. 0 = no radius assumption, capped internally at the grid's own diagonal so the run can't hang.")}>{tr("Search radius (m, 0 = no limit)")}<input type="number" min="0" step="any" value={searchRadius} onChange={(e) => setSearchRadius(Math.max(0, Number(e.target.value) || 0))} style={inp} />
               {trend && !(searchRadius > 0) && gridDiagonalM > 0 && ( /* #710: 0 is not "no limit" across the trend */
@@ -588,6 +614,11 @@ export default function GradeEstimationModal({ assays: assaysProp, assayElements
               {trend && searchRadius > 0 && (
                 <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", fontWeight: 400 }}>{tr("Along trend \"{name}\": an ellipsoid of {searchRadius} × {v} × {v2} m ({v3})", { name: trend.name, searchRadius, v: Math.round((searchRadius * trend.ratios.int) / trend.ratios.max), v2: Math.round((searchRadius * trend.ratios.min) / trend.ratios.max), v3: describeTrend(trend) })}</span>
               )}
+            </label>
+            {/* TASKS.csv #2418 — a search flattened into the bedding, typed here (a structural trend chosen for block estimation takes its place) */}
+            <label style={fieldLabel} title={modelTrend ? tr("The structural trend \"{name}\" shapes the search; clear it in 3D Modelling → Model settings to type a flat search here.", { name: modelTrend.name }) : tr("Flatten the search: the reach up and down from a block, with the search radius across. Blank = a sphere of the search radius.")}>{tr("Vertical reach (m)")}
+              <input type="number" min="0" step="any" value={modelTrend ? "" : flatReach} disabled={!!modelTrend} placeholder={modelTrend ? tr("trend") : tr("sphere")} onChange={(e) => { const v = Number(e.target.value); setFlatReach(e.target.value === "" || !(v > 0) ? "" : v); }} style={{ ...inp, width: 80 }} aria-label={tr("Vertical reach (m)")} />
+              {!modelTrend && flatReach > 0 && !flatTrend && <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", fontWeight: 400 }}>{searchRadius > 0 ? tr("Less than the search radius, or it is a sphere.") : tr("A flat search needs a search radius.")}</span>}
             </label>
             <label style={fieldLabel} title={tr("Counts sample POINTS, not holes — one hole composited at 2m supplies ~25 of them inside a 50m radius, so this alone can never express 'more than one hole must see this block'. Use Min distinct holes for that.")}>{tr("Min samples/block")}<input type="number" min="1" value={minSamples} onChange={(e) => setMinSamples(Math.max(1, Number(e.target.value) || 1))} style={inp} />
             </label>
@@ -686,7 +717,10 @@ export default function GradeEstimationModal({ assays: assaysProp, assayElements
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
             <label style={fieldLabel} title={tr("Extends the block grid beyond the collar bounding box in every direction, so blocks near the edge of the drilling aren't starved of nearby samples.")}>{tr("Padding around collars (m)")}<input type="number" min="0" step="any" value={padding} onChange={(e) => setPadding(Math.max(0, Number(e.target.value) || 0))} style={inp} />
             </label>
-            <label style={fieldLabel}>{tr("Cell size (m, cubic)")}<input type="number" min="0.5" step="any" value={matched ? "" : cellSize} placeholder={matched ? `${cell3.dx} × ${cell3.dy} × ${cell3.dz}` : undefined} disabled={!!matched} onChange={(e) => { cellTouched.current = true; setAutoCell(null); setCellSize(Math.max(0.5, Number(e.target.value) || 10)); }} style={inp} />
+            <label style={fieldLabel}>{cellHeight > 0 && !matched ? tr("Cell E × N (m)") : tr("Cell size (m, cubic)")}<input type="number" min="0.5" step="any" value={matched ? "" : cellSize} placeholder={matched ? `${cell3.dx} × ${cell3.dy} × ${cell3.dz}` : undefined} disabled={!!matched} onChange={(e) => { cellTouched.current = true; setAutoCell(null); setCellSize(Math.max(0.5, Number(e.target.value) || 10)); }} style={inp} />
+            </label>
+            {/* TASKS.csv #2418 — a flat, thin body needs a thin cell: the height on its own (blank = cubic) */}
+            <label style={fieldLabel} title={tr("The block height on its own, for a flat, thin body: a seam, a palaeochannel, a laterite. Blank = the same as the cell size (cubic).")}>{tr("Cell height (m)")}<input type="number" min="0.25" step="any" value={matched ? "" : cellHeight} placeholder={matched ? String(cell3.dz) : tr("cubic")} disabled={!!matched} onChange={(e) => { const v = Number(e.target.value); setCellHeight(e.target.value === "" || !(v > 0) ? "" : Math.max(0.25, v)); }} style={{ ...inp, width: 70 }} aria-label={tr("Cell height (m)")} />
             </label>
             {autoCell != null && autoCell === cellSize && !matched && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{tr("Cell size set to {c} m: the 10 m default needs more blocks than the {b}-block budget.", { c: autoCell, b: blockBudget.toLocaleString() })}</div>}{/* #1416 */}
             <label style={fieldLabel} title={tr("Fit to the drilling: the box of the assayed holes plus the padding, as before. Match a block model: its cell size and origin, so this estimate's blocks sit exactly on that model's blocks and the two can be compared or merged block for block. Origin: the cell size above, on block corners at a typed E / N / RL.")}>{tr("Grid")}
@@ -886,7 +920,8 @@ export default function GradeEstimationModal({ assays: assaysProp, assayElements
           <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", borderRadius: 6, padding: "8px 9px", lineHeight: 1.5 }}>
             <strong>{tr("Not a resource estimate.")}</strong>{" "}{tr("This is an interpolated block model to help you visualize and target mineralization. Nothing it produces is a Mineral Resource under NI 43-101 or JORC, and it must not be reported publicly as one — that requires an estimate prepared by a Qualified Person.")}</div>
           <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.5 }}>{tr("Nearest-neighbour, inverse-distance weighting and moving least squares are complete, defensible estimation methods (IDW especially for early-stage/scoping estimates; pick the one that suits the geology — hover the Method dropdown for what each is good for), and ordinary kriging weights the composites by a variogram (entered, or fitted at run time) and reports a kriging variance. Kriging here is point kriging at each block centre (no block discretization), with the same search as the other methods; its variance measures the samples' layout under the variogram, not the uncertainty of the grade. A block with no sample inside its search radius is left un-estimated rather than guessed at.")}{" "}{trend
-              ? <>{tr("The search follows the structural trend \"{name}\" (an ellipsoid; change it in 3D Modelling → Model settings → Structural trends), there is", { name: trend.name })}</>
+              ? (trend.local ? <>{tr("The search is flat: {r} m across and {v} m up and down (typed in this dialog), there is", { r: trend.ratios.max, v: trend.ratios.min })}</> /* #2418 */
+                : <>{tr("The search follows the structural trend \"{name}\" (an ellipsoid; change it in 3D Modelling → Model settings → Structural trends), there is", { name: trend.name })}</>)
               : <>{tr("The search is")}{" "}<strong>{tr("isotropic")}</strong>{" "}{tr("(a plain sphere — choose a trend for block estimation in 3D Modelling → Model settings → Structural trends to make it an ellipsoid), there is")}</>}{" "}{method === "ok" /* #1098 — kriging HAS a variogram */
                 ? tr("no declustering and no resource classification. Domain control applies only if you both select a domain layer and tick \"restrict the interpolation search\"; high-grade capping applies only if you enter a cap. Every one of those is an assumption you are making, not a property of the data.")
                 : tr("no declustering, no variogram, and no resource classification. Domain control applies only if you both select a domain layer and tick \"restrict the interpolation search\"; high-grade capping applies only if you enter a cap. Every one of those is an assumption you are making, not a property of the data.")}</div>
