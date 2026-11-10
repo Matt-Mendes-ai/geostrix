@@ -193,6 +193,7 @@ export default function GradeEstimationModal({ assays: assaysProp, assayElements
   const [capAuto, setCapAuto] = useState(() => (sameElement ? keep("capAuto", false) : false));
   const [includeQAQC, setIncludeQAQC] = useState(() => keep("includeQAQC", false)); // TASKS.csv #266
   const [restrictToDomain, setRestrictToDomain] = useState(() => keep("restrictToDomain", false)); // TASKS.csv #260
+  const [noCodeAsDomain, setNoCodeAsDomain] = useState(() => keep("noCodeAsDomain", false)); // TASKS.csv #2541 — the samples with no code as a domain of their own
   const [classifySupport, setClassifySupport] = useState(() => keep("classifySupport", true)); // TASKS.csv #91/#92
   const [shellId, setShellId] = useState(() => keep("shellId", "", (id) => !id || (volumeShells || []).some((v) => v.id === id))); // TASKS.csv #517 — restrict to a closed modelled volume ("" = none)
   // TASKS.csv #1570 (review #1497, Lawyers) — the grid spanned the whole district even when the estimate was restricted to one solid
@@ -337,7 +338,7 @@ export default function GradeEstimationModal({ assays: assaysProp, assayElements
 
   // #1580 — what to restore next time: kept current every render, stored when the dialog closes
   const remember = useRef(null);
-  remember.current = { sourceKey, logValues, symbol, useComposites, compositeLength, minCoverage, domainKey, capByDomain, padding, cellSize, cellHeight, flatReach, gridMode, originE, originN, originZ, method, vgModel, vgNugget, vgSill, vgRange, searchRadius, minSamples, minHoles, materialHoles, maxSamples, maxPerHole, capValue, capAuto, includeQAQC, restrictToDomain, classifySupport, shellId, belowGround };
+  remember.current = { sourceKey, logValues, symbol, useComposites, compositeLength, minCoverage, domainKey, noCodeAsDomain, capByDomain, padding, cellSize, cellHeight, flatReach, gridMode, originE, originN, originZ, method, vgModel, vgNugget, vgSill, vgRange, searchRadius, minSamples, minHoles, materialHoles, maxSamples, maxPerHole, capValue, capAuto, includeQAQC, restrictToDomain, classifySupport, shellId, belowGround };
   const settingsKey = estimateSettingsKey(project);
   useEffect(() => () => { lastEstimateSettings.set(settingsKey, remember.current); }, [settingsKey]);
   // TASKS.csv #520 — the estimate runs in a worker: the window keeps repainting, shows progress and can be cancelled
@@ -421,7 +422,7 @@ export default function GradeEstimationModal({ assays: assaysProp, assayElements
           method, searchRadius: searchRadius > 0 ? searchRadius : gridDiagonal, minSamples, maxSamples, maxPerHole, // maxPerHole: #709
           minHoles,                                              // TASKS.csv #258
           materialHoles,                                         // TASKS.csv #1573
-          restrictToDomain: restrictToDomain && !!domainKey,     // TASKS.csv #260
+          restrictToDomain: restrictToDomain && !!domainKey, noCodeAsDomain: restrictToDomain && !!domainKey && noCodeAsDomain /* #2541 */,     // TASKS.csv #260
           support: classifySupport,                              // TASKS.csv #91/#92
           ...(supportRef > 0 ? { supportRef } : {}),             // #1411
           ...(method === "ok" ? { variogram: { model: vgModel, ...(vgNugget !== "" && vgSill !== "" && vgRange !== "" ? { nugget: Number(vgNugget), sill: Number(vgSill), range: Number(vgRange) } : {}) } } : {}), // #709
@@ -431,7 +432,7 @@ export default function GradeEstimationModal({ assays: assaysProp, assayElements
         // so it is cheap): its mean over the same blocks is the declustered mean the estimate is checked against
         const nnEst = method === "nn" ? est : await runEstimation("block", estPts, {
           bounds, cellSize: cell3, maxBlocks: blockBudget, method: "nn", searchRadius: searchRadius > 0 ? searchRadius : gridDiagonal,
-          minSamples: 1, maxSamples: 1, minHoles: 1, restrictToDomain: restrictToDomain && !!domainKey,
+          minSamples: 1, maxSamples: 1, minHoles: 1, restrictToDomain: restrictToDomain && !!domainKey, noCodeAsDomain: restrictToDomain && !!domainKey && noCodeAsDomain /* #2541 */,
           ...(trend ? { trend: { basis: trendBasis(trend), scales: trendSearchScales(trend) } } : {}),
         }, { onProgress: (f) => setProgress(0.8 + 0.2 * f), signal: ac.signal });
         if (logInfo) for (const g of nnEst === est ? [est] : [est, nnEst]) for (const c of g.cells) c.value = unlogValue(c.value); // #1741 — back to data units
@@ -449,7 +450,7 @@ export default function GradeEstimationModal({ assays: assaysProp, assayElements
           capValue: Number.isFinite(cap) ? cap : null, capAudit: cap != null ? capAudit(srcAssays, symbol, unit, elementUnits, cap) : null, includeQAQC, // capAudit: #533
           // TASKS.csv #529 — the unit of the estimated values and of the cap (an "Au" column could be ppm or ppb); and the
           // domain fields, which #533's edit had left inside the comment above (estimates since then lacked them)
-          unit, capUnit: cap != null ? unit : null, domain: domainChoice ? domainChoice.label : null, ...(domainRowsSel && Object.values(capByDomain).some((v) => Number(v) > 0) ? { capByDomain: Object.fromEntries(Object.entries(capByDomain).filter(([, v]) => Number(v) > 0).map(([k, v]) => [k, Number(v)])) } : {}), // #1571 restrictToDomain: restrictToDomain && !!domainKey,
+          unit, capUnit: cap != null ? unit : null, domain: domainChoice ? domainChoice.label : null, ...(domainRowsSel && Object.values(capByDomain).some((v) => Number(v) > 0) ? { capByDomain: Object.fromEntries(Object.entries(capByDomain).filter(([, v]) => Number(v) > 0).map(([k, v]) => [k, Number(v)])) } : {}), // #1571 restrictToDomain: restrictToDomain && !!domainKey, noCodeAsDomain: restrictToDomain && !!domainKey && noCodeAsDomain /* #2541 */,
           desurveyMethod: desurveyMethod || "minimum curvature", samplePoints: points.length, generatedAt: new Date().toISOString(),
           ...(source ? { source: `${source.label} (${sourceData.assays.length} readings, values as logged)`, valueTransform: logInfo ? `log10 (each block a geometric mean; ${logInfo.belowFloor} value(s) at or below zero floored at ${logInfo.floor})` : "none", ...(sourceData.pointRows ? { pointSupportM: sourceData.pointSupport } : {}) } : {}), // #1741
         };
@@ -498,7 +499,7 @@ export default function GradeEstimationModal({ assays: assaysProp, assayElements
         // TASKS.csv #1735 (review #1645, Copley) — the highest composites with no estimated block within a cell of them: the
         // two-hole rule left the only Cu intercept without a block and put the copper 90-110 m away
         est.topUnsupported = topCompositesWithoutBlocks(points, est.cells, Math.max(cell3.dx, cell3.dy, cell3.dz)); // #2418: the real cell
-        setResult({ ...est, params, nnCells: method === "nn" ? est.cells : nnEst.cells, checkPoints: points, samplePointCount: points.length, droppedCount: dropped, clampedCount: clamped, beyondTraceCount: beyondTrace, rawStats, intervalCount: intervals.length });
+        setResult({ ...est, params, nnCells: method === "nn" ? est.cells : nnEst.cells, checkPoints: points, samplePointCount: points.length, noCodeComposites: domainKey ? points.filter((p) => p.domain == null).length : 0 /* #2541 */, droppedCount: dropped, clampedCount: clamped, beyondTraceCount: beyondTrace, rawStats, intervalCount: intervals.length });
         setAdded(false); setAddedSupport(false); setAddedKv(false); // a fresh run invalidates every "Added ✓" state
       } catch (e) {
         setError(e.cancelled ? tr("Estimation cancelled.") : (e.message || tr("Estimation failed.")));
@@ -682,6 +683,12 @@ export default function GradeEstimationModal({ assays: assaysProp, assayElements
                   <input type="checkbox" checked={restrictToDomain} onChange={(e) => setRestrictToDomain(e.target.checked)} style={{ marginTop: 2 }} />
                   <span>{tr("Also restrict the interpolation search to the same domain")}{" "}<em>{tr("(recommended)")}</em></span>
                 </label>
+                {restrictToDomain && ( /* TASKS.csv #2541 — the samples with no code: left out (counted in the result) or a domain of their own */
+                  <label style={{ display: "flex", alignItems: "flex-start", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", cursor: "pointer", marginLeft: 22 }} title={tr("Off: a block whose nearest composite has no code is left un-estimated, and the result says how many. On: those blocks are estimated from the composites with no code, as one more domain.")}>
+                    <input type="checkbox" checked={noCodeAsDomain} onChange={(e) => setNoCodeAsDomain(e.target.checked)} style={{ marginTop: 2 }} aria-label={tr("Estimate the samples with no code as a domain of their own")} />
+                    <span>{tr("Estimate the samples with no code as a domain of their own")}</span>
+                  </label>
+                )}
                 <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.5 }}>
                   {restrictToDomain
                     ? tr("Each block adopts the domain of its nearest composite and only ever sees composites from that same domain — a nearest-neighbour domain model, the simplest defensible way to give a point in space a domain from downhole-only logging. Blocks whose nearest composite has no logged domain are left un-estimated.")
@@ -816,6 +823,7 @@ export default function GradeEstimationModal({ assays: assaysProp, assayElements
               )}
               {result.params?.capValue != null && <div>{tr("Grades capped at {cap} {unit} before estimating.", { cap: result.params.capValue, unit: result.params.capUnit ? gradeUnitLabel(symbol, result.params.capUnit) : "" /* #2218 */ })}</div>}{/* #1736 — said in the result */}
               <div>{tr("{blocksEstimated} block(s) estimated, {blocksSkipped} left un-estimated (no sample within search radius / below min-samples / below min distinct holes).", { blocksEstimated: result.blocksEstimated.toLocaleString(), blocksSkipped: result.blocksSkipped.toLocaleString() })}</div>
+              {result.noCodeBlocks > 0 && <div role="note" style={{ color: "var(--color-warn-text)" }}>{tr("{n} of them because their nearest composite has no {domain} code ({c} of {all} composites have none): the domain search does not estimate them. Tick 'Estimate the samples with no code as a domain of their own' to fill them from those composites.", { n: result.noCodeBlocks.toLocaleString(), domain: result.params?.domain || tr("domain"), c: (result.noCodeComposites ?? 0).toLocaleString(), all: (result.samplePointCount ?? 0).toLocaleString() })}</div>}{/* #2541 */}
               {(() => { // TASKS.csv #1738 — a zero-block run says which rule emptied it and what would change that
                 const adv = zeroBlockAdvice({ blocksEstimated: result.blocksEstimated, searchRadiusM: result.params?.searchRadiusM ?? searchRadius, minHoles: result.params?.minHoles ?? minHoles, spacing });
                 if (!adv) return null;

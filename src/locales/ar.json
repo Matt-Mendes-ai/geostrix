@@ -9674,5 +9674,9 @@
   "With a trend the model box is about {a}, larger than the {b} the same data get without one (the same padding rules), so a unit's volume cannot be compared between the two runs.": "مع الاتجاه يبلغ صندوق النموذج نحو {a}، أكبر من {b} للبيانات نفسها دونه (قواعد الهامش نفسها)، لذا لا يمكن مقارنة حجم وحدة بين التشغيلين.",
   "With a trend the model box is about {a}, smaller than the {b} the same data get without one (the same padding rules), so a unit's volume cannot be compared between the two runs.": "مع الاتجاه يبلغ صندوق النموذج نحو {a}، أصغر من {b} للبيانات نفسها دونه (قواعد الهامش نفسها)، لذا لا يمكن مقارنة حجم وحدة بين التشغيلين.",
   "— in 3D at the grid's level ({lv} m) minus each depth ({n} of {all})": "— في الثلاثي الأبعاد عند مستوى الشبكة ({lv} م) مطروحًا منه كل عمق ({n} من {all})",
-  "— in 3D under the terrain ({n} of {all}; {m} with no ground under them show in plan only)": "— في الثلاثي الأبعاد تحت التضاريس ({n} من {all}؛ {m} بلا أرض تحتها تظهر في المسقط فقط)"
+  "— in 3D under the terrain ({n} of {all}; {m} with no ground under them show in plan only)": "— في الثلاثي الأبعاد تحت التضاريس ({n} من {all}؛ {m} بلا أرض تحتها تظهر في المسقط فقط)",
+  "Off: a block whose nearest composite has no code is left un-estimated, and the result says how many. On: those blocks are estimated from the composites with no code, as one more domain.": "معطّل: تبقى الكتلة التي ليس لأقرب مركّب لها رمز دون تقدير، ويذكر الناتج عددها. مفعّل: تُقدَّر تلك الكتل من المركّبات بلا رمز، كنطاق إضافي.",
+  "Estimate the samples with no code as a domain of their own": "تقدير العينات بلا رمز كنطاق مستقل",
+  "{n} of them because their nearest composite has no {domain} code ({c} of {all} composites have none): the domain search does not estimate them. Tick 'Estimate the samples with no code as a domain of their own' to fill them from those composites.": "{n} منها لأن أقرب مركّب لها بلا رمز {domain} ({c} من {all} مركّبًا بلا رمز): لا يقدّرها البحث بالنطاق. حدّد 'تقدير العينات بلا رمز كنطاق مستقل' لملئها من تلك المركّبات.",
+  "domain": "النطاق"
 }

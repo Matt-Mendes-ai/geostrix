@@ -142,7 +142,7 @@ function withTrend(samplePoints, opts) {
 }
 
 export function estimateBlockModel(samplePoints, opts) {
-  const { bounds, cellSize, method = "idw2", searchRadius = null, minSamples = 1, maxSamples = 16, minHoles = 1, maxPerHole = 0, lengthWeight = true, restrictToDomain = false } = opts;
+  const { bounds, cellSize, method = "idw2", searchRadius = null, minSamples = 1, maxSamples = 16, minHoles = 1, maxPerHole = 0, lengthWeight = true, restrictToDomain = false, noCodeAsDomain = false } = opts; // noCodeAsDomain: #2541
   // TASKS.csv #1416 — the blocks any composite can reach (lib/blockReach.js): the budget counts them, the loop skips the rest
   // (opts.noReach: the whole box, for the tests that hold the two equal)
   const reachInfo = opts.noReach ? null : blockReach(samplePoints, bounds, cellSize, worldReach(searchRadius, opts.trend), { rz: verticalReach(searchRadius, opts.trend) /* #2418 */ });
@@ -153,7 +153,7 @@ export function estimateBlockModel(samplePoints, opts) {
   // TASKS.csv #709 — kriging needs a variogram (resolveVariogram), in the same frame the search works in
   const tw0 = method === "ok" ? withTrend(samplePoints, opts) : null;
   const variogram = method === "ok" ? resolveVariogram(tw0.pts, opts.variogram, cellSize) : null;
-  const estOpts = { method, searchRadius, minSamples, maxSamples, minHoles, maxPerHole, lengthWeight, restrictToDomain, variogram, supportRef: opts.supportRef, materialHoles: !!opts.materialHoles }; // supportRef: #1411; materialHoles: #1573
+  const estOpts = { method, searchRadius, minSamples, maxSamples, minHoles, maxPerHole, lengthWeight, restrictToDomain, noCodeAsDomain, variogram, supportRef: opts.supportRef, materialHoles: !!opts.materialHoles }; // supportRef: #1411; materialHoles: #1573
   // TASKS.csv #91/#92 — support classification is opt-in and OFF by default: it widens the neighbour
   // search and adds per-cell work, so it must never be paid for by a caller that didn't ask. `bracketTol`
   // is half a cell, so bracketing has to be real at the scale the block model is drawn at.
@@ -177,6 +177,7 @@ export function estimateBlockModel(samplePoints, opts) {
     ...(method === "ok" ? { kv: new Float64Array(cap) } : {}), // #709 — kriging variance
   } : null;
   let blocksSkipped = 0;
+  let noCodeBlocks = 0; // TASKS.csv #2541 — left out because the nearest composite has no domain code
   let singleHoleCells = 0; // TASKS.csv #258 — surfaced in the run summary
   let dominatedCells = 0; // TASKS.csv #676 — 2+ holes, but one carries >= 95 % of the weight
   const mlsCounts = { full: 0, reduced: 0, idw: 0 }; // TASKS.csv #516
@@ -192,7 +193,7 @@ export function estimateBlockModel(samplePoints, opts) {
         if (mask && !mask[rowBase + ix]) { blocksSkipped++; if (wantSupport) supportCounts.unsupported++; continue; } // #1416 — out of every composite's reach: no search
         const cx = bounds.xmin + (ix + 0.5) * dx;
         const r = est(cx, cy, cz);
-        if (!r) { blocksSkipped++; if (wantSupport) supportCounts.unsupported++; continue; } // no estimate IS the unsupported class
+        if (!r || r.skip) { blocksSkipped++; if (r?.skip === "noCode") noCodeBlocks++; if (wantSupport) supportCounts.unsupported++; continue; } // no estimate IS the unsupported class; skip: #2541
         if (r.nHoles === 1) singleHoleCells++;
         else if (method !== "nn" && r.domShare >= DOMINANT_SHARE) dominatedCells++; // #676; #1423 — not for NN, one sample always carries it all
         if (r.mlsMode) mlsCounts[r.mlsMode]++; // #516
@@ -224,7 +225,7 @@ export function estimateBlockModel(samplePoints, opts) {
   }
   // #661 — trimmed to the blocks actually estimated (slice copies, so the spare capacity is freed with the originals)
   const columns = asColumns ? Object.fromEntries([["n", n], ["dx", dx], ["dy", dy], ["dz", dz], ...Object.entries(col).map(([k, a]) => [k, a.slice(0, n)])]) : null;
-  return { ...(asColumns ? { columns } : { cells }), blocksEstimated: asColumns ? n : cells.length, blocksSkipped, singleHoleCells, dominatedCells, grid: { nx, ny, nz }, blocksInReach: mask ? reachInfo.reach : totalBlocks, supportCounts: wantSupport ? supportCounts : null, mlsCounts: method === "mls1" ? mlsCounts : null, ...(method === "ok" ? { okCounts, variogram } : {}) };
+  return { ...(asColumns ? { columns } : { cells }), blocksEstimated: asColumns ? n : cells.length, blocksSkipped, noCodeBlocks, singleHoleCells, dominatedCells, grid: { nx, ny, nz }, blocksInReach: mask ? reachInfo.reach : totalBlocks, supportCounts: wantSupport ? supportCounts : null, mlsCounts: method === "mls1" ? mlsCounts : null, ...(method === "ok" ? { okCounts, variogram } : {}) };
 }
 
 // TASKS.csv #142 — the grid sizing + per-cell NN/IDW math shared by estimateBlockModel (sparse cell
@@ -458,9 +459,10 @@ function makeNeighbourGatherer(samplePoints, opts = {}) {
 // not enough distinct holes in range, i.e. "not estimated" — never a zero/extrapolated value).
 //
 // opts: { method, searchRadius, minSamples, maxSamples, minHoles, lengthWeight, restrictToDomain }
+const NO_CODE = Object.freeze({ skip: "noCode" }); // #2541 — no estimate: the block's nearest composite has no domain code
 function makeCellEstimator(samplePoints, opts = {}) {
   const {
-    method = "idw2", minSamples = 1, maxSamples = 16, minHoles = 1, maxPerHole = 0, restrictToDomain = false, materialHoles: wantMaterial = false, // materialHoles: #1573
+    method = "idw2", minSamples = 1, maxSamples = 16, minHoles = 1, maxPerHole = 0, restrictToDomain = false, noCodeAsDomain = false, materialHoles: wantMaterial = false, // materialHoles: #1573; noCodeAsDomain: #2541
   } = opts;
   const power = methodPower(method); // null => nearest-neighbour or MLS (handled below)
   // TASKS.csv #91/#92 — when support classification is asked for, it is computed from THIS SAME
@@ -491,9 +493,11 @@ function makeCellEstimator(samplePoints, opts = {}) {
     // than quietly falling back to the unrestricted search.
     let candidates = dists;
     if (restrictToDomain) {
+      // TASKS.csv #2541 (review #2486, WA lithium) — a block whose nearest composite has no code was deleted in silence (one 500 m block fell from
+      // 30.5 Mt to 11.0 Mt). It is now counted (skip: "noCode"), or, with noCodeAsDomain, estimated from the composites with no code as a domain
       const cellDomain = dists[0].domain;
-      if (cellDomain == null) return null;
-      candidates = dists.filter((d) => d.domain === cellDomain);
+      if (cellDomain == null && !noCodeAsDomain) return NO_CODE;
+      candidates = cellDomain == null ? dists.filter((d) => d.domain == null) : dists.filter((d) => d.domain === cellDomain);
       if (candidates.length < minSamples) return null;
     }
     const used = selectUsed(candidates, maxSamples, minHoles, maxPerHole); // #642 — per-hole cap when minHoles > 1
@@ -1047,7 +1051,7 @@ function settled(dists, safeD2, maxSamples, minSamples, minHoles, restrictToDoma
 // identical to estimateBlockModel's cell centers, so a grade shell extracted from this grid sits
 // exactly where the equivalent block model's cutoff boundary would.
 export function estimateDenseGrid(samplePoints, opts) {
-  const { bounds, cellSize, method = "idw2", searchRadius = null, minSamples = 1, maxSamples = 16, minHoles = 1, maxPerHole = 0, lengthWeight = true, restrictToDomain = false } = opts;
+  const { bounds, cellSize, method = "idw2", searchRadius = null, minSamples = 1, maxSamples = 16, minHoles = 1, maxPerHole = 0, lengthWeight = true, restrictToDomain = false, noCodeAsDomain = false } = opts; // noCodeAsDomain: #2541
   const { dx, dy, dz, nx, ny, nz, totalBlocks } = gridDims(bounds, cellSize, opts.maxBlocks); // maxBlocks: #625
   const values = new Float64Array(totalBlocks).fill(NaN);
   const origin = { x: bounds.xmin + 0.5 * dx, y: bounds.ymin + 0.5 * dy, z: bounds.zmin + 0.5 * dz };
@@ -1057,7 +1061,7 @@ export function estimateDenseGrid(samplePoints, opts) {
   const twK = method === "ok" ? withTrend(samplePoints, opts) : null; // #709 — kriging works on grade shells too
   const variogram = method === "ok" ? resolveVariogram(twK.pts, opts.variogram, cellSize) : null;
   if (variogram) out.variogram = variogram;
-  const estOpts = { method, searchRadius, minSamples, maxSamples, minHoles, maxPerHole, lengthWeight, restrictToDomain, variogram, supportRef: opts.supportRef, materialHoles: !!opts.materialHoles }; // supportRef: #1411; materialHoles: #1573
+  const estOpts = { method, searchRadius, minSamples, maxSamples, minHoles, maxPerHole, lengthWeight, restrictToDomain, noCodeAsDomain, variogram, supportRef: opts.supportRef, materialHoles: !!opts.materialHoles }; // supportRef: #1411; materialHoles: #1573
   // TASKS.csv #91/#92 — opt-in per-node data-support classification, OFF by default so no existing
   // caller pays for it. When on, the grid carries two extra parallel arrays on the same
   // [ix + nx * (iy + ny * iz)] indexing as `values`, so a mesh extracted from this grid can be coloured
@@ -1090,7 +1094,7 @@ export function estimateDenseGrid(samplePoints, opts) {
           supportCounts[sup ? sup.cls : SUPPORT_UNSUPPORTED]++;
           if (sup && sup.cls === SUPPORT_EXTRAPOLATED && sup.dataBracketed) supportCounts.searchLimited++;
         }
-        if (!r) continue;
+        if (!r || r.skip) continue; // skip: #2541
         if (r.nHoles === 1) singleHoleCells++;
         else if (method !== "nn" && r.domShare >= DOMINANT_SHARE) dominatedCells++; // #676; #1423 — not for NN, one sample always carries it all
         values[rowBase + ix] = r.value;
