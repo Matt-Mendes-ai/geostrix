@@ -3,6 +3,7 @@
 // ============================================================
 import { voxelStretch } from "./voxelStretch.js"; // TASKS.csv #1812
 import { looksLikeLogTable } from "./downholeLogChannels.js"; // TASKS.csv #2160
+import { looksLikeEventTable } from "./downholeEvents.js"; // TASKS.csv #2317
 import { guessStructureColumns } from "./mapLayers.js"; // TASKS.csv #426
 import { isElementColumn } from "./geochem.js"; // TASKS.csv #2150
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
@@ -805,8 +806,8 @@ export const TARGET_SCHEMAS = {
     { key: "hole_id", label: "Hole ID", required: true, aliases: ["hole_id", "holeid", "hole", "bhid", "dhid", "ddh", "ddh_id", "ddh_no"] },
     { key: "from", label: "From (leave unset if point data)", required: false, aliases: INTERVAL_FROM_ALIASES },
     { key: "to", label: "To (leave unset if point data)", required: false, aliases: INTERVAL_TO_ALIASES },
-    { key: "depth", label: "Depth (for point data)", required: false, aliases: ["depth", "at", "md"] },
-    { key: "value", label: "Value / category", required: true, aliases: ["value", "label"] },
+    { key: "depth", label: "Depth (for point data)", required: false, aliases: ["depth", "at", "md", "event_depth", "depth_m"] }, // event_depth: #2317
+    { key: "value", label: "Value / category", required: true, aliases: ["value", "label", "event_code", "eventcode", "event_type", "boundary_code", "event", "boundary"] }, // event*: #2317
   ] },
 };
 
@@ -996,7 +997,7 @@ export function guessColumn(headers, aliases) {
 }
 // TASKS.csv #1345 (ARIS 42807Z) — "val" matched inside "GEO_INTERVAL_D" (inter-VAL), so an acQuire alteration log was coloured by
 // each interval's length. A last-resort alias that is a fragment of common words matches a whole header only.
-const WHOLE_ONLY = new Set(["val", "mto", "dto", "dfrom"]); // mto / dto / dfrom: #2149 (fragments: "comMTOtal", "oDTOp")
+const WHOLE_ONLY = new Set(["val", "mto", "dto", "dfrom", "event", "boundary"]); // event / boundary: #2317 (not inside "event_depth") // mto / dto / dfrom: #2149 (fragments: "comMTOtal", "oDTOp")
 export function guessTarget(headers) {
   // #600 (40958Z): the normalised forms too ("Mag Avg" -> mag_avg, "Specific Gravity" -> specific_gravity)
   const lower = [...new Set(headers.flatMap((h) => [h.toLowerCase(), normHeader(h)]))];
@@ -1130,6 +1131,9 @@ export function schemaSatisfied(target, mapping) {
 const CUSTOM_LOG_NAMES = /\b(voids?|cavit(y|ies))\b|fluoresc|silicif|\bori(ented)?[\s_-]*core\b|\boricore\b/i; // oxidation / weathering: their own layer since #2162
 export function guessTargetFor(headers, name) {
   if (CUSTOM_LOG_NAMES.test(String(name || ""))) return "custom";
+  // TASKS.csv #2317 — regolith boundary events (BOCO, TOFR, ... at one depth per hole, no from / to): a custom point layer of codes, not
+  // structure picks without an orientation (where 'Event_Code + Depth' used to land)
+  if (looksLikeEventTable(headers)) return "custom";
   const hint = targetFromName(name);
   if (hint) {
     const m = guessMapping(hint, headers);

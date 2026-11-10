@@ -27,6 +27,7 @@ import { buildLayer, sameMapLayer } from "../../lib/mapLayerBuild.js"; // TASKS.
 import { askAdoptCrs } from "../../lib/adoptCrs.js"; // TASKS.csv #607
 import { requestProjectCrs } from "../../lib/projectCrsRequest.js"; // TASKS.csv #615
 import { holeTypeColumn, normalizeHoleType } from "../../lib/holeType.js"; // TASKS.csv #2161
+import { eventNotes } from "../../lib/downholeEvents.js"; // TASKS.csv #2317
 import { isNullSentinel, LAYER_META, TARGET_SCHEMAS, guessColumn, guessColumnExact, guessMapping, guessTargetFor, schemaSatisfied, num, replaceRowsByHole, keepDerivedPicks, isDerivedPick, replaceNote, EPSG_COL_ALIASES, diffCollarImport, mergeCollar, minMax, pickRankedCollarRows } from "../../lib/layers.js";
 import { alterationStyleFromName, styledAltValue, isBlankCode } from "../../lib/viewer/importHelpers.js"; // TASKS.csv #1511; isBlankCode: #2182
 import { fillDownHoleIds, numberedSiblings, allCodesOf, normInterval, applyCustomFields, normNumericInterval, normStructure, skippedRowsText, strikeStats, loadRaster, looksLikeAssay, isSurfaceSampleTable, looksLikeSurfaceSamples /* #2268 */, parseVectorFile, groupShapefileParts, orderImportFiles } from "../../lib/viewer/importHelpers.js"; // groupShapefileParts / orderImportFiles: #600
@@ -624,9 +625,13 @@ export function useImportPipeline(ctx) {
       const group = new THREE.Group(); group.name = id;
       layerGroupsRef.current[id] = group;
       sceneRef.current.getObjectByName("root").add(group);
-      setCustomLayers((p) => [...p, { id, name: fileName.replace(/\.csv$/i, ""), rows, group }]);
+      // TASKS.csv #2317 — depth picks by code (regolith events): the layer says what the known codes stand for, and the notice where they go
+      const evNotes = mapping.depth && !mapping.from && !mapping.to ? eventNotes(rows) : null;
+      setCustomLayers((p) => [...p, { id, name: fileName.replace(/\.csv$/i, ""), rows, group, ...(evNotes ? { notes: evNotes } : {}) }]);
       setCustomVisible((p) => ({ ...p, [id]: true }));
-      setNotices((p) => [...p, notice("Added \"{fileName}\" as a custom layer ({rows} rows).", { fileName, rows: rows.length })]);
+      setNotices((p) => [...p, evNotes
+        ? notice("Added \"{fileName}\" as a layer of depth picks ({rows} rows, {codes}): drawn on the traces, and offered as picks in the Explicit surface tool (one per hole) for a surface such as the base of oxidation.", { fileName, rows: rows.length, codes: [...new Set(rows.map((r) => String(r.value ?? "").trim()).filter(Boolean))].slice(0, 8).join(", ") })
+        : notice("Added \"{fileName}\" as a custom layer ({rows} rows).", { fileName, rows: rows.length })]);
     } else {
       // _src (source filename) is stamped on every row here — TASKS.csv #63: lets the layer inspector
       // (LayerInspector.jsx) break a layer down by which import it came from, since it's common to

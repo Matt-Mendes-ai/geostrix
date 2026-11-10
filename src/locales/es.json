@@ -9567,5 +9567,13 @@
   "Some of these score the same (a plateau of equal cells): those are ranked by the mean score of the cells around them, so treat their order as a tie.": "Algunas puntúan igual (una meseta de celdas iguales): se ordenan por el puntaje medio de las celdas vecinas, así que trate su orden como un empate.",
   "(tied)": "(empate)",
   "Opened on {k} holes of the largest drill site's fan ({site} holes from one collar position, within 100 m of a line through them): the holes here are drilled in fans from a few sites, so one fan is one panel. {n} others are in the list below, unticked.": "Se abrió con {k} sondajes del abanico del sitio de perforación más grande ({site} sondajes desde una posición de collar, a menos de 100 m de una línea que los atraviesa): aquí los sondajes se perforan en abanicos desde pocos sitios, así que un abanico es un panel. Los otros {n} están en la lista de abajo, sin marcar.",
-  "Building the section…": "Construyendo la sección…"
+  "Building the section…": "Construyendo la sección…",
+  "Added \"{fileName}\" as a layer of depth picks ({rows} rows, {codes}): drawn on the traces, and offered as picks in the Explicit surface tool (one per hole) for a surface such as the base of oxidation.": "Se agregó \"{fileName}\" como una capa de picks de profundidad ({rows} filas, {codes}): se dibujan en las trazas y se ofrecen como picks en la herramienta Superficie explícita (uno por sondaje) para una superficie como la base de la oxidación.",
+  "Added {n} pick(s) at {code} ({layer}).": "Se agregaron {n} pick(s) en {code} ({layer}).",
+  "Depth picks:": "Picks de profundidad:",
+  "Depth picks to add": "Picks de profundidad para agregar",
+  "{code} in {layer} ({n} holes)": "{code} en {layer} ({n} sondajes)",
+  "One pick per hole at this code's logged depth (the shallowest, if a hole logs it twice). Holes that already have a pick on this surface are left as they are.": "Un pick por sondaje en la profundidad registrada de este código (la menos profunda, si un sondaje lo registra dos veces). Los sondajes que ya tienen un pick en esta superficie se dejan como están.",
+  "Add picks": "Agregar picks",
+  "depth pick {code}": "pick de profundidad {code}"
 }

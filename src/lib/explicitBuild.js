@@ -37,7 +37,7 @@ export function explicitInputRows(defs, sections) {
   const r3 = (v) => (Number.isFinite(v) ? Math.round(v * 1000) / 1000 : "");
   for (const d of defs || []) {
     const base = { surface: d.name, unit: d.unit || d.name, contact: d.contact === "lower" ? "lower" : "upper", layer: d.layer || "" };
-    for (const p of d.picks || []) rows.push({ ...base, source: p.hole_id ? (p.src === "boundary" ? "pick on a logged contact" : "pick on a hole trace") : p.fromDxf ? "imported DXF point" : "pick (3D point)", ref: p.fromDxf || "", vertex: "", hole_id: p.hole_id || "", md: r3(p.md), above: p.above || "", below: p.below || "", easting: r3(p.x), northing: r3(p.y), elevation: r3(p.z), seeded_from_logs: p.seeded ? "yes" : "", pick_id: p.id || "" });
+    for (const p of d.picks || []) rows.push({ ...base, source: p.hole_id ? (p.src === "event" ? `depth pick (${p.event})` /* #2317 */ : p.src === "boundary" ? "pick on a logged contact" : "pick on a hole trace") : p.fromDxf ? "imported DXF point" : "pick (3D point)", ref: p.fromDxf || "", vertex: "", hole_id: p.hole_id || "", md: r3(p.md), above: p.above || "", below: p.below || "", easting: r3(p.x), northing: r3(p.y), elevation: r3(p.z), seeded_from_logs: p.seeded ? "yes" : "", pick_id: p.id || "" });
     for (const s of sections || []) for (const c of s.contacts || []) {
       if (c.unit !== d.name || c.isUpperContact === false || (c.kind && c.kind !== "contact")) continue;
       (c.points || []).forEach((p, i) => rows.push({ ...base, source: "line on a section", ref: s.name, vertex: i + 1, hole_id: p.hole_id || "", md: r3(p.md), above: "", below: "", easting: r3(p.x), northing: r3(p.y), elevation: r3(p.z), seeded_from_logs: "", pick_id: "" }));

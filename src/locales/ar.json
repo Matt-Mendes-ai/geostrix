@@ -9567,5 +9567,13 @@
   "Some of these score the same (a plateau of equal cells): those are ranked by the mean score of the cells around them, so treat their order as a tie.": "بعضها بالدرجة نفسها (هضبة من خلايا متساوية): رُتبت بمتوسط درجة الخلايا المحيطة بها، فاعتبر ترتيبها تعادلًا.",
   "(tied)": "(تعادل)",
   "Opened on {k} holes of the largest drill site's fan ({site} holes from one collar position, within 100 m of a line through them): the holes here are drilled in fans from a few sites, so one fan is one panel. {n} others are in the list below, unticked.": "فُتح على {k} ثقبًا من مروحة أكبر موقع حفر ({site} ثقبًا من موضع فوهة واحد، ضمن 100 م من خط يمر بها): الثقوب هنا محفورة على شكل مراوح من مواقع قليلة، فالمروحة الواحدة لوحة واحدة. البقية ({n}) في القائمة أدناه، غير محددة.",
-  "Building the section…": "جارٍ بناء المقطع…"
+  "Building the section…": "جارٍ بناء المقطع…",
+  "Added \"{fileName}\" as a layer of depth picks ({rows} rows, {codes}): drawn on the traces, and offered as picks in the Explicit surface tool (one per hole) for a surface such as the base of oxidation.": "أُضيف \"{fileName}\" كطبقة من نقاط العمق ({rows} صفًا، {codes}): تُرسم على مسارات الثقوب وتُعرض كنقاط في أداة السطح الصريح (واحدة لكل ثقب) لسطح مثل قاعدة الأكسدة.",
+  "Added {n} pick(s) at {code} ({layer}).": "أُضيفت {n} نقطة عند {code} ({layer}).",
+  "Depth picks:": "نقاط العمق:",
+  "Depth picks to add": "نقاط العمق المراد إضافتها",
+  "{code} in {layer} ({n} holes)": "{code} في {layer} ({n} ثقبًا)",
+  "One pick per hole at this code's logged depth (the shallowest, if a hole logs it twice). Holes that already have a pick on this surface are left as they are.": "نقطة واحدة لكل ثقب عند العمق المسجل لهذا الرمز (الأقل عمقًا إن سُجّل مرتين). تبقى الثقوب التي لها نقطة على هذا السطح كما هي.",
+  "Add picks": "إضافة النقاط",
+  "depth pick {code}": "نقطة عمق {code}"
 }

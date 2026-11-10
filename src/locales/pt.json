@@ -9567,5 +9567,13 @@
   "Some of these score the same (a plateau of equal cells): those are ranked by the mean score of the cells around them, so treat their order as a tie.": "Algumas pontuam igual (um platô de células iguais): são ordenadas pela pontuação média das células vizinhas, então trate a ordem delas como um empate.",
   "(tied)": "(empate)",
   "Opened on {k} holes of the largest drill site's fan ({site} holes from one collar position, within 100 m of a line through them): the holes here are drilled in fans from a few sites, so one fan is one panel. {n} others are in the list below, unticked.": "Aberto com {k} furos do leque do maior local de sondagem ({site} furos de uma posição de colar, a até 100 m de uma linha por eles): aqui os furos são perfurados em leques a partir de poucos locais, então um leque é um painel. Os outros {n} estão na lista abaixo, desmarcados.",
-  "Building the section…": "Construindo a seção…"
+  "Building the section…": "Construindo a seção…",
+  "Added \"{fileName}\" as a layer of depth picks ({rows} rows, {codes}): drawn on the traces, and offered as picks in the Explicit surface tool (one per hole) for a surface such as the base of oxidation.": "\"{fileName}\" adicionado como uma camada de picks de profundidade ({rows} linhas, {codes}): desenhados nos traços e oferecidos como picks na ferramenta Superfície explícita (um por furo) para uma superfície como a base da oxidação.",
+  "Added {n} pick(s) at {code} ({layer}).": "{n} pick(s) adicionado(s) em {code} ({layer}).",
+  "Depth picks:": "Picks de profundidade:",
+  "Depth picks to add": "Picks de profundidade a adicionar",
+  "{code} in {layer} ({n} holes)": "{code} em {layer} ({n} furos)",
+  "One pick per hole at this code's logged depth (the shallowest, if a hole logs it twice). Holes that already have a pick on this surface are left as they are.": "Um pick por furo na profundidade registrada deste código (a mais rasa, se um furo o registra duas vezes). Os furos que já têm um pick nesta superfície ficam como estão.",
+  "Add picks": "Adicionar picks",
+  "depth pick {code}": "pick de profundidade {code}"
 }

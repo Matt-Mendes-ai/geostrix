@@ -24,6 +24,7 @@ import { unitOf, contactOf, layerLabel, unitSummary, splitByElevation, nextLayer
 import { stackOrder, thicknessBetween } from "../lib/stackOrder.js"; // TASKS.csv #873; thicknessBetween: #896
 import { inputKey, shapeFrame, onlyOneSection, explicitInputRows, INPUT_COLUMNS } from "../lib/explicitBuild.js"; // TASKS.csv #901; rows: #880
 import { saveFile } from "../lib/desktop.js"; // TASKS.csv #880
+import { eventPickOptions, defaultEventOption } from "../lib/downholeEvents.js"; // TASKS.csv #2317
 import { surfaceOptionLabels } from "../lib/viewer/surfaceLabels.js"; // TASKS.csv #1550
 import { toCsv, FORMULA_LEAD, crsCell } from "../lib/tabular.js"; // TASKS.csv #1082; crsCell: #1053
 
@@ -181,6 +182,19 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
   const seedInfo = useMemo(() => (def && topsOfUnit && seedUnit ? topsOfUnit(seedUnit) : null), [def, seedUnit, topsOfUnit]);
   const pickedHoles = useMemo(() => new Set((def?.picks || []).filter((p) => p.hole_id).map((p) => p.hole_id)), [def?.picks]);
   const [seedNote, setSeedNote] = useState(null);
+  // TASKS.csv #2317 — a layer of depth picks by code (regolith events: BOCO, TOFR, ...): one pick per hole at that code's depth
+  const { customLayers: storeCustomLayers } = useStore();
+  const eventOpts = useMemo(() => eventPickOptions(storeCustomLayers), [storeCustomLayers]);
+  const [eventKey, setEventKey] = useState("");
+  const eventOpt = eventOpts.find((o) => o.key === eventKey) || defaultEventOption(eventOpts, def ? unitOf(def) || def.name : "");
+  const seedEvents = () => {
+    if (!def || !eventOpt) return;
+    const stamp = Date.now();
+    const r = seedPicksFromTops(def.picks, eventOpt.tops, (hole, md) => { const t = sc.traces.current.find((tc) => tc.hole_id === hole); return t ? findOnTraceWorld(t, md) : null; }, (i) => `pk_${stamp}_${i}`);
+    if (r.picks.length) update({ picks: [...(def.picks || []), ...r.picks.map((pk) => ({ ...pk, src: "event", event: eventOpt.code }))] });
+    setSeedNote(tr("Added {n} pick(s) at {code} ({layer}).", { n: r.picks.length, code: eventOpt.code, layer: eventOpt.layerName }) + (r.had ? ` ${tr("{n} hole(s) already had a pick and were left as they were.", { n: r.had })}` : "")
+      + (r.noTrace ? ` ${tr("{n} hole(s) are not drawn (no survey or collar).", { n: r.noTrace })}` : ""));
+  };
   const seedTops = () => {
     if (!def || !seedInfo) return;
     const stamp = Date.now();
@@ -212,7 +226,7 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
       { ...live, id, name: tr("{name} (kept {at})", { name: def.name, at: at.slice(0, 16).replace("T", " ") }), type: "explicit_surface_kept", relationships: [], params: { ...p, keptAt: at, keptFrom: def.name, picksWhenKept: (def.picks || []).length }, supersedes: live.supersedes, accepted: false }]);
     setKeptNote(tr("Kept this build as a version in the surface list; this surface now supersedes it."));
   };
-  const pickLabel = (p) => `${p.hole_id ? tr("{hole} at {md} m ({how})", { hole: p.hole_id, md: Number(p.md).toFixed(1), how: p.above ? `${p.above} | ${p.below}` : p.src === "boundary" ? tr("logged contact") : tr("on the trace") }) : p.onModel ? tr("3D point on {model} ({prop} {v})", { model: p.onModel.model, prop: p.onModel.property || tr("value"), v: p.onModel.value }) : tr("3D point")} · ${Math.round(p.z)} m`; // onModel: #1840
+  const pickLabel = (p) => `${p.hole_id ? tr("{hole} at {md} m ({how})", { hole: p.hole_id, md: Number(p.md).toFixed(1), how: p.above ? `${p.above} | ${p.below}` : p.src === "event" ? tr("depth pick {code}", { code: p.event }) /* #2317 */ : p.src === "boundary" ? tr("logged contact") : tr("on the trace") }) : p.onModel ? tr("3D point on {model} ({prop} {v})", { model: p.onModel.model, prop: p.onModel.property || tr("value"), v: p.onModel.value }) : tr("3D point")} · ${Math.round(p.z)} m`; // onModel: #1840
   const keepShallowest = () => { const best = new Map(); for (const p of def.picks) if (p.hole_id && (!best.has(p.hole_id) || p.md < best.get(p.hole_id).md)) best.set(p.hole_id, p); update({ picks: def.picks.filter((p) => !p.hole_id || best.get(p.hole_id) === p) }); };
   // TASKS.csv #817 — mapped contacts (draped on the terrain) and their dip guides as further hard lines
   const polys = useMemo(() => (mapLayers || []).filter((l) => l.geomType === "polygon"), [mapLayers]);
@@ -885,6 +899,15 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
             {tr("{a} of {b} holes that log {unit} have a pick on this surface.", { a: seedInfo.holes.filter((h) => pickedHoles.has(h)).length, b: seedInfo.holes.length, unit: seedUnit })}{" "}
             {seedInfo.base && seedInfo.tops.some((t) => !pickedHoles.has(t.hole_id)) && <button onClick={seedTops} title={tr("One pick per hole where {unit} ends on a logged unit — the base of overburden, the contact every hole shares — the same points the implicit tool uses for \"Base of {unit}\". Check them, then move or delete the outliers.", { unit: seedUnit })} style={{ ...pBtn, width: "auto", display: "inline-flex", marginBottom: 0, padding: "2px 6px" }}>{tr("Add the logged base of {unit}", { unit: seedUnit })}</button>}{/* #1684 */}
             {!seedInfo.base && contactOf(def) !== "lower" && seedInfo.tops.some((t) => !pickedHoles.has(t.hole_id)) && <button onClick={seedTops} title={tr("One pick per hole where {unit} starts below a younger unit (not at a hole start, under casing or overburden, or below a gap) — the same tops the implicit tool uses. Check them, then move or delete the outliers.", { unit: seedUnit })} style={{ ...pBtn, width: "auto", display: "inline-flex", marginBottom: 0, padding: "2px 6px" }}>{tr("Add the logged tops of {unit}", { unit: seedUnit })}</button>}
+          </div>
+        )}
+        {eventOpts.length > 0 && eventOpt && ( // TASKS.csv #2317 — depth picks (regolith events) as this surface's picks
+          <div style={{ fontSize: "var(--font-size-xs)", lineHeight: 1.4, marginBottom: 6, color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+            <span>{tr("Depth picks:")}</span>
+            <select aria-label={tr("Depth picks to add")} value={eventOpt.key} onChange={(e) => setEventKey(e.target.value)} style={smallSel}>
+              {eventOpts.map((o) => <option key={o.key} value={o.key}>{tr("{code} in {layer} ({n} holes)", { code: o.code, layer: o.layerName, n: o.holes })}</option>)}
+            </select>
+            <button onClick={seedEvents} disabled={eventOpt.tops.every((t) => pickedHoles.has(t.hole_id))} title={tr("One pick per hole at this code's logged depth (the shallowest, if a hole logs it twice). Holes that already have a pick on this surface are left as they are.")} style={{ ...pBtn, width: "auto", display: "inline-flex", marginBottom: 0, padding: "2px 6px" }}>{tr("Add picks")}</button>
           </div>
         )}
         {(def.log || []).length > 0 && ( // TASKS.csv #878
