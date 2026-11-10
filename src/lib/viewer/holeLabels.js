@@ -11,7 +11,7 @@ export function holeLabelText(a, mode) {
 // group: the hole_labels THREE.Group; makeSprite(text) -> a sprite. Clears what was there (textures included) first.
 export function syncHoleLabels(group, anchors, mode, makeSprite) {
   if (!group) return 0;
-  while (group.children.length) { const c = group.children.pop(); c.material?.map?.dispose?.(); c.material?.dispose?.(); c.geometry?.dispose?.(); }
+  while (group.children.length) { const c = group.children.pop(); c.material?.map?.dispose?.(); c.material?.dispose?.(); c.geometry?.dispose?.(); } idle.delete(group); // #2364 — new sprites: the declutter runs again, not only after a camera move
   if (mode === "none") return 0;
   for (const g of groupSharedCollars(anchors || [])) {
     const a = g[0];
@@ -80,6 +80,8 @@ export function withEveryLabel(group, camera, width, height, draw, labelPx = 16)
 }
 
 const IDLE_MS = 150;
+// TASKS.csv #2364 (review #2325, WA uranium) — the key below is the camera, viewport and label count: rebuilding the same number of sprites
+// (a label-mode change) left it unchanged, so 430 labels stayed overprinted until the camera moved. Each rebuild now forgets the group's state.
 const idle = new WeakMap();
 // Call every frame; does its work once, IDLE_MS after the camera or the viewport last changed.
 export function declutterHoleLabels(group, camera, width, height, labelPx = 16, now = Date.now()) {
@@ -101,7 +103,7 @@ export function declutterHoleLabels(group, camera, width, height, labelPx = 16, 
 // items: [{ x, y, z (scene), text, tip? }]; lift: metres above the anchor.
 export function syncTextLabels(group, items, makeSprite, lift = 6) {
   if (!group) return 0;
-  while (group.children.length) { const c = group.children.pop(); c.material?.map?.dispose?.(); c.material?.dispose?.(); c.geometry?.dispose?.(); }
+  while (group.children.length) { const c = group.children.pop(); c.material?.map?.dispose?.(); c.material?.dispose?.(); c.geometry?.dispose?.(); } idle.delete(group); // #2364 — new sprites: the declutter runs again, not only after a camera move
   for (const it of items || []) {
     if (it.text == null || it.text === "") continue;
     const sprite = makeSprite(String(it.text));
