@@ -9622,5 +9622,6 @@
   "No sample of a group carries every immobile element: each element is averaged over the samples that have it (see each n).": "Ninguna muestra de un grupo tiene todos los elementos inmóviles: cada elemento se promedia sobre las muestras que lo tienen (vea cada n).",
   "{s}: no value in either group, left out of the immobile set.": "{s}: sin valor en ningún grupo, fuera del conjunto inmóvil.",
   "{s}: no value in the precursor group, left out of the immobile set.": "{s}: sin valor en el grupo precursor, fuera del conjunto inmóvil.",
-  "{s}: no value in the altered group, left out of the immobile set.": "{s}: sin valor en el grupo alterado, fuera del conjunto inmóvil."
+  "{s}: no value in the altered group, left out of the immobile set.": "{s}: sin valor en el grupo alterado, fuera del conjunto inmóvil.",
+  "{k} of {n} pairs drawn (every {s}th, and the extremes); the statistics use all of them.": "{k} de {n} pares dibujados (uno de cada {s}, y los extremos); las estadísticas usan todos."
 }

@@ -6,7 +6,7 @@ import { Activity } from "./icons.js";
 import { numericSourceChoices, sourceAssays } from "../lib/numericSources.js";
 import { domainLayerChoices } from "../lib/domainLayers.js";
 import { LAYER_META } from "../lib/layers.js";
-import { logByCode, logVsAssay, logVsModel, NOT_LOGGED } from "../lib/downholeLogs.js"; // logVsModel: #1595
+import { logByCode, logVsAssay, logVsModel, NOT_LOGGED, strideSample } from "../lib/downholeLogs.js"; // logVsModel: #1595; strideSample: #2331
 import { BoxPlots } from "./GradeStatistics.jsx";
 import { smallSel } from "../lib/sidebarStyles.js";
 import { t as tr } from "../lib/i18n.js";
@@ -23,10 +23,12 @@ function Scatter({ pairs, xLabel, yLabel, logX, logY }) {
   for (const [x, y] of pts) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
   const sx = (x) => pl + ((x - x0) / ((x1 - x0) || 1)) * (w - pl - pr), sy = (y) => h - pb - ((y - y0) / ((y1 - y0) || 1)) * (h - pb - pt);
   const lab = (v, log) => (log ? Number((10 ** v).toPrecision(2)) : Number(v.toPrecision(3))).toLocaleString();
+  const drawn = strideSample(pts); // #2331 — a few thousand drawn, the axes and statistics from every pair
   return (
+    <>
     <svg viewBox={`0 0 ${w} ${h}`} width="100%" role="img" aria-label={tr("{y} against {x}", { x: xLabel, y: yLabel })} style={{ display: "block", background: "#fff", border: "1px solid var(--color-border)", borderRadius: 6 }}>
       <line x1={pl} y1={pt} x2={pl} y2={h - pb} stroke="#94a1b0" /><line x1={pl} y1={h - pb} x2={w - pr} y2={h - pb} stroke="#94a1b0" />
-      {pts.map(([x, y], i) => <circle key={i} cx={sx(x)} cy={sy(y)} r="2" fill="#2f6db5" fillOpacity="0.55" />)}
+      {drawn.points.map(([x, y], i) => <circle key={i} cx={sx(x)} cy={sy(y)} r="2" fill="#2f6db5" fillOpacity="0.55" />)}
       <text x={pl} y={h - pb + 12} fontSize="8" fill="#55606e">{lab(x0, logX)}</text>
       <text x={w - pr} y={h - pb + 12} fontSize="8" fill="#55606e" textAnchor="end">{lab(x1, logX)}</text>
       <text x={(pl + w - pr) / 2} y={h - 4} fontSize="9" fill="#55606e" textAnchor="middle">{xLabel}{logX ? ` (${tr("log scale")})` : ""}</text>
@@ -34,6 +36,8 @@ function Scatter({ pairs, xLabel, yLabel, logX, logY }) {
       <text x={pl - 3} y={pt + 8} fontSize="8" fill="#55606e" textAnchor="end">{lab(y1, logY)}</text>
       <text x={10} y={(pt + h - pb) / 2} fontSize="9" fill="#55606e" textAnchor="middle" transform={`rotate(-90 10 ${(pt + h - pb) / 2})`}>{yLabel}{logY ? ` (${tr("log scale")})` : ""}</text>
     </svg>
+    {drawn.step > 1 && <div style={note}>{tr("{k} of {n} pairs drawn (every {s}th, and the extremes); the statistics use all of them.", { k: drawn.points.length.toLocaleString(), n: pts.length.toLocaleString(), s: drawn.step })}</div>}
+    </>
   );
 }
 

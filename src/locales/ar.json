@@ -9622,5 +9622,6 @@
   "No sample of a group carries every immobile element: each element is averaged over the samples that have it (see each n).": "لا توجد عينة في مجموعة تحوي كل العناصر غير المتحركة: يُحسب متوسط كل عنصر على العينات التي تحويه (انظر كل n).",
   "{s}: no value in either group, left out of the immobile set.": "{s}: لا قيمة في أي من المجموعتين، استُبعد من مجموعة العناصر غير المتحركة.",
   "{s}: no value in the precursor group, left out of the immobile set.": "{s}: لا قيمة في المجموعة الأصلية، استُبعد من مجموعة العناصر غير المتحركة.",
-  "{s}: no value in the altered group, left out of the immobile set.": "{s}: لا قيمة في المجموعة المتحولة، استُبعد من مجموعة العناصر غير المتحركة."
+  "{s}: no value in the altered group, left out of the immobile set.": "{s}: لا قيمة في المجموعة المتحولة، استُبعد من مجموعة العناصر غير المتحركة.",
+  "{k} of {n} pairs drawn (every {s}th, and the extremes); the statistics use all of them.": "رُسم {k} من {n} زوجًا (واحد من كل {s}، والقيم القصوى)؛ تستخدم الإحصاءات جميعها."
 }

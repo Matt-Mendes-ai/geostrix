@@ -74,3 +74,17 @@ export function logVsModel(rows, symbol, modelRows) {
   const xs = pairs.map((p) => p[0]), ys = pairs.map((p) => p[1]);
   return { pairs, n: pairs.length, r: correlate(xs, ys, "spearman").r, rLog: correlate(xs, ys, "log").r, medianLog: med(xs), medianModel: med(ys) };
 }
+
+// TASKS.csv #2331 (review #2325, WA uranium) — the scatter drew one SVG circle per pair: 172,983 on the 5 cm gamma log, a 209 s stall (the
+// statistics themselves take well under a second at that size). At most `max` points are drawn: every n-th pair, plus the pairs at the four
+// extremes so the outliers still show; the statistics use every pair. -> { points, step } (step 1: all drawn)
+export const SCATTER_MAX = 3000;
+export function strideSample(pts, max = SCATTER_MAX) {
+  if (!pts || pts.length <= max) return { points: pts || [], step: 1 };
+  const step = Math.ceil(pts.length / max), keep = new Set();
+  for (let i = 0; i < pts.length; i += step) keep.add(i);
+  let ix0 = 0, ix1 = 0, iy0 = 0, iy1 = 0;
+  pts.forEach(([x, y], i) => { if (x < pts[ix0][0]) ix0 = i; if (x > pts[ix1][0]) ix1 = i; if (y < pts[iy0][1]) iy0 = i; if (y > pts[iy1][1]) iy1 = i; });
+  [ix0, ix1, iy0, iy1].forEach((i) => keep.add(i));
+  return { points: [...keep].sort((a, b) => a - b).map((i) => pts[i]), step };
+}
