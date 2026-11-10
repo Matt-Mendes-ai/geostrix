@@ -3,6 +3,8 @@
 // per family of identical members. See the comments below and ViewerModule's #695 / #1500 notes for why each step is there.
 import * as THREE from "three";
 import { PICK_ONLY_LAYER } from "./pickStandIn.js";
+import { collarMarkerMaterial } from "./collarMarkerShader.js"; // TASKS.csv #2623
+export { collarMarkerMaterial }; // for ViewerModule (its size cap)
 
 // Below this, an InstancedMesh (and its per-instance buffers) costs more than the draw calls it
 // saves — a handful of collar markers is not worth batching.
@@ -67,6 +69,7 @@ export function buildLayerBatches(group) {
     const material = fam.material.isPickOnlyMaterial
       ? new THREE.MeshLambertMaterial({ transparent: fam.material.transparent, opacity: fam.material.opacity, side: fam.material.side }) // a stand-in family (#1500)
       : fam.material.clone();
+    if (fam.material.userData?.collarMarker) collarMarkerMaterial(material); // #2623 — a clone keeps the flag, not the shader hook
     // Per-instance colour comes from instanceColor, which the shader MULTIPLIES by the material's
     // own diffuse colour — so the batch material must be white or every interval would be tinted by
     // whichever member happened to be cloned. (Do NOT set vertexColors:true here either; see the

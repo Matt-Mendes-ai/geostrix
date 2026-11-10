@@ -9788,5 +9788,9 @@
   "Stored as the element (oxide divided by its factor): {list}. The diagrams convert them back to oxides.": "مخزنة كعنصر (الأكسيد مقسومًا على معامله): {list}. تحوّلها المخططات مجددًا إلى أكاسيد.",
   "Change it per column with the as … menu.": "غيّره لكل عمود من قائمة كـ …",
   "Basis of {symbol}": "أساس {symbol}",
-  "as {v}": "كـ {v}"
+  "as {v}": "كـ {v}",
+  "Stretches the view vertically about the point you orbit around. Coordinates, picks and measurements stay true; labels and collar markers are not stretched.": "يمدّ العرض رأسيًا حول النقطة التي تدور حولها. تبقى الإحداثيات والتحديدات والقياسات حقيقية؛ ولا تُمدّ التسميات وعلامات رؤوس الآبار.",
+  "Vertical exaggeration": "المبالغة الرأسية",
+  "none (1x)": "بلا (1x)",
+  "VE {v}x": "مبالغة رأسية {v}x"
 }

@@ -5,6 +5,7 @@
 import * as THREE from "three";
 import { CATEGORICAL_SAFE_COLORS } from "../layers.js";
 import { pickOnlyMaterial, syncBatchedInstances, eachLayerMember } from "./layerBatches.js";
+import { collarMarkerMaterial } from "./collarMarkerShader.js"; // TASKS.csv #2623
 
 export const NO_VALUE_COLOUR = "#9aa3ad";
 export const TRACE_GREY = 0x445064;
@@ -31,7 +32,7 @@ export function holeColourScheme(collars, field) {
 export function applyHoleColours(group, scheme, { collarMaterial, collarsById } = {}) {
   if (!group) return 0;
   const mats = new Map(), touched = new Set();
-  const matFor = (hex) => mats.get(hex) || mats.set(hex, new THREE.MeshBasicMaterial({ color: hex })).get(hex);
+  const matFor = (hex) => mats.get(hex) || mats.set(hex, collarMarkerMaterial(new THREE.MeshBasicMaterial({ color: hex }))).get(hex); // #2623: round under VE, a pixel floor
   let n = 0;
   eachLayerMember(group, (ch) => {
     if (ch.userData?.collar) {

@@ -14,7 +14,7 @@ test("the legend gives up rows (ramps last) until it ends above the scale bar, a
 });
 
 test("hooks sit above the early return, and the reset keys on a string (no update loop)", () => {
-  const ret = s.indexOf("if (!config.enabled) return null;");
+  const ret = s.indexOf("if (!config.enabled) return veTag ?"); // #2623: the early return keeps the VE tag
   for (const h of ["useState({ items: MAX_LEGEND_ITEMS", "new ResizeObserver(", "useLayoutEffect(() => { setFit("]) assert.ok(s.indexOf(h) > 0 && s.indexOf(h) < ret, h);
   assert.match(s, /const legendKey = \(legendGroups \|\| \[\]\)\.map\(/);
   assert.match(s, /\}, \[legendKey, boxH, config\.title, config\.legend, config\.enabled, showScale\]\);/);

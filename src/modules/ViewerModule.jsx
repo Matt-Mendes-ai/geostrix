@@ -179,7 +179,7 @@ import { gradeText } from "../lib/gradeText.js"; // #2515
 import { pickOnView } from "./viewer/pickGround.js"; // #2574; #2447
 import { syncHoleLabels, declutterHoleLabels, withEveryLabel, syncTextLabels, sampleLabelItems } from "../lib/viewer/holeLabels.js"; // withEveryLabel: TASKS.csv #1770; syncTextLabels / sampleLabelText: #1443
 import { PickStandIn, PICK_ONLY_LAYER } from "../lib/viewer/pickStandIn.js"; // TASKS.csv #1500
-import { syncBatchedInstances, buildLayerBatches, eachLayerMember } from "../lib/viewer/layerBatches.js"; // moved out (size cap, #1084)
+import { syncBatchedInstances, buildLayerBatches, eachLayerMember, collarMarkerMaterial } from "../lib/viewer/layerBatches.js"; // moved out (size cap, #1084)
 import { findOnTraceWorld, findOnTrace, traceLookup, pointInDomain, SOLID_SURFACE_TYPES, surfaceMadeAt } from "../lib/viewer/modelHelpers.js"; // TASKS.csv #445 step 2; SOLID_SURFACE_TYPES: #804
 import { syncRasterDrapes, syncBoundaries, syncMapLayers, syncSectionImages, syncSurfaceStructures, syncOmfObjects, syncTerrain, outcropLabelItems } from "../lib/viewer/sceneBuilders.js"; // TASKS.csv #693; outcropLabelItems: #1443
 import { syncDrawLods, dropDrawLod } from "../lib/viewer/drawLod.js"; // TASKS.csv #795
@@ -4828,7 +4828,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       traceById.delete(c.hole_id);
       traceById.set(c.hole_id, { hole_id: c.hole_id, pts, wx: raw.map((p) => p.x), wy: raw.map((p) => p.y), wz: raw.map((p) => p.z) });
 
-      if (!collarMaterialRef.current) collarMaterialRef.current = new THREE.MeshBasicMaterial({ color: collarColorFor(bgColorRef.current) }); // #378
+      if (!collarMaterialRef.current) collarMaterialRef.current = collarMarkerMaterial(new THREE.MeshBasicMaterial({ color: collarColorFor(bgColorRef.current) })); // #378; #2623
       const marker = new THREE.Mesh(PROTO_SPHERE_12, collarMaterialRef.current); // TASKS.csv #312 — shared prototype + scale (was SphereGeometry(3.2, 12, 12))
       marker.scale.setScalar(3.2);
       marker.position.set(pts[0].x, pts[0].y, pts[0].z);

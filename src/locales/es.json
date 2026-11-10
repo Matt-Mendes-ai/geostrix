@@ -9788,5 +9788,9 @@
   "Stored as the element (oxide divided by its factor): {list}. The diagrams convert them back to oxides.": "Almacenados como el elemento (óxido dividido por su factor): {list}. Los diagramas los convierten de nuevo a óxidos.",
   "Change it per column with the as … menu.": "Cámbialo por columna con el menú como …",
   "Basis of {symbol}": "Base de {symbol}",
-  "as {v}": "como {v}"
+  "as {v}": "como {v}",
+  "Stretches the view vertically about the point you orbit around. Coordinates, picks and measurements stay true; labels and collar markers are not stretched.": "Estira la vista en vertical alrededor del punto sobre el que orbitas. Las coordenadas, las selecciones y las mediciones siguen siendo reales; las etiquetas y los marcadores de collar no se estiran.",
+  "Vertical exaggeration": "Exageración vertical",
+  "none (1x)": "ninguna (1x)",
+  "VE {v}x": "EV {v}x"
 }

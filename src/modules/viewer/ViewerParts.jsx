@@ -17,6 +17,7 @@ import { chipLook } from "../../lib/viewer/modelHelpers.js";
 import { lazyModal } from "../../lib/lazyModal.jsx";
 import { t as tr } from "../../lib/i18n.js";
 import { orphanHoleIds } from "../../lib/noCollars.js"; // TASKS.csv #1809
+import { VE_CHOICES, veOf } from "./verticalExaggeration.js"; // TASKS.csv #2623
 
 export const MeasureResults = lazyModal(() => import("../../components/MeasureResults.jsx"));
 const NumericSymbologyEditor = lazyModal(() => import("../../components/NumericSymbologyEditor.jsx"));
@@ -80,6 +81,13 @@ export function ViewToolbar({
                 </div>
                 <div style={{ flex: 1, fontSize: "var(--font-size-base)", color: figureOverlay.enabled ? "var(--color-text)" : "var(--color-text-faint)" }}>{tr("Show overlay")}</div>
               </div>
+              {/* TASKS.csv #2623 — vertical exaggeration of the 3D view; stated on the figure (beside the scale bar) whenever it is above 1x */}
+              <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", marginBottom: 8 }} title={tr("Stretches the view vertically about the point you orbit around. Coordinates, picks and measurements stay true; labels and collar markers are not stretched.")}>
+                {tr("Vertical exaggeration")}
+                <select aria-label={tr("Vertical exaggeration")} value={veOf(figureOverlay.ve)} onChange={(e) => setFigureOverlay((f) => ({ ...f, ve: Number(e.target.value) }))} style={{ fontSize: "var(--font-size-sm)", padding: "2px 4px" }}>
+                  {VE_CHOICES.map((v) => <option key={v} value={v}>{v === 1 ? tr("none (1x)") : `${v}x`}</option>)}
+                </select>
+              </label>
               <div style={{ display: "flex", flexDirection: "column", gap: 5, marginBottom: 8, opacity: figureOverlay.enabled ? 1 : 0.45 }}>
                 <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", cursor: "pointer" }}>
                   <input type="checkbox" disabled={!figureOverlay.enabled} checked={!!figureOverlay.title} onChange={(e) => setFigureOverlay((f) => ({ ...f, title: e.target.checked }))} />{" "}{tr("Title")}</label>

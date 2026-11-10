@@ -34,6 +34,8 @@
 //    ViewerModule for the derivation and its one documented limit (it does not frustum-cull).
 import React, { useRef, useEffect, useCallback, useLayoutEffect, useState } from "react";
 import { metresPerPixelAtTarget, chooseScaleBar } from "../lib/figureScale.js";
+import { setVerticalExaggeration, veOf } from "../modules/viewer/verticalExaggeration.js"; // TASKS.csv #2623
+import { COLLAR_MARKER_UNIFORMS } from "../lib/viewer/collarMarkerShader.js"; // TASKS.csv #2623
 // TASKS.csv #305 — an SVG font-size PRESENTATION ATTRIBUTE cannot resolve a var(), so the scale-bar
 // labels below take the type scale in its JS-mirror form instead of "var(--font-size-sm)". Same
 // CSS-vs-JS boundary theme.js documents for colour.
@@ -162,7 +164,27 @@ export default function ViewportFigureOverlay({ config, title, legendGroups, cam
     // layout of the whole page on each store update (1.3 s while a 10,544-hole project opened)
   }, [fit, legendKey, boxH, config.title, config.legend, config.enabled, showScale]);
 
-  if (!config.enabled) return null;
+  // TASKS.csv #2623 — vertical exaggeration: the camera's view matrix (verticalExaggeration.js), the collar markers' uniforms, a redraw.
+  // Here because this component holds the camera and orbit refs and the figure settings (saved with the view and its themes), and stays
+  // mounted while the overlay is off.
+  const ve = veOf(config.ve);
+  useEffect(() => {
+    setVerticalExaggeration(cameraRef.current, camStateRef, ve);
+    COLLAR_MARKER_UNIFORMS.uVE.value = ve;
+    cameraRef.current?.__update?.();
+  }, [ve, cameraRef, camStateRef]);
+  useEffect(() => {
+    const m = mountRef.current;
+    if (!m) return undefined;
+    const set = () => { if (m.clientHeight > 0) COLLAR_MARKER_UNIFORMS.uViewportH.value = m.clientHeight; }; // the marker floor's pixels
+    set();
+    if (typeof ResizeObserver === "undefined") return undefined;
+    const ro = new ResizeObserver(set); ro.observe(m);
+    return () => ro.disconnect();
+  }, [mountRef]);
+  const veTag = ve > 1 ? tr("VE {v}x", { v: ve }) : null;
+
+  if (!config.enabled) return veTag ? <div style={{ position: "absolute", inset: 0, pointerEvents: "none" }} aria-hidden="true"><div style={{ ...card, position: "absolute", bottom: 12, left: SCALE_LEFT_PX, padding: "4px 9px", fontSize: "var(--font-size-sm)", fontWeight: 600, color: "var(--color-text)" }}>{veTag}</div></div> : null; // #2623 — stated even with the overlay off
 
   // TASKS.csv #1398 (review #1352) — the rows are shared out between the groups in turn (allocateLegendRows), in their own order:
   // #381 sorted short groups first so grade classes were not pushed out, but that pushed Lithology, the colour of every hole, out
@@ -235,9 +257,10 @@ export default function ViewportFigureOverlay({ config, title, legendGroups, cam
           </svg>
           {/* The honesty label. This is not decoration: without it the bar claims a single scale for
               a perspective projection that does not have one. See figureScale.js's header. */}
-          <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-caption)", marginTop: 1, letterSpacing: 0.2 }}>{tr("at view centre")}</div>
+          <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-caption)", marginTop: 1, letterSpacing: 0.2 }}>{tr("at view centre")}{veTag && <> · <b style={{ color: "var(--color-text)" }}>{veTag}</b></>}</div>
         </div>
       )}
+      {veTag && !showScale && <div style={{ ...card, position: "absolute", bottom: 12, left: SCALE_LEFT_PX, padding: "4px 9px", fontSize: "var(--font-size-sm)", fontWeight: 600, color: "var(--color-text)" }}>{veTag}</div>}{/* #2623 */}
     </div>
   );
 }
