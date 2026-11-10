@@ -49,6 +49,12 @@ export function presetConversions(assayElements, readUnits) {
   }
   return out;
 }
+// TASKS.csv #2619 (re-test of #2500) — a preset's units apply while its formula is the preset's own: compared without spaces, so a typed space
+// keeps the conversion; any other edit (K*10000/Cs) makes it the user's formula, read in the stored units, and the dialog says so
+const bare = (s) => String(s ?? "").replace(/\s+/g, "");
+export function presetUnitsFor(preset, expr) {
+  return preset?.units && bare(expr) === bare(preset.expr) ? preset.units : null;
+}
 // Returns { assays, element, computed, skipped, min, max } or throws with a readable message.
 // #2500 — readUnits ({ K: "%", Rb: "ppm" }, a preset's): the elements are converted to those units before the formula reads them.
 export function addCalculatedElement(assays, assayElements, name, expr, unit = "index", { readUnits = null } = {}) {

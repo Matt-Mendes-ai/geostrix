@@ -9663,5 +9663,6 @@
   "{el} below detection in {n}": "{el} bajo detección en {n}",
   " {n} sample(s) were not classified: a below-detection operand is not a measurement ({list}).": " {n} muestra(s) no se clasificaron: un operando bajo el límite de detección no es una medición ({list}).",
   "{fileName}: the control points turn these mine-grid coordinates into map coordinates. Which coordinate system are the control points' map coordinates in? The collars are placed in it.": "{fileName}: los puntos de control convierten estas coordenadas de grilla de mina en coordenadas de mapa. ¿En qué sistema de coordenadas están las coordenadas de mapa de los puntos de control? Los collares se ubican en él.",
-  "{fileName}: the local-grid transform needs the coordinate system its control points are in, and none was chosen. Nothing was imported.": "{fileName}: la transformación de grilla local necesita el sistema de coordenadas de sus puntos de control, y no se eligió ninguno. No se importó nada."
+  "{fileName}: the local-grid transform needs the coordinate system its control points are in, and none was chosen. Nothing was imported.": "{fileName}: la transformación de grilla local necesita el sistema de coordenadas de sus puntos de control, y no se eligió ninguno. No se importó nada.",
+  "The formula was edited, so it is no longer the {label} preset: the elements are read in their stored units ({v}), with no conversion.": "La fórmula se editó, así que ya no es el ajuste predefinido {label}: los elementos se leen en sus unidades almacenadas ({v}), sin conversión."
 }

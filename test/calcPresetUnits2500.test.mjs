@@ -26,5 +26,5 @@ test("stored as the preset expects: nothing converted; an unconvertible unit is 
 
 test("the dialog passes the preset's units only while its formula is unchanged", () => {
   const g = readFileSync(new URL("../src/modules/GeochemModule.jsx", import.meta.url), "utf8");
-  assert.equal((g.match(/readUnits: calc\.preset && calc\.expr === calc\.preset\.expr \? calc\.preset\.units : null/g) || []).length, 2);
+  assert.equal((g.match(/readUnits: presetUnitsFor\(calc\.preset, calc\.expr\)/g) || []).length, 2); // #2619: spaces ignored, any other edit drops it
 });

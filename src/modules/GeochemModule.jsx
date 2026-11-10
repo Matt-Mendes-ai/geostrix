@@ -15,7 +15,7 @@ import { Ribbon, RibbonGroup, RibbonButton } from "../components/Ribbon.jsx"; //
 import { MapPin as GMapPin, Triangle as GTriangle, Shapes as GShapes, BarChart3 as GBarChart, Award as GAward, Rows3 as GRows, Sheet as GSheet, Image as GImage } from "../components/icons.js";
 import { Upload, Download, FlaskConical, Beaker, Scale, Grid3x3, ShieldCheck, TerminalSquare, Sigma, FileCheck, X, AlertTriangle, Globe, Database } from "../components/icons.js";
 import { noticeText, noticeLevel, errorNotice, notice } from "../lib/notices.js"; // TASKS.csv #729
-import { addCalculatedElement, CALC_PRESETS } from "../lib/calcElement.js"; // TASKS.csv #401
+import { addCalculatedElement, CALC_PRESETS, presetUnitsFor } from "../lib/calcElement.js"; // TASKS.csv #401; presetUnitsFor: #2619
 import { useStore, useSetTaskProgress } from "../lib/store.jsx"; // useSetTaskProgress: #2164
 import { elementColumnStats } from "../lib/assayColumnScan.js"; // TASKS.csv #2164
 const ELEMENT_SCAN_CHUNKED_ROWS = 50000; // #2164 — below this the element columns are counted at once
@@ -1176,7 +1176,7 @@ export default function GeochemModule() {
             <div className="ge-section-label" style={{ marginTop: 18 }}>{tr("Calculated element")}</div>
               <div style={{ padding: 8, border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-sm)", display: "flex", flexDirection: "column", gap: 6 }}>
                 {assayElements.length > 0 && surfaceElements.length > 0 && <label style={{ display: "flex", alignItems: "center", gap: 6 }}>{tr("Data source")}<select value={onSurface ? "surface" : "assays"} onChange={(e) => setCalc((c) => ({ ...c, source: e.target.value, msg: null }))} style={{ fontSize: "var(--font-size-sm)" }} aria-label={tr("Data source")}><option value="assays">{tr("Drillhole assays")}</option><option value="surface">{tr("Surface samples")}</option></select></label>}
-                <select value="" onChange={(e) => { const p = CALC_PRESETS.find((x) => x.name === e.target.value); if (p) setCalc((c) => ({ source: c?.source, name: p.name, expr: p.expr, unit: "index", preset: p, msg: { ok: true, text: `${tr(p.label)}. ${tr(p.unitNote)}. ${tr("Read in {list}, converted from the stored units where they differ.", { list: Object.entries(p.units || {}).map(([s, u]) => `${s} ${u}`).join(", ") })}` } })); }} /* preset / units: #2500 */ style={{ fontSize: "var(--font-size-sm)" }} aria-label={tr("Preset")}>
+                <select value="" onChange={(e) => { const p = CALC_PRESETS.find((x) => x.name === e.target.value); if (p) setCalc((c) => ({ source: c?.source, name: p.name, expr: p.expr, unit: "index", preset: p, msg: { ok: true, preset: true, text: `${tr(p.label)}. ${tr(p.unitNote)}. ${tr("Read in {list}, converted from the stored units where they differ.", { list: Object.entries(p.units || {}).map(([s, u]) => `${s} ${u}`).join(", ") })}` } })); }} /* preset / units: #2500 */ style={{ fontSize: "var(--font-size-sm)" }} aria-label={tr("Preset")}>
                   <option value="">{tr("Preset… (or write your own below)")}</option>
                   {CALC_PRESETS.map((p) => <option key={p.name} value={p.name} disabled={!p.needs.every((s) => calcEls.some((e) => e.symbol === s))}>{tr(p.label)}{p.needs.every((s) => calcEls.some((e) => e.symbol === s)) ? "" : tr(" — needs {list}", { list: p.needs.join(", ") })}</option>)}
                 </select>
@@ -1185,19 +1185,21 @@ export default function GeochemModule() {
                 <label style={{ display: "flex", alignItems: "center", gap: 6 }}>{tr("Unit")}<select value={calc.unit || "index"} onChange={(e) => setCalc((c) => ({ ...c, unit: e.target.value }))} style={{ fontSize: "var(--font-size-sm)" }} aria-label={tr("Unit of the calculated element")} title={tr("An index has no unit. A metal-equivalent (CuEq, AuEq) takes the grade unit its formula gives, % or g/t, so an estimate of it can be priced in the pit shell.")}>{["index", "%", "g/t", "ppm", "ppb"].map((u) => <option key={u} value={u}>{u === "index" ? tr("index (no unit)") : u}</option>)}</select></label>
                 <textarea value={calc.expr} onChange={(e) => setCalc((c) => ({ ...c, expr: e.target.value }))} rows={3} placeholder={tr("Formula over element symbols, e.g. 100*Zn/(Zn+Pb)")} aria-label={tr("Calculated element formula")} style={{ fontSize: "var(--font-size-sm)", fontFamily: "monospace" }} />
                 <div style={{ color: "var(--color-text-muted)" }}>{tr("Elements are read in their stored units ({v}{v2}). Rows missing any element in the formula get no value.", { v: calcEls.slice(0, 6).map((e) => `${e.symbol} ${e.unit}`).join(", "), v2: calcEls.length > 6 ? ", …" : "" })}</div>
-                {calc.msg && <div style={{ color: calc.msg.ok ? "var(--color-text-secondary)" : "var(--color-danger-icon-strong)" }}>{calc.msg.text}</div>}
+                {calc.msg && (calc.msg.preset && calc.preset && !presetUnitsFor(calc.preset, calc.expr) /* #2619 — the preset's promise no longer holds */
+                  ? <div style={{ color: "var(--color-warn-text)" }}>{tr("The formula was edited, so it is no longer the {label} preset: the elements are read in their stored units ({v}), with no conversion.", { label: tr(calc.preset.label), v: calcEls.filter((e) => new RegExp(`(^|[^A-Za-z0-9_])${e.symbol}(?![A-Za-z0-9_])`).test(calc.expr)).map((e) => `${e.symbol} ${e.unit}`).join(", ") /* the formula's own elements */ })}</div>
+                  : <div style={{ color: calc.msg.ok ? "var(--color-text-secondary)" : "var(--color-danger-icon-strong)" }}>{calc.msg.text}</div>)}
                 <div style={{ display: "flex", gap: 6 }}>
                   <button style={{ ...genBtn, flex: 1 }} onClick={() => {
                     try {
                       if (onSurface) { // #1799 — stored on the surface samples like an imported element: plan map, thresholds, grade stats take it
-                        const r = addCalculatedElement(surfaceSamples, surfaceElements, calc.name, calc.expr, calc.unit || "index", { readUnits: calc.preset && calc.expr === calc.preset.expr ? calc.preset.units : null }); // #2500
+                        const r = addCalculatedElement(surfaceSamples, surfaceElements, calc.name, calc.expr, calc.unit || "index", { readUnits: presetUnitsFor(calc.preset, calc.expr) }); // #2500; presetUnitsFor: #2619
                         setSurfaceSamples(r.assays);
                         setSurfaceElements((prev) => [...prev, r.element]);
                         setNotices((p) => [...p, notice("Added calculated element {symbol} = {expr} on {computed} surface sample(s) (range {min}–{max}){v}. The plan map, thresholds, grade stats and correlation can use it. It is not recalculated if the samples are re-imported.", { symbol: r.element.symbol, expr: r.element.calculated.expr, computed: r.computed.toLocaleString(), min: r.min.toFixed(2), max: r.max.toFixed(2), v: r.skipped ? tr("; {skipped} sample(s) missing an element in the formula have no value", { skipped: r.skipped.toLocaleString() }) : "" })]);
                         setCalc(null);
                         return;
                       }
-                      const r = addCalculatedElement(assays, assayElements, calc.name, calc.expr, calc.unit || "index", { readUnits: calc.preset && calc.expr === calc.preset.expr ? calc.preset.units : null }); // unit: #1749; readUnits: #2500 (a preset's formula as given)
+                      const r = addCalculatedElement(assays, assayElements, calc.name, calc.expr, calc.unit || "index", { readUnits: presetUnitsFor(calc.preset, calc.expr) }); // unit: #1749; readUnits: #2500, #2619 (a preset's formula as given)
                       setAssays(r.assays);
                       setAssayElements((prev) => [...prev, r.element]);
                       setNotices((p) => [...p, notice("Added calculated element {symbol} = {expr} on {computed} assay interval(s) (range {min}–{max}){v}. It can now be shown downhole, in 3D and on sections like any element. It is not recalculated if assays are re-imported.", { symbol: r.element.symbol, expr: r.element.calculated.expr, computed: r.computed.toLocaleString(), min: r.min.toFixed(2), max: r.max.toFixed(2), v: r.skipped ? tr("; {skipped} interval(s) missing an element in the formula have no value", { skipped: r.skipped.toLocaleString() }) : "" })]);
