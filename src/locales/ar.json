@@ -9603,5 +9603,6 @@
   "Each assay counts by its length: a 3 m interval three times a 1 m one, so close sampling in the ore does not outweigh the background. Judge each domain against its own population: group by the lithology, alteration or weathering logged at the interval's middle. The histogram counts intervals.": "يُحتسب كل تحليل بطوله: فاصل 3 م يعادل ثلاثة أضعاف فاصل 1 م، حتى لا يطغى أخذ العينات الكثيف في الخام على الخلفية. قيّم كل نطاق مقابل مجتمعه: جمّع حسب الصخارة أو التحول أو التجوية المسجلة عند منتصف الفاصل. يعدّ المدرج التكراري الفواصل.",
   "No positive {symbol} values in the drill assays.": "لا توجد قيم موجبة لـ {symbol} في تحاليل الثقوب.",
   "Import surface samples or drill assays first": "استورد العينات السطحية أو تحاليل الثقوب أولًا",
-  "Anomaly thresholds for soil and stream-sediment samples, and length-weighted for drill assays, judged within populations": "عتبات الشذوذ لعينات التربة ورواسب المجاري، ومرجّحة بالطول لتحاليل الثقوب، تُقيَّم داخل كل مجتمع"
+  "Anomaly thresholds for soil and stream-sediment samples, and length-weighted for drill assays, judged within populations": "عتبات الشذوذ لعينات التربة ورواسب المجاري، ومرجّحة بالطول لتحاليل الثقوب، تُقيَّم داخل كل مجتمع",
+  "Each reading is placed at the middle of its From–To interval ({from} to {to}): a log at short steps, not intervals of a rock unit.": "توضع كل قراءة في منتصف فاصلها من–إلى ({from} إلى {to}): تسجيل بخطوات قصيرة، لا فواصل وحدة صخرية."
 }

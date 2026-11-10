@@ -5,7 +5,14 @@
 
 // a column that names a log channel; and one that is an id / depth / coordinate column (never a channel)
 const CHANNEL = /gamma|\bgrs?\b|\bngam|\bcps\b|\bapi\b|densit|\bdens\b|\bsg\b|suscep|\bmsus|\bmag[\s_-]*sus|calip|\bcal\b|conduct|resist|\bres\b|ohm|eu3o8|\beu\b|\bek\b|\bth\b.*ppm|neutron|sonic|velocity|temperat|\bk[\s_-]*%|\bu[\s_-]*ppm/i;
-const NOT_CHANNEL = /^(hole|holeid|hole_id|bhid|dhid|site|depth|md|dept|from|to|x|y|z|east|north|rl|elev|date|time|comment|remark|tool|run|probe|operator|company|project)$/i;
+const NOT_CHANNEL = /^(hole|holeid|hole_id|bhid|dhid|site|depth|md|dept|from|to|mfrom|mto|m_from|m_to|depth_from|depth_to|x|y|z|east|north|rl|elev|date|time|comment|remark|tool|run|probe|operator|company|project|priority)$/i;
+// TASKS.csv #2329 (review #2325, WA uranium) — "Raw_cps" failed \bcps\b: "_" is a word character. Headers are tested with _ and . as spaces.
+const spaced = (h) => String(h ?? "").replace(/[_.]+/g, " ");
+const isChannel = (h) => CHANNEL.test(spaced(h));
+// a channel only a downhole log has (an interval table with one of these is a log at short steps, not a lithology / assay table)
+const LOG_ONLY = /gamma|\bgrs?\b|\bngam|\bcps\b|\bapi\b|eu3o8|neutron|calip|conduct|resist|ohm/i;
+const isLogOnly = (h) => LOG_ONLY.test(spaced(h));
+const FROM_TO = /^(from|to|depth_?from|depth_?to|geolfrom|geolto|sampfrom|sampto|m_?from|m_?to)$/i;
 // the unit a header names: "Density_Best (g/cc)", "Gamma_cps", "Suscep_SI", "eU3O8_cased_ppm", "RES_ohmm"
 const UNITS = [
   [/\bcps\b|_cps\b|counts?[\s_]*per[\s_]*sec/i, "cps"], [/\bapi\b|_api\b/i, "API"], [/g\s*\/\s*cc|g\/cm3|g\s*cm-?3|\bgcc\b|_gcc\b/i, "g/cc"],
@@ -30,20 +37,28 @@ export function logChannelColumns(headers, rows, mapping = {}, sample = 200) {
     let seen = 0, nums = 0;
     for (const r of rows || []) { const v = r?.[h]; if (v == null || v === "") continue; seen++; if (isNum(v)) nums++; if (seen >= sample) break; }
     if (!seen || nums / seen < 0.8) continue;
-    out.push({ col: h, unit: unitFromHeader(h), named: CHANNEL.test(String(h)) });
+    out.push({ col: h, unit: unitFromHeader(h), named: isChannel(h) }); // #2329 — Raw_cps
   }
   return out;
 }
 // a table that is a downhole log rather than an SG / lithology / mag-susc layer: point depths, and two or more channel columns, or one that
-// only a log has (gamma, cps, API, eU3O8, caliper, conductivity / resistivity)
+// only a log has (gamma, cps, API, eU3O8, caliper, conductivity / resistivity). #2329 — also a From / To table at short steps (the WA
+// 5 cm gamma log: Hole_ID, mFrom, mTo, Raw_cps, eU3O8_cased_ppm) when a column only a log has is present: read at each interval's middle.
 export function looksLikeLogTable(headers) {
   const hs = (headers || []).map((h) => String(h));
-  const named = hs.filter((h) => CHANNEL.test(h) && !NOT_CHANNEL.test(h.trim()));
+  const named = hs.filter((h) => isChannel(h) && !NOT_CHANNEL.test(h.trim()));
   if (!named.length) return false;
   if (hs.some((h) => /^alpha/i.test(h.trim())) && hs.some((h) => /^beta/i.test(h.trim()))) return false; // oriented core: its 'Gamma' is an angle (#604's Woodjam event log)
-  if (hs.some((h) => /^(from|to|depth_?from|depth_?to|geolfrom|geolto|sampfrom|sampto|m_?from|m_?to)$/i.test(h.trim()))) return false; // interval tables are not point logs
+  if (hs.some((h) => FROM_TO.test(h.trim()))) return named.some(isLogOnly); // #2329 — an interval table is a log only with a log-only channel
   if (!hs.some((h) => /^(depth|md|dept|depth_?m|depth_?\(m\)|depth_?metres?|sampdepth)$/i.test(h.trim().replace(/\s+/g, "_")))) return false;
-  return named.length >= 2 || named.some((h) => /gamma|\bgrs?\b|cps|\bapi\b|eu3o8|calip|conduct|resist|ohm/i.test(h));
+  return named.length >= 2 || named.some(isLogOnly);
+}
+// #2329 — a reading's depth: the depth column, else the middle of its From / To
+export function readingDepth(r, mapping) {
+  const num = (v) => (typeof v === "number" ? v : Number(String(v ?? "").replace(",", ".")));
+  if (mapping?.depth) return num(r?.[mapping.depth]);
+  if (mapping?.from && mapping?.to) { const f = num(r?.[mapping.from]), t = num(r?.[mapping.to]); return Number.isFinite(f) && Number.isFinite(t) ? (f + t) / 2 : NaN; }
+  return NaN;
 }
 
 // TASKS.csv #2160 — readings kept raw while the layers stay under this many values in all; above it binning is offered (decision (2))
@@ -57,7 +72,7 @@ export function logChannelRows(rows, mapping, col, binM = null) {
   const pts = [];
   let skipped = 0;
   for (const r of rows || []) {
-    const hole = String(r?.[mapping.hole_id] ?? "").trim(), d = num(r?.[mapping.depth]), v = r?.[col];
+    const hole = String(r?.[mapping.hole_id] ?? "").trim(), d = readingDepth(r, mapping), v = r?.[col]; // #2329 — or the From / To middle
     if (!hole || !Number.isFinite(d) || !isNum(v)) { skipped++; continue; }
     pts.push({ hole_id: hole, depth: d, value: num(v) });
   }
@@ -84,7 +99,9 @@ export const defaultLogBin = (readings, channels) => (needsBinning(readings, cha
 // the channels an import will make layers of: the user's choice, else the named ones; null when this is not a point-depth custom layer
 // (the dialog, its required-field check and the commit all ask this one function)
 export function logChannelsFor(target, headers, rows, mapping, chosen) {
-  if (target !== "custom" || !mapping?.depth || mapping?.from) return null;
+  if (target !== "custom") return null;
+  const point = mapping?.depth && !mapping?.from, interval = !mapping?.depth && mapping?.from && mapping?.to; // interval: #2329 — read at the middles
+  if (!point && !(interval && looksLikeLogTable(headers))) return null;
   const list = chosen ?? defaultLogChannels(logChannelColumns(headers, rows, mapping));
   return list?.length ? list : null;
 }

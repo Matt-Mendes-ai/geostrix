@@ -1,7 +1,7 @@
 // TASKS.csv #2160 (Matt's decision 2026-11-09) — in the import dialog, for a point-depth custom layer: the log channels to import, one
 // numeric layer each, units read from the column names; and, when the readings would not fit the memory budget, the bin to average them to.
 import React, { useMemo } from "react";
-import { logChannelColumns, defaultLogChannels, defaultLogBin, needsBinning } from "../lib/downholeLogChannels.js";
+import { logChannelColumns, defaultLogChannels, defaultLogBin, needsBinning, looksLikeLogTable } from "../lib/downholeLogChannels.js";
 import { t as tr } from "../lib/i18n.js";
 
 const note = { fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", lineHeight: 1.45 };
@@ -9,7 +9,8 @@ const note = { fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)"
 export default function LogChannelsBox({ modal, onChange, sel }) {
   const rows = modal.allRows || modal.sampleRows || [];
   const channels = useMemo(() => logChannelColumns(modal.headers, rows, modal.mapping), [modal.headers, rows, modal.mapping]);
-  if (modal.target !== "custom" || !modal.mapping?.depth || modal.mapping?.from || channels.length < 1) return null;
+  const point = modal.mapping?.depth && !modal.mapping?.from, interval = !modal.mapping?.depth && modal.mapping?.from && modal.mapping?.to && looksLikeLogTable(modal.headers); // interval: TASKS.csv #2329
+  if (modal.target !== "custom" || !(point || interval) || channels.length < 1) return null;
   const ticked = modal.logChannels ?? defaultLogChannels(channels, modal.mapping) ?? [];
   const binM = modal.logBinM !== undefined ? modal.logBinM : defaultLogBin(rows.length, ticked.length);
   const over = needsBinning(rows.length, ticked.length);
@@ -19,6 +20,7 @@ export default function LogChannelsBox({ modal, onChange, sel }) {
     <div style={{ marginBottom: 14, border: "1px solid var(--color-border)", borderRadius: 6, padding: "8px 10px" }}>
       <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text)", fontWeight: 600 }}>{tr("Downhole log channels")}</div>
       <div style={note}>{tr("Each ticked channel becomes its own numeric layer, named after the column. Untick all to import only the value column above as one layer.")}</div>
+      {!modal.mapping?.depth && modal.mapping?.from && modal.mapping?.to && <div style={note}>{tr("Each reading is placed at the middle of its From–To interval ({from} to {to}): a log at short steps, not intervals of a rock unit.", { from: modal.mapping.from, to: modal.mapping.to })}</div>}{/* TASKS.csv #2329 */}
       <div style={{ display: "flex", flexWrap: "wrap", gap: "2px 14px", marginTop: 6 }}>
         {channels.map((c) => (
           <label key={c.col} style={{ fontSize: "var(--font-size-sm)", display: "flex", gap: 5, alignItems: "center" }}>

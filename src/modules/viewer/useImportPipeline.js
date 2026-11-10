@@ -610,7 +610,10 @@ export function useImportPipeline(ctx) {
         sceneRef.current.getObjectByName("root").add(group);
         const name = `${base}: ${col}`;
         const rowsOut = out.rows.map((r) => ({ ...r, _src: fileName }));
-        setCustomLayers((p) => [...p, { id, name, rows: rowsOut, group, unit: unit || undefined, ...(out.binned ? { binM, notes: `Binned on import to ${binM} m: mean of ${out.readings} reading(s), with each bin's min and max (fields min, max, n). Source: ${fileName}.` } : {}) }]);
+        // TASKS.csv #2329 — a From / To log: each reading placed at its interval's middle, said in the layer's notes (project text: English)
+        const mid = !mapping.depth && mapping.from && mapping.to ? `Each reading placed at the middle of its ${mapping.from}-${mapping.to} interval.` : "";
+        const binNote = out.binned ? `Binned on import to ${binM} m: mean of ${out.readings} reading(s), with each bin's min and max (fields min, max, n). Source: ${fileName}.` : "";
+        setCustomLayers((p) => [...p, { id, name, rows: rowsOut, group, unit: unit || undefined, ...(out.binned ? { binM } : {}), ...(binNote || mid ? { notes: [binNote, mid].filter(Boolean).join(" ") } : {}) }]);
         setCustomVisible((p) => ({ ...p, [id]: k === 0 }));
         made.push(`${col}${unit ? ` (${unit})` : ""}: ${out.rows.length.toLocaleString()}${out.skipped ? ` (${out.skipped} without a number)` : ""}`);
       });
