@@ -4512,7 +4512,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             const mesh = new PickStandIn(POINT_PROTO[shape] || PROTO_SPHERE_10, { color: assayColorFor(v, idx, style), transparent: op < 1, opacity: op, side: shape === "disc" ? THREE.DoubleSide : THREE.FrontSide }); // #1500
             mesh.scale.setScalar(assaySizeFor(v, ranges[sym], style)); // #306
             mesh.position.set(pt.x + offX, pt.y, pt.z + offZ);
-            mesh.userData = lazyTip({ row: a, holeId: c.hole_id }, () => `${c.hole_id}\n${sym}: ${gradeText(v)} ${elementUnits[sym] || ""}${px ? " (pXRF)" : ""}\n${a.from.toFixed(0)}–${a.to.toFixed(0)} m`); // #1500
+            mesh.userData = lazyTip({ row: a, holeId: c.hole_id }, () => `${c.hole_id}\n${sym}: ${gradeText(v)} ${elementUnits[sym] || ""}${px ? " (pXRF)" : ""}\n${+a.from.toFixed(2)}–${+a.to.toFixed(2)} m`); // #1500; #2365 as stored
             g.add(mesh);
           });
         });
@@ -4907,7 +4907,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           const mesh = mesh_;
           // TASKS.csv #208 — a mapped Description in the tooltip; #227 — catValue for the category pass; #1500 — the tooltip made on first
           // read (lazyTip), holeId for the visible-holes pass
-          mesh.userData = lazyTip({ row, holeId: c.hole_id, catValue: row.value, ...(groupKey === "litho" ? { lithoRow: row } : {}) }, () => `${c.hole_id}\n${meta.label}: ${meta.numeric ? row.value : effectiveLabel(groupKey, row.value)}${row.extra != null ? ` (${row.extra}${meta.extraSuffix || ""})` : ""}\n${row.from.toFixed(0)}–${row.to.toFixed(0)} m${row.intensity ? ` · intensity ${row.intensity}` : ""}${Number.isFinite(row.alpha) ? ` · alpha ${row.alpha}°` : ""}${row.description ? `\n${row.description}` : ""}`); // lithoRow: TASKS.csv #599 picking
+          mesh.userData = lazyTip({ row, holeId: c.hole_id, catValue: row.value, ...(groupKey === "litho" ? { lithoRow: row } : {}) }, () => `${c.hole_id}\n${meta.label}: ${meta.numeric ? row.value : effectiveLabel(groupKey, row.value)}${row.extra != null ? ` (${row.extra}${meta.extraSuffix || ""})` : ""}\n${+row.from.toFixed(2)}–${+row.to.toFixed(2)} m${row.intensity ? ` · intensity ${row.intensity}` : ""}${Number.isFinite(row.alpha) ? ` · alpha ${row.alpha}°` : ""}${row.description ? `\n${row.description}` : ""}`); // lithoRow: TASKS.csv #599 picking
           groups[groupKey].add(mesh);
          } catch (err) { buildErrors.push(`${groupKey} ${c.hole_id} ${row.from}-${row.to}: ${err.message}`); }
         });
@@ -5010,7 +5010,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             mesh.scale.set(1.6 * stI.size, len, 1.6 * stI.size);
             mesh.position.set(p1.x, p1.y, p1.z);
             mesh.quaternion.setFromUnitVectors(PIN_AXIS, dipPinDir.set(dx / len, dy / len, dz / len));
-            mesh.userData = lazyTip({ row, holeId: c.hole_id }, () => `${c.hole_id}\n${layer.name}: ${row.value ?? "—"}\n${row.from.toFixed(0)}–${row.to.toFixed(0)} m`); // #1500
+            mesh.userData = lazyTip({ row, holeId: c.hole_id }, () => `${c.hole_id}\n${layer.name}: ${row.value ?? "—"}\n${+row.from.toFixed(2)}–${+row.to.toFixed(2)} m`); // #1500
             layer.group.add(mesh);
           } else if (row.depth != null && !isNaN(row.depth)) {
             const p = look.at(row.depth);
