@@ -17,6 +17,7 @@
 // map has, and handles holes and multipart units for free via the even-odd fill rule. The cost is a
 // finite texel size, chosen per layer below (~1 m/px, capped).
 import { graduatedClassKey } from "./mapGraduated.js"; // TASKS.csv #1600
+import { gridXY } from "./gridColumns.js"; // TASKS.csv #2564
 
 // ---------- .qml (QGIS layer style) ----------
 
@@ -422,9 +423,12 @@ export function guessStructureColumns(headers) {
   const about = (n) => /conf|qual|err|accur|certain|method|flag|source/.test(n);
   const dipDir = take([(n) => n === "dipdirection" || n === "dipdir" || n === "ddir" || n === "dd" || n === "dipazimuth" || n === "dipaz", (n) => n.startsWith("dipdir") && !about(n), (n) => n === "azimuth" || n === "az"]); // "dd": TASKS.csv #426
   const dip = take([(n) => n === "dip", (n) => n.startsWith("dip") && !n.startsWith("dipdir") && !n.startsWith("dipaz") && !about(n)], [dipDir]);
-  const x = take([(n) => n === "x" || n === "easting" || n === "east", (n) => n.startsWith("easting") || n.startsWith("east"), (n) => n.includes("easting"), (n) => n === "eutm" || n === "utme" || n === "utmeast"]); // e_utm: #1605 (40958Z)
-  const y = take([(n) => n === "y" || n === "northing" || n === "north", (n) => n.startsWith("northing") || n.startsWith("north"), (n) => n.includes("northing"), (n) => n === "nutm" || n === "utmn" || n === "utmnorth"]);
-  const z = take([(n) => n === "z" || n === "elev" || n === "elevation" || n === "rl" || n === "alt" || n === "altitude", (n) => n.startsWith("elev")]);
+  let x = take([(n) => n === "x" || n === "easting" || n === "east", (n) => n.startsWith("easting") || n.startsWith("east"), (n) => n.includes("easting"), (n) => n === "eutm" || n === "utme" || n === "utmeast"]); // e_utm: #1605 (40958Z)
+  let y = take([(n) => n === "y" || n === "northing" || n === "north", (n) => n.startsWith("northing") || n.startsWith("north"), (n) => n.includes("northing"), (n) => n === "nutm" || n === "utmn" || n === "utmnorth"]);
+  let z = take([(n) => n === "z" || n === "elev" || n === "elevation" || n === "rl" || n === "alt" || n === "altitude", (n) => n.startsWith("elev")]);
+  // TASKS.csv #2564 — a grid-named pair (MGA_E / MGA_N / MGA_Z, GDA94_East ...) when no plain easting / northing is there
+  const g = !x || !y ? gridXY(headers) : null;
+  if (g) { if (!x) x = g.x; if (!y) y = g.y; if (!z && g.z) z = g.z; }
   const strike = take([(n) => n === "strike" || n === "strk", (n) => n.startsWith("strike") && !about(n)]);
   const type = take([(n) => n === "structuretype" || n === "type" || n === "structure", (n) => n.endsWith("structuretype"), (n) => n.includes("type")]);
   const comment = take([(n) => n === "comments" || n === "comment" || n === "notes" || n === "description", (n) => n.startsWith("comment")]);

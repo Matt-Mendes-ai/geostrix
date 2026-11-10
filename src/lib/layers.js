@@ -5,6 +5,7 @@ import { voxelStretch } from "./voxelStretch.js"; // TASKS.csv #1812
 import { looksLikeLogTable } from "./downholeLogChannels.js"; // TASKS.csv #2160
 import { looksLikeEventTable } from "./downholeEvents.js"; // TASKS.csv #2317
 import { guessStructureColumns } from "./mapLayers.js"; // TASKS.csv #426
+import { gridCoordinateColumns, gridElevation } from "./gridColumns.js"; // TASKS.csv #2151, moved: #2564
 import { isElementColumn } from "./geochem.js"; // TASKS.csv #2150
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 
@@ -897,24 +898,8 @@ export function replaceNote(res, what) {
 // miss x / y about 9,000 times each in the database. An east and a north column count only as a PAIR with the same prefix (so "Dip_E" or
 // "Line_E" + "Station_N" never do); a one-letter suffix needs its underscore. -> [{ prefix, x, y, z }], map grids (MGA / GDA / AMG / UTM)
 // first and local / mine grids last; z is the same grid's RL / elevation when the file has one.
-const GRID_COL = /^([a-z][a-z0-9]*?)(?:_(e|n|x|y|z)|_?(east|easting|north|northing|rl|elev|elevation))$/;
-const GRID_AXIS = { e: "x", x: "x", east: "x", easting: "x", n: "y", y: "y", north: "y", northing: "y", z: "z", rl: "z", elev: "z", elevation: "z" };
-const gridRank = (p) => (/^(mga|gda|amg|utm|map|grid|nat)/.test(p) ? 0 : /^(local|loc|mine|orig|old|site)/.test(p) ? 2 : 1);
-export function gridCoordinateColumns(headers) {
-  const by = new Map();
-  for (const h of headers || []) {
-    const m = GRID_COL.exec(normHeader(h));
-    if (!m) continue;
-    const axis = GRID_AXIS[m[2] || m[3]];
-    if (!by.has(m[1])) by.set(m[1], {});
-    const g = by.get(m[1]);
-    if (!g[axis]) g[axis] = h;
-  }
-  return [...by].filter(([, g]) => g.x && g.y).map(([prefix, g]) => ({ prefix, x: g.x, y: g.y, z: g.z || "" }))
-    .sort((a, b) => gridRank(a.prefix) - gridRank(b.prefix));
-}
-// any RL / elevation column of a grid ("Orig_RL" beside GBMG_East / GBMG_North), for a pair with no z of its own
-const gridElevation = (headers) => (headers || []).find((h) => { const m = GRID_COL.exec(normHeader(h)); return m && GRID_AXIS[m[2] || m[3]] === "z"; }) || "";
+// moved to gridColumns.js (#2564): one detector for collars, surface samples and outcrop structures
+export { gridCoordinateColumns } from "./gridColumns.js";
 // TASKS.csv #2152 — columns that name a hole's attribute, never its id; and columns that are not the hole's measured length / azimuth / dip
 const HOLE_ID_VETO = /(length|depth|_len$|_m$|azi|dip|elev|type|status|parent|purpose|path|diam)/;
 const NOT_MEASURED = /(comment|cmnts?|nominal|planned|plan_|design|target|(^|_)ref(_|$)|precollar|pre_collar|boco|tofr|water)/;

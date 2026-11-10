@@ -25,7 +25,7 @@ import { DIAGRAMS, SPIDER_DIAGRAMS, GEOCHEM_METHODS, diagramExportRows, protolit
 import { qcRecordFromFileRow, emptySurfaceQc, looksLikeQcTypeColumn, mergeQcRecords } from "../lib/surfaceQaqc.js"; // TASKS.csv #842; looksLikeQcTypeColumn, mergeQcRecords: #1794
 import { mapInChunks } from "../lib/mapInChunks.js"; // TASKS.csv #583
 import { detectLongAssay, pivotLongAssays, longAssayNote } from "../lib/longAssays.js"; // TASKS.csv #623
-import { isSurfaceSampleTable, SURFACE_XY_ALIASES } from "../lib/viewer/importHelpers.js"; // TASKS.csv #975
+import { isSurfaceSampleTable, surfaceXYColumns } from "../lib/viewer/importHelpers.js"; // TASKS.csv #975; surfaceXYColumns: #2564
 import { assayFileSummary, removeAssayFile, removeAssayElement, carbonateShare, VOLCANIC_DIAGRAMS } from "../lib/geochem.js"; // TASKS.csv #624; carbonateShare: #1392
 import { confirmDestructive } from "../lib/confirmDestructive.js"; // TASKS.csv #624
 import GeochemPlot from "../components/GeochemPlot.jsx";
@@ -759,9 +759,9 @@ export default function GeochemModule() {
         // TASKS.csv #600 (40958Z) — the shared matcher + MX-style names: e_utm / n_utm, elev_m, samp_num, samp_type
         const guess = (aliases) => guessColumn(headers, aliases);
         const mapping = {
-          x: guess(SURFACE_XY_ALIASES.x),
-          y: guess(SURFACE_XY_ALIASES.y),
-          z: guess(["z", "elevation", "elev", "elev_m", "rl", "elev_dem_m"]),
+          x: surfaceXYColumns(headers).x, // #2564: MGA_E / MGA_N too
+          y: surfaceXYColumns(headers).y,
+          z: guess(["z", "elevation", "elev", "elev_m", "rl", "elev_dem_m"]) || surfaceXYColumns(headers).z,
           sample_id: guess(SURFACE_ID_ALIASES), // #1670: shared with the join below
           medium: guess(["medium", "sample_medium", "samp_type", "sample_type", "smpl_medium", "type"]),
           qcType: guess(["qc_type", "qctype", "qaqc_type", "qaqc", "sample_class", "qc_code_type", "control_type"]), // TASKS.csv #1794

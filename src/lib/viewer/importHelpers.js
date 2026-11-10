@@ -9,6 +9,7 @@ const loadLas = () => import("../las.js"); // TASKS.csv #492 — on demand
 const loadXlsx = () => import("../xlsx.js");
 const loadShapefile = () => import("../shapefile.js");
 import { num, isOverturnedValue, targetFromName, guessTargetFor, guessColumn, guessColumnExact /* #2268 */, TARGET_SCHEMAS, INTERVAL_FROM_ALIASES, INTERVAL_TO_ALIASES, normHeader } from "../layers.js"; // INTERVAL_*: #2150
+import { gridXY } from "../gridColumns.js"; // TASKS.csv #2564
 const tabular = () => import("../tabular.js"); // TASKS.csv #1493 — the CSV engine (papaparse) loads with the first table, not at launch
 import { t as tr } from "../i18n.js"; // TASKS.csv #786 — messages in the interface language
 import { checkGpkgSize } from "../gpkgSize.js"; // TASKS.csv #1716
@@ -167,6 +168,13 @@ export function looksLikeAssay(headers, fileName = "", rows = null) {
 
 // TASKS.csv #600 / #975 — the coordinate names surface-sample exports use (MX-style e_utm / n_utm included), shared by
 // Geochem's surface import and the check below
+// TASKS.csv #2564 — the coordinate columns of a surface table: the aliases below, else a grid-named pair (MGA_E / MGA_N / MGA_Z) as collars
+export function surfaceXYColumns(headers) {
+  const x = guessColumn(headers, SURFACE_XY_ALIASES.x), y = guessColumn(headers, SURFACE_XY_ALIASES.y);
+  if (x && y) return { x, y, z: "" };
+  const g = gridXY(headers);
+  return g ? { x: g.x, y: g.y, z: g.z } : { x: x || "", y: y || "", z: "" };
+}
 export const SURFACE_XY_ALIASES = {
   x: ["x", "easting", "east", "e_utm", "utm_e", "utme", "utm_east", "x_utm"],
   y: ["y", "northing", "north", "n_utm", "utm_n", "utmn", "utm_north", "y_utm"],
@@ -176,7 +184,8 @@ export const SURFACE_XY_ALIASES = {
 // and to columns").
 export function isSurfaceSampleTable(headers) {
   const intervalAliases = (key) => TARGET_SCHEMAS.litho.fields.find((f) => f.key === key).aliases;
-  return !!guessColumn(headers, SURFACE_XY_ALIASES.x) && !!guessColumn(headers, SURFACE_XY_ALIASES.y)
+  const xy = surfaceXYColumns(headers); // #2564: grid-named pairs too
+  return !!xy.x && !!xy.y
     && !guessColumn(headers, intervalAliases("from")) && !guessColumn(headers, intervalAliases("to"));
 }
 // TASKS.csv #2268 (review #2174, Surface Geology) — a soil table with two elements (sample_id, east, north, Au_ppb, As_ppm, medium) failed
@@ -188,7 +197,8 @@ export function looksLikeSurfaceSamples(headers, rows = null) {
   const collar = (k) => TARGET_SCHEMAS.collars.fields.find((f) => f.key === k).aliases;
   if (guessColumn(headers, collar("hole_id")) || guessColumnExact(headers, collar("length")) || guessColumnExact(headers, collar("dip"))) return false;
   if (headers.some((h) => /^(dip_?dir(ection)?|dipdir|strike|azimuth)$/i.test(String(h).trim()))) return false;
-  const coords = new Set([guessColumn(headers, SURFACE_XY_ALIASES.x), guessColumn(headers, SURFACE_XY_ALIASES.y), guessColumn(headers, collar("z"))]); // 'y' is no yttrium
+  const xy = surfaceXYColumns(headers); // #2564
+  const coords = new Set([xy.x, xy.y, xy.z, guessColumn(headers, collar("z"))].filter(Boolean)); // 'y' is no yttrium
   return headers.some((h) => !coords.has(h) && !NOT_GRADE.test(String(h).replace(/_/g, " ")) && isElementColumn(h) && (!rows || (columnHasNumbers(rows, h) && rows.some((r) => String(r?.[h] ?? "").trim() !== "")))); // a blank column is no evidence here
 }
 
