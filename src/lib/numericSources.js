@@ -42,7 +42,7 @@ export function numericSourceChoices({ layers, customLayers, models = true } = {
       if (n < MIN_ROWS) continue;
       const label = f === "value" ? String(c.name) : `${c.name} › ${f}`;
       const unit = c.unit && (f === "value" || (c.binM && (f === "min" || f === "max"))) ? String(c.unit) : CUSTOM_UNIT;
-      custom.push({ key: `custom:${c.id}:${f}`, label, symbol: label, unit, n, logScale: false, field: f, layerId: c.id, _log: c.sourceModel != null ? 2 : c.unit || c.binM ? 0 : 1, _name: String(c.name) });
+      custom.push({ key: `custom:${c.id}:${f}`, label, symbol: label, unit, n, logScale: false, field: f, layerId: c.id, ...(c.binM ? { binM: c.binM } : {}) /* #2396 */, _log: c.sourceModel != null ? 2 : c.unit || c.binM ? 0 : 1, _name: String(c.name) });
     }
   }
   custom.sort((a, b) => a._log - b._log || b.n - a.n || a._name.localeCompare(b._name));

@@ -9743,5 +9743,8 @@
   "Slope draped on the terrain: white {min}° or flatter, darkest grey {max}° or steeper (this terrain's 2-98 % range).": "Pendiente drapeada sobre el terreno: blanco {min}° o menos, gris más oscuro {max}° o más (el rango 2-98 % de este terreno).",
   "Azimuth and width from the drill lines ({az}°, {s} m apart).": "Azimut y ancho según las líneas de perforación ({az}°, a {s} m entre sí).",
   "Azimuth from the drill lines ({az}°).": "Azimut según las líneas de perforación ({az}°).",
-  "Search radius {r} m: 2.5 times the {m} m typical spacing, so a block between two holes reaches both.": "Radio de búsqueda {r} m: 2,5 veces el espaciado típico de {m} m, para que un bloque entre dos sondajes alcance a ambos."
+  "Search radius {r} m: 2.5 times the {m} m typical spacing, so a block between two holes reaches both.": "Radio de búsqueda {r} m: 2,5 veces el espaciado típico de {m} m, para que un bloque entre dos sondajes alcance a ambos.",
+  "{n} bins of {b} m, in {u}{v}.": "{n} intervalos de {b} m, en {u}{v}.",
+  "{n} readings, in {u}{v}.": "{n} lecturas, en {u}{v}.",
+  "the layer's own units": "las unidades propias de la capa"
 }
