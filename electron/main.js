@@ -710,6 +710,13 @@ ipcMain.handle("open-section-window", (_e, payload) => {
 // stayed live, and its Snapshot to Layout wrote the closed project's section and legend into the new project's page. The main window
 // asks for every section window to close when another project is loaded (new, opened, a tab switched or closed). The close was already
 // confirmed for the project, so the windows go without their own unsaved-contacts prompt (#1323).
+// TASKS.csv #2620 (re-test of #2516) — closing every section window on a project load skipped the 'Unsaved lines' question (#1323): a
+// drawn, unsaved contact was lost when a tab was opened or the project reprojected. The main window asks this BEFORE it replaces the
+// project (synchronously, so a store action can stop): true when no section has unsaved lines or the user chose to close them anyway.
+ipcMain.on("may-close-section-windows", (ev) => {
+  if (!mainWindow || BrowserWindow.fromWebContents(ev.sender) !== mainWindow) { ev.returnValue = true; return; }
+  ev.returnValue = mayCloseSections(mainWindow, [...sectionTabs.keys()]);
+});
 ipcMain.handle("close-section-windows", (ev) => {
   if (!mainWindow || BrowserWindow.fromWebContents(ev.sender) !== mainWindow) return { ok: false };
   const hosts = [...sectionHosts].filter((w) => !w.isDestroyed());

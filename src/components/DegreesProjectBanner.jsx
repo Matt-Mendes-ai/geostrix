@@ -20,7 +20,7 @@ export default function DegreesProjectBanner({ btnStyle }) {
   const move = async () => {
     if (!confirmDestructive(tr("Move every loaded object from {v} to {v2}?", { v: crsName(project.epsg) || `EPSG:${project.epsg}`, v2: target.name }), { recover: tr("Undo history is cleared.") })) return;
     setBusy(true); setErr(null);
-    try { await reprojectProjectTo(target.code, { rotateAzimuths: true }); } // this banner goes with the degrees
+    try { const r = await reprojectProjectTo(target.code, { rotateAzimuths: true }); if (r?.cancelled) { setBusy(false); return; } } // cancelled: #2620 // this banner goes with the degrees
     catch (e) { setErr(e.message || String(e)); setBusy(false); }
   };
   return (

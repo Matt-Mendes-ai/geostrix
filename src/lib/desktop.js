@@ -84,6 +84,10 @@ export async function openFile({ filters } = {}) {
 }
 
 // TASKS.csv #2516 — every section pop-out closes when another project is loaded (the browser fallback's tabs cannot be closed from here)
+// TASKS.csv #2620 — asked before anything replaces the project: false when a section has unsaved lines and the user kept them
+export function sectionWindowsMayClose() {
+  try { return d?.sectionWindowsMayClose ? d.sectionWindowsMayClose() !== false : true; } catch { return true; }
+}
 export async function closeSectionWindows() {
   if (d?.closeSectionWindows) return d.closeSectionWindows();
   return { ok: false, fallback: true };

@@ -11,6 +11,7 @@ import { setKnownHoleIds } from "./qaqcCore.js"; // TASKS.csv #400; qaqcCore: #1
 import { compactLayers } from "./compactRows.js"; // TASKS.csv #374
 import { readDbProfiles, writeDbProfiles, mergeDbProfiles, profilesFromFile } from "./dbProfiles.js"; // TASKS.csv #1081
 import { FIELD_KEYS, FIELDS, UNDO_KEYS, DIRTY_KEYS, PROJECT_VERSION, EMPTY_LAYERS, DEFAULT_LAYOUT_ELEMENTS, compactVoxelModels, emptyFields, fieldsFromPayload, payloadFromFields, projectParts, joinParts, cachedJson /* #1975 */, extraDirtyValues, projectHasContent } from "./projectFields.js"; // TASKS.csv #448
+import { sectionWindowsMayClose } from "./desktop.js"; // TASKS.csv #2620
 import { saveFile, saveFileTo, openFile, autosaveWrite, autosaveWriteParts /* #1975 */, autosaveRead, autosaveQuarantine, autosaveClear, dbConnect as dbConnectIpc, dbDisconnect as dbDisconnectIpc } from "./desktop.js";
 import { normalizeDesurveyMethod } from "./desurvey.js";
 import { readCellBudget, saveCellBudget } from "./estimationMeta.js"; // TASKS.csv #1970
@@ -953,6 +954,7 @@ export function StoreProvider({ children }) {
   // Marked unsaved; undo history cleared (an undo step would put old-CRS coordinates back under the new label).
   // Returns the report ({ counts, notes, maxRotationDeg }). setEpsg alone = "relabel only".
   const reprojectProjectTo = useCallback(async (toEpsg, opts = {}) => {
+    if (!sectionWindowsMayClose()) return { cancelled: true }; // #2620 — the reload closes the section windows: their unsaved lines first
     const live = liveRef.current;
     const fromEpsg = live.project?.epsg;
     const { reprojectProject } = await import("./projectReproject.js");
@@ -1169,6 +1171,7 @@ export function StoreProvider({ children }) {
     if (tabId === activeTabId) return;
     const target = workspaceTabs.find((t) => t.id === tabId);
     if (!target) return;
+    if (!sectionWindowsMayClose()) return; // #2620
     const current = snapshotCurrentPayload();
     setWorkspaceTabs(workspaceTabs.map((t) => (t.id === activeTabId ? { ...t, name: project?.name || t.name, payload: current, dirty: activeTabDirty } : t)));
     loadProjectPayload(target.payload, target.name);
@@ -1184,6 +1187,7 @@ export function StoreProvider({ children }) {
   }, [activeTabId, workspaceTabs, activeTabDirty, loadProjectPayload, project?.name]); // project name: #1218 — a tab left behind keeps the name it has now
 
   const newWorkspaceTab = useCallback(() => {
+    if (!sectionWindowsMayClose()) return false; // #2620
     const current = snapshotCurrentPayload();
     const id = `tab_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
     setWorkspaceTabs([
@@ -1199,7 +1203,7 @@ export function StoreProvider({ children }) {
   const [sampleRequest, setSampleRequest] = useState(null);
   const hasWorkRef = useRef(false); // set below, where hasWork is computed
   const requestSampleProject = useCallback((which) => {
-    if (hasWorkRef.current) newWorkspaceTab();
+    if (hasWorkRef.current && newWorkspaceTab() === false) return; // #2620 — the new tab was cancelled: never load the sample over this project
     setSampleRequest({ which, seq: Date.now() });
   }, [newWorkspaceTab]);
   const clearSampleRequest = useCallback(() => setSampleRequest(null), []);
@@ -1213,6 +1217,7 @@ export function StoreProvider({ children }) {
     // pre-rename .geox.json files a user already has saved are still selectable/openable here.
     const res = preRead?.content != null ? preRead : await openFile({ filters: [{ name: "GeoStrix Project", extensions: ["json"] }] });
     if (!res.ok) return res;
+    if (!sectionWindowsMayClose()) return { ok: false, canceled: true }; // #2620
     // TASKS.csv #955 — a file already open in a tab (double-clicked again in Explorer, or picked again in File > Open)
     // switches to that tab: a second tab on the same file let two copies be saved over each other
     if (res.filePath) {
@@ -1265,6 +1270,7 @@ export function StoreProvider({ children }) {
   const closeWorkspaceTab = useCallback((tabId) => {
     const tab = workspaceTabs.find((t) => t.id === tabId);
     if (!tab) return;
+    if (tabId === activeTabId && !sectionWindowsMayClose()) return; // #2620 — closing the shown project closes its section windows
     const dirty = tabId === activeTabId ? activeTabDirty : tab.dirty;
     if (dirty && !window.confirm(tr("Close \"{name}\" without saving? Unsaved changes will be lost.", { name: tabId === activeTabId ? project.name : tab.name }))) return;
     const remaining = workspaceTabs.filter((t) => t.id !== tabId);

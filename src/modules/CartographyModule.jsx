@@ -99,6 +99,7 @@ export default function CartographyModule({ embedded = false, forcePane = null }
     if (!confirmDestructive(tr("Move every loaded object from {v} to {v2}?", { v: nameOf(from), v2: nameOf(to) }), { recover: tr("Undo history is cleared, and moving back re-samples the terrain and raster images (a slightly larger box, slightly coarser cells).") })) return;
     return run(async () => {
     const report = await reprojectProjectTo(to, { rotateAzimuths: rotate });
+    if (report?.cancelled) { setMsg(null); return; } // #2620 — a section's unsaved lines were kept
     setMsg({ ok: true, text: tr("{v} Undo history was cleared.", { v: reportText(report, `Moved the project from ${nameOf(from)} to ${nameOf(to)}`) }) });
     setNewCrs(null);
     });
