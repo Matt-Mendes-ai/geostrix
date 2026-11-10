@@ -100,3 +100,11 @@ export function contactFootprint(points, marginM = 0) {
 export function reachPad(span, longestSpan, marginM, capM) {
   return Math.max(Math.min(Math.max(1, span) * 0.15, capM), Math.min(longestSpan * 0.25, capM), marginM);
 }
+// TASKS.csv #2377 (review #2325, WA uranium) — the VERTICAL pad, from the drilled column (the trace points' height range), never from the
+// lateral span or the lateral reach margin: reachPad on z gave an 80 m column 2.3-2.5 km of height (a 36-cell solve, cells 64-70 m thick,
+// surfaces from RL -30 to 805 m, 'LIG 168.59 km3'). Half the drilled column, at least 20 m and at least 15 % of the contacts' own height,
+// capped as the lateral pad. columnM: the drilling's height; null (no traces) -> null, the caller keeps reachPad.
+export function verticalPad(zSpan, columnM, capM) {
+  if (!(Number.isFinite(columnM) && columnM > 0)) return null;
+  return Math.min(Math.max(20, 0.5 * columnM, Math.max(1, zSpan) * 0.15), capM);
+}

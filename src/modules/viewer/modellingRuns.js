@@ -238,7 +238,10 @@ export function createModellingRuns(ctx, mcRef) {
     const pad = (lo, hi) => { const span = Math.max(1, hi - lo); const p = reachLib ? reachLib.reachPad(span, longestSpan, reachBoxM, MODEL_EXTENT_PAD_M) : Math.min(span * 0.15, MODEL_EXTENT_PAD_M); return [lo - p, hi + p]; };
     const [xmin, xmax] = pad(xr.min, xr.max);
     const [ymin, ymax] = pad(yr.min, yr.max);
-    const [zmin, zmax] = pad(zr.min, zr.max);
+    // TASKS.csv #2377 — z padded from the drilled column (every trace point's height range), not the lateral span / margin; with a trend
+    // (anisotropy warps the axes) or no traces, as before
+    const colR = minMax(allApiPts.map((p) => p.z)), vPad = !anisotropy.enabled && reachLib?.verticalPad ? reachLib.verticalPad(zr.max - zr.min, colR.max - colR.min, MODEL_EXTENT_PAD_M) : null;
+    const [zmin, zmax] = vPad != null ? [Math.min(zr.min, colR.min) - vPad, Math.max(zr.max, colR.max) + vPad] : pad(zr.min, zr.max);
     const extent = [xmin, xmax, ymin, ymax, zmin, zmax];
     // TASKS.csv #2229 (review #2174, WA gold) — how far the box actually reaches past the data on each axis (the reach notice gave only the clip
     // distance: '91 m past its contacts' for a box ~297 m past them, 2.48 km2 for a 0.41 km2 footprint)
