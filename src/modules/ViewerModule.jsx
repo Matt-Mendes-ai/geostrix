@@ -185,6 +185,7 @@ import { syncRasterDrapes, syncBoundaries, syncMapLayers, syncSectionImages, syn
 import { syncDrawLods, dropDrawLod } from "../lib/viewer/drawLod.js"; // TASKS.csv #795
 import { useModelling } from "./viewer/useModelling.js";
 import { useUnitSource } from "./viewer/useUnitSource.js"; // TASKS.csv #2378
+import { wheelZoom } from "./viewer/wheelZoom.js"; // #2368
 import { pBtn, smallSel } from "../lib/sidebarStyles.js"; // TASKS.csv #704 // TASKS.csv #445 step 2
 import { isMarkedQcRow } from "../lib/qaqcCore.js"; // TASKS.csv #601; qaqcCore: #1345
 import { isAreaBoundary } from "../lib/boundaryImport.js"; // TASKS.csv #1466
@@ -2455,7 +2456,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
     // practical ceiling a user would ever actually reach for a mine-scale (or even regional-scale)
     // property — a true Infinity isn't meaningful here since floating-point precision and the
     // camera's far plane both have real limits regardless.
-    const onWheel = (e) => { e.preventDefault(); const cs = camState.current; cs.radius = Math.max(0.05, Math.min(4000000, cs.radius * (1 + e.deltaY * 0.0012))); updateCamera(); };
+    const onWheel = (e) => { e.preventDefault(); wheelZoom(e, renderer.domElement, camera, raycasterRef.current, camState.current, (rc) => firstVisibleLayerHit(pickHits(rc))?.point); updateCamera(); }; // #2368 toward the cursor
     const onContextMenuEvt = (e) => {
       e.preventDefault();
       if (rectZoomRef.current) { setRectZoomMode(false); rectDragRef.current = null; setRectVisual(null); return; } // right-click cancels an armed/in-progress rectangle-zoom
