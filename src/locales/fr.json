@@ -9583,5 +9583,16 @@
   "Blank = every depth. On a deposit drilled from underground, the hole-based cards otherwise project every depth onto one plan.": "Vide = toutes les profondeurs. Sur un gisement foré depuis le souterrain, les cartes fondées sur les sondages projettent sinon toutes les profondeurs sur un seul plan.",
   "Read at RL {a} to {b} m (the Level).": "Lu à RL {a} à {b} m (le Niveau).",
   "Opens Planned holes with this easting and northing as the target, at RL {z} m: the middle of the Level (no grade point in this cell). Check it there.": "Ouvre Sondages planifiés avec cet est et ce nord comme cible, à RL {z} m : le milieu du Niveau (aucun point de teneur dans cette cellule). Vérifiez-la là.",
-  "Opens Planned holes with this easting and northing as the target, at RL {z} m: the highest value of the first grade / numeric card within {r} m of this cell (and the Level). Check it there.": "Ouvre Sondages planifiés avec cet est et ce nord comme cible, à RL {z} m : la valeur la plus haute de la première carte de teneur / numérique à moins de {r} m de cette cellule (et dans le Niveau). Vérifiez-la là."
+  "Opens Planned holes with this easting and northing as the target, at RL {z} m: the highest value of the first grade / numeric card within {r} m of this cell (and the Level). Check it there.": "Ouvre Sondages planifiés avec cet est et ce nord comme cible, à RL {z} m : la valeur la plus haute de la première carte de teneur / numérique à moins de {r} m de cette cellule (et dans le Niveau). Vérifiez-la là.",
+  "Rows:": "Lignes :",
+  "Rows to read": "Lignes à lire",
+  "every hole in the file": "tous les sondages du fichier",
+  "only the {n} holes in this project": "seulement les {n} sondages de ce projet",
+  "only the {n} checked holes": "seulement les {n} sondages cochés",
+  "Hole id column": "Colonne d'ID de sondage",
+  "In the first {s} rows, {pct}% are for these holes: the estimate below assumes the same share through the file (rough).": "Dans les {s} premières lignes, {pct} % sont pour ces sondages : l'estimation ci-dessous suppose la même part dans tout le fichier (approximative).",
+  "None of the first {s} rows are for these holes, so the share can't be estimated (a file sorted by hole may have them further down): the estimate below is for every row.": "Aucune des {s} premières lignes n'est pour ces sondages, la part ne peut donc pas être estimée (un fichier trié par sondage peut les avoir plus bas) : l'estimation ci-dessous vaut pour toutes les lignes.",
+  "the checked holes": "les sondages cochés",
+  "the holes in this project": "les sondages de ce projet",
+  "Only the rows of {n} hole(s) ({which}) were read: {d} other row(s) were left out as the file was read.": "Seules les lignes de {n} sondage(s) ({which}) ont été lues : {d} autre(s) ligne(s) ont été laissées de côté à la lecture du fichier."
 }

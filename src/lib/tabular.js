@@ -136,28 +136,31 @@ export function spaceTableToTabs(text) {
   return text.split(/\r?\n/).map((l) => (l.trim() ? l.trim().split(/\s+/).join("\t") : "")).join("\n");
 }
 // keep (TASKS.csv #2177): the header names to read; every other column is never held (a table over the memory budget, its columns chosen)
-export function parseTableText(text, { comments = "#", columnar = false, keep = null } = {}) {
+// holes (TASKS.csv #2321): { col, ids } — only the rows whose `col` (trimmed) is one of `ids` are kept, applied as each row is read
+export function parseTableText(text, { comments = "#", columnar = false, keep = null, holes = null } = {}) {
   ({ text } = stripLeadingComments(text, comments)); // #720
   const spaced = spaceTableToTabs(text); // #2017
   if (spaced != null) text = spaced;
   let preamble = 0, banner = false;
   ({ text, skipped: preamble, banner } = skipPreamble(text)); // #1666; banner: #1665
   // TASKS.csv #611 — a big table can be held as COLUMNS (see parseTableColumns); null = not eligible, read as rows
-  if (columnar && text.length >= COLUMNAR_MIN_CHARS) { const c = parseTableColumns(text, { comments: false, keep }); if (c) return c; }
+  if (columnar && text.length >= COLUMNAR_MIN_CHARS) { const c = parseTableColumns(text, { comments: false, keep, holes }); if (c) return c; }
   // #600 (performance) — Papa asks once per CELL; the answer depends only on the header, so cache it per header.
   const typed = new Map();
   const idLike = ID_LIKE_VALUE_IN.test(text) ? idLikeColumns(text) : null; // #1071 — only scanned when such a value exists
   const dynamicTyping = (field) => { let v = typed.get(field); if (v === undefined) { v = !isIdentifierHeader(field) && !idLike?.has(field); typed.set(field, v); } return v; };
-  let res;
-  if (keep?.length) { // #2177 — row by row, each row cut to the kept columns at once, so the dropped ones never accumulate
-    const want = new Set(keep), data = [], errors = [];
+  let res, droppedByHole = 0;
+  const hf = holes?.col && holes.ids ? { col: holes.col, ids: new Set([...holes.ids].map((v) => String(v).trim())) } : null; // #2321
+  if (keep?.length || hf) { // #2177 — row by row, each row cut to the kept columns at once, so the dropped ones never accumulate; #2321 — other holes' rows too
+    const want = keep?.length ? new Set(keep) : null, data = [], errors = [];
     let fields = null, kept = null;
     const meta = Papa.parse(text, { header: true, dynamicTyping, skipEmptyLines: true, comments: false, step: (r) => {
-      if (!kept) { fields = r.meta.fields || []; kept = fields.filter((f) => want.has(f)); }
+      if (!kept) { fields = r.meta.fields || []; kept = want ? fields.filter((f) => want.has(f)) : fields; }
       if (r.errors?.length) errors.push(...r.errors);
+      if (hf && !hf.ids.has(String(r.data[hf.col] ?? "").trim())) { droppedByHole++; return; }
       const o = {}; for (const f of kept) o[f] = r.data[f]; data.push(o);
     } }).meta;
-    res = { data, errors, meta: { ...meta, fields: kept || (meta.fields || []).filter((f) => want.has(f)) } };
+    res = { data, errors, meta: { ...meta, fields: kept || (meta.fields || []).filter((f) => !want || want.has(f)) } };
     void fields;
   } else res = Papa.parse(text, { header: true, dynamicTyping, skipEmptyLines: true, comments: false });
   // TASKS.csv #600 (40958Z, performance) — in a COMMA-delimited file a comma-decimal value can only exist quoted
@@ -167,7 +170,7 @@ export function parseTableText(text, { comments = "#", columnar = false, keep = 
   const { rows, note } = commaFree ? { rows: res.data, note: "" } : normalizeCommaDecimals(res.data);
   const pre = banner ? tr("The first row was a banner of group names over the field names: the second row is used as the header.") : preamble ? tr("Skipped {n} line(s) of notes above the header row.", { n: preamble }) : ""; // #1666; #1665
   const sp = spaced != null ? tr("Read as a space-separated table ({n} columns).", { n: (res.meta.fields || []).length }) : ""; // #2017
-  return { rows, headers: res.meta.fields || [], note: [note, pre, sp].filter(Boolean).join(" "), errors: res.errors || [] };
+  return { rows, headers: res.meta.fields || [], note: [note, pre, sp].filter(Boolean).join(" "), errors: res.errors || [], ...(hf ? { droppedByHole } : {}) };
 }
 
 // TASKS.csv #611 — large assay exports held as columns. parseTableText's rows are one object per row, and a 60 MB
@@ -196,13 +199,13 @@ export function parseTableColumns(text, opts) {
 // TASKS.csv #583 — the two halves of parseTableColumns, split so the parse can run in a worker (tabular.worker.js):
 // parseColumnsRaw -> { headers, cols, n, errors } is plain data (typed arrays transferable, text arrays cloneable);
 // rowsFromColumns wraps it as the accessor rows on the thread that uses them (getters can't be posted).
-export function parseColumnsRaw(text, { comments = "#", keep = null } = {}) { // keep: #2177
+export function parseColumnsRaw(text, { comments = "#", keep = null, holes = null } = {}) { // keep: #2177; holes: #2321
   ({ text } = stripLeadingComments(text, comments)); // #720 — only before the header
   ({ text } = skipPreamble(text)); // #1666
   if (QUOTED_COMMA_NUMBER.test(text)) return null;
   const idLike = ID_LIKE_VALUE_IN.test(text) ? idLikeColumns(text) : null; // #1071
-  let headers = null, typed = null, cols = null, n = 0, cap = 4096, bad = false, delimiter = null, width = 0, idx = null;
-  const errors = [];
+  let headers = null, typed = null, cols = null, n = 0, cap = 4096, bad = false, delimiter = null, width = 0, idx = null, holeJ = -1, droppedByHole = 0;
+  const errors = [], holeIds = holes?.col && holes.ids ? new Set([...holes.ids].map((v) => String(v).trim())) : null; // #2321
   const grow = () => {
     cap *= 2;
     cols.forEach((c) => {
@@ -222,12 +225,14 @@ export function parseColumnsRaw(text, { comments = "#", keep = null } = {}) { //
         headers = a; width = a.length;
         if (delimiter !== "," || new Set(headers).size !== headers.length) { bad = true; p.abort(); return; }
         idx = headers.map((_, j) => j);
+        if (holeIds) { holeJ = headers.indexOf(holes.col); if (holeJ < 0) { bad = true; p.abort(); return; } } // #2321 — no such column: the row reader says so
         if (keep?.length) { const want = new Set(keep); idx = idx.filter((j) => want.has(headers[j])); headers = idx.map((j) => headers[j]); } // #2177
         typed = headers.map((h) => !isIdentifierHeader(h) && !idLike?.has(h));
         cols = typed.map((t) => (t ? { num: new Float64Array(cap), kind: new Uint8Array(cap), other: [], pool: new Map() } : { txt: [], pool: new Map() }));
         return;
       }
       if (a.length !== width) { bad = true; p.abort(); return; }
+      if (holeIds && !holeIds.has(String(a[holeJ] ?? "").trim())) { droppedByHole++; return; } // #2321 — another hole's row is never held
       if (n === cap) grow();
       for (let q = 0; q < idx.length; q++) {
         const v = a[idx[q]], c = cols[q];
@@ -248,9 +253,9 @@ export function parseColumnsRaw(text, { comments = "#", keep = null } = {}) { //
   void parser;
   if (bad || !headers) return null;
   cols.forEach((c) => { delete c.pool; });
-  return { headers, cols, n, errors };
+  return { headers, cols, n, errors, ...(holeIds ? { droppedByHole } : {}) };
 }
-export function rowsFromColumns({ headers, cols, n, errors }) {
+export function rowsFromColumns({ headers, cols, n, errors, droppedByHole }) {
   const proto = {};
   headers.forEach((h, j) => {
     const c = cols[j];
@@ -261,7 +266,7 @@ export function rowsFromColumns({ headers, cols, n, errors }) {
   });
   const rows = new Array(n);
   for (let i = 0; i < n; i++) { const r = Object.create(proto); r[IDX] = i; rows[i] = r; }
-  return { rows, headers, note: "", errors, columnar: true };
+  return { rows, headers, note: "", errors, columnar: true, ...(droppedByHole != null ? { droppedByHole } : {}) };
 }
 
 // A File/Blob (browser or Electron renderer) -> the same, plus a note when the encoding fallback was used.
@@ -315,7 +320,11 @@ export async function tableColumnsPreview(file) {
   const first = (head.split(/\r?\n/)[0] || "").replace(/^\uFEFF/, "");
   const delim = [",", "\t", ";", "|"].reduce((a, d) => (first.split(d).length > first.split(a).length ? d : a), ",");
   const headers = first.split(delim).map((h) => h.trim().replace(/^"(.*)"$/, "$1"));
-  return { ...e, headers, fixed: file.size * 3, perColumn: e.rows * 9 * 1.5 };
+  // #2321 — the first rows' cells from the first 1 MB (a naive split: only for estimating what share of the rows a holes subset keeps; the
+  // header's 64 KB held 153 rows of a 62-column table, live)
+  const body = file.size > head.length ? await file.slice(0, 1 << 20).text() : head;
+  const sample = body.split(/\r?\n/).slice(1, -1).filter((l) => l.trim()).slice(0, 5000).map((l) => l.split(delim).map((v) => v.trim().replace(/^"(.*)"$/, "$1")));
+  return { ...e, headers, sample, fixed: file.size * 3, perColumn: e.rows * 9 * 1.5 };
 }
 export { subsetBytes } from "./tableSubsetRequest.js"; // #2177
 const requestTableSubset = (file, preview) => requestTableSubsetEv(file, preview, TABLE_MEMORY_BUDGET);
@@ -337,6 +346,7 @@ export async function parseTableFile(file, opts) {
     const ok = await confirmTableSize(file);
     if (!ok) throw new Error(tr("not opened: it needs more memory than this computer can safely give it"));
     if (ok.keep?.length) opts = { ...(opts || {}), keep: ok.keep }; // #2177 — only the chosen columns are read
+    if (ok.holes?.col && ok.holes.ids?.length) opts = { ...(opts || {}), holes: { col: ok.holes.col, ids: [...ok.holes.ids], label: ok.holes.label || "" } }; // #2321 — only those holes' rows
   }
   if (typeof Worker !== "undefined" && file.size >= WORKER_MIN_BYTES) {
     try { return subsetNote(await parseInWorker(await file.arrayBuffer(), opts || {}), opts); } catch (err) {
@@ -349,8 +359,11 @@ export async function parseTableFile(file, opts) {
 }
 // #2177 — said with the rows, so the import notice can carry it
 function subsetNote(out, opts) {
-  if (!opts?.keep?.length) return out;
-  return { ...out, subset: opts.keep, note: [out.note, tr("Only {k} chosen column(s) were read, to fit in memory: {list}.", { k: opts.keep.length, list: opts.keep.slice(0, 12).join(", ") + (opts.keep.length > 12 ? ", ..." : "") })].filter(Boolean).join(" ") };
+  if (!opts?.keep?.length && !opts?.holes) return out;
+  const cols = opts.keep?.length ? tr("Only {k} chosen column(s) were read, to fit in memory: {list}.", { k: opts.keep.length, list: opts.keep.slice(0, 12).join(", ") + (opts.keep.length > 12 ? ", ..." : "") }) : "";
+  // #2321 — the holes subset, said with how many rows it left out
+  const holes = opts.holes ? tr("Only the rows of {n} hole(s) ({which}) were read: {d} other row(s) were left out as the file was read.", { n: opts.holes.ids.length, which: opts.holes.label || opts.holes.col, d: (out.droppedByHole ?? 0).toLocaleString() }) : "";
+  return { ...out, ...(opts.keep?.length ? { subset: opts.keep } : {}), ...(opts.holes ? { holesSubset: { col: opts.holes.col, n: opts.holes.ids.length } } : {}), note: [out.note, cols, holes].filter(Boolean).join(" ") };
 }
 
 // Rows (objects, or { fields, data }) -> CSV text with correct quoting (commas, quotes, newlines).

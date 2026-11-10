@@ -9583,5 +9583,16 @@
   "Blank = every depth. On a deposit drilled from underground, the hole-based cards otherwise project every depth onto one plan.": "فارغ = كل الأعماق. في رواسب محفورة من باطن الأرض، تُسقط البطاقات المعتمدة على الثقوب خلاف ذلك كل الأعماق على مستوى واحد.",
   "Read at RL {a} to {b} m (the Level).": "مقروء عند RL من {a} إلى {b} م (المستوى).",
   "Opens Planned holes with this easting and northing as the target, at RL {z} m: the middle of the Level (no grade point in this cell). Check it there.": "يفتح الثقوب المخططة بهذا الشرق والشمال هدفًا، عند RL {z} م: منتصف المستوى (لا نقطة محتوى في هذه الخلية). تحقق منها هناك.",
-  "Opens Planned holes with this easting and northing as the target, at RL {z} m: the highest value of the first grade / numeric card within {r} m of this cell (and the Level). Check it there.": "يفتح الثقوب المخططة بهذا الشرق والشمال هدفًا، عند RL {z} م: أعلى قيمة لأول بطاقة محتوى / رقمية ضمن {r} م من هذه الخلية (وضمن المستوى). تحقق منها هناك."
+  "Opens Planned holes with this easting and northing as the target, at RL {z} m: the highest value of the first grade / numeric card within {r} m of this cell (and the Level). Check it there.": "يفتح الثقوب المخططة بهذا الشرق والشمال هدفًا، عند RL {z} م: أعلى قيمة لأول بطاقة محتوى / رقمية ضمن {r} م من هذه الخلية (وضمن المستوى). تحقق منها هناك.",
+  "Rows:": "الصفوف:",
+  "Rows to read": "الصفوف المراد قراءتها",
+  "every hole in the file": "كل الثقوب في الملف",
+  "only the {n} holes in this project": "فقط الثقوب الـ{n} في هذا المشروع",
+  "only the {n} checked holes": "فقط الثقوب الـ{n} المحددة",
+  "Hole id column": "عمود معرّف الثقب",
+  "In the first {s} rows, {pct}% are for these holes: the estimate below assumes the same share through the file (rough).": "في أول {s} صفًا، {pct}% لهذه الثقوب: يفترض التقدير أدناه النسبة نفسها في الملف كله (تقريبي).",
+  "None of the first {s} rows are for these holes, so the share can't be estimated (a file sorted by hole may have them further down): the estimate below is for every row.": "لا شيء من أول {s} صفًا لهذه الثقوب، فلا يمكن تقدير النسبة (قد يحتويها ملف مرتب حسب الثقب في موضع لاحق): التقدير أدناه لكل الصفوف.",
+  "the checked holes": "الثقوب المحددة",
+  "the holes in this project": "ثقوب هذا المشروع",
+  "Only the rows of {n} hole(s) ({which}) were read: {d} other row(s) were left out as the file was read.": "قُرئت صفوف {n} ثقبًا فقط ({which}): تُرك {d} صفًا آخر أثناء قراءة الملف."
 }
