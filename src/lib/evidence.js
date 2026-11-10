@@ -247,6 +247,16 @@ export function trainingCells(g, points, valid) {
   for (const p of points) { const i = Math.round((p.x - g.x0) / g.dx), j = Math.round((g.yTop - p.y) / g.dy); if (i >= 0 && j >= 0 && i < g.nx && j < g.ny) { const k = j * g.nx + i; if (!valid || valid[k]) set.add(k); } }
   return set;
 }
+// TASKS.csv #2446 (review #2325, WA uranium) — occurrences that are drillholes: the cells a hole tested are the only cells that could be
+// an occurrence, so the study area of the weights is those cells (the holes over the cut-off against the holes under it), not every
+// cell within reach. With every undrilled cell counted as "no occurrence", each weight measured "a hole is here": LIG got W+ 3.12 where
+// the holes themselves give 1.28, and 'Distance to drilling' alone W+ 2.72. sampled: the positions of every sample of the element
+// (any value); -> a mask of the valid cells holding one, and their count.
+export function drilledTrainingMask(g, sampled, valid) {
+  const cells = trainingCells(g, sampled, valid), mask = new Uint8Array(valid.length);
+  for (const k of cells) mask[k] = 1;
+  return { mask, n: cells.size };
+}
 // Weights of a binary pattern B over the study area: counts and W+, W-, contrast, their standard errors
 // TASKS.csv #1726 (review #1645, Copley) — a zero cell (every occurrence inside the pattern, or none) used to return null, which
 // dropped the evidence that predicts the occurrences best ('no usable cutoff' for Cu when the occurrences are Cu >= 5000) while the
@@ -304,7 +314,9 @@ export function bestCutoff(values, D, valid, { direction = "increasing", steps =
 // posterior probability per cell from the chosen binary patterns: layers = [{ values, cutoff, direction, wPlus, wMinus }];
 // N, ND = the study area (the valid cells) and its occurrence cells, for the prior. TASKS.csv #1556 — an evidence with no
 // value at a cell adds a weight of 0 there (the prior stands); `missingCells` counts the cells where at least one did.
-export function posterior(layers, valid, N, ND) {
+// #2446 — countMask (the drilled cells, when the weights were trained there): the omnibus sum is taken over those cells, the ones the
+// known count refers to; the posterior itself still covers every valid cell.
+export function posterior(layers, valid, N, ND, { countMask = null } = {}) {
   const n = valid.length, out = new Float32Array(n).fill(NaN), prior = Math.log(ND / (N - ND));
   let expected = 0, missingCells = 0;
   for (let k = 0; k < n; k++) {
@@ -313,7 +325,7 @@ export function posterior(layers, valid, N, ND) {
     for (const L of layers) { const v = L.values[k]; if (!Number.isFinite(v)) { miss = true; continue; } const inB = L.direction === "increasing" ? v >= L.cutoff : v <= L.cutoff; logit += inB ? L.wPlus : L.wMinus; }
     if (miss) missingCells++;
     const p = 1 / (1 + Math.exp(-logit));
-    out[k] = p; expected += p;
+    out[k] = p; if (!countMask || countMask[k]) expected += p;
   }
   // omnibus conditional-independence check (Bonham-Carter 1994): the posterior summed over the area should give back
   // about the number of known occurrences; a sum well above it (ratio under 0.85) means the layers double-count

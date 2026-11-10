@@ -13,7 +13,7 @@ import { quantileSorted } from "../lib/arrayStats.js"; // TASKS.csv #1281
 import { defaultEvidenceEnds, gradeEndsFromSamples, topScoreShare } from "../lib/evidenceEnds.js"; // TASKS.csv #1565; gradeEndsFromSamples: #2099; topScoreShare: #2448
 import { topCells } from "../lib/evidence.js"; // TASKS.csv #1456
 import { evidenceCoverage, LOW_COVERAGE, scoreBlockers } from "../lib/evidence.js"; // TASKS.csv #2252
-import { evidenceGrid, evidenceExtent, rasterEvidence, distanceEvidence, pointEvidence, sampleValues, membership, fuzzyCombine, FUZZY_OPERATORS, trainingCells, trainingCoverage, bestCutoff, MIN_SIDE, posterior, predictionArea, scoreImage, isOverlayOutput, coveringLayers } from "../lib/evidence.js"; // coveringLayers: #1563
+import { drilledTrainingMask, evidenceGrid, evidenceExtent, rasterEvidence, distanceEvidence, pointEvidence, sampleValues, membership, fuzzyCombine, FUZZY_OPERATORS, trainingCells, trainingCoverage, bestCutoff, MIN_SIDE, posterior, predictionArea, scoreImage, isOverlayOutput, coveringLayers } from "../lib/evidence.js"; // coveringLayers: #1563
 import { cachedEvidence, evidenceDeps, gridSignature } from "../lib/evidenceCache.js"; // TASKS.csv #1457, #1560
 import { DRILL_REACH_M, surveyNames, surveyPoints, reachFromSpacing, reachFromNeighbours, voxelColumnEvidence, voxelZRange, holeTraces, holeGradePoints, structureCodes, structureParts, drilledParts /* #1456 */, rasterFloorZ, elementsWithValues, numericLayerFields, layerFieldPoints, zoneCodes, zoneParts, levelSet, targetElevation /* #2326 */ } from "../lib/evidenceSources.js"; // numericLayerFields, layerFieldPoints, zoneCodes, zoneParts: TASKS.csv #1728 // TASKS.csv #1154; elementsWithValues: #1723
 const LEVEL_KINDS = new Set(["grade", "pxrf", "numeric", "zone", "pick", "voxel"]); // TASKS.csv #2326 — the cards a Level filters
@@ -303,6 +303,8 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
     if (t.source === "samples" && t.symbol && Number.isFinite(min)) return surfaceSamples.filter((s) => { const v = valueIn(s, t.symbol, units[t.symbol] || "ppm", units); return v != null && v >= min; }).map((s) => ({ x: s.x, y: s.y }));
     return [];
   }, [training, pointLayers, cleanAssays, traces, surfaceSamples, assayUnits, units]);
+  // TASKS.csv #2446 — every sample of the training element along the holes (any value): the drilled cells the weights are trained on
+  const sampledPoints = useMemo(() => (training.source === "collars" && training.symbol ? holeGradePoints(cleanAssays, training.symbol, assayUnits[training.symbol] || "ppm", assayUnits, traces).map((p) => ({ x: p.x, y: p.y })) : []), [training.source, training.symbol, cleanAssays, traces, assayUnits]);
   const circular = (training.source === "samples" && layers.some((l) => (l.kind === "element" && l.ref === training.symbol) || l.kind === "index"))
     || (training.source === "collars" && layers.some((l) => l.kind === "grade" && l.ref === training.symbol));
 
@@ -318,22 +320,26 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
     let atMin = 0; // #1555 — how many scored cells sit at the lowest score (one evidence's membership vetoed them)
     for (let k = 0; k < n; k++) if (valid[k] && fuzzy[k] <= minScore + 1e-6) atMin++;
     const out = { fuzzy, nValid, n, atMin, minScore: nValid ? minScore : NaN, wofe: null, pa: null, paPost: null, blockers: scoreBlockers(layers, nValid, n, operator) }; // blockers: #2252
-    const D = trainingCells(grid, trainingPoints, valid);
+    // #2446 — drillhole occurrences are trained on the drilled cells only (hits against misses); the undrilled ground is neither
+    const drilled = training.source === "collars" && sampledPoints.length ? drilledTrainingMask(grid, sampledPoints, valid) : null;
+    const trainMask = drilled ? drilled.mask : valid;
+    const D = trainingCells(grid, trainingPoints, trainMask);
     out.cover = trainingPoints.length ? trainingCoverage(grid, trainingPoints, valid) : null; // #1558
-    if (D.size >= 3) {
+    if (D.size >= 3 && (!drilled || drilled.n - D.size >= 3)) {
       const rowsW = [], chosen = [];
-      const N = nValid, ND = D.size; // #1556: the prior over the study area (every valid cell), not one layer's cells
+      const N = drilled ? drilled.n : nValid, ND = D.size; // #1556: the prior over the study area (every valid cell), not one layer's cells; #2446: the drilled cells
       // TASKS.csv #2098 (review #2013, Woodjam) — every card gets a row: one with no usable cutoff (no occurrence where it has a value: soils
       // 10 km from the drilling) was left out without a word, and the 'no usable cutoff' text below could never show
-      layers.forEach((l) => { const bc = bestCutoff(l.values, D, valid, { direction: l.shape }); rowsW.push(bc.best ? { id: l.id /* #1566 */, label: l.label, nMissing: bc.nMissing, nCells: bc.N, ...bc.best, values: l.values, direction: l.shape } : { id: l.id, label: l.label, none: true, nCells: bc.N, ndHere: bc.ND, nMissing: bc.nMissing }); });
+      layers.forEach((l) => { const bc = bestCutoff(l.values, D, trainMask, { direction: l.shape }); rowsW.push(bc.best ? { id: l.id /* #1566 */, label: l.label, nMissing: bc.nMissing, nCells: bc.N, ...bc.best, values: l.values, direction: l.shape } : { id: l.id, label: l.label, none: true, nCells: bc.N, ndHere: bc.ND, nMissing: bc.nMissing }); });
       // TASKS.csv #1559 — a layer whose best cutoff is thin (fewer than MIN_SIDE occurrence cells on a side) stays out of the posterior
       // when sound layers exist: its W- of -2.35 +/- 1.00 came from one cell. With no sound layer at all, every layer is used.
       const anySound = rowsW.some((r) => !r.none && !r.thin);
       rowsW.forEach((r) => { r.used = !r.none && (!r.thin || !anySound); if (r.used) chosen.push({ values: r.values, cutoff: r.cutoff, direction: r.direction, wPlus: r.wPlus, wMinus: r.wMinus }); });
-      if (chosen.length) { const post = posterior(chosen, valid, N, ND); out.wofe = { rows: rowsW, N, ND, post, nD: D.size, anyMissing: rowsW.some((r) => r.nMissing > 0) }; out.paPost = predictionArea(post.prob, D, valid); }
+      if (chosen.length) { const post = posterior(chosen, valid, N, ND, { countMask: drilled ? trainMask : null }); out.wofe = { rows: rowsW, N, ND, post, nD: D.size, anyMissing: rowsW.some((r) => r.nMissing > 0), drilled: !!drilled, symbol: training.symbol }; out.paPost = predictionArea(post.prob, D, valid); }
       else if (rowsW.length) out.wofeNone = { rows: rowsW, ND }; // #2098 — no card gave a weight: said, not silent
       out.pa = predictionArea(fuzzy, D, valid);
-    } else if (trainingPoints.length) out.fewPoints = D.size;
+    } else if (drilled && D.size >= 3) out.fewMisses = { hits: D.size, drilled: drilled.n }; // #2446 — almost every drilled cell is a hit: nothing to weigh against
+    else if (trainingPoints.length) out.fewPoints = D.size;
     // #2326 — the hole-based point cards' points (with their elevation, inside the level), for the target handed to Planned holes
     out.level = level;
     out.topShare = topScoreShare(fuzzy); // #2448 — said when over a third of the scored cells are at the top
@@ -465,7 +471,7 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
         {result && (
           <>
             {result.blockers?.length > 0 && <div role="alert" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", lineHeight: 1.45 }}>{tr("{v} cells have every evidence, so the score is empty or nearly so. Fewest values: {list}. Combine with fuzzy OR or the algebraic sum (they skip a missing evidence), or remove those.", { v: result.nValid.toLocaleString(), list: result.blockers.map((b) => `${b.label} (${(b.coverage * 100).toFixed(b.coverage < 0.01 ? 2 : 1)}%)`).join(", ") })}</div>}{/* #2252 */}
-            <div style={note}>{tr("Fuzzy score on {v} of {n} cells (the rest lack an evidence).", { v: result.nValid.toLocaleString(), n: result.n.toLocaleString() })}{result.fewPoints != null ? " " + tr("Only {k} occurrence cells: weights of evidence need at least 3.", { k: result.fewPoints }) : ""}</div>
+            <div style={note}>{tr("Fuzzy score on {v} of {n} cells (the rest lack an evidence).", { v: result.nValid.toLocaleString(), n: result.n.toLocaleString() })}{result.fewMisses ? " " + tr("{h} of the {n} drilled cells hold a hole over the cut-off: weights of evidence need at least 3 without one to weigh against.", { h: result.fewMisses.hits, n: result.fewMisses.drilled }) : ""}{result.fewPoints != null ? " " + tr("Only {k} occurrence cells: weights of evidence need at least 3.", { k: result.fewPoints }) : ""}</div>
             {result.nValid > 0 && result.atMin / result.nValid > 0.5 && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("{p}% of the scored cells sit at the lowest score ({v}): an evidence's membership is at its floor there and the operator keeps the floor. The top cells are only those no evidence vetoed, not the most favourable. Turn on the 0.01–0.99 floor, widen the 0 = points, or combine with OR / algebraic sum.", { p: Math.round((100 * result.atMin) / result.nValid), v: fmt(result.minScore) })}</div>}{/* #1555 */}
             <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
               <button type="button" style={{ ...pBtn, opacity: result.nValid ? 1 : 0.5 }} disabled={!result.nValid} onClick={() => toMap("fuzzy")}>{tr("Fuzzy score → map")}</button>
@@ -478,7 +484,9 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
             )}
             {result.wofe && (
               <>
-                <div style={{ color: "var(--color-text-secondary)", marginTop: 4 }}>{tr("Weights of evidence: {d} occurrence cells in {n} cells", { d: result.wofe.ND, n: result.wofe.N.toLocaleString() })}</div>
+                <div style={{ color: "var(--color-text-secondary)", marginTop: 4 }}>{result.wofe.drilled /* #2446 */
+                  ? tr("Weights of evidence over the {n} drilled cells (cells with a {sym} sample): {d} with a hole over the cut-off against {m} without. Undrilled ground is not counted as barren; the posterior is the chance that a hole drilled in a cell would meet the cut-off.", { n: result.wofe.N.toLocaleString(), sym: result.wofe.symbol, d: result.wofe.ND, m: (result.wofe.N - result.wofe.ND).toLocaleString() })
+                  : tr("Weights of evidence: {d} occurrence cells in {n} cells", { d: result.wofe.ND, n: result.wofe.N.toLocaleString() })}</div>
                 {result.cover && (result.cover.droppedCells > 0 || result.cover.inGrid < result.cover.points) && <div style={{ ...note, marginTop: 2, color: result.cover.droppedShare > 0.25 ? "var(--color-warn-text)" : undefined }}>{tr("{p} occurrence points in {c} cells; {d} cell(s) lie outside the area where every evidence has a value and are not used ({pct} %).{v}", { p: result.cover.points.toLocaleString(), c: result.cover.cells.toLocaleString(), d: result.cover.droppedCells.toLocaleString(), pct: Math.round(result.cover.droppedShare * 100), v: result.cover.inGrid < result.cover.points ? " " + tr("{m} point(s) are outside the grid.", { m: (result.cover.points - result.cover.inGrid).toLocaleString() }) : "" })}</div>}{/* #1558 */}
                 {result.wofe.anyMissing && <div style={{ ...note, marginTop: 2 }}>{tr("An evidence's weights come from the cells where it has a value; where it has none it adds nothing to the posterior (weight 0), so the score cannot reach past the drilled ground on drill evidence alone.")}</div>}{/* #1556 */}
                 {result.wofe.ND < 10 && <div style={{ color: "var(--color-warn-text)", marginTop: 2 }}>{tr("Fewer than 10 occurrence cells: the weights, the posterior and the prediction-area figures are not interpretable — read them as a sketch.")}</div>}{/* #1452 */}

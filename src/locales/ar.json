@@ -9639,5 +9639,7 @@
   "Captured {when}. Changes in the 3D view since then show after a refresh.": "التُقط {when}. تظهر التغييرات في العرض ثلاثي الأبعاد منذ ذلك الحين بعد التحديث.",
   "{t}° typed, walls {f}–{s}": "{t}° مُدخل، الجدران {f}–{s}",
   "Flatter than the shell's walls ({f}–{s}° for a typed {t}°): the design will take more waste than the shell counted.": "أقل انحدارًا من جدران الغلاف ({f}–{s}° لزاوية مُدخلة {t}°): سيأخذ التصميم ركامًا أكثر مما حسبه الغلاف.",
-  "Steeper than the shell's walls ({f}–{s}° for a typed {t}°): the design stands inside them, which the shell's economics did not test.": "أشد انحدارًا من جدران الغلاف ({f}–{s}° لزاوية مُدخلة {t}°): يقع التصميم داخلها، وهو ما لم تختبره اقتصاديات الغلاف."
+  "Steeper than the shell's walls ({f}–{s}° for a typed {t}°): the design stands inside them, which the shell's economics did not test.": "أشد انحدارًا من جدران الغلاف ({f}–{s}° لزاوية مُدخلة {t}°): يقع التصميم داخلها، وهو ما لم تختبره اقتصاديات الغلاف.",
+  "Weights of evidence over the {n} drilled cells (cells with a {sym} sample): {d} with a hole over the cut-off against {m} without. Undrilled ground is not counted as barren; the posterior is the chance that a hole drilled in a cell would meet the cut-off.": "أوزان الدليل على {n} خلية محفورة (خلايا فيها عينة {sym}): {d} فيها ثقب فوق حد القطع مقابل {m} بدونه. لا تُحسب الأرض غير المحفورة عقيمة؛ والاحتمال اللاحق هو فرصة أن يبلغ ثقب يُحفر في خلية حد القطع.",
+  "{h} of the {n} drilled cells hold a hole over the cut-off: weights of evidence need at least 3 without one to weigh against.": "{h} من {n} خلية محفورة فيها ثقب فوق حد القطع: تحتاج أوزان الدليل إلى 3 خلايا على الأقل بدونه للمقارنة."
 }
