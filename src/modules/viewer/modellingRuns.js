@@ -3,6 +3,7 @@
 // (exactly what the old useCallback closures saw), and mcRef is the hook's live ref (#599).
 import * as THREE from "three";
 import { buildMeshQuery } from "../../lib/meshQuery.js"; // TASKS.csv #2376
+import { modelGround, boxTallerThanDrilling } from "../../lib/modelGround.js"; // TASKS.csv #2470
 import { stackOrderAtHoles } from "../../lib/stackOrderAtHoles.js"; // TASKS.csv #2376
 import { intensityRank, INTENSITY_SCALE } from "../../lib/intensityVocab.js"; // TASKS.csv #2230
 import { baselineNotice, oneHoleDipNotice } from "../../lib/modelCheckBaseline.js"; // TASKS.csv #1687
@@ -199,6 +200,10 @@ export function createModellingRuns(ctx, mcRef) {
     }
     const clipDomain = clipToDomainBoundary ? domains.find((d) => d.id === modelDomainId) : null;
     const clipTerrain = clipToTopo ? terrainForClipRef.current : null; // #358
+    // TASKS.csv #2470 (review #2325, WA uranium) — the ground the surfaces and the block are cut at: the terrain, or with none the collar
+    // surface (unless the collars look drilled from underground); every top was drawn above the collars somewhere, Top of QA up to RL 805
+    const ground = clipToTopo ? modelGround(clipTerrain, collars, survey) : { ground: null };
+    const clipGround = ground.ground;
     // TASKS.csv #1335 — each surface's contacts, how far past them it may run, and (below) a model box sized to them
     const reachLib = limitToContacts ? await import("../../lib/contactReach.js") : null;
     const reachOf = new Map();
@@ -425,13 +430,13 @@ export function createModellingRuns(ctx, mcRef) {
       // footprint; outside it there is nothing to clip against). #568 — cut at the ground line (was: every
       // triangle whose centroid was above it dropped, leaving a saw-tooth that stopped short of the surface).
       let topoClipped = 0;
-      if (clipTerrain) {
+      if (clipGround) {
         const o = originRef.current;
-        const [txmin, tymin, txmax, tymax] = clipTerrain.bbox;
+        const [txmin, tymin, txmax, tymax] = clipGround.bbox;
         const above = (v) => {
           const wx = v.x + o.x, wy = -v.z + o.y;
           if (wx < txmin || wx > txmax || wy < tymin || wy > tymax) return false;
-          const ground = terrainGroundAt(clipTerrain, wx, wy); // TASKS.csv #927 — nothing clipped against the fill
+          const ground = clipGround.at(wx, wy); // TASKS.csv #927 — nothing clipped against the fill; #2470 — or the collar surface
           return Number.isFinite(ground) && v.y + o.z > ground;
         };
         const c = clipMesh(sceneVerts, faces, above);
@@ -477,7 +482,7 @@ export function createModellingRuns(ctx, mcRef) {
         domain: clipDomain ? clipDomain.name : (domains.find((d) => d.id === modelDomainId)?.name || null),
         clippedToDomain: !!clipDomain,
         ...(reach ? { limitedToContacts: { marginM: Math.round(reach.margin), automatic: !(contactReachM > 0) } } : {}), // #1335
-        clippedToTopography: clipTerrain ? { terrain: clipTerrain.name || "terrain", trianglesRemoved: topoClipped } : false, // #358
+        clippedToTopography: clipGround ? { terrain: clipGround.name, trianglesRemoved: topoClipped } : false, // #358; #2470 — "collar surface" with no terrain
         // TASKS.csv #52 (c) — WHICH picks fed this surface, by name. Without it two surfaces modelled
         // from the same logged code (upper vs lower basalt) would carry identical provenance and be
         // indistinguishable a month later.
@@ -522,6 +527,10 @@ export function createModellingRuns(ctx, mcRef) {
         setNotices((p) => [...p, notice("Out of order at the collars: {list}. A stack is one field, so its surfaces cannot cross, but each is that field's level at its own contacts, and here they came out in a different order from the one given. A model box too coarse for the units' thickness is a usual cause (the contact fit above says how far each surface misses its picks); one Explicit surface per unit, from its logged tops, follows the picks exactly.", { list })]);
       } else if (checked) setNotices((p) => [...p, infoNotice(tr("In order at the collars: each surface of the stack lies below the one above it at the {n} collars both reach.", { n: checked }))]);
     }
+    // TASKS.csv #2470 — with no terrain: the collar surface was used, or why not
+    if (ground.kind === "collars") setNotices((p) => [...p, notice("No terrain is loaded, so the surfaces and the block were cut at the collar surface: the ground interpolated between the {n} collars, inside their footprint. A terrain (Maps > Terrain) gives the real ground.", { n: ground.collars })]);
+    else if (ground.why === "underground") setNotices((p) => [...p, notice("No terrain is loaded and the collars look drilled from underground, so nothing was cut at the ground: the surfaces may run above it.")]);
+    { const tall = boxTallerThanDrilling(extent, traces); if (tall) setNotices((p) => [...p, notice("The model box is {r} times as tall as the drilling in it ({box} m against {drill} m), so most of each unit volume is rock no hole reached.", { r: tall.ratio.toFixed(1), box: Math.round(tall.boxM), drill: Math.round(tall.drillM) })]); }
     if (nonFinite.length) setNotices((p) => [...p, notice("GemPy returned some invalid (NaN) vertices — the surface is shown without the triangles that used them, so it may have holes: {nonFinite}. Usually too few points / orientations for the extent or resolution.", { nonFinite: nonFinite.join("; ") })]); // #314
     // TASKS.csv #356 — model vs logs, and unit volumes, from the lithology block. Every logged interval of a
     // modelled unit (by its code / group codes) is sampled at its midpoint in the model; the report says
@@ -571,9 +580,9 @@ export function createModellingRuns(ctx, mcRef) {
       // are counted on (the solved one: through the unwarp when a trend stretched it), are cut at the terrain, as the
       // surfaces are (#358, the same "clip to topography" choice)
       let volBlock = res.block, airCut = 0;
-      if (clipTerrain) {
+      if (clipGround) {
         const o = originRef.current;
-        const groundOf = (wx, wy) => terrainGroundAt(clipTerrain, wx, wy);
+        const groundOf = clipGround.at; // #2470 — the terrain, or the collar surface
         const real = (q) => ({ x: q.x + o.x, y: q.y + o.y, z: q.z + o.z });
         const unwarp = anisotropy.enabled ? ((u) => (q) => real(anisoWarpPoint(q, anisoCenter, anisoBasis, u)))(invScales(anisoScl)) : real;
         lbBlock = capBlockAtGround(lbBlock, groundOf, real).block;
@@ -612,7 +621,7 @@ export function createModellingRuns(ctx, mcRef) {
       const warpDet = anisotropy.enabled ? anisoScl.major * anisoScl.semiMajor * anisoScl.minor : 1;
       const loggedMetres = new Map(chk.units.map((u) => [u.unit, u.logged])); // #1189 — no logged metres: no volume to quote
       // #1684 — the overburden above its base reaches the top of the model box unless a terrain caps it: no volume to quote then
-      const vols = unitVolumes(volBlock).filter((v) => v.name && !(Math.round(loggedMetres.get(v.name) ?? 1) === 0) && !(baseRun && !clipTerrain)).map((v) => ({ ...v, volume: v.volume / warpDet })); // #1029 — below the ground
+      const vols = unitVolumes(volBlock).filter((v) => v.name && !(Math.round(loggedMetres.get(v.name) ?? 1) === 0) && !(baseRun && !clipGround)).map((v) => ({ ...v, volume: v.volume / warpDet })); // #1029 — below the ground
       const pct = (a, b) => (b > 0 ? `${Math.round((100 * a) / b)}%` : "—");
       const fmtVol = (v) => (v >= 1e9 ? `${(v / 1e9).toFixed(2)} km³` : `${(v / 1e6).toFixed(1)} Mm³`);
       const perUnit = chk.units.map((u) => `${u.unit} ${pct(u.matched, u.logged)} of ${Math.round(u.logged)} m${u.mostOftenModelledAs !== undefined && u.matched < u.logged ? ` (otherwise mostly modelled as ${u.mostOftenModelledAs ?? (baseRun ? "below its base" : "above the modelled tops")})` : ""}`).join("; "); // baseRun: #1684
@@ -626,7 +635,7 @@ export function createModellingRuns(ctx, mcRef) {
         const volT = ((extent[1] - extent[0]) * (extent[3] - extent[2]) * (extent[5] - extent[4])) / warpDet;
         setNotices((p) => [...p, notice(volT >= volNT ? "With a trend the model box is about {a}, larger than the {b} the same data get without one (the same padding rules), so a unit's volume cannot be compared between the two runs." : "With a trend the model box is about {a}, smaller than the {b} the same data get without one (the same padding rules), so a unit's volume cannot be compared between the two runs.", { a: fmtVol(volT), b: fmtVol(volNT) })]);
       }
-      if (chk.total > 0) setNotices((p) => [...p, notice("Model check{v}: the model puts {v2} of {v3} logged metres of the modelled units in the unit they were logged as. By unit: {perUnit}.{v4}{v5} Unit volumes inside the model box ({v6}) are bounded by that box and are not resource figures.{v8}{v7}", { v8: clipTerrain ? tr(" They and the lithology block are cut at the terrain ({cells} cells above the ground left out).", { cells: airCut.toLocaleString() }) : "", v: exact ? tr(" (each interval's midpoint evaluated exactly)") : tr(" (read from the {modelResolution}³ block)", { modelResolution }), v2: pct(chk.matched, chk.total), v3: Math.round(chk.total), perUnit, v4: worst ? tr(" Least reproduced holes: {worst}.", { worst }) : "", v5: chk.outside ? tr(" {v} m fell outside the model extent.", { v: Math.round(chk.outside) }) : "", v6: vols.length ? vols.map((v) => `${v.name} ${fmtVol(v.volume)}`).join(", ") : baseRun ? tr("none: {unit} lies above its base and nothing caps it without a terrain", { unit: specs[0].meshName }) : tr("none"), v7: anisotropy.enabled ? tr(" With the {trendWord} \"{v}\" the model is solved in a stretched frame: the check and volumes account for it, and \"Add as block model\" gets the model resampled onto a real-space grid.", { trendWord, v: anisotropy.params?.trend || tr("unnamed") }) : "" })]);
+      if (chk.total > 0) setNotices((p) => [...p, notice("Model check{v}: the model puts {v2} of {v3} logged metres of the modelled units in the unit they were logged as. By unit: {perUnit}.{v4}{v5} Unit volumes inside the model box ({v6}) are bounded by that box and are not resource figures.{v8}{v7}", { v8: clipGround ? (clipGround.kind === "terrain" ? tr(" They and the lithology block are cut at the terrain ({cells} cells above the ground left out).", { cells: airCut.toLocaleString() }) : tr(" They and the lithology block are cut at the collar surface ({cells} cells above it left out).", { cells: airCut.toLocaleString() })) : "" /* #2470 */, v: exact ? tr(" (each interval's midpoint evaluated exactly)") : tr(" (read from the {modelResolution}³ block)", { modelResolution }), v2: pct(chk.matched, chk.total), v3: Math.round(chk.total), perUnit, v4: worst ? tr(" Least reproduced holes: {worst}.", { worst }) : "", v5: chk.outside ? tr(" {v} m fell outside the model extent.", { v: Math.round(chk.outside) }) : "", v6: vols.length ? vols.map((v) => `${v.name} ${fmtVol(v.volume)}`).join(", ") : baseRun ? tr("none: {unit} lies above its base and nothing caps it without a terrain", { unit: specs[0].meshName }) : tr("none"), v7: anisotropy.enabled ? tr(" With the {trendWord} \"{v}\" the model is solved in a stretched frame: the check and volumes account for it, and \"Add as block model\" gets the model resampled onto a real-space grid.", { trendWord, v: anisotropy.params?.trend || tr("unnamed") }) : "" })]);
       { const bn = baselineNotice(chk); if (bn) setNotices((p) => [...p, bn]); } // #1687 — what a trivial model would score
       // TASKS.csv #758 — the predicted geological map, and how it compares with the mapped geology
       if (mapGrid && exact && addRaster) {
@@ -753,10 +762,10 @@ export function createModellingRuns(ctx, mcRef) {
           if (!counter) {
             counter = makeEnsembleCounter(r.block.ids.length, r.block.labels.length); blockMeta = r.block;
             // TASKS.csv #1029 — the cells above the ground (same box every realisation), left out of P(), entropy and the volumes
-            if (clipTerrain) {
+            if (clipGround) { // #2470
               const o = originRef.current, real = (q) => ({ x: q.x + o.x, y: q.y + o.y, z: q.z + o.z });
               const toWorld = anisotropy.enabled ? ((u) => (q) => real(anisoWarpPoint(q, anisoCenter, anisoBasis, u)))(invScales(anisoScl)) : real;
-              const cap = capBlockAtGround({ ...r.block, ids: new Int32Array(r.block.ids.length).fill(1) }, (wx, wy) => terrainGroundAt(clipTerrain, wx, wy), toWorld);
+              const cap = capBlockAtGround({ ...r.block, ids: new Int32Array(r.block.ids.length).fill(1) }, clipGround.at, toWorld);
               airCells = [];
               cap.block.ids.forEach((id, i) => { if (id === 0) airCells.push(i); });
             }
