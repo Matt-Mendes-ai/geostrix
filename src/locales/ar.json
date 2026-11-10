@@ -9606,5 +9606,15 @@
   "Anomaly thresholds for soil and stream-sediment samples, and length-weighted for drill assays, judged within populations": "عتبات الشذوذ لعينات التربة ورواسب المجاري، ومرجّحة بالطول لتحاليل الثقوب، تُقيَّم داخل كل مجتمع",
   "Each reading is placed at the middle of its From–To interval ({from} to {to}): a log at short steps, not intervals of a rock unit.": "توضع كل قراءة في منتصف فاصلها من–إلى ({from} إلى {to}): تسجيل بخطوات قصيرة، لا فواصل وحدة صخرية.",
   "{col}: {n} value(s) look like no-data codes ({codes}): a null sentinel, a negative {unit}, or more than 1,000 times the channel's 99th percentile.": "{col}: تبدو {n} قيمة رموزًا لانعدام البيانات ({codes}): قيمة فارغة متعارف عليها، أو {unit} سالب، أو أكثر من 1000 ضعف المئين 99 للقناة.",
-  "Leave them out (said in the notice and the layer notes)": "استبعدها (يُذكر ذلك في الإشعار وملاحظات الطبقة)"
+  "Leave them out (said in the notice and the layer notes)": "استبعدها (يُذكر ذلك في الإشعار وملاحظات الطبقة)",
+  "Rows": "الصفوف",
+  "Row filter column": "عمود مرشح الصفوف",
+  "every row": "كل الصفوف",
+  "only rows where {col} is…": "فقط الصفوف التي يكون فيها {col}…",
+  "Keep rows where {col} is {v}": "احتفظ بالصفوف التي يكون فيها {col} هو {v}",
+  "(blank)": "(فارغ)",
+  "{col} marks {n} row(s) as superseded (out of date): they are left out. Tick their value to keep them.": "يعلّم {col} عدد {n} صفًا بأنها مستبدلة (قديمة): تُستبعد. حدد قيمتها للاحتفاظ بها.",
+  "{col} marks {n} row(s) as not current: they are left out. Tick their value to keep them.": "يعلّم {col} عدد {n} صفًا بأنها غير حالية: تُستبعد. حدد قيمتها للاحتفاظ بها.",
+  "{k} of {n} rows will be imported.": "سيُستورد {k} من {n} صفًا.",
+  "{fileName}: {n} row(s) left out by the row filter ({col} kept only where it is {values}).": "{fileName}: استُبعد {n} صفًا بمرشح الصفوف ({col} يُحتفظ به فقط حيث يكون {values})."
 }

@@ -15,6 +15,18 @@ import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Spac
 import { fieldNeedsNumber, columnHasNoNumbers } from "../lib/importChecks.js"; // TASKS.csv #1257
 import { customFromPrevious } from "../lib/viewer/customMapping.js"; // TASKS.csv #1654
 import LogChannelsBox from "./LogChannelsBox.jsx"; // TASKS.csv #2160 — one numeric layer per log channel
+import RowFilterBox from "./RowFilterBox.jsx"; // TASKS.csv #2330 — only rows where a column is some values (a Superseded flag pre-set)
+import { applyRowFilter, defaultRowFilter } from "../lib/importRowFilter.js"; // TASKS.csv #2330 — the button counts the rows the filter keeps
+// the rows the Import button will bring in: after the row filter (the user's, else the flag preset), as the commit counts them
+// cached per row array and filter: the dialog re-renders on every change, and a 400,000-row table must not be scanned each time
+const countCache = new WeakMap();
+const importCount = (modal) => {
+  const rows = modal.allRows; if (!rows?.length) return modal.rowCount;
+  let c = countCache.get(rows); if (!c) countCache.set(rows, (c = new Map()));
+  const k = modal.rowFilter === undefined ? "preset" : JSON.stringify(modal.rowFilter);
+  if (!c.has(k)) { const f = modal.rowFilter !== undefined ? modal.rowFilter : defaultRowFilter(modal.headers, rows); c.set(k, f ? applyRowFilter(rows, f).rows.length : modal.rowCount); }
+  return c.get(k);
+};
 import { logChannelsFor } from "../lib/downholeLogChannels.js";
 
 
@@ -109,6 +121,7 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
               already derives its columns from whatever keys a row has) and, for interval layers, the
               hover tooltip shows one named "description" specifically — see ViewerModule.jsx. */}
           <LogChannelsBox modal={modal} onChange={onChange} sel={sel} />{/* #2160 */}
+          <RowFilterBox modal={modal} onChange={onChange} sel={sel} />{/* #2330 */}
           <div style={{ marginTop: 4, marginBottom: 14 }}>
             <div style={label}>{tr("Extra fields (optional)")}</div>
             {customFields.map((cf, i) => (
@@ -350,7 +363,7 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
                   onClick={onCommit}
                   disabled={missingRequired.length > 0}
                   style={{ ...btn(true), flex: 2, opacity: missingRequired.length > 0 ? 0.5 : 1, cursor: missingRequired.length > 0 ? "not-allowed" : "pointer" }}
-                >{tr("Import {rowCount} rows", { rowCount: modal.rowCount })}</button>
+                >{tr("Import {rowCount} rows", { rowCount: importCount(modal) })}</button>
               </div>
             </div>
           );

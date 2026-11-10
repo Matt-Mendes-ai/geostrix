@@ -9606,5 +9606,15 @@
   "Anomaly thresholds for soil and stream-sediment samples, and length-weighted for drill assays, judged within populations": "Umbrales de anomalía para muestras de suelo y sedimentos de corriente, y ponderados por longitud para ensayes de sondaje, juzgados dentro de cada población",
   "Each reading is placed at the middle of its From–To interval ({from} to {to}): a log at short steps, not intervals of a rock unit.": "Cada lectura se ubica en el centro de su intervalo Desde–Hasta ({from} a {to}): un registro a pasos cortos, no intervalos de una unidad de roca.",
   "{col}: {n} value(s) look like no-data codes ({codes}): a null sentinel, a negative {unit}, or more than 1,000 times the channel's 99th percentile.": "{col}: {n} valor(es) parecen códigos sin dato ({codes}): un centinela nulo, un {unit} negativo o más de 1.000 veces el percentil 99 del canal.",
-  "Leave them out (said in the notice and the layer notes)": "Dejarlos fuera (se indica en el aviso y en las notas de la capa)"
+  "Leave them out (said in the notice and the layer notes)": "Dejarlos fuera (se indica en el aviso y en las notas de la capa)",
+  "Rows": "Filas",
+  "Row filter column": "Columna del filtro de filas",
+  "every row": "todas las filas",
+  "only rows where {col} is…": "solo filas donde {col} es…",
+  "Keep rows where {col} is {v}": "Conservar filas donde {col} es {v}",
+  "(blank)": "(en blanco)",
+  "{col} marks {n} row(s) as superseded (out of date): they are left out. Tick their value to keep them.": "{col} marca {n} fila(s) como reemplazadas (desactualizadas): se dejan fuera. Marque su valor para conservarlas.",
+  "{col} marks {n} row(s) as not current: they are left out. Tick their value to keep them.": "{col} marca {n} fila(s) como no vigentes: se dejan fuera. Marque su valor para conservarlas.",
+  "{k} of {n} rows will be imported.": "Se importarán {k} de {n} filas.",
+  "{fileName}: {n} row(s) left out by the row filter ({col} kept only where it is {values}).": "{fileName}: {n} fila(s) quedaron fuera por el filtro de filas ({col} solo donde es {values})."
 }
