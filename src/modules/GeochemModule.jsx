@@ -535,6 +535,7 @@ export default function GeochemModule() {
     const validInterval = (r) => { if (!r.hole_id) return false; if (Number.isFinite(r.from) && Number.isFinite(r.to)) return true; const c = sampleTypeClass(r.sample_type); if (c === "standard" || c === "blank" || c === "duplicate") { qcNoDepth[c]++; r.from = null; r.to = null; return true; } return false; };
     let skippedNoDepth = 0;
     const overLimitFilled = new Map(); // #600 / #542 — element -> samples filled from the ore-grade column
+    const methodJoined = new Map(); // #2328 — element -> Map(method column -> samples it filled)
     // TASKS.csv #502 — what an EMPTY element cell means in this file (the import dialog asks when there are
     // any): "missing" = not assayed (default; excluded from grades everywhere, reported as unsampled), or
     // "bdl" = below detection, stored as '<DL' at half the limit like any lab '<x'. The limit per element is
@@ -593,6 +594,16 @@ export default function GeochemModule() {
               v = convertUnit(og, ol.unit, existingUnit[e.symbol] || e.unit); q = null;
               overLimitFilled.set(e.symbol, (overLimitFilled.get(e.symbol) || 0) + 1);
               valueSources[e.symbol] = ol.header;
+            }
+          }
+          // TASKS.csv #2328 — joined method columns: a sample with no value here takes the first other method column that has one, in its own unit
+          if (v == null && e.join && e.methodCols?.length && e.header === e.mainHeader) {
+            for (const mc of e.methodCols) {
+              const c2 = readAssayCell(r[mc.header], negativeMode, colMaxOf(mc.header), dlOf(mc.header));
+              if (c2.value == null) continue;
+              v = convertUnit(c2.value, mc.unit, existingUnit[e.symbol] || e.unit); q = c2.qualifier || null; valueSources[e.symbol] = mc.header;
+              const m = methodJoined.get(e.symbol) || new Map(); m.set(mc.header, (m.get(mc.header) || 0) + 1); methodJoined.set(e.symbol, m);
+              break;
             }
           }
           if (v == null && anyResult && isBlankAssayCell(cell)) ({ v, q } = blankAsBdl(e.symbol, e.header) || { v, q });
@@ -695,6 +706,7 @@ export default function GeochemModule() {
       changed.length && !replaceHoles.length ? tr("{n} hole(s) kept their old intervals beside this file's different ones ({holes}) — Data QC lists the overlaps.", { n: changed.length, holes: more(changed, 6) }) : null, // #530
       skippedNoDepth ? tr("{n} row(s) skipped: no hole id, or a blank / non-numeric from or to depth.", { n: skippedNoDepth }) : null, // #508
       qcNoDepth.standard + qcNoDepth.blank + qcNoDepth.duplicate ? tr("{n} QC insert(s) without depths kept for QAQC ({s} standard(s), {b} blank(s), {d} duplicate(s)).", { n: qcNoDepth.standard + qcNoDepth.blank + qcNoDepth.duplicate, s: qcNoDepth.standard, b: qcNoDepth.blank, d: qcNoDepth.duplicate }) : null, // #1661
+      methodJoined.size ? tr("Method columns joined (a sample's value from the first column that has one): {list}.", { list: [...methodJoined].map(([sym, m]) => `${sym} +${[...m.values()].reduce((t, n) => t + n, 0).toLocaleString()} (${[...m].map(([h, n]) => `${h} ${n.toLocaleString()}`).join(", ")})`).join("; ") }) : "", // #2328
       overLimitFilled.size ? tr("Over-limit samples filled from the ore-grade column: {list}.", { list: [...overLimitFilled].map(([sym, n]) => { const e = chosen.find((x) => x.symbol === sym); return tr("{symbol} {n} (at {limit} {unit} in \"{header}\", from \"{source}\")", { symbol: sym, n, limit: e.overLimit.limit, unit: e.unit, header: e.header, source: e.overLimit.header }); }).join("; ") }) : null, // #600 / #542
       flagged.size ? tr("Qualifiers from the flag columns: {list} (the values kept as the file has them).", { list: [...flagged].map(([sym, f]) => [f.lo ? tr("{symbol} {n} below detection", { symbol: sym, n: f.lo.toLocaleString() }) : null, f.hi ? tr("{symbol} {n} over range", { symbol: sym, n: f.hi.toLocaleString() }) : null].filter(Boolean).join(", ")).join("; ") }) : null, // #2018
       blankBdl.size ? tr("Empty cells read as below detection: {list}; stored at half the limit and flagged '<'.", { list: [...blankBdl].map(([sym, n]) => { const L = blankLimits.get(sym); return tr(L.basis === "lt" ? "{symbol} {n} at <{limit} (the lab's most common '<' limit in the file)" : "{symbol} {n} at <{limit} (the lowest value reported — no '<' limit in the file)", { symbol: sym, n, limit: L.limit }); }).join("; ") }) : null, // #502

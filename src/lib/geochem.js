@@ -160,7 +160,18 @@ export function pickElementColumns(headers, rows, stats = null) {
         if (atCap / c.n >= 0.9) { overLimit = { header: c.header, unit: inferUnit(c.header, symbol), limit: main.max, n: c.n }; break; }
       }
     }
-    out.push({ symbol, header: main.header, unit, alts: sorted.slice(1).map((c) => c.header), overLimit, n: main.n }); // n: #1389 — values in the chosen column
+    // TASKS.csv #2328 (review #2325, WA uranium) — the other method columns of the element (U_100, U_101, U, U_103 beside U_102): each sample
+    // was analysed by one method set, so they hardly overlap; read from the fullest only, U kept 5,060 of 9,746 values. Their counts and how
+    // many rows carry two or more of them; joined by default when at most 5 % of the rows with a value carry several (first value wins).
+    const methodCols = sorted.slice(1).filter((c) => c.n > 0 && !c.repeat && (!overLimit || c.header !== overLimit.header)).map((c) => ({ header: c.header, n: c.n, unit: inferUnit(c.header, symbol) }));
+    let withAny = 0, withSeveral = 0;
+    if (methodCols.length && rows?.length) {
+      const hs = [main.header, ...methodCols.map((c) => c.header)];
+      for (const r of rows) { let k = 0; for (const h of hs) { const v = parseAssayValue(r[h]); if (v != null && Number.isFinite(v)) k++; } if (k) withAny++; if (k > 1) withSeveral++; }
+    }
+    const joinDefault = methodCols.length > 0 && withAny > 0 && withSeveral / withAny <= 0.05;
+    out.push({ symbol, header: main.header, unit, alts: sorted.slice(1).map((c) => c.header), overLimit, n: main.n, // n: #1389 — values in the chosen column
+      ...(methodCols.length ? { methodCols, methodOverlap: { withAny, withSeveral }, join: joinDefault } : {}) }); // #2328
   });
   return out;
 }
