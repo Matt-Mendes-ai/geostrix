@@ -8,6 +8,7 @@ const loadKml = () => import("../kml.js");
 const loadLas = () => import("../las.js"); // TASKS.csv #492 — on demand
 const loadXlsx = () => import("../xlsx.js");
 const loadShapefile = () => import("../shapefile.js");
+import { spectralColumns } from "../layers.js"; // TASKS.csv #2339
 import { num, isOverturnedValue, targetFromName, guessTargetFor, guessColumn, guessColumnExact /* #2268 */, TARGET_SCHEMAS, INTERVAL_FROM_ALIASES, INTERVAL_TO_ALIASES, normHeader } from "../layers.js"; // INTERVAL_*: #2150
 import { gridXY } from "../gridColumns.js"; // TASKS.csv #2564
 const tabular = () => import("../tabular.js"); // TASKS.csv #1493 — the CSV engine (papaparse) loads with the first table, not at launch
@@ -158,6 +159,8 @@ export function columnHasNumbers(rows, h, sample = 50) {
 export function looksLikeAssay(headers, fileName = "", rows = null) {
   const syms = new Set();
   headers.forEach((h) => { if (NOT_GRADE.test(String(h).replace(/_/g, " "))) return; const s = isElementColumn(h); if (s && (!rows || columnHasNumbers(rows, h))) syms.add(s); }); // rows: #2185
+  // TASKS.csv #2339 — spectral parameters that outnumber the element columns: a hyperspectral mineral table carrying one assay-like column
+  if (spectralColumns(headers) >= 4 && spectralColumns(headers) > syms.size) return false;
   if (syms.size >= 4) return true;
   const hs = headers.map((h) => String(h).trim());
   // TASKS.csv #2150 (WA review #2148) — SAMPFROM / SAMPTO (WAMEX gold_small assays_1: Au, AuRp1, Au1) were not from / to here, so 10,422

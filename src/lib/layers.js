@@ -923,6 +923,7 @@ export function guessMapping(target, headers) {
   // TASKS.csv #2149 — the point-data Depth took FromDepth by substring ("depth" inside it) next to From = FromDepth: an interval table's
   // from / to column is never also its point depth
   if (mapping.depth && (mapping.depth === mapping.from || mapping.depth === mapping.to)) mapping.depth = "";
+  if (target === "custom" && !mapping.value && spectralColumns(headers) >= 4) mapping.value = spectralMineralColumn(headers); // #2339 — the dominant mineral
   // TASKS.csv #2338 — a custom layer with From and To found is an interval table: Casing_Depth is not its point depth
   if (target === "custom" && mapping.from && mapping.to && mapping.depth) mapping.depth = "";
   // TASKS.csv #2151 — a collar file whose coordinates are named for their grid: the best grid pair, unless plain x / y names are there
@@ -1116,8 +1117,16 @@ export function schemaSatisfied(target, mapping) {
 // "Type" column hit the vein rule); #1345: a UV fluorescence log is not lithology; #1502 (40958Z): Oxidation, Silicification and
 // OriCore (the core-orientation marks) were all guessed as Lithology from a generic code / description column.
 const CUSTOM_LOG_NAMES = /\b(voids?|cavit(y|ies))\b|fluoresc|silicif|\bori(ented)?[\s_-]*core\b|\boricore\b/i; // oxidation / weathering: their own layer since #2162
+// TASKS.csv #2339 (review #2325, WA uranium) — a hyperspectral (HyLogger TSA) table: mineral / weight pairs and absorption-feature
+// parameters (TSA_S Mineral1, TSA_S Weight1, w2200, d2200, hqd2200, kaol_cryst, FeOx ...). geophysics_1.csv (34 columns, one U3O8_ppm
+// among them) went to the assay import as 5,394 U results, double-counting the lab's. -> the number of spectral columns
+const SPECTRAL_COL = /(^|[\s_])tsa([\s_]|$)|mineral[\s_]*\d|weight[\s_]*\d|^[wd]\d{3,4}$|hqd|kaol|feox|swir|vnir/i;
+export const spectralColumns = (headers) => (headers || []).filter((h) => SPECTRAL_COL.test(String(h).trim())).length;
+// the mineral column of a spectral table: the first Mineral1 (TSA_S before TSA_V by header order)
+export const spectralMineralColumn = (headers) => (headers || []).find((h) => /mineral[\s_]*1$/i.test(String(h).trim())) || "";
 export function guessTargetFor(headers, name) {
   if (CUSTOM_LOG_NAMES.test(String(name || ""))) return "custom";
+  if (spectralColumns(headers) >= 4) return "custom"; // #2339 — a mineral table from spectra, not Mineralization (ore minerals)
   // TASKS.csv #2317 — regolith boundary events (BOCO, TOFR, ... at one depth per hole, no from / to): a custom point layer of codes, not
   // structure picks without an orientation (where 'Event_Code + Depth' used to land)
   if (looksLikeEventTable(headers)) return "custom";
