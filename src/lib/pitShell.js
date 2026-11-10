@@ -15,9 +15,17 @@ export const oneHoleBlock = (c) => c.nHoles === 1 || c.holeShare >= ONE_HOLE_SHA
 // typed in that box made a 91.5 ppm cut-off and a $1.21B margin. A base metal is sold by the pound or tonne whatever unit its grade is in:
 // its ppm / g/t / ppb grade is counted in tonnes of metal (1 ppm = 1e-6 t per t), so it takes $/lb and $/t and reports tonnes.
 export const BASE_METALS = new Set(["Cu", "Zn", "Pb", "Ni", "Mo", "Co", "Sn", "W", "Sb", "Bi", "U"]);
+// TASKS.csv #2592 (review #2486, WA lithium) — commodities sold as a product, not as the element: tonnes of product per tonne of element. The
+// oxide factors are geochem.js OXIDE_HEADERS' (the import's, test/pitProducts2592 keeps them equal); LCE is Li2CO3 per 2 Li; SC6 is spodumene
+// concentrate at 6 % Li2O (2.1527 / 0.06 t of concentrate per t of Li). A lithium model was priced per lb or t of an unnamed metal, so a
+// concentrate price typed there (1,000 $/t) gave 'no pit', and 35,878 $/t (the same price per t of Li, worked out by hand) a 28.3 Mt pit.
+export const SOLD_AS = {
+  Li: [["SC6", 2.1527 / 0.06, "spodumene concentrate, 6 % Li2O"], ["LCE", 5.3235, "lithium carbonate equivalent"], ["Li2O", 2.1527, null]],
+  Ta: [["Ta2O5", 1.221, null]], Nb: [["Nb2O5", 1.4305, null]], Sn: [["SnO2", 1.2695, null]], W: [["WO3", 1.2611, null]], V: [["V2O5", 1.7852, null]],
+};
 export function pitMetalOf(unit, element) {
   const m = metalOf(unit);
-  if (m && m.unit === "g" && (BASE_METALS.has(String(element || "")) || isUraniumOxide(element))) return { factor: m.factor / 1e6, unit: "t" }; // oxide: #2434
+  if (m && m.unit === "g" && (BASE_METALS.has(String(element || "")) || isUraniumOxide(element) || SOLD_AS[String(element || "")])) return { factor: m.factor / 1e6, unit: "t" }; // oxide: #2434; SOLD_AS: #2592
   return m;
 }
 // TASKS.csv #2434 (review #2325, WA uranium) — uranium is quoted and sold per lb of U3O8, and the pit panes read '$/lb' as per lb of U METAL: an
@@ -28,10 +36,14 @@ export const isUranium = (el) => String(el || "") === "U";
 export const isUraniumOxide = (el) => /^e?U3O8$/i.test(String(el || ""));
 // tonnes of metal one priced unit is (a price per that unit / this = $ per tonne of the counted metal)
 export const PRICED_MASS_T = { t: 1, lb: 1 / LB_PER_T, lbU3O8: 1 / (LB_PER_T * U3O8_PER_U), kgU: 0.001 };
+for (const list of Object.values(SOLD_AS)) for (const [p, f] of list) PRICED_MASS_T[`t${p}`] = 1 / f; // #2592 — a tonne of the product is 1 / f t of element
 export function priceUnitsFor(metal, element) {
   if (!metal) return null;
   if (metal.unit === "t" && isUranium(element)) return [["lbU3O8", "$/lb U3O8"], ["lb", "$/lb U"], ["kgU", "$/kg U"]];
   if (metal.unit === "t" && isUraniumOxide(element)) return [["lb", "$/lb U3O8"], ["t", "$/t U3O8"]];
+  // #2592 — the products first (as sold), then the element itself, named
+  const sold = metal.unit === "t" && SOLD_AS[String(element || "")];
+  if (sold) return [...sold.map(([p, , what]) => [`t${p}`, what ? `$/t ${p} (${what})` : `$/t ${p}`]), ["t", `$/t ${element}`], ["lb", `$/lb ${element}`]];
   return PRICE_UNITS[metal.unit];
 }
 // contained metal, the same words in every pit pane: troy ounces for gold-style grades; tonnes and pounds for base metals; uranium as tonnes of
@@ -41,6 +53,8 @@ export function metalAmountText(tonnesOrGrams, metalUnit, element, fmt) {
   const t = tonnesOrGrams;
   if (isUranium(element)) return `${fmt(t)} t U (${fmt(t * U3O8_PER_U * LB_PER_T)} lb U3O8)`;
   if (isUraniumOxide(element)) return `${fmt(t)} t U3O8 (${fmt(t * LB_PER_T)} lb U3O8)`;
+  const sold = SOLD_AS[String(element || "")]; // #2592 — the element and what it is sold as
+  if (sold) return `${fmt(t)} t ${element} (${sold.map(([p, f]) => `${fmt(t * f)} t ${p}`).join(", ")})`;
   return `${fmt(t)} t (${fmt(t * LB_PER_T)} lb)`;
 }
 // the element a block model holds: its estimate's parameters, else a symbol at the start of its name ("Cu estimate (idw2, 20m)")
