@@ -5,6 +5,7 @@ import * as THREE from "three";
 import { buildMeshQuery } from "../../lib/meshQuery.js"; // TASKS.csv #2376
 import { modelGround, boxTallerThanDrilling } from "../../lib/modelGround.js"; // TASKS.csv #2470
 import { roundVolume, loggedVolumeCheck } from "../../lib/volumeCheck.js"; // TASKS.csv #2530
+import { taskSlot } from "../../lib/taskSlot.js"; // TASKS.csv #2379
 import { stackOrderAtHoles } from "../../lib/stackOrderAtHoles.js"; // TASKS.csv #2376
 import { intensityRank, INTENSITY_SCALE } from "../../lib/intensityVocab.js"; // TASKS.csv #2230
 import { baselineNotice, oneHoleDipNotice } from "../../lib/modelCheckBaseline.js"; // TASKS.csv #1687
@@ -147,6 +148,7 @@ export function createModellingRuns(ctx, mcRef) {
     veinDipDir,
     veinSearchRadius,
   } = ctx;
+  const ownTask = (label) => taskSlot(setTaskProgress, label); // TASKS.csv #2379 — a short tool never covers a cancellable run's progress
 
   const runSurfaceStack = async (rawSpecs, stackOpts = {}) => {
     // TASKS.csv #650 — the trend chosen for geology models; #679 — structural surfaces have their own slot
@@ -1683,7 +1685,7 @@ export function createModellingRuns(ctx, mcRef) {
     let label = isCode ? `Unit body: ${altValue}` : `${sourceKey === "vein" ? "Vein set envelope" : sourceKey === "litho" ? "Envelope" : "Alteration halo"}: ${customSrc ? `${customSrc.name} ` : ""}${altValue}${minField ? ` (${minField.field} ≥ ${minField.vocab ? (minField.label || minField.min) : minField.min})` : ""}`; // #1574; vein: #2050
     if (sourceKey === "weath") label = label.replace(/^Alteration halo/, "Envelope"); // #2529
     setAlterationBusy(true);
-    setTaskProgress?.({ label, pct: 20 });
+    ownTask(label).set(20); // #2379
     // Deferred exactly like runNumericModel (see its comment) so the busy state paints before the
     // synchronous grid pass — a timer, not rAF, because rAF never fires in a hidden window.
     setTimeout(async () => {
@@ -1783,7 +1785,7 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
         const grid = await runEstimation("dense", gridPts, {
           bounds, cellSize: { dx: cell, dy: cell, dz: cell }, method: "idw2",
           searchRadius: anisotropy.enabled ? radius * scl.major : radius, minSamples: 1, maxSamples: 16, minHoles: 1, // #656 — major semi-axis = radius
-        }, { signal: ac.signal, onProgress: (f) => setTaskProgress?.({ label, pct: 20 + 60 * f, onCancel: () => ac.abort() }) });
+        }, { signal: ac.signal, onProgress: (f) => ownTask(label).set(20 + 60 * f, () => ac.abort()) });
         if (!grid.estimated) throw new Error(isCode ? tr("No grid cell had a sample within the search radius — increase the search radius.") : tr("No grid cell had an alteration sample within the search radius — increase the search radius."));
         // noData: "outside" — a no-data cell reads as "not altered", which is what lets the envelope
         // close against the edge of the informed region instead of leaving an open shell.
@@ -1868,7 +1870,7 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
       } catch (e) {
         setNotices((p) => [...p, e?.cancelled ? notice(isCode ? "Unit body cancelled." : "Alteration halo cancelled.") : e?.stopped ? infoNotice(tr("Unit body not built: {v}", { v: e.message })) /* #2047 */ : errorNotice(isCode ? tr("Unit body failed: {v}", { v: e.message || e }) : tr("Alteration halo failed: {v}", { v: e.message || e }))]);
       }
-      setTaskProgress?.(null);
+      ownTask(label).clear(); // #2379 — only this tool's entry
       setAlterationBusy(false);
     }, 40);
   };
@@ -1899,7 +1901,7 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
     const domain = domains.find((d) => d.id === modelDomainId);
     const label = tr("Vein: {v}", { v: veinValue }); // #1974
     setVeinBusy(true);
-    setTaskProgress?.({ label, pct: 20 });
+    ownTask(label).set(20); // #2379
     setTimeout(async () => {
       let logged = null; // #1415 — read by the catch below
       try {
@@ -2061,7 +2063,7 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
         const none = e?.attitude && logged && !logged.n ? ` ${tr("No oriented-core vein measurements lie within {tol} m of these intercepts.", { tol: logged.tolM })}` : "";
         setNotices((p) => [...p, errorNotice(tr("Vein model failed: {v}", { v: e.message || e }) + none)]);
       } finally { // #2050 — also after the early stop below
-        setTaskProgress?.(null);
+        ownTask(label).clear(); // #2379 — only this tool's entry
         setVeinBusy(false);
       }
     }, 40);
@@ -2098,7 +2100,7 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
     const unitL = gradeUnitLabel(symbol, unit); // TASKS.csv #2218 — what a person reads: 'Au > 1 g/t shell' (#1680); unit stays the stored one
     const label = `${symbol} > ${numericCutoff} ${unitL} shell`;
     setNumericBusy(true);
-    setTaskProgress?.({ label, pct: 20 });
+    ownTask(label).set(20); // #2379
     setTimeout(async () => {
       try {
         const { marchingCubes } = await import("../../lib/marchingCubes.js"); // #476 — loaded on first use
@@ -2226,7 +2228,7 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
           ...(numericMethod === "ok" && numericVariogram && ["nugget", "sill", "range"].every((k) => numericVariogram[k] !== "" && Number.isFinite(Number(numericVariogram[k])))
             ? { variogram: { model: numericVariogram.model || "spherical", nugget: Number(numericVariogram.nugget), sill: Number(numericVariogram.sill), range: Number(numericVariogram.range) * (anisotropy.enabled ? gsScl.major : 1) } }
             : numericMethod === "ok" ? { variogram: { model: numericVariogram?.model || "spherical" } } : {}),
-        }, { signal: ac.signal, onProgress: (f) => setTaskProgress?.({ label, pct: 20 + 60 * f, onCancel: () => ac.abort() }) });
+        }, { signal: ac.signal, onProgress: (f) => ownTask(label).set(20 + 60 * f, () => ac.abort()) });
         if (logInfo) unlogGrid(grid); // #1741 — back to data units: the iso-surface at the cutoff is unchanged, each node a geometric mean
         // TASKS.csv #935 — kriging with a trend runs in the volume-keeping warp, so the variogram is fitted (and its range
         // read) in units where 1 m along the major axis is scales.major m: a 115 m range along the trend printed as "70 m"
@@ -2375,7 +2377,7 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
       } catch (e) {
         setNotices((p) => [...p, e?.cancelled ? notice("Numeric model cancelled.") : errorNotice(tr("Numeric model failed: {v}", { v: e.message || e }))]);
       }
-      setTaskProgress?.(null);
+      ownTask(label).clear(); // #2379 — only this tool's entry
       setNumericBusy(false);
     }, 40);
   }; // anisotropy/domains/modelDomainId: TASKS.csv #273

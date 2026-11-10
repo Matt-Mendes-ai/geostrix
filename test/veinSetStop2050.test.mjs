@@ -12,7 +12,7 @@ test("the vein-set check runs before the first wall is stamped and returns", () 
   assert.match(r.slice(gate, fw), /no surface, solid or volume was made[\s\S]*return;\s*\}/);
 });
 test("the busy state is reset in a finally, so the early stop leaves the pane usable", () => {
-  assert.match(r, /\} finally \{ \/\/ #2050 — also after the early stop below\s*setTaskProgress\?\.\(null\);\s*setVeinBusy\(false\);/);
+  assert.match(r, /\} finally \{ \/\/ #2050 — also after the early stop below\s*(setTaskProgress\?\.\(null\)|ownTask\(label\)\.clear\(\)); \/\/ #2379 — only this tool's entry\s*setVeinBusy\(false\);/); // ownTask: #2379
 });
 test("the halo takes the Vein log as its source: a vein set as an envelope", () => {
   const p = readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
