@@ -137,6 +137,10 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
               <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setAll(false)} style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", cursor: "pointer" }}>{tr("None")}</span>
             </div>
           </div>
+          {/* TASKS.csv #2337 — a gold / platinum / palladium unit read from the values, said where it is seen, not in a tooltip */}
+          {modal.elements.filter((e) => e.unitFromValues && !e.unitChosen && e.header === e.mainHeader).map((e) => (
+            <div key={`ppb${e.symbol}`} role="status" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", margin: "4px 0" }}>{tr("{symbol}: \"{header}\" does not say its unit, and its values (median {median}, up to {max}) read as ppb, not ppm: ppb is chosen. Check it against the lab certificate.", { symbol: e.symbol, header: e.header, median: +e.unitFromValues.median.toFixed(2), max: e.unitFromValues.max.toLocaleString() })}</div>
+          ))}
           {modal.format === "wide" ? (
             <div style={{ display: "flex", flexDirection: "column", gap: 4, maxHeight: 280, overflowY: "auto", padding: 4, border: "1px solid var(--color-border)", borderRadius: 6 }}>
               {modal.elements.map((e) => (

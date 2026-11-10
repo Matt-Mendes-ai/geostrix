@@ -125,6 +125,20 @@ export function inferUnit(header, symbol) {
 // sit only where the main column is at its maximum (the cap), and fills those samples at import (converted to
 // the main unit). A default-% element whose values run above 100 cannot be % and is read as ppm (Cr 1-665).
 // rows: the parsed rows (header -> raw cell). Returns [{ symbol, header, unit, alts, overLimit }].
+// TASKS.csv #2337 (review #2325, WA uranium) — a precious-metal column that does not say its unit: WAMEX's "Au" held 1,919 values with a
+// median of 3 and a maximum of 4,010 (parts per billion on a uranium prospect), read as ppm under a tooltip that every one of 66 elements
+// carried. Median above 1 and maximum above 100 is ppb for Au, Pt and Pd (a deposit-wide gold median of 1 g/t is very rare, a maximum
+// of 100 g/t rarer still); rows sampled evenly, at most 20,000. -> { median, max } when the values read as ppb, else null
+const PPB_METALS = new Set(["Au", "Pt", "Pd"]);
+export function preciousReadsPpb(symbol, header, rows, max) {
+  if (!PPB_METALS.has(symbol) || /ppm|ppb|gpt|g\/t|pct|%|oz/i.test(String(header)) || !(max > 100) || !rows?.length) return null;
+  const step = Math.max(1, Math.floor(rows.length / 20000)), v = [];
+  for (let i = 0; i < rows.length; i += step) { const x = parseAssayValue(rows[i][header]); if (x != null && Number.isFinite(x) && x > 0) v.push(x); }
+  if (!v.length) return null;
+  v.sort((a, b) => a - b);
+  const median = v.length % 2 ? v[v.length >> 1] : (v[v.length / 2 - 1] + v[v.length / 2]) / 2;
+  return median > 1 ? { median, max } : null;
+}
 const DESCRIPTIVE_COLUMN = /\b(status|certificate|cert|laboratory|lab|method|workflow|date|completed|analys(is|ed)|comment|flag|qc|batch|job|lod|dl|plot)\b/i;
 // stats (optional, #2164): Map(header -> { n, max }) counted beforehand in chunks (assayColumnScan.js elementColumnStats)
 export function pickElementColumns(headers, rows, stats = null) {
@@ -151,6 +165,8 @@ export function pickElementColumns(headers, rows, stats = null) {
     let unit = inferUnit(main.header, symbol);
     const unitInHeader = /ppm|ppb|gpt|g\/t|pct|%/i.test(main.header);
     if (unit === "%" && !unitInHeader && main.max > 100) unit = "ppm";
+    const ppb = !unitInHeader ? preciousReadsPpb(symbol, main.header, rows, main.max) : null; // #2337
+    if (ppb) unit = "ppb";
     let overLimit = null;
     if (main.n && Number.isFinite(main.max)) {
       for (const c of sorted.slice(1)) {
@@ -170,7 +186,7 @@ export function pickElementColumns(headers, rows, stats = null) {
       for (const r of rows) { let k = 0; for (const h of hs) { const v = parseAssayValue(r[h]); if (v != null && Number.isFinite(v)) k++; } if (k) withAny++; if (k > 1) withSeveral++; }
     }
     const joinDefault = methodCols.length > 0 && withAny > 0 && withSeveral / withAny <= 0.05;
-    out.push({ symbol, header: main.header, unit, alts: sorted.slice(1).map((c) => c.header), overLimit, n: main.n, // n: #1389 — values in the chosen column
+    out.push({ symbol, header: main.header, unit, alts: sorted.slice(1).map((c) => c.header), overLimit, n: main.n, ...(ppb ? { unitFromValues: ppb } : {}), // n: #1389 — values in the chosen column; unitFromValues: #2337
       ...(methodCols.length ? { methodCols, methodOverlap: { withAny, withSeveral }, join: joinDefault } : {}) }); // #2328
   });
   return out;
