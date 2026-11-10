@@ -93,18 +93,21 @@ export function resolveLabels(specs, obstacles = [], { gap = 1.5, bounds = null,
   };
   const hit = (a) => placed.some((b) => a.x0 < b.x1 + gap && b.x0 < a.x1 + gap && a.y0 < b.y1 + gap && b.y0 < a.y1 + gap);
   const out = [];
+  // TASKS.csv #2603 — `within` ([x0, x1, y0, y1], a spec's own frame: a grade label's is the plot) must hold the whole label; with no
+  // room inside it the label is left out, never printed across the axis
+  const inWithin = (s, b) => !s.within || (b.x0 >= s.within[0] && b.x1 <= s.within[1] && b.y0 >= s.within[2] && b.y1 <= s.within[3]);
   specs.map((s, i) => ({ s, i })).sort((a, b) => b.s.prio - a.s.prio || a.i - b.i).forEach(({ s }) => {
     let pick = null;
-    for (const c of s.cands) { const box = boxOf(c, s.text, s.size); if (!hit(box)) { pick = { c, box }; break; } }
+    for (const c of s.cands) { const box = boxOf(c, s.text, s.size); if (!hit(box) && inWithin(s, box)) { pick = { c, box }; break; } }
     if (!pick && s.prio <= 1) return;
     let leaderFrom = null;
     if (!pick) {
       const c0 = s.cands[0], w = labelWidth(s.text, s.size), inside = (b) => (!bounds || (b.x0 >= bounds[0] && b.x1 <= bounds[1])) && (!yBounds || (b.y0 >= yBounds[0] && b.y1 <= yBounds[1]));
       search: for (let r = 1; r <= RINGS; r++) for (const dy of [r, -r]) for (const dx of [0, -0.6, 0.6, -1.2, 1.2]) {
         const c = { ...c0, x: c0.x + dx * w, y: c0.y + dy * (s.size + 3) }, box = boxOf(c, s.text, s.size);
-        if (inside(box) && !hit(box)) { pick = { c, box }; leaderFrom = { x: c0.x, y: c0.y - s.size / 2 }; break search; }
+        if (inside(box) && inWithin(s, box) && !hit(box)) { pick = { c, box }; leaderFrom = { x: c0.x, y: c0.y - s.size / 2 }; break search; }
       }
-      if (!pick && s.optional) return; // #1536 — an end-of-hole depth or offset tag with no room anywhere near: left out, not overprinted
+      if (!pick && (s.optional || s.within)) return; // within: #2603 // #1536 — an end-of-hole depth or offset tag with no room anywhere near: left out, not overprinted
       if (!pick) pick = { c: c0, box: boxOf(c0, s.text, s.size) };
     }
     placed.push(pick.box);

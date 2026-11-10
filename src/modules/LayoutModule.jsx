@@ -53,6 +53,7 @@ import { roundScale } from "../lib/layoutGeometry.js"; // TASKS.csv #1486
 import { numericClips, numericLayerColorFn } from "../lib/numericClip.js"; // TASKS.csv #1482
 import { categoryColor, categoryLabel } from "../lib/layers.js"; // TASKS.csv #1289
 import { legendSyncState, staleBoundLegends } from "../lib/layoutLegendSync.js"; // TASKS.csv #2471
+import { roundLongNumbersInSnapshot } from "../lib/svgNumbers.js"; // TASKS.csv #2603
 // (The page size used to be a fixed `const A4 = { w: 1123, h: 794 }` here; it is now per page — see
 // `A4` inside the component, kept under that name so every existing use follows the chosen format.)
 const SCALE_BAR_PX = 180; // default/initial bar length (px) for a freshly-added, never-synced scale bar
@@ -348,6 +349,15 @@ export default function LayoutModule() {
   }, [pendingLayoutImages, consumeLayoutImage]);
 
   useEffect(() => { setSyncNotice(""); }, [selected]);
+
+  // TASKS.csv #2603 — a section snapshot already on a sheet keeps the labels it was drawn with: one from before #2515 prints grades as
+  // '2.2915408556696244 % Li'. Each snapshot's text is checked once (numbersChecked) and its long numbers rounded as a grade is now.
+  useEffect(() => {
+    const todo = elements.filter((el) => el.type === "image" && !el.numbersChecked && /^data:image\/svg\+xml;base64,/.test(el.src || ""));
+    if (!todo.length) return;
+    const fixed = new Map(todo.map((el) => { const r = roundLongNumbersInSnapshot(el.src); return [el.id, r]; }));
+    setElements((els) => els.map((el) => (fixed.has(el.id) ? { ...el, numbersChecked: true, ...(fixed.get(el.id).n ? { src: fixed.get(el.id).src, numbersRounded: (el.numbersRounded || 0) + fixed.get(el.id).n } : {}) } : el)));
+  }, [elements]);
 
   // Kick off a (re-)render of a theme for a Viewport element. targetElementId is "new" to create a
   // fresh element once the render comes back, or an existing element's id to refresh it in place.
@@ -1867,13 +1877,14 @@ function SectionScaleControls({ sel, pageW, pageH, updateSelected }) {
         )}
       </label>
       <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)", marginBottom: 4 }}>{sectionScaleText(sel)}</div>
+      {sel.numbersRounded > 0 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 4, lineHeight: 1.4 }}>{tr(sel.numbersRounded === 1 ? "1 long number in this snapshot's labels was rounded to 4 significant figures, as grades now print." : "{n} long numbers in this snapshot's labels were rounded to 4 significant figures, as grades now print.", { n: sel.numbersRounded })}</div>}{/* #2603 */}
       {(() => { // TASKS.csv #1485 — the plot scale changes the geometry, not the type: say what the text prints at, and take the snapshot again for this width
         const pt = sectionTextPt(sel); if (pt == null || sel.planMap) return null;
         const off = Math.abs(pt - 7) > 1;
         return (
           <div style={{ fontSize: "var(--font-size-xs)", color: off ? "var(--color-warn-text)" : "var(--color-text-muted)", marginBottom: 4, lineHeight: 1.4 }}>
             {off ? tr("Its smallest text prints at about {pt} pt at this width (the snapshot was drawn for about 7 pt).", { pt }) : tr("Its smallest text prints at about {pt} pt.", { pt })}
-            {off && (sel.sectionTabId
+            {(off || sel.sectionTabId) && (sel.sectionTabId /* #2603 — offered on every section snapshot, not only when the text size is off */
               ? <> <button type="button" onClick={() => { const ok = sendSectionResnap({ tabId: sel.sectionTabId, elementId: sel.id, textFactor: sectionTextFactor(sel) }); setResnapNote(ok ? tr("Asked the section window to snapshot again with the text at print size. If the section is closed, open it again and snapshot from there.") : tr("Could not reach the section window.")); }} style={{ ...inp, width: "auto", marginTop: 4, padding: "3px 8px", cursor: "pointer" }}>{tr("Re-snapshot with the text at print size")}</button></>
               : <> {tr("Open the section again and snapshot it from there to get the text at print size.")}</>)}
             {resnapNote && <div style={{ marginTop: 3 }}>{resnapNote}</div>}
