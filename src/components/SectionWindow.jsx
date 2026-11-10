@@ -17,6 +17,7 @@ import { loadPatternTiles, patternDefs, patternFill, sectionTilePx } from "../li
 import { flushSync } from "react-dom"; // TASKS.csv #1090 — render at print size for an export, synchronously
 import { hoverTitle } from "../lib/svgLazyTitle.js"; // TASKS.csv #2210
 import { gradeText } from "../lib/gradeText.js"; // TASKS.csv #2515
+import { defaultSectionVE } from "../lib/sectionVE.js"; // TASKS.csv #2363
 
 const SECTION_W = 1100, SECTION_H = 660;
 
@@ -90,7 +91,8 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
   // (subtle dips/steps in contacts and drillhole traces become easier to read); <1 compresses it. The
   // page height itself grows/shrinks with the exaggerated z-range rather than squeezing a fixed box,
   // since faking exaggeration inside a fixed box would just be a different, undisclosed distortion.
-  const [vExag, setVExag] = useState(1);
+  // TASKS.csv #2363 — null until the section first reports its own shape (SectionSVG onAutoVE), then that value; the user's from then on
+  const [vExag, setVExag] = useState(null);
   const [showSectionImages, setShowSectionImages] = useState(true); // TASKS.csv #631
   const [showModel, setShowModel] = useState(true); // TASKS.csv #759
   // TASKS.csv #1131 — Matt: "set thickness of drill holes on cross sections and the cross section buffer in the section
@@ -204,7 +206,7 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
       // this snapshot represents at its native (naturalW) pixel width, so Layout can derive a scale
       // bar the same way it already does for viewport snapshots (worldHeightAtTarget).
       worldWidthAtCaptureM: hScale ? dims.w / hScale : null,
-      verticalExaggeration: vExag || 1, // TASKS.csv #944 — Layout states it beside the section's plot scale
+      verticalExaggeration: geomRef.current.ve || vExag || 1, // TASKS.csv #944 — Layout states it beside the section's plot scale
       // TASKS.csv #1489 — the section line's azimuth (start -> end), as the subtitle computes it, for 'Looking N..E' on the page
       sectionAzimuth: data?.section ? Number(data.section.azimuth ?? ((Math.atan2(data.section.bx - data.section.ax, data.section.by - data.section.ay) * 180) / Math.PI + 360) % 360) : null,
       // User request ("the legend needs to update matching the cross section"): carry the exact
@@ -461,7 +463,7 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
             <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: "#55606e" }} title={tr("Georeferenced section image(s) on this line, drawn behind the holes and contacts: {v}", { v: data.sectionImages.map((i) => i.name).join(", ") })}>
               <input type="checkbox" checked={showSectionImages} onChange={(e) => setShowSectionImages(e.target.checked)} />{" "}{tr("Section image")}</label>
           )}
-          <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: "#55606e" }} title={tr("Vertical exaggeration — 1x is true scale (vertical and horizontal axes at the same real-world-units-per-pixel)")}>{tr("VE")}<input type="number" min="0.1" max="20" step="0.5" value={vExag} onChange={(e) => setVExag(Math.max(0.1, Number(e.target.value) || 1))} style={{ width: 46, background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 4, color: "#1a2028", fontSize: 11, padding: "3px 5px" }} />
+          <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: "#55606e" }} title={tr("Vertical exaggeration — 1x is true scale (vertical and horizontal axes at the same real-world-units-per-pixel)")}>{tr("VE")}<input type="number" min="0.1" max="20" step="0.5" value={vExag ?? ""} onChange={(e) => setVExag(Math.max(0.1, Number(e.target.value) || 1))} style={{ width: 46, background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 4, color: "#1a2028", fontSize: 11, padding: "3px 5px" }} />
             ×
           </label>
           {onPopOut && !drawing && <button onClick={() => onPopOut({ ...data, contacts, labels, savedContactsKey: savedKey })} style={btnStyle(false)} title={tr("Open this section in a window of its own, to compare it beside another. It uses more memory than a tab.")}>{tr("Own window")}</button>}{/* #1303 */}
@@ -532,7 +534,7 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
           </div>
         )}
         {editingId && <div style={{ fontSize: 11, color: "#b06a1f", marginBottom: 6 }}>{tr("Editing \"{v}\": drag a vertex to move it, Alt-click a vertex to delete it, click the line to insert one{v2}. Click the pencil again to finish; Save contacts keeps the changes.", { v: editing?.unit, v2: snapOn ? tr(" (snapping to holes)") : "" })}{editing?.kind === "outline" ? ` ${tr("Shift-click a vertex to make it the tie point: it is linked to the tie point of the outline on the next section.")}` : ""}</div>}
-        <SectionSVG patterns={patternsOn && Object.keys(patternTiles).length ? patternTiles : null} onLeftOut={printScale == null ? setLabelsLeftOut : null} textFont={textFont} textScale={printScale ?? textScale} /* #1090 — the print size while an export is drawn */ holeWidth={holeWidth} structOpacity={structOpacity} showSectionImages={showSectionImages} showModel={showModel} data={planAdded.length ? { ...data, plannedHoles: [...(data.plannedHoles || []), ...planAdded] } : data} svgRef={svgRef} contacts={contacts} drawing={drawing || planning} drawPoints={drawPoints} onAddPoint={(pt) => (planning ? addPlanPoint(pt) : setDrawPoints((p) => [...p, pt]))} vExag={vExag} geomRef={geomRef} planPts={planning ? planPts : []}
+        <SectionSVG patterns={patternsOn && Object.keys(patternTiles).length ? patternTiles : null} onLeftOut={printScale == null ? setLabelsLeftOut : null} textFont={textFont} textScale={printScale ?? textScale} /* #1090 — the print size while an export is drawn */ holeWidth={holeWidth} structOpacity={structOpacity} showSectionImages={showSectionImages} showModel={showModel} data={planAdded.length ? { ...data, plannedHoles: [...(data.plannedHoles || []), ...planAdded] } : data} svgRef={svgRef} contacts={contacts} drawing={drawing || planning} drawPoints={drawPoints} onAddPoint={(pt) => (planning ? addPlanPoint(pt) : setDrawPoints((p) => [...p, pt]))} vExag={vExag} onAutoVE={(v) => setVExag((cur) => cur ?? v)} geomRef={geomRef} planPts={planning ? planPts : []}
           snap={snapOn && !planning ? targets : null} projectSnaps={projectSnaps} editingId={editingId} onEditPoints={editPoints} onCopyGhost={drawing || planning ? null : copyGhost}
           labels={labels} onMoveLabel={(key, off) => changeLabels({ offsets: { ...labels.offsets, [key]: off } })} /* #823 */ />
         <BlockModelKey slices={data.voxelSlices} />
@@ -546,7 +548,7 @@ function btnStyle(active) {
 }
 const selectStyle = { padding: "5px 8px", background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, color: "#1a2028", fontSize: 11.5 };
 
-function SectionSVG({ patterns = null, textFont = SECTION_FONTS[0].stack, textScale = 1, holeWidth = 5, structOpacity = 1, showSectionImages = true, showModel = true, data, svgRef, contacts, drawing, drawPoints, onAddPoint, vExag, geomRef, planPts = [], snap = null, editingId = null, onEditPoints, labels = { mode: "collar", leaders: "auto", offsets: {} }, onLeftOut = null, onMoveLabel, onCopyGhost = null, projectSnaps = false }) {
+function SectionSVG({ patterns = null, textFont = SECTION_FONTS[0].stack, textScale = 1, holeWidth = 5, structOpacity = 1, showSectionImages = true, showModel = true, data, svgRef, contacts, drawing, drawPoints, onAddPoint, vExag: vExagIn, onAutoVE = null, geomRef, planPts = [], snap = null, editingId = null, onEditPoints, labels = { mode: "collar", leaders: "auto", offsets: {} }, onLeftOut = null, onMoveLabel, onCopyGhost = null, projectSnaps = false }) {
   const plotClipId = `sectionPlotArea${useId().replace(/:/g, "")}`, patId = `${plotClipId}p`; // patId: #1995 // #1303 — a hidden tab's clip path would hide this one's drawing
   const fs = (n) => +(n * textScale).toFixed(2); // TASKS.csv #1129 — every label at the chosen text size
   // TASKS.csv #1134 — depth / EOH / offset / planned-hole labels are collected while the holes are drawn and placed in one
@@ -560,6 +562,8 @@ function SectionSVG({ patterns = null, textFont = SECTION_FONTS[0].stack, textSc
   const leftOutRef = useRef(0);
   leftOutRef.current = 0;
   useEffect(() => { onLeftOut?.(leftOutRef.current); });
+  const autoVERef = useRef(null); // #2363 — this section's opening VE, told to the toolbar once (it keeps it from then on)
+  useEffect(() => { if (autoVERef.current != null && vExagIn == null) onAutoVE?.(autoVERef.current); });
   const { holes = [], section, intervals = [], points = [], planes = [], elevationProfile = null, voxelSlices = [], surfaceTraces = [], plannedHoles = [], title = "", sectionImages = [], scatter = [] } = data; // scatter: #1807
   // TASKS.csv #1090 — the margin and the title / axis text positions follow the text size: at 2x (or the print size the
   // exports use) the title and subtitle, and the tick labels and coordinates under the frame, overlapped
@@ -569,10 +573,6 @@ function SectionSVG({ patterns = null, textFont = SECTION_FONTS[0].stack, textSc
 
   const { ax, ay, bx, by } = section;
   const dx = bx - ax, dy = by - ay;
-  // TASKS.csv #1256 — at a large text size the subtitle ran past the frame and the PNG cut the sentence
-  const subtitleLines = wrapText(tr("Azimuth {v}° · {v2}{v3} · elevation in m", { v: Number(section.azimuth ?? (Math.atan2(dx, dy) * 180 / Math.PI + 360) % 360).toFixed(0), v2: vExag && vExag !== 1 ? tr("{vExag}x vertical exaggeration", { vExag }) : tr("no vertical exaggeration"), v3: section.corridor ? tr(" · data within ±{corridor} m of the line (dashed = trace projected from further away)", { corridor: section.corridor }) : "" }), Math.floor((W - 2 * PAD) / (0.56 * fs(10))));
-  // TASKS.csv #1637 — which ribbon is which: 5-6 parallel ribbons per hole had no key on the section itself
-  { const rib = ribbonOrder(intervals); if (rib.length > 1) subtitleLines.push(...wrapText(tr("Ribbons on each hole, left to right: {list}", { list: rib.join(" · ") }), Math.floor((W - 2 * PAD) / (0.56 * fs(10))))); }
   const len = Math.hypot(dx, dy) || 1;
   const ux = dx / len, uy = dy / len;
   const along = (x, y) => (x - ax) * ux + (y - ay) * uy;
@@ -592,6 +592,14 @@ function SectionSVG({ patterns = null, textFont = SECTION_FONTS[0].stack, textSc
   plannedHoles.forEach((h) => h.trace.forEach((p) => { minZ = Math.min(minZ, p.z); maxZ = Math.max(maxZ, p.z); })); // #395
   scatter.forEach((p) => { minZ = Math.min(minZ, p.z); maxZ = Math.max(maxZ, p.z); }); // #1807 — the geophysics points and samples in the corridor
   if (showSectionImages) sectionImages.forEach((im) => [im.tl, im.tr, im.bl].forEach(([, z]) => { minZ = Math.min(minZ, z); maxZ = Math.max(maxZ, z); })); // #631
+  // TASKS.csv #2363 — the opening VE from the section's length and its unpadded height (before the fallback below)
+  const autoVE = isFinite(minZ) ? defaultSectionVE(len, maxZ - minZ) : null;
+  autoVERef.current = autoVE;
+  const vExag = vExagIn ?? autoVE ?? 1;
+  // TASKS.csv #1256 — at a large text size the subtitle ran past the frame and the PNG cut the sentence
+  const subtitleLines = wrapText(tr("Azimuth {v}° · {v2}{v3} · elevation in m", { v: Number(section.azimuth ?? (Math.atan2(dx, dy) * 180 / Math.PI + 360) % 360).toFixed(0), v2: vExag && vExag !== 1 ? tr("{vExag}x vertical exaggeration", { vExag }) : tr("no vertical exaggeration"), v3: section.corridor ? tr(" · data within ±{corridor} m of the line (dashed = trace projected from further away)", { corridor: section.corridor }) : "" }), Math.floor((W - 2 * PAD) / (0.56 * fs(10))));
+  // TASKS.csv #1637 — which ribbon is which: 5-6 parallel ribbons per hole had no key on the section itself
+  { const rib = ribbonOrder(intervals); if (rib.length > 1) subtitleLines.push(...wrapText(tr("Ribbons on each hole, left to right: {list}", { list: rib.join(" · ") }), Math.floor((W - 2 * PAD) / (0.56 * fs(10))))); }
   if (!isFinite(minZ)) { minZ = 0; maxZ = 100; }
   const zPad = (maxZ - minZ) * 0.08 || 10;
   minZ -= zPad; maxZ += zPad;
@@ -611,7 +619,7 @@ function SectionSVG({ patterns = null, textFont = SECTION_FONTS[0].stack, textSc
   const inPlot = ([x, y]) => x >= PAD - 0.5 && x <= W - PAD + 0.5 && y >= PAD - 0.5 && y <= H - PAD + 0.5;
   // Mirrored out for snapshotToLayout (see that function's comment) — a plain ref write, not state,
   // since nothing here needs to re-render when it changes.
-  if (geomRef) geomRef.current = { hScale };
+  if (geomRef) geomRef.current = { hScale, ve: vExag }; // ve: #2363, the VE drawn
 
   const sx = (l) => PAD + l * hScale;
   const sz = (z) => H - PAD - (z - minZ) * vScale;
