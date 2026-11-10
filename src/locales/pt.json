@@ -9680,5 +9680,6 @@
   "{n} of them because their nearest composite has no {domain} code ({c} of {all} composites have none): the domain search does not estimate them. Tick 'Estimate the samples with no code as a domain of their own' to fill them from those composites.": "{n} deles porque o composto mais próximo não tem código de {domain} ({c} de {all} compostos não têm): a busca por domínio não os estima. Marque 'Estimar as amostras sem código como um domínio próprio' para preenchê-los com esses compostos.",
   "domain": "domínio",
   "Reading the hole-based cards at the new Level…": "Lendo os cartões de furos no novo nível…",
-  "The Level is applied when you press Enter or leave the field.": "O nível é aplicado ao pressionar Enter ou sair do campo."
+  "The Level is applied when you press Enter or leave the field.": "O nível é aplicado ao pressionar Enter ou sair do campo.",
+  "{unitName}: {a} interval start(s) at a hole start and {b} below an unlogged gap were not used as contacts: a top needs a logged unit above it.": "{unitName}: {a} início(s) de intervalo no começo de um furo e {b} abaixo de um trecho não descrito não foram usados como contatos: um topo precisa de uma unidade descrita acima."
 }

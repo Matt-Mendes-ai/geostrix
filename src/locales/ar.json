@@ -9680,5 +9680,6 @@
   "{n} of them because their nearest composite has no {domain} code ({c} of {all} composites have none): the domain search does not estimate them. Tick 'Estimate the samples with no code as a domain of their own' to fill them from those composites.": "{n} منها لأن أقرب مركّب لها بلا رمز {domain} ({c} من {all} مركّبًا بلا رمز): لا يقدّرها البحث بالنطاق. حدّد 'تقدير العينات بلا رمز كنطاق مستقل' لملئها من تلك المركّبات.",
   "domain": "النطاق",
   "Reading the hole-based cards at the new Level…": "قراءة بطاقات الثقوب عند المستوى الجديد…",
-  "The Level is applied when you press Enter or leave the field.": "يُطبَّق المستوى عند الضغط على Enter أو مغادرة الحقل."
+  "The Level is applied when you press Enter or leave the field.": "يُطبَّق المستوى عند الضغط على Enter أو مغادرة الحقل.",
+  "{unitName}: {a} interval start(s) at a hole start and {b} below an unlogged gap were not used as contacts: a top needs a logged unit above it.": "{unitName}: لم تُستخدم {a} بداية فاصل عند بداية ثقب و{b} تحت فجوة غير مسجلة كتماسات: يحتاج السقف إلى وحدة مسجلة فوقه."
 }

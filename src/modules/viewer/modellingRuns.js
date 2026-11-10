@@ -918,6 +918,12 @@ export function createModellingRuns(ctx, mcRef) {
     const litEnds = intervalEndIndex(idxRows);
     const litStarts = intervalStartIndex(idxRows); // #569 — for up-holes
     let splitsSkipped = 0, upHolePicks = 0, belowRoleSkipped = 0, underOvbSkipped = 0; // underOvbSkipped: #1684
+    // TASKS.csv #2527 (review #2486, WA lithium) — a raw code's interval with nothing logged above it is no contact: at the hole's first logged
+    // depth it is the collar (bench holes collared in pegmatite: 180 of 254 'Top of P'), after an unlogged start or a gap it is unknown. The
+    // Modelling-codes branch (topsForCode) and the Explicit surface tool already left them out; this branch took every start.
+    let holeStartSkipped = 0, gapSkipped = 0;
+    const firstFrom = new Map();
+    for (const r of layers.litho || []) { const f = Number(r.from); if (r.hole_id != null && Number.isFinite(f) && !(firstFrom.get(r.hole_id) <= f)) firstFrom.set(r.hole_id, f); }
     const isOverburdenUnit = unitRoleOf(target) === "overburden"; // #1684
     // #1367 — the logged codes around each depth, for the roles of what sits right above an interval (raw values, not IN tokens)
     const rawEnds = isMcode ? null : intervalEndIndex(layers.litho), rawStarts = isMcode ? null : intervalStartIndex(layers.litho);
@@ -981,6 +987,7 @@ export function createModellingRuns(ctx, mcRef) {
         if (top.continues) { splitsSkipped++; return; }
         // #1367 — under a fault, breccia, vein, dyke, no recovery or casing the start is not a top (the roles of Modelling codes)
         const aboveVals = top.upHole ? rawStarts.get(depthKey(r.hole_id, r.to)) : rawEnds.get(depthKey(r.hole_id, r.from));
+        if (!top.upHole && !(aboveVals && aboveVals.length)) { if (Number(r.from) <= (firstFrom.get(r.hole_id) ?? Infinity) + 1e-6) holeStartSkipped++; else gapSkipped++; return; } // #2527
         if (startsBelowNonUnit(aboveVals, modellingCodes, mcodeGroupOf, mcodeDefaultRole, { underOverburden })) { if (startsBelowOverburden(aboveVals, modellingCodes, mcodeGroupOf, mcodeDefaultRole)) underOvbSkipped++; else belowRoleSkipped++; return; } // #1684
         // TASKS.csv #84 — a boundary intercept the user has explicitly reviewed and excluded (via the
         // Boundary intercepts table) never feeds a modelling run, same as if the row didn't exist.
@@ -1018,6 +1025,7 @@ export function createModellingRuns(ctx, mcRef) {
     // contact tagged with the same unit name + "this is its upper contact" IS an interface point for
     // that surface, no separate matching step. Domain-filtered the same way litho points are, so a
     // contact drawn outside the active modelling domain doesn't leak into a run scoped to exclude it.
+    if (holeStartSkipped || gapSkipped) setNotices((p) => [...p, notice("{unitName}: {a} interval start(s) at a hole start and {b} below an unlogged gap were not used as contacts: a top needs a logged unit above it.", { unitName, a: holeStartSkipped, b: gapSkipped })]); // #2527
     if (splitsSkipped && !silent) setNotices((p) => [...p, notice("{unitName}: {splitsSkipped} interval start(s) inside the unit (the row above in the same hole is the same {v}) were not used as contacts.", { unitName, splitsSkipped, v: isGroup ? tr("group") : tr("unit") })]);
     // TASKS.csv #1371 (review #1352) — one surface forced through several tops of the same hole (SSZ24-PAD34-001 gave 6, a 199 m
     // worst miss): the holes are named, inside a stack too, with what splits them
