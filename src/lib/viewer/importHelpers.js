@@ -409,6 +409,7 @@ const SKIP_REASONS = {
   "no from": () => tr("blank or non-numeric From"),
   "no value": () => tr("value not a number"),
   "no code": () => tr("blank code"), // #2182
+  "no interval": () => tr("no To and no Depth, so no interval or point to draw"), // #2338
 };
 // TASKS.csv #2182 (review #2174, WA gold) — a coded log's row with a blank code cell is not a logged interval: it was imported as 'Unknown'
 // (11,432 of geology_4's 11,558 rows as Mineralization) and drew an 'Unknown' tube down every hole. The share blank, for the dialog.

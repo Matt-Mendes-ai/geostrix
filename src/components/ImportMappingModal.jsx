@@ -92,6 +92,12 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
               {tr("Set to Custom layer: it looked like {layer}, but {layer} already holds {n} row(s) from {src} for {holes} of this file's holes, and importing there would replace them.", { layer: tr(LAYER_META[modal.guessNote.target]?.label || modal.guessNote.target), n: modal.guessNote.n, src: modal.guessNote.src || tr("an earlier import"), holes: modal.guessNote.holes })}
             </div>
           )}
+          {/* TASKS.csv #2338 — a custom layer's name: two columns of one file were two layers both called after the file */}
+          {modal.target === "custom" && (
+            <label style={{ display: "flex", alignItems: "center", gap: 8, margin: "-6px 0 12px", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("Layer name")}
+              <input aria-label={tr("Custom layer name")} value={modal.customName ?? ""} placeholder={`${String(modal.fileName || "").replace(/\.csv$/i, "")}${modal.mapping?.value ? `: ${modal.mapping.value}` : ""}`} onChange={(e) => onChange({ ...modal, customName: e.target.value })} style={{ ...sel, flex: 1, minWidth: 0 }} />
+            </label>
+          )}
           {replaceInfo && (
             <div role="alert" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", margin: "-10px 0 12px", lineHeight: 1.4 }}>
               {tr("Importing as {layer} replaces {n} row(s) from {src} in {holes} hole(s) (Ctrl+Z undoes it).", { layer: tr(LAYER_META[replaceInfo.target]?.label || replaceInfo.target), n: replaceInfo.n, src: replaceInfo.src || tr("an earlier import"), holes: replaceInfo.holes })}

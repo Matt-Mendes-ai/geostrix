@@ -627,22 +627,38 @@ export function useImportPipeline(ctx) {
       });
       setNotices((p) => [...p, tr("{fileName}: {n} downhole log channel(s) imported as numeric layers{v}: {list}. The first is shown; the others are in the Layers list.", { fileName, n: made.length, v: binM ? tr(", averaged to {b} m bins (mean, with min and max)", { b: binM }) : tr(", every reading kept"), list: made.join("; ") })]);
     } else if (target === "custom") {
-      const rows = allRows.map((r) => applyCustomFields({
-        hole_id: String(r[mapping.hole_id] ?? "").trim(),
-        from: mapping.from ? num(r[mapping.from]) : undefined, to: mapping.to ? num(r[mapping.to]) : undefined,
-        depth: mapping.depth ? num(r[mapping.depth]) : undefined, value: r[mapping.value],
-      }, r, customFields)).filter((r) => r.hole_id);
+      // TASKS.csv #2338 (review #2325, WA uranium) — the custom route kept rows with a blank value (155 of geology_current.csv) and rows
+      // with no interval and no depth (all 424 of a gamma calibration table: From only), said "Added ... (424 rows)" and drew nothing.
+      // They are left out and counted as the built-in routes do (#2182); with nothing left to draw, nothing is added.
+      const cDropped = [];
+      const rows = [];
+      for (const r of allRows) {
+        const row = applyCustomFields({
+          hole_id: String(r[mapping.hole_id] ?? "").trim(),
+          from: mapping.from ? num(r[mapping.from]) : undefined, to: mapping.to ? num(r[mapping.to]) : undefined,
+          depth: mapping.depth ? num(r[mapping.depth]) : undefined, value: r[mapping.value],
+        }, r, customFields);
+        if (!row.hole_id) { cDropped.push({ reason: "no hole id" }); continue; }
+        if (isBlankCode(row.value)) { cDropped.push({ reason: "no code" }); continue; }
+        if (!Number.isFinite(row.depth) && !(Number.isFinite(row.from) && Number.isFinite(row.to))) { cDropped.push({ reason: "no interval", example: row.hole_id }); continue; }
+        rows.push(row);
+      }
+      const layerName = String(data.customName || "").trim() || (mapping.value ? `${String(fileName).replace(/\.csv$/i, "")}: ${mapping.value}` : String(fileName).replace(/\.csv$/i, "")); // #2338
+      if (!rows.length) {
+        setNotices((p) => [...p, errorNotice(tr("{fileName}: nothing was added as a custom layer: no row has both a value and an interval (From and To) or a Depth, so there is nothing to draw down the holes.{v}", { fileName, v: skippedRowsText(cDropped, allRows.length) }))]);
+      } else {
       const id = `custom_${Date.now()}`;
       const group = new THREE.Group(); group.name = id;
       layerGroupsRef.current[id] = group;
       sceneRef.current.getObjectByName("root").add(group);
       // TASKS.csv #2317 — depth picks by code (regolith events): the layer says what the known codes stand for, and the notice where they go
       const evNotes = mapping.depth && !mapping.from && !mapping.to ? eventNotes(rows) : null;
-      setCustomLayers((p) => [...p, { id, name: fileName.replace(/\.csv$/i, ""), rows, group, ...(evNotes ? { notes: evNotes } : {}) }]);
+      setCustomLayers((p) => [...p, { id, name: layerName, rows, group, ...(evNotes ? { notes: evNotes } : {}) }]);
       setCustomVisible((p) => ({ ...p, [id]: true }));
       setNotices((p) => [...p, evNotes
         ? notice("Added \"{fileName}\" as a layer of depth picks ({rows} rows, {codes}): drawn on the traces, and offered as picks in the Explicit surface tool (one per hole) for a surface such as the base of oxidation.", { fileName, rows: rows.length, codes: [...new Set(rows.map((r) => String(r.value ?? "").trim()).filter(Boolean))].slice(0, 8).join(", ") })
-        : notice("Added \"{fileName}\" as a custom layer ({rows} rows).", { fileName, rows: rows.length })]);
+        : appendNotice(notice("Added \"{name}\" as a custom layer ({rows} rows).", { name: layerName, rows: rows.length }), skippedRowsText(cDropped, allRows.length))]); // #2338
+      }
     } else {
       // _src (source filename) is stamped on every row here — TASKS.csv #63: lets the layer inspector
       // (LayerInspector.jsx) break a layer down by which import it came from, since it's common to

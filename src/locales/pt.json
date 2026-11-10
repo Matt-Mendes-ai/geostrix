@@ -9722,5 +9722,10 @@
   "The mine grid was removed.": "A grade de mina foi removida.",
   "{codes} negative value(s) no bigger than their column's own values (-0.005; -100 in a column of 100 to 500). Assays can't be negative, so these are codes. What do they mean?": "{codes} valor(es) negativo(s) não maiores que os valores da própria coluna (-0.005; -100 numa coluna de 100 a 500). Análises não podem ser negativas, então são códigos. O que significam?",
   "{sentinels} value(s) will be treated as not assayed: {list}. They are -99 / -999 / -9999 codes or bigger than anything else in their column, so they are no-data codes, not grades.": "{sentinels} valor(es) serão tratados como não analisados: {list}. São códigos -99 / -999 / -9999 ou maiores que qualquer outro valor da coluna, então são códigos sem dado, não teores.",
-  "{symbol}: \"{header}\" does not say its unit, and its values (median {median}, up to {max}) read as ppb, not ppm: ppb is chosen. Check it against the lab certificate.": "{symbol}: \"{header}\" não diz a sua unidade, e os seus valores (mediana {median}, até {max}) leem-se como ppb, não ppm: ppb foi escolhido. Confira com o certificado do laboratório."
+  "{symbol}: \"{header}\" does not say its unit, and its values (median {median}, up to {max}) read as ppb, not ppm: ppb is chosen. Check it against the lab certificate.": "{symbol}: \"{header}\" não diz a sua unidade, e os seus valores (mediana {median}, até {max}) leem-se como ppb, não ppm: ppb foi escolhido. Confira com o certificado do laboratório.",
+  "{fileName}: nothing was added as a custom layer: no row has both a value and an interval (From and To) or a Depth, so there is nothing to draw down the holes.{v}": "{fileName}: nada foi adicionado como camada personalizada: nenhuma linha tem ao mesmo tempo um valor e um intervalo (De e Até) ou uma Profundidade, então não há nada a desenhar ao longo dos furos.{v}",
+  "no To and no Depth, so no interval or point to draw": "sem Até nem Profundidade, então não há intervalo nem ponto a desenhar",
+  "Added \"{name}\" as a custom layer ({rows} rows).": "\"{name}\" adicionado como camada personalizada ({rows} linhas).",
+  "Layer name": "Nome da camada",
+  "Custom layer name": "Nome da camada personalizada"
 }

@@ -923,6 +923,8 @@ export function guessMapping(target, headers) {
   // TASKS.csv #2149 — the point-data Depth took FromDepth by substring ("depth" inside it) next to From = FromDepth: an interval table's
   // from / to column is never also its point depth
   if (mapping.depth && (mapping.depth === mapping.from || mapping.depth === mapping.to)) mapping.depth = "";
+  // TASKS.csv #2338 — a custom layer with From and To found is an interval table: Casing_Depth is not its point depth
+  if (target === "custom" && mapping.from && mapping.to && mapping.depth) mapping.depth = "";
   // TASKS.csv #2151 — a collar file whose coordinates are named for their grid: the best grid pair, unless plain x / y names are there
   if (target === "collars") {
     const g = gridCoordinateColumns(headers)[0];

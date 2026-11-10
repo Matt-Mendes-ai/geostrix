@@ -9722,5 +9722,10 @@
   "The mine grid was removed.": "La grille minière a été retirée.",
   "{codes} negative value(s) no bigger than their column's own values (-0.005; -100 in a column of 100 to 500). Assays can't be negative, so these are codes. What do they mean?": "{codes} valeur(s) négative(s) pas plus grandes que les valeurs de leur colonne (-0.005 ; -100 dans une colonne de 100 à 500). Une teneur ne peut pas être négative : ce sont des codes. Que signifient-ils ?",
   "{sentinels} value(s) will be treated as not assayed: {list}. They are -99 / -999 / -9999 codes or bigger than anything else in their column, so they are no-data codes, not grades.": "{sentinels} valeur(s) seront traitées comme non analysées : {list}. Ce sont des codes -99 / -999 / -9999 ou des valeurs plus grandes que toutes les autres de leur colonne : des codes sans donnée, pas des teneurs.",
-  "{symbol}: \"{header}\" does not say its unit, and its values (median {median}, up to {max}) read as ppb, not ppm: ppb is chosen. Check it against the lab certificate.": "{symbol} : « {header} » n'indique pas son unité, et ses valeurs (médiane {median}, jusqu'à {max}) se lisent en ppb, pas en ppm : ppb est choisi. Vérifiez-le sur le certificat du laboratoire."
+  "{symbol}: \"{header}\" does not say its unit, and its values (median {median}, up to {max}) read as ppb, not ppm: ppb is chosen. Check it against the lab certificate.": "{symbol} : « {header} » n'indique pas son unité, et ses valeurs (médiane {median}, jusqu'à {max}) se lisent en ppb, pas en ppm : ppb est choisi. Vérifiez-le sur le certificat du laboratoire.",
+  "{fileName}: nothing was added as a custom layer: no row has both a value and an interval (From and To) or a Depth, so there is nothing to draw down the holes.{v}": "{fileName} : rien n'a été ajouté comme couche personnalisée : aucune ligne n'a à la fois une valeur et un intervalle (De et À) ou une Profondeur, il n'y a donc rien à dessiner le long des sondages.{v}",
+  "no To and no Depth, so no interval or point to draw": "ni À ni Profondeur, donc ni intervalle ni point à dessiner",
+  "Added \"{name}\" as a custom layer ({rows} rows).": "« {name} » ajouté comme couche personnalisée ({rows} lignes).",
+  "Layer name": "Nom de la couche",
+  "Custom layer name": "Nom de la couche personnalisée"
 }

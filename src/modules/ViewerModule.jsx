@@ -7693,7 +7693,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
               {customVisible[l.id] === false ? <EyeOff size={14} /> : <Eye size={14} />} <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{l.name}</span> <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)", flexShrink: 0 }}>({l.rows.length})</span>
             </div>
             <Maximize2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => zoomToCustom(l.id), tr("Zoom to custom layer \"{name}\"", { name: l.name }))} />
-            <Trash2 size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(() => removeCustomLayer(l.id), tr("Remove custom layer \"{name}\"", { name: l.name }))} />
+            <Trash2 size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(() => { if (confirmDestructive(tr("Remove the custom layer \"{name}\"?", { name: l.name }))) removeCustomLayer(l.id); } /* #2338 — asks, as the menu does */, tr("Remove custom layer \"{name}\"", { name: l.name }))} />
           </div>
         ))}
         <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => fileInputs.current.customCsv.click()} style={{ cursor: "pointer", padding: "8px 10px", background: "var(--color-bg-subtle)", border: "1px dashed var(--color-border-light)", borderRadius: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", textAlign: "center" }}>{tr("+ Add CSV layer")}</div>
