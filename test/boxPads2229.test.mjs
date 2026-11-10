@@ -13,7 +13,7 @@ test("the box's own pads are kept where the extent is built", () => {
 
 test("the notice says the pads per axis and the cell, beside the clip distance", () => {
   assert.match(r, /For the solver the model box reaches \{px\} m \(east-west\), \{py\} m \(north-south\) and \{pz\} m \(vertically\) past these contacts, so its cells are \{cell\} m; the surfaces are cut back to the distances above\./);
-  assert.match(r, /px: Math\.round\(boxPadM\.x\), py: Math\.round\(boxPadM\.y\), pz: Math\.round\(boxPadM\.z\), cell: Math\.round\(Math\.max\(xmax - xmin, ymax - ymin, zmax - zmin\) \/ modelResolution\)/);
+  assert.match(r, /px: Math\.round\(boxPadM\.x\), py: Math\.round\(boxPadM\.y\), pz: Math\.round\(boxPadM\.z\), cell: Math\.round\(Math\.max\(\.\.\.blockCellsM\(extent, resolution\)\)\)/); // #2624: the block's cells follow the box's shape
   for (const l of ["es", "pt", "fr", "ar"]) {
     const d = JSON.parse(readFileSync(new URL(`../src/locales/${l}.json`, import.meta.url), "utf8"));
     assert.ok(Object.keys(d).some((k) => k.includes("For the solver the model box reaches {px} m")), l);

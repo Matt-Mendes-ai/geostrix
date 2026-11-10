@@ -31,7 +31,8 @@ import { samplesInsideShell } from "../../lib/shellSupport.js"; // TASKS.csv #17
 import { clipMesh } from "../../lib/clipMesh.js";
 import { holeCounts } from "../../lib/intervalBox.js"; // TASKS.csv #1337
 import { thinStructurePicks } from "../../lib/viewer/orientationThin.js"; // TASKS.csv #765
-import { autoReachM, orientationsNearContacts, contactFit, tooFewContacts } from "../../lib/viewer/contactFit.js"; // TASKS.csv #1170, #1171
+import { autoReachM, orientationsNearContacts, contactFit, tooFewContacts, octreeCellM } from "../../lib/viewer/contactFit.js"; // TASKS.csv #1170, #1171; octreeCellM: #2624
+import { axisResolution, blockCellsM } from "../../lib/modelResolution.js"; // TASKS.csv #2624
 import { surfacePackages, unitPackage, contactSurface, contactPackage, movePointsToUnconformities } from "../../lib/viewer/stackPackages.js"; // TASKS.csv #1309
 import { makeEnsembleCounter, quantile, gridValuesToCells } from "../../lib/ensembleProbability.js"; // TASKS.csv #757
 import { sequentialStops } from "../../lib/inversion.js"; // TASKS.csv #757
@@ -263,6 +264,9 @@ export function createModellingRuns(ctx, mcRef) {
     // TASKS.csv #2229 (review #2174, WA gold) — how far the box actually reaches past the data on each axis (the reach notice gave only the clip
     // distance: '91 m past its contacts' for a box ~297 m past them, 2.48 km2 for a 0.41 km2 footprint)
     const boxPadM = { x: xr.min - xmin, y: yr.min - ymin, z: zr.min - zmin };
+    // TASKS.csv #2624 — the lithology block's counts follow the box's shape at the Resolution slider's total (n^3): 96 x 96 x 5 cells of
+    // 135 x 135 x 30 m on a 13 x 13 km x 150 m box, where 36 x 36 x 36 gave 361 x 361 x 4 m. The surfaces' mesh (Surface detail) is not changed.
+    const resolution = axisResolution(extent, modelResolution);
 
     // TASKS.csv #52 (a) — a named function now, because the sensitivity realisations below must go
     // through exactly the same warp as the base request (perturbation happens in real metres/degrees
@@ -301,6 +305,10 @@ export function createModellingRuns(ctx, mcRef) {
     const totalOrientations = specs.reduce((s, x) => s + x.orientations.length, 0);
 
     setImplicitBusy(true);
+    { // #2624 — the box, the block's three cell sizes and the mesh cell, said before the solve
+      const cm = blockCellsM(extent, resolution).map((v) => Math.round(v * 10) / 10), lvl = surfaceDetail || 4;
+      setNotices((p) => [...p, notice(anisotropy.enabled ? "Model box {bx} x {by} x {bz} (in the structural trend's frame): the lithology block is {nx} x {ny} x {nz} cells of {dx} x {dy} x {dz} (model check fallback, volumes, Add as block model); the surface mesh cells are about {m} ({level})." : "Model box {bx} x {by} x {bz} m: the lithology block is {nx} x {ny} x {nz} cells of {dx} x {dy} x {dz} m (model check fallback, volumes, Add as block model); the surface mesh cells are about {m} m ({level}).", { bx: Math.round(extent[1] - extent[0]), by: Math.round(extent[3] - extent[2]), bz: Math.round(extent[5] - extent[4]), nx: resolution[0], ny: resolution[1], nz: resolution[2], dx: cm[0], dy: cm[1], dz: cm[2], m: Math.round(octreeCellM(extent, lvl)), level: lvl >= 6 ? tr("Very fine") : lvl === 5 ? tr("Fine") : tr("Standard") })]);
+    }
     setNotices((p) => [...p, notice(specs.length > 1 ? "Running {label} ({totalPoints} points, {totalOrientations} orientations across {specs} surfaces){v2}…" : "Running {label} ({totalPoints} points, {totalOrientations} orientations across {specs} surface){v2}…", { label, totalPoints, totalOrientations, specs: specs.length, v2: anisotropy.enabled ? tr(", with the {trendWord} \"{v}\"", { trendWord, v: anisotropy.params?.trend || tr("unnamed") }) : "" })]);
     // The sidecar call is one opaque round-trip with no real progress ticks to report, so this is a
     // "fake but honest" ramp: creeps toward 90% while waiting (never claiming completion it hasn't
@@ -366,7 +374,7 @@ export function createModellingRuns(ctx, mcRef) {
       // TASKS.csv #271 (relation) / #274 (rangeMultiplier — omitted when 0/Auto, see desktop.js)
       // TASKS.csv #356 — ask for the lithology block (model check + volumes) unless anisotropy warps the
       // model space, where block coordinates no longer match hole positions directly.
-      { resolution: [modelResolution, modelResolution, modelResolution], relation, rangeMultiplier: rangeMultiplier || 0, signal: abortController.signal, returnBlock: true, // #679 — with a trend too: the check and volumes work in the warped frame (below)
+      { resolution: resolution, relation, rangeMultiplier: rangeMultiplier || 0, signal: abortController.signal, returnBlock: true, // #679 — with a trend too: the check and volumes work in the warped frame (below)
         faults: sidecarSpecs.filter((s) => s.fault).map((s) => ({ name: s.meshName, points: s.points, orientations: s.orientations, ...(s.offsets ? { offsets: s.offsets } : {}) })), // #360; offsets: #1054
         ...(evalPts ? { evaluateAt: evalPts } : {}), surfaceDetail }, // #756; surfaceDetail: #766
     );
@@ -480,7 +488,7 @@ export function createModellingRuns(ctx, mcRef) {
       const params = {
         tool: specs.length > 1 ? "stratigraphic stack (GemPy)" : "implicit surface (GemPy)",
         surface: spec.meshName, sourcePoints: spec.points.length, orientations: spec.orientations.length,
-        relation, resolution: [modelResolution, modelResolution, modelResolution],
+        relation, resolution, blockCellM: blockCellsM(extent, resolution).map((v) => Math.round(v * 10) / 10), // #2624 — per axis, from the box's shape
         ...(unitField ? { unitsFrom: unitField } : {}), // #2378 — the Lithology field the units were read from
         surfaceDetail: res.surfaceDetail ?? 4, // #766 — GemPy's octree level for the mesh (4 = its floor)
         gempyRange: res.rangeUsed ?? null, gempyRangeDefault: res.rangeDefault ?? null, engineDtype: res.precision ?? "float64", // engineDtype: #767 (an older engine solved in float64)
@@ -516,7 +524,7 @@ export function createModellingRuns(ctx, mcRef) {
     // TASKS.csv #1054 — what each fault offset, as GemPy applied it, and the limit no choice here can lift
     if (res.faultOffsets && Object.keys(res.faultOffsets).length) setNotices((p) => [...p, notice("Faults as solved: {list}. Each fault runs through the whole model box (GemPy here cannot end a fault).", { list: Object.entries(res.faultOffsets).map(([f, u]) => tr("{fault} offsets {units}", { fault: f, units: u.length ? u.join(", ") : tr("nothing") })).join("; ") })]);
     if (res.orientationsDeduplicated > 0) setNotices((p) => [...p, notice("{orientationsDeduplicated} repeated orientation(s) were given to GemPy once rather than once per unit: in an onlap stack every unit shares one field, so the copies added solve time but no information.", { orientationsDeduplicated: res.orientationsDeduplicated })]);
-    if (reachNotes.length) setNotices((p) => [...p, appendNotice(notice("Surfaces stop near their own contacts: {list}. For the solver the model box reaches {px} m (east-west), {py} m (north-south) and {pz} m (vertically) past these contacts, so its cells are {cell} m; the surfaces are cut back to the distances above. It was sized to these contacts, not to every hole in the project. Model settings changes the distance or fills the box.", { list: reachNotes.join("; "), px: Math.round(boxPadM.x), py: Math.round(boxPadM.y), pz: Math.round(boxPadM.z), cell: Math.round(Math.max(xmax - xmin, ymax - ymin, zmax - zmin) / modelResolution) }) /* box pads, cells: #2229 */,
+    if (reachNotes.length) setNotices((p) => [...p, appendNotice(notice("Surfaces stop near their own contacts: {list}. For the solver the model box reaches {px} m (east-west), {py} m (north-south) and {pz} m (vertically) past these contacts, so its cells are {cell} m; the surfaces are cut back to the distances above. It was sized to these contacts, not to every hole in the project. Model settings changes the distance or fills the box.", { list: reachNotes.join("; "), px: Math.round(boxPadM.x), py: Math.round(boxPadM.y), pz: Math.round(boxPadM.z), cell: Math.round(Math.max(...blockCellsM(extent, resolution))) /* #2624: the shaped block */ }) /* box pads, cells: #2229 */,
       vPad != null && colHit ? " " + tr("Its height follows the drilling under it ({area}): RL {top} ({topHole}) to RL {bottom} ({bottomHole}), each hole to its logged depth.", { area: modelArea === "checked" ? tr("the holes checked in the Holes list") : tr("every hole in the box"), top: Math.round(colHit.max + (originRef.current?.z || 0)), topHole: colHit.maxHole ?? "?", bottom: Math.round(colHit.min + (originRef.current?.z || 0)), bottomHole: colHit.minHole ?? "?" }) /* project RL: + the scene origin, as extentOrigin (#1378) */ : "") /* #2616 */]);
     if (missing.length) setNotices((p) => [...p, notice("GemPy returned no mesh for: {missing} (try adding more points or a wider spread of orientations for those).", { missing: missing.join(", ") })]);
     // TASKS.csv #2376 (review #2325, WA uranium) — the stack's surfaces cannot cross (one field), but their order is the field's level at
@@ -764,7 +772,7 @@ export function createModellingRuns(ctx, mcRef) {
         const r = await pythonImplicitModel(
           ext,
           [{ name: bSpec.meshName, points: w.points, orientations: w.orientations }],
-          { resolution: [modelResolution, modelResolution, modelResolution], relation, rangeMultiplier: rangeMultiplier || 0, signal: ac.signal, returnBlock: true, surfaceDetail }, // returnBlock: #757; surfaceDetail: #1055 — the base mesh's triangulation, or the spread mixes in mesh-level difference
+          { resolution: resolution, relation, rangeMultiplier: rangeMultiplier || 0, signal: ac.signal, returnBlock: true, surfaceDetail }, // returnBlock: #757; surfaceDetail: #1055 — the base mesh's triangulation, or the spread mixes in mesh-level difference
         );
         if (!r.ok) { if (r.cancelled) break; failed++; continue; }
         if (r.block?.ids?.length) { // #757

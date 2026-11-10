@@ -397,12 +397,14 @@ export default function ModellingPanes(props) {
             single biggest lever a user has over the 80s+ run times real properties hit. */}
         <div className="ge-section-label" style={{ marginTop: 16, display: "flex", alignItems: "center", gap: 6 }}>
           <span>{tr("Resolution")}</span>
-          <InfoButton title={tr("Resolution")} width={300} text={tr("Cells per axis of the model's lithology block: the grid the model check against the logs falls back to, the unit volumes, \"Add as block model\" and the block read on sections. It does not change how finely the surfaces are drawn — that is Surface detail below. Lower is faster; a real property-scale run at 36 (the default) commonly takes 60-90+ seconds — try 24 or lower for a quick first look.")} />
+          <InfoButton title={tr("Resolution")} width={300} text={tr("The model's lithology block holds about this number cubed of cells, shared out between the axes by the shape of the model box (a flat, wide box gets more cells across than down): the grid the model check against the logs falls back to, the unit volumes, \"Add as block model\" and the block read on sections. It does not change how finely the surfaces are drawn — that is Surface detail below. Lower is faster; a real property-scale run at 36 (the default) commonly takes 60-90+ seconds — try 24 or lower for a quick first look.")} />
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
           <input type="range" min={12} max={64} step={4} value={modelResolution} onChange={(e) => setModelResolution(Number(e.target.value))} style={{ flex: 1 }} />
           <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)", width: 46, textAlign: "right", flexShrink: 0 }}>{modelResolution}³</span>
         </div>
+        {/* TASKS.csv #2624 — the counts follow the box's shape at this total: what the last model box got */}
+        {(() => { const p = implicitSurfaces[implicitSurfaces.length - 1]?.params; const r = p?.resolution, c = p?.blockCellM; return Array.isArray(r) && r.length === 3 ? <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: -6, marginBottom: 10, lineHeight: 1.4 }}>{Array.isArray(c) ? tr("About {n} cells, shaped to the model box: the last box got {nx} x {ny} x {nz} cells of {dx} x {dy} x {dz} m.", { n: (modelResolution ** 3).toLocaleString(), nx: r[0], ny: r[1], nz: r[2], dx: c[0], dy: c[1], dz: c[2] }) : tr("About {n} cells, shaped to the model box: the last box got {nx} x {ny} x {nz} cells.", { n: (modelResolution ** 3).toLocaleString(), nx: r[0], ny: r[1], nz: r[2] })}</div> : null; })()}
 
         {/* TASKS.csv #766 — GemPy's octree level for the surface mesh (dual contouring), fixed at 4 before */}
         <div className="ge-section-label" style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 6 }}>
