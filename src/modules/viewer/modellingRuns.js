@@ -4,6 +4,7 @@
 import * as THREE from "three";
 import { buildMeshQuery } from "../../lib/meshQuery.js"; // TASKS.csv #2376
 import { modelGround, boxTallerThanDrilling } from "../../lib/modelGround.js"; // TASKS.csv #2470
+import { roundVolume, loggedVolumeCheck } from "../../lib/volumeCheck.js"; // TASKS.csv #2530
 import { stackOrderAtHoles } from "../../lib/stackOrderAtHoles.js"; // TASKS.csv #2376
 import { intensityRank, INTENSITY_SCALE } from "../../lib/intensityVocab.js"; // TASKS.csv #2230
 import { baselineNotice, oneHoleDipNotice } from "../../lib/modelCheckBaseline.js"; // TASKS.csv #1687
@@ -1696,8 +1697,11 @@ export function createModellingRuns(ctx, mcRef) {
         if (auto.fromTraces && !(searchSetting > 0 && cellSetting > 0)) setNotices((p) => [...p, notice("Auto cell and search from the hole spacing along the traces ({t} m at depth): the collars of these holes cluster ({c} m apart: fans drilled from shared sites), so their spacing says nothing about the rock between the holes.", { t: Math.round(auto.spacing), c: auto.collarSpacing != null ? auto.collarSpacing.toFixed(2) : "?" })]);
         // TASKS.csv #1683 — a unit body's auto cell and search come from the code's own logged runs (an alteration halo keeps the
         // hole-spacing rule: it is a halo around the holes, not a logged body)
-        const codeRuns = isCode ? mergedRuns(targetRows) : [];
-        const autoB = isCode ? autoBodyParams(codeRuns.map((r) => r.to - r.from), auto) : auto;
+        // TASKS.csv #2530 (review #2486, WA lithium) — a Lithology or Weathering code set as an envelope is a logged body too: the same rule as
+        // Closed body of a unit (15 m search there), not the halo's hole-spacing rule (60 m), which gave the same pegmatite 4.85 Mm³ against 0.53
+        const loggedBody = isCode || sourceKey === "litho" || sourceKey === "weath";
+        const codeRuns = loggedBody ? mergedRuns(targetRows) : [];
+        const autoB = loggedBody ? autoBodyParams(codeRuns.map((r) => r.to - r.from), auto) : auto;
         let radius = searchSetting > 0 ? searchSetting : autoB.radius, radiusRaisedFrom = null;
         const cs = cellSetting > 0 ? cellSetting : autoB.cell;
 
@@ -1832,12 +1836,14 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
           ...(radiusRaisedFrom != null ? { searchRaisedFromM: Math.round(radiusRaisedFrom * 10) / 10 } : {}),
           generatedAt: new Date().toISOString(),
         };
-        mesh.userData = { tip: `${label}\n${mc.vertices.length} vertices, ${mc.faces.length} faces\nindicator envelope, ${cell.toFixed(1)} m cells, ${Math.round(radius)} m search${vol.watertight ? `\n${vol.volumeM3.toLocaleString(undefined, { maximumFractionDigits: 0 })} m³ enclosed` : "\n(open envelope)"}` };
+        mesh.userData = { tip: `${label}\n${mc.vertices.length} vertices, ${mc.faces.length} faces\nindicator envelope, ${cell.toFixed(1)} m cells, ${Math.round(radius)} m search${vol.watertight ? `\n${roundVolume(vol.volumeM3).toLocaleString()} m³ enclosed (about)` : "\n(open envelope)"}` };
         implicitGroupRef.current?.add(mesh);
         const id = `impl_${Date.now()}_alt_${altValue}`;
         implicitMeshesRef.current[id] = mesh;
         setImplicitSurfaces((p) => [...p, { id, name: label, visible: true, vertexCount: mc.vertices.length, faceCount: mc.faces.length, type: isCode ? "unit_body" : "alteration_envelope", /* #1340 */ relationships: [], closure, params }]);
-        setNotices((p) => [...p, notice(isCode ? "Added \"{label}\": {insideCount} of {pts} sample point(s) inside the code{v} → {nx}×{ny}×{nz} grid ({cell} m cells{v2}, {v3} m search{v4}) → {vertices} vertices / {faces} faces{v5}. Closed indicator envelope, not a draped contact." : "Added \"{label}\": {insideCount} altered of {pts} indicator sample point(s){v} → {nx}×{ny}×{nz} grid ({cell} m cells{v2}, {v3} m search{v4}) → {vertices} vertices / {faces} faces{v5}. Closed indicator envelope, not a draped contact.", { label, insideCount, pts: pts.length, v: dropped ? tr(", {dropped} unplaceable", { dropped }) : "", nx: grid.nx, ny: grid.ny, nz: grid.nz, cell: cell.toFixed(1), v2: coarsened ? tr(", coarsened to stay under the grid limit") : "", v3: Math.round(radius), v4: anisotropy.enabled ? tr(", anisotropy applied") : "", vertices: mc.vertices.length.toLocaleString(), faces: mc.faces.length.toLocaleString(), v5: vol.watertight ? tr(", closed ({volumeM3} m³)", { volumeM3: vol.volumeM3.toLocaleString(undefined, { maximumFractionDigits: 0 }) }) : tr(", open") })]);
+        setNotices((p) => [...p, notice(isCode ? "Added \"{label}\": {insideCount} of {pts} sample point(s) inside the code{v} → {nx}×{ny}×{nz} grid ({cell} m cells{v2}, {v3} m search{v4}) → {vertices} vertices / {faces} faces{v5}. Closed indicator envelope, not a draped contact." : "Added \"{label}\": {insideCount} altered of {pts} indicator sample point(s){v} → {nx}×{ny}×{nz} grid ({cell} m cells{v2}, {v3} m search{v4}) → {vertices} vertices / {faces} faces{v5}. Closed indicator envelope, not a draped contact.", { label, insideCount, pts: pts.length, v: dropped ? tr(", {dropped} unplaceable", { dropped }) : "", nx: grid.nx, ny: grid.ny, nz: grid.nz, cell: cell.toFixed(1), v2: coarsened ? tr(", coarsened to stay under the grid limit") : "", v3: Math.round(radius), v4: anisotropy.enabled ? tr(", anisotropy applied") : "", vertices: mc.vertices.length.toLocaleString(), faces: mc.faces.length.toLocaleString(), v5: vol.watertight ? tr(", closed (about {volumeM3} m³)", { volumeM3: roundVolume(vol.volumeM3).toLocaleString() }) : tr(", open") })]); // about: #2530, two significant figures
+        // TASKS.csv #2530 — a check on the order of the volume, by hand: the code's logged length times the area each hole stands for
+        { const hc = vol.watertight && loggedBody ? loggedVolumeCheck(codeRuns, auto.spacing) : null; if (hc) setNotices((p) => [...p, notice("A hand check on \"{label}\": {m} m of it logged in {n} hole(s), times the {s} m hole spacing squared, is about {v} m³ (logged lengths, not true thicknesses). The envelope's {e} m³ follows its {cell} m cells and {r} m search.", { label, m: Math.round(hc.metres).toLocaleString(), n: hc.holes, s: Math.round(hc.spacingM), v: roundVolume(hc.m3).toLocaleString(), e: roundVolume(vol.volumeM3).toLocaleString(), cell: cell.toFixed(1), r: Math.round(radius) })]); }
         if (farLogs.inside) { // #1740 — half or more of it far from the logs: a warning, not a grey note
           const farText = tr("\"{label}\": {p}% of its volume lies farther than {d} m from any logged interval: that part is the {r} m search reaching between holes, not logged rock.", { label, p: Math.round(farLogs.share * 100), d: Math.round(farLogs.dist), r: Math.round(radius) });
           setNotices((p) => [...p, farLogs.share >= 0.5 ? errorNotice(farText) : notice(farText)]);

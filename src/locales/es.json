@@ -9697,5 +9697,7 @@
   "No terrain is loaded: cuts the surfaces and the block at the collar surface, the ground interpolated between the collars (not when the collars look drilled from underground). Load a terrain (Maps > Terrain) for the real ground.": "No hay terreno cargado: corta las superficies y el bloque en la superficie de los collares, el suelo interpolado entre ellos (no cuando los collares parecen perforados desde interior mina). Cargue un terreno (Mapas > Terreno) para el suelo real.",
   "Cut surfaces at the collar surface": "Cortar las superficies en la superficie de los collares",
   "{layer} layer ({n} codes)": "Capa {layer} ({n} códigos)",
-  "Weathering (a code set as an envelope)": "Meteorización (un conjunto de códigos como envolvente)"
+  "Weathering (a code set as an envelope)": "Meteorización (un conjunto de códigos como envolvente)",
+  ", closed (about {volumeM3} m³)": ", cerrada (unos {volumeM3} m³)",
+  "A hand check on \"{label}\": {m} m of it logged in {n} hole(s), times the {s} m hole spacing squared, is about {v} m³ (logged lengths, not true thicknesses). The envelope's {e} m³ follows its {cell} m cells and {r} m search.": "Una comprobación a mano de \"{label}\": {m} m registrados en {n} sondaje(s), por el espaciado de {s} m al cuadrado, dan unos {v} m³ (longitudes registradas, no espesores verdaderos). Los {e} m³ de la envolvente dependen de sus celdas de {cell} m y su búsqueda de {r} m."
 }

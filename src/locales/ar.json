@@ -9697,5 +9697,7 @@
   "No terrain is loaded: cuts the surfaces and the block at the collar surface, the ground interpolated between the collars (not when the collars look drilled from underground). Load a terrain (Maps > Terrain) for the real ground.": "لا توجد تضاريس محمّلة: يقطع الأسطح والكتلة عند سطح الفوهات، الأرض المستوفاة بينها (لا عندما تبدو الفوهات محفورة من تحت الأرض). حمّل تضاريس (الخرائط > التضاريس) للأرض الحقيقية.",
   "Cut surfaces at the collar surface": "قطع الأسطح عند سطح الفوهات",
   "{layer} layer ({n} codes)": "طبقة {layer} ({n} رمز)",
-  "Weathering (a code set as an envelope)": "التجوية (مجموعة رموز كغلاف)"
+  "Weathering (a code set as an envelope)": "التجوية (مجموعة رموز كغلاف)",
+  ", closed (about {volumeM3} m³)": "، مغلق (نحو {volumeM3} م³)",
+  "A hand check on \"{label}\": {m} m of it logged in {n} hole(s), times the {s} m hole spacing squared, is about {v} m³ (logged lengths, not true thicknesses). The envelope's {e} m³ follows its {cell} m cells and {r} m search.": "تحقق يدوي من \"{label}\": {m} م مسجلة في {n} ثقب، مضروبة في مربع تباعد الثقوب {s} م، تعطي نحو {v} م³ (أطوال مسجلة، لا سماكات حقيقية). تتبع {e} م³ للغلاف خلاياه البالغة {cell} م وبحثه البالغ {r} م."
 }
