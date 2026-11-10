@@ -5,6 +5,13 @@ Review of 2026-11-08 on master 18a3ab50 (the worktree build, dist over app://). 
 `C:\GeoStrixData\wa-drillholes\` (scripts in `scripts\`, the streamed SQLite profile in `profile\`, the harvest in `harvest\`,
 the test projects in `projects\`).
 
+**Erratum, 2026-11-09.** This review calls the uranium test area (report A87304) "calcrete uranium, Canning Basin edge" throughout
+(sections 4, 5, 6 and 7). Both are wrong: the area's own logs show a sediment-hosted deposit in a lignite-bearing palaeochannel (38 % of
+the assayed uranium is in lignite, none in calcrete), about 240 km east-north-east of Kalgoorlie at 30.0° S, 123.8° E. The label came
+from an area classification, not from the data. The bundled sample was renamed "WA palaeochannel uranium" (TASKS #2324) and its
+lithology cut to the current log (TASKS #2323, see section 6). The text below is left as written, as the record of the day; the deposit
+styles of the other five areas were assigned the same way and should be read as labels, not findings, until each is checked against its logs.
+
 ## 1. Source and licence
 
 The 15 zips are the "Mineral exploration drillholes (open file)" export of the WAMEX company mineral drillhole database,
