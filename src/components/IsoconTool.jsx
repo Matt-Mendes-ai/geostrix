@@ -10,6 +10,8 @@ import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Spac
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { toExportCsv } from "../lib/tabular.js"; // TASKS.csv #1022 — every exported CSV: all columns, formula cells escaped
 import { useStore } from "../lib/store.jsx"; // TASKS.csv #1521 — the logs, for "add by filter"
+import { labAssays } from "../lib/qaqc.js"; // TASKS.csv #2348 — lab grades only (#1673)
+import { sharedImmobile, groupMeans, MIN_GROUP_N } from "../lib/isoconGroups.js"; // TASKS.csv #2348
 import { domainLayerChoices, domainOfInterval } from "../lib/domainLayers.js"; // #1521
 import { holesMatching } from "../lib/holeFilter.js"; // #1521
 import { LAYER_META } from "../lib/layers.js"; // #1521
@@ -29,7 +31,8 @@ import { isoconRows } from "../lib/analysisExports.js"; // TASKS.csv #1083
 const DEFAULT_IMMOBILE = ["Al", "Ti", "Zr"];
 const USUAL_IMMOBILE = ["Al", "Ti", "Zr", "Nb", "Y", "Hf", "Th"]; // #2197 — the elements usually taken as immobile
 
-export default function IsoconTool({ assays, assayElements, onClose }) {
+export default function IsoconTool({ assays: assaysIn, assayElements, onClose }) {
+  const assays = useMemo(() => labAssays(assaysIn), [assaysIn]), pxrfLeft = (assaysIn || []).length - assays.length; // #2348 — as Correlation / Grade stats
   useEscapeKey(onClose); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
   const elementUnits = useMemo(() => Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])), [assayElements]);
@@ -78,20 +81,19 @@ export default function IsoconTool({ assays, assayElements, onClose }) {
   }, [rows, flt, domainRows, elementUnits]);
   const addMatches = (setSet) => setSet((prev) => new Set([...prev, ...matchIds]));
 
-  // Average each element (in ppm, via valueIn) across a selected group of intervals.
-  const average = (idSet) => {
-    const chosen = rows.filter((r) => idSet.has(r.id)).map((r) => r.a);
-    if (!chosen.length) return null;
-    const out = {};
-    symbols.forEach((sym) => {
-      const vals = chosen.map((a) => valueIn(a, sym, "ppm", elementUnits)).filter((v) => v != null);
-      out[sym] = vals.length ? vals.reduce((s, v) => s + v, 0) / vals.length : null;
-    });
-    return { n: chosen.length, values: out };
+  // Average each element (in ppm, via valueIn) across a selected group of intervals. #2348 — by default over the samples that carry every
+  // immobile element both groups have (one set of samples for the whole mass balance), each mean with its n
+  const valueOf = (a, sym) => valueIn(a, sym, "ppm", elementUnits);
+  const [commonOnly, setCommonOnly] = useState(true);
+  const groupRows = (idSet) => rows.filter((r) => idSet.has(r.id)).map((r) => r.a);
+  const imm = useMemo(() => sharedImmobile(groupRows(precursorIds), groupRows(alteredIds), [...immobile], valueOf), [precursorIds, alteredIds, immobile, assays, elementUnits]);
+  const means = (idSet) => {
+    const chosen = groupRows(idSet);
+    const strict = commonOnly && imm.shared.length ? groupMeans(chosen, symbols, valueOf, imm.shared) : null;
+    return strict && strict.used > 0 ? { ...strict, restricted: true } : groupMeans(chosen, symbols, valueOf);
   };
-
-  const precursor = useMemo(() => average(precursorIds), [precursorIds, assays, elementUnits]);
-  const altered = useMemo(() => average(alteredIds), [alteredIds, assays, elementUnits]);
+  const precursor = useMemo(() => means(precursorIds), [precursorIds, assays, elementUnits, commonOnly, imm]);
+  const altered = useMemo(() => means(alteredIds), [alteredIds, assays, elementUnits, commonOnly, imm]);
 
   const result = useMemo(() => {
     if (!precursor || !altered) return null;
@@ -108,7 +110,7 @@ export default function IsoconTool({ assays, assayElements, onClose }) {
       .map((s) => {
         const ratio = altered.values[s] / precursor.values[s];
         const pct = 100 * (ratio / slope - 1);
-        return { symbol: s, precursor: precursor.values[s], altered: altered.values[s], ratio, pct, isImmobile: immobile.has(s) };
+        return { symbol: s, precursor: precursor.values[s], altered: altered.values[s], ratio, pct, isImmobile: immobile.has(s), precursorN: precursor.ns[s], alteredN: altered.ns[s] }; // n: #2348
       })
       .sort((a, b) => a.pct - b.pct);
     return { slope, spread, bulkMassChangePct, table, immobileList };
@@ -215,6 +217,12 @@ export default function IsoconTool({ assays, assayElements, onClose }) {
                 <div style={{ fontSize: "var(--font-size-sm)", color: "#8a6a3a" }}>{tr("The immobile elements you picked don't agree tightly (ratio spread ≥10%) — one of them may not actually be immobile in this system, or the two groups aren't a real precursor/altered pair. Treat the numbers below cautiously.")}</div>
               )}
 
+              {/* TASKS.csv #2348 — which samples the means come from */}
+              {pxrfLeft > 0 && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>{tr("{n} pXRF reading(s) left out: the grades here come from lab assays only.", { n: pxrfLeft.toLocaleString() })}</div>}
+              <label style={{ display: "flex", gap: 5, alignItems: "center", fontSize: "var(--font-size-sm)" }}><input type="checkbox" checked={commonOnly} onChange={(e) => setCommonOnly(e.target.checked)} />{tr("Only samples with every immobile element")}</label>
+              {precursor.restricted && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("Means over the samples that carry {list}: {a} of {b} precursor and {c} of {d} altered samples. Each mean shows its n; under {m} it is greyed.", { list: imm.shared.join(", "), a: precursor.used.toLocaleString(), b: precursor.n.toLocaleString(), c: altered.used.toLocaleString(), d: altered.n.toLocaleString(), m: MIN_GROUP_N })}</div>}
+              {commonOnly && imm.shared.length > 0 && !precursor.restricted && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)" }}>{tr("No sample of a group carries every immobile element: each element is averaged over the samples that have it (see each n).")}</div>}
+              {imm.missing.map((m) => <div key={m.symbol} style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)" }}>{m.group === "both" ? tr("{s}: no value in either group, left out of the immobile set.", { s: m.symbol }) : m.group === "precursor" ? tr("{s}: no value in the precursor group, left out of the immobile set.", { s: m.symbol }) : tr("{s}: no value in the altered group, left out of the immobile set.", { s: m.symbol })}</div>)}
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "var(--font-size-base)" }}>
                 <thead>
                   <tr style={{ color: "var(--color-text-muted)", textAlign: "start" }}>
@@ -225,8 +233,8 @@ export default function IsoconTool({ assays, assayElements, onClose }) {
                   {result.table.map((r) => (
                     <tr key={r.symbol} style={{ borderTop: "1px solid #eceef1" }}>
                       <td style={td}>{r.symbol} {r.isImmobile && <span style={{ color: "#5a7290", fontSize: "var(--font-size-xs)" }}>{tr("(immobile)")}</span>}</td>
-                      <td style={td}>{r.precursor.toFixed(2)}</td>
-                      <td style={td}>{r.altered.toFixed(2)}</td>
+                      <td style={{ ...td, ...(r.precursorN < MIN_GROUP_N ? { color: "var(--color-text-muted)" } : {}) }}>{r.precursor.toFixed(2)} <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)" }}>n {r.precursorN}</span></td>
+                      <td style={{ ...td, ...(r.alteredN < MIN_GROUP_N ? { color: "var(--color-text-muted)" } : {}) }}>{r.altered.toFixed(2)} <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)" }}>n {r.alteredN}</span></td>
                       <td style={td}>{r.ratio.toFixed(3)}</td>
                       <td style={{ ...td, color: r.pct >= 0 ? "var(--color-success-fg)" : "var(--color-danger-fg)" }}>{r.pct >= 0 ? "+" : ""}{r.pct.toFixed(1)}%</td>
                     </tr>

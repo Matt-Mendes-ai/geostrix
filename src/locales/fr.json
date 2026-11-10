@@ -9616,5 +9616,11 @@
   "{col} marks {n} row(s) as superseded (out of date): they are left out. Tick their value to keep them.": "{col} marque {n} ligne(s) comme remplacées (périmées) : elles sont laissées de côté. Cochez leur valeur pour les garder.",
   "{col} marks {n} row(s) as not current: they are left out. Tick their value to keep them.": "{col} marque {n} ligne(s) comme non actuelles : elles sont laissées de côté. Cochez leur valeur pour les garder.",
   "{k} of {n} rows will be imported.": "{k} lignes sur {n} seront importées.",
-  "{fileName}: {n} row(s) left out by the row filter ({col} kept only where it is {values}).": "{fileName} : {n} ligne(s) laissées de côté par le filtre de lignes ({col} gardé seulement là où il vaut {values})."
+  "{fileName}: {n} row(s) left out by the row filter ({col} kept only where it is {values}).": "{fileName} : {n} ligne(s) laissées de côté par le filtre de lignes ({col} gardé seulement là où il vaut {values}).",
+  "Only samples with every immobile element": "Seulement les échantillons ayant tous les éléments immobiles",
+  "Means over the samples that carry {list}: {a} of {b} precursor and {c} of {d} altered samples. Each mean shows its n; under {m} it is greyed.": "Moyennes sur les échantillons qui ont {list} : {a} sur {b} échantillons précurseurs et {c} sur {d} altérés. Chaque moyenne indique son n ; en dessous de {m} elle est grisée.",
+  "No sample of a group carries every immobile element: each element is averaged over the samples that have it (see each n).": "Aucun échantillon d'un groupe n'a tous les éléments immobiles : chaque élément est moyenné sur les échantillons qui l'ont (voir chaque n).",
+  "{s}: no value in either group, left out of the immobile set.": "{s} : aucune valeur dans aucun groupe, laissé hors de l'ensemble immobile.",
+  "{s}: no value in the precursor group, left out of the immobile set.": "{s} : aucune valeur dans le groupe précurseur, laissé hors de l'ensemble immobile.",
+  "{s}: no value in the altered group, left out of the immobile set.": "{s} : aucune valeur dans le groupe altéré, laissé hors de l'ensemble immobile."
 }

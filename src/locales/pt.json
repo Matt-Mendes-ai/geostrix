@@ -9616,5 +9616,11 @@
   "{col} marks {n} row(s) as superseded (out of date): they are left out. Tick their value to keep them.": "{col} marca {n} linha(s) como substituídas (desatualizadas): ficam de fora. Marque o valor delas para mantê-las.",
   "{col} marks {n} row(s) as not current: they are left out. Tick their value to keep them.": "{col} marca {n} linha(s) como não vigentes: ficam de fora. Marque o valor delas para mantê-las.",
   "{k} of {n} rows will be imported.": "Serão importadas {k} de {n} linhas.",
-  "{fileName}: {n} row(s) left out by the row filter ({col} kept only where it is {values}).": "{fileName}: {n} linha(s) ficaram de fora pelo filtro de linhas ({col} só onde é {values})."
+  "{fileName}: {n} row(s) left out by the row filter ({col} kept only where it is {values}).": "{fileName}: {n} linha(s) ficaram de fora pelo filtro de linhas ({col} só onde é {values}).",
+  "Only samples with every immobile element": "Só amostras com todos os elementos imóveis",
+  "Means over the samples that carry {list}: {a} of {b} precursor and {c} of {d} altered samples. Each mean shows its n; under {m} it is greyed.": "Médias sobre as amostras que têm {list}: {a} de {b} amostras precursoras e {c} de {d} alteradas. Cada média mostra seu n; abaixo de {m} fica em cinza.",
+  "No sample of a group carries every immobile element: each element is averaged over the samples that have it (see each n).": "Nenhuma amostra de um grupo tem todos os elementos imóveis: cada elemento é calculado sobre as amostras que o têm (veja cada n).",
+  "{s}: no value in either group, left out of the immobile set.": "{s}: sem valor em nenhum grupo, fora do conjunto imóvel.",
+  "{s}: no value in the precursor group, left out of the immobile set.": "{s}: sem valor no grupo precursor, fora do conjunto imóvel.",
+  "{s}: no value in the altered group, left out of the immobile set.": "{s}: sem valor no grupo alterado, fora do conjunto imóvel."
 }

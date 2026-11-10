@@ -9616,5 +9616,11 @@
   "{col} marks {n} row(s) as superseded (out of date): they are left out. Tick their value to keep them.": "يعلّم {col} عدد {n} صفًا بأنها مستبدلة (قديمة): تُستبعد. حدد قيمتها للاحتفاظ بها.",
   "{col} marks {n} row(s) as not current: they are left out. Tick their value to keep them.": "يعلّم {col} عدد {n} صفًا بأنها غير حالية: تُستبعد. حدد قيمتها للاحتفاظ بها.",
   "{k} of {n} rows will be imported.": "سيُستورد {k} من {n} صفًا.",
-  "{fileName}: {n} row(s) left out by the row filter ({col} kept only where it is {values}).": "{fileName}: استُبعد {n} صفًا بمرشح الصفوف ({col} يُحتفظ به فقط حيث يكون {values})."
+  "{fileName}: {n} row(s) left out by the row filter ({col} kept only where it is {values}).": "{fileName}: استُبعد {n} صفًا بمرشح الصفوف ({col} يُحتفظ به فقط حيث يكون {values}).",
+  "Only samples with every immobile element": "فقط العينات التي تحوي كل العناصر غير المتحركة",
+  "Means over the samples that carry {list}: {a} of {b} precursor and {c} of {d} altered samples. Each mean shows its n; under {m} it is greyed.": "متوسطات على العينات التي تحوي {list}: {a} من {b} عينة أصلية و{c} من {d} عينة متحولة. يظهر لكل متوسط n؛ وتحت {m} يظهر رماديًا.",
+  "No sample of a group carries every immobile element: each element is averaged over the samples that have it (see each n).": "لا توجد عينة في مجموعة تحوي كل العناصر غير المتحركة: يُحسب متوسط كل عنصر على العينات التي تحويه (انظر كل n).",
+  "{s}: no value in either group, left out of the immobile set.": "{s}: لا قيمة في أي من المجموعتين، استُبعد من مجموعة العناصر غير المتحركة.",
+  "{s}: no value in the precursor group, left out of the immobile set.": "{s}: لا قيمة في المجموعة الأصلية، استُبعد من مجموعة العناصر غير المتحركة.",
+  "{s}: no value in the altered group, left out of the immobile set.": "{s}: لا قيمة في المجموعة المتحولة، استُبعد من مجموعة العناصر غير المتحركة."
 }

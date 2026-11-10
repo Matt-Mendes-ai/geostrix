@@ -70,7 +70,7 @@ export function correlationRows(symbols, matrix) {
 // Isocon mass balance, one row per element
 export function isoconRows(table) {
   return table.map((r) => ({
-    element: r.symbol, precursor_ppm: r.precursor.toFixed(3), altered_ppm: r.altered.toFixed(3),
+    element: r.symbol, precursor_ppm: r.precursor.toFixed(3), ...(r.precursorN != null ? { precursor_n: r.precursorN } : {}), altered_ppm: r.altered.toFixed(3), ...(r.alteredN != null ? { altered_n: r.alteredN } : {}), // n: #2348
     ratio_altered_precursor: r.ratio.toFixed(4), mass_change_pct: r.pct.toFixed(1), used_as_immobile: r.isImmobile ? "yes" : "no",
   }));
 }
