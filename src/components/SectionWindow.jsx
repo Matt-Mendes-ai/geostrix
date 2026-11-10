@@ -15,6 +15,7 @@ import { signedOffset } from "../lib/sectionCorridor.js"; // TASKS.csv #1231
 import { colors, printPt, printPx, PLACED_W } from "../lib/theme.js"; // TASKS.csv #1121 — colors.planned, the planned-hole colour of every view; print scale: #1090
 import { loadPatternTiles, patternDefs, patternFill, sectionTilePx } from "../lib/lithoPatterns.js"; // TASKS.csv #1995
 import { flushSync } from "react-dom"; // TASKS.csv #1090 — render at print size for an export, synchronously
+import { hoverTitle } from "../lib/svgLazyTitle.js"; // TASKS.csv #2210
 
 const SECTION_W = 1100, SECTION_H = 660;
 
@@ -343,6 +344,13 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
   };
 
   // TASKS.csv #1230 — the toolbar keeps its height while drawing: fewer controls would otherwise move the section the other way
+  // TASKS.csv #2210 (review #2174, WA gold) — a step or refresh is built in the main window (0.1-0.3 s here, up to 1 s on a busy computer)
+  // with nothing said meanwhile: the toolbar says it is coming, until the new section arrives (or 5 s, if it opened in another tab)
+  const [stepping, setStepping] = useState(false);
+  useEffect(() => { setStepping(false); }, [rawData]);
+  useEffect(() => (stepping ? onSectionData(() => setStepping(false)) : undefined), [stepping]); // the step opened in another tab of this window
+  useEffect(() => { if (!stepping) return undefined; const t = setTimeout(() => setStepping(false), 5000); return () => clearTimeout(t); }, [stepping]);
+  const stepTo = (msg) => { setStepping(true); sendSectionContacts(msg); };
   const toolbarRef = useRef(null), toolbarHeight = useRef(0);
   useLayoutEffect(() => { if (!drawing && toolbarRef.current) toolbarHeight.current = toolbarRef.current.offsetHeight; });
   if (!data) return <div style={{ padding: 20, color: "#55606e", fontFamily: "'Exo 2', system-ui, sans-serif" }}>{tr("Waiting for section data…")}</div>;
@@ -353,6 +361,7 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
         <span>{data.title || tr("Cross-section")} <span style={{ color: "#65717e", fontSize: 11, marginLeft: 8 }}>{tr("azimuth {v}° · buffer ±{v2}m", { v: data.section?.azimuth?.toFixed(0), v2: data.section?.corridor })}</span></span>
         <span style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
           <span style={{ color: "#65717e", fontSize: 11 }}>{tr("{v} holes · {v2} intervals · {v3} points · {v4} structures{v5}{v6}", { v: data.holes?.length || 0, v2: data.intervals?.length || 0, v3: data.points?.length || 0, v4: data.planes?.length || 0, v5: data.elevationProfile?.length > 1 ? tr(" · terrain profile") : "", v6: data.voxelSlices?.length ? ` · ${data.voxelSlices.map((v) => v.name).join(", ")}` : "" })}{data.scatterCounts && (data.scatterCounts.geophys || data.scatterCounts.samples) ? tr(" · {g} geophysics points · {s} surface samples", { g: data.scatterCounts.geophys.toLocaleString(), s: data.scatterCounts.samples.toLocaleString() }) : ""}</span>
+          {stepping && <span role="status" style={{ color: "#8a6a1f", fontSize: 11 }}>{tr("Building the section…")}</span>}{/* #2210 */}
           {labelsLeftOut > 0 && <span style={{ color: "#8a6a1f", fontSize: 11 }} title={tr("Hole names, end-of-hole depths or offsets with nowhere free to go are left out rather than printed on top of each other. A narrower buffer (fewer holes), a higher VE, a smaller text size or dragging labels makes room; hover a hole for its name.")}>{labelsLeftOut === 1 ? tr("1 label left out: no room") : tr("{n} labels left out: no room", { n: labelsLeftOut })}</span>}{/* #1536 */}
           {!drawing ? (
             <>
@@ -396,11 +405,11 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
           {snapOn && <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "#55606e" }} title={tr("A point snapped to a hole off the section normally keeps the hole's real position, so the surface passes through the logged contact and its cut here can sit away from the point. On: the point stays on this section's plane, so the cut follows what you draw, and the surface no longer passes through the hole there.")}>
             <input type="checkbox" checked={projectSnaps} onChange={(e) => setProjectSnaps(e.target.checked)} />{" "}{tr("Keep snaps on the section")}</label>}
           {/* TASKS.csv #876 — step to the parallel section beside this one, and refresh what the main window draws on it */}
-          <button onClick={() => sendSectionContacts({ id: data.id, step: -1 })} title={tr("Open the parallel section on the right of this one (looking along it from its start); a new one is made at the section spacing when there is none. Save your contacts first.")} style={btnStyle(false)}>‹</button>
-          <button onClick={() => sendSectionContacts({ id: data.id, step: 1 })} title={tr("Open the parallel section on the left of this one (looking along it from its start); a new one is made at the section spacing when there is none. Save your contacts first.")} style={btnStyle(false)}>›</button>
+          <button onClick={() => stepTo({ id: data.id, step: -1 })} title={tr("Open the parallel section on the right of this one (looking along it from its start); a new one is made at the section spacing when there is none. Save your contacts first.")} style={btnStyle(false)}>‹</button>
+          <button onClick={() => stepTo({ id: data.id, step: 1 })} title={tr("Open the parallel section on the left of this one (looking along it from its start); a new one is made at the section spacing when there is none. Save your contacts first.")} style={btnStyle(false)}>›</button>
           {/* TASKS.csv #1131 — move the section by exactly ± its buffer (a new parallel section, or the saved one there) */}
-          <button onClick={() => sendSectionContacts({ id: data.id, step: -1, by: "buffer" })} title={tr("Move the section {v} m to the right (one buffer width), as a new parallel section. Save your contacts first.", { v: data.section?.corridor })} style={btnStyle(false)}>−{data.section?.corridor} m</button>
-          <button onClick={() => sendSectionContacts({ id: data.id, step: 1, by: "buffer" })} title={tr("Move the section {v} m to the left (one buffer width), as a new parallel section. Save your contacts first.", { v: data.section?.corridor })} style={btnStyle(false)}>+{data.section?.corridor} m</button>
+          <button onClick={() => stepTo({ id: data.id, step: -1, by: "buffer" })} title={tr("Move the section {v} m to the right (one buffer width), as a new parallel section. Save your contacts first.", { v: data.section?.corridor })} style={btnStyle(false)}>−{data.section?.corridor} m</button>
+          <button onClick={() => stepTo({ id: data.id, step: 1, by: "buffer" })} title={tr("Move the section {v} m to the left (one buffer width), as a new parallel section. Save your contacts first.", { v: data.section?.corridor })} style={btnStyle(false)}>+{data.section?.corridor} m</button>
           <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "#55606e" }} title={tr("How far either side of the section line holes and data are included. Press Enter to redraw the section with it; it is saved with the section.")}>
             {tr("Buffer ±")}
             <input type="number" min="1" step="5" value={bufferDraft === "" ? (data.section?.corridor ?? "") : bufferDraft} onChange={(e) => setBufferDraft(e.target.value)}
@@ -436,7 +445,7 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
           {patternCodes.length > 0 && <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "#55606e" }} title={tr("FGDC lithology patterns over the lithology ribbon, each code's pattern as in its strip log (chosen there). They read from a hole width of about 10 px.")}>
             <input type="checkbox" checked={patternsOn} onChange={(e) => setPatternsOn(e.target.checked)} />{tr("Patterns")}
           </label>}
-          <button onClick={() => sendSectionContacts({ id: data.id, refresh: true })} title={tr("Redraw the surface traces, models and neighbouring sections' strings on this section from the main window (what you are drawing is kept).")} style={btnStyle(false)}>{tr("Refresh")}</button>
+          <button onClick={() => stepTo({ id: data.id, refresh: true })} title={tr("Redraw the surface traces, models and neighbouring sections' strings on this section from the main window (what you are drawing is kept).")} style={btnStyle(false)}>{tr("Refresh")}</button>
           <button onClick={saveContacts} disabled={!contacts.length && !drawing} style={{ ...btnStyle(saved), opacity: contacts.length || drawing ? 1 : 0.5 }}>
             <Save size={14} /> {saved ? tr("Saved ✓") : tr("Save contacts")}
           </button>
@@ -833,6 +842,10 @@ function SectionSVG({ patterns = null, textFont = SECTION_FONTS[0].stack, textSc
       {/* TASKS.csv #392 — one ribbon per interval layer, offset to alternate sides of the trace (the first
           layer on the trace itself), instead of every layer as the same 4 px stroke on top of each other,
           where whichever layer drew last (usually alteration) hid lithology. */}
+      {/* TASKS.csv #2210 (review #2174, WA gold) — a 63-hole section drew 5,800 intervals as 18,673 SVG elements: each one a <g> with its
+          own clip path, a <line> and a <title>. One clipped group now holds them all, and the tooltip is written onto the hovered line
+          (its text set on every hover, so a line React reuses for another interval after a step never keeps an old label). */}
+      <g clipPath={`url(#${plotClipId})`} onMouseOver={(e) => { const k = e.target?.dataset?.iv; if (k != null) hoverTitle(e.target, intervals[Number(k)]?.label); }}>
       {intervals.map((row, i) => {
         const trace = traceByHole[row.hole_id];
         if (!trace) return null;
@@ -843,8 +856,10 @@ function SectionSVG({ patterns = null, textFont = SECTION_FONTS[0].stack, textSc
         const [nx, ny] = screenNormal(x1, y1, x2, y2);
         const seg = { x1: x1 + nx * off, y1: y1 + ny * off, x2: x2 + nx * off, y2: y2 + ny * off };
         const pat = patterns && row.pat != null && patterns[row.pat] ? patternFill(row.pat, row.color, patId) : null; // #1995 — white lines on a dark colour
-        return <g key={i} clipPath={`url(#${plotClipId})`}><line {...seg} stroke={row.color} strokeWidth={holeWidth} strokeLinecap="butt"><title>{row.label}</title></line>{pat && <line {...seg} stroke={pat} strokeWidth={holeWidth} strokeLinecap="butt" style={{ pointerEvents: "none" }} />}</g>; /* holeWidth: #1131 */
+        const line = <line key={i} data-iv={i} {...seg} stroke={row.color} strokeWidth={holeWidth} strokeLinecap="butt" />; /* holeWidth: #1131 */
+        return pat ? [line, <line key={`${i}p`} {...seg} stroke={pat} strokeWidth={holeWidth} strokeLinecap="butt" style={{ pointerEvents: "none" }} />] : line;
       })}
+      </g>
 
       {/* TASKS.csv #392 — assays as grade bars perpendicular to the trace, beyond the ribbons, length
           proportional to grade (per element, to the highest value in this section); the highest values

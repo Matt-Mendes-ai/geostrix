@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { X as XIcon, Download, Pencil, Check } from "./icons.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
-import { strikeDipSymbol } from "../lib/levelPlan.js";
+import { strikeDipSymbol, pathCache } from "../lib/levelPlan.js"; // pathCache: TASKS.csv #2210
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { colors } from "../lib/theme.js"; // TASKS.csv #1121 — colors.planned
 import { exportSvgMarkup } from "../lib/svgExport.js"; // TASKS.csv #1048 — the legend drawn into the PNG
@@ -106,6 +106,7 @@ export default function LevelPlanWindow({ build, zRange, defaultRl, onClose, onS
         {promptEl}
   useEffect(() => { setNote(null); }, [rl, half]);
 
+  const ctxCache = useMemo(() => pathCache(), [frame]); // TASKS.csv #2210 — the whole-hole traces' path strings, per frame
   if (!frame) return null;
   const { X, Y, s } = frame;
   const path = (line) => line.map(([x, y], i) => `${i ? "L" : "M"}${X(x).toFixed(1)},${Y(y).toFixed(1)}`).join(" ");
@@ -203,7 +204,7 @@ export default function LevelPlanWindow({ build, zRange, defaultRl, onClose, onS
           {/* model surfaces / solids cut by the plane */}
           {data.surfaceCuts.map((sc) => <g key={sc.id}>{sc.segs.map((g, i) => <line key={i} x1={X(g[0])} y1={Y(g[1])} x2={X(g[2])} y2={Y(g[3])} stroke={sc.color} strokeWidth={2} />)}</g>)}
           {/* hole context (whole trace, faint) and collars */}
-          {data.holes.map((h) => <path key={`c${h.hole_id}`} d={path(h.context)} stroke="#c9ced6" strokeWidth={1} fill="none" />)}
+          {data.holes.map((h) => <path key={`c${h.hole_id}`} d={ctxCache(h.hole_id, h.context, path)} stroke="#c9ced6" strokeWidth={1} fill="none" />)}
           {data.holes.map((h) => <circle key={`k${h.hole_id}`} cx={X(h.collar[0])} cy={Y(h.collar[1])} r={1.8} fill="#9aa3b0" />)}
           {/* the in-slab parts: plain dark, then coloured by the chosen log */}
           {data.holes.map((h) => h.polylines.map((pl, i) => <path key={`r${h.hole_id}_${i}`} d={path(pl)} stroke="#2a323c" strokeWidth={2} fill="none" />))}

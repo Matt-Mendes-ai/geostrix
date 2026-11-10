@@ -124,7 +124,7 @@ const DumpPane = React.lazy(() => import("../components/DumpPane.jsx")); // TASK
 const InterpretPane = React.lazy(() => import("../components/InterpretPane.jsx")); // TASKS.csv #1152
 const UndrilledZonesPane = React.lazy(() => import("../components/UndrilledZonesPane.jsx")); // TASKS.csv #1139 // TASKS.csv #851 — Targeting: fuzzy overlay / weights of evidence
 import { corridorRuns, mdInRuns } from "../lib/sectionCorridor.js"; // TASKS.csv #499
-import { slabRuns, piercePoints, tracePolylines, pointAtMd, voxelPlanRects, meshPlanCut, planAssayLayers } from "../lib/levelPlan.js"; // TASKS.csv #525; #1537
+import { slabRuns, piercePoints, tracePolylines, pointAtMd, voxelPlanRects, meshPlanCut, planAssayLayers, groupByHole } from "../lib/levelPlan.js"; // TASKS.csv #525; #1537; groupByHole: #2210
 import { sliceReadoutText } from "../lib/sliceReadout.js";
 import { buildVectorFeatures as buildVectorFeaturesOf } from "../lib/viewer/vectorFeatures.js"; // TASKS.csv #1083
 import { isRepeatClick } from "../lib/interpretation.js"; // TASKS.csv #1152
@@ -6892,9 +6892,11 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       planPoints.push({ hole_id: pt.hole_id, md, x: q.x, y: q.y, color: pt.color, label: pt.label, assay: pt.assay || null });
     });
     // what each pierce point sits in: the interval of every logged layer at that depth, and the assays there
+    // #2210 — rows grouped by hole once: a filter over every interval per pierce point was ~200 ms at RL 82 on the WA gold project
+    const ivBy = groupByHole(intervals), ptBy = groupByHole(points.filter((pt) => pt.assay));
     holes.forEach((h) => h.pierce.forEach((pc) => {
-      pc.logs = intervals.filter((iv) => iv.hole_id === h.hole_id && pc.md >= iv.from && pc.md <= iv.to).map((iv) => ({ label: iv.label, color: iv.color, layer: iv.layer }));
-      pc.assays = points.filter((pt) => pt.hole_id === h.hole_id && pt.assay && pc.md >= pt.assay.from && pc.md <= pt.assay.to).map((pt) => pt.label);
+      pc.logs = (ivBy.get(h.hole_id) || []).filter((iv) => pc.md >= iv.from && pc.md <= iv.to).map((iv) => ({ label: iv.label, color: iv.color, layer: iv.layer }));
+      pc.assays = (ptBy.get(h.hole_id) || []).filter((pt) => pc.md >= pt.assay.from && pc.md <= pt.assay.to).map((pt) => pt.label);
     }));
     const structures = [];
     if (layerVisible.structure) {

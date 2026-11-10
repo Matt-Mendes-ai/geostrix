@@ -152,3 +152,25 @@ export function planAssayLayers(points, holes, groups, projectValues) {
   }
   return { intervals, legends };
 }
+
+// TASKS.csv #2210 (review #2174, WA gold) — rows by hole_id, in their order, so a per-pierce-point lookup scans one hole's rows, not every row
+export function groupByHole(rows) {
+  const m = new Map();
+  for (const r of rows || []) { const a = m.get(r.hole_id); if (a) a.push(r); else m.set(r.hole_id, [r]); }
+  return m;
+}
+
+// TASKS.csv #2210 — path strings kept per key while the points are the same (a cheap numeric signature of them), for the level plan's
+// faint whole-hole traces: they do not move with the RL, and a desurvey change (same frame, moved points) still redraws them
+export function pathCache() {
+  const m = new Map();
+  return (key, pts, toPath) => {
+    let sig = pts.length;
+    for (const [x, y] of pts) sig = (sig * 31 + x * 7 + y) % 1e12;
+    const hit = m.get(key);
+    if (hit && hit.sig === sig) return hit.d;
+    const d = toPath(pts);
+    m.set(key, { sig, d });
+    return d;
+  };
+}
