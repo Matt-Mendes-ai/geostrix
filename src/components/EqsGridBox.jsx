@@ -48,11 +48,14 @@ export default function EqsGridBox({ survey, rows, units = "", addRaster, defaul
     const d = r.data;
     try {
       const name = `${survey} — equivalent sources at ${elevM} m (${cellM} m cells)`;
-      const raster = rasterFromGrid({ name, values: b64ToF32(d.values), nx: d.nx, ny: d.ny, x0: d.x0, yTop: d.yTop, dx: d.dx, dy: d.dy, elevation: defaultElevation,
+      // TASKS.csv #2392 (review #2325, WA uranium) — drawn at the elevation the field was computed at (the survey's own height), not the
+      // collars' median RL (331 m under a grid at 340 m; ~200 m off on an underground project), as the IDW route since #2239
+      const drawAt = Number.isFinite(elevM) ? elevM : defaultElevation;
+      const raster = rasterFromGrid({ name, values: b64ToF32(d.values), nx: d.nx, ny: d.ny, x0: d.x0, yTop: d.yTop, dx: d.dx, dy: d.dy, elevation: drawAt,
         extra: { filter: { kind: "equivalent-sources", label: "Equivalent sources (Harmonica)", params: { elevationM: elevM, cellM, blankM: Math.round(blankM), sourceDepthM: d.depth, readings: d.readings, gradientBoosted: d.gradient_boosted, rmsMisfit: d.rms_misfit, readingsElevation: noZ ? `all at ${z0} m (entered)` : "their own" }, sourceRaster: survey, method: "harmonica.EquivalentSources (EquivalentSourcesGB above 5,000 readings), block size = cell, sources 1.2 x the cell below the readings unless entered, default damping, predicted at one elevation; nodes beyond the blanking distance of every reading left empty (python-sidecar/app/geophys/pfields.py)", at: new Date().toISOString() } } });
-      addRaster(raster);
+      addRaster({ ...raster, provenance: { tool: "Equivalent sources gridding", survey, readings: d.readings, cellM, elevationM: elevM, sourceDepthM: d.depth, blankingM: Math.round(blankM), drawnAtM: drawAt } }); // #2392
       const pct = d.data_std > 0 ? (100 * d.rms_misfit) / d.data_std : 0;
-      setMsg({ info: true, text: tr("Added \"{name}\" in {s} s: {n} readings, {nx} × {ny} nodes at {elev} m, sources {depth} m below the readings. They reproduce the readings' {cell} m block means to {rms} {units} RMS ({pct} % of their spread){v}. Inside a block the readings themselves vary by {within} {units} RMS, which a {cell} m grid cannot show.", { name, s: ((Date.now() - t0) / 1000).toFixed(1), n: d.readings.toLocaleString(), nx: d.nx, ny: d.ny, elev: elevM, depth: d.depth, cell: cellM, rms: d.rms_misfit.toPrecision(3), units, pct: pct.toFixed(1), within: d.within_block_rms.toPrecision(3), v: d.gradient_boosted ? tr("; solved in overlapping windows (gradient-boosted), as for any survey over 5,000 readings") : "" }) });
+      setMsg({ info: true, text: tr("Added \"{name}\" in {s} s: {n} readings, {nx} × {ny} nodes at {elev} m, sources {depth} m below the readings. They reproduce the readings' {cell} m block means to {rms} {units} RMS ({pct} % of their spread){v}. Inside a block the readings themselves vary by {within} {units} RMS, which a {cell} m grid cannot show.", { name, s: ((Date.now() - t0) / 1000).toFixed(1), n: d.readings.toLocaleString(), nx: d.nx, ny: d.ny, elev: elevM, depth: d.depth, cell: cellM, rms: d.rms_misfit.toPrecision(3), units, pct: pct.toFixed(1), within: d.within_block_rms.toPrecision(3), v: d.gradient_boosted ? tr("; solved in overlapping windows (gradient-boosted), as for any survey over 5,000 readings") : "" }) + tr(" Drawn flat at {z} m, the elevation the field was computed at.", { z: Math.round(drawAt).toLocaleString() }) });
     } catch (err) { setMsg({ info: false, text: err.message }); }
   };
   return (

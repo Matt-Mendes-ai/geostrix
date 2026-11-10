@@ -9624,5 +9624,6 @@
   "{s}: no value in the precursor group, left out of the immobile set.": "{s} : aucune valeur dans le groupe précurseur, laissé hors de l'ensemble immobile.",
   "{s}: no value in the altered group, left out of the immobile set.": "{s} : aucune valeur dans le groupe altéré, laissé hors de l'ensemble immobile.",
   "{k} of {n} pairs drawn (every {s}th, and the extremes); the statistics use all of them.": "{k} paires sur {n} tracées (une sur {s}, et les extrêmes) ; les statistiques les utilisent toutes.",
-  "The matched model's grid has more blocks in reach than the budget, and its block size is fixed: match a coarser model, shorten the search radius, or use 'Fit to the drilling' with a cell that fits.": "La grille du modèle apparié a plus de blocs à portée que le budget et sa taille de bloc est fixe : appariez un modèle plus grossier, raccourcissez le rayon de recherche ou utilisez « Ajuster aux sondages » avec une cellule qui tient."
+  "The matched model's grid has more blocks in reach than the budget, and its block size is fixed: match a coarser model, shorten the search radius, or use 'Fit to the drilling' with a cell that fits.": "La grille du modèle apparié a plus de blocs à portée que le budget et sa taille de bloc est fixe : appariez un modèle plus grossier, raccourcissez le rayon de recherche ou utilisez « Ajuster aux sondages » avec une cellule qui tient.",
+  " Drawn flat at {z} m, the elevation the field was computed at.": " Dessiné à plat à {z} m, l'élévation à laquelle le champ a été calculé."
 }
