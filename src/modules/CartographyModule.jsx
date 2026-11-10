@@ -25,7 +25,7 @@ import { parseTableFile, toExportCsv } from "../lib/tabular.js";
 import { guessGeophysColumns } from "../lib/geophysColumns.js";
 import { saveFile } from "../lib/desktop.js";
 import SourceCrsField from "../components/SourceCrsField.jsx";
-import { readShapefileLayers, reprojectShapefileZip, reportShapefileText, readGeoTiffInfo, reprojectGeoTiff, reportGeoTiffText, reprojectTableRows } from "../lib/fileReproject.js"; // #487
+import { readShapefileLayers, reprojectShapefileZip, reportShapefileText, readGeoTiffInfo, reprojectGeoTiff, reportGeoTiffText, reprojectTableRows, degreesOutOfRange } from "../lib/fileReproject.js"; // #487; degreesOutOfRange: #2461
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786 — messages in the interface language
 import { collarCentreLonLat, collarSpread, formatLonLat } from "../lib/projectCrs.js"; // TASKS.csv #2291
 import { smallGridCoordinates } from "../lib/crsFromColumns.js"; // TASKS.csv #2291
@@ -158,12 +158,14 @@ export default function CartographyModule({ embedded = false, forcePane = null }
     if (!res?.ok) { if (res?.error) throw new Error(res.error); setMsg(null); return; } // cancelled in the dialog
     setMsg({ ok: true, text: reportGeoTiffText(report, fileTo) });
   });
+  // TASKS.csv #2461 — the X / Y under a geographic From, checked before Save
+  const fromDegrees = useMemo(() => (file && !file.kind && file.xCol && file.yCol && fileFrom && isGeographicCrs(fileFrom) ? degreesOutOfRange(file.rows, file.xCol, file.yCol) : null), [file, fileFrom]);
   const saveReprojected = () => run(async () => {
     const T = pointTransform(fileFrom, fileTo);
     if (!T) throw new Error(tr("Pick both CRSs."));
     const xName = `${file.xCol}_EPSG${fileTo}`, yName = `${file.yCol}_EPSG${fileTo}`;
     // #1036 — from the definition: 8 decimals of a degree, 3 of a metre; #1017 — rows in lib, tested
-    const { rows, bad } = reprojectTableRows(file.rows, { xCol: file.xCol, yCol: file.yCol, xName, yName, T, geographic: isGeographicCrs(fileTo) });
+    const { rows, bad } = reprojectTableRows(file.rows, { xCol: file.xCol, yCol: file.yCol, xName, yName, T, geographic: isGeographicCrs(fileTo), fromGeographic: isGeographicCrs(fileFrom) }); // fromGeographic: #2461
     const base = file.name.replace(/\.[^.]+$/, "");
     const res = await saveFile({ quiet: true, suggestedName: `${base}_EPSG${fileTo}.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: toExportCsv(rows, { columns: [...file.headers, xName, yName] }) });
     if (!res?.ok) { if (res?.error) throw new Error(res.error); setMsg(null); return; } // cancelled in the dialog
@@ -297,7 +299,11 @@ export default function CartographyModule({ embedded = false, forcePane = null }
                 ))}
                 <div style={{ marginTop: 10 }}><CrsPicker label={tr("From (the file's CRS)")} value={fileFrom} onChange={setFileFrom} height={120} /></div>
                 <div style={{ marginTop: 10 }}><CrsPicker label={tr("To")} value={fileTo} onChange={setFileTo} height={120} /></div>
-                <button style={primary} disabled={busy || !file.xCol || !file.yCol || !fileFrom || !fileTo} onClick={saveReprojected}>
+                {/* TASKS.csv #2461 — metres declared as degrees: said before Save, and Save held while most rows cannot be longitude / latitude */}
+                {fromDegrees && fromDegrees.outside > 0 && (
+                  <div role="alert" style={{ marginTop: 8, fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", lineHeight: 1.4 }}>{tr("{n} of {m} rows checked have X / Y outside ±180 / ±90 (e.g. {x}, {y}), so they are not longitude / latitude: check the From CRS. Such rows are left blank.", { n: fromDegrees.outside.toLocaleString(), m: fromDegrees.checked.toLocaleString(), x: fromDegrees.example[0].toLocaleString(), y: fromDegrees.example[1].toLocaleString() })}</div>
+                )}
+                <button style={primary} disabled={busy || !file.xCol || !file.yCol || !fileFrom || !fileTo || (fromDegrees && fromDegrees.outside > fromDegrees.checked / 2)} onClick={saveReprojected}>
                   {busy ? <Loader2 size={14} className="spin" /> : <FileSpreadsheet size={14} />}{" "}{tr("Save reprojected CSV…")}</button>
               </>
             )}

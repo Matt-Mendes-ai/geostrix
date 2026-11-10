@@ -9731,5 +9731,6 @@
   "Elev is blank: {z} from the terrain at this E / N.": "La elevación está vacía: {z} según el terreno en este E / N.",
   "Elev is blank: {z} from the ground interpolated between the nearest collars (no terrain).": "La elevación está vacía: {z} según el suelo interpolado entre los collares más cercanos (sin terreno).",
   "+ Add hole needs E, N and Elev as numbers, and a length above 0.": "+ Añadir sondaje necesita E, N y elevación como números, y una longitud mayor que 0.",
-  "Az / Dip / Length start from the {n} drilled holes (median); each hole added is kept for the next.": "Az / Inclinación / Longitud parten de los {n} sondajes perforados (mediana); cada sondaje añadido se conserva para el siguiente."
+  "Az / Dip / Length start from the {n} drilled holes (median); each hole added is kept for the next.": "Az / Inclinación / Longitud parten de los {n} sondajes perforados (mediana); cada sondaje añadido se conserva para el siguiente.",
+  "{n} of {m} rows checked have X / Y outside ±180 / ±90 (e.g. {x}, {y}), so they are not longitude / latitude: check the From CRS. Such rows are left blank.": "{n} de {m} filas revisadas tienen X / Y fuera de ±180 / ±90 (p. ej. {x}, {y}), así que no son longitud / latitud: revise el CRS de origen. Esas filas quedan en blanco."
 }

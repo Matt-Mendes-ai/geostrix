@@ -206,12 +206,28 @@ export function reportGeoTiffText(r, toEpsg) {
 // TASKS.csv #1017 — a table's x / y columns reprojected (was inline in CartographyModule.jsx): every row kept with two new
 // columns; a blank or non-numeric coordinate gives blanks (a blank cell is missing, not 0) and is counted in `bad`;
 // 8 decimals of a degree for a geographic target, 3 of a metre otherwise (#1036). T: (x, y) -> [x, y].
-export function reprojectTableRows(rows, { xCol, yCol, xName, yName, T, geographic }) {
+// TASKS.csv #2461 (review #2325, WA uranium) — With From = WGS 84 lon / lat on MGA eastings and northings (570,000 / 6,687,000) the file
+// would have held 4,201,421 E / 24,572,327 N with 0 bad rows. Under a geographic From, a pair outside +-180 / +-90 is no longitude /
+// latitude: it is a bad row (left blank), and degreesOutOfRange counts them for the pane before Save.
+const outsideDegrees = (x, y) => Math.abs(x) > 180 || Math.abs(y) > 90;
+export function degreesOutOfRange(rows, xCol, yCol, sample = 500) {
+  let checked = 0, outside = 0, example = null;
+  const step = Math.max(1, Math.floor((rows || []).length / sample));
+  for (let i = 0; i < (rows || []).length; i += step) {
+    const x = Number(rows[i][xCol]), y = Number(rows[i][yCol]);
+    if (rows[i][xCol] === "" || rows[i][yCol] === "" || !Number.isFinite(x) || !Number.isFinite(y)) continue;
+    checked++;
+    if (outsideDegrees(x, y)) { outside++; if (!example) example = [x, y]; }
+  }
+  return { checked, outside, example };
+}
+// fromGeographic (#2461): the From CRS is longitude / latitude
+export function reprojectTableRows(rows, { xCol, yCol, xName, yName, T, geographic, fromGeographic = false }) {
   let bad = 0;
   const num = (v) => (v === "" || v == null ? NaN : Number(v));
   const out = rows.map((r) => {
     const x = num(r[xCol]), y = num(r[yCol]);
-    if (!Number.isFinite(x) || !Number.isFinite(y)) { bad++; return { ...r, [xName]: "", [yName]: "" }; }
+    if (!Number.isFinite(x) || !Number.isFinite(y) || (fromGeographic && outsideDegrees(x, y))) { bad++; return { ...r, [xName]: "", [yName]: "" }; }
     const [nx, ny] = T(x, y);
     return { ...r, [xName]: +nx.toFixed(geographic ? 8 : 3), [yName]: +ny.toFixed(geographic ? 8 : 3) };
   });
