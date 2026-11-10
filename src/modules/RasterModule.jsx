@@ -34,6 +34,7 @@ import { gridCellText } from "../lib/raster.js"; // TASKS.csv #1242
 import { detectKeyColour } from "../lib/rasterKey.js"; // TASKS.csv #1623
 import RasterLegend from "../components/RasterLegend.jsx"; // TASKS.csv #2011
 import { projectTargetEpsg } from "../lib/projectTarget.js"; // TASKS.csv #2287 — no reprojection INTO the placeholder CRS
+import { rasterLevelM, filteredLevelM, placeEulerSolutions } from "../lib/eulerPlace.js"; // TASKS.csv #2553
 
 // TASKS.csv — split out of the Geophysics module into its own tab (user request: "let's make a
 // separate Module for Raster, not within geophysics"). Geophysics had accumulated point-cloud/UBC
@@ -125,13 +126,12 @@ export default function RasterModule({ embedded = false } = {}) {
         const r2 = await runPfieldsJob({ op: "euler", nx: g.nx, ny: g.ny, dx: g.dx, dy: g.dy, x0: g.x0, yTop: g.yTop, values: g.values, structural_index: Number(filt.si), window: win, observation_elevation: 0 }, { onProgress: (p) => setError({ info: true, text: p.message || tr("Working…") }) });
         if (!r2.ok) { setError({ info: false, text: r2.error }); return; }
         const d = r2.data, src = `${r.name} — Euler (SI ${d.structural_index}, ${win} m windows)`;
-        const rows = d.x.map((x, i) => {
-          const ground = terrain ? terrainElevationAt(terrain, x, d.y[i]) : NaN;
-          return { x, y: d.y[i], z: Number.isFinite(ground) ? +(ground - d.depth[i]).toFixed(1) : null, value: +d.depth[i].toFixed(1), depthSd: +d.depth_sd[i].toFixed(1), _src: src };
-        });
+        // TASKS.csv #2553 — below the grid's own level when it was computed at one (equivalent sources, upward continued), else under the terrain
+        const levelM = rasterLevelM(r), placed = placeEulerSolutions(d, { levelM, groundAt: terrain ? (x, y) => terrainElevationAt(terrain, x, y) : null });
+        const rows = d.x.map((x, i) => ({ x, y: d.y[i], z: placed.z[i], value: +d.depth[i].toFixed(1), depthSd: +d.depth_sd[i].toFixed(1), _src: src }));
         setLayers((l) => ({ ...l, geophys_pts: [...(l.geophys_pts || []).filter((p) => p._src !== src), ...rows] }));
         updateGeophysSurvey(src, { method: "euler_depth", units: "m" });
-        setError({ info: true, text: d.count ? tr("Added the point survey \"{src}\": {n} solutions from {w} windows, depth {lo} to {hi} m below the grid's level (median {med} m){v}. Each kept solution lies inside its window and its depth is known to within 15 %. A depth is below the sensor: subtract the survey's height above ground for depth below ground.", { src, n: d.count.toLocaleString(), w: d.windows.toLocaleString(), lo: Math.round(Math.min(...d.depth)), hi: Math.round(Math.max(...d.depth)), med: Math.round([...d.depth].sort((a, b) => a - b)[d.depth.length >> 1]), v: terrain ? tr(", placed under the terrain in 3D") : tr("; with no terrain they have no elevation and show in plan only") }) : tr("No Euler solution passed the checks in \"{name}\": try another structural index or a larger window.", { name: r.name }) });
+        setError({ info: true, text: d.count ? tr("Added the point survey \"{src}\": {n} solutions from {w} windows, depth {lo} to {hi} m below the grid's level (median {med} m){v}. Each kept solution lies inside its window and its depth is known to within 15 %. A depth is below the sensor: subtract the survey's height above ground for depth below ground.", { src, n: d.count.toLocaleString(), w: d.windows.toLocaleString(), lo: Math.round(Math.min(...d.depth)), hi: Math.round(Math.max(...d.depth)), med: Math.round([...d.depth].sort((a, b) => a - b)[d.depth.length >> 1]), v: placed.byLevel ? " " + tr("— in 3D at the grid's level ({lv} m) minus each depth ({n} of {all})", { lv: Math.round(levelM), n: placed.byLevel.toLocaleString(), all: d.count.toLocaleString() }) : placed.byTerrain ? " " + tr("— in 3D under the terrain ({n} of {all}; {m} with no ground under them show in plan only)", { n: placed.byTerrain.toLocaleString(), all: d.count.toLocaleString(), m: placed.missing.toLocaleString() }) : tr("; with no terrain they have no elevation and show in plan only") }) /* #2553 */ : tr("No Euler solution passed the checks in \"{name}\": try another structural index or a larger window.", { name: r.name }) });
         setFilterFor(null);
         return;
       }
@@ -161,7 +161,7 @@ export default function RasterModule({ embedded = false } = {}) {
       const suffix = filt.kind === "rtp" || filt.kind === "rte" ? ` (I ${params.inclination}°, D ${params.declinationTrue}° true)` : filt.kind === "rtpa" ? ` (I ${params.inclination}°, D ${params.declinationTrue}° true, Ia ${out.amplitudeInclination}°)` : filt.kind === "upward" ? ` (+${params.height} m)` : "";
       if (filt.kind === "rtpa") params.amplitudeInclination = out.amplitudeInclination; // #1988 — the one used, recorded with the raster
       const nr = rasterFromGrid({ name: `${r.name} — ${label}${suffix}`, values: out.values, nx: g.nx, ny: g.ny, x0: g.x0, yTop: g.yTop, dx: g.dx, dy: g.dy, averagedBy: g.averagedBy || 1, sourceSize: g.sourceSize, elevation: r.elevation,
-        extra: { filter: { kind: filt.kind, label, params, sourceRaster: r.name, method: "FFT on the kept grid: mean plane removed, gaps filled from neighbours, mirror-padded to >= 2x with a cosine taper (gridFilters.js)", at: new Date().toISOString() } } });
+        extra: { levelM: filteredLevelM(r, filt.kind, params) /* #2553 */, filter: { kind: filt.kind, label, params, sourceRaster: r.name, method: "FFT on the kept grid: mean plane removed, gaps filled from neighbours, mirror-padded to >= 2x with a cosine taper (gridFilters.js)", at: new Date().toISOString() } } });
       addRaster(nr);
       setError({ info: !out.warning, text: tr("Added \"{name}\" (colours span the 2nd–98th percentile: {v}).{v2}", { name: nr.name, v: nr.colourRange.map((v) => v.toPrecision(3)).join(" to "), v2: out.warning ? " " + out.warning : "" }) });
       setFilterFor(null);
