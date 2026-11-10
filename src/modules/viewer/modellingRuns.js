@@ -2,6 +2,8 @@
 // model run instead of at startup. Bodies unchanged: each run reads the context snapshot it was started with
 // (exactly what the old useCallback closures saw), and mcRef is the hook's live ref (#599).
 import * as THREE from "three";
+import { buildMeshQuery } from "../../lib/meshQuery.js"; // TASKS.csv #2376
+import { stackOrderAtHoles } from "../../lib/stackOrderAtHoles.js"; // TASKS.csv #2376
 import { intensityRank, INTENSITY_SCALE } from "../../lib/intensityVocab.js"; // TASKS.csv #2230
 import { baselineNotice, oneHoleDipNotice } from "../../lib/modelCheckBaseline.js"; // TASKS.csv #1687
 import { desurveyHole } from "../../lib/desurvey.js";
@@ -384,6 +386,7 @@ export function createModellingRuns(ctx, mcRef) {
     let ensembleBase = null; // TASKS.csv #52 (a)
     const nonFinite = []; // TASKS.csv #314
     const reachNotes = []; // TASKS.csv #1335
+    const orderSurfs = []; // TASKS.csv #2376 — the stack's surfaces as drawn, youngest first, for the order check below
     const runId = `gempy_${Date.now()}`; // TASKS.csv #1101 — the surfaces of one run (a stack) share it, for "Model inputs"
     specs.forEach((spec, specIndex) => {
       let surf = byName[spec.meshName];
@@ -450,6 +453,7 @@ export function createModellingRuns(ctx, mcRef) {
       const id = `impl_${Date.now()}_${spec.meshName}`;
       implicitMeshesRef.current[id] = mesh;
       newMeshes.push(mesh);
+      if (specs.length > 1) orderSurfs.push({ label: spec.label, package: spec.package, verts: sceneVerts, faces }); // #2376
       if (stackOpts.ensemble && specs.length === 1) ensembleBase = { spec, mesh, id, sceneVerts, faces };
       // TASKS.csv #83 — `type` starts from each tool's own guess (see guessSurfaceType/the inline
       // guesses at each spec's construction site above); `relationships` starts empty — declared
@@ -499,6 +503,23 @@ export function createModellingRuns(ctx, mcRef) {
     if (reachNotes.length) setNotices((p) => [...p, appendNotice(notice("Surfaces stop near their own contacts: {list}. For the solver the model box reaches {px} m (east-west), {py} m (north-south) and {pz} m (vertically) past these contacts, so its cells are {cell} m; the surfaces are cut back to the distances above. It was sized to these contacts, not to every hole in the project. Model settings changes the distance or fills the box.", { list: reachNotes.join("; "), px: Math.round(boxPadM.x), py: Math.round(boxPadM.y), pz: Math.round(boxPadM.z), cell: Math.round(Math.max(xmax - xmin, ymax - ymin, zmax - zmin) / modelResolution) }) /* box pads, cells: #2229 */,
       vPad != null && colHit ? " " + tr("Its height follows the drilling under it ({area}): RL {top} ({topHole}) to RL {bottom} ({bottomHole}), each hole to its logged depth.", { area: modelArea === "checked" ? tr("the holes checked in the Holes list") : tr("every hole in the box"), top: Math.round(colHit.max + (originRef.current?.z || 0)), topHole: colHit.maxHole ?? "?", bottom: Math.round(colHit.min + (originRef.current?.z || 0)), bottomHole: colHit.minHole ?? "?" }) /* project RL: + the scene origin, as extentOrigin (#1378) */ : "") /* #2616 */]);
     if (missing.length) setNotices((p) => [...p, notice("GemPy returned no mesh for: {missing} (try adding more points or a wider spread of orientations for those).", { missing: missing.join(", ") })]);
+    // TASKS.csv #2376 (review #2325, WA uranium) — the stack's surfaces cannot cross (one field), but their order is the field's level at
+    // each one's own contacts and can come out unlike the order given: said from the surfaces as drawn, at every collar they reach
+    if (orderSurfs.length > 1) {
+      let yLo = Infinity, yHi = -Infinity;
+      const surfaces = orderSurfs.map((o) => {
+        const pos = new Float32Array(o.verts.length * 3);
+        o.verts.forEach((v, i) => { pos[i * 3] = v.x; pos[i * 3 + 1] = v.y; pos[i * 3 + 2] = v.z; if (v.y < yLo) yLo = v.y; if (v.y > yHi) yHi = v.y; });
+        return { label: o.label, package: o.package, q: buildMeshQuery(pos, Uint32Array.from(o.faces.flat())) };
+      });
+      const holes = traces.filter((t) => t.pts?.length).map((t) => ({ x: t.pts[0].x, z: t.pts[0].z }));
+      const ord = stackOrderAtHoles(surfaces, holes, { yLo: yLo - 10, yHi: yHi + 10 });
+      const checked = Math.max(0, ...ord.pairs.map((q) => q.of));
+      if (ord.outOfOrder.length) {
+        const list = ord.outOfOrder.map((q) => tr("{older} lies above {younger} at {above} of {of} holes (by up to {worst} m)", { older: q.older, younger: q.younger, above: q.above, of: q.of, worst: q.worstM.toFixed(1) })).join("; ");
+        setNotices((p) => [...p, notice("Out of order at the collars: {list}. A stack is one field, so its surfaces cannot cross, but each is that field's level at its own contacts, and here they came out in a different order from the one given. A model box too coarse for the units' thickness is a usual cause (the contact fit above says how far each surface misses its picks); one Explicit surface per unit, from its logged tops, follows the picks exactly.", { list })]);
+      } else if (checked) setNotices((p) => [...p, infoNotice(tr("In order at the collars: each surface of the stack lies below the one above it at the {n} collars both reach.", { n: checked }))]);
+    }
     if (nonFinite.length) setNotices((p) => [...p, notice("GemPy returned some invalid (NaN) vertices — the surface is shown without the triangles that used them, so it may have holes: {nonFinite}. Usually too few points / orientations for the extent or resolution.", { nonFinite: nonFinite.join("; ") })]); // #314
     // TASKS.csv #356 — model vs logs, and unit volumes, from the lithology block. Every logged interval of a
     // modelled unit (by its code / group codes) is sampled at its midpoint in the model; the report says
