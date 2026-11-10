@@ -16,7 +16,10 @@ export function boxStats(values) {
 // rows: assay-shaped log rows { hole_id, from, to, values: { [symbol]: v } }; domainRows: the categorical layer's intervals.
 // -> [{ key: code, stats, n }] by median descending, plus the readings outside every interval of the layer under "(not logged)"
 export const NOT_LOGGED = "(not logged)";
-export function logByCode(rows, symbol, domainRows, { minN = 3 } = {}) {
+// TASKS.csv #2393 (review #2325, WA uranium) — a skewed log ranked by its median hides the host: lignite (38 % of the assayed uranium) was
+// 9th of 19 by median gamma and shale (no reading over 100 ppm) 2nd. stat: "median" (default, for symmetric logs: SG, RQD), "mean", "p90",
+// or "above" (the share of readings above `above`); each group gets `value` (and `nAbove`), and the groups are sorted by it.
+export function logByCode(rows, symbol, domainRows, { minN = 3, stat = "median", above = null } = {}) {
   const codeOf = domainOfInterval(domainRows);
   const groups = new Map();
   for (const r of rows) {
@@ -26,8 +29,17 @@ export function logByCode(rows, symbol, domainRows, { minN = 3 } = {}) {
     (groups.get(code) || groups.set(code, []).get(code)).push(v);
   }
   const out = [];
-  for (const [key, vals] of groups) { const stats = boxStats(vals); if (stats && stats.n >= minN) out.push({ key, stats, n: stats.n }); }
-  return out.sort((a, b) => b.stats.median - a.stats.median || String(a.key).localeCompare(String(b.key)));
+  const thr = Number(above);
+  for (const [key, vals] of groups) {
+    const stats = boxStats(vals);
+    if (!stats || stats.n < minN) continue;
+    let value = stats.median, nAbove;
+    if (stat === "mean") value = vals.reduce((s, v) => s + v, 0) / vals.length;
+    else if (stat === "p90") value = quantileSorted([...vals].sort((a, b) => a - b), 0.9);
+    else if (stat === "above" && Number.isFinite(thr)) { nAbove = vals.filter((v) => v > thr).length; value = (100 * nAbove) / vals.length; }
+    out.push({ key, stats, n: stats.n, value, ...(nAbove != null ? { nAbove } : {}) });
+  }
+  return out.sort((a, b) => b.value - a.value || String(a.key).localeCompare(String(b.key)));
 }
 
 // the log against an assay element: each reading paired with the assay interval of its hole that holds its midpoint

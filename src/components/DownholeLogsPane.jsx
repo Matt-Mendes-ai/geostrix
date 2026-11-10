@@ -50,7 +50,10 @@ export default function DownholeLogsPane({ layers, customLayers = [], assays = [
   const [domainKey, setDomainKey] = useState("");
   const domain = domains.find((d) => d.key === domainKey) || domains[0] || null;
   const [logScale, setLogScale] = useState(true);
-  const groups = useMemo(() => (data && domain ? logByCode(data.assays, data.symbol, domain.rows) : []), [data, domain]);
+  // TASKS.csv #2393 — rank the codes by the median (default), the mean, P90 or the share of readings above a value
+  const [rankStat, setRankStat] = useState("median");
+  const [rankAbove, setRankAbove] = useState("100");
+  const groups = useMemo(() => (data && domain ? logByCode(data.assays, data.symbol, domain.rows, { stat: rankStat, above: Number(rankAbove) }) : []), [data, domain, rankStat, rankAbove]);
   const symbols = assayElements.map((e) => e.symbol);
   const [element, setElement] = useState("");
   const el = symbols.includes(element) ? element : symbols[0] || "";
@@ -84,7 +87,15 @@ export default function DownholeLogsPane({ layers, customLayers = [], assays = [
           {groups.length > 0 ? (
             <>
               <BoxPlots fit groups={groups} domainLabel={(k) => `${k === NOT_LOGGED ? tr("(not logged)") : k} (${groups.find((g) => g.key === k)?.n.toLocaleString()})`} logScale={logScale} unit={unitOf(source.unit)} />
-              <div style={note}>{tr("Median per code, highest first: {list}.", { list: groups.slice(0, 6).map((g) => `${g.key === NOT_LOGGED ? tr("(not logged)") : g.key} ${Number(g.stats.median.toPrecision(3))}`).join(" · ") })}</div>
+              <label style={{ ...row, justifyContent: "flex-start", gap: 6 }}>{tr("Rank codes by")}
+                <select value={rankStat} onChange={(e) => setRankStat(e.target.value)} style={smallSel} aria-label={tr("Rank codes by")}>
+                  <option value="median">{tr("Median")}</option><option value="mean">{tr("Mean")}</option><option value="p90">P90</option><option value="above">{tr("Share above a value")}</option>
+                </select>
+                {rankStat === "above" && <input type="number" step="any" value={rankAbove} onChange={(e) => setRankAbove(e.target.value)} aria-label={tr("Value the share is counted above")} style={{ ...smallSel, width: 70 }} />}
+              </label>{/* #2393 */}
+              <div style={note}>{rankStat === "above"
+                ? tr("Share of readings above {v} per code, highest first: {list}.", { v: rankAbove, list: groups.slice(0, 8).map((g) => `${g.key === NOT_LOGGED ? tr("(not logged)") : g.key} ${Math.round(g.value)}% (${(g.nAbove ?? 0).toLocaleString()} of ${g.n.toLocaleString()})`).join(" · ") })
+                : tr(rankStat === "mean" ? "Mean per code, highest first: {list}." : rankStat === "p90" ? "P90 per code, highest first: {list}." : "Median per code, highest first: {list}.", { list: groups.slice(0, 8).map((g) => `${g.key === NOT_LOGGED ? tr("(not logged)") : g.key} ${Number(g.value.toPrecision(3))}`).join(" · ") })}</div>
             </>
           ) : domain && <div style={note}>{tr("No code of {layer} has three or more readings of this log.", { layer: domain.label })}</div>}
           {symbols.length > 0 && (

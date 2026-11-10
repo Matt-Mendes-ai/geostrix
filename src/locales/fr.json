@@ -9751,5 +9751,11 @@
   "{older} is logged above {younger} in {against} of {of} holes that have both": "{older} est décrit au-dessus de {younger} dans {against} des {of} sondages qui ont les deux",
   "The stack's order does not match the holes: {list}. Down the holes the order is {order} (youngest first). Run in the order given anyway?": "L'ordre de la pile ne correspond pas aux sondages : {list}. Le long des sondages l'ordre est {order} (le plus jeune d'abord). Lancer quand même dans l'ordre donné ?",
   "Stack run cancelled before solving: the holes give the order {order} (youngest first). Reorder the units with the arrows and run again.": "Calcul de la pile annulé avant la résolution : les sondages donnent l'ordre {order} (le plus jeune d'abord). Réordonnez les unités avec les flèches et relancez.",
-  "Run in the order given, although the holes give {order} (youngest first): {list}.": "Lancé dans l'ordre donné, bien que les sondages donnent {order} (le plus jeune d'abord) : {list}."
+  "Run in the order given, although the holes give {order} (youngest first): {list}.": "Lancé dans l'ordre donné, bien que les sondages donnent {order} (le plus jeune d'abord) : {list}.",
+  "Rank codes by": "Classer les codes par",
+  "Share above a value": "Part au-dessus d'une valeur",
+  "Value the share is counted above": "Valeur au-dessus de laquelle la part est comptée",
+  "Share of readings above {v} per code, highest first: {list}.": "Part des lectures au-dessus de {v} par code, de la plus forte à la plus faible : {list}.",
+  "Mean per code, highest first: {list}.": "Moyenne par code, de la plus forte à la plus faible : {list}.",
+  "P90 per code, highest first: {list}.": "P90 par code, du plus fort au plus faible : {list}."
 }

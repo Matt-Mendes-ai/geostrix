@@ -9751,5 +9751,11 @@
   "{older} is logged above {younger} in {against} of {of} holes that have both": "{older} مسجل فوق {younger} في {against} من {of} ثقب فيها الاثنان",
   "The stack's order does not match the holes: {list}. Down the holes the order is {order} (youngest first). Run in the order given anyway?": "ترتيب المكدس لا يطابق الثقوب: {list}. على طول الثقوب الترتيب هو {order} (الأحدث أولًا). هل تشغّل بالترتيب المعطى على أي حال؟",
   "Stack run cancelled before solving: the holes give the order {order} (youngest first). Reorder the units with the arrows and run again.": "أُلغي تشغيل المكدس قبل الحل: تعطي الثقوب الترتيب {order} (الأحدث أولًا). أعد ترتيب الوحدات بالأسهم وشغّل مجددًا.",
-  "Run in the order given, although the holes give {order} (youngest first): {list}.": "شُغّل بالترتيب المعطى، مع أن الثقوب تعطي {order} (الأحدث أولًا): {list}."
+  "Run in the order given, although the holes give {order} (youngest first): {list}.": "شُغّل بالترتيب المعطى، مع أن الثقوب تعطي {order} (الأحدث أولًا): {list}.",
+  "Rank codes by": "ترتيب الرموز حسب",
+  "Share above a value": "النسبة فوق قيمة",
+  "Value the share is counted above": "القيمة التي تُحسب النسبة فوقها",
+  "Share of readings above {v} per code, highest first: {list}.": "نسبة القراءات فوق {v} لكل رمز، الأعلى أولًا: {list}.",
+  "Mean per code, highest first: {list}.": "المتوسط لكل رمز، الأعلى أولًا: {list}.",
+  "P90 per code, highest first: {list}.": "المئين 90 لكل رمز، الأعلى أولًا: {list}."
 }
