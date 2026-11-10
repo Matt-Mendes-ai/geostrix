@@ -9565,5 +9565,6 @@
   "{k} of them have no survey and no azimuth / dip (drawn as assumed vertical holes) and widen the frame: the drilled holes alone would fit at 1:{s}. Set the scale by hand, or remove those collars.": "{k} deles não têm levantamento nem azimute / mergulho (desenhados como furos verticais supostos) e alargam o quadro: os furos perfurados sozinhos caberiam a 1:{s}. Defina a escala à mão, ou remova esses colares.",
   "The coordinate grid's spacing in metres. Blank: about five lines across the frame; 0: no grid.": "O espaçamento da grade de coordenadas em metros. Em branco: cerca de cinco linhas na largura do quadro; 0: sem grade.",
   "Some of these score the same (a plateau of equal cells): those are ranked by the mean score of the cells around them, so treat their order as a tie.": "Algumas pontuam igual (um platô de células iguais): são ordenadas pela pontuação média das células vizinhas, então trate a ordem delas como um empate.",
-  "(tied)": "(empate)"
+  "(tied)": "(empate)",
+  "Opened on {k} holes of the largest drill site's fan ({site} holes from one collar position, within 100 m of a line through them): the holes here are drilled in fans from a few sites, so one fan is one panel. {n} others are in the list below, unticked.": "Aberto com {k} furos do leque do maior local de sondagem ({site} furos de uma posição de colar, a até 100 m de uma linha por eles): aqui os furos são perfurados em leques a partir de poucos locais, então um leque é um painel. Os outros {n} estão na lista abaixo, desmarcados."
 }

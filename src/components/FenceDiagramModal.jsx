@@ -328,7 +328,7 @@ export default function FenceDiagramModal({ traces = [], litho = [], labelFor = 
               <div style={{ fontSize: 10.5, color: "#55606e", lineHeight: 1.4 }}>{tr("This project has {n} holes, so the panel opened along the latest saved section, on the holes in its corridor.", { n: allIds.length })}</div>
             )}
             {initial.trimmed > 0 && azMode === "fit" && (
-              <div style={{ fontSize: 10.5, color: "#55606e", lineHeight: 1.4 }}>{tr("Opened on {k} holes that lie within 100 m of a line fitted through them; {n} others are in the list below, unticked.", { k: initial.ids.length, n: initial.trimmed })}{usableSections.length ? " " + tr("Or draw the panel along a saved section.") : " " + tr("Or draw a cross-section in the 3D View first and use it here.")}</div>
+              <div style={{ fontSize: 10.5, color: "#55606e", lineHeight: 1.4 }}>{initial.site ? tr("Opened on {k} holes of the largest drill site's fan ({site} holes from one collar position, within 100 m of a line through them): the holes here are drilled in fans from a few sites, so one fan is one panel. {n} others are in the list below, unticked.", { k: initial.ids.length, site: initial.site, n: initial.trimmed }) /* #2220 */ : tr("Opened on {k} holes that lie within 100 m of a line fitted through them; {n} others are in the list below, unticked.", { k: initial.ids.length, n: initial.trimmed })}{usableSections.length ? " " + tr("Or draw the panel along a saved section.") : " " + tr("Or draw a cross-section in the 3D View first and use it here.")}</div>
             )}
             {azMode === "manual" && (
               <label style={rowLabel}>{tr("Azimuth (°)")}<input value={manualAz} onChange={(e) => setManualAz(e.target.value)} style={sel} />

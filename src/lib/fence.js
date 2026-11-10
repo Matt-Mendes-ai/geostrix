@@ -140,10 +140,29 @@ export function holesInCorridor(traces, line, corridor, share = 0.5) {
 // With more than FENCE_MANY holes the panel opens on those within `limit` m of the best-fit line through all of them, not on every
 // hole; the rest stay in the list to tick. -> { ids, trimmed }
 export const FENCE_MANY = 40;
+// TASKS.csv #2220 (review #2174, WA gold) — a project drilled in fans from a few underground sites (collars within padM of each other): the
+// holes of the largest site, when most holes belong to fans of three or more. -> [hole_id] | null
+export function largestSiteFan(traces, padM = 25) {
+  const sites = [];
+  for (const t of traces || []) {
+    const x = t?.wx?.[0], y = t?.wy?.[0];
+    if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+    const s = sites.find((q) => Math.hypot(q.x - x, q.y - y) <= padM);
+    if (s) s.ids.push(t.hole_id); else sites.push({ x, y, ids: [t.hole_id] });
+  }
+  if (sites.length < 2) return null;
+  const inFans = sites.filter((s) => s.ids.length >= 3).reduce((n, s) => n + s.ids.length, 0), total = sites.reduce((n, s) => n + s.ids.length, 0);
+  if (inFans < 0.5 * total) return null;
+  const best = sites.reduce((a, b) => (b.ids.length > a.ids.length ? b : a));
+  return best.ids.length >= 3 ? best.ids : null;
+}
 export function initialFenceSelection(traces, limit = 100) {
-  const usable = (traces || []).filter((t) => t?.wx?.length > 1);
+  let usable = (traces || []).filter((t) => t?.wx?.length > 1);
   const all = usable.map((t) => t.hole_id);
   if (all.length <= FENCE_MANY) return { ids: all, trimmed: 0 };
+  // #2220 — fans: open on the largest site's fan (a fan is one panel), not a line fitted through holes from many sites
+  const fan = largestSiteFan(usable);
+  if (fan) { const keep = new Set(fan); usable = usable.filter((t) => keep.has(t.hole_id)); }
   // the panel refits its line through the holes it shows, so refit through those kept until no kept hole is beyond the limit
   // (the first cut, against the line through all 446, left 9 of its 22 more than 100 m off the refitted line)
   let cur = usable;
@@ -155,7 +174,7 @@ export function initialFenceSelection(traces, limit = 100) {
     cur = cur.filter((t) => keep.has(t.hole_id));
   }
   const ids = cur.map((t) => t.hole_id);
-  return ids.length >= 2 && ids.length < all.length ? { ids, trimmed: all.length - ids.length } : { ids: all, trimmed: 0 };
+  return ids.length >= 2 && ids.length < all.length ? { ids, trimmed: all.length - ids.length, ...(fan ? { site: fan.length } : {}) } : { ids: all, trimmed: 0 };
 }
 
 // TASKS.csv #2064 (review #2013, Woodjam) — 'Drop them from the panel': a fitted line (and a typed azimuth's origin, the collars' centre)
