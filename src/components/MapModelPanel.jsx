@@ -8,7 +8,7 @@ import { ChevronUp, ChevronDown } from "./icons.js";
 import { t as tr } from "../lib/i18n.js";
 import { suggestPileOrder } from "../lib/pileOrder.js";
 import { terrainGroundAt } from "../lib/viewer/geomath.js";
-import { loggedCodes, suggestCodeUnits, holeContacts, MAX_GAP_M } from "../lib/holeMapContacts.js"; // TASKS.csv #1718
+import { loggedCodes, suggestCodeUnits, holeContacts, MAX_GAP_M, contactsAgainstOrder } from "../lib/holeMapContacts.js"; // TASKS.csv #1718; contactsAgainstOrder: #2408
 
 const ROLES = ["stratigraphic", "intrusion", "cross-cutting", "other"];
 const roleLabel = (r) => ({ stratigraphic: tr("stratigraphic"), intrusion: tr("intrusion"), "cross-cutting": tr("cross-cutting"), other: tr("other (left out)") }[r] || r);
@@ -62,9 +62,17 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
   }, [layer, unitField, desc, bedding, faults, groundAt]);
   const [order, setOrder] = useState([]);
   const [roles, setRoles] = useState({});
-  useEffect(() => { if (suggestion) { setOrder(suggestion.order); setRoles(suggestion.roles); } }, [suggestion]);
-  const move = (i, d) => setOrder((p) => { const q = p.slice(); const j = i + d; if (j < 0 || j >= q.length) return p; [q[i], q[j]] = [q[j], q[i]]; return q; });
+  // TASKS.csv #2408 — an order set by hand is kept when the suggestion is recomputed (unticking an orientation class put Basement back on top
+  // without a word): the hand order keeps its units in its own sequence, drops units the suggestion no longer has and adds new ones at the end
+  const [orderByHand, setOrderByHand] = useState(false);
+  useEffect(() => {
+    if (!suggestion) return;
+    if (!orderByHand) { setOrder(suggestion.order); setRoles(suggestion.roles); return; }
+    setOrder((p) => [...p.filter((u) => suggestion.order.includes(u)), ...suggestion.order.filter((u) => !p.includes(u))]);
+  }, [suggestion]); // orderByHand is read, not a trigger
+  const move = (i, d) => { setOrderByHand(true); setOrder((p) => { const q = p.slice(); const j = i + d; if (j < 0 || j >= q.length) return p; [q[i], q[j]] = [q[j], q[i]]; return q; }); };
   const setRole = (u, r) => {
+    setOrderByHand(true);
     setRoles((p) => ({ ...p, [u]: r }));
     setOrder((p) => (r === "stratigraphic" ? (p.includes(u) ? p : [...p, u]) : p.filter((x) => x !== u)));
   };
@@ -110,6 +118,7 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
   const [useHolesChoice, setUseHoles] = useState(null);
   const useHoles = useHolesChoice ?? Object.values(codeUnit).some(Boolean); // on when a code matches a unit
   const holePreview = useMemo(() => (useHoles && lithoRows?.length ? holeContacts(lithoRows, codeUnit, (u) => order.includes(u)) : null), [useHoles, lithoRows, codeUnit, order]);
+  const orderCheck = useMemo(() => (holePreview?.contacts?.length ? contactsAgainstOrder(holePreview.contacts, order) : null), [holePreview, order]); // #2408
   // TASKS.csv #1718 (review #1645, Copley) — on a drilled prospect, say that the holes are not used here and where they are
   const holesNote = holeCount > 0 ? <div className="ge-holes-note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 8, lineHeight: 1.4 }}>{tr("This tool builds from the map and the outcrop measurements only: the {n} drillhole(s) are not used. To fit the logged contacts and the mapped ones together, use Explicit surface: its \"From the geological map\" section adds the map contacts to the hole picks.", { n: holeCount })}</div> : null;
   // #1447 — only what is missing: Silvertip's 51 outcrop measurements were loaded and the message still asked for them
@@ -202,6 +211,7 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
           {useHoles && holePreview && <div style={{ fontSize: "var(--font-size-xs)", color: holePreview.contacts.length ? "var(--color-text-muted)" : "var(--color-warn-text)", lineHeight: 1.4 }}>
             {holePreview.contacts.length ? tr("{c} contact(s) in {h} hole(s) between units of the order.", { c: holePreview.contacts.length, h: holePreview.holes }) : tr("No contact yet: no hole passes between two units of the order with these codes.")}
             {holePreview.gaps ? " " + tr("{g} more left out: over {m} m unlogged or not used between the two units.", { g: holePreview.gaps, m: MAX_GAP_M }) : ""}
+            {orderCheck && orderCheck.against > orderCheck.agree && <div style={{ color: "var(--color-warn-text)" }}>{tr("{a} of {n} logged contacts run the other way: {upper} is logged over {lower} in {k} of them. In this order {lower} is the younger: move {upper} up?", { a: orderCheck.against, n: orderCheck.agree + orderCheck.against, upper: orderCheck.worst.upper, lower: orderCheck.worst.lower, k: orderCheck.worst.n })}</div>}{/* #2408 */}
           </div>}
         </div>
       )}

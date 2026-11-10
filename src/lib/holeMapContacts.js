@@ -24,6 +24,25 @@ export function loggedCodes(rows) {
 // rows: litho intervals { hole_id, from, to, value }; codeUnit: { code: unit }; inStack(unit): the unit is in the order.
 // -> { contacts: [{ hole_id, depth, upper, lower, row }], gaps (contacts left unplaced: the gap between the two was longer than
 // maxGap), holes (holes with at least one contact) }
+// TASKS.csv #2408 (review #2325, WA uranium) — the logged contacts against an order (youngest first): a contact agrees when its upper unit
+// comes before its lower unit. -> { agree, against, worst: { upper, lower, n } | null } (worst: the commonest pair the other way up)
+export function contactsAgainstOrder(contacts, order) {
+  const at = new Map((order || []).map((u, i) => [u, i]));
+  let agree = 0, against = 0;
+  const pairs = new Map();
+  for (const c of contacts || []) {
+    const a = at.get(c.upper), b = at.get(c.lower);
+    if (a === undefined || b === undefined) continue;
+    if (a < b) { agree++; continue; }
+    against++;
+    const k = `${c.upper}\u0000${c.lower}`;
+    pairs.set(k, (pairs.get(k) || 0) + 1);
+  }
+  let worst = null;
+  for (const [k, n] of pairs) if (!worst || n > worst.n) { const [upper, lower] = k.split("\u0000"); worst = { upper, lower, n }; }
+  return { agree, against, worst };
+}
+
 export function holeContacts(rows, codeUnit, inStack = () => true, { maxGap = MAX_GAP_M } = {}) {
   const byHole = new Map();
   for (const r of rows || []) {
