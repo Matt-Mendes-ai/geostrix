@@ -15,8 +15,12 @@ import { useEffect, useRef } from "react";
 // re-rendering with a new inline onClose keeps its place in the stack instead of jumping to the top.
 const stack = [];
 let listening = false;
+// TASKS.csv #2385 (review #2325, WA uranium) — one Escape on a dialog over a task pane closed both: this listener is on document, the
+// dialog's close re-rendered before the 3D view's window listener ran (React flushes in the microtask after each listener), so that one no
+// longer saw a dialog and closed the pane, during a GemPy run taking the run's messages with it. The dialog that takes the Escape keeps it.
 function onKeyDown(e) {
   if (e.key !== "Escape" || !stack.length) return;
+  e.stopPropagation();
   stack[stack.length - 1].current?.();
 }
 
