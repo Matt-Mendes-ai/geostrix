@@ -48,7 +48,7 @@ import { parseShapefileZip, parseShapefileParts } from "../lib/shapefile.js";
 import { groupShapefileParts } from "../lib/viewer/importHelpers.js"; // TASKS.csv #2121 — a loose .shp with its .prj / .dbf / .cpg
 import { parseGeoPackage } from "../lib/gpkg.js";
 import { idwGridToRasterInput, suggestBlankingDistance } from "../lib/idw.js";
-import { hillshadeToRasterInput, terrainDerivativeToRasterInput } from "../lib/hillshade.js"; // derivatives: TASKS.csv #797
+import { hillshadeToRasterInput, terrainDerivativeToRasterInput, autoZFactor } from "../lib/hillshade.js"; // derivatives: TASKS.csv #797; autoZFactor: #2460
 import { contourTerrain } from "../lib/contours.js";
 import SpatialAnalysis from "../components/SpatialAnalysis.jsx";
 import BasemapView from "../components/BasemapView.jsx";
@@ -2129,14 +2129,18 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                 </div>}
                 <button
                   onClick={() => {
+                    // TASKS.csv #2460 — a hillshade exaggerated by the terrain's own slopes (1x on rugged ground), the factor in its name and message
+                    const shade = derivKind === "hillshade" || derivKind === "multi";
+                    const zf = shade ? autoZFactor(terrain) : 1, zTag = zf > 1 ? `_x${zf}` : "";
                     const raster = derivKind === "hillshade"
-                      ? hillshadeToRasterInput(terrain, { azimuthDeg: hillshadeAzimuth, altitudeDeg: hillshadeAltitude, name: `hillshade_${terrain.name}` })
-                      : terrainDerivativeToRasterInput(terrain, derivKind, { altitudeDeg: hillshadeAltitude, name: `${derivKind === "multi" ? "hillshade_multi" : derivKind}_${terrain.name}` });
+                      ? hillshadeToRasterInput(terrain, { azimuthDeg: hillshadeAzimuth, altitudeDeg: hillshadeAltitude, zFactor: zf, name: `hillshade${zTag}_${terrain.name}` })
+                      : terrainDerivativeToRasterInput(terrain, derivKind, { altitudeDeg: hillshadeAltitude, zFactor: zf, name: `${derivKind === "multi" ? "hillshade_multi" : derivKind}${zTag}_${terrain.name}` });
                     const { scale, ...r } = raster;
                     // #1626 — which terrain it was made from, so a replaced terrain can say this one is stale; its unit for the value grid
                     const unit = derivKind === "slope" ? "degrees" : derivKind === "aspect" ? "degrees from grid north" : derivKind === "curvature" ? "1/100 m" : null;
                     addRaster({ ...r, elevation: defaultElevation, drapeMode: "terrain", terrainDerivative: { kind: derivKind, terrainId: terrain.id ?? null, terrainName: terrain.name || "", unit } });
-                    if (scale) setTerrainError({ info: true, text: tr(derivKind === "slope" ? "Slope draped on the terrain: white 0°, darkest grey {max}° or steeper." : "Curvature draped on the terrain: red convex, blue concave, saturated at ±{max} (1/100 m).", { max: +scale.max.toPrecision(2) }) + (r.grid ? " " + tr("Its values are kept: export them, restyle them, or use them as targeting evidence from the raster's card.") : "") });
+                    if (shade && zf > 1) setTerrainError({ info: true, text: tr("Hillshade with a vertical exaggeration of {z}x, chosen from this terrain's slopes (its steepest 2 % shown near 30°): on low relief a true-scale hillshade is one flat grey.", { z: zf }) }); // #2460
+                    else if (scale) setTerrainError({ info: true, text: derivKind === "slope" ? tr("Slope draped on the terrain: white {min}° or flatter, darkest grey {max}° or steeper (this terrain's 2-98 % range).", { min: +scale.min.toPrecision(2), max: +scale.max.toPrecision(2) }) /* #2460 */ : tr("Curvature draped on the terrain: red convex, blue concave, saturated at ±{max} (1/100 m).", { max: +scale.max.toPrecision(2) }) + (r.grid ? " " + tr("Its values are kept: export them, restyle them, or use them as targeting evidence from the raster's card.") : "") });
                     else setTerrainError(derivKind === "aspect" ? { info: true, text: tr("Aspect draped on the terrain: the direction each slope faces, in degrees clockwise from grid north (red north, yellow-green east, cyan south, blue-magenta west; grey flat). Its values are kept.") } : null); // #1626 — the previous product's message was left showing
                     setHillshadeOpen(false);
                   }}

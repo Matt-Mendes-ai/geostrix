@@ -134,6 +134,21 @@ export function terrainDerivativeValues(kind, elevations, gridW, gridH, cellSize
 const pctl = (vals, p) => { const s = vals.filter(Number.isFinite).sort((x, y) => x - y); return s.length ? s[Math.min(s.length - 1, Math.floor(p * (s.length - 1)))] : 0; };
 // The derivative as a drape-ready raster ({name, bbox, dataUrl} like hillshadeToRasterInput) plus the scale it was
 // coloured on, so the import message can say what the colours mean.
+// TASKS.csv #2460 (review #2325, WA uranium) — a hillshade of a plain was one flat grey (91 % of pixels within 5 grey levels): 1-5 m features
+// over kilometres need a vertical exaggeration, as GIS z-factors give. Automatic: the factor that shows the terrain's 98th-percentile slope
+// near targetDeg (never below 1: a steep terrain is not flattened), two significant figures, at most 200.
+export function autoZFactor({ bbox, gridW, gridH, elevations, noDataMask }, { targetDeg = 30 } = {}) {
+  if (!bbox || !elevations?.length) return 1;
+  const [xmin, ymin, xmax, ymax] = bbox;
+  const cx = (xmax - xmin) / Math.max(1, gridW - 1), cy = (ymax - ymin) / Math.max(1, gridH - 1);
+  const v = terrainDerivativeValues("slope", elevations, gridW, gridH, cx, cy, { zFactor: 1 });
+  const hide = edgeMask(noDataMask, gridW, gridH);
+  const s98 = pctl(hide ? v.filter((_, k) => !hide[k]) : v, 0.98);
+  if (!(s98 > 0) || s98 >= targetDeg) return 1;
+  const z = Math.tan((targetDeg * Math.PI) / 180) / Math.tan((s98 * Math.PI) / 180);
+  return Math.min(200, Math.max(1, +z.toPrecision(2)));
+}
+
 export function terrainDerivativeToRasterInput({ bbox, gridW, gridH, elevations, noDataMask }, kind, { altitudeDeg = 45, zFactor = 1, name } = {}) {
   const [xmin, ymin, xmax, ymax] = bbox;
   const cx = (xmax - xmin) / Math.max(1, gridW - 1), cy = (ymax - ymin) / Math.max(1, gridH - 1);
@@ -150,8 +165,9 @@ export function terrainDerivativeToRasterInput({ bbox, gridW, gridH, elevations,
   const shown = hide ? v.filter((_, k) => !hide[k]) : v;
   const put = (k, r, g, b) => { img.data[k * 4] = r; img.data[k * 4 + 1] = g; img.data[k * 4 + 2] = b; img.data[k * 4 + 3] = hide?.[k] ? 0 : 255; };
   if (kind === "slope") {
-    const hi = Math.max(5, pctl(shown, 0.98)); scale = { min: 0, max: hi };
-    for (let k = 0; k < v.length; k++) { const t = 1 - Math.min(1, v[k] / hi); const gv = Math.round(40 + 215 * t); put(k, gv, gv, gv); } // steep = dark
+    // TASKS.csv #2460 — stretched to this terrain's own 2-98 % slope range: a fixed 0-5° scale drew a plain (98 % of slopes under 2°) white
+    const lo = Math.max(0, pctl(shown, 0.02)), hi = Math.max(lo + 0.1, pctl(shown, 0.98)); scale = { min: lo, max: hi };
+    for (let k = 0; k < v.length; k++) { const t = 1 - Math.min(1, Math.max(0, (v[k] - lo) / (hi - lo))); const gv = Math.round(40 + 215 * t); put(k, gv, gv, gv); } // steep = dark
   } else if (kind === "aspect") {
     scale = null;
     for (let k = 0; k < v.length; k++) {
