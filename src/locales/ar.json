@@ -9666,5 +9666,8 @@
   "{fileName}: the local-grid transform needs the coordinate system its control points are in, and none was chosen. Nothing was imported.": "{fileName}: يحتاج تحويل الشبكة المحلية إلى نظام إحداثيات نقاط التحكم، ولم يُختر أي نظام. لم يُستورد شيء.",
   "The formula was edited, so it is no longer the {label} preset: the elements are read in their stored units ({v}), with no conversion.": "عُدِّلت الصيغة، فلم تعد الإعداد المسبق {label}: تُقرأ العناصر بوحداتها المخزنة ({v})، دون تحويل.",
   "1 long number in this snapshot's labels was rounded to 4 significant figures, as grades now print.": "قُرِّب رقم طويل واحد في تسميات هذه اللقطة إلى 4 أرقام معنوية، كما تُطبع المحتويات الآن.",
-  "{n} long numbers in this snapshot's labels were rounded to 4 significant figures, as grades now print.": "قُرِّب {n} رقمًا طويلًا في تسميات هذه اللقطة إلى 4 أرقام معنوية، كما تُطبع المحتويات الآن."
+  "{n} long numbers in this snapshot's labels were rounded to 4 significant figures, as grades now print.": "قُرِّب {n} رقمًا طويلًا في تسميات هذه اللقطة إلى 4 أرقام معنوية، كما تُطبع المحتويات الآن.",
+  "Its height follows the drilling under it ({area}): RL {top} ({topHole}) to RL {bottom} ({bottomHole}), each hole to its logged depth.": "يتبع ارتفاعه الحفر تحته ({area}): من RL {top} ({topHole}) إلى RL {bottom} ({bottomHole})، كل ثقب حتى عمقه المسجل.",
+  "the holes checked in the Holes list": "الثقوب المحددة في قائمة الثقوب",
+  "every hole in the box": "كل الثقوب داخل الصندوق"
 }

@@ -107,13 +107,28 @@ export function reachPad(span, longestSpan, marginM, capM) {
 // TASKS.csv #2528 (review #2486, WA lithium) — the drilled column under the model's own footprint: the height range of the trace points
 // inside the lateral box. #2377 took every trace in the project, so a model of 15-20 m bench holes in one corner got a box from the
 // project's highest collar to its deepest toe plus half that again (RL -557 to 626, 1,183 m). null when no trace point lies inside.
+// TASKS.csv #2616 (re-test of #2528) — the points are the Model area's holes only, each trace cut at its logged end (clipTrace): a hole 118 m
+// outside the area, surveyed 347 m past its logged depth, set the floor (RL -415 to 536 for holes drilling RL 271 to 22). A point may carry
+// `hole`; the result names the holes at the top and the bottom (minHole / maxHole).
 export function drilledColumn(points, box) {
-  let lo = Infinity, hi = -Infinity;
+  let lo = Infinity, hi = -Infinity, minHole = null, maxHole = null;
   for (const p of points || []) {
     if (!(p.x >= box.xmin && p.x <= box.xmax && p.y >= box.ymin && p.y <= box.ymax) || !Number.isFinite(p.z)) continue;
-    if (p.z < lo) lo = p.z; if (p.z > hi) hi = p.z;
+    if (p.z < lo) { lo = p.z; minHole = p.hole ?? null; } if (p.z > hi) { hi = p.z; maxHole = p.hole ?? null; }
   }
-  return Number.isFinite(lo) ? { min: lo, max: hi } : null;
+  return Number.isFinite(lo) ? { min: lo, max: hi, minHole, maxHole } : null;
+}
+// a trace (points from the collar down) cut at `length` metres along it, the hole's logged end; no length: as it is
+export function clipTrace(pts, length) {
+  if (!(Number(length) > 0) || !pts || pts.length < 2) return pts || [];
+  const out = [pts[0]];
+  let run = 0;
+  for (let i = 1; i < pts.length; i++) {
+    const a = pts[i - 1], b = pts[i], d = Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z);
+    if (run + d >= length) { const f = d > 0 ? (length - run) / d : 0; out.push({ ...b, x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f, z: a.z + (b.z - a.z) * f }); return out; }
+    run += d; out.push(b);
+  }
+  return out;
 }
 export function verticalPad(zSpan, columnM, capM) {
   if (!(Number.isFinite(columnM) && columnM > 0)) return null;

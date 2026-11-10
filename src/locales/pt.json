@@ -9666,5 +9666,8 @@
   "{fileName}: the local-grid transform needs the coordinate system its control points are in, and none was chosen. Nothing was imported.": "{fileName}: a transformação da grade local precisa do sistema de coordenadas dos seus pontos de controle, e nenhum foi escolhido. Nada foi importado.",
   "The formula was edited, so it is no longer the {label} preset: the elements are read in their stored units ({v}), with no conversion.": "A fórmula foi editada, então já não é a predefinição {label}: os elementos são lidos nas suas unidades armazenadas ({v}), sem conversão.",
   "1 long number in this snapshot's labels was rounded to 4 significant figures, as grades now print.": "1 número longo nos rótulos desta captura foi arredondado para 4 algarismos significativos, como os teores são impressos agora.",
-  "{n} long numbers in this snapshot's labels were rounded to 4 significant figures, as grades now print.": "{n} números longos nos rótulos desta captura foram arredondados para 4 algarismos significativos, como os teores são impressos agora."
+  "{n} long numbers in this snapshot's labels were rounded to 4 significant figures, as grades now print.": "{n} números longos nos rótulos desta captura foram arredondados para 4 algarismos significativos, como os teores são impressos agora.",
+  "Its height follows the drilling under it ({area}): RL {top} ({topHole}) to RL {bottom} ({bottomHole}), each hole to its logged depth.": "A sua altura segue a sondagem sob ele ({area}): RL {top} ({topHole}) a RL {bottom} ({bottomHole}), cada furo até a sua profundidade registrada.",
+  "the holes checked in the Holes list": "os furos marcados na lista de furos",
+  "every hole in the box": "todos os furos na caixa"
 }

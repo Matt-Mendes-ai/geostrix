@@ -11,7 +11,7 @@ const box = { xmin: 413500, xmax: 414000, ymin: 6253000, ymax: 6253500 };
 
 test("the column is the drilling inside the box; the far deep hole does not count", () => {
   const col = drilledColumn([...bench, ...deep], box);
-  assert.deepEqual(col, { min: 302, max: 320 });
+  assert.deepEqual(col, { min: 302, max: 320, minHole: null, maxHole: null }); // hole names: #2616 (these points carry none)
   const pad = verticalPad(10, col.max - col.min, 500);
   assert.equal(pad, 20); // the floor: 0.5 x 18 m is under 20 m
   const whole = verticalPad(10, 329.9 - -261.7, 500); // #2377 as it was: the project's column

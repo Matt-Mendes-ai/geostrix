@@ -9666,5 +9666,8 @@
   "{fileName}: the local-grid transform needs the coordinate system its control points are in, and none was chosen. Nothing was imported.": "{fileName}: la transformación de grilla local necesita el sistema de coordenadas de sus puntos de control, y no se eligió ninguno. No se importó nada.",
   "The formula was edited, so it is no longer the {label} preset: the elements are read in their stored units ({v}), with no conversion.": "La fórmula se editó, así que ya no es el ajuste predefinido {label}: los elementos se leen en sus unidades almacenadas ({v}), sin conversión.",
   "1 long number in this snapshot's labels was rounded to 4 significant figures, as grades now print.": "1 número largo en las etiquetas de esta captura se redondeó a 4 cifras significativas, como se imprimen ahora las leyes.",
-  "{n} long numbers in this snapshot's labels were rounded to 4 significant figures, as grades now print.": "{n} números largos en las etiquetas de esta captura se redondearon a 4 cifras significativas, como se imprimen ahora las leyes."
+  "{n} long numbers in this snapshot's labels were rounded to 4 significant figures, as grades now print.": "{n} números largos en las etiquetas de esta captura se redondearon a 4 cifras significativas, como se imprimen ahora las leyes.",
+  "Its height follows the drilling under it ({area}): RL {top} ({topHole}) to RL {bottom} ({bottomHole}), each hole to its logged depth.": "Su altura sigue la perforación bajo él ({area}): RL {top} ({topHole}) a RL {bottom} ({bottomHole}), cada sondaje hasta su profundidad registrada.",
+  "the holes checked in the Holes list": "los sondajes marcados en la lista de sondajes",
+  "every hole in the box": "todos los sondajes en la caja"
 }
