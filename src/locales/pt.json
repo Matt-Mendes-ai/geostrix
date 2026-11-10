@@ -5229,7 +5229,6 @@
   "All samples (one population)": "Todas as amostras (uma população)",
   "Sampling medium": "Meio de amostragem",
   "Anomaly thresholds": "Limiares de anomalia",
-  "Anomaly thresholds for soil and stream-sediment samples, judged within populations": "Limiares de anomalia para amostras de solo e sedimento de corrente, julgados dentro de cada população",
   "Import surface samples first": "Importe amostras de superfície primeiro",
   "Column: {v}": "Coluna: {v}",
   "Map: {v}": "Mapa: {v}",
@@ -9596,5 +9595,13 @@
   "the holes in this project": "os furos deste projeto",
   "Only the rows of {n} hole(s) ({which}) were read: {d} other row(s) were left out as the file was read.": "Só as linhas de {n} furo(s) ({which}) foram lidas: {d} outra(s) linha(s) ficaram de fora ao ler o arquivo.",
   "it is {mb} MB, more than the 512 MB a single text read can hold, so it can't be opened in one piece: split it (by hole, or by columns) and open the parts": "tem {mb} MB, mais do que os 512 MB que cabem numa única leitura de texto, então não pode ser aberto de uma vez: divida-o (por furo ou por colunas) e abra as partes",
-  "it could not be read as text in one piece (too large for one read): split it (by hole, or by columns) and open the parts": "não pôde ser lido como texto de uma vez (grande demais para uma leitura): divida-o (por furo ou por colunas) e abra as partes"
+  "it could not be read as text in one piece (too large for one read): split it (by hole, or by columns) and open the parts": "não pôde ser lido como texto de uma vez (grande demais para uma leitura): divida-o (por furo ou por colunas) e abra as partes",
+  "All assays": "Todas as análises",
+  "Threshold source": "Fonte do limiar",
+  "Drill assays (length-weighted)": "Análises de furos (ponderadas pelo comprimento)",
+  "Drill assays, length-weighted: candidate thresholds side by side, judged within each population": "Análises de furos, ponderadas pelo comprimento: limiares candidatos lado a lado, julgados em cada população",
+  "Each assay counts by its length: a 3 m interval three times a 1 m one, so close sampling in the ore does not outweigh the background. Judge each domain against its own population: group by the lithology, alteration or weathering logged at the interval's middle. The histogram counts intervals.": "Cada análise conta pelo seu comprimento: um intervalo de 3 m vale três vezes um de 1 m, assim a amostragem densa no minério não pesa mais que o fundo. Julgue cada domínio contra a sua própria população: agrupe pela litologia, alteração ou intemperismo registrado no meio do intervalo. O histograma conta intervalos.",
+  "No positive {symbol} values in the drill assays.": "Não há valores positivos de {symbol} nas análises de furos.",
+  "Import surface samples or drill assays first": "Importe primeiro amostras de superfície ou análises de furos",
+  "Anomaly thresholds for soil and stream-sediment samples, and length-weighted for drill assays, judged within populations": "Limiares de anomalia para amostras de solo e sedimento de corrente, e ponderados pelo comprimento para análises de furos, julgados em cada população"
 }

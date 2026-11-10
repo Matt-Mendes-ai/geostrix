@@ -5229,7 +5229,6 @@
   "All samples (one population)": "كل العينات (مجتمع واحد)",
   "Sampling medium": "وسط أخذ العينات",
   "Anomaly thresholds": "عتبات الشذوذ",
-  "Anomaly thresholds for soil and stream-sediment samples, judged within populations": "عتبات الشذوذ لعينات التربة ورواسب الجداول، محكومًا عليها داخل كل مجتمع",
   "Import surface samples first": "استورد عينات سطحية أولًا",
   "Column: {v}": "عمود: {v}",
   "Map: {v}": "خريطة: {v}",
@@ -9596,5 +9595,13 @@
   "the holes in this project": "ثقوب هذا المشروع",
   "Only the rows of {n} hole(s) ({which}) were read: {d} other row(s) were left out as the file was read.": "قُرئت صفوف {n} ثقبًا فقط ({which}): تُرك {d} صفًا آخر أثناء قراءة الملف.",
   "it is {mb} MB, more than the 512 MB a single text read can hold, so it can't be opened in one piece: split it (by hole, or by columns) and open the parts": "حجمه {mb} م.ب، أكبر من 512 م.ب التي تتسع لها قراءة نصية واحدة، فلا يمكن فتحه دفعة واحدة: قسّمه (حسب الثقب أو حسب الأعمدة) وافتح الأجزاء",
-  "it could not be read as text in one piece (too large for one read): split it (by hole, or by columns) and open the parts": "تعذّرت قراءته نصًا دفعة واحدة (أكبر من قراءة واحدة): قسّمه (حسب الثقب أو حسب الأعمدة) وافتح الأجزاء"
+  "it could not be read as text in one piece (too large for one read): split it (by hole, or by columns) and open the parts": "تعذّرت قراءته نصًا دفعة واحدة (أكبر من قراءة واحدة): قسّمه (حسب الثقب أو حسب الأعمدة) وافتح الأجزاء",
+  "All assays": "كل التحاليل",
+  "Threshold source": "مصدر العتبة",
+  "Drill assays (length-weighted)": "تحاليل الثقوب (مرجّحة بالطول)",
+  "Drill assays, length-weighted: candidate thresholds side by side, judged within each population": "تحاليل الثقوب مرجّحة بالطول: عتبات مرشحة جنبًا إلى جنب، تُقيَّم داخل كل مجتمع",
+  "Each assay counts by its length: a 3 m interval three times a 1 m one, so close sampling in the ore does not outweigh the background. Judge each domain against its own population: group by the lithology, alteration or weathering logged at the interval's middle. The histogram counts intervals.": "يُحتسب كل تحليل بطوله: فاصل 3 م يعادل ثلاثة أضعاف فاصل 1 م، حتى لا يطغى أخذ العينات الكثيف في الخام على الخلفية. قيّم كل نطاق مقابل مجتمعه: جمّع حسب الصخارة أو التحول أو التجوية المسجلة عند منتصف الفاصل. يعدّ المدرج التكراري الفواصل.",
+  "No positive {symbol} values in the drill assays.": "لا توجد قيم موجبة لـ {symbol} في تحاليل الثقوب.",
+  "Import surface samples or drill assays first": "استورد العينات السطحية أو تحاليل الثقوب أولًا",
+  "Anomaly thresholds for soil and stream-sediment samples, and length-weighted for drill assays, judged within populations": "عتبات الشذوذ لعينات التربة ورواسب المجاري، ومرجّحة بالطول لتحاليل الثقوب، تُقيَّم داخل كل مجتمع"
 }

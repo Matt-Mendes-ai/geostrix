@@ -5229,7 +5229,6 @@
   "All samples (one population)": "Todas las muestras (una población)",
   "Sampling medium": "Medio de muestreo",
   "Anomaly thresholds": "Umbrales de anomalía",
-  "Anomaly thresholds for soil and stream-sediment samples, judged within populations": "Umbrales de anomalía para muestras de suelo y sedimento de arroyo, juzgados dentro de cada población",
   "Import surface samples first": "Importe primero muestras de superficie",
   "Column: {v}": "Columna: {v}",
   "Map: {v}": "Mapa: {v}",
@@ -9596,5 +9595,13 @@
   "the holes in this project": "los sondajes de este proyecto",
   "Only the rows of {n} hole(s) ({which}) were read: {d} other row(s) were left out as the file was read.": "Solo se leyeron las filas de {n} sondaje(s) ({which}): {d} fila(s) más se dejaron fuera al leer el archivo.",
   "it is {mb} MB, more than the 512 MB a single text read can hold, so it can't be opened in one piece: split it (by hole, or by columns) and open the parts": "tiene {mb} MB, más que los 512 MB que cabe en una sola lectura de texto, así que no se puede abrir de una vez: divídalo (por sondaje o por columnas) y abra las partes",
-  "it could not be read as text in one piece (too large for one read): split it (by hole, or by columns) and open the parts": "no se pudo leer como texto de una vez (demasiado grande para una lectura): divídalo (por sondaje o por columnas) y abra las partes"
+  "it could not be read as text in one piece (too large for one read): split it (by hole, or by columns) and open the parts": "no se pudo leer como texto de una vez (demasiado grande para una lectura): divídalo (por sondaje o por columnas) y abra las partes",
+  "All assays": "Todos los ensayes",
+  "Threshold source": "Fuente del umbral",
+  "Drill assays (length-weighted)": "Ensayes de sondaje (ponderados por longitud)",
+  "Drill assays, length-weighted: candidate thresholds side by side, judged within each population": "Ensayes de sondaje, ponderados por longitud: umbrales candidatos lado a lado, juzgados dentro de cada población",
+  "Each assay counts by its length: a 3 m interval three times a 1 m one, so close sampling in the ore does not outweigh the background. Judge each domain against its own population: group by the lithology, alteration or weathering logged at the interval's middle. The histogram counts intervals.": "Cada ensaye cuenta según su longitud: un intervalo de 3 m vale tres veces uno de 1 m, así el muestreo denso en la mena no pesa más que el fondo. Juzgue cada dominio frente a su propia población: agrupe por la litología, alteración o meteorización registrada en el centro del intervalo. El histograma cuenta intervalos.",
+  "No positive {symbol} values in the drill assays.": "No hay valores positivos de {symbol} en los ensayes de sondaje.",
+  "Import surface samples or drill assays first": "Importe primero muestras de superficie o ensayes de sondaje",
+  "Anomaly thresholds for soil and stream-sediment samples, and length-weighted for drill assays, judged within populations": "Umbrales de anomalía para muestras de suelo y sedimentos de corriente, y ponderados por longitud para ensayes de sondaje, juzgados dentro de cada población"
 }

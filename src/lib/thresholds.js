@@ -70,8 +70,30 @@ export function twoSegmentBreak(xs, ys, minSide = 8) {
   return best && { ...best, sse1: fit(0, n).sse };
 }
 
-// Summary of one population: n, censored count, linear quantiles, log10 location / spread
-export function populationSummary(values, censored = 0) {
+// TASKS.csv #2196 (Matt's decision 2026-11-09) — drill assays are judged LENGTH-weighted: a 3 m composite counts three times a 1 m sample.
+// Weighted quantile on sorted values with their weights: the plotting position of each value is the middle of its weight
+// ((cum - w / 2) / W), interpolated linearly: with equal weights that is Hyndman & Fan type 5 (Hazen), close to but not the same as
+// quantileSorted's type 7, so a weighted population's percentiles differ slightly from the surface ones even at equal lengths.
+export function weightedQuantileSorted(s, w, p) {
+  const n = s.length;
+  if (!n) return NaN;
+  if (n === 1) return s[0];
+  let W = 0; for (let i = 0; i < n; i++) W += w[i];
+  if (!(W > 0)) return quantileSorted(s, p);
+  const pos = []; let c = 0;
+  for (let i = 0; i < n; i++) { pos.push((c + w[i] / 2) / W); c += w[i]; }
+  if (p <= pos[0]) return s[0];
+  if (p >= pos[n - 1]) return s[n - 1];
+  let i = 1; while (pos[i] < p) i++;
+  const t = (p - pos[i - 1]) / (pos[i] - pos[i - 1] || 1);
+  return s[i - 1] + (s[i] - s[i - 1]) * t;
+}
+// the plotting positions (cum - w / 2) / W of sorted values, for the probability plot
+const plottingPositions = (w) => { let W = 0; for (const x of w) W += x; const out = []; let c = 0; for (const x of w) { out.push((c + x / 2) / W); c += x; } return out; };
+
+// Summary of one population: n, censored count, linear quantiles, log10 location / spread. weights (#2196): one per value, or null
+export function populationSummary(values, censored = 0, weights = null) {
+  if (weights && weights.length === values.length) return weightedSummary(values, censored, weights);
   const pos = values.filter((v) => Number.isFinite(v) && v > 0);
   const s = sortNum(pos), L = s.map(log10);
   if (!s.length) return null;
@@ -83,6 +105,28 @@ export function populationSummary(values, censored = 0) {
     min: s[0], max: s[s.length - 1], median: quantileSorted(s, 0.5),
     q1L: quantileSorted(L, 0.25), q3L: quantileSorted(L, 0.75), medianL: medL, madL: madScaled(L, medL), meanL, sdL,
     sorted: s, sortedLog: L,
+  };
+}
+
+// #2196 — the same summary, every statistic length-weighted (the log SD with the reliability-weights correction W - sum(w^2) / W)
+function weightedSummary(values, censored, weights) {
+  const pairs = [];
+  for (let i = 0; i < values.length; i++) { const v = values[i], w = weights[i]; if (Number.isFinite(v) && v > 0 && Number.isFinite(w) && w > 0) pairs.push([v, w]); }
+  if (!pairs.length) return null;
+  pairs.sort((a, b) => a[0] - b[0]);
+  const s = pairs.map((p) => p[0]), w = pairs.map((p) => p[1]), L = s.map(log10);
+  let W = 0, W2 = 0, sum = 0; for (let i = 0; i < L.length; i++) { W += w[i]; W2 += w[i] * w[i]; sum += w[i] * L[i]; }
+  const meanL = sum / W;
+  let ss = 0; for (let i = 0; i < L.length; i++) ss += w[i] * (L[i] - meanL) ** 2;
+  const denom = W - W2 / W, sdL = L.length > 1 && denom > 0 ? Math.sqrt(ss / denom) : 0;
+  const medL = weightedQuantileSorted(L, w, 0.5);
+  const dev = L.map((x, i) => [Math.abs(x - medL), w[i]]).sort((a, b) => a[0] - b[0]);
+  const madL = 1.4826 * weightedQuantileSorted(dev.map((d) => d[0]), dev.map((d) => d[1]), 0.5);
+  return {
+    n: s.length, censored, censoredPct: s.length ? (100 * censored) / s.length : 0, weighted: true, totalWeight: W,
+    min: s[0], max: s[s.length - 1], median: weightedQuantileSorted(s, w, 0.5),
+    q1L: weightedQuantileSorted(L, w, 0.25), q3L: weightedQuantileSorted(L, w, 0.75), medianL: medL, madL, meanL, sdL,
+    sorted: s, sortedLog: L, weights: w,
   };
 }
 
@@ -103,14 +147,16 @@ export function candidateThresholds(summary) {
   const out = Object.fromEntries(THRESHOLD_METHODS.map((m) => [m.id, null]));
   if (!summary || !summary.n) return { values: out, prob: null };
   const { sorted: s, sortedLog: L, n } = summary;
-  out.p90 = quantileSorted(s, 0.9); out.p95 = quantileSorted(s, 0.95); out.p98 = quantileSorted(s, 0.98);
+  const q = summary.weights ? (p) => weightedQuantileSorted(s, summary.weights, p) : (p) => quantileSorted(s, p); // #2196
+  out.p90 = q(0.9); out.p95 = q(0.95); out.p98 = q(0.98);
   if (n >= MIN_N_ROBUST) {
     out.mean2sd = 10 ** (summary.meanL + 2 * summary.sdL);
     if (summary.madL > 0) out.median2mad = 10 ** (summary.medianL + 2 * summary.madL);
     out.tukey = 10 ** (summary.q3L + 1.5 * (summary.q3L - summary.q1L));
   }
   // probability plot: normal score of the plotting position (i - 0.5) / n against log10 value
-  const prob = L.map((y, i) => [normalQuantile((i + 0.5) / n), y]);
+  const pp = summary.weights ? plottingPositions(summary.weights) : null; // #2196 — a long interval takes more of the plot
+  const prob = L.map((y, i) => [normalQuantile(pp ? pp[i] : (i + 0.5) / n), y]);
   let probBreak = null;
   // A two-segment fit always finds SOME bend, even in one clean log-normal population (a finite sample's tail is never
   // straight), so a break is reported only when two lines leave at most 15 % of one line's squared residual over the
@@ -196,9 +242,10 @@ export function groupKeyFn(groupBy, mapLayers = [], samples = null) {
 // valueOf(sample) -> number | null; censoredOf(sample) -> boolean
 // TASKS.csv #931 — zeroOf(sample) -> boolean: a sample with no value that its source reported as 0 (a public layer with
 // no below-detection marker). Counted per population as `zero`, never put in the values.
-export function populations(samples, { valueOf, censoredOf = () => false, zeroOf = () => false, keyOf }) {
+// weightOf (#2196): a sample's weight (an interval's length), or null for equal weights
+export function populations(samples, { valueOf, censoredOf = () => false, zeroOf = () => false, keyOf, weightOf = null }) {
   const by = new Map();
-  const group = (k) => { if (!by.has(k)) by.set(k, { key: k, values: [], idx: [], censored: 0, zero: 0 }); return by.get(k); };
+  const group = (k) => { if (!by.has(k)) by.set(k, { key: k, values: [], idx: [], censored: 0, zero: 0, ...(weightOf ? { weights: [] } : {}) }); return by.get(k); };
   samples.forEach((s, i) => {
     const v = valueOf(s);
     // TASKS.csv #1391 — a 0 kept by the import (readAssayCell keeps value >= 0) is a reported zero too (below detection or not analysed),
@@ -206,7 +253,25 @@ export function populations(samples, { valueOf, censoredOf = () => false, zeroOf
     if (!(v > 0)) { if ((v == null && zeroOf(s)) || v === 0) group(keyOf(s)).zero++; return; }
     const g = group(keyOf(s));
     g.values.push(v); g.idx.push(i);
+    if (weightOf) g.weights.push(weightOf(s));
     if (censoredOf(s)) g.censored++;
   });
-  return [...by.values()].map((g) => ({ ...g, summary: populationSummary(g.values, g.censored) })).filter((g) => g.summary).sort((a, b) => b.values.length - a.values.length);
+  return [...by.values()].map((g) => ({ ...g, summary: populationSummary(g.values, g.censored, g.weights || null) })).filter((g) => g.summary).sort((a, b) => b.values.length - a.values.length);
 }
+
+// TASKS.csv #2196 — drill assays: an interval's length, and the domain it sits in (the code of a logged layer at its middle depth)
+export const intervalLength = (a) => { const f = Number(a.from), t = Number(a.to); return Number.isFinite(f) && Number.isFinite(t) && t > f ? t - f : null; };
+export const DRILL_DOMAINS = [{ value: "none", label: "All assays" }, { value: "litho", label: "Lithology" }, { value: "alt", label: "Alteration" }, { value: "weath", label: "Weathering" }];
+export function drillDomainKeyFn(domain, layers) {
+  if (!domain || domain === "none") return () => "All";
+  const by = new Map();
+  for (const r of layers?.[domain] || []) { const a = by.get(r.hole_id); if (a) a.push(r); else by.set(r.hole_id, [r]); }
+  return (a) => {
+    const mid = (Number(a.from) + Number(a.to)) / 2, rows = by.get(a.hole_id);
+    const hit = rows && rows.find((r) => mid >= Number(r.from) && mid <= Number(r.to));
+    const v = hit ? String(hit.value ?? "").trim() : "";
+    return v || "(not logged)";
+  };
+}
+// a saved threshold for the surface tools (anomaly maps, catchments): not a drill one (#2196)
+export const isSurfaceThreshold = (t) => t && t.source !== "drill";

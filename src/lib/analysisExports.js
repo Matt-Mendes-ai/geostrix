@@ -43,6 +43,19 @@ export function thresholdRows(samples, { symbol, unit, units, pops, keyOf, metho
   }).filter(Boolean);
 }
 
+// TASKS.csv #2196 — the drill-assay version: one row per interval with its length (the weight)
+export function drillThresholdRows(assays, { symbol, unit, units, pops, keyOf, method, methodLabel }) {
+  const byKey = new Map(pops.map((p) => [p.key, p]));
+  return assays.map((a) => {
+    const v = valueIn(a, symbol, unit, units);
+    if (!(v > 0)) return null;
+    const p = byKey.get(keyOf(a));
+    const t = p?.cand.values[method] ?? null, z = p ? robustZ(v, p.summary) : null, len = Number(a.to) - Number(a.from);
+    return { hole_id: a.hole_id, from: a.from, to: a.to, length_m: Number.isFinite(len) ? Math.round(len * 1000) / 1000 : "", population: p ? p.key : "", [`${symbol}_${unit}`]: v, below_detection: a.bdl?.includes(symbol) ? "yes" : "",
+      robust_z: z == null ? "" : z.toFixed(2), threshold: t == null ? "" : t, rule: methodLabel, weighting: "length", anomalous: t == null ? "" : v >= t ? "yes" : "no" };
+  }).filter(Boolean);
+}
+
 // Correlation matrix: r to 3 dp (blank where too few pairs), then the pairwise n block
 export function correlationRows(symbols, matrix) {
   const rows = symbols.map((a) => {

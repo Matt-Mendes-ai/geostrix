@@ -8,7 +8,7 @@ import { preferredElement } from "../lib/preferredElement.js"; // TASKS.csv #152
 import { useLeadCommodity } from "../lib/useLeadCommodity.js"; // #1523 — Au on an Au-Ag project
 import { X, Download } from "./icons.js";
 import { valueIn } from "../lib/geochem.js";
-import { THRESHOLD_METHODS, MIN_N_BREAKS, MIN_N_ROBUST, candidateThresholds, groupOptions, groupKeyFn, populations, normalQuantile, hasMixedSources } from "../lib/thresholds.js";
+import { THRESHOLD_METHODS, MIN_N_BREAKS, MIN_N_ROBUST, candidateThresholds, groupOptions, groupKeyFn, populations, normalQuantile, hasMixedSources, intervalLength, DRILL_DOMAINS, drillDomainKeyFn } from "../lib/thresholds.js"; // drill: TASKS.csv #2196
 import { censoringFloor } from "../lib/qaqc.js"; // TASKS.csv #1520
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
@@ -18,36 +18,52 @@ import { activateOnKey } from "../lib/a11y.js";
 import { fontSizes } from "../lib/theme.js";
 import { t as tr } from "../lib/i18n.js";
 import { toExportCsv } from "../lib/tabular.js"; // TASKS.csv #1022 — every exported CSV: all columns, formula cells escaped
-import { thresholdRows } from "../lib/analysisExports.js"; // TASKS.csv #1083
+import { thresholdRows, drillThresholdRows } from "../lib/analysisExports.js"; // TASKS.csv #1083; drill: #2196
 
 // Okabe & Ito (2008) colour-blind-safe palette, one colour per method (SVG presentation, so plain hex)
 const METHOD_COLOURS = { p90: "#999999", p95: "#56B4E9", p98: "#0072B2", mean2sd: "#E69F00", median2mad: "#009E73", tukey: "#CC79A7", probbreak: "#D55E00" };
 const fmt = (v) => (v == null || !Number.isFinite(v) ? "—" : v >= 100 ? Math.round(v).toLocaleString() : v >= 10 ? v.toFixed(1) : v >= 1 ? v.toFixed(2) : v.toPrecision(2));
 
-export default function ThresholdToolkit({ surfaceSamples, surfaceElements, mapLayers = [], geochemThresholds = [], setGeochemThresholds, onClose }) {
+export default function ThresholdToolkit({ surfaceSamples = [], surfaceElements = [], mapLayers = [], geochemThresholds = [], setGeochemThresholds, onClose, assays = [], assayElements = [], projectLayers = {} /* #2196 */ }) {
   useEscapeKey(onClose);
   useFocusTrap();
-  const units = useMemo(() => Object.fromEntries(surfaceElements.map((e) => [e.symbol, e.unit])), [surfaceElements]);
+  // TASKS.csv #2196 (Matt's decision 2026-11-09) — drill assays as a second source: length-weighted, populations by a logged domain at
+  // each interval's middle (Lithology / Alteration / Weathering), saved apart from the surface threshold of the same element
+  const drillAssays = useMemo(() => assays.filter((a) => intervalLength(a) != null), [assays]);
+  const [source, setSource] = useState(() => (surfaceElements.length ? "surface" : "drill"));
+  const drill = source === "drill";
+  const elements = drill ? assayElements : surfaceElements, data = drill ? drillAssays : surfaceSamples;
+  const units = useMemo(() => Object.fromEntries(elements.map((e) => [e.symbol, e.unit])), [elements]);
   const lead = useLeadCommodity();
-  const [symbol, setSymbol] = useState(() => preferredElement(surfaceElements.map((e) => e.symbol), null, lead)); // #1523 — the project's lead commodity, not the first stored (S)
-  const saved = geochemThresholds.find((r) => r.symbol === symbol) || null;
-  const gOpts = useMemo(() => groupOptions(surfaceSamples, mapLayers), [surfaceSamples, mapLayers]);
-  const mixedSources = useMemo(() => hasMixedSources(surfaceSamples), [surfaceSamples]); // TASKS.csv #932
-  const [groupBy, setGroupBy] = useState(() => saved?.groupBy || (mixedSources ? "medium_source" : new Set(surfaceSamples.map((s) => s.medium)).size > 1 ? "medium" : "none"));
+  const [symbol, setSymbol] = useState(() => preferredElement(elements.map((e) => e.symbol), null, lead)); // #1523 — the project's lead commodity, not the first stored (S)
+  const isMine = (r) => r.symbol === symbol && (r.source === "drill") === drill; // #2196
+  const saved = geochemThresholds.find(isMine) || null;
+  const gOpts = useMemo(() => (drill ? DRILL_DOMAINS.filter((d) => d.value === "none" || projectLayers?.[d.value]?.length).map((d) => ({ ...d, kind: "builtin" })) : groupOptions(surfaceSamples, mapLayers)), [drill, surfaceSamples, mapLayers, projectLayers]);
+  const mixedSources = useMemo(() => !drill && hasMixedSources(surfaceSamples), [drill, surfaceSamples]); // TASKS.csv #932
+  const [groupBy, setGroupBy] = useState(() => saved?.groupBy || (drill ? "none" : mixedSources ? "medium_source" : new Set(surfaceSamples.map((s) => s.medium)).size > 1 ? "medium" : "none"));
+  const switchSource = (s) => { // #2196 — the other source's elements, its saved rule or the default populations
+    const els = s === "drill" ? assayElements : surfaceElements;
+    const sym = els.some((e) => e.symbol === symbol) ? symbol : preferredElement(els.map((e) => e.symbol), null, lead);
+    const sv = geochemThresholds.find((r) => r.symbol === sym && (r.source === "drill") === (s === "drill"));
+    setSource(s); setSymbol(sym); setViewKey(null);
+    setGroupBy(sv?.groupBy || (s === "drill" ? "none" : hasMixedSources(surfaceSamples) ? "medium_source" : new Set(surfaceSamples.map((x) => x.medium)).size > 1 ? "medium" : "none"));
+    if (sv) setMethod(sv.method);
+  };
   const [method, setMethod] = useState(saved?.method || "median2mad");
   useEffect(() => { if (saved) { setGroupBy(gOpts.some((o) => o.value === saved.groupBy) ? saved.groupBy : "none"); setMethod(saved.method); } }, [symbol]); // re-read the saved rule when the element changes
 
   const unit = units[symbol] || "ppm";
   // TASKS.csv #1520 — values on a censoring floor (half the limit substituted in the file) count as <DL, as flagged ones do
-  const floor = useMemo(() => censoringFloor(surfaceSamples.map((s) => valueIn(s, symbol, unit, units))), [surfaceSamples, symbol, unit, units]);
+  const floor = useMemo(() => censoringFloor(data.map((s) => valueIn(s, symbol, unit, units))), [data, symbol, unit, units]);
+  const keyOfNow = () => (drill ? drillDomainKeyFn(groupBy, projectLayers) : groupKeyFn(groupBy, mapLayers, surfaceSamples)); // samples: #1796 — split by medium; drill: #2196
   const pops = useMemo(() => {
-    const keyOf = groupKeyFn(groupBy, mapLayers, surfaceSamples); // samples: #1796 — split by medium
-    return populations(surfaceSamples, { valueOf: (s) => valueIn(s, symbol, unit, units), censoredOf: (s) => !!s.bdl?.includes(symbol) || (floor != null && Math.abs(valueIn(s, symbol, unit, units) - floor.floor) <= floor.floor * 1e-9), zeroOf: (s) => !!s.nd?.includes(symbol), keyOf }) // zeroOf: #931
+    const keyOf = keyOfNow();
+    return populations(data, { valueOf: (s) => valueIn(s, symbol, unit, units), censoredOf: (s) => !!s.bdl?.includes(symbol) || (floor != null && Math.abs(valueIn(s, symbol, unit, units) - floor.floor) <= floor.floor * 1e-9), zeroOf: (s) => !!s.nd?.includes(symbol), keyOf, ...(drill ? { weightOf: intervalLength } : {}) }) // zeroOf: #931; weightOf: #2196
       .map((p) => ({ ...p, cand: candidateThresholds(p.summary) }));
-  }, [surfaceSamples, symbol, unit, units, groupBy, mapLayers, floor]);
+  }, [data, drill, symbol, unit, units, groupBy, mapLayers, projectLayers, floor]);
   const [viewKey, setViewKey] = useState(null);
   const view = pops.find((p) => p.key === viewKey) || pops[0] || null;
-  const groupLabel = (k) => (k === "All" ? tr("All samples") : k);
+  const groupLabel = (k) => (k === "All" ? (drill ? tr("All assays") : tr("All samples")) : k);
   const gLabel = gOpts.find((o) => o.value === groupBy)?.label || groupBy;
 
   const save = () => {
@@ -59,15 +75,16 @@ export default function ThresholdToolkit({ surfaceSamples, surfaceElements, mapL
       censoredPct: Object.fromEntries(pops.map((p) => [p.key, Math.round(p.summary.censoredPct * 10) / 10])),
       ...(pops.some((p) => p.zero) ? { reportedZero: Object.fromEntries(pops.map((p) => [p.key, p.zero])) } : {}), // #931
       decided: new Date().toISOString().slice(0, 10),
+      ...(drill ? { source: "drill", weighting: "length" } : {}), // #2196 — kept apart from the surface rule; project text stays English
     };
-    setGeochemThresholds((prev) => [...(prev || []).filter((r) => r.symbol !== symbol), rec]);
+    setGeochemThresholds((prev) => [...(prev || []).filter((r) => !isMine(r)), rec]);
   };
-  const clear = () => setGeochemThresholds((prev) => (prev || []).filter((r) => r.symbol !== symbol));
+  const clear = () => setGeochemThresholds((prev) => (prev || []).filter((r) => !isMine(r)));
 
   const exportCsv = () => {
-    const keyOf = groupKeyFn(groupBy, mapLayers, surfaceSamples); // #1796
-    const rows = thresholdRows(surfaceSamples, { symbol, unit, units, pops, keyOf, method, methodLabel: THRESHOLD_METHODS.find((x) => x.id === method).label }); // #1083 — rows in lib, tested
-    saveFile({ suggestedName: `${symbol}_thresholds.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: toExportCsv(rows) });
+    const keyOf = keyOfNow(); // #1796; drill: #2196
+    const rows = (drill ? drillThresholdRows : thresholdRows)(data, { symbol, unit, units, pops, keyOf, method, methodLabel: THRESHOLD_METHODS.find((x) => x.id === method).label }); // #1083 — rows in lib, tested
+    saveFile({ suggestedName: `${symbol}_${drill ? "drill_" : ""}thresholds.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: toExportCsv(rows) });
   };
 
   return (
@@ -76,21 +93,29 @@ export default function ThresholdToolkit({ surfaceSamples, surfaceElements, mapL
         <div style={header}>
           <div>
             <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{tr("Anomaly thresholds")}</div>
-            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("Surface samples: candidate thresholds side by side, judged within each population")}</div>
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{drill ? tr("Drill assays, length-weighted: candidate thresholds side by side, judged within each population") : tr("Surface samples: candidate thresholds side by side, judged within each population")}</div>
           </div>
           <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
         </div>
 
         <div style={{ padding: 16, overflow: "auto", display: "flex", flexDirection: "column", gap: 12 }}>
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end" }}>
+            {surfaceElements.length > 0 && drillAssays.length > 0 && assayElements.length > 0 && ( // #2196
+              <label style={ctl}>{tr("Source")}<select value={source} onChange={(e) => switchSource(e.target.value)} aria-label={tr("Threshold source")} style={{ ...sel, display: "block", marginTop: 4 }}>
+                <option value="surface">{tr("Surface samples")}</option>
+                <option value="drill">{tr("Drill assays (length-weighted)")}</option>
+              </select></label>
+            )}
             <label style={ctl}>{tr("Element")}<select value={symbol} onChange={(e) => { setSymbol(e.target.value); setViewKey(null); }} style={{ ...sel, display: "block", marginTop: 4 }}>
-              {surfaceElements.map((e) => <option key={e.symbol} value={e.symbol}>{e.symbol} ({e.unit})</option>)}
+              {elements.map((e) => <option key={e.symbol} value={e.symbol}>{e.symbol} ({e.unit})</option>)}
             </select></label>
             <label style={ctl}>{tr("Populations")}<select value={groupBy} onChange={(e) => { setGroupBy(e.target.value); setViewKey(null); }} style={{ ...sel, display: "block", marginTop: 4, maxWidth: 320 }}>
               {gOpts.map((o) => <option key={o.value} value={o.value}>{o.kind === "column" ? tr("Column: {v}", { v: o.label }) : o.kind === "map" ? tr("Map: {v}", { v: o.label }) : tr(o.label)}</option>)}
             </select></label>
           </div>
-          <div style={note}>{tr("A soil over basalt and one over granite, or a B and a C horizon, have different backgrounds: judge each against its own population. Group by medium, by any column of your sample file (horizon, landform, lab, year...), or by the map unit each sample falls in.")}</div>
+          {drill
+            ? <div style={note}>{tr("Each assay counts by its length: a 3 m interval three times a 1 m one, so close sampling in the ore does not outweigh the background. Judge each domain against its own population: group by the lithology, alteration or weathering logged at the interval's middle. The histogram counts intervals.")}</div>
+            : <div style={note}>{tr("A soil over basalt and one over granite, or a B and a C horizon, have different backgrounds: judge each against its own population. Group by medium, by any column of your sample file (horizon, landform, lab, year...), or by the map unit each sample falls in.")}</div>}
           {mixedSources && <div style={{ ...note, color: groupBy === "medium_source" || groupBy === "attr:source" ? undefined : "var(--color-warn-text)" }}>{tr("Public survey samples and your own are judged apart by default (medium and source): different labs, methods and decades. GeoStrix does not level one survey to another.")}</div>}
           {saved && (
             <div style={{ ...note, color: "var(--color-text)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "6px 8px" }}>
@@ -99,7 +124,7 @@ export default function ThresholdToolkit({ surfaceSamples, surfaceElements, mapL
           )}
 
           {!pops.length ? (
-            <div style={note}>{tr("No positive {symbol} values in the surface samples.", { symbol })}</div>
+            <div style={note}>{drill ? tr("No positive {symbol} values in the drill assays.", { symbol }) : tr("No positive {symbol} values in the surface samples.", { symbol })}</div>
           ) : (
             <>
               <div style={{ overflowX: "auto", flexShrink: 0 }}>{/* #1384: in the column body an overflow box shrank to a 25 px header strip */}

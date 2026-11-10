@@ -23,7 +23,7 @@ export default function SurfacePlanMap({ onClose }) {
   useFocusTrap();
   const { surfaceSamples = [], surfaceElements = [], geochemThresholds = [], mapLayers = [], voxelModels = [], addLayoutImage, goToModule } = useStore();
   const units = useMemo(() => Object.fromEntries(surfaceElements.map((e) => [e.symbol, e.unit])), [surfaceElements]);
-  const saved = new Set(geochemThresholds.map((t) => t.symbol));
+  const saved = new Set(geochemThresholds.filter((t) => t.source !== "drill").map((t) => t.symbol)); // #2196
   const elements = useMemo(() => [...surfaceElements].sort((a, b) => (saved.has(b.symbol) ? 1 : 0) - (saved.has(a.symbol) ? 1 : 0)), [surfaceElements, geochemThresholds]);
   const media = useMemo(() => [...new Set(surfaceSamples.map((s) => s.medium).filter(Boolean))], [surfaceSamples]);
   const [symbol, setSymbol] = useState(() => elements[0]?.symbol || "");

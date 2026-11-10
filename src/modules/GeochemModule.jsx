@@ -1109,7 +1109,7 @@ export default function GeochemModule() {
           <RibbonGroup label="Analyze">
             <RibbonButton advanced={!assayElements.length && !surfaceElements.length} icon={Grid3x3} label="Correlation" tone="analyse" disabled={!assayElements.length && !surfaceElements.length} disabledReason="Import assays or surface samples first" title="Correlation matrix" onClick={() => setCorrOpen(true)} />
             <RibbonButton icon={GBarChart} label="Grade stats" tone="analyse" disabled={!(assayElements.length || surfaceElements.length)} disabledReason="Import assays or surface samples first" title="Grade statistics (assays or surface samples)" onClick={() => setGradeStatsOpen(true)} />
-            <RibbonButton advanced={!hasSurfaceData} icon={GBarChart} label="Thresholds" tone="analyse" disabled={!surfaceElements.length} disabledReason="Import surface samples first" title="Anomaly thresholds for soil and stream-sediment samples, judged within populations" onClick={() => setThresholdsOpen(true)} />{/* TASKS.csv #841 */}
+            <RibbonButton advanced={!hasSurfaceData} icon={GBarChart} label="Thresholds" tone="analyse" disabled={!surfaceElements.length && !(assays.length && assayElements.length)} disabledReason="Import surface samples or drill assays first" /* drill: #2196 */ title="Anomaly thresholds for soil and stream-sediment samples, and length-weighted for drill assays, judged within populations" onClick={() => setThresholdsOpen(true)} />{/* TASKS.csv #841 */}
             <RibbonButton advanced={!hasSurfaceData} icon={GMapPin} label="Plan map" tone="output" disabled={!surfaceSamples.length} disabledReason="Import surface samples first" title="Surface samples in plan, classed by the saved threshold, over a block-model level slice: to Layout or PNG" onClick={() => setPlanMapOpen(true)} />{/* TASKS.csv #1792 / #1864 */}
             <RibbonButton advanced icon={GBarChart} label="Level surveys" tone="analyse" disabled={!surfaceElements.length} disabledReason="Import surface samples first" title="Bring one survey's values to another's level (tie samples first), as a new column" onClick={() => setLevellingOpen(true)} />{/* TASKS.csv #1001 */}
             <RibbonButton advanced={!hasSurfaceData} icon={GBarChart} label="Domains" tone="analyse" disabled={surfaceElements.length < 2} disabledReason="Import surface samples with several elements first" title="Geochemical domains: log-ratio principal components and k-means on the surface samples, written back as a column for the Thresholds populations" onClick={() => setDomainsOpen(true)} />{/* TASKS.csv #852 */}
@@ -1461,7 +1461,7 @@ export default function GeochemModule() {
 
       {thresholdsOpen && ( // TASKS.csv #841
         <React.Suspense fallback={null}>
-          <ThresholdToolkit surfaceSamples={surfaceSamples} surfaceElements={surfaceElements} mapLayers={mapLayers} geochemThresholds={geochemThresholds} setGeochemThresholds={setGeochemThresholds} onClose={() => setThresholdsOpen(false)} />
+          <ThresholdToolkit surfaceSamples={surfaceSamples} surfaceElements={surfaceElements} mapLayers={mapLayers} geochemThresholds={geochemThresholds} setGeochemThresholds={setGeochemThresholds} onClose={() => setThresholdsOpen(false)} assays={assays} assayElements={assayElements} projectLayers={store.layers} /* drill assays: #2196 */ />
         </React.Suspense>
       )}
 

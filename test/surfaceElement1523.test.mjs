@@ -13,7 +13,7 @@ test("preferredElement skips S and V for the first commodity", () => {
 });
 
 test("Thresholds, Level surveys and Surface QAQC open on the commodity", () => {
-  assert.match(read("../src/components/ThresholdToolkit.jsx"), /useState\(\(\) => preferredElement\(surfaceElements\.map\(\(e\) => e\.symbol\), null, lead\)\)/);
+  assert.match(read("../src/components/ThresholdToolkit.jsx"), /useState\(\(\) => preferredElement\(elements\.map\(\(e\) => e\.symbol\), null, lead\)\)/); // elements: the surface or, since #2196, the drill assays
   assert.match(read("../src/components/LevellingPanel.jsx"), /useState\(\(\) => preferredElement\(elements\.map\(\(e\) => e\.symbol\), null, lead\)\)/);
   assert.match(read("../src/components/SurfaceQaqcPanel.jsx"), /useState\(\(\) => preferredElement\(elementList, null, lead\)\)/);
 });

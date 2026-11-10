@@ -85,7 +85,7 @@ export function anomalyClasses(samples, cfg, { units = {}, mapLayers = [], thres
     const sym = c.symbol, unit = units[sym] || "ppm";
     samples.forEach((s, i) => { const v = valueIn(s, sym, unit, units); if (v != null) values[i] = v; });
     valueName = `${sym}_${unit.replace("%", "pct")}`;
-    const saved = thresholds.find((t) => t.symbol === sym);
+    const saved = thresholds.find((t) => t.symbol === sym && t.source !== "drill"); // #2196 — a drill threshold is not a surface one
     const scheme = c.scheme === "threshold" && saved ? "threshold" : "percentile";
     if (c.scheme === "threshold" && !saved) notes.push({ text: "No threshold saved for {sym} (Geochem > Thresholds): percentile classes shown instead.", params: { sym } });
     const groupBy = c.groupBy || (scheme === "threshold" ? saved.groupBy : defaultPopulations(samples)); // #932

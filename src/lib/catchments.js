@@ -31,7 +31,7 @@ export function analyseCatchments(samples, route, terrain, opts, { units = {}, t
   const values = sites.map(({ s }) => valueIn(s, o.symbol, unit, units));
   const pos = values.filter((v) => v > 0).sort((a, b) => a - b);
   const background = o.background === "value" && o.backgroundValue > 0 ? o.backgroundValue : pos.length ? quantileSorted(pos, 0.5) : null;
-  const saved = thresholds.find((t) => t.symbol === o.symbol);
+  const saved = thresholds.find((t) => t.symbol === o.symbol && t.source !== "drill"); // #2196
   let threshold = null, thresholdLabel = "";
   if (o.anomalyFrom === "saved" && saved) {
     threshold = saved.values?.[o.medium] ?? saved.values?.All ?? null;
