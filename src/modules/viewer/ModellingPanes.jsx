@@ -272,7 +272,7 @@ export default function ModellingPanes(props) {
   const [altSource, setAltSource] = useState({ layer: "alt", field: "", min: "" });
   const altCustomLayers = useMemo(() => customLayersAll.filter((c) => (c.rows || []).some((r) => r.value != null && r.value !== "" && !Number.isFinite(Number(r.value)))), [customLayersAll]);
   // TASKS.csv #2050 — the Vein log too: a vein SET (stockwork) is modelled as an envelope of where it occurs, floored on its density
-  const altSourceRows = useMemo(() => (altSource.layer === "alt" ? storeLayers.alt || [] : altSource.layer === "vein" ? storeLayers.vein || [] : altSource.layer === "litho" ? storeLayers.litho || [] : altCustomLayers.find((c) => `custom:${c.id}` === altSource.layer)?.rows || []), [altSource.layer, storeLayers.alt, altCustomLayers]);
+  const altSourceRows = useMemo(() => (altSource.layer === "alt" ? storeLayers.alt || [] : altSource.layer === "vein" ? storeLayers.vein || [] : altSource.layer === "litho" ? storeLayers.litho || [] : altSource.layer === "weath" ? storeLayers.weath || [] /* #2529 */ : altCustomLayers.find((c) => `custom:${c.id}` === altSource.layer)?.rows || []), [altSource.layer, storeLayers.alt, storeLayers.vein, storeLayers.litho, storeLayers.weath, altCustomLayers]);
   const altSourceCodes = useMemo(() => (altSource.layer === "alt" ? alt_units.filter((u) => !isNotLogged(u)) : [...new Set(altSourceRows.map((r) => String(r.value ?? "")).filter((v) => v && !isNotLogged(v)))].sort()), [altSource.layer, alt_units, altSourceRows]);
   // TASKS.csv #1421 (review #1352, Silvertip) — a code logged only as zero-length points (POT) cannot make a halo: it failed with
   // 'indicator never crosses 0.5'. The logged metres per code, so those are shown disabled and say why.
@@ -327,11 +327,11 @@ export default function ModellingPanes(props) {
           <>
             <div className="ge-section-label" style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 8 }}>
               <span>{tr("Model the units from")}</span>
-              <InfoButton title={tr("Model the units from")} width={280} text={tr("Which field of the Lithology rows every modelling tool on this tab reads as the unit: the Lithology code, or an extra field imported with it (a stratigraphic unit, a formation). The Strat. stack, Implicit surface, Litho groups, Modelling codes and the unit lists all follow it; the 3D view and the logs keep showing the Lithology code. Rows with nothing in the chosen field are left out of the models.")} />
+              <InfoButton title={tr("Model the units from")} width={280} text={tr("What every modelling tool on this tab reads as the unit: the Lithology code, an extra field imported with it (a stratigraphic unit, a formation), or another coded layer (Weathering, a custom layer of codes). The Strat. stack, Implicit surface, Explicit surface, Litho groups, Modelling codes and the unit lists all follow it; the 3D view and the logs keep showing the Lithology code. Intervals with nothing in the chosen field are left out of the models.")} />
             </div>
             <select aria-label={tr("Model the units from")} value={unitField || ""} onChange={(e) => setUnitField(e.target.value)} style={{ width: "100%", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)" }}>
               <option value="">{tr("Lithology code")}</option>
-              {(unitFields || []).map((f) => <option key={f.name} value={f.name}>{tr("{field} (extra field, {n} values)", { field: f.name, n: f.distinct })}</option>)}
+              {(unitFields || []).map((f) => <option key={f.name} value={f.name}>{f.label ? tr("{layer} layer ({n} codes)", { layer: f.label, n: f.distinct }) : tr("{field} (extra field, {n} values)", { field: f.name, n: f.distinct })}</option>)}{/* #2529 — another coded layer */}
             </select>
           </>
         )}
@@ -909,6 +909,7 @@ export default function ModellingPanes(props) {
                   <option value="alt">{tr("Alteration")}</option>
                   {(storeLayers.vein || []).length > 0 && <option value="vein">{tr("Veins (a vein set as an envelope)")}</option>}{/* #2050 */}
                   {(storeLayers.litho || []).length > 0 && <option value="litho">{tr("Lithology (a code set as an envelope)")}</option>}{/* #2226 */}
+                  {(storeLayers.weath || []).length > 0 && <option value="weath">{tr("Weathering (a code set as an envelope)")}</option>}{/* #2529 */}
                   {altCustomLayers.map((c) => <option key={c.id} value={`custom:${c.id}`}>{tr("{name} (custom layer)", { name: c.name })}</option>)}
                 </select>
               </label>

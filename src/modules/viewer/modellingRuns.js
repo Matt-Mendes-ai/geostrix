@@ -1663,14 +1663,16 @@ export function createModellingRuns(ctx, mcRef) {
     const minField = !isCode && source?.field && Number.isFinite(Number(source.min)) ? { field: source.field, min: Number(source.min), vocab: !!source.vocab, label: source.minLabel || null } : null; // vocab, label: #2230
     const anisotropy = trendWarp(isCode ? "implicit" : "alteration"); // TASKS.csv #650
     const searchSetting = isCode ? bodyOpts.search || 0 : alterationSearchRadius, cellSetting = isCode ? bodyOpts.cell || 0 : alterationCellSize;
-    const altValue = isCode ? String(target).slice(6) : target, sourceKey = isCode ? "litho" : source?.layer === "vein" ? "vein" : source?.layer === "litho" ? "litho" : "alt"; // vein: #2050; litho: #2226
+    let altValue = isCode ? String(target).slice(6) : target, sourceKey = isCode ? "litho" : source?.layer === "vein" ? "vein" : source?.layer === "litho" ? "litho" : "alt"; // vein: #2050; litho: #2226
+    if (!isCode && source?.layer === "weath") sourceKey = "weath"; // TASKS.csv #2529 — the Weathering layer as an envelope (top of fresh rock, oxide zone)
     const isTargetRow = (r) => (isCode ? effectiveCode(r, modellingCodes, mcodeGroupOf) === altValue : String(r.value) === String(altValue) && (!minField || (minField.vocab ? (intensityRank(r[minField.field]) ?? -1) : Number(r[minField.field])) >= minField.min)); // minField: #1574; vocab (letters ranked): #2230
     const traces = tracesRef.current;
     if (!traces.length) { setNotices((p) => [...p, noCollarsNotice(isCode ? tr("the unit body") : tr("the alteration model"), layers, assays)]); return; }
 
     const domain = domains.find((d) => d.id === modelDomainId);
     const o = originRef.current;
-    const label = isCode ? `Unit body: ${altValue}` : `${sourceKey === "vein" ? "Vein set envelope" : sourceKey === "litho" ? "Envelope" : "Alteration halo"}: ${customSrc ? `${customSrc.name} ` : ""}${altValue}${minField ? ` (${minField.field} ≥ ${minField.vocab ? (minField.label || minField.min) : minField.min})` : ""}`; // #1574; vein: #2050
+    let label = isCode ? `Unit body: ${altValue}` : `${sourceKey === "vein" ? "Vein set envelope" : sourceKey === "litho" ? "Envelope" : "Alteration halo"}: ${customSrc ? `${customSrc.name} ` : ""}${altValue}${minField ? ` (${minField.field} ≥ ${minField.vocab ? (minField.label || minField.min) : minField.min})` : ""}`; // #1574; vein: #2050
+    if (sourceKey === "weath") label = label.replace(/^Alteration halo/, "Envelope"); // #2529
     setAlterationBusy(true);
     setTaskProgress?.({ label, pct: 20 });
     // Deferred exactly like runNumericModel (see its comment) so the busy state paints before the

@@ -1384,7 +1384,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   const [modelDomainId, setModelDomainId] = useState("");
   // TASKS.csv #1546 — Model area: "all" | "checked" (the checked holes only feed the modelling tools)
   const [modelArea, setModelArea] = useState("all");
-  const { unitLayers, unitField, setUnitField, unitFields } = useUnitSource(layers); // #2378 — which Lithology field is the unit
+  const { unitLayers, unitField, setUnitField, unitFields } = useUnitSource(layers, customLayers); // #2378, #2529 — which Lithology field is the unit
   const modelLayers = useMemo(() => (modelArea === "checked" ? restrictLayersToHoles(unitLayers, visibleHoles) : unitLayers), [unitLayers, modelArea, visibleHoles]);
   // TASKS.csv #52 (c) — which named intercept set (store.interceptSets) the modelling tools are
   // restricted to. Session state, not persisted, for exactly the reason modelDomainId isn't: the SETS
