@@ -9669,5 +9669,6 @@
   "{n} long numbers in this snapshot's labels were rounded to 4 significant figures, as grades now print.": "{n} números largos en las etiquetas de esta captura se redondearon a 4 cifras significativas, como se imprimen ahora las leyes.",
   "Its height follows the drilling under it ({area}): RL {top} ({topHole}) to RL {bottom} ({bottomHole}), each hole to its logged depth.": "Su altura sigue la perforación bajo él ({area}): RL {top} ({topHole}) a RL {bottom} ({bottomHole}), cada sondaje hasta su profundidad registrada.",
   "the holes checked in the Holes list": "los sondajes marcados en la lista de sondajes",
-  "every hole in the box": "todos los sondajes en la caja"
+  "every hole in the box": "todos los sondajes en la caja",
+  "Weights of evidence over the {n} drilled cells (grid cells holding a {sym} sample, in {h} holes): {d} with a sample at or over the cut-off (in {hh} holes) against {m} without. Undrilled ground is not counted as barren; the posterior is the chance that a hole drilled in a cell would meet the cut-off.": "Pesos de evidencia sobre las {n} celdas perforadas (celdas de la grilla con una muestra de {sym}, en {h} sondajes): {d} con una muestra igual o sobre la ley de corte (en {hh} sondajes) frente a {m} sin ella. El terreno no perforado no se cuenta como estéril; la probabilidad posterior es la de que un sondaje perforado en una celda alcance la ley de corte."
 }

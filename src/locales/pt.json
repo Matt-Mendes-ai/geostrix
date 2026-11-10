@@ -9669,5 +9669,6 @@
   "{n} long numbers in this snapshot's labels were rounded to 4 significant figures, as grades now print.": "{n} números longos nos rótulos desta captura foram arredondados para 4 algarismos significativos, como os teores são impressos agora.",
   "Its height follows the drilling under it ({area}): RL {top} ({topHole}) to RL {bottom} ({bottomHole}), each hole to its logged depth.": "A sua altura segue a sondagem sob ele ({area}): RL {top} ({topHole}) a RL {bottom} ({bottomHole}), cada furo até a sua profundidade registrada.",
   "the holes checked in the Holes list": "os furos marcados na lista de furos",
-  "every hole in the box": "todos os furos na caixa"
+  "every hole in the box": "todos os furos na caixa",
+  "Weights of evidence over the {n} drilled cells (grid cells holding a {sym} sample, in {h} holes): {d} with a sample at or over the cut-off (in {hh} holes) against {m} without. Undrilled ground is not counted as barren; the posterior is the chance that a hole drilled in a cell would meet the cut-off.": "Pesos de evidência sobre as {n} células perfuradas (células da grade com uma amostra de {sym}, em {h} furos): {d} com uma amostra igual ou acima do teor de corte (em {hh} furos) contra {m} sem. O terreno não perfurado não é contado como estéril; a probabilidade posterior é a chance de um furo perfurado numa célula atingir o teor de corte."
 }

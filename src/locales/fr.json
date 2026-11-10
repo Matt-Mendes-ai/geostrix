@@ -9669,5 +9669,6 @@
   "{n} long numbers in this snapshot's labels were rounded to 4 significant figures, as grades now print.": "{n} nombres longs dans les étiquettes de cette capture ont été arrondis à 4 chiffres significatifs, comme les teneurs s'impriment maintenant.",
   "Its height follows the drilling under it ({area}): RL {top} ({topHole}) to RL {bottom} ({bottomHole}), each hole to its logged depth.": "Sa hauteur suit le forage en dessous ({area}) : RL {top} ({topHole}) à RL {bottom} ({bottomHole}), chaque sondage jusqu'à sa profondeur enregistrée.",
   "the holes checked in the Holes list": "les sondages cochés dans la liste des sondages",
-  "every hole in the box": "tous les sondages dans la boîte"
+  "every hole in the box": "tous les sondages dans la boîte",
+  "Weights of evidence over the {n} drilled cells (grid cells holding a {sym} sample, in {h} holes): {d} with a sample at or over the cut-off (in {hh} holes) against {m} without. Undrilled ground is not counted as barren; the posterior is the chance that a hole drilled in a cell would meet the cut-off.": "Poids de la preuve sur les {n} cellules forées (cellules de la grille contenant un échantillon de {sym}, dans {h} sondages) : {d} avec un échantillon au moins à la teneur de coupure (dans {hh} sondages) contre {m} sans. Le terrain non foré n'est pas compté comme stérile ; la probabilité a posteriori est la chance qu'un sondage foré dans une cellule atteigne la teneur de coupure."
 }

@@ -290,6 +290,9 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
   }));
 
   // training points
+  // TASKS.csv #2618 (re-test of #2446) — drillhole occurrences and the drilled cells are binned finer than a grid cell (a quarter of it), so
+  // each cell that holds a sample counts: the 25 m grade bins made '2,137 drilled cells' where 4,558 ten-metre cells hold a sample
+  const cellBin = Math.max(0.5, (grid?.dx || 25) / 4);
   const trainingPoints = useMemo(() => {
     const t = training, min = t.min === "" ? NaN : Number(t.min);
     if (t.source === "layer") { const l = pointLayers.find((x) => String(x.id) === String(t.layerId)); return l ? l.features.map((f) => ({ x: f.parts[0][0][0], y: f.parts[0][0][1] })) : []; }
@@ -298,13 +301,20 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
       // a barren hole's sample stream would make it a "known occurrence" (every other grade consumer filters them too)
       // TASKS.csv #1452 (review #1352) — where the grade is along the hole, not its collar: Silvertip's mineralised fans collapsed to
       // two pad cells (and every threshold gave the same three), though the grades lie 300-1,300 m down holes spread hundreds of metres
-      return holeGradePoints(cleanAssays, t.symbol, assayUnits[t.symbol] || "ppm", assayUnits, traces).filter((p) => p.value >= min).map((p) => ({ x: p.x, y: p.y }));
+      return holeGradePoints(cleanAssays, t.symbol, assayUnits[t.symbol] || "ppm", assayUnits, traces, cellBin).filter((p) => p.value >= min).map((p) => ({ x: p.x, y: p.y })); // cellBin: #2618
     }
     if (t.source === "samples" && t.symbol && Number.isFinite(min)) return surfaceSamples.filter((s) => { const v = valueIn(s, t.symbol, units[t.symbol] || "ppm", units); return v != null && v >= min; }).map((s) => ({ x: s.x, y: s.y }));
     return [];
-  }, [training, pointLayers, cleanAssays, traces, surfaceSamples, assayUnits, units]);
+  }, [training, pointLayers, cleanAssays, traces, surfaceSamples, assayUnits, units, cellBin]);
   // TASKS.csv #2446 — every sample of the training element along the holes (any value): the drilled cells the weights are trained on
-  const sampledPoints = useMemo(() => (training.source === "collars" && training.symbol ? holeGradePoints(cleanAssays, training.symbol, assayUnits[training.symbol] || "ppm", assayUnits, traces).map((p) => ({ x: p.x, y: p.y })) : []), [training.source, training.symbol, cleanAssays, traces, assayUnits]);
+  const sampledPoints = useMemo(() => (training.source === "collars" && training.symbol ? holeGradePoints(cleanAssays, training.symbol, assayUnits[training.symbol] || "ppm", assayUnits, traces, cellBin).map((p) => ({ x: p.x, y: p.y })) : []), [training.source, training.symbol, cleanAssays, traces, assayUnits, cellBin]);
+  // #2618 — the holes behind those cells: with a sample of the element, and with one at or over the cut-off
+  const trainingHoles = useMemo(() => {
+    if (training.source !== "collars" || !training.symbol) return null;
+    const min = training.min === "" ? NaN : Number(training.min), u = assayUnits[training.symbol] || "ppm", any = new Set(), hit = new Set();
+    for (const a of cleanAssays) { if (!traces.has(a.hole_id)) continue; const v = valueIn(a, training.symbol, u, assayUnits); if (v == null) continue; any.add(a.hole_id); if (Number.isFinite(min) && v >= min) hit.add(a.hole_id); }
+    return { any: any.size, hit: hit.size };
+  }, [training, cleanAssays, traces, assayUnits]);
   const circular = (training.source === "samples" && layers.some((l) => (l.kind === "element" && l.ref === training.symbol) || l.kind === "index"))
     || (training.source === "collars" && layers.some((l) => l.kind === "grade" && l.ref === training.symbol));
 
@@ -335,7 +345,7 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
       // when sound layers exist: its W- of -2.35 +/- 1.00 came from one cell. With no sound layer at all, every layer is used.
       const anySound = rowsW.some((r) => !r.none && !r.thin);
       rowsW.forEach((r) => { r.used = !r.none && (!r.thin || !anySound); if (r.used) chosen.push({ values: r.values, cutoff: r.cutoff, direction: r.direction, wPlus: r.wPlus, wMinus: r.wMinus }); });
-      if (chosen.length) { const post = posterior(chosen, valid, N, ND, { countMask: drilled ? trainMask : null }); out.wofe = { rows: rowsW, N, ND, post, nD: D.size, anyMissing: rowsW.some((r) => r.nMissing > 0), drilled: !!drilled, symbol: training.symbol }; out.paPost = predictionArea(post.prob, D, valid); }
+      if (chosen.length) { const post = posterior(chosen, valid, N, ND, { countMask: drilled ? trainMask : null }); out.wofe = { rows: rowsW, N, ND, post, nD: D.size, anyMissing: rowsW.some((r) => r.nMissing > 0), drilled: !!drilled, symbol: training.symbol, holes: trainingHoles }; out.paPost = predictionArea(post.prob, D, valid); }
       else if (rowsW.length) out.wofeNone = { rows: rowsW, ND }; // #2098 — no card gave a weight: said, not silent
       out.pa = predictionArea(fuzzy, D, valid);
     } else if (drilled && D.size >= 3) out.fewMisses = { hits: D.size, drilled: drilled.n }; // #2446 — almost every drilled cell is a hit: nothing to weigh against
@@ -485,7 +495,7 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
             {result.wofe && (
               <>
                 <div style={{ color: "var(--color-text-secondary)", marginTop: 4 }}>{result.wofe.drilled /* #2446 */
-                  ? tr("Weights of evidence over the {n} drilled cells (cells with a {sym} sample): {d} with a hole over the cut-off against {m} without. Undrilled ground is not counted as barren; the posterior is the chance that a hole drilled in a cell would meet the cut-off.", { n: result.wofe.N.toLocaleString(), sym: result.wofe.symbol, d: result.wofe.ND, m: (result.wofe.N - result.wofe.ND).toLocaleString() })
+                  ? tr("Weights of evidence over the {n} drilled cells (grid cells holding a {sym} sample, in {h} holes): {d} with a sample at or over the cut-off (in {hh} holes) against {m} without. Undrilled ground is not counted as barren; the posterior is the chance that a hole drilled in a cell would meet the cut-off.", { n: result.wofe.N.toLocaleString(), sym: result.wofe.symbol, d: result.wofe.ND.toLocaleString(), m: (result.wofe.N - result.wofe.ND).toLocaleString(), h: (result.wofe.holes?.any ?? 0).toLocaleString(), hh: (result.wofe.holes?.hit ?? 0).toLocaleString() }) /* #2618 */
                   : tr("Weights of evidence: {d} occurrence cells in {n} cells", { d: result.wofe.ND, n: result.wofe.N.toLocaleString() })}</div>
                 {result.cover && (result.cover.droppedCells > 0 || result.cover.inGrid < result.cover.points) && <div style={{ ...note, marginTop: 2, color: result.cover.droppedShare > 0.25 ? "var(--color-warn-text)" : undefined }}>{tr("{p} occurrence points in {c} cells; {d} cell(s) lie outside the area where every evidence has a value and are not used ({pct} %).{v}", { p: result.cover.points.toLocaleString(), c: result.cover.cells.toLocaleString(), d: result.cover.droppedCells.toLocaleString(), pct: Math.round(result.cover.droppedShare * 100), v: result.cover.inGrid < result.cover.points ? " " + tr("{m} point(s) are outside the grid.", { m: (result.cover.points - result.cover.inGrid).toLocaleString() }) : "" })}</div>}{/* #1558 */}
                 {result.wofe.anyMissing && <div style={{ ...note, marginTop: 2 }}>{tr("An evidence's weights come from the cells where it has a value; where it has none it adds nothing to the posterior (weight 0), so the score cannot reach past the drilled ground on drill evidence alone.")}</div>}{/* #1556 */}

@@ -9669,5 +9669,6 @@
   "{n} long numbers in this snapshot's labels were rounded to 4 significant figures, as grades now print.": "قُرِّب {n} رقمًا طويلًا في تسميات هذه اللقطة إلى 4 أرقام معنوية، كما تُطبع المحتويات الآن.",
   "Its height follows the drilling under it ({area}): RL {top} ({topHole}) to RL {bottom} ({bottomHole}), each hole to its logged depth.": "يتبع ارتفاعه الحفر تحته ({area}): من RL {top} ({topHole}) إلى RL {bottom} ({bottomHole})، كل ثقب حتى عمقه المسجل.",
   "the holes checked in the Holes list": "الثقوب المحددة في قائمة الثقوب",
-  "every hole in the box": "كل الثقوب داخل الصندوق"
+  "every hole in the box": "كل الثقوب داخل الصندوق",
+  "Weights of evidence over the {n} drilled cells (grid cells holding a {sym} sample, in {h} holes): {d} with a sample at or over the cut-off (in {hh} holes) against {m} without. Undrilled ground is not counted as barren; the posterior is the chance that a hole drilled in a cell would meet the cut-off.": "أوزان الدليل على {n} خلية محفورة (خلايا شبكة فيها عينة {sym}، في {h} ثقبًا): {d} فيها عينة عند حد القطع أو فوقه (في {hh} ثقبًا) مقابل {m} بدونها. لا تُحسب الأرض غير المحفورة عقيمة؛ والاحتمال اللاحق هو فرصة أن يبلغ ثقب يُحفر في خلية حد القطع."
 }
