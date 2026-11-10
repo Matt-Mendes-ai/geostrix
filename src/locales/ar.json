@@ -9625,5 +9625,7 @@
   "{s}: no value in the altered group, left out of the immobile set.": "{s}: لا قيمة في المجموعة المتحولة، استُبعد من مجموعة العناصر غير المتحركة.",
   "{k} of {n} pairs drawn (every {s}th, and the extremes); the statistics use all of them.": "رُسم {k} من {n} زوجًا (واحد من كل {s}، والقيم القصوى)؛ تستخدم الإحصاءات جميعها.",
   "The matched model's grid has more blocks in reach than the budget, and its block size is fixed: match a coarser model, shorten the search radius, or use 'Fit to the drilling' with a cell that fits.": "شبكة النموذج المطابق فيها كتل ضمن المدى أكثر من الميزانية وحجم الكتلة ثابت: طابق نموذجًا أخشن، أو قصّر نصف قطر البحث، أو استخدم «ملاءمة للحفر» بخلية تناسب.",
-  " Drawn flat at {z} m, the elevation the field was computed at.": " مرسوم مسطحًا عند {z} م، الارتفاع الذي حُسب عنده الحقل."
+  " Drawn flat at {z} m, the elevation the field was computed at.": " مرسوم مسطحًا عند {z} م، الارتفاع الذي حُسب عنده الحقل.",
+  "{pct} % of the scored cells are at the top score ({top}): the 1 = point of a card sits under most of what it maps, so these cells cannot be told apart. Raise the 1 = point.": "{pct}% من الخلايا المقيّمة عند الدرجة القصوى ({top}): نقطة 1 = لبطاقة تقع تحت معظم ما تمثّله، فلا يمكن التمييز بين هذه الخلايا. ارفع نقطة 1 =.",
+  "Ends: the {a}th percentile of the {n} {sym} assays (length-weighted, QC left out) and the 90th percentile of the {m} values this card maps (each 25 m bin's highest along the holes), which is above the assays' {b}th. Set them from your own cut-offs.": "الحدود: المئين {a} من تحاليل {sym} البالغة {n} (مرجّحة بالطول، دون ضبط الجودة) والمئين 90 من القيم الـ{m} التي تمثّلها هذه البطاقة (الأعلى في كل خانة 25 م على امتداد الثقوب)، وهو أعلى من المئين {b} للتحاليل. اضبطها بحدودك الخاصة."
 }

@@ -10,7 +10,7 @@ import { pickDefaultReachM, medianSiteSpacing } from "../lib/evidenceSources.js"
 import { drilledCollars } from "../lib/collarStatus.js"; // TASKS.csv #2097
 import { mainClusters } from "../lib/dataClusters.js"; // TASKS.csv #1449 / #1450
 import { quantileSorted } from "../lib/arrayStats.js"; // TASKS.csv #1281
-import { defaultEvidenceEnds, gradeEndsFromSamples } from "../lib/evidenceEnds.js"; // TASKS.csv #1565; gradeEndsFromSamples: #2099
+import { defaultEvidenceEnds, gradeEndsFromSamples, topScoreShare } from "../lib/evidenceEnds.js"; // TASKS.csv #1565; gradeEndsFromSamples: #2099; topScoreShare: #2448
 import { topCells } from "../lib/evidence.js"; // TASKS.csv #1456
 import { evidenceCoverage, LOW_COVERAGE, scoreBlockers } from "../lib/evidence.js"; // TASKS.csv #2252
 import { evidenceGrid, evidenceExtent, rasterEvidence, distanceEvidence, pointEvidence, sampleValues, membership, fuzzyCombine, FUZZY_OPERATORS, trainingCells, trainingCoverage, bestCutoff, MIN_SIDE, posterior, predictionArea, scoreImage, isOverlayOutput, coveringLayers } from "../lib/evidence.js"; // coveringLayers: #1563
@@ -196,7 +196,7 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
   const reachOfMedium = (medium) => reachFromNeighbours(medium == null ? sampleCore.samples : sampleCore.samples.filter((s) => (s.medium || "") === medium));
   const reachOf = (src, medium = null) => (src.kind === "grade" || src.kind === "pxrf" || src.kind === "numeric" ? DRILL_REACH_M : src.kind === "survey" ? reachFromSpacing(surveyPoints(geophysPts, src.ref), 4) : reachOfMedium(medium));
   // TASKS.csv #2099 — a drill-grade card's ends from the lab assays of its element (QC and pXRF excluded), length-weighted P50 / P95
-  const gradeEnds = (sym) => gradeEndsFromSamples(cleanAssays, (a) => valueIn(a, sym, assayUnits[sym] || "ppm", assayUnits));
+  const gradeEnds = (sym) => gradeEndsFromSamples(cleanAssays, (a) => valueIn(a, sym, assayUnits[sym] || "ppm", assayUnits), { mapped: holeGradePoints(cleanAssays, sym, assayUnits[sym] || "ppm", assayUnits, traces, undefined, level).map((p) => p.value) }); // mapped: #2448
   const addLayer = (key) => {
     const src = sources.find((s) => s.key === key); if (!src) return;
     // #1449 — sample evidence starts on the medium with the most samples when there are several (changeable on the card)
@@ -213,7 +213,7 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
     // #2099 — where the ends came from, said on the card; a drill grade's from its assays
     let endsFrom = dec ? null : { kind: "grid", q: [10, 90] };
     const ge = src.kind === "grade" ? gradeEnds(src.ref) : null;
-    if (ge) { low = ge.low; high = ge.high; log = true; endsFrom = { kind: "assays", q: ge.q, n: ge.n }; }
+    if (ge) { low = ge.low; high = ge.high; log = true; endsFrom = { kind: "assays", q: ge.q, n: ge.n, highFrom: ge.highFrom, m: ge.m }; }
     // TASKS.csv #1456 — distance to drilling rises with distance: 0 on a trace, full membership from half the spacing between drill sites
     // (the median, #1451; else the median distance over the grid), at least 3 cells — "untested" is the geologist's to set on the card
     if (src.kind === "drilled") { const site = medianSiteSpacing(collars); const hi = Math.max(3 * Math.max(grid.dx, grid.dy), site ? site / 2 : quantileSorted(finite, 0.5)); setLayers((L) => [...L, { id: nextId++, ...src, shape: "increasing", low: 0, high: hi, log: false, lowText: "0", highText: numText(hi), field: "", value: "", reach: null, values }]); setResult(null); setMsg(null); return; }
@@ -336,6 +336,7 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
     } else if (trainingPoints.length) out.fewPoints = D.size;
     // #2326 — the hole-based point cards' points (with their elevation, inside the level), for the target handed to Planned holes
     out.level = level;
+    out.topShare = topScoreShare(fuzzy); // #2448 — said when over a third of the scored cells are at the top
     out.cardPts = layers.filter((l) => l.kind === "grade" || l.kind === "pxrf" || l.kind === "numeric").map((l) => {
       const reach = l.reach || DRILL_REACH_M;
       if (l.kind === "numeric") { const { rows, field } = numericRowsOf(l.ref); return { pts: layerFieldPoints(rows, field, traces, undefined, level), reach }; }
@@ -423,7 +424,7 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
               <label style={row}>{l.shape === "decreasing" ? "0" : "1"} ={" "}<input type="number" step="any" value={l.highText} onChange={(e) => updateLayer(l.id, { highText: e.target.value, high: e.target.value === "" ? NaN : Number(e.target.value), endsEdited: true /* #1565 */ })} style={{ ...sel, width: 76 }} aria-label={l.shape === "decreasing" ? tr("Membership 0 at") : tr("Membership 1 at")} /></label>
               {l.kind !== "distance" && l.kind !== "pick" && l.low > 0 && l.high > 0 && <label style={{ ...row, cursor: "pointer" }} title={tr("The ramp runs on the logarithm of the values: even steps in grade ratio, as a lognormal grade is spread. Off, it runs on the values and is flat over most of a skewed layer.")}><input type="checkbox" checked={!!l.log} onChange={(e) => updateLayer(l.id, { log: e.target.checked })} />{tr("log ramp")}</label>}{/* #1555 */}
             </div>
-            {l.endsFrom && !l.endsEdited && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.35 }}>{l.endsFrom.kind === "assays" ? tr("Ends: the {a}th and {b}th percentile of the {n} {sym} assays (length-weighted, QC left out). Set them from your own cut-offs.", { a: l.endsFrom.q[0], b: l.endsFrom.q[1], n: l.endsFrom.n.toLocaleString(), sym: l.ref }) : tr("Ends: the {a}th and {b}th percentile of this evidence over the grid, not of your deposit. Set them from your own cut-offs.", { a: l.endsFrom.q[0], b: l.endsFrom.q[1] })}</div>}{/* #2099 */}
+            {l.endsFrom && !l.endsEdited && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.35 }}>{l.endsFrom.kind === "assays" && l.endsFrom.highFrom === "mapped" ? tr("Ends: the {a}th percentile of the {n} {sym} assays (length-weighted, QC left out) and the 90th percentile of the {m} values this card maps (each 25 m bin's highest along the holes), which is above the assays' {b}th. Set them from your own cut-offs.", { a: l.endsFrom.q[0], b: l.endsFrom.q[1], n: l.endsFrom.n.toLocaleString(), m: (l.endsFrom.m || 0).toLocaleString(), sym: l.ref }) /* #2448 */ : l.endsFrom.kind === "assays" ? tr("Ends: the {a}th and {b}th percentile of the {n} {sym} assays (length-weighted, QC left out). Set them from your own cut-offs.", { a: l.endsFrom.q[0], b: l.endsFrom.q[1], n: l.endsFrom.n.toLocaleString(), sym: l.ref }) : tr("Ends: the {a}th and {b}th percentile of this evidence over the grid, not of your deposit. Set them from your own cut-offs.", { a: l.endsFrom.q[0], b: l.endsFrom.q[1] })}</div>}{/* #2099 */}
           </div>
         ))}
         {layers.length > 0 && (
@@ -470,6 +471,7 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
               <button type="button" style={{ ...pBtn, opacity: result.nValid ? 1 : 0.5 }} disabled={!result.nValid} onClick={() => toMap("fuzzy")}>{tr("Fuzzy score → map")}</button>
               <button type="button" style={{ ...pBtn, display: "flex", alignItems: "center", gap: 4, opacity: result.nValid ? 1 : 0.5 }} disabled={!result.nValid} onClick={() => toTif("fuzzy")}><Download size={12} />GeoTIFF</button>{/* #2252 — never an empty score */}
             </div>
+            {result.topShare && result.topShare.share > 1 / 3 && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("{pct} % of the scored cells are at the top score ({top}): the 1 = point of a card sits under most of what it maps, so these cells cannot be told apart. Raise the 1 = point.", { pct: Math.round(result.topShare.share * 100), top: fmt(result.topShare.top, 3) })}</div>}{/* #2448 */}
             <TopPlaces score={result.fuzzy} grid={grid} onPlanTo={onPlanTo} note={note} pBtn={pBtn} cardPts={result.cardPts} level={result.level} /* #1456; cardPts / level: #2326 */ />
             {!result.wofe && result.wofeNone && ( /* TASKS.csv #2098 */
               <div style={{ ...note, color: "var(--color-warn-text)", marginTop: 4 }}>{tr("Weights of evidence: no card gives a weight with these {d} occurrence cells: {list}.", { d: result.wofeNone.ND, list: result.wofeNone.rows.map((r) => `${r.label} (${r.ndHere ?? 0} of them where it has a value)`).join("; ") })}</div>
