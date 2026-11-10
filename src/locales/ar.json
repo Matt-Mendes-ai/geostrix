@@ -9636,5 +9636,8 @@
   "{n} legends are out of step with their viewports: each viewport was refreshed after its legend was loaded, and the legend's rows were edited, so they were kept. Export anyway?": "{n} مفاتيح خرائط لا تطابق عروضها: حُدِّث كل عرض بعد تحميل مفتاحه، وعُدِّلت صفوف المفتاح فأُبقيت. هل تريد التصدير على أي حال؟",
   "The bound legend reloaded with the refreshed viewport.": "أُعيد تحميل مفتاح الخريطة المرتبط مع العرض المحدَّث.",
   "Out of step with its viewport: the viewport was refreshed after these rows were loaded, and they were edited (or loaded before this check existed), so they were kept. Load from view to update them.": "لا يطابق عرضه: حُدِّث العرض بعد تحميل هذه الصفوف، وقد عُدِّلت (أو حُمِّلت قبل وجود هذا الفحص) فأُبقيت. استخدم «تحميل من العرض» لتحديثها.",
-  "Captured {when}. Changes in the 3D view since then show after a refresh.": "التُقط {when}. تظهر التغييرات في العرض ثلاثي الأبعاد منذ ذلك الحين بعد التحديث."
+  "Captured {when}. Changes in the 3D view since then show after a refresh.": "التُقط {when}. تظهر التغييرات في العرض ثلاثي الأبعاد منذ ذلك الحين بعد التحديث.",
+  "{t}° typed, walls {f}–{s}": "{t}° مُدخل، الجدران {f}–{s}",
+  "Flatter than the shell's walls ({f}–{s}° for a typed {t}°): the design will take more waste than the shell counted.": "أقل انحدارًا من جدران الغلاف ({f}–{s}° لزاوية مُدخلة {t}°): سيأخذ التصميم ركامًا أكثر مما حسبه الغلاف.",
+  "Steeper than the shell's walls ({f}–{s}° for a typed {t}°): the design stands inside them, which the shell's economics did not test.": "أشد انحدارًا من جدران الغلاف ({f}–{s}° لزاوية مُدخلة {t}°): يقع التصميم داخلها، وهو ما لم تختبره اقتصاديات الغلاف."
 }

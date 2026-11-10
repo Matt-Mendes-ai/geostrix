@@ -4,6 +4,7 @@
 // (#264): no bench, berm or face angle is assumed.
 import React, { useMemo, useRef, useState } from "react";
 import { metalAmountText, elementOfModel } from "../lib/pitShell.js"; // TASKS.csv #2434
+import { shellWallCompare } from "../lib/pitWalls.js"; // TASKS.csv #2433
 import { Layers3, Eye, EyeOff, Trash2, Download } from "./icons.js";
 import { confirmDestructive } from "../lib/confirmDestructive.js"; // #1498
 import { TaskPaneHeader } from "./Ribbon.jsx";
@@ -181,9 +182,16 @@ export default function PitDesignPane({ surfaces = [], worldPositionsOf, onAdd, 
         {interRamp != null && (
           <div style={{ ...note, marginTop: 4 }}>
             {tr("Inter-ramp angle at these benches: {a}° (a face run of {r} m plus the berm).", { a: interRamp.toFixed(1), r: (reach - v("berm")).toFixed(1) })}
-            {Number.isFinite(shellSlope) && Math.abs(interRamp - shellSlope) > 1 && <div style={warn}>{interRamp < shellSlope
-              ? tr("Flatter than the {s}° the shell was solved at: the design will take more waste than the shell counted.", { s: shellSlope })
-              : tr("Steeper than the {s}° the shell was solved at: the design stands inside the shell's walls, which the shell's economics did not test.", { s: shellSlope })}</div>}
+            {(() => { // TASKS.csv #2433 — against the walls the shell really stands at (a typed 28° could stand 32–33°), the typed slope only for an older pit
+              const cmp = shellWallCompare(interRamp, pit?.params?.wallAnglesDeg, shellSlope, !!pit?.params?.inputs?.sectorSlopes);
+              if (!cmp) return null;
+              if (cmp.walls) return <div style={warn}>{cmp.side < 0
+                ? tr("Flatter than the shell's walls ({f}–{s}° for a typed {t}°): the design will take more waste than the shell counted.", { f: cmp.walls[0].toFixed(0), s: cmp.walls[1].toFixed(0), t: shellSlope })
+                : tr("Steeper than the shell's walls ({f}–{s}° for a typed {t}°): the design stands inside them, which the shell's economics did not test.", { f: cmp.walls[0].toFixed(0), s: cmp.walls[1].toFixed(0), t: shellSlope })}</div>;
+              return <div style={warn}>{cmp.side < 0
+                ? tr("Flatter than the {s}° the shell was solved at: the design will take more waste than the shell counted.", { s: shellSlope })
+                : tr("Steeper than the {s}° the shell was solved at: the design stands inside the shell's walls, which the shell's economics did not test.", { s: shellSlope })}</div>;
+            })()}
           </div>
         )}
         {pit && !model && <div style={warn}>{tr("The block model the shell was run on (\"{m}\") is not in the project any more: the table will show rock only, no ore.", { m: pit.params?.blockModel || "?" })}</div>}

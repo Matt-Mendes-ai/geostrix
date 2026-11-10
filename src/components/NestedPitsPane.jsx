@@ -11,7 +11,8 @@ import { useStore } from "../lib/store.jsx";
 import { runPitSeriesAsync } from "../lib/pitSeriesClient.js";
 import { gradeCandidate } from "../lib/gradeCandidate.js"; // #1848
 import { categoricalModels } from "../lib/geologyForward.js";
-import { PRICE_UNITS, pitMetalOf, elementOfModel, priceUnitsFor, metalAmountText } from "../lib/pitShell.js"; // priceUnitsFor / metalAmountText: TASKS.csv #2434
+import { PRICE_UNITS, pitMetalOf, elementOfModel, priceUnitsFor, metalAmountText, wallAngles } from "../lib/pitShell.js"; // priceUnitsFor / metalAmountText: TASKS.csv #2434; wallAngles: #2433
+import { slopeName } from "../lib/pitWalls.js"; // TASKS.csv #2433
 import { valueUnit } from "../lib/blockModelExport.js";
 import { toExportCsv, crsCell } from "../lib/tabular.js";
 import { saveFile } from "../lib/desktop.js";
@@ -94,7 +95,7 @@ export default function NestedPitsPane({ surfaces = [], onAdd, onToggle, onRemov
     const existing = shells.find((s) => s.params?.seriesId === res.seriesId && s.params?.revenueFactor === r.rf);
     if (existing) { onToggle?.(existing.id); return; }
     onAdd?.({
-      name: tr("Pit shell: {model} at {price} {unit} x{rf}, {slope}°{sec}", { model: model?.name || lastPit.params.blockModel, price: res.price, unit: res.priceLabel, rf: r.rf, slope: inputs.slopeDeg, sec: inputs.sectorSlopes ? tr(" (by sector)") : "" }), // sec: #1897
+      name: tr("Pit shell: {model} at {price} {unit} x{rf}, {slope}°{sec}", { model: model?.name || lastPit.params.blockModel, price: res.price, unit: res.priceLabel, rf: r.rf, slope: slopeName(inputs.slopeDeg, inputs.sectorSlopes || !res.cell ? null : wallAngles(res.cell[0], res.cell[1], res.cell[2], inputs.slopeDeg)), sec: inputs.sectorSlopes ? tr(" (by sector)") : "" }), // sec: #1897; slope: the walls as drawn, #2433
       positions: r.positions, indices: r.indices, type: "pit_shell", closure: null, color: SHELL_COLOURS[i % SHELL_COLOURS.length], tag: "pit",
       tip: tr("Conceptual pit shell at revenue factor {rf}: not a mine plan, a Reserve or a Resource", { rf: r.rf }),
       params: { tool: "conceptual pit shell (maximum closure, exact), nested series", inputs: { ...inputs, revenueFactor: r.rf, unit: valueUnit(model) ? "" : unit }, blockModel: model?.name, gradeUnit: unit, revenueFactor: r.rf, seriesId: res.seriesId,

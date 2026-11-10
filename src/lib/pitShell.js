@@ -196,11 +196,53 @@ export function slopeForSector(slopeDeg, sectorSlopes, sector) {
 export const hasSectorSlopes = (sectorSlopes) => !!sectorSlopes && SECTORS.some((k) => { const v = Number(sectorSlopes[k]); return v > 0 && v < 90; });
 // the flattest slope a pit's walls can take, for the grid's reach
 export const flattestSlope = (slopeDeg, sectorSlopes) => Math.min(slopeDeg, ...SECTORS.map((k) => slopeForSector(slopeDeg, sectorSlopes, k)));
+// TASKS.csv #2433 (review #2325, WA uranium) — the walls a pattern grows tend to (levels x) the convex hull of its per-level steps,
+// so the hull gives its attained walls exactly and cheaply: the flattest at the hull's farthest corner, the steepest at its nearest
+// edge. (wallAngles below walks 32 benches for the figure a run reports; this is for choosing between patterns.)
+export function coneWalls(arcs, dx, dy, dz) {
+  const p = (arcs || []).map(([a, b, l]) => [(a * dx) / l, (b * dy) / l]).concat([[0, 0]]).sort((u, v) => u[0] - v[0] || u[1] - v[1]);
+  const cross = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]), lo = [], up = [];
+  for (const q of p) { while (lo.length >= 2 && cross(lo[lo.length - 2], lo[lo.length - 1], q) <= 1e-12) lo.pop(); lo.push(q); }
+  for (let i = p.length - 1; i >= 0; i--) { const q = p[i]; while (up.length >= 2 && cross(up[up.length - 2], up[up.length - 1], q) <= 1e-12) up.pop(); up.push(q); }
+  const h = lo.slice(0, -1).concat(up.slice(0, -1));
+  if (h.length < 3) return { flattest: 90, steepest: 90 };
+  let rMax = 0, dMin = Infinity;
+  for (let i = 0; i < h.length; i++) {
+    const [x1, y1] = h[i], [x2, y2] = h[(i + 1) % h.length], ex = x2 - x1, ey = y2 - y1;
+    rMax = Math.max(rMax, Math.hypot(x1, y1)); dMin = Math.min(dMin, Math.abs(x1 * ey - y1 * ex) / Math.hypot(ex, ey));
+  }
+  const deg = (r) => (r > 0 ? (Math.atan2(dz, r) * 180) / Math.PI : 90);
+  return { flattest: deg(rMax), steepest: deg(dMin) };
+}
+// #2433 — the pattern was the most levels within MAX_ARCS, and when the next level was over the cap it fell back to fewer: on 6 m cubes
+// a typed 27-29 deg took a one-level pattern of 9 arcs standing 35-43 deg, while 30 deg took 21 arcs standing 32-33 deg, so flattening
+// the slope made the pit steeper and richer ($8.06M at 28 deg against $5.37M at 30 deg). A pattern built for a steeper slope is valid
+// for a flatter one (its arcs are steeper still), so the choice is now the pattern within MAX_ARCS, built at the typed slope or up to
+// 20 deg steeper, whose walls stand closest to the typed slope (flattest wall first, then the steepest, then fewer arcs): 27-29 deg
+// now stand 32-33 deg like 30 deg, and the attained wall never steepens as the typed slope flattens. Sector slopes (#1881) keep the
+// deepest pattern within the cap. Cached: a run asks for it two or three times.
+const arcCache = new Map();
+const better = (w, n, best) => !best || w.flattest < best.w.flattest - 1e-6 || (Math.abs(w.flattest - best.w.flattest) <= 1e-6 && (w.steepest < best.w.steepest - 1e-6 || (Math.abs(w.steepest - best.w.steepest) <= 1e-6 && n < best.a.length)));
+function chooseArcs(dx, dy, dz, slopeDeg, sectorSlopes) {
+  if (hasSectorSlopes(sectorSlopes)) {
+    let deepest = null;
+    for (let L = 1; L <= 8; L++) { const a = precedenceArcs(dx, dy, dz, slopeDeg, L, sectorSlopes); if (a.length > MAX_ARCS) break; deepest = a; }
+    return deepest;
+  }
+  let best = null;
+  for (let d = 0; d <= 20 && slopeDeg + d < 89; d += 0.5) for (let L = 1; L <= 8; L++) {
+    const a = precedenceArcs(dx, dy, dz, slopeDeg + d, L);
+    if (a.length > MAX_ARCS) break;
+    const w = coneWalls(a, dx, dy, dz);
+    if (better(w, a.length, best)) best = { a, w };
+  }
+  return best ? best.a : null;
+}
 export function precedenceArcs(dx, dy, dz, slopeDeg, maxLevels = null, sectorSlopes = null) {
   if (maxLevels == null) {
-    let best = null;
-    for (let L = 1; L <= 8; L++) { const a = precedenceArcs(dx, dy, dz, slopeDeg, L, sectorSlopes); if (a.length > MAX_ARCS) break; best = a; }
-    return best;
+    const key = JSON.stringify([dx, dy, dz, slopeDeg, sectorSlopes || null]);
+    if (!arcCache.has(key)) { if (arcCache.size > 64) arcCache.clear(); arcCache.set(key, chooseArcs(dx, dy, dz, slopeDeg, sectorSlopes)); }
+    return arcCache.get(key);
   }
   const runOf = (a, b) => dz / Math.tan((slopeForSector(slopeDeg, sectorSlopes, sectorOfBearing((Math.atan2(a * dx, b * dy) * 180) / Math.PI)) * Math.PI) / 180);
   const runMax = dz / Math.tan((flattestSlope(slopeDeg, sectorSlopes) * Math.PI) / 180);

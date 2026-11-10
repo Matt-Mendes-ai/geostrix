@@ -9636,5 +9636,8 @@
   "{n} legends are out of step with their viewports: each viewport was refreshed after its legend was loaded, and the legend's rows were edited, so they were kept. Export anyway?": "{n} legendas estão defasadas das suas vistas: cada vista foi atualizada depois de a sua legenda ser carregada, e as linhas da legenda foram editadas, por isso foram mantidas. Exportar mesmo assim?",
   "The bound legend reloaded with the refreshed viewport.": "A legenda vinculada foi recarregada com a vista atualizada.",
   "Out of step with its viewport: the viewport was refreshed after these rows were loaded, and they were edited (or loaded before this check existed), so they were kept. Load from view to update them.": "Defasada da sua vista: a vista foi atualizada depois de estas linhas serem carregadas, e elas foram editadas (ou carregadas antes de esta verificação existir), por isso foram mantidas. Use Carregar da vista para atualizá-las.",
-  "Captured {when}. Changes in the 3D view since then show after a refresh.": "Capturada {when}. As mudanças na vista 3D desde então aparecem após atualizar."
+  "Captured {when}. Changes in the 3D view since then show after a refresh.": "Capturada {when}. As mudanças na vista 3D desde então aparecem após atualizar.",
+  "{t}° typed, walls {f}–{s}": "{t}° digitado, taludes {f}–{s}",
+  "Flatter than the shell's walls ({f}–{s}° for a typed {t}°): the design will take more waste than the shell counted.": "Mais suave que os taludes da cava ({f}–{s}° para {t}° digitado): o projeto vai retirar mais estéril do que a cava contou.",
+  "Steeper than the shell's walls ({f}–{s}° for a typed {t}°): the design stands inside them, which the shell's economics did not test.": "Mais íngreme que os taludes da cava ({f}–{s}° para {t}° digitado): o projeto fica dentro deles, o que a economia da cava não testou."
 }

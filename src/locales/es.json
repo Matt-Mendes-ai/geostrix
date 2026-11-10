@@ -9636,5 +9636,8 @@
   "{n} legends are out of step with their viewports: each viewport was refreshed after its legend was loaded, and the legend's rows were edited, so they were kept. Export anyway?": "{n} leyendas no coinciden con sus vistas: cada vista se actualizó después de cargar su leyenda, y las filas de la leyenda se editaron, así que se conservaron. ¿Exportar de todos modos?",
   "The bound legend reloaded with the refreshed viewport.": "La leyenda vinculada se recargó con la vista actualizada.",
   "Out of step with its viewport: the viewport was refreshed after these rows were loaded, and they were edited (or loaded before this check existed), so they were kept. Load from view to update them.": "No coincide con su vista: la vista se actualizó después de cargar estas filas, y se editaron (o se cargaron antes de que existiera esta comprobación), así que se conservaron. Use Cargar desde la vista para actualizarlas.",
-  "Captured {when}. Changes in the 3D view since then show after a refresh.": "Capturada {when}. Los cambios en la vista 3D desde entonces aparecen tras actualizar."
+  "Captured {when}. Changes in the 3D view since then show after a refresh.": "Capturada {when}. Los cambios en la vista 3D desde entonces aparecen tras actualizar.",
+  "{t}° typed, walls {f}–{s}": "{t}° ingresado, taludes {f}–{s}",
+  "Flatter than the shell's walls ({f}–{s}° for a typed {t}°): the design will take more waste than the shell counted.": "Más tendido que los taludes de la envolvente ({f}–{s}° para {t}° ingresado): el diseño sacará más estéril del que contó la envolvente.",
+  "Steeper than the shell's walls ({f}–{s}° for a typed {t}°): the design stands inside them, which the shell's economics did not test.": "Más empinado que los taludes de la envolvente ({f}–{s}° para {t}° ingresado): el diseño queda dentro de ellos, lo que la economía de la envolvente no evaluó."
 }
