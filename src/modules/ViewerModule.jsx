@@ -27,6 +27,7 @@ const BasemapView = lazyModal(() => import("../components/BasemapView.jsx"));  /
 import PromptModal from "../components/PromptModal.jsx";
 import { toLonLat, isMetricProjectedEpsg } from "../lib/reproject.js";
 import { mirrorCustomLayers } from "../lib/viewerDirty.js"; // #1656
+import { customLayerSync, detachCustomGroups } from "./viewer/customLayerSync.js"; // #2361
 import { useStore, useSetCursor, useSetTaskProgress } from "../lib/store.jsx";
 import { desurveyHole, surveyAzimuthDipAt, holeAttitudeAssumed } from "../lib/desurvey.js"; // holeAttitudeAssumed: #2014
 import { unitSupport } from "../lib/unitSupport.js"; // #2096
@@ -1664,7 +1665,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   // layer was deleted, and autosave saved the loss. Nothing is written back until the restore has run once.
   const buildDefer = useBuildDefer(); // #1500
   const deferRound = buildDefer.round; // #1980 — the effects that place objects by the scene origin run again after a deferred build
-  const customRestoredRef = useRef(false);
+  const customRestoredRef = useRef(false), customSeqRef = useRef(null); // customSeqRef: #2361
   useEffect(() => {
     if (!customRestoredRef.current) return;
     // #478 — skip an empty-over-empty write: at startup it replaced [] with a new [] and the undo watcher
@@ -1894,9 +1895,10 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   useEffect(() => {
     if (!sceneRef.current) return;
     customRestoredRef.current = true; // #1527 — from here the mirror above may write
-    const localIds = new Set(customLayers.map((l) => l.id));
-    const missing = (storeCustomLayers || []).filter((l) => !localIds.has(l.id));
-    if (!missing.length) return;
+    const fresh = customSeqRef.current !== viewerUiStateSeq; customSeqRef.current = viewerUiStateSeq; // #2361 — a project change: rebuilt from the store alone
+    const { drop, missing } = customLayerSync(customLayers, storeCustomLayers, fresh);
+    detachCustomGroups(drop, layerGroupsRef.current);
+    if (!missing.length) { if (fresh && drop.length) setCustomLayers([]); return; }
     buildDefer.mark();
     const root = sceneRef.current.getObjectByName("root");
     const rebuilt = missing.map((l) => {
@@ -1905,9 +1907,9 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
       root.add(group);
       return { ...l, group };
     });
-    setCustomLayers((p) => [...p, ...rebuilt]);
+    setCustomLayers((p) => (fresh ? rebuilt : [...p, ...rebuilt]));
     setCustomVisible((p) => ({ ...p, ...Object.fromEntries(missing.map((l) => [l.id, true])) }));
-  }, [storeCustomLayers, sceneReady]);
+  }, [storeCustomLayers, sceneReady, viewerUiStateSeq]);
 
   // User report: "Z value is stuck at 1619.9. let's make it capture the Z of the feature the mouse is
   // hovering whether it's a voxel, drillhole, srtm, etc." The live status-bar cursor readout (and this

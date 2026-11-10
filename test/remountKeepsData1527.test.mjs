@@ -7,7 +7,7 @@ import { readFileSync } from "node:fs";
 const vm = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
 
 test("the custom-layer mirror waits until the restore has run", () => {
-  assert.match(vm, /const customRestoredRef = useRef\(false\);\s*useEffect\(\(\) => \{\s*if \(!customRestoredRef\.current\) return;/);
+  assert.match(vm, /const customRestoredRef = useRef\(false\), customSeqRef = useRef\(null\);[^\n]*\s*useEffect\(\(\) => \{\s*if \(!customRestoredRef\.current\) return;/);
   assert.match(vm, /if \(!sceneRef\.current\) return;\s*customRestoredRef\.current = true;/);
 });
 
