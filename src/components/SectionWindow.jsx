@@ -883,7 +883,7 @@ function SectionSVG({ patterns = null, textFont = SECTION_FONTS[0].stack, textSc
               <line x1={bx0} y1={by0} x2={bx1} y2={by1} stroke={row.color} strokeWidth={Math.min(thick, 6)} strokeLinecap="butt"><title>{`${row.label} (${a.from}–${a.to} m)`}</title></line>
               {/* TASKS.csv #1700 — the grade labels go through the collision pass with the depth and hole labels (they stacked on each
                   other and ran over the elevation axis); unit: #1475 */}
-              {labelledAssays.has(row) && floatLabels.push({ key: `grade_${i}`, text: a.u ? `${a.value} ${a.u} ${a.sym}` : String(a.value), size: fs(9), fill: "#1a2028", prio: 2, cands: [{ x: bx1 + nx * 3, y: by1 + ny * 3 + 3, anchor: nx >= 0 ? "start" : "end" }, { x: bx1 + nx * 3, y: by1 + ny * 3 + 3 + fs(10), anchor: nx >= 0 ? "start" : "end" }, { x: bx1 + nx * 3, y: by1 + ny * 3 - fs(8), anchor: nx >= 0 ? "start" : "end" }] }) && null}
+              {labelledAssays.has(row) && floatLabels.push({ key: `grade_${i}`, text: (a.u ? `${a.value} ${a.u} ${a.sym}` : String(a.value)) + (a.pxrf ? " (pXRF)" : ""), /* #2362 */ size: fs(9), fill: "#1a2028", prio: 2, cands: [{ x: bx1 + nx * 3, y: by1 + ny * 3 + 3, anchor: nx >= 0 ? "start" : "end" }, { x: bx1 + nx * 3, y: by1 + ny * 3 + 3 + fs(10), anchor: nx >= 0 ? "start" : "end" }, { x: bx1 + nx * 3, y: by1 + ny * 3 - fs(8), anchor: nx >= 0 ? "start" : "end" }] }) && null}
             </g>
           );
         }

@@ -6598,12 +6598,13 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     if (showAssays && assayDisplayElements.length) {
       assayDisplayElements.forEach((sym, idx) => {
         const style = assayStyle[sym];
-        const vals = assays.filter((a) => holeIds.has(a.hole_id) && a.values[sym] != null && assayPassesCutoff(a.values[sym], style));
+        const vals = assays.filter((a) => holeIds.has(a.hole_id) && a.values[sym] != null && !isMarkedQcRow(a) && assayRowShown(a) && assayPassesCutoff(a.values[sym], style)); // QC / source: #2362, as the 3D markers
         if (!vals.length) return;
         const u = assayElements.find((e) => e.symbol === sym)?.unit || ""; // #1475 — the label carries its unit
         vals.forEach((a) => {
           const mid = (a.from + a.to) / 2, v = a.values[sym];
-          points.push({ hole_id: a.hole_id, md: mid, color: assayColorFor(v, idx, style), label: `${sym}: ${v}`, assay: { sym, value: v, idx, from: a.from, to: a.to, u } }); // #392 — drawn as a grade bar
+          const px = isPxrfRow(a); // #2362 — a pXRF reading, when shown, says so
+          points.push({ hole_id: a.hole_id, md: mid, color: assayColorFor(v, idx, style), label: `${sym}: ${v}${px ? " (pXRF)" : ""}`, assay: { sym, value: v, idx, from: a.from, to: a.to, u, ...(px ? { pxrf: true } : {}) } }); // #392 — drawn as a grade bar
         });
       });
     }
@@ -6987,7 +6988,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     const sectionImgs = await sectionImagesFor(a, b, s.corridor);
     openSectionOrSay({ id: s.id, title: s.name, section: { ax: s.ax, ay: s.ay, bx: s.bx, by: s.by, azimuth: s.azimuth, corridor: s.corridor }, holes, intervals, points, planes, assayLegend, contacts: s.contacts || [], labels: s.labels || null, lithoUnits: litho_units, unitTags: sectionUnitTags, elevationProfile, legendItems, voxelSlices, surfaceTraces, plannedHoles: plannedOnSection, scatter, scatterCounts, /* #1807 */ sectionImages: sectionImgs, modelBackdrop,
       ghostStrings: (await import("../lib/sectionDigitise.js")).ghostStrings(s, sections), /* on use: #903 */ outlineNames: outlineNamesOf(sections), ...(quiet ? { refreshOnly: true, ifOpen: true } : {}) }); // #519 — the neighbouring sections' strings; outlineNames: #874; quiet: #876
-  }, [structurePicksWithHoleAttitude, layers, layerVisible, customLayers, customVisible, assays, assayVisible, assayDisplayElements, assayStyle, isRowVisible, effectiveColor, effectiveLabel, numericLayerColor, litho_units, sectionUnitTags, terrain, voxelModels, implicitSurfaces, plannedHoles, sections, sectionImages, lastLithBlock, pierceSurfaces, placedSurfaceSamples, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax /* #1807 */]); // pierceSurfaces: #1010
+  }, [structurePicksWithHoleAttitude, layers, layerVisible, customLayers, customVisible, assays, assayVisible, assayDisplayElements, assayStyle, assayRowShown /* #2362 */, isRowVisible, effectiveColor, effectiveLabel, numericLayerColor, litho_units, sectionUnitTags, terrain, voxelModels, implicitSurfaces, plannedHoles, sections, sectionImages, lastLithBlock, pierceSurfaces, placedSurfaceSamples, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax /* #1807 */]); // pierceSurfaces: #1010
 
   // TASKS.csv #876 — the section window's ‹ › (previous / next parallel section) and Refresh
   const sectionStepRef = useRef(null);
