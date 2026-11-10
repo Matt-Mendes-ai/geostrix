@@ -9623,5 +9623,6 @@
   "{s}: no value in either group, left out of the immobile set.": "{s}: sin valor en ningún grupo, fuera del conjunto inmóvil.",
   "{s}: no value in the precursor group, left out of the immobile set.": "{s}: sin valor en el grupo precursor, fuera del conjunto inmóvil.",
   "{s}: no value in the altered group, left out of the immobile set.": "{s}: sin valor en el grupo alterado, fuera del conjunto inmóvil.",
-  "{k} of {n} pairs drawn (every {s}th, and the extremes); the statistics use all of them.": "{k} de {n} pares dibujados (uno de cada {s}, y los extremos); las estadísticas usan todos."
+  "{k} of {n} pairs drawn (every {s}th, and the extremes); the statistics use all of them.": "{k} de {n} pares dibujados (uno de cada {s}, y los extremos); las estadísticas usan todos.",
+  "The matched model's grid has more blocks in reach than the budget, and its block size is fixed: match a coarser model, shorten the search radius, or use 'Fit to the drilling' with a cell that fits.": "La grilla del modelo emparejado tiene más bloques al alcance que el presupuesto y su tamaño de bloque es fijo: empareje un modelo más grueso, acorte el radio de búsqueda o use 'Ajustar a la perforación' con una celda que quepa."
 }

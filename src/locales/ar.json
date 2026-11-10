@@ -9623,5 +9623,6 @@
   "{s}: no value in either group, left out of the immobile set.": "{s}: لا قيمة في أي من المجموعتين، استُبعد من مجموعة العناصر غير المتحركة.",
   "{s}: no value in the precursor group, left out of the immobile set.": "{s}: لا قيمة في المجموعة الأصلية، استُبعد من مجموعة العناصر غير المتحركة.",
   "{s}: no value in the altered group, left out of the immobile set.": "{s}: لا قيمة في المجموعة المتحولة، استُبعد من مجموعة العناصر غير المتحركة.",
-  "{k} of {n} pairs drawn (every {s}th, and the extremes); the statistics use all of them.": "رُسم {k} من {n} زوجًا (واحد من كل {s}، والقيم القصوى)؛ تستخدم الإحصاءات جميعها."
+  "{k} of {n} pairs drawn (every {s}th, and the extremes); the statistics use all of them.": "رُسم {k} من {n} زوجًا (واحد من كل {s}، والقيم القصوى)؛ تستخدم الإحصاءات جميعها.",
+  "The matched model's grid has more blocks in reach than the budget, and its block size is fixed: match a coarser model, shorten the search radius, or use 'Fit to the drilling' with a cell that fits.": "شبكة النموذج المطابق فيها كتل ضمن المدى أكثر من الميزانية وحجم الكتلة ثابت: طابق نموذجًا أخشن، أو قصّر نصف قطر البحث، أو استخدم «ملاءمة للحفر» بخلية تناسب."
 }

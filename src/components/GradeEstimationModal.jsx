@@ -157,7 +157,10 @@ export default function GradeEstimationModal({ assays: assaysProp, assayElements
   }, [assays, collars, survey, desurveyMethod]);
 
   const [padding, setPadding] = useState(() => keep("padding", 25));
-  const [cellSize, setCellSize] = useState(() => keep("cellSize", 10));
+  // TASKS.csv #2416 (review #2325, WA uranium) — the cell size is always a positive number: on a matched grid the over-budget button offered
+  // 'Use null m blocks' and set it to null, and back on 'Fit to the drilling' the window died. A remembered null is read as the default too.
+  const [cellSize, setCellSizeRaw] = useState(() => { const v = Number(keep("cellSize", 10)); return Number.isFinite(v) && v > 0 ? v : 10; });
+  const setCellSize = (v) => setCellSizeRaw((p) => { const n = typeof v === "function" ? v(p) : v; return Number.isFinite(n) && n > 0 ? n : p; });
   // TASKS.csv #724 — the grid: "data" (the drilling's box + padding, as before), "model:<id>" (an existing block model's
   // cell size and origin, so the estimate's centroids coincide with it), or "origin" (the cell size above on a typed origin)
   const [gridMode, setGridMode] = useState(() => keep("gridMode", "data", (g) => !g.startsWith("model:") || (voxelModels || []).some((m) => m.id === g.slice(6))));
@@ -724,8 +727,9 @@ export default function GradeEstimationModal({ assays: assaysProp, assayElements
               v: (reachPending ? tr(", counting the blocks within {r} m of the drilling…", { r: reachRadius }) : reach && blocksInReach < totalBlocksPreview ? tr(", {n} within {r} m of the drilling (only those can be estimated, and only those count)", { n: Number.isFinite(blocksInReach) ? blocksInReach.toLocaleString() : "?", r: reachRadius }) : "") + (overLimit ? tr(" — over the {blockBudget}-block budget.", { blockBudget: blockBudget.toLocaleString() }) : "") })}
               {overLimit && (
                 <span style={{ display: "inline-flex", gap: 6, marginLeft: 6, flexWrap: "wrap" }}>
-                  <button type="button" onClick={() => { cellTouched.current = true; setCellSize(fitCell); }} style={{ ...btn(false), padding: "2px 8px" }}>{tr("Use {fitCell} m blocks", { fitCell })}</button>
-                  {fitCellMax && <button type="button" onClick={() => { setBlockBudget(MAX_BLOCK_MODEL_BUDGET); setCellSize(fitCellMax); }} style={{ ...btn(false), padding: "2px 8px" }}>{tr("Largest budget + {fitCellMax} m blocks", { fitCellMax })}</button>}
+                  {Number.isFinite(fitCell) && fitCell > 0 && <button type="button" onClick={() => { cellTouched.current = true; setCellSize(fitCell); }} style={{ ...btn(false), padding: "2px 8px" }}>{tr("Use {fitCell} m blocks", { fitCell })}</button>}
+                  {matched && <span style={{ color: "var(--color-text-secondary)" }}>{tr("The matched model's grid has more blocks in reach than the budget, and its block size is fixed: match a coarser model, shorten the search radius, or use 'Fit to the drilling' with a cell that fits.")}</span>}{/* #2416 */}
+                  {Number.isFinite(fitCellMax) && fitCellMax > 0 && <button type="button" onClick={() => { setBlockBudget(MAX_BLOCK_MODEL_BUDGET); setCellSize(fitCellMax); }} style={{ ...btn(false), padding: "2px 8px" }}>{tr("Largest budget + {fitCellMax} m blocks", { fitCellMax })}</button>}
                 </span>
               )}
             </div>
