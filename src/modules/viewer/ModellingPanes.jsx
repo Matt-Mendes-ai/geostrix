@@ -775,7 +775,11 @@ export default function ModellingPanes(props) {
             <ChevronDown size={14} style={{ cursor: i === stackUnits.length - 1 ? "default" : "pointer", color: i === stackUnits.length - 1 ? "var(--color-border-light)" : "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => moveStackUnit(u, 1), tr("Move \"{u}\" down in the stratigraphic stack", { u: display }))} />
             <X size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(() => removeStackUnit(u), tr("Remove \"{u}\" from the stratigraphic stack", { u: display }))} />
           </div>
-          {i < stackUnits.length - 1 && (
+          {/* TASKS.csv #2381 — no unconformity above the last unit: its top would follow the units above it, and no package starts below */}
+          {i === stackUnits.length - 2 && !hasBreak && (
+            <div style={{ textAlign: "center", fontSize: "var(--font-size-xs)", color: "var(--color-text-faint)", padding: "1px 0 3px", marginBottom: 4 }} title={tr("The top of the unit under an unconformity follows the units above it, so with nothing under the last unit no package would start there. Model the last unit's top on its own (Implicit surface, or an Explicit surface from its logged tops).")}>{tr("No unconformity above the last unit")}</div>
+          )}
+          {i < stackUnits.length - 1 && (i < stackUnits.length - 2 || hasBreak) && (
             <button type="button" aria-pressed={hasBreak} onClick={() => setStackBreaks((p) => (p.includes(u) ? p.filter((x) => x !== u) : [...p, u]))}
               title={tr("Units above and below an unconformity are fitted as separate conformable packages. The top of the unit below it follows the upper package.")}
               style={{ display: "block", width: "100%", background: "none", border: "none", borderTop: hasBreak ? "2px dashed var(--color-accent)" : "none", padding: "1px 0 3px", marginBottom: 4, cursor: "pointer", textAlign: "center", fontSize: "var(--font-size-xs)", color: hasBreak ? "var(--color-accent-dark)" : "var(--color-text-muted)" }}>

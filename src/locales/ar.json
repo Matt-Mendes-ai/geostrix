@@ -9734,5 +9734,8 @@
   "Az / Dip / Length start from the {n} drilled holes (median); each hole added is kept for the next.": "يبدأ السمت / الميل / الطول من {n} ثقب محفور (الوسيط)؛ ويُحتفظ بكل ثقب مضاف للتالي.",
   "{n} of {m} rows checked have X / Y outside ±180 / ±90 (e.g. {x}, {y}), so they are not longitude / latitude: check the From CRS. Such rows are left blank.": "{n} من {m} صفًا مفحوصًا فيها X / Y خارج ±180 / ±90 (مثلًا {x}، {y})، فهي ليست خطوط طول / عرض: تحقق من نظام الإحداثيات المصدر. تُترك هذه الصفوف فارغة.",
   "{v} m was raised to {min} m, the smallest interval.": "رُفع {v} م إلى {min} م، أصغر فاصل.",
-  " It replaces the earlier contours of this terrain at this interval.": " ويحل محل خطوط الكنتور السابقة لهذه التضاريس بهذا الفاصل."
+  " It replaces the earlier contours of this terrain at this interval.": " ويحل محل خطوط الكنتور السابقة لهذه التضاريس بهذا الفاصل.",
+  "The unconformity marked above the last unit ({unit}) was left out: the top of the unit under an unconformity follows the units above it, so with nothing under {unit} no package starts there. To fit the top of {unit} on its own, model it with the Implicit surface tool or as an Explicit surface from its logged tops.": "استُبعد عدم التوافق المعلَّم فوق الوحدة الأخيرة ({unit}): قمة الوحدة تحت عدم التوافق تتبع الوحدات التي فوقها، فلا تبدأ أي حزمة هناك إذ لا شيء تحت {unit}. لملاءمة قمة {unit} وحدها، نمذجها بأداة السطح الضمني أو كسطح صريح من قممها المسجلة.",
+  "The top of the unit under an unconformity follows the units above it, so with nothing under the last unit no package would start there. Model the last unit's top on its own (Implicit surface, or an Explicit surface from its logged tops).": "قمة الوحدة تحت عدم التوافق تتبع الوحدات التي فوقها، فلا تبدأ أي حزمة إذ لا شيء تحت الوحدة الأخيرة. نمذج قمة الوحدة الأخيرة وحدها (سطح ضمني، أو سطح صريح من قممها المسجلة).",
+  "No unconformity above the last unit": "لا عدم توافق فوق الوحدة الأخيرة"
 }

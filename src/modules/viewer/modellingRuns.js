@@ -1349,6 +1349,14 @@ export function createModellingRuns(ctx, mcRef) {
       if (stackBreaks?.includes(u) && specs.length) breakAt.add(specs.length - 1);
     });
     breakAt.delete(specs.length - 1); // nothing below it
+    // TASKS.csv #2381 (review #2325, WA uranium) — a break above the LAST unit: that unit's top is the unconformity and follows the upper
+    // package's field (#1309), so no package starts below it. The run said "1 conformable package(s)" and then ran erosional. Left out, said.
+    const noPackageBelow = [...breakAt].filter((b) => b >= specs.length - 2);
+    if (noPackageBelow.length) {
+      noPackageBelow.forEach((b) => breakAt.delete(b));
+      const lastUnit = specs[specs.length - 1]?.meshName;
+      setNotices((p) => [...p, notice("The unconformity marked above the last unit ({unit}) was left out: the top of the unit under an unconformity follows the units above it, so with nothing under {unit} no package starts there. To fit the top of {unit} on its own, model it with the Implicit surface tool or as an Explicit surface from its logged tops.", { unit: lastUnit })]);
+    }
     // TASKS.csv #1370 (review #1352, Silvertip) — the youngest unit of a stack needs no top of its own: on Silvertip the Earn clastics
     // start under overburden or at a hole start in every hole, and the stack's model is the top of McDame (Earn's base) down.
     // Skipped, it is said as such; the rest are still the ones the run cannot use.
