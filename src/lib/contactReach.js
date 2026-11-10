@@ -130,6 +130,17 @@ export function clipTrace(pts, length) {
   }
   return out;
 }
+// TASKS.csv #2617 — the model box (m³) the same points get WITHOUT a trend: reachPad across each axis (the contacts' reach), verticalPad on
+// the drilled column when there is one (#2377 / #2616), as the no-trend branch of the run pads it. pts: [{ x, y, z }] in real space.
+export function noTrendBoxVolume(pts, { column = null, reachM = 0, capM }) {
+  const rng = (k) => { let lo = Infinity, hi = -Infinity; for (const q of pts || []) { if (q[k] < lo) lo = q[k]; if (q[k] > hi) hi = q[k]; } return [lo, hi]; };
+  const [rx, ry, rz] = [rng("x"), rng("y"), rng("z")];
+  if (!Number.isFinite(rx[0])) return 0;
+  const spanOf = (r) => Math.max(1, r[1] - r[0]), longest = Math.max(spanOf(rx), spanOf(ry), spanOf(rz)), padOf = (sp) => reachPad(sp, longest, reachM, capM);
+  const vp = column ? verticalPad(spanOf(rz), column.max - column.min, capM) : null;
+  const zBox = vp != null ? Math.max(rz[1], column.max) - Math.min(rz[0], column.min) + 2 * vp : spanOf(rz) + 2 * padOf(spanOf(rz));
+  return (spanOf(rx) + 2 * padOf(spanOf(rx))) * (spanOf(ry) + 2 * padOf(spanOf(ry))) * zBox;
+}
 export function verticalPad(zSpan, columnM, capM) {
   if (!(Number.isFinite(columnM) && columnM > 0)) return null;
   return Math.min(Math.max(20, 0.5 * columnM, Math.max(1, zSpan) * 0.15), capM);
