@@ -9594,5 +9594,7 @@
   "None of the first {s} rows are for these holes, so the share can't be estimated (a file sorted by hole may have them further down): the estimate below is for every row.": "لا شيء من أول {s} صفًا لهذه الثقوب، فلا يمكن تقدير النسبة (قد يحتويها ملف مرتب حسب الثقب في موضع لاحق): التقدير أدناه لكل الصفوف.",
   "the checked holes": "الثقوب المحددة",
   "the holes in this project": "ثقوب هذا المشروع",
-  "Only the rows of {n} hole(s) ({which}) were read: {d} other row(s) were left out as the file was read.": "قُرئت صفوف {n} ثقبًا فقط ({which}): تُرك {d} صفًا آخر أثناء قراءة الملف."
+  "Only the rows of {n} hole(s) ({which}) were read: {d} other row(s) were left out as the file was read.": "قُرئت صفوف {n} ثقبًا فقط ({which}): تُرك {d} صفًا آخر أثناء قراءة الملف.",
+  "it is {mb} MB, more than the 512 MB a single text read can hold, so it can't be opened in one piece: split it (by hole, or by columns) and open the parts": "حجمه {mb} م.ب، أكبر من 512 م.ب التي تتسع لها قراءة نصية واحدة، فلا يمكن فتحه دفعة واحدة: قسّمه (حسب الثقب أو حسب الأعمدة) وافتح الأجزاء",
+  "it could not be read as text in one piece (too large for one read): split it (by hole, or by columns) and open the parts": "تعذّرت قراءته نصًا دفعة واحدة (أكبر من قراءة واحدة): قسّمه (حسب الثقب أو حسب الأعمدة) وافتح الأجزاء"
 }

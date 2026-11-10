@@ -11,9 +11,17 @@ import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the inter
 
 // Bytes -> text. UTF-8 first (BOM stripped); if that produced replacement characters, the file was not
 // UTF-8 — almost always an Excel export on Windows (Windows-1252: degree signs, accented names).
+// TASKS.csv #2344 — one string holds at most 0x1fffffe8 characters (V8): a CSV over about 512 MB cannot be decoded in one piece. A 599 MB
+// table was read as "" in the app (Chromium's decoder gave an empty string) and the import said "no rows found". Over this size the read
+// stops at once with the real reason; reading such a file in chunks is its own row.
+export const TEXT_MAX_BYTES = 0x1fffffe8;
+const tooLargeForOneRead = (bytes) => new Error(bytes != null ? tr("it is {mb} MB, more than the 512 MB a single text read can hold, so it can't be opened in one piece: split it (by hole, or by columns) and open the parts", { mb: Math.round(bytes / 1048576).toLocaleString() }) : tr("it could not be read as text in one piece (too large for one read): split it (by hole, or by columns) and open the parts"));
 export function decodeTableBytes(bytes) {
   const u8 = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
-  let text = new TextDecoder("utf-8").decode(u8);
+  if (u8.length > TEXT_MAX_BYTES) throw tooLargeForOneRead(u8.length); // #2344
+  let text;
+  try { text = new TextDecoder("utf-8").decode(u8); } catch { throw tooLargeForOneRead(null); } // #2344 — a string-length failure
+  if (u8.length > 0 && !text.length) throw tooLargeForOneRead(null); // #2344 — the empty decode seen in the app
   let encoding = "utf-8";
   if (text.includes("�")) { text = new TextDecoder("windows-1252").decode(u8); encoding = "windows-1252"; }
   if (text.charCodeAt(0) === 0xfeff) text = text.slice(1);
@@ -342,6 +350,7 @@ export async function confirmTableSize(file, { budget = TABLE_MEMORY_BUDGET, con
 // #2171 — a worker that failed on a big file (out of memory) is not retried on the window's own thread: that took the whole app down
 const MAIN_THREAD_RETRY_MAX = 64e6;
 export async function parseTableFile(file, opts) {
+  if (file?.size > TEXT_MAX_BYTES) throw tooLargeForOneRead(file.size); // #2344 — before the column chooser: no subset can help, the decode is first
   if (!(opts?.sizeChecked)) {
     const ok = await confirmTableSize(file);
     if (!ok) throw new Error(tr("not opened: it needs more memory than this computer can safely give it"));

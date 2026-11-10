@@ -9594,5 +9594,7 @@
   "None of the first {s} rows are for these holes, so the share can't be estimated (a file sorted by hole may have them further down): the estimate below is for every row.": "Aucune des {s} premières lignes n'est pour ces sondages, la part ne peut donc pas être estimée (un fichier trié par sondage peut les avoir plus bas) : l'estimation ci-dessous vaut pour toutes les lignes.",
   "the checked holes": "les sondages cochés",
   "the holes in this project": "les sondages de ce projet",
-  "Only the rows of {n} hole(s) ({which}) were read: {d} other row(s) were left out as the file was read.": "Seules les lignes de {n} sondage(s) ({which}) ont été lues : {d} autre(s) ligne(s) ont été laissées de côté à la lecture du fichier."
+  "Only the rows of {n} hole(s) ({which}) were read: {d} other row(s) were left out as the file was read.": "Seules les lignes de {n} sondage(s) ({which}) ont été lues : {d} autre(s) ligne(s) ont été laissées de côté à la lecture du fichier.",
+  "it is {mb} MB, more than the 512 MB a single text read can hold, so it can't be opened in one piece: split it (by hole, or by columns) and open the parts": "il fait {mb} Mo, plus que les 512 Mo qu'une seule lecture de texte peut contenir, il ne peut donc pas être ouvert d'un seul tenant : divisez-le (par sondage ou par colonnes) et ouvrez les parties",
+  "it could not be read as text in one piece (too large for one read): split it (by hole, or by columns) and open the parts": "il n'a pas pu être lu comme texte d'un seul tenant (trop grand pour une lecture) : divisez-le (par sondage ou par colonnes) et ouvrez les parties"
 }

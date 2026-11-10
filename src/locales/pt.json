@@ -9594,5 +9594,7 @@
   "None of the first {s} rows are for these holes, so the share can't be estimated (a file sorted by hole may have them further down): the estimate below is for every row.": "Nenhuma das primeiras {s} linhas é destes furos, então a proporção não pode ser estimada (um arquivo ordenado por furo pode tê-los mais abaixo): a estimativa abaixo é para todas as linhas.",
   "the checked holes": "os furos marcados",
   "the holes in this project": "os furos deste projeto",
-  "Only the rows of {n} hole(s) ({which}) were read: {d} other row(s) were left out as the file was read.": "Só as linhas de {n} furo(s) ({which}) foram lidas: {d} outra(s) linha(s) ficaram de fora ao ler o arquivo."
+  "Only the rows of {n} hole(s) ({which}) were read: {d} other row(s) were left out as the file was read.": "Só as linhas de {n} furo(s) ({which}) foram lidas: {d} outra(s) linha(s) ficaram de fora ao ler o arquivo.",
+  "it is {mb} MB, more than the 512 MB a single text read can hold, so it can't be opened in one piece: split it (by hole, or by columns) and open the parts": "tem {mb} MB, mais do que os 512 MB que cabem numa única leitura de texto, então não pode ser aberto de uma vez: divida-o (por furo ou por colunas) e abra as partes",
+  "it could not be read as text in one piece (too large for one read): split it (by hole, or by columns) and open the parts": "não pôde ser lido como texto de uma vez (grande demais para uma leitura): divida-o (por furo ou por colunas) e abra as partes"
 }
