@@ -54,6 +54,9 @@ export function cleanLayerStyle(style, kind) {
   if (s.shape && s.shape !== shapes[0].id && shapes.some((x) => x.id === s.shape)) out.shape = s.shape;
   if (isHex(s.color)) out.color = s.color.toLowerCase();
   if (typeof s.colourBy === "string" && s.colourBy && s.colourBy !== "value") out.colourBy = s.colourBy.slice(0, 120); // TASKS.csv #1697 — a custom layer's colour field
+  // TASKS.csv #2405 (review #2325) — the surface samples' label (#1443: "sample_id" or an element symbol): dropped here since #635, so the Style
+  // dialog's Label select snapped back to "No label" and nothing was drawn. "none" / blank is the default and is not stored.
+  if (typeof s.label === "string" && s.label && s.label !== "none") out.label = s.label.slice(0, 60);
   return Object.keys(out).length ? out : null;
 }
 
