@@ -19,6 +19,7 @@ import { fontSizes } from "../lib/theme.js"; // TASKS.csv #385 — SVG font-size
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { noCollarsNotice } from "../lib/noCollars.js"; // TASKS.csv #1841
 import { domainLayerChoices } from "../lib/domainLayers.js"; // TASKS.csv #1571
+import UnsampledChoice, { useUnsampled, unsampledResultLine } from "./UnsampledChoice.jsx"; // TASKS.csv #2417 / #2542
 
 // TASKS.csv #147 — variogram / spatial-continuity analysis per domain.
 //
@@ -82,6 +83,7 @@ export default function VariogramModal({ assays, assayElements, layers, collars,
   const [running, setRunning] = useState(false);
 
   const srcAssays = useMemo(() => excludeQAQC(assays), [assays]);
+  const uns = useUnsampled("variogram", { assays: srcAssays, collars, symbol, unit, elementUnits }); // TASKS.csv #2417 / #2542
 
   // Distinct values of the chosen domain layer, so a user can run one domain at a time — the whole
   // point of the row ("per domain"): a variogram mixing two geologically different populations
@@ -100,7 +102,8 @@ export default function VariogramModal({ assays, assayElements, layers, collars,
     // forever (the exact bug TASKS.csv #258's verification found in GradeEstimationModal).
     setTimeout(() => {
       try {
-        const intervals = compositeDownhole(srcAssays, symbol, unit, elementUnits, {
+        const filled = uns.apply(srcAssays); // #2417 / #2542 — barren: the unsampled metres filled at the typed value
+        const intervals = compositeDownhole(filled.assays, symbol, unit, elementUnits, {
           length: compositeLength, minCoverage,
           domainRows: domainChoice ? domainChoice.rows : null, // #1571
         });
@@ -139,7 +142,7 @@ export default function VariogramModal({ assays, assayElements, layers, collars,
         setResult({
           vg, fit, lag, suggested, capValue, domainLabel, spacing, nLagsUsed, fromSites: !!site, // #2221
           nComposites: points.length, dropped, transform, model,
-          nIntervals: intervals.length,
+          nIntervals: intervals.length, unsampled: uns.params(filled), // #2417
         });
       } catch (e) {
         setError(e.message || tr("Variogram calculation failed."));
@@ -265,7 +268,8 @@ export default function VariogramModal({ assays, assayElements, layers, collars,
             )}
           </div>
 
-          <button onClick={run} disabled={running || !symbols.length} style={{ ...btn(true), display: "flex", alignItems: "center", justifyContent: "center", gap: 6, opacity: running || !symbols.length ? 0.6 : 1 }}>
+          <UnsampledChoice u={uns} selStyle={{ ...inp, width: "auto", padding: "3px 6px" }} />{/* TASKS.csv #2417 / #2542 */}
+          <button onClick={run} disabled={running || !symbols.length || !uns.ready} style={{ ...btn(true), display: "flex", alignItems: "center", justifyContent: "center", gap: 6, opacity: running || !symbols.length || !uns.ready ? 0.6 : 1 }}>
             <Play size={14} /> {running ? tr("Running…") : tr("Compute variogram")}
           </button>
 
@@ -277,6 +281,7 @@ export default function VariogramModal({ assays, assayElements, layers, collars,
                 {tr("{nComposites} composites{v}{v2} · {nPairsUsed} pairs used · lag {lag} m{v4}{v5}{v6}", { nComposites: result.nComposites.toLocaleString(), v: result.domainLabel ? tr(" in domain \"{domainLabel}\"", { domainLabel: result.domainLabel }) : "", v2: !result.vg.subsampled ? "" : result.vg.holesTotal != null ? tr(" ({used} of {total} holes, whole holes, for the pair loop)", { used: result.vg.holesUsed.toLocaleString(), total: result.vg.holesTotal.toLocaleString() }) /* #1572 */ : result.vg.firstPairLag != null ? tr(" (subsampled to {nPoints} for the pair loop; no pairs closer than {h} m — Downhole only resolves the nugget)", { nPoints: result.vg.nPoints.toLocaleString(), h: result.vg.firstPairLag.toFixed(1) }) : tr(" (subsampled to {nPoints} for the pair loop)", { nPoints: result.vg.nPoints.toLocaleString() }), nPairsUsed: result.vg.nPairsUsed.toLocaleString(), lag: result.lag, v4: result.suggested != null ? (result.fromSites ? tr(" (suggested {suggested} m from the drill-site spacing)", { suggested: result.suggested.toFixed(1) }) : tr(" (suggested {suggested} m)", { suggested: result.suggested.toFixed(1) })) : "", v5: result.dropped ? tr(" · {dropped} composites could not be placed in 3D", { dropped: result.dropped }) : "", v6: result.capValue != null ? tr(" · capped at {capValue}", { capValue: +Number(result.capValue).toPrecision(4) /* #1420: was 2.7857037499998807 */ }) : "" })}
               </div>
 
+              {result.unsampled?.unsampledFilledM != null && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{unsampledResultLine(result.unsampled, symbol)}</div>}{/* #2417 */}
               {lagsShortOfSpacing(result.lag, result.nLagsUsed, result.spacing) && ( /* TASKS.csv #2221 */
                 <div role="note" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", lineHeight: 1.45 }}>{tr("The lags stop at {max} m; the {sites} drill sites are typically {typ} m apart (nearest {near} m, up to {far} m): raise the lag or the number of lags to see continuity between holes.", { max: Math.round(result.lag * result.nLagsUsed), sites: result.spacing.sites, typ: Math.round(result.spacing.medianM), near: Math.round(result.spacing.nearestM), far: Math.round(result.spacing.farthestM) })}</div>
               )}

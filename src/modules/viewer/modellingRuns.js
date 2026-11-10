@@ -2149,20 +2149,31 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
         const srcRows = inArea ? restrictRowsToHoles(numSrc ? srcData.assays : assays, visibleHoles) : (numSrc ? srcData.assays : assays); // #1741
         if (inArea && !srcRows.some((r) => r?.hole_id != null)) throw new Error(tr("None of the {n} hole(s) checked in the Holes list has {symbol} values (Model settings › Model area). Check the holes that hold them, or set Model area to Whole property.", { n: area.checked, symbol }));
         const srcAssays = numericIncludeQAQC ? srcRows : excludeQAQC(srcRows);
+        // TASKS.csv #2417 / #2542 — the unsampled metres inside the sampled holes: not known (left out) or barren at a typed value; under
+        // 60 % sampled the panel asks. Assay elements only (a downhole log or a layer field is read as logged).
+        let unsFill = null, unsParams = null;
+        if (!numSrc) {
+          const { resolveUnsampled } = await import("../../components/UnsampledChoice.jsx");
+          const u = resolveUnsampled("gradeShell", { assays: srcAssays, collars, symbol, unit, elementUnits });
+          if (!u.ready) throw new Error(tr("Choose how the unsampled metres inside the sampled holes are read (and, for barren, type their value) before running."));
+          unsFill = u.apply(srcAssays); unsParams = u.params(unsFill);
+          if (unsFill.filledM > 0) setNotices((q) => [...q, notice("Unsampled metres read as barren: {m} m in {n} hole(s) filled at the value typed ({v}).", { m: unsParams.unsampledFilledM.toLocaleString(), n: unsParams.unsampledHolesFilled, v: `${unsParams.unsampledValue} ${unit}` })]);
+        }
+        const runAssays = unsFill ? unsFill.assays : srcAssays;
         let intervals, rawStats = null;
         if (numericUseComposites) {
           // TASKS.csv #259 — high-grade capping. compositeDownhole has always accepted capValue and
           // applied it per RAW sample before length-weighted averaging (the correct order), but only
           // CompositingModal ever passed it: the grade shell composited uncapped, so one bonanza Au
           // assay drove IDW² across its whole search neighbourhood.
-          intervals = compositeDownhole(srcAssays, symbol, unit, elementUnits, {
+          intervals = compositeDownhole(runAssays, symbol, unit, elementUnits, {
             length: numericCompositeLength, minCoverage: numericMinCoverage, // TASKS.csv #262 — was hardcoded 0.5
             capValue: Number.isFinite(numericCapValue) && numericCapValue > 0 ? numericCapValue : null,
           });
         } else {
           const cap = Number.isFinite(numericCapValue) && numericCapValue > 0 ? numericCapValue : null;
           // TASKS.csv #571 — duplicates / overlaps resolved, values in `unit`, as in compositing
-          const raw = rawSampleIntervals(srcAssays, symbol, unit, elementUnits, { capValue: cap });
+          const raw = rawSampleIntervals(runAssays, symbol, unit, elementUnits, { capValue: cap });
           intervals = raw.intervals;
           rawStats = raw.stats;
         }
@@ -2366,7 +2377,7 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
           composited: numericUseComposites, compositeLengthM: numericUseComposites ? numericCompositeLength : null,
           minCoverage: numericUseComposites ? numericMinCoverage : null, // TASKS.csv #262
           capValue: Number.isFinite(numericCapValue) && numericCapValue > 0 ? numericCapValue : null,
-          minHoles: Math.max(1, numericMinHoles), includeQAQC: numericIncludeQAQC,
+          minHoles: Math.max(1, numericMinHoles), includeQAQC: numericIncludeQAQC, ...(unsParams || {}), // #2417
           // TASKS.csv #273 — the shared controls this tool now honours, recorded like every other param.
           anisotropy: anisotropy.enabled ? anisotropy.params : null,
           domain: gradeDomain ? gradeDomain.name : null,

@@ -32,6 +32,7 @@ import { solidChoices } from "../lib/solidChoices.js"; // TASKS.csv #1578
 import { lazyModal } from "../lib/lazyModal.jsx";
 import { collarsLookUnderground } from "../lib/pitShell.js"; // TASKS.csv #2217
 import { stampEpsg } from "../lib/provenance.js"; // TASKS.csv #2195
+import UnsampledChoice, { useUnsampled, unsampledResultLine } from "./UnsampledChoice.jsx"; // TASKS.csv #2417 / #2542
 const GradeTonnageModal = lazyModal(() => import("./GradeTonnageModal.jsx")); // TASKS.csv #1577 — from the result, not only from Geophysics
 
 // TASKS.csv #117 — grade estimation into block models (not just display). Micromine-specialist AND
@@ -234,6 +235,7 @@ export default function GradeEstimationModal({ assays: assaysProp, assayElements
 
   const qaqcExcludedCount = useMemo(() => assays.length - excludeQAQC(assays).length, [assays]);
   const srcAssays = useMemo(() => (includeQAQC ? assays : excludeQAQC(assays)), [assays, includeQAQC]);
+  const uns = useUnsampled("estimate", { assays: srcAssays, collars, symbol, unit, elementUnits }); // TASKS.csv #2417 / #2542
   // TASKS.csv #1738 (review #1645, Copley) — how far apart the holes are, under the radius and in a zero-block result
   // TASKS.csv #2062 (review #2013, Woodjam) — over the holes that carry the chosen element, not every collar: 534 district collars with no
   // assays made it '442 drill sites ... typically 82 m from the next' for an estimate informed by 8 holes in clusters 3-5 km apart
@@ -357,6 +359,7 @@ export default function GradeEstimationModal({ assays: assaysProp, assayElements
     // TASKS.csv #676 — with fewer samples than holes, no block can ever reach the hole rule (it just reported 0 blocks)
     if (maxSamples < minHoles) { setError(tr("Max samples per block ({maxSamples}) is below Min distinct holes ({minHoles}), so no block could ever be estimated. Raise Max samples or lower Min holes.", { maxSamples, minHoles })); return; }
     if (!bounds) { setError(tr("None of the loaded collars has a recorded length or any survey data, so there's no defensible depth to build a grid down to. Import hole lengths or survey records first — GeoStrix will not assume one.")); return; }
+    if (!uns.ready) { setError(tr("Choose how the unsampled metres inside the sampled holes are read (and, for barren, type their value) before running.")); setProgress(null); return; } // #2417
     setRunning(true);
     // Synchronous but deferred so the "Running…" state actually paints before the estimation loop
     // blocks the main thread — a plain synchronous call here would show the button flip back to "Run"
@@ -372,8 +375,9 @@ export default function GradeEstimationModal({ assays: assaysProp, assayElements
       try {
         const cap = Number.isFinite(capValue) && capValue > 0 ? capValue : null; // TASKS.csv #259
         let intervals, rawStats = null;
+        const filled = uns.apply(srcAssays), runAssays = filled.assays; // #2417 / #2542 — barren: the unsampled metres filled at the typed value
         if (useComposites) {
-          intervals = compositeDownhole(srcAssays, symbol, unit, elementUnits, {
+          intervals = compositeDownhole(runAssays, symbol, unit, elementUnits, {
             length: compositeLength, minCoverage, // TASKS.csv #262 — was hardcoded 0.5
             capValue: cap,
             domainRows: domainRowsSel, // #1571 — a built-in or a custom layer
@@ -381,7 +385,7 @@ export default function GradeEstimationModal({ assays: assaysProp, assayElements
           });
         } else {
           // TASKS.csv #571 — duplicates / overlaps resolved, values in `unit`, as in compositing
-          const raw = rawSampleIntervals(srcAssays, symbol, unit, elementUnits, { capValue: cap });
+          const raw = rawSampleIntervals(runAssays, symbol, unit, elementUnits, { capValue: cap });
           intervals = raw.intervals;
           rawStats = raw.stats;
         }
@@ -458,6 +462,7 @@ export default function GradeEstimationModal({ assays: assaysProp, assayElements
           // domain fields, which #533's edit had left inside the comment above (estimates since then lacked them)
           unit, capUnit: cap != null ? unit : null, domain: domainChoice ? domainChoice.label : null, ...(domainRowsSel && Object.values(capByDomain).some((v) => Number(v) > 0) ? { capByDomain: Object.fromEntries(Object.entries(capByDomain).filter(([, v]) => Number(v) > 0).map(([k, v]) => [k, Number(v)])) } : {}), // #1571 restrictToDomain: restrictToDomain && !!domainKey, noCodeAsDomain: restrictToDomain && !!domainKey && noCodeAsDomain /* #2541 */,
           desurveyMethod: desurveyMethod || "minimum curvature", samplePoints: points.length, generatedAt: new Date().toISOString(),
+          ...uns.params(filled), beyondFlagged: true, // #2417 / #2542 — the unsampled metres' reading; each block flagged above / below its samples
           ...(source ? { source: `${source.label} (${sourceData.assays.length} readings, values as logged)`, valueTransform: logInfo ? `log10 (each block a geometric mean; ${logInfo.belowFloor} value(s) at or below zero floored at ${logInfo.floor})` : "none", ...(sourceData.pointRows ? { pointSupportM: sourceData.pointSupport } : {}) } : {}), // #1741
         };
         if (est.mlsCounts) params.mlsBlocks = est.mlsCounts; // #516 — how the linear trend was fitted
@@ -505,6 +510,7 @@ export default function GradeEstimationModal({ assays: assaysProp, assayElements
         // TASKS.csv #1735 (review #1645, Copley) — the highest composites with no estimated block within a cell of them: the
         // two-hole rule left the only Cu intercept without a block and put the copper 90-110 m away
         est.topUnsupported = topCompositesWithoutBlocks(points, est.cells, Math.max(cell3.dx, cell3.dy, cell3.dz)); // #2418: the real cell
+        { let all = 0, out = 0; for (const c of est.cells) { const m = Math.max(0, c.value) * c.dx * c.dy * c.dz; all += m; if (c.beyond) out += m; } est.beyondShare = all > 0 ? out / all : 0; } // #2417 — metal share above / below every informing sample
         setResult({ ...est, params, nnCells: method === "nn" ? est.cells : nnEst.cells, checkPoints: points, samplePointCount: points.length, noCodeComposites: domainKey ? points.filter((p) => p.domain == null).length : 0 /* #2541 */, droppedCount: dropped, clampedCount: clamped, beyondTraceCount: beyondTrace, rawStats, intervalCount: intervals.length });
         setAdded(false); setAddedSupport(false); setAddedKv(false); // a fresh run invalidates every "Added ✓" state
       } catch (e) {
@@ -666,6 +672,7 @@ export default function GradeEstimationModal({ assays: assaysProp, assayElements
           <div style={{ padding: 10, background: "#f9fafb", border: "1px solid var(--color-hover-bg)", borderRadius: 6, display: "flex", flexDirection: "column", gap: 8 }}>
             <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", cursor: "pointer" }}>
               <input type="checkbox" checked={useComposites} onChange={(e) => setUseComposites(e.target.checked)} />{tr("Composite raw assays first (recommended)")}</label>
+            <UnsampledChoice u={uns} selStyle={{ ...inp, width: "auto", padding: "3px 6px" }} />{/* TASKS.csv #2417 / #2542 */}
             {useComposites && (
               <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
                 <label style={fieldLabel}>{tr("Composite length (m)")}<input type="number" step="any" min="0.1" value={compositeLength} onChange={(e) => setCompositeLength(Math.max(0.1, Number(e.target.value) || 2))} style={inp} />
@@ -806,7 +813,7 @@ export default function GradeEstimationModal({ assays: assaysProp, assayElements
               {tr("{collarsWithoutDepth} of {collars} collar(s) have no recorded length and no survey record — they contribute nothing to the grid's depth extent.", { collarsWithoutDepth, collars: collars.length })}</div>
           )}
 
-          <button onClick={run} disabled={!bounds || overLimit || reachPending || running || !symbol} style={{ ...btn(true), alignSelf: "flex-start", padding: "8px 16px", display: "flex", alignItems: "center", gap: 6, opacity: (!bounds || overLimit || !symbol) ? 0.5 : 1 }}>
+          <button onClick={run} disabled={!bounds || overLimit || reachPending || running || !symbol || !uns.ready /* #2417 */} style={{ ...btn(true), alignSelf: "flex-start", padding: "8px 16px", display: "flex", alignItems: "center", gap: 6, opacity: (!bounds || overLimit || !symbol || !uns.ready) ? 0.5 : 1 }}>
             <Play size={14} /> {running ? tr("Running… {v}", { v: progress != null ? Math.round(progress * 100) + "%" : "" }) : tr("Run estimation")}
           </button>
           {running && <button type="button" onClick={cancelRun} style={{ ...btn(false), alignSelf: "flex-start", padding: "6px 14px" }}>{tr("Cancel")}</button>}
@@ -870,6 +877,8 @@ export default function GradeEstimationModal({ assays: assaysProp, assayElements
                 <div style={{ color: "var(--color-warn-text)" }}>
                   {tr("{k} of the {n} highest composites have no estimated block within a cell of them ({list}): the blocks around them failed the Min distinct holes rule ({minHoles}) or the search, so this model puts the grade away from where it was drilled. Run with Min distinct holes 1 to estimate those blocks (they are flagged as informed by one hole), or widen the search.", { k: result.topUnsupported.unsupported.length, n: result.topUnsupported.checked, minHoles: result.params?.minHoles ?? "—", list: result.topUnsupported.unsupported.slice(0, 3).map((u) => `${u.hole_id ? `${u.hole_id} ` : ""}${u.value.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${unit}${u.nearestM != null ? tr(", nearest block {m} m", { m: Math.round(u.nearestM) }) : ""}`).join("; ") + (result.topUnsupported.unsupported.length > 3 ? ", …" : "") })}</div>
               )}
+              {unsampledResultLine(result.params, symbol) && <div style={{ color: result.params.unsampledFilledM != null ? "var(--color-text-secondary)" : "var(--color-warn-text)" }}>{unsampledResultLine(result.params, symbol)}</div>}{/* #2417 */}
+              {result.beyondShare > 0 && <div style={{ color: result.beyondShare > 0.1 ? "var(--color-warn-text)" : "var(--color-text-secondary)" }}>{tr("{p} % of the estimated metal is in blocks above or below every sample that informs them (Grade-tonnage gives it per cutoff).", { p: Math.round(result.beyondShare * 1000) / 10 })}</div>}{/* #2417 */}
               {result.params?.supportScoredAgainstM > 0 && <div style={{ color: "var(--color-text-secondary)" }}>{tr("No search radius: data support was scored against {m} m (twice the median spacing between holes); a block farther than that from every sample, not between holes, is unsupported.", { m: result.params.supportScoredAgainstM.toLocaleString() })}</div>}{/* #1411 */}
               {result.params?.restrictedToVolume && <div style={{ color: "var(--color-text-secondary)" }}>{tr("Restricted to {v}.", { v: result.params.restrictedToVolume })}</div>}{/* #1410 */}
               {/* TASKS.csv #676 — passing the hole rule while one hole carries nearly all the weight */}

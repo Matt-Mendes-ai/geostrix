@@ -53,7 +53,8 @@ export default function GradeTonnageModal({ model, epsg, onClose }) {
   const hasSupport = useMemo(() => model.cells.some((c) => typeof c.support === "string"), [model.cells]);
   const cutoffs = useMemo(() => [...new Set(cutoffText.split(/[,;\s]+/).map(Number).filter(Number.isFinite))], [cutoffText]);
   const rho = Number(density) > 0 ? Number(density) : null;
-  const rows = useMemo(() => gradeTonnageTable(cellsUsed, { cutoffs, density: rho, unit, interpolatedOnly: interpOnly }), [cellsUsed, cutoffs, rho, unit, interpOnly]);
+  const beyondKnown = !!model.params?.beyondFlagged; // #2417 — blocks above / below every sample informing them
+  const rows = useMemo(() => gradeTonnageTable(cellsUsed, { cutoffs, density: rho, unit, interpolatedOnly: interpOnly, beyondKnown }), [cellsUsed, cutoffs, rho, unit, interpOnly, beyondKnown]);
   const benchCut = cutoffs.includes(Number(benchCutoff)) ? Number(benchCutoff) : cutoffs[0];
   const benchRows = useMemo(() => (byBench && Number(benchH) > 0 && benchCut != null ? gradeTonnageByBench(cellsUsed, { cutoff: benchCut, benchH: Number(benchH), datum: Number(benchDatum) || 0, density: rho, unit, interpolatedOnly: interpOnly }) : []), [byBench, benchH, benchDatum, benchCut, cellsUsed, rho, unit, interpOnly]); // #1957
   const shown = rows.find((r) => r.blocks > 0) || null, lowSupport = shown?.interpolatedShare != null && shown.interpolatedShare < 0.5;
@@ -75,6 +76,7 @@ export default function GradeTonnageModal({ model, epsg, onClose }) {
       `Density: ${rho ? (fromSg ? `${rho} t/m3, length-weighted mean of ${sgLayer.n} Specific gravity rows, ${sgLayer.min}-${sgLayer.max}${sgLayer.left ? `, ${sgLayer.left} outside 1-8 left out` : ""} (one value for every block)` : `${rho} t/m3, entered by the user (one value for every block)`) : "not entered: volumes only"}${merged ? " | merged blocks counted at their COVERAGE share" : ""}`,
       "Mean grade: volume-weighted over the blocks at or above the cutoff",
       ...(hasSupport ? [interpOnly ? "Blocks: only those the estimate classed interpolated" : "Blocks: every estimated block; interpolated_pct / one_hole_pct give the volume share by support"] : []), // #1409
+      ...(beyondKnown ? [`beyond_samples_metal_pct: share of the metal in blocks wholly above or below every sample informing them | unsampled metres: ${model.params?.unsampledMetres || "not known (left out)"}`] : []), // #2417
       EXPLORATION_TARGET_CAUTION,
     ] });
     const benchOut = byBench && benchRows.length ? benchRows.map((r) => ({ bench_floor_rl: Math.round(r.floorRL * 100) / 100, cutoff: benchCut, blocks: r.blocks, volume_m3: Math.round(r.volumeM3), [`mean_${vname}`]: r.meanGrade == null ? "" : Number(r.meanGrade.toPrecision(5)), ...(rho ? { tonnes: Math.round(r.tonnes || 0) } : {}), ...(rho && metal ? Object.fromEntries(mcols.map((c) => [c.key, r.metal == null ? "" : Number((r.metal * c.factor).toPrecision(6))])) : {}), /* #1577 */ ...(r.interpolatedShare != null ? { interpolated_pct: Math.round(r.interpolatedShare * 100) } : {}) })) : null; // #1957
@@ -134,14 +136,17 @@ export default function GradeTonnageModal({ model, epsg, onClose }) {
             <th style={th}>{tr("Cutoff")}</th><th style={th}>{tr("Blocks")}</th><th style={th}>{tr("Volume (m³)")}</th><th style={th}>{tr("Mean grade")}</th>
             {rho && <th style={th}>{tr("Tonnes")}</th>}{rho && mcols.map((c) => <th key={c.key} style={th}>{tr(c.label)}</th>)}
             {hasSupport && <th style={th} title={tr("Share of the volume in blocks the estimate classed interpolated (between holes, from at least two)")}>{tr("Interpolated")}</th>}
+            {beyondKnown && <th style={th} title={tr("Share of the metal in blocks lying wholly above or below every sample that informs them: grade carried up or down the holes into metres their samples do not reach")}>{tr("Beyond the samples")}</th>}
           </tr></thead>
           <tbody>{rows.map((r) => (
             <tr key={r.cutoff}>
               <td style={td}>{sig(r.cutoff)}</td><td style={td}>{fmt(r.blocks)}</td><td style={td}>{fmt(r.volumeM3)}</td><td style={td}>{sig(r.meanGrade)}</td>
               {rho && <td style={td}>{fmt(r.tonnes)}</td>}{rho && mcols.map((c) => <td key={c.key} style={td}>{r.metal == null ? "—" : fmt(r.metal * c.factor, c.factor < 1e-2 && c.key !== "metal_oz" ? 1 : 0)}</td>)}
               {hasSupport && <td style={td}>{r.interpolatedShare == null ? "—" : `${Math.round(r.interpolatedShare * 100)} %`}</td>}
+              {beyondKnown && <td style={td}>{r.beyondShare == null ? "—" : `${Math.round(r.beyondShare * 100)} %`}</td>}
             </tr>))}</tbody>
         </table>
+        {beyondKnown && shown?.beyondShare > 0.1 && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", marginBottom: 6, lineHeight: 1.5 }}>{tr("{p} % of the metal at the {c} cutoff is in blocks above or below every sample that informs them: the estimate carried grade up or down the holes past their samples (unsampled core reads as not known unless the estimate filled it).", { p: Math.round(shown.beyondShare * 100), c: sig(shown.cutoff) })}</div>}
         {hasSupport && <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", marginBottom: 6 }}><input type="checkbox" checked={interpOnly} onChange={(e) => setInterpOnly(e.target.checked)} />{tr("Only blocks classed interpolated")}</label>}
         {hasSupport && !interpOnly && lowSupport && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", marginBottom: 6, lineHeight: 1.5 }}>{tr("Most of this volume is in blocks the estimate carried outward from the holes (extrapolated or unsupported), not between them: the tonnage rests on grades the drilling does not surround.")}</div>}
         {rows.length > 1 && (

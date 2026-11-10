@@ -9767,5 +9767,20 @@
   "No terrain is loaded: the E / N are those of the map cell you clicked, and the Elev is the ground interpolated between the nearest collars there. Check it before using it, or load a terrain.": "لم يتم تحميل أي تضاريس: الإحداثيان E / N هما إحداثيا خلية الخريطة التي نقرت عليها، والارتفاع هو سطح الأرض المستكمَل بين أقرب رؤوس الآبار هناك. تحقق منه قبل استخدامه، أو حمّل تضاريس.",
   "Added \"{name}\" to the map, on the ground interpolated between the collars because the project has no terrain; the holes are drawn over it. Its values export as GeoTIFF from the Raster module.": "أُضيفت \"{name}\" إلى الخريطة، على سطح الأرض المستكمَل بين رؤوس الآبار لأن المشروع ليس فيه تضاريس؛ وتُرسم الآبار فوقها. تُصدَّر قيمها بصيغة GeoTIFF من وحدة النقطية.",
   "On the ground between the collars": "على سطح الأرض بين رؤوس الآبار",
-  "On the ground between the collars (no terrain): the holes are drawn over it": "على سطح الأرض بين رؤوس الآبار (بلا تضاريس): تُرسم الآبار فوقها"
+  "On the ground between the collars (no terrain): the holes are drawn over it": "على سطح الأرض بين رؤوس الآبار (بلا تضاريس): تُرسم الآبار فوقها",
+  "A geologist often leaves core unsampled because it looked barren. Read as not known, those metres are left out and the estimate carries the grade of the samples around them into that core. Holes with no sample of the element are never filled.": "كثيرًا ما يترك الجيولوجي اللباب دون أخذ عينات لأنه بدا عقيمًا. عند قراءتها كغير معروفة، تُستبعد تلك الأمتار ويحمل التقدير محتوى العينات المجاورة إلى ذلك اللباب. لا تُملأ أبدًا الآبار التي ليس فيها أي عينة من العنصر.",
+  "Unsampled metres inside a sampled hole": "الأمتار غير المأخوذ منها عينات داخل بئر أُخذت منه عينات",
+  "not known: left out": "غير معروفة: تُستبعد",
+  "barren: a value I type": "عقيمة: قيمة أكتبها",
+  "Value of the unsampled metres ({unit})": "قيمة الأمتار غير المأخوذ منها عينات ({unit})",
+  "{s} of the {d} m drilled in the {n} hole(s) that carry {symbol} are sampled ({p} %).": "{s} من أصل {d} م محفورة في {n} بئر تحمل {symbol} مأخوذ منها عينات ({p} %).",
+  "Under 60 % are sampled: choose how the unsampled metres are read before running.": "أقل من 60 % مأخوذ منها عينات: اختر كيف تُقرأ الأمتار غير المأخوذ منها عينات قبل التشغيل.",
+  "Type the value they take (a detection limit, a background or 0): none is chosen for you.": "اكتب القيمة التي تأخذها (حد كشف أو خلفية أو 0): لا تُختار أي قيمة نيابة عنك.",
+  "Unsampled metres read as barren: {m} m in {n} hole(s) filled at the value typed ({v}).": "قُرئت الأمتار غير المأخوذ منها عينات كعقيمة: مُلئت {m} م في {n} بئر بالقيمة المكتوبة ({v}).",
+  "Unsampled metres read as not known: {m} m of the holes that carry {symbol} have no sample, and the estimate can carry grade into them.": "قُرئت الأمتار غير المأخوذ منها عينات كغير معروفة: {m} م من الآبار التي تحمل {symbol} بلا عينة، ويمكن أن يحمل التقدير المحتوى إليها.",
+  "Choose how the unsampled metres inside the sampled holes are read (and, for barren, type their value) before running.": "اختر كيف تُقرأ الأمتار غير المأخوذ منها عينات داخل الآبار المأخوذ منها عينات (وإن كانت عقيمة فاكتب قيمتها) قبل التشغيل.",
+  "{p} % of the estimated metal is in blocks above or below every sample that informs them (Grade-tonnage gives it per cutoff).": "{p} % من المعدن المقدَّر في كتل فوق أو تحت كل عينة تغذيها (يعطيه جدول المحتوى-الحمولة لكل حد قطع).",
+  "Share of the metal in blocks lying wholly above or below every sample that informs them: grade carried up or down the holes into metres their samples do not reach": "حصة المعدن في كتل تقع بالكامل فوق أو تحت كل عينة تغذيها: محتوى حُمل صعودًا أو نزولًا في الآبار إلى أمتار لا تبلغها عيناتها",
+  "Beyond the samples": "خارج العينات",
+  "{p} % of the metal at the {c} cutoff is in blocks above or below every sample that informs them: the estimate carried grade up or down the holes past their samples (unsampled core reads as not known unless the estimate filled it).": "{p} % من المعدن عند حد القطع {c} في كتل فوق أو تحت كل عينة تغذيها: حمل التقدير المحتوى صعودًا أو نزولًا في الآبار متجاوزًا عيناتها (يُقرأ اللباب غير المأخوذ منه عينات كغير معروف ما لم يملأه التقدير)."
 }
