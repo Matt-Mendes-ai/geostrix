@@ -176,6 +176,7 @@ import { objectVisibilityBundle, applyObjectVisibility } from "../lib/viewer/the
 import { LABEL_PX, makeTextSprite, fitScreenLabels, fitContourLabels } from "../lib/viewer/textSprite.js"; // TASKS.csv #1443 — moved out of this file; fitContourLabels: #1466
 import { restrictLayersToHoles } from "../lib/modelArea.js"; // TASKS.csv #1546
 import { gradeText } from "../lib/gradeText.js"; // #2515
+import { pickOnCollarSurface } from "./viewer/pickGround.js"; // #2574
 import { syncHoleLabels, declutterHoleLabels, withEveryLabel, syncTextLabels, sampleLabelItems } from "../lib/viewer/holeLabels.js"; // withEveryLabel: TASKS.csv #1770; syncTextLabels / sampleLabelText: #1443
 import { PickStandIn, PICK_ONLY_LAYER } from "../lib/viewer/pickStandIn.js"; // TASKS.csv #1500
 import { syncBatchedInstances, buildLayerBatches, eachLayerMember } from "../lib/viewer/layerBatches.js"; // moved out (size cap, #1084)
@@ -2674,7 +2675,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   const zoomToCustom = useCallback((id) => { const g = layerGroupsRef.current[id]; if (g && g.children.length) fitBox(new THREE.Box3().setFromObject(g)); }, [fitBox]);
   // TASKS.csv #1407 — everything shown (surface samples, map layers, terrain...), with the holes and block models as before
   const zoomToFitAll = () => { const b = visibleSceneBox(sceneRef.current?.getObjectByName("root")); (lastTracesRef.current || []).forEach((pts) => pts.forEach((p) => b.expandByPoint(new THREE.Vector3(p.x, p.y, p.z)))); fitBox(b); };
-  // TASKS.csv #1181 — the Fit button frames the drilling, as the opening view does: a 25 km mesh over 5 km of holes left them a few pixels. All of it stays on the right-click menu.
+  // TASKS.csv #1181 — Fit frames the drilling, as the opening view does (a 25 km mesh left 5 km of holes a few pixels); All: right-click menu
   const zoomToHoles = () => autoFitInitial(lastTracesRef.current, lastHoleTraceCountRef.current);
   // TASKS.csv #393 — zoom to one hole from the Holes list (its desurveyed trace, scene coords).
   const zoomToHole = useCallback((holeId) => { const t = tracesRef.current.find((x) => x.hole_id === holeId); if (t?.pts?.length) fitView([t.pts]); }, [fitView]);
@@ -5976,7 +5977,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   }, [visibleHoles, syncLayerBatches]);
 
   // ---------- generic import pipeline ----------
-  // TASKS.csv #445 step 3 — the import pipeline lives in modules/viewer/useImportPipeline.js (moved verbatim); called here, where that code used to sit, so the hook order is unchanged.
+  // TASKS.csv #445 step 3 — the import pipeline (viewer/useImportPipeline.js), called where its code sat: same hook order
   const { commitImport, handleDrop, importBrowserFile, importOverlap /* #1649 */, layerPicker, loadSampleProject, openImportFromRows, openImportModal, processImportQueue, sampleLoading, setLayerPicker, reloadDbImports /* #1963 */ } = useImportPipeline({
     connectDb: store.connectDb, dbConnections: store.dbConnections, dbImports: store.dbImports, setDbImports: store.setDbImports, // TASKS.csv #1963
     addBoundary,
@@ -6362,11 +6363,11 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     const mx = ((e.clientX - rect.left) / rect.width) * 2 - 1, my = -((e.clientY - rect.top) / rect.height) * 2 + 1;
     const raycaster = new THREE.Raycaster();
     raycaster.setFromCamera(new THREE.Vector2(mx, my), cameraRef.current);
-    const world = worldPointFromHits(raycaster, pickHits(raycaster).filter((h) => !h.object.userData.flatRaster)); // #1453
+    const world = pickOnCollarSurface(raycaster.ray, worldPointFromHits(raycaster, pickHits(raycaster).filter((h) => !h.object.userData.flatRaster)), terrain ? null : collars, originRef.current); // #1453; #2574
     if (!world) return;
     setPickedHolePoint(world);
     setPickHoleMode(false);
-  }, [pickHoleMode, pickHits, worldPointFromHits]);
+  }, [pickHoleMode, pickHits, worldPointFromHits, terrain, collars]);
   // TASKS.csv #1152 — a click adds a vertex to the interpretation line (on whatever is under the cursor: terrain, survey,
   // else the ground plane); a second click on the same spot ends it (the pane writes the line)
   const onInterpretClick = useCallback((e) => {

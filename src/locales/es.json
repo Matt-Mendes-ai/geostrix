@@ -9681,5 +9681,6 @@
   "domain": "dominio",
   "Reading the hole-based cards at the new Level…": "Leyendo las tarjetas de sondajes al nuevo nivel…",
   "The Level is applied when you press Enter or leave the field.": "El nivel se aplica al pulsar Intro o salir del campo.",
-  "{unitName}: {a} interval start(s) at a hole start and {b} below an unlogged gap were not used as contacts: a top needs a logged unit above it.": "{unitName}: {a} inicio(s) de intervalo en el comienzo de un sondaje y {b} bajo un tramo sin registrar no se usaron como contactos: un techo necesita una unidad registrada encima."
+  "{unitName}: {a} interval start(s) at a hole start and {b} below an unlogged gap were not used as contacts: a top needs a logged unit above it.": "{unitName}: {a} inicio(s) de intervalo en el comienzo de un sondaje y {b} bajo un tramo sin registrar no se usaron como contactos: un techo necesita una unidad registrada encima.",
+  "No terrain is loaded: the E / N are where your click meets the ground interpolated between the nearest collars, and the Elev is that ground. Check it before using it, or load a terrain.": "No hay terreno cargado: E / N son donde su clic toca el terreno interpolado entre los collares más cercanos, y la Elev es ese terreno. Compruébelo antes de usarlo, o cargue un terreno."
 }
