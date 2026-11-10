@@ -9727,5 +9727,9 @@
   "no To and no Depth, so no interval or point to draw": "sem Até nem Profundidade, então não há intervalo nem ponto a desenhar",
   "Added \"{name}\" as a custom layer ({rows} rows).": "\"{name}\" adicionado como camada personalizada ({rows} linhas).",
   "Layer name": "Nome da camada",
-  "Custom layer name": "Nome da camada personalizada"
+  "Custom layer name": "Nome da camada personalizada",
+  "Elev is blank: {z} from the terrain at this E / N.": "A elevação está vazia: {z} do terreno neste E / N.",
+  "Elev is blank: {z} from the ground interpolated between the nearest collars (no terrain).": "A elevação está vazia: {z} do solo interpolado entre as bocas mais próximas (sem terreno).",
+  "+ Add hole needs E, N and Elev as numbers, and a length above 0.": "+ Adicionar furo precisa de E, N e elevação como números, e um comprimento acima de 0.",
+  "Az / Dip / Length start from the {n} drilled holes (median); each hole added is kept for the next.": "Az / Mergulho / Comprimento partem dos {n} furos perfurados (mediana); cada furo adicionado é mantido para o próximo."
 }

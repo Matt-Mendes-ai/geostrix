@@ -9727,5 +9727,9 @@
   "no To and no Depth, so no interval or point to draw": "sin Hasta ni Profundidad, así que no hay intervalo ni punto que dibujar",
   "Added \"{name}\" as a custom layer ({rows} rows).": "Se añadió \"{name}\" como capa personalizada ({rows} filas).",
   "Layer name": "Nombre de la capa",
-  "Custom layer name": "Nombre de la capa personalizada"
+  "Custom layer name": "Nombre de la capa personalizada",
+  "Elev is blank: {z} from the terrain at this E / N.": "La elevación está vacía: {z} según el terreno en este E / N.",
+  "Elev is blank: {z} from the ground interpolated between the nearest collars (no terrain).": "La elevación está vacía: {z} según el suelo interpolado entre los collares más cercanos (sin terreno).",
+  "+ Add hole needs E, N and Elev as numbers, and a length above 0.": "+ Añadir sondaje necesita E, N y elevación como números, y una longitud mayor que 0.",
+  "Az / Dip / Length start from the {n} drilled holes (median); each hole added is kept for the next.": "Az / Inclinación / Longitud parten de los {n} sondajes perforados (mediana); cada sondaje añadido se conserva para el siguiente."
 }
