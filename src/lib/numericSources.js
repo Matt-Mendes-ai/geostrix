@@ -17,27 +17,36 @@ export const POINT_SUPPORT_M = 1; // a depth-only reading stands for this much c
 const MIN_ROWS = 3;
 
 const num = (v) => { const n = typeof v === "number" ? v : v === "" || v == null ? NaN : Number(v); return Number.isFinite(n) ? n : NaN; };
-const byName = (a, b) => String(a.name).localeCompare(String(b.name));
 
 // -> [{ key, label, symbol, unit, n, logScale, field, layerKey | layerId }]: the built-in numeric logs, then every numeric field
 // of every custom layer (its value column when that is numeric, then the extra numeric columns), by layer name
-export function numericSourceChoices({ layers, customLayers } = {}) {
+export function numericSourceChoices({ layers, customLayers, models = true } = {}) { // models: #2397 — false leaves out layers evaluated from a model
   const out = [];
   for (const [k, m] of Object.entries(LOG_SOURCES)) {
     const n = (layers?.[k] || []).filter((r) => Number.isFinite(num(r.value))).length;
     if (n >= MIN_ROWS) out.push({ key: `log:${k}`, label: m.label, symbol: m.label, unit: m.unit, n, logScale: m.logScale, field: "value", layerKey: k });
   }
-  for (const c of [...(customLayers || [])].sort(byName)) {
+  // TASKS.csv #2397 / #2421 (review #2325, WA uranium) — Downhole logs opened on "Drilling method › Casing depth (27)" (first by name) against
+  // a 49,684-reading gamma log; a binned log's per-bin count ("› n") was offered as a log, and a model evaluated on the holes ("On holes:
+  // ...", sourceModel) as an Estimation source (a model of a model); and every custom field read "as logged" though the log import keeps the unit (customLayers[].unit, #2160), so an
+  // eU3O8 estimate had no metal. Now: no bin counts; evaluated models last (and none with models: false); the layer's own unit on its value / min / max; imported logs
+  // (a unit or a bin size) first, then by reading count.
+  const custom = [];
+  for (const c of customLayers || []) {
+    if (c.sourceModel != null && !models) continue;
     const rows = c.rows || [];
-    const fields = numericLayerFields(rows, { min: MIN_ROWS }).filter((f) => f !== "from" && f !== "to" && f !== "value");
+    const fields = numericLayerFields(rows, { min: MIN_ROWS }).filter((f) => f !== "from" && f !== "to" && f !== "value" && !(c.binM && f === "n"));
     if (isNumericLayer(rows)) fields.unshift("value");
     for (const f of fields) {
       const n = rows.filter((r) => Number.isFinite(num(r[f]))).length;
       if (n < MIN_ROWS) continue;
       const label = f === "value" ? String(c.name) : `${c.name} › ${f}`;
-      out.push({ key: `custom:${c.id}:${f}`, label, symbol: label, unit: CUSTOM_UNIT, n, logScale: false, field: f, layerId: c.id });
+      const unit = c.unit && (f === "value" || (c.binM && (f === "min" || f === "max"))) ? String(c.unit) : CUSTOM_UNIT;
+      custom.push({ key: `custom:${c.id}:${f}`, label, symbol: label, unit, n, logScale: false, field: f, layerId: c.id, _log: c.sourceModel != null ? 2 : c.unit || c.binM ? 0 : 1, _name: String(c.name) });
     }
   }
+  custom.sort((a, b) => a._log - b._log || b.n - a.n || a._name.localeCompare(b._name));
+  for (const ch of custom) { delete ch._log; delete ch._name; out.push(ch); }
   return out;
 }
 

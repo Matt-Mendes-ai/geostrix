@@ -37,7 +37,7 @@ export async function loadWaUraniumExtras(readFile, store, { existingElements = 
   } catch (e) { notes.push(tr("WA uranium assays could not be loaded: {message}", { message: e.message })); }
   try {
     const rows = waUraniumGamma(await (await readFile("gamma.csv")).text());
-    store.addCustomLayer({ id: `custom_wa_gamma_${Date.now()}`, name: WA_URANIUM_GAMMA_LAYER, rows });
+    store.addCustomLayer({ id: `custom_wa_gamma_${Date.now()}`, name: WA_URANIUM_GAMMA_LAYER, rows, unit: "ppm" }); // unit: TASKS.csv #2421 — eU3O8 ppm, as a downhole-log import keeps it
     notes.push(tr("WA uranium gamma log: {rows} eU3O8 readings (every 0.5 m, cased probe) added as the custom layer \"{name}\" — along the holes in the 3D View, and a log in Downhole Logs and the modelling tools' numeric sources.", { rows: rows.length.toLocaleString(), name: WA_URANIUM_GAMMA_LAYER }));
   } catch (e) { notes.push(tr("WA uranium gamma log could not be loaded: {message}", { message: e.message })); }
   return notes;

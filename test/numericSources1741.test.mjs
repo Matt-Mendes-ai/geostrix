@@ -16,8 +16,8 @@ const customLayers = [
 
 test("the choices: the built-in numeric logs with 3+ readings, then every numeric field of each custom layer by name", () => {
   const c = numericSourceChoices({ layers, customLayers });
-  assert.deepEqual(c.map((s) => s.key), ["log:magsusc", "custom:c2:value", "custom:c1:ai_wav"]);
-  assert.deepEqual(c.map((s) => [s.label, s.unit, s.n, s.logScale]), [["Mag. susc.", "SI", 3, true], ["Cpy %", CUSTOM_UNIT, 3, false], ["SWIR › ai_wav", CUSTOM_UNIT, 4, false]]);
+  assert.deepEqual(c.map((s) => s.key), ["log:magsusc", "custom:c1:ai_wav", "custom:c2:value"]); // #2397: custom fields by reading count (4, 3), not by name
+  assert.deepEqual(c.map((s) => [s.label, s.unit, s.n, s.logScale]), [["Mag. susc.", "SI", 3, true], ["SWIR › ai_wav", CUSTOM_UNIT, 4, false], ["Cpy %", CUSTOM_UNIT, 3, false]]); // #2397 order
   assert.equal(findNumericSource("custom:c1:ai_wav", { layers, customLayers })?.label, "SWIR › ai_wav");
   assert.equal(findNumericSource("Au", { layers, customLayers }), null); // an assay symbol is not a source
   assert.equal(findNumericSource("log:sg", { layers, customLayers }), null);
@@ -46,7 +46,7 @@ test("log10 values with a floor, and the grid back to data units", () => {
 
 test("the dialogs: a Source select in Estimation, the logs in the Grade shell element list, the runner resolves a source key", () => {
   const m = readFileSync(new URL("../src/components/GradeEstimationModal.jsx", import.meta.url), "utf8");
-  assert.match(m, /numericSourceChoices\(\{ layers, customLayers \}\)/);
+  assert.match(m, /numericSourceChoices\(\{ layers, customLayers(, models: false[^}]*)? \}\)/); // models: #2397
   assert.match(m, /const assaysIn = sourceData \? sourceData\.assays : assaysProp, assayElements = sourceData \? sourceData\.assayElements : assayElementsProp;/);
   assert.match(m, /<option value="assay">\{tr\("Assays"\)\}<\/option>/);
   assert.match(m, /if \(logValues\) logInfo = logPoints\(points\);/);
