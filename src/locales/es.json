@@ -9740,5 +9740,7 @@
   "No unconformity above the last unit": "Sin discordancia sobre la última unidad",
   "Drill sites are typically {s} m apart; covered within starts at half that.": "Los sitios de perforación suelen estar a {s} m entre sí; la cobertura empieza en la mitad de eso.",
   "Hillshade with a vertical exaggeration of {z}x, chosen from this terrain's slopes (its steepest 2 % shown near 30°): on low relief a true-scale hillshade is one flat grey.": "Sombreado con una exageración vertical de {z}x, elegida según las pendientes de este terreno (su 2 % más empinado se muestra cerca de 30°): en relieve bajo un sombreado a escala real es un gris plano.",
-  "Slope draped on the terrain: white {min}° or flatter, darkest grey {max}° or steeper (this terrain's 2-98 % range).": "Pendiente drapeada sobre el terreno: blanco {min}° o menos, gris más oscuro {max}° o más (el rango 2-98 % de este terreno)."
+  "Slope draped on the terrain: white {min}° or flatter, darkest grey {max}° or steeper (this terrain's 2-98 % range).": "Pendiente drapeada sobre el terreno: blanco {min}° o menos, gris más oscuro {max}° o más (el rango 2-98 % de este terreno).",
+  "Azimuth and width from the drill lines ({az}°, {s} m apart).": "Azimut y ancho según las líneas de perforación ({az}°, a {s} m entre sí).",
+  "Azimuth from the drill lines ({az}°).": "Azimut según las líneas de perforación ({az}°)."
 }

@@ -186,6 +186,7 @@ import { syncDrawLods, dropDrawLod } from "../lib/viewer/drawLod.js"; // TASKS.c
 import { useModelling } from "./viewer/useModelling.js";
 import { useUnitSource } from "./viewer/useUnitSource.js"; // TASKS.csv #2378
 import { wheelZoom } from "./viewer/wheelZoom.js"; // #2368
+import { useDrillLineDefaults } from "./viewer/drillLines.js"; // #2366
 import { pBtn, smallSel } from "../lib/sidebarStyles.js"; // TASKS.csv #704 // TASKS.csv #445 step 2
 import { isMarkedQcRow } from "../lib/qaqcCore.js"; // TASKS.csv #601; qaqcCore: #1345
 import { isAreaBoundary } from "../lib/boundaryImport.js"; // TASKS.csv #1466
@@ -931,7 +932,6 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   const [sectionPreview, setSectionPreview] = useState(null);
   const [sectionCorridor, setSectionCorridor] = useState(100);
   // TASKS.csv #393 — a section typed by centre / azimuth / length (blank centre = the data's centre).
-  const [typedSection, setTypedSection] = useState({ e: "", n: "", azimuth: 0, length: 500 });
 
   // TASKS.csv #121 (QGIS-specialist audit finding, approved) — distance/bearing/area measurement
   // tools in the 3D view. `measureMode` null = off; "distance" = click to chain a polyline ruler
@@ -946,8 +946,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   const [measurePts, setMeasurePts] = useState([]); // [{x,y,z}, ...] world coordinates
   // TASKS.csv — "slice series" / fence-section generator (user request: "I wanna be able to slice the
   // voxel in equal parts on a specified azi and width"). See generateSliceSeries below.
-  const [sliceSeriesAzimuth, setSliceSeriesAzimuth] = useState(0);
-  const [sliceSeriesWidth, setSliceSeriesWidth] = useState(50);
+  const { sliceSeriesAzimuth, setSliceSeriesAzimuth, sliceSeriesWidth, setSliceSeriesWidth, typedSection, setTypedSection, lineCentre, lineNote } = useDrillLineDefaults(collars); // #2366
   const [fenceCoverModels, setFenceCoverModels] = useState(false); // #1180
 
   const [gridConfig, setGridConfig] = useState({ ...DEFAULT_GRID });
@@ -7036,7 +7035,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       const ts = tracesRef.current;
       if (!ts.length) { setNotices((p) => [...p, notice("Enter a centre easting and northing — there are no drillholes to centre the section on.")]); return; }
       const xs = ts.flatMap((t) => t.wx), ys = ts.flatMap((t) => t.wy);
-      e = (arrMin(xs) + arrMax(xs)) / 2; n = (arrMin(ys) + arrMax(ys)) / 2;
+      e = lineCentre?.x ?? (arrMin(xs) + arrMax(xs)) / 2; n = lineCentre?.y ?? (arrMin(ys) + arrMax(ys)) / 2; // #2366 the median collar
     }
     const g = sectionFromCentre({ e, n, azimuth: Number(typedSection.azimuth) || 0, length: Number(typedSection.length) || 500 });
     openDefinedSection(g, `Section ${Math.round(e)}E ${Math.round(n)}N az ${g.azimuth.toFixed(0)}°`);
@@ -7283,7 +7282,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
 
         </>)}
         {toolPane === "fence" && (<>
-        {paneHeader("Slice series (fence sections)", Rows3, "section")}
+        {paneHeader("Slice series (fence sections)", Rows3, "section")}{lineNote && <div style={miniField}>{lineNote}</div>}
         <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("Cuts the drilling into equal-width parallel sections at a fixed azimuth (the visible voxel / block models too when \"Also cover the visible block models\" is ticked, or when there are no drillholes) — each one added to the list below, ready to open individually. Includes the geophysics voxel slice automatically, same as any other section.")}</div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>{/* #1258 */}
           <label style={{ ...miniField, flex: 1 }}>{tr("Azimuth (°)")}<input type="number" min="0" max="359" step="1" value={sliceSeriesAzimuth} onChange={(e) => setSliceSeriesAzimuth(((Number(e.target.value) || 0) % 360 + 360) % 360)} style={{ background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 6px", color: "var(--color-text)", fontSize: "var(--font-size-sm)" }} />

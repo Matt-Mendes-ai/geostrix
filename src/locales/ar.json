@@ -9740,5 +9740,7 @@
   "No unconformity above the last unit": "لا عدم توافق فوق الوحدة الأخيرة",
   "Drill sites are typically {s} m apart; covered within starts at half that.": "تتباعد مواقع الحفر عادة {s} م؛ وتبدأ مسافة التغطية من نصف ذلك.",
   "Hillshade with a vertical exaggeration of {z}x, chosen from this terrain's slopes (its steepest 2 % shown near 30°): on low relief a true-scale hillshade is one flat grey.": "تظليل بمبالغة رأسية {z}x، مختارة من انحدارات هذه التضاريس (أشد 2 % منها يظهر قرب 30°): على التضاريس المنخفضة يكون التظليل بالمقياس الحقيقي رماديًا مسطحًا.",
-  "Slope draped on the terrain: white {min}° or flatter, darkest grey {max}° or steeper (this terrain's 2-98 % range).": "الانحدار مُكسى على التضاريس: أبيض {min}° أو أقل، أغمق رمادي {max}° أو أكثر (نطاق 2-98 % لهذه التضاريس)."
+  "Slope draped on the terrain: white {min}° or flatter, darkest grey {max}° or steeper (this terrain's 2-98 % range).": "الانحدار مُكسى على التضاريس: أبيض {min}° أو أقل، أغمق رمادي {max}° أو أكثر (نطاق 2-98 % لهذه التضاريس).",
+  "Azimuth and width from the drill lines ({az}°, {s} m apart).": "السمت والعرض من خطوط الحفر ({az}°، متباعدة {s} م).",
+  "Azimuth from the drill lines ({az}°).": "السمت من خطوط الحفر ({az}°)."
 }
