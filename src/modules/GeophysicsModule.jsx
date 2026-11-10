@@ -78,6 +78,7 @@ import { VoxelRangeRow } from "./viewer/ViewerParts.jsx"; // TASKS.csv #1780
 import { terrainFromBlockModel } from "../lib/terrainFromModel.js"; // TASKS.csv #1806
 import { guessQualityColumn, filterSignalQuality, despikeAlongLines } from "../lib/surveyClean.js"; // TASKS.csv #1583 // TASKS.csv #786
 import { mineGridOf } from "../lib/mineGrid.js"; // TASKS.csv #2586
+import { niceContourInterval, terrainRange, MIN_CONTOUR_INTERVAL } from "../lib/contourInterval.js"; // TASKS.csv #2462
 import { vectorToBoundaryPolylines, claimsFromVector, isAreaBoundary } from "../lib/boundaryImport.js"; // TASKS.csv #1035; claims per feature: #1970; isAreaBoundary: #1466
 import { clampCellBudget, MIN_CELL_BUDGET, MAX_BLOCK_MODEL_BUDGET } from "../lib/estimationMeta.js"; // TASKS.csv #1074
 import { checkGpkgSize } from "../lib/gpkgSize.js"; // TASKS.csv #1716
@@ -243,6 +244,8 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
   const [contourOpen, setContourOpen] = useState(false);
   const [contourMsg, setContourMsg] = useState(null); // TASKS.csv #1759 — shown in the Terrain pane, not the Point survey pane's box
   const [contourInterval, setContourInterval] = useState(50);
+  const [contourTyped, setContourTyped] = useState(false); // TASKS.csv #2462 — a typed interval is kept; else the form opens on the terrain's own step
+  const [contourClamped, setContourClamped] = useState(null); // #2462 — what was typed when it was raised to the smallest interval
   const [contourColor, setContourColor] = useState("#8a6a45");
   const [hillshadeAzimuth, setHillshadeAzimuth] = useState(315);
   const [hillshadeAltitude, setHillshadeAltitude] = useState(45);
@@ -2147,7 +2150,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                 lands as ordinary BOUNDARY polylines (not a raster) since contours are genuinely
                 vector data, and that pipeline already gives them colour, opacity and drape-on-terrain
                 for free. One boundary per contour level so individual levels can be styled/hidden. */}
-            <button onClick={() => setContourOpen((v) => !v)} style={{ ...pBtn, marginTop: 6, marginBottom: 0, background: contourOpen ? "var(--color-selected-bg)" : undefined }}>
+            <button onClick={() => { if (!contourOpen && !contourTyped) { const r = terrainRange(terrain); if (r) setContourInterval(niceContourInterval(r[0], r[1])); } setContourOpen((v) => !v); }} style={{ ...pBtn, marginTop: 6, marginBottom: 0, background: contourOpen ? "var(--color-selected-bg)" : undefined }}>{/* #2462 — the interval from the relief */}
               <Waypoints size={14} />{" "}{tr("Generate contours…")}</button>
             {contourMsg && ( /* #1759 */
               <div style={{ marginTop: 6, padding: "6px 8px", fontSize: "var(--font-size-sm)", borderRadius: 6, background: typeof contourMsg === "object" && contourMsg.info ? "var(--color-bg-subtle)" : "var(--color-danger-bg)", color: typeof contourMsg === "object" && contourMsg.info ? "var(--color-text-secondary)" : "var(--color-danger-fg)" }}>{typeof contourMsg === "object" ? contourMsg.text : contourMsg}</div>
@@ -2156,8 +2159,9 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
               <div style={{ marginTop: 6, padding: "8px 9px", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
                   <span style={{ color: "var(--color-text-faint)", width: 60, flexShrink: 0 }} title={tr("Vertical spacing between contour lines, in the DEM's own elevation units (metres).")}>{tr("Interval (m)")}</span>
-                  <input type="number" min="1" value={contourInterval} onChange={(e) => setContourInterval(Math.max(1, Number(e.target.value) || 50))} style={numInput} />
+                  <input type="number" min={MIN_CONTOUR_INTERVAL} step="any" value={contourInterval} onChange={(e) => { const v = Number(e.target.value); setContourTyped(true); if (e.target.value === "" || !Number.isFinite(v)) return; setContourClamped(v < MIN_CONTOUR_INTERVAL ? v : null); setContourInterval(Math.max(MIN_CONTOUR_INTERVAL, v)); }} style={numInput} />
                 </div>
+                {contourClamped != null && <div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", margin: "-2px 0 6px" }}>{tr("{v} m was raised to {min} m, the smallest interval.", { v: contourClamped, min: MIN_CONTOUR_INTERVAL })}</div>}{/* #2462 */}
                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
                   <span style={{ color: "var(--color-text-faint)", width: 60, flexShrink: 0 }} title={tr("Colour of the contour lines (all levels are one boundary).")}>{tr("Colour")}</span>
                   <input type="color" value={contourColor} onChange={(e) => setContourColor(e.target.value)} style={{ width: 30, height: 20, padding: 0, border: "1px solid var(--color-border-light)", borderRadius: 3, background: "none", cursor: "pointer" }} />
@@ -2180,8 +2184,11 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                       closed.push(pl.length > 3 && Math.hypot(a.x - b.x, a.y - b.y) < 1e-6);
                       lineLevels.push(level);
                     }));
-                    addBoundary({ name: tr("{terrain} contours ({interval} m)", { terrain: terrain.name, interval: contourInterval }), polylines: lines, closedFlags: closed, contourLevels: lineLevels, contourInterval: contourInterval, useVertexZ: true, color: contourColor, drapeMode: "flat" }); // contourInterval: #1466, its index contours
-                    setContourMsg({ info: true, text: tr(levels.length === 1 ? "Generated {levels} contour level ({contourInterval} m interval) as one boundary.{v2}" : "Generated {levels} contour levels ({contourInterval} m interval) as one boundary.{v2}", { levels: levels.length, contourInterval, v2: truncated ? tr(" Stopped at the 200-level cap — use a larger interval for full coverage.") : "" }) });
+                    // TASKS.csv #2462 — the same terrain at the same interval again replaces its contours (each repeat added an identical boundary)
+                    const same = (boundaries || []).filter((b) => b.contourInterval === contourInterval && b.contourTerrain === terrain.name);
+                    same.forEach((b) => removeBoundary(b.id));
+                    addBoundary({ contourTerrain: terrain.name, name: tr("{terrain} contours ({interval} m)", { terrain: terrain.name, interval: contourInterval }), polylines: lines, closedFlags: closed, contourLevels: lineLevels, contourInterval: contourInterval, useVertexZ: true, color: contourColor, drapeMode: "flat" }); // contourInterval: #1466, its index contours
+                    setContourMsg({ info: true, text: tr(levels.length === 1 ? "Generated {levels} contour level ({contourInterval} m interval) as one boundary.{v2}" : "Generated {levels} contour levels ({contourInterval} m interval) as one boundary.{v2}", { levels: levels.length, contourInterval, v2: truncated ? tr(" Stopped at the 200-level cap — use a larger interval for full coverage.") : "" }) + (same.length ? tr(" It replaces the earlier contours of this terrain at this interval.") : "") }); // #2462
                     setContourOpen(false);
                   }}
                   style={{ ...pBtn, marginBottom: 0, justifyContent: "center" }}

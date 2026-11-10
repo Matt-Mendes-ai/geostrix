@@ -9732,5 +9732,7 @@
   "Elev is blank: {z} from the ground interpolated between the nearest collars (no terrain).": "L'altitude est vide : {z} d'après le sol interpolé entre les collets les plus proches (pas de terrain).",
   "+ Add hole needs E, N and Elev as numbers, and a length above 0.": "+ Ajouter le sondage demande E, N et l'altitude en nombres, et une longueur au-dessus de 0.",
   "Az / Dip / Length start from the {n} drilled holes (median); each hole added is kept for the next.": "Az / Pendage / Longueur partent des {n} sondages forés (médiane) ; chaque sondage ajouté est gardé pour le suivant.",
-  "{n} of {m} rows checked have X / Y outside ±180 / ±90 (e.g. {x}, {y}), so they are not longitude / latitude: check the From CRS. Such rows are left blank.": "{n} des {m} lignes vérifiées ont X / Y hors de ±180 / ±90 (p. ex. {x}, {y}) : ce ne sont pas des longitudes / latitudes, vérifiez le CRS de départ. Ces lignes restent vides."
+  "{n} of {m} rows checked have X / Y outside ±180 / ±90 (e.g. {x}, {y}), so they are not longitude / latitude: check the From CRS. Such rows are left blank.": "{n} des {m} lignes vérifiées ont X / Y hors de ±180 / ±90 (p. ex. {x}, {y}) : ce ne sont pas des longitudes / latitudes, vérifiez le CRS de départ. Ces lignes restent vides.",
+  "{v} m was raised to {min} m, the smallest interval.": "{v} m a été porté à {min} m, le plus petit intervalle.",
+  " It replaces the earlier contours of this terrain at this interval.": " Il remplace les courbes précédentes de ce terrain à cet intervalle."
 }
