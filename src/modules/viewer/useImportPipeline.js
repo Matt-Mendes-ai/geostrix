@@ -745,7 +745,7 @@ export function useImportPipeline(ctx) {
           const xc = importModal.mapping?.x, yc = importModal.mapping?.y;
           const landed = transformImportRows(importModal.allRows, importModal.mapping, { units, grid, zShift: 0 }).rows;
           const pts = xc && yc ? landed.map((r) => ({ x: parseFloat(String(r[xc])), y: parseFloat(String(r[yc])) })).filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y)) : null;
-          const chosen = await requestProjectCrs(tr("{fileName}: the control points turn these mine-grid coordinates into map coordinates. Which coordinate system are the control points' map coordinates in? The collars are placed in it.", { fileName: importModal.fileName }), pts, null);
+          const chosen = await requestProjectCrs(tr("{fileName}: the control points turn these mine-grid coordinates into map coordinates. Which coordinate system are the control points' map coordinates in? The collars are placed in it.", { fileName: importModal.fileName }), pts, null, { noLocalGrid: true }); // noLocalGrid: #2621
           if (!chosen) { setNotices((p) => [...p, notice("{fileName}: the local-grid transform needs the coordinate system its control points are in, and none was chosen. Nothing was imported.", { fileName: importModal.fileName })]); return; }
           importStateRef.current = { ...importStateRef.current, project: { ...importStateRef.current.project, epsg: chosen, crsSet: true, localGrid: null } };
         }

@@ -17,7 +17,7 @@ import { smallGridCoordinates } from "../lib/crsFromColumns.js"; // TASKS.csv #2
 
 const CrsWorldMap = React.lazy(() => import("./CrsWorldMap.jsx")); // #1330
 
-export default function ProjectCrsModal({ reason, points, suggested = null, onDone }) {
+export default function ProjectCrsModal({ reason, points, suggested = null, noLocalGrid = false, onDone }) { // noLocalGrid: #2621
   const { project, collars: storeCollars, setEpsg, setLocalGrid, projectIsEmpty } = useStore();
   const collars = points?.length ? points : storeCollars; // the file being imported, when there is one
   const [where, setWhere] = useState("");
@@ -25,7 +25,7 @@ export default function ProjectCrsModal({ reason, points, suggested = null, onDo
   // TASKS.csv #2180 — the third answer: local mine-grid coordinates, kept, no CRS. Pre-selected on a local-grid project, or when the
   // coordinates are ones no UTM / MGA zone has (and the file named no CRS)
   const smallGrid = useMemo(() => smallGridCoordinates((points?.length ? points : storeCollars) || []), [points, storeCollars]);
-  const [localMode, setLocalMode] = useState(() => !project.crsSet && (!!project.localGrid || (!suggested && !!smallGrid)));
+  const [localMode, setLocalMode] = useState(() => !noLocalGrid && !project.crsSet && (!!project.localGrid || (!suggested && !!smallGrid)));
   const [gridName, setGridName] = useState(project.localGrid?.name || "");
   const setChoice = (c) => { setChoiceRaw(c); setLocalMode(false); };
   const [searchAll, setSearchAll] = useState(false);
@@ -69,13 +69,13 @@ export default function ProjectCrsModal({ reason, points, suggested = null, onDo
         <div style={{ padding: 16, overflowY: "auto", display: "flex", flexDirection: "column", gap: 12 }}>
           {reason && <div style={{ ...note, color: "var(--color-text)" }}>{reason}</div>}
           <div style={note}>{tr("GeoStrix places every file, terrain and online map with this CRS. A collar CSV doesn't say which CRS it is in, and the numbers alone can't tell one UTM zone from the next.")}</div>
-          {/* TASKS.csv #2180 — the third answer */}
-          <div role="radio" aria-checked={localMode} tabIndex={0} onClick={() => setLocalMode(true)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setLocalMode(true); } }}
+          {/* TASKS.csv #2180 — the third answer; #2621: not when the question is which real CRS the coordinates are in */}
+          {!noLocalGrid && <div role="radio" aria-checked={localMode} tabIndex={0} onClick={() => setLocalMode(true)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setLocalMode(true); } }}
             style={{ border: `1px solid ${localMode ? "var(--color-accent)" : "var(--color-border)"}`, background: localMode ? "var(--color-selected-bg)" : "transparent", borderRadius: 6, padding: "8px 10px", cursor: "pointer", fontSize: "var(--font-size-sm)", lineHeight: 1.45 }}>
             <div style={{ color: "var(--color-text)", fontWeight: 600 }}>{tr("These are local mine-grid coordinates: keep them, no CRS")}</div>
             <div style={{ color: "var(--color-text-muted)" }}>{smallGrid && !project.localGrid ? tr("{n} of {of} coordinates are ones no UTM / MGA zone has (eastings {x0}–{x1}), so this is chosen.", { n: smallGrid.n, of: smallGrid.of, x0: Math.round(smallGrid.x[0]).toLocaleString(), x1: Math.round(smallGrid.x[1]).toLocaleString() }) + " " : ""}{tr("Everything stays in the grid's own metres and later files are not asked again. Terrain and imagery downloads, basemaps, Macrostrat, true / magnetic north and exports with a coordinate system (.prj, KML, GeoPackage) say they are not available until a CRS is chosen.")}</div>
             {localMode && <input value={gridName} onClick={(e) => e.stopPropagation()} onChange={(e) => setGridName(e.target.value)} placeholder={tr("Grid name (optional), e.g. Wallaby mine grid")} aria-label={tr("Local grid name")} style={{ ...inp, marginTop: 6 }} />}
-          </div>
+          </div>}
 
           <div>
             <div style={label}>{tr("Where is the project? (latitude, longitude — roughly is enough)")}</div>
