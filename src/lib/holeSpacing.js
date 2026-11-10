@@ -27,3 +27,6 @@ export function zeroBlockAdvice({ blocksEstimated, searchRadiusM, minHoles, spac
   if (spacing && Number(minHoles) >= 2 && spacing.nearestM > 2 * r) return { kind: "holes-apart", radiusNeededM: Math.ceil(spacing.nearestM / 2 / 5) * 5 };
   return { kind: "radius", radiusNeededM: null };
 }
+
+// TASKS.csv #2420 — the opening search radius of an estimate: 2.5 x the typical site spacing, to 10 m (at least 10 m)
+export const searchFromSpacingM = (medianM) => Math.max(10, Math.round((2.5 * medianM) / 10) * 10);

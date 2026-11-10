@@ -9742,5 +9742,6 @@
   "Hillshade with a vertical exaggeration of {z}x, chosen from this terrain's slopes (its steepest 2 % shown near 30°): on low relief a true-scale hillshade is one flat grey.": "تظليل بمبالغة رأسية {z}x، مختارة من انحدارات هذه التضاريس (أشد 2 % منها يظهر قرب 30°): على التضاريس المنخفضة يكون التظليل بالمقياس الحقيقي رماديًا مسطحًا.",
   "Slope draped on the terrain: white {min}° or flatter, darkest grey {max}° or steeper (this terrain's 2-98 % range).": "الانحدار مُكسى على التضاريس: أبيض {min}° أو أقل، أغمق رمادي {max}° أو أكثر (نطاق 2-98 % لهذه التضاريس).",
   "Azimuth and width from the drill lines ({az}°, {s} m apart).": "السمت والعرض من خطوط الحفر ({az}°، متباعدة {s} م).",
-  "Azimuth from the drill lines ({az}°).": "السمت من خطوط الحفر ({az}°)."
+  "Azimuth from the drill lines ({az}°).": "السمت من خطوط الحفر ({az}°).",
+  "Search radius {r} m: 2.5 times the {m} m typical spacing, so a block between two holes reaches both.": "نصف قطر البحث {r} م: 2.5 ضعف التباعد المعتاد {m} م، كي تصل الكتلة الواقعة بين ثقبين إلى كليهما."
 }

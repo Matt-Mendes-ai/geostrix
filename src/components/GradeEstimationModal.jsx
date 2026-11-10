@@ -23,7 +23,7 @@ import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no 
 import { trendBasis, trendSearchScales, describeTrend } from "../lib/trend.js"; // TASKS.csv #650
 import { flatSearchTrend, flatSearchProposal } from "../lib/estimationShape.js"; // TASKS.csv #2418
 import { t as tr } from "../lib/i18n.js";
-import { holeSpacingSummary, zeroBlockAdvice } from "../lib/holeSpacing.js"; // TASKS.csv #1738
+import { holeSpacingSummary, zeroBlockAdvice, searchFromSpacingM } from "../lib/holeSpacing.js"; // TASKS.csv #1738; searchFromSpacingM: #2420
 import { topCompositesWithoutBlocks } from "../lib/shellSupport.js"; // TASKS.csv #1735 // TASKS.csv #786
 import { domainLayerChoices } from "../lib/domainLayers.js"; // TASKS.csv #1571
 import { numericSourceChoices, sourceAssays, logPoints, unlogValue } from "../lib/numericSources.js"; // TASKS.csv #1741 — a downhole log or a numeric layer field as the source
@@ -240,6 +240,12 @@ export default function GradeEstimationModal({ assays: assaysProp, assayElements
   const assayedHoles = useMemo(() => { const s = new Set(); for (const a of srcAssays) if (Number.isFinite(a.values?.[symbol])) s.add(a.hole_id); return s; }, [srcAssays, symbol]);
   const spacingCollars = useMemo(() => { const c = collars.filter((x) => assayedHoles.has(x.hole_id)); return c.length ? c : collars; }, [collars, assayedHoles]);
   const spacing = useMemo(() => holeSpacingSummary(spacingCollars), [spacingCollars]);
+  // TASKS.csv #2420 (review #2325, WA uranium) — the search opens from the drilling: 2.5 x the typical site spacing (sites 77 m apart ->
+  // 190 m), not 50 m beside a line saying the holes are 77 m apart (0.45 % of the grid estimated, 137 of the 294 highest composites with
+  // no block). A remembered or typed radius is kept.
+  const searchFromSpacing = !(saved && saved.searchRadius !== undefined) && spacing?.medianM > 0 ? searchFromSpacingM(spacing.medianM) : null;
+  const searchTouched = useRef(false);
+  useEffect(() => { if (searchFromSpacing && !searchTouched.current) setSearchRadius(searchFromSpacing); }, [searchFromSpacing]);
 
   // TASKS.csv #259 — the selected element's coefficient of variation, the standard screen for "is this
   // distribution outlier-driven enough that estimating it uncapped will overstate grade?". Same
@@ -608,7 +614,8 @@ export default function GradeEstimationModal({ assays: assaysProp, assayElements
               </div>
             )}
             {spacing && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 4, lineHeight: 1.4 }}>{tr(spacing.sites === 2 ? "Holes: the two drill sites are {near} m apart. Two holes must both lie within the search radius of a block for it to count (Min distinct holes)." : "Holes: {sites} drill sites, the nearest {near} m apart, typically {median} m from the next (up to {far} m). Two holes must both lie within the search radius of a block for it to count (Min distinct holes).", { sites: spacing.sites, near: Math.round(spacing.nearestM), median: Math.round(spacing.medianM), far: Math.round(spacing.farthestM) })}</div>}{/* #1738 */}
-            <label style={fieldLabel} title={tr("No sample within this distance of a block leaves it un-estimated (no cell), rather than extrapolating grade far from any real data. 0 = no radius assumption, capped internally at the grid's own diagonal so the run can't hang.")}>{tr("Search radius (m, 0 = no limit)")}<input type="number" min="0" step="any" value={searchRadius} onChange={(e) => setSearchRadius(Math.max(0, Number(e.target.value) || 0))} style={inp} />
+            {searchFromSpacing && !searchTouched.current && searchRadius === searchFromSpacing && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 4, lineHeight: 1.4 }}>{tr("Search radius {r} m: 2.5 times the {m} m typical spacing, so a block between two holes reaches both.", { r: searchFromSpacing, m: Math.round(spacing.medianM) })}</div>}{/* #2420 */}
+            <label style={fieldLabel} title={tr("No sample within this distance of a block leaves it un-estimated (no cell), rather than extrapolating grade far from any real data. 0 = no radius assumption, capped internally at the grid's own diagonal so the run can't hang.")}>{tr("Search radius (m, 0 = no limit)")}<input type="number" min="0" step="any" value={searchRadius} onChange={(e) => { searchTouched.current = true; setSearchRadius(Math.max(0, Number(e.target.value) || 0)); }} style={inp} />
               {trend && !(searchRadius > 0) && gridDiagonalM > 0 && ( /* #710: 0 is not "no limit" across the trend */
                 <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", fontWeight: 400 }}>{tr("Along trend \"{name}\": with no radius the search reaches the grid diagonal ({d} m) along the trend but only {v} × {v2} m across it ({v3}); a sample farther across the trend is left out.", { name: trend.name, d: gridDiagonalM, v: Math.round((gridDiagonalM * trend.ratios.int) / trend.ratios.max), v2: Math.round((gridDiagonalM * trend.ratios.min) / trend.ratios.max), v3: describeTrend(trend) })}</span>
               )}

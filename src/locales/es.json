@@ -9742,5 +9742,6 @@
   "Hillshade with a vertical exaggeration of {z}x, chosen from this terrain's slopes (its steepest 2 % shown near 30°): on low relief a true-scale hillshade is one flat grey.": "Sombreado con una exageración vertical de {z}x, elegida según las pendientes de este terreno (su 2 % más empinado se muestra cerca de 30°): en relieve bajo un sombreado a escala real es un gris plano.",
   "Slope draped on the terrain: white {min}° or flatter, darkest grey {max}° or steeper (this terrain's 2-98 % range).": "Pendiente drapeada sobre el terreno: blanco {min}° o menos, gris más oscuro {max}° o más (el rango 2-98 % de este terreno).",
   "Azimuth and width from the drill lines ({az}°, {s} m apart).": "Azimut y ancho según las líneas de perforación ({az}°, a {s} m entre sí).",
-  "Azimuth from the drill lines ({az}°).": "Azimut según las líneas de perforación ({az}°)."
+  "Azimuth from the drill lines ({az}°).": "Azimut según las líneas de perforación ({az}°).",
+  "Search radius {r} m: 2.5 times the {m} m typical spacing, so a block between two holes reaches both.": "Radio de búsqueda {r} m: 2,5 veces el espaciado típico de {m} m, para que un bloque entre dos sondajes alcance a ambos."
 }
