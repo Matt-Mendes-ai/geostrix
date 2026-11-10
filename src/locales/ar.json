@@ -9575,5 +9575,13 @@
   "{code} in {layer} ({n} holes)": "{code} في {layer} ({n} ثقبًا)",
   "One pick per hole at this code's logged depth (the shallowest, if a hole logs it twice). Holes that already have a pick on this surface are left as they are.": "نقطة واحدة لكل ثقب عند العمق المسجل لهذا الرمز (الأقل عمقًا إن سُجّل مرتين). تبقى الثقوب التي لها نقطة على هذا السطح كما هي.",
   "Add picks": "إضافة النقاط",
-  "depth pick {code}": "نقطة عمق {code}"
+  "depth pick {code}": "نقطة عمق {code}",
+  "Level RL (m)": "المستوى RL (م)",
+  "from": "من",
+  "Level from (m RL)": "المستوى من (م RL)",
+  "Level to (m RL)": "المستوى إلى (م RL)",
+  "Blank = every depth. On a deposit drilled from underground, the hole-based cards otherwise project every depth onto one plan.": "فارغ = كل الأعماق. في رواسب محفورة من باطن الأرض، تُسقط البطاقات المعتمدة على الثقوب خلاف ذلك كل الأعماق على مستوى واحد.",
+  "Read at RL {a} to {b} m (the Level).": "مقروء عند RL من {a} إلى {b} م (المستوى).",
+  "Opens Planned holes with this easting and northing as the target, at RL {z} m: the middle of the Level (no grade point in this cell). Check it there.": "يفتح الثقوب المخططة بهذا الشرق والشمال هدفًا، عند RL {z} م: منتصف المستوى (لا نقطة محتوى في هذه الخلية). تحقق منها هناك.",
+  "Opens Planned holes with this easting and northing as the target, at RL {z} m: the highest value of the first grade / numeric card within {r} m of this cell (and the Level). Check it there.": "يفتح الثقوب المخططة بهذا الشرق والشمال هدفًا، عند RL {z} م: أعلى قيمة لأول بطاقة محتوى / رقمية ضمن {r} م من هذه الخلية (وضمن المستوى). تحقق منها هناك."
 }

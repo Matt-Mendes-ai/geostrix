@@ -9575,5 +9575,13 @@
   "{code} in {layer} ({n} holes)": "{code} en {layer} ({n} sondajes)",
   "One pick per hole at this code's logged depth (the shallowest, if a hole logs it twice). Holes that already have a pick on this surface are left as they are.": "Un pick por sondaje en la profundidad registrada de este código (la menos profunda, si un sondaje lo registra dos veces). Los sondajes que ya tienen un pick en esta superficie se dejan como están.",
   "Add picks": "Agregar picks",
-  "depth pick {code}": "pick de profundidad {code}"
+  "depth pick {code}": "pick de profundidad {code}",
+  "Level RL (m)": "Nivel RL (m)",
+  "from": "desde",
+  "Level from (m RL)": "Nivel desde (m RL)",
+  "Level to (m RL)": "Nivel hasta (m RL)",
+  "Blank = every depth. On a deposit drilled from underground, the hole-based cards otherwise project every depth onto one plan.": "En blanco = todas las profundidades. En un depósito perforado desde interior mina, las tarjetas basadas en sondajes proyectan si no todas las profundidades sobre un solo plano.",
+  "Read at RL {a} to {b} m (the Level).": "Leído a RL {a} a {b} m (el Nivel).",
+  "Opens Planned holes with this easting and northing as the target, at RL {z} m: the middle of the Level (no grade point in this cell). Check it there.": "Abre Sondajes planificados con este este y norte como objetivo, a RL {z} m: el centro del Nivel (sin punto de ley en esta celda). Verifíquelo allí.",
+  "Opens Planned holes with this easting and northing as the target, at RL {z} m: the highest value of the first grade / numeric card within {r} m of this cell (and the Level). Check it there.": "Abre Sondajes planificados con este este y norte como objetivo, a RL {z} m: el valor más alto de la primera tarjeta de ley / numérica a menos de {r} m de esta celda (y dentro del Nivel). Verifíquelo allí."
 }

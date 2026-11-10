@@ -15,7 +15,8 @@ import { topCells } from "../lib/evidence.js"; // TASKS.csv #1456
 import { evidenceCoverage, LOW_COVERAGE, scoreBlockers } from "../lib/evidence.js"; // TASKS.csv #2252
 import { evidenceGrid, evidenceExtent, rasterEvidence, distanceEvidence, pointEvidence, sampleValues, membership, fuzzyCombine, FUZZY_OPERATORS, trainingCells, trainingCoverage, bestCutoff, MIN_SIDE, posterior, predictionArea, scoreImage, isOverlayOutput, coveringLayers } from "../lib/evidence.js"; // coveringLayers: #1563
 import { cachedEvidence, evidenceDeps, gridSignature } from "../lib/evidenceCache.js"; // TASKS.csv #1457, #1560
-import { DRILL_REACH_M, surveyNames, surveyPoints, reachFromSpacing, reachFromNeighbours, voxelColumnEvidence, voxelZRange, holeTraces, holeGradePoints, structureCodes, structureParts, drilledParts /* #1456 */, rasterFloorZ, elementsWithValues, numericLayerFields, layerFieldPoints, zoneCodes, zoneParts } from "../lib/evidenceSources.js"; // numericLayerFields, layerFieldPoints, zoneCodes, zoneParts: TASKS.csv #1728 // TASKS.csv #1154; elementsWithValues: #1723
+import { DRILL_REACH_M, surveyNames, surveyPoints, reachFromSpacing, reachFromNeighbours, voxelColumnEvidence, voxelZRange, holeTraces, holeGradePoints, structureCodes, structureParts, drilledParts /* #1456 */, rasterFloorZ, elementsWithValues, numericLayerFields, layerFieldPoints, zoneCodes, zoneParts, levelSet, targetElevation /* #2326 */ } from "../lib/evidenceSources.js"; // numericLayerFields, layerFieldPoints, zoneCodes, zoneParts: TASKS.csv #1728 // TASKS.csv #1154; elementsWithValues: #1723
+const LEVEL_KINDS = new Set(["grade", "pxrf", "numeric", "zone", "pick", "voxel"]); // TASKS.csv #2326 — the cards a Level filters
 import { categoricalModels } from "../lib/geologyForward.js";
 import { PATHFINDER_PRESETS } from "../lib/anomalyMap.js";
 import { valueIn } from "../lib/geochem.js";
@@ -124,6 +125,9 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
     return { all: all.box(), samples: smp.box(), drilling: drl.box(), model: mdl.box() };
   }, [valueRasters, mapLayers, sampleCore, traces, geophysPts, voxelModels, drillPad]);
   const cellTyped = Number(gridCell) > 0 ? Number(gridCell) : null;
+  // TASKS.csv #2326 (review #2174, WA gold) — a Level (RL from / to) for every hole-based card and the block columns without their own band
+  const [levelText, setLevelText] = useState(["", ""]);
+  const level = useMemo(() => { const v = levelText.map((t) => (t === "" ? null : Number(t))).map((x) => (Number.isFinite(x) ? x : null)); return v[0] == null && v[1] == null ? null : { zMin: v[0] != null && v[1] != null ? Math.min(v[0], v[1]) : v[0], zMax: v[0] != null && v[1] != null ? Math.max(v[0], v[1]) : v[1] }; }, [levelText]);
   const grid = useMemo(() => {
     if (terrain && gridArea === "all" && !cellTyped) return evidenceGrid({ terrain });
     const ext = evidenceExtent(gridArea, extents, gridBox.map((v) => (v === "" ? NaN : Number(v))));
@@ -159,12 +163,12 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
   const pictureRasters = useMemo(() => rasters.filter((r) => !r.grid && !isOverlayOutput(r)), [rasters]);
 
   // #1457 — through the cache: a reopened pane, or the same layer added again, reuses values computed from the same grid and data
-  const computeValues = (src, opts = {}) => (grid ? cachedEvidence(
-    `${gridSignature(grid)}|${src.kind}|${src.ref}|${src.how || ""}|${opts.field || ""}|${opts.value ?? ""}|${opts.reach || ""}|${opts.zMin ?? ""}|${opts.zMax ?? ""}`,
+  const computeValues = (src, opts = {}, lv = level) => (grid ? cachedEvidence(
+    `${gridSignature(grid)}|${src.kind}|${src.ref}|${src.how || ""}|${opts.field || ""}|${opts.value ?? ""}|${opts.reach || ""}|${opts.zMin ?? ""}|${opts.zMax ?? ""}|L${LEVEL_KINDS.has(src.kind) ? `${lv?.zMin ?? ""}:${lv?.zMax ?? ""}` : ""}`, // L: #2326
     evidenceDeps(src, opts, { rasters, mapLayers, surfaceSamples, surfaceElements, collars, survey, desurveyMethod: project?.desurveyMethod, assays, assayElements, voxelModels, geophysPts, structurePicks, projectLayers, customLayers, solids }), // #1560: only what this source reads
-    () => computeValuesNow(src, opts),
+    () => computeValuesNow(src, opts, lv),
   ) : null);
-  const computeValuesNow = (src, opts = {}) => {
+  const computeValuesNow = (src, opts = {}, lv = null) => {
     if (!grid) return null;
     if (src.kind === "raster") { const r = valueRasters.find((x) => x.id === src.ref); return r ? rasterEvidence(grid, r.grid) : null; }
     if (src.kind === "distance") {
@@ -172,15 +176,15 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
       const feats = opts.field ? l.features.filter((f) => String(f.attributes?.[opts.field] ?? "") === String(opts.value)) : l.features;
       return distanceEvidence(grid, feats.flatMap((f) => f.parts));
     }
-    if (src.kind === "voxel") { const m = voxelModels.find((x) => (x.id ?? x.name) === src.ref); return m ? voxelColumnEvidence(grid, m, src.how, { zMin: opts.zMin, zMax: opts.zMax }) : null; } // #1831 — an elevation band
-    if (src.kind === "pick") return distanceEvidence(grid, structureParts(structurePicks, src.ref, traces));
+    if (src.kind === "voxel") { const m = voxelModels.find((x) => (x.id ?? x.name) === src.ref); const own = opts.zMin != null || opts.zMax != null; return m ? voxelColumnEvidence(grid, m, src.how, own ? { zMin: opts.zMin, zMax: opts.zMax } : { zMin: lv?.zMin ?? null, zMax: lv?.zMax ?? null }) : null; } // #1831 — an elevation band; else the Level (#2326)
+    if (src.kind === "pick") return distanceEvidence(grid, structureParts(structurePicks, src.ref, traces, lv)); // lv: #2326
     if (src.kind === "drilled") return distanceEvidence(grid, drilledParts(traces)); // #1456
     if (src.kind === "solid") { const m = solidMesh?.(src.ref); return m?.vertices?.length ? solidFootprintEvidence(grid, m.vertices, m.indices) : null; } // #1567
-    if (src.kind === "numeric") { const { rows, field } = numericRowsOf(src.ref); return pointEvidence(grid, layerFieldPoints(rows, field, traces), { maxDistance: opts.reach || DRILL_REACH_M }); } // #1728
-    if (src.kind === "zone") { const i = src.ref.indexOf(":"); return distanceEvidence(grid, zoneParts(projectLayers?.[src.ref.slice(0, i)], src.ref.slice(i + 1), traces)); } // #1728 / #1455 — ref = layer:code
+    if (src.kind === "numeric") { const { rows, field } = numericRowsOf(src.ref); return pointEvidence(grid, layerFieldPoints(rows, field, traces, undefined, lv), { maxDistance: opts.reach || DRILL_REACH_M }); } // #1728; lv: #2326
+    if (src.kind === "zone") { const i = src.ref.indexOf(":"); return distanceEvidence(grid, zoneParts(projectLayers?.[src.ref.slice(0, i)], src.ref.slice(i + 1), traces, undefined, lv)); } // #1728 / #1455 — ref = layer:code
     if (src.kind === "survey") { const pts = surveyPoints(geophysPts, src.ref); return pointEvidence(grid, pts, { maxDistance: opts.reach || reachFromSpacing(pts, 4) }); }
-    if (src.kind === "grade") return pointEvidence(grid, holeGradePoints(cleanAssays, src.ref, assayUnits[src.ref] || "ppm", assayUnits, traces), { maxDistance: opts.reach || DRILL_REACH_M });
-    if (src.kind === "pxrf") return pointEvidence(grid, holeGradePoints(pxrfAssays, src.ref, assayUnits[src.ref] || "ppm", assayUnits, traces), { maxDistance: opts.reach || DRILL_REACH_M }); // #1723
+    if (src.kind === "grade") return pointEvidence(grid, holeGradePoints(cleanAssays, src.ref, assayUnits[src.ref] || "ppm", assayUnits, traces, undefined, lv), { maxDistance: opts.reach || DRILL_REACH_M });
+    if (src.kind === "pxrf") return pointEvidence(grid, holeGradePoints(pxrfAssays, src.ref, assayUnits[src.ref] || "ppm", assayUnits, traces, undefined, lv), { maxDistance: opts.reach || DRILL_REACH_M }); // #1723
     const all = sampleValues(surfaceSamples, src.kind === "element" ? { kind: "element", symbol: src.ref } : { kind: "index", preset: src.ref }, units);
     // #1449 — one medium at a time when the layer names one (value = medium): soils and streams are not one surface
     const pts = opts.field === "medium" ? all.filter((_, i) => (surfaceSamples[i].medium || "") === opts.value) : all;
@@ -222,6 +226,15 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
     setLayers((L) => (L.some((l) => l.values.length !== n) ? L.map((l) => { const v = computeValues(l, l); return v ? { ...l, values: v } : l; }) : L));
     setResult((r) => (r && r.n !== n ? null : r));
   }, [n]); // the cell count is the signal; computeValues is rebuilt each render
+  // #2326 — the Level changed: the hole-based cards and the block columns without their own band are read again
+  const levelKey = level ? `${level.zMin ?? ""}:${level.zMax ?? ""}` : "";
+  const levelSeen = useRef(levelKey);
+  useEffect(() => {
+    if (levelSeen.current === levelKey) return;
+    levelSeen.current = levelKey;
+    setLayers((L) => L.map((l) => { if (!LEVEL_KINDS.has(l.kind)) return l; const v = computeValues(l, l); return v ? { ...l, values: v } : l; }));
+    setResult(null);
+  }, [levelKey]);
   // TASKS.csv #1003 — the recipe is saved with the project (evidenceOverlay, format v18): which sources, their memberships
   // and filters, the operator and the training points; not the values, which are recomputed from the sources. Restored
   // once when the pane opens on a project that has one (a source no longer in the project is left out, and said).
@@ -235,13 +248,15 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
     if (Number.isFinite(R.gamma)) setGamma(R.gamma);
     if (R.grid) { setGridArea(R.grid.area || "all"); setGridCell(R.grid.cell > 0 ? String(R.grid.cell) : ""); if (Array.isArray(R.grid.box)) setGridBox(R.grid.box.map((v) => (Number.isFinite(v) ? String(v) : ""))); } // #1450
     setFloor(Number.isFinite(R.floor) ? R.floor : 0); // #1555: a recipe saved before the floor existed keeps its 0-1 ramps
+    const lvSaved = R.level && (Number.isFinite(R.level.zMin) || Number.isFinite(R.level.zMax)) ? { zMin: Number.isFinite(R.level.zMin) ? R.level.zMin : null, zMax: Number.isFinite(R.level.zMax) ? R.level.zMax : null } : null; // #2326
+    if (lvSaved) { setLevelText([lvSaved.zMin != null ? String(lvSaved.zMin) : "", lvSaved.zMax != null ? String(lvSaved.zMax) : ""]); levelSeen.current = `${lvSaved.zMin ?? ""}:${lvSaved.zMax ?? ""}`; }
     if (R.training) setTraining((t) => ({ ...t, ...R.training }));
     const missing = [];
     const back = (R.layers || []).flatMap((l) => {
       const src = sources.find((x) => x.key === l.key);
       if (!src) { missing.push(l.label || l.key); return []; }
       const band = { zMin: Number.isFinite(l.zMin) ? l.zMin : null, zMax: Number.isFinite(l.zMax) ? l.zMax : null }; // #1831
-      const values = computeValues(src, { field: l.field, value: l.value, reach: l.reach, ...band });
+      const values = computeValues(src, { field: l.field, value: l.value, reach: l.reach, ...band }, lvSaved);
       return values ? [{ id: nextId++, ...src, shape: l.shape, low: l.low, high: l.high, log: !!l.log, lowText: numText(l.low), highText: numText(l.high), endsEdited: true /* #1565 — a saved card's ends were chosen */, field: l.field || "", value: l.value || "", reach: l.reach || reachOf(src), ...band, values }] : [];
     });
     setLayers(back);
@@ -251,7 +266,8 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
     layers: layers.map((l) => ({ key: l.key, kind: l.kind, ref: l.ref, label: l.label, shape: l.shape, low: l.low, high: l.high, ...(l.log ? { log: true } : {}), field: l.field || "", value: l.value || "", reach: l.reach, ...(l.kind === "voxel" ? { zMin: l.zMin ?? null, zMax: l.zMax ?? null } : {}) })),
     operator, gamma, floor, training,
     ...(gridArea !== "all" || cellTyped ? { grid: { area: gridArea, cell: cellTyped, ...(gridArea === "box" ? { box: gridBox.map((v) => (v === "" ? null : Number(v))) } : {}) } } : {}), // #1450
-  }), [layers, operator, gamma, floor, training, gridArea, cellTyped, gridBox]);
+    ...(level ? { level } : {}), // #2326
+  }), [layers, operator, gamma, floor, training, gridArea, cellTyped, gridBox, level]);
   useEffect(() => {
     if (!restored.current) return; // never write an empty recipe over the saved one before it has been read
     const next = recipe.layers.length ? recipe : null;
@@ -318,6 +334,13 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
       else if (rowsW.length) out.wofeNone = { rows: rowsW, ND }; // #2098 — no card gave a weight: said, not silent
       out.pa = predictionArea(fuzzy, D, valid);
     } else if (trainingPoints.length) out.fewPoints = D.size;
+    // #2326 — the hole-based point cards' points (with their elevation, inside the level), for the target handed to Planned holes
+    out.level = level;
+    out.cardPts = layers.filter((l) => l.kind === "grade" || l.kind === "pxrf" || l.kind === "numeric").map((l) => {
+      const reach = l.reach || DRILL_REACH_M;
+      if (l.kind === "numeric") { const { rows, field } = numericRowsOf(l.ref); return { pts: layerFieldPoints(rows, field, traces, undefined, level), reach }; }
+      return { pts: holeGradePoints(l.kind === "pxrf" ? pxrfAssays : cleanAssays, l.ref, assayUnits[l.ref] || "ppm", assayUnits, traces, undefined, level), reach };
+    });
     setResult(out); setMsg(null);
   };
   const toMap = (which) => {
@@ -356,6 +379,7 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
             <option value="box">{tr("a box (typed)")}</option>
           </select></label>
           <label style={row} title={tr("Blank = automatic: the longest side / 500, coarsened if the grid would pass its cell limit. A soil grid at 25-50 m wants a cell of about half its spacing.")}>{tr("Cell (m)")}<input type="number" min="1" step="5" value={gridCell} placeholder={tr("auto")} onChange={(e) => { setGridCell(e.target.value); setResult(null); }} style={{ ...sel, width: 64 }} aria-label={tr("Grid cell size (m)")} /></label>
+          <label style={row} title={tr("Blank = every depth. On a deposit drilled from underground, the hole-based cards otherwise project every depth onto one plan.")}>{tr("Level RL (m)")}<input type="number" step="10" value={levelText[0]} placeholder={tr("from")} onChange={(e) => setLevelText((t) => [e.target.value, t[1]])} style={{ ...sel, width: 64 }} aria-label={tr("Level from (m RL)")} />–<input type="number" step="10" value={levelText[1]} placeholder={tr("to")} onChange={(e) => setLevelText((t) => [t[0], e.target.value])} style={{ ...sel, width: 64 }} aria-label={tr("Level to (m RL)")} /></label>{/* #2326 */}
         </div>
         {gridArea === "box" && (
           <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
@@ -446,7 +470,7 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
               <button type="button" style={{ ...pBtn, opacity: result.nValid ? 1 : 0.5 }} disabled={!result.nValid} onClick={() => toMap("fuzzy")}>{tr("Fuzzy score → map")}</button>
               <button type="button" style={{ ...pBtn, display: "flex", alignItems: "center", gap: 4, opacity: result.nValid ? 1 : 0.5 }} disabled={!result.nValid} onClick={() => toTif("fuzzy")}><Download size={12} />GeoTIFF</button>{/* #2252 — never an empty score */}
             </div>
-            <TopPlaces score={result.fuzzy} grid={grid} onPlanTo={onPlanTo} note={note} pBtn={pBtn} /* #1456 */ />
+            <TopPlaces score={result.fuzzy} grid={grid} onPlanTo={onPlanTo} note={note} pBtn={pBtn} cardPts={result.cardPts} level={result.level} /* #1456; cardPts / level: #2326 */ />
             {!result.wofe && result.wofeNone && ( /* TASKS.csv #2098 */
               <div style={{ ...note, color: "var(--color-warn-text)", marginTop: 4 }}>{tr("Weights of evidence: no card gives a weight with these {d} occurrence cells: {list}.", { d: result.wofeNone.ND, list: result.wofeNone.rows.map((r) => `${r.label} (${r.ndHere ?? 0} of them where it has a value)`).join("; ") })}</div>
             )}
@@ -481,7 +505,7 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
                   <button type="button" style={pBtn} onClick={() => toMap("posterior")}>{tr("Posterior → map")}</button>
                   <button type="button" style={{ ...pBtn, display: "flex", alignItems: "center", gap: 4 }} onClick={() => toTif("posterior")}><Download size={12} />GeoTIFF</button>
                 </div>
-                <TopPlaces score={result.wofe.post.prob} grid={grid} onPlanTo={onPlanTo} note={note} pBtn={pBtn} posterior /* #1456 */ />
+                <TopPlaces score={result.wofe.post.prob} grid={grid} onPlanTo={onPlanTo} note={note} pBtn={pBtn} posterior cardPts={result.cardPts} level={result.level} /* #1456; #2326 */ />
               </>
             )}
             {(result.pa || result.paPost) && <PAPlot fuzzy={result.pa} post={result.paPost} />}
@@ -497,17 +521,19 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
 // prediction rate and occupied area against the score threshold rank; the P-A point where they cross
 // TASKS.csv #1456 (review #1352, Silvertip) — the overlay's best places as a short list, each one a click from a planned hole: the
 // target's easting / northing go to Planned holes; a plan-view score has no depth, so the target elevation is left for the geologist
-function TopPlaces({ score, grid, onPlanTo, note, pBtn, posterior = false }) {
+function TopPlaces({ score, grid, onPlanTo, note, pBtn, posterior = false, cardPts = null, level = null /* #2326 */ }) {
   const top = useMemo(() => topCells(score, grid, { n: 5 }), [score, grid]);
+  const zs = useMemo(() => top.map((c) => targetElevation(c, cardPts, grid, level)), [top, cardPts, grid, level]); // #2326
   if (!top.length) return null;
   return (
     <div style={{ marginTop: 4 }}>
       <div style={{ color: "var(--color-text-secondary)" }}>{posterior ? tr("Highest posterior (at least {d} m apart):", { d: Math.round(5 * Math.max(grid.dx, grid.dy)) }) : tr("Highest fuzzy scores (at least {d} m apart):", { d: Math.round(5 * Math.max(grid.dx, grid.dy)) })}</div>
+      {levelSet(level) && <div style={note}>{tr("Read at RL {a} to {b} m (the Level).", { a: level.zMin != null ? Math.round(level.zMin).toLocaleString() : "…", b: level.zMax != null ? Math.round(level.zMax).toLocaleString() : "…" })}</div>}{/* #2326 */}
       {top.some((c) => c.tied) && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("Some of these score the same (a plateau of equal cells): those are ranked by the mean score of the cells around them, so treat their order as a tie.")}</div>}{/* #2255 */}
       {top.map((c, k) => (
         <div key={k} style={{ ...note, display: "flex", alignItems: "center", gap: 6, color: "var(--color-text-secondary)" }}>
           <span style={{ flex: 1, minWidth: 0 }}>{tr("{k}. {score} at E {x}, N {y}", { k: k + 1, score: fmt(c.score, 3), x: Math.round(c.x).toLocaleString(), y: Math.round(c.y).toLocaleString() })}{c.tied ? " " + tr("(tied)") : ""}</span>
-          {onPlanTo && <button type="button" style={{ ...pBtn, padding: "2px 7px", flexShrink: 0 }} onClick={() => onPlanTo({ x: c.x, y: c.y, z: null })} title={tr("Opens Planned holes with this easting and northing as the target; type the target elevation there (the score is in plan, it has no depth).")}>{tr("Plan a hole to here")}</button>}
+          {onPlanTo && <button type="button" style={{ ...pBtn, padding: "2px 7px", flexShrink: 0 }} onClick={() => onPlanTo({ x: c.x, y: c.y, z: zs[k]?.z ?? null })} title={zs[k]?.from === "point" ? tr("Opens Planned holes with this easting and northing as the target, at RL {z} m: the highest value of the first grade / numeric card within {r} m of this cell (and the Level). Check it there.", { z: Math.round(zs[k].z).toLocaleString(), r: Math.round(zs[k].within) }) : zs[k]?.from === "level" ? tr("Opens Planned holes with this easting and northing as the target, at RL {z} m: the middle of the Level (no grade point in this cell). Check it there.", { z: Math.round(zs[k].z).toLocaleString() }) : tr("Opens Planned holes with this easting and northing as the target; type the target elevation there (the score is in plan, it has no depth).")}>{tr("Plan a hole to here")}</button>}
         </div>
       ))}
     </div>

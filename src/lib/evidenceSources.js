@@ -144,15 +144,21 @@ export function holeTraces(collars, survey, method) {
 
 // Grades placed where they are along the holes, not at the collars: holes fanned from one pad would otherwise all sit on
 // one spot. A bin keeps its highest interval, so a narrow intercept is not averaged away by the samples either side.
-export function holeGradePoints(assays, symbol, unit, units, traces, bin = GRADE_BIN_M) {
+// TASKS.csv #2326 (review #2174, WA gold) — a Level (RL from / to): on a deposit drilled from underground every hole-based card projected
+// all depths onto one plan. level = { zMin, zMax } (either may be null; null / both null = every depth) -> is elevation z inside it
+export const inLevel = (z, level) => !level || ((level.zMin == null || z >= level.zMin) && (level.zMax == null || z <= level.zMax));
+export const levelSet = (level) => !!level && (level.zMin != null || level.zMax != null);
+export function holeGradePoints(assays, symbol, unit, units, traces, bin = GRADE_BIN_M, level = null) {
   const best = new Map();
   for (const a of assays || []) {
     const t = traces.get(a.hole_id), from = Number(a.from), to = Number(a.to);
     if (!t || !Number.isFinite(from) || !Number.isFinite(to)) continue;
     const v = valueIn(a, symbol, unit, units);
     if (v == null) continue;
-    const p = pointOnTrace(t, (from + to) / 2), key = `${Math.floor(p.x / bin)},${Math.floor(p.y / bin)}`, was = best.get(key);
-    if (!was || v > was.value) best.set(key, { x: p.x, y: p.y, value: v });
+    const p = pointOnTrace(t, (from + to) / 2);
+    if (!inLevel(p.z, level)) continue; // #2326
+    const key = `${Math.floor(p.x / bin)},${Math.floor(p.y / bin)}`, was = best.get(key);
+    if (!was || v > was.value) best.set(key, { x: p.x, y: p.y, z: p.z, value: v }); // z: #2326 (the target's elevation)
   }
   return [...best.values()];
 }
@@ -181,13 +187,14 @@ export function drilledParts(traces) {
   return out;
 }
 
-export function structureParts(rows, code, traces) {
+export function structureParts(rows, code, traces, level = null) {
   const out = [];
   for (const r of rows || []) {
     if (String(r.value ?? "").trim() !== code) continue;
     const t = traces.get(r.hole_id), d = Number(r.depth);
     if (!t || !Number.isFinite(d)) continue;
     const p = pointOnTrace(t, d);
+    if (!inLevel(p.z, level)) continue; // #2326
     out.push([[p.x, p.y]]);
   }
   return out;
@@ -238,13 +245,15 @@ export function numericLayerFields(rows, { min = 5 } = {}) {
 }
 const rowDepth = (r) => { const from = Number(r.from), to = Number(r.to); if (Number.isFinite(from) && Number.isFinite(to)) return (from + to) / 2; const d = Number(r.depth); return Number.isFinite(d) ? d : NaN; };
 // one point per 25 m plan bin, the highest value in it (as holeGradePoints)
-export function layerFieldPoints(rows, field, traces, bin = GRADE_BIN_M) {
+export function layerFieldPoints(rows, field, traces, bin = GRADE_BIN_M, level = null) {
   const best = new Map();
   for (const r of rows || []) {
     const t = traces.get(r.hole_id), d = rowDepth(r), v = numericCell(r[field]); // #2049 — a number written as text too
     if (!t || !Number.isFinite(d) || v == null) continue;
-    const p = pointOnTrace(t, d), key = `${Math.floor(p.x / bin)},${Math.floor(p.y / bin)}`, was = best.get(key);
-    if (!was || v > was.value) best.set(key, { x: p.x, y: p.y, value: v });
+    const p = pointOnTrace(t, d);
+    if (!inLevel(p.z, level)) continue; // #2326
+    const key = `${Math.floor(p.x / bin)},${Math.floor(p.y / bin)}`, was = best.get(key);
+    if (!was || v > was.value) best.set(key, { x: p.x, y: p.y, z: p.z, value: v });
   }
   return [...best.values()];
 }
@@ -259,17 +268,37 @@ export function zoneCodes(rows, traces, { min = 1 } = {}) {
   return [...counts].filter(([, n]) => n >= min).map(([k]) => k).sort();
 }
 // the intervals of one code as distanceEvidence parts: a polyline along the trace from `from` to `to`, a vertex every `stepM`
-export function zoneParts(rows, code, traces, stepM = 5) {
+export function zoneParts(rows, code, traces, stepM = 5, level = null) {
   const out = [];
   for (const r of rows || []) {
     if (String(r.value ?? "").trim() !== code) continue;
     const t = traces.get(r.hole_id), from = Number(r.from), to = Number(r.to);
     if (!t) continue;
-    if (!Number.isFinite(from) || !Number.isFinite(to)) { const d = Number(r.depth); if (Number.isFinite(d)) { const p = pointOnTrace(t, d); out.push([[p.x, p.y]]); } continue; } // a point row (#1455)
-    const a = Math.min(from, to), b = Math.max(from, to), part = [];
-    for (let d = a; d <= b + 1e-9; d += stepM) { const p = pointOnTrace(t, Math.min(d, b)); part.push([p.x, p.y]); }
-    if (part.length === 1 || Math.abs((b - a) % stepM) > 1e-9) { const p = pointOnTrace(t, b); part.push([p.x, p.y]); }
-    out.push(part);
+    if (!Number.isFinite(from) || !Number.isFinite(to)) { const d = Number(r.depth); if (Number.isFinite(d)) { const p = pointOnTrace(t, d); if (inLevel(p.z, level)) out.push([[p.x, p.y]]); } continue; } // a point row (#1455); level: #2326
+    const a = Math.min(from, to), b = Math.max(from, to), pts = [];
+    for (let d = a; d <= b + 1e-9; d += stepM) pts.push(pointOnTrace(t, Math.min(d, b)));
+    if (pts.length === 1 || Math.abs((b - a) % stepM) > 1e-9) pts.push(pointOnTrace(t, b));
+    // #2326 — only the stretches inside the level, each its own part
+    let part = [];
+    for (const p of pts) { if (inLevel(p.z, level)) part.push([p.x, p.y]); else if (part.length) { out.push(part); part = []; } }
+    if (part.length) out.push(part);
   }
   return out;
+}
+
+// TASKS.csv #2326 — the target's elevation for a top cell: the highest value among the points of a hole-based point card (grades, pXRF, a
+// numeric log) that make the cell's value (within the card's reach: pointEvidence's inverse-distance points) and lie inside the level; else
+// the level's middle when one is set; else null (typed in Planned holes). The cell's own column was tried first (half a cell, then one 25 m
+// grade bin): the top cells of a plateau sat 50 m and more from any point (found live, WA gold).
+// cards: [{ pts: [{ x, y, z, value }], reach }] (or plain point arrays) in card order -> { z, from: "point" | "level", within } | null
+export function targetElevation(cell, cardPoints, grid, level = null, bin = GRADE_BIN_M) {
+  const r0 = Math.max(grid?.dx || 0, grid?.dy || 0, bin);
+  for (const card of cardPoints || []) {
+    const pts = Array.isArray(card) ? card : card?.pts, r = Array.isArray(card) ? r0 : Math.max(r0, card?.reach || 0);
+    let best = null;
+    for (const p of pts || []) if (Number.isFinite(p.z) && Math.hypot(p.x - cell.x, p.y - cell.y) <= r && inLevel(p.z, level) && (!best || p.value > best.value)) best = p;
+    if (best) return { z: best.z, from: "point", within: r };
+  }
+  if (level && level.zMin != null && level.zMax != null) return { z: (level.zMin + level.zMax) / 2, from: "level" };
+  return null;
 }

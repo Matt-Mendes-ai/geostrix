@@ -27,7 +27,7 @@ test("an elevation band reads one level; mean averages it", () => {
 
 test("the pane offers the band and keeps it in the saved recipe", () => {
   const p = readFileSync(new URL("../src/components/EvidenceOverlayPane.jsx", import.meta.url), "utf8");
-  assert.ok(p.includes("voxelColumnEvidence(grid, m, src.how, { zMin: opts.zMin, zMax: opts.zMax })"));
+  assert.ok(p.includes("voxelColumnEvidence(grid, m, src.how, own ? { zMin: opts.zMin, zMax: opts.zMax } : { zMin: lv?.zMin ?? null, zMax: lv?.zMax ?? null })")); // the card's own band, else the pane's Level (#2326)
   assert.ok(p.includes('...(l.kind === "voxel" ? { zMin: l.zMin ?? null, zMax: l.zMax ?? null } : {})'));
   assert.ok(p.includes("(mean in each column)"));
 });

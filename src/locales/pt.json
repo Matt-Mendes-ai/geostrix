@@ -9575,5 +9575,13 @@
   "{code} in {layer} ({n} holes)": "{code} em {layer} ({n} furos)",
   "One pick per hole at this code's logged depth (the shallowest, if a hole logs it twice). Holes that already have a pick on this surface are left as they are.": "Um pick por furo na profundidade registrada deste código (a mais rasa, se um furo o registra duas vezes). Os furos que já têm um pick nesta superfície ficam como estão.",
   "Add picks": "Adicionar picks",
-  "depth pick {code}": "pick de profundidade {code}"
+  "depth pick {code}": "pick de profundidade {code}",
+  "Level RL (m)": "Nível RL (m)",
+  "from": "de",
+  "Level from (m RL)": "Nível de (m RL)",
+  "Level to (m RL)": "Nível até (m RL)",
+  "Blank = every depth. On a deposit drilled from underground, the hole-based cards otherwise project every depth onto one plan.": "Em branco = todas as profundidades. Num depósito sondado a partir da mina subterrânea, os cartões baseados em furos projetam de outro modo todas as profundidades num só plano.",
+  "Read at RL {a} to {b} m (the Level).": "Lido a RL {a} a {b} m (o Nível).",
+  "Opens Planned holes with this easting and northing as the target, at RL {z} m: the middle of the Level (no grade point in this cell). Check it there.": "Abre Furos planejados com este leste e norte como alvo, a RL {z} m: o meio do Nível (sem ponto de teor nesta célula). Confira lá.",
+  "Opens Planned holes with this easting and northing as the target, at RL {z} m: the highest value of the first grade / numeric card within {r} m of this cell (and the Level). Check it there.": "Abre Furos planejados com este leste e norte como alvo, a RL {z} m: o valor mais alto do primeiro cartão de teor / numérico a até {r} m desta célula (e dentro do Nível). Confira lá."
 }

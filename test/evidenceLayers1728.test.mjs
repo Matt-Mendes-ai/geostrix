@@ -52,6 +52,6 @@ test("#1728 logged interval zones become distance evidence along the interval, n
 
 test("#1728 the pane offers them and reads them", () => {
   const p = readFileSync(new URL("../src/components/EvidenceOverlayPane.jsx", import.meta.url), "utf8");
-  assert.ok(p.includes('kind: "numeric"') && p.includes('kind: "zone"') && p.includes("layerFieldPoints(rows, field, traces)") && p.includes("zoneParts(projectLayers?.[src.ref.slice(0, i)], src.ref.slice(i + 1), traces)")); // ref = layer:code since #1455
+  assert.ok(p.includes('kind: "numeric"') && p.includes('kind: "zone"') && p.includes("layerFieldPoints(rows, field, traces, undefined, lv)") && p.includes("zoneParts(projectLayers?.[src.ref.slice(0, i)], src.ref.slice(i + 1), traces, undefined, lv)")); // ref = layer:code since #1455; lv: the Level (#2326)
   assert.ok(p.includes('tr("Distance to logged {layer}: {code}", { layer: name, code })') && p.includes('tr("Drillholes: {layer} {field} along the holes"'));
 });

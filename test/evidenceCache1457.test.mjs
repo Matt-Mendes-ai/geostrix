@@ -51,7 +51,7 @@ test("at most 16 entries, least recently used out first", () => {
 
 test("the pane computes through the cache with the data the source reads as its dependencies", () => { // #1560
   const src = readFileSync(new URL("../src/components/EvidenceOverlayPane.jsx", import.meta.url), "utf8");
-  assert.match(src, /const computeValues = \(src, opts = \{\}\) => \(grid \? cachedEvidence\(/);
+  assert.match(src, /const computeValues = \(src, opts = \{\}, lv = level\) => \(grid \? cachedEvidence\(/); // lv: the Level (#2326), in the key
   assert.match(src, /evidenceDeps\(src, opts, \{ rasters, mapLayers, surfaceSamples, surfaceElements, collars, survey, desurveyMethod: project\?\.desurveyMethod, assays, assayElements, voxelModels, geophysPts, structurePicks, projectLayers, customLayers, solids \}\)/); // #1560; projectLayers, customLayers: #1728
-  assert.match(src, /\(\) => computeValuesNow\(src, opts\)/);
+  assert.match(src, /\(\) => computeValuesNow\(src, opts, lv\)/); // lv: #2326
 });

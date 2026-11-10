@@ -9575,5 +9575,13 @@
   "{code} in {layer} ({n} holes)": "{code} dans {layer} ({n} sondages)",
   "One pick per hole at this code's logged depth (the shallowest, if a hole logs it twice). Holes that already have a pick on this surface are left as they are.": "Un pointé par sondage à la profondeur enregistrée de ce code (la moins profonde, si un sondage l'enregistre deux fois). Les sondages qui ont déjà un pointé sur cette surface restent tels quels.",
   "Add picks": "Ajouter les pointés",
-  "depth pick {code}": "pointé en profondeur {code}"
+  "depth pick {code}": "pointé en profondeur {code}",
+  "Level RL (m)": "Niveau RL (m)",
+  "from": "de",
+  "Level from (m RL)": "Niveau de (m RL)",
+  "Level to (m RL)": "Niveau à (m RL)",
+  "Blank = every depth. On a deposit drilled from underground, the hole-based cards otherwise project every depth onto one plan.": "Vide = toutes les profondeurs. Sur un gisement foré depuis le souterrain, les cartes fondées sur les sondages projettent sinon toutes les profondeurs sur un seul plan.",
+  "Read at RL {a} to {b} m (the Level).": "Lu à RL {a} à {b} m (le Niveau).",
+  "Opens Planned holes with this easting and northing as the target, at RL {z} m: the middle of the Level (no grade point in this cell). Check it there.": "Ouvre Sondages planifiés avec cet est et ce nord comme cible, à RL {z} m : le milieu du Niveau (aucun point de teneur dans cette cellule). Vérifiez-la là.",
+  "Opens Planned holes with this easting and northing as the target, at RL {z} m: the highest value of the first grade / numeric card within {r} m of this cell (and the Level). Check it there.": "Ouvre Sondages planifiés avec cet est et ce nord comme cible, à RL {z} m : la valeur la plus haute de la première carte de teneur / numérique à moins de {r} m de cette cellule (et dans le Niveau). Vérifiez-la là."
 }
