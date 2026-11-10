@@ -42,8 +42,44 @@ const converterCache = new Map();
 function converter(fromDef, toDef) {
   const key = JSON.stringify([fromDef, toDef]);
   let c = converterCache.get(key);
-  if (!c) { c = proj4(fromDef, toDef); converterCache.set(key, c); }
+  if (!c) { c = gdaPair(fromDef, toDef) || proj4(fromDef, toDef); converterCache.set(key, c); } // gdaPair: #2458
   return c;
+}
+
+// TASKS.csv #2458 (review #2325, WA uranium) — GDA94 and GDA2020 were one datum here: both GRS80 with a zero shift, so 'Reproject all data to
+// GDA2020 / MGA zone 51' moved nothing, while the two frames are 1.5-1.8 m apart across Australia. As PROJ does, each stays a null shift to
+// WGS 84 (EPSG:1150 / 8450, ~1-3 m), and between the two the national 7-parameter transformation applies: GDA94 to GDA2020 (1), EPSG:8048,
+// coordinate-frame rotation (ICSM GDA2020 Technical Manual). At 576,324 E 6,682,105 N (MGA 51) it moves +0.927 m E, +1.513 m N (1.774 m).
+export const GDA94_TAG = "+title=GDA94", GDA2020_TAG = "+title=GDA2020";
+const GDA_8048 = { tx: 0.06155, ty: -0.01087, tz: -0.04019, rx: -0.0394924, ry: -0.0327221, rz: -0.0328979, ds: -0.009994 }; // m, arc-seconds, ppm
+const GRS80_A = 6378137, GRS80_E2 = (1 / 298.257222101) * (2 - 1 / 298.257222101), ARCSEC = Math.PI / 648000;
+function geodToEcef(lon, lat) {
+  const p = (lat * Math.PI) / 180, l = (lon * Math.PI) / 180, N = GRS80_A / Math.sqrt(1 - GRS80_E2 * Math.sin(p) ** 2);
+  return [N * Math.cos(p) * Math.cos(l), N * Math.cos(p) * Math.sin(l), N * (1 - GRS80_E2) * Math.sin(p)];
+}
+function ecefToGeod([x, y, z]) {
+  const l = Math.atan2(y, x), r = Math.hypot(x, y);
+  let p = Math.atan2(z, r * (1 - GRS80_E2));
+  for (let i = 0; i < 6; i++) { const N = GRS80_A / Math.sqrt(1 - GRS80_E2 * Math.sin(p) ** 2); p = Math.atan2(z + GRS80_E2 * N * Math.sin(p), r); }
+  return [(l * 180) / Math.PI, (p * 180) / Math.PI];
+}
+// lon / lat on GDA94 -> on GDA2020 (dir 1), or back (dir -1: the parameters negated, exact to well under a millimetre at these magnitudes)
+export function gda94To2020LonLat(lon, lat, dir = 1) {
+  const P = GDA_8048, k = dir, rx = k * P.rx * ARCSEC, ry = k * P.ry * ARCSEC, rz = k * P.rz * ARCSEC, m = 1 + k * P.ds * 1e-6;
+  const [x, y, z] = geodToEcef(lon, lat);
+  return ecefToGeod([k * P.tx + m * (x + rz * y - ry * z), k * P.ty + m * (-rz * x + y + rx * z), k * P.tz + m * (ry * x - rx * y + z)]);
+}
+const gdaOf = (def) => (def.includes(GDA2020_TAG) ? 2020 : def.includes(GDA94_TAG) ? 94 : 0);
+function gdaPair(fromDef, toDef) {
+  const a = gdaOf(String(fromDef)), b = gdaOf(String(toDef));
+  if (!a || !b || a === b) return null;
+  const geo94 = `+proj=longlat ${GDA94} +no_defs`, geo20 = `+proj=longlat ${GDA2020} +no_defs`;
+  const [srcGeo, dstGeo, dir] = a === 94 ? [geo94, geo20, 1] : [geo20, geo94, -1];
+  const toGeo = proj4(fromDef, srcGeo), fromGeo = proj4(dstGeo, toDef);
+  return {
+    forward: (p) => { const [lon, lat] = toGeo.forward(p); return fromGeo.forward(gda94To2020LonLat(lon, lat, dir)); },
+    inverse: (p) => { const [lon, lat] = fromGeo.inverse(p); return toGeo.inverse(gda94To2020LonLat(lon, lat, -dir)); },
+  };
 }
 
 // TASKS.csv #299 — NAD27 datum shift approximation.
@@ -128,6 +164,8 @@ const NAD83_CSRS_UTM = {
 //     GRS 1967 Modified ellipsoid. The shift differs by country (EPSG lists 5–26 m ones for Peru, Chile, etc.),
 //     so the CRS names say so and SourceCrsField warns (datumNote below).
 const GRS80_ZERO = "+ellps=GRS80 +towgs84=0,0,0,0,0,0,0";
+// #2458 — the same null shift to WGS 84, tagged so a GDA94 <-> GDA2020 pair takes EPSG:8048 (gdaPair above)
+const GDA94 = `${GRS80_ZERO} +title=GDA94`, GDA2020 = `${GRS80_ZERO} +title=GDA2020`;
 const SAD69_BRAZIL = "+ellps=aust_SA +towgs84=-66.87,4.37,-38.52,0,0,0,0";
 const SAD69_TAG = "Brazil datum shift, ~5 m";
 const AGD84_SHIFT = "+ellps=aust_SA +towgs84=-117.763,-51.51,139.061,0.292,0.443,0.277,-0.191"; // #2155 — EPSG:1280 / 1669
@@ -150,13 +188,13 @@ const REGISTRY = new Map(); // code -> { def, name }
   for (let z = 18; z <= 22; z++) reg(29150 + z, utm(z, false, SAD69_BRAZIL), `SAD69 / UTM zone ${z}N — ${SAD69_TAG}`);
   for (let z = 17; z <= 25; z++) reg(29170 + z, utm(z, true, SAD69_BRAZIL), `SAD69 / UTM zone ${z}S — ${SAD69_TAG}`);
   // Australia: MGA is UTM (south) on GDA94 / GDA2020
-  reg(4283, geog(GRS80_ZERO), "GDA94 (longitude / latitude)");
-  reg(6736, utm(46, true, GRS80_ZERO), "GDA94 / MGA zone 46");
-  reg(6737, utm(47, true, GRS80_ZERO), "GDA94 / MGA zone 47");
-  for (let z = 48; z <= 58; z++) reg(28300 + z, utm(z, true, GRS80_ZERO), `GDA94 / MGA zone ${z}`);
-  reg(6738, utm(59, true, GRS80_ZERO), "GDA94 / MGA zone 59");
-  reg(7844, geog(GRS80_ZERO), "GDA2020 (longitude / latitude)");
-  for (let z = 46; z <= 59; z++) reg(7800 + z, utm(z, true, GRS80_ZERO), `GDA2020 / MGA zone ${z}`);
+  reg(4283, geog(GDA94), "GDA94 (longitude / latitude)"); // GDA94 / GDA2020 tags: #2458
+  reg(6736, utm(46, true, GDA94), "GDA94 / MGA zone 46");
+  reg(6737, utm(47, true, GDA94), "GDA94 / MGA zone 47");
+  for (let z = 48; z <= 58; z++) reg(28300 + z, utm(z, true, GDA94), `GDA94 / MGA zone ${z}`);
+  reg(6738, utm(59, true, GDA94), "GDA94 / MGA zone 59");
+  reg(7844, geog(GDA2020), "GDA2020 (longitude / latitude)");
+  for (let z = 46; z <= 59; z++) reg(7800 + z, utm(z, true, GDA2020), `GDA2020 / MGA zone ${z}`);
   // TASKS.csv #2155 (WA drillhole review) — older Australian data on AGD84 / AGD66, the Australian Map Grid (AMG). The Australian National
   // Spheroid with EPSG's national datum shifts, read from PROJ's own database (QGIS 3.30 proj.db): AGD84 to GDA94 (2), EPSG:1280, 1 m (the
   // same parameters as AGD84 to WGS 84 (7), EPSG:1669); AGD66 to GDA94 (12), EPSG:15979, 3 m. EPSG gives them as coordinate-frame
