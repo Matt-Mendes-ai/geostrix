@@ -7,6 +7,7 @@ import { seedBreaks, nextDarkerClassColor } from "../lib/colorRamp.js"; // TASKS
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { SHAPES } from "../lib/layerStyle.js"; // TASKS.csv #649 — the same marker shapes as the other point layers
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
+import { gradeText } from "../lib/gradeText.js"; // TASKS.csv #2515
 
 // seedBreaks moved to lib/colorRamp.js (TASKS.csv #476) so the 3D view can seed breaks without loading this modal.
 
@@ -61,7 +62,7 @@ export default function AssayStyleModal({ symbol, unit, defaultColor, range, sty
         <div style={header}>
           <div>
             <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{tr("Style {symbol}", { symbol })}</div>
-            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("Data range: {min} – {max} {unit}", { min: range.min, max: range.max, unit })}</div>
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("Data range: {min} – {max} {unit}", { min: gradeText(range.min), max: gradeText(range.max), unit }) /* gradeText: #2515 */}</div>
           </div>
           <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
         </div>

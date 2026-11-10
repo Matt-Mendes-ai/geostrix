@@ -5,6 +5,7 @@ import { b64ToF32 } from "../inversion.js";
 import { pointInRings } from "../mapLayers.js";
 import { t as tr } from "../i18n.js";
 import { sampleIdentifyFields } from "./sampleTip.js"; // TASKS.csv #1821
+import { gradeText } from "../gradeText.js"; // TASKS.csv #2515
 
 const num = (v, d = 2) => (Number.isFinite(v) ? v.toLocaleString(undefined, { maximumFractionDigits: d }) : String(v ?? ""));
 const metres = (v) => `${num(v, 2)} m`;
@@ -96,7 +97,7 @@ function describe(hit, ctx) {
     if (o.userData?.units && row?.medium != null) return { ...base, layer: group, title: tipLines[0] || group, hole: null, fields: [...sampleIdentifyFields(row, o.userData.mapped, o.userData.units), ...attributeFields(row, new Set([...SKIP, "attrs"]))] };
     const nameLine = tipLines[1]?.includes(":") ? tipLines[1].slice(tipLines[1].indexOf(":") + 1).trim() : null;
     if (nameLine) fields.push([tr("Value"), nameLine]);
-    else if (row?.value != null) fields.push([tr("Value"), String(row.value)]);
+    else if (row?.value != null) fields.push([tr("Value"), gradeText(row.value)]); // #2515
     if (row?.from != null && row?.to != null) { fields.push([tr("From"), metres(row.from)], [tr("To"), metres(row.to)], [tr("Length"), metres(row.to - row.from)]); } else if (row?.depth != null) fields.push([tr("Depth"), metres(row.depth)]);
     if (row?.values) for (const [sym, v] of Object.entries(row.values).slice(0, 16)) if (v != null) fields.push([sym, `${num(v, 4)} ${ctx.units?.[sym] || ""}`.trim()]);
     if (row) fields.push(...attributeFields(row));

@@ -16,6 +16,7 @@ import { colors, printPt, printPx, PLACED_W } from "../lib/theme.js"; // TASKS.c
 import { loadPatternTiles, patternDefs, patternFill, sectionTilePx } from "../lib/lithoPatterns.js"; // TASKS.csv #1995
 import { flushSync } from "react-dom"; // TASKS.csv #1090 — render at print size for an export, synchronously
 import { hoverTitle } from "../lib/svgLazyTitle.js"; // TASKS.csv #2210
+import { gradeText } from "../lib/gradeText.js"; // TASKS.csv #2515
 
 const SECTION_W = 1100, SECTION_H = 660;
 
@@ -883,7 +884,7 @@ function SectionSVG({ patterns = null, textFont = SECTION_FONTS[0].stack, textSc
               <line x1={bx0} y1={by0} x2={bx1} y2={by1} stroke={row.color} strokeWidth={Math.min(thick, 6)} strokeLinecap="butt"><title>{`${row.label} (${a.from}–${a.to} m)`}</title></line>
               {/* TASKS.csv #1700 — the grade labels go through the collision pass with the depth and hole labels (they stacked on each
                   other and ran over the elevation axis); unit: #1475 */}
-              {labelledAssays.has(row) && floatLabels.push({ key: `grade_${i}`, text: (a.u ? `${a.value} ${a.u} ${a.sym}` : String(a.value)) + (a.pxrf ? " (pXRF)" : ""), /* #2362 */ size: fs(9), fill: "#1a2028", prio: 2, cands: [{ x: bx1 + nx * 3, y: by1 + ny * 3 + 3, anchor: nx >= 0 ? "start" : "end" }, { x: bx1 + nx * 3, y: by1 + ny * 3 + 3 + fs(10), anchor: nx >= 0 ? "start" : "end" }, { x: bx1 + nx * 3, y: by1 + ny * 3 - fs(8), anchor: nx >= 0 ? "start" : "end" }] }) && null}
+              {labelledAssays.has(row) && floatLabels.push({ key: `grade_${i}`, text: (a.u ? `${gradeText(a.value)} ${a.u} ${a.sym}` : gradeText(a.value)) + (a.pxrf ? " (pXRF)" : ""), /* #2362; gradeText: #2515 */ size: fs(9), fill: "#1a2028", prio: 2, cands: [{ x: bx1 + nx * 3, y: by1 + ny * 3 + 3, anchor: nx >= 0 ? "start" : "end" }, { x: bx1 + nx * 3, y: by1 + ny * 3 + 3 + fs(10), anchor: nx >= 0 ? "start" : "end" }, { x: bx1 + nx * 3, y: by1 + ny * 3 - fs(8), anchor: nx >= 0 ? "start" : "end" }] }) && null}
             </g>
           );
         }

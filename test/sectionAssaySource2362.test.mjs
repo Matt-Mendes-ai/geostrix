@@ -16,7 +16,7 @@ test("the section / level-plan assay points apply the 3D markers' two tests", ()
 
 test("a pXRF reading that is shown says so, on the point and on the section's grade label", () => {
   assert.equal(isPxrfRow({ source: "pXRF" }), true); assert.equal(isPxrfRow({}), false);
-  assert.match(v, /label: `\$\{sym\}: \$\{v\}\$\{px \? " \(pXRF\)" : ""\}`/);
+  assert.match(v, /label: `\$\{sym\}: \$\{gradeText\(v\)\}\$\{px \? " \(pXRF\)" : ""\}`/); // gradeText: #2515
   const s = readFileSync(new URL("../src/components/SectionWindow.jsx", import.meta.url), "utf8");
   assert.match(s, /\+ \(a\.pxrf \? " \(pXRF\)" : ""\)/);
 });

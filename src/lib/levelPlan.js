@@ -8,6 +8,7 @@
 //   meshPlanCut   a triangle mesh cut by the plane z = RL, as E/N segments (model surfaces, solids)
 // A trace is [{ md, x (E), y (N), z (elevation) }], as desurveyHole returns.
 import { magColor } from "./layers.js"; // #1537
+import { gradeText } from "./gradeText.js"; // TASKS.csv #2515
 
 // md runs [[md0, md1], ...] where zmin <= z <= zmax, interpolated at the crossings
 export function slabRuns(trace, zmin, zmax) {
@@ -144,7 +145,7 @@ export function planAssayLayers(points, holes, groups, projectValues) {
     legends[layer] = { title: unit ? `${sym} (${unit})` : sym, items: ramp ? ramp.items.map(([l, c]) => [unit ? `${l} ${unit}` : l, c]) : (g?.items || []).filter(([, c]) => c && c !== "transparent") };
     for (const p of pts) {
       const h = holeOf.get(p.hole_id); if (!h) continue;
-      const { from, to, value } = p.assay, color = colorOf(p), label = `${sym}: ${value}${unit ? ` ${unit}` : ""}`;
+      const { from, to, value } = p.assay, color = colorOf(p), label = `${sym}: ${gradeText(value)}${unit ? ` ${unit}` : ""}`; // gradeText: #2515
       const parts = (h.runs || []).map(([a, b]) => [Math.max(from, a), Math.min(to, b)]).filter(([a, b]) => b - a > 1e-6);
       if (parts.length) intervals.push({ hole_id: p.hole_id, layer, color, label, from, to, lines: tracePolylines(h.trace, parts) });
       for (const pc of h.pierce || []) if (pc.md >= from && pc.md <= to && !(pc.logs || []).some((l) => l.layer === layer)) (pc.logs = pc.logs || []).push({ label, color, layer });

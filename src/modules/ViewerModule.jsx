@@ -175,6 +175,7 @@ import { assaySizeFor, assayPassesCutoff } from "../lib/viewer/assaySize.js"; //
 import { objectVisibilityBundle, applyObjectVisibility } from "../lib/viewer/themeObjects.js"; // TASKS.csv #1535
 import { LABEL_PX, makeTextSprite, fitScreenLabels, fitContourLabels } from "../lib/viewer/textSprite.js"; // TASKS.csv #1443 — moved out of this file; fitContourLabels: #1466
 import { restrictLayersToHoles } from "../lib/modelArea.js"; // TASKS.csv #1546
+import { gradeText } from "../lib/gradeText.js"; // #2515
 import { syncHoleLabels, declutterHoleLabels, withEveryLabel, syncTextLabels, sampleLabelItems } from "../lib/viewer/holeLabels.js"; // withEveryLabel: TASKS.csv #1770; syncTextLabels / sampleLabelText: #1443
 import { PickStandIn, PICK_ONLY_LAYER } from "../lib/viewer/pickStandIn.js"; // TASKS.csv #1500
 import { syncBatchedInstances, buildLayerBatches, eachLayerMember } from "../lib/viewer/layerBatches.js"; // moved out (size cap, #1084)
@@ -4517,7 +4518,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             const mesh = new PickStandIn(POINT_PROTO[shape] || PROTO_SPHERE_10, { color: assayColorFor(v, idx, style), transparent: op < 1, opacity: op, side: shape === "disc" ? THREE.DoubleSide : THREE.FrontSide }); // #1500
             mesh.scale.setScalar(assaySizeFor(v, ranges[sym], style)); // #306
             mesh.position.set(pt.x + offX, pt.y, pt.z + offZ);
-            mesh.userData = lazyTip({ row: a, holeId: c.hole_id }, () => `${c.hole_id}\n${sym}: ${v} ${elementUnits[sym] || ""}${px ? " (pXRF)" : ""}\n${a.from.toFixed(0)}–${a.to.toFixed(0)} m`); // #1500
+            mesh.userData = lazyTip({ row: a, holeId: c.hole_id }, () => `${c.hole_id}\n${sym}: ${gradeText(v)} ${elementUnits[sym] || ""}${px ? " (pXRF)" : ""}\n${a.from.toFixed(0)}–${a.to.toFixed(0)} m`); // #1500
             g.add(mesh);
           });
         });
@@ -6605,7 +6606,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         vals.forEach((a) => {
           const mid = (a.from + a.to) / 2, v = a.values[sym];
           const px = isPxrfRow(a); // #2362 — a pXRF reading, when shown, says so
-          points.push({ hole_id: a.hole_id, md: mid, color: assayColorFor(v, idx, style), label: `${sym}: ${v}${px ? " (pXRF)" : ""}`, assay: { sym, value: v, idx, from: a.from, to: a.to, u, ...(px ? { pxrf: true } : {}) } }); // #392 — drawn as a grade bar
+          points.push({ hole_id: a.hole_id, md: mid, color: assayColorFor(v, idx, style), label: `${sym}: ${gradeText(v)}${px ? " (pXRF)" : ""}`, assay: { sym, value: v, idx, from: a.from, to: a.to, u, ...(px ? { pxrf: true } : {}) } }); // #392 — drawn as a grade bar
         });
       });
     }
