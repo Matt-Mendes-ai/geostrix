@@ -9757,5 +9757,6 @@
   "Value the share is counted above": "Valeur au-dessus de laquelle la part est comptée",
   "Share of readings above {v} per code, highest first: {list}.": "Part des lectures au-dessus de {v} par code, de la plus forte à la plus faible : {list}.",
   "Mean per code, highest first: {list}.": "Moyenne par code, de la plus forte à la plus faible : {list}.",
-  "P90 per code, highest first: {list}.": "P90 par code, du plus fort au plus faible : {list}."
+  "P90 per code, highest first: {list}.": "P90 par code, du plus fort au plus faible : {list}.",
+  "Contours…": "Courbes…"
 }

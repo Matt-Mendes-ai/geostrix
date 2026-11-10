@@ -11,10 +11,15 @@ export default function GridContourControls({ raster, inputStyle }) {
   const { addBoundary, terrain } = useStore();
   const [text, setText] = useState("");
   const [msg, setMsg] = useState(null);
-  const values = useMemo(() => (raster.grid?.values ? b64ToF32(raster.grid.values) : null), [raster.grid]);
+  // TASKS.csv #2398 (review #2325, WA uranium) — offered on every raster that keeps its grid, not only geochemistry grids. A geophysics grid
+  // can be millions of cells: it is decoded (and sorted for the suggested levels) only once the contours are asked for, not on every card
+  const [open, setOpen] = useState(!!raster.geochem);
+  const values = useMemo(() => (open && raster.grid?.values ? b64ToF32(raster.grid.values) : null), [open, raster.grid]);
   const suggested = useMemo(() => (values ? suggestedContourLevels(values) : []), [values]);
+  if (!raster.grid?.values) return null;
+  if (!open) return <button type="button" onClick={() => setOpen(true)} style={{ marginTop: 7, padding: "3px 8px", fontSize: "var(--font-size-sm)", border: "1px solid var(--color-border)", borderRadius: 4, background: "var(--color-bg)", color: "var(--color-text-secondary)", cursor: "pointer" }}>{tr("Contours…")}</button>;
   if (!values) return null;
-  const unit = raster.geochem?.unit || "";
+  const unit = raster.geochem?.unit || raster.unit || raster.terrainDerivative?.unit || "";
   const add = () => {
     const levels = text.trim() ? parseBreaks(text) : suggested;
     if (!levels.length) { setMsg(tr("Type one or more levels, e.g. 0.01, 0.05, 0.1.")); return; }

@@ -9757,5 +9757,6 @@
   "Value the share is counted above": "القيمة التي تُحسب النسبة فوقها",
   "Share of readings above {v} per code, highest first: {list}.": "نسبة القراءات فوق {v} لكل رمز، الأعلى أولًا: {list}.",
   "Mean per code, highest first: {list}.": "المتوسط لكل رمز، الأعلى أولًا: {list}.",
-  "P90 per code, highest first: {list}.": "المئين 90 لكل رمز، الأعلى أولًا: {list}."
+  "P90 per code, highest first: {list}.": "المئين 90 لكل رمز، الأعلى أولًا: {list}.",
+  "Contours…": "خطوط الكنتور…"
 }

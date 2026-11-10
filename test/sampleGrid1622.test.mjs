@@ -77,7 +77,7 @@ test("contours of the grid: a ring round the hot sample, stopping at blank nodes
 
 test("wired: a geochemistry raster card has contour controls; lines become one draped boundary", () => {
   const r = readFileSync(new URL("../src/modules/RasterModule.jsx", import.meta.url), "utf8");
-  assert.match(r, /r\.grid && r\.geochem && <GridContourControls raster=\{r\}/);
+  assert.match(r, /r\.grid && (r\.geochem && )?<GridContourControls raster=\{r\}/); // #2398: every gridded raster
   const c = readFileSync(new URL("../src/components/GridContourControls.jsx", import.meta.url), "utf8");
   assert.match(c, /drapeMode: terrain \? "terrain" : "flat", elevation: raster\.elevation/);
 });
