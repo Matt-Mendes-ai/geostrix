@@ -6,6 +6,7 @@ import { buildMeshQuery } from "../../lib/meshQuery.js"; // TASKS.csv #2376
 import { modelGround, boxTallerThanDrilling } from "../../lib/modelGround.js"; // TASKS.csv #2470
 import { roundVolume, loggedVolumeCheck } from "../../lib/volumeCheck.js"; // TASKS.csv #2530
 import { taskSlot, rampProgress } from "../../lib/taskSlot.js"; // TASKS.csv #2379; rampProgress: #2383
+import { stackOrderFromHoles } from "../../lib/stackOrderFromHoles.js"; // TASKS.csv #2382
 import { stackOrderAtHoles } from "../../lib/stackOrderAtHoles.js"; // TASKS.csv #2376
 import { intensityRank, INTENSITY_SCALE } from "../../lib/intensityVocab.js"; // TASKS.csv #2230
 import { baselineNotice, oneHoleDipNotice } from "../../lib/modelCheckBaseline.js"; // TASKS.csv #1687
@@ -1424,6 +1425,22 @@ export function createModellingRuns(ctx, mcRef) {
     if (randomFaults.length && !window.confirm(tr("{list}: the picks show no preferred orientation (at the level of random planes), so the fault surface made from them is not a real plane. Run the stack anyway?", { list: randomFaults.map((r) => `\"${r.name}\" (k = ${Number(r.k).toFixed(1)})`).join(", ") }))) {
       setNotices((p) => [...p, notice("Stack run cancelled before solving: check the fault picks on the Stereonet, or give each structure its own name / ID.")]);
       return;
+    }
+    // TASKS.csv #2382 (review #2325, WA uranium) — the order typed here, checked against the holes before a run of minutes: a pair the holes
+    // log the other way up (in 2/3 of the 3+ holes that have both) is said, with the order the holes give, and the run asks to go ahead
+    {
+      const kOf = new Map();
+      specs.forEach((s, k) => (s.codes || [s.meshName]).forEach((c) => { if (!kOf.has(c)) kOf.set(c, k); }));
+      const ord = stackOrderFromHoles(layers.litho || [], kOf, specs.length);
+      if (ord.conflicts.length) {
+        const list = ord.conflicts.slice(0, 4).map((q) => tr("{older} is logged above {younger} in {against} of {of} holes that have both", { older: specs[q.older].meshName, younger: specs[q.younger].meshName, against: q.against, of: q.of })).join("; ");
+        const holesOrder = ord.order.map((k) => specs[k].meshName).join(", ");
+        if (!window.confirm(tr("The stack's order does not match the holes: {list}. Down the holes the order is {order} (youngest first). Run in the order given anyway?", { list, order: holesOrder }))) {
+          setNotices((p) => [...p, notice("Stack run cancelled before solving: the holes give the order {order} (youngest first). Reorder the units with the arrows and run again.", { order: holesOrder })]);
+          return;
+        }
+        setNotices((p) => [...p, notice("Run in the order given, although the holes give {order} (youngest first): {list}.", { order: holesOrder, list })]);
+      }
     }
     await runSurfaceStack([...faultSpecs, ...specs], { relation: breakAt.size ? "erode" : stackRelation, packages }); // TASKS.csv #271; #1309
     if (faultWarnings.length) setNotices((p) => [...p, ...faultWarnings]);

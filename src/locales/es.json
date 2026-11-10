@@ -9747,5 +9747,9 @@
   "{n} bins of {b} m, in {u}{v}.": "{n} intervalos de {b} m, en {u}{v}.",
   "{n} readings, in {u}{v}.": "{n} lecturas, en {u}{v}.",
   "the layer's own units": "las unidades propias de la capa",
-  "{t} elapsed": "{t} transcurrido"
+  "{t} elapsed": "{t} transcurrido",
+  "{older} is logged above {younger} in {against} of {of} holes that have both": "{older} está registrado sobre {younger} en {against} de {of} sondajes que tienen ambos",
+  "The stack's order does not match the holes: {list}. Down the holes the order is {order} (youngest first). Run in the order given anyway?": "El orden de la pila no coincide con los sondajes: {list}. A lo largo de los sondajes el orden es {order} (el más joven primero). ¿Ejecutar de todos modos en el orden dado?",
+  "Stack run cancelled before solving: the holes give the order {order} (youngest first). Reorder the units with the arrows and run again.": "Ejecución de la pila cancelada antes de resolver: los sondajes dan el orden {order} (el más joven primero). Reordene las unidades con las flechas y ejecute de nuevo.",
+  "Run in the order given, although the holes give {order} (youngest first): {list}.": "Ejecutado en el orden dado, aunque los sondajes dan {order} (el más joven primero): {list}."
 }
