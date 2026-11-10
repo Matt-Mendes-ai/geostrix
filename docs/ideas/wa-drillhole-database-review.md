@@ -12,6 +12,17 @@ from an area classification, not from the data. The bundled sample was renamed "
 lithology cut to the current log (TASKS #2323, see section 6). The text below is left as written, as the record of the day; the deposit
 styles of the other five areas were assigned the same way and should be read as labels, not findings, until each is checked against its logs.
 
+**Second erratum, 2026-11-09.** Two more of those labels have now been checked against their tables (TASKS #2486). The "nickel" test
+area (report A123101) is not komatiite nickel: it is a lode-gold mine drilled largely from underground, at 26.37 S, 120.61 E (58,035
+gold fire assays against 3,366 nickel assays with a median of 56 ppm; 433 of the 1,218 holes are upholes; collars from RL -378 to
++571 m; quartz-carbonate veins and mineralized-zone codes on basalt and dolerite). Its sizes, timings and import results in sections 4
+and 5 stand; only the deposit style is wrong, and the folder keeps its name. The "lithium" area (A119127) is an LCT pegmatite as
+labelled (68 % of the samples at or above 1 % Li2O lie in the rock code logged as P), in the south-west at 33.87 S, 116.06 E. Its collar
+file is described below as "mine grid" only; the company's file also carried MGA94 zone 50 coordinates, the total depth and the drill
+type, which the State's database keeps in its core collar table and the export in `projects\lithium\csv` left out. The "0 collars
+(refused)" result in section 5 was therefore measured on a file missing four of the company's eleven columns. The iron and composite
+areas are still unchecked.
+
 ## 1. Source and licence
 
 The 15 zips are the "Mineral exploration drillholes (open file)" export of the WAMEX company mineral drillhole database,
