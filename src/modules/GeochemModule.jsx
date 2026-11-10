@@ -20,7 +20,7 @@ import { useStore, useSetTaskProgress } from "../lib/store.jsx"; // useSetTaskPr
 import { elementColumnStats } from "../lib/assayColumnScan.js"; // TASKS.csv #2164
 const ELEMENT_SCAN_CHUNKED_ROWS = 50000; // #2164 — below this the element columns are counted at once
 import { saveFile, loadSampleFiles } from "../lib/desktop.js"; // loadSampleFiles: TASKS.csv #391
-import { repeatColumns, columnDetectionLimit, isElementColumn, inferUnit, pickElementColumns, assayExportRows, parseAssayValue, valueIn, readAssayCell, columnPositiveMax, convertUnit, mergeAssayRows, holesWithChangedIntervals, dropHoleAssays, blankDetectionLimit, isBlankAssayCell, oxideOfHeader, fromOxideHeader, oxideUnit, surfaceAttrColumns, surfaceAttrs, mergeSurfaceSamples, otherMediumTwins } from "../lib/geochem.js"; // otherMediumTwins: #2085
+import { repeatColumns, columnDetectionLimit, isElementColumn, inferUnit, pickElementColumns, assayExportRows, parseAssayValue, valueIn, readAssayCell, columnPositiveMax, convertUnit, mergeAssayRows, holesWithChangedIntervals, dropHoleAssays, blankDetectionLimit, isBlankAssayCell, oxideOfHeader, fromOxideHeader, oxideUnit, importStoreUnit, oxideBasisUnit, surfaceAttrColumns, surfaceAttrs, mergeSurfaceSamples, otherMediumTwins } from "../lib/geochem.js"; // otherMediumTwins: #2085
 import { DIAGRAMS, SPIDER_DIAGRAMS, GEOCHEM_METHODS, diagramExportRows, protolithForSample, PROVISIONAL_ALTERATION_BOXES, GEOCHEM_LABELS, reeProfile, loggedCodeAt, isSedimentaryCode, mergeClassRuns, FITTED_PROTOLITH, fitLeastAlteredBox, nameAiUpTrend , censoredOperand, censoredLeftOut } from "../lib/geochemDiagrams.js"; // fitted: #2028; nameAiUpTrend: #2145
 import { qcRecordFromFileRow, emptySurfaceQc, looksLikeQcTypeColumn, mergeQcRecords } from "../lib/surfaceQaqc.js"; // TASKS.csv #842; looksLikeQcTypeColumn, mergeQcRecords: #1794
 import { mapInChunks } from "../lib/mapInChunks.js"; // TASKS.csv #583
@@ -496,7 +496,7 @@ export default function GeochemModule() {
     // are now converted into the unit the project already uses for that element, and the notice says so.
     const existingUnit = Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit]));
     const chosenBySymbol = new Map(chosen.map((e) => [e.symbol, e]));
-    const converted = chosen.filter((e) => existingUnit[e.symbol] && existingUnit[e.symbol] !== e.unit);
+    const converted = chosen.filter((e) => existingUnit[e.symbol] && existingUnit[e.symbol] !== importStoreUnit(e)); // #2487: the stored unit
     // TASKS.csv #333 — negative lab/database codes resolved at import (see readAssayCell).
     const negativeMode = modal.negativeMode || "bdl";
     let negBdl = 0, negMissing = 0, negOver = 0;
@@ -517,11 +517,12 @@ export default function GeochemModule() {
       else if (c.kind === "neg_missing") negMissing++;
       else if (c.kind === "neg_over") negOver++;
       const e = chosenBySymbol.get(sym);
-      // TASKS.csv #403 — an oxide column (SiO2, Fe2O3T...) is stored as element wt%.
+      // TASKS.csv #403 — an oxide column (SiO2, Fe2O3T...) is stored as element wt%; #2487 — or kept as the oxide ("% Li2O"), as chosen
       const ox = oxideOf(header);
-      if (ox && c.value != null) oxideNotes.add(`${ox.oxide} → ${ox.symbol} (÷${ox.factor})`);
-      const elemPct = ox ? fromOxideHeader(c.value, header) : c.value;
-      return { v: e ? convertUnit(elemPct, ox ? oxideUnit(header) : e.unit, existingUnit[sym] || (ox ? oxideUnit(header) : e.unit)) : elemPct, q: c.qualifier }; // oxideUnit: #2157
+      if (!e) return { v: ox ? fromOxideHeader(c.value, header) : c.value, q: c.qualifier };
+      const to = existingUnit[sym] || importStoreUnit(e);
+      if (ox && c.value != null) oxideNotes.add(to === oxideBasisUnit(oxideUnit(header), ox.oxide) ? `${ox.oxide} kept as ${ox.oxide}` : `${ox.oxide} → ${ox.symbol} (÷${ox.factor})`);
+      return { v: convertUnit(c.value, ox ? oxideBasisUnit(oxideUnit(header), ox.oxide) : e.unit, to), q: c.qualifier }; // oxideUnit: #2157
     };
     // TASKS.csv #400 — keep a QC-type and a sample-id column when the file has them (acQuire / MX exports
     // mark standards / blanks / duplicates there, under the real hole_id). Auto-detected by header name.
@@ -684,7 +685,7 @@ export default function GeochemModule() {
     const { merged: mergedCount, repeatedInFile } = mergeRes;
     setAssays((prev) => (prev === assays ? mergeRes.rows : mergeAssayRows(replaceHoles.length ? dropHoleAssays(prev, replaceHoles) : prev, rows).rows));
     // Existing elements keep their unit (#334); only new symbols add an entry.
-    setAssayElements((prev) => { const merged = new Map(prev.map((e) => [e.symbol, e])); chosen.forEach((e) => { if (merged.has(e.symbol) && e.methods) { const m = merged.get(e.symbol); merged.set(e.symbol, { ...m, methods: [...new Set([...(m.methods || []), ...e.methods])] }); } /* #1518 */ if (!merged.has(e.symbol)) merged.set(e.symbol, oxideOfHeader(e.header) ? { ...e, unit: oxideUnit(e.header) } : e); }); return Array.from(merged.values()); }); // #403: oxide-sourced elements are stored in % (#2157: or the ppm / ppb the header says)
+    setAssayElements((prev) => { const merged = new Map(prev.map((e) => [e.symbol, e])); chosen.forEach((e) => { if (merged.has(e.symbol) && e.methods) { const m = merged.get(e.symbol); merged.set(e.symbol, { ...m, methods: [...new Set([...(m.methods || []), ...e.methods])] }); } /* #1518 */ if (!merged.has(e.symbol)) merged.set(e.symbol, oxideOfHeader(e.header) ? { ...e, unit: importStoreUnit(e) } : e); }); return Array.from(merged.values()); }); // #403: oxide-sourced elements are stored in % (#2157: or the ppm / ppb the header says; #2487: or as the oxide, "% Li2O")
     if (!colorElement && chosen.length) setColorElement((chosen.find((e) => e.symbol === "Au") || chosen[0]).symbol);
     const more = (list, k) => list.slice(0, k).map((h) => h.hole_id).join(", ") + (list.length > k ? ", …" : "");
     const extra = [
@@ -715,7 +716,7 @@ export default function GeochemModule() {
       blankNoLimit.size ? tr("No detection limit could be found for {list} (no '<' values and no reported values), so their empty cells stay not assayed.", { list: [...blankNoLimit].join(", ") }) : null,
       // #510 — same-interval rows in ONE file are kept, not merged: usually field / lab duplicates
       repeatedInFile ? tr("{n} interval(s) appear more than once in this file (often field or lab duplicates) — all kept as separate rows; Data QC and Best Intercepts flag them as overlaps.", { n: repeatedInFile }) : null,
-      oxideNotes.size ? tr("Whole-rock oxide columns stored as element wt% ({list}); diagrams convert back to oxides.", { list: [...oxideNotes].join(", ") }) : null,
+      oxideNotes.size ? tr("Oxide columns: {list}. A grade kept as its oxide is read, typed, priced and exported as the oxide; one stored as the element is in element wt%, and the diagrams convert either to oxides.", { list: [...oxideNotes].join(", ") }) : null, // #2487
     ].filter(Boolean).join(" ");
     import("../lib/dataQC.js").then(({ importCheckSummary }) => { const msg = importCheckSummary(rows, collars, store.survey, tr("assay rows")); if (msg) setNotices((p) => [...p, msg]); }).catch(() => {}); // TASKS.csv #1268
     setNotices((p) => [...p, notice("Loaded {rows} {v} intervals ({chosen} elements).{v2}", { rows: rows.length, v: modal.isPxrf ? tr("pXRF") : tr("assay"), chosen: chosen.length, v2: extra ? " " + extra : "" })]);

@@ -9,7 +9,7 @@
 // no value (NaN is never stored), so an index is never computed from a partial analysis.
 import { compileCalc } from "./calcExpr.js";
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
-import { convertUnit } from "./geochem.js"; // TASKS.csv #2500
+import { convertUnit, unitBasis } from "./geochem.js"; // TASKS.csv #2500; unitBasis: #2487
 
 // TASKS.csv #2500 (review #2486, WA lithium) — each preset says the unit it reads every element in (`units`), and the calculation
 // converts from the stored unit where they differ: K/Rb read 'K in %, Rb in ppm' off the stored numbers, and on an XRF suite with Rb
@@ -44,7 +44,7 @@ export function presetConversions(assayElements, readUnits) {
   for (const [sym, to] of Object.entries(readUnits || {})) {
     const from = (assayElements || []).find((e) => e.symbol === sym)?.unit || "";
     if (from === to || (from === "g/t" && to === "ppm") || (from === "ppm" && to === "g/t")) continue;
-    if (!CONVERTIBLE.has(from)) throw new Error(tr("{sym} is stored in \"{u}\", which this preset cannot convert to {to}.", { sym, u: from || "?", to }));
+    if (!CONVERTIBLE.has(from) && !unitBasis(from).oxide) throw new Error(tr("{sym} is stored in \"{u}\", which this preset cannot convert to {to}.", { sym, u: from || "?", to })); // #2487: an oxide basis ("% Rb2O") converts through its element
     out.push({ sym, from, to, factor: convertUnit(1, from, to) });
   }
   return out;

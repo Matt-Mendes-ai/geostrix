@@ -102,6 +102,37 @@ export function fromOxideHeader(value, header) {
 // TASKS.csv #718 — whole-rock oxides are wt% (was implied by Cr / Mn / P being on MAJOR_PCT); #2157 — unless the header says ppm / ppb
 // (Ta2O5_ppm: 85 ppm Ta2O5 was read as 85 % and stored as 696,150 ppm Ta). The unit an oxide column's values are in.
 export const oxideUnit = (header) => { const h = String(header).toLowerCase(); return h.includes("ppb") ? "ppb" : h.includes("ppm") ? "ppm" : "%"; };
+// TASKS.csv #2487 (review #2486, WA lithium) — a grade REPORTED AS its oxide: the element stays the symbol (Li), the unit carries the
+// basis ("% Li2O", "ppm Ta2O5") and the stored numbers are the oxide's, as the lab reports them. Every reader that converts through
+// convertUnit / valueIn gets the element when it asks for "%" / "ppm" / "ppb" (the diagrams, ratios, the oxide factor once), and the
+// oxide when it asks in the element's own unit (cut-offs, caps, labels, exports). -> { base: "%"|"ppm"|"ppb", oxide, factor }
+export const COMMODITY_OXIDES = new Set(["Li2O", "Ta2O5", "Nb2O5", "Cs2O", "Rb2O", "SnO2", "U3O8", "WO3", "V2O5"]); // default kept as the oxide at import
+const BASIS_CACHE = new Map();
+export function unitBasis(unit) {
+  const u = unit == null ? "ppm" : String(unit);
+  let b = BASIS_CACHE.get(u);
+  if (b) return b;
+  const m = /^(%|ppm|ppb) ([A-Z][A-Za-z0-9]*)$/.exec(u.trim());
+  b = m && OXIDE_HEADERS[m[2]] ? { base: m[1], oxide: m[2], symbol: OXIDE_HEADERS[m[2]][0], factor: OXIDE_HEADERS[m[2]][1] } : { base: u === "%" || u === "ppb" ? u : "ppm", oxide: null, symbol: null, factor: 1 };
+  if (BASIS_CACHE.size > 200) BASIS_CACHE.clear();
+  BASIS_CACHE.set(u, Object.freeze(b));
+  return b;
+}
+export const oxideBasisUnit = (base, oxide) => `${base} ${oxide}`;
+// an import element read from an oxide column: kept as the oxide (its own choice, else a commodity oxide by default), or stored as the element
+export function keepsOxide(e) { const ox = oxideOfHeader(e?.header); return !!ox && (e.keepOxide ?? COMMODITY_OXIDES.has(ox.oxide)); }
+// the unit an import element is stored in: an oxide column kept as the oxide -> "% Li2O"; stored as the element -> the header's % / ppm / ppb
+export function importStoreUnit(e) { const ox = oxideOfHeader(e?.header); return !ox ? e.unit : keepsOxide(e) ? oxideBasisUnit(oxideUnit(e.header), ox.oxide) : oxideUnit(e.header); }
+// element ppm from a value in `unit`, and back
+// (the plain units first: valueIn runs per sample in every estimate, so they take no lookup)
+const elementPpm = (v, unit) => {
+  if (unit === "%") return v * 10000; if (unit === "ppb") return v / 1000; if (unit === "ppm" || unit == null) return v;
+  const b = unitBasis(unit); return (b.base === "%" ? v * 10000 : b.base === "ppb" ? v / 1000 : v) / b.factor;
+};
+const fromElementPpm = (ppm, unit) => {
+  if (unit === "%") return ppm / 10000; if (unit === "ppb") return ppm * 1000; if (unit === "ppm" || unit == null) return ppm;
+  const b = unitBasis(unit); const p = ppm * b.factor; return b.base === "%" ? p / 10000 : b.base === "ppb" ? p * 1000 : p;
+};
 export function inferUnit(header, symbol) {
   const h = String(header).toLowerCase();
   if (oxideOfHeader(header)) return oxideUnit(header);
@@ -333,8 +364,7 @@ export function blankDetectionLimit(cells) {
 // TASKS.csv #334 — convert a value between ppb / ppm / % (g/t == ppm).
 export function convertUnit(v, fromUnit, toUnit) {
   if (v == null || fromUnit === toUnit) return v;
-  const asPpm = fromUnit === "%" ? v * 10000 : fromUnit === "ppb" ? v / 1000 : v;
-  return toUnit === "%" ? asPpm / 10000 : toUnit === "ppb" ? asPpm * 1000 : asPpm;
+  return fromElementPpm(elementPpm(v, fromUnit), toUnit); // #2487 — an oxide basis ("% Li2O") converts through the element
 }
 
 // TASKS.csv #336 — re-importing assays used to append a second copy of every row (a daily camp re-drop
@@ -472,10 +502,8 @@ export function valueIn(sample, symbol, unit, elementUnits) {
   const raw = sample.values[symbol];
   if (raw == null) return null;
   const native = elementUnits[symbol] || "ppm";
-  const asPpm = native === "%" ? raw * 10000 : native === "ppb" ? raw / 1000 : raw;
-  if (unit === "%") return asPpm / 10000;
-  if (unit === "ppb") return asPpm * 1000;
-  return asPpm;
+  if (native === unit) return raw;
+  return fromElementPpm(elementPpm(raw, native), unit); // #2487 — "% Li2O" read as "%" is Li %, read as itself is Li2O %
 }
 
 // ---------- best-intercept / downhole intersection compositing ----------
@@ -1073,7 +1101,7 @@ const G_PER_OZT = 31.1034768, G_PER_LB = 453.59237;
 export function pricePerGram(symbol, price) {
   return PRECIOUS_METALS.has(symbol) ? price / G_PER_OZT : price / G_PER_LB;
 }
-function toGt(value, unit) { return unit === "%" ? value * 10000 : unit === "ppb" ? value / 1000 : value; }
+function toGt(value, unit) { return elementPpm(value, unit); } // #2487 — g/t of the element (the prices are per unit of the element)
 export function metalEquivalent(grades, metals) {
   if (!metals?.length) return null;
   let value = 0;
@@ -1084,7 +1112,7 @@ export function metalEquivalent(grades, metals) {
   }
   const base = metals[0];
   const eqGt = value / (pricePerGram(base.symbol, base.price) * base.recovery);
-  return base.unit === "%" ? eqGt / 10000 : base.unit === "ppb" ? eqGt * 1000 : eqGt;
+  return fromElementPpm(eqGt, base.unit);
 }
 // TASKS.csv #1387 (review #1352, Silvertip) — the assay rows with a per-sample metal equivalent as a virtual element `${base}Eq` (in
 // the base element's unit), so intercepts can be cut on the equivalent with the same cutoff / dilution / length rules: a Zn-rich,
@@ -1209,7 +1237,8 @@ export function mergeSurfaceSamples(prev, rows) {
 // is written "<limit" and an over-range one ">limit" as labs write them, and the sample / QC columns are kept.
 const UNIT_TAG = { ppb: "ppb", ppm: "ppm", "%": "pct", "g/t": "gpt", gpt: "gpt" };
 export function assayExportRows(assays, assayElements) {
-  const els = (assayElements || []).map((e) => ({ symbol: e.symbol, header: `${e.symbol}_${UNIT_TAG[String(e.unit || "ppm").toLowerCase()] || String(e.unit || "ppm").replace(/[^\w]+/g, "")}` }));
+  // #2487 — an oxide basis exports under the oxide's header (Li2O_pct), which the import reads back as that oxide
+  const els = (assayElements || []).map((e) => { const b = unitBasis(e.unit); return { symbol: e.symbol, header: b.oxide ? `${b.oxide}_${UNIT_TAG[b.base]}` : `${e.symbol}_${UNIT_TAG[String(e.unit || "ppm").toLowerCase()] || String(e.unit || "ppm").replace(/[^\w]+/g, "")}` }; });
   const num = (v) => +Number(v).toPrecision(12);
   return (assays || []).map((a) => {
     const row = { hole_id: a.hole_id, from: a.from, to: a.to, sample_id: a.sample_id ?? "", sample_type: a.sample_type ?? "", parent_id: a.parent_id ?? "", qc_code: a.qc_code ?? "", source: a.source ?? "" };

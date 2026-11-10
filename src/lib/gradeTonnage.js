@@ -7,10 +7,16 @@
 // density: t/m3, required (no default, as #264: a tonnage at an assumed density reads as measured).
 // unit: the value's unit ("ppm", "g/t", "ppb", "%", ...) — decides the metal column, or none for anything else.
 
+import { unitBasis } from "./geochem.js"; // TASKS.csv #2487
+
 export const blockVolume = (c) => (Number.isFinite(c.coverage) ? c.coverage : 1) * c.dx * c.dy * c.dz;
 
 // metal contained: grams for ppm / g/t (1 ppm = 1 g/t) and ppb (mg/t), tonnes for %. -> { factor, unit } or null
 export function metalOf(unit) {
+  // TASKS.csv #2487 — a grade reported as its oxide ("% Li2O"): the metal is counted as the ELEMENT (the pit's products and prices are per
+  // tonne of the element, SOLD_AS), and shown as the oxide (metalColumns)
+  const b = unitBasis(unit);
+  if (b.oxide) { const m = metalOf(b.base); return m ? { ...m, factor: m.factor / b.factor, oxide: b.oxide, oxideFactor: b.factor } : null; }
   const u = String(unit || "").trim().toLowerCase();
   if (u === "ppm" || u === "g/t" || u === "gpt") return { factor: 1, unit: "g" };
   if (u === "ppb") return { factor: 0.001, unit: "g" };
@@ -42,6 +48,7 @@ const isPrecious = (element) => PRECIOUS.has(String(element || "").trim());
 // the metal columns to show / export: [{ key, label, factor }] applied to metalOf's amount (grams or tonnes); [] without a metal
 export function metalColumns(metal, element) {
   if (!metal) return [];
+  if (metal.oxide) return [{ key: `metal_t_${metal.oxide}`, label: `Metal (t ${metal.oxide})`, factor: metal.oxideFactor * (metal.unit === "g" ? 1e-6 : 1) }]; // #2487
   if (metal.unit === "t") return [{ key: "metal_t", label: "Metal (t)", factor: 1 }];
   if (isPrecious(element)) return [{ key: "metal_kg", label: "Metal (kg)", factor: 1e-3 }, { key: "metal_oz", label: "Metal (troy oz)", factor: 1 / TROY_OZ_G }];
   return [{ key: "metal_t", label: "Metal (t)", factor: 1e-6 }];

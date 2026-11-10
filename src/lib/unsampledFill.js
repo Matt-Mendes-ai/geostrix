@@ -4,16 +4,13 @@
 // pegmatite hole inside a 0.5 % Li2O shell over 14.4 m of samples. A geologist often leaves core unsampled because it was judged
 // barren, so the reading is the user's choice: "not known" (as before) or "barren", at a value the user types (no number here reads
 // as a fact, #264). Only holes that carry the element at least once are filled: a hole with no sample of it says nothing.
-import { rawSampleIntervals } from "./geochem.js";
+import { rawSampleIntervals, convertUnit } from "./geochem.js";
 
 export const ASK_BELOW_SHARE = 0.6; // under this share of the sampled holes' metres carrying the element, the dialog asks (no default)
 const EPS = 1e-6;
 
-// a value in `unit` -> the element's stored unit (what valueIn reads back)
-function toNative(v, unit, native) {
-  const ppm = unit === "%" ? v * 10000 : unit === "ppb" ? v / 1000 : v;
-  return native === "%" ? ppm / 10000 : native === "ppb" ? ppm * 1000 : ppm;
-}
+// a value in `unit` -> the element's stored unit (what valueIn reads back; an oxide basis too, #2487)
+const toNative = (v, unit, native) => convertUnit(v, unit, native);
 
 // per hole carrying `symbol`: its length (the collar's max_depth, or the deepest sample when longer) and its covered intervals
 function coverage(assays, collars, symbol, unit, elementUnits) {

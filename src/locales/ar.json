@@ -9782,5 +9782,11 @@
   "{p} % of the estimated metal is in blocks above or below every sample that informs them (Grade-tonnage gives it per cutoff).": "{p} % من المعدن المقدَّر في كتل فوق أو تحت كل عينة تغذيها (يعطيه جدول المحتوى-الحمولة لكل حد قطع).",
   "Share of the metal in blocks lying wholly above or below every sample that informs them: grade carried up or down the holes into metres their samples do not reach": "حصة المعدن في كتل تقع بالكامل فوق أو تحت كل عينة تغذيها: محتوى حُمل صعودًا أو نزولًا في الآبار إلى أمتار لا تبلغها عيناتها",
   "Beyond the samples": "خارج العينات",
-  "{p} % of the metal at the {c} cutoff is in blocks above or below every sample that informs them: the estimate carried grade up or down the holes past their samples (unsampled core reads as not known unless the estimate filled it).": "{p} % من المعدن عند حد القطع {c} في كتل فوق أو تحت كل عينة تغذيها: حمل التقدير المحتوى صعودًا أو نزولًا في الآبار متجاوزًا عيناتها (يُقرأ اللباب غير المأخوذ منه عينات كغير معروف ما لم يملأه التقدير)."
+  "{p} % of the metal at the {c} cutoff is in blocks above or below every sample that informs them: the estimate carried grade up or down the holes past their samples (unsampled core reads as not known unless the estimate filled it).": "{p} % من المعدن عند حد القطع {c} في كتل فوق أو تحت كل عينة تغذيها: حمل التقدير المحتوى صعودًا أو نزولًا في الآبار متجاوزًا عيناتها (يُقرأ اللباب غير المأخوذ منه عينات كغير معروف ما لم يملأه التقدير).",
+  "Oxide columns: {list}. A grade kept as its oxide is read, typed, priced and exported as the oxide; one stored as the element is in element wt%, and the diagrams convert either to oxides.": "أعمدة الأكاسيد: {list}. المحتوى المحفوظ كأكسيده يُقرأ ويُكتب ويُسعَّر ويُصدَّر كأكسيد؛ والمخزَّن كعنصر يكون بنسبة وزنية للعنصر، وتحوّل المخططات كليهما إلى أكاسيد.",
+  "Kept as the oxide: {list}. These grades are read, typed (cut-offs, caps), priced and exported as the oxide; the element is used only where a diagram needs it.": "محفوظة كأكسيد: {list}. تُقرأ هذه المحتويات وتُكتب (حدود القطع والسقوف) وتُسعَّر وتُصدَّر كأكسيد؛ ولا يُستخدم العنصر إلا حيث يحتاجه مخطط.",
+  "Stored as the element (oxide divided by its factor): {list}. The diagrams convert them back to oxides.": "مخزنة كعنصر (الأكسيد مقسومًا على معامله): {list}. تحوّلها المخططات مجددًا إلى أكاسيد.",
+  "Change it per column with the as … menu.": "غيّره لكل عمود من قائمة كـ …",
+  "Basis of {symbol}": "أساس {symbol}",
+  "as {v}": "كـ {v}"
 }

@@ -1,7 +1,7 @@
 import { QC_COLUMN_KEYS } from "../lib/assayQcColumns.js"; // TASKS.csv #1184
 import React, { useEffect, useMemo, useState } from "react";
 import { X } from "./icons.js";
-import { isElementColumn, inferUnit, ELEMENT_SYMBOLS, unitAssumed, repeatColumns } from "../lib/geochem.js"; // repeatColumns: #2194
+import { isElementColumn, inferUnit, ELEMENT_SYMBOLS, unitAssumed, repeatColumns, oxideOfHeader, keepsOxide } from "../lib/geochem.js"; // repeatColumns: #2194; oxide basis: #2487
 import { scanAssayColumns, negativeSummary, zeroCount, blankCount } from "../lib/assayColumnScan.js"; // TASKS.csv #2164
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
@@ -46,6 +46,10 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
   const pts = useMemo(() => (modal.isPxrf ? pointReadings(modal.allRows || [], modal.headers, modal.mapping) : { allPoints: false }), [modal.isPxrf, modal.allRows, modal.headers, modal.mapping]); // #1653
   const toggleEl = (sym) => onChange({ ...modal, elements: modal.elements.map((e) => e.symbol === sym ? { ...e, checked: !e.checked } : e) });
   const setUnit = (sym, unit) => onChange({ ...modal, elements: modal.elements.map((e) => e.symbol === sym ? { ...e, unit, unitChosen: true } : e) }); // unitChosen: #718
+  const setKeepOxide = (sym, keep) => onChange({ ...modal, elements: modal.elements.map((e) => e.symbol === sym ? { ...e, keepOxide: keep } : e) }); // #2487
+  // TASKS.csv #2487 — the oxide columns and the basis each will be stored in, said before the commit
+  const oxideEls = modal.format === "wide" ? modal.elements.filter((e) => e.checked && oxideOfHeader(e.header)) : [];
+  const keptOx = oxideEls.filter(keepsOxide).map((e) => oxideOfHeader(e.header).oxide), storedOx = oxideEls.filter((e) => !keepsOxide(e)).map((e) => `${oxideOfHeader(e.header).oxide} → ${e.symbol}`);
   // TASKS.csv #718 — a unit the header did not state, until the user picks one
   const assumedTag = (e) => (!e.unitChosen && unitAssumed(e.header) ? <span title={tr("\"{header}\" does not say its unit, so {unit} was assumed from the element. Check it against the lab certificate.", { header: e.header, unit: e.unit })} style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", fontStyle: "italic", flexShrink: 0 }}>{tr("assumed")}</span> : null);
   // TASKS.csv #210 — lets the user repoint an auto-detected (or manually added) element at a
@@ -141,6 +145,13 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
           {modal.elements.filter((e) => e.unitFromValues && !e.unitChosen && e.header === e.mainHeader).map((e) => (
             <div key={`ppb${e.symbol}`} role="status" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", margin: "4px 0" }}>{tr("{symbol}: \"{header}\" does not say its unit, and its values (median {median}, up to {max}) read as ppb, not ppm: ppb is chosen. Check it against the lab certificate.", { symbol: e.symbol, header: e.header, median: +e.unitFromValues.median.toFixed(2), max: e.unitFromValues.max.toLocaleString() })}</div>
           ))}
+          {oxideEls.length > 0 && ( /* TASKS.csv #2487 */
+            <div role="note" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", margin: "4px 0", lineHeight: 1.45 }}>
+              {keptOx.length > 0 && tr("Kept as the oxide: {list}. These grades are read, typed (cut-offs, caps), priced and exported as the oxide; the element is used only where a diagram needs it.", { list: keptOx.join(", ") })}{" "}
+              {storedOx.length > 0 && tr("Stored as the element (oxide divided by its factor): {list}. The diagrams convert them back to oxides.", { list: storedOx.join(", ") })}{" "}
+              {tr("Change it per column with the as … menu.")}
+            </div>
+          )}
           {modal.format === "wide" ? (
             <div style={{ display: "flex", flexDirection: "column", gap: 4, maxHeight: 280, overflowY: "auto", padding: 4, border: "1px solid var(--color-border)", borderRadius: 6 }}>
               {modal.elements.map((e) => (
@@ -164,6 +175,11 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
                   <select value={e.unit} onChange={(ev) => setUnit(e.symbol, ev.target.value)} style={{ ...sel, fontSize: "var(--font-size-xs)", padding: "1px 3px", flexShrink: 0 }}>
                     <option value="ppm">{tr("ppm")}</option><option value="%">%</option><option value="ppb">{tr("ppb")}</option>
                   </select>
+                  {oxideOfHeader(e.header) && ( /* TASKS.csv #2487 — the basis this oxide column is stored in */
+                    <select value={keepsOxide(e) ? "oxide" : "element"} onChange={(ev) => setKeepOxide(e.symbol, ev.target.value === "oxide")} aria-label={tr("Basis of {symbol}", { symbol: e.symbol })} style={{ ...sel, fontSize: "var(--font-size-xs)", padding: "1px 3px", flexShrink: 0 }}>
+                      <option value="oxide">{tr("as {v}", { v: oxideOfHeader(e.header).oxide })}</option><option value="element">{tr("as {v}", { v: e.symbol })}</option>
+                    </select>
+                  )}
                   <X role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} onClick={() => removeEl(e.symbol)} title={tr("Remove this element mapping")} aria-label={tr("Remove the {symbol} mapping", { symbol: e.symbol })} />
                 </div>
               ))}
