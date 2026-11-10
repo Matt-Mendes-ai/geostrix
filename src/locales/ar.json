@@ -9658,5 +9658,8 @@
   "sphere": "كرة",
   "trend": "اتجاه",
   "{sym} is stored in \"{u}\", which this preset cannot convert to {to}.": "{sym} مخزن بوحدة \"{u}\"، ولا يستطيع هذا الإعداد المسبق تحويلها إلى {to}.",
-  "Read in {list}, converted from the stored units where they differ.": "تُقرأ بوحدات {list}، محوَّلة من الوحدات المخزنة حيث تختلف."
+  "Read in {list}, converted from the stored units where they differ.": "تُقرأ بوحدات {list}، محوَّلة من الوحدات المخزنة حيث تختلف.",
+  "{n} sample(s) left out: a ratio with a below-detection operand is not a point ({list}).": "استُبعدت {n} عينة: النسبة التي أحد حديها تحت حد الكشف ليست نقطة ({list}).",
+  "{el} below detection in {n}": "{el} تحت حد الكشف في {n}",
+  " {n} sample(s) were not classified: a below-detection operand is not a measurement ({list}).": " لم تُصنَّف {n} عينة: الحد الذي تحت حد الكشف ليس قياسًا ({list})."
 }

@@ -406,7 +406,7 @@ export const GEOCHEM_METHODS = {
   },
   litho_winchester: {
     label: "Winchester–Floyd immobile fields",
-    target: "litho", requires: ["Zr", "Ti", "Nb", "Y"],
+    target: "litho", requires: ["Zr", "Ti", "Nb", "Y"], ratio: true, // ratio: #2501 — no class from a below-detection operand
     volcanicOnly: true, // #1380
     classify: (v, u, sampleShim) => {
       const s = sampleShim || { values: v };
@@ -435,6 +435,32 @@ export const GEOCHEM_METHODS = {
     },
   },
 };
+
+// TASKS.csv #2501 (review #2486, WA lithium) — a ratio or ternary of immobile traces with a below-detection operand is not a point: it
+// was plotted from half the detection limit, so on an XRF suite 20,748 of 21,881 Winchester points were ratios with a '<' operand (a
+// stripe at Nb/Y = 0.355, two half limits), and Classify named 4,569 pegmatite samples Phonolite from them. These diagrams (and the
+// Winchester classifier, which projects through them) now leave such a sample out; censoredOperand says which element did. Sums of
+// majors (TAS, AFM) keep the half-limit substitution, where a trace of Na2O hardly moves the point.
+export const RATIO_DIAGRAMS = ["winchester", "thnbyb", "tizry", "thhfta"];
+export function censoredOperand(s, symbols) {
+  for (const sym of symbols || []) if (s?.qualifiers?.[sym] === "<" || s?.bdl?.includes?.(sym)) return sym;
+  return null;
+}
+for (const id of RATIO_DIAGRAMS) {
+  const d = DIAGRAMS[id];
+  if (!d || d.ratio) continue;
+  const raw = d.project;
+  d.ratio = true; d.projectRaw = raw;
+  d.project = (s, u) => (censoredOperand(s, d.requires) ? null : raw(s, u));
+}
+// the samples a ratio diagram left out, by the first below-detection element: { total, bySymbol: { Y: n, ... } } (only those that would plot)
+export function censoredLeftOut(diagram, samples, units) {
+  const bySymbol = {};
+  let total = 0;
+  if (!diagram?.ratio) return { total, bySymbol };
+  for (const s of samples || []) { const sym = censoredOperand(s, diagram.requires); if (sym && diagram.projectRaw(s, units)) { bySymbol[sym] = (bySymbol[sym] || 0) + 1; total++; } }
+  return { total, bySymbol };
+}
 
 export const GEOCHEM_LABELS = {
   SER: "Sericite / K-feldspar trend (phyllic or potassic)" /* #2028 — the up trend of a porphyry is potassic as often as phyllic */,

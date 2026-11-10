@@ -9658,5 +9658,8 @@
   "sphere": "sphère",
   "trend": "tendance",
   "{sym} is stored in \"{u}\", which this preset cannot convert to {to}.": "{sym} est stocké en « {u} », que ce préréglage ne peut pas convertir en {to}.",
-  "Read in {list}, converted from the stored units where they differ.": "Lus en {list}, convertis depuis les unités stockées là où elles diffèrent."
+  "Read in {list}, converted from the stored units where they differ.": "Lus en {list}, convertis depuis les unités stockées là où elles diffèrent.",
+  "{n} sample(s) left out: a ratio with a below-detection operand is not a point ({list}).": "{n} échantillon(s) écartés : un rapport dont un terme est sous la limite de détection n'est pas un point ({list}).",
+  "{el} below detection in {n}": "{el} sous la détection dans {n}",
+  " {n} sample(s) were not classified: a below-detection operand is not a measurement ({list}).": " {n} échantillon(s) n'ont pas été classés : un terme sous la limite de détection n'est pas une mesure ({list})."
 }

@@ -34,6 +34,6 @@ test("#2145 wiring: the dialog's per-code choice, the run's naming and the basis
   assert.match(m, /onRun\(\{ boxes, map, source, fitCodes, trendRoles \}\)/);
   const g = read("src/modules/GeochemModule.jsx");
   assert.match(g, /value = nameAiUpTrend\(value, trendRoles \? loggedCodeAt\(a, altByHole\) : null, trendRoles\); trendBasis\[value === "SER" \? "chem" : "log"\]\+\+;/);
-  assert.match(g, /\+ trendText \+ sedText \+ jensenText/);
+  assert.match(g, /\+ trendText \+ sedText \+ (bdlText \+ )?jensenText/); // bdlText: #2501
   assert.doesNotMatch(read("src/lib/geochemDiagrams.js").slice(read("src/lib/geochemDiagrams.js").indexOf("export function guessTrendRole"), read("src/lib/geochemDiagrams.js").indexOf("export function guessProtolith")), /K\/Al|2 ?\/ ?3|0\.6/); // no cutoff
 });

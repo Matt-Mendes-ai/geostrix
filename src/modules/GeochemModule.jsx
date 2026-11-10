@@ -21,7 +21,7 @@ import { elementColumnStats } from "../lib/assayColumnScan.js"; // TASKS.csv #21
 const ELEMENT_SCAN_CHUNKED_ROWS = 50000; // #2164 — below this the element columns are counted at once
 import { saveFile, loadSampleFiles } from "../lib/desktop.js"; // loadSampleFiles: TASKS.csv #391
 import { repeatColumns, columnDetectionLimit, isElementColumn, inferUnit, pickElementColumns, assayExportRows, parseAssayValue, valueIn, readAssayCell, columnPositiveMax, convertUnit, mergeAssayRows, holesWithChangedIntervals, dropHoleAssays, blankDetectionLimit, isBlankAssayCell, oxideOfHeader, fromOxideHeader, oxideUnit, surfaceAttrColumns, surfaceAttrs, mergeSurfaceSamples, otherMediumTwins } from "../lib/geochem.js"; // otherMediumTwins: #2085
-import { DIAGRAMS, SPIDER_DIAGRAMS, GEOCHEM_METHODS, diagramExportRows, protolithForSample, PROVISIONAL_ALTERATION_BOXES, GEOCHEM_LABELS, reeProfile, loggedCodeAt, isSedimentaryCode, mergeClassRuns, FITTED_PROTOLITH, fitLeastAlteredBox, nameAiUpTrend } from "../lib/geochemDiagrams.js"; // fitted: #2028; nameAiUpTrend: #2145
+import { DIAGRAMS, SPIDER_DIAGRAMS, GEOCHEM_METHODS, diagramExportRows, protolithForSample, PROVISIONAL_ALTERATION_BOXES, GEOCHEM_LABELS, reeProfile, loggedCodeAt, isSedimentaryCode, mergeClassRuns, FITTED_PROTOLITH, fitLeastAlteredBox, nameAiUpTrend , censoredOperand, censoredLeftOut } from "../lib/geochemDiagrams.js"; // fitted: #2028; nameAiUpTrend: #2145
 import { qcRecordFromFileRow, emptySurfaceQc, looksLikeQcTypeColumn, mergeQcRecords } from "../lib/surfaceQaqc.js"; // TASKS.csv #842; looksLikeQcTypeColumn, mergeQcRecords: #1794
 import { mapInChunks } from "../lib/mapInChunks.js"; // TASKS.csv #583
 import { detectLongAssay, pivotLongAssays, longAssayNote } from "../lib/longAssays.js"; // TASKS.csv #623
@@ -257,7 +257,8 @@ export default function GeochemModule() {
   // #1519 — how many samples the diagram can place: computed once per diagram / sample set, not on every render (it projected
   // all 83,670 samples again in the caption and the export furniture)
   // TASKS.csv #2018 — the half-detection sentence counts the plotted samples that hold a '<' value for the diagram's elements
-  const censoredCount = useMemo(() => censoredSamples(plotted, diagram.spider ? diagram.order : diagram.requires), [plotted, diagram]);
+  const censoredCount = useMemo(() => (diagram.ratio ? 0 : censoredSamples(plotted, diagram.spider ? diagram.order : diagram.requires)), [plotted, diagram]); // ratio: #2501, none plotted
+  const ratioLeftOut = useMemo(() => censoredLeftOut(diagram, plotted, elementUnits), [diagram, plotted, elementUnits]); // #2501
   const plottedCount = useMemo(() => (diagram.spider ? plotted.filter((a) => reeProfile(a, elementUnits, diagram.order, diagram.norm).some((p) => p.value != null)).length : plotted.filter((a) => diagram.project(a, elementUnits)).length), [diagram, plotted, elementUnits]);
   const availableSymbols = new Set(assayElements.map((e) => e.symbol));
   const missingForDiagram = diagram.requires.filter((s) => !availableSymbols.has(s));
@@ -979,6 +980,7 @@ export default function GeochemModule() {
     // TASKS.csv #1380 — replacing a geochem layer asks first (Winchester silently replaced Jensen's)
     if ((layers[targetKey] || []).length && !window.confirm(tr("Replace the {n} intervals already in the {v} layer?", { n: layers[targetKey].length, v: method.target === "litho" ? tr("Lithology (geochem)") : tr("Alteration (geochem)") }))) return;
     let lithoByHole = null, noProtolith = 0;
+    const bdlLeft = {}; // #2501 — element -> samples left out of a ratio classifier (a below-detection operand)
     const sedSkipped = {}; // #1380 — logged code -> samples left out of a volcanic classifier
     if ((altSetup && altSetup.source === "logged") || method.volcanicOnly) {
       lithoByHole = new Map();
@@ -1009,6 +1011,7 @@ export default function GeochemModule() {
         opts = { protolith, boxes: altSetup.boxes };
       }
       if (method.volcanicOnly) { const code = loggedCodeAt(a, lithoByHole); if (isSedimentaryCode(code)) { sedSkipped[code] = (sedSkipped[code] || 0) + 1; return null; } }
+      if (method.ratio) { const c = censoredOperand(a, method.requires); if (c) { bdlLeft[c] = (bdlLeft[c] || 0) + 1; return null; } } // #2501
       let value = method.classify(a.values, elementUnits, a, opts);
       if (!value) return null;
       if (value === "SER" && altSetup) { value = nameAiUpTrend(value, trendRoles ? loggedCodeAt(a, altByHole) : null, trendRoles); trendBasis[value === "SER" ? "chem" : "log"]++; } // #2145
@@ -1025,9 +1028,11 @@ export default function GeochemModule() {
     const fitText = fitted ? tr(" Least-altered box fitted to the {n} samples logged {codes}: AI {a0}–{a1}, CCPI {c0}–{c1} (5th to 95th percentile).", { n: fitted.n, codes: (altSetup.fitCodes || []).join(", "), a0: fitted.ai[0], a1: fitted.ai[1], c0: fitted.ccpi[0], c1: fitted.ccpi[1] }) : ""; // #2028
     const trendText = trendBasis.log + trendBasis.chem ? (trendBasis.log ? tr(" AI-up trend: {log} sample(s) named potassic or phyllic from the logged alteration, {chem} by geochemistry only (joint name; the Molar K/Al vs Na/Al diagram separates them).", trendBasis) : tr(" AI-up trend: all {chem} sample(s) by geochemistry only (joint name; no logged code is marked potassic or phyllic; the Molar K/Al vs Na/Al diagram separates them).", trendBasis)) : ""; // #2145
     const sedN = Object.values(sedSkipped).reduce((s, n) => s + n, 0);
+    const bdlN = Object.values(bdlLeft).reduce((s, n) => s + n, 0); // #2501
+    const bdlText = bdlN ? tr(" {n} sample(s) were not classified: a below-detection operand is not a measurement ({list}).", { n: bdlN, list: Object.entries(bdlLeft).sort((x, y) => y[1] - x[1]).map(([k, n]) => tr("{el} below detection in {n}", { el: k, n })).join(", ") }) : "";
     const sedText = sedN ? tr(" {n} sample(s) in logged sedimentary or carbonate codes ({codes}) were not classified: this classifier is for volcanic rocks.", { n: sedN, codes: Object.entries(sedSkipped).sort((x, y) => y[1] - x[1]).map(([k, n]) => `${k} ${n}`).join(", ") }) : "";
     const jensenText = methodKey === "litho_jensen" ? tr(" The classes are a simplified threshold split of the cation ternary, not the published Jensen fields.") : "";
-    setNotices((p) => [...p, notice(runs.length ? "Generated {rows} intervals from {n} samples → {v} layer (touching samples of one class are joined).{detail} Switch to 3D View to see it." : "No interval was generated from {n} samples, so the {v} layer is empty.{detail}", { rows: runs.length, n: rows.length, v: method.target === "litho" ? tr("Lithology (geochem)") : tr("Alteration (geochem)"), detail: (fitted ? (countList ? ` ${countList}.` : "") + fitText + tr(" Screening level.") : detail) + trendText + sedText + jensenText })]); // fitted: #2028; trendText: #2145
+    setNotices((p) => [...p, notice(runs.length ? "Generated {rows} intervals from {n} samples → {v} layer (touching samples of one class are joined).{detail} Switch to 3D View to see it." : "No interval was generated from {n} samples, so the {v} layer is empty.{detail}", { rows: runs.length, n: rows.length, v: method.target === "litho" ? tr("Lithology (geochem)") : tr("Alteration (geochem)"), detail: (fitted ? (countList ? ` ${countList}.` : "") + fitText + tr(" Screening level.") : detail) + trendText + sedText + bdlText + jensenText })]); // fitted: #2028; trendText: #2145; bdlText: #2501
     { const pd = partialDigestionFor(assayElements, method.requires); if (pd.length) setNotices((p) => [...p, notice("Partial digestion: {list}. A four-acid or aqua-regia digestion does not fully dissolve zircon and other resistant minerals, so Zr and Hf (and partly Nb, Ta, Y and the REE) read low and the fields shift. Immobile-element diagrams and classifiers need a total (fusion / lithium-borate) digestion.", { list: pd.map(([s, m]) => `${s} ${m}`).join(", ") })]); } // #1518
   };
 
@@ -1362,7 +1367,7 @@ export default function GeochemModule() {
           <div style={{ maxWidth: 680 }}>
             <GeochemPlot diagramId={diagramId} diagramOverride={diagramId === "xy" ? diagram : null} samples={plotted} elementUnits={elementUnits} colorBy={colorBy} svgRef={svgRef} altBoxes={alterationBoxes?.boxes || PROVISIONAL_ALTERATION_BOXES} describe={describeSample} /> {/* plotted / describe: #619 */}
             <div style={{ fontSize: "var(--font-size-xs)", color: "#65717e", marginTop: 8 }}>
-              {((o) => o.v + o.v2 + (censoredCount ? " " + tr(censoredCount === 1 ? "1 of them holds a below-detection value ('<'), plotted at half the detection limit or at the value the source file stored." : "{n} of them hold a below-detection value ('<'), plotted at half the detection limit or at the value the source file stored.", { n: censoredCount.toLocaleString() }) : "") /* #2018 — only when there are some */)({ v: diagram.spider
+              {((o) => o.v + o.v2 + (ratioLeftOut.total ? " " + tr("{n} sample(s) left out: a ratio with a below-detection operand is not a point ({list}).", { n: ratioLeftOut.total.toLocaleString(), list: Object.entries(ratioLeftOut.bySymbol).sort((x, y) => y[1] - x[1]).map(([k, n]) => tr("{el} below detection in {n}", { el: k, n: n.toLocaleString() })).join(", ") }) : "") /* #2501 */ + (censoredCount ? " " + tr(censoredCount === 1 ? "1 of them holds a below-detection value ('<'), plotted at half the detection limit or at the value the source file stored." : "{n} of them hold a below-detection value ('<'), plotted at half the detection limit or at the value the source file stored.", { n: censoredCount.toLocaleString() }) : "") /* #2018 — only when there are some */)({ v: diagram.spider
                 ? tr("{n} of {assays} samples have at least one plottable element.", { n: plottedCount, assays: sourceRows.length })
                 : tr("{n} of {assays} samples plotted.", { n: plottedCount, assays: sourceRows.length }) + (plottedCount === 0 && sourceRows.length && !missingForDiagram.length && diagram.requires.length ? " " + ((absent) => (absent.length ? tr("None of these samples has {list}.", { list: absent.join(", ") }) : tr("No sample has {requires} all together (they may come from different files, e.g. a lab assay and a pXRF reading).", { requires: diagram.requires.join(", ") })))(diagram.requires.filter((sym) => !sourceRows.some((r) => Number.isFinite(r.values?.[sym])))) : ""), /* plottedCount: #1519; the reason for none: #1679 (Copley TAS: Si only in the pXRF, Na only in the lab assays) */ v2: (lithFilter ? tr(" {v} hidden by the lithology filter.", { v: sourceRows.length - plotted.length }) : "") + (hasPxrf && plotSource !== "both" ? " " + (plotSource === "pxrf" ? tr("{k} lab assay(s) left out: pXRF readings only.", { k: (assays.length - sourceAll.length).toLocaleString() }) : tr("{k} pXRF reading(s) left out: lab assays only.", { k: (assays.length - sourceAll.length).toLocaleString() })) : "") + (qcInSource && !plotQc ? " " + tr("{k} QC insert(s) (standards, blanks, duplicates) left out.", { k: qcInSource.toLocaleString() }) : "") /* #2027 */ })}</div>
           </div>
