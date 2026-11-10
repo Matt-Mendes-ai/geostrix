@@ -74,7 +74,7 @@ export function assayLegendGroups({ assays, assayElements, assayVisible, assayDi
       })
       : [[`${sym} (sphere size = grade)`, assayColorFor(0, idx, style)]];
     if (style?.minCutoff != null && Number.isFinite(style.minCutoff)) items.push([`below ${fmt(style.minCutoff)} ${unit} hidden`, "transparent"]);
-    return { key: `assay_${sym}`, label: `${sym} (${unit})`, items, grade: !!style?.breaks?.length }; // grade: #1534 — classes low to high
+    return { key: `assay_${sym}`, label: `${sym} (${unit})`, items, grade: !!style?.breaks?.length, alwaysHead: true }; // grade: #1534 — classes low to high; alwaysHead: #2370, a one-element key named
   });
 }
 
