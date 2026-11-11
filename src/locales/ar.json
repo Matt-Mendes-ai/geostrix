@@ -9911,5 +9911,6 @@
   "Which holes' samples inform the estimate and its checks. The grid is set above, apart.": "أي الثقوب تُغذي التقدير وفحوصه بالعينات. الشبكة تُحدَّد أعلاه على حدة.",
   "Samples from": "العينات من",
   "Every hole": "كل الثقوب",
-  "The checked holes ({n} of {total})": "الثقوب المحددة ({n} من {total})"
+  "The checked holes ({n} of {total})": "الثقوب المحددة ({n} من {total})",
+  "{pct}% of the estimated metal ({k} of {n} blocks) lies below the deepest sample of every hole within {r} m: carried down past the drilling. A Vertical reach under the search radius keeps it near the samples.": "{pct}% من المعدن المقدَّر ({k} من {n} كتلة) يقع تحت أعمق عينة لكل ثقب ضمن {r} م: حُمل إلى الأسفل بعد الحفر. مدى رأسي أقل من نصف قطر البحث يبقيه قرب العينات."
 }

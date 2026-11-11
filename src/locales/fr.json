@@ -9911,5 +9911,6 @@
   "Which holes' samples inform the estimate and its checks. The grid is set above, apart.": "Quels sondages fournissent les échantillons de l'estimation et de ses contrôles. La grille est fixée au-dessus, à part.",
   "Samples from": "Échantillons de",
   "Every hole": "Tous les sondages",
-  "The checked holes ({n} of {total})": "Les sondages cochés ({n} sur {total})"
+  "The checked holes ({n} of {total})": "Les sondages cochés ({n} sur {total})",
+  "{pct}% of the estimated metal ({k} of {n} blocks) lies below the deepest sample of every hole within {r} m: carried down past the drilling. A Vertical reach under the search radius keeps it near the samples.": "{pct} % du métal estimé ({k} des {n} blocs) se trouve sous l'échantillon le plus profond de tout sondage à moins de {r} m : porté vers le bas au-delà du forage. Une Portée verticale inférieure au rayon de recherche le garde près des échantillons."
 }

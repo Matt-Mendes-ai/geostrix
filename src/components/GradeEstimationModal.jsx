@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { belowDrilling } from "../lib/belowDrilling.js"; // TASKS.csv #2546
 import { buildMeshQuery, isPointInsideMesh, isMeshClosed } from "../lib/meshQuery.js"; // TASKS.csv #517
 import { validateSolid } from "../lib/meshValidate.js"; // TASKS.csv #860
 import { X, Play } from "./icons.js";
@@ -522,6 +523,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
         // two-hole rule left the only Cu intercept without a block and put the copper 90-110 m away
         est.topUnsupported = topCompositesWithoutBlocks(points, est.cells, Math.max(cell3.dx, cell3.dy, cell3.dz)); // #2418: the real cell
         { let all = 0, out = 0; for (const c of est.cells) { const m = Math.max(0, c.value) * c.dx * c.dy * c.dz; all += m; if (c.beyond) out += m; } est.beyondShare = all > 0 ? out / all : 0; } // #2417 — metal share above / below every informing sample
+        est.belowDrilling = belowDrilling(est.cells, points, Number(searchRadius) || 0); // TASKS.csv #2546
         setResult({ ...est, params, nnCells: method === "nn" ? est.cells : nnEst.cells, checkPoints: points, samplePointCount: points.length, noCodeComposites: domainKey ? points.filter((p) => p.domain == null).length : 0 /* #2541 */, droppedCount: dropped, clampedCount: clamped, beyondTraceCount: beyondTrace, rawStats, intervalCount: intervals.length });
         setAdded(false); setAddedSupport(false); setAddedKv(false); // a fresh run invalidates every "Added ✓" state
       } catch (e) {
@@ -847,6 +849,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
                   ? <div style={{ fontWeight: 600 }}>{tr("{k} of {n} blocks ({pct}%) lie between holes (interpolated); {e} are extrapolated beyond the data.", { k: sc.interpolated.toLocaleString(), n: n.toLocaleString(), pct, e: sc.extrapolated.toLocaleString() })}{tail}</div>
                   : <div style={{ fontWeight: 600, color: "var(--color-warn-text)" }}>{tr("None of these {n} blocks lies between holes: every one is extrapolated from the nearest holes.", { n: n.toLocaleString() })}{tail}</div>;
               })()}
+              {result.belowDrilling?.blocks > 0 && result.belowDrilling.metalShare >= 0.05 && <div style={{ color: "var(--color-warn-text)" }}>{tr("{pct}% of the estimated metal ({k} of {n} blocks) lies below the deepest sample of every hole within {r} m: carried down past the drilling. A Vertical reach under the search radius keeps it near the samples.", { pct: Math.round(100 * result.belowDrilling.metalShare), k: result.belowDrilling.blocks.toLocaleString(), n: result.belowDrilling.of.toLocaleString(), r: Number(searchRadius) || 0 })}</div>}{/* #2546 */}
               <div>{tr("{samplePointCount} sample point(s) placed ({intervalCount} interval(s), {droppedCount} dropped — no collar/survey to place them{v}{v2}).", { samplePointCount: result.samplePointCount, intervalCount: result.intervalCount, droppedCount: result.droppedCount, v: result.beyondTraceCount ? tr(", {beyondTraceCount} of them deeper than the hole's trace", { beyondTraceCount: result.beyondTraceCount }) : "", v2: result.clampedCount ? tr("; {clampedCount} negative grade(s) clamped to zero", { clampedCount: result.clampedCount }) : "" })}</div>
               {/* TASKS.csv #571 */}
               {result.rawStats && (result.rawStats.duplicatesSkipped > 0 || result.rawStats.overlappingRows > 0) && (

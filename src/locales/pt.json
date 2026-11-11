@@ -9911,5 +9911,6 @@
   "Which holes' samples inform the estimate and its checks. The grid is set above, apart.": "Quais furos fornecem amostras à estimativa e às suas verificações. A grade é definida acima, à parte.",
   "Samples from": "Amostras de",
   "Every hole": "Todos os furos",
-  "The checked holes ({n} of {total})": "Os furos marcados ({n} de {total})"
+  "The checked holes ({n} of {total})": "Os furos marcados ({n} de {total})",
+  "{pct}% of the estimated metal ({k} of {n} blocks) lies below the deepest sample of every hole within {r} m: carried down past the drilling. A Vertical reach under the search radius keeps it near the samples.": "{pct}% do metal estimado ({k} de {n} blocos) está abaixo da amostra mais profunda de todo furo a menos de {r} m: levado para baixo além da perfuração. Um Alcance vertical menor que o raio de busca o mantém perto das amostras."
 }
