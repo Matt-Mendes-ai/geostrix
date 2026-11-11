@@ -8,6 +8,7 @@ import { iconAction } from "../lib/a11y.js"; // TASKS.csv #687
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { gradeUnitLabel } from "../lib/geochem.js"; // TASKS.csv #2634
+import { placeRuns, fitSheetAttitude, refineSheetAttitude, attitudeNormal, correlateSheets, sheetAssign } from "../lib/sheetCorrelation.js"; // TASKS.csv #2625 / #2635
 import { Crosshair, Waypoints, X, RotateCcw, Layers3, Square } from "./icons.js";
 import { CODE_ROLES, codesInUse, autoNumber, inheritNumberedRoles, effectiveCode, rowKey, codedRuns } from "../lib/modellingCodes.js";
 import { colorForLithology, LAYER_META } from "../lib/layers.js";
@@ -70,7 +71,7 @@ function selectionOverlay(rows, traces) {
   return group;
 }
 
-export default function ModellingCodesPane({ inArea = null, litho, modellingCodes, setModellingCodes, groupOf, defaultRole, pickMode, setPickMode, selected, setSelected, connectFrom, setConnectFrom, askPrompt, pBtn, unitBody, setUnitBody, inputStyle, view, onBuildBody, assayElements = [] /* #2634 */ }) {
+export default function ModellingCodesPane({ inArea = null, litho, modellingCodes, setModellingCodes, groupOf, defaultRole, pickMode, setPickMode, selected, setSelected, connectFrom, setConnectFrom, askPrompt, pBtn, unitBody, setUnitBody, inputStyle, view, onBuildBody, assayElements = [] /* #2634 */, positionAt = null /* #2625 */ }) {
   const mc = modellingCodes || { codes: [], assign: {}, ties: [] };
   const codes = useMemo(() => codesInUse(litho, mc, groupOf, defaultRole), [litho, mc, groupOf, defaultRole]);
   const counts = useMemo(() => {
@@ -91,6 +92,9 @@ export default function ModellingCodesPane({ inArea = null, litho, modellingCode
   const [boxConflict, setBoxConflict] = useState(null); // #1337 — the chosen code already holds other intervals: replace or add
   const [bodyCode, setBodyCode] = useState(""); // TASKS.csv #1340
   const [numberMsg, setNumberMsg] = useState(""); // TASKS.csv #2533
+  // TASKS.csv #2625 / #2635 — sheets correlated between holes along an attitude (fitted to the runs, or typed); gap blank = the median run
+  const [sheetAtt, setSheetAtt] = useState({ mode: "fitted", dip: "", dipDir: "", gap: "" });
+  const [sheetMsg, setSheetMsg] = useState("");
   // TASKS.csv #2537 — a role no rule gave (no name, notes or group rule) and the geologist has not set
   const assumedRole = (name) => !(mc?.codes || []).some((x) => x.name === name && x.role) && !(groupOf && groupOf(name)) && roleIsAssumed(name);
   const between = useMemo(() => (boxRows.length ? rowsBetween(litho, boxRows) : []), [litho, boxRows]);
@@ -352,6 +356,48 @@ export default function ModellingCodesPane({ inArea = null, litho, modellingCode
         setNumberMsg(tr("Numbered {n} interval(s) of {codes} in {h} hole(s){area}.", { n: keys.size.toLocaleString(), codes: numberCodes.join(", "), h: new Set(rows.filter((r) => keys.has(rowKey(r))).map((r) => r.hole_id)).size.toLocaleString(), area: inArea ? tr(" (the holes checked: Model area)") : "" })); // #2533
       }} style={{ ...pBtn, marginTop: 6, opacity: numberCodes.length ? 1 : 0.5 }}>{tr("Auto-number {v}", { v: numberCodes.join(", ") || "…" })}</button>
       {numberMsg && <div role="status" style={{ ...small, marginTop: 3 }}>{numberMsg}</div>}{/* #2533 */}
+      {positionAt && (<>{/* TASKS.csv #2625 / #2635 — a sheet swarm: the runs matched between holes along an attitude, not counted per hole */}
+        <div className="ge-section-label" style={{ marginTop: 10 }}>{tr("Correlate sheets between holes (optional)")}</div>
+        <div style={small}>{tr("For a swarm of parallel sheets (pegmatites, dykes, stacked reefs): the runs of each code ticked above are matched between holes along an attitude instead of counted per hole, and numbered from the top (P → P1, P2…), so the Vein tool can model each sheet. Sheets that split or cross need connecting by hand.")}</div>
+        <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 4, flexWrap: "wrap" }}>
+          <select value={sheetAtt.mode} onChange={(e) => setSheetAtt((a) => ({ ...a, mode: e.target.value }))} style={inputStyle} aria-label={tr("Attitude of the sheets")}>
+            <option value="fitted">{tr("Attitude fitted to the runs")}</option>
+            <option value="typed">{tr("Attitude I type")}</option>
+          </select>
+          {sheetAtt.mode === "typed" && (<>
+            <label style={{ display: "flex", alignItems: "center", gap: 4 }}>{tr("Dip")}<input type="number" min={0} max={90} step="any" value={sheetAtt.dip} onChange={(e) => setSheetAtt((a) => ({ ...a, dip: e.target.value }))} style={{ ...inputStyle, width: 56 }} aria-label={tr("Dip of the sheets")} /></label>
+            <label style={{ display: "flex", alignItems: "center", gap: 4 }}>{tr("Dip direction")}<input type="number" min={0} max={360} step="any" value={sheetAtt.dipDir} onChange={(e) => setSheetAtt((a) => ({ ...a, dipDir: e.target.value }))} style={{ ...inputStyle, width: 60 }} aria-label={tr("Dip direction of the sheets")} /></label>
+          </>)}
+          <label style={{ display: "flex", alignItems: "center", gap: 4 }} title={tr("The largest distance across the sheets between two runs of one sheet. Blank = the median logged run of the code.")}>{tr("Gap (m)")}<input type="number" min={0} step="any" value={sheetAtt.gap} placeholder={tr("auto")} onChange={(e) => setSheetAtt((a) => ({ ...a, gap: e.target.value }))} style={{ ...inputStyle, width: 56 }} aria-label={tr("Gap between sheets (m)")} /></label>
+        </div>
+        <button disabled={!numberCodes.length || (sheetAtt.mode === "typed" && !(sheetAtt.dip !== "" && sheetAtt.dipDir !== ""))} onClick={() => {
+          const rows = inArea ? litho.filter((r) => inArea(r.hole_id)) : litho; // the Model area, as Auto-number (#2533)
+          const plain = { ...mc, assign: {} };
+          const all = codedRuns(rows, plain, groupOf);
+          const keys = new Set(rows.filter((r) => numberCodes.includes(String(r.value))).map(rowKey)); // one pass, as Auto-number
+          const msgs = []; let assign = Object.fromEntries(Object.entries(mc.assign || {}).filter(([k]) => !keys.has(k)));
+          for (const base of numberCodes) {
+            const placed = placeRuns(all.filter((run) => run.code === base), positionAt);
+            if (placed.length < 2) { msgs.push(tr("{code}: fewer than two runs could be placed in 3D.", { code: base })); continue; }
+            const fit0 = sheetAtt.mode === "fitted" ? fitSheetAttitude(placed) : null;
+            if (sheetAtt.mode === "fitted" && !fit0) { msgs.push(tr("{code}: the runs do not define a plane (too few, or along one line of holes): type an attitude.", { code: base })); continue; }
+            const lens0 = placed.map((q) => q.run.to - q.run.from).sort((a, b) => a - b), gap0 = Number(sheetAtt.gap) > 0 ? Number(sheetAtt.gap) : lens0[lens0.length >> 1];
+            const fit = fit0 ? refineSheetAttitude(placed, fit0, gap0) : null; // the swarm's own plane, not one plane through every sheet
+            const att = fit || { dip: Number(sheetAtt.dip), dipDirection: Number(sheetAtt.dipDir) };
+            const lens = placed.map((q) => q.run.to - q.run.from).sort((a, b) => a - b), med = lens[lens.length >> 1];
+            const gap = Number(sheetAtt.gap) > 0 ? Number(sheetAtt.gap) : med;
+            const res = correlateSheets(placed, fit ? fit.normal : attitudeNormal(att.dip, att.dipDirection), gap);
+            assign = sheetAssign(res.sheets, base, rowKey, assign);
+            msgs.push(tr("{code}: {runs} run(s) in {h} hole(s) matched into {s} sheet(s) along {dip}° → {dd}° ({how}), {g} m gap.", { code: base, runs: placed.length, h: new Set(placed.map((q) => q.run.hole_id)).size, s: res.sheets.length, dip: Math.round(att.dip), dd: Math.round(att.dipDirection), how: fit ? tr("fitted to the runs") : tr("typed"), g: +gap.toFixed(1) })
+              + (res.twice ? " " + tr("{n} time(s) a hole cuts one sheet twice: lower the gap, or the sheets are not parallel here.", { n: res.twice }) : ""));
+          }
+          const touched = rows.filter((r) => numberCodes.includes(String(r.value)) && mc.assign?.[rowKey(r)]).length;
+          if (touched && !window.confirm(tr("{touched} of these intervals already have a code you set. Auto-numbering replaces them. Continue?", { touched }))) return;
+          setModellingCodes((p) => { const base = p || mc; return { ...base, assign, codes: inheritNumberedRoles(base, assign, numberCodes) }; });
+          setSheetMsg(msgs.join(" "));
+        }} style={{ ...pBtn, marginTop: 6, opacity: numberCodes.length ? 1 : 0.5 }}>{tr("Correlate {v} into sheets", { v: numberCodes.join(", ") || "…" })}</button>
+        {sheetMsg && <div role="status" style={{ ...small, marginTop: 3 }}>{sheetMsg}</div>}
+      </>)}
 
       <div style={{ ...small, marginTop: 10 }}>
         {tr("{overrides} interval(s) with a code you set · {n} connection(s) drawn.", { overrides, n: (mc.ties || []).length })}{overrides > 0 && <> <span style={{ textDecoration: "underline", cursor: "pointer" }} {...iconAction(() => { if (window.confirm(tr("Reset all {overrides} interval code(s) to their logged codes and remove the connections? (Undo can bring them back.)", { overrides }))) setModellingCodes((p) => ({ ...(p || mc), assign: {}, ties: [] })); }, tr("Reset all interval codes"))}>{tr("Reset all")}</span></>}

@@ -18,6 +18,7 @@ import { pBtn, smallSel } from "../../lib/sidebarStyles.js";
 import { sceneVertsToWorldFlat } from "../../lib/meshFlat.js";
 import { octreeCellM } from "../../lib/viewer/contactFit.js"; // TASKS.csv #1171
 import { describeTrend, searchEllipsoidAxes } from "../../lib/trend.js"; // TASKS.csv #2676 — the Grade shell pane's trend line
+import { positionFromTraces } from "../../lib/sheetCorrelation.js"; // TASKS.csv #2625
 import { t as tr } from "../../lib/i18n.js";
 import { errorNotice } from "../../lib/notices.js";
 import { tx } from "../../lib/i18nRich.js";
@@ -272,6 +273,7 @@ export default function ModellingPanes(props) {
     return () => { live = false; };
   }, [toolPane, faultCandidates, layers.structure]);
   const [unitBody, setUnitBody] = useState({ iso: 0.5, largest: false, search: 0, cell: 0 }); // TASKS.csv #1340 — its own settings: a rock unit is not an alteration halo
+  const sheetPositionAt = useMemo(() => positionFromTraces(tracesRef?.current || []), [tracesSeq]); // #2625: the traces change with tracesSeq (#888)
   // TASKS.csv #1574 (review #1497, Lawyers) — the alteration halo from the Alteration log OR a categorical custom layer, and only
   // the intervals whose numeric field is at or above a value (Silicification intensity >= 2)
   const { customLayers: customLayersAll = [], layers: storeLayers = {} } = useStore();
@@ -549,7 +551,7 @@ export default function ModellingPanes(props) {
         {paneHeader("Modelling codes", Waypoints, "model")}
         <Suspense fallback={null}>        <ModellingCodesPane inArea={modelArea === "checked" ? (id) => visibleHoles?.[id] !== false : null} /* #2533 — Auto-number follows the Model area */ litho={layers.litho || []} modellingCodes={modellingCodes} setModellingCodes={setModellingCodes} groupOf={mcGroupOf} defaultRole={mcodeDefaultRole}
           pickMode={mcPickMode} setPickMode={setMcPickMode} selected={mcSelected} setSelected={setMcSelected} connectFrom={mcConnectFrom} setConnectFrom={setMcConnectFrom}
-          view={mcodesView} unitBody={unitBody} setUnitBody={setUnitBody} onBuildBody={(code) => runAlterationModel(`mcode:${code}`, unitBody)} assayElements={assayElements} /* #2634 */
+          view={mcodesView} unitBody={unitBody} setUnitBody={setUnitBody} onBuildBody={(code) => runAlterationModel(`mcode:${code}`, unitBody)} assayElements={assayElements} /* #2634 */ positionAt={sheetPositionAt} /* #2625 */
           askPrompt={askPrompt} pBtn={pBtn} inputStyle={{ background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, padding: "3px 5px", color: "var(--color-text)", fontSize: "var(--font-size-sm)" }} /></Suspense>
         </>)}
         {toolPane === "groups" && (<>
