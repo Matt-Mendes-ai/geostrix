@@ -11,7 +11,7 @@ export default function AzimuthRefPicker({ value, onChange, selectStyle, labelSt
       <div style={rowStyle}>
         <span style={labelStyle}>{tr("North")}</span>
         <select value={v.ref} onChange={(e) => onChange({ ...v, ref: e.target.value })} style={selectStyle} aria-label={tr("North reference of the azimuths")}
-          title={tr("Which north the dip directions / strikes were measured from. GeoStrix draws against the project grid; a compass reads magnetic north (~17° off grid in northern BC).")}>
+          title={tr("Which north the dip directions / strikes were measured from. GeoStrix draws against the project grid; a compass reads magnetic north, which differs from grid north by the declination and the grid convergence at the site (the import notice gives both).")}>
           <option value="grid">{tr("Grid north (project grid)")}</option>
           <option value="true">{tr("True north")}</option>
           <option value="magnetic">{tr("Magnetic north (compass)")}</option>

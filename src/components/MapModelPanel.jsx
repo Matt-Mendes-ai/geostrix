@@ -113,6 +113,7 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
   // TASKS.csv #1718 — the drillholes' logged contacts beside the map's: each logged code a map unit (exact matches suggested), every
   // change downhole between two units of the order a contact for the same top as on the map (lib/holeMapContacts.js)
   const codes = useMemo(() => loggedCodes(lithoRows), [lithoRows]);
+  const loggedHoles = useMemo(() => new Set((lithoRows || []).map((r) => r.hole_id)).size, [lithoRows]); // TASKS.csv #2086 — the holes with a log, not every collar
   const mapUnits = useMemo(() => (suggestion?.units || []).map((u) => u.unit), [suggestion]);
   // TASKS.csv #1604 (review #1497, Lawyers) — the orientations the run will have, counted as the run counts them (on the terrain, with a
   // dip and a dip direction): with none, Build was offered and the run then refused ('No orientations on the terrain')
@@ -208,7 +209,7 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
         </select></div>}
       {holeCount > 0 && codes.length > 0 && ( /* TASKS.csv #1718 */
         <div style={{ margin: "8px 0", padding: 6, border: "1px solid var(--color-border)", borderRadius: 6 }} aria-label={tr("Drillhole contacts")}>
-          <label style={{ ...row, cursor: "pointer", color: "var(--color-text)" }}><input type="checkbox" checked={useHoles} onChange={(e) => setUseHoles(e.target.checked)} />{tr("Use the drillholes' logged contacts ({n} holes)", { n: holeCount })}</label>
+          <label style={{ ...row, cursor: "pointer", color: "var(--color-text)" }}><input type="checkbox" checked={useHoles} onChange={(e) => setUseHoles(e.target.checked)} />{loggedHoles < holeCount ? tr("Use the drillholes' logged contacts ({n} of the {m} holes have a lithology log)", { n: loggedHoles, m: holeCount }) : tr("Use the drillholes' logged contacts ({n} holes)", { n: loggedHoles })}</label>
           <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>{tr("Give each logged code its map unit. Where a hole passes from one unit of the order to another, that depth is a contact for the same top as on the map.")}</div>
           {useHoles && (
             <div style={{ maxHeight: 170, overflowY: "auto", marginBottom: 6 }}>
@@ -234,6 +235,7 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
         disabled={busy || !groundAt || order.length < 2 || noOrient} style={{ ...pBtn, justifyContent: "center", opacity: busy || !groundAt || order.length < 2 || noOrient ? 0.5 : 1 }}>
         {busy ? tr("Running…") : tr("Build the model (GemPy)")}
       </button>
+      {groundAt && order.length < 2 && !busy && <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginTop: 4, lineHeight: 1.4 }}>{order.length === 1 ? tr("Only one unit ({unit}) is in the stratigraphic role: a model needs at least two units in order, one on top of the other. Set another unit's role to stratigraphic above, or build the unit as an intrusion body below.", { unit: order[0] }) : tr("No unit is in the stratigraphic role: a model needs at least two units in order. Set their roles above.")}</div>}{/* TASKS.csv #2086 — Build was disabled with no word */}
       {holeFit && <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 4, lineHeight: 1.4 }}>{tr("No outcrop orientation: each top will get one fitted from its logged contacts ({n} in use), a least-squares plane through its contact points.", { n: holePreview.contacts.length.toLocaleString() })}</div>}{/* #2409 */}
       {noOrient && lithoRows?.length > 0 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 4, lineHeight: 1.4 }}>{tr("From drillholes alone: 3D Modelling > Stratigraphic stack or Implicit surface; or tick 'Use the drillholes' logged contacts' above with each code's unit.")}</div>}{/* #2409 */}
       {noOrient && <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginTop: 4, lineHeight: 1.4 }}>{allRows.length ? tr("No orientation to build from: none of the {n} outcrop measurement(s) is in a class ticked under 'Orientations from' ({other} are classed Other), and no contact dip could be fitted from the map traces on this terrain. Tick a class above, or give the type codes a class when importing them in Surface Geology.", { n: allRows.length.toLocaleString(), other: allRows.filter((r) => r.cls === "other").length.toLocaleString() }) /* #2266 */ : tr("No orientation to build from: no outcrop measurements, and no contact dip could be fitted from the map traces on this terrain (a contact needs enough relief along its trace). Import outcrop bedding or contact measurements in Surface Geology.")}</div>}{/* #1604 */}

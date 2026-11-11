@@ -25,7 +25,7 @@ test("a drawn geology layer: polygon map layer with a unit field; a polygon clos
   assert.equal(addUnitPolygon(l2, [{ x: 0, y: 0 }, { x: 1, y: 1 }], { unit: "X" }), l2); // too few corners: unchanged
   assert.equal(addUnitPolygon(l0, sq, {}).features[0].attributes.unit, "Unit");
   const l3 = removeUnitPolygon(l2, 0);
-  assert.deepEqual(l3.categories.map((c) => [c.value, c.count]), [["Basalt", 0], ["Rhyolite", 1]]);
+  assert.deepEqual(l3.categories.map((c) => [c.value, c.count]), [["Rhyolite", 1]]); // TASKS.csv #2095: a unit with no polygon leaves the legend
   assert.deepEqual(l3.bbox, [200, 0, 300, 50]);
 });
 
@@ -42,5 +42,5 @@ test("the Surface Geology ribbon carries Unit polygons, Interpret, Identify and 
   assert.match(v, /onToggleIdentify=\{toggleIdentify\}/);
   const pane = readFileSync(new URL("../src/components/UnitPolygonPane.jsx", import.meta.url), "utf8");
   assert.match(pane, /TaskPaneHeader title=\{tr\("Unit polygons"\)\} helpId="unit-polygons"/);
-  assert.match(pane, /if \(n < 3\) \{ setMsg\(tr\("A polygon needs at least three points\."\)\); return; \}/);
+  assert.match(pane, /if \(corners\.length < 3\) \{ setMsg\(tr\("A polygon needs at least three points\."\)\); return; \}/); // corners: #2414 (a closing click is not one)
 });

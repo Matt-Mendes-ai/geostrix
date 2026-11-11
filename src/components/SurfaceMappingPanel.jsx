@@ -22,18 +22,8 @@ import {
   guessStructureColumns, parseStructureRows, bestStationColumn /* #1826 */, STRUCTURE_CLASS_COLORS, STRUCTURE_CLASS_LABELS, STRUCTURE_CLASSES, structureClass, structureCodeKey, /* #2266 */
 } from "../lib/mapLayers.js";
 import { downholeTableColumns, structureCodeColumn } from "../lib/downholeTableGuess.js"; // TASKS.csv #1722
+import { uniqueLayerName } from "../lib/interpretation.js"; // TASKS.csv #2573
 
-// TASKS.csv #2093 / #1826 — the structure import's skipped rows, one reason each (parseStructureRows' skipWhy)
-export function skipReasons(w = {}) {
-  return [
-    w.noMeasurement && tr("{n} with no measurement at all", { n: w.noMeasurement }),
-    w.noXY && tr("{n} with no easting or northing", { n: w.noXY }),
-    w.noDip && tr("{n} with a bearing but no dip (a chip line or a trend, not a plane)", { n: w.noDip }),
-    w.badDip && tr("{n} with a dip that is not a number from 0 to 90", { n: w.badDip }),
-    w.bearingUnread && tr("{n} with a dip direction or strike that is not a number (a quadrant bearing such as N45E is not read)", { n: w.bearingUnread }),
-    w.noDirection && tr("{n} with a dip but no dip direction or strike", { n: w.noDirection }),
-  ].filter(Boolean).join("; ");
-}
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { featureCountText } from "../lib/featureCount.js"; // TASKS.csv #1116
@@ -54,6 +44,18 @@ import { projectTargetEpsg } from "../lib/projectTarget.js"; // TASKS.csv #2287 
 import { tieOf, fileToLocal, bearingToLocal } from "../lib/localGridTie.js"; // TASKS.csv #2320
 import { mineGridOf } from "../lib/mineGrid.js"; // TASKS.csv #2586
 import { collarsLookUnderground } from "../lib/pitShell.js"; // TASKS.csv #2265
+
+// TASKS.csv #2093 / #1826 — the structure import's skipped rows, one reason each (parseStructureRows' skipWhy)
+export function skipReasons(w = {}) {
+  return [
+    w.noMeasurement && tr("{n} with no measurement at all", { n: w.noMeasurement }),
+    w.noXY && tr("{n} with no easting or northing", { n: w.noXY }),
+    w.noDip && tr("{n} with a bearing but no dip (a chip line or a trend, not a plane)", { n: w.noDip }),
+    w.badDip && tr("{n} with a dip that is not a number from 0 to 90", { n: w.badDip }),
+    w.bearingUnread && tr("{n} with a dip direction or strike that is not a number (a quadrant bearing such as N45E is not read)", { n: w.bearingUnread }),
+    w.noDirection && tr("{n} with a dip but no dip direction or strike", { n: w.noDirection }),
+  ].filter(Boolean).join("; ");
+}
 
 export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { // part: "maps" | "structures" | null = both (TASKS.csv #458)
   const {
@@ -465,7 +467,8 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
       crsNote = tr(" Reprojected EPSG:{src} → EPSG:{dst}{v}.", { src, dst, v: gridNorth ? tr("; dip directions turned to the project grid (up to {maxTurn}°)", { maxTurn: maxTurn.toFixed(2) }) : "" });
     }
     // TASKS.csv #547 — dip directions / strikes measured from true or magnetic north -> project grid north, per location
-    let northNote = "", rows = out.rows;
+    // TASKS.csv #2091 (review #2013) — grid north is the picker's default: said in the notice, so a compass notebook is not imported rotated unseen
+    let northNote = north.ref === "grid" ? tr(" Dip directions were taken as grid north (the project grid); for compass or true-north readings, set North on the import card and import again.") : "", rows = out.rows;
     if (north.ref !== "grid") {
       // TASKS.csv #2262 — dst is the PLACEHOLDER epsg while the CRS is not set (truthy), so this message never showed and the convergence of
       // BC UTM 9N was applied to a WA mine grid: test crsSet too
@@ -478,7 +481,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
     // TASKS.csv #1719 — typed measurements gather in one set per north reference instead of a set each
     const typedSet = p.typed ? surfaceStructures.find((s) => s.typed && s.azimuthRef === north.ref && (north.ref !== "magnetic" || s.azimuthDate === north.date)) : null;
     if (typedSet) updateSurfaceStructureSet(typedSet.id, { rows: [...typedSet.rows, ...rows] });
-    else addSurfaceStructureSet({ name: p.name, rows, snapToTerrain: true, azimuthRef: north.ref, ...(north.ref === "magnetic" ? { azimuthDate: north.date } : {}), ...(p.typed ? { typed: true } : {}) });
+    else addSurfaceStructureSet({ name: uniqueLayerName(p.name, surfaceStructures) /* #2573 — a second set from one file (true, then magnetic north) is numbered */, rows, snapToTerrain: true, azimuthRef: north.ref, ...(north.ref === "magnetic" ? { azimuthDate: north.date } : {}), ...(p.typed ? { typed: true } : {}) });
     const noZ = out.rows.filter((r) => r.z == null).length;
     // TASKS.csv #2082 — the type codes no class knows: said, so 'Other' on the stereonet is not taken for nothing
     const otherTypes = [...new Set(out.rows.filter((r) => r.cls === "other" && String(r.type || "").trim()).map((r) => String(r.type).trim()))];
@@ -538,14 +541,16 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
           // not the surface: asked first, named for what it is. (Its NPRC / Unknown 'units' are cover since #2227: roleForLithology reads the notes.)
           const ug = collarsLookUnderground(collars, survey);
           if (ug.underground && !window.confirm(tr("The collars look underground ({upward} hole(s) drilled upward, {stacked} pair(s) of collars stacked over each other): these points would be the first logged unit at the drill positions on the mine levels, not a subcrop map. Make them anyway?", { upward: ug.upward, stacked: ug.stacked }))) return;
-          const pts = collarSubcrop({ collars, survey, litho: layers.litho, desurveyMethod, roleOf: roleWithCodes(modellingCodes) }); // roleOf: #2407
-          if (!pts.length) { setMapMsg({ ok: false, text: tr("No hole has a logged unit under its overburden / casing to place.") }); return; }
+          const rep = { lateStart: [] }; // TASKS.csv #2411 / #2570 — logs that start below the collar
+          const pts = collarSubcrop({ collars, survey, litho: layers.litho, desurveyMethod, roleOf: roleWithCodes(modellingCodes), report: rep }); // roleOf: #2407
+          const late = rep.lateStart.length ? tr("{n} hole(s) whose log starts below the collar ({a}–{b} m down: an unlogged precollar, or logging only where something was met) were left out: their first logged unit is a point down the hole, not a subcrop ({ids}).", { n: rep.lateStart.length, a: Math.round(Math.min(...rep.lateStart.map((h) => h.logStart)) * 10) / 10, b: Math.round(Math.max(...rep.lateStart.map((h) => h.logStart)) * 10) / 10, ids: rep.lateStart.slice(0, 5).map((h) => h.hole_id).join(", ") + (rep.lateStart.length > 5 ? ", …" : "") }) : "";
+          if (!pts.length) { setMapMsg({ ok: false, text: [tr("No hole has a logged unit under its overburden / casing to place."), late].filter(Boolean).join(" ") }); return; }
           const base = ug.underground ? tr("Units at the collars") : tr("Subcrop from collars"); // #2265
           let name = base; for (let k = 2; mapLayers.some((l) => l.name === name); k++) name = `${base} (${k})`;
           const layer = subcropLayer(pts, name, (u) => categoryColor(viewerUiState?.legendOverride?.litho?.[u], LAYER_META.litho, u));
           addMapLayer({ ...layer, drapeMode: terrain ? "terrain" : "file" });
-          const skipped = collars.length - pts.length;
-          setMapMsg({ ok: true, text: [tr("{name}: {n} point(s), {units} unit(s): the first logged unit under the overburden / casing / no recovery at the top of each hole, at the hole's position at that depth. A start for the map, not a mapped outcrop.", { name, n: pts.length, units: layer.categories.length }), skipped > 0 ? (() => { const lo = subcropLeftOut({ collars, litho: layers.litho, roleOf: roleWithCodes(modellingCodes) }); return tr("{n} hole(s) were left out: {a} with no lithology log, {b} with only blank codes, {c} with only cover (overburden / casing / no recovery).", { n: skipped, a: lo.noLog, b: lo.blankOnly, c: lo.coverOnly }); })() /* #2566 — the reason, not one guess for all */ : ""].filter(Boolean).join(" ") });
+          const skipped = collars.length - pts.length - rep.lateStart.length; // the late starts are said on their own (#2411)
+          setMapMsg({ ok: true, text: [tr("{name}: {n} point(s), {units} unit(s): the first logged unit under the overburden / casing / no recovery at the top of each hole, at the hole's position at that depth. A start for the map, not a mapped outcrop.", { name, n: pts.length, units: layer.categories.length }), skipped > 0 ? (() => { const lo = subcropLeftOut({ collars, litho: layers.litho, roleOf: roleWithCodes(modellingCodes) }); return tr("{n} hole(s) were left out: {a} with no lithology log, {b} with only blank codes, {c} with only cover (overburden / casing / no recovery).", { n: skipped, a: lo.noLog, b: lo.blankOnly, c: lo.coverOnly }); })() /* #2566 — the reason, not one guess for all */ : "", late].filter(Boolean).join(" ") });
         }} style={{ ...pBtn, marginTop: 6 }} title={tr("A point map layer at each hole: the first logged unit under its overburden, casing or no recovery, coloured like the logs. It lists the hole and the depth of cover in its attributes.")}>
           <MapIcon size={14} /> {tr("Subcrop from collars")}
         </button>
@@ -760,7 +765,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
               <select value="" onChange={(e) => { const f = e.target.value; e.target.value = ""; if (f) exportStructSet(s, f); }} aria-label={tr("Export structure set \"{name}\"", { name: s.name })} title={tr("Export: dip, dip direction and strike (right-hand rule) in grid and true north")} style={{ ...select, width: "auto", flexShrink: 0, padding: "1px 2px", fontSize: "var(--font-size-xs)" }}>
                 <option value="">{tr("Export…")}</option><option value="gpkg">GeoPackage</option><option value="kml">{tr("KML (Google Earth)")}</option><option value="csv">CSV</option>
               </select>
-              <Trash2 aria-label={tr("Remove structure set \"{name}\"", { name: s.name })} title={tr("Remove structure set \"{name}\"", { name: s.name })} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(tr("Remove \"{name}\"?", { name: s.name }))) removeSurfaceStructureSet(s.id); }} />
+              <Trash2 aria-label={tr("Remove structure set \"{name}\"", { name: s.name })} title={tr("Remove structure set \"{name}\"", { name: s.name })} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(tr("Remove \"{name}\"?", { name: s.name }))) { removeSurfaceStructureSet(s.id); setStructMsg(null); /* #2573 — its import notice goes with it */ } }} />
             </div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: "3px 10px", marginTop: 7 }}>
               {Object.entries(counts).map(([cls, n]) => (

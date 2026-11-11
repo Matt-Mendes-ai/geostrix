@@ -11,13 +11,17 @@ import { activateOnKey } from "../lib/a11y.js";
 import { pBtn, smallSel } from "../lib/sidebarStyles.js";
 import { t as tr } from "../lib/i18n.js";
 import { planElevation, planElevationText } from "../lib/drapeElevation.js"; // TASKS.csv #2269
+import { categoryColor, LAYER_META } from "../lib/layers.js"; // TASKS.csv #2572 — the logs' colour for a logged code
 
 const note = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 };
 const row = { display: "flex", alignItems: "center", gap: 6, justifyContent: "space-between", fontSize: "var(--font-size-sm)" };
 
 // drawing: the 3D view's state { on, points: [{ x, y, z }], finishSeq }; onStart / onUndo / onCancel / onDone drive it.
 export default function UnitPolygonPane({ drawing, onStart, onUndo, onCancel, onDone, onClose }) {
-  const { mapLayers, addMapLayer, updateMapLayer, terrain, collars, survey, voxelModels, surfaceSamples } = useStore();
+  const { mapLayers, addMapLayer, updateMapLayer, terrain, collars, survey, voxelModels, surfaceSamples, layers, viewerUiState } = useStore(); // layers, viewerUiState: #2572
+  // TASKS.csv #2572 — a unit named like a logged lithology code takes the logs' colour for it (as Subcrop from collars does)
+  const loggedCodes = useMemo(() => new Set((layers?.litho || []).map((r) => String(r.value ?? "").trim()).filter(Boolean)), [layers?.litho]);
+  const colorOf = (u) => (loggedCodes.has(u) ? categoryColor(viewerUiState?.legendOverride?.litho?.[u], LAYER_META.litho, u) : null);
   // TASKS.csv #2269 — with no terrain the clicks land on the scene's origin plane: the map goes at a stated plan elevation instead
   const plan = useMemo(() => (terrain ? null : planElevation({ collars, survey, voxelModels, surfaceSamples })), [terrain, collars, survey, voxelModels, surfaceSamples]);
   const mine = useMemo(() => mapLayers.filter(isDrawnGeologyLayer), [mapLayers]);
@@ -36,8 +40,9 @@ export default function UnitPolygonPane({ drawing, onStart, onUndo, onCancel, on
     return [...s].sort();
   }, [mapLayers]);
 
-  const finish = () => {
-    if (n < 3) { setMsg(tr("A polygon needs at least three points.")); return; }
+  const finish = (closedOnFirst = false) => {
+    const corners = closedOnFirst ? pts.slice(0, -1) : pts; // #2414 — the click that closed the ring is not a corner
+    if (corners.length < 3) { setMsg(tr("A polygon needs at least three points.")); return; }
     if (!unit.trim()) { setMsg(tr("Name the unit before finishing the polygon.")); return; }
     let target = layer, id = layerId;
     if (!target) {
@@ -45,15 +50,23 @@ export default function UnitPolygonPane({ drawing, onStart, onUndo, onCancel, on
       target = { ...fresh, name: uniqueLayerName(fresh.name, mapLayers) };
       id = addMapLayer(target); setLayerPick(id); setNewName("");
     }
-    const next = addUnitPolygon(target, pts, { unit: unit.trim(), note: noteText.trim() }, plan ? { elevation: plan.z } : {});
+    const next = addUnitPolygon(target, corners, { unit: unit.trim(), note: noteText.trim() }, { ...(plan ? { elevation: plan.z } : {}), colorOf }); // colorOf: #2572
     updateMapLayer(id, () => ({ ...next, id }));
     const f = next.features[next.features.length - 1];
-    setNoteText(""); setMsg(tr("Added a {unit} polygon of {ha} ha to \"{layer}\".", { unit: f.attributes.unit, ha: (f.attributes.area_m2 / 10000).toFixed(2), layer: next.name }) + (plan ? " " + tr("It lies flat at {z} m RL (no terrain).", { z: Math.round(next.elevation).toLocaleString() }) : ""));
+    setNoteText(""); setMsg(tr("Added polygon {unit} ({ha} ha) to \"{layer}\".", { unit: f.attributes.unit, ha: (f.attributes.area_m2 / 10000).toFixed(2), layer: next.name }) /* #2095 — no article to get wrong */ + (plan ? " " + tr("It lies flat at {z} m RL (no terrain).", { z: Math.round(next.elevation).toLocaleString() }) : ""));
     onDone();
   };
   // a double-click in the 3D view ends the polygon (ViewerModule bumps finishSeq)
   const seen = useRef(drawing.finishSeq);
   useEffect(() => { if (drawing.finishSeq !== seen.current) { seen.current = drawing.finishSeq; if (drawing.on) finish(); } });
+  // TASKS.csv #2414 — a click on the first corner closes the ring (what the intro says): within 2 % of the outline's size, at least 1 m
+  useEffect(() => {
+    if (!drawing.on || n < 4 || !unit.trim()) return;
+    const a = pts[0], b = pts[n - 1];
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const p of pts) { x0 = Math.min(x0, p.x); y0 = Math.min(y0, p.y); x1 = Math.max(x1, p.x); y1 = Math.max(y1, p.y); }
+    if (Math.hypot(b.x - a.x, b.y - a.y) <= Math.max(1, 0.02 * Math.hypot(x1 - x0, y1 - y0))) finish(true);
+  }, [n]);
 
   const remove = (i) => { if (!layer) return; updateMapLayer(layer.id, () => ({ ...removeUnitPolygon(layer, i), id: layer.id })); };
 
@@ -61,7 +74,7 @@ export default function UnitPolygonPane({ drawing, onStart, onUndo, onCancel, on
     <>
       <TaskPaneHeader title={tr("Unit polygons")} helpId="unit-polygons" icon={Shapes} tone="data" onClose={onClose} />
       <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
-        <div style={note}>{tr("Draw the outline of a map unit by clicking its corners in the 3D view (Top view works best); the last click joins the first. The polygons are a geology map layer with a unit field: it drapes on the terrain, exports as Shapefile or GeoPackage, prints in the Layout legend, and Model it can build a 3D model from it.")}</div>
+        <div style={note}>{tr("Draw the outline of a map unit by clicking its corners in the 3D view (Top view works best); a click on the first corner, a double-click or Finish closes it. The polygons are a geology map layer with a unit field: it drapes on the terrain, exports as Shapefile or GeoPackage, prints in the Layout legend, and Model it can build a 3D model from it.")}</div>
         {plan && <div role="note" style={{ ...note, color: "var(--color-warn-text)" }}>{planElevationText(plan)}</div>}{/* #2269 */}
         <label style={row}>{tr("Layer")}
           <select value={layerId} onChange={(e) => setLayerPick(e.target.value)} style={{ ...smallSel, maxWidth: 170 }} aria-label={tr("Drawn geology layer")}>
