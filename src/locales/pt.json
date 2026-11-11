@@ -2532,6 +2532,7 @@
   "Remove this colour stop": "Remover esta parada de cor",
   "Add stop": "Adicionar parada",
   "Colour palette": "Paleta de cores",
+  "The model's own colours": "As cores próprias do modelo",
   "Re-colour the existing stops with this palette, keeping their current values": "Recolorir as paradas existentes com esta paleta, mantendo seus valores atuais",
   "Recolour": "Recolorir",
   "to {v}": "a {v}",

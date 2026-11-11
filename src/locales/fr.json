@@ -2532,6 +2532,7 @@
   "Remove this colour stop": "Retirer cet arrêt de couleur",
   "Add stop": "Ajouter un arrêt",
   "Colour palette": "Palette de couleurs",
+  "The model's own colours": "Les couleurs propres du modèle",
   "Re-colour the existing stops with this palette, keeping their current values": "Recolorer les arrêts existants avec cette palette, en gardant leurs valeurs actuelles",
   "Recolour": "Recolorer",
   "to {v}": "à {v}",

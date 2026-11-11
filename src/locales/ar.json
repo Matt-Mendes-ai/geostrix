@@ -2532,6 +2532,7 @@
   "Remove this colour stop": "إزالة نقطة اللون هذه",
   "Add stop": "إضافة نقطة",
   "Colour palette": "لوحة الألوان",
+  "The model's own colours": "ألوان النموذج نفسه",
   "Re-colour the existing stops with this palette, keeping their current values": "إعادة تلوين النقاط الحالية بهذه اللوحة مع الإبقاء على قيمها",
   "Recolour": "إعادة التلوين",
   "to {v}": "إلى {v}",
