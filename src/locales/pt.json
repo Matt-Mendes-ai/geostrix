@@ -9995,5 +9995,19 @@
   "Use the pit's waste density, {v}": "Usar a densidade do estéril da cava, {v}",
   ", waste {w} t/m³": ", estéril {w} t/m³",
   "+: the intercept starts at the hole's first sample or ends at its last sample or the end of the hole, so the mineralization may continue: the length is a minimum.": "+: a interseção começa na primeira amostra do furo ou termina na última amostra ou no fim do furo, então a mineralização pode continuar: o comprimento é um mínimo.",
-  "… and {n} more intercept(s), not shown on this sheet": "… e mais {n} interseção(ões), não mostradas nesta folha"
+  "… and {n} more intercept(s), not shown on this sheet": "… e mais {n} interseção(ões), não mostradas nesta folha",
+  "{n} readings × {k} channel(s) is more than GeoStrix keeps reading by reading on this computer, and every reading is chosen: about {mb} MB of memory, and the import may be slow or run out of memory. A bin averages them.": "{n} leituras × {k} canal(is) é mais do que o GeoStrix guarda leitura por leitura neste computador, e todas as leituras foram escolhidas: cerca de {mb} MB de memória, e a importação pode ficar lenta ou ficar sem memória. Um intervalo calcula a média delas.",
+  "Every reading is kept (about {mb} MB of memory). A bin averages them (mean, with its minimum and maximum).": "Cada leitura é mantida (cerca de {mb} MB de memória). Um intervalo calcula a média delas (média, com seu mínimo e máximo).",
+  "{file}: the {cols} column names say {grid} coordinates, but not the zone: each zone below shows where these collars would land. They are placed as they are, with no conversion.": "{file}: os nomes de coluna {cols} dizem coordenadas {grid}, mas não a zona: cada zona abaixo mostra onde estas bocas de furo ficariam. Elas são colocadas como estão, sem conversão.",
+  "GeoStrix places every file, terrain and online map with this CRS.": "O GeoStrix posiciona cada arquivo, terreno e mapa online com este SRC.",
+  "{grid} zones (from the column names), with where the collars would land": "Zonas {grid} (pelos nomes de coluna), com onde as bocas de furo ficariam",
+  "{grid} zones": "Zonas {grid}",
+  "— collars at {where}": "— bocas de furo em {where}",
+  "— the collars do not fit this zone": "— as bocas de furo não cabem nesta zona",
+  "The file cannot tell {a} from {b}: choose the datum the coordinates were surveyed in.": "O arquivo não distingue {a} de {b}: escolha o datum em que as coordenadas foram levantadas.",
+  "This file has more than one set of coordinates: {used} (used here) and {others} (kept with each hole; Identify shows them).": "Este arquivo tem mais de um conjunto de coordenadas: {used} (usado aqui) e {others} (mantido com cada furo; Identificar o mostra).",
+  "Easting, Northing and Elevation come from different coordinate sets ({cols}), so each collar would mix two grids. {whole} is one whole set.": "Leste, Norte e Elevação vêm de conjuntos de coordenadas diferentes ({cols}), então cada boca de furo misturaria duas grades. {whole} é um conjunto completo.",
+  "Easting, Northing and Elevation come from different coordinate sets ({cols}), so each collar would mix two grids.": "Leste, Norte e Elevação vêm de conjuntos de coordenadas diferentes ({cols}), então cada boca de furo misturaria duas grades.",
+  "{n} of {of} collars have eastings {x0}–{x1} and northings {y0}–{y1}, which no UTM / MGA zone has, though the project is in {crs}: they look like local mine-grid numbers. Map Easting and Northing to the file's map-grid columns, or tick \"X/Y are on a local mine grid\" below.": "{n} de {of} bocas de furo têm lestes {x0}–{x1} e nortes {y0}–{y1}, que nenhuma zona UTM / MGA tem, embora o projeto esteja em {crs}: parecem números de uma grade local de mina. Associe Leste e Norte às colunas da grade cartográfica do arquivo, ou marque \"X/Y estão em uma grade local de mina\" abaixo.",
+  "{n} column(s) not imported, each with more than 100 different values (add one under Extra fields to keep it): {cols}": "{n} coluna(s) não importada(s), cada uma com mais de 100 valores diferentes (adicione uma em Campos adicionais para mantê-la): {cols}"
 }

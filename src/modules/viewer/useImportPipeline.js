@@ -27,6 +27,7 @@ const isXlsxName = (name) => /\.xlsx$/i.test(String(name || "")); // TASKS.csv #
 import { buildLayer, sameMapLayer } from "../../lib/mapLayerBuild.js"; // TASKS.csv #609; sameMapLayer: #2019
 import { askAdoptCrs } from "../../lib/adoptCrs.js"; // TASKS.csv #607
 import { requestProjectCrs } from "../../lib/projectCrsRequest.js"; // TASKS.csv #615
+import { collarAlwaysKept } from "../../lib/collarAttrs.js"; // TASKS.csv #2492 / #2190
 import { holeTypeColumn, normalizeHoleType } from "../../lib/holeType.js"; // TASKS.csv #2161
 import { eventNotes } from "../../lib/downholeEvents.js"; // TASKS.csv #2317
 import { applyRowFilter, defaultRowFilter, overlapSummary, overlapWorthSaying } from "../../lib/importRowFilter.js"; // TASKS.csv #2330; overlap: #2391
@@ -355,7 +356,12 @@ export function useImportPipeline(ctx) {
       const ranked = pickRankedCollarRows(allRows, mapping.hole_id, allRows.length ? Object.keys(allRows[0]) : []); // #600
       // TASKS.csv #1504 (review #1497, Lawyers) — the collar file's other columns (year, drill type, prospect, status, dates, comments)
       // were dropped without a word: kept as attrs (the surface-sample rule, #841: a column with up to 100 distinct values, or free text)
-      const attrCols = surfaceAttrColumns(allRows.length ? Object.keys(allRows[0]) : [], ranked.rows, { ...mapping, _epsg: perRowEpsgCol || null, ...Object.fromEntries((customFields || []).map((f, k) => [`_c${k}`, f.column])) });
+      const collarHdrs = allRows.length ? Object.keys(allRows[0]) : [], attrMapping = { ...mapping, _epsg: perRowEpsgCol || null, ...Object.fromEntries((customFields || []).map((f, k) => [`_c${k}`, f.column])) };
+      const attrCols = surfaceAttrColumns(collarHdrs, ranked.rows, attrMapping);
+      // TASKS.csv #2492 — a second set of coordinate columns (GBMG_East / GBMG_North / GBMG_RL beside the MGA ones used) is kept with each
+      // hole whatever its number of distinct values; the columns still left out are named in the notice (#2190: STARTDATE, ENDDATE)
+      for (const c of collarAlwaysKept(collarHdrs, attrMapping)) if (!attrCols.includes(c)) attrCols.push(c); // and date columns: #2190
+      const notKept = collarHdrs.filter((h) => h && !attrCols.includes(h) && !Object.values(attrMapping).includes(h) && ranked.rows.some((r) => String(r[h] ?? "").trim() !== ""));
       // TASKS.csv #2161 — the drilling method normalized ("hole type": RC, Diamond (DD), RC + diamond tail, Aircore (AC), RAB...) beside the file's own column
       const htCol = holeTypeColumn(allRows.length ? Object.keys(allRows[0]) : []);
       const withHoleType = (a, r) => { const ht = htCol ? normalizeHoleType(r[htCol]) : null; return ht ? { attrs: { ...(a.attrs || {}), "hole type": ht } } : a; };
@@ -502,6 +508,7 @@ export function useImportPipeline(ctx) {
       if (diff.unchanged.length) parts.push(tr("{unchanged} already present and identical", { unchanged: diff.unchanged.length }));
       if (ranked.dropped) parts.push(tr("{holes} hole(s) had several location records ({dropped} extra rows) — kept the lowest \"{rankColumn}\" for each: {holes2}{v}", { holes: ranked.holes.length, dropped: ranked.dropped, rankColumn: ranked.rankColumn, holes2: ranked.holes.slice(0, 5).join(", "), v: ranked.holes.length > 5 ? ", …" : "" }));
       if (attrCols.length) parts.push(tr("{n} more column(s) kept with each hole (Identify shows them): {cols}", { n: attrCols.length, cols: attrCols.slice(0, 8).join(", ") + (attrCols.length > 8 ? "…" : "") })); // #1504
+      if (notKept.length) parts.push(tr("{n} column(s) not imported, each with more than 100 different values (add one under Extra fields to keep it): {cols}", { n: notKept.length, cols: notKept.slice(0, 8).join(", ") + (notKept.length > 8 ? "…" : "") })); // #2492 / #2190
       // #2014 (review #2013, Woodjam) — 534 of 544 district collars had no azimuth / dip column and no survey: they were counted
       // ("Holes: 544") and never drawn, and this notice did not say so. They are now drawn as assumed vertical holes; say it here.
       const surveyedHoles = new Set((importStateRef.current.survey || []).map((sv) => sv.hole_id));
@@ -715,11 +722,15 @@ export function useImportPipeline(ctx) {
     if (m.target !== "collars" || live.project?.crsSet !== false || live.project?.localGrid || m.sourceEpsg || m.perRowEpsgCol || m.localGridOn) return; // localGrid: #2180 — not asked again
     const xc = m.mapping?.x, yc = m.mapping?.y;
     const pts = xc && yc ? (m.allRows || []).map((r) => ({ x: parseFloat(String(r[xc]).replace(",", ".")), y: parseFloat(String(r[yc]).replace(",", ".")) })).filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y)) : null;
-    const { epsgFromColumns, gridFrameFromRows, smallGridCoordinates } = await import("../../lib/crsFromColumns.js"); // #1345 — the headers may name it
+    const { epsgFromColumns, gridFrameFromRows, smallGridCoordinates, crsFamilyFromColumns } = await import("../../lib/crsFromColumns.js"); // #1345 — the headers may name it
     const hdrs = m.headers || Object.keys((m.allRows || [])[0] || {}), file = String(m.fileName).replace(/ \(\d+ more queued\)$/, "");
     // TASKS.csv #2155 / #2156 / #2181 — or the rows' own grid name (GRIDNAME = MGA94_51), a local grid, frames mixed in one file, eastings no zone has
     const frame = gridFrameFromRows(hdrs, m.allRows), small = smallGridCoordinates(pts);
-    const byHeader = epsgFromColumns(hdrs), named = byHeader || frame?.epsg || null;
+    // TASKS.csv #2495 — the MAPPED coordinate columns named after a grid family (MGA_E / MGA_N): its zones, each with where the collars land
+    // (one code when the header names the zone and datum, MGA94_50_E: chosen like a named CRS)
+    const family = crsFamilyFromColumns([xc, yc].filter(Boolean));
+    const byHeader = epsgFromColumns(hdrs) || (family?.codes.length === 1 ? family.codes[0] : null), named = byHeader || frame?.epsg || null;
+    const zones = !named && family && !frame?.local && !small ? family : null; // not over a local grid's own warning
     const fr = (g) => tr("{name}: {n} row(s)", { name: g.name, n: g.rows });
     const warn = [
       frame?.mixed ? tr("The {col} column names more than one frame ({list}): these rows are not in one coordinate system, so no single CRS places them all. Import the groups as separate files.", { col: frame.cols.join(" / "), list: frame.groups.slice(0, 4).map(fr).join(", ") }) : "",
@@ -729,7 +740,8 @@ export function useImportPipeline(ctx) {
     const chosen = await requestProjectCrs((named
       ? (byHeader ? tr("{file}: the column names say these collars are in EPSG:{code}, chosen below. Check it on the map, then use it. They are placed as they are, with no conversion.", { file, code: named })
         : tr("{file}: the {col} column says {name} (EPSG:{code}), chosen below. Check it on the map, then use it. They are placed as they are, with no conversion.", { file, col: frame.cols.join(" / "), name: frame.groups[0].name, code: named }))
-      : `${file}: which coordinate system are these collar coordinates in? They are placed as they are, with no conversion.`) + (warn ? ` ${warn}` : ""), pts, named);
+      : zones ? tr("{file}: the {cols} column names say {grid} coordinates, but not the zone: each zone below shows where these collars would land. They are placed as they are, with no conversion.", { file, cols: zones.cols.join(" / "), grid: zones.grid }) // #2495
+      : `${file}: which coordinate system are these collar coordinates in? They are placed as they are, with no conversion.`) + (warn ? ` ${warn}` : ""), pts, named, { family: zones });
     if (chosen) importStateRef.current = { ...importStateRef.current, project: { ...importStateRef.current.project, epsg: chosen, crsSet: true } };
   };
 

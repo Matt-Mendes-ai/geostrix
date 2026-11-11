@@ -14,6 +14,7 @@ import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { fieldNeedsNumber, columnHasNoNumbers } from "../lib/importChecks.js"; // TASKS.csv #1257
 import { customFromPrevious } from "../lib/viewer/customMapping.js"; // TASKS.csv #1654
+import CoordSetsNote from "./CoordSetsNote.jsx"; // TASKS.csv #2492 — two coordinate sets, X / Y / Z from different sets, mine-grid numbers
 import LogChannelsBox from "./LogChannelsBox.jsx"; // TASKS.csv #2160 — one numeric layer per log channel
 import RowFilterBox from "./RowFilterBox.jsx"; // TASKS.csv #2330 — only rows where a column is some values (a Superseded flag pre-set)
 import { applyRowFilter, defaultRowFilter } from "../lib/importRowFilter.js"; // TASKS.csv #2330 — the button counts the rows the filter keeps
@@ -31,7 +32,8 @@ import { logChannelsFor } from "../lib/downholeLogChannels.js";
 
 
 export default function ImportMappingModal({ modal, onChange, onCancel, onCommit, projectEpsg, replaceInfo = null }) { // replaceInfo: #1649
-  const crsUnset = useStore().project?.crsSet === false; // TASKS.csv #615
+  const storeProject = useStore().project; // #2492
+  const crsUnset = storeProject?.crsSet === false; // TASKS.csv #615
   useEscapeKey(onCancel); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
   const schema = TARGET_SCHEMAS[modal.target];
@@ -126,6 +128,7 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
               source actually carries). Carried straight through to the attribute table (which
               already derives its columns from whatever keys a row has) and, for interval layers, the
               hover tooltip shows one named "description" specifically — see ViewerModule.jsx. */}
+          <CoordSetsNote modal={modal} project={storeProject} />{/* #2492 */}
           <LogChannelsBox modal={modal} onChange={onChange} sel={sel} />{/* #2160 */}
           <RowFilterBox modal={modal} onChange={onChange} sel={sel} />{/* #2330 */}
           <div style={{ marginTop: 4, marginBottom: 14 }}>

@@ -9995,5 +9995,19 @@
   "Use the pit's waste density, {v}": "استخدم كثافة نفايات الحفرة، {v}",
   ", waste {w} t/m³": "، نفايات {w} t/m³",
   "+: the intercept starts at the hole's first sample or ends at its last sample or the end of the hole, so the mineralization may continue: the length is a minimum.": "+: يبدأ التقاطع عند أول عينة في الثقب أو ينتهي عند آخر عينة أو نهاية الثقب، فقد يستمر التمعدن: الطول حد أدنى.",
-  "… and {n} more intercept(s), not shown on this sheet": "… و{n} تقاطعًا آخر لا تظهر في هذه الورقة"
+  "… and {n} more intercept(s), not shown on this sheet": "… و{n} تقاطعًا آخر لا تظهر في هذه الورقة",
+  "{n} readings × {k} channel(s) is more than GeoStrix keeps reading by reading on this computer, and every reading is chosen: about {mb} MB of memory, and the import may be slow or run out of memory. A bin averages them.": "{n} قراءة × {k} قناة أكثر مما يحفظه GeoStrix قراءةً بقراءة على هذا الحاسوب، وقد اختيرت كل قراءة: نحو {mb} ميغابايت من الذاكرة، وقد يكون الاستيراد بطيئًا أو تنفد الذاكرة. يحسب المجال متوسطها.",
+  "Every reading is kept (about {mb} MB of memory). A bin averages them (mean, with its minimum and maximum).": "تُحفظ كل قراءة (نحو {mb} ميغابايت من الذاكرة). يحسب المجال متوسطها (المتوسط مع الحد الأدنى والأقصى).",
+  "{file}: the {cols} column names say {grid} coordinates, but not the zone: each zone below shows where these collars would land. They are placed as they are, with no conversion.": "{file}: تشير أسماء الأعمدة {cols} إلى إحداثيات {grid}، لكن دون المنطقة: تُظهر كل منطقة أدناه أين ستقع هذه الفوهات. توضع كما هي، دون تحويل.",
+  "GeoStrix places every file, terrain and online map with this CRS.": "يضع GeoStrix كل ملف وتضاريس وخريطة على الإنترنت بنظام الإحداثيات هذا.",
+  "{grid} zones (from the column names), with where the collars would land": "مناطق {grid} (من أسماء الأعمدة)، مع موقع الفوهات في كل منها",
+  "{grid} zones": "مناطق {grid}",
+  "— collars at {where}": "— الفوهات عند {where}",
+  "— the collars do not fit this zone": "— لا تقع الفوهات ضمن هذه المنطقة",
+  "The file cannot tell {a} from {b}: choose the datum the coordinates were surveyed in.": "لا يميّز الملف بين {a} و{b}: اختر المرجع الجيوديسي الذي رُصدت به الإحداثيات.",
+  "This file has more than one set of coordinates: {used} (used here) and {others} (kept with each hole; Identify shows them).": "يحتوي هذا الملف على أكثر من مجموعة إحداثيات: {used} (مستخدمة هنا) و{others} (محفوظة مع كل ثقب؛ يعرضها التعريف).",
+  "Easting, Northing and Elevation come from different coordinate sets ({cols}), so each collar would mix two grids. {whole} is one whole set.": "تأتي إحداثيات الشرق والشمال والارتفاع من مجموعات إحداثيات مختلفة ({cols})، فتخلط كل فوهة بين شبكتين. {whole} مجموعة كاملة.",
+  "Easting, Northing and Elevation come from different coordinate sets ({cols}), so each collar would mix two grids.": "تأتي إحداثيات الشرق والشمال والارتفاع من مجموعات إحداثيات مختلفة ({cols})، فتخلط كل فوهة بين شبكتين.",
+  "{n} of {of} collars have eastings {x0}–{x1} and northings {y0}–{y1}, which no UTM / MGA zone has, though the project is in {crs}: they look like local mine-grid numbers. Map Easting and Northing to the file's map-grid columns, or tick \"X/Y are on a local mine grid\" below.": "لدى {n} من {of} فوهة إحداثيات شرقية {x0}–{x1} وشمالية {y0}–{y1} لا توجد في أي منطقة UTM / MGA، مع أن المشروع بنظام {crs}: تبدو أرقام شبكة منجم محلية. اربط الشرق والشمال بأعمدة الشبكة الخرائطية في الملف، أو فعّل \"إحداثيات X/Y على شبكة منجم محلية\" أدناه.",
+  "{n} column(s) not imported, each with more than 100 different values (add one under Extra fields to keep it): {cols}": "{n} عمود لم يُستورد، لكل منها أكثر من 100 قيمة مختلفة (أضف أحدها ضمن الحقول الإضافية للاحتفاظ به): {cols}"
 }
