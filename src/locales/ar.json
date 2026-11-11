@@ -10021,5 +10021,7 @@
   "Composited to {L} m as the file was read: {n} interval(s) of {h} hole(s) became {m} composite(s), each the length-weighted mean of its numeric columns ({cols}) and, for a text column, the value over most of its length; a hole's last composite stops where its intervals stop.": "جُمّع إلى {L} م أثناء قراءة الملف: صارت {n} فترة من {h} ثقب {m} مركّبًا، كل منها المتوسط المرجّح بالطول لأعمدته الرقمية ({cols})، وللعمود النصي القيمة على معظم طوله؛ وينتهي آخر مركّب في الثقب حيث تنتهي فتراته.",
   "{n} text value(s) in numeric columns (such as below-detection entries) were left out of the means.": "استُبعدت {n} قيمة نصية في أعمدة رقمية (مثل القيم دون حد الكشف) من المتوسطات.",
   "{n} row(s) with no hole, or no From / To with From above To, were left out.": "استُبعد {n} صف بلا ثقب، أو بلا «من» / «إلى» تكون فيها «إلى» أكبر من «من».",
-  "{n} hole(s) had rows in more than one place in the file ({ids}): their intervals were composited together by depth.": "كانت لـ {n} ثقب صفوف في أكثر من موضع في الملف ({ids}): جُمّعت فتراتها معًا حسب العمق."
+  "{n} hole(s) had rows in more than one place in the file ({ids}): their intervals were composited together by depth.": "كانت لـ {n} ثقب صفوف في أكثر من موضع في الملف ({ids}): جُمّعت فتراتها معًا حسب العمق.",
+  "Its first {mb} MB were not UTF-8, so the whole file was read as Windows-1252.": "لم تكن أول {mb} ميغابايت منه بترميز UTF-8، فقُرئ الملف كله بترميز Windows-1252.",
+  "Read in {n} parts: the file is {mb} MB, more than one text read can hold.": "قُرئ على {n} أجزاء: حجم الملف {mb} ميغابايت، أكثر مما تتسع له قراءة نصية واحدة."
 }

@@ -1,11 +1,22 @@
 // TASKS.csv #583 — big CSV files decoded and parsed off the UI thread (see parseTableFile). A columnar result goes
 // back as plain columns with its typed arrays transferred; the caller wraps them as rows. Otherwise the rows
 // themselves are posted (structured clone).
-import { decodeTableBytes, parseTableText, parseColumnsRaw, COLUMNAR_MIN_CHARS } from "./tabular.js";
+import { decodeTableBytes, parseTableText, parseColumnsRaw, COLUMNAR_MIN_CHARS, parseTableChunks, fileChunks } from "./tabular.js"; // parseTableChunks: TASKS.csv #2346
 
 const ROWS_PART = 100000;
+// TASKS.csv #2346 — a file over 512 MB comes as the File itself and is read in parts (file.slice), never as one string
+async function sendRows(out) {
+  const rows = out.rows || [];
+  if (rows.length <= ROWS_PART) { self.postMessage({ type: "rows", out }); return; }
+  for (let i = 0; i < rows.length; i += ROWS_PART) self.postMessage({ type: "rows-part", rows: rows.slice(i, i + ROWS_PART) });
+  self.postMessage({ type: "rows", out: { ...out, rows: null } });
+}
 self.onmessage = (e) => {
-  const { buf, opts = {} } = e.data || {};
+  const { buf, opts = {}, file } = e.data || {};
+  if (file && opts.chunked) {
+    parseTableChunks(fileChunks(file), opts).then(sendRows).catch((err) => self.postMessage({ type: "error", message: err?.message || String(err) }));
+    return;
+  }
   try {
     const { text, encoding } = decodeTableBytes(buf);
     if (opts.columnar && !opts.composite && text.length >= COLUMNAR_MIN_CHARS) { // composite: TASKS.csv #2345 — the row reader composites

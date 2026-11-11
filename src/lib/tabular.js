@@ -354,16 +354,126 @@ export async function confirmTableSize(file, { budget = TABLE_MEMORY_BUDGET, con
   return confirm(tr("{name} is a very large table: about {rows} rows × {cols} columns. Opening it needs roughly {gb} GB of memory, which can close GeoStrix on this computer.", { name: file.name, rows: e.rows.toLocaleString(), cols: e.cols, gb: (e.bytes / 1e9).toFixed(1) })
     + "\n\n" + tr("OK — open it anyway.") + "\n" + tr("Cancel — don't open it (split the file, or keep only the rows and columns you need, and open the parts)."));
 }
+// TASKS.csv #2346 (split from #2344) — a CSV over TEXT_MAX_BYTES read in PARTS: no single string holds it. chunks: an async iterable of
+// Uint8Array pieces of the file, in order. The encoding is decided on the first ENCODING_PROBE bytes (UTF-8 unless they hold a byte
+// sequence UTF-8 can't read: then Windows-1252, said in the note). The text is cut only at a line end outside quotes, and each part is
+// parsed with the header line in front of it, so typing, the kept columns (#2177), the holes subset (#2321) and the composite (#2345)
+// behave as in parseTableText. The whole-text steps work on the head: leading comments and a preamble / banner (above the header), the
+// space-separated test (#2017, then every line re-joined), the id-like column scan (#1071, its first 2,000 lines as before); comma
+// decimals are looked for in every part. -> parseTableText's { rows, headers, note, errors, droppedByHole?, composited? } + { encoding, parts }
+const ENCODING_PROBE = 16 << 20, FIRST_PART_MIN = 256 << 10;
+export async function parseTableChunks(chunks, { comments = "#", keep = null, holes = null, composite = null } = {}) {
+  const it = chunks[Symbol.asyncIterator] ? chunks[Symbol.asyncIterator]() : chunks[Symbol.iterator]();
+  const headBufs = []; let headLen = 0, done = false;
+  while (headLen < ENCODING_PROBE) { const r = await it.next(); if (r.done) { done = true; break; } headBufs.push(r.value); headLen += r.value.length; }
+  const probe = new TextDecoder("utf-8").decode(concatBytes(headBufs, Math.min(headLen, ENCODING_PROBE)), { stream: true });
+  const encoding = probe.includes("�") ? "windows-1252" : "utf-8";
+  const dec = new TextDecoder(encoding);
+  const want = keep?.length ? new Set([...keep, ...(composite ? [composite.hole, composite.from, composite.to] : [])]) : null;
+  const hf = holes?.col && holes.ids ? { col: holes.col, ids: new Set([...holes.ids].map((v) => String(v).trim())) } : null;
+  const comp = composite ? makeCompositor(composite) : null;
+  const data = [], errors = [];
+  let kept = null, droppedByHole = 0, headerLine = null, newline = "\n", delimiter, spaced = false, preamble = 0, banner = false, typedBy = null, commaSeen = false, parts = 0;
+  const step = (r) => {
+    if (!kept) kept = want ? (r.meta.fields || []).filter((f) => want.has(f)) : (r.meta.fields || []);
+    if (r.errors?.length) errors.push(...r.errors);
+    if (hf && !hf.ids.has(String(r.data[hf.col] ?? "").trim())) { droppedByHole++; return; }
+    const o = {}; for (const f of kept) o[f] = r.data[f];
+    if (comp) comp.add(o); else data.push(o);
+  };
+  const parsePart = (text) => {
+    parts++;
+    if (!headerLine) { // the first part: comments, BOM, space-separated, preamble, the header, the id-like columns
+      if (text.charCodeAt(0) === 0xfeff) text = text.slice(1);
+      ({ text } = stripLeadingComments(text, comments));
+      const sp = spaceTableToTabs(text); if (sp != null) { text = sp; spaced = true; }
+      ({ text, skipped: preamble, banner } = skipPreamble(text));
+      const nl = text.indexOf("\n");
+      headerLine = (nl < 0 ? text : text.slice(0, nl)).replace(/\r$/, "");
+      if (nl > 0 && text[nl - 1] === "\r") newline = "\r\n"; // the file's own line end: the header is joined to every later part with it
+      const idLike = ID_LIKE_VALUE_IN.test(text) ? idLikeColumns(text) : null;
+      const typed = new Map();
+      typedBy = (field) => { let v = typed.get(field); if (v === undefined) { v = !isIdentifierHeader(field) && !idLike?.has(field); typed.set(field, v); } return v; };
+    } else {
+      if (spaced) text = text.split(/\r?\n/).map((l) => (l.trim() ? l.trim().split(/\s+/).join("\t") : "")).join("\n"); // spaceTableToTabs joins with \n too
+      text = `${headerLine}${spaced ? "\n" : newline}${text}`;
+      if (comments && text.includes(`\n${comments}`)) ({ text } = stripLeadingComments(text, comments)); // a short "#" note line later on (#720)
+    }
+    if (!commaSeen && QUOTED_COMMA_NUMBER.test(text)) commaSeen = true;
+    const meta = Papa.parse(text, { header: true, dynamicTyping: typedBy, skipEmptyLines: true, comments: false, ...(delimiter ? { delimiter, newline: spaced ? "\n" : newline } : {}), step }).meta;
+    delimiter = delimiter || meta.delimiter;
+  };
+  // cut at the last line end outside quotes ("" inside a quoted cell toggles twice: the parity stays right)
+  let carry = "";
+  const feed = (str, last) => {
+    let buf = carry + str;
+    if (last) { carry = ""; if (buf.trim()) parsePart(buf); return; }
+    if (!headerLine && buf.length < FIRST_PART_MIN) { carry = buf; return; } // the head's checks (comments, preamble, spaced) read its first 200 kB
+    let q = false, cut = -1;
+    for (let i = 0; i < buf.length; i++) { const c = buf.charCodeAt(i); if (c === 34) q = !q; else if (c === 10 && !q) cut = i; }
+    if (cut < 0) { carry = buf; return; }
+    carry = buf.slice(cut + 1); buf = buf.slice(0, cut + 1);
+    if (buf.trim()) parsePart(buf);
+  };
+  for (const b of headBufs) feed(dec.decode(b, { stream: true }), false);
+  headBufs.length = 0;
+  while (!done) { const r = await it.next(); if (r.done) break; feed(dec.decode(r.value, { stream: true }), false); }
+  feed(dec.decode(), true);
+  let rows = data;
+  let composited = null;
+  if (comp) { const f = comp.finish(); rows = f.rows; composited = f.stats; }
+  let cnote = "";
+  if (delimiter !== "," || commaSeen) ({ rows, note: cnote } = normalizeCommaDecimals(rows)); // #600 — only where a comma decimal can exist
+  const pre = banner ? tr("The first row was a banner of group names over the field names: the second row is used as the header.") : preamble ? tr("Skipped {n} line(s) of notes above the header row.", { n: preamble }) : "";
+  const headers = kept || [];
+  const sp = spaced ? tr("Read as a space-separated table ({n} columns).", { n: headers.length }) : "";
+  const enc = encoding !== "utf-8" ? tr("Its first {mb} MB were not UTF-8, so the whole file was read as Windows-1252.", { mb: Math.round(Math.min(headLen, ENCODING_PROBE) / 1048576) }) : "";
+  return { rows, headers, note: [cnote, pre, sp, enc].filter(Boolean).join(" "), errors, encoding, parts, ...(hf ? { droppedByHole } : {}), ...(composited ? { composited } : {}) };
+}
+function concatBytes(bufs, n) {
+  const out = new Uint8Array(n); let o = 0;
+  for (const b of bufs) { if (o >= n) break; const k = Math.min(b.length, n - o); out.set(b.subarray(0, k), o); o += k; }
+  return out;
+}
+// a File / Blob as an async iterable of byte pieces (file.slice: only one piece held at a time)
+export async function* fileChunks(file, size = 32 << 20) {
+  for (let at = 0; at < file.size; at += size) yield new Uint8Array(await file.slice(at, Math.min(file.size, at + size)).arrayBuffer());
+}
+function parseFileChunksInWorker(file, opts) {
+  return new Promise((resolve, reject) => {
+    let worker;
+    try { worker = new Worker(new URL("./tabular.worker.js", import.meta.url), { type: "module" }); } catch (err) { reject(err); return; }
+    const parts = [];
+    worker.onmessage = (e) => {
+      const d = e.data || {};
+      if (d.type === "rows-part") { parts.push(d.rows); return; }
+      worker.terminate();
+      if (d.type === "rows") resolve(d.out.rows ? d.out : { ...d.out, rows: [].concat(...parts) });
+      else reject(new Error(d.message || tr("The file reader stopped.")));
+    };
+    worker.onerror = (e) => { e.preventDefault?.(); worker.terminate(); reject(new Error(e.message || tr("worker failed"))); };
+    worker.postMessage({ file, opts: { ...opts, chunked: true } });
+  });
+}
+
 // #2171 — a worker that failed on a big file (out of memory) is not retried on the window's own thread: that took the whole app down
 const MAIN_THREAD_RETRY_MAX = 64e6;
 export async function parseTableFile(file, opts) {
-  if (file?.size > TEXT_MAX_BYTES) throw tooLargeForOneRead(file.size); // #2344 — before the column chooser: no subset can help, the decode is first
+  // #2344 / #2346 — over 512 MB the text can't be one string: read in parts in a worker (below), after the column chooser as any big table
+  const inParts = file?.size > TEXT_MAX_BYTES;
+  if (inParts && typeof Worker === "undefined") throw tooLargeForOneRead(file.size);
   if (!(opts?.sizeChecked)) {
     const ok = await confirmTableSize(file);
     if (!ok) throw new Error(tr("not opened: it needs more memory than this computer can safely give it"));
     if (ok.keep?.length) opts = { ...(opts || {}), keep: ok.keep }; // #2177 — only the chosen columns are read
     if (ok.holes?.col && ok.holes.ids?.length) opts = { ...(opts || {}), holes: { col: ok.holes.col, ids: [...ok.holes.ids], label: ok.holes.label || "" } }; // #2321 — only those holes' rows
     if (ok.composite?.lengthM > 0 && ok.composite.hole && ok.composite.from && ok.composite.to) opts = { ...(opts || {}), composite: { ...ok.composite } }; // #2345 — composited as read
+  }
+  if (inParts) { // #2346
+    let out;
+    try { out = await parseFileChunksInWorker(file, opts || {}); } catch (err) { throw new Error(tr("the file reader stopped ({error}); the file is too large to read another way", { error: err?.message || String(err) })); }
+    const said = tr("Read in {n} parts: the file is {mb} MB, more than one text read can hold.", { n: out.parts, mb: Math.round(file.size / 1048576).toLocaleString() });
+    return subsetNote({ ...out, note: [out.note, said].filter(Boolean).join(" ") }, opts);
   }
   if (typeof Worker !== "undefined" && file.size >= WORKER_MIN_BYTES) {
     try { return subsetNote(await parseInWorker(await file.arrayBuffer(), opts || {}), opts); } catch (err) {
