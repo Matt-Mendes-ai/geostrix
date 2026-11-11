@@ -20,6 +20,7 @@ import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the inter
 import { FIGURE_FONT } from "./svgExport.js"; // TASKS.csv #1089
 import { valueIn } from "./geochem.js"; // TASKS.csv #1480 — assay tracks, in each element's own unit
 import { isBelowDetection } from "./assayFlags.js"; // TASKS.csv #2605
+import { customCodeColour } from "./customColour.js"; // TASKS.csv #2477
 import { lithoPatternMap, loadPatternTiles, patternDefs, patternFill } from "./lithoPatterns.js"; // TASKS.csv #1995 — FGDC lithology patterns
 
 const TRACK_W = 90;
@@ -96,7 +97,7 @@ function barTrack(rows, x, sy, max) {
 // map viewport on the same page use. #402 did this for the strip-log modal only.
 // assays / assaySymbols / elementUnits (#1480): the project's assays and up to three elements to draw as tracks after the logs
 // lithoPatterns (#1995): { byCode: { code: FGDC code | null }, tiles } — the lithology column drawn with its patterns
-export function buildStripLogSvgMarkup({ holeId, collars, layers, legendOverride = null, assays = [], assaySymbols = [], elementUnits = {}, lithoPatterns = null, assayRanges = null }) { // assayRanges: #2605 — one axis per element for an atlas
+export function buildStripLogSvgMarkup({ holeId, collars, layers, legendOverride = null, assays = [], assaySymbols = [], elementUnits = {}, lithoPatterns = null, assayRanges = null, customTracks = [] }) { // customTracks: #2477 // assayRanges: #2605 — one axis per element for an atlas
   const ov = (key, v) => legendOverride?.[key]?.[v];
   const colorOf = (key, fallback) => (v) => ov(key, v)?.color || fallback(v);
   const nameOf = (key, fallback) => (v) => ov(key, v)?.label || (fallback ? fallback(v) : v);
@@ -129,6 +130,15 @@ export function buildStripLogSvgMarkup({ holeId, collars, layers, legendOverride
   ].filter((t) => t.rows.length);
   // #1480 — the chosen assay elements, always drawn (a hole with none says so under its track, so every page has the same columns)
   syms.forEach((sym) => tracks.push({ label: `${sym} (${elementUnits[sym] || "ppm"})`, rows: holeAssays, kind: "assay", sym, unit: elementUnits[sym] || "ppm" }));
+  // TASKS.csv #2477 (review #2325) — custom-layer tracks (a stratigraphic unit, a gamma log) as the strip-log window's '+ track' gives them:
+  // [{ layer, numeric, max }] — a category as coloured blocks (the 3D view's colours, #2476), a numeric log as bars over `max` (the atlas's
+  // holes together, so every page has the same scale)
+  for (const ct of customTracks || []) {
+    const rows = (ct.layer?.rows || []).filter((r) => r.hole_id === holeId && Number.isFinite(Number(r.from)) && Number.isFinite(Number(r.to)) && r.value != null && r.value !== "").map((r) => ({ ...r, from: Number(r.from), to: Number(r.to), value: ct.numeric ? Number(r.value) : r.value })).sort((a, b) => a.from - b.from);
+    const label = `${ct.layer.name}${ct.layer.unit ? ` (${ct.layer.unit})` : ""}`;
+    if (ct.numeric) tracks.push({ label, rows: rows.filter((r) => Number.isFinite(r.value)), kind: "bar", max: ct.max > 0 ? ct.max : Math.max(1e-9, ...rows.map((r) => r.value).filter(Number.isFinite)) });
+    else tracks.push({ label, rows, kind: "fill", colorFn: (v) => customCodeColour(ct.layer, "value", v), nameFn: null });
+  }
   if (!tracks.length) return null;
   const W = DEPTH_COL_W + tracks.length * TRACK_W + 10;
 
@@ -163,14 +173,14 @@ export function buildStripLogSvgMarkup({ holeId, collars, layers, legendOverride
 
 // Rasterizes buildStripLogSvgMarkup's output into a PNG data URL, the same SVG->canvas->PNG technique
 // StripLog.jsx's own exportPNG button already uses. Returns null if the hole had nothing to draw.
-export async function buildStripLogDataUrl({ holeId, collars, layers, legendOverride = null, assays = [], assaySymbols = [], elementUnits = {}, lithoPatterns = false, assayRanges = null }) { // lithoPatterns: #1995; assayRanges: #2605
+export async function buildStripLogDataUrl({ holeId, collars, layers, legendOverride = null, assays = [], assaySymbols = [], elementUnits = {}, lithoPatterns = false, assayRanges = null, customTracks = [] }) { // lithoPatterns: #1995; assayRanges: #2605
   let pats = null;
   if (lithoPatterns && (layers.litho || []).length) { // #1995 — the project's codes (the same pattern on every page), then this hole's tiles
     const byCode = lithoPatternMap(layers.litho, (v) => legendOverride?.litho?.[v]?.label || UNIT_NAMES[v] || v, legendOverride?.litho);
     const here = [...new Set((layers.litho || []).filter((r) => r.hole_id === holeId).map((r) => byCode[r.value]).filter((c) => c != null))];
     pats = { byCode, tiles: await loadPatternTiles(here) };
   }
-  const built = buildStripLogSvgMarkup({ holeId, collars, layers, legendOverride, assays, assaySymbols, elementUnits, lithoPatterns: pats, assayRanges }); // legendOverride: #1092; assays: #1480
+  const built = buildStripLogSvgMarkup({ holeId, collars, layers, legendOverride, assays, assaySymbols, elementUnits, lithoPatterns: pats, assayRanges, customTracks }); // legendOverride: #1092; assays: #1480
   if (!built) return null;
   const { svg, width, height, pxPerMeter } = built;
   const blob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });

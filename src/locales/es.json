@@ -10159,5 +10159,7 @@
   "No downhole structure picks yet": "Aún no hay estructuras de sondaje",
   "{n} alpha only (no beta): a plane needs both angles to be oriented": "{n} solo alfa (sin beta): un plano necesita ambos ángulos para orientarse",
   "Nothing is plotted, so there is nothing to export.": "No hay nada graficado, así que no hay nada que exportar.",
-  "Disabled: this mean pools {n} structure types (faults, veins, bedding…), which is not one orientation. Pick one structure type first.": "Desactivado: esta media junta {n} tipos de estructura (fallas, vetas, estratificación…), que no son una sola orientación. Elija primero un tipo de estructura."
+  "Disabled: this mean pools {n} structure types (faults, veins, bedding…), which is not one orientation. Pick one structure type first.": "Desactivado: esta media junta {n} tipos de estructura (fallas, vetas, estratificación…), que no son una sola orientación. Elija primero un tipo de estructura.",
+  "Custom layer tracks": "Pistas de capas personalizadas",
+  "Custom layer track {n}": "Pista de capa personalizada {n}"
 }

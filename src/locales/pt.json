@@ -10159,5 +10159,7 @@
   "No downhole structure picks yet": "Ainda não há estruturas de furo",
   "{n} alpha only (no beta): a plane needs both angles to be oriented": "{n} só alfa (sem beta): um plano precisa dos dois ângulos para ser orientado",
   "Nothing is plotted, so there is nothing to export.": "Nada está plotado, então não há nada para exportar.",
-  "Disabled: this mean pools {n} structure types (faults, veins, bedding…), which is not one orientation. Pick one structure type first.": "Desativado: esta média junta {n} tipos de estrutura (falhas, veios, acamamento…), que não são uma única orientação. Escolha primeiro um tipo de estrutura."
+  "Disabled: this mean pools {n} structure types (faults, veins, bedding…), which is not one orientation. Pick one structure type first.": "Desativado: esta média junta {n} tipos de estrutura (falhas, veios, acamamento…), que não são uma única orientação. Escolha primeiro um tipo de estrutura.",
+  "Custom layer tracks": "Trilhas de camadas personalizadas",
+  "Custom layer track {n}": "Trilha de camada personalizada {n}"
 }

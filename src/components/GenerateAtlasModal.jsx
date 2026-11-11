@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { isNumericLayer } from "../lib/domainLayers.js"; // TASKS.csv #2477
 import { collarAttrChoices, collarsMatching } from "../lib/holeFilter.js"; // TASKS.csv #2607
 import { assayTrackRange } from "../lib/striplogSvg.js"; // TASKS.csv #2605
 import { X, LayoutGrid, Loader2 } from "./icons.js";
@@ -23,12 +24,16 @@ export default function GenerateAtlasModal({ onClose, templateElements, collars,
   const [selectedIds, setSelectedIds] = useState(() => new Set(collars.length > 50 ? [] : collars.map((c) => c.hole_id)));
   const [includeStripLog, setIncludeStripLog] = useState(true);
   // TASKS.csv #1644 — each page's top-down map re-captured on its hole, at the template's scale (one 3D render per page)
-  const { requestViewportBatch } = useStore();
+  const { requestViewportBatch, customLayers = [] } = useStore(); // customLayers: #2477
   const hasPlanMap = templateElements.some((el) => el.type === "viewport" && utmGridReady(el));
   const [centreMaps, setCentreMaps] = useState(true);
   const [lithoPatterns, setLithoPatterns] = useState(true); // TASKS.csv #1995
   const [assaySymbols, setAssaySymbols] = useState(["", "", ""]); // TASKS.csv #1480 — up to three assay tracks
-  const assayTracks = useMemo(() => { const syms = assaySymbols.filter(Boolean).filter((s, i, a) => a.indexOf(s) === i); if (!syms.length) return null; const elementUnits = Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])); const rows = mode === "hole" && selectedIds.size ? assays.filter((a) => selectedIds.has(a.hole_id)) : assays; /* #2605 — one axis per element over the atlas's holes */ return { assays, assaySymbols: syms, elementUnits, assayRanges: Object.fromEntries(syms.map((s) => [s, assayTrackRange(rows, s, elementUnits[s] || "ppm", elementUnits)]).filter(([, r]) => r)) }; }, [assaySymbols, assays, assayElements, mode, selectedIds]);
+  // TASKS.csv #2477 — up to two custom-layer tracks (a stratigraphic unit, a gamma log), as the strip-log window's '+ track' offers them
+  const customChoices = useMemo(() => customLayers.filter((l) => (l.rows || []).some((r) => r.value != null && r.value !== "" && Number.isFinite(Number(r.from)))).map((l) => ({ id: String(l.id), layer: l, numeric: isNumericLayer(l.rows) })), [customLayers]);
+  const [customSel, setCustomSel] = useState(["", ""]);
+  const customTracks = useMemo(() => customSel.filter(Boolean).filter((s, i, a) => a.indexOf(s) === i).map((id) => customChoices.find((c) => c.id === id)).filter(Boolean).map((c) => { if (!c.numeric) return c; const rows = mode === "hole" && selectedIds.size ? c.layer.rows.filter((r) => selectedIds.has(r.hole_id)) : c.layer.rows; let max = 0; for (const r of rows) { const v = Number(r.value); if (Number.isFinite(v) && v > max) max = v; } return { ...c, max }; }), [customSel, customChoices, mode, selectedIds]);
+  const assayTracks = useMemo(() => { const syms = assaySymbols.filter(Boolean).filter((s, i, a) => a.indexOf(s) === i); if (!syms.length) return customTracks.length ? { assays, assaySymbols: [], elementUnits: {}, customTracks } : null; const elementUnits = Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])); const rows = mode === "hole" && selectedIds.size ? assays.filter((a) => selectedIds.has(a.hole_id)) : assays; /* #2605 — one axis per element over the atlas's holes */ return { assays, assaySymbols: syms, elementUnits, customTracks, assayRanges: Object.fromEntries(syms.map((s) => [s, assayTrackRange(rows, s, elementUnits[s] || "ppm", elementUnits)]).filter(([, r]) => r)) }; }, [assaySymbols, assays, assayElements, mode, selectedIds, customTracks]);
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState(null); // {done, total}
   const [result, setResult] = useState(null);
@@ -137,6 +142,17 @@ export default function GenerateAtlasModal({ onClose, templateElements, collars,
           {mode === "hole" && includeStripLog && ( /* TASKS.csv #1995 */
             <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)" }} title={tr("FGDC lithology patterns over the lithology colours, as on printed logs; set a code's pattern in the strip-log window")}>
               <input type="checkbox" checked={lithoPatterns} onChange={(e) => setLithoPatterns(e.target.checked)} />{tr("Lithology patterns (FGDC)")}</label>
+          )}
+          {mode === "hole" && includeStripLog && customChoices.length > 0 && ( /* TASKS.csv #2477 — custom-layer tracks */
+            <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", flexWrap: "wrap" }}>
+              <span>{tr("Custom layer tracks")}</span>
+              {[0, 1].map((k) => (
+                <select key={k} value={customSel[k]} aria-label={tr("Custom layer track {n}", { n: k + 1 })} onChange={(e) => setCustomSel((p) => p.map((s, j) => (j === k ? e.target.value : s)))} style={{ ...sel, flex: 1, minWidth: 80 }}>
+                  <option value="">{tr("none")}</option>
+                  {customChoices.map((c) => <option key={c.id} value={c.id}>{c.layer.name}</option>)}
+                </select>
+              ))}
+            </div>
           )}
           {mode === "hole" && includeStripLog && assayElements.length > 0 && ( /* TASKS.csv #1480 — assay tracks on the strip log */
             <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", flexWrap: "wrap" }}>
