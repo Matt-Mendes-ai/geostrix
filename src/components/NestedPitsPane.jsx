@@ -159,6 +159,16 @@ export default function NestedPitsPane({ surfaces = [], onAdd, onToggle, onRemov
           </div>
           <div style={{ ...note, marginTop: 4 }}>{tr("Grade in {unit}; margin and NPV at the entered price, {price} {pu}. The eye puts a shell in the view (its colour follows the row).", { unit: element ? `${res.unit} ${element}` : res.unit /* #2594 */, price: res.price, pu: res.priceLabel })}</div>
           {res.bestNpv >= 0 && line(tr("Best NPV"), tr("factor {rf}: ${npv} over {y} years", { rf: res.runs[res.bestNpv].rf, npv: big(res.runs[res.bestNpv].npv), y: res.runs[res.bestNpv].years.toFixed(1) }))}
+          {/* TASKS.csv #2280 (review #2174, WA gold) — a schedule decades long discounts the later pushbacks to nothing: the NPV stops changing with the
+              factor because of the rate typed, not the pits; said, with the run of shells whose NPV is flat */}
+          {(() => {
+            if (!res.rate || res.discountPct == null) return null;
+            const runs = res.runs.filter((r) => r.blocks), long = runs.filter((r) => r.years > 30);
+            let flat = 0; for (let i = 1, run = 1; i < runs.length; i++) { const a = runs[i - 1].npv, b = runs[i].npv; run = Number.isFinite(a) && Number.isFinite(b) && Math.abs(b - a) <= 0.01 * Math.max(Math.abs(a), 1) ? run + 1 : 1; flat = Math.max(flat, run); }
+            if (!long.length && flat < 3) return null;
+            const r1 = runs.find((r) => r.rf === 1) || runs[runs.length - 1];
+            return <div style={warn}>{long.length ? tr("At {rate} t a year the factor-{rf} shell takes {y} years: at {d} % the pushbacks after the first few decades add next to nothing, so the NPV stops following the pit. Raise the rate, or read the undiscounted margin.", { rate: big(res.rate), rf: r1.rf, y: r1.years.toFixed(0), d: res.discountPct }) : tr("The NPV is within 1 % over {n} factors in a row: the discounting flattened it.", { n: flat })}</div>;
+          })()}
           {res.bestMoney >= 0 && line(tr("Largest undiscounted margin"), tr("factor {rf}: ${v}", { rf: res.runs[res.bestMoney].rf, v: big(res.runs[res.bestMoney].moneyBase) }))}
           {res.bestMoney >= 0 && line(tr("Contained metal at it"), metalText(res.runs[res.bestMoney]))}
           {res.bestMoney >= 0 && inputs?.by && res.byMetalUnit && line(tr("Contained {el} at it", { el: byEl }), byMetalText(res.runs[res.bestMoney]))}{/* #1917 */}

@@ -10410,5 +10410,22 @@
   "{unit}: {n} logged intercept(s), none on a hole with a collar and survey to place it.": "{unit}: {n} تقاطع مسجّل، لا شيء منها على ثقب له فوهة ومسح لتحديد موضعه.",
   "Against the logs: {lines} An intercept outside the sheet, or a thickness far from the map's, says the dip, the dip direction or the outline does not fit the drilling there.": "مقارنةً بالسجلات: {lines} تقاطع خارج الصفيحة، أو سمك بعيد عن سمك الخريطة، يدل على أن الميل أو اتجاه الميل أو المحيط لا يوافق الحفر هناك.",
   "; its true thickness across it is {a} m": "؛ سمكه الحقيقي عبرها {a} م",
-  "The Voxet is rotated ({deg}° from east in plan), so it was resampled onto a lattice along east, north and up of {nx} × {ny} × {nz} blocks of {dx} × {dy} × {dz} m, each taking the value of the nearest voxet node (blocks outside the voxet are left empty).": "الـ Voxet مدوَّر ({deg}° من الشرق في المسقط)، لذا أُعيد أخذ عيّناته على شبكة باتجاه الشرق والشمال والأعلى من {nx} × {ny} × {nz} كتلة بأبعاد {dx} × {dy} × {dz} م، تأخذ كل منها قيمة أقرب عقدة في الـ voxet (تبقى الكتل خارج الـ voxet فارغة)."
+  "The Voxet is rotated ({deg}° from east in plan), so it was resampled onto a lattice along east, north and up of {nx} × {ny} × {nz} blocks of {dx} × {dy} × {dz} m, each taking the value of the nearest voxet node (blocks outside the voxet are left empty).": "الـ Voxet مدوَّر ({deg}° من الشرق في المسقط)، لذا أُعيد أخذ عيّناته على شبكة باتجاه الشرق والشمال والأعلى من {nx} × {ny} × {nz} كتلة بأبعاد {dx} × {dy} × {dz} م، تأخذ كل منها قيمة أقرب عقدة في الـ voxet (تبقى الكتل خارج الـ voxet فارغة).",
+  "At {rate} t a year the factor-{rf} shell takes {y} years: at {d} % the pushbacks after the first few decades add next to nothing, so the NPV stops following the pit. Raise the rate, or read the undiscounted margin.": "بمعدل {rate} t في السنة تستغرق حفرة المعامل {rf} نحو {y} سنة: عند {d} % لا تضيف التوسعات بعد العقود الأولى شيئًا يُذكر، فيكف صافي القيمة الحالية عن تتبع الحفرة. ارفع المعدل، أو اقرأ الهامش غير المخصوم.",
+  "The NPV is within 1 % over {n} factors in a row: the discounting flattened it.": "يبقى صافي القيمة الحالية ضمن 1 % عبر {n} معاملات متتالية: الخصم سطّحه.",
+  "— none: estimate a second metal with the same cell over the same holes (Estimation › Grid: Fit to the checked holes) —": "— لا شيء: قدّر معدنًا ثانيًا بنفس الخلية على نفس الثقوب (التقدير › الشبكة: ملاءمة الثقوب المحددة) —",
+  "The collars sit on {n} drill levels ({list} m), a median {s} m apart.": "تقع الفوهات على {n} مستوى حفر ({list} م)، بوسيط {s} م بينها.",
+  "Use the drill levels": "استخدم مستويات الحفر",
+  "The upper slope is between 0 and 90°, with the RL it starts at.": "الميل العلوي بين 0 و90°، مع الارتفاع الذي يبدأ عنده.",
+  "Upper slope (°)": "الميل العلوي (°)",
+  "Optional: the slope of the walls above the RL beside it (soft cover, weathered rock), from a geotechnical study. Blank: the overall slope everywhere.": "اختياري: ميل الجدران فوق الارتفاع المجاور (غطاء لين، صخر متجوّي)، من دراسة جيوتقنية. فارغ: الميل العام في كل مكان.",
+  "above RL (m)": "فوق الارتفاع (م)",
+  ", {s}° above {rl} m": "، {s}° فوق {rl} م",
+  "Its standard deviation → map": "انحرافها المعياري → الخريطة",
+  "The posterior's standard deviation from the weights' own uncertainty (missing evidence not included): where it is large beside the posterior, the score is not sure.": "الانحراف المعياري للاحتمال اللاحق من عدم يقين الأوزان نفسها (دون الأدلة المفقودة): حيث يكون كبيرًا بجانب الاحتمال اللاحق، فالدرجة غير مؤكدة.",
+  "Plan-view standard deviation of the weights-of-evidence posterior ({n} occurrence cells)": "الانحراف المعياري في المسقط للاحتمال اللاحق لأوزان الأدلة ({n} خلية تواجد)",
+  "Its colours run from 0 (pale) to {top}, the highest value (dark red).": "تمتد ألوانه من 0 (باهت) إلى {top}، أعلى قيمة (أحمر داكن).",
+  "ROC-AUC on the occurrence cells: fuzzy {a}, posterior {b} (0.5 is chance; on the points the map was made from, so optimistic).": "ROC-AUC على خلايا التواجد: الضبابي {a}، اللاحق {b} (0.5 هو الصدفة؛ على النقاط التي صُنعت منها الخريطة، لذا متفائل).",
+  "ROC-AUC on the occurrence cells: fuzzy {a} (0.5 is chance; on the points the map was made from, so optimistic).": "ROC-AUC على خلايا التواجد: الضبابي {a} (0.5 هو الصدفة؛ على النقاط التي صُنعت منها الخريطة، لذا متفائل).",
+  "Density of the known occurrences (quartic kernel)": "كثافة مواقع التواجد المعروفة (نواة رباعية)"
 }

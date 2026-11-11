@@ -16,7 +16,7 @@ test("a posterior of at most 0.26 reaches the darkest colour; a fuzzy score keep
 
 test("the pane hides the earlier score maps, says the ramp, and score maps are never evidence", () => {
   const p = fs.readFileSync("src/components/EvidenceOverlayPane.jsx", "utf8");
-  assert.match(p, /const top = which === "posterior" \? scoreTop\(score\) : 1;/);
+  assert.match(p, /const top = which === "posterior" \|\| which === "posteriorSd" \? scoreTop\(score\) : 1;/); // the sd too since #2001
   assert.match(p, /earlier\.forEach\(\(r\) => updateRaster\(r\.id, \{ visible: false \}\)\)/);
   assert.match(p, /displayRange: \[0, \+top\.toPrecision\(3\)\]/);
   assert.ok(isOverlayOutput({ params: { tool: "weights of evidence (posterior probability)" } }) && isOverlayOutput({ params: { tool: "fuzzy overlay" } }));

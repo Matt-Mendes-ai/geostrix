@@ -428,9 +428,14 @@ export function buildPitGrid(cells, { size = null, slopeDeg, sectorSlopes = null
 // ---------- the solve ----------
 // Maximum closure as a minimum cut on the blocks that can matter (paying blocks and the cones over them). Dinic in typed arrays,
 // iterative: arcs of infinite capacity from a block to the blocks it needs. onProgress(phases) only says it is alive.
-export function solvePit(grid, slopeDeg, { onProgress = null, sectorSlopes = null } = {}) {
+// upper: TASKS.csv #2439 (review #2325, WA uranium) — { rl, slopeDeg }: blocks whose centre is at or above that RL take that slope (a flatter wall in
+// soft cover over the ore horizon); the precedence is transitive, so the cone from a deep block flattens where it passes the RL
+export function solvePit(grid, slopeDeg, { onProgress = null, sectorSlopes = null, upper = null } = {}) {
   const { nx, ny, nz, dx, dy, dz, value, rockT } = grid;
-  const arcs = precedenceArcs(dx, dy, dz, slopeDeg, null, sectorSlopes); // #1881
+  const arcsLow = precedenceArcs(dx, dy, dz, slopeDeg, null, sectorSlopes); // #1881
+  const arcsUp = upper && upper.slopeDeg > 0 && upper.slopeDeg < 90 && Number.isFinite(upper.rl) ? precedenceArcs(dx, dy, dz, upper.slopeDeg, null, null) : null;
+  const kSplit = arcsUp ? Math.max(0, Math.ceil((upper.rl - (grid.z0 ?? 0)) / dz - 0.5)) : Infinity; // the first level whose centre is at or above the RL
+  const arcsOf = (k) => (k >= kSplit ? arcsUp : arcsLow);
   const n = nx * ny * nz, id = new Int32Array(n).fill(-1), list = [];
   // from the top down in reverse: a paying block, or anything a kept block needs
   const need = new Uint8Array(n);
@@ -438,7 +443,7 @@ export function solvePit(grid, slopeDeg, { onProgress = null, sectorSlopes = nul
   for (let k = 0; k < nz; k++) for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
     const q = k * nx * ny + j * nx + i;
     if (!need[q]) continue;
-    for (const [a, b, l] of arcs) {
+    for (const [a, b, l] of arcsOf(k)) {
       const K = k + l, I = i + a, J = j + b;
       if (K >= nz || I < 0 || J < 0 || I >= nx || J >= ny) continue;
       const p = K * nx * ny + J * nx + I;
@@ -454,7 +459,7 @@ export function solvePit(grid, slopeDeg, { onProgress = null, sectorSlopes = nul
   for (let u = 0; u < N; u++) {
     const q = list[u], k = Math.floor(q / (nx * ny)), j = Math.floor((q - k * nx * ny) / nx), i = q - k * nx * ny - j * nx;
     if (value[q] !== 0) m++;
-    for (const [a, b, l] of arcs) { const K = k + l, I = i + a, J = j + b; if (K < nz && I >= 0 && J >= 0 && I < nx && J < ny && id[K * nx * ny + J * nx + I] >= 0) m++; }
+    for (const [a, b, l] of arcsOf(k)) { const K = k + l, I = i + a, J = j + b; if (K < nz && I >= 0 && J >= 0 && I < nx && J < ny && id[K * nx * ny + J * nx + I] >= 0) m++; }
   }
   const head = new Int32Array(V).fill(-1), next = new Int32Array(2 * m), to = new Int32Array(2 * m), cap = new Float64Array(2 * m);
   let e = 0;
@@ -463,7 +468,7 @@ export function solvePit(grid, slopeDeg, { onProgress = null, sectorSlopes = nul
   for (let u = 0; u < N; u++) {
     const q = list[u], k = Math.floor(q / (nx * ny)), j = Math.floor((q - k * nx * ny) / nx), i = q - k * nx * ny - j * nx, v = value[q];
     if (v > 0) { add(S, u, v); positive += v; } else if (v < 0) add(u, T, -v);
-    for (const [a, b, l] of arcs) { const K = k + l, I = i + a, J = j + b; if (K < nz && I >= 0 && J >= 0 && I < nx && J < ny) { const w = id[K * nx * ny + J * nx + I]; if (w >= 0) add(u, w, INF); } }
+    for (const [a, b, l] of arcsOf(k)) { const K = k + l, I = i + a, J = j + b; if (K < nz && I >= 0 && J >= 0 && I < nx && J < ny) { const w = id[K * nx * ny + J * nx + I]; if (w >= 0) add(u, w, INF); } }
   }
   const level = new Int32Array(V), cur = new Int32Array(V), queue = new Int32Array(V), pathE = new Int32Array(V);
   let flow = 0, phases = 0;
@@ -632,7 +637,7 @@ export function runPitShell(inputs, { groundAt = null, collars = null, onProgres
   if (!grid) return { failed: "no-cells" };
   if (grid.empty) return { empty: true, cutoff: economics.cutoff, cell: [] };
   const groundSource = groundAt ? "terrain" : fromCollars ? "collars" : "model top";
-  const solve = solvePit(grid, inputs.slopeDeg, { onProgress, sectorSlopes: inputs.sectorSlopes }); // #1881
+  const solve = solvePit(grid, inputs.slopeDeg, { onProgress, sectorSlopes: inputs.sectorSlopes, upper: inputs.upperSlope || null /* #2439 */ }); // #1881
   const summary = pitSummary(grid, solve.mined);
   if (!summary.blocks) return { empty: true, cutoff: economics.cutoff, cell: [grid.dx, grid.dy, grid.dz], groundSource };
   // #1917 — the by-product's figures: its metal, mean grade over the ore, its share of the revenue, and how many blocks carried it
@@ -680,7 +685,7 @@ export function runPitSeries(inputs, rfs, { groundAt = null, collars = null, rat
     const e = eco(rf);
     const grid = rf === topRf ? top : buildPitGrid(cells, { size: inputs.size, slopeDeg: inputs.slopeDeg, density: inputs.density, wasteDensity: inputs.wasteDensity, weathered: weatheredOf(inputs.weathered) /* #2597 */, economics: e, miningCost: inputs.miningCost, processingCost: inputs.processingCost, groundAt: ground, fixed });
     if (!grid || grid.empty) { runs.push({ rf, cutoff: e.cutoff, blocks: 0, oreT: 0, wasteT: 0, rockT: 0, metalU: 0, meanGrade: null, money: 0, moneyBase: 0, stripRatio: null, maxDepth: 0, pushbackCells: 0, pushbackRockT: 0, positions: null, indices: null }); return; }
-    const solve = solvePit(grid, inputs.slopeDeg, { onProgress: (phases) => onProgress?.({ idx, of: list.length, rf, phases }), sectorSlopes: inputs.sectorSlopes }); // #1881
+    const solve = solvePit(grid, inputs.slopeDeg, { onProgress: (phases) => onProgress?.({ idx, of: list.length, rf, phases }), sectorSlopes: inputs.sectorSlopes, upper: inputs.upperSlope || null /* #2439 */ }); // #1881
     const summary = pitSummary(baseGrid, solve.mined), moneyBase = summary.money; // tonnes, grade and value at the entered price
     const moneyScaled = pitSummary(grid, solve.mined).money; // what the solver optimized: the scaled price
     // the pushback: this shell's cells not yet mined by a smaller one, top bench down
