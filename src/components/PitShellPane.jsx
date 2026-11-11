@@ -15,6 +15,7 @@ import { runPitShellAsync } from "../lib/pitShellClient.js";
 import { slopeName } from "../lib/pitWalls.js"; // TASKS.csv #2433
 import { pBtn, smallSel } from "../lib/sidebarStyles.js";
 import UndergroundOreNote from "./UndergroundOreNote.jsx"; // TASKS.csv #2277
+import NotOfferedGrades from "./NotOfferedGrades.jsx"; // TASKS.csv #2436
 import { t as tr } from "../lib/i18n.js";
 
 const row = { display: "flex", alignItems: "center", gap: 6, justifyContent: "space-between", marginTop: 4, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" };
@@ -23,7 +24,7 @@ const warn = { ...note, color: "var(--color-warn-text-strong)", marginTop: 4 };
 const num = { ...smallSel, width: 84 };
 const big = (v) => new Intl.NumberFormat(undefined, { notation: "compact", maximumSignificantDigits: 3 }).format(v);
 const GRADE_UNITS = ["g/t", "ppm", "ppb", "%"];
-const EMPTY = { price: "", priceUnit: "", recovery: "", miningCost: "", processingCost: "", density: "", slopeDeg: "", revenueFactor: "1", size: "", unit: "", sectorSlopes: {}, byModelId: "", byPrice: "", byPriceUnit: "", byRecovery: "" }; // sectorSlopes: #1881; by*: #1917
+const EMPTY = { price: "", priceUnit: "", recovery: "", miningCost: "", processingCost: "", density: "", wasteDensity: "", slopeDeg: "", revenueFactor: "1", size: "", unit: "", sectorSlopes: {}, byModelId: "", byPrice: "", byPriceUnit: "", byRecovery: "" }; // sectorSlopes: #1881; by*: #1917
 // TASKS.csv #1917 — the by-product's inputs ride in inputs.by; in the form they are flat fields
 const byFields = (inp) => ({ byModelId: inp?.by?.modelId ?? "", byPrice: inp?.by?.price == null ? "" : String(inp.by.price), byPriceUnit: inp?.by?.priceUnit ?? "", byRecovery: inp?.by?.recovery == null ? "" : String(inp.by.recovery) });
 const SECTOR_GRID = [["NW", "N", "NE"], ["W", null, "E"], ["SW", "S", "SE"]]; // the compass layout of the sector slopes
@@ -107,12 +108,15 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove,
     setMsg(conv == null ? null : tr("The price was converted to {unit}: {v}.", { unit: (prices.find(([k]) => k === to) || [])[1] || to, v: +conv.toPrecision(6) }));
   };
   const value = (k) => (k === "price" && priceStale ? NaN : Number(f[k]));
-  const missing = !model || !metal || FIELDS.some((k) => !(value(k) > 0)) || value("slopeDeg") >= 90 || value("recovery") > 100 || !(Number(f.revenueFactor) > 0) || sectorBad || byBad; // revenue factor: #1363; sectorBad: #1881; byBad: #1917
+  // TASKS.csv #2437 (review #2325, WA uranium) — an optional waste density: blank, every rock takes the one density
+  const wasteBad = f.wasteDensity !== "" && f.wasteDensity != null && !(Number(f.wasteDensity) > 0);
+  const missing = wasteBad || !model || !metal || FIELDS.some((k) => !(value(k) > 0)) || value("slopeDeg") >= 90 || value("recovery") > 100 || !(Number(f.revenueFactor) > 0) || sectorBad || byBad; // revenue factor: #1363; sectorBad: #1881; byBad: #1917
   // #1753 — when every number is typed but one is out of its range, say which
   const outOfRange = (() => {
     if (!model || !metal) return null;
     if (FIELDS.some((k) => f[k] === "") || f.revenueFactor === "") return null;
     if (value("slopeDeg") >= 90) return tr("The overall slope must be below 90°.");
+    if (wasteBad) return tr("The waste density must be above 0, or blank."); // #2437
     if (value("recovery") > 100) return tr("The recovery is at most 100 %.");
     if (!(Number(f.revenueFactor) > 0)) return tr("The revenue factor must be above 0.");
     if (byModel && (f.byPrice === "" || f.byRecovery === "")) return null; // #1917
@@ -128,7 +132,7 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove,
     const rf = Number(f.revenueFactor) > 0 ? Number(f.revenueFactor) : 1, size = Number(f.size) > 0 ? Number(f.size) : null;
     // #1881 — the sector slopes that are set, as numbers; none set: no key at all, so an older project's inputs read the same
     const sectors = Object.fromEntries(SECTORS.filter((k) => Number(f.sectorSlopes?.[k]) > 0 && Number(f.sectorSlopes?.[k]) < 90).map((k) => [k, Number(f.sectorSlopes[k])]));
-    const inputs = { unit, element, price: value("price"), priceUnit, recovery: value("recovery"), miningCost: value("miningCost"), processingCost: value("processingCost"), density: value("density"), slopeDeg: value("slopeDeg"), revenueFactor: rf, size, ...(Object.keys(sectors).length ? { sectorSlopes: sectors } : {}), ...(byInputs ? { by: byInputs } : {}) }; // by: #1917
+    const inputs = { unit, element, price: value("price"), priceUnit, recovery: value("recovery"), miningCost: value("miningCost"), processingCost: value("processingCost"), density: value("density"), ...(Number(f.wasteDensity) > 0 ? { wasteDensity: Number(f.wasteDensity) } : {}) /* #2437 */, slopeDeg: value("slopeDeg"), revenueFactor: rf, size, ...(Object.keys(sectors).length ? { sectorSlopes: sectors } : {}), ...(byInputs ? { by: byInputs } : {}) }; // by: #1917
     setBusy(0); setMsg(null); // the previous result stays until a new one arrives (#1366)
     const t0 = performance.now();
     try {
@@ -147,7 +151,8 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove,
       const seconds = Math.round((performance.now() - t0) / 100) / 10, rfText = rf !== 1 ? ` x${rf}` : "";
       const cellText = size || r.coarsened ? tr(", {c} m cells", { c: Math.round(r.cell[0] * 10) / 10 }) : ""; // #1900 — a typed or coarsened size names the pit
       const support = model.cells.some((c) => Number.isFinite(c.nHoles)); // #1354 — the estimate says how many holes informed each block
-      kept = { ...r, unit, seconds, hasTerrain: !!terrain, model: model.name, slopeDeg: inputs.slopeDeg, sectorSlopes: inputs.sectorSlopes || null, support, byUnit, byLabel }; // byUnit / byLabel: #1917
+      const beyondFlagged = !!model.params?.beyondFlagged || model.cells.some((c) => c.beyond); // #2435 — the estimate flagged blocks beyond its samples (#2417)
+      kept = { ...r, unit, seconds, hasTerrain: !!terrain, model: model.name, slopeDeg: inputs.slopeDeg, sectorSlopes: inputs.sectorSlopes || null, support, beyondFlagged, byUnit, byLabel }; // byUnit / byLabel: #1917; beyondFlagged: #2435
       setRes(kept);
       const contained = r.metalU * r.metalFactor;
       if (hideEarlier) surfaces.filter((s) => s.type === "pit_shell" && s.visible && s.id !== editingId).forEach((s) => onToggle?.(s.id)); // #1356 — one pit on view at a time
@@ -155,9 +160,9 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove,
       const priceLabel = (prices.find(([k]) => k === priceUnit) || [])[1] || "";
       const pitId = onAdd({
         // #1356 — named by what usually changes between runs, so a list of pits can be told apart
-        name: tr("Pit shell: {model} at {price} {unit}{by}, {slope}°{rf}{sec}{cells}", { model: model.name, price: inputs.price, unit: priceLabel, by: byInputs ? tr(" + {el} at {price} {unit}", { el: byLabel, price: byInputs.price, unit: byPriceLabel }) : "", slope: slopeName(inputs.slopeDeg, inputs.sectorSlopes ? null : r.walls), rf: rfText, sec: inputs.sectorSlopes ? tr(" (by sector)") : "", cells: cellText }) /* by: #1917; slopeName: #2433 */, positions: r.positions, indices: r.indices, type: "pit_shell", closure: null, color: "#b5651d", tag: "pit",
+        name: tr("Pit shell: {model} at {price} {unit}{by}, {slope}°{rf}{sec}{cells}", { model: model.name, price: inputs.price, unit: priceLabel, by: byInputs ? tr(" + {el} at {price} {unit}", { el: byLabel, price: byInputs.price, unit: byPriceLabel }) : "", slope: slopeName(inputs.slopeDeg, inputs.sectorSlopes ? null : r.walls), rf: rfText, sec: inputs.sectorSlopes ? tr(" (by sector)") : "", cells: cellText + (inputs.wasteDensity ? tr(", waste {w} t/m³", { w: inputs.wasteDensity }) : "") /* #2437 */ }) /* by: #1917; slopeName: #2433 */, positions: r.positions, indices: r.indices, type: "pit_shell", closure: null, color: "#b5651d", tag: "pit",
         tip: tr("Conceptual pit shell: not a mine plan, a Reserve or a Resource"),
-        params: { tool: "conceptual pit shell (maximum closure, exact)", inputs: { ...inputs, priceUnit, modelId, unit: stated ? "" : unit }, blockModel: model.name, element: element || null /* #2434 */, gradeUnit: unit, oreTonnes: Math.round(r.oreT), wasteTonnes: Math.round(r.wasteT), stripRatio: r.stripRatio == null ? null : +r.stripRatio.toFixed(2), meanGrade: r.meanGrade == null ? null : +r.meanGrade.toPrecision(4), containedMetal: Math.round(contained), containedMetalUnit: r.metalUnit, cutoffGrade: +r.cutoff.toPrecision(3), undiscountedMargin: Math.round(r.money), maxDepthM: Math.round(r.maxDepth), wallAnglesDeg: [+r.walls.flattest.toFixed(1), +r.walls.steepest.toFixed(1)], drawnWallsDeg: r.parts?.drawnWalls ? [+r.parts.drawnWalls.flattest.toFixed(1), +r.parts.drawnWalls.steepest.toFixed(1)] : null, pitCount: r.parts?.pits?.length ?? null, largestPit: r.parts?.pits?.[0] ? { oreTonnes: Math.round(r.parts.pits[0].oreT), wasteTonnes: Math.round(r.parts.pits[0].wasteT), stripRatio: r.parts.pits[0].stripRatio == null ? null : +r.parts.pits[0].stripRatio.toFixed(2), meanGrade: r.parts.pits[0].meanGrade == null ? null : +r.parts.pits[0].meanGrade.toPrecision(4) } : null /* #1929 */, largestPitBoxM: r.parts?.pits?.[0]?.boxM ? r.parts.pits[0].boxM.map((v) => Math.round(v)) : null, largestPitOreShare: r.parts?.pits?.length ? +(r.parts.pits[0].oreT / Math.max(1e-9, r.oreT)).toFixed(3) : null, blocksDeep: r.parts?.blocksDeep ?? null, gridCellM: r.cell.map((v) => +v.toFixed(1)), rockOutsideBlockModelShare: +r.barrenShare.toFixed(3), oreAboveGroundTonnes: Math.round(r.oreAboveGroundT || 0), oreAboveGroundBlocks: r.oreAboveGroundBlocks || 0, noTerrainShare: +r.topAssumed.toFixed(3), groundFrom: r.groundSource, ...(support ? { oreSingleHoleShare: +r.oreSingleHoleShare.toFixed(3), oreExtrapolatedShare: +r.oreExtrapolatedShare.toFixed(3) } : {}), reachesModelBase: r.touchesBase,
+        params: { tool: "conceptual pit shell (maximum closure, exact)", inputs: { ...inputs, priceUnit, modelId, unit: stated ? "" : unit }, blockModel: model.name, element: element || null /* #2434 */, gradeUnit: unit, oreTonnes: Math.round(r.oreT), wasteTonnes: Math.round(r.wasteT), stripRatio: r.stripRatio == null ? null : +r.stripRatio.toFixed(2), meanGrade: r.meanGrade == null ? null : +r.meanGrade.toPrecision(4), containedMetal: Math.round(contained), containedMetalUnit: r.metalUnit, cutoffGrade: +r.cutoff.toPrecision(3), undiscountedMargin: Math.round(r.money), maxDepthM: Math.round(r.maxDepth), wallAnglesDeg: [+r.walls.flattest.toFixed(1), +r.walls.steepest.toFixed(1)], drawnWallsDeg: r.parts?.drawnWalls ? [+r.parts.drawnWalls.flattest.toFixed(1), +r.parts.drawnWalls.steepest.toFixed(1)] : null, pitCount: r.parts?.pits?.length ?? null, largestPit: r.parts?.pits?.[0] ? { oreTonnes: Math.round(r.parts.pits[0].oreT), wasteTonnes: Math.round(r.parts.pits[0].wasteT), stripRatio: r.parts.pits[0].stripRatio == null ? null : +r.parts.pits[0].stripRatio.toFixed(2), meanGrade: r.parts.pits[0].meanGrade == null ? null : +r.parts.pits[0].meanGrade.toPrecision(4) } : null /* #1929 */, largestPitBoxM: r.parts?.pits?.[0]?.boxM ? r.parts.pits[0].boxM.map((v) => Math.round(v)) : null, largestPitOreShare: r.parts?.pits?.length ? +(r.parts.pits[0].oreT / Math.max(1e-9, r.oreT)).toFixed(3) : null, blocksDeep: r.parts?.blocksDeep ?? null, gridCellM: r.cell.map((v) => +v.toFixed(1)), rockOutsideBlockModelShare: +r.barrenShare.toFixed(3), oreAboveGroundTonnes: Math.round(r.oreAboveGroundT || 0), oreAboveGroundBlocks: r.oreAboveGroundBlocks || 0, noTerrainShare: +r.topAssumed.toFixed(3), groundFrom: r.groundSource, ...(support ? { oreSingleHoleShare: +r.oreSingleHoleShare.toFixed(3), oreExtrapolatedShare: +r.oreExtrapolatedShare.toFixed(3) } : {}), ...(beyondFlagged ? { oreBeyondSampleShare: +(r.oreBeyondSampleShare || 0).toFixed(3) } : {}) /* #2435 */, reachesModelBase: r.touchesBase,
           // #1917 — the by-product: its inputs, what the pit holds of it, and its share of the revenue; the cut-off is then a revenue test
           ...(r.by && byInputs ? { byProduct: { blockModel: byModel.name, element: byLabel, gradeUnit: byUnit, price: byInputs.price, priceUnit: byInputs.priceUnit, recovery: byInputs.recovery, meanGrade: r.by.meanGrade == null ? null : +r.by.meanGrade.toPrecision(4), containedMetal: Math.round(r.by.metalU * r.by.metalFactor), containedMetalUnit: r.by.metalUnit, revenueShare: +r.by.revenueShare.toFixed(3), blocksWithGradeShare: +r.by.matchedShare.toFixed(3) }, cutoffBasis: "a block is ore when its revenue over both metals, at these prices and recoveries, is at or above the processing cost per tonne; cutoffGrade is the main metal's alone" } : {}),
           caution: "conceptual: undiscounted, no ramps, berms, dilution or scheduling; not a Mineral Reserve or Resource", generatedAt: new Date().toISOString() },
@@ -171,7 +176,10 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove,
   };
   const cancel = () => job.current?.cancel();
   const metalText = (r) => metalAmountText(r.metalU * r.metalFactor, r.metalUnit, element, big); // #1748 — and pounds; uranium as lb U3O8: #2434
-  const line = (label, v) => <div style={row}><span>{label}</span><b>{v}</b></div>;
+  const line = (label, v, muted = false) => <div style={row}><span>{label}</span><b style={muted ? { color: "var(--color-text-muted)", fontWeight: 400 } : undefined}>{v}</b></div>;
+  // TASKS.csv #2435 (review #2325, WA uranium) — ore in blocks above or below every sample informing them is unsampled ground, neither
+  // barren nor ore: past a fifth of the ore, it is said above the tonnes and the strip ratio and margin are greyed
+  const beyondP = res?.beyondFlagged ? res.oreBeyondSampleShare || 0 : 0, unsampledOre = beyondP > 0.2;
   const field = (k, label, extra = {}) => <label style={row}>{label}<input type="number" min={0} step="any" value={f[k]} onChange={set(k)} style={num} {...extra} /></label>;
 
   return (
@@ -179,9 +187,7 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove,
       <TaskPaneHeader title="Pit shell" icon={Pickaxe} tone="model" onClose={onClose} />
       <div style={note}>{tr("The pit that makes the most money at your prices and costs, solved exactly. It answers whether a body sits shallow enough for a pit. It has no discounting, ramps, berms or dilution, so it is not a mine plan, a Reserve or a Resource.")}</div>
       {!models.length && <div style={warn}>{tr("It needs a block model of grades. Estimate one (3D Modelling > Estimation) or import one.")}</div>}
-      {!models.length && voxelModels.length > 0 && ( // #1849 — why the project's models are not offered
-        <div style={note}>{tr("Not offered: {list}. Geophysical, categorical and estimation-quality models are not grades.", { list: voxelModels.slice(0, 4).map((m) => `${m.name}${m.property ? ` (${m.property})` : ""}`).join(", ") + (voxelModels.length > 4 ? ", …" : "") })}</div>
-      )}
+      <NotOfferedGrades voxelModels={voxelModels} />{/* #1849 — why the project's models are not offered; #2436 — whenever one is left out, with its unit */}
       {models.length > 0 && (<>
         <label style={row}>{tr("Block model")}<select value={modelId} onChange={(e) => setModelId(e.target.value)} style={{ ...smallSel, width: 0, flex: 1, minWidth: 0 }} aria-label={tr("Block model of the pit")}>
           {models.map((m) => <option key={m.id ?? m.name} value={m.id ?? m.name}>{m.name}</option>)}
@@ -205,7 +211,8 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove,
         </>)}
         {field("miningCost", tr("Mining cost ($/t rock)"))}
         {field("processingCost", tr("Processing cost ($/t ore)"))}
-        {field("density", tr("Density (t/m³)"))}
+        {field("density", tr("Density (t/m³)"), { title: tr("The density of the ore blocks; of all the rock when no waste density is entered.") })}
+        {field("wasteDensity", tr("Waste density (t/m³)"), { placeholder: tr("optional"), title: tr("Optional: the density of the blocks below cut-off and of the rock outside the block model (cover, host rock). Blank: the density above for all rock.") })}{/* #2437 */}
         {sg && !f.density && <div style={{ ...note, marginTop: 2 }}><button onClick={() => setF((p) => ({ ...p, density: String(sg.mean) }))} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "1px 6px" }}>{tr("Use the logged mean, {v} (all {n} measurements, every hole)", { v: sg.mean, n: sg.n })}</button></div>}{/* every hole: #1755 */}
         {field("slopeDeg", tr("Overall slope (°)"))}
         {/* TASKS.csv #1881 — a slope per wall sector: the wall on that side of the pit; blank takes the overall slope */}
@@ -255,6 +262,7 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove,
       {msg && <div style={warn}>{msg}</div>}
       {res && (
         <div style={{ marginTop: 8, padding: "7px 8px", border: "1px solid var(--color-border)", borderRadius: 6, background: "var(--color-bg-subtle)" }}>
+          {unsampledOre && <div style={{ ...warn, marginTop: 0, marginBottom: 4 }}>{tr("{p} % of this ore is in blocks above or below every sample that informs them: unsampled ground, neither barren nor ore. The strip ratio and the margin rest on it, so read them as not meaningful. Drilled metres with no sample can be estimated as barren: 3D Modelling › Estimation, \"Unsampled metres inside a sampled hole\".", { p: Math.round(beyondP * 100) })}</div>}
           {line(tr("Ore"), `${big(res.oreT)} t`)}
           {line(tr("Mean grade"), `${Number(res.meanGrade.toPrecision(3))} ${res.unit}`)}
           {res.support && <div style={row}><span title={tr("One hole: the block's estimate used a single hole, or one hole carried at least 95 % of its weight (the estimate's own test). Extrapolated: the estimate classed the block as extrapolated or unsupported.")}>{tr("Ore from one hole / extrapolated")}</span><b>{`${Math.round(res.oreSingleHoleShare * 100)} % / ${Math.round(res.oreExtrapolatedShare * 100)} %`}</b></div>}{/* one hole incl. 95 %-weight blocks: #1617 */}
@@ -265,9 +273,10 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove,
           {res.by && line(tr("Revenue from {el}", { el: res.byLabel }), `${Math.round(res.by.revenueShare * 100)} %`)}
           {res.by && res.by.matchedShare < 0.999 && <div style={warn}>{tr("{p} % of the main model's blocks have a {el} grade: the rest count no {el}.", { p: Math.round(res.by.matchedShare * 100), el: res.byLabel })}</div>}
           {line(tr("Waste"), `${big(res.wasteT)} t`)}
-          {line(tr("Strip ratio"), res.stripRatio == null ? "—" : res.stripRatio.toFixed(2))}
+          {line(tr("Strip ratio"), res.stripRatio == null ? "—" : res.stripRatio.toFixed(2), unsampledOre)}
           {line(tr("Pit depth"), `${Math.round(res.maxDepth)} m`)}
-          {line(tr("Undiscounted margin"), `$${big(res.money)}`)}
+          {line(tr("Undiscounted margin"), `$${big(res.money)}`, unsampledOre)}
+          {res.beyondFlagged && beyondP > 0 && !unsampledOre && <div style={note}>{tr("{p} % of the ore is in blocks above or below every sample that informs them.", { p: Math.round(beyondP * 100) })}</div>}
           {line(tr("Walls stand at"), `${res.walls.flattest.toFixed(0)}–${res.walls.steepest.toFixed(0)}°`)}
           {/* TASKS.csv #1608 — what the drawn pit's block steps make, beside the arc pattern's figure; the separate parts; the depth in blocks */}
           {res.parts?.drawnWalls && line(tr("Walls as drawn (block steps)"), `${res.parts.drawnWalls.flattest.toFixed(0)}–${res.parts.drawnWalls.steepest.toFixed(0)}°`)}

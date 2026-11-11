@@ -9971,5 +9971,15 @@
   "Hole type": "Tipo de sondaje",
   "e.g. as the collars: AC, RC, DD": "p. ej., como los collares: AC, RC, DD",
   "{len} ({s} sampled)": "{len} ({s} muestreados)",
-  "Where a length shows its sampled metres, the rest of the interval has no result: the grade and grade × length are over the samples only.": "Donde una longitud muestra sus metros muestreados, el resto del intervalo no tiene resultado: la ley y la ley × longitud son solo sobre las muestras."
+  "Where a length shows its sampled metres, the rest of the interval has no result: the grade and grade × length are over the samples only.": "Donde una longitud muestra sus metros muestreados, el resto del intervalo no tiene resultado: la ley y la ley × longitud son solo sobre las muestras.",
+  "{p} % of this ore is in blocks above or below every sample that informs them: unsampled ground, neither barren nor ore. The strip ratio and the margin rest on it, so read them as not meaningful. Drilled metres with no sample can be estimated as barren: 3D Modelling › Estimation, \"Unsampled metres inside a sampled hole\".": "El {p} % de este mineral está en bloques por encima o por debajo de todas las muestras que los informan: terreno sin muestrear, ni estéril ni mineral. La razón estéril/mineral y el margen se apoyan en él, así que léalos como no significativos. Los metros perforados sin muestra pueden estimarse como estériles: Modelado 3D › Estimación, \"Metros sin muestrear dentro de un sondaje muestreado\".",
+  "{p} % of the ore is in blocks above or below every sample that informs them.": "El {p} % del mineral está en bloques por encima o por debajo de todas las muestras que los informan.",
+  "Not offered: {list}: its unit is not a grade unit. Set the unit of the layer it was estimated from (ppm, g/t, %) and estimate it again.": "No se ofrece: {list}: su unidad no es una unidad de ley. Defina la unidad de la capa a partir de la cual se estimó (ppm, g/t, %) y estímelo de nuevo.",
+  "The waste density must be above 0, or blank.": "La densidad del estéril debe ser mayor que 0, o quedar en blanco.",
+  "The density of the ore blocks; of all the rock when no waste density is entered.": "La densidad de los bloques de mineral; de toda la roca cuando no se ingresa una densidad del estéril.",
+  "Waste density (t/m³)": "Densidad del estéril (t/m³)",
+  "Optional: the density of the blocks below cut-off and of the rock outside the block model (cover, host rock). Blank: the density above for all rock.": "Opcional: la densidad de los bloques bajo la ley de corte y de la roca fuera del modelo de bloques (cobertura, roca encajante). En blanco: la densidad de arriba para toda la roca.",
+  "{o} ore, {w} waste": "{o} mineral, {w} estéril",
+  "Use the pit's waste density, {v}": "Usar la densidad del estéril del tajo, {v}",
+  ", waste {w} t/m³": ", estéril {w} t/m³"
 }
