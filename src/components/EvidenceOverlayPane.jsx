@@ -31,6 +31,7 @@ import { t as tr } from "../lib/i18n.js";
 import { LAYER_META } from "../lib/layers.js"; // TASKS.csv #1728
 const CODED_LAYERS = ["litho", "alt", "vein", "breccia", "weath", "mnlgy", "structzone", "litho_gc", "alt_gc"]; // TASKS.csv #1455 — the coded logs offered as "distance to"
 import { SURVEY_METHODS } from "../lib/geophysSurveys.js"; // TASKS.csv #1209
+import { modelListName } from "../lib/modelListName.js"; // TASKS.csv #1839
 
 const fmt = (v, d = 2) => (v == null || !Number.isFinite(v) ? "—" : Math.abs(v) >= 1000 ? Math.round(v).toLocaleString() : Math.abs(v) >= 10 ? v.toFixed(1) : Math.abs(v) >= 0.1 || v === 0 ? v.toFixed(d) : v.toPrecision(2)); // a small cutoff keeps its digits, not "-0.00"
 const numText = (v) => (Number.isFinite(v) ? String(+v.toPrecision(3)) : ""); // what a number input can hold
@@ -180,9 +181,9 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
     surveyNames(geophysPts).forEach((k) => out.push({ key: `geo:${k}`, label: tr("Geophysics: {name}", { name: SURVEY_METHODS[geophysSurveys[k]?.method] ? `${tr(SURVEY_METHODS[geophysSurveys[k].method].label)} — ${k}` : k }), kind: "survey", ref: k } /* #1209 */));
     const categorical = new Set(categoricalModels(voxelModels));
     voxelModels.filter((m) => m.cells?.length && !categorical.has(m)).forEach((m) => {
-      out.push({ key: `vox:max:${m.id ?? m.name}`, label: tr("Block model: {name} (highest in each column)", { name: m.name }), kind: "voxel", ref: m.id ?? m.name, how: "max" });
-      out.push({ key: `vox:min:${m.id ?? m.name}`, label: tr("Block model: {name} (lowest in each column)", { name: m.name }), kind: "voxel", ref: m.id ?? m.name, how: "min" });
-      out.push({ key: `vox:mean:${m.id ?? m.name}`, label: tr("Block model: {name} (mean in each column)", { name: m.name }), kind: "voxel", ref: m.id ?? m.name, how: "mean" }); // #1831
+      out.push({ key: `vox:max:${m.id ?? m.name}`, label: tr("Block model: {name} (highest in each column)", { name: modelListName(m, voxelModels) /* #1839 */ }), kind: "voxel", ref: m.id ?? m.name, how: "max" });
+      out.push({ key: `vox:min:${m.id ?? m.name}`, label: tr("Block model: {name} (lowest in each column)", { name: modelListName(m, voxelModels) /* #1839 */ }), kind: "voxel", ref: m.id ?? m.name, how: "min" });
+      out.push({ key: `vox:mean:${m.id ?? m.name}`, label: tr("Block model: {name} (mean in each column)", { name: modelListName(m, voxelModels) /* #1839 */ }), kind: "voxel", ref: m.id ?? m.name, how: "mean" }); // #1831
     });
     if (traces.size) labElements.forEach((e) => out.push({ key: `grade:${e.symbol}`, label: tr("Drillholes: {sym} grade along the holes", { sym: e.symbol }), kind: "grade", ref: e.symbol })); // #1723: lab assays only
     if (traces.size) pxrfElements.forEach((e) => out.push({ key: `pxrf:${e.symbol}`, label: tr("Drillholes: {sym} pXRF along the holes (screening readings, not assays)", { sym: e.symbol }), kind: "pxrf", ref: e.symbol })); // #1723
