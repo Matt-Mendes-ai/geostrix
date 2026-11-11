@@ -26,7 +26,7 @@ import { saveFile } from "../lib/desktop.js";
 import SourceCrsField from "../components/SourceCrsField.jsx";
 import { readShapefileLayers, reprojectShapefileZip, reportShapefileText, readGeoTiffInfo, reprojectGeoTiff, reportGeoTiffText, reprojectTableRows, degreesOutOfRange, utmOutOfRange, isUtmCrs, fileXYColumns, fromForGridPrefix } from "../lib/fileReproject.js"; // #487; degreesOutOfRange: #2461; utmOutOfRange ... fromForGridPrefix: #2588
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786 — messages in the interface language
-import { collarCentreLonLat, collarSpread, formatLonLat } from "../lib/projectCrs.js"; // TASKS.csv #2291
+import { collarCentreLonLat, collarSpread, formatLonLat, medianPoint } from "../lib/projectCrs.js"; // TASKS.csv #2291; medianPoint: #2463
 import { smallGridCoordinates } from "../lib/crsFromColumns.js"; // TASKS.csv #2291
 import { tieOf } from "../lib/localGridTie.js"; // TASKS.csv #2587
 const LocalGridPanel = React.lazy(() => import("../components/LocalGridPanel.jsx")); // TASKS.csv #2288 — on demand
@@ -79,7 +79,7 @@ export default function CartographyModule({ embedded = false, forcePane = null }
   const hasData = inventory.length > 0 || (sections?.length || 0) > 0;
 
   // a representative location for the summary (first collar, else the first survey point)
-  const anchor = collars[0] || (layers.geophys_pts || [])[0] || null;
+  const anchor = useMemo(() => medianPoint(collars.length ? collars : layers.geophys_pts || []), [collars, layers.geophys_pts]); // #2463 — the collars' median, as the landing note uses (was the first collar)
   const lonLat = useMemo(() => {
     if (!anchor) return null;
     const t = pointTransform(project.epsg, 4326);

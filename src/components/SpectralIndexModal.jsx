@@ -16,9 +16,9 @@ import { IMAGERY_SOURCES, searchScenes, fetchSceneStack } from "../lib/imageryFe
 import BasemapView from "./BasemapView.jsx";
 import HyperspectralTab from "./HyperspectralTab.jsx"; // TASKS.csv #807
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
+import { lastSummer } from "../lib/summerDates.js"; // TASKS.csv #2464 — the project's own hemisphere
 
 const CUSTOM = "custom";
-const lastSummer = () => { const y = new Date().getFullYear() - (new Date().getMonth() < 9 ? 1 : 0); return { from: `${y}-07-01`, to: `${y}-09-15` }; };
 
 export default function SpectralIndexModal({ epsg, defaultElevation, sourceEpsg, areaOptions = [], onImport, onClose }) {
   useEscapeKey(onClose);
@@ -38,7 +38,7 @@ export default function SpectralIndexModal({ epsg, defaultElevation, sourceEpsg,
   const [areaId, setAreaId] = useState(areaOptions[0]?.id || "");
   const [drawn, setDrawn] = useState(null); // a bbox drawn on the map
   const [drawing, setDrawing] = useState(false);
-  const [dates, setDates] = useState(lastSummer);
+  const [dates, setDates] = useState(() => { const b = areaOptions[0]?.bboxLonLat; return lastSummer(b ? (b[1] + b[3]) / 2 : null); }); // #2464
   const [maxCloud, setMaxCloud] = useState(20);
   const [scenes, setScenes] = useState(null);
   const [sceneId, setSceneId] = useState("");
