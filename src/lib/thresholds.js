@@ -24,6 +24,7 @@
 // about the detection limit - Helsel 2012).
 //
 // Robust z-score of a sample within its group: (log10 x - median) / (1.4826 MAD), both of the group's log10 values.
+import { isLabMetaField, fieldLabel } from "./labMetaFields.js"; // TASKS.csv #1828
 import { pointInRings } from "./mapLayers.js";
 import { quantileSorted, median } from "./arrayStats.js"; // TASKS.csv #1114
 
@@ -201,9 +202,12 @@ export function groupOptions(surfaceSamples, mapLayers = []) {
     a.n++; if (a.vals.size <= 31) a.vals.add(String(v)); if (Number.isFinite(Number(v))) a.num++;
   }));
   const FIRST = /target|horizon|lab|year|survey|program|grid|campaign|source|crew|batch/i;
+  // TASKS.csv #1828 (review #1646, Kodiak) — a lab's bookkeeping columns (certificate, workflow, status per element, QC weights) come last,
+  // as their own kind; a header's line breaks are shown as spaces
+  const lab = (k) => (isLabMetaField(k) ? 1 : 0);
   [...attrs.entries()].filter(([, a]) => a.vals.size >= 2 && a.vals.size <= 30 && a.num < 0.5 * a.n)
-    .sort(([k1], [k2]) => (FIRST.test(k2) - FIRST.test(k1)) || k1.localeCompare(k2))
-    .forEach(([k]) => opts.push({ value: `attr:${k}`, label: k, kind: "column" }));
+    .sort(([k1], [k2]) => (lab(k1) - lab(k2)) || (FIRST.test(k2) - FIRST.test(k1)) || k1.localeCompare(k2))
+    .forEach(([k]) => opts.push({ value: `attr:${k}`, label: fieldLabel(k), kind: lab(k) ? "labmeta" : "column" }));
   mapLayers.filter((l) => l.geomType === "polygon" && l.features?.length).forEach((l) => (l.fields || []).forEach((f) => opts.push({ value: `layer:${l.id}:${f}`, label: `${l.name} › ${f}`, kind: "map" })));
   return opts;
 }

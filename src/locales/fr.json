@@ -10035,5 +10035,7 @@
   "{n} with a bearing but no dip (a chip line or a trend, not a plane)": "{n} avec une direction mais sans pendage (une ligne d'échantillonnage ou une tendance, pas un plan)",
   "{n} with a dip that is not a number from 0 to 90": "{n} avec un pendage qui n'est pas un nombre de 0 à 90",
   "{n} with a dip direction or strike that is not a number (a quadrant bearing such as N45E is not read)": "{n} avec une direction de pendage ou une direction qui n'est pas un nombre (un relèvement par quadrant comme N45E n'est pas lu)",
-  "{n} with a dip but no dip direction or strike": "{n} avec un pendage mais sans direction de pendage ni direction"
+  "{n} with a dip but no dip direction or strike": "{n} avec un pendage mais sans direction de pendage ni direction",
+  "Lab column: {v}": "Colonne de laboratoire : {v}",
+  "Other fields: lab bookkeeping, one value on every sample, or a different one on each": "Autres champs : suivi du laboratoire, une même valeur sur tous les échantillons ou une différente sur chacun"
 }

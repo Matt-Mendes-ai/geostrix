@@ -54,5 +54,6 @@ test("#1822 a description column is kept, whole, past the distinct-value cap", (
 
 test("#1822 the Colour by list offers the text fields", () => {
   const s = readFileSync(new URL("../src/components/SurfaceAnomalyControls.jsx", import.meta.url), "utf8");
-  assert.ok(s.includes("textAttrFields(surfaceSamples)") && s.includes('tr("Field: {name}", { name: f })') && s.includes('set({ mode: "field", field: v.slice(6) })'));
+  // #2089 grouped the list (textAttrFieldGroups: main, then 'Other fields') and #1828 shows the name on one line (fieldLabel)
+  assert.ok(s.includes("textAttrFieldGroups(surfaceSamples)") && s.includes('tr("Field: {name}", { name: fieldLabel(f) })') && s.includes('set({ mode: "field", field: v.slice(6) })'));
 });

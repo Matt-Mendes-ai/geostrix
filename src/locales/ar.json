@@ -10035,5 +10035,7 @@
   "{n} with a bearing but no dip (a chip line or a trend, not a plane)": "{n} باتجاه دون ميل (خط عيّنات أو اتجاه عام، لا مستوى)",
   "{n} with a dip that is not a number from 0 to 90": "{n} بميل ليس رقمًا من 0 إلى 90",
   "{n} with a dip direction or strike that is not a number (a quadrant bearing such as N45E is not read)": "{n} باتجاه ميل أو مضرب ليس رقمًا (لا يُقرأ اتجاه الأرباع مثل N45E)",
-  "{n} with a dip but no dip direction or strike": "{n} بميل دون اتجاه ميل أو مضرب"
+  "{n} with a dip but no dip direction or strike": "{n} بميل دون اتجاه ميل أو مضرب",
+  "Lab column: {v}": "عمود المختبر: {v}",
+  "Other fields: lab bookkeeping, one value on every sample, or a different one on each": "حقول أخرى: سجلات المختبر، أو قيمة واحدة لكل العينات، أو قيمة مختلفة لكل عينة"
 }

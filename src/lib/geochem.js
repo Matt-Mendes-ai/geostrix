@@ -1227,7 +1227,8 @@ export function attrText(v) {
 }
 export function surfaceAttrs(row, cols) {
   const attrs = {};
-  cols.forEach((h) => { const t = attrText(row[h]); if (t !== "") attrs[h] = t.slice(0, SURFACE_ATTR_MAX_CHARS); }); // #1822: a field note is read whole in Identify (was 60 characters)
+  // #1822: a field note is read whole in Identify (was 60 characters); TASKS.csv #1828 — the key on one line (an Excel header 'Digest_Run NA \r\nPb-OG62')
+  cols.forEach((h) => { const t = attrText(row[h]); if (t !== "") attrs[String(h).replace(/\s+/g, " ").trim()] = t.slice(0, SURFACE_ATTR_MAX_CHARS); });
   return Object.keys(attrs).length ? { attrs } : {};
 }
 

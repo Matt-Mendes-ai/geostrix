@@ -10035,5 +10035,7 @@
   "{n} with a bearing but no dip (a chip line or a trend, not a plane)": "{n} con rumbo pero sin buzamiento (una línea de muestreo o una tendencia, no un plano)",
   "{n} with a dip that is not a number from 0 to 90": "{n} con un buzamiento que no es un número de 0 a 90",
   "{n} with a dip direction or strike that is not a number (a quadrant bearing such as N45E is not read)": "{n} con una dirección de buzamiento o rumbo que no es un número (un rumbo por cuadrantes como N45E no se lee)",
-  "{n} with a dip but no dip direction or strike": "{n} con buzamiento pero sin dirección de buzamiento ni rumbo"
+  "{n} with a dip but no dip direction or strike": "{n} con buzamiento pero sin dirección de buzamiento ni rumbo",
+  "Lab column: {v}": "Columna de laboratorio: {v}",
+  "Other fields: lab bookkeeping, one value on every sample, or a different one on each": "Otros campos: registros del laboratorio, un mismo valor en todas las muestras o uno distinto en cada una"
 }
