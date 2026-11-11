@@ -3,7 +3,7 @@
 // wavelength ai_Wav_WtMica, the classic porphyry SWIR vector, could not be shown in 3D), and no legend listed them. Now the Style
 // dialog's 'Colour by' picks the field (style.colourBy, default the value column): a numeric field takes a viridis ramp over its
 // range, anything else its category colours; an empty reading is grey 'no value'. The overlay legend gets a group per visible layer.
-import { hashColor, magColor } from "./layers.js";
+import { hashColor, magColor, CATEGORICAL_SAFE_COLORS } from "./layers.js";
 
 export const NO_VALUE_COLOUR = "#b8bec7";
 const empty = (v) => v == null || v === "" || (typeof v === "number" && !Number.isFinite(v));
@@ -69,12 +69,29 @@ const rampT = (s, n) => { const t = Math.min(1, Math.max(0, rampT0(s, n))); retu
 const rampColour = (s, n) => magColor(rampT(s, n), 0, 1);
 // the value at fraction t of a scale (a class edge)
 const atT = (s, t) => (s.log ? 10 ** (Math.log10(s.min) + t * (Math.log10(s.max) - Math.log10(s.min))) : s.min + t * (s.max - s.min));
+// TASKS.csv #2476 (review #2325, WA uranium) — the codes of one layer by the curated colour-blind-safe palette (#249), in their sorted order
+// (E1, E2, E3 ... so a stratigraphic sequence gets neighbouring colours that still differ), the hash only past the palette's 16: hashColor put
+// codes one character apart one degree of hue apart (E1 / E2 / E3 at hues 260 / 261 / 262: twelve units in about five colours)
+const codeColourCache = new WeakMap(); // rows array -> Map(field -> Map(code -> colour))
+export function customCodeColour(layer, field, v) {
+  const rows = layer?.rows;
+  if (!Array.isArray(rows)) return hashColor(v);
+  let byField = codeColourCache.get(rows);
+  if (!byField) { byField = new Map(); codeColourCache.set(rows, byField); }
+  let m = byField.get(field);
+  if (!m) {
+    const codes = [...new Set(rows.map((r) => r?.[field]).filter((x) => !empty(x)).map(String))].sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" }));
+    m = new Map(codes.map((c, i) => [c, i < CATEGORICAL_SAFE_COLORS.length ? CATEGORICAL_SAFE_COLORS[i] : hashColor(c)]));
+    byField.set(field, m);
+  }
+  return m.get(String(v)) || hashColor(v);
+}
 export function customColour(layer, layerStyles, row) {
   const field = fieldOf(layer, layerStyles), v = row?.[field];
   if (empty(v)) return NO_VALUE_COLOUR;
   const s = customScale(layer, field, layerStyles?.[`custom:${layer?.id}`]); // #2367
   if (s.numeric) { const n = num(v); return Number.isFinite(n) ? rampColour(s, n) : NO_VALUE_COLOUR; }
-  return hashColor(v);
+  return customCodeColour(layer, field, v); // #2476
 }
 
 // the overlay legend's groups for the visible custom layers (categories up to 24, or a ramp)
@@ -104,7 +121,7 @@ export function customLegendGroups(customLayers, customVisible = {}, layerStyles
     }
     const counts = new Map(); let none = 0;
     for (const r of L.rows) { const v = r?.[field]; if (empty(v)) { none++; continue; } const k = String(v); counts.set(k, (counts.get(k) || 0) + 1); }
-    const items = [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 24).map(([k]) => [k, hashColor(k)]);
+    const items = [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 24).map(([k]) => [k, customCodeColour(L, field, k)]); // #2476
     if (none) items.push(["no value", NO_VALUE_COLOUR]);
     if (items.length) out.push({ key: `custom_${L.id}`, label, items });
   }

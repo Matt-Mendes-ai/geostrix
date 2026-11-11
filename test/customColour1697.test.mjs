@@ -3,7 +3,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { customColour, customLegendGroups, customFields, NO_VALUE_COLOUR } from "../src/lib/customColour.js";
 import { cleanLayerStyle } from "../src/lib/layerStyle.js";
-import { hashColor, magColor } from "../src/lib/layers.js";
+import { hashColor, magColor, CATEGORICAL_SAFE_COLORS } from "../src/lib/layers.js";
 
 const L = { id: "ai", name: "Copley_2023_DH_SWIR_aiSIRIS", rows: [
   { hole_id: "H", depth: 10, value: "Mu", ai_Wav_WtMica: 2200 },
@@ -13,7 +13,7 @@ const L = { id: "ai", name: "Copley_2023_DH_SWIR_aiSIRIS", rows: [
 ] };
 
 test("by the value column: categories, empty readings grey (not a 'null' class)", () => {
-  assert.equal(customColour(L, {}, L.rows[0]), hashColor("Mu"));
+  assert.equal(customColour(L, {}, L.rows[0]), CATEGORICAL_SAFE_COLORS[1]); // #2476 — the palette by sorted code (Kao, Mu), not hashColor("Mu")
   assert.equal(customColour(L, {}, L.rows[1]), NO_VALUE_COLOUR);
 });
 test("by a numeric field: a viridis ramp over its range; empty is grey", () => {
