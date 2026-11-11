@@ -43,6 +43,13 @@ function Scatter({ pairs, xLabel, yLabel, logX, logY }) {
   );
 }
 
+// TASKS.csv #2401 (review #2325, WA uranium) — a blank code was an unlabelled group ('E3 78.4 ·  37.2 · QB 34.3'), and long code names were cut
+// at the left of the box plot ('gnesium_Clays', ':not logged)'): '(blank)' for an empty code, '(not logged)' as before, and a long name
+// shortened at its end (max characters) so its start stays readable
+function codeLabel(k, max = 0) {
+  const t = k === NOT_LOGGED ? tr("(not logged)") : String(k ?? "").trim() === "" ? tr("(blank)") : String(k);
+  return max && t.length > max ? `${t.slice(0, max - 1)}…` : t;
+}
 export default function DownholeLogsPane({ layers, customLayers = [], assays = [], assayElements = [], onClose, onEstimate = null }) {
   // TASKS.csv #2558 — a model evaluated onto the holes is not a log: it opened as the Log and was then compared with itself (Spearman 1.00)
   const modelIds = useMemo(() => new Set(customLayers.filter((l) => l.sourceModel != null || (l.rows || []).some((r) => r.modelled)).map((l) => l.id)), [customLayers]);
@@ -102,7 +109,7 @@ export default function DownholeLogsPane({ layers, customLayers = [], assays = [
           {logHidden > 0 && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("{k} of {n} readings are zero or negative and are not shown on the log scale.", { k: logHidden.toLocaleString(), n: logValues.filter(Number.isFinite).length.toLocaleString() })}</div>}
           {groups.length > 0 ? (
             <>
-              <BoxPlots fit groups={groups} domainLabel={(k) => `${k === NOT_LOGGED ? tr("(not logged)") : k} (${groups.find((g) => g.key === k)?.n.toLocaleString()})`} logScale={logScale} unit={unitOf(source.unit)} />
+              <BoxPlots fit groups={groups} domainLabel={(k) => `${codeLabel(k, 16)} (${groups.find((g) => g.key === k)?.n.toLocaleString()})`} /* #2401 */ logScale={logScale} unit={unitOf(source.unit)} />
               <label style={{ ...row, justifyContent: "flex-start", gap: 6 }}>{tr("Rank codes by")}
                 <select value={rankStat} onChange={(e) => setRankStat(e.target.value)} style={smallSel} aria-label={tr("Rank codes by")}>
                   <option value="median">{tr("Median")}</option><option value="mean">{tr("Mean")}</option><option value="p90">P90</option><option value="above">{tr("Share above a value")}</option>
@@ -111,7 +118,7 @@ export default function DownholeLogsPane({ layers, customLayers = [], assays = [
               </label>{/* #2393 */}
               <div style={note}>{rankStat === "above"
                 ? tr("Share of readings above {v} per code, highest first: {list}.", { v: rankAbove, list: groups.slice(0, 8).map((g) => `${g.key === NOT_LOGGED ? tr("(not logged)") : g.key} ${Math.round(g.value)}% (${(g.nAbove ?? 0).toLocaleString()} of ${g.n.toLocaleString()})`).join(" · ") })
-                : tr(rankStat === "mean" ? "Mean per code, highest first: {list}." : rankStat === "p90" ? "P90 per code, highest first: {list}." : "Median per code, highest first: {list}.", { list: groups.slice(0, 8).map((g) => `${g.key === NOT_LOGGED ? tr("(not logged)") : g.key} ${Number(g.value.toPrecision(3))}`).join(" · ") })}</div>
+                : tr(rankStat === "mean" ? "Mean per code, highest first: {list}." : rankStat === "p90" ? "P90 per code, highest first: {list}." : "Median per code, highest first: {list}.", { list: groups.slice(0, 8).map((g) => `${codeLabel(g.key)} ${Number(g.value.toPrecision(3))}`).join(" · ") /* #2401 */ })}</div>
             </>
           ) : domain && <div style={note}>{tr("No code of {layer} has three or more readings of this log.", { layer: domain.label })}</div>}
           {symbols.length > 0 && (
