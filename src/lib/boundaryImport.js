@@ -5,16 +5,27 @@
 import { getProj4Def, guessEpsgFromPrjWkt, pointTransform } from "./reproject.js";
 import { t as tr } from "./i18n.js"; // TASKS.csv #1974 — the CRS notes in the interface language
 import { readsAsMineGrid, mineToProject, kmFromCollars, partsBox } from "./mineGrid.js"; // TASKS.csv #2586
+import { fileToLocal } from "./localGridTie.js"; // TASKS.csv #2587
 
 // parsed: { features: [{ geometry, parts? }], geomType, epsg?, prjWkt? } (parseShapefileZip / a parseGeoPackage layer)
 // -> { polylines: [[{x, y}]], closedFlags, sourceEpsg, note } — note says what was done with the CRS, in the interface language
 // mineGrid / collars (TASKS.csv #2586): a project's mine grid beside its CRS (lib/mineGrid.js mineGridOf) and its collars: a file with no CRS
 // whose coordinates lie on that grid is read on it; one that does not is told how far from the collars it landed
-export async function vectorToBoundaryPolylines(parsed, projectEpsg, { mineGrid = null, collars = null } = {}) {
+// tie (TASKS.csv #2587, review #2486): a local-grid project tied to a real CRS (lib/localGridTie.js tieOf): a file with a CRS is brought
+// INTO the grid through the tie, as a map layer dropped on the plan already was (#2320). Before, Boundaries kept an MGA tenement at its
+// MGA numbers, 6,240 km from the collars, saying 'the project has no coordinate system yet'.
+export async function vectorToBoundaryPolylines(parsed, projectEpsg, { mineGrid = null, collars = null, tie = null } = {}) {
   const dst = Number(projectEpsg) || null;
   const src = Number(parsed.epsg) || (parsed.prjWkt ? guessEpsgFromPrjWkt(parsed.prjWkt) : null) || null;
   let T = null, note, mineGridUsed = false;
-  if (src && dst && src !== dst) {
+  if (tie && src && !dst) {
+    if (src !== Number(tie.epsg)) await Promise.all([getProj4Def(src), getProj4Def(Number(tie.epsg))]);
+    const ok = src === Number(tie.epsg) || !!pointTransform(src, Number(tie.epsg));
+    if (ok) {
+      T = (x, y) => { const r = fileToLocal(tie, x, y, src); return r ? [r.x, r.y] : [x, y]; };
+      note = tr("brought into the local grid through its tie to EPSG:{tie} (from EPSG:{src})", { tie: tie.epsg, src });
+    } else note = tr("its CRS (EPSG:{src}) cannot be brought through the local grid's tie to EPSG:{tie}: the coordinates were kept as they are, check where it lies", { src, tie: tie.epsg });
+  } else if (src && dst && src !== dst) {
     await Promise.all([getProj4Def(src), getProj4Def(dst)]); // registry codes load on demand (#834)
     T = pointTransform(src, dst);
     note = T ? tr("reprojected from EPSG:{src} to EPSG:{dst}", { src, dst }) : tr("its CRS (EPSG:{src}) could not be converted: the coordinates were taken as EPSG:{dst}, check where it lies", { src, dst });

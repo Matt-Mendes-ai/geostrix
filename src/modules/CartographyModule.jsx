@@ -29,6 +29,7 @@ import { readShapefileLayers, reprojectShapefileZip, reportShapefileText, readGe
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786 — messages in the interface language
 import { collarCentreLonLat, collarSpread, formatLonLat } from "../lib/projectCrs.js"; // TASKS.csv #2291
 import { smallGridCoordinates } from "../lib/crsFromColumns.js"; // TASKS.csv #2291
+import { tieOf } from "../lib/localGridTie.js"; // TASKS.csv #2587
 const LocalGridPanel = React.lazy(() => import("../components/LocalGridPanel.jsx")); // TASKS.csv #2288 — on demand
 const MineGridPanel = React.lazy(() => import("../components/MineGridPanel.jsx")); // TASKS.csv #2586 — on demand
 
@@ -316,7 +317,12 @@ export default function CartographyModule({ embedded = false, forcePane = null }
 
       {/* main area: the project's CRS at a glance, and what is loaded */}
       <div style={{ flex: 1, overflowY: "auto", padding: "22px 26px", color: "var(--color-text)" }}>
-        {project.crsSet === false ? ( /* TASKS.csv #2289 — the placeholder is not the project's CRS: no name, code or location from it */
+        {project.crsSet === false && tieOf(project) ? ( /* TASKS.csv #2587 — a tied local grid is not 'not chosen yet' */
+          <>
+            <div style={{ fontSize: "var(--font-size-xl)", fontWeight: 600 }}>{project.localGrid?.name ? tr("Local mine grid \"{name}\"", { name: project.localGrid.name }) : tr("Local mine grid")}</div>
+            <div style={{ ...note, fontSize: "var(--font-size-base)" }}>{tr("The coordinates are the grid's own numbers, tied to {crs} (EPSG:{epsg}): files with their own coordinate system are brought into the grid through the tie on import.", { crs: crsName(tieOf(project).epsg) || "", epsg: tieOf(project).epsg })}</div>
+          </>
+        ) : project.crsSet === false ? ( /* TASKS.csv #2289 — the placeholder is not the project's CRS: no name, code or location from it */
           <>
             <div style={{ fontSize: "var(--font-size-xl)", fontWeight: 600 }}>{tr("Coordinate system not chosen yet")}</div>
             <div style={{ ...note, fontSize: "var(--font-size-base)" }}>{tr("The coordinates are the project's own numbers: GeoStrix cannot place them on Earth until you choose the CRS they are in (Project CRS, left).")}</div>
