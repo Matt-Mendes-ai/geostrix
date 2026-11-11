@@ -10,6 +10,9 @@ export function rasterMethodOf(raster, surveys) {
   return m && SURVEY_METHODS[m] ? m : null;
 }
 export const methodGroup = (method) => SURVEY_METHODS[method]?.group || null;
+// TASKS.csv #1858 (review #1646, Kodiak) — what a raster's values are in: the unit the user typed or its survey kept (raster.unit), else a
+// geochemistry grid's element unit, else a terrain derivative's ("" when nothing says)
+export const rasterUnitOf = (r) => String(r?.unit || r?.geochem?.unit || r?.terrainDerivative?.unit || "").trim();
 
 const NEEDS_FIELD = new Set(["rtp", "rtpa", "rte"]);
 // why a grid filter does not apply to a raster of this method: "potential" (the filters assume a magnetic or gravity field: radiometrics,

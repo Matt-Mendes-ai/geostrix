@@ -3,6 +3,7 @@ import { RASTER_RAMPS, DEFAULT_RASTER_STYLE, rasterColourFields, rasterRange, de
 import { b64ToF32 } from "../lib/inversion.js";
 import { PALETTES, paletteShortName } from "../lib/layers.js"; // paletteShortName: #1859
 import { t as tr } from "../lib/i18n.js";
+import { rasterUnitOf } from "../lib/rasterMethod.js"; // TASKS.csv #1858
 
 // TASKS.csv #1236 — ramp, stretch, typed range and inverted ramp for a raster that kept its values, and a bar with the value range
 const fmt = (v) => (v == null || !Number.isFinite(v) ? "—" : Number(v.toPrecision(4)).toLocaleString());
@@ -28,8 +29,17 @@ export default function RasterColourControls({ raster: r, onUpdate, inputStyle }
   const stops = r.colourStops || [];
   const decades = useMemo(() => decadesSpanned(values), [values]); // #1857
   const signed = useMemo(() => signedGridHint(values), [values]); // #2555 — a grid with values at or below zero: no log suggestion; a diverging ramp offered
+  const unit = rasterUnitOf(r); // #1858
+  const [unitText, setUnitText] = useState(null);
   return (
     <div style={{ marginTop: 7 }}>
+      {/* TASKS.csv #1858 (review #1646) — what the values are: a chargeability slice read '1.00 - 8.00' with no mV/V */}
+      <div style={row}>
+        <span style={lbl}>{tr("Values are")}</span>
+        <input type="text" value={unitText ?? unit} placeholder={tr("the unit, e.g. nT, mV/V, ohm·m, ppm")} aria-label={tr("Unit of the values of \"{name}\"", { name: r.name })}
+          onChange={(e) => setUnitText(e.target.value)} onBlur={() => { if (unitText != null && unitText.trim() !== unit) onUpdate(r.id, { unit: unitText.trim() }); setUnitText(null); }} onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+          style={{ ...inputStyle, minWidth: 0, flex: 1 }} />
+      </div>
       <div style={row}>
         <span style={lbl}>{tr("Ramp")}</span>
         <select value={style.palette} aria-label={tr("Colour ramp of \"{name}\"", { name: r.name })} onChange={(e) => apply({ palette: e.target.value })} style={{ ...inputStyle, minWidth: 0 }} title={PALETTES[style.palette]?.label}>
@@ -65,7 +75,7 @@ export default function RasterColourControls({ raster: r, onUpdate, inputStyle }
       {stops.length > 1 && (
         <div style={{ marginTop: 6 }}>
           <div aria-hidden="true" style={{ height: 8, borderRadius: 2, background: `linear-gradient(to right, ${stops.map((s) => s.color).join(", ")})` }} />
-          <div dir="ltr" style={{ display: "flex", justifyContent: "space-between", fontSize: "var(--font-size-xs)", color: "var(--color-text-caption)", marginTop: 2 }}><span>{fmt(range[0])}</span>{style.stretch === "equalise" && <span>{tr("equalized: colour does not scale with value")}</span>}{style.stretch === "log" && <span>{tr("log scale")}</span>}<span>{fmt(range[1])}</span></div>
+          <div dir="ltr" style={{ display: "flex", justifyContent: "space-between", fontSize: "var(--font-size-xs)", color: "var(--color-text-caption)", marginTop: 2 }}><span>{fmt(range[0])}</span>{style.stretch === "equalise" && <span>{tr("equalized: colour does not scale with value")}</span>}{style.stretch === "log" && <span>{tr("log scale")}</span>}{unit && <span>{unit}</span>}{/* #1858 */}<span>{fmt(range[1])}</span></div>
         </div>
       )}
       {r.grid.averagedBy > 1 && r.colourStyle && <div style={{ marginTop: 4, fontSize: "var(--font-size-xs)", color: "var(--color-text-caption)", lineHeight: 1.35 }}>{tr("Drawn from the kept values, where every {n} × {n} pixels were averaged, so this image is coarser than the imported one.", { n: r.grid.averagedBy })}</div>}

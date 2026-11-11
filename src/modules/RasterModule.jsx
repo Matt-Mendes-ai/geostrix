@@ -33,6 +33,7 @@ import GridContourControls from "../components/GridContourControls.jsx"; // TASK
 import { gridCellText } from "../lib/raster.js"; // TASKS.csv #1242
 import { detectKeyColour } from "../lib/rasterKey.js"; // TASKS.csv #1623
 import RasterLegend from "../components/RasterLegend.jsx"; // TASKS.csv #2011
+import RasterPictureLegend from "../components/RasterPictureLegend.jsx"; // TASKS.csv #1858
 import { tieOf, localToWorld } from "../lib/localGridTie.js"; // TASKS.csv #2587 — a tied local grid's way in; localToWorld: #2648
 import { farFromCollars, farLabel } from "../lib/landingCheck.js"; // TASKS.csv #2590
 import { projectTargetEpsg } from "../lib/projectTarget.js"; // TASKS.csv #2287 — no reprojection INTO the placeholder CRS
@@ -650,6 +651,7 @@ export default function RasterModule({ embedded = false } = {}) {
               <input type="range" min={0.1} max={1} step={0.05} value={r.opacity ?? 0.85} onChange={(e) => updateRaster(r.id, { opacity: Number(e.target.value) })} style={{ flex: 1 }} />
             </div>
             <RasterLegend raster={r} updateRaster={updateRaster} />{/* TASKS.csv #2011 */}
+            {!r.grid && !r.ternary && !r.legend && r.dataUrl && <RasterPictureLegend raster={r} updateRaster={updateRaster} />}{/* TASKS.csv #1858 */}
           </div>
         ))}
       </div>
