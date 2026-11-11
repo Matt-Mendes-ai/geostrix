@@ -57,7 +57,9 @@ export async function vectorToBoundaryPolylines(parsed, projectEpsg, { mineGrid 
       closedFlags.push(closed);
     }
   });
-  return { polylines, closedFlags, featureOf, attributes: (parsed.features || []).map((f) => f.attributes || {}), sourceEpsg: src, note, ...(mineGridUsed ? { mineGrid: true } : {}) };
+  const attributes = (parsed.features || []).map((f) => f.attributes || {});
+  const partNames = featureOf.map((fi) => featureLabel(attributes[fi])); // #1767
+  return { polylines, closedFlags, featureOf, attributes, ...(partNames.some(Boolean) ? { partNames } : {}), sourceEpsg: src, note, ...(mineGridUsed ? { mineGrid: true } : {}) };
 }
 
 // TASKS.csv #1970 — a tenure file (BC Mineral Titles Online, a GeoPackage of claims) holds one feature per claim: each becomes
@@ -67,6 +69,15 @@ export async function vectorToBoundaryPolylines(parsed, projectEpsg, { mineGrid 
 const TENURE_COL = /^(tenure|title)(_?(number|num|no|nbr))?(_?id)?$|^(tenure|title|claim)_?(number|num|no|nbr)(_?id)?$/i;
 const NAME_COL = /^(claim|tenure|title)_?name$|^name$/i;
 const EXPIRY_COL = /good_?to|expir/i;
+// TASKS.csv #1767 (review #1645, Copley) — a feature's own name (a name / label / title property), so the parts of one boundary file (a claim
+// block, two prospect outlines, a road) can be told apart. '' when it has none.
+export function featureLabel(attrs) {
+  if (!attrs || typeof attrs !== "object") return "";
+  const k = Object.keys(attrs).find((c) => /^(name|label|title|feature_?name|prospect|claim_?name)$/i.test(String(c).trim()) && String(attrs[c] ?? "").trim() !== "");
+  return k ? String(attrs[k]).trim() : "";
+}
+// the file name without its extension, as the claims path names a claim (#1767)
+export const fileStem = (name) => String(name || "").replace(/\.[^./\\]+$/, "") || String(name || "");
 export function attrColumn(cols, rx) { return cols.find((c) => rx.test(String(c).trim())) || null; }
 export function isoDateOf(v) {
   if (v == null || v === "") return "";
