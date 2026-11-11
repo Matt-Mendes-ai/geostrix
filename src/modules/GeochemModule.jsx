@@ -35,6 +35,7 @@ import { dbImportRecord, upsertDbImport } from "../lib/dbImports.js"; // TASKS.c
 import LabCertificateModal from "../components/LabCertificateModal.jsx"; // TASKS.csv #601
 import { isLabCertificateText, parseLabCertificate, combineCertificates, joinCertificatesToAssays, suggestQcTypes, qcRowPlacement, indexAssaysForPlacement } from "../lib/labCertificate.js"; // TASKS.csv #601
 import AlterationBoxModal from "../components/AlterationBoxModal.jsx"; // TASKS.csv #503
+import { applyRowFilter, defaultRowFilter, overlapSummary, overlapWorthSaying } from "../lib/importRowFilter.js"; // TASKS.csv #2391
 import VolcanicCodesModal, { NOT_LOGGED_CODE } from "../components/VolcanicCodesModal.jsx"; // TASKS.csv #2352
 import SurfaceImportModal, { SURFACE_MEDIA } from "../components/SurfaceImportModal.jsx";
 // TASKS.csv #1794 — the medium a cell names (the import's own list and aliases), for telling a medium column from a QC-type column
@@ -487,8 +488,12 @@ export default function GeochemModule() {
     setCertReview(null);
   };
 
-  const commitAssayImport = async (modal) => {
-    if (modal.busy) return; // #583 — one import at a time (the row build below yields to the UI)
+  const commitAssayImport = async (modalIn) => {
+    if (modalIn.busy) return; // #583 — one import at a time (the row build below yields to the UI)
+    // TASKS.csv #2391 — the row filter (#2330) on the assay path too: the user's, else a Superseded / Current flag column's preset
+    const rowFilter = modalIn.rowFilter !== undefined ? modalIn.rowFilter : defaultRowFilter(modalIn.headers || Object.keys(modalIn.allRows?.[0] || {}), modalIn.allRows);
+    const filtered = applyRowFilter(modalIn.allRows || [], rowFilter), modal = filtered.dropped ? { ...modalIn, allRows: filtered.rows } : modalIn;
+    if (filtered.dropped) setNotices((p) => [...p, notice("{fileName}: {n} row(s) left out by the row filter ({col} kept only where it is {values}).", { fileName: modal.fileName || "", n: filtered.dropped.toLocaleString(), col: rowFilter.col, values: rowFilter.keep.map((v) => v || "(blank)").join(", ") })]);
     const { format, allRows, mapping, selectedMethod, elements } = modal;
     // TASKS.csv #1518 — each element's method code(s) (a wide file's '<el>_analysis_code' column, a long file's chosen method), kept
     // on its element so the immobile-element tools can say when a partial digestion measured them
@@ -723,6 +728,10 @@ export default function GeochemModule() {
       blankNoLimit.size ? tr("No detection limit could be found for {list} (no '<' values and no reported values), so their empty cells stay not assayed.", { list: [...blankNoLimit].join(", ") }) : null,
       // #510 — same-interval rows in ONE file are kept, not merged: usually field / lab duplicates
       repeatedInFile ? tr("{n} interval(s) appear more than once in this file (often field or lab duplicates) — all kept as separate rows; Data QC and Best Intercepts flag them as overlaps.", { n: repeatedInFile }) : null,
+      // TASKS.csv #2391 — intervals of this file that overlap another of the same hole, and the column that probably marks the out-of-date ones
+      (() => { if (format !== "wide") return null; const o = overlapSummary(allRows, { hole: mapping.hole_id, from: mapping.from, to: mapping.to }, modal.headers || Object.keys(allRows[0] || {})); if (!overlapWorthSaying(o)) return null;
+        return o.col ? tr("{n} of the file's {total} interval(s) overlap another of the same hole, in {holes} hole(s); {pct}% of them have {col} = {value}, which may mark the out-of-date rows: the dialog's row filter can leave them out.", { n: o.n.toLocaleString(), total: o.total.toLocaleString(), holes: o.holes, pct: Math.round(o.share * 100), col: o.col, value: o.value || "(blank)" })
+          : tr("{n} of the file's {total} interval(s) overlap another of the same hole, in {holes} hole(s); no column of the file marks them.", { n: o.n.toLocaleString(), total: o.total.toLocaleString(), holes: o.holes }); })(),
       oxideNotes.size ? tr("Oxide columns: {list}. A grade kept as its oxide is read, typed, priced and exported as the oxide; one stored as the element is in element wt%, and the diagrams convert either to oxides.", { list: [...oxideNotes].join(", ") }) : null, // #2487
     ].filter(Boolean).join(" ");
     import("../lib/dataQC.js").then(({ importCheckSummary }) => { const msg = importCheckSummary(rows, collars, store.survey, tr("assay rows")); if (msg) setNotices((p) => [...p, msg]); }).catch(() => {}); // TASKS.csv #1268

@@ -48,3 +48,41 @@ export function applyRowFilter(rows, filter) {
 
 // the filter an import gets when the user has not set one: the flag column's preset, or none (the dialog's box and the commit both ask this)
 export const defaultRowFilter = (headers, rows) => flagRowFilter(rowFilterColumns(headers, rows));
+
+// TASKS.csv #2391 (split from #2330, review #2325) — the intervals of an import that overlap another of the same hole, and the column that
+// probably explains them: one of a few values (a flag, version or priority) that the overlapping rows carry far more often than the rest.
+// cols: { hole, from, to } (the mapped columns). -> { n, holes, total, col, value, share } (col null when none stands out)
+export function overlapSummary(rows, cols, headers) {
+  const byHole = new Map();
+  (rows || []).forEach((r, i) => {
+    const h = norm(r?.[cols.hole]), f = Number(r?.[cols.from]), t = Number(r?.[cols.to]);
+    if (!h || !Number.isFinite(f) || !Number.isFinite(t) || !(t > f)) return;
+    (byHole.get(h) || byHole.set(h, []).get(h)).push({ i, f, t });
+  });
+  const over = new Set(), holes = new Set();
+  let total = 0;
+  for (const [h, list] of byHole) {
+    total += list.length;
+    list.sort((a, b) => a.f - b.f || a.t - b.t);
+    let maxTo = -Infinity, at = -1;
+    list.forEach((x, k) => { if (x.f < maxTo - 1e-6) { over.add(x.i); over.add(list[at].i); holes.add(h); } if (x.t > maxTo) { maxTo = x.t; at = k; } });
+  }
+  let best = null;
+  if (over.size) {
+    const skip = new Set([cols.hole, cols.from, cols.to]);
+    for (const c of rowFilterColumns((headers || []).filter((h) => !skip.has(h)), rows)) {
+      // a flag, version or priority column by its name, or a column of words (a lab, a status): never a grade with few values
+      if (c.values.length > 6 || !(FLAGLIKE.test(key(c.col)) || c.values.some(([v]) => v !== "" && !Number.isFinite(Number(v))))) continue;
+      const inOver = new Map();
+      for (const i of over) { const v = norm(rows[i]?.[c.col]); inOver.set(v, (inOver.get(v) || 0) + 1); }
+      for (const [v, n] of c.values) {
+        const all = n / total, sh = (inOver.get(v) || 0) / over.size;
+        if (all < 0.5 && sh >= 0.3 && sh > 1.5 * all && (!best || sh / all > best.lift)) best = { col: c.col, value: v, share: sh, lift: sh / all };
+      }
+    }
+  }
+  return { n: over.size, holes: holes.size, total, col: best?.col ?? null, value: best?.value ?? null, share: best?.share ?? null };
+}
+const FLAGLIKE = /(supersed|obsolete|delet|replac|void|reject|current|valid|latest|active|accept|version|^ver$|priority|prio|status|flag|rank|primary|rerun|order|seq)/i;
+// whether an overlap count is worth a notice: more than a few rows and more than 2 % of them
+export const overlapWorthSaying = (s) => s.n >= 5 && s.n > 0.02 * s.total;

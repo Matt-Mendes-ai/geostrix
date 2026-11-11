@@ -9,6 +9,7 @@ import { overlay } from "../lib/modalStyles.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { pointReadings } from "../lib/pxrfPoints.js"; // TASKS.csv #1653
+import RowFilterBox from "./RowFilterBox.jsx"; // TASKS.csv #2391 — the row filter of the drillhole import (#2330), here too
 
 export default function AssayImportModal({ modal, onChange, onCancel, onCommit, existingUnits = {} }) {
   useEscapeKey(onCancel); // TASKS.csv #238
@@ -137,6 +138,7 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
             </div>
           )}
 
+          {modal.format === "wide" && <div style={{ marginTop: 12 }}><RowFilterBox modal={modal} onChange={onChange} sel={sel} /></div>}{/* TASKS.csv #2391 */}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 16, marginBottom: 8 }}>
             <div style={{ ...label, marginBottom: 0 }}>{tr("Elements ({checkedCount} of {elements})", { checkedCount, elements: modal.elements.length })}</div>
             <div style={{ display: "flex", gap: 8 }}>

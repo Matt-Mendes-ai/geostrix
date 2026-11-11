@@ -9820,5 +9820,8 @@
   "Colour range to": "Plage de couleurs à",
   "Blank: the 2nd-98th percentile; the data run {a} to {b}.": "Vide : 2e au 98e centile ; les données vont de {a} à {b}.",
   "auto (log over a decade)": "auto (log au-delà d'une décade)",
-  "Number of colour classes": "Nombre de classes de couleurs"
+  "Number of colour classes": "Nombre de classes de couleurs",
+  "{n} of the file's {total} interval(s) overlap another of the same hole, in {holes} hole(s); {pct}% of them have {col} = {value}, which may mark the out-of-date rows: the dialog's row filter can leave them out.": "{n} des {total} intervalles du fichier chevauchent un autre du même sondage, dans {holes} sondage(s) ; {pct}% d'entre eux ont {col} = {value}, ce qui peut marquer les lignes périmées : le filtre de lignes de la boîte de dialogue peut les laisser de côté.",
+  "{n} of the file's {total} interval(s) overlap another of the same hole, in {holes} hole(s); no column of the file marks them.": "{n} des {total} intervalles du fichier chevauchent un autre du même sondage, dans {holes} sondage(s) ; aucune colonne du fichier ne les marque.",
+  "{fileName}: {n} of {total} interval(s) overlap another of the same hole, in {holes} hole(s); {pct}% of them have {col} = {value}, which may mark the out-of-date rows: the import's row filter can leave them out.": "{fileName} : {n} des {total} intervalles chevauchent un autre du même sondage, dans {holes} sondage(s) ; {pct}% d'entre eux ont {col} = {value}, ce qui peut marquer les lignes périmées : le filtre de lignes de l'import peut les laisser de côté."
 }

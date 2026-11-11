@@ -29,7 +29,7 @@ import { askAdoptCrs } from "../../lib/adoptCrs.js"; // TASKS.csv #607
 import { requestProjectCrs } from "../../lib/projectCrsRequest.js"; // TASKS.csv #615
 import { holeTypeColumn, normalizeHoleType } from "../../lib/holeType.js"; // TASKS.csv #2161
 import { eventNotes } from "../../lib/downholeEvents.js"; // TASKS.csv #2317
-import { applyRowFilter, defaultRowFilter } from "../../lib/importRowFilter.js"; // TASKS.csv #2330
+import { applyRowFilter, defaultRowFilter, overlapSummary, overlapWorthSaying } from "../../lib/importRowFilter.js"; // TASKS.csv #2330; overlap: #2391
 import { isNullSentinel, LAYER_META, TARGET_SCHEMAS, guessColumn, guessColumnExact, guessMapping, guessTargetFor, schemaSatisfied, num, replaceRowsByHole, keepDerivedPicks, isDerivedPick, replaceNote, EPSG_COL_ALIASES, diffCollarImport, mergeCollar, minMax, pickRankedCollarRows } from "../../lib/layers.js";
 import { alterationStyleFromName, styledAltValue, isBlankCode } from "../../lib/viewer/importHelpers.js"; // TASKS.csv #1511; isBlankCode: #2182
 import { fillDownHoleIds, numberedSiblings, allCodesOf, normInterval, applyCustomFields, normNumericInterval, normStructure, skippedRowsText, strikeStats, loadRaster, looksLikeAssay, isSurfaceSampleTable, looksLikeSurfaceSamples /* #2268 */, parseVectorFile, groupShapefileParts, orderImportFiles } from "../../lib/viewer/importHelpers.js"; // groupShapefileParts / orderImportFiles: #600
@@ -260,6 +260,11 @@ export function useImportPipeline(ctx) {
     // TASKS.csv #2330 — the row filter: the user's, else a Superseded / Current flag column's preset (also on a drop committed unseen)
     const rowFilter = data.rowFilter !== undefined ? data.rowFilter : defaultRowFilter(Object.keys(allRowsIn?.[0] || {}).length ? Object.keys(allRowsIn[0]) : (data.headers || []), allRowsIn);
     const { rows: allRows, dropped: rowsFiltered } = applyRowFilter(allRowsIn, rowFilter);
+    // TASKS.csv #2391 — an interval table whose rows overlap within a hole: say how many, and the column that probably marks the out-of-date ones
+    if (mapping?.hole_id && mapping?.from && mapping?.to && target !== "assays") {
+      const o = overlapSummary(allRows, { hole: mapping.hole_id, from: mapping.from, to: mapping.to }, Object.keys(allRows?.[0] || {}));
+      if (overlapWorthSaying(o) && o.col) setNotices((p) => [...p, notice("{fileName}: {n} of {total} interval(s) overlap another of the same hole, in {holes} hole(s); {pct}% of them have {col} = {value}, which may mark the out-of-date rows: the import's row filter can leave them out.", { fileName, n: o.n.toLocaleString(), total: o.total.toLocaleString(), holes: o.holes, pct: Math.round(o.share * 100), col: o.col, value: o.value || "(blank)" })]);
+    }
     if (rowsFiltered) setNotices((p) => [...p, notice("{fileName}: {n} row(s) left out by the row filter ({col} kept only where it is {values}).", { fileName, n: rowsFiltered.toLocaleString(), col: rowFilter.col, values: rowFilter.keep.map((v) => v || "(blank)").join(", ") })]);
     // TASKS.csv #2159 — the mapped columns' no-data codes (-999, -999.25, -9999, -99999), read as missing by num(): counted and said once
     {

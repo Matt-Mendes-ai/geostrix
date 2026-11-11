@@ -9820,5 +9820,8 @@
   "Colour range to": "Rango de color hasta",
   "Blank: the 2nd-98th percentile; the data run {a} to {b}.": "En blanco: percentil 2 a 98; los datos van de {a} a {b}.",
   "auto (log over a decade)": "automática (log si abarca más de una década)",
-  "Number of colour classes": "Número de clases de color"
+  "Number of colour classes": "Número de clases de color",
+  "{n} of the file's {total} interval(s) overlap another of the same hole, in {holes} hole(s); {pct}% of them have {col} = {value}, which may mark the out-of-date rows: the dialog's row filter can leave them out.": "{n} de los {total} intervalos del archivo se superponen a otro del mismo sondaje, en {holes} sondaje(s); el {pct}% de ellos tiene {col} = {value}, lo que puede marcar las filas desactualizadas: el filtro de filas del diálogo puede dejarlas fuera.",
+  "{n} of the file's {total} interval(s) overlap another of the same hole, in {holes} hole(s); no column of the file marks them.": "{n} de los {total} intervalos del archivo se superponen a otro del mismo sondaje, en {holes} sondaje(s); ninguna columna del archivo los marca.",
+  "{fileName}: {n} of {total} interval(s) overlap another of the same hole, in {holes} hole(s); {pct}% of them have {col} = {value}, which may mark the out-of-date rows: the import's row filter can leave them out.": "{fileName}: {n} de {total} intervalos se superponen a otro del mismo sondaje, en {holes} sondaje(s); el {pct}% de ellos tiene {col} = {value}, lo que puede marcar las filas desactualizadas: el filtro de filas de la importación puede dejarlas fuera."
 }

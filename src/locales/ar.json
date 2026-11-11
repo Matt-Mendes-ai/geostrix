@@ -9820,5 +9820,8 @@
   "Colour range to": "مدى الألوان إلى",
   "Blank: the 2nd-98th percentile; the data run {a} to {b}.": "فارغ: المئين 2 إلى 98؛ تمتد البيانات من {a} إلى {b}.",
   "auto (log over a decade)": "تلقائي (لوغاريتمي فوق عقد)",
-  "Number of colour classes": "عدد فئات الألوان"
+  "Number of colour classes": "عدد فئات الألوان",
+  "{n} of the file's {total} interval(s) overlap another of the same hole, in {holes} hole(s); {pct}% of them have {col} = {value}, which may mark the out-of-date rows: the dialog's row filter can leave them out.": "{n} من فواصل الملف البالغة {total} تتداخل مع فاصل آخر في البئر نفسه، في {holes} بئر؛ لدى {pct}% منها {col} = {value}، وقد يدل ذلك على الصفوف القديمة: يمكن لمرشح الصفوف في الحوار استبعادها.",
+  "{n} of the file's {total} interval(s) overlap another of the same hole, in {holes} hole(s); no column of the file marks them.": "{n} من فواصل الملف البالغة {total} تتداخل مع فاصل آخر في البئر نفسه، في {holes} بئر؛ ولا يوجد عمود في الملف يميزها.",
+  "{fileName}: {n} of {total} interval(s) overlap another of the same hole, in {holes} hole(s); {pct}% of them have {col} = {value}, which may mark the out-of-date rows: the import's row filter can leave them out.": "{fileName}: {n} من {total} فاصل تتداخل مع فاصل آخر في البئر نفسه، في {holes} بئر؛ لدى {pct}% منها {col} = {value}، وقد يدل ذلك على الصفوف القديمة: يمكن لمرشح صفوف الاستيراد استبعادها."
 }
