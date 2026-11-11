@@ -13,6 +13,7 @@ import { samplePointsFromIntervals, MAX_BLOCKS, ESTIMATION_METHODS, SUPPORT_COLO
 import { BLOCK_MODEL_BUDGETS, MAX_BLOCK_MODEL_BUDGET, blockModelBudgetNote, cellToFit, blockModelLattice, snapBoundsToLattice, overlapBox } from "../lib/estimationMeta.js"; // TASKS.csv #626; block-model budgets: #661
 import { runEstimation } from "../lib/estimationClient.js"; // TASKS.csv #520 — off the UI thread
 import { makeReachClient } from "../lib/blockReachClient.js"; // TASKS.csv #1416; in a worker: #1579
+import { verticalReach } from "../lib/blockReach.js"; // TASKS.csv #2422 — a flat trend's vertical reach, as the estimator counts it
 import { desurveyHole } from "../lib/desurvey.js";
 import { gradeStops } from "../lib/inversion.js"; // TASKS.csv #702
 import { LAYER_META } from "../lib/layers.js";
@@ -304,8 +305,21 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
   const reachClient = useRef(null);
   if (!reachClient.current) reachClient.current = makeReachClient();
   useEffect(() => () => reachClient.current?.stop(), []);
-  const reachArgs = traceBounds?.traces?.length && reachRadius && bounds ? { traces: traceBounds.traces, bounds: { xmin: bounds.xmin, xmax: bounds.xmax, ymin: bounds.ymin, ymax: bounds.ymax, zmin: bounds.zmin, zmax: bounds.zmax }, cell3: { dx: cell3.dx, dy: cell3.dy, dz: cell3.dz }, radius: reachRadius, rz: flatTrend ? flatReach : null, fixedDz: cellHeight > 0 && !matched ? cellHeight : null /* #2418 */, budget: blockBudget, maxBudget: MAX_BLOCK_MODEL_BUDGET, from: cellSize, fitAllowed: !matched } : null;
-  const reachKey = reachArgs ? JSON.stringify([reachArgs.bounds, reachArgs.cell3, reachRadius, reachArgs.rz, reachArgs.fixedDz, blockBudget, cellSize, !!matched, traceBounds.traces.length]) : null;
+  // TASKS.csv #2422 (review #2325) — the count is of the blocks the run can fill: a structural trend whose short axis is vertical reaches
+  // only radius / minor up and down (the estimator's own verticalReach), and with 'Restrict to a modelled volume' only the samples
+  // inside the solid inform the run, so only the trace parts inside it count (lib/reachSolid.js, in the reach worker). A flat search
+  // typed here (#2418) keeps its vertical reach.
+  const reachRz = flatTrend ? flatReach : modelTrend && reachRadius ? verticalReach(reachRadius, { basis: trendBasis(modelTrend), scales: trendSearchScales(modelTrend) }) : null;
+  const solidCache = useRef({ key: null, closed: false });
+  const reachSolid = (() => {
+    const sh = shellId ? (volumeShells || []).find((v) => v.id === shellId) : null;
+    if (!sh?.positions || !sh?.indices) return null;
+    const key = `${sh.id}:${sh.positions.length}:${sh.indices.length}`; // the parent rebuilds the arrays every render: a stable key
+    if (solidCache.current.key !== key) solidCache.current = { key, closed: !!isMeshClosed(sh.positions, sh.indices)?.closed };
+    return solidCache.current.closed ? { key, positions: sh.positions, indices: sh.indices, name: sh.name } : null; // an open mesh is refused at Run
+  })();
+  const reachArgs = traceBounds?.traces?.length && reachRadius && bounds ? { traces: traceBounds.traces, bounds: { xmin: bounds.xmin, xmax: bounds.xmax, ymin: bounds.ymin, ymax: bounds.ymax, zmin: bounds.zmin, zmax: bounds.zmax }, cell3: { dx: cell3.dx, dy: cell3.dy, dz: cell3.dz }, radius: reachRadius, rz: reachRz, ...(reachSolid ? { solid: reachSolid } : {}) /* #2422 */, fixedDz: cellHeight > 0 && !matched ? cellHeight : null /* #2418 */, budget: blockBudget, maxBudget: MAX_BLOCK_MODEL_BUDGET, from: cellSize, fitAllowed: !matched } : null;
+  const reachKey = reachArgs ? JSON.stringify([reachArgs.bounds, reachArgs.cell3, reachRadius, reachArgs.rz, reachSolid?.key ?? null, reachArgs.fixedDz, blockBudget, cellSize, !!matched, traceBounds.traces.length]) : null;
   const [reachState, setReachState] = useState(null); // { key, reach, tooBig, fitCell, fitCellMax }
   useEffect(() => {
     if (!reachArgs) return undefined;
@@ -353,7 +367,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
     let live = true;
     const done = (c) => { if (live && c && c !== cellSize) { setAutoCell(c); setCellSize(c); } };
     if (!reachArgs) { done(cellToFit(bounds, blockBudget, 10)); return undefined; } // #1416 — 10 m when its blocks in reach fit
-    const { promise } = reachClient.current.request({ ...reachArgs, fitAllowed: false, fit10: true });
+    const { promise } = reachClient.current.request({ ...reachArgs, fitAllowed: false, fit10: true }, "fit10"); // #2636: its own channel, so the count is not dropped
     promise.then((r) => done(r.fit10)).catch(() => {});
     return () => { live = false; };
   }, [shellBox, areaBox, checkedBounds]); // #1570: any change of the box's source
@@ -804,7 +818,11 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
           </label>
           {gridPreview && (
             <div style={{ fontSize: "var(--font-size-sm)", color: overLimit ? "var(--color-danger-icon-strong)" : "var(--color-text-muted)" }}>{tr("Grid: {nx} × {ny} × {nz} = {totalBlocksPreview} blocks{v}", { nx: gridPreview.nx, ny: gridPreview.ny, nz: gridPreview.nz, totalBlocksPreview: totalBlocksPreview.toLocaleString(),
-              v: (reachPending ? tr(", counting the blocks within {r} m of the drilling…", { r: reachRadius }) : reach && blocksInReach < totalBlocksPreview ? tr(", {n} within {r} m of the drilling (only those can be estimated, and only those count)", { n: Number.isFinite(blocksInReach) ? blocksInReach.toLocaleString() : "?", r: reachRadius }) : "") + (overLimit ? tr(" — over the {blockBudget}-block budget.", { blockBudget: blockBudget.toLocaleString() }) : "") })}
+              v: (reachPending ? (reachSolid || reachRz ? tr(", counting the blocks within reach of the drilling…") : tr(", counting the blocks within {r} m of the drilling…", { r: reachRadius }))
+                : reach && blocksInReach < totalBlocksPreview ? (reachSolid /* #2422: the trace parts inside the solid, the search shaped by the trend */
+                  ? tr(", {n} within reach of the drilling inside \"{name}\" (only those can be estimated, and only those count)", { n: Number.isFinite(blocksInReach) ? blocksInReach.toLocaleString() : "?", name: reachSolid.name })
+                  : reachRz ? tr(", {n} within reach of the drilling (only those can be estimated, and only those count)", { n: Number.isFinite(blocksInReach) ? blocksInReach.toLocaleString() : "?" })
+                  : tr(", {n} within {r} m of the drilling (only those can be estimated, and only those count)", { n: Number.isFinite(blocksInReach) ? blocksInReach.toLocaleString() : "?", r: reachRadius })) : "") + (overLimit ? tr(" — over the {blockBudget}-block budget.", { blockBudget: blockBudget.toLocaleString() }) : "") })}
               {overLimit && (
                 <span style={{ display: "inline-flex", gap: 6, marginLeft: 6, flexWrap: "wrap" }}>
                   {Number.isFinite(fitCell) && fitCell > 0 && <button type="button" onClick={() => { cellTouched.current = true; setCellSize(fitCell); }} style={{ ...btn(false), padding: "2px 8px" }}>{tr("Use {fitCell} m blocks", { fitCell })}</button>}
