@@ -11,5 +11,5 @@ test("the zone row prints the point handed over, and an artificially closed unit
   assert.match(p, /onPlanTo\(z\.target \|\| z\.centre\)/);
   assert.match(p, /\{\(unit\?\.closure === "artificial" \|\| unit\?\.params\?\.closure === "artificial"\) && <div/); // the solids carry it in params
   // the cover default from the drilling stays (#2452)
-  assert.match(p, /useState\(\(\) => defaultCoverM\(siteSpacing\)\)/);
+  assert.match(p, /useState\(\(\) => was\?\.coverM \?\? defaultCoverM\(siteSpacing\)\)/ /* #1732: a restored result\'s own cover first */);
 });

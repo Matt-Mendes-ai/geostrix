@@ -17,6 +17,6 @@ test("on a 77 m x 200 m grid the spacing is 77 m and the cover 40 m; the pane st
   for (let l = 0; l < 4; l++) for (let k = 0; k < 10; k++) collars.push({ x: k * 77, y: l * 200 });
   assert.equal(medianSiteSpacing(collars), 77);
   const s = readFileSync(new URL("../src/components/UndrilledZonesPane.jsx", import.meta.url), "utf8");
-  assert.match(s, /useState\(\(\) => defaultCoverM\(siteSpacing\)\)/);
+  assert.match(s, /useState\(\(\) => was\?\.coverM \?\? defaultCoverM\(siteSpacing\)\)/ /* #1732: a restored result\'s own cover first */);
   assert.match(s, /Drill sites are typically \{s\} m apart/);
 });
