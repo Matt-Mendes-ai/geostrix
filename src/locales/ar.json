@@ -8523,6 +8523,8 @@
   "{pct} % of the samples hold 10 % Ca or more (carbonate rock): this diagram assumes a volcanic protolith, so read it with care here.": "{pct} % من العينات تحتوي على 10 % كالسيوم أو أكثر (صخر كربوناتي): يفترض هذا المخطط أصلًا بركانيًا، فاقرأه بحذر هنا.",
   "The log reads {lo} to {hi}, median {med}: most likely {unit}.": "يتراوح السجل بين {lo} و{hi}، والوسيط {med}: الأرجح أن الوحدة {unit}.",
   "In {unit} the log reaches {v} SI, more than any rock (about {max} SI): check the unit.": "بوحدة {unit} يصل السجل إلى {v} SI، أكثر من أي صخر (نحو {max} SI): تحقق من الوحدة.",
+  "{n} reading(s) are below 0 (down to {min}): a meter's noise or drift, not a rock. They constrain their cells as read; remove them from the log if they should not.": "{n} قراءة أقل من 0 (حتى {min}): ضوضاء الجهاز أو انجرافه، لا صخر. تقيّد خلاياها كما قُرئت؛ احذفها من السجل إن لم يكن ينبغي ذلك.",
+  "{n} reading(s) are more than {x} times the median (up to {max}): check them before they constrain their cells.": "{n} قراءة تزيد على {x} ضعف الوسيط (حتى {max}): تحقّق منها قبل أن تقيّد خلاياها.",
   "Import a point survey (CSV)…": "استيراد مسح نقطي (CSV)…",
   "A DC / IP line comes in through \"Import line (CSV / .dat)…\" in the sidebar: a CSV, or a contractor TDIP .dat / .ipg file.": "يُستورد خط DC / IP عبر \"استيراد خط (CSV / .dat)…\" في الشريط الجانبي: ملف CSV أو ملف TDIP بصيغة .dat / .ipg من المقاول.",
   "Not read yet:": "غير مقروء بعد:",

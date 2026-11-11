@@ -8523,6 +8523,8 @@
   "{pct} % of the samples hold 10 % Ca or more (carbonate rock): this diagram assumes a volcanic protolith, so read it with care here.": "{pct} % das amostras têm 10 % de Ca ou mais (rocha carbonática): este diagrama supõe um protólito vulcânico, então leia-o com cuidado aqui.",
   "The log reads {lo} to {hi}, median {med}: most likely {unit}.": "O perfil vai de {lo} a {hi}, mediana {med}: o mais provável é {unit}.",
   "In {unit} the log reaches {v} SI, more than any rock (about {max} SI): check the unit.": "Em {unit} o perfil chega a {v} SI, mais do que qualquer rocha (cerca de {max} SI): verifique a unidade.",
+  "{n} reading(s) are below 0 (down to {min}): a meter's noise or drift, not a rock. They constrain their cells as read; remove them from the log if they should not.": "{n} leitura(s) estão abaixo de 0 (até {min}): ruído ou deriva do medidor, não uma rocha. Elas restringem suas células como lidas; remova-as do perfil se não deveriam.",
+  "{n} reading(s) are more than {x} times the median (up to {max}): check them before they constrain their cells.": "{n} leitura(s) são mais de {x} vezes a mediana (até {max}): verifique-as antes que restrinjam suas células.",
   "Import a point survey (CSV)…": "Importar um levantamento de pontos (CSV)…",
   "A DC / IP line comes in through \"Import line (CSV / .dat)…\" in the sidebar: a CSV, or a contractor TDIP .dat / .ipg file.": "Uma linha DC / IP entra por \"Importar linha (CSV / .dat)…\" na barra lateral: um CSV ou um arquivo TDIP .dat / .ipg do contratado.",
   "Not read yet:": "Ainda não lido:",

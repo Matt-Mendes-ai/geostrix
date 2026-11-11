@@ -29,7 +29,7 @@ import {
 import { subscribeInversionJob, startInversionJob, cancelInversionJob } from "../lib/inversionJobs.js";
 import { orientationAt } from "../lib/mapLayers.js";
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
-import { constraintSamples, SUSC_UNITS, suscUnitHint, PHYSICAL_MAX_SI } from "../lib/drillholeConstraints.js"; // TASKS.csv #323; suscUnitHint: #1435
+import { constraintSamples, SUSC_UNITS, suscUnitHint, PHYSICAL_MAX_SI, EXTREME_X } from "../lib/drillholeConstraints.js"; // TASKS.csv #323; suscUnitHint: #1435; EXTREME_X: #1713
 import { categoricalModels, modelUnits, unitMedians, modelBody } from "../lib/geologyForward.js"; // TASKS.csv #760
 import { t as tr } from "../lib/i18n.js";
 import { downholeLikeness } from "../lib/downholeLikeness.js"; // TASKS.csv #1709 // TASKS.csv #786
@@ -653,6 +653,9 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
                       {SUSC_UNITS[dh.units] && suscHint.max * SUSC_UNITS[dh.units].factor > PHYSICAL_MAX_SI && (
                         <div style={{ color: "var(--color-danger-icon-strong)" }}>{tr("In {unit} the log reaches {v} SI, more than any rock (about {max} SI): check the unit.", { unit: SUSC_UNITS[dh.units].label, v: +(suscHint.max * SUSC_UNITS[dh.units].factor).toPrecision(3), max: PHYSICAL_MAX_SI })}</div>
                       )}
+                      {/* TASKS.csv #1713 — what goes into the constraint as read */}
+                      {suscHint.negative && <div style={{ color: "var(--color-warn-text)" }}>{tr("{n} reading(s) are below 0 (down to {min}): a meter's noise or drift, not a rock. They constrain their cells as read; remove them from the log if they should not.", { n: suscHint.negative.n.toLocaleString(), min: +suscHint.negative.min.toPrecision(3) })}</div>}
+                      {suscHint.extreme && <div style={{ color: "var(--color-warn-text)" }}>{tr("{n} reading(s) are more than {x} times the median (up to {max}): check them before they constrain their cells.", { n: suscHint.extreme.n.toLocaleString(), x: EXTREME_X, max: +suscHint.extreme.max.toPrecision(3) })}</div>}
                     </div>
                   )}
                   {method === "grav" && (
