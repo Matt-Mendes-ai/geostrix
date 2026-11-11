@@ -895,7 +895,14 @@ export function replaceRowsByHole(prev, incoming, keepRows = null) {
     }
     replacedHoles.add(r.hole_id);
   });
-  return { rows: [...kept, ...incoming], replacedHoles: [...replacedHoles], appendedHoles: [...appendedHoles] };
+  // TASKS.csv #2191 (review #2174) — a byte-identical re-import was told as 'replaced 216 holes' and 'extended 16': a hole whose rows equal the
+  // ones it had (every field but the internal _ ones) is reported as identical, neither replaced nor extended
+  const sig = (r) => JSON.stringify(Object.keys(r).filter((k) => !k.startsWith("_")).sort().map((k) => [k, r[k]]));
+  const byHole = (rows) => { const m = new Map(); for (const r of rows) (m.get(r.hole_id) || m.set(r.hole_id, []).get(r.hole_id)).push(sig(r)); return m; };
+  const oldBy = byHole((prev || []).filter((r) => incomingHoles.has(r.hole_id) && !keepRows?.has(r))), newBy = byHole(incoming);
+  const identicalHoles = [...replacedHoles, ...appendedHoles].filter((h) => { const a = oldBy.get(h), b = newBy.get(h); return a && b && a.length === b.length && a.slice().sort().join("\u0001") === b.slice().sort().join("\u0001"); });
+  const same = new Set(identicalHoles);
+  return { rows: [...kept, ...incoming], replacedHoles: [...replacedHoles].filter((h) => !same.has(h)), appendedHoles: [...appendedHoles].filter((h) => !same.has(h)), identicalHoles };
 }
 // TASKS.csv #1234 — a structure pick worked out in the app (with its calibration provenance, #429) is not "the earlier file" a new file
 // replaces. Wraps the keep set replaceRowsByHole takes.
@@ -905,7 +912,8 @@ const holeList = (hs) => `${hs.length} hole(s) (${hs.slice(0, 6).join(", ")}${hs
 // the import notice's sentence about what happened to holes that were already loaded
 export function replaceNote(res, what) {
   return (res.replacedHoles.length ? tr(" Replaced the earlier {what} of {v} — Ctrl+Z to undo.", { what, v: holeList(res.replacedHoles) }) : "")
-    + (res.appendedHoles?.length ? tr(" Added below the existing {what} of {v} (the file starts at or below where they end, so it was read as an extension) — Ctrl+Z to undo.", { what, v: holeList(res.appendedHoles) }) : "");
+    + (res.appendedHoles?.length ? tr(" Added below the existing {what} of {v} (the file starts at or below where they end, so it was read as an extension) — Ctrl+Z to undo.", { what, v: holeList(res.appendedHoles) }) : "")
+    + (res.identicalHoles?.length ? tr(" The {what} of {v} was identical to the one already loaded: nothing changed there.", { what, v: holeList(res.identicalHoles) }) : ""); // #2191
 }
 
 // TASKS.csv #426 — one place that turns (target, headers) into a first-guess mapping. For structure

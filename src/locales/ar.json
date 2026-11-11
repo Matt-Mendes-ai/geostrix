@@ -10046,5 +10046,7 @@
   "The map is an online basemap ({layer}): its tiles load from the internet as you look around. Nothing is fetched for the project until you press {confirm}.": "الخريطة خريطة أساس على الإنترنت ({layer}): تُحمَّل بلاطاتها من الإنترنت أثناء التنقل. لا يُنزَّل شيء للمشروع حتى تضغط {confirm}.",
   "The map is an online basemap ({layer}): its tiles load from the internet as you look around.": "الخريطة خريطة أساس على الإنترنت ({layer}): تُحمَّل بلاطاتها من الإنترنت أثناء التنقل.",
   "{field}: no column matched; the names looked for are {names}.": "{field}: لم يطابق أي عمود؛ الأسماء التي بُحث عنها هي {names}.",
-  "{n} row(s) shared a hole id with an earlier row of the file; the first was kept ({ids})": "شارك {n} صف معرّف ثقب مع صف سابق في الملف؛ احتُفظ بالأول ({ids})"
+  "{n} row(s) shared a hole id with an earlier row of the file; the first was kept ({ids})": "شارك {n} صف معرّف ثقب مع صف سابق في الملف؛ احتُفظ بالأول ({ids})",
+  "{fileName}: {n} pick(s) have an alpha angle and no beta: kept unoriented (the stereonet counts them; the core orientation calculator can orient them from a reference).": "{fileName}: لدى {n} بنية زاوية ألفا دون بيتا: احتُفظ بها دون توجيه (يعدّها المسقط المجسّم؛ ويمكن لحاسبة توجيه اللباب توجيهها من مرجع).",
+  " The {what} of {v} was identical to the one already loaded: nothing changed there.": " كان {what} في {v} مطابقًا لما حُمِّل من قبل: لم يتغير شيء هناك."
 }

@@ -10046,5 +10046,7 @@
   "The map is an online basemap ({layer}): its tiles load from the internet as you look around. Nothing is fetched for the project until you press {confirm}.": "La carte est un fond de carte en ligne ({layer}) : ses tuiles se chargent depuis Internet au fil de la navigation. Rien n'est téléchargé pour le projet avant d'appuyer sur {confirm}.",
   "The map is an online basemap ({layer}): its tiles load from the internet as you look around.": "La carte est un fond de carte en ligne ({layer}) : ses tuiles se chargent depuis Internet au fil de la navigation.",
   "{field}: no column matched; the names looked for are {names}.": "{field} : aucune colonne ne correspond ; les noms recherchés sont {names}.",
-  "{n} row(s) shared a hole id with an earlier row of the file; the first was kept ({ids})": "{n} ligne(s) partageaient un ID de sondage avec une ligne précédente du fichier ; la première a été gardée ({ids})"
+  "{n} row(s) shared a hole id with an earlier row of the file; the first was kept ({ids})": "{n} ligne(s) partageaient un ID de sondage avec une ligne précédente du fichier ; la première a été gardée ({ids})",
+  "{fileName}: {n} pick(s) have an alpha angle and no beta: kept unoriented (the stereonet counts them; the core orientation calculator can orient them from a reference).": "{fileName} : {n} structure(s) ont un angle alpha et pas de bêta : gardées non orientées (le stéréogramme les compte ; le calculateur d'orientation de carotte peut les orienter à partir d'une référence).",
+  " The {what} of {v} was identical to the one already loaded: nothing changed there.": " Le {what} de {v} était identique à celui déjà chargé : rien n'a changé là."
 }

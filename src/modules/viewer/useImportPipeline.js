@@ -30,6 +30,7 @@ import { askAdoptCrs } from "../../lib/adoptCrs.js"; // TASKS.csv #607
 import { requestProjectCrs } from "../../lib/projectCrsRequest.js"; // TASKS.csv #615
 import { collarAlwaysKept, firstPerHole } from "../../lib/collarAttrs.js"; // TASKS.csv #2492 / #2190; firstPerHole: #2172
 import { surveyMethodKey, surveyMethodByHole, foldCaseVariants } from "../../lib/surveyMethod.js"; // TASKS.csv #2494
+import { fullestTypeColumn } from "../../lib/downholeTableGuess.js"; // TASKS.csv #2188
 import { holeTypeColumn, normalizeHoleType } from "../../lib/holeType.js"; // TASKS.csv #2161
 import { eventNotes } from "../../lib/downholeEvents.js"; // TASKS.csv #2317
 import { applyRowFilter, defaultRowFilter, overlapSummary, overlapWorthSaying } from "../../lib/importRowFilter.js"; // TASKS.csv #2330; overlap: #2391
@@ -254,7 +255,7 @@ export function useImportPipeline(ctx) {
   };
   const azRefFor = (target, headers, rows) => { const d = AZ_TARGETS.has(target) ? detectAzimuthRef(headers, rows) : null; return d?.ref ? { azimuthRef: d.ref, azimuthRefFrom: d.col, ...(d.also ? { azimuthRefAlso: d.also } : {}) } : {}; }; // also: #2154
   // TASKS.csv #2015 — a survey sheet's corrected azimuth column (grid when filled, else true north) is the one read
-  const azColFor = (target, headers, rows, mapping) => { if (target !== "survey" && target !== "collars") return mapping; /* collars: #2154 (Azimuth_MAG beside Azimuth_TRUE) */ const d = detectAzimuthRef(headers, rows); return d?.azimuthCol ? { ...mapping, azimuth: d.azimuthCol } : mapping; };
+  const azColFor = (target, headers, rows, mapping) => { if (target === "structure" && mapping?.value) return { ...mapping, value: fullestTypeColumn(headers, rows, mapping.value) }; /* #2188 — the fullest of several *_StrucType columns */ if (target !== "survey" && target !== "collars") return mapping; /* collars: #2154 (Azimuth_MAG beside Azimuth_TRUE) */ const d = detectAzimuthRef(headers, rows); return d?.azimuthCol ? { ...mapping, azimuth: d.azimuthCol } : mapping; };
   const commitImportData = (data) => {
     const { target, mapping, allRows: allRowsIn, dipConvention, fileName: shownName, sourceEpsg, perRowEpsgCol, customFields, azimuthRef, azimuthDate, betaRefLine, azimuthGridEpsg, unseen = false, dbSource = null, reload = null } = data; // dbSource, reload: #1963 (reload: an object the collar diff is written to; no overwrite question)
     // TASKS.csv #1506 (review #1497) — the dialog's title carries the drop's queue count ("Min Domain.csv (10 more queued)"), and it
@@ -626,6 +627,9 @@ export function useImportPipeline(ctx) {
       }
       const azst0 = applyAzimuthRef(structRows.filter((r) => !r._abGrid), liveCollarAt); // #396
       const azst = { rows: [...azst0.rows, ...structRows.filter((r) => r._abGrid).map(({ _abGrid, ...r }) => r)], note: azst0.note };
+      // TASKS.csv #2188 — picks with an alpha and no beta are kept unoriented: counted with the others (they were silent)
+      const alphaOnly = mapping.alpha ? structRows.filter((r) => Number.isFinite(r.alpha) && !Number.isFinite(r.beta) && !(Number.isFinite(r.dip) && Number.isFinite(r.azimuth))).length : 0;
+      if (alphaOnly) setNotices((p) => [...p, notice("{fileName}: {n} pick(s) have an alpha angle and no beta: kept unoriented (the stereonet counts them; the core orientation calculator can orient them from a reference).", { fileName, n: alphaOnly })]);
       if (abDone || abFailed.length) setNotices((p) => [...p, notice("{fileName}: {abDone} pick(s) oriented from alpha/beta using each hole's survey, beta measured clockwise from the {v}-of-hole line looking down-hole{v2}.{v3}", { fileName, abDone, v: betaRefLine === "top" ? tr("top") : tr("bottom"), v2: unseen ? tr(" (assumed: the file was imported without the dialog; import it through Import CSV to choose the top-of-hole line)") : "", v3: abFailed.length ? tr(" {abFailed} could not be oriented and are shown as unoriented: {v}{v2}.", { abFailed: abFailed.length, v: abFailed.slice(0, 5).join("; "), v2: abFailed.length > 5 ? "; …" : "" }) : "" })]);
       const rows = azst.rows;
       if (azst.note) setNotices((p) => [...p, `${fileName}:${azst.note}`]);
