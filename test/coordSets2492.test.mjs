@@ -54,6 +54,6 @@ test("the dialog shows the note for collars; the commit keeps the other set and 
   assert.match(n, /if \(modal\.target !== "collars"\) return null;/);
   assert.match(n, /!project\?\.crsSet \|\| !isUtmLikeEpsg\(project\.epsg\) \|\| modal\.localGridOn/);
   const u = readFileSync(new URL("../src/modules/viewer/useImportPipeline.js", import.meta.url), "utf8");
-  assert.match(u, /for \(const c of unusedSetColumns\(collarHdrs, attrMapping\)\) if \(!attrCols\.includes\(c\)\) attrCols\.push\(c\);/);
+  assert.match(u, /for \(const c of collarAlwaysKept\(collarHdrs, attrMapping\)\) if \(!attrCols\.includes\(c\)\) attrCols\.push\(c\);/); // #2190 widened it to dates
   assert.match(u, /column\(s\) not imported, each with more than 100 different values/);
 });

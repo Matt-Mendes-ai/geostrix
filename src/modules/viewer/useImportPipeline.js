@@ -27,7 +27,7 @@ const isXlsxName = (name) => /\.xlsx$/i.test(String(name || "")); // TASKS.csv #
 import { buildLayer, sameMapLayer } from "../../lib/mapLayerBuild.js"; // TASKS.csv #609; sameMapLayer: #2019
 import { askAdoptCrs } from "../../lib/adoptCrs.js"; // TASKS.csv #607
 import { requestProjectCrs } from "../../lib/projectCrsRequest.js"; // TASKS.csv #615
-import { unusedSetColumns } from "../../lib/coordSets.js"; // TASKS.csv #2492
+import { collarAlwaysKept } from "../../lib/collarAttrs.js"; // TASKS.csv #2492 / #2190
 import { holeTypeColumn, normalizeHoleType } from "../../lib/holeType.js"; // TASKS.csv #2161
 import { eventNotes } from "../../lib/downholeEvents.js"; // TASKS.csv #2317
 import { applyRowFilter, defaultRowFilter, overlapSummary, overlapWorthSaying } from "../../lib/importRowFilter.js"; // TASKS.csv #2330; overlap: #2391
@@ -360,7 +360,7 @@ export function useImportPipeline(ctx) {
       const attrCols = surfaceAttrColumns(collarHdrs, ranked.rows, attrMapping);
       // TASKS.csv #2492 — a second set of coordinate columns (GBMG_East / GBMG_North / GBMG_RL beside the MGA ones used) is kept with each
       // hole whatever its number of distinct values; the columns still left out are named in the notice (#2190: STARTDATE, ENDDATE)
-      for (const c of unusedSetColumns(collarHdrs, attrMapping)) if (!attrCols.includes(c)) attrCols.push(c);
+      for (const c of collarAlwaysKept(collarHdrs, attrMapping)) if (!attrCols.includes(c)) attrCols.push(c); // and date columns: #2190
       const notKept = collarHdrs.filter((h) => h && !attrCols.includes(h) && !Object.values(attrMapping).includes(h) && ranked.rows.some((r) => String(r[h] ?? "").trim() !== ""));
       // TASKS.csv #2161 — the drilling method normalized ("hole type": RC, Diamond (DD), RC + diamond tail, Aircore (AC), RAB...) beside the file's own column
       const htCol = holeTypeColumn(allRows.length ? Object.keys(allRows[0]) : []);
