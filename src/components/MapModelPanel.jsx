@@ -112,12 +112,15 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
     const ok = (m) => [m.dip, m.dipDir].every(Number.isFinite) && Number.isFinite(groundAt(m.x, m.y));
     return { beds: bedding.filter(ok).length, planes: planes.filter(ok).length };
   }, [bedding, planes, groundAt]);
-  const noOrient = orientCount && orientCount.beds + orientCount.planes === 0;
   const [codeEdit, setCodeEdit] = useState({});
   const codeUnit = useMemo(() => ({ ...suggestCodeUnits(codes.map((c) => c.code), mapUnits), ...codeEdit }), [codes, mapUnits, codeEdit]);
   const [useHolesChoice, setUseHoles] = useState(null);
   const useHoles = useHolesChoice ?? Object.values(codeUnit).some(Boolean); // on when a code matches a unit
   const holePreview = useMemo(() => (useHoles && lithoRows?.length ? holeContacts(lithoRows, codeUnit, (u) => order.includes(u)) : null), [useHoles, lithoRows, codeUnit, order]);
+  // TASKS.csv #2409 — no outcrop orientation but logged contacts in use: the run fits one per top from its contact points
+  const outcropNone = orientCount && orientCount.beds + orientCount.planes === 0;
+  const holeFit = outcropNone && (holePreview?.contacts?.length || 0) >= 3;
+  const noOrient = outcropNone && !holeFit;
   const orderCheck = useMemo(() => (holePreview?.contacts?.length ? contactsAgainstOrder(holePreview.contacts, order) : null), [holePreview, order]); // #2408
   // TASKS.csv #1718 (review #1645, Copley) — on a drilled prospect, say that the holes are not used here and where they are
   const holesNote = holeCount > 0 ? <div className="ge-holes-note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 8, lineHeight: 1.4 }}>{tr("This tool builds from the map and the outcrop measurements only: the {n} drillhole(s) are not used. To fit the logged contacts and the mapped ones together, use Explicit surface: its \"From the geological map\" section adds the map contacts to the hole picks.", { n: holeCount })}</div> : null;
@@ -219,6 +222,8 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
         disabled={busy || !groundAt || order.length < 2 || noOrient} style={{ ...pBtn, justifyContent: "center", opacity: busy || !groundAt || order.length < 2 || noOrient ? 0.5 : 1 }}>
         {busy ? tr("Running…") : tr("Build the model (GemPy)")}
       </button>
+      {holeFit && <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 4, lineHeight: 1.4 }}>{tr("No outcrop orientation: each top will get one fitted from its logged contacts ({n} in use), a least-squares plane through its contact points.", { n: holePreview.contacts.length.toLocaleString() })}</div>}{/* #2409 */}
+      {noOrient && lithoRows?.length > 0 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 4, lineHeight: 1.4 }}>{tr("From drillholes alone: 3D Modelling > Stratigraphic stack or Implicit surface; or tick 'Use the drillholes' logged contacts' above with each code's unit.")}</div>}{/* #2409 */}
       {noOrient && <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginTop: 4, lineHeight: 1.4 }}>{allRows.length ? tr("No orientation to build from: none of the {n} outcrop measurement(s) is in a class ticked under 'Orientations from' ({other} are classed Other), and no contact dip could be fitted from the map traces on this terrain. Tick a class above, or give the type codes a class when importing them in Surface Geology.", { n: allRows.length.toLocaleString(), other: allRows.filter((r) => r.cls === "other").length.toLocaleString() }) /* #2266 */ : tr("No orientation to build from: no outcrop measurements, and no contact dip could be fitted from the map traces on this terrain (a contact needs enough relief along its trace). Import outcrop bedding or contact measurements in Surface Geology.")}</div>}{/* #1604 */}
       {/* TASKS.csv #821 — intrusions as bodies */}
       <div style={{ borderTop: "1px solid var(--color-border)", paddingTop: 6, marginTop: 6 }}>

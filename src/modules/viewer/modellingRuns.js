@@ -1537,10 +1537,14 @@ export function createModellingRuns(ctx, mcRef) {
     };
     const orientations = [...(p.bedding || []), ...(p.planes || [])].map((m) => ({ m, z: ground(m.x, m.y) })).filter(({ m, z }) => Number.isFinite(z) && [m.dip, m.dipDir].every(Number.isFinite))
       .map(({ m, z }) => ({ ...api(m.x, m.y, z), dip: m.dip, azimuth: m.dipDir, ...(breaks.size ? { pkg: mapOrientationPackage(m) } : {}) }));
-    if (!orientations.length) { setNotices((q) => [...q, notice("No orientations on the terrain: import outcrop measurements (bedding) or fetch a terrain that covers the map so contact dips can be fitted.")]); return; }
+    // TASKS.csv #2409 (review #2325, WA uranium) — a buried, flat deposit has no outcrop measurement: with logged contacts in use, each top gets
+    // an orientation fitted from its own contact points (a least-squares plane), instead of the run refusing
+    if (!orientations.length && holeN < 3) { setNotices((q) => [...q, notice("No orientations on the terrain: import outcrop measurements (bedding) or fetch a terrain that covers the map so contact dips can be fitted.")]); return; }
+    const fittedTops = [];
     const specs = [], empty = [];
     const surfPkg = new Map(surfacePackages(order.length, breaks).map((k, i) => [order[i], k])), estimatedIn = new Set(); // #1309
     const oriFor = (u, pts) => { // #1309 — this package's measurements; none: a dip from its own contact points, and the run says so
+      if (!orientations.length) { const e = estimateOrientationFromPoints(pts); fittedTops.push({ u, n: pts.length, dip: e.dip, az: e.azimuth }); return [e]; } // #2409
       if (!breaks.size) return orientations;
       const k = surfPkg.get(u), own = orientations.filter((q) => q.pkg === k);
       if (own.length) return own;
@@ -1553,6 +1557,7 @@ export function createModellingRuns(ctx, mcRef) {
       specs.push({ label: `Top of ${u}`, meshName: u, points: pts, orientations: oriFor(u, pts), ...(breaks.size ? { package: surfPkg.get(u) } : {}), color: colorForLithology(u), type: "stratigraphic_contact", codes: [u], params: { mapModel: { layer: p.layer.name, field: p.field, order, contactPoints: pts.length } } });
     });
     if (specs.length < 1) { setNotices((q) => [...q, notice("None of the units below the youngest one shares a contact with a unit above it on the map, so there is nothing to model. Check the order.")]); return; }
+    if (fittedTops.length) setNotices((q) => [...q, notice("No outcrop orientation: {n} orientation(s) fitted from the logged contacts, a least-squares plane through each top's contact points ({list}). A buried deposit with no bedding builds this way; outcrop measurements replace them.", { n: fittedTops.length, list: fittedTops.map((f) => `${f.u}: ${f.n} points, dip ${f.dip.toFixed(1)}° toward ${Math.round(f.az)}°`).join("; ") })]); // #2409
     const faultSpecs = (p.faults || []).map((f) => {
       const pts = thin(f.line, 25).map(([x, y]) => ({ x, y, z: ground(x, y) })).filter((q) => Number.isFinite(q.z));
       if (pts.length < 2 || !Number.isFinite(f.dip) || !Number.isFinite(f.dipDir)) return null;

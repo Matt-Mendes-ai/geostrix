@@ -9828,5 +9828,8 @@
   "Tick at least one channel to import.": "حدد قناة واحدة على الأقل للاستيراد.",
   "Import each ticked channel as its own survey:": "استورد كل قناة محددة كمسح مستقل:",
   "Also make the {list} ratio survey(s) from the same stations": "أنشئ أيضًا مسوح النسبة {list} من المحطات نفسها",
-  " As {k} survey(s): {list}.": " كـ {k} مسح: {list}."
+  " As {k} survey(s): {list}.": " كـ {k} مسح: {list}.",
+  "No outcrop orientation: {n} orientation(s) fitted from the logged contacts, a least-squares plane through each top's contact points ({list}). A buried deposit with no bedding builds this way; outcrop measurements replace them.": "لا يوجد اتجاه من المكاشف: {n} اتجاه مُوفَّق من التماسات المسجلة، مستوى بالمربعات الصغرى عبر نقاط تماس كل سطح ({list}). يُبنى الراسب المدفون بلا تطبق هكذا؛ وتحل قياسات المكاشف محلها.",
+  "No outcrop orientation: each top will get one fitted from its logged contacts ({n} in use), a least-squares plane through its contact points.": "لا يوجد اتجاه من المكاشف: سيحصل كل سطح على اتجاه مُوفَّق من تماساته المسجلة ({n} مستخدم)، مستوى بالمربعات الصغرى عبر نقاط تماسه.",
+  "From drillholes alone: 3D Modelling > Stratigraphic stack or Implicit surface; or tick 'Use the drillholes' logged contacts' above with each code's unit.": "من الآبار وحدها: النمذجة ثلاثية الأبعاد > العمود الطبقي أو السطح الضمني؛ أو حدد أعلاه «استخدم التماسات المسجلة للآبار» مع وحدة كل رمز."
 }
