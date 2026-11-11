@@ -339,7 +339,9 @@ export function posterior(layers, valid, N, ND, { countMask = null } = {}) {
 // of the cells): a score with few distinct values (98 % of the cells at exactly 0, or a binary posterior) jumps across the
 // line, and the point interpolated on the jump ("50 % in 50 % of the area, Nd 1.0") is one no threshold gives. Then
 // `point` is null and `step` holds the two thresholds either side, with Nd at the one nearer the line (`at`).
-export function predictionArea(score, D, valid, steps = 200, { maxJump = 0.05 } = {}) {
+// exactBelow: TASKS.csv #1730 (review #1645, Copley) — with fewer occurrence cells than this the crossing is taken ON a threshold (the nearer
+// side), never interpolated: 'fuzzy 76% in 24% of the area' came from 8 cells, where only multiples of 12.5 % exist; point.hits = the cells
+export function predictionArea(score, D, valid, steps = 200, { maxJump = 0.05, exactBelow = 10 } = {}) {
   // #1562 — typed arrays and a numeric sort (the comparator sort of ~198,000 plain numbers was most of this)
   const inD = cellMask(D, score.length);
   let nv = 0, nt = 0;
@@ -364,10 +366,11 @@ export function predictionArea(score, D, valid, steps = 200, { maxJump = 0.05 } 
     if (fa === 0) { point = { ...a }; break; }
     if (fb === 0) { point = { ...b }; break; }
     if (Math.abs(a.area - b.area) > maxJump) { const at = b.area > 0 && Math.abs(fb) < Math.abs(fa) ? "above" : "below", s = at === "above" ? b : a; step = { below: { ...a }, above: { ...b }, at, nd: s.area > 0 ? s.rate / s.area : NaN }; break; }
+    if (train.length < exactBelow) { point = { ...(Math.abs(fb) < Math.abs(fa) && b.area > 0 ? b : a) }; break; } // #1730 — on the step
     const u = fa / (fa - fb);
     point = { t: a.t + u * (b.t - a.t), area: a.area + u * (b.area - a.area), rate: a.rate + u * (b.rate - a.rate) }; break;
   }
-  if (point) point.nd = point.area > 0 ? point.rate / point.area : NaN;
+  if (point) { point.nd = point.area > 0 ? point.rate / point.area : NaN; point.hits = Math.round(point.rate * train.length); } // hits: #1730
   return { curve, point, step, nTrain: train.length, nCells: vals.length };
 }
 function lowerBound(sorted, t) { let lo = 0, hi = sorted.length; while (lo < hi) { const m = (lo + hi) >> 1; if (sorted[m] < t) lo = m + 1; else hi = m; } return lo; }

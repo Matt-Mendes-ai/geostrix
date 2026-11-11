@@ -521,7 +521,7 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
               ≥ <input type="number" step="any" value={training.min} onChange={(e) => setTraining((t) => ({ ...t, min: e.target.value }))} style={{ ...sel, width: 80 }} aria-label={tr("At least")} />
             </div>
           )}
-          {training.source !== "none" && <div style={note}>{tr("{n} occurrence points.", { n: trainingPoints.length })}{training.source === "collars" && pxrfAssays.length ? " " + tr("Lab assays only: the {n} pXRF readings are not occurrences.", { n: pxrfAssays.length.toLocaleString() }) : ""}{circular ? " " + tr("Circular: the same samples are evidence and occurrences, so the weights will flatter the evidence.") : ""}</div>}{/* pXRF: #1723 */}
+          {training.source !== "none" && <div style={note}>{tr(trainingPoints.length === 1 ? "{n} occurrence point." : "{n} occurrence points.", { n: trainingPoints.length }) /* #1734 */}{training.source === "collars" && pxrfAssays.length ? " " + tr("Lab assays only: the {n} pXRF readings are not occurrences.", { n: pxrfAssays.length.toLocaleString() }) : ""}{circular ? " " + tr("Circular: the same samples are evidence and occurrences, so the weights will flatter the evidence.") : ""}</div>}{/* pXRF: #1723 */}
         </div>
         <button type="button" style={{ ...pBtn, ...(grid && layers.length ? null : { opacity: 0.5, cursor: "default" }) }} onClick={compute} disabled={!grid || !layers.length}>{tr("Compute")}</button>
         {grid && !layers.length && sources.length > 0 && <div style={note}>{tr("Add at least one evidence from the list above, then Compute.")}</div>}
@@ -536,7 +536,7 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
         {result && (
           <>
             {result.blockers?.length > 0 && <div role="alert" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", lineHeight: 1.45 }}>{tr("{v} cells have every evidence, so the score is empty or nearly so. Fewest values: {list}. Combine with fuzzy OR or the algebraic sum (they skip a missing evidence), or remove those.", { v: result.nValid.toLocaleString(), list: result.blockers.map((b) => `${b.label} (${(b.coverage * 100).toFixed(b.coverage < 0.01 ? 2 : 1)}%)`).join(", ") })}</div>}{/* #2252 */}
-            <div style={note}>{tr("Fuzzy score on {v} of {n} cells (the rest lack an evidence).", { v: result.nValid.toLocaleString(), n: result.n.toLocaleString() })}{result.fewMisses ? " " + tr("{h} of the {n} drilled cells hold a hole over the cut-off: weights of evidence need at least 3 without one to weigh against.", { h: result.fewMisses.hits, n: result.fewMisses.drilled }) : ""}{result.fewPoints != null ? " " + tr("Only {k} occurrence cells: weights of evidence need at least 3.", { k: result.fewPoints }) : ""}</div>
+            <div style={note}>{tr("Fuzzy score on {v} of {n} cells (the rest lack evidence).", /* #1734 */ { v: result.nValid.toLocaleString(), n: result.n.toLocaleString() })}{result.fewMisses ? " " + tr("{h} of the {n} drilled cells hold a hole over the cut-off: weights of evidence need at least 3 without one to weigh against.", { h: result.fewMisses.hits, n: result.fewMisses.drilled }) : ""}{result.fewPoints != null ? " " + tr(result.fewPoints === 1 ? "Only {k} occurrence cell: weights of evidence need at least 3." : "Only {k} occurrence cells: weights of evidence need at least 3.", { k: result.fewPoints }) /* #1734 */ : ""}</div>
             {result.nValid > 0 && result.atMin / result.nValid > 0.5 && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("{p}% of the scored cells sit at the lowest score ({v}): an evidence's membership is at its floor there and the operator keeps the floor. The top cells are only those no evidence vetoed, not the most favourable. Turn on the 0.01–0.99 floor, widen the 0 = points, or combine with OR / algebraic sum.", { p: Math.round((100 * result.atMin) / result.nValid), v: fmt(result.minScore) })}</div>}{/* #1555 */}
             <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
               <button type="button" style={{ ...pBtn, opacity: result.nValid ? 1 : 0.5 }} disabled={!result.nValid} onClick={() => toMap("fuzzy")}>{tr("Fuzzy score → map")}</button>
@@ -631,9 +631,10 @@ function PAPlot({ fuzzy, post }) {
       </svg>
       <div style={note}>
         {tr("Solid: share of occurrences predicted; dashed: share of the area. Where they cross:")}{" "}
-        {pt1 && <span style={{ color: "#D55E00" }}>{tr("fuzzy {r}% in {a}% of the area (Nd {nd})", { r: (100 * pt1.rate).toFixed(0), a: (100 * pt1.area).toFixed(0), nd: pt1.nd.toFixed(1) })}</span>}
+        {/* TASKS.csv #1730 — under 10 occurrence cells: counts on the step, no Nd */}
+        {pt1 && <span style={{ color: "#D55E00" }}>{fuzzy.nTrain < 10 ? tr("fuzzy {k} of {n} occurrence cells in {a}% of the area", { k: pt1.hits, n: fuzzy.nTrain, a: (100 * pt1.area).toFixed(0) }) : tr("fuzzy {r}% in {a}% of the area (Nd {nd})", { r: (100 * pt1.rate).toFixed(0), a: (100 * pt1.area).toFixed(0), nd: pt1.nd.toFixed(1) })}</span>}
         {!pt1 && st1 && <span style={{ color: "#D55E00" }}>{tr("fuzzy")}: {stepText(st1)}</span>}{(pt1 || st1) && (pt2 || st2) ? " · " : ""}
-        {pt2 && <span style={{ color: "#0072B2" }}>{tr("posterior {r}% in {a}% of the area (Nd {nd})", { r: (100 * pt2.rate).toFixed(0), a: (100 * pt2.area).toFixed(0), nd: pt2.nd.toFixed(1) })}</span>}
+        {pt2 && <span style={{ color: "#0072B2" }}>{post.nTrain < 10 ? tr("posterior {k} of {n} occurrence cells in {a}% of the area", { k: pt2.hits, n: post.nTrain, a: (100 * pt2.area).toFixed(0) }) : tr("posterior {r}% in {a}% of the area (Nd {nd})", { r: (100 * pt2.rate).toFixed(0), a: (100 * pt2.area).toFixed(0), nd: pt2.nd.toFixed(1) })}</span>}
         {!pt2 && st2 && <span style={{ color: "#0072B2" }}>{tr("posterior")}: {stepText(st2)}</span>}
         {" "}{tr("(Yousefi & Carranza 2015; Nd = 1 is no better than chance)")}
       </div>

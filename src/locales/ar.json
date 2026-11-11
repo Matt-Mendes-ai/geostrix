@@ -10026,5 +10026,10 @@
   "Every tonne above the base of the weathered zone, ore or waste, at this density.": "كل طن فوق قاعدة منطقة التجوية، خامًا كان أو نفايات، بهذه الكثافة.",
   "Of the rock, weathered": "من الصخر، المتجوّي",
   "{t} t at {d} t/m³": "{t} t بكثافة {d} t/m³",
-  ", weathered {w} t/m³": "، متجوّي {w} t/m³"
+  ", weathered {w} t/m³": "، متجوّي {w} t/m³",
+  "Only {k} occurrence cell: weights of evidence need at least 3.": "خلية تواجد واحدة فقط ({k}): تحتاج أوزان الأدلة إلى 3 على الأقل.",
+  "{n} occurrence point.": "نقطة تواجد واحدة ({n}).",
+  "Fuzzy score on {v} of {n} cells (the rest lack evidence).": "الدرجة الضبابية على {v} من {n} خلية (تفتقر البقية إلى الأدلة).",
+  "fuzzy {k} of {n} occurrence cells in {a}% of the area": "ضبابي: {k} من {n} خلية تواجد في {a}% من المساحة",
+  "posterior {k} of {n} occurrence cells in {a}% of the area": "اللاحقة: {k} من {n} خلية تواجد في {a}% من المساحة"
 }

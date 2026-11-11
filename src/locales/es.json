@@ -10026,5 +10026,10 @@
   "Every tonne above the base of the weathered zone, ore or waste, at this density.": "Cada tonelada sobre la base de la zona meteorizada, mineral o estéril, a esta densidad.",
   "Of the rock, weathered": "De la roca, meteorizada",
   "{t} t at {d} t/m³": "{t} t a {d} t/m³",
-  ", weathered {w} t/m³": ", meteorizado {w} t/m³"
+  ", weathered {w} t/m³": ", meteorizado {w} t/m³",
+  "Only {k} occurrence cell: weights of evidence need at least 3.": "Solo {k} celda con ocurrencias: los pesos de evidencia necesitan al menos 3.",
+  "{n} occurrence point.": "{n} punto de ocurrencia.",
+  "Fuzzy score on {v} of {n} cells (the rest lack evidence).": "Puntaje difuso en {v} de {n} celdas (al resto le falta evidencia).",
+  "fuzzy {k} of {n} occurrence cells in {a}% of the area": "difuso: {k} de {n} celdas con ocurrencias en el {a}% del área",
+  "posterior {k} of {n} occurrence cells in {a}% of the area": "posterior: {k} de {n} celdas con ocurrencias en el {a}% del área"
 }
