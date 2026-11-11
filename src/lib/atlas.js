@@ -146,9 +146,16 @@ export function makeRoomForStripLog(elements, box, { gap = 12, minKeep = 0.4, pa
 // the size its 9.5 px drawing text prints at, in points (96 px per inch, 72 pt per inch), once the drawing is scaled to `h`
 export const stripLogTextPt = (drawingHeight, h) => (drawingHeight > 0 ? (9.5 * (h / drawingHeight) * 72) / 96 : null);
 
+// a strip log placed on a page (Add to Layout from the strip-log window, or an atlas page's): an image labelled 'Strip log …'
+export const isStripLogImage = (el) => el?.type === "image" && /^strip log\b/i.test(String(el.label || "").trim());
+// TASKS.csv #2136 — a collar with no depth has no trace: its page would show a point and an empty log
+export const tracedCollar = (c) => Number(c?.length) > 0;
 async function buildOneHolePage(holeId, templateElements, { collars, layers, includeStripLog, legendOverride, page, assayTracks = null, lithoPatterns = false }) { // assayTracks: #1480; lithoPatterns: #1995
   const values = holeAtlasValues(holeId, collars, layers);
-  let elements = markHoleOnViewports(templateElements.map((el) => substituteElement(el, values)), collars.find((c) => c.hole_id === holeId)); // #1644
+  // TASKS.csv #2136 (review #2013) — the template's own strip log (another hole's, 'Strip log — TF24-126') was copied onto every page beside
+  // the page's own: with strip logs on, the template's are left out
+  const fromTemplate = includeStripLog ? templateElements.filter((el) => !isStripLogImage(el)) : templateElements;
+  let elements = markHoleOnViewports(fromTemplate.map((el) => substituteElement(el, values)), collars.find((c) => c.hole_id === holeId)); // #1644
   let stripLogFailed = false, textPt = null, narrowed = 0, overlapping = 0;
   if (includeStripLog) {
     // TASKS.csv #1080 — one hole's strip log failing (a rasterize error) no longer aborts the whole atlas: its page is

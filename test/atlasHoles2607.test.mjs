@@ -13,7 +13,7 @@ test("the filter rule the dialog uses: a collar field value, or a part of the id
 
 test("the dialog lists the filtered holes, All ticks them, and the estimate comes from the last run", () => {
   const m = readFileSync(new URL("../src/components/GenerateAtlasModal.jsx", import.meta.url), "utf8");
-  assert.match(m, /const shownHoles = useMemo\(\(\) => \(holeFilter\.trim\(\) \? collarsMatching\(collars, holeFilter\)/);
+  assert.match(m, /const shownHoles = useMemo\(\(\) => \(holeFilter\.trim\(\) \? collarsMatching\(tracedCollars, holeFilter\)/ /* traced collars only: #2136 */);
   assert.match(m, /const items = mode === "hole" \? shownHoles : sections;/);
   assert.match(m, /localStorage\.setItem\("geostrix\.atlasMsPerPage"/);
   assert.match(m, /lastMsPerPage \* selectedCount >= 30000 &&/, "only a run of half a minute or more gets an estimate");

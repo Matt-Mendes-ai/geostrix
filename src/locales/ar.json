@@ -3226,6 +3226,8 @@
   "{offHoles} hole is more than {offsetLimit} m off the section plane and is drawn as if on it. Any contact correlated through it carries that much horizontal error.": "{offHoles} ثقب أبعد من {offsetLimit} م عن مستوى المقطع ويُرسم كأنه عليه. أي تماس مترابط عبره يحمل هذا القدر من الخطأ الأفقي.",
   "{offHoles} holes are more than {offsetLimit} m off the section plane and are drawn as if on it. Any contact correlated through them carries that much horizontal error.": "{offHoles} ثقوب أبعد من {offsetLimit} م عن مستوى المقطع وتُرسم كأنها عليه. أي تماس مترابط عبرها يحمل هذا القدر من الخطأ الأفقي.",
   "Generate atlas": "توليد الأطلس",
+  "{n} collar(s) with no depth (no trace) are left out of the list: their pages would show a point and an empty log.": "{n} فوهة/فوهات بلا عمق (بلا مسار) مستبعدة من القائمة: كانت صفحاتها ستُظهر نقطة وسجلاً فارغاً.",
+  "The template's own strip log is left off the generated pages: each page gets its own hole's.": "يُستبعد سجل القالب من الصفحات المولّدة: تحصل كل صفحة على سجل ثقبها.",
   "Creates one new Layout page per item below, using the CURRENT page as a template. Any {v} in a text/title element gets filled in per item — available tokens for this mode: {v2}.": "ينشئ صفحة تخطيط جديدة لكل عنصر أدناه، باستخدام الصفحة الحالية كقالب. أي {v} في عنصر نص/عنوان يُملأ لكل عنصر — الرموز المتاحة لهذا الوضع: {v2}.",
   "{{token}}": "{{token}}",
   "The current page has no {v} placeholders in any text — every generated page will look identical except its name{v2}. Add a text element with e.g. {v3} first if you want per-item text.": "لا تحوي الصفحة الحالية أي عنصر نائب {v} في أي نص — ستبدو كل صفحة مولدة متطابقة عدا اسمها{v2}. أضف عنصر نص بـ {v3} مثلًا أولًا إن أردت نصًا لكل عنصر.",
