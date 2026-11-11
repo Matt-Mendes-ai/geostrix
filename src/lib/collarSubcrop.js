@@ -12,8 +12,9 @@ const SKIP = new Set(["overburden", "no recovery"]);
 // like OVB / OB / CAS / NR. modellingCodes: { codes: [{ name, role }] }
 export function roleWithCodes(modellingCodes) {
   const set = new Map();
-  for (const c of modellingCodes?.codes || []) if (c?.name != null && c.role) set.set(String(c.name).trim(), c.role);
-  return set.size ? (value) => set.get(String(value).trim()) ?? roleForLithology(value) : roleForLithology;
+  // #2566 — by the code in any case: 'la' took no role from 'LA'
+  for (const c of modellingCodes?.codes || []) if (c?.name != null && c.role) set.set(String(c.name).trim().toUpperCase(), c.role);
+  return set.size ? (value) => set.get(String(value).trim().toUpperCase()) ?? roleForLithology(value) : roleForLithology;
 }
 
 // -> [{ hole_id, unit, from, to, cover (m of skipped intervals above), x, y, z }], one per hole with a logged unit under its cover
@@ -25,11 +26,17 @@ export function collarSubcrop({ collars, survey, litho, desurveyMethod, roleOf =
     if (!Number.isFinite(f) || !v) continue;
     (byHoleLitho.get(r.hole_id) || byHoleLitho.set(r.hole_id, []).get(r.hole_id)).push({ from: f, to: Number.isFinite(t) ? t : f, value: v });
   }
+  // TASKS.csv #2566 (review #2486) — one unit per code whatever its case ('la' 3 and 'LA' 513 were two units with two colours): the
+  // spelling used most often names it
+  const spell = new Map();
+  for (const l of byHoleLitho.values()) for (const r of l) { const k = r.value.toUpperCase(), m = spell.get(k) || new Map(); m.set(r.value, (m.get(r.value) || 0) + 1); spell.set(k, m); }
+  const canon = new Map([...spell].map(([k, m]) => [k, [...m].sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))[0][0]]));
   const out = [];
   for (const c of collars || []) {
     const rows = (byHoleLitho.get(c.hole_id) || []).sort((a, b) => a.from - b.from);
-    const first = rows.find((r) => !SKIP.has(roleOf(r.value)));
-    if (!first) continue;
+    const f0 = rows.find((r) => !SKIP.has(roleOf(r.value)));
+    if (!f0) continue;
+    const first = { ...f0, value: canon.get(f0.value.toUpperCase()) || f0.value };
     let trace = [];
     try { trace = desurveyHole(c, byHoleSurvey.get(c.hole_id) || [], desurveyMethod) || []; } catch { trace = []; }
     const p = trace.length ? pointOnTrace(trace, first.from) : (Number.isFinite(Number(c.x)) && Number.isFinite(Number(c.y)) ? { x: Number(c.x), y: Number(c.y), z: Number(c.z) } : null);
@@ -55,4 +62,20 @@ export function subcropLayer(points, name = "Subcrop from collars", colorOf = co
     categories: [...counts].sort((a, b) => b[1] - a[1]).map(([u, n]) => ({ value: u, label: u, color: colorOf(u), outline: null, visible: true, count: n })),
     opacity: 0.9, visible: true, drapeMode: "file", elevation: 0,
   };
+}
+
+// TASKS.csv #2566 — why holes gave no point: no lithology rows at all, only blank codes, or only cover (overburden / casing / no
+// recovery). The notice said 'no logged unit under their cover' for all three (on the review's project 165 had no log, 270 only blanks).
+export function subcropLeftOut({ collars, litho, roleOf = roleForLithology }) {
+  const rowsBy = new Map();
+  for (const r of litho || []) (rowsBy.get(r.hole_id) || rowsBy.set(r.hole_id, []).get(r.hole_id)).push(r);
+  let noLog = 0, blankOnly = 0, coverOnly = 0;
+  for (const c of collars || []) {
+    const rows = rowsBy.get(c.hole_id) || [];
+    if (!rows.length) { noLog++; continue; }
+    const coded = rows.filter((r) => Number.isFinite(Number(r.from)) && String(r.value ?? "").trim() !== "");
+    if (!coded.length) { blankOnly++; continue; }
+    if (coded.every((r) => SKIP.has(roleOf(String(r.value).trim())))) coverOnly++;
+  }
+  return { noLog, blankOnly, coverOnly };
 }
