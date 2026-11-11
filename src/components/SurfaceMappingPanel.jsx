@@ -19,8 +19,21 @@ import { buildLayer, findField, autoColorFor, projectClipBox } from "../lib/mapL
 import { askAdoptCrs } from "../lib/adoptCrs.js"; // TASKS.csv #607
 import {
   parseQmlStyle, autoCategories, applyQmlToCategories,
-  guessStructureColumns, parseStructureRows, STRUCTURE_CLASS_COLORS, STRUCTURE_CLASS_LABELS, STRUCTURE_CLASSES, structureClass, structureCodeKey, /* #2266 */
+  guessStructureColumns, parseStructureRows, bestStationColumn /* #1826 */, STRUCTURE_CLASS_COLORS, STRUCTURE_CLASS_LABELS, STRUCTURE_CLASSES, structureClass, structureCodeKey, /* #2266 */
 } from "../lib/mapLayers.js";
+import { downholeTableColumns, structureCodeColumn } from "../lib/downholeTableGuess.js"; // TASKS.csv #1722
+
+// TASKS.csv #2093 / #1826 — the structure import's skipped rows, one reason each (parseStructureRows' skipWhy)
+export function skipReasons(w = {}) {
+  return [
+    w.noMeasurement && tr("{n} with no measurement at all", { n: w.noMeasurement }),
+    w.noXY && tr("{n} with no easting or northing", { n: w.noXY }),
+    w.noDip && tr("{n} with a bearing but no dip (a chip line or a trend, not a plane)", { n: w.noDip }),
+    w.badDip && tr("{n} with a dip that is not a number from 0 to 90", { n: w.badDip }),
+    w.bearingUnread && tr("{n} with a dip direction or strike that is not a number (a quadrant bearing such as N45E is not read)", { n: w.bearingUnread }),
+    w.noDirection && tr("{n} with a dip but no dip direction or strike", { n: w.noDirection }),
+  ].filter(Boolean).join("; ");
+}
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { featureCountText } from "../lib/featureCount.js"; // TASKS.csv #1116
@@ -380,6 +393,14 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
     const res = Papa.parse(text, { header: true, skipEmptyLines: true });
     const headers = res.meta.fields || [];
     const cols = guessStructureColumns(headers);
+    // TASKS.csv #1722 — a hole id with down-hole depths and no easting / northing: a drillhole table, said, not opened as outcrops
+    cols.station = bestStationColumn(headers, res.data, cols); // TASKS.csv #1826 — the one filled on the measured rows
+    if (!cols.type) cols.type = structureCodeColumn(headers); // #1722 — Struc_Code
+    const dh = downholeTableColumns(headers, cols);
+    if (dh) {
+      setStructMsg({ ok: false, text: tr("{name} looks like a downhole table ({cols}: a hole id and down-hole depths, no easting or northing). Outcrop measurements need map coordinates: import this file in the 3D View (drag it onto the view), where downhole structure logs go.", { name: file.name, cols: [dh.hole, dh.from, dh.to, dh.depth, ...dh.angles.slice(0, 2)].filter(Boolean).join(", ") }) });
+      return;
+    }
     // Header hints like "Easting UTM09" say the zone but not the datum, so the source CRS defaults to the
     // project's and is shown for the user to correct (NAD83 vs NAD83(CSRS) is only ~1-2 m, but a zone
     // or NAD27 mix-up is hundreds of metres).
@@ -464,7 +485,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
     setStructMsg({
       ok: !out.skipped,
       text: tr("Imported {rows} measurement(s) from {name}.", { rows: out.rows.length, name: p.name })
-        + (out.skipped ? tr(" Skipped {skipped} row(s) missing coordinates or a valid 0–90° dip.", { skipped: out.skipped }) : "")
+        + (out.skipped ? tr(" Skipped {skipped} row(s): {why}.", { skipped: out.skipped, why: skipReasons(out.skipWhy) }) : "") // #2093 — each reason apart
         + (out.derivedFromStrike ? (out.strikeRule === "lhr" ? tr(" {derivedFromStrike} dip direction(s) derived from strike by the left-hand rule (strike − 90°).", { derivedFromStrike: out.derivedFromStrike }) : tr(" {derivedFromStrike} dip direction(s) derived from strike by the right-hand rule.", { derivedFromStrike: out.derivedFromStrike })) : "")
         + (out.fromQuadrant ? tr(" {n} dip direction(s) taken from the strike and the dip quadrant.", { n: out.fromQuadrant }) : "") // #2083
         + (out.quadrantUnread ? tr(" {n} dip quadrant(s) could not be read (not N, NE, E…), so the strike convention was used there.", { n: out.quadrantUnread }) : "")
@@ -720,7 +741,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
           )}
           <div style={{ display: "flex", gap: 6, marginTop: 9 }}>
             <button onClick={commitStructs} style={{ ...pBtn, marginBottom: 0, justifyContent: "center" }}>{tr("Import")}</button>
-            <button onClick={() => setPendingStruct(null)} style={{ ...pBtn, marginBottom: 0, justifyContent: "center" }}>{tr("Cancel")}</button>
+            <button onClick={() => { setPendingStruct(null); setStructMsg(null); /* #1722 — the column check's message goes with it */ }} style={{ ...pBtn, marginBottom: 0, justifyContent: "center" }}>{tr("Cancel")}</button>
           </div>
         </div>
       )}

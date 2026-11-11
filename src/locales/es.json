@@ -10167,5 +10167,15 @@
   "Custom layer tracks": "Pistas de capas personalizadas",
   "Custom layer track {n}": "Pista de capa personalizada {n}",
   "Saved threshold:": "Umbral guardado:",
-  "{rule}{pop}, decided {date}. Click to use it as the cutoff.": "{rule}{pop}, decidido el {date}. Haga clic para usarlo como ley de corte."
+  "{rule}{pop}, decided {date}. Click to use it as the cutoff.": "{rule}{pop}, decidido el {date}. Haga clic para usarlo como ley de corte.",
+  " Skipped {skipped} row(s): {why}.": " Se omitieron {skipped} fila(s): {why}.",
+  "{name} looks like a downhole table ({cols}: a hole id and down-hole depths, no easting or northing). Outcrop measurements need map coordinates: import this file in the 3D View (drag it onto the view), where downhole structure logs go.": "{name} parece una tabla de sondaje ({cols}: un ID de sondaje y profundidades a lo largo del pozo, sin este ni norte). Las mediciones de afloramiento necesitan coordenadas de mapa: importe este archivo en la Vista 3D (arrástrelo sobre la vista), donde van los registros estructurales de sondaje.",
+  "{n} with no measurement at all": "{n} sin ninguna medición",
+  "{n} with no easting or northing": "{n} sin este o norte",
+  "{n} with a bearing but no dip (a chip line or a trend, not a plane)": "{n} con rumbo pero sin buzamiento (una línea de muestreo o una tendencia, no un plano)",
+  "{n} with a dip that is not a number from 0 to 90": "{n} con un buzamiento que no es un número de 0 a 90",
+  "{n} with a dip direction or strike that is not a number (a quadrant bearing such as N45E is not read)": "{n} con una dirección de buzamiento o rumbo que no es un número (un rumbo por cuadrantes como N45E no se lee)",
+  "{n} with a dip but no dip direction or strike": "{n} con buzamiento pero sin dirección de buzamiento ni rumbo",
+  "Lab column: {v}": "Columna de laboratorio: {v}",
+  "Other fields: lab bookkeeping, one value on every sample, or a different one on each": "Otros campos: registros del laboratorio, un mismo valor en todas las muestras o uno distinto en cada una"
 }

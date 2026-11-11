@@ -22,6 +22,7 @@
 // values are skewed. TASKS.csv #1382 / #1401 (review #1352, Silvertip) — one medium at a time: the mean and SD are those of the
 // samples of the same medium, and a sample's neighbours are of its own medium. Pooled, soils beside mineralised rock chips
 // and regional streams made the whole soil line a 99 % hot spot.
+import { isLabMetaField } from "./labMetaFields.js"; // TASKS.csv #2089
 import { populations, groupKeyFn, candidateThresholds, robustZ, quantileSorted, defaultPopulations, populationSummary } from "./thresholds.js";
 import { valueIn } from "./geochem.js";
 
@@ -239,3 +240,18 @@ export function anomalyLegendGroup(a) {
   return { key: "surface_anomaly", label: a.label, items, alwaysHead: true }; // the rule is printed even when it is the only group
 }
 
+// TASKS.csv #2089 (review #2013, Woodjam) — 'Colour by' offered ~160 fields, the lab's bookkeeping (ag_cert_num, ag_analysis_code, the LDL
+// flags, uuid, colour_rgb, sampled_tstamp) burying loc_meth / elev_meth / purpose / status. -> { main, other }: textAttrFields split so the
+// main list holds the fields that can tell samples apart; 'other' holds the lab columns (labMetaFields.js), a field with one value on every
+// sample, and one with a different value on every sample (of 10 or more): kept, offered after the others
+export function textAttrFieldGroups(samples, opts) {
+  const fields = textAttrFields(samples, opts), n = (samples || []).length;
+  const distinct = new Map(fields.map((f) => [f, new Set()])), filled = new Map(fields.map((f) => [f, 0]));
+  for (const s of samples || []) for (const f of fields) { const t = String(s.attrs?.[f] ?? "").trim(); if (t) { distinct.get(f).add(t); filled.set(f, filled.get(f) + 1); } }
+  const main = [], other = [];
+  for (const f of fields) {
+    const d = distinct.get(f).size, constant = d === 1 && filled.get(f) === n && n > 1, unique = n >= 10 && d === filled.get(f) && d === n;
+    (isLabMetaField(f) || constant || unique ? other : main).push(f);
+  }
+  return { main, other };
+}

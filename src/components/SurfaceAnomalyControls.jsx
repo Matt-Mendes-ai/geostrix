@@ -3,7 +3,8 @@
 // spatial-coherence check. The settings live in the view state (layerStyles.surface_anomaly), so they are saved with
 // the project and in themes. Maths in lib/anomalyMap.js; the legend and notes come from the same result.
 import React, { useState, useMemo } from "react";
-import { textAttrFields, PATHFINDER_PRESETS, DEFAULT_ANOMALY } from "../lib/anomalyMap.js";
+import { textAttrFieldGroups, PATHFINDER_PRESETS, DEFAULT_ANOMALY } from "../lib/anomalyMap.js"; // groups: TASKS.csv #2089
+import { fieldLabel } from "../lib/labMetaFields.js"; // TASKS.csv #1828
 import { saveFile } from "../lib/desktop.js";
 import { groupOptions } from "../lib/thresholds.js";
 import { t as tr } from "../lib/i18n.js";
@@ -24,7 +25,7 @@ export default function SurfaceAnomalyControls({ cfg: cfg0, setCfg, surfaceSampl
   const showsGroups = open && cfg.mode !== "medium" && cfg.mode !== "field";
   const gOpts = useMemo(() => (showsGroups ? groupOptions(surfaceSamples, mapLayers) : []), [showsGroups, surfaceSamples, mapLayers]);
   const modeValue = cfg.mode === "element" ? `el:${cfg.symbol || ""}` : cfg.mode === "field" ? `field:${cfg.field || ""}` : cfg.mode; // field: #1822
-  const attrFields = useMemo(() => textAttrFields(surfaceSamples), [surfaceSamples]); // #1822
+  const attrFields = useMemo(() => textAttrFieldGroups(surfaceSamples), [surfaceSamples]); // #1822; #2089 — { main, other }
   // TASKS.csv #854 — the drawn samples with their class (and the hot-spot z, #853) as CSV
   const exportCsv = () => {
     if (!result) return;
@@ -42,7 +43,10 @@ export default function SurfaceAnomalyControls({ cfg: cfg0, setCfg, surfaceSampl
           <option value="index">{tr("Pathfinder index")}</option>
           <option value="hotspot">{tr("Hot spots (Getis–Ord Gi*)")}</option>
           {surfaceElements.map((e) => <option key={e.symbol} value={`el:${e.symbol}`}>{e.symbol}{savedFor(e.symbol) ? ` — ${tr("threshold saved")}` : ""}</option>)}
-          {attrFields.map((f) => <option key={`field:${f}`} value={`field:${f}`}>{tr("Field: {name}", { name: f })}</option>)}{/* #1822 */}
+          {attrFields.main.map((f) => <option key={`field:${f}`} value={`field:${f}`}>{tr("Field: {name}", { name: fieldLabel(f) })}</option>)}{/* #1822 */}
+          {attrFields.other.length > 0 && <optgroup label={tr("Other fields: lab bookkeeping, one value on every sample, or a different one on each")}>{/* #2089 */}
+            {attrFields.other.map((f) => <option key={`field:${f}`} value={`field:${f}`}>{tr("Field: {name}", { name: fieldLabel(f) })}</option>)}
+          </optgroup>}
         </select>
         {cfg.mode !== "medium" && cfg.mode !== "field" && <button type="button" onClick={() => setOpen((o) => !o)} style={linkBtn} aria-expanded={open}>{open ? tr("Fewer options") : tr("Options")}</button>}
       </label>
@@ -90,7 +94,7 @@ export default function SurfaceAnomalyControls({ cfg: cfg0, setCfg, surfaceSampl
             <select value={cfg.groupBy || ""} onChange={(e) => set({ groupBy: e.target.value || null })} style={{ ...selStyle, maxWidth: 190 }}>
               <option value="">{cfg.mode === "element" && cfg.scheme === "threshold" ? tr("As saved with the threshold") : tr("Sampling medium")}</option>
               {/* #1393 — the blank option IS 'Sampling medium' outside a saved threshold: not listed twice */}
-              {gOpts.filter((o) => o.value !== "medium" || (cfg.mode === "element" && cfg.scheme === "threshold")).map((o) => <option key={o.value} value={o.value}>{o.kind === "column" ? tr("Column: {v}", { v: o.label }) : o.kind === "map" ? tr("Map: {v}", { v: o.label }) : tr(o.label)}</option>)}
+              {gOpts.filter((o) => o.value !== "medium" || (cfg.mode === "element" && cfg.scheme === "threshold")).map((o) => <option key={o.value} value={o.value}>{o.kind === "column" ? tr("Column: {v}", { v: o.label }) : o.kind === "labmeta" ? tr("Lab column: {v}", { v: o.label }) /* #1828 */ : o.kind === "map" ? tr("Map: {v}", { v: o.label }) : tr(o.label)}</option>)}
             </select>
           </label>}
           {cfg.mode !== "hotspot" && <label style={{ display: "flex", alignItems: "center", gap: 6 }}>

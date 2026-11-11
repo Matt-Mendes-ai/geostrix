@@ -10167,5 +10167,15 @@
   "Custom layer tracks": "Pistes de couches personnalisées",
   "Custom layer track {n}": "Piste de couche personnalisée {n}",
   "Saved threshold:": "Seuil enregistré :",
-  "{rule}{pop}, decided {date}. Click to use it as the cutoff.": "{rule}{pop}, décidé le {date}. Cliquez pour l'utiliser comme seuil de coupure."
+  "{rule}{pop}, decided {date}. Click to use it as the cutoff.": "{rule}{pop}, décidé le {date}. Cliquez pour l'utiliser comme seuil de coupure.",
+  " Skipped {skipped} row(s): {why}.": " {skipped} ligne(s) ignorée(s) : {why}.",
+  "{name} looks like a downhole table ({cols}: a hole id and down-hole depths, no easting or northing). Outcrop measurements need map coordinates: import this file in the 3D View (drag it onto the view), where downhole structure logs go.": "{name} ressemble à une table de sondage ({cols} : un ID de sondage et des profondeurs le long du trou, sans est ni nord). Les mesures d'affleurement ont besoin de coordonnées cartographiques : importez ce fichier dans la Vue 3D (glissez-le sur la vue), où vont les relevés structuraux de sondage.",
+  "{n} with no measurement at all": "{n} sans aucune mesure",
+  "{n} with no easting or northing": "{n} sans est ou nord",
+  "{n} with a bearing but no dip (a chip line or a trend, not a plane)": "{n} avec une direction mais sans pendage (une ligne d'échantillonnage ou une tendance, pas un plan)",
+  "{n} with a dip that is not a number from 0 to 90": "{n} avec un pendage qui n'est pas un nombre de 0 à 90",
+  "{n} with a dip direction or strike that is not a number (a quadrant bearing such as N45E is not read)": "{n} avec une direction de pendage ou une direction qui n'est pas un nombre (un relèvement par quadrant comme N45E n'est pas lu)",
+  "{n} with a dip but no dip direction or strike": "{n} avec un pendage mais sans direction de pendage ni direction",
+  "Lab column: {v}": "Colonne de laboratoire : {v}",
+  "Other fields: lab bookkeeping, one value on every sample, or a different one on each": "Autres champs : suivi du laboratoire, une même valeur sur tous les échantillons ou une différente sur chacun"
 }
