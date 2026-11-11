@@ -10391,5 +10391,11 @@
   "Designing bench {k}: cancel": "Diseñando el banco {k}: cancelar",
   "Pit area": "Área del rajo",
   "Only the blocks whose centre lies inside this closed design string are priced: one prospect of a model that covers several gets its own grid.": "Solo se valoran los bloques cuyo centro está dentro de esta cadena de diseño cerrada: un prospecto de un modelo que cubre varios obtiene su propia malla.",
-  "No block of \"{model}\" lies inside \"{area}\".": "Ningún bloque de \"{model}\" está dentro de \"{area}\"."
+  "No block of \"{model}\" lies inside \"{area}\".": "Ningún bloque de \"{model}\" está dentro de \"{area}\".",
+  "{unit}: {k} of {n} logged intercept(s) ({h} hole(s)) lie inside the sheet{t}.": "{unit}: {k} de {n} intercepto(s) registrados ({h} sondaje(s)) quedan dentro de la lámina{t}.",
+  "; their true thickness across it is {a}–{b} m (median {m} m)": "; su espesor verdadero a través de ella es {a}–{b} m (mediana {m} m)",
+  "{unit}: {n} logged intercept(s), none on a hole with a collar and survey to place it.": "{unit}: {n} intercepto(s) registrados, ninguno en un sondaje con collar y survey para ubicarlo.",
+  "Against the logs: {lines} An intercept outside the sheet, or a thickness far from the map's, says the dip, the dip direction or the outline does not fit the drilling there.": "Frente a los registros: {lines} Un intercepto fuera de la lámina, o un espesor lejos del del mapa, indica que el buzamiento, la dirección de buzamiento o el contorno no se ajustan a la perforación allí.",
+  "; its true thickness across it is {a} m": "; su espesor verdadero a través de ella es {a} m",
+  "The Voxet is rotated ({deg}° from east in plan), so it was resampled onto a lattice along east, north and up of {nx} × {ny} × {nz} blocks of {dx} × {dy} × {dz} m, each taking the value of the nearest voxet node (blocks outside the voxet are left empty).": "El Voxet está rotado ({deg}° desde el este en planta), así que se remuestreó en una malla según este, norte y arriba de {nx} × {ny} × {nz} bloques de {dx} × {dy} × {dz} m, cada uno con el valor del nodo del voxet más cercano (los bloques fuera del voxet quedan vacíos)."
 }

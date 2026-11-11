@@ -3,6 +3,7 @@
 // like the unit volumes (#517): the volume readout, DXF / OBJ export, sections and "Restrict to a modelled volume" work.
 import * as THREE from "three";
 import { intrusionBody } from "../../lib/intrusionBody.js";
+import { sheetLogCheck } from "../../lib/sheetLogCheck.js"; // TASKS.csv #2663
 import { meshVolume } from "../../lib/unitVolumes.js";
 import { validateSolid } from "../../lib/meshValidate.js"; // TASKS.csv #938
 import { featureCategoryValue, pointInRings } from "../../lib/mapLayers.js";
@@ -13,13 +14,13 @@ import { t as tr } from "../../lib/i18n.js";
 
 // p: { layer, field, units, depthM, wallDip, flare }; scene: { implicitGroupRef, implicitMeshesRef, originRef,
 // setImplicitSurfaces, setNotices, terrain }
-export function buildIntrusionBodies(p, { implicitGroupRef, implicitMeshesRef, originRef, setImplicitSurfaces, setNotices, terrain }) {
+export function buildIntrusionBodies(p, { implicitGroupRef, implicitMeshesRef, originRef, setImplicitSurfaces, setNotices, terrain, collars = [], survey = [], desurveyMethod }) { // collars / survey: #2663
   if (!terrain?.bbox) { setNotices((q) => [...q, notice("Intrusion bodies need a terrain: their tops are the ground inside each mapped polygon. Fetch or import one first.")]); return; }
   const groundAt = (x, y) => terrainGroundAt(terrain, x, y); // TASKS.csv #927
   const tb = terrain.bbox, inTerrain = (x, y) => x >= tb[0] && x <= tb[2] && y >= tb[1] && y <= tb[3]; // #2569 — a gap inside the box is filled, beyond it refused
   const o = originRef.current, stamp = Date.now(), added = [], lines = [];
   let holes = 0;
-  const failed = [], pinched = [], gapFilled = { k: 0, n: 0 }, thick = []; // thick: #2642 — each sheet's thickness across the dip // depths reached by narrowing bodies that close before the chosen depth
+  const failed = [], pinched = [], gapFilled = { k: 0, n: 0 }, thick = [], logLines = []; // logLines: #2663 // thick: #2642 — each sheet's thickness across the dip // depths reached by narrowing bodies that close before the chosen depth
   // TASKS.csv #938 — do two bodies cross? Widening walls make neighbouring outcrops of a unit grow into each other at
   // depth; merged into one mesh, the overlap made it self-crossing (96 crossing pairs in the review's case): inside tests
   // said "outside" between them and "Restrict to a modelled volume" refused the whole unit. Box test first, then a mesh test.
@@ -68,6 +69,14 @@ export function buildIntrusionBodies(p, { implicitGroupRef, implicitMeshesRef, o
       }
       const polys = grp.length, num = overlap ? gi + 1 : null;
       const world = Float64Array.from(pos), indices = Uint32Array.from(idx), scene = new Float32Array(world.length);
+      // TASKS.csv #2663 — a sheet against the unit's logged intervals: inside or not, and their true thickness across the sheet
+      if (p.sheet && p.logs) {
+        const ck = sheetLogCheck({ positions: world, indices, sheet: p.sheet, unit, litho: p.logs.litho, codeUnit: p.logs.codeUnit, collars, survey, desurveyMethod });
+        if (ck?.placed) logLines.push(tr("{unit}: {k} of {n} logged intercept(s) ({h} hole(s)) lie inside the sheet{t}.", { unit: num ? `${unit} ${num}` : unit, k: ck.inside, n: ck.placed, h: ck.holes,
+          t: !ck.thickness ? "" : Math.round(ck.thickness.min * 10) === Math.round(ck.thickness.max * 10) ? tr("; its true thickness across it is {a} m", { a: Math.round(ck.thickness.min * 10) / 10 })
+            : tr("; their true thickness across it is {a}–{b} m (median {m} m)", { a: Math.round(ck.thickness.min * 10) / 10, b: Math.round(ck.thickness.max * 10) / 10, m: Math.round(ck.thickness.median * 10) / 10 }) }));
+        else if (ck) logLines.push(tr("{unit}: {n} logged intercept(s), none on a hole with a collar and survey to place it.", { unit, n: ck.intercepts }));
+      }
       for (let i = 0; i < world.length; i += 3) { scene[i] = world[i] - o.x; scene[i + 1] = world[i + 2] - o.z; scene[i + 2] = o.y - world[i + 1]; }
       const geo = new THREE.BufferGeometry();
       geo.setAttribute("position", new THREE.BufferAttribute(scene, 3));
@@ -105,6 +114,7 @@ ${p.sheet ? tr("{v} Mm³, {d} m below the outcrop, a sheet dipping {dip}° towar
     // #939 — a narrowing body is cut off flat where its base would be a fifth of the outline, and the walls actually built
     + (pinched.length ? tr(" {k} narrow outcrop(s) would close before {d} m with these walls: they are cut off flat where the base would be a fifth of the outline ({a}–{b} m down).", { k: pinched.length, d: p.depthM, a: Math.round(Math.min(...pinched)), b: Math.round(Math.max(...pinched)) }) : "")
     + (p.wallDip < 89.99 && dipRanges.length && (Math.min(...dipRanges.map((d) => d[0])) < p.wallDip - 5 || Math.max(...dipRanges.map((d) => d[1])) > p.wallDip + 5) ? tr(" The walls as built dip {a}–{b}° (asked {dip}°): the base follows a simplified outline.", { a: Math.round(Math.min(...dipRanges.map((d) => d[0]))), b: Math.round(Math.max(...dipRanges.map((d) => d[1]))), dip: p.wallDip }) : "")));
+  if (logLines.length) msgs.push(notice("Against the logs: {lines} An intercept outside the sheet, or a thickness far from the map's, says the dip, the dip direction or the outline does not fit the drilling there.", { lines: logLines.join(" ") })); // #2663
   if (gapFilled.k) msgs.push(notice("{k} of {n} outline point(s) fell in gaps of the terrain (cells it has no ground for) and took the ground of the nearest outline point that has some.", { k: gapFilled.k, n: gapFilled.n })); // #2569
   if (failed.length) msgs.push(errorNotice(tr("{k} polygon(s) could not be built: {list}", { k: failed.length, list: [...new Set(failed)].slice(0, 3).join(" ") })));
   if (!added.length && !failed.length) msgs.push(notice("None of the chosen units has a polygon on this map."));

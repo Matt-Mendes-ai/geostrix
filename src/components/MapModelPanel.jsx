@@ -276,7 +276,7 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
               <option value="out">{tr("widens with depth")}</option><option value="in">{tr("narrows with depth")}</option>
             </select></div>
           )}
-          <button onClick={() => { setBodyMsg(null); Promise.resolve(onBuildBodies?.({ layer, field: unitField, units: bodyUnits, depthM: Number(bodyDepth), wallDip: bodyShape === "sheet" ? 90 : bodyDip, flare: bodyFlare, sheet: bodyShape === "sheet" ? { dip: Number(sheetDip), dipDir: Number(sheetDipDir) } : null /* #2642 */ })).then((r) => r && setBodyMsg(r)).catch(() => {}); }}
+          <button onClick={() => { setBodyMsg(null); Promise.resolve(onBuildBodies?.({ layer, field: unitField, units: bodyUnits, depthM: Number(bodyDepth), wallDip: bodyShape === "sheet" ? 90 : bodyDip, flare: bodyFlare, sheet: bodyShape === "sheet" ? { dip: Number(sheetDip), dipDir: Number(sheetDipDir) } : null /* #2642 */, logs: bodyShape === "sheet" && lithoRows?.length ? { codeUnit, litho: lithoRows } : null /* #2663 */ })).then((r) => r && setBodyMsg(r)).catch(() => {}); }}
             disabled={!groundAt || !bodyUnits.length || !(Number(bodyDepth) >= 10) || !sheetOk} title={groundAt ? "" : tr("Needs a terrain: the top of each body is the ground. Offline, Geophysics > Block models > Terrain from the model's top makes one.")}
             style={{ ...pBtn, justifyContent: "center", opacity: !groundAt || !bodyUnits.length || !(Number(bodyDepth) >= 10) || !sheetOk ? 0.5 : 1 }}>
             {tr("Build intrusion bodies")}
