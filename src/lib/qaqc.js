@@ -79,17 +79,18 @@ export const labAssays = (assays) => {
 export function excludeQAQC(assays, patterns = DEFAULT_QAQC_PATTERNS) {
   const cache = patterns === DEFAULT_QAQC_PATTERNS ? regularCache : null;
   let r = cache?.get(assays);
-  if (!r) { r = assays.filter((a) => !isPxrfRow(a) && classifyQAQCRow(a, patterns) === "regular"); cache?.set(assays, r); }
+  if (!r) { r = assays.filter((a) => !isPxrfRow(a) && a.excluded !== "total" && classifyQAQCRow(a, patterns) === "regular"); cache?.set(assays, r); } // excluded: #2506 (QAQC > Totals)
   return r;
 }
 
 // TASKS.csv #400 — what is being left out, and why, so an exclusion is never silent: distinct ids per class.
 export function excludedQAQCIds(assays, patterns = DEFAULT_QAQC_PATTERNS) {
-  const out = { standard: new Map(), blank: new Map(), duplicate: new Map() };
+  const out = { standard: new Map(), blank: new Map(), duplicate: new Map(), total: new Map() }; // total: #2506 — excluded in QAQC > Totals
   assays.forEach((a) => {
-    const c = classifyQAQCRow(a, patterns);
+    const c0 = classifyQAQCRow(a, patterns);
+    const c = c0 === "regular" && a.excluded === "total" ? "total" : c0;
     if (c === "regular") return;
-    const why = sampleTypeClass(a.sample_type) ? "sample type" : "name";
+    const why = c === "total" ? "oxide total" : sampleTypeClass(a.sample_type) ? "sample type" : "name";
     const k = a.hole_id || "(no id)";
     const e = out[c].get(k) || { id: k, rows: 0, why };
     e.rows++; out[c].set(k, e);

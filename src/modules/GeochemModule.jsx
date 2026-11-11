@@ -113,7 +113,8 @@ export default function GeochemModule() {
   // a word (2,095 points, 556 of them screening readings): the plots take one source, lab by default, pXRF or both on request
   const [plotSource, setPlotSource] = useKeptState(keptScope, "geochem.plotSource", "lab");
   const hasPxrf = useMemo(() => assays.some(isPxrfRow), [assays]);
-  const sourceAll = useMemo(() => (!hasPxrf || plotSource === "both" ? assays : assays.filter((a) => (plotSource === "pxrf" ? isPxrfRow(a) : !isPxrfRow(a)))), [assays, hasPxrf, plotSource]);
+  const assaysKept = useMemo(() => (assays.some((a) => a.excluded === "total") ? assays.filter((a) => a.excluded !== "total") : assays), [assays]); // #2506 — excluded in QAQC > Totals
+  const sourceAll = useMemo(() => (!hasPxrf || plotSource === "both" ? assaysKept : assaysKept.filter((a) => (plotSource === "pxrf" ? isPxrfRow(a) : !isPxrfRow(a)))), [assaysKept, hasPxrf, plotSource]);
   // TASKS.csv #2027 (review #2013, Woodjam) — QC inserts (standards, blanks, duplicates) are not rocks: 109 CRM pulps and 56 blanks sat
   // among the drill samples on every diagram ('1964 of 1964 samples plotted'). Left out by default, as Grade stats / Best intercepts /
   // Compositing do (#219), with a tick to plot them.

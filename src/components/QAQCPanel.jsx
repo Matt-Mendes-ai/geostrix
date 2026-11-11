@@ -1,4 +1,6 @@
 import React, { useMemo, useState } from "react";
+import OxideTotalsTab from "./OxideTotalsTab.jsx"; // TASKS.csv #2506
+import { majorOxides, MIN_MAJORS } from "../lib/oxideTotals.js"; // TASKS.csv #2506
 import { X, Download } from "./icons.js";
 import { saveFile } from "../lib/desktop.js";
 import { classifyQAQCRow, excludedQAQCIds, standardGroups, standardSeries, blankRows, duplicatePairs, duplicateSummary, DUP_RPD_LIMITS, DUP_KIND_LABELS, suggestDetectionLimit, orderForControlChart, DEFAULT_QAQC_PATTERNS } from "../lib/qaqc.js"; import { formatLimit, limitLooksConverted } from "../lib/qaqc.js";
@@ -30,7 +32,8 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
   const [tab, setTab] = useState("standards");
   const [blankThreshold, setBlankThreshold] = useState(0.1);
   const [selectedStdId, setSelectedStdId] = useState(null);
-  const { crmCertificates = {}, setCrmCertificate, setAssayElements, project } = useStore() || {}; // #400
+  const { crmCertificates = {}, setCrmCertificate, setAssayElements, project, setAssays } = useStore() || {}; // #400; setAssays: #2506
+  const majors = useMemo(() => majorOxides(assayElements), [assayElements]); // #2506 — the oxide-total check needs six majors
   const [dupMin, setDupMin] = useState(""); // #400 — ignore pairs whose mean is below this (~10x detection limit)
   const [repeatedAsDup, setRepeatedAsDup] = useState(false); // #579 — same-interval second rows as duplicate pairs
   // TASKS.csv #534 — a detection limit PER ELEMENT, saved with the element list (assayElements[].detectionLimit, so the
@@ -67,8 +70,8 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
   // TASKS.csv #1675 — what sample types the file carries, and pXRF against the lab interval holding each reading
   const typesSeen = useMemo(() => sampleTypesSeen(assays), [assays]);
   const pxrf = useMemo(() => pxrfVsLab(assays, assayElements, elementUnits), [assays, assayElements, elementUnits]);
-  const tabs = pxrf.readings ? [...TABS, "pxrf"] : TABS;
-  const exportCount = tab === "pxrf" ? pxrf.rows.length : tab === "standards" ? (activeGroup ? series.points.length : 0) : tab === "blanks" ? blanks.length : dups.length; // #617
+  const tabs = [...TABS, ...(pxrf.readings ? ["pxrf"] : []), ...(majors.length >= MIN_MAJORS ? ["totals"] : [])]; // totals: #2506
+  const exportCount = tab === "totals" ? 0 : tab === "pxrf" ? pxrf.rows.length : tab === "standards" ? (activeGroup ? series.points.length : 0) : tab === "blanks" ? blanks.length : dups.length; // #617
   const exportCSV = () => {
     let rows, name;
     if (tab === "pxrf") { // #1675
@@ -135,12 +138,13 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
             <div style={{ display: "flex", gap: 4 }}>
               {tabs.map((t) => (
                 <button key={t} onClick={() => setTab(t)} style={t === tab ? tabBtnActive : tabBtn}>
-                  {t === "pxrf" ? tr("pXRF vs lab ({n})", { n: pxrf.pairs }) : t === "standards" ? tr("Standards ({groups})", { groups: groups.length }) : t === "blanks" ? tr("Blanks ({blank})", { blank: counts.blank }) : tr("Duplicates ({dups})", { dups: dups.length })}
+                  {t === "totals" ? tr("Totals") : t === "pxrf" ? tr("pXRF vs lab ({n})", { n: pxrf.pairs }) : t === "standards" ? tr("Standards ({groups})", { groups: groups.length }) : t === "blanks" ? tr("Blanks ({blank})", { blank: counts.blank }) : tr("Duplicates ({dups})", { dups: dups.length })}
                 </button>
               ))}
             </div>
           </div>
 
+          {tab === "totals" && <OxideTotalsTab assays={assays} majors={majors} setAssays={setAssays || null} sel={sel} tabBtn={tabBtn} />}{/* #2506 */}
           {tab === "pxrf" && ( /* TASKS.csv #1675 */
             <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.5 }}>
               <div style={{ marginBottom: 6 }}>{tr("{p} of {n} pXRF reading(s) sit inside a lab interval of the same hole and are paired with it. Rank r near 1: pXRF orders that element as the lab does (usable for mapping it); a median ratio away from 1: a bias to correct before the two are mixed. pXRF stays out of the grade tools either way.", { p: pxrf.pairs, n: pxrf.readings })}</div>
