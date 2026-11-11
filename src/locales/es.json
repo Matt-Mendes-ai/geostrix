@@ -9815,5 +9815,10 @@
   "Statistics where X ≥": "Estadísticas donde X ≥",
   "Statistics where X is at least": "Estadísticas donde X es al menos",
   "n {n} · Spearman {r} · median Y / X {m} · length-weighted Y / X {w}": "n {n} · Spearman {r} · mediana Y / X {m} · Y / X ponderado por longitud {w}",
-  "Log / assay: median {m}, length-weighted {w} (in the units shown; a gamma log against its assays reads the disequilibrium here).": "Registro / ensaye: mediana {m}, ponderado por longitud {w} (en las unidades mostradas; un registro gamma frente a sus ensayes muestra aquí el desequilibrio)."
+  "Log / assay: median {m}, length-weighted {w} (in the units shown; a gamma log against its assays reads the disequilibrium here).": "Registro / ensaye: mediana {m}, ponderado por longitud {w} (en las unidades mostradas; un registro gamma frente a sus ensayes muestra aquí el desequilibrio).",
+  "Colour range from": "Rango de color desde",
+  "Colour range to": "Rango de color hasta",
+  "Blank: the 2nd-98th percentile; the data run {a} to {b}.": "En blanco: percentil 2 a 98; los datos van de {a} a {b}.",
+  "auto (log over a decade)": "automática (log si abarca más de una década)",
+  "Number of colour classes": "Número de clases de color"
 }

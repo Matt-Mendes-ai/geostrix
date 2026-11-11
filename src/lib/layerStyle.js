@@ -57,6 +57,11 @@ export function cleanLayerStyle(style, kind) {
   // TASKS.csv #2405 (review #2325) — the surface samples' label (#1443: "sample_id" or an element symbol): dropped here since #635, so the Style
   // dialog's Label select snapped back to "No label" and nothing was drawn. "none" / blank is the default and is not stored.
   if (typeof s.label === "string" && s.label && s.label !== "none") out.label = s.label.slice(0, 60);
+  // TASKS.csv #2367 — a numeric custom layer's colour range, scale and classes (customColour.js); blank / 'auto' / 0 are the defaults
+  if (Number.isFinite(s.rampMin)) out.rampMin = s.rampMin;
+  if (Number.isFinite(s.rampMax)) out.rampMax = s.rampMax;
+  if (s.rampScale === "linear" || s.rampScale === "log") out.rampScale = s.rampScale;
+  if (Number.isFinite(s.classes) && s.classes >= 2) out.classes = Math.min(12, Math.round(s.classes));
   return Object.keys(out).length ? out : null;
 }
 

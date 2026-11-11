@@ -4,6 +4,8 @@ import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { activateOnKey } from "../lib/a11y.js";
 import { SHAPES, SIZE_MIN, SIZE_MAX, resolveLayerStyle } from "../lib/layerStyle.js";
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
+import { useStore } from "../lib/store.jsx"; // TASKS.csv #2367 — the custom layer's rows, for its default range
+import { customScaleDefault } from "../lib/customColour.js"; // TASKS.csv #2367
 
 // TASKS.csv #635 — "edit the styles of each layer, colour, size, type (circle, plane, cylinder)". A small floating
 // panel (not a blocking dialog) beside the 3D view, so every change is seen live; changes apply as they are made
@@ -26,6 +28,12 @@ export default function LayerStyleModal({ target, style, onChange, onReset, onCl
   const size = draft.size ?? st.size, opacity = draft.opacity ?? st.opacity;
   const shapes = SHAPES[target.kind] || SHAPES.point;
   const surface = target.kind === "surface";
+  // TASKS.csv #2367 — a custom layer coloured by a number: its range, scale and classes (the default is the 2nd-98th percentile ramp)
+  const { customLayers = [] } = useStore();
+  const customId = String(target.key || "").startsWith("custom:") ? target.key.slice(7) : null;
+  const customLayer = customId ? customLayers.find((l) => String(l.id) === customId) : null;
+  const ramp = React.useMemo(() => (customLayer && !style?.color ? customScaleDefault(customLayer, style?.colourBy || "value") : null), [customLayer, style?.color, style?.colourBy]);
+  const numIn = (k) => (e) => onChange({ [k]: e.target.value === "" ? null : Number(e.target.value) });
   const lbl = { fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", width: 74, flexShrink: 0 };
   const row = { display: "flex", alignItems: "center", gap: 8, marginBottom: 10 };
   return (
@@ -81,6 +89,21 @@ export default function LayerStyleModal({ target, style, onChange, onReset, onCl
                   {["value", ...target.fields.filter((f) => f !== "value")].map((f) => <option key={f} value={f}>{f === "value" ? tr("Value column") : f}</option>)}
                 </select>
               </label>
+            )}
+            {ramp?.numeric && !st.color && ( /* TASKS.csv #2367 */
+              <div style={{ display: "flex", flexDirection: "column", gap: 5, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
+                <label style={{ display: "flex", alignItems: "center", gap: 4 }}>{tr("Range")}
+                  <input type="number" step="any" value={style?.rampMin ?? ""} placeholder={String(+ramp.min.toPrecision(4))} onChange={numIn("rampMin")} aria-label={tr("Colour range from")} style={{ width: 70, padding: "2px 4px" }} />–
+                  <input type="number" step="any" value={style?.rampMax ?? ""} placeholder={String(+ramp.max.toPrecision(4))} onChange={numIn("rampMax")} aria-label={tr("Colour range to")} style={{ width: 70, padding: "2px 4px" }} />
+                </label>
+                <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{tr("Blank: the 2nd-98th percentile; the data run {a} to {b}.", { a: String(+ramp.dataMin.toPrecision(4)), b: String(+ramp.dataMax.toPrecision(4)) })}</div>
+                <label style={{ display: "flex", alignItems: "center", gap: 4 }}>{tr("Scale")}
+                  <select value={style?.rampScale || ""} onChange={(e) => onChange({ rampScale: e.target.value || null })} aria-label={tr("Colour scale")} style={{ padding: "2px 4px" }}>
+                    <option value="">{tr("auto (log over a decade)")}</option><option value="linear">{tr("linear")}</option><option value="log">{tr("log")}</option>
+                  </select>
+                  {tr("Classes")}<input type="number" min="0" max="12" step="1" value={style?.classes ?? ""} placeholder={tr("none")} onChange={numIn("classes")} aria-label={tr("Number of colour classes")} style={{ width: 50, padding: "2px 4px" }} />
+                </label>
+              </div>
             )}
             {target.onEditColours && !st.color && (
               <button type="button" onClick={target.onEditColours} style={{ alignSelf: "flex-start", padding: "3px 8px", fontSize: "var(--font-size-sm)", border: "1px solid var(--color-border)", borderRadius: 5, background: "var(--color-bg-subtle)", color: "var(--color-text)", cursor: "pointer" }}>{tr("Edit legend colours…")}</button>
