@@ -10,6 +10,7 @@ import { hasComputerTemplates } from "../lib/desktop.js"; // TASKS.csv #1487
 import GenerateAtlasModal from "../components/GenerateAtlasModal.jsx";
 import { HOLE_TOKENS, SECTION_TOKENS } from "../lib/atlas.js"; // TASKS.csv #1777 — listed with the page's placeholders
 import { scaleBarLabel, scaleBarMidLabel } from "../lib/scaleBarLabel.js"; // TASKS.csv #2140
+import { offSheetPages, rectsPastSheet } from "../lib/layoutEdges.js"; // TASKS.csv #2482 / #2309
 import PatternSwatch from "../components/PatternSwatch.jsx"; // TASKS.csv #1995
 import { savePDF, saveFile, exportPDFData, canvasPngBytes, sendSectionResnap } from "../lib/desktop.js"; // saveFile / exportPDFData: TASKS.csv #909 Export PNG; canvasPngBytes: #1040; sendSectionResnap: #1485
 import { pdfOptions } from "../lib/pageFormats.js"; // TASKS.csv #511
@@ -177,12 +178,17 @@ export default function LayoutModule() {
     handledPrintSeq = layoutPrintRequest.seq;
     // TASKS.csv #1481 (review #1352) — anything past the paper's edge was cut from the PDF / PNG in silence (a 73-row legend, an
     // arrow left outside after a switch to portrait): the page on screen is measured first, and the export asks
+    // TASKS.csv #2309 — an element's text counts too (the GN / TN / MN captions ran past the element's box); #1773 — the confirm names the
+    // kinds of element; #2482 — the other pages of a PDF are checked as well, from the elements' own boxes (only the open page is drawn)
     const pg = pageRef.current;
+    const past = [];
     if (pg) {
       const r = pg.getBoundingClientRect();
-      const off = [...pg.querySelectorAll("[data-el-id]")].filter((e) => { const b = e.getBoundingClientRect(); return b.width > 0 && (b.right > r.right + 1 || b.bottom > r.bottom + 1 || b.left < r.left - 1 || b.top < r.top - 1); }).length;
-      if (off && !window.confirm(tr("{n} element(s) on this page reach past its edge and will be cut off in the export. Export anyway?", { n: off }))) return;
+      const offEls = [...pg.querySelectorAll("[data-el-id]")].filter((e) => rectsPastSheet([e, ...e.querySelectorAll("text")].map((n) => n.getBoundingClientRect()), r));
+      if (offEls.length) past.push(tr("{n} on this page ({kinds})", { n: offEls.length, kinds: [...new Set(offEls.map((e) => elements.find((x) => x.id === e.getAttribute("data-el-id"))?.type || "element"))].join(", ") }));
     }
+    if (layoutPrintRequest.kind !== "png") for (const o of offSheetPages(layoutPages, activeLayoutPageId, (pp) => pagePx(pageFormatOf(pp)))) past.push(tr("{n} on {page} ({kinds})", { n: o.items.length, page: o.name, kinds: [...new Set(o.items.map((it) => it.type))].join(", ") }));
+    if (past.length && !window.confirm(tr("Elements reach past the sheet's edge and will be cut off in the export: {list}. Export anyway?", { list: past.join("; ") }))) return;
     // TASKS.csv #2471 — a legend whose viewport was refreshed after it was loaded, and whose rows were edited, still lists the old view
     const staleLegends = staleBoundLegends(layoutPages).length;
     if (staleLegends && !window.confirm(tr(staleLegends === 1 ? "{n} legend is out of step with its viewport: the viewport was refreshed after the legend was loaded, and the legend's rows were edited, so they were kept. Export anyway?" : "{n} legends are out of step with their viewports: each viewport was refreshed after its legend was loaded, and the legend's rows were edited, so they were kept. Export anyway?", { n: staleLegends }))) return;
