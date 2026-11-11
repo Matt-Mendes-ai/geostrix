@@ -3772,6 +3772,7 @@
   "+ element": "+ عنصر",
   "Log scale spreads trace-element grades (a few high samples no longer flatten the rest). Linear is proportional to grade.": "المقياس اللوغاريتمي ينشر محتويات العناصر النزرة (لم تعد بضع عينات عالية تسطّح الباقي). الخطي يتناسب مع المحتوى.",
   "Log scale": "مقياس لوغاريتمي",
+  "{n} reading(s) are above 100 %, which a percentage cannot be: check them (Data QC lists them). They are drawn as logged.": "{n} قراءة تزيد على 100 %، وهو ما لا يمكن لنسبة مئوية: تحقّق منها (يسردها فحص جودة البيانات). تُرسم كما سُجّلت.",
   "Vertical scale (px/m)": "المقياس الرأسي (بكسل/م)",
   "log {minPos}–{max}": "لوغاريتمي {minPos}–{max}",
   "No interval data logged for this hole yet — import litho/alt/vein/geotech/assay data with matching hole_id \"{holeId}\".": "لا بيانات فترات مسجلة لهذا الثقب بعد — استورد بيانات ليثولوجيا/تحول/عروق/جيوتقنية/تحاليل بـ hole_id المطابق «{holeId}».",

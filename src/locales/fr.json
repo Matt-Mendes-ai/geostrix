@@ -3772,6 +3772,7 @@
   "+ element": "+ élément",
   "Log scale spreads trace-element grades (a few high samples no longer flatten the rest). Linear is proportional to grade.": "L'échelle log étale les teneurs en éléments traces (quelques échantillons élevés n'écrasent plus le reste). Le linéaire est proportionnel à la teneur.",
   "Log scale": "Échelle log",
+  "{n} reading(s) are above 100 %, which a percentage cannot be: check them (Data QC lists them). They are drawn as logged.": "{n} lecture(s) dépassent 100 %, ce qu'un pourcentage ne peut pas : vérifiez-les (le CQ des données les liste). Elles sont tracées telles que relevées.",
   "Vertical scale (px/m)": "Échelle verticale (px/m)",
   "log {minPos}–{max}": "log {minPos}–{max}",
   "No interval data logged for this hole yet — import litho/alt/vein/geotech/assay data with matching hole_id \"{holeId}\".": "Aucune donnée d'intervalle journalisée pour ce sondage — importez des données litho/alt/veine/géotech/analyses avec le hole_id correspondant « {holeId} ».",
