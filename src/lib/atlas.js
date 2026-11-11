@@ -10,6 +10,7 @@
 // (atlasRecaptureItems below lists the captures). Section pages and oblique maps keep the template's capture.
 import { buildStripLogDataUrl } from "./striplogSvg.js";
 import { utmGridReady, metresPerPagePx } from "./layoutGeometry.js"; // TASKS.csv #1644
+import { DIAGRAM_W, DIAGRAM_H } from "./northDiagram.js"; // TASKS.csv #2478
 
 // TASKS.csv #1644 (review #1497, Lawyers) — each hole marked on the template's map. The viewport is still the template's one capture
 // (see above), so a page used to show the district plan with nothing saying where its hole was (21AGBDD001 800 m off centre,
@@ -115,7 +116,7 @@ export function placeStripLog(elements, aspect, page = { w: 1123, h: 794 }, marg
 // can do neither are left as they are and counted. -> { elements, narrowed (narrowed or moved), overlapping }
 // A north arrow draws at a fixed size whatever its saved width (LayoutModule: 54 x 70 px, 170 x 124 with the declination diagram):
 // it is moved, never narrowed, to whichever side of the log has room, nearer first.
-const fixedSize = (el) => (el.type === "north" ? (el.decl ? [170, 124] : [54, 70]) : null);
+const fixedSize = (el) => (el.type === "north" ? (el.decl ? [DIAGRAM_W, DIAGRAM_H] : [54, 70]) : null); // DIAGRAM_*: #2478 (four caption lines)
 export function makeRoomForStripLog(elements, box, { gap = 12, minKeep = 0.4, pageW = 1123 } = {}) {
   let narrowed = 0, overlapping = 0;
   const out = elements.map((el) => {

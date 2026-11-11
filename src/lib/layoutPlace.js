@@ -3,11 +3,13 @@
 // takes the free spot on the page that overlaps the least of what is there (top-left first on a tie), inside a margin.
 // Pure: no DOM, no React. Boxes in page pixels { x, y, w, h }.
 import { collarTableHeight, collarRowsThatFit } from "./collarTable.js"; // TASKS.csv #2135
+import { DIAGRAM_W, DIAGRAM_H } from "./northDiagram.js"; // TASKS.csv #2478
 
 // an element's box; a text, legend or bar that stores no height gets the size it usually draws at
 const DEFAULT_SIZE = { text: [200, 40], legend: [220, 300], north: [60, 80], scale: [260, 50], logo: [160, 80], table: [320, 200] };
 export function elementBox(el) {
-  const d = DEFAULT_SIZE[el?.type] || [200, 100];
+  // TASKS.csv #2478 / #1773 — the grid / true / magnetic diagram is its own 170 x 136 box, not the 54 px arrow (a legend landed on its captions)
+  const d = el?.type === "north" && el.decl ? [DIAGRAM_W, DIAGRAM_H] : DEFAULT_SIZE[el?.type] || [200, 100];
   const w = Number(el?.w) > 0 ? Number(el.w) : d[0];
   // #2135 — a collar table stores no height: it is as tall as its rows (a 40-row table was taken for 200 px)
   const tableH = el?.type === "table" && Number(el.maxRows) > 0 ? collarTableHeight(Number(el.maxRows), Number(el.fontPt) || 7) : null;
