@@ -10036,5 +10036,7 @@
   "Its colours run from 0 (pale) to 1 (dark red).": "Sus colores van de 0 (pálido) a 1 (rojo oscuro).",
   "The earlier score map is hidden.": "El mapa de puntaje anterior está oculto.",
   "The {n} earlier score maps are hidden.": "Los {n} mapas de puntaje anteriores están ocultos.",
-  "Plan-view fuzzy overlay ({op}) of {n} evidence layer": "Superposición difusa en planta ({op}) de {n} capa de evidencia"
+  "Plan-view fuzzy overlay ({op}) of {n} evidence layer": "Superposición difusa en planta ({op}) de {n} capa de evidencia",
+  "This project's surveyed holes: lift {l}, drift {d} °/100 m (median of {n} inclined holes, first to last station).": "Sondajes con medición de este proyecto: levantamiento {l}, deriva {d} °/100 m (mediana de {n} sondajes inclinados, de la primera a la última estación).",
+  "Use them": "Usarlos"
 }

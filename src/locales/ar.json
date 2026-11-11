@@ -10036,5 +10036,7 @@
   "Its colours run from 0 (pale) to 1 (dark red).": "تمتد ألوانه من 0 (باهت) إلى 1 (أحمر داكن).",
   "The earlier score map is hidden.": "خريطة الدرجة السابقة مخفية.",
   "The {n} earlier score maps are hidden.": "خرائط الدرجة السابقة ({n}) مخفية.",
-  "Plan-view fuzzy overlay ({op}) of {n} evidence layer": "تراكب ضبابي في المسقط ({op}) لطبقة أدلة واحدة ({n})"
+  "Plan-view fuzzy overlay ({op}) of {n} evidence layer": "تراكب ضبابي في المسقط ({op}) لطبقة أدلة واحدة ({n})",
+  "This project's surveyed holes: lift {l}, drift {d} °/100 m (median of {n} inclined holes, first to last station).": "ثقوب هذا المشروع المقيسة: ارتفاع {l}، انجراف {d} °/100 م (وسيط {n} ثقبًا مائلًا، من أول محطة إلى آخرها).",
+  "Use them": "استخدمها"
 }
