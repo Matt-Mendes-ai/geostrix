@@ -551,6 +551,14 @@ export function readableValues(values, minSig = 3) {
   }
   return values.slice();
 }
+// TASKS.csv #2402 (review #2325) — a range read at least to the units of its larger end (a total field: 57,392 to 57,571 nT, its anomaly
+// is in the last digits), more figures where the two ends would otherwise read alike. asPair: [lo, hi] strings instead of 'lo to hi'.
+export function rangeText(lo, hi, asPair = false) {
+  const m = Math.max(Math.abs(lo), Math.abs(hi));
+  const sig = Math.max(3, m >= 1 ? Math.floor(Math.log10(m)) + 1 : 3);
+  const [a, b] = readableValues([lo, hi], sig).map((v) => v.toLocaleString(undefined, { maximumFractionDigits: 10 }));
+  return asPair ? [a, b] : `${a} to ${b}`;
+}
 export function classifyBreaks(values, n, method = "equal") {
   const b = classifyBreaksRaw(values, n, method);
   const r = b.length ? [b[0], ...readableValues(b).slice(1)] : b; // #1422 — the first break (the minimum) stays exact, as #1198 kept it
