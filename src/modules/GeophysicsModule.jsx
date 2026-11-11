@@ -77,6 +77,7 @@ import { collarTerrainOffset } from "../lib/terrainCheck.js"; // TASKS.csv #1620
 import { voxelStretch, sortedShownValues } from "../lib/voxelStretch.js"; // TASKS.csv #1812 / #1781
 import { VoxelRangeRow } from "./viewer/ViewerParts.jsx"; // TASKS.csv #1780
 import { terrainFromBlockModel } from "../lib/terrainFromModel.js"; // TASKS.csv #1806
+import { confirmReplaceTerrain, replacedTerrainNote } from "../lib/terrainReplace.js"; // TASKS.csv #2554
 import { guessQualityColumn, filterSignalQuality, despikeAlongLines } from "../lib/surveyClean.js"; // TASKS.csv #1583 // TASKS.csv #786
 import { mineGridOf } from "../lib/mineGrid.js"; // TASKS.csv #2586
 import { niceContourInterval, terrainRange, MIN_CONTOUR_INTERVAL } from "../lib/contourInterval.js"; // TASKS.csv #2462
@@ -484,9 +485,10 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
   const finishPointsTerrain = async ({ points, lines, what, name, sourceFile, reprojected }) => {
     const { terrainFromPointsAsync } = await import("../lib/terrainFromPoints.js");
     const t = await terrainFromPointsAsync({ points, lines }, { gridMax: terrainDetail }); // #986 — in a worker
-    if (terrain && !window.confirm(tr("Replace the current terrain (\"{name}\") with \"{name2}\"? Only one terrain surface is supported at a time.", { name: terrain.name, name2: name }))) return;
+    if (!confirmReplaceTerrain(terrain, name)) return; // #2554 — the shared question
+    const replaced = replacedTerrainNote(terrain);
     addTerrain({ name, bbox: t.bbox, gridW: t.gridW, gridH: t.gridH, elevations: t.elevations, noDataMask: t.noDataMask || null, source: { kind: "tin from points", file: sourceFile, points: t.stats.points, nodeM: t.stats.cellM } });
-    let msg = tr("Built \"{name}\" from {what}: a triangulated surface of {tri} triangles sampled on a {gridW}×{gridH} grid (nodes ~{cell} m apart).", { name, what, tri: t.stats.triangles.toLocaleString(), gridW: t.gridW, gridH: t.gridH, cell: t.stats.cellM.toFixed(1) });
+    let msg = replaced + tr("Built \"{name}\" from {what}: a triangulated surface of {tri} triangles sampled on a {gridW}×{gridH} grid (nodes ~{cell} m apart).", { name, what, tri: t.stats.triangles.toLocaleString(), gridW: t.gridW, gridH: t.gridH, cell: t.stats.cellM.toFixed(1) });
     if (reprojected) msg += " " + tr("The coordinates read as longitude / latitude and were reprojected from WGS 84 to the project's EPSG:{epsg}.", { epsg: project.epsg });
     if (t.stats.densifyCapped) msg += " " + tr("The contour lines were given a vertex every {m} m rather than every half node spacing ({h} m), to keep the triangulation to about four points per grid node.", { m: t.stats.densifyStepM.toFixed(1), h: t.stats.halfCellM.toFixed(1) }); // #986
     if (t.stats.longDropped) msg += " " + tr("{n} triangle(s) with an edge over {m} m were left out, so no ground is invented across gaps in the data.", { n: t.stats.longDropped, m: Math.round(t.stats.maxEdgeM) });
@@ -1421,8 +1423,10 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     const t = terrainFromBlockModel(model.cells);
     if (!t) { setVoxelError({ info: false, text: tr("\"{name}\" gives no terrain: fewer than 2 × 2 columns with a value.", { name: model.name }) }); return; }
     const name = tr("Top of {name} (block model)", { name: model.name });
+    if (!confirmReplaceTerrain(terrain, name)) return; // #2554 — it replaced the loaded terrain, said only after the fact
+    const replaced = replacedTerrainNote(terrain);
     addTerrain({ name, bbox: t.bbox, gridW: t.gridW, gridH: t.gridH, elevations: t.elevations, noDataMask: t.noDataMask, source: { kind: "top of a block model", model: model.name, columns: t.stats.columns, nodeM: t.stats.nodeM.map((v) => Math.round(v * 10) / 10) } });
-    setVoxelError({ info: true, text: tr("Added the terrain \"{name}\": {w} × {h} nodes at {dx} × {dy} m from the top cell of {cols} column(s), {zmin} to {zmax} m{v}. It is the mesh's own ground, as fine as its columns and only where the mesh is{v2}. Samples with no elevation now sit on it; sections take its profile.", { name, w: t.gridW, h: t.gridH, dx: Math.round(t.stats.nodeM[0] * 10) / 10, dy: Math.round(t.stats.nodeM[1] * 10) / 10, cols: t.stats.columns.toLocaleString(), zmin: Math.round(t.stats.relief[0]), zmax: Math.round(t.stats.relief[1]), v: t.stats.empty ? tr(", {n} node(s) with no column marked as no ground", { n: t.stats.empty.toLocaleString() }) : "", v2: terrain ? tr(" (it replaces the terrain that was loaded)") : "" }) });
+    setVoxelError({ info: true, text: replaced + tr("Added the terrain \"{name}\": {w} × {h} nodes at {dx} × {dy} m from the top cell of {cols} column(s), {zmin} to {zmax} m{v}. It is the mesh's own ground, as fine as its columns and only where the mesh is{v2}. Samples with no elevation now sit on it; sections take its profile.", { name, w: t.gridW, h: t.gridH, dx: Math.round(t.stats.nodeM[0] * 10) / 10, dy: Math.round(t.stats.nodeM[1] * 10) / 10, cols: t.stats.columns.toLocaleString(), zmin: Math.round(t.stats.relief[0]), zmax: Math.round(t.stats.relief[1]), v: t.stats.empty ? tr(", {n} node(s) with no column marked as no ground", { n: t.stats.empty.toLocaleString() }) : "", v2: "" /* #2554: said by "Replaced the terrain" first */ }) });
   };
   const importUBC = async (fileList) => {
     const files = Array.from(fileList || []);

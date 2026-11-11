@@ -9928,5 +9928,7 @@
   "{code} {rho} t/m³ ({n} blocks)": "{code} {rho} طن/م³ ({n} كتلة)",
   "the default": "القيمة الافتراضية",
   "The bench table uses the one density above.": "يستخدم جدول المصاطب الكثافة الواحدة أعلاه.",
-  "Enter the default density to show the tonnes.": "أدخل الكثافة الافتراضية لعرض الأطنان."
+  "Enter the default density to show the tonnes.": "أدخل الكثافة الافتراضية لعرض الأطنان.",
+  "Terrain is not undoable: the old one is gone unless you import it again, and the rasters and map layers draped on it drape on the new one.": "لا يمكن التراجع عن التضاريس: تُفقد القديمة ما لم تستوردها مجددًا، وتنتقل النقوش النقطية وطبقات الخريطة المكسوّة عليها إلى الجديدة.",
+  "Replaced the terrain \"{name}\".": "استُبدلت التضاريس \"{name}\"."
 }

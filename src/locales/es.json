@@ -9928,5 +9928,7 @@
   "{code} {rho} t/m³ ({n} blocks)": "{code} {rho} t/m³ ({n} bloques)",
   "the default": "el valor por defecto",
   "The bench table uses the one density above.": "La tabla por banco usa la densidad única de arriba.",
-  "Enter the default density to show the tonnes.": "Ingrese la densidad por defecto para mostrar las toneladas."
+  "Enter the default density to show the tonnes.": "Ingrese la densidad por defecto para mostrar las toneladas.",
+  "Terrain is not undoable: the old one is gone unless you import it again, and the rasters and map layers draped on it drape on the new one.": "El terreno no se puede deshacer: el anterior se pierde salvo que lo vuelva a importar, y los ráster y capas de mapa drapeados sobre él pasan al nuevo.",
+  "Replaced the terrain \"{name}\".": "Se reemplazó el terreno \"{name}\"."
 }

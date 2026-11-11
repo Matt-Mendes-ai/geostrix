@@ -11,6 +11,7 @@
 //     observed / predicted / residual maps, provenance on the model, and no volume or tonnage anywhere.
 // The job itself lives in lib/inversionJobs.js so it survives tab switches.
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { confirmReplaceTerrain, replacedTerrainNote } from "../lib/terrainReplace.js"; // TASKS.csv #2554
 import InResultArea from "./InResultArea.jsx"; // TASKS.csv #1199
 import { useKeptState, scopeOf, keptIn } from "../lib/keptState.js"; // TASKS.csv #1174; keptIn: #1431
 import { ChevronDown, ChevronRight, Activity, Square, Compass, Play, Gauge } from "./icons.js";
@@ -159,8 +160,10 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
       const sh = zMode === "ground" ? 0 : num(sensorHeight) > 0 ? num(sensorHeight) : 0;
       const t = terrainFromSurveyElevations(rows, { sensorHeight: sh });
       const name = tr("Ground from the {survey} stations", { survey: activeSurvey || tr("survey") });
+      if (!confirmReplaceTerrain(terrain, name)) return; // #2554 — it replaced a fetched / collar terrain without asking
+      const replaced = replacedTerrainNote(terrain);
       addTerrain({ name, bbox: t.bbox, gridW: t.gridW, gridH: t.gridH, elevations: t.elevations, noDataMask: t.noDataMask, source: { kind: "survey station elevations", survey: activeSurvey, ...t.stats } });
-      setGroundNote(tr("Added the terrain \"{name}\": {w} × {h} nodes at {cell} m from {n} station elevations{v}, blanked beyond {blank} m of a station ({pct}% of its box has ground, {zmin} to {zmax} m). It is the survey's own GPS heights, not a DEM: good enough for which cells are underground, coarse for anything else.", { name, w: t.gridW, h: t.gridH, cell: +t.stats.cellM.toFixed(1), n: t.stats.stations.toLocaleString(), v: sh ? tr(" minus the {sh} m sensor height", { sh }) : "", blank: Number.isFinite(t.stats.blankM) ? Math.round(t.stats.blankM) : "—", pct: Math.round(t.stats.coveredPct), zmin: Math.round(t.stats.zmin), zmax: Math.round(t.stats.zmax) }));
+      setGroundNote(replaced + tr("Added the terrain \"{name}\": {w} × {h} nodes at {cell} m from {n} station elevations{v}, blanked beyond {blank} m of a station ({pct}% of its box has ground, {zmin} to {zmax} m). It is the survey's own GPS heights, not a DEM: good enough for which cells are underground, coarse for anything else.", { name, w: t.gridW, h: t.gridH, cell: +t.stats.cellM.toFixed(1), n: t.stats.stations.toLocaleString(), v: sh ? tr(" minus the {sh} m sensor height", { sh }) : "", blank: Number.isFinite(t.stats.blankM) ? Math.round(t.stats.blankM) : "—", pct: Math.round(t.stats.coveredPct), zmin: Math.round(t.stats.zmin), zmax: Math.round(t.stats.zmax) }));
     } catch (e) { setGroundNote(e.message); }
   };
   const thinSuggestion = useMemo(() => (rows.length > MAX_STATIONS ? suggestThinSpacing(xs, ys) : null), [rows]);
