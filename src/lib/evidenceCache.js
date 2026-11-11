@@ -3,6 +3,8 @@
 // are a pure function of the grid, the source and its options, and the project data, so they are kept here between openings:
 // keyed by grid + source + options, and reused only while every data input is the same object (the store replaces an array when
 // it changes, so identity is the version). Least recently used first out; at most MAX layers (each is one value per grid cell).
+import { parseCodedRef, codedRowsOf } from "./evidenceSources.js"; // TASKS.csv #2453
+
 const MAX = 16;
 const cache = new Map();
 
@@ -30,6 +32,8 @@ export function cachedEvidence(key, deps, compute) {
 // collars, the survey and the desurvey method (the derived Map is rebuilt on every opening of the pane, the inputs are not).
 export function evidenceDeps(src, opts = {}, d = {}) {
   const holes = [d.collars, d.survey, d.desurveyMethod];
+  const coded = parseCodedRef(src.ref); // TASKS.csv #2453 — a coded field's card reads its layer's rows
+  if (coded) return [codedRowsOf(coded.l, d.projectLayers, d.customLayers), ...holes];
   switch (src.kind) {
     case "raster": return [(d.rasters || []).find((r) => r.id === src.ref)?.grid];
     case "distance": return [(d.mapLayers || []).find((l) => String(l.id) === String(src.ref))?.features];

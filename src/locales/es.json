@@ -10043,5 +10043,9 @@
   "Filter the holes": "Filtrar los sondajes",
   "By a collar field": "Por un campo del collar",
   "{selectedCount} selected; {n} of {all} holes listed": "{selectedCount} seleccionados; {n} de {all} sondajes listados",
-  "About {m} min for {n} pages, at the last run's {s} s a page on this computer.": "Unos {m} min para {n} páginas, a {s} s por página como en la última ejecución en este equipo."
+  "About {m} min for {n} pages, at the last run's {s} s a page on this computer.": "Unos {m} min para {n} páginas, a {s} s por página como en la última ejecución en este equipo.",
+  "Drillholes: metres of logged {layer}: {code} in each hole": "Sondajes: metros registrados de {layer}: {code} en cada sondaje",
+  "Drillholes: depth to the top of logged {layer}: {code}": "Sondajes: profundidad al techo de {layer} registrado: {code}",
+  "Drillholes: elevation of the base of logged {layer}: {code}": "Sondajes: cota de la base de {layer} registrado: {code}",
+  "A second metal credited from its own block model, estimated on the same grid as the main one (the same cell size over the same area): Ag beside Au, Au beside Cu, Ta beside Li.": "Un segundo metal acreditado desde su propio modelo de bloques, estimado en la misma grilla que el principal (el mismo tamaño de celda sobre la misma área): Ag junto al Au, Au junto al Cu, Ta junto al Li."
 }

@@ -10043,5 +10043,9 @@
   "Filter the holes": "Filtrar os furos",
   "By a collar field": "Por um campo do colar",
   "{selectedCount} selected; {n} of {all} holes listed": "{selectedCount} selecionados; {n} de {all} furos listados",
-  "About {m} min for {n} pages, at the last run's {s} s a page on this computer.": "Cerca de {m} min para {n} páginas, a {s} s por página como na última execução neste computador."
+  "About {m} min for {n} pages, at the last run's {s} s a page on this computer.": "Cerca de {m} min para {n} páginas, a {s} s por página como na última execução neste computador.",
+  "Drillholes: metres of logged {layer}: {code} in each hole": "Furos: metros registrados de {layer}: {code} em cada furo",
+  "Drillholes: depth to the top of logged {layer}: {code}": "Furos: profundidade até o topo de {layer} registrado: {code}",
+  "Drillholes: elevation of the base of logged {layer}: {code}": "Furos: cota da base de {layer} registrado: {code}",
+  "A second metal credited from its own block model, estimated on the same grid as the main one (the same cell size over the same area): Ag beside Au, Au beside Cu, Ta beside Li.": "Um segundo metal creditado a partir do seu próprio modelo de blocos, estimado na mesma grade que o principal (o mesmo tamanho de célula sobre a mesma área): Ag ao lado do Au, Au ao lado do Cu, Ta ao lado do Li."
 }

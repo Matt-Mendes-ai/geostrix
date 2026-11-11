@@ -10043,5 +10043,9 @@
   "Filter the holes": "تصفية الثقوب",
   "By a collar field": "حسب حقل الفوهة",
   "{selectedCount} selected; {n} of {all} holes listed": "{selectedCount} محدد؛ {n} من {all} ثقبًا معروضة",
-  "About {m} min for {n} pages, at the last run's {s} s a page on this computer.": "نحو {m} دقيقة لـ {n} صفحة، بمعدل {s} ث للصفحة في آخر تشغيل على هذا الحاسوب."
+  "About {m} min for {n} pages, at the last run's {s} s a page on this computer.": "نحو {m} دقيقة لـ {n} صفحة، بمعدل {s} ث للصفحة في آخر تشغيل على هذا الحاسوب.",
+  "Drillholes: metres of logged {layer}: {code} in each hole": "ثقوب الحفر: أمتار {layer} المسجلة: {code} في كل ثقب",
+  "Drillholes: depth to the top of logged {layer}: {code}": "ثقوب الحفر: العمق حتى أعلى {layer} المسجل: {code}",
+  "Drillholes: elevation of the base of logged {layer}: {code}": "ثقوب الحفر: ارتفاع قاعدة {layer} المسجل: {code}",
+  "A second metal credited from its own block model, estimated on the same grid as the main one (the same cell size over the same area): Ag beside Au, Au beside Cu, Ta beside Li.": "معدن ثانٍ يُحتسب من نموذج كتله الخاص، مقدَّر على الشبكة نفسها كالمعدن الرئيسي (حجم الخلية نفسه على المساحة نفسها): Ag إلى جانب Au، وAu إلى جانب Cu، وTa بجانب Li."
 }

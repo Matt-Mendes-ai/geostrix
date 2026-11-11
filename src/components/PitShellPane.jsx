@@ -152,7 +152,7 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove,
       const cellText = size || r.coarsened ? tr(", {c} m cells", { c: Math.round(r.cell[0] * 10) / 10 }) : ""; // #1900 — a typed or coarsened size names the pit
       const support = model.cells.some((c) => Number.isFinite(c.nHoles)); // #1354 — the estimate says how many holes informed each block
       const beyondFlagged = !!model.params?.beyondFlagged || model.cells.some((c) => c.beyond); // #2435 — the estimate flagged blocks beyond its samples (#2417)
-      kept = { ...r, unit, seconds, hasTerrain: !!terrain, model: model.name, slopeDeg: inputs.slopeDeg, sectorSlopes: inputs.sectorSlopes || null, support, beyondFlagged, byUnit, byLabel }; // byUnit / byLabel: #1917; beyondFlagged: #2435
+      kept = { ...r, unit, seconds, hasTerrain: !!terrain, model: model.name, slopeDeg: inputs.slopeDeg, sectorSlopes: inputs.sectorSlopes || null, support, beyondFlagged, byUnit, byLabel, byElement }; // byUnit / byLabel: #1917; beyondFlagged: #2435
       setRes(kept);
       const contained = r.metalU * r.metalFactor;
       if (hideEarlier) surfaces.filter((s) => s.type === "pit_shell" && s.visible && s.id !== editingId).forEach((s) => onToggle?.(s.id)); // #1356 — one pit on view at a time
@@ -175,7 +175,7 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove,
     }
   };
   const cancel = () => job.current?.cancel();
-  const metalText = (r) => metalAmountText(r.metalU * r.metalFactor, r.metalUnit, element, big); // #1748 — and pounds; uranium as lb U3O8: #2434
+  const metalText = (r, el = element) => metalAmountText(r.metalU * r.metalFactor, r.metalUnit, el, big); // #1748 — and pounds; uranium as lb U3O8: #2434
   const line = (label, v, muted = false) => <div style={row}><span>{label}</span><b style={muted ? { color: "var(--color-text-muted)", fontWeight: 400 } : undefined}>{v}</b></div>;
   // TASKS.csv #2435 (review #2325, WA uranium) — ore in blocks above or below every sample informing them is unsampled ground, neither
   // barren nor ore: past a fifth of the ore, it is said above the tonnes and the strip ratio and margin are greyed
@@ -200,12 +200,12 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove,
         {priceStale && <div style={warn}>{tr("The price was entered for another metal unit: enter it again for this block model.")}</div>}
         {field("recovery", tr("Metallurgical recovery (%)"))}
         {/* TASKS.csv #1917 (from #1615 / #1749) — a by-product metal: a second block model on the same grid, its own price and recovery */}
-        {model && <label style={row}>{tr("By-product (optional)")}<select value={byModel ? f.byModelId : ""} onChange={(e) => { setF((p) => ({ ...p, byModelId: e.target.value })); setMsg(null); }} style={{ ...smallSel, width: 0, flex: 1, minWidth: 0 }} aria-label={tr("By-product block model")} title={tr("A second metal credited from its own block model, estimated on the same grid as the main one (the same cell size over the same area): Ag beside Au, Au beside Cu.")}>
+        {model && <label style={row}>{tr("By-product (optional)")}<select value={byModel ? f.byModelId : ""} onChange={(e) => { setF((p) => ({ ...p, byModelId: e.target.value })); setMsg(null); }} style={{ ...smallSel, width: 0, flex: 1, minWidth: 0 }} aria-label={tr("By-product block model")} title={tr("A second metal credited from its own block model, estimated on the same grid as the main one (the same cell size over the same area): Ag beside Au, Au beside Cu, Ta beside Li.")}>
           <option value="">{byCandidates.length ? tr("— none —") : tr("— none: estimate a second metal on the same grid —")}</option>{byCandidates.map((m) => <option key={m.id ?? m.name} value={m.id ?? m.name}>{m.name}</option>)}
         </select></label>}
         {byModel && (<>
           <label style={row}>{tr("{el} price", { el: byLabel })}<span style={{ display: "flex", gap: 4 }}><input type="number" min={0} step="any" value={f.byPrice} onChange={set("byPrice")} style={num} aria-label={tr("By-product price")} />
-            <select value={byPriceUnit || ""} onChange={set("byPriceUnit")} style={{ ...smallSel, width: 62 }} aria-label={tr("By-product price unit")}>{(byPrices || []).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></span></label>
+            <select value={byPriceUnit || ""} onChange={set("byPriceUnit")} style={{ ...smallSel, width: (byPrices || []).some(([, l]) => l.length > 6) ? 96 : 62 }} /* #2595 — "$/lb Ta2O5" */ aria-label={tr("By-product price unit")}>{(byPrices || []).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></span></label>
           {field("byRecovery", tr("{el} recovery (%)", { el: byLabel }))}
           <div style={note}>{tr("A block is ore when its revenue over both metals pays the processing cost; the pit, its ore and its strip ratio follow.")}</div>
         </>)}
@@ -269,7 +269,7 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove,
           {line(tr("Contained metal"), metalText(res))}
           {/* #1917 — the by-product's grade, metal and share of the revenue */}
           {res.by && line(tr("Mean {el} grade", { el: res.byLabel }), `${res.by.meanGrade == null ? "—" : Number(res.by.meanGrade.toPrecision(3))} ${res.byUnit}`)}
-          {res.by && line(tr("Contained {el}", { el: res.byLabel }), metalText(res.by))}
+          {res.by && line(tr("Contained {el}", { el: res.byLabel }), metalText(res.by, res.byElement))}{/* #2595 — in the by-product's own words (it read "t Li (... SC6 ...)" for Ta) */}
           {res.by && line(tr("Revenue from {el}", { el: res.byLabel }), `${Math.round(res.by.revenueShare * 100)} %`)}
           {res.by && res.by.matchedShare < 0.999 && <div style={warn}>{tr("{p} % of the main model's blocks have a {el} grade: the rest count no {el}.", { p: Math.round(res.by.matchedShare * 100), el: res.byLabel })}</div>}
           {line(tr("Waste"), `${big(res.wasteT)} t`)}

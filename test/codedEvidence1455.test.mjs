@@ -27,6 +27,7 @@ test("#1455 codes logged fewer than `min` times are not offered; point rows (dep
 test("#1455 the pane offers the coded logs and reads a mineral's percent", () => {
   const p = readFileSync(new URL("../src/components/EvidenceOverlayPane.jsx", import.meta.url), "utf8");
   assert.ok(p.includes('const CODED_LAYERS = ["litho", "alt", "vein", "breccia", "weath", "mnlgy", "structzone", "litho_gc", "alt_gc"]'));
-  assert.ok(p.includes('tr("Distance to logged {layer}: {code}", { layer: name, code })') && p.includes('tr("Drillholes: {code} % along the holes", { code })'));
-  assert.ok(p.includes("zoneCodes(rows, traces, { min: 3 })") && p.includes('/^coded:([^:]+):(.+):([^:]+)$/.exec(ref)'));
+  // #2453 / #2583 — the codes now come folded by case from every coded field (codeCards); a built-in log's value code keeps its old card
+  assert.ok(p.includes('tr("Distance to logged {layer}: {code}", { layer: name, code: c.label })') && p.includes('tr("Drillholes: {code} % along the holes", { code })'));
+  assert.ok(p.includes("foldedCodes(rows, traces, { min: 3, field })") && p.includes('/^coded:([^:]+):(.+):([^:]+)$/.exec(ref)'));
 });
