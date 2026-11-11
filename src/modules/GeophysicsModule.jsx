@@ -23,7 +23,7 @@ import { downholeLikeness } from "../lib/downholeLikeness.js"; // TASKS.csv #170
 import AddWebLayerModal from "../components/AddWebLayerModal.jsx";
 const MacrostratModal = React.lazy(() => import("../components/MacrostratModal.jsx")); // TASKS.csv #2005
 import { useStore } from "../lib/store.jsx";
-import { classifyBreaks, PALETTES, paletteColorsHex , colorForVoxelValue, readableValues /* #1422 */, classCountNote /* #1430 */ } from "../lib/layers.js";
+import { classifyBreaks, PALETTES, paletteShortName /* #1859 */, paletteColorsHex , colorForVoxelValue, readableValues /* #1422 */, classCountNote /* #1430 */ } from "../lib/layers.js";
 import StopValueInput from "../components/StopValueInput.jsx"; // TASKS.csv #1422
 import { parseDEMFiles, buildRasterImport, terrainToGeoTIFFArrayBuffer } from "../lib/raster.js";
 import { boundaryAreaHectares } from "../lib/geoprocessing.js";
@@ -2930,7 +2930,7 @@ function VoxelLegendEditor({ model, onUpdate }) {
           <select value={palette} onChange={(e) => setPalette(e.target.value)} style={{ ...numInput, flex: 1 }} title={PALETTES[palette]?.label}>
             {/* #1433 — the short name in the list (the full description widened the sidebar to 488 px); the full text on hover */}
             {palette === "__own" && <option value="__own">{tr("The model's own colours")}</option>}{/* #1788 */}
-            {Object.entries(PALETTES).map(([key, p]) => <option key={key} value={key} title={p.label}>{p.label.split(" — ")[0]}</option>)}
+            {Object.entries(PALETTES).map(([key, p]) => <option key={key} value={key} title={p.label}>{paletteShortName(key)}</option>)}
           </select>
           {stops.length > 0 && PALETTES[palette] && (
             <button onClick={recolorWithPalette} style={{ ...pBtn, width: "auto", marginBottom: 0 }} title={tr("Re-colour the existing stops with this palette, keeping their current values")}>{tr("Recolour")}</button>

@@ -1,7 +1,7 @@
 // TASKS.csv #1136 — moved out of ViewerModule (loaded on first use, not at startup)
 import React, { useState } from "react";
 import { CLIP_KEYS, numericClip } from "../lib/numericClip.js"; // TASKS.csv #1699
-import { minMax, classifyBreaks, paletteColorsHex, PALETTES, trimForBreaks, readableValues, classCountNote } from "../lib/layers.js"; // trimForBreaks: #1531; readableValues: #1422
+import { minMax, classifyBreaks, paletteColorsHex, PALETTES, paletteShortName /* #1859 */, trimForBreaks, readableValues, classCountNote } from "../lib/layers.js"; // trimForBreaks: #1531; readableValues: #1422
 import StopValueInput from "./StopValueInput.jsx"; // TASKS.csv #1422
 import { activateOnKey } from "../lib/a11y.js";
 import { t as tr } from "../lib/i18n.js";
@@ -60,7 +60,7 @@ export default function NumericSymbologyEditor({ layerKey, rows, sym, onChange }
         </select>
         <select value={palette} onChange={(e) => setPalette(e.target.value)} title={tr("Colour ramp")}
           style={{ background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, padding: "3px 4px", fontSize: "var(--font-size-sm)", color: "var(--color-text)", maxWidth: 110 }}>
-          {Object.entries(PALETTES).map(([k, p]) => <option key={k} value={k}>{p.label.split(" — ")[0]}</option>)}
+          {Object.entries(PALETTES).map(([k, p]) => <option key={k} value={k} title={p.label}>{paletteShortName(k)}</option>)}
         </select>
         <button onClick={apply} disabled={!values.length}
           style={{ padding: "3px 8px", borderRadius: 4, border: "1px solid var(--color-selected-border)", background: values.length ? "var(--color-selected-bg)" : "var(--color-bg-subtle)", color: "var(--color-primary)", fontSize: "var(--font-size-sm)", cursor: values.length ? "pointer" : "default", opacity: values.length ? 1 : 0.5 }}

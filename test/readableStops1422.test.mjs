@@ -42,7 +42,7 @@ test("both legend editors show the stops rounded and keep what is typed (StopVal
 
 test("#1433 the palette list shows short names, inputs may shrink, inversion steps fit", () => {
   const g = read("../src/modules/GeophysicsModule.jsx");
-  assert.match(g, /<option key=\{key\} value=\{key\} title=\{p\.label\}>\{p\.label\.split\(" — "\)\[0\]\}<\/option>/);
+  assert.match(g, /<option key=\{key\} value=\{key\} title=\{p\.label\}>\{paletteShortName\(key\)\}<\/option>/); // #1859 — the short name now cut at ' (' too
   assert.match(g, /const numInput = \{ flex: 1, minWidth: 0 \/\* #1433 \*\//);
   assert.match(read("../src/components/InversionPanel.jsx"), /margin: "8px 0 0", minWidth: 0 \/\* #1433/);
 });
