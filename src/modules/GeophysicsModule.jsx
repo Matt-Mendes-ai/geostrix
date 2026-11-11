@@ -71,6 +71,7 @@ import { arrMin, arrMax, median } from "../lib/arrayStats.js"; // TASKS.csv #371
 import { unreadableFormatAdvice } from "../lib/unreadableFormats.js"; // TASKS.csv #603
 import { t as tr } from "../lib/i18n.js";
 import { decadesBetween, isLogSpaced, logViridisStops } from "../lib/pointSurveyScale.js"; // TASKS.csv #1787
+import { defaultModelLegend } from "../lib/modelDefaultStops.js"; // TASKS.csv #2400
 import { guessVoxelProperty, isLogProperty, propertyRamp } from "../lib/voxelProperty.js"; // TASKS.csv #1786; propertyRamp: #1788
 import { cloudShape } from "../lib/cloudShape.js"; // TASKS.csv #1783
 import { defaultDrapeElevation, rasterDrapeElevation, drapeElevationNote, planElevation } from "../lib/drapeElevation.js"; // planElevation: #2294; // TASKS.csv #1856; rasterDrapeElevation: #1505
@@ -2875,7 +2876,7 @@ function VoxelLegendEditor({ model, onUpdate }) {
     const colors = PALETTES[palette] || !own.length ? paletteColorsHex(PALETTES[palette] ? palette : "viridis", breaks.length) : breaks.map((_, i) => own[Math.round((i * (own.length - 1)) / Math.max(1, breaks.length - 1))]);
     setStops(breaks.map((v, i) => ({ value: v, color: colors[i] })), { colorMode: "discrete" });
   };
-  const resetToDefault = () => setStops([]);
+  const resetToDefault = () => { const d = defaultModelLegend(model); setStops(d.stops, { colorMode: d.colorMode }); }; // #2400 — continuous again, and a log model's own log ramp
 
   return (
     <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px solid var(--color-border)" }}>
