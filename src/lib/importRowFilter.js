@@ -3,11 +3,16 @@
 // where <column> is <values>"), pre-filled when a flag column says which rows are out of date: Superseded / Obsolete / Deleted / Replaced
 // TRUE (left out), or Current / Valid / Latest / Active FALSE (left out). Pure: no UI.
 
+import { coordColumn } from "./coordSets.js"; // TASKS.csv #2652
 const norm = (v) => String(v ?? "").trim();
 const TRUE = /^(true|t|yes|y|1|-1)$/i, FALSE = /^(false|f|no|n|0)$/i;
 const DROP_WHEN_TRUE = /^(is_?)?(superseded|obsolete|deleted|replaced|void|voided|rejected)$/i;
 const KEEP_WHEN_TRUE = /^(is_?)?(current|valid|latest|active|accepted)$/i;
 const key = (h) => String(h ?? "").trim().replace(/[\s-]+/g, "_");
+// TASKS.csv #2652 (from #2492) — a coordinate column (MGA_Z, GBMG_RL, Easting) or a measurement (every value a number, more than two of them)
+// is not a way to pick rows: 'only rows where MGA_Z is…' was offered on a collar file. A 0 / 1 flag column stays.
+const NUMBER = /^[-+]?(\d+\.?\d*|\.\d+)([eE][-+]?\d+)?$/;
+const notAFilter = (h, values) => coordColumn(h) != null || (values.length > 2 && values.every((v) => v === "" || NUMBER.test(v)));
 
 // the columns a row filter can use: 2..max distinct values over the rows -> [{ col, values: [[value, count]] }] (most common first)
 export function rowFilterColumns(headers, rows, max = 12) {
@@ -16,7 +21,7 @@ export function rowFilterColumns(headers, rows, max = 12) {
     const counts = new Map();
     let over = false;
     for (const r of rows || []) { const v = norm(r?.[h]); if (!counts.has(v)) { if (counts.size >= max) { over = true; break; } counts.set(v, 0); } counts.set(v, counts.get(v) + 1); }
-    if (over || counts.size < 2) continue;
+    if (over || counts.size < 2 || notAFilter(h, [...counts.keys()])) continue;
     out.push({ col: h, values: [...counts].sort((a, b) => b[1] - a[1]) });
   }
   return out;
