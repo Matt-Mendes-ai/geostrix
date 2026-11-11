@@ -1700,6 +1700,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
       setHoleLabelMode("none");
       setFigureOverlay({ ...DEFAULT_FIGURE_OVERLAY }); // TASKS.csv #311
       setLayerStyles({}); // #635
+      setModelArea("all"); // #2535
       return;
     }
     if (s.layerVisible) setLayerVisible({ ...DEFAULT_LAYER_VISIBLE, ...s.layerVisible });
@@ -1722,6 +1723,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
     // row existed opens with the overlay on, same as a new one, rather than silently missing it.
     setFigureOverlay({ ...DEFAULT_FIGURE_OVERLAY, ...(s.figureOverlay || {}) });
     setLayerStyles(s.layerStyles || {}); // #635
+    setModelArea(s.modelArea === "checked" ? "checked" : "all"); // #2535 — saved with the project
   }, [viewerUiStateSeq, viewerUiState, lastCamState]);
 
   // Push local UI state up to the store on every relevant change, so it's captured whenever
@@ -1744,10 +1746,11 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
       holeLabelMode,
       figureOverlay, // TASKS.csv #311
       layerStyles, // TASKS.csv #635
+      modelArea, // #2535
     };
     setViewerUiState(ui);
     if (baselineFor.current !== hydratedFor) { baselineFor.current = hydratedFor; markViewerUiBaseline?.(ui, hydratedFor); } // #1656 — this project's own styling
-  }, [hydratedFor, viewerUiStateSeq, layerVisible, categoryFilter, numericRange, legendOverride, numericSymbology, visibleHoles, customVisible, assayVisible, assayDisplayElements, assayStyle, assaySource, gridConfig, bgColor, holeLabelMode, figureOverlay, layerStyles, setViewerUiState, markViewerUiBaseline]);
+  }, [hydratedFor, viewerUiStateSeq, layerVisible, categoryFilter, numericRange, legendOverride, numericSymbology, visibleHoles, customVisible, assayVisible, assayDisplayElements, assayStyle, assaySource, gridConfig, bgColor, holeLabelMode, figureOverlay, layerStyles, setViewerUiState, markViewerUiBaseline, modelArea]);
 
   // Applies bgColor to the live three.js scene whenever it changes — separate from the push-to-store
   // effect above since this one needs sceneRef.current (set up in the big scene-setup effect further

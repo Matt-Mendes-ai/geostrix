@@ -289,7 +289,8 @@ export default function ModellingPanes(props) {
   const altVocab = altVocabFields.find((v) => v.field === altSource.field) || null;
   const mcodesView = useMemo(() => ({ scene: sceneRef, groups: layerGroupsRef, camera: cameraRef, renderer: rendererRef, traces: tracesRef, activity: lastActivityRef, dragHook: viewDragHookRef }), [sceneRef, layerGroupsRef, cameraRef, rendererRef, tracesRef, lastActivityRef, viewDragHookRef]);
   const topsOfUnit = useCallback((unit) => {
-    const runs = codedRuns(layers.litho || [], modellingCodes, mcGroupOf);
+    // TASKS.csv #2535 — the Explicit surface seeds from the Model area's holes (it seeded 206 picks across the property, then fed a 30-hole run)
+    const runs = codedRuns(modelArea === "checked" ? (layers.litho || []).filter((r) => visibleHoles?.[r.hole_id] !== false) : layers.litho || [], modellingCodes, mcGroupOf);
     const holes = [...new Set(runs.filter((r) => r.code === unit).map((r) => r.hole_id))];
     if (codeInfo(modellingCodes, unit, mcodeDefaultRole).role === "overburden") { // TASKS.csv #1684 — an overburden unit seeds its BASE
       const { bases, skipped } = overburdenBases(runs, modellingCodes, mcodeDefaultRole, unit);
@@ -297,7 +298,7 @@ export default function ModellingPanes(props) {
     }
     const { tops, skipped } = topsForCode(runs, unit, modellingCodes, mcodeDefaultRole);
     return { tops: tops.map((r) => ({ hole_id: r.hole_id, md: r.from, above: r.above?.code ?? null, below: r.code })), skipped, holes };
-  }, [layers.litho, modellingCodes, lithoGroups]); // mcGroupOf / mcodeDefaultRole are rebuilt every render from lithoGroups
+  }, [layers.litho, modellingCodes, lithoGroups, modelArea, visibleHoles]); // mcGroupOf / mcodeDefaultRole are rebuilt every render from lithoGroups
   return (<>
         {toolPane === "settings" && (<>
         {paneHeader("Model settings", Settings, "model")}

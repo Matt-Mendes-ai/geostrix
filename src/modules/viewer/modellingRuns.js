@@ -130,7 +130,7 @@ export function createModellingRuns(ctx, mcRef) {
     sections,
     setAlterationBusy,
     setImplicitBusy,
-    setImplicitSurfaces,
+    setImplicitSurfaces: setImplicitSurfacesRaw, // #2535 — wrapped below
     setLastLithBlock,
     setNotices,
     setNumericBusy,
@@ -151,6 +151,9 @@ export function createModellingRuns(ctx, mcRef) {
     veinDipDir,
     veinSearchRadius,
   } = ctx;
+  // TASKS.csv #2535 (review #2486) — every surface a run adds records which holes fed it in its Parameters used (the grade shell's did, #2059)
+  const areaParam = () => (modelArea === "checked" ? (() => { const a = checkedHoleCount(ctx.collars || [], visibleHoles); return `holes checked in the Holes list (${a.checked} of ${a.all})`; })() : "whole property");
+  const setImplicitSurfaces = (u) => setImplicitSurfacesRaw((prev) => { const next = typeof u === "function" ? u(prev) : u; const had = new Set(prev || []); return (next || []).map((sf) => (had.has(sf) || !sf?.params || sf.params.modelArea ? sf : { ...sf, params: { ...sf.params, modelArea: areaParam() } })); });
   const ownTask = (label) => taskSlot(setTaskProgress, label); // TASKS.csv #2379 — a short tool never covers a cancellable run's progress
 
   const runSurfaceStack = async (rawSpecs, stackOpts = {}) => {
@@ -334,6 +337,7 @@ export function createModellingRuns(ctx, mcRef) {
     // block cell a midpoint falls in (one cell is 50-110 m on a real extent at 36^3)
     const evalRows = [];
     traces.forEach((t) => {
+      if (modelArea === "checked" && visibleHoles?.[t.hole_id] === false) return; // TASKS.csv #2535 — the model check scores the Model area's holes
       (unitLitho || importStateRef.current.layers?.litho || []).forEach((r) => { // #2378 — the unit as the tools read it
         if (r.hole_id !== t.hole_id || !Number.isFinite(r.from) || !Number.isFinite(r.to) || r.to <= r.from) return;
         const p = findOnTrace(t.pts, (r.from + r.to) / 2);
@@ -1127,9 +1131,11 @@ export function createModellingRuns(ctx, mcRef) {
       const o = originRef.current;
       const { used, lower } = explicitInterfacePoints(explicitSurfaces || [], sections || [], sectionTags, { sectionLinesTaken: includeSectionContacts });
       const near = (a) => points.some((b) => Math.abs(a.x - b.x) < 0.5 && Math.abs(a.y - b.y) < 0.5 && Math.abs(a.z - b.z) < 0.5); // a pick on a logged top the run already has: coincident interface points can make the solve singular
+      let outOfArea = 0; // #2535
       for (const u of used) {
         let n = 0;
         for (const wp of u.points) {
+          if (modelArea === "checked" && wp.hole_id && visibleHoles?.[wp.hole_id] === false) { outOfArea++; continue; } // #2535 — a pick seeded on a hole outside the Model area
           const api = { x: wp.x - o.x, y: wp.y - o.y, z: wp.z - o.z, srcCode: `explicit:${u.name}` };
           if (domain && !pointInDomain({ x: api.x, y: api.z, z: -api.y }, domain, implicitMeshesRef.current)) continue;
           if (near(api)) continue;
@@ -1138,6 +1144,7 @@ export function createModellingRuns(ctx, mcRef) {
         if (n) setNotices((p) => [...p, notice("Included {n} point(s) of the explicit surface \"{name}\" (its picks and lines) as interface points of \"{unitName}\".", { n, name: u.name, unitName })]);
       }
       for (const name of lower) setNotices((p) => [...p, notice("The explicit surface \"{name}\" is the LOWER contact of \"{unitName}\", so it was not used as its top.", { name, unitName })]);
+      if (outOfArea) setNotices((p) => [...p, notice("Left out {n} explicit-surface pick(s) on holes outside the Model area (the holes checked in the Holes list).", { n: outOfArea })]);
     }
 
     // TASKS.csv #318 — a mapped surface contact as extra interface points: the contact trace draped on
@@ -1740,7 +1747,7 @@ export function createModellingRuns(ctx, mcRef) {
         const { marchingCubes } = await import("../../lib/marchingCubes.js"); // #476 — loaded on first use
         const { samplePointsFromIntervals } = await import("../../lib/estimation.js"); // #552 — on demand
         const { runEstimation } = await import("../../lib/estimationClient.js"); // #520 — the grid runs in a worker
-        const altRows = ((customSrc ? customSrc.rows : layers[sourceKey]) || []).filter((r) => r.hole_id != null && r.from != null && r.to != null && !isNaN(r.from) && !isNaN(r.to) && Number(r.to) > Number(r.from)); // customSrc: #1574
+        const altRows = ((customSrc ? (modelArea === "checked" ? restrictRowsToHoles(customSrc.rows || [], visibleHoles) /* #2535 — a custom layer is not in the area-restricted layers */ : customSrc.rows) : layers[sourceKey]) || []).filter((r) => r.hole_id != null && r.from != null && r.to != null && !isNaN(r.from) && !isNaN(r.to) && Number(r.to) > Number(r.from)); // customSrc: #1574
         // TASKS.csv #52 (c) — an active intercept set restricts the TARGET picks only. The zeros (every
         // other logged alteration interval) are what close the envelope (#272), so filtering those by a
         // set the user built to describe the target would open the halo up instead of narrowing it.

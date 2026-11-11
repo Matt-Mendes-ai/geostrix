@@ -101,7 +101,7 @@ export function explicitInterfacePoints(defs, sections, tags, { spacing = 25, se
   for (const d of defs || []) {
     if (!tags.has(unitOf(d)) && !tags.has(d.name)) continue;
     if (contactOf(d) === "lower") { lower.push(d.name); continue; }
-    const pts = (d.picks || []).filter(ok).map((p) => ({ x: p.x, y: p.y, z: p.z }));
+    const pts = (d.picks || []).filter(ok).map((p) => ({ x: p.x, y: p.y, z: p.z, ...(p.hole_id ? { hole_id: p.hole_id } : {}) })); // hole_id: #2535 — the Model area
     // sectionLinesTaken: the run already took the section lines tagged with this name (the name is one of its tags)
     if (!(sectionLinesTaken && tags.has(d.name))) for (const s of sections || []) for (const c of s.contacts || []) if (c.unit === d.name && c.isUpperContact !== false && (!c.kind || c.kind === "contact")) pts.push(...dens((c.points || []).filter(ok)));
     for (const l of d.lines || []) if (l.pts?.length >= 2) pts.push(...dens(l.pts.filter(ok)));
