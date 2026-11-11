@@ -9809,5 +9809,11 @@
   "{n} sample(s)": "{n} échantillon(s)",
   "Classify {n} sample(s)": "Classer {n} échantillon(s)",
   "No code is ticked: none of these samples is logged as a volcanic rock, so nothing would be classified.": "Aucun code coché : aucun de ces échantillons n'est décrit comme roche volcanique, donc rien ne serait classé.",
-  " {n} sample(s) were not classified: their logged codes were not ticked as volcanic ({codes}); this classifier is for volcanic rocks.": " {n} échantillon(s) n'ont pas été classés : leurs codes décrits n'étaient pas cochés comme volcaniques ({codes}) ; ce classificateur est pour les roches volcaniques."
+  " {n} sample(s) were not classified: their logged codes were not ticked as volcanic ({codes}); this classifier is for volcanic rocks.": " {n} échantillon(s) n'ont pas été classés : leurs codes décrits n'étaient pas cochés comme volcaniques ({codes}) ; ce classificateur est pour les roches volcaniques.",
+  "Any two axes: assay elements, or a downhole log / custom-layer field averaged over each sample's interval in the same hole (length-weighted).": "Deux axes quelconques : éléments d'analyse, ou une diagraphie / un champ de couche personnalisée moyenné sur l'intervalle de chaque échantillon dans le même sondage (pondéré par la longueur).",
+  "1:1 line": "Droite 1:1",
+  "Statistics where X ≥": "Statistiques où X ≥",
+  "Statistics where X is at least": "Statistiques où X vaut au moins",
+  "n {n} · Spearman {r} · median Y / X {m} · length-weighted Y / X {w}": "n {n} · Spearman {r} · médiane Y / X {m} · Y / X pondéré par la longueur {w}",
+  "Log / assay: median {m}, length-weighted {w} (in the units shown; a gamma log against its assays reads the disequilibrium here).": "Diagraphie / analyse : médiane {m}, pondérée par la longueur {w} (dans les unités affichées ; une diagraphie gamma face à ses analyses montre ici le déséquilibre)."
 }

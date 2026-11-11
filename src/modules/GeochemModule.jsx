@@ -76,7 +76,7 @@ import { version as APP_VERSION } from "../../package.json"; // TASKS.csv #1212
 import { useTabNotices } from "../lib/useTabNotices.js"; // TASKS.csv #1203
 import SampleGridPanel from "../components/SampleGridPanel.jsx"; // TASKS.csv #1622
 import { methodColumnFor, methodsIn, partialDigestionFor } from "../lib/digestion.js"; // TASKS.csv #1518
-import { axisOf, xyDiagram } from "../lib/geochemXY.js"; // TASKS.csv #1678
+import { axisOf, xyDiagram, xyStats } from "../lib/geochemXY.js"; // TASKS.csv #1678; xyStats: #2353
 import { numericSourceChoices } from "../lib/numericSources.js"; // TASKS.csv #1678
 import { requestProjectCrs } from "../lib/projectCrsRequest.js"; // TASKS.csv #1445
 import { tieOf, fileToLocal } from "../lib/localGridTie.js"; // TASKS.csv #2320
@@ -103,6 +103,8 @@ export default function GeochemModule() {
   const [diagramId, setDiagramId] = useKeptState(keptScope, "geochem.diagramId", "boxplot");
   const [xyX, setXyX] = useKeptState(keptScope, "geochem.xyX", ""); // #1678 — "el:Cu" or a numeric source key
   const [xyY, setXyY] = useKeptState(keptScope, "geochem.xyY", "");
+  const [xyOne, setXyOne] = useKeptState(keptScope, "geochem.xyOne", false); // #2353 — a 1:1 line
+  const [xyMin, setXyMin] = useKeptState(keptScope, "geochem.xyMin", ""); // #2353 — the statistics over X >= this
   const [colorMode, setColorMode] = useKeptState(keptScope, "geochem.colorMode", "hole"); // hole | element | lithology (#619) | uniform
   // TASKS.csv #619 — plot only samples from chosen logged lithologies (null = every sample)
   const [lithFilter, setLithFilter] = useKeptState(keptScope, "geochem.lithFilter", null); // null | Set of codes (NOT_LOGGED = samples with no log)
@@ -186,12 +188,15 @@ export default function GeochemModule() {
   // TASKS.csv #2193 (review #2174) — with one element Y defaulted to '' and the select showed its first option (Au) over an empty plot: the
   // second element, else the first downhole log (Au vs RQD / recovery), else the one element again; never a blank shown as a choice
   const xyKeyX = xyX || (assayElements[0] ? `el:${assayElements[0].symbol}` : ""), xyKeyY = xyY || (assayElements[1] ? `el:${assayElements[1].symbol}` : xyChoices[0]?.key || (assayElements[0] ? `el:${assayElements[0].symbol}` : ""));
-  const xyDiag = useMemo(() => {
+  const xyAxes = useMemo(() => {
     if (diagramId !== "xy") return null;
     const choice = (key) => { if (!key) return null; if (key.startsWith("el:")) { const e = assayElements.find((x) => x.symbol === key.slice(3)); return e ? { kind: "element", symbol: e.symbol, unit: e.unit } : null; } return xyChoices.find((c) => c.key === key) || null; };
     const ctx = { layers: store.layers, customLayers: store.customLayers };
-    return xyDiagram(axisOf(choice(xyKeyX), ctx), axisOf(choice(xyKeyY), ctx), sourceRows, elementUnits);
-  }, [diagramId, xyKeyX, xyKeyY, xyChoices, assayElements, sourceRows, elementUnits, store.layers, store.customLayers]);
+    return [axisOf(choice(xyKeyX), ctx), axisOf(choice(xyKeyY), ctx)];
+  }, [diagramId, xyKeyX, xyKeyY, xyChoices, assayElements, store.layers, store.customLayers]);
+  const xyDiag = useMemo(() => (xyAxes ? xyDiagram(xyAxes[0], xyAxes[1], sourceRows, elementUnits, { oneToOne: !!xyOne }) : null), [xyAxes, sourceRows, elementUnits, xyOne]);
+  // TASKS.csv #2353 — n, Spearman, the median Y / X and the length-weighted ratio, over X >= the typed value
+  const xyStat = useMemo(() => (xyAxes && xyAxes[0] && xyAxes[1] ? xyStats(xyAxes[0], xyAxes[1], sourceRows, elementUnits, { xMin: xyMin !== "" && Number.isFinite(Number(xyMin)) ? Number(xyMin) : null }) : null), [xyAxes, sourceRows, elementUnits, xyMin]);
   // TASKS.csv #1091 (review #1016, software artist) — holes from the colour-blind-safe categorical palette, in name order
   // (golden-angle HSL at one lightness put neighbouring hues at the same lightness, not dichromat-safe)
   const holeColors = useMemo(() => {
@@ -1272,6 +1277,10 @@ export default function GeochemModule() {
                   </select>
                 </label>
               ))}
+              {/* TASKS.csv #2353 — a 1:1 line and the numbers a log-against-assay check reads */}
+              <label style={{ display: "flex", gap: 4, alignItems: "center", fontSize: 11.5, color: "#55606e" }}><input type="checkbox" checked={!!xyOne} onChange={(e) => setXyOne(e.target.checked)} />{tr("1:1 line")}</label>
+              <label style={{ display: "flex", gap: 4, alignItems: "center", fontSize: 11.5, color: "#55606e" }}>{tr("Statistics where X ≥")}<input type="number" step="any" value={xyMin} onChange={(e) => setXyMin(e.target.value)} aria-label={tr("Statistics where X is at least")} style={{ ...selectStyle, width: 80, padding: "4px 6px" }} /></label>
+              {xyStat && <span style={{ fontSize: 11.5, color: "#2a3444" }} role="status">{tr("n {n} · Spearman {r} · median Y / X {m} · length-weighted Y / X {w}", { n: xyStat.n.toLocaleString(), r: Number.isFinite(xyStat.r) ? xyStat.r.toFixed(2) : "—", m: Number.isFinite(xyStat.medianRatio) ? xyStat.medianRatio.toPrecision(3) : "—", w: Number.isFinite(xyStat.weightedRatio) ? xyStat.weightedRatio.toPrecision(3) : "—" })}</span>}
             </>
           )}
           {hasPxrf && ( /* TASKS.csv #1673 — which rows the plot uses */

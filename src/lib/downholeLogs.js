@@ -43,13 +43,15 @@ export function logByCode(rows, symbol, domainRows, { minN = 3, stat = "median",
 }
 
 // the log against an assay element: each reading paired with the assay interval of its hole that holds its midpoint
-// -> { pairs: [[log, assay]], n, r (Spearman), rLog (Pearson of log10 values), unit }
+// -> { pairs: [[log, assay]], n, r (Spearman), rLog (Pearson of log10 values), unit, medianRatio, weightedRatio }
+// TASKS.csv #2353 — and the ratios a disequilibrium check reads: the median of log / assay, and sum(log x reading length) / sum(assay x reading
+// length), over the pairs with an assay above 0 (a correlation says the two move together, not by how much the log under-reads)
 export function logVsAssay(rows, symbol, assays, element, elementUnits = {}) {
   const byHole = new Map();
   for (const a of assays || []) { if (a.source === "pXRF" || !Number.isFinite(a.from) || !Number.isFinite(a.to)) continue; (byHole.get(a.hole_id) || byHole.set(a.hole_id, []).get(a.hole_id)).push(a); }
   byHole.forEach((l) => l.sort((x, y) => x.from - y.from));
   const unit = elementUnits[element] || "ppm";
-  const pairs = [];
+  const pairs = [], lens = [];
   for (const r of rows) {
     const v = r.values?.[symbol];
     const list = byHole.get(r.hole_id);
@@ -60,10 +62,16 @@ export function logVsAssay(rows, symbol, assays, element, elementUnits = {}) {
     const g = valueIn(hit, element, unit, elementUnits);
     if (g == null || !Number.isFinite(g)) continue;
     pairs.push([v, g]);
+    lens.push(Number.isFinite(r.to - r.from) && r.to > r.from ? r.to - r.from : 1);
   }
-  if (pairs.length < 3) return { pairs, n: pairs.length, r: NaN, rLog: NaN, unit };
+  const ratios = [];
+  let sl = 0, sa = 0;
+  pairs.forEach(([l, a], i) => { if (a > 0) { ratios.push(l / a); sl += l * lens[i]; sa += a * lens[i]; } });
+  ratios.sort((x, y) => x - y);
+  const rt = { medianRatio: ratios.length ? ratios[ratios.length >> 1] : NaN, weightedRatio: sa > 0 ? sl / sa : NaN };
+  if (pairs.length < 3) return { pairs, n: pairs.length, r: NaN, rLog: NaN, unit, ...rt };
   const xs = pairs.map((p) => p[0]), ys = pairs.map((p) => p[1]);
-  return { pairs, n: pairs.length, r: correlate(xs, ys, "spearman").r, rLog: correlate(xs, ys, "log").r, unit };
+  return { pairs, n: pairs.length, r: correlate(xs, ys, "spearman").r, rLog: correlate(xs, ys, "log").r, unit, ...rt };
 }
 
 // TASKS.csv #1595 (review #1497, Lawyers) — a log against a block model evaluated onto the holes ('On holes: <model>', GeophysicsModule

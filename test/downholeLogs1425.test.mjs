@@ -34,7 +34,7 @@ test("the log against an assay element: pairs by hole and depth, Spearman and lo
   assert.equal(v.unit, "%");
   assert.ok(v.r > 0.8, `Spearman ${v.r}`); // low susc with low Fe, high with high
   assert.ok(Number.isFinite(v.rLog));
-  assert.deepEqual(logVsAssay(rows.slice(0, 2), "Mag. susc.", assays, "Fe"), { pairs: [[0.1, 2], [0.12, 2]], n: 2, r: NaN, rLog: NaN, unit: "ppm" });
+  { const two = logVsAssay(rows.slice(0, 2), "Mag. susc.", assays, "Fe"); assert.deepEqual({ pairs: two.pairs, n: two.n, r: two.r, rLog: two.rLog, unit: two.unit }, { pairs: [[0.1, 2], [0.12, 2]], n: 2, r: NaN, rLog: NaN, unit: "ppm" }); } // #2353 added the ratios
 });
 
 test("the pane, the ribbon button and the headline", () => {

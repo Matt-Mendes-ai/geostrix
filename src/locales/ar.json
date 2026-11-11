@@ -9809,5 +9809,11 @@
   "{n} sample(s)": "{n} عينة",
   "Classify {n} sample(s)": "صنّف {n} عينة",
   "No code is ticked: none of these samples is logged as a volcanic rock, so nothing would be classified.": "لا رمز محدد: لا توجد عينة منها مسجلة كصخر بركاني، لذا لن يُصنف شيء.",
-  " {n} sample(s) were not classified: their logged codes were not ticked as volcanic ({codes}); this classifier is for volcanic rocks.": " لم تُصنف {n} عينة: لم تُحدد رموزها المسجلة كبركانية ({codes})؛ هذا المصنِّف للصخور البركانية."
+  " {n} sample(s) were not classified: their logged codes were not ticked as volcanic ({codes}); this classifier is for volcanic rocks.": " لم تُصنف {n} عينة: لم تُحدد رموزها المسجلة كبركانية ({codes})؛ هذا المصنِّف للصخور البركانية.",
+  "Any two axes: assay elements, or a downhole log / custom-layer field averaged over each sample's interval in the same hole (length-weighted).": "أي محورين: عناصر التحليل، أو تسجيل بئري / حقل طبقة مخصصة بمتوسط على فاصل كل عينة في البئر نفسه (موزون بالطول).",
+  "1:1 line": "خط 1:1",
+  "Statistics where X ≥": "الإحصاءات حيث X ≥",
+  "Statistics where X is at least": "الإحصاءات حيث X لا يقل عن",
+  "n {n} · Spearman {r} · median Y / X {m} · length-weighted Y / X {w}": "n {n} · سبيرمان {r} · وسيط Y / X {m} · Y / X موزون بالطول {w}",
+  "Log / assay: median {m}, length-weighted {w} (in the units shown; a gamma log against its assays reads the disequilibrium here).": "التسجيل / التحليل: الوسيط {m}، الموزون بالطول {w} (بالوحدات المعروضة؛ يُقرأ هنا عدم التوازن لتسجيل غاما مقابل تحاليله)."
 }

@@ -9809,5 +9809,11 @@
   "{n} sample(s)": "{n} amostra(s)",
   "Classify {n} sample(s)": "Classificar {n} amostra(s)",
   "No code is ticked: none of these samples is logged as a volcanic rock, so nothing would be classified.": "Nenhum código marcado: nenhuma destas amostras está registrada como rocha vulcânica, então nada seria classificado.",
-  " {n} sample(s) were not classified: their logged codes were not ticked as volcanic ({codes}); this classifier is for volcanic rocks.": " {n} amostra(s) não foram classificadas: seus códigos registrados não foram marcados como vulcânicos ({codes}); este classificador é para rochas vulcânicas."
+  " {n} sample(s) were not classified: their logged codes were not ticked as volcanic ({codes}); this classifier is for volcanic rocks.": " {n} amostra(s) não foram classificadas: seus códigos registrados não foram marcados como vulcânicos ({codes}); este classificador é para rochas vulcânicas.",
+  "Any two axes: assay elements, or a downhole log / custom-layer field averaged over each sample's interval in the same hole (length-weighted).": "Quaisquer dois eixos: elementos de análise, ou um perfil de furo / campo de camada personalizada com média sobre o intervalo de cada amostra no mesmo furo (ponderada pelo comprimento).",
+  "1:1 line": "Linha 1:1",
+  "Statistics where X ≥": "Estatísticas onde X ≥",
+  "Statistics where X is at least": "Estatísticas onde X é no mínimo",
+  "n {n} · Spearman {r} · median Y / X {m} · length-weighted Y / X {w}": "n {n} · Spearman {r} · mediana Y / X {m} · Y / X ponderado pelo comprimento {w}",
+  "Log / assay: median {m}, length-weighted {w} (in the units shown; a gamma log against its assays reads the disequilibrium here).": "Perfil / análise: mediana {m}, ponderado pelo comprimento {w} (nas unidades mostradas; um perfil gama contra suas análises mostra aqui o desequilíbrio)."
 }

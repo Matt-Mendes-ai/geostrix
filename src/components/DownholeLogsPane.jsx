@@ -107,7 +107,7 @@ export default function DownholeLogsPane({ layers, customLayers = [], assays = [
               {vs && vs.n >= 3 ? (
                 <>
                   <Scatter pairs={vs.pairs} xLabel={`${source.label}${unitOf(source.unit) && !source.label.includes(`(${unitOf(source.unit)})`) ? ` (${unitOf(source.unit)})` : ""}`} yLabel={`${el} (${vs.unit})`} logX={logScale} logY={logScale} />
-                  <div style={note}>{tr("{n} readings inside an assay interval of the same hole. Spearman rank correlation {r}; Pearson on log10 values {rLog}.", { n: vs.n.toLocaleString(), r: Number.isFinite(vs.r) ? vs.r.toFixed(2) : "—", rLog: Number.isFinite(vs.rLog) ? vs.rLog.toFixed(2) : "—" })}</div>
+                  <div style={note}>{tr("{n} readings inside an assay interval of the same hole. Spearman rank correlation {r}; Pearson on log10 values {rLog}.", { n: vs.n.toLocaleString(), r: Number.isFinite(vs.r) ? vs.r.toFixed(2) : "—", rLog: Number.isFinite(vs.rLog) ? vs.rLog.toFixed(2) : "—" })}{Number.isFinite(vs.medianRatio) ? " " + tr("Log / assay: median {m}, length-weighted {w} (in the units shown; a gamma log against its assays reads the disequilibrium here).", { m: vs.medianRatio.toPrecision(3), w: Number.isFinite(vs.weightedRatio) ? vs.weightedRatio.toPrecision(3) : "—" }) : ""}</div>{/* ratios: #2353 */}
                 </>
               ) : <div style={note}>{tr("Fewer than three readings fall inside an assay interval of the same hole.")}</div>}
             </>
