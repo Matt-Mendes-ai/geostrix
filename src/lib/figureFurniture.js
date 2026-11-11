@@ -150,3 +150,20 @@ export function geochemFurniture({ title, caption, plotted, total, spider, hidde
 export function levelPlanFurniture(legend = []) {
   return legend.length ? { keys: [{ title: "Legend", items: legend.slice(0, 60).map(([label, color]) => ({ label, color })).concat(legend.length > 60 ? [{ label: `+${legend.length - 60} more`, color: "#ffffff" }] : []) }] } : null;
 }
+
+// TASKS.csv #2523 (review #2486) — a section's exported PNG / SVG carried no key: the grouped legend rows (lib/sectionLegend.js
+// groupSectionLegend: [heading, null, { heading: true }] then [label, colour, { pattern }?]) as one key per group, notes left out
+export function sectionKeyFurniture(rows = [], { maxPerKey = 40 } = {}) {
+  const keys = [];
+  let cur = null;
+  for (const r of rows || []) {
+    if (!r) continue;
+    const [label, color, opt] = r;
+    if (opt?.heading) { cur = { title: String(label), items: [] }; keys.push(cur); continue; }
+    if (opt?.note || color == null) continue;
+    if (!cur) { cur = { title: "Legend", items: [] }; keys.push(cur); }
+    cur.items.push({ label: String(label), color, ...(opt?.pattern ? { pattern: opt.pattern } : {}) });
+  }
+  const out = keys.filter((k) => k.items.length).map((k) => (k.items.length > maxPerKey ? { ...k, items: [...k.items.slice(0, maxPerKey), { label: `+${k.items.length - maxPerKey} more`, color: "#ffffff" }] } : k));
+  return out.length ? { keys: out } : null;
+}

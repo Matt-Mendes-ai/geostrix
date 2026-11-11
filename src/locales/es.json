@@ -9882,5 +9882,8 @@
   "The RL the lines of this layer are drawn at while there is no terrain to drape them on": "La cota a la que se dibujan las líneas de esta capa mientras no haya terreno sobre el que proyectarlas",
   "Elev. (m RL)": "Cota (m)",
   "Elevation of the interpretation lines (m RL)": "Cota de las líneas de interpretación (m)",
-  "Restore \"{name}\"": "Restaurar \"{name}\""
+  "Restore \"{name}\"": "Restaurar \"{name}\"",
+  "Hide the key": "Ocultar la leyenda",
+  "Show the key": "Mostrar la leyenda",
+  "Section key": "Leyenda de la sección"
 }

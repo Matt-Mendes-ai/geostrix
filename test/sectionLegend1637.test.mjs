@@ -24,5 +24,5 @@ test("legend: headings say which ribbon; long values left out with a note", () =
 test("wired: the section header names the ribbons; the snapshot legend gets the order", () => {
   const s = readFileSync(new URL("../src/components/SectionWindow.jsx", import.meta.url), "utf8");
   assert.match(s, /Ribbons on each hole, left to right: \{list\}/);
-  assert.match(s, /ribbonOrder\(data\.intervals\)\), \/\/ models/);
+  assert.match(s, /ribbonOrder\(data\.intervals\)\) : \[\]\);/); // #2523: in keyRows, used by the snapshot
 });

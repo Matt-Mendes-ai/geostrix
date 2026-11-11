@@ -10,7 +10,7 @@ import { placeLabels, leaderEnd, resolveLabels, labelWidth } from "../lib/sectio
 import { groupSectionLegend, sectionAssayLegend, sectionMineralLegend, sectionModelLegend, rampRows, ribbonOrder, ribbonLayers } from "../lib/sectionLegend.js"; // TASKS.csv #1128 — the key goes to Layout, grouped; #1475
 import { LAYER_META } from "../lib/layers.js"; // #1475 — the mineralization group name
 import { exportSvgMarkup, FIGURE_FONT } from "../lib/svgExport.js"; // TASKS.csv #1089 — font, size, no UI chrome
-import { wrapText } from "../lib/figureFurniture.js";
+import { wrapText, sectionKeyFurniture } from "../lib/figureFurniture.js"; // sectionKeyFurniture: TASKS.csv #2523
 import { signedOffset } from "../lib/sectionCorridor.js"; // TASKS.csv #1231
 import { colors, printPt, printPx, PLACED_W } from "../lib/theme.js"; // TASKS.csv #1121 — colors.planned, the planned-hole colour of every view; print scale: #1090
 import { loadPatternTiles, patternDefs, patternFill, sectionTilePx } from "../lib/lithoPatterns.js"; // TASKS.csv #1995
@@ -185,6 +185,13 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
   // on-screen size, when larger, is kept. The figure is re-laid out at that size (labels placed for it, margins grown),
   // exported, and the screen size restored, all before the next paint.
   const [printScale, setPrintScale] = useState(null);
+  // TASKS.csv #2523 (review #2486) — the section had no key in the window or its PNG / SVG / PDF (only a Layout snapshot carried one).
+  // #1128 kept the legend out of the drawing so Layout can move and edit it: the drawing and the snapshot stay as they are; the key is shown
+  // under the drawing (switchable, remembered) and drawn as a band in the exported copy only. models: block models are keyed by BlockModelKey.
+  const keyRows = (withModels) => (data ? groupSectionLegend([...sectionAssayLegend(data.points, data.assayLegend), ...shownLegendItems, ...sectionMineralLegend(data.intervals, data.points, LAYER_META.mnlgy.label), ...sectionModelLegend(data.surfaceTraces, withModels ? data.voxelSlices : [], tr("Model surfaces"))], ribbonOrder(data.intervals)) : []);
+  const [showKey, setShowKey] = useState(() => { try { return localStorage.getItem("geostrix.sectionKey") !== "0"; } catch { return true; } });
+  const toggleKey = () => setShowKey((v) => { try { localStorage.setItem("geostrix.sectionKey", v ? "0" : "1"); } catch { /* private mode */ } return !v; });
+  const exportOpts = () => (showKey ? { furniture: sectionKeyFurniture(keyRows(true)) } : {});
   // TASKS.csv #1485 — textFactor: Layout placed the snapshot narrower (a plot scale), so the labels are drawn that much larger
   const atPrintSize = (fn, textFactor = 1) => {
     const need = Math.max(Number(textScale) || 1, ((printPx(printPt.caption) * (SECTION_W / PLACED_W)) / 9) * (Number(textFactor) > 0 ? Number(textFactor) : 1));
@@ -216,7 +223,7 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
       // snapshot and show exactly what's drawn in it — a flattened image has no live data of its own
       // to sync from otherwise.
       // #759; grouped under layer headings: #1127 / #1128; #1475 — the grade classes drawn first, the mineralization last
-      legendItems: groupSectionLegend([...sectionAssayLegend(data.points, data.assayLegend), ...shownLegendItems, ...sectionMineralLegend(data.intervals, data.points, LAYER_META.mnlgy.label), ...sectionModelLegend(data.surfaceTraces, data.voxelSlices, tr("Model surfaces"))], ribbonOrder(data.intervals)), // models: #1373; ribbons: #1637
+      legendItems: keyRows(true), // models: #1373; ribbons: #1637; one builder with the window's key: #2523
     });
     setSnapped(true);
     setTimeout(() => setSnapped(false), 1800);
@@ -318,12 +325,12 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
   // changes needed.
   const baseName = (data?.title || "section").replace(/[^a-z0-9_-]+/gi, "_").toLowerCase();
   const exportSVG = () => {
-    const xml = atPrintSize(() => (svgRef.current ? exportSvgMarkup(svgRef.current).markup : null)); // #1090
+    const xml = atPrintSize(() => (svgRef.current ? exportSvgMarkup(svgRef.current, exportOpts()).markup : null)); // #1090; key: #2523
     if (!xml) return;
     saveFile({ suggestedName: `${baseName}.svg`, filters: [{ name: "SVG", extensions: ["svg"] }], content: xml });
   };
   const exportPNG = () => {
-    const out = atPrintSize(() => { const svg = svgRef.current, d = svgDims(); return svg && d ? { xml: exportSvgMarkup(svg).markup, dims: d } : null; }); // #1090
+    const out = atPrintSize(() => { const svg = svgRef.current, d = svgDims(); if (!svg || !d) return null; const m = exportSvgMarkup(svg, exportOpts()), vbH = svg.viewBox?.baseVal?.height || 0; return { xml: m.markup, dims: vbH && m.height > vbH ? { w: d.w, h: d.h * (m.height / vbH) } : d }; }); // #1090; the key band's height: #2523
     if (!out) return;
     const { xml, dims } = out;
     const img = new Image();
@@ -538,6 +545,7 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
           snap={snapOn && !planning ? targets : null} projectSnaps={projectSnaps} editingId={editingId} onEditPoints={editPoints} onCopyGhost={drawing || planning ? null : copyGhost}
           labels={labels} onMoveLabel={(key, off) => changeLabels({ offsets: { ...labels.offsets, [key]: off } })} /* #823 */ />
         <BlockModelKey slices={data.voxelSlices} />
+        <SectionKey rows={keyRows(false)} shown={showKey} onToggle={toggleKey} />{/* #2523 */}
       </div>
     </div>
   );
@@ -1137,6 +1145,23 @@ function darker(hex) {
   if (!m) return "#1a2028";
   const v = parseInt(m[1], 16), ch = (s) => Math.round(((v >> s) & 255) * 0.55);
   return `rgb(${ch(16)}, ${ch(8)}, ${ch(0)})`;
+}
+// TASKS.csv #2523 — the section's key under the drawing: the grouped rows a Layout snapshot carries (#1128), switchable
+function SectionKey({ rows, shown, onToggle }) {
+  const list = (rows || []).filter((r) => r && (r[1] != null || r[2]?.heading));
+  if (!list.length) return null;
+  return (
+    <div style={{ marginTop: 8, fontSize: 11, color: "#55606e" }}>
+      <button type="button" onClick={onToggle} style={{ background: "none", border: "none", padding: 0, color: "#2f6db5", cursor: "pointer", fontSize: 11 }} aria-expanded={shown}>{shown ? tr("Hide the key") : tr("Show the key")}</button>
+      {shown && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 14px", marginTop: 4 }} aria-label={tr("Section key")}>
+          {list.map(([label, color, opt], i) => (opt?.heading
+            ? <span key={i} style={{ flexBasis: "100%", fontWeight: 600, color: "#1a2028", marginTop: i ? 4 : 0 }}>{label}</span>
+            : <span key={i} style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><span style={{ width: 12, height: 10, borderRadius: 2, background: color, border: "1px solid #d9dce1" }} />{label}</span>))}
+        </div>
+      )}
+    </div>
+  );
 }
 // TASKS.csv #1373 — the block models drawn behind the section, keyed below it: classes as swatches, a continuous model as its ramp
 // with the low and high values (the same key the snapshot carries to Layout)

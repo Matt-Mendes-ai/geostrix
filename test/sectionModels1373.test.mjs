@@ -37,7 +37,7 @@ test("the section window names each surface trace and keys the block models; the
   const sw = readFileSync(new URL("../src/components/SectionWindow.jsx", import.meta.url), "utf8");
   assert.match(sw, /\{pushSurfaceLabel\(st\)\}/);
   assert.match(sw, /<BlockModelKey slices=\{data\.voxelSlices\} \/>/);
-  assert.match(sw, /sectionModelLegend\(data\.surfaceTraces, data\.voxelSlices/);
+  assert.match(sw, /sectionModelLegend\(data\.surfaceTraces, withModels \? data\.voxelSlices : \[\]/); // #2523: the snapshot and the exports with the models; the window's key leaves them to BlockModelKey
   const vm = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
   assert.match(vm, /voxelSlices\.push\(\{ id: model\.id, name: model\.name, rects, legend: voxelLegendGroups\(\[\{ \.\.\.model, visible: true \}\]\)\[0\] \|\| null \}\)/);
 });

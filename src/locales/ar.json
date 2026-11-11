@@ -9882,5 +9882,8 @@
   "The RL the lines of this layer are drawn at while there is no terrain to drape them on": "المنسوب الذي تُرسم عنده خطوط هذه الطبقة ما دام لا توجد تضاريس تُسقط عليها",
   "Elev. (m RL)": "المنسوب (م)",
   "Elevation of the interpretation lines (m RL)": "منسوب خطوط التفسير (م)",
-  "Restore \"{name}\"": "استعادة \"{name}\""
+  "Restore \"{name}\"": "استعادة \"{name}\"",
+  "Hide the key": "إخفاء المفتاح",
+  "Show the key": "إظهار المفتاح",
+  "Section key": "مفتاح المقطع"
 }

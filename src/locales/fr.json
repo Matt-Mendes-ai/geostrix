@@ -9882,5 +9882,8 @@
   "The RL the lines of this layer are drawn at while there is no terrain to drape them on": "La cote à laquelle les lignes de cette couche sont tracées tant qu'il n'y a pas de terrain pour les draper",
   "Elev. (m RL)": "Cote (m)",
   "Elevation of the interpretation lines (m RL)": "Cote des lignes d'interprétation (m)",
-  "Restore \"{name}\"": "Rétablir « {name} »"
+  "Restore \"{name}\"": "Rétablir « {name} »",
+  "Hide the key": "Masquer la légende",
+  "Show the key": "Afficher la légende",
+  "Section key": "Légende de la coupe"
 }
