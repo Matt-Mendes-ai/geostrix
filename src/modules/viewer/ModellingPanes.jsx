@@ -9,7 +9,7 @@ import { Activity, Calculator, ChevronDown, ChevronRight, ChevronUp, Compass, Dr
 import { BLOCK_BUDGETS, ESTIMATION_METHODS, gradeShellBudgetNote } from "../../lib/estimationMeta.js"; // gradeShellBudgetNote: #1416
 import InfoButton from "../../components/InfoButton.jsx";
 import { PRECIOUS_METALS, gradeUnitLabel } from "../../lib/geochem.js"; // gradeUnitLabel: #2218
-import { Fragment, Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, Suspense, lazy, useCallback, useEffect, useMemo, useState } from "react";
 import { withChangeLog } from "../../lib/explicitLog.js"; // TASKS.csv #878
 import { activateOnKey, iconAction } from "../../lib/a11y.js";
 import { colorForLithology, isCrossCuttingRole, roleForLithology, groupMemberRole, groupNameHint } from "../../lib/layers.js"; // group roles: #2052
@@ -31,6 +31,7 @@ import { checkedHoleCount } from "../../lib/modelArea.js"; // TASKS.csv #1546
 import { GradeShellUnsampled } from "../../components/UnsampledChoice.jsx"; // TASKS.csv #2417 / #2542
 import ShellCapNote from "./ShellCapNote.jsx"; // TASKS.csv #2222 — the Estimation dialog's default cap (#1573) here too
 import { zoneAlphaPicks, customAlphaPicks } from "../../lib/alphaPicks.js"; // TASKS.csv #1686
+const ModelAreaRange = lazy(() => import("../../components/ModelAreaRange.jsx")); // TASKS.csv #2536
 
 export default function ModellingPanes(props) {
   const {
@@ -205,6 +206,7 @@ export default function ModellingPanes(props) {
     orientationReachM, setOrientationReachM, // TASKS.csv #1170
     stackBreaks, setStackBreaks, // TASKS.csv #1309
     visibleHoles, // TASKS.csv #1315
+    setVisibleHoles, // TASKS.csv #2536 — Model area by an E / N range
     setTrendPreviewId,
     setVariogramOpen,
     setVeinCellSize,
@@ -327,6 +329,7 @@ export default function ModellingPanes(props) {
           <option value="all">{tr("Whole property")}</option>
           <option value="checked">{tr("Holes checked in the Holes list ({n} of {m})", { n: checkedHoleCount(collars, visibleHoles).checked, m: checkedHoleCount(collars, visibleHoles).all })}</option>
         </select>
+        {modelArea === "checked" && <Suspense fallback={null}><ModelAreaRange collars={collars} visibleHoles={visibleHoles} setVisibleHoles={setVisibleHoles} small={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 }} inp={{ background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "3px 6px", color: "var(--color-text)", fontSize: "var(--font-size-sm)" }} /></Suspense>}{/* #2536 */}
         {/* TASKS.csv #2378 (review #2325, WA uranium) — rock code and stratigraphic unit logged on the same intervals: which one the tools model */}
         {(unitFields || []).length > 0 && setUnitField && (
           <>

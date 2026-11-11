@@ -39,3 +39,10 @@ export function collarAttrChoices(collars, maxValues = 30) {
   for (const c of collars || []) for (const [k, v] of Object.entries(c?.attrs || {})) { const s = String(v ?? "").trim(); if (!s) continue; if (!by.has(k)) by.set(k, new Set()); if (by.get(k).size <= maxValues) by.get(k).add(s); }
   return [...by.entries()].filter(([, s]) => s.size >= 2 && s.size <= maxValues).map(([key, s]) => ({ key, values: [...s].sort((a, b) => a.localeCompare(b, undefined, { numeric: true })) }));
 }
+
+// TASKS.csv #2536 — the holes whose collars lie in an E / N range (bounds in either order). -> { ids, width, height }
+export function holesInRange(collars, { e0, e1, n0, n1 }) {
+  const ea = Math.min(e0, e1), eb = Math.max(e0, e1), na = Math.min(n0, n1), nb = Math.max(n0, n1);
+  const ids = (collars || []).filter((c) => Number.isFinite(c?.x) && Number.isFinite(c?.y) && c.x >= ea && c.x <= eb && c.y >= na && c.y <= nb).map((c) => c.hole_id);
+  return { ids, width: eb - ea, height: nb - na };
+}
