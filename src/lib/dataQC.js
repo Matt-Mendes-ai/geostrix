@@ -11,7 +11,7 @@
 // heads-up with no implied problem (e.g. "N holes have no survey — using straight-hole fallback").
 
 import { pointInBoundary } from "./geoprocessing.js";
-import { arrMax } from "./arrayStats.js";
+import { arrMax, arrMin } from "./arrayStats.js"; // arrMin: #2335
 import { isMarkedQcRow } from "./qaqc.js"; // TASKS.csv #601
 import { terrainGroundAt } from "./viewer/geomath.js"; // TASKS.csv #558; #927 — never compared with the fill
 
@@ -22,6 +22,8 @@ export { didYouMean };
 
 const clampSeverityIcon = { error: "🔴", warning: "🟡", info: "🔵" };
 
+// TASKS.csv #2335 — an inclined hole surveyed at the collar only is warned about when longer than this (its unsurveyed path can wander far)
+const COLLAR_ONLY_LONG_M = 150;
 function pushIssue(issues, severity, category, holeId, message) {
   issues.push({ severity, category, holeId: holeId || null, message });
 }
@@ -108,6 +110,7 @@ function validateSurveyAndTrajectory(collars, survey, { doglegWarn = 3, doglegEr
   });
   orphanStations.forEach((n, id) => pushIssue(issues, "error", "Survey", id, tr("{n} survey stations for hole \"{hole_id}\", which has no matching collar: this hole cannot be desurveyed and won't render.{v}", { n, hole_id: id, v: didYouMean(collarIds, id) })));
   const lengthOf = new Map(collars.map((c) => [c.hole_id, Number(c.length)]));
+  const collarOnly = []; // TASKS.csv #2335 — holes surveyed at the collar only (see below)
   byHole.forEach((stations, holeId) => {
     const sorted = [...stations].sort((a, b) => a.depth - b.depth);
     // TASKS.csv #714 — a survey that stops well above the end of the hole: desurvey carries the last attitude on to
@@ -117,7 +120,14 @@ function validateSurveyAndTrajectory(collars, survey, { doglegWarn = 3, doglegEr
     const eoh = lengthOf.get(holeId), last = sorted.length ? sorted[sorted.length - 1].depth : NaN;
     const gap = eoh - last;
     if (Number.isFinite(eoh) && Number.isFinite(last) && (gap > 30 || (gap > 15 && gap > 0.2 * eoh))) {
-      pushIssue(issues, "warning", "Survey", holeId, tr("The survey ends at {v} m, {v2} m above the end of the hole ({v3} m, {v4}%): the trace below is carried on with the last attitude, a guess — the hole's real path down there is unknown.", { v: +last.toFixed(1), v2: +(eoh - last).toFixed(1), v3: +eoh.toFixed(1), v4: Math.round((100 * (eoh - last)) / eoh) }));
+      // TASKS.csv #2335 (review #2325, WA uranium) — a collar station only (one station at the top) on a vertical hole, or on a short
+      // inclined one, is how 'drilled straight, not surveyed downhole' is recorded: 430 aircore holes made 430 of 450 warnings. Counted in
+      // one note below; a survey that stops partway, or a long inclined hole with a collar shot only, keeps its warning.
+      const top = sorted[0], one = sorted.length === 1 && top.depth <= 1, steep = Number.isFinite(top?.dip) && Math.abs(top.dip) >= 85;
+      if (one && (steep || eoh <= COLLAR_ONLY_LONG_M)) collarOnly.push({ eoh, steep });
+      else {
+        pushIssue(issues, "warning", "Survey", holeId, tr("The survey ends at {v} m, {v2} m above the end of the hole ({v3} m, {v4}%): the trace below is carried on with the last attitude, a guess — the hole's real path down there is unknown.", { v: +last.toFixed(1), v2: +(eoh - last).toFixed(1), v3: +eoh.toFixed(1), v4: Math.round((100 * (eoh - last)) / eoh) }));
+      }
     }
     // Duplicate-depth stations.
     for (let i = 1; i < sorted.length; i++) {
@@ -145,6 +155,10 @@ function validateSurveyAndTrajectory(collars, survey, { doglegWarn = 3, doglegEr
       }
     }
   });
+  if (collarOnly.length) { // #2335 — one note for every hole with a collar station only
+    const d = collarOnly.map((h) => h.eoh), steep = collarOnly.filter((h) => h.steep).length;
+    pushIssue(issues, "info", "Survey", null, tr("{n} hole(s), {v} of them vertical, have a survey station at the collar only ({d1}-{d2} m deep): each is drawn straight at that attitude. Their path below the collar is not measured; a downhole survey would show any deviation.", { n: collarOnly.length, v: steep, d1: Math.round(arrMin(d)), d2: Math.round(arrMax(d)) }));
+  }
   const noSurvey = collars.filter((c) => !byHole.has(c.hole_id));
   // TASKS.csv #339 — the straight-hole fallback has two silent failure modes (desurvey.js
   // stationsWithInclination): no collar azimuth/dip means the hole has NO trace at all (it and every
