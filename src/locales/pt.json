@@ -9961,5 +9961,13 @@
   "Opens Planned holes with this easting and northing as the target, at RL {z} m: no point of the first grade / numeric card lies under this cell, so it is the distance-weighted mean elevation of the {n} points within {r} m (and the Level). Check it there.": "Abre Furos planejados com esta coordenada E e N como alvo, na cota {z} m: nenhum ponto do primeiro cartão de teor / numérico está sob esta célula, então é a cota média ponderada pela distância dos {n} pontos a menos de {r} m (e o Nível). Confira lá.",
   "{i}. {v}: a hole aims at E {x}, N {y}, elevation {z} (the zone's point farthest from the drilling).": "{i}. {v}: um furo mira E {x}, N {y}, cota {z} (o ponto da zona mais distante da sondagem).",
   "{unit} was closed artificially where its estimate ended: past that edge the ground is untested, not covered, so the zones here leave out the step-outs beyond it. Look past the shell's edge (down dip, along strike) as well.": "{unit} foi fechado artificialmente onde sua estimativa terminou: além dessa borda o terreno não foi testado, não está coberto, então as zonas aqui omitem os avanços além dela. Olhe também além da borda do envelope (mergulho abaixo, ao longo da direção).",
-  "This unit": "Esta unidade"
+  "This unit": "Esta unidade",
+  "{type} ($/m)": "{type} ($/m)",
+  "(no type)": "(sem tipo)",
+  "{type}: {n} hole(s), {m} m{v}": "{type}: {n} furo(s), {m} m{v}",
+  ", est. ${c}": ", est. ${c}",
+  "Total est. ${c}.": "Total est. ${c}.",
+  "Enter a rate for {list} to total the cost.": "Informe uma tarifa para {list} para totalizar o custo.",
+  "Hole type": "Tipo de furo",
+  "e.g. as the collars: AC, RC, DD": "ex.: como os colares: AC, RC, DD"
 }

@@ -31,7 +31,7 @@ export function rigRows(holes, epsg, isoDate, trace) {
     const tgt = h.target && [h.target.x, h.target.y, h.target.z].every(Number.isFinite) ? h.target : null;
     const hit = tgt && pts.length ? missDistanceToTarget(pts, tgt) : null;
     return {
-      name: h.name || "", x: h.x, y: h.y, z: h.z,
+      name: h.name || "", hole_type: h.type || "" /* #2581 — which rig */, x: h.x, y: h.y, z: h.z,
       lat: r7(ll?.y), lon: r7(ll?.x),
       azimuth_grid: r2(h.azimuth),
       azimuth_true: Number.isFinite(conv) ? r2(wrap360(h.azimuth - conv)) : "",

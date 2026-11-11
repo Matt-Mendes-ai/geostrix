@@ -11,6 +11,8 @@ import { azimuthToGridOffset, loadIgrf, wrap360 } from "../lib/azimuthRef.js"; /
 import { planGeometryKey, drilledTraceIndex, isTargetModel, targetBandIndex, planChecks, COLLAR_ZONE_M } from "../lib/plannedHoleChecks.js"; // TASKS.csv #1039; COLLAR_ZONE_M: #1454
 import { piercePoints as surfacePierces } from "../lib/piercePoints.js"; // TASKS.csv #1009
 import { drilledDefaults } from "../lib/plannedDefaults.js"; // TASKS.csv #2450
+import { costByType, collarHoleTypes } from "../lib/drillProgram.js"; // TASKS.csv #2581
+import { useStore } from "../lib/store.jsx"; // TASKS.csv #2581 — the rates are kept with the project
 import { collarGround, collarsLookUnderground } from "../lib/pitShell.js"; // TASKS.csv #2100 — the ground between the collars when there is no terrain; underground: #2251 / #2253
 
 const PlannedHoleTargeting = lazyModal(() => import("./PlannedHoleTargeting.jsx")); // TASKS.csv #119
@@ -266,7 +268,9 @@ export function PlannedHoleChecks({ plannedHoles, collars, survey, voxelModels, 
   const holesRef = useRef(plannedHoles);
   holesRef.current = plannedHoles;
   const pierces = useMemo(() => new Map(holesRef.current.map((h) => [h.id, surfacePierces(plannedHoleTrace(h), surfaces)])), [geomKey, surfaces]);
-  const [costPerM, setCostPerM] = useState("");
+  // TASKS.csv #2581 — a rate per hole type, kept with the project (the single field was forgotten on reopen)
+  const { project, setDrillRates } = useStore();
+  const rates = project?.drillRates || {};
   const drilled = useMemo(() => drilledTraceIndex(collars, survey, desurveyMethod), [collars, survey, desurveyMethod]);
   const targetKey = voxelModels.filter(isTargetModel).map((m) => `${m.id}|${m.threshold}|${m.rangeMax}|${m.min}|${m.max}|${m.supportCutoff ?? ""}|${cellsVersion(m.cells)}`).join(";"); // not opacity / colour
   const modelsRef = useRef(voxelModels);
@@ -275,8 +279,11 @@ export function PlannedHoleChecks({ plannedHoles, collars, survey, voxelModels, 
   const checked = useMemo(() => planChecks(holesRef.current, drilled, targets, plannedHoleTrace), [geomKey, drilled, targets]);
   const results = checked.map((r) => ({ ...r, hole: plannedHoles.find((h) => h.id === r.hole.id) || r.hole })); // the current name
   const totalM = plannedHoles.reduce((s, h) => s + (Number(h.length) || 0), 0);
-  const rate = Number(costPerM);
-  const totalCost = costPerM !== "" && Number.isFinite(rate) && rate > 0 ? totalM * rate : null;
+  const byType = useMemo(() => costByType(plannedHoles, rates), [plannedHoles, rates]);
+  const typed = byType.rows.some((r) => r.type !== "");
+  const rate = byType.rows.length === 1 ? byType.rows[0].rate : null;
+  const totalCost = !typed ? byType.totalCost : null;
+  const setRate = (type, v) => setDrillRates((prev) => ({ ...prev, [type]: v === "" ? undefined : v })); // from the latest rates: two quick edits kept only one
   const anyTargetModel = voxelModels.some(isTargetModel);
 
   return (
@@ -284,10 +291,12 @@ export function PlannedHoleChecks({ plannedHoles, collars, survey, voxelModels, 
       <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)", fontWeight: 600, marginBottom: 6 }}>{tr("Planned hole checks")}</div>
       <div style={{ display: "flex", gap: 4, marginBottom: 7 }}>
         <NumField label={tr("Min. spacing (m)")} value={minSpacing} onChange={(v) => setMinSpacing(v === "" ? 0 : Math.max(0, v))} />
-        <NumField label={tr("Cost ($/m)")} value={costPerM} placeholder={tr("enter your rate")} onChange={setCostPerM} />
+        {!typed && <NumField label={tr("Cost ($/m)")} value={rates[""] ?? ""} placeholder={tr("enter your rate")} onChange={(v) => setRate("", v)} />}
       </div>
+      {typed && <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 7 }}>{byType.rows.map((r) => <div key={r.type} style={{ flex: "1 1 30%" }}><NumField label={tr("{type} ($/m)", { type: r.type || tr("(no type)") })} value={rates[r.type] ?? ""} placeholder={tr("enter your rate")} onChange={(v) => setRate(r.type, v)} /></div>)}</div>}{/* #2581 */}
       <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 7 }}>
         {tr("{plannedHoles} {v}, {totalM} m total{v2}", { plannedHoles: plannedHoles.length, v: tr(plannedHoles.length === 1 ? "hole" : "holes"), totalM: totalM.toLocaleString(), v2: totalCost != null ? tr(" — est. ${totalCost} at ${rate}/m", { totalCost: totalCost.toLocaleString(undefined, { maximumFractionDigits: 0 }), rate }) : "" })}
+        {typed && <div style={{ marginTop: 3 }}>{/* #2581 — metres and cost by hole type */}{byType.rows.map((r) => tr("{type}: {n} hole(s), {m} m{v}", { type: r.type || tr("(no type)"), n: r.n, m: Math.round(r.m).toLocaleString(), v: r.cost != null ? tr(", est. ${c}", { c: r.cost.toLocaleString(undefined, { maximumFractionDigits: 0 }) }) : "" })).join("; ")}{". "}{byType.totalCost != null ? tr("Total est. ${c}.", { c: byType.totalCost.toLocaleString(undefined, { maximumFractionDigits: 0 }) }) : tr("Enter a rate for {list} to total the cost.", { list: byType.missing.map((t) => t || tr("(no type)")).join(", ") })}</div>}
       </div>
       {voxelModels.length > 0 && !anyTargetModel && (
         <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 7, lineHeight: 1.4 }}>{tr("Narrow a voxel model's Min/Max range in Targeting > Voxel ranges to check planned holes against a target band.")}</div>
@@ -377,6 +386,9 @@ export function PlannedHoleRow({ hole, onUpdate, onRemove, collars, survey }) { 
             <NumField label={tr("Length m")} value={hole.length} onChange={(v) => onUpdate(hole.id, { length: v })} />
           </div>
           {hole.azimuthEntered && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 4 }}>{tr("Entered as {v}° {ref} ({date}).", { v: hole.azimuthEntered.value, ref: tr(hole.azimuthEntered.ref === "true" ? "true north" : "magnetic north"), date: hole.azimuthEntered.date })}</div>}
+          <label style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 5, fontSize: "var(--font-size-xs)", color: "var(--color-text-faint)" }}>{tr("Hole type")}{/* #2581 */}
+            <input list={`htypes-${hole.id}`} value={hole.type || ""} placeholder={tr("e.g. as the collars: AC, RC, DD")} onChange={(e) => onUpdate(hole.id, { type: e.target.value })} aria-label={tr("Hole type")} style={{ flex: 1, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "3px 6px", color: "var(--color-text)", fontSize: "var(--font-size-sm)" }} />
+            <datalist id={`htypes-${hole.id}`}>{collarHoleTypes(collars).map((t) => <option key={t} value={t} />)}</datalist></label>
           <textarea placeholder={tr("Notes")} value={hole.notes || ""} onChange={(e) => onUpdate(hole.id, { notes: e.target.value })} rows={2} style={{ width: "100%", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 6px", fontSize: "var(--font-size-sm)", color: "var(--color-text)", resize: "vertical" }} />
           {/* TASKS.csv #119 - drill-to-target solver and planned-vs-as-drilled comparison. `raw` is
               this row's already-built trace, so the panel never desurveys the planned hole again. */}

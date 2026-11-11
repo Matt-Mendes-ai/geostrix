@@ -1014,6 +1014,7 @@ export function StoreProvider({ children }) {
     return report;
   }, []);
   const setProjectName = useCallback((name) => setProject((p) => ({ ...p, name })), []);
+  const setDrillRates = useCallback((rates) => setProject((p) => ({ ...p, drillRates: (typeof rates === "function" ? rates(p.drillRates || {}) : rates) || null })), []); // TASKS.csv #2581 — $/m per hole type, kept with the project (a function: from the latest rates)
 
   // TASKS.csv #135 — desurvey method is a PROJECT setting, not a UI preference: it changes every
   // hole's computed geometry (and therefore every intercept, section, estimation sample and export
@@ -1660,7 +1661,7 @@ export function StoreProvider({ children }) {
   }, [activeLayoutPageId, clearUndoHistory]);
 
   const value = {
-    project, setEpsg, setLocalGrid /* #2180 */, setLocalGridTie /* #2288 */, setMineGrid /* #2586 */, setProjectName, reprojectProjectTo, reprojectObjectTo, // #485 / #486
+    project, setEpsg, setLocalGrid /* #2180 */, setLocalGridTie /* #2288 */, setMineGrid /* #2586 */, setProjectName, setDrillRates /* #2581 */, reprojectProjectTo, reprojectObjectTo, // #485 / #486
     sampleRequest, requestSampleProject, clearSampleRequest, // TASKS.csv #1120
     projectIsEmpty: !hasWork, // TASKS.csv #607 — nothing loaded yet (same test as autosave): an import may adopt its CRS
     desurveyMethod, setDesurveyMethod, // TASKS.csv #135

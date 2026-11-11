@@ -9961,5 +9961,13 @@
   "Opens Planned holes with this easting and northing as the target, at RL {z} m: no point of the first grade / numeric card lies under this cell, so it is the distance-weighted mean elevation of the {n} points within {r} m (and the Level). Check it there.": "يفتح الثقوب المخطط لها بهذا الشرق والشمال هدفًا، عند منسوب {z} م: لا تقع أي نقطة من أول بطاقة محتوى / رقمية تحت هذه الخلية، لذا هو متوسط المنسوب الموزون بالمسافة لـ {n} نقطة ضمن {r} م (والمستوى). تحقق منه هناك.",
   "{i}. {v}: a hole aims at E {x}, N {y}, elevation {z} (the zone's point farthest from the drilling).": "{i}. {v}: يستهدف ثقب الشرق {x} والشمال {y} والمنسوب {z} (أبعد نقطة في النطاق عن الحفر).",
   "{unit} was closed artificially where its estimate ended: past that edge the ground is untested, not covered, so the zones here leave out the step-outs beyond it. Look past the shell's edge (down dip, along strike) as well.": "أُغلق {unit} اصطناعيًا حيث انتهى تقديره: ما بعد تلك الحافة أرض غير مختبرة لا مغطاة، لذا تغفل النطاقات هنا التوسعات خلفها. انظر أيضًا إلى ما بعد حافة الغلاف (باتجاه الميل وعلى امتداد المضرب).",
-  "This unit": "هذه الوحدة"
+  "This unit": "هذه الوحدة",
+  "{type} ($/m)": "{type} ($/م)",
+  "(no type)": "(بلا نوع)",
+  "{type}: {n} hole(s), {m} m{v}": "{type}: {n} ثقب، {m} م{v}",
+  ", est. ${c}": "، تقديرًا ${c}",
+  "Total est. ${c}.": "الإجمالي تقديرًا ${c}.",
+  "Enter a rate for {list} to total the cost.": "أدخل سعرًا لـ {list} لحساب التكلفة الإجمالية.",
+  "Hole type": "نوع الثقب",
+  "e.g. as the collars: AC, RC, DD": "مثلًا كالفوهات: AC وRC وDD"
 }

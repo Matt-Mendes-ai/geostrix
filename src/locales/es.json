@@ -9961,5 +9961,13 @@
   "Opens Planned holes with this easting and northing as the target, at RL {z} m: no point of the first grade / numeric card lies under this cell, so it is the distance-weighted mean elevation of the {n} points within {r} m (and the Level). Check it there.": "Abre Sondajes planificados con este este y norte como objetivo, a cota {z} m: ningún punto de la primera tarjeta de ley / numérica está bajo esta celda, así que es la cota media ponderada por distancia de los {n} puntos a menos de {r} m (y el Nivel). Compruébelo allí.",
   "{i}. {v}: a hole aims at E {x}, N {y}, elevation {z} (the zone's point farthest from the drilling).": "{i}. {v}: un sondaje apunta a E {x}, N {y}, cota {z} (el punto de la zona más alejado de la perforación).",
   "{unit} was closed artificially where its estimate ended: past that edge the ground is untested, not covered, so the zones here leave out the step-outs beyond it. Look past the shell's edge (down dip, along strike) as well.": "{unit} se cerró artificialmente donde terminó su estimación: más allá de ese borde el terreno no está probado, no cubierto, así que las zonas de aquí omiten los avances fuera de él. Mire también más allá del borde de la envolvente (buzamiento abajo, a lo largo del rumbo).",
-  "This unit": "Esta unidad"
+  "This unit": "Esta unidad",
+  "{type} ($/m)": "{type} ($/m)",
+  "(no type)": "(sin tipo)",
+  "{type}: {n} hole(s), {m} m{v}": "{type}: {n} sondaje(s), {m} m{v}",
+  ", est. ${c}": ", est. ${c}",
+  "Total est. ${c}.": "Total est. ${c}.",
+  "Enter a rate for {list} to total the cost.": "Ingrese una tarifa para {list} para totalizar el costo.",
+  "Hole type": "Tipo de sondaje",
+  "e.g. as the collars: AC, RC, DD": "p. ej., como los collares: AC, RC, DD"
 }
