@@ -2407,6 +2407,7 @@
   "What z means in \"{key}\"": "ما يعنيه z في «{key}»",
   "elevation = terrain + the height in z (the heights are kept, so this can be redone after loading a better terrain)": "الارتفاع = التضاريس + الارتفاع في z (تُحفظ الارتفاعات، لذا يمكن إعادة ذلك بعد تحميل تضاريس أفضل)",
   "Load a terrain first": "حمّل تضاريس أولًا",
+  "Needs a terrain: load or build one under Maps > Terrain (a DEM, a fetch, or the project's own collars).": "يلزم سطح تضاريس: حمّله أو أنشئه من الخرائط > التضاريس (نموذج ارتفاع، أو جلب، أو فوهات المشروع نفسها).",
   "Recompute elevations from the terrain": "إعادة حساب الارتفاعات من التضاريس",
   "Convert heights to elevations (terrain + height)": "تحويل الارتفاعات النسبية إلى مناسيب (التضاريس + الارتفاع)",
   "\"{fileName}\" — {rows} row(s), {columns} column(s). Pick which columns to import as points:": "«{fileName}» — {rows} صف، {columns} عمود. اختر الأعمدة المراد استيرادها كنقاط:",

@@ -2407,6 +2407,7 @@
   "What z means in \"{key}\"": "Qué significa z en \"{key}\"",
   "elevation = terrain + the height in z (the heights are kept, so this can be redone after loading a better terrain)": "elevación = terreno + la altura en z (las alturas se conservan, así que se puede rehacer tras cargar un terreno mejor)",
   "Load a terrain first": "Cargue primero un terreno",
+  "Needs a terrain: load or build one under Maps > Terrain (a DEM, a fetch, or the project's own collars).": "Necesita un terreno: cárguelo o constrúyalo en Mapas > Terreno (un DEM, una descarga o los propios collares del proyecto).",
   "Recompute elevations from the terrain": "Recalcular elevaciones a partir del terreno",
   "Convert heights to elevations (terrain + height)": "Convertir alturas en elevaciones (terreno + altura)",
   "\"{fileName}\" — {rows} row(s), {columns} column(s). Pick which columns to import as points:": "\"{fileName}\" — {rows} fila(s), {columns} columna(s). Elija qué columnas importar como puntos:",

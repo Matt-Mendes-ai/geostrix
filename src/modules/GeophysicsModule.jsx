@@ -1800,6 +1800,9 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                       {sv.withAgl ? tr("Recompute elevations from the terrain") : tr("Convert heights to elevations (terrain + height)")}
                     </button>
                   )}
+                  {meta.zMeaning === "agl" && !terrain && ( /* TASKS.csv #2244 — the disabled button said why only on hover */
+                    <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 3 }}>{tr("Needs a terrain: load or build one under Maps > Terrain (a DEM, a fetch, or the project's own collars).")}</div>
+                  )}
                 </div>
               );
             })}
