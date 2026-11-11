@@ -9972,5 +9972,12 @@
   "e.g. as the collars: AC, RC, DD": "ex.: como os colares: AC, RC, DD",
   "{p} % of this ore is in blocks above or below every sample that informs them: unsampled ground, neither barren nor ore. The strip ratio and the margin rest on it, so read them as not meaningful. Drilled metres with no sample can be estimated as barren: 3D Modelling › Estimation, \"Unsampled metres inside a sampled hole\".": "{p} % deste minério está em blocos acima ou abaixo de todas as amostras que os informam: terreno não amostrado, nem estéril nem minério. A relação estéril/minério e a margem dependem dele, então leia-as como não significativas. Os metros perfurados sem amostra podem ser estimados como estéreis: Modelagem 3D › Estimativa, \"Metros não amostrados dentro de um furo amostrado\".",
   "{p} % of the ore is in blocks above or below every sample that informs them.": "{p} % do minério está em blocos acima ou abaixo de todas as amostras que os informam.",
-  "Not offered: {list}: its unit is not a grade unit. Set the unit of the layer it was estimated from (ppm, g/t, %) and estimate it again.": "Não oferecido: {list}: a unidade não é uma unidade de teor. Defina a unidade da camada a partir da qual foi estimado (ppm, g/t, %) e estime-o novamente."
+  "Not offered: {list}: its unit is not a grade unit. Set the unit of the layer it was estimated from (ppm, g/t, %) and estimate it again.": "Não oferecido: {list}: a unidade não é uma unidade de teor. Defina a unidade da camada a partir da qual foi estimado (ppm, g/t, %) e estime-o novamente.",
+  "The waste density must be above 0, or blank.": "A densidade do estéril deve ser maior que 0, ou ficar em branco.",
+  "The density of the ore blocks; of all the rock when no waste density is entered.": "A densidade dos blocos de minério; de toda a rocha quando nenhuma densidade do estéril é informada.",
+  "Waste density (t/m³)": "Densidade do estéril (t/m³)",
+  "Optional: the density of the blocks below cut-off and of the rock outside the block model (cover, host rock). Blank: the density above for all rock.": "Opcional: a densidade dos blocos abaixo do teor de corte e da rocha fora do modelo de blocos (cobertura, rocha encaixante). Em branco: a densidade acima para toda a rocha.",
+  "{o} ore, {w} waste": "{o} minério, {w} estéril",
+  "Use the pit's waste density, {v}": "Usar a densidade do estéril da cava, {v}",
+  ", waste {w} t/m³": ", estéril {w} t/m³"
 }

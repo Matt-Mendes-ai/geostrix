@@ -9972,5 +9972,12 @@
   "e.g. as the collars: AC, RC, DD": "مثلًا كالفوهات: AC وRC وDD",
   "{p} % of this ore is in blocks above or below every sample that informs them: unsampled ground, neither barren nor ore. The strip ratio and the margin rest on it, so read them as not meaningful. Drilled metres with no sample can be estimated as barren: 3D Modelling › Estimation, \"Unsampled metres inside a sampled hole\".": "{p} % من هذا الخام في كتل تقع فوق أو تحت كل العينات التي تُقدّرها: أرض غير مُعيّنة، لا هي عقيمة ولا خام. نسبة التجريد والهامش يعتمدان عليها، فاعتبرهما بلا دلالة. يمكن تقدير الأمتار المحفورة بلا عينة على أنها عقيمة: النمذجة ثلاثية الأبعاد › التقدير، \"الأمتار غير المُعيّنة داخل ثقب مُعيّن\".",
   "{p} % of the ore is in blocks above or below every sample that informs them.": "{p} % من الخام في كتل تقع فوق أو تحت كل العينات التي تُقدّرها.",
-  "Not offered: {list}: its unit is not a grade unit. Set the unit of the layer it was estimated from (ppm, g/t, %) and estimate it again.": "غير معروض: {list}: وحدته ليست وحدة محتوى. حدّد وحدة الطبقة التي قُدّر منها (ppm، g/t، %) وأعد تقديره."
+  "Not offered: {list}: its unit is not a grade unit. Set the unit of the layer it was estimated from (ppm, g/t, %) and estimate it again.": "غير معروض: {list}: وحدته ليست وحدة محتوى. حدّد وحدة الطبقة التي قُدّر منها (ppm، g/t، %) وأعد تقديره.",
+  "The waste density must be above 0, or blank.": "يجب أن تكون كثافة النفايات أكبر من 0، أو تُترك فارغة.",
+  "The density of the ore blocks; of all the rock when no waste density is entered.": "كثافة كتل الخام؛ وكثافة كل الصخر عندما لا تُدخل كثافة للنفايات.",
+  "Waste density (t/m³)": "كثافة النفايات (t/m³)",
+  "Optional: the density of the blocks below cut-off and of the rock outside the block model (cover, host rock). Blank: the density above for all rock.": "اختياري: كثافة الكتل تحت محتوى القطع والصخر خارج نموذج الكتل (الغطاء، الصخر المضيف). فارغ: الكثافة أعلاه لكل الصخر.",
+  "{o} ore, {w} waste": "{o} خام، {w} نفايات",
+  "Use the pit's waste density, {v}": "استخدم كثافة نفايات الحفرة، {v}",
+  ", waste {w} t/m³": "، نفايات {w} t/m³"
 }

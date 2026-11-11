@@ -97,10 +97,11 @@ export const toeRL = (z, benchH, datum = 0) => datum + Math.round((z - datum) / 
 // blocks ({ x, y, z, dx, dy, dz, value, coverage }), cutoff and density from the shell's run; benchH, berm, batterDeg, datum.
 // -> { positions, indices, strings: [{ bench, rl, kind: "toe" | "crest", lines: [[[x, y, z], ...]] }], benches: [{ rl, rockT, oreT, wasteT,
 //      metalU, meanGrade }], totals, interRampDeg, faceRun, reach, cell, nCells, coarsened, daylights, crestRL, floorRL }
-export function benchedPit(shell, { groundAt = null, cells = [], cutoff = Infinity, density = 1, benchH, berm, batterDeg, datum = 0, maxCells = MAX_DESIGN_CELLS, largestOnly = false, areaPoly = null, sectors = null, ramp = null } = {}) {
+export function benchedPit(shell, { groundAt = null, cells = [], cutoff = Infinity, density = 1, wasteDensity = null, benchH, berm, batterDeg, datum = 0, maxCells = MAX_DESIGN_CELLS, largestOnly = false, areaPoly = null, sectors = null, ramp = null } = {}) {
   // TASKS.csv #1916 — a design AREA (areaPoly): a closed polygon [[x, y], ...] in world metres (a design string); only the shell's columns
   // whose centre lies inside it are designed, so one prospect of a district-wide shell gets the whole grid
   let columnsInArea = null;
+  const wd = wasteDensity > 0 ? wasteDensity : density; // TASKS.csv #2437 — ore at `density`, the rest of the rock (and the road) at the waste density
   if (shell && Array.isArray(areaPoly) && areaPoly.length > 2) {
     const { nx, ny, floor } = shell, kept = new Float64Array(floor.length).fill(NaN);
     let n = 0;
@@ -263,13 +264,13 @@ export function benchedPit(shell, { groundAt = null, cells = [], cutoff = Infini
       if (z[c] < g[c] - 1e-6) { T2[c] = 1; if (!T[c] && z[c] === rl) newFloor++; } else daylights = true;
     }
     if (!newFloor) break;
-    benches.push({ rl, rockT: 0, oreT: 0, wasteT: 0, metalU: 0, meanGrade: null });
+    benches.push({ rl, rockT: 0, rockV: 0, oreV: 0, oreT: 0, wasteT: 0, metalU: 0, meanGrade: null }); // rockV / oreV: #2437
     T = T2;
   }
   const crestRL = benches.length ? benches[benches.length - 1].rl + benchH : floorRL;
   // #1948 — the road's rock: what the design takes out under the road cells, and the strings
   let rampRockT = 0;
-  if (rampState) { const area = cell * cell; for (let c = 0; c < N; c++) if (isRamp[c] && Number.isFinite(z[c]) && z[c] < g[c]) rampRockT += (g[c] - z[c]) * area * density; }
+  if (rampState) { const area = cell * cell; for (let c = 0; c < N; c++) if (isRamp[c] && Number.isFinite(z[c]) && z[c] < g[c]) rampRockT += (g[c] - z[c]) * area * wd; }
   // the surface: the design where it is below the ground, the ground on a one-cell ring around it (so it meets the ground)
   const inPit = new Uint8Array(N);
   for (let c = 0; c < N; c++) if (Number.isFinite(z[c]) && z[c] < g[c] - 1e-6) inPit[c] = 1;
@@ -307,7 +308,7 @@ export function benchedPit(shell, { groundAt = null, cells = [], cutoff = Infini
   const area = cell * cell;
   for (let c = 0; c < N; c++) {
     if (!inPit[c]) continue;
-    benches.forEach((b) => { const h = Math.min(g[c], b.rl + benchH) - Math.max(z[c], b.rl); if (h > 0) b.rockT += h * area * density; });
+    benches.forEach((b) => { const h = Math.min(g[c], b.rl + benchH) - Math.max(z[c], b.rl); if (h > 0) b.rockV += h * area; });
   }
   // each block's overlap with every design cell's square (cells are centred on the lattice nodes), as buildPitGrid does
   const span = (lo, hi, o, N1) => [Math.max(0, Math.ceil((lo - o) / cell - 0.5)), Math.min(N1 - 1, Math.floor((hi - o) / cell + 0.5))];
@@ -324,12 +325,16 @@ export function benchedPit(shell, { groundAt = null, cells = [], cutoff = Infini
       for (const b of benches) {
         const oz = Math.min(zhi, g[c], b.rl + benchH) - Math.max(zlo, z[c], b.rl);
         if (oz <= 0) continue;
-        const t = ox * oy * oz * cover * density;
-        b.oreT += t; b.metalU += t * bl.value;
+        const v = ox * oy * oz * cover;
+        b.oreV += v; b.metalU += v * density * bl.value;
       }
     }
   }
-  benches.forEach((b) => { b.oreT = Math.min(b.oreT, b.rockT); b.wasteT = b.rockT - b.oreT; b.meanGrade = b.oreT > 0 ? b.metalU / b.oreT : null; });
+  benches.forEach((b) => {
+    const oreV = Math.min(b.oreV, b.rockV), scale = b.oreV > 0 ? oreV / b.oreV : 1; // #2437 — volumes first, then each part at its density
+    b.oreT = oreV * density; b.metalU *= scale; b.wasteT = (b.rockV - oreV) * wd; b.rockT = b.oreT + b.wasteT;
+    b.meanGrade = b.oreT > 0 ? b.metalU / b.oreT : null; delete b.rockV; delete b.oreV;
+  });
   const totals = benches.reduce((a, b) => ({ rockT: a.rockT + b.rockT, oreT: a.oreT + b.oreT, wasteT: a.wasteT + b.wasteT, metalU: a.metalU + b.metalU }), { rockT: 0, oreT: 0, wasteT: 0, metalU: 0 });
   totals.stripRatio = totals.oreT > 0 ? totals.wasteT / totals.oreT : null;
   totals.meanGrade = totals.oreT > 0 ? totals.metalU / totals.oreT : null;
