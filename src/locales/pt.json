@@ -10037,5 +10037,9 @@
   "{n} with a dip direction or strike that is not a number (a quadrant bearing such as N45E is not read)": "{n} com uma direção de mergulho ou direção que não é um número (um rumo por quadrantes como N45E não é lido)",
   "{n} with a dip but no dip direction or strike": "{n} com mergulho mas sem direção de mergulho nem direção",
   "Lab column: {v}": "Coluna de laboratório: {v}",
-  "Other fields: lab bookkeeping, one value on every sample, or a different one on each": "Outros campos: registros do laboratório, um mesmo valor em todas as amostras ou um diferente em cada uma"
+  "Other fields: lab bookkeeping, one value on every sample, or a different one on each": "Outros campos: registros do laboratório, um mesmo valor em todas as amostras ou um diferente em cada uma",
+  "Use the drillholes' logged contacts ({n} of the {m} holes have a lithology log)": "Usar os contatos descritos nos furos ({n} dos {m} furos têm descrição litológica)",
+  "Only one unit ({unit}) is in the stratigraphic role: a model needs at least two units in order, one on top of the other. Set another unit's role to stratigraphic above, or build the unit as an intrusion body below.": "Só uma unidade ({unit}) está no papel estratigráfico: um modelo precisa de pelo menos duas unidades em ordem, uma sobre a outra. Defina o papel de outra unidade como estratigráfico acima, ou construa a unidade como corpo intrusivo abaixo.",
+  "No unit is in the stratigraphic role: a model needs at least two units in order. Set their roles above.": "Nenhuma unidade está no papel estratigráfico: um modelo precisa de pelo menos duas unidades em ordem. Defina os papéis acima.",
+  "{n} hole(s) whose log starts below the collar ({a}–{b} m down: an unlogged precollar, or logging only where something was met) were left out: their first logged unit is a point down the hole, not a subcrop ({ids}).": "{n} furo(s) cuja descrição começa abaixo da boca ({a}–{b} m para baixo: um pré-colar não descrito, ou descrição só onde algo foi encontrado) ficaram de fora: a primeira unidade descrita é um ponto furo abaixo, não um subafloramento ({ids})."
 }

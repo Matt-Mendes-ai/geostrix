@@ -10037,5 +10037,9 @@
   "{n} with a dip direction or strike that is not a number (a quadrant bearing such as N45E is not read)": "{n} con una dirección de buzamiento o rumbo que no es un número (un rumbo por cuadrantes como N45E no se lee)",
   "{n} with a dip but no dip direction or strike": "{n} con buzamiento pero sin dirección de buzamiento ni rumbo",
   "Lab column: {v}": "Columna de laboratorio: {v}",
-  "Other fields: lab bookkeeping, one value on every sample, or a different one on each": "Otros campos: registros del laboratorio, un mismo valor en todas las muestras o uno distinto en cada una"
+  "Other fields: lab bookkeeping, one value on every sample, or a different one on each": "Otros campos: registros del laboratorio, un mismo valor en todas las muestras o uno distinto en cada una",
+  "Use the drillholes' logged contacts ({n} of the {m} holes have a lithology log)": "Usar los contactos registrados en los sondajes ({n} de los {m} sondajes tienen registro litológico)",
+  "Only one unit ({unit}) is in the stratigraphic role: a model needs at least two units in order, one on top of the other. Set another unit's role to stratigraphic above, or build the unit as an intrusion body below.": "Solo una unidad ({unit}) tiene el rol estratigráfico: un modelo necesita al menos dos unidades en orden, una sobre otra. Asigne el rol estratigráfico a otra unidad arriba, o construya la unidad como cuerpo intrusivo abajo.",
+  "No unit is in the stratigraphic role: a model needs at least two units in order. Set their roles above.": "Ninguna unidad tiene el rol estratigráfico: un modelo necesita al menos dos unidades en orden. Asigne sus roles arriba.",
+  "{n} hole(s) whose log starts below the collar ({a}–{b} m down: an unlogged precollar, or logging only where something was met) were left out: their first logged unit is a point down the hole, not a subcrop ({ids}).": "Se dejaron fuera {n} sondaje(s) cuyo registro empieza bajo el collar ({a}–{b} m hacia abajo: un preconductor sin registrar, o un registro solo donde se encontró algo): su primera unidad registrada es un punto pozo abajo, no un subafloramiento ({ids})."
 }

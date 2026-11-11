@@ -10037,5 +10037,9 @@
   "{n} with a dip direction or strike that is not a number (a quadrant bearing such as N45E is not read)": "{n} باتجاه ميل أو مضرب ليس رقمًا (لا يُقرأ اتجاه الأرباع مثل N45E)",
   "{n} with a dip but no dip direction or strike": "{n} بميل دون اتجاه ميل أو مضرب",
   "Lab column: {v}": "عمود المختبر: {v}",
-  "Other fields: lab bookkeeping, one value on every sample, or a different one on each": "حقول أخرى: سجلات المختبر، أو قيمة واحدة لكل العينات، أو قيمة مختلفة لكل عينة"
+  "Other fields: lab bookkeeping, one value on every sample, or a different one on each": "حقول أخرى: سجلات المختبر، أو قيمة واحدة لكل العينات، أو قيمة مختلفة لكل عينة",
+  "Use the drillholes' logged contacts ({n} of the {m} holes have a lithology log)": "استخدام التماسات المسجلة في الثقوب (لدى {n} من {m} ثقب سجل صخري)",
+  "Only one unit ({unit}) is in the stratigraphic role: a model needs at least two units in order, one on top of the other. Set another unit's role to stratigraphic above, or build the unit as an intrusion body below.": "وحدة واحدة فقط ({unit}) في الدور الطبقي: يحتاج النموذج إلى وحدتين على الأقل بالترتيب، إحداهما فوق الأخرى. اجعل دور وحدة أخرى طبقيًا أعلاه، أو ابنِ الوحدة كجسم متداخل أدناه.",
+  "No unit is in the stratigraphic role: a model needs at least two units in order. Set their roles above.": "لا توجد وحدة في الدور الطبقي: يحتاج النموذج إلى وحدتين على الأقل بالترتيب. حدّد أدوارها أعلاه.",
+  "{n} hole(s) whose log starts below the collar ({a}–{b} m down: an unlogged precollar, or logging only where something was met) were left out: their first logged unit is a point down the hole, not a subcrop ({ids}).": "استُبعد {n} ثقب يبدأ سجلّه تحت الفوهة ({a}–{b} م إلى الأسفل: جزء علوي غير مسجّل، أو تسجيل فقط حيث صودف شيء): أول وحدة مسجّلة فيه نقطة داخل الثقب، لا مكشف تحت الغطاء ({ids})."
 }
