@@ -1,3 +1,5 @@
+import { drillSiteSpacing } from "./drillSpacing.js"; // TASKS.csv #2545 — the median nearest-collar distance
+
 // TASKS.csv #1738 (review #1645, Copley) — how far apart the holes are, said before an estimate runs and when it fills no block.
 // Copley's default Cu estimate (search 50 m, min 2 distinct holes) filled 0 of 183,958 blocks with only the generic reason, though
 // its nearest two collars are 103 m apart and every other hole 305-1,348 m from its neighbour on five prospects: reconnaissance
@@ -5,7 +7,15 @@
 // (#1451: a pad of three collars is not three holes 2 m apart).
 // holeSpacingSummary(collars, padM) -> { sites, nearestM, medianM, farthestM } (the nearest-neighbour distance between sites: its
 // minimum, median and maximum) or null with fewer than 2 sites
-export function holeSpacingSummary(collars, padM = 25) {
+// TASKS.csv #2545 (review #2486, WA lithium) — a 25 m pad merged every collar within 25 m of a site, so a regular 25 m grid read '951 drill
+// sites ... typically 50 m from the next' (and the variogram took its lag from that) while the pit is drilled at 10 m. With no padM given the
+// pad follows the drilling: a tenth of the median nearest-collar distance, kept between 3 and 25 m (fans from one collar still merge;
+// a regular grid does not). result.padM says what was used.
+export function holeSpacingSummary(collars, padM = null) {
+  if (!(padM > 0)) {
+    const raw = drillSiteSpacing(collars, { siteM: 0.01, minBuffer: 0, maxBuffer: Infinity });
+    padM = raw ? Math.min(25, Math.max(3, raw.spacing / 10)) : 25;
+  }
   const sites = [];
   for (const c of collars || []) {
     if (!Number.isFinite(c?.x) || !Number.isFinite(c?.y)) continue;
@@ -14,7 +24,7 @@ export function holeSpacingSummary(collars, padM = 25) {
   }
   if (sites.length < 2) return null;
   const nn = sites.map((a) => Math.min(...sites.filter((b) => b !== a).map((b) => Math.hypot(a.x - b.x, a.y - b.y)))).sort((a, b) => a - b);
-  return { sites: sites.length, nearestM: nn[0], medianM: nn[nn.length >> 1], farthestM: nn[nn.length - 1] };
+  return { sites: sites.length, nearestM: nn[0], medianM: nn[nn.length >> 1], farthestM: nn[nn.length - 1], padM };
 }
 
 // Why a run filled no block, from the rules alone. -> { kind, radiusNeededM } | null (blocks were filled, or nothing to say)
