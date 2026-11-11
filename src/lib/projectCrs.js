@@ -99,6 +99,14 @@ export function degreesCentre({ collars = [], surfaceSamples = [], terrain = nul
 }
 
 // Where the collars' centre would be on Earth if they were in `epsg`: { lon, lat } or null.
+// TASKS.csv #2463 (review #2325, WA uranium) — the Project CRS page placed the project at its FIRST collar (an outlier 8 km from the drilling)
+// while its own landing note used the collars' median: one point for both, the median easting and northing of the points. -> { x, y } | null
+export function medianPoint(points) {
+  const pts = (points || []).filter((c) => Number.isFinite(c?.x) && Number.isFinite(c?.y));
+  if (!pts.length) return null;
+  const xs = pts.map((c) => c.x).sort((a, b) => a - b), ys = pts.map((c) => c.y).sort((a, b) => a - b);
+  return { x: xs[xs.length >> 1], y: ys[ys.length >> 1] };
+}
 export function collarCentreLonLat(collars, epsg) {
   const pts = (collars || []).filter((c) => Number.isFinite(c.x) && Number.isFinite(c.y));
   if (!pts.length || !epsg) return null;
