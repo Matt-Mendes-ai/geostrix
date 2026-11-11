@@ -9955,5 +9955,6 @@
   "{k} of {n} outline point(s) fell in gaps of the terrain (cells it has no ground for) and took the ground of the nearest outline point that has some.": "{k} de {n} ponto(s) do contorno caíram em lacunas do terreno (células sem solo) e tomaram o solo do ponto do contorno mais próximo que o tem.",
   "Holes this card reads": "Furos que este cartão lê",
   "Reads {n} hole(s), samples from {a} to {b} m down hole: a hole that stopped above the target reads as low here, not as untested.": "Lê {n} furo(s), amostras de {a} a {b} m furo abaixo: um furo que parou acima do alvo é lido aqui como baixo, não como não testado.",
-  "No hole of this set has a value of {el}.": "Nenhum furo deste conjunto tem valor de {el}."
+  "No hole of this set has a value of {el}.": "Nenhum furo deste conjunto tem valor de {el}.",
+  "Each 25 m bin maps its lowest value along the holes (favourable when low). Ends: the {a}th and {b}th percentile of the {n} {sym} assays (length-weighted, QC left out). Set them from your own cut-offs.": "Cada célula de 25 m toma seu valor mais baixo ao longo dos furos (favorável quando baixo). Extremos: os percentis {a} e {b} das {n} análises de {sym} (ponderadas pelo comprimento, sem QC). Defina-os com seus próprios cortes."
 }

@@ -31,7 +31,7 @@ test("the share of the scored cells at the top score", () => {
 
 test("the pane passes the mapped values, says where the top came from, and warns on a saturated score", () => {
   const p = readFileSync(new URL("../src/components/EvidenceOverlayPane.jsx", import.meta.url), "utf8");
-  assert.match(p, /\{ mapped: holeGradePoints\(cleanAssays, sym, assayUnits\[sym\] \|\| "ppm", assayUnits, traces, undefined, level\)\.map\(\(p\) => p\.value\) \}/);
+  assert.match(p, /\{ mapped: holeGradePoints\(cleanAssays, sym, assayUnits\[sym\] \|\| "ppm", assayUnits, traces, undefined, level(, lowest)?\)\.map\(\(p\) => p\.value\) \}/); // lowest: #2578
   assert.match(p, /the 90th percentile of the \{m\} values this card maps/);
   assert.match(p, /result\.topShare && result\.topShare\.share > 1 \/ 3 &&/);
 });

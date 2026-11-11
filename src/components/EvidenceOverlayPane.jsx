@@ -175,7 +175,7 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
   const holeAttrChoices = useMemo(() => collarAttrChoices(collars), [collars]);
   const gradeAssaysOf = (assays, opts) => (opts?.field === "holes" && opts.value ? assaysOfHoles(assays, new Set(collarsMatching(collars, opts.value).map((c) => c.hole_id))) : assays);
   const computeValues = (src, opts = {}, lv = level) => (grid ? cachedEvidence(
-    `${gridSignature(grid)}|${src.kind}|${src.ref}|${src.how || ""}|${opts.field || ""}|${opts.value ?? ""}|${opts.reach || ""}|${opts.zMin ?? ""}|${opts.zMax ?? ""}|L${LEVEL_KINDS.has(src.kind) ? `${lv?.zMin ?? ""}:${lv?.zMax ?? ""}` : ""}`, // L: #2326
+    `${gridSignature(grid)}|${src.kind}|${src.ref}|${src.how || ""}|${opts.field || ""}|${opts.value ?? ""}|${opts.reach || ""}|${opts.zMin ?? ""}|${opts.zMax ?? ""}|${opts.lowest ? "lo" : ""}|L${LEVEL_KINDS.has(src.kind) ? `${lv?.zMin ?? ""}:${lv?.zMax ?? ""}` : ""}`, // L: #2326
     evidenceDeps(src, opts, { rasters, mapLayers, surfaceSamples, surfaceElements, collars, survey, desurveyMethod: project?.desurveyMethod, assays, assayElements, voxelModels, geophysPts, structurePicks, projectLayers, customLayers, solids }), // #1560: only what this source reads
     () => computeValuesNow(src, opts, lv),
   ) : null);
@@ -194,8 +194,8 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
     if (src.kind === "numeric") { const { rows, field } = numericRowsOf(src.ref); return pointEvidence(grid, layerFieldPoints(rows, field, traces, undefined, lv), { maxDistance: opts.reach || DRILL_REACH_M }); } // #1728; lv: #2326
     if (src.kind === "zone") { const i = src.ref.indexOf(":"); return distanceEvidence(grid, zoneParts(projectLayers?.[src.ref.slice(0, i)], src.ref.slice(i + 1), traces, undefined, lv)); } // #1728 / #1455 — ref = layer:code
     if (src.kind === "survey") { const pts = surveyPoints(geophysPts, src.ref); return pointEvidence(grid, pts, { maxDistance: opts.reach || reachFromSpacing(pts, 4) }); }
-    if (src.kind === "grade") return pointEvidence(grid, holeGradePoints(gradeAssaysOf(cleanAssays, opts), src.ref, assayUnits[src.ref] || "ppm", assayUnits, traces, undefined, lv), { maxDistance: opts.reach || DRILL_REACH_M });
-    if (src.kind === "pxrf") return pointEvidence(grid, holeGradePoints(gradeAssaysOf(pxrfAssays, opts), src.ref, assayUnits[src.ref] || "ppm", assayUnits, traces, undefined, lv), { maxDistance: opts.reach || DRILL_REACH_M }); // #1723
+    if (src.kind === "grade") return pointEvidence(grid, holeGradePoints(gradeAssaysOf(cleanAssays, opts), src.ref, assayUnits[src.ref] || "ppm", assayUnits, traces, undefined, lv, !!opts.lowest), { maxDistance: opts.reach || DRILL_REACH_M });
+    if (src.kind === "pxrf") return pointEvidence(grid, holeGradePoints(gradeAssaysOf(pxrfAssays, opts), src.ref, assayUnits[src.ref] || "ppm", assayUnits, traces, undefined, lv, !!opts.lowest), { maxDistance: opts.reach || DRILL_REACH_M }); // #1723
     const all = sampleValues(surfaceSamples, src.kind === "element" ? { kind: "element", symbol: src.ref } : { kind: "index", preset: src.ref }, units);
     // #1449 — one medium at a time when the layer names one (value = medium): soils and streams are not one surface
     const pts = opts.field === "medium" ? all.filter((_, i) => (surfaceSamples[i].medium || "") === opts.value) : all;
@@ -207,7 +207,8 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
   const reachOfMedium = (medium) => reachFromNeighbours(medium == null ? sampleCore.samples : sampleCore.samples.filter((s) => (s.medium || "") === medium));
   const reachOf = (src, medium = null) => (src.kind === "grade" || src.kind === "pxrf" || src.kind === "numeric" ? DRILL_REACH_M : src.kind === "survey" ? reachFromSpacing(surveyPoints(geophysPts, src.ref), 4) : reachOfMedium(medium));
   // TASKS.csv #2099 — a drill-grade card's ends from the lab assays of its element (QC and pXRF excluded), length-weighted P50 / P95
-  const gradeEnds = (sym) => gradeEndsFromSamples(cleanAssays, (a) => valueIn(a, sym, assayUnits[sym] || "ppm", assayUnits), { mapped: holeGradePoints(cleanAssays, sym, assayUnits[sym] || "ppm", assayUnits, traces, undefined, level).map((p) => p.value) }); // mapped: #2448
+  // lowest: #2578 — a card favourable when LOW takes its ends from the low tail (P5 = 1, P50 = 0), the bins' lowest values
+  const gradeEnds = (sym, lowest = false) => gradeEndsFromSamples(cleanAssays, (a) => valueIn(a, sym, assayUnits[sym] || "ppm", assayUnits), lowest ? { qLow: 0.05, qHigh: 0.5 } : { mapped: holeGradePoints(cleanAssays, sym, assayUnits[sym] || "ppm", assayUnits, traces, undefined, level, lowest).map((p) => p.value) }); // mapped: #2448
   const addLayer = (key) => {
     const src = sources.find((s) => s.key === key); if (!src) return;
     // #1449 — sample evidence starts on the medium with the most samples when there are several (changeable on the card)
@@ -273,14 +274,14 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
       const src = sources.find((x) => x.key === l.key);
       if (!src) { missing.push(l.label || l.key); return []; }
       const band = { zMin: Number.isFinite(l.zMin) ? l.zMin : null, zMax: Number.isFinite(l.zMax) ? l.zMax : null }; // #1831
-      const values = computeValues(src, { field: l.field, value: l.value, reach: l.reach, ...band }, lvSaved);
-      return values ? [{ id: nextId++, ...src, shape: l.shape, low: l.low, high: l.high, log: !!l.log, lowText: numText(l.low), highText: numText(l.high), endsEdited: true /* #1565 — a saved card's ends were chosen */, field: l.field || "", value: l.value || "", reach: l.reach || reachOf(src), ...band, values }] : [];
+      const values = computeValues(src, { field: l.field, value: l.value, reach: l.reach, lowest: !!l.lowest /* #2578 */, ...band }, lvSaved);
+      return values ? [{ id: nextId++, ...src, shape: l.shape, low: l.low, high: l.high, log: !!l.log, lowText: numText(l.low), highText: numText(l.high), endsEdited: true /* #1565 — a saved card's ends were chosen */, field: l.field || "", value: l.value || "", reach: l.reach || reachOf(src), ...(l.lowest ? { lowest: true } : {}) /* #2578 */, ...band, values }] : [];
     });
     setLayers(back);
     if (missing.length) setMsg(tr("Restored the saved overlay without {list}: not in this project any more.", { list: missing.join(", ") }));
   }, [grid, evidenceOverlay]); // once, when there is a grid; sources / computeValues are read at that moment
   const recipe = useMemo(() => ({
-    layers: layers.map((l) => ({ key: l.key, kind: l.kind, ref: l.ref, label: l.label, shape: l.shape, low: l.low, high: l.high, ...(l.log ? { log: true } : {}), field: l.field || "", value: l.value || "", reach: l.reach, ...(l.kind === "voxel" ? { zMin: l.zMin ?? null, zMax: l.zMax ?? null } : {}) })),
+    layers: layers.map((l) => ({ key: l.key, kind: l.kind, ref: l.ref, label: l.label, shape: l.shape, low: l.low, high: l.high, ...(l.log ? { log: true } : {}), ...(l.lowest ? { lowest: true } : {}) /* #2578 */, field: l.field || "", value: l.value || "", reach: l.reach, ...(l.kind === "voxel" ? { zMin: l.zMin ?? null, zMax: l.zMax ?? null } : {}) })),
     operator, gamma, floor, training,
     ...(gridArea !== "all" || cellTyped ? { grid: { area: gridArea, cell: cellTyped, ...(gridArea === "box" ? { box: gridBox.map((v) => (v === "" ? null : Number(v))) } : {}) } } : {}), // #1450
     ...(level ? { level } : {}), // #2326
@@ -294,13 +295,13 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
     if (l.id !== id) return l;
     const next = { ...l, ...patch };
     if (recompute) {
-      const v = computeValues(next, { field: next.field, value: next.value, reach: next.reach, zMin: next.zMin, zMax: next.zMax });
+      const v = computeValues(next, { field: next.field, value: next.value, reach: next.reach, zMin: next.zMin, zMax: next.zMax, lowest: next.lowest });
       if (v) {
         next.values = v;
         // #1565 — new values, new default ends, unless the user typed one (endsEdited); the log ramp follows as on Add
-        const ge = !next.endsEdited && next.kind === "grade" ? gradeEnds(next.ref) : null; // #2099 — the assays' ends do not move with the grid
+        const ge = !next.endsEdited && next.kind === "grade" ? gradeEnds(next.ref, next.lowest) : null; // #2099 — the assays' ends do not move with the grid
         const ends = next.endsEdited ? null : ge || defaultEvidenceEnds(next.kind, v);
-        if (ends) Object.assign(next, { low: ends.low, high: ends.high, lowText: numText(ends.low), highText: numText(ends.high), ...(next.kind === "grade" || next.kind === "pxrf" ? { log: ends.log } : {}) });
+        if (ends) Object.assign(next, { low: ends.low, high: ends.high, lowText: numText(ends.low), highText: numText(ends.high), ...(next.kind === "grade" || next.kind === "pxrf" ? { log: ends.log } : {}), ...(ge ? { endsFrom: { kind: "assays", q: ge.q, n: ge.n, highFrom: ge.highFrom, m: ge.m } } : {}) /* #2578 — the line says which percentiles */ });
       }
     }
     return next;
@@ -461,12 +462,12 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
             })()}
             {(l.kind === "element" || l.kind === "index" || l.kind === "survey" || l.kind === "grade" || l.kind === "pxrf" || l.kind === "numeric") && <label style={row}>{tr("Reach (m)")}<input type="number" min="10" step="50" value={l.reach} onChange={(e) => updateLayer(l.id, { reach: Math.max(10, Number(e.target.value) || reachOf(l, l.field === "medium" ? l.value : null)) }, true)} style={{ ...sel, width: 70 }} /></label>}
             <div style={{ display: "flex", gap: 4, alignItems: "center", flexWrap: "wrap" }}>
-              <select value={l.shape} onChange={(e) => updateLayer(l.id, { shape: e.target.value })} style={sel} aria-label={tr("Membership")}><option value="increasing">{tr("favourable when high")}</option><option value="decreasing">{tr("favourable when low")}</option></select>
+              <select value={l.shape} onChange={(e) => { const shape = e.target.value, hole = l.kind === "grade" || l.kind === "pxrf"; updateLayer(l.id, { shape, ...(hole ? { lowest: shape === "decreasing" } : {}) }, hole); /* #2578 — a drillhole card maps each bin's lowest when favourable when low */ }} style={sel} aria-label={tr("Membership")}><option value="increasing">{tr("favourable when high")}</option><option value="decreasing">{tr("favourable when low")}</option></select>
               <label style={row}>{l.shape === "decreasing" ? "1" : "0"} ={" "}<input type="number" step="any" value={l.lowText} onChange={(e) => updateLayer(l.id, { lowText: e.target.value, low: e.target.value === "" ? NaN : Number(e.target.value), endsEdited: true /* #1565 */ })} style={{ ...sel, width: 76 }} aria-label={l.shape === "decreasing" ? tr("Membership 1 at") : tr("Membership 0 at")} /></label>
               <label style={row}>{l.shape === "decreasing" ? "0" : "1"} ={" "}<input type="number" step="any" value={l.highText} onChange={(e) => updateLayer(l.id, { highText: e.target.value, high: e.target.value === "" ? NaN : Number(e.target.value), endsEdited: true /* #1565 */ })} style={{ ...sel, width: 76 }} aria-label={l.shape === "decreasing" ? tr("Membership 0 at") : tr("Membership 1 at")} /></label>
               {l.kind !== "distance" && l.kind !== "pick" && l.low > 0 && l.high > 0 && <label style={{ ...row, cursor: "pointer" }} title={tr("The ramp runs on the logarithm of the values: even steps in grade ratio, as a lognormal grade is spread. Off, it runs on the values and is flat over most of a skewed layer.")}><input type="checkbox" checked={!!l.log} onChange={(e) => updateLayer(l.id, { log: e.target.checked })} />{tr("log ramp")}</label>}{/* #1555 */}
             </div>
-            {l.endsFrom && !l.endsEdited && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.35 }}>{l.endsFrom.kind === "assays" && l.endsFrom.highFrom === "mapped" ? tr("Ends: the {a}th percentile of the {n} {sym} assays (length-weighted, QC left out) and the 90th percentile of the {m} values this card maps (each 25 m bin's highest along the holes), which is above the assays' {b}th. Set them from your own cut-offs.", { a: l.endsFrom.q[0], b: l.endsFrom.q[1], n: l.endsFrom.n.toLocaleString(), m: (l.endsFrom.m || 0).toLocaleString(), sym: l.ref }) /* #2448 */ : l.endsFrom.kind === "assays" ? tr("Ends: the {a}th and {b}th percentile of the {n} {sym} assays (length-weighted, QC left out). Set them from your own cut-offs.", { a: l.endsFrom.q[0], b: l.endsFrom.q[1], n: l.endsFrom.n.toLocaleString(), sym: l.ref }) : tr("Ends: the {a}th and {b}th percentile of this evidence over the grid, not of your deposit. Set them from your own cut-offs.", { a: l.endsFrom.q[0], b: l.endsFrom.q[1] })}</div>}{/* #2099 */}
+            {l.endsFrom && !l.endsEdited && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.35 }}>{l.endsFrom.kind === "assays" && l.lowest ? tr("Each 25 m bin maps its lowest value along the holes (favourable when low). Ends: the {a}th and {b}th percentile of the {n} {sym} assays (length-weighted, QC left out). Set them from your own cut-offs.", { a: l.endsFrom.q[0], b: l.endsFrom.q[1], n: l.endsFrom.n.toLocaleString(), sym: l.ref }) /* #2578 */ : l.endsFrom.kind === "assays" && l.endsFrom.highFrom === "mapped" ? tr("Ends: the {a}th percentile of the {n} {sym} assays (length-weighted, QC left out) and the 90th percentile of the {m} values this card maps (each 25 m bin's highest along the holes), which is above the assays' {b}th. Set them from your own cut-offs.", { a: l.endsFrom.q[0], b: l.endsFrom.q[1], n: l.endsFrom.n.toLocaleString(), m: (l.endsFrom.m || 0).toLocaleString(), sym: l.ref }) /* #2448 */ : l.endsFrom.kind === "assays" ? tr("Ends: the {a}th and {b}th percentile of the {n} {sym} assays (length-weighted, QC left out). Set them from your own cut-offs.", { a: l.endsFrom.q[0], b: l.endsFrom.q[1], n: l.endsFrom.n.toLocaleString(), sym: l.ref }) : tr("Ends: the {a}th and {b}th percentile of this evidence over the grid, not of your deposit. Set them from your own cut-offs.", { a: l.endsFrom.q[0], b: l.endsFrom.q[1] })}</div>}{/* #2099 */}
           </div>
         ))}
         {layers.length > 0 && (

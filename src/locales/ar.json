@@ -9955,5 +9955,6 @@
   "{k} of {n} outline point(s) fell in gaps of the terrain (cells it has no ground for) and took the ground of the nearest outline point that has some.": "وقعت {k} من {n} نقطة من المحيط في فجوات التضاريس (خلايا بلا أرض) فأخذت أرض أقرب نقطة من المحيط لها أرض.",
   "Holes this card reads": "الثقوب التي تقرؤها هذه البطاقة",
   "Reads {n} hole(s), samples from {a} to {b} m down hole: a hole that stopped above the target reads as low here, not as untested.": "تقرأ {n} ثقب، عينات من {a} إلى {b} م على طول الثقب: الثقب الذي توقف فوق الهدف يُقرأ هنا منخفضًا لا غير مختبَر.",
-  "No hole of this set has a value of {el}.": "لا يوجد ثقب في هذه المجموعة له قيمة {el}."
+  "No hole of this set has a value of {el}.": "لا يوجد ثقب في هذه المجموعة له قيمة {el}.",
+  "Each 25 m bin maps its lowest value along the holes (favourable when low). Ends: the {a}th and {b}th percentile of the {n} {sym} assays (length-weighted, QC left out). Set them from your own cut-offs.": "تأخذ كل خلية بطول 25 م أدنى قيمة لها على طول الثقوب (ملائم عند الانخفاض). الحدود: المئين {a} و{b} لتحاليل {sym} البالغة {n} (موزونة بالطول، دون ضبط الجودة). حددها وفق قيمك الحدية."
 }

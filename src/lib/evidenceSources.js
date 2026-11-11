@@ -162,7 +162,8 @@ export function holeTraces(collars, survey, method) {
 // all depths onto one plan. level = { zMin, zMax } (either may be null; null / both null = every depth) -> is elevation z inside it
 export const inLevel = (z, level) => !level || ((level.zMin == null || z >= level.zMin) && (level.zMax == null || z <= level.zMax));
 export const levelSet = (level) => !!level && (level.zMin != null || level.zMax != null);
-export function holeGradePoints(assays, symbol, unit, units, traces, bin = GRADE_BIN_M, level = null) {
+// lowest: #2578 — a card favourable when LOW (K/Rb, a depletion) maps each bin's lowest value, not its highest
+export function holeGradePoints(assays, symbol, unit, units, traces, bin = GRADE_BIN_M, level = null, lowest = false) {
   const best = new Map();
   for (const a of assays || []) {
     const t = traces.get(a.hole_id), from = Number(a.from), to = Number(a.to);
@@ -172,7 +173,7 @@ export function holeGradePoints(assays, symbol, unit, units, traces, bin = GRADE
     const p = pointOnTrace(t, (from + to) / 2);
     if (!inLevel(p.z, level)) continue; // #2326
     const key = `${Math.floor(p.x / bin)},${Math.floor(p.y / bin)}`, was = best.get(key);
-    if (!was || v > was.value) best.set(key, { x: p.x, y: p.y, z: p.z, value: v }); // z: #2326 (the target's elevation)
+    if (!was || (lowest ? v < was.value : v > was.value)) best.set(key, { x: p.x, y: p.y, z: p.z, value: v }); // z: #2326 (the target's elevation)
   }
   return [...best.values()];
 }

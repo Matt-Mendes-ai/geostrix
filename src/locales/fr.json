@@ -9955,5 +9955,6 @@
   "{k} of {n} outline point(s) fell in gaps of the terrain (cells it has no ground for) and took the ground of the nearest outline point that has some.": "{k} des {n} point(s) du contour tombent dans des vides du terrain (cellules sans sol) et prennent le sol du point du contour le plus proche qui en a un.",
   "Holes this card reads": "Sondages lus par cette carte",
   "Reads {n} hole(s), samples from {a} to {b} m down hole: a hole that stopped above the target reads as low here, not as untested.": "Lit {n} sondage(s), échantillons de {a} à {b} m le long du sondage : un sondage arrêté au-dessus de la cible se lit ici comme faible, pas comme non testé.",
-  "No hole of this set has a value of {el}.": "Aucun sondage de cet ensemble n'a de valeur de {el}."
+  "No hole of this set has a value of {el}.": "Aucun sondage de cet ensemble n'a de valeur de {el}.",
+  "Each 25 m bin maps its lowest value along the holes (favourable when low). Ends: the {a}th and {b}th percentile of the {n} {sym} assays (length-weighted, QC left out). Set them from your own cut-offs.": "Chaque case de 25 m prend sa valeur la plus basse le long des sondages (favorable quand bas). Bornes : les {a}e et {b}e centiles des {n} analyses de {sym} (pondérées par la longueur, sans QC). Fixez-les selon vos propres seuils."
 }

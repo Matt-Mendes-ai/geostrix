@@ -56,7 +56,7 @@ test("the pane: a Level control, read by every hole-based card and handed to Pla
   const p = readFileSync(new URL("../src/components/EvidenceOverlayPane.jsx", import.meta.url), "utf8");
   assert.match(p, /aria-label=\{tr\("Level from \(m RL\)"\)\}/);
   assert.match(p, /const LEVEL_KINDS = new Set\(\["grade", "pxrf", "numeric", "zone", "pick", "voxel"\]\);/);
-  for (const re of [/structureParts\(structurePicks, src\.ref, traces, lv\)/, /layerFieldPoints\(rows, field, traces, undefined, lv\)/, /traces, undefined, lv\)\); \}/, /assayUnits, traces, undefined, lv\), \{/]) assert.match(p, re);
+  for (const re of [/structureParts\(structurePicks, src\.ref, traces, lv\)/, /layerFieldPoints\(rows, field, traces, undefined, lv\)/, /traces, undefined, lv\)\); \}/, /assayUnits, traces, undefined, lv(, !!opts\.lowest)?\), \{/ /* lowest: #2578 */]) assert.match(p, re);
   assert.match(p, /onPlanTo\(\{ x: c\.x, y: c\.y, z: zs\[k\]\?\.z \?\? null \}\)/);
   assert.match(p, /\.\.\.\(level \? \{ level \} : \{\}\), \/\/ #2326/);
 });
