@@ -9,6 +9,7 @@ import { keepTemplateOnComputer } from "../lib/computerTemplates.js"; // TASKS.c
 import { hasComputerTemplates } from "../lib/desktop.js"; // TASKS.csv #1487
 import GenerateAtlasModal from "../components/GenerateAtlasModal.jsx";
 import { HOLE_TOKENS, SECTION_TOKENS } from "../lib/atlas.js"; // TASKS.csv #1777 — listed with the page's placeholders
+import { scaleBarLabel, scaleBarMidLabel } from "../lib/scaleBarLabel.js"; // TASKS.csv #2140
 import PatternSwatch from "../components/PatternSwatch.jsx"; // TASKS.csv #1995
 import { savePDF, saveFile, exportPDFData, canvasPngBytes, sendSectionResnap } from "../lib/desktop.js"; // saveFile / exportPDFData: TASKS.csv #909 Export PNG; canvasPngBytes: #1040; sendSectionResnap: #1485
 import { pdfOptions } from "../lib/pageFormats.js"; // TASKS.csv #511
@@ -769,7 +770,8 @@ export default function LayoutModule() {
   const onLogoFile = (e) => {
     const f = e.target.files[0]; if (!f) return;
     const reader = new FileReader();
-    reader.onload = () => setElements((els) => [...els, { id: `logo_${Date.now()}`, type: "logo", ...freeSpot(els, 160, 80, A4) /* #1484 */, src: reader.result, w: 160 }]);
+    // TASKS.csv #2143 — the new logo is selected, like every other insert (the sidebar kept editing the previous element)
+    reader.onload = () => { const id = `logo_${Date.now()}`; setElements((els) => [...els, { id, type: "logo", ...freeSpot(els, 160, 80, A4) /* #1484 */, src: reader.result, w: 160 }]); setSelected(id); setMultiSelected(new Set()); };
     reader.readAsDataURL(f);
     e.target.value = "";
   };
@@ -1240,7 +1242,7 @@ export default function LayoutModule() {
               return (<>
                 <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>{tr("Rotation (°)")}<input type="number" value={Math.round((live ?? sel.rotation ?? 0) * 10) / 10} onChange={(e) => updateSelected({ rotation: Number(e.target.value) || 0, boundTo: null })} style={inp} />
                 </label>
-                {live != null && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: -4, marginBottom: 6 }}>{tr("Follows its view's north. Typing an angle frees it.")}</div>}
+                {live != null && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: -4, marginBottom: 6 }}>{tr("Follows its view's grid north (GN). Typing an angle frees it.") /* #2138 */}</div>}
               </>);
             })()}
             {/* TASKS.csv #399 — grid / true / magnetic north diagram. Assessment-report maps are expected to
@@ -2296,7 +2298,9 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
       <svg width="54" height="70" viewBox="0 0 54 70">
         <polygon points="27,4 38,44 27,36 16,44" fill="#ffffff" stroke="#1a2028" strokeWidth="1.5" strokeLinejoin="round" />
         <polygon points="27,4 38,44 27,36" fill="#666" />
-        <text x="27" y="64" fontSize={printPx(printPt.label)} fontWeight="700" textAnchor="middle" fill="#1a2028" fontFamily="'Exo 2', system-ui, sans-serif">N</text>
+        {/* TASKS.csv #2138 — every Layout capture and drill plan is drawn in the project's grid, so the plain arrow is grid north and says so
+            (the GN / TN / MN diagram gives true and magnetic north) */}
+        <text x="27" y="64" fontSize={printPx(printPt.label)} fontWeight="700" textAnchor="middle" fill="#1a2028" fontFamily="'Exo 2', system-ui, sans-serif">GN</text>
       </svg>
     </div>
   );
@@ -2314,7 +2318,8 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
           <rect x={2 + px / 2} y="4" width={px / 2} height="10" fill="#fbfbf8" stroke="#1a2028" />
           <rect x="2" y="4" width={px} height="10" fill="none" stroke="#1a2028" />
           <text x="2" y="28" fontSize={printPx(printPt.small)} fill="#1a2028" fontFamily="'Exo 2', system-ui, sans-serif">0</text>
-          <text x={px + 2} y="28" fontSize={printPx(printPt.small)} textAnchor="end" fill="#1a2028" fontFamily="'Exo 2', system-ui, sans-serif">{el.meters} m</text>
+          <text x={px + 2} y="28" fontSize={printPx(printPt.small)} textAnchor="end" fill="#1a2028" fontFamily="'Exo 2', system-ui, sans-serif">{scaleBarLabel(el.meters || 100) /* #2140 — '5 km', not '5000 m' */}</text>
+          {scaleBarMidLabel(el.meters || 100, px) && <text x={2 + px / 2} y="28" fontSize={printPx(printPt.small)} textAnchor="middle" fill="#1a2028" fontFamily="'Exo 2', system-ui, sans-serif">{scaleBarMidLabel(el.meters || 100, px)}</text>}{/* #2140 — the half-way tick */}
           {el.viewPlane && <text x="2" y="40" fontSize={printPx(printPt.small)} fill="#1a2028" fontFamily="'Exo 2', system-ui, sans-serif">{tr("in the view plane (oblique view)")}</text>}
         </svg>
       </div>

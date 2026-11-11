@@ -7055,6 +7055,7 @@
   "{v} of the solid lies above the ground between the collars and was left out (air, not the unit; load a terrain for the real surface).": "{v} del sólido queda por encima del suelo interpolado entre los collares y se excluyó (aire, no la unidad; cargue un terreno para la superficie real).",
   "The target is above the collar, so the solved hole points upward. From a surface collar that is not a hole you can drill: check the target's elevation.": "El objetivo está por encima del collar, así que el sondaje resuelto apunta hacia arriba. Desde un collar en superficie no es un sondaje perforable: revise la elevación del objetivo.",
   "Follows its view's north. Typing an angle frees it.": "Sigue el norte de su vista. Escribir un ángulo la libera.",
+  "Follows its view's grid north (GN). Typing an angle frees it.": "Sigue el norte de cuadrícula (GN) de su vista. Escribir un ángulo la libera.",
   "+ {n} more (fewer intervals; edit the legend to add them)": "+ {n} más (con menos intervalos; edite la leyenda para añadirlos)",
   " Categories from the {h} of {all} holes inside the frame.": " Categorías de los {h} de {all} sondajes dentro del marco.",
   "Note": "Nota",
