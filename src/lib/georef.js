@@ -117,3 +117,18 @@ export function georeferenceImage(imageData, srcWidth, srcHeight, transform) {
   }
   return { bbox: [xmin, ymin, xmax, ymax], outW, outH, data: out };
 }
+
+// TASKS.csv #1763 (review #1645, Copley) — a control point on a drill collar the scan shows: its X / Y from the project's collars instead
+// of typed from another window. The collar is in the project CRS; the control points may be in another (#290), so it is turned into that
+// one. reproject: (x, y, from, to) -> { x, y } | null (reproject.js reprojectXY). -> { x, y } as strings for the table's inputs, or null
+export function collarControlXY(collar, { cpEpsg = "", projectEpsg = null, reproject = null, geographic = false } = {}) {
+  if (!collar || !Number.isFinite(collar.x) || !Number.isFinite(collar.y)) return null;
+  let x = collar.x, y = collar.y;
+  if (cpEpsg && projectEpsg && Number(cpEpsg) !== Number(projectEpsg)) {
+    const t = reproject ? reproject(x, y, Number(projectEpsg), Number(cpEpsg)) : null;
+    if (!t || !Number.isFinite(t.x) || !Number.isFinite(t.y)) return null;
+    x = t.x; y = t.y;
+  }
+  const d = geographic ? 8 : 3;
+  return { x: String(+x.toFixed(d)), y: String(+y.toFixed(d)) };
+}

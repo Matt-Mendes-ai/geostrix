@@ -1,7 +1,8 @@
 import React, { useMemo, useRef, useState } from "react";
 import SourceCrsField from "./SourceCrsField.jsx"; // TASKS.csv #488
 import { X, Upload, Trash2, MapPin } from "./icons.js";
-import { fitAffine, residuals, georeferenceImage } from "../lib/georef.js";
+import { fitAffine, residuals, georeferenceImage, collarControlXY } from "../lib/georef.js"; // collarControlXY: TASKS.csv #1763
+import { useStore } from "../lib/store.jsx"; // TASKS.csv #1763 — the project's collars
 import { reprojectXY, getProj4DefSync, isMetricProjectedEpsg } from "../lib/reproject.js"; // TASKS.csv #290; metric: #1628
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
@@ -32,7 +33,9 @@ export default function GeoreferencerModal({ onImport, onClose, projectEpsg }) {
   useEscapeKey(onClose); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
   const [img, setImg] = useState(null); // { bitmap, width, height, dataUrl } | null
-  const [points, setPoints] = useState([]); // [{id, px, py, x, y}]
+  const [points, setPoints] = useState([]); // [{id, px, py, x, y, hole?}]
+  const { collars = [] } = useStore(); // #1763
+  const holes = useMemo(() => collars.filter((c) => c?.hole_id != null && Number.isFinite(c.x) && Number.isFinite(c.y)).sort((a, b) => String(a.hole_id).localeCompare(String(b.hole_id), undefined, { numeric: true })), [collars]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const fileInput = useRef(null);
@@ -184,10 +187,10 @@ export default function GeoreferencerModal({ onImport, onClose, projectEpsg }) {
             )}
             <div style={label}>{tr("Control points ({points}, need 3+ with valid coordinates)", { points: points.length })}</div>
             {points.length === 0 ? (
-              <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>{tr("Click on the image to add a point, then enter its known real-world X/Y here.")}</div>
+              <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>{holes.length > 0 ? tr("Click on the image to add a point, then pick the collar it shows, or enter its known real-world X/Y here.") : tr("Click on the image to add a point, then enter its known real-world X/Y here.")}</div>
             ) : (
               <table style={{ borderCollapse: "collapse", fontSize: "var(--font-size-sm)", width: "100%" }}>
-                <thead><tr><th style={th}>#</th><th style={th}>{tr("Pixel")}</th><th style={th}>{isGeographicCp ? tr("Longitude") : tr("World X")}</th><th style={th}>{isGeographicCp ? tr("Latitude") : tr("World Y")}</th><th style={th}>{tr("Error (m)")}</th><th style={th}></th></tr></thead>
+                <thead><tr><th style={th}>#</th><th style={th}>{tr("Pixel")}</th>{holes.length > 0 && <th style={th}>{tr("Collar")}</th>}<th style={th}>{isGeographicCp ? tr("Longitude") : tr("World X")}</th><th style={th}>{isGeographicCp ? tr("Latitude") : tr("World Y")}</th><th style={th}>{tr("Error (m)")}</th><th style={th}></th></tr></thead>
                 <tbody>
                   {points.map((p, i) => {
                     const r = fitResiduals?.find((rr) => rr.id === p.id);
@@ -195,8 +198,15 @@ export default function GeoreferencerModal({ onImport, onClose, projectEpsg }) {
                       <tr key={p.id}>
                         <td style={td}>{i + 1}</td>
                         <td style={td}>{p.px}, {p.py}</td>
-                        <td style={td}><input type="number" value={p.x} onChange={(e) => updatePoint(p.id, { x: e.target.value })} style={numInput} /></td>
-                        <td style={td}><input type="number" value={p.y} onChange={(e) => updatePoint(p.id, { y: e.target.value })} style={numInput} /></td>
+                        {holes.length > 0 && ( /* TASKS.csv #1763 — a collar the scan shows fills X / Y (in the control points' CRS) */
+                          <td style={td}><select value={p.hole ?? ""} aria-label={tr("Collar at control point {n}", { n: i + 1 })} style={{ ...numInput, width: 90 }}
+                            onChange={(e) => { const c = holes.find((h) => String(h.hole_id) === e.target.value); const xy = c ? collarControlXY(c, { cpEpsg, projectEpsg, reproject: reprojectXY, geographic: isGeographicCp }) : null; updatePoint(p.id, xy ? { hole: e.target.value, ...xy } : { hole: "" }); }}>
+                            <option value="">{tr("(typed)")}</option>
+                            {holes.map((h) => <option key={h.hole_id} value={String(h.hole_id)}>{h.hole_id}</option>)}
+                          </select></td>
+                        )}
+                        <td style={td}><input type="number" value={p.x} onChange={(e) => updatePoint(p.id, { x: e.target.value, hole: "" })} style={numInput} /></td>
+                        <td style={td}><input type="number" value={p.y} onChange={(e) => updatePoint(p.id, { y: e.target.value, hole: "" })} style={numInput} /></td>
                         <td style={{ ...td, color: r && r.error > (rmse || 0) * 2 ? "var(--color-danger-alt)" : "var(--color-text)" }}>{r && fitResiduals.length > 3 ? r.error.toFixed(2) : "—" /* #1628 — no error to show with three points */}</td>
                         <td style={td}><Trash2 aria-label={tr("Remove this control point")} title={tr("Remove this control point")} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={() => removePoint(p.id)} /></td>
                       </tr>
