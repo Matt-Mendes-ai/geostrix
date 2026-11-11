@@ -14,6 +14,7 @@ import { useStore } from "../lib/store.jsx"; // TASKS.csv #2626 — the shell's 
 import { resolvedSegments } from "../lib/geochem.js";
 import { excludeQAQC } from "../lib/qaqc.js";
 import { sampledByHole, sampledMetres } from "../lib/insideSampling.js"; // TASKS.csv #2626
+import { pointFromInputs } from "../lib/pointInput.js"; // TASKS.csv #1743
 
 // TASKS.csv #146 — DISTANCE-TO-SURFACE / POINT-IN-DOMAIN QUERY AND REPORTING.
 //
@@ -122,8 +123,9 @@ export default function SurfaceQueryModal({ surfaces = [], traces = [], sceneToW
   // converted into scene space to be queried, so the user never has to know the internal frame exists.
   const pointResult = useMemo(() => {
     if (!mesh || tab !== "point") return null;
-    const x = Number(ptX), y = Number(ptY), z = Number(ptZ);
-    if (![x, y, z].every((v) => Number.isFinite(v))) return null;
+    const pt = pointFromInputs(ptX, ptY, ptZ); // #1743 — a blank box is a missing coordinate, not 0
+    if (!pt) return null;
+    const { x, y, z } = pt;
     const sp = worldToScene ? worldToScene({ x, y, z }) : { x, y, z };
     const r = signedDistanceToMesh(mesh.q, sp, mesh.closed);
     if (!r) return null;

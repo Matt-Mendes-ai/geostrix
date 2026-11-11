@@ -502,6 +502,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
           est.cells = est.cells.filter((c) => inShell(c));
           est.blocksSkipped += before - est.cells.length; est.blocksEstimated = est.cells.length;
           params.restrictedToVolume = `${shellInfo.name}: ${shellInfo.samplesInside} sample(s) inside used, ${shellInfo.samplesOutside} outside left out; ${before - est.cells.length} block(s) outside it dropped`;
+          params.restrictedToVolumeName = shellInfo.name; // #2069 — the default name says it
           // TASKS.csv #1410 (review #1352) — the tallies describe the blocks kept, not the whole grid (they read "22 estimated" beside
           // "48 extrapolated, 190,032 unsupported"). Unsupported blocks have no cell, so inside or outside cannot be told: not counted.
           // The recount itself now runs once, after every trim (#2106, below).
@@ -565,7 +566,9 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
     const c = Array.isArray(p.cellSizeM) ? (p.cellSizeM.every((v) => v === p.cellSizeM[0]) ? p.cellSizeM[0] : p.cellSizeM.join("×")) : p.cellSizeM;
     const r = p.searchRadiusM > 0 && !p.searchRadiusWasUnlimited ? `, r${Math.round(p.searchRadiusM)}m` : searchRadius > 0 ? `, r${Math.round(searchRadius)}m` : ""; // #1752 — estimates at different radii get different names
     const tr3 = trendRatioText(p.searchTrend || p.anisotropy), a = tr3 ? `, ${tr3}` : ""; // #2423 — estimates under different trends get different names
-    return modelName.trim() || (p.element ? `${p.element} estimate (${p.method}, ${c}m${r}${a})` : `${symbol} estimate (${method}, ${cellLabel}m${r}${a})`);
+    // TASKS.csv #2069 (review #2013, Woodjam) — a restricted estimate and the whole-grid one had the same name; so did one from the checked holes
+    const chk = /^holes checked in the Holes list \((\d+) of/.exec(p.samplesFrom || ""), w = p.restrictedToVolumeName ? `, in ${p.restrictedToVolumeName}` : "", h = chk ? `, ${chk[1]} checked holes` : "";
+    return modelName.trim() || (p.element ? `${p.element} estimate (${p.method}, ${c}m${r}${a}${w}${h})` : `${symbol} estimate (${method}, ${cellLabel}m${r}${a})`);
   };
   const addSupportModel = () => {
     if (!result || !result.cells.length) return;

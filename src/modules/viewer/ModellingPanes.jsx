@@ -515,7 +515,7 @@ export default function ModellingPanes(props) {
         </>)}
         {toolPane === "gradeEst" && (<>
         {paneHeader("Grade estimation", Calculator, "model")}
-        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("Populate a block model FROM composited assays — nearest neighbour, inverse distance, moving least squares or ordinary kriging, not a surface — a separate workflow from the implicit surface tools below.")}</div>
+        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("Populate a block model FROM composited assays — nearest neighbour, inverse distance, moving least squares or ordinary kriging, not a surface — a separate workflow from the implicit surface tools.")}</div>
         <button onClick={() => setGradeEstOpen(true)} disabled={!assayElements.length} style={{ ...pBtn, opacity: assayElements.length ? 1 : 0.5, marginBottom: 8 }}>
           <FileBarChart2 size={14} />{" "}{tr("Estimate grade into block model…")}</button>
         {/* TASKS.csv #147 — deliberately sits directly under the estimation button, because it is the

@@ -12,7 +12,7 @@ test("Estimation: changing the element clears the cap and the old result; a capp
 });
 
 test("Estimation: models are named from the result's own element / method / cell", () => {
-  assert.ok(est.includes("p.element ? `${p.element} estimate (${p.method}, ${c}m${r}${a})`")); // ${r}: the search radius, #1752; ${a}: the trend, #2423
+  assert.ok(est.includes("p.element ? `${p.element} estimate (${p.method}, ${c}m${r}${a}${w}${h})`")) // #2069: and the restricting solid / checked holes; // ${r}: the search radius, #1752; ${a}: the trend, #2423
   assert.equal(est.split("resultName()").length - 1, 5, "grade, support index and kriging variance models, the name box's placeholder, and the grade-tonnage table (#1577)");
 });
 
