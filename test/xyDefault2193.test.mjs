@@ -4,7 +4,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 test("#2193 Y defaults to the second element, else a downhole log, else the element again; a blank shows a placeholder", () => {
   const g = readFileSync(new URL("../src/modules/GeochemModule.jsx", import.meta.url), "utf8");
-  assert.match(g, /xyKeyY = xyY \|\| \(assayElements\[1\] \? `el:\$\{assayElements\[1\]\.symbol\}` : xyChoices\[0\]\?\.key \|\| \(assayElements\[0\] \? `el:\$\{assayElements\[0\]\.symbol\}` : ""\)\)/);
+  // #2512: the second element is correlationDefaults' second pick after the lead (xyPair), not the file's second column
+  assert.match(g, /xyKeyY = xyY \|\| \(xyPair\[1\] \? `el:\$\{xyPair\[1\]\}` : xyChoices\[0\]\?\.key \|\| \(xyPair\[0\] \? `el:\$\{xyPair\[0\]\}` : ""\)\)/);
   assert.match(g, /\{!value && <option value="">\{tr\("— choose —"\)\}<\/option>\}/);
   // xyChoices is defined before it is used for the default
   assert.ok(g.indexOf("const xyChoices = useMemo") < g.indexOf("const xyKeyX = xyX ||"));
