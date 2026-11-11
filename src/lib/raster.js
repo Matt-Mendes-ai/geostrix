@@ -480,7 +480,7 @@ async function readDemTile(file, crop = null, readMax = DEM_READ_MAX) {
   let bbox;
   try { bbox = demNodeBbox(image); } catch (err) { if (err.code === "rotated") throw err; bbox = null; } // #560
   if (!bbox || bbox.some((v) => !Number.isFinite(v))) {
-    throw new Error(tr("\"{name}\" has no readable georeferencing (bounding box) — it may be a plain, non-georeferenced TIFF.", { name: file.name }));
+    throw new Error(tr("\"{name}\" has no readable georeferencing (bounding box): it may be a plain, non-georeferenced TIFF. Select its world file (.tfw / .tifw / .wld) together with it, or place it with Maps > Georeference.", { name: file.name })); // #1861 — says where to go, as #1855's refusal does
   }
   const fullW = image.getWidth(), fullH = image.getHeight();
   const rx = (bbox[2] - bbox[0]) / Math.max(1, fullW - 1), ry = (bbox[3] - bbox[1]) / Math.max(1, fullH - 1); // node spacing
