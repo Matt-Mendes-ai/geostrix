@@ -12,16 +12,12 @@ import BasemapView from "./BasemapView.jsx"; // #2314 — the area picker
 import { fetchMacrostratRaster, fetchMacrostratUnits, fetchMacrostratLegend, fetchMacrostratMapLayer } from "../lib/macrostratFetch.js"; // legend: #2011; map layer: #2012
 import { MACROSTRAT_CREDIT, MACROSTRAT_TILE_URL } from "../lib/macrostrat.js";
 import { t as tr } from "../lib/i18n.js";
+import { areaSizeText } from "../lib/areaSize.js"; // TASKS.csv #2314 / #1765
 
 const note = { fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.45 };
 
-// #2314 — an area's size on the ground, for the Area line: ~W x H km (metres under 1 km)
-export function areaSizeText(b) {
-  if (!b) return "";
-  const midLat = ((b[1] + b[3]) / 2) * Math.PI / 180, w = (b[2] - b[0]) * 111.32 * Math.cos(midLat), h = (b[3] - b[1]) * 110.57;
-  const f = (km) => (km < 1 ? `${Math.round(km * 1000)} m` : `${km < 10 ? km.toFixed(1) : Math.round(km).toLocaleString()} km`);
-  return `~${f(w)} × ${f(h)}`;
-}
+// #2314 — an area's size on the ground, for the Area line (lib/areaSize.js since #1765, shared with the fetch-area picker)
+export { areaSizeText };
 
 export default function MacrostratModal({ onClose, addRaster, addMapLayer = null /* #2012 */, projectEpsg, bboxLonLat: projectBbox }) {
   const [drawn, setDrawn] = useState(null); // #2314 — [lonMin, latMin, lonMax, latMax] drawn on the map, or null for the project area

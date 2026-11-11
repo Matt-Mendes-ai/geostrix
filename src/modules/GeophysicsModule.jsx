@@ -182,6 +182,8 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     if (res?.ok) setVoxelError({ info: true, text: tr("Exported \"{name}\": {files} files ({n} depth slices).{v}", { name: model.name, files: r.files.length, n: r.files.filter((f) => f.endsWith(".tif")).length, v: r.warnings.length ? " " + r.warnings.join(" ") : "" }) });
   };
   const evaluateOnHoles = (model) => {
+    // TASKS.csv #1791 (review #1646, Kodiak) — with no collars no hole can be placed: 'No drillhole passes through' read as if holes had missed it
+    if (!(collars || []).some((c) => Number.isFinite(c?.x) && Number.isFinite(c?.y) && Number.isFinite(c?.z))) { setVoxelError({ text: tr("No drillholes can be placed: the project has no collar coordinates. Import the collars to evaluate \"{name}\" along the holes.", { name: model.name }) }); return; }
     const { rows, holes } = sampleModelOnHoles({ model, collars, survey, desurveyMethod });
     if (!rows.length) { setVoxelError({ text: tr("No drillhole passes through \"{name}\".", { name: model.name }) }); return; }
     const discrete = model.colorMode === "discrete";
@@ -2803,6 +2805,7 @@ function VoxelLegendEditor({ model, onUpdate }) {
   const [palette, setPalette] = useState("viridis"); // TASKS.csv #382 — was the isoluminant blue-red
   const stops = model.stops || [];
   const shown = useMemo(() => readableValues([...stops.map((s) => s.value), model.max]), [stops, model.max]); // #1422 — the stops (and the max) as read
+  const rangeShown = useMemo(() => readableValues([model.min, model.max]), [model.min, model.max]); // #1790
 
   const setStops = (next, extra = {}) => onUpdate(model.id, { stops: next, ...extra });
 
@@ -2843,9 +2846,10 @@ function VoxelLegendEditor({ model, onUpdate }) {
     <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px solid var(--color-border)" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
         <span style={{ color: "var(--color-text-faint)", width: 62, flexShrink: 0 }}>{tr("Range")}</span>
-        <input type="number" value={model.min} onChange={(e) => onUpdate(model.id, { min: Number(e.target.value), stretch: "minmax" })} style={{ ...numInput, width: 70 }} />
+        {/* TASKS.csv #1790 (review #1646, Kodiak) — read as '14.9', not '14.915215962069169' (stored values kept until edited, #1422) */}
+        <StopValueInput value={model.min} shown={rangeShown[0]} onCommit={(v) => onUpdate(model.id, { min: v, stretch: "minmax" })} style={{ ...numInput, width: 70 }} ariaLabel={tr("Range minimum of \"{name}\"", { name: model.name })} />
         <span style={{ color: "var(--color-text-muted)" }}>{tr("to")}</span>
-        <input type="number" value={model.max} onChange={(e) => onUpdate(model.id, { max: Number(e.target.value), stretch: "minmax" })} style={{ ...numInput, width: 70 }} />
+        <StopValueInput value={model.max} shown={rangeShown[1]} onCommit={(v) => onUpdate(model.id, { max: v, stretch: "minmax" })} style={{ ...numInput, width: 70 }} ariaLabel={tr("Range maximum of \"{name}\"", { name: model.name })} />
       </div>
       {!stops.length && ( // TASKS.csv #1812 — the default gradient's stretch
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7 }}>

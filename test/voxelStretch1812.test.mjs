@@ -53,5 +53,5 @@ test("#1781 Classify uses the shown cells (air and the Min / Max range left out)
   assert.ok(g.includes("const breaks = classifyBreaks(shownValues(), classCount, method);"));
   assert.ok(g.includes('let v = Array.from(s).filter((x) => x >= lo && x <= hi && (method !== "log" || x > 0));'));
   assert.ok(g.includes('if (method === "jenks" && v.length > 50000)'));
-  assert.ok(g.includes('onUpdate(model.id, { min: Number(e.target.value), stretch: "minmax" })'), "typing a range keeps it");
+  assert.ok(g.includes('onUpdate(model.id, { min: v, stretch: "minmax" })'), "typing a range keeps it"); // #1790 — through StopValueInput
 });
