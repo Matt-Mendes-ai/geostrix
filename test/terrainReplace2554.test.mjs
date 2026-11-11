@@ -20,7 +20,7 @@ test("no terrain: nothing asked, nothing said; a terrain: the question names bot
 
 test("the station ground, the points / project TIN and the block-model top all ask before replacing", () => {
   const inv = readFileSync(new URL("../src/components/InversionPanel.jsx", import.meta.url), "utf8");
-  assert.match(inv, /if \(!confirmReplaceTerrain\(terrain, name\)\) return;[^\n]*\n\s*const replaced = replacedTerrainNote\(terrain\);\n\s*addTerrain\(/);
+  assert.match(inv, /if \(!confirmReplaceTerrain\(terrain, name\)\) return;[^\n]*\n\s*const replaced = replacedTerrainNote\(terrain\);\s*addTerrain\(/); // \s*: a CRLF checkout has \r before the \n
   assert.match(inv, /setGroundNote\(replaced \+ tr\("Added the terrain/);
   const geo = readFileSync(new URL("../src/modules/GeophysicsModule.jsx", import.meta.url), "utf8");
   assert.equal((geo.match(/if \(!confirmReplaceTerrain\(terrain, name\)\) return;/g) || []).length, 2);
