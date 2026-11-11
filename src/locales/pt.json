@@ -10023,5 +10023,10 @@
   "{n} row(s) with no hole, or no From / To with From above To, were left out.": "{n} linha(s) sem furo, ou sem De / Até com Até maior que De, ficaram de fora.",
   "{n} hole(s) had rows in more than one place in the file ({ids}): their intervals were composited together by depth.": "{n} furo(s) tinham linhas em mais de um lugar do arquivo ({ids}): seus intervalos foram compostos juntos por profundidade.",
   "Its first {mb} MB were not UTF-8, so the whole file was read as Windows-1252.": "Os primeiros {mb} MB não eram UTF-8, então o arquivo inteiro foi lido como Windows-1252.",
-  "Read in {n} parts: the file is {mb} MB, more than one text read can hold.": "Lido em {n} partes: o arquivo tem {mb} MB, mais do que uma única leitura de texto comporta."
+  "Read in {n} parts: the file is {mb} MB, more than one text read can hold.": "Lido em {n} partes: o arquivo tem {mb} MB, mais do que uma única leitura de texto comporta.",
+  "No outcrop measurements yet": "Ainda não há medidas de afloramento",
+  "No downhole structure picks yet": "Ainda não há estruturas de furo",
+  "{n} alpha only (no beta): a plane needs both angles to be oriented": "{n} só alfa (sem beta): um plano precisa dos dois ângulos para ser orientado",
+  "Nothing is plotted, so there is nothing to export.": "Nada está plotado, então não há nada para exportar.",
+  "Disabled: this mean pools {n} structure types (faults, veins, bedding…), which is not one orientation. Pick one structure type first.": "Desativado: esta média junta {n} tipos de estrutura (falhas, veios, acamamento…), que não são uma única orientação. Escolha primeiro um tipo de estrutura."
 }

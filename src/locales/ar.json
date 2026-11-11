@@ -10023,5 +10023,10 @@
   "{n} row(s) with no hole, or no From / To with From above To, were left out.": "استُبعد {n} صف بلا ثقب، أو بلا «من» / «إلى» تكون فيها «إلى» أكبر من «من».",
   "{n} hole(s) had rows in more than one place in the file ({ids}): their intervals were composited together by depth.": "كانت لـ {n} ثقب صفوف في أكثر من موضع في الملف ({ids}): جُمّعت فتراتها معًا حسب العمق.",
   "Its first {mb} MB were not UTF-8, so the whole file was read as Windows-1252.": "لم تكن أول {mb} ميغابايت منه بترميز UTF-8، فقُرئ الملف كله بترميز Windows-1252.",
-  "Read in {n} parts: the file is {mb} MB, more than one text read can hold.": "قُرئ على {n} أجزاء: حجم الملف {mb} ميغابايت، أكثر مما تتسع له قراءة نصية واحدة."
+  "Read in {n} parts: the file is {mb} MB, more than one text read can hold.": "قُرئ على {n} أجزاء: حجم الملف {mb} ميغابايت، أكثر مما تتسع له قراءة نصية واحدة.",
+  "No outcrop measurements yet": "لا توجد قياسات مكاشف بعد",
+  "No downhole structure picks yet": "لا توجد بنى من الثقوب بعد",
+  "{n} alpha only (no beta): a plane needs both angles to be oriented": "{n} ألفا فقط (بلا بيتا): يحتاج المستوى إلى الزاويتين ليُوجَّه",
+  "Nothing is plotted, so there is nothing to export.": "لا شيء مرسوم، فلا شيء للتصدير.",
+  "Disabled: this mean pools {n} structure types (faults, veins, bedding…), which is not one orientation. Pick one structure type first.": "معطّل: يجمع هذا المتوسط {n} أنواع من البنى (صدوع، عروق، تطبّق…)، وهذا ليس اتجاهًا واحدًا. اختر نوع بنية واحدًا أولًا."
 }

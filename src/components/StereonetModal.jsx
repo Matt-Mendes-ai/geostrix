@@ -138,6 +138,7 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks = []
   // only reached after a "s1 > 0.65 = tight cluster" check and so called open folds tight clusters.
   const fabric = stats ? fabricShape(stats.s1, stats.s2, stats.s3, stats.n) : null; // #713 n: too few picks to judge
   const isGirdle = fabric?.shape === "girdle";
+  const pooledTypes = typeFilter === "all" && types.length > 1; // TASKS.csv #1827
 
   const SIZE = 420, PAD = 24, R = SIZE / 2 - PAD, CX = SIZE / 2, CY = SIZE / 2;
   const toSvg = (p) => ({ x: CX + p.x * R, y: CY - p.y * R }); // net y+ = north = up on screen, so flip for SVG's y-down
@@ -275,6 +276,13 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks = []
                   </g>
                 );
               })()}
+              {/* TASKS.csv #1721 — the pole plot's empty state (the rose had one): what is missing, and why the picks there are not drawn */}
+              {plotted === 0 && (
+                <g fontSize={11} fill="#65717e" textAnchor="middle">
+                  <text x={CX} y={CY - 6}>{picks.length ? tr("No picks with a valid dip / dip direction") : source === "surface" ? tr("No outcrop measurements yet") : tr("No downhole structure picks yet")}</text>
+                  {unplotted.alphaOnly > 0 && <text x={CX} y={CY + 12}>{tr("{n} alpha only (no beta): a plane needs both angles to be oriented", { n: unplotted.alphaOnly.toLocaleString() })}</text>}
+                </g>
+              )}
             </svg>
             )}
           </div>
@@ -469,9 +477,9 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks = []
                 {onUseAsTrend && (
                   <button
                     onClick={() => { if (stats.noPreferred && !window.confirm(tr("These picks show no preferred orientation (k = {k}, at the level of random planes). Add their mean plane as a structural trend anyway?", { k: stats.k.toFixed(1) }))) return; onUseAsTrend({ azimuth: stats.meanDipDir, dip: stats.meanDip, terzaghi: !!terzaghiOn }); }} // #1066; terzaghi: #1446 — the trend's name says which mean
-                    disabled={isGirdle}
-                    style={{ ...exportBtn, width: "100%", marginTop: 7, padding: "5px 8px", fontSize: 10.5, borderColor: "#a9c6e0", color: "#2f6fe0", opacity: isGirdle ? 0.5 : 1, cursor: isGirdle ? "not-allowed" : "pointer" }}
-                    title={isGirdle ? tr("Disabled: this population is a girdle (a fold), so its mean plane is not a real orientation — pushing it to anisotropy would model a plane that exists nowhere. Filter to one fold limb first.") : tr("Add this mean plane as a new structural trend (Modelling tab > Trends): the plane only — pitch 90° (down dip) and ratios 3 : 2 : 1, to edit there")}
+                    disabled={isGirdle || pooledTypes} // pooledTypes: TASKS.csv #1827 — a mean over several structure types is no one orientation
+                    style={{ ...exportBtn, width: "100%", marginTop: 7, padding: "5px 8px", fontSize: 10.5, borderColor: "#a9c6e0", color: "#2f6fe0", opacity: isGirdle || pooledTypes ? 0.5 : 1, cursor: isGirdle || pooledTypes ? "not-allowed" : "pointer" }}
+                    title={pooledTypes ? tr("Disabled: this mean pools {n} structure types (faults, veins, bedding…), which is not one orientation. Pick one structure type first.", { n: types.length }) : isGirdle ? tr("Disabled: this population is a girdle (a fold), so its mean plane is not a real orientation — pushing it to anisotropy would model a plane that exists nowhere. Filter to one fold limb first.") : tr("Add this mean plane as a new structural trend (Modelling tab > Trends): the plane only — pitch 90° (down dip) and ratios 3 : 2 : 1, to edit there")}
                   >{tr("Add as structural trend")}</button>
                 )}
               </div>
@@ -488,7 +496,8 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks = []
                 <>{tr("Lower-hemisphere. Each point is a plane's pole (perpendicular to the plane) — clustering shows a consistent trend; scatter flags noisy/unreliable picks before feeding them into the anisotropy or structural-surface tools.")}</>
               )}
             </div>
-            <button onClick={exportSvg} style={{ ...exportBtn, marginTop: "auto" }}><Download size={12} />{" "}{tr("Export SVG")}</button>
+            {/* #1721 — nothing drawn, nothing to export */}
+            <button onClick={exportSvg} disabled={view === "rose" ? !rose : plotted === 0} title={(view === "rose" ? !rose : plotted === 0) ? tr("Nothing is plotted, so there is nothing to export.") : ""} style={{ ...exportBtn, marginTop: "auto", opacity: (view === "rose" ? !rose : plotted === 0) ? 0.5 : 1 }}><Download size={12} />{" "}{tr("Export SVG")}</button>
           </div>
         </div>
 

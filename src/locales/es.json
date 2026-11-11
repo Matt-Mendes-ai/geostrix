@@ -10023,5 +10023,10 @@
   "{n} row(s) with no hole, or no From / To with From above To, were left out.": "{n} fila(s) sin sondaje, o sin Desde / Hasta con Hasta mayor que Desde, se dejaron fuera.",
   "{n} hole(s) had rows in more than one place in the file ({ids}): their intervals were composited together by depth.": "{n} sondaje(s) tenían filas en más de un lugar del archivo ({ids}): sus intervalos se compusieron juntos por profundidad.",
   "Its first {mb} MB were not UTF-8, so the whole file was read as Windows-1252.": "Sus primeros {mb} MB no eran UTF-8, así que todo el archivo se leyó como Windows-1252.",
-  "Read in {n} parts: the file is {mb} MB, more than one text read can hold.": "Leído en {n} partes: el archivo tiene {mb} MB, más de lo que cabe en una sola lectura de texto."
+  "Read in {n} parts: the file is {mb} MB, more than one text read can hold.": "Leído en {n} partes: el archivo tiene {mb} MB, más de lo que cabe en una sola lectura de texto.",
+  "No outcrop measurements yet": "Aún no hay mediciones de afloramiento",
+  "No downhole structure picks yet": "Aún no hay estructuras de sondaje",
+  "{n} alpha only (no beta): a plane needs both angles to be oriented": "{n} solo alfa (sin beta): un plano necesita ambos ángulos para orientarse",
+  "Nothing is plotted, so there is nothing to export.": "No hay nada graficado, así que no hay nada que exportar.",
+  "Disabled: this mean pools {n} structure types (faults, veins, bedding…), which is not one orientation. Pick one structure type first.": "Desactivado: esta media junta {n} tipos de estructura (fallas, vetas, estratificación…), que no son una sola orientación. Elija primero un tipo de estructura."
 }

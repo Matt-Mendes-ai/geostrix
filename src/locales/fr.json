@@ -10023,5 +10023,10 @@
   "{n} row(s) with no hole, or no From / To with From above To, were left out.": "{n} ligne(s) sans sondage, ou sans De / À avec À supérieur à De, ont été laissées de côté.",
   "{n} hole(s) had rows in more than one place in the file ({ids}): their intervals were composited together by depth.": "{n} sondage(s) avaient des lignes à plus d'un endroit du fichier ({ids}) : leurs intervalles ont été composés ensemble par profondeur.",
   "Its first {mb} MB were not UTF-8, so the whole file was read as Windows-1252.": "Ses {mb} premiers Mo n'étaient pas en UTF-8 : tout le fichier a été lu en Windows-1252.",
-  "Read in {n} parts: the file is {mb} MB, more than one text read can hold.": "Lu en {n} parties : le fichier fait {mb} Mo, plus que ce qu'une seule lecture de texte peut contenir."
+  "Read in {n} parts: the file is {mb} MB, more than one text read can hold.": "Lu en {n} parties : le fichier fait {mb} Mo, plus que ce qu'une seule lecture de texte peut contenir.",
+  "No outcrop measurements yet": "Pas encore de mesures d'affleurement",
+  "No downhole structure picks yet": "Pas encore de structures de sondage",
+  "{n} alpha only (no beta): a plane needs both angles to be oriented": "{n} alpha seul (sans bêta) : un plan a besoin des deux angles pour être orienté",
+  "Nothing is plotted, so there is nothing to export.": "Rien n'est tracé : il n'y a rien à exporter.",
+  "Disabled: this mean pools {n} structure types (faults, veins, bedding…), which is not one orientation. Pick one structure type first.": "Désactivé : cette moyenne regroupe {n} types de structures (failles, veines, stratification…), ce qui n'est pas une seule orientation. Choisissez d'abord un type de structure."
 }
