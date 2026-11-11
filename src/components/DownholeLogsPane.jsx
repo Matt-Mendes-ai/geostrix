@@ -6,7 +6,7 @@ import { Activity } from "./icons.js";
 import { numericSourceChoices, sourceAssays } from "../lib/numericSources.js";
 import { domainLayerChoices } from "../lib/domainLayers.js";
 import { LAYER_META } from "../lib/layers.js";
-import { logByCode, logVsAssay, logVsModel, NOT_LOGGED, strideSample } from "../lib/downholeLogs.js"; // logVsModel: #1595; strideSample: #2331
+import { logByCode, logVsAssay, logVsModel, NOT_LOGGED, strideSample, logScaleSuits, allAboveZero, countAtOrBelowZero, sig3 } from "../lib/downholeLogs.js"; // logVsModel: #1595; strideSample: #2331; logScaleSuits...: #2558
 import { BoxPlots } from "./GradeStatistics.jsx";
 import { smallSel } from "../lib/sidebarStyles.js";
 import { t as tr } from "../lib/i18n.js";
@@ -24,7 +24,7 @@ function Scatter({ pairs, xLabel, yLabel, logX, logY }) {
   let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
   for (const [x, y] of pts) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
   const sx = (x) => pl + ((x - x0) / ((x1 - x0) || 1)) * (w - pl - pr), sy = (y) => h - pb - ((y - y0) / ((y1 - y0) || 1)) * (h - pb - pt);
-  const lab = (v, log) => (log ? Number((10 ** v).toPrecision(2)) : Number(v.toPrecision(3))).toLocaleString();
+  const lab = (v, log) => (log ? 10 ** v : v).toLocaleString(undefined, { maximumSignificantDigits: log ? 2 : 3 }); // #2558 — 0.000457, not 0
   const drawn = strideSample(pts); // #2331 — a few thousand drawn, the axes and statistics from every pair
   return (
     <>
@@ -44,7 +44,9 @@ function Scatter({ pairs, xLabel, yLabel, logX, logY }) {
 }
 
 export default function DownholeLogsPane({ layers, customLayers = [], assays = [], assayElements = [], onClose, onEstimate = null }) {
-  const sources = useMemo(() => numericSourceChoices({ layers, customLayers }), [layers, customLayers]);
+  // TASKS.csv #2558 — a model evaluated onto the holes is not a log: it opened as the Log and was then compared with itself (Spearman 1.00)
+  const modelIds = useMemo(() => new Set(customLayers.filter((l) => l.sourceModel != null || (l.rows || []).some((r) => r.modelled)).map((l) => l.id)), [customLayers]);
+  const sources = useMemo(() => numericSourceChoices({ layers, customLayers, models: false }).filter((s) => s.layerId == null || !modelIds.has(s.layerId)), [layers, customLayers, modelIds]);
   // TASKS.csv #2394 (review #2325) — the pane forgot its log, code layer, element and model on reopen, and the stall of picking the log
   // again was paid every time: kept per project as Geochem's and Geophysics' panels keep theirs (#1284)
   const keptScope = scopeOf(useStore().getProjectToken());
@@ -54,7 +56,11 @@ export default function DownholeLogsPane({ layers, customLayers = [], assays = [
   const domains = useMemo(() => domainLayerChoices(layers, customLayers, (k) => tr(LAYER_META[k]?.label || k)), [layers, customLayers]);
   const [domainKey, setDomainKey] = useKeptState(keptScope, "dhlogs.domain", "");
   const domain = domains.find((d) => d.key === domainKey) || domains[0] || null;
-  const [logScale, setLogScale] = useKeptState(keptScope, "dhlogs.logScale", true);
+  // #2558 — the log scale follows the data (all above zero, over a decade) until the box is ticked or unticked
+  const [logChoice, setLogChoice] = useKeptState(keptScope, "dhlogs.logChoice", "auto");
+  const logValues = useMemo(() => (data ? data.assays.map((r) => r.values?.[data.symbol]) : []), [data]);
+  const logScale = logChoice === "auto" ? logScaleSuits(logValues) : logChoice === "on";
+  const logHidden = logScale ? countAtOrBelowZero(logValues) : 0;
   // TASKS.csv #2393 — rank the codes by the median (default), the mean, P90 or the share of readings above a value
   const [rankStat, setRankStat] = useKeptState(keptScope, "dhlogs.rankStat", "median");
   const [rankAbove, setRankAbove] = useKeptState(keptScope, "dhlogs.rankAbove", "100");
@@ -88,7 +94,8 @@ export default function DownholeLogsPane({ layers, customLayers = [], assays = [
               {!domains.length && <option value="">{tr("— no logged codes —")}</option>}
               {domains.map((d) => <option key={d.key} value={d.key}>{d.label}</option>)}
             </select></label>
-          <label style={{ ...row, justifyContent: "flex-start" }}><input type="checkbox" checked={logScale} onChange={(e) => setLogScale(e.target.checked)} />{tr("Log scale")}</label>
+          <label style={{ ...row, justifyContent: "flex-start" }}><input type="checkbox" checked={logScale} onChange={(e) => setLogChoice(e.target.checked ? "on" : "off")} />{tr("Log scale")}</label>
+          {logHidden > 0 && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("{k} of {n} readings are zero or negative and are not shown on the log scale.", { k: logHidden.toLocaleString(), n: logValues.filter(Number.isFinite).length.toLocaleString() })}</div>}
           {groups.length > 0 ? (
             <>
               <BoxPlots fit groups={groups} domainLabel={(k) => `${k === NOT_LOGGED ? tr("(not logged)") : k} (${groups.find((g) => g.key === k)?.n.toLocaleString()})`} logScale={logScale} unit={unitOf(source.unit)} />
@@ -111,8 +118,10 @@ export default function DownholeLogsPane({ layers, customLayers = [], assays = [
                 </select></label>
               {vs && vs.n >= 3 ? (
                 <>
-                  <Scatter pairs={vs.pairs} xLabel={`${source.label}${unitOf(source.unit) && !source.label.includes(`(${unitOf(source.unit)})`) ? ` (${unitOf(source.unit)})` : ""}`} yLabel={`${el} (${vs.unit})`} logX={logScale} logY={logScale} />
-                  <div style={note}>{tr("{n} readings inside an assay interval of the same hole. Spearman rank correlation {r}; Pearson on log10 values {rLog}.", { n: vs.n.toLocaleString(), r: Number.isFinite(vs.r) ? vs.r.toFixed(2) : "—", rLog: Number.isFinite(vs.rLog) ? vs.rLog.toFixed(2) : "—" })}{Number.isFinite(vs.medianRatio) ? " " + tr("Log / assay: median {m}, length-weighted {w} (in the units shown; a gamma log against its assays reads the disequilibrium here).", { m: vs.medianRatio.toPrecision(3), w: Number.isFinite(vs.weightedRatio) ? vs.weightedRatio.toPrecision(3) : "—" }) : ""}</div>{/* ratios: #2353 */}
+                  <Scatter pairs={vs.pairs} xLabel={`${source.label}${unitOf(source.unit) && !source.label.includes(`(${unitOf(source.unit)})`) ? ` (${unitOf(source.unit)})` : ""}`} yLabel={`${el} (${vs.unit})`} logX={logScale && allAboveZero(vs.pairs.map((p) => p[0]))} logY={logScale && allAboveZero(vs.pairs.map((p) => p[1]))} />
+                  <div style={note}>{logScale
+                    ? tr("{n} readings inside an assay interval of the same hole. Spearman rank correlation {r}; Pearson on log10 values {rLog} ({k} pairs above zero).", { n: vs.n.toLocaleString(), r: Number.isFinite(vs.r) ? vs.r.toFixed(2) : "—", rLog: Number.isFinite(vs.rLog) ? vs.rLog.toFixed(2) : "—", k: (vs.nLog ?? 0).toLocaleString() })
+                    : tr("{n} readings inside an assay interval of the same hole. Spearman rank correlation {r}; Pearson {rLin}.", { n: vs.n.toLocaleString(), r: Number.isFinite(vs.r) ? vs.r.toFixed(2) : "—", rLin: Number.isFinite(vs.rLin) ? vs.rLin.toFixed(2) : "—" })}{Number.isFinite(vs.medianRatio) ? " " + tr("Log / assay: median {m}, length-weighted {w} (in the units shown; a gamma log against its assays reads the disequilibrium here).", { m: vs.medianRatio.toPrecision(3), w: Number.isFinite(vs.weightedRatio) ? vs.weightedRatio.toPrecision(3) : "—" }) : ""}</div>{/* ratios: #2353 */}
                 </>
               ) : <div style={note}>{tr("Fewer than three readings fall inside an assay interval of the same hole.")}</div>}
             </>
@@ -125,8 +134,10 @@ export default function DownholeLogsPane({ layers, customLayers = [], assays = [
                 </select></label>
               {vm && vm.n >= 3 ? (
                 <>
-                  <Scatter pairs={vm.pairs} xLabel={`${source.label}${unitOf(source.unit) && !source.label.includes(`(${unitOf(source.unit)})`) ? ` (${unitOf(source.unit)})` : ""}`} yLabel={modelLayer.unit ? `${tr("Model")} (${modelLayer.unit})` : tr("Model")} logX={logScale} logY={logScale} />
-                  <div style={note}>{tr("{n} readings inside a model cell the same hole crosses. Spearman rank correlation {r} (the same in any units); Pearson on log10 values {rLog}. Median of the log {a}, of the model {b}, each in its own unit.", { n: vm.n.toLocaleString(), r: Number.isFinite(vm.r) ? vm.r.toFixed(2) : "—", rLog: Number.isFinite(vm.rLog) ? vm.rLog.toFixed(2) : "—", a: Number(vm.medianLog.toPrecision(3)).toLocaleString(), b: Number(vm.medianModel.toPrecision(3)).toLocaleString() })}</div>
+                  <Scatter pairs={vm.pairs} xLabel={`${source.label}${unitOf(source.unit) && !source.label.includes(`(${unitOf(source.unit)})`) ? ` (${unitOf(source.unit)})` : ""}`} yLabel={modelLayer.unit ? `${tr("Model")} (${modelLayer.unit})` : tr("Model")} logX={logScale && allAboveZero(vm.pairs.map((p) => p[0]))} logY={logScale && allAboveZero(vm.pairs.map((p) => p[1]))} />
+                  <div style={note}>{logScale
+                    ? tr("{n} readings inside a model cell the same hole crosses. Spearman rank correlation {r} (the same in any units); Pearson on log10 values {rLog} ({k} pairs above zero). Median of the log {a}, of the model {b}, each in its own unit.", { n: vm.n.toLocaleString(), r: Number.isFinite(vm.r) ? vm.r.toFixed(2) : "—", rLog: Number.isFinite(vm.rLog) ? vm.rLog.toFixed(2) : "—", k: (vm.nLog ?? 0).toLocaleString(), a: sig3(vm.medianLog), b: sig3(vm.medianModel) })
+                    : tr("{n} readings inside a model cell the same hole crosses. Spearman rank correlation {r} (the same in any units); Pearson {rLin}. Median of the log {a}, of the model {b}, each in its own unit.", { n: vm.n.toLocaleString(), r: Number.isFinite(vm.r) ? vm.r.toFixed(2) : "—", rLin: Number.isFinite(vm.rLin) ? vm.rLin.toFixed(2) : "—", a: sig3(vm.medianLog), b: sig3(vm.medianModel) })}</div>
                   {Number.isFinite(vm.r) && Math.abs(vm.r) < 0.2 && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("The model hardly follows the logged values along the holes (|Spearman| under 0.2): its cells may be too coarse, or it images something the core does not record.")}</div>}
                 </>
               ) : <div style={note}>{tr("Fewer than three readings fall inside a cell of this model.")}</div>}

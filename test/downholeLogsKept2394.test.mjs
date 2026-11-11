@@ -8,7 +8,7 @@ import { useKeptState, keptIn } from "../src/lib/keptState.js";
 
 test("every choice of the pane is kept per project, none in plain component state", () => {
   const p = readFileSync(new URL("../src/components/DownholeLogsPane.jsx", import.meta.url), "utf8");
-  for (const k of ["dhlogs.source", "dhlogs.domain", "dhlogs.logScale", "dhlogs.rankStat", "dhlogs.rankAbove", "dhlogs.element", "dhlogs.model"]) assert.match(p, new RegExp(`useKeptState\\(keptScope, "${k.replace(".", "\\.")}"`), k);
+  for (const k of ["dhlogs.source", "dhlogs.domain", "dhlogs.logChoice" /* #2558: auto / on / off */, "dhlogs.rankStat", "dhlogs.rankAbove", "dhlogs.element", "dhlogs.model"]) assert.match(p, new RegExp(`useKeptState\\(keptScope, "${k.replace(".", "\\.")}"`), k);
   assert.doesNotMatch(p, /\buseState\(/);
   assert.equal(typeof useKeptState, "function");
   keptIn("p1").set("dhlogs.element", "Th");

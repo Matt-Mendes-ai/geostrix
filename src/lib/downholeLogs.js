@@ -71,7 +71,8 @@ export function logVsAssay(rows, symbol, assays, element, elementUnits = {}) {
   const rt = { medianRatio: ratios.length ? ratios[ratios.length >> 1] : NaN, weightedRatio: sa > 0 ? sl / sa : NaN };
   if (pairs.length < 3) return { pairs, n: pairs.length, r: NaN, rLog: NaN, unit, ...rt };
   const xs = pairs.map((p) => p[0]), ys = pairs.map((p) => p[1]);
-  return { pairs, n: pairs.length, r: correlate(xs, ys, "spearman").r, rLog: correlate(xs, ys, "log").r, unit, ...rt };
+  const cl = correlate(xs, ys, "log"); // #2558 — and how many pairs the log10 Pearson could use, and the plain Pearson
+  return { pairs, n: pairs.length, r: correlate(xs, ys, "spearman").r, rLog: cl.r, nLog: cl.n, rLin: correlate(xs, ys, "pearson").r, unit, ...rt };
 }
 
 // TASKS.csv #1595 (review #1497, Lawyers) — a log against a block model evaluated onto the holes ('On holes: <model>', GeophysicsModule
@@ -92,7 +93,8 @@ export function logVsModel(rows, symbol, modelRows) {
   const med = (a) => { if (!a.length) return NaN; const s2 = [...a].sort((x, y) => x - y), k = Math.floor(s2.length / 2); return s2.length % 2 ? s2[k] : (s2[k - 1] + s2[k]) / 2; };
   if (pairs.length < 3) return { pairs, n: pairs.length, r: NaN, rLog: NaN, medianLog: NaN, medianModel: NaN };
   const xs = pairs.map((p) => p[0]), ys = pairs.map((p) => p[1]);
-  return { pairs, n: pairs.length, r: correlate(xs, ys, "spearman").r, rLog: correlate(xs, ys, "log").r, medianLog: med(xs), medianModel: med(ys) };
+  const cl = correlate(xs, ys, "log"); // #2558
+  return { pairs, n: pairs.length, r: correlate(xs, ys, "spearman").r, rLog: cl.r, nLog: cl.n, rLin: correlate(xs, ys, "pearson").r, medianLog: med(xs), medianModel: med(ys) };
 }
 
 // TASKS.csv #2331 (review #2325, WA uranium) — the scatter drew one SVG circle per pair: 172,983 on the 5 cm gamma log, a 209 s stall (the
@@ -108,3 +110,15 @@ export function strideSample(pts, max = SCATTER_MAX) {
   [ix0, ix1, iy0, iy1].forEach((i) => keep.add(i));
   return { points: [...keep].sort((a, b) => a - b).map((i) => pts[i]), step };
 }
+
+// TASKS.csv #2558 (review #2486) — a log scale suits values that are all above zero and span more than a decade (a resistivity, a mag
+// susc); a density contrast, a residual or a derivative is signed, and a log axis dropped its negative half (102 of 564) without a word
+export function logScaleSuits(values) {
+  let lo = Infinity, hi = -Infinity, n = 0;
+  for (const v of values || []) { if (!Number.isFinite(v)) continue; n++; if (v <= 0) return false; if (v < lo) lo = v; if (v > hi) hi = v; }
+  return n > 0 && hi / lo > 10;
+}
+export const allAboveZero = (values) => { let n = 0; for (const v of values || []) { if (!Number.isFinite(v)) continue; n++; if (v <= 0) return false; } return n > 0; };
+export const countAtOrBelowZero = (values) => (values || []).reduce((k, v) => k + (Number.isFinite(v) && v <= 0 ? 1 : 0), 0);
+// a number to three significant figures, small ones included (0.000112, not the 0 that toLocaleString's three decimals gave)
+export const sig3 = (v) => (Number.isFinite(v) ? v.toLocaleString(undefined, { maximumSignificantDigits: 3 }) : "—");
