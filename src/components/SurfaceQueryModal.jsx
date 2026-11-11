@@ -10,6 +10,10 @@ import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { backdropProps } from "../lib/modalStyles.js"; // TASKS.csv #387
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
+import { useStore } from "../lib/store.jsx"; // TASKS.csv #2626 — the shell's element and the assays (read only)
+import { resolvedSegments } from "../lib/geochem.js";
+import { excludeQAQC } from "../lib/qaqc.js";
+import { sampledByHole, sampledMetres } from "../lib/insideSampling.js"; // TASKS.csv #2626
 
 // TASKS.csv #146 — DISTANCE-TO-SURFACE / POINT-IN-DOMAIN QUERY AND REPORTING.
 //
@@ -58,6 +62,10 @@ export default function SurfaceQueryModal({ surfaces = [], traces = [], sceneToW
   const [ptZ, setPtZ] = useState("");
 
   const surface = surfaces.find((s) => s.id === surfaceId) || surfaces[0] || null;
+  // TASKS.csv #2626 — a grade shell's own element (its stored params): the metres inside it, sampled for that element or not
+  const { generatedSurfaces = [], assays = [], assayElements = [] } = useStore();
+  const shellEl = useMemo(() => { const el = generatedSurfaces.find((g) => g.id === surface?.id)?.params?.element; return el && assayElements.some((e) => e.symbol === el) ? el : null; }, [generatedSurfaces, surface, assayElements]);
+  const sampledHoles = useMemo(() => { if (!shellEl) return null; const units = Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])); return sampledByHole(resolvedSegments(excludeQAQC(assays), shellEl, units[shellEl] || "ppm", units)); }, [shellEl, assays, assayElements]);
 
   // One BVH per surface, rebuilt only when the surface selection changes. Building over ~100k triangles
   // costs a few hundred ms; every query afterwards is a log-time tree descent, which is what makes the
@@ -96,16 +104,18 @@ export default function SurfaceQueryModal({ surfaces = [], traces = [], sceneToW
           intercepts,
           insideLength: iv ? iv.insideLength : null,
           insideIntervals: iv ? iv.intervals.filter((x) => x.inside) : [],
+          sampledInside: iv && sampledHoles ? sampledMetres(iv.intervals.filter((x) => x.inside), sampledHoles.get(t.hole_id) || []) : null, // #2626
           totalLength: t.pts[t.pts.length - 1].md,
         };
       })
       .sort((a, b) => (a.minDistance ?? Infinity) - (b.minDistance ?? Infinity));
-  }, [mesh, traces, step, tab]);
+  }, [mesh, traces, step, tab, sampledHoles]);
 
   const totals = useMemo(() => ({
     holes: rows.length,
     piercing: rows.filter((r) => r.intercepts.length > 0).length,
     inside: rows.reduce((s, r) => s + (r.insideLength || 0), 0),
+    sampled: rows.reduce((s, r) => s + (r.sampledInside || 0), 0), // #2626
   }), [rows]);
 
   // POINT tab. Input is real-world easting/northing/elevation — the numbers on a collar sheet — and is
@@ -184,11 +194,16 @@ export default function SurfaceQueryModal({ surfaces = [], traces = [], sceneToW
                     <span style={{ color: "#8a6d1f" }}>{" "}{tr("— no hole intersects this surface at all, which is usually worth a second look at the modelling inputs.")}</span>
                   )}
                 </div>
+                {mesh.closed && shellEl && totals.inside > 0 && ( /* TASKS.csv #2626 — the shell's metres with no sample of its element */
+                  <div role="note" style={{ fontSize: "var(--font-size-sm)", color: totals.inside - totals.sampled > 0.5 * totals.inside ? "var(--color-warn-text)" : "var(--color-text-secondary)", margin: "0 0 6px", lineHeight: 1.45 }}>
+                    {tr("Of the {inside} m inside, {s} m are sampled for {el} and {u} m have no {el} sample: there the shell is the estimate's reach, not a measured grade.", { inside: totals.inside.toFixed(1), s: totals.sampled.toFixed(1), el: shellEl, u: Math.max(0, totals.inside - totals.sampled).toFixed(1) })}
+                  </div>
+                )}
                 <div style={{ maxHeight: "48vh", overflow: "auto", border: "1px solid var(--color-border)", borderRadius: 6 }}>
                   <table style={{ borderCollapse: "collapse", width: "100%", fontSize: "var(--font-size-sm)" }}>
                     <thead>
                       <tr>
-                        {[tr("Hole"), tr("Closest (m)"), tr("at MD (m)"), tr("Pierce points (MD)"), mesh.closed ? tr("Inside (m)") : tr("Inside"), tr("Hole length (m)")].map((h) => (
+                        {[tr("Hole"), tr("Closest (m)"), tr("at MD (m)"), tr("Pierce points (MD)"), mesh.closed ? tr("Inside (m)") : tr("Inside"), ...(mesh.closed && shellEl ? [tr("Sampled for {el} (m)", { el: shellEl })] : []) /* #2626 */, tr("Hole length (m)")].map((h) => (
                           <th key={h} style={th}>{h}</th>
                         ))}
                       </tr>
@@ -205,10 +220,11 @@ export default function SurfaceQueryModal({ surfaces = [], traces = [], sceneToW
                           <td style={td} title={r.insideIntervals.map((x) => `${x.from.toFixed(1)}–${x.to.toFixed(1)} m`).join(", ")}>
                             {r.insideLength == null ? "n/a" : r.insideLength > 0 ? r.insideLength.toFixed(2) : "0"}
                           </td>
+                          {mesh.closed && shellEl && <td style={{ ...td, color: r.insideLength > 0 && (r.sampledInside || 0) < 0.5 * r.insideLength ? "var(--color-warn-text)" : undefined }}>{r.insideLength > 0 ? (r.sampledInside || 0).toFixed(2) : "—"}</td>}{/* #2626 */}
                           <td style={{ ...td, color: "var(--color-text-muted)" }}>{fmt(r.totalLength, 1)}</td>
                         </tr>
                       ))}
-                      {!rows.length && <tr><td style={td} colSpan={6}>{tr("No desurveyed holes — import collars and survey data first.")}</td></tr>}
+                      {!rows.length && <tr><td style={td} colSpan={mesh.closed && shellEl ? 7 : 6}>{tr("No desurveyed holes — import collars and survey data first.")}</td></tr>}
                     </tbody>
                   </table>
                 </div>
