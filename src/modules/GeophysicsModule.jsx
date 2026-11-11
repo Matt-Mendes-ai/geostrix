@@ -17,6 +17,7 @@ import { lazyModal } from "../lib/lazyModal.jsx";
 import { sampleModelOnHoles } from "../lib/voxelSample.js"; // TASKS.csv #323
 import { logStops, SEQUENTIAL_ANCHORS } from "../lib/inversion.js"; // TASKS.csv #481
 import { SURVEY_METHODS, unitsForMethod, robustRange, SURVEY_METHOD_GROUPS, guessSurveyMethodFrom, diurnalApplies /* #1586 */, Z_MEANINGS, surveyKey, surveyStats, aglToElevation, replaceSurveyPoints, surveyExportRows } from "../lib/geophysSurveys.js"; // surveyExportRows: #1094 // TASKS.csv #451; replaceSurveyPoints #600
+import { radiometricChannels, isMultiRadiometric, channelKey, ratioJobs, ratioOf } from "../lib/radiometricChannels.js"; // TASKS.csv #2395
 import { terrainElevationAt } from "../lib/inversion.js";
 import { downholeLikeness } from "../lib/downholeLikeness.js"; // TASKS.csv #1709
 import AddWebLayerModal from "../components/AddWebLayerModal.jsx";
@@ -348,13 +349,19 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         // TASKS.csv #484 — columns are matched on the words in each header (Easting_X, Raw_Mag_nT...), once per
         // file. Not sure which is which -> the column picker below (shared with .xyz), never a dead end.
         const cols = guessGeophysColumns(res.meta.fields || []);
-        const openPicker = (why) => {
-          setXyzPending({ fileName: file.name, columns: res.meta.fields || [], rows: res.data, source: "csv", xCol: cols.x, yCol: cols.y, zCol: cols.z, valueCol: cols.value, lineCol: cols.line, fidCol: cols.fid, labelCol: cols.label, ...cleaningDefaults(res.meta.fields || []) /* #1583 */ });
+        const openPicker = (why, extra = {}) => {
+          setXyzPending({ ...extra, fileName: file.name, columns: res.meta.fields || [], rows: res.data, source: "csv", xCol: cols.x, yCol: cols.y, zCol: cols.z, valueCol: cols.value, lineCol: cols.line, fidCol: cols.fid, labelCol: cols.label, ...cleaningDefaults(res.meta.fields || []) /* #1583 */ });
           setError({ info: true, text: tr("{why} Pick the columns below, then Import.", { why }) });
         };
         if (!cols.ok) {
           const missing = [!cols.x && "X / easting", !cols.y && "Y / northing", !cols.value && "the measured value"].filter(Boolean).join(", ");
           openPicker(tr("\"{name}\": couldn't tell which column is {missing} from the headers ({fields}).", { name: file.name, missing, fields: (res.meta.fields || []).join(", ") || tr("none") }));
+          return;
+        }
+        // TASKS.csv #2395 — several radiometric channels (TC, K, eU, eTh): the picker, each ticked channel its own survey
+        if (isMultiRadiometric(cols.valueCandidates)) {
+          const ch = radiometricChannels(cols.valueCandidates);
+          openPicker(tr("\"{name}\" holds {n} radiometric channels ({list}): tick the ones to import, each as its own survey.", { name: file.name, n: ch.length, list: ch.map((c) => c.col).join(", ") }), { channels: ch.map((c) => c.col), channelPick: ch.map((c) => c.col), channelRatios: ratioJobs(ch).length > 0 });
           return;
         }
         const parsed = rowsToGeophysPoints(res.data, cols);
@@ -1326,11 +1333,21 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     // TASKS.csv #1583 — the signal-quality floor and the despike, before anything else reads the values
     const cleaned = cleanRows(parsedRows, xyzPending, (r) => Number(r[valueCol]), (r) => (xyzPending.source === "csv" ? (xyzPending.lineCol ? r[xyzPending.lineCol] : null) : r._line ?? null));
     const cleanedRows = cleaned.rows;
+    // TASKS.csv #2395 — a multi-channel radiometric file: one survey per ticked channel (file · channel), and the eU/eTh, K/eTh ratios
+    const rad = xyzPending.channels ? radiometricChannels(xyzPending.channels) : null;
+    const jobs = rad && xyzPending.source === "csv" ? [
+      ...rad.filter((c) => (xyzPending.channelPick || []).includes(c.col)).map((c) => ({ src: channelKey(fileName, c.col), col: c.col, method: c.method })),
+      ...(xyzPending.channelRatios ? ratioJobs(rad).map((r) => ({ src: channelKey(fileName, r.label), ratio: r, method: r.method })) : []),
+    ] : null;
+    if (jobs && !jobs.length) { setXyzError({ info: false, text: tr("Tick at least one channel to import.") }); return; }
     // TASKS.csv #484 — a CSV that fell through to the picker: same row mapping as the automatic path
-    let mapped = xyzPending.source === "csv"
-      ? rowsToGeophysPoints(cleanedRows, { x: xCol, y: yCol, z: zCol, value: valueCol, line: xyzPending.lineCol, fid: xyzPending.fidCol, label: xyzPending.labelCol })
-        .map((r) => ({ ...r, _src: fileName }))
-        .filter((r) => Number.isFinite(r.x) && Number.isFinite(r.y) && Number.isFinite(r.value))
+    const asPoints = (srcRows, col, src) => rowsToGeophysPoints(srcRows, { x: xCol, y: yCol, z: zCol, value: col, line: xyzPending.lineCol, fid: xyzPending.fidCol, label: xyzPending.labelCol })
+      .map((r) => ({ ...r, _src: src }))
+      .filter((r) => Number.isFinite(r.x) && Number.isFinite(r.y) && Number.isFinite(r.value));
+    let mapped = jobs
+      ? jobs.flatMap((j) => (j.ratio ? asPoints(cleanedRows.map((r) => ({ ...r, __ratio: ratioOf(r, j.ratio) })), "__ratio", j.src) : asPoints(cleanedRows, j.col, j.src)))
+      : xyzPending.source === "csv"
+      ? asPoints(cleanedRows, valueCol, fileName)
       : cleanedRows
       .map((r) => ({
         // TASKS.csv #365 — no z column means "elevation not recorded" (null), not the mean collar elevation.
@@ -1383,9 +1400,11 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     }
     const replacedN = replaceSurveyPoints(rows, mapped).replaced; // #600 — re-import replaces, does not double
     setLayers((l) => ({ ...l, geophys_pts: replaceSurveyPoints(l.geophys_pts, mapped).rows }));
-    { const g = guessSurveyMethodFrom(valueCol, mapped.map((r) => r.label), { instrument: xyzPending.header?.instrument, columns: xyzPending.columns }); if (g && !geophysSurveys[fileName]?.method) updateGeophysSurvey(fileName, { method: g, units: SURVEY_METHODS[g].units }); } // #1151; hints: #1586
+    if (jobs) for (const j of jobs) if (!geophysSurveys[j.src]?.method) updateGeophysSurvey(j.src, { method: j.method, units: SURVEY_METHODS[j.method].units }); // #2395
+    if (!jobs) { const g = guessSurveyMethodFrom(valueCol, mapped.map((r) => r.label), { instrument: xyzPending.header?.instrument, columns: xyzPending.columns }); if (g && !geophysSurveys[fileName]?.method) updateGeophysSurvey(fileName, { method: g, units: SURVEY_METHODS[g].units }); } // #1151; hints: #1586
     if (replacedN) reprojectNote += tr(" Replaced the {replacedN} point(s) of the earlier import of this file.", { replacedN: replacedN.toLocaleString() });
-    const skipped = cleanedRows.length - mapped.length - noFix; // #538 — the no-fix readings are reported separately; #1583: after the cleaning
+    const skipped = (jobs ? cleanedRows.length * jobs.length : cleanedRows.length) - mapped.length - noFix; // #538; #2395: per channel survey
+    if (jobs) reprojectNote += tr(" As {k} survey(s): {list}.", { k: jobs.length, list: jobs.map((j) => j.src).join(", ") }); // #2395 — the no-fix readings are reported separately; #1583: after the cleaning
     if (noFix) reprojectNote += tr(" Left out {noFix} reading(s) at X = 0, Y = 0 (no GPS fix).", { noFix });
     const dcNote = /_dc$/.test(valueCol) && xyzPending.diurnalNote ? ` ${xyzPending.diurnalNote}` : ""; // #610
     setXyzError({ info: true, text: tr("Imported {mapped} point(s) from \"{fileName}\"{v}.{reprojectNote}{dcNote}", { mapped: mapped.length, fileName, v: skipped ? tr(" (skipped {skipped} row(s) with {v} values in the chosen columns)", { skipped, v: xyzPending.source === "csv" ? tr("blank or non-numeric") : tr("no-data \"*\"") }) : "", reprojectNote, dcNote }) + cleaningNote(cleaned) /* #1583 */ });
@@ -1757,6 +1776,19 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                 </select>
               </div>
             ))}
+            {xyzPending.channels && ( /* TASKS.csv #2395 — each ticked channel its own survey; the ratios from the same stations */
+              <div style={{ marginTop: 8 }}>
+                <div style={{ color: "var(--color-text-faint)", marginBottom: 4 }}>{tr("Import each ticked channel as its own survey:")}</div>
+                <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                  {xyzPending.channels.map((c) => (
+                    <label key={c} style={{ display: "flex", gap: 4, alignItems: "center" }}><input type="checkbox" checked={(xyzPending.channelPick || []).includes(c)} onChange={(e) => setXyzPending((p) => ({ ...p, channelPick: e.target.checked ? [...(p.channelPick || []), c] : (p.channelPick || []).filter((x) => x !== c) }))} aria-label={tr("Import channel {c}", { c })} />{c}</label>
+                  ))}
+                </div>
+                {ratioJobs(radiometricChannels(xyzPending.channels)).length > 0 && (
+                  <label style={{ display: "flex", gap: 4, alignItems: "center", marginTop: 4 }}><input type="checkbox" checked={!!xyzPending.channelRatios} onChange={(e) => setXyzPending((p) => ({ ...p, channelRatios: e.target.checked }))} />{tr("Also make the {list} ratio survey(s) from the same stations", { list: ratioJobs(radiometricChannels(xyzPending.channels)).map((r) => r.label).join(" and ") })}</label>
+                )}
+              </div>
+            )}
             {/* TASKS.csv #1583 — a signal-quality floor (a GEM sq column) and an along-line despike */}
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 5 }} title={tr("A GEM magnetometer writes a signal quality (0-99) beside each reading; the base-station reader already drops readings under 50. Below the floor the reading is a dropout or a spike (2,105 or 167,300 nT in a 56,500 nT survey) and is left out.")}>
               <span style={{ color: "var(--color-text-faint)", width: 140, flexShrink: 0 }}>{tr("Signal quality")}</span>

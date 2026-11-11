@@ -9823,5 +9823,10 @@
   "Number of colour classes": "Nombre de classes de couleurs",
   "{n} of the file's {total} interval(s) overlap another of the same hole, in {holes} hole(s); {pct}% of them have {col} = {value}, which may mark the out-of-date rows: the dialog's row filter can leave them out.": "{n} des {total} intervalles du fichier chevauchent un autre du même sondage, dans {holes} sondage(s) ; {pct}% d'entre eux ont {col} = {value}, ce qui peut marquer les lignes périmées : le filtre de lignes de la boîte de dialogue peut les laisser de côté.",
   "{n} of the file's {total} interval(s) overlap another of the same hole, in {holes} hole(s); no column of the file marks them.": "{n} des {total} intervalles du fichier chevauchent un autre du même sondage, dans {holes} sondage(s) ; aucune colonne du fichier ne les marque.",
-  "{fileName}: {n} of {total} interval(s) overlap another of the same hole, in {holes} hole(s); {pct}% of them have {col} = {value}, which may mark the out-of-date rows: the import's row filter can leave them out.": "{fileName} : {n} des {total} intervalles chevauchent un autre du même sondage, dans {holes} sondage(s) ; {pct}% d'entre eux ont {col} = {value}, ce qui peut marquer les lignes périmées : le filtre de lignes de l'import peut les laisser de côté."
+  "{fileName}: {n} of {total} interval(s) overlap another of the same hole, in {holes} hole(s); {pct}% of them have {col} = {value}, which may mark the out-of-date rows: the import's row filter can leave them out.": "{fileName} : {n} des {total} intervalles chevauchent un autre du même sondage, dans {holes} sondage(s) ; {pct}% d'entre eux ont {col} = {value}, ce qui peut marquer les lignes périmées : le filtre de lignes de l'import peut les laisser de côté.",
+  "\"{name}\" holds {n} radiometric channels ({list}): tick the ones to import, each as its own survey.": "« {name} » contient {n} canaux radiométriques ({list}) : cochez ceux à importer, chacun comme son propre levé.",
+  "Tick at least one channel to import.": "Cochez au moins un canal à importer.",
+  "Import each ticked channel as its own survey:": "Importer chaque canal coché comme son propre levé :",
+  "Also make the {list} ratio survey(s) from the same stations": "Créer aussi les levés de rapport {list} à partir des mêmes stations",
+  " As {k} survey(s): {list}.": " En {k} levé(s) : {list}."
 }

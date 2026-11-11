@@ -23,7 +23,7 @@ const ROLES = {
   z: { exact: ["z", "elevation", "elev"], words: ["z", "elevation", "elev", "rl"] },
   value: {
     exact: ["value", "val", "reading", "mag", "response"],
-    words: ["value", "val", "reading", "response", "mag", "magnetic", "tmi", "rmi", "nt", "grav", "gravity", "bouguer", "cba", "res", "resistivity", "rho", "chargeability", "ip", "k", "th", "u", "tc", "dose", "susc", "susceptibility", "cond", "conductivity", "em"],
+    words: ["value", "val", "reading", "response", "mag", "magnetic", "tmi", "rmi", "nt", "grav", "gravity", "bouguer", "cba", "res", "resistivity", "rho", "chargeability", "ip", "k", "th", "u", "tc", "dose", "eu", "eth", "uranium", "thorium", "potassium", "kpct" /* #2395 */, "susc", "susceptibility", "cond", "conductivity", "em"],
   },
   line: { exact: ["line", "line_no", "lineno", "line_number", "flight_line", "flightline"], words: ["line", "flightline"] },
   fid: { exact: ["fid", "fiducial", "fiducial_no"], words: ["fid", "fiducial"] },

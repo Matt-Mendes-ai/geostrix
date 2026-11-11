@@ -9823,5 +9823,10 @@
   "Number of colour classes": "عدد فئات الألوان",
   "{n} of the file's {total} interval(s) overlap another of the same hole, in {holes} hole(s); {pct}% of them have {col} = {value}, which may mark the out-of-date rows: the dialog's row filter can leave them out.": "{n} من فواصل الملف البالغة {total} تتداخل مع فاصل آخر في البئر نفسه، في {holes} بئر؛ لدى {pct}% منها {col} = {value}، وقد يدل ذلك على الصفوف القديمة: يمكن لمرشح الصفوف في الحوار استبعادها.",
   "{n} of the file's {total} interval(s) overlap another of the same hole, in {holes} hole(s); no column of the file marks them.": "{n} من فواصل الملف البالغة {total} تتداخل مع فاصل آخر في البئر نفسه، في {holes} بئر؛ ولا يوجد عمود في الملف يميزها.",
-  "{fileName}: {n} of {total} interval(s) overlap another of the same hole, in {holes} hole(s); {pct}% of them have {col} = {value}, which may mark the out-of-date rows: the import's row filter can leave them out.": "{fileName}: {n} من {total} فاصل تتداخل مع فاصل آخر في البئر نفسه، في {holes} بئر؛ لدى {pct}% منها {col} = {value}، وقد يدل ذلك على الصفوف القديمة: يمكن لمرشح صفوف الاستيراد استبعادها."
+  "{fileName}: {n} of {total} interval(s) overlap another of the same hole, in {holes} hole(s); {pct}% of them have {col} = {value}, which may mark the out-of-date rows: the import's row filter can leave them out.": "{fileName}: {n} من {total} فاصل تتداخل مع فاصل آخر في البئر نفسه، في {holes} بئر؛ لدى {pct}% منها {col} = {value}، وقد يدل ذلك على الصفوف القديمة: يمكن لمرشح صفوف الاستيراد استبعادها.",
+  "\"{name}\" holds {n} radiometric channels ({list}): tick the ones to import, each as its own survey.": "يحتوي \"{name}\" على {n} قناة إشعاعية ({list}): حدد ما تريد استيراده، كل قناة كمسح مستقل.",
+  "Tick at least one channel to import.": "حدد قناة واحدة على الأقل للاستيراد.",
+  "Import each ticked channel as its own survey:": "استورد كل قناة محددة كمسح مستقل:",
+  "Also make the {list} ratio survey(s) from the same stations": "أنشئ أيضًا مسوح النسبة {list} من المحطات نفسها",
+  " As {k} survey(s): {list}.": " كـ {k} مسح: {list}."
 }
