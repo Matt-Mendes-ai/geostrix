@@ -21,7 +21,7 @@ test("the texts say what the tools do now", () => {
   assert.ok(!/window will be unresponsive/.test(m) && !/window will be unresponsive/.test(src("../src/help/pages/modelling.js")));
   const r = src("../src/modules/viewer/modellingRuns.js");
   assert.match(r, /notice\(!\(numericSearchRadius > 0\) \? "\\"\{label\}\\" was closed ARTIFICIALLY at the edge of the grid/);
-  assert.match(r, /summarizeSupport\(grid\.supportCounts\)\.replace\(\/\\.\$\/, ""\)/);
+  assert.match(r, /summarizeSupport\(grid\.supportCounts, \{ tool: "shell" \} \/\* #2071 \*\/\)\.replace\(\/\\.\$\/, ""\)/); // #2071: the shells own advice
 });
 
 test("nearest neighbour never reports blocks 'dominated' by one hole", () => {

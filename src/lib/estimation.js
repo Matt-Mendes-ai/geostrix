@@ -753,7 +753,9 @@ export function makeSupportClassifier(samplePoints, opts = {}) {
 
 // TASKS.csv #91 — one-line human summary of a classification tally, used verbatim in run notices and in
 // the surface panel so the wording can't drift between them.
-export function summarizeSupport(counts) {
+// TASKS.csv #2071 (review #2013, Woodjam) — opts.tool "shell": the Grade shell has no Max samples or samples-per-hole control (it takes the
+// 16 nearest samples), so its advice names what its pane does have
+export function summarizeSupport(counts, { tool = "estimate" } = {}) {
   const total = (counts.interpolated || 0) + (counts.extrapolated || 0) + (counts.unsupported || 0);
   if (!total) return "no cells classified";
   const pct = (n) => `${Math.round((100 * (n || 0)) / total)}%`;
@@ -761,7 +763,7 @@ export function summarizeSupport(counts) {
     + `${(counts.extrapolated || 0).toLocaleString()} extrapolated (${pct(counts.extrapolated)}), `
     + `${(counts.unsupported || 0).toLocaleString()} unsupported (${pct(counts.unsupported)})`;
   if (counts.searchLimited) {
-    s += `. Of the extrapolated cells, ${counts.searchLimited.toLocaleString()} DO have data surrounding them inside the search radius — the neighbourhood simply never reached it (every sample used came from nearer composites in fewer holes). Raising max samples, lengthening composites, or limiting samples per hole would convert those.`;
+    s += `. Of the extrapolated cells, ${counts.searchLimited.toLocaleString()} DO have data surrounding them inside the search radius — the neighbourhood simply never reached it (every sample used came from nearer composites in fewer holes). ${tool === "shell" ? "Longer composites would convert those (a grade shell takes the 16 nearest samples per cell; Max samples and samples per hole are set in Estimate grade into block model)." : "Raising max samples, lengthening composites, or limiting samples per hole would convert those."}`;
   }
   return s;
 }
