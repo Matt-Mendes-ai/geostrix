@@ -9029,7 +9029,7 @@
   "Coloured {n} of {total} codes like Macrostrat's lithologies (CC BY 4.0): {list}. The others keep their colours.": "{n} codes sur {total} colorés comme les lithologies de Macrostrat (CC BY 4.0) : {list}. Les autres gardent leurs couleurs.",
   "Colour each code like Macrostrat's lithology of the same name (from the code, its label or its logged description; data CC BY 4.0). Codes that match none keep their colour.": "Colore chaque code comme la lithologie Macrostrat du même nom (d'après le code, son libellé ou sa description décrite ; données CC BY 4.0). Les codes sans correspondance gardent leur couleur.",
   "Macrostrat colours": "Couleurs Macrostrat",
-  "Colour the units whose name gives an age (Late Jurassic, Eocene ...) in the international time scale's colours, from Macrostrat (CC BY 4.0). The others keep their colours.": "Colore les unités dont le nom donne un âge (Jurassique supérieur, Éocène ...) avec les couleurs de l'échelle des temps internationale, d'après Macrostrat (CC BY 4.0). Les autres gardent leurs couleurs.",
+  "Colour the units whose name gives an age (Late Jurassic, Eocene ...) in the international time scale's colours, fetched from Macrostrat (CC BY 4.0) over the internet. The others keep their colours.": "Colore les unités dont le nom donne un âge (Jurassique supérieur, Éocène ...) avec les couleurs de l'échelle des temps internationale, d'après Macrostrat (CC BY 4.0), par Internet. Les autres gardent leurs couleurs.",
   "\"{name}\": {n} of {total} units coloured by the time scale (Macrostrat, CC BY 4.0); the others keep their colours.": "« {name} » : {n} unités sur {total} colorées selon l'échelle des temps (Macrostrat, CC BY 4.0) ; les autres gardent leurs couleurs.",
   "Time-scale colours": "Couleurs de l'échelle des temps",
   "{name}.TAB is a MapInfo wrapper around a shapefile: select {name}.shp with its .dbf and .prj too.": "{name}.TAB est une enveloppe MapInfo autour d'un shapefile : sélectionnez aussi {name}.shp avec son .dbf et son .prj.",
@@ -10058,5 +10058,7 @@
   "none in the file: drawn flat at {z} m": "aucune dans le fichier : dessiné à plat à {z} m",
   "none in the file": "aucune dans le fichier",
   "{n} column(s) of the file were not imported: {cols}. Add one under Extra fields in the import dialog to keep it.": "{n} colonne(s) du fichier n'ont pas été importées : {cols}. Ajoutez-en une sous Champs supplémentaires dans la fenêtre d'import pour la garder.",
-  "The row filter keeps no row: tick at least one value under Rows.": "Le filtre de lignes ne garde aucune ligne : cochez au moins une valeur sous Lignes."
+  "The row filter keeps no row: tick at least one value under Rows.": "Le filtre de lignes ne garde aucune ligne : cochez au moins une valeur sous Lignes.",
+  "Time-scale colours (online)": "Couleurs de l'échelle des temps (en ligne)",
+  "The time-scale colours come from Macrostrat over the internet: offline, the units keep their colours.": "Les couleurs de l'échelle des temps viennent de Macrostrat par Internet : hors ligne, les unités gardent leurs couleurs."
 }

@@ -9029,7 +9029,7 @@
   "Coloured {n} of {total} codes like Macrostrat's lithologies (CC BY 4.0): {list}. The others keep their colours.": "لُوّن {n} من {total} رمزًا مثل صخاريات Macrostrat (CC BY 4.0): {list}. تحتفظ البقية بألوانها.",
   "Colour each code like Macrostrat's lithology of the same name (from the code, its label or its logged description; data CC BY 4.0). Codes that match none keep their colour.": "لوّن كل رمز مثل صخارة Macrostrat التي تحمل الاسم نفسه (من الرمز أو تسميته أو وصفه المسجل؛ البيانات CC BY 4.0). تحتفظ الرموز غير المطابقة بلونها.",
   "Macrostrat colours": "ألوان Macrostrat",
-  "Colour the units whose name gives an age (Late Jurassic, Eocene ...) in the international time scale's colours, from Macrostrat (CC BY 4.0). The others keep their colours.": "لوّن الوحدات التي يدل اسمها على عمر (الجوراسي المتأخر، الإيوسين ...) بألوان المقياس الزمني الدولي، من Macrostrat (CC BY 4.0). تحتفظ البقية بألوانها.",
+  "Colour the units whose name gives an age (Late Jurassic, Eocene ...) in the international time scale's colours, fetched from Macrostrat (CC BY 4.0) over the internet. The others keep their colours.": "لوّن الوحدات التي يدل اسمها على عمر (الجوراسي المتأخر، الإيوسين ...) بألوان المقياس الزمني الدولي، من Macrostrat (CC BY 4.0)، عبر الإنترنت. تحتفظ البقية بألوانها.",
   "\"{name}\": {n} of {total} units coloured by the time scale (Macrostrat, CC BY 4.0); the others keep their colours.": "\"{name}\": لُوّنت {n} من {total} وحدة حسب المقياس الزمني (Macrostrat، CC BY 4.0)؛ تحتفظ البقية بألوانها.",
   "Time-scale colours": "ألوان المقياس الزمني",
   "{name}.TAB is a MapInfo wrapper around a shapefile: select {name}.shp with its .dbf and .prj too.": "{name}.TAB غلاف MapInfo حول ملف shapefile: اختر أيضًا {name}.shp مع ملفي ‎.dbf و‎.prj.",
@@ -10058,5 +10058,7 @@
   "none in the file: drawn flat at {z} m": "لا شيء في الملف: مرسوم مسطّحًا عند {z} م",
   "none in the file": "لا شيء في الملف",
   "{n} column(s) of the file were not imported: {cols}. Add one under Extra fields in the import dialog to keep it.": "لم يُستورد {n} عمود من الملف: {cols}. أضف أحدها ضمن الحقول الإضافية في نافذة الاستيراد للاحتفاظ به.",
-  "The row filter keeps no row: tick at least one value under Rows.": "لا يُبقي مرشّح الصفوف أي صف: حدّد قيمة واحدة على الأقل ضمن الصفوف."
+  "The row filter keeps no row: tick at least one value under Rows.": "لا يُبقي مرشّح الصفوف أي صف: حدّد قيمة واحدة على الأقل ضمن الصفوف.",
+  "Time-scale colours (online)": "ألوان المقياس الزمني (عبر الإنترنت)",
+  "The time-scale colours come from Macrostrat over the internet: offline, the units keep their colours.": "تأتي ألوان المقياس الزمني من Macrostrat عبر الإنترنت: دون اتصال، تحتفظ الوحدات بألوانها."
 }

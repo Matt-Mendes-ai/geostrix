@@ -9029,7 +9029,7 @@
   "Coloured {n} of {total} codes like Macrostrat's lithologies (CC BY 4.0): {list}. The others keep their colours.": "{n} de {total} códigos coloridos como as litologias do Macrostrat (CC BY 4.0): {list}. Os demais mantêm suas cores.",
   "Colour each code like Macrostrat's lithology of the same name (from the code, its label or its logged description; data CC BY 4.0). Codes that match none keep their colour.": "Colore cada código como a litologia do Macrostrat de mesmo nome (pelo código, seu rótulo ou sua descrição registrada; dados CC BY 4.0). Códigos sem correspondência mantêm sua cor.",
   "Macrostrat colours": "Cores do Macrostrat",
-  "Colour the units whose name gives an age (Late Jurassic, Eocene ...) in the international time scale's colours, from Macrostrat (CC BY 4.0). The others keep their colours.": "Colore as unidades cujo nome indica uma idade (Jurássico Superior, Eoceno ...) com as cores da escala de tempo internacional, do Macrostrat (CC BY 4.0). As demais mantêm suas cores.",
+  "Colour the units whose name gives an age (Late Jurassic, Eocene ...) in the international time scale's colours, fetched from Macrostrat (CC BY 4.0) over the internet. The others keep their colours.": "Colore as unidades cujo nome indica uma idade (Jurássico Superior, Eoceno ...) com as cores da escala de tempo internacional, do Macrostrat (CC BY 4.0), pela internet. As demais mantêm suas cores.",
   "\"{name}\": {n} of {total} units coloured by the time scale (Macrostrat, CC BY 4.0); the others keep their colours.": "\"{name}\": {n} de {total} unidades coloridas pela escala de tempo (Macrostrat, CC BY 4.0); as demais mantêm suas cores.",
   "Time-scale colours": "Cores da escala de tempo",
   "{name}.TAB is a MapInfo wrapper around a shapefile: select {name}.shp with its .dbf and .prj too.": "{name}.TAB é um invólucro do MapInfo para um shapefile: selecione também {name}.shp com seu .dbf e .prj.",
@@ -10058,5 +10058,7 @@
   "none in the file: drawn flat at {z} m": "nenhuma no arquivo: desenhado plano a {z} m",
   "none in the file": "nenhuma no arquivo",
   "{n} column(s) of the file were not imported: {cols}. Add one under Extra fields in the import dialog to keep it.": "{n} coluna(s) do arquivo não foram importadas: {cols}. Adicione uma em Campos adicionais no diálogo de importação para mantê-la.",
-  "The row filter keeps no row: tick at least one value under Rows.": "O filtro de linhas não mantém nenhuma linha: marque pelo menos um valor em Linhas."
+  "The row filter keeps no row: tick at least one value under Rows.": "O filtro de linhas não mantém nenhuma linha: marque pelo menos um valor em Linhas.",
+  "Time-scale colours (online)": "Cores da escala de tempo (online)",
+  "The time-scale colours come from Macrostrat over the internet: offline, the units keep their colours.": "As cores da escala de tempo vêm do Macrostrat pela internet: sem conexão, as unidades mantêm suas cores."
 }
