@@ -10049,5 +10049,11 @@
   "Filter the hole list": "Filtrer la liste des sondages",
   "No hole id contains \"{q}\".": "Aucun identifiant de sondage ne contient « {q} ».",
   "As-drilled hole": "Sondage foré",
-  "{n} collar(s) with no survey and no azimuth / dip are not listed: their path is not known.": "{n} collet(s) sans levé ni azimut / pendage ne sont pas listés : leur trajectoire n'est pas connue."
+  "{n} collar(s) with no survey and no azimuth / dip are not listed: their path is not known.": "{n} collet(s) sans levé ni azimut / pendage ne sont pas listés : leur trajectoire n'est pas connue.",
+  "the same as": "identique à",
+  "The grid's blocks are {s} m: the benches were made taller than the block model's {h} m to stay within the cell limit; the plan cells keep {c} m.": "Les blocs de la grille font {s} m : les gradins ont été rendus plus hauts que les {h} m du modèle de blocs pour rester sous la limite de cellules ; les cellules en plan gardent {c} m.",
+  "Hide the earlier pits when this one is made": "Masquer les fosses précédentes quand celle-ci est faite",
+  "Split at a vertex of the string.": "Coupez à un sommet de la polyligne.",
+  "Opened the closed string at vertex {n}: one string of {m} vertices that starts and ends there.": "La polyligne fermée a été ouverte au sommet {n} : une polyligne de {m} sommets qui commence et finit là.",
+  "Z {z} is the median collar elevation, only the level clicks are taken on until the start is placed; the start then takes the ground under it.": "Z {z} est l'altitude médiane des collets, seulement le niveau où les clics sont pris tant que le départ n'est pas placé ; le départ prend ensuite le terrain sous lui."
 }

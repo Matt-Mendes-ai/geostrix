@@ -10049,5 +10049,11 @@
   "Filter the hole list": "Filtrar a lista de furos",
   "No hole id contains \"{q}\".": "Nenhum id de furo contém \"{q}\".",
   "As-drilled hole": "Furo perfurado",
-  "{n} collar(s) with no survey and no azimuth / dip are not listed: their path is not known.": "{n} colar(es) sem levantamento nem azimute / mergulho não são listados: sua trajetória não é conhecida."
+  "{n} collar(s) with no survey and no azimuth / dip are not listed: their path is not known.": "{n} colar(es) sem levantamento nem azimute / mergulho não são listados: sua trajetória não é conhecida.",
+  "the same as": "igual a",
+  "The grid's blocks are {s} m: the benches were made taller than the block model's {h} m to stay within the cell limit; the plan cells keep {c} m.": "Os blocos da malha medem {s} m: as bancadas ficaram mais altas que os {h} m do modelo de blocos para respeitar o limite de células; as células em planta mantêm {c} m.",
+  "Hide the earlier pits when this one is made": "Ocultar as cavas anteriores quando esta for feita",
+  "Split at a vertex of the string.": "Divida num vértice da linha.",
+  "Opened the closed string at vertex {n}: one string of {m} vertices that starts and ends there.": "A linha fechada foi aberta no vértice {n}: uma linha de {m} vértices que começa e termina ali.",
+  "Z {z} is the median collar elevation, only the level clicks are taken on until the start is placed; the start then takes the ground under it.": "Z {z} é a cota mediana dos colares, apenas o nível em que os cliques são tomados até o início ser colocado; depois o início toma o terreno abaixo dele."
 }

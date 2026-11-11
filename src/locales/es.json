@@ -10049,5 +10049,11 @@
   "Filter the hole list": "Filtrar la lista de sondajes",
   "No hole id contains \"{q}\".": "Ningún id de sondaje contiene \"{q}\".",
   "As-drilled hole": "Sondaje perforado",
-  "{n} collar(s) with no survey and no azimuth / dip are not listed: their path is not known.": "{n} collar(es) sin medición ni azimut / inclinación no se listan: su trayectoria no se conoce."
+  "{n} collar(s) with no survey and no azimuth / dip are not listed: their path is not known.": "{n} collar(es) sin medición ni azimut / inclinación no se listan: su trayectoria no se conoce.",
+  "the same as": "igual a",
+  "The grid's blocks are {s} m: the benches were made taller than the block model's {h} m to stay within the cell limit; the plan cells keep {c} m.": "Los bloques de la malla miden {s} m: los bancos se hicieron más altos que los {h} m del modelo de bloques para respetar el límite de celdas; las celdas en planta conservan {c} m.",
+  "Hide the earlier pits when this one is made": "Ocultar los rajos anteriores cuando se haga este",
+  "Split at a vertex of the string.": "Divida en un vértice de la cadena.",
+  "Opened the closed string at vertex {n}: one string of {m} vertices that starts and ends there.": "Se abrió la cadena cerrada en el vértice {n}: una cadena de {m} vértices que empieza y termina allí.",
+  "Z {z} is the median collar elevation, only the level clicks are taken on until the start is placed; the start then takes the ground under it.": "Z {z} es la cota mediana de los collares, solo el nivel en que se toman los clics hasta que se coloque el inicio; luego el inicio toma el terreno bajo él."
 }
