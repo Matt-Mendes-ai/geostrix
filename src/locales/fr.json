@@ -10280,5 +10280,9 @@
   "Could not read: {list}.": "Lecture impossible : {list}.",
   "{name}: no block model made. {why}": "{name} : aucun modèle de blocs créé. {why}",
   "The Voxet names no property.": "Le Voxet ne nomme aucune propriété.",
-  "{name}: couldn't read the GOCAD Voxet ({message}).": "{name} : impossible de lire le Voxet GOCAD ({message})."
+  "{name}: couldn't read the GOCAD Voxet ({message}).": "{name} : impossible de lire le Voxet GOCAD ({message}).",
+  "the project's coordinates (no CRS set)": "les coordonnées du projet (aucun SCR défini)",
+  "ground": "terrain",
+  "Z blank: {z} m from the drawing target under E / N": "Z vide : {z} m de la cible de dessin sous E / N",
+  "Starts at twice the typical drill-site spacing ({s} m).": "Commence au double de l'espacement typique des sites de forage ({s} m)."
 }

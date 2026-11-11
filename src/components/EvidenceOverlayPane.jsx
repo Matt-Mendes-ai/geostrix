@@ -66,10 +66,14 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
   const pointLayers = useMemo(() => mapLayers.filter((l) => l.geomType === "point" && l.features?.length), [mapLayers]);
 
   const geophysPts = projectLayers?.geophys_pts, structurePicks = projectLayers?.structure;
-  const traces = useMemo(() => holeTraces(drilledCollars(collars).collars, survey, project?.desurveyMethod), [collars, survey, project?.desurveyMethod]); // drilledCollars: #2097 — a proposed collar is not drilled ground
+  const traces = useMemo(() => holeTraces(drilledCollars(collars).collars, survey, project?.desurveyMethod), [collars, survey, project?.desurveyMethod]);
+  // TASKS.csv #2644 — a drillhole card's default Reach from the drilling: twice the typical drill-site spacing (as sample and survey cards
+  // take theirs from their own spacing), 50-1,000 m; the fixed 250 m when the spacing is unknown (ten spacings on a 25 m grid)
+  const siteSpacing = useMemo(() => medianSiteSpacing(drilledCollars(collars).collars), [collars]);
+  const drillReach = siteSpacing > 0 ? Math.round(Math.min(1000, Math.max(50, 2 * siteSpacing))) : DRILL_REACH_M; // drilledCollars: #2097 — a proposed collar is not drilled ground
   // TASKS.csv #1727 (review #1645, Copley) — the grid around the drilling grows with the largest reach a drillhole evidence was given
   // (a 1,000 m reach ran into the edge of a box that ended 250 m past the outer holes), and a drill-only overlay says what it ranks
-  const drillPad = useMemo(() => Math.max(DRILL_REACH_M, ...layers.filter((l) => l.kind === "grade" || l.kind === "pxrf").map((l) => Number(l.reach) || 0)), [layers]);
+  const drillPad = useMemo(() => Math.max(drillReach /* #2644 */, ...layers.filter((l) => l.kind === "grade" || l.kind === "pxrf").map((l) => Number(l.reach) || 0)), [layers, drillReach]);
   // TASKS.csv #1458 — the elevation range the drillhole evidence is projected from (the desurveyed traces)
   const drillZ = useMemo(() => { let a = Infinity, b = -Infinity; for (const t of traces.values()) for (const p of t) { if (p.z < a) a = p.z; if (p.z > b) b = p.z; } return a <= b ? [a, b] : null; }, [traces]);
   const drillOnly = layers.length > 0 && layers.every((l) => l.kind === "grade" || l.kind === "pxrf" || l.kind === "pick" || l.kind === "numeric" || l.kind === "zone");
@@ -219,12 +223,12 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
     if (src.kind === "pick") return distanceEvidence(grid, structureParts(structurePicks, src.ref, traces, lv)); // lv: #2326
     if (src.kind === "drilled") return distanceEvidence(grid, drilledParts(traces)); // #1456
     if (src.kind === "solid") { const m = solidMesh?.(src.ref); return m?.vertices?.length ? solidFootprintEvidence(grid, m.vertices, m.indices) : null; } // #1567
-    if (src.kind === "numeric") return pointEvidence(grid, numericPointsOf(src.ref, lv), { maxDistance: opts.reach || DRILL_REACH_M }); // #1728; lv: #2326; a code's per-hole measure: #2453
+    if (src.kind === "numeric") return pointEvidence(grid, numericPointsOf(src.ref, lv), { maxDistance: opts.reach || drillReach }); // #1728; lv: #2326; a code's per-hole measure: #2453
     if (src.kind === "zone" && parseCodedRef(src.ref)) { const z = parseCodedRef(src.ref); return distanceEvidence(grid, zoneParts(codedRowsOf(z.l, projectLayers, customLayers), z.c, traces, undefined, lv, { field: z.f, fold: !!z.fold })); } // #2453 / #2583
     if (src.kind === "zone") { const i = src.ref.indexOf(":"); return distanceEvidence(grid, zoneParts(projectLayers?.[src.ref.slice(0, i)], src.ref.slice(i + 1), traces, undefined, lv)); } // #1728 / #1455 — ref = layer:code
     if (src.kind === "survey") { const pts = surveyPoints(geophysPts, src.ref); return pointEvidence(grid, pts, { maxDistance: opts.reach || reachFromSpacing(pts, 4) }); }
-    if (src.kind === "grade") return pointEvidence(grid, holeGradePoints(gradeAssaysOf(cleanAssays, opts), src.ref, assayUnits[src.ref] || "ppm", assayUnits, traces, undefined, lv, !!opts.lowest), { maxDistance: opts.reach || DRILL_REACH_M });
-    if (src.kind === "pxrf") return pointEvidence(grid, holeGradePoints(gradeAssaysOf(pxrfAssays, opts), src.ref, assayUnits[src.ref] || "ppm", assayUnits, traces, undefined, lv, !!opts.lowest), { maxDistance: opts.reach || DRILL_REACH_M }); // #1723
+    if (src.kind === "grade") return pointEvidence(grid, holeGradePoints(gradeAssaysOf(cleanAssays, opts), src.ref, assayUnits[src.ref] || "ppm", assayUnits, traces, undefined, lv, !!opts.lowest), { maxDistance: opts.reach || drillReach });
+    if (src.kind === "pxrf") return pointEvidence(grid, holeGradePoints(gradeAssaysOf(pxrfAssays, opts), src.ref, assayUnits[src.ref] || "ppm", assayUnits, traces, undefined, lv, !!opts.lowest), { maxDistance: opts.reach || drillReach }); // #1723
     const all = sampleValues(surfaceSamples, src.kind === "element" ? { kind: "element", symbol: src.ref } : { kind: "index", preset: src.ref }, units);
     // #1449 — one medium at a time when the layer names one (value = medium): soils and streams are not one surface
     const pts = opts.field === "medium" ? all.filter((_, i) => (surfaceSamples[i].medium || "") === opts.value) : all;
@@ -234,7 +238,7 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
   // of metres (#1449 — one reach for all media gave Silvertip's soils 2.5 km); far outliers do not count (#1450); the spacing is
   // the median nearest-neighbour distance (#1829 / #1561: the bounding box of seven soil grids gave Kodiak's 48 m soils 700 m)
   const reachOfMedium = (medium) => reachFromNeighbours(medium == null ? sampleCore.samples : sampleCore.samples.filter((s) => (s.medium || "") === medium));
-  const reachOf = (src, medium = null) => (src.kind === "grade" || src.kind === "pxrf" || src.kind === "numeric" ? DRILL_REACH_M : src.kind === "survey" ? reachFromSpacing(surveyPoints(geophysPts, src.ref), 4) : reachOfMedium(medium));
+  const reachOf = (src, medium = null) => (src.kind === "grade" || src.kind === "pxrf" || src.kind === "numeric" ? drillReach /* #2644 */ : src.kind === "survey" ? reachFromSpacing(surveyPoints(geophysPts, src.ref), 4) : reachOfMedium(medium));
   // TASKS.csv #2099 — a drill-grade card's ends from the lab assays of its element (QC and pXRF excluded), length-weighted P50 / P95
   // lowest: #2578 — a card favourable when LOW takes its ends from the low tail (P5 = 1, P50 = 0), the bins' lowest values
   const gradeEnds = (sym, lowest = false) => gradeEndsFromSamples(cleanAssays, (a) => valueIn(a, sym, assayUnits[sym] || "ppm", assayUnits), lowest ? { qLow: 0.05, qHigh: 0.5 } : { mapped: holeGradePoints(cleanAssays, sym, assayUnits[sym] || "ppm", assayUnits, traces, undefined, level, lowest).map((p) => p.value) }); // mapped: #2448
@@ -242,7 +246,7 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
     const src = sources.find((s) => s.key === key); if (!src) return;
     // #1449 — sample evidence starts on the medium with the most samples when there are several (changeable on the card)
     const medium = (src.kind === "element" || src.kind === "index") && media.length > 1 ? media[0] : null;
-    const pick = medium != null ? { field: "medium", value: medium, reach: reachOf(src, medium) } : {};
+    const pick = medium != null ? { field: "medium", value: medium, reach: reachOf(src, medium) } : src.kind === "grade" || src.kind === "pxrf" || src.kind === "numeric" ? { reach: drillReach } /* #2644 — the first values at the card's own reach */ : {};
     const values = computeValues(src, pick);
     if (!values) { setMsg(tr("No grid yet: load terrain, a raster, a map layer or samples first.")); return; }
     const finite = values.filter(Number.isFinite);
@@ -402,7 +406,7 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
     out.level = level;
     out.topShare = topScoreShare(fuzzy); // #2448 — said when over a third of the scored cells are at the top
     out.cardPts = layers.filter((l) => l.kind === "grade" || l.kind === "pxrf" || l.kind === "numeric").map((l) => {
-      const reach = l.reach || DRILL_REACH_M;
+      const reach = l.reach || drillReach;
       if (l.kind === "numeric") return { pts: numericPointsOf(l.ref, level), reach }; // #2453
       return { pts: holeGradePoints(gradeAssaysOf(l.kind === "pxrf" ? pxrfAssays : cleanAssays, l), l.ref, assayUnits[l.ref] || "ppm", assayUnits, traces, undefined, level, !!l.lowest), reach }; // the card's holes (#2577) and lowest (#2578), as its values: #2579
     });
@@ -495,7 +499,7 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
                 {l.zMin == null && l.zMax == null && <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)" }}>{zr ? tr("Whole column: every depth of the model ({z0}–{z1} m RL) counts, projected to the map. Set an elevation band to read one level.", { z0: Math.round(zr[0]).toLocaleString(), z1: Math.round(zr[1]).toLocaleString() }) /* #1458 */ : tr("Whole column: every depth of the model counts. Set an elevation band to read one level.")}</span>}
               </div>);
             })()}
-            {(l.kind === "element" || l.kind === "index" || l.kind === "survey" || l.kind === "grade" || l.kind === "pxrf" || l.kind === "numeric") && <label style={row}>{tr("Reach (m)")}<input type="number" min="10" step="50" value={l.reach} onChange={(e) => updateLayer(l.id, { reach: Math.max(10, Number(e.target.value) || reachOf(l, l.field === "medium" ? l.value : null)) }, true)} style={{ ...sel, width: 70 }} /></label>}
+            {(l.kind === "element" || l.kind === "index" || l.kind === "survey" || l.kind === "grade" || l.kind === "pxrf" || l.kind === "numeric") && <label style={row} title={(l.kind === "grade" || l.kind === "pxrf" || l.kind === "numeric") && siteSpacing > 0 ? tr("Starts at twice the typical drill-site spacing ({s} m).", { s: Math.round(siteSpacing) }) : undefined /* #2644 */}>{tr("Reach (m)")}<input type="number" min="10" step="50" value={l.reach} onChange={(e) => updateLayer(l.id, { reach: Math.max(10, Number(e.target.value) || reachOf(l, l.field === "medium" ? l.value : null)) }, true)} style={{ ...sel, width: 70 }} /></label>}
             <div style={{ display: "flex", gap: 4, alignItems: "center", flexWrap: "wrap" }}>
               <select value={l.shape} onChange={(e) => { const shape = e.target.value, hole = l.kind === "grade" || l.kind === "pxrf"; updateLayer(l.id, { shape, ...(hole ? { lowest: shape === "decreasing" } : {}) }, hole); /* #2578 — a drillhole card maps each bin's lowest when favourable when low */ }} style={sel} aria-label={tr("Membership")}><option value="increasing">{tr("favourable when high")}</option><option value="decreasing">{tr("favourable when low")}</option></select>
               <label style={row}>{l.shape === "decreasing" ? "1" : "0"} ={" "}<input type="number" step="any" value={l.lowText} onChange={(e) => updateLayer(l.id, { lowText: e.target.value, low: e.target.value === "" ? NaN : Number(e.target.value), endsEdited: true /* #1565 */ })} style={{ ...sel, width: 76 }} aria-label={l.shape === "decreasing" ? tr("Membership 1 at") : tr("Membership 0 at")} /></label>

@@ -32,7 +32,7 @@ let kept = null; // #1356 — the last result (with its strings, for export) out
 // surface's mesh; onAdd / onToggle / onRemove as the pit pane's
 export default function PitDesignPane({ surfaces = [], worldPositionsOf, onAdd, onToggle, onRemove, onClose }) {
   const { voxelModels = [], terrain, collars = [], project, designStrings = [] } = useStore();
-  const areas = useMemo(() => designStrings.filter((s) => s.closed && s.vertices.length > 2), [designStrings]); // #1916 — design areas
+  const areas = useMemo(() => designStrings.filter((s) => s.closed && s.vertices.length > 2 && !s.stopeRun /* #2601 */), [designStrings]); // #1916 — design areas
   const [areaId, setAreaId] = useState("");
   const area = areas.find((s) => s.id === areaId) || null;
   const pits = useMemo(() => surfaces.filter((s) => s.type === "pit_shell"), [surfaces]);

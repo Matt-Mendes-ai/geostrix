@@ -24,7 +24,7 @@ let kept = null; // #1356 — the last inputs and result outlive the pane (this 
 // surfaces: the generated surfaces (pit shells for the comparison); onAdd as the pit pane's
 export default function DumpPane({ surfaces = [], onAdd, onClose }) {
   const { designStrings = [], terrain, collars = [] } = useStore();
-  const footprints = useMemo(() => designStrings.filter((s) => s.closed && s.vertices.length > 2), [designStrings]);
+  const footprints = useMemo(() => designStrings.filter((s) => s.closed && s.vertices.length > 2 && !s.stopeRun /* #2601 — not a stope outline */), [designStrings]);
   const pits = useMemo(() => surfaces.filter((s) => s.type === "pit_shell" && Number.isFinite(s.params?.wasteTonnes)), [surfaces]);
   const [f, setF] = useState(() => ({ ...EMPTY, ...(kept?.inputs || {}) }));
   const [res, setRes] = useState(() => kept?.result || null);

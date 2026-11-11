@@ -37,6 +37,7 @@ const byFields = (inp) => ({ byModelId: inp?.by?.modelId ?? "", byPrice: inp?.by
 const SECTOR_GRID = [["NW", "N", "NE"], ["W", null, "E"], ["SW", "S", "SE"]]; // the compass layout of the sector slopes
 const PRICE_UNIT_MASS = { g: { g: 1, oz: 31.1034768 }, t: { t: 1, lb: 1 / 2204.62262 } }; // #1898 — the mass each price unit prices
 const FIELDS = ["price", "recovery", "miningCost", "processingCost", "density", "slopeDeg"];
+let keptForm = null; // TASKS.csv #2602 — the form as last set (a by-product cleared stays cleared when the pane reopens)
 let kept = null; // #1356 — the last result, shown again when the pane or the tab comes back (this session)
 
 // surfaces: the project's generated surfaces (the last pit's inputs come back from its saved parameters).
@@ -51,8 +52,9 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove,
       .sort((a, c) => (valueUnit(c) ? 1 : 0) - (valueUnit(a) ? 1 : 0));
   }, [voxelModels]);
   const last = useMemo(() => [...surfaces].reverse().find((s) => s.type === "pit_shell" && !s.params?.seriesId)?.params?.inputs || null, [surfaces]); // not a series shell (#1927)
-  const [modelId, setModelId] = useState(() => (models.find((m) => (m.id ?? m.name) === last?.modelId) ? last.modelId : models[0]?.id ?? models[0]?.name ?? ""));
-  const [f, setF] = useState(() => ({ ...EMPTY, ...(last || {}), ...byFields(last), ...weathFields(last) }));
+  const [modelId, setModelId] = useState(() => (keptForm && models.some((m) => (m.id ?? m.name) === keptForm.modelId) ? keptForm.modelId : models.find((m) => (m.id ?? m.name) === last?.modelId) ? last.modelId : models[0]?.id ?? models[0]?.name ?? "")); // keptForm: #2602
+  const [f, setF] = useState(() => (keptForm && models.some((m) => (m.id ?? m.name) === keptForm.modelId) ? keptForm.f : { ...EMPTY, ...(last || {}), ...byFields(last), ...weathFields(last) })); // keptForm: #2602
+  useEffect(() => { keptForm = { f, modelId }; }); // #2602 — after every render: the form and its model
   const [busy, setBusy] = useState(null);
   const [res, setRes] = useState(() => (kept && models.some((m) => m.name === kept.model) ? kept : null));
   const [hideEarlier, setHideEarlier] = useState(true);
@@ -94,7 +96,7 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove,
   const prices = metal ? priceUnitsFor(metal, element) : null, priceUnit = prices?.some(([k]) => k === f.priceUnit) ? f.priceUnit : prices?.[0][0];
   // TASKS.csv #1917 (from #1615 Lawyers, #1749 Copley) — an optional BY-PRODUCT: a second block model on the same grid (Ag beside Au,
   // Au beside Cu) with its own price and recovery; a block's revenue is the sum over the metals. Only a model with a stated unit.
-  const byCandidates = models.filter((m) => m !== model && valueUnit(m));
+  const byCandidates = models.filter((m) => m !== model && valueUnit(m) && !(element && elementOfModel(m) === element)); // #2443 — the same metal is not a by-product (it would be paid twice)
   const byModel = byCandidates.find((m) => (m.id ?? m.name) === f.byModelId) || null;
   const byUnit = byModel ? valueUnit(byModel) : null, byElement = elementOfModel(byModel), byMetal = byUnit ? pitMetalOf(byUnit, byElement) : null;
   const byPrices = byMetal ? priceUnitsFor(byMetal, byElement) : null, byPriceUnit = byPrices?.some(([k]) => k === f.byPriceUnit) ? f.byPriceUnit : byPrices?.[0][0];
@@ -107,13 +109,20 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove,
   const set = (k) => (e) => { setF((p) => ({ ...p, [k]: e.target.value })); setMsg(null); }; // #1613
   // #1355 — a price belongs to the unit it was typed in: switching from a % model ($/lb) to a ppm one ($/oz) blanks it, never re-reads it
   const priceStale = f.price !== "" && !!f.priceUnit && !!prices && !prices.some(([k]) => k === f.priceUnit);
-  const setPrice = (e) => setF((p) => ({ ...p, price: e.target.value, priceUnit }));
+  // TASKS.csv #2442 (review #2325) — every conversion starts from the price as TYPED, so $/lb -> $/t -> $/lb returns 80, not 80.0001
+  const typedPrice = useRef(null);
+  const setPrice = (e) => { typedPrice.current = { value: e.target.value, unit: priceUnit }; setF((p) => ({ ...p, price: e.target.value, priceUnit })); };
   // #1898 — switching the picker converts the typed price to the new unit (1,800 $/oz is 57.87 $/g; 4 $/lb is 8,818 $/t)
   const setPriceUnit = (e) => {
-    const to = e.target.value, from = priceUnit, n = Number(f.price);
+    const F0 = metal?.unit === "g" ? PRICE_UNIT_MASS.g : PRICED_MASS_T;
+    // #2442 — the typed price is the source while it still matches what the field shows (an Edit or a reload replaces it)
+    const t0 = typedPrice.current, shown = Number(f.price);
+    const viaTyped = t0 && Number(t0.value) > 0 && F0[t0.unit] != null && F0[priceUnit] != null ? Number(t0.value) * (F0[priceUnit] / F0[t0.unit]) : NaN;
+    const src = t0 && shown > 0 && Math.abs(viaTyped - shown) <= 1e-5 * shown ? t0 : shown > 0 ? (typedPrice.current = { value: f.price, unit: priceUnit }) : null;
+    const to = e.target.value, from = src ? src.unit : priceUnit, n = Number(src ? src.value : f.price); // #2442
     const F = metal?.unit === "g" ? PRICE_UNIT_MASS.g : PRICED_MASS_T; // lbU3O8 / kgU: #2434
     const conv = n > 0 && from && from !== to && F[from] != null && F[to] != null ? n * (F[to] / F[from]) : null;
-    setF((p) => ({ ...p, priceUnit: to, price: conv == null ? p.price : String(+conv.toPrecision(6)) }));
+    setF((p) => ({ ...p, priceUnit: to, price: to === from && src ? src.value : conv == null ? p.price : String(+conv.toPrecision(6)) }));
     setMsg(conv == null ? null : tr("The price was converted to {unit}: {v}.", { unit: (prices.find(([k]) => k === to) || [])[1] || to, v: +conv.toPrecision(6) }));
   };
   const value = (k) => (k === "price" && priceStale ? NaN : Number(f[k]));

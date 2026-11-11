@@ -10280,5 +10280,9 @@
   "Could not read: {list}.": "Não foi possível ler: {list}.",
   "{name}: no block model made. {why}": "{name}: nenhum modelo de blocos criado. {why}",
   "The Voxet names no property.": "O Voxet não nomeia nenhuma propriedade.",
-  "{name}: couldn't read the GOCAD Voxet ({message}).": "{name}: não foi possível ler o Voxet do GOCAD ({message})."
+  "{name}: couldn't read the GOCAD Voxet ({message}).": "{name}: não foi possível ler o Voxet do GOCAD ({message}).",
+  "the project's coordinates (no CRS set)": "as coordenadas do projeto (sem SRC definido)",
+  "ground": "terreno",
+  "Z blank: {z} m from the drawing target under E / N": "Z em branco: {z} m do alvo de desenho sob E / N",
+  "Starts at twice the typical drill-site spacing ({s} m).": "Começa no dobro do espaçamento típico entre locais de sondagem ({s} m)."
 }

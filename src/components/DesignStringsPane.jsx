@@ -254,7 +254,11 @@ export default function DesignStringsPane({ view, onAdd, onClose, surfaces = [],
   }, [drawing, view]);
 
   // ---------- typed vertices and tools ----------
-  const addTyped = () => { const p = [num0(typed.x), num0(typed.y), num0(typed.z)]; if (p.some((v) => v == null)) return; appendVertex(p); setTyped((t) => ({ ...t, x: "", y: "", z: "" })); };
+  // TASKS.csv #2445 (review #2325, WA uranium) — a blank Z takes the drawing target's elevation, as a click and a 2D DXF already do: the ground
+  // under E / N (terrain, else the surface between the collars), or the plane's RL
+  const typedTargetZ = (x, y) => { if (x == null || y == null) return null; if (target === "ground" && groundAt) { const g = groundAt(x, y); return Number.isFinite(g) ? +g.toFixed(2) : null; } if (target === "plane") return num0(planeZ); return null; };
+  const typedZ = num0(typed.z) ?? typedTargetZ(num0(typed.x), num0(typed.y));
+  const addTyped = () => { const p = [num0(typed.x), num0(typed.y), typedZ]; if (p.some((v) => v == null)) return; appendVertex(p); setTyped((t) => ({ ...t, x: "", y: "", z: "" })); };
   const addFromLast = () => {
     const last = string.vertices[string.vertices.length - 1], d = num0(typed.dist), b = num0(typed.bearing);
     if (!last || !(d > 0) || b == null) return;
@@ -322,7 +326,7 @@ export default function DesignStringsPane({ view, onAdd, onClose, surfaces = [],
       strings.forEach((s) => addString({ name: s.name, closed: s.closed, vertices: s.vertices }));
       const skippedN = Object.values(skipped || {}).reduce((a, b) => a + b, 0);
       const flatText = !flat ? "" : z != null ? tr("; {k} string(s) with no Z put at {z} m (the drawing plane)", { k: flat, z }) : groundAt ? tr("; {k} string(s) with no Z draped on the ground ({src})", { k: flat, src: terrain ? tr("the terrain") : tr("interpolated between the collars") }) : tr("; {k} string(s) with no Z put at 0 m: no terrain, collars or drawing plane to take it from", { k: flat });
-      setMsg(tr("{n} string(s) from {f}, taken as {crs}{z}{sk}.", { n: strings.length, f: file.name, crs: crsCell(project) || tr("the project's coordinates"), z: flatText, sk: skippedN ? tr("; {k} other entities skipped", { k: skippedN }) : "" }));
+      setMsg(tr("{n} string(s) from {f}, taken as {crs}{z}{sk}.", { n: strings.length, f: file.name, crs: crsCell(project) !== "not set" ? crsCell(project) : tr("the project's coordinates (no CRS set)") /* #2281 — crsCell's 'not set' is truthy */, z: flatText, sk: skippedN ? tr("; {k} other entities skipped", { k: skippedN }) : "" }));
     } catch (e) { setMsg(e.message || String(e)); }
   };
   const closedStrings = designStrings.filter((s) => s.closed && s.vertices.length > 2);
@@ -368,8 +372,8 @@ export default function DesignStringsPane({ view, onAdd, onClose, surfaces = [],
         <div style={{ ...row, flexWrap: "wrap", gap: 3 }}>
           <Cell value={num0(typed.x)} width={78} placeholder="E" ariaLabel={tr("Easting of the vertex")} onCommit={(v) => setTyped((t) => ({ ...t, x: v == null ? "" : String(v) }))} />
           <Cell value={num0(typed.y)} width={84} placeholder="N" ariaLabel={tr("Northing of the vertex")} onCommit={(v) => setTyped((t) => ({ ...t, y: v == null ? "" : String(v) }))} />
-          <Cell value={num0(typed.z)} width={52} placeholder="Z" ariaLabel={tr("Elevation of the vertex")} onCommit={(v) => setTyped((t) => ({ ...t, z: v == null ? "" : String(v) }))} />
-          <button onClick={addTyped} disabled={[typed.x, typed.y, typed.z].some((v) => num0(v) == null)} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "3px 6px" }}>{tr("Add vertex")}</button>
+          <Cell value={num0(typed.z)} width={52} placeholder={target === "ground" && groundAt ? tr("ground") : target === "plane" && num0(planeZ) != null ? String(num0(planeZ)) : "Z"} ariaLabel={tr("Elevation of the vertex")} onCommit={(v) => setTyped((t) => ({ ...t, z: v == null ? "" : String(v) }))} />
+          <button onClick={addTyped} disabled={num0(typed.x) == null || num0(typed.y) == null || typedZ == null} title={num0(typed.z) == null && typedZ != null ? tr("Z blank: {z} m from the drawing target under E / N", { z: typedZ }) : undefined} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "3px 6px" }}>{tr("Add vertex")}</button>
         </div>
         {string.vertices.length > 0 && (
           <div style={{ ...row, flexWrap: "wrap", gap: 3 }}>

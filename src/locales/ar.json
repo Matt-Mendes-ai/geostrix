@@ -10280,5 +10280,9 @@
   "Could not read: {list}.": "تعذّرت قراءة: {list}.",
   "{name}: no block model made. {why}": "{name}: لم يُنشأ أي نموذج كتل. {why}",
   "The Voxet names no property.": "لا يسمّي Voxet أي خاصية.",
-  "{name}: couldn't read the GOCAD Voxet ({message}).": "{name}: تعذّرت قراءة Voxet ‏GOCAD ‏({message})."
+  "{name}: couldn't read the GOCAD Voxet ({message}).": "{name}: تعذّرت قراءة Voxet ‏GOCAD ‏({message}).",
+  "the project's coordinates (no CRS set)": "إحداثيات المشروع (دون نظام إحداثيات محدد)",
+  "ground": "الأرض",
+  "Z blank: {z} m from the drawing target under E / N": "Z فارغ: {z} م من هدف الرسم تحت E / N",
+  "Starts at twice the typical drill-site spacing ({s} m).": "يبدأ بضعف التباعد المعتاد بين مواقع الحفر ({s} م)."
 }
