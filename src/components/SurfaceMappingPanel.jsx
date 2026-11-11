@@ -23,17 +23,6 @@ import {
 } from "../lib/mapLayers.js";
 import { downholeTableColumns, structureCodeColumn } from "../lib/downholeTableGuess.js"; // TASKS.csv #1722
 
-// TASKS.csv #2093 / #1826 — the structure import's skipped rows, one reason each (parseStructureRows' skipWhy)
-export function skipReasons(w = {}) {
-  return [
-    w.noMeasurement && tr("{n} with no measurement at all", { n: w.noMeasurement }),
-    w.noXY && tr("{n} with no easting or northing", { n: w.noXY }),
-    w.noDip && tr("{n} with a bearing but no dip (a chip line or a trend, not a plane)", { n: w.noDip }),
-    w.badDip && tr("{n} with a dip that is not a number from 0 to 90", { n: w.badDip }),
-    w.bearingUnread && tr("{n} with a dip direction or strike that is not a number (a quadrant bearing such as N45E is not read)", { n: w.bearingUnread }),
-    w.noDirection && tr("{n} with a dip but no dip direction or strike", { n: w.noDirection }),
-  ].filter(Boolean).join("; ");
-}
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { featureCountText } from "../lib/featureCount.js"; // TASKS.csv #1116
@@ -54,6 +43,18 @@ import { projectTargetEpsg } from "../lib/projectTarget.js"; // TASKS.csv #2287 
 import { tieOf, fileToLocal, bearingToLocal } from "../lib/localGridTie.js"; // TASKS.csv #2320
 import { mineGridOf } from "../lib/mineGrid.js"; // TASKS.csv #2586
 import { collarsLookUnderground } from "../lib/pitShell.js"; // TASKS.csv #2265
+
+// TASKS.csv #2093 / #1826 — the structure import's skipped rows, one reason each (parseStructureRows' skipWhy)
+export function skipReasons(w = {}) {
+  return [
+    w.noMeasurement && tr("{n} with no measurement at all", { n: w.noMeasurement }),
+    w.noXY && tr("{n} with no easting or northing", { n: w.noXY }),
+    w.noDip && tr("{n} with a bearing but no dip (a chip line or a trend, not a plane)", { n: w.noDip }),
+    w.badDip && tr("{n} with a dip that is not a number from 0 to 90", { n: w.badDip }),
+    w.bearingUnread && tr("{n} with a dip direction or strike that is not a number (a quadrant bearing such as N45E is not read)", { n: w.bearingUnread }),
+    w.noDirection && tr("{n} with a dip but no dip direction or strike", { n: w.noDirection }),
+  ].filter(Boolean).join("; ");
+}
 
 export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { // part: "maps" | "structures" | null = both (TASKS.csv #458)
   const {
@@ -538,14 +539,16 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
           // not the surface: asked first, named for what it is. (Its NPRC / Unknown 'units' are cover since #2227: roleForLithology reads the notes.)
           const ug = collarsLookUnderground(collars, survey);
           if (ug.underground && !window.confirm(tr("The collars look underground ({upward} hole(s) drilled upward, {stacked} pair(s) of collars stacked over each other): these points would be the first logged unit at the drill positions on the mine levels, not a subcrop map. Make them anyway?", { upward: ug.upward, stacked: ug.stacked }))) return;
-          const pts = collarSubcrop({ collars, survey, litho: layers.litho, desurveyMethod, roleOf: roleWithCodes(modellingCodes) }); // roleOf: #2407
-          if (!pts.length) { setMapMsg({ ok: false, text: tr("No hole has a logged unit under its overburden / casing to place.") }); return; }
+          const rep = { lateStart: [] }; // TASKS.csv #2411 / #2570 — logs that start below the collar
+          const pts = collarSubcrop({ collars, survey, litho: layers.litho, desurveyMethod, roleOf: roleWithCodes(modellingCodes), report: rep }); // roleOf: #2407
+          const late = rep.lateStart.length ? tr("{n} hole(s) whose log starts below the collar ({a}–{b} m down: an unlogged precollar, or logging only where something was met) were left out: their first logged unit is a point down the hole, not a subcrop ({ids}).", { n: rep.lateStart.length, a: Math.round(Math.min(...rep.lateStart.map((h) => h.logStart)) * 10) / 10, b: Math.round(Math.max(...rep.lateStart.map((h) => h.logStart)) * 10) / 10, ids: rep.lateStart.slice(0, 5).map((h) => h.hole_id).join(", ") + (rep.lateStart.length > 5 ? ", …" : "") }) : "";
+          if (!pts.length) { setMapMsg({ ok: false, text: [tr("No hole has a logged unit under its overburden / casing to place."), late].filter(Boolean).join(" ") }); return; }
           const base = ug.underground ? tr("Units at the collars") : tr("Subcrop from collars"); // #2265
           let name = base; for (let k = 2; mapLayers.some((l) => l.name === name); k++) name = `${base} (${k})`;
           const layer = subcropLayer(pts, name, (u) => categoryColor(viewerUiState?.legendOverride?.litho?.[u], LAYER_META.litho, u));
           addMapLayer({ ...layer, drapeMode: terrain ? "terrain" : "file" });
-          const skipped = collars.length - pts.length;
-          setMapMsg({ ok: true, text: [tr("{name}: {n} point(s), {units} unit(s): the first logged unit under the overburden / casing / no recovery at the top of each hole, at the hole's position at that depth. A start for the map, not a mapped outcrop.", { name, n: pts.length, units: layer.categories.length }), skipped > 0 ? (() => { const lo = subcropLeftOut({ collars, litho: layers.litho, roleOf: roleWithCodes(modellingCodes) }); return tr("{n} hole(s) were left out: {a} with no lithology log, {b} with only blank codes, {c} with only cover (overburden / casing / no recovery).", { n: skipped, a: lo.noLog, b: lo.blankOnly, c: lo.coverOnly }); })() /* #2566 — the reason, not one guess for all */ : ""].filter(Boolean).join(" ") });
+          const skipped = collars.length - pts.length - rep.lateStart.length; // the late starts are said on their own (#2411)
+          setMapMsg({ ok: true, text: [tr("{name}: {n} point(s), {units} unit(s): the first logged unit under the overburden / casing / no recovery at the top of each hole, at the hole's position at that depth. A start for the map, not a mapped outcrop.", { name, n: pts.length, units: layer.categories.length }), skipped > 0 ? (() => { const lo = subcropLeftOut({ collars, litho: layers.litho, roleOf: roleWithCodes(modellingCodes) }); return tr("{n} hole(s) were left out: {a} with no lithology log, {b} with only blank codes, {c} with only cover (overburden / casing / no recovery).", { n: skipped, a: lo.noLog, b: lo.blankOnly, c: lo.coverOnly }); })() /* #2566 — the reason, not one guess for all */ : "", late].filter(Boolean).join(" ") });
         }} style={{ ...pBtn, marginTop: 6 }} title={tr("A point map layer at each hole: the first logged unit under its overburden, casing or no recovery, coloured like the logs. It lists the hole and the depth of cover in its attributes.")}>
           <MapIcon size={14} /> {tr("Subcrop from collars")}
         </button>

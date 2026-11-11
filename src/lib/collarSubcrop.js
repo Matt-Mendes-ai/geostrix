@@ -18,7 +18,12 @@ export function roleWithCodes(modellingCodes) {
 }
 
 // -> [{ hole_id, unit, from, to, cover (m of skipped intervals above), x, y, z }], one per hole with a logged unit under its cover
-export function collarSubcrop({ collars, survey, litho, desurveyMethod, roleOf = roleForLithology }) {
+// TASKS.csv #2411 (WA uranium) / #2570 (WA lithium) — a hole whose log STARTS below its collar (an unlogged precollar, a bench hole logged
+// only where it met pegmatite) is not under cover: nothing was logged above, nothing called overburden. Such a hole is left out (its first
+// unit is a point down the hole, not a subcrop) and listed in report.lateStart [{ hole_id, logStart, unit }]. LATE_START_M: a log that
+// starts within a metre of the collar counts as from the collar.
+export const LATE_START_M = 1;
+export function collarSubcrop({ collars, survey, litho, desurveyMethod, roleOf = roleForLithology, report = null }) {
   const byHoleSurvey = new Map(), byHoleLitho = new Map();
   for (const s of survey || []) (byHoleSurvey.get(s.hole_id) || byHoleSurvey.set(s.hole_id, []).get(s.hole_id)).push(s);
   for (const r of litho || []) {
@@ -36,6 +41,7 @@ export function collarSubcrop({ collars, survey, litho, desurveyMethod, roleOf =
     const rows = (byHoleLitho.get(c.hole_id) || []).sort((a, b) => a.from - b.from);
     const f0 = rows.find((r) => !SKIP.has(roleOf(r.value)));
     if (!f0) continue;
+    if (rows[0].from > LATE_START_M) { report?.lateStart?.push({ hole_id: c.hole_id, logStart: rows[0].from, unit: f0.value }); continue; } // #2411 / #2570
     const first = { ...f0, value: canon.get(f0.value.toUpperCase()) || f0.value };
     let trace = [];
     try { trace = desurveyHole(c, byHoleSurvey.get(c.hole_id) || [], desurveyMethod) || []; } catch { trace = []; }

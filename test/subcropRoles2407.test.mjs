@@ -19,5 +19,5 @@ test("QA as overburden: the subcrop is what lies under it", () => {
 
 test("the panel passes the Modelling codes roles", () => {
   const s = readFileSync(new URL("../src/components/SurfaceMappingPanel.jsx", import.meta.url), "utf8");
-  assert.match(s, /collarSubcrop\(\{ collars, survey, litho: layers\.litho, desurveyMethod, roleOf: roleWithCodes\(modellingCodes\) \}\)/);
+  assert.match(s, /collarSubcrop\(\{ collars, survey, litho: layers\.litho, desurveyMethod, roleOf: roleWithCodes\(modellingCodes\)(, report: rep)? \}\)/); // report: #2411
 });
