@@ -88,7 +88,7 @@ export default function PitDesignPane({ surfaces = [], worldPositionsOf, onAdd, 
     setBusy(true); setMsg(null);
     const t0 = performance.now();
     try {
-      job.current = runPitDesignAsync(positions, model, opts, terrain, collars, null, byIn ? byModel : null); // byModel: #1917
+      job.current = runPitDesignAsync(positions, model, opts, terrain, collars, (p) => setBusy(p && p.k ? p : true) /* #2286 */, byIn ? byModel : null); // byModel: #1917
       const r = await job.current.promise;
       if (r.cancelled) { setMsg(tr("Cancelled: nothing was added.")); return; }
       if (r.failed === "area-empty") { setMsg(tr("No column of the shell lies inside \"{name}\": move or enlarge the area, or pick another.", { name: area?.name || "?" })); return; } // #1916
@@ -200,7 +200,7 @@ export default function PitDesignPane({ surfaces = [], worldPositionsOf, onAdd, 
         {designs.some((s) => s.visible) && <label style={{ ...row, justifyContent: "flex-start" }}><input type="checkbox" checked={hideEarlier} onChange={(e) => setHideEarlier(e.target.checked)} />{tr("Hide the earlier designs")}</label>}
         {!busy
           ? <button onClick={run} disabled={missing} style={{ ...pBtn, marginTop: 8, opacity: missing ? 0.5 : 1 }}><Layers3 size={14} /> {tr("Design the benches")}</button>
-          : <button onClick={cancel} style={{ ...pBtn, marginTop: 8 }}>{tr("Designing: cancel")}</button>}
+          : <button onClick={cancel} style={{ ...pBtn, marginTop: 8 }}>{busy && busy.k ? (busy.n ? tr("Designing bench {k} of about {n}: cancel", { k: busy.k, n: Math.max(busy.n, busy.k) }) : tr("Designing bench {k}: cancel", { k: busy.k })) : tr("Designing: cancel")}</button>}{/* #2286 */}
         {missing && !busy && <div style={note}>{tr("Enter the bench height, berm width and face angle: none has a default, because they are the design.")}</div>}
       </>)}
       {designs.length > 0 && (
@@ -220,7 +220,7 @@ export default function PitDesignPane({ surfaces = [], worldPositionsOf, onAdd, 
       {msg && <div style={warn}>{msg}</div>}
       {res && (
         <div style={{ marginTop: 8, padding: "7px 8px", border: "1px solid var(--color-border)", borderRadius: 6, background: "var(--color-bg-subtle)" }}>
-          {line(tr("Benches"), tr("{n} ({lo} to {hi} m)", { n: res.benches.length, lo: Math.round(res.floorRL), hi: Math.round(res.crestRL) }))}
+          {line(tr("Benches"), tr("{n} ({lo} to {hi} m)", { n: res.benches.length, lo: Math.round(res.floorRL), hi: Math.round(Number.isFinite(res.groundTopRL) ? Math.min(res.crestRL, res.groundTopRL) : res.crestRL) }))}{/* #2440 — to the ground the pit meets */}
           {line(tr("Inter-ramp angle"), `${res.interRampDeg.toFixed(1)}°`)}
           {/* #1952; TASKS.csv #2117 (review #2013, Woodjam) — each wall's own inter-ramp angle (a 55° / 8 m N wall is 33.7°, not the 46.0° above), and the
               walls flatter than the slope the shell was solved at */}
