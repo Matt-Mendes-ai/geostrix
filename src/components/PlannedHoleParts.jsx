@@ -16,6 +16,7 @@ import { useStore } from "../lib/store.jsx"; // TASKS.csv #2581 — the rates ar
 import { collarGround, collarsLookUnderground } from "../lib/pitShell.js"; // TASKS.csv #2100 — the ground between the collars when there is no terrain; underground: #2251 / #2253
 
 const PlannedHoleTargeting = lazyModal(() => import("./PlannedHoleTargeting.jsx")); // TASKS.csv #119
+import CollarPicker from "./CollarPicker.jsx"; // TASKS.csv #2104
 import PlannedHolePattern from "./PlannedHolePattern.jsx"; // TASKS.csv #2449 — a line / grid of holes
 // the same one-line wrapper ViewerModule keeps (see its plannedHoleTrace comment): holePlanning.plannedTrace builds every plan's trace
 const plannedHoleTrace = (hole) => plannedTrace(hole);
@@ -170,15 +171,9 @@ export function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint, 
     <div style={{ padding: "8px 9px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6 }}>
       <input placeholder={tr("Hole name (optional)")} value={draft.name} onChange={(e) => set("name", e.target.value)} style={{ width: "100%", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 6px", fontSize: "var(--font-size-base)", color: "var(--color-text)", marginBottom: 5 }} />
       {collars.length > 0 && (
-        <select aria-label={tr("Planned hole collar")}
-          value={fromCollarId}
-          onChange={(e) => applyFromCollar(e.target.value)}
+        <CollarPicker ids={collars.map((c) => c.hole_id)} value={fromCollarId} onChange={applyFromCollar} first={tr("Collar (E/N/Elev): custom, typed below")} ariaLabel={tr("Planned hole collar")}
           style={{ width: "100%", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 6px", fontSize: "var(--font-size-sm)", color: "var(--color-text)", marginBottom: 5 }}
-          title={tr("Fill E/N/Elev below from an existing real collar, to design a new hole starting there")}
-        >
-          <option value="">{tr("Collar (E/N/Elev): custom, typed below")}</option>
-          {collars.map((c) => <option key={c.hole_id} value={c.hole_id}>{c.hole_id}</option>)}
-        </select>
+          title={tr("Fill E/N/Elev below from an existing real collar, to design a new hole starting there")} />
       )}
       <div style={{ display: "flex", gap: 4, marginBottom: 5 }}>
         <NumField label="E" value={draft.x} onChange={(v) => set("x", v)} />
