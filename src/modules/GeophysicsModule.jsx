@@ -81,6 +81,7 @@ import { confirmReplaceTerrain, replacedTerrainNote } from "../lib/terrainReplac
 import { guessQualityColumn, filterSignalQuality, despikeAlongLines } from "../lib/surveyClean.js"; // TASKS.csv #1583 // TASKS.csv #786
 import { mineGridOf } from "../lib/mineGrid.js"; // TASKS.csv #2586
 import { tieOf, fileToLocal } from "../lib/localGridTie.js"; // TASKS.csv #2587 — a tied local grid's way in
+import { farFromCollars, farLabel } from "../lib/landingCheck.js"; // TASKS.csv #2590
 import { niceContourInterval, terrainRange, MIN_CONTOUR_INTERVAL } from "../lib/contourInterval.js"; // TASKS.csv #2462
 import { vectorToBoundaryPolylines, claimsFromVector, isAreaBoundary } from "../lib/boundaryImport.js"; // TASKS.csv #1035; claims per feature: #1970; isAreaBoundary: #1466
 import { clampCellBudget, MIN_CELL_BUDGET, MAX_BLOCK_MODEL_BUDGET } from "../lib/estimationMeta.js"; // TASKS.csv #1074
@@ -781,7 +782,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       const lonLats = await Promise.all(corners.map(([x, y]) => toLonLat(x, y, project.epsg)));
       if (lonLats.some((ll) => !ll)) return null;
       const lons = lonLats.map((ll) => ll.lon), lats = lonLats.map((ll) => ll.lat);
-      return { id: j.id, label: j.label, bboxLonLat: [arrMin(lons), arrMin(lats), arrMax(lons), arrMax(lats)] };
+      return { id: j.id, label: farLabel(j.label, farFromCollars([j.xmin, j.ymin, j.xmax, j.ymax], collars)), bboxLonLat: [arrMin(lons), arrMin(lats), arrMax(lons), arrMax(lats)] }; // farLabel: #2590
     }));
     return options.filter(Boolean);
   };

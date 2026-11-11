@@ -34,6 +34,7 @@ import { gridCellText } from "../lib/raster.js"; // TASKS.csv #1242
 import { detectKeyColour } from "../lib/rasterKey.js"; // TASKS.csv #1623
 import RasterLegend from "../components/RasterLegend.jsx"; // TASKS.csv #2011
 import { tieOf } from "../lib/localGridTie.js"; // TASKS.csv #2587 — a tied local grid's way in
+import { farFromCollars, farLabel } from "../lib/landingCheck.js"; // TASKS.csv #2590
 import { projectTargetEpsg } from "../lib/projectTarget.js"; // TASKS.csv #2287 — no reprojection INTO the placeholder CRS
 import { rasterLevelM, filteredLevelM, placeEulerSolutions } from "../lib/eulerPlace.js"; // TASKS.csv #2553
 import { rasterMethodOf, filterBlockedBy, ternaryChoices } from "../lib/rasterMethod.js"; // TASKS.csv #2557
@@ -292,7 +293,7 @@ export default function RasterModule({ embedded = false } = {}) {
       const lonLats = await Promise.all(corners.map(([x, y]) => toLonLat(x, y, project.epsg)));
       if (lonLats.some((ll) => !ll)) return null;
       const lons = lonLats.map((ll) => ll.lon), lats = lonLats.map((ll) => ll.lat);
-      return { id: j.id, label: j.label, bboxLonLat: [arrMin(lons), arrMin(lats), arrMax(lons), arrMax(lats)] };
+      return { id: j.id, label: farLabel(j.label, farFromCollars([j.xmin, j.ymin, j.xmax, j.ymax], collars)), bboxLonLat: [arrMin(lons), arrMin(lats), arrMax(lons), arrMax(lats)] }; // farLabel: #2590
     }));
     return options.filter(Boolean);
   };
@@ -480,6 +481,8 @@ export default function RasterModule({ embedded = false } = {}) {
               // TASKS.csv #2294 (review #2174) — a scan of the same footprint as a GeoTIFF landed at the collar median (an underground level,
               // mid-way through the fans) while the GeoTIFF went 5 m above the highest collar under it: the same rule now, and said
               const drape = rasterDrapeElevation({ collars, voxelModels, surfaceSamples, bbox: raster.bbox, rasters, fileName: raster.name });
+              // TASKS.csv #2590 (review #2486) — control points typed on a mine grid put the picture 6,240 km from the drilling, unasked
+              if (drape.far && !window.confirm(tr("These control points place the picture about {km} km from the {n} collars, without reaching them. Are they on a local mine grid, or in another CRS than the project's?", { km: Math.round(drape.far.distM / 1000).toLocaleString(), n: collars.length.toLocaleString() }) + "\n\n" + tr("OK — import it there anyway.") + "\n" + tr("Cancel — go back to the control points."))) return;
               addRaster({ ...raster, elevation: drape.z });
               setGeorefOpen(false);
               setError({ info: true, text: tr("Georeferenced and imported \"{name}\".", { name: raster.name }) + " " + drapeElevationNote(drape) });
