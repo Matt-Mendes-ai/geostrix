@@ -17,7 +17,7 @@ test("1,000 $/t of SC6 is 35,878 $/t of Li: the review's hand figure, and the pa
 test("the price units name the products and the element; other commodities keep theirs", () => {
   const li = priceUnitsFor(pitMetalOf("%", "Li"), "Li").map(([k, l]) => `${k}=${l}`);
   assert.deepEqual(li, ["tSC6=$/t SC6 (spodumene concentrate, 6 % Li2O)", "tLCE=$/t LCE (lithium carbonate equivalent)", "tLi2O=$/t Li2O", "t=$/t Li", "lb=$/lb Li"]);
-  assert.deepEqual(priceUnitsFor(pitMetalOf("ppm", "Ta"), "Ta").map(([k]) => k), ["tTa2O5", "t", "lb"]); // ppm Ta counted in tonnes, not ounces
+  assert.deepEqual(priceUnitsFor(pitMetalOf("ppm", "Ta"), "Ta").map(([k]) => k), ["lbTa2O5", "tTa2O5", "t", "lb"]); // lbTa2O5 first: #2595 // ppm Ta counted in tonnes, not ounces
   assert.equal(priceUnitsFor(pitMetalOf("%", "Cu"), "Cu")[0][0], "lb"); // copper unchanged
   assert.equal(priceUnitsFor(pitMetalOf("ppm", "U"), "U")[0][0], "lbU3O8"); // #2434 unchanged
   assert.ok(Math.abs(PRICED_MASS_T.tLi2O - 1 / 2.1527) < 1e-12);
