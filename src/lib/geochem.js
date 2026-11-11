@@ -1228,6 +1228,9 @@ export const SURFACE_ATTR_MAX_DISTINCT = 100;
 export const SURFACE_ATTR_MAX_CHARS = 500; // TASKS.csv #1822
 // TASKS.csv #1822 — a free-text column (a description, a comment) has as many distinct values as rows; it is kept whole for Identify
 export const isFreeTextHeader = (h) => /desc|comment|note|remark|observ/i.test(String(h || ""));
+// TASKS.csv #1802 (review #1646, Kodiak) — a station / site id ('Site ID' NWZ069) is how a crew finds a site again: kept like free text however
+// many values it has (it never becomes a population to group by: groupOptions takes 2-30 values)
+export const isIdHeader = (h) => /(^|[\s_-])(site|station|stn|field)[\s_-]*(id|no|num|number|name|code)?($|[\s_-])|^(site|station|stn)$|(^|[\s_-])(waypoint|wpt|gps[\s_-]*(id|name))($|[\s_-])/i.test(String(h || "").trim());
 export function surfaceAttrColumns(headers, rows, mapping = {}, elements = []) {
   const mapped = new Set(Object.values(mapping || {}).filter(Boolean));
   const elementCols = new Set();
@@ -1239,7 +1242,7 @@ export function surfaceAttrColumns(headers, rows, mapping = {}, elements = []) {
       const v = r[h];
       if (v == null || String(v).trim() === "") continue;
       seen.add(String(v).trim());
-      if (seen.size > SURFACE_ATTR_MAX_DISTINCT && !isFreeTextHeader(h)) return false; // free text: #1822
+      if (seen.size > SURFACE_ATTR_MAX_DISTINCT && !isFreeTextHeader(h) && !isIdHeader(h)) return false; // free text: #1822; a site / station id: #1802
     }
     return seen.size > 0;
   });
