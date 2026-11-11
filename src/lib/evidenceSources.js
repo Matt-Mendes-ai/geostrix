@@ -316,3 +316,20 @@ export function targetElevation(cell, cardPoints, grid, level = null, bin = GRAD
   if (level && level.zMin != null && level.zMax != null) return { z: (level.zMin + level.zMax) / 2, from: "level" };
   return null;
 }
+
+// TASKS.csv #2577 (review #2486) — a grade card read every hole: 30 m aircore that stopped in the regolith scored as tested and barren
+// beside the RC that cut the sheet at 40-190 m. The card can take one set of holes (a collar field, as the hole list picks them), and says
+// what it read. ids: a Set of hole ids, or null for every hole
+export const assaysOfHoles = (assays, ids) => (ids ? (assays || []).filter((a) => ids.has(a.hole_id)) : assays || []);
+export function gradeCardReads(assays, symbol, unit, units) {
+  const holes = new Set();
+  let from = Infinity, to = -Infinity;
+  for (const a of assays || []) {
+    if (valueIn(a, symbol, unit, units) == null) continue;
+    holes.add(a.hole_id);
+    const f = Number(a.from), t = Number(a.to);
+    if (Number.isFinite(f) && f < from) from = f;
+    if (Number.isFinite(t) && t > to) to = t;
+  }
+  return { holes: holes.size, from: Number.isFinite(from) ? from : null, to: Number.isFinite(to) ? to : null };
+}

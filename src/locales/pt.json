@@ -9952,5 +9952,8 @@
   "The deepest logged {unit} ends {d} m down hole {hole}: a body to that depth reaches every logged intercept.": "O {unit} descrito mais profundo termina a {d} m furo abaixo em {hole}: um corpo até essa profundidade alcança todas as interseções descritas.",
   "Use {d} m (deepest logged)": "Usar {d} m (o mais profundo descrito)",
   "No part of this polygon has terrain under it, so the top of the body is unknown. Load a terrain that covers it (Maps > Terrain).": "Nenhuma parte deste polígono tem terreno embaixo, então o topo do corpo é desconhecido. Carregue um terreno que o cubra (Mapas > Terreno).",
-  "{k} of {n} outline point(s) fell in gaps of the terrain (cells it has no ground for) and took the ground of the nearest outline point that has some.": "{k} de {n} ponto(s) do contorno caíram em lacunas do terreno (células sem solo) e tomaram o solo do ponto do contorno mais próximo que o tem."
+  "{k} of {n} outline point(s) fell in gaps of the terrain (cells it has no ground for) and took the ground of the nearest outline point that has some.": "{k} de {n} ponto(s) do contorno caíram em lacunas do terreno (células sem solo) e tomaram o solo do ponto do contorno mais próximo que o tem.",
+  "Holes this card reads": "Furos que este cartão lê",
+  "Reads {n} hole(s), samples from {a} to {b} m down hole: a hole that stopped above the target reads as low here, not as untested.": "Lê {n} furo(s), amostras de {a} a {b} m furo abaixo: um furo que parou acima do alvo é lido aqui como baixo, não como não testado.",
+  "No hole of this set has a value of {el}.": "Nenhum furo deste conjunto tem valor de {el}."
 }

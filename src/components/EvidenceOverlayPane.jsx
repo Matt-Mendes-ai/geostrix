@@ -3,6 +3,7 @@
 // weights of evidence and a prediction-area plot; the score goes on the map as a raster drape (with its values, so
 // the Raster module exports it as GeoTIFF, #854). Maths and the caveats in lib/evidence.js.
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { collarAttrChoices, collarsMatching } from "../lib/holeFilter.js"; // TASKS.csv #2577
 import { Download, Layers } from "./icons.js";
 import { TaskPaneHeader } from "./Ribbon.jsx";
 import { useStore } from "../lib/store.jsx";
@@ -15,7 +16,7 @@ import { topCells } from "../lib/evidence.js"; // TASKS.csv #1456
 import { evidenceCoverage, LOW_COVERAGE, scoreBlockers } from "../lib/evidence.js"; // TASKS.csv #2252
 import { drilledTrainingMask, evidenceGrid, evidenceExtent, rasterEvidence, distanceEvidence, pointEvidence, sampleValues, membership, fuzzyCombine, FUZZY_OPERATORS, trainingCells, trainingCoverage, bestCutoff, MIN_SIDE, posterior, predictionArea, scoreImage, isOverlayOutput, coveringLayers } from "../lib/evidence.js"; // coveringLayers: #1563
 import { cachedEvidence, evidenceDeps, gridSignature } from "../lib/evidenceCache.js"; // TASKS.csv #1457, #1560
-import { DRILL_REACH_M, surveyNames, surveyPoints, reachFromSpacing, reachFromNeighbours, voxelColumnEvidence, voxelZRange, holeTraces, holeGradePoints, structureCodes, structureParts, drilledParts /* #1456 */, scoreRasterPlacement /* #2447 */, elementsWithValues, numericLayerFields, layerFieldPoints, zoneCodes, zoneParts, levelSet, targetElevation /* #2326 */ } from "../lib/evidenceSources.js"; // numericLayerFields, layerFieldPoints, zoneCodes, zoneParts: TASKS.csv #1728 // TASKS.csv #1154; elementsWithValues: #1723
+import { DRILL_REACH_M, surveyNames, surveyPoints, reachFromSpacing, reachFromNeighbours, voxelColumnEvidence, voxelZRange, holeTraces, holeGradePoints, assaysOfHoles, gradeCardReads /* #2577 */, structureCodes, structureParts, drilledParts /* #1456 */, scoreRasterPlacement /* #2447 */, elementsWithValues, numericLayerFields, layerFieldPoints, zoneCodes, zoneParts, levelSet, targetElevation /* #2326 */ } from "../lib/evidenceSources.js"; // numericLayerFields, layerFieldPoints, zoneCodes, zoneParts: TASKS.csv #1728 // TASKS.csv #1154; elementsWithValues: #1723
 const LEVEL_KINDS = new Set(["grade", "pxrf", "numeric", "zone", "pick", "voxel"]); // TASKS.csv #2326 — the cards a Level filters
 import { categoricalModels } from "../lib/geologyForward.js";
 import { PATHFINDER_PRESETS } from "../lib/anomalyMap.js";
@@ -170,6 +171,9 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
   const pictureRasters = useMemo(() => rasters.filter((r) => !r.grid && !isOverlayOutput(r)), [rasters]);
 
   // #1457 — through the cache: a reopened pane, or the same layer added again, reuses values computed from the same grid and data
+  // #2577 — a grade card's holes: every hole, or those whose collar field matches ('field = holes', value 'Drill_Code=RC')
+  const holeAttrChoices = useMemo(() => collarAttrChoices(collars), [collars]);
+  const gradeAssaysOf = (assays, opts) => (opts?.field === "holes" && opts.value ? assaysOfHoles(assays, new Set(collarsMatching(collars, opts.value).map((c) => c.hole_id))) : assays);
   const computeValues = (src, opts = {}, lv = level) => (grid ? cachedEvidence(
     `${gridSignature(grid)}|${src.kind}|${src.ref}|${src.how || ""}|${opts.field || ""}|${opts.value ?? ""}|${opts.reach || ""}|${opts.zMin ?? ""}|${opts.zMax ?? ""}|L${LEVEL_KINDS.has(src.kind) ? `${lv?.zMin ?? ""}:${lv?.zMax ?? ""}` : ""}`, // L: #2326
     evidenceDeps(src, opts, { rasters, mapLayers, surfaceSamples, surfaceElements, collars, survey, desurveyMethod: project?.desurveyMethod, assays, assayElements, voxelModels, geophysPts, structurePicks, projectLayers, customLayers, solids }), // #1560: only what this source reads
@@ -190,8 +194,8 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
     if (src.kind === "numeric") { const { rows, field } = numericRowsOf(src.ref); return pointEvidence(grid, layerFieldPoints(rows, field, traces, undefined, lv), { maxDistance: opts.reach || DRILL_REACH_M }); } // #1728; lv: #2326
     if (src.kind === "zone") { const i = src.ref.indexOf(":"); return distanceEvidence(grid, zoneParts(projectLayers?.[src.ref.slice(0, i)], src.ref.slice(i + 1), traces, undefined, lv)); } // #1728 / #1455 — ref = layer:code
     if (src.kind === "survey") { const pts = surveyPoints(geophysPts, src.ref); return pointEvidence(grid, pts, { maxDistance: opts.reach || reachFromSpacing(pts, 4) }); }
-    if (src.kind === "grade") return pointEvidence(grid, holeGradePoints(cleanAssays, src.ref, assayUnits[src.ref] || "ppm", assayUnits, traces, undefined, lv), { maxDistance: opts.reach || DRILL_REACH_M });
-    if (src.kind === "pxrf") return pointEvidence(grid, holeGradePoints(pxrfAssays, src.ref, assayUnits[src.ref] || "ppm", assayUnits, traces, undefined, lv), { maxDistance: opts.reach || DRILL_REACH_M }); // #1723
+    if (src.kind === "grade") return pointEvidence(grid, holeGradePoints(gradeAssaysOf(cleanAssays, opts), src.ref, assayUnits[src.ref] || "ppm", assayUnits, traces, undefined, lv), { maxDistance: opts.reach || DRILL_REACH_M });
+    if (src.kind === "pxrf") return pointEvidence(grid, holeGradePoints(gradeAssaysOf(pxrfAssays, opts), src.ref, assayUnits[src.ref] || "ppm", assayUnits, traces, undefined, lv), { maxDistance: opts.reach || DRILL_REACH_M }); // #1723
     const all = sampleValues(surfaceSamples, src.kind === "element" ? { kind: "element", symbol: src.ref } : { kind: "index", preset: src.ref }, units);
     // #1449 — one medium at a time when the layer names one (value = medium): soils and streams are not one surface
     const pts = opts.field === "medium" ? all.filter((_, i) => (surfaceSamples[i].medium || "") === opts.value) : all;
@@ -438,6 +442,13 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
                 <select value={l.field} onChange={(e) => updateLayer(l.id, { field: e.target.value, value: "" }, false)} style={sel} aria-label={tr("Only features where")}><option value="">{tr("every feature")}</option>{(ml?.fields || []).map((f) => <option key={f} value={f}>{f}</option>)}</select>
                 {l.field && <select value={l.value} onChange={(e) => updateLayer(l.id, { value: e.target.value }, true)} style={sel} aria-label={tr("equals")}><option value="">{tr("— value —")}</option>{vals.map((v) => <option key={v} value={v}>{v || "(blank)"}</option>)}</select>}
               </div>); })()}
+            {(l.kind === "grade" || l.kind === "pxrf") && (() => { /* #2577 — which holes the card reads, and what it read */
+              const rd = gradeCardReads(gradeAssaysOf(l.kind === "pxrf" ? pxrfAssays : cleanAssays, l), l.ref, assayUnits[l.ref] || "ppm", assayUnits);
+              return <>
+                {holeAttrChoices.length > 0 && <label style={row}>{tr("Holes")}<select value={l.field === "holes" ? l.value : "\u0000all"} onChange={(e) => { const v = e.target.value === "\u0000all" ? null : e.target.value; updateLayer(l.id, v == null ? { field: "", value: "" } : { field: "holes", value: v }, true); }} style={sel} aria-label={tr("Holes this card reads")}>
+                  <option value={"\u0000all"}>{tr("all holes")}</option>{holeAttrChoices.flatMap((ch) => ch.values.map((v) => <option key={`${ch.key}=${v}`} value={`${ch.key}=${v}`}>{`${ch.key} = ${v}`}</option>))}</select></label>}
+                <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 2 }}>{rd.holes ? tr("Reads {n} hole(s), samples from {a} to {b} m down hole: a hole that stopped above the target reads as low here, not as untested.", { n: rd.holes.toLocaleString(), a: Math.round(rd.from ?? 0), b: Math.round(rd.to ?? 0) }) : tr("No hole of this set has a value of {el}.", { el: l.ref })}</div>
+              </>; })()}
             {(l.kind === "element" || l.kind === "index") && media.length > 1 && <label style={row}>{tr("Samples")}<select value={l.field === "medium" ? l.value : "\u0000all"} onChange={(e) => { const m = e.target.value === "\u0000all" ? null : e.target.value; updateLayer(l.id, m == null ? { field: "", value: "", reach: reachOf(l) } : { field: "medium", value: m, reach: reachOf(l, m) }, true); }} style={sel} aria-label={tr("Samples of one medium")}>{media.map((m) => <option key={m} value={m}>{m || tr("(no medium)")}</option>)}<option value={"\u0000all"}>{tr("all media together")}</option></select></label>}
             {l.kind === "voxel" && (() => { // TASKS.csv #1831 — the elevation band the column is read over (blank = the whole column)
               const zr = voxelZRange(voxelModels.find((x) => (x.id ?? x.name) === l.ref));

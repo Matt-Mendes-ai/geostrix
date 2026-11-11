@@ -9952,5 +9952,8 @@
   "The deepest logged {unit} ends {d} m down hole {hole}: a body to that depth reaches every logged intercept.": "El {unit} registrado más profundo termina a {d} m pozo abajo en {hole}: un cuerpo hasta esa profundidad alcanza todas las intersecciones registradas.",
   "Use {d} m (deepest logged)": "Usar {d} m (lo más profundo registrado)",
   "No part of this polygon has terrain under it, so the top of the body is unknown. Load a terrain that covers it (Maps > Terrain).": "Ninguna parte de este polígono tiene terreno debajo, así que el techo del cuerpo es desconocido. Cargue un terreno que lo cubra (Mapas > Terreno).",
-  "{k} of {n} outline point(s) fell in gaps of the terrain (cells it has no ground for) and took the ground of the nearest outline point that has some.": "{k} de {n} punto(s) del contorno cayeron en vacíos del terreno (celdas sin suelo) y tomaron el suelo del punto del contorno más cercano que lo tiene."
+  "{k} of {n} outline point(s) fell in gaps of the terrain (cells it has no ground for) and took the ground of the nearest outline point that has some.": "{k} de {n} punto(s) del contorno cayeron en vacíos del terreno (celdas sin suelo) y tomaron el suelo del punto del contorno más cercano que lo tiene.",
+  "Holes this card reads": "Sondajes que lee esta tarjeta",
+  "Reads {n} hole(s), samples from {a} to {b} m down hole: a hole that stopped above the target reads as low here, not as untested.": "Lee {n} sondaje(s), muestras de {a} a {b} m pozo abajo: un sondaje que se detuvo sobre el objetivo se lee aquí como bajo, no como no probado.",
+  "No hole of this set has a value of {el}.": "Ningún sondaje de este conjunto tiene un valor de {el}."
 }
