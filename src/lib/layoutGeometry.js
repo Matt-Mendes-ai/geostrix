@@ -84,7 +84,8 @@ export function pageScaleText(els) {
     return plan ? `1 : ${Math.round(Number(plan.scale)).toLocaleString()}` : "";
   }
   const text = v.trueScale && v.capturedFixedScale > 0 ? `1 : ${v.capturedFixedScale.toLocaleString()}` : `${v.trueScale ? "" : "~"}1 : ${Math.round(metresPerPagePx(v) / M_PER_PAGE_PX).toLocaleString()}`;
-  return obliqueCapture(v) ? tr("{scale} in the view plane (oblique view)", { scale: text }) : text;
+  const out = obliqueCapture(v) ? tr("{scale} in the view plane (oblique view)", { scale: text }) : text;
+  return v.ve > 1 ? tr("{scale}, vertical exaggeration {ve}×", { scale: out, ve: v.ve }) : out; // #2628 — the snapshot is stretched vertically
 }
 
 // TASKS.csv #399 — a top-down, true-scale (orthographic) capture: every pixel is the same size on the ground

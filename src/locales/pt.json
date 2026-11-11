@@ -10106,5 +10106,6 @@
   "{v} Mm³, {d} m below the outcrop, a sheet dipping {dip}° toward {dir}°": "{v} Mm³, {d} m abaixo do afloramento, uma lâmina com mergulho de {dip}° para {dir}°",
   "sheet ({dip}° toward {dir}°)": "de lâmina ({dip}° para {dir}°)",
   " As a sheet each body is {a}–{b} m thick: its map width across the dip direction × sin {dip}°, on level ground.": " Como lâmina, cada corpo tem {a}–{b} m de espessura: a largura no mapa ao longo da direção de mergulho × sen {dip}°, em terreno plano.",
-  " As a sheet it is {a} m thick: its map width across the dip direction × sin {dip}°, on level ground.": " Como lâmina tem {a} m de espessura: a largura no mapa ao longo da direção de mergulho × sen {dip}°, em terreno plano."
+  " As a sheet it is {a} m thick: its map width across the dip direction × sin {dip}°, on level ground.": " Como lâmina tem {a} m de espessura: a largura no mapa ao longo da direção de mergulho × sen {dip}°, em terreno plano.",
+  "{scale}, vertical exaggeration {ve}×": "{scale}, exagero vertical {ve}×"
 }

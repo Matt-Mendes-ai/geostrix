@@ -10106,5 +10106,6 @@
   "{v} Mm³, {d} m below the outcrop, a sheet dipping {dip}° toward {dir}°": "{v} Mm³, {d} m sous l'affleurement, une lame pentée de {dip}° vers {dir}°",
   "sheet ({dip}° toward {dir}°)": "de lame ({dip}° vers {dir}°)",
   " As a sheet each body is {a}–{b} m thick: its map width across the dip direction × sin {dip}°, on level ground.": " En lame, chaque corps fait {a}–{b} m d'épaisseur : sa largeur cartographiée le long de la direction de pendage × sin {dip}°, en terrain plat.",
-  " As a sheet it is {a} m thick: its map width across the dip direction × sin {dip}°, on level ground.": " En lame, il fait {a} m d'épaisseur : sa largeur cartographiée le long de la direction de pendage × sin {dip}°, en terrain plat."
+  " As a sheet it is {a} m thick: its map width across the dip direction × sin {dip}°, on level ground.": " En lame, il fait {a} m d'épaisseur : sa largeur cartographiée le long de la direction de pendage × sin {dip}°, en terrain plat.",
+  "{scale}, vertical exaggeration {ve}×": "{scale}, exagération verticale {ve}×"
 }

@@ -16,6 +16,7 @@ import { describeDbImport } from "../lib/dbImports.js"; // TASKS.csv #1963
 import { metresPerPixel, minSymbolRadiusM, needsSymbolRebuild } from "../lib/viewer/symbolScale.js"; // TASKS.csv #1597
 import { lazyModal } from "../lib/lazyModal.jsx"; // TASKS.csv #301
 import * as THREE from "three";
+import { setVerticalExaggeration, veOf } from "./viewer/verticalExaggeration.js"; // TASKS.csv #2628
 import { piercePoints as surfacePierces, piercePointRows } from "../lib/piercePoints.js"; // TASKS.csv #1009
 import { Upload, Scissors, AlertTriangle, RotateCcw, RefreshCw, Eye, EyeOff, Trash2, Maximize2, Pencil, X, Layers3, ChevronUp, ChevronDown, ShieldAlert, GitFork, Map as MapIcon, Mountain, Image, FileBarChart2, Settings2, Box, Waypoints, Triangle, MapPin, ArrowUpRight, Shapes, Ruler, Beaker, Compass, Activity, GitCompare, Check } from "../components/icons.js"; // TASKS.csv #445 step 4 — memoised lucide icons // GitCompare/Check: TASKS.csv #93
 const AssayStyleModal = lazyModal(() => import("../components/AssayStyleModal.jsx")); // TASKS.csv #476
@@ -2977,6 +2978,7 @@ ${describeTrend(t)}` };
       // a perspective capture at the frame's aspect: a clone of the live camera (same place, look and vertical field of
       // view), only its aspect differs - the live camera is never touched
       const pc = camera.clone();
+      if (camera.userData.ve > 1) setVerticalExaggeration(pc, camState, camera.userData.ve); // #2628 — the clone took no VE: a frame-aspect capture came out at 1x
       pc.aspect = outW / outH;
       pc.updateProjectionMatrix();
       renderCamera = pc;
@@ -3057,7 +3059,7 @@ ${describeTrend(t)}` };
     applyTheme(liveViewBeforeRender);
     encoded.then((dataUrl) => resolveViewportRender({
       requestId: req.requestId, src: dataUrl, naturalW: shotW, naturalH: shotH,
-      worldHeightAtTarget, themeName: theme?.name, cameraAzimuthDeg, trueScale: !!req.trueScale, targetWorld, planView, fixedScale: orthoHalfH != null && req.fixedScale > 0 ? req.fixedScale : null, zoomScale, // zoomScale: #1486
+      worldHeightAtTarget, themeName: theme?.name, cameraAzimuthDeg, ve: renderCamera === orthoCamera ? 1 : veOf(camera.userData.ve) /* #2628 */, trueScale: !!req.trueScale, targetWorld, planView, fixedScale: orthoHalfH != null && req.fixedScale > 0 ? req.fixedScale : null, zoomScale, // zoomScale: #1486
       // TASKS.csv #948 — a "current view" capture has no theme to read its legend from: the view's own settings (the same
       // bundle a theme saves), kept on the viewport so Layout's "Load from view" works for it
       viewState: theme ? null : (req.viewState || liveViewBeforeRender), // #1644 — an atlas page keeps its template's

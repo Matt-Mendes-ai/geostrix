@@ -10106,5 +10106,6 @@
   "{v} Mm³, {d} m below the outcrop, a sheet dipping {dip}° toward {dir}°": "{v} مليون م³، {d} م تحت المكشف، صفيحة تميل {dip}° نحو {dir}°",
   "sheet ({dip}° toward {dir}°)": "صفيحية ({dip}° نحو {dir}°)",
   " As a sheet each body is {a}–{b} m thick: its map width across the dip direction × sin {dip}°, on level ground.": " كصفيحة، سمك كل جسم {a}–{b} م: عرضه على الخريطة باتجاه الميل × جا {dip}°، على أرض مستوية.",
-  " As a sheet it is {a} m thick: its map width across the dip direction × sin {dip}°, on level ground.": " كصفيحة، سمكه {a} م: عرضه على الخريطة باتجاه الميل × جا {dip}°، على أرض مستوية."
+  " As a sheet it is {a} m thick: its map width across the dip direction × sin {dip}°, on level ground.": " كصفيحة، سمكه {a} م: عرضه على الخريطة باتجاه الميل × جا {dip}°، على أرض مستوية.",
+  "{scale}, vertical exaggeration {ve}×": "{scale}، مبالغة رأسية {ve}×"
 }

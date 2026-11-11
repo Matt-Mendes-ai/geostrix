@@ -846,7 +846,7 @@ export function StoreProvider({ children }) {
       const id = `viewport_${Date.now()}`;
       setLayoutElements((els) => addViewportToPage(els, {
         id, type: "viewport", themeId: viewportPendingRequest.themeId,
-        ...freeSpot(els, w, h) /* #1484 — the page's free space, not (90, 90) */, w, h, capW: w, capH: h, aspect, src: res.src, worldHeightAtTarget: res.worldHeightAtTarget, cameraAzimuthDeg: res.cameraAzimuthDeg, // capW / capH: #906
+        ...freeSpot(els, w, h) /* #1484 — the page's free space, not (90, 90) */, w, h, capW: w, capH: h, aspect, src: res.src, worldHeightAtTarget: res.worldHeightAtTarget, cameraAzimuthDeg: res.cameraAzimuthDeg, ve: res.ve > 1 ? res.ve : 1 /* #2628 */, // capW / capH: #906
         trueScale: !!res.trueScale, targetWorld: res.targetWorld || null, planView: !!res.planView, // #399
         viewState: res.viewState || null, // #948 — a theme-less capture's own view settings, for its legend
         capturedAt: Date.now(), // TASKS.csv #2471 — when; a bound legend loaded from an older capture is out of step
@@ -856,7 +856,7 @@ export function StoreProvider({ children }) {
       setLayoutSelectRequest(id);
     } else {
       applyEls((els) => els.map((el) => el.id === targetElementId
-        ? { ...el, capturedAt: Date.now() /* #2471 */, src: res.src, aspect, worldHeightAtTarget: res.worldHeightAtTarget, cameraAzimuthDeg: res.cameraAzimuthDeg, trueScale: !!res.trueScale, targetWorld: res.targetWorld || null, planView: !!res.planView, refreshing: false, viewState: res.viewState || null, samplesUnplaced: res.samplesUnplaced || 0, // viewState: #948; samplesUnplaced: #1864
+        ? { ...el, capturedAt: Date.now() /* #2471 */, src: res.src, aspect, worldHeightAtTarget: res.worldHeightAtTarget, cameraAzimuthDeg: res.cameraAzimuthDeg, ve: res.ve > 1 ? res.ve : 1 /* #2628 */, trueScale: !!res.trueScale, targetWorld: res.targetWorld || null, planView: !!res.planView, refreshing: false, viewState: res.viewState || null, samplesUnplaced: res.samplesUnplaced || 0, // viewState: #948; samplesUnplaced: #1864
             // TASKS.csv #906 — the capture was rendered at the frame's own aspect (reqW x reqH page px), so the frame keeps
             // the size the user gave it and the image fills it; capW / capH remember that size, and a later resize shows
             // the image at ITS size until the next refresh, so the scale on the page never changes under the user's feet.
