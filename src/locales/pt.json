@@ -10161,5 +10161,7 @@
   "Nothing is plotted, so there is nothing to export.": "Nada está plotado, então não há nada para exportar.",
   "Disabled: this mean pools {n} structure types (faults, veins, bedding…), which is not one orientation. Pick one structure type first.": "Desativado: esta média junta {n} tipos de estrutura (falhas, veios, acamamento…), que não são uma única orientação. Escolha primeiro um tipo de estrutura.",
   "Custom layer tracks": "Trilhas de camadas personalizadas",
-  "Custom layer track {n}": "Trilha de camada personalizada {n}"
+  "Custom layer track {n}": "Trilha de camada personalizada {n}",
+  "Saved threshold:": "Limiar salvo:",
+  "{rule}{pop}, decided {date}. Click to use it as the cutoff.": "{rule}{pop}, decidido em {date}. Clique para usá-lo como teor de corte."
 }

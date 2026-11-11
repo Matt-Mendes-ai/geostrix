@@ -288,3 +288,12 @@ export function usableDefaultMethod(pops, preferred, unit) {
   const ok = (id) => pops.length > 0 && pops.every((p) => { const v = p.cand.values[id]; return v != null && Number.isFinite(v) && !thresholdUnreachable(v, p.summary, unit); });
   return ok(preferred) ? preferred : null;
 }
+
+// TASKS.csv #2347 (Matt's decision, split from #2196) — a saved DRILL threshold is offered to the drill tools, never applied: the rule, its
+// population and the date it was decided, in the tool's unit (a record saved in another unit is not offered). A surface record never is.
+// records: store.geochemThresholds -> [{ key, value, rule, population, decided }]
+export function drillThresholdOffers(records, symbol, unit) {
+  const r = (records || []).find((x) => x?.source === "drill" && x.symbol === symbol);
+  if (!r || (unit && r.unit && r.unit !== unit)) return [];
+  return Object.entries(r.values || {}).filter(([, v]) => Number.isFinite(v) && v > 0).map(([key, value]) => ({ key, value, rule: r.methodLabel || r.method, population: key === "all" || key === "" ? null : `${r.groupLabel}: ${key}`, decided: r.decided }));
+}

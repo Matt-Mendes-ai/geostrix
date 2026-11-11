@@ -1,4 +1,5 @@
 import React, { useMemo, useRef, useState } from "react";
+import { drillThresholdOffers } from "../lib/thresholds.js"; // TASKS.csv #2347
 import { X, Download, Sheet } from "./icons.js";
 import { preferredElement, rememberElement } from "../lib/preferredElement.js"; // TASKS.csv #1678
 import { useLeadCommodity } from "../lib/useLeadCommodity.js"; // #1523 — the project's lead commodity
@@ -33,7 +34,7 @@ export default function BestIntercepts({ assays: assaysIn, assayElements, collar
   const assays = useMemo(() => labAssays(assaysIn), [assaysIn]), pxrfLeft = (assaysIn || []).length - assays.length; // #1673 — lab grades only
   useEscapeKey(onClose); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
-  const { desurveyMethod, project, setLayoutElements, goToModule } = useStore(); // TASKS.csv #135 — true-width needs the project's own trace; layout: #911
+  const { desurveyMethod, project, setLayoutElements, goToModule, geochemThresholds = [] } = useStore(); // TASKS.csv #135 — true-width needs the project's own trace; layout: #911; geochemThresholds: #2347
   const elementUnits = useMemo(() => Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])), [assayElements]);
   const symbols = assayElements.map((e) => e.symbol);
   const lead = useLeadCommodity();
@@ -251,6 +252,10 @@ export default function BestIntercepts({ assays: assaysIn, assayElements, collar
             {pctOk && <label style={{ ...fieldLabel, flexDirection: "row", alignItems: "center", gap: 4, cursor: "pointer" }} title={tr("Show the grades as % (ppm / 10,000) in the table, the Layout table and an extra CSV column. The cutoff stays in ppm.")}><input type="checkbox" checked={asPct} onChange={(e) => setAsPct(e.target.checked)} />{tr("Show as %")}</label>}
             <label style={fieldLabel}>{tr("Cutoff ({unit})", { unit: unitL })}<input type="number" step="any" value={cutoff} onChange={(e) => { setCutoff(Number(e.target.value) || 0); setSuggested(null); }} style={inp} title={suggested != null && cutoff === suggested ? tr("Suggested: this element's 90th percentile. Set the cutoff you report at.") : undefined} />
             </label>
+            {(() => { const offers = drillThresholdOffers(geochemThresholds, symbol, unit).slice(0, 4); return offers.length ? <div style={{ display: "flex", flexWrap: "wrap", gap: 4, fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", alignItems: "center" }}>{/* #2347 — offered, never applied */}
+              <span>{tr("Saved threshold:")}</span>
+              {offers.map((o) => <button key={o.key} type="button" onClick={() => { setCutoff(o.value); setSuggested(null); }} style={{ ...inp, width: "auto", cursor: "pointer", padding: "1px 6px" }} title={tr("{rule}{pop}, decided {date}. Click to use it as the cutoff.", { rule: o.rule, pop: o.population ? ` (${o.population})` : "", date: o.decided })}>{o.population ? `${o.population.split(": ").pop()} ` : ""}{+Number(o.value).toPrecision(4)}</button>)}
+            </div> : null; })()}
             <label style={fieldLabel} title={tr("How much below-cutoff ('waste') core between two above-cutoff samples is still folded into one intercept, diluting its grade, rather than splitting the intercept in two.")}>{tr("Max internal dilution (m)")}<input type="number" step="any" min="0" value={maxInternalDilution} onChange={(e) => setMaxInternalDilution(Math.max(0, Number(e.target.value) || 0))} style={inp} />
             </label>
             <label style={fieldLabel}>{tr("Min length (m)")}<input type="number" step="any" min="0" value={minLength} onChange={(e) => setMinLength(Math.max(0, Number(e.target.value) || 0))} style={inp} />

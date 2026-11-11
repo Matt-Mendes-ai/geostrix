@@ -10161,5 +10161,7 @@
   "Nothing is plotted, so there is nothing to export.": "Rien n'est tracé : il n'y a rien à exporter.",
   "Disabled: this mean pools {n} structure types (faults, veins, bedding…), which is not one orientation. Pick one structure type first.": "Désactivé : cette moyenne regroupe {n} types de structures (failles, veines, stratification…), ce qui n'est pas une seule orientation. Choisissez d'abord un type de structure.",
   "Custom layer tracks": "Pistes de couches personnalisées",
-  "Custom layer track {n}": "Piste de couche personnalisée {n}"
+  "Custom layer track {n}": "Piste de couche personnalisée {n}",
+  "Saved threshold:": "Seuil enregistré :",
+  "{rule}{pop}, decided {date}. Click to use it as the cutoff.": "{rule}{pop}, décidé le {date}. Cliquez pour l'utiliser comme seuil de coupure."
 }

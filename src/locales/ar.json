@@ -10161,5 +10161,7 @@
   "Nothing is plotted, so there is nothing to export.": "لا شيء مرسوم، فلا شيء للتصدير.",
   "Disabled: this mean pools {n} structure types (faults, veins, bedding…), which is not one orientation. Pick one structure type first.": "معطّل: يجمع هذا المتوسط {n} أنواع من البنى (صدوع، عروق، تطبّق…)، وهذا ليس اتجاهًا واحدًا. اختر نوع بنية واحدًا أولًا.",
   "Custom layer tracks": "مسارات الطبقات المخصصة",
-  "Custom layer track {n}": "مسار الطبقة المخصصة {n}"
+  "Custom layer track {n}": "مسار الطبقة المخصصة {n}",
+  "Saved threshold:": "العتبة المحفوظة:",
+  "{rule}{pop}, decided {date}. Click to use it as the cutoff.": "{rule}{pop}، تقرر في {date}. انقر لاستخدامه كحد قطع."
 }
