@@ -422,6 +422,9 @@ export const PALETTES = {
 // Samples N evenly-spaced colors along a named palette's anchor-color gradient (piecewise-linear
 // through every anchor, same idea as colorForVoxelValue's continuous stop interpolation below, just
 // against a fixed named ramp instead of a model's own editable stops).
+// TASKS.csv #1859 (review #1646, Kodiak) — a palette's short name for a select: cut at ' — ' or ' (' ('Resistivity / IP (low→high
+// resistivity; not colorblind-safe)' had no ' — ', so its full text widened the raster card's Ramp select to 319 px in a 249 px card)
+export const paletteShortName = (key) => String(PALETTES[key]?.label ?? key).split(" — ")[0].split(" (")[0];
 export function paletteColorsHex(paletteKey, n) {
   const anchors = PALETTES[paletteKey]?.colors || PALETTES.default.colors;
   const count = Math.max(1, n);

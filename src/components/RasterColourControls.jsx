@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { RASTER_RAMPS, DEFAULT_RASTER_STYLE, rasterColourFields, rasterRange, decadesSpanned, signedGridHint, LOG_NONPOSITIVE_MAX } from "../lib/rasterColour.js"; // signedGridHint: #2555
 import { b64ToF32 } from "../lib/inversion.js";
-import { PALETTES } from "../lib/layers.js";
+import { PALETTES, paletteShortName } from "../lib/layers.js"; // paletteShortName: #1859
 import { t as tr } from "../lib/i18n.js";
 
 // TASKS.csv #1236 — ramp, stretch, typed range and inverted ramp for a raster that kept its values, and a bar with the value range
@@ -32,14 +32,14 @@ export default function RasterColourControls({ raster: r, onUpdate, inputStyle }
     <div style={{ marginTop: 7 }}>
       <div style={row}>
         <span style={lbl}>{tr("Ramp")}</span>
-        <select value={style.palette} aria-label={tr("Colour ramp of \"{name}\"", { name: r.name })} onChange={(e) => apply({ palette: e.target.value })} style={inputStyle}>
-          {RASTER_RAMPS.map((k) => <option key={k} value={k}>{PALETTES[k].label.split(" — ")[0]}</option>)}
+        <select value={style.palette} aria-label={tr("Colour ramp of \"{name}\"", { name: r.name })} onChange={(e) => apply({ palette: e.target.value })} style={{ ...inputStyle, minWidth: 0 }} title={PALETTES[style.palette]?.label}>
+          {RASTER_RAMPS.map((k) => <option key={k} value={k} title={PALETTES[k].label}>{paletteShortName(k)}</option>)}{/* #1859 */}
         </select>
         <label style={{ display: "flex", alignItems: "center", gap: 3, flexShrink: 0, color: "var(--color-text-caption)" }}><input type="checkbox" checked={!!style.invert} onChange={(e) => apply({ invert: e.target.checked })} />{tr("Invert")}</label>
       </div>
       <div style={row}>
         <span style={lbl}>{tr("Stretch")}</span>
-        <select value={style.stretch} aria-label={tr("Colour stretch of \"{name}\"", { name: r.name })} onChange={(e) => { const stretch = e.target.value; apply(stretch === "custom" ? { stretch, min: sig4(range[0]), max: sig4(range[1]) } : { stretch }); }} style={inputStyle}>
+        <select value={style.stretch} aria-label={tr("Colour stretch of \"{name}\"", { name: r.name })} onChange={(e) => { const stretch = e.target.value; apply(stretch === "custom" ? { stretch, min: sig4(range[0]), max: sig4(range[1]) } : { stretch }); }} style={{ ...inputStyle, minWidth: 0 }} /* #1859 — its 'Log (suggested: …)' option widened the card too */>
           <option value="p2-98">{tr("2-98% percentile clip")}</option>
           <option value="linear">{tr("Linear min-max")}</option>
           <option value="log">{decades > 1 ? tr("Log (suggested: the values span {n} decades)", { n: decades.toFixed(1) }) : signed.nonPositive > LOG_NONPOSITIVE_MAX ? tr("Log (positive values only: {pct}% of the cells are not)", { pct: Math.round(signed.nonPositive * 100) }) : tr("Log (positive values)")}</option>

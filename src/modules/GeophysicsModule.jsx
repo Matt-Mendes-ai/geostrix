@@ -23,7 +23,7 @@ import { downholeLikeness } from "../lib/downholeLikeness.js"; // TASKS.csv #170
 import AddWebLayerModal from "../components/AddWebLayerModal.jsx";
 const MacrostratModal = React.lazy(() => import("../components/MacrostratModal.jsx")); // TASKS.csv #2005
 import { useStore } from "../lib/store.jsx";
-import { classifyBreaks, PALETTES, paletteColorsHex , colorForVoxelValue, readableValues /* #1422 */, classCountNote /* #1430 */ } from "../lib/layers.js";
+import { classifyBreaks, PALETTES, paletteShortName /* #1859 */, paletteColorsHex , colorForVoxelValue, readableValues /* #1422 */, classCountNote /* #1430 */ } from "../lib/layers.js";
 import StopValueInput from "../components/StopValueInput.jsx"; // TASKS.csv #1422
 import { parseDEMFiles, buildRasterImport, terrainToGeoTIFFArrayBuffer } from "../lib/raster.js";
 import { boundaryAreaHectares } from "../lib/geoprocessing.js";
@@ -70,7 +70,8 @@ import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Spac
 import { arrMin, arrMax, median } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread); median: #2239
 import { unreadableFormatAdvice } from "../lib/unreadableFormats.js"; // TASKS.csv #603
 import { t as tr } from "../lib/i18n.js";
-import { guessVoxelProperty, isLogProperty } from "../lib/voxelProperty.js"; // TASKS.csv #1786
+import { decadesBetween, isLogSpaced, logViridisStops } from "../lib/pointSurveyScale.js"; // TASKS.csv #1787
+import { guessVoxelProperty, isLogProperty, propertyRamp } from "../lib/voxelProperty.js"; // TASKS.csv #1786; propertyRamp: #1788
 import { cloudShape } from "../lib/cloudShape.js"; // TASKS.csv #1783
 import { defaultDrapeElevation, rasterDrapeElevation, drapeElevationNote, planElevation } from "../lib/drapeElevation.js"; // planElevation: #2294; // TASKS.csv #1856; rasterDrapeElevation: #1505
 import { collarTerrainOffset } from "../lib/terrainCheck.js"; // TASKS.csv #1620
@@ -306,6 +307,14 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
   const legendDrawn = useMemo(() => robustRange(legendRows.map((r) => r.value)), [legendRows]);
   const legendRange = useMemo(() => { let a = null, b = null; for (const r of legendRows) { const v = r.value; if (typeof v !== "number" || isNaN(v)) continue; if (a === null || v < a) a = v; if (b === null || v > b) b = v; } return { min: a, max: b }; }, [legendRows]);
   const legendMeta = (manySurveys && geophysSurveys[legendKey]?.legend) || null;
+  // TASKS.csv #1787 — the point-survey legend's edits, routed to the survey's own legend (#1587) or the one flat layer's store fields
+  const ptsLegendUpdate = (_id, patch) => {
+    if (manySurveys) { updateGeophysSurvey(legendKey, { legend: { ...(geophysSurveys[legendKey]?.legend || {}), ...patch } }); return; } // #1587
+    if ("min" in patch) setGeophysPtsMin(patch.min);
+    if ("max" in patch) setGeophysPtsMax(patch.max);
+    if ("colorMode" in patch) setGeophysPtsColorMode(patch.colorMode);
+    if ("stops" in patch) setGeophysPtsStops(patch.stops);
+  };
   // TASKS.csv #1094 — one survey's points as CSV (x, y, z, the value as "<method>_<unit>", line / fiducial / label), stamped
   const exportSurvey = (key) => {
     const meta = geophysSurveys[key] || {}, pts = rows.filter((r) => surveyKey(r) === key);
@@ -1511,7 +1520,8 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       // #481 — a positive model spanning 2+ decades (conductivity, resistivity) gets log-spaced colours;
       // on a linear ramp almost every cell of a ZTEM conductivity model (1e-5 .. 0.1 S/m) was one colour.
       const logColours = isLogProperty(guessVoxelProperty(modelFile.name), min, max); // #1786 — a .chg is not log-normal
-      addVoxelModel({ name: modelName, source: "ubc", cells, min, max, ...(coarsenedFrom ? { params: { coarsenedFrom } } : {}) /* #1095 */, ...(logColours ? { stops: logStops(min, max, SEQUENTIAL_ANCHORS), colorMode: "continuous", logScale: true /* #1780: log-stepped range sliders */ } : {}) });
+      const ramp = propertyRamp(guessVoxelProperty(modelFile.name)); // #1788 — resistivity low = red
+      addVoxelModel({ name: modelName, source: "ubc", cells, min, max, ...(coarsenedFrom ? { params: { coarsenedFrom } } : {}) /* #1095 */, ...(logColours ? { stops: logStops(min, max, ramp?.anchors || SEQUENTIAL_ANCHORS), colorMode: "continuous", logScale: true /* #1780: log-stepped range sliders */, ...(ramp?.palette ? { palette: ramp.palette } : {}) } : {}) });
       infoNotes.push(farNote(cells) + tr("Imported \"{name}\" — {nx}×{ny}×{nz} mesh, {cells} cell(s) with data.{v}{v2}{coarsenNote}", { name: modelName, nx: mesh.nx, ny: mesh.ny, nz: mesh.nz, cells: cells.length.toLocaleString(), v: air.count ? tr(" {count} cells at {v} (the value this model uses for air above the ground) were treated as air (no data).", { count: air.count.toLocaleString(), v: Number(air.value).toPrecision(3) }) : "", v2: logColours ? tr(" Values span {min} to {max} ({v} decades), so colours are log-spaced.", { min: min.toPrecision(2), max: max.toPrecision(2), v: Math.round(Math.log10(max / min)) }) : "", coarsenNote }));
       }
       setVoxelError({ info: true, text: infoNotes.join(" ") });
@@ -1579,7 +1589,8 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       const { min, max } = cellValueRange(cells);
       // TASKS.csv #1662 — the UBC rule (#481): a positive property spanning two decades or more gets log-spaced colours and log-stepped sliders
       const logColours = isLogProperty(guessed, min, max); // #1786
-      addVoxelModel({ name: `${base} (${attr})`, source: "csv", cells, min, max, ...(guessed ? { property: guessed } : {}), ...(logColours ? { stops: logStops(min, max, SEQUENTIAL_ANCHORS), colorMode: "continuous", logScale: true } : {}) });
+      const ramp = propertyRamp(guessed); // #1788 — resistivity low = red
+      addVoxelModel({ name: `${base} (${attr})`, source: "csv", cells, min, max, ...(guessed ? { property: guessed } : {}), ...(logColours ? { stops: logStops(min, max, ramp?.anchors || SEQUENTIAL_ANCHORS), colorMode: "continuous", logScale: true, ...(ramp?.palette ? { palette: ramp.palette } : {}) } : {}) });
       let m = farNote(cells) + tr("{attr}: {n} block(s)", { attr, n: cells.length.toLocaleString() }); // far: #1427
       if (air) m += tr(", {n} block(s) at {v} (the value this model uses for air above the ground) left out", { n: air.count.toLocaleString(), v: Number(air.value).toExponential(2) }); // #1662
       if (logColours) m += tr(", log-spaced colours (the values span {d} decades)", { d: Math.log10(max / min).toFixed(1) });
@@ -1919,19 +1930,31 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                 — built generically against that shape, not tied to actual voxel-model objects — works
                 unchanged. geophysPtsOnUpdate routes its onUpdate(id, patch) calls to the store fields
                 instead of a per-model update, since geophys_pts is one flat layer, not a list. */}
+            {min !== null && (() => { // TASKS.csv #1787 — Linear / Log colour scale for a positive survey (log: viridis on log-spaced stops)
+              const cur = manySurveys ? { min: legendMeta?.min ?? legendDrawn.min, max: legendMeta?.max ?? legendDrawn.max, stops: legendMeta?.stops || [] } : { min: geophysPtsMin ?? drawnRange.min, max: geophysPtsMax ?? drawnRange.max, stops: geophysPtsStops };
+              if (!((manySurveys ? legendRange.min : min) > 0) || !(cur.min > 0 && cur.max > cur.min)) return null;
+              const isLog = isLogSpaced(cur.stops), dec = decadesBetween(cur.min, cur.max);
+              return (
+                <div style={{ marginTop: 6, fontSize: "var(--font-size-sm)" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <span style={{ color: "var(--color-text-faint)", width: 62, flexShrink: 0 }}>{tr("Colour scale")}</span>
+                    <select value={isLog ? "log" : "linear"} aria-label={tr("Colour scale of the point survey")} style={{ ...numInput, flex: 1, minWidth: 0 }}
+                      onChange={(e) => ptsLegendUpdate("geophys_pts", e.target.value === "log" ? { stops: logViridisStops(cur.min, cur.max), colorMode: "continuous" } : { stops: [] })}>
+                      <option value="linear">{tr("Linear")}</option>
+                      <option value="log">{tr("Log (each decade the same share of the colours)")}</option>
+                    </select>
+                  </div>
+                  {!isLog && dec >= 2 && <div style={{ color: "var(--color-warn-text)", fontSize: "var(--font-size-xs)", marginTop: 3, lineHeight: 1.4 }}>{tr("These values span {d} decades: on a linear scale most points share the lowest colours. A log scale spreads them.", { d: dec.toFixed(1) })}</div>}
+                </div>
+              );
+            })()}
             {min !== null && (
               <VoxelLegendEditor
                 key={manySurveys ? legendKey : "all"}
                 model={manySurveys
                   ? { id: "geophys_pts", min: legendMeta?.min ?? legendDrawn.min, max: legendMeta?.max ?? legendDrawn.max, colorMode: legendMeta?.colorMode || "continuous", stops: legendMeta?.stops || [], cells: legendRows } // #1587 — this survey's own legend
                   : { id: "geophys_pts", min: geophysPtsMin ?? drawnRange.min, max: geophysPtsMax ?? drawnRange.max, colorMode: geophysPtsColorMode, stops: geophysPtsStops, cells: rows }}
-                onUpdate={(_id, patch) => {
-                  if (manySurveys) { updateGeophysSurvey(legendKey, { legend: { ...(geophysSurveys[legendKey]?.legend || {}), ...patch } }); return; } // #1587
-                  if ("min" in patch) setGeophysPtsMin(patch.min);
-                  if ("max" in patch) setGeophysPtsMax(patch.max);
-                  if ("colorMode" in patch) setGeophysPtsColorMode(patch.colorMode);
-                  if ("stops" in patch) setGeophysPtsStops(patch.stops);
-                }}
+                onUpdate={ptsLegendUpdate} /* #1787 — the same routing, shared with the colour-scale choice */
               />
             )}
             <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
@@ -2802,7 +2825,9 @@ function VoxelLegendEditor({ model, onUpdate }) {
   // picker drives both the Classify action below (colors its generated stops) and the standalone
   // "Recolor with this palette" button (re-themes the model's EXISTING stop values/positions, e.g. an
   // OMF-imported legend, without re-running classification).
-  const [palette, setPalette] = useState("viridis"); // TASKS.csv #382 — was the isoluminant blue-red
+  // TASKS.csv #1788 — the palette the model's colours came from (model.palette), else 'The model's own colours' when it has stops: the
+  // dropdown read 'Viridis' over a cream-to-plum legend
+  const [palette, setPalette] = useState(() => (model.palette && PALETTES[model.palette] ? model.palette : (model.stops || []).length ? "__own" : "viridis")); // #382 — was the isoluminant blue-red
   const stops = model.stops || [];
   const shown = useMemo(() => readableValues([...stops.map((s) => s.value), model.max]), [stops, model.max]); // #1422 — the stops (and the max) as read
   const rangeShown = useMemo(() => readableValues([model.min, model.max]), [model.min, model.max]); // #1790
@@ -2820,8 +2845,9 @@ function VoxelLegendEditor({ model, onUpdate }) {
   };
   const recolorWithPalette = () => {
     if (!stops.length) return;
+    if (!PALETTES[palette]) return; // #1788 — 'the model's own colours' is not a palette to recolour with
     const colors = paletteColorsHex(palette, stops.length);
-    setStops(stops.map((s, i) => ({ ...s, color: colors[i] })));
+    setStops(stops.map((s, i) => ({ ...s, color: colors[i] })), { palette }); // #1788 — remembered for the dropdown
   };
   // TASKS.csv #1781 (review #1646, Kodiak) — classes from the cells SHOWN: air and the cells outside the Min / Max range left out (a
   // quantile class 1 was 'to -1', the air slab; with a cutoff of 8 every visible cell fell in the top class). Log needs positive
@@ -2837,7 +2863,8 @@ function VoxelLegendEditor({ model, onUpdate }) {
     const breaks = classifyBreaks(shownValues(), classCount, method);
     setClassNote(classCountNote(breaks, classCount, method));
     if (!breaks.length) return;
-    const colors = paletteColorsHex(palette, breaks.length);
+    const own = stops.map((s) => s.color); // #1788 — classes in the model's own colours when no palette is chosen
+    const colors = PALETTES[palette] || !own.length ? paletteColorsHex(PALETTES[palette] ? palette : "viridis", breaks.length) : breaks.map((_, i) => own[Math.round((i * (own.length - 1)) / Math.max(1, breaks.length - 1))]);
     setStops(breaks.map((v, i) => ({ value: v, color: colors[i] })), { colorMode: "discrete" });
   };
   const resetToDefault = () => setStops([]);
@@ -2902,14 +2929,15 @@ function VoxelLegendEditor({ model, onUpdate }) {
         <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
           <select value={palette} onChange={(e) => setPalette(e.target.value)} style={{ ...numInput, flex: 1 }} title={PALETTES[palette]?.label}>
             {/* #1433 — the short name in the list (the full description widened the sidebar to 488 px); the full text on hover */}
-            {Object.entries(PALETTES).map(([key, p]) => <option key={key} value={key} title={p.label}>{p.label.split(" — ")[0]}</option>)}
+            {palette === "__own" && <option value="__own">{tr("The model's own colours")}</option>}{/* #1788 */}
+            {Object.entries(PALETTES).map(([key, p]) => <option key={key} value={key} title={p.label}>{paletteShortName(key)}</option>)}
           </select>
-          {stops.length > 0 && (
+          {stops.length > 0 && PALETTES[palette] && (
             <button onClick={recolorWithPalette} style={{ ...pBtn, width: "auto", marginBottom: 0 }} title={tr("Re-colour the existing stops with this palette, keeping their current values")}>{tr("Recolour")}</button>
           )}
         </div>
         <div style={{ display: "flex", gap: 2, marginTop: 4, height: 10, borderRadius: 3, overflow: "hidden" }}>
-          {paletteColorsHex(palette, 24).map((c, i) => <div key={i} style={{ flex: 1, background: c }} />)}
+          {(PALETTES[palette] ? paletteColorsHex(palette, 24) : stops.map((s) => s.color)).map((c, i) => <div key={i} style={{ flex: 1, background: c }} />)}
         </div>
       </div>
 
