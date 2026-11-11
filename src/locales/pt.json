@@ -1261,6 +1261,8 @@
   "{label} is {v} × {v2} px{v3} — over the {v4} million-value limit GeoStrix decodes at once, with no smaller overview inside. Crop it to your area, or add overviews (gdaladdo) / thin it (gdalwarp -tr) in QGIS or GDAL first.": "{label} tem {v} × {v2} px{v3} — acima do limite de {v4} milhões de valores que o GeoStrix decodifica de uma vez, e não traz uma visão geral menor. Recorte para a sua área, ou adicione visões gerais (gdaladdo) / reduza (gdalwarp -tr) no QGIS ou GDAL antes.",
   " × {bands} bands": " × {bands} bandas",
   "Not a readable GeoTIFF ({message}).": "Não é um GeoTIFF legível ({message}).",
+  "\"{name}\" is not a TIFF, .gxf or .grd: a table goes to Geochem (surface samples) or the 3D View (collars and logs).": "\"{name}\" não é um TIFF, .gxf ou .grd: uma tabela vai para Geoquímica (amostras de superfície) ou para a Vista 3D (bocas de furo e perfis).",
+  "\"{name}\" is not a TIFF, .gxf or .grd file (its first bytes are not a TIFF header).": "\"{name}\" não é um arquivo TIFF, .gxf ou .grd (seus primeiros bytes não são um cabeçalho TIFF).",
   "\"{name}\" is not a readable GeoTIFF ({message}).": "“{name}” não é um GeoTIFF legível ({message}).",
   "\"{name}\" has no readable georeferencing (bounding box) — it may be a plain, non-georeferenced TIFF.": "“{name}” não tem georreferência legível (retângulo envolvente) — pode ser um TIFF comum, sem georreferência.",
   "\"{name}\" has no readable elevation band.": "“{name}” não tem banda de elevação legível.",

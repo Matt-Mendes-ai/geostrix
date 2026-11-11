@@ -1261,6 +1261,8 @@
   "{label} is {v} × {v2} px{v3} — over the {v4} million-value limit GeoStrix decodes at once, with no smaller overview inside. Crop it to your area, or add overviews (gdaladdo) / thin it (gdalwarp -tr) in QGIS or GDAL first.": "{label} بحجم {v} × {v2} بكسل{v3} — أكثر من حد {v4} مليون قيمة يفكها GeoStrix دفعة واحدة، دون عرض مصغّر بداخله. اقتصه إلى منطقتك، أو أضف عروضًا مصغرة (gdaladdo) / خفّفه (gdalwarp -tr) في QGIS أو GDAL أولًا.",
   " × {bands} bands": " × {bands} نطاق",
   "Not a readable GeoTIFF ({message}).": "ملف GeoTIFF غير مقروء ({message}).",
+  "\"{name}\" is not a TIFF, .gxf or .grd: a table goes to Geochem (surface samples) or the 3D View (collars and logs).": "\"{name}\" ليس ملف TIFF أو .gxf أو .grd: الجدول يذهب إلى الجيوكيمياء (العينات السطحية) أو العرض ثلاثي الأبعاد (الفوهات والسجلات).",
+  "\"{name}\" is not a TIFF, .gxf or .grd file (its first bytes are not a TIFF header).": "\"{name}\" ليس ملف TIFF أو .gxf أو .grd (بايتاته الأولى ليست ترويسة TIFF).",
   "\"{name}\" is not a readable GeoTIFF ({message}).": "«{name}» ليس ملف GeoTIFF مقروءًا ({message}).",
   "\"{name}\" has no readable georeferencing (bounding box) — it may be a plain, non-georeferenced TIFF.": "لا يحوي «{name}» إسنادًا جغرافيًا مقروءًا (المستطيل المحيط) — قد يكون TIFF عاديًا غير مُسند جغرافيًا.",
   "\"{name}\" has no readable elevation band.": "لا يحوي «{name}» نطاق ارتفاع مقروءًا.",

@@ -288,8 +288,19 @@ export async function decodeTiffImage(file, maxSide = FULL_DETAIL_SIZE) {
   return { canvas, width, height, sourceWidth: W, sourceHeight: H };
 }
 
+// TASKS.csv #2131 (review #2013, Woodjam) — a CSV fed to the raster import said 'Not a readable GeoTIFF (Invalid byte order value.)', with no
+// file name. The first bytes of a TIFF are 'II*\0' / 'MM\0*' (BigTIFF: 'II+\0' / 'MM\0+'): anything else is said to be no TIFF, by name.
+export function isTiffHeader(b) {
+  if (!b || b.length < 4) return false;
+  return (b[0] === 0x49 && b[1] === 0x49 && (b[2] === 0x2a || b[2] === 0x2b) && b[3] === 0) || (b[0] === 0x4d && b[1] === 0x4d && b[2] === 0 && (b[3] === 0x2a || b[3] === 0x2b));
+}
 export async function parseGeoTIFF(file, { bandFn = null, samples = null, maxSide = MAX_TEXTURE_SIZE, worldFile = null } = {}) { // maxSide: #838; worldFile: #1855
   let tiff, image;
+  if (typeof file?.slice === "function" && !isTiffHeader(new Uint8Array(await file.slice(0, 4).arrayBuffer()))) {
+    throw new Error(/\.(csv|txt|xlsx?|tsv)$/i.test(file.name || "")
+      ? tr("\"{name}\" is not a TIFF, .gxf or .grd: a table goes to Geochem (surface samples) or the 3D View (collars and logs).", { name: file.name })
+      : tr("\"{name}\" is not a TIFF, .gxf or .grd file (its first bytes are not a TIFF header).", { name: file.name }));
+  }
   try {
     tiff = await openTiff(file); // #1351 — by byte range, not the whole file in memory
     image = await tiff.getImage();
