@@ -159,7 +159,12 @@ export default function DcipPanel({ pBtn, numInput, resultSlot = null }) {
       setMapping(m);
       const p = m.a && m.m && m.rho ? parseDcipRows(t.rows, m) : null;
       if (p?.spacing) setOpts((o) => ({ ...o, cell: o.cell || String(+(p.spacing / 2).toFixed(2)), depth: o.depth || String(suggestModelDepth(p.readings, p.span, p.spacing / 2)) })); // #680
-      setMsg(p ? { ok: true, text: tr("{name}: {n} readings ({array}), electrodes {a}–{b} m, smallest spacing {s} m{ip}{skipped}.", { name: f.name, n: p.readings.length, array: p.array, a: p.span[0], b: p.span[1], s: p.spacing, ip: p.ip ? tr(", with chargeability") : "", skipped: p.skipped ? tr("; {n} row(s) skipped (missing A/M, non-positive resistivity{v})", { n: p.skipped, v: m.ip ? tr(" or no chargeability") : "" }) : "" }) + (t.note ? " " + t.note : "") } // #1974
+      // TASKS.csv #2026 (review #2013, Woodjam) — one line file was read into the pane but not kept, while several files at once were: the
+      // same rule now (kept unplaced, as the multi-file import keeps a line it cannot place); a line already in the project is left as it is
+      const keptName = f.name.replace(/\.(csv|txt|dat|ipg)$/i, "");
+      const newlyKept = !!(p?.readings.length && !(dcipLines || []).some((l) => l.name === keptName));
+      if (newlyKept) { const cell = p.spacing ? String(+(p.spacing / 2).toFixed(2)) : ""; saveDcipLine({ name: keptName, readings: p.readings, rho: p.rho, ip: p.ip, ...(p.err ? { err: p.err } : {}), line: { x0: "", y0: "", x1: "", y1: "", ground: "", scale: "", stations: null }, opts: { ...opts, cell: opts.cell || cell, depth: opts.depth || (p.spacing ? String(suggestModelDepth(p.readings, p.span, p.spacing / 2)) : "") }, savedAt: new Date().toISOString() }); }
+      setMsg(p ? { ok: true, text: tr("{name}: {n} readings ({array}), electrodes {a}–{b} m, smallest spacing {s} m{ip}{skipped}.", { name: f.name, n: p.readings.length, array: p.array, a: p.span[0], b: p.span[1], s: p.spacing, ip: p.ip ? tr(", with chargeability") : "", skipped: p.skipped ? tr("; {n} row(s) skipped (missing A/M, non-positive resistivity{v})", { n: p.skipped, v: m.ip ? tr(" or no chargeability") : "" }) : "" }) + (t.note ? " " + t.note : "") + (newlyKept ? " " + tr("Kept in the project as \"{name}\" (place it on the map before inverting).", { name: keptName }) : "") } // #1974; kept: #2026
         : { ok: false, text: tr("Map the A, M and apparent-resistivity columns below.") });
     } catch (e) { setMsg({ ok: false, text: tr("Could not read {name}: {message}", { name: f.name, message: e.message }) }); }
   };

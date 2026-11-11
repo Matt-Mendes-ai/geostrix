@@ -17,7 +17,7 @@ const customLayers = [
 test("the choices: the built-in numeric logs with 3+ readings, then every numeric field of each custom layer by name", () => {
   const c = numericSourceChoices({ layers, customLayers });
   assert.deepEqual(c.map((s) => s.key), ["log:magsusc", "custom:c1:ai_wav", "custom:c2:value"]); // #2397: custom fields by reading count (4, 3), not by name
-  assert.deepEqual(c.map((s) => [s.label, s.unit, s.n, s.logScale]), [["Mag. susc.", "SI", 3, true], ["SWIR › ai_wav", CUSTOM_UNIT, 4, false], ["Cpy %", CUSTOM_UNIT, 3, false]]); // #2397 order
+  assert.deepEqual(c.map((s) => [s.label, s.unit, s.n, s.logScale]), [["Mag. susc.", CUSTOM_UNIT /* #2079 — readings of 0.5 and 0.9 are not SI */, 3, true], ["SWIR › ai_wav", CUSTOM_UNIT, 4, false], ["Cpy %", CUSTOM_UNIT, 3, false]]); // #2397 order
   assert.equal(findNumericSource("custom:c1:ai_wav", { layers, customLayers })?.label, "SWIR › ai_wav");
   assert.equal(findNumericSource("Au", { layers, customLayers }), null); // an assay symbol is not a source
   assert.equal(findNumericSource("log:sg", { layers, customLayers }), null);
@@ -25,7 +25,7 @@ test("the choices: the built-in numeric logs with 3+ readings, then every numeri
 
 test("the rows become assay-shaped intervals; depth-only readings get a short support", () => {
   const ms = sourceAssays(findNumericSource("log:magsusc", { layers, customLayers }), { layers, customLayers });
-  assert.deepEqual(ms.assayElements, [{ symbol: "Mag. susc.", unit: "SI" }]);
+  assert.deepEqual(ms.assayElements, [{ symbol: "Mag. susc.", unit: CUSTOM_UNIT }]); // #2079 — as logged, not SI, for these readings
   assert.deepEqual([ms.pointRows, ms.pointSupport, ms.skipped], [3, 1, 1]); // 1 m apart: the default 1 m; the blank reading skipped
   assert.deepEqual(ms.assays[0], { hole_id: "H1", from: 9.5, to: 10.5, values: { "Mag. susc.": 0.5 }, source: "log" });
   assert.equal(ms.assays[1].values["Mag. susc."], 0.9);
