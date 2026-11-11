@@ -9914,5 +9914,9 @@
   "The checked holes ({n} of {total})": "Les sondages cochés ({n} sur {total})",
   "{pct}% of the estimated metal ({k} of {n} blocks) lies below the deepest sample of every hole within {r} m: carried down past the drilling. A Vertical reach under the search radius keeps it near the samples.": "{pct} % du métal estimé ({k} des {n} blocs) se trouve sous l'échantillon le plus profond de tout sondage à moins de {r} m : porté vers le bas au-delà du forage. Une Portée verticale inférieure au rayon de recherche le garde près des échantillons.",
   "{el} (t)": "{el} (t)",
-  "Mean grade ({unit})": "Teneur moyenne ({unit})"
+  "Mean grade ({unit})": "Teneur moyenne ({unit})",
+  "{pct}% of the sampled metres of {el} are in samples longer than {len} m (length-weighted median {med} m): a composite shorter than its sample repeats the sample's grade, so the pairs inside one sample are identical{v}.": "{pct} % des mètres échantillonnés de {el} sont dans des échantillons plus longs que {len} m (médiane pondérée par la longueur {med} m) : un composite plus court que son échantillon répète la teneur de l'échantillon, donc les paires à l'intérieur d'un échantillon sont identiques{v}.",
+  " and the nugget is understated": " et l'effet de pépite est sous-estimé",
+  " and the estimate looks smoother than the data": " et l'estimation paraît plus lisse que les données",
+  "Use {m} m": "Utiliser {m} m"
 }

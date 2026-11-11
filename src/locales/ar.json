@@ -9914,5 +9914,9 @@
   "The checked holes ({n} of {total})": "الثقوب المحددة ({n} من {total})",
   "{pct}% of the estimated metal ({k} of {n} blocks) lies below the deepest sample of every hole within {r} m: carried down past the drilling. A Vertical reach under the search radius keeps it near the samples.": "{pct}% من المعدن المقدَّر ({k} من {n} كتلة) يقع تحت أعمق عينة لكل ثقب ضمن {r} م: حُمل إلى الأسفل بعد الحفر. مدى رأسي أقل من نصف قطر البحث يبقيه قرب العينات.",
   "{el} (t)": "{el} (طن)",
-  "Mean grade ({unit})": "متوسط المحتوى ({unit})"
+  "Mean grade ({unit})": "متوسط المحتوى ({unit})",
+  "{pct}% of the sampled metres of {el} are in samples longer than {len} m (length-weighted median {med} m): a composite shorter than its sample repeats the sample's grade, so the pairs inside one sample are identical{v}.": "{pct}% من الأمتار المأخوذة عيناتها من {el} في عينات أطول من {len} م (الوسيط الموزون بالطول {med} م): المركّب الأقصر من عينته يكرر محتوى العينة، فتتطابق الأزواج داخل العينة الواحدة{v}.",
+  " and the nugget is understated": " ويُقلَّل من أثر الكتلة",
+  " and the estimate looks smoother than the data": " ويبدو التقدير أنعم من البيانات",
+  "Use {m} m": "استخدم {m} م"
 }

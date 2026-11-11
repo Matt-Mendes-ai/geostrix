@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import CompositeLengthNote from "./CompositeLengthNote.jsx"; // TASKS.csv #2549
 import { belowDrilling } from "../lib/belowDrilling.js"; // TASKS.csv #2546
 import { buildMeshQuery, isPointInsideMesh, isMeshClosed } from "../lib/meshQuery.js"; // TASKS.csv #517
 import { validateSolid } from "../lib/meshValidate.js"; // TASKS.csv #860
@@ -691,6 +692,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
             {useComposites && (
               <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
                 <label style={fieldLabel}>{tr("Composite length (m)")}<input type="number" step="any" min="0.1" value={compositeLength} onChange={(e) => setCompositeLength(Math.max(0.1, Number(e.target.value) || 2))} style={inp} />
+                  <CompositeLengthNote assays={srcAssays} symbol={symbol} length={compositeLength} onUse={setCompositeLength} />{/* #2549 */}
                 </label>
                 {/* TASKS.csv #262 — was hardcoded at 0.5 with no way to tighten it. Same control and
                     wording CompositingModal already exposes. */}

@@ -1,4 +1,5 @@
 import { LAYER_META } from "../lib/layers.js"; // TASKS.csv #1215
+import CompositeLengthNote from "./CompositeLengthNote.jsx"; // TASKS.csv #2549
 import React, { useMemo, useState } from "react";
 import { X, Play } from "./icons.js";
 import { compositeDownhole } from "../lib/geochem.js";
@@ -213,6 +214,7 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
               </select>
             </label>
             <label style={fieldLabel} title={tr("A variogram assumes a common support — every sample the same volume. Compositing to a fixed length is what provides that; raw ragged intervals do not.")}>{tr("Composite length (m)")}<input type="number" min="0.1" step="any" value={compositeLength} onChange={(e) => setCompositeLength(Math.max(0.1, Number(e.target.value) || 2))} style={inp} />
+              <CompositeLengthNote assays={srcAssays} symbol={symbol} length={compositeLength} onUse={(m) => { setCompositeLength(m); setResult(null); }} variogram />{/* #2549 */}
             </label>
             <label style={fieldLabel} title={tr("Minimum fraction of a composite that must be covered by real assay material.")}>{tr("Min coverage (0-1)")}<input type="number" min="0" max="1" step="0.05" value={minCoverage} onChange={(e) => setMinCoverage(Math.min(1, Math.max(0, Number(e.target.value) || 0)))} style={inp} />
             </label>
