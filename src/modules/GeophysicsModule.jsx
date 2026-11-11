@@ -49,7 +49,7 @@ import { parseShapefileZip, parseShapefileParts } from "../lib/shapefile.js";
 import { groupShapefileParts } from "../lib/viewer/importHelpers.js"; // TASKS.csv #2121 — a loose .shp with its .prj / .dbf / .cpg
 import { parseGeoPackage } from "../lib/gpkg.js";
 import { idwGridToRasterInput, suggestBlankingDistance } from "../lib/idw.js";
-import { hillshadeToRasterInput, terrainDerivativeToRasterInput, autoZFactor } from "../lib/hillshade.js"; // derivatives: TASKS.csv #797; autoZFactor: #2460
+import { hillshadeToRasterInput, terrainDerivativeToRasterInput, autoZFactor, earlierDerivatives } from "../lib/hillshade.js"; // derivatives: TASKS.csv #797; autoZFactor: #2460; earlierDerivatives: #1764
 import { contourTerrain } from "../lib/contours.js";
 import SpatialAnalysis from "../components/SpatialAnalysis.jsx";
 import BasemapView from "../components/BasemapView.jsx";
@@ -155,7 +155,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
   const [eqsFor, setEqsFor] = useState(null); // TASKS.csv #1985 — the survey whose equivalent-source box is open
   const [gravFor, setGravFor] = useState(null); // TASKS.csv #1985 — the survey whose gravity-reduction box is open
   const {
-    layers, replaceLayer, goToModule, collars, rasters, addRaster, project, surfaceSamples, // #845 — the terrain picker over a samples-only project
+    layers, replaceLayer, goToModule, collars, rasters, addRaster, updateRaster /* #1764 */, project, surfaceSamples, // #845 — the terrain picker over a samples-only project
     terrain, addTerrain, updateTerrain, removeTerrain,
     geophysPtsStops, setGeophysPtsStops, geophysPtsColorMode, setGeophysPtsColorMode,
     geophysPtsMin, setGeophysPtsMin, geophysPtsMax, setGeophysPtsMax,
@@ -2214,11 +2214,15 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                     const { scale, ...r } = raster;
                     // #1626 — which terrain it was made from, so a replaced terrain can say this one is stale; its unit for the value grid
                     const unit = derivKind === "slope" ? "degrees" : derivKind === "aspect" ? "degrees from grid north" : derivKind === "curvature" ? "1/100 m" : null;
+                    const earlier = earlierDerivatives(rasters, terrain); // #1764 — the new one is the one shown
+                    earlier.forEach((x) => updateRaster(x.id, { visible: false }));
                     addRaster({ ...r, elevation: defaultElevation, drapeMode: "terrain", terrainDerivative: { kind: derivKind, terrainId: terrain.id ?? null, terrainName: terrain.name || "", unit } });
+                    const hid = earlier.length ? " " + tr("{n} earlier derivative(s) of this terrain were hidden so this one shows: {names}. Tick them in the GeoTIFF / GXF list to show them again.", { n: earlier.length, names: earlier.map((x) => x.name).join(", ") }) : "";
                     if (shade && zf > 1) setTerrainError({ info: true, text: tr("Hillshade with a vertical exaggeration of {z}x, chosen from this terrain's slopes (its steepest 2 % shown near 30°): on low relief a true-scale hillshade is one flat grey.", { z: zf }) }); // #2460
                     else if (scale) setTerrainError({ info: true, text: derivKind === "slope" ? tr("Slope draped on the terrain: white {min}° or flatter, darkest grey {max}° or steeper (this terrain's 2-98 % range).", { min: +scale.min.toPrecision(2), max: +scale.max.toPrecision(2) }) /* #2460 */ : tr("Curvature draped on the terrain: red convex, blue concave, saturated at ±{max} (1/100 m).", { max: +scale.max.toPrecision(2) }) + (r.grid ? " " + tr("Its values are kept: export them, restyle them, or use them as targeting evidence from the raster's card.") : "") });
                     else setTerrainError(derivKind === "aspect" ? { info: true, text: tr("Aspect draped on the terrain: the direction each slope faces, in degrees clockwise from grid north (red north, yellow-green east, cyan south, blue-magenta west; grey flat). Its values are kept.") } : null); // #1626 — the previous product's message was left showing
                     setHillshadeOpen(false);
+                    if (hid) setTerrainError((prev) => ({ info: true, text: (prev?.text ? prev.text + " " : "") + hid.trim() })); // #1764
                   }}
                   style={{ ...pBtn, marginBottom: 0, justifyContent: "center" }}
                 >{tr("Generate")}</button>
