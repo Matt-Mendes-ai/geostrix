@@ -10055,5 +10055,10 @@
   "Hide the earlier pits when this one is made": "Ocultar as cavas anteriores quando esta for feita",
   "Split at a vertex of the string.": "Divida num vértice da linha.",
   "Opened the closed string at vertex {n}: one string of {m} vertices that starts and ends there.": "A linha fechada foi aberta no vértice {n}: uma linha de {m} vértices que começa e termina ali.",
-  "Z {z} is the median collar elevation, only the level clicks are taken on until the start is placed; the start then takes the ground under it.": "Z {z} é a cota mediana dos colares, apenas o nível em que os cliques são tomados até o início ser colocado; depois o início toma o terreno abaixo dele."
+  "Z {z} is the median collar elevation, only the level clicks are taken on until the start is placed; the start then takes the ground under it.": "Z {z} é a cota mediana dos colares, apenas o nível em que os cliques são tomados até o início ser colocado; depois o início toma o terreno abaixo dele.",
+  "{n} on {l} of {m} levels": "{n} em {l} de {m} níveis",
+  "{t} t of it is rock the model has no block for (inside the outlines or their skin), counted at the density with no metal.": "{t} t disso é rocha para a qual o modelo não tem bloco (dentro dos contornos ou da sua casca), contada à densidade sem metal.",
+  "By wall (face° / berm m → inter-ramp): {list}.": "Por parede (face° / berma m → inter-rampa): {list}.",
+  "Flatter than the shell was solved at: {list}. Those walls take more waste than the shell counted.": "Mais suaves que a inclinação com que a cava conceitual foi resolvida: {list}. Essas paredes tiram mais estéril do que a cava contou.",
+  "That is the solid's own volume; the section times the line's length, as the profile line gives it, is {w} m³: the solid follows the curves by straight chords.": "Esse é o volume do próprio sólido; a seção vezes o comprimento da linha, como a linha do perfil o dá, é {w} m³: o sólido segue as curvas por cordas retas."
 }

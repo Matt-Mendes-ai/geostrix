@@ -10055,5 +10055,10 @@
   "Hide the earlier pits when this one is made": "إخفاء الحفر السابقة عند إنشاء هذه",
   "Split at a vertex of the string.": "اقسم عند رأس من رؤوس الخط.",
   "Opened the closed string at vertex {n}: one string of {m} vertices that starts and ends there.": "فُتح الخط المغلق عند الرأس {n}: خط واحد من {m} رأسًا يبدأ وينتهي هناك.",
-  "Z {z} is the median collar elevation, only the level clicks are taken on until the start is placed; the start then takes the ground under it.": "Z {z} هو الارتفاع الوسيط للفوهات، مجرد المستوى الذي تؤخذ عليه النقرات حتى توضع البداية؛ ثم تأخذ البداية سطح الأرض تحتها."
+  "Z {z} is the median collar elevation, only the level clicks are taken on until the start is placed; the start then takes the ground under it.": "Z {z} هو الارتفاع الوسيط للفوهات، مجرد المستوى الذي تؤخذ عليه النقرات حتى توضع البداية؛ ثم تأخذ البداية سطح الأرض تحتها.",
+  "{n} on {l} of {m} levels": "{n} على {l} من {m} مستوى",
+  "{t} t of it is rock the model has no block for (inside the outlines or their skin), counted at the density with no metal.": "{t} t منها صخر لا كتلة له في النموذج (داخل المحيطات أو قشرتها)، محسوب بالكثافة بلا معدن.",
+  "By wall (face° / berm m → inter-ramp): {list}.": "حسب الجدار (الوجه° / المصطبة م → بين المنحدرات): {list}.",
+  "Flatter than the shell was solved at: {list}. Those walls take more waste than the shell counted.": "أقل انحدارًا مما حُلّت به الحفرة: {list}. تأخذ تلك الجدران نفايات أكثر مما حسبته الحفرة.",
+  "That is the solid's own volume; the section times the line's length, as the profile line gives it, is {w} m³: the solid follows the curves by straight chords.": "هذا حجم المجسم نفسه؛ أما المقطع مضروبًا في طول الخط، كما يعطيه سطر المقطع، فهو {w} م³: يتبع المجسم المنحنيات بأوتار مستقيمة."
 }

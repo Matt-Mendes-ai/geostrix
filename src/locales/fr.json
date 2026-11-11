@@ -10055,5 +10055,10 @@
   "Hide the earlier pits when this one is made": "Masquer les fosses précédentes quand celle-ci est faite",
   "Split at a vertex of the string.": "Coupez à un sommet de la polyligne.",
   "Opened the closed string at vertex {n}: one string of {m} vertices that starts and ends there.": "La polyligne fermée a été ouverte au sommet {n} : une polyligne de {m} sommets qui commence et finit là.",
-  "Z {z} is the median collar elevation, only the level clicks are taken on until the start is placed; the start then takes the ground under it.": "Z {z} est l'altitude médiane des collets, seulement le niveau où les clics sont pris tant que le départ n'est pas placé ; le départ prend ensuite le terrain sous lui."
+  "Z {z} is the median collar elevation, only the level clicks are taken on until the start is placed; the start then takes the ground under it.": "Z {z} est l'altitude médiane des collets, seulement le niveau où les clics sont pris tant que le départ n'est pas placé ; le départ prend ensuite le terrain sous lui.",
+  "{n} on {l} of {m} levels": "{n} sur {l} des {m} niveaux",
+  "{t} t of it is rock the model has no block for (inside the outlines or their skin), counted at the density with no metal.": "{t} t en sont de la roche pour laquelle le modèle n'a pas de bloc (dans les contours ou leur peau), comptée à la densité sans métal.",
+  "By wall (face° / berm m → inter-ramp): {list}.": "Par paroi (face° / berme m → inter-rampe) : {list}.",
+  "Flatter than the shell was solved at: {list}. Those walls take more waste than the shell counted.": "Moins raides que la pente de la fosse conceptuelle : {list}. Ces parois prennent plus de stérile que la fosse n'en a compté.",
+  "That is the solid's own volume; the section times the line's length, as the profile line gives it, is {w} m³: the solid follows the curves by straight chords.": "C'est le volume propre du solide ; la section fois la longueur de la ligne, comme l'indique la ligne du profil, fait {w} m³ : le solide suit les courbes par des cordes droites."
 }
