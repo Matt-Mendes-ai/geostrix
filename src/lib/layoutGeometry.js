@@ -73,7 +73,13 @@ export function sectionScaleText(el) {
 export function pageScaleText(els) {
   const list = els || [];
   const v = list.find((e) => e.type === "viewport" && e.trueScale && e.capturedFixedScale > 0) || list.find((e) => e.type === "viewport" && metresPerPagePx(e));
-  if (!v) { const sec = list.find(isSectionImage); return sec ? sectionScaleText(sec) : ""; }
+  if (!v) {
+    const sec = list.find(isSectionImage);
+    if (sec) return sectionScaleText(sec);
+    // TASKS.csv #2474 (review #2325, WA uranium) — a drill-plan page: its plan's own scale (the title block's Scale row and {scale} were blank)
+    const plan = list.find((e) => e.type === "drillplan" && Number(e.scale) > 0);
+    return plan ? `1 : ${Math.round(Number(plan.scale)).toLocaleString()}` : "";
+  }
   const text = v.trueScale && v.capturedFixedScale > 0 ? `1 : ${v.capturedFixedScale.toLocaleString()}` : `${v.trueScale ? "" : "~"}1 : ${Math.round(metresPerPagePx(v) / M_PER_PAGE_PX).toLocaleString()}`;
   return obliqueCapture(v) ? tr("{scale} in the view plane (oblique view)", { scale: text }) : text;
 }
