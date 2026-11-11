@@ -10064,5 +10064,9 @@
   "the project's coordinates (no CRS set)": "إحداثيات المشروع (دون نظام إحداثيات محدد)",
   "ground": "الأرض",
   "Z blank: {z} m from the drawing target under E / N": "Z فارغ: {z} م من هدف الرسم تحت E / N",
-  "Starts at twice the typical drill-site spacing ({s} m).": "يبدأ بضعف التباعد المعتاد بين مواقع الحفر ({s} م)."
+  "Starts at twice the typical drill-site spacing ({s} m).": "يبدأ بضعف التباعد المعتاد بين مواقع الحفر ({s} م).",
+  "Contained in those blocks: {m}.": "المحتوى في تلك الكتل: {m}.",
+  "The blocks fill {p} % of the solid ({bt} t of {t} t): the grade is theirs, the rest has no estimate.": "تملأ الكتل {p} % من المجسم ({bt} t من {t} t): المحتوى محتواها؛ والباقي بلا تقدير.",
+  "{m} m of this line, in plan, is above the ground interpolated between the collars.": "{m} م من هذا الخط، في المسقط، فوق سطح الأرض المستوفى بين الفوهات.",
+  "No terrain: the line is checked against the ground interpolated between the collars.": "لا تضاريس: يُقارن الخط بسطح الأرض المستوفى بين الفوهات."
 }

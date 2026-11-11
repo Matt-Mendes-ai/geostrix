@@ -10064,5 +10064,9 @@
   "the project's coordinates (no CRS set)": "as coordenadas do projeto (sem SRC definido)",
   "ground": "terreno",
   "Z blank: {z} m from the drawing target under E / N": "Z em branco: {z} m do alvo de desenho sob E / N",
-  "Starts at twice the typical drill-site spacing ({s} m).": "Começa no dobro do espaçamento típico entre locais de sondagem ({s} m)."
+  "Starts at twice the typical drill-site spacing ({s} m).": "Começa no dobro do espaçamento típico entre locais de sondagem ({s} m).",
+  "Contained in those blocks: {m}.": "Contido nesses blocos: {m}.",
+  "The blocks fill {p} % of the solid ({bt} t of {t} t): the grade is theirs, the rest has no estimate.": "Os blocos preenchem {p} % do sólido ({bt} t de {t} t): o teor é deles; o restante não tem estimativa.",
+  "{m} m of this line, in plan, is above the ground interpolated between the collars.": "{m} m desta linha, em planta, estão acima do terreno interpolado entre os colares.",
+  "No terrain: the line is checked against the ground interpolated between the collars.": "Sem terreno: a linha é verificada contra o terreno interpolado entre os colares."
 }

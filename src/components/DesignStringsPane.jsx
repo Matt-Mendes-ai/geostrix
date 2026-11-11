@@ -18,7 +18,7 @@ import { toExportCsv, crsCell } from "../lib/tabular.js";
 import { saveFile } from "../lib/desktop.js";
 import { iconAction } from "../lib/a11y.js";
 import { pBtn, smallSel } from "../lib/sidebarStyles.js";
-import { collarGround, collarsLookUnderground } from "../lib/pitShell.js"; // #1905
+import { collarGround, collarsLookUnderground, pitMetalOf, elementOfModel, metalAmountText } from "../lib/pitShell.js"; // #1905; metal: #2441
 import { terrainGroundAt } from "../lib/viewer/geomath.js";
 import { t as tr } from "../lib/i18n.js";
 import StringManager from "./StringManager.jsx"; // TASKS.csv #1968 — many strings at once
@@ -285,6 +285,14 @@ export default function DesignStringsPane({ view, onAdd, onClose, surfaces = [],
   // ---------- solids ----------
   const model = models.find((m) => (m.id ?? m.name) === solid.modelId) || null;
   const density = num0(solid.density);
+  // TASKS.csv #2441 / #2599 (reviews #2325, #2486) — the grade is the blocks', which may fill only part of the solid ('0.25 % from 375 block(s)' for a
+  // 1M m3 solid they fill 37.5 % of): say what share they fill and the metal they hold, in the pit panes' words
+  const solidCoverText = (tonnage, tonnes) => {
+    if (!tonnage || !(tonnes > 0)) return "";
+    const share = tonnage.tonnes / tonnes, unit = valueUnit(model), element = elementOfModel(model), m = unit ? pitMetalOf(unit, element) : null;
+    const metal = m && tonnage.metalU > 0 ? " " + tr("Contained in those blocks: {m}.", { m: metalAmountText(tonnage.metalU * m.factor, m.unit, element, big) }) : "";
+    return (share < 0.95 ? " " + tr("The blocks fill {p} % of the solid ({bt} t of {t} t): the grade is theirs, the rest has no estimate.", { p: Math.round(share * 100), bt: big(tonnage.tonnes), t: big(tonnes) }) : "") + metal;
+  };
   const finishSolid = (name0, r, how, prefix = "") => {
     const taken = new Set((surfaces || []).map((s) => s.name)); let name = name0; for (let k = 2; taken.has(name); k++) name = `${name0} (${k})`; // #1942
     // #1904 — the tonnes are the solid's own volume at the density; the blocks (counted whole by their centre) give the grade only
@@ -294,7 +302,7 @@ export default function DesignStringsPane({ view, onAdd, onClose, surfaces = [],
       tip: tr("Solid from design strings ({how}): a drawn shape, not a modelled one", { how }),
       params: { tool: `solid from design strings (${how})`, strings: how === "extrude" ? [string.name] : solid.loft.map((id) => designStrings.find((s) => s.id === id)?.name), volumeM3: Math.round(r.volume), ...(tonnes != null ? { density, tonnes: Math.round(tonnes) } : {}), ...(tonnage ? { blockModel: model.name, blockSizeM: blockM, blocksInside: tonnage.blocks, blockTonnes: Math.round(tonnage.tonnes), meanGrade: tonnage.meanGrade == null ? null : +tonnage.meanGrade.toPrecision(4), gradeUnit: valueUnit(model) || null, gradeFrom: "blocks whose centre lies inside, counted whole" } : {}), warnings: r.warnings || [], generatedAt: new Date().toISOString() } });
     setMsg(prefix + (tonnage
-      ? tr("\"{name}\": {v} m³ = {t} t at {d} t/m³{g} from {n} block(s) of {m} ({b} m, counted whole by their centre).", { name, v: big(r.volume), t: big(tonnes), d: density, n: tonnage.blocks, m: model.name, b: blockM, g: tonnage.meanGrade == null ? tr("; no grade") : tr("; mean grade {g} {u}", { g: Number(tonnage.meanGrade.toPrecision(3)), u: valueUnit(model) || "" }) })
+      ? tr("\"{name}\": {v} m³ = {t} t at {d} t/m³{g} from {n} block(s) of {m} ({b} m, counted whole by their centre).", { name, v: big(r.volume), t: big(tonnes), d: density, n: tonnage.blocks, m: model.name, b: blockM, g: tonnage.meanGrade == null ? tr("; no grade") : tr("; mean grade {g} {u}", { g: Number(tonnage.meanGrade.toPrecision(3)), u: valueUnit(model) || "" }) }) + solidCoverText(tonnage, tonnes) /* #2441 / #2599 */
       : tonnes != null ? tr("\"{name}\": {v} m³ = {t} t at {d} t/m³. Choose a block model for its grade.", { name, v: big(r.volume), t: big(tonnes), d: density })
       : tr("\"{name}\": {v} m³. Enter a density for its tonnes, and a block model for its grade.", { name, v: big(r.volume) })));
   };
