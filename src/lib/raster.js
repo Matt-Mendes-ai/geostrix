@@ -20,7 +20,7 @@ import { decodeGrd } from "./grdFormats.js"; // TASKS.csv #1347
 import GeoTIFF, { fromArrayBuffer } from "geotiff"; // GeoTIFF.fromSource: #1351
 import { writeGeoTiff } from "./geotiffWrite.js"; // TASKS.csv #1038 — geotiff.js header, one loop for the pixels
 import { f32ToB64, b64ToF32 } from "./inversion.js"; // TASKS.csv #326 — compact grid values
-import { getProj4Def, getProj4DefSync, reprojectGrid, reprojectImageRGBA, bilinearSample, reprojectXY, guessEpsgFromPrjWkt } from "./reproject.js";
+import { getProj4Def, getProj4DefSync, reprojectGrid, reprojectImageRGBA, bilinearSample, reprojectXY, guessEpsgFromPrjWkt, isGeographicCrs } from "./reproject.js"; // isGeographicCrs: #1862
 import { arrMin, arrMax, percentileSorted } from "./arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread); #740 percentileSorted
 import { fillNoData, noDataNote } from "./demFill.js"; // TASKS.csv #421
 import { VIRIDIS_ANCHORS } from "./layers.js"; // TASKS.csv #740
@@ -480,7 +480,7 @@ async function readDemTile(file, crop = null, readMax = DEM_READ_MAX) {
   let bbox;
   try { bbox = demNodeBbox(image); } catch (err) { if (err.code === "rotated") throw err; bbox = null; } // #560
   if (!bbox || bbox.some((v) => !Number.isFinite(v))) {
-    throw new Error(tr("\"{name}\" has no readable georeferencing (bounding box) — it may be a plain, non-georeferenced TIFF.", { name: file.name }));
+    throw new Error(tr("\"{name}\" has no readable georeferencing (bounding box): it may be a plain, non-georeferenced TIFF. Select its world file (.tfw / .tifw / .wld) together with it, or place it with Maps > Georeference.", { name: file.name })); // #1861 — says where to go, as #1855's refusal does
   }
   const fullW = image.getWidth(), fullH = image.getHeight();
   const rx = (bbox[2] - bbox[0]) / Math.max(1, fullW - 1), ry = (bbox[3] - bbox[1]) / Math.max(1, fullH - 1); // node spacing
@@ -846,6 +846,8 @@ function rasterFromRows({ name, values, ncols, nrows, x0, y0, dx, dy, isDummy, m
 // ones reproject.js recognizes, the drape is ACTUALLY reprojected (reprojectImageRGBA) instead of
 // merely warned about. Every other case still imports as before, but now says explicitly which
 // assumption it fell back on rather than only mentioning it on a tag mismatch.
+// TASKS.csv #1862 — a geographic CRS whose bounds cannot be longitude / latitude
+export const notDegrees = (epsg, bbox) => isGeographicCrs(epsg) && Array.isArray(bbox) && (Math.abs(bbox[0]) > 180.5 || Math.abs(bbox[2]) > 180.5 || Math.abs(bbox[1]) > 90.5 || Math.abs(bbox[3]) > 90.5);
 export async function buildRasterImport(file, { epsg, defaultElevation, sourceEpsg, chooseProjectEpsg, bandFn = null, samples = null, name = null, keepDetail = false, worldFile = null, tie = null } = {}) { // samples: #807; keepDetail: #838; worldFile: #1855; tie: #2587
   const isGxf = /\.gxf$/i.test(file.name), isGrd = /\.grd$/i.test(file.name); // isGrd: #1347
   const maxSide = keepDetail ? FULL_DETAIL_SIZE : MAX_TEXTURE_SIZE;
@@ -879,6 +881,10 @@ export async function buildRasterImport(file, { epsg, defaultElevation, sourceEp
       : tr("Its EPSG:{src} ({label}) was reprojected to EPSG:{tie} and brought into the local grid through the grid's tie, and resampled onto the grid's own north.", { src: srcEpsg, tie: tie.epsg, label: Number.isFinite(overrideEpsg) ? tr("the Source CRS you set") : tr("this file's own CRS tag") }));
   } else if (tie && srcEpsg && !projEpsg) {
     crsNote = " " + tr("Its EPSG:{src} cannot be brought through the local grid's tie to EPSG:{tie} (GeoStrix has no definition for one of them), so it kept its own numbers: check where it lies.", { src: srcEpsg, tie: tie.epsg });
+  } else if (srcEpsg && projEpsg && srcEpsg !== projEpsg && notDegrees(srcEpsg, parsed.bbox)) {
+    // TASKS.csv #1862 (review #1646, Kodiak) — a file tagged WGS 84 degrees whose bounds run lon -180..1900, lat -2290..90 was
+    // 'reprojected' into a raster 15,500 x 38,600 km wide, unsaid: degrees outside +-180 / +-90 are not degrees
+    crsNote = " " + tr("{label} says EPSG:{src}, longitude / latitude, but its bounds ({x0} to {x1}, {y0} to {y1}) are not degrees: it was NOT reprojected and kept its own numbers. Set the Source CRS to the CRS it is really in and import it again.", { label: Number.isFinite(overrideEpsg) ? tr("The Source CRS you set") : tr("This file's own CRS tag"), src: srcEpsg, x0: Math.round(parsed.bbox[0]).toLocaleString(), x1: Math.round(parsed.bbox[2]).toLocaleString(), y0: Math.round(parsed.bbox[1]).toLocaleString(), y1: Math.round(parsed.bbox[3]).toLocaleString() });
   } else if (srcEpsg && projEpsg && srcEpsg !== projEpsg) {
     const fromDef = getProj4DefSync(srcEpsg), toDef = getProj4DefSync(projEpsg);
     if (fromDef && toDef && parsed.pixels) {
