@@ -4,6 +4,7 @@
 // faulted contacts left out) and shown WITH its evidence; the geologist reorders units, changes roles, sets each fault's
 // dip, then runs the ordinary GemPy stack (modellingRuns.runMapModel).
 import React, { useEffect, useMemo, useState } from "react";
+import { deepestUnitIntercept } from "../lib/holeMapContacts.js"; // TASKS.csv #2568
 import { ChevronUp, ChevronDown } from "./icons.js";
 import { t as tr } from "../lib/i18n.js";
 import { suggestPileOrder } from "../lib/pileOrder.js";
@@ -83,7 +84,7 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
   // TASKS.csv #821 — the units in the "intrusion" role, as closed bodies (outline to a depth, vertical or dipping walls)
   const intrusive = Object.keys(roles).filter((u) => roles[u] === "intrusion");
   const [bodyOff, setBodyOff] = useState({}); // unit -> true when unticked
-  const [bodyDepth, setBodyDepth] = useState(500);
+  const [bodyDepth, setBodyDepth] = useState(""); // TASKS.csv #2568 — blank until set or taken from the logs (it was a default 500 m)
   const [bodyDip, setBodyDip] = useState(90);
   const [bodyFlare, setBodyFlare] = useState("out");
   const bodyUnits = intrusive.filter((u) => !bodyOff[u]);
@@ -116,6 +117,8 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
   const codeUnit = useMemo(() => ({ ...suggestCodeUnits(codes.map((c) => c.code), mapUnits), ...codeEdit }), [codes, mapUnits, codeEdit]);
   const [useHolesChoice, setUseHoles] = useState(null);
   const useHoles = useHolesChoice ?? Object.values(codeUnit).some(Boolean); // on when a code matches a unit
+  // #2568 — the deepest logged intercept of an intrusive unit (its codes as mapped above), offered as the body's depth
+  const deepestLogged = useMemo(() => deepestUnitIntercept(lithoRows, codeUnit, bodyUnits), [lithoRows, codeUnit, bodyUnits]);
   const holePreview = useMemo(() => (useHoles && lithoRows?.length ? holeContacts(lithoRows, codeUnit, (u) => order.includes(u)) : null), [useHoles, lithoRows, codeUnit, order]);
   // TASKS.csv #2409 — no outcrop orientation but logged contacts in use: the run fits one per top from its contact points
   const outcropNone = orientCount && orientCount.beds + orientCount.planes === 0;
@@ -243,15 +246,16 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
             ))}
           </div>
           <div style={row}><span style={{ width: 120, flexShrink: 0 }}>{tr("Depth below outcrop")}</span>
-            <input type="number" min={10} step={50} value={bodyDepth} onChange={(e) => setBodyDepth(Math.max(10, Number(e.target.value) || 500))} style={{ ...sel, width: 70, flex: "none" }} aria-label={tr("Depth below outcrop")} /><span>m</span></div>
+            <input type="number" min={10} step={50} value={bodyDepth} placeholder={tr("required")} onChange={(e) => setBodyDepth(e.target.value === "" ? "" : Math.max(10, Number(e.target.value) || 10))} style={{ ...sel, width: 70, flex: "none" }} aria-label={tr("Depth below outcrop")} /><span>m</span>
+            {deepestLogged && bodyDepth === "" && <button type="button" onClick={() => setBodyDepth(Math.max(10, Math.ceil(deepestLogged.depth / 10) * 10))} style={{ ...sel, width: "auto", flex: "none", cursor: "pointer" }} title={tr("The deepest logged {unit} ends {d} m down hole {hole}: a body to that depth reaches every logged intercept.", { unit: deepestLogged.unit, d: Math.round(deepestLogged.depth), hole: deepestLogged.hole })}>{tr("Use {d} m (deepest logged)", { d: Math.max(10, Math.ceil(deepestLogged.depth / 10) * 10) })}</button>}{/* #2568 */}</div>
           <div style={row}><span style={{ width: 120, flexShrink: 0 }}>{tr("Wall dip")}</span>
             <input type="number" min={30} max={90} step={5} value={bodyDip} onChange={(e) => setBodyDip(Math.min(90, Math.max(30, Number(e.target.value) || 90)))} style={{ ...sel, width: 70, flex: "none" }} aria-label={tr("Wall dip")} /><span>°</span>
             <select value={bodyFlare} onChange={(e) => setBodyFlare(e.target.value)} disabled={bodyDip >= 90} style={{ ...sel, opacity: bodyDip >= 90 ? 0.5 : 1 }} aria-label={tr("Wall direction")}>
               <option value="out">{tr("widens with depth")}</option><option value="in">{tr("narrows with depth")}</option>
             </select></div>
-          <button onClick={() => onBuildBodies?.({ layer, field: unitField, units: bodyUnits, depthM: bodyDepth, wallDip: bodyDip, flare: bodyFlare })}
-            disabled={!groundAt || !bodyUnits.length} title={groundAt ? "" : tr("Needs a terrain: the top of each body is the ground. Offline, Geophysics > Block models > Terrain from the model's top makes one.")}
-            style={{ ...pBtn, justifyContent: "center", opacity: !groundAt || !bodyUnits.length ? 0.5 : 1 }}>
+          <button onClick={() => onBuildBodies?.({ layer, field: unitField, units: bodyUnits, depthM: Number(bodyDepth), wallDip: bodyDip, flare: bodyFlare })}
+            disabled={!groundAt || !bodyUnits.length || !(Number(bodyDepth) >= 10)} title={groundAt ? "" : tr("Needs a terrain: the top of each body is the ground. Offline, Geophysics > Block models > Terrain from the model's top makes one.")}
+            style={{ ...pBtn, justifyContent: "center", opacity: !groundAt || !bodyUnits.length || !(Number(bodyDepth) >= 10) ? 0.5 : 1 }}>
             {tr("Build intrusion bodies")}
           </button>
         </>)}

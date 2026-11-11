@@ -81,3 +81,11 @@ export function holeContacts(rows, codeUnit, inStack = () => true, { maxGap = MA
   }
   return { contacts, gaps, holes: holes.size, repeats };
 }
+
+// TASKS.csv #2568 — the deepest down-hole end of a logged interval whose code maps to one of `units` -> { unit, depth, hole } | null
+export function deepestUnitIntercept(rows, codeUnit, units) {
+  const want = new Set(units || []);
+  let best = null;
+  for (const r of rows || []) { const u = codeUnit?.[r.value]; if (!u || !want.has(u)) continue; const t = Number(r.to); if (Number.isFinite(t) && (!best || t > best.depth)) best = { unit: u, depth: t, hole: r.hole_id }; }
+  return best;
+}
