@@ -24,8 +24,10 @@ import { veinSourceUnits } from "../src/lib/layers.js";
 test("the vein list's distinct codes are computed once per rows array (ViewerModule calls it on every render)", () => {
   const litho = Array.from({ length: 200000 }, (_, i) => ({ value: ["AND", "Dyke"][i % 2] }));
   const layers = { litho, vein: [] };
-  assert.deepEqual(veinSourceUnits(layers), ["litho:Dyke"]);
+  const t0 = performance.now(); assert.deepEqual(veinSourceUnits(layers), ["litho:Dyke"]); const first = performance.now() - t0; // the uncached read
   const t = performance.now(); for (let k = 0; k < 50; k++) veinSourceUnits(layers); const ms = performance.now() - t;
-  assert.ok(ms < 20, `50 calls took ${Math.round(ms)} ms`);
+  // 50 cached calls against ONE uncached read (uncached, 50 calls would cost ~50x): a fixed 20 ms failed under the parallel sessions' load
+  // (262-384 ms on 2026-11-11) though the cache worked; both sides scale with the machine's load, so the ratio does not
+  assert.ok(ms < Math.max(20, 5 * first), `50 calls took ${Math.round(ms)} ms; one uncached read took ${Math.round(first)} ms`);
   assert.deepEqual(veinSourceUnits({ litho: [...litho, { value: "VQZ dyke" }], vein: [] }).length, 2, "a new array is read again");
 });
