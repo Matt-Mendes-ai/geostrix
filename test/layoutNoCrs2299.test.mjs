@@ -8,7 +8,8 @@ const s = readFileSync(new URL("../src/modules/LayoutModule.jsx", import.meta.ur
 test("#2300 — {crs} and the grid caption say local grid; the checkbox is not 'UTM'", () => {
   assert.ok(s.includes('function crsText(epsg, crsSet = true) {\n  if (crsSet === false) return tr("Local grid (no coordinate system set)");') || s.includes('function crsText(epsg, crsSet = true) {\r\n  if (crsSet === false) return tr("Local grid (no coordinate system set)");'));
   assert.ok(s.includes("crs: crsText(project?.epsg, project?.crsSet),"));
-  assert.ok(s.includes('{crsUnset ? tr("Coordinate grid (labelled)")'));
+  assert.ok(s.includes('{tr("Coordinate grid (labelled)")')); // #2484: on every project now, not only without a CRS
+  assert.ok(!s.includes('tr("UTM grid (labelled)")'));
   assert.ok(s.includes("<ViewportControls crsUnset={project?.crsSet === false}"));
 });
 
