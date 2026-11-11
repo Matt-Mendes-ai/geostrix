@@ -10045,5 +10045,6 @@
   " Dip directions were taken as grid north (the project grid); for compass or true-north readings, set North on the import card and import again.": " Las direcciones de buzamiento se tomaron como norte de cuadrícula (la cuadrícula del proyecto); para lecturas de brújula o de norte verdadero, ajuste Norte en la tarjeta de importación e importe de nuevo.",
   "The map is an online basemap ({layer}): its tiles load from the internet as you look around. Nothing is fetched for the project until you press {confirm}.": "El mapa es un mapa base en línea ({layer}): sus teselas se cargan desde internet a medida que se recorre. No se descarga nada para el proyecto hasta pulsar {confirm}.",
   "The map is an online basemap ({layer}): its tiles load from the internet as you look around.": "El mapa es un mapa base en línea ({layer}): sus teselas se cargan desde internet a medida que se recorre.",
-  "{field}: no column matched; the names looked for are {names}.": "{field}: ninguna columna coincidió; los nombres buscados son {names}."
+  "{field}: no column matched; the names looked for are {names}.": "{field}: ninguna columna coincidió; los nombres buscados son {names}.",
+  "{n} row(s) shared a hole id with an earlier row of the file; the first was kept ({ids})": "{n} fila(s) compartían un ID de sondaje con una fila anterior del archivo; se conservó la primera ({ids})"
 }

@@ -10045,5 +10045,6 @@
   " Dip directions were taken as grid north (the project grid); for compass or true-north readings, set North on the import card and import again.": " أُخذت اتجاهات الميل على أنها شمال الشبكة (شبكة المشروع)؛ لقراءات البوصلة أو الشمال الحقيقي، اضبط «الشمال» في بطاقة الاستيراد واستورد مرة أخرى.",
   "The map is an online basemap ({layer}): its tiles load from the internet as you look around. Nothing is fetched for the project until you press {confirm}.": "الخريطة خريطة أساس على الإنترنت ({layer}): تُحمَّل بلاطاتها من الإنترنت أثناء التنقل. لا يُنزَّل شيء للمشروع حتى تضغط {confirm}.",
   "The map is an online basemap ({layer}): its tiles load from the internet as you look around.": "الخريطة خريطة أساس على الإنترنت ({layer}): تُحمَّل بلاطاتها من الإنترنت أثناء التنقل.",
-  "{field}: no column matched; the names looked for are {names}.": "{field}: لم يطابق أي عمود؛ الأسماء التي بُحث عنها هي {names}."
+  "{field}: no column matched; the names looked for are {names}.": "{field}: لم يطابق أي عمود؛ الأسماء التي بُحث عنها هي {names}.",
+  "{n} row(s) shared a hole id with an earlier row of the file; the first was kept ({ids})": "شارك {n} صف معرّف ثقب مع صف سابق في الملف؛ احتُفظ بالأول ({ids})"
 }

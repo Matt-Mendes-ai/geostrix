@@ -28,7 +28,7 @@ const isXlsxName = (name) => /\.xlsx$/i.test(String(name || "")); // TASKS.csv #
 import { buildLayer, sameMapLayer } from "../../lib/mapLayerBuild.js"; // TASKS.csv #609; sameMapLayer: #2019
 import { askAdoptCrs } from "../../lib/adoptCrs.js"; // TASKS.csv #607
 import { requestProjectCrs } from "../../lib/projectCrsRequest.js"; // TASKS.csv #615
-import { collarAlwaysKept } from "../../lib/collarAttrs.js"; // TASKS.csv #2492 / #2190
+import { collarAlwaysKept, firstPerHole } from "../../lib/collarAttrs.js"; // TASKS.csv #2492 / #2190; firstPerHole: #2172
 import { surveyMethodKey, surveyMethodByHole, foldCaseVariants } from "../../lib/surveyMethod.js"; // TASKS.csv #2494
 import { holeTypeColumn, normalizeHoleType } from "../../lib/holeType.js"; // TASKS.csv #2161
 import { eventNotes } from "../../lib/downholeEvents.js"; // TASKS.csv #2317
@@ -403,6 +403,8 @@ export function useImportPipeline(ctx) {
       // TASKS.csv #2169 — a blank ELEVATION no longer skips the collar: it gets an assumed one after reprojection (fillMissingCollarZ below)
       const noCoords = rows.filter((r) => r.hole_id && !(Number.isFinite(r.x) && Number.isFinite(r.y))).map((r) => r.hole_id);
       rows = rows.filter((r) => r.hole_id && Number.isFinite(r.x) && Number.isFinite(r.y));
+      const repeats = ranked.rankColumn ? { dropped: 0, holes: [] } : firstPerHole(rows); // TASKS.csv #2172 — a repeated hole id: the first row kept, counted
+      if (repeats.dropped) rows = repeats.rows;
       if (noCoords.length) setNotices((p) => [...p, notice("{fileName}: {noCoords} collar(s) skipped — missing or non-numeric X or Y ({v}{v2}). Fix them in the file and re-import.", { fileName, noCoords: noCoords.length, v: noCoords.slice(0, 8).join(", "), v2: noCoords.length > 8 ? ", …" : "" })]);
       // TASKS.csv #120 — on-the-fly reprojection for general vector layers. Collars are the primary
       // absolute-world-coordinate import in this app (every other layer is hole-relative and inherits
@@ -528,6 +530,7 @@ export function useImportPipeline(ctx) {
       if (diff.changed.length) parts.push(overwriteExisting ? tr("{changed} existing hole(s) updated with different values", { changed: diff.changed.length }) : tr("{changed} existing hole(s) left untouched (you chose not to overwrite)", { changed: diff.changed.length }));
       if (diff.filled.length) parts.push(tr("{filled} existing hole(s) completed with values they did not have ({v})", { filled: diff.filled.length, v: ((fs) => fs.slice(0, 8).join(", ") + (fs.length > 8 ? "…" : ""))([...new Set(diff.filled.flatMap((f) => f.fields))]) })); // #600; at most 8 names: #1655 (29 kept columns were all listed)
       if (diff.unchanged.length) parts.push(tr("{unchanged} already present and identical", { unchanged: diff.unchanged.length }));
+      if (repeats.dropped) parts.push(tr("{n} row(s) shared a hole id with an earlier row of the file; the first was kept ({ids})", { n: repeats.dropped, ids: repeats.holes.slice(0, 6).join(", ") + (repeats.holes.length > 6 ? ", …" : "") })); // #2172
       if (ranked.dropped) parts.push(tr("{holes} hole(s) had several location records ({dropped} extra rows) — kept the lowest \"{rankColumn}\" for each: {holes2}{v}", { holes: ranked.holes.length, dropped: ranked.dropped, rankColumn: ranked.rankColumn, holes2: ranked.holes.slice(0, 5).join(", "), v: ranked.holes.length > 5 ? ", …" : "" }));
       if (attrCols.length) parts.push(tr("{n} more column(s) kept with each hole (Identify shows them): {cols}", { n: attrCols.length, cols: attrCols.slice(0, 8).join(", ") + (attrCols.length > 8 ? "…" : "") })); // #1504
       if (notKept.length) parts.push(tr("{n} column(s) not imported, each with more than 100 different values (add one under Extra fields to keep it): {cols}", { n: notKept.length, cols: notKept.slice(0, 8).join(", ") + (notKept.length > 8 ? "…" : "") })); // #2492 / #2190

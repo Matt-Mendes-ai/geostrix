@@ -10045,5 +10045,6 @@
   " Dip directions were taken as grid north (the project grid); for compass or true-north readings, set North on the import card and import again.": " As direções de mergulho foram tomadas como norte de quadrícula (a quadrícula do projeto); para leituras de bússola ou de norte verdadeiro, ajuste Norte no cartão de importação e importe de novo.",
   "The map is an online basemap ({layer}): its tiles load from the internet as you look around. Nothing is fetched for the project until you press {confirm}.": "O mapa é um mapa base online ({layer}): os blocos carregam da internet conforme você navega. Nada é baixado para o projeto até você clicar em {confirm}.",
   "The map is an online basemap ({layer}): its tiles load from the internet as you look around.": "O mapa é um mapa base online ({layer}): os blocos carregam da internet conforme você navega.",
-  "{field}: no column matched; the names looked for are {names}.": "{field}: nenhuma coluna correspondeu; os nomes procurados são {names}."
+  "{field}: no column matched; the names looked for are {names}.": "{field}: nenhuma coluna correspondeu; os nomes procurados são {names}.",
+  "{n} row(s) shared a hole id with an earlier row of the file; the first was kept ({ids})": "{n} linha(s) compartilhavam um ID de furo com uma linha anterior do arquivo; a primeira foi mantida ({ids})"
 }
