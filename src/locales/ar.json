@@ -9901,6 +9901,7 @@
   "\"{name}\" holds {n} radiometric channels ({list}): tick the ones to import, each as its own survey.": "يحتوي \"{name}\" على {n} قناة إشعاعية ({list}): حدد ما تريد استيراده، كل قناة كمسح مستقل.",
   "Tick at least one channel to import.": "حدد قناة واحدة على الأقل للاستيراد.",
   "Import each ticked channel as its own survey:": "استورد كل قناة محددة كمسح مستقل:",
+  "\"{name}\" holds several measurements ({list}): tick the ones to import, each as its own survey.": "يحتوي \"{name}\" على عدة قياسات ({list}): حدّد ما تريد استيراده، كلٌّ كمسح مستقل.",
   "Also make the {list} ratio survey(s) from the same stations": "أنشئ أيضًا مسوح النسبة {list} من المحطات نفسها",
   " As {k} survey(s): {list}.": " كـ {k} مسح: {list}.",
   "No outcrop orientation: {n} orientation(s) fitted from the logged contacts, a least-squares plane through each top's contact points ({list}). A buried deposit with no bedding builds this way; outcrop measurements replace them.": "لا يوجد اتجاه من المكاشف: {n} اتجاه مُوفَّق من التماسات المسجلة، مستوى بالمربعات الصغرى عبر نقاط تماس كل سطح ({list}). يُبنى الراسب المدفون بلا تطبق هكذا؛ وتحل قياسات المكاشف محلها.",

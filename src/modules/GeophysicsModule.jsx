@@ -17,7 +17,7 @@ import { lazyModal } from "../lib/lazyModal.jsx";
 import { sampleModelOnHoles } from "../lib/voxelSample.js"; // TASKS.csv #323
 import { logStops, SEQUENTIAL_ANCHORS } from "../lib/inversion.js"; // TASKS.csv #481
 import { SURVEY_METHODS, unitsForMethod, robustRange, SURVEY_METHOD_GROUPS, guessSurveyMethodFrom, diurnalApplies /* #1586 */, Z_MEANINGS, surveyKey, surveyStats, aglToElevation, replaceSurveyPoints, surveyExportRows } from "../lib/geophysSurveys.js"; // surveyExportRows: #1094 // TASKS.csv #451; replaceSurveyPoints #600
-import { radiometricChannels, isMultiRadiometric, channelKey, ratioJobs, ratioOf } from "../lib/radiometricChannels.js"; // TASKS.csv #2395
+import { radiometricChannels, otherMeasurementColumns, channelMethods, isMultiRadiometric, channelKey, ratioJobs, ratioOf } from "../lib/radiometricChannels.js"; // TASKS.csv #2395
 import { terrainElevationAt } from "../lib/inversion.js";
 import { downholeLikeness } from "../lib/downholeLikeness.js"; // TASKS.csv #1709
 import AddWebLayerModal from "../components/AddWebLayerModal.jsx";
@@ -380,6 +380,8 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
           openPicker(tr("\"{name}\" holds {n} radiometric channels ({list}): tick the ones to import, each as its own survey.", { name: file.name, n: ch.length, list: ch.map((c) => c.col).join(", ") }), { channels: ch.map((c) => c.col), channelPick: ch.map((c) => c.col), channelRatios: ratioJobs(ch).length > 0 });
           return;
         }
+        // TASKS.csv #2081 — several kinds of measurement (MX beside RHO): the picker, each ticked column its own survey
+        { const more = otherMeasurementColumns(res.meta.fields || [], res.data, cols); if (more.length) { const ch = [cols.value, ...more]; openPicker(tr("\"{name}\" holds several measurements ({list}): tick the ones to import, each as its own survey.", { name: file.name, list: ch.join(", ") }), { channels: ch, channelPick: ch, channelRatios: false }); return; } }
         const parsed = rowsToGeophysPoints(res.data, cols);
         const bad = parsed.filter((r) => !Number.isFinite(r.x) || !Number.isFinite(r.y) || !Number.isFinite(r.value));
         let good = parsed.filter((r) => Number.isFinite(r.x) && Number.isFinite(r.y) && Number.isFinite(r.value)).map((r) => ({ ...r, _src: file.name }));
@@ -1375,7 +1377,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     const cleaned = cleanRows(parsedRows, xyzPending, (r) => Number(r[valueCol]), (r) => (xyzPending.source === "csv" ? (xyzPending.lineCol ? r[xyzPending.lineCol] : null) : r._line ?? null));
     const cleanedRows = cleaned.rows;
     // TASKS.csv #2395 — a multi-channel radiometric file: one survey per ticked channel (file · channel), and the eU/eTh, K/eTh ratios
-    const rad = xyzPending.channels ? radiometricChannels(xyzPending.channels) : null;
+    const rad = xyzPending.channels ? (isMultiRadiometric(xyzPending.channels) ? radiometricChannels(xyzPending.channels) : channelMethods(xyzPending.channels)) : null; // channelMethods: #2081 — any kind of measurement
     const jobs = rad && xyzPending.source === "csv" ? [
       ...rad.filter((c) => (xyzPending.channelPick || []).includes(c.col)).map((c) => ({ src: channelKey(fileName, c.col), col: c.col, method: c.method })),
       ...(xyzPending.channelRatios ? ratioJobs(rad).map((r) => ({ src: channelKey(fileName, r.label), ratio: r, method: r.method })) : []),
@@ -1441,7 +1443,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     }
     const replacedN = replaceSurveyPoints(rows, mapped).replaced; // #600 — re-import replaces, does not double
     setLayers((l) => ({ ...l, geophys_pts: replaceSurveyPoints(l.geophys_pts, mapped).rows }));
-    if (jobs) for (const j of jobs) if (!geophysSurveys[j.src]?.method) updateGeophysSurvey(j.src, { method: j.method, units: SURVEY_METHODS[j.method].units }); // #2395
+    if (jobs) for (const j of jobs) if (j.method && SURVEY_METHODS[j.method] && !geophysSurveys[j.src]?.method) updateGeophysSurvey(j.src, { method: j.method, units: SURVEY_METHODS[j.method].units }); // #2395; a channel whose name says nothing: #2081
     if (!jobs) { const g = guessSurveyMethodFrom(valueCol, mapped.map((r) => r.label), { instrument: xyzPending.header?.instrument, columns: xyzPending.columns }); if (g && !geophysSurveys[fileName]?.method) updateGeophysSurvey(fileName, { method: g, units: SURVEY_METHODS[g].units }); } // #1151; hints: #1586
     if (replacedN) reprojectNote += tr(" Replaced the {replacedN} point(s) of the earlier import of this file.", { replacedN: replacedN.toLocaleString() });
     const skipped = (jobs ? cleanedRows.length * jobs.length : cleanedRows.length) - mapped.length - noFix; // #538; #2395: per channel survey

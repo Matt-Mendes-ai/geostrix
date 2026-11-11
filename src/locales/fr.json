@@ -9901,6 +9901,7 @@
   "\"{name}\" holds {n} radiometric channels ({list}): tick the ones to import, each as its own survey.": "« {name} » contient {n} canaux radiométriques ({list}) : cochez ceux à importer, chacun comme son propre levé.",
   "Tick at least one channel to import.": "Cochez au moins un canal à importer.",
   "Import each ticked channel as its own survey:": "Importer chaque canal coché comme son propre levé :",
+  "\"{name}\" holds several measurements ({list}): tick the ones to import, each as its own survey.": "« {name} » contient plusieurs mesures ({list}) : cochez celles à importer, chacune comme son propre levé.",
   "Also make the {list} ratio survey(s) from the same stations": "Créer aussi les levés de rapport {list} à partir des mêmes stations",
   " As {k} survey(s): {list}.": " En {k} levé(s) : {list}.",
   "No outcrop orientation: {n} orientation(s) fitted from the logged contacts, a least-squares plane through each top's contact points ({list}). A buried deposit with no bedding builds this way; outcrop measurements replace them.": "Aucune orientation d'affleurement : {n} orientation(s) ajustée(s) à partir des contacts décrits, un plan des moindres carrés par les points de contact de chaque toit ({list}). Un gisement recouvert sans litage se construit ainsi ; des mesures d'affleurement les remplacent.",
