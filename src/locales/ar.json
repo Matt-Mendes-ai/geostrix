@@ -9976,5 +9976,10 @@
   "{grid} zones": "مناطق {grid}",
   "— collars at {where}": "— الفوهات عند {where}",
   "— the collars do not fit this zone": "— لا تقع الفوهات ضمن هذه المنطقة",
-  "The file cannot tell {a} from {b}: choose the datum the coordinates were surveyed in.": "لا يميّز الملف بين {a} و{b}: اختر المرجع الجيوديسي الذي رُصدت به الإحداثيات."
+  "The file cannot tell {a} from {b}: choose the datum the coordinates were surveyed in.": "لا يميّز الملف بين {a} و{b}: اختر المرجع الجيوديسي الذي رُصدت به الإحداثيات.",
+  "This file has more than one set of coordinates: {used} (used here) and {others} (kept with each hole; Identify shows them).": "يحتوي هذا الملف على أكثر من مجموعة إحداثيات: {used} (مستخدمة هنا) و{others} (محفوظة مع كل ثقب؛ يعرضها التعريف).",
+  "Easting, Northing and Elevation come from different coordinate sets ({cols}), so each collar would mix two grids. {whole} is one whole set.": "تأتي إحداثيات الشرق والشمال والارتفاع من مجموعات إحداثيات مختلفة ({cols})، فتخلط كل فوهة بين شبكتين. {whole} مجموعة كاملة.",
+  "Easting, Northing and Elevation come from different coordinate sets ({cols}), so each collar would mix two grids.": "تأتي إحداثيات الشرق والشمال والارتفاع من مجموعات إحداثيات مختلفة ({cols})، فتخلط كل فوهة بين شبكتين.",
+  "{n} of {of} collars have eastings {x0}–{x1} and northings {y0}–{y1}, which no UTM / MGA zone has, though the project is in {crs}: they look like local mine-grid numbers. Map Easting and Northing to the file's map-grid columns, or tick \"X/Y are on a local mine grid\" below.": "لدى {n} من {of} فوهة إحداثيات شرقية {x0}–{x1} وشمالية {y0}–{y1} لا توجد في أي منطقة UTM / MGA، مع أن المشروع بنظام {crs}: تبدو أرقام شبكة منجم محلية. اربط الشرق والشمال بأعمدة الشبكة الخرائطية في الملف، أو فعّل \"إحداثيات X/Y على شبكة منجم محلية\" أدناه.",
+  "{n} column(s) not imported, each with more than 100 different values (add one under Extra fields to keep it): {cols}": "{n} عمود لم يُستورد، لكل منها أكثر من 100 قيمة مختلفة (أضف أحدها ضمن الحقول الإضافية للاحتفاظ به): {cols}"
 }

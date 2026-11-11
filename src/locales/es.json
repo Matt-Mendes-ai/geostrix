@@ -9976,5 +9976,10 @@
   "{grid} zones": "Zonas {grid}",
   "— collars at {where}": "— collares en {where}",
   "— the collars do not fit this zone": "— los collares no caben en esta zona",
-  "The file cannot tell {a} from {b}: choose the datum the coordinates were surveyed in.": "El archivo no permite distinguir {a} de {b}: elija el datum en que se levantaron las coordenadas."
+  "The file cannot tell {a} from {b}: choose the datum the coordinates were surveyed in.": "El archivo no permite distinguir {a} de {b}: elija el datum en que se levantaron las coordenadas.",
+  "This file has more than one set of coordinates: {used} (used here) and {others} (kept with each hole; Identify shows them).": "Este archivo tiene más de un conjunto de coordenadas: {used} (usado aquí) y {others} (se conserva con cada sondaje; Identificar lo muestra).",
+  "Easting, Northing and Elevation come from different coordinate sets ({cols}), so each collar would mix two grids. {whole} is one whole set.": "Este, Norte y Elevación vienen de conjuntos de coordenadas distintos ({cols}), así que cada collar mezclaría dos grillas. {whole} es un conjunto completo.",
+  "Easting, Northing and Elevation come from different coordinate sets ({cols}), so each collar would mix two grids.": "Este, Norte y Elevación vienen de conjuntos de coordenadas distintos ({cols}), así que cada collar mezclaría dos grillas.",
+  "{n} of {of} collars have eastings {x0}–{x1} and northings {y0}–{y1}, which no UTM / MGA zone has, though the project is in {crs}: they look like local mine-grid numbers. Map Easting and Northing to the file's map-grid columns, or tick \"X/Y are on a local mine grid\" below.": "{n} de {of} collares tienen estes {x0}–{x1} y nortes {y0}–{y1}, que ninguna zona UTM / MGA tiene, aunque el proyecto está en {crs}: parecen números de una grilla local de mina. Asigne Este y Norte a las columnas de la grilla cartográfica del archivo, o marque \"X/Y están en una grilla local de mina\" abajo.",
+  "{n} column(s) not imported, each with more than 100 different values (add one under Extra fields to keep it): {cols}": "{n} columna(s) no importada(s), cada una con más de 100 valores distintos (agregue una en Campos adicionales para conservarla): {cols}"
 }

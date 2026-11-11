@@ -9976,5 +9976,10 @@
   "{grid} zones": "Zonas {grid}",
   "— collars at {where}": "— bocas de furo em {where}",
   "— the collars do not fit this zone": "— as bocas de furo não cabem nesta zona",
-  "The file cannot tell {a} from {b}: choose the datum the coordinates were surveyed in.": "O arquivo não distingue {a} de {b}: escolha o datum em que as coordenadas foram levantadas."
+  "The file cannot tell {a} from {b}: choose the datum the coordinates were surveyed in.": "O arquivo não distingue {a} de {b}: escolha o datum em que as coordenadas foram levantadas.",
+  "This file has more than one set of coordinates: {used} (used here) and {others} (kept with each hole; Identify shows them).": "Este arquivo tem mais de um conjunto de coordenadas: {used} (usado aqui) e {others} (mantido com cada furo; Identificar o mostra).",
+  "Easting, Northing and Elevation come from different coordinate sets ({cols}), so each collar would mix two grids. {whole} is one whole set.": "Leste, Norte e Elevação vêm de conjuntos de coordenadas diferentes ({cols}), então cada boca de furo misturaria duas grades. {whole} é um conjunto completo.",
+  "Easting, Northing and Elevation come from different coordinate sets ({cols}), so each collar would mix two grids.": "Leste, Norte e Elevação vêm de conjuntos de coordenadas diferentes ({cols}), então cada boca de furo misturaria duas grades.",
+  "{n} of {of} collars have eastings {x0}–{x1} and northings {y0}–{y1}, which no UTM / MGA zone has, though the project is in {crs}: they look like local mine-grid numbers. Map Easting and Northing to the file's map-grid columns, or tick \"X/Y are on a local mine grid\" below.": "{n} de {of} bocas de furo têm lestes {x0}–{x1} e nortes {y0}–{y1}, que nenhuma zona UTM / MGA tem, embora o projeto esteja em {crs}: parecem números de uma grade local de mina. Associe Leste e Norte às colunas da grade cartográfica do arquivo, ou marque \"X/Y estão em uma grade local de mina\" abaixo.",
+  "{n} column(s) not imported, each with more than 100 different values (add one under Extra fields to keep it): {cols}": "{n} coluna(s) não importada(s), cada uma com mais de 100 valores diferentes (adicione uma em Campos adicionais para mantê-la): {cols}"
 }

@@ -27,6 +27,7 @@ const isXlsxName = (name) => /\.xlsx$/i.test(String(name || "")); // TASKS.csv #
 import { buildLayer, sameMapLayer } from "../../lib/mapLayerBuild.js"; // TASKS.csv #609; sameMapLayer: #2019
 import { askAdoptCrs } from "../../lib/adoptCrs.js"; // TASKS.csv #607
 import { requestProjectCrs } from "../../lib/projectCrsRequest.js"; // TASKS.csv #615
+import { unusedSetColumns } from "../../lib/coordSets.js"; // TASKS.csv #2492
 import { holeTypeColumn, normalizeHoleType } from "../../lib/holeType.js"; // TASKS.csv #2161
 import { eventNotes } from "../../lib/downholeEvents.js"; // TASKS.csv #2317
 import { applyRowFilter, defaultRowFilter, overlapSummary, overlapWorthSaying } from "../../lib/importRowFilter.js"; // TASKS.csv #2330; overlap: #2391
@@ -355,7 +356,12 @@ export function useImportPipeline(ctx) {
       const ranked = pickRankedCollarRows(allRows, mapping.hole_id, allRows.length ? Object.keys(allRows[0]) : []); // #600
       // TASKS.csv #1504 (review #1497, Lawyers) — the collar file's other columns (year, drill type, prospect, status, dates, comments)
       // were dropped without a word: kept as attrs (the surface-sample rule, #841: a column with up to 100 distinct values, or free text)
-      const attrCols = surfaceAttrColumns(allRows.length ? Object.keys(allRows[0]) : [], ranked.rows, { ...mapping, _epsg: perRowEpsgCol || null, ...Object.fromEntries((customFields || []).map((f, k) => [`_c${k}`, f.column])) });
+      const collarHdrs = allRows.length ? Object.keys(allRows[0]) : [], attrMapping = { ...mapping, _epsg: perRowEpsgCol || null, ...Object.fromEntries((customFields || []).map((f, k) => [`_c${k}`, f.column])) };
+      const attrCols = surfaceAttrColumns(collarHdrs, ranked.rows, attrMapping);
+      // TASKS.csv #2492 — a second set of coordinate columns (GBMG_East / GBMG_North / GBMG_RL beside the MGA ones used) is kept with each
+      // hole whatever its number of distinct values; the columns still left out are named in the notice (#2190: STARTDATE, ENDDATE)
+      for (const c of unusedSetColumns(collarHdrs, attrMapping)) if (!attrCols.includes(c)) attrCols.push(c);
+      const notKept = collarHdrs.filter((h) => h && !attrCols.includes(h) && !Object.values(attrMapping).includes(h) && ranked.rows.some((r) => String(r[h] ?? "").trim() !== ""));
       // TASKS.csv #2161 — the drilling method normalized ("hole type": RC, Diamond (DD), RC + diamond tail, Aircore (AC), RAB...) beside the file's own column
       const htCol = holeTypeColumn(allRows.length ? Object.keys(allRows[0]) : []);
       const withHoleType = (a, r) => { const ht = htCol ? normalizeHoleType(r[htCol]) : null; return ht ? { attrs: { ...(a.attrs || {}), "hole type": ht } } : a; };
@@ -502,6 +508,7 @@ export function useImportPipeline(ctx) {
       if (diff.unchanged.length) parts.push(tr("{unchanged} already present and identical", { unchanged: diff.unchanged.length }));
       if (ranked.dropped) parts.push(tr("{holes} hole(s) had several location records ({dropped} extra rows) — kept the lowest \"{rankColumn}\" for each: {holes2}{v}", { holes: ranked.holes.length, dropped: ranked.dropped, rankColumn: ranked.rankColumn, holes2: ranked.holes.slice(0, 5).join(", "), v: ranked.holes.length > 5 ? ", …" : "" }));
       if (attrCols.length) parts.push(tr("{n} more column(s) kept with each hole (Identify shows them): {cols}", { n: attrCols.length, cols: attrCols.slice(0, 8).join(", ") + (attrCols.length > 8 ? "…" : "") })); // #1504
+      if (notKept.length) parts.push(tr("{n} column(s) not imported, each with more than 100 different values (add one under Extra fields to keep it): {cols}", { n: notKept.length, cols: notKept.slice(0, 8).join(", ") + (notKept.length > 8 ? "…" : "") })); // #2492 / #2190
       // #2014 (review #2013, Woodjam) — 534 of 544 district collars had no azimuth / dip column and no survey: they were counted
       // ("Holes: 544") and never drawn, and this notice did not say so. They are now drawn as assumed vertical holes; say it here.
       const surveyedHoles = new Set((importStateRef.current.survey || []).map((sv) => sv.hole_id));
