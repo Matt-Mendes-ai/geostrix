@@ -35,6 +35,17 @@ export const CALC_PRESETS = [
   { name: "KRb", label: "K/Rb (pegmatite and granite fractionation)", expr: "K*10000/Rb", needs: ["K", "Rb"], unitNote: "K in %, Rb in ppm", units: { K: "%", Rb: "ppm" } },
   { name: "NiCu", label: "Ni/Cu ratio", expr: "Ni/Cu", needs: ["Ni", "Cu"], unitNote: "Ni and Cu in the same unit", units: { Ni: "ppm", Cu: "ppm" } },
   { name: "ThU", label: "Th/U ratio", expr: "Th/U", needs: ["Th", "U"], unitNote: "Th and U in the same unit (both ppm)", units: { Th: "ppm", U: "ppm" } },
+  // TASKS.csv #2357 (review #2325, WA uranium) — element to oxide, the unit uranium, lithium and rare-metal results are quoted in (U3O8 was
+  // typed by hand). Factors: oxide molar mass / (n x element molar mass); unit: the result's (read the element in it, #2500).
+  { name: "U3O8", label: "U3O8 from U (x 1.1792)", expr: "U*1.1792", needs: ["U"], unitNote: "Stoichiometric factor from the molar masses; the result is the oxide in the unit shown", units: { U: "ppm" }, unit: "ppm" },
+  { name: "Li2O", label: "Li2O from Li (x 2.1527)", expr: "Li*2.1527", needs: ["Li"], unitNote: "Stoichiometric factor from the molar masses; the result is the oxide in the unit shown", units: { Li: "%" }, unit: "%" },
+  { name: "Ta2O5", label: "Ta2O5 from Ta (x 1.2211)", expr: "Ta*1.2211", needs: ["Ta"], unitNote: "Stoichiometric factor from the molar masses; the result is the oxide in the unit shown", units: { Ta: "ppm" }, unit: "ppm" },
+  { name: "Nb2O5", label: "Nb2O5 from Nb (x 1.4305)", expr: "Nb*1.4305", needs: ["Nb"], unitNote: "Stoichiometric factor from the molar masses; the result is the oxide in the unit shown", units: { Nb: "ppm" }, unit: "ppm" },
+  { name: "V2O5", label: "V2O5 from V (x 1.7852)", expr: "V*1.7852", needs: ["V"], unitNote: "Stoichiometric factor from the molar masses; the result is the oxide in the unit shown", units: { V: "ppm" }, unit: "ppm" },
+  { name: "WO3", label: "WO3 from W (x 1.2611)", expr: "W*1.2611", needs: ["W"], unitNote: "Stoichiometric factor from the molar masses; the result is the oxide in the unit shown", units: { W: "ppm" }, unit: "ppm" },
+  { name: "SnO2", label: "SnO2 from Sn (x 1.2696)", expr: "Sn*1.2696", needs: ["Sn"], unitNote: "Stoichiometric factor from the molar masses; the result is the oxide in the unit shown", units: { Sn: "ppm" }, unit: "ppm" },
+  { name: "Cs2O", label: "Cs2O from Cs (x 1.0602)", expr: "Cs*1.0602", needs: ["Cs"], unitNote: "Stoichiometric factor from the molar masses; the result is the oxide in the unit shown", units: { Cs: "ppm" }, unit: "ppm" },
+  { name: "Rb2O", label: "Rb2O from Rb (x 1.0936)", expr: "Rb*1.0936", needs: ["Rb"], unitNote: "Stoichiometric factor from the molar masses; the result is the oxide in the unit shown", units: { Rb: "ppm" }, unit: "ppm" },
 ];
 
 // #2500 — the units a preset reads, against the stored ones: [{ sym, from, to, factor }] for the ones that differ; throws when a stored unit

@@ -232,7 +232,12 @@ export function rankLegendGroups(items) {
     if (/litholog|alteration|vein|breccia|structural zone/i.test(h)) return 2;
     return 1;
   };
-  return groups.map((g, i) => ({ g, i, r: rank(g) })).sort((a, b) => a.r - b.r || a.i - b.i).flatMap((x) => x.g);
+  // TASKS.csv #2307 (review #2174) — with no samples or grades on the page, the logs that colour every hole (lithology, alteration ...) come
+  // before the small layers: a drill plan's legend kept Mineralization (126 intervals) and Structure planes (24 picks) and left Lithology
+  // (11,678) to 'Load from view'. With samples or grades, #1482's order holds (they are the figure; a long log is the one left out).
+  const ranked = groups.map((g, i) => ({ g, i, r: rank(g) }));
+  const logsFirst = !ranked.some((x) => x.r === 0);
+  return ranked.map((x) => (logsFirst && x.r ? { ...x, r: 3 - x.r } : x)).sort((a, b) => a.r - b.r || a.i - b.i).flatMap((x) => x.g);
 }
 export const legendGroupCount = (items) => (items || []).filter((it) => it?.[2]?.heading).length;
 

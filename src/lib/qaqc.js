@@ -311,7 +311,8 @@ export function suggestDetectionLimit(assays, symbol) {
   // #1520 — no '<' results, but a floor holding a share of the values: half the limit was substituted before import
   const fl = censoringFloor((assays || []).map((a) => a?.values?.[symbol]));
   if (fl) return { limit: fl.dl, basis: "floor", floor: fl.floor, n: fl.n, share: fl.share };
-  return Number.isFinite(minPos) ? { limit: minPos, basis: "min" } : { limit: null, basis: null };
+  // TASKS.csv #2354 — six significant figures: a pXRF-converted 0.016349000000000002 was offered as it was stored
+  return Number.isFinite(minPos) ? { limit: Number(minPos.toPrecision(6)), basis: "min" } : { limit: null, basis: null };
 }
 // Control-chart order: by sample id (natural order: S9 before S10) when every insertion has one — the order the lab
 // received them — otherwise the order the rows were imported in. Returns { rows, bySampleId }.
