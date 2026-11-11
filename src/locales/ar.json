@@ -10063,5 +10063,6 @@
   "That is the solid's own volume; the section times the line's length, as the profile line gives it, is {w} m³: the solid follows the curves by straight chords.": "هذا حجم المجسم نفسه؛ أما المقطع مضروبًا في طول الخط، كما يعطيه سطر المقطع، فهو {w} م³: يتبع المجسم المنحنيات بأوتار مستقيمة.",
   "the project's coordinates (no CRS set)": "إحداثيات المشروع (دون نظام إحداثيات محدد)",
   "ground": "الأرض",
-  "Z blank: {z} m from the drawing target under E / N": "Z فارغ: {z} م من هدف الرسم تحت E / N"
+  "Z blank: {z} m from the drawing target under E / N": "Z فارغ: {z} م من هدف الرسم تحت E / N",
+  "Starts at twice the typical drill-site spacing ({s} m).": "يبدأ بضعف التباعد المعتاد بين مواقع الحفر ({s} م)."
 }

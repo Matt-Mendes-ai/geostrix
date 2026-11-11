@@ -10063,5 +10063,6 @@
   "That is the solid's own volume; the section times the line's length, as the profile line gives it, is {w} m³: the solid follows the curves by straight chords.": "Esse é o volume do próprio sólido; a seção vezes o comprimento da linha, como a linha do perfil o dá, é {w} m³: o sólido segue as curvas por cordas retas.",
   "the project's coordinates (no CRS set)": "as coordenadas do projeto (sem SRC definido)",
   "ground": "terreno",
-  "Z blank: {z} m from the drawing target under E / N": "Z em branco: {z} m do alvo de desenho sob E / N"
+  "Z blank: {z} m from the drawing target under E / N": "Z em branco: {z} m do alvo de desenho sob E / N",
+  "Starts at twice the typical drill-site spacing ({s} m).": "Começa no dobro do espaçamento típico entre locais de sondagem ({s} m)."
 }
