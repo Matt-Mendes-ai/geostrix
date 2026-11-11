@@ -18,6 +18,7 @@ import { overlay, backdropProps, sel, panel, header, rowBtn as btn } from "../li
 import { activateOnKey } from "../lib/a11y.js";
 import { t as tr } from "../lib/i18n.js";
 import { toExportCsv } from "../lib/tabular.js"; // TASKS.csv #1022 — every exported CSV: all columns, formula cells escaped
+import { localDate } from "../lib/localDate.js"; // TASKS.csv #2358
 
 const DEFAULT_QC = [{ kind: "standard", every: 20, label: "standard", on: true }, { kind: "blank", every: 30, label: "blank", on: true }, { kind: "duplicate", every: 20, label: "field duplicate", on: true }];
 const LS = "geostrix.surveyPlanner";
@@ -38,7 +39,7 @@ export default function SurveyPlannerPanel({ onClose }) {
   const [route, setRoute] = useState(null);
   const [routeErr, setRouteErr] = useState(null);
   const [msg, setMsg] = useState(null);
-  const [surveyDate, setSurveyDate] = useState(() => new Date().toISOString().slice(0, 10)); // #1024 — the declination's date
+  const [surveyDate, setSurveyDate] = useState(() => localDate()); // #1024 — the declination's date; #2358: the local calendar's, not UTC
   const [igrfReady, setIgrfReady] = useState(false);
   useEffect(() => { if (mode === "soil") loadIgrf().then(() => setIgrfReady(true)).catch(() => {}); }, [mode]);
   useEffect(() => { try { localStorage.setItem(LS, JSON.stringify({ mode, grid, streams, num, qc })); } catch { /* private window */ } }, [mode, grid, streams, num, qc]);

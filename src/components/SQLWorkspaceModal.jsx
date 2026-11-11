@@ -10,21 +10,13 @@ import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { sqlCellText } from "../lib/sqlTables.js"; // TASKS.csv #2521
 import { toExportCsv } from "../lib/tabular.js"; // TASKS.csv #1022 — every exported CSV: all columns, formula cells escaped
 import { sqlResultRows } from "../lib/tableExports.js"; // TASKS.csv #1083
+import { defaultQueryFor, sqlColumnLabel } from "../lib/sqlDefaults.js"; // TASKS.csv #2034 / #2360 / #2204
+import { leadFor } from "../lib/useLeadCommodity.js"; // TASKS.csv #2360
 
 // TASKS.csv #50 — ad hoc SQL against whatever's currently loaded (collars/survey/assays/layers/
 // boundaries), no Postgres connection needed. sqlWorkspace.js builds the in-memory database and runs
 // queries; this is just the editor/results UI, same modal chrome as GradeStatistics.jsx/QAQCPanel.jsx.
-function defaultQueryFor(tables) {
-  const assaysTable = tables.find((t) => t.name === "assays");
-  if (assaysTable) {
-    // #2521 — an element column, not the sample id the sample columns put first (#1516), nor a qualifier column
-    const numericCol = assaysTable.columns.find((c) => !["hole_id", "from", "to", "source", "sample_id", "sample_type", "parent_id", "qc_code"].includes(c) && !/_q$/.test(c));
-    if (numericCol) return `SELECT * FROM assays WHERE "${numericCol}" > 1 ORDER BY "${numericCol}" DESC LIMIT 100;`;
-  }
-  if (tables.some((t) => t.name === "surface_samples")) return "SELECT * FROM surface_samples LIMIT 100;"; // #1799
-  if (tables.some((t) => t.name === "collars")) return "SELECT * FROM collars LIMIT 100;";
-  return tables.length ? `SELECT * FROM "${tables[0].name}" LIMIT 100;` : "";
-}
+// TASKS.csv #2034 / #2360 — the opening query is built in lib/sqlDefaults.js: the lead element, highest first, from / to quoted
 
 export default function SQLWorkspaceModal({ collars, survey, layers, assays, assayElements, boundaries, surfaceSamples = [], surfaceElements = [], customLayers = [], onClose }) { // surface*: TASKS.csv #1799; customLayers: #1516
   useEscapeKey(onClose); // TASKS.csv #238
@@ -42,7 +34,7 @@ export default function SQLWorkspaceModal({ collars, survey, layers, assays, ass
       .then(({ db, tables }) => {
         if (cancelled) return;
         setState({ status: "ready", db, tables });
-        setSql(defaultQueryFor(tables));
+        setSql(defaultQueryFor(tables, leadFor(assays, assayElements))); // #2360 — the project's lead commodity
       })
       .catch((err) => { if (!cancelled) setState({ status: "error", message: err.message }); });
     return () => { cancelled = true; };
@@ -89,9 +81,12 @@ export default function SQLWorkspaceModal({ collars, survey, layers, assays, ass
             {state.status === "ready" && state.tables.map((t) => (
               <div key={t.name} style={{ marginBottom: 8, fontSize: "var(--font-size-sm)" }}>
                 <div style={{ fontWeight: 600, color: "var(--color-text)" }}>{t.name}</div>
-                <div style={{ color: "var(--color-text-muted)", lineHeight: 1.5 }}>{t.columns.join(", ")}</div>
+                <div style={{ color: "var(--color-text-muted)", lineHeight: 1.5 }}>{t.columns.map(sqlColumnLabel).join(", ")}</div>{/* #2204 — as a query must write them */}
               </div>
             ))}
+            {state.status === "ready" && state.tables.some((t) => t.columns.some((c) => sqlColumnLabel(c) !== c)) && (
+              <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 }}>{tr("Columns shown in double quotes (\"from\", \"to\") are SQL words or unusual names: write them with the quotes, e.g. SUM(\"to\" - \"from\") for the metres sampled.")}</div>
+            )}
           </div>
 
           <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 8, minWidth: 0 }}>

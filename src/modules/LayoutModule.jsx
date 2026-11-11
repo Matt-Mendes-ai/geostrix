@@ -8,6 +8,7 @@ import ComputerTemplates from "../components/ComputerTemplates.jsx"; // TASKS.cs
 import { keepTemplateOnComputer } from "../lib/computerTemplates.js"; // TASKS.csv #1487
 import { hasComputerTemplates } from "../lib/desktop.js"; // TASKS.csv #1487
 import GenerateAtlasModal from "../components/GenerateAtlasModal.jsx";
+import { HOLE_TOKENS, SECTION_TOKENS } from "../lib/atlas.js"; // TASKS.csv #1777 — listed with the page's placeholders
 import PatternSwatch from "../components/PatternSwatch.jsx"; // TASKS.csv #1995
 import { savePDF, saveFile, exportPDFData, canvasPngBytes, sendSectionResnap } from "../lib/desktop.js"; // saveFile / exportPDFData: TASKS.csv #909 Export PNG; canvasPngBytes: #1040; sendSectionResnap: #1485
 import { pdfOptions } from "../lib/pageFormats.js"; // TASKS.csv #511
@@ -32,6 +33,7 @@ import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Spac
 
 import { PAGE_FORMATS, pageFormatOf, pagePx, pageMm, pageCssName } from "../lib/pageFormats.js"; // TASKS.csv #398; mm / named pages: #908
 import { azimuthToGridOffset, setIgrfModule } from "../lib/azimuthRef.js"; // TASKS.csv #399 — GN/TN/MN diagram
+import { localDate, collarDrillDate, schematicAngles, rayTip, yearLater, keepOnSheet, DIAGRAM_W, DIAGRAM_H, ORIGIN } from "../lib/northDiagram.js"; // TASKS.csv #1773 / #2137 / #2310 / #2478 / #2613
 import * as igrfModule from "../lib/igrf.js"; // #552 — Layout is a lazy chunk: it brings IGRF with it
 setIgrfModule(igrfModule);
 import { printPt, printPx, colors } from "../lib/theme.js"; // TASKS.csv #585 — page text on the PRINT scale (was #385 screen sizes)
@@ -1072,7 +1074,7 @@ export default function LayoutModule() {
             <RibbonButton icon={Ruler} label="Scale bar" tone="output" title="Add scale bar" onClick={() => addElement("scale")} />
             <RibbonButton icon={Plus} label="Legend" tone="output" title="Add legend" onClick={() => addElement("legend")} />
             <RibbonButton icon={LayoutTemplate} label="Title block" tone="output" title="Add a title block: a ruled box of labelled fields (title, company, project, claims, map sheet, figure, author, date, scale, datum, page), the project, date, scale and datum filled in" onClick={() => addElement("titleblock")} />{/* TASKS.csv #1868 */}
-            <RibbonButton advanced icon={Sheet} label="Collar table" tone="output" title="Add a table of the drillhole collars (hole, easting, northing, elevation, azimuth, dip, depth), kept up to date with the project. Best intercepts puts its results on the page from its own window." onClick={() => addElement("table")} />{/* TASKS.csv #911 */}
+            <RibbonButton icon={Sheet} label="Collar table" /* #1776 — in Simple too: a report's figure set needs it */ tone="output" title="Add a table of the drillhole collars (hole, easting, northing, elevation, azimuth, dip, depth), kept up to date with the project. Best intercepts puts its results on the page from its own window." onClick={() => addElement("table")} />{/* TASKS.csv #911 */}
           </RibbonGroup>
           <RibbonGroup label="Views">
             <RibbonButton icon={Camera} label="Current view" tone="view" title="Add a viewport snapshot of the current 3D View (no theme needed)" onClick={() => startViewportRender(null, "new")} />
@@ -1159,7 +1161,9 @@ export default function LayoutModule() {
             )}
             {sel.type === "titleblock" && <TitleBlockControls sel={sel} updateSelected={updateSelected} />}{/* TASKS.csv #1868 */}
             {(sel.type === "title" || sel.type === "text") && (
-              <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: -4, marginBottom: 8, lineHeight: 1.4 }} title={tr("Filled in when the page is shown and printed: the project's name, today's date, this page's number and name, the number of pages, the scale of the page's viewport, the project's coordinate system, the credit lines the licences of fetched terrain and imagery ask for.")}>{tr("Placeholders: {project} {date} {page} {pages} {pagename} {scale} {crs} {credits}")}</div>
+              <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: -4, marginBottom: 8, lineHeight: 1.4 }} title={tr("Filled in when the page is shown and printed: the project's name, today's date, this page's number and name, the number of pages, the scale of the page's viewport, the project's coordinate system, the credit lines the licences of fetched terrain and imagery ask for.")}>{tr("Placeholders: {project} {date} {page} {pages} {pagename} {scale} {crs} {credits}")}
+                {/* TASKS.csv #1777 — the atlas's tokens, same single-brace syntax, listed here too */}
+                <div title={tr("Left as written on this page; Atlas… fills them on each page it generates, from that page's hole or section.")}>{tr("On atlas pages also: {list}", { list: [...new Set([...HOLE_TOKENS, ...SECTION_TOKENS])].map((k) => `{${k}}`).join(" ") })}</div></div>
             )}{/* TASKS.csv #909 */}
             {/* TASKS.csv #102 — font controls for text elements (title/text). Not callout, which
                 already has its own distinct sticky-note styling (fill/border) and fixed text look —
@@ -1246,13 +1250,19 @@ export default function LayoutModule() {
             {sel.type === "north" && (() => {
               const vp = elements.find((e) => e.type === "viewport" && e.targetWorld);
               const at = vp ? vp.targetWorld : collars.length ? { x: collars.reduce((t, c) => t + c.x, 0) / collars.length, y: collars.reduce((t, c) => t + c.y, 0) / collars.length } : null;
-              const date = sel.declDate || new Date().toISOString().slice(0, 10);
+              // TASKS.csv #2310 — the local calendar date, not UTC; #1773 — the collars' drilling date first (the latest program), else today
+              const drill = collarDrillDate(collars);
+              const date = sel.declDate || drill?.date || localDate();
               const compute = () => {
                 // TASKS.csv #2299 — not from the placeholder CRS: true and magnetic north need the map's real location
                 if (project?.crsSet === false) { updateSelected({ decl: null, declError: tr("This project has no coordinate system set, so true and magnetic north can't be computed. Set the CRS in the status bar; the plain arrow shows grid north.") }); return; }
                 const o = at && project?.epsg ? azimuthToGridOffset("magnetic", at.x, at.y, project.epsg, date) : null;
                 if (!o) { updateSelected({ decl: null, declError: at ? "Couldn't compute it for this project's coordinate system or date." : "Needs a viewport capture or collars to know where the map is." }); return; }
-                updateSelected({ decl: { convergence: o.convergence, declination: o.declination, date, at }, declError: null });
+                // TASKS.csv #2478 — the yearly change at this place, from IGRF a year later (the caption printed a fixed 0.1-0.2°/yr)
+                const o2 = azimuthToGridOffset("magnetic", at.x, at.y, project.epsg, yearLater(date));
+                const rate = o2 && Number.isFinite(o2.declination) ? o2.declination - o.declination : null;
+                // #1773 / #2137 — the diagram grows from the 54 px arrow to its own box: kept on the sheet
+                updateSelected({ decl: { convergence: o.convergence, declination: o.declination, date, at, rate }, declError: null, ...keepOnSheet(sel.x, sel.y, A4.w, A4.h) });
               };
               return (
                 <div style={{ marginTop: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
@@ -1261,6 +1271,7 @@ export default function LayoutModule() {
                     <button onClick={compute} style={{ ...pBtn, marginBottom: 0 }}>{sel.decl ? tr("Update GN/TN/MN") : tr("Show grid / true / magnetic north")}</button>
                   </div>
                   {sel.decl && <button onClick={() => updateSelected({ decl: null })} style={{ ...pBtn, marginTop: 4, marginBottom: 0 }}>{tr("Back to a plain north arrow")}</button>}
+                  {!sel.declDate && drill && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 4 }}>{tr("Date from the collars' {field} (the latest drilling). Change it for another date.", { field: drill.field })}</div>}{/* #1773 */}
                   {sel.declError && <div style={{ color: "var(--color-danger-fg)", marginTop: 4 }}>{sel.declError}</div>}
                 </div>
               );
@@ -1595,7 +1606,7 @@ export default function LayoutModule() {
           <button
             onClick={() => setAtlasModalOpen(true)}
             title={tr("Generate atlas — batch-create one page per drillhole/section from the current page as a template")}
-            style={{ display: "flex", alignItems: "center", gap: 4, height: 22, marginBottom: 2, marginLeft: 4, padding: "0 8px", background: "transparent", border: "1px solid var(--color-border)", borderRadius: 5, color: "var(--color-text-faint)", fontSize: "var(--font-size-sm)", cursor: "pointer" }}
+            style={{ display: "flex", alignItems: "center", gap: 4, height: 22, marginBottom: 2, marginLeft: 4, padding: "0 8px", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, color: "var(--color-text)", fontSize: "var(--font-size-sm)", cursor: "pointer" }} /* TASKS.csv #1776 — drawn like the page bar's selects beside it: grey on the dark bar read as disabled */
           >
             <LayoutGrid size={12} />{" "}{tr("Atlas…")}</button>
           {exportNote && ( /* TASKS.csv #908 */
@@ -2253,23 +2264,29 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
   // the whole glyph around its own center rather than the page's drag-anchor corner.
   // TASKS.csv #399 — GN/TN/MN declination diagram variant of the north element.
   if (el.type === "north" && el.decl) {
-    const { convergence, declination, date } = el.decl;
-    const mn = convergence + declination; // magnetic north's bearing measured from grid north
+    const { convergence, declination, date, rate } = el.decl;
+    const mnTrue = convergence + declination; // magnetic north's bearing measured from grid north
     const fmt = (a) => `${Math.abs(a).toFixed(1)}° ${a >= 0 ? "E" : "W"}`;
-    const ray = (deg, len) => { const r = (deg * Math.PI) / 180; return [60 + Math.sin(r) * len, 80 - Math.cos(r) * len]; };
-    const [tx, ty] = ray(convergence, 58), [mx, my] = ray(mn, 52);
+    // TASKS.csv #2478 — schematic angles (a 0.4° ray was the GN line); #2613 — each label on its own ray's side
+    const ang = schematicAngles(convergence, mnTrue);
+    const t = rayTip(ang.tn, 58), m = rayTip(ang.mn, 52), cap = printPx(printPt.caption);
+    const rateText = Number.isFinite(rate) ? tr("IGRF-14; changes {v}° {d} a year here", { v: Math.abs(rate) < 0.005 ? "<0.01" : Math.abs(rate).toFixed(2), d: rate >= 0 ? "E" : "W" }) : tr("IGRF-14"); // #2478
     return (
-      <div style={{ ...wrap, transform: el.rotation ? `rotate(${el.rotation}deg)` : undefined, transformOrigin: "60px 80px" }} onMouseDown={onDown} data-el-id={el.id} {...kb}>
-        <svg width="170" height="124" viewBox="0 0 170 124" style={{ fontFamily: "'Exo 2', system-ui, sans-serif" }}>{/* #585 — 170 wide: the 7 pt captions need up to 149 px */}
-          <line x1="60" y1="80" x2="60" y2="14" stroke="#1a2028" strokeWidth="1.6" />
-          <text x="60" y="10" fontSize={printPx(printPt.small)} fontWeight="700" textAnchor="middle" fill="#1a2028">GN</text>
-          <line x1="60" y1="80" x2={tx} y2={ty} stroke="#1a2028" strokeWidth="1.2" />
-          <text x={tx} y={ty - 4} fontSize={printPx(printPt.small)} textAnchor="middle" fill="#1a2028">★</text>
-          <line x1="60" y1="80" x2={mx} y2={my} stroke="#1a2028" strokeWidth="1.2" strokeDasharray="4 2" />
-          <text x={mx + 4} y={my - 2} fontSize={printPx(printPt.small)} fontWeight="700" fill="#1a2028">MN</text>
-          <text x="4" y="98" fontSize={printPx(printPt.caption)} fill="#1a2028">{tr("True north {v} of grid north", { v: fmt(convergence) })}</text>
-          <text x="4" y="109" fontSize={printPx(printPt.caption)} fill="#1a2028">{tr("Magnetic declination {v} ({year})", { v: fmt(declination), year: date.slice(0, 4) })}</text>
-          <text x="4" y="120" fontSize={printPx(printPt.caption)} fill="#55606e">{tr("IGRF-14; changes about 0.1-0.2°/yr")}</text>
+      <div style={{ ...wrap }} onMouseDown={onDown} data-el-id={el.id} {...kb}>
+        <svg width={DIAGRAM_W} height={DIAGRAM_H} viewBox={`0 0 ${DIAGRAM_W} ${DIAGRAM_H}`} style={{ fontFamily: "'Exo 2', system-ui, sans-serif" }}>{/* #585 — 170 wide: the 7 pt captions need up to 149 px */}
+          {/* TASKS.csv #2137 — only the rays turn with a bound oblique view; the captions stay level */}
+          <g transform={el.rotation ? `rotate(${el.rotation} ${ORIGIN.x} ${ORIGIN.y})` : undefined}>
+            <line x1={ORIGIN.x} y1={ORIGIN.y} x2={ORIGIN.x} y2="14" stroke="#1a2028" strokeWidth="1.6" />
+            <text x={ORIGIN.x} y="10" fontSize={printPx(printPt.small)} fontWeight="700" textAnchor="middle" fill="#1a2028">GN</text>
+            <line x1={ORIGIN.x} y1={ORIGIN.y} x2={t.x} y2={t.y} stroke="#1a2028" strokeWidth="1.2" />
+            <text x={t.x} y={t.y - 4} fontSize={printPx(printPt.small)} textAnchor="middle" fill="#1a2028">★</text>
+            <line x1={ORIGIN.x} y1={ORIGIN.y} x2={m.x} y2={m.y} stroke="#1a2028" strokeWidth="1.2" strokeDasharray="4 2" />
+            <text x={m.labelX} y={m.y - 2} fontSize={printPx(printPt.small)} fontWeight="700" textAnchor={m.anchor} fill="#1a2028">MN</text>
+          </g>
+          <text x="4" y="98" fontSize={cap} fill="#1a2028">{tr("True north {v} of grid north", { v: fmt(convergence) })}</text>
+          <text x="4" y="109" fontSize={cap} fill="#1a2028">{tr("Magnetic declination {v} ({year})", { v: fmt(declination), year: date.slice(0, 4) })}</text>
+          <text x="4" y="120" fontSize={cap} fill="#55606e">{rateText}</text>
+          {ang.schematic && <text x="4" y="131" fontSize={cap} fill="#55606e">{tr("Angles not to scale")}</text>}
         </svg>
       </div>
     );

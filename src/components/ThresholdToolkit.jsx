@@ -21,6 +21,7 @@ import { fontSizes } from "../lib/theme.js";
 import { t as tr } from "../lib/i18n.js";
 import { toExportCsv } from "../lib/tabular.js"; // TASKS.csv #1022 — every exported CSV: all columns, formula cells escaped
 import { thresholdRows, drillThresholdRows } from "../lib/analysisExports.js"; // TASKS.csv #1083; drill: #2196
+import { localDate } from "../lib/localDate.js"; // TASKS.csv #2358
 
 // Okabe & Ito (2008) colour-blind-safe palette, one colour per method (SVG presentation, so plain hex)
 const METHOD_COLOURS = { p90: "#999999", p95: "#56B4E9", p98: "#0072B2", mean2sd: "#E69F00", median2mad: "#009E73", tukey: "#CC79A7", probbreak: "#D55E00" };
@@ -88,7 +89,7 @@ export default function ThresholdToolkit({ surfaceSamples = [], surfaceElements 
       n: Object.fromEntries(pops.map((p) => [p.key, p.summary.n])),
       censoredPct: Object.fromEntries(pops.map((p) => [p.key, Math.round(p.summary.censoredPct * 10) / 10])),
       ...(pops.some((p) => p.zero) ? { reportedZero: Object.fromEntries(pops.map((p) => [p.key, p.zero])) } : {}), // #931
-      decided: new Date().toISOString().slice(0, 10),
+      decided: localDate(), // #2358 — the local calendar's date, not UTC
       ...(drill ? { source: "drill", weighting: "length" } : {}), // #2196 — kept apart from the surface rule; project text stays English
     };
     setGeochemThresholds((prev) => [...(prev || []).filter((r) => !isMine(r)), rec]);

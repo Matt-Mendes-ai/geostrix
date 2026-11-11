@@ -46,6 +46,10 @@ test("the grid shows six significant figures; integers and text as they are", ()
 
 test("the starter query is on an element, not on sample_id or a qualifier column", () => {
   const s = readFileSync(new URL("../src/components/SQLWorkspaceModal.jsx", import.meta.url), "utf8");
-  assert.match(s, /!\["hole_id", "from", "to", "source", "sample_id", "sample_type", "parent_id", "qc_code"\]\.includes\(c\) && !\/_q\$\/\.test\(c\)/);
+  // #2360 moved the builder to lib/sqlDefaults.js (tested in sqlDefaults2360.test.mjs): the same columns are never the starter element
+  const d = readFileSync(new URL("../src/lib/sqlDefaults.js", import.meta.url), "utf8");
+  assert.match(d, /new Set\(\["hole_id", "from", "to", "source", "sample_id", "sample_type", "parent_id", "qc_code"\]\)/);
+  assert.match(d, /!NOT_ELEMENTS\.has\(c\) && !\/_q\$\/\.test\(c\)/);
+  assert.match(s, /defaultQueryFor\(tables, leadFor\(assays, assayElements\)\)/);
   assert.match(s, /\{v === null \? "—" : sqlCellText\(v\)\}/);
 });
