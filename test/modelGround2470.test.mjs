@@ -34,7 +34,7 @@ test("a box more than 3x taller than the drilling", () => {
 
 test("runSurfaceStack cuts at that ground and says so", () => {
   const s = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8");
-  assert.match(s, /modelGround\(clipTerrain, collars, survey\)/);
+  assert.match(s, /modelGround\(clipTerrain, collars, survey, \{ fallbackZ: stackOpts\.groundFallbackZ \}\)/); // #2410: a map model's flat fallback
   assert.match(s, /const groundOf = clipGround\.at;/);
   assert.match(s, /cut at the collar surface: the ground interpolated between the \{n\} collars/);
   assert.doesNotMatch(s.slice(s.indexOf("const runSurfaceStack"), s.indexOf("const runImplicitModel")), /terrainGroundAt\(clipTerrain/);

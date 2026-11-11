@@ -208,7 +208,7 @@ export function createModellingRuns(ctx, mcRef) {
     const clipTerrain = clipToTopo ? terrainForClipRef.current : null; // #358
     // TASKS.csv #2470 (review #2325, WA uranium) — the ground the surfaces and the block are cut at: the terrain, or with none the collar
     // surface (unless the collars look drilled from underground); every top was drawn above the collars somewhere, Top of QA up to RL 805
-    const ground = clipToTopo ? modelGround(clipTerrain, collars, survey) : { ground: null };
+    const ground = clipToTopo ? modelGround(clipTerrain, collars, survey, { fallbackZ: stackOpts.groundFallbackZ }) : { ground: null }; // groundFallbackZ: #2410
     const clipGround = ground.ground;
     // TASKS.csv #1335 — each surface's contacts, how far past them it may run, and (below) a model box sized to them
     const reachLib = limitToContacts ? await import("../../lib/contactReach.js") : null;
@@ -1474,7 +1474,10 @@ export function createModellingRuns(ctx, mcRef) {
     const order = (p.order || []).filter(Boolean);
     if (order.length < 2) { setNotices((q) => [...q, notice("Put at least two stratigraphic units in the order to model.")]); return; }
     const o = originRef.current;
-    const ground = (x, y) => terrainGroundAt(terrain, x, y); // TASKS.csv #927
+    // TASKS.csv #927 — on the ground; #2410 — where the terrain has no data, at the map layer's own elevation (its Elev.), counted, not skipped
+    const planZ = Number.isFinite(Number(p.layer?.elevation)) ? Number(p.layer.elevation) : null;
+    let onPlan = 0;
+    const ground = (x, y) => { const g = terrainGroundAt(terrain, x, y); if (Number.isFinite(g) || planZ == null) return g; onPlan++; return planZ; };
     const api = (x, y, z) => ({ x: x - o.x, y: y - o.y, z: z - o.z });
     const thin = (line, step) => {
       const out = [line[0]];
@@ -1577,8 +1580,8 @@ export function createModellingRuns(ctx, mcRef) {
       + (holeGaps ? tr(" {g} logged contact(s) left out: over {m} m unlogged or not used between the two units.", { g: holeGaps, m: 10 }) : "")
       + (holeExcluded ? tr(" {g} logged contact(s) excluded in the Boundary intercepts table.", { g: holeExcluded }) : "")
       + (holeNoTrace ? tr(" {g} logged contact(s) on holes with no trace were skipped.", { g: holeNoTrace }) : "")
-      + (offTerrain ? tr(" {k} contact point(s) beyond the terrain were skipped.", { k: offTerrain }) : "") + (unused ? tr(" {k} contact(s) involve units outside the order.", { k: unused }) : ""))]); // appendNotice: #821
-    await runSurfaceStack([...faultSpecs, ...specs], { relation: breaks.size ? "erode" : p.relation || stackRelation, aboveUnit: order[0], packages: new Set(specs.map((s) => s.package)).size }); // #1309
+      + (offTerrain ? tr(" {k} contact point(s) beyond the terrain were skipped.", { k: offTerrain }) : "") + (onPlan ? tr(" {k} contact point(s) and measurement(s) where the terrain has no data were placed at the map layer's elevation (RL {z}); the surfaces are cut there at that elevation too.", { k: onPlan, z: Math.round(planZ) }) : "") /* #2410 */ + (unused ? tr(" {k} contact(s) involve units outside the order.", { k: unused }) : ""))]); // appendNotice: #821
+    await runSurfaceStack([...faultSpecs, ...specs], { relation: breaks.size ? "erode" : p.relation || stackRelation, aboveUnit: order[0], packages: new Set(specs.map((s) => s.package)).size, ...(planZ != null ? { groundFallbackZ: planZ } : {}) }); // #2410 // #1309
   };
 
   const gatherFaultSpec = (key, traces) => {

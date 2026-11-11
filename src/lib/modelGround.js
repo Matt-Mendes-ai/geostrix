@@ -6,7 +6,10 @@ import { terrainGroundAt } from "./viewer/geomath.js";
 import { collarGround, collarsLookUnderground } from "./pitShell.js";
 
 // -> { ground: { kind, name, bbox: [x0, y0, x1, y1], at(x, y) } | null, kind, collars, why }
-export function modelGround(terrain, collars, survey = []) {
+// TASKS.csv #2410 (review #2325, WA uranium) — opts.fallbackZ: where the terrain has no data (a collar TIN's gaps, 88 % of its grid) or
+// beyond it, the ground is that flat elevation (a map layer's own Elev.), so a surface is cut at the ground over the whole model
+export function modelGround(terrain, collars, survey = [], { fallbackZ = null } = {}) {
+  if (terrain && Number.isFinite(fallbackZ)) return { kind: "terrain", ground: { kind: "terrain", name: terrain.name || "terrain", bbox: [-Infinity, -Infinity, Infinity, Infinity], at: (x, y) => { const g = terrainGroundAt(terrain, x, y); return Number.isFinite(g) ? g : fallbackZ; } } };
   if (terrain) return { kind: "terrain", ground: { kind: "terrain", name: terrain.name || "terrain", bbox: terrain.bbox, at: (x, y) => terrainGroundAt(terrain, x, y) } };
   const pts = (collars || []).filter((c) => Number.isFinite(c?.x) && Number.isFinite(c?.y) && Number.isFinite(c?.z));
   if (pts.length < 3) return { ground: null, why: "few" };
