@@ -26,7 +26,7 @@ import { saveFile } from "../lib/desktop.js";
 import SourceCrsField from "../components/SourceCrsField.jsx";
 import { readShapefileLayers, reprojectShapefileZip, reportShapefileText, readGeoTiffInfo, reprojectGeoTiff, reportGeoTiffText, reprojectTableRows, degreesOutOfRange, utmOutOfRange, isUtmCrs, fileXYColumns, fromForGridPrefix } from "../lib/fileReproject.js"; // #487; degreesOutOfRange: #2461; utmOutOfRange ... fromForGridPrefix: #2588
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786 — messages in the interface language
-import { collarCentreLonLat, collarSpread, formatLonLat, medianPoint } from "../lib/projectCrs.js"; // TASKS.csv #2291; medianPoint: #2463
+import { collarCentreLonLat, collarSpread, formatLonLat, medianPoint, crsCandidatesAt } from "../lib/projectCrs.js"; // TASKS.csv #2291; medianPoint: #2463; crsCandidatesAt: #2465
 import { smallGridCoordinates } from "../lib/crsFromColumns.js"; // TASKS.csv #2291
 import { tieOf } from "../lib/localGridTie.js"; // TASKS.csv #2587
 const LocalGridPanel = React.lazy(() => import("../components/LocalGridPanel.jsx")); // TASKS.csv #2288 — on demand
@@ -202,7 +202,7 @@ export default function CartographyModule({ embedded = false, forcePane = null }
                  scene, depths, distances and grids are metres, so collars in degrees put every hole on one point with
                  traces hundreds of "degrees" long (Matt's WGS 84 test: all holes fanned out of one spot). */
               <div role="alert" style={{ ...note, color: "var(--color-warn-text-strong)" }}>
-                {tr("{v} is geographic (latitude/longitude in degrees). The 3D view, hole depths, distances and grids all work in metres, so the project needs a projected CRS — for British Columbia, NAD83 / UTM zone 9N or 10N, or NAD83 / BC Albers. To hand data to someone in WGS 84, use", { v: nameOf(newCrs) })}{" "}<b>{tr("A file")}</b>{" "}{tr("in the ribbon above: it writes a reprojected copy and leaves the project as it is.")}</div>
+                {tr("{v} is geographic (latitude/longitude in degrees). The 3D view, hole depths, distances and grids all work in metres, so the project needs a projected CRS: {suggest}. To hand data to someone in WGS 84, use", { v: nameOf(newCrs), suggest: (() => { /* #2465 — where the collars are, not British Columbia everywhere */ const at = project?.crsSet !== false && project?.epsg ? collarCentreLonLat(store.collars, project.epsg) : null; const c = at ? crsCandidatesAt(at.lon, at.lat).slice(0, 2).map((x) => x.name) : []; return c.length ? tr("where the collars are, for example {names}", { names: c.join(tr(" or ")) }) : tr("a UTM zone or the national grid of the area"); })() })}{" "}<b>{tr("A file")}</b>{" "}{tr("in the ribbon above: it writes a reprojected copy and leaves the project as it is.")}</div>
             )}
             {/* TASKS.csv #2291 (review #2174) — the status-bar dialog's landing check, here too: the pane set GDA94 / MGA 51 on a local mine grid
                 with no word, and the 245 collars "were" in the Southern Ocean */}

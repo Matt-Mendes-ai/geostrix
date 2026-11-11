@@ -84,6 +84,7 @@ import { guessQualityColumn, filterSignalQuality, despikeAlongLines } from "../l
 import { mineGridOf } from "../lib/mineGrid.js"; // TASKS.csv #2586
 import { tieOf, fileToLocal } from "../lib/localGridTie.js"; // TASKS.csv #2587 — a tied local grid's way in
 import { farFromCollars, farLabel } from "../lib/landingCheck.js"; // TASKS.csv #2590
+import { collarCentreLonLat } from "../lib/projectCrs.js"; // TASKS.csv #2465
 import { niceContourInterval, terrainRange, MIN_CONTOUR_INTERVAL } from "../lib/contourInterval.js"; // TASKS.csv #2462
 import { vectorToBoundaryPolylines, claimsFromVector, isAreaBoundary, fileStem } from "../lib/boundaryImport.js"; // fileStem: #1767; // TASKS.csv #1035; claims per feature: #1970; isAreaBoundary: #1466
 import { clampCellBudget, MIN_CELL_BUDGET, MAX_BLOCK_MODEL_BUDGET } from "../lib/estimationMeta.js"; // TASKS.csv #1074
@@ -530,6 +531,9 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     const keep = (p) => !(zeroMissing && p.z === 0);
     return { points: [...s, ...c].filter(keep), samples: s.filter(keep).length, collars: c.filter(keep).length, samplePts: s.filter(keep), collarPts: c.filter(keep) }; // samplePts / collarPts: #2589
   }, [surfaceSamples, collars]);
+  // TASKS.csv #2465 (review #2325, WA uranium) — the two NRCan sources were offered on a Western Australian project: off where the collars
+  // are plainly outside Canada (its bounding box, with a degree to spare)
+  const outsideCanada = useMemo(() => { const at = project?.crsSet !== false && project?.epsg ? collarCentreLonLat(collars, project.epsg) : null; return !!at && !(at.lat > 40.5 && at.lat < 84 && at.lon > -142 && at.lon < -51); }, [collars, project?.epsg, project?.crsSet]);
   // TASKS.csv #2589 — collars stacked at one spot at different RLs (pit benches of different dates): which ground the terrain takes
   const benches = useMemo(() => collarBenches(projectZPoints.collarPts), [projectZPoints]);
   const [benchMode, setBenchMode] = useState("all");
@@ -2103,8 +2107,8 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
             title={tr("AWS Terrain Tiles: SRTM blended with national models (CDEM in Canada), up to ~5 m pixels; the fetch checks it for isolated cones against Copernicus and warns. Copernicus GLO-30: one consistent global model, ~30 m, a surface model (forest adds some metres). NRCan MRDEM-30 (Canada only): 30 m bare-earth terrain, using lidar where it exists. NRCan HRDEM: 1 m lidar terrain where a survey has been flown, MRDEM-30 elsewhere.")}>
             <option value="aws">{tr("AWS Terrain Tiles (SRTM / CDEM blend)")}</option>
             <option value="copernicus">{tr("Copernicus GLO-30 (~30 m)")}</option>
-            <option value="mrdem">{tr("NRCan MRDEM-30 (Canada, bare earth)")}</option>{/* TASKS.csv #815 */}
-            <option value="hrdem">{tr("NRCan HRDEM lidar (Canada, where flown)")}</option>
+            <option value="mrdem" disabled={outsideCanada && terrainSource !== "mrdem"}>{tr("NRCan MRDEM-30 (Canada, bare earth)")}</option>{/* TASKS.csv #815; disabled outside Canada: #2465 */}
+            <option value="hrdem" disabled={outsideCanada && terrainSource !== "hrdem"}>{tr("NRCan HRDEM lidar (Canada, where flown)")}</option>
           </select>
         </div>
         {/* TASKS.csv #796 — terrain detail */}
@@ -2443,7 +2447,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7 }}>
               <span style={{ color: "var(--color-text-faint)", width: 60, flexShrink: 0 }}>{tr("Tenure #")}</span>
-              <input value={c.tenureNumber || ""} placeholder="e.g. 1234567" onChange={(e) => updateBoundary(c.id, { tenureNumber: e.target.value })} style={{ ...numInput, flex: 1 }} />
+              <input value={c.tenureNumber || ""} placeholder={tr("e.g. the tenure or tenement number")} /* #2465 — not a BC-style number everywhere */ onChange={(e) => updateBoundary(c.id, { tenureNumber: e.target.value })} style={{ ...numInput, flex: 1 }} />
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 5 }}>
               <span style={{ color: "var(--color-text-faint)", width: 60, flexShrink: 0 }}>{tr("Status")}</span>
