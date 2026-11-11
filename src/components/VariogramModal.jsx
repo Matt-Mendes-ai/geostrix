@@ -14,6 +14,7 @@ import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay, backdropProps } from "../lib/modalStyles.js";
 import { useStore } from "../lib/store.jsx"; // TASKS.csv #135 — project desurvey method
+import { cleanTrend, trendBasis } from "../lib/trend.js"; // TASKS.csv #2424 — the block-estimation trend's plane
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 import { fontSizes } from "../lib/theme.js"; // TASKS.csv #385 — SVG font-size attributes on the type scale
@@ -49,7 +50,9 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
   // and silently fell back to the default method — meaning a project set to, say, tangential would
   // have had its variogram computed on minimum-curvature traces. Same store field GradeEstimationModal
   // reads.
-  const { desurveyMethod, customLayers = [] } = useStore(); // customLayers: TASKS.csv #1571
+  const { desurveyMethod, customLayers = [], structuralTrends } = useStore(); // customLayers: TASKS.csv #1571; structuralTrends: #2424 (read only)
+  // TASKS.csv #2424 — the trend chosen for block estimation, whose plane (normal = its minor axis) the in-plane pairs may follow
+  const estTrend = useMemo(() => { const id = structuralTrends?.use?.estimation; const t = id && (structuralTrends.trends || []).find((x) => x.id === id); return t ? cleanTrend(t) : null; }, [structuralTrends]);
 
   const elementUnits = useMemo(() => Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])), [assayElements]);
   const symbols = assayElements.map((e) => e.symbol);
@@ -81,6 +84,11 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
   const [dip, setDip] = useState(0);
   const [angleTol, setAngleTol] = useState(22.5);
   const [bandwidth, setBandwidth] = useState(0); // 0 => none
+  // TASKS.csv #2424 (review #2325, WA uranium) — pairs in a plane, every azimuth, within ± a half-width across it (bedding); the half-width
+  // starts at the composite length (blank = that), the plane at the block-estimation trend's, else horizontal
+  const [inPlane, setInPlane] = useState(false);
+  const [planeKind, setPlaneKind] = useState("auto"); // "auto" (the trend if one is set for block estimation, else horizontal) | "horizontal"
+  const [planeHalf, setPlaneHalf] = useState("");
   const [model, setModel] = useState("spherical");
 
   const [result, setResult] = useState(null);
@@ -139,13 +147,15 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
         const lag = lagDistance > 0 ? lagDistance : Math.max(1, Math.round(suggested || 10));
         const nLagsUsed = site && !(lagDistance > 0) ? Math.max(nLags, site.nLags) : nLags; // #2221 — auto lag between sites: out to the farthest one
 
-        const direction = directional
+        const usePlane = inPlane ? planeOf(planeKind, estTrend) : null, half = Number(planeHalf) > 0 ? Number(planeHalf) : compositeLength; // #2424
+        const direction = usePlane ? { plane: { normal: usePlane.normal, halfWidth: half } } : directional
           ? { azimuth, dip, angleTol, bandwidth: bandwidth > 0 ? bandwidth : null }
           : null;
         const vg = experimentalVariogram(tPoints, { lagDistance: lag, nLags: nLagsUsed, lagTolerance, holeMode, direction });
         const fit = fitVariogramModel(vg.bins, { model });
         setResult({
           vg, fit, lag, suggested, capValue, domainLabel, spacing, nLagsUsed, fromSites: !!site, // #2221
+          nLagsTyped: nLags, plane: usePlane ? { label: usePlane.label, half } : null, holeMode, compositeLength, medianSampleM: medianSampleLength(srcAssays, symbol), // #2424
           nComposites: points.length, dropped, transform, model,
           nIntervals: intervals.length, unsampled: uns.params(filled), // #2417
         });
@@ -278,6 +288,20 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
             {directional && (
               <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 6 }}>{tr("Directional variograms use far fewer pairs than an omnidirectional one, so they are much noisier — check the pair counts and the fit quality below before believing a directional range.")}</div>
             )}
+            {/* TASKS.csv #2424 — every azimuth within a plane (the bedding), within ± a half-width across it */}
+            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", cursor: "pointer", marginTop: 8 }} title={tr("For a layered deposit: pairs in every direction within a plane, kept only when they are within the half-width across it, so samples of the same layer in different holes are paired and samples of other layers are not. It replaces the single direction above.")}>
+              <input type="checkbox" checked={inPlane} onChange={(e) => setInPlane(e.target.checked)} />{tr("In a plane, all azimuths (bedding)")}</label>
+            {inPlane && (() => { const pl = planeOf(planeKind, estTrend); return (
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end", marginTop: 8 }}>
+                <label style={fieldLabel}>{tr("Plane")}<select value={planeKind} onChange={(e) => setPlaneKind(e.target.value)} style={inp} aria-label={tr("Plane of the pairs")}>
+                    <option value="auto">{estTrend ? tr("The block-estimation trend \"{name}\"", { name: estTrend.name }) : tr("Horizontal (no trend is set for block estimation)")}</option>
+                    {estTrend && <option value="horizontal">{tr("Horizontal")}</option>}
+                  </select>
+                </label>
+                <label style={fieldLabel} title={tr("How far a pair may sit across the plane. Blank = the composite length.")}>{tr("Half-width across it (m)")}<input type="number" min="0" step="any" value={planeHalf} placeholder={String(compositeLength)} onChange={(e) => setPlaneHalf(e.target.value === "" ? "" : Math.max(0, Number(e.target.value)))} style={inp} aria-label={tr("Half-width across the plane (m)")} />
+                </label>
+                <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", flex: "1 1 200px" }}>{tr("Pairs within ± {w} m of the plane {p}.", { w: Number(planeHalf) > 0 ? Number(planeHalf) : compositeLength, p: pl.label })}</span>
+              </div>); })()}
           </div>
 
           <UnsampledChoice u={uns} selStyle={{ ...inp, width: "auto", padding: "3px 6px" }} />{/* TASKS.csv #2417 / #2542 */}
@@ -293,6 +317,9 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
                 {tr("{nComposites} composites{v}{v2} · {nPairsUsed} pairs used · lag {lag} m{v4}{v5}{v6}", { nComposites: result.nComposites.toLocaleString(), v: result.domainLabel ? tr(" in domain \"{domainLabel}\"", { domainLabel: result.domainLabel }) : "", v2: !result.vg.subsampled ? "" : result.vg.holesTotal != null ? tr(" ({used} of {total} holes, whole holes, for the pair loop)", { used: result.vg.holesUsed.toLocaleString(), total: result.vg.holesTotal.toLocaleString() }) /* #1572 */ : result.vg.firstPairLag != null ? tr(" (subsampled to {nPoints} for the pair loop; no pairs closer than {h} m — Downhole only resolves the nugget)", { nPoints: result.vg.nPoints.toLocaleString(), h: result.vg.firstPairLag.toFixed(1) }) : tr(" (subsampled to {nPoints} for the pair loop)", { nPoints: result.vg.nPoints.toLocaleString() }), nPairsUsed: result.vg.nPairsUsed.toLocaleString(), lag: result.lag, v4: result.suggested != null ? (result.fromSites ? tr(" (suggested {suggested} m from the drill-site spacing)", { suggested: result.suggested.toFixed(1) }) : tr(" (suggested {suggested} m)", { suggested: result.suggested.toFixed(1) })) : "", v5: result.dropped ? tr(" · {dropped} composites could not be placed in 3D", { dropped: result.dropped }) : "", v6: result.capValue != null ? tr(" · capped at {capValue}", { capValue: +Number(result.capValue).toPrecision(4) /* #1420: was 2.7857037499998807 */ }) : "" })}
               </div>
 
+              {result.plane && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("Pairs in the plane {p}, every azimuth, within ± {w} m across it.", { p: result.plane.label, w: result.plane.half })}</div>}{/* #2424 */}
+              {result.nLagsUsed !== result.nLagsTyped && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("{n} lags drawn, out to {max} m, to reach the farthest drill site ({typed} typed).", { n: result.nLagsUsed, max: Math.round(result.nLagsUsed * result.lag), typed: result.nLagsTyped })}</div>}{/* #2424: the lag count actually used (#2221) */}
+              {result.holeMode === "downhole" && result.fit?.nuggetRatio >= 0.95 && result.medianSampleM > 0 && result.medianSampleM < 0.75 * result.compositeLength && <div role="note" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", lineHeight: 1.45 }}>{tr("Downhole pairs on {c} m composites are pure nugget here, and the samples are typically {s} m long: a composite as long as the samples may show the short range.", { c: result.compositeLength, s: +result.medianSampleM.toFixed(2) })}</div>}{/* #2424 */}
               {result.unsampled?.unsampledFilledM != null && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{unsampledResultLine(result.unsampled, symbol)}</div>}{/* #2417 */}
               {lagsShortOfSpacing(result.lag, result.nLagsUsed, result.spacing) && ( /* TASKS.csv #2221 */
                 <div role="note" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", lineHeight: 1.45 }}>{tr("The lags stop at {max} m; the {sites} drill sites are typically {typ} m apart (nearest {near} m, up to {far} m): raise the lag or the number of lags to see continuity between holes.", { max: Math.round(result.lag * result.nLagsUsed), sites: result.spacing.sites, typ: Math.round(result.spacing.medianM), near: Math.round(result.spacing.nearestM), far: Math.round(result.spacing.farthestM) })}</div>
@@ -379,7 +406,7 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
 
               {fitWeak && (
                 <div style={noteBox("#fdf7ea", "#e2a63c")}>
-                  <b>{tr("Weak fit (r² = {rSquared}).", { rSquared: result.fit.rSquared.toFixed(3) })}</b>{" "}{tr("The experimental points do not follow a {v} shape well, so the nugget / sill / range above are not meaningfully constrained. That is itself a result: a flat variogram near the population variance means this variable has no resolvable spatial structure at these lags, and any smoothly interpolated shell of it is drawing continuity the data does not support. Try a value transform, a different domain, or a smaller lag.", { v: tr(VARIOGRAM_MODELS[result.fit.model]?.label || "").toLowerCase() })}</div>
+                  <b>{tr("Weak fit (r² = {rSquared}).", { rSquared: result.fit.rSquared.toFixed(3) })}</b>{" "}{tr("The experimental points do not follow the {v} shape well, so the nugget / sill / range above are not meaningfully constrained. That is itself a result: a flat variogram near the population variance means this variable has no resolvable spatial structure at these lags, and any smoothly interpolated shell of it is drawing continuity the data does not support. Try a value transform, a different domain, or a smaller lag.", { v: tr(VARIOGRAM_MODELS[result.fit.model]?.label || "").toLowerCase() })}</div>
               )}
 
               {result.fit && result.fit.nuggetRatio != null && result.fit.nuggetRatio > 0.5 && !fitWeak && (
@@ -423,3 +450,17 @@ const headerStyle = { display: "flex", alignItems: "center", justifyContent: "sp
 const fieldLabel = { fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", display: "flex", flexDirection: "column", gap: 4 };
 const inp = { background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)", fontFamily: "inherit", width: 150 };
 const btn = (primary) => ({ padding: "8px 0", borderRadius: 6, fontSize: "var(--font-size-base)", cursor: "pointer", border: primary ? "1px solid var(--color-success-border)" : "1px solid var(--color-border-light)", background: primary ? "var(--color-success-bg)" : "transparent", color: primary ? "var(--color-success-text)" : "var(--color-text-secondary)" });
+
+// TASKS.csv #2424 — the plane of the in-plane pairs: the block-estimation trend's (its minor axis is the normal) or horizontal
+function planeOf(kind, trend) {
+  if (trend && kind !== "horizontal") { const m = trendBasis(trend).minor; return { normal: { x: m.x, y: m.y, z: m.z }, label: tr("of the trend \"{name}\"", { name: trend.name }) }; }
+  return { normal: { x: 0, y: 0, z: 1 }, label: tr("horizontal") };
+}
+// the median length of the assayed samples of this element (the composite-length hint for a pure-nugget downhole variogram)
+function medianSampleLength(assays, symbol) {
+  const l = [];
+  for (const a of assays || []) { const f = Number(a.from), t = Number(a.to); if (t > f && Number.isFinite(a.values?.[symbol])) l.push(t - f); }
+  if (!l.length) return null;
+  l.sort((x, y) => x - y);
+  return l[l.length >> 1];
+}
