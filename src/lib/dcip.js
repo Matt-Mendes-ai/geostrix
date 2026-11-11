@@ -119,7 +119,7 @@ const num = (v) => { if (v == null || String(v).trim() === "" || /^(\*|na|nan|nu
 // rows: objects keyed by header. Returns { readings: [[a, b|null, m, n|null]], rho, ip|null, skipped, spacing, span, array }.
 export function parseDcipRows(rows, mapping) {
   const readings = [], rho = [], ip = [], err = [];
-  let skipped = 0;
+  let skipped = 0, noIp = 0; // noIp: TASKS.csv #2076 — skipped only for a missing chargeability (a valid resistivity lost with it)
   const useIp = !!mapping.ip, useErr = !!mapping.err; // err: #683 — null where a reading has none
   for (const r of rows) {
     let a = num(r[mapping.a]), b = mapping.b ? num(r[mapping.b]) : null, m = num(r[mapping.m]), n = mapping.n ? num(r[mapping.n]) : null;
@@ -128,7 +128,7 @@ export function parseDcipRows(rows, mapping) {
     if (m == null && n != null) { m = n; n = null; }
     const v = num(r[mapping.rho]);
     const c = useIp ? num(r[mapping.ip]) : null;
-    if (a == null || m == null || !(v > 0) || (useIp && c == null)) { skipped++; continue; }
+    if (a == null || m == null || !(v > 0) || (useIp && c == null)) { skipped++; if (a != null && m != null && v > 0) noIp++; continue; }
     readings.push([a, b, m, n]); rho.push(v); if (useIp) ip.push(c);
     if (useErr) { const e = num(r[mapping.err]); err.push(e != null && e >= 0 ? e : null); }
   }
@@ -137,7 +137,7 @@ export function parseDcipRows(rows, mapping) {
   for (let i = 1; i < pos.length; i++) { const d = pos[i] - pos[i - 1]; if (d > 1e-6 && d < spacing) spacing = d; }
   const poleB = readings.some((r) => r[1] == null), poleN = readings.some((r) => r[3] == null);
   const array = poleB && poleN ? "pole-pole" : poleB ? "pole-dipole" : poleN ? "dipole-pole" : "dipole-dipole (or any 4-electrode array)";
-  return { readings, rho, ip: useIp ? ip : null, err: useErr ? err : null, skipped, spacing: Number.isFinite(spacing) ? spacing : null, span: pos.length ? [pos[0], pos[pos.length - 1]] : null, array };
+  return { readings, rho, ip: useIp ? ip : null, err: useErr ? err : null, skipped, noIp, spacing: Number.isFinite(spacing) ? spacing : null, span: pos.length ? [pos[0], pos[pos.length - 1]] : null, array };
 }
 
 // TASKS.csv #602 — `scale` = ground metres per file metre (the chaining scale fitted from the stations, e.g.
@@ -388,4 +388,11 @@ export function suggestModelDepth(readings, span, cell) {
   const floor = Number.isFinite(cell) && cell > 0 ? 4 * cell : 0;
   const d = maxSep > 0 ? Math.min(lineCap, 0.3 * maxSep) : lineCap;
   return Math.round(Math.max(floor, Number.isFinite(d) ? d : floor));
+}
+
+// TASKS.csv #2020 (review #2013, Woodjam) — 3850_all.dat stayed unplaced although its header says LINE:3850E: the contractor's line name in a
+// line file's header ('LINE:3850E', 'Line = 3850E'), the first hint for finding its stations. null when there is none.
+export function lineTagOf(text) {
+  const m = /^[ \t]*LINE[ \t]*[:=][ \t]*([A-Za-z0-9._+-]+)/im.exec(String(text || "").slice(0, 4000));
+  return m ? m[1] : null;
 }

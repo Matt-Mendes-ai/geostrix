@@ -8,7 +8,7 @@ import { useKeptState, scopeOf } from "../lib/keptState.js"; // TASKS.csv #1174
 import { Upload, Play, Download, Trash2 } from "./icons.js";
 import { useStore, useSetTaskProgress } from "../lib/store.jsx";
 import { parseTableFile, decodeTableBytes, toExportCsv } from "../lib/tabular.js";
-import { guessDcipColumns, parseDcipRows, parseDcipWhitespaceText, lineGeometry, lineFromTwoPoints, terrainProfile, slopeToHorizontalFromProfile, slopeToHorizontalFromStations, readingsToHorizontal, pseudoPositions, dataFitRows, worstReadings, sectionCells, slimDcipResult, savedLineToFile, sectionTableRows, suggestModelDepth, deepestPseudoDepth, columnReach, smoothReachLine } from "../lib/dcip.js";
+import { guessDcipColumns, parseDcipRows, parseDcipWhitespaceText, lineTagOf, lineGeometry, lineFromTwoPoints, terrainProfile, slopeToHorizontalFromProfile, slopeToHorizontalFromStations, readingsToHorizontal, pseudoPositions, dataFitRows, worstReadings, sectionCells, slimDcipResult, savedLineToFile, sectionTableRows, suggestModelDepth, deepestPseudoDepth, columnReach, smoothReachLine } from "../lib/dcip.js";
 import { renderDcipSectionPng, sig3, rampRange } from "../lib/dcipSectionImage.js"; // sig3: #322; rampRange: #2073
 import { parseRes2dinv } from "../lib/res2dinv.js"; // TASKS.csv #826
 import { confirmDestructive } from "../lib/confirmDestructive.js"; // TASKS.csv #322 — a saved line (and its inversion) is not in Undo
@@ -164,7 +164,7 @@ export default function DcipPanel({ pBtn, numInput, resultSlot = null }) {
       const keptName = f.name.replace(/\.(csv|txt|dat|ipg)$/i, "");
       const newlyKept = !!(p?.readings.length && !(dcipLines || []).some((l) => l.name === keptName));
       if (newlyKept) { const cell = p.spacing ? String(+(p.spacing / 2).toFixed(2)) : ""; saveDcipLine({ name: keptName, readings: p.readings, rho: p.rho, ip: p.ip, ...(p.err ? { err: p.err } : {}), line: { x0: "", y0: "", x1: "", y1: "", ground: "", scale: "", stations: null }, opts: { ...opts, cell: opts.cell || cell, depth: opts.depth || (p.spacing ? String(suggestModelDepth(p.readings, p.span, p.spacing / 2)) : "") }, savedAt: new Date().toISOString() }); }
-      setMsg(p ? { ok: true, text: tr("{name}: {n} readings ({array}), electrodes {a}–{b} m, smallest spacing {s} m{ip}{skipped}.", { name: f.name, n: p.readings.length, array: p.array, a: p.span[0], b: p.span[1], s: p.spacing, ip: p.ip ? tr(", with chargeability") : "", skipped: p.skipped ? tr("; {n} row(s) skipped (missing A/M, non-positive resistivity{v})", { n: p.skipped, v: m.ip ? tr(" or no chargeability") : "" }) : "" }) + (t.note ? " " + t.note : "") + (newlyKept ? " " + tr("Kept in the project as \"{name}\" (place it on the map before inverting).", { name: keptName }) : "") } // #1974; kept: #2026
+      setMsg(p ? { ok: true, text: tr("{name}: {n} readings ({array}), electrodes {a}–{b} m, smallest spacing {s} m{ip}{skipped}.", { name: f.name, n: p.readings.length, array: p.array, a: p.span[0], b: p.span[1], s: p.spacing, ip: p.ip ? tr(", with chargeability") : "", skipped: p.skipped ? tr("; {n} row(s) skipped (missing A/M, non-positive resistivity{v})", { n: p.skipped, v: m.ip ? tr(" or no chargeability") : "" }) : "" }) + (p.noIp ? " " + tr("{n} of them have a resistivity but no chargeability: they are left out of the resistivity inversion too. To keep them for resistivity, set the chargeability column to none and invert resistivity alone.", { n: p.noIp }) : "") /* #2076 */ + (t.note ? " " + t.note : "") + (newlyKept ? " " + tr("Kept in the project as \"{name}\" (place it on the map before inverting).", { name: keptName }) : "") } // #1974; kept: #2026
         : { ok: false, text: tr("Map the A, M and apparent-resistivity columns below.") });
     } catch (e) { setMsg({ ok: false, text: tr("Could not read {name}: {message}", { name: f.name, message: e.message }) }); }
   };
@@ -177,7 +177,7 @@ export default function DcipPanel({ pBtn, numInput, resultSlot = null }) {
     if (!guessDcipColumns(t.headers).a || !guessDcipColumns(t.headers).m) { const r = parseRes2dinv(text) || parseDcipWhitespaceText(text); if (r?.error) throw new Error(r.error); if (r) t = r; } // #1660
     const m = guessDcipColumns(t.headers);
     if (!m.a || !m.m || !m.rho) throw new Error(tr("no electrode and apparent-resistivity columns found."));
-    return parseDcipRows(t.rows, m);
+    return { ...parseDcipRows(t.rows, m), lineTag: lineTagOf(text) }; // lineTag: #2020
   };
   const onFiles = async (fileList) => {
     const all = Array.from(fileList || []);
@@ -207,7 +207,7 @@ export default function DcipPanel({ pBtn, numInput, resultSlot = null }) {
         const p = await readLineFile(f);
         if (!p.readings.length) throw new Error(tr("no usable readings."));
         const name = f.name.replace(/\.(csv|txt|dat|ipg)$/i, "");
-        const placed = linePlacement(name, files, to);
+        const placed = linePlacement(name, files, to) || (p.lineTag ? linePlacement(p.lineTag, files, to) : null); // #2020 — the header's LINE: tag
         if (!placed) unplaced.push(name);
         const cell = p.spacing ? String(+(p.spacing / 2).toFixed(2)) : "";
         saveDcipLine({ name, readings: p.readings, rho: p.rho, ip: p.ip, ...(p.err ? { err: p.err } : {}), line: placed || { x0: "", y0: "", x1: "", y1: "", ground: "", scale: "", stations: null }, opts: { ...opts, cell: opts.cell || cell, depth: opts.depth || (p.spacing ? String(suggestModelDepth(p.readings, p.span, p.spacing / 2)) : "") }, savedAt: new Date().toISOString() });
@@ -217,6 +217,7 @@ export default function DcipPanel({ pBtn, numInput, resultSlot = null }) {
     setMsg({ ok: !problems.length, text: [
       tr("Kept {kept} lines in the project ({readings} readings). Choose one from the list above to invert it.", { kept, readings: readings.toLocaleString() }),
       unplaced.length ? tr("No stations found for: {names}. Place those lines before inverting.", { names: unplaced.join(", ") }) : "",
+      unplaced.length && files.length ? tr("The station file(s) name these lines: {lines}.", { lines: [...new Set(files.flatMap((x) => Object.keys(x.lines || {}).filter(Boolean)))].slice(0, 12).join(", ") || "—" }) : "", // #2020 — what could be matched
       problems.length ? tr("Problems: {failed}", { failed: problems.join("; ") }) : "",
     ].filter(Boolean).join(" ") });
   };

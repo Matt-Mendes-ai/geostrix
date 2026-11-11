@@ -28,3 +28,16 @@ export function ratioOf(row, job) {
   const n = parseFloat(row?.[job.num]), d = parseFloat(row?.[job.den]);
   return Number.isFinite(n) && Number.isFinite(d) && d > 0 ? n / d : NaN;
 }
+
+// TASKS.csv #2081 (review #2013, Woodjam) — the n = 1 stations file (GRID_X, GRID_Y, MX_mVV, RHO_ohmm) was imported on RHO alone and MX, the IP
+// product, dropped without a word. The numeric columns of a point table that measure something else than the chosen value (by name: MX ->
+// IP, RHO -> resistivity ...), so the column picker opens with each as a channel of its own. rows: the parsed rows (a sample is read).
+export function otherMeasurementColumns(headers, rows, cols) {
+  const taken = new Set([cols.x, cols.y, cols.z, cols.line, cols.fid, cols.label, cols.value].filter(Boolean));
+  const mv = guessSurveyMethod(cols.value);
+  const sample = (rows || []).slice(0, 300);
+  const numeric = (h) => { let filled = 0, num = 0; for (const r of sample) { const v = r?.[h]; if (v === "" || v == null) continue; filled++; if (Number.isFinite(typeof v === "number" ? v : Number(String(v).trim()))) num++; } return filled > 0 && num >= 0.9 * filled; };
+  return (headers || []).filter((h) => h && !taken.has(h) && numeric(h)).filter((h) => { const m = guessSurveyMethod(h); return m && m !== mv; });
+}
+// channels picked in the column picker -> [{ col, method }] (method null when the name says nothing)
+export const channelMethods = (channels) => (channels || []).map((col) => ({ col, method: guessSurveyMethod(col) }));
