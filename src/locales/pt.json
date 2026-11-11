@@ -6761,6 +6761,7 @@
   "Kept {kept} lines in the project ({readings} readings). Choose one from the list above to invert it.": "{kept} linhas mantidas no projeto ({readings} leituras). Escolha uma na lista acima para invertê-la.",
   "Kept in the project as \"{name}\" (place it on the map before inverting).": "Mantida no projeto como \"{name}\" (posicione-a no mapa antes de inverter).",
   "No stations found for: {names}. Place those lines before inverting.": "Nenhuma estação encontrada para: {names}. Posicione essas linhas antes de inverter.",
+  "The station file(s) name these lines: {lines}.": "Os arquivos de estações nomeiam estas linhas: {lines}.",
   "Select intervals with a box": "Selecionar intervalos com uma caixa",
   "Drag a box in the 3D view. Shift adds, Ctrl removes (click here to stop)": "Arraste uma caixa na vista 3D. Shift adiciona, Ctrl remove (clique aqui para parar)",
   "Every drawn interval the box touches is selected, at any depth. Hide units in the legend first to leave them out. Right-drag still moves the view.": "Todo intervalo desenhado que a caixa toca é selecionado, em qualquer profundidade. Oculte unidades na legenda para deixá-las de fora. Arrastar com o botão direito continua movendo a vista.",

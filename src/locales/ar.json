@@ -6761,6 +6761,7 @@
   "Kept {kept} lines in the project ({readings} readings). Choose one from the list above to invert it.": "حُفظ {kept} خطًا في المشروع ({readings} قراءة). اختر واحدًا من القائمة أعلاه لعكسه.",
   "Kept in the project as \"{name}\" (place it on the map before inverting).": "حُفظ في المشروع باسم \"{name}\" (ضعه على الخريطة قبل النمذجة العكسية).",
   "No stations found for: {names}. Place those lines before inverting.": "لم يُعثر على محطات لـ: {names}. ضع هذه الخطوط قبل العكس.",
+  "The station file(s) name these lines: {lines}.": "تسمّي ملفات المحطات هذه الخطوط: {lines}.",
   "Select intervals with a box": "تحديد الفواصل بمربع",
   "Drag a box in the 3D view. Shift adds, Ctrl removes (click here to stop)": "اسحب مربعًا في العرض ثلاثي الأبعاد. Shift للإضافة وCtrl للإزالة (انقر هنا للإيقاف)",
   "Every drawn interval the box touches is selected, at any depth. Hide units in the legend first to leave them out. Right-drag still moves the view.": "يُحدَّد كل فاصل مرسوم يلمسه المربع، على أي عمق. أخفِ الوحدات في وسيلة الإيضاح لاستبعادها. السحب بالزر الأيمن يظل يحرك العرض.",

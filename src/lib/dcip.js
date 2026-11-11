@@ -389,3 +389,10 @@ export function suggestModelDepth(readings, span, cell) {
   const d = maxSep > 0 ? Math.min(lineCap, 0.3 * maxSep) : lineCap;
   return Math.round(Math.max(floor, Number.isFinite(d) ? d : floor));
 }
+
+// TASKS.csv #2020 (review #2013, Woodjam) — 3850_all.dat stayed unplaced although its header says LINE:3850E: the contractor's line name in a
+// line file's header ('LINE:3850E', 'Line = 3850E'), the first hint for finding its stations. null when there is none.
+export function lineTagOf(text) {
+  const m = /^[ \t]*LINE[ \t]*[:=][ \t]*([A-Za-z0-9._+-]+)/im.exec(String(text || "").slice(0, 4000));
+  return m ? m[1] : null;
+}
