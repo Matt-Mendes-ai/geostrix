@@ -5,6 +5,7 @@
 // dip, then runs the ordinary GemPy stack (modellingRuns.runMapModel).
 import React, { useEffect, useMemo, useState } from "react";
 import { deepestUnitIntercept } from "../lib/holeMapContacts.js"; // TASKS.csv #2568
+import { contactOrientationNear } from "../lib/sheetFromContacts.js"; // TASKS.csv #2642
 import { ChevronUp, ChevronDown } from "./icons.js";
 import { t as tr } from "../lib/i18n.js";
 import { suggestPileOrder } from "../lib/pileOrder.js";
@@ -89,6 +90,12 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
   const [bodyDip, setBodyDip] = useState(90);
   const [bodyFlare, setBodyFlare] = useState("out");
   const bodyUnits = intrusive.filter((u) => !bodyOff[u]);
+  // TASKS.csv #2642 — a sheet (dyke / sill): both walls dip one way, at a dip and dip direction typed or taken from the contact readings
+  const [bodyShape, setBodyShape] = useState("plug");
+  const [sheetDip, setSheetDip] = useState("");
+  const [sheetDipDir, setSheetDipDir] = useState("");
+  const contactOffer = useMemo(() => (bodyShape === "sheet" ? contactOrientationNear(allRows, layer, unitField, bodyUnits) : null), [bodyShape, allRows, layer, unitField, bodyUnits.join("\u0001")]);
+  const sheetOk = bodyShape !== "sheet" || (Number(sheetDip) >= 10 && Number(sheetDip) <= 90 && sheetDipDir !== "" && Number(sheetDipDir) >= 0 && Number(sheetDipDir) < 360);
   const why = (u) => {
     const i = unitInfo.get(u);
     if (!i) return "";
@@ -249,14 +256,27 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
           <div style={row}><span style={{ width: 120, flexShrink: 0 }}>{tr("Depth below outcrop")}</span>
             <input type="number" min={10} step={50} value={bodyDepth} placeholder={tr("required")} onChange={(e) => setBodyDepth(e.target.value === "" ? "" : Math.max(10, Number(e.target.value) || 10))} style={{ ...sel, width: 70, flex: "none" }} aria-label={tr("Depth below outcrop")} /><span>m</span>
             {deepestLogged && bodyDepth === "" && <button type="button" onClick={() => setBodyDepth(Math.max(10, Math.ceil(deepestLogged.depth / 10) * 10))} style={{ ...sel, width: "auto", flex: "none", cursor: "pointer" }} title={tr("The deepest logged {unit} ends {d} m down hole {hole}: a body to that depth reaches every logged intercept.", { unit: deepestLogged.unit, d: Math.round(deepestLogged.depth), hole: deepestLogged.hole })}>{tr("Use {d} m (deepest logged)", { d: Math.max(10, Math.ceil(deepestLogged.depth / 10) * 10) })}</button>}{/* #2568 */}</div>
+          <div style={row}><span style={{ width: 120, flexShrink: 0 }}>{tr("Shape")}</span>{/* TASKS.csv #2642 */}
+            <select value={bodyShape} onChange={(e) => setBodyShape(e.target.value)} style={sel} aria-label={tr("Body shape")}>
+              <option value="plug">{tr("plug or stock (walls all round)")}</option><option value="sheet">{tr("sheet or dyke (both walls dip one way)")}</option>
+            </select></div>
+          {bodyShape === "sheet" ? (<>
+            <div style={row}><span style={{ width: 120, flexShrink: 0 }}>{tr("Sheet dip")}</span>
+              <input type="number" min={10} max={90} step={1} value={sheetDip} placeholder={tr("required")} onChange={(e) => setSheetDip(e.target.value)} style={{ ...sel, width: 60, flex: "none" }} aria-label={tr("Sheet dip")} /><span>°</span>
+              <span style={{ flexShrink: 0 }}>{tr("toward")}</span>
+              <input type="number" min={0} max={359} step={1} value={sheetDipDir} placeholder={tr("required")} onChange={(e) => setSheetDipDir(e.target.value)} style={{ ...sel, width: 60, flex: "none" }} aria-label={tr("Sheet dip direction")} /><span>°</span></div>
+            {contactOffer && (sheetDip === "" || sheetDipDir === "") && <button type="button" onClick={() => { setSheetDip(String(contactOffer.dip)); setSheetDipDir(String(contactOffer.dipDir)); }} style={{ ...sel, width: "auto", cursor: "pointer", marginBottom: 6 }} title={tr("The mean of the {n} contact readings within {m} m of the ticked units' polygons.", { n: contactOffer.n, m: contactOffer.maxM })}>{tr("Use {dip}° toward {dir}° ({n} contact readings)", { dip: contactOffer.dip, dir: contactOffer.dipDir, n: contactOffer.n })}</button>}
+            <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4, marginBottom: 6 }}>{tr("Each outline point goes down the sheet's plane: the base is the mapped outline moved down-dip, so both walls dip the same way. Its thickness comes from the map width across the dip, said when it is built.")}</div>
+          </>) : (
           <div style={row}><span style={{ width: 120, flexShrink: 0 }}>{tr("Wall dip")}</span>
             <input type="number" min={30} max={90} step={5} value={bodyDip} onChange={(e) => setBodyDip(Math.min(90, Math.max(30, Number(e.target.value) || 90)))} style={{ ...sel, width: 70, flex: "none" }} aria-label={tr("Wall dip")} /><span>°</span>
             <select value={bodyFlare} onChange={(e) => setBodyFlare(e.target.value)} disabled={bodyDip >= 90} style={{ ...sel, opacity: bodyDip >= 90 ? 0.5 : 1 }} aria-label={tr("Wall direction")}>
               <option value="out">{tr("widens with depth")}</option><option value="in">{tr("narrows with depth")}</option>
             </select></div>
-          <button onClick={() => { setBodyMsg(null); Promise.resolve(onBuildBodies?.({ layer, field: unitField, units: bodyUnits, depthM: Number(bodyDepth), wallDip: bodyDip, flare: bodyFlare })).then((r) => r && setBodyMsg(r)).catch(() => {}); }}
-            disabled={!groundAt || !bodyUnits.length || !(Number(bodyDepth) >= 10)} title={groundAt ? "" : tr("Needs a terrain: the top of each body is the ground. Offline, Geophysics > Block models > Terrain from the model's top makes one.")}
-            style={{ ...pBtn, justifyContent: "center", opacity: !groundAt || !bodyUnits.length || !(Number(bodyDepth) >= 10) ? 0.5 : 1 }}>
+          )}
+          <button onClick={() => { setBodyMsg(null); Promise.resolve(onBuildBodies?.({ layer, field: unitField, units: bodyUnits, depthM: Number(bodyDepth), wallDip: bodyShape === "sheet" ? 90 : bodyDip, flare: bodyFlare, sheet: bodyShape === "sheet" ? { dip: Number(sheetDip), dipDir: Number(sheetDipDir) } : null /* #2642 */ })).then((r) => r && setBodyMsg(r)).catch(() => {}); }}
+            disabled={!groundAt || !bodyUnits.length || !(Number(bodyDepth) >= 10) || !sheetOk} title={groundAt ? "" : tr("Needs a terrain: the top of each body is the ground. Offline, Geophysics > Block models > Terrain from the model's top makes one.")}
+            style={{ ...pBtn, justifyContent: "center", opacity: !groundAt || !bodyUnits.length || !(Number(bodyDepth) >= 10) || !sheetOk ? 0.5 : 1 }}>
             {tr("Build intrusion bodies")}
           </button>
           {bodyMsg && (bodyMsg.failed.length > 0 || bodyMsg.gapFilled) && <div style={{ fontSize: "var(--font-size-xs)", lineHeight: 1.4, marginTop: 4, color: bodyMsg.failed.length ? "var(--color-danger-fg)" : "var(--color-text-muted)" }}>{/* #2569 — kept in the pane */}

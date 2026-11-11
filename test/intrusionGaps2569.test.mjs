@@ -26,7 +26,7 @@ test("beyond the box is refused as before; no ground at all is refused; no gaps:
 
 test("the run passes the box, reports the fill, and the pane keeps the result", () => {
   const r = readFileSync(new URL("../src/modules/viewer/intrusionRun.js", import.meta.url), "utf8");
-  assert.match(r, /flare: p\.flare, inTerrain \}\)/);
+  assert.match(r, /flare: p\.flare, inTerrain(, sheet: p\.sheet \|\| null)? \}\)/); // sheet: #2642
   assert.match(r, /return \{ added: added\.length, failed: \[\.\.\.new Set\(failed\)\], gapFilled:/);
   const p = readFileSync(new URL("../src/components/MapModelPanel.jsx", import.meta.url), "utf8");
   assert.match(p, /\.then\(\(r\) => r && setBodyMsg\(r\)\)/);

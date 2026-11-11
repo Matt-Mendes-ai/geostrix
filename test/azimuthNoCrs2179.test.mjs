@@ -10,7 +10,9 @@ test("true / magnetic north and another CRS's grid are left as they are while th
   const body = pipe.slice(pipe.indexOf("const applyAzimuthRef = (rows, locate) => {"), pipe.indexOf("if (!azimuthRef || azimuthRef === \"grid\") return applyGridOf(rows, locate);"));
   assert.ok(body.includes("const crsUnset = (importStateRef.current.project || project)?.crsSet === false;"));
   assert.ok(body.includes('const converting = (azimuthRef && azimuthRef !== "grid") || (azimuthGridEpsg && target !== "collars");'));
-  assert.ok(body.includes("if (crsUnset && converting && rows.some((r) => Number.isFinite(r.azimuth))) return { rows, note: tr("));
+  assert.ok(body.includes("if (crsUnset && converting && rows.some((r) => Number.isFinite(r.azimuth))) {"));
+  // #2491: a local grid tied to a CRS converts through the tie; every other case still returns the rows unconverted
+  assert.ok(body.includes("return { rows, note: tr(\" The azimuths could not be converted to grid north and were left as they are in the file"));
 });
 
 test("the Grid-of default and the local-grid help say the CRS is not chosen yet", () => {
