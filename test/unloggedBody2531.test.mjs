@@ -28,7 +28,7 @@ test("a blank code is not a code with the default test; overlapping rows count o
 test("wired: the unit body reports the share, adds outside samples when asked; the pane has the tick", () => {
   const r = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8");
   assert.match(r, /if \(isCode && !customSrc\) \{/);
-  assert.match(r, /if \(bodyOpts\.unloggedOutside\) un\.rows\.forEach/);
+  assert.match(r, /if \(bodyOpts\.unloggedOutside\) \(ai \? ai\.rest : un\.rows\)\.forEach/); // #2634: less the metres an assay cut-off decided
   assert.match(r, /counted as unknown, not outside \{code\}, so nothing stops the body there/);
   const p = readFileSync(new URL("../src/components/ModellingCodesPane.jsx", import.meta.url), "utf8");
   assert.match(p, /checked=\{!!unitBody\.unloggedOutside\}/);

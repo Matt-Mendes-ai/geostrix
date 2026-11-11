@@ -32,3 +32,19 @@ export function boxTallerThanDrilling(extent, traces, factor = 3) {
   const ratio = boxM / drillM;
   return ratio > factor ? { ratio, boxM, drillM } : null;
 }
+
+// TASKS.csv #2634 (review #2486, WA lithium) — the ground in the frame of a grid: (x, y) in that frame -> the ground's elevation in it, or
+// NaN where there is no ground (outside a terrain, or outside the collars' footprint for the collar surface, as the GemPy cut does).
+// offset: the frame's origin in the world (the unit body and alteration grids are origin-relative; the grade shell's is the world).
+// Before this the unit body and the halo looked the terrain up at origin-relative x, y, which no terrain covers: they were never cut.
+export function groundAtInFrame(ground, offset = null) {
+  if (!ground?.at) return null;
+  const ox = offset?.x || 0, oy = offset?.y || 0, oz = offset?.z || 0;
+  const [x0, y0, x1, y1] = ground.kind === "collars" && ground.bbox ? ground.bbox : [-Infinity, -Infinity, Infinity, Infinity];
+  return (x, y) => {
+    const wx = x + ox, wy = y + oy;
+    if (wx < x0 || wx > x1 || wy < y0 || wy > y1) return NaN;
+    const g = ground.at(wx, wy);
+    return Number.isFinite(g) ? g - oz : NaN;
+  };
+}

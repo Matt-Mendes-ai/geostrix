@@ -141,6 +141,8 @@ export function applyValueTransform(points, transform = "none", capPercentile = 
 //   lagTolerance  half-width of a bin as a FRACTION of lagDistance (0.5 = contiguous bins, the default
 //                 and what almost every package does).
 //   direction     null = omnidirectional; else {azimuth, dip, angleTol (deg), bandwidth (m|null)}.
+//                 TASKS.csv #2424 — or { plane: { normal: {x, y, z}, halfWidth (m) } }: every azimuth within the plane, a pair kept
+//                 when its offset across the plane is at most halfWidth (bedding: the horizontal range a layered deposit's search needs).
 //   holeMode      "all" (default) | "downhole" (pairs within one hole only — the classic way to see
 //                 the nugget, since only downhole samples get close enough to resolve it) |
 //                 "between" (pairs from different holes only).
@@ -178,9 +180,10 @@ export function experimentalVariogram(points, opts = {}) {
   const cnt = new Float64Array(nLags + 1);   // pair count per bin
   const hSum = new Float64Array(nLags + 1);  // sum of actual separations, for the bin's mean distance
 
-  const dirV = dir ? directionVector(dir.azimuth, dir.dip) : null;
-  const cosTol = dir ? Math.cos(toRad(Math.min(89.9, Math.max(0.1, dir.angleTol ?? 22.5)))) : 0;
-  const bandwidth = dir && Number(dir.bandwidth) > 0 ? Number(dir.bandwidth) : null;
+  const plane = dir?.plane?.normal ? (() => { const q = dir.plane.normal, l = Math.hypot(q.x, q.y, q.z); return l > 0 ? { x: q.x / l, y: q.y / l, z: q.z / l, w: Math.max(0, Number(dir.plane.halfWidth) || 0) } : null; })() : null; // #2424
+  const dirV = dir && !plane ? directionVector(dir.azimuth, dir.dip) : null;
+  const cosTol = dirV ? Math.cos(toRad(Math.min(89.9, Math.max(0.1, dir.angleTol ?? 22.5)))) : 0;
+  const bandwidth = dirV && Number(dir.bandwidth) > 0 ? Number(dir.bandwidth) : null;
 
   let nPairsUsed = 0;
   // #1572 — in downhole mode the points are grouped by hole, so each hole's block of the loop is its own pair set
@@ -199,6 +202,7 @@ export function experimentalVariogram(points, opts = {}) {
       const k = Math.round(h / lagDistance);
       if (k < 1 || k > nLags) continue;
       if (Math.abs(h - k * lagDistance) > lagTol) continue;
+      if (plane && Math.abs(dx * plane.x + dy * plane.y + dz * plane.z) > plane.w) continue; // #2424 — off the plane by more than the half-width
       if (dirV) {
         // A pair vector has no sign (the pair (i,j) is the pair (j,i)), so the angular test uses
         // |cos| — a direction and its reciprocal are the same direction for a variogram.

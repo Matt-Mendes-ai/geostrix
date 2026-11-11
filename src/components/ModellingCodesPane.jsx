@@ -7,6 +7,7 @@ import { iconAction } from "../lib/a11y.js"; // TASKS.csv #687
 // Logic is in lib/modellingCodes.js (tested); nothing here decides a contact.
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
+import { gradeUnitLabel } from "../lib/geochem.js"; // TASKS.csv #2634
 import { Crosshair, Waypoints, X, RotateCcw, Layers3, Square } from "./icons.js";
 import { CODE_ROLES, codesInUse, autoNumber, inheritNumberedRoles, effectiveCode, rowKey, codedRuns } from "../lib/modellingCodes.js";
 import { colorForLithology, LAYER_META } from "../lib/layers.js";
@@ -69,7 +70,7 @@ function selectionOverlay(rows, traces) {
   return group;
 }
 
-export default function ModellingCodesPane({ inArea = null, litho, modellingCodes, setModellingCodes, groupOf, defaultRole, pickMode, setPickMode, selected, setSelected, connectFrom, setConnectFrom, askPrompt, pBtn, unitBody, setUnitBody, inputStyle, view, onBuildBody }) {
+export default function ModellingCodesPane({ inArea = null, litho, modellingCodes, setModellingCodes, groupOf, defaultRole, pickMode, setPickMode, selected, setSelected, connectFrom, setConnectFrom, askPrompt, pBtn, unitBody, setUnitBody, inputStyle, view, onBuildBody, assayElements = [] /* #2634 */ }) {
   const mc = modellingCodes || { codes: [], assign: {}, ties: [] };
   const codes = useMemo(() => codesInUse(litho, mc, groupOf, defaultRole), [litho, mc, groupOf, defaultRole]);
   const counts = useMemo(() => {
@@ -299,6 +300,17 @@ export default function ModellingCodesPane({ inArea = null, litho, modellingCode
           <label style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }}><input type="checkbox" checked={unitBody.largest} onChange={(e) => setUnitBody((b) => ({ ...b, largest: e.target.checked }))} />{tr("Keep only the largest body")}</label>
           <label style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }} title={tr("Drilled metres with no rock code (and holes with no log) count as outside the unit instead of unknown: right for grade-control holes logged only where the unit is")}><input type="checkbox" checked={!!unitBody.unloggedOutside} onChange={(e) => setUnitBody((b) => ({ ...b, unloggedOutside: e.target.checked }))} />{tr("Treat unlogged metres as outside")}</label>{/* #2531 */}
         </div>
+        {assayElements.length > 0 && ( /* TASKS.csv #2634 — where the log is blank, an assay cut-off decides (no default cut-off: the user types it) */
+          <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 4, flexWrap: "wrap" }} title={tr("Where a hole has no rock code but is assayed for this element, the assay decides: at or above the cut-off is inside the unit, below it outside. The blank metres with no assay follow the box above. Leave the element empty to read the log only.")}>
+            <span>{tr("Blank log read from an assay")}</span>
+            <select value={unitBody.assaySymbol || ""} onChange={(e) => setUnitBody((b) => ({ ...b, assaySymbol: e.target.value }))} style={inputStyle} aria-label={tr("Element that decides where the log is blank")}>
+              <option value="">{tr("none")}</option>
+              {assayElements.map((el) => <option key={el.symbol} value={el.symbol}>{el.symbol}</option>)}
+            </select>
+            {unitBody.assaySymbol && (<label style={{ display: "flex", alignItems: "center", gap: 4 }}>{tr("at or above ({unit})", { unit: gradeUnitLabel(unitBody.assaySymbol, (assayElements.find((el) => el.symbol === unitBody.assaySymbol) || {}).unit) })}
+              <input type="number" min={0} step="any" value={unitBody.assayCutoff ?? ""} placeholder={tr("cut-off")} onChange={(e) => setUnitBody((b) => ({ ...b, assayCutoff: e.target.value === "" ? "" : Math.max(0, Number(e.target.value)) }))} style={{ ...inputStyle, width: 70 }} aria-label={tr("Cut-off where the log is blank")} /></label>)}
+          </div>
+        )}
         <div style={{ ...small, marginTop: 3 }}>{tr("Inside: the code's intervals. Outside: every other logged lithology interval (and, when ticked, the unlogged metres). It follows the geology trend in Model settings. A lower Inside at joins separate bodies; a larger search rarely does.")}</div>
         <button onClick={() => onBuildBody(bodyCode)} disabled={!bodyCode} style={{ ...pBtn, marginTop: 5, marginBottom: 0, opacity: bodyCode ? 1 : 0.5 }}><Layers3 size={14} /> {bodyCode ? tr("Build a closed body from {code}", { code: bodyCode }) : tr("Build a closed body")}</button>
       </>)}
