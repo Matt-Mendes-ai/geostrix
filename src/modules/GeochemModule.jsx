@@ -1,4 +1,6 @@
 import { qcColumns, qcFields } from "../lib/assayQcColumns.js"; // TASKS.csv #1184
+import { orderElements } from "../lib/elementOrder.js"; // TASKS.csv #2032
+import { leadFor } from "../lib/useLeadCommodity.js"; // TASKS.csv #2032
 import { zeroMeansMissing } from "../lib/missingElevation.js"; // TASKS.csv #1394
 import React, { useState, useRef, useMemo, useEffect, Suspense } from "react";
 import { useKeptState, scopeOf } from "../lib/keptState.js"; // TASKS.csv #1284
@@ -64,6 +66,7 @@ import { useSidebarWidth } from "../lib/useSidebarWidth.js";
 import EmptyState, { emptyStateSecondaryBtn } from "../components/EmptyState.jsx"; // TASKS.csv #309
 
 const ALL_DIAGRAMS = { ...DIAGRAMS, ...SPIDER_DIAGRAMS };
+const SPIDER_MIN = 4; // TASKS.csv #2030 — the fewest elements a normalized pattern can show a slope or an anomaly with
 // TASKS.csv #1678 — the X-Y scatter: its axes are chosen on the tab, so it is built there (lib/geochemXY.js); this stands in until they are
 const XY_ENTRY = { id: "xy", label: "X–Y scatter (choose the axes)", requires: [], xLabel: "", yLabel: "", xRange: [0, 1], yRange: [0, 1], project: () => null };
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
@@ -213,6 +216,9 @@ export default function GeochemModule() {
     const none = axes.filter((ax) => !rows.some((r) => Number.isFinite(ax.value(r, units))));
     return none.length ? tr("No sample in this set has a value for {axes}.", { axes: none.map((ax) => ax.label).join(", ") }) : tr("No sample in this set has both {x} and {y}.", { x: axes[0].label, y: axes[1].label });
   };
+  // TASKS.csv #2030 (review #2013) — a spider of two elements (La, Ce from a four-acid digestion) drew 247 two-point 'patterns' and counted
+  // 1964 'plottable' samples: below SPIDER_MIN of its elements in the samples shown, the diagram says so instead of drawing
+  const spiderPresent = useMemo(() => { const d = ALL_DIAGRAMS[diagramId]; return d?.spider ? d.order.filter((sym) => sourceRows.some((r) => Number.isFinite(r.values?.[sym]))) : null; }, [diagramId, sourceRows]);
   const xyDiag = useMemo(() => (xyAxes ? xyDiagram(xyAxes[0], xyAxes[1], sourceRows, elementUnits, { oneToOne: !!xyOne }) : null), [xyAxes, sourceRows, elementUnits, xyOne]);
   // TASKS.csv #2353 — n, Spearman, the median Y / X and the length-weighted ratio, over X >= the typed value
   const xyStat = useMemo(() => (xyAxes && xyAxes[0] && xyAxes[1] ? xyStats(xyAxes[0], xyAxes[1], sourceRows, elementUnits, { xMin: xyMin !== "" && Number.isFinite(Number(xyMin)) ? Number(xyMin) : null }) : null), [xyAxes, sourceRows, elementUnits, xyMin]);
@@ -987,7 +993,7 @@ export default function GeochemModule() {
     // current samples (not inside the setter) so the notice can say how many were updated.
     const merged = mergeSurfaceSamples(surfaceSamples, rows);
     setSurfaceSamples(merged.samples);
-    setSurfaceElements((prev) => { const merged = new Map(prev.map((e) => [e.symbol, e])); chosen.forEach((e) => { if (!merged.has(e.symbol)) merged.set(e.symbol, oxideOfHeader(e.header) ? { ...e, unit: oxideUnit(e.header) } : e); }); return Array.from(merged.values()); }); // #403; oxideUnit: #2157
+    setSurfaceElements((prev) => { const merged = new Map(prev.map((e) => [e.symbol, e])); orderElements(chosen, leadFor(rows, chosen)) /* #2032 — the lead first, not the file's column order */.forEach((e) => { if (!merged.has(e.symbol)) merged.set(e.symbol, oxideOfHeader(e.header) ? { ...e, unit: oxideUnit(e.header) } : e); }); return Array.from(merged.values()); }); // #403; oxideUnit: #2157
     // TASKS.csv #2565 (review #2486) — the drillhole route says what it did to an oxide column (#2487); this one said nothing: Li2O 1.747 % was
     // stored as Li 0.81 and every '<0.005' soil as a number. Now the oxide conversions and the below-detection cells are named.
     const surfOx = chosen.map((e) => ({ e, ox: oxideOfHeader(e.header) })).filter((x) => x.ox).map(({ e, ox }) => `${e.header} → ${ox.symbol} (÷${ox.factor})`);
@@ -1445,7 +1451,11 @@ export default function GeochemModule() {
           </div>
         ) : (
           <div style={{ maxWidth: 680 }}>
-            <GeochemPlot diagramId={diagramId} diagramOverride={diagramId === "xy" ? diagram : null} samples={plotted} elementUnits={elementUnits} colorBy={colorBy} svgRef={svgRef} altBoxes={alterationBoxes?.boxes || PROVISIONAL_ALTERATION_BOXES} describe={describeSample} /> {/* plotted / describe: #619 */}
+            {spiderPresent && spiderPresent.length < SPIDER_MIN ? (
+              <div role="status" style={{ padding: 12, border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.5 }}>{/* TASKS.csv #2030 */}
+                {spiderPresent.length ? tr("Only {list} of this diagram's {n} elements were analysed: a pattern needs at least {min} of them, so none is drawn (a partial digestion often leaves out most REE).", { list: spiderPresent.join(", "), n: diagram.order.length, min: SPIDER_MIN }) : tr("None of this diagram's elements was analysed.")}
+              </div>
+            ) : <GeochemPlot diagramId={diagramId} diagramOverride={diagramId === "xy" ? diagram : null} samples={plotted} elementUnits={elementUnits} colorBy={colorBy} svgRef={svgRef} altBoxes={alterationBoxes?.boxes || PROVISIONAL_ALTERATION_BOXES} describe={describeSample} />} {/* plotted / describe: #619; the spider check: #2030 */}
             <div style={{ fontSize: "var(--font-size-xs)", color: "#65717e", marginTop: 8 }}>
               {((o) => o.v + o.v2 + (ratioLeftOut.total ? " " + tr("{n} sample(s) left out: a ratio with a below-detection operand is not a point ({list}).", { n: ratioLeftOut.total.toLocaleString(), list: Object.entries(ratioLeftOut.bySymbol).sort((x, y) => y[1] - x[1]).map(([k, n]) => tr("{el} below detection in {n}", { el: k, n: n.toLocaleString() })).join(", ") }) : "") /* #2501 */ + (censoredCount ? " " + tr(censoredCount === 1 ? "1 of them holds a below-detection value ('<'), plotted at half the detection limit or at the value the source file stored." : "{n} of them hold a below-detection value ('<'), plotted at half the detection limit or at the value the source file stored.", { n: censoredCount.toLocaleString() }) : "") /* #2018 — only when there are some */)({ v: diagram.spider
                 ? tr("{n} of {assays} samples have at least one plottable element.", { n: plottedCount, assays: sourceRows.length })
@@ -1623,7 +1633,7 @@ function AssayRemovePanel({ assays, assayElements, setAssays, setAssayElements, 
   };
   const removeFile = (f) => {
     const label = f.file == null ? "the assays imported before file names were recorded" : `"${f.file}"`;
-    if (!confirmDestructive(tr("Remove {label} ({intervals} interval(s))?", { label, intervals: f.intervals.toLocaleString() }), { undoable: true })) return;
+    if (!confirmDestructive(f.shared ? tr("Remove {label} ({intervals} interval(s); {shared} that also came from another file are kept)?", { label, intervals: (f.intervals - f.shared).toLocaleString(), shared: f.shared.toLocaleString() }) /* #2202 */ : tr("Remove {label} ({intervals} interval(s))?", { label, intervals: f.intervals.toLocaleString() }), { undoable: true })) return;
     const r = removeAssayFile(assays, f.file);
     setAssays(r.assays); dropUnusedElements(r.assays);
     setNotices((p) => [...p, notice("Removed {removed} assay interval(s) from {label}.{v} Ctrl+Z to undo.", { removed: r.removed.toLocaleString(), label, v: r.keptShared ? tr(" {keptShared} interval(s) also came from another file and were kept (their values can't be separated by file).", { keptShared: r.keptShared.toLocaleString() }) : "" })]);
@@ -1650,7 +1660,7 @@ function AssayRemovePanel({ assays, assayElements, setAssays, setAssayElements, 
           {files.map((f) => (
             <div key={f.file ?? "(untracked)"} style={row}>
               <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={f.file ?? tr("Imported before GeoStrix recorded file names")}>{f.file ?? tr("(imported earlier — file not recorded)")}</span>
-              <span style={{ color: "var(--color-text-muted)", flexShrink: 0 }}>{f.intervals.toLocaleString()}</span>
+              <span style={{ color: "var(--color-text-muted)", flexShrink: 0 }} title={f.shared ? tr("{shared} of these intervals also came from another file: they are counted under each file, and removing one file keeps them.", { shared: f.shared.toLocaleString() }) : undefined}>{f.shared ? tr("{n} ({shared} shared)", { n: f.intervals.toLocaleString(), shared: f.shared.toLocaleString() }) : f.intervals.toLocaleString()}</span>{/* #2202 — a re-imported interval counted under both files said so */}
               <button type="button" style={xBtn} onClick={() => removeFile(f)} aria-label={tr("Remove assays from {v}", { v: f.file ?? tr("files imported earlier") })} title={tr("Remove this file's assay intervals")}><X size={14} /></button>
             </div>
           ))}
