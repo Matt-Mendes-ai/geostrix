@@ -954,7 +954,14 @@ export default function GeochemModule() {
     const merged = mergeSurfaceSamples(surfaceSamples, rows);
     setSurfaceSamples(merged.samples);
     setSurfaceElements((prev) => { const merged = new Map(prev.map((e) => [e.symbol, e])); chosen.forEach((e) => { if (!merged.has(e.symbol)) merged.set(e.symbol, oxideOfHeader(e.header) ? { ...e, unit: oxideUnit(e.header) } : e); }); return Array.from(merged.values()); }); // #403; oxideUnit: #2157
+    // TASKS.csv #2565 (review #2486) — the drillhole route says what it did to an oxide column (#2487); this one said nothing: Li2O 1.747 % was
+    // stored as Li 0.81 and every '<0.005' soil as a number. Now the oxide conversions and the below-detection cells are named.
+    const surfOx = chosen.map((e) => ({ e, ox: oxideOfHeader(e.header) })).filter((x) => x.ox).map(({ e, ox }) => `${e.header} → ${ox.symbol} (÷${ox.factor})`);
+    const bdlCount = new Map();
+    for (const r of rows) for (const s of r.bdl || []) bdlCount.set(s, (bdlCount.get(s) || 0) + 1);
     const extra = [
+      surfOx.length ? tr("Oxide columns stored as the element, in element %: {list}. Labels, colours and Identify show the element; the diagrams convert back to oxides.", { list: surfOx.join(", ") }) : null, // #2565
+      bdlCount.size ? tr("Below detection: {list} (each stored at half its limit and flagged; a label shows it as '<limit').", { list: [...bdlCount].map(([s, n]) => `${s} ${n.toLocaleString()}`).join(", ") }) : null, // #2565
       modal.publicNote || null, // TASKS.csv #846
       twinNote || null, // #2085
       qcMerge?.replaced ? tr("{n} QC insert(s) were already held from an earlier import and were updated, not added again.", { n: qcMerge.replaced }) : null, // #1794

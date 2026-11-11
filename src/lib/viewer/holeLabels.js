@@ -118,7 +118,8 @@ const shortNum = (v) => (Math.abs(v) >= 100 ? String(Math.round(v)) : Math.abs(v
 export function sampleLabelText(row, mode) {
   if (!row || !mode || mode === "none") return null;
   if (mode === "id") { const id = row.sample_id; return id != null && String(id).trim() !== "" ? String(id) : null; }
-  if (mode.startsWith("el:")) { const v = Number(row.values?.[mode.slice(3)]); return Number.isFinite(v) ? shortNum(v) : null; }
+  // TASKS.csv #2565 — a below-detection sample (stored at half its limit) is labelled '<limit', not with a number that is in no file
+  if (mode.startsWith("el:")) { const sym = mode.slice(3), v = Number(row.values?.[sym]); return Number.isFinite(v) ? (Array.isArray(row.bdl) && row.bdl.includes(sym) ? `<${shortNum(2 * v)}` : shortNum(v)) : null; }
   return null;
 }
 export const dipLabelText = (r) => (r && Number.isFinite(Number(r.dip)) ? String(Math.round(Number(r.dip))) : null);

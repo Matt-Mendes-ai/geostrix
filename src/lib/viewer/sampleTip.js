@@ -30,6 +30,9 @@ export function mappedOfSample(an, cfg, j, units = {}) {
   return { sym: null, label: tr("Pathfinder index"), value: an.values?.[j], cls, isolated };
 }
 
+// TASKS.csv #2565 — a below-detection value (stored at half its limit) reads '<limit', as the file gave it: Identify showed 'Cs 0.002358 %'
+// for a cell the file holds as '<0.005'
+export const sampleValueText = (row, s) => (Array.isArray(row?.bdl) && row.bdl.includes(s) && Number.isFinite(Number(row.values?.[s])) ? `<${fmt(2 * Number(row.values[s]))}` : String(fmt(row?.values?.[s])));
 export function surfaceSampleTip(row, { units = {}, mapped = null, max = 8 } = {}) {
   const lines = [`Surface sample${row.sample_id ? ` ${row.sample_id}` : ""} (${row.medium})`];
   if (mapped) {
@@ -37,7 +40,7 @@ export function surfaceSampleTip(row, { units = {}, mapped = null, max = 8 } = {
     lines.push(`${mapped.cls}${mapped.isolated ? ` · ${tr("isolated anomaly")}` : ""}`);
   }
   const els = orderedElements(row.values).filter((s) => s !== mapped?.sym);
-  for (const s of els.slice(0, max)) lines.push(`${s}: ${row.values[s]}${units[s] || "ppm"}`);
+  for (const s of els.slice(0, max)) lines.push(`${s}: ${row.bdl?.includes(s) ? sampleValueText(row, s) : row.values[s]}${units[s] || "ppm"}`); // #2565: '<limit' below detection; otherwise as before
   if (els.length > max) lines.push(tr("+{n} more elements (Identify lists them all)", { n: els.length - max }));
   lines.push(`${row.x.toFixed(0)}E ${row.y.toFixed(0)}N ${row.z.toFixed(0)}Z${row.zDraped ? " (from the terrain — no elevation in the file)" : row.zFlat ? " (flat at the plan elevation — no elevation in the file and no terrain)" : ""}`); // #606, #1818
   return lines.join("\n");
@@ -56,7 +59,7 @@ export function sampleUserData(row, mapped, units = {}) {
 export function sampleIdentifyFields(row, mapped, units = {}) {
   const f = [];
   if (mapped) { f.push([mapped.label, Number.isFinite(mapped.value) ? String(fmt(mapped.value)) : mapped.text || tr("no value")], [tr("Class"), `${mapped.cls}${mapped.isolated ? ` · ${tr("isolated anomaly")}` : ""}`]); } // text: #1822
-  for (const s of orderedElements(row.values, mapped?.sym ? [mapped.sym] : [])) if (s !== mapped?.sym) f.push([s, `${fmt(row.values[s])} ${units[s] || "ppm"}`]);
+  for (const s of orderedElements(row.values, mapped?.sym ? [mapped.sym] : [])) if (s !== mapped?.sym) f.push([s, `${sampleValueText(row, s)} ${units[s] || "ppm"}`]); // #2565
   for (const [k, v] of Object.entries(row.attrs || {})) if (v != null && v !== "") f.push([k, String(v)]);
   return f;
 }
