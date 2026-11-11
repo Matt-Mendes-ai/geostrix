@@ -38,8 +38,9 @@ export const holeSeries = (id) => String(id ?? "").replace(/[-_ ]?\d+[A-Za-z]?$/
 
 // Labels placed greedily (right, left, above, below the collar), each kept only when it overlaps no label already placed and stays
 // inside the frame. points: [{ id, x, y }] in frame px. -> { placed: [{ id, x, y, anchor }], skipped }
-export function placeLabels(points, { fontPx = 9, w, h, gap = 5 } = {}) {
-  const placed = [], boxes = [];
+// avoid: boxes no label may overlap (the key, #2473)
+export function placeLabels(points, { fontPx = 9, w, h, gap = 5, avoid = [] } = {}) {
+  const placed = [], boxes = [...avoid];
   let skipped = 0;
   const hit = (b) => boxes.some((o) => b.x0 < o.x1 && b.x1 > o.x0 && b.y0 < o.y1 && b.y1 > o.y0);
   for (const p of points) {
@@ -83,4 +84,104 @@ export function drillPlanGrid(el) {
   for (let x = Math.ceil(x0 / spacing) * spacing; x <= x1 && xs.length < 200; x += spacing) xs.push({ px: w / 2 + (x - cx) * ppm, label: `${fmt(x)} E` });
   for (let y = Math.ceil(y0 / spacing) * spacing; y <= y1 && ys.length < 200; y += spacing) ys.push({ px: h / 2 - (y - cy) * ppm, label: `${fmt(y)} N` });
   return { spacing, xs, ys };
+}
+
+// TASKS.csv #2473 (review #2325, WA uranium) — the plan of a flat deposit drilled with vertical holes is a collar map coloured by what
+// each hole found, and the drill plan could only colour by series. el.colourBy: "none" | "series" | "attr:<collar field>" |
+// "max:<element>" (the hole's highest result) | "gt:<element>" (grade x length summed over the hole's assayed metres). A plan saved
+// with the older bySeries tick keeps its series colours.
+export const drillPlanColourBy = (el) => el?.colourBy || (el?.bySeries ? "series" : "none");
+export function colourByKind(by) {
+  const s = String(by || "none"), i = s.indexOf(":");
+  return i < 0 ? { kind: s, key: "" } : { kind: s.slice(0, i), key: s.slice(i + 1) };
+}
+
+// A hole's value for a grade choice, from resolved assay segments (geochem.js resolvedSegments: [{ hole_id, from, to, value }], each
+// metre counted once, overlaps and zero-length QC inserts already out). kind "max" | "gt". -> Map(hole_id -> number)
+export function holeGradeValues(segs, kind) {
+  const out = new Map();
+  for (const s of segs || []) {
+    const v = Number(s.value), len = Number(s.to) - Number(s.from);
+    if (!Number.isFinite(v)) continue;
+    const id = String(s.hole_id ?? ""), was = out.get(id);
+    if (kind === "gt") { if (len > 0) out.set(id, (was || 0) + v * len); } else if (was == null || v > was) out.set(id, v);
+  }
+  return out;
+}
+
+// Up to four classes cut at the 50th, 75th and 90th percentile of the holes' own values: no grade is assumed for any deposit or
+// element. A cut equal to the lowest value or to another cut (many holes at one value) is dropped. -> ascending breaks, [] for none
+export function gradeBreaks(values) {
+  const v = [...values].filter(Number.isFinite).sort((a, b) => a - b);
+  if (!v.length) return [];
+  const q = (p) => v[Math.min(v.length - 1, Math.max(0, Math.ceil(p * v.length) - 1))];
+  return [...new Set([0.5, 0.75, 0.9].map(q).filter((b) => b > v[0]))];
+}
+export const classOf = (value, breaks) => { let i = 0; while (i < breaks.length && value >= breaks[i]) i++; return i; };
+export const fmtClassNumber = (x) => (Math.abs(x) >= 1000 ? Math.round(x).toLocaleString("en-US") : Number(x).toLocaleString("en-US", { maximumSignificantDigits: 3 }));
+export const GRADE_COLOURS = ["#8a9bb0", "#2b83ba", "#f08a24", "#c8102e"]; // low to high, each readable on the white sheet (no yellow: #2611)
+export const GRADE_RADIUS_MM = [0.6, 0.8, 1.05, 1.35]; // larger for higher classes, so the classes still read in a black-and-white print
+const NONE_COLOUR = "#9aa3ad";
+const rampIndex = (i, n) => (n <= 1 ? GRADE_COLOURS.length - 1 : Math.round((i * (GRADE_COLOURS.length - 1)) / (n - 1)));
+
+// How each hole is drawn, and the key. holes: drillPlanGeometry's; opts: { segs (for max / gt), unit, palette (categorical), ink }.
+// -> { by, title, note, breaks, styleOf(holeId, series) -> { colour, rMm, hollow }, key: [{ label, colour, rMm, hollow }] }
+export function drillPlanColouring(el, holes, collars, { segs = null, unit = "", palette = [], ink = "#1a2028" } = {}) {
+  const by = drillPlanColourBy(el), { kind, key } = colourByKind(by);
+  const dot = (colour, rMm = 0.8, hollow = false) => ({ colour, rMm, hollow });
+  if (kind === "series") {
+    const series = [...new Set(holes.map((h) => h.series))];
+    const colour = (s) => palette[series.indexOf(s) % palette.length] || ink;
+    return { by, title: "", note: "", breaks: [], styleOf: (id, s) => dot(colour(s)), key: series.map((s) => ({ label: s, ...dot(colour(s)) })) };
+  }
+  if (kind === "attr" && key) {
+    const byId = new Map((collars || []).map((c) => [String(c.hole_id ?? ""), String(c?.attrs?.[key] ?? "").trim()]));
+    const vals = [...new Set(holes.map((h) => byId.get(h.id) || ""))].filter(Boolean).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+    const colour = (v) => palette[vals.indexOf(v) % palette.length] || ink;
+    const blank = holes.some((h) => !byId.get(h.id));
+    return {
+      by, title: key, note: "", breaks: [],
+      styleOf: (id) => { const v = byId.get(id); return v ? dot(colour(v)) : dot(NONE_COLOUR, 0.8, true); },
+      key: [...vals.map((v) => ({ label: v, ...dot(colour(v)) })), ...(blank ? [{ label: "not recorded", ...dot(NONE_COLOUR, 0.8, true) }] : [])],
+    };
+  }
+  if ((kind === "max" || kind === "gt") && key) {
+    const per = holeGradeValues(segs, kind);
+    // the classes come from every hole the plan takes (its hole filter), not only those in the frame, so panning keeps them
+    const shown = filterHoles(collars, el.holeFilter).map((c) => per.get(String(c.hole_id ?? ""))).filter((v) => v != null);
+    const breaks = gradeBreaks(shown), n = breaks.length + 1, u = kind === "gt" ? `m × ${unit || "grade"}` : unit;
+    const withUnit = (t) => (u ? `${t} ${u}` : t);
+    const key2 = [];
+    if (shown.length) {
+      if (!breaks.length) key2.push({ label: withUnit(fmtClassNumber(shown[0]) === fmtClassNumber(Math.max(...shown)) ? fmtClassNumber(shown[0]) : `${fmtClassNumber(Math.min(...shown))} – ${fmtClassNumber(Math.max(...shown))}`), ...dot(GRADE_COLOURS[rampIndex(0, 1)], GRADE_RADIUS_MM[rampIndex(0, 1)]) });
+      else for (let i = 0; i < n; i++) {
+        const lo = i ? breaks[i - 1] : null, hi = i < breaks.length ? breaks[i] : null, c = rampIndex(i, n);
+        key2.push({ label: withUnit(lo == null ? `< ${fmtClassNumber(hi)}` : hi == null ? `≥ ${fmtClassNumber(lo)}` : `${fmtClassNumber(lo)} – ${fmtClassNumber(hi)}`), ...dot(GRADE_COLOURS[c], GRADE_RADIUS_MM[c]) });
+      }
+    }
+    const blank = holes.some((h) => !per.has(h.id));
+    return {
+      by, breaks,
+      title: kind === "gt" ? `${key} grade × length, whole hole` : `Highest ${key} in the hole`,
+      note: breaks.length ? "classes: 50th / 75th / 90th percentile of the plan's holes" : "",
+      styleOf: (id) => { const v = per.get(id); if (v == null) return dot(NONE_COLOUR, 0.6, true); const c = rampIndex(classOf(v, breaks), n); return dot(GRADE_COLOURS[c], GRADE_RADIUS_MM[c]); },
+      key: [...key2, ...(blank ? [{ label: `no ${key} result`, ...dot(NONE_COLOUR, 0.6, true) }] : [])],
+    };
+  }
+  return { by: "none", title: "", note: "", breaks: [], styleOf: () => dot(ink), key: [] };
+}
+
+// TASKS.csv #2473 — a top-down capture draws a hole steeper than this as a point. True when every hole in `ids` is (a hole with no
+// dip, or none recorded, is drawn vertical), so the viewport's sidebar can point to the drill plan for a collar map.
+export const STEEP_DIP = 80;
+export function allHolesSteep(collars, ids, minDip = STEEP_DIP) {
+  if (!ids || !ids.size) return false;
+  let n = 0;
+  for (const c of collars || []) {
+    if (!ids.has(c.hole_id)) continue;
+    n++;
+    const d = Math.abs(Number(c.dip));
+    if (Number.isFinite(d) && d > 0 && d < minDip && Number(c.length) > 0) return false;
+  }
+  return n > 0;
 }

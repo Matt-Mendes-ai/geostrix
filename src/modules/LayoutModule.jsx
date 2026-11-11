@@ -17,7 +17,8 @@ import { minMax, LAYER_META } from "../lib/layers.js";
 import { categoryLegendGroups, assayLegendGroups, voxelLegendGroups, rasterLegendGroups, legendGroupsToItems, LEGEND_CATEGORY_KEYS, mapLayerLegendGroups, boundaryLegendGroups, swatchShape, capLegendGroups, outcropLegendGroup } from "../lib/legendGroups.js"; // TASKS.csv #725; #948; #1633; outcropLegendGroup: #1437
 import { niceScaleNumber } from "../lib/figureScale.js"; // TASKS.csv #311 — shared with the 3D viewport's scale bar
 import { collarTableSlice, continuationTables, collarsWithSurveyAttitude } from "../lib/collarTable.js"; // TASKS.csv #1638; collarsWithSurveyAttitude: #2133
-import { fitDrillPlan, filterHoles } from "../lib/drillPlan.js"; // TASKS.csv #1639
+import { fitDrillPlan, filterHoles, allHolesSteep, STEEP_DIP } from "../lib/drillPlan.js"; // TASKS.csv #1639; allHolesSteep: #2473
+import DrillPlanColourControls from "../components/DrillPlanColourControls.jsx"; // TASKS.csv #2473
 import DrillPlanElement, { drillPlanDrawing } from "../components/DrillPlanElement.jsx"; // TASKS.csv #1639
 import { withLiveScaleBars, relinkCopies, tieStarterFurniture, northRotationOf, insertScaleBar, scaleBarTargets, bindScaleBar } from "../lib/layoutLinks.js"; // TASKS.csv #909 / #920 / #924 / #1632
 import { legibleGridStep, keepLabelsApart } from "../lib/layoutGeometry.js"; // TASKS.csv #1488
@@ -900,7 +901,7 @@ export default function LayoutModule() {
   const credits = useMemo(() => projectCredits(terrain, rasters), [terrain, rasters]); // TASKS.csv #949
   // TASKS.csv #1483 — a collar with no azimuth / dip of its own (Silvertip's) takes its shallowest survey station's, marked so
   const tableCollars = useMemo(() => collarsWithSurveyAttitude(collars, survey), [collars, survey]); // #1483 / #1771 / #2133 (lib/collarTable.js)
-  const textCtx = useMemo(() => textContextFor(elements, project, activePage, activePageIndex, layoutPages.length, tableCollars, credits), [elements, project, activePage, activePageIndex, layoutPages.length, tableCollars, credits]);
+  const textCtx = useMemo(() => ({ ...textContextFor(elements, project, activePage, activePageIndex, layoutPages.length, tableCollars, credits), assays, assayElements /* #2473 — a drill plan coloured by grade */ }), [elements, project, activePage, activePageIndex, layoutPages.length, tableCollars, credits, assays, assayElements]);
 
   // "Each viewport and cross section need an option to assign a scale bar to it" — previously there
   // was only ever ONE scale-bar element on a page (onSyncScaleBar found-or-created the single
@@ -1060,7 +1061,7 @@ export default function LayoutModule() {
 
   return (
     <div className="ge-body" style={{ width: "100%" }}>
-      {printing && <LayoutPrintRoot ref={printRootRef} pages={layoutPages} project={project} collars={tableCollars} credits={credits} />}{/* TASKS.csv #908 */}
+      {printing && <LayoutPrintRoot ref={printRootRef} pages={layoutPages} project={project} collars={tableCollars} credits={credits} assays={assays} assayElements={assayElements} />}{/* TASKS.csv #908 */}
       <div className="ge-panel" style={{ padding: "16px 14px", width: sidebarWidth }}>
         {/* TASKS.csv #458 — Layout ribbon (replaces the #65 icon palette and the Templates / Output buttons). */}
         <Ribbon label="Layout tools">
@@ -1321,7 +1322,7 @@ export default function LayoutModule() {
               </div>
             )}
             {sel.type === "viewport" && (
-              <ViewportControls crsUnset={project?.crsSet === false}
+              <ViewportControls crsUnset={project?.crsSet === false} steepHoles={!!(sel.planView && sel.trueScale && allHolesSteep(tableCollars, holesInFrame(sel, tableCollars)))} /* #2473 */
                 legendReloaded={elements.some((el) => el.type === "legend" && el.boundViewportId === sel.id && el.autoReloaded && el.loadedCapturedAt === sel.capturedAt)} /* #2471 */
                 sel={sel} themes={themes} updateSelected={updateSelected} syncNotice={syncNotice}
                 onRefresh={() => startViewportRender(sel.themeId, sel.id, sel.trueScale, { fixedScale: sel.fixedScale, elementW: sel.w, elementH: sel.h })}
@@ -1372,7 +1373,7 @@ export default function LayoutModule() {
                 before. */}
             {/* TASKS.csv #19 — shape/annotation property editors */}
             {sel.type === "drillplan" && (() => { // TASKS.csv #1639 — the drill plan's scale, extent, labels and colours
-              const dd = drillPlanDrawing(sel, tableCollars || []);
+              const dd = drillPlanDrawing(sel, tableCollars || [], assays, assayElements); // assays: #2473
               return (<>
                 <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", display: "block", marginBottom: 6 }}>{tr("Scale 1 :")}<select value={String(sel.scale)} onChange={(e) => updateSelected({ scale: Number(e.target.value) })} style={{ ...inp, marginTop: 4 }}>
                   {[...new Set([...SCALE_PRESETS, sel.scale])].sort((a, b) => a - b).map((s) => <option key={s} value={String(s)}>{Number(s).toLocaleString()}</option>)}
@@ -1389,7 +1390,7 @@ export default function LayoutModule() {
                   <option value="none">{tr("None")}</option>
                 </select></label>
                 {sel.labels !== "none" && <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", display: "block", marginBottom: 6 }}>{tr("Label only holes containing")}<input type="text" value={sel.labelFilter || ""} placeholder={tr("all")} onChange={(e) => updateSelected({ labelFilter: e.target.value })} style={{ ...inp, marginTop: 4 }} /></label>}
-                <label style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", cursor: "pointer" }}><input type="checkbox" checked={!!sel.bySeries} onChange={(e) => updateSelected({ bySeries: e.target.checked })} />{tr("Colour by series (the hole id without its number), with a key")}</label>
+                <DrillPlanColourControls sel={sel} updateSelected={updateSelected} collars={tableCollars || []} assayElements={assayElements} colouring={dd.colouring} inp={inp} />{/* TASKS.csv #2473 — replaces the series tick */}
                 <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", display: "block", marginBottom: 6 }}>{tr("Text size (pt)")}<input type="number" min="5" max="12" step="0.5" value={sel.fontPt || 7} onChange={(e) => updateSelected({ fontPt: Math.max(5, Math.min(12, Number(e.target.value) || 7)) })} style={{ ...inp, marginTop: 4 }} /></label>
                 <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("{n} hole(s) in the frame; {p} of {l} labelled ({s} without a label where it would overlap another).", { n: dd.holes.length, p: dd.labels.placed.length, l: dd.labelled, s: dd.labels.skipped })} {tr("Drawn from the collars, not the 3D view: traces run straight from each collar's azimuth, dip and length. Insert > Scale bar binds to it.")}</div>
                 <FrameControls sel={sel} updateSelected={updateSelected} />
@@ -1902,7 +1903,7 @@ function SectionScaleControls({ sel, pageW, pageH, updateSelected }) {
   );
 }
 
-function ViewportControls({ legendReloaded = false, sel, themes, updateSelected, onRefresh, onRebind, onEnter, onFit, onRescale, onSyncScaleBar, onSyncNorth, syncNotice, others = [], allViewports = [], hasHoles = true, crsUnset = false }) {
+function ViewportControls({ steepHoles = false, legendReloaded = false, sel, themes, updateSelected, onRefresh, onRebind, onEnter, onFit, onRescale, onSyncScaleBar, onSyncNorth, syncNotice, others = [], allViewports = [], hasHoles = true, crsUnset = false }) {
   // TASKS.csv #907 — the scale picker: a preset, "custom" (a typed 1:N), or free (whatever the 3D view frames)
   const [customScale, setCustomScale] = useState(false);
   const scaleChoice = customScale || (sel.fixedScale > 0 && !SCALE_PRESETS.includes(sel.fixedScale)) ? "custom" : sel.fixedScale > 0 ? String(sel.fixedScale) : "";
@@ -2002,6 +2003,7 @@ function ViewportControls({ legendReloaded = false, sel, themes, updateSelected,
           {sel.fitInfo.drilledScale > 0 && " " + tr("{k} of them have no survey and no azimuth / dip (drawn as assumed vertical holes) and widen the frame: the drilled holes alone would fit at 1:{s}. Set the scale by hand, or remove those collars.", { k: sel.fitInfo.assumed.toLocaleString(), s: sel.fitInfo.drilledScale.toLocaleString() })}{/* #2304 — only when they do */}
         </div>
       )}
+      {steepHoles && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>{tr("Every hole in this frame is steeper than {d}°, so a top-down view draws each one as a point. Insert > Drill plan draws a collar map, coloured by a collar field or a grade if you like.", { d: STEEP_DIP })}</div>}{/* TASKS.csv #2473 */}
       {sel.fixedScale > 0 && (
         <div style={{ fontSize: "var(--font-size-xs)", color: sel.capturedFixedScale === sel.fixedScale ? "var(--color-success-fg)" : "var(--color-warn-text)", marginBottom: 8, lineHeight: 1.4 }}>
           {sel.capturedFixedScale === sel.fixedScale
@@ -2084,7 +2086,7 @@ function frameBorder(el, fallback = "none") {
 
 // TASKS.csv #908 — every page at its paper size, in mm, for printToPDF; shown only under @media print (app.css), its
 // siblings hidden. A named @page per distinct format lets one PDF hold A4 landscape and A3 portrait pages.
-const LayoutPrintRoot = React.forwardRef(function LayoutPrintRoot({ pages, project, collars, credits = "" }, ref) {
+const LayoutPrintRoot = React.forwardRef(function LayoutPrintRoot({ pages, project, collars, credits = "", assays = null, assayElements = null }, ref) { // assays: #2473
   const formats = [...new Map(pages.map((pg) => { const f = pageFormatOf(pg); return [pageCssName(f), f]; })).values()];
   const css = formats.map((f) => { const [w, h] = pageMm(f), n = pageCssName(f); return `@page ${n} { size: ${w}mm ${h}mm; margin: 0; }\n.ge-print-${n} { page: ${n}; }`; }).join("\n");
   return (
@@ -2094,7 +2096,7 @@ const LayoutPrintRoot = React.forwardRef(function LayoutPrintRoot({ pages, proje
         const f = pageFormatOf(pg), [w, h] = pageMm(f);
         return (
           <div key={pg.id} className={`ge-print-page ge-print-${pageCssName(f)}`} style={{ width: `${w}mm`, height: `${h}mm` }}>
-            {withLiveScaleBars(pg.elements).map((el) => <LayoutElement key={el.id} el={el} selected={false} multiSelected={false} print onDown={() => {}} ctx={textContextFor(pg.elements || [], project, pg, i, pages.length, collars, credits)} />)}
+            {withLiveScaleBars(pg.elements).map((el) => <LayoutElement key={el.id} el={el} selected={false} multiSelected={false} print onDown={() => {}} ctx={{ ...textContextFor(pg.elements || [], project, pg, i, pages.length, collars, credits), assays, assayElements }} />)}
           </div>
         );
       })}
@@ -2375,7 +2377,7 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
   // TASKS.csv #19 — shapes/annotation tools
   if (el.type === "drillplan") return ( /* TASKS.csv #1639 */
     <div style={{ ...wrap, width: el.w, height: el.h, border: frameBorder(el), boxSizing: "content-box" }} onMouseDown={onDown} data-el-id={el.id} {...kb}>
-      <DrillPlanElement el={el} collars={ctx?.collars || []} gridCaption={ctx?.gridCaption || ""} />{/* gridCaption: #2301 */}
+      <DrillPlanElement el={el} collars={ctx?.collars || []} gridCaption={ctx?.gridCaption || ""} assays={ctx?.assays || null} assayElements={ctx?.assayElements || null} />{/* gridCaption: #2301; assays: #2473 */}
       {handles}
     </div>
   );
