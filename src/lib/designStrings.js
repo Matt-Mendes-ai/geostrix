@@ -82,6 +82,9 @@ export function joinStrings(a, b) {
 }
 
 export const splitString = (vertices, i) => (i <= 0 || i >= vertices.length - 1 ? null : [vertices.slice(0, i + 1).map((p) => [...p]), vertices.slice(i).map((p) => [...p])]);
+// TASKS.csv #2112 (review #2013, Woodjam) — a CLOSED string broken at a vertex opens into ONE string that starts and ends there (CAD's
+// 'break at vertex'): splitting it as an open one dropped the closing edge (a 4-vertex ring became 1-2 and 2-3-4, edge 4-1 gone). i: 0-based
+export const openRingAt = (vertices, i) => (i < 0 || i >= vertices.length || vertices.length < 3 ? null : [...vertices.slice(i), ...vertices.slice(0, i), vertices[i]].map((p) => [...p]));
 export const reverseString = (vertices) => [...vertices].reverse().map((p) => [...p]);
 
 // the next vertex from the last one: a distance in plan on a bearing (degrees clockwise from north), climbing at a grade (%)

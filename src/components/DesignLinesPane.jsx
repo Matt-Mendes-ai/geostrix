@@ -283,6 +283,7 @@ export default function DesignLinesPane({ view, onAdd, surfaces = [], onClose })
           <label style={{ ...note, minWidth: 0 }} title={tr("Which way the line sets off, clockwise from north. Blank: the first straight decides.")}>{tr("Heading °")}<Cell value={line.azimuth} width="100%" ariaLabel={tr("Heading at the start")} onCommit={(v) => update({ azimuth: v })} /></label>
         </div>
         {!canDraw && <div style={warn}>{groundKnown ? tr("Enter the start elevation (Z): clicks in the view are taken on that level.") : tr("Enter the start elevation (Z): the project has no terrain or collars to take the ground from. Clicks in the view are taken on that level.")}</div>}
+        {line.start?.zAuto && Number.isFinite(line.start?.z) && !started && <div style={note}>{tr("Z {z} is the median collar elevation, only the level clicks are taken on until the start is placed; the start then takes the ground under it.", { z: fmtEN(line.start.z) })}</div>}{/* TASKS.csv #2114 — a number with its source */}
         {line.start?.zAuto && Number.isFinite(line.start?.z) && started && <div style={note}>{tr("Start Z taken from {src} under the start.", { src: terrain ? tr("the terrain") : tr("the nearest collar") })}</div>}
         {startZOdd && <div style={warn}>{tr("Start Z {z} m is far from every elevation this project knows: check it.", { z: fmtEN(line.start.z) })}</div>}
 

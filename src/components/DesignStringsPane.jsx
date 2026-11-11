@@ -9,7 +9,7 @@ import * as THREE from "three";
 import { PenTool, Download, Upload, X, Trash2, Plus, Box, Maximize2 } from "./icons.js";
 import { TaskPaneHeader } from "./Ribbon.jsx";
 import { useStore } from "../lib/store.jsx";
-import { stringStats, offsetString, joinStrings, splitString, reverseString, fromDistanceBearing, orthoPoint, squarePoint, stringCrossings, snapToGrid, bearingOf, stringRows, stringFeatures, stringsFromDxf } from "../lib/designStrings.js";
+import { openRingAt /* #2112 */, stringStats, offsetString, joinStrings, splitString, reverseString, fromDistanceBearing, orthoPoint, squarePoint, stringCrossings, snapToGrid, bearingOf, stringRows, stringFeatures, stringsFromDxf } from "../lib/designStrings.js";
 import { extrudeString, loftStrings, solidTonnage } from "../lib/stringSolids.js";
 import { categoricalModels } from "../lib/geologyForward.js";
 import { valueUnit } from "../lib/blockModelExport.js"; // #1945
@@ -272,7 +272,10 @@ export default function DesignStringsPane({ view, onAdd, onClose, surfaces = [],
   };
   const doDuplicate = () => { const dE = num0(tool.dE) || 0, dN = num0(tool.dN) || 0, dZ = num0(tool.dZ) || 0; const id = addString({ name: tr("{name} copy", { name: string.name }), closed: string.closed, color: string.color, vertices: string.vertices.map((p) => [+(p[0] + dE).toFixed(3), +(p[1] + dN).toFixed(3), +(p[2] + dZ).toFixed(3)]) }); setActiveId(id); };
   const doJoin = () => { if (string.closed) { setMsg(tr("\"{name}\" is closed: open it first (Open) to join another string on at its end.", { name: string.name })); return; } const other = designStrings.find((s) => s.id === tool.joinId); if (!other) return; update({ vertices: joinStrings(string.vertices, other.vertices), closed: false }); setDesignStrings((L) => L.filter((s) => s.id !== other.id)); setTool((t) => ({ ...t, joinId: "" })); }; // closed strings are not offered (#1911)
-  const doSplit = () => { const i = (num0(tool.splitAt) ?? 0) - 1, parts = splitString(string.vertices, i); if (!parts) { setMsg(tr("Split at a vertex between the first and the last.")); return; } update({ vertices: parts[0], closed: false }); addString({ name: tr("{name} (2)", { name: string.name }), color: string.color, vertices: parts[1] }); };
+  const doSplit = () => {
+    const i0 = (num0(tool.splitAt) ?? 0) - 1;
+    if (string.closed) { const ring = openRingAt(string.vertices, i0); if (!ring) { setMsg(tr("Split at a vertex of the string.")); return; } update({ vertices: ring, closed: false }); setMsg(tr("Opened the closed string at vertex {n}: one string of {m} vertices that starts and ends there.", { n: i0 + 1, m: ring.length })); return; } // #2112
+    const i = i0, parts = splitString(string.vertices, i); if (!parts) { setMsg(tr("Split at a vertex between the first and the last.")); return; } update({ vertices: parts[0], closed: false }); addString({ name: tr("{name} (2)", { name: string.name }), color: string.color, vertices: parts[1] }); };
   const removeString = () => { const rest = designStrings.filter((s) => s.id !== string.id); setDesignStrings(rest); setActiveId(rest[rest.length - 1]?.id ?? null); setDrawing(false); setMsg(tr("\"{name}\" deleted: Undo (Ctrl+Z) brings it back.", { name: string.name })); }; // the notice: #1754
 
   // ---------- solids ----------
@@ -423,7 +426,7 @@ export default function DesignStringsPane({ view, onAdd, onClose, surfaces = [],
           {string.vertices.length > 2 && (
             <div style={{ ...row, flexWrap: "wrap", gap: 3 }}>
               <Cell value={num0(tool.splitAt)} width={52} placeholder={tr("vertex")} ariaLabel={tr("Vertex to split at")} onCommit={(v) => setTool((t) => ({ ...t, splitAt: v == null ? "" : String(v) }))} />
-              <button onClick={doSplit} disabled={!(num0(tool.splitAt) > 1 && num0(tool.splitAt) < string.vertices.length)} style={{ ...pBtn, width: "auto", flex: 1, marginBottom: 0, padding: "3px 6px" }}>{tr("Split at vertex")}</button>
+              <button onClick={doSplit} disabled={!(string.closed ? num0(tool.splitAt) >= 1 && num0(tool.splitAt) <= string.vertices.length : num0(tool.splitAt) > 1 && num0(tool.splitAt) < string.vertices.length)} /* closed: any vertex, #2112 */ style={{ ...pBtn, width: "auto", flex: 1, marginBottom: 0, padding: "3px 6px" }}>{tr("Split at vertex")}</button>
             </div>
           )}
         </>)}
