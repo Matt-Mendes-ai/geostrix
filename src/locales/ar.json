@@ -9969,5 +9969,12 @@
   "Total est. ${c}.": "الإجمالي تقديرًا ${c}.",
   "Enter a rate for {list} to total the cost.": "أدخل سعرًا لـ {list} لحساب التكلفة الإجمالية.",
   "Hole type": "نوع الثقب",
-  "e.g. as the collars: AC, RC, DD": "مثلًا كالفوهات: AC وRC وDD"
+  "e.g. as the collars: AC, RC, DD": "مثلًا كالفوهات: AC وRC وDD",
+  "{file}: the {cols} column names say {grid} coordinates, but not the zone: each zone below shows where these collars would land. They are placed as they are, with no conversion.": "{file}: تشير أسماء الأعمدة {cols} إلى إحداثيات {grid}، لكن دون المنطقة: تُظهر كل منطقة أدناه أين ستقع هذه الفوهات. توضع كما هي، دون تحويل.",
+  "GeoStrix places every file, terrain and online map with this CRS.": "يضع GeoStrix كل ملف وتضاريس وخريطة على الإنترنت بنظام الإحداثيات هذا.",
+  "{grid} zones (from the column names), with where the collars would land": "مناطق {grid} (من أسماء الأعمدة)، مع موقع الفوهات في كل منها",
+  "{grid} zones": "مناطق {grid}",
+  "— collars at {where}": "— الفوهات عند {where}",
+  "— the collars do not fit this zone": "— لا تقع الفوهات ضمن هذه المنطقة",
+  "The file cannot tell {a} from {b}: choose the datum the coordinates were surveyed in.": "لا يميّز الملف بين {a} و{b}: اختر المرجع الجيوديسي الذي رُصدت به الإحداثيات."
 }

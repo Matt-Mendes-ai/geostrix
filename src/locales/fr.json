@@ -9969,5 +9969,12 @@
   "Total est. ${c}.": "Total est. {c} $.",
   "Enter a rate for {list} to total the cost.": "Saisissez un tarif pour {list} pour totaliser le coût.",
   "Hole type": "Type de sondage",
-  "e.g. as the collars: AC, RC, DD": "p. ex. comme les collets : AC, RC, DD"
+  "e.g. as the collars: AC, RC, DD": "p. ex. comme les collets : AC, RC, DD",
+  "{file}: the {cols} column names say {grid} coordinates, but not the zone: each zone below shows where these collars would land. They are placed as they are, with no conversion.": "{file} : les noms de colonnes {cols} indiquent des coordonnées {grid}, mais pas la zone : chaque zone ci-dessous montre où ces collets tomberaient. Ils sont placés tels quels, sans conversion.",
+  "GeoStrix places every file, terrain and online map with this CRS.": "GeoStrix place chaque fichier, terrain et carte en ligne avec ce SCR.",
+  "{grid} zones (from the column names), with where the collars would land": "Zones {grid} (d'après les noms de colonnes), avec l'endroit où tomberaient les collets",
+  "{grid} zones": "Zones {grid}",
+  "— collars at {where}": "— collets à {where}",
+  "— the collars do not fit this zone": "— les collets ne tiennent pas dans cette zone",
+  "The file cannot tell {a} from {b}: choose the datum the coordinates were surveyed in.": "Le fichier ne distingue pas {a} de {b} : choisissez le datum dans lequel les coordonnées ont été levées."
 }

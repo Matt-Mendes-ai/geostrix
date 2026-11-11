@@ -17,7 +17,7 @@ import { smallGridCoordinates } from "../lib/crsFromColumns.js"; // TASKS.csv #2
 
 const CrsWorldMap = React.lazy(() => import("./CrsWorldMap.jsx")); // #1330
 
-export default function ProjectCrsModal({ reason, points, suggested = null, noLocalGrid = false, onDone }) { // noLocalGrid: #2621
+export default function ProjectCrsModal({ reason, points, suggested = null, noLocalGrid = false, family = null, onDone }) { // noLocalGrid: #2621; family: #2495
   const { project, collars: storeCollars, setEpsg, setLocalGrid, projectIsEmpty } = useStore();
   const collars = points?.length ? points : storeCollars; // the file being imported, when there is one
   const [where, setWhere] = useState("");
@@ -40,6 +40,8 @@ export default function ProjectCrsModal({ reason, points, suggested = null, noLo
   const candidates = useMemo(() => (at ? crsCandidatesAt(at.lon, at.lat) : []), [at?.lat, at?.lon, regTick]);
   const locals = useMemo(() => (at ? localCrsAt(at.lon, at.lat, { exclude: candidates.map((c) => c.code) }) : []), [at?.lat, at?.lon, candidates]);
   const [moreLocal, setMoreLocal] = useState(false);
+  // TASKS.csv #2495 — the grid family the coordinate columns name (MGA_E / MGA_N): each of its zones with where the collars would land
+  const familyZones = useMemo(() => (family?.codes || []).map((code) => ({ code, name: crsName(code) || `EPSG:${code}`, landing: collarCentreLonLat(collars, code) })), [family, collars]);
   const option = (c, extra) => (
     <div key={c.code} role="option" aria-selected={choice === c.code} tabIndex={0} onClick={() => setChoice(c.code)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setChoice(c.code); } }}
       style={{ display: "flex", justifyContent: "space-between", gap: 8, padding: "5px 8px", cursor: "pointer", fontSize: "var(--font-size-sm)", background: choice === c.code ? "var(--color-selected-bg)" : "transparent", color: "var(--color-text)" }}>
@@ -68,7 +70,16 @@ export default function ProjectCrsModal({ reason, points, suggested = null, noLo
         </div>
         <div style={{ padding: 16, overflowY: "auto", display: "flex", flexDirection: "column", gap: 12 }}>
           {reason && <div style={{ ...note, color: "var(--color-text)" }}>{reason}</div>}
-          <div style={note}>{tr("GeoStrix places every file, terrain and online map with this CRS. A collar CSV doesn't say which CRS it is in, and the numbers alone can't tell one UTM zone from the next.")}</div>
+          <div style={note}>{familyZones.length ? tr("GeoStrix places every file, terrain and online map with this CRS.") : tr("GeoStrix places every file, terrain and online map with this CRS. A collar CSV doesn't say which CRS it is in, and the numbers alone can't tell one UTM zone from the next.")}</div>
+          {familyZones.length > 0 && ( /* TASKS.csv #2495 */
+            <div>
+              <div style={label}>{tr("{grid} zones (from the column names), with where the collars would land", { grid: family.grid })}</div>
+              <div role="listbox" aria-label={tr("{grid} zones", { grid: family.grid })} style={{ border: "1px solid var(--color-border)", borderRadius: 5, maxHeight: 190, overflowY: "auto" }}>
+                {familyZones.map((c) => option(c, c.landing ? tr("— collars at {where}", { where: formatLonLat(c.landing) }) : tr("— the collars do not fit this zone")))}
+              </div>
+              {family.datums.length > 1 && <div style={{ ...note, marginTop: 4 }}>{tr("The file cannot tell {a} from {b}: choose the datum the coordinates were surveyed in.", { a: family.datums[0], b: family.datums[1] })}</div>}
+            </div>
+          )}
           {/* TASKS.csv #2180 — the third answer; #2621: not when the question is which real CRS the coordinates are in */}
           {!noLocalGrid && <div role="radio" aria-checked={localMode} tabIndex={0} onClick={() => setLocalMode(true)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setLocalMode(true); } }}
             style={{ border: `1px solid ${localMode ? "var(--color-accent)" : "var(--color-border)"}`, background: localMode ? "var(--color-selected-bg)" : "transparent", borderRadius: 6, padding: "8px 10px", cursor: "pointer", fontSize: "var(--font-size-sm)", lineHeight: 1.45 }}>

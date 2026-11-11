@@ -59,6 +59,42 @@ export function smallGridCoordinates(points) {
   return { n: small.length, of: ps.length, x: [Math.min(...xs), Math.max(...xs)], y: [Math.min(...ys), Math.max(...ys)] };
 }
 
+// TASKS.csv #2495 (review #2486, WA lithium) — coordinate columns named after a grid FAMILY with no zone (MGA_E / MGA_N, AMG84_East,
+// Easting_GDA2020): the CRS question said "A collar CSV doesn't say which CRS it is in" and offered no MGA zone until a latitude and
+// longitude were typed. -> null, or { grid: "MGA" | "AMG", cols, datums, zone, codes } : the EPSG codes the columns allow (zones 49-56
+// unless the header names one), datum by datum. A bare MGA / GDA prefix allows both GDA94 and GDA2020, a bare AMG / AGD both AGD66 and
+// AGD84: the file cannot tell them apart, so the datum stays the user's choice. Columns naming two families (MGA and AMG) -> null.
+const FAMILY_AXIS = "(E|N|X|Y|Z|RL|EAST|NORTH|EASTING|NORTHING|ELEV|ELEVATION|RL_?M|Z_?M)";
+const FAMILY_HEAD = new RegExp(`^(MGA|GDA|AMG|AGD)(94|2020|84|66)?_?(?:Z(?:ONE)?_?)?(\\d{2})?_?${FAMILY_AXIS}$`);
+const FAMILY_TAIL = new RegExp(`^${FAMILY_AXIS}_(MGA|GDA|AMG|AGD)(94|2020|84|66)?(?:_?Z(?:ONE)?_?(\\d{2}))?$`);
+const FAMILY_CODE = { GDA94: 28300, GDA2020: 7800, AGD84: 20300, AGD66: 20200 };
+export function crsFamilyFromColumns(headers) {
+  const hits = [];
+  for (const h of headers || []) {
+    const s = String(h ?? "").trim().toUpperCase().replace(/[\s.-]+/g, "_");
+    let m = FAMILY_HEAD.exec(s), fam, ver, zone;
+    if (m) [, fam, ver, zone] = m;
+    else if ((m = FAMILY_TAIL.exec(s))) [, , fam, ver, zone] = m;
+    else continue;
+    const grid = fam === "MGA" || fam === "GDA" ? "MGA" : "AMG";
+    const datums = grid === "MGA" ? (ver === "94" ? ["GDA94"] : ver === "2020" ? ["GDA2020"] : ver ? null : ["GDA2020", "GDA94"])
+      : ver === "84" ? ["AGD84"] : ver === "66" ? ["AGD66"] : ver ? null : ["AGD84", "AGD66"];
+    if (!datums) continue; // MGA84, AMG2020: no such grid
+    hits.push({ col: String(h), grid, datums, zone: zone ? Number(zone) : null });
+  }
+  if (!hits.length || new Set(hits.map((x) => x.grid)).size > 1) return null;
+  // the datums every column allows (MGA94_E with MGA_N: GDA94); a zone named by any column, if they agree
+  let datums = hits[0].datums;
+  for (const x of hits) datums = datums.filter((d) => x.datums.includes(d));
+  const zones = [...new Set(hits.map((x) => x.zone).filter((z) => z != null))];
+  if (!datums.length || zones.length > 1) return null;
+  const zone = zones[0] ?? null;
+  if (zone != null && (zone < 49 || zone > 56)) return null;
+  const zs = zone != null ? [zone] : [49, 50, 51, 52, 53, 54, 55, 56];
+  const codes = zs.flatMap((z) => datums.map((d) => FAMILY_CODE[d] + z));
+  return { grid: hits[0].grid, cols: hits.map((x) => x.col), datums, zone, codes };
+}
+
 export function epsgFromColumns(headers) {
   const found = new Set();
   for (const h of headers || []) {

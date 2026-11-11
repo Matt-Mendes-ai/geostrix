@@ -9969,5 +9969,12 @@
   "Total est. ${c}.": "Total est. ${c}.",
   "Enter a rate for {list} to total the cost.": "Informe uma tarifa para {list} para totalizar o custo.",
   "Hole type": "Tipo de furo",
-  "e.g. as the collars: AC, RC, DD": "ex.: como os colares: AC, RC, DD"
+  "e.g. as the collars: AC, RC, DD": "ex.: como os colares: AC, RC, DD",
+  "{file}: the {cols} column names say {grid} coordinates, but not the zone: each zone below shows where these collars would land. They are placed as they are, with no conversion.": "{file}: os nomes de coluna {cols} dizem coordenadas {grid}, mas não a zona: cada zona abaixo mostra onde estas bocas de furo ficariam. Elas são colocadas como estão, sem conversão.",
+  "GeoStrix places every file, terrain and online map with this CRS.": "O GeoStrix posiciona cada arquivo, terreno e mapa online com este SRC.",
+  "{grid} zones (from the column names), with where the collars would land": "Zonas {grid} (pelos nomes de coluna), com onde as bocas de furo ficariam",
+  "{grid} zones": "Zonas {grid}",
+  "— collars at {where}": "— bocas de furo em {where}",
+  "— the collars do not fit this zone": "— as bocas de furo não cabem nesta zona",
+  "The file cannot tell {a} from {b}: choose the datum the coordinates were surveyed in.": "O arquivo não distingue {a} de {b}: escolha o datum em que as coordenadas foram levantadas."
 }

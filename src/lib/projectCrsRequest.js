@@ -8,8 +8,9 @@ const EVENT = "geostrix-request-project-crs";
 // suggested: an EPSG code the file itself names (#1345), chosen when the dialog opens; the user still confirms
 // TASKS.csv #2621 — opts.noLocalGrid: the question is which REAL CRS something is in (a local-grid import's control points), so the dialog
 // does not offer 'keep them, no CRS' (that answer imported nothing and turned the empty project into a local-grid one)
+// TASKS.csv #2495 — opts.family: crsFamilyFromColumns' answer (MGA_E / MGA_N): the dialog lists that grid's zones with where the collars land
 export function requestProjectCrs(reason = "", points = null, suggested = null, opts = {}) {
-  return new Promise((resolve) => window.dispatchEvent(new CustomEvent(EVENT, { detail: { reason, points, suggested, noLocalGrid: !!opts.noLocalGrid, resolve } })));
+  return new Promise((resolve) => window.dispatchEvent(new CustomEvent(EVENT, { detail: { reason, points, suggested, noLocalGrid: !!opts.noLocalGrid, family: opts.family || null, resolve } })));
 }
 
 export function onProjectCrsRequest(handler) {
