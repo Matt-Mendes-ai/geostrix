@@ -1073,7 +1073,7 @@ export default function LayoutModule() {
             <RibbonButton icon={Ruler} label="Scale bar" tone="output" title="Add scale bar" onClick={() => addElement("scale")} />
             <RibbonButton icon={Plus} label="Legend" tone="output" title="Add legend" onClick={() => addElement("legend")} />
             <RibbonButton icon={LayoutTemplate} label="Title block" tone="output" title="Add a title block: a ruled box of labelled fields (title, company, project, claims, map sheet, figure, author, date, scale, datum, page), the project, date, scale and datum filled in" onClick={() => addElement("titleblock")} />{/* TASKS.csv #1868 */}
-            <RibbonButton advanced icon={Sheet} label="Collar table" tone="output" title="Add a table of the drillhole collars (hole, easting, northing, elevation, azimuth, dip, depth), kept up to date with the project. Best intercepts puts its results on the page from its own window." onClick={() => addElement("table")} />{/* TASKS.csv #911 */}
+            <RibbonButton icon={Sheet} label="Collar table" /* #1776 — in Simple too: a report's figure set needs it */ tone="output" title="Add a table of the drillhole collars (hole, easting, northing, elevation, azimuth, dip, depth), kept up to date with the project. Best intercepts puts its results on the page from its own window." onClick={() => addElement("table")} />{/* TASKS.csv #911 */}
           </RibbonGroup>
           <RibbonGroup label="Views">
             <RibbonButton icon={Camera} label="Current view" tone="view" title="Add a viewport snapshot of the current 3D View (no theme needed)" onClick={() => startViewportRender(null, "new")} />
@@ -1603,7 +1603,7 @@ export default function LayoutModule() {
           <button
             onClick={() => setAtlasModalOpen(true)}
             title={tr("Generate atlas — batch-create one page per drillhole/section from the current page as a template")}
-            style={{ display: "flex", alignItems: "center", gap: 4, height: 22, marginBottom: 2, marginLeft: 4, padding: "0 8px", background: "transparent", border: "1px solid var(--color-border)", borderRadius: 5, color: "var(--color-text-faint)", fontSize: "var(--font-size-sm)", cursor: "pointer" }}
+            style={{ display: "flex", alignItems: "center", gap: 4, height: 22, marginBottom: 2, marginLeft: 4, padding: "0 8px", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, color: "var(--color-text)", fontSize: "var(--font-size-sm)", cursor: "pointer" }} /* TASKS.csv #1776 — drawn like the page bar's selects beside it: grey on the dark bar read as disabled */
           >
             <LayoutGrid size={12} />{" "}{tr("Atlas…")}</button>
           {exportNote && ( /* TASKS.csv #908 */
