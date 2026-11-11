@@ -2536,6 +2536,8 @@
   "Recolour": "Recolorir",
   "to {v}": "a {v}",
   "Value of colour stop {n}": "Valor da parada de cor {n}",
+  "Range minimum of \"{name}\"": "Mínimo do intervalo de \"{name}\"",
+  "Range maximum of \"{name}\"": "Máximo do intervalo de \"{name}\"",
   "Linear (equal interval)": "Linear (intervalo igual)",
   "Log-linear": "Log-linear",
   "Histogram equalization (quantile)": "Equalização de histograma (quantis)",

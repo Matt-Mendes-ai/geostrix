@@ -2536,6 +2536,8 @@
   "Recolour": "إعادة التلوين",
   "to {v}": "إلى {v}",
   "Value of colour stop {n}": "قيمة نقطة اللون {n}",
+  "Range minimum of \"{name}\"": "الحد الأدنى لنطاق \"{name}\"",
+  "Range maximum of \"{name}\"": "الحد الأقصى لنطاق \"{name}\"",
   "Linear (equal interval)": "خطي (فترات متساوية)",
   "Log-linear": "لوغاريتمي خطي",
   "Histogram equalization (quantile)": "معادلة المدرج التكراري (المئينات)",
