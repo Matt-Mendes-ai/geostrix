@@ -1795,6 +1795,8 @@
   "Ternary, bivariate and REE-spider diagrams over your assay or pXRF data, plus alteration indices, correlation matrices, QAQC and downhole compositing. Import a file to start plotting.": "مخططات ثلاثية وثنائية ومخططات العناصر الأرضية النادرة لبيانات تحاليلك أو pXRF، مع مؤشرات التحول ومصفوفات الارتباط وQAQC والتركيب على طول الثقب. استورد ملفًا للبدء.",
   "{n} of {assays} samples have at least one plottable element.": "{n} من {assays} عينة فيها عنصر واحد قابل للرسم على الأقل.",
   "{n} of {assays} samples plotted.": "رُسمت {n} من {assays} عينة.",
+  "No sample in this set has a value for {axes}.": "لا توجد عينة في هذه المجموعة لها قيمة لـ {axes}.",
+  "No sample in this set has both {x} and {y}.": "لا توجد عينة في هذه المجموعة لها {x} و{y} معاً.",
   " {v} hidden by the lithology filter.": " {v} مخفية بمرشح الليثولوجيا.",
   "Below-detection values substituted at half the detection limit.": "استُبدلت القيم دون حد الكشف بنصف حد الكشف.",
   "Imported files & elements — remove…": "الملفات والعناصر المستوردة — إزالة…",

@@ -1795,6 +1795,8 @@
   "Ternary, bivariate and REE-spider diagrams over your assay or pXRF data, plus alteration indices, correlation matrices, QAQC and downhole compositing. Import a file to start plotting.": "Diagrammes ternaires, bivariés et araignées de terres rares sur vos données d'analyses ou pXRF, plus indices d'altération, matrices de corrélation, QAQC et compositage le long du sondage. Importez un fichier pour commencer.",
   "{n} of {assays} samples have at least one plottable element.": "{n} sur {assays} échantillons ont au moins un élément traçable.",
   "{n} of {assays} samples plotted.": "{n} sur {assays} échantillons tracés.",
+  "No sample in this set has a value for {axes}.": "Aucun échantillon de cet ensemble n'a de valeur pour {axes}.",
+  "No sample in this set has both {x} and {y}.": "Aucun échantillon de cet ensemble n'a à la fois {x} et {y}.",
   " {v} hidden by the lithology filter.": " {v} masqués par le filtre de lithologie.",
   "Below-detection values substituted at half the detection limit.": "Valeurs sous la limite de détection remplacées par la moitié de celle-ci.",
   "Imported files & elements — remove…": "Fichiers et éléments importés — supprimer…",
