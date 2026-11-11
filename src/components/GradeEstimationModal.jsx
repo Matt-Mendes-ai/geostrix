@@ -332,7 +332,14 @@ export default function GradeEstimationModal({ assays: assaysProp, assayElements
   // first time the grid is over the budget, before the cell size is touched, the cell that fits is filled in, and said
   const cellTouched = useRef(!!(saved && saved.cellSize !== undefined)); // #1580 — a remembered cell is not refitted
   const [autoCell, setAutoCell] = useState(null);
-  useEffect(() => { if (!cellTouched.current && fitCell) { cellTouched.current = true; setAutoCell(fitCell); setCellSize(fitCell); } }, [fitCell]);
+  // TASKS.csv #2543 (review #2486) — the cell chosen for the budget did not fit it: 15 m 'for the 200,000-block budget' gave 202,924 blocks in
+  // reach and Run stayed disabled (the worker's fit is checked at the new cell only after it is set). A cell the dialog chose is refitted
+  // upward (never down, so it cannot oscillate) until the blocks in reach fit; a cell the user typed is left alone, as before.
+  useEffect(() => {
+    if (!fitCell) return;
+    if (!cellTouched.current) { cellTouched.current = true; setAutoCell(fitCell); setCellSize(fitCell); return; }
+    if (autoCell != null && cellSize === autoCell && fitCell > cellSize) { setAutoCell(fitCell); setCellSize(fitCell); }
+  }, [fitCell]); // autoCell / cellSize read as they are when the fit changes
   // #1570 — a restricting solid changes the box: a cell the dialog chose (not typed) is chosen again for it, 10 m when that fits
   useEffect(() => {
     if (!bounds || matched || autoCell == null || cellSize !== autoCell) return undefined;
