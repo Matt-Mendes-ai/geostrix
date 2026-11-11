@@ -592,6 +592,7 @@
   "Regularize raw assay intervals to a fixed length first (recommended — same compositing as Grade estimation)": "توحيد فترات التحاليل الخام إلى طول ثابت أولًا (موصى به — التركيب نفسه في تقدير المحتوى)",
   "Composite first": "التركيب أولًا",
   "Composite length (m)": "طول العينة المركّبة (م)",
+  "{length} m: the commonest sample length ({pct} % of the samples)": "{length} م: طول العينة الأكثر شيوعاً ({pct} % من العينات)",
   "Minimum fraction of a composite interval that must actually be covered by real assay data (vs. missing/lost core) for it to be used. At the 50% default, a half-missing-core composite still counts as a full sample.": "الحد الأدنى من الفترة المركّبة الذي يجب أن تغطيه بيانات تحليل حقيقية (مقابل اللب المفقود) لاستخدامها. مع القيمة الافتراضية 50% تُحسب العينة المركّبة المفقود نصف لبها عينة كاملة.",
   "Min coverage": "أدنى تغطية",
   "Cap every RAW assay at this grade before compositing (commonly the 97.5th-99th percentile of the element's distribution). Blank = no cap. For a nuggety, log-normal element like Au, estimating without a cap overstates grade.": "قص كل تحليل خام عند هذا المحتوى قبل التركيب (عادةً المئين 97.5-99 من توزيع العنصر). فارغ = بلا قص. لعنصر حبيبي لوغاريتمي-طبيعي مثل الذهب، التقدير دون قص يبالغ في المحتوى.",

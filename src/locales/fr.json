@@ -592,6 +592,7 @@
   "Regularize raw assay intervals to a fixed length first (recommended — same compositing as Grade estimation)": "Régulariser d'abord les intervalles d'analyse bruts à une longueur fixe (recommandé — même compositage que l'Estimation de teneur)",
   "Composite first": "Compositer d'abord",
   "Composite length (m)": "Longueur de composite (m)",
+  "{length} m: the commonest sample length ({pct} % of the samples)": "{length} m : la longueur d'échantillon la plus courante ({pct} % des échantillons)",
   "Minimum fraction of a composite interval that must actually be covered by real assay data (vs. missing/lost core) for it to be used. At the 50% default, a half-missing-core composite still counts as a full sample.": "Fraction minimale d'un intervalle composite qui doit être réellement couverte par des données d'analyse (vs carotte manquante/perdue) pour être utilisée. Avec 50 % par défaut, un composite à moitié sans carotte compte encore comme un échantillon entier.",
   "Min coverage": "Couverture min.",
   "Cap every RAW assay at this grade before compositing (commonly the 97.5th-99th percentile of the element's distribution). Blank = no cap. For a nuggety, log-normal element like Au, estimating without a cap overstates grade.": "Plafonner chaque analyse BRUTE à cette teneur avant compositage (souvent le 97,5e-99e centile de la distribution de l'élément). Vide = pas de plafond. Pour un élément pépitique log-normal comme Au, estimer sans plafond surestime la teneur.",

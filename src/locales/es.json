@@ -592,6 +592,7 @@
   "Regularize raw assay intervals to a fixed length first (recommended — same compositing as Grade estimation)": "Regularizar primero los intervalos de ensaye a un largo fijo (recomendado — la misma compositación que en Estimación de leyes)",
   "Composite first": "Compositar primero",
   "Composite length (m)": "Largo del compósito (m)",
+  "{length} m: the commonest sample length ({pct} % of the samples)": "{length} m: la longitud de muestra más común ({pct} % de las muestras)",
   "Minimum fraction of a composite interval that must actually be covered by real assay data (vs. missing/lost core) for it to be used. At the 50% default, a half-missing-core composite still counts as a full sample.": "Fracción mínima de un intervalo compuesto que debe estar cubierta por datos de ensaye reales (vs. testigo faltante/perdido) para usarlo. Con el 50 % por defecto, un compósito con la mitad del testigo faltante cuenta igual como una muestra completa.",
   "Min coverage": "Cobertura mín.",
   "Cap every RAW assay at this grade before compositing (commonly the 97.5th-99th percentile of the element's distribution). Blank = no cap. For a nuggety, log-normal element like Au, estimating without a cap overstates grade.": "Recortar cada ensaye ORIGINAL a esta ley antes de compositar (habitualmente el percentil 97,5-99 de la distribución del elemento). Vacío = sin recorte. Para un elemento con efecto pepita y lognormal como el Au, estimar sin recorte sobrestima la ley.",
