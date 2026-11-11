@@ -2890,7 +2890,7 @@ function VoxelLegendEditor({ model, onUpdate }) {
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7 }}>
           <span style={{ color: "var(--color-text-faint)", width: 62, flexShrink: 0 }}>{tr("Stretch")}</span>
           <select value={model.stretch === "minmax" ? "minmax" : "p2-98"} onChange={(e) => onUpdate(model.id, { stretch: e.target.value === "minmax" ? "minmax" : null })} style={{ ...numInput, flex: 1 }} aria-label={tr("Colour stretch of \"{name}\"", { name: model.name })}>
-            <option value="p2-98">{(() => { const r = voxelStretch({ ...model, stretch: null }); return r ? tr("2–98 % of the cells ({lo} to {hi})", { lo: +r[0].toPrecision(3), hi: +r[1].toPrecision(3) }) : tr("2–98 % of the cells"); })()}</option>
+            <option value="p2-98">{(() => { const r = voxelStretch({ ...model, stretch: null }); const pts = model.id === "geophys_pts"; /* #2247 */ return r ? (pts ? tr("2–98 % of the points ({lo} to {hi})", { lo: +r[0].toPrecision(3), hi: +r[1].toPrecision(3) }) : tr("2–98 % of the cells ({lo} to {hi})", { lo: +r[0].toPrecision(3), hi: +r[1].toPrecision(3) })) : pts ? tr("2–98 % of the points") : tr("2–98 % of the cells"); })()}</option>
             <option value="minmax">{tr("The range above (min to max)")}</option>
           </select>
         </div>
@@ -2966,7 +2966,7 @@ function VoxelLegendEditor({ model, onUpdate }) {
           <button onClick={applyClassify} style={{ ...pBtn, width: "auto", marginBottom: 0 }}>{tr("Apply")}</button>
         </div>
         {classNote && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginTop: 3 }}>{classNote}</div>} {/* #1430 */}
-        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 3, lineHeight: 1.4 }}>{tr("Generates {classCount} classes from this model's actual cell values and switches to classified (stepped) styling.", { classCount })}</div>
+        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 3, lineHeight: 1.4 }}>{(model.id === "geophys_pts" /* #2247 — the editor is shared with point surveys */ ? tr("Generates {classCount} classes from this survey's point values and switches to classified (stepped) styling.", { classCount }) : tr("Generates {classCount} classes from this model's actual cell values and switches to classified (stepped) styling.", { classCount }))}</div>
       </div>
     </div>
   );

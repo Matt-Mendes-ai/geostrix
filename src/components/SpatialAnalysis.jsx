@@ -13,6 +13,7 @@ import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay, backdropProps } from "../lib/modalStyles.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
+import { isMetricProjectedEpsg } from "../lib/reproject.js"; // TASKS.csv #2247
 
 // TASKS.csv #51 — Voronoi tessellation + polygonal declustering panel. Opened from GeophysicsModule
 // over whatever geophys_pts point cloud is currently loaded (needs x/y/value, which is exactly that
@@ -137,7 +138,7 @@ export default function SpatialAnalysis({ points, surveys = [], onClose }) {
               <StatRow label={tr("Naive mean")} value={fmt(stats.naiveMean)} />
               <StatRow label={tr("Declustered mean")} value={fmt(stats.declusteredMean)} highlight />
               {stats.declusteredStd !== null && <StatRow label={tr("Declustered std dev")} value={fmt(stats.declusteredStd)} />}
-              <StatRow label={tr("Total tessellated area")} value={stats.totalArea.toLocaleString(undefined, { maximumFractionDigits: 0 })} />
+              <StatRow label={tr("Total tessellated area")} value={stats.totalArea.toLocaleString(undefined, { maximumFractionDigits: 0 }) + (isMetricProjectedEpsg(project?.epsg) ? " m²" : "") /* #2247 — the unit */} />
 
               <button onClick={exportCSV} style={btn}>
                 <Download size={14} />{" "}{tr("Export cells (CSV)")}</button>
