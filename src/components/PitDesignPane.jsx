@@ -222,7 +222,17 @@ export default function PitDesignPane({ surfaces = [], worldPositionsOf, onAdd, 
         <div style={{ marginTop: 8, padding: "7px 8px", border: "1px solid var(--color-border)", borderRadius: 6, background: "var(--color-bg-subtle)" }}>
           {line(tr("Benches"), tr("{n} ({lo} to {hi} m)", { n: res.benches.length, lo: Math.round(res.floorRL), hi: Math.round(res.crestRL) }))}
           {line(tr("Inter-ramp angle"), `${res.interRampDeg.toFixed(1)}°`)}
-          {res.sectorsUsed && <div style={note}>{tr("By wall (face° / berm m): {list}.", { list: Object.entries(res.sectorsUsed).map(([k, s]) => `${k} ${s.batterDeg}° / ${s.berm}`).join(", ") })}</div>}{/* #1952 */}
+          {/* #1952; TASKS.csv #2117 (review #2013, Woodjam) — each wall's own inter-ramp angle (a 55° / 8 m N wall is 33.7°, not the 46.0° above), and the
+              walls flatter than the slope the shell was solved at */}
+          {res.sectorsUsed && (() => {
+            const h = Number(res.inputs?.benchH), ira = (s) => (Math.atan(h / (h / Math.tan((s.batterDeg * Math.PI) / 180) + Number(s.berm))) * 180) / Math.PI;
+            const rows = Object.entries(res.sectorsUsed).map(([k, s]) => ({ k, s, a: ira(s), shell: Number(pit?.params?.inputs?.sectorSlopes?.[k]) || shellSlope }));
+            const flat = rows.filter((r) => Number.isFinite(r.shell) && r.a < r.shell - 1);
+            return (<>
+              <div style={note}>{tr("By wall (face° / berm m → inter-ramp): {list}.", { list: rows.map((r) => `${r.k} ${r.s.batterDeg}° / ${r.s.berm} → ${r.a.toFixed(1)}°`).join(", ") })}</div>
+              {flat.length > 0 && <div style={warn}>{tr("Flatter than the shell was solved at: {list}. Those walls take more waste than the shell counted.", { list: flat.map((r) => `${r.k} ${r.a.toFixed(1)}° < ${r.shell}°`).join(", ") })}</div>}
+            </>);
+          })()}
           {res.ramp && line(tr("Ramp"), tr("{L} m at {g} %, {w} m wide, over {n} bench(es)", { L: Math.round(res.ramp.lengthM).toLocaleString(), g: res.ramp.gradientPct, w: res.ramp.widthM, n: res.ramp.benches }))}{/* #1948 */}
           {res.ramp && line(tr("Rock under the road"), `${big(res.ramp.rockT)} t`)}
           {res.ramp?.needsSwitchback && <div style={warn}>{tr("The wall at {rl} m is too short for a {g} % run at this width: the ramp stops there and a switchback is needed, which is not drawn.", { rl: Math.round(res.ramp.stoppedAtRL), g: res.ramp.gradientPct })}</div>}

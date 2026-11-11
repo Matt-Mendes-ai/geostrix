@@ -166,8 +166,9 @@ export default function StopesPane({ onAdd, onRemove, onClose, stopes = [], onSh
       {msg && <div style={warn}>{msg}</div>}
       {res && (
         <div style={{ marginTop: 8, padding: "7px 8px", border: "1px solid var(--color-border)", borderRadius: 6, background: "var(--color-bg-subtle)" }}>
-          {line(tr("Stopes"), tr("{n} on {l} level(s)", { n: res.totals.stopes, l: res.levels.length }))}
+          {(() => { const withStopes = res.levels.filter((l) => l.stopes.length).length; return line(tr("Stopes"), withStopes === res.levels.length ? tr("{n} on {l} level(s)", { n: res.totals.stopes, l: withStopes }) : tr("{n} on {l} of {m} levels", { n: res.totals.stopes, l: withStopes, m: res.levels.length })); })()}{/* TASKS.csv #2283 — the levels that hold a stope, as 'Stopes in the project' counts them */}
           {line(tr("Tonnes (diluted)"), `${big(res.totals.tonnes)} t`)}
+          {res.totals.unestimatedTonnes > 0.5 && <div style={note}>{tr("{t} t of it is rock the model has no block for (inside the outlines or their skin), counted at the density with no metal.", { t: big(res.totals.unestimatedTonnes) })}</div>}{/* TASKS.csv #2118 */}
           {line(tr("Grade (diluted)"), g(res.totals.grade))}
           {line(tr("Ore above cut-off"), `${big(res.totals.oreTonnes)} t`)}
           {line(tr("Grade above cut-off"), g(res.totals.oreGrade))}

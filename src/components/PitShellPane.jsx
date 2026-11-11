@@ -6,7 +6,7 @@ import { Pickaxe, Eye, EyeOff, Trash2, Pencil } from "./icons.js";
 import { confirmDestructive } from "../lib/confirmDestructive.js"; // #1498
 import { TaskPaneHeader } from "./Ribbon.jsx";
 import { useStore } from "../lib/store.jsx";
-import { pitEconomics, pitMetalOf, elementOfModel, SECTORS, hasSectorSlopes, slopeForSector, priceUnitsFor, PRICED_MASS_T, metalAmountText, gradeWithElement, oxideSuffix /* #2594 */ } from "../lib/pitShell.js"; // pitMetalOf / elementOfModel: #1748; SECTORS: #1881
+import { joinByProduct /* #2115 */, pitEconomics, pitMetalOf, elementOfModel, SECTORS, hasSectorSlopes, slopeForSector, priceUnitsFor, PRICED_MASS_T, metalAmountText, gradeWithElement, oxideSuffix /* #2594 */ } from "../lib/pitShell.js"; // pitMetalOf / elementOfModel: #1748; SECTORS: #1881
 import { sgSummary } from "../lib/gradeTonnage.js";
 import { valueUnit } from "../lib/blockModelExport.js";
 import { categoricalModels } from "../lib/geologyForward.js";
@@ -99,7 +99,9 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove,
   const byUnit = byModel ? valueUnit(byModel) : null, byElement = elementOfModel(byModel), byMetal = byUnit ? pitMetalOf(byUnit, byElement) : null;
   const byPrices = byMetal ? priceUnitsFor(byMetal, byElement) : null, byPriceUnit = byPrices?.some(([k]) => k === f.byPriceUnit) ? f.byPriceUnit : byPrices?.[0][0];
   const byLabel = byElement || byModel?.name || "", byPriceLabel = (byPrices?.find(([k]) => k === byPriceUnit) || [])[1] || "";
-  const byBad = !!byModel && (!byMetal || !(Number(f.byPrice) > 0) || !(Number(f.byRecovery) > 0 && Number(f.byRecovery) <= 100));
+  // TASKS.csv #2115 (review #2013, Woodjam) — a by-product on another grid was refused only after Run: the block centres are matched on pick
+  const byGridMiss = useMemo(() => (model && byModel ? joinByProduct(model.cells, byModel.cells).matched === 0 : false), [model, byModel]);
+  const byBad = !!byModel && (byGridMiss || !byMetal || !(Number(f.byPrice) > 0) || !(Number(f.byRecovery) > 0 && Number(f.byRecovery) <= 100));
   const byInputs = byModel && byMetal ? { modelId: byModel.id ?? byModel.name, unit: byUnit, element: byElement, price: Number(f.byPrice), priceUnit: byPriceUnit, recovery: Number(f.byRecovery) } : null;
   const sg = useMemo(() => sgSummary(layers?.sg), [layers?.sg]);
   const set = (k) => (e) => { setF((p) => ({ ...p, [k]: e.target.value })); setMsg(null); }; // #1613
@@ -233,6 +235,7 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove,
           <label style={row}>{tr("{el} price", { el: byLabel })}<span style={{ display: "flex", gap: 4 }}><input type="number" min={0} step="any" value={f.byPrice} onChange={set("byPrice")} style={num} aria-label={tr("By-product price")} />
             <select value={byPriceUnit || ""} onChange={set("byPriceUnit")} style={{ ...smallSel, width: (byPrices || []).some(([, l]) => l.length > 6) ? 96 : 62 }} /* #2595 — "$/lb Ta2O5" */ aria-label={tr("By-product price unit")}>{(byPrices || []).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></span></label>
           {field("byRecovery", tr("{el} recovery (%)", { el: byLabel }))}
+          {byGridMiss && <div style={warn}>{tr("\"{by}\" is not on the same grid as \"{model}\": no block centre matches. Estimate the by-product with the same cell size over the same area (the same holes or area box) and run again.", { by: byModel.name, model: model.name })}</div>}{/* #2115 — the run's own message, said on pick */}
           <div style={note}>{tr("A block is ore when its revenue over both metals pays the processing cost; the pit, its ore and its strip ratio follow.")}</div>
         </>)}
         {field("miningCost", tr("Mining cost ($/t rock)"))}
@@ -270,7 +273,7 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove,
         {!terrain && <div style={warn}>{collars.some((c) => Number.isFinite(c.z))
           ? tr("No terrain is loaded, so the ground is interpolated between the {n} collar elevations. Load a terrain in Maps for the real surface.", { n: collars.filter((c) => Number.isFinite(c.z)).length })
           : tr("No terrain is loaded and no collar has an elevation, so the top of each column of the block model stands in for the ground, interpolated between columns: nothing above the highest block is costed. Load a terrain in Maps for the real surface.")}</div>}{/* #1850 */}
-        {surfaces.some((s) => s.type === "pit_shell" && s.visible) && <label style={{ ...row, justifyContent: "flex-start" }}><input type="checkbox" checked={hideEarlier} onChange={(e) => setHideEarlier(e.target.checked)} />{tr("Hide the earlier pits")}</label>}
+        {surfaces.some((s) => s.type === "pit_shell" && s.visible) && <label style={{ ...row, justifyContent: "flex-start" }}><input type="checkbox" checked={hideEarlier} onChange={(e) => setHideEarlier(e.target.checked)} />{tr("Hide the earlier pits when this one is made")}{/* #2119 — it acts on Run, not when ticked */}</label>}
         {busy == null
           ? <button onClick={run} disabled={missing} style={{ ...pBtn, marginTop: 8, opacity: missing ? 0.5 : 1 }}><Pickaxe size={14} /> {editing ? tr("Run and replace the pit") : tr("Run the pit shell")}</button>
           : <button onClick={cancel} style={{ ...pBtn, marginTop: 8 }}>{tr("Solving ({n}): cancel", { n: busy })}</button>}
@@ -338,7 +341,11 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove,
             ? <div style={warn}>{tr("{p} % of the rock in this pit is outside the block model and counted as barren, and it is drilled: {n} sample(s) ({m} m) in {h} hole(s) lie there, {om} m in {oh} hole(s) at or above the cut-off{list}. Estimate a model that covers the pit before reading its waste and margin.", { p: Math.round(res.barrenShare * 100), n: res.outside.samples.toLocaleString(), m: Math.round(res.outside.metres).toLocaleString(), h: res.outside.holes, om: Math.round(res.outside.oreMetres).toLocaleString(), oh: res.outside.oreHoles, list: res.outside.holeIds.length ? ` (${res.outside.holeIds.slice(0, 3).join(", ")}${res.outside.holeIds.length > 3 ? ", …" : ""})` : "" })}</div>
             : <div style={warn}>{tr("{p} % of the rock in this pit is outside the block model and counted as barren: undrilled rock could hold ore or need a different cost.", { p: Math.round(res.barrenShare * 100) })}</div>)}{/* #2593 — drilled, assayed rock is not 'undrilled' */}
           {res.hasTerrain && res.topAssumed > 0.02 && <div style={warn}>{tr("The terrain does not cover {p} % of the grid; the top of the block model stands in there.", { p: Math.round(res.topAssumed * 100) })}</div>}
-          {res.coarsened && <div style={warn}>{tr("The grid was made coarser than the {a} m asked, to stay within the cell limit: {c} m cells, {rel} the block model's {b} m.", { a: res.askedSize || res.modelCellM, c: Math.round(res.cell[0] * 10) / 10, rel: res.cell[0] > (res.modelCellM || 0) + 1e-6 ? tr("coarser than") : tr("finer than"), b: res.modelCellM })}</div>}{/* #1610 */}
+          {/* #1610; TASKS.csv #2110 (review #2013, Woodjam) — all three sizes, and the one that changed: on a 10 m model only the bench grew (10 x 10 x 12.5 m)
+              and the line said '10 m cells, finer than the block model's 10 m' */}
+          {res.coarsened && (Math.abs(res.cell[0] - (res.askedSize || res.modelCellM || res.cell[0])) < 1e-6 && res.modelCellZM && res.cell[2] > res.modelCellZM + 1e-6
+            ? <div style={warn}>{tr("The grid's blocks are {s} m: the benches were made taller than the block model's {h} m to stay within the cell limit; the plan cells keep {c} m.", { s: res.cell.map((v) => Math.round(v * 10) / 10).join(" × "), h: Math.round(res.modelCellZM * 10) / 10, c: Math.round(res.cell[0] * 10) / 10 })}</div>
+            : <div style={warn}>{tr("The grid was made coarser than the {a} m asked, to stay within the cell limit: {c} m cells, {rel} the block model's {b} m.", { a: res.askedSize || res.modelCellM, c: res.cell.map((v) => Math.round(v * 10) / 10).join(" × "), rel: Math.abs(res.cell[0] - (res.modelCellM || 0)) < 1e-6 ? tr("the same as") : res.cell[0] > (res.modelCellM || 0) ? tr("coarser than") : tr("finer than"), b: res.modelCellM })}</div>)}
           {res.askedSize && !res.coarsened && res.askedSize !== res.cell[0] && <div style={note}>{tr("Cells of {c} m in plan for the {a} m asked; the benches keep the block model's {h} m.", { c: Math.round(res.cell[0] * 10) / 10, a: res.askedSize, h: Math.round(res.cell[2] * 10) / 10 })}</div>}{/* #1854 */}
           {Number(model?.params?.searchRadiusM) > 0 && <div style={note}>{tr("The estimate reaches {r} m from the holes: beyond that the model has no blocks and the pit counts barren rock, so the pit's extent follows the search radius.", { r: Math.round(model.params.searchRadiusM) })}</div>}{/* #1750 */}
           <div style={{ ...note, marginTop: 4 }}>{tr("Conceptual, from your inputs and this block model. It is not a Mineral Reserve or Resource, and the margin is not a value of the project.")}</div>

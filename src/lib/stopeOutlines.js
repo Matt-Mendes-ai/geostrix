@@ -121,13 +121,15 @@ export function stopeOutlines(model, { cutoff, levelH, zMin = null, zMax = null,
     }
     const stopes = [];
     for (const members of patches) {
-      let i0 = Infinity, i1 = -Infinity, j0 = Infinity, j1 = -Infinity, tonnes = 0, metalU = 0, oreT = 0, oreM = 0;
+      let i0 = Infinity, i1 = -Infinity, j0 = Infinity, j1 = -Infinity, tonnes = 0, metalU = 0, oreT = 0, oreM = 0, unestT = 0;
       for (const q of members) {
         const j = Math.floor(q / nx), i = q - j * nx;
         if (i < i0) i0 = i; if (i > i1) i1 = i; if (j < j0) j0 = j; if (j > j1) j1 = j;
         // a column of the skin with no block in this slab: rock of unknown grade, counted at the density with no metal
-        const tt = t[q] > 0 ? t[q] : (top - rl) * area * density;
-        tonnes += tt; metalU += m[q]; oreT += tA[q]; oreM += mA[q]; // #2107 — the blocks at or above the cut-off, wherever they sit in the stope
+        // TASKS.csv #2118 (review #2013, Woodjam) — and so is the part of ANY column the model has no block for (a block missing inside the
+        // outline): Stope 811 m #1 was 28,000 m3 but 71,010 t (27 of 28 blocks), not 73,640 t at 2.63
+        const miss = Math.max(0, (top - rl) - cover[q]) * area * density, tt = t[q] + miss;
+        unestT += miss; tonnes += tt; metalU += m[q]; oreT += tA[q]; oreM += mA[q]; // #2107 — the blocks at or above the cut-off, wherever they sit in the stope
       }
       const extent = Math.max((i1 - i0 + 1) * dx, (j1 - j0 + 1) * dy);
       if (extent < minLength) continue;
@@ -146,7 +148,8 @@ export function stopeOutlines(model, { cutoff, levelH, zMin = null, zMax = null,
         }
       } catch { solid = null; }
       if (!solid) unbuilt++;
-      stopes.push({ outline, positions: solid?.positions || null, indices: solid?.indices || null, volume: solid?.volume ?? null, tonnes, metalU, grade: tonnes > 0 ? metalU / tonnes : null, oreTonnes: oreT, oreGrade: oreT > 0 ? oreM / oreT : null, columns: members.length, holesFilled: loops.length - 1 });
+      stopes.push({ unestimatedTonnes: unestT /* #2118 */, outline, positions: solid?.positions || null, indices: solid?.indices || null, volume: solid?.volume ?? null, tonnes, metalU, grade: tonnes > 0 ? metalU / tonnes : null, oreTonnes: oreT, oreGrade: oreT > 0 ? oreM / oreT : null, columns: members.length, holesFilled: loops.length - 1 });
+      totals.unestimatedTonnes = (totals.unestimatedTonnes || 0) + unestT; // #2118
       totals.tonnes += tonnes; totals.metalU += metalU; totals.oreTonnes += oreT; totals.oreMetalU += oreM; totals.stopes++;
     }
     const lt = stopes.reduce((a, s) => a + s.tonnes, 0), lm = stopes.reduce((a, s) => a + s.metalU, 0), lo = stopes.reduce((a, s) => a + s.oreTonnes, 0), lom = stopes.reduce((a, s) => a + (s.oreGrade == null ? 0 : s.oreGrade * s.oreTonnes), 0);
