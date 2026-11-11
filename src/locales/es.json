@@ -10031,5 +10031,10 @@
   "{n} occurrence point.": "{n} punto de ocurrencia.",
   "Fuzzy score on {v} of {n} cells (the rest lack evidence).": "Puntaje difuso en {v} de {n} celdas (al resto le falta evidencia).",
   "fuzzy {k} of {n} occurrence cells in {a}% of the area": "difuso: {k} de {n} celdas con ocurrencias en el {a}% del área",
-  "posterior {k} of {n} occurrence cells in {a}% of the area": "posterior: {k} de {n} celdas con ocurrencias en el {a}% del área"
+  "posterior {k} of {n} occurrence cells in {a}% of the area": "posterior: {k} de {n} celdas con ocurrencias en el {a}% del área",
+  "Its colours run from 0 (pale) to {top}, the highest posterior (dark red).": "Sus colores van de 0 (pálido) a {top}, la posterior más alta (rojo oscuro).",
+  "Its colours run from 0 (pale) to 1 (dark red).": "Sus colores van de 0 (pálido) a 1 (rojo oscuro).",
+  "The earlier score map is hidden.": "El mapa de puntaje anterior está oculto.",
+  "The {n} earlier score maps are hidden.": "Los {n} mapas de puntaje anteriores están ocultos.",
+  "Plan-view fuzzy overlay ({op}) of {n} evidence layer": "Superposición difusa en planta ({op}) de {n} capa de evidencia"
 }

@@ -24,7 +24,7 @@ test("visible rasters and block models that overlap the score's box in plan; hid
 
 test("the pane offers to hide them after Score -> map, only beside that message", () => {
   const p = readFileSync(new URL("../src/components/EvidenceOverlayPane.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
-  assert.match(p, /const cv = coveringLayers\(box, rasters, voxelModels\);/);
+  assert.match(p, /const cv = coveringLayers\(box, rasters\.filter\(\(r\) => !earlier\.includes\(r\)\), voxelModels\);/); // #1731 — the hidden earlier scores do not count
   assert.match(p, /\{msg && cover && cover\.forMsg === msg && \(/);
   assert.match(p, /cover\.rasters\.forEach\(\(r\) => updateRaster\(r\.id, \{ visible: false \}\)\); cover\.models\.forEach\(\(m\) => updateVoxelModel\(m\.id, \{ visible: false \}\)\);/);
 });

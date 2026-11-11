@@ -10031,5 +10031,10 @@
   "{n} occurrence point.": "{n} point d'occurrence.",
   "Fuzzy score on {v} of {n} cells (the rest lack evidence).": "Score flou sur {v} des {n} cellules (les autres manquent d'évidence).",
   "fuzzy {k} of {n} occurrence cells in {a}% of the area": "flou : {k} des {n} cellules d'occurrence dans {a}% de la surface",
-  "posterior {k} of {n} occurrence cells in {a}% of the area": "postérieure : {k} des {n} cellules d'occurrence dans {a}% de la surface"
+  "posterior {k} of {n} occurrence cells in {a}% of the area": "postérieure : {k} des {n} cellules d'occurrence dans {a}% de la surface",
+  "Its colours run from 0 (pale) to {top}, the highest posterior (dark red).": "Ses couleurs vont de 0 (pâle) à {top}, la postérieure la plus haute (rouge foncé).",
+  "Its colours run from 0 (pale) to 1 (dark red).": "Ses couleurs vont de 0 (pâle) à 1 (rouge foncé).",
+  "The earlier score map is hidden.": "La carte de score précédente est masquée.",
+  "The {n} earlier score maps are hidden.": "Les {n} cartes de score précédentes sont masquées.",
+  "Plan-view fuzzy overlay ({op}) of {n} evidence layer": "Superposition floue en plan ({op}) de {n} couche d'évidence"
 }
