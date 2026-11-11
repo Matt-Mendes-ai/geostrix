@@ -56,12 +56,26 @@ async function createAssaysTable(db, assays, assayElements, onProgress) {
     (a) => [a.hole_id, a.from, a.to, a.source ?? null, ...sampleCols.map((c) => (a[c] != null && a[c] !== "" ? String(a[c]) : null)), ...symbols.map((s) => (a.values?.[s] != null ? a.values[s] : null))], onProgress);
 }
 
+// TASKS.csv #2504 (review #2486) — the collar file's other columns (attrs: Drill_Code, Tenement, the app's 'hole type', mine-grid
+// coordinates ...) as columns of the collars table, so 'grade by drill type' can be joined; a column is REAL when every value is a number
+export function collarAttrColumns(collars) {
+  const base = new Set(["hole_id", "x", "y", "z", "azimuth", "dip", "length"]), kind = new Map();
+  for (const c of collars || []) for (const [k, v] of Object.entries(c?.attrs || {})) {
+    if (base.has(String(k).toLowerCase()) || v == null || v === "" || typeof v === "object") continue;
+    const num = typeof v === "number" || (typeof v === "string" && v.trim() !== "" && Number.isFinite(Number(v)));
+    kind.set(k, kind.get(k) === false || !num ? false : true);
+  }
+  const seen = new Set();
+  return [...kind.entries()].filter(([k]) => { const l = k.toLowerCase(); if (seen.has(l)) return false; seen.add(l); return true; }).map(([k, numeric]) => ({ key: k, numeric }));
+}
 async function createCollarsTable(db, collars, onProgress) {
   if (!collars.length) return;
-  db.run(`CREATE TABLE collars (hole_id TEXT, x REAL, y REAL, z REAL, azimuth REAL, dip REAL, length REAL);`);
+  const extra = collarAttrColumns(collars); // #2504
+  const q = (k) => `"${String(k).replace(/"/g, '""')}"`;
+  db.run(`CREATE TABLE collars (hole_id TEXT, x REAL, y REAL, z REAL, azimuth REAL, dip REAL, length REAL${extra.map((e) => `, ${q(e.key)} ${e.numeric ? "REAL" : "TEXT"}`).join("")});`);
   // TASKS.csv #1034 — dip negative = down, as every user-facing file is (stored positive-down inside the app, #190); the
   // table's CSV export put 60 for a -60 hole, which the default re-import turned upward
-  await fillTable(db, "collars", "INSERT INTO collars VALUES (?,?,?,?,?,?,?)", collars, (c) => [c.hole_id, c.x, c.y, c.z, c.azimuth ?? null, Number.isFinite(c.dip) ? -c.dip : null, c.length ?? null], onProgress);
+  await fillTable(db, "collars", `INSERT INTO collars VALUES (?,?,?,?,?,?,?${extra.map(() => ",?").join("")})`, collars, (c) => [c.hole_id, c.x, c.y, c.z, c.azimuth ?? null, Number.isFinite(c.dip) ? -c.dip : null, c.length ?? null, ...extra.map((e) => { const v = c.attrs?.[e.key]; return v == null || v === "" || typeof v === "object" ? null : e.numeric ? Number(v) : String(v); })], onProgress);
 }
 
 async function createSurveyTable(db, survey, onProgress) {

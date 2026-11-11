@@ -10,6 +10,8 @@ import { X, Download } from "./icons.js";
 import { valueIn } from "../lib/geochem.js";
 import { THRESHOLD_METHODS, MIN_N_BREAKS, MIN_N_ROBUST, candidateThresholds, groupOptions, groupKeyFn, populations, normalQuantile, hasMixedSources, intervalLength, DRILL_DOMAINS, drillDomainKeyFn } from "../lib/thresholds.js"; import { thresholdUnreachable, usableDefaultMethod } from "../lib/thresholds.js"; // drill: TASKS.csv #2196
 import { censoringFloor, formatLimit } from "../lib/qaqc.js"; // TASKS.csv #1520; formatLimit: #2503
+import { attributeDomainOptions, attributeDomainLabel } from "../lib/customDomains.js"; // #2504
+import { useStore } from "../lib/store.jsx"; // #2504 — the collars
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { saveFile } from "../lib/desktop.js";
@@ -30,6 +32,7 @@ export default function ThresholdToolkit({ surfaceSamples = [], surfaceElements 
   // TASKS.csv #2196 (Matt's decision 2026-11-09) — drill assays as a second source: length-weighted, populations by a logged domain at
   // each interval's middle (Lithology / Alteration / Weathering), saved apart from the surface threshold of the same element
   const drillAssays = useMemo(() => assays.filter((a) => intervalLength(a) != null), [assays]);
+  const { collars = [] } = useStore(); // #2504
   const [source, setSource] = useState(() => (surfaceElements.length ? "surface" : "drill"));
   const drill = source === "drill";
   const elements = drill ? assayElements : surfaceElements, data = drill ? drillAssays : surfaceSamples;
@@ -38,7 +41,10 @@ export default function ThresholdToolkit({ surfaceSamples = [], surfaceElements 
   const [symbol, setSymbol] = useState(() => preferredElement(elements.map((e) => e.symbol), null, lead)); // #1523 — the project's lead commodity, not the first stored (S)
   const isMine = (r) => r.symbol === symbol && (r.source === "drill") === drill; // #2196
   const saved = geochemThresholds.find(isMine) || null;
-  const gOpts = useMemo(() => (drill ? DRILL_DOMAINS.filter((d) => d.value === "none" || projectLayers?.[d.value]?.length).map((d) => ({ ...d, kind: "builtin" })) : groupOptions(surfaceSamples, mapLayers)), [drill, surfaceSamples, mapLayers, projectLayers]);
+  // TASKS.csv #2504 — the sample type and the collar's categorical fields as drill populations (RC / core / aircore), beside the logs
+  const attrDomains = useMemo(() => (drill ? attributeDomainOptions(drillAssays, collars) : []), [drill, drillAssays, collars]);
+  const domainLayers = useMemo(() => (attrDomains.length ? { ...projectLayers, ...Object.fromEntries(attrDomains.map((d) => [d.key, d.rows])) } : projectLayers), [attrDomains, projectLayers]);
+  const gOpts = useMemo(() => (drill ? [...DRILL_DOMAINS.filter((d) => d.value === "none" || projectLayers?.[d.value]?.length).map((d) => ({ ...d, kind: "builtin" })), ...attrDomains.map((d) => ({ value: d.key, label: d.label, kind: "attribute", d }))] : groupOptions(surfaceSamples, mapLayers)), [drill, surfaceSamples, mapLayers, projectLayers, attrDomains]);
   const mixedSources = useMemo(() => !drill && hasMixedSources(surfaceSamples), [drill, surfaceSamples]); // TASKS.csv #932
   const [groupBy, setGroupBy] = useState(() => saved?.groupBy || (drill ? "none" : mixedSources ? "medium_source" : new Set(surfaceSamples.map((s) => s.medium)).size > 1 ? "medium" : "none"));
   const switchSource = (s) => { // #2196 — the other source's elements, its saved rule or the default populations
@@ -58,7 +64,7 @@ export default function ThresholdToolkit({ surfaceSamples = [], surfaceElements 
   // #1520 runs only on the unflagged values, for files that arrive with half the limit already substituted
   const flaggedLt = (s) => !!s.bdl?.includes(symbol) || s.qualifiers?.[symbol] === "<";
   const floor = useMemo(() => censoringFloor(data.filter((s) => !flaggedLt(s)).map((s) => valueIn(s, symbol, unit, units))), [data, symbol, unit, units]); // flaggedLt reads symbol only
-  const keyOfNow = () => (drill ? drillDomainKeyFn(groupBy, projectLayers) : groupKeyFn(groupBy, mapLayers, surfaceSamples)); // samples: #1796 — split by medium; drill: #2196
+  const keyOfNow = () => (drill ? drillDomainKeyFn(groupBy, domainLayers) /* #2504: + attribute domains */ : groupKeyFn(groupBy, mapLayers, surfaceSamples)); // samples: #1796 — split by medium; drill: #2196
   const pops = useMemo(() => {
     const keyOf = keyOfNow();
     return populations(data, { valueOf: (s) => valueIn(s, symbol, unit, units), censoredOf: (s) => flaggedLt(s) || (floor != null && Math.abs(valueIn(s, symbol, unit, units) - floor.floor) <= floor.floor * 1e-9), zeroOf: (s) => !!s.nd?.includes(symbol), keyOf, ...(drill ? { weightOf: intervalLength } : {}) }) // zeroOf: #931; weightOf: #2196
@@ -118,7 +124,7 @@ export default function ThresholdToolkit({ surfaceSamples = [], surfaceElements 
               {elements.map((e) => <option key={e.symbol} value={e.symbol}>{e.symbol} ({e.unit})</option>)}
             </select></label>
             <label style={ctl}>{tr("Populations")}<select value={groupBy} onChange={(e) => { setGroupBy(e.target.value); setViewKey(null); }} style={{ ...sel, display: "block", marginTop: 4, maxWidth: 320 }}>
-              {gOpts.map((o) => <option key={o.value} value={o.value}>{o.kind === "column" ? tr("Column: {v}", { v: o.label }) : o.kind === "map" ? tr("Map: {v}", { v: o.label }) : tr(o.label)}</option>)}
+              {gOpts.map((o) => <option key={o.value} value={o.value}>{o.kind === "column" ? tr("Column: {v}", { v: o.label }) : o.kind === "map" ? tr("Map: {v}", { v: o.label }) : o.kind === "attribute" ? attributeDomainLabel(o.d, tr) : tr(o.label)}</option>)}
             </select></label>
           </div>
           {drill

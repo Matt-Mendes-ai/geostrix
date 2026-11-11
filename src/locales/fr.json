@@ -9838,5 +9838,6 @@
   "Choose a rule (click its column)": "Choisissez une règle (cliquez sur sa colonne)",
   "Struck through: {rules} land above every sample of their population (or over 100 %): such a rule finds no anomaly here, often a sign of two populations. The probability plot's break and the Populations selector separate them; these rules cannot be saved.": "Barrées : {rules} tombent au-dessus de tous les échantillons de leur population (ou au-delà de 100 %) : une telle règle ne trouve aucune anomalie ici, souvent le signe de deux populations. La cassure du diagramme de probabilité et le sélecteur de Populations les séparent ; ces règles ne peuvent pas être enregistrées.",
   "{n} result(s) are '<' at {limit}: not a round figure, so it was converted at import (from another unit or an oxide); the lab's own limit is the round figure in the source file": "{n} résultat(s) sont '<' à {limit} : ce n'est pas un chiffre rond, il a donc été converti à l'import (d'une autre unité ou d'un oxyde) ; la limite propre du laboratoire est le chiffre rond du fichier source",
-  "Use <{limit} (the '<' results, converted at import)": "Utiliser <{limit} (les résultats '<', convertis à l'import)"
+  "Use <{limit} (the '<' results, converted at import)": "Utiliser <{limit} (les résultats '<', convertis à l'import)",
+  "Collar · {field}": "Collet · {field}"
 }

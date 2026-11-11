@@ -46,3 +46,45 @@ export function domainAtMid(index, hole_id, from, to) {
   for (let k = at; k >= 0 && k >= at - 3; k--) if (mid >= rows[k].from && mid < rows[k].to) return rows[k].value; // a few back, for overlapping rows
   return null;
 }
+
+// TASKS.csv #2504 (review #2486, WA lithium) — the sample's type and the collar's categorical fields as domains: RC against core against
+// aircore (1.33 / 0.62 / 0.01 % Li2O) was answerable only in SQL. Each becomes interval rows in the shape every domain consumer takes:
+// sample type one row per assay interval (its own from-to), a collar field one row per hole spanning the whole hole. A field is offered
+// with 2 to 30 distinct values (collarAttrChoices' rule) on at least half the samples / holes. -> [{ key, label, rows }]
+const WHOLE_HOLE = 1e7;
+export function attributeDomainOptions(assays, collars) {
+  const out = [];
+  const iv = (assays || []).filter((a) => a?.hole_id != null && fin(a.from) && fin(a.to) && Number(a.to) > Number(a.from));
+  const types = new Set();
+  let typed = 0;
+  for (const a of iv) { const t = a.sample_type == null ? "" : String(a.sample_type).trim(); if (!t) continue; typed++; if (types.size <= 30) types.add(t); }
+  if (types.size >= 2 && types.size <= 30 && typed >= 0.5 * iv.length) {
+    out.push({ key: "attr:sample_type", label: "Sample type", attribute: true, rows: iv.filter((a) => a.sample_type != null && String(a.sample_type).trim()).map((a) => ({ hole_id: a.hole_id, from: Number(a.from), to: Number(a.to), value: String(a.sample_type).trim() })) });
+  }
+  const by = new Map();
+  for (const c of collars || []) for (const [k, v] of Object.entries(c?.attrs || {})) {
+    const t = String(v ?? "").trim(); if (!t) continue;
+    if (!by.has(k)) by.set(k, { values: new Set(), n: 0 });
+    const e = by.get(k); e.n++; if (e.values.size <= 30) e.values.add(t);
+  }
+  const nHoles = (collars || []).length;
+  // a field that groups the holes exactly as one already offered (the file's Drill_Code beside the app's 'hole type': RC = Reverse
+  // circulation (RC) on every hole) adds nothing: the first kept, hole type first
+  const kept = [];
+  const sameGrouping = (a, b) => { const ab = new Map(), ba = new Map(); for (const c of collars) { const x = String(c?.attrs?.[a] ?? "").trim(), y = String(c?.attrs?.[b] ?? "").trim(); if (ab.has(x) ? ab.get(x) !== y : ba.has(y)) return false; ab.set(x, y); ba.set(y, x); } return true; };
+  for (const [k, e] of [...by.entries()].sort((a, b) => (a[0] === "hole type" ? -1 : b[0] === "hole type" ? 1 : a[0].localeCompare(b[0])))) {
+    if (e.values.size < 2 || e.values.size > 30 || e.n < 0.5 * nHoles) continue;
+    if (kept.some((j) => sameGrouping(j, k))) continue;
+    kept.push(k);
+    const rows = [];
+    for (const c of collars) { const t = String(c?.attrs?.[k] ?? "").trim(); if (t) rows.push({ hole_id: c.hole_id, from: -WHOLE_HOLE, to: WHOLE_HOLE, value: t }); }
+    out.push({ key: `collar:${k}`, label: `Collar · ${k}`, attribute: true, rows });
+  }
+  return out;
+}
+// the option label in the reader's language (the stored label stays English for exports): "Sample type", "Collar · hole type"
+export function attributeDomainLabel(d, tr) {
+  if (d?.key === "attr:sample_type") return tr("Sample type");
+  if (String(d?.key || "").startsWith("collar:")) return tr("Collar · {field}", { field: d.key.slice(7) });
+  return d?.label;
+}

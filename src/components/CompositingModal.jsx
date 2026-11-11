@@ -2,7 +2,7 @@ import React, { useMemo, useState } from "react";
 import { X, Download } from "./icons.js";
 import { preferredElement, rememberElement } from "../lib/preferredElement.js"; // TASKS.csv #1678
 import { useLeadCommodity } from "../lib/useLeadCommodity.js"; // #1523 — the project's lead commodity
-import { customDomainOptions, isCategoricalLayer } from "../lib/customDomains.js"; // TASKS.csv #1678; #1515
+import { customDomainOptions, isCategoricalLayer, attributeDomainOptions, attributeDomainLabel } from "../lib/customDomains.js"; // TASKS.csv #1678; #1515; attributes: #2504
 import { compositeDownhole, countDuplicateAssayIntervals, capAudit, capAuditText, gradeUnitLabel } from "../lib/geochem.js"; // gradeUnitLabel: #1680
 import CapAuditHint from "./CapAuditHint.jsx"; // TASKS.csv #533
 import { excludeQAQC, labAssays } from "../lib/qaqc.js";
@@ -63,8 +63,8 @@ export default function CompositingModal({ assays: assaysIn, assayElements, laye
   const qaqcExcludedCount = useMemo(() => assays.length - excludeQAQC(assays).length, [assays]);
   const compAssays = useMemo(() => (includeQAQC ? assays : excludeQAQC(assays)), [assays, includeQAQC]);
 
-  const { customLayers = [] } = useStore(); // #1678 — custom-layer categories as domains
-  const customDomains = useMemo(() => customDomainOptions(customLayers), [customLayers]);
+  const { customLayers = [], collars: storeCollars = [] } = useStore(); // #1678 — custom-layer categories as domains; collars: #2504
+  const customDomains = useMemo(() => [...attributeDomainOptions(assays, storeCollars), ...customDomainOptions(customLayers)], [customLayers, assays, storeCollars]); // #2504 — sample type, collar fields
   const domainOptions = useMemo(() => DOMAIN_LAYER_KEYS.filter((k) => (layers[k] || []).length > 0 && isCategoricalLayer(layers[k])), [layers]); // #1515 — categories only (RQD% broke composites at every change)
   const customDomain = customDomains.find((d) => d.key === domainKey) || null;
   const domainRows = domainKey ? (customDomain ? customDomain.rows : layers[domainKey]) : null;
@@ -143,7 +143,7 @@ export default function CompositingModal({ assays: assaysIn, assayElements, laye
             <label style={fieldLabel} title={tr("Honour a domain layer's boundaries — a composite will never straddle a change in this layer's value, even if that makes it shorter than the target length.")}>{tr("Honour domain")}<select value={domainKey} onChange={(e) => setDomainKey(e.target.value)} style={inp}>
                 <option value="">{tr("— none —")}</option>
                 {domainOptions.map((k) => <option key={k} value={k}>{LAYER_META[k].label}</option>)}
-                {customDomains.map((d) => <option key={d.key} value={d.key}>{d.label}</option>)}{/* #1678 */}
+                {customDomains.map((d) => <option key={d.key} value={d.key}>{d.attribute ? attributeDomainLabel(d, tr) : d.label}</option>)}{/* #1678; attributes: #2504 */}
               </select>
             </label>
             <label style={fieldLabel} title={tr("Cap any single raw sample's grade at this value before it's folded into a composite average — applied per-sample, before compositing, matching standard practice.")}>{tr("High-grade cap ({unit})", { unit: unitL })}<input type="number" step="any" min="0" placeholder={tr("none")} value={capValue} onChange={(e) => setCapValue(e.target.value)} style={inp} />

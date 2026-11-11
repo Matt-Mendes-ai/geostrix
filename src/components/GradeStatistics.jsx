@@ -30,7 +30,7 @@ import { normalQuantile } from "../lib/thresholds.js";
 import { capAboveZone, capWarningText } from "../lib/capWarning.js"; // TASKS.csv #1676
 import { preferredElement, rememberElement } from "../lib/preferredElement.js"; // TASKS.csv #1678
 import { useLeadCommodity } from "../lib/useLeadCommodity.js"; // #1523 — the project's lead commodity
-import { customDomainOptions, isCategoricalLayer, domainIndex, domainAtMid } from "../lib/customDomains.js"; // TASKS.csv #1678; #1515
+import { customDomainOptions, isCategoricalLayer, domainIndex, domainAtMid, attributeDomainOptions, attributeDomainLabel } from "../lib/customDomains.js"; // TASKS.csv #1678; #1515; attributes: #2504
 
 // Sample statistics (n-1 denominator for variance/stdev, the standard convention for a sample rather
 // than a full population — grade data is always a sample of the deposit, never the whole thing).
@@ -123,8 +123,8 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
   const qaqcExcludedCount = useMemo(() => assays.length - excludeQAQC(assays).length, [assays]);
   const statsAssays = useMemo(() => (includeQAQC ? assays : excludeQAQC(assays)), [assays, includeQAQC]);
 
-  const { customLayers = [] } = useStore(); // #1678
-  const customDomains = useMemo(() => (source === "assays" ? customDomainOptions(customLayers) : []), [customLayers, source]);
+  const { customLayers = [], collars: storeCollars = [] } = useStore(); // #1678; collars: #2504
+  const customDomains = useMemo(() => (source === "assays" ? [...attributeDomainOptions(assays, storeCollars), ...customDomainOptions(customLayers)] : []), [customLayers, source, assays, storeCollars]); // #2504 — sample type, collar fields
   const domainOptions = useMemo(() => (source === "assays" ? DOMAIN_LAYER_KEYS.filter((k) => (layers[k] || []).length > 0 && isCategoricalLayer(layers[k])) : []), [source, layers]); // #1515 — categories only
   const customDomain = customDomains.find((d) => d.key === domainKey) || null;
   // TASKS.csv #2029 (review #2013, Geochem) — group by hole (and hole + lithology): a per-hole mean needed the SQL workspace
@@ -276,7 +276,7 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
                   <option value={HOLE_KEY}>{tr("Hole")}</option>{/* #2029 */}
                   {(layers.litho || []).length > 0 && <option value={HOLE_LITHO_KEY}>{tr("Hole + lithology")}</option>}
                   {domainOptions.map((k) => <option key={k} value={k}>{LAYER_META[k].label}</option>)}
-                  {customDomains.map((d) => <option key={d.key} value={d.key}>{d.label}</option>)}{/* #1678 */}
+                  {customDomains.map((d) => <option key={d.key} value={d.key}>{d.attribute ? attributeDomainLabel(d, tr) : d.label}</option>)}{/* #1678; attributes: #2504 */}
                 </select>
               </label>
             ) : (
