@@ -1945,6 +1945,8 @@
   "The line leaves the terrain surface — enter a flat ground elevation instead.": "La línea sale de la superficie de terreno — ingrese en su lugar una elevación de suelo plano.",
   "Load a terrain (Maps > Terrain), the line stations, or enter a flat ground elevation for the line.": "Cargue un terreno (Mapas > Terreno), las estaciones de la línea, o ingrese una elevación de suelo plano para la línea.",
   "Inverting {readings} readings ({groundNote})…": "Invirtiendo {readings} lecturas ({groundNote})…",
+  "Inverted {readings} readings in {s} s ({groundNote}).": "Se invirtieron {readings} lecturas en {s} s ({groundNote}).",
+  "Inverted {readings} readings ({groundNote}).": "Se invirtieron {readings} lecturas ({groundNote}).",
   "Needs GeoStrix's Python engine with SimPEG (status bar: Py).": "Necesita el motor Python de GeoStrix con SimPEG (barra de estado: Py).",
   "One survey line: electrode positions A, B, M, N as distances along the line (m; B or N blank for a pole), apparent resistivity (ohm·m) and optionally chargeability (mV/V). 2.5D: the ground is assumed not to change across the line.": "Una línea de levantamiento: posiciones de electrodos A, B, M, N como distancias a lo largo de la línea (m; B o N vacío para un polo), resistividad aparente (ohm·m) y opcionalmente cargabilidad (mV/V). 2.5D: se supone que el subsuelo no cambia a través de la línea.",
   "A CSV, or a contractor TDIP line file (.dat / .ipg: T1X T2X R1X R2X ... RHO ... MX, '*' = electrode at infinity)": "Un CSV, o un archivo de línea TDIP del contratista (.dat / .ipg: T1X T2X R1X R2X ... RHO ... MX, '*' = electrodo en el infinito)",

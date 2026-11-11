@@ -348,6 +348,8 @@ export default function DcipPanel({ pBtn, numInput, resultSlot = null }) {
         // #683 follow-up — the observed and / or the extrapolated voxel, as chosen under "3D voxels"
         const kinds = [opts.voxObserved !== false && "observed", opts.voxExtrapolated && "extrapolated"].filter(Boolean);
         lineVoxelModels(result, lineGeom, { name, thick: num(opts.cell), cut: Number(opts.supportCutoff) || 0, params: runParams, kinds, dataRho: parsed.rho }).forEach((m) => addVoxelModelToTab(token, m)); // dataRho: #2072
+        // TASKS.csv #2077 (review #2013, Woodjam) — the status line kept 'Inverting 335 readings …' after the result was on screen
+        setMsg({ ok: true, text: Number.isFinite(result?.seconds) ? tr("Inverted {readings} readings in {s} s ({groundNote}).", { readings: parsed.readings.length, s: Math.round(result.seconds).toLocaleString(), groundNote }) : tr("Inverted {readings} readings ({groundNote}).", { readings: parsed.readings.length, groundNote }) });
       },
     });
     if (!res.ok) setMsg({ ok: false, text: res.error });
