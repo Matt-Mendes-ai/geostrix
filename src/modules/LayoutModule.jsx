@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from "react";
+import { customLegendGroups } from "../lib/customColour.js"; // TASKS.csv #2472
 import { Ribbon, RibbonGroup, RibbonButton } from "../components/Ribbon.jsx"; // TASKS.csv #458
 import { confirmDestructive } from "../lib/confirmDestructive.js"; // TASKS.csv #386
 import { MapPinned, Plus, X, Maximize2, Sheet, Image as ImageIcon, Type, Compass, Ruler, FileDown, MonitorPlay, RefreshCw, Grid3x3, Trash2, Square, ArrowUpRight, Pencil, MessageSquare, Save, FolderOpen, LogIn, Bold, Italic, AlignLeft, AlignCenter, AlignRight, Camera, LayoutGrid, Lock, LayoutTemplate, Download, Upload, HardDrive } from "../components/icons.js";
@@ -123,6 +124,7 @@ export default function LayoutModule() {
     layoutPrintRequest, requestLayoutPrint, // TASKS.csv #908
     terrain, rasters, // TASKS.csv #949 — {credits}
     viewerUiState, // TASKS.csv #1092 — legendOverride for the Atlas strip logs
+    customLayers = [], // TASKS.csv #2472 — the custom layers' legend groups
     viewportBatchDone, setViewportBatchDone, // TASKS.csv #1644 — an atlas's maps centred on their holes
   } = useStore();
   const setTaskProgress = useSetTaskProgress();
@@ -964,6 +966,9 @@ export default function LayoutModule() {
       ...categoryLegendGroups({ keys: LEGEND_CATEGORY_KEYS, layers, layerVisible, placed: new Set((collars || []).map((c) => String(c.hole_id))) /* #1867 */, hidden: theme.categoryFilter || {}, visibleHoles: frameHoles ? { ...(theme.visibleHoles || {}), ...Object.fromEntries(collars.filter((c) => !frameHoles.has(c.hole_id)).map((c) => [c.hole_id, false])) } : theme.visibleHoles || {}, singleColor: Object.fromEntries(LEGEND_CATEGORY_KEYS.filter((k) => theme.layerStyles?.[k]?.color).map((k) => [k, theme.layerStyles[k].color])), labelFor, colorFor }), // #1288
       ...assayLegendGroups({ assays: inFrame(assays), assayElements, assayVisible: theme.assayVisible !== false, assayDisplayElements: theme.assayDisplayElements || (theme.assayDisplayElement ? [theme.assayDisplayElement] : []), assayStyle: theme.assayStyle || {} }),
       ...voxelLegendGroups(voxelModels), ...rasterLegendGroups(rasters), // #1236
+      // TASKS.csv #2472 (review #2325) — the custom layers the view draws (a stratigraphic unit, a gamma log): the 3D legend lists them and
+      // the sheet's did not; the same builder, its rows narrowed to the frame's holes
+      ...customLegendGroups(frameHoles ? customLayers.map((l) => ({ ...l, rows: inFrame(l.rows) })) : customLayers, theme.customVisible || viewerUiState?.customVisible || {}, theme.layerStyles || viewerUiState?.layerStyles || {}),
       // TASKS.csv #1482 — the numeric logs the view colours its holes by (RQD, recovery, SG, mag susc), as the 3D legend shows them
       ...(() => { const sym = theme.numericSymbology || viewerUiState?.numericSymbology || {}, clips = numericClips(layers); return numericLayerLegendGroups({ layers: frameLayers, layerVisible, colorOf: numericLayerColorFn(sym, clips), symbology: sym, clips }); })(), // frameLayers: #2134 (the clips stay the whole project's, as the 3D view colours)
       // TASKS.csv #948 — the Surface Geology map: surface samples as the 3D view colours them, map layers, boundaries
