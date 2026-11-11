@@ -10041,5 +10041,13 @@
   "Use them": "Les utiliser",
   "Sample medium of the occurrences": "Milieu d'échantillonnage des occurrences",
   "every medium": "tous les milieux",
-  "Added \"{name}\" to the map, flat at elevation {z} m, just above the block models, because the project has no terrain and no holes. Change its elevation under Maps; its values export as GeoTIFF from the Raster module.": "« {name} » a été ajouté à la carte, à plat à l'altitude {z} m, juste au-dessus des modèles de blocs, car le projet n'a ni terrain ni sondages. Modifiez son altitude sous Cartes ; ses valeurs s'exportent en GeoTIFF depuis le module Raster."
+  "Added \"{name}\" to the map, flat at elevation {z} m, just above the block models, because the project has no terrain and no holes. Change its elevation under Maps; its values export as GeoTIFF from the Raster module.": "« {name} » a été ajouté à la carte, à plat à l'altitude {z} m, juste au-dessus des modèles de blocs, car le projet n'a ni terrain ni sondages. Modifiez son altitude sous Cartes ; ses valeurs s'exportent en GeoTIFF depuis le module Raster.",
+  "All {n} occurrence point(s) lie outside this grid: choose an Area that holds them (every source, or the surface samples).": "Les {n} point(s) d'occurrence sont tous hors de cette grille : choisissez une Zone qui les contient (toutes les sources, ou les échantillons de surface).",
+  "{m} of the {n} occurrence point(s) lie outside this grid.": "{m} des {n} point(s) d'occurrence sont hors de cette grille.",
+  "{d} occurrence cell(s) lie where an evidence has no value and are not used.": "{d} cellule(s) d'occurrence se trouvent là où une évidence n'a pas de valeur et ne sont pas utilisées.",
+  "Filter {n} holes…": "Filtrer {n} sondages…",
+  "Filter the hole list": "Filtrer la liste des sondages",
+  "No hole id contains \"{q}\".": "Aucun identifiant de sondage ne contient « {q} ».",
+  "As-drilled hole": "Sondage foré",
+  "{n} collar(s) with no survey and no azimuth / dip are not listed: their path is not known.": "{n} collet(s) sans levé ni azimut / pendage ne sont pas listés : leur trajectoire n'est pas connue."
 }

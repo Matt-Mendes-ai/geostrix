@@ -10041,5 +10041,13 @@
   "Use them": "استخدمها",
   "Sample medium of the occurrences": "وسط عينات مواقع التواجد",
   "every medium": "كل الأوساط",
-  "Added \"{name}\" to the map, flat at elevation {z} m, just above the block models, because the project has no terrain and no holes. Change its elevation under Maps; its values export as GeoTIFF from the Raster module.": "أُضيف \"{name}\" إلى الخريطة، مسطحًا عند الارتفاع {z} م، فوق نماذج الكتل مباشرة، لأن المشروع بلا تضاريس ولا ثقوب. غيّر ارتفاعه من الخرائط؛ وتُصدَّر قيمه بصيغة GeoTIFF من وحدة النقطية."
+  "Added \"{name}\" to the map, flat at elevation {z} m, just above the block models, because the project has no terrain and no holes. Change its elevation under Maps; its values export as GeoTIFF from the Raster module.": "أُضيف \"{name}\" إلى الخريطة، مسطحًا عند الارتفاع {z} م، فوق نماذج الكتل مباشرة، لأن المشروع بلا تضاريس ولا ثقوب. غيّر ارتفاعه من الخرائط؛ وتُصدَّر قيمه بصيغة GeoTIFF من وحدة النقطية.",
+  "All {n} occurrence point(s) lie outside this grid: choose an Area that holds them (every source, or the surface samples).": "كل نقاط التواجد ({n}) خارج هذه الشبكة: اختر منطقة تحتويها (كل المصادر، أو العينات السطحية).",
+  "{m} of the {n} occurrence point(s) lie outside this grid.": "{m} من {n} نقطة تواجد خارج هذه الشبكة.",
+  "{d} occurrence cell(s) lie where an evidence has no value and are not used.": "{d} خلية تواجد تقع حيث لا قيمة لدليل ما، ولا تُستخدم.",
+  "Filter {n} holes…": "تصفية {n} ثقبًا…",
+  "Filter the hole list": "تصفية قائمة الثقوب",
+  "No hole id contains \"{q}\".": "لا يحتوي أي معرّف ثقب على \"{q}\".",
+  "As-drilled hole": "الثقب المحفور فعليًا",
+  "{n} collar(s) with no survey and no azimuth / dip are not listed: their path is not known.": "{n} فوهة بلا قياس ولا سمت / ميل غير مدرجة: مسارها غير معروف."
 }

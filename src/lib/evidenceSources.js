@@ -280,6 +280,10 @@ export function layerFieldPoints(rows, field, traces, bin = GRADE_BIN_M, level =
 }
 // TASKS.csv #2453 / #2583 — a row's code in a field, trimmed; upper-cased when folding case
 export const codeOf = (r, field = "value", fold = false) => { const s = String(r?.[field] ?? "").trim(); return fold ? s.toUpperCase() : s; };
+// TASKS.csv #2102 (review #2013, Woodjam) — a logged list ('Py; Cpy', 'Cpy, Py') is each of its codes: a row belongs to every mineral it names,
+// so 'distance to logged chalcopyrite' is one card, not four; an import's fill for a blank ('Unknown', 'n/a', '?', '-') is no code at all
+const NO_CODE = /^(unknown|unk|n\/?a|\?|-+)$/i;
+export const codesOf = (r, field = "value", fold = false) => { const out = []; for (const t of String(r?.[field] ?? "").split(/\s*[;,+]\s*/)) { const s = t.trim(); if (s && !NO_CODE.test(s)) out.push(fold ? s.toUpperCase() : s); } return out; };
 // the TEXT fields of logged rows that hold codes: mostly not numbers, at least `min` rows, and no more than `maxCodes` distinct values
 // (a free-text description is not a code field). "value" first when it is one.
 const FREE_TEXT_FIELD = /^(desc|description|comments?|notes?|remarks?|log|geologist|logged_?by)$/i;
@@ -300,10 +304,11 @@ export function codedFields(rows, { min = 3, maxCodes = 60 } = {}) {
 export function foldedCodes(rows, traces, { min = 1, field = "value" } = {}) {
   const by = new Map();
   for (const r of rows || []) {
-    const s = String(r?.[field] ?? "").trim();
-    if (!s || !traces.has(r.hole_id) || !Number.isFinite(rowDepth(r))) continue;
-    const k = s.toUpperCase(); let e = by.get(k); if (!e) { e = { key: k, n: 0, spell: new Map() }; by.set(k, e); }
-    e.n++; e.spell.set(s, (e.spell.get(s) || 0) + 1);
+    if (!traces.has(r.hole_id) || !Number.isFinite(rowDepth(r))) continue;
+    for (const s of new Set(codesOf(r, field))) { // #2102 — every code of a list, once per row
+      const k = s.toUpperCase(); let e = by.get(k); if (!e) { e = { key: k, n: 0, spell: new Map() }; by.set(k, e); }
+      e.n++; e.spell.set(s, (e.spell.get(s) || 0) + 1);
+    }
   }
   return [...by.values()].filter((e) => e.n >= min).map((e) => { const v = [...e.spell].sort((a, b) => b[1] - a[1]).map(([s]) => s); return { key: e.key, label: v.join(" / "), n: e.n, variants: v }; })
     .sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
@@ -318,12 +323,12 @@ export function zoneHolePoints(rows, code, traces, how = "thick", { field = "val
   for (const r of rows || []) {
     const t = traces.get(r.hole_id), from = Number(r.from), to = Number(r.to);
     if (!t || !Number.isFinite(from) || !Number.isFinite(to)) continue;
-    const s = String(r?.[field] ?? "").trim();
-    if (!s) continue;
+    const list = codesOf(r, field, fold); // #2102
+    if (!list.length) continue;
     let h = per.get(r.hole_id); if (!h) { h = { t, thick: 0, top: Infinity, base: -Infinity, first: Infinity, lo: Infinity, hi: -Infinity }; per.set(r.hole_id, h); }
     const a = Math.min(from, to), b = Math.max(from, to);
     if (a < h.first) h.first = a;
-    if ((fold ? s.toUpperCase() : s) !== code) continue;
+    if (!list.includes(code)) continue;
     h.thick += b - a; if (a < h.top) h.top = a; if (b > h.base) h.base = b; if (a < h.lo) h.lo = a; if (b > h.hi) h.hi = b;
   }
   const out = [];
@@ -353,7 +358,7 @@ export function zoneCodes(rows, traces, { min = 1 } = {}) {
 export function zoneParts(rows, code, traces, stepM = 5, level = null, { field = "value", fold = false } = {}) {
   const out = [];
   for (const r of rows || []) {
-    if (codeOf(r, field, fold) !== code) continue;
+    if (!codesOf(r, field, fold).includes(code)) continue; // #2102 — a row listing the code
     const t = traces.get(r.hole_id), from = Number(r.from), to = Number(r.to);
     if (!t) continue;
     if (!Number.isFinite(from) || !Number.isFinite(to)) { const d = Number(r.depth); if (Number.isFinite(d)) { const p = pointOnTrace(t, d); if (inLevel(p.z, level)) out.push([[p.x, p.y]]); } continue; } // a point row (#1455); level: #2326
