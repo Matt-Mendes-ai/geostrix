@@ -10035,5 +10035,8 @@
   "Enter the Az, Dip and Length above (a length above 0).": "أدخل السمت والميل والطول أعلاه (طول أكبر من 0).",
   "Enter the E / N above, a bearing, a spacing and a number of holes; for more than one line, a line spacing.": "أدخل E / N أعلاه واتجاهًا وتباعدًا وعدد ثقوب؛ ولأكثر من خط، تباعدًا بين الخطوط.",
   "+ Add {n} hole(s)": "+ أضف {n} ثقب",
-  "+ Add the holes": "+ أضف الثقوب"
+  "+ Add the holes": "+ أضف الثقوب",
+  "below detection": "تحت حد الكشف",
+  "all below detection": "الكل تحت حد الكشف",
+  "log {minPos}–{max}, all pages": "لوغاريتمي {minPos}–{max}، كل الصفحات"
 }

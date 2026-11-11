@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { assayTrackRange } from "../lib/striplogSvg.js"; // TASKS.csv #2605
 import { X, LayoutGrid, Loader2 } from "./icons.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
@@ -26,7 +27,7 @@ export default function GenerateAtlasModal({ onClose, templateElements, collars,
   const [centreMaps, setCentreMaps] = useState(true);
   const [lithoPatterns, setLithoPatterns] = useState(true); // TASKS.csv #1995
   const [assaySymbols, setAssaySymbols] = useState(["", "", ""]); // TASKS.csv #1480 — up to three assay tracks
-  const assayTracks = useMemo(() => { const syms = assaySymbols.filter(Boolean).filter((s, i, a) => a.indexOf(s) === i); return syms.length ? { assays, assaySymbols: syms, elementUnits: Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])) } : null; }, [assaySymbols, assays, assayElements]);
+  const assayTracks = useMemo(() => { const syms = assaySymbols.filter(Boolean).filter((s, i, a) => a.indexOf(s) === i); if (!syms.length) return null; const elementUnits = Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])); const rows = mode === "hole" && selectedIds.size ? assays.filter((a) => selectedIds.has(a.hole_id)) : assays; /* #2605 — one axis per element over the atlas's holes */ return { assays, assaySymbols: syms, elementUnits, assayRanges: Object.fromEntries(syms.map((s) => [s, assayTrackRange(rows, s, elementUnits[s] || "ppm", elementUnits)]).filter(([, r]) => r)) }; }, [assaySymbols, assays, assayElements, mode, selectedIds]);
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState(null); // {done, total}
   const [result, setResult] = useState(null);

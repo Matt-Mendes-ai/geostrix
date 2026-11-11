@@ -10035,5 +10035,8 @@
   "Enter the Az, Dip and Length above (a length above 0).": "Informe o Az, o mergulho e o comprimento acima (um comprimento maior que 0).",
   "Enter the E / N above, a bearing, a spacing and a number of holes; for more than one line, a line spacing.": "Informe o E / N acima, um rumo, um espaçamento e um número de furos; para mais de uma linha, um espaçamento entre linhas.",
   "+ Add {n} hole(s)": "+ Adicionar {n} furo(s)",
-  "+ Add the holes": "+ Adicionar os furos"
+  "+ Add the holes": "+ Adicionar os furos",
+  "below detection": "abaixo do limite de detecção",
+  "all below detection": "tudo abaixo do limite de detecção",
+  "log {minPos}–{max}, all pages": "log {minPos}–{max}, todas as páginas"
 }

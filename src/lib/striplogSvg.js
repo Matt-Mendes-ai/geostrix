@@ -19,6 +19,7 @@ import { arrMax } from "./arrayStats.js"; // TASKS.csv #371 — no Math.min/max(
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 import { FIGURE_FONT } from "./svgExport.js"; // TASKS.csv #1089
 import { valueIn } from "./geochem.js"; // TASKS.csv #1480 — assay tracks, in each element's own unit
+import { isBelowDetection } from "./assayFlags.js"; // TASKS.csv #2605
 import { lithoPatternMap, loadPatternTiles, patternDefs, patternFill } from "./lithoPatterns.js"; // TASKS.csv #1995 — FGDC lithology patterns
 
 const TRACK_W = 90;
@@ -52,19 +53,29 @@ function tickTrack(rows, x, sy, colorFn) {
 // TASKS.csv #1480 (review #1352, Silvertip) — 'PAD34-003 with Zn' could not be built: an assay track per chosen element, the lab
 // assays only (pXRF screening readings are not assays, #1695), bars on a log scale over this hole's own range, as the strip-log
 // window draws them by default; the range is printed under the track
-function assayTrack(rows, x, sy, sym, unit, elementUnits, bottom) {
+// TASKS.csv #2605 (review #2486) — in an atlas every hole had its own unlabelled axis (a barren 0.011-0.014 % hole drew bars as long as a
+// 5.5 % one) and below-detection results were full bars ('log 0.00041-0.00041'): `range` ({ lo, hi }, the atlas's holes together) fixes
+// the axis; a '<' result is a hollow tick at the left, not a bar, and never sets the range; all below detection is said under the track
+export function assayTrackRange(rows, sym, unit, elementUnits) {
+  let lo = Infinity, hi = -Infinity;
+  for (const r of rows || []) { if (isBelowDetection(r, sym)) continue; const v = valueIn(r, sym, unit, elementUnits); if (v > 0 && Number.isFinite(v)) { if (v < lo) lo = v; if (v > hi) hi = v; } }
+  return Number.isFinite(lo) ? { lo, hi } : null;
+}
+function assayTrack(rows, x, sy, sym, unit, elementUnits, bottom, range = null) {
   const vals = rows.map((r) => valueIn(r, sym, unit, elementUnits)).filter((v) => v != null && Number.isFinite(v));
-  const pos = vals.filter((v) => v > 0);
-  if (!pos.length) return `<text x="${x + (TRACK_W - 6) / 2}" y="${bottom + 13}" font-size="8" text-anchor="middle" fill="#65717e">${esc(tr("no {sym} assays", { sym }))}</text>`;
-  let lo = Infinity, hi = -Infinity; for (const v of pos) { if (v < lo) lo = v; if (v > hi) hi = v; }
+  if (!vals.length) return `<text x="${x + (TRACK_W - 6) / 2}" y="${bottom + 13}" font-size="8" text-anchor="middle" fill="#65717e">${esc(tr("no {sym} assays", { sym }))}</text>`;
+  const own = assayTrackRange(rows, sym, unit, elementUnits);
+  const ticks = rows.filter((r) => isBelowDetection(r, sym) && valueIn(r, sym, unit, elementUnits) != null).map((r) => `<rect x="${x + 2}" y="${sy(r.from)}" width="3" height="${Math.max(0.5, sy(r.to) - sy(r.from))}" fill="none" stroke="#8a95a3" stroke-width="0.6"><title>${r.from}-${r.to} m: ${esc(tr("below detection"))}</title></rect>`).join("");
+  if (!own && !range) return ticks + `<text x="${x + (TRACK_W - 6) / 2}" y="${bottom + 13}" font-size="8" text-anchor="middle" fill="#65717e">${esc(tr("all below detection"))}</text>`;
+  const { lo, hi } = range || own;
   const frac = (v) => (!(v > 0) ? 0 : hi > lo ? Math.max(0.03, Math.min(1, (Math.log10(v) - Math.log10(lo)) / (Math.log10(hi) - Math.log10(lo)))) : 1);
-  return rows.map((r) => {
+  return ticks + rows.map((r) => {
     const v = valueIn(r, sym, unit, elementUnits);
-    if (v == null || !Number.isFinite(v)) return "";
+    if (v == null || !Number.isFinite(v) || isBelowDetection(r, sym)) return "";
     const w = frac(v) * (TRACK_W - 10);
     if (!(w > 0)) return "";
     return `<rect x="${x + 2}" y="${sy(r.from)}" width="${w}" height="${Math.max(0.5, sy(r.to) - sy(r.from))}" fill="#c9863d" opacity="0.85"><title>${r.from}-${r.to} m: ${esc(String(v))} ${esc(unit)}</title></rect>`;
-  }).join("") + `<text x="${x + (TRACK_W - 6) / 2}" y="${bottom + 13}" font-size="8" text-anchor="middle" fill="#65717e">${esc(tr("log {minPos}–{max}", { minPos: lo.toPrecision(2), max: hi.toPrecision(2) }))}</text>`;
+  }).join("") + `<text x="${x + (TRACK_W - 6) / 2}" y="${bottom + 13}" font-size="8" text-anchor="middle" fill="#65717e">${esc(range ? tr("log {minPos}–{max}, all pages", { minPos: lo.toPrecision(2), max: hi.toPrecision(2) }) : tr("log {minPos}–{max}", { minPos: lo.toPrecision(2), max: hi.toPrecision(2) }))}</text>`;
 }
 
 function barTrack(rows, x, sy, max) {
@@ -85,7 +96,7 @@ function barTrack(rows, x, sy, max) {
 // map viewport on the same page use. #402 did this for the strip-log modal only.
 // assays / assaySymbols / elementUnits (#1480): the project's assays and up to three elements to draw as tracks after the logs
 // lithoPatterns (#1995): { byCode: { code: FGDC code | null }, tiles } — the lithology column drawn with its patterns
-export function buildStripLogSvgMarkup({ holeId, collars, layers, legendOverride = null, assays = [], assaySymbols = [], elementUnits = {}, lithoPatterns = null }) {
+export function buildStripLogSvgMarkup({ holeId, collars, layers, legendOverride = null, assays = [], assaySymbols = [], elementUnits = {}, lithoPatterns = null, assayRanges = null }) { // assayRanges: #2605 — one axis per element for an atlas
   const ov = (key, v) => legendOverride?.[key]?.[v];
   const colorOf = (key, fallback) => (v) => ov(key, v)?.color || fallback(v);
   const nameOf = (key, fallback) => (v) => ov(key, v)?.label || (fallback ? fallback(v) : v);
@@ -136,7 +147,7 @@ export function buildStripLogSvgMarkup({ holeId, collars, layers, legendOverride
     if (t.kind === "fill") body += fillTrack(t.rows, x, sy, t.colorFn, t.nameFn, t.label === "Litho" && lithoPatterns ? (v) => (lithoPatterns.tiles[lithoPatterns.byCode[v]] ? lithoPatterns.byCode[v] : null) : null);
     else if (t.kind === "tick") body += tickTrack(t.rows, x, sy, t.colorFn);
     else if (t.kind === "bar") body += barTrack(t.rows, x, sy, t.max);
-    else if (t.kind === "assay") body += assayTrack(t.rows, x, sy, t.sym, t.unit, elementUnits, sy(maxDepth)); // #1480
+    else if (t.kind === "assay") body += assayTrack(t.rows, x, sy, t.sym, t.unit, elementUnits, sy(maxDepth), assayRanges?.[t.sym] || null); // #1480; assayRanges: #2605
     x += TRACK_W;
   });
 
@@ -152,14 +163,14 @@ export function buildStripLogSvgMarkup({ holeId, collars, layers, legendOverride
 
 // Rasterizes buildStripLogSvgMarkup's output into a PNG data URL, the same SVG->canvas->PNG technique
 // StripLog.jsx's own exportPNG button already uses. Returns null if the hole had nothing to draw.
-export async function buildStripLogDataUrl({ holeId, collars, layers, legendOverride = null, assays = [], assaySymbols = [], elementUnits = {}, lithoPatterns = false }) { // lithoPatterns: #1995
+export async function buildStripLogDataUrl({ holeId, collars, layers, legendOverride = null, assays = [], assaySymbols = [], elementUnits = {}, lithoPatterns = false, assayRanges = null }) { // lithoPatterns: #1995; assayRanges: #2605
   let pats = null;
   if (lithoPatterns && (layers.litho || []).length) { // #1995 — the project's codes (the same pattern on every page), then this hole's tiles
     const byCode = lithoPatternMap(layers.litho, (v) => legendOverride?.litho?.[v]?.label || UNIT_NAMES[v] || v, legendOverride?.litho);
     const here = [...new Set((layers.litho || []).filter((r) => r.hole_id === holeId).map((r) => byCode[r.value]).filter((c) => c != null))];
     pats = { byCode, tiles: await loadPatternTiles(here) };
   }
-  const built = buildStripLogSvgMarkup({ holeId, collars, layers, legendOverride, assays, assaySymbols, elementUnits, lithoPatterns: pats }); // legendOverride: #1092; assays: #1480
+  const built = buildStripLogSvgMarkup({ holeId, collars, layers, legendOverride, assays, assaySymbols, elementUnits, lithoPatterns: pats, assayRanges }); // legendOverride: #1092; assays: #1480
   if (!built) return null;
   const { svg, width, height, pxPerMeter } = built;
   const blob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });

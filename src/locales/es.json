@@ -10035,5 +10035,8 @@
   "Enter the Az, Dip and Length above (a length above 0).": "Ingrese el Az, la inclinación y el largo arriba (un largo mayor que 0).",
   "Enter the E / N above, a bearing, a spacing and a number of holes; for more than one line, a line spacing.": "Ingrese el E / N de arriba, un rumbo, un espaciado y un número de sondajes; para más de una línea, un espaciado entre líneas.",
   "+ Add {n} hole(s)": "+ Agregar {n} sondaje(s)",
-  "+ Add the holes": "+ Agregar los sondajes"
+  "+ Add the holes": "+ Agregar los sondajes",
+  "below detection": "bajo el límite de detección",
+  "all below detection": "todo bajo el límite de detección",
+  "log {minPos}–{max}, all pages": "log {minPos}–{max}, todas las páginas"
 }
