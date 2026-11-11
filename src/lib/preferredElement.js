@@ -34,9 +34,19 @@ export function leadCommodity(samples, valueOf) {
   }
   return best;
 }
-// the first n symbols to tick in a correlation matrix
-export function correlationDefaults(symbols, n = 12) {
-  const list = (symbols || []).filter(Boolean), out = SUITE.filter((s) => list.includes(s));
-  for (const s of list) { if (out.length >= n) break; if (!out.includes(s)) out.push(s); }
-  return out.slice(0, n);
+// the first n symbols to tick in a correlation matrix. TASKS.csv #2351 (review #2325, WA uranium) — the fixed sulphide suite (Cu-Mo-Ag-S ...)
+// was ticked on a uranium project and U was not: with { lead, counts } the project's lead commodity comes first, then the elements with
+// the most values (at least MIN_PAIRS: Bi on 46 core samples, all below detection, was a row of dashes), the suite only breaking ties.
+export const MIN_PAIRS = 10;
+export function correlationDefaults(symbols, n = 12, { lead = null, counts = null } = {}) {
+  const list = (symbols || []).filter(Boolean);
+  if (!counts) {
+    const out = [...(lead && list.includes(lead) ? [lead] : []), ...SUITE.filter((s) => list.includes(s) && s !== lead)];
+    for (const s of list) { if (out.length >= n) break; if (!out.includes(s)) out.push(s); }
+    return out.slice(0, n);
+  }
+  const out = lead && list.includes(lead) ? [lead] : [];
+  const rank = (s) => { const i = SUITE.indexOf(s); return i < 0 ? SUITE.length + list.indexOf(s) : i; };
+  const rest = list.filter((s) => !out.includes(s) && (counts[s] || 0) >= MIN_PAIRS).sort((a, b) => (counts[b] || 0) - (counts[a] || 0) || rank(a) - rank(b));
+  return [...out, ...rest].slice(0, n);
 }

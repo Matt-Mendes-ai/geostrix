@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { useLeadCommodity } from "../lib/useLeadCommodity.js"; // TASKS.csv #2351
 import { X, Download } from "./icons.js";
 import { valueIn } from "../lib/geochem.js";
 import { saveFile } from "../lib/desktop.js";
@@ -53,8 +54,12 @@ export default function CorrelationMatrix({ assays: assaysIn, assayElements: ass
   const allSymbols = assayElements.map((e) => e.symbol);
   // Default to the first 12 loaded elements — a full 60+-element suite renders as an unreadable wall
   // of tiny cells; the checklist below lets the user swap in whichever subset they actually care about.
-  const [selected, setSelected] = useState(() => new Set(correlationDefaults(allSymbols))); // #1678 — the commodity / alteration suite first
-  const pickSource = (next) => { setSource(next); setSelected(new Set(correlationDefaults((next === "surface" ? surfaceElements : assayElementsIn).map((e) => e.symbol)))); }; // #1799
+  // TASKS.csv #2351 — the lead commodity and the best-covered elements first (counted on the rows shown), the fixed suite only breaking ties
+  const lead = useLeadCommodity();
+  const countsOf = (rows, syms) => { const c = {}; for (const s of syms) c[s] = 0; for (const r of rows || []) for (const s of syms) if (r?.values?.[s] != null && r.values[s] !== "") c[s]++; return c; };
+  const defaultsFor = (rows, syms) => correlationDefaults(syms, 12, { lead, counts: countsOf(rows, syms) });
+  const [selected, setSelected] = useState(() => new Set(defaultsFor(assays, allSymbols))); // #1678 — the commodity first; #2351 — from the data
+  const pickSource = (next) => { setSource(next); const els = (next === "surface" ? surfaceElements : assayElementsIn).map((e) => e.symbol); setSelected(new Set(defaultsFor(next === "surface" ? surfaceSamples : excludeQAQC(labAssays(assaysIn)), els))); }; // #1799
   const toggle = (sym) => setSelected((p) => { const n = new Set(p); n.has(sym) ? n.delete(sym) : n.add(sym); return n; });
 
   // TASKS.csv #1514 — a memo, not a new array per render (it made every re-render recompute the whole matrix); columns and
@@ -124,7 +129,7 @@ export default function CorrelationMatrix({ assays: assaysIn, assayElements: ass
               {/* #2508 — one click instead of 30 ticks */}
               <button type="button" onClick={() => setSelected(new Set(allSymbols))} style={miniBtn}>{tr("All")}</button>
               <button type="button" onClick={() => setSelected(new Set())} style={miniBtn}>{tr("None")}</button>
-              <button type="button" onClick={() => setSelected(new Set(correlationDefaults(allSymbols)))} style={miniBtn} title={tr("The commodity and alteration elements first, up to 12")}>{tr("Suggested suite")}</button>
+              <button type="button" onClick={() => setSelected(new Set(defaultsFor(assays, allSymbols)))} style={miniBtn} title={tr("The commodity and alteration elements first, up to 12")}>{tr("Suggested suite")}</button>
             </div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
               {allSymbols.map((s) => (

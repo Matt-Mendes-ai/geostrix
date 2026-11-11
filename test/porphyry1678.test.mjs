@@ -38,5 +38,5 @@ test("correlation ticks the commodity / alteration suite, then fills up in file 
 
 test("the four tools use it", () => {
   for (const f of ["BestIntercepts", "CompositingModal", "GradeStatistics"]) assert.ok(readFileSync(new URL(`../src/components/${f}.jsx`, import.meta.url), "utf8").includes("preferredElement("), f);
-  assert.ok(readFileSync(new URL("../src/components/CorrelationMatrix.jsx", import.meta.url), "utf8").includes("correlationDefaults(allSymbols)"));
+  assert.ok(readFileSync(new URL("../src/components/CorrelationMatrix.jsx", import.meta.url), "utf8").includes("defaultsFor(assays, allSymbols)")); // #2351 — from the data (lib/preferredElement correlationDefaults with counts)
 });

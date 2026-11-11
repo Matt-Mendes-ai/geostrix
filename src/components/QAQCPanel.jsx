@@ -1,4 +1,6 @@
 import React, { useMemo, useState } from "react";
+import { useLeadCommodity } from "../lib/useLeadCommodity.js"; // TASKS.csv #2351
+import { preferredElement } from "../lib/preferredElement.js"; // TASKS.csv #2351
 import OxideTotalsTab from "./OxideTotalsTab.jsx"; // TASKS.csv #2506
 import { majorOxides, MIN_MAJORS } from "../lib/oxideTotals.js"; // TASKS.csv #2506
 import { X, Download } from "./icons.js";
@@ -28,7 +30,8 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
   useEscapeKey(onClose); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
   const elementUnits = useMemo(() => Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])), [assayElements]);
-  const [symbol, setSymbol] = useState(assayElements[0]?.symbol || "");
+  const lead = useLeadCommodity(); // TASKS.csv #2351 — open on the lead commodity, not the first element in import order (Co on a uranium project)
+  const [symbol, setSymbol] = useState(() => preferredElement(assayElements.map((e) => e.symbol), null, lead));
   const [tab, setTab] = useState("standards");
   const [blankThreshold, setBlankThreshold] = useState(0.1);
   const [selectedStdId, setSelectedStdId] = useState(null);
