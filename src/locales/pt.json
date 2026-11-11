@@ -9912,5 +9912,7 @@
   "Samples from": "Amostras de",
   "Every hole": "Todos os furos",
   "The checked holes ({n} of {total})": "Os furos marcados ({n} de {total})",
-  "{pct}% of the estimated metal ({k} of {n} blocks) lies below the deepest sample of every hole within {r} m: carried down past the drilling. A Vertical reach under the search radius keeps it near the samples.": "{pct}% do metal estimado ({k} de {n} blocos) está abaixo da amostra mais profunda de todo furo a menos de {r} m: levado para baixo além da perfuração. Um Alcance vertical menor que o raio de busca o mantém perto das amostras."
+  "{pct}% of the estimated metal ({k} of {n} blocks) lies below the deepest sample of every hole within {r} m: carried down past the drilling. A Vertical reach under the search radius keeps it near the samples.": "{pct}% do metal estimado ({k} de {n} blocos) está abaixo da amostra mais profunda de todo furo a menos de {r} m: levado para baixo além da perfuração. Um Alcance vertical menor que o raio de busca o mantém perto das amostras.",
+  "{el} (t)": "{el} (t)",
+  "Mean grade ({unit})": "Teor médio ({unit})"
 }

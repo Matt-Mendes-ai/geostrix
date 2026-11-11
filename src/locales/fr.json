@@ -9912,5 +9912,7 @@
   "Samples from": "Échantillons de",
   "Every hole": "Tous les sondages",
   "The checked holes ({n} of {total})": "Les sondages cochés ({n} sur {total})",
-  "{pct}% of the estimated metal ({k} of {n} blocks) lies below the deepest sample of every hole within {r} m: carried down past the drilling. A Vertical reach under the search radius keeps it near the samples.": "{pct} % du métal estimé ({k} des {n} blocs) se trouve sous l'échantillon le plus profond de tout sondage à moins de {r} m : porté vers le bas au-delà du forage. Une Portée verticale inférieure au rayon de recherche le garde près des échantillons."
+  "{pct}% of the estimated metal ({k} of {n} blocks) lies below the deepest sample of every hole within {r} m: carried down past the drilling. A Vertical reach under the search radius keeps it near the samples.": "{pct} % du métal estimé ({k} des {n} blocs) se trouve sous l'échantillon le plus profond de tout sondage à moins de {r} m : porté vers le bas au-delà du forage. Une Portée verticale inférieure au rayon de recherche le garde près des échantillons.",
+  "{el} (t)": "{el} (t)",
+  "Mean grade ({unit})": "Teneur moyenne ({unit})"
 }

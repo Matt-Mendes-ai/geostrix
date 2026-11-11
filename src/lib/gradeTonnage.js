@@ -46,12 +46,19 @@ export function offersGradeTonnage(model, { categorical = false, geophysProperty
 }
 const isPrecious = (element) => PRECIOUS.has(String(element || "").trim());
 // the metal columns to show / export: [{ key, label, factor }] applied to metalOf's amount (grams or tonnes); [] without a metal
+// TASKS.csv #2548 (review #2486, WA lithium) — 'Metal (t)' was tonnes of Li with no name on it, and Li2O or LCE could not be had: the element
+// column names its element, and an element usually reported as an oxide (or, for lithium, as lithium carbonate equivalent) gets those
+// columns too. Reporting conventions only, no deposit assumed; factors are oxide / element mass ratios (IUPAC), LCE = Li2CO3 / 2 Li.
+const REPORTED_AS = { Li: [["Li2O", 2.1527], ["LCE", 5.323]], U: [["U3O8", 1.1792]], Ta: [["Ta2O5", 1.221]], Nb: [["Nb2O5", 1.4305]], V: [["V2O5", 1.7852]], W: [["WO3", 1.2611]] };
 export function metalColumns(metal, element) {
   if (!metal) return [];
-  if (metal.oxide) return [{ key: `metal_t_${metal.oxide}`, label: `Metal (t ${metal.oxide})`, factor: metal.oxideFactor * (metal.unit === "g" ? 1e-6 : 1) }]; // #2487
-  if (metal.unit === "t") return [{ key: "metal_t", label: "Metal (t)", factor: 1 }];
+  const el = String(element || "").trim(), base = metal.unit === "g" ? 1e-6 : 1;
+  const also = (skip) => (REPORTED_AS[el] || []).filter(([ox]) => ox !== skip).map(([ox, f]) => ({ key: `metal_t_${ox}`, label: "{el} (t)", args: { el: ox }, factor: f * base }));
+  const elementCol = el ? [{ key: "metal_t", label: "{el} (t)", args: { el }, factor: base }] : [];
+  if (metal.oxide) return [{ key: `metal_t_${metal.oxide}`, label: `Metal (t ${metal.oxide})`, factor: metal.oxideFactor * base }, ...elementCol, ...also(metal.oxide)]; // #2487; element and others: #2548
+  if (metal.unit === "t") return [el ? elementCol[0] : { key: "metal_t", label: "Metal (t)", factor: 1 }, ...also(null)];
   if (isPrecious(element)) return [{ key: "metal_kg", label: "Metal (kg)", factor: 1e-3 }, { key: "metal_oz", label: "Metal (troy oz)", factor: 1 / TROY_OZ_G }];
-  return [{ key: "metal_t", label: "Metal (t)", factor: 1e-6 }];
+  return [el ? elementCol[0] : { key: "metal_t", label: "Metal (t)", factor: 1e-6 }, ...also(null)];
 }
 
 // cutoffs from the values themselves: 0 and the 25th / 50th / 75th / 90th / 95th percentiles, rounded to 2 significant digits; for a
