@@ -588,6 +588,21 @@ export function attachIncluding(parents, highs) {
 // 1669 x 10.40 = 17,355 (the gaps carried the average grade) and outranked a 6.00 m intercept of 15,761; the samples sum to 15,019
 export const interceptSampledM = (r) => Math.max(0, (Number(r?.length) || 0) - (Number(r?.unsampledM) || 0));
 export const interceptGradeLength = (r) => (Number(r?.avgGrade) || 0) * interceptSampledM(r);
+// TASKS.csv #2608 (review #2486) — an intercept that starts at the hole's first sample or ends at its last sample (or the hole's end) is
+// open: its length is a minimum (49 of 60 printed intercepts at 1 % Li2O, a whole 30 m bench hole among them). -> [{ top, bottom }] per row
+export function interceptOpenEnds(rows, assays, symbol, collars = []) {
+  const first = new Map(), last = new Map(), depth = new Map((collars || []).map((c) => [c.hole_id, Number(c.length)]));
+  for (const a of assays || []) {
+    if (a?.values?.[symbol] == null) continue;
+    const f = Number(a.from), t = Number(a.to);
+    if (Number.isFinite(f) && (!first.has(a.hole_id) || f < first.get(a.hole_id))) first.set(a.hole_id, f);
+    if (Number.isFinite(t) && (!last.has(a.hole_id) || t > last.get(a.hole_id))) last.set(a.hole_id, t);
+  }
+  return (rows || []).map((r) => {
+    const f0 = first.get(r.hole_id), t1 = last.get(r.hole_id), td = depth.get(r.hole_id);
+    return { top: f0 != null && r.from <= f0 + 0.01, bottom: (t1 != null && r.to >= t1 - 0.01) || (td > 0 && r.to >= td - 0.01) };
+  });
+}
 export function computeBestIntercepts(assays, symbol, unit, elementUnits, opts = {}) {
   const cutoff = opts.cutoff ?? 0;
   const maxInternalDilution = opts.maxInternalDilution ?? 2;

@@ -9993,5 +9993,7 @@
   "Optional: the density of the blocks below cut-off and of the rock outside the block model (cover, host rock). Blank: the density above for all rock.": "Opcional: la densidad de los bloques bajo la ley de corte y de la roca fuera del modelo de bloques (cobertura, roca encajante). En blanco: la densidad de arriba para toda la roca.",
   "{o} ore, {w} waste": "{o} mineral, {w} estéril",
   "Use the pit's waste density, {v}": "Usar la densidad del estéril del tajo, {v}",
-  ", waste {w} t/m³": ", estéril {w} t/m³"
+  ", waste {w} t/m³": ", estéril {w} t/m³",
+  "+: the intercept starts at the hole's first sample or ends at its last sample or the end of the hole, so the mineralization may continue: the length is a minimum.": "+: la intersección empieza en la primera muestra del sondaje o termina en su última muestra o al final del sondaje, así que la mineralización puede continuar: la longitud es un mínimo.",
+  "… and {n} more intercept(s), not shown on this sheet": "… y {n} intersección(es) más, no mostradas en esta hoja"
 }

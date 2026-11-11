@@ -9993,5 +9993,7 @@
   "Optional: the density of the blocks below cut-off and of the rock outside the block model (cover, host rock). Blank: the density above for all rock.": "اختياري: كثافة الكتل تحت محتوى القطع والصخر خارج نموذج الكتل (الغطاء، الصخر المضيف). فارغ: الكثافة أعلاه لكل الصخر.",
   "{o} ore, {w} waste": "{o} خام، {w} نفايات",
   "Use the pit's waste density, {v}": "استخدم كثافة نفايات الحفرة، {v}",
-  ", waste {w} t/m³": "، نفايات {w} t/m³"
+  ", waste {w} t/m³": "، نفايات {w} t/m³",
+  "+: the intercept starts at the hole's first sample or ends at its last sample or the end of the hole, so the mineralization may continue: the length is a minimum.": "+: يبدأ التقاطع عند أول عينة في الثقب أو ينتهي عند آخر عينة أو نهاية الثقب، فقد يستمر التمعدن: الطول حد أدنى.",
+  "… and {n} more intercept(s), not shown on this sheet": "… و{n} تقاطعًا آخر لا تظهر في هذه الورقة"
 }

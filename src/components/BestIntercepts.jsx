@@ -2,7 +2,7 @@ import React, { useMemo, useRef, useState } from "react";
 import { X, Download, Sheet } from "./icons.js";
 import { preferredElement, rememberElement } from "../lib/preferredElement.js"; // TASKS.csv #1678
 import { useLeadCommodity } from "../lib/useLeadCommodity.js"; // #1523 — the project's lead commodity
-import { interceptGradeLength, interceptSampledM } from "../lib/geochem.js"; // TASKS.csv #2475
+import { interceptGradeLength, interceptSampledM, interceptOpenEnds } from "../lib/geochem.js"; // TASKS.csv #2475; interceptOpenEnds: #2608
 import { computeBestIntercepts, makeRangeAverager, domainsForInterval, attachIncluding, metalEquivalent, metalEquivalentFormula, PRECIOUS_METALS, withMetalEquivalent, gradeUnitLabel } from "../lib/geochem.js"; // attachIncluding, metal equivalent: #402
 import { excludeQAQC, labAssays } from "../lib/qaqc.js";
 import { desurveyHole } from "../lib/desurvey.js";
@@ -181,7 +181,8 @@ export default function BestIntercepts({ assays: assaysIn, assayElements, collar
   // TASKS.csv #911 — the results as a table on the active Layout page (a copy: send again after changing the settings)
   const toLayout = () => {
     const columns = [tr("Hole"), tr("From (m)"), tr("To (m)"), tr("Length (m)"), ...(twEnabled ? [tr("True width (m)")] : []), `${gradeSym} (${dispUnit})`, ...(incOn ? [tr("Including")] : [])]; // dispUnit: #1680
-    const rows = results.slice(0, 60).map((r) => [String(r.hole_id), Number(r.from).toFixed(2), Number(r.to).toFixed(2), r.unsampledM > 0.05 ? tr("{len} ({s} sampled)", { len: r.length.toFixed(2), s: interceptSampledM(r).toFixed(2) }) : r.length.toFixed(2) /* #2475 */, ...(twEnabled ? [r.tw ? r.tw.trueWidth.toFixed(2) : ""] : []), `${r.overRange ? "≥" : ""}${+dg(r.avgGrade).toPrecision(4)}`, ...(incOn ? [r.including ? incText(r.including[0]) : ""] : [])]);
+    const open = interceptOpenEnds(results.slice(0, 60), reportAssays, symbol, collars); // #2608 — a length that is a minimum
+    const rows = results.slice(0, 60).map((r, i) => [String(r.hole_id), Number(r.from).toFixed(2), Number(r.to).toFixed(2), `${r.unsampledM > 0.05 ? tr("{len} ({s} sampled)", { len: r.length.toFixed(2), s: interceptSampledM(r).toFixed(2) }) : r.length.toFixed(2)}${open[i].top || open[i].bottom ? "+" : ""}` /* #2475; + open: #2608 */, ...(twEnabled ? [r.tw ? r.tw.trueWidth.toFixed(2) : ""] : []), `${r.overRange ? "≥" : ""}${+dg(r.avgGrade).toPrecision(4)}`, ...(incOn ? [r.including ? incText(r.including[0]) : ""] : [])]);
     const from = tr("{symbol} ≥ {cutoff} {unit}, dilution ≤ {dil} m, min {min} m", { symbol: gradeSym, cutoff, unit: unitL, dil: maxInternalDilution, min: minLength });
     // TASKS.csv #936 — a printed intercept table is what gets lifted into a report or a news release: it carries the
     // caveats the dialog and the CSV stamp give (QC, over-range, below detection, true width, screening)
@@ -190,11 +191,12 @@ export default function BestIntercepts({ assays: assaysIn, assayElements, collar
       results.some((r) => r.overRange) ? tr("≥: contains an over-range result counted at its ceiling; the true grade is at least this.") : "",
       tr("Below-detection results are taken at half the detection limit."),
       results.slice(0, 60).some((r) => r.unsampledM > 0.05) ? tr("Where a length shows its sampled metres, the rest of the interval has no result: the grade and grade × length are over the samples only.") : "", // #2475
+      open.some((o) => o.top || o.bottom) ? tr("+: the intercept starts at the hole's first sample or ends at its last sample or the end of the hole, so the mineralization may continue: the length is a minimum.") : "", // #2608
       twEnabled ? tr("True width to a structure dipping {dip}° towards {dipDir}°.", { dip: twDip, dipDir: twDipDir }) : tr("Lengths are downhole, not true widths."),
       tr("Screening tool: verify any intercept against the raw assay certificates before reporting it."),
     ].filter(Boolean).join(" ");
-    setLayoutElements((els) => [...els, { id: `table_${Date.now()}`, type: "table", source: "static", x: 60, y: 60, w: 520, fontPt: 7, frameWidth: 1,
-      title: tr("Best intercepts: {from}", { from }), from, note, columns, rows: results.length > 60 ? [...rows, [tr("… {n} more intercept(s) in the CSV report", { n: results.length - 60 }), ...columns.slice(1).map(() => "")]] : rows }]);
+    setLayoutElements((els) => [...els, { id: `table_${Date.now()}`, type: "table", source: "static", x: 60 + 24 * els.filter((e) => e.type === "table").length, y: 60 + 24 * els.filter((e) => e.type === "table").length /* #2608 — a second send no longer lands exactly on the first */, w: 520, fontPt: 7, frameWidth: 1,
+      title: tr("Best intercepts: {from}", { from }), from, note, columns, rows: results.length > 60 ? [...rows, [tr("… and {n} more intercept(s), not shown on this sheet", { n: results.length - 60 }) /* #2608 — the sheet's reader has no CSV */, ...columns.slice(1).map(() => "")]] : rows }]);
     goToModule("layout");
     onClose();
   };
