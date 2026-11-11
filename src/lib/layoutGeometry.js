@@ -72,7 +72,10 @@ export function sectionScaleText(el) {
 // which plane the ratio holds in (#946); a page with no viewport takes its first cross-section snapshot (#944)
 export function pageScaleText(els) {
   const list = els || [];
-  const v = list.find((e) => e.type === "viewport" && e.trueScale && e.capturedFixedScale > 0) || list.find((e) => e.type === "viewport" && metresPerPagePx(e));
+  // #2606 — a true map scale before an oblique estimate: a drill plan, or a plan viewport, names the page's scale; an oblique view's
+  // '~1 : 72,096 in the view plane' only when nothing else on the page has a scale
+  const plan0 = list.find((e) => e.type === "drillplan" && Number(e.scale) > 0);
+  const v = list.find((e) => e.type === "viewport" && e.trueScale && e.capturedFixedScale > 0) || (plan0 ? null : list.find((e) => e.type === "viewport" && metresPerPagePx(e) && !obliqueCapture(e))) || (plan0 ? null : list.find((e) => e.type === "viewport" && metresPerPagePx(e)));
   if (!v) {
     const sec = list.find(isSectionImage);
     if (sec) return sectionScaleText(sec);

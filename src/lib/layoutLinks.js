@@ -83,7 +83,10 @@ export function tieStarterFurniture(els, view, { bar: wantBar = true, north: wan
   const { w: imgW, h: imgH } = capturedSize(view);
   const ppm = view.type === "viewport" ? (view.worldHeightAtTarget && imgH ? imgH / view.worldHeightAtTarget : 0) : view.type === "drillplan" ? pxPerMetre(view.scale) /* #2302 */ : (view.worldWidthAtCaptureM && imgW ? imgW / view.worldWidthAtCaptureM : 0);
   const bar = wantBar && ppm > 0 ? els.find((el) => el.type === "scale" && !el.boundTo && !el.pxPerMeter && el.meters === 100) : null;
-  const north = wantNorth && view.cameraAzimuthDeg != null ? els.find((el) => el.type === "north" && el.rotation == null) : null;
+  // TASKS.csv #2606 (review #2486) — an oblique view added to a page that already holds a map (a drill plan, or a true-scale plan viewport)
+  // took the page's north arrow (turned 45 degrees beside a north-up plan): the arrow stays with the map
+  const pageHasMap = els.some((el) => el !== view && (el.type === "drillplan" || (el.type === "viewport" && el.planView && el.trueScale)));
+  const north = wantNorth && view.cameraAzimuthDeg != null && !(pageHasMap && obliqueCapture(view)) ? els.find((el) => el.type === "north" && el.rotation == null) : null;
   if (!bar && !north) return els;
   return els.map((el) => {
     if (el === bar) return { ...el, boundTo: view.id, pxPerMeter: ppm, meters: niceScaleNumber(SCALE_BAR_PX / ppm) };
