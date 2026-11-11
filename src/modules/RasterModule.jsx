@@ -493,7 +493,12 @@ export default function RasterModule({ embedded = false } = {}) {
 
         {gridRasters.length >= 3 && (
           <div style={{ marginTop: 10 }}>
-            <button type="button" onClick={() => setTern((p) => ({ ...p, open: !p.open }))} aria-expanded={tern.open} style={{ width: "100%", padding: "6px 8px", border: "1px solid var(--color-border)", borderRadius: 5, background: "var(--color-bg-subtle)", color: "var(--color-text)", cursor: "pointer", fontSize: "var(--font-size-sm)", textAlign: "start" }}>{tr("Radiometric ternary image (K-eTh-eU)…")}</button>
+            <button type="button" onClick={() => setTern((p) => {
+              // TASKS.csv #2559 — opening it fills each empty channel with that channel's grid when exactly one is known (K, eTh, eU from one import)
+              if (p.open) return { ...p, open: false };
+              const pick = (ch) => { if (p[ch]) return p[ch]; const ex = ternaryChoices(gridRasters, ch, (x) => rasterMethodOf(x, geophysSurveys)).filter((c) => c.exact); return ex.length === 1 ? ex[0].raster.id : ""; };
+              return { ...p, open: true, k: pick("k"), th: pick("th"), u: pick("u") };
+            })} aria-expanded={tern.open} style={{ width: "100%", padding: "6px 8px", border: "1px solid var(--color-border)", borderRadius: 5, background: "var(--color-bg-subtle)", color: "var(--color-text)", cursor: "pointer", fontSize: "var(--font-size-sm)", textAlign: "start" }}>{tr("Radiometric ternary image (K-eTh-eU)…")}</button>
             {tern.open && (
               <div style={{ marginTop: 6, padding: "7px 8px", border: "1px solid var(--color-border)", borderRadius: 5 }}>
                 {[["k", "K (red)"], ["th", tr("eTh (green)")], ["u", tr("eU (blue)")]].map(([key, label]) => (

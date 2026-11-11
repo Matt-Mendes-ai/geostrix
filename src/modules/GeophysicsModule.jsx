@@ -96,7 +96,7 @@ import { fillNoData } from "../lib/demFill.js"; // TASKS.csv #1994
 import { offersGradeTonnage } from "../lib/gradeTonnage.js"; // TASKS.csv #1592
 import { collarsLookUnderground } from "../lib/pitShell.js"; // TASKS.csv #2263
 import { projectTargetEpsg } from "../lib/projectTarget.js"; // TASKS.csv #2287 — no reprojection INTO the placeholder CRS
-import { pointsAlongOneLine } from "../lib/rasterMethod.js"; // TASKS.csv #2557
+import { pointsAlongOneLine, surveyLabel } from "../lib/rasterMethod.js"; // TASKS.csv #2557; surveyLabel: #2559
 const GradeTonnageModal = lazyModal(() => import("../components/GradeTonnageModal.jsx")); // TASKS.csv #1052 — loaded when opened
 
 // TASKS.csv #309 — the format reference that USED to be this tab's entire empty state: a twelve-line
@@ -1983,7 +1983,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                     const gridW = Math.round((xmax - xmin) / idwCellSize), gridH = Math.round((ymax - ymin) / idwCellSize);
                     if (gridW * gridH > 4_000_000) { setError(tr("That cell size would produce a {gridW}×{gridH} grid — too large. Use a bigger cell size.", { gridW, gridH })); return; }
                     const blank = idwBlank === "" ? idwSuggest?.distance ?? Infinity : Number(idwBlank) > 0 ? Number(idwBlank) : Infinity; // #538
-                    const label = String(idwKey).replace(/\.[^.]+$/, "");
+                    const label = surveyLabel(idwKey); // #2559 — 'file.csv · K_pct' kept its channel ('[^.]+$' took '.csv · K_pct' off)
                     const raster = idwGridToRasterInput(pts, { xmin, ymin, xmax, ymax, cellSize: idwCellSize, power: idwPower, stretch: idwStretch, maxDistance: blank,
                       name: `${label}${sliceTag} IDW ${idwCellSize} m${Number.isFinite(blank) ? `, blanked > ${Math.round(blank)} m` : ""}` }); // sliceTag: #1783
                     // TASKS.csv #2239 (review #2174) — stations with elevations are drawn at THEIR median elevation: a ground-mag grid at z 400 went to the

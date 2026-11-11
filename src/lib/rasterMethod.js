@@ -33,8 +33,12 @@ export function ternaryChoices(rasters, channel, methodOf) {
     if (methodGroup(m) === "rad") return 2;
     return m ? 4 : 3; // a grid of another known method last
   };
-  return rasters.map((r, i) => ({ r, i, k: rank(r) })).sort((a, b) => a.k - b.k || a.i - b.i).map((x) => ({ raster: x.r, other: x.k === 4 }));
+  return rasters.map((r, i) => ({ r, i, k: rank(r) })).sort((a, b) => a.k - b.k || a.i - b.i).map((x) => ({ raster: x.r, other: x.k === 4, exact: x.k === 0 })); // exact: #2559 — the ternary preselects it
 }
+
+// TASKS.csv #2559 — a survey key without its file extension, for a raster name: 'rad.csv · K_pct' -> 'rad · K_pct' (one import of a
+// multi-channel file gives one survey per channel, and the three channel grids all came out named 'rad IDW 25 m')
+export const surveyLabel = (key) => String(key ?? "").replace(/\.[A-Za-z0-9]{1,5}(?= · |$)/, "");
 
 // points along one line (a single traverse): the spread across the main direction is under a cell. A grid of them is one row of cells
 // that the 2D filters treat as a map; plot the line as a profile instead.
