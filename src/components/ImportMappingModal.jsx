@@ -146,7 +146,7 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
               </div>
             ))}
             <div style={{ display: "flex", gap: 6 }}>
-              <select value={addColumn} onChange={(e) => setAddColumn(e.target.value)} style={{ ...sel, flex: 1, minWidth: 0 }}>
+              <select value={addColumn} onChange={(e) => { const v = e.target.value; setAddColumn(v); if (!addName.trim() || addName === addColumn) setAddName(v); /* #2341 — the name pre-filled from the column */ }} style={{ ...sel, flex: 1, minWidth: 0 }}>
                 <option value="">{tr("— pick a column —")}</option>
                 {modal.headers.map((h) => <option key={h} value={h}>{h}</option>)}
               </select>
@@ -382,8 +382,9 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
                 <button onClick={onCancel} style={{ ...btn(false), flex: 1 }}>{tr("Cancel")}</button>
                 <button
                   onClick={onCommit}
-                  disabled={missingRequired.length > 0}
-                  style={{ ...btn(true), flex: 2, opacity: missingRequired.length > 0 ? 0.5 : 1, cursor: missingRequired.length > 0 ? "not-allowed" : "pointer" }}
+                  disabled={missingRequired.length > 0 || importCount(modal) === 0} // 0 rows: TASKS.csv #2431 — the row filter keeps none
+                  style={{ ...btn(true), flex: 2, opacity: missingRequired.length > 0 || importCount(modal) === 0 ? 0.5 : 1, cursor: missingRequired.length > 0 || importCount(modal) === 0 ? "not-allowed" : "pointer" }}
+                  title={importCount(modal) === 0 ? tr("The row filter keeps no row: tick at least one value under Rows.") : undefined}
                 >{tr("Import {rowCount} rows", { rowCount: importCount(modal) })}</button>
               </div>
             </div>

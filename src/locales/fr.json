@@ -10056,5 +10056,7 @@
   "Elevation (recorded)": "Élévation (enregistrée)",
   "{z} m, from the terrain (no elevation in the file)": "{z} m, du terrain (pas d'élévation dans le fichier)",
   "none in the file: drawn flat at {z} m": "aucune dans le fichier : dessiné à plat à {z} m",
-  "none in the file": "aucune dans le fichier"
+  "none in the file": "aucune dans le fichier",
+  "{n} column(s) of the file were not imported: {cols}. Add one under Extra fields in the import dialog to keep it.": "{n} colonne(s) du fichier n'ont pas été importées : {cols}. Ajoutez-en une sous Champs supplémentaires dans la fenêtre d'import pour la garder.",
+  "The row filter keeps no row: tick at least one value under Rows.": "Le filtre de lignes ne garde aucune ligne : cochez au moins une valeur sous Lignes."
 }

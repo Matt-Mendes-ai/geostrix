@@ -40,7 +40,7 @@ import { fillDownHoleIds, numberedSiblings, allCodesOf, normInterval, applyCusto
 import { unreadableFormatAdvice } from "../../lib/unreadableFormats.js"; // TASKS.csv #603
 import { t as tr } from "../../lib/i18n.js"; // TASKS.csv #786
 import { requestModuleAction, useModuleAction } from "../../lib/menuRequests.js"; // TASKS.csv #917; useModuleAction: #2019
-import { autoExtraFields, companionLayer, surveyMethodFields } from "../../lib/viewer/autoExtras.js"; // TASKS.csv #1501; surveyMethodFields: #2187
+import { autoExtraFields, companionLayer, surveyMethodFields, columnsLeftOut } from "../../lib/viewer/autoExtras.js"; // TASKS.csv #1501; surveyMethodFields: #2187
 import { surfaceAttrColumns, surfaceAttrs } from "../../lib/geochem.js"; // TASKS.csv #1504 — unmapped collar columns kept as attrs
 import { rasterDrapeElevation, drapeElevationNote, planElevation } from "../../lib/drapeElevation.js"; // TASKS.csv #1505; planElevation: #2294
 import { projectTargetEpsg } from "../../lib/projectTarget.js"; // TASKS.csv #2287 — no reprojection INTO the placeholder CRS
@@ -256,6 +256,12 @@ export function useImportPipeline(ctx) {
   const azRefFor = (target, headers, rows) => { const d = AZ_TARGETS.has(target) ? detectAzimuthRef(headers, rows) : null; return d?.ref ? { azimuthRef: d.ref, azimuthRefFrom: d.col, ...(d.also ? { azimuthRefAlso: d.also } : {}) } : {}; }; // also: #2154
   // TASKS.csv #2015 — a survey sheet's corrected azimuth column (grid when filled, else true north) is the one read
   const azColFor = (target, headers, rows, mapping) => { if (target === "structure" && mapping?.value) return { ...mapping, value: fullestTypeColumn(headers, rows, mapping.value) }; /* #2188 — the fullest of several *_StrucType columns */ if (target !== "survey" && target !== "collars") return mapping; /* collars: #2154 (Azimuth_MAG beside Azimuth_TRUE) */ const d = detectAzimuthRef(headers, rows); return d?.azimuthCol ? { ...mapping, azimuth: d.azimuthCol } : mapping; };
+  // TASKS.csv #2341 — the file's columns this import did not read, named in the notice ("Add one under Extra fields to keep it")
+  const leftOutText = (data, rows, extra = []) => {
+    const hdrs = data.headers?.length ? data.headers : Object.keys(rows?.[0] || {});
+    const left = columnsLeftOut(hdrs, rows, [...Object.values(data.mapping || {}), ...(data.customFields || []).map((f) => f.column), data.perRowEpsgCol, data.rowFilter?.col, ...extra]);
+    return left.length ? " " + tr("{n} column(s) of the file were not imported: {cols}. Add one under Extra fields in the import dialog to keep it.", { n: left.length, cols: left.slice(0, 8).join(", ") + (left.length > 8 ? ", …" : "") }) : "";
+  };
   const commitImportData = (data) => {
     const { target, mapping, allRows: allRowsIn, dipConvention, fileName: shownName, sourceEpsg, perRowEpsgCol, customFields, azimuthRef, azimuthDate, betaRefLine, azimuthGridEpsg, unseen = false, dbSource = null, reload = null } = data; // dbSource, reload: #1963 (reload: an object the collar diff is written to; no overwrite question)
     // TASKS.csv #1506 (review #1497) — the dialog's title carries the drop's queue count ("Min Domain.csv (10 more queued)"), and it
@@ -589,7 +595,7 @@ export function useImportPipeline(ctx) {
       }).catch(() => {});
       // TASKS.csv #2491 — "converted to grid" only when they were: a refusal (no CRS, an untied local grid) says they were left as in the file
       const azNorth = (ref, res) => (ref === "true" || ref === "magnetic" ? (res.crsUnset ? tr(ref === "true" ? "true north, left as in the file" : "magnetic north, left as in the file") : tr(ref === "true" ? "true north, converted to grid" : "magnetic north, converted to grid")) : tr("grid north"));
-      setNotices((p) => [...p, tr("Loaded {rows} survey stations from {fileName}.", { rows: rows.length, fileName })
+      setNotices((p) => [...p, tr("Loaded {rows} survey stations from {fileName}.", { rows: rows.length, fileName }) + leftOutText(data, allRows, [data.azimuthRefFrom, ...(data.azimuthRefAlso || []).map((a) => a.col)]) /* #2341 */
         + replaceNote(replaced, "survey")
         + (bad.length ? tr(" Skipped {bad} station(s) with a missing or non-numeric azimuth/dip ({v}).", { bad: bad.length, v: [...new Set(bad.map((r) => `${r.hole_id}@${r.depth}`))].slice(0, 5).join(", ") }) : "")
         + skippedRowsText(svDropped, allRows.length) + azs.note
@@ -744,7 +750,7 @@ export function useImportPipeline(ctx) {
         if (msg) setNotices((p) => [...p, msg]);
       }).catch(() => {});
       setNotices((p) => [...p, tr("Loaded {rows} rows into {label} from {fileName}.", { rows: rows.length, label: LAYER_META[target].label, fileName })
-        + replaceNote(replaced, "rows") + skippedRowsText(dropped, allRows.length)
+        + replaceNote(replaced, "rows") + skippedRowsText(dropped, allRows.length) + leftOutText(data, allRows, sib?.codes || []) /* #2341 */
         + (codesKept ? " " + tr("{n} more code(s) in {cols} on {m} interval(s) are not drawn (each interval is coloured by {first}); every code is kept on its interval as all_codes, which Identify lists. Hiding the first code in the legend shows such an interval in its next code's colour.", { n: codesKept, m: codesRows, cols: sib.codes.length > 1 ? `${sib.codes[0]}–${sib.codes[sib.codes.length - 1]}` : sib.codes[0], first: sib.first }) : "") // #1650; one column named once: #2153
         + (idsFilled ? " " + tr("{n} row(s) with a blank hole id took the hole id of the row above, their depths continuing it: check them if the file is laid out otherwise.", { n: idsFilled }) : "")]); // #1665
     }

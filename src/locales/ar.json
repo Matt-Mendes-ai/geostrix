@@ -10056,5 +10056,7 @@
   "Elevation (recorded)": "الارتفاع (المسجَّل)",
   "{z} m, from the terrain (no elevation in the file)": "{z} م، من التضاريس (لا ارتفاع في الملف)",
   "none in the file: drawn flat at {z} m": "لا شيء في الملف: مرسوم مسطّحًا عند {z} م",
-  "none in the file": "لا شيء في الملف"
+  "none in the file": "لا شيء في الملف",
+  "{n} column(s) of the file were not imported: {cols}. Add one under Extra fields in the import dialog to keep it.": "لم يُستورد {n} عمود من الملف: {cols}. أضف أحدها ضمن الحقول الإضافية في نافذة الاستيراد للاحتفاظ به.",
+  "The row filter keeps no row: tick at least one value under Rows.": "لا يُبقي مرشّح الصفوف أي صف: حدّد قيمة واحدة على الأقل ضمن الصفوف."
 }

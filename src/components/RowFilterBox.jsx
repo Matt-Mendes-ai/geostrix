@@ -34,7 +34,8 @@ export default function RowFilterBox({ modal, onChange, sel }) {
           ))}
         </div>
       )}
-      {preset && f && f.col === preset.col && (
+      {/* TASKS.csv #2431 — the line follows the ticks: shown while a value the preset leaves out is still unticked */}
+      {preset && f && f.col === preset.col && col && col.values.some(([v]) => !preset.keep.includes(v) && !f.keep.includes(v)) && (
         <div style={{ ...note, marginTop: 4, color: "var(--color-warn-text)" }}>{preset.flag === "superseded"
           ? tr("{col} marks {n} row(s) as superseded (out of date): they are left out. Tick their value to keep them.", { col: preset.col, n: preset.drop.toLocaleString() })
           : tr("{col} marks {n} row(s) as not current: they are left out. Tick their value to keep them.", { col: preset.col, n: preset.drop.toLocaleString() })}</div>
