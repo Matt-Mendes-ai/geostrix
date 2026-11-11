@@ -10179,5 +10179,10 @@
   "Lab column: {v}": "Columna de laboratorio: {v}",
   "Other fields: lab bookkeeping, one value on every sample, or a different one on each": "Otros campos: registros del laboratorio, un mismo valor en todas las muestras o uno distinto en cada una",
   " · trend \"{name}\" {ratios}{ell}": " · tendencia \"{name}\" {ratios}{ell}",
-  ", ellipsoid {e} m": ", elipsoide {e} m"
+  ", ellipsoid {e} m": ", elipsoide {e} m",
+  "This project's surveyed holes: lift {l}, drift {d} °/100 m (median of {n} inclined holes, first to last station).": "Sondajes con medición de este proyecto: levantamiento {l}, deriva {d} °/100 m (mediana de {n} sondajes inclinados, de la primera a la última estación).",
+  "Use them": "Usarlos",
+  "Sample medium of the occurrences": "Medio de muestra de las ocurrencias",
+  "every medium": "todos los medios",
+  "Added \"{name}\" to the map, flat at elevation {z} m, just above the block models, because the project has no terrain and no holes. Change its elevation under Maps; its values export as GeoTIFF from the Raster module.": "Se agregó \"{name}\" al mapa, plano a la cota {z} m, justo sobre los modelos de bloques, porque el proyecto no tiene terreno ni sondajes. Cambie su cota en Mapas; sus valores se exportan como GeoTIFF desde el módulo Ráster."
 }

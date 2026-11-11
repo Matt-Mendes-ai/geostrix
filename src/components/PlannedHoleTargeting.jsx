@@ -2,6 +2,7 @@ import React, { useMemo, useState } from "react";
 import { Crosshair, GitCompareArrows } from "./icons.js";
 import { solveOrientationToTarget, missDistanceToTarget, comparePlannedToActual, solveWithDeviation, plannedTrace, hasDeviation } from "../lib/holePlanning.js";
 import { desurveyHole } from "../lib/desurvey.js";
+import { surveyDeviation } from "../lib/surveyDeviation.js"; // TASKS.csv #1733
 import { useStore } from "../lib/store.jsx";
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 
@@ -60,6 +61,7 @@ export default function PlannedHoleTargeting({ hole, onUpdate, plannedPts, colla
 
   // TASKS.csv #524 — expected lift / drift (°/100 m, saved on the hole) and a tail past the target
   const lift = Number(hole.lift) || 0, drift = Number(hole.drift) || 0;
+  const ownDev = useMemo(() => surveyDeviation(survey), [survey]); // #1733
   const past = hole.pastTargetM == null ? 30 : Number(hole.pastTargetM) || 0;
   const deviated = hasDeviation(hole);
   const devSolved = useMemo(
@@ -136,6 +138,11 @@ export default function PlannedHoleTargeting({ hole, onUpdate, plannedPts, colla
             <TargetField label={tr("Past target (m)")} value={hole.pastTargetM ?? 30} onChange={(v) => onUpdate(hole.id, { pastTargetM: v })} />
           </div>
           <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>{tr("Lift: the hole flattens with depth (+). Drift: its azimuth turns clockwise (+). Typical diamond holes: 1–3°/100 m — use your own holes' surveys. Both curve the planned hole in 3D too.")}</div>
+          {/* TASKS.csv #1733 — the project's own lift / drift, one click */}
+          {ownDev && <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", marginBottom: 6, lineHeight: 1.4 }}>
+            <span style={{ flex: 1 }}>{tr("This project's surveyed holes: lift {l}, drift {d} °/100 m (median of {n} inclined holes, first to last station).", { l: ownDev.lift.toFixed(2), d: ownDev.drift.toFixed(2), n: ownDev.holes })}</span>
+            <button type="button" onClick={() => onUpdate(hole.id, { lift: +ownDev.lift.toFixed(2), drift: +ownDev.drift.toFixed(2) })} style={{ fontSize: "var(--font-size-xs)", padding: "2px 7px", borderRadius: 5, border: "1px solid var(--color-border)", background: "var(--color-bg-subtle)", color: "var(--color-text-secondary)", cursor: "pointer" }}>{tr("Use them")}</button>
+          </div>}
           <div style={rowStyle}>
             <TargetField label={tr("Target E")} value={target?.x} onChange={(v) => setTarget({ x: v })} />
             <TargetField label={tr("Target N")} value={target?.y} onChange={(v) => setTarget({ y: v })} />

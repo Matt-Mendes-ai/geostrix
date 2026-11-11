@@ -137,12 +137,18 @@ export function rasterFloorZ(traces) {
 // surface (the collars of surface drilling are on the ground: #1353, #2470), the viewer drawing it under the holes; collars that look
 // underground (#2217) are no ground, and the map stays flat under the drilling (#1204). -> { drapeMode, elevation?, kind }
 // elevation, on the collar surface: the collars' median, for a reader of the flat level (an export, a project whose collars go)
-export function scoreRasterPlacement(terrain, collars, survey, traces) {
+// voxelModels: TASKS.csv #1837 (review #1646, Kodiak) — with no terrain and no holes the sheet lay at the scene origin (about 1,275 m), inside
+// the IP model it was computed from: it now sits just above the highest block model's top ("above"), and every notice names the elevation
+export function scoreRasterPlacement(terrain, collars, survey, traces, voxelModels = []) {
   if (terrain) return { drapeMode: "terrain", kind: "terrain" };
   const g = modelGround(null, collars, survey);
   if (g.ground) return { drapeMode: "collars", kind: "collars", elevation: Math.round(median((collars || []).map((c) => c?.z))) };
   const z = rasterFloorZ(traces);
-  return { drapeMode: "flat", kind: z != null ? "floor" : "flat", ...(z != null ? { elevation: z } : {}) };
+  if (z != null) return { drapeMode: "flat", kind: "floor", elevation: z };
+  let top = -Infinity;
+  for (const m of voxelModels || []) for (const c of m?.cells || []) { const t = c.z + (c.dz || 0) / 2; if (Number.isFinite(t) && t > top) top = t; }
+  if (Number.isFinite(top)) return { drapeMode: "flat", kind: "above", elevation: Math.ceil(top + 10) };
+  return { drapeMode: "flat", kind: "flat" };
 }
 
 export function holeTraces(collars, survey, method) {

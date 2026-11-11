@@ -10179,5 +10179,10 @@
   "Lab column: {v}": "عمود المختبر: {v}",
   "Other fields: lab bookkeeping, one value on every sample, or a different one on each": "حقول أخرى: سجلات المختبر، أو قيمة واحدة لكل العينات، أو قيمة مختلفة لكل عينة",
   " · trend \"{name}\" {ratios}{ell}": " · الاتجاه \"{name}\" {ratios}{ell}",
-  ", ellipsoid {e} m": "، الإهليلج {e} م"
+  ", ellipsoid {e} m": "، الإهليلج {e} م",
+  "This project's surveyed holes: lift {l}, drift {d} °/100 m (median of {n} inclined holes, first to last station).": "ثقوب هذا المشروع المقيسة: ارتفاع {l}، انجراف {d} °/100 م (وسيط {n} ثقبًا مائلًا، من أول محطة إلى آخرها).",
+  "Use them": "استخدمها",
+  "Sample medium of the occurrences": "وسط عينات مواقع التواجد",
+  "every medium": "كل الأوساط",
+  "Added \"{name}\" to the map, flat at elevation {z} m, just above the block models, because the project has no terrain and no holes. Change its elevation under Maps; its values export as GeoTIFF from the Raster module.": "أُضيف \"{name}\" إلى الخريطة، مسطحًا عند الارتفاع {z} م، فوق نماذج الكتل مباشرة، لأن المشروع بلا تضاريس ولا ثقوب. غيّر ارتفاعه من الخرائط؛ وتُصدَّر قيمه بصيغة GeoTIFF من وحدة النقطية."
 }
