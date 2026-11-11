@@ -10107,5 +10107,7 @@
   "sheet ({dip}° toward {dir}°)": "de lâmina ({dip}° para {dir}°)",
   " As a sheet each body is {a}–{b} m thick: its map width across the dip direction × sin {dip}°, on level ground.": " Como lâmina, cada corpo tem {a}–{b} m de espessura: a largura no mapa ao longo da direção de mergulho × sen {dip}°, em terreno plano.",
   " As a sheet it is {a} m thick: its map width across the dip direction × sin {dip}°, on level ground.": " Como lâmina tem {a} m de espessura: a largura no mapa ao longo da direção de mergulho × sen {dip}°, em terreno plano.",
-  "{scale}, vertical exaggeration {ve}×": "{scale}, exagero vertical {ve}×"
+  "{scale}, vertical exaggeration {ve}×": "{scale}, exagero vertical {ve}×",
+  "Cut-off: {g}": "Teor de corte: {g}",
+  "{p} % of the rock in this pit is outside the block model and counted as barren, and it is drilled: {n} sample(s) ({m} m) in {h} hole(s) lie there, {om} m in {oh} hole(s) at or above the cut-off{list}. Estimate a model that covers the pit before reading its waste and margin.": "{p} % da rocha desta cava está fora do modelo de blocos e é contada como estéril, e está perfurada: ali há {n} amostra(s) ({m} m) em {h} furo(s), {om} m em {oh} furo(s) no teor de corte ou acima{list}. Estime um modelo que cubra a cava antes de ler o estéril e a margem."
 }

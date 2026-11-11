@@ -10107,5 +10107,7 @@
   "sheet ({dip}° toward {dir}°)": "de lame ({dip}° vers {dir}°)",
   " As a sheet each body is {a}–{b} m thick: its map width across the dip direction × sin {dip}°, on level ground.": " En lame, chaque corps fait {a}–{b} m d'épaisseur : sa largeur cartographiée le long de la direction de pendage × sin {dip}°, en terrain plat.",
   " As a sheet it is {a} m thick: its map width across the dip direction × sin {dip}°, on level ground.": " En lame, il fait {a} m d'épaisseur : sa largeur cartographiée le long de la direction de pendage × sin {dip}°, en terrain plat.",
-  "{scale}, vertical exaggeration {ve}×": "{scale}, exagération verticale {ve}×"
+  "{scale}, vertical exaggeration {ve}×": "{scale}, exagération verticale {ve}×",
+  "Cut-off: {g}": "Teneur de coupure : {g}",
+  "{p} % of the rock in this pit is outside the block model and counted as barren, and it is drilled: {n} sample(s) ({m} m) in {h} hole(s) lie there, {om} m in {oh} hole(s) at or above the cut-off{list}. Estimate a model that covers the pit before reading its waste and margin.": "{p} % de la roche de cette fosse est hors du modèle de blocs et comptée comme stérile, et elle est forée : {n} échantillon(s) ({m} m) dans {h} sondage(s) s'y trouvent, dont {om} m dans {oh} sondage(s) à la teneur de coupure ou au-dessus{list}. Estimez un modèle qui couvre la fosse avant de lire son stérile et sa marge."
 }

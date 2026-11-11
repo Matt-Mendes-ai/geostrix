@@ -59,6 +59,25 @@ export function metalAmountText(tonnesOrGrams, metalUnit, element, fmt) {
   if (sold) return `${fmt(t)} t ${element} (${sold.map(([p, f, , lb]) => (lb ? `${fmt(t * f)} t / ${fmt(t * f * LB_PER_T)} lb ${p}` : `${fmt(t * f)} t ${p}`)).join(", ")})`; // lb: #2595
   return `${fmt(t)} t (${fmt(t * LB_PER_T)} lb)`;
 }
+// TASKS.csv #2594 (review #2486, WA lithium) — a grade in Mine Design says what it is: '0.555 % Li (1.19 % Li2O)', not '0.555 %'. The oxide a
+// commodity is reported as (SOLD_AS's first true oxide; U as U3O8); none for an element without one or already an oxide.
+export function reportedOxide(element) {
+  const el = String(element || "");
+  if (isUranium(el)) return ["U3O8", U3O8_PER_U];
+  const ox = (SOLD_AS[el] || []).find(([p]) => /O\d?$/.test(p));
+  return ox ? [ox[0], ox[1]] : null;
+}
+// " (0.256 % Li2O)" after a grade already written with its element, or ""
+export function oxideSuffix(v, unit, element, fmt = (x) => String(Number(x.toPrecision(3)))) {
+  const ox = element && Number.isFinite(v) ? reportedOxide(element) : null;
+  return ox ? ` (${fmt(v * ox[1])} ${unit || ""} ${ox[0]})`.replace(/ {2,}/g, " ") : "";
+}
+// "0.555 % Li (1.19 % Li2O)"; fmt(v) -> text (default three significant figures). No element: the unit alone, as before.
+export function gradeWithElement(v, unit, element, fmt = (x) => String(Number(x.toPrecision(3)))) {
+  if (v == null || !Number.isFinite(v)) return "—";
+  const el = element ? ` ${element}` : "", ox = element ? reportedOxide(element) : null;
+  return `${fmt(v)} ${unit || ""}${el}${ox ? ` (${fmt(v * ox[1])} ${unit || ""} ${ox[0]})` : ""}`.replace(/ {2,}/g, " ");
+}
 // the element a block model holds: its estimate's parameters, else a symbol at the start of its name ("Cu estimate (idw2, 20m)")
 // TASKS.csv #2436 — a uranium oxide named inside a longer field ("Gamma: eU3O8_cased_ppm", a logged gamma grade) is that oxide, priced per lb U3O8
 const OXIDE_IN = /(?:^|[^A-Za-z0-9])(e?U3O8)(?![A-Za-z0-9])/i;

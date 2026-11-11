@@ -10107,5 +10107,7 @@
   "sheet ({dip}° toward {dir}°)": "de lámina ({dip}° hacia {dir}°)",
   " As a sheet each body is {a}–{b} m thick: its map width across the dip direction × sin {dip}°, on level ground.": " Como lámina, cada cuerpo tiene {a}–{b} m de espesor: su ancho en el mapa a lo largo de la dirección de buzamiento × sen {dip}°, en terreno llano.",
   " As a sheet it is {a} m thick: its map width across the dip direction × sin {dip}°, on level ground.": " Como lámina tiene {a} m de espesor: su ancho en el mapa a lo largo de la dirección de buzamiento × sen {dip}°, en terreno llano.",
-  "{scale}, vertical exaggeration {ve}×": "{scale}, exageración vertical {ve}×"
+  "{scale}, vertical exaggeration {ve}×": "{scale}, exageración vertical {ve}×",
+  "Cut-off: {g}": "Ley de corte: {g}",
+  "{p} % of the rock in this pit is outside the block model and counted as barren, and it is drilled: {n} sample(s) ({m} m) in {h} hole(s) lie there, {om} m in {oh} hole(s) at or above the cut-off{list}. Estimate a model that covers the pit before reading its waste and margin.": "El {p} % de la roca de este rajo está fuera del modelo de bloques y se cuenta como estéril, y está perforada: allí hay {n} muestra(s) ({m} m) en {h} sondaje(s), {om} m en {oh} sondaje(s) en o sobre la ley de corte{list}. Estime un modelo que cubra el rajo antes de leer su estéril y su margen."
 }

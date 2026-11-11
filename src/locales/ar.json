@@ -10107,5 +10107,7 @@
   "sheet ({dip}° toward {dir}°)": "صفيحية ({dip}° نحو {dir}°)",
   " As a sheet each body is {a}–{b} m thick: its map width across the dip direction × sin {dip}°, on level ground.": " كصفيحة، سمك كل جسم {a}–{b} م: عرضه على الخريطة باتجاه الميل × جا {dip}°، على أرض مستوية.",
   " As a sheet it is {a} m thick: its map width across the dip direction × sin {dip}°, on level ground.": " كصفيحة، سمكه {a} م: عرضه على الخريطة باتجاه الميل × جا {dip}°، على أرض مستوية.",
-  "{scale}, vertical exaggeration {ve}×": "{scale}، مبالغة رأسية {ve}×"
+  "{scale}, vertical exaggeration {ve}×": "{scale}، مبالغة رأسية {ve}×",
+  "Cut-off: {g}": "محتوى القطع: {g}",
+  "{p} % of the rock in this pit is outside the block model and counted as barren, and it is drilled: {n} sample(s) ({m} m) in {h} hole(s) lie there, {om} m in {oh} hole(s) at or above the cut-off{list}. Estimate a model that covers the pit before reading its waste and margin.": "{p} % من صخر هذه الحفرة خارج نموذج الكتل ويُحسب عقيمًا، وهو محفور: فيه {n} عينة ({m} م) في {h} ثقب، منها {om} م في {oh} ثقب عند محتوى القطع أو فوقه{list}. قدّر نموذجًا يغطي الحفرة قبل قراءة نفاياتها وهامشها."
 }
