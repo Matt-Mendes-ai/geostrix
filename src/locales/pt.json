@@ -4069,6 +4069,7 @@
   "Draw the area to fetch satellite imagery for": "Desenhe a área para a qual buscar imagens de satélite",
   "Image resolution": "Resolução da imagem",
   "{label} resolution": "Resolução de {label}",
+  "{label} resolution (no finer here: the imagery's own pixels)": "Resolução de {label} (não mais fina aqui: os pixels da própria imagem)",
   " · imagery's finest (10 m)": " · o mais fino das imagens (10 m)",
   "Georeferenced and imported \"{name}\".": "\"{name}\" georreferenciado e importado.",
   "Radiometric ternary image (K-eTh-eU)…": "Imagem ternária radiométrica (K-eTh-eU)…",

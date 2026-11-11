@@ -22,6 +22,19 @@ export function planLatestFetch([lonMin, latMin, lonMax, latMax], level = "stand
   return { pixelM, gridW: Math.max(1, Math.ceil(w / pixelM)), gridH: Math.max(1, Math.ceil(h / pixelM)), nativeLimited: pixelM === nativeM, level };
 }
 
+// TASKS.csv #1766 (review #1645, Copley) — Standard, High and Very high all read '~10 m pixels · image 293 x 267 px' for Sentinel-2 on a
+// small area: the levels that would fetch the same grid as a lower level, here (a Set of level keys; empty when every level differs)
+export function levelsAddingNothing(bbox, nativeM = NATIVE_M) {
+  const out = new Set();
+  if (!bbox) return out;
+  const keys = Object.keys(SAT_LEVELS);
+  for (let i = 1; i < keys.length; i++) {
+    const a = planLatestFetch(bbox, keys[i - 1], nativeM), b = planLatestFetch(bbox, keys[i], nativeM);
+    if (a.gridW === b.gridW && a.gridH === b.gridH) out.add(keys[i]);
+  }
+  return out;
+}
+
 // TASKS.csv #1474 (review #1352, Silvertip) — NAIP was offered at 59.9°N 130.3°W and failed only after the catalogue search. NAIP is flown over
 // the contiguous USA; a coarse box around it says, with no network, whether a drawn area [lonMin, latMin, lonMax, latMax] can have any:
 // "outside" (no overlap), "partial" (part of it is outside), "inside".

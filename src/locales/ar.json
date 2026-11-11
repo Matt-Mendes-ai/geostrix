@@ -4069,6 +4069,7 @@
   "Draw the area to fetch satellite imagery for": "ارسم المنطقة التي تُجلب لها صور الأقمار الصناعية",
   "Image resolution": "دقة الصورة",
   "{label} resolution": "دقة {label}",
+  "{label} resolution (no finer here: the imagery's own pixels)": "دقة {label} (لا أدق هنا: بكسلات الصورة نفسها)",
   " · imagery's finest (10 m)": " · أدق دقة للصور (10 م)",
   "Georeferenced and imported \"{name}\".": "أُرجع «{name}» جغرافيًا واستُورد.",
   "Radiometric ternary image (K-eTh-eU)…": "صورة إشعاعية ثلاثية (K-eTh-eU)…",
