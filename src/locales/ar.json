@@ -210,6 +210,7 @@
   "Files": "الملفات",
   "First": "الأولى",
   "Fit": "ملاءمة",
+  "Fit frames the drillholes and leaves out {n} layer(s) far from them: {names}.": "يؤطّر «ملاءمة» ثقوب الحفر ويستبعد {n} طبقة بعيدة عنها: {names}.",
   "Geometry": "الهندسة",
   "Grid north of the Source CRS above ({crs}): azimuths are turned to the project grid along with the coordinates.": "شمال الشبكة لنظام الإحداثيات المصدر أعلاه ({crs}): تُدار السموت إلى شبكة المشروع مع الإحداثيات.",
   "Grid of": "شبكة",

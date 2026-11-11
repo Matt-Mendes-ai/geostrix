@@ -10,7 +10,7 @@ import { niceScaleBar } from "../lib/surfacePlan.js";
 import { hillshadeValues } from "../lib/hillshade.js";
 import { drawMapLayer, mapStyleSignature, mapTextureSize } from "../lib/mapLayers.js";
 import { keyedCanvas } from "../lib/rasterKey.js";
-import { planDataExtent } from "../lib/mapsPlan.js";
+import { planDataExtent, planFarLayers } from "../lib/mapsPlan.js"; // planFarLayers: TASKS.csv #2125
 import { figureSamples, colourFromStops } from "../lib/sampleGrid.js"; // TASKS.csv #1622
 
 const imageCache = new Map(); // dataUrl (+ key colour) -> { img, ready }
@@ -48,6 +48,7 @@ export default function MapsPlanView() {
   const [cursor, setCursor] = useState(null);
   const [tick, setTick] = useState(0); // an image finished decoding
   const extent = useMemo(() => planDataExtent({ rasters, terrain, mapLayers, boundaries, collars, surfaceSamples }), [rasters, terrain, mapLayers, boundaries, collars, surfaceSamples]);
+  const farLayers = useMemo(() => planFarLayers({ rasters, terrain, mapLayers, boundaries, collars }), [rasters, terrain, mapLayers, boundaries, collars]); // #2125
   const hill = useMemo(() => (terrain?.elevations?.length && terrain.gridW > 2 ? hillshadeCanvas(terrain) : null), [terrain]);
   // TASKS.csv #1622 (review #1497) — a gridded surface-sample element in one figure: the top visible geochemistry grid, its samples
   // drawn on top in the grid's own colours (a sample's colour against the grid around it shows what the gridding did), its contour
@@ -148,6 +149,11 @@ export default function MapsPlanView() {
         <span style={{ fontWeight: 700 }}>{tr("N ↑")}</span>
         <button onClick={fit} style={{ fontSize: "var(--font-size-sm)", padding: "1px 7px", border: "1px solid var(--color-border)", borderRadius: 4, background: "var(--color-bg)", cursor: "pointer" }}>{tr("Fit")}</button>
       </div>
+      {farLayers.length > 0 && ( /* TASKS.csv #2125 — what Fit leaves out */
+        <div role="note" style={{ ...chip, right: 10, top: 44, maxWidth: 340, lineHeight: 1.4 }}>
+          {tr("Fit frames the drillholes and leaves out {n} layer(s) far from them: {names}.", { n: farLayers.length, names: farLayers.slice(0, 3).map((l) => `${l.name} (${Math.round(l.far.distM / 1000).toLocaleString()} km)`).join(", ") + (farLayers.length > 3 ? ", …" : "") })}
+        </div>
+      )}
       <div style={{ ...chip, right: 10, bottom: 10, fontVariantNumeric: "tabular-nums" }}>
         {cursor ? `E ${Math.round(cursor.x).toLocaleString()}  N ${Math.round(cursor.y).toLocaleString()}` : tr("Plan view · wheel to zoom, drag to pan, double-click to fit · drape and 3D in the 3D View")}
       </div>

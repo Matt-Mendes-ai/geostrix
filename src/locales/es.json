@@ -210,6 +210,7 @@
   "Files": "Archivos",
   "First": "Primeras",
   "Fit": "Ajustar",
+  "Fit frames the drillholes and leaves out {n} layer(s) far from them: {names}.": "Ajustar encuadra los sondajes y deja fuera {n} capa(s) lejos de ellos: {names}.",
   "Geometry": "Geometría",
   "Grid north of the Source CRS above ({crs}): azimuths are turned to the project grid along with the coordinates.": "Norte de grilla del SRC de origen de arriba ({crs}): los azimuts se giran a la grilla del proyecto junto con las coordenadas.",
   "Grid of": "Grilla de",
