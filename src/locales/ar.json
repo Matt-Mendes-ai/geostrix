@@ -9969,5 +9969,7 @@
   "Total est. ${c}.": "الإجمالي تقديرًا ${c}.",
   "Enter a rate for {list} to total the cost.": "أدخل سعرًا لـ {list} لحساب التكلفة الإجمالية.",
   "Hole type": "نوع الثقب",
-  "e.g. as the collars: AC, RC, DD": "مثلًا كالفوهات: AC وRC وDD"
+  "e.g. as the collars: AC, RC, DD": "مثلًا كالفوهات: AC وRC وDD",
+  "{p} % of this ore is in blocks above or below every sample that informs them: unsampled ground, neither barren nor ore. The strip ratio and the margin rest on it, so read them as not meaningful. Drilled metres with no sample can be estimated as barren: 3D Modelling › Estimation, \"Unsampled metres inside a sampled hole\".": "{p} % من هذا الخام في كتل تقع فوق أو تحت كل العينات التي تُقدّرها: أرض غير مُعيّنة، لا هي عقيمة ولا خام. نسبة التجريد والهامش يعتمدان عليها، فاعتبرهما بلا دلالة. يمكن تقدير الأمتار المحفورة بلا عينة على أنها عقيمة: النمذجة ثلاثية الأبعاد › التقدير، \"الأمتار غير المُعيّنة داخل ثقب مُعيّن\".",
+  "{p} % of the ore is in blocks above or below every sample that informs them.": "{p} % من الخام في كتل تقع فوق أو تحت كل العينات التي تُقدّرها."
 }

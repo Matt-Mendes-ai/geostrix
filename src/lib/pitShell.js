@@ -346,6 +346,7 @@ export function buildPitGrid(cells, { size = null, slopeDeg, sectorSlopes = null
   }
   const z0 = zLow, n = nx * ny * nz, value = new Float64Array(n), oreT = new Float32Array(n), metalU = new Float64Array(n), metalU2 = new Float64Array(n) /* the by-product's metal in the ore (#1917) */, rockT = new Float32Array(n), modelT = new Float32Array(n);
   const oreThin = new Float32Array(n), oreExtrap = new Float32Array(n); // #1354 — ore resting on one hole / classed extrapolated or unsupported
+  const oreBeyond = new Float32Array(n); // TASKS.csv #2435 — ore in blocks the estimate flagged above or below every sample informing them (#2417)
   const at = (i, j, k) => k * nx * ny + j * nx + i;
   // every cell starts as barren rock below the ground
   for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
@@ -377,10 +378,10 @@ export function buildPitGrid(cells, { size = null, slopeDeg, sectorSlopes = null
       if (t <= 0) continue;
       modelT[q] += t;
       value[q] += t * (margin + miningCost); // it was counted as barren: take that back
-      if (ore) { oreT[q] += t; metalU[q] += t * c.value; if (c.by > 0) metalU2[q] += t * c.by; if (oneHoleBlock(c)) oreThin[q] += t; /* #1617 */ if (c.support === "extrapolated" || c.support === "unsupported") oreExtrap[q] += t; }
+      if (ore) { oreT[q] += t; metalU[q] += t * c.value; if (c.by > 0) metalU2[q] += t * c.by; if (oneHoleBlock(c)) oreThin[q] += t; /* #1617 */ if (c.support === "extrapolated" || c.support === "unsupported") oreExtrap[q] += t; if (c.beyond === "above" || c.beyond === "below") oreBeyond[q] += t; /* #2435 */ }
     }
   });
-  return { nx, ny, nz, x0, y0, z0, dx, dy, dz, ground, value, oreT, metalU, metalU2, rockT, modelT, oreThin, oreExtrap, coarsened, topAssumed, oreAboveGroundT, oreAboveGroundBlocks, askedSize, modelCell, atModelBase: z0 <= modelBase + 1e-6 };
+  return { nx, ny, nz, x0, y0, z0, dx, dy, dz, ground, value, oreT, metalU, metalU2, rockT, modelT, oreThin, oreExtrap, oreBeyond, coarsened, topAssumed, oreAboveGroundT, oreAboveGroundBlocks, askedSize, modelCell, atModelBase: z0 <= modelBase + 1e-6 };
 }
 
 // ---------- the solve ----------
@@ -469,15 +470,15 @@ export function solvePit(grid, slopeDeg, { onProgress = null, sectorSlopes = nul
 // ---------- what comes out ----------
 // totals inside the pit; metal in the block values' own grade x tonnes (mean grade = metalU / oreT)
 export function pitSummary(grid, mined) {
-  let oreT = 0, rockT = 0, metalU = 0, metalU2 = 0, modelT = 0, money = 0, blocks = 0, thin = 0, extrap = 0;
+  let oreT = 0, rockT = 0, metalU = 0, metalU2 = 0, modelT = 0, money = 0, blocks = 0, thin = 0, extrap = 0, beyond = 0;
   for (let q = 0; q < mined.length; q++) {
     if (!mined[q]) continue;
     blocks++; oreT += grid.oreT[q]; rockT += grid.rockT[q]; metalU += grid.metalU[q]; metalU2 += grid.metalU2?.[q] || 0; modelT += grid.modelT[q]; money += grid.value[q];
-    thin += grid.oreThin?.[q] || 0; extrap += grid.oreExtrap?.[q] || 0;
+    thin += grid.oreThin?.[q] || 0; extrap += grid.oreExtrap?.[q] || 0; beyond += grid.oreBeyond?.[q] || 0;
   }
   const wasteT = rockT - oreT;
   return { blocks, oreT, wasteT, rockT, stripRatio: oreT > 0 ? wasteT / oreT : null, meanGrade: oreT > 0 ? metalU / oreT : null, metalU, metalU2, meanGrade2: oreT > 0 ? metalU2 / oreT : null /* #1917 */, money, barrenShare: rockT > 0 ? 1 - modelT / rockT : 0,
-    oreSingleHoleShare: oreT > 0 ? thin / oreT : 0, oreExtrapolatedShare: oreT > 0 ? extrap / oreT : 0 }; // #1354
+    oreSingleHoleShare: oreT > 0 ? thin / oreT : 0, oreExtrapolatedShare: oreT > 0 ? extrap / oreT : 0, oreBeyondSampleShare: oreT > 0 ? beyond / oreT : 0 }; // #1354; beyond: #2435
 }
 
 // The pit as a surface over column centres: the floor of each mined column, the ground elsewhere, drawn only where it touches

@@ -9969,5 +9969,7 @@
   "Total est. ${c}.": "Total est. {c} $.",
   "Enter a rate for {list} to total the cost.": "Saisissez un tarif pour {list} pour totaliser le coût.",
   "Hole type": "Type de sondage",
-  "e.g. as the collars: AC, RC, DD": "p. ex. comme les collets : AC, RC, DD"
+  "e.g. as the collars: AC, RC, DD": "p. ex. comme les collets : AC, RC, DD",
+  "{p} % of this ore is in blocks above or below every sample that informs them: unsampled ground, neither barren nor ore. The strip ratio and the margin rest on it, so read them as not meaningful. Drilled metres with no sample can be estimated as barren: 3D Modelling › Estimation, \"Unsampled metres inside a sampled hole\".": "{p} % de ce minerai se trouve dans des blocs au-dessus ou au-dessous de tous les échantillons qui les renseignent : terrain non échantillonné, ni stérile ni minerai. Le rapport stérile/minerai et la marge en dépendent : lisez-les comme non significatifs. Les mètres forés sans échantillon peuvent être estimés comme stériles : Modélisation 3D › Estimation, « Mètres non échantillonnés dans un sondage échantillonné ».",
+  "{p} % of the ore is in blocks above or below every sample that informs them.": "{p} % du minerai se trouve dans des blocs au-dessus ou au-dessous de tous les échantillons qui les renseignent."
 }
