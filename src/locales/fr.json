@@ -3863,6 +3863,8 @@
   "at MD (m)": "à la PM (m)",
   "Pierce points (MD)": "Points de percée (PM)",
   "Inside (m)": "À l'intérieur (m)",
+  "Sampled for {el} (m)": "Analysé pour {el} (m)",
+  "Of the {inside} m inside, {s} m are sampled for {el} and {u} m have no {el} sample: there the shell is the estimate's reach, not a measured grade.": "Des {inside} m à l'intérieur, {s} m sont analysés pour {el} et {u} m n'ont pas d'échantillon de {el} : là, l'enveloppe est la portée de l'estimation, pas une teneur mesurée.",
   "Inside": "À l'intérieur",
   "Hole length (m)": "Longueur du sondage (m)",
   "A tangential intercept touches the surface and leaves at the same depth without entering it — a real contact point, but zero metres inside.": "Une intersection tangentielle touche la surface et la quitte à la même profondeur sans y entrer — un vrai point de contact, mais zéro mètre à l'intérieur.",
