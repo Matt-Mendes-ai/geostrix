@@ -10074,5 +10074,10 @@
   ", the same all the way down": "، وهي نفسها على طول الثقب",
   "{p}% of the scored cells sit at the lowest score ({v}): an evidence's membership is at its floor there and the operator keeps the floor. The top cells are only those no evidence vetoed, not the most favourable. Widen the 0 = points, or combine with OR / algebraic sum.": "{p}% من الخلايا المقيّمة عند أدنى درجة ({v}): عضوية دليل ما عند أرضيتها هناك والمؤثر يُبقي الأرضية. الخلايا العليا هي فقط التي لم يستبعدها أي دليل، لا الأفضل. وسّع نقاط 0 =، أو اجمع بـ OR / المجموع الجبري.",
   "Largest body only (in the shell)": "أكبر جسم فقط (في الغلاف)",
-  "A closed solid around the cells in this range (marching cubes on the model's grid), added to the generated surfaces: a grade shell, or a geophysical high or low, as a body to section, query and target.": "مجسم مغلق حول خلايا هذا المدى (المكعبات المتحركة على شبكة النموذج)، مضاف إلى الأسطح المولّدة: غلاف محتوى، أو مرتفع أو منخفض جيوفيزيائي، كجسم للقطع والاستعلام والاستهداف."
+  "A closed solid around the cells in this range (marching cubes on the model's grid), added to the generated surfaces: a grade shell, or a geophysical high or low, as a body to section, query and target.": "مجسم مغلق حول خلايا هذا المدى (المكعبات المتحركة على شبكة النموذج)، مضاف إلى الأسطح المولّدة: غلاف محتوى، أو مرتفع أو منخفض جيوفيزيائي، كجسم للقطع والاستعلام والاستهداف.",
+  "Designing bench {k} of about {n}: cancel": "تصميم المصطبة {k} من نحو {n}: إلغاء",
+  "Designing bench {k}: cancel": "تصميم المصطبة {k}: إلغاء",
+  "Pit area": "منطقة الحفرة",
+  "Only the blocks whose centre lies inside this closed design string are priced: one prospect of a model that covers several gets its own grid.": "لا تُسعَّر إلا الكتل التي يقع مركزها داخل خط التصميم المغلق هذا: يحصل أحد مواقع نموذج يغطي عدة مواقع على شبكته الخاصة.",
+  "No block of \"{model}\" lies inside \"{area}\".": "لا تقع أي كتلة من \"{model}\" داخل \"{area}\"."
 }
