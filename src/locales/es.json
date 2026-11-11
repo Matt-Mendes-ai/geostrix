@@ -9918,5 +9918,15 @@
   "{pct}% of the sampled metres of {el} are in samples longer than {len} m (length-weighted median {med} m): a composite shorter than its sample repeats the sample's grade, so the pairs inside one sample are identical{v}.": "El {pct}% de los metros muestreados de {el} está en muestras más largas que {len} m (mediana ponderada por longitud {med} m): un compósito más corto que su muestra repite la ley de la muestra, así que los pares dentro de una muestra son idénticos{v}.",
   " and the nugget is understated": " y el efecto pepita queda subestimado",
   " and the estimate looks smoother than the data": " y la estimación parece más suave que los datos",
-  "Use {m} m": "Usar {m} m"
+  "Use {m} m": "Usar {m} m",
+  "A density per code of a logged layer: each block takes the nearest logged interval within {r} m; the Density field is the default for the rest": "Una densidad por código de una capa registrada: cada bloque toma el intervalo registrado más cercano a menos de {r} m; el campo Densidad es el valor por defecto para el resto",
+  "Density by": "Densidad según",
+  "one value": "un valor",
+  "default": "por defecto",
+  "Density of {code} (t/m³)": "Densidad de {code} (t/m³)",
+  "Density by {layer}, the nearest logged interval within {r} m: {list}.": "Densidad según {layer}, el intervalo registrado más cercano a menos de {r} m: {list}.",
+  "{code} {rho} t/m³ ({n} blocks)": "{code} {rho} t/m³ ({n} bloques)",
+  "the default": "el valor por defecto",
+  "The bench table uses the one density above.": "La tabla por banco usa la densidad única de arriba.",
+  "Enter the default density to show the tonnes.": "Ingrese la densidad por defecto para mostrar las toneladas."
 }

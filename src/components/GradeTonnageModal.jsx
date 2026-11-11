@@ -18,6 +18,8 @@ import { useStore } from "../lib/store.jsx"; // TASKS.csv #1216
 import { isMeshClosed } from "../lib/meshQuery.js"; // TASKS.csv #2061
 import { version as APP_VERSION } from "../../package.json";
 import { gradeUnitLabel } from "../lib/geochem.js"; // TASKS.csv #2218
+import { nearestCodeLookup, densityByCode, intervalCodePoints } from "../lib/densityByCode.js"; // TASKS.csv #2550
+import { desurveyHole } from "../lib/desurvey.js"; // TASKS.csv #2550 — the code intervals placed in 3D
 
 const fmt = (v, d = 0) => (v == null || !Number.isFinite(v) ? "—" : v.toLocaleString(undefined, { maximumFractionDigits: d }));
 const sig = (v) => (v == null || !Number.isFinite(v) ? "—" : Number(v.toPrecision(3)).toLocaleString());
@@ -32,7 +34,7 @@ export default function GradeTonnageModal({ model, epsg, onClose }) {
   const unitL = element && unit ? gradeUnitLabel(element, unit) : unit; // TASKS.csv #2218 — the label (g/t for gold in ppm); unit stays for the sums and the CSV — kg and troy oz for a precious metal, t otherwise
   const [cutoffText, setCutoffText] = useState(() => autoCutoffs(model.cells, { element, unit }).join(", "));
   const [density, setDensity] = useState("");
-  const { layers, generatedSurfaces = [] } = useStore();
+  const { layers, generatedSurfaces = [], collars = [], survey = [], desurveyMethod } = useStore(); // collars / survey: #2550
   // TASKS.csv #1949 (Vulcan review) — the table inside a chosen closed solid, by block centre or by the share of each block inside
   // TASKS.csv #2061 (review #2013, Woodjam) — any watertight solid, as the Estimation dialog's 'Restrict to a modelled volume' takes: only Mine
   // Design solids carry closure 'closed', so an artificially closed grade shell (1.97 Mm³, watertight) was 'no closed solid in the project'
@@ -55,7 +57,38 @@ export default function GradeTonnageModal({ model, epsg, onClose }) {
   const cutoffs = useMemo(() => [...new Set(cutoffText.split(/[,;\s]+/).map(Number).filter(Number.isFinite))], [cutoffText]);
   const rho = Number(density) > 0 ? Number(density) : null;
   const beyondKnown = !!model.params?.beyondFlagged; // #2417 — blocks above / below every sample informing them
-  const rows = useMemo(() => gradeTonnageTable(cellsUsed, { cutoffs, density: rho, unit, interpolatedOnly: interpOnly, beyondKnown }), [cellsUsed, cutoffs, rho, unit, interpOnly, beyondKnown]);
+  // TASKS.csv #2550 (review #2486) — a density per code of a logged layer (Weathering: fresh rock about 2.7, clay-weathered 1.8-2.0), each block
+  // taking the nearest logged interval within reach; the Density above is the default (no code within reach, or no density typed)
+  const codeLayers = useMemo(() => ["weath", "litho", "alt"].filter((k) => (layers?.[k] || []).some((r) => r.value != null && String(r.value).trim() !== "")), [layers]);
+  const [densityLayer, setDensityLayer] = useState("");
+  const [codeDensity, setCodeDensity] = useState({});
+  const layerCodes = useMemo(() => (densityLayer ? [...new Set((layers?.[densityLayer] || []).map((r) => String(r.value ?? "").trim()).filter(Boolean))].sort().slice(0, 30) : []), [densityLayer, layers]);
+  const cellMax = useMemo(() => model.cells.reduce((m, c) => Math.max(m, c.dx || 0, c.dy || 0, c.dz || 0), 0), [model.cells]);
+  const reachM = Math.max(50, 3 * cellMax);
+  const codeOf = useMemo(() => {
+    if (!densityLayer) return null;
+    const byHole = new Map(collars.map((c) => [c.hole_id, c])), surveyBy = new Map();
+    for (const s of survey || []) { if (!surveyBy.has(s.hole_id)) surveyBy.set(s.hole_id, []); surveyBy.get(s.hole_id).push(s); }
+    const traces = new Map(), pts = [], step = Math.max(2, cellMax / 2 || 2);
+    for (const r of layers?.[densityLayer] || []) {
+      const code = String(r.value ?? "").trim(), f = Number(r.from), t = Number(r.to);
+      if (!code || !(t > f) || !byHole.has(r.hole_id)) continue;
+      if (!traces.has(r.hole_id)) traces.set(r.hole_id, desurveyHole(byHole.get(r.hole_id), surveyBy.get(r.hole_id) || [], desurveyMethod));
+      const tr0 = traces.get(r.hole_id);
+      if (!tr0?.length) continue;
+      for (const q of intervalCodePoints(tr0, f, t, code, step)) pts.push(q);
+    }
+    return nearestCodeLookup(pts, reachM);
+  }, [densityLayer, layers, collars, survey, desurveyMethod, cellMax, reachM]);
+  const byCode = useMemo(() => (codeOf ? densityByCode(codeOf, codeDensity, rho) : null), [codeOf, codeDensity, rho]);
+  // the blocks per density, for the line under the table (counted here, not inside the table's sums, so a cutoff change does not add up)
+  const densityUse = useMemo(() => {
+    if (!codeOf) return null;
+    const m = new Map();
+    for (const c of cellsUsed) { const code = codeOf(c), k = code != null && Number(codeDensity[code]) > 0 ? code : null; m.set(k, (m.get(k) || 0) + 1); }
+    return [...m.entries()].sort((x, y) => y[1] - x[1]).map(([code, n]) => ({ code, n, rho: code == null ? rho : Number(codeDensity[code]) }));
+  }, [codeOf, cellsUsed, codeDensity, rho]);
+  const rows = useMemo(() => gradeTonnageTable(cellsUsed, { cutoffs, density: rho, unit, interpolatedOnly: interpOnly, beyondKnown, densityOf: byCode?.of || null }), [cellsUsed, cutoffs, rho, unit, interpOnly, beyondKnown, byCode]);
   const benchCut = cutoffs.includes(Number(benchCutoff)) ? Number(benchCutoff) : cutoffs[0];
   const benchRows = useMemo(() => (byBench && Number(benchH) > 0 && benchCut != null ? gradeTonnageByBench(cellsUsed, { cutoff: benchCut, benchH: Number(benchH), datum: Number(benchDatum) || 0, density: rho, unit, interpolatedOnly: interpOnly }) : []), [byBench, benchH, benchDatum, benchCut, cellsUsed, rho, unit, interpOnly]); // #1957
   const shown = rows.find((r) => r.blocks > 0) || null, lowSupport = shown?.interpolatedShare != null && shown.interpolatedShare < 0.5;
@@ -99,8 +132,15 @@ export default function GradeTonnageModal({ model, epsg, onClose }) {
             <input value={cutoffText} onChange={(e) => setCutoffText(e.target.value)} style={{ ...inp, flex: 1 }} aria-label={tr("Cutoffs, separated by commas")} /></label>
           <label style={{ display: "flex", alignItems: "center", gap: 6 }}>{tr("Density (t/m³)")}
             <input type="number" min={0} step={0.01} value={density} placeholder={tr("required for tonnes")} onChange={(e) => { setDensity(e.target.value); setFromSg(false); }} style={{ ...inp, width: 120 }} /></label>
+          {codeLayers.length > 0 && <label style={{ display: "flex", alignItems: "center", gap: 6 }} title={tr("A density per code of a logged layer: each block takes the nearest logged interval within {r} m; the Density field is the default for the rest", { r: Math.round(reachM) })}>{tr("Density by")}{/* #2550 */}
+            <select value={densityLayer} onChange={(e) => setDensityLayer(e.target.value)} style={inp} aria-label={tr("Density by")}><option value="">{tr("one value")}</option>{codeLayers.map((k) => <option key={k} value={k}>{k === "weath" ? tr("Weathering") : k === "litho" ? tr("Lithology") : tr("Alteration")}</option>)}</select></label>}
           {sgLayer && <button type="button" style={{ ...inp, cursor: "pointer" }} title={tr("The length-weighted mean of the Specific gravity layer: {n} rows, {min} to {max}. One value for every block.", { n: sgLayer.n, min: sgLayer.min, max: sgLayer.max })} onClick={() => { setDensity(String(sgLayer.mean)); setFromSg(true); }}>{tr("Use the SG layer's mean ({v})", { v: sgLayer.mean })}</button>}
         </div>
+        {densityLayer && layerCodes.length > 0 && (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 12px", marginBottom: 8, fontSize: "var(--font-size-sm)" }}>{/* #2550 */}
+            {layerCodes.map((code) => <label key={code} style={{ display: "flex", alignItems: "center", gap: 4 }}>{code}<input type="number" min={0} step={0.01} value={codeDensity[code] ?? ""} placeholder={density || tr("default")} onChange={(e) => setCodeDensity((p) => ({ ...p, [code]: e.target.value }))} aria-label={tr("Density of {code} (t/m³)", { code })} style={{ ...inp, width: 70 }} /></label>)}
+          </div>
+        )}
         {/* TASKS.csv #1949 — inside a closed solid; #1957 — bench by bench */}
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", marginBottom: 8, fontSize: "var(--font-size-sm)" }}>
           <label style={{ display: "flex", alignItems: "center", gap: 6 }}>{tr("Inside the solid")}
@@ -147,6 +187,7 @@ export default function GradeTonnageModal({ model, epsg, onClose }) {
               {beyondKnown && <td style={td}>{r.beyondShare == null ? "—" : `${Math.round(r.beyondShare * 100)} %`}</td>}
             </tr>))}</tbody>
         </table>
+        {densityUse && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 6, lineHeight: 1.5 }}>{/* #2550 */}{tr("Density by {layer}, the nearest logged interval within {r} m: {list}.", { layer: densityLayer === "weath" ? tr("Weathering") : densityLayer === "litho" ? tr("Lithology") : tr("Alteration"), r: Math.round(reachM), list: densityUse.map((d) => tr("{code} {rho} t/m³ ({n} blocks)", { code: d.code ?? tr("the default"), rho: d.rho ?? "—", n: d.n })).join("; ") })}{byBench ? " " + tr("The bench table uses the one density above.") : ""}{!rho ? " " + tr("Enter the default density to show the tonnes.") : ""}</div>}
         {beyondKnown && shown?.beyondShare > 0.1 && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", marginBottom: 6, lineHeight: 1.5 }}>{tr("{p} % of the metal at the {c} cutoff is in blocks above or below every sample that informs them: the estimate carried grade up or down the holes past their samples (unsampled core reads as not known unless the estimate filled it).", { p: Math.round(shown.beyondShare * 100), c: sig(shown.cutoff) })}</div>}
         {hasSupport && <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", marginBottom: 6 }}><input type="checkbox" checked={interpOnly} onChange={(e) => setInterpOnly(e.target.checked)} />{tr("Only blocks classed interpolated")}</label>}
         {hasSupport && !interpOnly && lowSupport && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", marginBottom: 6, lineHeight: 1.5 }}>{tr("Most of this volume is in blocks the estimate carried outward from the holes (extrapolated or unsupported), not between them: the tonnage rests on grades the drilling does not surround.")}</div>}
