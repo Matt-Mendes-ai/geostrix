@@ -753,7 +753,7 @@ export default function GeochemModule() {
       oxideNotes.size ? tr("Oxide columns: {list}. A grade kept as its oxide is read, typed, priced and exported as the oxide; one stored as the element is in element wt%, and the diagrams convert either to oxides.", { list: [...oxideNotes].join(", ") }) : null, // #2487
     ].filter(Boolean).join(" ");
     import("../lib/dataQC.js").then(({ importCheckSummary }) => { const msg = importCheckSummary(rows, collars, store.survey, tr("assay rows")); if (msg) setNotices((p) => [...p, msg]); }).catch(() => {}); // TASKS.csv #1268
-    setNotices((p) => [...p, notice("Loaded {rows} {v} intervals ({chosen} elements).{v2}", { rows: rows.length, v: modal.isPxrf ? tr("pXRF") : tr("assay"), chosen: chosen.length, v2: extra ? " " + extra : "" })]);
+    setNotices((p) => [...p, notice(chosen.length === 1 ? "Loaded {rows} {v} intervals (1 element).{v2}" : "Loaded {rows} {v} intervals ({chosen} elements).{v2}", /* #2201 */ { rows: rows.length, v: modal.isPxrf ? tr("pXRF") : tr("assay"), chosen: chosen.length, v2: extra ? " " + extra : "" })]);
     setAssayModal(null);
   };
 
@@ -993,7 +993,7 @@ export default function GeochemModule() {
       noZ ? `${noZ} sample(s) have no elevation${zeroMissing ? ` (a 0 in the "${mapping.z}" column is read as no elevation)` : ""} — ${store.terrain ? "the 3D view places them on the terrain" : "with no terrain the 3D view draws them flat (at the highest collar on a project drilled from underground, else the median collar) until a terrain is loaded"}.` : null, // no terrain: #2264
       doReproject ? `Reprojected from EPSG:${fromEpsg} to the project's EPSG:${toEpsg}${reprojectFailed ? ` (${reprojectFailed} row(s) could not be converted and were skipped)` : ""}.` : null,
     ].filter(Boolean).join(" ");
-    setNotices((p) => [...p, notice("Loaded {rows} surface samples ({chosen} elements). Switch to 3D View to see them.{v}", { rows: rows.length, chosen: chosen.length, v: extra ? " " + extra : "" })]);
+    setNotices((p) => [...p, notice(chosen.length === 1 ? "Loaded {rows} surface samples (1 element). Switch to 3D View to see them.{v}" : "Loaded {rows} surface samples ({chosen} elements). Switch to 3D View to see them.{v}", /* #2201 */ { rows: rows.length, chosen: chosen.length, v: extra ? " " + extra : "" })]);
     setSurfaceModal(null);
   };
 
@@ -1210,7 +1210,7 @@ export default function GeochemModule() {
 
         <div className="ge-section-label">{tr("Assays & pXRF")}</div>
         <div style={{ fontSize: 11, color: "#65717e", margin: "10px 0 4px" }}>
-          {assays.length ? tr("{assays} intervals · {assayElements} elements", { assays: assays.length, assayElements: assayElements.length }) : tr("No assays loaded")}
+          {assays.length ? tr(assayElements.length === 1 ? "{assays} intervals · 1 element" : "{assays} intervals · {assayElements} elements", { assays: assays.length, assayElements: assayElements.length }) : tr("No assays loaded")}{/* #2201 — a singular / plural pair */}
         </div>
         {/* TASKS.csv #624 — remove what was imported: a whole file, one element, or everything (all undoable) */}
         {assays.length > 0 && <AssayRemovePanel assays={assays} assayElements={assayElements} setAssays={setAssays} setAssayElements={setAssayElements} setNotices={setNotices} colorElement={colorElement} setColorElement={setColorElement} />}

@@ -90,7 +90,7 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
         <div style={header}>
           <div>
             <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{tr(modal.isPxrf ? "Import pXRF: {fileName}" : "Import assays: {fileName}", { fileName: modal.fileName })}</div>
-            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("{v} · {elements} elements recognized", { v: modal.format === "long" ? tr("Long format (row per analyte)") : tr("Wide format (column per element)"), elements: modal.elements.length })}</div>
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr(modal.elements.length === 1 ? "{v} · 1 element recognized" : "{v} · {elements} elements recognized", { /* #2201 */ v: modal.format === "long" ? tr("Long format (row per analyte)") : tr("Wide format (column per element)"), elements: modal.elements.length })}</div>
             {(() => { const none = modal.format === "long" ? [] : modal.elements.filter((e) => e.n === 0); return none.length ? <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("Empty on every row, so left unticked: {list} ({n} columns).", { list: none.map((e) => e.symbol).join(", "), n: none.length })}</div> : null; })()}{/* TASKS.csv #1679 */}
           </div>
           <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onCancel} />
