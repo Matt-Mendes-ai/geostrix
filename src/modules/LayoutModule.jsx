@@ -10,6 +10,9 @@ import { hasComputerTemplates } from "../lib/desktop.js"; // TASKS.csv #1487
 import GenerateAtlasModal from "../components/GenerateAtlasModal.jsx";
 import { HOLE_TOKENS, SECTION_TOKENS } from "../lib/atlas.js"; // TASKS.csv #1777 — listed with the page's placeholders
 import { scaleBarLabel, scaleBarMidLabel } from "../lib/scaleBarLabel.js"; // TASKS.csv #2140
+import { offSheetPages, rectsPastSheet } from "../lib/layoutEdges.js"; // TASKS.csv #2482 / #2309
+import { fillPlaceholders } from "../lib/layoutText.js"; // TASKS.csv #2139
+import { collarGridName } from "../lib/gridName.js"; // TASKS.csv #2306
 import PatternSwatch from "../components/PatternSwatch.jsx"; // TASKS.csv #1995
 import { savePDF, saveFile, exportPDFData, canvasPngBytes, sendSectionResnap } from "../lib/desktop.js"; // saveFile / exportPDFData: TASKS.csv #909 Export PNG; canvasPngBytes: #1040; sendSectionResnap: #1485
 import { pdfOptions } from "../lib/pageFormats.js"; // TASKS.csv #511
@@ -65,7 +68,7 @@ const SCALE_BAR_PX = 180; // default/initial bar length (px) for a freshly-added
 const PX_PER_MM = 96 / 25.4; // matches the ~96dpi assumption used throughout Layout (scale bar, viewport scale estimate)
 const DEFAULT_PX_PER_METER = SCALE_BAR_PX / 100; // a plain "Add scale bar" starts at 100 m / 180 px, same as before this element gained a real px-per-metre ratio
 // TASKS.csv #907 — the plot scales exploration figures are drawn at (Matt: "set a scale eg 1:5000, 1:10000")
-const SCALE_PRESETS = [500, 1000, 2000, 2500, 5000, 10000, 20000, 25000, 50000, 100000, 250000, 500000, 1000000]; // 250k-1M: #2132 (a district fit read 'custom')
+const SCALE_PRESETS = [500, 1000, 1500, 2000, 2500, 5000, 10000, 15000, 20000, 25000, 50000, 100000, 150000, 200000, 250000, 500000, 1000000]; // 1,500 / 15,000 / 150,000 / 200,000: #2484 (Fit's round scales) // 250k-1M: #2132 (a district fit read 'custom')
 
 // "Customize the scale bar by changing the number, but without changing the scale — if I change 200
 // to 300 the SIZE of the bar has to change." A scale element now carries pxPerMeter: how many on-page
@@ -177,12 +180,17 @@ export default function LayoutModule() {
     handledPrintSeq = layoutPrintRequest.seq;
     // TASKS.csv #1481 (review #1352) — anything past the paper's edge was cut from the PDF / PNG in silence (a 73-row legend, an
     // arrow left outside after a switch to portrait): the page on screen is measured first, and the export asks
+    // TASKS.csv #2309 — an element's text counts too (the GN / TN / MN captions ran past the element's box); #1773 — the confirm names the
+    // kinds of element; #2482 — the other pages of a PDF are checked as well, from the elements' own boxes (only the open page is drawn)
     const pg = pageRef.current;
+    const past = [];
     if (pg) {
       const r = pg.getBoundingClientRect();
-      const off = [...pg.querySelectorAll("[data-el-id]")].filter((e) => { const b = e.getBoundingClientRect(); return b.width > 0 && (b.right > r.right + 1 || b.bottom > r.bottom + 1 || b.left < r.left - 1 || b.top < r.top - 1); }).length;
-      if (off && !window.confirm(tr("{n} element(s) on this page reach past its edge and will be cut off in the export. Export anyway?", { n: off }))) return;
+      const offEls = [...pg.querySelectorAll("[data-el-id]")].filter((e) => rectsPastSheet([e, ...e.querySelectorAll("text")].map((n) => n.getBoundingClientRect()), r));
+      if (offEls.length) past.push(tr("{n} on this page ({kinds})", { n: offEls.length, kinds: [...new Set(offEls.map((e) => elements.find((x) => x.id === e.getAttribute("data-el-id"))?.type || "element"))].join(", ") }));
     }
+    if (layoutPrintRequest.kind !== "png") for (const o of offSheetPages(layoutPages, activeLayoutPageId, (pp) => pagePx(pageFormatOf(pp)))) past.push(tr("{n} on {page} ({kinds})", { n: o.items.length, page: o.name, kinds: [...new Set(o.items.map((it) => it.type))].join(", ") }));
+    if (past.length && !window.confirm(tr("Elements reach past the sheet's edge and will be cut off in the export: {list}. Export anyway?", { list: past.join("; ") }))) return;
     // TASKS.csv #2471 — a legend whose viewport was refreshed after it was loaded, and whose rows were edited, still lists the old view
     const staleLegends = staleBoundLegends(layoutPages).length;
     if (staleLegends && !window.confirm(tr(staleLegends === 1 ? "{n} legend is out of step with its viewport: the viewport was refreshed after the legend was loaded, and the legend's rows were edited, so they were kept. Export anyway?" : "{n} legends are out of step with their viewports: each viewport was refreshed after its legend was loaded, and the legend's rows were edited, so they were kept. Export anyway?", { n: staleLegends }))) return;
@@ -488,7 +496,7 @@ export default function LayoutModule() {
     const um = (u0 + u1) / 2, vm = (v0 + v1) / 2; // the box's middle, back to world (the inverse of the rotation above)
     const centreWorld = { x: um * cb - vm * sb, y: -(um * sb + vm * cb) };
     const frameWm = (sel.w / 96) * 0.0254, frameHm = (sel.h / 96) * 0.0254;
-    const roundScaleFor = (U0, U1, V0, V1) => { const nd = Math.max(((U1 - U0) * 1.1) / frameWm, ((V1 - V0) * 1.1) / frameHm, 1); const mg = 10 ** Math.floor(Math.log10(nd)); return [1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10].map((m) => Math.round(m * mg)).find((n) => n >= nd); };
+    const roundScaleFor = (U0, U1, V0, V1) => { const nd = Math.max(((U1 - U0) * 1.1) / frameWm, ((V1 - V0) * 1.1) / frameHm, 1); const mg = 10 ** Math.floor(Math.log10(nd)); return [1, 1.5, 2, 2.5, 5, 10].map((m) => Math.round(m * mg)) /* #2484 — the Scale list's steps, so a fitted scale can be picked again by name */.find((n) => n >= nd); };
     const scale = roundScaleFor(u0, u1, v0, v1);
     // #2304 — the scale the drilled holes alone would take: the assumed ones widen the frame only when it is smaller
     let scaleDrilled = scale;
@@ -1935,12 +1943,12 @@ function ViewportControls({ steepHoles = false, legendReloaded = false, sel, the
       )}
       <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: gridOk ? "var(--color-text)" : "var(--color-text-muted)", marginBottom: 6, cursor: gridOk ? "pointer" : "default" }}
         title={gridOk ? tr("Draw labelled easting/northing lines over this view") : tr("Needs a top-down, true-scale capture: set the 3D view to Top, tick true scale, and refresh this viewport.")}>
-        <input type="checkbox" disabled={!gridOk} checked={!!sel.utmGrid && gridOk} onChange={(e) => updateSelected({ utmGrid: e.target.checked })} />{crsUnset ? tr("Coordinate grid (labelled)") /* #2300: local metres are not UTM */ : tr("UTM grid (labelled)")}{gridOk && sel.utmGrid && (
+        <input type="checkbox" disabled={!gridOk} checked={!!sel.utmGrid && gridOk} onChange={(e) => updateSelected({ utmGrid: e.target.checked })} />{tr("Coordinate grid (labelled)") /* #2300: local metres are not UTM; #2484: nor is MGA / any other projection: the caption names the grid */}{gridOk && sel.utmGrid && (
           <input type="number" min="1" step="any" placeholder={tr("auto")} value={sel.utmGridStep || ""} onChange={(e) => updateSelected({ utmGridStep: Number(e.target.value) || 0 })}
             aria-label={tr("Grid spacing (m)")} title={tr("Grid spacing in metres (blank = automatic)")} style={{ width: 60, marginLeft: "auto", fontSize: "var(--font-size-sm)" }} />
         )}
       </label>
-      {!gridOk && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: -4, marginBottom: 6 }}>{tr("A UTM grid needs a top-down, true-scale capture.")}</div>}
+      {!gridOk && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: -4, marginBottom: 6 }}>{tr("A coordinate grid needs a top-down, true-scale capture.") /* #2484 */}</div>}
       {gridOk && sel.utmGrid && sel.utmGridStep > 0 && (() => { // TASKS.csv #1488 — a spacing too tight to read is drawn wider, and said so
         const g = legibleGridStep(sel.utmGridStep, metresPerPagePx(sel));
         return g.bumped ? <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginTop: -4, marginBottom: 6, lineHeight: 1.4 }}>{tr("{typed} m would put the grid lines {mm} mm apart on paper at this scale, too close to read: drawn every {step} m.", { typed: sel.utmGridStep.toLocaleString(), mm: g.mm.toFixed(1), step: g.step.toLocaleString() })}</div> : null;
@@ -2139,8 +2147,9 @@ const PLACEHOLDER = /\{(project|date|page|pages|pagename|scale|crs|credits)\}/g;
 // TASKS.csv #947 — a map frame with a UTM grid never said which datum and zone: {crs} and the grid's caption print it
 // TASKS.csv #2300 (review #2174) — with the CRS not set, project.epsg is a placeholder (BC UTM 9N): the title block and grid caption named it on a
 // WA mine grid. Only a chosen CRS is named.
-function crsText(epsg, crsSet = true) {
-  if (crsSet === false) return tr("Local grid (no coordinate system set)");
+// TASKS.csv #2306 — gridName: a local grid's own name (the project's, else the collars' GRIDNAME), printed instead of nothing
+function crsText(epsg, crsSet = true, gridName = null) {
+  if (crsSet === false) return gridName ? tr("Local grid {name} (no coordinate system set)", { name: gridName }) : tr("Local grid (no coordinate system set)");
   if (!epsg) return "";
   const name = crsName(epsg);
   return name ? `${name} (EPSG:${epsg})` : `EPSG:${epsg}`;
@@ -2149,9 +2158,9 @@ function textContextFor(els, project, page, index, count, collars = null, credit
   const today = new Date(), p2 = (v) => String(v).padStart(2, "0"); // #1489 — ISO: '11/2/2026' read as 11 February to many readers
   // gridCaption (#2301): what a drill plan's grid numbers are
   const gridCaption = project?.crsSet === false ? (project?.localGrid?.name ? `local grid: ${project.localGrid.name}` : "local mine grid, no CRS") : project?.epsg ? `EPSG:${project.epsg}` : "";
-  return { gridCaption, project: project?.name || "", date: `${today.getFullYear()}-${p2(today.getMonth() + 1)}-${p2(today.getDate())}`, page: String(index + 1), pages: String(count), pagename: page?.name || "", scale: pageScaleText(els), crs: crsText(project?.epsg, project?.crsSet), credits, collars, els, pageH: pagePx(pageFormatOf(page)).h, pageW: pagePx(pageFormatOf(page)).w /* #2134 */ }; // collars: the #911 table; els: the #912 overview; pageH: #1480
+  return { gridCaption, project: project?.name || "", date: `${today.getFullYear()}-${p2(today.getMonth() + 1)}-${p2(today.getDate())}`, page: String(index + 1), pages: String(count), pagename: page?.name || "", scale: pageScaleText(els), crs: crsText(project?.epsg, project?.crsSet, project?.crsSet === false ? project?.localGrid?.name || collarGridName(collars) : null /* #2306 */), credits, collars, els, pageH: pagePx(pageFormatOf(page)).h, pageW: pagePx(pageFormatOf(page)).w /* #2134 */ }; // collars: the #911 table; els: the #912 overview; pageH: #1480
 }
-const fillText = (text, ctx) => (ctx && typeof text === "string" && text.includes("{") ? text.replace(PLACEHOLDER, (m, k) => (ctx[k] != null ? ctx[k] : m)) : text);
+const fillText = (text, ctx) => fillPlaceholders(text, ctx, PLACEHOLDER); // #2139 — an empty fill takes its separator with it
 
 function LayoutElement({ el, selected, multiSelected, onDown, print = false, onResizeStart, ctx = null, onSelect = null }) {
   // TASKS.csv #965 — reachable from the keyboard: Tab focuses an element and selects it, so the mm fields, arrow nudges
@@ -2387,7 +2396,7 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
           <tbody>
             {rows.map((r, i) => <tr key={i}>{r.map((v, j) => <td key={j} style={{ ...cell, textAlign: numeric[j] ? "right" : "left" }}>{v}</td>)}</tr>)}
             {!rows.length && <tr><td colSpan={Math.max(1, columns.length)} style={{ ...cell, color: "#777" }}>{el.source === "collars" ? (el.holeFilter ? tr("No hole id contains \"{f}\".", { f: el.holeFilter }) : tr("No collars in the project yet.")) : tr("No rows.")}</td></tr>}
-            {more > 0 && <tr><td colSpan={columns.length} style={{ ...cell, color: "#555", fontStyle: "italic" }}>{tr("… and {n} more hole(s), from row {r}: a table with that First row, or Continue on new pages", { n: more, r: nextRow })}</td></tr>}
+            {more > 0 && <tr><td colSpan={columns.length} style={{ ...cell, color: "#555", fontStyle: "italic" }}>{print ? tr("… {n} more hole(s), from row {r}", { n: more, r: nextRow }) /* #2480 — the editing hint is for the screen, not the paper */ : tr("… and {n} more hole(s), from row {r}: a table with that First row, or Continue on new pages", { n: more, r: nextRow })}</td></tr>}
           </tbody>
         </table>
         {surveyNote && <div style={{ fontSize: printPx(Math.max(5, (el.fontPt || printPt.small) - 1)), fontStyle: "italic", color: "#3a424c", marginTop: 4, lineHeight: 1.35, whiteSpace: "normal" }}>{surveyNote}</div>}

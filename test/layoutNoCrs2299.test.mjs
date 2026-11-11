@@ -6,9 +6,11 @@ import { readFileSync } from "node:fs";
 const s = readFileSync(new URL("../src/modules/LayoutModule.jsx", import.meta.url), "utf8");
 
 test("#2300 — {crs} and the grid caption say local grid; the checkbox is not 'UTM'", () => {
-  assert.ok(s.includes('function crsText(epsg, crsSet = true) {\n  if (crsSet === false) return tr("Local grid (no coordinate system set)");') || s.includes('function crsText(epsg, crsSet = true) {\r\n  if (crsSet === false) return tr("Local grid (no coordinate system set)");'));
-  assert.ok(s.includes("crs: crsText(project?.epsg, project?.crsSet),"));
-  assert.ok(s.includes('{crsUnset ? tr("Coordinate grid (labelled)")'));
+  // #2306 — the local grid is named when the project or the collars give its name
+  assert.ok(/function crsText\(epsg, crsSet = true, gridName = null\) \{\r?\n  if \(crsSet === false\) return gridName \? tr\("Local grid \{name\} \(no coordinate system set\)", \{ name: gridName \}\) : tr\("Local grid \(no coordinate system set\)"\);/.test(s));
+  assert.ok(s.includes("crs: crsText(project?.epsg, project?.crsSet, project?.crsSet === false ? project?.localGrid?.name || collarGridName(collars) : null"));
+  assert.ok(s.includes('{tr("Coordinate grid (labelled)")')); // #2484: on every project now, not only without a CRS
+  assert.ok(!s.includes('tr("UTM grid (labelled)")'));
   assert.ok(s.includes("<ViewportControls crsUnset={project?.crsSet === false}"));
 });
 

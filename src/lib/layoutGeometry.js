@@ -75,7 +75,10 @@ export function pageScaleText(els) {
   // #2606 — a true map scale before an oblique estimate: a drill plan, or a plan viewport, names the page's scale; an oblique view's
   // '~1 : 72,096 in the view plane' only when nothing else on the page has a scale
   const plan0 = list.find((e) => e.type === "drillplan" && Number(e.scale) > 0);
-  const v = list.find((e) => e.type === "viewport" && e.trueScale && e.capturedFixedScale > 0) || (plan0 ? null : list.find((e) => e.type === "viewport" && metresPerPagePx(e) && !obliqueCapture(e))) || (plan0 ? null : list.find((e) => e.type === "viewport" && metresPerPagePx(e)));
+  // TASKS.csv #2139 (review #2013) — a top-down fixed-scale map before an oblique fixed-scale view: the 1:500,000 oblique frame named the
+  // page's scale over the 1:50,000 plan beside it
+  const fixedTop = list.find((e) => e.type === "viewport" && e.trueScale && e.capturedFixedScale > 0 && !obliqueCapture(e));
+  const v = fixedTop || (plan0 ? null : list.find((e) => e.type === "viewport" && e.trueScale && e.capturedFixedScale > 0)) || (plan0 ? null : list.find((e) => e.type === "viewport" && metresPerPagePx(e) && !obliqueCapture(e))) || (plan0 ? null : list.find((e) => e.type === "viewport" && metresPerPagePx(e)));
   if (!v) {
     const sec = list.find(isSectionImage);
     if (sec) return sectionScaleText(sec);

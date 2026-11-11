@@ -12,13 +12,13 @@ export function defaultTitleBlockRows() {
     ["Title", ""],
     ["Company", ""],
     ["Project", "{project}"],
-    ["Claims / tenures", ""],
-    ["NTS / map sheet", ""],
+    ["Tenure / claims", ""], // #2306 — neutral labels (were BC's 'Claims / tenures', 'NTS / map sheet'); a saved block keeps its own
+    ["Map sheet", ""],
     ["Figure", ""],
     ["Drawn by", ""],
     ["Date", "{date}"],
     ["Scale", "{scale}"],
-    ["Datum / projection", "{crs}"],
+    ["Grid / coordinate system", "{crs}"], // #2306 — a local grid has no datum / projection; {crs} names it
     ["Page", "{page} of {pages}"],
   ];
 }
