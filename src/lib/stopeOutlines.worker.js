@@ -4,12 +4,13 @@ import { ceilingLookup } from "./pitCeiling.js";
 
 self.onmessage = (e) => {
   try {
-    const { columns: c, opts, ceiling } = e.data;
+    const { columns: c, opts, ceiling, ground } = e.data; // ground: #2438, a grid as the ceiling's
     const cells = new Array(c.value.length);
     for (let i = 0; i < cells.length; i++) cells[i] = { x: c.x[i], y: c.y[i], z: c.z[i], dx: c.dx[i], dy: c.dy[i], dz: c.dz[i], value: c.value[i], coverage: c.coverage[i] };
     const ceilingAt = ceiling ? ceilingLookup(ceiling.values, ceiling.frame) : null;
     let last = 0;
-    const r = stopeOutlines({ cells }, { ...opts, ceilingAt, onLevel: (k, n) => { const t = Date.now(); if (t - last > 150 || k === n) { last = t; self.postMessage({ level: k, levels: n }); } } });
+    const groundAt = ground ? ceilingLookup(ground.values, ground.frame) : null;
+    const r = stopeOutlines({ cells }, { ...opts, ceilingAt, groundAt, onLevel: (k, n) => { const t = Date.now(); if (t - last > 150 || k === n) { last = t; self.postMessage({ level: k, levels: n }); } } });
     self.postMessage({ result: r });
   } catch (err) {
     self.postMessage({ failed: String(err?.message || err) });
