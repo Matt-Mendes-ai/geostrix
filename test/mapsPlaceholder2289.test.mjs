@@ -20,7 +20,7 @@ test("#2290 A layer: no move into the placeholder", () => {
 test("#2292 Spectral index is gated like Satellite", () => {
   const r = read("src/modules/RasterModule.jsx");
   const i = r.indexOf("const openSpectral = async () => {");
-  assert.ok(i > 0 && r.slice(i, i + 600).includes("if (project?.crsSet === false) {") && r.slice(i, i + 600).includes("ensureProjectCrs(project"));
+  assert.ok(i > 0 && r.slice(i, i + 600).includes("if (project?.crsSet === false && !tieOf(project)) {") /* a tied grid fetches through its tie: #2648 */ && r.slice(i, i + 600).includes("ensureProjectCrs(project"));
 });
 
 test("#2289 the pane's picker does not open on the placeholder, and no picker pins it", () => {

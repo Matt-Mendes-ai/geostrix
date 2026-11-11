@@ -20,7 +20,9 @@ import { lastSummer } from "../lib/summerDates.js"; // TASKS.csv #2464 — the p
 
 const CUSTOM = "custom";
 
-export default function SpectralIndexModal({ epsg, defaultElevation, sourceEpsg, areaOptions = [], onImport, onClose }) {
+// tie (TASKS.csv #2648): a tied local grid (lib/localGridTie.js tieOf), epsg null: scenes are fetched in the tie's CRS and the index comes
+// into the grid through it (buildRasterImport's tie path, #2587)
+export default function SpectralIndexModal({ epsg, tie = null, defaultElevation, sourceEpsg, areaOptions = [], onImport, onClose }) {
   useEscapeKey(onClose);
   useFocusTrap();
   const fileInput = useRef(null);
@@ -108,7 +110,7 @@ export default function SpectralIndexModal({ epsg, defaultElevation, sourceEpsg,
     const byteFile = !fetchMode && reflective && (dnEnc === "byte" || (dnEnc === "auto" && bits === 8));
     const title = isCustom ? `Index ${expr}` : byteFile ? `${preset.label}, 8-bit values` : `${preset.label}, ${(fetchMode ? IMAGERY_SOURCES[source].label : SENSORS[sensorKey].label).split(" (")[0]}`; // fetched ASTER is radiance, not emissivity
     const { raster, msg } = await buildRasterImport(theFile, {
-      epsg, defaultElevation, sourceEpsg: fetchMode ? "" : sourceEpsg, name: `${title} — ${fetchMode ? `${scene.date} ${scene.id.split("_").slice(0, 2).join("_")}` : theFile.name}`,
+      epsg, tie, defaultElevation, sourceEpsg: fetchMode ? "" : sourceEpsg, name: `${title} — ${fetchMode ? `${scene.date} ${scene.id.split("_").slice(0, 2).join("_")}` : theFile.name}`,
       bandFn: (bands, isNoData) => {
         // #928 — a reflective file is converted to reflectance first (fetched scenes already are)
         if (!fetchMode && reflective) { encGuessed = dnEnc === "auto"; encUsed = encGuessed ? detectEncoding(Object.values(map).map((b) => bands[Number(b) - 1]).filter(Boolean), sensorKey, { bits }) : dnEnc; }
@@ -130,7 +132,7 @@ export default function SpectralIndexModal({ epsg, defaultElevation, sourceEpsg,
     try {
       if (fetchMode) {
         if (!scene) return;
-        const stack = await fetchSceneStack(scene, area.bboxLonLat, mapRoles, { onProgress: (d, n) => setProgress({ d, n }), targetEpsg: epsg });
+        const stack = await fetchSceneStack(scene, area.bboxLonLat, mapRoles, { onProgress: (d, n) => setProgress({ d, n }), targetEpsg: tie ? Number(tie.epsg) : epsg }); // tie: #2648
         await makeIndex(stack.file, Object.fromEntries(mapRoles.map((r) => [r, stack.mapping[r]])), activeSensor, stack.note, vegRoles.length > 0);
       } else {
         if (!file || unmapped.length) return;
@@ -154,7 +156,7 @@ export default function SpectralIndexModal({ epsg, defaultElevation, sourceEpsg,
         </div>
         <div style={{ padding: 16, overflowY: "auto", display: "flex", flexDirection: "column", gap: 12 }}>
           <div style={{ display: "flex", gap: 8 }}>{tab("fetch", tr("Fetch imagery"))}{tab("file", tr("Use a GeoTIFF file"))}{tab("hyper", tr("Hyperspectral (EMIT)"))}</div>
-          {mode === "hyper" ? <HyperspectralTab epsg={epsg} defaultElevation={defaultElevation} sourceEpsg={sourceEpsg} onImport={onImport} onClose={onClose} /> : (<>
+          {mode === "hyper" ? <HyperspectralTab epsg={epsg} tie={tie} defaultElevation={defaultElevation} sourceEpsg={sourceEpsg} onImport={onImport} onClose={onClose} /> : (<>
 
           {fetchMode ? (
             <div>

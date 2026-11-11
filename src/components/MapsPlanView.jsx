@@ -13,6 +13,8 @@ import { keyedCanvas } from "../lib/rasterKey.js";
 import { planDataExtent, planFarLayers } from "../lib/mapsPlan.js"; // planFarLayers: TASKS.csv #2125
 import { figureSamples, colourFromStops } from "../lib/sampleGrid.js"; // TASKS.csv #1622
 import { collarColourFields, perHoleAssay, collarColouring, declutterLabels } from "../lib/collarMapStyle.js"; // TASKS.csv #2459
+import HoleValueGridPanel from "./HoleValueGridPanel.jsx"; // TASKS.csv #2658
+import { holeValueSources, holeValueRows, perHoleValue } from "../lib/holeValueGrid.js"; // TASKS.csv #2658
 
 const imageCache = new Map(); // dataUrl (+ key colour) -> { img, ready }
 function cachedImage(url, keyColour, onReady) {
@@ -42,7 +44,7 @@ function hillshadeCanvas(t) {
 
 
 export default function MapsPlanView() {
-  const { rasters = [], terrain, mapLayers = [], boundaries = [], collars = [], surfaceSamples = [], assays = [], assayElements = [] } = useStore(); // assays: #2459
+  const { rasters = [], terrain, mapLayers = [], boundaries = [], collars = [], surfaceSamples = [], assays = [], assayElements = [], layers = {}, customLayers = [] } = useStore(); // assays: #2459; layers, customLayers: #2658
   const wrapRef = useRef(null), canvasRef = useRef(null), layerCache = useRef(new Map()), drag = useRef(null);
   const [size, setSize] = useState({ w: 800, h: 600 });
   const [view, setView] = useState(null); // { cx, cy, mPerPx }
@@ -68,8 +70,8 @@ export default function MapsPlanView() {
     if (!r) return null;
     const contours = boundaries.filter((b) => b.visible !== false && b.contourLevels?.length && (b.sourceRaster === r.id || (!b.sourceRaster && String(b.name || "").startsWith(`${r.name} contours`))));
     const levels = [...new Set(contours.flatMap((b) => b.contourLevels))].sort((a, b) => a - b);
-    return { r, pts: figureSamples(surfaceSamples, r.geochem), log: r.colourStyle?.stretch === "log", levels };
-  }, [rasters, boundaries, surfaceSamples]);
+    return { r, pts: r.geochem.source === "holes" ? holeFigurePoints(r.geochem, { collars, assays, assayElements, layers, customLayers }) : figureSamples(surfaceSamples, r.geochem), log: r.colourStyle?.stretch === "log", levels }; // holes: #2658
+  }, [rasters, boundaries, surfaceSamples, collars, assays, assayElements, layers, customLayers]);
 
   useEffect(() => {
     const el = wrapRef.current;
@@ -175,6 +177,7 @@ export default function MapsPlanView() {
             </select>
           </label>
           <label style={{ display: "flex", alignItems: "center", gap: 5 }}><input type="checkbox" checked={showIds} onChange={(e) => setShowIds(e.target.checked)} />{tr("Hole ids")}</label>
+          <HoleValueGridPanel /> {/* TASKS.csv #2658 */}
           {colouring && (
             <div aria-label={tr("Collar legend")} style={{ display: "flex", flexDirection: "column", gap: 2, fontSize: "var(--font-size-xs)", fontVariantNumeric: "tabular-nums", maxHeight: 220, overflowY: "auto" }}>
               {colouring.legend.map((l) => <span key={l.label} style={{ display: "flex", alignItems: "center", gap: 5 }}><span style={{ width: 9, height: 9, borderRadius: "50%", border: "1px solid #14181e", background: l.colour, flex: "0 0 auto" }} />{l.label}</span>)}
@@ -203,6 +206,17 @@ export default function MapsPlanView() {
   );
 }
 
+// TASKS.csv #2658 — a per-hole value grid's figure points: the collars with the value the grid was made from (recomputed: the project
+// file does not keep a second copy), [{ x, y, v }]
+function holeFigurePoints(g, ctx) {
+  const src = holeValueSources(ctx).find((s) => s.id === g.sourceId);
+  if (!src) return [];
+  const vals = perHoleValue(holeValueRows(src, ctx), src.symbol, g.stat, { threshold: g.threshold });
+  const out = [];
+  for (const c of ctx.collars || []) { const v = vals.get(c.hole_id); if (Number.isFinite(v) && Number.isFinite(c.x) && Number.isFinite(c.y)) out.push({ x: c.x, y: c.y, v }); }
+  return out;
+}
+
 // TASKS.csv #1622 — the figure's legend: the grid, how it was made, its colour scale in the unit, the samples and the contour levels
 const fmtV = (x) => (Math.abs(x) > 0 && Math.abs(x) < 0.01 ? Number(x.toPrecision(2)).toString() : Number(x.toPrecision(3)).toLocaleString());
 function FigureLegend({ f, chip }) {
@@ -220,7 +234,7 @@ function FigureLegend({ f, chip }) {
       </div>
       <span style={{ fontSize: "var(--font-size-xs)", display: "flex", alignItems: "center", gap: 5 }}>
         <span style={{ width: 9, height: 9, borderRadius: "50%", border: "1px solid #14181e", background: stops[Math.floor(stops.length / 2)].color, flex: "0 0 auto" }} />
-        {tr("{n} {el} samples{m}, on the grid's colour scale", { n: f.pts.length.toLocaleString(), el: g.symbol, m: g.medium ? tr(" ({medium})", { medium: g.medium }) : "" })}
+        {g.source === "holes" ? tr("{n} holes at their collars, on the grid's colour scale", { n: f.pts.length.toLocaleString() }) /* #2658 */ : tr("{n} {el} samples{m}, on the grid's colour scale", { n: f.pts.length.toLocaleString(), el: g.symbol, m: g.medium ? tr(" ({medium})", { medium: g.medium }) : "" })}
       </span>
       {f.levels.length > 0 && <span style={{ fontSize: "var(--font-size-xs)", display: "flex", alignItems: "center", gap: 5 }}><span style={{ width: 14, height: 0, borderTop: "2px solid #d62f2f", flex: "0 0 auto" }} />{tr("Contours: {levels} {unit}", { levels: f.levels.map(fmtV).join(", "), unit })}</span>}
     </div>

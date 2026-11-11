@@ -9,7 +9,7 @@ import { buildRasterImport } from "../lib/raster.js";
 import { FEATURES, parseWavelengths, wavelengthsFromGdalMetadata, featureBands, featureMap } from "../lib/hyperspectral.js";
 import { t as tr } from "../lib/i18n.js";
 
-export default function HyperspectralTab({ epsg, defaultElevation, sourceEpsg, onImport, onClose }) {
+export default function HyperspectralTab({ epsg, tie = null, defaultElevation, sourceEpsg, onImport, onClose }) { // tie: TASKS.csv #2648
   const fileInput = useRef(null), hdrInput = useRef(null);
   const [file, setFile] = useState(null); // { file, bands, width, height }
   const [wl, setWl] = useState(null); // nm per band, or null
@@ -57,7 +57,7 @@ export default function HyperspectralTab({ epsg, defaultElevation, sourceEpsg, o
       for (const kind of ["depth", "wavelength"].filter((k) => products[k])) {
         const what = kind === "depth" ? "depth" : "wavelength of the minimum (nm)";
         const { raster, msg } = await buildRasterImport(file.file, {
-          epsg, defaultElevation, sourceEpsg, samples: win, name: `${f.label.split(" (")[0]} ${what} — ${file.file.name}`,
+          epsg, tie, defaultElevation, sourceEpsg, samples: win, name: `${f.label.split(" (")[0]} ${what} — ${file.file.name}`,
           bandFn: (bands, isNoData) => { const r = featureMap(bands, wlSel, { isNoData, minDepth: md }); stats = r; return kind === "depth" ? r.depth : r.wavelength; },
         });
         made.push({ raster: { ...raster, spectralIndex: { hyperspectral: true, feature, product: kind, bands: win.length, window: [Math.round(wlSel[0]), Math.round(wlSel[wlSel.length - 1])], minDepth: md } }, msg });

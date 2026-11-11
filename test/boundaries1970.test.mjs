@@ -31,7 +31,7 @@ test("#1970 a tenure file gives one claim per feature with its attributes", asyn
   assert.deepEqual(claims.map((c) => [c.name, c.tenureNumber, c.expiryDate, c.polylines.length]), [["tenures RED 1", "1012345", "2027-12-31", 2], ["tenures 1012346", "1012346", "2028-03-05", 1]]);
   assert.equal(boundaryAreaHectares(claims[0].polylines), 0.75);
   assert.equal(claimsFromVector(r, "tenures", 1), null); // over the cap: one claim, said by the caller
-  assert.equal(claimsFromVector({ ...r, featureOf: [0, 0, 0] }, "one"), null); // one feature
+  assert.equal(claimsFromVector({ ...r, featureOf: [0, 0, 0] }, "one").length, 1); // one feature: one claim with its attributes since #2466 (was null)
   assert.equal(isoDateOf("not a date"), "");
 });
 
