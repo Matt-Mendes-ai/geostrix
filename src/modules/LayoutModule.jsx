@@ -1808,7 +1808,7 @@ function UtmGridOverlay({ el, crs = "" }) {
   const placed = lines.map((l) => {
     const [a, b] = l.seg.map(toPx);
     const lab = a[1] <= b[1] ? a : b; // label at the end nearer the top (or left) edge
-    return { a, b, x: Math.min(W - 2, Math.max(2, lab[0] + 2)), y: Math.min(H - 3, Math.max(9, lab[1] + 9)) };
+    return { a, b, x: Math.min(W - 2 - estW(l.label), Math.max(2, lab[0] + 2)) /* #2615 — inside the frame ('416,00' was cut) */, y: Math.min(H - 3, Math.max(9, lab[1] + 9)) };
   });
   const show = keepLabelsApart([{ x: 3, y: H - 3 - fpx, w: estW(gridNote), h: fpx }, ...placed.map((p, i) => ({ x: p.x, y: p.y - fpx, w: estW(lines[i].label), h: fpx }))]).slice(1);
   return (
@@ -2403,7 +2403,7 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
       columns = [tr("Hole"), tr("Easting"), tr("Northing"), tr("Elev. (m)"), tr("Azimuth (grid)") /* #1771 — GeoStrix keeps grid azimuths */, tr("Dip"), tr("Depth (m)")];
       const sl = collarTableSlice(cs, { firstRow: el.firstRow, maxRows: el.maxRows, filter: el.holeFilter }); // #1638
       const star = (v, fromSurvey) => (v !== "" && fromSurvey ? `${v}*` : v); // #1483 — from the first survey station; #1771 each value its own flag
-      rows = sl.rows.map((c) => [String(c.hole_id ?? ""), f(c.x, 0), f(c.y, 0), f(c.z, 1), Number.isFinite(c.azSurvey) ? `${f(c.azimuth, 0)}†` /* #2133 */ : star(f(c.azimuth, 0), c.azFromSurvey ?? c.orientFromSurvey), star(f(Number.isFinite(c.dip) ? -c.dip : "", 0), c.dipFromSurvey ?? c.orientFromSurvey) /* #1033 — negative = down, as imported */, f(c.length, 1)]);
+      rows = sl.rows.map((c) => [String(c.hole_id ?? ""), f(c.x, 0), f(c.y, 0), f(c.z, 1), Math.abs(Number(c.dip)) >= 89.5 ? "—" /* #2615 — a vertical hole has no azimuth ('344*  -90*') */ : Number.isFinite(c.azSurvey) ? `${f(c.azimuth, 0)}†` /* #2133 */ : star(f(c.azimuth, 0), c.azFromSurvey ?? c.orientFromSurvey), star(f(Number.isFinite(c.dip) ? -c.dip : "", 0), c.dipFromSurvey ?? c.orientFromSurvey) /* #1033 — negative = down, as imported */, f(c.length, 1)]);
       more = sl.after; head = sl.start > 0 || el.holeFilter ? tr("Rows {a}–{b} of {n}", { a: sl.total ? sl.start + 1 : 0, b: sl.end, n: sl.total }) + (el.holeFilter ? ` (${el.holeFilter})` : "") : null; nextRow = sl.end + 1;
       if (sl.rows.some((c) => c.orientFromSurvey)) surveyNote = tr("* From the shallowest survey station: the collar record has none for that value.");
       // #2133 — a collar azimuth that disagrees with the survey: the collar file's north reference, or a planned azimuth
