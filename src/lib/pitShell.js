@@ -58,7 +58,14 @@ export function metalAmountText(tonnesOrGrams, metalUnit, element, fmt) {
   return `${fmt(t)} t (${fmt(t * LB_PER_T)} lb)`;
 }
 // the element a block model holds: its estimate's parameters, else a symbol at the start of its name ("Cu estimate (idw2, 20m)")
-export const elementOfModel = (model) => model?.params?.element || (/^([A-Z][a-z]?)\b/.exec(String(model?.name || "")) || [])[1] || null;
+// TASKS.csv #2436 — a uranium oxide named inside a longer field ("Gamma: eU3O8_cased_ppm", a logged gamma grade) is that oxide, priced per lb U3O8
+const OXIDE_IN = /(?:^|[^A-Za-z0-9])(e?U3O8)(?![A-Za-z0-9])/i;
+export const elementOfModel = (model) => {
+  const el = model?.params?.element;
+  const ox = OXIDE_IN.exec(String(el || "")) || (!el ? OXIDE_IN.exec(String(model?.name || "")) : null);
+  if (ox) return /^e/i.test(ox[1]) ? "eU3O8" : "U3O8";
+  return el || (/^([A-Z][a-z]?)\b/.exec(String(model?.name || "")) || [])[1] || null;
+};
 // the units a price can be entered in, for a metal counted in grams or in tonnes (gradeTonnage.js metalOf)
 export const PRICE_UNITS = { g: [["oz", "$/oz"], ["g", "$/g"]], t: [["lb", "$/lb"], ["t", "$/t"]] };
 

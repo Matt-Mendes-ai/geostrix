@@ -17,6 +17,7 @@ import { saveFile } from "../lib/desktop.js";
 import { pBtn, smallSel } from "../lib/sidebarStyles.js";
 import { t as tr } from "../lib/i18n.js";
 import { stopeRuns, stopeIdsOnLevel, stopeStringIds } from "../lib/stopeRuns.js"; // TASKS.csv #1968
+import NotOfferedGrades from "./NotOfferedGrades.jsx"; // TASKS.csv #2436
 import { pitCeiling } from "../lib/pitCeiling.js"; // TASKS.csv #1964 (the lookup is built in the worker, #2279)
 
 const row = { display: "flex", alignItems: "center", gap: 6, justifyContent: "space-between", marginTop: 4, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" };
@@ -125,6 +126,7 @@ export default function StopesPane({ onAdd, onRemove, onClose, stopes = [], onSh
       <TaskPaneHeader title="Stope outlines" icon={Layers3} tone="model" onClose={onClose} />
       <div style={note}>{tr("A block model at a cut-off, level by level: columns at or above the cut-off, nothing thinner than the minimum mining width, a dilution skin, and each patch left is a stope outline and a solid over the level, with its tonnes and diluted grade. Outlines, not a stope optimizer: no geotechnical, access or sequencing check.")}</div>
       {!models.length && <div style={warn}>{tr("It needs a block model of grades. Estimate one (3D Modelling > Estimation) or import one.")}</div>}
+      <NotOfferedGrades voxelModels={voxelModels} />{/* TASKS.csv #2436 */}
       {models.length > 0 && (<>
         <label style={row}>{tr("Block model")}<select value={f.modelId} onChange={set("modelId")} style={{ ...smallSel, width: 0, flex: 1, minWidth: 0 }} aria-label={tr("Block model of the stopes")}>{models.map((m) => <option key={m.id ?? m.name} value={m.id ?? m.name}>{m.name}</option>)}</select></label>
         {field("cutoff", unit ? tr("Cut-off ({unit})", { unit }) : tr("Cut-off"))}

@@ -25,5 +25,7 @@ test("grade models still count", () => {
 test("the pane uses it and says why the project's models are not offered", () => {
   const p = readFileSync(new URL("../src/components/PitShellPane.jsx", import.meta.url), "utf8");
   assert.ok(p.includes("voxelModels.filter((m) => gradeCandidate(m, (x) => cat.has(x)))"));
-  assert.ok(p.includes("Not offered: {list}. Geophysical, categorical and estimation-quality models are not grades."));
+  // #2436 — the note moved to NotOfferedGrades.jsx, shown whenever a model is left out
+  assert.ok(p.includes("<NotOfferedGrades voxelModels={voxelModels} />"));
+  assert.ok(readFileSync(new URL("../src/components/NotOfferedGrades.jsx", import.meta.url), "utf8").includes("Not offered: {list}. Geophysical, categorical and estimation-quality models are not grades."));
 });

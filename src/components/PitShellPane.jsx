@@ -15,6 +15,7 @@ import { runPitShellAsync } from "../lib/pitShellClient.js";
 import { slopeName } from "../lib/pitWalls.js"; // TASKS.csv #2433
 import { pBtn, smallSel } from "../lib/sidebarStyles.js";
 import UndergroundOreNote from "./UndergroundOreNote.jsx"; // TASKS.csv #2277
+import NotOfferedGrades from "./NotOfferedGrades.jsx"; // TASKS.csv #2436
 import { t as tr } from "../lib/i18n.js";
 
 const row = { display: "flex", alignItems: "center", gap: 6, justifyContent: "space-between", marginTop: 4, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" };
@@ -183,9 +184,7 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove,
       <TaskPaneHeader title="Pit shell" icon={Pickaxe} tone="model" onClose={onClose} />
       <div style={note}>{tr("The pit that makes the most money at your prices and costs, solved exactly. It answers whether a body sits shallow enough for a pit. It has no discounting, ramps, berms or dilution, so it is not a mine plan, a Reserve or a Resource.")}</div>
       {!models.length && <div style={warn}>{tr("It needs a block model of grades. Estimate one (3D Modelling > Estimation) or import one.")}</div>}
-      {!models.length && voxelModels.length > 0 && ( // #1849 — why the project's models are not offered
-        <div style={note}>{tr("Not offered: {list}. Geophysical, categorical and estimation-quality models are not grades.", { list: voxelModels.slice(0, 4).map((m) => `${m.name}${m.property ? ` (${m.property})` : ""}`).join(", ") + (voxelModels.length > 4 ? ", …" : "") })}</div>
-      )}
+      <NotOfferedGrades voxelModels={voxelModels} />{/* #1849 — why the project's models are not offered; #2436 — whenever one is left out, with its unit */}
       {models.length > 0 && (<>
         <label style={row}>{tr("Block model")}<select value={modelId} onChange={(e) => setModelId(e.target.value)} style={{ ...smallSel, width: 0, flex: 1, minWidth: 0 }} aria-label={tr("Block model of the pit")}>
           {models.map((m) => <option key={m.id ?? m.name} value={m.id ?? m.name}>{m.name}</option>)}

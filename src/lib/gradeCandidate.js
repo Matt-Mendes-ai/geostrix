@@ -15,3 +15,19 @@ export function gradeCandidate(m, isCategorical = () => false) {
   if (PHYSICAL.test(text)) return false;
   return valueUnit(m) ? !!metalOf(valueUnit(m)) : true;
 }
+
+// TASKS.csv #2436 (review #2325, WA uranium) — the models a grade pane leaves out, with the reason, so a numeric model never goes missing
+// without a word: a gamma eU3O8 estimate whose unit was "as logged" was dropped from Pit shell and Stope outlines with no line at all.
+// -> { units: [{ name, unit }] (a unit that is not a grade's; "index" has its own note), other: [name] (physical, categorical, quality) }
+export function notOfferedGrades(voxelModels, isCategorical = () => false) {
+  const units = [], other = [];
+  for (const m of voxelModels || []) {
+    if (!m?.cells?.length || gradeCandidate(m, isCategorical)) continue;
+    const u = valueUnit(m);
+    if (u === "index") continue;
+    const text = `${m.name || ""} ${m.property || ""}`;
+    if (u && !metalOf(u) && !isCategorical(m) && !m.method && !PHYSICAL.test(text) && !/^(support-index|kriging-variance|geoml|simpeg|ubc)/.test(String(m.source || ""))) units.push({ name: m.name, unit: u });
+    else other.push(m.name);
+  }
+  return { units, other };
+}

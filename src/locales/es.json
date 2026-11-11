@@ -9971,5 +9971,6 @@
   "Hole type": "Tipo de sondaje",
   "e.g. as the collars: AC, RC, DD": "p. ej., como los collares: AC, RC, DD",
   "{p} % of this ore is in blocks above or below every sample that informs them: unsampled ground, neither barren nor ore. The strip ratio and the margin rest on it, so read them as not meaningful. Drilled metres with no sample can be estimated as barren: 3D Modelling › Estimation, \"Unsampled metres inside a sampled hole\".": "El {p} % de este mineral está en bloques por encima o por debajo de todas las muestras que los informan: terreno sin muestrear, ni estéril ni mineral. La razón estéril/mineral y el margen se apoyan en él, así que léalos como no significativos. Los metros perforados sin muestra pueden estimarse como estériles: Modelado 3D › Estimación, \"Metros sin muestrear dentro de un sondaje muestreado\".",
-  "{p} % of the ore is in blocks above or below every sample that informs them.": "El {p} % del mineral está en bloques por encima o por debajo de todas las muestras que los informan."
+  "{p} % of the ore is in blocks above or below every sample that informs them.": "El {p} % del mineral está en bloques por encima o por debajo de todas las muestras que los informan.",
+  "Not offered: {list}: its unit is not a grade unit. Set the unit of the layer it was estimated from (ppm, g/t, %) and estimate it again.": "No se ofrece: {list}: su unidad no es una unidad de ley. Defina la unidad de la capa a partir de la cual se estimó (ppm, g/t, %) y estímelo de nuevo."
 }

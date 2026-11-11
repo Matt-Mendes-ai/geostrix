@@ -9971,5 +9971,6 @@
   "Hole type": "Tipo de furo",
   "e.g. as the collars: AC, RC, DD": "ex.: como os colares: AC, RC, DD",
   "{p} % of this ore is in blocks above or below every sample that informs them: unsampled ground, neither barren nor ore. The strip ratio and the margin rest on it, so read them as not meaningful. Drilled metres with no sample can be estimated as barren: 3D Modelling › Estimation, \"Unsampled metres inside a sampled hole\".": "{p} % deste minério está em blocos acima ou abaixo de todas as amostras que os informam: terreno não amostrado, nem estéril nem minério. A relação estéril/minério e a margem dependem dele, então leia-as como não significativas. Os metros perfurados sem amostra podem ser estimados como estéreis: Modelagem 3D › Estimativa, \"Metros não amostrados dentro de um furo amostrado\".",
-  "{p} % of the ore is in blocks above or below every sample that informs them.": "{p} % do minério está em blocos acima ou abaixo de todas as amostras que os informam."
+  "{p} % of the ore is in blocks above or below every sample that informs them.": "{p} % do minério está em blocos acima ou abaixo de todas as amostras que os informam.",
+  "Not offered: {list}: its unit is not a grade unit. Set the unit of the layer it was estimated from (ppm, g/t, %) and estimate it again.": "Não oferecido: {list}: a unidade não é uma unidade de teor. Defina a unidade da camada a partir da qual foi estimado (ppm, g/t, %) e estime-o novamente."
 }
