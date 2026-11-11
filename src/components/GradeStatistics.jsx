@@ -44,6 +44,7 @@ import { customDomainOptions, isCategoricalLayer, domainIndex, domainAtMid, attr
 // standard unbiased estimator for RELIABILITY weights (denominator V1 - V2/V1, which reduces to the
 // familiar n-1 when every weight is 1, so the unweighted path is unchanged), and the quantiles are
 // cumulative-weight quantiles (the value at which half the sampled METRES sit below, not half the rows).
+const SHOWN_MAX = 200; // TASKS.csv #2508 — groups drawn and listed at once
 function computeStats(values, weights = null) {
   const n = values.length;
   if (!n) return null;
@@ -161,6 +162,8 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
   // TASKS.csv #267 — weighting only applies to drillhole assays (surface samples have no interval
   // length), and only when every row in the group actually has a usable length.
   const weightingActive = source === "assays" && lengthWeighted && rows.length > 0 && rows.every((r) => r.weight > 0);
+  // TASKS.csv #2508 (review #2486) — 'Hole + lithology' on 2,248 holes: 5,938 groups, a table row and a box plot each, froze the window 1.6-3.8 s.
+  // The table, the box plots and the probability plot show the first SHOWN_MAX groups (the largest, or the first holes by id); the CSV has all
   const groups = useMemo(() => {
     const byDomain = new Map();
     rows.forEach((r) => {
@@ -174,13 +177,14 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
       .sort(byHole ? (a, b) => String(a.key).localeCompare(String(b.key), undefined, { numeric: true }) : (a, b) => b.stats.n - a.stats.n); // #2029 — holes in id order
   }, [rows, weightingActive, byHole]);
 
+  const shownGroups = useMemo(() => groups.slice(0, SHOWN_MAX), [groups]); // #2508
   // TASKS.csv #1388 — the log-probability plot: each domain's points, and the cap candidates Compositing offers (the
   // length-weighted P97.5 and P99 of all the intervals) plus a cap to test, with what it would remove
   const [capTest, setCapTest] = useState("");
   const prob = useMemo(() => {
     const byDomain = new Map();
     rows.forEach((r) => { const k = r.domain == null ? "(unclassified)" : r.domain; if (!byDomain.has(k)) byDomain.set(k, []); byDomain.get(k).push(r); });
-    const series = groups.map((g) => { const rs = byDomain.get(g.key) || []; return { key: g.key, ...weightedProbPoints(rs.map((r) => r.value), weightingActive ? rs.map((r) => r.weight) : null) }; });
+    const series = groups.slice(0, SHOWN_MAX).map((g) => { /* #2508 — the plotted groups, as the table */ const rs = byDomain.get(g.key) || []; return { key: g.key, ...weightedProbPoints(rs.map((r) => r.value), weightingActive ? rs.map((r) => r.weight) : null) }; });
     const vs = rows.map((r) => r.value), ws = weightingActive ? rows.map((r) => r.weight) : null;
     return { series, vs, ws, p975: weightedPercentile(vs, ws, 97.5), p99: weightedPercentile(vs, ws, 99) };
   }, [rows, groups, weightingActive]);
@@ -313,7 +317,8 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
 
               <div>
                 <div style={label}>{tr("By domain — {groups} {v}", { groups: groups.length, v: tr(groups.length === 1 ? "group" : "groups") })}</div>
-                <BoxPlots groups={groups} domainLabel={domainLabel} logScale={logScale} unit={gradeUnitLabel(symbol, elementUnits[symbol])} />
+                <BoxPlots groups={shownGroups} domainLabel={domainLabel} logScale={logScale} unit={gradeUnitLabel(symbol, elementUnits[symbol])} />
+                {groups.length > SHOWN_MAX && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 4 }}>{tr("The {shown} largest of {n} groups are drawn and listed; {more} more are in the CSV export.", { shown: SHOWN_MAX, n: groups.length.toLocaleString(), more: (groups.length - SHOWN_MAX).toLocaleString() })}</div>}{/* #2508 */}
               </div>
 
               {/* TASKS.csv #1388 */}
@@ -338,7 +343,7 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
                     </tr>
                   </thead>
                   <tbody>
-                    {groups.map((g) => (
+                    {shownGroups.map((g) => ( /* #2508 */
                       <tr key={g.key}>
                         <td style={td}>{domainLabel(g.key)}</td>
                         <td style={td}>{g.stats.n}</td>

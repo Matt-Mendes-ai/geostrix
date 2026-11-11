@@ -55,7 +55,8 @@ export function correlationMatrix(cols, symbols, method, cache = new Map()) {
       if (Number.isNaN(x)) complete = false;
       vals[i] = x;
     }
-    p = { vals, complete, ranks: method === "spearman" && complete ? Float64Array.from(ranks(Array.from(vals))) : null };
+    // #2508 — with gaps, each element's rows are sorted once (order); a pair's ranks then come from one walk of that order (subsetRanks)
+    p = { vals, complete, ranks: method === "spearman" && complete ? Float64Array.from(ranks(Array.from(vals))) : null, order: method === "spearman" && !complete ? sortedOrder(vals) : null };
     cache.set(key, p);
     return p;
   };
@@ -71,9 +72,13 @@ export function correlationMatrix(cols, symbols, method, cache = new Map()) {
     } else if (method === "spearman" && pa.ranks && pb.ranks) {
       c = { r: pearsonPaired(pa.ranks, pb.ranks).r, n: pa.vals.length };
     } else if (method === "spearman") {
-      const xs = [], ys = [];
-      for (let i = 0; i < pa.vals.length; i++) if (!Number.isNaN(pa.vals[i]) && !Number.isNaN(pb.vals[i])) { xs.push(pa.vals[i]); ys.push(pb.vals[i]); }
-      c = { r: pearson(ranks(xs), ranks(ys)), n: xs.length };
+      // #2508 (review #2486: 644 ms a tick, 10.7 s for 30 ticks on 21,974 rows) — the rows both hold, ranked by walking each element's
+      // presorted order (O(n), ties averaged as ranks() does) instead of re-sorting both columns for every pair
+      const both = new Uint8Array(pa.vals.length);
+      for (let i = 0; i < both.length; i++) both[i] = Number.isNaN(pa.vals[i]) || Number.isNaN(pb.vals[i]) ? 0 : 1;
+      const ra = pa.order ? subsetRanks(pa.order, pa.vals, both) : subsetRanks(sortedOrder(pa.vals), pa.vals, both);
+      const rb = pb.order ? subsetRanks(pb.order, pb.vals, both) : subsetRanks(sortedOrder(pb.vals), pb.vals, both);
+      c = pearsonPaired(ra, rb);
     } else {
       c = pearsonPaired(pa.vals, pb.vals);
     }
@@ -92,6 +97,27 @@ export function correlationMatrix(cols, symbols, method, cache = new Map()) {
   return m;
 }
 
+// #2508 — the row indices holding a number, sorted by value (a typed-array sort of value-index pairs packed side by side)
+function sortedOrder(vals) {
+  const idx = [];
+  for (let i = 0; i < vals.length; i++) if (!Number.isNaN(vals[i])) idx.push(i);
+  const o = Int32Array.from(idx);
+  return o.sort((a, b) => vals[a] - vals[b] || a - b);
+}
+// ranks (1-based, ties averaged) of the rows with mask[i] = 1, walking a presorted order; NaN for the other rows
+function subsetRanks(order, vals, mask) {
+  const r = new Float64Array(vals.length).fill(NaN);
+  const sel = [];
+  for (let k = 0; k < order.length; k++) if (mask[order[k]]) sel.push(order[k]);
+  for (let i = 0; i < sel.length;) {
+    let j = i;
+    while (j + 1 < sel.length && vals[sel[j + 1]] === vals[sel[i]]) j++;
+    const avg = (i + j) / 2 + 1;
+    for (let k = i; k <= j; k++) r[sel[k]] = avg;
+    i = j + 1;
+  }
+  return r;
+}
 // Pearson over the rows where both columns hold a number (NaN = missing): { r, n }, as pearson() on the paired values
 function pearsonPaired(x, y) {
   let n = 0, sx = 0, sy = 0;

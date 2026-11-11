@@ -120,7 +120,12 @@ export default function CorrelationMatrix({ assays: assaysIn, assayElements: ass
             </label>}
           </div>
           <div>
-            <div style={label}>{tr("Elements ({symbols} of {allSymbols} selected)", { symbols: symbols.length, allSymbols: allSymbols.length })}</div>
+            <div style={{ ...label, display: "flex", alignItems: "center", gap: 8 }}>{tr("Elements ({symbols} of {allSymbols} selected)", { symbols: symbols.length, allSymbols: allSymbols.length })}
+              {/* #2508 — one click instead of 30 ticks */}
+              <button type="button" onClick={() => setSelected(new Set(allSymbols))} style={miniBtn}>{tr("All")}</button>
+              <button type="button" onClick={() => setSelected(new Set())} style={miniBtn}>{tr("None")}</button>
+              <button type="button" onClick={() => setSelected(new Set(correlationDefaults(allSymbols)))} style={miniBtn} title={tr("The commodity and alteration elements first, up to 12")}>{tr("Suggested suite")}</button>
+            </div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
               {allSymbols.map((s) => (
                 <label key={s} style={{ display: "flex", alignItems: "center", gap: 4, padding: "3px 8px", borderRadius: 5, background: selected.has(s) ? "var(--color-success-bg)" : "var(--color-bg-subtle)", border: `1px solid ${selected.has(s) ? "var(--color-success-border)" : "var(--color-border)"}`, fontSize: "var(--font-size-base)", color: selected.has(s) ? "var(--color-success-text)" : "var(--color-text-secondary)", cursor: "pointer" }}>
@@ -186,3 +191,4 @@ const rowHead = { padding: "4px 8px", color: "var(--color-text-secondary)", font
 // all of these, most acutely the null/near-zero-correlation cells. Dark text reads fine across the
 // whole range since nothing cellColor returns is actually dark.
 const cell = { width: 34, height: 24, textAlign: "center", color: "var(--color-text)", fontFamily: "'Exo 2', system-ui, sans-serif", fontWeight: 600 };
+const miniBtn = { padding: "1px 8px", fontSize: "var(--font-size-xs)", borderRadius: 4, border: "1px solid var(--color-border)", background: "var(--color-bg)", color: "var(--color-text-secondary)", cursor: "pointer" }; // #2508

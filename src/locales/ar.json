@@ -9865,5 +9865,8 @@
   "Exclude {n} sample(s) from plots and statistics": "استبعد {n} عينة من الرسوم والإحصاءات",
   "Include the {n} excluded sample(s) again": "أعد إدراج العينات المستبعدة الـ{n}",
   "{n} sample(s) excluded from plots and statistics.": "استُبعدت {n} عينة من الرسوم والإحصاءات.",
-  "{n} sample(s) included again.": "أعيد إدراج {n} عينة."
+  "{n} sample(s) included again.": "أعيد إدراج {n} عينة.",
+  "Suggested suite": "المجموعة المقترحة",
+  "The commodity and alteration elements first, up to 12": "عناصر الخام والتحول أولًا، حتى 12",
+  "The {shown} largest of {n} groups are drawn and listed; {more} more are in the CSV export.": "تُرسم وتُدرج أكبر {shown} من {n} مجموعة؛ و{more} أخرى في ملف CSV المُصدَّر."
 }

@@ -9865,5 +9865,8 @@
   "Exclude {n} sample(s) from plots and statistics": "Excluir {n} amostra(s) de gráficos e estatísticas",
   "Include the {n} excluded sample(s) again": "Incluir de novo a(s) {n} amostra(s) excluída(s)",
   "{n} sample(s) excluded from plots and statistics.": "{n} amostra(s) excluída(s) de gráficos e estatísticas.",
-  "{n} sample(s) included again.": "{n} amostra(s) incluída(s) de novo."
+  "{n} sample(s) included again.": "{n} amostra(s) incluída(s) de novo.",
+  "Suggested suite": "Conjunto sugerido",
+  "The commodity and alteration elements first, up to 12": "Primeiro os elementos do minério e de alteração, até 12",
+  "The {shown} largest of {n} groups are drawn and listed; {more} more are in the CSV export.": "Os {shown} maiores de {n} grupos são desenhados e listados; mais {more} estão na exportação CSV."
 }
