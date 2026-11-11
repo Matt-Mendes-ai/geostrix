@@ -354,8 +354,13 @@ export default function LayoutModule() {
     // TASKS.csv #1128 — a cross-section snapshot comes with its legend as a Layout element (movable, editable, bound to
     // the snapshot so "Sync" refreshes it), right of the image when it fits on the sheet, else below it
     const legends = additions.filter((a) => a.legendItems?.length).map((a) => {
-      const right = a.x + a.w + 16, fits = right + 170 <= A4.w;
-      return { id: `legend_${a.id}`, type: "legend", x: fits ? right : a.x, y: fits ? a.y : a.y + a.h + 16, items: groupSectionLegend(a.legendItems), boundViewportId: a.id };
+      const items = groupSectionLegend(a.legendItems);
+      // TASKS.csv #2612 (review #2486) — a strip log's legend went below a 958 px tall log, off the bottom of the sheet: right of the image when it
+      // fits there, else below it when that fits, else the page's free spot (its height from its rows, as the legend draws them)
+      const lh = Math.round(items.length * 14 + 24), right = a.x + a.w + 16;
+      const spot = right + 170 <= A4.w ? { x: right, y: a.y } : a.y + a.h + 16 + lh <= A4.h ? { x: a.x, y: a.y + a.h + 16 } : freeSpot(placedSoFar, 170, lh, A4);
+      placedSoFar.push({ ...spot, w: 170, h: lh });
+      return { id: `legend_${a.id}`, type: "legend", ...spot, items, boundViewportId: a.id };
     });
     if (!additions.length) return;
     // TASKS.csv #1870 (review #1646, Kodiak) — a section snapshot landed over the page's plan frame and its legend over the plan's legend when
