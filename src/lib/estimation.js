@@ -15,6 +15,7 @@
 // tool fits nugget / sill / range); TASKS.csv #709 adds ordinary kriging with it (method "ok", okEstimate below):
 // point kriging at the block centre with the nearest maxSamples composites, the kriging variance reported per block.
 import { blockReach, worldReach, verticalReach, gridShape } from "./blockReach.js"; // TASKS.csv #1416
+import { makePointIndex } from "./nearestIndex.js"; // TASKS.csv #2596
 import { MAX_BLOCKS, MAX_BLOCK_BUDGET, SUPPORT_COLORS, ESTIMATION_METHODS } from "./estimationMeta.js"; // #552; budget: #625
 export { MAX_BLOCKS, SUPPORT_COLORS, ESTIMATION_METHODS };
 import { pointOnTrace } from "./desurvey.js";
@@ -158,13 +159,25 @@ export function estimateBlockModel(samplePoints, opts) {
   // search and adds per-cell work, so it must never be paid for by a caller that didn't ask. `bracketTol`
   // is half a cell, so bracketing has to be real at the scale the block model is drawn at.
   const tw = tw0 || withTrend(samplePoints, opts); // #650
-  const est0 = makeCellEstimator(tw.pts, { ...estOpts, support: !!opts.support, bracketTol: Math.min(dx, dy, dz) / 2, zRange: true }); // zRange: #2417
+  const est0 = makeCellEstimator(tw.pts, { ...estOpts, support: !!opts.support, bracketTol: Math.min(dx, dy, dz) / 2, zRange: true, usedPoints: !!opts.unsampledPoints?.length }); // zRange: #2417; usedPoints: #2596
   const est = tw.q ? (x, y, z) => est0(...tw.q(x, y, z)) : est0;
   const wantSupport = !!opts.support;
   // TASKS.csv #2417 / #2542 — a block whose whole height lies above (1) or below (2) every sample informing it: the estimate carried
   // grade up or down the holes into metres no sample of them reaches (unsampled core, the top of selectively sampled aircore)
   const beyondOf = (r, cz) => (r.zHi == null ? 0 : cz - dz / 2 > r.zHi ? 1 : cz + dz / 2 < r.zLo ? 2 : 0);
   const beyondCounts = { above: 0, below: 0 };
+  // TASKS.csv #2596 (review #2486, WA lithium: a third of the pit-grade blocks) — opts.unsampledPoints: drilled metres with no sample of the
+  // element (points along the holes). A block is flagged when one of them is nearer to it than its nearest sample: the grade was carried
+  // across drilling that was never sampled (unknown, not barren). Real (unwarped) distances; off when no such points are given.
+  const unsIdx = opts.unsampledPoints?.length ? makePointIndex(opts.unsampledPoints, Math.max(5, 2 * Math.max(dx, dy, dz))) : null;
+  // the nearest sample is the nearest of those informing the block (real positions: wx under a trend), so no second search
+  const nearUnsampledOf = (r, cx, cy, cz) => {
+    if (!unsIdx || !r.used?.length) return 0;
+    let dS = Infinity;
+    for (const u of r.used) { const p = u.p, d = Math.hypot((p.wx ?? p.x) - cx, (p.wy ?? p.y) - cy, (p.wz ?? p.z) - cz); if (d < dS) dS = d; }
+    return unsIdx.anyWithin(cx, cy, cz, dS) ? 1 : 0;
+  };
+  let nearUnsampledBlocks = 0;
   // TASKS.csv #710 — under a trend the search distance is in the trend's scaled frame (30 m across the minor axis of
   // a 3:2:1 trend reads 90); the support index rightly uses it (how far inside the search ellipsoid), but the value
   // saved as nearestSampleM must be metres, from the sample's real position to the block centre.
@@ -180,6 +193,7 @@ export function estimateBlockModel(samplePoints, opts) {
     ...(wantSupport ? { support: new Uint8Array(cap).fill(255), supportIndex: new Float64Array(cap), nearestSampleM: new Float64Array(cap) } : {}),
     ...(method === "ok" ? { kv: new Float64Array(cap) } : {}), // #709 — kriging variance
     beyond: new Uint8Array(cap), // #2417
+    ...(opts.unsampledPoints?.length ? { nearUnsampled: new Uint8Array(cap) } : {}), // #2596
   } : null;
   let blocksSkipped = 0;
   let noCodeBlocks = 0; // TASKS.csv #2541 — left out because the nearest composite has no domain code
@@ -209,8 +223,11 @@ export function estimateBlockModel(samplePoints, opts) {
         }
         const by = beyondOf(r, cz); // #2417
         if (by === 1) beyondCounts.above++; else if (by === 2) beyondCounts.below++;
+        const nu = nearUnsampledOf(r, cx, cy, cz); // #2596
+        if (nu) nearUnsampledBlocks++;
         if (asColumns) {
           col.beyond[n] = by;
+          if (col.nearUnsampled) col.nearUnsampled[n] = nu; // #2596
           col.x[n] = cx; col.y[n] = cy; col.z[n] = cz; col.value[n] = r.value; col.nSamples[n] = r.nSamples; col.nHoles[n] = r.nHoles;
           col.holeShare[n] = r.nHoles === 1 ? 1 : r.domShare ?? NaN; // #1617 — the dominant hole's share, for the pit's single-hole count
           if (col.kv) col.kv[n] = r.kv ?? NaN;
@@ -222,6 +239,7 @@ export function estimateBlockModel(samplePoints, opts) {
         if (r.nHoles === 1) cell.holeShare = 1; else if (Number.isFinite(r.domShare)) cell.holeShare = r.domShare; // #1617
         if (r.kv != null) cell.kv = r.kv; // #709
         if (by) cell.beyond = by === 1 ? "above" : "below"; // #2417
+        if (nu) cell.nearUnsampled = true; // #2596
         if (r.support) {
           cell.support = r.support.cls;
           cell.supportIndex = r.support.index;
@@ -234,7 +252,7 @@ export function estimateBlockModel(samplePoints, opts) {
   }
   // #661 — trimmed to the blocks actually estimated (slice copies, so the spare capacity is freed with the originals)
   const columns = asColumns ? Object.fromEntries([["n", n], ["dx", dx], ["dy", dy], ["dz", dz], ...Object.entries(col).map(([k, a]) => [k, a.slice(0, n)])]) : null;
-  return { ...(asColumns ? { columns } : { cells }), blocksEstimated: asColumns ? n : cells.length, blocksSkipped, noCodeBlocks, singleHoleCells, dominatedCells, grid: { nx, ny, nz }, blocksInReach: mask ? reachInfo.reach : totalBlocks, supportCounts: wantSupport ? supportCounts : null, beyondCounts /* #2417 */, mlsCounts: method === "mls1" ? mlsCounts : null, ...(method === "ok" ? { okCounts, variogram } : {}) };
+  return { ...(asColumns ? { columns } : { cells }), ...(unsIdx ? { nearUnsampledBlocks } : {}) /* #2596 */, blocksEstimated: asColumns ? n : cells.length, blocksSkipped, noCodeBlocks, singleHoleCells, dominatedCells, grid: { nx, ny, nz }, blocksInReach: mask ? reachInfo.reach : totalBlocks, supportCounts: wantSupport ? supportCounts : null, beyondCounts /* #2417 */, mlsCounts: method === "mls1" ? mlsCounts : null, ...(method === "ok" ? { okCounts, variogram } : {}) };
 }
 
 // TASKS.csv #142 — the grid sizing + per-cell NN/IDW math shared by estimateBlockModel (sparse cell
@@ -547,6 +565,7 @@ function makeCellEstimator(samplePoints, opts = {}) {
     // TASKS.csv #2417 — the elevation range of the samples used (real elevations: wz under a trend), for the block's "above or
     // below every sample that informs it" flag
     if (opts.zRange) { let lo = Infinity, hi = -Infinity; for (const u of used) { const z = u.p.wz ?? u.p.z; if (z < lo) lo = z; if (z > hi) hi = z; } out.zLo = lo; out.zHi = hi; }
+    if (opts.usedPoints) out.used = used; // #2596 — the samples informing the block (their real positions), for the nearest-unsampled flag
     // TASKS.csv #676 — passing "min distinct holes" says nothing about how much the second hole counts: 1 m from hole A
     // with hole B 60 m away, B's eight samples carried 0.09 % of the IDW weight. The dominant hole's share of the
     // weight (the method's own distance weights; MLS uses IDW2's; NN and an exact hit are one sample) is reported.

@@ -12,12 +12,12 @@ export function byColumnsOf(model) {
 
 export function runPitShellAsync(model, inputs, terrain, onProgress, collars = null, byModel = null) { // collars: #1353 — the ground when there is no terrain; byModel: #1917
   const cells = (model.cells || []).filter((c) => voxelCellSupported(model, c)), n = cells.length;
-  const col = () => new Float64Array(n), columns = { x: col(), y: col(), z: col(), dx: col(), dy: col(), dz: col(), value: col(), coverage: col(), nHoles: new Uint16Array(n), holeShare: new Float32Array(n).fill(NaN) /* #1617 */, support: new Uint8Array(n), beyond: new Uint8Array(n) /* #2435 */ };
+  const col = () => new Float64Array(n), columns = { x: col(), y: col(), z: col(), dx: col(), dy: col(), dz: col(), value: col(), coverage: col(), nHoles: new Uint16Array(n), holeShare: new Float32Array(n).fill(NaN) /* #1617 */, support: new Uint8Array(n), beyond: new Uint8Array(n) /* #2435 */, nearUnsampled: new Uint8Array(n) /* #2596 */ };
   const SUP = { interpolated: 1, extrapolated: 2, unsupported: 3 }; // #1354
   cells.forEach((c, i) => {
     columns.x[i] = c.x; columns.y[i] = c.y; columns.z[i] = c.z; columns.dx[i] = c.dx; columns.dy[i] = c.dy; columns.dz[i] = c.dz; columns.value[i] = c.value;
     columns.coverage[i] = Number.isFinite(c.coverage) ? c.coverage : NaN;
-    columns.nHoles[i] = Number.isFinite(c.nHoles) ? c.nHoles : 0; if (Number.isFinite(c.holeShare)) columns.holeShare[i] = c.holeShare; columns.support[i] = SUP[c.support] || 0; columns.beyond[i] = c.beyond === "above" ? 1 : c.beyond === "below" ? 2 : 0; // #2435
+    columns.nHoles[i] = Number.isFinite(c.nHoles) ? c.nHoles : 0; if (Number.isFinite(c.holeShare)) columns.holeShare[i] = c.holeShare; columns.support[i] = SUP[c.support] || 0; columns.beyond[i] = c.beyond === "above" ? 1 : c.beyond === "below" ? 2 : 0; columns.nearUnsampled[i] = c.nearUnsampled ? 1 : 0; // #2435; #2596
   });
   let worker = null, settle = null;
   const promise = new Promise((resolve, reject) => {

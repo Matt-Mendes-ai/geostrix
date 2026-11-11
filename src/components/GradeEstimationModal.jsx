@@ -5,7 +5,7 @@ import { belowDrilling } from "../lib/belowDrilling.js"; // TASKS.csv #2546
 import { buildMeshQuery, isPointInsideMesh, isMeshClosed } from "../lib/meshQuery.js"; // TASKS.csv #517
 import { validateSolid } from "../lib/meshValidate.js"; // TASKS.csv #860
 import { X, Play } from "./icons.js";
-import { compositeDownhole, rawSampleIntervals, PRECIOUS_METALS, capAudit, lengthWeightedPercentile, gradeUnitLabel } from "../lib/geochem.js"; // gradeUnitLabel: #2218; // rawSampleIntervals: #571; lengthWeightedPercentile: #1573
+import { compositeDownhole, rawSampleIntervals, PRECIOUS_METALS, capAudit, lengthWeightedPercentile, gradeUnitLabel, resolvedSegments } from "../lib/geochem.js"; // gradeUnitLabel: #2218; // rawSampleIntervals: #571; lengthWeightedPercentile: #1573
 import CapAuditHint from "./CapAuditHint.jsx"; // TASKS.csv #533
 import EstimateCheck from "./EstimateCheck.jsx"; // TASKS.csv #1051
 import { excludeQAQC, labAssays } from "../lib/qaqc.js"; // TASKS.csv #266
@@ -13,6 +13,7 @@ import { samplePointsFromIntervals, MAX_BLOCKS, ESTIMATION_METHODS, SUPPORT_COLO
 import { BLOCK_MODEL_BUDGETS, MAX_BLOCK_MODEL_BUDGET, blockModelBudgetNote, cellToFit, blockModelLattice, snapBoundsToLattice, overlapBox } from "../lib/estimationMeta.js"; // TASKS.csv #626; block-model budgets: #661
 import { runEstimation } from "../lib/estimationClient.js"; // TASKS.csv #520 — off the UI thread
 import { makeReachClient } from "../lib/blockReachClient.js"; // TASKS.csv #1416; in a worker: #1579
+import { sampledByHole, unsampledDrillPoints } from "../lib/insideSampling.js"; // TASKS.csv #2596
 import { verticalReach } from "../lib/blockReach.js"; // TASKS.csv #2422 — a flat trend's vertical reach, as the estimator counts it
 import { desurveyHole } from "../lib/desurvey.js";
 import { gradeStops } from "../lib/inversion.js"; // TASKS.csv #702
@@ -455,6 +456,16 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
           if (nn.length) supportRef = Math.max(2 * nn[nn.length >> 1], 2 * Math.max(cell3.dx, cell3.dy, cell3.dz));
         }
         const ac = new AbortController(); abortRef.current = ac;
+        // TASKS.csv #2596 (review #2486, WA lithium) — every hole's drilled metres with no sample of this element (barren-filled metres count
+        // as sampled: #2417), so each block can be flagged when such a metre is nearer to it than its nearest sample
+        const unsPts = (() => {
+          const sampled = sampledByHole(resolvedSegments(runAssays, symbol, unit, elementUnits));
+          const byHole = new Map(); for (const sv of survey) { if (!byHole.has(sv.hole_id)) byHole.set(sv.hole_id, []); byHole.get(sv.hole_id).push(sv); }
+          const traces = collars.map((c) => { let pts = []; try { pts = desurveyHole(c, byHole.get(c.hole_id) || [], desurveyMethod) || []; } catch { pts = []; } return { hole_id: c.hole_id, pts }; });
+          const pad = Math.min(searchRadius > 0 ? searchRadius : gridDiagonal, 1000);
+          const step = Math.max(1, Math.min(useComposites ? compositeLength : 2, Math.min(cell3.dx, cell3.dy, cell3.dz) / 2));
+          return unsampledDrillPoints(traces, sampled, step, { xmin: bounds.xmin - pad, xmax: bounds.xmax + pad, ymin: bounds.ymin - pad, ymax: bounds.ymax + pad, zmin: bounds.zmin - pad, zmax: bounds.zmax + pad });
+        })();
         const est = await runEstimation("block", estPts, {
           bounds, cellSize: cell3, maxBlocks: blockBudget, // #626; cell3 / bounds: the matched lattice (#724)
           method, searchRadius: searchRadius > 0 ? searchRadius : gridDiagonal, minSamples, maxSamples, maxPerHole, // maxPerHole: #709
@@ -465,6 +476,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
           ...(supportRef > 0 ? { supportRef } : {}),             // #1411
           ...(method === "ok" ? { variogram: { model: vgModel, ...(vgNugget !== "" && vgSill !== "" && vgRange !== "" ? { nugget: Number(vgNugget), sill: Number(vgSill), range: Number(vgRange) } : {}) } } : {}), // #709
           ...(trend ? { trend: { basis: trendBasis(trend), scales: trendSearchScales(trend) } } : {}), // TASKS.csv #650 — ellipsoidal search
+          ...(unsPts.length ? { unsampledPoints: unsPts } : {}), // #2596
         }, { onProgress: (f) => setProgress(method === "nn" ? f : 0.8 * f), signal: ac.signal });
         // TASKS.csv #1051 — a nearest-neighbour model over the same grid, search, domains and trend (one sample per block,
         // so it is cheap): its mean over the same blocks is the declustered mean the estimate is checked against
@@ -491,6 +503,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
           unit, capUnit: cap != null ? unit : null, domain: domainChoice ? domainChoice.label : null, ...(domainRowsSel && Object.values(capByDomain).some((v) => Number(v) > 0) ? { capByDomain: Object.fromEntries(Object.entries(capByDomain).filter(([, v]) => Number(v) > 0).map(([k, v]) => [k, Number(v)])) } : {}), /* #1571 */ restrictToDomain: restrictToDomain && !!domainKey, noCodeAsDomain: restrictToDomain && !!domainKey && noCodeAsDomain /* #2541 */, // #2423: the #1571 note had commented these out of the record
           desurveyMethod: desurveyMethod || "minimum curvature", samplePoints: points.length, generatedAt: new Date().toISOString(),
           ...uns.params(filled), beyondFlagged: true, // #2417 / #2542 — the unsampled metres' reading; each block flagged above / below its samples
+          nearUnsampledFlagged: true, unsampledDrillPoints: unsPts.length, // #2596 — each block flagged when unsampled drilling is nearer than its nearest sample
           ...(source ? { source: `${source.label} (${sourceData.assays.length} readings, values as logged)`, valueTransform: logInfo ? `log10 (each block a geometric mean; ${logInfo.belowFloor} value(s) at or below zero floored at ${logInfo.floor})` : "none", ...(sourceData.pointRows ? { pointSupportM: sourceData.pointSupport } : {}) } : {}), // #1741
         };
         if (est.mlsCounts) params.mlsBlocks = est.mlsCounts; // #516 — how the linear trend was fitted
@@ -541,6 +554,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
         await new Promise((r) => setTimeout(r, 0)); // TASKS.csv #2547 — the checks after the worker answers run as separate tasks, so the window paints between them
         est.topUnsupported = topCompositesWithoutBlocks(points, est.cells, Math.max(cell3.dx, cell3.dy, cell3.dz)); // #2418: the real cell
         { let all = 0, out = 0; for (const c of est.cells) { const m = Math.max(0, c.value) * c.dx * c.dy * c.dz; all += m; if (c.beyond) out += m; } est.beyondShare = all > 0 ? out / all : 0; } // #2417 — metal share above / below every informing sample
+        { let all = 0, near = 0, nb = 0; for (const c of est.cells) { const m = Math.max(0, c.value) * c.dx * c.dy * c.dz; all += m; if (c.nearUnsampled) { near += m; nb++; } } est.nearUnsampledShare = all > 0 ? near / all : 0; est.nearUnsampledCount = nb; } // #2596 — the kept blocks
         await new Promise((r) => setTimeout(r, 0)); // #2547
         est.belowDrilling = belowDrilling(est.cells, points, Number(searchRadius) || 0); // TASKS.csv #2546
         setResult({ ...est, params, nnCells: method === "nn" ? est.cells : nnEst.cells, checkPoints: points, samplePointCount: points.length, noCodeComposites: domainKey ? points.filter((p) => p.domain == null).length : 0 /* #2541 */, droppedCount: dropped, clampedCount: clamped, beyondTraceCount: beyondTrace, rawStats, intervalCount: intervals.length });
@@ -926,6 +940,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
               )}
               {unsampledResultLine(result.params, symbol) && <div style={{ color: result.params.unsampledFilledM != null ? "var(--color-text-secondary)" : "var(--color-warn-text)" }}>{unsampledResultLine(result.params, symbol)}</div>}{/* #2417 */}
               {result.beyondShare > 0 && <div style={{ color: result.beyondShare > 0.1 ? "var(--color-warn-text)" : "var(--color-text-secondary)" }}>{tr("{p} % of the estimated metal is in blocks above or below every sample that informs them (Grade-tonnage gives it per cutoff).", { p: Math.round(result.beyondShare * 1000) / 10 })}</div>}{/* #2417 */}
+              {result.nearUnsampledShare > 0 && <div style={{ color: result.nearUnsampledShare > 0.1 ? "var(--color-warn-text)" : "var(--color-text-secondary)" }}>{tr("{p} % of the estimated metal ({n} blocks) is in blocks whose nearest drilling was never sampled for {el}: the grade was carried across unsampled core, which is unknown here, not barren (Unsampled metres inside a sampled hole reads it as barren).", { p: Math.round(result.nearUnsampledShare * 1000) / 10, n: result.nearUnsampledCount.toLocaleString(), el: symbol })}</div>}{/* #2596 */}
               {result.params?.supportScoredAgainstM > 0 && <div style={{ color: "var(--color-text-secondary)" }}>{tr("No search radius: data support was scored against {m} m (twice the median spacing between holes); a block farther than that from every sample, not between holes, is unsupported.", { m: result.params.supportScoredAgainstM.toLocaleString() })}</div>}{/* #1411 */}
               {result.params?.restrictedToVolume && <div style={{ color: "var(--color-text-secondary)" }}>{tr("Restricted to {v}.", { v: result.params.restrictedToVolume })}</div>}{/* #1410 */}
               {/* TASKS.csv #676 — passing the hole rule while one hole carries nearly all the weight */}
