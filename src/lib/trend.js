@@ -173,3 +173,11 @@ export function trendRatioText(anisotropy) {
   const k = Number(r.min), f = (v) => String(+(Number(v) / k).toPrecision(3));
   return `${f(r.max)}:${f(r.int)}:${f(r.min)}`;
 }
+
+// TASKS.csv #2676 (split from #2423) — the semi-axes of a search ellipsoid whose major semi-axis is the search radius:
+// [R, R * int / max, R * min / max] (Estimation's 'Along trend ... an ellipsoid of a × b × c m', modellingRuns' shell
+// searchEllipsoidM), so the Grade shell pane can print the same line. Rounded to 0.1 m.
+export function searchEllipsoidAxes(t, radius) {
+  const { max, int, min } = cleanTrend(t).ratios, r = Number(radius) || 0;
+  return [1, int / max, min / max].map((f) => Math.round(r * f * 10) / 10);
+}
