@@ -9538,6 +9538,8 @@
   "blank code": "رمز فارغ",
   "{col} is blank on {pct} % of the rows ({n} of {m}): those rows have no code and are skipped.": "العمود {col} فارغ في {pct} % من الصفوف ({n} من {m}): لا رمز لهذه الصفوف فتُتخطّى.",
   "Tick or add at least one element to import.": "حدّد عنصرًا واحدًا على الأقل أو أضفه للاستيراد.",
+  "Map the {cols} column(s) to import.": "حدّد العمود/الأعمدة {cols} للاستيراد.",
+  "Analyte": "المادة المحللة",
   "{name} is assay data: it is open in the Geochem assay import, which asks which columns are elements. Not assays? Cancel there and use + Add CSV layer in the 3D View's sidebar to import it as a layer of your own.": "{name} بيانات تحليل: فُتح في استيراد التحاليل في الجيوكيمياء، الذي يسأل أي الأعمدة عناصر. ليست تحاليل؟ ألغِ هناك واستخدم + إضافة طبقة CSV في الشريط الجانبي للعرض ثلاثي الأبعاد لاستيراده كطبقة خاصة بك.",
   "{n} lab repeat(s) kept as QC duplicates of their samples ({list}): QAQC > Duplicates pairs them.": "احتُفظ بـ {n} إعادة مخبرية كنسخ مكررة لضبط الجودة لعيّناتها ({list}): يقرنها QAQC > النسخ المكررة.",
   "Keep the lab repeats as QC duplicates ({list})": "الاحتفاظ بالإعادات المخبرية كنسخ مكررة لضبط الجودة ({list})",

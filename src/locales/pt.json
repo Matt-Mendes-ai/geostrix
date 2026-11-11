@@ -9538,6 +9538,8 @@
   "blank code": "código em branco",
   "{col} is blank on {pct} % of the rows ({n} of {m}): those rows have no code and are skipped.": "{col} está em branco em {pct} % das linhas ({n} de {m}): essas linhas não têm código e são ignoradas.",
   "Tick or add at least one element to import.": "Marque ou adicione ao menos um elemento para importar.",
+  "Map the {cols} column(s) to import.": "Associe a(s) coluna(s) {cols} para importar.",
+  "Analyte": "Analito",
   "{name} is assay data: it is open in the Geochem assay import, which asks which columns are elements. Not assays? Cancel there and use + Add CSV layer in the 3D View's sidebar to import it as a layer of your own.": "{name} são dados de análise: está aberto na importação de análises do Geoquímica, que pergunta quais colunas são elementos. Não são análises? Cancele lá e use + Adicionar camada CSV na barra lateral da Vista 3D para importá-lo como uma camada própria.",
   "{n} lab repeat(s) kept as QC duplicates of their samples ({list}): QAQC > Duplicates pairs them.": "{n} repetição(ões) de laboratório mantidas como duplicatas de controle das amostras ({list}): QAQC > Duplicatas as pareia.",
   "Keep the lab repeats as QC duplicates ({list})": "Manter as repetições de laboratório como duplicatas de controle ({list})",
