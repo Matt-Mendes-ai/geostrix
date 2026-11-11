@@ -96,6 +96,7 @@ import { lidarResultToProject, CLASS_NAMES } from "../lib/lidar.js"; // TASKS.cs
 import { fillNoData } from "../lib/demFill.js"; // TASKS.csv #1994
 import { offersGradeTonnage } from "../lib/gradeTonnage.js"; // TASKS.csv #1592
 import { collarsLookUnderground } from "../lib/pitShell.js"; // TASKS.csv #2263
+import { collarBenches, pickBenchGround, surfaceMisfit, BENCH_DZ_M, BENCH_R_M } from "../lib/collarBenches.js"; // TASKS.csv #2589
 import { projectTargetEpsg } from "../lib/projectTarget.js"; // TASKS.csv #2287 — no reprojection INTO the placeholder CRS
 import { pointsAlongOneLine, surveyLabel } from "../lib/rasterMethod.js"; // TASKS.csv #2557; surveyLabel: #2559
 const GradeTonnageModal = lazyModal(() => import("../components/GradeTonnageModal.jsx")); // TASKS.csv #1052 — loaded when opened
@@ -484,37 +485,54 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
   // are taken to be in the project CRS; a file whose X / Y all fit longitude / latitude is reprojected from WGS 84.
   const pointsTerrainInput = useRef(null);
   // TASKS.csv #1599 — the triangulation, the replace check and the report, shared by a points / contours file and the project's own samples and collars
-  const finishPointsTerrain = async ({ points, lines, what, name, sourceFile, reprojected }) => {
+  // misfitAt / benchNote (TASKS.csv #2589): the points the surface is measured against, and what was done where collars stack
+  const finishPointsTerrain = async ({ points, lines, what, name, sourceFile, reprojected, misfitAt = null, benchNote = "" }) => {
     const { terrainFromPointsAsync } = await import("../lib/terrainFromPoints.js");
     const t = await terrainFromPointsAsync({ points, lines }, { gridMax: terrainDetail }); // #986 — in a worker
     if (!confirmReplaceTerrain(terrain, name)) return; // #2554 — the shared question
     const replaced = replacedTerrainNote(terrain);
-    addTerrain({ name, bbox: t.bbox, gridW: t.gridW, gridH: t.gridH, elevations: t.elevations, noDataMask: t.noDataMask || null, source: { kind: "tin from points", file: sourceFile, points: t.stats.points, nodeM: t.stats.cellM } });
+    const built = { name, bbox: t.bbox, gridW: t.gridW, gridH: t.gridH, elevations: t.elevations, noDataMask: t.noDataMask || null, source: { kind: "tin from points", file: sourceFile, points: t.stats.points, nodeM: t.stats.cellM } };
+    addTerrain(built);
     let msg = replaced + tr("Built \"{name}\" from {what}: a triangulated surface of {tri} triangles sampled on a {gridW}×{gridH} grid (nodes ~{cell} m apart).", { name, what, tri: t.stats.triangles.toLocaleString(), gridW: t.gridW, gridH: t.gridH, cell: t.stats.cellM.toFixed(1) });
     if (reprojected) msg += " " + tr("The coordinates read as longitude / latitude and were reprojected from WGS 84 to the project's EPSG:{epsg}.", { epsg: project.epsg });
     if (t.stats.densifyCapped) msg += " " + tr("The contour lines were given a vertex every {m} m rather than every half node spacing ({h} m), to keep the triangulation to about four points per grid node.", { m: t.stats.densifyStepM.toFixed(1), h: t.stats.halfCellM.toFixed(1) }); // #986
     if (t.stats.longDropped) msg += " " + tr("{n} triangle(s) with an edge over {m} m were left out, so no ground is invented across gaps in the data.", { n: t.stats.longDropped, m: Math.round(t.stats.maxEdgeM) });
     if (lines.length && t.stats.flatPct >= 5) msg += " " + tr("{pct}% of the triangles are flat (all three corners on one contour): terraces on hilltops and valley floors, where contours alone do not say how the ground continues.", { pct: t.stats.flatPct.toFixed(0) });
     if (t.stats.filledCount) msg += " " + tr("{pct}% of the grid ({n} cells) lies outside the triangulated points and is left out of the 3D surface. The modelling tools, inversions and collar checks read no ground there (stations, collars or a flat ground stand in); only map layers draped on the terrain sit at the mean elevation {z} m.", { pct: t.stats.filledPct.toFixed(1), n: t.stats.filledCount.toLocaleString(), z: t.stats.fillValue.toFixed(0) });
+    if (benchNote) msg += " " + benchNote; // #2589
+    if (misfitAt?.length) { // #2589 — the surface against the collars it was built from
+      const m = surfaceMisfit(misfitAt, built, BENCH_DZ_M);
+      if (m.n) msg += " " + tr("Against the {n} collars it was built from: median {med} m off, worst {worst} m ({id}), {over} more than {lim} m off.", { n: m.n.toLocaleString(), med: m.median.toFixed(2), worst: (m.worst.dz > 0 ? "+" : "") + m.worst.dz.toFixed(1), id: m.worst.id ?? "?", over: m.over.toLocaleString(), lim: BENCH_DZ_M })
+        + (m.noGround ? " " + tr("{n} collar(s) lie where the surface has no ground.", { n: m.noGround.toLocaleString() }) : "");
+    }
     setTerrainError({ info: true, text: msg });
   };
   // TASKS.csv #1599 — a terrain from the elevations already in the project (offline): Lawyers' 4,520 lidar-elevated samples and 446 collars
   const projectZPoints = useMemo(() => {
-    const pick = (rows) => (rows || []).filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y) && Number.isFinite(p.z)).map((p) => ({ x: p.x, y: p.y, z: p.z }));
+    const pick = (rows) => (rows || []).filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y) && Number.isFinite(p.z)).map((p) => ({ x: p.x, y: p.y, z: p.z, ...(p.hole_id != null ? { hole_id: p.hole_id } : {}) })); // hole_id: #2589
     const s = pick(surfaceSamples), c = pick(collars), zeroMissing = zeroMeansMissing([...s, ...c].map((p) => p.z));
     const keep = (p) => !(zeroMissing && p.z === 0);
-    return { points: [...s, ...c].filter(keep), samples: s.filter(keep).length, collars: c.filter(keep).length };
+    return { points: [...s, ...c].filter(keep), samples: s.filter(keep).length, collars: c.filter(keep).length, samplePts: s.filter(keep), collarPts: c.filter(keep) }; // samplePts / collarPts: #2589
   }, [surfaceSamples, collars]);
+  // TASKS.csv #2589 — collars stacked at one spot at different RLs (pit benches of different dates): which ground the terrain takes
+  const benches = useMemo(() => collarBenches(projectZPoints.collarPts), [projectZPoints]);
+  const [benchMode, setBenchMode] = useState("all");
   const terrainFromProject = async () => {
     setTerrainError(null);
     setTerrainBusy(true);
     try {
-      const { points, samples, collars: nc } = projectZPoints;
+      const { samples, samplePts, collarPts } = projectZPoints;
+      const picked = pickBenchGround(collarPts, benches.n ? benchMode : "all"); // #2589
+      const points = [...samplePts, ...picked.points], nc = picked.points.length;
+      const benchNote = !benches.n ? ""
+        : benchMode === "lowest" ? tr("Where collars stack at one spot, the lowest was kept ({n} higher collar(s) left out): the surface is the latest pit floor there, not the original topography.", { n: picked.dropped.toLocaleString() })
+        : benchMode === "highest" ? tr("Where collars stack at one spot, the highest was kept ({n} lower collar(s) left out): the surface is the nearest to the original ground there, and the pit floor is not in it.", { n: picked.dropped.toLocaleString() })
+        : tr("{n} collars share a spot (within {r} m) with a collar {dz} m or more higher or lower, in {spots} place(s), up to {max} m apart: benches drilled at different dates? The surface through all of them is a mined surface there, not the topography; 'Where collars stack' can keep the lowest or the highest.", { n: benches.n.toLocaleString(), r: BENCH_R_M, dz: BENCH_DZ_M, spots: benches.spots.toLocaleString(), max: benches.maxDz.toFixed(1) });
       // TASKS.csv #2263 (review #2174) — collars drilled from underground levels make a surface through the mine, not the ground (a TIN at
       // RL 102-351 under a surface near 400): ask, and name it for what it is
       const ug = collarsLookUnderground(collars, survey);
       if (ug.underground && !window.confirm(tr("The collars look like underground collars ({upward} hole(s) drilled upward, {stacked} pair(s) of collars stacked over each other): a surface through them runs through the mine levels, not the ground.", { upward: ug.upward, stacked: ug.stacked }) + "\n\n" + tr("OK — build it anyway, named 'Surface through the collars'.") + "\n" + tr("Cancel — don't build it (import a DEM or fetch SRTM for the real ground)."))) return;
-      await finishPointsTerrain({ points, lines: [], what: tr("{s} surface sample(s) and {c} collar(s) of this project", { s: samples, c: nc }), name: ug.underground ? "Surface through the collars" : "Terrain from samples and collars", sourceFile: "project surface samples and collars", reprojected: false }); // name: #2263
+      await finishPointsTerrain({ points, lines: [], what: tr("{s} surface sample(s) and {c} collar(s) of this project", { s: samples, c: nc }), name: ug.underground ? "Surface through the collars" : "Terrain from samples and collars", sourceFile: "project surface samples and collars", reprojected: false, misfitAt: picked.points, benchNote }); // name: #2263; misfitAt, benchNote: #2589
     } catch (err) {
       setTerrainError({ info: false, text: err.message });
     } finally {
@@ -2094,6 +2112,16 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
             <Triangle size={14} /> {tr("Terrain from this project's samples and collars ({n})", { n: projectZPoints.points.length.toLocaleString() })}
           </button>
         )}{/* TASKS.csv #1599 */}
+        {projectZPoints.points.length >= 3 && benches.n > 0 && ( /* TASKS.csv #2589 */
+          <label style={{ display: "block", marginTop: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.4 }}>
+            {tr("Where collars stack ({n} collars share a spot with one {dz} m or more higher or lower, up to {max} m)", { n: benches.n.toLocaleString(), dz: BENCH_DZ_M, max: benches.maxDz.toFixed(1) })}
+            <select value={benchMode} onChange={(e) => setBenchMode(e.target.value)} style={{ ...numInput, width: "100%", marginTop: 3 }}>
+              <option value="all">{tr("Keep them all")}</option>
+              <option value="lowest">{tr("Keep the lowest (the latest pit floor)")}</option>
+              <option value="highest">{tr("Keep the highest (nearest the original ground)")}</option>
+            </select>
+          </label>
+        )}
         <input ref={pointsTerrainInput} type="file" accept=".csv,.txt,.xyz,.dxf" style={{ display: "none" }} onChange={(e) => { const f = e.target.files?.[0]; if (f) importPointsTerrain(f); e.target.value = ""; }} />
         <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 4 }}>{tr("\"Fetch terrain for this area\" opens a map to draw the exact area you want — pre-filled around your drillholes, or your terrain or map layers if there are none; pan or redraw to widen or shift it. Public elevation data from the online source chosen above, no account and no manual download needed.")}</div>
         {srtmPickerOpen && (
