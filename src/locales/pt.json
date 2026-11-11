@@ -10011,5 +10011,20 @@
   "Drillholes: elevation of the base of logged {layer}: {code}": "Furos: cota da base de {layer} registrado: {code}",
   "A second metal credited from its own block model, estimated on the same grid as the main one (the same cell size over the same area): Ag beside Au, Au beside Cu, Ta beside Li.": "Um segundo metal creditado a partir do seu próprio modelo de blocos, estimado na mesma grade que o principal (o mesmo tamanho de célula sobre a mesma área): Ag ao lado do Au, Au ao lado do Cu, Ta ao lado do Li.",
   "Cut-off: {g}": "Teor de corte: {g}",
-  "{p} % of the rock in this pit is outside the block model and counted as barren, and it is drilled: {n} sample(s) ({m} m) in {h} hole(s) lie there, {om} m in {oh} hole(s) at or above the cut-off{list}. Estimate a model that covers the pit before reading its waste and margin.": "{p} % da rocha desta cava está fora do modelo de blocos e é contada como estéril, e está perfurada: ali há {n} amostra(s) ({m} m) em {h} furo(s), {om} m em {oh} furo(s) no teor de corte ou acima{list}. Estime um modelo que cubra a cava antes de ler o estéril e a margem."
+  "{p} % of the rock in this pit is outside the block model and counted as barren, and it is drilled: {n} sample(s) ({m} m) in {h} hole(s) lie there, {om} m in {oh} hole(s) at or above the cut-off{list}. Estimate a model that covers the pit before reading its waste and margin.": "{p} % da rocha desta cava está fora do modelo de blocos e é contada como estéril, e está perfurada: ali há {n} amostra(s) ({m} m) em {h} furo(s), {om} m em {oh} furo(s) no teor de corte ou acima{list}. Estime um modelo que cubra a cava antes de ler o estéril e a margem.",
+  "No hole of the Weathering log reaches that code: choose the code of fresh rock.": "Nenhum furo do registro de intemperismo chega a esse código: escolha o código da rocha fresca.",
+  "The weathered zone needs a density and a thickness above 0.": "A zona intemperizada precisa de uma densidade e uma espessura maiores que 0.",
+  "Weathered zone (optional)": "Zona intemperizada (opcional)",
+  "Weathered zone": "Zona intemperizada",
+  "a thickness below the ground": "uma espessura abaixo do terreno",
+  "from the Weathering log": "a partir do registro de intemperismo",
+  "Weathered to (m below the ground)": "Intemperizado até (m abaixo do terreno)",
+  "Fresh rock is logged as": "A rocha fresca é registrada como",
+  "Code of fresh rock in the Weathering log": "Código da rocha fresca no registro de intemperismo",
+  "Its top in {n} of the {l} logged holes: {a}–{b} m below the collar (median {m}); between the holes it is interpolated. {w} hole(s) never reach it.": "Seu topo em {n} dos {l} furos registrados: {a}–{b} m abaixo do colar (mediana {m}); entre os furos é interpolado. {w} furo(s) nunca o alcançam.",
+  "Weathered density (t/m³)": "Densidade intemperizada (t/m³)",
+  "Every tonne above the base of the weathered zone, ore or waste, at this density.": "Cada tonelada acima da base da zona intemperizada, minério ou estéril, a esta densidade.",
+  "Of the rock, weathered": "Da rocha, intemperizada",
+  "{t} t at {d} t/m³": "{t} t a {d} t/m³",
+  ", weathered {w} t/m³": ", intemperizado {w} t/m³"
 }

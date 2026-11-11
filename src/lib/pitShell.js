@@ -328,12 +328,15 @@ export function wallAngles(dx, dy, dz, slopeDeg, levels = 32, sectorSlopes = nul
 // sum of its parts, so a coarser grid does not average ore into waste. -> { nx, ny, nz, x0, y0, z0, dx, dy, dz, ground, value, oreT, metalT, wasteT, outsideT, topAssumed }
 // TASKS.csv #1875 — `fixed`: another grid's geometry ({ nx, ny, nz, x0, y0, z0, dx, dy, dz, ground, topAssumed, coarsened }), so a
 // series of revenue factors shares one grid and its shells nest cell for cell (each RF's own box would start at a different corner)
-export function buildPitGrid(cells, { size = null, slopeDeg, sectorSlopes = null, density, wasteDensity = null, economics, miningCost, processingCost, groundAt = null, maxCells = 600000, fixed = null }) {
+export function buildPitGrid(cells, { size = null, slopeDeg, sectorSlopes = null, density, wasteDensity = null, weathered = null, economics, miningCost, processingCost, groundAt = null, maxCells = 600000, fixed = null }) {
   const good = cells.filter((c) => Number.isFinite(c.value) && c.dx > 0 && c.dy > 0 && c.dz > 0);
   if (!good.length) return null;
   // TASKS.csv #2437 (review #2325, WA uranium) — an optional WASTE density: the blocks below cut-off and the rock outside the model take it,
   // ore blocks keep `density`. Tonnes follow the volume, so a cell holds the ore at one density and the rest at the other.
   const wd = wasteDensity > 0 ? wasteDensity : density;
+  // TASKS.csv #2597 (review #2486, WA lithium) — an optional WEATHERED zone: weathered.depthAt(x, y) -> metres below the ground of its base (NaN:
+  // none there), weathered.density -> every tonne above that base, ore or waste, at that density (the weak, light cover over fresh rock)
+  const dW = weathered && weathered.density > 0 && typeof weathered.depthAt === "function" ? weathered.density : null;
   const med = (k) => good.map((c) => c[k]).sort((a, b) => a - b)[good.length >> 1];
   let dx = size || med("dx"), dy = size || med("dy"), dz = med("dz"); // a typed size is the plan cell; the bench stays the block height (#1854)
   const modelCell = med("dx"), askedSize = size || null;
@@ -379,6 +382,10 @@ export function buildPitGrid(cells, { size = null, slopeDeg, sectorSlopes = null
   const oreThin = new Float32Array(n), oreExtrap = new Float32Array(n); // #1354 — ore resting on one hole / classed extrapolated or unsupported
   const oreBeyond = new Float32Array(n); // TASKS.csv #2435 — ore in blocks the estimate flagged above or below every sample informing them (#2417)
   const rockV = new Float32Array(n), modelV = new Float32Array(n); // #2437 — volumes: the tonnes of a cell follow the density of each part
+  const rockW = new Float32Array(n); // #2597 — the weathered tonnes of each cell
+  const wBase = new Float64Array(nx * ny).fill(NaN); // #2597 — the elevation of the weathered zone's base per column
+  if (dW) for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) { const d = weathered.depthAt(x0 + (i + 0.5) * dx, y0 + (j + 0.5) * dy); if (Number.isFinite(d) && d > 0) wBase[j * nx + i] = ground[j * nx + i] - d; }
+  const wPart = (col, lo, hi) => { const b = wBase[col]; return Number.isFinite(b) && hi > lo ? Math.max(0, hi - Math.max(lo, b)) / (hi - lo) : 0; }; // the share of [lo, hi] in the weathered zone
   const at = (i, j, k) => k * nx * ny + j * nx + i;
   // every cell starts as barren rock below the ground
   for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
@@ -386,8 +393,8 @@ export function buildPitGrid(cells, { size = null, slopeDeg, sectorSlopes = null
     for (let k = 0; k < nz; k++) {
       const f = Math.min(1, Math.max(0, (g - (z0 + k * dz)) / dz));
       if (f <= 0) break;
-      const v = f * dx * dy * dz, t = v * wd, q = at(i, j, k);
-      rockT[q] = t; rockV[q] = v; value[q] = -t * miningCost;
+      const v = f * dx * dy * dz, zb = z0 + k * dz, fw = dW ? wPart(j * nx + i, zb, Math.min(zb + dz, g)) : 0, t = v * (fw * (dW || 0) + (1 - fw) * wd), q = at(i, j, k); // fw: #2597
+      rockT[q] = t; rockV[q] = v; rockW[q] = v * fw * (dW || 0); value[q] = -t * miningCost;
     }
   }
   // TASKS.csv #1616 — an estimate not clipped to the ground leaves blocks in the air; the ore-grade ones are counted so the
@@ -408,13 +415,14 @@ export function buildPitGrid(cells, { size = null, slopeDeg, sectorSlopes = null
       if (ox <= 0 || oy <= 0 || oz <= 0) continue;
       const v = Math.min(rockV[q] - modelV[q], ox * oy * oz * cover);
       if (v <= 0) continue;
-      const t = v * (ore ? density : wd); // #2437
-      modelV[q] += v; modelT[q] += t; rockT[q] += t - v * wd;
-      value[q] += v * wd * miningCost + t * margin; // it was counted as barren: take that back
+      const lo = Math.max(c.z - c.dz / 2, zb), fw = dW ? wPart(j * nx + i, lo, lo + oz) : 0; // #2597 — the block's part in the weathered zone
+      const barren = v * (fw * (dW || 0) + (1 - fw) * wd), t = v * (fw * (dW || 0) + (1 - fw) * (ore ? density : wd)); // #2437
+      modelV[q] += v; modelT[q] += t; rockT[q] += t - barren;
+      value[q] += barren * miningCost + t * margin; // it was counted as barren: take that back
       if (ore) { oreT[q] += t; metalU[q] += t * c.value; if (c.by > 0) metalU2[q] += t * c.by; if (oneHoleBlock(c)) oreThin[q] += t; /* #1617 */ if (c.support === "extrapolated" || c.support === "unsupported") oreExtrap[q] += t; if (c.beyond === "above" || c.beyond === "below") oreBeyond[q] += t; /* #2435 */ }
     }
   });
-  return { nx, ny, nz, x0, y0, z0, dx, dy, dz, ground, value, oreT, metalU, metalU2, rockT, modelT, oreThin, oreExtrap, oreBeyond, coarsened, topAssumed, oreAboveGroundT, oreAboveGroundBlocks, askedSize, modelCell, atModelBase: z0 <= modelBase + 1e-6 };
+  return { nx, ny, nz, x0, y0, z0, dx, dy, dz, ground, value, oreT, metalU, metalU2, rockT, modelT, oreThin, oreExtrap, oreBeyond, rockW /* #2597 */, weatheredDensity: dW, coarsened, topAssumed, oreAboveGroundT, oreAboveGroundBlocks, askedSize, modelCell, atModelBase: z0 <= modelBase + 1e-6 };
 }
 
 // ---------- the solve ----------
@@ -503,15 +511,15 @@ export function solvePit(grid, slopeDeg, { onProgress = null, sectorSlopes = nul
 // ---------- what comes out ----------
 // totals inside the pit; metal in the block values' own grade x tonnes (mean grade = metalU / oreT)
 export function pitSummary(grid, mined) {
-  let oreT = 0, rockT = 0, metalU = 0, metalU2 = 0, modelT = 0, money = 0, blocks = 0, thin = 0, extrap = 0, beyond = 0;
+  let oreT = 0, rockT = 0, metalU = 0, metalU2 = 0, modelT = 0, money = 0, blocks = 0, thin = 0, extrap = 0, beyond = 0, weath = 0;
   for (let q = 0; q < mined.length; q++) {
     if (!mined[q]) continue;
     blocks++; oreT += grid.oreT[q]; rockT += grid.rockT[q]; metalU += grid.metalU[q]; metalU2 += grid.metalU2?.[q] || 0; modelT += grid.modelT[q]; money += grid.value[q];
-    thin += grid.oreThin?.[q] || 0; extrap += grid.oreExtrap?.[q] || 0; beyond += grid.oreBeyond?.[q] || 0;
+    thin += grid.oreThin?.[q] || 0; extrap += grid.oreExtrap?.[q] || 0; beyond += grid.oreBeyond?.[q] || 0; weath += grid.rockW?.[q] || 0;
   }
   const wasteT = rockT - oreT;
   return { blocks, oreT, wasteT, rockT, stripRatio: oreT > 0 ? wasteT / oreT : null, meanGrade: oreT > 0 ? metalU / oreT : null, metalU, metalU2, meanGrade2: oreT > 0 ? metalU2 / oreT : null /* #1917 */, money, barrenShare: rockT > 0 ? 1 - modelT / rockT : 0,
-    oreSingleHoleShare: oreT > 0 ? thin / oreT : 0, oreExtrapolatedShare: oreT > 0 ? extrap / oreT : 0, oreBeyondSampleShare: oreT > 0 ? beyond / oreT : 0 }; // #1354; beyond: #2435
+    oreSingleHoleShare: oreT > 0 ? thin / oreT : 0, oreExtrapolatedShare: oreT > 0 ? extrap / oreT : 0, oreBeyondSampleShare: oreT > 0 ? beyond / oreT : 0, weatheredT: weath }; // #1354; beyond: #2435; weatheredT: #2597
 }
 
 // The pit as a surface over column centres: the floor of each mined column, the ground elsewhere, drawn only where it touches
@@ -598,6 +606,15 @@ export function pitParts(grid, mined) {
   return { pits, blocksDeep: pits.reduce((m, p) => Math.max(m, p.blocksDeep), 0), drawnWalls };
 }
 
+// TASKS.csv #2597 — the weathered zone of the pit's inputs: { density, thicknessM } (a depth below the ground everywhere) or { density, points:
+// [{ x, y, depth }] } (the base logged in each hole, interpolated between the 4 nearest as the collar ground is). -> { depthAt, density } | null
+export function weatheredOf(w) {
+  if (!w || !(w.density > 0)) return null;
+  if (w.thicknessM > 0) return { density: w.density, depthAt: () => w.thicknessM };
+  const pts = (w.points || []).filter((p) => [p.x, p.y, p.depth].every(Number.isFinite)).map((p) => ({ x: p.x, y: p.y, z: p.depth }));
+  const at = pts.length ? collarGround(pts) : null;
+  return at ? { density: w.density, depthAt: at } : null;
+}
 // the whole run, for the worker and the tests. inputs: { cells, unit, price, priceUnit, recovery, miningCost, processingCost, density, slopeDeg, revenueFactor, size }; ground as for buildPitGrid
 export function runPitShell(inputs, { groundAt = null, collars = null, onProgress = null } = {}) {
   const economics = pitEconomics(inputs);
@@ -611,7 +628,7 @@ export function runPitShell(inputs, { groundAt = null, collars = null, onProgres
   if (!groundAt && collars?.length) { const ug = collarsLookUnderground(collars); if (ug.underground) return { failed: "underground", underground: ug }; }
   const fromCollars = !groundAt ? collarGround(collars) : null; // #1353
   const fromModel = !groundAt && !fromCollars ? modelTopGround(cells) : null; // #1850 — the model's own column tops, never one flat plane
-  const grid = buildPitGrid(cells, { size: inputs.size, slopeDeg: inputs.slopeDeg, sectorSlopes: inputs.sectorSlopes, density: inputs.density, wasteDensity: inputs.wasteDensity, economics, miningCost: inputs.miningCost, processingCost: inputs.processingCost, groundAt: groundAt || fromCollars || fromModel });
+  const grid = buildPitGrid(cells, { size: inputs.size, slopeDeg: inputs.slopeDeg, sectorSlopes: inputs.sectorSlopes, density: inputs.density, wasteDensity: inputs.wasteDensity, weathered: weatheredOf(inputs.weathered) /* #2597 */, economics, miningCost: inputs.miningCost, processingCost: inputs.processingCost, groundAt: groundAt || fromCollars || fromModel });
   if (!grid) return { failed: "no-cells" };
   if (grid.empty) return { empty: true, cutoff: economics.cutoff, cell: [] };
   const groundSource = groundAt ? "terrain" : fromCollars ? "collars" : "model top";
@@ -649,19 +666,19 @@ export function runPitSeries(inputs, rfs, { groundAt = null, collars = null, rat
   const fromCollars = !groundAt ? collarGround(collars) : null, ground = groundAt || fromCollars || modelTopGround(cells); // model top: #1850
   const eco = (rf) => pitEconomics({ ...inputs, revenueFactor: rf });
   const topRf = list[list.length - 1];
-  const top = buildPitGrid(cells, { size: inputs.size, slopeDeg: inputs.slopeDeg, sectorSlopes: inputs.sectorSlopes, density: inputs.density, wasteDensity: inputs.wasteDensity, economics: eco(topRf), miningCost: inputs.miningCost, processingCost: inputs.processingCost, groundAt: ground });
+  const top = buildPitGrid(cells, { size: inputs.size, slopeDeg: inputs.slopeDeg, sectorSlopes: inputs.sectorSlopes, density: inputs.density, wasteDensity: inputs.wasteDensity, weathered: weatheredOf(inputs.weathered) /* #2597 */, economics: eco(topRf), miningCost: inputs.miningCost, processingCost: inputs.processingCost, groundAt: ground });
   if (!top) return { failed: "no-cells" };
   if (top.empty) return { empty: true, cutoff: base.cutoff };
   const fixed = { nx: top.nx, ny: top.ny, nz: top.nz, x0: top.x0, y0: top.y0, z0: top.z0, dx: top.dx, dy: top.dy, dz: top.dz, ground: top.ground, topAssumed: top.topAssumed, coarsened: top.coarsened };
   // every shell is reported and valued on the ENTERED price's grid: its ore / waste decisions and cash per cell (#1609)
-  const baseGrid = topRf === 1 ? top : buildPitGrid(cells, { size: inputs.size, slopeDeg: inputs.slopeDeg, density: inputs.density, wasteDensity: inputs.wasteDensity, economics: base, miningCost: inputs.miningCost, processingCost: inputs.processingCost, groundAt: ground, fixed });
+  const baseGrid = topRf === 1 ? top : buildPitGrid(cells, { size: inputs.size, slopeDeg: inputs.slopeDeg, density: inputs.density, wasteDensity: inputs.wasteDensity, weathered: weatheredOf(inputs.weathered) /* #2597 */, economics: base, miningCost: inputs.miningCost, processingCost: inputs.processingCost, groundAt: ground, fixed });
   const N = top.nx * top.ny * top.nz, slab = top.nx * top.ny;
   const runs = [], order = []; // order: every mined cell once, in the order it is mined: pushback by pushback, top bench first
   const cellRock = [], cellCash = [], cellOre = [], when = new Int32Array(N).fill(-1);
   const discount = Number.isFinite(discountPct) ? discountPct / 100 : null;
   list.forEach((rf, idx) => {
     const e = eco(rf);
-    const grid = rf === topRf ? top : buildPitGrid(cells, { size: inputs.size, slopeDeg: inputs.slopeDeg, density: inputs.density, wasteDensity: inputs.wasteDensity, economics: e, miningCost: inputs.miningCost, processingCost: inputs.processingCost, groundAt: ground, fixed });
+    const grid = rf === topRf ? top : buildPitGrid(cells, { size: inputs.size, slopeDeg: inputs.slopeDeg, density: inputs.density, wasteDensity: inputs.wasteDensity, weathered: weatheredOf(inputs.weathered) /* #2597 */, economics: e, miningCost: inputs.miningCost, processingCost: inputs.processingCost, groundAt: ground, fixed });
     if (!grid || grid.empty) { runs.push({ rf, cutoff: e.cutoff, blocks: 0, oreT: 0, wasteT: 0, rockT: 0, metalU: 0, meanGrade: null, money: 0, moneyBase: 0, stripRatio: null, maxDepth: 0, pushbackCells: 0, pushbackRockT: 0, positions: null, indices: null }); return; }
     const solve = solvePit(grid, inputs.slopeDeg, { onProgress: (phases) => onProgress?.({ idx, of: list.length, rf, phases }), sectorSlopes: inputs.sectorSlopes }); // #1881
     const summary = pitSummary(baseGrid, solve.mined), moneyBase = summary.money; // tonnes, grade and value at the entered price

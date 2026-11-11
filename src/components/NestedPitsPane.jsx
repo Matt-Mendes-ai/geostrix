@@ -19,6 +19,8 @@ import { saveFile } from "../lib/desktop.js";
 import { pBtn, smallSel } from "../lib/sidebarStyles.js";
 import UndergroundOreNote from "./UndergroundOreNote.jsx"; // TASKS.csv #2277
 import { t as tr } from "../lib/i18n.js";
+import { weatheredBasePoints } from "../lib/weatheredZone.js"; // TASKS.csv #2597
+import { holeTraces } from "../lib/evidenceSources.js";
 
 const row = { display: "flex", alignItems: "center", gap: 6, justifyContent: "space-between", marginTop: 4, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" };
 const note = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 };
@@ -45,7 +47,7 @@ export function droppedFactors(text) {
 
 // surfaces: the generated surfaces (the last pit shell's inputs are the defaults); onAdd / onToggle / onRemove as the pit pane's
 export default function NestedPitsPane({ surfaces = [], onAdd, onToggle, onRemove, onClose }) {
-  const { voxelModels = [], terrain, collars = [], project } = useStore();
+  const { voxelModels = [], terrain, collars = [], project, layers, survey = [], desurveyMethod } = useStore(); // layers..desurveyMethod: #2597
   const models = useMemo(() => { const cat = new Set(categoricalModels(voxelModels)); return voxelModels.filter((m) => gradeCandidate(m, (x) => cat.has(x))); }, [voxelModels]);
   // TASKS.csv #1971 — the shell whose inputs the series takes: picked, the latest by default (a shell of a series is not an inputs' source)
   const pitChoices = useMemo(() => surfaces.filter((s) => s.type === "pit_shell" && s.params?.inputs && !s.params?.seriesId), [surfaces]);
@@ -75,7 +77,7 @@ export default function NestedPitsPane({ surfaces = [], onAdd, onToggle, onRemov
     setBusy({ idx: 0, of: factors.length }); setMsg(null);
     const t0 = performance.now();
     try {
-      job.current = runPitSeriesAsync(model, { ...inputs, unit, element }, factors, { rate, discountPct: Number.isFinite(discount) ? discount : null, terrain, collars, byModel /* #1917 */, onProgress: (p) => setBusy(p) });
+      job.current = runPitSeriesAsync(model, { ...inputs, unit, element, ...(inputs.weathered?.freshCode ? { weathered: { ...inputs.weathered, points: weatheredBasePoints(layers?.weath || [], holeTraces(collars, survey, desurveyMethod), inputs.weathered.freshCode).points } } : {}) /* #2597 — the shell's weathered zone, rebuilt from the log */ }, factors, { rate, discountPct: Number.isFinite(discount) ? discount : null, terrain, collars, byModel /* #1917 */, onProgress: (p) => setBusy(p) });
       const r = await job.current.promise;
       if (r.cancelled) { setMsg(tr("Cancelled: nothing was added.")); return; }
       if (r.failed === "underground") { setMsg(tr("The collars look like underground drill positions ({upward} hole(s) drilled upward, {stacked} pair(s) of collars stacked over each other): no ground surface is known, so no pit is cut from them. Load a terrain (Maps > Terrain) for the real surface.", { upward: r.underground?.upward ?? 0, stacked: r.underground?.stacked ?? 0 })); return; } // #2276

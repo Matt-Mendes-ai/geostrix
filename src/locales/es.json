@@ -10011,5 +10011,20 @@
   "Drillholes: elevation of the base of logged {layer}: {code}": "Sondajes: cota de la base de {layer} registrado: {code}",
   "A second metal credited from its own block model, estimated on the same grid as the main one (the same cell size over the same area): Ag beside Au, Au beside Cu, Ta beside Li.": "Un segundo metal acreditado desde su propio modelo de bloques, estimado en la misma grilla que el principal (el mismo tamaño de celda sobre la misma área): Ag junto al Au, Au junto al Cu, Ta junto al Li.",
   "Cut-off: {g}": "Ley de corte: {g}",
-  "{p} % of the rock in this pit is outside the block model and counted as barren, and it is drilled: {n} sample(s) ({m} m) in {h} hole(s) lie there, {om} m in {oh} hole(s) at or above the cut-off{list}. Estimate a model that covers the pit before reading its waste and margin.": "El {p} % de la roca de este rajo está fuera del modelo de bloques y se cuenta como estéril, y está perforada: allí hay {n} muestra(s) ({m} m) en {h} sondaje(s), {om} m en {oh} sondaje(s) en o sobre la ley de corte{list}. Estime un modelo que cubra el rajo antes de leer su estéril y su margen."
+  "{p} % of the rock in this pit is outside the block model and counted as barren, and it is drilled: {n} sample(s) ({m} m) in {h} hole(s) lie there, {om} m in {oh} hole(s) at or above the cut-off{list}. Estimate a model that covers the pit before reading its waste and margin.": "El {p} % de la roca de este rajo está fuera del modelo de bloques y se cuenta como estéril, y está perforada: allí hay {n} muestra(s) ({m} m) en {h} sondaje(s), {om} m en {oh} sondaje(s) en o sobre la ley de corte{list}. Estime un modelo que cubra el rajo antes de leer su estéril y su margen.",
+  "No hole of the Weathering log reaches that code: choose the code of fresh rock.": "Ningún sondaje del registro de meteorización llega a ese código: elija el código de la roca fresca.",
+  "The weathered zone needs a density and a thickness above 0.": "La zona meteorizada necesita una densidad y un espesor mayores que 0.",
+  "Weathered zone (optional)": "Zona meteorizada (opcional)",
+  "Weathered zone": "Zona meteorizada",
+  "a thickness below the ground": "un espesor bajo el terreno",
+  "from the Weathering log": "desde el registro de meteorización",
+  "Weathered to (m below the ground)": "Meteorizado hasta (m bajo el terreno)",
+  "Fresh rock is logged as": "La roca fresca se registra como",
+  "Code of fresh rock in the Weathering log": "Código de la roca fresca en el registro de meteorización",
+  "Its top in {n} of the {l} logged holes: {a}–{b} m below the collar (median {m}); between the holes it is interpolated. {w} hole(s) never reach it.": "Su techo en {n} de los {l} sondajes registrados: {a}–{b} m bajo el collar (mediana {m}); entre los sondajes se interpola. {w} sondaje(s) nunca lo alcanzan.",
+  "Weathered density (t/m³)": "Densidad meteorizada (t/m³)",
+  "Every tonne above the base of the weathered zone, ore or waste, at this density.": "Cada tonelada sobre la base de la zona meteorizada, mineral o estéril, a esta densidad.",
+  "Of the rock, weathered": "De la roca, meteorizada",
+  "{t} t at {d} t/m³": "{t} t a {d} t/m³",
+  ", weathered {w} t/m³": ", meteorizado {w} t/m³"
 }

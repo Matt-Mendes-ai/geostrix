@@ -10011,5 +10011,20 @@
   "Drillholes: elevation of the base of logged {layer}: {code}": "ثقوب الحفر: ارتفاع قاعدة {layer} المسجل: {code}",
   "A second metal credited from its own block model, estimated on the same grid as the main one (the same cell size over the same area): Ag beside Au, Au beside Cu, Ta beside Li.": "معدن ثانٍ يُحتسب من نموذج كتله الخاص، مقدَّر على الشبكة نفسها كالمعدن الرئيسي (حجم الخلية نفسه على المساحة نفسها): Ag إلى جانب Au، وAu إلى جانب Cu، وTa بجانب Li.",
   "Cut-off: {g}": "محتوى القطع: {g}",
-  "{p} % of the rock in this pit is outside the block model and counted as barren, and it is drilled: {n} sample(s) ({m} m) in {h} hole(s) lie there, {om} m in {oh} hole(s) at or above the cut-off{list}. Estimate a model that covers the pit before reading its waste and margin.": "{p} % من صخر هذه الحفرة خارج نموذج الكتل ويُحسب عقيمًا، وهو محفور: فيه {n} عينة ({m} م) في {h} ثقب، منها {om} م في {oh} ثقب عند محتوى القطع أو فوقه{list}. قدّر نموذجًا يغطي الحفرة قبل قراءة نفاياتها وهامشها."
+  "{p} % of the rock in this pit is outside the block model and counted as barren, and it is drilled: {n} sample(s) ({m} m) in {h} hole(s) lie there, {om} m in {oh} hole(s) at or above the cut-off{list}. Estimate a model that covers the pit before reading its waste and margin.": "{p} % من صخر هذه الحفرة خارج نموذج الكتل ويُحسب عقيمًا، وهو محفور: فيه {n} عينة ({m} م) في {h} ثقب، منها {om} م في {oh} ثقب عند محتوى القطع أو فوقه{list}. قدّر نموذجًا يغطي الحفرة قبل قراءة نفاياتها وهامشها.",
+  "No hole of the Weathering log reaches that code: choose the code of fresh rock.": "لا يصل أي ثقب في سجل التجوية إلى هذا الرمز: اختر رمز الصخر الطازج.",
+  "The weathered zone needs a density and a thickness above 0.": "تحتاج منطقة التجوية إلى كثافة وسماكة أكبر من 0.",
+  "Weathered zone (optional)": "منطقة التجوية (اختياري)",
+  "Weathered zone": "منطقة التجوية",
+  "a thickness below the ground": "سماكة تحت سطح الأرض",
+  "from the Weathering log": "من سجل التجوية",
+  "Weathered to (m below the ground)": "متجوّي حتى (م تحت سطح الأرض)",
+  "Fresh rock is logged as": "يُسجَّل الصخر الطازج بالرمز",
+  "Code of fresh rock in the Weathering log": "رمز الصخر الطازج في سجل التجوية",
+  "Its top in {n} of the {l} logged holes: {a}–{b} m below the collar (median {m}); between the holes it is interpolated. {w} hole(s) never reach it.": "قمته في {n} من {l} ثقبًا مسجلًا: {a}–{b} م تحت الفوهة (الوسيط {m})؛ ويُستوفى بين الثقوب. {w} ثقب لا يصل إليه أبدًا.",
+  "Weathered density (t/m³)": "كثافة المنطقة المتجوية (t/m³)",
+  "Every tonne above the base of the weathered zone, ore or waste, at this density.": "كل طن فوق قاعدة منطقة التجوية، خامًا كان أو نفايات، بهذه الكثافة.",
+  "Of the rock, weathered": "من الصخر، المتجوّي",
+  "{t} t at {d} t/m³": "{t} t بكثافة {d} t/m³",
+  ", weathered {w} t/m³": "، متجوّي {w} t/m³"
 }
