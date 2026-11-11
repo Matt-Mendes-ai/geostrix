@@ -1495,6 +1495,7 @@
   "Show which logged unit each intercept sits in — and, when it straddles a contact, the split between units.": "Mostrar en qué unidad registrada está cada intersección — y, cuando cruza un contacto, cómo se reparte entre unidades.",
   "Host domain": "Dominio huésped",
   "(none)": "(ninguno)",
+  "{n} of them have a resistivity but no chargeability: they are left out of the resistivity inversion too. To keep them for resistivity, set the chargeability column to none and invert resistivity alone.": "{n} de ellas tienen resistividad pero no cargabilidad: también quedan fuera de la inversión de resistividad. Para conservarlas para la resistividad, deje la columna de cargabilidad en (ninguna) e invierta solo la resistividad.",
   "No assay elements loaded — import assays first.": "No hay elementos de ensaye cargados — importe ensayes primero.",
   "No intervals meet these criteria — try a lower cutoff or shorter minimum length.": "Ningún intervalo cumple estos criterios — pruebe una ley de corte más baja o un largo mínimo menor.",
   "Hole": "Sondaje",

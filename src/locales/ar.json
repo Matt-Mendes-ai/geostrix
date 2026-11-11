@@ -1495,6 +1495,7 @@
   "Show which logged unit each intercept sits in — and, when it straddles a contact, the split between units.": "إظهار الوحدة المسجّلة التي يقع فيها كل تقاطع — وتوزيعه بين الوحدات عندما يمتد عبر تماس.",
   "Host domain": "النطاق المضيف",
   "(none)": "(لا شيء)",
+  "{n} of them have a resistivity but no chargeability: they are left out of the resistivity inversion too. To keep them for resistivity, set the chargeability column to none and invert resistivity alone.": "{n} منها لها مقاومة نوعية دون قابلية شحن: تُستبعد من النمذجة العكسية للمقاومة النوعية أيضًا. للإبقاء عليها للمقاومة النوعية، اجعل عمود قابلية الشحن (لا شيء) ونفّذ النمذجة العكسية للمقاومة النوعية وحدها.",
   "No assay elements loaded — import assays first.": "لا عناصر تحليل محمّلة — استورد التحاليل أولًا.",
   "No intervals meet these criteria — try a lower cutoff or shorter minimum length.": "لا فترات تستوفي هذه المعايير — جرّب حد قطع أقل أو طولًا أدنى أقصر.",
   "Hole": "الثقب",
