@@ -1,6 +1,6 @@
 // TASKS.csv #1425 / #1708 — the Geophysics tab's downhole logs: mag susc, SG, RQD, recovery or a numeric custom field by a logged
 // code (box plot) and against an assay element (scatter, Spearman). The same sources Estimation and Grade shell take (#1741).
-import React, { useMemo, useState } from "react";
+import React, { useMemo } from "react";
 import { TaskPaneHeader } from "./Ribbon.jsx";
 import { Activity } from "./icons.js";
 import { numericSourceChoices, sourceAssays } from "../lib/numericSources.js";
@@ -10,6 +10,8 @@ import { logByCode, logVsAssay, logVsModel, NOT_LOGGED, strideSample } from "../
 import { BoxPlots } from "./GradeStatistics.jsx";
 import { smallSel } from "../lib/sidebarStyles.js";
 import { t as tr } from "../lib/i18n.js";
+import { useKeptState, scopeOf } from "../lib/keptState.js"; // TASKS.csv #2394 — the choices survive the pane closing (per project)
+import { useStore } from "../lib/store.jsx";
 
 const note = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.45 };
 const row = { display: "flex", alignItems: "center", gap: 6, justifyContent: "space-between", fontSize: "var(--font-size-sm)", marginBottom: 6 };
@@ -43,26 +45,29 @@ function Scatter({ pairs, xLabel, yLabel, logX, logY }) {
 
 export default function DownholeLogsPane({ layers, customLayers = [], assays = [], assayElements = [], onClose, onEstimate = null }) {
   const sources = useMemo(() => numericSourceChoices({ layers, customLayers }), [layers, customLayers]);
-  const [sourceKey, setSourceKey] = useState("");
+  // TASKS.csv #2394 (review #2325) — the pane forgot its log, code layer, element and model on reopen, and the stall of picking the log
+  // again was paid every time: kept per project as Geochem's and Geophysics' panels keep theirs (#1284)
+  const keptScope = scopeOf(useStore().getProjectToken());
+  const [sourceKey, setSourceKey] = useKeptState(keptScope, "dhlogs.source", "");
   const source = sources.find((s) => s.key === sourceKey) || sources[0] || null;
   const data = useMemo(() => (source ? sourceAssays(source, { layers, customLayers }) : null), [source, layers, customLayers]);
   const domains = useMemo(() => domainLayerChoices(layers, customLayers, (k) => tr(LAYER_META[k]?.label || k)), [layers, customLayers]);
-  const [domainKey, setDomainKey] = useState("");
+  const [domainKey, setDomainKey] = useKeptState(keptScope, "dhlogs.domain", "");
   const domain = domains.find((d) => d.key === domainKey) || domains[0] || null;
-  const [logScale, setLogScale] = useState(true);
+  const [logScale, setLogScale] = useKeptState(keptScope, "dhlogs.logScale", true);
   // TASKS.csv #2393 — rank the codes by the median (default), the mean, P90 or the share of readings above a value
-  const [rankStat, setRankStat] = useState("median");
-  const [rankAbove, setRankAbove] = useState("100");
+  const [rankStat, setRankStat] = useKeptState(keptScope, "dhlogs.rankStat", "median");
+  const [rankAbove, setRankAbove] = useKeptState(keptScope, "dhlogs.rankAbove", "100");
   const groups = useMemo(() => (data && domain ? logByCode(data.assays, data.symbol, domain.rows, { stat: rankStat, above: Number(rankAbove) }) : []), [data, domain, rankStat, rankAbove]);
   const symbols = assayElements.map((e) => e.symbol);
-  const [element, setElement] = useState("");
+  const [element, setElement] = useKeptState(keptScope, "dhlogs.element", "");
   const el = symbols.includes(element) ? element : symbols[0] || "";
   const elementUnits = useMemo(() => Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])), [assayElements]);
   const vs = useMemo(() => (data && el ? logVsAssay(data.assays, data.symbol, assays, el, elementUnits) : null), [data, assays, el, elementUnits]);
   const unitOf = (u) => (u === "as logged" ? "" : u);
   // TASKS.csv #1595 — against a block model evaluated onto the holes (Block models > Evaluate onto drillholes)
   const onHoles = useMemo(() => customLayers.filter((l) => (l.rows || []).some((r) => r.modelled && (r.numeric || (typeof r.value === "number" && Number.isFinite(r.value))))) /* rows from Evaluate (the store's copy keeps only id / name / rows). #2240: and drops 'numeric', so a modelled row with a number counts (categorical evaluations carry text) */, [customLayers]);
-  const [modelLayerId, setModelLayerId] = useState("");
+  const [modelLayerId, setModelLayerId] = useKeptState(keptScope, "dhlogs.model", "");
   const modelLayer = onHoles.find((l) => String(l.id) === modelLayerId) || onHoles[0] || null;
   const vm = useMemo(() => (data && modelLayer ? logVsModel(data.assays, data.symbol, modelLayer.rows) : null), [data, modelLayer]);
   return (
