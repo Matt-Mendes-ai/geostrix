@@ -52,12 +52,15 @@ export default function CorrelationMatrix({ assays: assaysIn, assayElements: ass
   const qaqcCount = useMemo(() => (surface ? 0 : labRows.length - excludeQAQC(labRows).length), [labRows, surface]);
   const elementUnits = useMemo(() => Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])), [assayElements]);
   const allSymbols = assayElements.map((e) => e.symbol);
+  // TASKS.csv #2036 — a calculated element (CuEq, Li2O) is derived from the others: marked, and not ticked by default (as Isocon leaves it out, #1521)
+  const calcSyms = new Set(assayElements.filter((e) => e.calculated).map((e) => e.symbol));
+  const measuredOf = (syms) => syms.filter((s) => !calcSyms.has(s));
   // Default to the first 12 loaded elements — a full 60+-element suite renders as an unreadable wall
   // of tiny cells; the checklist below lets the user swap in whichever subset they actually care about.
   // TASKS.csv #2351 — the lead commodity and the best-covered elements first (counted on the rows shown), the fixed suite only breaking ties
   const lead = useLeadCommodity();
   const countsOf = (rows, syms) => { const c = {}; for (const s of syms) c[s] = 0; for (const r of rows || []) for (const s of syms) if (r?.values?.[s] != null && r.values[s] !== "") c[s]++; return c; };
-  const defaultsFor = (rows, syms) => correlationDefaults(syms, 12, { lead, counts: countsOf(rows, syms) });
+  const defaultsFor = (rows, syms) => correlationDefaults(measuredOf(syms), 12, { lead, counts: countsOf(rows, syms) }); // measuredOf: #2036
   const [selected, setSelected] = useState(() => new Set(defaultsFor(assays, allSymbols))); // #1678 — the commodity first; #2351 — from the data
   const pickSource = (next) => { setSource(next); const els = (next === "surface" ? surfaceElements : assayElementsIn).map((e) => e.symbol); setSelected(new Set(defaultsFor(next === "surface" ? surfaceSamples : excludeQAQC(labAssays(assaysIn)), els))); }; // #1799
   const toggle = (sym) => setSelected((p) => { const n = new Set(p); n.has(sym) ? n.delete(sym) : n.add(sym); return n; });
@@ -93,7 +96,7 @@ export default function CorrelationMatrix({ assays: assaysIn, assayElements: ass
     const { rows, nRows } = correlationRows(symbols, matrix); // #1083 — rows in lib, tested
     // TASKS.csv #405 — the file says what it is: method, QAQC handling, pairwise n.
     const basis = surface ? `# ${METHOD_LABEL[method]}; pairwise deletion; ${assays.length} surface samples (QC split off at import).` : `# ${METHOD_LABEL[method]}; pairwise deletion; QAQC inserts ${includeQAQC ? "INCLUDED" : `excluded (${qaqcCount} rows)`}; ${assays.length} intervals, not length-weighted.`; // #1799
-    saveFile({ suggestedName: "correlation_matrix.csv", filters: [{ name: "CSV", extensions: ["csv"] }], content: `${basis}\n${toExportCsv(rows)}\n\n${toExportCsv(nRows)}` });
+    saveFile({ suggestedName: "correlation_matrix.csv", filters: [{ name: "CSV", extensions: ["csv"] }], content: `${basis}${symbols.some((s) => calcSyms.has(s)) ? `\n# Calculated, not measured: ${symbols.filter((s) => calcSyms.has(s)).join(", ")}` /* #2036 */ : ""}\n${toExportCsv(rows)}\n\n${toExportCsv(nRows)}` });
   };
 
   return (
@@ -135,7 +138,7 @@ export default function CorrelationMatrix({ assays: assaysIn, assayElements: ass
               {allSymbols.map((s) => (
                 <label key={s} style={{ display: "flex", alignItems: "center", gap: 4, padding: "3px 8px", borderRadius: 5, background: selected.has(s) ? "var(--color-success-bg)" : "var(--color-bg-subtle)", border: `1px solid ${selected.has(s) ? "var(--color-success-border)" : "var(--color-border)"}`, fontSize: "var(--font-size-base)", color: selected.has(s) ? "var(--color-success-text)" : "var(--color-text-secondary)", cursor: "pointer" }}>
                   <input type="checkbox" checked={selected.has(s)} onChange={() => toggle(s)} style={{ display: "none" }} />
-                  {s}
+                  {s}{calcSyms.has(s) && <span title={tr("Calculated from other elements: not a measurement. It correlates with the elements it is made from by construction.")} style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{tr("calc.")}</span>}{/* #2036 */}
                 </label>
               ))}
             </div>
