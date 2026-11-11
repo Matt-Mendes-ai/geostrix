@@ -3785,7 +3785,7 @@
   " {converted} dip direction(s) converted from {v} to grid north{v2}.": " حُوّل {converted} اتجاه ميل من {v} إلى شمال الشبكة{v2}.",
   "; {failed} could not be converted and were left as they were": "؛ تعذر تحويل {failed} وبقيت كما هي",
   "Imported {rows} measurement(s) from {name}.": "استُورد {rows} قياس من {name}.",
-  " Skipped {skipped} row(s) missing coordinates or a valid 0–90° dip.": " تُخطي {skipped} صف بلا إحداثيات أو بلا ميل صالح 0–90°.",
+  " Skipped {skipped} row(s): {why}.": " تُخطّي {skipped} صف: {why}.",
   " {derivedFromStrike} dip direction(s) derived from strike by the right-hand rule.": " استُنتج {derivedFromStrike} اتجاه ميل من المضرب بقاعدة اليد اليمنى.",
   " {rhrMismatches} row(s) have a strike and dip direction that aren't 90° apart — the dip direction was used; check whether those strikes are left-hand-rule.": " {rhrMismatches} صف بمضرب واتجاه ميل ليسا متباعدين بـ90° — استُخدم اتجاه الميل؛ تحقق مما إذا كانت تلك المضارب بقاعدة اليد اليسرى.",
   " {noZ} had no elevation and sit on the terrain{v}.": " {noZ} بلا ارتفاع وتقع على التضاريس{v}.",
@@ -10028,5 +10028,12 @@
   "No downhole structure picks yet": "لا توجد بنى من الثقوب بعد",
   "{n} alpha only (no beta): a plane needs both angles to be oriented": "{n} ألفا فقط (بلا بيتا): يحتاج المستوى إلى الزاويتين ليُوجَّه",
   "Nothing is plotted, so there is nothing to export.": "لا شيء مرسوم، فلا شيء للتصدير.",
-  "Disabled: this mean pools {n} structure types (faults, veins, bedding…), which is not one orientation. Pick one structure type first.": "معطّل: يجمع هذا المتوسط {n} أنواع من البنى (صدوع، عروق، تطبّق…)، وهذا ليس اتجاهًا واحدًا. اختر نوع بنية واحدًا أولًا."
+  "Disabled: this mean pools {n} structure types (faults, veins, bedding…), which is not one orientation. Pick one structure type first.": "معطّل: يجمع هذا المتوسط {n} أنواع من البنى (صدوع، عروق، تطبّق…)، وهذا ليس اتجاهًا واحدًا. اختر نوع بنية واحدًا أولًا.",
+  "{name} looks like a downhole table ({cols}: a hole id and down-hole depths, no easting or northing). Outcrop measurements need map coordinates: import this file in the 3D View (drag it onto the view), where downhole structure logs go.": "يبدو {name} جدول ثقوب ({cols}: معرّف ثقب وأعماق على امتداد الثقب، بلا شرق ولا شمال). تحتاج قياسات المكاشف إلى إحداثيات خريطة: استورد هذا الملف في العرض ثلاثي الأبعاد (اسحبه إلى العرض)، حيث تُستورد سجلات البنى من الثقوب.",
+  "{n} with no measurement at all": "{n} بلا أي قياس",
+  "{n} with no easting or northing": "{n} بلا شرق أو شمال",
+  "{n} with a bearing but no dip (a chip line or a trend, not a plane)": "{n} باتجاه دون ميل (خط عيّنات أو اتجاه عام، لا مستوى)",
+  "{n} with a dip that is not a number from 0 to 90": "{n} بميل ليس رقمًا من 0 إلى 90",
+  "{n} with a dip direction or strike that is not a number (a quadrant bearing such as N45E is not read)": "{n} باتجاه ميل أو مضرب ليس رقمًا (لا يُقرأ اتجاه الأرباع مثل N45E)",
+  "{n} with a dip but no dip direction or strike": "{n} بميل دون اتجاه ميل أو مضرب"
 }

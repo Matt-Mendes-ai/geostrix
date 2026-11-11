@@ -439,6 +439,22 @@ export function guessStructureColumns(headers) {
   return { x, y, z, strike, dip, dipDir, type, comment, station, dipQuad };
 }
 
+// TASKS.csv #1826 (review #1646, Kodiak) — the station column: Appendix I's 'Waypoint' is filled only on the first sample of each chip series,
+// blank on all 8 measured rows, while Sample_Number is filled on every row. Among the station-like and sample-number columns, the one filled
+// on most rows that hold a dip; a tie keeps the name guess. -> a header or null
+export function bestStationColumn(headers, rows, guess = {}) {
+  const isStation = (n) => n === "station" || n === "stn" || n === "stationid" || n === "site" || n === "siteid" || n === "waypoint" || n === "wpt" || n === "pointid" || n.startsWith("station");
+  const isSample = (n) => /^(sample|samplenumber|sampleno|sampleid|samplenum|sampno|sampid|sampnum)$/.test(n);
+  const cands = (headers || []).filter((h) => { const n = norm(h); return isStation(n) || isSample(n) || h === guess.station; });
+  if (!cands.length) return guess.station || null;
+  const measured = (rows || []).filter((r) => guess.dip && String(r?.[guess.dip] ?? "").trim() !== "");
+  const base = measured.length ? measured : rows || [];
+  const fill = (h) => base.reduce((k, r) => k + (String(r?.[h] ?? "").trim() !== "" ? 1 : 0), 0);
+  let best = guess.station && cands.includes(guess.station) ? guess.station : cands[0], bf = fill(best);
+  for (const h of cands) { const f = fill(h); if (f > bf) { best = h; bf = f; } }
+  return bf > 0 ? best : guess.station || null;
+}
+
 // Normalizes a structure type string to a short canonical class used for colouring and filtering.
 // TASKS.csv #2082 (review #2013, Surface Geology) — the drillhole logs' own abbreviations (FLT, FLTG, FLTBX, FRAC, CF, BRX…, BC acQuire style) all
 // fell into 'Other' because only whole words were tested: a code (or its first token) is read first, then the words as before.
@@ -499,13 +515,22 @@ export function parseStructureRows(rawRows, cols, codeClasses = null) {
   const QUAD = { n: 0, nne: 22.5, ne: 45, ene: 67.5, e: 90, ese: 112.5, se: 135, sse: 157.5, s: 180, ssw: 202.5, sw: 225, wsw: 247.5, w: 270, wnw: 292.5, nw: 315, nnw: 337.5 };
   const angDiff = (a, b) => { const d = Math.abs((((a - b) % 360) + 360) % 360); return Math.min(d, 360 - d); };
   let skipped = 0, derivedFromStrike = 0, rhrMismatches = 0, fromQuadrant = 0, quadrantUnread = 0;
+  // TASKS.csv #2093 / #1826 — each skipped row counted by its reason: 'missing coordinates or a valid 0-90 dip' lumped a quadrant bearing,
+  // a missing dip, a dip of 95, a missing easting and the 50 rows of a rock sheet that simply hold no structure
+  const skipWhy = { noMeasurement: 0, noXY: 0, noDip: 0, badDip: 0, bearingUnread: 0, noDirection: 0 };
+  const blank = (v) => v == null || String(v).trim() === "";
+  const skip = (why) => { skipped++; skipWhy[why]++; };
   rawRows.forEach((r) => {
     const x = num(r[cols.x]), y = num(r[cols.y]), dip = num(r[cols.dip]);
     let dipDir = cols.dipDir ? num(r[cols.dipDir]) : null;
     const strike = cols.strike ? num(r[cols.strike]) : null;
-    if (x == null || y == null || dip == null || dip < 0 || dip > 90) { skipped++; return; }
+    const rawDip = r[cols.dip], rawDir = cols.dipDir ? r[cols.dipDir] : null, rawStrike = cols.strike ? r[cols.strike] : null;
+    if (blank(rawDip) && blank(rawDir) && blank(rawStrike)) { skip("noMeasurement"); return; }
+    if (x == null || y == null) { skip("noXY"); return; }
+    if (blank(rawDip)) { skip("noDip"); return; }
+    if (dip == null || dip < 0 || dip > 90) { skip("badDip"); return; }
     if (dipDir == null) {
-      if (strike == null) { skipped++; return; }
+      if (strike == null) { skip(!blank(rawDir) || !blank(rawStrike) ? "bearingUnread" : "noDirection"); return; }
       const q = cols.dipQuad ? String(r[cols.dipQuad] ?? "").trim().toLowerCase() : "";
       if (q && q in QUAD) { const a = (strike + 90) % 360, b = (strike + 270) % 360; dipDir = angDiff(a, QUAD[q]) <= angDiff(b, QUAD[q]) ? a : b; fromQuadrant++; }
       else { if (q) quadrantUnread++; dipDir = (strike + offset) % 360; derivedFromStrike++; }
@@ -516,7 +541,7 @@ export function parseStructureRows(rawRows, cols, codeClasses = null) {
     const type = cols.type ? String(r[cols.type] ?? "") : "";
     rows.push({ x, y, z: cols.z ? num(r[cols.z]) : null, dip, dipDir: ((dipDir % 360) + 360) % 360, strike, type, cls: structureClass(type, codeClasses), ...(cols.station ? { station: String(r[cols.station] ?? "").trim() } : {}), comment: cols.comment ? String(r[cols.comment] ?? "") : "" });
   });
-  return { rows, skipped, derivedFromStrike, rhrMismatches, fromQuadrant, quadrantUnread, strikeRule: rule };
+  return { rows, skipped, skipWhy, derivedFromStrike, rhrMismatches, fromQuadrant, quadrantUnread, strikeRule: rule };
 }
 
 // Upward-pointing unit pole (E, N, Up) of a plane with dip direction/dip.

@@ -3785,7 +3785,7 @@
   " {converted} dip direction(s) converted from {v} to grid north{v2}.": " {converted} direção(ões) de mergulho convertida(s) de {v} para norte de quadrícula{v2}.",
   "; {failed} could not be converted and were left as they were": "; {failed} não puderam ser convertidas e ficaram como estavam",
   "Imported {rows} measurement(s) from {name}.": "{rows} medição(ões) importada(s) de {name}.",
-  " Skipped {skipped} row(s) missing coordinates or a valid 0–90° dip.": " {skipped} linha(s) sem coordenadas ou sem mergulho válido de 0–90° ignorada(s).",
+  " Skipped {skipped} row(s): {why}.": " {skipped} linha(s) ignorada(s): {why}.",
   " {derivedFromStrike} dip direction(s) derived from strike by the right-hand rule.": " {derivedFromStrike} direção(ões) de mergulho derivada(s) da direção pela regra da mão direita.",
   " {rhrMismatches} row(s) have a strike and dip direction that aren't 90° apart — the dip direction was used; check whether those strikes are left-hand-rule.": " {rhrMismatches} linha(s) têm uma direção e uma direção de mergulho que não estão a 90° — usou-se a direção de mergulho; confira se essas direções são da regra da mão esquerda.",
   " {noZ} had no elevation and sit on the terrain{v}.": " {noZ} não tinham elevação e ficam sobre o terreno{v}.",
@@ -10028,5 +10028,12 @@
   "No downhole structure picks yet": "Ainda não há estruturas de furo",
   "{n} alpha only (no beta): a plane needs both angles to be oriented": "{n} só alfa (sem beta): um plano precisa dos dois ângulos para ser orientado",
   "Nothing is plotted, so there is nothing to export.": "Nada está plotado, então não há nada para exportar.",
-  "Disabled: this mean pools {n} structure types (faults, veins, bedding…), which is not one orientation. Pick one structure type first.": "Desativado: esta média junta {n} tipos de estrutura (falhas, veios, acamamento…), que não são uma única orientação. Escolha primeiro um tipo de estrutura."
+  "Disabled: this mean pools {n} structure types (faults, veins, bedding…), which is not one orientation. Pick one structure type first.": "Desativado: esta média junta {n} tipos de estrutura (falhas, veios, acamamento…), que não são uma única orientação. Escolha primeiro um tipo de estrutura.",
+  "{name} looks like a downhole table ({cols}: a hole id and down-hole depths, no easting or northing). Outcrop measurements need map coordinates: import this file in the 3D View (drag it onto the view), where downhole structure logs go.": "{name} parece uma tabela de furo ({cols}: um ID de furo e profundidades ao longo do furo, sem leste nem norte). Medidas de afloramento precisam de coordenadas de mapa: importe este arquivo na Vista 3D (arraste-o para a vista), onde ficam os registros estruturais de furo.",
+  "{n} with no measurement at all": "{n} sem nenhuma medida",
+  "{n} with no easting or northing": "{n} sem leste ou norte",
+  "{n} with a bearing but no dip (a chip line or a trend, not a plane)": "{n} com rumo mas sem mergulho (uma linha de amostragem ou uma tendência, não um plano)",
+  "{n} with a dip that is not a number from 0 to 90": "{n} com um mergulho que não é um número de 0 a 90",
+  "{n} with a dip direction or strike that is not a number (a quadrant bearing such as N45E is not read)": "{n} com uma direção de mergulho ou direção que não é um número (um rumo por quadrantes como N45E não é lido)",
+  "{n} with a dip but no dip direction or strike": "{n} com mergulho mas sem direção de mergulho nem direção"
 }

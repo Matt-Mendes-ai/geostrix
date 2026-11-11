@@ -3785,7 +3785,7 @@
   " {converted} dip direction(s) converted from {v} to grid north{v2}.": " {converted} dirección(es) de manteo convertida(s) de {v} a norte de cuadrícula{v2}.",
   "; {failed} could not be converted and were left as they were": "; {failed} no se pudieron convertir y quedaron como estaban",
   "Imported {rows} measurement(s) from {name}.": "Se importaron {rows} medición(es) de {name}.",
-  " Skipped {skipped} row(s) missing coordinates or a valid 0–90° dip.": " Se omitieron {skipped} fila(s) sin coordenadas o sin un manteo válido de 0–90°.",
+  " Skipped {skipped} row(s): {why}.": " Se omitieron {skipped} fila(s): {why}.",
   " {derivedFromStrike} dip direction(s) derived from strike by the right-hand rule.": " {derivedFromStrike} dirección(es) de manteo derivada(s) del rumbo por la regla de la mano derecha.",
   " {rhrMismatches} row(s) have a strike and dip direction that aren't 90° apart — the dip direction was used; check whether those strikes are left-hand-rule.": " {rhrMismatches} fila(s) tienen un rumbo y una dirección de manteo que no están a 90° — se usó la dirección de manteo; revise si esos rumbos son de regla de la mano izquierda.",
   " {noZ} had no elevation and sit on the terrain{v}.": " {noZ} no tenían elevación y quedan sobre el terreno{v}.",
@@ -10028,5 +10028,12 @@
   "No downhole structure picks yet": "Aún no hay estructuras de sondaje",
   "{n} alpha only (no beta): a plane needs both angles to be oriented": "{n} solo alfa (sin beta): un plano necesita ambos ángulos para orientarse",
   "Nothing is plotted, so there is nothing to export.": "No hay nada graficado, así que no hay nada que exportar.",
-  "Disabled: this mean pools {n} structure types (faults, veins, bedding…), which is not one orientation. Pick one structure type first.": "Desactivado: esta media junta {n} tipos de estructura (fallas, vetas, estratificación…), que no son una sola orientación. Elija primero un tipo de estructura."
+  "Disabled: this mean pools {n} structure types (faults, veins, bedding…), which is not one orientation. Pick one structure type first.": "Desactivado: esta media junta {n} tipos de estructura (fallas, vetas, estratificación…), que no son una sola orientación. Elija primero un tipo de estructura.",
+  "{name} looks like a downhole table ({cols}: a hole id and down-hole depths, no easting or northing). Outcrop measurements need map coordinates: import this file in the 3D View (drag it onto the view), where downhole structure logs go.": "{name} parece una tabla de sondaje ({cols}: un ID de sondaje y profundidades a lo largo del pozo, sin este ni norte). Las mediciones de afloramiento necesitan coordenadas de mapa: importe este archivo en la Vista 3D (arrástrelo sobre la vista), donde van los registros estructurales de sondaje.",
+  "{n} with no measurement at all": "{n} sin ninguna medición",
+  "{n} with no easting or northing": "{n} sin este o norte",
+  "{n} with a bearing but no dip (a chip line or a trend, not a plane)": "{n} con rumbo pero sin buzamiento (una línea de muestreo o una tendencia, no un plano)",
+  "{n} with a dip that is not a number from 0 to 90": "{n} con un buzamiento que no es un número de 0 a 90",
+  "{n} with a dip direction or strike that is not a number (a quadrant bearing such as N45E is not read)": "{n} con una dirección de buzamiento o rumbo que no es un número (un rumbo por cuadrantes como N45E no se lee)",
+  "{n} with a dip but no dip direction or strike": "{n} con buzamiento pero sin dirección de buzamiento ni rumbo"
 }

@@ -3785,7 +3785,7 @@
   " {converted} dip direction(s) converted from {v} to grid north{v2}.": " {converted} direction(s) de pendage converties de {v} au nord du quadrillage{v2}.",
   "; {failed} could not be converted and were left as they were": "; {failed} n'ont pas pu être converties et sont restées telles quelles",
   "Imported {rows} measurement(s) from {name}.": "{rows} mesure(s) importée(s) depuis {name}.",
-  " Skipped {skipped} row(s) missing coordinates or a valid 0–90° dip.": " {skipped} ligne(s) ignorée(s) sans coordonnées ou sans pendage valide de 0–90°.",
+  " Skipped {skipped} row(s): {why}.": " {skipped} ligne(s) ignorée(s) : {why}.",
   " {derivedFromStrike} dip direction(s) derived from strike by the right-hand rule.": " {derivedFromStrike} direction(s) de pendage déduite(s) de la direction par la règle de la main droite.",
   " {rhrMismatches} row(s) have a strike and dip direction that aren't 90° apart — the dip direction was used; check whether those strikes are left-hand-rule.": " {rhrMismatches} ligne(s) ont une direction et une direction de pendage qui ne sont pas à 90° — la direction de pendage a été utilisée ; vérifiez si ces directions suivent la règle de la main gauche.",
   " {noZ} had no elevation and sit on the terrain{v}.": " {noZ} n'avaient pas d'élévation et reposent sur le terrain{v}.",
@@ -10028,5 +10028,12 @@
   "No downhole structure picks yet": "Pas encore de structures de sondage",
   "{n} alpha only (no beta): a plane needs both angles to be oriented": "{n} alpha seul (sans bêta) : un plan a besoin des deux angles pour être orienté",
   "Nothing is plotted, so there is nothing to export.": "Rien n'est tracé : il n'y a rien à exporter.",
-  "Disabled: this mean pools {n} structure types (faults, veins, bedding…), which is not one orientation. Pick one structure type first.": "Désactivé : cette moyenne regroupe {n} types de structures (failles, veines, stratification…), ce qui n'est pas une seule orientation. Choisissez d'abord un type de structure."
+  "Disabled: this mean pools {n} structure types (faults, veins, bedding…), which is not one orientation. Pick one structure type first.": "Désactivé : cette moyenne regroupe {n} types de structures (failles, veines, stratification…), ce qui n'est pas une seule orientation. Choisissez d'abord un type de structure.",
+  "{name} looks like a downhole table ({cols}: a hole id and down-hole depths, no easting or northing). Outcrop measurements need map coordinates: import this file in the 3D View (drag it onto the view), where downhole structure logs go.": "{name} ressemble à une table de sondage ({cols} : un ID de sondage et des profondeurs le long du trou, sans est ni nord). Les mesures d'affleurement ont besoin de coordonnées cartographiques : importez ce fichier dans la Vue 3D (glissez-le sur la vue), où vont les relevés structuraux de sondage.",
+  "{n} with no measurement at all": "{n} sans aucune mesure",
+  "{n} with no easting or northing": "{n} sans est ou nord",
+  "{n} with a bearing but no dip (a chip line or a trend, not a plane)": "{n} avec une direction mais sans pendage (une ligne d'échantillonnage ou une tendance, pas un plan)",
+  "{n} with a dip that is not a number from 0 to 90": "{n} avec un pendage qui n'est pas un nombre de 0 à 90",
+  "{n} with a dip direction or strike that is not a number (a quadrant bearing such as N45E is not read)": "{n} avec une direction de pendage ou une direction qui n'est pas un nombre (un relèvement par quadrant comme N45E n'est pas lu)",
+  "{n} with a dip but no dip direction or strike": "{n} avec un pendage mais sans direction de pendage ni direction"
 }
