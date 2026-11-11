@@ -37,9 +37,12 @@ write("survey.csv", ["hole_id", "depth", "azimuth", "dip"], read("survey.csv").m
 // lithology: the CURRENT log only. The table keeps every re-log: 13,624 of its 22,407 rows are flagged Superseded = TRUE and overlap the
 // current intervals in 407 holes (TASKS.csv #2323: the first build of this sample shipped them all). The primary code, the company's
 // stratigraphic unit (QA, I, H, G2, G1, F2 ... Dcb: the palaeochannel sequence down to basement), the oxidation state and the comment.
-write("litho.csv", ["hole_id", "from", "to", "lithology", "strat", "oxidation", "description"], read("geology.csv").filter((r) => txt(r.Superseded).toUpperCase() !== "TRUE")
+const lithoRows = read("geology.csv").filter((r) => txt(r.Superseded).toUpperCase() !== "TRUE")
   .map((r) => ({ hole_id: txt(r.Hole_ID), from: num(r.From), to: num(r.To), lithology: txt(r.Lith1_Code), strat: txt(r.Lith1_Strat), oxidation: txt(r.Lith1_Oxidation), description: txt(r.Comments) }))
-  .filter((r) => holes.has(r.hole_id) && r.from != null && r.to != null && r.to > r.from && r.lithology));
+  .filter((r) => holes.has(r.hole_id) && r.from != null && r.to != null && r.to > r.from && r.lithology);
+write("litho.csv", ["hole_id", "from", "to", "lithology", "strat", "oxidation", "description"], lithoRows);
+// TASKS.csv #2342 — the oxidation state of the same intervals as its own table, so the sample fills the Weathering layer (#2162)
+write("weath.csv", ["hole_id", "from", "to", "weathering"], lithoRows.filter((r) => r.oxidation).map((r) => ({ hole_id: r.hole_id, from: r.from, to: r.to, weathering: r.oxidation })));
 
 // alteration: first code and intensity
 write("alt.csv", ["hole_id", "from", "to", "assemblage", "intensity"], read("alteration.csv").map((r) => ({ hole_id: txt(r.Hole_ID), from: num(r.mFrom), to: num(r.mTo), assemblage: txt(r.Alt1_Code), intensity: txt(r.Alt1_Int) }))

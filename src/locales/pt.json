@@ -935,7 +935,6 @@
   "{fileName}: local grid — {message} Nothing was imported.": "{fileName}: grade local — {message} Nada foi importado.",
   "{fileName}: a local-grid transform gives project coordinates directly — clear Source CRS (it is set to EPSG:{sourceEpsg}). Nothing was imported.": "{fileName}: uma transformação de grade local já dá coordenadas do projeto — limpe o SRC de origem (está em EPSG:{sourceEpsg}). Nada foi importado.",
   " and elevations": " e elevações",
-  " {moved} collar(s) moved from the local grid to EPSG:{v} (scale {scale}, rotation {rotationDeg}°, RMS {rmsM} m over {n} control points){v2}.": " {moved} boca(s) de furo levadas da grade local para EPSG:{v} (escala {scale}, rotação {rotationDeg}°, RMS {rmsM} m em {n} pontos de controle){v2}.",
   "; {turned} azimuth(s) turned with the grid ({v}°)": "; {turned} azimute(s) girados com a grade ({v}°)",
   " Elevations shifted by {zShift} m.": " Elevações deslocadas {zShift} m.",
   "Only .csv, .xlsx, .zip (shapefile), .shp, .gpkg, .kml/.kmz, .las logs, GeoTIFF / .gxf grids and .dxf / .obj files can be dropped in directly.": "Só arquivos .csv, .xlsx, .zip (shapefile), .shp, .gpkg, .kml/.kmz, perfis .las, grades GeoTIFF / .gxf e arquivos .dxf / .obj podem ser soltos diretamente.",
@@ -4189,7 +4188,6 @@
   "The project CRS isn't chosen yet — pick these coordinates' CRS here, or GeoStrix asks on import": "O SRC do projeto ainda não foi escolhido — escolha aqui o SRC destas coordenadas, ou o GeoStrix pergunta na importação",
   "Same as project — {v}": "Igual ao projeto — {v}",
   "— the same place on both grids (surveyed pins, a re-located hole), with project coordinates in EPSG:{v}. Leave Source CRS above blank. A 4-parameter similarity (scale, rotation, shift) is fitted; local coordinates in feet are handled by the fitted scale.": "— o mesmo lugar nas duas grades (marcos levantados, um furo relocado), com coordenadas do projeto em EPSG:{v}. Deixe vazio o SRC de origem acima. Ajusta-se uma similaridade de 4 parâmetros (escala, rotação, deslocamento); coordenadas locais em pés são tratadas pela escala ajustada.",
-  "Fitted from {n} points: scale {scale}, rotation {rotationDeg}°, RMS misfit {rmsM} m{v}. Residuals: {v2} m.": "Ajustado com {n} pontos: escala {scale}, rotação {rotationDeg}°, desajuste RMS {rmsM} m{v}. Resíduos: {v2} m.",
   " (two points fit exactly — add a third to check the fit)": " (dois pontos ajustam exatamente — adicione um terceiro para verificar o ajuste)",
   " — large: check the control points": " — grande: confira os pontos de controle",
   "The project CRS — {v}": "O SRC do projeto — {v}",
@@ -9103,7 +9101,6 @@
   "Coloured {n} of {total} codes like Macrostrat's lithologies (CC BY 4.0): {list}. The others keep their colours.": "{n} de {total} códigos coloridos como as litologias do Macrostrat (CC BY 4.0): {list}. Os demais mantêm suas cores.",
   "Colour each code like Macrostrat's lithology of the same name (from the code, its label or its logged description; data CC BY 4.0). Codes that match none keep their colour.": "Colore cada código como a litologia do Macrostrat de mesmo nome (pelo código, seu rótulo ou sua descrição registrada; dados CC BY 4.0). Códigos sem correspondência mantêm sua cor.",
   "Macrostrat colours": "Cores do Macrostrat",
-  "Colour the units whose name gives an age (Late Jurassic, Eocene ...) in the international time scale's colours, from Macrostrat (CC BY 4.0). The others keep their colours.": "Colore as unidades cujo nome indica uma idade (Jurássico Superior, Eoceno ...) com as cores da escala de tempo internacional, do Macrostrat (CC BY 4.0). As demais mantêm suas cores.",
   "\"{name}\": {n} of {total} units coloured by the time scale (Macrostrat, CC BY 4.0); the others keep their colours.": "\"{name}\": {n} de {total} unidades coloridas pela escala de tempo (Macrostrat, CC BY 4.0); as demais mantêm suas cores.",
   "Time-scale colours": "Cores da escala de tempo",
   "{name}.TAB is a MapInfo wrapper around a shapefile: select {name}.shp with its .dbf and .prj too.": "{name}.TAB é um invólucro do MapInfo para um shapefile: selecione também {name}.shp com seu .dbf e .prj.",
@@ -10262,5 +10259,12 @@
   "{t} t of it is rock the model has no block for (inside the outlines or their skin), counted at the density with no metal.": "{t} t disso é rocha para a qual o modelo não tem bloco (dentro dos contornos ou da sua casca), contada à densidade sem metal.",
   "By wall (face° / berm m → inter-ramp): {list}.": "Por parede (face° / berma m → inter-rampa): {list}.",
   "Flatter than the shell was solved at: {list}. Those walls take more waste than the shell counted.": "Mais suaves que a inclinação com que a cava conceitual foi resolvida: {list}. Essas paredes tiram mais estéril do que a cava contou.",
-  "That is the solid's own volume; the section times the line's length, as the profile line gives it, is {w} m³: the solid follows the curves by straight chords.": "Esse é o volume do próprio sólido; a seção vezes o comprimento da linha, como a linha do perfil o dá, é {w} m³: o sólido segue as curvas por cordas retas."
+  "That is the solid's own volume; the section times the line's length, as the profile line gives it, is {w} m³: the solid follows the curves by straight chords.": "Esse é o volume do próprio sólido; a seção vezes o comprimento da linha, como a linha do perfil o dá, é {w} m³: o sólido segue as curvas por cordas retas.",
+  " {moved} collar(s) moved from the local grid to EPSG:{v} (scale {scale}, rotation {rotationDeg}° counter-clockwise from the local grid to the map, RMS {rmsM} m over {n} control points){v2}.": " {moved} boca(s) de furo levadas da grade local para EPSG:{v} (escala {scale}, rotação {rotationDeg}° no sentido anti-horário da grade local para o mapa, RMS {rmsM} m em {n} pontos de controle){v2}.",
+  "Fitted from {n} points: scale {scale}, rotation {rotationDeg}° counter-clockwise from the local grid to the map, RMS misfit {rmsM} m{v}. Residuals: {v2} m.": "Ajustado com {n} pontos: escala {scale}, rotação {rotationDeg}° no sentido anti-horário da grade local para o mapa, desajuste RMS {rmsM} m{v}. Resíduos: {v2} m.",
+  "Colour the units whose name gives an age (Late Jurassic, Eocene ...) in the international time scale's colours, fetched from Macrostrat (CC BY 4.0) over the internet. The others keep their colours.": "Colore as unidades cujo nome indica uma idade (Jurássico Superior, Eoceno ...) com as cores da escala de tempo internacional, do Macrostrat (CC BY 4.0), pela internet. As demais mantêm suas cores.",
+  "{n} column(s) of the file were not imported: {cols}. Add one under Extra fields in the import dialog to keep it.": "{n} coluna(s) do arquivo não foram importadas: {cols}. Adicione uma em Campos adicionais no diálogo de importação para mantê-la.",
+  "The row filter keeps no row: tick at least one value under Rows.": "O filtro de linhas não mantém nenhuma linha: marque pelo menos um valor em Linhas.",
+  "Time-scale colours (online)": "Cores da escala de tempo (online)",
+  "The time-scale colours come from Macrostrat over the internet: offline, the units keep their colours.": "As cores da escala de tempo vêm do Macrostrat pela internet: sem conexão, as unidades mantêm suas cores."
 }

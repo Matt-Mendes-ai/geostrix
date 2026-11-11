@@ -146,7 +146,7 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
               </div>
             ))}
             <div style={{ display: "flex", gap: 6 }}>
-              <select value={addColumn} onChange={(e) => setAddColumn(e.target.value)} style={{ ...sel, flex: 1, minWidth: 0 }}>
+              <select value={addColumn} onChange={(e) => { const v = e.target.value; setAddColumn(v); if (!addName.trim() || addName === addColumn) setAddName(v); /* #2341 — the name pre-filled from the column */ }} style={{ ...sel, flex: 1, minWidth: 0 }}>
                 <option value="">{tr("— pick a column —")}</option>
                 {modal.headers.map((h) => <option key={h} value={h}>{h}</option>)}
               </select>
@@ -253,16 +253,16 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
                 </div>
                 {modal.target === "collars" && (
                   <div style={{ marginTop: 10 }}>
+                    {/* TASKS.csv #2497 — the shift on its own: a project kept on its mine grid, or MGA X / Y with the mine RL, says "RL is +1000" without control points */}
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6, fontSize: "var(--font-size-base)" }}>{tr("Elevation shift")}{" "}<input type="number" value={modal.zShift ?? ""} onChange={(e) => onChange({ ...modal, zShift: e.target.value })} style={{ ...sel, width: 90 }} aria-label={tr("Elevation shift in metres")} /> m <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>{tr("added to every collar elevation (e.g. -1000 for a mine datum)")}</span></div>
                     <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: "var(--font-size-base)" }}>
                       <input type="checkbox" checked={!!modal.localGridOn} onChange={(e) => onChange({ ...modal, localGridOn: e.target.checked })} />{" "}{tr("X/Y are on a local mine grid")}</label>
                     {modal.localGridOn && (
                       <div style={{ marginTop: 6, marginLeft: 22 }}>
                         <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginBottom: 4 }}>{tr("Two or more control points, one per line:")}{" "}<code>local_x local_y project_x project_y</code>{" "}{(crsUnset ? tr("— the same place on both grids (surveyed pins, a re-located hole), with project coordinates in the project CRS, which isn't chosen yet: choose it first (status bar). Leave Source CRS above blank. A 4-parameter similarity (scale, rotation, shift) is fitted; local coordinates in feet are handled by the fitted scale.") : tr("— the same place on both grids (surveyed pins, a re-located hole), with project coordinates in EPSG:{v}. Leave Source CRS above blank. A 4-parameter similarity (scale, rotation, shift) is fitted; local coordinates in feet are handled by the fitted scale.", { v: projectEpsg ?? "?" }))}</div>
                         <textarea value={modal.localGridText || ""} onChange={(e) => onChange({ ...modal, localGridText: e.target.value })} rows={4} spellCheck={false} placeholder={"10000 5000 463000.0 6178000.0" + String.fromCharCode(10) + "12500 5200 463629.0 6178421.5"} style={{ ...sel, width: "100%", fontFamily: "monospace", resize: "vertical" }} aria-label={tr("Local grid control points")} />
-                        <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6, fontSize: "var(--font-size-base)" }}>{tr("Elevation shift")}{" "}<input type="number" value={modal.zShift ?? ""} onChange={(e) => onChange({ ...modal, zShift: e.target.value })} style={{ ...sel, width: 90 }} aria-label={tr("Elevation shift in metres")} /> m <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>{tr("added to every collar elevation (e.g. -1000 for a mine datum)")}</span>
-                        </div>
                         <div role="status" style={{ marginTop: 6, fontSize: "var(--font-size-sm)", color: fitErr ? "var(--color-danger-icon-strong)" : "var(--color-text-secondary)" }}>
-                          {fitErr || (fit && tr("Fitted from {n} points: scale {scale}, rotation {rotationDeg}°, RMS misfit {rmsM} m{v}. Residuals: {v2} m.", { n: fit.n, scale: fit.scale.toFixed(6), rotationDeg: fit.rotationDeg.toFixed(3), rmsM: fit.rmsM.toFixed(2), v: fit.n === 2 ? tr(" (two points fit exactly — add a third to check the fit)") : fit.rmsM > 2 ? tr(" — large: check the control points") : "", v2: fit.residuals.map((r) => r.toFixed(2)).join(", ") }))}
+                          {fitErr || (fit && tr("Fitted from {n} points: scale {scale}, rotation {rotationDeg}° counter-clockwise from the local grid to the map, RMS misfit {rmsM} m{v}. Residuals: {v2} m.", { n: fit.n, scale: fit.scale.toFixed(6), rotationDeg: fit.rotationDeg.toFixed(3), rmsM: fit.rmsM.toFixed(2), v: fit.n === 2 ? tr(" (two points fit exactly — add a third to check the fit)") : fit.rmsM > 2 ? tr(" — large: check the control points") : "", v2: fit.residuals.map((r) => r.toFixed(2)).join(", ") }))}
                         </div>
                       </div>
                     )}
@@ -382,8 +382,9 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
                 <button onClick={onCancel} style={{ ...btn(false), flex: 1 }}>{tr("Cancel")}</button>
                 <button
                   onClick={onCommit}
-                  disabled={missingRequired.length > 0}
-                  style={{ ...btn(true), flex: 2, opacity: missingRequired.length > 0 ? 0.5 : 1, cursor: missingRequired.length > 0 ? "not-allowed" : "pointer" }}
+                  disabled={missingRequired.length > 0 || importCount(modal) === 0} // 0 rows: TASKS.csv #2431 — the row filter keeps none
+                  style={{ ...btn(true), flex: 2, opacity: missingRequired.length > 0 || importCount(modal) === 0 ? 0.5 : 1, cursor: missingRequired.length > 0 || importCount(modal) === 0 ? "not-allowed" : "pointer" }}
+                  title={importCount(modal) === 0 ? tr("The row filter keeps no row: tick at least one value under Rows.") : undefined}
                 >{tr("Import {rowCount} rows", { rowCount: importCount(modal) })}</button>
               </div>
             </div>

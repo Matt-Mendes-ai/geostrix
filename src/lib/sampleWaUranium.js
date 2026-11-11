@@ -1,8 +1,9 @@
 // TASKS.csv #2168 — the parts of the Western Australian palaeochannel-uranium sample (sample_data/wa_uranium, WAMEX report A87304) that
-// are not drillhole tables: the multi-element assays (into Geochem) and the downhole gamma / eU3O8 log, which has no built-in layer
-// yet (the downhole-log target is TASKS.csv #2160) and is loaded as a numeric custom point layer: drawn along the holes in the 3D View,
-// offered by the Downhole Logs pane and the numeric sources of the modelling tools (lib/numericSources.js). The collar, survey,
-// lithology and alteration CSVs go through the normal import queue like the other samples'. Each part is independent.
+// are not drillhole tables: the multi-element assays (into Geochem) and the downhole gamma log, loaded the way a log import makes it
+// (TASKS.csv #2160 / #2342): one numeric point layer per channel with its unit, eU3O8 (ppm) and the raw counts (cps), drawn along the
+// holes in the 3D View, offered by the Downhole Logs pane and the numeric sources of the modelling tools (lib/numericSources.js). The
+// collar, survey, lithology, alteration and weathering CSVs go through the normal import queue like the other samples'. Each part is
+// independent.
 import Papa from "papaparse";
 import { mergeAssayRows } from "./geochem.js";
 import { silvertipAssays } from "./sampleSilvertip.js"; // the same hole_id / from / to / sample_id / <El>_ppm | <El>_pct layout
@@ -11,16 +12,17 @@ import { t as tr } from "./i18n.js";
 
 export const WA_URANIUM_EPSG = 28351; // GDA94 / MGA zone 51 — the company's MGA_East / MGA_North / MGA_RL
 export const WA_URANIUM_GAMMA_LAYER = "Gamma eU3O8 (ppm)";
+export const WA_URANIUM_CPS_LAYER = "Gamma raw (cps)"; // TASKS.csv #2342 — its own channel, as a log import makes it
 
-// gamma.csv (hole_id, depth, raw_cps, eU3O8_ppm) -> custom point rows { hole_id, depth, value: eU3O8 ppm, raw_cps }
-export function waUraniumGamma(text) {
+// gamma.csv (hole_id, depth, raw_cps, eU3O8_ppm) -> custom point rows { hole_id, depth, value } of one channel: "eU3O8_ppm" (the default;
+// negative values left out) or "raw_cps" (#2342: it was a field buried in the eU3O8 rows)
+export function waUraniumGamma(text, channel = "eU3O8_ppm") {
   const t = Papa.parse(text, { header: true, skipEmptyLines: true, dynamicTyping: false });
   const rows = [];
   for (const r of t.data) {
-    const hole = String(r.hole_id || "").trim(), depth = Number(r.depth), value = Number(r.eU3O8_ppm);
+    const hole = String(r.hole_id || "").trim(), depth = Number(r.depth), cell = String(r[channel] ?? "").trim(), value = cell === "" ? NaN : Number(cell);
     if (!hole || !Number.isFinite(depth) || !Number.isFinite(value) || value < 0) continue;
-    const cps = String(r.raw_cps ?? "").trim(), raw_cps = cps === "" ? null : Number(cps);
-    rows.push({ hole_id: hole, depth, value, ...(Number.isFinite(raw_cps) ? { raw_cps } : {}) });
+    rows.push({ hole_id: hole, depth, value });
   }
   return rows;
 }
@@ -36,8 +38,10 @@ export async function loadWaUraniumExtras(readFile, store, { existingElements = 
     notes.push(tr("WA uranium assays: {rows} aircore and core samples, {elements} elements (one lab method per sample; Fe, Ca, K and Al in %) — in the Geochem tab.{v}", { rows: rows.length.toLocaleString(), elements: elements.length, v: converted.length ? tr(" Converted {list} to the units already in this project.", { list: converted.map((c) => `${c.symbol} ${c.from} → ${c.to}`).join(", ") }) : "" }));
   } catch (e) { notes.push(tr("WA uranium assays could not be loaded: {message}", { message: e.message })); }
   try {
-    const rows = waUraniumGamma(await (await readFile("gamma.csv")).text());
+    const text = await (await readFile("gamma.csv")).text();
+    const rows = waUraniumGamma(text), cps = waUraniumGamma(text, "raw_cps");
     store.addCustomLayer({ id: `custom_wa_gamma_${Date.now()}`, name: WA_URANIUM_GAMMA_LAYER, rows, unit: "ppm" }); // unit: TASKS.csv #2421 — eU3O8 ppm, as a downhole-log import keeps it
+    if (cps.length) store.addCustomLayer({ id: `custom_wa_cps_${Date.now()}`, name: WA_URANIUM_CPS_LAYER, rows: cps, unit: "cps" }); // #2342 — the raw counts, the second channel
     notes.push(tr("WA uranium gamma log: {rows} eU3O8 readings (every 0.5 m, cased probe) added as the custom layer \"{name}\" — along the holes in the 3D View, and a log in Downhole Logs and the modelling tools' numeric sources.", { rows: rows.length.toLocaleString(), name: WA_URANIUM_GAMMA_LAYER }));
   } catch (e) { notes.push(tr("WA uranium gamma log could not be loaded: {message}", { message: e.message })); }
   return notes;

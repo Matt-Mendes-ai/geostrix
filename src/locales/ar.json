@@ -935,7 +935,6 @@
   "{fileName}: local grid — {message} Nothing was imported.": "{fileName}: شبكة محلية — {message} لم يُستورد شيء.",
   "{fileName}: a local-grid transform gives project coordinates directly — clear Source CRS (it is set to EPSG:{sourceEpsg}). Nothing was imported.": "{fileName}: تحويل الشبكة المحلية يعطي إحداثيات المشروع مباشرة — امسح نظام الإحداثيات المصدر (مضبوط على EPSG:{sourceEpsg}). لم يُستورد شيء.",
   " and elevations": " والارتفاعات",
-  " {moved} collar(s) moved from the local grid to EPSG:{v} (scale {scale}, rotation {rotationDeg}°, RMS {rmsM} m over {n} control points){v2}.": " نُقلت {moved} فوهة من الشبكة المحلية إلى EPSG:{v} (المقياس {scale}، الدوران {rotationDeg}°، RMS ‏{rmsM} م على {n} نقطة ضبط){v2}.",
   "; {turned} azimuth(s) turned with the grid ({v}°)": "؛ أُدير {turned} سمت مع الشبكة ({v}°)",
   " Elevations shifted by {zShift} m.": " أُزيحت الارتفاعات بمقدار {zShift} م.",
   "Only .csv, .xlsx, .zip (shapefile), .shp, .gpkg, .kml/.kmz, .las logs, GeoTIFF / .gxf grids and .dxf / .obj files can be dropped in directly.": "يمكن إسقاط ملفات .csv و.xlsx و.zip (shapefile) و.shp و.gpkg و.kml/.kmz وسجلات .las وشبكات GeoTIFF / .gxf وملفات .dxf / .obj مباشرة فقط.",
@@ -4189,7 +4188,6 @@
   "The project CRS isn't chosen yet — pick these coordinates' CRS here, or GeoStrix asks on import": "لم يُختر نظام إحداثيات المشروع بعد — اختر نظام هذه الإحداثيات هنا، وإلا سيسأل GeoStrix عند الاستيراد",
   "Same as project — {v}": "مثل المشروع — {v}",
   "— the same place on both grids (surveyed pins, a re-located hole), with project coordinates in EPSG:{v}. Leave Source CRS above blank. A 4-parameter similarity (scale, rotation, shift) is fitted; local coordinates in feet are handled by the fitted scale.": "— المكان نفسه على الشبكتين (أوتاد مرفوعة، ثقب أعيد تحديده)، بإحداثيات المشروع في EPSG:{v}. اترك نظام الإحداثيات المصدر أعلاه فارغًا. يُطابق تشابه رباعي المعاملات (مقياس، دوران، إزاحة)؛ والإحداثيات المحلية بالأقدام يعالجها المقياس المطابق.",
-  "Fitted from {n} points: scale {scale}, rotation {rotationDeg}°, RMS misfit {rmsM} m{v}. Residuals: {v2} m.": "مطابق من {n} نقطة: المقياس {scale}، الدوران {rotationDeg}°، عدم المطابقة RMS ‏{rmsM} م{v}. المتبقيات: {v2} م.",
   " (two points fit exactly — add a third to check the fit)": " (نقطتان تتطابقان تمامًا — أضف ثالثة للتحقق من المطابقة)",
   " — large: check the control points": " — كبير: تحقق من نقاط التحكم",
   "The project CRS — {v}": "نظام إحداثيات المشروع — {v}",
@@ -9103,7 +9101,6 @@
   "Coloured {n} of {total} codes like Macrostrat's lithologies (CC BY 4.0): {list}. The others keep their colours.": "لُوّن {n} من {total} رمزًا مثل صخاريات Macrostrat (CC BY 4.0): {list}. تحتفظ البقية بألوانها.",
   "Colour each code like Macrostrat's lithology of the same name (from the code, its label or its logged description; data CC BY 4.0). Codes that match none keep their colour.": "لوّن كل رمز مثل صخارة Macrostrat التي تحمل الاسم نفسه (من الرمز أو تسميته أو وصفه المسجل؛ البيانات CC BY 4.0). تحتفظ الرموز غير المطابقة بلونها.",
   "Macrostrat colours": "ألوان Macrostrat",
-  "Colour the units whose name gives an age (Late Jurassic, Eocene ...) in the international time scale's colours, from Macrostrat (CC BY 4.0). The others keep their colours.": "لوّن الوحدات التي يدل اسمها على عمر (الجوراسي المتأخر، الإيوسين ...) بألوان المقياس الزمني الدولي، من Macrostrat (CC BY 4.0). تحتفظ البقية بألوانها.",
   "\"{name}\": {n} of {total} units coloured by the time scale (Macrostrat, CC BY 4.0); the others keep their colours.": "\"{name}\": لُوّنت {n} من {total} وحدة حسب المقياس الزمني (Macrostrat، CC BY 4.0)؛ تحتفظ البقية بألوانها.",
   "Time-scale colours": "ألوان المقياس الزمني",
   "{name}.TAB is a MapInfo wrapper around a shapefile: select {name}.shp with its .dbf and .prj too.": "{name}.TAB غلاف MapInfo حول ملف shapefile: اختر أيضًا {name}.shp مع ملفي ‎.dbf و‎.prj.",
@@ -10262,5 +10259,12 @@
   "{t} t of it is rock the model has no block for (inside the outlines or their skin), counted at the density with no metal.": "{t} t منها صخر لا كتلة له في النموذج (داخل المحيطات أو قشرتها)، محسوب بالكثافة بلا معدن.",
   "By wall (face° / berm m → inter-ramp): {list}.": "حسب الجدار (الوجه° / المصطبة م → بين المنحدرات): {list}.",
   "Flatter than the shell was solved at: {list}. Those walls take more waste than the shell counted.": "أقل انحدارًا مما حُلّت به الحفرة: {list}. تأخذ تلك الجدران نفايات أكثر مما حسبته الحفرة.",
-  "That is the solid's own volume; the section times the line's length, as the profile line gives it, is {w} m³: the solid follows the curves by straight chords.": "هذا حجم المجسم نفسه؛ أما المقطع مضروبًا في طول الخط، كما يعطيه سطر المقطع، فهو {w} م³: يتبع المجسم المنحنيات بأوتار مستقيمة."
+  "That is the solid's own volume; the section times the line's length, as the profile line gives it, is {w} m³: the solid follows the curves by straight chords.": "هذا حجم المجسم نفسه؛ أما المقطع مضروبًا في طول الخط، كما يعطيه سطر المقطع، فهو {w} م³: يتبع المجسم المنحنيات بأوتار مستقيمة.",
+  " {moved} collar(s) moved from the local grid to EPSG:{v} (scale {scale}, rotation {rotationDeg}° counter-clockwise from the local grid to the map, RMS {rmsM} m over {n} control points){v2}.": " نُقلت {moved} فوهة من الشبكة المحلية إلى EPSG:{v} (المقياس {scale}، الدوران {rotationDeg}° عكس اتجاه عقارب الساعة من الشبكة المحلية إلى الخريطة، RMS ‏{rmsM} م على {n} نقطة ضبط){v2}.",
+  "Fitted from {n} points: scale {scale}, rotation {rotationDeg}° counter-clockwise from the local grid to the map, RMS misfit {rmsM} m{v}. Residuals: {v2} m.": "مطابق من {n} نقطة: المقياس {scale}، الدوران {rotationDeg}° عكس اتجاه عقارب الساعة من الشبكة المحلية إلى الخريطة، عدم المطابقة RMS ‏{rmsM} م{v}. المتبقيات: {v2} م.",
+  "Colour the units whose name gives an age (Late Jurassic, Eocene ...) in the international time scale's colours, fetched from Macrostrat (CC BY 4.0) over the internet. The others keep their colours.": "لوّن الوحدات التي يدل اسمها على عمر (الجوراسي المتأخر، الإيوسين ...) بألوان المقياس الزمني الدولي، من Macrostrat (CC BY 4.0)، عبر الإنترنت. تحتفظ البقية بألوانها.",
+  "{n} column(s) of the file were not imported: {cols}. Add one under Extra fields in the import dialog to keep it.": "لم يُستورد {n} عمود من الملف: {cols}. أضف أحدها ضمن الحقول الإضافية في نافذة الاستيراد للاحتفاظ به.",
+  "The row filter keeps no row: tick at least one value under Rows.": "لا يُبقي مرشّح الصفوف أي صف: حدّد قيمة واحدة على الأقل ضمن الصفوف.",
+  "Time-scale colours (online)": "ألوان المقياس الزمني (عبر الإنترنت)",
+  "The time-scale colours come from Macrostrat over the internet: offline, the units keep their colours.": "تأتي ألوان المقياس الزمني من Macrostrat عبر الإنترنت: دون اتصال، تحتفظ الوحدات بألوانها."
 }

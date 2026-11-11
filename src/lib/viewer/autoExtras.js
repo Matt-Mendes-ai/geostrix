@@ -45,3 +45,10 @@ export function companionLayer(target, headers) {
   const col = (headers || []).find((h) => /recover/i.test(h) && /%|pct|percent/i.test(h));
   return col ? { target: "recovery", column: col } : null;
 }
+
+// TASKS.csv #2341 (review #2325) — through the dialog, the columns no field took and no extra field added were dropped without a word
+// (Lith1_Strat, Lith1_Oxidation, AMG_Grid_ID): the ones that carry values, named in the notice. used: the column names the import read
+export function columnsLeftOut(headers, rows, used) {
+  const u = new Set((used || []).filter(Boolean));
+  return (headers || []).filter((h) => h && !u.has(h) && !String(h).startsWith("_") && (rows || []).some((r) => String(r?.[h] ?? "").trim() !== ""));
+}
