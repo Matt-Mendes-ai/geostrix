@@ -4,7 +4,7 @@
 import * as THREE from "three";
 import { trendRatioText } from "../../lib/trend.js"; // TASKS.csv #2423
 import { buildMeshQuery } from "../../lib/meshQuery.js"; // TASKS.csv #2376
-import { modelGround, boxTallerThanDrilling } from "../../lib/modelGround.js"; // TASKS.csv #2470
+import { modelGround, boxTallerThanDrilling, groundAtInFrame } from "../../lib/modelGround.js"; // TASKS.csv #2470; groundAtInFrame: #2634
 import { roundVolume, loggedVolumeCheck } from "../../lib/volumeCheck.js"; // TASKS.csv #2530
 import { taskSlot, rampProgress } from "../../lib/taskSlot.js"; // TASKS.csv #2379; rampProgress: #2383
 import { stackOrderFromHoles, stackRepeats } from "../../lib/stackOrderFromHoles.js"; // TASKS.csv #2382; repeats: #2532
@@ -21,7 +21,8 @@ import { makeRng, perturbPoints, perturbOrientation, pointsToMeshDistance, sprea
 import { colorForLithology, colorForAlteration, colorForStructure, minMax, roleForLithology, groupMcodeRole } from "../../lib/layers.js";
 import { computeMeshVolume } from "../../lib/volumetrics.js";
 import { MAX_BLOCKS, SUPPORT_COLORS, MAX_BLOCK_BUDGET, gridBlockCount, cellToFit, NUMERIC_CELL_DEFAULT } from "../../lib/estimationMeta.js"; // NUMERIC_CELL_DEFAULT: #1416; // budget: #625 // #552 — the estimator itself loads in the run functions
-import { compositeDownhole, rawSampleIntervals, capAudit, capAuditText, gradeUnitLabel } from "../../lib/geochem.js"; // capAudit: #533; rawSampleIntervals: #571
+import { compositeDownhole, rawSampleIntervals, capAudit, capAuditText, gradeUnitLabel, resolvedSegments } from "../../lib/geochem.js"; // capAudit: #533; rawSampleIntervals: #571; resolvedSegments: #2634
+import { assayIndicatorInGaps } from "../../lib/assayInGaps.js"; // TASKS.csv #2634
 import { excludeQAQC } from "../../lib/qaqc.js";
 import { errorNotice, notice, appendNotice, infoNotice } from "../../lib/notices.js"; // infoNotice: #2047
 import { noCollarsNotice } from "../../lib/noCollars.js"; // TASKS.csv #1841 — what is waiting for collars
@@ -53,9 +54,9 @@ import { findNumericSource, sourceAssays, logPoints, unlogGrid } from "../../lib
 // TASKS.csv #803 — the interpolated grid intersected with "below the terrain" (lib/groundCap.js), so a grade shell or
 // alteration envelope that reaches the surface closes ON the ground instead of in the air. toReal: grid frame ->
 // real (east, north, up) when the grid is anisotropy-warped. Returns { values, capped } (values unchanged when off).
-function groundCappedGrid(grid, iso, terrain, toReal = null) {
-  if (!terrain) return { values: grid.values, capped: 0 };
-  const groundAt = (x, y) => terrainGroundAt(terrain, x, y); // TASKS.csv #927
+// TASKS.csv #2634 — groundAt: (x, y) in the GRID's frame -> the ground in that frame (lib/modelGround.js groundAtInFrame), or null for no cut
+function groundCappedGrid(grid, iso, groundAt, toReal = null) {
+  if (!groundAt) return { values: grid.values, capped: 0 };
   return capFieldAtGround(grid.values, grid.nx, grid.ny, grid.nz, grid.origin, grid.cellSize, iso, groundAt, { toReal });
 }
 
@@ -1798,10 +1799,20 @@ export function createModellingRuns(ctx, mcRef) {
           const holesHere = new Set((tracesRef.current || []).map((t) => t.hole_id));
           const un = unloggedDrilling(collars.filter((c) => !holesHere.size || holesHere.has(c.hole_id)), altRows, () => true); // any lithology row covers its metres: a blank-code row is already an outside (0) sample above
           if (un.metres > 0.5) {
-            if (bodyOpts.unloggedOutside) un.rows.forEach((r) => splitIntervalForSampling(r.from, r.to, subLen).forEach((seg) => intervals.push({ hole_id: r.hole_id, from: seg.from, to: seg.to, avgGrade: 0 })));
+            // TASKS.csv #2634 — where the log is blank and the hole is assayed for the chosen element, the assay decides: at or above the typed
+            // cut-off inside the unit, below it outside (lab grades, QC inserts out); the blank metres no assay covers keep the #2531 rule
+            const aSym = bodyOpts.assaySymbol, aCut = Number(bodyOpts.assayCutoff);
+            const aUnit = (assayElements.find((e) => e.symbol === aSym) || {}).unit || "ppm";
+            const ai = aSym && aCut > 0 ? assayIndicatorInGaps(un.rows, resolvedSegments(excludeQAQC(assays), aSym, aUnit, Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit]))), aCut) : null;
+            if (ai) {
+              ai.inside.forEach((r) => splitIntervalForSampling(r.from, r.to, subLen).forEach((seg) => intervals.push({ hole_id: r.hole_id, from: seg.from, to: seg.to, avgGrade: 1 })));
+              ai.outside.forEach((r) => splitIntervalForSampling(r.from, r.to, subLen).forEach((seg) => intervals.push({ hole_id: r.hole_id, from: seg.from, to: seg.to, avgGrade: 0 })));
+              setNotices((p) => [...p, notice("Where the log is blank, {sym} decided: {a} m at or above {cut} {unit} counted as inside {code}, {b} m below it as outside, in {n} hole(s).", { sym: aSym, a: Math.round(ai.insideM).toLocaleString(), cut: aCut, unit: gradeUnitLabel(aSym, aUnit), code: altValue, b: Math.round(ai.outsideM).toLocaleString(), n: ai.holes })]);
+            }
+            if (bodyOpts.unloggedOutside) (ai ? ai.rest : un.rows).forEach((r) => splitIntervalForSampling(r.from, r.to, subLen).forEach((seg) => intervals.push({ hole_id: r.hole_id, from: seg.from, to: seg.to, avgGrade: 0 })));
             setNotices((p) => [...p, bodyOpts.unloggedOutside
-              ? notice("{m} of {d} m drilled in {n} hole(s) have no rock code ({nl} hole(s) with no log at all): counted as outside {code}, so the body closes there.", { m: Math.round(un.metres).toLocaleString(), d: Math.round(un.drilled).toLocaleString(), n: un.holes, nl: un.noLog, code: altValue })
-              : notice("{m} of {d} m drilled in {n} hole(s) have no rock code ({nl} hole(s) with no log at all): counted as unknown, not outside {code}, so nothing stops the body there. If these holes were logged only where the unit is (grade-control drilling), tick \"Treat unlogged metres as outside\".", { m: Math.round(un.metres).toLocaleString(), d: Math.round(un.drilled).toLocaleString(), n: un.holes, nl: un.noLog, code: altValue })]);
+              ? notice("{m} of {d} m drilled in {n} hole(s) have no rock code ({nl} hole(s) with no log at all): counted as outside {code}, so the body closes there.", { m: Math.round(ai ? Math.max(0, un.metres - ai.insideM - ai.outsideM) : un.metres).toLocaleString() /* #2634: less the assay-decided metres */, d: Math.round(un.drilled).toLocaleString(), n: un.holes, nl: un.noLog, code: altValue })
+              : notice("{m} of {d} m drilled in {n} hole(s) have no rock code ({nl} hole(s) with no log at all): counted as unknown, not outside {code}, so nothing stops the body there. If these holes were logged only where the unit is (grade-control drilling), tick \"Treat unlogged metres as outside\".", { m: Math.round(ai ? Math.max(0, un.metres - ai.insideM - ai.outsideM) : un.metres).toLocaleString() /* #2634: less the assay-decided metres */, d: Math.round(un.drilled).toLocaleString(), n: un.holes, nl: un.noLog, code: altValue })]);
           }
         }
         const { points: worldPts, dropped } = samplePointsFromIntervals(intervals, collars, survey, desurveyHole, desurveyMethod); // #135
@@ -1868,7 +1879,11 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
         // TASKS.csv #803 — closed at the terrain surface when "Cut at topography" is on
         const altUnwarp = anisotropy.enabled ? invScales(scl) : null;
         const iso = isCode && bodyOpts.iso > 0 && bodyOpts.iso < 1 ? bodyOpts.iso : 0.5; // #1339
-        const altCap = groundCappedGrid(grid, iso, clipToTopo ? terrainForClipRef.current : null, anisotropy.enabled ? (q) => anisoWarpPoint(q, center, basis, altUnwarp) : null);
+        // TASKS.csv #2634 — this grid is origin-relative: the ground is looked up in its frame (it was looked up at origin-relative x, y, so a
+        // body or halo was never cut); with no terrain, the collar surface (as the GemPy cut, #2470), unless the collars look drilled from underground
+        const altG = clipToTopo ? modelGround(terrainForClipRef.current, collars, survey) : null, altGround = altG?.ground || null;
+        const altCap = groundCappedGrid(grid, iso, groundAtInFrame(altGround, o), anisotropy.enabled ? (q) => anisoWarpPoint(q, center, basis, altUnwarp) : null);
+        if (altCap.capped && altGround?.kind === "collars") setNotices((p) => [...p, notice("No terrain is loaded, so \"{label}\" was cut at the collar surface: the ground interpolated between the {n} collars, inside their footprint. A terrain (Maps > Terrain) gives the real ground.", { label, n: altG.collars })]); // #2634
         const mc = marchingCubes(altCap.values, grid.nx, grid.ny, grid.nz, iso, {
           origin: grid.origin, spacing: grid.cellSize, noData: "outside",
         });
@@ -1911,7 +1926,7 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
           method: "idw2", searchRadiusM: radius, searchRadiusAuto: !(searchSetting > 0),
           ...(anisotropy.enabled ? { searchEllipsoidM: [1, scl.major / scl.semiMajor, scl.major / scl.minor].map((f) => Math.round(radius * f * 10) / 10) } : {}), // #656
           cellSizeM: cell, cellSizeAuto: !(cellSetting > 0), cellSizeCoarsened: coarsened,
-          paddingM: pad, closure, holeSpacingM: auto.spacing, cutAtTopography: altCap.capped ? `${(terrainForClipRef.current?.name) || "terrain"}: ${altCap.capped} grid node(s) capped (#803)` : false,
+          paddingM: pad, closure, holeSpacingM: auto.spacing, cutAtTopography: altCap.capped ? `${altGround?.name || "terrain"}: ${altCap.capped} grid node(s) capped (#803)` : false,
           anisotropy: anisotropy.enabled ? anisotropy.params : null,
           domain: domain ? domain.name : null,
           interceptSet: activeInterceptSetRef.current ? { name: activeInterceptSetRef.current.name, intercepts: (activeInterceptSetRef.current.ids || []).length } : null, // TASKS.csv #52 (c)
@@ -2339,7 +2354,9 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
         // The grid is padded around the samples, so near the surface it reached into the air; with "Cut at topography"
         // on, the field is intersected with "below the terrain" and the shell closes on the ground (still watertight).
         const gsRealOf = anisotropy.enabled ? ((u) => (q) => anisoWarpPoint(q, gsCenter, gsBasis, u))(invScales(gsScl)) : null;
-        const gsCap = groundCappedGrid(grid, numericCutoff, clipToTopo ? terrainForClipRef.current : null, gsRealOf);
+        const gsG = clipToTopo ? modelGround(terrainForClipRef.current, collars, survey) : null, gsGround = gsG?.ground || null; // #2634: or the collar surface
+        const gsCap = groundCappedGrid(grid, numericCutoff, groundAtInFrame(gsGround), gsRealOf); // this grid is in world coordinates
+        if (gsCap.capped && gsGround?.kind === "collars") setNotices((p) => [...p, notice("No terrain is loaded, so \"{label}\" was cut at the collar surface: the ground interpolated between the {n} collars, inside their footprint. A terrain (Maps > Terrain) gives the real ground.", { label, n: gsG.collars })]); // #2634
         const mc = marchingCubes(gsCap.values, grid.nx, grid.ny, grid.nz, numericCutoff, {
           origin: grid.origin, spacing: grid.cellSize, noData: numericCloseShell ? "outside" : "skip",
         });
@@ -2427,7 +2444,7 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
           method: numericMethod, searchRadiusM: effectiveRadius,
           searchRadiusWasUnlimited: !(numericSearchRadius > 0),
           ...(shellEllipsoidM ? { searchEllipsoidM: shellEllipsoidM } : {}), // #656 — semi-axes along the trend's axes
-          cellSizeM: cs, paddingM: pad, closure, cutAtTopography: gsCap.capped ? `${(terrainForClipRef.current?.name) || "terrain"}: ${gsCap.capped} grid node(s) above or just below the ground capped (#803)` : false,
+          cellSizeM: cs, paddingM: pad, closure, cutAtTopography: gsCap.capped ? `${gsGround?.name || "terrain"}: ${gsCap.capped} grid node(s) above or just below the ground capped (#803)` : false,
           composited: numericUseComposites, compositeLengthM: numericUseComposites ? numericCompositeLength : null,
           minCoverage: numericUseComposites ? numericMinCoverage : null, // TASKS.csv #262
           capValue: Number.isFinite(numericCapValue) && numericCapValue > 0 ? numericCapValue : null,
