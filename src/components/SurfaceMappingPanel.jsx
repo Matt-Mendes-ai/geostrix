@@ -23,6 +23,7 @@ import {
 } from "../lib/mapLayers.js";
 import { downholeTableColumns, structureCodeColumn } from "../lib/downholeTableGuess.js"; // TASKS.csv #1722
 import { uniqueLayerName } from "../lib/interpretation.js"; // TASKS.csv #2573
+import { defaultDiscSize, discSizeMax } from "../lib/outcropDiscSize.js"; // TASKS.csv #2412
 
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
@@ -481,7 +482,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
     // TASKS.csv #1719 — typed measurements gather in one set per north reference instead of a set each
     const typedSet = p.typed ? surfaceStructures.find((s) => s.typed && s.azimuthRef === north.ref && (north.ref !== "magnetic" || s.azimuthDate === north.date)) : null;
     if (typedSet) updateSurfaceStructureSet(typedSet.id, { rows: [...typedSet.rows, ...rows] });
-    else addSurfaceStructureSet({ name: uniqueLayerName(p.name, surfaceStructures) /* #2573 — a second set from one file (true, then magnetic north) is numbered */, rows, snapToTerrain: true, azimuthRef: north.ref, ...(north.ref === "magnetic" ? { azimuthDate: north.date } : {}), ...(p.typed ? { typed: true } : {}) });
+    else addSurfaceStructureSet({ name: uniqueLayerName(p.name, surfaceStructures) /* #2573 — a second set from one file (true, then magnetic north) is numbered */, rows, ...(p.typed ? {} : { size: defaultDiscSize(rows) }) /* #2412 — sized from the readings' spacing */, snapToTerrain: true, azimuthRef: north.ref, ...(north.ref === "magnetic" ? { azimuthDate: north.date } : {}), ...(p.typed ? { typed: true } : {}) });
     const noZ = out.rows.filter((r) => r.z == null).length;
     // TASKS.csv #2082 — the type codes no class knows: said, so 'Other' on the stereonet is not taken for nothing
     const otherTypes = [...new Set(out.rows.filter((r) => r.cls === "other" && String(r.type || "").trim()).map((r) => String(r.type).trim()))];
@@ -777,7 +778,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
             </div>
             <div style={row}>
               <span style={lbl}>{tr("Disc size")}</span>
-              <input type="range" min={5} max={200} step={5} value={s.size ?? 25} onChange={(e) => updateSurfaceStructureSet(s.id, { size: Number(e.target.value) })} style={{ flex: 1 }} />
+              <input type="range" min={5} max={discSizeMax(s.rows, s.size) /* #2412 — grows with the set's extent */} step={5} value={s.size ?? 25} onChange={(e) => updateSurfaceStructureSet(s.id, { size: Number(e.target.value) })} style={{ flex: 1 }} />
               <span style={{ color: "var(--color-text-muted)", width: 40, textAlign: "right" }}>{s.size ?? 25} m</span>
             </div>
             <label style={{ ...row, cursor: terrain ? "pointer" : "default", opacity: terrain ? 1 : 0.45 }}>
