@@ -2,6 +2,7 @@
 // (CompositingModal.jsx, BestIntercepts.jsx) so a Node test can check the columns and number formats. Pure: results
 // and settings in, one plain object per CSV row out (toExportCsv in tabular.js writes them).
 import { intervalXYZ } from "./desurvey.js";
+import { interceptGradeLength, interceptSampledM } from "./geochem.js"; // TASKS.csv #2475
 
 // TASKS.csv #1069 — grades to 6 significant figures whatever the unit (toFixed(3) wrote 0.000 for small Mo % values)
 export const sig6 = (v) => (Number.isFinite(v) ? +v.toPrecision(6) : "");
@@ -49,7 +50,8 @@ export function interceptRows(results, { symbol, unit, loc = () => ({}), trueWid
     grade_is_minimum: r.overRange ? "yes (contains an over-range '>' result read at its ceiling)" : "",
     unsampled_or_unassayed_m: r.unsampledM ? r.unsampledM.toFixed(2) : "0",
     overlapping_assays_averaged_m: r.overlapM ? r.overlapM.toFixed(2) : "0",
-    grade_x_length: sig6(r.avgGrade * r.length),
+    grade_x_length: sig6(interceptGradeLength(r)), // #2475 — over the sampled metres
+    sampled_m: sig6(interceptSampledM(r)),
     ...Object.fromEntries(extraSymbols.map((s) => [`avg_${s}_${elementUnits[s] || "ppm"}`, r.extras?.[s] == null ? "" : sig6(r.extras[s])])),
     assay_intervals: r.intervals,
     // TASKS.csv #402 — including sub-intercepts: the best one in columns, all of them as text

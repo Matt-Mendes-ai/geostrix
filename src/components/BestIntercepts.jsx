@@ -2,6 +2,7 @@ import React, { useMemo, useRef, useState } from "react";
 import { X, Download, Sheet } from "./icons.js";
 import { preferredElement, rememberElement } from "../lib/preferredElement.js"; // TASKS.csv #1678
 import { useLeadCommodity } from "../lib/useLeadCommodity.js"; // #1523 — the project's lead commodity
+import { interceptGradeLength, interceptSampledM } from "../lib/geochem.js"; // TASKS.csv #2475
 import { computeBestIntercepts, makeRangeAverager, domainsForInterval, attachIncluding, metalEquivalent, metalEquivalentFormula, PRECIOUS_METALS, withMetalEquivalent, gradeUnitLabel } from "../lib/geochem.js"; // attachIncluding, metal equivalent: #402
 import { excludeQAQC, labAssays } from "../lib/qaqc.js";
 import { desurveyHole } from "../lib/desurvey.js";
@@ -151,7 +152,7 @@ export default function BestIntercepts({ assays: assaysIn, assayElements, collar
       rows = attachIncluding(rows, computeBestIntercepts(A, S, unit, U, { cutoff: incC, maxInternalDilution, minLength }));
       rows.stats = stats;
     }
-    const out = rows.filter((r) => r.avgGrade * r.length >= minGradeLen - 1e-9).map((r) => ({
+    const out = rows.filter((r) => interceptGradeLength(r) >= minGradeLen - 1e-9).map((r) => ({ // #2475
       ...r,
       extras: Object.fromEntries(shownExtras.map((s) => [s, rangeAvg(r.hole_id, r.from, r.to, s, elementUnits[s] || "ppm")])),
       // null (not a fallback to downhole length) whenever the geometry can't be resolved — see
@@ -180,7 +181,7 @@ export default function BestIntercepts({ assays: assaysIn, assayElements, collar
   // TASKS.csv #911 — the results as a table on the active Layout page (a copy: send again after changing the settings)
   const toLayout = () => {
     const columns = [tr("Hole"), tr("From (m)"), tr("To (m)"), tr("Length (m)"), ...(twEnabled ? [tr("True width (m)")] : []), `${gradeSym} (${dispUnit})`, ...(incOn ? [tr("Including")] : [])]; // dispUnit: #1680
-    const rows = results.slice(0, 60).map((r) => [String(r.hole_id), Number(r.from).toFixed(2), Number(r.to).toFixed(2), r.length.toFixed(2), ...(twEnabled ? [r.tw ? r.tw.trueWidth.toFixed(2) : ""] : []), `${r.overRange ? "≥" : ""}${+dg(r.avgGrade).toPrecision(4)}`, ...(incOn ? [r.including ? incText(r.including[0]) : ""] : [])]);
+    const rows = results.slice(0, 60).map((r) => [String(r.hole_id), Number(r.from).toFixed(2), Number(r.to).toFixed(2), r.unsampledM > 0.05 ? tr("{len} ({s} sampled)", { len: r.length.toFixed(2), s: interceptSampledM(r).toFixed(2) }) : r.length.toFixed(2) /* #2475 */, ...(twEnabled ? [r.tw ? r.tw.trueWidth.toFixed(2) : ""] : []), `${r.overRange ? "≥" : ""}${+dg(r.avgGrade).toPrecision(4)}`, ...(incOn ? [r.including ? incText(r.including[0]) : ""] : [])]);
     const from = tr("{symbol} ≥ {cutoff} {unit}, dilution ≤ {dil} m, min {min} m", { symbol: gradeSym, cutoff, unit: unitL, dil: maxInternalDilution, min: minLength });
     // TASKS.csv #936 — a printed intercept table is what gets lifted into a report or a news release: it carries the
     // caveats the dialog and the CSV stamp give (QC, over-range, below detection, true width, screening)
@@ -188,6 +189,7 @@ export default function BestIntercepts({ assays: assaysIn, assayElements, collar
       includeQAQC ? tr("QC samples (standards, blanks, duplicates) are included.") : qaqcExcludedCount > 0 ? tr("{n} QC sample(s) (standards, blanks, duplicates) excluded.", { n: qaqcExcludedCount }) : "",
       results.some((r) => r.overRange) ? tr("≥: contains an over-range result counted at its ceiling; the true grade is at least this.") : "",
       tr("Below-detection results are taken at half the detection limit."),
+      results.slice(0, 60).some((r) => r.unsampledM > 0.05) ? tr("Where a length shows its sampled metres, the rest of the interval has no result: the grade and grade × length are over the samples only.") : "", // #2475
       twEnabled ? tr("True width to a structure dipping {dip}° towards {dipDir}°.", { dip: twDip, dipDir: twDipDir }) : tr("Lengths are downhole, not true widths."),
       tr("Screening tool: verify any intercept against the raw assay certificates before reporting it."),
     ].filter(Boolean).join(" ");
@@ -384,7 +386,7 @@ export default function BestIntercepts({ assays: assaysIn, assayElements, collar
                         ].filter(Boolean).join(" ") || undefined}>
                         {r.overRange ? "≥ " : ""}{+dg(r.avgGrade).toPrecision(4)}{r.overlapM > 1e-6 ? " ⚠" : ""}
                       </td>
-                      <td style={td}>{+dg(r.avgGrade * r.length).toPrecision(5)}</td>
+                      <td style={td}>{+dg(interceptGradeLength(r)).toPrecision(5)}</td>{/* #2475 */}
                       {/* TASKS.csv #1164 — the same order as the header: Including, then the equivalent */}
                       {optionalInterceptColumns({ including: incOn, metalEquivalent: meqCol }).map((c) => (c === "including"
                         ? <td key={c} style={{ ...td, whiteSpace: "nowrap" }} title={r.including ? r.including.map(incText).join("; ") : undefined}>{r.including ? `${incText(r.including[0])}${r.including.length > 1 ? ` +${r.including.length - 1}` : ""}` : "—"}</td>

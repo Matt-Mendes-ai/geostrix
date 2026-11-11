@@ -9969,5 +9969,7 @@
   "Total est. ${c}.": "Total est. {c} $.",
   "Enter a rate for {list} to total the cost.": "Saisissez un tarif pour {list} pour totaliser le coût.",
   "Hole type": "Type de sondage",
-  "e.g. as the collars: AC, RC, DD": "p. ex. comme les collets : AC, RC, DD"
+  "e.g. as the collars: AC, RC, DD": "p. ex. comme les collets : AC, RC, DD",
+  "{len} ({s} sampled)": "{len} ({s} échantillonnés)",
+  "Where a length shows its sampled metres, the rest of the interval has no result: the grade and grade × length are over the samples only.": "Là où une longueur indique ses mètres échantillonnés, le reste de l'intervalle n'a pas de résultat : la teneur et la teneur × longueur portent sur les échantillons seulement."
 }

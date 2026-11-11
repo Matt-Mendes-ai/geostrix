@@ -579,11 +579,15 @@ export function attachIncluding(parents, highs) {
   const EPS = 1e-6;
   return parents.map((p) => {
     const inc = highs.filter((h) => h.hole_id === p.hole_id && h.from >= p.from - EPS && h.to <= p.to + EPS && !(Math.abs(h.from - p.from) < EPS && Math.abs(h.to - p.to) < EPS))
-      .sort((a, b) => b.avgGrade * b.length - a.avgGrade * a.length);
+      .sort((a, b) => interceptGradeLength(b) - interceptGradeLength(a)); // #2475
     return inc.length ? { ...p, including: inc } : p;
   });
 }
 
+// TASKS.csv #2475 (review #2325, WA uranium) — grade x length over the SAMPLED metres: an intercept of 10.40 m with 9.00 m sampled printed
+// 1669 x 10.40 = 17,355 (the gaps carried the average grade) and outranked a 6.00 m intercept of 15,761; the samples sum to 15,019
+export const interceptSampledM = (r) => Math.max(0, (Number(r?.length) || 0) - (Number(r?.unsampledM) || 0));
+export const interceptGradeLength = (r) => (Number(r?.avgGrade) || 0) * interceptSampledM(r);
 export function computeBestIntercepts(assays, symbol, unit, elementUnits, opts = {}) {
   const cutoff = opts.cutoff ?? 0;
   const maxInternalDilution = opts.maxInternalDilution ?? 2;
@@ -663,7 +667,7 @@ export function computeBestIntercepts(assays, symbol, unit, elementUnits, opts =
     flush();
   });
 
-  composites.sort((a, b) => (b.avgGrade * b.length) - (a.avgGrade * a.length));
+  composites.sort((a, b) => interceptGradeLength(b) - interceptGradeLength(a)); // #2475 — over the sampled metres
   // Data-handling counts ride along on the array so the report can say what it did, not just do it.
   composites.stats = stats;
   return composites;

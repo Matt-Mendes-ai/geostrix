@@ -42,9 +42,10 @@ test("#1083 intercept rows: the optional column groups appear only when switched
     extras: { Cu: 1234.56789 }, tw: { trueWidth: 7.071, factor: 0.70711 }, dom: { dominant: { value: "VCL", fraction: 0.8 }, parts: [{ value: "VCL", fraction: 0.8 }, { value: "DACT", fraction: 0.2 }], covered: 1, overlapping: false },
     including: [{ from: 22, to: 24, length: 2, avgGrade: 9.87654321 }] };
   const plain = interceptRows([r], { symbol: "Au", unit: "g/t" })[0];
-  assert.deepEqual(Object.keys(plain), ["hole_id", "from", "to", "length_m", "avg_Au_g/t", "grade_is_minimum", "unsampled_or_unassayed_m", "overlapping_assays_averaged_m", "grade_x_length", "assay_intervals"]);
+  assert.deepEqual(Object.keys(plain), ["hole_id", "from", "to", "length_m", "avg_Au_g/t", "grade_is_minimum", "unsampled_or_unassayed_m", "overlapping_assays_averaged_m", "grade_x_length", "sampled_m" /* #2475 */, "assay_intervals"]);
   assert.equal(plain["avg_Au_g/t"], 2.34568);
-  assert.equal(plain.grade_x_length, 23.4568);
+  assert.equal(plain.grade_x_length, 20.5247); // #2475 — over the 8.75 sampled metres (10 m with 1.25 m unsampled), not the whole span (23.4568)
+  assert.equal(plain.sampled_m, 8.75);
   assert.match(plain.grade_is_minimum, /^yes/);
   assert.equal(plain.unsampled_or_unassayed_m, "1.25");
   assert.equal(plain.overlapping_assays_averaged_m, "0");

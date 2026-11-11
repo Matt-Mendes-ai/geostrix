@@ -9969,5 +9969,7 @@
   "Total est. ${c}.": "Total est. ${c}.",
   "Enter a rate for {list} to total the cost.": "Informe uma tarifa para {list} para totalizar o custo.",
   "Hole type": "Tipo de furo",
-  "e.g. as the collars: AC, RC, DD": "ex.: como os colares: AC, RC, DD"
+  "e.g. as the collars: AC, RC, DD": "ex.: como os colares: AC, RC, DD",
+  "{len} ({s} sampled)": "{len} ({s} amostrados)",
+  "Where a length shows its sampled metres, the rest of the interval has no result: the grade and grade × length are over the samples only.": "Onde um comprimento mostra seus metros amostrados, o resto do intervalo não tem resultado: o teor e o teor × comprimento são só sobre as amostras."
 }
