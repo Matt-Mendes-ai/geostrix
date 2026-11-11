@@ -5,7 +5,8 @@ import { useLeadCommodity } from "../lib/useLeadCommodity.js"; // #1523 — the 
 import { customDomainOptions, isCategoricalLayer, attributeDomainOptions, attributeDomainLabel } from "../lib/customDomains.js"; // TASKS.csv #1678; #1515; attributes: #2504
 import { compositeDownhole, countDuplicateAssayIntervals, capAudit, capAuditText, gradeUnitLabel } from "../lib/geochem.js"; // gradeUnitLabel: #1680
 import CapAuditHint from "./CapAuditHint.jsx"; // TASKS.csv #533
-import { excludeQAQC, labAssays } from "../lib/qaqc.js";
+import { excludeQAQC, labAssays, classifyQAQCRow } from "../lib/qaqc.js"; // classifyQAQCRow: #1801
+import { commonestSampleLength } from "../lib/sampleLength.js"; // TASKS.csv #1801
 import { stampLines, withStamp, ASSAY_READING_RULES, stampEpsg } from "../lib/provenance.js"; // TASKS.csv #404
 import { desurveyHole } from "../lib/desurvey.js"; // TASKS.csv #411
 import { compositeRows } from "../lib/drillReportExport.js"; // TASKS.csv #1083
@@ -53,7 +54,9 @@ export default function CompositingModal({ assays: assaysIn, assayElements, laye
   const setSymbol = (v) => { setSymbolRaw(v); rememberElement("compositing", typeof v === "string" ? v : null); }; // #1678 — kept for next time
   const unit = elementUnits[symbol] || "ppm";
   const unitL = gradeUnitLabel(symbol, unit); // #1680 — the label (g/t for a precious metal in ppm); computations keep unit
-  const [length, setLength] = useState(2);
+  // TASKS.csv #1801 — the commonest sample length, not a fixed 2 m (3 m samples were split into 2 + 1 m pieces)
+  const usual = useMemo(() => commonestSampleLength(assays, (a) => classifyQAQCRow(a) !== "regular"), [assays]);
+  const [length, setLength] = useState(() => usual?.length || 2);
   const [minCoverage, setMinCoverage] = useState(0.5);
   const [capValue, setCapValue] = useState("");
   const [domainKey, setDomainKey] = useState(""); // "" = no domain honoring
@@ -139,6 +142,7 @@ export default function CompositingModal({ assays: assaysIn, assayElements, laye
               </select>
             </label>
             <label style={fieldLabel}>{tr("Composite length (m)")}<input type="number" step="any" min="0.1" value={length} onChange={(e) => setLength(Math.max(0.1, Number(e.target.value) || 2))} style={inp} />
+              {usual && <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", fontWeight: 400 }}>{tr("{length} m: the commonest sample length ({pct} % of the samples)", { length: usual.length, pct: Math.round(usual.share * 100) })}</span>}{/* #1801 */}
             </label>
             <label style={fieldLabel} title={tr("Honour a domain layer's boundaries — a composite will never straddle a change in this layer's value, even if that makes it shorter than the target length.")}>{tr("Honour domain")}<select value={domainKey} onChange={(e) => setDomainKey(e.target.value)} style={inp}>
                 <option value="">{tr("— none —")}</option>
