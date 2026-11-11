@@ -23,7 +23,7 @@ import { downholeLikeness } from "../lib/downholeLikeness.js"; // TASKS.csv #170
 import AddWebLayerModal from "../components/AddWebLayerModal.jsx";
 const MacrostratModal = React.lazy(() => import("../components/MacrostratModal.jsx")); // TASKS.csv #2005
 import { useStore } from "../lib/store.jsx";
-import { classifyBreaks, PALETTES, paletteShortName /* #1859 */, paletteColorsHex , colorForVoxelValue, readableValues /* #1422 */, classCountNote /* #1430 */ } from "../lib/layers.js";
+import { classifyBreaks, PALETTES, paletteShortName /* #1859 */, paletteColorsHex , colorForVoxelValue, readableValues /* #1422 */, rangeText /* #2402 */, classCountNote /* #1430 */ } from "../lib/layers.js";
 import StopValueInput from "../components/StopValueInput.jsx"; // TASKS.csv #1422
 import { parseDEMFiles, buildRasterImport, terrainToGeoTIFFArrayBuffer } from "../lib/raster.js";
 import { boundaryAreaHectares } from "../lib/geoprocessing.js";
@@ -1772,7 +1772,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                       onClick={() => { if (window.confirm(tr("Remove the {count} points of \"{key}\"?", { count: sv.count.toLocaleString(), key: sv.key }))) setLayers((l) => ({ ...l, geophys_pts: (l.geophys_pts || []).filter((r) => surveyKey(r) !== sv.key) })); }} />
                   </div>
                   <div style={{ color: "var(--color-text-muted)", marginTop: 2 }}>
-                    {tr("{count} points{v}, {withZ} with elevation · values {v2}{v3}", { count: sv.count.toLocaleString(), v: sv.lines ? `, ${sv.lines} line(s)` : "", withZ: sv.withZ.toLocaleString(), v2: Number.isFinite(sv.min) ? `${sv.min.toPrecision(4)} to ${sv.max.toPrecision(4)}` : "—", v3: meta.units ? ` ${meta.units}` : "" })}
+                    {tr("{count} points{v}, {withZ} with elevation · values {v2}{v3}", { count: sv.count.toLocaleString(), v: sv.lines ? `, ${sv.lines} line(s)` : "", withZ: sv.withZ.toLocaleString(), v2: Number.isFinite(sv.min) ? rangeText(sv.min, sv.max) /* #2402 — 57,392 to 57,571, not 5.739e+4 */ : "—", v3: meta.units ? ` ${meta.units}` : "" })}
                   </div>
                   <div style={{ display: "flex", gap: 6, marginTop: 5 }}>
                     <select value={meta.method || ""} aria-label={tr("Method of \"{key}\"", { key: sv.key })} style={{ ...numInput, width: "auto", flex: 1, minWidth: 0 }}
@@ -1799,6 +1799,9 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                       title={terrain ? tr("elevation = terrain + the height in z (the heights are kept, so this can be redone after loading a better terrain)") : tr("Load a terrain first")}>
                       {sv.withAgl ? tr("Recompute elevations from the terrain") : tr("Convert heights to elevations (terrain + height)")}
                     </button>
+                  )}
+                  {meta.zMeaning === "agl" && !terrain && ( /* TASKS.csv #2244 — the disabled button said why only on hover */
+                    <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 3 }}>{tr("Needs a terrain: load or build one under Maps > Terrain (a DEM, a fetch, or the project's own collars).")}</div>
                   )}
                 </div>
               );
@@ -2887,7 +2890,7 @@ function VoxelLegendEditor({ model, onUpdate }) {
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7 }}>
           <span style={{ color: "var(--color-text-faint)", width: 62, flexShrink: 0 }}>{tr("Stretch")}</span>
           <select value={model.stretch === "minmax" ? "minmax" : "p2-98"} onChange={(e) => onUpdate(model.id, { stretch: e.target.value === "minmax" ? "minmax" : null })} style={{ ...numInput, flex: 1 }} aria-label={tr("Colour stretch of \"{name}\"", { name: model.name })}>
-            <option value="p2-98">{(() => { const r = voxelStretch({ ...model, stretch: null }); return r ? tr("2–98 % of the cells ({lo} to {hi})", { lo: +r[0].toPrecision(3), hi: +r[1].toPrecision(3) }) : tr("2–98 % of the cells"); })()}</option>
+            <option value="p2-98">{(() => { const r = voxelStretch({ ...model, stretch: null }); const pts = model.id === "geophys_pts"; /* #2247 */ const lim = r ? rangeText(r[0], r[1], true) : null; /* #2402 — the limits at the Range boxes' precision ('57400 to 57500' for 57,407 to 57,530) */ return r ? (pts ? tr("2–98 % of the points ({lo} to {hi})", { lo: lim[0], hi: lim[1] }) : tr("2–98 % of the cells ({lo} to {hi})", { lo: lim[0], hi: lim[1] })) : pts ? tr("2–98 % of the points") : tr("2–98 % of the cells"); })()}</option>
             <option value="minmax">{tr("The range above (min to max)")}</option>
           </select>
         </div>
@@ -2963,7 +2966,7 @@ function VoxelLegendEditor({ model, onUpdate }) {
           <button onClick={applyClassify} style={{ ...pBtn, width: "auto", marginBottom: 0 }}>{tr("Apply")}</button>
         </div>
         {classNote && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginTop: 3 }}>{classNote}</div>} {/* #1430 */}
-        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 3, lineHeight: 1.4 }}>{tr("Generates {classCount} classes from this model's actual cell values and switches to classified (stepped) styling.", { classCount })}</div>
+        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 3, lineHeight: 1.4 }}>{(model.id === "geophys_pts" /* #2247 — the editor is shared with point surveys */ ? tr("Generates {classCount} classes from this survey's point values and switches to classified (stepped) styling.", { classCount }) : tr("Generates {classCount} classes from this model's actual cell values and switches to classified (stepped) styling.", { classCount }))}</div>
       </div>
     </div>
   );

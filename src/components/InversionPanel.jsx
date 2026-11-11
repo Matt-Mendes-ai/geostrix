@@ -683,7 +683,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
               {rows.length > 0 && ( // TASKS.csv #1589
                 <div style={{ ...small, marginTop: 6 }}>
                   {terrain
-                    ? (coverage && <span style={{ color: coverage.pct < 90 ? "var(--color-warn-text)" : "var(--color-text-secondary)" }}>{tr("The terrain covers {pct}% of the stations; the others would be left out.", { pct: Math.round(coverage.pct) })}</span>)
+                    ? (coverage && <span style={{ color: coverage.pct < 90 ? "var(--color-warn-text)" : "var(--color-text-secondary)" }}>{coverage.pct >= 99.95 ? tr("The terrain covers every station.") : tr("The terrain covers {pct}% of the stations; the others would be left out.", { pct: Math.round(coverage.pct) }) /* #2247 — 'the others' only when there are some */}</span>)
                     : <span style={{ color: "var(--color-warn-text)" }}>{tr("No terrain yet: an inversion needs one to know which cells are underground.")}</span>}
                   {(!terrain || (coverage && coverage.pct < 90)) && <div><button onClick={groundFromStations} style={{ ...pBtn, marginTop: 4, marginBottom: 0 }}>{tr("Ground from the stations' own elevations…")}</button></div>}
                   {groundNote && <div style={{ marginTop: 4 }}>{groundNote}</div>}

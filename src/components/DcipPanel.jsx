@@ -440,7 +440,7 @@ export default function DcipPanel({ pBtn, numInput, resultSlot = null }) {
           )}
           {line.stations && (
             <div style={{ ...small, display: "flex", gap: 6, alignItems: "baseline" }}>
-              <span style={{ flex: 1 }}>{tr("Stations: {list} from {file} (line {line}){v}.", { list: line.stations.list.length, file: line.stations.file, line: line.stations.line, v: line.stations.list.some((p) => Number.isFinite(p.z)) ? tr(" — used as the ground profile") : tr(" — no elevations") })}</span>
+              <span style={{ flex: 1 }}>{line.stations.line ? tr("Stations: {list} from {file} (line {line}){v}.", { list: line.stations.list.length, file: line.stations.file, line: line.stations.line, v: line.stations.list.some((p) => Number.isFinite(p.z)) ? tr(" — used as the ground profile") : tr(" — no elevations") }) : tr("Stations: {list} from {file}{v}.", { list: line.stations.list.length, file: line.stations.file, v: line.stations.list.some((p) => Number.isFinite(p.z)) ? tr(" — used as the ground profile") : tr(" — no elevations") }) /* #2247 — no '(line )' */}</span>
               <button onClick={() => setLine((l) => ({ ...l, stations: null }))} style={{ ...pBtn, width: "auto", padding: "2px 6px", marginBottom: 0 }} title={tr("Stop using the station elevations (the placement stays)")}>{tr("Clear")}</button>
             </div>
           )}

@@ -59,7 +59,10 @@ export default function DownholeLogsPane({ layers, customLayers = [], assays = [
   // #2558 — the log scale follows the data (all above zero, over a decade) until the box is ticked or unticked
   const [logChoice, setLogChoice] = useKeptState(keptScope, "dhlogs.logChoice", "auto");
   const logValues = useMemo(() => (data ? data.assays.map((r) => r.values?.[data.symbol]) : []), [data]);
-  const logScale = logChoice === "auto" ? logScaleSuits(logValues) : logChoice === "on";
+  // TASKS.csv #2245 (review #2174) — a log the sources say is linear (RQD, recovery, SG: LOG_SOURCES logScale false) opens linear: RQD went to a
+  // log axis up to '1.00e+3 %' because one reading was 1,000 %
+  const logScale = logChoice === "auto" ? source?.logScale !== false && logScaleSuits(logValues) : logChoice === "on";
+  const overPct = useMemo(() => (source?.unit === "%" ? logValues.filter((v) => Number.isFinite(v) && v > 100).length : 0), [source, logValues]); // #2245
   const logHidden = logScale ? countAtOrBelowZero(logValues) : 0;
   // TASKS.csv #2393 — rank the codes by the median (default), the mean, P90 or the share of readings above a value
   const [rankStat, setRankStat] = useKeptState(keptScope, "dhlogs.rankStat", "median");
@@ -89,6 +92,7 @@ export default function DownholeLogsPane({ layers, customLayers = [], assays = [
               {sources.map((s) => <option key={s.key} value={s.key}>{s.label} ({s.n.toLocaleString()})</option>)}
             </select></label>
           {data && <div style={note}>{tr(source?.binM ? "{n} bins of {b} m, in {u}{v}." : unitOf(source?.unit) ? "{n} readings, in {u}{v}." : "{n} readings, values as logged{v}.", { n: data.assays.length.toLocaleString(), b: source?.binM, u: unitOf(source?.unit) || tr("the layer's own units"), v: data.pointRows ? tr("; {p} depth-only readings are given {s} m of core each", { p: data.pointRows.toLocaleString(), s: data.pointSupport }) : "" })}</div>}
+          {overPct > 0 && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("{n} reading(s) are above 100 %, which a percentage cannot be: check them (Data QC lists them). They are drawn as logged.", { n: overPct.toLocaleString() })}</div>}{/* #2245 */}
           <label style={row}>{tr("By code of")}
             <select value={domain?.key || ""} onChange={(e) => setDomainKey(e.target.value)} style={{ ...smallSel, maxWidth: 190 }} aria-label={tr("Group readings by")} disabled={!domains.length}>
               {!domains.length && <option value="">{tr("— no logged codes —")}</option>}
