@@ -24,5 +24,6 @@ test("#1128 the section window draws no key; a Layout snapshot gets a bound lege
   assert.match(sw, /groupSectionLegend\(\[\.\.\.sectionAssayLegend\(data\.points, data\.assayLegend\), \.\.\.shownLegendItems,/); // #1475: grade classes first
   assert.match(sw, /legendItems: keyRows\(true\)/); // #2523: one builder for the snapshot and the key under the drawing (still none IN the drawing)
   const lm = fs.readFileSync("src/modules/LayoutModule.jsx", "utf8");
-  assert.match(lm, /type: "legend", .*items: groupSectionLegend\(a\.legendItems\), boundViewportId: a\.id/);
+  assert.match(lm, /const items = groupSectionLegend\(a\.legendItems\);/); // #2612: placed on the sheet before it is returned
+  assert.match(lm, /type: "legend", \.\.\.spot, items, boundViewportId: a\.id/);
 });

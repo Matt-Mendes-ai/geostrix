@@ -88,7 +88,7 @@ test("hole labels keep out of the key's box", () => {
 test("the sheet and the PDF get the assays; the sidebar has the Colour by list and the viewport note", () => {
   const src = readFileSync(new URL("../src/modules/LayoutModule.jsx", import.meta.url), "utf8");
   assert.match(src, /<DrillPlanElement [^>]*assays=\{ctx\?\.assays/);
-  assert.match(src, /<LayoutPrintRoot [^>]*assays=\{assays\}/);
+  assert.match(src, /<LayoutPrintRoot [^\n]*assays=\{assays\}/); // one line (its props hold '=>' since #2614)
   assert.match(src, /<DrillPlanColourControls /);
   assert.match(src, /steepHoles=\{/);
 });

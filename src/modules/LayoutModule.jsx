@@ -23,7 +23,7 @@ import { minMax, LAYER_META } from "../lib/layers.js";
 import { categoryLegendGroups, assayLegendGroups, voxelLegendGroups, rasterLegendGroups, legendGroupsToItems, LEGEND_CATEGORY_KEYS, mapLayerLegendGroups, boundaryLegendGroups, swatchShape, capLegendGroups, outcropLegendGroup } from "../lib/legendGroups.js"; // TASKS.csv #725; #948; #1633; outcropLegendGroup: #1437
 import { niceScaleNumber } from "../lib/figureScale.js"; // TASKS.csv #311 — shared with the 3D viewport's scale bar
 import { collarTableSlice, continuationTables, collarsWithSurveyAttitude } from "../lib/collarTable.js"; // TASKS.csv #1638; collarsWithSurveyAttitude: #2133
-import { fitDrillPlan, filterHoles, allHolesSteep, STEEP_DIP } from "../lib/drillPlan.js"; // TASKS.csv #1639; allHolesSteep: #2473
+import { fitDrillPlan, filterHoles, allHolesSteep, STEEP_DIP, turnedFrameFit } from "../lib/drillPlan.js"; // TASKS.csv #1639; allHolesSteep: #2473; turnedFrameFit: #2305
 import DrillPlanColourControls from "../components/DrillPlanColourControls.jsx"; // TASKS.csv #2473
 import DrillPlanElement, { drillPlanDrawing } from "../components/DrillPlanElement.jsx"; // TASKS.csv #1639
 import { withLiveScaleBars, relinkCopies, tieStarterFurniture, northRotationOf, insertScaleBar, scaleBarTargets, bindScaleBar } from "../lib/layoutLinks.js"; // TASKS.csv #909 / #920 / #924 / #1632
@@ -57,7 +57,7 @@ import { numericLayerLegendGroups } from "../lib/legendGroups.js"; // TASKS.csv 
 import { frameTest, samplesInFrame, mapLayersInFrame } from "../lib/legendFrame.js"; // TASKS.csv #2134
 import { legendFit } from "../lib/legendFit.js"; // TASKS.csv #2134
 import { holeAttitudeAssumed } from "../lib/desurvey.js"; // TASKS.csv #2134 — the notice counts the assumed-vertical holes
-import { freeSpot, placeCollarTable } from "../lib/layoutPlace.js"; // TASKS.csv #1484 — new items into free space; #2135 the collar table
+import { freeSpot, placeCollarTable, elementBox } from "../lib/layoutPlace.js"; // elementBox: #1870 // TASKS.csv #1484 — new items into free space; #2135 the collar table
 import { roundScale } from "../lib/layoutGeometry.js"; // TASKS.csv #1486
 import { numericClips, numericLayerColorFn } from "../lib/numericClip.js"; // TASKS.csv #1482
 import { categoryColor, categoryLabel } from "../lib/layers.js"; // TASKS.csv #1289
@@ -218,7 +218,7 @@ export default function LayoutModule() {
           const doc = await openPdf(bytes);
           const [wmm, hmm] = pageMm(layoutPages[pageNo - 1]?.format);
           const dpi = printing.dpi || 300;
-          const canvas = await renderPdfPage(doc, pageNo, (Math.max(wmm, hmm) / 25.4) * dpi);
+          const canvas = await renderPdfPage(doc, 1, (Math.max(wmm, hmm) / 25.4) * dpi); // #2614 — the print holds this page only (it printed all 103 to keep one)
           const png = await canvasPngBytes(canvas); // #1040 — an A3 page at 300 dpi is ~17 Mpx
           const name = `${base}_p${pageNo}_${dpi}dpi.png`;
           const res = await saveFile({ quiet: "success", suggestedName: name, filters: [{ name: "PNG", extensions: ["png"] }], content: png });
@@ -354,10 +354,28 @@ export default function LayoutModule() {
     // TASKS.csv #1128 — a cross-section snapshot comes with its legend as a Layout element (movable, editable, bound to
     // the snapshot so "Sync" refreshes it), right of the image when it fits on the sheet, else below it
     const legends = additions.filter((a) => a.legendItems?.length).map((a) => {
-      const right = a.x + a.w + 16, fits = right + 170 <= A4.w;
-      return { id: `legend_${a.id}`, type: "legend", x: fits ? right : a.x, y: fits ? a.y : a.y + a.h + 16, items: groupSectionLegend(a.legendItems), boundViewportId: a.id };
+      const items = groupSectionLegend(a.legendItems);
+      // TASKS.csv #2612 (review #2486) — a strip log's legend went below a 958 px tall log, off the bottom of the sheet: right of the image when it
+      // fits there, else below it when that fits, else the page's free spot (its height from its rows, as the legend draws them)
+      const lh = Math.round(items.length * 14 + 24), right = a.x + a.w + 16;
+      const spot = right + 170 <= A4.w ? { x: right, y: a.y } : a.y + a.h + 16 + lh <= A4.h ? { x: a.x, y: a.y + a.h + 16 } : freeSpot(placedSoFar, 170, lh, A4);
+      placedSoFar.push({ ...spot, w: 170, h: lh });
+      return { id: `legend_${a.id}`, type: "legend", ...spot, items, boundViewportId: a.id };
     });
     if (!additions.length) return;
+    // TASKS.csv #1870 (review #1646, Kodiak) — a section snapshot landed over the page's plan frame and its legend over the plan's legend when
+    // the page had no free room: a snapshot that would overlap another frame goes onto a new page of its own, and the notice says which
+    const frames = elements.filter((e) => e.type === "viewport" || e.type === "drillplan" || (e.type === "image" && e.worldWidthAtCaptureM != null)).map(elementBox);
+    const overlapsFrame = (a) => frames.some((f) => Math.min(a.x + a.w, f.x + f.w) - Math.max(a.x, f.x) > 4 && Math.min(a.y + a.h, f.y + f.h) - Math.max(a.y, f.y) > 4);
+    if (frames.length && additions.some(overlapsFrame)) {
+      const atTop = additions.map((a, i) => ({ ...a, x: 40, y: 40 + i * 20 }));
+      const moved = atTop.map((a) => { const l = legends.find((g) => g.boundViewportId === a.id); if (!l) return null; const right = a.x + a.w + 16; return { ...l, x: right + 170 <= A4.w ? right : a.x, y: right + 170 <= A4.w ? a.y : a.y + a.h + 16 }; }).filter(Boolean);
+      const name = tr("Snapshot {n}", { n: layoutPages.length + 1 });
+      addLayoutPages([{ name, elements: [...atTop, ...moved] }]);
+      setSyncNotice(tr("The snapshot would have covered a frame on this page, so it is on a new page, \"{name}\".", { name }));
+      additions.forEach((img) => consumeLayoutImage(img.id));
+      return;
+    }
     setElements((els) => additions.reduce((page, a) => tieStarterFurniture(page, a), [...els, ...additions, ...legends])); // #1320
     setSelected(additions[additions.length - 1]?.id ?? null);
     additions.forEach((img) => consumeLayoutImage(img.id));
@@ -1075,7 +1093,7 @@ export default function LayoutModule() {
 
   return (
     <div className="ge-body" style={{ width: "100%" }}>
-      {printing && <LayoutPrintRoot ref={printRootRef} pages={layoutPages} project={project} collars={tableCollars} credits={credits} assays={assays} assayElements={assayElements} />}{/* TASKS.csv #908 */}
+      {printing && <LayoutPrintRoot ref={printRootRef} pages={printing.kind === "png" ? layoutPages.filter((pg) => pg.id === activeLayoutPageId) : layoutPages} pageOffset={printing.kind === "png" ? Math.max(0, layoutPages.findIndex((pg) => pg.id === activeLayoutPageId)) : 0} pageTotal={layoutPages.length} /* #2614 — a PNG prints its one page, not the whole document */ project={project} collars={tableCollars} credits={credits} assays={assays} assayElements={assayElements} />}{/* TASKS.csv #908 */}
       <div className="ge-panel" style={{ padding: "16px 14px", width: sidebarWidth }}>
         {/* TASKS.csv #458 — Layout ribbon (replaces the #65 icon palette and the Templates / Output buttons). */}
         <Ribbon label="Layout tools">
@@ -1407,7 +1425,11 @@ export default function LayoutModule() {
                   <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>{tr("Centre N")}<input type="number" value={Math.round(sel.centre?.y || 0)} onChange={(e) => updateSelected({ centre: { ...sel.centre, y: Number(e.target.value) } })} style={inp} /></label>
                 </div>
                 <button onClick={() => { const fit = fitDrillPlan(filterHoles(tableCollars || [], sel.holeFilter), sel.w, sel.h, SCALE_PRESETS); if (fit) updateSelected(fit); }} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, width: "100%", padding: "6px 10px", marginBottom: 8, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, color: "var(--color-text-secondary)", fontSize: "var(--font-size-base)", cursor: "pointer" }}><Maximize2 size={14} />{" "}{tr("Fit the holes at a round scale")}</button>
-                <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", display: "block", marginBottom: 6 }}>{tr("Holes containing")}<input type="text" value={sel.holeFilter || ""} placeholder={tr("all")} onChange={(e) => updateSelected({ holeFilter: e.target.value })} style={{ ...inp, marginTop: 4 }} /></label>
+                {(() => { const t = turnedFrameFit(filterHoles(tableCollars || [], sel.holeFilter), sel.w, sel.h, SCALE_PRESETS); return t && sel.scale >= t.from ? ( /* TASKS.csv #2305 — the holes run the other way: offer the turned frame */
+                  <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("The holes run the other way: this frame turned ({w} × {h} mm) fits them at 1 : {scale}.", { w: Math.round(t.w / PX_PER_MM), h: Math.round(t.h / PX_PER_MM), scale: t.scale.toLocaleString() })}{" "}
+                    <button type="button" onClick={() => updateSelected({ w: t.w, h: t.h, scale: t.scale, centre: t.centre })} style={{ ...pBtn, display: "inline-flex", marginBottom: 0, padding: "1px 6px" }}>{tr("Turn the frame")}</button>
+                  </div>) : null; })()}
+                <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", display: "block", marginBottom: 6 }}>{tr("Holes containing")}<input type="text" value={sel.holeFilter || ""} placeholder={tr("all")} title={tr("Text in the hole id, or a collar field such as year=2024 (every field term must match)")} /* #2141 */ onChange={(e) => updateSelected({ holeFilter: e.target.value })} style={{ ...inp, marginTop: 4 }} /></label>
                 <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", display: "block", marginBottom: 6 }}>{tr("Labels")}<select value={sel.labels || "all"} onChange={(e) => updateSelected({ labels: e.target.value })} style={{ ...inp, marginTop: 4 }}>
                   <option value="all">{tr("Every hole with room for one")}</option>
                   <option value="none">{tr("None")}</option>
@@ -1786,7 +1808,7 @@ function UtmGridOverlay({ el, crs = "" }) {
   const placed = lines.map((l) => {
     const [a, b] = l.seg.map(toPx);
     const lab = a[1] <= b[1] ? a : b; // label at the end nearer the top (or left) edge
-    return { a, b, x: Math.min(W - 2, Math.max(2, lab[0] + 2)), y: Math.min(H - 3, Math.max(9, lab[1] + 9)) };
+    return { a, b, x: Math.min(W - 2 - estW(l.label), Math.max(2, lab[0] + 2)) /* #2615 — inside the frame ('416,00' was cut) */, y: Math.min(H - 3, Math.max(9, lab[1] + 9)) };
   });
   const show = keepLabelsApart([{ x: 3, y: H - 3 - fpx, w: estW(gridNote), h: fpx }, ...placed.map((p, i) => ({ x: p.x, y: p.y - fpx, w: estW(lines[i].label), h: fpx }))]).slice(1);
   return (
@@ -1796,12 +1818,13 @@ function UtmGridOverlay({ el, crs = "" }) {
         return (
           <g key={l.key}>
             <line x1={a[0]} y1={a[1]} x2={b[0]} y2={b[1]} stroke="#1a2028" strokeOpacity="0.45" strokeWidth="0.6" />
-            {show[i] && <text x={x} y={y} fontSize={fpx} fill="#1a2028" fontFamily="'Exo 2', system-ui, sans-serif" style={{ paintOrder: "stroke", stroke: "#ffffff", strokeWidth: 2.5 }}>{l.label}</text>}
+            {show[i] && <><rect x={x - 1} y={y - fpx + 1} width={estW(l.label) + 2} height={fpx + 1} fill="#ffffff" fillOpacity="0.85" /><text x={x} y={y} fontSize={fpx} fill="#1a2028" fontFamily="'Exo 2', system-ui, sans-serif">{l.label}</text></>}{/* #1871 — a box behind, not a stroked copy: printToPDF wrote the halo as a second text run ('668833,,000000 EE') */}
           </g>
         );
       })}
       {/* TASKS.csv #947 — which grid this is, once, in the corner */}
-      <text x={3} y={H - 3} fontSize={printPx(printPt.caption)} fill="#1a2028" fontFamily="'Exo 2', system-ui, sans-serif" style={{ paintOrder: "stroke", stroke: "#ffffff", strokeWidth: 2.5 }}>
+      <rect x={2} y={H - 3 - printPx(printPt.caption)} width={estW(gridNote) + 2} height={printPx(printPt.caption) + 2} fill="#ffffff" fillOpacity="0.85" />{/* #1871 */}
+      <text x={3} y={H - 3} fontSize={printPx(printPt.caption)} fill="#1a2028" fontFamily="'Exo 2', system-ui, sans-serif">
         {gridNote}</text>
     </svg>
   );
@@ -2109,7 +2132,7 @@ function frameBorder(el, fallback = "none") {
 
 // TASKS.csv #908 — every page at its paper size, in mm, for printToPDF; shown only under @media print (app.css), its
 // siblings hidden. A named @page per distinct format lets one PDF hold A4 landscape and A3 portrait pages.
-const LayoutPrintRoot = React.forwardRef(function LayoutPrintRoot({ pages, project, collars, credits = "", assays = null, assayElements = null }, ref) { // assays: #2473
+const LayoutPrintRoot = React.forwardRef(function LayoutPrintRoot({ pages, project, collars, credits = "", assays = null, assayElements = null, pageOffset = 0, pageTotal = null }, ref) { // assays: #2473; pageOffset / pageTotal: #2614 (one page printed, its {page} / {pages} as in the document)
   const formats = [...new Map(pages.map((pg) => { const f = pageFormatOf(pg); return [pageCssName(f), f]; })).values()];
   const css = formats.map((f) => { const [w, h] = pageMm(f), n = pageCssName(f); return `@page ${n} { size: ${w}mm ${h}mm; margin: 0; }\n.ge-print-${n} { page: ${n}; }`; }).join("\n");
   return (
@@ -2119,7 +2142,7 @@ const LayoutPrintRoot = React.forwardRef(function LayoutPrintRoot({ pages, proje
         const f = pageFormatOf(pg), [w, h] = pageMm(f);
         return (
           <div key={pg.id} className={`ge-print-page ge-print-${pageCssName(f)}`} style={{ width: `${w}mm`, height: `${h}mm` }}>
-            {withLiveScaleBars(pg.elements).map((el) => <LayoutElement key={el.id} el={el} selected={false} multiSelected={false} print onDown={() => {}} ctx={{ ...textContextFor(pg.elements || [], project, pg, i, pages.length, collars, credits), assays, assayElements }} />)}
+            {withLiveScaleBars(pg.elements).map((el) => <LayoutElement key={el.id} el={el} selected={false} multiSelected={false} print onDown={() => {}} ctx={{ ...textContextFor(pg.elements || [], project, pg, i + pageOffset, pageTotal ?? pages.length, collars, credits), assays, assayElements }} />)}
           </div>
         );
       })}
@@ -2159,7 +2182,7 @@ function crsText(epsg, crsSet = true, gridName = null) {
 function textContextFor(els, project, page, index, count, collars = null, credits = "") {
   const today = new Date(), p2 = (v) => String(v).padStart(2, "0"); // #1489 — ISO: '11/2/2026' read as 11 February to many readers
   // gridCaption (#2301): what a drill plan's grid numbers are
-  const gridCaption = project?.crsSet === false ? (project?.localGrid?.name ? `local grid: ${project.localGrid.name}` : "local mine grid, no CRS") : project?.epsg ? `EPSG:${project.epsg}` : "";
+  const gridCaption = project?.crsSet === false ? (project?.localGrid?.name ? `local grid: ${project.localGrid.name}` : "local mine grid, no CRS") : project?.epsg ? crsText(project.epsg) /* #2611 — the CRS by name, as a viewport grid says it */ : "";
   return { gridCaption, project: project?.name || "", date: `${today.getFullYear()}-${p2(today.getMonth() + 1)}-${p2(today.getDate())}`, page: String(index + 1), pages: String(count), pagename: page?.name || "", scale: pageScaleText(els), crs: crsText(project?.epsg, project?.crsSet, project?.crsSet === false ? project?.localGrid?.name || collarGridName(collars) : null /* #2306 */), credits, collars, els, pageH: pagePx(pageFormatOf(page)).h, pageW: pagePx(pageFormatOf(page)).w /* #2134 */ }; // collars: the #911 table; els: the #912 overview; pageH: #1480
 }
 const fillText = (text, ctx) => fillPlaceholders(text, ctx, PLACEHOLDER); // #2139 — an empty fill takes its separator with it
@@ -2380,7 +2403,7 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
       columns = [tr("Hole"), tr("Easting"), tr("Northing"), tr("Elev. (m)"), tr("Azimuth (grid)") /* #1771 — GeoStrix keeps grid azimuths */, tr("Dip"), tr("Depth (m)")];
       const sl = collarTableSlice(cs, { firstRow: el.firstRow, maxRows: el.maxRows, filter: el.holeFilter }); // #1638
       const star = (v, fromSurvey) => (v !== "" && fromSurvey ? `${v}*` : v); // #1483 — from the first survey station; #1771 each value its own flag
-      rows = sl.rows.map((c) => [String(c.hole_id ?? ""), f(c.x, 0), f(c.y, 0), f(c.z, 1), Number.isFinite(c.azSurvey) ? `${f(c.azimuth, 0)}†` /* #2133 */ : star(f(c.azimuth, 0), c.azFromSurvey ?? c.orientFromSurvey), star(f(Number.isFinite(c.dip) ? -c.dip : "", 0), c.dipFromSurvey ?? c.orientFromSurvey) /* #1033 — negative = down, as imported */, f(c.length, 1)]);
+      rows = sl.rows.map((c) => [String(c.hole_id ?? ""), f(c.x, 0), f(c.y, 0), f(c.z, 1), Math.abs(Number(c.dip)) >= 89.5 ? "—" /* #2615 — a vertical hole has no azimuth ('344*  -90*') */ : Number.isFinite(c.azSurvey) ? `${f(c.azimuth, 0)}†` /* #2133 */ : star(f(c.azimuth, 0), c.azFromSurvey ?? c.orientFromSurvey), star(f(Number.isFinite(c.dip) ? -c.dip : "", 0), c.dipFromSurvey ?? c.orientFromSurvey) /* #1033 — negative = down, as imported */, f(c.length, 1)]);
       more = sl.after; head = sl.start > 0 || el.holeFilter ? tr("Rows {a}–{b} of {n}", { a: sl.total ? sl.start + 1 : 0, b: sl.end, n: sl.total }) + (el.holeFilter ? ` (${el.holeFilter})` : "") : null; nextRow = sl.end + 1;
       if (sl.rows.some((c) => c.orientFromSurvey)) surveyNote = tr("* From the shallowest survey station: the collar record has none for that value.");
       // #2133 — a collar azimuth that disagrees with the survey: the collar file's north reference, or a planned azimuth

@@ -1,4 +1,5 @@
 import { qcColumns, qcFields } from "../lib/assayQcColumns.js"; // TASKS.csv #1184
+import { correlationDefaults } from "../lib/preferredElement.js"; // TASKS.csv #2512
 import { orderElements } from "../lib/elementOrder.js"; // TASKS.csv #2032
 import { leadFor } from "../lib/useLeadCommodity.js"; // TASKS.csv #2032
 import { zeroMeansMissing } from "../lib/missingElevation.js"; // TASKS.csv #1394
@@ -203,7 +204,11 @@ export default function GeochemModule() {
   const xyChoices = useMemo(() => numericSourceChoices({ layers: store.layers, customLayers: store.customLayers }), [store.layers, store.customLayers]);
   // TASKS.csv #2193 (review #2174) — with one element Y defaulted to '' and the select showed its first option (Au) over an empty plot: the
   // second element, else the first downhole log (Au vs RQD / recovery), else the one element again; never a blank shown as a choice
-  const xyKeyX = xyX || (assayElements[0] ? `el:${assayElements[0].symbol}` : ""), xyKeyY = xyY || (assayElements[1] ? `el:${assayElements[1].symbol}` : xyChoices[0]?.key || (assayElements[0] ? `el:${assayElements[0].symbol}` : ""));
+  // TASKS.csv #2512 (review #2486) — the X-Y scatter opened on the file's first two columns (As on a lithium project): X is the project's lead
+  // commodity (from the assay values, #2351), Y the next element correlationDefaults would tick
+  const xyLead = useMemo(() => leadFor(assays, assayElements), [assays, assayElements]);
+  const xyPair = useMemo(() => correlationDefaults(assayElements.map((e) => e.symbol), 2, { lead: xyLead }), [assayElements, xyLead]);
+  const xyKeyX = xyX || (xyPair[0] ? `el:${xyPair[0]}` : ""), xyKeyY = xyY || (xyPair[1] ? `el:${xyPair[1]}` : xyChoices[0]?.key || (xyPair[0] ? `el:${xyPair[0]}` : ""));
   const xyAxes = useMemo(() => {
     if (diagramId !== "xy") return null;
     const choice = (key) => { if (!key) return null; if (key.startsWith("el:")) { const e = assayElements.find((x) => x.symbol === key.slice(3)); return e ? { kind: "element", symbol: e.symbol, unit: e.unit } : null; } return xyChoices.find((c) => c.key === key) || null; };

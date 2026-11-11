@@ -3,6 +3,7 @@
 // plan of the 446 holes could not be made: at 1:20,000 the traces were 1 px lines under soils and geophysics, with no collar
 // symbol or label. Pure functions; the drawing is components/DrillPlanElement.jsx.
 
+import { collarsMatching } from "./holeFilter.js"; // TASKS.csv #2141
 export const PAGE_PX_PER_PAPER_M = 96 / 0.0254; // the Layout sheet is 96 px per inch
 export const pxPerMetre = (scale) => PAGE_PX_PER_PAPER_M / Math.max(1, Number(scale) || 1);
 
@@ -15,9 +16,11 @@ export function holePlan(c) {
 }
 
 const finite = (c) => Number.isFinite(c?.x) && Number.isFinite(c?.y);
+// TASKS.csv #2141 (review #2013) — a program's location plan in two clicks: the filter takes collar fields too ('year=2024', 'project=Woodjam'),
+// the hole-filter grammar of the hole list (#1504); a plain term still matches the hole id ('24-' kept Redgold's RG24-15 22 km north)
 export const filterHoles = (collars, filter) => {
-  const f = String(filter || "").trim().toLowerCase();
-  return (collars || []).filter((c) => finite(c) && (!f || String(c.hole_id ?? "").toLowerCase().includes(f)));
+  const ok = (collars || []).filter(finite);
+  return String(filter || "").trim() ? collarsMatching(ok, filter) : ok;
 };
 
 // The scale (from `presets`, smallest first) and centre that show every hole (collar and trace) inside a w x h px frame with a margin.
@@ -32,6 +35,22 @@ export function fitDrillPlan(collars, w, h, presets = [500, 1000, 2000, 2500, 50
   return { scale, centre: { x: (xmin + xmax) / 2, y: (ymin + ymax) / 2 } };
 }
 
+// TASKS.csv #2305 (review #2174, WA gold) — a north-south block fitted into a landscape frame printed 36 x 61 mm in a 201 x 127 mm frame at
+// 1:20,000, while the same frame turned would hold it at 1:10,000. -> the turned frame's fit when it is a larger scale (a smaller 1:N), else null
+export function turnedFrameFit(collars, w, h, presets) {
+  const now = fitDrillPlan(collars, w, h, presets), turned = fitDrillPlan(collars, h, w, presets);
+  return now && turned && turned.scale < now.scale ? { ...turned, w: h, h: w, from: now.scale } : null;
+}
+
+// TASKS.csv #2611 — the corner of a w x h frame for a kw x kh key with the fewest holes under it (top left on a tie; bottom right sits above
+// the grid caption). holes: drillPlanGeometry's (ax, ay in frame px). -> { x, y }
+export function emptiestCorner(holes, w, h, kw, kh) {
+  const corners = [[6, 6], [w - kw - 6, 6], [6, h - kh - 6], [w - kw - 6, h - kh - 22]];
+  const under = ([x, y]) => (holes || []).reduce((n, hh) => n + (hh.ax >= x && hh.ax <= x + kw && hh.ay >= y && hh.ay <= y + kh ? 1 : 0), 0);
+  const [x, y] = corners.map((c) => [c, under(c)]).sort((a, b) => a[1] - b[1])[0][0];
+  return { x: Math.max(0, x), y: Math.max(0, y) };
+}
+
 // A hole's series: its id without the trailing number (21CCDD042 -> 21CCDD; 21AGBDD043B -> 21AGBDD), the year / prospect / type prefix drill programs use.
 // A letter after the number (a re-drill, 21AGBDD043B) stays in its series.
 export const holeSeries = (id) => String(id ?? "").replace(/[-_ ]?\d+[A-Za-z]?$/, "") || String(id ?? "");
@@ -39,10 +58,14 @@ export const holeSeries = (id) => String(id ?? "").replace(/[-_ ]?\d+[A-Za-z]?$/
 // Labels placed greedily (right, left, above, below the collar), each kept only when it overlaps no label already placed and stays
 // inside the frame. points: [{ id, x, y }] in frame px. -> { placed: [{ id, x, y, anchor }], skipped }
 // avoid: boxes no label may overlap (the key, #2473)
+// TASKS.csv #2611 — the boxes sit in a uniform grid of CELL px cells, so avoiding every collar of a 2,248-hole plan stays a few ms
 export function placeLabels(points, { fontPx = 9, w, h, gap = 5, avoid = [] } = {}) {
-  const placed = [], boxes = [...avoid];
+  const placed = [], CELL = 48, grid = new Map();
+  const cells = (b, fn) => { for (let cx = Math.floor(b.x0 / CELL); cx <= Math.floor(b.x1 / CELL); cx++) for (let cy = Math.floor(b.y0 / CELL); cy <= Math.floor(b.y1 / CELL); cy++) fn(`${cx},${cy}`); };
+  const add = (b) => cells(b, (k) => { let a = grid.get(k); if (!a) grid.set(k, (a = [])); a.push(b); });
+  avoid.forEach(add);
   let skipped = 0;
-  const hit = (b) => boxes.some((o) => b.x0 < o.x1 && b.x1 > o.x0 && b.y0 < o.y1 && b.y1 > o.y0);
+  const hit = (b) => { let found = false; cells(b, (k) => { if (!found) found = (grid.get(k) || []).some((o) => b.x0 < o.x1 && b.x1 > o.x0 && b.y0 < o.y1 && b.y1 > o.y0); }); return found; };
   for (const p of points) {
     const tw = String(p.id).length * fontPx * 0.56, th = fontPx;
     const tries = [
@@ -52,7 +75,7 @@ export function placeLabels(points, { fontPx = 9, w, h, gap = 5, avoid = [] } = 
       { anchor: "middle", x: p.x, y: p.y + gap + th, b: { x0: p.x - tw / 2, x1: p.x + tw / 2, y0: p.y + gap, y1: p.y + gap + th } },
     ];
     const ok = tries.find((t) => t.b.x0 >= 0 && t.b.x1 <= w && t.b.y0 >= 0 && t.b.y1 <= h && !hit(t.b));
-    if (ok) { boxes.push(ok.b); placed.push({ id: p.id, x: ok.x, y: ok.y, anchor: ok.anchor }); } else skipped++;
+    if (ok) { add(ok.b); placed.push({ id: p.id, x: ok.x, y: ok.y, anchor: ok.anchor }); } else skipped++;
   }
   return { placed, skipped };
 }

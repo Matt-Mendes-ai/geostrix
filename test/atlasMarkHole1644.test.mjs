@@ -23,10 +23,10 @@ test("the mark sits where the collar is on the capture: east is right, north is 
 
 test("wired: the page draws it; the dialog opens unticked above 50 holes", () => {
   const a = readFileSync(new URL("../src/lib/atlas.js", import.meta.url), "utf8");
-  assert.match(a, /markHoleOnViewports\(templateElements\.map/);
+  assert.match(a, /markHoleOnViewports\(fromTemplate\.map/); // the template minus its strip log: #2136
   const m = readFileSync(new URL("../src/modules/LayoutModule.jsx", import.meta.url), "utf8");
   assert.match(m, /el\.markHole && \(\(\) => \{/);
   assert.match(m, /\{id\} is outside this map/);
   const g = readFileSync(new URL("../src/components/GenerateAtlasModal.jsx", import.meta.url), "utf8");
-  assert.match(g, /collars\.length > 50 \? \[\] :/);
+  assert.match(g, /t\.length > 50 \? \[\] :/ /* counted over traced collars: #2136 */);
 });

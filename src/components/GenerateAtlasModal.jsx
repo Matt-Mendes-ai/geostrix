@@ -6,7 +6,7 @@ import { X, LayoutGrid, Loader2 } from "./icons.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay, panel, header, label as labelStyle, sel, btn } from "../lib/modalStyles.js";
-import { generateAtlasPages, HOLE_TOKENS, SECTION_TOKENS, atlasRecaptureItems, hasAtlasTokens } from "../lib/atlas.js"; // hasAtlasTokens: #1777
+import { generateAtlasPages, HOLE_TOKENS, SECTION_TOKENS, atlasRecaptureItems, hasAtlasTokens, tracedCollar, isStripLogImage } from "../lib/atlas.js"; // hasAtlasTokens: #1777; tracedCollar / isStripLogImage: #2136
 import { useStore } from "../lib/store.jsx"; // TASKS.csv #1644
 import { utmGridReady } from "../lib/layoutGeometry.js"; // TASKS.csv #1644
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
@@ -21,7 +21,7 @@ export default function GenerateAtlasModal({ onClose, templateElements, collars,
   useFocusTrap(); // TASKS.csv #238
   const [mode, setMode] = useState("hole"); // "hole" | "section"
   // TASKS.csv #1644 — a large project opens with nothing ticked (446 holes opened as 'Generate 446 pages')
-  const [selectedIds, setSelectedIds] = useState(() => new Set(collars.length > 50 ? [] : collars.map((c) => c.hole_id)));
+  const [selectedIds, setSelectedIds] = useState(() => { const t = collars.filter(tracedCollar); return new Set(t.length > 50 ? [] : t.map((c) => c.hole_id)); }); // traced: #2136
   const [includeStripLog, setIncludeStripLog] = useState(true);
   // TASKS.csv #1644 — each page's top-down map re-captured on its hole, at the template's scale (one 3D render per page)
   const { requestViewportBatch, customLayers = [] } = useStore(); // customLayers: #2477
@@ -38,12 +38,15 @@ export default function GenerateAtlasModal({ onClose, templateElements, collars,
   const [progress, setProgress] = useState(null); // {done, total}
   const [result, setResult] = useState(null);
 
-  const holeIds = useMemo(() => collars.map((c) => c.hole_id), [collars]);
+  // TASKS.csv #2136 — the holes with a trace (a depth); the 534 district collars with none are left out of the list and counted
+  const tracedCollars = useMemo(() => collars.filter(tracedCollar), [collars]);
+  const untraced = collars.length - tracedCollars.length;
+  const holeIds = useMemo(() => tracedCollars.map((c) => c.hole_id), [tracedCollars]);
   // TASKS.csv #2607 (review #2486) — 2,248 unfiltered checkboxes (the 39 diamond holes from row 749): a text / collar-field filter (the hole
   // list's own rule: words match the id, 'Drill_Code=DD' a collar field) narrows what is listed and what All ticks
   const [holeFilter, setHoleFilter] = useState("");
   const attrChoices = useMemo(() => collarAttrChoices(collars), [collars]);
-  const shownHoles = useMemo(() => (holeFilter.trim() ? collarsMatching(collars, holeFilter).map((c) => c.hole_id) : holeIds), [collars, holeFilter, holeIds]);
+  const shownHoles = useMemo(() => (holeFilter.trim() ? collarsMatching(tracedCollars, holeFilter).map((c) => c.hole_id) : holeIds), [tracedCollars, holeFilter, holeIds]);
   const items = mode === "hole" ? shownHoles : sections;
   const itemKey = (item) => (mode === "hole" ? item : item.id);
   const itemLabel = (item) => (mode === "hole" ? item : item.name);
@@ -123,12 +126,14 @@ export default function GenerateAtlasModal({ onClose, templateElements, collars,
         </div>
         <div style={{ padding: 16, overflowY: "auto", display: "flex", flexDirection: "column", gap: 12 }}>
           <div style={{ fontSize: "var(--font-size-sm)", opacity: 0.75, lineHeight: 1.4 }}>{tr("Creates one new Layout page per item below, using the CURRENT page as a template. Any {v} in a text/title element gets filled in per item — available tokens for this mode: {v2}.", { v: "{token}", v2: tokens.map((t) => `{${t}}`).join(", ") })}{" "}{tr("The page's own placeholders ({project}, {date}, {scale}, {crs}...) are filled on every generated page as well; the older double-brace form still works.")}</div>{/* #1777 — one syntax: single braces */}
+          {mode === "hole" && untraced > 0 && <div style={{ fontSize: "var(--font-size-sm)", opacity: 0.75 }}>{tr("{n} collar(s) with no depth (no trace) are left out of the list: their pages would show a point and an empty log.", { n: untraced })}</div>}{/* #2136 */}
+          {mode === "hole" && includeStripLog && templateElements.some(isStripLogImage) && <div style={{ fontSize: "var(--font-size-sm)", opacity: 0.75 }}>{tr("The template's own strip log is left off the generated pages: each page gets its own hole's.")}</div>}{/* #2136 */}
           {!hasPlaceholders && (
             <div style={{ fontSize: "var(--font-size-sm)", color: "#a95a3a" }}>{tr("The current page has no {v} placeholders in any text — every generated page will look identical except its name{v2}. Add a text element with e.g. {v3} first if you want per-item text.", { v: "{token}", v2: mode === "hole" && includeStripLog ? tr(" (and its strip log image)") : "", v3: mode === "hole" ? "{hole_id}" : "{name}" })}</div>
           )}
           <div style={{ display: "flex", gap: 8 }}>
             <select value={mode} onChange={(e) => switchMode(e.target.value)} style={{ ...sel, flex: 1 }}>
-              <option value="hole">{tr("One page per drillhole ({holeIds})", { holeIds: holeIds.length })}</option>
+              <option value="hole">{tr("One page per drillhole ({holeIds})", { holeIds: holeIds.length })}</option>{/* traced holes only: #2136 */}
               <option value="section">{tr("One page per section ({sections})", { sections: sections.length })}</option>
             </select>
           </div>
