@@ -20,7 +20,7 @@ import { decodeGrd } from "./grdFormats.js"; // TASKS.csv #1347
 import GeoTIFF, { fromArrayBuffer } from "geotiff"; // GeoTIFF.fromSource: #1351
 import { writeGeoTiff } from "./geotiffWrite.js"; // TASKS.csv #1038 — geotiff.js header, one loop for the pixels
 import { f32ToB64, b64ToF32 } from "./inversion.js"; // TASKS.csv #326 — compact grid values
-import { getProj4Def, getProj4DefSync, reprojectGrid, reprojectImageRGBA, bilinearSample, reprojectXY, guessEpsgFromPrjWkt, isGeographicCrs } from "./reproject.js"; // isGeographicCrs: #1862
+import { getProj4Def, getProj4DefSync, reprojectGrid, reprojectImageRGBA, bilinearSample, reprojectXY, guessEpsgFromPrjWkt, isGeographicCrs, isMetricProjectedEpsg } from "./reproject.js"; // isGeographicCrs: #1862; isMetricProjectedEpsg: #2127
 import { arrMin, arrMax, percentileSorted } from "./arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread); #740 percentileSorted
 import { fillNoData, noDataNote } from "./demFill.js"; // TASKS.csv #421
 import { VIRIDIS_ANCHORS } from "./layers.js"; // TASKS.csv #740
@@ -847,6 +847,9 @@ function rasterFromRows({ name, values, ncols, nrows, x0, y0, dx, dy, isDummy, m
 // merely warned about. Every other case still imports as before, but now says explicitly which
 // assumption it fell back on rather than only mentioning it on a tag mismatch.
 // TASKS.csv #1862 — a geographic CRS whose bounds cannot be longitude / latitude
+// TASKS.csv #2127 (review #2013, Woodjam) — a distance in the notices: '409,481 m' on a metric projected CRS, 'world units' only when the CRS
+// is not known to be one
+export const sizeText = (d, epsg) => (isMetricProjectedEpsg(epsg) ? `${Math.round(d).toLocaleString()} m` : `${Math.round(d).toLocaleString()} world units`);
 export const notDegrees = (epsg, bbox) => isGeographicCrs(epsg) && Array.isArray(bbox) && (Math.abs(bbox[0]) > 180.5 || Math.abs(bbox[2]) > 180.5 || Math.abs(bbox[1]) > 90.5 || Math.abs(bbox[3]) > 90.5);
 export async function buildRasterImport(file, { epsg, defaultElevation, sourceEpsg, chooseProjectEpsg, bandFn = null, samples = null, name = null, keepDetail = false, worldFile = null, tie = null } = {}) { // samples: #807; keepDetail: #838; worldFile: #1855; tie: #2587
   const isGxf = /\.gxf$/i.test(file.name), isGrd = /\.grd$/i.test(file.name); // isGrd: #1347
@@ -897,7 +900,7 @@ export async function buildRasterImport(file, { epsg, defaultElevation, sourceEp
       ctx.putImageData(new ImageData(rp.data, rp.width, rp.height), 0, 0);
       bbox = rp.bbox; px = rp;
       dataUrl = keepDetail ? imageDataUrl(canvas) : canvas.toDataURL("image/png");
-      crsNote = ` Reprojected from EPSG:${srcEpsg} (${srcLabel}) into the project's EPSG:${projEpsg} on import — the drape's footprint moved ${Math.hypot(rp.bbox[0] - xmin, rp.bbox[1] - ymin).toFixed(0)} world units as a result.`;
+      crsNote = ` Reprojected from EPSG:${srcEpsg} (${srcLabel}) into the project's EPSG:${projEpsg} on import — the drape's footprint moved ${sizeText(Math.hypot(rp.bbox[0] - xmin, rp.bbox[1] - ymin), projEpsg)} as a result.`;
     } else {
       crsNote = ` Warning: ${srcLabel} says EPSG:${srcEpsg}, which doesn't match the project's EPSG:${projEpsg}, but ${!parsed.pixels ? "this raster's pixels couldn't be re-sampled" : `EPSG:${!fromDef ? srcEpsg : projEpsg} isn't one GeoStrix can reproject`} — it was imported at its own raw coordinates, so it will NOT line up with your drillholes.`;
     }
@@ -930,7 +933,9 @@ export async function buildRasterImport(file, { epsg, defaultElevation, sourceEp
   }
 
   const [bx0, by0, bx1, by1] = bbox;
-  let msg = tr("Imported \"{name}\" ({width}×{height}px, {v}×{v2} world units).", { name: parsed.name, width: parsed.width, height: parsed.height, v: (bx1 - bx0).toFixed(0), v2: (by1 - by0).toFixed(0) });
+  let msg = isMetricProjectedEpsg(projEpsg) // #2127 — metres on a metric project ('960×960 world units' beside 'RMSE 57.44 m')
+    ? tr("Imported \"{name}\" ({width}×{height}px, {v} × {v2} m).", { name: parsed.name, width: parsed.width, height: parsed.height, v: Math.round(bx1 - bx0).toLocaleString(), v2: Math.round(by1 - by0).toLocaleString() })
+    : tr("Imported \"{name}\" ({width}×{height}px, {v}×{v2} world units).", { name: parsed.name, width: parsed.width, height: parsed.height, v: (bx1 - bx0).toFixed(0), v2: (by1 - by0).toFixed(0) });
   msg += crsNote;
   if (parsed.placedBy) msg += tr(" Placed by its world file \"{w}\".", { w: parsed.placedBy }); // #1855
   if (parsed.note) msg += parsed.note;

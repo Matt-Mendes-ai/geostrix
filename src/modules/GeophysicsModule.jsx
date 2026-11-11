@@ -34,7 +34,7 @@ import { version as APP_VERSION } from "../../package.json"; // TASKS.csv #529
 import InfoButton from "../components/InfoButton.jsx";
 import { fetchSRTMTerrain, collarGroundMisfit, findBetterUtmZone } from "../lib/srtmFetch.js";
 import { fetchCopernicusTerrain } from "../lib/copernicusDem.js"; // TASKS.csv #814
-import { toLonLat, reprojectXY, crsName, pointTransform, getProj4Def } from "../lib/reproject.js";
+import { toLonLat, reprojectXY, crsName, pointTransform, getProj4Def, isMetricProjectedEpsg } from "../lib/reproject.js"; // isMetricProjectedEpsg: #2127
 import { omfToProjectObjectsAsync } from "../lib/omfImport.js"; // TASKS.csv #637; #1280
 import { isDcip2dMeshText } from "../lib/ubc2d.js"; // TASKS.csv #1348
 import { parseUBCMesh, isUBCMeshText, parseUBCModelStream, maskAirCells, ubcMeshToCells, cellValueRange, MAX_CELLS, planCoarsenFactors, coarsenUBCModel, coarsenRecord, wantsLogMean, MEAN_RULE } from "../lib/voxel.js"; // coarsenRecord: #1095
@@ -469,7 +469,8 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         return;
       }
       addTerrain({ name: parsed.name, bbox: parsed.bbox, gridW: parsed.gridW, gridH: parsed.gridH, elevations: parsed.elevations, noDataMask: parsed.noDataMask || null }); // noDataMask: #421
-      let msg = tr("Imported \"{name}\" as a {gridW}×{gridH} terrain mesh (source {srcWidth}×{srcHeight}px, {v}×{v2} world units){v3}.", { name: parsed.name, gridW: parsed.gridW, gridH: parsed.gridH, srcWidth: parsed.srcWidth, srcHeight: parsed.srcHeight, v: (xmax - xmin).toFixed(0), v2: (ymax - ymin).toFixed(0), v3: parsed.tileCount > 1 ? tr(" from {tileCount} merged tiles", { tileCount: parsed.tileCount }) : "" });
+      const metric = isMetricProjectedEpsg(project?.epsg); // #2127 — metres on a metric project
+      let msg = metric ? tr("Imported \"{name}\" as a {gridW}×{gridH} terrain mesh (source {srcWidth}×{srcHeight}px, {v} × {v2} m){v3}.", { name: parsed.name, gridW: parsed.gridW, gridH: parsed.gridH, srcWidth: parsed.srcWidth, srcHeight: parsed.srcHeight, v: Math.round(xmax - xmin).toLocaleString(), v2: Math.round(ymax - ymin).toLocaleString(), v3: parsed.tileCount > 1 ? tr(" from {tileCount} merged tiles", { tileCount: parsed.tileCount }) : "" }) : tr("Imported \"{name}\" as a {gridW}×{gridH} terrain mesh (source {srcWidth}×{srcHeight}px, {v}×{v2} world units){v3}.", { name: parsed.name, gridW: parsed.gridW, gridH: parsed.gridH, srcWidth: parsed.srcWidth, srcHeight: parsed.srcHeight, v: (xmax - xmin).toFixed(0), v2: (ymax - ymin).toFixed(0), v3: parsed.tileCount > 1 ? tr(" from {tileCount} merged tiles", { tileCount: parsed.tileCount }) : "" });
       if (parsed.reprojectedTo) {
         msg += tr(" Reprojected from {v}EPSG:{epsgTag} to the project's EPSG:{reprojectedTo} on import.", { v: parsed.epsgOverridden ? tr("the Source CRS you set, ") : tr("its native "), epsgTag: parsed.epsgTag, reprojectedTo: parsed.reprojectedTo });
       }
@@ -863,7 +864,9 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       }
       addTerrain({ name: parsed.name, bbox: parsed.bbox, gridW: parsed.gridW, gridH: parsed.gridH, elevations: parsed.elevations, noDataMask: parsed.noDataMask || null, source: parsed.source || null }); // noDataMask: #421; source: #726
       const [txmin, tymin, txmax, tymax] = parsed.bbox;
-      let msg = tr("Fetched and imported \"{name}\" as a {gridW}×{gridH} terrain mesh covering {v}×{v2} world units for the area you drew.", { name: parsed.name, gridW: parsed.gridW, gridH: parsed.gridH, v: (txmax - txmin).toFixed(0), v2: (tymax - tymin).toFixed(0) });
+      let msg = isMetricProjectedEpsg(project?.epsg) // #2127 — metres on a metric project
+        ? tr("Fetched and imported \"{name}\" as a {gridW}×{gridH} terrain mesh covering {v} × {v2} m for the area you drew.", { name: parsed.name, gridW: parsed.gridW, gridH: parsed.gridH, v: Math.round(txmax - txmin).toLocaleString(), v2: Math.round(tymax - tymin).toLocaleString() })
+        : tr("Fetched and imported \"{name}\" as a {gridW}×{gridH} terrain mesh covering {v}×{v2} world units for the area you drew.", { name: parsed.name, gridW: parsed.gridW, gridH: parsed.gridH, v: (txmax - txmin).toFixed(0), v2: (tymax - tymin).toFixed(0) });
       if (parsed.source) msg += parsed.source.zoom != null
         ? tr(" Source: {service}, zoom {zoom} (its own pixels ~{v} m), resampled to nodes ~{v2} m apart — features smaller than that are smoothed out.", { service: parsed.source.service, zoom: parsed.source.zoom, v: Math.round(parsed.source.sourcePixelM), v2: Math.round(parsed.source.nodeM) }) // #726
         : parsed.source.bareEarth
