@@ -102,6 +102,17 @@ export default function GeochemModule() {
   const assayHoleIds = useMemo(() => new Set(assays.map((a) => a.hole_id)), [assays]);
 
   const [diagramId, setDiagramId] = useKeptState(keptScope, "geochem.diagramId", "boxplot");
+  // TASKS.csv #2205 (review #2174) — a one-element gold project opened on the Alteration Box Plot (a VMS diagram that plotted 0 of 10,757). On
+  // the first look at a project whose assays lack the diagram's elements entirely, the tab opens on the X-Y scatter instead.
+  const assaySymSet = useMemo(() => new Set(assayElements.map((e) => e.symbol)), [assayElements]);
+  const methodMissing = (key) => (GEOCHEM_METHODS[key]?.requires || []).filter((sym) => !assaySymSet.has(sym));
+  const openingChecked = useRef(false);
+  useEffect(() => {
+    if (openingChecked.current || !assayElements.length) return;
+    openingChecked.current = true;
+    const req = ALL_DIAGRAMS[diagramId]?.requires || [];
+    if (req.length && req.some((sym) => !assaySymSet.has(sym))) setDiagramId("xy");
+  }, [assayElements]); // once per mount, on the project as loaded
   const [xyX, setXyX] = useKeptState(keptScope, "geochem.xyX", ""); // #1678 — "el:Cu" or a numeric source key
   const [xyY, setXyY] = useKeptState(keptScope, "geochem.xyY", "");
   const [xyOne, setXyOne] = useKeptState(keptScope, "geochem.xyOne", false); // #2353 — a 1:1 line
@@ -1178,9 +1189,9 @@ export default function GeochemModule() {
             <RibbonButton advanced={drillOnly} /* #2199 — a drill-only project keeps the surface-program tools in Advanced */ icon={Globe} label="Public data" tone="data" title="Public geochemistry: government stream-sediment surveys (BC RGS, Australia's NGSA and others) for the project area, with their licences" onClick={() => setPublicOpen(true)} />{/* TASKS.csv #846 */}
           </RibbonGroup>
           <RibbonGroup advanced label="Classify">
-            <RibbonButton icon={FlaskConical} label="AI / CCPI" tone="analyse" disabled={!assayElements.length} disabledReason="Import assays first" title="Alteration from geochem (Ishikawa AI / CCPI box plot) — screening level" onClick={() => runMethod("alteration_boxplot")} />
-            <RibbonButton icon={GTriangle} label="Winchester" tone="analyse" disabled={!assayElements.length} disabledReason="Import assays first" title="Lithology from immobile elements (Winchester & Floyd) — screening level" onClick={() => runMethod("litho_winchester")} />
-            <RibbonButton icon={GShapes} label="Jensen" tone="analyse" disabled={!assayElements.length} disabledReason="Import assays first" title="Lithology (Jensen cation plot) — screening level" onClick={() => runMethod("litho_jensen")} />
+            <RibbonButton icon={FlaskConical} label="AI / CCPI" tone="analyse" disabled={!assayElements.length || methodMissing("alteration_boxplot").length > 0} disabledReason={!assayElements.length ? "Import assays first" : tr("Needs {list} in the assays", { list: methodMissing("alteration_boxplot").join(", ") })} /* #2205 — greyed with its reason, not an error after the click */ title="Alteration from geochem (Ishikawa AI / CCPI box plot) — screening level" onClick={() => runMethod("alteration_boxplot")} />
+            <RibbonButton icon={GTriangle} label="Winchester" tone="analyse" disabled={!assayElements.length || methodMissing("litho_winchester").length > 0} disabledReason={!assayElements.length ? "Import assays first" : tr("Needs {list} in the assays", { list: methodMissing("litho_winchester").join(", ") })} /* #2205 — greyed with its reason, not an error after the click */ title="Lithology from immobile elements (Winchester & Floyd) — screening level" onClick={() => runMethod("litho_winchester")} />
+            <RibbonButton icon={GShapes} label="Jensen" tone="analyse" disabled={!assayElements.length || methodMissing("litho_jensen").length > 0} disabledReason={!assayElements.length ? "Import assays first" : tr("Needs {list} in the assays", { list: methodMissing("litho_jensen").join(", ") })} /* #2205 — greyed with its reason, not an error after the click */ title="Lithology (Jensen cation plot) — screening level" onClick={() => runMethod("litho_jensen")} />
           </RibbonGroup>
           <RibbonGroup advanced label="Calculate">
             <RibbonButton icon={Sigma} label="Calc. element" tone="analyse" disabled={!assayElements.length && !surfaceElements.length} disabledReason="Import assays or surface samples first" active={!!calc} title="Add a calculated element from a formula (AI, CCPI, ratios...) — usable everywhere a real element is" onClick={() => setCalc((c) => (c ? null : { name: "", expr: "", unit: "index", msg: null, source: assayElements.length ? "assays" : "surface" }))} />{/* source: TASKS.csv #1799 */}

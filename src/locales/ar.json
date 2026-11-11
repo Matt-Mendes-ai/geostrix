@@ -4410,6 +4410,7 @@
   "Interpolate grades onto a grid and extract the cutoff iso-surface": "استكمال المحتوى على شبكة واستخراج السطح المتساوي لحد القطع",
   "Load collars first": "حمّل الفوهات أولًا",
   "Import assays first": "استورد التحاليل أولًا",
+  "Needs {list} in the assays": "يحتاج {list} في التحاليل",
   "{vertexCount} vertices, {faceCount} faces": "{vertexCount} رأس، {faceCount} وجه",
   "Version {v} of {lineage} — marked as the version you are working from (a record of your choice, not a validation of the run)": "الإصدار {v} من {lineage} — معلّم كالإصدار الذي تعمل منه (سجل لاختيارك، لا تحقق من التشغيل)",
   "Version {v} of {lineage} of this surface": "الإصدار {v} من {lineage} لهذا السطح",

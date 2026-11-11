@@ -4410,6 +4410,7 @@
   "Interpolate grades onto a grid and extract the cutoff iso-surface": "Interpolar teores numa grade e extrair a isossuperfície do teor de corte",
   "Load collars first": "Carregue antes as bocas",
   "Import assays first": "Importe antes análises",
+  "Needs {list} in the assays": "Precisa de {list} nas análises",
   "{vertexCount} vertices, {faceCount} faces": "{vertexCount} vértices, {faceCount} faces",
   "Version {v} of {lineage} — marked as the version you are working from (a record of your choice, not a validation of the run)": "Versão {v} de {lineage} — marcada como a versão a partir da qual você trabalha (um registro da sua escolha, não uma validação da rodada)",
   "Version {v} of {lineage} of this surface": "Versão {v} de {lineage} desta superfície",
