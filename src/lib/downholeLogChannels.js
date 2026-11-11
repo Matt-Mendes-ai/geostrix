@@ -123,6 +123,12 @@ export function defaultLogChannels(channels) {
 }
 // the bin offered by default: 0.5 m when the readings would not fit, else none (raw)
 export const defaultLogBin = (readings, channels) => (needsBinning(readings, channels) ? 0.5 : null);
+// TASKS.csv #2333 (review #2325, WA uranium) — the bin is the user's only once they pick it in the bin menu; until then it follows the ticked
+// channels. The box wrote the then-current default (every reading) on the first tick, so ticking a 2nd and 3rd channel on a 439,225-reading
+// log left 'Every reading (no bins)' selected under a note saying the readings would be averaged, and the import would have kept 1.3 M.
+export const effectiveLogBin = (modal, readings, channels) => (modal.logBinM !== undefined ? modal.logBinM : defaultLogBin(readings, channels));
+// the modal after a change in the box: the ticked channels, and the patch (a bin only when the patch carries one)
+export const logBoxPatch = (modal, ticked, patch) => ({ ...modal, logChannels: ticked, ...patch });
 // the channels an import will make layers of: the user's choice, else the named ones; null when this is not a point-depth custom layer
 // (the dialog, its required-field check and the commit all ask this one function)
 export function logChannelsFor(target, headers, rows, mapping, chosen) {
