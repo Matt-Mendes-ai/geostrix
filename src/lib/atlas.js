@@ -43,6 +43,9 @@ export function atlasRecaptureItems(pages, pageIds) {
 // element before generating, rather than discovering it by trial and error.
 export const HOLE_TOKENS = ["hole_id", "x", "y", "z", "azimuth", "dip", "length", "lithology_summary"];
 export const SECTION_TOKENS = ["name", "azimuth", "corridor", "length"];
+// TASKS.csv #1777 (review #1645) — one placeholder syntax on a page: the page's own {project} / {scale} and the atlas's tokens are both
+// written in single braces; the older {{hole_id}} keeps working. True when `text` holds one of `tokens` in either form.
+export const hasAtlasTokens = (text, tokens) => typeof text === "string" && tokens.some((t) => text.includes(`{${t}}`));
 
 function fmt(n, d = 1) { return Number.isFinite(n) ? n.toFixed(d) : "?"; }
 
@@ -79,9 +82,12 @@ export function sectionAtlasValues(section) {
 // Replaces every {{token}} in `text` with values[token] — an UNKNOWN token (typo, or a hole-mode
 // token used on a section page) is left as literal "{{token}}" text rather than silently blanked, so a
 // mistake is visible on the generated page instead of quietly disappearing.
+// #1777 — {hole_id} is filled as {{hole_id}} is; a single-brace word that is not an atlas token ({project}, {scale}: the page's own
+// placeholders, filled when the page is drawn) is left for the page.
 export function substituteTokens(text, values) {
   if (typeof text !== "string") return text;
-  return text.replace(/\{\{(\w+)\}\}/g, (m, key) => (key in values ? values[key] : m));
+  const has = (k) => Object.prototype.hasOwnProperty.call(values, k);
+  return text.replace(/\{\{(\w+)\}\}|\{(\w+)\}/g, (m, k2, k1) => { const key = k2 || k1; return has(key) ? values[key] : m; });
 }
 
 function substituteElement(el, values) {

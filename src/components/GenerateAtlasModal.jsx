@@ -6,7 +6,7 @@ import { X, LayoutGrid, Loader2 } from "./icons.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay, panel, header, label as labelStyle, sel, btn } from "../lib/modalStyles.js";
-import { generateAtlasPages, HOLE_TOKENS, SECTION_TOKENS, atlasRecaptureItems } from "../lib/atlas.js";
+import { generateAtlasPages, HOLE_TOKENS, SECTION_TOKENS, atlasRecaptureItems, hasAtlasTokens } from "../lib/atlas.js"; // hasAtlasTokens: #1777
 import { useStore } from "../lib/store.jsx"; // TASKS.csv #1644
 import { utmGridReady } from "../lib/layoutGeometry.js"; // TASKS.csv #1644
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
@@ -66,7 +66,8 @@ export default function GenerateAtlasModal({ onClose, templateElements, collars,
   // #2607 — a large run says what it will take, from the last run on this computer (1.76 s a page on the review's laptop: over an hour for 2,248)
   const lastMsPerPage = (() => { try { const v = Number(localStorage.getItem("geostrix.atlasMsPerPage")); return v > 0 ? v : null; } catch { return null; } })();
 
-  const hasPlaceholders = templateElements.some((el) => typeof el.text === "string" && /\{\{\w+\}\}/.test(el.text));
+  // TASKS.csv #1777 — the mode's tokens, in single braces like the page's own placeholders (or the older double ones)
+  const hasPlaceholders = templateElements.some((el) => hasAtlasTokens(el.text, mode === "hole" ? HOLE_TOKENS : SECTION_TOKENS));
 
   const generate = async () => {
     const chosen = items.filter((it) => selectedIds.has(itemKey(it)));
@@ -121,9 +122,9 @@ export default function GenerateAtlasModal({ onClose, templateElements, collars,
           <button onClick={onClose} title={tr("Close")} style={{ background: "none", border: "none", cursor: "pointer", color: "inherit" }}><X size={18} /></button>
         </div>
         <div style={{ padding: 16, overflowY: "auto", display: "flex", flexDirection: "column", gap: 12 }}>
-          <div style={{ fontSize: "var(--font-size-sm)", opacity: 0.75, lineHeight: 1.4 }}>{tr("Creates one new Layout page per item below, using the CURRENT page as a template. Any {v} in a text/title element gets filled in per item — available tokens for this mode: {v2}.", { v: tr("{{token}}"), v2: tokens.map((t) => `{{${t}}}`).join(", ") })}</div>
+          <div style={{ fontSize: "var(--font-size-sm)", opacity: 0.75, lineHeight: 1.4 }}>{tr("Creates one new Layout page per item below, using the CURRENT page as a template. Any {v} in a text/title element gets filled in per item — available tokens for this mode: {v2}.", { v: "{token}", v2: tokens.map((t) => `{${t}}`).join(", ") })}{" "}{tr("The page's own placeholders ({project}, {date}, {scale}, {crs}...) are filled on every generated page as well; the older double-brace form still works.")}</div>{/* #1777 — one syntax: single braces */}
           {!hasPlaceholders && (
-            <div style={{ fontSize: "var(--font-size-sm)", color: "#a95a3a" }}>{tr("The current page has no {v} placeholders in any text — every generated page will look identical except its name{v2}. Add a text element with e.g. {v3} first if you want per-item text.", { v: tr("{{token}}"), v2: mode === "hole" && includeStripLog ? tr(" (and its strip log image)") : "", v3: tr("{{hole_id}}") })}</div>
+            <div style={{ fontSize: "var(--font-size-sm)", color: "#a95a3a" }}>{tr("The current page has no {v} placeholders in any text — every generated page will look identical except its name{v2}. Add a text element with e.g. {v3} first if you want per-item text.", { v: "{token}", v2: mode === "hole" && includeStripLog ? tr(" (and its strip log image)") : "", v3: mode === "hole" ? "{hole_id}" : "{name}" })}</div>
           )}
           <div style={{ display: "flex", gap: 8 }}>
             <select value={mode} onChange={(e) => switchMode(e.target.value)} style={{ ...sel, flex: 1 }}>

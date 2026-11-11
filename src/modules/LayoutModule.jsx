@@ -8,6 +8,7 @@ import ComputerTemplates from "../components/ComputerTemplates.jsx"; // TASKS.cs
 import { keepTemplateOnComputer } from "../lib/computerTemplates.js"; // TASKS.csv #1487
 import { hasComputerTemplates } from "../lib/desktop.js"; // TASKS.csv #1487
 import GenerateAtlasModal from "../components/GenerateAtlasModal.jsx";
+import { HOLE_TOKENS, SECTION_TOKENS } from "../lib/atlas.js"; // TASKS.csv #1777 — listed with the page's placeholders
 import PatternSwatch from "../components/PatternSwatch.jsx"; // TASKS.csv #1995
 import { savePDF, saveFile, exportPDFData, canvasPngBytes, sendSectionResnap } from "../lib/desktop.js"; // saveFile / exportPDFData: TASKS.csv #909 Export PNG; canvasPngBytes: #1040; sendSectionResnap: #1485
 import { pdfOptions } from "../lib/pageFormats.js"; // TASKS.csv #511
@@ -1160,7 +1161,9 @@ export default function LayoutModule() {
             )}
             {sel.type === "titleblock" && <TitleBlockControls sel={sel} updateSelected={updateSelected} />}{/* TASKS.csv #1868 */}
             {(sel.type === "title" || sel.type === "text") && (
-              <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: -4, marginBottom: 8, lineHeight: 1.4 }} title={tr("Filled in when the page is shown and printed: the project's name, today's date, this page's number and name, the number of pages, the scale of the page's viewport, the project's coordinate system, the credit lines the licences of fetched terrain and imagery ask for.")}>{tr("Placeholders: {project} {date} {page} {pages} {pagename} {scale} {crs} {credits}")}</div>
+              <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: -4, marginBottom: 8, lineHeight: 1.4 }} title={tr("Filled in when the page is shown and printed: the project's name, today's date, this page's number and name, the number of pages, the scale of the page's viewport, the project's coordinate system, the credit lines the licences of fetched terrain and imagery ask for.")}>{tr("Placeholders: {project} {date} {page} {pages} {pagename} {scale} {crs} {credits}")}
+                {/* TASKS.csv #1777 — the atlas's tokens, same single-brace syntax, listed here too */}
+                <div title={tr("Left as written on this page; Atlas… fills them on each page it generates, from that page's hole or section.")}>{tr("On atlas pages also: {list}", { list: [...new Set([...HOLE_TOKENS, ...SECTION_TOKENS])].map((k) => `{${k}}`).join(" ") })}</div></div>
             )}{/* TASKS.csv #909 */}
             {/* TASKS.csv #102 — font controls for text elements (title/text). Not callout, which
                 already has its own distinct sticky-note styling (fill/border) and fixed text look —
