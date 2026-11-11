@@ -10,6 +10,7 @@ import { useSetTaskProgress, useStore } from "../lib/store.jsx"; // useStore: #1
 import { reprojectXY } from "../lib/reproject.js"; // TASKS.csv #1629
 import { Download } from "./icons.js";
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
+import { areaSizeText } from "../lib/areaSize.js"; // TASKS.csv #1765 / #2469
 
 const TILE = 256;
 
@@ -424,8 +425,8 @@ export default function BasemapView({
           <div style={{ flex: 1 }} />
           {extraControls && <div style={{ whiteSpace: "nowrap" }}>{extraControls(bbox)}</div>}{/* #1629 — on its own, wrapping the bar, not squeezed into a column */}
           {bbox && (
-            <div style={{ fontSize: "var(--font-size-sm)", color: "#5a6472", marginRight: 10 }}>
-              ~{(bbox[2] - bbox[0]).toFixed(3)}° × {(bbox[3] - bbox[1]).toFixed(3)}°
+            <div style={{ fontSize: "var(--font-size-sm)", color: "#5a6472", marginRight: 10 }} title={`~${(bbox[2] - bbox[0]).toFixed(3)}° × ${(bbox[3] - bbox[1]).toFixed(3)}°`}>
+              {areaSizeText(bbox) /* #1765 / #2469 — on the ground, as Macrostrat's dialog says it; the degrees in the tooltip */}
             </div>
           )}
           <button onClick={onClose} style={toolBtnStyle}>{tr("Cancel")}</button>
