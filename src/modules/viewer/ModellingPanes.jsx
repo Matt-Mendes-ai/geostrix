@@ -542,7 +542,7 @@ export default function ModellingPanes(props) {
         </>)}
         {toolPane === "mcodes" && (<>
         {paneHeader("Modelling codes", Waypoints, "model")}
-        <Suspense fallback={null}>        <ModellingCodesPane litho={layers.litho || []} modellingCodes={modellingCodes} setModellingCodes={setModellingCodes} groupOf={mcGroupOf} defaultRole={mcodeDefaultRole}
+        <Suspense fallback={null}>        <ModellingCodesPane inArea={modelArea === "checked" ? (id) => visibleHoles?.[id] !== false : null} /* #2533 — Auto-number follows the Model area */ litho={layers.litho || []} modellingCodes={modellingCodes} setModellingCodes={setModellingCodes} groupOf={mcGroupOf} defaultRole={mcodeDefaultRole}
           pickMode={mcPickMode} setPickMode={setMcPickMode} selected={mcSelected} setSelected={setMcSelected} connectFrom={mcConnectFrom} setConnectFrom={setMcConnectFrom}
           view={mcodesView} unitBody={unitBody} setUnitBody={setUnitBody} onBuildBody={(code) => runAlterationModel(`mcode:${code}`, unitBody)}
           askPrompt={askPrompt} pBtn={pBtn} inputStyle={{ background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, padding: "3px 5px", color: "var(--color-text)", fontSize: "var(--font-size-sm)" }} /></Suspense>
@@ -977,7 +977,7 @@ export default function ModellingPanes(props) {
         <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
           <select aria-label={tr("Vein or dyke")} value={veinTarget} onChange={(e) => setVeinTarget(e.target.value)} style={{ width: 0, flex: 1, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)" }}>
             <option value="">{tr("Choose a vein / dyke…")}</option>
-            {vein_units.map((u) => <option key={u} value={u}>{u.startsWith("litho:") ? tr("{code} (Lithology)", { code: u.slice(6) }) : u}</option>)}{/* #2226 */}
+            {vein_units.map((u) => <option key={u} value={u}>{u.startsWith("litho:") ? tr("{code} (Lithology)", { code: u.slice(6) }) : u.startsWith("mcode:") ? tr("{code} (Modelling code)", { code: u.slice(6) }) : u}</option>)}{/* #2226; modelling codes: #2533 */}
           </select>
           <button
             onClick={() => runVeinModel(veinTarget)}

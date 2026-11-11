@@ -1962,7 +1962,9 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
   const runVeinModel = (veinPick) => {
     if (!veinPick) return;
     // TASKS.csv #2226 — 'litho:<code>': a vein logged as a lithology code
-    const veinLayer = String(veinPick).startsWith("litho:") ? "litho" : "vein", veinValue = veinLayer === "litho" ? String(veinPick).slice(6) : veinPick;
+    // TASKS.csv #2533 — 'mcode:<name>': a single sheet split out in Modelling codes (cross-cutting), its rows by their effective code
+    const isMcodeVein = String(veinPick).startsWith("mcode:");
+    const veinLayer = String(veinPick).startsWith("litho:") || isMcodeVein ? "litho" : "vein", veinValue = veinLayer === "litho" ? String(veinPick).slice(6) : veinPick;
     const traces = tracesRef.current;
     if (!traces.length) { setNotices((p) => [...p, noCollarsNotice(tr("the vein model"), layers, assays)]); return; }
     const o = originRef.current;
@@ -1975,7 +1977,7 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
       try {
         const { buildVeinModel } = await import("../../lib/vein.js"); // #144; loaded on first use (#476)
         const traceOf = new Map(traces.map((t) => [t.hole_id, t]));
-        const rows = (layers[veinLayer] || []).filter((r) => r.value === veinValue && r.hole_id != null
+        const rows = (layers[veinLayer] || []).filter((r) => (isMcodeVein ? effectiveCode(r, modellingCodes, mcodeGroupOf) === veinValue : r.value === veinValue) && r.hole_id != null
           && r.from != null && r.to != null && !isNaN(r.from) && !isNaN(r.to) && Number(r.to) > Number(r.from)
           && !excludedIntercepts.includes(interceptId(veinLayer, r)) // #84 — reviewed-out intercepts never model
           && interceptInActiveSet(interceptId(veinLayer, r))); // #52 (c) — restricted to the active intercept set, if any
@@ -2083,7 +2085,7 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
         // 1.6° midplane pair across clusters 3-5 km apart, two meaningless surfaces in the project. Such a code now adds nothing.
         const setPerHole = used.length / Math.max(1, new Set(used.map((i) => i.holeId)).size);
         if ((pl.rmsOffPlane != null && pl.rmsOffPlane > 10 * Math.max(th.trueMean || 0, 0.5)) || setPerHole > 2.5) {
-          setNotices((p) => [...p, notice("\"{label}\": no surface, solid or volume was made: the intercepts do not behave like one vein (midpoints {v} m RMS off one plane for a {v2} m mean thickness, {v3} intercepts in {holes} hole(s), {v4} per hole). This code is a vein SET or stockwork: split it into single veins (Modelling codes, intercept sets) and model each, or model the set as an envelope of where it occurs (Alteration > Layer: Veins, with its density as the floor when logged).", { label, v: pl.rmsOffPlane != null ? Number(pl.rmsOffPlane).toFixed(1) : "?", v2: Number(th.trueMean || 0).toFixed(2), v3: used.length, holes: new Set(used.map((i) => i.holeId)).size, v4: setPerHole.toFixed(1) })]);
+          setNotices((p) => [...p, notice("\"{label}\": no surface, solid or volume was made: the intercepts do not behave like one vein (midpoints {v} m RMS off one plane for a {v2} m mean thickness, {v3} intercepts in {holes} hole(s), {v4} per hole). This code is a vein SET or stockwork: split it into single veins (Modelling codes: number it or connect intervals between holes, set the new codes cross-cutting, then model each here) or model the set as an envelope of where it occurs ({route}).", { route: veinLayer === "litho" ? tr("Alteration > Layer: Lithology, or Modelling codes > Build a closed body") : tr("Alteration > Layer: Veins, with its density as the floor when logged"), /* #2533 — a route that works for the layer the code is in */ label, v: pl.rmsOffPlane != null ? Number(pl.rmsOffPlane).toFixed(1) : "?", v2: Number(th.trueMean || 0).toFixed(2), v3: used.length, holes: new Set(used.map((i) => i.holeId)).size, v4: setPerHole.toFixed(1) })]);
           return;
         }
         const fwSurf = stamp(model.footwall, "footwall", 0x3d8ecf, 0.75, "vein_footwall");

@@ -15,8 +15,8 @@ test("the Veins log first, then the cross-cutting lithology codes as litho:<code
 
 test("the run reads the chosen layer; the halo offers Lithology; the pane says why the list is empty", () => {
   const runs = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8");
-  assert.ok(runs.includes('const veinLayer = String(veinPick).startsWith("litho:") ? "litho" : "vein"'));
-  assert.ok(runs.includes("const rows = (layers[veinLayer] || []).filter((r) => r.value === veinValue"));
+  assert.ok(runs.includes('const veinLayer = String(veinPick).startsWith("litho:") || isMcodeVein ? "litho" : "vein"')); // #2533: modelling codes too
+  assert.ok(runs.includes("const rows = (layers[veinLayer] || []).filter((r) => (isMcodeVein ? effectiveCode(r, modellingCodes, mcodeGroupOf) === veinValue : r.value === veinValue)"));
   assert.ok(runs.includes('source?.layer === "litho" ? "litho" : "alt"'));
   const panes = readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8");
   assert.ok(panes.includes('<option value="litho">{tr("Lithology (a code set as an envelope)")}</option>'));

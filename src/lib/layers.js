@@ -1,6 +1,7 @@
 // ============================================================
 // Layer metadata, colors, and generic CSV import mapping helpers
 // ============================================================
+import { rowKey } from "./modellingCodes.js"; // TASKS.csv #2533 — the vein sources read the modelling codes' assign map
 import { voxelStretch } from "./voxelStretch.js"; // TASKS.csv #1812
 import { looksLikeLogTable } from "./downholeLogChannels.js"; // TASKS.csv #2160
 import { looksLikeEventTable } from "./downholeEvents.js"; // TASKS.csv #2317
@@ -250,7 +251,16 @@ export function veinSourceUnits(layers, modellingCodes = null) {
   };
   const set = new Map((modellingCodes?.codes || []).map((c) => [c.name, c.role]));
   const crossCutting = (v) => (set.get(v) || mcodeRoleOf(roleForLithology(v))) === "cross-cutting";
-  return [...seen(layers?.vein), ...seen(layers?.litho).filter(crossCutting).map((v) => `litho:${v}`)];
+  // TASKS.csv #2533 (review #2486) — the refusal of a sheet swarm sent the user to split it in Modelling codes, and the codes made there
+  // (P1 ... P32, set cross-cutting) were not offered here: a cross-cutting modelling code that some interval carries is ('mcode:<name>'), and
+  // a raw code every interval of which was re-coded away is not offered any more
+  const litho = layers?.litho || [];
+  const assign = modellingCodes?.assign || {};
+  const carried = new Set(), stillRaw = new Set();
+  if (Object.keys(assign).length) for (const r of litho) { const o = assign[rowKey(r)]; if (o) carried.add(o); else if (r?.value != null) stillRaw.add(r.value); }
+  const rawKept = (v) => !Object.keys(assign).length || stillRaw.has(v);
+  const mcodes = (modellingCodes?.codes || []).filter((c) => c.role === "cross-cutting" && carried.has(c.name) && !seen(litho).includes(c.name)).map((c) => `mcode:${c.name}`);
+  return [...seen(layers?.vein), ...seen(litho).filter((v) => crossCutting(v) && rawKept(v)).map((v) => `litho:${v}`), ...mcodes];
 }
 export function isCrossCuttingRole(role) { return role === "fault" || role === "dyke" || role === "breccia" || role === "vein"; }
 // a Modelling codes role from a unit role (#599 roles: stratigraphic / overburden / cross-cutting / ignore)

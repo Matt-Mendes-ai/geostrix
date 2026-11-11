@@ -68,7 +68,7 @@ function selectionOverlay(rows, traces) {
   return group;
 }
 
-export default function ModellingCodesPane({ litho, modellingCodes, setModellingCodes, groupOf, defaultRole, pickMode, setPickMode, selected, setSelected, connectFrom, setConnectFrom, askPrompt, pBtn, unitBody, setUnitBody, inputStyle, view, onBuildBody }) {
+export default function ModellingCodesPane({ inArea = null, litho, modellingCodes, setModellingCodes, groupOf, defaultRole, pickMode, setPickMode, selected, setSelected, connectFrom, setConnectFrom, askPrompt, pBtn, unitBody, setUnitBody, inputStyle, view, onBuildBody }) {
   const mc = modellingCodes || { codes: [], assign: {}, ties: [] };
   const codes = useMemo(() => codesInUse(litho, mc, groupOf, defaultRole), [litho, mc, groupOf, defaultRole]);
   const counts = useMemo(() => {
@@ -88,6 +88,7 @@ export default function ModellingCodesPane({ litho, modellingCodes, setModelling
   const [boxResult, setBoxResult] = useState(null);
   const [boxConflict, setBoxConflict] = useState(null); // #1337 — the chosen code already holds other intervals: replace or add
   const [bodyCode, setBodyCode] = useState(""); // TASKS.csv #1340
+  const [numberMsg, setNumberMsg] = useState(""); // TASKS.csv #2533
   const between = useMemo(() => (boxRows.length ? rowsBetween(litho, boxRows) : []), [litho, boxRows]);
   const boxRowsRef = useRef(boxRows);
   boxRowsRef.current = boxRows;
@@ -325,11 +326,17 @@ export default function ModellingCodesPane({ litho, modellingCodes, setModelling
         ))}
       </div>
       <button disabled={!numberCodes.length} onClick={() => {
-        const go = () => setModellingCodes((p) => { const base = p || mc; const assign = autoNumber(litho, numberCodes, { ...base, assign: Object.fromEntries(Object.entries(p?.assign || {}).filter(([k]) => !litho.some((r) => rowKey(r) === k && numberCodes.includes(String(r.value))))) }, groupOf); return { ...base, assign, codes: inheritNumberedRoles(base, assign, numberCodes) /* #2532 — P1 ... take P's role */ }; });
-        const touched = litho.filter((r) => numberCodes.includes(String(r.value)) && mc.assign?.[rowKey(r)]).length;
+        // TASKS.csv #2533 (review #2486) — Auto-number re-coded 3,870 intervals in all 2,248 holes, not the 30 checked ones, and said nothing:
+        // it follows the Model area (the holes checked, when it says so) and says what it did
+        const rows = inArea ? litho.filter((r) => inArea(r.hole_id)) : litho;
+        const keys = new Set(rows.filter((r) => numberCodes.includes(String(r.value))).map(rowKey));
+        const go = () => setModellingCodes((p) => { const base = p || mc; const assign = autoNumber(rows, numberCodes, { ...base, assign: Object.fromEntries(Object.entries(p?.assign || {}).filter(([k]) => !keys.has(k))) }, groupOf); return { ...base, assign, codes: inheritNumberedRoles(base, assign, numberCodes) /* #2532 — P1 ... take P's role */ }; });
+        const touched = rows.filter((r) => numberCodes.includes(String(r.value)) && mc.assign?.[rowKey(r)]).length;
         if (touched && !window.confirm(tr("{touched} of these intervals already have a code you set. Auto-numbering replaces them. Continue?", { touched }))) return;
         go();
+        setNumberMsg(tr("Numbered {n} interval(s) of {codes} in {h} hole(s){area}.", { n: keys.size.toLocaleString(), codes: numberCodes.join(", "), h: new Set(rows.filter((r) => keys.has(rowKey(r))).map((r) => r.hole_id)).size.toLocaleString(), area: inArea ? tr(" (the holes checked: Model area)") : "" })); // #2533
       }} style={{ ...pBtn, marginTop: 6, opacity: numberCodes.length ? 1 : 0.5 }}>{tr("Auto-number {v}", { v: numberCodes.join(", ") || "…" })}</button>
+      {numberMsg && <div role="status" style={{ ...small, marginTop: 3 }}>{numberMsg}</div>}{/* #2533 */}
 
       <div style={{ ...small, marginTop: 10 }}>
         {tr("{overrides} interval(s) with a code you set · {n} connection(s) drawn.", { overrides, n: (mc.ties || []).length })}{overrides > 0 && <> <span style={{ textDecoration: "underline", cursor: "pointer" }} {...iconAction(() => { if (window.confirm(tr("Reset all {overrides} interval code(s) to their logged codes and remove the connections? (Undo can bring them back.)", { overrides }))) setModellingCodes((p) => ({ ...(p || mc), assign: {}, ties: [] })); }, tr("Reset all interval codes"))}>{tr("Reset all")}</span></>}
