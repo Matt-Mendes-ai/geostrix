@@ -246,7 +246,7 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove,
         {field("recovery", tr("Metallurgical recovery (%)"))}
         {/* TASKS.csv #1917 (from #1615 / #1749) — a by-product metal: a second block model on the same grid, its own price and recovery */}
         {model && <label style={row}>{tr("By-product (optional)")}<select value={byModel ? f.byModelId : ""} onChange={(e) => { setF((p) => ({ ...p, byModelId: e.target.value })); setMsg(null); }} style={{ ...smallSel, width: 0, flex: 1, minWidth: 0 }} aria-label={tr("By-product block model")} title={tr("A second metal credited from its own block model, estimated on the same grid as the main one (the same cell size over the same area): Ag beside Au, Au beside Cu, Ta beside Li.")}>
-          <option value="">{byCandidates.length ? tr("— none —") : tr("— none: estimate a second metal on the same grid —")}</option>{byCandidates.map((m) => <option key={m.id ?? m.name} value={m.id ?? m.name}>{m.name}</option>)}
+          <option value="">{byCandidates.length ? tr("— none —") : tr("— none: estimate a second metal with the same cell over the same holes (Estimation › Grid: Fit to the checked holes) —") /* TASKS.csv #2598 — the route that gives the same lattice today */}</option>{byCandidates.map((m) => <option key={m.id ?? m.name} value={m.id ?? m.name}>{m.name}</option>)}
         </select></label>}
         {byModel && (<>
           <label style={row}>{tr("{el} price", { el: byLabel })}<span style={{ display: "flex", gap: 4 }}><input type="number" min={0} step="any" value={f.byPrice} onChange={set("byPrice")} style={num} aria-label={tr("By-product price")} />
