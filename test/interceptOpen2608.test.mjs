@@ -17,5 +17,6 @@ test("the Layout table marks them, says why, does not point at a CSV, and steps 
   assert.match(b, /open\[i\]\.top \|\| open\[i\]\.bottom \? "\+" : ""/);
   assert.match(b, /tr\("\+: the intercept starts at the hole's first sample/);
   assert.match(b, /tr\("… and \{n\} more intercept\(s\), not shown on this sheet"/);
-  assert.match(b, /y: 60 \+ 24 \* els\.filter\(\(e\) => e\.type === "table"\)\.length/);
+  // #2479 — a second send takes the next free spot of the page (interceptTablePlan), not 24 px along from (60, 60)
+  assert.match(b, /x: plan\.x, y: plan\.y/);
 });

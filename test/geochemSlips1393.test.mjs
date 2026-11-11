@@ -8,7 +8,8 @@ const g = read("../src/modules/GeochemModule.jsx");
 
 test("1: no lone '.' when nothing was counted; no 'see it' for an empty layer", () => {
   assert.match(g, /tr\(countList \? " \{v\}\.\{v2\}\{v3\} Screening level: protolith assumed\." : "\{v2\}\{v3\} Screening level: protolith assumed\."/);
-  assert.match(g, /notice\(runs\.length \? "Generated \{rows\} intervals[^"]*Switch to 3D View to see it\." : "No interval was generated from \{n\} samples, so the \{v\} layer is empty\.\{detail\}"/);
+  // #1800 — the 'see it' wording only when there are collars to draw on
+  assert.match(g, /notice\(runs\.length \? \(collars\.length \? "Generated \{rows\} intervals[^"]*Switch to 3D View to see it\." : "Generated \{rows\} intervals[^"]*No collars are loaded[^"]*"\) \/\* #1800 \*\/ : "No interval was generated from \{n\} samples, so the \{v\} layer is empty\.\{detail\}"/);
 });
 
 test("2: Including rounds like the grade column; the count column says what it counts", () => {

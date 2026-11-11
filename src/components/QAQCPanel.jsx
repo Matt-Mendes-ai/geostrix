@@ -148,7 +148,7 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
             <div style={{ display: "flex", gap: 4 }}>
               {tabs.map((t) => (
                 <button key={t} onClick={() => setTab(t)} style={t === tab ? tabBtnActive : tabBtn}>
-                  {t === "totals" ? tr("Totals") : t === "methods" ? tr("Method pairs ({n})", { n: methods.reduce((a, m) => a + m.n, 0) }) : t === "pxrf" ? tr("pXRF vs lab ({n})", { n: pxrf.pairs }) : t === "standards" ? tr("Standards ({groups})", { groups: groups.length }) : t === "blanks" ? tr("Blanks ({blank})", { blank: counts.blank }) : tr("Duplicates ({dups})", { dups: dups.length })}
+                  {t === "totals" ? tr("Totals") : t === "methods" ? tr("Method pairs ({n})", { n: methods.reduce((a, m) => a + m.n, 0) }) : t === "pxrf" ? tr("pXRF vs lab ({n})", { n: pxrf.pairs }) : t === "standards" ? !groups.length && !counts.standard ? tr("Standards ({groups})", { groups: 0 }) : tr(groups.length === 1 ? "Standards ({n} in 1 CRM)" : "Standards ({n} in {groups} CRMs)", { n: counts.standard, groups: groups.length }) /* #2033 — insertions, as the other tabs count samples */ : t === "blanks" ? tr("Blanks ({blank})", { blank: counts.blank }) : tr("Duplicates ({dups})", { dups: dups.length })}
                 </button>
               ))}
             </div>
@@ -172,7 +172,7 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
               <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", padding: 8 }}>{tr("No repeated standard insertions found. Standards are detected by hole_id containing \"std\", \"crm\", \"oreas\", etc. — a standard inserted only once has nothing to compare it against.")}</div>
             ) : (
               <>
-                <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("Standard")}<select value={activeGroup?.id || ""} onChange={(e) => setSelectedStdId(e.target.value)} style={{ ...sel, display: "block", marginTop: 4 }}>
+                <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr(groups.length === 1 ? "Standard (1 CRM)" : "Standard ({groups} CRMs)", { groups: groups.length }) /* #2033 */}<select value={activeGroup?.id || ""} onChange={(e) => setSelectedStdId(e.target.value)} style={{ ...sel, display: "block", marginTop: 4 }}>
                     {groups.map((g) => <option key={g.id} value={g.id}>{g.id} ({g.rows.length})</option>)}
                   </select>
                 </label>
