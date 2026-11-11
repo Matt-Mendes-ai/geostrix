@@ -9996,5 +9996,19 @@
   "The project has no coordinate system yet, so these azimuths cannot be converted to grid north and will be left as they are in the file. Choose the project CRS first.": "ليس للمشروع نظام إحداثيات بعد، فلا يمكن تحويل هذه السموت إلى شمال الشبكة وستُترك كما هي في الملف. اختر نظام إحداثيات المشروع أولًا.",
   " {col}: {assumed} of {n} hole(s) have only assumed survey stations (their direction was not measured), {measured} measured; each hole's collar now says 'survey method: assumed / measured' (hole list filter and colour, Identify).": " {col}: لدى {assumed} من {n} ثقب محطات مسح مفترضة فقط (لم يُقس اتجاهها)، و{measured} مقيسة؛ تذكر فوهة كل ثقب الآن 'survey method: assumed / measured' (تصفية قائمة الثقوب وتلوينها، التعريف).",
   " Spellings folded: {list}.": " وُحّدت الكتابات: {list}.",
-  "{n} of {m} hole(s) have only assumed survey stations ({col}): their direction was not measured, so where they go below the collar is an assumption ({ids}).": "لدى {n} من {m} ثقب محطات مسح مفترضة فقط ({col}): لم يُقس اتجاهها، فمسارها تحت الفوهة افتراض ({ids})."
+  "{n} of {m} hole(s) have only assumed survey stations ({col}): their direction was not measured, so where they go below the collar is an assumption ({ids}).": "لدى {n} من {m} ثقب محطات مسح مفترضة فقط ({col}): لم يُقس اتجاهها، فمسارها تحت الفوهة افتراض ({ids}).",
+  "A sheet dipping {dip}° toward {dir}° makes this outline cross itself at depth (the ground along it rises and falls too much for that dip). Use a steeper dip or a shallower depth.": "صفيحة تميل {dip}° نحو {dir}° تجعل هذا المحيط يتقاطع مع نفسه في العمق (الأرض على امتداده ترتفع وتنخفض كثيرًا لهذا الميل). استخدم ميلًا أشد أو عمقًا أقل.",
+  "Body shape": "شكل الجسم",
+  "plug or stock (walls all round)": "سدادة أو كتلة (جدران من كل الجهات)",
+  "sheet or dyke (both walls dip one way)": "صفيحة أو قاطع (يميل الجداران في اتجاه واحد)",
+  "Sheet dip": "ميل الصفيحة",
+  "toward": "نحو",
+  "Sheet dip direction": "اتجاه ميل الصفيحة",
+  "The mean of the {n} contact readings within {m} m of the ticked units' polygons.": "متوسط {n} قراءة تماس على بعد {m} م أو أقل من مضلعات الوحدات المحددة.",
+  "Use {dip}° toward {dir}° ({n} contact readings)": "استخدام {dip}° نحو {dir}° ({n} قراءة تماس)",
+  "Each outline point goes down the sheet's plane: the base is the mapped outline moved down-dip, so both walls dip the same way. Its thickness comes from the map width across the dip, said when it is built.": "تنزل كل نقطة من المحيط على مستوى الصفيحة: القاعدة هي المحيط المرسوم مزاحًا باتجاه الميل، فيميل الجداران في اتجاه واحد. يأتي سمكها من عرض الخريطة عبر الميل، ويُذكر عند البناء.",
+  "{v} Mm³, {d} m below the outcrop, a sheet dipping {dip}° toward {dir}°": "{v} مليون م³، {d} م تحت المكشف، صفيحة تميل {dip}° نحو {dir}°",
+  "sheet ({dip}° toward {dir}°)": "صفيحية ({dip}° نحو {dir}°)",
+  " As a sheet each body is {a}–{b} m thick: its map width across the dip direction × sin {dip}°, on level ground.": " كصفيحة، سمك كل جسم {a}–{b} م: عرضه على الخريطة باتجاه الميل × جا {dip}°، على أرض مستوية.",
+  " As a sheet it is {a} m thick: its map width across the dip direction × sin {dip}°, on level ground.": " كصفيحة، سمكه {a} م: عرضه على الخريطة باتجاه الميل × جا {dip}°، على أرض مستوية."
 }

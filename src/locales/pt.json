@@ -9996,5 +9996,19 @@
   "The project has no coordinate system yet, so these azimuths cannot be converted to grid north and will be left as they are in the file. Choose the project CRS first.": "O projeto ainda não tem sistema de coordenadas, então estes azimutes não podem ser convertidos para o norte de quadrícula e serão mantidos como estão no arquivo. Escolha primeiro o SRC do projeto.",
   " {col}: {assumed} of {n} hole(s) have only assumed survey stations (their direction was not measured), {measured} measured; each hole's collar now says 'survey method: assumed / measured' (hole list filter and colour, Identify).": " {col}: {assumed} de {n} furo(s) têm apenas estações de levantamento supostas (a direção não foi medida), {measured} medidos; a boca de cada furo agora diz 'survey method: assumed / measured' (filtro e cor da lista de furos, Identificar).",
   " Spellings folded: {list}.": " Grafias unificadas: {list}.",
-  "{n} of {m} hole(s) have only assumed survey stations ({col}): their direction was not measured, so where they go below the collar is an assumption ({ids}).": "{n} de {m} furo(s) têm apenas estações de levantamento supostas ({col}): a direção não foi medida, então o trajeto abaixo da boca é uma suposição ({ids})."
+  "{n} of {m} hole(s) have only assumed survey stations ({col}): their direction was not measured, so where they go below the collar is an assumption ({ids}).": "{n} de {m} furo(s) têm apenas estações de levantamento supostas ({col}): a direção não foi medida, então o trajeto abaixo da boca é uma suposição ({ids}).",
+  "A sheet dipping {dip}° toward {dir}° makes this outline cross itself at depth (the ground along it rises and falls too much for that dip). Use a steeper dip or a shallower depth.": "Uma lâmina com mergulho de {dip}° para {dir}° faz este contorno se cruzar em profundidade (o terreno ao longo dele sobe e desce demais para esse mergulho). Use um mergulho mais forte ou uma profundidade menor.",
+  "Body shape": "Forma do corpo",
+  "plug or stock (walls all round)": "plug ou stock (paredes em todo o contorno)",
+  "sheet or dyke (both walls dip one way)": "lâmina ou dique (as duas paredes mergulham para o mesmo lado)",
+  "Sheet dip": "Mergulho da lâmina",
+  "toward": "para",
+  "Sheet dip direction": "Direção de mergulho da lâmina",
+  "The mean of the {n} contact readings within {m} m of the ticked units' polygons.": "A média das {n} medidas de contato a até {m} m dos polígonos das unidades marcadas.",
+  "Use {dip}° toward {dir}° ({n} contact readings)": "Usar {dip}° para {dir}° ({n} medidas de contato)",
+  "Each outline point goes down the sheet's plane: the base is the mapped outline moved down-dip, so both walls dip the same way. Its thickness comes from the map width across the dip, said when it is built.": "Cada ponto do contorno desce pelo plano da lâmina: a base é o contorno mapeado deslocado no sentido do mergulho, então as duas paredes mergulham para o mesmo lado. A espessura vem da largura no mapa através do mergulho, informada ao construir.",
+  "{v} Mm³, {d} m below the outcrop, a sheet dipping {dip}° toward {dir}°": "{v} Mm³, {d} m abaixo do afloramento, uma lâmina com mergulho de {dip}° para {dir}°",
+  "sheet ({dip}° toward {dir}°)": "de lâmina ({dip}° para {dir}°)",
+  " As a sheet each body is {a}–{b} m thick: its map width across the dip direction × sin {dip}°, on level ground.": " Como lâmina, cada corpo tem {a}–{b} m de espessura: a largura no mapa ao longo da direção de mergulho × sen {dip}°, em terreno plano.",
+  " As a sheet it is {a} m thick: its map width across the dip direction × sin {dip}°, on level ground.": " Como lâmina tem {a} m de espessura: a largura no mapa ao longo da direção de mergulho × sen {dip}°, em terreno plano."
 }

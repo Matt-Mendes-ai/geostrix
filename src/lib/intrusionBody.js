@@ -125,7 +125,30 @@ export function hullIndices(C) {
   return [...half(idx), ...half(idx.slice().reverse())].sort((a, b) => a - b);
 }
 
-export function intrusionBody(ring, groundAt, { depthM = 500, wallDip = 90, flare = "out", stepM = 25, inTerrain = null } = {}) { // inTerrain(x, y): #2569
+// TASKS.csv #2642 — the median width of a ring along the azimuth azDeg: chords of lines in that direction, at 41 places across the ring
+export function chordWidth(ring, azDeg) {
+  const az = (azDeg * Math.PI) / 180, u = [Math.sin(az), Math.cos(az)], v = [u[1], -u[0]]; // u along the chords, v across them
+  const pts = ring.map((p) => [p[0] * u[0] + p[1] * u[1], p[0] * v[0] + p[1] * v[1]]); // (along, across)
+  const across = pts.map((p) => p[1]), lo = Math.min(...across), hi = Math.max(...across), widths = [];
+  for (let k = 1; k <= 41; k++) {
+    const c = lo + ((hi - lo) * k) / 42, xs = [];
+    for (let i = 0; i < pts.length; i++) {
+      const a = pts[i], b = pts[(i + 1) % pts.length];
+      if ((a[1] - c) * (b[1] - c) < 0) xs.push(a[0] + ((c - a[1]) / (b[1] - a[1])) * (b[0] - a[0]));
+    }
+    xs.sort((p, q) => p - q);
+    let w = 0; for (let i = 0; i + 1 < xs.length; i += 2) w += xs[i + 1] - xs[i];
+    if (w > 0) widths.push(w);
+  }
+  if (!widths.length) return 0;
+  widths.sort((p, q) => p - q);
+  return widths[widths.length >> 1];
+}
+
+// TASKS.csv #2642 — sheet: { dip, dipDir } builds a SHEET (a dyke or sill): both walls dip the same way. Each outline point goes down the
+// plane through it: at the base it has moved (its height above the base) / tan(dip) toward the dip direction, so the base is the outline
+// sheared down-dip and the walls along the strike dip at the sheet's dip. wallDip / flare are not used then.
+export function intrusionBody(ring, groundAt, { depthM = 500, wallDip = 90, flare = "out", stepM = 25, inTerrain = null, sheet = null } = {}) { // inTerrain(x, y): #2569
   // at most ~400 outline points: a long outline gets a wider spacing (the inward-taper check is O(n^2))
   let per = 0;
   for (let i = 0; i < ring.length - 1; i++) per += Math.hypot(ring[i + 1][0] - ring[i][0], ring[i + 1][1] - ring[i][1]);
@@ -163,7 +186,12 @@ export function intrusionBody(ring, groundAt, { depthM = 500, wallDip = 90, flar
   for (let i = 1; i <= n; i++) cum.push(cum[i - 1] + Math.hypot(r[i % n][0] - r[i - 1][0], r[i % n][1] - r[i - 1][1]));
   const hMax = Math.max(...topZ) - baseZ;
   let base = r.map((p) => [p[0], p[1]]), simplifiedTo = nc;
-  if (cot) {
+  if (sheet) { // #2642
+    const sc = sheet.dip >= 89.99 ? 0 : 1 / Math.tan((Math.max(1, sheet.dip) * Math.PI) / 180), az = (sheet.dipDir * Math.PI) / 180, ux = Math.sin(az), uy = Math.cos(az);
+    const b = r.map((p, i) => [p[0] + ux * (topZ[i] - baseZ) * sc, p[1] + uy * (topZ[i] - baseZ) * sc]);
+    if (!(area2(b) > 0) || selfIntersects(b)) throw new Error(tr("A sheet dipping {dip}° toward {dir}° makes this outline cross itself at depth (the ground along it rises and falls too much for that dip). Use a steeper dip or a shallower depth.", { dip: sheet.dip, dir: sheet.dipDir }));
+    base = b;
+  } else if (cot) {
     let ok = false;
     // tolerance: 0.3 x the largest offset, but at most 0.15 x the outline's size so a small outcrop keeps its shape;
     // walls that widen with depth fall back to the outline's CONVEX HULL (an outward offset of a convex outline never
@@ -287,5 +315,9 @@ export function intrusionBody(ring, groundAt, { depthM = 500, wallDip = 90, flar
   // or centroid-shrunk base can make it differ from the dip asked for, and the caller says so
   let dMin = 90, dMax = 0;
   r.forEach((p, i) => { const mv = Math.hypot(base[i][0] - p[0], base[i][1] - p[1]), h = topZ[i] - baseZ; const d = mv > 1e-6 ? (Math.atan(h / mv) * 180) / Math.PI : 90; dMin = Math.min(dMin, d); dMax = Math.max(dMax, d); });
-  return { filledTop, topPoints: topZ.length /* #2569 */, positions, indices: Uint32Array.from(idx), topZ: [Math.min(...topZ), Math.max(...topZ)], baseZ, wallOffsetM: [Math.min(...offs), Math.max(...offs)], planAreaM2: area2(r), baseCorners: simplifiedTo, corners: nc, pinchedAtM, wallDipDeg: [dMin, dMax] };
+  // #2642 — a sheet's thickness: its map width across the dip (the median chord along the dip direction, so an outline oblique to the
+  // readings' strike is not measured end to end) x sin(dip), on level ground
+  let sheetThicknessM = null, sheetWidthM = null;
+  if (sheet) { sheetWidthM = chordWidth(r, sheet.dipDir); sheetThicknessM = sheetWidthM * Math.sin((sheet.dip * Math.PI) / 180); }
+  return { sheetThicknessM, sheetWidthM, filledTop, topPoints: topZ.length /* #2569 */, positions, indices: Uint32Array.from(idx), topZ: [Math.min(...topZ), Math.max(...topZ)], baseZ, wallOffsetM: [Math.min(...offs), Math.max(...offs)], planAreaM2: area2(r), baseCorners: simplifiedTo, corners: nc, pinchedAtM, wallDipDeg: [dMin, dMax] };
 }
