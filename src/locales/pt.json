@@ -10433,5 +10433,12 @@
   "Upper slope (°)": "Inclinação superior (°)",
   "Optional: the slope of the walls above the RL beside it (soft cover, weathered rock), from a geotechnical study. Blank: the overall slope everywhere.": "Opcional: a inclinação das paredes acima da cota ao lado (cobertura branda, rocha intemperizada), de um estudo geotécnico. Em branco: a inclinação geral em toda parte.",
   "above RL (m)": "acima da cota (m)",
-  ", {s}° above {rl} m": ", {s}° acima de {rl} m"
+  ", {s}° above {rl} m": ", {s}° acima de {rl} m",
+  "Its standard deviation → map": "Seu desvio padrão → mapa",
+  "The posterior's standard deviation from the weights' own uncertainty (missing evidence not included): where it is large beside the posterior, the score is not sure.": "O desvio padrão da posterior a partir da incerteza dos próprios pesos (sem incluir a evidência ausente): onde é grande ao lado da posterior, o escore não é seguro.",
+  "Plan-view standard deviation of the weights-of-evidence posterior ({n} occurrence cells)": "Desvio padrão em planta da posterior de pesos de evidência ({n} células com ocorrências)",
+  "Its colours run from 0 (pale) to {top}, the highest value (dark red).": "Suas cores vão de 0 (pálido) a {top}, o valor mais alto (vermelho-escuro).",
+  "ROC-AUC on the occurrence cells: fuzzy {a}, posterior {b} (0.5 is chance; on the points the map was made from, so optimistic).": "ROC-AUC nas células com ocorrências: fuzzy {a}, posterior {b} (0,5 é o acaso; nos pontos com que o mapa foi feito, então otimista).",
+  "ROC-AUC on the occurrence cells: fuzzy {a} (0.5 is chance; on the points the map was made from, so optimistic).": "ROC-AUC nas células com ocorrências: fuzzy {a} (0,5 é o acaso; nos pontos com que o mapa foi feito, então otimista).",
+  "Density of the known occurrences (quartic kernel)": "Densidade das ocorrências conhecidas (núcleo quártico)"
 }

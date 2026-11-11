@@ -10433,5 +10433,12 @@
   "Upper slope (°)": "Pente supérieure (°)",
   "Optional: the slope of the walls above the RL beside it (soft cover, weathered rock), from a geotechnical study. Blank: the overall slope everywhere.": "Facultatif : la pente des parois au-dessus de l'altitude à côté (couverture meuble, roche altérée), d'après une étude géotechnique. Vide : la pente générale partout.",
   "above RL (m)": "au-dessus de l'altitude (m)",
-  ", {s}° above {rl} m": ", {s}° au-dessus de {rl} m"
+  ", {s}° above {rl} m": ", {s}° au-dessus de {rl} m",
+  "Its standard deviation → map": "Son écart type → carte",
+  "The posterior's standard deviation from the weights' own uncertainty (missing evidence not included): where it is large beside the posterior, the score is not sure.": "L'écart type de la postérieure d'après l'incertitude des poids eux-mêmes (évidence manquante non comprise) : là où il est grand à côté de la postérieure, le score n'est pas sûr.",
+  "Plan-view standard deviation of the weights-of-evidence posterior ({n} occurrence cells)": "Écart type en plan de la postérieure des poids des évidences ({n} cellules d'occurrence)",
+  "Its colours run from 0 (pale) to {top}, the highest value (dark red).": "Ses couleurs vont de 0 (pâle) à {top}, la valeur la plus haute (rouge foncé).",
+  "ROC-AUC on the occurrence cells: fuzzy {a}, posterior {b} (0.5 is chance; on the points the map was made from, so optimistic).": "ROC-AUC sur les cellules d'occurrence : flou {a}, postérieure {b} (0,5 est le hasard ; sur les points qui ont fait la carte, donc optimiste).",
+  "ROC-AUC on the occurrence cells: fuzzy {a} (0.5 is chance; on the points the map was made from, so optimistic).": "ROC-AUC sur les cellules d'occurrence : flou {a} (0,5 est le hasard ; sur les points qui ont fait la carte, donc optimiste).",
+  "Density of the known occurrences (quartic kernel)": "Densité des occurrences connues (noyau quartique)"
 }

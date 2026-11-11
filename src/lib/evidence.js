@@ -318,20 +318,23 @@ export function bestCutoff(values, D, valid, { direction = "increasing", steps =
 // value at a cell adds a weight of 0 there (the prior stands); `missingCells` counts the cells where at least one did.
 // #2446 — countMask (the drilled cells, when the weights were trained there): the omnibus sum is taken over those cells, the ones the
 // known count refers to; the posterior itself still covers every valid cell.
+// sd: TASKS.csv #2001 — the posterior's standard deviation from the weights' own variances (Bonham-Carter 1994, ch. 9): var(logit) = 1 / ND (the
+// prior) + the s^2 of each weight applied in the cell, carried to the probability by the delta method, sd(P) = P (1 - P) sqrt(var(logit)).
+// The missing-data variance is not included (a cell missing an evidence takes no weight for it). Layers carry sPlus / sMinus.
 export function posterior(layers, valid, N, ND, { countMask = null } = {}) {
-  const n = valid.length, out = new Float32Array(n).fill(NaN), prior = Math.log(ND / (N - ND));
+  const n = valid.length, out = new Float32Array(n).fill(NaN), sd = new Float32Array(n).fill(NaN), prior = Math.log(ND / (N - ND));
   let expected = 0, missingCells = 0;
   for (let k = 0; k < n; k++) {
     if (!valid[k]) continue;
-    let logit = prior, miss = false;
-    for (const L of layers) { const v = L.values[k]; if (!Number.isFinite(v)) { miss = true; continue; } const inB = L.direction === "increasing" ? v >= L.cutoff : v <= L.cutoff; logit += inB ? L.wPlus : L.wMinus; }
+    let logit = prior, miss = false, varL = 1 / ND;
+    for (const L of layers) { const v = L.values[k]; if (!Number.isFinite(v)) { miss = true; continue; } const inB = L.direction === "increasing" ? v >= L.cutoff : v <= L.cutoff; logit += inB ? L.wPlus : L.wMinus; const s2 = inB ? L.sPlus : L.sMinus; if (Number.isFinite(s2)) varL += s2 * s2; }
     if (miss) missingCells++;
     const p = 1 / (1 + Math.exp(-logit));
-    out[k] = p; if (!countMask || countMask[k]) expected += p;
+    out[k] = p; sd[k] = p * (1 - p) * Math.sqrt(varL); if (!countMask || countMask[k]) expected += p;
   }
   // omnibus conditional-independence check (Bonham-Carter 1994): the posterior summed over the area should give back
   // about the number of known occurrences; a sum well above it (ratio under 0.85) means the layers double-count
-  return { prob: out, expected, ratio: expected > 0 ? ND / expected : NaN, missingCells };
+  return { prob: out, sd /* #2001 */, expected, ratio: expected > 0 ? ND / expected : NaN, missingCells };
 }
 
 // ---------- prediction-area plot ----------
@@ -438,4 +441,32 @@ export function coveringLayers(box, rasters = [], voxelModels = []) {
     rasters: rasters.filter((r) => r.visible !== false && hit(rasterBox(r))).map((r) => ({ id: r.id, name: r.name })),
     models: voxelModels.filter((m) => m.visible !== false && hit(modelBox(m))).map((m) => ({ id: m.id, name: m.name })),
   };
+}
+
+// TASKS.csv #2001 — ROC-AUC of a score on the occurrence cells against every other scored cell (Mann-Whitney, ties counted half): 0.5 is
+// chance, 1 every occurrence above every other cell. On the training points themselves, so it says how well the map ranks what made it.
+export function rocAuc(score, D, valid) {
+  const inD = cellMask(D, score.length), vals = [];
+  for (let k = 0; k < score.length; k++) if ((!valid || valid[k]) && Number.isFinite(score[k])) vals.push([score[k], inD[k]]);
+  const nD = vals.reduce((a, v) => a + v[1], 0), nN = vals.length - nD;
+  if (!nD || !nN) return null;
+  vals.sort((a, b) => a[0] - b[0]);
+  let rankSum = 0;
+  for (let i = 0; i < vals.length; ) { let j = i; while (j < vals.length && vals[j][0] === vals[i][0]) j++; const r = (i + 1 + j) / 2; for (let t = i; t < j; t++) if (vals[t][1]) rankSum += r; i = j; }
+  return (rankSum - (nD * (nD + 1)) / 2) / (nD * nN);
+}
+// TASKS.csv #2001 — an occurrence-density evidence: the quartic (biweight) kernel density of the known occurrences, bandwidth h metres, per
+// grid cell (occurrences per km2); 0 beyond h of every occurrence. points: [{ x, y }] -> Float32Array
+export function kdeEvidence(g, points, h) {
+  const out = new Float32Array(g.nx * g.ny).fill(0), k0 = 3 / (Math.PI * h * h) * 1e6;
+  const ri = Math.ceil(h / g.dx), rj = Math.ceil(h / g.dy);
+  for (const p of points || []) {
+    if (!Number.isFinite(p.x) || !Number.isFinite(p.y)) continue;
+    const ci = Math.round((p.x - g.x0) / g.dx), cj = Math.round((g.yTop - p.y) / g.dy);
+    for (let j = Math.max(0, cj - rj); j <= Math.min(g.ny - 1, cj + rj); j++) for (let i = Math.max(0, ci - ri); i <= Math.min(g.nx - 1, ci + ri); i++) {
+      const x = g.x0 + i * g.dx, y = g.yTop - j * g.dy, u = ((x - p.x) ** 2 + (y - p.y) ** 2) / (h * h);
+      if (u < 1) out[j * g.nx + i] += k0 * (1 - u) * (1 - u);
+    }
+  }
+  return out;
 }

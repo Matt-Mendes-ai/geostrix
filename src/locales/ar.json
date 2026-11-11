@@ -10433,5 +10433,12 @@
   "Upper slope (°)": "الميل العلوي (°)",
   "Optional: the slope of the walls above the RL beside it (soft cover, weathered rock), from a geotechnical study. Blank: the overall slope everywhere.": "اختياري: ميل الجدران فوق الارتفاع المجاور (غطاء لين، صخر متجوّي)، من دراسة جيوتقنية. فارغ: الميل العام في كل مكان.",
   "above RL (m)": "فوق الارتفاع (م)",
-  ", {s}° above {rl} m": "، {s}° فوق {rl} م"
+  ", {s}° above {rl} m": "، {s}° فوق {rl} م",
+  "Its standard deviation → map": "انحرافها المعياري → الخريطة",
+  "The posterior's standard deviation from the weights' own uncertainty (missing evidence not included): where it is large beside the posterior, the score is not sure.": "الانحراف المعياري للاحتمال اللاحق من عدم يقين الأوزان نفسها (دون الأدلة المفقودة): حيث يكون كبيرًا بجانب الاحتمال اللاحق، فالدرجة غير مؤكدة.",
+  "Plan-view standard deviation of the weights-of-evidence posterior ({n} occurrence cells)": "الانحراف المعياري في المسقط للاحتمال اللاحق لأوزان الأدلة ({n} خلية تواجد)",
+  "Its colours run from 0 (pale) to {top}, the highest value (dark red).": "تمتد ألوانه من 0 (باهت) إلى {top}، أعلى قيمة (أحمر داكن).",
+  "ROC-AUC on the occurrence cells: fuzzy {a}, posterior {b} (0.5 is chance; on the points the map was made from, so optimistic).": "ROC-AUC على خلايا التواجد: الضبابي {a}، اللاحق {b} (0.5 هو الصدفة؛ على النقاط التي صُنعت منها الخريطة، لذا متفائل).",
+  "ROC-AUC on the occurrence cells: fuzzy {a} (0.5 is chance; on the points the map was made from, so optimistic).": "ROC-AUC على خلايا التواجد: الضبابي {a} (0.5 هو الصدفة؛ على النقاط التي صُنعت منها الخريطة، لذا متفائل).",
+  "Density of the known occurrences (quartic kernel)": "كثافة مواقع التواجد المعروفة (نواة رباعية)"
 }
