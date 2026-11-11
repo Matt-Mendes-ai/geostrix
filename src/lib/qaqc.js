@@ -193,7 +193,11 @@ export function duplicatePairs(assays, symbol, elementUnits, patterns = DEFAULT_
     else if (originals.has(`${a.hole_id}|${a.from}|${a.to}`)) { orig = originals.get(`${a.hole_id}|${a.from}|${a.to}`); how = "same interval"; }
     else { orig = originals.get(`${stripDuplicateMarker(a.hole_id, patterns)}|${a.from}|${a.to}`) || null; how = "name"; }
     if (!orig) return;
-    const v1 = valueIn(orig, symbol, elementUnits[symbol] || "ppm", elementUnits);
+    // TASKS.csv #2629 — a lab repeat of one method (Au2_100) pairs with the original's result by that method (Au_100) when the row
+    // kept it, else with the element's value; an original whose only result is in a method column (not joined) pairs with it too
+    const m = originalMethodValue(orig, a, symbol);
+    const v1 = m ? m.value : valueIn(orig, symbol, elementUnits[symbol] || "ppm", elementUnits);
+    if (m) how = `${how}, ${m.header}`;
     const v2 = valueIn(a, symbol, elementUnits[symbol] || "ppm", elementUnits);
     if (v1 == null || v2 == null) return;
     const mean = (v1 + v2) / 2;
@@ -212,6 +216,48 @@ export function duplicatePairs(assays, symbol, elementUnits, patterns = DEFAULT_
   });
   pairs.identicalRepeats = identicalRepeats;
   return pairs;
+}
+
+// TASKS.csv #2629 — the lab method of a column: its trailing _<digits> ('U_103' -> '103', 'Au2_100' -> '100'), else null
+export const methodSuffix = (header) => { const m = /_(\d+)$/.exec(String(header ?? "").replace(/\(.*?\)/g, "").trim()); return m ? m[1] : null; };
+// The original's result to compare a repeat with, from the method columns kept on its row (#2629): the column of the repeat's own
+// method when there is one; else, when the original has no value of the element, its only kept method result. -> { header, value } | null
+export function originalMethodValue(orig, rep, symbol) {
+  const mv = orig?.methodValues?.[symbol];
+  if (!mv) return null;
+  const entries = Object.entries(mv).filter(([, v]) => Number.isFinite(v));
+  if (!entries.length) return null;
+  const suf = methodSuffix(rep?.repeatColumn);
+  if (suf) { const hit = entries.find(([h]) => methodSuffix(h) === suf); if (hit) return { header: hit[0], value: hit[1] }; }
+  if (orig.values?.[symbol] == null && entries.length === 1) return { header: entries[0][0], value: entries[0][1] };
+  return null;
+}
+
+// TASKS.csv #2629 (split from #2350, review #2325 WA uranium) — two lab methods of one element on the same samples (U and U_103: 41 core
+// samples; V and V_101: 36, a 1.78 ratio) were invisible once the import joined or dropped the second column. The import keeps the other
+// methods' results on the row (methodValues, in the element's unit); here each method column is paired with the element's own value on
+// the regular samples that carry both. Censored ('<' / '>') element values are left out. ratio = method / element.
+// -> [{ header, base, n, medianRpd, medianRatio, pairs: [{ hole_id, from, to, sample_id, v1, v2, rpd }] }], most pairs first
+export function methodPairs(assays, symbol, patterns = DEFAULT_QAQC_PATTERNS) {
+  const by = new Map();
+  for (const a of assays || []) {
+    const mv = a?.methodValues?.[symbol];
+    if (!mv) continue;
+    const v1 = a.values?.[symbol];
+    if (v1 == null || !Number.isFinite(v1) || a.qualifiers?.[symbol]) continue;
+    if (classifyQAQCRow(a, patterns) !== "regular") continue;
+    const base = a.valueSources?.[symbol] || "";
+    for (const [header, v2] of Object.entries(mv)) {
+      if (!Number.isFinite(v2)) continue;
+      const k = `${header}|${base}`;
+      let g = by.get(k);
+      if (!g) by.set(k, (g = { header, base, pairs: [] }));
+      const mean = (v1 + v2) / 2;
+      g.pairs.push({ hole_id: a.hole_id, from: a.from, to: a.to, sample_id: a.sample_id ?? null, v1, v2, rpd: mean !== 0 ? (Math.abs(v1 - v2) / mean) * 100 : 0 });
+    }
+  }
+  const med = (xs) => { const s = xs.filter(Number.isFinite).sort((x, y) => x - y); if (!s.length) return null; const h = s.length >> 1; return s.length % 2 ? s[h] : (s[h - 1] + s[h]) / 2; };
+  return [...by.values()].map((g) => ({ ...g, n: g.pairs.length, medianRpd: med(g.pairs.map((p) => p.rpd)), medianRatio: med(g.pairs.filter((p) => p.v1 > 0).map((p) => p.v2 / p.v1)) })).sort((x, y) => y.n - x.n);
 }
 
 // share of the counted pairs (not below the limit) within their RPD limit. `limits` is one number for every pair (the

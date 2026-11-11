@@ -2,9 +2,11 @@ import React, { useMemo, useState } from "react";
 import { useLeadCommodity } from "../lib/useLeadCommodity.js"; // TASKS.csv #2351
 import { preferredElement } from "../lib/preferredElement.js"; // TASKS.csv #2351
 import OxideTotalsTab from "./OxideTotalsTab.jsx"; // TASKS.csv #2506
+import MethodPairsTab from "./MethodPairsTab.jsx"; // TASKS.csv #2629
 import { majorOxides, MIN_MAJORS } from "../lib/oxideTotals.js"; // TASKS.csv #2506
 import { X, Download } from "./icons.js";
 import { saveFile } from "../lib/desktop.js";
+import { methodPairs } from "../lib/qaqc.js"; // TASKS.csv #2629
 import { classifyQAQCRow, excludedQAQCIds, standardGroups, standardSeries, blankRows, duplicatePairs, duplicateSummary, DUP_RPD_LIMITS, DUP_KIND_LABELS, suggestDetectionLimit, orderForControlChart, DEFAULT_QAQC_PATTERNS } from "../lib/qaqc.js"; import { formatLimit, limitLooksConverted } from "../lib/qaqc.js";
 import { stampLines, withStamp, stampEpsg } from "../lib/provenance.js"; // TASKS.csv #534 — stamped exports
 import { version as APP_VERSION } from "../../package.json";
@@ -73,11 +75,16 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
   // TASKS.csv #1675 — what sample types the file carries, and pXRF against the lab interval holding each reading
   const typesSeen = useMemo(() => sampleTypesSeen(assays), [assays]);
   const pxrf = useMemo(() => pxrfVsLab(assays, assayElements, elementUnits), [assays, assayElements, elementUnits]);
-  const tabs = [...TABS, ...(pxrf.readings ? ["pxrf"] : []), ...(majors.length >= MIN_MAJORS ? ["totals"] : [])]; // totals: #2506
-  const exportCount = tab === "totals" ? 0 : tab === "pxrf" ? pxrf.rows.length : tab === "standards" ? (activeGroup ? series.points.length : 0) : tab === "blanks" ? blanks.length : dups.length; // #617
+  const hasMethodValues = useMemo(() => assays.some((a) => a.methodValues), [assays]); // #2629 — a file with an element by two methods
+  const methods = useMemo(() => (hasMethodValues ? methodPairs(assays, symbol) : []), [assays, symbol, hasMethodValues]);
+  const tabs = [...TABS, ...(hasMethodValues ? ["methods"] : []), ...(pxrf.readings ? ["pxrf"] : []), ...(majors.length >= MIN_MAJORS ? ["totals"] : [])]; // totals: #2506; methods: #2629
+  const exportCount = tab === "totals" ? 0 : tab === "methods" ? methods.reduce((t, m) => t + m.n, 0) : tab === "pxrf" ? pxrf.rows.length : tab === "standards" ? (activeGroup ? series.points.length : 0) : tab === "blanks" ? blanks.length : dups.length; // #617
   const exportCSV = () => {
     let rows, name;
-    if (tab === "pxrf") { // #1675
+    if (tab === "methods") { // #2629
+      rows = methods.flatMap((m) => m.pairs.map((p) => ({ element: symbol, unit, method_column: m.header, against: m.base || symbol, hole_id: p.hole_id, from: p.from, to: p.to, sample_id: p.sample_id ?? "", element_value: p.v1, method_value: p.v2, rpd_pct: +p.rpd.toFixed(2) })));
+      name = `qaqc_method_pairs_${symbol}.csv`;
+    } else if (tab === "pxrf") { // #1675
       rows = pxrf.rows.map((r) => ({ element: r.symbol, unit: r.unit, pairs: r.n, pearson_r: r.r == null ? "" : +r.r.toFixed(3), spearman_rho: r.rho == null ? "" : +r.rho.toFixed(3), median_pxrf_over_lab: r.medianRatio == null ? "" : +r.medianRatio.toFixed(3), mean_pxrf: +r.meanPxrf.toPrecision(4), mean_lab: +r.meanLab.toPrecision(4) }));
       name = "qaqc_pxrf_vs_lab.csv";
     } else if (tab === "standards" && activeGroup) {
@@ -141,12 +148,13 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
             <div style={{ display: "flex", gap: 4 }}>
               {tabs.map((t) => (
                 <button key={t} onClick={() => setTab(t)} style={t === tab ? tabBtnActive : tabBtn}>
-                  {t === "totals" ? tr("Totals") : t === "pxrf" ? tr("pXRF vs lab ({n})", { n: pxrf.pairs }) : t === "standards" ? tr("Standards ({groups})", { groups: groups.length }) : t === "blanks" ? tr("Blanks ({blank})", { blank: counts.blank }) : tr("Duplicates ({dups})", { dups: dups.length })}
+                  {t === "totals" ? tr("Totals") : t === "methods" ? tr("Method pairs ({n})", { n: methods.reduce((a, m) => a + m.n, 0) }) : t === "pxrf" ? tr("pXRF vs lab ({n})", { n: pxrf.pairs }) : t === "standards" ? tr("Standards ({groups})", { groups: groups.length }) : t === "blanks" ? tr("Blanks ({blank})", { blank: counts.blank }) : tr("Duplicates ({dups})", { dups: dups.length })}
                 </button>
               ))}
             </div>
           </div>
 
+          {tab === "methods" && <MethodPairsTab methods={methods} symbol={symbol} unit={unitL} />}{/* #2629 */}
           {tab === "totals" && <OxideTotalsTab assays={assays} majors={majors} setAssays={setAssays || null} sel={sel} tabBtn={tabBtn} />}{/* #2506 */}
           {tab === "pxrf" && ( /* TASKS.csv #1675 */
             <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.5 }}>
