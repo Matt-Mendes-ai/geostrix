@@ -182,6 +182,8 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     if (res?.ok) setVoxelError({ info: true, text: tr("Exported \"{name}\": {files} files ({n} depth slices).{v}", { name: model.name, files: r.files.length, n: r.files.filter((f) => f.endsWith(".tif")).length, v: r.warnings.length ? " " + r.warnings.join(" ") : "" }) });
   };
   const evaluateOnHoles = (model) => {
+    // TASKS.csv #1791 (review #1646, Kodiak) — with no collars no hole can be placed: 'No drillhole passes through' read as if holes had missed it
+    if (!(collars || []).some((c) => Number.isFinite(c?.x) && Number.isFinite(c?.y) && Number.isFinite(c?.z))) { setVoxelError({ text: tr("No drillholes can be placed: the project has no collar coordinates. Import the collars to evaluate \"{name}\" along the holes.", { name: model.name }) }); return; }
     const { rows, holes } = sampleModelOnHoles({ model, collars, survey, desurveyMethod });
     if (!rows.length) { setVoxelError({ text: tr("No drillhole passes through \"{name}\".", { name: model.name }) }); return; }
     const discrete = model.colorMode === "discrete";

@@ -2302,6 +2302,7 @@
   "Could not export \"{name}\": {error}": "Não foi possível exportar \"{name}\": {error}",
   "Exported \"{name}\": {files} files ({n} depth slices).{v}": "\"{name}\" exportado: {files} arquivos ({n} fatias em profundidade).{v}",
   "No drillhole passes through \"{name}\".": "Nenhum furo atravessa \"{name}\".",
+  "No drillholes can be placed: the project has no collar coordinates. Import the collars to evaluate \"{name}\" along the holes.": "Nenhum furo pode ser posicionado: o projeto não tem coordenadas de boca de furo. Importe as bocas de furo para avaliar \"{name}\" ao longo dos furos.",
   "Added \"On holes: {name}\" — the model's value in {rows} cell crossing(s) along {holes} hole(s). Open a hole's strip log to compare it with the logs, or Downhole logs for a cross-plot against one.": "Adicionado \"Nos furos: {name}\" — o valor do modelo em {rows} cruzamento(s) de células ao longo de {holes} furo(s). Abra o perfil gráfico de um furo para comparar com os perfis ou Logs de furo para um gráfico de dispersão contra um.",
   "\"{key}\": {done} point(s) now at terrain + their height above ground{v}. The original heights are kept on each point.": "\"{key}\": {done} ponto(s) agora em terreno + sua altura acima do solo{v}. As alturas originais ficam guardadas em cada ponto.",
   "; {outside} outside the terrain have no elevation (not drawn)": "; {outside} fora do terreno não têm elevação (não são desenhados)",

@@ -2302,6 +2302,7 @@
   "Could not export \"{name}\": {error}": "Impossible d'exporter « {name} » : {error}",
   "Exported \"{name}\": {files} files ({n} depth slices).{v}": "« {name} » exporté : {files} fichiers ({n} tranches en profondeur).{v}",
   "No drillhole passes through \"{name}\".": "Aucun sondage ne traverse « {name} ».",
+  "No drillholes can be placed: the project has no collar coordinates. Import the collars to evaluate \"{name}\" along the holes.": "Aucun sondage ne peut être placé : le projet n'a pas de coordonnées de collet. Importez les collets pour évaluer « {name} » le long des sondages.",
   "Added \"On holes: {name}\" — the model's value in {rows} cell crossing(s) along {holes} hole(s). Open a hole's strip log to compare it with the logs, or Downhole logs for a cross-plot against one.": "« Sur les sondages : {name} » ajouté — la valeur du modèle dans {rows} traversée(s) de cellule le long de {holes} sondage(s). Ouvrez le log en bande d'un sondage pour la comparer aux journaux ou Logs de sondage pour un nuage de points contre l'une d'elles.",
   "\"{key}\": {done} point(s) now at terrain + their height above ground{v}. The original heights are kept on each point.": "« {key} » : {done} point(s) maintenant au terrain + leur hauteur au-dessus du sol{v}. Les hauteurs d'origine sont conservées sur chaque point.",
   "; {outside} outside the terrain have no elevation (not drawn)": " ; {outside} hors du terrain n'ont pas d'élévation (non tracés)",
