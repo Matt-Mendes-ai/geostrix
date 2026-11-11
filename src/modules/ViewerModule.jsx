@@ -8092,7 +8092,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                           {tr("No volume or tonnage: this body contains only {n} of the {m} sample points of {code} it was built from, so it is not that unit. Rebuild it with a smaller cell and a search near the logged intervals.", { n: s.params.samplesInside?.inside ?? 0, m: s.params.samplesInside?.of ?? 0, code: s.params.target })}</div>
                       ) : (
                       <>
-                      {expandedSurfaceVolume.watertight && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)", marginBottom: 4 }}>{tr("Volume:")}{" "}<strong>{expandedSurfaceVolume.volumeM3.toLocaleString(undefined, { maximumFractionDigits: 1 })} m³</strong>
+                      {expandedSurfaceVolume.watertight && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)", marginBottom: 4 }}>{tr("Volume:")}{" "}<strong>{Number(expandedSurfaceVolume.volumeM3.toPrecision(3)).toLocaleString()} m³</strong>
                       </div>}{/* #1229 */}
                       {/* TASKS.csv #257 — an ARTIFICIALLY closed shell is watertight, so the old
                           !watertight-only caution never fired for the single most misleading case in

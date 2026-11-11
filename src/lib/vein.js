@@ -530,3 +530,17 @@ export function buildVeinModel(intercepts, opts = {}) {
     })),
   };
 }
+
+// TASKS.csv #2534 (review #2486, WA lithium) — an intercept that starts at the collar or ends at the end of the hole has one wall that is the
+// pit floor or the bit, not a contact: 225 of the 254 intercepts of P in the pit (150 whole holes in pegmatite) and the result read 'TRUE
+// thickness 0.01-24.57 m (mean 11.13 m)' with no word that most are minimums. intercepts [{ holeId, from, to }]; lengthOf(holeId) the hole's
+// depth; tol in metres. -> { atCollar, atEnd, whole, open (either), of }
+export function openIntercepts(intercepts, lengthOf, tol = 0.05) {
+  let atCollar = 0, atEnd = 0, whole = 0, open = 0;
+  for (const i of intercepts || []) {
+    const L = Number(lengthOf(i.holeId));
+    const c = Number(i.from) <= tol, e = Number.isFinite(L) && L > 0 && Number(i.to) >= L - tol;
+    if (c) atCollar++; if (e) atEnd++; if (c && e) whole++; if (c || e) open++;
+  }
+  return { atCollar, atEnd, whole, open, of: (intercepts || []).length };
+}
