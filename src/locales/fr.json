@@ -9906,5 +9906,6 @@
   "Or check the holes whose collars lie in an E / N range (the grey numbers are the collars' extent):": "Ou cochez les sondages dont les collets tombent dans une plage E / N (les nombres gris sont l'étendue des collets) :",
   "Model area range: {v}": "Plage de la zone du modèle : {v}",
   "{n} of {m} holes in {w} × {h} m.": "{n} des {m} sondages dans {w} × {h} m.",
-  "Check only these holes": "Cocher seulement ces sondages"
+  "Check only these holes": "Cocher seulement ces sondages",
+  "Not recognized: assumed stratigraphic. Check it before modelling.": "Non reconnu : supposé stratigraphique. Vérifiez-le avant de modéliser."
 }

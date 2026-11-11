@@ -9906,5 +9906,6 @@
   "Or check the holes whose collars lie in an E / N range (the grey numbers are the collars' extent):": "Ou marque os furos cujas bocas ficam num intervalo E / N (os números cinza são a extensão das bocas):",
   "Model area range: {v}": "Intervalo da área do modelo: {v}",
   "{n} of {m} holes in {w} × {h} m.": "{n} de {m} furos em {w} × {h} m.",
-  "Check only these holes": "Marcar só estes furos"
+  "Check only these holes": "Marcar só estes furos",
+  "Not recognized: assumed stratigraphic. Check it before modelling.": "Não reconhecido: assumido estratigráfico. Verifique antes de modelar."
 }

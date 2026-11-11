@@ -179,6 +179,11 @@ const ROLE_PATTERNS = [
   [/\b(fault|faults|fault zone|gouge)\b/, "fault"],
   [/\b(veins?)\b/, "vein"],
   [/^(sand|gravel|till|alluvium|alluvial|colluvium|colluvial|glacial till|moraine|cover)$|\b(alluvium|colluvium|glacial)\b/, "overburden"],
+  // TASKS.csv #2537 (review #2486, WA lithium) — pegmatite, aplite, dolerite / diabase and lamprophyre were 'stratigraphic', so the ore-bearing
+  // sheet of an LCT project joined the pile by default; made ground at hole starts on a mine site too. The spelled-out words and the
+  // unambiguous short codes only: DOL (dolomite as often as dolerite), P, PG and NS (no sample, or net-textured sulphide) stay unrecognized.
+  [/^(peg|pegm|pegmatite|apl|aplite|dolerite|diab|diabase|lamp|lamprophyre)$|\b(pegmatites?|aplites?|dolerites?|diabase|lamprophyres?)\b/, "dyke"],
+  [/^(fill|backfill|made ground)$|\b(backfill|made ground)\b/, "overburden"],
 ];
 // TASKS.csv #2046 (review #2013, Woodjam) — a code the name rules do not know is read from the notes logged with it, when the
 // import kept a notes / description column: Woodjam's BMM ('... polymict breccia ... magmatic matrix'), its 13 intrusive I-codes
@@ -229,6 +234,11 @@ export function lithologyNoteRoles(rows) {
 }
 let noteRoles = null;
 export function setLithologyNoteRoles(map) { noteRoles = map && map.size ? map : null; }
+// TASKS.csv #2537 — the role came from the default ('stratigraphic' for a code nothing recognises), not from a rule: the pane marks it
+export function roleIsAssumed(u) {
+  const k = String(u || "").trim().toLowerCase();
+  return k !== "unknown" && !UNIT_ROLES[k] && !ROLE_PATTERNS.some(([re]) => re.test(k)) && !noteRoles?.get(k);
+}
 export function roleForLithology(u) {
   const k = String(u || "").trim().toLowerCase();
   if (k === "unknown") return "no recovery"; // TASKS.csv #2227 — the label blank cells import as (#2182) is not logged rock: never a unit, never a role from notes

@@ -1,4 +1,5 @@
 // TASKS.csv #599 — the Modelling codes pane (3D Modelling tab). The code list (colour, role, pile order),
+import { roleIsAssumed } from "../lib/layers.js"; // TASKS.csv #2537
 import { iconAction } from "../lib/a11y.js"; // TASKS.csv #687
 // optional auto-numbering of alternating flows, and the interval picked in the 3D view: its code can be
 // changed, or it can be connected to an interval in another hole (both get the same code; a tie line is
@@ -89,6 +90,8 @@ export default function ModellingCodesPane({ inArea = null, litho, modellingCode
   const [boxConflict, setBoxConflict] = useState(null); // #1337 — the chosen code already holds other intervals: replace or add
   const [bodyCode, setBodyCode] = useState(""); // TASKS.csv #1340
   const [numberMsg, setNumberMsg] = useState(""); // TASKS.csv #2533
+  // TASKS.csv #2537 — a role no rule gave (no name, notes or group rule) and the geologist has not set
+  const assumedRole = (name) => !(mc?.codes || []).some((x) => x.name === name && x.role) && !(groupOf && groupOf(name)) && roleIsAssumed(name);
   const between = useMemo(() => (boxRows.length ? rowsBetween(litho, boxRows) : []), [litho, boxRows]);
   const boxRowsRef = useRef(boxRows);
   boxRowsRef.current = boxRows;
@@ -308,7 +311,7 @@ export default function ModellingCodesPane({ inArea = null, litho, modellingCode
           <input type="color" value={c.color || colorForLithology(c.name)} onChange={(e) => setCode(c.name, { color: e.target.value })} aria-label={tr("Colour of {name}", { name: c.name })} style={{ width: 22, height: 20, padding: 0, border: "none", background: "none" }} />
           <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }} title={tr("{v} interval run(s)", { v: counts.get(c.name) || 0 })}>{c.name} <span style={small}>({counts.get(c.name) || 0})</span></span>
           <button onClick={() => showCode(c.name)} title={tr("Show the intervals of {name}", { name: c.name })} aria-label={tr("Show the intervals of {name}", { name: c.name })} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "2px 4px" }}><Square size={11} /></button>
-          <select value={c.role} onChange={(e) => setCode(c.name, { role: e.target.value })} title={tr(ROLE_HELP[c.role])} aria-label={tr("Role of {name}", { name: c.name })} style={{ ...inputStyle, width: 104, flex: "none" }}>
+          <select value={c.role} onChange={(e) => setCode(c.name, { role: e.target.value })} title={assumedRole(c.name) ? tr("Not recognized: assumed stratigraphic. Check it before modelling.") : tr(ROLE_HELP[c.role])} aria-label={tr("Role of {name}", { name: c.name })} style={{ ...inputStyle, width: 104, flex: "none", ...(assumedRole(c.name) ? { color: "var(--color-text-muted)", fontStyle: "italic" } : {}) }}>{/* #2537 — an assumed role looks assumed */}
             {CODE_ROLES.map((r) => <option key={r} value={r}>{tr(r)}</option>)}
           </select>
           <button onClick={() => moveCode(c.name, -1)} disabled={i === 0} aria-label={tr("Move {name} up (younger)", { name: c.name })} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "1px 5px" }}>▲</button>
