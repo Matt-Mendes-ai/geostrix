@@ -8706,6 +8706,7 @@
   "Apparent resistivity (Ω·m)": "Resistividade aparente (Ω·m)",
   "Apparent resistivity and phase against period at {station}": "Resistividade aparente e fase contra o período em {station}",
   "Could not import the EDI files: {message}": "Não foi possível importar os arquivos EDI: {message}",
+  "Not EDI files, not read here: {names}. MT / AMT reads .edi soundings; a DC / IP line file (.dat, .txt) goes to the DC / IP pane.": "Não são arquivos EDI, não lidos aqui: {names}. MT / AMT lê sondagens .edi; um arquivo de linha DC / IP (.dat, .txt) vai para o painel DC / IP.",
   "Determinant (rotation-free)": "Determinante (sem rotação)",
   "Elevation {z} m, {n} frequencies. Phases are folded into 0 to 180°: a uniform half-space reads 45°, above 45° the ground gets more conductive with depth.": "Cota {z} m, {n} frequências. As fases são dobradas para 0–180°: um semiespaço uniforme dá 45°; acima de 45° o terreno fica mais condutivo em profundidade.",
   "Impedance component": "Componente da impedância",

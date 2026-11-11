@@ -8706,6 +8706,7 @@
   "Apparent resistivity (Ω·m)": "المقاومية الظاهرية (Ω·m)",
   "Apparent resistivity and phase against period at {station}": "المقاومية الظاهرية والطور مقابل الدور عند {station}",
   "Could not import the EDI files: {message}": "تعذّر استيراد ملفات EDI: {message}",
+  "Not EDI files, not read here: {names}. MT / AMT reads .edi soundings; a DC / IP line file (.dat, .txt) goes to the DC / IP pane.": "ليست ملفات EDI، لم تُقرأ هنا: {names}. يقرأ MT / AMT سبرًا بصيغة .edi؛ أما ملف خط DC / IP (‎.dat، ‎.txt) فيذهب إلى لوحة DC / IP.",
   "Determinant (rotation-free)": "المحدِّد (مستقل عن الدوران)",
   "Elevation {z} m, {n} frequencies. Phases are folded into 0 to 180°: a uniform half-space reads 45°, above 45° the ground gets more conductive with depth.": "الارتفاع {z} م، {n} ترددات. تُطوى الأطوار إلى 0–180°: نصف الفضاء المتجانس يعطي 45°، وفوق 45° تصبح الأرض أكثر توصيلاً مع العمق.",
   "Impedance component": "مركّبة الممانعة",

@@ -111,8 +111,12 @@ export default function MtSoundingsPane({ layers, setLayers, geophysSurveys, upd
   const [quantity, setQuantity] = useState("rho");
 
   const importEdi = async (fileList) => {
-    const files = Array.from(fileList || []).filter((f) => /\.edi$/i.test(f.name));
-    if (!files.length) return;
+    const all = Array.from(fileList || []), files = all.filter((f) => /\.edi$/i.test(f.name));
+    // TASKS.csv #2078 (review #2013, Woodjam) — a file that is not .edi was dropped without a word (the reviewer's 3050E.dat then reached the
+    // drillhole importer): it is named, and a DC / IP .dat is sent to DC / IP
+    const others = all.filter((f) => !/\.edi$/i.test(f.name));
+    const othersNote = others.length ? tr("Not EDI files, not read here: {names}. MT / AMT reads .edi soundings; a DC / IP line file (.dat, .txt) goes to the DC / IP pane.", { names: others.slice(0, 4).map((f) => f.name).join(", ") + (others.length > 4 ? " …" : "") }) : "";
+    if (!files.length) { if (othersNote) setMsg({ info: false, text: othersNote }); return; }
     setBusy(true);
     setMsg({ info: true, text: tr("Reading {n} EDI file(s)…", { n: files.length }) });
     await new Promise((r) => setTimeout(r, 0));
@@ -145,6 +149,7 @@ export default function MtSoundingsPane({ layers, setLayers, geophysSurveys, upd
         first ? tr("Positions are the files' latitude and longitude, taken as WGS 84, in {crs}.", { crs: `${crsName(target) || "?"} (EPSG:${target})` }) : "",
         ...parsed.flatMap((e) => e.warnings.map((wn) => `${e.id}: ${wn}`)).slice(0, 3),
         failed.length ? tr("Not read: {v}", { v: failed.slice(0, 4).join(" ") + (failed.length > 4 ? " …" : "") }) : "",
+        othersNote, // #2078
       ].filter(Boolean).join(" ") });
     } catch (err) {
       setMsg({ info: false, text: tr("Could not import the EDI files: {message}", { message: err.message }) });
