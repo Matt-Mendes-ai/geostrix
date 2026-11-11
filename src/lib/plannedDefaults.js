@@ -18,7 +18,9 @@ export function drilledDefaults(collars, survey = []) {
     const st = first.get(c.hole_id);
     const dip = Number.isFinite(Number(c.dip)) ? Number(c.dip) : st ? Number(st.dip) : NaN;
     const az = Number.isFinite(Number(c.azimuth)) ? Number(c.azimuth) : st ? Number(st.azimuth) : NaN;
-    if (Number.isFinite(dip) && dip > 0) { dips.push(dip); if (Number.isFinite(az)) azs.push(az); } // downward holes only (an uphole is a design of its own)
+    // downward holes only (an uphole is a design of its own); #2582 — the azimuth from the INCLINED ones: a vertical hole's azimuth (often 0) is
+    // meaningless, and 4 vertical aircore holes pulled 12 RC holes at 074 to a default of 058
+    if (Number.isFinite(dip) && dip > 0) { dips.push(dip); if (Number.isFinite(az) && dip < 85) azs.push(az); }
     if (Number(c.length) > 0) lens.push(Number(c.length));
   }
   if (dips.length < 3 && lens.length < 3) return null;
