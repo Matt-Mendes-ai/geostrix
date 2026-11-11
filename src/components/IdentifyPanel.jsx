@@ -45,7 +45,7 @@ export default function IdentifyPanel({ result, onShow, onClose, onZoom, onStrip
             <div style={small}>{tr("Under this click ({n})", { n: items.length })}</div>
             {items.map((x, i) => (
               <button key={i} type="button" onClick={() => onShow(i)} aria-current={i === result.shown} style={{ display: "block", width: "100%", textAlign: "left", border: "none", borderRadius: 4, padding: "3px 6px", marginTop: 2, cursor: "pointer", font: "inherit", fontSize: "var(--font-size-sm)", color: "var(--color-text)", background: i === result.shown ? "var(--color-selected-bg)" : "transparent", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={`${x.layer}: ${x.title}`}>
-                <span style={{ color: "var(--color-text-muted)" }}>{x.layer}:</span> {x.title}
+                <span style={{ color: "var(--color-text-muted)" }}>{x.layer}:</span> {x.title}{x.at ? <span style={{ color: "var(--color-text-muted)" }}> · {x.at}</span> : null}{/* #2520 */}
               </button>
             ))}
           </div>

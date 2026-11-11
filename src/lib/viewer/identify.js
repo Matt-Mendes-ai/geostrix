@@ -4,7 +4,7 @@ import * as THREE from "three";
 import { b64ToF32 } from "../inversion.js";
 import { pointInRings } from "../mapLayers.js";
 import { t as tr } from "../i18n.js";
-import { sampleIdentifyFields } from "./sampleTip.js"; // TASKS.csv #1821
+import { sampleIdentifyFields, orderedElements } from "./sampleTip.js"; // TASKS.csv #1821; orderedElements: #2520
 import { gradeText } from "../gradeText.js"; // TASKS.csv #2515
 
 const num = (v, d = 2) => (Number.isFinite(v) ? v.toLocaleString(undefined, { maximumFractionDigits: d }) : String(v ?? ""));
@@ -76,6 +76,13 @@ export function rasterValueAt(grid, x, y) {
 const visibleChain = (o) => { for (let n = o; n; n = n.parent) if (n.visible === false) return false; return true; };
 
 const fromTip = (tip) => (tip ? String(tip).split("\n") : []);
+// #2520 — one element's value as reported: '<0.01 %' for a below-detection result (stored at half the limit), '>10 %' at its ceiling
+export function assayValueText(row, sym, unit = "") {
+  const v = row?.values?.[sym], q = row?.qualifiers?.[sym] ?? (row?.bdl?.includes?.(sym) ? "<" : null);
+  if (v == null) return "";
+  const shown = q === "<" ? `<${num(+(v * 2).toPrecision(4), 6)}` : q === ">" ? `>${num(v, 4)}` : num(v, 4);
+  return `${shown} ${unit || ""}`.trim();
+}
 
 function describe(hit, ctx) {
   const o = hit.object, p = hit.point, { x: ox, y: oy, z: oz } = ctx.origin;
@@ -99,12 +106,18 @@ function describe(hit, ctx) {
     if (nameLine) fields.push([tr("Value"), nameLine]);
     else if (row?.value != null) fields.push([tr("Value"), gradeText(row.value)]); // #2515
     if (row?.from != null && row?.to != null) { fields.push([tr("From"), metres(row.from)], [tr("To"), metres(row.to)], [tr("Length"), metres(row.to - row.from)]); } else if (row?.depth != null) fields.push([tr("Depth"), metres(row.depth)]);
-    if (row?.values) for (const [sym, v] of Object.entries(row.values).slice(0, 16)) if (v != null) fields.push([sym, `${num(v, 4)} ${ctx.units?.[sym] || ""}`.trim()]);
+    // TASKS.csv #2520 (review #2486) — every element (the card scrolls), the one this bar shows first, then the commodities; a '<' result as
+    // the lab wrote it (twice the stored half-limit), a '>' as its ceiling. It listed the first 16 in the lab file's column order: Cs never showed
+    if (row?.values) {
+      const shownSym = tipLines[1]?.includes(":") ? tipLines[1].slice(0, tipLines[1].indexOf(":")).trim() : null;
+      for (const sym of orderedElements(row.values, shownSym ? [shownSym] : [])) fields.push([sym, assayValueText(row, sym, ctx.units?.[sym])]);
+    }
     if (row) fields.push(...attributeFields(row));
     else for (const line of tipLines.slice(hole ? 2 : 1)) fields.push(["", line]);
     const trace = hole && ctx.traceOf(hole);
     if (trace && !(row?.from != null) && row?.depth == null) { const md = depthOnTrace(trace, p); if (md != null) fields.push([tr("Depth at this point"), metres(md)]); }
-    return { ...base, layer: group, title: hole || tipLines[0] || group, hole, fields };
+    const at = row?.from != null && row?.to != null ? `${num(row.from, 2)}–${num(row.to, 2)} m` : row?.depth != null ? `${num(row.depth, 2)} m` : null; // #2520 — told apart in 'Under this click'
+    return { ...base, layer: group, title: hole || tipLines[0] || group, hole, fields, ...(at ? { at } : {}) };
   }
   // a block model: the block under the click
   if (o.userData?.srcModel) {
