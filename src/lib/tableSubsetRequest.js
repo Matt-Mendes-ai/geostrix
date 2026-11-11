@@ -21,3 +21,14 @@ export function holesShare(pv, col, ids) {
   const kept = rows.reduce((n, r) => n + (want.has(String(r[j]).trim()) ? 1 : 0), 0);
   return { share: rows.length ? kept / rows.length : 1, seen: rows.length, kept };
 }
+// TASKS.csv #2345 — the share of the rows a composite to lengthM keeps: about (the first rows' mean interval length) / lengthM, at most 1.
+// -> { share, meanM, seen } (seen 0: no usable From / To in the sample, share 1)
+export function compositeShare(pv, fromCol, toCol, lengthM) {
+  const a = (pv.headers || []).indexOf(fromCol), b = (pv.headers || []).indexOf(toCol), L = Number(lengthM);
+  if (a < 0 || b < 0 || !(L > 0)) return { share: 1, meanM: null, seen: 0 };
+  let sum = 0, n = 0;
+  for (const r of pv.sample || []) { const f = Number(r[a]), t = Number(r[b]); if (Number.isFinite(f) && Number.isFinite(t) && t > f) { sum += t - f; n++; } }
+  if (!n) return { share: 1, meanM: null, seen: 0 };
+  const meanM = sum / n;
+  return { share: Math.min(1, meanM / L), meanM, seen: n };
+}

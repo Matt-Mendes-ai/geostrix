@@ -583,7 +583,7 @@
   "Method": "الطريقة",
   "Regularize raw assay intervals to a fixed length first (recommended — same compositing as Grade estimation)": "توحيد فترات التحاليل الخام إلى طول ثابت أولًا (موصى به — التركيب نفسه في تقدير المحتوى)",
   "Composite first": "التركيب أولًا",
-  "Composite length (m)": "طول العينة المركّبة (م)",
+  "Composite length (m)": "طول المركّب (م)",
   "Minimum fraction of a composite interval that must actually be covered by real assay data (vs. missing/lost core) for it to be used. At the 50% default, a half-missing-core composite still counts as a full sample.": "الحد الأدنى من الفترة المركّبة الذي يجب أن تغطيه بيانات تحليل حقيقية (مقابل اللب المفقود) لاستخدامها. مع القيمة الافتراضية 50% تُحسب العينة المركّبة المفقود نصف لبها عينة كاملة.",
   "Min coverage": "أدنى تغطية",
   "Cap every RAW assay at this grade before compositing (commonly the 97.5th-99th percentile of the element's distribution). Blank = no cap. For a nuggety, log-normal element like Au, estimating without a cap overstates grade.": "قص كل تحليل خام عند هذا المحتوى قبل التركيب (عادةً المئين 97.5-99 من توزيع العنصر). فارغ = بلا قص. لعنصر حبيبي لوغاريتمي-طبيعي مثل الذهب، التقدير دون قص يبالغ في المحتوى.",
@@ -10010,5 +10010,16 @@
   "{v} Mm³, {d} m below the outcrop, a sheet dipping {dip}° toward {dir}°": "{v} مليون م³، {d} م تحت المكشف، صفيحة تميل {dip}° نحو {dir}°",
   "sheet ({dip}° toward {dir}°)": "صفيحية ({dip}° نحو {dir}°)",
   " As a sheet each body is {a}–{b} m thick: its map width across the dip direction × sin {dip}°, on level ground.": " كصفيحة، سمك كل جسم {a}–{b} م: عرضه على الخريطة باتجاه الميل × جا {dip}°، على أرض مستوية.",
-  " As a sheet it is {a} m thick: its map width across the dip direction × sin {dip}°, on level ground.": " كصفيحة، سمكه {a} م: عرضه على الخريطة باتجاه الميل × جا {dip}°، على أرض مستوية."
+  " As a sheet it is {a} m thick: its map width across the dip direction × sin {dip}°, on level ground.": " كصفيحة، سمكه {a} م: عرضه على الخريطة باتجاه الميل × جا {dip}°، على أرض مستوية.",
+  "Composite to": "التجميع إلى",
+  "m as it is read (length-weighted)": "م أثناء القراءة (مرجّح بالطول)",
+  "Composite From column": "عمود «من» للمركّب",
+  "Composite To column": "عمود «إلى» للمركّب",
+  "Composite hole id column": "عمود معرّف الثقب للمركّب",
+  "Each hole's intervals become composites of this length: numbers as length-weighted means, text as the value over most of the length; the raw rows are not kept. The first rows' intervals average {m} m, so about {pct}% as many rows are held.": "تصبح فترات كل ثقب مركّبات بهذا الطول: الأرقام كمتوسطات مرجّحة بالطول، والنص كالقيمة على معظم الطول؛ ولا تُحفظ الصفوف الأصلية. متوسط فترات الصفوف الأولى {m} م، فيُحفظ نحو {pct}% من الصفوف.",
+  "Each hole's intervals become composites of this length: numbers as length-weighted means, text as the value over most of the length; the raw rows are not kept. Pick the From, To and hole id columns and type the length.": "تصبح فترات كل ثقب مركّبات بهذا الطول: الأرقام كمتوسطات مرجّحة بالطول، والنص كالقيمة على معظم الطول؛ ولا تُحفظ الصفوف الأصلية. اختر أعمدة «من» و«إلى» ومعرّف الثقب واكتب الطول.",
+  "Composited to {L} m as the file was read: {n} interval(s) of {h} hole(s) became {m} composite(s), each the length-weighted mean of its numeric columns ({cols}) and, for a text column, the value over most of its length; a hole's last composite stops where its intervals stop.": "جُمّع إلى {L} م أثناء قراءة الملف: صارت {n} فترة من {h} ثقب {m} مركّبًا، كل منها المتوسط المرجّح بالطول لأعمدته الرقمية ({cols})، وللعمود النصي القيمة على معظم طوله؛ وينتهي آخر مركّب في الثقب حيث تنتهي فتراته.",
+  "{n} text value(s) in numeric columns (such as below-detection entries) were left out of the means.": "استُبعدت {n} قيمة نصية في أعمدة رقمية (مثل القيم دون حد الكشف) من المتوسطات.",
+  "{n} row(s) with no hole, or no From / To with From above To, were left out.": "استُبعد {n} صف بلا ثقب، أو بلا «من» / «إلى» تكون فيها «إلى» أكبر من «من».",
+  "{n} hole(s) had rows in more than one place in the file ({ids}): their intervals were composited together by depth.": "كانت لـ {n} ثقب صفوف في أكثر من موضع في الملف ({ids}): جُمّعت فتراتها معًا حسب العمق."
 }

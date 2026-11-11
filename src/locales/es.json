@@ -583,7 +583,7 @@
   "Method": "Método",
   "Regularize raw assay intervals to a fixed length first (recommended — same compositing as Grade estimation)": "Regularizar primero los intervalos de ensaye a un largo fijo (recomendado — la misma compositación que en Estimación de leyes)",
   "Composite first": "Compositar primero",
-  "Composite length (m)": "Largo del compósito (m)",
+  "Composite length (m)": "Longitud del compósito (m)",
   "Minimum fraction of a composite interval that must actually be covered by real assay data (vs. missing/lost core) for it to be used. At the 50% default, a half-missing-core composite still counts as a full sample.": "Fracción mínima de un intervalo compuesto que debe estar cubierta por datos de ensaye reales (vs. testigo faltante/perdido) para usarlo. Con el 50 % por defecto, un compósito con la mitad del testigo faltante cuenta igual como una muestra completa.",
   "Min coverage": "Cobertura mín.",
   "Cap every RAW assay at this grade before compositing (commonly the 97.5th-99th percentile of the element's distribution). Blank = no cap. For a nuggety, log-normal element like Au, estimating without a cap overstates grade.": "Recortar cada ensaye ORIGINAL a esta ley antes de compositar (habitualmente el percentil 97,5-99 de la distribución del elemento). Vacío = sin recorte. Para un elemento con efecto pepita y lognormal como el Au, estimar sin recorte sobrestima la ley.",
@@ -10010,5 +10010,16 @@
   "{v} Mm³, {d} m below the outcrop, a sheet dipping {dip}° toward {dir}°": "{v} Mm³, {d} m bajo el afloramiento, una lámina que buza {dip}° hacia {dir}°",
   "sheet ({dip}° toward {dir}°)": "de lámina ({dip}° hacia {dir}°)",
   " As a sheet each body is {a}–{b} m thick: its map width across the dip direction × sin {dip}°, on level ground.": " Como lámina, cada cuerpo tiene {a}–{b} m de espesor: su ancho en el mapa a lo largo de la dirección de buzamiento × sen {dip}°, en terreno llano.",
-  " As a sheet it is {a} m thick: its map width across the dip direction × sin {dip}°, on level ground.": " Como lámina tiene {a} m de espesor: su ancho en el mapa a lo largo de la dirección de buzamiento × sen {dip}°, en terreno llano."
+  " As a sheet it is {a} m thick: its map width across the dip direction × sin {dip}°, on level ground.": " Como lámina tiene {a} m de espesor: su ancho en el mapa a lo largo de la dirección de buzamiento × sen {dip}°, en terreno llano.",
+  "Composite to": "Componer a",
+  "m as it is read (length-weighted)": "m al leerlo (ponderado por longitud)",
+  "Composite From column": "Columna Desde del compósito",
+  "Composite To column": "Columna Hasta del compósito",
+  "Composite hole id column": "Columna de ID de sondaje del compósito",
+  "Each hole's intervals become composites of this length: numbers as length-weighted means, text as the value over most of the length; the raw rows are not kept. The first rows' intervals average {m} m, so about {pct}% as many rows are held.": "Los intervalos de cada sondaje se vuelven compósitos de esta longitud: los números como medias ponderadas por longitud, el texto como el valor de la mayor parte de la longitud; las filas originales no se conservan. Los intervalos de las primeras filas promedian {m} m, así que se guardan cerca del {pct}% de las filas.",
+  "Each hole's intervals become composites of this length: numbers as length-weighted means, text as the value over most of the length; the raw rows are not kept. Pick the From, To and hole id columns and type the length.": "Los intervalos de cada sondaje se vuelven compósitos de esta longitud: los números como medias ponderadas por longitud, el texto como el valor de la mayor parte de la longitud; las filas originales no se conservan. Elija las columnas Desde, Hasta y de ID de sondaje y escriba la longitud.",
+  "Composited to {L} m as the file was read: {n} interval(s) of {h} hole(s) became {m} composite(s), each the length-weighted mean of its numeric columns ({cols}) and, for a text column, the value over most of its length; a hole's last composite stops where its intervals stop.": "Compuesto a {L} m al leer el archivo: {n} intervalo(s) de {h} sondaje(s) se volvieron {m} compósito(s), cada uno la media ponderada por longitud de sus columnas numéricas ({cols}) y, para una columna de texto, el valor de la mayor parte de su longitud; el último compósito de un sondaje termina donde terminan sus intervalos.",
+  "{n} text value(s) in numeric columns (such as below-detection entries) were left out of the means.": "{n} valor(es) de texto en columnas numéricas (como entradas bajo el límite de detección) se dejaron fuera de las medias.",
+  "{n} row(s) with no hole, or no From / To with From above To, were left out.": "{n} fila(s) sin sondaje, o sin Desde / Hasta con Hasta mayor que Desde, se dejaron fuera.",
+  "{n} hole(s) had rows in more than one place in the file ({ids}): their intervals were composited together by depth.": "{n} sondaje(s) tenían filas en más de un lugar del archivo ({ids}): sus intervalos se compusieron juntos por profundidad."
 }
