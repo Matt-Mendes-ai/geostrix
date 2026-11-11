@@ -14,3 +14,12 @@ export function collarAlwaysKept(headers, mapping = {}) {
   for (const h of headers || []) if (h && !mapped.has(h) && isDateHeader(h) && !out.includes(h)) out.push(h);
   return out;
 }
+
+// TASKS.csv #2172 (WA drillhole review) — 2,897 repeated ids in a composite collar file collapsed silently (the last row of each won, in
+// the store's merge). With no rank column (#600 handles that case), the FIRST row of each hole id is kept and the others are counted.
+// rows: collar rows with hole_id -> { rows, dropped, holes: [ids repeated] }
+export function firstPerHole(rows) {
+  const seen = new Set(), out = [], repeated = new Set();
+  for (const r of rows || []) { if (seen.has(r.hole_id)) { repeated.add(r.hole_id); continue; } seen.add(r.hole_id); out.push(r); }
+  return { rows: out, dropped: (rows || []).length - out.length, holes: [...repeated] };
+}

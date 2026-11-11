@@ -309,8 +309,16 @@ export default function BasemapView({
   return (
     <div style={overlayStyle} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
       <div style={topBarStyle}>
-        <div style={{ fontSize: "var(--font-size-lg)", fontWeight: 600, color: "#2a323c" }}>
-          {mode === "draw" ? title : tr("Locate")}
+        <div>
+          <div style={{ fontSize: "var(--font-size-lg)", fontWeight: 600, color: "#2a323c" }}>
+            {mode === "draw" ? title : tr("Locate")}
+          </div>
+          {/* TASKS.csv #2094 (review #2013) — opening this map loads basemap tiles from the internet: said, before anything is fetched for the terrain */}
+          <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>
+            {mode === "draw"
+              ? tr("The map is an online basemap ({layer}): its tiles load from the internet as you look around. Nothing is fetched for the project until you press {confirm}.", { layer: tr(getBaseLayer(effectiveLayerId)?.label || "Standard"), confirm: tr(confirmLabel) })
+              : tr("The map is an online basemap ({layer}): its tiles load from the internet as you look around.", { layer: tr(getBaseLayer(effectiveLayerId)?.label || "Standard") })}
+          </div>
         </div>
         <div style={{ display: "flex", gap: 6 }}>
           {canRecenter && (

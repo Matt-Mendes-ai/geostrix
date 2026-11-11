@@ -72,8 +72,13 @@ export function localCrsAt(lon, lat, { exclude = [] } = {}) {
 // TASKS.csv #1149 — a table of samples with longitude and latitude columns (and no easting / northing, which the caller tries
 // first): those two columns, when their values really are degrees. -> { x, y } column names, or null. Decimal values are
 // required: a local grid numbered 1, 2, 3 under a column called "lat" is not latitude.
-const LON_NAMES = ["longitude", "long", "lon", "lng", "longitude_dd", "long_dd", "lon_dd", "long_wgs84", "longitude_wgs84", "lon_wgs84", "x_lon", "dec_long", "decimal_longitude"];
-const LAT_NAMES = ["latitude", "lat", "latitude_dd", "lat_dd", "lat_wgs84", "latitude_wgs84", "y_lat", "dec_lat", "decimal_latitude"];
+// TASKS.csv #2166 (WA drillhole review) — the WAMEX spellings: ll_long / lllongitude / long_gda / lat_gda / lllatitude ...
+const LON_NAMES = ["longitude", "long", "lon", "lng", "longitude_dd", "long_dd", "lon_dd", "long_wgs84", "longitude_wgs84", "lon_wgs84", "x_lon", "dec_long", "decimal_longitude",
+  "ll_long", "ll_lon", "ll_longitude", "lllongitude", "lllong", "dd_long", "long_gda", "lon_gda", "longitude_gda", "long_gda94", "longitude_gda94", "long_gda2020", "longitude_gda2020"];
+const LAT_NAMES = ["latitude", "lat", "latitude_dd", "lat_dd", "lat_wgs84", "latitude_wgs84", "y_lat", "dec_lat", "decimal_latitude",
+  "ll_lat", "ll_latitude", "lllatitude", "lllat", "dd_lat", "lat_gda", "latitude_gda", "lat_gda94", "latitude_gda94", "lat_gda2020", "latitude_gda2020"];
+// #2166 — the datum the column names give: GDA94 (EPSG:4283) for _gda / _gda94, GDA2020 (EPSG:7844) for _gda2020, else WGS 84
+const datumOfLonLat = (x, y) => { const s = `${x} ${y}`.toLowerCase(); return /gda_?2020/.test(s) ? 7844 : /gda/.test(s) ? 4283 : 4326; };
 export function lonLatColumns(headers, rows) {
   const norm = (h) => String(h).trim().toLowerCase().replace(/[\s-]+/g, "_").replace(/[^a-z0-9_]/g, "");
   const pick = (names) => names.map((n) => headers.find((h) => norm(h) === n)).find(Boolean);
@@ -81,7 +86,7 @@ export function lonLatColumns(headers, rows) {
   if (!x || !y) return null;
   const vals = (c, max) => { const v = (rows || []).map((r) => r[c]).filter((q) => q !== "" && q != null).map(Number); return v.length && v.every((q) => Number.isFinite(q) && Math.abs(q) <= max) ? v : null; };
   const lon = vals(x, 180), lat = vals(y, 90);
-  return lon && lat && (lon.some((v) => !Number.isInteger(v)) || lat.some((v) => !Number.isInteger(v))) ? { x, y } : null;
+  return lon && lat && (lon.some((v) => !Number.isInteger(v)) || lat.some((v) => !Number.isInteger(v))) ? { x, y, epsg: datumOfLonLat(x, y) } : null; // epsg: #2166
 }
 
 // TASKS.csv #1148 — the middle of a project whose x and y ARE longitude and latitude: the collars, else the samples, else the
@@ -143,5 +148,5 @@ export function parseLatLon(text) {
 export function lonLatForCollars(target, mapping, headers, rows) {
   if (target !== "collars" || mapping.x || mapping.y) return null;
   const ll = lonLatColumns(headers, rows);
-  return ll ? { mapping: { ...mapping, x: ll.x, y: ll.y }, sourceEpsg: "4326" } : null;
+  return ll ? { mapping: { ...mapping, x: ll.x, y: ll.y }, sourceEpsg: String(ll.epsg || 4326) } : null; // the datum the names give: #2166
 }
