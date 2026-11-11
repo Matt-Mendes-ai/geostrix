@@ -86,12 +86,18 @@ export function leaderEnd(b) {
 // free in reach do they overlap. bounds: [x0, x1] the search stays inside.
 const RINGS = 10;
 export function resolveLabels(specs, obstacles = [], { gap = 1.5, bounds = null, yBounds = null } = {}) {
-  const placed = obstacles.map((b) => ({ x0: b.x - b.w / 2, x1: b.x + b.w / 2, y0: b.y - b.h, y1: b.y + 2 }));
+  // TASKS.csv #2518 (review #2486) — the placed boxes in a grid: a level plan at RL 250 on 2,248 holes (1,800 labels) scanned every placed box
+  // for every candidate spot, 330-650 ms per RL step. Same boxes, same order, same result: only the boxes that can touch are compared.
+  const CELL = 48, grid = new Map(), cellKey = (i, j) => i * 1048576 + j;
+  const cellsOf = (b, pad) => { const out = []; for (let i = Math.floor((b.x0 - pad) / CELL); i <= Math.floor((b.x1 + pad) / CELL); i++) for (let j = Math.floor((b.y0 - pad) / CELL); j <= Math.floor((b.y1 + pad) / CELL); j++) out.push(cellKey(i, j)); return out; };
+  const place = (b) => { for (const k of cellsOf(b, 0)) { const l = grid.get(k); if (l) l.push(b); else grid.set(k, [b]); } };
+  const placed = { push: place };
+  obstacles.forEach((b) => place({ x0: b.x - b.w / 2, x1: b.x + b.w / 2, y0: b.y - b.h, y1: b.y + 2 }));
   const boxOf = (c, text, size) => {
     const w = labelWidth(text, size), x0 = c.anchor === "end" ? c.x - w : c.anchor === "middle" ? c.x - w / 2 : c.x;
     return { x0, x1: x0 + w, y0: c.y - size, y1: c.y + 2 };
   };
-  const hit = (a) => placed.some((b) => a.x0 < b.x1 + gap && b.x0 < a.x1 + gap && a.y0 < b.y1 + gap && b.y0 < a.y1 + gap);
+  const hit = (a) => { for (const k of cellsOf(a, gap)) for (const b of grid.get(k) || []) if (a.x0 < b.x1 + gap && b.x0 < a.x1 + gap && a.y0 < b.y1 + gap && b.y0 < a.y1 + gap) return true; return false; };
   const out = [];
   // TASKS.csv #2603 — `within` ([x0, x1, y0, y1], a spec's own frame: a grade label's is the plot) must hold the whole label; with no
   // room inside it the label is left out, never printed across the axis
@@ -120,10 +126,17 @@ export function resolveLabels(specs, obstacles = [], { gap = 1.5, bounds = null,
 // px) within `radius` of a group's first point join it: one label stands for the group ('WB0705UD +3'). points: [{ key, id, x, y }] in
 // draw order -> [{ key, x, y, ids }] (ids unique, in order).
 export function clusterLabelPoints(points, radius = 8) {
-  const groups = [], r2 = radius * radius;
+  // #2518 — the groups in a grid of radius-sized cells: the first-made group within reach, as the plain scan found it
+  const groups = [], r2 = radius * radius, cell = Math.max(1e-9, radius), grid = new Map(), cellKey = (i, j) => i * 1048576 + j;
   for (const p of points || []) {
-    const g = groups.find((q) => (q.x - p.x) ** 2 + (q.y - p.y) ** 2 <= r2);
-    if (g) { if (!g.ids.includes(p.id)) g.ids.push(p.id); } else groups.push({ key: p.key, x: p.x, y: p.y, ids: [p.id] });
+    const i0 = Math.floor(p.x / cell), j0 = Math.floor(p.y / cell);
+    let g = null;
+    for (let i = i0 - 1; i <= i0 + 1; i++) for (let j = j0 - 1; j <= j0 + 1; j++) for (const q of grid.get(cellKey(i, j)) || []) if ((q.x - p.x) ** 2 + (q.y - p.y) ** 2 <= r2 && (!g || q.n < g.n)) g = q;
+    if (g) { if (!g.ids.includes(p.id)) g.ids.push(p.id); continue; }
+    const ng = { key: p.key, x: p.x, y: p.y, ids: [p.id] };
+    Object.defineProperty(ng, "n", { value: groups.length, enumerable: false });
+    groups.push(ng);
+    const k = cellKey(i0, j0); const l = grid.get(k); if (l) l.push(ng); else grid.set(k, [ng]);
   }
   return groups;
 }

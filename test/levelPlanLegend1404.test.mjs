@@ -36,6 +36,6 @@ test("the window builds the legend from the chosen layer and declutters the hole
   const src = readFileSync(new URL("../src/components/LevelPlanWindow.jsx", import.meta.url), "utf8");
   assert.match(src, /planLegend\(data\.intervals, activeLayer, \{ numeric: activeLayer\.startsWith\("custom:"\) \? "auto" : !!LAYER_META\[activeLayer\]\?\.numeric \}\)/); // #1539: a custom layer is detected
   assert.match(src, /furniture: levelPlanFurniture\(legend\)/);
-  assert.match(src, /const idLabels = labels \? \(\(\) => \{[\s\S]{0,400}?resolveLabels\(/); // grouped first since #2212
+  assert.match(src, /const idLabels = !labels \? null : [\s\S]{0,300}?v: \(\(\) => \{[\s\S]{0,400}?resolveLabels\(/ /* #2518: cached per plan and frame */); // grouped first since #2212
   assert.doesNotMatch(src, /data\.legendItems\.slice\(0, 40\)/);
 });

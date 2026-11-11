@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { X as XIcon, Download, Pencil, Check } from "./icons.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
-import { strikeDipSymbol, pathCache } from "../lib/levelPlan.js"; // pathCache: TASKS.csv #2210
+import { strikeDipSymbol, pathCache, busiestRl } from "../lib/levelPlan.js"; // pathCache: TASKS.csv #2210
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { colors } from "../lib/theme.js"; // TASKS.csv #1121 — colors.planned
 import { exportSvgMarkup } from "../lib/svgExport.js"; // TASKS.csv #1048 — the legend drawn into the PNG
@@ -58,7 +58,14 @@ export default function LevelPlanWindow({ build, zRange, defaultRl, onClose, onS
   // recomputed when the RL / slab change (not on every render of the 3D view behind it); "Refresh" picks up layer edits
   const buildRef = useRef(build); buildRef.current = build;
   const [rev, setRev] = useState(0);
-  const data = useMemo(() => buildRef.current(Number(rl), Math.max(0.1, Number(half) || 0)), [rl, half, rev]);
+  // TASKS.csv #2518 — the RL and slab apply 150 ms after the last change: a slider drag through 10 levels built and decluttered 10 plans
+  // (3.5 s of stalls on 2,248 holes); now the plan follows when the slider stops
+  const [applied, setApplied] = useState(() => ({ rl, half }));
+  useEffect(() => { const t = setTimeout(() => setApplied({ rl, half }), 150); return () => clearTimeout(t); }, [rl, half]);
+  const data = useMemo(() => buildRef.current(Number(applied.rl), Math.max(0.1, Number(applied.half) || 0)), [applied, rev]);
+  // #2518 — open on the RL most holes cross (not the middle of the range); once, unless the user has moved it
+  const openedAt = useRef(null);
+  useEffect(() => { if (openedAt.current != null) return; openedAt.current = rl; const best = busiestRl(data.holes); if (best != null && best !== Math.round(Number(rl))) { setRl(best); setApplied((a) => ({ ...a, rl: best })); } }, [data]); // runs once: openedAt
   const layerKeys = useMemo(() => [...new Set(data.intervals.map((iv) => iv.layer))], [data]);
   const activeLayer = layerKeys.includes(colourBy) ? colourBy : layerKeys.includes("litho") ? "litho" : layerKeys[0] || "";
   // #1404 — the legend is the "Colour holes by" layer (categories, or a numeric layer's colours at their values) plus the
@@ -107,12 +114,13 @@ export default function LevelPlanWindow({ build, zRange, defaultRl, onClose, onS
   useEffect(() => { setNote(null); }, [rl, half]);
 
   const ctxCache = useMemo(() => pathCache(), [frame]); // TASKS.csv #2210 — the whole-hole traces' path strings, per frame
+  const labelMemo = useRef({ data: null, frame: null, on: null, v: null }); // #2518 — the declutter ran on every render (each hover)
   if (!frame) return null;
   const { X, Y, s } = frame;
   const path = (line) => line.map(([x, y], i) => `${i ? "L" : "M"}${X(x).toFixed(1)},${Y(y).toFixed(1)}`).join(" ");
   // TASKS.csv #2212 (review #2174) — the hole ids: pierce points within a symbol's reach share one label ('ID +n', the ids in its tooltip),
   // and a label with no free spot near its point is left out, not printed over another (the section window's #1536 rule)
-  const idLabels = labels ? (() => {
+  const idLabels = !labels ? null : labelMemo.current.data === data && labelMemo.current.frame === frame && labelMemo.current.v ? labelMemo.current.v : (labelMemo.current = { data, frame, on: labels, v: (() => {
     const groups = clusterLabelPoints(data.holes.flatMap((h) => h.pierce.map((pc, i) => ({ key: `${h.hole_id}_${i}`, id: h.hole_id, x: X(pc.x), y: Y(pc.y) }))), 8);
     const placed = resolveLabels(
       groups.map((g) => ({ key: g.key, text: groupLabelText(g.ids), ids: g.ids, size: 10.5, prio: 2, optional: true, cands: [{ x: g.x + 6, y: g.y - 5, anchor: "start" }, { x: g.x + 6, y: g.y + 13, anchor: "start" }, { x: g.x - 6, y: g.y - 5, anchor: "end" }, { x: g.x - 6, y: g.y + 13, anchor: "end" }] })),
@@ -120,7 +128,7 @@ export default function LevelPlanWindow({ build, zRange, defaultRl, onClose, onS
       { bounds: [2, W - 2], yBounds: [20, H - 2] },
     );
     return { placed, hidden: groups.length - placed.length, grouped: groups.reduce((n, g) => n + (g.ids.length > 1 ? g.ids.length - 1 : 0), 0) };
-  })() : null;
+  })() }).v;
 
   const toWorld = (e) => toWorldF(frame, e, svgRef.current);
   const onClick = (e) => { if (drawing && !dragRef.current?.moved) { const q = toWorld(e); setPts((p) => [...p, q]); } };
@@ -234,7 +242,7 @@ export default function LevelPlanWindow({ build, zRange, defaultRl, onClose, onS
           {pts.length > 0 && <path d={path(hover && drawing ? [...pts, hover] : pts) + (pts.length > 2 && !drawing ? " Z" : "")} stroke="#d1495b" strokeWidth={1.8} fill="rgba(209,73,91,0.08)" />}
           {pts.map((p, i) => <circle key={`d${i}`} cx={X(p[0])} cy={Y(p[1])} r={2.6} fill="#d1495b" />)}
           {/* title, north arrow, scale bar */}
-          <text x={PAD / 2} y={16} fontSize="13" fontWeight="600" fill="#1a2028">{tr("Level plan RL {rl} m (slab ±{half} m)", { rl, half })}</text>
+          <text x={PAD / 2} y={16} fontSize="13" fontWeight="600" fill="#1a2028">{tr("Level plan RL {rl} m (slab ±{half} m)", { rl: data.rl, half: data.half }) /* #2518: the plan drawn, not the box being typed */}</text>
           <g transform={`translate(${W - 26},${PAD + 6})`}><path d="M0,-14 L6,6 L0,2 L-6,6 Z" fill="#1a2028" /><text x={0} y={18} fontSize="11" fontWeight="700" textAnchor="middle" fill="#1a2028">N</text></g>
           <g transform={`translate(${W - PAD - barM * s},${H - 22})`}><rect width={barM * s} height={5} fill="#1a2028" /><rect width={(barM * s) / 2} height={5} fill="#ffffff" stroke="#1a2028" strokeWidth={0.8} /><text x={(barM * s) / 2} y={-3} fontSize="10" textAnchor="middle" fill="#1a2028">{`${barM} m`}</text></g>
         </svg>

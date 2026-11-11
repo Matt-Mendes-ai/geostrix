@@ -175,3 +175,26 @@ export function pathCache() {
     return d;
   };
 }
+
+// TASKS.csv #2518 (review #2486) — the level plan opened at the middle of the elevation range (RL 34, which one 577 m hole set; 25 of 2,248
+// holes reach it). The RL most holes cross: each hole's trace z-range counted per metre, the middle of the busiest run. holes: [{ trace: [{ z }] }]
+// -> an integer RL, or null
+export function busiestRl(holes) {
+  let lo = Infinity, hi = -Infinity;
+  const spans = [];
+  for (const h of holes || []) {
+    let a = Infinity, b = -Infinity;
+    for (const p of h.trace || []) { if (p.z < a) a = p.z; if (p.z > b) b = p.z; }
+    if (!(b >= a)) continue;
+    spans.push([Math.ceil(a), Math.floor(b)]);
+    if (a < lo) lo = a; if (b > hi) hi = b;
+  }
+  if (!spans.length) return null;
+  const z0 = Math.ceil(lo), n = Math.floor(hi) - z0 + 1;
+  if (n <= 0) return Math.round((lo + hi) / 2);
+  const d = new Int32Array(n + 1);
+  for (const [a, b] of spans) if (b >= a) { d[a - z0]++; d[b - z0 + 1]--; }
+  let run = 0, best = -1, from = 0, to = 0;
+  for (let k = 0; k < n; k++) { run += d[k]; if (run > best) { best = run; from = to = k; } else if (run === best && to === k - 1) to = k; }
+  return z0 + Math.round((from + to) / 2);
+}
