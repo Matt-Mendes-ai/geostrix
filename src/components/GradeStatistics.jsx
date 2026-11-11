@@ -125,8 +125,8 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
   const qaqcExcludedCount = useMemo(() => assays.length - excludeQAQC(assays).length, [assays]);
   const statsAssays = useMemo(() => (includeQAQC ? assays : excludeQAQC(assays)), [assays, includeQAQC]);
 
-  const { customLayers = [], collars: storeCollars = [] } = useStore(); // #1678; collars: #2504
-  const customDomains = useMemo(() => (source === "assays" ? [...attributeDomainOptions(assays, storeCollars), ...customDomainOptions(customLayers)] : []), [customLayers, source, assays, storeCollars]); // #2504 — sample type, collar fields
+  const { customLayers = [], collars: storeCollars = [], layers: storeLayers = {} } = useStore(); // layers: #2349 // #1678; collars: #2504
+  const customDomains = useMemo(() => (source === "assays" ? [...attributeDomainOptions(assays, storeCollars), ...customDomainOptions(customLayers, { layers: storeLayers, labelOf: (k) => tr(LAYER_META[k]?.label || k) }) /* the built-in logs' extra fields: #2349 */] : []), [customLayers, source, assays, storeCollars, storeLayers]); // #2504 — sample type, collar fields
   const domainOptions = useMemo(() => (source === "assays" ? DOMAIN_LAYER_KEYS.filter((k) => (layers[k] || []).length > 0 && isCategoricalLayer(layers[k])) : []), [source, layers]); // #1515 — categories only
   const customDomain = customDomains.find((d) => d.key === domainKey) || null;
   // TASKS.csv #2029 (review #2013, Geochem) — group by hole (and hole + lithology): a per-hole mean needed the SQL workspace

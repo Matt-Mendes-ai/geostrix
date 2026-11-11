@@ -4,19 +4,27 @@
 // on at least half the rows, repeating: fewer values than half the rows) become a domain choice: { key: "custom:<layer id>:<field>", label: "<layer> · <field>", rows: [{ hole_id,
 // from, to, value }] } - the shape the domain lookup and compositeAssays already take.
 const fin = (v) => v !== null && v !== "" && Number.isFinite(Number(v));
-export function customDomainOptions(customLayers) {
+// TASKS.csv #2349 (review #2325, WA uranium) — the codes are counted once their case is folded ('Strat unit' had 33 spellings, 25 codes:
+// Dcb 665 / DCB 363 / DCb 4 ... and was dropped as over 30), and each code is spelled as most often; `builtin` ({ layers, labelOf }) adds
+// the built-in logs' extra fields (Lithology's Strat, Oxidation, Lith2 were never offered): their 'value' is already a domain
+const BUILTIN_KEYS = ["litho", "alt", "vein", "breccia", "weath", "structzone"];
+export function customDomainOptions(customLayers, builtin = null) {
   const out = [];
-  for (const L of customLayers || []) {
+  const extra = builtin?.layers ? BUILTIN_KEYS.filter((k) => (builtin.layers[k] || []).length).map((k) => ({ id: `layer-${k}`, name: builtin.labelOf ? builtin.labelOf(k) : k, rows: builtin.layers[k], skip: "value" })) : [];
+  for (const L of [...(customLayers || []), ...extra]) {
     const rows = (Array.isArray(L?.rows) ? L.rows : []).filter((r) => r?.hole_id != null && fin(r.from) && fin(r.to) && Number(r.to) > Number(r.from));
     if (rows.length < 2) continue;
     const fields = new Set();
-    for (const r of rows.slice(0, 500)) for (const k of Object.keys(r)) if (!["hole_id", "from", "to", "depth", "_src"].includes(k)) fields.add(k);
+    for (const r of rows.slice(0, 500)) for (const k of Object.keys(r)) if (!["hole_id", "from", "to", "depth", "_src", L.skip].includes(k)) fields.add(k);
     for (const f of fields) {
       let filled = 0, numeric = 0;
       const distinct = new Set();
-      for (const r of rows) { const v = r[f]; if (v == null || v === "") continue; filled++; if (fin(v)) numeric++; distinct.add(String(v).trim()); if (distinct.size > 30) break; }
+      const spell = new Map(); // upper-cased code -> Map(spelling -> count)
+      for (const r of rows) { const v = r[f]; if (v == null || v === "") continue; filled++; if (fin(v)) numeric++; const t = String(v).trim(), k = t.toUpperCase(); distinct.add(k); const m = spell.get(k) || new Map(); m.set(t, (m.get(t) || 0) + 1); spell.set(k, m); if (distinct.size > 30) break; }
+      const canon = new Map([...spell].map(([k, m]) => [k, [...m].sort((x, y) => y[1] - x[1] || (x[0] < y[0] ? -1 : 1))[0][0]]));
+      const canonOf = (t) => canon.get(t.toUpperCase()) || t;
       if (filled < 0.5 * rows.length || distinct.size < 2 || distinct.size > 30 || distinct.size > 0.5 * filled || numeric > 0.5 * filled) continue; // codes repeat; free text does not
-      out.push({ key: `custom:${L.id ?? L.name}:${f}`, label: `${L.name || "Custom layer"} · ${f}`, rows: rows.map((r) => ({ hole_id: r.hole_id, from: Number(r.from), to: Number(r.to), value: r[f] == null || r[f] === "" ? null : String(r[f]).trim() })).filter((r) => r.value != null) });
+      out.push({ key: `custom:${L.id ?? L.name}:${f}`, label: `${L.name || "Custom layer"} · ${f}`, rows: rows.map((r) => ({ hole_id: r.hole_id, from: Number(r.from), to: Number(r.to), value: r[f] == null || r[f] === "" ? null : canonOf(String(r[f]).trim()) })).filter((r) => r.value != null) });
     }
   }
   return out;

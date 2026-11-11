@@ -63,8 +63,8 @@ export default function CompositingModal({ assays: assaysIn, assayElements, laye
   const qaqcExcludedCount = useMemo(() => assays.length - excludeQAQC(assays).length, [assays]);
   const compAssays = useMemo(() => (includeQAQC ? assays : excludeQAQC(assays)), [assays, includeQAQC]);
 
-  const { customLayers = [], collars: storeCollars = [] } = useStore(); // #1678 — custom-layer categories as domains; collars: #2504
-  const customDomains = useMemo(() => [...attributeDomainOptions(assays, storeCollars), ...customDomainOptions(customLayers)], [customLayers, assays, storeCollars]); // #2504 — sample type, collar fields
+  const { customLayers = [], collars: storeCollars = [], layers: storeLayers = {} } = useStore(); // layers: #2349 // #1678 — custom-layer categories as domains; collars: #2504
+  const customDomains = useMemo(() => [...attributeDomainOptions(assays, storeCollars), ...customDomainOptions(customLayers, { layers: storeLayers, labelOf: (k) => tr(LAYER_META[k]?.label || k) }) /* the built-in logs' extra fields: #2349 */], [customLayers, assays, storeCollars, storeLayers]); // #2504 — sample type, collar fields
   const domainOptions = useMemo(() => DOMAIN_LAYER_KEYS.filter((k) => (layers[k] || []).length > 0 && isCategoricalLayer(layers[k])), [layers]); // #1515 — categories only (RQD% broke composites at every change)
   const customDomain = customDomains.find((d) => d.key === domainKey) || null;
   const domainRows = domainKey ? (customDomain ? customDomain.rows : layers[domainKey]) : null;

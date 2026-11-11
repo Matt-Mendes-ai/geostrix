@@ -88,7 +88,7 @@ test("the SQL collars table carries the collar fields: drill type can be joined"
 test("the three tools offer them", () => {
   for (const f of ["GradeStatistics", "CompositingModal"]) {
     const s = readFileSync(new URL(`../src/components/${f}.jsx`, import.meta.url), "utf8");
-    assert.match(s, /\[\.\.\.attributeDomainOptions\(assays, storeCollars\), \.\.\.customDomainOptions\(customLayers\)\]/, f);
+    assert.match(s, /\[\.\.\.attributeDomainOptions\(assays, storeCollars\), \.\.\.customDomainOptions\(customLayers(, \{ layers: storeLayers, labelOf: [^}]*\})?\)/, f); // the built-in extras: #2349
     assert.match(s, /d\.attribute \? attributeDomainLabel\(d, tr\) : d\.label/, f);
   }
   const t = readFileSync(new URL("../src/components/ThresholdToolkit.jsx", import.meta.url), "utf8");
