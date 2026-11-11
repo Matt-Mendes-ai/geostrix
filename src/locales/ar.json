@@ -2446,6 +2446,7 @@
   "Reading…": "جارٍ القراءة…",
   "Replace terrain…": "استبدال التضاريس…",
   "Import SRTM/DEM…": "استيراد SRTM/نموذج ارتفاع…",
+  "It looks like an elevation model ({lo} to {hi}): to use it as the ground (draping, collar checks, sections), import it under Maps > Terrain > Import SRTM/DEM instead.": "يبدو نموذج ارتفاع ({lo} إلى {hi}): لاستخدامه كسطح الأرض (الإكساء، فحص الفوهات، المقاطع)، استورده من الخرائط > التضاريس > استيراد SRTM/نموذج ارتفاع بدلًا من ذلك.",
   "Pick an area on a map and fetch elevation for it — no manual download needed": "اختر منطقة على خريطة واجلب ارتفاعاتها — دون تنزيل يدوي",
   "Fetching {done}/{total}…": "جارٍ الجلب {done}/{total}…",
   "Remove terrain \"{name}\"": "إزالة التضاريس «{name}»",

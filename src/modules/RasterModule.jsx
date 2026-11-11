@@ -368,6 +368,8 @@ export default function RasterModule({ embedded = false } = {}) {
   // project (same reasoning as the import modal's own Source CRS field).
   const [sourceEpsg, setSourceEpsg] = useState("");
 
+  // TASKS.csv #2129 — the collars' elevation range, for 'it looks like an elevation model'
+  const collarZRange = (cs) => { let a = Infinity, b = -Infinity; for (const c of cs || []) if (Number.isFinite(c?.z)) { if (c.z < a) a = c.z; if (c.z > b) b = c.z; } return Number.isFinite(a) ? [a, b] : null; };
   const importRaster = async (file, world = null) => { // world: a world file selected with it (TASKS.csv #1855)
     if (!file) return;
     setError(null);
@@ -375,7 +377,7 @@ export default function RasterModule({ embedded = false } = {}) {
     try {
       const worldFile = world ? parseWorldFile(await world.text(), world.name) : null;
       const chooseProjectEpsg = projectEpsgChooser({ isEmpty: projectIsEmpty, setEpsg, fileName: file.name }); // #607
-      const { raster, msg } = await buildRasterImport(file, { epsg: projectTargetEpsg(project), defaultElevation, sourceEpsg, chooseProjectEpsg, keepDetail, worldFile, tie: tieOf(project) }); // tie: #2587
+      const { raster, msg } = await buildRasterImport(file, { epsg: projectTargetEpsg(project), defaultElevation, sourceEpsg, chooseProjectEpsg, keepDetail, worldFile, tie: tieOf(project), collarZ: collarZRange(collars) }); // tie: #2587; collarZ: #2129
       const drape = rasterDrapeElevation({ collars, voxelModels, surfaceSamples, bbox: raster.bbox, rasters, fileName: file.name }); // #1856 — the ground under this raster; #1505 — above the collars, stacked, or at the name's depth
       addRaster({ ...raster, elevation: drape.z });
       setError({ info: true, text: `${msg} ${drapeElevationNote(drape)}` });

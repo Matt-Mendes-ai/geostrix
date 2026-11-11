@@ -2446,6 +2446,7 @@
   "Reading…": "Lecture…",
   "Replace terrain…": "Remplacer le terrain…",
   "Import SRTM/DEM…": "Importer un SRTM/MNE…",
+  "It looks like an elevation model ({lo} to {hi}): to use it as the ground (draping, collar checks, sections), import it under Maps > Terrain > Import SRTM/DEM instead.": "Il ressemble à un modèle d'élévation ({lo} à {hi}) : pour l'utiliser comme sol (drapage, contrôle des collets, coupes), importez-le plutôt dans Cartes > Terrain > Importer un SRTM/MNE.",
   "Pick an area on a map and fetch elevation for it — no manual download needed": "Choisissez une zone sur une carte et téléchargez son élévation — aucun téléchargement manuel nécessaire",
   "Fetching {done}/{total}…": "Téléchargement {done}/{total}…",
   "Remove terrain \"{name}\"": "Retirer le terrain « {name} »",

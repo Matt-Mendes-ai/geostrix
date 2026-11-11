@@ -93,7 +93,7 @@ test("a value grid is resampled to the nearest reading, NaN outside; a CRS GeoSt
 test("the importers pass the project's tie, and the Project CRS page names the tied grid", () => {
   const r = readFileSync(new URL("../src/lib/raster.js", import.meta.url), "utf8");
   assert.match(r, /const tied = tie && srcEpsg && !projEpsg && parsed\.pixels && tieReaches\(tie, srcEpsg\)/);
-  assert.match(readFileSync(new URL("../src/modules/RasterModule.jsx", import.meta.url), "utf8"), /worldFile, tie: tieOf\(project\) \}\);/);
+  assert.match(readFileSync(new URL("../src/modules/RasterModule.jsx", import.meta.url), "utf8"), /worldFile, tie: tieOf\(project\)[,} ]/); // collarZ follows since #2129
   const gm = readFileSync(new URL("../src/modules/GeophysicsModule.jsx", import.meta.url), "utf8");
   assert.equal((gm.match(/collars, tie: tieOf\(project\) \}\);/g) || []).length, 2);
   assert.match(gm, /kmlToProjectPolylines\(features, project\?\.epsg, \{ toLocal: tie \?/);

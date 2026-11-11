@@ -861,8 +861,21 @@ function rasterFromRows({ name, values, ncols, nrows, x0, y0, dx, dy, isDummy, m
 // TASKS.csv #2127 (review #2013, Woodjam) — a distance in the notices: '409,481 m' on a metric projected CRS, 'world units' only when the CRS
 // is not known to be one
 export const sizeText = (d, epsg) => (isMetricProjectedEpsg(epsg) ? `${Math.round(d).toLocaleString()} m` : `${Math.round(d).toLocaleString()} world units`);
+// TASKS.csv #2129 (review #2013, Woodjam) — a single-band float DEM imported as a raster became a flat value raster offered 'as survey
+// points for an inversion', with no word that it is ground. It reads as an elevation model when its name says so (dem, dtm, dsm, srtm,
+// elev, elevation, topo, lidar, height) or, with collars and a name that is no survey channel, when its 2-98 % values sit within 100 m of
+// the collars' elevations and span 10 m or more.
+const DEM_NAME = /(^|[^a-z])(dem|dtm|dsm|srtm|elev|elevation|topo|topography|lidar|height|heights)([^a-z]|$)/i;
+const SURVEY_NAME = /(^|[^a-z])(mag|tmi|rtp|nt|grav|bouguer|chg|charg|ip|res|rho|cond|em|k|th|u|eu|eth|dose|rad|susc|cu|au|ag|zn|pb|ppm|ppb|pct)([^a-z0-9]|$)/i;
+export function looksLikeDem(name, lo, hi, collarZ = null) {
+  const n = String(name || "");
+  if (DEM_NAME.test(n)) return true;
+  if (SURVEY_NAME.test(n) || !collarZ || !Number.isFinite(lo) || !Number.isFinite(hi) || !(hi > lo)) return false;
+  const [zmin, zmax] = collarZ;
+  return Number.isFinite(zmin) && Number.isFinite(zmax) && lo >= zmin - 100 && hi <= zmax + 100 && hi - lo >= 10;
+}
 export const notDegrees = (epsg, bbox) => isGeographicCrs(epsg) && Array.isArray(bbox) && (Math.abs(bbox[0]) > 180.5 || Math.abs(bbox[2]) > 180.5 || Math.abs(bbox[1]) > 90.5 || Math.abs(bbox[3]) > 90.5);
-export async function buildRasterImport(file, { epsg, defaultElevation, sourceEpsg, chooseProjectEpsg, bandFn = null, samples = null, name = null, keepDetail = false, worldFile = null, tie = null } = {}) { // samples: #807; keepDetail: #838; worldFile: #1855; tie: #2587
+export async function buildRasterImport(file, { epsg, defaultElevation, sourceEpsg, chooseProjectEpsg, bandFn = null, samples = null, name = null, keepDetail = false, worldFile = null, tie = null, collarZ = null } = {}) { // samples: #807; keepDetail: #838; worldFile: #1855; tie: #2587; collarZ: #2129
   const isGxf = /\.gxf$/i.test(file.name), isGrd = /\.grd$/i.test(file.name); // isGrd: #1347
   const maxSide = keepDetail ? FULL_DETAIL_SIZE : MAX_TEXTURE_SIZE;
   const parsed = isGxf ? await parseGXF(file) : isGrd ? await parseGRD(file) : await parseGeoTIFF(file, { bandFn, samples, maxSide, worldFile }); // bandFn: #783; samples: #807
@@ -954,6 +967,7 @@ export async function buildRasterImport(file, { epsg, defaultElevation, sourceEp
   // #1236 — what the import above drew: 2-98 % of the values, viridis
   let colour = {};
   if (grid && parsed.grid) { const st = makeStretch(parsed.grid.values, "p2-98"); if (st.lo != null) colour = { colourRange: [st.lo, st.hi], colourStops: rasterStops(DEFAULT_RASTER_STYLE, st.lo, st.hi) }; }
+  if (grid && colour.colourRange && looksLikeDem(parsed.name, colour.colourRange[0], colour.colourRange[1], collarZ)) msg += " " + tr("It looks like an elevation model ({lo} to {hi}): to use it as the ground (draping, collar checks, sections), import it under Maps > Terrain > Import SRTM/DEM instead.", { lo: Math.round(colour.colourRange[0]).toLocaleString(), hi: Math.round(colour.colourRange[1]).toLocaleString() }); // #2129
   // TASKS.csv #1623 - a colour picture whose border is uniformly white or black: that colour is its background, shown transparent
   let key = {};
   if (!parsed.grid && px?.data && px.width && px.height) {
