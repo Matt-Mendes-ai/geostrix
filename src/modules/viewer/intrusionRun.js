@@ -16,9 +16,10 @@ import { t as tr } from "../../lib/i18n.js";
 export function buildIntrusionBodies(p, { implicitGroupRef, implicitMeshesRef, originRef, setImplicitSurfaces, setNotices, terrain }) {
   if (!terrain?.bbox) { setNotices((q) => [...q, notice("Intrusion bodies need a terrain: their tops are the ground inside each mapped polygon. Fetch or import one first.")]); return; }
   const groundAt = (x, y) => terrainGroundAt(terrain, x, y); // TASKS.csv #927
+  const tb = terrain.bbox, inTerrain = (x, y) => x >= tb[0] && x <= tb[2] && y >= tb[1] && y <= tb[3]; // #2569 — a gap inside the box is filled, beyond it refused
   const o = originRef.current, stamp = Date.now(), added = [], lines = [];
   let holes = 0;
-  const failed = [], pinched = []; // depths reached by narrowing bodies that close before the chosen depth
+  const failed = [], pinched = [], gapFilled = { k: 0, n: 0 }; // depths reached by narrowing bodies that close before the chosen depth
   // TASKS.csv #938 — do two bodies cross? Widening walls make neighbouring outcrops of a unit grow into each other at
   // depth; merged into one mesh, the overlap made it self-crossing (96 crossing pairs in the review's case): inside tests
   // said "outside" between them and "Restrict to a modelled volume" refused the whole unit. Box test first, then a mesh test.
@@ -41,8 +42,9 @@ export function buildIntrusionBodies(p, { implicitGroupRef, implicitMeshesRef, o
         // a ring inside another ring of the same feature is a hole: not modelled (the body is filled), counted
         if (rings.filter((other, oi) => oi !== ri && pointInRings(ring[0], [other])).length % 2 === 1) { holes++; return; } // inside an odd number of rings: a hole (an island in a hole is a body again)
         try {
-          const b = intrusionBody(ring, groundAt, { depthM: p.depthM, wallDip: p.wallDip, flare: p.flare });
+          const b = intrusionBody(ring, groundAt, { depthM: p.depthM, wallDip: p.wallDip, flare: p.flare, inTerrain });
           if (b.pinchedAtM != null) pinched.push(b.pinchedAtM);
+          if (b.filledTop) { gapFilled.k += b.filledTop; gapFilled.n += b.topPoints; } // #2569
           if (b.wallDipDeg) dipRanges.push(b.wallDipDeg);
           bodies.push({ b, box: boxOf(b) });
         } catch (e) { failed.push(`${unit}: ${e.message}`); }
@@ -98,7 +100,10 @@ ${tr("{v} Mm³, {d} m below the outcrop, walls {dip}°", { v: (vol / 1e6).toFixe
     // #939 — a narrowing body is cut off flat where its base would be a fifth of the outline, and the walls actually built
     + (pinched.length ? tr(" {k} narrow outcrop(s) would close before {d} m with these walls: they are cut off flat where the base would be a fifth of the outline ({a}–{b} m down).", { k: pinched.length, d: p.depthM, a: Math.round(Math.min(...pinched)), b: Math.round(Math.max(...pinched)) }) : "")
     + (p.wallDip < 89.99 && dipRanges.length && (Math.min(...dipRanges.map((d) => d[0])) < p.wallDip - 5 || Math.max(...dipRanges.map((d) => d[1])) > p.wallDip + 5) ? tr(" The walls as built dip {a}–{b}° (asked {dip}°): the base follows a simplified outline.", { a: Math.round(Math.min(...dipRanges.map((d) => d[0]))), b: Math.round(Math.max(...dipRanges.map((d) => d[1]))), dip: p.wallDip }) : "")));
+  if (gapFilled.k) msgs.push(notice("{k} of {n} outline point(s) fell in gaps of the terrain (cells it has no ground for) and took the ground of the nearest outline point that has some.", { k: gapFilled.k, n: gapFilled.n })); // #2569
   if (failed.length) msgs.push(errorNotice(tr("{k} polygon(s) could not be built: {list}", { k: failed.length, list: [...new Set(failed)].slice(0, 3).join(" ") })));
   if (!added.length && !failed.length) msgs.push(notice("None of the chosen units has a polygon on this map."));
   setNotices((q) => [...q, ...msgs]);
+  // #2569 — what happened, for the pane to keep under its button (the notice fades)
+  return { added: added.length, failed: [...new Set(failed)], gapFilled: gapFilled.k ? gapFilled : null };
 }

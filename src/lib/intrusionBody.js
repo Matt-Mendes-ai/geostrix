@@ -125,7 +125,7 @@ export function hullIndices(C) {
   return [...half(idx), ...half(idx.slice().reverse())].sort((a, b) => a - b);
 }
 
-export function intrusionBody(ring, groundAt, { depthM = 500, wallDip = 90, flare = "out", stepM = 25 } = {}) {
+export function intrusionBody(ring, groundAt, { depthM = 500, wallDip = 90, flare = "out", stepM = 25, inTerrain = null } = {}) { // inTerrain(x, y): #2569
   // at most ~400 outline points: a long outline gets a wider spacing (the inward-taper check is O(n^2))
   let per = 0;
   for (let i = 0; i < ring.length - 1; i++) per += Math.hypot(ring[i + 1][0] - ring[i][0], ring[i + 1][1] - ring[i][1]);
@@ -134,7 +134,18 @@ export function intrusionBody(ring, groundAt, { depthM = 500, wallDip = 90, flar
   if (!cr) throw new Error(tr("This polygon has fewer than three distinct points."));
   const r = cr.pts.map((q) => q.p);
   const topZ = r.map(([x, y]) => groundAt(x, y));
-  if (topZ.some((z) => !Number.isFinite(z))) throw new Error(tr("Part of this polygon is beyond the terrain, so the top of the body is unknown there. Fetch or import a terrain that covers it."));
+  // TASKS.csv #2569 (review #2486) — a terrain triangulated from the project's own collars leaves cells with no ground inside its box (two
+  // thirds of it, on a 25 m drill grid): the hull of those collars was refused as 'beyond the terrain'. An outline point in such a gap takes
+  // the ground of the nearest outline point that has some (counted, and said); only an outline with no ground anywhere is refused.
+  let filledTop = 0;
+  // beyond the terrain's own box: refused as before; inside it (a gap of a triangulated terrain): filled
+  if (topZ.some((z, i) => !Number.isFinite(z) && !(inTerrain && inTerrain(r[i][0], r[i][1])))) throw new Error(tr("Part of this polygon is beyond the terrain, so the top of the body is unknown there. Fetch or import a terrain that covers it."));
+  if (topZ.some((z) => !Number.isFinite(z))) {
+    const ok = topZ.map((z, i) => (Number.isFinite(z) ? i : -1)).filter((i) => i >= 0), n = topZ.length;
+    if (!ok.length) throw new Error(tr("No part of this polygon has terrain under it, so the top of the body is unknown. Load a terrain that covers it (Maps > Terrain)."));
+    const src = topZ.slice();
+    for (let i = 0; i < n; i++) { if (Number.isFinite(src[i])) continue; let best = ok[0], bd = Infinity; for (const j of ok) { const d = Math.min(Math.abs(i - j), n - Math.abs(i - j)); if (d < bd) { bd = d; best = j; } } topZ[i] = src[best]; filledTop++; }
+  }
   let baseZ = Math.min(...topZ) - Math.max(1, depthM), pinchedAtM = null;
 
   // The base outline. Vertical walls: the outline itself. Dipping walls: a mapped outline wiggles at the scale of its
@@ -276,5 +287,5 @@ export function intrusionBody(ring, groundAt, { depthM = 500, wallDip = 90, flar
   // or centroid-shrunk base can make it differ from the dip asked for, and the caller says so
   let dMin = 90, dMax = 0;
   r.forEach((p, i) => { const mv = Math.hypot(base[i][0] - p[0], base[i][1] - p[1]), h = topZ[i] - baseZ; const d = mv > 1e-6 ? (Math.atan(h / mv) * 180) / Math.PI : 90; dMin = Math.min(dMin, d); dMax = Math.max(dMax, d); });
-  return { positions, indices: Uint32Array.from(idx), topZ: [Math.min(...topZ), Math.max(...topZ)], baseZ, wallOffsetM: [Math.min(...offs), Math.max(...offs)], planAreaM2: area2(r), baseCorners: simplifiedTo, corners: nc, pinchedAtM, wallDipDeg: [dMin, dMax] };
+  return { filledTop, topPoints: topZ.length /* #2569 */, positions, indices: Uint32Array.from(idx), topZ: [Math.min(...topZ), Math.max(...topZ)], baseZ, wallOffsetM: [Math.min(...offs), Math.max(...offs)], planAreaM2: area2(r), baseCorners: simplifiedTo, corners: nc, pinchedAtM, wallDipDeg: [dMin, dMax] };
 }

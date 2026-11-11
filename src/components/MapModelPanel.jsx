@@ -84,7 +84,8 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
   // TASKS.csv #821 — the units in the "intrusion" role, as closed bodies (outline to a depth, vertical or dipping walls)
   const intrusive = Object.keys(roles).filter((u) => roles[u] === "intrusion");
   const [bodyOff, setBodyOff] = useState({}); // unit -> true when unticked
-  const [bodyDepth, setBodyDepth] = useState(""); // TASKS.csv #2568 — blank until set or taken from the logs (it was a default 500 m)
+  const [bodyDepth, setBodyDepth] = useState("");
+  const [bodyMsg, setBodyMsg] = useState(null); // #2569 // TASKS.csv #2568 — blank until set or taken from the logs (it was a default 500 m)
   const [bodyDip, setBodyDip] = useState(90);
   const [bodyFlare, setBodyFlare] = useState("out");
   const bodyUnits = intrusive.filter((u) => !bodyOff[u]);
@@ -253,11 +254,15 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
             <select value={bodyFlare} onChange={(e) => setBodyFlare(e.target.value)} disabled={bodyDip >= 90} style={{ ...sel, opacity: bodyDip >= 90 ? 0.5 : 1 }} aria-label={tr("Wall direction")}>
               <option value="out">{tr("widens with depth")}</option><option value="in">{tr("narrows with depth")}</option>
             </select></div>
-          <button onClick={() => onBuildBodies?.({ layer, field: unitField, units: bodyUnits, depthM: Number(bodyDepth), wallDip: bodyDip, flare: bodyFlare })}
+          <button onClick={() => { setBodyMsg(null); Promise.resolve(onBuildBodies?.({ layer, field: unitField, units: bodyUnits, depthM: Number(bodyDepth), wallDip: bodyDip, flare: bodyFlare })).then((r) => r && setBodyMsg(r)).catch(() => {}); }}
             disabled={!groundAt || !bodyUnits.length || !(Number(bodyDepth) >= 10)} title={groundAt ? "" : tr("Needs a terrain: the top of each body is the ground. Offline, Geophysics > Block models > Terrain from the model's top makes one.")}
             style={{ ...pBtn, justifyContent: "center", opacity: !groundAt || !bodyUnits.length || !(Number(bodyDepth) >= 10) ? 0.5 : 1 }}>
             {tr("Build intrusion bodies")}
           </button>
+          {bodyMsg && (bodyMsg.failed.length > 0 || bodyMsg.gapFilled) && <div style={{ fontSize: "var(--font-size-xs)", lineHeight: 1.4, marginTop: 4, color: bodyMsg.failed.length ? "var(--color-danger-fg)" : "var(--color-text-muted)" }}>{/* #2569 — kept in the pane */}
+            {bodyMsg.failed.length > 0 && tr("{k} polygon(s) could not be built: {list}", { k: bodyMsg.failed.length, list: bodyMsg.failed.slice(0, 3).join(" ") })}
+            {bodyMsg.gapFilled && <div style={{ color: "var(--color-text-muted)" }}>{tr("{k} of {n} outline point(s) fell in gaps of the terrain (cells it has no ground for) and took the ground of the nearest outline point that has some.", bodyMsg.gapFilled)}</div>}
+          </div>}
         </>)}
       </div>
     </div>
