@@ -9878,5 +9878,9 @@
   "Round the limits": "Redondear los límites",
   "Cut-off to add as a class limit": "Ley de corte a añadir como límite de clase",
   "Split the class holding this grade there, so the economic cut-off is a class limit": "Divide allí la clase que contiene esta ley, para que la ley de corte económica sea un límite de clase",
-  "Add as a class limit": "Añadir como límite de clase"
+  "Add as a class limit": "Añadir como límite de clase",
+  "The RL the lines of this layer are drawn at while there is no terrain to drape them on": "La cota a la que se dibujan las líneas de esta capa mientras no haya terreno sobre el que proyectarlas",
+  "Elev. (m RL)": "Cota (m)",
+  "Elevation of the interpretation lines (m RL)": "Cota de las líneas de interpretación (m)",
+  "Restore \"{name}\"": "Restaurar \"{name}\""
 }

@@ -9878,5 +9878,9 @@
   "Round the limits": "Arrondir les limites",
   "Cut-off to add as a class limit": "Teneur de coupure à ajouter comme limite de classe",
   "Split the class holding this grade there, so the economic cut-off is a class limit": "Scinde là la classe qui contient cette teneur, pour que la teneur de coupure économique soit une limite de classe",
-  "Add as a class limit": "Ajouter comme limite de classe"
+  "Add as a class limit": "Ajouter comme limite de classe",
+  "The RL the lines of this layer are drawn at while there is no terrain to drape them on": "La cote à laquelle les lignes de cette couche sont tracées tant qu'il n'y a pas de terrain pour les draper",
+  "Elev. (m RL)": "Cote (m)",
+  "Elevation of the interpretation lines (m RL)": "Cote des lignes d'interprétation (m)",
+  "Restore \"{name}\"": "Rétablir « {name} »"
 }

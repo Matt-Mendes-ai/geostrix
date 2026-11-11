@@ -9878,5 +9878,9 @@
   "Round the limits": "قرّب الحدود",
   "Cut-off to add as a class limit": "حد القطع لإضافته حدًّا للفئة",
   "Split the class holding this grade there, so the economic cut-off is a class limit": "قسّم الفئة التي تحوي هذا المحتوى عنده، ليصبح حد القطع الاقتصادي حدًّا للفئة",
-  "Add as a class limit": "أضف حدًّا للفئة"
+  "Add as a class limit": "أضف حدًّا للفئة",
+  "The RL the lines of this layer are drawn at while there is no terrain to drape them on": "المنسوب الذي تُرسم عنده خطوط هذه الطبقة ما دام لا توجد تضاريس تُسقط عليها",
+  "Elev. (m RL)": "المنسوب (م)",
+  "Elevation of the interpretation lines (m RL)": "منسوب خطوط التفسير (م)",
+  "Restore \"{name}\"": "استعادة \"{name}\""
 }

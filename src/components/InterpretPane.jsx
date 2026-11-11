@@ -6,7 +6,7 @@ import { TaskPaneHeader } from "./Ribbon.jsx";
 import { PenTool, Trash2 } from "./icons.js";
 import { useStore } from "../lib/store.jsx";
 import { surveyKey } from "../lib/geophysSurveys.js";
-import { attitudeOf, attitudeAttrs, INTERPRETATION_TYPES, CONFIDENCE, NEW_LAYER, chooseLayerId, uniqueLayerName, typeLabel, isInterpretationLayer, interpretationLayer, addInterpretationLine, removeInterpretationLine, lineLengthM } from "../lib/interpretation.js";
+import { attitudeOf, attitudeAttrs, INTERPRETATION_TYPES, CONFIDENCE, NEW_LAYER, chooseLayerId, uniqueLayerName, typeLabel, isInterpretationLayer, interpretationLayer, addInterpretationLine, removeInterpretationLine, restoreInterpretationLine, lineLengthM } from "../lib/interpretation.js";
 import { activateOnKey } from "../lib/a11y.js";
 import { pBtn, smallSel } from "../lib/sidebarStyles.js";
 import { t as tr } from "../lib/i18n.js";
@@ -56,7 +56,7 @@ export default function InterpretPane({ drawing, onStart, onUndo, onCancel, onDo
       target = { ...fresh, name: uniqueLayerName(fresh.name, mine) }; // TASKS.csv #1157
       id = addMapLayer(target); setLayerPick(id); setNewName("");
     }
-    const next = addInterpretationLine(target, pts, attrs, plan ? { elevation: plan.z } : {});
+    const next = addInterpretationLine(target, pts, attrs, plan ? { elevation: elevNow } : {}); // elevNow: #2522 — the pane's Elev. box
     updateMapLayer(id, () => ({ ...next, id }));
     setName(""); setNoteText(""); setAngle(""); setDirection(""); setMsg(tr("Added \"{name}\" to \"{layer}\" ({m} m).", { name: next.features[next.features.length - 1].attributes.name, layer: next.name, m: Math.round(lineLengthM(pts)).toLocaleString() }));
     onDone();
@@ -65,7 +65,14 @@ export default function InterpretPane({ drawing, onStart, onUndo, onCancel, onDo
   const seen = useRef(drawing.finishSeq);
   useEffect(() => { if (drawing.finishSeq !== seen.current) { seen.current = drawing.finishSeq; if (drawing.on) finish(); } });
 
-  const remove = (i) => { if (!layer) return; updateMapLayer(layer.id, () => ({ ...removeInterpretationLine(layer, i), id: layer.id })); };
+  // TASKS.csv #2522 (review #2486) — the trash removed a line at one click with nothing to bring it back: the last removed line can be restored
+  const [removed, setRemoved] = useState(null); // { layerId, index, feature }
+  const remove = (i) => { if (!layer) return; setRemoved({ layerId: layer.id, index: i, feature: layer.features[i] }); updateMapLayer(layer.id, () => ({ ...removeInterpretationLine(layer, i), id: layer.id })); };
+  const restore = () => { if (!removed) return; const L = mine.find((l) => l.id === removed.layerId); if (L) updateMapLayer(L.id, () => ({ ...restoreInterpretationLine(L, removed.index, removed.feature), id: L.id })); setRemoved(null); };
+  // #2522 — with no terrain the lines lie flat at one RL; the text sent the user to a card this tab does not have: the Elev. box is here too
+  const [elev, setElev] = useState("");
+  const elevNow = elev !== "" && Number.isFinite(Number(elev)) ? Number(elev) : Number.isFinite(layer?.elevation) ? layer.elevation : plan?.z;
+  const setLayerElev = (v) => { setElev(v); if (layer && v !== "" && Number.isFinite(Number(v))) updateMapLayer(layer.id, (l) => ({ ...l, elevation: Number(v) })); };
 
   return (
     <>
@@ -73,6 +80,7 @@ export default function InterpretPane({ drawing, onStart, onUndo, onCancel, onDo
       <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
         <div style={note}>{tr("Draw faults, contacts and lineaments over a survey in the 3D view (Top view works best). Each set of lines is a map layer: it drapes on the terrain, exports as Shapefile, GeoPackage, KML or DXF, and prints in the Layout legend.")}</div>
         {plan && <div role="note" style={{ ...note, color: "var(--color-warn-text)" }}>{planElevationText(plan)}</div>}{/* #2269 */}
+        {plan && <label style={{ ...row, justifyContent: "flex-start" }} title={tr("The RL the lines of this layer are drawn at while there is no terrain to drape them on")}>{tr("Elev. (m RL)")}<input type="number" step="any" value={elev !== "" ? elev : Number.isFinite(elevNow) ? Math.round(elevNow * 100) / 100 : ""} onChange={(e) => setLayerElev(e.target.value)} aria-label={tr("Elevation of the interpretation lines (m RL)")} style={{ ...smallSel, width: 90 }} /></label>}{/* #2522 */}
         <label style={row}>{tr("Survey")}
           <select value={survey} onChange={(e) => { setSurvey(e.target.value); setLayerPick(""); }} style={{ ...smallSel, maxWidth: 170 }} aria-label={tr("Survey the lines are drawn on")}>
             <option value="">{tr("(none named)")}</option>
@@ -113,6 +121,7 @@ export default function InterpretPane({ drawing, onStart, onUndo, onCancel, onDo
           </div>
         )}
         {msg && <div role="status" style={note}>{msg}</div>}
+        {removed && <button type="button" onClick={restore} style={{ ...pBtn, marginBottom: 0 }}>{tr("Restore \"{name}\"", { name: removed.feature?.attributes?.name || "" })}</button>}{/* #2522 — outside the list: it stays when the last line went */}
         {layer && layer.features.length > 0 && (
           <div>
             <div className="ge-section-label" style={{ marginTop: 6 }}>{tr("Lines in \"{layer}\"", { layer: layer.name })}</div>

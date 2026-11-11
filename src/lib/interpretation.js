@@ -111,6 +111,13 @@ export function removeInterpretationLine(layer, index) {
   return withBbox({ ...layer, features: layer.features.filter((_, i) => i !== index) });
 }
 
+// TASKS.csv #2522 — a removed line put back where it was (the pane's Restore after a one-click delete)
+export function restoreInterpretationLine(layer, index, feature) {
+  if (!feature) return layer;
+  const at = Math.max(0, Math.min(Number.isInteger(index) ? index : layer.features.length, layer.features.length));
+  return withBbox({ ...layer, features: [...layer.features.slice(0, at), feature, ...layer.features.slice(at)] });
+}
+
 export function updateInterpretationLine(layer, index, attrs) {
   if (index < 0 || index >= layer.features.length) return layer;
   const features = layer.features.map((f, i) => (i === index ? { ...f, attributes: { ...f.attributes, ...attrs } } : f));
