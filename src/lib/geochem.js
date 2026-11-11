@@ -226,11 +226,44 @@ export function pickElementColumns(headers, rows, stats = null) {
 // TASKS.csv #2194 (review #2174, WA gold) — a WAMEX / acQuire assay table carries the lab's repeats as columns beside the element (Au, AuRp1,
 // AuRp2; Au_Rpt, Au_Dup, AU_CHK). They had no role in the import and QAQC found 0 duplicates. -> [{ header, symbol }] for the chosen
 // elements' repeat columns (never the column the element itself is read from).
-export function repeatColumns(headers, chosen) {
+// TASKS.csv #2350 (review #2325, WA uranium) — a lab method suffix after the repeat ('Au-Rp1_100', 54 pairs) hid it: a trailing _<digits> is
+// stripped before the test. numbered: headers the user ticked among numberedRepeatCandidates (Au2, Pt2), kept as repeats too.
+export function repeatColumns(headers, chosen, numbered = []) {
   const out = [];
   for (const e of chosen || []) {
     const re = new RegExp(`^${e.symbol}[\\s_-]*(rp|rpt|rep|repeat|dup|duplicate|chk|check|re-?assay)\\d*$`, "i");
-    for (const h of headers || []) if (h !== e.header && re.test(String(h).replace(/\(.*?\)/g, "").trim())) out.push({ header: h, symbol: e.symbol });
+    for (const h of headers || []) if (h !== e.header && re.test(String(h).replace(/\(.*?\)/g, "").trim().replace(/_\d+$/, ""))) out.push({ header: h, symbol: e.symbol });
+    for (const h of numbered || []) if (h !== e.header && numberedOf(h) === e.symbol && !out.some((o) => o.header === h)) out.push({ header: h, symbol: e.symbol, numbered: true });
+  }
+  return out;
+}
+// 'Au2', 'Pt2', 'Au2_100' -> 'Au' (an element symbol, one digit, an optional method suffix); else null
+function numberedOf(h) {
+  const m = /^([A-Z][a-z]?)([1-9])(_\d+)?$/.exec(String(h).replace(/\(.*?\)/g, "").trim());
+  return m && ELEMENT_SYMBOLS.includes(m[1]) ? m[1] : null;
+}
+// TASKS.csv #2350 — numbered columns (Au2, Au3, Pd2, Pt2) are repeats or other analyses: decided from the data, not the name. Each one that
+// shares at least `minPairs` rows with the element's own value (its main column, else one of its _<digits> method columns) and agrees with
+// it (median ratio within 0.8-1.25) is a candidate, offered unticked. -> [{ header, symbol, n, medianRatio }]
+export function numberedRepeatCandidates(headers, rows, chosen, { minPairs = 3 } = {}) {
+  const out = [];
+  const num = (v) => { const n = parseAssayValue(v); return Number.isFinite(n) && n > 0 ? n : null; };
+  for (const e of chosen || []) {
+    const methodCols = (headers || []).filter((h) => h !== e.header && new RegExp(`^${e.symbol}_\\d+$`).test(String(h).trim()));
+    for (const h of headers || []) {
+      if (h === e.header || numberedOf(h) !== e.symbol) continue;
+      const ratios = [];
+      for (const r of rows || []) {
+        const rep = num(r[h]); if (rep == null) continue;
+        let orig = num(r[e.header]);
+        for (let k = 0; orig == null && k < methodCols.length; k++) orig = num(r[methodCols[k]]);
+        if (orig != null) ratios.push(rep / orig);
+      }
+      if (ratios.length < minPairs) continue;
+      ratios.sort((a, b) => a - b);
+      const med = ratios[ratios.length >> 1];
+      if (med >= 0.8 && med <= 1.25) out.push({ header: h, symbol: e.symbol, n: ratios.length, medianRatio: med });
+    }
   }
   return out;
 }

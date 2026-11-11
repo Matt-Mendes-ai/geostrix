@@ -1,7 +1,7 @@
 import { QC_COLUMN_KEYS } from "../lib/assayQcColumns.js"; // TASKS.csv #1184
 import React, { useEffect, useMemo, useState } from "react";
 import { X } from "./icons.js";
-import { isElementColumn, inferUnit, ELEMENT_SYMBOLS, unitAssumed, repeatColumns, oxideOfHeader, keepsOxide } from "../lib/geochem.js"; // repeatColumns: #2194; oxide basis: #2487
+import { isElementColumn, inferUnit, ELEMENT_SYMBOLS, unitAssumed, repeatColumns, numberedRepeatCandidates, oxideOfHeader, keepsOxide } from "../lib/geochem.js"; // numberedRepeatCandidates: #2350 // repeatColumns: #2194; oxide basis: #2487
 import { scanAssayColumns, negativeSummary, zeroCount, blankCount } from "../lib/assayColumnScan.js"; // TASKS.csv #2164
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
@@ -44,6 +44,9 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
 
   const setMapping = (key, col) => onChange({ ...modal, mapping: { ...modal.mapping, [key]: col } });
   const pts = useMemo(() => (modal.isPxrf ? pointReadings(modal.allRows || [], modal.headers, modal.mapping) : { allPoints: false }), [modal.isPxrf, modal.allRows, modal.headers, modal.mapping]); // #1653
+  // TASKS.csv #2350 — numbered repeat candidates of the ticked elements (from the file's values)
+  const checkedKey = modal.elements.filter((e) => e.checked).map((e) => `${e.symbol}:${e.header}`).join("|");
+  const numbered = useMemo(() => (modal.format === "long" ? [] : numberedRepeatCandidates(modal.headers || [], modal.allRows || [], modal.elements.filter((e) => e.checked))), [modal.format, modal.headers, modal.allRows, checkedKey]); // eslint-disable-line react-hooks/exhaustive-deps
   const toggleEl = (sym) => onChange({ ...modal, elements: modal.elements.map((e) => e.symbol === sym ? { ...e, checked: !e.checked } : e) });
   const setUnit = (sym, unit) => onChange({ ...modal, elements: modal.elements.map((e) => e.symbol === sym ? { ...e, unit, unitChosen: true } : e) }); // unitChosen: #718
   const setKeepOxide = (sym, keep) => onChange({ ...modal, elements: modal.elements.map((e) => e.symbol === sym ? { ...e, keepOxide: keep } : e) }); // #2487
@@ -278,6 +281,12 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
             <input type="checkbox" checked={modal.keepRepeats !== false} onChange={(e) => onChange({ ...modal, keepRepeats: e.target.checked })} />
             {tr("Keep the lab repeats as QC duplicates ({list})", { list: reps.map((r) => r.header).join(", ") })}
           </label>) : null; })()}
+        {/* TASKS.csv #2350 — numbered columns (Au2, Pt2) that agree with the element on the samples they share: offered, never ticked for the user */}
+        {modal.format !== "long" && numbered.map((c) => (
+          <label key={c.header} style={{ display: "flex", alignItems: "center", gap: 6, padding: "2px 16px 4px", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
+            <input type="checkbox" checked={(modal.numberedRepeats || []).includes(c.header)} onChange={(e) => onChange({ ...modal, numberedRepeats: e.target.checked ? [...(modal.numberedRepeats || []), c.header] : (modal.numberedRepeats || []).filter((h) => h !== c.header) })} />
+            {tr("{header} looks like a repeat of {symbol}: {n} samples have both, median ratio {r}. Keep it as QC duplicates", { header: c.header, symbol: c.symbol, n: c.n.toLocaleString(), r: c.medianRatio.toFixed(2) })}
+          </label>))}
         <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: "1px solid var(--color-border)" }}>
           <button onClick={onCancel} style={{ ...btn(false), flex: 1 }}>{tr("Cancel")}</button>
           {/* TASKS.csv #2183 (review #2174) — 'Import 0 elements' committed 10,422 intervals with no values */}

@@ -628,7 +628,7 @@ export default function GeochemModule() {
       // TASKS.csv #2194 — each lab repeat cell (AuRp1, Au_Dup...) becomes a QC duplicate row on its original's interval, its parent the
       // original's sample id: QAQC's duplicate pairing reads it ("lab repeat" = a pulp repeat, #534)
       if (modal.keepRepeats !== false) {
-        for (const rc of repeatColumns(modal.headers || Object.keys(allRows[0] || {}), chosen)) {
+        for (const rc of repeatColumns(modal.headers || Object.keys(allRows[0] || {}), chosen, modal.numberedRepeats || [])) { // numbered: #2350
           let n = 0;
           allRows.forEach((r, i) => {
             const cell = r[rc.header];
