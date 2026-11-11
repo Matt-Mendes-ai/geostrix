@@ -46,7 +46,7 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
   const pts = useMemo(() => (modal.isPxrf ? pointReadings(modal.allRows || [], modal.headers, modal.mapping) : { allPoints: false }), [modal.isPxrf, modal.allRows, modal.headers, modal.mapping]); // #1653
   // TASKS.csv #2350 — numbered repeat candidates of the ticked elements (from the file's values)
   const checkedKey = modal.elements.filter((e) => e.checked).map((e) => `${e.symbol}:${e.header}`).join("|");
-  const numbered = useMemo(() => (modal.format === "long" ? [] : numberedRepeatCandidates(modal.headers || [], modal.allRows || [], modal.elements.filter((e) => e.checked))), [modal.format, modal.headers, modal.allRows, checkedKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  const numbered = useMemo(() => (modal.format === "long" ? [] : numberedRepeatCandidates(modal.headers || [], modal.allRows || [], modal.elements.filter((e) => e.checked))), [modal.format, modal.headers, modal.allRows, checkedKey]);
   const toggleEl = (sym) => onChange({ ...modal, elements: modal.elements.map((e) => e.symbol === sym ? { ...e, checked: !e.checked } : e) });
   const setUnit = (sym, unit) => onChange({ ...modal, elements: modal.elements.map((e) => e.symbol === sym ? { ...e, unit, unitChosen: true } : e) }); // unitChosen: #718
   const setKeepOxide = (sym, keep) => onChange({ ...modal, elements: modal.elements.map((e) => e.symbol === sym ? { ...e, keepOxide: keep } : e) }); // #2487
