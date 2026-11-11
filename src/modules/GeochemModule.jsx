@@ -848,7 +848,7 @@ export default function GeochemModule() {
         if (!sourceEpsg && fileEpsg && crsName(fileEpsg)) { sourceEpsg = String(fileEpsg); sourceEpsgFrom = OWN_CRS; }
         // TASKS.csv #1149 — no easting / northing, but longitude / latitude columns: mapped, and in WGS 84 unless a CRS column says otherwise
         const ll = !mapping.x && !mapping.y ? lonLatColumns(headers, data) : null;
-        if (ll) { mapping.x = ll.x; mapping.y = ll.y; if (!sourceEpsg) { sourceEpsg = "4326"; sourceEpsgFrom = `${ll.x} / ${ll.y}`; } }
+        if (ll) { mapping.x = ll.x; mapping.y = ll.y; if (!sourceEpsg) { sourceEpsg = String(ll.epsg || 4326) /* #2679 — GDA94 / GDA2020 from the column names (#2166), else WGS 84 */; sourceEpsgFrom = `${ll.x} / ${ll.y}`; } }
         const prev = keep?.prev; // #1670 — after a join: the choices already made in the dialog stand
         setSurfaceModal(prev ? {
           ...prev, headers, allRows: data,
@@ -1256,7 +1256,7 @@ export default function GeochemModule() {
             <div className="ge-section-label" style={{ marginTop: 18 }}>{tr("Calculated element")}</div>
               <div style={{ padding: 8, border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-sm)", display: "flex", flexDirection: "column", gap: 6 }}>
                 {assayElements.length > 0 && surfaceElements.length > 0 && <label style={{ display: "flex", alignItems: "center", gap: 6 }}>{tr("Data source")}<select value={onSurface ? "surface" : "assays"} onChange={(e) => setCalc((c) => ({ ...c, source: e.target.value, msg: null }))} style={{ fontSize: "var(--font-size-sm)" }} aria-label={tr("Data source")}><option value="assays">{tr("Drillhole assays")}</option><option value="surface">{tr("Surface samples")}</option></select></label>}
-                <select value="" onChange={(e) => { const p = CALC_PRESETS.find((x) => x.name === e.target.value); if (p) setCalc((c) => ({ source: c?.source, name: p.name, expr: p.expr, unit: "index", preset: p, msg: { ok: true, preset: true, text: `${tr(p.label)}. ${tr(p.unitNote)}. ${tr("Read in {list}, converted from the stored units where they differ.", { list: Object.entries(p.units || {}).map(([s, u]) => `${s} ${u}`).join(", ") })}` } })); }} /* preset / units: #2500 */ style={{ fontSize: "var(--font-size-sm)" }} aria-label={tr("Preset")}>
+                <select value="" onChange={(e) => { const p = CALC_PRESETS.find((x) => x.name === e.target.value); if (p) setCalc((c) => ({ source: c?.source, name: p.name, expr: p.expr, unit: p.unit || "index" /* an oxide preset: its unit, #2357 */, preset: p, msg: { ok: true, preset: true, text: `${tr(p.label)}. ${tr(p.unitNote)}. ${tr("Read in {list}, converted from the stored units where they differ.", { list: Object.entries(p.units || {}).map(([s, u]) => `${s} ${u}`).join(", ") })}` } })); }} /* preset / units: #2500 */ style={{ fontSize: "var(--font-size-sm)" }} aria-label={tr("Preset")}>
                   <option value="">{tr("Preset… (or write your own below)")}</option>
                   {CALC_PRESETS.map((p) => <option key={p.name} value={p.name} disabled={!p.needs.every((s) => calcEls.some((e) => e.symbol === s))}>{tr(p.label)}{p.needs.every((s) => calcEls.some((e) => e.symbol === s)) ? "" : tr(" — needs {list}", { list: p.needs.join(", ") })}</option>)}
                 </select>
