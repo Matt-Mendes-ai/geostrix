@@ -75,7 +75,7 @@ export default function SurfaceAnomalyControls({ cfg: cfg0, setCfg, surfaceSampl
           {cfg.mode === "index" && (
             <>
               <label style={row}>{tr("Deposit type")}
-                <select value={cfg.preset || ""} onChange={(e) => set({ preset: e.target.value || null, elements: null })} style={{ ...selStyle, maxWidth: 190 }} aria-label={tr("Deposit type")}>
+                <select value={cfg.preset || ""} onChange={(e) => set({ preset: e.target.value || null, elements: null })} style={{ ...selStyle, flex: 1, minWidth: 0, maxWidth: 190 }} aria-label={tr("Deposit type")}>{/* flex / minWidth: TASKS.csv #2573 — it overflowed the pane */}
                   <option value="">{tr("Choose a deposit type…")}</option>
                   {PATHFINDER_PRESETS.map((p) => <option key={p.id} value={p.id}>{tr(p.label)}</option>)}
                 </select>

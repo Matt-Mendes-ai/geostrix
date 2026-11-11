@@ -6,7 +6,7 @@
 // length. Pure: no React, no three.js.
 import { median } from "./arrayStats.js";
 import { ringArea } from "./polygonRings.js"; // TASKS.csv #1439
-import { hashColor } from "./layers.js"; // #1439 — a drawn unit's colour
+import { hashColor, CATEGORICAL_SAFE_COLORS } from "./layers.js"; // #1439 — a drawn unit's colour; the curated palette: TASKS.csv #2088 / #2572
 
 export const INTERPRETATION_TYPES = [
   { value: "fault", label: "Fault", color: "#d7263d" },
@@ -93,7 +93,9 @@ export function addInterpretationLine(layer, points, attrs = {}, opts = {}) {
   const pts = points.filter((p, i) => i === 0 || Math.hypot(p.x - points[i - 1].x, p.y - points[i - 1].y) > 0.01);
   if (pts.length < 2) return layer;
   const type = INTERPRETATION_TYPES.some((t) => t.value === attrs.type) ? attrs.type : "other";
-  const n = layer.features.length + 1;
+  // TASKS.csv #2095 — the default name numbers lines of ITS type ('Fault 1' for the first fault, not 'Fault 2' after a contact), unique
+  let n = layer.features.filter((f) => f.attributes?.type === type).length + 1;
+  while (!attrs.name && layer.features.some((f) => f.attributes?.name === `${typeLabel(type)} ${n}`)) n++;
   const feature = {
     parts: [pts.map((p) => [r2(p.x), r2(p.y)])],
     attributes: { name: attrs.name || `${typeLabel(type)} ${n}`, type, survey: attrs.survey ?? layer.survey ?? "", confidence: CONFIDENCE.includes(attrs.confidence) ? attrs.confidence : "probable", length_m: Math.round(lineLengthM(pts)), note: attrs.note || "" },
@@ -134,13 +136,24 @@ export function geologyPolygonLayer(name) {
     styleField: "unit", categories: [], lineWidthM: 2, opacity: 0.6, visible: true, drapeMode: "terrain", elevation: 0, showOutlines: true,
   };
 }
-function withUnitBbox(layer) {
+// TASKS.csv #2088 / #2572 — a new unit's colour: colorOf(unit) (the pane passes the logs' colour for a unit named like a logged code), else
+// the first colour of the curated palette no unit of the layer has yet (hex: the legend's colour picker and the KML read only #rrggbb; the
+// name hash put every one-letter code in one purple band), the hash only when the palette is used up. A unit left with no polygon leaves
+// the legend (#2095).
+function withUnitBbox(layer, colorOf = null) {
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
   for (const f of layer.features) for (const part of f.parts) for (const [x, y] of part) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
   const counts = {};
   for (const f of layer.features) counts[f.attributes.unit] = (counts[f.attributes.unit] || 0) + 1;
-  const kept = layer.categories.map((c) => ({ ...c, count: counts[c.value] || 0 }));
-  const fresh = Object.keys(counts).filter((u) => !kept.some((c) => c.value === u)).map((u) => ({ value: u, label: u, color: hashColor(u), outline: null, visible: true, count: counts[u] }));
+  const kept = layer.categories.map((c) => ({ ...c, count: counts[c.value] || 0 })).filter((c) => c.count > 0);
+  const used = new Set(kept.map((c) => String(c.color).toLowerCase()));
+  const pick = (u) => {
+    const own = colorOf?.(u);
+    if (own && /^#[0-9a-f]{6}$/i.test(own)) return own;
+    const free = CATEGORICAL_SAFE_COLORS.find((c) => !used.has(c.toLowerCase()));
+    return free || hashColor(u);
+  };
+  const fresh = Object.keys(counts).filter((u) => !kept.some((c) => c.value === u)).map((u) => { const color = pick(u); used.add(String(color).toLowerCase()); return { value: u, label: u, color, outline: null, visible: true, count: counts[u] }; });
   return { ...layer, bbox: layer.features.length ? [x0, y0, x1, y1] : null, categories: [...kept, ...fresh] };
 }
 // points: [{ x, y, z? }] world, the corners in click order (a last click on the first corner is dropped); attrs: { unit, note }.
@@ -155,7 +168,7 @@ export function addUnitPolygon(layer, points, attrs = {}, opts = {}) { // opts.e
   const feature = { parts: [ring], attributes: { unit, area_m2: Math.round(ringArea(ring)), note: attrs.note || "" } };
   const z = Number.isFinite(opts.elevation) ? opts.elevation : median(pts.map((p) => p.z));
   const elevation = layer.features.length === 0 && Number.isFinite(z) ? r2(z) : layer.elevation;
-  return withUnitBbox({ ...layer, elevation, features: [...layer.features, feature] });
+  return withUnitBbox({ ...layer, elevation, features: [...layer.features, feature] }, opts.colorOf); // colorOf: #2572
 }
 export function removeUnitPolygon(layer, index) {
   if (index < 0 || index >= layer.features.length) return layer;

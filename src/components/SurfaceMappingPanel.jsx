@@ -22,6 +22,7 @@ import {
   guessStructureColumns, parseStructureRows, bestStationColumn /* #1826 */, STRUCTURE_CLASS_COLORS, STRUCTURE_CLASS_LABELS, STRUCTURE_CLASSES, structureClass, structureCodeKey, /* #2266 */
 } from "../lib/mapLayers.js";
 import { downholeTableColumns, structureCodeColumn } from "../lib/downholeTableGuess.js"; // TASKS.csv #1722
+import { uniqueLayerName } from "../lib/interpretation.js"; // TASKS.csv #2573
 
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
@@ -479,7 +480,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
     // TASKS.csv #1719 — typed measurements gather in one set per north reference instead of a set each
     const typedSet = p.typed ? surfaceStructures.find((s) => s.typed && s.azimuthRef === north.ref && (north.ref !== "magnetic" || s.azimuthDate === north.date)) : null;
     if (typedSet) updateSurfaceStructureSet(typedSet.id, { rows: [...typedSet.rows, ...rows] });
-    else addSurfaceStructureSet({ name: p.name, rows, snapToTerrain: true, azimuthRef: north.ref, ...(north.ref === "magnetic" ? { azimuthDate: north.date } : {}), ...(p.typed ? { typed: true } : {}) });
+    else addSurfaceStructureSet({ name: uniqueLayerName(p.name, surfaceStructures) /* #2573 — a second set from one file (true, then magnetic north) is numbered */, rows, snapToTerrain: true, azimuthRef: north.ref, ...(north.ref === "magnetic" ? { azimuthDate: north.date } : {}), ...(p.typed ? { typed: true } : {}) });
     const noZ = out.rows.filter((r) => r.z == null).length;
     // TASKS.csv #2082 — the type codes no class knows: said, so 'Other' on the stereonet is not taken for nothing
     const otherTypes = [...new Set(out.rows.filter((r) => r.cls === "other" && String(r.type || "").trim()).map((r) => String(r.type).trim()))];
@@ -763,7 +764,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
               <select value="" onChange={(e) => { const f = e.target.value; e.target.value = ""; if (f) exportStructSet(s, f); }} aria-label={tr("Export structure set \"{name}\"", { name: s.name })} title={tr("Export: dip, dip direction and strike (right-hand rule) in grid and true north")} style={{ ...select, width: "auto", flexShrink: 0, padding: "1px 2px", fontSize: "var(--font-size-xs)" }}>
                 <option value="">{tr("Export…")}</option><option value="gpkg">GeoPackage</option><option value="kml">{tr("KML (Google Earth)")}</option><option value="csv">CSV</option>
               </select>
-              <Trash2 aria-label={tr("Remove structure set \"{name}\"", { name: s.name })} title={tr("Remove structure set \"{name}\"", { name: s.name })} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(tr("Remove \"{name}\"?", { name: s.name }))) removeSurfaceStructureSet(s.id); }} />
+              <Trash2 aria-label={tr("Remove structure set \"{name}\"", { name: s.name })} title={tr("Remove structure set \"{name}\"", { name: s.name })} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(tr("Remove \"{name}\"?", { name: s.name }))) { removeSurfaceStructureSet(s.id); setStructMsg(null); /* #2573 — its import notice goes with it */ } }} />
             </div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: "3px 10px", marginTop: 7 }}>
               {Object.entries(counts).map(([cls, n]) => (
