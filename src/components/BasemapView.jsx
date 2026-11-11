@@ -8,6 +8,7 @@ import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { useSetTaskProgress, useStore } from "../lib/store.jsx"; // useStore: #1629
 import { reprojectXY } from "../lib/reproject.js"; // TASKS.csv #1629
+import { tieOf, localToWorld } from "../lib/localGridTie.js"; // TASKS.csv #2648
 import { Download } from "./icons.js";
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { areaSizeText } from "../lib/areaSize.js"; // TASKS.csv #1765 / #2469
@@ -75,14 +76,15 @@ export default function BasemapView({
   const failedTiles = useRef(new Set());
   const { collars = [], project } = useStore();
   const collarLonLat = useMemo(() => {
-    const epsg = project?.epsg;
+    // #2648 — a tied local grid: through its tie (grid -> its CRS -> WGS 84); an untied local grid has no place to draw them
+    const tie = tieOf(project), epsg = tie ? Number(tie.epsg) : project?.crsSet === false ? null : project?.epsg;
     if (!epsg || !collars.length) return [];
     const pts = collars.filter((c) => Number.isFinite(c.x) && Number.isFinite(c.y));
     const step = Math.max(1, Math.ceil(pts.length / 3000));
     const out = [];
-    for (let i = 0; i < pts.length; i += step) { const q = reprojectXY(pts[i].x, pts[i].y, epsg, 4326); if (q && Number.isFinite(q.x) && Number.isFinite(q.y)) out.push([q.x, q.y]); }
+    for (let i = 0; i < pts.length; i += step) { const w = tie ? localToWorld(tie, pts[i].x, pts[i].y) : pts[i]; const q = reprojectXY(w.x, w.y, epsg, 4326); if (q && Number.isFinite(q.x) && Number.isFinite(q.y)) out.push([q.x, q.y]); }
     return out;
-  }, [collars, project?.epsg]);
+  }, [collars, project]);
   const [subMode, setSubMode] = useState(mode === "draw" ? "draw" : "pan");
   const dragRef = useRef(null);
   const [baseLayerId, setBaseLayerId] = useState(getSavedLayerId());

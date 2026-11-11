@@ -6,7 +6,7 @@ import fs from "node:fs";
 
 test("collars reprojected to lon / lat and drawn; areas outlined; failed tiles skipped; the bar wraps", () => {
   const s = fs.readFileSync("src/components/BasemapView.jsx", "utf8");
-  assert.match(s, /const q = reprojectXY\(pts\[i\]\.x, pts\[i\]\.y, epsg, 4326\);/);
+  assert.match(s, /const q = reprojectXY\(w\.x, w\.y, epsg, 4326\);/); // w: the collar, through a tied grid's tie first since #2648
   assert.match(s, /<circle key=\{i\} cx=\{p\.wx \+ offsetX\}/);
   assert.match(s, /failedTiles\.current\.has\(tileUrlFor\(/);
   assert.match(s, /failedTiles\.current\.add\(tileUrlFor\(/);

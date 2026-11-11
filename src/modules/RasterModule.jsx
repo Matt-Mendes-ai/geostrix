@@ -10,7 +10,7 @@ import React, { useMemo, useRef, useState } from "react";
 import { Image, Eye, EyeOff, Trash2, Loader2, Satellite, MapPinned, ScatterChart, SlidersHorizontal, Rainbow, Download } from "../components/icons.js";
 import SpectralIndexModal from "../components/SpectralIndexModal.jsx"; // TASKS.csv #783
 import { useStore } from "../lib/store.jsx";
-import { buildRasterImport, gridToSurveyRows, rasterFromGrid, ternaryRaster, parseWorldFile } from "../lib/raster.js"; // parseWorldFile: TASKS.csv #1855
+import { buildRasterImport, gridToSurveyRows, rasterFromGrid, ternaryRaster, parseWorldFile, tieFetchedImage } from "../lib/raster.js"; // parseWorldFile: TASKS.csv #1855; tieFetchedImage: #2648
 import { b64ToF32, gridDeclination } from "../lib/inversion.js"; // TASKS.csv #373
 import { SAT_LEVELS, planLatestFetch, levelsAddingNothing, naipCoverage } from "../lib/imageryLevels.js"; // TASKS.csv #781 / #837; naipCoverage: #1474
 const NAIP_FINEST_M = 0.6; // lib/naipFetch.js, which stays out of this module until NAIP is fetched
@@ -33,7 +33,7 @@ import GridContourControls from "../components/GridContourControls.jsx"; // TASK
 import { gridCellText } from "../lib/raster.js"; // TASKS.csv #1242
 import { detectKeyColour } from "../lib/rasterKey.js"; // TASKS.csv #1623
 import RasterLegend from "../components/RasterLegend.jsx"; // TASKS.csv #2011
-import { tieOf } from "../lib/localGridTie.js"; // TASKS.csv #2587 — a tied local grid's way in
+import { tieOf, localToWorld } from "../lib/localGridTie.js"; // TASKS.csv #2587 — a tied local grid's way in; localToWorld: #2648
 import { farFromCollars, farLabel } from "../lib/landingCheck.js"; // TASKS.csv #2590
 import { projectTargetEpsg } from "../lib/projectTarget.js"; // TASKS.csv #2287 — no reprojection INTO the placeholder CRS
 import { rasterLevelM, filteredLevelM, placeEulerSolutions } from "../lib/eulerPlace.js"; // TASKS.csv #2553
@@ -255,19 +255,21 @@ export default function RasterModule({ embedded = false } = {}) {
   const [spectralAreas, setSpectralAreas] = useState([]); // TASKS.csv #784 — areas offered for fetching imagery
   const openSpectralRef = useRef(null);
 
+  // TASKS.csv #2648 — a point of the project to lon / lat: on a tied local grid through the tie (grid -> its CRS -> WGS 84)
+  const lonLatOf = (x, y) => { const tie = tieOf(project); if (!tie) return toLonLat(x, y, project.epsg); const w = localToWorld(tie, x, y); return toLonLat(w.x, w.y, tie.epsg); };
   const defaultSatBboxLonLat = async () => {
-    if (!collars.length || !project?.epsg) return null;
+    if (!collars.length || (!project?.epsg && !tieOf(project))) return null;
     // TASKS.csv #1461 — the collars and the surface samples near them (Silvertip's soil grid), not the collars alone
     const [xmin, ymin, xmax, ymax] = fetchAreaBox(collars, surfaceSamples);
     const corners = [[xmin, ymin], [xmax, ymin], [xmax, ymax], [xmin, ymax]];
-    const lonLats = await Promise.all(corners.map(([x, y]) => toLonLat(x, y, project.epsg)));
+    const lonLats = await Promise.all(corners.map(([x, y]) => lonLatOf(x, y)));
     if (lonLats.some((ll) => !ll)) return null;
     const lons = lonLats.map((ll) => ll.lon), lats = lonLats.map((ll) => ll.lat);
     return [arrMin(lons), arrMin(lats), arrMax(lons), arrMax(lats)];
   };
 
   const buildSatAreaOptions = async () => {
-    if (!project?.epsg) return [];
+    if (!project?.epsg && !tieOf(project)) return [];
     const jobs = [];
     if (terrain?.bbox) {
       const [xmin, ymin, xmax, ymax] = terrain.bbox;
@@ -291,7 +293,7 @@ export default function RasterModule({ embedded = false } = {}) {
     }
     const options = await Promise.all(jobs.map(async (j) => {
       const corners = [[j.xmin, j.ymin], [j.xmax, j.ymin], [j.xmax, j.ymax], [j.xmin, j.ymax]];
-      const lonLats = await Promise.all(corners.map(([x, y]) => toLonLat(x, y, project.epsg)));
+      const lonLats = await Promise.all(corners.map(([x, y]) => lonLatOf(x, y)));
       if (lonLats.some((ll) => !ll)) return null;
       const lons = lonLats.map((ll) => ll.lon), lats = lonLats.map((ll) => ll.lat);
       return { id: j.id, label: farLabel(j.label, farFromCollars([j.xmin, j.ymin, j.xmax, j.ymax], collars)), bboxLonLat: [arrMin(lons), arrMin(lats), arrMax(lons), arrMax(lats)] }; // farLabel: #2590
@@ -302,12 +304,12 @@ export default function RasterModule({ embedded = false } = {}) {
   // TASKS.csv #615 — as the SRTM picker: a CRS never chosen is asked for first, then the picker re-opens
   const openSatPickerRef = useRef(null);
   const openSatPicker = async () => {
-    if (project?.crsSet === false) {
+    if (project?.crsSet === false && !tieOf(project)) { // #2648 — a tied local grid fetches through its tie
       const chosen = await ensureProjectCrs(project, tr("Imagery is downloaded for the place your coordinates point to, so the project needs its coordinate system first."));
       if (chosen) setTimeout(() => openSatPickerRef.current?.(), 0);
       return;
     }
-    if (!project?.epsg) {
+    if (!project?.epsg && !tieOf(project)) {
       setError({ info: false, text: tr("Project EPSG isn't set — can't reproject fetched imagery into project coordinates.") });
       return;
     }
@@ -323,7 +325,7 @@ export default function RasterModule({ embedded = false } = {}) {
   // TASKS.csv #784 — the spectral index dialog, with the same ready-made areas as the satellite picker
   const openSpectral = async () => {
     // TASKS.csv #2292 (review #2174) — the one online tool not gated by the CRS: it offered 'Around the drillholes' from the placeholder
-    if (project?.crsSet === false) {
+    if (project?.crsSet === false && !tieOf(project)) { // #2648 — a tied local grid fetches through its tie
       const chosen = await ensureProjectCrs(project, tr("Imagery is downloaded for the place your coordinates point to, so the project needs its coordinate system first."));
       if (chosen) setTimeout(() => openSpectralRef.current?.(), 0);
       return;
@@ -342,10 +344,18 @@ export default function RasterModule({ embedded = false } = {}) {
     setSatBusy(true);
     setSatProgress({ done: 0, total: 1 });
     try { // TASKS.csv #816 / #837 — the latest clear Sentinel-2 scene (Copernicus: free and open, any use with attribution)
-      const opts = { targetEpsg: project.epsg, maxPx: SAT_LEVELS[satLevel]?.gridMax || 2048, onProgress: (done, total) => setSatProgress({ done, total }) };
-      const r = satSource === "naip" ? await (await import("../lib/naipFetch.js")).fetchNaip(bboxLonLat, opts) : await (await import("../lib/imageryFetch.js")).fetchLatestTrueColour(bboxLonLat, opts);
+      const tie = tieOf(project); // TASKS.csv #2648 — a tied local grid: fetched in the tie's CRS, then brought into the grid
+      const opts = { targetEpsg: tie ? Number(tie.epsg) : project.epsg, maxPx: SAT_LEVELS[satLevel]?.gridMax || 2048, onProgress: (done, total) => setSatProgress({ done, total }) };
+      let r = satSource === "naip" ? await (await import("../lib/naipFetch.js")).fetchNaip(bboxLonLat, opts) : await (await import("../lib/imageryFetch.js")).fetchLatestTrueColour(bboxLonLat, opts);
+      let tieNote = "";
+      if (tie) {
+        const local = await tieFetchedImage(r, tie, opts.targetEpsg, SAT_LEVELS[satLevel]?.gridMax || 2048);
+        if (!local) throw new Error(tr("The fetched imagery could not be brought into the local grid through its tie to EPSG:{epsg}.", { epsg: opts.targetEpsg }));
+        r = local;
+        tieNote = " " + tr("It was fetched in EPSG:{epsg} and brought into the local grid through the grid's tie, and resampled onto the grid's own north.", { epsg: opts.targetEpsg });
+      }
       addRaster({ name: r.name, bbox: r.bbox, dataUrl: r.dataUrl, elevation: defaultElevation });
-      setError({ info: satSource === "naip" ? !r.partial : r.areaCloud <= 0.1, text: tr("Fetched and imported \"{name}\" ({gridW} × {gridH} px).", { name: r.name, gridW: r.gridW, gridH: r.gridH }) + r.note });
+      setError({ info: satSource === "naip" ? !r.partial : r.areaCloud <= 0.1, text: tr("Fetched and imported \"{name}\" ({gridW} × {gridH} px).", { name: r.name, gridW: r.gridW, gridH: r.gridH }) + r.note + tieNote });
     } catch (err) {
       setError({ info: false, text: err.message });
     } finally {
@@ -469,7 +479,7 @@ export default function RasterModule({ embedded = false } = {}) {
           />
         )}
         {spectralOpen && ( // TASKS.csv #783
-          <SpectralIndexModal epsg={project?.epsg} defaultElevation={defaultElevation} sourceEpsg={sourceEpsg} areaOptions={spectralAreas}
+          <SpectralIndexModal epsg={tieOf(project) ? null : project?.epsg} tie={tieOf(project) /* #2648 */} defaultElevation={defaultElevation} sourceEpsg={sourceEpsg} areaOptions={spectralAreas}
             onClose={() => setSpectralOpen(false)}
             onImport={(raster, msg) => { // TASKS.csv #2294 — placed as a GeoTIFF of the same footprint is (#1505), and said
               const list = [].concat(raster), drape = rasterDrapeElevation({ collars, voxelModels, surfaceSamples, bbox: list[0]?.bbox, rasters, fileName: list[0]?.name });

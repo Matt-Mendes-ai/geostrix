@@ -82,7 +82,8 @@ import { terrainFromBlockModel } from "../lib/terrainFromModel.js"; // TASKS.csv
 import { confirmReplaceTerrain, replacedTerrainNote } from "../lib/terrainReplace.js"; // TASKS.csv #2554
 import { guessQualityColumn, filterSignalQuality, despikeAlongLines } from "../lib/surveyClean.js"; // TASKS.csv #1583 // TASKS.csv #786
 import { mineGridOf } from "../lib/mineGrid.js"; // TASKS.csv #2586
-import { tieOf, fileToLocal } from "../lib/localGridTie.js"; // TASKS.csv #2587 — a tied local grid's way in
+import { tieOf, fileToLocal, localToWorld } from "../lib/localGridTie.js"; // TASKS.csv #2587 — a tied local grid's way in; localToWorld: #2648
+import { tieTerrainToLocal } from "../lib/terrainTie.js"; // TASKS.csv #2648
 import { farFromCollars, farLabel } from "../lib/landingCheck.js"; // TASKS.csv #2590
 import { collarCentreLonLat } from "../lib/projectCrs.js"; // TASKS.csv #2465
 import { niceContourInterval, terrainRange, MIN_CONTOUR_INTERVAL } from "../lib/contourInterval.js"; // TASKS.csv #2462
@@ -466,7 +467,8 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       // TASKS.csv #422 — crop to the drillholes (+ buffer) unless the user wants the whole tile.
       const cc = (collars || []).filter((c) => Number.isFinite(c.x) && Number.isFinite(c.y));
       const cropTo = demCrop && cc.length ? (() => { const xs = cc.map((c) => c.x), ys = cc.map((c) => c.y); const b = Math.max(1000, Number(demCropBuffer) || 2000); return [arrMin(xs) - b, arrMin(ys) - b, arrMax(xs) + b, arrMax(ys) + b]; })() : null;
-      const parsed = await parseDEMFiles(files, project?.epsg, demSourceEpsg.trim() || null, { cropTo, gridMax: terrainDetail, chooseProjectEpsg: projectEpsgChooser({ isEmpty: projectIsEmpty, setEpsg, fileName: files[0]?.name || "the DEM" }) }); // override: #419; chooser: #607
+      const tie = tieOf(project); // TASKS.csv #2648 — a tied local grid: the DEM comes into the grid through the tie
+      const parsed = await parseDEMFiles(files, tie ? null : project?.epsg, demSourceEpsg.trim() || null, { cropTo, gridMax: terrainDetail, tie, chooseProjectEpsg: projectEpsgChooser({ isEmpty: projectIsEmpty, setEpsg, fileName: files[0]?.name || "the DEM" }) }); // override: #419; chooser: #607
       const [xmin, ymin, xmax, ymax] = parsed.bbox;
       if (terrain && !window.confirm(tr("Replace the current terrain (\"{name}\") with \"{name2}\"? Only one terrain surface is supported at a time.", { name: terrain.name, name2: parsed.name }))) {
         setTerrainBusy(false);
@@ -478,13 +480,15 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       if (parsed.reprojectedTo) {
         msg += tr(" Reprojected from {v}EPSG:{epsgTag} to the project's EPSG:{reprojectedTo} on import.", { v: parsed.epsgOverridden ? tr("the Source CRS you set, ") : tr("its native "), epsgTag: parsed.epsgTag, reprojectedTo: parsed.reprojectedTo });
       }
+      const srcCell = parsed.srcCellM ?? Math.sqrt(((parsed.bbox[2] - parsed.bbox[0]) * (parsed.bbox[3] - parsed.bbox[1])) / Math.max(1, parsed.readPixels)); // srcCellM: a tied grid's source cell, measured before the tie (#2648)
       if (parsed.cropped) { // #422
-        msg += tr(" Cropped to the drillholes + {v} m: read {readPixels} of {fullPixels} source pixels. Source cell ~{src} m, mesh spacing ~{v2} m{finer}.", { v: Math.max(1000, Number(demCropBuffer) || 2000), readPixels: parsed.readPixels.toLocaleString(), fullPixels: parsed.fullPixels.toLocaleString(), v2: (((parsed.bbox[2] - parsed.bbox[0]) / Math.max(1, parsed.gridW - 1))).toFixed(0), src: Math.round(Math.sqrt(((parsed.bbox[2] - parsed.bbox[0]) * (parsed.bbox[3] - parsed.bbox[1])) / Math.max(1, parsed.readPixels))), finer: Math.sqrt(((parsed.bbox[2] - parsed.bbox[0]) * (parsed.bbox[3] - parsed.bbox[1])) / Math.max(1, parsed.readPixels)) > 1.5 * (parsed.bbox[2] - parsed.bbox[0]) / Math.max(1, parsed.gridW - 1) ? tr(" (finer than the source: it interpolates, it adds no detail)") : "" }); // #1249
+        msg += tr(" Cropped to the drillholes + {v} m: read {readPixels} of {fullPixels} source pixels. Source cell ~{src} m, mesh spacing ~{v2} m{finer}.", { v: Math.max(1000, Number(demCropBuffer) || 2000), readPixels: parsed.readPixels.toLocaleString(), fullPixels: parsed.fullPixels.toLocaleString(), v2: (((parsed.bbox[2] - parsed.bbox[0]) / Math.max(1, parsed.gridW - 1))).toFixed(0), src: Math.round(srcCell), finer: srcCell > 1.5 * (parsed.bbox[2] - parsed.bbox[0]) / Math.max(1, parsed.gridW - 1) ? tr(" (finer than the source: it interpolates, it adds no detail)") : "" }); // #1249
       } else if (parsed.reprojectNote) {
         msg += tr(" Note: {reprojectNote}", { reprojectNote: parsed.reprojectNote });
-      } else if (parsed.epsgTag && project?.epsg && Number(parsed.epsgTag) !== Number(project.epsg)) {
+      } else if (!tie && parsed.epsgTag && project?.epsg && Number(parsed.epsgTag) !== Number(project.epsg)) {
         msg += tr(" Note: this file's own CRS tag (EPSG:{epsgTag}) doesn't match the project's EPSG:{epsg} — no reprojection happens on import.", { epsgTag: parsed.epsgTag, epsg: project.epsg });
       }
+      if (parsed.tiedNote) msg += " " + parsed.tiedNote; // #2648 — said whether cropped or not
       if (parsed.noDataNote) msg += parsed.noDataNote; // #421
       // TASKS.csv #1620 — the new ground against the collars, as the online fetch already checks: a terrain in the wrong units or datum shows here
       const dz = collarTerrainOffset(cc, { bbox: parsed.bbox, gridW: parsed.gridW, gridH: parsed.gridH, elevations: parsed.elevations, noDataMask: parsed.noDataMask || null });
@@ -733,8 +737,10 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
   // BasemapView in "draw" mode, pre-seeded with this same collar-derived bbox (still the sensible
   // default — most of the time the drillholes ARE the area of interest) as an editable rectangle: the
   // user can accept it as-is with one click, or pan/redraw to widen or shift it before confirming.
+  // TASKS.csv #2648 — a point of the project to lon / lat: on a tied local grid through the tie (grid -> its CRS -> WGS 84)
+  const lonLatOf = (x, y) => { const tie = tieOf(project); if (!tie) return toLonLat(x, y, project.epsg); const w = localToWorld(tie, x, y); return toLonLat(w.x, w.y, tie.epsg); };
   const defaultSrtmBboxLonLat = async () => {
-    if (!project?.epsg) return null;
+    if (!project?.epsg && !tieOf(project)) return null;
     if (!collars.length) {
       // TASKS.csv #815 — no drillholes (a mapping project such as Perk-Rocky): the loaded terrain's extent, else the map
       // layers', so the picker opens over the project and not wherever the map last was
@@ -748,14 +754,14 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       }
       if (!box) box = surfaceSampleBox(); // TASKS.csv #845 — a soil / stream program with no drilling: its samples' area
       if (!box) return null;
-      const lls = await Promise.all([[box[0], box[1]], [box[2], box[1]], [box[2], box[3]], [box[0], box[3]]].map(([x, y]) => toLonLat(x, y, project.epsg)));
+      const lls = await Promise.all([[box[0], box[1]], [box[2], box[1]], [box[2], box[3]], [box[0], box[3]]].map(([x, y]) => lonLatOf(x, y)));
       if (lls.some((ll) => !ll)) return null;
       return [arrMin(lls.map((ll) => ll.lon)), arrMin(lls.map((ll) => ll.lat)), arrMax(lls.map((ll) => ll.lon)), arrMax(lls.map((ll) => ll.lat))];
     }
     // #1461 — the collars and the surface samples near them (the soil grid), not the collars alone
     const [xmin, ymin, xmax, ymax] = fetchAreaBox(collars, surfaceSamples);
     const corners = [[xmin, ymin], [xmax, ymin], [xmax, ymax], [xmin, ymax]];
-    const lonLats = await Promise.all(corners.map(([x, y]) => toLonLat(x, y, project.epsg)));
+    const lonLats = await Promise.all(corners.map(([x, y]) => lonLatOf(x, y)));
     if (lonLats.some((ll) => !ll)) return null;
     const lons = lonLats.map((ll) => ll.lon), lats = lonLats.map((ll) => ll.lat);
     return [arrMin(lons), arrMin(lats), arrMax(lons), arrMax(lats)];
@@ -780,7 +786,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     return [x0 - m, y0 - m, x1 + m, y1 + m];
   };
   const buildSrtmAreaOptions = async () => {
-    if (!project?.epsg) return [];
+    if (!project?.epsg && !tieOf(project)) return [];
     const jobs = [];
     const sb = surfaceSampleBox(); // #845
     if (sb) jobs.push({ id: "surface_samples", label: tr("Around the surface samples"), xmin: sb[0], ymin: sb[1], xmax: sb[2], ymax: sb[3] });
@@ -798,7 +804,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     }
     const options = await Promise.all(jobs.map(async (j) => {
       const corners = [[j.xmin, j.ymin], [j.xmax, j.ymin], [j.xmax, j.ymax], [j.xmin, j.ymax]];
-      const lonLats = await Promise.all(corners.map(([x, y]) => toLonLat(x, y, project.epsg)));
+      const lonLats = await Promise.all(corners.map(([x, y]) => lonLatOf(x, y)));
       if (lonLats.some((ll) => !ll)) return null;
       const lons = lonLats.map((ll) => ll.lon), lats = lonLats.map((ll) => ll.lat);
       return { id: j.id, label: farLabel(j.label, farFromCollars([j.xmin, j.ymin, j.xmax, j.ymax], collars)), bboxLonLat: [arrMin(lons), arrMin(lats), arrMax(lons), arrMax(lats)] }; // farLabel: #2590
@@ -810,19 +816,19 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
   // first, then the picker re-opens on the next render (its area seeds read the project CRS from this render).
   const openSrtmPickerRef = useRef(null);
   const openSrtmPicker = async () => {
-    if (project?.crsSet === false) {
+    if (project?.crsSet === false && !tieOf(project)) { // #2648 — a tied local grid fetches through its tie
       const chosen = await ensureProjectCrs(project, tr("Terrain is downloaded for the place your coordinates point to, so the project needs its coordinate system first."));
       if (chosen) setTimeout(() => openSrtmPickerRef.current?.(), 0);
       return;
     }
-    if (!project?.epsg) {
+    if (!project?.epsg && !tieOf(project)) {
       setTerrainError({ info: false, text: tr("Project EPSG isn't set — can't reproject fetched elevation into project coordinates.") });
       return;
     }
     setTerrainError(null);
     const seed = await defaultSrtmBboxLonLat();
     if (collars.length && !seed) {
-      setTerrainError({ info: false, text: tr("Couldn't convert the project's EPSG:{epsg} to lon/lat (unrecognized code) — automatic SRTM fetch needs that conversion. Use manual GeoTIFF import instead.", { epsg: project.epsg }) });
+      setTerrainError({ info: false, text: tr("Couldn't convert the project's EPSG:{epsg} to lon/lat (unrecognized code) — automatic SRTM fetch needs that conversion. Use manual GeoTIFF import instead.", { epsg: tieOf(project)?.epsg ?? project.epsg }) });
       return;
     }
     setSrtmSeedBbox(seed);
@@ -835,7 +841,8 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
   const relabelNote = useRef(""); // #614
   const runSrtmFetch = async (bboxLonLat, epsgOverride = null) => {
     const [lonMin, latMin, lonMax, latMax] = bboxLonLat;
-    const targetEpsg = epsgOverride || project.epsg; // #614 — a zone fix re-fetches before the new label reaches this closure
+    const tie = epsgOverride ? null : tieOf(project); // TASKS.csv #2648 — a tied local grid: fetched in the tie's CRS, then brought into the grid
+    const targetEpsg = epsgOverride || (tie ? Number(tie.epsg) : project.epsg); // #614 — a zone fix re-fetches before the new label reaches this closure
     if (terrain && !epsgOverride && !window.confirm(tr("Replace the current terrain (\"{name}\") with freshly fetched terrain for this area? Only one terrain surface is supported at a time.", { name: terrain.name }))) {
       return;
     }
@@ -845,14 +852,26 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     try {
       const nrcan = terrainSource === "mrdem" || terrainSource === "hrdem"; // TASKS.csv #815
       const fetcher = nrcan ? (await import("../lib/nrcanDem.js")).fetchNrcanTerrain : terrainSource === "copernicus" ? fetchCopernicusTerrain : fetchSRTMTerrain; // #814
-      const parsed = await fetcher({
+      let parsed = await fetcher({
         lonMin, latMin, lonMax, latMax, targetEpsg, gridMax: terrainDetail, // #796
         onProgress: (done, total) => setSrtmProgress({ done, total }),
         source: terrainSource,
       });
+      let tieNote = "";
+      if (tie) { // #2648
+        const local = tieTerrainToLocal(parsed, tie, targetEpsg, terrainDetail);
+        if (!local) throw new Error(tr("The fetched terrain could not be brought into the local grid through its tie to EPSG:{epsg}.", { epsg: targetEpsg }));
+        parsed = local;
+        tieNote = " " + tr("It was fetched in EPSG:{epsg} and brought into the local grid through the grid's tie, and resampled onto the grid's own north.", { epsg: targetEpsg });
+      }
       // TASKS.csv #614 — collars hundreds of metres off the fetched ground: is the project in the wrong UTM zone?
-      const misfit = collarGroundMisfit(collars, parsed);
+      const misfit = tie ? null : collarGroundMisfit(collars, parsed); // #2648 — not on a tied grid: its CRS is the tie, not a UTM zone to relabel
       let misfitNote = "";
+      if (tie) {
+        const cc = (collars || []).filter((c) => Number.isFinite(c.x) && Number.isFinite(c.y));
+        const dz = collarTerrainOffset(cc, parsed);
+        if (dz && Math.abs(dz.median) > 100) misfitNote = " " + tr("The {n} collars over it sit a median {d} m {dir} this terrain: check its units and vertical datum before relying on it.", { n: dz.n, d: Math.round(Math.abs(dz.median)).toLocaleString(), dir: dz.median > 0 ? tr("above") : tr("below") });
+      }
       if (misfit && misfit.medianDz > 100) {
         setSrtmProgress(null);
         setTerrainError({ info: true, text: tr("The collars sit a median {v} m off this terrain — checking whether the project's CRS is one UTM zone off…", { v: Math.round(misfit.medianDz) }) });
@@ -871,7 +890,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       }
       addTerrain({ name: parsed.name, bbox: parsed.bbox, gridW: parsed.gridW, gridH: parsed.gridH, elevations: parsed.elevations, noDataMask: parsed.noDataMask || null, source: parsed.source || null }); // noDataMask: #421; source: #726
       const [txmin, tymin, txmax, tymax] = parsed.bbox;
-      let msg = isMetricProjectedEpsg(project?.epsg) // #2127 — metres on a metric project
+      let msg = (tie ? Math.abs((tie.scale || 1) - 1) < 0.01 : isMetricProjectedEpsg(project?.epsg)) // #2127 — metres on a metric project; a tied grid in metres: #2648
         ? tr("Fetched and imported \"{name}\" as a {gridW}×{gridH} terrain mesh covering {v} × {v2} m for the area you drew.", { name: parsed.name, gridW: parsed.gridW, gridH: parsed.gridH, v: Math.round(txmax - txmin).toLocaleString(), v2: Math.round(tymax - tymin).toLocaleString() })
         : tr("Fetched and imported \"{name}\" as a {gridW}×{gridH} terrain mesh covering {v}×{v2} world units for the area you drew.", { name: parsed.name, gridW: parsed.gridW, gridH: parsed.gridH, v: (txmax - txmin).toFixed(0), v2: (tymax - tymin).toFixed(0) });
       if (parsed.source) msg += parsed.source.zoom != null
@@ -890,7 +909,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       else if (parsed.reprojectNote) msg += tr(" Note: {reprojectNote}", { reprojectNote: parsed.reprojectNote });
       if (parsed.failedTiles) msg += tr(" {failedTiles} tile(s) failed to download — check your connection.", { failedTiles: parsed.failedTiles });
       if (parsed.noDataNote) msg += parsed.noDataNote; // #421
-      msg += misfitNote + relabelNote.current; relabelNote.current = ""; // #614
+      msg += tieNote + misfitNote + relabelNote.current; relabelNote.current = ""; // #614; tieNote: #2648
       setTerrainError({ info: true, text: msg });
     } catch (err) {
       setTerrainError({ info: false, text: err.message });

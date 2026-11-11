@@ -30,6 +30,7 @@ import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the inter
 import { b64ToBytes } from "./base64.js"; // TASKS.csv #1114
 import { borderKeyColour, colourFraction, hexRgb } from "./rasterKey.js"; // TASKS.csv #1623
 import { tieReaches, tieImageToLocal, tieGridToLocal } from "./rasterTie.js"; // TASKS.csv #2587 / #2322
+import { tieDemGridToLocal, tieWorldBox } from "./terrainTie.js"; // TASKS.csv #2648
 
 // TASKS.csv #707 — a GeoTIFF's CRS as an EPSG code. 32767 means "user-defined" (what ArcGIS and Oasis montaj write for a
 // CRS they have no code for, the BC NAD83(CSRS) UTM zones being the usual case); the CRS is then named in a citation
@@ -551,10 +552,15 @@ async function peekDemTile(file) {
 // it lines up with the rest of the project instead of landing at raw lon/lat coordinates. Returns
 // { name, bbox:[xmin,ymin,xmax,ymax], gridW, gridH, elevations, srcWidth, srcHeight, epsgTag,
 // reprojectedTo, reprojectNote, tileCount } or throws with a message meant to be shown directly.
-export async function parseDEMFiles(files, targetEpsg, sourceEpsgOverride = null, { cropTo = null, chooseProjectEpsg = null, gridMax = DEM_MAX_GRID } = {}) { // gridMax: TASKS.csv #796
+// tie (TASKS.csv #2648): a local-grid project tied to a real CRS (lib/localGridTie.js tieOf), targetEpsg null: a DEM with a CRS tag is
+// reprojected to the tie's CRS and resampled into the local grid (lib/terrainTie.js); cropTo is in the local grid then. An untagged DEM
+// keeps its numbers (taken to be the grid's own).
+export async function parseDEMFiles(files, targetEpsg, sourceEpsgOverride = null, { cropTo = null, chooseProjectEpsg = null, gridMax = DEM_MAX_GRID, tie = null } = {}) { // gridMax: TASKS.csv #796
   const list = Array.from(files || []).filter(Boolean);
   if (!list.length) throw new Error(tr("No file selected."));
   const tiles = [];
+  const tieTo = tie && !targetEpsg ? Number(tie.epsg) : null; // #2648
+  const tieCrop = tieTo && cropTo ? tieWorldBox(tie, cropTo) : null;
   // TASKS.csv #422 — cropTo: [xmin, ymin, xmax, ymax] in the PROJECT CRS. Converted into each tile's CRS
   // (corners + edge midpoints, then their bbox, padded 2%) before reading.
   for (const file of list) {
@@ -562,9 +568,11 @@ export async function parseDEMFiles(files, targetEpsg, sourceEpsgOverride = null
     if (cropTo) {
       const head = await peekDemTile(file);
       const tileEpsg = sourceEpsgOverride ? Number(sourceEpsgOverride) : head.epsgTag;
-      const [x0, y0, x1, y1] = cropTo;
+      const viaTie = !!(tieCrop && tileEpsg && tieReaches(tie, tileEpsg)); // #2648 — the local crop box, in the tie's CRS
+      const cropFrom = viaTie ? tieTo : targetEpsg;
+      const [x0, y0, x1, y1] = viaTie ? tieCrop : cropTo;
       const probe = [[x0, y0], [x1, y0], [x1, y1], [x0, y1], [(x0 + x1) / 2, y0], [(x0 + x1) / 2, y1], [x0, (y0 + y1) / 2], [x1, (y0 + y1) / 2]];
-      const pts = tileEpsg && targetEpsg && Number(tileEpsg) !== Number(targetEpsg) ? probe.map(([x, y]) => reprojectXY(x, y, targetEpsg, tileEpsg)) : probe.map(([x, y]) => ({ x, y }));
+      const pts = tileEpsg && cropFrom && Number(tileEpsg) !== Number(cropFrom) ? probe.map(([x, y]) => reprojectXY(x, y, cropFrom, tileEpsg)) : probe.map(([x, y]) => ({ x, y }));
       if (pts.every(Boolean)) {
         const xs = pts.map((p) => p.x), ys = pts.map((p) => p.y);
         const padX = (arrMax(xs) - arrMin(xs)) * 0.02, padY = (arrMax(ys) - arrMin(ys)) * 0.02;
@@ -615,7 +623,12 @@ export async function parseDEMFiles(files, targetEpsg, sourceEpsgOverride = null
 
   // TASKS.csv #419 — a user-set source CRS overrides the file's own tag (untagged or wrongly tagged DEMs).
   const epsgTag = sourceEpsgOverride ? Number(sourceEpsgOverride) : tiles[0].epsgTag;
-  if (chooseProjectEpsg && epsgTag) targetEpsg = Number(chooseProjectEpsg(epsgTag, targetEpsg)) || targetEpsg; // #607
+  if (chooseProjectEpsg && epsgTag && !tieTo) targetEpsg = Number(chooseProjectEpsg(epsgTag, targetEpsg)) || targetEpsg; // #607
+  // #2648 — on a tied grid the DEM goes to the tie's CRS first (below), then into the grid
+  const viaTie = !!(tieTo && epsgTag && tieReaches(tie, epsgTag));
+  let tiedNote = null;
+  if (viaTie) targetEpsg = tieTo;
+  else if (tieTo && epsgTag) tiedNote = tr("Its EPSG:{src} cannot be brought through the local grid's tie to EPSG:{tie} (GeoStrix has no definition for one of them), so it kept its own numbers: check where it lies.", { src: epsgTag, tie: tieTo });
 
   let outBbox = [xmin, ymin, xmax, ymax];
   let outGridW = gridW, outGridH = gridH;
@@ -636,6 +649,20 @@ export async function parseDEMFiles(files, targetEpsg, sourceEpsgOverride = null
     }
   }
 
+  let srcCellM = null;
+  if (viaTie && !reprojectNote) { // #2648 — the tie's CRS -> the local grid (nearest node)
+    srcCellM = Math.sqrt(((outBbox[2] - outBbox[0]) * (outBbox[3] - outBbox[1])) / Math.max(1, tiles.reduce((s, x) => s + x.srcW * x.srcH, 0))) / (tie.scale || 1); // the read window's cell, in grid units
+    const clip = cropTo ? (() => { const px = (cropTo[2] - cropTo[0]) * 0.02, py = (cropTo[3] - cropTo[1]) * 0.02; return [cropTo[0] - px, cropTo[1] - py, cropTo[2] + px, cropTo[3] + py]; })() : null; // the crop box asked for
+    const g = tieDemGridToLocal({ bbox: outBbox, gridW: outGridW, gridH: outGridH, values: outElevations }, tie, tieTo, gridMax, clip);
+    if (!g) throw new Error(tr("None of these DEM tiles overlaps the drillhole area — untick 'Crop to the drillholes' to import them whole, or check the source CRS."));
+    outBbox = g.bbox; outGridW = g.gridW; outGridH = g.gridH; outElevations = g.values;
+    const label = sourceEpsgOverride ? tr("the Source CRS you set") : tr("this file's own CRS tag");
+    tiedNote = Number(epsgTag) === tieTo
+      ? tr("Its EPSG:{src} ({label}) was brought into the local grid through the grid's tie, and resampled onto the grid's own north.", { src: epsgTag, label })
+      : tr("Its EPSG:{src} ({label}) was reprojected to EPSG:{tie} and brought into the local grid through the grid's tie, and resampled onto the grid's own north.", { src: epsgTag, tie: tieTo, label });
+    reprojectedTo = null;
+  }
+
   // TASKS.csv #421 — no-data cells are still filled (for sampling) but recorded and reported; see demFill.js.
   const fill = fillNoData(outElevations);
 
@@ -649,8 +676,28 @@ export async function parseDEMFiles(files, targetEpsg, sourceEpsgOverride = null
     epsgTag, epsgOverridden: !!sourceEpsgOverride, cropped: !!cropTo, readPixels: tiles.reduce((t, x) => t + x.srcW * x.srcH, 0), fullPixels: tiles.reduce((t, x) => t + x.fullW * x.fullH, 0),
     reprojectedTo,
     reprojectNote,
+    tiedNote, srcCellM, // #2648
     tileCount: tiles.length,
   };
+}
+
+// TASKS.csv #2648 — a fetched picture ({ bbox in srcEpsg, dataUrl }, e.g. lib/imageryFetch.js fetchLatestTrueColour) brought into a tied
+// local grid: decoded, resampled through the tie (lib/rasterTie.js tieImageToLocal; outside the picture is transparent), re-encoded.
+// -> the same object with the local bbox, dataUrl, gridW / gridH, or null when the tie cannot reach srcEpsg
+export async function tieFetchedImage(r, tie, srcEpsg, maxSide = 4096) {
+  if (!tieReaches(tie, srcEpsg)) return null;
+  const img = await new Promise((resolve, reject) => { const i = new Image(); i.onload = () => resolve(i); i.onerror = () => reject(new Error(tr("The fetched picture could not be read."))); i.src = r.dataUrl; });
+  const c = document.createElement("canvas");
+  c.width = img.naturalWidth; c.height = img.naturalHeight;
+  const ctx = c.getContext("2d");
+  ctx.drawImage(img, 0, 0);
+  const px = ctx.getImageData(0, 0, c.width, c.height);
+  const t = tieImageToLocal({ xmin: r.bbox[0], ymin: r.bbox[1], xmax: r.bbox[2], ymax: r.bbox[3], width: c.width, height: c.height, data: px.data }, tie, srcEpsg, maxSide);
+  if (!t) return null;
+  const o = document.createElement("canvas");
+  o.width = t.width; o.height = t.height;
+  o.getContext("2d").putImageData(new ImageData(t.data, t.width, t.height), 0, 0);
+  return { ...r, bbox: t.bbox, dataUrl: imageDataUrl(o), gridW: t.width, gridH: t.height };
 }
 
 // Single-file convenience wrapper around parseDEMFiles — kept so any future one-file call site doesn't
