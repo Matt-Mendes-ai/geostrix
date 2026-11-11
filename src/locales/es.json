@@ -10212,5 +10212,13 @@
   "Elevation (recorded)": "Elevación (registrada)",
   "{z} m, from the terrain (no elevation in the file)": "{z} m, del terreno (sin elevación en el archivo)",
   "none in the file: drawn flat at {z} m": "ninguna en el archivo: dibujado plano a {z} m",
-  "none in the file": "ninguna en el archivo"
+  "none in the file": "ninguna en el archivo",
+  "All {n} occurrence point(s) lie outside this grid: choose an Area that holds them (every source, or the surface samples).": "Los {n} punto(s) de ocurrencia están fuera de esta malla: elija un Área que los contenga (todas las fuentes, o las muestras de superficie).",
+  "{m} of the {n} occurrence point(s) lie outside this grid.": "{m} de los {n} punto(s) de ocurrencia están fuera de esta malla.",
+  "{d} occurrence cell(s) lie where an evidence has no value and are not used.": "{d} celda(s) con ocurrencias están donde una evidencia no tiene valor y no se usan.",
+  "Filter {n} holes…": "Filtrar {n} sondajes…",
+  "Filter the hole list": "Filtrar la lista de sondajes",
+  "No hole id contains \"{q}\".": "Ningún id de sondaje contiene \"{q}\".",
+  "As-drilled hole": "Sondaje perforado",
+  "{n} collar(s) with no survey and no azimuth / dip are not listed: their path is not known.": "{n} collar(es) sin medición ni azimut / inclinación no se listan: su trayectoria no se conoce."
 }

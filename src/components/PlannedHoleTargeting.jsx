@@ -1,7 +1,8 @@
 import React, { useMemo, useState } from "react";
 import { Crosshair, GitCompareArrows } from "./icons.js";
 import { solveOrientationToTarget, missDistanceToTarget, comparePlannedToActual, solveWithDeviation, plannedTrace, hasDeviation } from "../lib/holePlanning.js";
-import { desurveyHole } from "../lib/desurvey.js";
+import { desurveyHole, holeAttitudeAssumed } from "../lib/desurvey.js";
+import CollarPicker from "./CollarPicker.jsx"; // TASKS.csv #2104
 import { surveyDeviation } from "../lib/surveyDeviation.js"; // TASKS.csv #1733
 import { useStore } from "../lib/store.jsx";
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
@@ -98,6 +99,11 @@ export default function PlannedHoleTargeting({ hole, onUpdate, plannedPts, colla
 
   // ---- planned vs as-drilled -------------------------------------------------------------------
   const drilledId = hole.asDrilledHoleId || "";
+  const traceable = useMemo(() => { // #2104
+    const surveyed = new Set((survey || []).map((s) => s.hole_id));
+    const ids = (collars || []).filter((c) => c.hole_id === drilledId || !holeAttitudeAssumed(c, surveyed.has(c.hole_id) ? [1] : [])).map((c) => c.hole_id);
+    return { ids, left: (collars || []).length - ids.length };
+  }, [collars, survey, drilledId]);
   const comparison = useMemo(() => {
     if (!drilledId || !plannedPts?.length) return null;
     const collar = (collars || []).find((c) => c.hole_id === drilledId);
@@ -185,14 +191,10 @@ export default function PlannedHoleTargeting({ hole, onUpdate, plannedPts, colla
         <div>
           <div style={sectionHdr}>{tr("Planned vs. as-drilled")}</div>
           <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>{tr("Once this hole has been drilled and its collar + survey imported, link it here to see how far the real hole wandered from the design.")}</div>
-          <select
-            value={drilledId}
-            onChange={(e) => onUpdate(hole.id, { asDrilledHoleId: e.target.value || null })}
-            style={{ ...inputStyle, marginBottom: 6, cursor: "pointer" }}
-          >
-            <option value="">{tr("— not drilled yet —")}</option>
-            {(collars || []).map((c) => <option key={c.hole_id} value={c.hole_id}>{c.hole_id}</option>)}
-          </select>
+          {/* TASKS.csv #2104 — sorted with a filter; only holes with a survey or their own azimuth / dip (an assumed vertical trace is not
+              an as-drilled path to compare with) */}
+          <CollarPicker ids={traceable.ids} value={drilledId} onChange={(id) => onUpdate(hole.id, { asDrilledHoleId: id || null })} first={tr("— not drilled yet —")} ariaLabel={tr("As-drilled hole")} style={{ ...inputStyle, marginBottom: 6, cursor: "pointer" }} />
+          {traceable.left > 0 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6 }}>{tr("{n} collar(s) with no survey and no azimuth / dip are not listed: their path is not known.", { n: traceable.left })}</div>}
           {drilledId && !comparison && (
             <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-danger-fg)" }}>{tr("Couldn't build a trace for {drilledId} — check it has a collar with a usable azimuth/dip.", { drilledId })}</div>
           )}

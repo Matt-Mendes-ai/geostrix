@@ -10212,5 +10212,13 @@
   "Elevation (recorded)": "Elevação (registrada)",
   "{z} m, from the terrain (no elevation in the file)": "{z} m, do terreno (sem elevação no arquivo)",
   "none in the file: drawn flat at {z} m": "nenhuma no arquivo: desenhado plano a {z} m",
-  "none in the file": "nenhuma no arquivo"
+  "none in the file": "nenhuma no arquivo",
+  "All {n} occurrence point(s) lie outside this grid: choose an Area that holds them (every source, or the surface samples).": "Todos os {n} ponto(s) de ocorrência estão fora desta malha: escolha uma Área que os contenha (todas as fontes, ou as amostras de superfície).",
+  "{m} of the {n} occurrence point(s) lie outside this grid.": "{m} dos {n} ponto(s) de ocorrência estão fora desta malha.",
+  "{d} occurrence cell(s) lie where an evidence has no value and are not used.": "{d} célula(s) com ocorrências estão onde uma evidência não tem valor e não são usadas.",
+  "Filter {n} holes…": "Filtrar {n} furos…",
+  "Filter the hole list": "Filtrar a lista de furos",
+  "No hole id contains \"{q}\".": "Nenhum id de furo contém \"{q}\".",
+  "As-drilled hole": "Furo perfurado",
+  "{n} collar(s) with no survey and no azimuth / dip are not listed: their path is not known.": "{n} colar(es) sem levantamento nem azimute / mergulho não são listados: sua trajetória não é conhecida."
 }
