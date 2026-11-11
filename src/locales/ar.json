@@ -10268,5 +10268,13 @@
   "{n} column(s) of the file were not imported: {cols}. Add one under Extra fields in the import dialog to keep it.": "لم يُستورد {n} عمود من الملف: {cols}. أضف أحدها ضمن الحقول الإضافية في نافذة الاستيراد للاحتفاظ به.",
   "The row filter keeps no row: tick at least one value under Rows.": "لا يُبقي مرشّح الصفوف أي صف: حدّد قيمة واحدة على الأقل ضمن الصفوف.",
   "Time-scale colours (online)": "ألوان المقياس الزمني (عبر الإنترنت)",
-  "The time-scale colours come from Macrostrat over the internet: offline, the units keep their colours.": "تأتي ألوان المقياس الزمني من Macrostrat عبر الإنترنت: دون اتصال، تحتفظ الوحدات بألوانها."
+  "The time-scale colours come from Macrostrat over the internet: offline, the units keep their colours.": "تأتي ألوان المقياس الزمني من Macrostrat عبر الإنترنت: دون اتصال، تحتفظ الوحدات بألوانها.",
+  "{name}: no value other than no-data": "{name}: لا قيمة غير «بلا بيانات»",
+  "Imported the GOCAD Voxet \"{name}\" as {n} block model(s): {list}; {nx} × {ny} × {nz} nodes, each a block of {dx} × {dy} × {dz} m centred on its node. Its coordinates are taken as the project's (GOCAD files carry no EPSG code).": "استُورد Voxet ‏GOCAD ‏\"{name}\" كـ {n} نموذج كتل: {list}؛ {nx} × {ny} × {nz} عقدة، كل منها كتلة {dx} × {dy} × {dz} م متمركزة على عقدتها. تؤخذ إحداثياته على أنها إحداثيات المشروع (ملفات GOCAD لا تحمل رمز EPSG).",
+  "Averaged {fx} × {fy} × {fz} nodes into each block to stay within the block budget.": "حُسب متوسط {fx} × {fy} × {fz} عقدة في كل كتلة للبقاء ضمن ميزانية الكتل.",
+  "Not in the drop, so not read: {list}. Drop the .vo together with the files its PROP_FILE lines name.": "لم تكن ضمن الملفات المُفلتة فلم تُقرأ: {list}. أفلت ملف .vo مع الملفات التي تسمّيها أسطر PROP_FILE فيه.",
+  "Could not read: {list}.": "تعذّرت قراءة: {list}.",
+  "{name}: no block model made. {why}": "{name}: لم يُنشأ أي نموذج كتل. {why}",
+  "The Voxet names no property.": "لا يسمّي Voxet أي خاصية.",
+  "{name}: couldn't read the GOCAD Voxet ({message}).": "{name}: تعذّرت قراءة Voxet ‏GOCAD ‏({message})."
 }
