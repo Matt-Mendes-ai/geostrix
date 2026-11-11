@@ -5,7 +5,7 @@ import reactHooks from "eslint-plugin-react-hooks";
 import react from "eslint-plugin-react";
 
 export default [
-  { ignores: ["dist/**", "release/**", "node_modules/**", "python-sidecar/**", "public/**", "**/*.min.js"] },
+  { ignores: ["dist/**", "release/**", "node_modules/**", "python-sidecar/**", "public/**", "**/*.min.js", ".claude/**" /* the side sessions' worktrees (.claude/worktrees): their own lint runs there */] },
   {
     files: ["src/**/*.{js,jsx}"],
     languageOptions: {
