@@ -28,3 +28,32 @@ export function stackOrderFromHoles(rows, kOf, n, { minHoles = 3, share = 2 / 3 
   const order = wins.map((_, i) => i).sort((p, q) => wins[q] - wins[p] || p - q);
   return { above, conflicts, order };
 }
+
+// TASKS.csv #2532 (review #2486, WA lithium) — a stack of three codes that alternate down the holes (P, A and D up to 11 times per hole) ran
+// 19 s and reproduced P at 0 %: nothing before the run said these are not layers. Down each hole, the stack units' runs top-down (touching
+// rows of one unit merge); a unit that comes back after another unit repeats. -> { holes (with 2+ stack units), repeating (holes where some
+// unit repeats), byUnit: counts per unit index, maxRuns: the most runs of one unit in one hole }
+export function stackRepeats(rows, kOf, n) {
+  const byHole = new Map();
+  for (const r of rows || []) {
+    const k = kOf.get(r.value), f = Number(r.from), to = Number(r.to);
+    if (k === undefined || !Number.isFinite(f) || !(to > f)) continue;
+    (byHole.get(r.hole_id) || byHole.set(r.hole_id, []).get(r.hole_id)).push([f, to, k]);
+  }
+  const byUnit = new Array(n).fill(0);
+  let holes = 0, repeating = 0, maxRuns = 0;
+  for (const list of byHole.values()) {
+    list.sort((a, b) => a[0] - b[0]);
+    const runs = [];
+    for (const [f, to, k] of list) { const last = runs[runs.length - 1]; if (last && last.k === k) last.to = Math.max(last.to, to); else runs.push({ k, from: f, to }); }
+    const seen = new Set(runs.map((r) => r.k));
+    if (seen.size < 2) continue;
+    holes++;
+    const count = new Array(n).fill(0);
+    runs.forEach((r) => count[r.k]++);
+    let rep = false;
+    count.forEach((c, k) => { if (c > 1) { rep = true; byUnit[k]++; if (c > maxRuns) maxRuns = c; } });
+    if (rep) repeating++;
+  }
+  return { holes, repeating, byUnit, maxRuns };
+}

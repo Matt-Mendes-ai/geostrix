@@ -6,7 +6,7 @@ import { buildMeshQuery } from "../../lib/meshQuery.js"; // TASKS.csv #2376
 import { modelGround, boxTallerThanDrilling } from "../../lib/modelGround.js"; // TASKS.csv #2470
 import { roundVolume, loggedVolumeCheck } from "../../lib/volumeCheck.js"; // TASKS.csv #2530
 import { taskSlot, rampProgress } from "../../lib/taskSlot.js"; // TASKS.csv #2379; rampProgress: #2383
-import { stackOrderFromHoles } from "../../lib/stackOrderFromHoles.js"; // TASKS.csv #2382
+import { stackOrderFromHoles, stackRepeats } from "../../lib/stackOrderFromHoles.js"; // TASKS.csv #2382; repeats: #2532
 import { rockWithoutRows, unloggedDrilling } from "../../lib/unloggedGaps.js"; // TASKS.csv #2380
 import { stackOrderAtHoles } from "../../lib/stackOrderAtHoles.js"; // TASKS.csv #2376
 import { intensityRank, INTENSITY_SCALE } from "../../lib/intensityVocab.js"; // TASKS.csv #2230
@@ -1449,6 +1449,15 @@ export function createModellingRuns(ctx, mcRef) {
           return;
         }
         setNotices((p) => [...p, notice("Run in the order given, although the holes give {order} (youngest first): {list}.", { order: holesOrder, list })]);
+      }
+      // TASKS.csv #2532 — units that come back down the holes are not layers: said before the run, which asks to go ahead
+      const rep = stackRepeats(layers.litho || [], kOf, specs.length);
+      if (rep.holes >= 3 && rep.repeating >= rep.holes / 2) {
+        const units = rep.byUnit.map((c, k) => [c, k]).filter(([c]) => c > 0).sort((a, b) => b[0] - a[0]).slice(0, 4).map(([c, k]) => tr("{unit} in {n}", { unit: specs[k].meshName, n: c })).join(", ");
+        if (!window.confirm(tr("In {r} of the {h} holes that log two or more of these units, a unit comes back after another (up to {m} times in one hole: {units}). Alternating units are not the layers of a stack, so the surfaces will cut through them; the Vein / dyke tool or a closed body (Modelling codes) models them. Run the stack anyway?", { r: rep.repeating, h: rep.holes, m: rep.maxRuns, units }))) {
+          setNotices((p) => [...p, notice("Stack run cancelled before solving: in {r} of {h} holes a unit comes back after another ({units}).", { r: rep.repeating, h: rep.holes, units })]);
+          return;
+        }
       }
     }
     await runSurfaceStack([...faultSpecs, ...specs], { relation: breakAt.size ? "erode" : stackRelation, packages }); // TASKS.csv #271; #1309

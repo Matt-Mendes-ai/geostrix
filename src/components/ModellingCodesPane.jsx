@@ -7,7 +7,7 @@ import { iconAction } from "../lib/a11y.js"; // TASKS.csv #687
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { Crosshair, Waypoints, X, RotateCcw, Layers3, Square } from "./icons.js";
-import { CODE_ROLES, codesInUse, autoNumber, effectiveCode, rowKey, codedRuns } from "../lib/modellingCodes.js";
+import { CODE_ROLES, codesInUse, autoNumber, inheritNumberedRoles, effectiveCode, rowKey, codedRuns } from "../lib/modellingCodes.js";
 import { colorForLithology, LAYER_META } from "../lib/layers.js";
 import { findOnTrace } from "../lib/viewer/modelHelpers.js";
 import { combineSelection, intervalTouchesBox, holesOf, rowsBetween, codeRowsAs, holesWithRepeats, rowsOfCode, replaceCodeWith, uncodeRows, holeCounts } from "../lib/intervalBox.js"; // TASKS.csv #1333, #1337
@@ -325,7 +325,7 @@ export default function ModellingCodesPane({ litho, modellingCodes, setModelling
         ))}
       </div>
       <button disabled={!numberCodes.length} onClick={() => {
-        const go = () => setModellingCodes((p) => ({ ...(p || mc), assign: autoNumber(litho, numberCodes, { ...(p || mc), assign: Object.fromEntries(Object.entries(p?.assign || {}).filter(([k]) => !litho.some((r) => rowKey(r) === k && numberCodes.includes(String(r.value))))) }, groupOf) }));
+        const go = () => setModellingCodes((p) => { const base = p || mc; const assign = autoNumber(litho, numberCodes, { ...base, assign: Object.fromEntries(Object.entries(p?.assign || {}).filter(([k]) => !litho.some((r) => rowKey(r) === k && numberCodes.includes(String(r.value))))) }, groupOf); return { ...base, assign, codes: inheritNumberedRoles(base, assign, numberCodes) /* #2532 — P1 ... take P's role */ }; });
         const touched = litho.filter((r) => numberCodes.includes(String(r.value)) && mc.assign?.[rowKey(r)]).length;
         if (touched && !window.confirm(tr("{touched} of these intervals already have a code you set. Auto-numbering replaces them. Continue?", { touched }))) return;
         go();

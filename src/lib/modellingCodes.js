@@ -150,6 +150,27 @@ export function autoNumber(lithoRows, baseCodes, mc, groupOf) {
   return assign;
 }
 
+// TASKS.csv #2532 (review #2486) — numbered children take their base code's role: P set cross-cutting, auto-numbered P1 ... P32 came out
+// 'stratigraphic' (their names' guess). For each code the assign map now holds, made from a base code with a role set (base + digits), the
+// child gets that role unless it has one of its own. -> the new codes list
+export function inheritNumberedRoles(mc, assign, baseCodes) {
+  const codes = [...(mc?.codes || [])];
+  const roleOf = new Map(codes.filter((c) => c.role).map((c) => [c.name, c.role]));
+  const names = new Set(Object.values(assign || {}));
+  for (const base of baseCodes || []) {
+    const role = roleOf.get(base);
+    if (!role) continue;
+    const b = String(base);
+    for (const n of names) {
+      if (!(n.length > b.length && n.startsWith(b) && /^[0-9]+$/.test(n.slice(b.length)))) continue; // base + digits
+      const at = codes.findIndex((c) => c.name === n);
+      if (at < 0) codes.push({ name: n, role });
+      else if (!codes[at].role) codes[at] = { ...codes[at], role };
+    }
+  }
+  return codes;
+}
+
 // Connect interval B (another hole) to interval A: B — and the touching rows of B's run — take A's code, and
 // the pair is kept as a tie for drawing. Returns the new value.
 export function connectIntervals(mc, rowA, rowB, lithoRows, groupOf) {

@@ -244,6 +244,9 @@ export default function ModellingPanes(props) {
   } = props;
   // TASKS.csv #871 — the logged tops of a unit for the Explicit surface pane, by the implicit tool's rules (#354 / #495 /
   // #599); recomputed only when the logs, the modelling codes or the groups change
+  // TASKS.csv #2532 (review #2486) — a raw lithology code's role: the one set for it in Modelling codes when listed there, else the guess from its name
+  const mcodeRole = useMemo(() => new Map((modellingCodeList || []).map((c) => [c.name, c.role])), [modellingCodeList]);
+  const rawRole = (u) => mcodeRole.get(u) || roleForLithology(u);
   const setExplicitLogged = useMemo(() => withChangeLog(setExplicitSurfaces), [setExplicitSurfaces]);
   // TASKS.csv #901 — the Explicit surface pane's scene handles: one object while its parts are the same (it was a new
   // object every render, so the pane's effects that list it re-ran on every render)
@@ -646,8 +649,8 @@ export default function ModellingPanes(props) {
         <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
           <select aria-label={tr("Unit to model")} value={implicitTarget} onChange={(e) => setImplicitTarget(e.target.value)} style={{ width: 0, flex: 1, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)" }}>
             <option value="">{tr("Choose a unit…")}</option>
-            {litho_units.map((u) => {
-              const role = roleForLithology(u);
+            {litho_units.filter((u) => !mcodeRole.has(u)).map((u) => { // #2532 — a code listed under Modelling codes is offered there, once
+              const role = rawRole(u);
               return <option key={u} value={u}>{u}{role !== "stratigraphic" ? ` (${role}${isCrossCuttingRole(role) ? ", cross-cutting" : ""})` : ""}</option>;
             })}
             {/* TASKS.csv #176 — groups under their own optgroup; a mixed-role group gets no role
@@ -735,8 +738,8 @@ export default function ModellingPanes(props) {
                 so they're unselectable rather than trusting the user to read the warning first. */}
             {/* TASKS.csv #1541 — a code whose group is already in the stack, or a group with a member already in it, is not offered: the
                 same unit twice ('Intermediate volcanics' after two of its members) */}
-            {litho_units.filter((u) => !stackUnits.includes(u) && !isCrossCuttingRole(roleForLithology(u)) && roleForLithology(u) !== "no recovery" && !lithoGroups.some((g) => stackUnits.includes(lithoGroupKey(g)) && (g.codes || []).includes(u))).map((u) => { // no recovery: #1369
-              const role = roleForLithology(u);
+            {litho_units.filter((u) => !mcodeRole.has(u) && !stackUnits.includes(u) && !isCrossCuttingRole(rawRole(u)) && rawRole(u) !== "no recovery" && !lithoGroups.some((g) => stackUnits.includes(lithoGroupKey(g)) && (g.codes || []).includes(u))).map((u) => { // no recovery: #1369; #2532: the role set in Modelling codes, the code offered there once
+              const role = rawRole(u);
               return <option key={u} value={u}>{u}{role === "overburden" ? tr(" (overburden)") : ""}</option>;
             })}
             {/* TASKS.csv #176 — groups with ANY cross-cutting member are excluded here, same rail as
