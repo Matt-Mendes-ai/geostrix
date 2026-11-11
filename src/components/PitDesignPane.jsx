@@ -3,7 +3,7 @@
 // and a bench-by-bench table. Geometry in lib/pitDesign.js, off the UI thread (pitDesignClient.js). Every number is the user's
 // (#264): no bench, berm or face angle is assumed.
 import React, { useMemo, useRef, useState } from "react";
-import { metalAmountText, elementOfModel } from "../lib/pitShell.js"; // TASKS.csv #2434
+import { metalAmountText, elementOfModel, gradeWithElement } from "../lib/pitShell.js"; // TASKS.csv #2434
 import { shellWallCompare } from "../lib/pitWalls.js"; // TASKS.csv #2433
 import { Layers3, Eye, EyeOff, Trash2, Download } from "./icons.js";
 import { confirmDestructive } from "../lib/confirmDestructive.js"; // #1498
@@ -136,7 +136,7 @@ export default function PitDesignPane({ surfaces = [], worldPositionsOf, onAdd, 
     const perUnit = shMetal / (shOre * shGrade), m = r.totals.oreT * r.totals.meanGrade * perUnit;
     return metalAmountText(m, sh.containedMetalUnit, elementOfModel({ params: { element: sh.element }, name: sh.blockModel }), big); // #2434 — the Pit shell's words
   };
-  const gradeText = (g) => (g == null ? "—" : `${Number(g.toPrecision(3))} ${unit}`);
+  const gradeText = (g) => (g == null ? "—" : gradeWithElement(g, unit, pit?.params?.element || elementOfModel({ name: pit?.params?.blockModel }))); // #2594 — with its element and oxide
 
   return (
     <div>

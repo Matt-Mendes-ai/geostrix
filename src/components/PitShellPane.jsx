@@ -6,7 +6,7 @@ import { Pickaxe, Eye, EyeOff, Trash2, Pencil } from "./icons.js";
 import { confirmDestructive } from "../lib/confirmDestructive.js"; // #1498
 import { TaskPaneHeader } from "./Ribbon.jsx";
 import { useStore } from "../lib/store.jsx";
-import { pitEconomics, pitMetalOf, elementOfModel, SECTORS, hasSectorSlopes, slopeForSector, priceUnitsFor, PRICED_MASS_T, metalAmountText } from "../lib/pitShell.js"; // pitMetalOf / elementOfModel: #1748; SECTORS: #1881
+import { pitEconomics, pitMetalOf, elementOfModel, SECTORS, hasSectorSlopes, slopeForSector, priceUnitsFor, PRICED_MASS_T, metalAmountText, gradeWithElement, oxideSuffix /* #2594 */ } from "../lib/pitShell.js"; // pitMetalOf / elementOfModel: #1748; SECTORS: #1881
 import { sgSummary } from "../lib/gradeTonnage.js";
 import { valueUnit } from "../lib/blockModelExport.js";
 import { categoricalModels } from "../lib/geologyForward.js";
@@ -141,7 +141,7 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove,
       if (r.cancelled) { setMsg(tr("Cancelled: nothing was added.")); return; }
       setRes(null); kept = null;
       if (r.failed || r.empty) {
-        setMsg(r.empty ? tr("At these inputs no block pays for the rock over it, so there is no pit. Cut-off grade {c} {unit}.", { c: Number(r.cutoff.toPrecision(3)), unit })
+        setMsg(r.empty ? tr("At these inputs no block pays for the rock over it, so there is no pit. Cut-off grade {c} {unit}.", { c: Number(r.cutoff.toPrecision(3)), unit: `${unit}${element ? ` ${element}` : ""}${oxideSuffix(r.cutoff, unit, element)}` /* #2594 */ })
           : r.failed === "underground" ? tr("The collars look like underground drill positions ({upward} hole(s) drilled upward, {stacked} pair(s) of collars stacked over each other): no ground surface is known, so no pit is cut from them. Load a terrain (Maps > Terrain) for the real surface.", { upward: r.underground?.upward ?? 0, stacked: r.underground?.stacked ?? 0 }) /* #2276 */
           : r.failed === "by-grid" ? tr("\"{by}\" is not on the same grid as \"{model}\": no block centre matches. Estimate the by-product with the same cell size over the same area (the same holes or area box) and run again.", { by: byModel?.name || "?", model: model.name }) // #1917
           : r.failed === "by-units" ? tr("The by-product model's grade unit cannot be priced.")
@@ -152,7 +152,7 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove,
       const cellText = size || r.coarsened ? tr(", {c} m cells", { c: Math.round(r.cell[0] * 10) / 10 }) : ""; // #1900 — a typed or coarsened size names the pit
       const support = model.cells.some((c) => Number.isFinite(c.nHoles)); // #1354 — the estimate says how many holes informed each block
       const beyondFlagged = !!model.params?.beyondFlagged || model.cells.some((c) => c.beyond); // #2435 — the estimate flagged blocks beyond its samples (#2417)
-      kept = { ...r, unit, seconds, hasTerrain: !!terrain, model: model.name, slopeDeg: inputs.slopeDeg, sectorSlopes: inputs.sectorSlopes || null, support, beyondFlagged, byUnit, byLabel, byElement }; // byUnit / byLabel: #1917; beyondFlagged: #2435
+      kept = { ...r, unit, seconds, hasTerrain: !!terrain, model: model.name, slopeDeg: inputs.slopeDeg, sectorSlopes: inputs.sectorSlopes || null, support, beyondFlagged, byUnit, byLabel, byElement, element /* #2594 */ }; // byUnit / byLabel: #1917; beyondFlagged: #2435
       setRes(kept);
       const contained = r.metalU * r.metalFactor;
       if (hideEarlier) surfaces.filter((s) => s.type === "pit_shell" && s.visible && s.id !== editingId).forEach((s) => onToggle?.(s.id)); // #1356 — one pit on view at a time
@@ -231,8 +231,8 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove,
         {field("revenueFactor", tr("Revenue factor"), { title: tr("Multiplies the price: below 1 gives a smaller pit, a quick test of how much it depends on price.") })}
         {field("size", tr("Pit block size (m)"), { placeholder: tr("auto"), title: tr("Blank: the block model's own size. A larger size runs faster and draws coarser walls; a block keeps its own ore or waste decision either way.") })}
         {cutoff != null && <div style={{ ...note, marginTop: 4 }}>{eco?.by
-          ? tr("Cut-off at these inputs: a block is ore when its revenue over both metals is at least the ${p}/t processing cost; alone, {el} {c} {unit} or {el2} {c2} {unit2}.", { p: value("processingCost"), el: element || model.name, c: Number(cutoff.toPrecision(3)), unit, el2: byLabel, c2: Number(eco.by.cutoff.toPrecision(3)), unit2: byUnit }) /* #1917 */
-          : tr("Cut-off grade at these inputs: {c} {unit}.", { c: Number(cutoff.toPrecision(3)), unit })}</div>}
+          ? tr("Cut-off at these inputs: a block is ore when its revenue over both metals is at least the ${p}/t processing cost; alone, {el} {c} {unit} or {el2} {c2} {unit2}.", { p: value("processingCost"), el: element || model.name, c: Number(cutoff.toPrecision(3)), unit: unit + oxideSuffix(cutoff, unit, element) /* #2594 */, el2: byLabel, c2: Number(eco.by.cutoff.toPrecision(3)), unit2: byUnit + oxideSuffix(eco.by.cutoff, byUnit, byElement) }) /* #1917 */
+          : tr("Cut-off grade at these inputs: {c} {unit}.", { c: Number(cutoff.toPrecision(3)), unit: `${unit}${element ? ` ${element}` : ""}${oxideSuffix(cutoff, unit, element)}` /* #2594 — '0.119 % Li (0.256 % Li2O)' */ })}</div>}
         {!terrain && <div style={warn}>{collars.some((c) => Number.isFinite(c.z))
           ? tr("No terrain is loaded, so the ground is interpolated between the {n} collar elevations. Load a terrain in Maps for the real surface.", { n: collars.filter((c) => Number.isFinite(c.z)).length })
           : tr("No terrain is loaded and no collar has an elevation, so the top of each column of the block model stands in for the ground, interpolated between columns: nothing above the highest block is costed. Load a terrain in Maps for the real surface.")}</div>}{/* #1850 */}
@@ -264,11 +264,11 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove,
         <div style={{ marginTop: 8, padding: "7px 8px", border: "1px solid var(--color-border)", borderRadius: 6, background: "var(--color-bg-subtle)" }}>
           {unsampledOre && <div style={{ ...warn, marginTop: 0, marginBottom: 4 }}>{tr("{p} % of this ore is in blocks above or below every sample that informs them: unsampled ground, neither barren nor ore. The strip ratio and the margin rest on it, so read them as not meaningful. Drilled metres with no sample can be estimated as barren: 3D Modelling › Estimation, \"Unsampled metres inside a sampled hole\".", { p: Math.round(beyondP * 100) })}</div>}
           {line(tr("Ore"), `${big(res.oreT)} t`)}
-          {line(tr("Mean grade"), `${Number(res.meanGrade.toPrecision(3))} ${res.unit}`)}
+          {line(tr("Mean grade"), gradeWithElement(res.meanGrade, res.unit, res.element))}{/* #2594 */}
           {res.support && <div style={row}><span title={tr("One hole: the block's estimate used a single hole, or one hole carried at least 95 % of its weight (the estimate's own test). Extrapolated: the estimate classed the block as extrapolated or unsupported.")}>{tr("Ore from one hole / extrapolated")}</span><b>{`${Math.round(res.oreSingleHoleShare * 100)} % / ${Math.round(res.oreExtrapolatedShare * 100)} %`}</b></div>}{/* one hole incl. 95 %-weight blocks: #1617 */}
           {line(tr("Contained metal"), metalText(res))}
           {/* #1917 — the by-product's grade, metal and share of the revenue */}
-          {res.by && line(tr("Mean {el} grade", { el: res.byLabel }), `${res.by.meanGrade == null ? "—" : Number(res.by.meanGrade.toPrecision(3))} ${res.byUnit}`)}
+          {res.by && line(tr("Mean {el} grade", { el: res.byLabel }), gradeWithElement(res.by.meanGrade, res.byUnit, res.byElement))}
           {res.by && line(tr("Contained {el}", { el: res.byLabel }), metalText(res.by, res.byElement))}{/* #2595 — in the by-product's own words (it read "t Li (... SC6 ...)" for Ta) */}
           {res.by && line(tr("Revenue from {el}", { el: res.byLabel }), `${Math.round(res.by.revenueShare * 100)} %`)}
           {res.by && res.by.matchedShare < 0.999 && <div style={warn}>{tr("{p} % of the main model's blocks have a {el} grade: the rest count no {el}.", { p: Math.round(res.by.matchedShare * 100), el: res.byLabel })}</div>}

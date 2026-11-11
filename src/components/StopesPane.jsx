@@ -7,6 +7,7 @@ import { Box, Download, Layers3 } from "./icons.js";
 import { TaskPaneHeader } from "./Ribbon.jsx";
 import { useStore } from "../lib/store.jsx";
 import { stopeRows } from "../lib/stopeOutlines.js";
+import { elementOfModel, gradeWithElement } from "../lib/pitShell.js"; // TASKS.csv #2594
 import { runStopeOutlinesAsync } from "../lib/stopeOutlinesClient.js"; // TASKS.csv #2279 — off the UI thread
 import { gradeCandidate } from "../lib/gradeCandidate.js"; // #1848
 import { categoricalModels } from "../lib/geologyForward.js";
@@ -47,6 +48,7 @@ export default function StopesPane({ onAdd, onRemove, onClose, stopes = [], onSh
   const pits = useMemo(() => surfaces.filter((s) => s.type === "pit_shell" || s.type === "pit_design"), [surfaces]); // #1964
   const pit = pits.find((s) => s.id === f.pitId) || null;
   const unit = model ? valueUnit(model) || "" : "";
+  const element = model ? elementOfModel(model) : null; // #2594 — 'Cut-off (% Li)', not 'Cut-off (%)'
   const sg = useMemo(() => sgSummary(layers?.sg), [layers?.sg]);
   const ground = useMemo(() => stopeGroundSource(terrain, collars), [terrain, collars]); // #2438 — the ground the pit tools use
   const zRange = useMemo(() => { if (!model) return null; let lo = Infinity, hi = -Infinity; for (const c of model.cells) { if (c.z - c.dz / 2 < lo) lo = c.z - c.dz / 2; if (c.z + c.dz / 2 > hi) hi = c.z + c.dz / 2; } return [lo, hi]; }, [model]);
@@ -91,7 +93,7 @@ export default function StopesPane({ onAdd, onRemove, onClose, stopes = [], onSh
     if (addedIds.length && onRemove) addedIds.forEach((id) => onRemove(id));
     const oldStrings = kept?.addedStringIds || []; // #1922 — and its outline strings
     if (oldStrings.length) { const gone = new Set(oldStrings); setDesignStrings((L) => L.filter((s) => !gone.has(s.id))); }
-    kept = { ...r, inputs: { ...f }, model: model.name, pitName: pit ? String(pit.name) : null /* #1964 */, unit, groundSource: groundIn ? ground.source : null /* #2438 */, seconds: Math.round((performance.now() - t0) / 100) / 10, addedIds: [], runId: `stoperun_${Date.now()}` }; // runId: #1968 — its solids and strings are managed together
+    kept = { ...r, inputs: { ...f }, model: model.name, pitName: pit ? String(pit.name) : null /* #1964 */, unit, element /* #2594 */, groundSource: groundIn ? ground.source : null /* #2438 */, seconds: Math.round((performance.now() - t0) / 100) / 10, addedIds: [], runId: `stoperun_${Date.now()}` }; // runId: #1968 — its solids and strings are managed together
     setRes(kept); setAdded({ solids: false, strings: false }); setMsg(null);
   };
   // #1885 — what the typed width and skin became on this model's columns
@@ -120,10 +122,10 @@ export default function StopesPane({ onAdd, onRemove, onClose, stopes = [], onSh
     if (kept === res) { kept = { ...res, addedStringIds: strings.map((s) => s.id) }; setRes(kept); } // #1922
     setAdded((a) => ({ ...a, strings: true })); setMsg(tr("{n} outline(s) added as design strings (Strings tool).", { n: strings.length }));
   };
-  const exportCsv = () => saveFile({ suggestedName: "stope_outlines.csv", filters: [{ name: "CSV", extensions: ["csv"] }], content: toExportCsv(stopeRows(res, res.unit).map((r) => ({ ...r, block_model: res.model, cutoff: res.inputs.cutoff, crs: crsCell(project) }))) });
+  const exportCsv = () => saveFile({ suggestedName: "stope_outlines.csv", filters: [{ name: "CSV", extensions: ["csv"] }], content: toExportCsv(stopeRows(res, res.unit).map((r) => ({ ...r, block_model: res.model, element: res.element || "" /* #2594 */, cutoff: res.inputs.cutoff, crs: crsCell(project) }))) });
   const line = (label, val) => <div style={row}><span>{label}</span><b>{val}</b></div>;
   const field = (k, label, extra = {}) => <label style={row}>{label}<input type="number" min={0} step="any" value={f[k]} onChange={set(k)} style={num} {...extra} /></label>;
-  const g = (x) => (x == null ? "—" : `${Number(x.toPrecision(3))} ${res.unit}`);
+  const g = (x) => (x == null ? "—" : gradeWithElement(x, res.unit, res.element)); // #2594
   const flat = useMemo(() => (res ? flatBodyCheck(res.levels, Number(res.inputs?.levelH)) : null), [res]); // #2438
 
   return (
@@ -134,7 +136,8 @@ export default function StopesPane({ onAdd, onRemove, onClose, stopes = [], onSh
       <NotOfferedGrades voxelModels={voxelModels} />{/* TASKS.csv #2436 */}
       {models.length > 0 && (<>
         <label style={row}>{tr("Block model")}<select value={f.modelId} onChange={set("modelId")} style={{ ...smallSel, width: 0, flex: 1, minWidth: 0 }} aria-label={tr("Block model of the stopes")}>{models.map((m) => <option key={m.id ?? m.name} value={m.id ?? m.name}>{m.name}</option>)}</select></label>
-        {field("cutoff", unit ? tr("Cut-off ({unit})", { unit }) : tr("Cut-off"))}
+        {field("cutoff", unit ? tr("Cut-off ({unit})", { unit: element ? `${unit} ${element}` : unit }) : tr("Cut-off"))}
+        {element && v("cutoff") > 0 && gradeWithElement(v("cutoff"), unit, element, (x) => String(Number(x.toPrecision(4)))).includes("(") && <div style={{ ...note, marginTop: 0 }}>{tr("Cut-off: {g}", { g: gradeWithElement(v("cutoff"), unit, element, (x) => String(Number(x.toPrecision(4)))) })}</div>}{/* #2594 — 0.4645 % Li (1 % Li2O) */}
         {field("levelH", tr("Level interval (m)"), { title: tr("The height of each stope: the distance between sublevels. A column counts as ore on a level only where its blocks fill at least half of it."), placeholder: blockH ? String(blockH) : "" })}
         {field("zMin", tr("From RL (m)"), { placeholder: zRange ? String(Math.round(zRange[0] * 10) / 10) : "" })}{/* the level a blank run starts at (the model's base): #1923, #1919 */}
         {field("zMax", tr("To RL (m)"), { placeholder: zRange ? String(Math.round(zRange[1])) : "" })}
