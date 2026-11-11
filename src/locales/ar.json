@@ -10255,6 +10255,7 @@
   "{n} intercepts, in 1 hole": "{n} تقاطعات، في ثقب واحد",
   "{n} intercepts, in {holes} holes": "{n} تقاطعات، في {holes} ثقوب",
   "Grade × length ({unit} × m)": "المحتوى × الطول ({unit} × م)",
+  "{u} m of this intercept has no result: the grade and grade × length are over the {s} m sampled.": "{u} م من هذا التقاطع بلا نتيجة: المحتوى والمحتوى × الطول محسوبان على {s} م المأخوذة عينات منها.",
   "Put the best of these intercepts on the current Layout page as a table, as many as fit a free spot on the page (the CSV has them all)": "وضع أفضل هذه التقاطعات في صفحة التخطيط الحالية كجدول، بقدر ما يتسع له مكان فارغ في الصفحة (ملف CSV يحويها كلها)",
   "Cut-off {v} kept from {from} (the same unit).": "أُبقي حد القطع {v} من {from} (الوحدة نفسها).",
   "Cut-off back to {v}, the one last used for {to}.": "عاد حد القطع إلى {v}، آخر قيمة استُخدمت لـ {to}.",

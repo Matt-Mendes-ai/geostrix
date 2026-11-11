@@ -10255,6 +10255,7 @@
   "{n} intercepts, in 1 hole": "{n} interseções, em 1 furo",
   "{n} intercepts, in {holes} holes": "{n} interseções, em {holes} furos",
   "Grade × length ({unit} × m)": "Teor × comprimento ({unit} × m)",
+  "{u} m of this intercept has no result: the grade and grade × length are over the {s} m sampled.": "{u} m desta interseção não têm resultado: o teor e o teor × comprimento são sobre os {s} m amostrados.",
   "Put the best of these intercepts on the current Layout page as a table, as many as fit a free spot on the page (the CSV has them all)": "Colocar as melhores destas interseções na página atual do Layout como tabela, quantas couberem num espaço livre da página (o CSV tem todas)",
   "Cut-off {v} kept from {from} (the same unit).": "Teor de corte {v} mantido de {from} (a mesma unidade).",
   "Cut-off back to {v}, the one last used for {to}.": "Teor de corte de volta a {v}, o último usado para {to}.",

@@ -183,6 +183,10 @@ export default function BestIntercepts({ assays: assaysIn, assayElements, collar
     if (d.parts.length === 1) return d.parts[0].value;
     return d.parts.slice(0, 3).map((p) => `${p.value} ${Math.round(p.fraction * 100)}%`).join(" · ");
   };
+  // TASKS.csv #2511 — the grade column with one number of decimals for all its rows ('1.77', '0.8187', '2' read ragged): enough for the
+  // largest grade to show 4 significant figures
+  const gradeDecimals = useMemo(() => { let hi = 0; for (const r of results) { const v = Math.abs(dg(r.avgGrade)); if (v > hi) hi = v; } return hi > 0 ? Math.max(0, Math.min(4, 3 - Math.floor(Math.log10(hi)))) : 2; }, [results, pct]);
+  const gradeCol = (v) => (Number.isFinite(v) ? v.toFixed(gradeDecimals) : "");
   const { scrollRef, onScroll, startIndex, endIndex, topPad, bottomPad } = useVirtualRows(results.length, RESULT_ROW_H, { containerHeight: 380 });
 
   // TASKS.csv #911 — the results as a table on the active Layout page (a copy: send again after changing the settings)
@@ -361,7 +365,7 @@ export default function BestIntercepts({ assays: assaysIn, assayElements, collar
                     {twEnabled && <th style={th} title={tr("|cos θ| between the hole and the structure's pole. 1.0 = hole perpendicular to the structure (ideal); near 0 = a grazing intersection whose downhole width is badly inflated.")}>{tr("Factor")}</th>}
                     {domainLayer && <th style={th} title={tr("Logged unit(s) hosting this intercept. Percentages shown when it straddles a contact.")}>{tr("Host")}</th>}
                     <th style={th}>{tr("Avg {symbol} ({unit})", { symbol: gradeSym, unit: dispUnit })}</th>
-                    <th style={th}>{tr("Grade × length")}</th>
+                    <th style={th}>{tr("Grade × length ({unit} × m)", { unit: dispUnit }) /* #2511 — its unit */}</th>
                     {optionalInterceptColumns({ including: incOn, metalEquivalent: meqCol }).map((c) => (c === "including"
                       ? <th key={c} style={th}>{tr("Including (≥ {includeCutoff})", { includeCutoff })}</th>
                       : <th key={c} style={th} title={metalEquivalentFormula(meqMetals)}>{tr("{symbol}Eq ({unit})", { symbol, unit })}</th>))}
@@ -376,7 +380,7 @@ export default function BestIntercepts({ assays: assaysIn, assayElements, collar
                       <td style={td}>{r.hole_id}</td>
                       <td style={td}>{r.from.toFixed(2)}</td>
                       <td style={td}>{r.to.toFixed(2)}</td>
-                      <td style={td}>{r.length.toFixed(2)}</td>
+                      <td style={td} title={r.unsampledM > 0.05 ? tr("{u} m of this intercept has no result: the grade and grade × length are over the {s} m sampled.", { u: r.unsampledM.toFixed(2), s: interceptSampledM(r).toFixed(2) }) : undefined}>{r.unsampledM > 0.05 ? tr("{len} ({s} sampled)", { len: r.length.toFixed(2), s: interceptSampledM(r).toFixed(2) }) : r.length.toFixed(2)}</td>{/* #2511 — the unsampled metres shown in the dialog too (#2475 did the sheet) */}
                       {twEnabled && <td style={td}>{r.tw ? r.tw.trueWidth.toFixed(2) : "—"}</td>}
                       {twEnabled && <td style={{ ...td, color: r.tw && r.tw.factor < 0.5 ? "#b06a1f" : undefined }} title={r.tw && r.tw.factor < 0.5 ? tr("Oblique intersection — the downhole width overstates true thickness by more than 2x.") : undefined}>{r.tw ? r.tw.factor.toFixed(3) : "—"}</td>}
                       {domainLayer && (() => {
@@ -401,7 +405,7 @@ export default function BestIntercepts({ assays: assaysIn, assayElements, collar
                           r.unsampledM > 1e-6 ? tr("{unsampledM} m inside this intercept has no {symbol} result (unsampled or not assayed): it is left out of the grade, which is over the assayed metres only.", { unsampledM: r.unsampledM.toFixed(2), symbol: gradeSym }) : null,
                           r.overlapM > 1e-6 ? tr("{overlapM} m is covered by overlapping assay rows with different results; their average is used.", { overlapM: r.overlapM.toFixed(2) }) : null,
                         ].filter(Boolean).join(" ") || undefined}>
-                        {r.overRange ? "≥ " : ""}{+dg(r.avgGrade).toPrecision(4)}{r.overlapM > 1e-6 ? " ⚠" : ""}
+                        {r.overRange ? "≥ " : ""}{gradeCol(dg(r.avgGrade))}{r.overlapM > 1e-6 ? " ⚠" : ""}{/* #2511 — one number of decimals down the column */}
                       </td>
                       <td style={td}>{+dg(interceptGradeLength(r)).toPrecision(5)}</td>{/* #2475 */}
                       {/* TASKS.csv #1164 — the same order as the header: Including, then the equivalent */}

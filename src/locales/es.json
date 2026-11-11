@@ -10255,6 +10255,7 @@
   "{n} intercepts, in 1 hole": "{n} intersecciones, en 1 sondaje",
   "{n} intercepts, in {holes} holes": "{n} intersecciones, en {holes} sondajes",
   "Grade × length ({unit} × m)": "Ley × longitud ({unit} × m)",
+  "{u} m of this intercept has no result: the grade and grade × length are over the {s} m sampled.": "{u} m de esta intersección no tienen resultado: la ley y la ley × longitud son sobre los {s} m muestreados.",
   "Put the best of these intercepts on the current Layout page as a table, as many as fit a free spot on the page (the CSV has them all)": "Poner las mejores de estas intersecciones en la página actual del Layout como tabla, tantas como quepan en un espacio libre de la página (el CSV las tiene todas)",
   "Cut-off {v} kept from {from} (the same unit).": "Ley de corte {v} conservada de {from} (la misma unidad).",
   "Cut-off back to {v}, the one last used for {to}.": "Ley de corte de vuelta a {v}, la última usada para {to}.",

@@ -10255,6 +10255,7 @@
   "{n} intercepts, in 1 hole": "{n} intersections, dans 1 sondage",
   "{n} intercepts, in {holes} holes": "{n} intersections, dans {holes} sondages",
   "Grade × length ({unit} × m)": "Teneur × longueur ({unit} × m)",
+  "{u} m of this intercept has no result: the grade and grade × length are over the {s} m sampled.": "{u} m de cette intersection n'ont pas de résultat : la teneur et la teneur × longueur portent sur les {s} m échantillonnés.",
   "Put the best of these intercepts on the current Layout page as a table, as many as fit a free spot on the page (the CSV has them all)": "Mettre les meilleures de ces intersections sur la page de mise en page actuelle sous forme de tableau, autant qu'il en tient dans un espace libre de la page (le CSV les contient toutes)",
   "Cut-off {v} kept from {from} (the same unit).": "Teneur de coupure {v} conservée de {from} (même unité).",
   "Cut-off back to {v}, the one last used for {to}.": "Teneur de coupure revenue à {v}, la dernière utilisée pour {to}.",
