@@ -6,7 +6,7 @@ import MethodPairsTab from "./MethodPairsTab.jsx"; // TASKS.csv #2629
 import { majorOxides, MIN_MAJORS } from "../lib/oxideTotals.js"; // TASKS.csv #2506
 import { X, Download } from "./icons.js";
 import { saveFile } from "../lib/desktop.js";
-import { methodPairs } from "../lib/qaqc.js"; // TASKS.csv #2629
+import { methodPairs, labAssays } from "../lib/qaqc.js"; // TASKS.csv #2629; labAssays: #2354
 import { classifyQAQCRow, excludedQAQCIds, standardGroups, standardSeries, blankRows, duplicatePairs, duplicateSummary, DUP_RPD_LIMITS, DUP_KIND_LABELS, suggestDetectionLimit, orderForControlChart, DEFAULT_QAQC_PATTERNS } from "../lib/qaqc.js"; import { formatLimit, limitLooksConverted } from "../lib/qaqc.js";
 import { stampLines, withStamp, stampEpsg } from "../lib/provenance.js"; // TASKS.csv #534 — stamped exports
 import { version as APP_VERSION } from "../../package.json";
@@ -47,7 +47,7 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
   const unit = elementUnits[symbol] || "ppm";
   const unitL = gradeUnitLabel(symbol, unit); // #2192 — the label on screen (g/t for a precious metal in ppm, #1680); exports keep unit
   const dl = assayElements.find((e) => e.symbol === symbol)?.detectionLimit ?? null;
-  const dlSuggestion = useMemo(() => suggestDetectionLimit(assays, symbol), [assays, symbol]);
+  const dlSuggestion = useMemo(() => suggestDetectionLimit(labAssays(assays), symbol), [assays, symbol]); // labAssays: #2354 — a pXRF reading is not the lab's limit
   const setDetectionLimit = (v) => setAssayElements?.((prev) => prev.map((e) => (e.symbol === symbol ? { ...e, detectionLimit: v > 0 ? v : null } : e)));
   const [blankMult, setBlankMult] = useState(5);
   const blankLimit = dl ? blankMult * dl : blankThreshold;
