@@ -7,6 +7,7 @@ import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay } from "../lib/modalStyles.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
+import { sqlCellText } from "../lib/sqlTables.js"; // TASKS.csv #2521
 import { toExportCsv } from "../lib/tabular.js"; // TASKS.csv #1022 — every exported CSV: all columns, formula cells escaped
 import { sqlResultRows } from "../lib/tableExports.js"; // TASKS.csv #1083
 
@@ -16,7 +17,8 @@ import { sqlResultRows } from "../lib/tableExports.js"; // TASKS.csv #1083
 function defaultQueryFor(tables) {
   const assaysTable = tables.find((t) => t.name === "assays");
   if (assaysTable) {
-    const numericCol = assaysTable.columns.find((c) => !["hole_id", "from", "to", "source"].includes(c));
+    // #2521 — an element column, not the sample id the sample columns put first (#1516), nor a qualifier column
+    const numericCol = assaysTable.columns.find((c) => !["hole_id", "from", "to", "source", "sample_id", "sample_type", "parent_id", "qc_code"].includes(c) && !/_q$/.test(c));
     if (numericCol) return `SELECT * FROM assays WHERE "${numericCol}" > 1 ORDER BY "${numericCol}" DESC LIMIT 100;`;
   }
   if (tables.some((t) => t.name === "surface_samples")) return "SELECT * FROM surface_samples LIMIT 100;"; // #1799
@@ -126,7 +128,7 @@ export default function SQLWorkspaceModal({ collars, survey, layers, assays, ass
                     <thead><tr>{result.columns.map((c) => <th key={c} style={th}>{c}</th>)}</tr></thead>
                     <tbody>
                       {result.rows.slice(0, 500).map((row, i) => (
-                        <tr key={i}>{row.map((v, j) => <td key={j} style={td}>{v === null ? "—" : String(v)}</td>)}</tr>
+                        <tr key={i}>{row.map((v, j) => <td key={j} style={td}>{v === null ? "—" : sqlCellText(v)}</td>)}</tr>
                       ))}
                     </tbody>
                   </table>

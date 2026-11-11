@@ -42,6 +42,12 @@ export function assaySampleColumns(assays) {
   return ASSAY_SAMPLE_COLUMNS.filter((k) => seen.has(k));
 }
 
+// #2521 — the elements with a '<' or '>' result on any row
+export function qualifiedSymbols(assays, symbols) {
+  const has = new Set();
+  for (const a of assays || []) for (const [s, q] of Object.entries(a?.qualifiers || {})) if (q === "<" || q === ">") has.add(s);
+  return (symbols || []).filter((s) => has.has(s));
+}
 // One row per assay interval, one column per loaded element symbol — the wide/spreadsheet shape a SQL
 // WHERE clause like "Au > 1" needs (assays are stored internally as {values: {symbol: value}}, which
 // SQL can't reach into directly).
@@ -50,10 +56,13 @@ async function createAssaysTable(db, assays, assayElements, onProgress) {
   const fixed = new Set(["hole_id", "from", "to", "source", ...ASSAY_SAMPLE_COLUMNS]);
   const symbols = assayElements.map((e) => e.symbol).filter((s) => s && !fixed.has(String(s).toLowerCase()));
   const sampleCols = assaySampleColumns(assays);
-  const cols = ["hole_id TEXT", "\"from\" REAL", "\"to\" REAL", "source TEXT", ...sampleCols.map((c) => `${c} TEXT`), ...symbols.map((s) => `"${String(s).replace(/"/g, '""')}" REAL`)];
+  // TASKS.csv #2521 (review #2486) — '<' / '>' beside each element that has any ("Li_q"): the 3,893 '<0.01 % Li2O' samples were rows with
+  // Li = 0.0023226645607841317, the column's minimum, with nothing to tell them from an assay. WHERE Li_q IS NULL keeps the measured values.
+  const qualSyms = qualifiedSymbols(assays, symbols);
+  const cols = ["hole_id TEXT", "\"from\" REAL", "\"to\" REAL", "source TEXT", ...sampleCols.map((c) => `${c} TEXT`), ...symbols.map((s) => `"${String(s).replace(/"/g, '""')}" REAL`), ...qualSyms.map((s) => `"${String(s).replace(/"/g, '""')}_q" TEXT`)];
   db.run(`CREATE TABLE assays (${cols.join(", ")});`);
   await fillTable(db, "assays", `INSERT INTO assays VALUES (${cols.map(() => "?").join(",")})`, assays,
-    (a) => [a.hole_id, a.from, a.to, a.source ?? null, ...sampleCols.map((c) => (a[c] != null && a[c] !== "" ? String(a[c]) : null)), ...symbols.map((s) => (a.values?.[s] != null ? a.values[s] : null))], onProgress);
+    (a) => [a.hole_id, a.from, a.to, a.source ?? null, ...sampleCols.map((c) => (a[c] != null && a[c] !== "" ? String(a[c]) : null)), ...symbols.map((s) => (a.values?.[s] != null ? a.values[s] : null)), ...qualSyms.map((s) => (a.qualifiers?.[s] === "<" || a.qualifiers?.[s] === ">" ? a.qualifiers[s] : null))], onProgress);
 }
 
 // TASKS.csv #2504 (review #2486) — the collar file's other columns (attrs: Drill_Code, Tenement, the app's 'hole type', mine-grid
@@ -78,10 +87,21 @@ async function createCollarsTable(db, collars, onProgress) {
   await fillTable(db, "collars", `INSERT INTO collars VALUES (?,?,?,?,?,?,?${extra.map(() => ",?").join("")})`, collars, (c) => [c.hole_id, c.x, c.y, c.z, c.azimuth ?? null, Number.isFinite(c.dip) ? -c.dip : null, c.length ?? null, ...extra.map((e) => { const v = c.attrs?.[e.key]; return v == null || v === "" || typeof v === "object" ? null : e.numeric ? Number(v) : String(v); })], onProgress);
 }
 
+// #2521 — the survey rows' other fields (the station type: 'which holes have only assumed surveys'), as the collars' (#2504)
+export function surveyExtraColumns(survey) {
+  const base = new Set(["hole_id", "depth", "azimuth", "dip"]), kind = new Map();
+  for (const s of survey || []) for (const [k, v] of Object.entries(s || {})) {
+    if (base.has(String(k).toLowerCase()) || k.startsWith("_") || v == null || v === "" || typeof v === "object") continue;
+    kind.set(k, kind.get(k) === false || typeof v !== "number" ? false : true);
+  }
+  return [...kind.entries()].map(([key, numeric]) => ({ key, numeric }));
+}
 async function createSurveyTable(db, survey, onProgress) {
   if (!survey.length) return;
-  db.run(`CREATE TABLE survey (hole_id TEXT, depth REAL, azimuth REAL, dip REAL);`);
-  await fillTable(db, "survey", "INSERT INTO survey VALUES (?,?,?,?)", survey, (s) => [s.hole_id, s.depth, s.azimuth, Number.isFinite(s.dip) ? -s.dip : null], onProgress); // #1034 — negative = down
+  const extra = surveyExtraColumns(survey);
+  const q = (k) => `"${String(k).replace(/"/g, '""')}"`;
+  db.run(`CREATE TABLE survey (hole_id TEXT, depth REAL, azimuth REAL, dip REAL${extra.map((e) => `, ${q(e.key)} ${e.numeric ? "REAL" : "TEXT"}`).join("")});`);
+  await fillTable(db, "survey", `INSERT INTO survey VALUES (?,?,?,?${extra.map(() => ",?").join("")})`, survey, (s) => [s.hole_id, s.depth, s.azimuth, Number.isFinite(s.dip) ? -s.dip : null, ...extra.map((e) => { const v = s[e.key]; return v == null || v === "" || typeof v === "object" ? null : e.numeric ? v : String(v); })], onProgress); // #1034 — negative = down
 }
 
 // One table per loaded layer key (litho/alt/vein/geotech/recovery/sg/mnlgy/magsusc/structure/etc.) —
@@ -180,3 +200,6 @@ export async function buildTables(db, { collars, survey, layers, assays, assayEl
   });
   return tables;
 }
+
+// TASKS.csv #2521 — a REAL printed with 16-17 digits ('74.17110132658513') reads as six significant figures in the result grid; the CSV keeps them all
+export const sqlCellText = (v) => (typeof v === "number" && Number.isFinite(v) && !Number.isInteger(v) ? String(Number(v.toPrecision(6))) : String(v));
