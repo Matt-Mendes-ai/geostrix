@@ -10068,5 +10068,11 @@
   "Contained in those blocks: {m}.": "Contenu dans ces blocs : {m}.",
   "The blocks fill {p} % of the solid ({bt} t of {t} t): the grade is theirs, the rest has no estimate.": "Les blocs remplissent {p} % du solide ({bt} t sur {t} t) : la teneur est la leur ; le reste n'a pas d'estimation.",
   "{m} m of this line, in plan, is above the ground interpolated between the collars.": "{m} m de cette ligne, en plan, sont au-dessus du terrain interpolé entre les collets.",
-  "No terrain: the line is checked against the ground interpolated between the collars.": "Pas de terrain : la ligne est comparée au terrain interpolé entre les collets."
+  "No terrain: the line is checked against the ground interpolated between the collars.": "Pas de terrain : la ligne est comparée au terrain interpolé entre les collets.",
+  "A vertical hole above the target: collar at {z} m ({src}), {d} m to the target.": "Un sondage vertical au-dessus de la cible : collet à {z} m ({src}), {d} m jusqu'à la cible.",
+  "Shallow: flatter than about {s}°.": "Peu incliné : plus plat qu'environ {s}°.",
+  ", the same all the way down": ", la même sur toute la longueur",
+  "{p}% of the scored cells sit at the lowest score ({v}): an evidence's membership is at its floor there and the operator keeps the floor. The top cells are only those no evidence vetoed, not the most favourable. Widen the 0 = points, or combine with OR / algebraic sum.": "{p}% des cellules notées sont au score le plus bas ({v}) : l'appartenance d'une évidence y est à son plancher et l'opérateur garde le plancher. Les meilleures cellules sont seulement celles qu'aucune évidence n'a écartées, pas les plus favorables. Élargissez les points 0 =, ou combinez avec OU / somme algébrique.",
+  "Largest body only (in the shell)": "Seulement le plus grand corps (dans l'enveloppe)",
+  "A closed solid around the cells in this range (marching cubes on the model's grid), added to the generated surfaces: a grade shell, or a geophysical high or low, as a body to section, query and target.": "Un solide fermé autour des cellules de cette plage (marching cubes sur la grille du modèle), ajouté aux surfaces générées : une enveloppe de teneur, ou un haut ou bas géophysique, comme corps à couper, interroger et cibler."
 }

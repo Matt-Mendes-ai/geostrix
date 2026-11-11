@@ -47,7 +47,7 @@ test("#1840 two highs: all bodies by default (said by bodies), only the big one 
 test("#1840 the range row offers Largest body only and both routes pass it to the shell", () => {
   const parts = readFileSync(new URL("../src/modules/viewer/ViewerParts.jsx", import.meta.url), "utf8");
   assert.ok(parts.includes("onClick={() => onShell(model, { largestOnly })}"));
-  assert.ok(parts.includes('{tr("Largest body only")}'));
+  assert.ok(parts.includes('{tr("Largest body only (in the shell)")}')); // worded since #2457
   const geo = readFileSync(new URL("../src/modules/GeophysicsModule.jsx", import.meta.url), "utf8");
   assert.ok(geo.includes("largestOnly: !!opts.largestOnly"));
   const vm = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");

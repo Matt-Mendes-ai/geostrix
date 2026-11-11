@@ -10068,5 +10068,11 @@
   "Contained in those blocks: {m}.": "Contenido en esos bloques: {m}.",
   "The blocks fill {p} % of the solid ({bt} t of {t} t): the grade is theirs, the rest has no estimate.": "Los bloques llenan el {p} % del sólido ({bt} t de {t} t): la ley es la de ellos; el resto no tiene estimación.",
   "{m} m of this line, in plan, is above the ground interpolated between the collars.": "{m} m de esta línea, en planta, están sobre el terreno interpolado entre los collares.",
-  "No terrain: the line is checked against the ground interpolated between the collars.": "Sin terreno: la línea se compara con el terreno interpolado entre los collares."
+  "No terrain: the line is checked against the ground interpolated between the collars.": "Sin terreno: la línea se compara con el terreno interpolado entre los collares.",
+  "A vertical hole above the target: collar at {z} m ({src}), {d} m to the target.": "Un sondaje vertical sobre el objetivo: collar a {z} m ({src}), {d} m hasta el objetivo.",
+  "Shallow: flatter than about {s}°.": "Tendido: más plano que unos {s}°.",
+  ", the same all the way down": ", la misma en todo el largo",
+  "{p}% of the scored cells sit at the lowest score ({v}): an evidence's membership is at its floor there and the operator keeps the floor. The top cells are only those no evidence vetoed, not the most favourable. Widen the 0 = points, or combine with OR / algebraic sum.": "El {p}% de las celdas puntuadas está en el puntaje más bajo ({v}): allí la pertenencia de una evidencia está en su piso y el operador conserva el piso. Las celdas superiores son solo las que ninguna evidencia vetó, no las más favorables. Amplíe los puntos 0 = o combine con OR / suma algebraica.",
+  "Largest body only (in the shell)": "Solo el cuerpo mayor (en el cascarón)",
+  "A closed solid around the cells in this range (marching cubes on the model's grid), added to the generated surfaces: a grade shell, or a geophysical high or low, as a body to section, query and target.": "Un sólido cerrado alrededor de las celdas de este rango (marching cubes en la malla del modelo), agregado a las superficies generadas: un cascarón de ley, o un alto o bajo geofísico, como cuerpo para seccionar, consultar y explorar."
 }
