@@ -6,7 +6,7 @@ import { readFileSync } from "node:fs";
 import { parseTableText } from "../src/lib/tabular.js";
 import { guessTargetFor, guessMapping, schemaSatisfied, EPSG_COL_ALIASES } from "../src/lib/layers.js";
 import { silvertipAssays } from "../src/lib/sampleSilvertip.js";
-import { waUraniumGamma, WA_URANIUM_EPSG, WA_URANIUM_GAMMA_LAYER } from "../src/lib/sampleWaUranium.js";
+import { waUraniumGamma, WA_URANIUM_EPSG, WA_URANIUM_GAMMA_LAYER, WA_URANIUM_CPS_LAYER } from "../src/lib/sampleWaUranium.js";
 import { sampleProjectName } from "../src/lib/sampleProjectName.js";
 import { sampleCardsFor } from "../src/lib/sampleCards.js";
 
@@ -15,7 +15,7 @@ const text = (f) => readFileSync(new URL(f, dir), "utf8");
 const table = (f) => parseTableText(text(f));
 
 test("each drill table goes to its layer with every required column mapped", () => {
-  const expect = { "collars.csv": "collars", "survey.csv": "survey", "litho.csv": "litho", "alt.csv": "alt" };
+  const expect = { "collars.csv": "collars", "survey.csv": "survey", "litho.csv": "litho", "alt.csv": "alt", "weath.csv": "weath" }; // weath: #2342
   for (const [f, target] of Object.entries(expect)) {
     const t = table(f), got = guessTargetFor(t.headers, f);
     assert.equal(got, target, f);
@@ -64,8 +64,11 @@ test("gamma log: 43,923 eU3O8 readings over 423 holes, none negative, as a custo
   assert.equal(new Set(rows.map((r) => r.hole_id)).size, 423);
   assert.ok(rows.every((r) => Number.isFinite(r.depth) && r.value >= 0 && r.from === undefined && r.to === undefined));
   assert.ok(rows.some((r) => r.value > 1000), "readings over 1,000 ppm eU3O8");
-  assert.ok(rows.every((r) => r.raw_cps == null || (r.raw_cps >= 0 && r.raw_cps < 1e6)), "the 10,700,000 cps sentinel is gone");
-  assert.equal(WA_URANIUM_GAMMA_LAYER, "Gamma eU3O8 (ppm)");
+  // TASKS.csv #2342 — the raw counts are their own channel (they were a field of the eU3O8 rows)
+  assert.ok(rows.every((r) => !("raw_cps" in r)));
+  const cps = waUraniumGamma(text("gamma.csv"), "raw_cps");
+  assert.ok(cps.length > 40000 && cps.every((r) => r.value >= 0 && r.value < 1e6), "the 10,700,000 cps sentinel is gone");
+  assert.equal(WA_URANIUM_GAMMA_LAYER, "Gamma eU3O8 (ppm)"); assert.equal(WA_URANIUM_CPS_LAYER, "Gamma raw (cps)");
 });
 
 test("the sample is offered on the empty 3D View and names its tab", () => {

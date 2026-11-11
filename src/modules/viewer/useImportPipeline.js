@@ -1052,7 +1052,7 @@ export function useImportPipeline(ctx) {
     // TASKS.csv #2168 — WAMEX report A87304 (Western Australia, CC BY 4.0); its assays and gamma log are loaded by the caller (lib/sampleWaUranium.js)
     wa_uranium: {
       dir: "wa_uranium", epsg: 28351, crs: "GDA94 / MGA zone 51",
-      files: ["collars.csv", "survey.csv", "litho.csv", "alt.csv"],
+      files: ["collars.csv", "survey.csv", "litho.csv", "alt.csv", "weath.csv"], // weath.csv: TASKS.csv #2342 — the oxidation state as Weathering
       notice: "Loading the Western Australian palaeochannel-uranium sample project — 430 aircore and diamond drillholes from 2009-2010 with their lithology and alteration logs, multi-element assays and a downhole gamma / eU3O8 log, from the State's open-file WAMEX drillhole database (report A87304, CC BY 4.0). Nothing in it is synthesized (sample_data/wa_uranium/README.md).",
     },
   };
