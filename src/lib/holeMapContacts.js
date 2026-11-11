@@ -55,6 +55,9 @@ export function holeContacts(rows, codeUnit, inStack = () => true, { maxGap = MA
   const contacts = [];
   let gaps = 0;
   const holes = new Set();
+  // TASKS.csv #2567 (review #2486) — a unit met in several runs down one hole (stacked pegmatite sheets: up to 45 contacts in a hole) gave
+  // tops and bases alike to ONE stratigraphic top; counted here so the pane can say so: unit -> { holes, runs, maxRuns }
+  const repeats = new Map();
   for (const [hole, list] of byHole) {
     list.sort((a, b) => a.from - b.from);
     // runs of one unit merged (two codes of one unit, or a unit logged in several intervals)
@@ -64,6 +67,9 @@ export function holeContacts(rows, codeUnit, inStack = () => true, { maxGap = MA
       if (last && last.unit === r.unit && r.from - last.to <= maxGap) { last.to = Math.max(last.to, r.to); continue; }
       runs.push({ unit: r.unit, from: r.from, to: r.to, row: r });
     }
+    const perUnit = new Map();
+    for (const r of runs) { const p = perUnit.get(r.unit) || { k: 0, m: 0 }; p.k++; p.m += r.to - r.from; perUnit.set(r.unit, p); }
+    for (const [u, p] of perUnit) if (p.k >= 2) { const e = repeats.get(u) || { holes: 0, runs: 0, maxRuns: 0, metres: 0 }; e.holes++; e.runs += p.k; e.maxRuns = Math.max(e.maxRuns, p.k); e.metres += p.m; repeats.set(u, e); }
     for (let i = 1; i < runs.length; i++) {
       const a = runs[i - 1], b = runs[i];
       if (a.unit === b.unit) continue; // the same unit after a long gap: no contact between them
@@ -73,5 +79,5 @@ export function holeContacts(rows, codeUnit, inStack = () => true, { maxGap = MA
       holes.add(hole);
     }
   }
-  return { contacts, gaps, holes: holes.size };
+  return { contacts, gaps, holes: holes.size, repeats };
 }
