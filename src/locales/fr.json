@@ -9885,5 +9885,10 @@
   "Restore \"{name}\"": "Rétablir « {name} »",
   "Hide the key": "Masquer la légende",
   "Show the key": "Afficher la légende",
-  "Section key": "Légende de la coupe"
+  "Section key": "Légende de la coupe",
+  "{m} of {d} m drilled in {n} hole(s) have no rock code ({nl} hole(s) with no log at all): counted as outside {code}, so the body closes there.": "{m} des {d} m forés dans {n} sondage(s) n'ont pas de code de roche ({nl} sondage(s) sans aucun log) : comptés hors de {code}, le corps se ferme donc là.",
+  "{m} of {d} m drilled in {n} hole(s) have no rock code ({nl} hole(s) with no log at all): counted as unknown, not outside {code}, so nothing stops the body there. If these holes were logged only where the unit is (grade-control drilling), tick \"Treat unlogged metres as outside\".": "{m} des {d} m forés dans {n} sondage(s) n'ont pas de code de roche ({nl} sondage(s) sans aucun log) : comptés comme inconnus, pas hors de {code}, donc rien n'arrête le corps là. Si ces sondages n'ont été décrits que là où se trouve l'unité (forage de contrôle des teneurs), cochez « Traiter les mètres non décrits comme hors ».",
+  "Drilled metres with no rock code (and holes with no log) count as outside the unit instead of unknown: right for grade-control holes logged only where the unit is": "Les mètres forés sans code de roche (et les sondages sans log) comptent hors de l'unité au lieu d'inconnus : ce qui convient aux sondages de contrôle des teneurs décrits seulement là où se trouve l'unité",
+  "Treat unlogged metres as outside": "Traiter les mètres non décrits comme hors",
+  "Inside: the code's intervals. Outside: every other logged lithology interval (and, when ticked, the unlogged metres). It follows the geology trend in Model settings. A lower Inside at joins separate bodies; a larger search rarely does.": "Dedans : les intervalles du code. Dehors : tous les autres intervalles de lithologie décrits (et, si coché, les mètres non décrits). Il suit la tendance géologique des paramètres du modèle. Un seuil Dedans plus bas joint des corps séparés ; une recherche plus large le fait rarement."
 }

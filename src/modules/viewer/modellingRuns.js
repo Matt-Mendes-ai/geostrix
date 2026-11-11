@@ -7,7 +7,7 @@ import { modelGround, boxTallerThanDrilling } from "../../lib/modelGround.js"; /
 import { roundVolume, loggedVolumeCheck } from "../../lib/volumeCheck.js"; // TASKS.csv #2530
 import { taskSlot, rampProgress } from "../../lib/taskSlot.js"; // TASKS.csv #2379; rampProgress: #2383
 import { stackOrderFromHoles } from "../../lib/stackOrderFromHoles.js"; // TASKS.csv #2382
-import { rockWithoutRows } from "../../lib/unloggedGaps.js"; // TASKS.csv #2380
+import { rockWithoutRows, unloggedDrilling } from "../../lib/unloggedGaps.js"; // TASKS.csv #2380
 import { stackOrderAtHoles } from "../../lib/stackOrderAtHoles.js"; // TASKS.csv #2376
 import { intensityRank, INTENSITY_SCALE } from "../../lib/intensityVocab.js"; // TASKS.csv #2230
 import { baselineNotice, oneHoleDipNotice } from "../../lib/modelCheckBaseline.js"; // TASKS.csv #1687
@@ -1774,6 +1774,18 @@ export function createModellingRuns(ctx, mcRef) {
           setNotices((p) => [...p, bodyOpts.unloggedZero
             ? notice("{m} m of logged rock in {n} hole(s) with no alteration row counted as unaltered (0), so the halo closes there.", { m: Math.round(gaps.metres).toLocaleString(), n: gaps.holes })
             : notice("{m} m of logged rock in {n} hole(s) has no alteration row and counted as unknown, not unaltered, so nothing pulls the halo in there. If this log records alteration only where seen, tick \"Count logged rock with no alteration row as unaltered\".", { m: Math.round(gaps.metres).toLocaleString(), n: gaps.holes })]);
+        }
+        // TASKS.csv #2531 (review #2486) — a unit body: the drilled metres with no rock code are unknown (as before) or, when asked, outside the
+        // unit (a 0), so selectively logged grade-control holes close the body; said either way, with the share of the drilling
+        if (isCode && !customSrc) {
+          const holesHere = new Set((tracesRef.current || []).map((t) => t.hole_id));
+          const un = unloggedDrilling(collars.filter((c) => !holesHere.size || holesHere.has(c.hole_id)), altRows, () => true); // any lithology row covers its metres: a blank-code row is already an outside (0) sample above
+          if (un.metres > 0.5) {
+            if (bodyOpts.unloggedOutside) un.rows.forEach((r) => splitIntervalForSampling(r.from, r.to, subLen).forEach((seg) => intervals.push({ hole_id: r.hole_id, from: seg.from, to: seg.to, avgGrade: 0 })));
+            setNotices((p) => [...p, bodyOpts.unloggedOutside
+              ? notice("{m} of {d} m drilled in {n} hole(s) have no rock code ({nl} hole(s) with no log at all): counted as outside {code}, so the body closes there.", { m: Math.round(un.metres).toLocaleString(), d: Math.round(un.drilled).toLocaleString(), n: un.holes, nl: un.noLog, code: altValue })
+              : notice("{m} of {d} m drilled in {n} hole(s) have no rock code ({nl} hole(s) with no log at all): counted as unknown, not outside {code}, so nothing stops the body there. If these holes were logged only where the unit is (grade-control drilling), tick \"Treat unlogged metres as outside\".", { m: Math.round(un.metres).toLocaleString(), d: Math.round(un.drilled).toLocaleString(), n: un.holes, nl: un.noLog, code: altValue })]);
+          }
         }
         const { points: worldPts, dropped } = samplePointsFromIntervals(intervals, collars, survey, desurveyHole, desurveyMethod); // #135
         if (!worldPts.length) throw new Error(isCode ? tr("No sample points could be placed in 3D — check that the logged holes have collars.") : tr("No alteration sample points could be placed in 3D — check that the logged holes have collars."));

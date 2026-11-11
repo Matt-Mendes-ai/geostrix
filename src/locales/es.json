@@ -9885,5 +9885,10 @@
   "Restore \"{name}\"": "Restaurar \"{name}\"",
   "Hide the key": "Ocultar la leyenda",
   "Show the key": "Mostrar la leyenda",
-  "Section key": "Leyenda de la sección"
+  "Section key": "Leyenda de la sección",
+  "{m} of {d} m drilled in {n} hole(s) have no rock code ({nl} hole(s) with no log at all): counted as outside {code}, so the body closes there.": "{m} de {d} m perforados en {n} sondaje(s) no tienen código de roca ({nl} sondaje(s) sin ningún registro): contados como fuera de {code}, así que el cuerpo se cierra allí.",
+  "{m} of {d} m drilled in {n} hole(s) have no rock code ({nl} hole(s) with no log at all): counted as unknown, not outside {code}, so nothing stops the body there. If these holes were logged only where the unit is (grade-control drilling), tick \"Treat unlogged metres as outside\".": "{m} de {d} m perforados en {n} sondaje(s) no tienen código de roca ({nl} sondaje(s) sin ningún registro): contados como desconocidos, no fuera de {code}, así que nada detiene el cuerpo allí. Si estos sondajes se registraron solo donde está la unidad (perforación de control de leyes), marca \"Tratar los metros sin registro como fuera\".",
+  "Drilled metres with no rock code (and holes with no log) count as outside the unit instead of unknown: right for grade-control holes logged only where the unit is": "Los metros perforados sin código de roca (y los sondajes sin registro) cuentan como fuera de la unidad en vez de desconocidos: lo correcto para sondajes de control de leyes registrados solo donde está la unidad",
+  "Treat unlogged metres as outside": "Tratar los metros sin registro como fuera",
+  "Inside: the code's intervals. Outside: every other logged lithology interval (and, when ticked, the unlogged metres). It follows the geology trend in Model settings. A lower Inside at joins separate bodies; a larger search rarely does.": "Dentro: los intervalos del código. Fuera: todos los demás intervalos de litología registrados (y, si se marca, los metros sin registro). Sigue la tendencia geológica de la configuración del modelo. Un umbral Dentro menor une cuerpos separados; una búsqueda mayor rara vez lo hace."
 }

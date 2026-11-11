@@ -9885,5 +9885,10 @@
   "Restore \"{name}\"": "Restaurar \"{name}\"",
   "Hide the key": "Ocultar a legenda",
   "Show the key": "Mostrar a legenda",
-  "Section key": "Legenda da seção"
+  "Section key": "Legenda da seção",
+  "{m} of {d} m drilled in {n} hole(s) have no rock code ({nl} hole(s) with no log at all): counted as outside {code}, so the body closes there.": "{m} de {d} m perfurados em {n} furo(s) não têm código de rocha ({nl} furo(s) sem nenhuma descrição): contados como fora de {code}, então o corpo se fecha ali.",
+  "{m} of {d} m drilled in {n} hole(s) have no rock code ({nl} hole(s) with no log at all): counted as unknown, not outside {code}, so nothing stops the body there. If these holes were logged only where the unit is (grade-control drilling), tick \"Treat unlogged metres as outside\".": "{m} de {d} m perfurados em {n} furo(s) não têm código de rocha ({nl} furo(s) sem nenhuma descrição): contados como desconhecidos, não fora de {code}, então nada detém o corpo ali. Se estes furos foram descritos só onde está a unidade (perfuração de controle de teor), marque \"Tratar metros sem descrição como fora\".",
+  "Drilled metres with no rock code (and holes with no log) count as outside the unit instead of unknown: right for grade-control holes logged only where the unit is": "Os metros perfurados sem código de rocha (e os furos sem descrição) contam como fora da unidade em vez de desconhecidos: o certo para furos de controle de teor descritos só onde está a unidade",
+  "Treat unlogged metres as outside": "Tratar metros sem descrição como fora",
+  "Inside: the code's intervals. Outside: every other logged lithology interval (and, when ticked, the unlogged metres). It follows the geology trend in Model settings. A lower Inside at joins separate bodies; a larger search rarely does.": "Dentro: os intervalos do código. Fora: todos os outros intervalos de litologia descritos (e, se marcado, os metros sem descrição). Segue a tendência geológica das configurações do modelo. Um limiar Dentro menor une corpos separados; uma busca maior raramente o faz."
 }
