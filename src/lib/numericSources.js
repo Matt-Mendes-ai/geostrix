@@ -5,6 +5,7 @@
 // says "SI" and the dialogs say "as logged". Pure.
 import { numericLayerFields } from "./evidenceSources.js";
 import { isNumericLayer } from "./domainLayers.js";
+import { suscUnitHint } from "./drillholeConstraints.js"; // TASKS.csv #2079
 
 export const LOG_SOURCES = {
   magsusc: { label: "Mag. susc.", unit: "SI", logScale: true },
@@ -24,7 +25,10 @@ export function numericSourceChoices({ layers, customLayers, models = true } = {
   const out = [];
   for (const [k, m] of Object.entries(LOG_SOURCES)) {
     const n = (layers?.[k] || []).filter((r) => Number.isFinite(num(r.value))).length;
-    if (n >= MIN_ROWS) out.push({ key: `log:${k}`, label: m.label, symbol: m.label, unit: m.unit, n, logScale: m.logScale, field: "value", layerKey: k });
+    // TASKS.csv #2079 (review #2013, Woodjam) — a mag-susc log of 0.055 to 181 was labelled SI (181 SI is more than pure magnetite): the
+    // unit is SI only when the readings can be SI (lib/drillholeConstraints.js suscUnitHint); otherwise 'as logged'
+    const unit = k === "magsusc" && suscUnitHint((layers?.[k] || []).map((r) => r.value))?.likely !== "si" ? CUSTOM_UNIT : m.unit;
+    if (n >= MIN_ROWS) out.push({ key: `log:${k}`, label: m.label, symbol: m.label, unit, n, logScale: m.logScale, field: "value", layerKey: k });
   }
   // TASKS.csv #2397 / #2421 (review #2325, WA uranium) — Downhole logs opened on "Drilling method › Casing depth (27)" (first by name) against
   // a 49,684-reading gamma log; a binned log's per-bin count ("› n") was offered as a log, and a model evaluated on the holes ("On holes:
