@@ -25,7 +25,9 @@ export function dumpFromFootprint(footprint, { crestZ, reposeDeg, groundAt = nul
   for (let y = fy0 - probe; y <= fy1 + probe; y += probe) for (let x = fx0 - probe; x <= fx1 + probe; x += probe) { const g = ground(x, y); if (Number.isFinite(g)) { if (g < gMin) gMin = g; if (g > gMax) gMax = g; } }
   if (!Number.isFinite(gMin)) return null;
   const reach = Math.max(0, crestZ - gMin) / tanR;
-  let cell = Math.max(0.5, Math.max((Math.max(fx1 - fx0, fy1 - fy0) + 2 * reach) / 200, reach / 40)), coarsened = false;
+  // TASKS.csv #2116 (review #2013, Woodjam) — a conceptual shape needs a cell of a few metres, not 1.14 m: a 1.68 ha dump made a 133,216-face mesh
+  // (a 423 ms stall); 1/100 of the box and 1/20 of the slope's reach (was 1/200 and 1/40), never under 0.5 m
+  let cell = Math.max(0.5, Math.max((Math.max(fx1 - fx0, fy1 - fy0) + 2 * reach) / 100, reach / 20)), coarsened = false;
   const bx0 = fx0 - reach - cell, bx1 = fx1 + reach + cell, by0 = fy0 - reach - cell, by1 = fy1 + reach + cell;
   const dims = () => [Math.max(2, Math.ceil((bx1 - bx0) / cell) + 1), Math.max(2, Math.ceil((by1 - by0) / cell) + 1)];
   let [nx, ny] = dims();
@@ -50,6 +52,10 @@ export function dumpFromFootprint(footprint, { crestZ, reposeDeg, groundAt = nul
     if (!edge) continue;
     for (let dj = -R; dj <= R; dj++) { const jj = j + dj; if (jj < 0 || jj >= ny) continue; for (let di = -R; di <= R; di++) { const ii = i + di; if (ii < 0 || ii >= nx) continue; const q = jj * nx + ii; if (inFoot[q]) continue; const d = Math.hypot(di, dj) * cell; if (d < dist[q]) dist[q] = d; } }
   }
+  // TASKS.csv #2116 — then the true distance to the footprint's edges for the cells within reach: the edge cells' centres lie up to a cell inside
+  // the footprint, and on the coarser cell the dump came out 3 % short
+  const segDist = (x, y) => { let best = Infinity; for (let k = 0; k < ring.length; k++) { const a = ring[k], b = ring[(k + 1) % ring.length], ex = b[0] - a[0], ey = b[1] - a[1], L = ex * ex + ey * ey; const t = L > 0 ? Math.max(0, Math.min(1, ((x - a[0]) * ex + (y - a[1]) * ey) / L)) : 0; const d = Math.hypot(x - a[0] - t * ex, y - a[1] - t * ey); if (d < best) best = d; } return best; };
+  for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) { const c = j * nx + i; if (!inFoot[c] && dist[c] <= reach + 2 * cell) dist[c] = segDist(X(i), Y(j)); }
   // the surface and the dump
   const z = new Float64Array(N), inDump = new Uint8Array(N);
   let volume = 0, dumpCells = 0, maxHeight = 0;
