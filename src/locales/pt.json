@@ -9930,5 +9930,8 @@
   "The bench table uses the one density above.": "A tabela por bancada usa a densidade única acima.",
   "Enter the default density to show the tonnes.": "Informe a densidade padrão para mostrar as toneladas.",
   "Terrain is not undoable: the old one is gone unless you import it again, and the rasters and map layers draped on it drape on the new one.": "O terreno não pode ser desfeito: o anterior se perde a menos que você o importe de novo, e os rasters e camadas de mapa sobre ele passam para o novo.",
-  "Replaced the terrain \"{name}\".": "O terreno \"{name}\" foi substituído."
+  "Replaced the terrain \"{name}\".": "O terreno \"{name}\" foi substituído.",
+  "Log (positive values only: {pct}% of the cells are not)": "Log (só valores positivos: {pct}% das células não são)",
+  "The values run both sides of zero: a diverging ramp centred on zero shows highs and lows alike.": "Os valores ficam dos dois lados do zero: uma rampa divergente centrada no zero mostra altos e baixos por igual.",
+  "Diverging ±{m}": "Divergente ±{m}"
 }

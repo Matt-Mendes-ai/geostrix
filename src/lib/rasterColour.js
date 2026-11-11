@@ -7,9 +7,25 @@ import { hexToRgb } from "./colorRamp.js";
 
 export const RASTER_RAMPS = ["viridis", "rainbow", "geosoft", "spectrum", "resistivity", "diverging", "grayscale"];
 // #1857 — how many decades the positive values span between their 2nd and 98th percentiles (the log stretch is suggested past one: a factor of ten)
+// TASKS.csv #2555 (review #2486) — and 0 on a SIGNED grid: Bouguer gravity, RTP, 1VD and tilt were offered 'Log (suggested: 1.6-4.0
+// decades)' from their positive half, and the log stretch then painted every cell at or below zero (the gravity low, the target) one colour
+export const LOG_NONPOSITIVE_MAX = 0.05;
 export function decadesSpanned(values) {
+  if (signedGridHint(values).nonPositive > LOG_NONPOSITIVE_MAX) return 0;
   const { lo, hi, log } = makeStretch(values, "log");
   return log ? Math.log10(hi / lo) : 0;
+}
+// the share of the valid cells at or below zero; straddles: at least 5 % of them on each side of zero, so a diverging ramp centred on zero
+// reads (symMax: the larger of |2nd| and |98th percentile|, the symmetric range)
+export function signedGridHint(values) {
+  const v = [];
+  for (let i = 0; i < (values?.length || 0); i++) if (Number.isFinite(values[i])) v.push(values[i]);
+  if (!v.length) return { nonPositive: 0, straddles: false, symMax: null };
+  let neg = 0, nonPos = 0;
+  for (const x of v) { if (x <= 0) nonPos++; if (x < 0) neg++; }
+  const pos = v.length - nonPos, { lo, hi } = makeStretch(values, "p2-98");
+  const straddles = neg / v.length >= LOG_NONPOSITIVE_MAX && pos / v.length >= LOG_NONPOSITIVE_MAX;
+  return { nonPositive: nonPos / v.length, straddles, symMax: straddles ? Math.max(Math.abs(lo), Math.abs(hi)) : null };
 }
 export const DEFAULT_RASTER_STYLE = { palette: "viridis", stretch: "p2-98", invert: false };
 

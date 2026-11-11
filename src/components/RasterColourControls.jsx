@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { RASTER_RAMPS, DEFAULT_RASTER_STYLE, rasterColourFields, rasterRange, decadesSpanned } from "../lib/rasterColour.js";
+import { RASTER_RAMPS, DEFAULT_RASTER_STYLE, rasterColourFields, rasterRange, decadesSpanned, signedGridHint, LOG_NONPOSITIVE_MAX } from "../lib/rasterColour.js"; // signedGridHint: #2555
 import { b64ToF32 } from "../lib/inversion.js";
 import { PALETTES } from "../lib/layers.js";
 import { t as tr } from "../lib/i18n.js";
@@ -27,6 +27,7 @@ export default function RasterColourControls({ raster: r, onUpdate, inputStyle }
   };
   const stops = r.colourStops || [];
   const decades = useMemo(() => decadesSpanned(values), [values]); // #1857
+  const signed = useMemo(() => signedGridHint(values), [values]); // #2555 — a grid with values at or below zero: no log suggestion; a diverging ramp offered
   return (
     <div style={{ marginTop: 7 }}>
       <div style={row}>
@@ -41,11 +42,17 @@ export default function RasterColourControls({ raster: r, onUpdate, inputStyle }
         <select value={style.stretch} aria-label={tr("Colour stretch of \"{name}\"", { name: r.name })} onChange={(e) => { const stretch = e.target.value; apply(stretch === "custom" ? { stretch, min: sig4(range[0]), max: sig4(range[1]) } : { stretch }); }} style={inputStyle}>
           <option value="p2-98">{tr("2-98% percentile clip")}</option>
           <option value="linear">{tr("Linear min-max")}</option>
-          <option value="log">{decades > 1 ? tr("Log (suggested: the values span {n} decades)", { n: decades.toFixed(1) }) : tr("Log (positive values)")}</option>
+          <option value="log">{decades > 1 ? tr("Log (suggested: the values span {n} decades)", { n: decades.toFixed(1) }) : signed.nonPositive > LOG_NONPOSITIVE_MAX ? tr("Log (positive values only: {pct}% of the cells are not)", { pct: Math.round(signed.nonPositive * 100) }) : tr("Log (positive values)")}</option>
           <option value="equalise">{tr("Histogram equalized")}</option>
           <option value="custom">{tr("Typed range")}</option>
         </select>
       </div>
+      {signed.straddles && !(style.palette === "diverging" && style.stretch === "custom" && style.min === -style.max) && (
+        <div style={{ ...row, color: "var(--color-text-caption)", fontSize: "var(--font-size-xs)" }}>{/* #2555 */}
+          <span>{tr("The values run both sides of zero: a diverging ramp centred on zero shows highs and lows alike.")}</span>
+          <button type="button" style={{ ...inputStyle, cursor: "pointer", flexShrink: 0 }} onClick={() => apply({ palette: "diverging", stretch: "custom", min: -sig4(signed.symMax), max: sig4(signed.symMax) })}>{tr("Diverging ±{m}", { m: sig4(signed.symMax) })}</button>
+        </div>
+      )}
       {style.stretch === "custom" && (
         <div style={row}>
           <span style={lbl}>{tr("Range")}</span>

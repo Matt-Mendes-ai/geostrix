@@ -9930,5 +9930,8 @@
   "The bench table uses the one density above.": "Le tableau par gradin utilise la densité unique ci-dessus.",
   "Enter the default density to show the tonnes.": "Saisissez la densité par défaut pour afficher les tonnes.",
   "Terrain is not undoable: the old one is gone unless you import it again, and the rasters and map layers draped on it drape on the new one.": "Le terrain ne peut pas être annulé : l'ancien est perdu à moins de le réimporter, et les rasters et couches de carte drapés dessus passent sur le nouveau.",
-  "Replaced the terrain \"{name}\".": "Le terrain « {name} » a été remplacé."
+  "Replaced the terrain \"{name}\".": "Le terrain « {name} » a été remplacé.",
+  "Log (positive values only: {pct}% of the cells are not)": "Log (valeurs positives seulement : {pct} % des cellules ne le sont pas)",
+  "The values run both sides of zero: a diverging ramp centred on zero shows highs and lows alike.": "Les valeurs sont des deux côtés de zéro : une rampe divergente centrée sur zéro montre aussi bien les hauts que les bas.",
+  "Diverging ±{m}": "Divergente ±{m}"
 }
