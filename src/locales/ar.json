@@ -1813,6 +1813,7 @@
   "Remove {symbol} from every interval": "إزالة {symbol} من كل فترة",
   "Remove all assays": "إزالة جميع التحاليل",
   "Import pXRF: {fileName}": "استيراد pXRF: {fileName}",
+  "This file looks like lab assays ({cols}, and no pXRF instrument or reading columns). Imported here, its results are pXRF screening readings, kept out of grades, intercepts and composites: Import assays is the route for lab results.": "يبدو هذا الملف تحاليل مخبرية ({cols}، ولا أعمدة جهاز أو قراءات pXRF). إن استُورد هنا تصبح نتائجه قراءات pXRF استكشافية، مستبعدة من المحتويات والتقاطعات والمركبات: استيراد التحاليل هو المسار لنتائج المختبر.",
   "Import assays: {fileName}": "استيراد التحاليل: {fileName}",
   "{symbol} (file {unit}, project {projectUnit})": "{symbol} (الملف {unit}، المشروع {projectUnit})",
   "This bundled sample's README says below-detection results (\"<0.001\" in the source) were left blank, so \"Below detection\" is selected.": "يذكر ملف README لهذه العينة المرفقة أن النتائج دون حد الكشف («<0.001» في المصدر) تُركت فارغة، لذا حُدد «دون حد الكشف».",

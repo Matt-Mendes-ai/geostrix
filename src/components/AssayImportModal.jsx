@@ -9,12 +9,14 @@ import { overlay } from "../lib/modalStyles.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { pointReadings } from "../lib/pxrfPoints.js"; // TASKS.csv #1653
+import { pxrfSignature } from "../lib/pxrfSignature.js"; // TASKS.csv #2198
 import RowFilterBox from "./RowFilterBox.jsx"; // TASKS.csv #2391 — the row filter of the drillhole import (#2330), here too
 
 export default function AssayImportModal({ modal, onChange, onCancel, onCommit, existingUnits = {} }) {
   // TASKS.csv #2037 — the columns an interval import cannot do without (a long file also needs its analyte and value columns)
   const unmapped = [["hole_id", tr("Hole ID")], ["from", tr("From")], ["to", tr("To")], ...(modal.format === "long" ? [["analyte", tr("Analyte")], ["value", tr("Value")]] : [])].filter(([k]) => !modal.mapping?.[k]).map(([, label]) => label);
   useEscapeKey(onCancel); // TASKS.csv #238
+  const labLike = modal.isPxrf ? pxrfSignature(modal.headers || []) : null; // #2198 — a lab file on the pXRF button
   useFocusTrap(); // TASKS.csv #238
   const checkedCount = modal.elements.filter((e) => e.checked).length;
   // TASKS.csv #333 — count negative numbers in the columns being imported, so the user decides what they mean before they become grades;
@@ -94,6 +96,7 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
             <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{tr(modal.isPxrf ? "Import pXRF: {fileName}" : "Import assays: {fileName}", { fileName: modal.fileName })}</div>
             <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr(modal.elements.length === 1 ? "{v} · 1 element recognized" : "{v} · {elements} elements recognized", { /* #2201 */ v: modal.format === "long" ? tr("Long format (row per analyte)") : tr("Wide format (column per element)"), elements: modal.elements.length })}</div>
             {(() => { const none = modal.format === "long" ? [] : modal.elements.filter((e) => e.n === 0); return none.length ? <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("Empty on every row, so left unticked: {list} ({n} columns).", { list: none.map((e) => e.symbol).join(", "), n: none.length })}</div> : null; })()}{/* TASKS.csv #1679 */}
+            {labLike?.looksLikeLab && <div role="note" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", marginTop: 4, lineHeight: 1.4 }}>{tr("This file looks like lab assays ({cols}, and no pXRF instrument or reading columns). Imported here, its results are pXRF screening readings, kept out of grades, intercepts and composites: Import assays is the route for lab results.", { cols: labLike.lab.join(", ") })}</div>}{/* TASKS.csv #2198 */}
           </div>
           <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onCancel} />
         </div>

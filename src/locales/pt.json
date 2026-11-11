@@ -1813,6 +1813,7 @@
   "Remove {symbol} from every interval": "Remover {symbol} de todos os intervalos",
   "Remove all assays": "Remover todas as análises",
   "Import pXRF: {fileName}": "Importar pXRF: {fileName}",
+  "This file looks like lab assays ({cols}, and no pXRF instrument or reading columns). Imported here, its results are pXRF screening readings, kept out of grades, intercepts and composites: Import assays is the route for lab results.": "Este arquivo parece de análises de laboratório ({cols}, e sem colunas de instrumento ou de leitura pXRF). Importado aqui, seus resultados serão leituras pXRF de triagem, fora de teores, interseções e compostos: Importar análises é o caminho para resultados de laboratório.",
   "Import assays: {fileName}": "Importar análises: {fileName}",
   "{symbol} (file {unit}, project {projectUnit})": "{symbol} (arquivo {unit}, projeto {projectUnit})",
   "This bundled sample's README says below-detection results (\"<0.001\" in the source) were left blank, so \"Below detection\" is selected.": "O README desta amostra incluída diz que os resultados abaixo da detecção (\"<0.001\" na origem) foram deixados em branco, então “Abaixo da detecção” está selecionado.",
