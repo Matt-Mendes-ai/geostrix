@@ -10,6 +10,7 @@ import { computeLine, segmentsToPoint, runAboveGround, gradeRatio, designLineRow
 import { holeTraces } from "../lib/evidenceSources.js"; // #1878 — the drillhole traces the clearance is checked against
 import { plannedTrace } from "../lib/holePlanning.js"; // #1878 — a planned hole's toe as a target
 import { terrainGroundAt } from "../lib/viewer/geomath.js";
+import { collarGround, collarsLookUnderground } from "../lib/pitShell.js"; // TASKS.csv #2600
 import { buildDXF } from "../lib/dxf.js";
 import { toExportCsv, crsCell } from "../lib/tabular.js";
 import { saveFile } from "../lib/desktop.js";
@@ -247,7 +248,10 @@ export default function DesignLinesPane({ view, onAdd, surfaces = [], onClose })
     appendSegments([{ type: "curve", radius: R, turn, angle: a, grade: Number(grade) || 0 }]);
     setAngleText("");
   };
-  const above = useMemo(() => (c && terrain ? runAboveGround(c.vertices, (x, y) => terrainGroundAt(terrain, x, y)) : 0), [c, terrain]);
+  // TASKS.csv #2600 (review #2486) — with no terrain, the ground interpolated between the collars (as Pit shell, Pit design, Dump and Drape use),
+  // never the surface through collars drilled from underground
+  const collarSurface = useMemo(() => (terrain || collarsLookUnderground(collars).underground ? null : collarGround(collars)), [terrain, collars]);
+  const above = useMemo(() => (c && terrain ? runAboveGround(c.vertices, (x, y) => terrainGroundAt(terrain, x, y)) : c && collarSurface ? runAboveGround(c.vertices, collarSurface) : 0), [c, terrain, collarSurface]);
   const clearance = useMemo(() => (c && c.vertices.length > 2 ? selfClearance(c) : null), [c]);
   const wallSelf = clearance ? Math.max(0, clearance.distance - 2 * profileHalfAlong(clearance, line?.profile)) : null; // #1889 (declared after clearance: TDZ otherwise); along the pass: #1924
 
@@ -361,8 +365,9 @@ export default function DesignLinesPane({ view, onAdd, surfaces = [], onClose })
             {pillarM > 0 && halfW === 0 && <div style={note}>{tr("The passes are centreline figures: set a profile width to measure the rock left wall to wall.")}</div>}
             {clearance && <div style={row}><span title={tr("The nearest the line passes to another part of itself, as between the turns of a spiral: the rock left between them. Between stacked turns the profile's height is taken off (back to floor), beside each other its width (wall to wall).")}>{passLabel(tr("Closest pass to itself"), clearance)}</span><b>{m1(wallSelf)} m</b></div>}{/* #1924 */}
             {clearance && wallSelf < 10 && <div style={warn}>{tr("The line passes within {m} m of itself near {x}, {y}, {z}: it may run through its own opening.", { m: m1(wallSelf), x: m1(clearance.at[0]), y: m1(clearance.at[1]), z: m1(clearance.at[2]) })}</div>}
-            {above > 0.5 && <div style={warn}>{tr("{m} m of this line, in plan, is above the terrain.", { m: m1(above) })}</div>}
-            {!terrain && <div style={note}>{tr("No terrain: the line is not checked against the ground.")}</div>}
+            {above > 0.5 && <div style={warn}>{terrain ? tr("{m} m of this line, in plan, is above the terrain.", { m: m1(above) }) : tr("{m} m of this line, in plan, is above the ground interpolated between the collars.", { m: m1(above) })}</div>}
+            {!terrain && collarSurface && <div style={note}>{tr("No terrain: the line is checked against the ground interpolated between the collars.")}</div>}{/* #2600 */}
+            {!terrain && !collarSurface && <div style={note}>{tr("No terrain: the line is not checked against the ground.")}</div>}
           </div>
           <div style={label}>{tr("Profile and clearance")}</div>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 4 }}>
