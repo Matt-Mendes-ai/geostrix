@@ -673,7 +673,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
           </div>
           {/* TASKS.csv #533 — P97.5 / P99 caps and the capping audit (samples cut, metal removed) */}
           {domainRowsSel && useComposites && <DomainCaps assays={srcAssays} symbol={symbol} unit={unit} elementUnits={elementUnits} domainRows={domainRowsSel} caps={capByDomain} setCaps={setCapByDomain} />}{/* #1571 */}
-          <CapAuditHint assays={srcAssays} symbol={symbol} unit={unit} unitLabel={gradeUnitLabel(symbol, unit)} /* #2218 */ elementUnits={elementUnits} capValue={Number.isFinite(capValue) && capValue > 0 ? capValue : null} onSetCap={(v) => setCapValue(Number(v.toPrecision(4)))} unitLabel={PRECIOUS_METALS.has(symbol) && unit === "ppm" ? "g/t" : unit} />
+          <CapAuditHint assays={srcAssays} symbol={symbol} unit={unit} unitLabel={gradeUnitLabel(symbol, unit)} /* #2218 */ elementUnits={elementUnits} capValue={Number.isFinite(capValue) && capValue > 0 ? capValue : null} onSetCap={(v) => setCapValue(Number(v.toPrecision(4)))} /* #2677: one unitLabel (the #2218 one) */ />
 
           {/* TASKS.csv #259 — CV > 150% means a skewed, outlier-driven distribution: the classic setup
               for an uncapped bonanza assay driving IDW² over its whole search neighbourhood. */}
