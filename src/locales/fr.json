@@ -10426,5 +10426,7 @@
   "Colour the units whose name gives an age (Late Jurassic, Eocene ...) in the international time scale's colours, from Macrostrat (CC BY 4.0). The others keep their colours.": "Colore les unités dont le nom donne un âge (Jurassique supérieur, Éocène ...) avec les couleurs de l'échelle des temps internationale, d'après Macrostrat (CC BY 4.0). Les autres gardent leurs couleurs.",
   "At {rate} t a year the factor-{rf} shell takes {y} years: at {d} % the pushbacks after the first few decades add next to nothing, so the NPV stops following the pit. Raise the rate, or read the undiscounted margin.": "À {rate} t par an, la fosse du facteur {rf} prend {y} ans : à {d} % les poussées après les premières décennies n'ajoutent presque rien, donc la VAN ne suit plus la fosse. Augmentez le rythme, ou lisez la marge non actualisée.",
   "The NPV is within 1 % over {n} factors in a row: the discounting flattened it.": "La VAN varie de moins de 1 % sur {n} facteurs d'affilée : l'actualisation l'a aplatie.",
-  "— none: estimate a second metal with the same cell over the same holes (Estimation › Grid: Fit to the checked holes) —": "— aucun : estimez un second métal avec la même cellule sur les mêmes sondages (Estimation › Grille : Ajuster aux sondages cochés) —"
+  "— none: estimate a second metal with the same cell over the same holes (Estimation › Grid: Fit to the checked holes) —": "— aucun : estimez un second métal avec la même cellule sur les mêmes sondages (Estimation › Grille : Ajuster aux sondages cochés) —",
+  "The collars sit on {n} drill levels ({list} m), a median {s} m apart.": "Les collets sont sur {n} niveaux de forage ({list} m), espacés en médiane de {s} m.",
+  "Use the drill levels": "Utiliser les niveaux de forage"
 }

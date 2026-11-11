@@ -19,7 +19,7 @@ import { pBtn, smallSel } from "../lib/sidebarStyles.js";
 import { t as tr } from "../lib/i18n.js";
 import { stopeRuns, stopeIdsOnLevel, stopeStringIds } from "../lib/stopeRuns.js"; // TASKS.csv #1968
 import NotOfferedGrades from "./NotOfferedGrades.jsx"; // TASKS.csv #2436
-import { stopeGroundSource, groundGrid, flatBodyCheck } from "../lib/stopeGround.js"; // TASKS.csv #2438
+import { stopeGroundSource, groundGrid, flatBodyCheck, drillLevels } from "../lib/stopeGround.js"; // TASKS.csv #2438; drillLevels: #2284
 import { pitCeiling } from "../lib/pitCeiling.js"; // TASKS.csv #1964 (the lookup is built in the worker, #2279)
 
 const row = { display: "flex", alignItems: "center", gap: 6, justifyContent: "space-between", marginTop: 4, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" };
@@ -51,6 +51,7 @@ export default function StopesPane({ onAdd, onRemove, onClose, stopes = [], onSh
   const element = model ? elementOfModel(model) : null; // #2594 — 'Cut-off (% Li)', not 'Cut-off (%)'
   const sg = useMemo(() => sgSummary(layers?.sg), [layers?.sg]);
   const ground = useMemo(() => stopeGroundSource(terrain, collars), [terrain, collars]); // #2438 — the ground the pit tools use
+  const levels = useMemo(() => (ground.underground ? drillLevels(collars) : null), [ground.underground, collars]); // #2284 — the mine's drill levels
   const zRange = useMemo(() => { if (!model) return null; let lo = Infinity, hi = -Infinity; for (const c of model.cells) { if (c.z - c.dz / 2 < lo) lo = c.z - c.dz / 2; if (c.z + c.dz / 2 > hi) hi = c.z + c.dz / 2; } return [lo, hi]; }, [model]);
   const blockH = model?.cells?.[0]?.dz; // #1886 — the level interval's placeholder and the slicing warning
   const set = (k) => (e) => { setF((p) => ({ ...p, [k]: e.target.value })); setMsg(null); };
@@ -140,6 +141,7 @@ export default function StopesPane({ onAdd, onRemove, onClose, stopes = [], onSh
         {element && v("cutoff") > 0 && gradeWithElement(v("cutoff"), unit, element, (x) => String(Number(x.toPrecision(4)))).includes("(") && <div style={{ ...note, marginTop: 0 }}>{tr("Cut-off: {g}", { g: gradeWithElement(v("cutoff"), unit, element, (x) => String(Number(x.toPrecision(4)))) })}</div>}{/* #2594 — 0.4645 % Li (1 % Li2O) */}
         {field("levelH", tr("Level interval (m)"), { title: tr("The height of each stope: the distance between sublevels. A column counts as ore on a level only where its blocks fill at least half of it."), placeholder: blockH ? String(blockH) : "" })}
         {field("zMin", tr("From RL (m)"), { placeholder: zRange ? String(Math.round(zRange[0] * 10) / 10) : "" })}{/* the level a blank run starts at (the model's base): #1923, #1919 */}
+        {levels && <div style={{ ...note, marginTop: 2 }}>{tr("The collars sit on {n} drill levels ({list} m), a median {s} m apart.", { n: levels.levels.length, list: levels.levels.slice(0, 6).map((v) => Math.round(v)).join(", ") + (levels.levels.length > 6 ? ", …" : ""), s: Math.round(levels.spacing) })} <button onClick={() => setF((p) => ({ ...p, zMin: String(Math.round(levels.from)), levelH: String(Math.round(levels.spacing)) }))} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "1px 6px" }}>{tr("Use the drill levels")}</button></div>}{/* TASKS.csv #2284 */}
         {field("zMax", tr("To RL (m)"), { placeholder: zRange ? String(Math.round(zRange[1])) : "" })}
         {field("minWidth", tr("Minimum mining width (m)"), { title: tr("Anything thinner is dropped (a morphological opening by this width, in whole columns of the model).") })}
         {field("minLength", tr("Minimum length (m)"), { title: tr("A patch shorter than this in both directions is dropped.") })}

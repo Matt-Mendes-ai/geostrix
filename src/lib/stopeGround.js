@@ -44,3 +44,18 @@ export function flatBodyCheck(levels, levelH, ratio = 10) {
   const a = Math.max(x1 - x0, y1 - y0), b = Math.min(x1 - x0, y1 - y0), h = best.l.top - best.l.rl || levelH;
   return { a, b, h, tonnes: best.s.tonnes, rl: best.l.rl, flat: h > 0 && b > ratio * h };
 }
+
+// TASKS.csv #2284 (review #2174, WA lode gold) — the mine's own levels, plain in the RLs of collars drilled from underground (84, 116, 145, 162 ...
+// m): the collar RLs clustered within `tol` m, clusters of at least `min` holes. -> null or { levels: [rl], spacing (median gap), from (lowest) }
+export function drillLevels(collars, { tol = 3, min = 3 } = {}) {
+  const zs = (collars || []).map((c) => Number(c?.z)).filter(Number.isFinite).sort((a, b) => a - b);
+  if (zs.length < min * 2) return null;
+  const groups = [];
+  let g = [zs[0]];
+  for (let i = 1; i < zs.length; i++) { if (zs[i] - g[g.length - 1] <= tol) g.push(zs[i]); else { groups.push(g); g = [zs[i]]; } }
+  groups.push(g);
+  const levels = groups.filter((x) => x.length >= min).map((x) => x.reduce((a, b) => a + b, 0) / x.length);
+  if (levels.length < 2) return null;
+  const gaps = levels.slice(1).map((v, i) => v - levels[i]).sort((a, b) => a - b);
+  return { levels, spacing: gaps[gaps.length >> 1], from: levels[0] };
+}
