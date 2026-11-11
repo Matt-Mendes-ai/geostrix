@@ -9981,5 +9981,17 @@
   "Easting, Northing and Elevation come from different coordinate sets ({cols}), so each collar would mix two grids. {whole} is one whole set.": "تأتي إحداثيات الشرق والشمال والارتفاع من مجموعات إحداثيات مختلفة ({cols})، فتخلط كل فوهة بين شبكتين. {whole} مجموعة كاملة.",
   "Easting, Northing and Elevation come from different coordinate sets ({cols}), so each collar would mix two grids.": "تأتي إحداثيات الشرق والشمال والارتفاع من مجموعات إحداثيات مختلفة ({cols})، فتخلط كل فوهة بين شبكتين.",
   "{n} of {of} collars have eastings {x0}–{x1} and northings {y0}–{y1}, which no UTM / MGA zone has, though the project is in {crs}: they look like local mine-grid numbers. Map Easting and Northing to the file's map-grid columns, or tick \"X/Y are on a local mine grid\" below.": "لدى {n} من {of} فوهة إحداثيات شرقية {x0}–{x1} وشمالية {y0}–{y1} لا توجد في أي منطقة UTM / MGA، مع أن المشروع بنظام {crs}: تبدو أرقام شبكة منجم محلية. اربط الشرق والشمال بأعمدة الشبكة الخرائطية في الملف، أو فعّل \"إحداثيات X/Y على شبكة منجم محلية\" أدناه.",
-  "{n} column(s) not imported, each with more than 100 different values (add one under Extra fields to keep it): {cols}": "{n} عمود لم يُستورد، لكل منها أكثر من 100 قيمة مختلفة (أضف أحدها ضمن الحقول الإضافية للاحتفاظ به): {cols}"
+  "{n} column(s) not imported, each with more than 100 different values (add one under Extra fields to keep it): {cols}": "{n} عمود لم يُستورد، لكل منها أكثر من 100 قيمة مختلفة (أضف أحدها ضمن الحقول الإضافية للاحتفاظ به): {cols}",
+  " {fixed} azimuth(s) converted from {north} to the local grid's north through its tie to EPSG:{epsg} (at the first hole: {parts}).": " حُوِّل {fixed} سمت من {north} إلى شمال الشبكة المحلية عبر ربطها بـ EPSG:{epsg} (عند أول ثقب: {parts}).",
+  "another grid's north": "شمال شبكة أخرى",
+  "declination {v}°": "الانحراف {v}°",
+  "grid convergence {v}°": "تقارب الشبكة {v}°",
+  "grid rotation {v}°": "دوران الشبكة {v}°",
+  " {size} hole(s) could not be converted (no collar location) and were left as-is: {v}.": " تعذّر تحويل {size} ثقب (لا موقع للفوهة) وتُركت كما هي: {v}.",
+  " The azimuths were left as they are in the file, measured from {north}: this project is on a local grid with no tie to a coordinate system, so the grid's own north is not known. Tie the grid in Maps > Coordinates (control points, or an origin and a rotation), then import this file again.": " تُركت السموت كما هي في الملف، مقيسة من {north}: هذا المشروع على شبكة محلية غير مربوطة بنظام إحداثيات، فشمال الشبكة غير معروف. اربط الشبكة من الخرائط > الإحداثيات (نقاط تحكم، أو أصل ودوران)، ثم استورد هذا الملف مرة أخرى.",
+  "true north, left as in the file": "الشمال الحقيقي، متروك كما في الملف",
+  "magnetic north, left as in the file": "الشمال المغناطيسي، متروك كما في الملف",
+  "Converted to the local grid's north through its tie to EPSG:{epsg} (grid rotation {rot}°), at each hole's collar.": "تُحوَّل إلى شمال الشبكة المحلية عبر ربطها بـ EPSG:{epsg} (دوران الشبكة {rot}°)، عند فوهة كل ثقب.",
+  "This project is on a local grid with no tie to a coordinate system, so its north is not known: these azimuths will be left as they are in the file. Tie the grid in Maps > Coordinates first (control points, or an origin and a rotation).": "هذا المشروع على شبكة محلية غير مربوطة بنظام إحداثيات، فشمالها غير معروف: ستُترك هذه السموت كما هي في الملف. اربط الشبكة أولًا من الخرائط > الإحداثيات (نقاط تحكم، أو أصل ودوران).",
+  "The project has no coordinate system yet, so these azimuths cannot be converted to grid north and will be left as they are in the file. Choose the project CRS first.": "ليس للمشروع نظام إحداثيات بعد، فلا يمكن تحويل هذه السموت إلى شمال الشبكة وستُترك كما هي في الملف. اختر نظام إحداثيات المشروع أولًا."
 }

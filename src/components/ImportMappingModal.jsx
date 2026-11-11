@@ -14,6 +14,7 @@ import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { fieldNeedsNumber, columnHasNoNumbers } from "../lib/importChecks.js"; // TASKS.csv #1257
 import { customFromPrevious } from "../lib/viewer/customMapping.js"; // TASKS.csv #1654
+import { tieOf } from "../lib/localGridTie.js"; // TASKS.csv #2491
 import CoordSetsNote from "./CoordSetsNote.jsx"; // TASKS.csv #2492 — two coordinate sets, X / Y / Z from different sets, mine-grid numbers
 import LogChannelsBox from "./LogChannelsBox.jsx"; // TASKS.csv #2160 — one numeric layer per log channel
 import RowFilterBox from "./RowFilterBox.jsx"; // TASKS.csv #2330 — only rows where a column is some values (a Superseded flag pre-set)
@@ -284,6 +285,15 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
                     <input type="radio" name="azref" checked={(modal.azimuthRef || "grid") === k} onChange={() => onChange({ ...modal, azimuthRef: k })} /> {text}
                   </label>
                 ))}
+                {/* TASKS.csv #2491 — true / magnetic north with no project CRS: said here, before Import, not only in the notice after */}
+                {crsUnset && (modal.azimuthRef === "true" || modal.azimuthRef === "magnetic") && (() => {
+                  const tie = tieOf(storeProject);
+                  return tie
+                    ? <div role="note" style={{ marginLeft: 22, fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", lineHeight: 1.4 }}>{tr("Converted to the local grid's north through its tie to EPSG:{epsg} (grid rotation {rot}°), at each hole's collar.", { epsg: tie.epsg, rot: tie.rotationDeg.toFixed(2) })}</div>
+                    : <div role="alert" style={{ marginLeft: 22, fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", lineHeight: 1.4 }}>{storeProject?.localGrid
+                      ? tr("This project is on a local grid with no tie to a coordinate system, so its north is not known: these azimuths will be left as they are in the file. Tie the grid in Maps > Coordinates first (control points, or an origin and a rotation).")
+                      : tr("The project has no coordinate system yet, so these azimuths cannot be converted to grid north and will be left as they are in the file. Choose the project CRS first.")}</div>;
+                })()}
                 {/* TASKS.csv #490 — which grid "grid north" is. Collars: the Source CRS above (their azimuths are
                     turned with their coordinates). Survey / structure files have no coordinates: pick the CRS here. */}
                 {(modal.azimuthRef || "grid") === "grid" && modal.target === "collars" && modal.sourceEpsg && Number(modal.sourceEpsg) !== Number(projectEpsg) && (
