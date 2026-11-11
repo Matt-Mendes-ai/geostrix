@@ -10,6 +10,7 @@
 import { compileCalc } from "./calcExpr.js";
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 import { convertUnit, unitBasis } from "./geochem.js"; // TASKS.csv #2500; unitBasis: #2487
+import { isBelowDetection } from "./assayFlags.js"; // TASKS.csv #2505
 
 // TASKS.csv #2500 (review #2486, WA lithium) — each preset says the unit it reads every element in (`units`), and the calculation
 // converts from the stored unit where they differ: K/Rb read 'K in %, Rb in ppm' off the stored numbers, and on an XRF suite with Rb
@@ -55,7 +56,12 @@ const bare = (s) => String(s ?? "").replace(/\s+/g, "");
 export function presetUnitsFor(preset, expr) {
   return preset?.units && bare(expr) === bare(preset.expr) ? preset.units : null;
 }
-// Returns { assays, element, computed, skipped, min, max } or throws with a readable message.
+// the element symbols a formula reads (whole identifiers only: "Cu" in "Cu/Au", not in "CuAu")
+export function operandsOf(expr, symbols) {
+  const ids = new Set(String(expr ?? "").match(/[A-Za-z_][A-Za-z0-9_]*/g) || []);
+  return (symbols || []).filter((s) => ids.has(s));
+}
+// Returns { assays, element, computed, skipped, min, max, leftBdl, flaggedLt } or throws with a readable message.
 // #2500 — readUnits ({ K: "%", Rb: "ppm" }, a preset's): the elements are converted to those units before the formula reads them.
 export function addCalculatedElement(assays, assayElements, name, expr, unit = "index", { readUnits = null } = {}) {
   const n = String(name || "").trim();
@@ -65,13 +71,20 @@ export function addCalculatedElement(assays, assayElements, name, expr, unit = "
   const fn0 = compileCalc(expr, symbols); // throws on bad syntax / unknown names
   const conv = presetConversions(assayElements, readUnits); // #2500
   const fn = conv.length ? (vals) => { const w = { ...vals }; for (const c of conv) if (w[c.sym] != null) w[c.sym] = w[c.sym] * c.factor; return fn0(w); } : fn0;
-  let computed = 0, skipped = 0, min = Infinity, max = -Infinity;
+  // TASKS.csv #2505 (review #2486) — a below-detection operand: Li2O = Li x 2.1527 on a '<' Li stored no flag, Nb/Ta was computed on
+  // 21,881 rows where both were numbers in 9,172. A formula without division keeps '<' when every operand is '<'; a ratio with a '<'
+  // operand gets no value (counted as leftBdl), as the diagrams leave such a ratio out (#2501)
+  const ops = operandsOf(expr, symbols), isRatio = /\//.test(String(expr));
+  let computed = 0, skipped = 0, leftBdl = 0, flaggedLt = 0, min = Infinity, max = -Infinity;
   const out = (assays || []).map((a) => {
+    const lts = ops.filter((s) => isBelowDetection(a, s)).length;
+    if (isRatio && lts) { leftBdl++; return a; }
     const v = fn(a.values || {});
     if (!Number.isFinite(v)) { skipped++; return a; }
     computed++; if (v < min) min = v; if (v > max) max = v;
+    if (ops.length && lts === ops.length) { flaggedLt++; return { ...a, values: { ...(a.values || {}), [n]: v }, ...(Array.isArray(a.bdl) ? { bdl: [...a.bdl, n] } : { qualifiers: { ...(a.qualifiers || {}), [n]: "<" } }) }; } // a surface sample: its bdl list
     return { ...a, values: { ...(a.values || {}), [n]: v } };
   });
   if (!computed) throw new Error(tr("The formula gave no value on any assay row — check that every element in it has results."));
-  return { assays: out, element: { symbol: n, unit, calculated: { expr: String(expr).trim(), ...(readUnits ? { readUnits } : {}) } }, computed, skipped, min, max, converted: conv };
+  return { assays: out, element: { symbol: n, unit, calculated: { expr: String(expr).trim(), ...(readUnits ? { readUnits } : {}) } }, computed, skipped, min, max, converted: conv, leftBdl, flaggedLt };
 }

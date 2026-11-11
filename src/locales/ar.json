@@ -9839,5 +9839,13 @@
   "Struck through: {rules} land above every sample of their population (or over 100 %): such a rule finds no anomaly here, often a sign of two populations. The probability plot's break and the Populations selector separate them; these rules cannot be saved.": "المشطوبة: {rules} تقع فوق كل عينات مجموعتها (أو فوق 100 %): لا تجد هذه القاعدة شذوذًا هنا، وكثيرًا ما يدل ذلك على مجموعتين. يفصلهما انكسار مخطط الاحتمال ومحدد المجموعات؛ ولا يمكن حفظ هذه القواعد.",
   "{n} result(s) are '<' at {limit}: not a round figure, so it was converted at import (from another unit or an oxide); the lab's own limit is the round figure in the source file": "{n} نتيجة '<' عند {limit}: ليس رقمًا مدورًا، لذا حُوِّل عند الاستيراد (من وحدة أخرى أو من أكسيد)؛ حد المختبر نفسه هو الرقم المدور في الملف المصدر",
   "Use <{limit} (the '<' results, converted at import)": "استخدم <{limit} (نتائج '<'، المحوَّلة عند الاستيراد)",
-  "Collar · {field}": "الفوهة · {field}"
+  "Collar · {field}": "الفوهة · {field}",
+  "{n} more group(s) are over half below detection.": "{n} مجموعة أخرى أكثر من نصفها دون حد الكشف.",
+  "Its percentiles and caps sit on the limit, not on measured grades.": "تقع مئيناته وحدوده القصوى على حد الكشف لا على محتويات مقيسة.",
+  "{n} <DL": "{n} <حد الكشف",
+  "; {n} left out: a ratio with a below-detection operand is not a value": "؛ استُبعد {n}: النسبة ذات معامل دون حد الكشف ليست قيمة",
+  "; {n} flagged below detection ('<'): every element in the formula was": "؛ وُسم {n} دون حد الكشف ('<'): كانت كل عناصر الصيغة كذلك",
+  "Leave a below-detection value ('<') out of every pair: a correlation on 'both below detection' says little about the rock": "استبعد من كل زوج أي قيمة دون حد الكشف ('<'): الارتباط على 'كلاهما دون الحد' لا يقول الكثير عن الصخر",
+  "Detected pairs only": "الأزواج المكتشفة فقط",
+  ", {k} of them with a below-detection value": "، منها {k} بقيمة دون حد الكشف"
 }

@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { isBelowDetection } from "../lib/assayFlags.js"; // TASKS.csv #2505
 import { X, Download } from "./icons.js";
 import { valueIn, resolvedSegments, histogramWantsLog, gradeUnitLabel } from "../lib/geochem.js"; // gradeUnitLabel: #1680 // resolvedSegments: #1099; histogramWantsLog: #1524
 import { useStore } from "../lib/store.jsx";
@@ -144,7 +145,7 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
       return surfaceSamples.map((s) => {
         const v = valueIn(s, symbol, surfaceElementUnits[symbol] || "ppm", surfaceElementUnits);
         if (v == null) return null;
-        return { value: v, weight: 1, domain: s.medium || "(unclassified)" }; // surface samples have no interval length
+        return { value: v, weight: 1, domain: s.medium || "(unclassified)", lt: isBelowDetection(s, symbol) }; // surface samples have no interval length; lt: #2505
       }).filter(Boolean);
     }
     // TASKS.csv #1099 (review #1016) — resolved segments, as the cap audit / compositing / estimation use them: a metre
@@ -153,7 +154,7 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
     return resolvedSegments(statsAssays, symbol, elementUnits[symbol] || "ppm", elementUnits).map((s) => {
       const lith = domainIdx ? domainAtMid(domainIdx, s.hole_id, s.from, s.to) : null; // #1515 — indexed
       const domain = domainKey === HOLE_KEY ? s.hole_id : domainKey === HOLE_LITHO_KEY ? `${s.hole_id} · ${lith == null ? "(unclassified)" : lith}` : domainIdx ? lith : "All"; // #2029
-      return { value: s.value, weight: s.to - s.from, domain }; // weight: #267
+      return { value: s.value, weight: s.to - s.from, domain, lt: s.lt }; // weight: #267; lt (every result '<'): #2505
     });
   }, [source, surfaceSamples, statsAssays, symbol, elementUnits, surfaceElementUnits, domainIdx, domainKey]);
 
@@ -168,7 +169,7 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
       byDomain.get(key).push(r);
     });
     return Array.from(byDomain.entries())
-      .map(([key, rs]) => ({ key, stats: computeStats(rs.map((r) => r.value), weightingActive ? rs.map((r) => r.weight) : null) }))
+      .map(([key, rs]) => ({ key, stats: computeStats(rs.map((r) => r.value), weightingActive ? rs.map((r) => r.weight) : null), ltN: rs.reduce((k, r) => k + (r.lt ? 1 : 0), 0) })) // ltN: #2505
       .filter((g) => g.stats)
       .sort(byHole ? (a, b) => String(a.key).localeCompare(String(b.key), undefined, { numeric: true }) : (a, b) => b.stats.n - a.stats.n); // #2029 — holes in id order
   }, [rows, weightingActive, byHole]);
@@ -332,7 +333,7 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
                 <table style={{ borderCollapse: "collapse", fontSize: "var(--font-size-sm)", width: "100%" }}>
                   <thead>
                     <tr>
-                      <th style={th}>{tr("Domain")}</th><th style={th}>n</th><th style={th}>{tr("Mean")}</th><th style={th}>{tr("Median")}</th>
+                      <th style={th}>{tr("Domain")}</th><th style={th}>n</th><th style={th} title={tr("Share of values reported below the detection limit (stored at half the limit)")}>{tr("<DL %")}</th><th style={th}>{tr("Mean")}</th><th style={th}>{tr("Median")}</th>
                       <th style={th}>{tr("Stdev")}</th><th style={th}>{tr("CV%")}</th><th style={th}>{tr("Min")}</th><th style={th}>Q1</th><th style={th}>Q3</th><th style={th}>{tr("Max")}</th>
                     </tr>
                   </thead>
@@ -341,6 +342,7 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
                       <tr key={g.key}>
                         <td style={td}>{domainLabel(g.key)}</td>
                         <td style={td}>{g.stats.n}</td>
+                        <td style={{ ...td, ...(g.stats.n && g.ltN / g.stats.n > 0.5 ? { color: "var(--color-warn-text)", fontWeight: 600 } : {}) }}>{g.stats.n ? Math.round((100 * g.ltN) / g.stats.n) : "—"}</td>{/* #2505 */}
                         <td style={td}>{gradeText(g.stats.mean)}</td>
                         <td style={td}>{gradeText(g.stats.median)}</td>
                         <td style={td}>{gradeText(g.stats.stdev)}</td>
@@ -354,6 +356,7 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
                   </tbody>
                 </table>
               </div>
+              {(() => { const over = groups.filter((g) => g.stats.n && g.ltN / g.stats.n > 0.5); if (!over.length) return null; const g = over[0]; return <div role="status" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", lineHeight: 1.4 }}>{tr("{pct}% of {symbol} in \"{pop}\" is below detection: its statistics are mostly about the detection limit.", { pct: Math.round((100 * g.ltN) / g.stats.n), symbol, pop: domainLabel(g.key) })}{over.length > 1 ? " " + tr("{n} more group(s) are over half below detection.", { n: over.length - 1 }) : ""}{" "}{tr("Its percentiles and caps sit on the limit, not on measured grades.")}</div>; })()}{/* #2505 */}
 
               <button onClick={exportCSV} style={{ ...btn(true), alignSelf: "flex-start", padding: "7px 14px", display: "flex", alignItems: "center", gap: 6 }}>
                 <Download size={14} />{" "}{tr("Export statistics (CSV)")}</button>

@@ -36,6 +36,10 @@ export function flagQualifier(cell) {
 
 // how many of `rows` hold a below-detection ('<') value for any of `symbols`: a drillhole assay's qualifiers, a surface sample's
 // bdl list. The plot footers say the half-detection rule only for those, not for every sample (#2018).
+// TASKS.csv #2505 — one sample's value for `symbol` is below detection: a drillhole assay's '<' qualifier or a surface sample's bdl list
+export function isBelowDetection(r, symbol) {
+  return r?.qualifiers?.[symbol] === "<" || !!r?.bdl?.includes?.(symbol);
+}
 export function censoredSamples(rows, symbols) {
   const syms = [...new Set(symbols || [])];
   let n = 0;

@@ -12,6 +12,7 @@ import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { toExportCsv } from "../lib/tabular.js"; // TASKS.csv #1022 — every exported CSV: all columns, formula cells escaped
 import { correlationRows } from "../lib/analysisExports.js"; // TASKS.csv #1083
 import { correlationDefaults } from "../lib/preferredElement.js"; // TASKS.csv #1678
+import { isBelowDetection } from "../lib/assayFlags.js"; // TASKS.csv #2505
 
 // TASKS.csv #21 — multi-element correlation matrix. Pearson r between every pair of selected
 // elements, pairwise deletion for missing data (a row missing one of the pair just doesn't count
@@ -59,11 +60,29 @@ export default function CorrelationMatrix({ assays: assaysIn, assayElements: ass
   // TASKS.csv #1514 — a memo, not a new array per render (it made every re-render recompute the whole matrix); columns and
   // pairs are cached while the rows stay the same, so a tick computes the new element's row only (see correlationMatrix)
   const symbols = useMemo(() => allSymbols.filter((s) => selected.has(s)), [assayElements, selected]);
-  const caches = useMemo(() => ({ cols: {}, pairs: new Map() }), [assays, elementUnits]);
+  // TASKS.csv #2505 (review #2486) — Li-Sn 0.61 on all pairs was mostly 'both below detection in the host rock' (0.07 on the 10,174 detected
+  // pairs): 'detected pairs only' leaves a below-detection value out of every pair, and each cell says how many of its pairs hold one
+  const [detectedOnly, setDetectedOnly] = useState(false);
+  const caches = useMemo(() => ({ cols: {}, lt: {}, pairs: new Map() }), [assays, elementUnits, detectedOnly]);
   const matrix = useMemo(() => {
-    symbols.forEach((s) => { if (!caches.cols[s]) caches.cols[s] = assays.map((a) => valueIn(a, s, "ppm", elementUnits)); });
+    symbols.forEach((s) => {
+      if (!caches.lt[s]) caches.lt[s] = Uint8Array.from(assays, (a) => (isBelowDetection(a, s) ? 1 : 0));
+      if (!caches.cols[s]) caches.cols[s] = assays.map((a, i) => (detectedOnly && caches.lt[s][i] ? null : valueIn(a, s, "ppm", elementUnits)));
+    });
     return correlationMatrix(caches.cols, symbols, method, caches.pairs);
-  }, [symbols, caches, method]);
+  }, [symbols, caches, method, detectedOnly]);
+  // pairs where both values are present and at least one is below detection (0 when detected pairs only)
+  const ltPairs = (a, b) => {
+    const key = `ltpair|${a < b ? a : b}|${a < b ? b : a}`;
+    let k = caches.pairs.get(key);
+    if (k != null) return k;
+    k = 0;
+    const ca = caches.cols[a], cb = caches.cols[b], la = caches.lt[a], lb = caches.lt[b];
+    if (ca && cb) for (let i = 0; i < ca.length; i++) if (ca[i] != null && cb[i] != null && Number.isFinite(ca[i]) && Number.isFinite(cb[i]) && (la[i] || lb[i])) k++;
+    caches.pairs.set(key, k);
+    return k;
+  };
+  const anyLt = useMemo(() => symbols.some((s) => caches.lt[s]?.some((x) => x)), [symbols, caches, matrix]);
 
   const exportCSV = () => {
     const { rows, nRows } = correlationRows(symbols, matrix); // #1083 — rows in lib, tested
@@ -93,6 +112,9 @@ export default function CorrelationMatrix({ assays: assaysIn, assayElements: ass
                 <option value="pearson">{tr("Pearson, raw values")}</option>
               </select>
             </label>
+            {(anyLt || detectedOnly) && <label style={{ display: "flex", alignItems: "center", gap: 6 }} title={tr("Leave a below-detection value ('<') out of every pair: a correlation on 'both below detection' says little about the rock")}>
+              <input type="checkbox" checked={detectedOnly} onChange={(e) => setDetectedOnly(e.target.checked)} />{" "}{tr("Detected pairs only")}
+            </label>}{/* #2505 */}
             {!surface && <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
               <input type="checkbox" checked={includeQAQC} onChange={(e) => setIncludeQAQC(e.target.checked)} />{" "}{tr("Include QAQC inserts{v}", { v: qaqcCount ? ` (${qaqcCount})` : "" })}
             </label>}
@@ -128,7 +150,7 @@ export default function CorrelationMatrix({ assays: assaysIn, assayElements: ass
                         const { r, n } = matrix[a][b];
                         const thin = n < MIN_PAIRS;
                         return (
-                          <td key={b} title={tr("{a} vs {b}: r = {v} (n = {n} pairs{v2})", { a, b, v: r == null ? "n/a" : r.toFixed(3), n, v2: thin ? tr(", too few to trust") : "" })} style={{ ...cell, background: thin ? cellColor(null) : cellColor(r), color: thin ? "var(--color-text-faint)" : cell.color }}>
+                          <td key={b} title={tr("{a} vs {b}: r = {v} (n = {n} pairs{v2})", { a, b, v: r == null ? "n/a" : r.toFixed(3), n, v2: (thin ? tr(", too few to trust") : "") + (a !== b && ltPairs(a, b) ? tr(", {k} of them with a below-detection value", { k: ltPairs(a, b).toLocaleString() }) : "") /* #2505 */ })} style={{ ...cell, background: thin ? cellColor(null) : cellColor(r), color: thin ? "var(--color-text-faint)" : cell.color }}>
                             {r == null ? "—" : r.toFixed(2)}
                           </td>
                         );

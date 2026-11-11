@@ -32,7 +32,7 @@ test("the tool takes lab assays only and shows the samples behind each mean", ()
   assert.match(t, /pXRF reading\(s\) left out: the grades here come from lab assays only\./);
   assert.match(t, /Only samples with every immobile element/);
   assert.match(t, /no value in the precursor group, left out of the immobile set\./);
-  assert.match(t, />n \{r\.precursorN\}</);
+  assert.match(t, />n \{r\.precursorN\}\{r\.precursorLt \?/ /* #2505: and its <DL count */);
   const x = readFileSync(new URL("../src/lib/analysisExports.js", import.meta.url), "utf8");
   assert.match(x, /precursor_n: r\.precursorN/);
 });

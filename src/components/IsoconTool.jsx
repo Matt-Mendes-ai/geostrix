@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { isBelowDetection } from "../lib/assayFlags.js"; // TASKS.csv #2505
 import { useVirtualRows } from "../lib/useVirtualRows.js"; // TASKS.csv #1186, #1278
 import { X, Download } from "./icons.js";
 import { valueIn } from "../lib/geochem.js";
@@ -89,8 +90,8 @@ export default function IsoconTool({ assays: assaysIn, assayElements, onClose })
   const imm = useMemo(() => sharedImmobile(groupRows(precursorIds), groupRows(alteredIds), [...immobile], valueOf), [precursorIds, alteredIds, immobile, assays, elementUnits]);
   const means = (idSet) => {
     const chosen = groupRows(idSet);
-    const strict = commonOnly && imm.shared.length ? groupMeans(chosen, symbols, valueOf, imm.shared) : null;
-    return strict && strict.used > 0 ? { ...strict, restricted: true } : groupMeans(chosen, symbols, valueOf);
+    const strict = commonOnly && imm.shared.length ? groupMeans(chosen, symbols, valueOf, imm.shared, isBelowDetection) : null;
+    return strict && strict.used > 0 ? { ...strict, restricted: true } : groupMeans(chosen, symbols, valueOf, [], isBelowDetection); // #2505
   };
   const precursor = useMemo(() => means(precursorIds), [precursorIds, assays, elementUnits, commonOnly, imm]);
   const altered = useMemo(() => means(alteredIds), [alteredIds, assays, elementUnits, commonOnly, imm]);
@@ -110,7 +111,7 @@ export default function IsoconTool({ assays: assaysIn, assayElements, onClose })
       .map((s) => {
         const ratio = altered.values[s] / precursor.values[s];
         const pct = 100 * (ratio / slope - 1);
-        return { symbol: s, precursor: precursor.values[s], altered: altered.values[s], ratio, pct, isImmobile: immobile.has(s), precursorN: precursor.ns[s], alteredN: altered.ns[s] }; // n: #2348
+        return { symbol: s, precursor: precursor.values[s], altered: altered.values[s], ratio, pct, isImmobile: immobile.has(s), precursorN: precursor.ns[s], alteredN: altered.ns[s], precursorLt: precursor.lts?.[s] || 0, alteredLt: altered.lts?.[s] || 0 }; // n: #2348; lt: #2505
       })
       .sort((a, b) => a.pct - b.pct);
     return { slope, spread, bulkMassChangePct, table, immobileList };
@@ -233,8 +234,8 @@ export default function IsoconTool({ assays: assaysIn, assayElements, onClose })
                   {result.table.map((r) => (
                     <tr key={r.symbol} style={{ borderTop: "1px solid #eceef1" }}>
                       <td style={td}>{r.symbol} {r.isImmobile && <span style={{ color: "#5a7290", fontSize: "var(--font-size-xs)" }}>{tr("(immobile)")}</span>}</td>
-                      <td style={{ ...td, ...(r.precursorN < MIN_GROUP_N ? { color: "var(--color-text-muted)" } : {}) }}>{r.precursor.toFixed(2)} <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)" }}>n {r.precursorN}</span></td>
-                      <td style={{ ...td, ...(r.alteredN < MIN_GROUP_N ? { color: "var(--color-text-muted)" } : {}) }}>{r.altered.toFixed(2)} <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)" }}>n {r.alteredN}</span></td>
+                      <td style={{ ...td, ...(r.precursorN < MIN_GROUP_N ? { color: "var(--color-text-muted)" } : {}) }}>{r.precursor.toFixed(2)} <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)" }}>n {r.precursorN}{r.precursorLt ? `, ${tr("{n} <DL", { n: r.precursorLt })}` : ""}</span></td>
+                      <td style={{ ...td, ...(r.alteredN < MIN_GROUP_N ? { color: "var(--color-text-muted)" } : {}) }}>{r.altered.toFixed(2)} <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)" }}>n {r.alteredN}{r.alteredLt ? `, ${tr("{n} <DL", { n: r.alteredLt })}` : ""}</span></td>
                       <td style={td}>{r.ratio.toFixed(3)}</td>
                       <td style={{ ...td, color: r.pct >= 0 ? "var(--color-success-fg)" : "var(--color-danger-fg)" }}>{r.pct >= 0 ? "+" : ""}{r.pct.toFixed(1)}%</td>
                     </tr>

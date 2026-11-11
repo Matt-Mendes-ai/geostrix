@@ -15,16 +15,18 @@ export function sharedImmobile(precRows, altRows, ticked, valueOf) {
 
 // one group's means. require: the elements a sample must carry to be used (the shared immobile set), or [] for every sample.
 // -> { n (samples in the group), used (samples used), values: { sym: mean | null }, ns: { sym: count } } | null
-export function groupMeans(rows, symbols, valueOf, require = []) {
+// #2505: isLt(a, sym) -> the value is below detection; lts: { sym: count } of those among ns
+export function groupMeans(rows, symbols, valueOf, require = [], isLt = null) {
   if (!rows?.length) return null;
   const used = require.length ? rows.filter((a) => require.every((s) => valueOf(a, s) != null)) : rows;
-  const values = {}, ns = {};
+  const values = {}, ns = {}, lts = {};
   for (const sym of symbols || []) {
     let sum = 0, k = 0;
-    for (const a of used) { const v = valueOf(a, sym); if (v != null) { sum += v; k++; } }
-    values[sym] = k ? sum / k : null; ns[sym] = k;
+    let lt = 0;
+    for (const a of used) { const v = valueOf(a, sym); if (v != null) { sum += v; k++; if (isLt && isLt(a, sym)) lt++; } }
+    values[sym] = k ? sum / k : null; ns[sym] = k; lts[sym] = lt;
   }
-  return { n: rows.length, used: used.length, values, ns };
+  return { n: rows.length, used: used.length, values, ns, lts };
 }
 
 export const MIN_GROUP_N = 3; // a mean of fewer samples is shown greyed, as unreliable

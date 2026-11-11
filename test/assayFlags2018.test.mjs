@@ -31,6 +31,6 @@ test("wired into the drillhole and surface imports and the footers", () => {
   assert.match(g, /const flagCols = format === "wide" \? flagColumns\(/);
   assert.match(g, /if \(v != null && !q && flagCols\.has\(e\.symbol\)\) \{ \/\/ #2018/);
   assert.match(g, /flagQualifier\(r\[flagCols\.get\(e\.symbol\)\]\) === "<"\) \{ bdl\.push\(e\.symbol\);/);
-  assert.match(g, /censoredSamples\(plotted, diagram\.spider \? diagram\.order : diagram\.requires\)/);
+  assert.match(g, /censoredSamples\(plotted, diagram\.spider \? diagram\.order : diagramId === "xy" \? .*: diagram\.requires\)/ /* #2505: X-Y counts its element axes */);
   assert.match(g, /censored: censoredCount \}\);/);
 });

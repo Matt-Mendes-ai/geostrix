@@ -9839,5 +9839,13 @@
   "Struck through: {rules} land above every sample of their population (or over 100 %): such a rule finds no anomaly here, often a sign of two populations. The probability plot's break and the Populations selector separate them; these rules cannot be saved.": "Barrées : {rules} tombent au-dessus de tous les échantillons de leur population (ou au-delà de 100 %) : une telle règle ne trouve aucune anomalie ici, souvent le signe de deux populations. La cassure du diagramme de probabilité et le sélecteur de Populations les séparent ; ces règles ne peuvent pas être enregistrées.",
   "{n} result(s) are '<' at {limit}: not a round figure, so it was converted at import (from another unit or an oxide); the lab's own limit is the round figure in the source file": "{n} résultat(s) sont '<' à {limit} : ce n'est pas un chiffre rond, il a donc été converti à l'import (d'une autre unité ou d'un oxyde) ; la limite propre du laboratoire est le chiffre rond du fichier source",
   "Use <{limit} (the '<' results, converted at import)": "Utiliser <{limit} (les résultats '<', convertis à l'import)",
-  "Collar · {field}": "Collet · {field}"
+  "Collar · {field}": "Collet · {field}",
+  "{n} more group(s) are over half below detection.": "{n} autre(s) groupe(s) sont à plus de moitié sous la limite de détection.",
+  "Its percentiles and caps sit on the limit, not on measured grades.": "Ses centiles et plafonds tombent sur la limite, pas sur des teneurs mesurées.",
+  "{n} <DL": "{n} <LD",
+  "; {n} left out: a ratio with a below-detection operand is not a value": "; {n} écarté(s) : un rapport avec un opérande sous la limite de détection n'est pas une valeur",
+  "; {n} flagged below detection ('<'): every element in the formula was": "; {n} marqué(s) sous la limite de détection ('<') : tous les éléments de la formule l'étaient",
+  "Leave a below-detection value ('<') out of every pair: a correlation on 'both below detection' says little about the rock": "Écarter de chaque paire une valeur sous la limite de détection ('<') : une corrélation sur « les deux sous la limite » dit peu de la roche",
+  "Detected pairs only": "Paires détectées seulement",
+  ", {k} of them with a below-detection value": ", dont {k} avec une valeur sous la limite de détection"
 }

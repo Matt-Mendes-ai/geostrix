@@ -1094,7 +1094,7 @@ function segmentSummary(assays, symbol, unit, elementUnits) {
     arr.push(a);
   });
   const segs = [];
-  byHole.forEach((rows, hole_id) => resolveAssaySegments(rows, symbol, unit, elementUnits, null).forEach((s) => { if (s.value != null && s.to > s.from) segs.push(Object.freeze({ hole_id, from: s.from, to: s.to, value: s.value })); }));
+  byHole.forEach((rows, hole_id) => resolveAssaySegments(rows, symbol, unit, elementUnits, null).forEach((s) => { if (s.value != null && s.to > s.from) segs.push(Object.freeze({ hole_id, from: s.from, to: s.to, value: s.value, lt: !!s.lt })); })); // lt: #2505
   const byValue = segs.map((s) => ({ value: s.value, len: s.to - s.from })).sort((a, b) => a.value - b.value);
   hit = { segs: Object.freeze(segs), byValue, total: byValue.reduce((t, x) => t + x.len, 0) };
   m.set(key, hit);
