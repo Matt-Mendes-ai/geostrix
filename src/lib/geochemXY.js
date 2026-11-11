@@ -50,10 +50,10 @@ export function intervalLookup(intervals, symbol) {
 // an axis choice -> { label, value(sample, units) }. choice: { kind: "element", symbol, unit } | a numericSourceChoices entry
 export function axisOf(choice, ctx) {
   if (!choice) return null;
-  if (choice.kind === "element") return { label: choice.unit ? `${choice.symbol} (${choice.unit})` : choice.symbol, value: (s, u) => valueIn(s, choice.symbol, choice.unit || undefined, u) };
+  if (choice.kind === "element") return { label: choice.unit ? `${choice.symbol} (${choice.unit})` : choice.symbol, element: true, unit: choice.unit || "", value: (s, u) => valueIn(s, choice.symbol, choice.unit || undefined, u) }; // element / unit: #2203
   const { assays } = sourceAssays(choice, ctx);
   const at = intervalLookup(assays, choice.symbol); // #2353 — averaged over the sample's interval
-  return { label: choice.unit && choice.unit !== "as logged" ? `${choice.label} (${choice.unit})` : choice.label, value: (s) => at(s) };
+  return { label: choice.unit && choice.unit !== "as logged" ? `${choice.label} (${choice.unit})` : choice.label, unit: choice.unit || "", value: (s) => at(s) }; // unit: #2203
 }
 
 // The scatter as a diagram GeochemPlot draws: its ranges fitted to the samples' values (a log axis when they are all positive and
@@ -63,15 +63,18 @@ export function xyDiagram(xAxis, yAxis, samples, units, opts = {}) {
   if (!xAxis || !yAxis) return null;
   const xs = [], ys = [];
   for (const s of samples || []) { const x = xAxis.value(s, units), y = yAxis.value(s, units); if (Number.isFinite(x) && Number.isFinite(y)) { xs.push(x); ys.push(y); } }
-  const fit = (v) => {
+  // TASKS.csv #2203 (review #2174) — a grade axis started at a -0.0217 g/t tick and an RQD axis ran past 100 %: a linear axis of values that
+  // are never negative stops at 0, a percentage at 100; an element whose positive values span a decade or more is drawn on a log axis
+  const fit = (v, axis) => {
     if (!v.length) return { range: [0, 1], log: false };
     let lo = Infinity, hi = -Infinity; for (const a of v) { if (a < lo) lo = a; if (a > hi) hi = a; }
-    const log = lo > 0 && hi / lo >= 100;
+    const log = lo > 0 && hi / lo >= (axis?.element ? 10 : 100);
     if (log) return { range: [lo / 1.15, hi * 1.15], log };
     const pad = (hi - lo) * 0.06 || Math.abs(hi) * 0.1 || 1;
-    return { range: [lo - pad, hi + pad], log };
+    const pct = /^%|^pct$|percent/i.test(String(axis?.unit || "").trim()) || /%\)$/.test(String(axis?.label || ""));
+    return { range: [lo >= 0 ? Math.max(0, lo - pad) : lo - pad, pct && hi <= 100 ? Math.min(100, hi + pad) : hi + pad], log };
   };
-  const fx = fit(xs), fy = fit(ys);
+  const fx = fit(xs, xAxis), fy = fit(ys, yAxis);
   return {
     id: "xy", label: "X–Y scatter (choose the axes)", requires: [],
     caption: "Any two axes: assay elements, or a downhole log / custom-layer field averaged over each sample's interval in the same hole (length-weighted).",
