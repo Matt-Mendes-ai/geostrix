@@ -70,6 +70,7 @@ import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Spac
 import { arrMin, arrMax, median } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread); median: #2239
 import { unreadableFormatAdvice } from "../lib/unreadableFormats.js"; // TASKS.csv #603
 import { t as tr } from "../lib/i18n.js";
+import { decadesBetween, isLogSpaced, logViridisStops } from "../lib/pointSurveyScale.js"; // TASKS.csv #1787
 import { guessVoxelProperty, isLogProperty, propertyRamp } from "../lib/voxelProperty.js"; // TASKS.csv #1786; propertyRamp: #1788
 import { cloudShape } from "../lib/cloudShape.js"; // TASKS.csv #1783
 import { defaultDrapeElevation, rasterDrapeElevation, drapeElevationNote, planElevation } from "../lib/drapeElevation.js"; // planElevation: #2294; // TASKS.csv #1856; rasterDrapeElevation: #1505
@@ -306,6 +307,14 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
   const legendDrawn = useMemo(() => robustRange(legendRows.map((r) => r.value)), [legendRows]);
   const legendRange = useMemo(() => { let a = null, b = null; for (const r of legendRows) { const v = r.value; if (typeof v !== "number" || isNaN(v)) continue; if (a === null || v < a) a = v; if (b === null || v > b) b = v; } return { min: a, max: b }; }, [legendRows]);
   const legendMeta = (manySurveys && geophysSurveys[legendKey]?.legend) || null;
+  // TASKS.csv #1787 — the point-survey legend's edits, routed to the survey's own legend (#1587) or the one flat layer's store fields
+  const ptsLegendUpdate = (_id, patch) => {
+    if (manySurveys) { updateGeophysSurvey(legendKey, { legend: { ...(geophysSurveys[legendKey]?.legend || {}), ...patch } }); return; } // #1587
+    if ("min" in patch) setGeophysPtsMin(patch.min);
+    if ("max" in patch) setGeophysPtsMax(patch.max);
+    if ("colorMode" in patch) setGeophysPtsColorMode(patch.colorMode);
+    if ("stops" in patch) setGeophysPtsStops(patch.stops);
+  };
   // TASKS.csv #1094 — one survey's points as CSV (x, y, z, the value as "<method>_<unit>", line / fiducial / label), stamped
   const exportSurvey = (key) => {
     const meta = geophysSurveys[key] || {}, pts = rows.filter((r) => surveyKey(r) === key);
@@ -1921,19 +1930,31 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                 — built generically against that shape, not tied to actual voxel-model objects — works
                 unchanged. geophysPtsOnUpdate routes its onUpdate(id, patch) calls to the store fields
                 instead of a per-model update, since geophys_pts is one flat layer, not a list. */}
+            {min !== null && (() => { // TASKS.csv #1787 — Linear / Log colour scale for a positive survey (log: viridis on log-spaced stops)
+              const cur = manySurveys ? { min: legendMeta?.min ?? legendDrawn.min, max: legendMeta?.max ?? legendDrawn.max, stops: legendMeta?.stops || [] } : { min: geophysPtsMin ?? drawnRange.min, max: geophysPtsMax ?? drawnRange.max, stops: geophysPtsStops };
+              if (!((manySurveys ? legendRange.min : min) > 0) || !(cur.min > 0 && cur.max > cur.min)) return null;
+              const isLog = isLogSpaced(cur.stops), dec = decadesBetween(cur.min, cur.max);
+              return (
+                <div style={{ marginTop: 6, fontSize: "var(--font-size-sm)" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <span style={{ color: "var(--color-text-faint)", width: 62, flexShrink: 0 }}>{tr("Colour scale")}</span>
+                    <select value={isLog ? "log" : "linear"} aria-label={tr("Colour scale of the point survey")} style={{ ...numInput, flex: 1, minWidth: 0 }}
+                      onChange={(e) => ptsLegendUpdate("geophys_pts", e.target.value === "log" ? { stops: logViridisStops(cur.min, cur.max), colorMode: "continuous" } : { stops: [] })}>
+                      <option value="linear">{tr("Linear")}</option>
+                      <option value="log">{tr("Log (each decade the same share of the colours)")}</option>
+                    </select>
+                  </div>
+                  {!isLog && dec >= 2 && <div style={{ color: "var(--color-warn-text)", fontSize: "var(--font-size-xs)", marginTop: 3, lineHeight: 1.4 }}>{tr("These values span {d} decades: on a linear scale most points share the lowest colours. A log scale spreads them.", { d: dec.toFixed(1) })}</div>}
+                </div>
+              );
+            })()}
             {min !== null && (
               <VoxelLegendEditor
                 key={manySurveys ? legendKey : "all"}
                 model={manySurveys
                   ? { id: "geophys_pts", min: legendMeta?.min ?? legendDrawn.min, max: legendMeta?.max ?? legendDrawn.max, colorMode: legendMeta?.colorMode || "continuous", stops: legendMeta?.stops || [], cells: legendRows } // #1587 — this survey's own legend
                   : { id: "geophys_pts", min: geophysPtsMin ?? drawnRange.min, max: geophysPtsMax ?? drawnRange.max, colorMode: geophysPtsColorMode, stops: geophysPtsStops, cells: rows }}
-                onUpdate={(_id, patch) => {
-                  if (manySurveys) { updateGeophysSurvey(legendKey, { legend: { ...(geophysSurveys[legendKey]?.legend || {}), ...patch } }); return; } // #1587
-                  if ("min" in patch) setGeophysPtsMin(patch.min);
-                  if ("max" in patch) setGeophysPtsMax(patch.max);
-                  if ("colorMode" in patch) setGeophysPtsColorMode(patch.colorMode);
-                  if ("stops" in patch) setGeophysPtsStops(patch.stops);
-                }}
+                onUpdate={ptsLegendUpdate} /* #1787 — the same routing, shared with the colour-scale choice */
               />
             )}
             <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
