@@ -3,6 +3,7 @@
 // plan of the 446 holes could not be made: at 1:20,000 the traces were 1 px lines under soils and geophysics, with no collar
 // symbol or label. Pure functions; the drawing is components/DrillPlanElement.jsx.
 
+import { collarsMatching } from "./holeFilter.js"; // TASKS.csv #2141
 export const PAGE_PX_PER_PAPER_M = 96 / 0.0254; // the Layout sheet is 96 px per inch
 export const pxPerMetre = (scale) => PAGE_PX_PER_PAPER_M / Math.max(1, Number(scale) || 1);
 
@@ -15,9 +16,11 @@ export function holePlan(c) {
 }
 
 const finite = (c) => Number.isFinite(c?.x) && Number.isFinite(c?.y);
+// TASKS.csv #2141 (review #2013) — a program's location plan in two clicks: the filter takes collar fields too ('year=2024', 'project=Woodjam'),
+// the hole-filter grammar of the hole list (#1504); a plain term still matches the hole id ('24-' kept Redgold's RG24-15 22 km north)
 export const filterHoles = (collars, filter) => {
-  const f = String(filter || "").trim().toLowerCase();
-  return (collars || []).filter((c) => finite(c) && (!f || String(c.hole_id ?? "").toLowerCase().includes(f)));
+  const ok = (collars || []).filter(finite);
+  return String(filter || "").trim() ? collarsMatching(ok, filter) : ok;
 };
 
 // The scale (from `presets`, smallest first) and centre that show every hole (collar and trace) inside a w x h px frame with a margin.

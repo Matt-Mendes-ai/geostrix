@@ -8279,6 +8279,7 @@
   "Not tied to a view: its length is not a distance on any map of this page. Bind it to a view above (it then follows that view's scale).": "Não vinculada a uma vista: seu comprimento não é uma distância em nenhum mapa desta página. Vincule-a a uma vista acima (ela passa a seguir a escala dessa vista).",
   "First row": "Primeira linha",
   "Holes containing": "Furos que contêm",
+  "Text in the hole id, or a collar field such as year=2024 (every field term must match)": "Texto do id do furo, ou um campo do colar como year=2024 (todos os termos de campo devem coincidir)",
   "The holes run the other way: this frame turned ({w} × {h} mm) fits them at 1 : {scale}.": "Os furos correm no outro sentido: este quadro girado ({w} × {h} mm) os encaixa a 1 : {scale}.",
   "Turn the frame": "Girar o quadro",
   "all": "todos",

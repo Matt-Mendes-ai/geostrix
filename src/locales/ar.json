@@ -8279,6 +8279,7 @@
   "Not tied to a view: its length is not a distance on any map of this page. Bind it to a view above (it then follows that view's scale).": "غير مرتبط بعرض: طوله ليس مسافة على أي خريطة في هذه الصفحة. اربطه بعرض أعلاه (ليتبع عندها مقياس ذلك العرض).",
   "First row": "الصف الأول",
   "Holes containing": "الثقوب التي تحتوي",
+  "Text in the hole id, or a collar field such as year=2024 (every field term must match)": "نص من معرّف الثقب، أو حقل من حقول الفوهة مثل year=2024 (يجب أن يطابق كل شرط حقل)",
   "The holes run the other way: this frame turned ({w} × {h} mm) fits them at 1 : {scale}.": "تمتد الثقوب في الاتجاه الآخر: هذا الإطار بعد تدويره ({w} × {h} مم) يسعها بمقياس 1 : {scale}.",
   "Turn the frame": "تدوير الإطار",
   "all": "الكل",

@@ -8279,6 +8279,7 @@
   "Not tied to a view: its length is not a distance on any map of this page. Bind it to a view above (it then follows that view's scale).": "No vinculada a una vista: su longitud no es una distancia en ningún mapa de esta página. Vincúlela a una vista arriba (entonces sigue la escala de esa vista).",
   "First row": "Primera fila",
   "Holes containing": "Sondajes que contienen",
+  "Text in the hole id, or a collar field such as year=2024 (every field term must match)": "Texto del id del sondaje, o un campo del collar como year=2024 (todos los términos de campo deben coincidir)",
   "The holes run the other way: this frame turned ({w} × {h} mm) fits them at 1 : {scale}.": "Los sondajes van en el otro sentido: este marco girado ({w} × {h} mm) los encaja a 1 : {scale}.",
   "Turn the frame": "Girar el marco",
   "all": "todos",
