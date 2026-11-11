@@ -10005,5 +10005,8 @@
   "Enter the Az, Dip and Length above (a length above 0).": "Informe o Az, o mergulho e o comprimento acima (um comprimento maior que 0).",
   "Enter the E / N above, a bearing, a spacing and a number of holes; for more than one line, a line spacing.": "Informe o E / N acima, um rumo, um espaçamento e um número de furos; para mais de uma linha, um espaçamento entre linhas.",
   "+ Add {n} hole(s)": "+ Adicionar {n} furo(s)",
-  "+ Add the holes": "+ Adicionar os furos"
+  "+ Add the holes": "+ Adicionar os furos",
+  "Drillholes: metres of logged {layer}: {code} in each hole": "Furos: metros registrados de {layer}: {code} em cada furo",
+  "Drillholes: depth to the top of logged {layer}: {code}": "Furos: profundidade até o topo de {layer} registrado: {code}",
+  "Drillholes: elevation of the base of logged {layer}: {code}": "Furos: cota da base de {layer} registrado: {code}"
 }

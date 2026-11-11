@@ -10005,5 +10005,8 @@
   "Enter the Az, Dip and Length above (a length above 0).": "Saisissez l'Az, le pendage et la longueur ci-dessus (une longueur supérieure à 0).",
   "Enter the E / N above, a bearing, a spacing and a number of holes; for more than one line, a line spacing.": "Saisissez le E / N ci-dessus, un gisement, un espacement et un nombre de sondages ; pour plus d'une ligne, un espacement des lignes.",
   "+ Add {n} hole(s)": "+ Ajouter {n} sondage(s)",
-  "+ Add the holes": "+ Ajouter les sondages"
+  "+ Add the holes": "+ Ajouter les sondages",
+  "Drillholes: metres of logged {layer}: {code} in each hole": "Sondages : mètres décrits de {layer} : {code} dans chaque sondage",
+  "Drillholes: depth to the top of logged {layer}: {code}": "Sondages : profondeur jusqu'au toit de {layer} décrit : {code}",
+  "Drillholes: elevation of the base of logged {layer}: {code}": "Sondages : altitude de la base de {layer} décrit : {code}"
 }

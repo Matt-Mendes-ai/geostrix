@@ -10005,5 +10005,8 @@
   "Enter the Az, Dip and Length above (a length above 0).": "أدخل السمت والميل والطول أعلاه (طول أكبر من 0).",
   "Enter the E / N above, a bearing, a spacing and a number of holes; for more than one line, a line spacing.": "أدخل E / N أعلاه واتجاهًا وتباعدًا وعدد ثقوب؛ ولأكثر من خط، تباعدًا بين الخطوط.",
   "+ Add {n} hole(s)": "+ أضف {n} ثقب",
-  "+ Add the holes": "+ أضف الثقوب"
+  "+ Add the holes": "+ أضف الثقوب",
+  "Drillholes: metres of logged {layer}: {code} in each hole": "ثقوب الحفر: أمتار {layer} المسجلة: {code} في كل ثقب",
+  "Drillholes: depth to the top of logged {layer}: {code}": "ثقوب الحفر: العمق حتى أعلى {layer} المسجل: {code}",
+  "Drillholes: elevation of the base of logged {layer}: {code}": "ثقوب الحفر: ارتفاع قاعدة {layer} المسجل: {code}"
 }

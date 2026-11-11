@@ -272,6 +272,65 @@ export function layerFieldPoints(rows, field, traces, bin = GRADE_BIN_M, level =
   }
   return [...best.values()];
 }
+// TASKS.csv #2453 / #2583 — a row's code in a field, trimmed; upper-cased when folding case
+export const codeOf = (r, field = "value", fold = false) => { const s = String(r?.[field] ?? "").trim(); return fold ? s.toUpperCase() : s; };
+// the TEXT fields of logged rows that hold codes: mostly not numbers, at least `min` rows, and no more than `maxCodes` distinct values
+// (a free-text description is not a code field). "value" first when it is one.
+const FREE_TEXT_FIELD = /^(desc|description|comments?|notes?|remarks?|log|geologist|logged_?by)$/i;
+export function codedFields(rows, { min = 3, maxCodes = 60 } = {}) {
+  const seen = new Map();
+  for (const r of rows || []) for (const k of Object.keys(r)) {
+    if ((ROW_KEYS.has(k) && k !== "value") || k === "value_num" || BOOKKEEPING_FIELD.test(k) || FREE_TEXT_FIELD.test(k)) continue;
+    const v = r[k];
+    if (v == null || v === "" || typeof v === "object") continue;
+    let s = seen.get(k); if (!s) { s = { n: 0, num: 0, codes: new Set() }; seen.set(k, s); }
+    s.n++; if (numericCell(v) != null) s.num++; else if (s.codes.size <= maxCodes) s.codes.add(String(v).trim().toUpperCase());
+  }
+  return [...seen].filter(([, s]) => s.n >= min && s.num < 0.5 * s.n && s.codes.size >= 1 && s.codes.size <= maxCodes).map(([k]) => k)
+    .sort((a, b) => (b === "value" ? 1 : 0) - (a === "value" ? 1 : 0));
+}
+// the codes of a field folded by case, each with its spellings: [{ key (upper case), label ("P" or "P / p"), n, variants }], at least `min`
+// rows on a hole. A field whose codes differ only by case is read as one code per letter-string (#2583: 'p' beside 'P', 'qv' beside 'QV').
+export function foldedCodes(rows, traces, { min = 1, field = "value" } = {}) {
+  const by = new Map();
+  for (const r of rows || []) {
+    const s = String(r?.[field] ?? "").trim();
+    if (!s || !traces.has(r.hole_id) || !Number.isFinite(rowDepth(r))) continue;
+    const k = s.toUpperCase(); let e = by.get(k); if (!e) { e = { key: k, n: 0, spell: new Map() }; by.set(k, e); }
+    e.n++; e.spell.set(s, (e.spell.get(s) || 0) + 1);
+  }
+  return [...by.values()].filter((e) => e.n >= min).map((e) => { const v = [...e.spell].sort((a, b) => b[1] - a[1]).map(([s]) => s); return { key: e.key, label: v.join(" / "), n: e.n, variants: v }; })
+    .sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
+}
+// TASKS.csv #2453 (review #2325, WA uranium) — the per-hole measures a flat, stratabound target is explored with, from one logged code:
+// how = "thick": the metres logged with the code in each hole (0 in a hole that logged this field without it), at the middle of those
+// intervals (or the hole's first logged depth); "top": the depth of the first interval with the code, at its top; "baseZ": the elevation of
+// the base of the deepest interval with the code. Downhole metres: true thickness only in a hole drilled across the unit (vertical holes in
+// flat ground). -> [{ x, y, z, value }]
+export function zoneHolePoints(rows, code, traces, how = "thick", { field = "value", fold = false, level = null } = {}) {
+  const per = new Map();
+  for (const r of rows || []) {
+    const t = traces.get(r.hole_id), from = Number(r.from), to = Number(r.to);
+    if (!t || !Number.isFinite(from) || !Number.isFinite(to)) continue;
+    const s = String(r?.[field] ?? "").trim();
+    if (!s) continue;
+    let h = per.get(r.hole_id); if (!h) { h = { t, thick: 0, top: Infinity, base: -Infinity, first: Infinity, lo: Infinity, hi: -Infinity }; per.set(r.hole_id, h); }
+    const a = Math.min(from, to), b = Math.max(from, to);
+    if (a < h.first) h.first = a;
+    if ((fold ? s.toUpperCase() : s) !== code) continue;
+    h.thick += b - a; if (a < h.top) h.top = a; if (b > h.base) h.base = b; if (a < h.lo) h.lo = a; if (b > h.hi) h.hi = b;
+  }
+  const out = [];
+  for (const h of per.values()) {
+    const has = h.thick > 0;
+    if (how !== "thick" && !has) continue; // no top / base where the hole did not log the code: unknown, not zero
+    const d = how === "top" ? h.top : how === "baseZ" ? h.base : has ? (h.lo + h.hi) / 2 : h.first;
+    const p = pointOnTrace(h.t, d);
+    if (!inLevel(p.z, level)) continue;
+    out.push({ x: p.x, y: p.y, z: p.z, value: how === "top" ? h.top : how === "baseZ" ? p.z : h.thick });
+  }
+  return out;
+}
 // the codes of interval rows (from / to) or point rows (depth) that sit on a hole, with at least `min` of them
 // (TASKS.csv #1455: every coded log - lithology, alteration, veins, breccia, mineralization, structural zones - not only the zones)
 export function zoneCodes(rows, traces, { min = 1 } = {}) {
@@ -283,10 +342,12 @@ export function zoneCodes(rows, traces, { min = 1 } = {}) {
   return [...counts].filter(([, n]) => n >= min).map(([k]) => k).sort();
 }
 // the intervals of one code as distanceEvidence parts: a polyline along the trace from `from` to `to`, a vertex every `stepM`
-export function zoneParts(rows, code, traces, stepM = 5, level = null) {
+// field / fold: TASKS.csv #2453 / #2583 — another coded field of the rows (a lithology row's strat, a custom layer's Rock2), and codes
+// matched without regard to case ('p' and 'P' are one code; `code` is then the upper-case key)
+export function zoneParts(rows, code, traces, stepM = 5, level = null, { field = "value", fold = false } = {}) {
   const out = [];
   for (const r of rows || []) {
-    if (String(r.value ?? "").trim() !== code) continue;
+    if (codeOf(r, field, fold) !== code) continue;
     const t = traces.get(r.hole_id), from = Number(r.from), to = Number(r.to);
     if (!t) continue;
     if (!Number.isFinite(from) || !Number.isFinite(to)) { const d = Number(r.depth); if (Number.isFinite(d)) { const p = pointOnTrace(t, d); if (inLevel(p.z, level)) out.push([[p.x, p.y]]); } continue; } // a point row (#1455); level: #2326
@@ -345,3 +406,10 @@ export function gradeCardReads(assays, symbol, unit, units) {
   }
   return { holes: holes.size, from: Number.isFinite(from) ? from : null, to: Number.isFinite(to) ? to : null };
 }
+
+// TASKS.csv #2453 / #2583 — a card on a coded field other than a built-in log's value, or on a code with several spellings, or a per-hole
+// measure of a code: its ref is "@" + JSON { l: layer key or "custom:<id>", f: field, c: code (upper case when fold), fold, how? }.
+// The plain "layer:code" ref of a built-in log's value code keeps its old form, so a saved overlay still finds its cards.
+export const codedRef = (o) => `@${JSON.stringify(o)}`;
+export const parseCodedRef = (ref) => { if (typeof ref !== "string" || ref[0] !== "@") return null; try { return JSON.parse(ref.slice(1)); } catch { return null; } };
+export const codedRowsOf = (l, projectLayers, customLayers) => (String(l).startsWith("custom:") ? (customLayers || []).find((c) => String(c.id) === String(l).slice(7))?.rows || [] : projectLayers?.[l] || []);

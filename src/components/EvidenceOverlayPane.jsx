@@ -16,7 +16,7 @@ import { topCells } from "../lib/evidence.js"; // TASKS.csv #1456
 import { evidenceCoverage, LOW_COVERAGE, scoreBlockers } from "../lib/evidence.js"; // TASKS.csv #2252
 import { drilledTrainingMask, evidenceGrid, evidenceExtent, rasterEvidence, distanceEvidence, pointEvidence, sampleValues, membership, fuzzyCombine, FUZZY_OPERATORS, trainingCells, trainingCoverage, bestCutoff, MIN_SIDE, posterior, predictionArea, scoreImage, isOverlayOutput, coveringLayers } from "../lib/evidence.js"; // coveringLayers: #1563
 import { cachedEvidence, evidenceDeps, gridSignature } from "../lib/evidenceCache.js"; // TASKS.csv #1457, #1560
-import { DRILL_REACH_M, surveyNames, surveyPoints, reachFromSpacing, reachFromNeighbours, voxelColumnEvidence, voxelZRange, holeTraces, holeGradePoints, assaysOfHoles, gradeCardReads /* #2577 */, structureCodes, structureParts, drilledParts /* #1456 */, scoreRasterPlacement /* #2447 */, elementsWithValues, numericLayerFields, layerFieldPoints, zoneCodes, zoneParts, levelSet, targetElevation /* #2326 */ } from "../lib/evidenceSources.js"; // numericLayerFields, layerFieldPoints, zoneCodes, zoneParts: TASKS.csv #1728 // TASKS.csv #1154; elementsWithValues: #1723
+import { DRILL_REACH_M, surveyNames, surveyPoints, reachFromSpacing, reachFromNeighbours, voxelColumnEvidence, voxelZRange, holeTraces, holeGradePoints, assaysOfHoles, gradeCardReads /* #2577 */, structureCodes, structureParts, drilledParts /* #1456 */, scoreRasterPlacement /* #2447 */, elementsWithValues, numericLayerFields, layerFieldPoints, zoneParts, levelSet, targetElevation /* #2326 */, codedFields, foldedCodes, zoneHolePoints, codedRef, parseCodedRef, codedRowsOf /* #2453 */ } from "../lib/evidenceSources.js"; // numericLayerFields, layerFieldPoints, zoneCodes, zoneParts: TASKS.csv #1728 // TASKS.csv #1154; elementsWithValues: #1723
 const LEVEL_KINDS = new Set(["grade", "pxrf", "numeric", "zone", "pick", "voxel"]); // TASKS.csv #2326 — the cards a Level filters
 import { categoricalModels } from "../lib/geologyForward.js";
 import { PATHFINDER_PRESETS } from "../lib/anomalyMap.js";
@@ -85,21 +85,48 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
   }, [traces, projectLayers, customLayers]);
   // TASKS.csv #1455 (review #1352, Silvertip) — every coded log as "distance to" evidence (codes logged at least 3 times), and a
   // mineralization code's percent along the holes
+  // TASKS.csv #2453 / #2583 (reviews #2325 WA uranium, #2486 WA lithium) — every coded FIELD of a log (a lithology row's strat and oxidation)
+  // and of a custom layer (Rock2, a stratigraphic unit, a TSA mineral), codes folded by case ('p' with 'P'); and per hole, the metres logged
+  // with a code, the depth to its top and the elevation of its base, the evidence a flat stratabound target is explored with
+  const codeCards = (out, l, name, rows, builtIn) => {
+    const interval = rows.some((r) => Number.isFinite(Number(r.from)) && Number.isFinite(Number(r.to)));
+    for (const field of codedFields(rows)) {
+      const what = field === "value" ? name : `${name} ${field}`;
+      for (const c of foldedCodes(rows, traces, { min: 3, field })) {
+        const fold = c.variants.length > 1;
+        if (builtIn && field === "value" && !fold) out.push({ key: `zone:${l}:${c.label}`, label: tr("Distance to logged {layer}: {code}", { layer: name, code: c.label }), kind: "zone", ref: `${l}:${c.label}` }); // the old card, as saved
+        else { const ref = codedRef({ l, f: field, c: fold ? c.key : c.label, fold }); out.push({ key: `zone${ref}`, label: tr("Distance to logged {layer}: {code}", { layer: what, code: c.label }), kind: "zone", ref }); }
+        if (!interval) continue;
+        const v = { layer: what, code: c.label };
+        for (const [how, label] of [["thick", tr("Drillholes: metres of logged {layer}: {code} in each hole", v)], ["top", tr("Drillholes: depth to the top of logged {layer}: {code}", v)], ["baseZ", tr("Drillholes: elevation of the base of logged {layer}: {code}", v)]]) {
+          const ref = codedRef({ l, f: field, c: fold ? c.key : c.label, fold, how });
+          out.push({ key: `num${ref}`, label, kind: "numeric", ref });
+        }
+      }
+    }
+  };
   const codedSources = useMemo(() => {
     if (!traces.size) return [];
     const out = [];
     for (const key of CODED_LAYERS) {
       const rows = projectLayers?.[key]; if (!rows?.length) continue;
       const name = tr(LAYER_META[key]?.label || key);
-      zoneCodes(rows, traces, { min: 3 }).forEach((code) => out.push({ key: `zone:${key}:${code}`, label: tr("Distance to logged {layer}: {code}", { layer: name, code }), kind: "zone", ref: `${key}:${code}` }));
+      codeCards(out, key, name, rows, true); // #2453 / #2583
       if (key === "mnlgy") {
         const pct = new Map();
         for (const r of rows) { const code = String(r.value ?? "").trim(); if (code && typeof r.extra === "number" && Number.isFinite(r.extra)) pct.set(code, (pct.get(code) || 0) + 1); }
         [...pct].filter(([, n]) => n >= 5).map(([c]) => c).sort().forEach((code) => out.push({ key: `num:coded:mnlgy:${code}:extra`, label: tr("Drillholes: {code} % along the holes", { code }), kind: "numeric", ref: `coded:mnlgy:${code}:extra` }));
       }
     }
+    for (const cl of customLayers || []) if (cl.rows?.length) codeCards(out, `custom:${cl.id}`, cl.name, cl.rows, false); // #2453 — a custom coded layer
     return out;
-  }, [traces, projectLayers]);
+  }, [traces, projectLayers, customLayers]);
+  // #2453 — a per-hole measure of a code (its ref parsed), else the rows' numeric field
+  const numericPointsOf = (ref, lv) => {
+    const z = parseCodedRef(ref);
+    if (z) return zoneHolePoints(codedRowsOf(z.l, projectLayers, customLayers), z.c, traces, z.how, { field: z.f, fold: !!z.fold, level: lv });
+    const { rows, field } = numericRowsOf(ref); return layerFieldPoints(rows, field, traces, undefined, lv);
+  };
   const numericRowsOf = (ref) => {
     const m = /^custom:(.+):([^:]+)$/.exec(ref); if (m) { const cl = customLayers.find((c) => String(c.id) === m[1]); return { rows: cl?.rows || [], field: m[2] }; }
     const c = /^coded:([^:]+):(.+):([^:]+)$/.exec(ref); if (c) return { rows: (projectLayers?.[c[1]] || []).filter((r) => String(r.value ?? "").trim() === c[2]), field: c[3] }; // #1455 — one code's rows
@@ -191,7 +218,8 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
     if (src.kind === "pick") return distanceEvidence(grid, structureParts(structurePicks, src.ref, traces, lv)); // lv: #2326
     if (src.kind === "drilled") return distanceEvidence(grid, drilledParts(traces)); // #1456
     if (src.kind === "solid") { const m = solidMesh?.(src.ref); return m?.vertices?.length ? solidFootprintEvidence(grid, m.vertices, m.indices) : null; } // #1567
-    if (src.kind === "numeric") { const { rows, field } = numericRowsOf(src.ref); return pointEvidence(grid, layerFieldPoints(rows, field, traces, undefined, lv), { maxDistance: opts.reach || DRILL_REACH_M }); } // #1728; lv: #2326
+    if (src.kind === "numeric") return pointEvidence(grid, numericPointsOf(src.ref, lv), { maxDistance: opts.reach || DRILL_REACH_M }); // #1728; lv: #2326; a code's per-hole measure: #2453
+    if (src.kind === "zone" && parseCodedRef(src.ref)) { const z = parseCodedRef(src.ref); return distanceEvidence(grid, zoneParts(codedRowsOf(z.l, projectLayers, customLayers), z.c, traces, undefined, lv, { field: z.f, fold: !!z.fold })); } // #2453 / #2583
     if (src.kind === "zone") { const i = src.ref.indexOf(":"); return distanceEvidence(grid, zoneParts(projectLayers?.[src.ref.slice(0, i)], src.ref.slice(i + 1), traces, undefined, lv)); } // #1728 / #1455 — ref = layer:code
     if (src.kind === "survey") { const pts = surveyPoints(geophysPts, src.ref); return pointEvidence(grid, pts, { maxDistance: opts.reach || reachFromSpacing(pts, 4) }); }
     if (src.kind === "grade") return pointEvidence(grid, holeGradePoints(gradeAssaysOf(cleanAssays, opts), src.ref, assayUnits[src.ref] || "ppm", assayUnits, traces, undefined, lv, !!opts.lowest), { maxDistance: opts.reach || DRILL_REACH_M });
@@ -373,7 +401,7 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
     out.topShare = topScoreShare(fuzzy); // #2448 — said when over a third of the scored cells are at the top
     out.cardPts = layers.filter((l) => l.kind === "grade" || l.kind === "pxrf" || l.kind === "numeric").map((l) => {
       const reach = l.reach || DRILL_REACH_M;
-      if (l.kind === "numeric") { const { rows, field } = numericRowsOf(l.ref); return { pts: layerFieldPoints(rows, field, traces, undefined, level), reach }; }
+      if (l.kind === "numeric") return { pts: numericPointsOf(l.ref, level), reach }; // #2453
       return { pts: holeGradePoints(gradeAssaysOf(l.kind === "pxrf" ? pxrfAssays : cleanAssays, l), l.ref, assayUnits[l.ref] || "ppm", assayUnits, traces, undefined, level, !!l.lowest), reach }; // the card's holes (#2577) and lowest (#2578), as its values: #2579
     });
     setResult(out); setMsg(null);
