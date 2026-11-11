@@ -122,7 +122,21 @@ export const oxideBasisUnit = (base, oxide) => `${base} ${oxide}`;
 // an import element read from an oxide column: kept as the oxide (its own choice, else a commodity oxide by default), or stored as the element
 export function keepsOxide(e) { const ox = oxideOfHeader(e?.header); return !!ox && (e.keepOxide ?? COMMODITY_OXIDES.has(ox.oxide)); }
 // the unit an import element is stored in: an oxide column kept as the oxide -> "% Li2O"; stored as the element -> the header's % / ppm / ppb
-export function importStoreUnit(e) { const ox = oxideOfHeader(e?.header); return !ox ? e.unit : keepsOxide(e) ? oxideBasisUnit(oxideUnit(e.header), ox.oxide) : oxideUnit(e.header); }
+// #2490 — a unit the user picked in the dialog wins over the header's (the box beside an oxide column was inert)
+export const oxideColumnUnit = (e, header = e?.header) => (header === e?.header && e?.unitChosen && e?.unit ? e.unit : oxideUnit(header));
+export function importStoreUnit(e) { const ox = oxideOfHeader(e?.header); return !ox ? e.unit : keepsOxide(e) ? oxideBasisUnit(oxideColumnUnit(e), ox.oxide) : oxideColumnUnit(e); }
+// TASKS.csv #2490 — the values over 100 in the per-cent oxide columns of the chosen elements (impossible as wt%): -> [{ symbol, header, n,
+// example: { hole, from, to, value } }]
+export function oxidesOver100(rows, elements, mapping = {}) {
+  const out = [];
+  for (const e of elements || []) {
+    if (!oxideOfHeader(e.header) || oxideColumnUnit(e) !== "%") continue;
+    let n = 0, ex = null;
+    for (const r of rows || []) { const v = parseAssayValue(r?.[e.header]); if (Number.isFinite(v) && v > 100) { n++; if (!ex) ex = { hole: r[mapping.hole_id], from: r[mapping.from], to: r[mapping.to], value: v }; } }
+    if (n) out.push({ symbol: e.symbol, header: e.header, n, example: ex });
+  }
+  return out;
+}
 // element ppm from a value in `unit`, and back
 // (the plain units first: valueIn runs per sample in every estimate, so they take no lookup)
 const elementPpm = (v, unit) => {
@@ -195,7 +209,9 @@ export function pickElementColumns(headers, rows, stats = null) {
     const main = sorted[0];
     let unit = inferUnit(main.header, symbol);
     const unitInHeader = /ppm|ppb|gpt|g\/t|pct|%/i.test(main.header);
-    if (unit === "%" && !unitInHeader && main.max > 100) unit = "ppm";
+    // TASKS.csv #2490 (review #2486, WA lithium) — not for an oxide column: Fe2O3 / SiO2 in per cent with one impossible value over 100 were
+    // relabelled ppm; that value is flagged by the dialog instead (oxidesOver100)
+    if (unit === "%" && !unitInHeader && main.max > 100 && !oxideOfHeader(main.header)) unit = "ppm";
     const ppb = !unitInHeader ? preciousReadsPpb(symbol, main.header, rows, main.max) : null; // #2337
     if (ppb) unit = "ppb";
     let overLimit = null;

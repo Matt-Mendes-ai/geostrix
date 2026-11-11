@@ -1,7 +1,7 @@
 import { QC_COLUMN_KEYS } from "../lib/assayQcColumns.js"; // TASKS.csv #1184
 import React, { useEffect, useMemo, useState } from "react";
 import { X } from "./icons.js";
-import { isElementColumn, inferUnit, ELEMENT_SYMBOLS, unitAssumed, repeatColumns, numberedRepeatCandidates, oxideOfHeader, keepsOxide } from "../lib/geochem.js"; // numberedRepeatCandidates: #2350 // repeatColumns: #2194; oxide basis: #2487
+import { isElementColumn, inferUnit, ELEMENT_SYMBOLS, unitAssumed, repeatColumns, numberedRepeatCandidates, oxideOfHeader, keepsOxide, importStoreUnit, oxidesOver100 } from "../lib/geochem.js"; // importStoreUnit, oxidesOver100: #2490 // numberedRepeatCandidates: #2350 // repeatColumns: #2194; oxide basis: #2487
 import { scanAssayColumns, negativeSummary, zeroCount, blankCount } from "../lib/assayColumnScan.js"; // TASKS.csv #2164
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
@@ -36,7 +36,9 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
   const zeros = scan ? zeroCount(scan, importedHeaders) : 0;
   const blanks = useMemo(() => (scan ? blankCount(scan, importedHeaders, { long: modal.format === "long" }) : 0), [scan, importedHeaders.join("\u0001"), modal.format]);
   // TASKS.csv #334 — elements already in the project under a different unit get converted on import.
-  const unitClashes = modal.elements.filter((e) => e.checked && existingUnits[e.symbol] && existingUnits[e.symbol] !== e.unit);
+  // #2490 — against the unit the import will actually store (an oxide column's own basis), not the box's raw text
+  const unitClashes = modal.elements.filter((e) => e.checked && existingUnits[e.symbol] && existingUnits[e.symbol] !== importStoreUnit(e));
+  const over100 = useMemo(() => (modal.format === "wide" ? oxidesOver100(modal.allRows || [], modal.elements.filter((e) => e.checked), modal.mapping || {}) : []), [modal.format, modal.allRows, modal.elements, modal.mapping]); // #2490
   // TASKS.csv #210 — manual "add a column the auto-detector missed" control, wide format only (long
   // format's elements come from distinct analyte VALUES in one column, not headers — a different,
   // already-complete picker via the method/analyte dropdowns above).
@@ -150,6 +152,7 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
           {modal.elements.filter((e) => e.unitFromValues && !e.unitChosen && e.header === e.mainHeader).map((e) => (
             <div key={`ppb${e.symbol}`} role="status" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", margin: "4px 0" }}>{tr("{symbol}: \"{header}\" does not say its unit, and its values (median {median}, up to {max}) read as ppb, not ppm: ppb is chosen. Check it against the lab certificate.", { symbol: e.symbol, header: e.header, median: +e.unitFromValues.median.toFixed(2), max: e.unitFromValues.max.toLocaleString() })}</div>
           ))}
+          {over100.length > 0 && <div role="note" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", margin: "4px 0", lineHeight: 1.45 }}>{over100.map((o) => tr("{header} has {n} value(s) over 100 % (impossible as wt%): {hole} {from}-{to} m = {value}. Check those samples; the column stays in per cent.", { header: o.header, n: o.n, hole: o.example.hole ?? "?", from: o.example.from ?? "?", to: o.example.to ?? "?", value: o.example.value })).join(" ")}</div>}{/* TASKS.csv #2490 */}
           {oxideEls.length > 0 && ( /* TASKS.csv #2487 */
             <div role="note" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", margin: "4px 0", lineHeight: 1.45 }}>
               {keptOx.length > 0 && tr("Kept as the oxide: {list}. These grades are read, typed (cut-offs, caps), priced and exported as the oxide; the element is used only where a diagram needs it.", { list: keptOx.join(", ") })}{" "}
@@ -273,7 +276,7 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
               </div>
             )}
             {negatives.sentinels > 0 && <div>{tr("{sentinels} value(s) will be treated as not assayed: {list}. They are -99 / -999 / -9999 codes or bigger than anything else in their column, so they are no-data codes, not grades.", { sentinels: negatives.sentinels, list: (negatives.sentinelCols || []).join("; ") })}</div>}{/* #2336 — the codes found, not an example */}
-            {unitClashes.length > 0 && <div>{tr("Already in this project in another unit: {v}. These values will be converted to the project's unit so earlier assays keep their meaning.", { v: unitClashes.map((e) => tr("{symbol} (file {unit}, project {projectUnit})", { symbol: e.symbol, unit: e.unit, projectUnit: existingUnits[e.symbol] })).join(", ") })}</div>}
+            {unitClashes.length > 0 && <div>{tr("Already in this project in another unit: {v}. These values will be converted to the project's unit so earlier assays keep their meaning.", { v: unitClashes.map((e) => tr("{symbol} (file {unit}, project {projectUnit})", { symbol: e.symbol, unit: importStoreUnit(e), projectUnit: existingUnits[e.symbol] })).join(", ") })}</div>}
           </div>
         )}
 

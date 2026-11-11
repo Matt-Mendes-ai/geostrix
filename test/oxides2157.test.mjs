@@ -35,6 +35,6 @@ test("#2157 an oxide column in ppm is read in ppm at the commit (Ta2O5_ppm), not
   assert.equal(oxideUnit("Ta2O5_ppm"), "ppm"); assert.equal(oxideUnit("Li2O_pct"), "%"); assert.equal(oxideUnit("SiO2"), "%"); assert.equal(oxideUnit("Au2O3_ppb"), "ppb");
   const src = (await import("node:fs")).readFileSync(new URL("../src/modules/GeochemModule.jsx", import.meta.url), "utf8");
   assert.equal((src.match(/ox \? oxideUnit\(/g) || []).length, 2); // the surface-sample commit
-  assert.match(src, /convertUnit\(c\.value, ox \? oxideBasisUnit\(oxideUnit\(header\), ox\.oxide\) : e\.unit, to\)/); // #2487: the assay commit reads an oxide column at its own unit and basis
+  assert.match(src, /convertUnit\(c\.value, ox \? oxideBasisUnit\(oxideColumnUnit\(e, header\), ox\.oxide\) : e\.unit, to\)/); // #2487: the assay commit reads an oxide column at its own unit and basis; #2490: the dialog's unit when picked (oxideColumnUnit falls back to oxideUnit)
   assert.doesNotMatch(src, /ox \? "%" : e\.unit/);
 });

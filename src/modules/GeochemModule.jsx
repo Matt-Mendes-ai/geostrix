@@ -20,7 +20,7 @@ import { useStore, useSetTaskProgress } from "../lib/store.jsx"; // useSetTaskPr
 import { elementColumnStats } from "../lib/assayColumnScan.js"; // TASKS.csv #2164
 const ELEMENT_SCAN_CHUNKED_ROWS = 50000; // #2164 — below this the element columns are counted at once
 import { saveFile, loadSampleFiles } from "../lib/desktop.js"; // loadSampleFiles: TASKS.csv #391
-import { repeatColumns, columnDetectionLimit, isElementColumn, inferUnit, pickElementColumns, assayExportRows, parseAssayValue, valueIn, readAssayCell, columnPositiveMax, convertUnit, mergeAssayRows, holesWithChangedIntervals, dropHoleAssays, blankDetectionLimit, isBlankAssayCell, oxideOfHeader, fromOxideHeader, oxideUnit, importStoreUnit, oxideBasisUnit, surfaceAttrColumns, surfaceAttrs, mergeSurfaceSamples, otherMediumTwins } from "../lib/geochem.js"; // otherMediumTwins: #2085
+import { repeatColumns, columnDetectionLimit, isElementColumn, inferUnit, pickElementColumns, assayExportRows, parseAssayValue, valueIn, readAssayCell, columnPositiveMax, convertUnit, mergeAssayRows, holesWithChangedIntervals, dropHoleAssays, blankDetectionLimit, isBlankAssayCell, oxideOfHeader, fromOxideHeader, oxideUnit, importStoreUnit, oxideBasisUnit, oxideColumnUnit, surfaceAttrColumns, surfaceAttrs, mergeSurfaceSamples, otherMediumTwins } from "../lib/geochem.js"; // otherMediumTwins: #2085
 import { DIAGRAMS, SPIDER_DIAGRAMS, GEOCHEM_METHODS, diagramExportRows, protolithForSample, PROVISIONAL_ALTERATION_BOXES, GEOCHEM_LABELS, reeProfile, loggedCodeAt, isSedimentaryCode, mergeClassRuns, FITTED_PROTOLITH, fitLeastAlteredBox, nameAiUpTrend , censoredOperand, censoredLeftOut, guessProtolith } from "../lib/geochemDiagrams.js"; // fitted: #2028; nameAiUpTrend: #2145
 import { qcRecordFromFileRow, emptySurfaceQc, looksLikeQcTypeColumn, mergeQcRecords } from "../lib/surfaceQaqc.js"; // TASKS.csv #842; looksLikeQcTypeColumn, mergeQcRecords: #1794
 import { mapInChunks } from "../lib/mapInChunks.js"; // TASKS.csv #583
@@ -534,7 +534,7 @@ export default function GeochemModule() {
       if (!e) return { v: ox ? fromOxideHeader(c.value, header) : c.value, q: c.qualifier };
       const to = existingUnit[sym] || importStoreUnit(e);
       if (ox && c.value != null) oxideNotes.add(to === oxideBasisUnit(oxideUnit(header), ox.oxide) ? `${ox.oxide} kept as ${ox.oxide}` : `${ox.oxide} → ${ox.symbol} (÷${ox.factor})`);
-      return { v: convertUnit(c.value, ox ? oxideBasisUnit(oxideUnit(header), ox.oxide) : e.unit, to), q: c.qualifier }; // oxideUnit: #2157
+      return { v: convertUnit(c.value, ox ? oxideBasisUnit(oxideColumnUnit(e, header), ox.oxide) : e.unit, to), q: c.qualifier }; // oxideUnit: #2157; the dialog's unit: #2490
     };
     // TASKS.csv #400 — keep a QC-type and a sample-id column when the file has them (acQuire / MX exports
     // mark standards / blanks / duplicates there, under the real hole_id). Auto-detected by header name.
@@ -701,7 +701,7 @@ export default function GeochemModule() {
     if (!colorElement && chosen.length) setColorElement((chosen.find((e) => e.symbol === "Au") || chosen[0]).symbol);
     const more = (list, k) => list.slice(0, k).map((h) => h.hole_id).join(", ") + (list.length > k ? ", …" : "");
     const extra = [
-      converted.length ? tr("Converted {list} to match the unit already used in this project.", { list: converted.map((e) => `${e.symbol} ${e.unit} → ${existingUnit[e.symbol]}`).join(", ") }) : null,
+      converted.length ? tr("Converted {list} to match the unit already used in this project.", { list: converted.map((e) => `${e.symbol} ${importStoreUnit(e)} → ${existingUnit[e.symbol]}`).join(", ") }) : null, // #2490: the unit actually read
       negBdl ? tr("{n} negative value(s) read as below detection (e.g. -0.005 → \"<0.005\", stored at half).", { n: negBdl }) : null,
       negMissing ? tr("{n} negative value(s) treated as not assayed.", { n: negMissing }) : null,
       zeroBdl ? tr("{n} zero value(s) read as below detection (stored as \"<\" at half the smallest reading in their column).", { n: zeroBdl }) : null, // #1677
