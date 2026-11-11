@@ -6,11 +6,8 @@
 export const DIAGRAM_W = 170, DIAGRAM_H = 136; // the drawn box in page px: 7 pt captions need up to ~149 px, four caption lines
 export const ORIGIN = { x: 60, y: 80 }; // where the rays meet, in the box
 
-// TASKS.csv #2310 — a date on the local calendar (the {date} placeholder's), not toISOString's UTC one
-export function localDate(d = new Date()) {
-  const p2 = (v) => String(v).padStart(2, "0");
-  return `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`;
-}
+// TASKS.csv #2310 — a date on the local calendar (the {date} placeholder's), not toISOString's UTC one (shared since #2358)
+export { localDate } from "./localDate.js";
 
 // TASKS.csv #1773 — the drilling date the collars carry (STARTDATE, drill_date, date_drilled, year...): the latest one, as the
 // declination of the most recent program. A full date (yyyy-mm-dd, or dd/mm/yyyy with a 4-digit year) is used as it is; a bare year
