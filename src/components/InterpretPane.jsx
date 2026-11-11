@@ -78,14 +78,14 @@ export default function InterpretPane({ drawing, onStart, onUndo, onCancel, onDo
     <>
       <TaskPaneHeader title={tr("Interpretation lines")} helpId="interpretation-lines" icon={PenTool} tone="analyse" onClose={onClose} />
       <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
-        <div style={note}>{tr("Draw faults, contacts and lineaments over a survey in the 3D view (Top view works best). Each set of lines is a map layer: it drapes on the terrain, exports as Shapefile, GeoPackage, KML or DXF, and prints in the Layout legend.")}</div>
+        <div style={note}>{tr("Draw faults, contacts and lineaments over the map or a survey in the 3D view (Top view works best). Each set of lines is a map layer: it drapes on the terrain, exports as Shapefile, GeoPackage, KML or DXF, and prints in the Layout legend.")}</div>
         {plan && <div role="note" style={{ ...note, color: "var(--color-warn-text)" }}>{planElevationText(plan)}</div>}{/* #2269 */}
         {plan && <label style={{ ...row, justifyContent: "flex-start" }} title={tr("The RL the lines of this layer are drawn at while there is no terrain to drape them on")}>{tr("Elev. (m RL)")}<input type="number" step="any" value={elev !== "" ? elev : Number.isFinite(elevNow) ? Math.round(elevNow * 100) / 100 : ""} onChange={(e) => setLayerElev(e.target.value)} aria-label={tr("Elevation of the interpretation lines (m RL)")} style={{ ...smallSel, width: 90 }} /></label>}{/* #2522 */}
-        <label style={row}>{tr("Survey")}
+        {surveys.length > 0 && <label style={row}>{tr("Survey")}{/* TASKS.csv #2274 — no Survey row when the project has none */}
           <select value={survey} onChange={(e) => { setSurvey(e.target.value); setLayerPick(""); }} style={{ ...smallSel, maxWidth: 170 }} aria-label={tr("Survey the lines are drawn on")}>
             <option value="">{tr("(none named)")}</option>
             {surveys.map((s) => <option key={s} value={s}>{s}</option>)}
-          </select></label>
+          </select></label>}
         <label style={row}>{tr("Layer")}
           <select value={layerId} onChange={(e) => setLayerPick(e.target.value)} style={{ ...smallSel, maxWidth: 170 }} aria-label={tr("Interpretation layer")}>
             {mine.map((l) => <option key={l.id} value={l.id}>{l.name} ({l.features.length})</option>)}
@@ -112,7 +112,7 @@ export default function InterpretPane({ drawing, onStart, onUndo, onCancel, onDo
           <button type="button" onClick={onStart} style={{ ...pBtn, justifyContent: "center", marginBottom: 0 }}>{tr("Draw a line")}</button>
         ) : (
           <div style={{ border: "1px solid var(--color-accent)", borderRadius: 6, padding: 8, display: "flex", flexDirection: "column", gap: 6 }}>
-            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)" }}>{n ? tr("{n} point(s), {m} m. Click to add a point; double-click or Finish to end the line.", { n, m: Math.round(lineLengthM(pts)).toLocaleString() }) : tr("Click the first point on the survey.")}</div>
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)" }}>{n ? tr("{n} point(s), {m} m. Click to add a point; double-click or Finish to end the line.", { n, m: Math.round(lineLengthM(pts)).toLocaleString() }) : tr("Click the first point of the line.") /* #2274 — the pane is also the mapping tab's */}</div>
             <div style={{ display: "flex", gap: 6 }}>
               <button type="button" onClick={finish} disabled={n < 2} style={{ ...pBtn, flex: 1, justifyContent: "center", marginBottom: 0, opacity: n < 2 ? 0.5 : 1 }}>{tr("Finish")}</button>
               <button type="button" onClick={onUndo} disabled={!n} style={{ ...pBtn, width: "auto", marginBottom: 0, opacity: n ? 1 : 0.5 }}>{tr("Undo point")}</button>

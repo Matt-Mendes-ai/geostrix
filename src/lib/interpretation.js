@@ -10,6 +10,7 @@ import { hashColor, CATEGORICAL_SAFE_COLORS } from "./layers.js"; // #1439 — a
 
 export const INTERPRETATION_TYPES = [
   { value: "fault", label: "Fault", color: "#d7263d" },
+  { value: "shear", label: "Shear zone", color: "#a4133c" }, // TASKS.csv #2274 — the structure of a lode-gold deposit, beside Fault
   { value: "contact", label: "Contact", color: "#1a2028" },
   { value: "lineament", label: "Lineament", color: "#6c757d" },
   { value: "dyke", label: "Dyke", color: "#7b2cbf" },
@@ -22,7 +23,7 @@ export const INTERPRETATION_TYPES = [
 export const CONFIDENCE = ["certain", "probable", "possible"];
 // TASKS.csv #1239 — a fold axis is a line with a plunge; a fault trace has a dip. Optional, per line type: [the angle field, the direction field, their labels].
 const PLUNGE = ["plunge", "plunge_dir", "Plunge", "Plunge direction"], DIP = ["dip", "dip_dir", "Dip", "Dip direction"];
-const ATTITUDE = { fold_axis: PLUNGE, anomaly_axis: PLUNGE, lineament: PLUNGE, trend: PLUNGE, fault: DIP, dyke: DIP, contact: DIP, boundary: DIP };
+const ATTITUDE = { fold_axis: PLUNGE, anomaly_axis: PLUNGE, lineament: PLUNGE, trend: PLUNGE, fault: DIP, shear: DIP, dyke: DIP, contact: DIP, boundary: DIP }; // shear: #2274
 export const attitudeOf = (type) => ATTITUDE[type] || null;
 // The attributes for what was typed: blanks are left out. { error: true } when a value is not an angle in range (0-90, direction 0-360).
 export function attitudeAttrs(type, angle, direction) {

@@ -168,6 +168,8 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks = []
               <span style={{ fontWeight: 400, fontSize: 11, color: "#7d3c98", marginLeft: 6 }}>{tr("· domain: {v}", { v: (domains.find((d) => d.id === domainId) || {}).name || domainId })}
               </span>
             )}
+            {/* TASKS.csv #2270 — what the rose counts once 'Dips of at least' is set (the header kept '85/85' at 60°) */}
+            {view === "rose" && rose && roseMinDip > 0 && <span style={{ fontWeight: 400, fontSize: 11, color: "#55606e", marginLeft: 6 }}>{tr("· the rose counts {n} of {m} plane(s): those dipping {d}° or more", { n: rose.n.toLocaleString(), m: plotted.toLocaleString(), d: roseMinDip })}</span>}
           </div>
           <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "#55606e" }} onClick={onClose} />
         </div>

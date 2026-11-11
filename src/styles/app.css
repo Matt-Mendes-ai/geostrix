@@ -187,6 +187,8 @@ input, select { font-family: inherit; }
 .ge-ui-mode { display: inline-flex; align-self: center; flex: 0 0 auto; border: 1px solid var(--color-border); border-radius: 6px; overflow: hidden; margin: 0 10px; }
 .ge-ui-mode button { border: none; background: transparent; padding: 3px 8px; font: inherit; font-size: var(--font-size-sm); color: var(--color-text-secondary); cursor: pointer; }
 .ge-ui-mode button[aria-pressed="true"] { background: var(--color-bg-subtle); color: var(--color-text); font-weight: 600; }
+/* TASKS.csv #2272 — no Simple / Advanced toggle beside a ribbon with one level of tools (Ribbon.jsx sets data-levels) */
+.ge-ribbon[data-levels="1"] + .ge-ui-mode { visibility: hidden; }
 /* TASKS.csv #786 — interface language picker, at the end of the status bar */
 .ge-lang { align-self: center; flex: 0 0 auto; margin: 0 0 0 4px; padding: 1px 3px; font: inherit; font-size: var(--font-size-sm); color: var(--color-text-secondary); background: var(--color-bg); border: 1px solid var(--color-border); border-radius: 6px; cursor: pointer; }
 .ge-ribbon-group { display: flex; flex-direction: column; padding: 0 6px; border-inline-end: 1px solid var(--color-border); } /* inline-end: #1118 (the divider follows the reading direction) */

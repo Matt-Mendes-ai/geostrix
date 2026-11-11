@@ -21,7 +21,18 @@ export default function CrsPicker({ value, onChange, label, height = 190, hideMa
   // TASKS.csv #2243 (review #2174, WA gold) — the first 60 of an empty search were all Canadian and South American systems, so a WA user
   // read "no MGA zones" although typing found them. The zones that cover the project's own location come first, and the count says
   // the list goes on.
-  const nearby = useMemo(() => { if (!crsSet || !projectEpsg) return []; const c = collarCentreLonLat(collars || [], projectEpsg); return c ? crsCandidatesAt(c.lon, c.lat).map((x) => x.code) : []; }, [crsSet, projectEpsg, collars]);
+  // TASKS.csv #2275 — a local-grid project TIED to a CRS (#2288) is located too: its tie's CRS and the zones around the collars carried through
+  // the tie (the list opened on British Columbia for a WA mine grid)
+  const tie = !crsSet ? store?.project?.localGrid?.tie : null;
+  const nearby = useMemo(() => {
+    if (crsSet && projectEpsg) { const c = collarCentreLonLat(collars || [], projectEpsg); return c ? crsCandidatesAt(c.lon, c.lat).map((x) => x.code) : []; }
+    if (tie?.epsg && [tie.a, tie.b, tie.tx, tie.ty].every(Number.isFinite)) {
+      const world = (collars || []).filter((q) => Number.isFinite(q.x) && Number.isFinite(q.y)).map((q) => ({ x: tie.a * q.x - tie.b * q.y + tie.tx, y: tie.b * q.x + tie.a * q.y + tie.ty }));
+      const c = world.length ? collarCentreLonLat(world, tie.epsg) : null;
+      return [Number(tie.epsg), ...(c ? crsCandidatesAt(c.lon, c.lat).map((x) => x.code) : [])];
+    }
+    return [];
+  }, [crsSet, projectEpsg, collars, tie]);
   const ranked = useMemo(() => rankCrs(all, q, [crsSet ? projectEpsg : null /* #2289: never the placeholder on top */, value, ...nearby]), [q, all, crsSet, projectEpsg, value, nearby]);
   const shown = useMemo(() => ranked.slice(0, MAX_SHOWN), [ranked]); // #1469
   const current = value ? crsName(value) : null;
