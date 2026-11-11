@@ -17,6 +17,7 @@ import { codedRuns, topsForCode, codeInfo, overburdenBases } from "../../lib/mod
 import { pBtn, smallSel } from "../../lib/sidebarStyles.js";
 import { sceneVertsToWorldFlat } from "../../lib/meshFlat.js";
 import { octreeCellM } from "../../lib/viewer/contactFit.js"; // TASKS.csv #1171
+import { describeTrend, searchEllipsoidAxes } from "../../lib/trend.js"; // TASKS.csv #2676 — the Grade shell pane's trend line
 import { t as tr } from "../../lib/i18n.js";
 import { errorNotice } from "../../lib/notices.js";
 import { tx } from "../../lib/i18nRich.js";
@@ -1072,6 +1073,13 @@ export default function ModellingPanes(props) {
                 <label style={{ ...miniField }} title={tr("Extends the grid past the outermost sample so the shell can close beyond the last hole")}>{tr("Pad (m)")}<input type="number" min="0" step="any" value={numericPadding} onChange={(e) => setNumericPadding(Math.max(0, Number(e.target.value) || 0))} style={{ ...smallSel, width: "100%" }} />
                 </label>
               </div>
+              {(() => { /* TASKS.csv #2676 / #2551 — the trend chosen for grade shells reshapes this search: say so, as Estimation does */
+                const gt = trendFor("gradeShell"); if (!gt) return null;
+                const [, v, v2] = searchEllipsoidAxes(gt, numericSearchRadius > 0 ? numericSearchRadius : 100);
+                return <div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>{numericSearchRadius > 0
+                  ? tr("Along trend \"{name}\": an ellipsoid of {searchRadius} × {v} × {v2} m ({v3})", { name: gt.name, searchRadius: numericSearchRadius, v: Math.round(v), v2: Math.round(v2), v3: describeTrend(gt) })
+                  : tr("Along trend \"{name}\": with no radius the search reaches the grid diagonal along the trend and {v}% and {v2}% of it across ({v3}).", { name: gt.name, v: Math.round(v), v2: Math.round(v2), v3: describeTrend(gt) })}</div>;
+              })()}
               <div style={{ display: "flex", gap: 6, marginBottom: 6, alignItems: "flex-end" }}>
                 <label style={{ ...miniField }}>{tr("Method")}{/* TASKS.csv #87 — one shared method table (estimation.js) drives this dropdown and
                       GradeEstimationModal's, so the grade shell and the block model can never offer
@@ -1130,7 +1138,7 @@ export default function ModellingPanes(props) {
                   no sample in range reads as below cutoff and the shell closes halfway to it: that wall
                   is the SEARCH RADIUS, not a grade boundary, and computeMeshVolume happily calls the
                   result watertight. Volume then scales as R³ while looking converged and stable. */}
-              <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 4, cursor: "pointer" }} title={tr("Off (default): the shell stays open where the data runs out - honest, but there is no enclosed volume to report. On: the shell is sealed at the search-radius boundary so it becomes a watertight solid with a volume and tonnage - but that seal is your search radius, not a grade boundary, so the volume is an assumption you are making, not something measured. Doubling the search radius roughly multiplies the volume by eight.")}>
+              <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 4, cursor: "pointer" }} title={tr("Off (default): the shell stays open where the data runs out - honest, but there is no enclosed volume to report. On: the shell is sealed at the search-radius boundary so it becomes a watertight solid with a volume and tonnage - but that seal is your search radius, not a grade boundary, so the volume is an assumption you are making, not something measured. Doubling the search radius can multiply the volume by up to eight; less where the shell's top and base are real grade boundaries, as in a flat body.")}>
                 <input type="checkbox" checked={numericCloseShell} onChange={(e) => setNumericCloseShell(e.target.checked)} />{tr("Close shell artificially at the search-radius boundary (volume becomes an assumption)")}</label>
               {/* TASKS.csv #803 — the same "Cut at topography" setting as the GemPy pane: the shell closes on the ground */}
               <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: terrain ? "var(--color-text-secondary)" : "var(--color-text-faint)", marginBottom: 4, cursor: terrain ? "pointer" : "default" }} title={tr("The shell ends at the terrain surface and stays a closed solid there (the grid is cut below the ground before the shell is drawn). Same setting as \"Cut surfaces at topography\".")}>

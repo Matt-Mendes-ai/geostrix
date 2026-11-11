@@ -87,5 +87,5 @@ test("wired: the dialog's pre-check and grid line use the reach from the drill t
   // #1579 — the reach and the fits come from the worker (reachSummary, tested in reachSummary1579); the dialog waits for them
   assert.match(m, /const reachArgs = traceBounds\?\.traces\?\.length && reachRadius && bounds \? \{ traces: traceBounds\.traces,/);
   assert.match(m, /const overLimit = !reachPending && blocksInReach > blockBudget;/);
-  assert.match(m, /reachClient\.current\.request\(\{ \.\.\.reachArgs, fitAllowed: false, fit10: true \}\)/);
+  assert.match(m, /reachClient\.current\.request\(\{ \.\.\.reachArgs, fitAllowed: false, fit10: true \}, "fit10"\)/); // #2636: on its own channel
 });
