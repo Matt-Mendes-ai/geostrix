@@ -10038,5 +10038,10 @@
   "+ Add the holes": "+ أضف الثقوب",
   "below detection": "تحت حد الكشف",
   "all below detection": "الكل تحت حد الكشف",
-  "log {minPos}–{max}, all pages": "لوغاريتمي {minPos}–{max}، كل الصفحات"
+  "log {minPos}–{max}, all pages": "لوغاريتمي {minPos}–{max}، كل الصفحات",
+  "Filter: hole id, or field=value": "تصفية: معرّف الثقب أو حقل=قيمة",
+  "Filter the holes": "تصفية الثقوب",
+  "By a collar field": "حسب حقل الفوهة",
+  "{selectedCount} selected; {n} of {all} holes listed": "{selectedCount} محدد؛ {n} من {all} ثقبًا معروضة",
+  "About {m} min for {n} pages, at the last run's {s} s a page on this computer.": "نحو {m} دقيقة لـ {n} صفحة، بمعدل {s} ث للصفحة في آخر تشغيل على هذا الحاسوب."
 }

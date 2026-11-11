@@ -10038,5 +10038,10 @@
   "+ Add the holes": "+ Ajouter les sondages",
   "below detection": "sous la limite de détection",
   "all below detection": "tout sous la limite de détection",
-  "log {minPos}–{max}, all pages": "log {minPos}–{max}, toutes les pages"
+  "log {minPos}–{max}, all pages": "log {minPos}–{max}, toutes les pages",
+  "Filter: hole id, or field=value": "Filtre : ID de sondage, ou champ=valeur",
+  "Filter the holes": "Filtrer les sondages",
+  "By a collar field": "Par un champ du collet",
+  "{selectedCount} selected; {n} of {all} holes listed": "{selectedCount} sélectionnés ; {n} sondages sur {all} listés",
+  "About {m} min for {n} pages, at the last run's {s} s a page on this computer.": "Environ {m} min pour {n} pages, à {s} s la page comme lors de la dernière exécution sur cet ordinateur."
 }

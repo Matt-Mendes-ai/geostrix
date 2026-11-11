@@ -10038,5 +10038,10 @@
   "+ Add the holes": "+ Adicionar os furos",
   "below detection": "abaixo do limite de detecção",
   "all below detection": "tudo abaixo do limite de detecção",
-  "log {minPos}–{max}, all pages": "log {minPos}–{max}, todas as páginas"
+  "log {minPos}–{max}, all pages": "log {minPos}–{max}, todas as páginas",
+  "Filter: hole id, or field=value": "Filtro: ID do furo, ou campo=valor",
+  "Filter the holes": "Filtrar os furos",
+  "By a collar field": "Por um campo do colar",
+  "{selectedCount} selected; {n} of {all} holes listed": "{selectedCount} selecionados; {n} de {all} furos listados",
+  "About {m} min for {n} pages, at the last run's {s} s a page on this computer.": "Cerca de {m} min para {n} páginas, a {s} s por página como na última execução neste computador."
 }

@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { collarAttrChoices, collarsMatching } from "../lib/holeFilter.js"; // TASKS.csv #2607
 import { assayTrackRange } from "../lib/striplogSvg.js"; // TASKS.csv #2605
 import { X, LayoutGrid, Loader2 } from "./icons.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
@@ -33,7 +34,12 @@ export default function GenerateAtlasModal({ onClose, templateElements, collars,
   const [result, setResult] = useState(null);
 
   const holeIds = useMemo(() => collars.map((c) => c.hole_id), [collars]);
-  const items = mode === "hole" ? holeIds : sections;
+  // TASKS.csv #2607 (review #2486) — 2,248 unfiltered checkboxes (the 39 diamond holes from row 749): a text / collar-field filter (the hole
+  // list's own rule: words match the id, 'Drill_Code=DD' a collar field) narrows what is listed and what All ticks
+  const [holeFilter, setHoleFilter] = useState("");
+  const attrChoices = useMemo(() => collarAttrChoices(collars), [collars]);
+  const shownHoles = useMemo(() => (holeFilter.trim() ? collarsMatching(collars, holeFilter).map((c) => c.hole_id) : holeIds), [collars, holeFilter, holeIds]);
+  const items = mode === "hole" ? shownHoles : sections;
   const itemKey = (item) => (mode === "hole" ? item : item.id);
   const itemLabel = (item) => (mode === "hole" ? item : item.name);
 
@@ -52,6 +58,8 @@ export default function GenerateAtlasModal({ onClose, templateElements, collars,
     return next;
   });
   const selectedCount = selectedIds.size;
+  // #2607 — a large run says what it will take, from the last run on this computer (1.76 s a page on the review's laptop: over an hour for 2,248)
+  const lastMsPerPage = (() => { try { const v = Number(localStorage.getItem("geostrix.atlasMsPerPage")); return v > 0 ? v : null; } catch { return null; } })();
 
   const hasPlaceholders = templateElements.some((el) => typeof el.text === "string" && /\{\{\w+\}\}/.test(el.text));
 
@@ -59,6 +67,7 @@ export default function GenerateAtlasModal({ onClose, templateElements, collars,
     const chosen = items.filter((it) => selectedIds.has(itemKey(it)));
     if (!chosen.length) return;
     setBusy(true); setResult(null);
+    const runStart = performance.now(); // #2607
     setProgress(mode === "hole" ? { done: 0, total: chosen.length } : null);
     try {
       // Per-hole strip-log generation is genuinely sequential (one canvas rasterize at a time is
@@ -88,6 +97,7 @@ export default function GenerateAtlasModal({ onClose, templateElements, collars,
       const narrowedPages = pages.filter((pg) => pg.narrowed > 0).length, coveredPages = pages.filter((pg) => pg.overlapping > 0).length;
       const room = (narrowedPages ? ` ${tr("To make room for the strip log, the template's elements beside it were narrowed on {n} page(s); a map keeps its scale and shows less ground.", { n: narrowedPages })}` : "")
         + (coveredPages ? ` ${tr("On {n} page(s) the strip log still covers part of the template: move it, or leave a free column at the side of the template.", { n: coveredPages })}` : "");
+      if (pages.length) { try { localStorage.setItem("geostrix.atlasMsPerPage", String(Math.round((performance.now() - runStart) / pages.length))); } catch { /* no storage: no estimate next time */ } } // #2607
       setResult({ ok: !failed.length, text: tr("Generated {n} page(s).", { n: pages.length }) + smallText + room + (failed.length ? ` ${tr("The strip log could not be drawn for {n} hole(s), added without it: {holes}.", { n: failed.length, holes: failed.slice(0, 8).join(", ") + (failed.length > 8 ? "…" : "") })}` : "") });
     } catch (err) {
       setResult({ ok: false, text: err.message });
@@ -141,12 +151,17 @@ export default function GenerateAtlasModal({ onClose, templateElements, collars,
           )}
           <div>
             <div style={{ ...labelStyle, display: "flex", justifyContent: "space-between" }}>
-              <span>{tr("{selectedCount} of {items} selected", { selectedCount, items: items.length })}</span>
+              <span>{mode === "hole" && holeFilter.trim() ? tr("{selectedCount} selected; {n} of {all} holes listed", { selectedCount, n: items.length, all: holeIds.length }) : tr("{selectedCount} of {items} selected", { selectedCount, items: items.length })}</span>
               <span style={{ display: "flex", gap: 8 }}>
                 <span role="button" tabIndex={0} onKeyDown={activateOnKey} style={{ cursor: "pointer", textDecoration: "underline" }} onClick={() => setSelectedIds(new Set(items.map(itemKey)))}>{tr("All")}</span>
                 <span role="button" tabIndex={0} onKeyDown={activateOnKey} style={{ cursor: "pointer", textDecoration: "underline" }} onClick={() => setSelectedIds(new Set())}>{tr("None")}</span>
               </span>
             </div>
+            {mode === "hole" && <div style={{ display: "flex", gap: 6, marginBottom: 5 }}>{/* #2607 */}
+              <input value={holeFilter} onChange={(e) => setHoleFilter(e.target.value)} placeholder={tr("Filter: hole id, or field=value")} aria-label={tr("Filter the holes")} style={{ ...sel, flex: 1, minWidth: 0 }} />
+              {attrChoices.length > 0 && <select value="" onChange={(e) => e.target.value && setHoleFilter(e.target.value)} aria-label={tr("By a collar field")} style={{ ...sel, flex: "none", width: "auto" }}>
+                <option value="">{tr("By a collar field…")}</option>{attrChoices.flatMap((ch) => ch.values.map((v) => <option key={`${ch.key}=${v}`} value={`${ch.key}=${v}`}>{`${ch.key} = ${v}`}</option>))}</select>}
+            </div>}
             <div style={{ maxHeight: 180, overflowY: "auto", border: "1px solid #2a323c", borderRadius: 6, padding: 6 }}>
               {items.length === 0 && <div style={{ fontSize: "var(--font-size-sm)", opacity: 0.6, padding: 6 }}>{mode === "hole" ? tr("No collars loaded.") : tr("No sections drawn yet.")}</div>}
               {items.map((it) => {
@@ -165,6 +180,7 @@ export default function GenerateAtlasModal({ onClose, templateElements, collars,
             {busy ? <Loader2 size={14} className="spin" /> : <LayoutGrid size={14} />}
             {busy ? (progress ? tr("Generating {done}/{total}…", { done: progress.done, total: progress.total }) : tr("Generating…")) : tr(selectedCount === 1 ? "Generate {selectedCount} page" : "Generate {selectedCount} pages", { selectedCount })}
           </button>
+          {!busy && lastMsPerPage && lastMsPerPage * selectedCount >= 30000 && <div style={{ fontSize: "var(--font-size-xs)", opacity: 0.75 }}>{tr("About {m} min for {n} pages, at the last run's {s} s a page on this computer.", { m: Math.max(1, Math.round((lastMsPerPage * selectedCount) / 60000)), n: selectedCount, s: (lastMsPerPage / 1000).toFixed(1) })}</div>}{/* #2607 */}
         </div>
       </div>
     </div>
