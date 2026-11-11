@@ -27,7 +27,7 @@ import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { toExportCsv } from "../lib/tabular.js"; // TASKS.csv #1022 — every exported CSV: all columns, formula cells escaped
 import { gradeStatsRows } from "../lib/analysisExports.js"; // TASKS.csv #1083
 import { weightedProbPoints, weightedPercentile, capEffect, thinToPixels } from "../lib/probPlot.js"; // TASKS.csv #1388; thinToPixels: #1512
-import { normalQuantile } from "../lib/thresholds.js";
+import { normalQuantile, probabilityBreak } from "../lib/thresholds.js"; // probabilityBreak: #2675
 import { capAboveZone, capWarningText } from "../lib/capWarning.js"; // TASKS.csv #1676
 import { preferredElement, rememberElement } from "../lib/preferredElement.js"; // TASKS.csv #1678
 import { useLeadCommodity } from "../lib/useLeadCommodity.js"; // #1523 — the project's lead commodity
@@ -186,7 +186,8 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
     rows.forEach((r) => { const k = r.domain == null ? "(unclassified)" : r.domain; if (!byDomain.has(k)) byDomain.set(k, []); byDomain.get(k).push(r); });
     const series = groups.slice(0, SHOWN_MAX).map((g) => { /* #2508 — the plotted groups, as the table */ const rs = byDomain.get(g.key) || []; return { key: g.key, ...weightedProbPoints(rs.map((r) => r.value), weightingActive ? rs.map((r) => r.weight) : null) }; });
     const vs = rows.map((r) => r.value), ws = weightingActive ? rows.map((r) => r.weight) : null;
-    return { series, vs, ws, p975: weightedPercentile(vs, ws, 97.5), p99: weightedPercentile(vs, ws, 99) };
+    // TASKS.csv #2675 — and the bend into the high tail that Thresholds suggests (Sinclair 1976), offered as a cap to test, never applied
+    return { series, vs, ws, p975: weightedPercentile(vs, ws, 97.5), p99: weightedPercentile(vs, ws, 99), brk: probabilityBreak(vs, ws) };
   }, [rows, groups, weightingActive]);
   const capValue = capTest === "" ? null : Number(capTest);
   const capFx = Number.isFinite(capValue) && capValue > 0 ? capEffect(prob.vs, prob.ws, capValue) : null;
@@ -327,6 +328,7 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
                 <ProbPlot prob={prob} cap={capFx ? capValue : null} domainLabel={domainLabel} unit={gradeUnitLabel(symbol, elementUnits[symbol])} />
                 <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginTop: 4 }}>
                   <span>{tr("P97.5 = {a}, P99 = {b} {unit} (the percentiles Compositing offers as caps)", { a: gradeText(prob.p975), b: gradeText(prob.p99), unit: gradeUnitLabel(symbol, elementUnits[symbol]) })}</span>
+                  {prob.brk > 0 && <button type="button" onClick={() => setCapTest(String(+prob.brk.toPrecision(4)))} style={{ ...sel, cursor: "pointer" }} title={tr("The bend between two populations that the two-line fit finds in the high tail (Sinclair 1976), as Thresholds suggests it. Check it on the plot before using it as a cap.")}>{tr("Test the probability-plot break: {v} {unit}", { v: gradeText(prob.brk), unit: gradeUnitLabel(symbol, elementUnits[symbol]) })}</button>}{/* #2675 */}
                   <label style={{ display: "flex", alignItems: "center", gap: 5 }}>{tr("Cap to test")}<input type="number" min="0" step="any" value={capTest} onChange={(e) => setCapTest(e.target.value)} style={{ ...sel, width: 80 }} aria-label={tr("Cap to test")} /></label>
                   {capFx && <span>{weightingActive ? tr("{above} of {n} samples above it; {pct}% of the metal (grade × length) removed", { above: capFx.above, n: capFx.n, pct: capFx.pctMetalRemoved.toFixed(1) }) : tr("{above} of {n} samples above it", { above: capFx.above, n: capFx.n })}</span>}
                 </div>

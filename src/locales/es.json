@@ -7000,6 +7000,8 @@
   "Log-probability plot — {symbol} ({v}){v2}": "Gráfico de probabilidad logarítmica — {symbol} ({v}){v2}",
   ", length-weighted": ", ponderado por longitud",
   "Cap to test": "Corte a probar",
+  "Test the probability-plot break: {v} {unit}": "Probar el quiebre del gráfico de probabilidad: {v} {unit}",
+  "The bend between two populations that the two-line fit finds in the high tail (Sinclair 1976), as Thresholds suggests it. Check it on the plot before using it as a cap.": "El quiebre entre dos poblaciones que el ajuste de dos rectas encuentra en la cola alta (Sinclair 1976), como lo sugiere Umbrales. Revíselo en el gráfico antes de usarlo como corte.",
   "{above} of {n} samples above it; {pct}% of the metal (grade × length) removed": "{above} de {n} muestras por encima; se elimina el {pct}% del metal (ley × longitud)",
   "{above} of {n} samples above it": "{above} de {n} muestras por encima",
   "Each population plots as a straight line on these axes (log-normal); a bend or a step in the high tail is where a second population starts, the usual place to cap (Sinclair 1976). Values of 0 count in the cumulative % but cannot be drawn on a log axis.": "Cada población se grafica como una recta en estos ejes (lognormal); un quiebre o un escalón en la cola alta marca dónde empieza una segunda población, el lugar habitual para el corte (Sinclair 1976). Los valores 0 cuentan en el % acumulado pero no se pueden dibujar en un eje logarítmico.",

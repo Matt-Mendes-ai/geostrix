@@ -7000,6 +7000,8 @@
   "Log-probability plot — {symbol} ({v}){v2}": "Diagramme de probabilité logarithmique — {symbol} ({v}){v2}",
   ", length-weighted": ", pondéré par la longueur",
   "Cap to test": "Plafond à tester",
+  "Test the probability-plot break: {v} {unit}": "Tester la rupture du diagramme de probabilité : {v} {unit}",
+  "The bend between two populations that the two-line fit finds in the high tail (Sinclair 1976), as Thresholds suggests it. Check it on the plot before using it as a cap.": "La rupture entre deux populations que l'ajustement à deux droites trouve dans la queue haute (Sinclair 1976), comme Seuils la suggère. Vérifiez-la sur le diagramme avant d'en faire un plafond.",
   "{above} of {n} samples above it; {pct}% of the metal (grade × length) removed": "{above} échantillons sur {n} au-dessus ; {pct} % du métal (teneur × longueur) retiré",
   "{above} of {n} samples above it": "{above} échantillons sur {n} au-dessus",
   "Each population plots as a straight line on these axes (log-normal); a bend or a step in the high tail is where a second population starts, the usual place to cap (Sinclair 1976). Values of 0 count in the cumulative % but cannot be drawn on a log axis.": "Chaque population trace une droite sur ces axes (lognormale) ; une cassure ou une marche dans la queue haute marque le début d'une seconde population, l'endroit habituel du plafond (Sinclair 1976). Les valeurs 0 comptent dans le % cumulé mais ne peuvent pas être tracées sur un axe logarithmique.",

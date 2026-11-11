@@ -7000,6 +7000,8 @@
   "Log-probability plot — {symbol} ({v}){v2}": "Gráfico de probabilidade logarítmica — {symbol} ({v}){v2}",
   ", length-weighted": ", ponderado pelo comprimento",
   "Cap to test": "Corte a testar",
+  "Test the probability-plot break: {v} {unit}": "Testar a quebra do gráfico de probabilidade: {v} {unit}",
+  "The bend between two populations that the two-line fit finds in the high tail (Sinclair 1976), as Thresholds suggests it. Check it on the plot before using it as a cap.": "A quebra entre duas populações que o ajuste de duas retas encontra na cauda alta (Sinclair 1976), como Limiares a sugere. Confira no gráfico antes de usá-la como corte.",
   "{above} of {n} samples above it; {pct}% of the metal (grade × length) removed": "{above} de {n} amostras acima; {pct}% do metal (teor × comprimento) removido",
   "{above} of {n} samples above it": "{above} de {n} amostras acima",
   "Each population plots as a straight line on these axes (log-normal); a bend or a step in the high tail is where a second population starts, the usual place to cap (Sinclair 1976). Values of 0 count in the cumulative % but cannot be drawn on a log axis.": "Cada população aparece como uma reta nestes eixos (lognormal); uma inflexão ou um degrau na cauda alta marca onde começa uma segunda população, o lugar habitual para o corte (Sinclair 1976). Valores 0 contam no % acumulado, mas não podem ser desenhados num eixo logarítmico.",
