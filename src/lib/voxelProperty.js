@@ -6,7 +6,7 @@ const RULES = [
   [/^(chg|charg|chargeability|ip|mvv)$/, "Chargeability (mV/V)"],
   [/^(res|resist|resistivity|rho|ohmm)$/, "Resistivity (ohm·m)"],
   [/^(con|cond|conductivity|sig|sigma)$/, "Conductivity (S/m)"],
-  [/^(sus|msus|susc|susceptibility|kappa)$/, "Susceptibility (SI)"], // not "mag": a field in nT as often as a susceptibility
+  [/^(sus|msus|susc|susceptibility|kappa|magsus|magsusc|msusc|magsusceptibility)$/, "Susceptibility (SI)"], // not "mag": a field in nT as often as a susceptibility; magsus / magsusc: TASKS.csv #1711 (Copley's magsus_blockmodel.csv, MAGSUS)
   [/^(den|dens|density)$/, "Density (g/cc)"],
 ];
 export function guessVoxelProperty(...names) {
