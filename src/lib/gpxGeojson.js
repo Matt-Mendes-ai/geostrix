@@ -127,7 +127,9 @@ export function parseGeoJSON(text) {
 // -> {x, y} | null is passed in (lib/reproject.js reprojectXY) so this file stays dependency-free.
 // TASKS.csv #1760 (review #1645, Copley) — closedFlags: a polygon ring is closed, a line (a road, a GPX track) is open; without them every
 // line was drawn back to its start
-export function layersToBoundaryPolylines(layers, epsg, reproject) {
+// toLocal (TASKS.csv #2587): (x, y, fromEpsg) -> { x, y } | null, a tied local grid's way in (lib/localGridTie.js fileToLocal); every
+// point that states a CRS goes through it (a 'not degrees' file is already in the grid's numbers)
+export function layersToBoundaryPolylines(layers, epsg, reproject, toLocal = null) {
   const polylines = [], closedFlags = [];
   let failed = 0;
   for (const l of layers) {
@@ -136,7 +138,7 @@ export function layersToBoundaryPolylines(layers, epsg, reproject) {
     for (const f of l.features) for (const part of f.parts) {
       const pts = [];
       for (const [x, y] of part) {
-        const p = epsg && from !== Number(epsg) ? reproject(x, y, from, Number(epsg)) : { x, y };
+        const p = toLocal ? (l.notDegrees ? { x, y } : toLocal(x, y, from)) : epsg && from !== Number(epsg) ? reproject(x, y, from, Number(epsg)) : { x, y };
         if (!p) { failed++; continue; }
         pts.push({ x: p.x, y: p.y });
       }

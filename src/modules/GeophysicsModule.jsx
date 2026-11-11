@@ -34,7 +34,7 @@ import { version as APP_VERSION } from "../../package.json"; // TASKS.csv #529
 import InfoButton from "../components/InfoButton.jsx";
 import { fetchSRTMTerrain, collarGroundMisfit, findBetterUtmZone } from "../lib/srtmFetch.js";
 import { fetchCopernicusTerrain } from "../lib/copernicusDem.js"; // TASKS.csv #814
-import { toLonLat, reprojectXY, crsName, pointTransform } from "../lib/reproject.js";
+import { toLonLat, reprojectXY, crsName, pointTransform, getProj4Def } from "../lib/reproject.js";
 import { omfToProjectObjectsAsync } from "../lib/omfImport.js"; // TASKS.csv #637; #1280
 import { isDcip2dMeshText } from "../lib/ubc2d.js"; // TASKS.csv #1348
 import { parseUBCMesh, isUBCMeshText, parseUBCModelStream, maskAirCells, ubcMeshToCells, cellValueRange, MAX_CELLS, planCoarsenFactors, coarsenUBCModel, coarsenRecord, wantsLogMean, MEAN_RULE } from "../lib/voxel.js"; // coarsenRecord: #1095
@@ -80,6 +80,7 @@ import { terrainFromBlockModel } from "../lib/terrainFromModel.js"; // TASKS.csv
 import { confirmReplaceTerrain, replacedTerrainNote } from "../lib/terrainReplace.js"; // TASKS.csv #2554
 import { guessQualityColumn, filterSignalQuality, despikeAlongLines } from "../lib/surveyClean.js"; // TASKS.csv #1583 // TASKS.csv #786
 import { mineGridOf } from "../lib/mineGrid.js"; // TASKS.csv #2586
+import { tieOf, fileToLocal } from "../lib/localGridTie.js"; // TASKS.csv #2587 — a tied local grid's way in
 import { niceContourInterval, terrainRange, MIN_CONTOUR_INTERVAL } from "../lib/contourInterval.js"; // TASKS.csv #2462
 import { vectorToBoundaryPolylines, claimsFromVector, isAreaBoundary } from "../lib/boundaryImport.js"; // TASKS.csv #1035; claims per feature: #1970; isAreaBoundary: #1466
 import { clampCellBudget, MIN_CELL_BUDGET, MAX_BLOCK_MODEL_BUDGET } from "../lib/estimationMeta.js"; // TASKS.csv #1074
@@ -421,7 +422,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     if (!file) return;
     setRasterError({ info: true, text: tr("Importing {name}…", { name: file.name }) }); // a large GeoTIFF takes a few seconds
     try {
-      const { raster, msg } = await buildRasterImport(file, { epsg: projectTargetEpsg(project), defaultElevation, chooseProjectEpsg: projectEpsgChooser({ isEmpty: projectIsEmpty, setEpsg, fileName: file.name }) }); // #607
+      const { raster, msg } = await buildRasterImport(file, { epsg: projectTargetEpsg(project), defaultElevation, chooseProjectEpsg: projectEpsgChooser({ isEmpty: projectIsEmpty, setEpsg, fileName: file.name }), tie: tieOf(project) }); // #607; tie: #2587
       const drape = rasterDrapeElevation({ collars, voxelModels, surfaceSamples, bbox: raster.bbox, rasters, fileName: file.name }); // #1856; #1505
       addRaster({ ...raster, elevation: drape.z });
       setRasterError({ info: true, text: tr("{msg} (Tip: raster imports now have their own \"Raster\" tab — this drop still works here too.)", { msg: `${msg} ${drapeElevationNote(drape)}` }) });
@@ -884,7 +885,9 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     // reprojected to the project CRS here, unlike the other formats which are assumed to be in it.
     if (name.endsWith(".kml") || name.endsWith(".kmz")) {
       const { features } = await readKmlFile(file);
-      const { polylines, failed } = kmlToProjectPolylines(features, project?.epsg);
+      const tie = tieOf(project); // #2587
+      if (tie) await getProj4Def(Number(tie.epsg)); // a registry code loads on demand (#834)
+      const { polylines, failed } = kmlToProjectPolylines(features, project?.epsg, { toLocal: tie ? (x, y, from) => fileToLocal(tie, x, y, from) : null });
       if (!polylines.length) throw new Error(failed ? tr("KML coordinates could not be converted to EPSG:{v}.", { v: project?.epsg }) : tr("No lines or polygons found in this KML (points are imported through the 3D View importer)."));
       return { polylines };
     }
@@ -893,7 +896,9 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       const { parseGPX, gpxToLayers, parseGeoJSON, layersToBoundaryPolylines } = await import("../lib/gpxGeojson.js");
       const text = await file.text();
       const layers = name.endsWith(".gpx") ? gpxToLayers(parseGPX(text)) : parseGeoJSON(text).layers;
-      const { polylines, closedFlags, failed } = layersToBoundaryPolylines(layers, project?.epsg, reprojectXY); // closedFlags: #1760
+      const tie = tieOf(project); // #2587
+      if (tie) await getProj4Def(Number(tie.epsg)); // a registry code loads on demand (#834)
+      const { polylines, closedFlags, failed } = layersToBoundaryPolylines(layers, project?.epsg, reprojectXY, tie ? (x, y, from) => fileToLocal(tie, x, y, from) : null); // closedFlags: #1760
       if (!polylines.length) throw new Error(failed ? tr("Coordinates could not be converted to EPSG:{v}.", { v: project?.epsg }) : tr("No lines or polygons found in this file (GPX waypoints and GeoJSON points are imported as a map layer in Surface Geology)."));
       return { polylines, closedFlags };
     }
@@ -904,7 +909,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       // in the import handlers), as the map-layer importer does: alone, a zone 9N file landed 409 km off as 'it states no CRS'
       const parts = file.shpParts || {};
       const parsed = name.endsWith(".zip") ? await parseShapefileZip(buf) : parseShapefileParts({ shp: new Uint8Array(buf), dbf: parts.dbf ? new Uint8Array(await parts.dbf.arrayBuffer()) : null, cpg: parts.cpg ? await parts.cpg.text() : null }, 0, parts.prj ? await parts.prj.text() : null);
-      const r = await vectorToBoundaryPolylines(parsed, projectTargetEpsg(project), { mineGrid: mineGridOf(project), collars }); // mineGrid: #2586
+      const r = await vectorToBoundaryPolylines(parsed, projectTargetEpsg(project), { mineGrid: mineGridOf(project), collars, tie: tieOf(project) }); // mineGrid: #2586; tie: #2587
       // TASKS.csv #2122 (review #2013, Woodjam) — points are not a boundary or a claim: 8 collars became an empty '0 part(s)' boundary,
       // 691 an empty 'Active' claim of 0 ha
       if (!r.polylines.length) throw new Error(parsed.geomType === "point"
@@ -921,7 +926,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       const parts = [];
       for (const layer of layers) {
         if (!layer.features.length) continue;
-        const r = await vectorToBoundaryPolylines(layer, projectTargetEpsg(project), { mineGrid: mineGridOf(project), collars }); // #2586
+        const r = await vectorToBoundaryPolylines(layer, projectTargetEpsg(project), { mineGrid: mineGridOf(project), collars, tie: tieOf(project) }); // #2586; tie: #2587
         if (r.polylines.length) parts.push({ ...r, table: layer.name });
       }
       if (!parts.length) throw new Error(tr("No usable features found in this GeoPackage."));

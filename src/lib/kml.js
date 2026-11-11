@@ -107,14 +107,15 @@ export function kmlToMapLayers(features) {
 
 // Lines/rings as {x, y, z?} polylines in the project CRS (for boundaries and claims). Returns null
 // polylines entry for any point that can't be reprojected; `failed` counts them.
-export function kmlToProjectPolylines(features, epsg, { includePoints = false } = {}) {
+// toLocal (TASKS.csv #2587): (lon, lat, 4326) -> { x, y } | null, a tied local grid's way in (lib/localGridTie.js fileToLocal)
+export function kmlToProjectPolylines(features, epsg, { includePoints = false, toLocal = null } = {}) {
   const polylines = [];
   let failed = 0;
   features.forEach((f) => {
     if (f.geomType === "point" && !includePoints) return;
     const pts = [];
     for (const [lon, lat, alt] of f.coords) {
-      const p = epsg ? reprojectXY(lon, lat, 4326, epsg) : { x: lon, y: lat };
+      const p = toLocal ? toLocal(lon, lat, 4326) : epsg ? reprojectXY(lon, lat, 4326, epsg) : { x: lon, y: lat };
       if (!p) { failed++; return; }
       pts.push(Number.isFinite(alt) ? { x: p.x, y: p.y, z: alt } : { x: p.x, y: p.y });
     }

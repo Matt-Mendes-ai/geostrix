@@ -29,6 +29,7 @@ import { rasterStops, DEFAULT_RASTER_STYLE } from "./rasterColour.js"; // TASKS.
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 import { b64ToBytes } from "./base64.js"; // TASKS.csv #1114
 import { borderKeyColour, colourFraction, hexRgb } from "./rasterKey.js"; // TASKS.csv #1623
+import { tieReaches, tieImageToLocal, tieGridToLocal } from "./rasterTie.js"; // TASKS.csv #2587 / #2322
 
 // TASKS.csv #707 — a GeoTIFF's CRS as an EPSG code. 32767 means "user-defined" (what ArcGIS and Oasis montaj write for a
 // CRS they have no code for, the BC NAD83(CSRS) UTM zones being the usual case); the CRS is then named in a citation
@@ -845,7 +846,7 @@ function rasterFromRows({ name, values, ncols, nrows, x0, y0, dx, dy, isDummy, m
 // ones reproject.js recognizes, the drape is ACTUALLY reprojected (reprojectImageRGBA) instead of
 // merely warned about. Every other case still imports as before, but now says explicitly which
 // assumption it fell back on rather than only mentioning it on a tag mismatch.
-export async function buildRasterImport(file, { epsg, defaultElevation, sourceEpsg, chooseProjectEpsg, bandFn = null, samples = null, name = null, keepDetail = false, worldFile = null } = {}) { // samples: #807; keepDetail: #838; worldFile: #1855
+export async function buildRasterImport(file, { epsg, defaultElevation, sourceEpsg, chooseProjectEpsg, bandFn = null, samples = null, name = null, keepDetail = false, worldFile = null, tie = null } = {}) { // samples: #807; keepDetail: #838; worldFile: #1855; tie: #2587
   const isGxf = /\.gxf$/i.test(file.name), isGrd = /\.grd$/i.test(file.name); // isGrd: #1347
   const maxSide = keepDetail ? FULL_DETAIL_SIZE : MAX_TEXTURE_SIZE;
   const parsed = isGxf ? await parseGXF(file) : isGrd ? await parseGRD(file) : await parseGeoTIFF(file, { bandFn, samples, maxSide, worldFile }); // bandFn: #783; samples: #807
@@ -863,8 +864,22 @@ export async function buildRasterImport(file, { epsg, defaultElevation, sourceEp
   if (chooseProjectEpsg && srcEpsg) projEpsg = Number(chooseProjectEpsg(srcEpsg, projEpsg)) || projEpsg; // #607 — an empty project may take this CRS
   const srcLabel = Number.isFinite(overrideEpsg) ? "the Source CRS you set" : "this file's own CRS tag";
 
-  let crsNote = "";
-  if (srcEpsg && projEpsg && srcEpsg !== projEpsg) {
+  let crsNote = "", tiedGrid = null;
+  // TASKS.csv #2587 / #2322 — a local-grid project tied to a real CRS: a file with a CRS comes INTO the grid through the tie
+  const tied = tie && srcEpsg && !projEpsg && parsed.pixels && tieReaches(tie, srcEpsg) ? tieImageToLocal({ xmin: parsed.bbox[0], ymin: parsed.bbox[1], xmax: parsed.bbox[2], ymax: parsed.bbox[3], ...parsed.pixels }, tie, srcEpsg, maxSide) : null;
+  if (tied) {
+    const canvas = document.createElement("canvas");
+    canvas.width = tied.width; canvas.height = tied.height;
+    canvas.getContext("2d").putImageData(new ImageData(tied.data, tied.width, tied.height), 0, 0);
+    bbox = tied.bbox; px = tied;
+    dataUrl = keepDetail ? imageDataUrl(canvas) : canvas.toDataURL("image/png");
+    if (parsed.grid) tiedGrid = tieGridToLocal(parsed.grid, tie, srcEpsg, GRID_MAX);
+    crsNote = " " + (Number(srcEpsg) === Number(tie.epsg)
+      ? tr("Its EPSG:{src} ({label}) was brought into the local grid through the grid's tie, and resampled onto the grid's own north.", { src: srcEpsg, label: Number.isFinite(overrideEpsg) ? tr("the Source CRS you set") : tr("this file's own CRS tag") })
+      : tr("Its EPSG:{src} ({label}) was reprojected to EPSG:{tie} and brought into the local grid through the grid's tie, and resampled onto the grid's own north.", { src: srcEpsg, tie: tie.epsg, label: Number.isFinite(overrideEpsg) ? tr("the Source CRS you set") : tr("this file's own CRS tag") }));
+  } else if (tie && srcEpsg && !projEpsg) {
+    crsNote = " " + tr("Its EPSG:{src} cannot be brought through the local grid's tie to EPSG:{tie} (GeoStrix has no definition for one of them), so it kept its own numbers: check where it lies.", { src: srcEpsg, tie: tie.epsg });
+  } else if (srcEpsg && projEpsg && srcEpsg !== projEpsg) {
     const fromDef = getProj4DefSync(srcEpsg), toDef = getProj4DefSync(projEpsg);
     if (fromDef && toDef && parsed.pixels) {
       const [xmin, ymin, xmax, ymax] = parsed.bbox;
@@ -901,6 +916,10 @@ export async function buildRasterImport(file, { epsg, defaultElevation, sourceEp
       let n = 0; for (let i = 0; i < g.values.length; i++) if (Number.isFinite(g.values[i])) n++;
       grid = { nx: g.nx, ny: g.ny, x0: g.x0, yTop: g.yTop, dx: g.dx, dy: g.dy, values: f32ToB64(g.values), valid: n, averagedBy: g.averagedBy, sourceSize: g.sourceSize };
       gridNote = ` Values kept for analysis (${g.nx}×${g.ny} nodes at ${gridCellText(g)}${g.averagedBy > 1 ? `, block-averaged ${g.averagedBy}×${g.averagedBy} from ${g.sourceSize[0]}×${g.sourceSize[1]}` : ""}) — the raster's menu can turn them into survey points for an inversion.`;
+    } else if (tiedGrid && tiedGrid.valid) { // #2587 — the values resampled with the picture (nearest node: the readings themselves)
+      const g = tiedGrid;
+      grid = { nx: g.nx, ny: g.ny, x0: g.x0, yTop: g.yTop, dx: g.dx, dy: g.dy, values: f32ToB64(g.values), valid: g.valid, averagedBy: parsed.grid.averagedBy || 1, sourceSize: parsed.grid.sourceSize };
+      gridNote = " " + tr("Values kept for analysis ({nx}×{ny} nodes at {cell}, each the nearest reading of the file's grid).", { nx: g.nx, ny: g.ny, cell: gridCellText(g) });
     } else gridNote = " The grid's values were NOT kept (it was reprojected, and values need re-gridding, not a picture resample) — re-grid it in the project CRS elsewhere to use it as data.";
   }
 

@@ -8,6 +8,8 @@ import { fromArrayBuffer } from "geotiff";
 import { writeGeoTiff } from "./geotiffWrite.js"; // TASKS.csv #1038 — geotiff.js header, one loop for the pixels
 import { demNodeBbox, epsgFromGeoKeys } from "./raster.js";
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
+import { guessGeophysColumns } from "./geophysColumns.js"; // TASKS.csv #2588
+import { gridCoordinateColumns } from "./gridColumns.js"; // TASKS.csv #2588
 
 // zipBytes -> { layers: [{ name, epsg (from its .prj, or null), features, geomType }] }
 export async function readShapefileLayers(zipBytes) {
@@ -221,13 +223,50 @@ export function degreesOutOfRange(rows, xCol, yCol, sample = 500) {
   }
   return { checked, outside, example };
 }
-// fromGeographic (#2461): the From CRS is longitude / latitude
-export function reprojectTableRows(rows, { xCol, yCol, xName, yName, T, geographic, fromGeographic = false }) {
+// TASKS.csv #2588 (review #2486, WA lithium) — the same check for a UTM / MGA From: eastings no zone has (false easting 500,000 m: about
+// 166,000 to 834,000, so outside 100,000-900,000) or northings no hemisphere has (outside 0-10,000,000). The company collar file's mine-grid
+// columns (GBMG_East 7,307.62) under From = MGA zone 50 were 'reprojected' with 0 bad rows and named GBMG_East_EPSG28350.
+const outsideUtm = (x, y) => x < 100000 || x > 900000 || y < 0 || y > 10000000;
+export const isUtmCrs = (epsg) => /\+proj=utm\b/.test(getProj4DefSync(Number(epsg)) || "");
+export function utmOutOfRange(rows, xCol, yCol, sample = 500) {
+  let checked = 0, outside = 0, example = null;
+  const step = Math.max(1, Math.floor((rows || []).length / sample));
+  for (let i = 0; i < (rows || []).length; i += step) {
+    const x = Number(rows[i][xCol]), y = Number(rows[i][yCol]);
+    if (rows[i][xCol] === "" || rows[i][yCol] === "" || !Number.isFinite(x) || !Number.isFinite(y)) continue;
+    checked++;
+    if (outsideUtm(x, y)) { outside++; if (!example) example = [x, y]; }
+  }
+  return { checked, outside, example };
+}
+// #2588 — the X / Y columns 'A file' opens on: a pair named after a map grid (MGA_E / MGA_N, GDA94_East, AMG_E ...; lib/gridColumns.js,
+// the collar import's names) before a local or mine grid's (GBMG_East, Local_E), and before a lone word match; a plain x / easting /
+// longitude column still wins. -> { x, y, prefix, geographic }
+const PLAIN_XY = new Set(["x", "easting", "east", "e", "utm_e", "utme", "lon", "long", "longitude"]);
+export function fileXYColumns(headers) {
+  const g = guessGeophysColumns(headers);
+  const pairs = gridCoordinateColumns(headers);
+  if (pairs.length && !(g.x && PLAIN_XY.has(String(g.x).trim().toLowerCase()))) return { x: pairs[0].x, y: pairs[0].y, prefix: pairs[0].prefix, geographic: false };
+  return { x: g.x, y: g.y, prefix: null, geographic: g.geographic };
+}
+// #2588 — the From a grid-named pair implies on this project: MGA_ / GDA_ columns on an MGA project, UTM_ on a UTM one (the same datum
+// when the prefix names one). null when the names say nothing, or something else.
+export function fromForGridPrefix(prefix, projectEpsg) {
+  const p = String(prefix || "").toLowerCase(), name = crsName(Number(projectEpsg)) || "";
+  if (!p || !name) return null;
+  const family = /^(mga|gda)/.test(p) ? /MGA zone/.test(name) : /^utm/.test(p) ? /UTM zone/.test(name) : false;
+  if (!family) return null;
+  if (/2020/.test(p) && !/2020/.test(name)) return null;
+  if (/94/.test(p) && !/GDA94/.test(name)) return null;
+  return Number(projectEpsg);
+}
+// fromGeographic (#2461): the From CRS is longitude / latitude; fromUtm (#2588): a UTM / MGA From, whose out-of-range pairs are bad rows
+export function reprojectTableRows(rows, { xCol, yCol, xName, yName, T, geographic, fromGeographic = false, fromUtm = false }) {
   let bad = 0;
   const num = (v) => (v === "" || v == null ? NaN : Number(v));
   const out = rows.map((r) => {
     const x = num(r[xCol]), y = num(r[yCol]);
-    if (!Number.isFinite(x) || !Number.isFinite(y) || (fromGeographic && outsideDegrees(x, y))) { bad++; return { ...r, [xName]: "", [yName]: "" }; }
+    if (!Number.isFinite(x) || !Number.isFinite(y) || (fromGeographic && outsideDegrees(x, y)) || (fromUtm && outsideUtm(x, y))) { bad++; return { ...r, [xName]: "", [yName]: "" }; }
     const [nx, ny] = T(x, y);
     return { ...r, [xName]: +nx.toFixed(geographic ? 8 : 3), [yName]: +ny.toFixed(geographic ? 8 : 3) };
   });
