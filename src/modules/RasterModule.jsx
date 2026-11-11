@@ -27,7 +27,7 @@ import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Spac
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786 — messages in the interface language
 import { mainClusters } from "../lib/dataClusters.js"; // TASKS.csv #1461
-import { fetchAreaBox } from "../lib/dataExtent.js"; // #1461
+import { fetchAreaBox, imageryAreaCollars } from "../lib/dataExtent.js"; // #1461; imageryAreaCollars: #2126
 import RasterColourControls from "../components/RasterColourControls.jsx"; // TASKS.csv #1236
 import GridContourControls from "../components/GridContourControls.jsx"; // TASKS.csv #1622
 import { gridCellText } from "../lib/raster.js"; // TASKS.csv #1242
@@ -89,7 +89,7 @@ function SpectrumPanel({ spectrum, onSplit }) {
 }
 
 export default function RasterModule({ embedded = false } = {}) {
-  const { rasters, addRaster, updateRaster, removeRaster, terrain, project, collars, boundaries, setLayers, projectIsEmpty, setEpsg, surfaceSamples = [], voxelModels = [], updateGeophysSurvey, geophysSurveys = {} } = useStore(); // voxelModels: #1856 // projectIsEmpty/setEpsg: #607; updateGeophysSurvey: #1985
+  const { rasters, addRaster, updateRaster, removeRaster, terrain, project, collars, survey = [] /* #2126 */, boundaries, setLayers, projectIsEmpty, setEpsg, surfaceSamples = [], voxelModels = [], updateGeophysSurvey, geophysSurveys = {} } = useStore(); // voxelModels: #1856 // projectIsEmpty/setEpsg: #607; updateGeophysSurvey: #1985
   // TASKS.csv #326 — a data grid's nodes as survey points (Geophysics -> Point cloud / Inversion). Replaces
   // any earlier points made from the same grid, so doing it twice does not double the survey.
   // TASKS.csv #373 — potential-field filters on a grid's kept values; each result is a new raster
@@ -261,7 +261,7 @@ export default function RasterModule({ embedded = false } = {}) {
   const defaultSatBboxLonLat = async () => {
     if (!collars.length || (!project?.epsg && !tieOf(project))) return null;
     // TASKS.csv #1461 — the collars and the surface samples near them (Silvertip's soil grid), not the collars alone
-    const [xmin, ymin, xmax, ymax] = fetchAreaBox(collars, surfaceSamples);
+    const [xmin, ymin, xmax, ymax] = fetchAreaBox(imageryAreaCollars(collars, survey).collars, surfaceSamples); // #2126 — the traced holes / the main cluster, not a whole district list
     const corners = [[xmin, ymin], [xmax, ymin], [xmax, ymax], [xmin, ymax]];
     const lonLats = await Promise.all(corners.map(([x, y]) => lonLatOf(x, y)));
     if (lonLats.some((ll) => !ll)) return null;
@@ -272,6 +272,10 @@ export default function RasterModule({ embedded = false } = {}) {
   const buildSatAreaOptions = async () => {
     if (!project?.epsg && !tieOf(project)) return [];
     const jobs = [];
+    { // TASKS.csv #2126 — the whole district box stays one click away when the seed is a part of the collars
+      const a = imageryAreaCollars(collars, survey);
+      if (a.by !== "all") { const [xmin, ymin, xmax, ymax] = fetchAreaBox(collars, surfaceSamples); jobs.push({ id: "all_collars", label: tr("Every collar ({n})", { n: a.total.toLocaleString() }), xmin, xmax, ymin, ymax }); }
+    }
     if (terrain?.bbox) {
       const [xmin, ymin, xmax, ymax] = terrain.bbox;
       jobs.push({ id: "terrain", label: `Match terrain/SRTM: ${terrain.name}`, xmin, xmax, ymin, ymax });
@@ -333,7 +337,9 @@ export default function RasterModule({ embedded = false } = {}) {
     }
     const seed = await defaultSatBboxLonLat();
     const opts = await buildSatAreaOptions();
-    setSpectralAreas([...(seed ? [{ id: "holes", label: tr("Around the drillholes"), bboxLonLat: seed }] : []), ...opts]);
+    const a = imageryAreaCollars(collars, survey); // #2126
+    const holesLabel = a.by === "traced" ? tr("Around the traced holes ({n} of {total})", { n: a.collars.length.toLocaleString(), total: a.total.toLocaleString() }) : a.by === "cluster" ? tr("Around the main group of collars ({n} of {total})", { n: a.collars.length.toLocaleString(), total: a.total.toLocaleString() }) : tr("Around the drillholes");
+    setSpectralAreas([...(seed ? [{ id: "holes", label: holesLabel, bboxLonLat: seed }] : []), ...opts]);
     setSpectralOpen(true);
   };
   openSpectralRef.current = openSpectral;
@@ -486,6 +492,7 @@ export default function RasterModule({ embedded = false } = {}) {
                   </select>
                   {naip && bbox && naipCoverage(bbox) !== "inside" && <span style={{ color: "var(--color-danger-icon-strong)" }}>{naipCoverage(bbox) === "outside" ? tr("Outside the USA: NAIP has no imagery here.") : tr("Part of this area is outside the USA: NAIP covers only the rest.")}</span>}{/* #1474 */}
                   {p && <span>{tr("~{v} m pixels · image {gridW} × {gridH} px{v3}", { gridW: p.gridW, gridH: p.gridH, v: naip ? (p.pixelM < 10 ? p.pixelM.toFixed(1) : Math.round(p.pixelM)) : Math.round(p.pixelM), v3: p.nativeLimited ? (naip ? tr(" · imagery's finest") : tr(" · imagery's finest (10 m)")) : "" })}</span>}
+                  {p && !p.nativeLimited && p.pixelM > 3 * (naip ? NAIP_FINEST_M : 10) && <span style={{ color: "var(--color-warn-text)" }}>{tr("Pixels {k} times coarser than the imagery's own: a smaller area gets finer ones.", { k: Math.round(p.pixelM / (naip ? NAIP_FINEST_M : 10)) })}</span>}{/* #2126 */}
                 </span>
               );
             }}
