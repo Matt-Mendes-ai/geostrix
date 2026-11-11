@@ -26,7 +26,7 @@ const fin = Number.isFinite;
 // NaN (the pit's mesh does not reach there) leaves the column open, and so does a surface at or above the top of the column's
 // blocks: the pit mines nothing there (a shell's unmined columns sit at the ground), so no pillar is kept under the ground. Ore columns shut this way are counted (pitShut), and so are the
 // skin columns the pit takes, so no stope reaches into the pit's volume.
-export function stopeOutlines(model, { cutoff, levelH, zMin = null, zMax = null, minWidth = 0, minLength = 0, skin = 0, density = 1, dipDeg = null, dipDirDeg = null, ceilingAt = null, pillar = 0, onLevel = null } = {}) { // onLevel(k, n): #2279, the worker's progress
+export function stopeOutlines(model, { cutoff, levelH, zMin = null, zMax = null, minWidth = 0, minLength = 0, skin = 0, density = 1, dipDeg = null, dipDirDeg = null, ceilingAt = null, pillar = 0, groundAt = null, crown = 0, onLevel = null } = {}) { // onLevel(k, n): #2279, the worker's progress
   const cells0 = (model?.cells || []).filter((c) => fin(c.x) && fin(c.y) && fin(c.z) && c.dx > 0 && c.dy > 0 && c.dz > 0);
   if (!cells0.length || !(levelH > 0) || !fin(cutoff)) return null;
   const dipping = fin(dipDeg) && dipDeg > 0 && dipDeg < 90 && fin(dipDirDeg);
@@ -54,13 +54,21 @@ export function stopeOutlines(model, { cutoff, levelH, zMin = null, zMax = null,
   const k = Math.max(1, Math.ceil(minWidth / Math.min(dx, dy) - 1e-9)), rS = Math.max(0, Math.round(skin / Math.min(dx, dy)));
   const area = dx * dy, levels = [];
   const totals = { tonnes: 0, metalU: 0, oreTonnes: 0, oreMetalU: 0, stopes: 0 };
-  let oreColumns = 0, unbuilt = 0, pitShut = 0, pitSkin = 0; // #1964
+  let oreColumns = 0, unbuilt = 0, pitShut = 0, pitSkin = 0, groundShut = 0, groundSkin = 0; // #1964; ground: #2438
   const pil = fin(pillar) && pillar > 0 ? pillar : 0;
   const colTop = new Float64Array(ceilingAt ? N : 0).fill(-Infinity); // #1964 — the top of each column's blocks
   if (ceilingAt) for (const c of cells) { const q = col(c); if (q >= 0 && c.z + c.dz / 2 > colTop[q]) colTop[q] = c.z + c.dz / 2; }
   const openUnder = (q, rl, top) => { // #1964 — the slab and the pillar below the pit's surface at both rings
     const j = Math.floor(q / nx), i = q - j * nx, sx = gx0 + i * dx, sy = gy0 + j * dy;
     for (const z of dipping ? [rl, top] : [top]) { const [x, y] = unshear([sx, sy], z), c = ceilingAt(x, y); if (fin(c) && c < colTop[q] - 1e-6 && c < top + pil - 1e-9) return false; }
+    return true;
+  };
+  // TASKS.csv #2438 (review #2325, WA uranium) — groundAt(x, y) -> z | NaN (the terrain or the collar surface the pit tools use) and crown (m):
+  // no stope reaches above the ground less the crown, at both rings of a leaning stope; NaN (no ground known there) leaves the column open
+  const cr = fin(crown) && crown > 0 ? crown : 0;
+  const openGround = (q, rl, top) => {
+    const j = Math.floor(q / nx), i = q - j * nx, sx = gx0 + i * dx, sy = gy0 + j * dy;
+    for (const z of dipping ? [rl, top] : [top]) { const [x, y] = unshear([sx, sy], z), g = groundAt(x, y); if (fin(g) && top + cr > g + 1e-9) return false; }
     return true;
   };
   const square = (lo, hi) => { const o = []; for (let j = lo; j <= hi; j++) for (let i = lo; i <= hi; i++) o.push([i, j]); return o; };
@@ -89,10 +97,14 @@ export function stopeOutlines(model, { cutoff, levelH, zMin = null, zMax = null,
     const slabH = top - rl;
     for (let q = 0; q < N; q++) if (t[q] > 0 && m[q] / t[q] >= cutoff && cover[q] >= 0.5 * slabH - 1e-9) { mask[q] = 1; oreColumns++; } // half the slab at least (#1919)
     let shut = null;
-    if (ceilingAt) { shut = new Uint8Array(N); for (let q = 0; q < N; q++) if (!openUnder(q, rl, top)) shut[q] = 1; for (let q = 0; q < N; q++) if (mask[q] && shut[q]) { mask[q] = 0; pitShut++; } } // #1964
+    if (ceilingAt || groundAt) { // #1964; the ground (2): #2438
+      shut = new Uint8Array(N);
+      for (let q = 0; q < N; q++) if (ceilingAt && !openUnder(q, rl, top)) shut[q] = 1; else if (groundAt && !openGround(q, rl, top)) shut[q] = 2;
+      for (let q = 0; q < N; q++) if (mask[q] && shut[q]) { mask[q] = 0; if (shut[q] === 1) pitShut++; else groundShut++; }
+    }
     if (k > 1) mask = dilate(erode(mask, dE), dE); // opening: nothing thinner than the minimum width survives
     if (rS > 0) mask = dilate(mask, dS); // the skin
-    if (shut) for (let q = 0; q < N; q++) if (mask[q] && shut[q]) { mask[q] = 0; pitSkin++; } // #1964 — no skin inside the pit either
+    if (shut) for (let q = 0; q < N; q++) if (mask[q] && shut[q]) { mask[q] = 0; if (shut[q] === 1) pitSkin++; else groundSkin++; } // #1964 — no skin inside the pit (or above the ground, #2438) either
     // connected patches (4-neighbours)
     const label = new Int32Array(N).fill(-1);
     const patches = [];
@@ -143,7 +155,7 @@ export function stopeOutlines(model, { cutoff, levelH, zMin = null, zMax = null,
   totals.grade = totals.tonnes > 0 ? totals.metalU / totals.tonnes : null;
   totals.oreGrade = totals.oreTonnes > 0 ? totals.oreMetalU / totals.oreTonnes : null;
   totals.dilutionPct = totals.oreTonnes > 0 ? ((totals.tonnes - totals.oreTonnes) / totals.oreTonnes) * 100 : null;
-  return { levels, totals, cell: [dx, dy], grid: [nx, ny], from, to, widthCols: k, skinCols: rS, blockH: med("dz"), oreColumns, unbuilt, pit: ceilingAt ? { shut: pitShut, skinShut: pitSkin, pillar: pil } : null /* #1964 */,
+  return { levels, totals, cell: [dx, dy], grid: [nx, ny], from, to, widthCols: k, skinCols: rS, blockH: med("dz"), oreColumns, unbuilt, pit: ceilingAt ? { shut: pitShut, skinShut: pitSkin, pillar: pil } : null /* #1964 */, ground: groundAt ? { shut: groundShut, skinShut: groundSkin, crown: cr } : null /* #2438 */,
     dip: dipping ? { dipDeg, dipDirDeg, widthOnGroundM: minWidth, skinOnGroundM: skin } : null /* #1953 */ };
 }
 

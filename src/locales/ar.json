@@ -9979,5 +9979,13 @@
   "Optional: the density of the blocks below cut-off and of the rock outside the block model (cover, host rock). Blank: the density above for all rock.": "اختياري: كثافة الكتل تحت محتوى القطع والصخر خارج نموذج الكتل (الغطاء، الصخر المضيف). فارغ: الكثافة أعلاه لكل الصخر.",
   "{o} ore, {w} waste": "{o} خام، {w} نفايات",
   "Use the pit's waste density, {v}": "استخدم كثافة نفايات الحفرة، {v}",
-  ", waste {w} t/m³": "، نفايات {w} t/m³"
+  ", waste {w} t/m³": "، نفايات {w} t/m³",
+  "Dip of the body (°)": "ميل الجسم (°)",
+  "Blank: vertical columns. With a dip, the blocks are taken along it, each stope leans with the body between its levels, and the width and skin are measured across the body.": "فارغ: أعمدة رأسية. مع الميل، تؤخذ الكتل على امتداده، ويميل كل مخزن تعدين مع الجسم بين مستوياته، ويُقاس العرض والقشرة عبر الجسم.",
+  "Crown under the ground (m)": "عمود التاج تحت سطح الأرض (م)",
+  "Rock left between the ground and the top of the highest stope. Blank: none; no stope reaches above the ground.": "الصخر المتروك بين سطح الأرض وأعلى مخزن تعدين. فارغ: لا شيء؛ لا يتجاوز أي مخزن سطح الأرض.",
+  "The collars look like underground drill positions, so no ground is known: the levels are not checked against the surface. Load a terrain (Maps > Terrain).": "تبدو الفوهات مواقع حفر تحت الأرض، لذا سطح الأرض غير معروف: لا تُقارن المستويات بالسطح. حمّل تضاريس (الخرائط > التضاريس).",
+  "No terrain or collar elevations: the levels are not checked against the ground.": "لا تضاريس ولا ارتفاعات للفوهات: لا تُقارن المستويات بسطح الأرض.",
+  "{n} column-level(s) at the cut-off reach above the ground less the {c} m crown ({src}) and were left out.": "{n} عمود-مستوى عند محتوى القطع يتجاوز سطح الأرض ناقص عمود التاج بسماكة {c} م ({src}) وتُرك جانبًا.",
+  "A flat-lying body: the largest outline spans {a} × {b} m in plan on a {h} m level ({t} t). These are level outlines, not stopes; a flat body is a question for the pit tools or a method this tool does not design.": "جسم مسطح: يمتد أكبر محيط {a} × {b} م في المسقط على مستوى ارتفاعه {h} م ({t} t). هذه محيطات مستويات وليست مخازن تعدين؛ الجسم المسطح مسألة لأدوات الحفرة المفتوحة أو لطريقة لا تصممها هذه الأداة."
 }

@@ -9979,5 +9979,13 @@
   "Optional: the density of the blocks below cut-off and of the rock outside the block model (cover, host rock). Blank: the density above for all rock.": "Opcional: la densidad de los bloques bajo la ley de corte y de la roca fuera del modelo de bloques (cobertura, roca encajante). En blanco: la densidad de arriba para toda la roca.",
   "{o} ore, {w} waste": "{o} mineral, {w} estéril",
   "Use the pit's waste density, {v}": "Usar la densidad del estéril del tajo, {v}",
-  ", waste {w} t/m³": ", estéril {w} t/m³"
+  ", waste {w} t/m³": ", estéril {w} t/m³",
+  "Dip of the body (°)": "Buzamiento del cuerpo (°)",
+  "Blank: vertical columns. With a dip, the blocks are taken along it, each stope leans with the body between its levels, and the width and skin are measured across the body.": "En blanco: columnas verticales. Con un buzamiento, los bloques se toman a lo largo de él, cada caserón se inclina con el cuerpo entre sus niveles, y el ancho y la piel se miden a través del cuerpo.",
+  "Crown under the ground (m)": "Pilar corona bajo el terreno (m)",
+  "Rock left between the ground and the top of the highest stope. Blank: none; no stope reaches above the ground.": "Roca dejada entre el terreno y el techo del caserón más alto. En blanco: ninguna; ningún caserón sube por encima del terreno.",
+  "The collars look like underground drill positions, so no ground is known: the levels are not checked against the surface. Load a terrain (Maps > Terrain).": "Los collares parecen posiciones de perforación subterráneas, así que no se conoce el terreno: los niveles no se comparan con la superficie. Cargue un terreno (Mapas > Terreno).",
+  "No terrain or collar elevations: the levels are not checked against the ground.": "Sin terreno ni cotas de collar: los niveles no se comparan con el terreno.",
+  "{n} column-level(s) at the cut-off reach above the ground less the {c} m crown ({src}) and were left out.": "{n} columna(s)-nivel en la ley de corte llegan por encima del terreno menos el pilar corona de {c} m ({src}) y se dejaron fuera.",
+  "A flat-lying body: the largest outline spans {a} × {b} m in plan on a {h} m level ({t} t). These are level outlines, not stopes; a flat body is a question for the pit tools or a method this tool does not design.": "Un cuerpo de disposición plana: el contorno mayor abarca {a} × {b} m en planta en un nivel de {h} m ({t} t). Son contornos de nivel, no caserones; un cuerpo plano es cuestión de las herramientas de rajo o de un método que esta herramienta no diseña."
 }

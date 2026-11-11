@@ -7,7 +7,7 @@ export function blockColumnsOf(model) {
   return out;
 }
 
-export function runStopeOutlinesAsync(model, opts, ceiling = null, onProgress = null) {
+export function runStopeOutlinesAsync(model, opts, ceiling = null, onProgress = null, ground = null) { // ground: #2438 — { values, frame } as the ceiling
   const columns = blockColumnsOf(model);
   let worker = null, settle = null;
   const promise = new Promise((resolve, reject) => {
@@ -19,7 +19,7 @@ export function runStopeOutlinesAsync(model, opts, ceiling = null, onProgress = 
       if (e.data.failed) reject(new Error(e.data.failed)); else resolve(e.data.result);
     };
     worker.onerror = (e) => { e.preventDefault?.(); worker.terminate(); reject(new Error(e.message || "worker failed")); };
-    worker.postMessage({ columns, opts, ceiling }, Object.values(columns).map((a) => a.buffer));
+    worker.postMessage({ columns, opts, ceiling, ground }, Object.values(columns).map((a) => a.buffer));
   });
   return { promise, cancel: () => { worker?.terminate(); settle?.({ cancelled: true }); } };
 }

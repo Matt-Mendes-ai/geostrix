@@ -18,6 +18,7 @@ import { pBtn, smallSel } from "../lib/sidebarStyles.js";
 import { t as tr } from "../lib/i18n.js";
 import { stopeRuns, stopeIdsOnLevel, stopeStringIds } from "../lib/stopeRuns.js"; // TASKS.csv #1968
 import NotOfferedGrades from "./NotOfferedGrades.jsx"; // TASKS.csv #2436
+import { stopeGroundSource, groundGrid, flatBodyCheck } from "../lib/stopeGround.js"; // TASKS.csv #2438
 import { pitCeiling } from "../lib/pitCeiling.js"; // TASKS.csv #1964 (the lookup is built in the worker, #2279)
 
 const row = { display: "flex", alignItems: "center", gap: 6, justifyContent: "space-between", marginTop: 4, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" };
@@ -26,14 +27,14 @@ const warn = { ...note, color: "var(--color-warn-text-strong)", marginTop: 4 };
 const num = { ...smallSel, width: 84 };
 const big = (v) => new Intl.NumberFormat(undefined, { notation: "compact", maximumSignificantDigits: 3 }).format(v);
 const LEVEL_COLOURS = ["#e76f51", "#f4a261", "#e9c46a", "#2a9d8f", "#264653", "#8ab17d", "#bc6c25", "#6d597a"];
-const EMPTY = { modelId: "", cutoff: "", levelH: "", zMin: "", zMax: "", minWidth: "", minLength: "", skin: "", density: "", dip: "", dipDir: "", pitId: "", pillar: "" }; // dip / dipDir: #1953; pitId / pillar: #1964
+const EMPTY = { modelId: "", cutoff: "", levelH: "", zMin: "", zMax: "", minWidth: "", minLength: "", skin: "", density: "", dip: "", dipDir: "", pitId: "", pillar: "", crown: "" }; // crown: #2438 // dip / dipDir: #1953; pitId / pillar: #1964
 let kept = null; // #1356 — the last result outlives the pane (this session)
 
 // onAdd as the pit pane's (a solid into the generated surfaces); onRemove(id) takes one out again (#1887: a re-run replaces the
 // stopes this pane put in the view)
 // surfaces / meshOf (#1964): the generated surfaces (pit shells and designs to start below) and a surface's mesh in world E, N, Z
 export default function StopesPane({ onAdd, onRemove, onClose, stopes = [], onShow = null, onRemoveMany = null, surfaces = [], meshOf = null }) { // stopes / onShow / onRemoveMany: TASKS.csv #1968
-  const { voxelModels = [], layers, project, setDesignStrings, designStrings = [], generatedSurfaces = [] } = useStore(); // generatedSurfaces: #1968 — the saved copy a Restore rebuilds from
+  const { voxelModels = [], layers, project, terrain, collars = [] /* #2438 */, setDesignStrings, designStrings = [], generatedSurfaces = [] } = useStore(); // generatedSurfaces: #1968 — the saved copy a Restore rebuilds from
   const models = useMemo(() => { const cat = new Set(categoricalModels(voxelModels)); return voxelModels.filter((m) => gradeCandidate(m, (x) => cat.has(x))); }, [voxelModels]);
   const [f, setF] = useState(() => ({ ...EMPTY, ...(kept?.inputs || {}), modelId: kept?.inputs?.modelId && models.some((m) => (m.id ?? m.name) === kept.inputs.modelId) ? kept.inputs.modelId : models[0]?.id ?? models[0]?.name ?? "" }));
   const [res, setRes] = useState(() => kept);
@@ -47,6 +48,7 @@ export default function StopesPane({ onAdd, onRemove, onClose, stopes = [], onSh
   const pit = pits.find((s) => s.id === f.pitId) || null;
   const unit = model ? valueUnit(model) || "" : "";
   const sg = useMemo(() => sgSummary(layers?.sg), [layers?.sg]);
+  const ground = useMemo(() => stopeGroundSource(terrain, collars), [terrain, collars]); // #2438 — the ground the pit tools use
   const zRange = useMemo(() => { if (!model) return null; let lo = Infinity, hi = -Infinity; for (const c of model.cells) { if (c.z - c.dz / 2 < lo) lo = c.z - c.dz / 2; if (c.z + c.dz / 2 > hi) hi = c.z + c.dz / 2; } return [lo, hi]; }, [model]);
   const blockH = model?.cells?.[0]?.dz; // #1886 — the level interval's placeholder and the slicing warning
   const set = (k) => (e) => { setF((p) => ({ ...p, [k]: e.target.value })); setMsg(null); };
@@ -72,10 +74,12 @@ export default function StopesPane({ onAdd, onRemove, onClose, stopes = [], onSh
       if (frame.nx * frame.ny > 4_000_000) { setMsg(tr("The model has too many columns ({n}) for this tool.", { n: frame.nx * frame.ny })); return; }
       ceilingAt = { values: pitCeiling(P, mesh.indices, frame), frame }; // #2279 — the grid goes to the worker, which builds the lookup
     }
+    // TASKS.csv #2438 — no stope above the ground (less the crown): the ground sampled on the model's columns, for the worker
+    const groundIn = ground.at ? groundGrid(model.cells, ground.at) : null;
     let r;
     setBusy({ level: 0, levels: 0 }); setMsg(null);
     try {
-      job.current = runStopeOutlinesAsync(model, { cutoff: v("cutoff"), levelH: v("levelH"), zMin: v("zMin"), zMax: v("zMax"), minWidth: v("minWidth") || 0, minLength: v("minLength") || 0, skin: v("skin") || 0, density: v("density"), dipDeg: dipTyped ? v("dip") : null, dipDirDeg: dipTyped ? v("dipDir") : null /* #1953 */, pillar: pit ? v("pillar") || 0 : 0 /* #1964 */ }, ceilingAt, (level, levels) => setBusy({ level, levels }));
+      job.current = runStopeOutlinesAsync(model, { cutoff: v("cutoff"), levelH: v("levelH"), zMin: v("zMin"), zMax: v("zMax"), minWidth: v("minWidth") || 0, minLength: v("minLength") || 0, skin: v("skin") || 0, density: v("density"), dipDeg: dipTyped ? v("dip") : null, dipDirDeg: dipTyped ? v("dipDir") : null /* #1953 */, pillar: pit ? v("pillar") || 0 : 0 /* #1964 */, crown: v("crown") || 0 /* #2438 */ }, ceilingAt, (level, levels) => setBusy({ level, levels }), groundIn);
       r = await job.current.promise;
     } catch (e) { kept = null; setRes(null); setMsg(tr("The outlines failed: {error}", { error: e?.message || String(e) })); return; } // #1884 — never a silent stale result
     finally { job.current = null; setBusy(null); }
@@ -87,7 +91,7 @@ export default function StopesPane({ onAdd, onRemove, onClose, stopes = [], onSh
     if (addedIds.length && onRemove) addedIds.forEach((id) => onRemove(id));
     const oldStrings = kept?.addedStringIds || []; // #1922 — and its outline strings
     if (oldStrings.length) { const gone = new Set(oldStrings); setDesignStrings((L) => L.filter((s) => !gone.has(s.id))); }
-    kept = { ...r, inputs: { ...f }, model: model.name, pitName: pit ? String(pit.name) : null /* #1964 */, unit, seconds: Math.round((performance.now() - t0) / 100) / 10, addedIds: [], runId: `stoperun_${Date.now()}` }; // runId: #1968 — its solids and strings are managed together
+    kept = { ...r, inputs: { ...f }, model: model.name, pitName: pit ? String(pit.name) : null /* #1964 */, unit, groundSource: groundIn ? ground.source : null /* #2438 */, seconds: Math.round((performance.now() - t0) / 100) / 10, addedIds: [], runId: `stoperun_${Date.now()}` }; // runId: #1968 — its solids and strings are managed together
     setRes(kept); setAdded({ solids: false, strings: false }); setMsg(null);
   };
   // #1885 — what the typed width and skin became on this model's columns
@@ -120,6 +124,7 @@ export default function StopesPane({ onAdd, onRemove, onClose, stopes = [], onSh
   const line = (label, val) => <div style={row}><span>{label}</span><b>{val}</b></div>;
   const field = (k, label, extra = {}) => <label style={row}>{label}<input type="number" min={0} step="any" value={f[k]} onChange={set(k)} style={num} {...extra} /></label>;
   const g = (x) => (x == null ? "—" : `${Number(x.toPrecision(3))} ${res.unit}`);
+  const flat = useMemo(() => (res ? flatBodyCheck(res.levels, Number(res.inputs?.levelH)) : null), [res]); // #2438
 
   return (
     <div>
@@ -138,11 +143,14 @@ export default function StopesPane({ onAdd, onRemove, onClose, stopes = [], onSh
         {field("skin", tr("Dilution skin (m)"), { title: tr("The outline grows by this all round; the added rock carries the model's grade there, or none.") })}
         {field("density", tr("Density (t/m³)"))}
         {/* TASKS.csv #1953 — a dipping vein: the stopes lean with it, the width and skin are measured across it */}
-        {field("dip", tr("Vein dip (°)"), { max: 89, placeholder: tr("vertical"), title: tr("Blank: vertical columns. With a dip, the blocks are taken along it, each stope leans with the vein between its levels, and the width and skin are measured across the vein.") })}
+        {field("dip", tr("Dip of the body (°)"), { max: 89, placeholder: tr("vertical"), title: tr("Blank: vertical columns. With a dip, the blocks are taken along it, each stope leans with the body between its levels, and the width and skin are measured across the body.") })}{/* #2438 — not only a vein */}
         {field("dipDir", tr("Dip direction (°)"), { max: 360, placeholder: tr("—") })}
         {/* TASKS.csv #1964 — open pit then underground: stopes only under the pit's floor, column by column, with an optional crown pillar */}
         {pits.length > 0 && <label style={row}>{tr("Start below")}<select value={f.pitId} onChange={set("pitId")} style={{ ...smallSel, width: 0, flex: 1, minWidth: 0 }} aria-label={tr("Pit the stopes start below")} title={tr("A pit shell or pit design: on each level a column is used only where the whole level lies under the pit's floor above it, so no stope sits in the volume the pit mines.")}><option value="">{tr("No pit (the whole model)")}</option>{pits.map((s) => <option key={s.id} value={s.id}>{String(s.name)}</option>)}</select></label>}
         {pit && field("pillar", tr("Pillar under the pit (m)"), { placeholder: "0", title: tr("Rock left between the pit floor and the highest stope. Blank: none.") })}
+        {/* TASKS.csv #2438 — the ground the levels stop under, and an optional crown */}
+        {ground.at && field("crown", tr("Crown under the ground (m)"), { placeholder: "0", title: tr("Rock left between the ground and the top of the highest stope. Blank: none; no stope reaches above the ground.") })}
+        {!ground.at && <div style={note}>{ground.underground ? tr("The collars look like underground drill positions, so no ground is known: the levels are not checked against the surface. Load a terrain (Maps > Terrain).") : tr("No terrain or collar elevations: the levels are not checked against the ground.")}</div>}
         {dipBad && <div style={warn}>{tr("A dip needs both the dip (0–90°) and the dip direction (0–360°).")}</div>}
         {sg && !f.density && <div style={{ ...note, marginTop: 2 }}><button onClick={() => setF((p) => ({ ...p, density: String(sg.mean) }))} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "1px 6px" }}>{tr("Use the logged mean, {v}", { v: sg.mean })}</button></div>}
         {model && <div style={note}>{tr("Columns of {dx} × {dy} m (the model's blocks); widths and skins round to whole columns.", { dx: model.cells[0]?.dx ?? "?", dy: model.cells[0]?.dy ?? "?" })}</div>}
@@ -163,6 +171,8 @@ export default function StopesPane({ onAdd, onRemove, onClose, stopes = [], onSh
           {res.totals.dilutionPct != null && line(tr("Dilution"), `${res.totals.dilutionPct.toFixed(0)} %`)}
           {line(tr("Outlined in"), `${res.seconds} s`)}
           {res.pit && <div style={note}>{tr("Below {pit}: {n} column-level(s) at the cut-off lie inside the pit or its {p} m pillar and were left out.", { pit: res.pitName, n: res.pit.shut, p: res.pit.pillar })}</div>}{/* #1964 */}
+          {res.ground && res.ground.shut > 0 && <div style={note}>{tr("{n} column-level(s) at the cut-off reach above the ground less the {c} m crown ({src}) and were left out.", { n: res.ground.shut, c: res.ground.crown, src: res.groundSource === "terrain" ? tr("the terrain") : tr("interpolated between the collars") })}</div>}{/* #2438 */}
+          {flat?.flat && <div style={warn}>{tr("A flat-lying body: the largest outline spans {a} × {b} m in plan on a {h} m level ({t} t). These are level outlines, not stopes; a flat body is a question for the pit tools or a method this tool does not design.", { a: Math.round(flat.a), b: Math.round(flat.b), h: +flat.h.toFixed(1), t: big(flat.tonnes) })}</div>}{/* #2438 */}
           {res.dip && <div style={note}>{tr("Along a dip of {d}° towards {a}°: each stope leans with the vein; the {w} m width and {s} m skin across it are {wg} m and {sg} m on the ground.", { d: res.dip.dipDeg, a: res.dip.dipDirDeg, w: res.inputs.minWidth || 0, s: res.inputs.skin || 0, wg: +res.dip.widthOnGroundM.toFixed(1), sg: +res.dip.skinOnGroundM.toFixed(1) })}</div>}{/* #1953 */}
           {/* #1885 — the width and skin as applied; #1886 — a level interval below the block height slices the same block */}
           <div style={note}>{tr("Width {w} m → {n} column(s) ({m} m); skin {s} m → {k} column(s) ({t} m).", { w: res.inputs.minWidth || 0, n: res.widthCols, m: +effWidthM.toFixed(1), s: res.inputs.skin || 0, k: res.skinCols, t: +effSkinM.toFixed(1) })}</div>

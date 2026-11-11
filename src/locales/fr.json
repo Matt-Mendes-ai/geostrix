@@ -9979,5 +9979,13 @@
   "Optional: the density of the blocks below cut-off and of the rock outside the block model (cover, host rock). Blank: the density above for all rock.": "Facultatif : la densité des blocs sous la teneur de coupure et de la roche hors du modèle de blocs (couverture, encaissant). Vide : la densité ci-dessus pour toute la roche.",
   "{o} ore, {w} waste": "{o} minerai, {w} stérile",
   "Use the pit's waste density, {v}": "Utiliser la densité du stérile de la fosse, {v}",
-  ", waste {w} t/m³": ", stérile {w} t/m³"
+  ", waste {w} t/m³": ", stérile {w} t/m³",
+  "Dip of the body (°)": "Pendage du corps (°)",
+  "Blank: vertical columns. With a dip, the blocks are taken along it, each stope leans with the body between its levels, and the width and skin are measured across the body.": "Vide : colonnes verticales. Avec un pendage, les blocs sont pris le long de celui-ci, chaque chantier s'incline avec le corps entre ses niveaux, et la largeur et la peau sont mesurées à travers le corps.",
+  "Crown under the ground (m)": "Pilier de couronne sous le terrain (m)",
+  "Rock left between the ground and the top of the highest stope. Blank: none; no stope reaches above the ground.": "Roche laissée entre le terrain et le toit du chantier le plus haut. Vide : aucune ; aucun chantier ne dépasse le terrain.",
+  "The collars look like underground drill positions, so no ground is known: the levels are not checked against the surface. Load a terrain (Maps > Terrain).": "Les collets ressemblent à des positions de forage souterraines, donc le terrain n'est pas connu : les niveaux ne sont pas comparés à la surface. Chargez un terrain (Cartes > Terrain).",
+  "No terrain or collar elevations: the levels are not checked against the ground.": "Ni terrain ni altitudes de collet : les niveaux ne sont pas comparés au terrain.",
+  "{n} column-level(s) at the cut-off reach above the ground less the {c} m crown ({src}) and were left out.": "{n} colonne(s)-niveau à la teneur de coupure montent au-dessus du terrain moins le pilier de couronne de {c} m ({src}) et ont été laissées de côté.",
+  "A flat-lying body: the largest outline spans {a} × {b} m in plan on a {h} m level ({t} t). These are level outlines, not stopes; a flat body is a question for the pit tools or a method this tool does not design.": "Un corps à plat : le plus grand contour couvre {a} × {b} m en plan sur un niveau de {h} m ({t} t). Ce sont des contours de niveau, pas des chantiers ; un corps plat relève des outils de fosse ou d'une méthode que cet outil ne conçoit pas."
 }
