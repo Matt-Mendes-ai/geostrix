@@ -952,7 +952,9 @@ export function useImportPipeline(ctx) {
     const used = [];
     try {
       const vx = await import("../../lib/gocadVoxet.js"), vox = await import("../../lib/voxel.js");
-      const h = vx.parseVoxetHeader(await vo.text()), g = vx.voxetGrid(h), n = g.nx * g.ny * g.nz;
+      const h = vx.parseVoxetHeader(await vo.text()), n = h.n[0] * h.n[1] * h.n[2];
+      // TASKS.csv #2692 — a rotated voxet is resampled onto an east / north / up lattice (each block the nearest voxet node), and says so
+      const lattice = vx.isVoxetAligned(h) ? null : vx.alignedLattice(h), g = vx.voxetGrid(lattice ? lattice.header : h);
       const made = [], missing = [], failed = [];
       let coarse = null;
       for (const prop of h.props) {
@@ -961,18 +963,19 @@ export function useImportPipeline(ctx) {
         used.push(f.name);
         try {
           const vals = vx.readVoxetValues(new Uint8Array(await f.arrayBuffer()), prop, n);
-          let { mesh, values } = vx.voxetToUbc(h, vals);
+          let { mesh, values } = lattice ? vx.voxetToUbc(lattice.header, vx.resampleVoxet(lattice, vals)) : vx.voxetToUbc(h, vals);
           const { fx, fy, fz } = vox.planCoarsenFactors(mesh.nx, mesh.ny, mesh.nz, vox.MAX_CELLS);
           if (fx > 1 || fy > 1 || fz > 1) { ({ mesh, values } = vox.coarsenUBCModel(mesh, values, fx, fy, fz, { log: vox.wantsLogMean(values, prop.name) })); coarse = { fx, fy, fz }; }
           const cells = vox.ubcMeshToCells(mesh, Array.from(values));
           if (!cells.length) { failed.push(tr("{name}: no value other than no-data", { name: prop.name })); continue; }
           const { min, max } = vox.cellValueRange(cells);
           const name = `${h.name || vo.name.replace(/\.vo$/i, "")} — ${prop.name}${prop.unit ? ` (${prop.unit})` : ""}`;
-          addVoxelModel({ name, source: "gocad", cells, min, max, property: prop.name, ...(prop.unit ? { unit: prop.unit } : {}), params: { tool: "GOCAD Voxet import", file: vo.name, nodes: [g.nx, g.ny, g.nz], nodeStepM: g.step.map((s) => +s.toFixed(4)), ...(coarse ? { coarsenedBy: [coarse.fx, coarse.fy, coarse.fz] } : {}) } });
+          addVoxelModel({ name, source: "gocad", cells, min, max, property: prop.name, ...(prop.unit ? { unit: prop.unit } : {}), params: { tool: "GOCAD Voxet import", file: vo.name, nodes: [g.nx, g.ny, g.nz], nodeStepM: g.step.map((s) => +s.toFixed(4)), ...(lattice ? { resampledFrom: { nodes: h.n, rotationDeg: +lattice.rotationDeg.toFixed(2) } } : {}) /* #2692 */, ...(coarse ? { coarsenedBy: [coarse.fx, coarse.fy, coarse.fz] } : {}) } });
           made.push(`${prop.name} (${cells.length.toLocaleString()} blocks)`);
         } catch (err) { failed.push(err.message); }
       }
       const parts = [made.length ? tr("Imported the GOCAD Voxet \"{name}\" as {n} block model(s): {list}; {nx} × {ny} × {nz} nodes, each a block of {dx} × {dy} × {dz} m centred on its node. Its coordinates are taken as the project's (GOCAD files carry no EPSG code).", { name: h.name || vo.name, n: made.length, list: made.join(", "), nx: g.nx, ny: g.ny, nz: g.nz, dx: +g.step[0].toFixed(2), dy: +g.step[1].toFixed(2), dz: +g.step[2].toFixed(2) }) : "",
+        made.length && lattice ? tr("The Voxet is rotated ({deg}° from east in plan), so it was resampled onto a lattice along east, north and up of {nx} × {ny} × {nz} blocks of {dx} × {dy} × {dz} m, each taking the value of the nearest voxet node (blocks outside the voxet are left empty).", { deg: +lattice.rotationDeg.toFixed(1), nx: g.nx, ny: g.ny, nz: g.nz, dx: +lattice.step[0].toFixed(2), dy: +lattice.step[1].toFixed(2), dz: +lattice.step[2].toFixed(2) }) : "",
         coarse ? tr("Averaged {fx} × {fy} × {fz} nodes into each block to stay within the block budget.", coarse) : "",
         missing.length ? tr("Not in the drop, so not read: {list}. Drop the .vo together with the files its PROP_FILE lines name.", { list: missing.join(", ") }) : "",
         failed.length ? tr("Could not read: {list}.", { list: failed.join("; ") }) : ""].filter(Boolean).join(" ");

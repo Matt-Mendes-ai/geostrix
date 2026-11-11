@@ -10330,5 +10330,6 @@
   "; their true thickness across it is {a}–{b} m (median {m} m)": "؛ سمكها الحقيقي عبرها {a}–{b} م (الوسيط {m} م)",
   "{unit}: {n} logged intercept(s), none on a hole with a collar and survey to place it.": "{unit}: {n} تقاطع مسجّل، لا شيء منها على ثقب له فوهة ومسح لتحديد موضعه.",
   "Against the logs: {lines} An intercept outside the sheet, or a thickness far from the map's, says the dip, the dip direction or the outline does not fit the drilling there.": "مقارنةً بالسجلات: {lines} تقاطع خارج الصفيحة، أو سمك بعيد عن سمك الخريطة، يدل على أن الميل أو اتجاه الميل أو المحيط لا يوافق الحفر هناك.",
-  "; its true thickness across it is {a} m": "؛ سمكه الحقيقي عبرها {a} م"
+  "; its true thickness across it is {a} m": "؛ سمكه الحقيقي عبرها {a} م",
+  "The Voxet is rotated ({deg}° from east in plan), so it was resampled onto a lattice along east, north and up of {nx} × {ny} × {nz} blocks of {dx} × {dy} × {dz} m, each taking the value of the nearest voxet node (blocks outside the voxet are left empty).": "الـ Voxet مدوَّر ({deg}° من الشرق في المسقط)، لذا أُعيد أخذ عيّناته على شبكة باتجاه الشرق والشمال والأعلى من {nx} × {ny} × {nz} كتلة بأبعاد {dx} × {dy} × {dz} م، تأخذ كل منها قيمة أقرب عقدة في الـ voxet (تبقى الكتل خارج الـ voxet فارغة)."
 }

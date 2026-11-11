@@ -10330,5 +10330,6 @@
   "; their true thickness across it is {a}–{b} m (median {m} m)": " ; leur épaisseur vraie à travers elle est de {a}–{b} m (médiane {m} m)",
   "{unit}: {n} logged intercept(s), none on a hole with a collar and survey to place it.": "{unit} : {n} intersection(s) décrites, aucune sur un sondage avec collet et levé pour la placer.",
   "Against the logs: {lines} An intercept outside the sheet, or a thickness far from the map's, says the dip, the dip direction or the outline does not fit the drilling there.": "Face aux logs : {lines} Une intersection hors de la lame, ou une épaisseur loin de celle de la carte, indique que le pendage, la direction de pendage ou le contour ne correspond pas aux sondages à cet endroit.",
-  "; its true thickness across it is {a} m": " ; son épaisseur vraie à travers elle est de {a} m"
+  "; its true thickness across it is {a} m": " ; son épaisseur vraie à travers elle est de {a} m",
+  "The Voxet is rotated ({deg}° from east in plan), so it was resampled onto a lattice along east, north and up of {nx} × {ny} × {nz} blocks of {dx} × {dy} × {dz} m, each taking the value of the nearest voxet node (blocks outside the voxet are left empty).": "Le Voxet est tourné ({deg}° depuis l'est en plan) : il a été rééchantillonné sur une grille selon l'est, le nord et le haut de {nx} × {ny} × {nz} blocs de {dx} × {dy} × {dz} m, chacun prenant la valeur du nœud du voxet le plus proche (les blocs hors du voxet restent vides)."
 }
