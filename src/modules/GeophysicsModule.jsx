@@ -49,7 +49,7 @@ import { parseShapefileZip, parseShapefileParts } from "../lib/shapefile.js";
 import { groupShapefileParts } from "../lib/viewer/importHelpers.js"; // TASKS.csv #2121 — a loose .shp with its .prj / .dbf / .cpg
 import { parseGeoPackage } from "../lib/gpkg.js";
 import { idwGridToRasterInput, suggestBlankingDistance } from "../lib/idw.js";
-import { hillshadeToRasterInput, terrainDerivativeToRasterInput, autoZFactor } from "../lib/hillshade.js"; // derivatives: TASKS.csv #797; autoZFactor: #2460
+import { hillshadeToRasterInput, terrainDerivativeToRasterInput, autoZFactor, earlierDerivatives } from "../lib/hillshade.js"; // derivatives: TASKS.csv #797; autoZFactor: #2460; earlierDerivatives: #1764
 import { contourTerrain } from "../lib/contours.js";
 import SpatialAnalysis from "../components/SpatialAnalysis.jsx";
 import BasemapView from "../components/BasemapView.jsx";
@@ -83,7 +83,7 @@ import { mineGridOf } from "../lib/mineGrid.js"; // TASKS.csv #2586
 import { tieOf, fileToLocal } from "../lib/localGridTie.js"; // TASKS.csv #2587 — a tied local grid's way in
 import { farFromCollars, farLabel } from "../lib/landingCheck.js"; // TASKS.csv #2590
 import { niceContourInterval, terrainRange, MIN_CONTOUR_INTERVAL } from "../lib/contourInterval.js"; // TASKS.csv #2462
-import { vectorToBoundaryPolylines, claimsFromVector, isAreaBoundary } from "../lib/boundaryImport.js"; // TASKS.csv #1035; claims per feature: #1970; isAreaBoundary: #1466
+import { vectorToBoundaryPolylines, claimsFromVector, isAreaBoundary, fileStem } from "../lib/boundaryImport.js"; // fileStem: #1767; // TASKS.csv #1035; claims per feature: #1970; isAreaBoundary: #1466
 import { clampCellBudget, MIN_CELL_BUDGET, MAX_BLOCK_MODEL_BUDGET } from "../lib/estimationMeta.js"; // TASKS.csv #1074
 import { checkGpkgSize } from "../lib/gpkgSize.js"; // TASKS.csv #1716
 import { sniffTable, estimateRows, streamTableRows, streamXyzRows, headText } from "../lib/streamTable.js"; // TASKS.csv #1351
@@ -155,7 +155,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
   const [eqsFor, setEqsFor] = useState(null); // TASKS.csv #1985 — the survey whose equivalent-source box is open
   const [gravFor, setGravFor] = useState(null); // TASKS.csv #1985 — the survey whose gravity-reduction box is open
   const {
-    layers, replaceLayer, goToModule, collars, rasters, addRaster, project, surfaceSamples, // #845 — the terrain picker over a samples-only project
+    layers, replaceLayer, goToModule, collars, rasters, addRaster, updateRaster /* #1764 */, project, surfaceSamples, // #845 — the terrain picker over a samples-only project
     terrain, addTerrain, updateTerrain, removeTerrain,
     geophysPtsStops, setGeophysPtsStops, geophysPtsColorMode, setGeophysPtsColorMode,
     geophysPtsMin, setGeophysPtsMin, geophysPtsMax, setGeophysPtsMax,
@@ -917,9 +917,9 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       const layers = name.endsWith(".gpx") ? gpxToLayers(parseGPX(text)) : parseGeoJSON(text).layers;
       const tie = tieOf(project); // #2587
       if (tie) await getProj4Def(Number(tie.epsg)); // a registry code loads on demand (#834)
-      const { polylines, closedFlags, failed } = layersToBoundaryPolylines(layers, project?.epsg, reprojectXY, tie ? (x, y, from) => fileToLocal(tie, x, y, from) : null); // closedFlags: #1760
+      const { polylines, closedFlags, failed, partNames } = layersToBoundaryPolylines(layers, project?.epsg, reprojectXY, tie ? (x, y, from) => fileToLocal(tie, x, y, from) : null); // closedFlags: #1760; partNames: #1767
       if (!polylines.length) throw new Error(failed ? tr("Coordinates could not be converted to EPSG:{v}.", { v: project?.epsg }) : tr("No lines or polygons found in this file (GPX waypoints and GeoJSON points are imported as a map layer in Surface Geology)."));
-      return { polylines, closedFlags };
+      return { polylines, closedFlags, ...(partNames ? { partNames } : {}) };
     }
     // TASKS.csv #1035 — every part of every feature, reprojected from the file's own CRS (lib/boundaryImport.js)
     if (name.endsWith(".zip") || name.endsWith(".shp")) {
@@ -964,7 +964,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         const shapePolylines = await shapeFileToPolylines(file);
         if (shapePolylines?.multi) { // #1970 — a GeoPackage with several tables: one boundary per table
           for (const p of shapePolylines.multi) {
-            addBoundary({ name: `${file.name}: ${p.table}`, polylines: p.polylines, closedFlags: p.closedFlags, elevation: boundaryElevation });
+            addBoundary({ name: `${fileStem(file.name)}: ${p.table}`, polylines: p.polylines, closedFlags: p.closedFlags, ...(p.partNames ? { partNames: p.partNames } : {}), elevation: boundaryElevation }); // fileStem, partNames: #1767
             imported++;
             if (p.note) dxfNotes.push(`${file.name}: ${p.table}: ${p.note}`);
           }
@@ -978,15 +978,15 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
           if (sk || specs[0]?.dxfZerosDropped) dxfNotes.push(`${file.name}: ${[specs[0]?.dxfZerosDropped ? "every string had elevation 0, read as a 2D plan" : "", sk].filter(Boolean).join("; ")}`);
           continue;
         }
-        let polylines, closedFlags;
+        let polylines, closedFlags, partNames;
         if (shapePolylines) {
-          ({ polylines, closedFlags } = shapePolylines);
+          ({ polylines, closedFlags, partNames } = shapePolylines); // partNames: #1767
           if (shapePolylines.note) dxfNotes.push(`${file.name}: ${shapePolylines.note}`); // #1035 — the CRS said
         } else {
           const text = await file.text();
           ({ polylines } = parsePLYBoundary(text));
         }
-        addBoundary({ name: file.name, polylines, ...(closedFlags ? { closedFlags } : {}), elevation: boundaryElevation });
+        addBoundary({ name: fileStem(file.name), polylines, ...(closedFlags ? { closedFlags } : {}), ...(partNames ? { partNames } : {}), elevation: boundaryElevation }); // fileStem, partNames: #1767 — the claims path already named by the stem
         imported++;
       } catch (err) {
         if (err.facesOnly) { solids.push(file); continue; } // TASKS.csv #1503 — 3DFACE / polyface only: a solid, for the 3D View's solid import
@@ -2214,10 +2214,14 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                     const { scale, ...r } = raster;
                     // #1626 — which terrain it was made from, so a replaced terrain can say this one is stale; its unit for the value grid
                     const unit = derivKind === "slope" ? "degrees" : derivKind === "aspect" ? "degrees from grid north" : derivKind === "curvature" ? "1/100 m" : null;
+                    const earlier = earlierDerivatives(rasters, terrain); // #1764 — the new one is the one shown
+                    earlier.forEach((x) => updateRaster(x.id, { visible: false }));
                     addRaster({ ...r, elevation: defaultElevation, drapeMode: "terrain", terrainDerivative: { kind: derivKind, terrainId: terrain.id ?? null, terrainName: terrain.name || "", unit } });
+                    const hid = earlier.length ? " " + tr("{n} earlier derivative(s) of this terrain were hidden so this one shows: {names}. Tick them in the GeoTIFF / GXF list to show them again.", { n: earlier.length, names: earlier.map((x) => x.name).join(", ") }) : "";
                     if (shade && zf > 1) setTerrainError({ info: true, text: tr("Hillshade with a vertical exaggeration of {z}x, chosen from this terrain's slopes (its steepest 2 % shown near 30°): on low relief a true-scale hillshade is one flat grey.", { z: zf }) }); // #2460
                     else if (scale) setTerrainError({ info: true, text: derivKind === "slope" ? tr("Slope draped on the terrain: white {min}° or flatter, darkest grey {max}° or steeper (this terrain's 2-98 % range).", { min: +scale.min.toPrecision(2), max: +scale.max.toPrecision(2) }) /* #2460 */ : tr("Curvature draped on the terrain: red convex, blue concave, saturated at ±{max} (1/100 m).", { max: +scale.max.toPrecision(2) }) + (r.grid ? " " + tr("Its values are kept: export them, restyle them, or use them as targeting evidence from the raster's card.") : "") });
                     else setTerrainError(derivKind === "aspect" ? { info: true, text: tr("Aspect draped on the terrain: the direction each slope faces, in degrees clockwise from grid north (red north, yellow-green east, cyan south, blue-magenta west; grey flat). Its values are kept.") } : null); // #1626 — the previous product's message was left showing
+                    if (hid) setTerrainError((prev) => ({ info: true, text: (prev?.text ? prev.text + " " : "") + hid.trim() })); // #1764
                     setHillshadeOpen(false);
                   }}
                   style={{ ...pBtn, marginBottom: 0, justifyContent: "center" }}
@@ -2305,9 +2309,12 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                 {b.visible !== false ? <Eye size={14} /> : <EyeOff size={14} />}
               </div>
               <div style={{ flex: 1, minWidth: 0, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{b.name}</div>
-              <span style={{ color: "var(--color-text-muted)", flexShrink: 0 }}>{tr("{v} part(s)", { v: b.polylines?.length || 0 })}</span>
+              <span style={{ color: "var(--color-text-muted)", flexShrink: 0 }} title={b.partNames?.some(Boolean) ? b.partNames.filter(Boolean).join(", ") : undefined}>{tr("{v} part(s)", { v: b.polylines?.length || 0 })}</span>
               <Trash2 aria-label={tr("Remove boundary \"{name}\"", { name: b.name })} title={tr("Remove boundary \"{name}\"", { name: b.name })} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(tr("Remove \"{name}\"?", { name: b.name }))) removeBoundary(b.id); }} />
             </div>
+            {b.partNames?.some(Boolean) && ( /* TASKS.csv #1767 — the parts' own names, from the file */
+              <div style={{ marginTop: 5, color: "var(--color-text-caption)", fontSize: "var(--font-size-sm)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={[...new Set(b.partNames.filter(Boolean))].join(", ")}>{tr("Parts: {names}", { names: [...new Set(b.partNames.filter(Boolean))].join(", ") })}</div>
+            )}
             {b.useVertexZ ? ( /* TASKS.csv #1630 — a contour set is drawn at its own levels: 'Drape' and 'Elev. 0' did nothing */
               <div style={{ marginTop: 7, color: "var(--color-text-caption)" }}>{tr("Drawn at its own levels (each contour at its elevation).")}</div>
             ) : (<>

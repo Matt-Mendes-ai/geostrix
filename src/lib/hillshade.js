@@ -200,3 +200,11 @@ export function terrainDerivativeToRasterInput({ bbox, gridW, gridH, elevations,
   }
   return { name: name || `${kind}`, bbox, dataUrl: canvas.toDataURL("image/png"), scale, ...(grid ? { grid } : {}) };
 }
+
+// TASKS.csv #1764 (review #1645, Copley) — every terrain derivative was one more visible drape at the same opacity on the same terrain, and
+// the 3D View showed the aspect after curvature was made. The visible derivatives already made from this terrain, which a new one hides.
+export function earlierDerivatives(rasters, terrain) {
+  if (!terrain) return [];
+  const id = terrain.id ?? null, name = terrain.name || "";
+  return (rasters || []).filter((r) => r?.terrainDerivative && r.visible !== false && (r.terrainDerivative.terrainId ?? null) === id && (r.terrainDerivative.terrainName || "") === name);
+}

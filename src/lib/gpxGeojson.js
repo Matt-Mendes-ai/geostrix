@@ -8,6 +8,7 @@
 // "polygon", epsg, features: [{ parts: [[[x, y], ...], ...], attributes }], skippedCount }, one layer per geometry kind
 // (a map layer has one). A tolerant text reader as kml.js, so it runs in Node for the tests and in the renderer.
 import { t as tr } from "./i18n.js"; // TASKS.csv #786
+import { featureLabel } from "./boundaryImport.js"; // TASKS.csv #1767
 
 const decode = (s) => String(s ?? "")
   .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1")
@@ -129,8 +130,9 @@ export function parseGeoJSON(text) {
 // line was drawn back to its start
 // toLocal (TASKS.csv #2587): (x, y, fromEpsg) -> { x, y } | null, a tied local grid's way in (lib/localGridTie.js fileToLocal); every
 // point that states a CRS goes through it (a 'not degrees' file is already in the grid's numbers)
+// partNames (TASKS.csv #1767): each part's feature name (a name / label property), '' when none
 export function layersToBoundaryPolylines(layers, epsg, reproject, toLocal = null) {
-  const polylines = [], closedFlags = [];
+  const polylines = [], closedFlags = [], partNames = [];
   let failed = 0;
   for (const l of layers) {
     if (l.geomType === "point") continue;
@@ -142,8 +144,8 @@ export function layersToBoundaryPolylines(layers, epsg, reproject, toLocal = nul
         if (!p) { failed++; continue; }
         pts.push({ x: p.x, y: p.y });
       }
-      if (pts.length >= 2) { polylines.push(pts); closedFlags.push(l.geomType === "polygon"); }
+      if (pts.length >= 2) { polylines.push(pts); closedFlags.push(l.geomType === "polygon"); partNames.push(featureLabel(f.attributes)); }
     }
   }
-  return { polylines, closedFlags, failed };
+  return { polylines, closedFlags, failed, ...(partNames.some(Boolean) ? { partNames } : {}) };
 }
