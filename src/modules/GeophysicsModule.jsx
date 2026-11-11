@@ -1049,7 +1049,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         const shapePolylines = await shapeFileToPolylines(file);
         const base = file.name.replace(/\.(ply|dxf|zip|shp|gpkg|kml|kmz|gpx|geojson|json)$/i, "");
         const addClaim = (c) => {
-          addBoundary({ name: c.name, polylines: c.polylines, ...(c.closedFlags ? { closedFlags: c.closedFlags } : {}), elevation: boundaryElevation, kind: "claim", status: "active", tenureNumber: c.tenureNumber || "", expiryDate: c.expiryDate || "", color: claimStatusColor("active") });
+          addBoundary({ name: c.name, polylines: c.polylines, ...(c.closedFlags ? { closedFlags: c.closedFlags } : {}), elevation: boundaryElevation, kind: "claim", status: c.status || "active", tenureNumber: c.tenureNumber || "", expiryDate: c.expiryDate || "", color: claimStatusColor(c.status || "active") }); // status from the file: #2466
           imported++;
         };
         // TASKS.csv #2122 — a claim is an area: a file of open lines (the 9 IP lines became nine 0 ha 'claims') goes to Boundaries instead

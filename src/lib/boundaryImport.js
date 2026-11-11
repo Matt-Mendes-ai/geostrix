@@ -66,7 +66,18 @@ export async function vectorToBoundaryPolylines(parsed, projectEpsg, { mineGrid 
 // its own claim, its tenure number, name and good-to date read from the attributes when a column says what it is. Up to `max`
 // claims; a bigger file (a whole province) stays one claim and the caller says so. -> [{ name, polylines, closedFlags,
 // tenureNumber, expiryDate }] or null when the file has one feature, no feature ids, or more than `max`.
-const TENURE_COL = /^(tenure|title)(_?(number|num|no|nbr))?(_?id)?$|^(tenure|title|claim)_?(number|num|no|nbr)(_?id)?$/i;
+// TASKS.csv #2466 (review #2325, WA uranium) — Western Australian tenement files: TEN_ID / TENID / TENEMENT / TENEMENT_ID, LEASE_NO
+const TENURE_COL = /^(tenure|title)(_?(number|num|no|nbr))?(_?id)?$|^(tenure|title|claim)_?(number|num|no|nbr)(_?id)?$|^ten_?id$|^tenement(_?(id|no|number|num))?$|^lease_?(id|no|number|num)$/i;
+const STATUS_COL = /^(status|ten_?status|tenure_?status|claim_?status|tenstatus)$/i;
+// a tenure status as the file words it -> "active" | "pending" | "expired" | null (said nothing GeoStrix knows)
+export function claimStatusOf(v) {
+  const t = String(v ?? "").trim().toLowerCase();
+  if (!t) return null;
+  if (/^(live|granted|active|good|in good standing|current|registered|issued)\b/.test(t)) return "active";
+  if (/^(pending|application|applied|app|proposed|under application)\b/.test(t)) return "pending";
+  if (/^(expired|dead|surrendered|cancelled|canceled|forfeited|lapsed|withdrawn|refused|terminated)\b/.test(t)) return "expired";
+  return null;
+}
 const NAME_COL = /^(claim|tenure|title)_?name$|^name$/i;
 const EXPIRY_COL = /good_?to|expir/i;
 // TASKS.csv #1767 (review #1645, Copley) — a feature's own name (a name / label / title property), so the parts of one boundary file (a claim
@@ -93,15 +104,16 @@ export function claimsFromVector(result, baseName, max = 300) {
   const { polylines = [], closedFlags = [], featureOf, attributes = [] } = result || {};
   if (!featureOf || featureOf.length !== polylines.length) return null;
   const used = [...new Set(featureOf)];
-  if (used.length < 2 || used.length > max) return null;
+  if (used.length < 1 || used.length > max) return null; // #2466 — one feature too: its tenure number / status were dropped
   const cols = [...new Set(attributes.flatMap((a) => Object.keys(a || {})))];
-  const tenureCol = attrColumn(cols, TENURE_COL), nameCol = attrColumn(cols, NAME_COL), expiryCol = attrColumn(cols, EXPIRY_COL);
+  const tenureCol = attrColumn(cols, TENURE_COL), nameCol = attrColumn(cols, NAME_COL), expiryCol = attrColumn(cols, EXPIRY_COL), statusCol = attrColumn(cols, STATUS_COL); // statusCol: #2466
   return used.map((fi, n) => {
     const at = attributes[fi] || {};
     const idx = featureOf.map((f, i) => (f === fi ? i : -1)).filter((i) => i >= 0);
     const tenure = tenureCol && at[tenureCol] != null ? String(at[tenureCol]).trim() : "";
     const label = (nameCol && at[nameCol] != null && String(at[nameCol]).trim()) || tenure || String(n + 1);
-    return { name: `${baseName} ${label}`, polylines: idx.map((i) => polylines[i]), closedFlags: idx.map((i) => closedFlags[i]), tenureNumber: tenure, expiryDate: expiryCol ? isoDateOf(at[expiryCol]) : "" };
+    const status = statusCol ? claimStatusOf(at[statusCol]) : null; // #2466
+    return { name: used.length === 1 ? baseName : `${baseName} ${label}`, polylines: idx.map((i) => polylines[i]), closedFlags: idx.map((i) => closedFlags[i]), tenureNumber: tenure, expiryDate: expiryCol ? isoDateOf(at[expiryCol]) : "", ...(status ? { status } : {}) };
   });
 }
 
