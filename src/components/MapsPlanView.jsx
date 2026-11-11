@@ -12,6 +12,7 @@ import { drawMapLayer, mapStyleSignature, mapTextureSize } from "../lib/mapLayer
 import { keyedCanvas } from "../lib/rasterKey.js";
 import { planDataExtent, planFarLayers } from "../lib/mapsPlan.js"; // planFarLayers: TASKS.csv #2125
 import { figureSamples, colourFromStops } from "../lib/sampleGrid.js"; // TASKS.csv #1622
+import { collarColourFields, perHoleAssay, collarColouring, declutterLabels } from "../lib/collarMapStyle.js"; // TASKS.csv #2459
 
 const imageCache = new Map(); // dataUrl (+ key colour) -> { img, ready }
 function cachedImage(url, keyColour, onReady) {
@@ -41,7 +42,7 @@ function hillshadeCanvas(t) {
 
 
 export default function MapsPlanView() {
-  const { rasters = [], terrain, mapLayers = [], boundaries = [], collars = [], surfaceSamples = [] } = useStore();
+  const { rasters = [], terrain, mapLayers = [], boundaries = [], collars = [], surfaceSamples = [], assays = [], assayElements = [] } = useStore(); // assays: #2459
   const wrapRef = useRef(null), canvasRef = useRef(null), layerCache = useRef(new Map()), drag = useRef(null);
   const [size, setSize] = useState({ w: 800, h: 600 });
   const [view, setView] = useState(null); // { cx, cy, mPerPx }
@@ -49,6 +50,15 @@ export default function MapsPlanView() {
   const [tick, setTick] = useState(0); // an image finished decoding
   const extent = useMemo(() => planDataExtent({ rasters, terrain, mapLayers, boundaries, collars, surfaceSamples }), [rasters, terrain, mapLayers, boundaries, collars, surfaceSamples]);
   const farLayers = useMemo(() => planFarLayers({ rasters, terrain, mapLayers, boundaries, collars }), [rasters, terrain, mapLayers, boundaries, collars]); // #2125
+  // TASKS.csv #2459 / #2591 — collars coloured by a collar field or a per-hole assay statistic, and labelled with their ids
+  const [colourBy, setColourBy] = useState(""); // "" | "f:<field>" | "max:<element>" | "mean:<element>"
+  const [showIds, setShowIds] = useState(false);
+  const colourFields = useMemo(() => collarColourFields(collars), [collars]);
+  const colouring = useMemo(() => {
+    if (!colourBy) return null;
+    const [kind, key] = [colourBy.slice(0, colourBy.indexOf(":")), colourBy.slice(colourBy.indexOf(":") + 1)];
+    return kind === "f" ? collarColouring(collars, { field: key }) : collarColouring(collars, { values: perHoleAssay(assays, key, kind) });
+  }, [colourBy, collars, assays]);
   const hill = useMemo(() => (terrain?.elevations?.length && terrain.gridW > 2 ? hillshadeCanvas(terrain) : null), [terrain]);
   // TASKS.csv #1622 (review #1497) — a gridded surface-sample element in one figure: the top visible geochemistry grid, its samples
   // drawn on top in the grid's own colours (a sample's colour against the grid around it shows what the gridding did), its contour
@@ -116,8 +126,19 @@ export default function MapsPlanView() {
       }
     }
     ctx.fillStyle = "#1a2028"; ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 1;
-    collars.forEach((c) => { if (!Number.isFinite(c.x)) return; ctx.beginPath(); ctx.arc(X(c.x), Y(c.y), 2.6, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); });
-  }, [v?.cx, v?.cy, v?.mPerPx, size, rasters, terrain, hill, mapLayers, boundaries, collars, surfaceSamples, tick, figure]);
+    collars.forEach((c) => {
+      if (!Number.isFinite(c.x)) return;
+      const col = colouring ? colouring.colourOf(c) : "#1a2028"; // #2459 — a hole with no value under the colouring: a small grey ring
+      ctx.beginPath(); ctx.arc(X(c.x), Y(c.y), col ? (colouring ? 3.6 : 2.6) : 2, 0, Math.PI * 2);
+      if (col) { ctx.fillStyle = col; ctx.fill(); ctx.strokeStyle = colouring ? "#1a2028" : "#ffffff"; ctx.stroke(); } else { ctx.strokeStyle = "#8a9099"; ctx.stroke(); }
+    });
+    if (showIds) { // #2459 — the hole ids, decluttered: a label that would overlap one already drawn is left out
+      ctx.font = "10px sans-serif"; ctx.textBaseline = "middle"; ctx.lineWidth = 3; ctx.strokeStyle = "rgba(255,255,255,0.9)"; ctx.fillStyle = "#1a2028";
+      const pts = collars.map((c) => (Number.isFinite(c.x) ? { x: X(c.x), y: Y(c.y) } : null)).map((p) => (p && p.x > -60 && p.y > -10 && p.x < size.w + 10 && p.y < size.h + 10 ? p : { x: NaN, y: NaN }));
+      const w = Math.min(90, 8 + Math.max(0, ...collars.slice(0, 500).map((c) => ctx.measureText(String(c.hole_id ?? "")).width)));
+      for (const l of declutterLabels(pts, w, 13)) { const t = String(collars[l.i].hole_id ?? ""); ctx.strokeText(t, l.x + 5, l.y); ctx.fillText(t, l.x + 5, l.y); }
+    }
+  }, [v?.cx, v?.cy, v?.mPerPx, size, rasters, terrain, hill, mapLayers, boundaries, collars, surfaceSamples, tick, figure, colouring, showIds]);
 
   if (!extent || !v) return null;
   const sb = niceScaleBar(v.mPerPx, 140);
@@ -141,6 +162,27 @@ export default function MapsPlanView() {
       <canvas ref={canvasRef} style={{ width: size.w, height: size.h, display: "block", cursor: drag.current ? "grabbing" : "crosshair" }} aria-label={tr("Plan of the map data")}
         onWheel={onWheel} onMouseDown={onDown} onMouseMove={onMove} onMouseUp={onUp} onMouseLeave={() => { onUp(); setCursor(null); }} onDoubleClick={fit} />
       {figure && <FigureLegend f={figure} chip={chip} />}
+      {collars.length > 0 && ( /* TASKS.csv #2459 / #2591 — the collars' colour and labels, and their legend */
+        <div style={{ ...chip, left: 10, top: 10, maxWidth: 270, display: "flex", flexDirection: "column", gap: 4, lineHeight: 1.35 }} onMouseDown={(e) => e.stopPropagation()}>
+          <label style={{ display: "flex", alignItems: "center", gap: 5 }}>
+            {tr("Collars")}
+            <select value={colourBy} onChange={(e) => setColourBy(e.target.value)} aria-label={tr("Colour collars by")} style={{ fontSize: "var(--font-size-sm)", flex: 1, minWidth: 0 }}>
+              <option value="">{tr("One colour")}</option>
+              {colourFields.length > 0 && <optgroup label={tr("Collar field")}>{colourFields.map((f) => <option key={f.key} value={`f:${f.key}`}>{f.key}</option>)}</optgroup>}
+              {assayElements.length > 0 && <optgroup label={tr("Per hole, from the assays")}>
+                {assayElements.flatMap((e) => [<option key={`max:${e.symbol}`} value={`max:${e.symbol}`}>{tr("Highest {el} in the hole", { el: e.symbol })}</option>, <option key={`mean:${e.symbol}`} value={`mean:${e.symbol}`}>{tr("{el}, length-weighted mean of the hole", { el: e.symbol })}</option>])}
+              </optgroup>}
+            </select>
+          </label>
+          <label style={{ display: "flex", alignItems: "center", gap: 5 }}><input type="checkbox" checked={showIds} onChange={(e) => setShowIds(e.target.checked)} />{tr("Hole ids")}</label>
+          {colouring && (
+            <div aria-label={tr("Collar legend")} style={{ display: "flex", flexDirection: "column", gap: 2, fontSize: "var(--font-size-xs)", fontVariantNumeric: "tabular-nums", maxHeight: 220, overflowY: "auto" }}>
+              {colouring.legend.map((l) => <span key={l.label} style={{ display: "flex", alignItems: "center", gap: 5 }}><span style={{ width: 9, height: 9, borderRadius: "50%", border: "1px solid #14181e", background: l.colour, flex: "0 0 auto" }} />{l.label}</span>)}
+              {colourBy.startsWith("max:") || colourBy.startsWith("mean:") ? <span>{tr("Classes at the quintiles of the holes' values; a grey ring is a hole with no value.")}</span> : null}
+            </div>
+          )}
+        </div>
+      )}
       <div style={{ ...chip, left: 10, bottom: 10, display: "flex", flexDirection: "column", gap: 3 }}>
         <div style={{ width: sb.px, height: 5, background: "#1a2028" }} />
         <span>{sb.label}</span>
