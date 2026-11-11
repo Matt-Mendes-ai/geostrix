@@ -308,11 +308,22 @@ export function zoneParts(rows, code, traces, stepM = 5, level = null) {
 // cards: [{ pts: [{ x, y, z, value }], reach }] (or plain point arrays) in card order -> { z, from: "point" | "level", within } | null
 export function targetElevation(cell, cardPoints, grid, level = null, bin = GRADE_BIN_M) {
   const r0 = Math.max(grid?.dx || 0, grid?.dy || 0, bin);
+  // TASKS.csv #2579 (review #2486) — the best point within the card's whole reach (250 m) gave a target 50-74 m off in RL on a sheet dipping
+  // 35 degrees: its E / N and its RL came from places 200 m apart. Now the best point within two cells of the target (its own ground), else
+  // the inverse-distance-squared mean RL of the points the card reaches; `dist` is the plan distance to the point used.
+  const near = 2 * r0;
   for (const card of cardPoints || []) {
     const pts = Array.isArray(card) ? card : card?.pts, r = Array.isArray(card) ? r0 : Math.max(r0, card?.reach || 0);
-    let best = null;
-    for (const p of pts || []) if (Number.isFinite(p.z) && Math.hypot(p.x - cell.x, p.y - cell.y) <= r && inLevel(p.z, level) && (!best || p.value > best.value)) best = p;
-    if (best) return { z: best.z, from: "point", within: r };
+    let best = null, bestD = 0, sw = 0, sz = 0, n = 0;
+    for (const p of pts || []) {
+      if (!Number.isFinite(p.z) || !inLevel(p.z, level)) continue;
+      const d = Math.hypot(p.x - cell.x, p.y - cell.y);
+      if (d > r) continue;
+      if (d <= near && (!best || p.value > best.value)) { best = p; bestD = d; }
+      const w = 1 / Math.max(1, d) ** 2; sw += w; sz += w * p.z; n++;
+    }
+    if (best) return { z: best.z, from: "point", within: Math.min(near, r), dist: bestD };
+    if (n) return { z: sz / sw, from: "mean", within: r, n };
   }
   if (level && level.zMin != null && level.zMax != null) return { z: (level.zMin + level.zMax) / 2, from: "level" };
   return null;

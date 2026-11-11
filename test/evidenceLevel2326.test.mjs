@@ -44,9 +44,10 @@ test("the target's elevation: the highest point of the first point card in the c
   const atA = targetElevation({ x: 100, y: 100 }, [pts], grid);
   assert.equal(atA.from, "point"); assert.ok(Math.abs(atA.z - 99) < 1e-6); assert.equal(atA.within, 25);
   assert.equal(targetElevation({ x: 120, y: 100 }, [pts], grid).from, "point"); // 20 m off: within one 25 m grade bin
-  // with the card's reach: a cell 150 m from hole A takes A's best point (RL 99), and the level narrows it to B's (RL 149)
+  // with the card's reach: a cell 150 m from both holes has no point under it; #2579 — the distance-weighted mean RL of A's (99) and
+  // B's (149) points, not A's best point 150 m away; the level narrows it to B's (RL 149)
   const far = targetElevation({ x: 250, y: 100 }, [{ pts, reach: 200 }], grid);
-  assert.equal(far.from, "point"); assert.equal(far.within, 200); assert.ok(Math.abs(far.z - 99) < 1e-6);
+  assert.equal(far.from, "mean"); assert.equal(far.within, 200); assert.ok(Math.abs(far.z - 124) < 1e-6); assert.equal(far.n, 2);
   assert.ok(Math.abs(targetElevation({ x: 250, y: 100 }, [{ pts: holeGradePoints(assays, "Au", "ppm", units, traces, undefined, { zMin: 120, zMax: 200 }), reach: 200 }], grid, { zMin: 120, zMax: 200 }).z - 149) < 1e-6);
   assert.deepEqual(targetElevation({ x: 1000, y: 1000 }, [pts], grid, { zMin: 100, zMax: 200 }), { z: 150, from: "level" });
   assert.equal(targetElevation({ x: 1000, y: 1000 }, [pts], grid), null);
