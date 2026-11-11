@@ -87,8 +87,14 @@ export function channelNoData(rows, col, unit = "") {
 export const noDataText = (nd, k = 4) => nd.codes.slice(0, k).map(([v, c]) => `${Math.abs(v) >= 1e6 ? v.toExponential(2).toUpperCase().replace("E+", "E+0").replace(/E\+0(\d\d)/, "E+$1") : v} × ${c}`).join(", ") + (nd.codes.length > k ? ", …" : "");
 
 // TASKS.csv #2160 — readings kept raw while the layers stay under this many values in all; above it binning is offered (decision (2))
-export const LOG_RAW_BUDGET = 1_000_000;
+// TASKS.csv #2430 (review #2325, WA uranium) — was 1,000,000: two channels of a 439,780-reading log (879,560 values) stayed under it, so the
+// default import kept every reading: one 3.7 s freeze and 98 -> 937 MB of heap. 200,000 values pre-selects 0.5 m bins on such a log.
+export const LOG_RAW_BUDGET = 200_000;
 export const needsBinning = (readings, channels) => readings * Math.max(1, channels) > LOG_RAW_BUDGET;
+// #2430 — what every reading costs in memory once committed: the review measured about 420 MB of heap per 439,780-reading channel, i.e.
+// close to 1 KB a value (one point row each). An estimate for the dialog's text, rounded to 10 MB; never below 10.
+export const LOG_BYTES_PER_VALUE = 1000;
+export const rawLogMB = (readings, channels) => Math.max(10, Math.round((readings * Math.max(1, channels) * LOG_BYTES_PER_VALUE) / 1e7) * 10);
 
 // one channel's layer rows. binM null: a row per reading { hole_id, depth, value }; binM > 0: per hole, per bin [k*binM, (k+1)*binM):
 // { hole_id, from, to, value (mean), min, max, n }. Readings with no number are left out (counted in skipped).

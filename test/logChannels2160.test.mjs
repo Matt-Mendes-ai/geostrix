@@ -54,7 +54,7 @@ test("binning is proposed only above the budget (the WA iron log: 2.58 M reading
   assert.equal(defaultLogBin(2_584_475, 3), 0.5);
   assert.equal(needsBinning(50_000, 3), false);
   assert.equal(defaultLogBin(50_000, 3), null);
-  assert.equal(LOG_RAW_BUDGET, 1_000_000);
+  assert.equal(LOG_RAW_BUDGET, 200_000); // TASKS.csv #2430 (was 1,000,000)
 });
 
 test("the dialog box and the commit are wired", () => {

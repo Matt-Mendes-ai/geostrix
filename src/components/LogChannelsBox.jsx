@@ -1,7 +1,7 @@
 // TASKS.csv #2160 (Matt's decision 2026-11-09) — in the import dialog, for a point-depth custom layer: the log channels to import, one
 // numeric layer each, units read from the column names; and, when the readings would not fit the memory budget, the bin to average them to.
 import React, { useMemo } from "react";
-import { logChannelColumns, defaultLogChannels, effectiveLogBin, logBoxPatch, needsBinning, looksLikeLogTable, channelNoData, noDataText } from "../lib/downholeLogChannels.js"; // no-data: TASKS.csv #2332; effectiveLogBin / logBoxPatch: #2333
+import { logChannelColumns, defaultLogChannels, effectiveLogBin, logBoxPatch, needsBinning, looksLikeLogTable, channelNoData, noDataText, rawLogMB } from "../lib/downholeLogChannels.js"; // no-data: TASKS.csv #2332; effectiveLogBin / logBoxPatch: #2333
 import { t as tr } from "../lib/i18n.js";
 
 const note = { fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", lineHeight: 1.45 };
@@ -43,9 +43,9 @@ export default function LogChannelsBox({ modal, onChange, sel }) {
         <div style={{ marginTop: 8 }}>
           <div style={{ ...note, color: over && binM ? "var(--color-warn-text)" : "var(--color-text-muted)" }}>{over && binM
             ? tr("{n} readings × {k} channel(s) is more than GeoStrix keeps reading by reading on this computer: they are averaged to a bin (mean, with the bin's minimum and maximum kept), stated in the notice and the layer. The file stays the source.", { n: rows.length.toLocaleString(), k: ticked.length })
-            : over ? tr("{n} readings × {k} channel(s) is more than GeoStrix keeps reading by reading on this computer, and every reading is chosen: the import may be slow or run out of memory. A bin averages them.", { n: rows.length.toLocaleString(), k: ticked.length })
+            : over ? tr("{n} readings × {k} channel(s) is more than GeoStrix keeps reading by reading on this computer, and every reading is chosen: about {mb} MB of memory, and the import may be slow or run out of memory. A bin averages them.", { n: rows.length.toLocaleString(), k: ticked.length, mb: rawLogMB(rows.length, ticked.length).toLocaleString() })
             : binM ? tr("Readings averaged to a bin (mean, with its minimum and maximum).")
-            : tr("Every reading is kept. A bin averages them (mean, with its minimum and maximum).")}</div>
+            : tr("Every reading is kept (about {mb} MB of memory). A bin averages them (mean, with its minimum and maximum).", { mb: rawLogMB(rows.length, ticked.length).toLocaleString() })}</div>{/* the MB: TASKS.csv #2430 */}
           <select value={binM ?? ""} onChange={(e) => set({ logBinM: e.target.value === "" ? null : Number(e.target.value) })} style={{ ...sel, marginTop: 4 }} aria-label={tr("Log bin")}>
             <option value="0.5">{tr("0.5 m bins")}</option>
             <option value="1">{tr("1 m bins")}</option>
