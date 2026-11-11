@@ -9,15 +9,26 @@ export function belowDrilling(cells, points, radiusM) {
   // each hole's deepest sample, in a plan grid of R-sized bins
   const deepest = new Map();
   for (const p of points) { const k = p.hole_id ?? `${p.x},${p.y}`; const d = deepest.get(k); if (!d || p.z < d.z) deepest.set(k, { x: p.x, y: p.y, z: p.z }); }
-  const bins = new Map(), key = (i, j) => `${i},${j}`;
+  const bins = new Map(), key = (i, j) => (i + 1048576) * 2097152 + (j + 1048576); // numeric: #2547
   for (const b of deepest.values()) { const k = key(Math.floor(b.x / R), Math.floor(b.y / R)); if (!bins.has(k)) bins.set(k, []); bins.get(k).push(b); }
+  // #2547 — blocks of one column share their plan position: the lowest deepest-sample within R is found once per column (33 levels on the
+  // profiled run), with squared distances
+  const R2 = R * R, colLow = new Map();
+  const lowAt = (x, y) => {
+    const ck = `${x}|${y}`;
+    let low = colLow.get(ck);
+    if (low !== undefined) return low;
+    low = Infinity;
+    const i0 = Math.floor(x / R), j0 = Math.floor(y / R);
+    for (let i = i0 - 1; i <= i0 + 1; i++) for (let j = j0 - 1; j <= j0 + 1; j++) for (const b of bins.get(key(i, j)) || []) { const ddx = b.x - x, ddy = b.y - y; if (ddx * ddx + ddy * ddy <= R2 && b.z < low) low = b.z; }
+    colLow.set(ck, low);
+    return low;
+  };
   let blocks = 0, all = 0, below = 0;
   for (const c of cells) {
     const m = Math.max(0, Number(c.value) || 0) * (c.dx || 1) * (c.dy || 1) * (c.dz || 1);
     all += m;
-    const i0 = Math.floor(c.x / R), j0 = Math.floor(c.y / R);
-    let low = Infinity;
-    for (let i = i0 - 1; i <= i0 + 1; i++) for (let j = j0 - 1; j <= j0 + 1; j++) for (const b of bins.get(key(i, j)) || []) if (Math.hypot(b.x - c.x, b.y - c.y) <= R && b.z < low) low = b.z;
+    const low = lowAt(c.x, c.y);
     if (Number.isFinite(low) && c.z + (c.dz || 0) / 2 < low) { blocks++; below += m; }
   }
   return { blocks, of: cells.length, metalShare: all > 0 ? below / all : 0 };

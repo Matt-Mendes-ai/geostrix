@@ -6,6 +6,29 @@
 // estimate filled, so all three describe the same volume. Pure: no React.
 
 const blockKey = (c) => `${Math.round(c.x * 1000)},${Math.round(c.y * 1000)},${Math.round(c.z * 1000)}`; // same lattice, so mm keys match
+// TASKS.csv #2547 — the estimate / NN join, built once per pair of models and shared by the check and the three swaths (it was rebuilt four
+// times, each with 190,000 string keys), keyed by the lattice index from the first block (both models share the lattice); a model whose
+// blocks are not on one lattice falls back to the mm string key
+const joinCache = new WeakMap();
+function joined(cells, nnCells) {
+  let byNn = joinCache.get(cells);
+  if (byNn?.nn === nnCells) return byNn.pairs;
+  const o = cells.find((c) => Number.isFinite(c.value)) || nnCells[0];
+  const ok = o && [o.dx, o.dy, o.dz].every((v) => v > 0);
+  const idx = (c) => {
+    const i = Math.round((c.x - o.x) / o.dx), j = Math.round((c.y - o.y) / o.dy), k = Math.round((c.z - o.z) / o.dz);
+    if (Math.abs(c.x - o.x - i * o.dx) > 1e-3 || Math.abs(c.y - o.y - j * o.dy) > 1e-3 || Math.abs(c.z - o.z - k * o.dz) > 1e-3 || Math.abs(i) > 99999 || Math.abs(j) > 99999 || Math.abs(k) > 99999) return null;
+    return ((i + 100000) * 200001 + (j + 100000)) * 200001 + (k + 100000);
+  };
+  const nnBy = new Map();
+  let lattice = ok;
+  if (lattice) for (const c of nnCells) { if (!Number.isFinite(c.value)) continue; const k = idx(c); if (k == null) { lattice = false; break; } nnBy.set(k, c.value); }
+  if (!lattice) { nnBy.clear(); for (const c of nnCells) if (Number.isFinite(c.value)) nnBy.set(blockKey(c), c.value); }
+  const pairs = [];
+  for (const c of cells) { if (!Number.isFinite(c.value)) continue; const v = nnBy.get(lattice ? idx(c) : blockKey(c)); if (v !== undefined) pairs.push([c, v]); }
+  joinCache.set(cells, { nn: nnCells, pairs });
+  return pairs;
+}
 
 // the composite mean, length-weighted (a point without a length counts once)
 export function compositeMean(points) {
@@ -17,15 +40,8 @@ export function compositeMean(points) {
 // -> { composites: { mean, n }, nn: { mean, n }, estimate: { mean, n }, departPct, nnVsCompositesPct } — the block
 // means are plain means (every block of one model has the same volume), over the blocks both models filled
 export function estimateCheck(cells, nnCells, points) {
-  const nnBy = new Map();
-  for (const c of nnCells) if (Number.isFinite(c.value)) nnBy.set(blockKey(c), c.value);
   let n = 0, se = 0, sn = 0;
-  for (const c of cells) {
-    if (!Number.isFinite(c.value)) continue;
-    const v = nnBy.get(blockKey(c));
-    if (v === undefined) continue;
-    n++; se += c.value; sn += v;
-  }
+  for (const [c, v] of joined(cells, nnCells)) { n++; se += c.value; sn += v; } // #2547 — the shared join
   const est = n ? se / n : null, nn = n ? sn / n : null, comp = compositeMean(points);
   const pct = (a, b) => (a != null && b != null && b !== 0 ? (100 * (a - b)) / b : null);
   return {
@@ -39,10 +55,7 @@ export function estimateCheck(cells, nnCells, points) {
 // to whole blocks), each with the length-weighted composite mean and the NN and estimate block means over the blocks
 // both models filled. -> [{ from, to, mid, composite, compositeN, nn, estimate, blocks }]
 export function swath(cells, nnCells, points, axis, { width = null, slices = 12 } = {}) {
-  const nnBy = new Map();
-  for (const c of nnCells) if (Number.isFinite(c.value)) nnBy.set(blockKey(c), c.value);
-  const both = [];
-  for (const c of cells) { if (!Number.isFinite(c.value)) continue; const v = nnBy.get(blockKey(c)); if (v !== undefined) both.push([c, v]); }
+  const both = joined(cells, nnCells); // #2547 — the shared join
   if (!both.length) return [];
   const d = axis === "x" ? "dx" : axis === "y" ? "dy" : "dz", cell = both[0][0][d] || 1;
   let lo = Infinity, hi = -Infinity;
