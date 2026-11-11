@@ -21,7 +21,7 @@ import { elementColumnStats } from "../lib/assayColumnScan.js"; // TASKS.csv #21
 const ELEMENT_SCAN_CHUNKED_ROWS = 50000; // #2164 — below this the element columns are counted at once
 import { saveFile, loadSampleFiles } from "../lib/desktop.js"; // loadSampleFiles: TASKS.csv #391
 import { repeatColumns, columnDetectionLimit, isElementColumn, inferUnit, pickElementColumns, assayExportRows, parseAssayValue, valueIn, readAssayCell, columnPositiveMax, convertUnit, mergeAssayRows, holesWithChangedIntervals, dropHoleAssays, blankDetectionLimit, isBlankAssayCell, oxideOfHeader, fromOxideHeader, oxideUnit, importStoreUnit, oxideBasisUnit, surfaceAttrColumns, surfaceAttrs, mergeSurfaceSamples, otherMediumTwins } from "../lib/geochem.js"; // otherMediumTwins: #2085
-import { DIAGRAMS, SPIDER_DIAGRAMS, GEOCHEM_METHODS, diagramExportRows, protolithForSample, PROVISIONAL_ALTERATION_BOXES, GEOCHEM_LABELS, reeProfile, loggedCodeAt, isSedimentaryCode, mergeClassRuns, FITTED_PROTOLITH, fitLeastAlteredBox, nameAiUpTrend , censoredOperand, censoredLeftOut } from "../lib/geochemDiagrams.js"; // fitted: #2028; nameAiUpTrend: #2145
+import { DIAGRAMS, SPIDER_DIAGRAMS, GEOCHEM_METHODS, diagramExportRows, protolithForSample, PROVISIONAL_ALTERATION_BOXES, GEOCHEM_LABELS, reeProfile, loggedCodeAt, isSedimentaryCode, mergeClassRuns, FITTED_PROTOLITH, fitLeastAlteredBox, nameAiUpTrend , censoredOperand, censoredLeftOut, guessProtolith } from "../lib/geochemDiagrams.js"; // fitted: #2028; nameAiUpTrend: #2145
 import { qcRecordFromFileRow, emptySurfaceQc, looksLikeQcTypeColumn, mergeQcRecords } from "../lib/surfaceQaqc.js"; // TASKS.csv #842; looksLikeQcTypeColumn, mergeQcRecords: #1794
 import { mapInChunks } from "../lib/mapInChunks.js"; // TASKS.csv #583
 import { detectLongAssay, pivotLongAssays, longAssayNote } from "../lib/longAssays.js"; // TASKS.csv #623
@@ -35,6 +35,7 @@ import { dbImportRecord, upsertDbImport } from "../lib/dbImports.js"; // TASKS.c
 import LabCertificateModal from "../components/LabCertificateModal.jsx"; // TASKS.csv #601
 import { isLabCertificateText, parseLabCertificate, combineCertificates, joinCertificatesToAssays, suggestQcTypes, qcRowPlacement, indexAssaysForPlacement } from "../lib/labCertificate.js"; // TASKS.csv #601
 import AlterationBoxModal from "../components/AlterationBoxModal.jsx"; // TASKS.csv #503
+import VolcanicCodesModal, { NOT_LOGGED_CODE } from "../components/VolcanicCodesModal.jsx"; // TASKS.csv #2352
 import SurfaceImportModal, { SURFACE_MEDIA } from "../components/SurfaceImportModal.jsx";
 // TASKS.csv #1794 — the medium a cell names (the import's own list and aliases), for telling a medium column from a QC-type column
 const surfaceMediumOf = (m) => (SURFACE_MEDIA.includes(m) ? m : /rock|grab|chip|outcrop|float|channel|soil|silt|stream|sediment|moss|talus|bleg|\bhmc\b|heavy.?min|concentrate|water/.test(m) ? m : null);
@@ -96,6 +97,7 @@ export default function GeochemModule() {
   const keptScope = scopeOf(store.getProjectToken()); // TASKS.csv #1284 — survives a tab switch
   const { assays, setAssays, assayElements, setAssayElements, surfaceSamples, setSurfaceSamples, surfaceElements, setSurfaceElements, geochemThresholds, setGeochemThresholds, surfaceQc, setSurfaceQc, mapLayers, replaceLayer, layers, collars, survey, boundaries, alterationBoxes, setAlterationBoxes, project, projectIsEmpty, setEpsg, viewerUiState } = store; // viewerUiState: #1091 (the 3D legend's colour edits)
   const [altBoxOpen, setAltBoxOpen] = useState(false); // TASKS.csv #503
+  const [volcModal, setVolcModal] = useState(null); // TASKS.csv #2352 — { methodKey, codes } while asking which logged codes are volcanic
   const assayHoleIds = useMemo(() => new Set(assays.map((a) => a.hole_id)), [assays]);
 
   const [diagramId, setDiagramId] = useKeptState(keptScope, "geochem.diagramId", "boxplot");
@@ -972,10 +974,23 @@ export default function GeochemModule() {
     enqueueAssayFiles(files); // #1652 — one after another (several at once all opened the one dialog)
   };
 
-  const runMethod = (methodKey, altSetup = null) => {
+  const runMethod = (methodKey, altSetup = null, volcanic = null) => { // volcanic: #2352 — the logged codes ticked as volcanic
     const method = GEOCHEM_METHODS[methodKey];
     const missing = method.requires.filter((s) => !availableSymbols.has(s));
     if (missing.length) { setNotices((p) => [...p, errorNotice(tr("{label}: missing {missing}.", { label: tr(method.label), missing: missing.join(", ") }))]); return; }
+    // TASKS.csv #2352 — a volcanic classifier on a logged project asks first which logged codes are volcanic (14 of Jensen's 19 intervals on
+    // the WA uranium sample were tholeiitic basalt on lignite); a code starts ticked only when its name reads as a volcanic rock
+    if (method.volcanicOnly && !volcanic && (layers.litho || []).length) {
+      const lb = new Map();
+      (layers.litho || []).forEach((r) => { if (!lb.has(r.hole_id)) lb.set(r.hole_id, []); lb.get(r.hole_id).push(r); });
+      const counts = new Map();
+      for (const a of labAssays(assays)) {
+        if (classifyQAQCRow(a) !== "regular" || !method.requires.every((s) => a.values?.[s] != null)) continue;
+        const c = loggedCodeAt(a, lb) ?? NOT_LOGGED_CODE;
+        counts.set(c, (counts.get(c) || 0) + 1);
+      }
+      if (counts.size) { setVolcModal({ methodKey, codes: [...counts].sort((x, y) => y[1] - x[1]).map(([code, n]) => ({ code, n, volcanic: !!code && !isSedimentaryCode(code) && !!guessProtolith(code) })) }); return; }
+    }
     // TASKS.csv #503 — the box plot needs its protolith set-up first (dialog), then classifies per sample
     if (methodKey === "alteration_boxplot" && !altSetup) { setAltBoxOpen(true); return; }
     const targetKey = method.target === "litho" ? "litho_gc" : "alt_gc";
@@ -1012,7 +1027,7 @@ export default function GeochemModule() {
         if (!protolith) { noProtolith++; return null; }
         opts = { protolith, boxes: altSetup.boxes };
       }
-      if (method.volcanicOnly) { const code = loggedCodeAt(a, lithoByHole); if (isSedimentaryCode(code)) { sedSkipped[code] = (sedSkipped[code] || 0) + 1; return null; } }
+      if (method.volcanicOnly && method.requires.every((el) => a.values?.[el] != null)) { const code = loggedCodeAt(a, lithoByHole); /* #2352: counted only where the classifier could run */ if (volcanic ? !volcanic.has(code ?? NOT_LOGGED_CODE) : isSedimentaryCode(code)) { const k = code || tr("not logged"); sedSkipped[k] = (sedSkipped[k] || 0) + 1; return null; } } // #2352: the ticked codes
       if (method.ratio) { const c = censoredOperand(a, method.requires); if (c) { bdlLeft[c] = (bdlLeft[c] || 0) + 1; return null; } } // #2501
       let value = method.classify(a.values, elementUnits, a, opts);
       if (!value) return null;
@@ -1032,7 +1047,7 @@ export default function GeochemModule() {
     const sedN = Object.values(sedSkipped).reduce((s, n) => s + n, 0);
     const bdlN = Object.values(bdlLeft).reduce((s, n) => s + n, 0); // #2501
     const bdlText = bdlN ? tr(" {n} sample(s) were not classified: a below-detection operand is not a measurement ({list}).", { n: bdlN, list: Object.entries(bdlLeft).sort((x, y) => y[1] - x[1]).map(([k, n]) => tr("{el} below detection in {n}", { el: k, n })).join(", ") }) : "";
-    const sedText = sedN ? tr(" {n} sample(s) in logged sedimentary or carbonate codes ({codes}) were not classified: this classifier is for volcanic rocks.", { n: sedN, codes: Object.entries(sedSkipped).sort((x, y) => y[1] - x[1]).map(([k, n]) => `${k} ${n}`).join(", ") }) : "";
+    const sedText = sedN && volcanic ? tr(" {n} sample(s) were not classified: their logged codes were not ticked as volcanic ({codes}); this classifier is for volcanic rocks.", { n: sedN, codes: Object.entries(sedSkipped).sort((x, y) => y[1] - x[1]).map(([k, n]) => `${k} ${n}`).join(", ") }) /* #2352 */ : sedN ? tr(" {n} sample(s) in logged sedimentary or carbonate codes ({codes}) were not classified: this classifier is for volcanic rocks.", { n: sedN, codes: Object.entries(sedSkipped).sort((x, y) => y[1] - x[1]).map(([k, n]) => `${k} ${n}`).join(", ") }) : "";
     const jensenText = methodKey === "litho_jensen" ? tr(" The classes are a simplified threshold split of the cation ternary, not the published Jensen fields.") : "";
     setNotices((p) => [...p, notice(runs.length ? "Generated {rows} intervals from {n} samples → {v} layer (touching samples of one class are joined).{detail} Switch to 3D View to see it." : "No interval was generated from {n} samples, so the {v} layer is empty.{detail}", { rows: runs.length, n: rows.length, v: method.target === "litho" ? tr("Lithology (geochem)") : tr("Alteration (geochem)"), detail: (fitted ? (countList ? ` ${countList}.` : "") + fitText + tr(" Screening level.") : detail) + trendText + sedText + bdlText + jensenText })]); // fitted: #2028; trendText: #2145; bdlText: #2501
     { const pd = partialDigestionFor(assayElements, method.requires); if (pd.length) setNotices((p) => [...p, notice("Partial digestion: {list}. A four-acid or aqua-regia digestion does not fully dissolve zircon and other resistant minerals, so Zr and Hf (and partly Nb, Ta, Y and the REE) read low and the fields shift. Immobile-element diagrams and classifiers need a total (fusion / lithium-borate) digestion.", { list: pd.map(([s, m]) => `${s} ${m}`).join(", ") })]); } // #1518
@@ -1378,6 +1393,10 @@ export default function GeochemModule() {
         )}
       </div>
 
+      {volcModal && ( /* TASKS.csv #2352 */
+        <VolcanicCodesModal label={tr(GEOCHEM_METHODS[volcModal.methodKey].label)} codes={volcModal.codes} onCancel={() => setVolcModal(null)}
+          onRun={(set) => { const k = volcModal.methodKey; setVolcModal(null); runMethod(k, null, set); }} />
+      )}
       {altBoxOpen && (
         <AlterationBoxModal
           saved={alterationBoxes}

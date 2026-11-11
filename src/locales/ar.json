@@ -9802,5 +9802,12 @@
   "{n} readings × {k} channel(s) is more than GeoStrix keeps reading by reading on this computer, and every reading is chosen: the import may be slow or run out of memory. A bin averages them.": "{n} قراءة × {k} قناة أكثر مما يحفظه GeoStrix قراءةً بقراءة على هذا الحاسوب، وقد اختيرت كل قراءة: قد يكون الاستيراد بطيئًا أو تنفد الذاكرة. يحسب المجال متوسطها.",
   "Every reading is kept. A bin averages them (mean, with its minimum and maximum).": "تُحفظ كل قراءة. يحسب المجال متوسطها (المتوسط مع الحد الأدنى والأقصى).",
   "{n} hole(s), {v} of them vertical, have a survey station at the collar only ({d1}-{d2} m deep): each is drawn straight at that attitude. Their path below the collar is not measured; a downhole survey would show any deviation.": "{n} بئرًا، منها {v} رأسية، لها محطة مسح عند الفوهة فقط (بعمق {d1}-{d2} م): يُرسم كل منها مستقيمًا بذلك الاتجاه. مسارها تحت الفوهة غير مقيس؛ وسيُظهر مسح داخل البئر أي انحراف.",
-  "{header} looks like a repeat of {symbol}: {n} samples have both, median ratio {r}. Keep it as QC duplicates": "{header} يبدو تكرارًا لـ {symbol}: لدى {n} عينة كلاهما، النسبة الوسيطة {r}. احتفظ به كنسخ مكررة لضبط الجودة"
+  "{header} looks like a repeat of {symbol}: {n} samples have both, median ratio {r}. Keep it as QC duplicates": "{header} يبدو تكرارًا لـ {symbol}: لدى {n} عينة كلاهما، النسبة الوسيطة {r}. احتفظ به كنسخ مكررة لضبط الجودة",
+  "Which logged codes are volcanic?": "أي الرموز المسجلة بركانية؟",
+  "{label} names volcanic rocks only. Tick the logged codes that are volcanic: the samples logged as anything else are left unclassified, and the notice says how many. A code is ticked to start with only when its name reads as a volcanic rock.": "{label} يسمي الصخور البركانية فقط. حدد الرموز المسجلة البركانية: تبقى العينات المسجلة بغير ذلك بلا تصنيف، ويذكر الإشعار عددها. لا يُحدد رمز في البداية إلا إذا دل اسمه على صخر بركاني.",
+  "Volcanic: {code}": "بركاني: {code}",
+  "{n} sample(s)": "{n} عينة",
+  "Classify {n} sample(s)": "صنّف {n} عينة",
+  "No code is ticked: none of these samples is logged as a volcanic rock, so nothing would be classified.": "لا رمز محدد: لا توجد عينة منها مسجلة كصخر بركاني، لذا لن يُصنف شيء.",
+  " {n} sample(s) were not classified: their logged codes were not ticked as volcanic ({codes}); this classifier is for volcanic rocks.": " لم تُصنف {n} عينة: لم تُحدد رموزها المسجلة كبركانية ({codes})؛ هذا المصنِّف للصخور البركانية."
 }

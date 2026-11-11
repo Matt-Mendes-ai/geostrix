@@ -387,8 +387,10 @@ export function loggedCodeAt(sample, lithoByHole) {
 }
 // #1380 — the usual whole codes of sedimentary and carbonate rocks: a volcanic classifier (Jensen, Winchester & Floyd) called
 // Silvertip's limestone and dolostone "komatiite" because their MgO dominates the cation sum
+// TASKS.csv #2352 (review #2325, WA uranium) — and the cover / palaeochannel codes: lignite, clay, claystone, sand, silt, lignitic clay,
+// conglomerate, calcrete, carbonaceous clay, mud (LIG, CLY, CLS, SAN, SLT, STS, LIC, CON, CAL, CBC)
 export function isSedimentaryCode(code) {
-  return /^(lmst|lst|ls|limestone|dlst|dolst|dolostone|dolomite|marble|mbl|slst|sltst|siltstone|sndst|sst|sandstone|sh|shale|arg|argillite|mdst|mudstone|cong|cgl|conglomerate|chert|cht|wacke|gwke|greywacke|graywacke|evap|evaporite|coal)$/i.test(String(code || "").trim());
+  return /^(lmst|lst|ls|limestone|dlst|dolst|dolostone|dolomite|dol|marble|mbl|slst|sltst|siltstone|slt|sts|sndst|sst|sandstone|san|sand|sh|shale|arg|argillite|mdst|mudstone|mud|cong|cgl|con|conglomerate|chert|cht|wacke|gwke|greywacke|graywacke|evap|evaporite|coal|lig|lignite|lic|cly|clay|cls|claystone|cbc|cal|calcrete)$/i.test(String(code || "").trim());
 }
 
 // ---------- alteration / litho classification (reuse projections above) ----------
