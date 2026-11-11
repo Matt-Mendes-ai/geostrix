@@ -42,7 +42,8 @@ export function surfaceSampleTip(row, { units = {}, mapped = null, max = 8 } = {
   const els = orderedElements(row.values).filter((s) => s !== mapped?.sym);
   for (const s of els.slice(0, max)) lines.push(`${s}: ${row.bdl?.includes(s) ? sampleValueText(row, s) : row.values[s]}${units[s] || "ppm"}`); // #2565: '<limit' below detection; otherwise as before
   if (els.length > max) lines.push(tr("+{n} more elements (Identify lists them all)", { n: els.length - max }));
-  lines.push(`${row.x.toFixed(0)}E ${row.y.toFixed(0)}N ${row.z.toFixed(0)}Z${row.zDraped ? " (from the terrain — no elevation in the file)" : row.zFlat ? " (flat at the plan elevation — no elevation in the file and no terrain)" : ""}`); // #606, #1818
+  // #606, #1818; TASKS.csv #2273 — zOutside: a terrain is loaded but has no ground here (outside it, or a gap of a terrain made from points)
+  lines.push(`${row.x.toFixed(0)}E ${row.y.toFixed(0)}N ${row.z.toFixed(0)}Z${row.zDraped ? " (from the terrain — no elevation in the file)" : row.zFlat && row.zOutside ? " " + tr("(flat at the plan elevation — no elevation in the file, and the terrain has no ground here)") : row.zFlat ? " (flat at the plan elevation — no elevation in the file and no terrain)" : ""}`);
   return lines.join("\n");
 }
 

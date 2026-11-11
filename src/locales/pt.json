@@ -6436,7 +6436,7 @@
   "Interpretation lines": "Linhas de interpretação",
   "Interpret": "Interpretar",
   "Draw faults, contacts and lineaments over a geophysics survey. Each set of lines is a map layer: it drapes on the terrain, exports as Shapefile, GeoPackage, KML or DXF, and prints in the Layout legend.": "Desenhe falhas, contatos e lineamentos sobre um levantamento geofísico. Cada conjunto de linhas é uma camada de mapa: ela se ajusta ao terreno, exporta como Shapefile, GeoPackage, KML ou DXF e aparece na legenda do Layout.",
-  "Draw faults, contacts and lineaments over a survey in the 3D view (Top view works best). Each set of lines is a map layer: it drapes on the terrain, exports as Shapefile, GeoPackage, KML or DXF, and prints in the Layout legend.": "Desenhe falhas, contatos e lineamentos sobre um levantamento na vista 3D (a vista Superior funciona melhor). Cada conjunto de linhas é uma camada de mapa: ela se ajusta ao terreno, exporta como Shapefile, GeoPackage, KML ou DXF e aparece na legenda do Layout.",
+  "Draw faults, contacts and lineaments over the map or a survey in the 3D view (Top view works best). Each set of lines is a map layer: it drapes on the terrain, exports as Shapefile, GeoPackage, KML or DXF, and prints in the Layout legend.": "Desenhe falhas, contatos e lineamentos sobre o mapa ou um levantamento na vista 3D (a vista Superior funciona melhor). Cada conjunto de linhas é uma camada de mapa: ela se ajusta ao terreno, exporta como Shapefile, GeoPackage, KML ou DXF e aparece na legenda do Layout.",
   "Draw faults, contacts and lineaments over this survey in the 3D view; they become a map layer": "Desenhe falhas, contatos e lineamentos sobre este levantamento na vista 3D; eles viram uma camada de mapa",
   "Draw interpretation lines…": "Desenhar linhas de interpretação…",
   "Survey the lines are drawn on": "Levantamento sobre o qual as linhas são desenhadas",
@@ -6461,7 +6461,7 @@
   "Line note": "Nota da linha",
   "Note (optional)": "Nota (opcional)",
   "Draw a line": "Desenhar uma linha",
-  "Click the first point on the survey.": "Clique no primeiro ponto sobre o levantamento.",
+  "Click the first point of the line.": "Clique no primeiro ponto da linha.",
   "{n} point(s), {m} m. Click to add a point; double-click or Finish to end the line.": "{n} ponto(s), {m} m. Clique para adicionar um ponto; duplo clique ou Concluir para encerrar a linha.",
   "A line needs at least two points.": "Uma linha precisa de pelo menos dois pontos.",
   "Added \"{name}\" to \"{layer}\" ({m} m).": "“{name}” adicionada a “{layer}” ({m} m).",
@@ -10048,5 +10048,13 @@
   "{field}: no column matched; the names looked for are {names}.": "{field}: nenhuma coluna correspondeu; os nomes procurados são {names}.",
   "{n} row(s) shared a hole id with an earlier row of the file; the first was kept ({ids})": "{n} linha(s) compartilhavam um ID de furo com uma linha anterior do arquivo; a primeira foi mantida ({ids})",
   "{fileName}: {n} pick(s) have an alpha angle and no beta: kept unoriented (the stereonet counts them; the core orientation calculator can orient them from a reference).": "{fileName}: {n} estrutura(s) têm ângulo alfa e não beta: mantidas sem orientação (o estereograma as conta; a calculadora de orientação de testemunho pode orientá-las a partir de uma referência).",
-  " The {what} of {v} was identical to the one already loaded: nothing changed there.": " O {what} de {v} era idêntico ao já carregado: nada mudou ali."
+  " The {what} of {v} was identical to the one already loaded: nothing changed there.": " O {what} de {v} era idêntico ao já carregado: nada mudou ali.",
+  "Shear zone": "Zona de cisalhamento",
+  "(flat at the plan elevation — no elevation in the file, and the terrain has no ground here)": "(plano na elevação do plano: sem elevação no arquivo, e o terreno não tem chão aqui)",
+  "· the rose counts {n} of {m} plane(s): those dipping {d}° or more": "· a roseta conta {n} de {m} plano(s): os que mergulham {d}° ou mais",
+  "Comment": "Comentário",
+  "Elevation (recorded)": "Elevação (registrada)",
+  "{z} m, from the terrain (no elevation in the file)": "{z} m, do terreno (sem elevação no arquivo)",
+  "none in the file: drawn flat at {z} m": "nenhuma no arquivo: desenhado plano a {z} m",
+  "none in the file": "nenhuma no arquivo"
 }

@@ -30,6 +30,10 @@ export function Ribbon({ children, show = true, label = "Tools" }) {
     if (!el) return;
     const n = mode === "simple" ? [...el.querySelectorAll(".ge-ribbon-btn")].filter((b) => b.closest(".ge-adv")).length : 0;
     if (n !== hidden) setHidden(n);
+    // TASKS.csv #2272 (review #2174) — a tab whose ribbon has no Advanced group (Surface Geology: the same 8 tools either way) says so to the
+    // Simple / Advanced toggle beside it (app.css hides the toggle there), so the toggle does not read as a hidden feature set
+    const levels = el.querySelector(".ge-adv") ? "2" : "1";
+    if (slot && slot.dataset.levels !== levels) slot.dataset.levels = levels;
   });
   // TASKS.csv #787 — fit the band: when the groups are wider than the window (Advanced mode at 1,024 px, longer
   // labels in Spanish / Portuguese / French / Arabic), groups collapse to icon-only buttons from the last one back

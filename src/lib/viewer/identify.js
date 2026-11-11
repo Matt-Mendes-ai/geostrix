@@ -2,7 +2,7 @@
 // drillhole layers; a block model, a raster or a map layer said nothing. Runs on a click only, loaded with the first one: nothing here costs anything until then.
 import * as THREE from "three";
 import { b64ToF32 } from "../inversion.js";
-import { pointInRings } from "../mapLayers.js";
+import { pointInRings, STRUCTURE_CLASS_LABELS } from "../mapLayers.js"; // labels: TASKS.csv #2271
 import { t as tr } from "../i18n.js";
 import { sampleIdentifyFields, orderedElements } from "./sampleTip.js"; // TASKS.csv #1821; orderedElements: #2520
 import { gradeText } from "../gradeText.js"; // TASKS.csv #2515
@@ -10,6 +10,22 @@ import { gradeText } from "../gradeText.js"; // TASKS.csv #2515
 const num = (v, d = 2) => (Number.isFinite(v) ? v.toLocaleString(undefined, { maximumFractionDigits: d }) : String(v ?? ""));
 const metres = (v) => `${num(v, 2)} m`;
 const SKIP = new Set(["hole_id", "from", "to", "depth", "value", "values", "extra", "modelColor", "catValue", "tip", "id"]);
+
+// TASKS.csv #2271 (review #2174) — an outcrop measurement and a surface sample as a geologist reads them: no internal keys (cls, zFlat,
+// zDraped, zOutside), the class by its label, and the elevation the row RECORDED (the clicked point on a disc is not it), or how it was placed
+const PLACEMENT_KEYS = new Set(["x", "y", "z", "zFlat", "zDraped", "zOutside", "cls"]);
+export function recordedElevationField(row) {
+  if (row?.zDraped) return [tr("Elevation"), tr("{z} m, from the terrain (no elevation in the file)", { z: num(row.z, 1) })];
+  if (row?.zFlat) return [tr("Elevation"), tr("none in the file: drawn flat at {z} m", { z: num(row.z, 1) })];
+  return Number.isFinite(row?.z) ? [tr("Elevation (recorded)"), metres(row.z)] : [tr("Elevation"), tr("none in the file")];
+}
+export function structureIdentifyFields(r) {
+  const named = { type: tr("Type"), station: tr("Station"), comment: tr("Comment"), strike: tr("Strike") };
+  return [[tr("Dip"), `${num(r.dip, 0)}°`], [tr("Dip direction"), `${num(r.dipDir, 0)}°`],
+    ...(r.cls ? [[tr("Class"), tr(STRUCTURE_CLASS_LABELS[r.cls] || r.cls)]] : []),
+    ...attributeFields(r, new Set(["dip", "dipDir", ...PLACEMENT_KEYS])).map(([k, v]) => [named[k] || k, k === "strike" ? `${v}°` : v]),
+    recordedElevationField(r)];
+}
 
 // A logged row or a feature's attributes as [name, value] pairs: only what a person can read
 export function attributeFields(row, skip = SKIP) {
@@ -101,7 +117,7 @@ function describe(hit, ctx) {
     const c = o.userData?.collar;
     if (collar) return { ...base, layer: tr("Collars"), title: hole, hole, fields: c ? [...fields, ...attributeFields(c), ...attributeFields(c.attrs, new Set())] : fields };
     // #1821 — a surface sample: the element it is coloured by and its class first, every element, its own fields
-    if (o.userData?.units && row?.medium != null) return { ...base, layer: group, title: tipLines[0] || group, hole: null, fields: [...sampleIdentifyFields(row, o.userData.mapped, o.userData.units), ...attributeFields(row, new Set([...SKIP, "attrs"]))] };
+    if (o.userData?.units && row?.medium != null) return { ...base, layer: group, title: tipLines[0] || group, hole: null, fields: [...sampleIdentifyFields(row, o.userData.mapped, o.userData.units), ...attributeFields(row, new Set([...SKIP, "attrs", ...PLACEMENT_KEYS])), recordedElevationField(row)] }; // placement: #2271
     const nameLine = tipLines[1]?.includes(":") ? tipLines[1].slice(tipLines[1].indexOf(":") + 1).trim() : null;
     if (nameLine) fields.push([tr("Value"), nameLine]);
     else if (row?.value != null) fields.push([tr("Value"), gradeText(row.value)]); // #2515
@@ -150,7 +166,7 @@ function describe(hit, ctx) {
   if (set) {
     if (hit.instanceId == null) return null;
     const r = set.rows?.[hit.instanceId];
-    return { ...base, layer: tr("Surface structures"), title: set.name, fields: r ? [[tr("Dip"), `${num(r.dip, 0)}°`], [tr("Dip direction"), `${num(r.dipDir, 0)}°`], ...attributeFields(r, new Set(["x", "y", "z", "dip", "dipDir"]))] : [] };
+    return { ...base, layer: tr("Surface structures"), title: set.name, fields: r ? structureIdentifyFields(r) : [] }; // #2271
   }
   if (o === ctx.terrainMesh) return { ...base, backdrop: true, layer: tr("Terrain"), title: tr("Terrain"), fields: [] };
   const kind = ctx.kindOf(o);

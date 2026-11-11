@@ -6436,7 +6436,7 @@
   "Interpretation lines": "خطوط التفسير",
   "Interpret": "تفسير",
   "Draw faults, contacts and lineaments over a geophysics survey. Each set of lines is a map layer: it drapes on the terrain, exports as Shapefile, GeoPackage, KML or DXF, and prints in the Layout legend.": "ارسم الصدوع وأسطح التماس والخطوط البنيوية فوق مسح جيوفيزيائي. كل مجموعة خطوط هي طبقة خريطة: تُفرَد على التضاريس، وتُصدَّر كـ Shapefile أو GeoPackage أو KML أو DXF، وتظهر في مفتاح التخطيط.",
-  "Draw faults, contacts and lineaments over a survey in the 3D view (Top view works best). Each set of lines is a map layer: it drapes on the terrain, exports as Shapefile, GeoPackage, KML or DXF, and prints in the Layout legend.": "ارسم الصدوع وأسطح التماس والخطوط البنيوية فوق مسح في العرض ثلاثي الأبعاد (العرض العلوي أنسب). كل مجموعة خطوط هي طبقة خريطة: تُفرَد على التضاريس، وتُصدَّر كـ Shapefile أو GeoPackage أو KML أو DXF، وتظهر في مفتاح التخطيط.",
+  "Draw faults, contacts and lineaments over the map or a survey in the 3D view (Top view works best). Each set of lines is a map layer: it drapes on the terrain, exports as Shapefile, GeoPackage, KML or DXF, and prints in the Layout legend.": "ارسم الصدوع وأسطح التماس والخطوط البنيوية فوق الخريطة أو مسح في العرض ثلاثي الأبعاد (العرض العلوي أنسب). كل مجموعة خطوط هي طبقة خريطة: تُفرَد على التضاريس، وتُصدَّر كـ Shapefile أو GeoPackage أو KML أو DXF، وتظهر في مفتاح التخطيط.",
   "Draw faults, contacts and lineaments over this survey in the 3D view; they become a map layer": "ارسم الصدوع وأسطح التماس والخطوط البنيوية فوق هذا المسح في العرض ثلاثي الأبعاد؛ فتصبح طبقة خريطة",
   "Draw interpretation lines…": "رسم خطوط التفسير…",
   "Survey the lines are drawn on": "المسح الذي تُرسم عليه الخطوط",
@@ -6461,7 +6461,7 @@
   "Line note": "ملاحظة الخط",
   "Note (optional)": "ملاحظة (اختياري)",
   "Draw a line": "رسم خط",
-  "Click the first point on the survey.": "انقر النقطة الأولى على المسح.",
+  "Click the first point of the line.": "انقر على أول نقطة في الخط.",
   "{n} point(s), {m} m. Click to add a point; double-click or Finish to end the line.": "{n} نقطة، {m} م. انقر لإضافة نقطة؛ انقر مرتين أو إنهاء لإنهاء الخط.",
   "A line needs at least two points.": "يحتاج الخط إلى نقطتين على الأقل.",
   "Added \"{name}\" to \"{layer}\" ({m} m).": "أُضيف «{name}» إلى «{layer}» ({m} م).",
@@ -10048,5 +10048,13 @@
   "{field}: no column matched; the names looked for are {names}.": "{field}: لم يطابق أي عمود؛ الأسماء التي بُحث عنها هي {names}.",
   "{n} row(s) shared a hole id with an earlier row of the file; the first was kept ({ids})": "شارك {n} صف معرّف ثقب مع صف سابق في الملف؛ احتُفظ بالأول ({ids})",
   "{fileName}: {n} pick(s) have an alpha angle and no beta: kept unoriented (the stereonet counts them; the core orientation calculator can orient them from a reference).": "{fileName}: لدى {n} بنية زاوية ألفا دون بيتا: احتُفظ بها دون توجيه (يعدّها المسقط المجسّم؛ ويمكن لحاسبة توجيه اللباب توجيهها من مرجع).",
-  " The {what} of {v} was identical to the one already loaded: nothing changed there.": " كان {what} في {v} مطابقًا لما حُمِّل من قبل: لم يتغير شيء هناك."
+  " The {what} of {v} was identical to the one already loaded: nothing changed there.": " كان {what} في {v} مطابقًا لما حُمِّل من قبل: لم يتغير شيء هناك.",
+  "Shear zone": "نطاق قص",
+  "(flat at the plan elevation — no elevation in the file, and the terrain has no ground here)": "(مسطّح عند ارتفاع المخطط: لا ارتفاع في الملف، وليس للتضاريس أرض هنا)",
+  "· the rose counts {n} of {m} plane(s): those dipping {d}° or more": "· تعدّ الوردة {n} من {m} مستوى: ما يميل {d}° أو أكثر",
+  "Comment": "تعليق",
+  "Elevation (recorded)": "الارتفاع (المسجَّل)",
+  "{z} m, from the terrain (no elevation in the file)": "{z} م، من التضاريس (لا ارتفاع في الملف)",
+  "none in the file: drawn flat at {z} m": "لا شيء في الملف: مرسوم مسطّحًا عند {z} م",
+  "none in the file": "لا شيء في الملف"
 }
