@@ -29,6 +29,7 @@ import { buildLayer, sameMapLayer } from "../../lib/mapLayerBuild.js"; // TASKS.
 import { askAdoptCrs } from "../../lib/adoptCrs.js"; // TASKS.csv #607
 import { requestProjectCrs } from "../../lib/projectCrsRequest.js"; // TASKS.csv #615
 import { collarAlwaysKept } from "../../lib/collarAttrs.js"; // TASKS.csv #2492 / #2190
+import { surveyMethodKey, surveyMethodByHole, foldCaseVariants } from "../../lib/surveyMethod.js"; // TASKS.csv #2494
 import { holeTypeColumn, normalizeHoleType } from "../../lib/holeType.js"; // TASKS.csv #2161
 import { eventNotes } from "../../lib/downholeEvents.js"; // TASKS.csv #2317
 import { applyRowFilter, defaultRowFilter, overlapSummary, overlapWorthSaying } from "../../lib/importRowFilter.js"; // TASKS.csv #2330; overlap: #2391
@@ -556,7 +557,10 @@ export function useImportPipeline(ctx) {
       // every coordinate below it into NaN (or, blank = 0, into a horizontal hole). Skip and report it.
       const bad = all.filter((r) => !Number.isFinite(r.azimuth) || !Number.isFinite(r.dip));
       const azs = applyAzimuthRef(all.filter((r) => Number.isFinite(r.azimuth) && Number.isFinite(r.dip)), liveCollarAt); // #396
-      const rows = azs.rows;
+      // TASKS.csv #2494 — the method column's case variants folded (Gyro / GYRO), and each hole's survey measured or assumed
+      const methodKey = surveyMethodKey(azs.rows), methodFold = methodKey ? foldCaseVariants(surveyMethodByHole(azs.rows, methodKey)?.values || new Map()) : new Map();
+      const rows = methodFold.size ? azs.rows.map((r) => (methodFold.has(String(r[methodKey] ?? "").trim()) ? { ...r, [methodKey]: methodFold.get(String(r[methodKey]).trim()) } : r)) : azs.rows;
+      const methodSum = methodKey ? surveyMethodByHole(rows, methodKey) : null;
       // TASKS.csv #336 — a hole's survey in this file REPLACES its earlier survey (with _src stamped so
       // the layer inspector can tell imports apart); undo restores the old one.
       const keep = batchRowsRef.current;
@@ -571,6 +575,8 @@ export function useImportPipeline(ctx) {
         if (cols.length && none.length) svExtraNote += tr(" {n} hole(s) still have no survey ({ids}).", { n: none.length, ids: none.slice(0, 5).join(", ") + (none.length > 5 ? " …" : "") });
       }
       setSurvey((prev) => replaceRowsByHole(prev, keepBatch(rows), keep).rows);
+      // #2494 — the hole's survey method on its collar (an attr: the hole list's 'By a collar field' and 'Colour holes by' offer it)
+      if (methodSum) setCollars((prev) => prev.map((c) => (methodSum.byHole.has(c.hole_id) ? { ...c, attrs: { ...(c.attrs || {}), "survey method": methodSum.byHole.get(c.hole_id) } } : c)));
       reorientAfter(new Set(rows.map((r) => r.hole_id)), replaceRowsByHole(importStateRef.current.survey, rows, keep).rows, null, fileName); // #548
       // TASKS.csv #1268 — the same row check the interval layers get; a station has one depth
       import("../../lib/dataQC.js").then(({ importCheckSummary }) => {
@@ -586,6 +592,7 @@ export function useImportPipeline(ctx) {
         + (data.azimuthRefFrom && mapping.azimuth === data.azimuthRefFrom ? tr(" Azimuths read from the {col} column ({north}).", { col: mapping.azimuth, north: azNorth(azimuthRef, azs) }) : "") // #2015; magnetic: #2154
         + (data.azimuthRefFrom && mapping.azimuth !== data.azimuthRefFrom && azimuthRef ? tr(" North reference from the {col} column ({north}).", { col: data.azimuthRefFrom, north: azNorth(azimuthRef, azs) }) : "") // #2154 (AZIMUTHGRIDNAME)
         + svExtraNote
+        + (methodSum ? tr(" {col}: {assumed} of {n} hole(s) have only assumed survey stations (their direction was not measured), {measured} measured; each hole's collar now says 'survey method: assumed / measured' (hole list filter and colour, Identify).", { col: methodSum.key, assumed: methodSum.assumed.length, n: methodSum.byHole.size, measured: methodSum.measured }) + (methodFold.size ? tr(" Spellings folded: {list}.", { list: [...methodFold].map(([a, b]) => `${a} → ${b}`).join(", ") }) : "") : "") // #2494
         + (unseen && !azimuthRef && !azimuthGridEpsg ? tr(" Azimuths taken as grid north: the file does not say which north (import it on its own to choose true or magnetic north).") : "")]); // #1647
     } else if (target === "structure") {
       // TASKS.csv #719 — no sign convention for structure dips: the "negative = down" radio is shown only for collars and

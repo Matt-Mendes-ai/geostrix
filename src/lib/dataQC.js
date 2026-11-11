@@ -18,6 +18,7 @@ import { terrainGroundAt } from "./viewer/geomath.js"; // TASKS.csv #558; #927 �
 import { didYouMean } from "./holeIds.js"; // TASKS.csv #541 (own module: dataQC stays out of the startup bundle)
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 import { surveyAzimuthDipAt } from "./desurvey.js"; // TASKS.csv #1109
+import { surveyMethodByHole } from "./surveyMethod.js"; // TASKS.csv #2494
 export { didYouMean };
 
 const clampSeverityIcon = { error: "🔴", warning: "🟡", info: "🔵" };
@@ -158,6 +159,10 @@ function validateSurveyAndTrajectory(collars, survey, { doglegWarn = 3, doglegEr
   if (collarOnly.length) { // #2335 — one note for every hole with a collar station only
     const d = collarOnly.map((h) => h.eoh), steep = collarOnly.filter((h) => h.steep).length;
     pushIssue(issues, "info", "Survey", null, tr("{n} hole(s), {v} of them vertical, have a survey station at the collar only ({d1}-{d2} m deep): each is drawn straight at that attitude. Their path below the collar is not measured; a downhole survey would show any deviation.", { n: collarOnly.length, v: steep, d1: Math.round(arrMin(d)), d2: Math.round(arrMax(d)) }));
+  }
+  { // TASKS.csv #2494 (review #2486) — holes whose survey method column says every station is assumed (planned, nominal, collar set-up)
+    const sm = surveyMethodByHole(survey);
+    if (sm?.assumed.length) pushIssue(issues, "info", "Survey", null, tr("{n} of {m} hole(s) have only assumed survey stations ({col}): their direction was not measured, so where they go below the collar is an assumption ({ids}).", { n: sm.assumed.length, m: sm.byHole.size, col: sm.key, ids: sm.assumed.slice(0, 6).join(", ") + (sm.assumed.length > 6 ? ", …" : "") }));
   }
   const noSurvey = collars.filter((c) => !byHole.has(c.hole_id));
   // TASKS.csv #339 — the straight-hole fallback has two silent failure modes (desurvey.js
