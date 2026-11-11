@@ -8,8 +8,8 @@ import { pagePx } from "../src/lib/pageFormats.js";
 test("a new title block: labelled rows, project facts from placeholders, nothing invented", () => {
   const rows = defaultTitleBlockRows();
   const by = Object.fromEntries(rows);
-  assert.equal(by.Project, "{project}"); assert.equal(by.Date, "{date}"); assert.equal(by.Scale, "{scale}"); assert.equal(by["Datum / projection"], "{crs}");
-  for (const k of ["Company", "Claims / tenures", "NTS / map sheet", "Figure", "Drawn by"]) assert.equal(by[k], "", `${k} is the geologist's to fill`);
+  assert.equal(by.Project, "{project}"); assert.equal(by.Date, "{date}"); assert.equal(by.Scale, "{scale}"); assert.equal(by["Grid / coordinate system"], "{crs}"); // label: #2306
+  for (const k of ["Company", "Tenure / claims", "Map sheet", "Figure", "Drawn by"]) /* labels: #2306 */ assert.equal(by[k], "", `${k} is the geologist's to fill`);
   const tb = newTitleBlock("t1", 5, 6);
   assert.equal(tb.type, "titleblock"); assert.equal(tb.x, 5); assert.ok(tb.w > 0);
   rows[0][1] = "changed"; assert.equal(defaultTitleBlockRows()[0][1], "", "a fresh copy each time");

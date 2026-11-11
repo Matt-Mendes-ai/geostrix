@@ -12,6 +12,7 @@ import { HOLE_TOKENS, SECTION_TOKENS } from "../lib/atlas.js"; // TASKS.csv #177
 import { scaleBarLabel, scaleBarMidLabel } from "../lib/scaleBarLabel.js"; // TASKS.csv #2140
 import { offSheetPages, rectsPastSheet } from "../lib/layoutEdges.js"; // TASKS.csv #2482 / #2309
 import { fillPlaceholders } from "../lib/layoutText.js"; // TASKS.csv #2139
+import { collarGridName } from "../lib/gridName.js"; // TASKS.csv #2306
 import PatternSwatch from "../components/PatternSwatch.jsx"; // TASKS.csv #1995
 import { savePDF, saveFile, exportPDFData, canvasPngBytes, sendSectionResnap } from "../lib/desktop.js"; // saveFile / exportPDFData: TASKS.csv #909 Export PNG; canvasPngBytes: #1040; sendSectionResnap: #1485
 import { pdfOptions } from "../lib/pageFormats.js"; // TASKS.csv #511
@@ -2146,8 +2147,9 @@ const PLACEHOLDER = /\{(project|date|page|pages|pagename|scale|crs|credits)\}/g;
 // TASKS.csv #947 — a map frame with a UTM grid never said which datum and zone: {crs} and the grid's caption print it
 // TASKS.csv #2300 (review #2174) — with the CRS not set, project.epsg is a placeholder (BC UTM 9N): the title block and grid caption named it on a
 // WA mine grid. Only a chosen CRS is named.
-function crsText(epsg, crsSet = true) {
-  if (crsSet === false) return tr("Local grid (no coordinate system set)");
+// TASKS.csv #2306 — gridName: a local grid's own name (the project's, else the collars' GRIDNAME), printed instead of nothing
+function crsText(epsg, crsSet = true, gridName = null) {
+  if (crsSet === false) return gridName ? tr("Local grid {name} (no coordinate system set)", { name: gridName }) : tr("Local grid (no coordinate system set)");
   if (!epsg) return "";
   const name = crsName(epsg);
   return name ? `${name} (EPSG:${epsg})` : `EPSG:${epsg}`;
@@ -2156,7 +2158,7 @@ function textContextFor(els, project, page, index, count, collars = null, credit
   const today = new Date(), p2 = (v) => String(v).padStart(2, "0"); // #1489 — ISO: '11/2/2026' read as 11 February to many readers
   // gridCaption (#2301): what a drill plan's grid numbers are
   const gridCaption = project?.crsSet === false ? (project?.localGrid?.name ? `local grid: ${project.localGrid.name}` : "local mine grid, no CRS") : project?.epsg ? `EPSG:${project.epsg}` : "";
-  return { gridCaption, project: project?.name || "", date: `${today.getFullYear()}-${p2(today.getMonth() + 1)}-${p2(today.getDate())}`, page: String(index + 1), pages: String(count), pagename: page?.name || "", scale: pageScaleText(els), crs: crsText(project?.epsg, project?.crsSet), credits, collars, els, pageH: pagePx(pageFormatOf(page)).h, pageW: pagePx(pageFormatOf(page)).w /* #2134 */ }; // collars: the #911 table; els: the #912 overview; pageH: #1480
+  return { gridCaption, project: project?.name || "", date: `${today.getFullYear()}-${p2(today.getMonth() + 1)}-${p2(today.getDate())}`, page: String(index + 1), pages: String(count), pagename: page?.name || "", scale: pageScaleText(els), crs: crsText(project?.epsg, project?.crsSet, project?.crsSet === false ? project?.localGrid?.name || collarGridName(collars) : null /* #2306 */), credits, collars, els, pageH: pagePx(pageFormatOf(page)).h, pageW: pagePx(pageFormatOf(page)).w /* #2134 */ }; // collars: the #911 table; els: the #912 overview; pageH: #1480
 }
 const fillText = (text, ctx) => fillPlaceholders(text, ctx, PLACEHOLDER); // #2139 — an empty fill takes its separator with it
 
@@ -2394,7 +2396,7 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
           <tbody>
             {rows.map((r, i) => <tr key={i}>{r.map((v, j) => <td key={j} style={{ ...cell, textAlign: numeric[j] ? "right" : "left" }}>{v}</td>)}</tr>)}
             {!rows.length && <tr><td colSpan={Math.max(1, columns.length)} style={{ ...cell, color: "#777" }}>{el.source === "collars" ? (el.holeFilter ? tr("No hole id contains \"{f}\".", { f: el.holeFilter }) : tr("No collars in the project yet.")) : tr("No rows.")}</td></tr>}
-            {more > 0 && <tr><td colSpan={columns.length} style={{ ...cell, color: "#555", fontStyle: "italic" }}>{tr("… and {n} more hole(s), from row {r}: a table with that First row, or Continue on new pages", { n: more, r: nextRow })}</td></tr>}
+            {more > 0 && <tr><td colSpan={columns.length} style={{ ...cell, color: "#555", fontStyle: "italic" }}>{print ? tr("… {n} more hole(s), from row {r}", { n: more, r: nextRow }) /* #2480 — the editing hint is for the screen, not the paper */ : tr("… and {n} more hole(s), from row {r}: a table with that First row, or Continue on new pages", { n: more, r: nextRow })}</td></tr>}
           </tbody>
         </table>
         {surveyNote && <div style={{ fontSize: printPx(Math.max(5, (el.fontPt || printPt.small) - 1)), fontStyle: "italic", color: "#3a424c", marginTop: 4, lineHeight: 1.35, whiteSpace: "normal" }}>{surveyNote}</div>}
