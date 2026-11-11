@@ -18,6 +18,16 @@ import { idwGrid, suggestBlankingDistance } from "./idw.js"; // TASKS.csv #1589
 // metre along them) left 82-99.5 % of the grid empty under the long-edge rule, so the inversion kept 20 of 295 stations.
 // Inverse-distance gridding (the Point survey's own gridder) with a blanking distance from the line spacing fills the
 // ground between lines and leaves no-data beyond the survey. Row 0 = north, nodes at cell centres (the terrain convention).
+// TASKS.csv #2556 (review #2486) — the inverse-distance surface did not pass through its own stations (a smooth synthetic survey: up to
+// 0.45 m off; stepped elevations: 1.7 m), so a 0.5 m gravimeter's stations came out below 'their' ground and the inversion refused them.
+// A few passes grid the remaining misfit at the stations and add it back (residual correction), so the surface honours its data.
+const HONOUR_PASSES = 4;
+const bilinearAt = (values, gridW, gridH, xmin, ymax, cell, x, y) => {
+  const fx = Math.min(gridW - 1, Math.max(0, (x - xmin) / cell - 0.5)), fy = Math.min(gridH - 1, Math.max(0, (ymax - y) / cell - 0.5));
+  const x0 = Math.floor(fx), y0 = Math.floor(fy), x1 = Math.min(gridW - 1, x0 + 1), y1 = Math.min(gridH - 1, y0 + 1), tx = fx - x0, ty = fy - y0;
+  const at = (i, j) => values[j * gridW + i];
+  return (at(x0, y0) * (1 - tx) + at(x1, y0) * tx) * (1 - ty) + (at(x0, y1) * (1 - tx) + at(x1, y1) * tx) * ty;
+};
 export function terrainFromSurveyElevations(points, { sensorHeight = 0, cellSize = null, blankM = null, gridMax = 300 } = {}) {
   const sh = Number.isFinite(sensorHeight) ? sensorHeight : 0;
   const P = (points || []).filter((p) => p && Number.isFinite(p.x) && Number.isFinite(p.y) && Number.isFinite(p.z)).map((p) => ({ x: p.x, y: p.y, value: p.z - sh, line: p.line }));
@@ -31,6 +41,16 @@ export function terrainFromSurveyElevations(points, { sensorHeight = 0, cellSize
   const cell = cellSize > 0 ? cellSize : Math.max(span / gridMax, sug ? sug.spacing / 4 : 1, 0.5);
   const xmin = x0 - cell, ymin = y0 - cell, xmax = x1 + cell, ymax = y1 + cell;
   const { gridW, gridH, values } = idwGrid(P, { xmin, ymin, xmax, ymax, cellSize: cell, power: 2, maxDistance: blank, maxPoints: 12 });
+  const misfit = () => P.map((p) => p.value - bilinearAt(values, gridW, gridH, xmin, ymax, cell, p.x, p.y));
+  let res = misfit();
+  const before = res.reduce((m, r) => (Number.isFinite(r) ? Math.max(m, Math.abs(r)) : m), 0);
+  for (let pass = 0; pass < HONOUR_PASSES && before > 0.01; pass++) {
+    const R = P.map((p, i) => ({ x: p.x, y: p.y, value: Number.isFinite(res[i]) ? res[i] : 0 }));
+    const corr = idwGrid(R, { xmin, ymin, xmax, ymax, cellSize: cell, power: 2, maxDistance: blank, maxPoints: 12 }).values;
+    for (let i = 0; i < values.length; i++) if (Number.isFinite(values[i]) && Number.isFinite(corr[i])) values[i] += corr[i];
+    res = misfit();
+  }
+  const after = res.reduce((m, r) => (Number.isFinite(r) ? Math.max(m, Math.abs(r)) : m), 0);
   let valid = 0, zmin = Infinity, zmax = -Infinity;
   for (let i = 0; i < values.length; i++) { const v = values[i]; if (Number.isFinite(v)) { valid++; if (v < zmin) zmin = v; if (v > zmax) zmax = v; } }
   if (!valid) throw new Error("No ground could be gridded from these stations.");
@@ -38,7 +58,7 @@ export function terrainFromSurveyElevations(points, { sensorHeight = 0, cellSize
   return {
     bbox: [xmin + cell / 2, ymax - (gridH - 0.5) * cell, xmin + (gridW - 0.5) * cell, ymax - cell / 2], gridW, gridH,
     elevations: fill.elevations, noDataMask: fill.noDataMask,
-    stats: { stations: P.length, cellM: cell, blankM: blank, lineSpacingM: sug ? sug.spacing : null, coveredPct: (100 * valid) / values.length, sensorHeight: sh, zmin, zmax },
+    stats: { stations: P.length, cellM: cell, blankM: blank, lineSpacingM: sug ? sug.spacing : null, coveredPct: (100 * valid) / values.length, sensorHeight: sh, zmin, zmax, stationMisfitM: after, misfitBeforeM: before },
   };
 }
 

@@ -247,6 +247,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
     let dhMeta = null; // #323
     const request = {
       method, kind, stations, stationsDraped: zModeEff === "drape", // #1173
+      ...(zModeEff === "ground" ? { stationsOnGround: true, sensorHeight: num(sensorHeight) } : {}), // #2556 — the clearance is the entered height
       ...(topo ? { topo: topo.points } : {}),
       ...(method === "mag" ? { field: { strength: num(field.strength), inclination: num(field.inclination), declination: decl.grid } } : {}),
       mesh: { coreCell: cell, depth: num(mesh.depth), padCells: 6, padFactor: 1.3, ...(kind === "inversion" ? { type: mesh.type, ...(mesh.type === "octree" ? { octree: octreeSettings } : {}) } : {}) }, // #324 — the forward tool stays tensor

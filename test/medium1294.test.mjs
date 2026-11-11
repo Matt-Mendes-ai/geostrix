@@ -38,7 +38,8 @@ test("#1255 an oblique fence line is named from the middle of the data; a cardin
 
 test("#1173 a draped station is refused only below the ground; #1190 the box is reported", () => {
   const s = read("python-sidecar/app/geophys/potential.py");
-  assert.match(s, /clearance < \(0\.0 if req\.get\("stationsDraped"\) else 1\.0\)/);
+  assert.match(s, /min_clear = 0\.0 if \(req\.get\("stationsDraped"\) or on_ground or req\.get\("method"\) == "grav"\) else 1\.0/); // #2556: also a ground survey and gravity
+  assert.match(s, /low = int\(np\.sum\(clearance < min_clear\)\)/);
   assert.match(read("src/components/InversionPanel.jsx"), /stationsDraped: zModeEff === "drape"/);
   assert.match(read("src/modules/viewer/modellingRuns.js"), /With a trend the model box is about/);
 });

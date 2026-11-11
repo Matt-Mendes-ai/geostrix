@@ -558,6 +558,21 @@ def test_geology_model_forward_matches_plate():
     assert 0.35 < r2["volumeRatio"] < 0.65
 
 
+def test_plan_ground_survey_clearance_2556():
+    # TASKS.csv #2556 — a gravimeter 0.5 m above the ground was refused by the 1 m rule in every z mode
+    st = _grid_stations(5, 50.0, 1000.5)
+    topo = _grid_stations(10, 40.0, 1000.0)
+    base = {"kind": "inversion", "stations": st.tolist(), "topo": topo.tolist(), "mesh": {"coreCell": 25.0, "depth": 200.0}}
+    clear = lambda p: [r for r in p["reasons"] if "terrain" in r and "outside" not in r]
+    assert not clear(P.plan(dict(base, method="grav"), int(1.5e9))), "gravity: no 1 m margin"
+    assert not clear(P.plan(dict(base, method="mag", stationsOnGround=True, sensorHeight=0.5), int(1.5e9))), "ground mode: the entered height is the clearance"
+    assert clear(P.plan(dict(base, method="mag"), int(1.5e9))), "a magnetometer whose z is its own elevation keeps the 1 m margin"
+    hi = _grid_stations(10, 40.0, 1003.0)  # a terrain 3 m above the stations' own ground
+    r = clear(P.plan(dict(base, topo=hi.tolist(), method="grav", stationsOnGround=True, sensorHeight=0.5), int(1.5e9)))
+    print("plan (ground survey under a higher terrain):", r)
+    assert r and "its own ground" in r[0] and "up to 3.0 m" in r[0]
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_") and callable(fn):
