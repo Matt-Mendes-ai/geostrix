@@ -47,6 +47,8 @@ export function evidenceExtent(area, parts, box = null, pad = 0) {
 }
 
 // TASKS.csv #1830 — a raster this overlay made ("Fuzzy score → map", "Posterior → map"; params.tool, #1003)
+// TASKS.csv #1731 — the highest finite value of a score (the posterior's own ramp top)
+export const scoreTop = (score) => { let m = -Infinity; for (let k = 0; k < score.length; k++) { const v = score[k]; if (Number.isFinite(v) && v > m) m = v; } return m > 0 ? m : 1; };
 export const isOverlayOutput = (r) => /^(fuzzy overlay|weights of evidence)/.test(String(r?.params?.tool || ""));
 export const cellXY = (g, k) => [g.x0 + (k % g.nx) * g.dx, g.yTop - Math.floor(k / g.nx) * g.dy];
 
@@ -339,7 +341,9 @@ export function posterior(layers, valid, N, ND, { countMask = null } = {}) {
 // of the cells): a score with few distinct values (98 % of the cells at exactly 0, or a binary posterior) jumps across the
 // line, and the point interpolated on the jump ("50 % in 50 % of the area, Nd 1.0") is one no threshold gives. Then
 // `point` is null and `step` holds the two thresholds either side, with Nd at the one nearer the line (`at`).
-export function predictionArea(score, D, valid, steps = 200, { maxJump = 0.05 } = {}) {
+// exactBelow: TASKS.csv #1730 (review #1645, Copley) — with fewer occurrence cells than this the crossing is taken ON a threshold (the nearer
+// side), never interpolated: 'fuzzy 76% in 24% of the area' came from 8 cells, where only multiples of 12.5 % exist; point.hits = the cells
+export function predictionArea(score, D, valid, steps = 200, { maxJump = 0.05, exactBelow = 10 } = {}) {
   // #1562 — typed arrays and a numeric sort (the comparator sort of ~198,000 plain numbers was most of this)
   const inD = cellMask(D, score.length);
   let nv = 0, nt = 0;
@@ -364,10 +368,11 @@ export function predictionArea(score, D, valid, steps = 200, { maxJump = 0.05 } 
     if (fa === 0) { point = { ...a }; break; }
     if (fb === 0) { point = { ...b }; break; }
     if (Math.abs(a.area - b.area) > maxJump) { const at = b.area > 0 && Math.abs(fb) < Math.abs(fa) ? "above" : "below", s = at === "above" ? b : a; step = { below: { ...a }, above: { ...b }, at, nd: s.area > 0 ? s.rate / s.area : NaN }; break; }
+    if (train.length < exactBelow) { point = { ...(Math.abs(fb) < Math.abs(fa) && b.area > 0 ? b : a) }; break; } // #1730 — on the step
     const u = fa / (fa - fb);
     point = { t: a.t + u * (b.t - a.t), area: a.area + u * (b.area - a.area), rate: a.rate + u * (b.rate - a.rate) }; break;
   }
-  if (point) point.nd = point.area > 0 ? point.rate / point.area : NaN;
+  if (point) { point.nd = point.area > 0 ? point.rate / point.area : NaN; point.hits = Math.round(point.rate * train.length); } // hits: #1730
   return { curve, point, step, nTrain: train.length, nCells: vals.length };
 }
 function lowerBound(sorted, t) { let lo = 0, hi = sorted.length; while (lo < hi) { const m = (lo + hi) >> 1; if (sorted[m] < t) lo = m + 1; else hi = m; } return lo; }
@@ -404,13 +409,15 @@ export function topCells(score, g, { n = 5, minSepM = null } = {}) {
   return out;
 }
 
-export function scoreImage(score, nx, ny) {
-  const data = new Uint8ClampedArray(nx * ny * 4);
+// top: TASKS.csv #1731 (review #1645, Copley) — the value drawn darkest; 1 for a fuzzy score (memberships end at 1), the highest value for a
+// posterior (0.26 at most there, drawn pale on the 0-1 ramp so the map looked blank)
+export function scoreImage(score, nx, ny, top = 1) {
+  const data = new Uint8ClampedArray(nx * ny * 4), span = top > 0 && Number.isFinite(top) ? top : 1;
   const stops = [[255, 255, 204], [254, 217, 118], [253, 141, 60], [227, 26, 28], [128, 0, 38]];
   for (let k = 0; k < nx * ny; k++) {
     const v = score[k];
     if (!Number.isFinite(v)) continue;
-    const t = Math.max(0, Math.min(1, v)) * (stops.length - 1), i = Math.min(stops.length - 2, Math.floor(t)), u = t - i;
+    const t = Math.max(0, Math.min(1, v / span)) * (stops.length - 1), i = Math.min(stops.length - 2, Math.floor(t)), u = t - i;
     data[k * 4] = stops[i][0] + u * (stops[i + 1][0] - stops[i][0]); data[k * 4 + 1] = stops[i][1] + u * (stops[i + 1][1] - stops[i][1]); data[k * 4 + 2] = stops[i][2] + u * (stops[i + 1][2] - stops[i][2]); data[k * 4 + 3] = 200;
   }
   return { width: nx, height: ny, data };

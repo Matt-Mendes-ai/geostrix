@@ -14,7 +14,7 @@ import { quantileSorted } from "../lib/arrayStats.js"; // TASKS.csv #1281
 import { defaultEvidenceEnds, gradeEndsFromSamples, topScoreShare } from "../lib/evidenceEnds.js"; // TASKS.csv #1565; gradeEndsFromSamples: #2099; topScoreShare: #2448
 import { topCells } from "../lib/evidence.js"; // TASKS.csv #1456
 import { evidenceCoverage, LOW_COVERAGE, scoreBlockers } from "../lib/evidence.js"; // TASKS.csv #2252
-import { drilledTrainingMask, evidenceGrid, evidenceExtent, rasterEvidence, distanceEvidence, pointEvidence, sampleValues, membership, fuzzyCombine, FUZZY_OPERATORS, trainingCells, trainingCoverage, bestCutoff, MIN_SIDE, posterior, predictionArea, scoreImage, isOverlayOutput, coveringLayers } from "../lib/evidence.js"; // coveringLayers: #1563
+import { drilledTrainingMask, evidenceGrid, evidenceExtent, rasterEvidence, distanceEvidence, pointEvidence, sampleValues, membership, fuzzyCombine, FUZZY_OPERATORS, trainingCells, trainingCoverage, bestCutoff, MIN_SIDE, posterior, predictionArea, scoreImage, scoreTop /* #1731 */, isOverlayOutput, coveringLayers } from "../lib/evidence.js"; // coveringLayers: #1563
 import { cachedEvidence, evidenceDeps, gridSignature } from "../lib/evidenceCache.js"; // TASKS.csv #1457, #1560
 import { DRILL_REACH_M, surveyNames, surveyPoints, reachFromSpacing, reachFromNeighbours, voxelColumnEvidence, voxelZRange, holeTraces, holeGradePoints, assaysOfHoles, gradeCardReads /* #2577 */, structureCodes, structureParts, drilledParts /* #1456 */, scoreRasterPlacement /* #2447 */, elementsWithValues, numericLayerFields, layerFieldPoints, zoneParts, levelSet, targetElevation /* #2326 */, codedFields, foldedCodes, zoneHolePoints, codedRef, parseCodedRef, codedRowsOf /* #2453 */ } from "../lib/evidenceSources.js"; // numericLayerFields, layerFieldPoints, zoneCodes, zoneParts: TASKS.csv #1728 // TASKS.csv #1154; elementsWithValues: #1723
 const LEVEL_KINDS = new Set(["grade", "pxrf", "numeric", "zone", "pick", "voxel"]); // TASKS.csv #2326 — the cards a Level filters
@@ -408,20 +408,25 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
   };
   const toMap = (which) => {
     const score = which === "posterior" ? result.wofe.post.prob : result.fuzzy;
-    const img = scoreImage(score, grid.nx, grid.ny), c = document.createElement("canvas");
+    const top = which === "posterior" ? scoreTop(score) : 1; // #1731 — a posterior on its own range
+    const img = scoreImage(score, grid.nx, grid.ny, top), c = document.createElement("canvas");
     c.width = img.width; c.height = img.height; c.getContext("2d").putImageData(new ImageData(img.data, img.width, img.height), 0, 0);
-    const name = which === "posterior" ? tr("Plan-view weights-of-evidence posterior ({n} occurrence cells)", { n: result.wofe.nD }) /* #1558: cells, not points; plan view: #1458 */ : tr("Plan-view fuzzy overlay ({op}) of {n} evidence layers", { op: operator === "gamma" ? `gamma ${gamma}` : operator, n: layers.length });
+    const name = which === "posterior" ? tr("Plan-view weights-of-evidence posterior ({n} occurrence cells)", { n: result.wofe.nD }) /* #1558: cells, not points; plan view: #1458 */ : tr(layers.length === 1 ? "Plan-view fuzzy overlay ({op}) of {n} evidence layer" : "Plan-view fuzzy overlay ({op}) of {n} evidence layers", { op: operator === "gamma" ? `gamma ${gamma}` : operator, n: layers.length }) /* singular: #1731 */;
     const valid = score.reduce((a, v) => a + (Number.isFinite(v) ? 1 : 0), 0);
     // TASKS.csv #1204 — a sheet at the origin elevation cut through the holes; #2447 — under the drilling it sat 43-137 m off its holes in Top view
     const place = scoreRasterPlacement(terrain, drilledCollars(collars).collars, survey, traces), floorZ = place.kind === "floor" ? place.elevation : null;
     addRaster({ name, bbox: [grid.x0 - grid.dx / 2, grid.yTop + grid.dy / 2 - grid.ny * grid.dy, grid.x0 - grid.dx / 2 + grid.nx * grid.dx, grid.yTop + grid.dy / 2], dataUrl: c.toDataURL("image/png"), drapeMode: place.drapeMode, opacity: 0.75, ...(place.elevation != null ? { elevation: place.elevation } : {}),
       grid: { nx: grid.nx, ny: grid.ny, x0: grid.x0, yTop: grid.yTop, dx: grid.dx, dy: grid.dy, values: f32ToB64(score), valid, averagedBy: 1, sourceSize: [grid.nx, grid.ny] },
-      params: { tool: which === "posterior" ? "weights of evidence (posterior probability)" : "fuzzy overlay", recipe, trainingPoints: trainingPoints.length, builtAt: new Date().toISOString() } }); // TASKS.csv #1003 — how it was made
+      params: { tool: which === "posterior" ? "weights of evidence (posterior probability)" : "fuzzy overlay", recipe, trainingPoints: trainingPoints.length, displayRange: [0, +top.toPrecision(3)] /* #1731 */, builtAt: new Date().toISOString() } }); // TASKS.csv #1003 — how it was made
+    // TASKS.csv #1731 — the earlier score maps lay at the same place and mixed with the new one: hidden (their eyes bring them back)
+    const earlier = rasters.filter((r) => isOverlayOutput(r) && r.visible !== false);
+    earlier.forEach((r) => updateRaster(r.id, { visible: false }));
     // #1563 — the drapes and block models over it in plan (the new raster is not in `rasters` yet)
     const box = [grid.x0 - grid.dx / 2, grid.yTop + grid.dy / 2 - grid.ny * grid.dy, grid.x0 - grid.dx / 2 + grid.nx * grid.dx, grid.yTop + grid.dy / 2];
-    const cv = coveringLayers(box, rasters, voxelModels);
+    const cv = coveringLayers(box, rasters.filter((r) => !earlier.includes(r)), voxelModels); // the hidden scores do not cover it (#1731)
     const text = place.kind === "collars" ? tr("Added \"{name}\" to the map, on the ground interpolated between the collars because the project has no terrain; the holes are drawn over it. Its values export as GeoTIFF from the Raster module.", { name }) /* #2447 */ : floorZ != null ? tr("Added \"{name}\" to the map, flat at elevation {z} m (below the deepest hole) because the project has no terrain. Change its elevation under Maps; its values export as GeoTIFF from the Raster module.", { name, z: floorZ }) : tr("Added \"{name}\" to the map (its values export as GeoTIFF from the Raster module).", { name });
-    setMsg(text); setCover(cv.rasters.length + cv.models.length ? { ...cv, forMsg: text } : null);
+    const full = text + (which === "posterior" ? " " + tr("Its colours run from 0 (pale) to {top}, the highest posterior (dark red).", { top: +top.toPrecision(3) }) : " " + tr("Its colours run from 0 (pale) to 1 (dark red).")) + (earlier.length ? " " + tr(earlier.length === 1 ? "The earlier score map is hidden." : "The {n} earlier score maps are hidden.", { n: earlier.length }) : ""); // #1731
+    setMsg(full); setCover(cv.rasters.length + cv.models.length ? { ...cv, forMsg: full } : null);
   };
   const toTif = async (which) => { const epsg = await ensureExportCrs(project); if (!epsg) return; /* #1021 */ const score = which === "posterior" ? result.wofe.post.prob : result.fuzzy; saveGeoTIFF(`${which === "posterior" ? "wofe_posterior" : "fuzzy_overlay"}.tif`, gridToGeoTIFF({ ...grid, bands: [{ values: score }], epsg })); };
 
@@ -521,7 +526,7 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
               ≥ <input type="number" step="any" value={training.min} onChange={(e) => setTraining((t) => ({ ...t, min: e.target.value }))} style={{ ...sel, width: 80 }} aria-label={tr("At least")} />
             </div>
           )}
-          {training.source !== "none" && <div style={note}>{tr("{n} occurrence points.", { n: trainingPoints.length })}{training.source === "collars" && pxrfAssays.length ? " " + tr("Lab assays only: the {n} pXRF readings are not occurrences.", { n: pxrfAssays.length.toLocaleString() }) : ""}{circular ? " " + tr("Circular: the same samples are evidence and occurrences, so the weights will flatter the evidence.") : ""}</div>}{/* pXRF: #1723 */}
+          {training.source !== "none" && <div style={note}>{tr(trainingPoints.length === 1 ? "{n} occurrence point." : "{n} occurrence points.", { n: trainingPoints.length }) /* #1734 */}{training.source === "collars" && pxrfAssays.length ? " " + tr("Lab assays only: the {n} pXRF readings are not occurrences.", { n: pxrfAssays.length.toLocaleString() }) : ""}{circular ? " " + tr("Circular: the same samples are evidence and occurrences, so the weights will flatter the evidence.") : ""}</div>}{/* pXRF: #1723 */}
         </div>
         <button type="button" style={{ ...pBtn, ...(grid && layers.length ? null : { opacity: 0.5, cursor: "default" }) }} onClick={compute} disabled={!grid || !layers.length}>{tr("Compute")}</button>
         {grid && !layers.length && sources.length > 0 && <div style={note}>{tr("Add at least one evidence from the list above, then Compute.")}</div>}
@@ -536,7 +541,7 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
         {result && (
           <>
             {result.blockers?.length > 0 && <div role="alert" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", lineHeight: 1.45 }}>{tr("{v} cells have every evidence, so the score is empty or nearly so. Fewest values: {list}. Combine with fuzzy OR or the algebraic sum (they skip a missing evidence), or remove those.", { v: result.nValid.toLocaleString(), list: result.blockers.map((b) => `${b.label} (${(b.coverage * 100).toFixed(b.coverage < 0.01 ? 2 : 1)}%)`).join(", ") })}</div>}{/* #2252 */}
-            <div style={note}>{tr("Fuzzy score on {v} of {n} cells (the rest lack an evidence).", { v: result.nValid.toLocaleString(), n: result.n.toLocaleString() })}{result.fewMisses ? " " + tr("{h} of the {n} drilled cells hold a hole over the cut-off: weights of evidence need at least 3 without one to weigh against.", { h: result.fewMisses.hits, n: result.fewMisses.drilled }) : ""}{result.fewPoints != null ? " " + tr("Only {k} occurrence cells: weights of evidence need at least 3.", { k: result.fewPoints }) : ""}</div>
+            <div style={note}>{tr("Fuzzy score on {v} of {n} cells (the rest lack evidence).", /* #1734 */ { v: result.nValid.toLocaleString(), n: result.n.toLocaleString() })}{result.fewMisses ? " " + tr("{h} of the {n} drilled cells hold a hole over the cut-off: weights of evidence need at least 3 without one to weigh against.", { h: result.fewMisses.hits, n: result.fewMisses.drilled }) : ""}{result.fewPoints != null ? " " + tr(result.fewPoints === 1 ? "Only {k} occurrence cell: weights of evidence need at least 3." : "Only {k} occurrence cells: weights of evidence need at least 3.", { k: result.fewPoints }) /* #1734 */ : ""}</div>
             {result.nValid > 0 && result.atMin / result.nValid > 0.5 && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("{p}% of the scored cells sit at the lowest score ({v}): an evidence's membership is at its floor there and the operator keeps the floor. The top cells are only those no evidence vetoed, not the most favourable. Turn on the 0.01–0.99 floor, widen the 0 = points, or combine with OR / algebraic sum.", { p: Math.round((100 * result.atMin) / result.nValid), v: fmt(result.minScore) })}</div>}{/* #1555 */}
             <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
               <button type="button" style={{ ...pBtn, opacity: result.nValid ? 1 : 0.5 }} disabled={!result.nValid} onClick={() => toMap("fuzzy")}>{tr("Fuzzy score → map")}</button>
@@ -631,9 +636,10 @@ function PAPlot({ fuzzy, post }) {
       </svg>
       <div style={note}>
         {tr("Solid: share of occurrences predicted; dashed: share of the area. Where they cross:")}{" "}
-        {pt1 && <span style={{ color: "#D55E00" }}>{tr("fuzzy {r}% in {a}% of the area (Nd {nd})", { r: (100 * pt1.rate).toFixed(0), a: (100 * pt1.area).toFixed(0), nd: pt1.nd.toFixed(1) })}</span>}
+        {/* TASKS.csv #1730 — under 10 occurrence cells: counts on the step, no Nd */}
+        {pt1 && <span style={{ color: "#D55E00" }}>{fuzzy.nTrain < 10 ? tr("fuzzy {k} of {n} occurrence cells in {a}% of the area", { k: pt1.hits, n: fuzzy.nTrain, a: (100 * pt1.area).toFixed(0) }) : tr("fuzzy {r}% in {a}% of the area (Nd {nd})", { r: (100 * pt1.rate).toFixed(0), a: (100 * pt1.area).toFixed(0), nd: pt1.nd.toFixed(1) })}</span>}
         {!pt1 && st1 && <span style={{ color: "#D55E00" }}>{tr("fuzzy")}: {stepText(st1)}</span>}{(pt1 || st1) && (pt2 || st2) ? " · " : ""}
-        {pt2 && <span style={{ color: "#0072B2" }}>{tr("posterior {r}% in {a}% of the area (Nd {nd})", { r: (100 * pt2.rate).toFixed(0), a: (100 * pt2.area).toFixed(0), nd: pt2.nd.toFixed(1) })}</span>}
+        {pt2 && <span style={{ color: "#0072B2" }}>{post.nTrain < 10 ? tr("posterior {k} of {n} occurrence cells in {a}% of the area", { k: pt2.hits, n: post.nTrain, a: (100 * pt2.area).toFixed(0) }) : tr("posterior {r}% in {a}% of the area (Nd {nd})", { r: (100 * pt2.rate).toFixed(0), a: (100 * pt2.area).toFixed(0), nd: pt2.nd.toFixed(1) })}</span>}
         {!pt2 && st2 && <span style={{ color: "#0072B2" }}>{tr("posterior")}: {stepText(st2)}</span>}
         {" "}{tr("(Yousefi & Carranza 2015; Nd = 1 is no better than chance)")}
       </div>
