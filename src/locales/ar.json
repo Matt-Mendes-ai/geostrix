@@ -9868,5 +9868,7 @@
   "{n} sample(s) included again.": "أعيد إدراج {n} عينة.",
   "Suggested suite": "المجموعة المقترحة",
   "The commodity and alteration elements first, up to 12": "عناصر الخام والتحول أولًا، حتى 12",
-  "The {shown} largest of {n} groups are drawn and listed; {more} more are in the CSV export.": "تُرسم وتُدرج أكبر {shown} من {n} مجموعة؛ و{more} أخرى في ملف CSV المُصدَّر."
+  "The {shown} largest of {n} groups are drawn and listed; {more} more are in the CSV export.": "تُرسم وتُدرج أكبر {shown} من {n} مجموعة؛ و{more} أخرى في ملف CSV المُصدَّر.",
+  "Measured from the collars: {n} drill sites (collars within 2 m are one site), median distance to the nearest site {s} m. Type a buffer to keep your own.": "مقيس من الفوهات: {n} موقع حفر (الفوهات ضمن 2 م موقع واحد)، والمسافة الوسيطة إلى أقرب موقع {s} م. اكتب نطاقًا لتحتفظ بقيمتك.",
+  "half the {s} m drill spacing": "نصف تباعد الحفر البالغ {s} م"
 }

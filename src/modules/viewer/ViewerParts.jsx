@@ -18,6 +18,8 @@ import { lazyModal } from "../../lib/lazyModal.jsx";
 import { t as tr } from "../../lib/i18n.js";
 import { orphanHoleIds } from "../../lib/noCollars.js"; // TASKS.csv #1809
 import { VE_CHOICES, veOf } from "./verticalExaggeration.js"; // TASKS.csv #2623
+import { drillSiteSpacing } from "../../lib/drillSpacing.js"; // TASKS.csv #2517
+import { useStore } from "../../lib/store.jsx"; // TASKS.csv #2517 — the collars
 
 export const MeasureResults = lazyModal(() => import("../../components/MeasureResults.jsx"));
 const NumericSymbologyEditor = lazyModal(() => import("../../components/NumericSymbologyEditor.jsx"));
@@ -35,6 +37,12 @@ export function ViewToolbar({
   onLevelPlan, // TASKS.csv #525
 }) {
   const toggle = (name) => setOpenPopover((p) => (p === name ? null : name));
+  // TASKS.csv #2517 — the section Buffer opens at half the drill-site spacing (±12.5 m on a 25 m grid, not ±100 m), until the user types one;
+  // the section step 'next line' (2 x buffer) is then the line spacing
+  const { collars: spacingCollars = [] } = useStore() || {};
+  const spacing = useMemo(() => drillSiteSpacing(spacingCollars), [spacingCollars]);
+  const bufferTyped = useRef(false);
+  useEffect(() => { if (!bufferTyped.current && spacing?.buffer && setSectionCorridor) setSectionCorridor(spacing.buffer); }, [spacing]); // the setter is stable
   return (
     <Ribbon show={show} label="3D View tools">
       <RibbonGroup label="View">
@@ -171,7 +179,8 @@ export function ViewToolbar({
           </HoverToolInfo>
         </div>
         {sectionMode && (
-          <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginLeft: 4 }} title={tr("Every currently visible layer (litho, alteration, assays, structure, custom…) gets carried into the section")}>{tr("Buffer (m)")}<input type="number" value={sectionCorridor} onChange={(e) => setSectionCorridor(Math.max(1, Number(e.target.value) || 100))} style={{ width: 60, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "4px 6px", color: "var(--color-text)", fontSize: "var(--font-size-sm)", fontFamily: "inherit" }} />
+          <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginLeft: 4 }} title={tr("Every currently visible layer (litho, alteration, assays, structure, custom…) gets carried into the section")}>{tr("Buffer (m)")}<input type="number" value={sectionCorridor} onChange={(e) => { bufferTyped.current = true; setSectionCorridor(Math.max(1, Number(e.target.value) || 100)); }} style={{ width: 60, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "4px 6px", color: "var(--color-text)", fontSize: "var(--font-size-sm)", fontFamily: "inherit" }} />
+            {spacing && !bufferTyped.current && <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }} title={tr("Measured from the collars: {n} drill sites (collars within 2 m are one site), median distance to the nearest site {s} m. Type a buffer to keep your own.", { n: spacing.sites.toLocaleString(), s: Math.round(spacing.spacing * 10) / 10 })}>{tr("half the {s} m drill spacing", { s: Math.round(spacing.spacing * 10) / 10 })}</span>}{/* #2517 */}
           </label>
         )}
         <RibbonButton advanced icon={Crosshair} label="By coordinates" tone="section" title="Open a section from a centre, azimuth and length — or through a hole (scissors in the Holes list)" {...paneProps("sectionCoords")} />

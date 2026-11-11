@@ -9868,5 +9868,7 @@
   "{n} sample(s) included again.": "{n} échantillon(s) réintégré(s).",
   "Suggested suite": "Suite suggérée",
   "The commodity and alteration elements first, up to 12": "D'abord les éléments du minerai et d'altération, jusqu'à 12",
-  "The {shown} largest of {n} groups are drawn and listed; {more} more are in the CSV export.": "Les {shown} plus grands des {n} groupes sont tracés et listés ; {more} de plus sont dans l'export CSV."
+  "The {shown} largest of {n} groups are drawn and listed; {more} more are in the CSV export.": "Les {shown} plus grands des {n} groupes sont tracés et listés ; {more} de plus sont dans l'export CSV.",
+  "Measured from the collars: {n} drill sites (collars within 2 m are one site), median distance to the nearest site {s} m. Type a buffer to keep your own.": "Mesuré depuis les collets : {n} sites de forage (des collets à moins de 2 m forment un site), distance médiane au site le plus proche {s} m. Saisissez un tampon pour garder le vôtre.",
+  "half the {s} m drill spacing": "la moitié de l'espacement de {s} m"
 }
