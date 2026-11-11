@@ -10040,5 +10040,6 @@
   "This project's surveyed holes: lift {l}, drift {d} °/100 m (median of {n} inclined holes, first to last station).": "Furos com levantamento deste projeto: levantamento {l}, deriva {d} °/100 m (mediana de {n} furos inclinados, da primeira à última estação).",
   "Use them": "Usá-los",
   "Sample medium of the occurrences": "Meio de amostragem das ocorrências",
-  "every medium": "todos os meios"
+  "every medium": "todos os meios",
+  "Added \"{name}\" to the map, flat at elevation {z} m, just above the block models, because the project has no terrain and no holes. Change its elevation under Maps; its values export as GeoTIFF from the Raster module.": "\"{name}\" foi adicionado ao mapa, plano na cota {z} m, logo acima dos modelos de blocos, porque o projeto não tem terreno nem furos. Altere sua cota em Mapas; seus valores são exportados como GeoTIFF pelo módulo Raster."
 }

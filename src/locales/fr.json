@@ -10040,5 +10040,6 @@
   "This project's surveyed holes: lift {l}, drift {d} °/100 m (median of {n} inclined holes, first to last station).": "Sondages levés de ce projet : remontée {l}, dérive {d} °/100 m (médiane de {n} sondages inclinés, de la première à la dernière station).",
   "Use them": "Les utiliser",
   "Sample medium of the occurrences": "Milieu d'échantillonnage des occurrences",
-  "every medium": "tous les milieux"
+  "every medium": "tous les milieux",
+  "Added \"{name}\" to the map, flat at elevation {z} m, just above the block models, because the project has no terrain and no holes. Change its elevation under Maps; its values export as GeoTIFF from the Raster module.": "« {name} » a été ajouté à la carte, à plat à l'altitude {z} m, juste au-dessus des modèles de blocs, car le projet n'a ni terrain ni sondages. Modifiez son altitude sous Cartes ; ses valeurs s'exportent en GeoTIFF depuis le module Raster."
 }
