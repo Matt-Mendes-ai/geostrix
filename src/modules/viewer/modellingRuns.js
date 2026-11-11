@@ -2,6 +2,7 @@
 // model run instead of at startup. Bodies unchanged: each run reads the context snapshot it was started with
 // (exactly what the old useCallback closures saw), and mcRef is the hook's live ref (#599).
 import * as THREE from "three";
+import { trendRatioText } from "../../lib/trend.js"; // TASKS.csv #2423
 import { buildMeshQuery } from "../../lib/meshQuery.js"; // TASKS.csv #2376
 import { modelGround, boxTallerThanDrilling } from "../../lib/modelGround.js"; // TASKS.csv #2470
 import { roundVolume, loggedVolumeCheck } from "../../lib/volumeCheck.js"; // TASKS.csv #2530
@@ -2182,7 +2183,7 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
     const elementUnits = Object.fromEntries((numSrc ? srcData.assayElements : assayElements).map((e) => [e.symbol, e.unit]));
     const unit = elementUnits[symbol] || "ppm";
     const unitL = gradeUnitLabel(symbol, unit); // TASKS.csv #2218 — what a person reads: 'Au > 1 g/t shell' (#1680); unit stays the stored one
-    const label = `${symbol} > ${numericCutoff} ${unitL} shell`;
+    const label = `${symbol} > ${numericCutoff} ${unitL} shell${anisotropy.enabled && trendRatioText(anisotropy.params) ? ` (trend ${trendRatioText(anisotropy.params)})` : ""}`; // #2423 — shells under different trends are told apart
     setNumericBusy(true);
     ownTask(label).set(20); // #2379
     setTimeout(async () => {

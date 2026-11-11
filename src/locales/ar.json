@@ -10177,5 +10177,7 @@
   "{n} with a dip direction or strike that is not a number (a quadrant bearing such as N45E is not read)": "{n} باتجاه ميل أو مضرب ليس رقمًا (لا يُقرأ اتجاه الأرباع مثل N45E)",
   "{n} with a dip but no dip direction or strike": "{n} بميل دون اتجاه ميل أو مضرب",
   "Lab column: {v}": "عمود المختبر: {v}",
-  "Other fields: lab bookkeeping, one value on every sample, or a different one on each": "حقول أخرى: سجلات المختبر، أو قيمة واحدة لكل العينات، أو قيمة مختلفة لكل عينة"
+  "Other fields: lab bookkeeping, one value on every sample, or a different one on each": "حقول أخرى: سجلات المختبر، أو قيمة واحدة لكل العينات، أو قيمة مختلفة لكل عينة",
+  " · trend \"{name}\" {ratios}{ell}": " · الاتجاه \"{name}\" {ratios}{ell}",
+  ", ellipsoid {e} m": "، الإهليلج {e} م"
 }

@@ -10177,5 +10177,7 @@
   "{n} with a dip direction or strike that is not a number (a quadrant bearing such as N45E is not read)": "{n} avec une direction de pendage ou une direction qui n'est pas un nombre (un relèvement par quadrant comme N45E n'est pas lu)",
   "{n} with a dip but no dip direction or strike": "{n} avec un pendage mais sans direction de pendage ni direction",
   "Lab column: {v}": "Colonne de laboratoire : {v}",
-  "Other fields: lab bookkeeping, one value on every sample, or a different one on each": "Autres champs : suivi du laboratoire, une même valeur sur tous les échantillons ou une différente sur chacun"
+  "Other fields: lab bookkeeping, one value on every sample, or a different one on each": "Autres champs : suivi du laboratoire, une même valeur sur tous les échantillons ou une différente sur chacun",
+  " · trend \"{name}\" {ratios}{ell}": " · tendance « {name} » {ratios}{ell}",
+  ", ellipsoid {e} m": ", ellipsoïde {e} m"
 }

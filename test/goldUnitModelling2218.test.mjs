@@ -17,7 +17,7 @@ test("the block-model legend says the unit, g/t for gold in ppm", () => {
 test("the shell run, the estimation result and grade-tonnage label with the display unit", () => {
   const runs = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8");
   assert.ok(runs.includes("const unitL = gradeUnitLabel(symbol, unit);"));
-  assert.ok(runs.includes("const label = `${symbol} > ${numericCutoff} ${unitL} shell`;"));
+  assert.ok(runs.includes("const label = `${symbol} > ${numericCutoff} ${unitL} shell${") /* #2423: the trend follows */);
   assert.ok(runs.includes("capAudit(srcAssays, symbol, unit, elementUnits, numericCapValue), unitL)}"));
   const est = readFileSync(new URL("../src/components/GradeEstimationModal.jsx", import.meta.url), "utf8");
   for (const s of ["unitLabel={gradeUnitLabel(symbol, unit)}", "gradeUnitLabel(symbol, result.params.capUnit)", "unit={gradeUnitLabel(symbol, unit) /* #2218: display only */}"]) assert.ok(est.includes(s), s);

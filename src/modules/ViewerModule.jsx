@@ -89,7 +89,7 @@ const SectionGeorefModal = React.lazy(() => import("../components/SectionGeorefM
 const LayerStyleModal = React.lazy(() => import("../components/LayerStyleModal.jsx")); // TASKS.csv #635
 const SolidToolsModal = React.lazy(() => import("../components/SolidToolsModal.jsx")); // TASKS.csv #1950 / #1951 — clip a solid by a surface, combine two solids
 const TrendsPanel = React.lazy(() => import("../components/TrendsPanel.jsx")); // TASKS.csv #650
-import { cleanTrend, trendBasis, trendScales, describeTrend } from "../lib/trend.js"; // TASKS.csv #650
+import { cleanTrend, trendBasis, trendScales, describeTrend, trendRatioText } from "../lib/trend.js"; // TASKS.csv #650; trendRatioText: #2423
 import { colors } from "../lib/theme.js"; // TASKS.csv #700 — the trend preview's UI colours
 import { mergeSurfaceStyle, applySurfaceStyle, surfaceBaseLook } from "../lib/surfaceStyle.js"; // TASKS.csv #636
 const PredictivePanel = React.lazy(() => import("../components/PredictivePanel.jsx")); // TASKS.csv #638
@@ -8142,7 +8142,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                               unlimited: s.params.searchRadiusWasUnlimited ? tr(" (unlimited, capped at the grid diagonal)") : "", cell: s.params.cellSizeM, pad: s.params.paddingM,
                               samples: s.params.composited ? tr("{n} m composites", { n: s.params.compositeLengthM }) : tr("raw intervals"), cap: s.params.capValue == null ? tr("none") : s.params.capValue,
                               minHoles: s.params.minHoles, qc: s.params.includeQAQC ? tr("included") : tr("excluded"), closure: s.params.closure, points: s.params.samplePoints,
-                              cells: s.params.cellsEstimated.toLocaleString(), single: s.params.singleHoleCells ? tr(" ({n} from a single hole)", { n: s.params.singleHoleCells.toLocaleString() }) : "" })}</>
+                              cells: s.params.cellsEstimated.toLocaleString(), single: s.params.singleHoleCells ? tr(" ({n} from a single hole)", { n: s.params.singleHoleCells.toLocaleString() }) : "" })}{s.params.anisotropy && trendRatioText(s.params.anisotropy) ? tr(" · trend \"{name}\" {ratios}{ell}", { name: s.params.anisotropy.trend || "", ratios: trendRatioText(s.params.anisotropy), ell: s.params.searchEllipsoidM ? tr(", ellipsoid {e} m", { e: s.params.searchEllipsoidM.join(" × ") }) : "" }) : ""}{/* #2423 */}</>
                           ) : (
                             <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "1px 8px" }}>
                               {paramRows(s.params).map(({ key: k, label, text }) => ( /* #1378 */

@@ -163,3 +163,13 @@ export function trendToGeoml(t) {
   if (r > 90) r -= 180; else if (r < -90) r += 180;
   return { azimuth: az, dip, rake: r, midFct: c.ratios.int / c.ratios.max, minFct: c.ratios.min / c.ratios.int };
 }
+
+// TASKS.csv #2423 (review #2325, WA uranium) — a trend never reached the record of what was run: a sphere, a 10 : 1 and a 100 : 1 estimate
+// were all 'U estimate (idw2, 21m, r200m)' and the shell's parameters line said 'search 200 m' only. anisotropy: the params a run stores
+// ({ trend, ratios: { max, int, min } }) -> '10:10:1' (or '' for none)
+export function trendRatioText(anisotropy) {
+  const r = anisotropy?.ratios;
+  if (!r || ![r.max, r.int, r.min].every((v) => Number(v) > 0)) return "";
+  const k = Number(r.min), f = (v) => String(+(Number(v) / k).toPrecision(3));
+  return `${f(r.max)}:${f(r.int)}:${f(r.min)}`;
+}

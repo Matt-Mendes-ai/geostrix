@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { trendRatioText } from "../lib/trend.js"; // TASKS.csv #2423
 import CompositeLengthNote from "./CompositeLengthNote.jsx"; // TASKS.csv #2549
 import { belowDrilling } from "../lib/belowDrilling.js"; // TASKS.csv #2546
 import { buildMeshQuery, isPointInsideMesh, isMeshClosed } from "../lib/meshQuery.js"; // TASKS.csv #517
@@ -463,7 +464,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
         // "Add to project"), and travel with the block model into the project file.
         let outsideArea = 0; // #1570 — set below when a design-string area drops blocks; params read it, so it is declared first
         const params = {
-          tool: "Grade estimation", element: symbol, method, samplesFrom: samplesFrom === "checked" && checkedHoleIds?.size ? `holes checked in the Holes list (${checkedCount} of ${collars.length})` : "every hole", // #2544 cellSizeM: matched || cell3.dz !== cell3.dx ? [cell3.dx, cell3.dy, cell3.dz] : cellSize, paddingM: padding,
+          tool: "Grade estimation", element: symbol, method, samplesFrom: samplesFrom === "checked" && checkedHoleIds?.size ? `holes checked in the Holes list (${checkedCount} of ${collars.length})` : "every hole", /* #2544 */ cellSizeM: matched || cell3.dz !== cell3.dx ? [cell3.dx, cell3.dy, cell3.dz] : cellSize, paddingM: padding, // #2423: the #2544 note had commented out cellSizeM and paddingM
           ...(lattice ? { gridOrigin: [lattice.ox, lattice.oy, lattice.oz], gridMatched: matched ? matched.m.name : "typed origin" } : {}), // #724
           gridFrom: shellBox ? `box of the restricting solid "${shellBox.name}" within the drilling` : areaString ? `inside the closed design string "${areaString.name}" (${outsideArea} block(s) outside it dropped)` : gridMode === "checked" && checkedBounds ? `desurveyed traces of the ${checkedBounds.holes} checked hole(s)` : traceBounds ? `desurveyed traces of ${traceBounds.holes} assayed hole(s)` : "collar box (no hole could be desurveyed)", // #521; #1570
           searchRadiusM: searchRadius > 0 ? searchRadius : Math.round(gridDiagonal), searchRadiusWasUnlimited: !(searchRadius > 0), ...(supportRef > 0 ? { supportScoredAgainstM: Math.round(supportRef) } : {}), // #1411
@@ -473,7 +474,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
           capValue: Number.isFinite(cap) ? cap : null, capAudit: cap != null ? capAudit(srcAssays, symbol, unit, elementUnits, cap) : null, includeQAQC, // capAudit: #533
           // TASKS.csv #529 — the unit of the estimated values and of the cap (an "Au" column could be ppm or ppb); and the
           // domain fields, which #533's edit had left inside the comment above (estimates since then lacked them)
-          unit, capUnit: cap != null ? unit : null, domain: domainChoice ? domainChoice.label : null, ...(domainRowsSel && Object.values(capByDomain).some((v) => Number(v) > 0) ? { capByDomain: Object.fromEntries(Object.entries(capByDomain).filter(([, v]) => Number(v) > 0).map(([k, v]) => [k, Number(v)])) } : {}), // #1571 restrictToDomain: restrictToDomain && !!domainKey, noCodeAsDomain: restrictToDomain && !!domainKey && noCodeAsDomain /* #2541 */,
+          unit, capUnit: cap != null ? unit : null, domain: domainChoice ? domainChoice.label : null, ...(domainRowsSel && Object.values(capByDomain).some((v) => Number(v) > 0) ? { capByDomain: Object.fromEntries(Object.entries(capByDomain).filter(([, v]) => Number(v) > 0).map(([k, v]) => [k, Number(v)])) } : {}), /* #1571 */ restrictToDomain: restrictToDomain && !!domainKey, noCodeAsDomain: restrictToDomain && !!domainKey && noCodeAsDomain /* #2541 */, // #2423: the #1571 note had commented these out of the record
           desurveyMethod: desurveyMethod || "minimum curvature", samplePoints: points.length, generatedAt: new Date().toISOString(),
           ...uns.params(filled), beyondFlagged: true, // #2417 / #2542 — the unsampled metres' reading; each block flagged above / below its samples
           ...(source ? { source: `${source.label} (${sourceData.assays.length} readings, values as logged)`, valueTransform: logInfo ? `log10 (each block a geometric mean; ${logInfo.belowFloor} value(s) at or below zero floored at ${logInfo.floor})` : "none", ...(sourceData.pointRows ? { pointSupportM: sourceData.pointSupport } : {}) } : {}), // #1741
@@ -549,7 +550,8 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
     const p = result?.params || {};
     const c = Array.isArray(p.cellSizeM) ? (p.cellSizeM.every((v) => v === p.cellSizeM[0]) ? p.cellSizeM[0] : p.cellSizeM.join("×")) : p.cellSizeM;
     const r = p.searchRadiusM > 0 && !p.searchRadiusWasUnlimited ? `, r${Math.round(p.searchRadiusM)}m` : searchRadius > 0 ? `, r${Math.round(searchRadius)}m` : ""; // #1752 — estimates at different radii get different names
-    return modelName.trim() || (p.element ? `${p.element} estimate (${p.method}, ${c}m${r})` : `${symbol} estimate (${method}, ${cellLabel}m${r})`);
+    const tr3 = trendRatioText(p.searchTrend || p.anisotropy), a = tr3 ? `, ${tr3}` : ""; // #2423 — estimates under different trends get different names
+    return modelName.trim() || (p.element ? `${p.element} estimate (${p.method}, ${c}m${r}${a})` : `${symbol} estimate (${method}, ${cellLabel}m${r}${a})`);
   };
   const addSupportModel = () => {
     if (!result || !result.cells.length) return;
