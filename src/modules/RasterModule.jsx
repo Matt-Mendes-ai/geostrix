@@ -35,6 +35,8 @@ import { detectKeyColour } from "../lib/rasterKey.js"; // TASKS.csv #1623
 import RasterLegend from "../components/RasterLegend.jsx"; // TASKS.csv #2011
 import { projectTargetEpsg } from "../lib/projectTarget.js"; // TASKS.csv #2287 — no reprojection INTO the placeholder CRS
 import { rasterLevelM, filteredLevelM, placeEulerSolutions } from "../lib/eulerPlace.js"; // TASKS.csv #2553
+import { rasterMethodOf, filterBlockedBy, ternaryChoices } from "../lib/rasterMethod.js"; // TASKS.csv #2557
+import { SURVEY_METHODS } from "../lib/geophysSurveys.js"; // TASKS.csv #2557 — the method's label
 
 // TASKS.csv — split out of the Geophysics module into its own tab (user request: "let's make a
 // separate Module for Raster, not within geophysics"). Geophysics had accumulated point-cloud/UBC
@@ -83,7 +85,7 @@ function SpectrumPanel({ spectrum, onSplit }) {
 }
 
 export default function RasterModule({ embedded = false } = {}) {
-  const { rasters, addRaster, updateRaster, removeRaster, terrain, project, collars, boundaries, setLayers, projectIsEmpty, setEpsg, surfaceSamples = [], voxelModels = [], updateGeophysSurvey } = useStore(); // voxelModels: #1856 // projectIsEmpty/setEpsg: #607; updateGeophysSurvey: #1985
+  const { rasters, addRaster, updateRaster, removeRaster, terrain, project, collars, boundaries, setLayers, projectIsEmpty, setEpsg, surfaceSamples = [], voxelModels = [], updateGeophysSurvey, geophysSurveys = {} } = useStore(); // voxelModels: #1856 // projectIsEmpty/setEpsg: #607; updateGeophysSurvey: #1985
   // TASKS.csv #326 — a data grid's nodes as survey points (Geophysics -> Point cloud / Inversion). Replaces
   // any earlier points made from the same grid, so doing it twice does not double the survey.
   // TASKS.csv #373 — potential-field filters on a grid's kept values; each result is a new raster
@@ -92,6 +94,7 @@ export default function RasterModule({ embedded = false } = {}) {
   const [filtering, setFiltering] = useState(false);
   const [spectrum, setSpectrum] = useState(null); // TASKS.csv #808 — { rasterId, spec, fit } for the open grid
   const runFilter = async (r) => {
+    if (filterBlockedBy(filt.kind, rasterMethodOf(r, geophysSurveys))) return; // #2557 — the button is disabled too
     const { applyGridFilter, FILTERS, tiltDepth, radialSpectrum, fitSpectrumDepths, worms } = await import("../lib/gridFilters.js"); // loaded on first use; worms: #1988
     const g = r.grid;
     const params = {};
@@ -161,7 +164,7 @@ export default function RasterModule({ embedded = false } = {}) {
       const suffix = filt.kind === "rtp" || filt.kind === "rte" ? ` (I ${params.inclination}°, D ${params.declinationTrue}° true)` : filt.kind === "rtpa" ? ` (I ${params.inclination}°, D ${params.declinationTrue}° true, Ia ${out.amplitudeInclination}°)` : filt.kind === "upward" ? ` (+${params.height} m)` : "";
       if (filt.kind === "rtpa") params.amplitudeInclination = out.amplitudeInclination; // #1988 — the one used, recorded with the raster
       const nr = rasterFromGrid({ name: `${r.name} — ${label}${suffix}`, values: out.values, nx: g.nx, ny: g.ny, x0: g.x0, yTop: g.yTop, dx: g.dx, dy: g.dy, averagedBy: g.averagedBy || 1, sourceSize: g.sourceSize, elevation: r.elevation,
-        extra: { levelM: filteredLevelM(r, filt.kind, params) /* #2553 */, filter: { kind: filt.kind, label, params, sourceRaster: r.name, method: "FFT on the kept grid: mean plane removed, gaps filled from neighbours, mirror-padded to >= 2x with a cosine taper (gridFilters.js)", at: new Date().toISOString() } } });
+        extra: { levelM: filteredLevelM(r, filt.kind, params) /* #2553 */, surveyMethod: rasterMethodOf(r, geophysSurveys) || undefined, units: r.units ? FILTERS[filt.kind].unitsOut(r.units) : undefined /* #2557 */, filter: { kind: filt.kind, label, params, sourceRaster: r.name, method: "FFT on the kept grid: mean plane removed, gaps filled from neighbours, mirror-padded to >= 2x with a cosine taper (gridFilters.js)", at: new Date().toISOString() } } });
       addRaster(nr);
       setError({ info: !out.warning, text: tr("Added \"{name}\" (colours span the 2nd–98th percentile: {v}).{v2}", { name: nr.name, v: nr.colourRange.map((v) => v.toPrecision(3)).join(" to "), v2: out.warning ? " " + out.warning : "" }) });
       setFilterFor(null);
@@ -498,7 +501,7 @@ export default function RasterModule({ embedded = false } = {}) {
                     <span style={{ width: 74, flexShrink: 0, color: "var(--color-text-faint)", fontSize: "var(--font-size-sm)" }}>{label}</span>
                     <select value={tern[key]} onChange={(e) => setTern((p) => ({ ...p, [key]: e.target.value }))} style={{ ...numInput, minWidth: 0 }} aria-label={tr("{label} grid", { label })}>
                       <option value="">{tr("Choose a grid…")}</option>
-                      {gridRasters.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+                      {ternaryChoices(gridRasters, key, (x) => rasterMethodOf(x, geophysSurveys)).map(({ raster: r, other }) => <option key={r.id} value={r.id}>{other ? tr("{name} (not radiometric)", { name: r.name }) : r.name}</option>)}{/* #2557 */}
                     </select>
                   </div>
                 ))}
@@ -581,7 +584,8 @@ export default function RasterModule({ embedded = false } = {}) {
                      euler: tr("Source positions and depths from Euler's equation in sliding windows (Reid et al. 1990; Harmonica, in the Python engine). Run it on an RTP or gravity grid. The structural index is the source shape; the window should span an anomaly (blank: 10 cells). Takes a few seconds; the first run starts the engine."),
                      worms: tr("Edges at doubling heights of upward continuation (Hornby et al. 1999): crests of the horizontal gradient at each height. Run it on gravity, or on an RTP grid with the box ticked. Takes a few seconds on a large grid."), vd1: tr("Sharpens shallow sources; also amplifies noise."), tiltdepth: tr("Depth to the top of contacts along the tilt's zero contour: 1 / its horizontal gradient (Salem et al. 2007). Run it on an RTP grid; it assumes near-vertical contacts and reads depth below the sensor."), spectrum: tr("Radially averaged power spectrum: the slope of each straight segment gives the mean depth of a group of sources (Spector & Grant 1970). Deep and shallow segments are fitted for you; the matched filter then splits the grid into those two parts."), tilt: tr("Angle between vertical and horizontal gradients (±90°); zero-crossings trace source edges whatever the depth or amplitude."), as: tr("Peaks over source edges regardless of magnetization direction — the honest choice where remanence breaks RTP."), upward: tr("Smooths out shallow sources to show the deeper / regional field; the height is metres above the grid's observation level.") }[filt.kind]}
                 </div>
-                <button onClick={() => runFilter(r)} disabled={filtering} style={{ marginTop: 6, width: "100%", padding: "5px 8px", border: "1px solid var(--color-selected-border)", background: "var(--color-selected-bg)", color: "var(--color-primary)", borderRadius: 5, cursor: filtering ? "default" : "pointer", fontSize: "var(--font-size-sm)" }}>
+                {(() => { const m = rasterMethodOf(r, geophysSurveys), why = filterBlockedBy(filt.kind, m); /* #2557 */ return why ? <div style={{ marginTop: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.4 }}>{why === "magnetic" ? tr("\"{name}\" is {method}: a reduction to the pole or equator turns a magnetic field into a vertical one, and gravity is already vertical. Use the derivatives, continuation, worms or Euler.", { name: r.name, method: tr(SURVEY_METHODS[m].label) }) : tr("\"{name}\" is {method}: these filters assume a magnetic or gravity field (a potential field), which this grid is not.", { name: r.name, method: tr(SURVEY_METHODS[m].label) })}</div> : null; })()}
+                <button onClick={() => runFilter(r)} disabled={filtering || !!filterBlockedBy(filt.kind, rasterMethodOf(r, geophysSurveys))} style={{ marginTop: 6, width: "100%", padding: "5px 8px", border: "1px solid var(--color-selected-border)", background: "var(--color-selected-bg)", color: "var(--color-primary)", borderRadius: 5, cursor: filtering ? "default" : "pointer", fontSize: "var(--font-size-sm)" }}>
                   {filtering ? tr("Filtering…") : filt.kind === "spectrum" ? tr("Compute the spectrum") : tr("Apply — adds a new raster")}
                 </button>
                 {/* TASKS.csv #808 — the spectrum, its fitted depths and the matched-filter split */}

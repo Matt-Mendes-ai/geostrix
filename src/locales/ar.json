@@ -9933,5 +9933,10 @@
   "Replaced the terrain \"{name}\".": "استُبدلت التضاريس \"{name}\".",
   "Log (positive values only: {pct}% of the cells are not)": "لوغاريتمي (القيم الموجبة فقط: {pct}% من الخلايا ليست كذلك)",
   "The values run both sides of zero: a diverging ramp centred on zero shows highs and lows alike.": "تقع القيم على جانبي الصفر: يُظهر تدرّج متباعد متمركز على الصفر القيم العالية والمنخفضة على حد سواء.",
-  "Diverging ±{m}": "متباعد ±{m}"
+  "Diverging ±{m}": "متباعد ±{m}",
+  "The {n} points lie along one line: a grid of them is a single row of cells, which the map filters (RTP, derivatives…) would treat as a map. Plot the line as a profile instead.": "تقع النقاط الـ {n} على خط واحد: شبكتها صف واحد من الخلايا، وستعاملها مرشحات الخرائط (RTP، المشتقات…) كخريطة. ارسم الخط كمقطع جانبي بدلًا من ذلك.",
+  "\"{name}\" is {method}: a reduction to the pole or equator turns a magnetic field into a vertical one, and gravity is already vertical. Use the derivatives, continuation, worms or Euler.": "\"{name}\" هو {method}: يحوّل الاختزال إلى القطب أو خط الاستواء المجال المغناطيسي إلى مجال رأسي، والجاذبية رأسية أصلًا. استخدم المشتقات أو الاستمرار أو الديدان أو أويلر.",
+  "\"{name}\" is {method}: these filters assume a magnetic or gravity field (a potential field), which this grid is not.": "\"{name}\" هو {method}: تفترض هذه المرشحات مجالًا مغناطيسيًا أو جاذبيًا (مجال جهد)، وهذه الشبكة ليست كذلك.",
+  "{name} (not radiometric)": "{name} (ليس إشعاعيًا)",
+  "Gridded \"{idwKey}\" ({pts} points) at {idwCellSize} m: {valid} of {cells} cells have a value{v}. The grid's values are kept for its colours and the ternary image; the map filters are for magnetic and gravity grids.": "تمت شبكنة \"{idwKey}\" ({pts} نقطة) بخلايا {idwCellSize} م: {valid} من {cells} خلية لها قيمة{v}. تُحفظ قيم الشبكة لألوانها وللصورة الثلاثية؛ مرشحات الخرائط مخصصة للشبكات المغناطيسية والجاذبية."
 }

@@ -9933,5 +9933,10 @@
   "Replaced the terrain \"{name}\".": "O terreno \"{name}\" foi substituído.",
   "Log (positive values only: {pct}% of the cells are not)": "Log (só valores positivos: {pct}% das células não são)",
   "The values run both sides of zero: a diverging ramp centred on zero shows highs and lows alike.": "Os valores ficam dos dois lados do zero: uma rampa divergente centrada no zero mostra altos e baixos por igual.",
-  "Diverging ±{m}": "Divergente ±{m}"
+  "Diverging ±{m}": "Divergente ±{m}",
+  "The {n} points lie along one line: a grid of them is a single row of cells, which the map filters (RTP, derivatives…) would treat as a map. Plot the line as a profile instead.": "Os {n} pontos estão sobre uma única linha: uma grade deles é uma só fileira de células, que os filtros de mapa (RTP, derivadas…) tratariam como um mapa. Plote a linha como um perfil.",
+  "\"{name}\" is {method}: a reduction to the pole or equator turns a magnetic field into a vertical one, and gravity is already vertical. Use the derivatives, continuation, worms or Euler.": "\"{name}\" é {method}: a redução ao polo ou ao equador transforma um campo magnético em vertical, e a gravidade já é vertical. Use as derivadas, a continuação, os worms ou Euler.",
+  "\"{name}\" is {method}: these filters assume a magnetic or gravity field (a potential field), which this grid is not.": "\"{name}\" é {method}: estes filtros supõem um campo magnético ou gravimétrico (um campo potencial), e esta grade não é.",
+  "{name} (not radiometric)": "{name} (não radiométrico)",
+  "Gridded \"{idwKey}\" ({pts} points) at {idwCellSize} m: {valid} of {cells} cells have a value{v}. The grid's values are kept for its colours and the ternary image; the map filters are for magnetic and gravity grids.": "\"{idwKey}\" foi interpolado em grade ({pts} pontos) a {idwCellSize} m: {valid} de {cells} células têm valor{v}. Os valores da grade são mantidos para suas cores e a imagem ternária; os filtros de mapa são para grades magnéticas e gravimétricas."
 }

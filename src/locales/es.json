@@ -9933,5 +9933,10 @@
   "Replaced the terrain \"{name}\".": "Se reemplazó el terreno \"{name}\".",
   "Log (positive values only: {pct}% of the cells are not)": "Log (solo valores positivos: el {pct}% de las celdas no lo es)",
   "The values run both sides of zero: a diverging ramp centred on zero shows highs and lows alike.": "Los valores están a ambos lados de cero: una rampa divergente centrada en cero muestra por igual los altos y los bajos.",
-  "Diverging ±{m}": "Divergente ±{m}"
+  "Diverging ±{m}": "Divergente ±{m}",
+  "The {n} points lie along one line: a grid of them is a single row of cells, which the map filters (RTP, derivatives…) would treat as a map. Plot the line as a profile instead.": "Los {n} puntos están sobre una sola línea: una grilla de ellos es una única fila de celdas, que los filtros de mapa (RTP, derivadas…) tratarían como un mapa. Grafique la línea como un perfil.",
+  "\"{name}\" is {method}: a reduction to the pole or equator turns a magnetic field into a vertical one, and gravity is already vertical. Use the derivatives, continuation, worms or Euler.": "\"{name}\" es {method}: la reducción al polo o al ecuador convierte un campo magnético en uno vertical, y la gravedad ya es vertical. Use las derivadas, la continuación, los worms o Euler.",
+  "\"{name}\" is {method}: these filters assume a magnetic or gravity field (a potential field), which this grid is not.": "\"{name}\" es {method}: estos filtros suponen un campo magnético o gravimétrico (un campo potencial), y esta grilla no lo es.",
+  "{name} (not radiometric)": "{name} (no radiométrico)",
+  "Gridded \"{idwKey}\" ({pts} points) at {idwCellSize} m: {valid} of {cells} cells have a value{v}. The grid's values are kept for its colours and the ternary image; the map filters are for magnetic and gravity grids.": "Se grilló \"{idwKey}\" ({pts} puntos) a {idwCellSize} m: {valid} de {cells} celdas tienen valor{v}. Los valores de la grilla se conservan para sus colores y la imagen ternaria; los filtros de mapa son para grillas magnéticas y gravimétricas."
 }

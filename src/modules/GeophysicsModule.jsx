@@ -96,6 +96,7 @@ import { fillNoData } from "../lib/demFill.js"; // TASKS.csv #1994
 import { offersGradeTonnage } from "../lib/gradeTonnage.js"; // TASKS.csv #1592
 import { collarsLookUnderground } from "../lib/pitShell.js"; // TASKS.csv #2263
 import { projectTargetEpsg } from "../lib/projectTarget.js"; // TASKS.csv #2287 — no reprojection INTO the placeholder CRS
+import { pointsAlongOneLine } from "../lib/rasterMethod.js"; // TASKS.csv #2557
 const GradeTonnageModal = lazyModal(() => import("../components/GradeTonnageModal.jsx")); // TASKS.csv #1052 — loaded when opened
 
 // TASKS.csv #309 — the format reference that USED to be this tab's entire empty state: a twelve-line
@@ -1974,6 +1975,8 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                   onClick={() => {
                     const pts = idwSlice; // #1783 — a 3D cloud: the chosen depth slice
                     if (!pts.length) { setError(tr("No points in that elevation slice.")); return; }
+                    // TASKS.csv #2557 — a single traverse became an 80 x 1 'grid' that RTP then filtered as a map
+                    if (pointsAlongOneLine(pts, idwCellSize)) { setError(tr("The {n} points lie along one line: a grid of them is a single row of cells, which the map filters (RTP, derivatives…) would treat as a map. Plot the line as a profile instead.", { n: pts.length.toLocaleString() })); return; }
                     const sliceTag = idwShape?.is3D ? ` z ${idwZ.lo === "" ? Math.round(idwShape.zMin) : idwZ.lo}–${idwZ.hi === "" ? Math.round(idwShape.zMax) : idwZ.hi} m` : "";
                     const xs = pts.map((r) => r.x), ys = pts.map((r) => r.y);
                     const xmin = arrMin(xs), xmax = arrMax(xs), ymin = arrMin(ys), ymax = arrMax(ys);
@@ -1988,12 +1991,15 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                     // the points have no z.
                     const ptsZs = pts.map((r) => r.z).filter(Number.isFinite), ptsZ = ptsZs.length ? median(ptsZs) : null;
                     const gridElev = ptsZ != null ? ptsZ : defaultElevation;
-                    addRaster({ ...raster, elevation: gridElev, provenance: { tool: "IDW gridding", survey: idwKey, points: pts.length, cellM: idwCellSize, power: idwPower, blankingM: Number.isFinite(blank) ? Math.round(blank) : null, blankingBasis: idwBlank === "" && idwSuggest ? `1.5x / 2x the median ${idwSuggest.basis} (${idwSuggest.spacing.toFixed(1)} m)` : "entered" } });
+                    addRaster({ ...raster, elevation: gridElev, provenance: { tool: "IDW gridding", survey: idwKey, points: pts.length, cellM: idwCellSize, power: idwPower, blankingM: Number.isFinite(blank) ? Math.round(blank) : null, blankingBasis: idwBlank === "" && idwSuggest ? `1.5x / 2x the median ${idwSuggest.basis} (${idwSuggest.spacing.toFixed(1)} m)` : "entered" }, surveyMethod: geophysSurveys?.[idwKey]?.method || undefined, units: geophysSurveys?.[idwKey]?.units || undefined /* #2557 */ });
                     const cells = raster.grid.nx * raster.grid.ny;
                     // TASKS.csv #2075 (review #2013, Geophysics) — where the raster is drawn: Woodjam's n = 1 grid went flat at 965 m (the collars' median,
                     // 10 km away) while its ground is 1,062-1,116 m, and nothing said so
                     const where = terrain ? tr(" Draped on the terrain.") : ptsZ != null ? tr(" Drawn flat at {z} m, the stations' median elevation (there is no terrain to drape it on).", { z: Math.round(ptsZ).toLocaleString() }) : tr(" Drawn flat at {z} m ({basis}), not on the ground: there is no terrain. Add one (Maps > Terrain) to drape it, or set its elevation on its card.", { z: Math.round(defaultElevation).toLocaleString(), basis: drapeAt.source === "collars" ? tr("the collars' median elevation") : drapeAt.source === "model" ? tr("the top of {model}", { model: drapeAt.model }) : drapeAt.source === "samples" ? tr("the surface samples' median elevation") : tr("no elevation known") });
-                    setError({ info: true, text: tr("Gridded \"{idwKey}\" ({pts} points) at {idwCellSize} m: {valid} of {cells} cells have a value{v}. The grid's values are kept, so the raster filters (RTP, derivatives…) work on it.", { idwKey, pts: pts.length.toLocaleString(), idwCellSize, valid: raster.grid.valid.toLocaleString(), cells: cells.toLocaleString(), v: Number.isFinite(blank) ? tr("; cells more than {v} m from any point are left empty", { v: Math.round(blank) }) : "" }) + where }); // where: #2075
+                    const idwArgs = { idwKey, pts: pts.length.toLocaleString(), idwCellSize, valid: raster.grid.valid.toLocaleString(), cells: cells.toLocaleString(), v: Number.isFinite(blank) ? tr("; cells more than {v} m from any point are left empty", { v: Math.round(blank) }) : "" };
+                    // TASKS.csv #2557 — the map filters are for magnetic and gravity grids; a radiometric / EM grid is not told they work on it
+                    const potential = ["mag", "grav"].includes(SURVEY_METHODS[geophysSurveys?.[idwKey]?.method]?.group) || !geophysSurveys?.[idwKey]?.method;
+                    setError({ info: true, text: (potential ? tr("Gridded \"{idwKey}\" ({pts} points) at {idwCellSize} m: {valid} of {cells} cells have a value{v}. The grid's values are kept, so the raster filters (RTP, derivatives…) work on it.", idwArgs) : tr("Gridded \"{idwKey}\" ({pts} points) at {idwCellSize} m: {valid} of {cells} cells have a value{v}. The grid's values are kept for its colours and the ternary image; the map filters are for magnetic and gravity grids.", idwArgs)) + where }); // where: #2075
                     setIdwOpen(false);
                   }}
                   style={{ ...pBtn, marginBottom: 0, justifyContent: "center" }}
