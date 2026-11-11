@@ -6758,6 +6758,7 @@
   "no electrode and apparent-resistivity columns found.": "não foram encontradas colunas de eletrodos e resistividade aparente.",
   "no usable readings.": "não há leituras utilizáveis.",
   "Kept {kept} lines in the project ({readings} readings). Choose one from the list above to invert it.": "{kept} linhas mantidas no projeto ({readings} leituras). Escolha uma na lista acima para invertê-la.",
+  "Kept in the project as \"{name}\" (place it on the map before inverting).": "Mantida no projeto como \"{name}\" (posicione-a no mapa antes de inverter).",
   "No stations found for: {names}. Place those lines before inverting.": "Nenhuma estação encontrada para: {names}. Posicione essas linhas antes de inverter.",
   "Select intervals with a box": "Selecionar intervalos com uma caixa",
   "Drag a box in the 3D view. Shift adds, Ctrl removes (click here to stop)": "Arraste uma caixa na vista 3D. Shift adiciona, Ctrl remove (clique aqui para parar)",
