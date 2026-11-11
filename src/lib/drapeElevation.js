@@ -7,6 +7,7 @@ import { modelAirValue } from "./surfacePlan.js";
 import { t as tr } from "./i18n.js";
 import { median } from "./arrayStats.js";
 import { collarsLookUnderground } from "./pitShell.js"; // TASKS.csv #2269
+import { farFromCollars, farNote, boxesOverlap } from "./landingCheck.js"; // TASKS.csv #2590 / #2125
 
 const medianOf = (zs) => { const z = zs.filter(Number.isFinite); return z.length ? median(z) : null; }; // #1114 — the shared median
 const meets = (c, b) => !b || (c.x + (c.dx || 0) / 2 >= b[0] && c.x - (c.dx || 0) / 2 <= b[2] && c.y + (c.dy || 0) / 2 >= b[1] && c.y - (c.dy || 0) / 2 <= b[3]);
@@ -77,10 +78,11 @@ export function rasterDrapeElevation({ collars = [], voxelModels = [], surfaceSa
     const under = (collars || []).filter((c) => Number.isFinite(c.z) && inBox(c, bbox));
     const zs = (under.length ? under : collars.filter((c) => Number.isFinite(c.z))).map((c) => c.z);
     const top = Math.max(...zs);
-    out = { z: top + ABOVE_COLLARS_M, source: "collars", above: ABOVE_COLLARS_M, topCollarZ: top };
+    out = { z: top + ABOVE_COLLARS_M, source: "collars", above: ABOVE_COLLARS_M, topCollarZ: top, ...(under.length ? {} : { noneUnder: true }) }; // noneUnder: #2125 — no collar under it
   } else out = { ...base };
-  // stacked above a raster already at that level
-  const levels = (rasters || []).map((r) => r.elevation).filter(Number.isFinite);
+  // stacked above a raster already at that level — TASKS.csv #2590: only one whose footprint overlaps this one (a picture 6,240 km away
+  // pushed the next GeoTIFF 10 m up)
+  const levels = (rasters || []).filter((r) => !bbox || !Array.isArray(r.bbox) || boxesOverlap(r.bbox, bbox)).map((r) => r.elevation).filter(Number.isFinite);
   let stacked = 0;
   for (let guard = 0; guard < 50; guard++) {
     const near = levels.filter((e) => Math.abs(e - out.z) < 2);
@@ -88,17 +90,21 @@ export function rasterDrapeElevation({ collars = [], voxelModels = [], surfaceSa
     out.z = Math.max(out.z, ...near) + STACK_STEP_M; stacked++;
   }
   if (stacked) out.stacked = stacked;
+  const far = farFromCollars(bbox, collars); // #2590 / #2125 — said in the note
+  if (far) out.far = far;
   return out;
 }
 
 // What the import notice says about it
 export function drapeElevationNote(d) {
   const z = Math.round(d.z).toLocaleString();
-  const stacked = d.stacked ? " " + tr("It sits {m} m above the raster(s) imported before, so they do not overlap.", { m: d.stacked * STACK_STEP_M }) : ""; // #1505
+  const stacked = (d.stacked ? " " + tr("It sits {m} m above the raster(s) imported before, so they do not overlap.", { m: d.stacked * STACK_STEP_M }) : "") // #1505
+    + (d.far ? " " + farNote(d.far) : ""); // #2590 / #2125
   if (d.source === "depth") return tr("Placed flat at {z} m: {depth} m below the ground level ({ground} m), as the file name's depth says; change Elev. on its card.", { z, depth: d.depth, ground: Math.round(d.groundZ).toLocaleString() }) + stacked;
+  if (d.source === "collars" && d.above && d.noneUnder) return tr("Placed flat at {z} m, {m} m above the highest collar in the project (no collar is under it); change Elev. on its card.", { z, m: d.above }) + stacked; // #2125
   if (d.source === "collars" && d.above) return tr("Placed flat at {z} m, {m} m above the highest collar under it, so no hole top is hidden; change Elev. on its card.", { z, m: d.above }) + stacked;
-  if (d.source === "collars") return tr("Placed flat at {z} m, the median collar elevation; change Elev. on its card.", { z });
-  if (d.source === "model") return tr("Placed flat at {z} m, the top of the block model \"{model}\" there; change Elev. on its card.", { z, model: d.model });
-  if (d.source === "samples") return tr("Placed flat at {z} m, the median surface-sample elevation; change Elev. on its card.", { z });
+  if (d.source === "collars") return tr("Placed flat at {z} m, the median collar elevation; change Elev. on its card.", { z }) + stacked;
+  if (d.source === "model") return tr("Placed flat at {z} m, the top of the block model \"{model}\" there; change Elev. on its card.", { z, model: d.model }) + stacked;
+  if (d.source === "samples") return tr("Placed flat at {z} m, the median surface-sample elevation; change Elev. on its card.", { z }) + stacked;
   return tr("Placed flat at 0 m: nothing in the project gives a ground level yet; change Elev. on its card.");
 }

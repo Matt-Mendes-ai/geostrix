@@ -21,7 +21,7 @@ test("samples and collars triangulate into a terrain", () => {
 
 test("wired: the Terrain pane offers the project's samples and collars; Model from map names the offline routes", () => {
   const g = readFileSync(new URL("../src/modules/GeophysicsModule.jsx", import.meta.url), "utf8");
-  assert.match(g, /const finishPointsTerrain = async \(\{ points, lines, what, name, sourceFile, reprojected \}\)/);
+  assert.match(g, /const finishPointsTerrain = async \(\{ points, lines, what, name, sourceFile, reprojected(, misfitAt = null, benchNote = "")? \}\)/); // misfitAt, benchNote: #2589
   assert.match(g, /await finishPointsTerrain\(\{ points, lines, what, name: file\.name\.replace/);
   assert.match(g, /pick\(surfaceSamples\), c = pick\(collars\)/);
   assert.match(g, /projectZPoints\.points\.length >= 3 && \(/);
