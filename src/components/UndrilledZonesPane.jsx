@@ -31,15 +31,18 @@ const mm3 = (v) => (v >= 1e5 ? `${(v / 1e6).toFixed(2)} Mm³` : `${Math.round(v)
 let lastResult = null;
 export default function UndrilledZonesPane({ solids = [], onAdd, onClose, onPlanTo = null }) {
   const { collars = [], survey = [], plannedHoles = [], desurveyMethod, terrain } = useStore(); // terrain: #1557
-  const [unitId, setUnitId] = useState("");
+  // TASKS.csv #1732 (review #1645, Copley) — the restored result brings back the unit and settings it was made with: the unit read 'Modelled
+  // unit...' and Find was disabled while the old result showed, so a re-run with planned holes did nothing
+  const was = lastResult?.inputs && solids.some((s) => s.id === lastResult.inputs.unitId) ? lastResult.inputs : null;
+  const [unitId, setUnitId] = useState(() => was?.unitId ?? "");
   // TASKS.csv #2452 (review #2325, WA uranium) — "Covered within" from the drilling: half the median drill-site spacing (sites 77 m apart ->
   // 40 m), not 25 m whatever the spacing (83 % of the 200 ppm sheet "not covered" on the WA grid, as one zone)
   const siteSpacing = useMemo(() => medianSiteSpacing(drilledCollars(collars).collars), [collars]);
-  const [coverM, setCoverM] = useState(() => defaultCoverM(siteSpacing));
-  const [cellText, setCellText] = useState("");
-  const [insideOnly, setInsideOnly] = useState(false);
-  const [withPlanned, setWithPlanned] = useState(false);
-  const [minText, setMinText] = useState("");
+  const [coverM, setCoverM] = useState(() => was?.coverM ?? defaultCoverM(siteSpacing));
+  const [cellText, setCellText] = useState(() => was?.cellText ?? "");
+  const [insideOnly, setInsideOnly] = useState(() => was?.insideOnly ?? false);
+  const [withPlanned, setWithPlanned] = useState(() => was?.withPlanned ?? false);
+  const [minText, setMinText] = useState(() => was?.minText ?? "");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState(null);
   const [result, setResultState] = useState(() => lastResult);
@@ -88,7 +91,7 @@ export default function UndrilledZonesPane({ solids = [], onAdd, onClose, onPlan
         const ug = terrain ? null : collarsLookUnderground(collars, survey);
         const groundAt = terrain ? (x, y) => terrainGroundAt(terrain, x, y) : ug?.underground ? null : collarGround(collars);
         const r = undrilledZones({ solid: unit, traces: t.traces, coverM: Number(coverM), cellM: Number(cellText) || 0, insideOnly, minZoneM3: Number(minText) || 0, groundAt });
-        setResult({ ...r, unitName: unit.name, coverM: Number(coverM), insideOnly, holes: t, groundFrom: terrain ? "terrain" : groundAt ? "collars" : null, underground: ug?.underground ? ug : null });
+        setResult({ ...r, unitName: unit.name, coverM: Number(coverM), insideOnly, holes: t, groundFrom: terrain ? "terrain" : groundAt ? "collars" : null, underground: ug?.underground ? ug : null, inputs: { unitId, coverM, cellText, insideOnly, withPlanned, minText } /* #1732 */ });
       } catch (e) { setMsg({ ok: false, text: e.message }); }
       setBusy(false);
     }, 30);
