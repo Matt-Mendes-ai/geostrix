@@ -25,6 +25,6 @@ test("#1405: the depth estimate and the wall height", async () => {
   const d = drillDepthBelowOrigin([{ z: 1000, length: 1300, dip: -70 }, { z: 1200, length: 200, dip: -90 }]);
   assert.ok(Math.abs(d - (100 + 1300 * Math.sin(70 * Math.PI / 180))) < 1e-6, String(d));
   assert.equal(drillDepthBelowOrigin([]), 0);
-  assert.equal(gridWallHeight(1000, 20, 400), 1000); // shallower than the grid: the grid's size
+  assert.equal(gridWallHeight(1000, 20, 400), 400); // #2369 — shallower than the grid: whole cells to the drilled depth, not the grid's size
   assert.equal(gridWallHeight(1000, 20, 1321.6), 1350); // deeper: whole 50 m cells
 });

@@ -29,7 +29,7 @@ test("the group: the plane at the lift, the walls hanging from it, no labels wit
   const g = buildGridGroup({ visible: true, mode: "3d", size: 1000, divisions: 20 }, { depth: 300, lift: 150, origin: { x: 0, y: 0, z: 250 } });
   assert.equal(g.children.length, 3);
   assert.equal(g.children[0].position.y, 150);
-  const h = 1000; // gridWallHeight(1000, 20, 450): the grid's size
+  const h = 450; // gridWallHeight(1000, 20, 450): as deep as the drilling (#2369: no longer at least the grid's size)
   assert.equal(g.children[1].position.y, 150 - h / 2);
   assert.equal(g.userData.labels, undefined); // sprites need a canvas
   assert.equal(buildGridGroup({ visible: false }, null).children.length, 0);

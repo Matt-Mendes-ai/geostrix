@@ -15,8 +15,9 @@ export function drillDepthBelowOrigin(collars) {
   return deepest;
 }
 
-// The wall height: the grid size, or the drilled depth rounded up to whole grid cells when that is deeper
+// The wall height: the drilled depth rounded up to whole grid cells (at least one cell). TASKS.csv #2369 (review #2325, WA uranium) — it was
+// at least the grid's size, so a 12 km grid hung 12 km walls under 60 m holes; the walls now stop a cell below the drilling.
 export function gridWallHeight(size, divisions, depth) {
   const cell = size / Math.max(1, divisions);
-  return depth > size ? Math.ceil(depth / cell) * cell : size;
+  return Math.max(cell, Math.ceil(Math.max(0, depth) / cell - 1e-9) * cell);
 }

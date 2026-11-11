@@ -31,19 +31,31 @@ export function gridTicks(size, divisions) {
 }
 const fmt = (v) => Math.round(v).toLocaleString("en-US");
 
+// TASKS.csv #2369 (review #2325, WA uranium) — the grid was centred on the mean collar (577,011 E / 6,681,766 N / RL 331), so no line fell on a
+// round coordinate. Its centre and plane now snap to multiples of the cell (577,000 E, 6,682,000 N, RL 350 with 50 m cells): -> the scene offsets
+// { dx, dz, y } of the grid's centre and plane (y: the plane's height above the origin), or zeros without an origin
+export function gridSnap(origin, cell, lift = 0) {
+  if (!origin || !(cell > 0)) return { dx: 0, dz: 0, y: lift };
+  const snap = (v) => Math.round(v / cell) * cell;
+  return { dx: snap(origin.x) - origin.x, dz: -(snap(origin.y) - origin.y), y: snap(origin.z + lift) - origin.z };
+}
+
 export function buildGridGroup(config, placement = null, defaultColor = "#c8ced8") {
   const group = new THREE.Group(); group.name = "gridHelpers";
   if (!config.visible) return group;
   const size = Math.max(1, config.size) || 1000;
   const divisions = Math.max(1, Math.round(config.divisions) || 20);
   const color = new THREE.Color(config.color || defaultColor); // TASKS.csv #308 — one source of truth for the default
-  const depth = Number(placement?.depth) || 0, lift = Number(placement?.lift) || 0;
+  const depth = Number(placement?.depth) || 0;
+  // #2369 — on round coordinates: the plane at a multiple of the cell (from the mean collar, or the highest one underground, #2211)
+  const sn = gridSnap(placement?.origin, size / divisions, Number(placement?.lift) || 0), lift = sn.y;
+  group.position.set(sn.dx, 0, sn.dz);
   const mkGrid = () => new THREE.GridHelper(size, divisions, color, color);
-  const ground = mkGrid(); ground.position.y = lift; // y = 0 the mean collar elevation; lifted to the highest collar underground (#2211)
+  const ground = mkGrid(); ground.position.y = lift;
   group.add(ground);
   let h = 0;
   if (config.mode === "3d") {
-    h = gridWallHeight(size, divisions, depth + lift); // #1405 — below the ground grid, as deep as the drilling
+    h = gridWallHeight(size, divisions, depth + lift); // #1405 — below the ground grid, as deep as the drilling (#2369: no deeper)
     const back = mkGrid(); // rotate XZ -> XY, forms the "north" wall
     back.rotation.x = Math.PI / 2; back.scale.set(1, 1, h / size); // local z -> world -y after the turn
     back.position.set(0, lift - h / 2, -size / 2);
@@ -59,8 +71,8 @@ export function buildGridGroup(config, placement = null, defaultColor = "#c8ced8
     const labels = new THREE.Group(); labels.name = "gridLabels";
     const { ticks, cell } = gridTicks(size, divisions);
     const add = (text, x, y, z) => { const s = makeTextSprite(text, { color: "#55606e", bg: "rgba(255,255,255,0.7)" }); s.position.set(x, y, z); labels.add(s); };
-    for (const x of ticks) add(`${fmt(o.x + x)} E`, x, lift, size / 2);
-    for (const z of ticks) if (z > -size / 2 + 1e-9) add(`${fmt(o.y - z)} N`, -size / 2, lift, z);
+    for (const x of ticks) add(`${fmt(o.x + sn.dx + x)} E`, x, lift, size / 2); // #2369 — the group sits at the snapped centre
+    for (const z of ticks) if (z > -size / 2 + 1e-9) add(`${fmt(o.y - sn.dz - z)} N`, -size / 2, lift, z);
     if (h > 0) { const step = cell * Math.max(1, Math.ceil(h / cell / 5)); for (let y = 0; y <= h + 1e-6; y += step) add(`RL ${fmt(o.z + lift - y)}`, -size / 2, lift - y, -size / 2); }
     else add(`RL ${fmt(o.z + lift)}`, -size / 2, lift, -size / 2);
     group.add(labels);

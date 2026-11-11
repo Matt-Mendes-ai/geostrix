@@ -49,7 +49,7 @@ export function ViewToolbar({
                 <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setGridConfig((g) => ({ ...g, visible: !g.visible }))} style={{ cursor: "pointer", color: gridConfig.visible ? "var(--color-accent)" : "var(--color-text-disabled)" }}>
                   {gridConfig.visible ? <Eye size={14} /> : <EyeOff size={14} />}
                 </div>
-                <div style={{ flex: 1, fontSize: "var(--font-size-base)", color: gridConfig.visible ? "var(--color-text)" : "var(--color-text-faint)" }}>{tr("Show grid")}</div>
+                <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setGridConfig((g) => ({ ...g, visible: !g.visible }))} style={{ flex: 1, cursor: "pointer", fontSize: "var(--font-size-base)", color: gridConfig.visible ? "var(--color-text)" : "var(--color-text-faint)" }}>{tr("Show grid")}</div>{/* #2369 — the words toggle too */}
                 <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", cursor: "pointer" }} title={tr("Add two vertical wall grids to the ground grid, forming a 3D reference box")}>
                   <input type="checkbox" checked={gridConfig.mode === "3d"} onChange={(e) => setGridConfig((g) => ({ ...g, mode: e.target.checked ? "3d" : "ground" }))} /> 3D
                 </label>
