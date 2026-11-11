@@ -22,10 +22,9 @@ import { useSidebarWidth } from "../lib/useSidebarWidth.js";
 import { crsName, isMetricProjectedEpsg, pointTransform, getProj4DefSync, isGeographicCrs } from "../lib/reproject.js";
 import { trueNorthBearingInGridDeg } from "../lib/inversion.js";
 import { parseTableFile, toExportCsv } from "../lib/tabular.js";
-import { guessGeophysColumns } from "../lib/geophysColumns.js";
 import { saveFile } from "../lib/desktop.js";
 import SourceCrsField from "../components/SourceCrsField.jsx";
-import { readShapefileLayers, reprojectShapefileZip, reportShapefileText, readGeoTiffInfo, reprojectGeoTiff, reportGeoTiffText, reprojectTableRows, degreesOutOfRange } from "../lib/fileReproject.js"; // #487; degreesOutOfRange: #2461
+import { readShapefileLayers, reprojectShapefileZip, reportShapefileText, readGeoTiffInfo, reprojectGeoTiff, reportGeoTiffText, reprojectTableRows, degreesOutOfRange, utmOutOfRange, isUtmCrs, fileXYColumns, fromForGridPrefix } from "../lib/fileReproject.js"; // #487; degreesOutOfRange: #2461; utmOutOfRange ... fromForGridPrefix: #2588
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786 — messages in the interface language
 import { collarCentreLonLat, collarSpread, formatLonLat } from "../lib/projectCrs.js"; // TASKS.csv #2291
 import { smallGridCoordinates } from "../lib/crsFromColumns.js"; // TASKS.csv #2291
@@ -140,10 +139,13 @@ export default function CartographyModule({ embedded = false, forcePane = null }
       return;
     }
     const t = await parseTableFile(f);
-    const g = guessGeophysColumns(t.headers);
+    const g = fileXYColumns(t.headers); // #2588 — a map-grid pair (MGA_E / MGA_N) before a mine grid's (GBMG_East)
     setFile({ name: f.name, headers: t.headers, rows: t.rows, xCol: g.x, yCol: g.y });
-    if (g.geographic) setFileFrom(4326);
-    setMsg({ ok: true, text: tr("\"{name}\": {rows} rows. Check the X / Y columns and both CRSs, then save.", { name: f.name, rows: t.rows.length.toLocaleString() }) });
+    const implied = g.geographic ? 4326 : fromForGridPrefix(g.prefix, project?.crsSet !== false ? project?.epsg : null); // #2588 — MGA_ columns on an MGA project
+    setFileFrom(implied || null);
+    setMsg({ ok: true, text: implied && !g.geographic
+      ? tr("\"{name}\": {rows} rows. X / Y are {x} / {y}, and From is the project's {crs}, as their names say: check both, then save.", { name: f.name, rows: t.rows.length.toLocaleString(), x: g.x, y: g.y, crs: nameOf(implied) })
+      : tr("\"{name}\": {rows} rows. Check the X / Y columns and both CRSs, then save.", { name: f.name, rows: t.rows.length.toLocaleString() }) });
   });
   const saveReprojectedShp = () => run(async () => {
     const { bytes, report } = await reprojectShapefileZip(file.bytes, fileFrom || null, fileTo);
@@ -161,12 +163,14 @@ export default function CartographyModule({ embedded = false, forcePane = null }
   });
   // TASKS.csv #2461 — the X / Y under a geographic From, checked before Save
   const fromDegrees = useMemo(() => (file && !file.kind && file.xCol && file.yCol && fileFrom && isGeographicCrs(fileFrom) ? degreesOutOfRange(file.rows, file.xCol, file.yCol) : null), [file, fileFrom]);
+  // TASKS.csv #2588 — and under a UTM / MGA From: eastings / northings no zone has (a local mine grid's) are not converted or stamped
+  const fromUtm = useMemo(() => (file && !file.kind && file.xCol && file.yCol && fileFrom && isUtmCrs(fileFrom) ? utmOutOfRange(file.rows, file.xCol, file.yCol) : null), [file, fileFrom]);
   const saveReprojected = () => run(async () => {
     const T = pointTransform(fileFrom, fileTo);
     if (!T) throw new Error(tr("Pick both CRSs."));
     const xName = `${file.xCol}_EPSG${fileTo}`, yName = `${file.yCol}_EPSG${fileTo}`;
     // #1036 — from the definition: 8 decimals of a degree, 3 of a metre; #1017 — rows in lib, tested
-    const { rows, bad } = reprojectTableRows(file.rows, { xCol: file.xCol, yCol: file.yCol, xName, yName, T, geographic: isGeographicCrs(fileTo), fromGeographic: isGeographicCrs(fileFrom) }); // fromGeographic: #2461
+    const { rows, bad } = reprojectTableRows(file.rows, { xCol: file.xCol, yCol: file.yCol, xName, yName, T, geographic: isGeographicCrs(fileTo), fromGeographic: isGeographicCrs(fileFrom), fromUtm: isUtmCrs(fileFrom) }); // fromGeographic: #2461; fromUtm: #2588
     const base = file.name.replace(/\.[^.]+$/, "");
     const res = await saveFile({ quiet: true, suggestedName: `${base}_EPSG${fileTo}.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: toExportCsv(rows, { columns: [...file.headers, xName, yName] }) });
     if (!res?.ok) { if (res?.error) throw new Error(res.error); setMsg(null); return; } // cancelled in the dialog
@@ -304,7 +308,10 @@ export default function CartographyModule({ embedded = false, forcePane = null }
                 {fromDegrees && fromDegrees.outside > 0 && (
                   <div role="alert" style={{ marginTop: 8, fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", lineHeight: 1.4 }}>{tr("{n} of {m} rows checked have X / Y outside ±180 / ±90 (e.g. {x}, {y}), so they are not longitude / latitude: check the From CRS. Such rows are left blank.", { n: fromDegrees.outside.toLocaleString(), m: fromDegrees.checked.toLocaleString(), x: fromDegrees.example[0].toLocaleString(), y: fromDegrees.example[1].toLocaleString() })}</div>
                 )}
-                <button style={primary} disabled={busy || !file.xCol || !file.yCol || !fileFrom || !fileTo || (fromDegrees && fromDegrees.outside > fromDegrees.checked / 2)} onClick={saveReprojected}>
+                {fromUtm && fromUtm.outside > 0 && ( /* TASKS.csv #2588 */
+                  <div role="alert" style={{ marginTop: 8, fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", lineHeight: 1.4 }}>{tr("{n} of {m} rows checked have X / Y that no UTM / MGA zone has (e.g. {x}, {y}): they look like a local mine grid, not {crs}. Check the X / Y columns and the From CRS. Such rows are left blank.", { n: fromUtm.outside.toLocaleString(), m: fromUtm.checked.toLocaleString(), x: fromUtm.example[0].toLocaleString(), y: fromUtm.example[1].toLocaleString(), crs: nameOf(fileFrom) })}</div>
+                )}
+                <button style={primary} disabled={busy || !file.xCol || !file.yCol || !fileFrom || !fileTo || (fromDegrees && fromDegrees.outside > fromDegrees.checked / 2) || (fromUtm && fromUtm.outside > fromUtm.checked / 2)} onClick={saveReprojected}>
                   {busy ? <Loader2 size={14} className="spin" /> : <FileSpreadsheet size={14} />}{" "}{tr("Save reprojected CSV…")}</button>
               </>
             )}
