@@ -23,7 +23,7 @@ import { minMax, LAYER_META } from "../lib/layers.js";
 import { categoryLegendGroups, assayLegendGroups, voxelLegendGroups, rasterLegendGroups, legendGroupsToItems, LEGEND_CATEGORY_KEYS, mapLayerLegendGroups, boundaryLegendGroups, swatchShape, capLegendGroups, outcropLegendGroup } from "../lib/legendGroups.js"; // TASKS.csv #725; #948; #1633; outcropLegendGroup: #1437
 import { niceScaleNumber } from "../lib/figureScale.js"; // TASKS.csv #311 — shared with the 3D viewport's scale bar
 import { collarTableSlice, continuationTables, collarsWithSurveyAttitude } from "../lib/collarTable.js"; // TASKS.csv #1638; collarsWithSurveyAttitude: #2133
-import { fitDrillPlan, filterHoles, allHolesSteep, STEEP_DIP } from "../lib/drillPlan.js"; // TASKS.csv #1639; allHolesSteep: #2473
+import { fitDrillPlan, filterHoles, allHolesSteep, STEEP_DIP, turnedFrameFit } from "../lib/drillPlan.js"; // TASKS.csv #1639; allHolesSteep: #2473; turnedFrameFit: #2305
 import DrillPlanColourControls from "../components/DrillPlanColourControls.jsx"; // TASKS.csv #2473
 import DrillPlanElement, { drillPlanDrawing } from "../components/DrillPlanElement.jsx"; // TASKS.csv #1639
 import { withLiveScaleBars, relinkCopies, tieStarterFurniture, northRotationOf, insertScaleBar, scaleBarTargets, bindScaleBar } from "../lib/layoutLinks.js"; // TASKS.csv #909 / #920 / #924 / #1632
@@ -57,7 +57,7 @@ import { numericLayerLegendGroups } from "../lib/legendGroups.js"; // TASKS.csv 
 import { frameTest, samplesInFrame, mapLayersInFrame } from "../lib/legendFrame.js"; // TASKS.csv #2134
 import { legendFit } from "../lib/legendFit.js"; // TASKS.csv #2134
 import { holeAttitudeAssumed } from "../lib/desurvey.js"; // TASKS.csv #2134 — the notice counts the assumed-vertical holes
-import { freeSpot, placeCollarTable } from "../lib/layoutPlace.js"; // TASKS.csv #1484 — new items into free space; #2135 the collar table
+import { freeSpot, placeCollarTable, elementBox } from "../lib/layoutPlace.js"; // elementBox: #1870 // TASKS.csv #1484 — new items into free space; #2135 the collar table
 import { roundScale } from "../lib/layoutGeometry.js"; // TASKS.csv #1486
 import { numericClips, numericLayerColorFn } from "../lib/numericClip.js"; // TASKS.csv #1482
 import { categoryColor, categoryLabel } from "../lib/layers.js"; // TASKS.csv #1289
@@ -358,6 +358,19 @@ export default function LayoutModule() {
       return { id: `legend_${a.id}`, type: "legend", x: fits ? right : a.x, y: fits ? a.y : a.y + a.h + 16, items: groupSectionLegend(a.legendItems), boundViewportId: a.id };
     });
     if (!additions.length) return;
+    // TASKS.csv #1870 (review #1646, Kodiak) — a section snapshot landed over the page's plan frame and its legend over the plan's legend when
+    // the page had no free room: a snapshot that would overlap another frame goes onto a new page of its own, and the notice says which
+    const frames = elements.filter((e) => e.type === "viewport" || e.type === "drillplan" || (e.type === "image" && e.worldWidthAtCaptureM != null)).map(elementBox);
+    const overlapsFrame = (a) => frames.some((f) => Math.min(a.x + a.w, f.x + f.w) - Math.max(a.x, f.x) > 4 && Math.min(a.y + a.h, f.y + f.h) - Math.max(a.y, f.y) > 4);
+    if (frames.length && additions.some(overlapsFrame)) {
+      const atTop = additions.map((a, i) => ({ ...a, x: 40, y: 40 + i * 20 }));
+      const moved = atTop.map((a) => { const l = legends.find((g) => g.boundViewportId === a.id); if (!l) return null; const right = a.x + a.w + 16; return { ...l, x: right + 170 <= A4.w ? right : a.x, y: right + 170 <= A4.w ? a.y : a.y + a.h + 16 }; }).filter(Boolean);
+      const name = tr("Snapshot {n}", { n: layoutPages.length + 1 });
+      addLayoutPages([{ name, elements: [...atTop, ...moved] }]);
+      setSyncNotice(tr("The snapshot would have covered a frame on this page, so it is on a new page, \"{name}\".", { name }));
+      additions.forEach((img) => consumeLayoutImage(img.id));
+      return;
+    }
     setElements((els) => additions.reduce((page, a) => tieStarterFurniture(page, a), [...els, ...additions, ...legends])); // #1320
     setSelected(additions[additions.length - 1]?.id ?? null);
     additions.forEach((img) => consumeLayoutImage(img.id));
@@ -1407,6 +1420,10 @@ export default function LayoutModule() {
                   <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>{tr("Centre N")}<input type="number" value={Math.round(sel.centre?.y || 0)} onChange={(e) => updateSelected({ centre: { ...sel.centre, y: Number(e.target.value) } })} style={inp} /></label>
                 </div>
                 <button onClick={() => { const fit = fitDrillPlan(filterHoles(tableCollars || [], sel.holeFilter), sel.w, sel.h, SCALE_PRESETS); if (fit) updateSelected(fit); }} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, width: "100%", padding: "6px 10px", marginBottom: 8, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, color: "var(--color-text-secondary)", fontSize: "var(--font-size-base)", cursor: "pointer" }}><Maximize2 size={14} />{" "}{tr("Fit the holes at a round scale")}</button>
+                {(() => { const t = turnedFrameFit(filterHoles(tableCollars || [], sel.holeFilter), sel.w, sel.h, SCALE_PRESETS); return t && sel.scale >= t.from ? ( /* TASKS.csv #2305 — the holes run the other way: offer the turned frame */
+                  <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("The holes run the other way: this frame turned ({w} × {h} mm) fits them at 1 : {scale}.", { w: Math.round(t.w / PX_PER_MM), h: Math.round(t.h / PX_PER_MM), scale: t.scale.toLocaleString() })}{" "}
+                    <button type="button" onClick={() => updateSelected({ w: t.w, h: t.h, scale: t.scale, centre: t.centre })} style={{ ...pBtn, display: "inline-flex", marginBottom: 0, padding: "1px 6px" }}>{tr("Turn the frame")}</button>
+                  </div>) : null; })()}
                 <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", display: "block", marginBottom: 6 }}>{tr("Holes containing")}<input type="text" value={sel.holeFilter || ""} placeholder={tr("all")} onChange={(e) => updateSelected({ holeFilter: e.target.value })} style={{ ...inp, marginTop: 4 }} /></label>
                 <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", display: "block", marginBottom: 6 }}>{tr("Labels")}<select value={sel.labels || "all"} onChange={(e) => updateSelected({ labels: e.target.value })} style={{ ...inp, marginTop: 4 }}>
                   <option value="all">{tr("Every hole with room for one")}</option>
@@ -1796,12 +1813,13 @@ function UtmGridOverlay({ el, crs = "" }) {
         return (
           <g key={l.key}>
             <line x1={a[0]} y1={a[1]} x2={b[0]} y2={b[1]} stroke="#1a2028" strokeOpacity="0.45" strokeWidth="0.6" />
-            {show[i] && <text x={x} y={y} fontSize={fpx} fill="#1a2028" fontFamily="'Exo 2', system-ui, sans-serif" style={{ paintOrder: "stroke", stroke: "#ffffff", strokeWidth: 2.5 }}>{l.label}</text>}
+            {show[i] && <><rect x={x - 1} y={y - fpx + 1} width={estW(l.label) + 2} height={fpx + 1} fill="#ffffff" fillOpacity="0.85" /><text x={x} y={y} fontSize={fpx} fill="#1a2028" fontFamily="'Exo 2', system-ui, sans-serif">{l.label}</text></>}{/* #1871 — a box behind, not a stroked copy: printToPDF wrote the halo as a second text run ('668833,,000000 EE') */}
           </g>
         );
       })}
       {/* TASKS.csv #947 — which grid this is, once, in the corner */}
-      <text x={3} y={H - 3} fontSize={printPx(printPt.caption)} fill="#1a2028" fontFamily="'Exo 2', system-ui, sans-serif" style={{ paintOrder: "stroke", stroke: "#ffffff", strokeWidth: 2.5 }}>
+      <rect x={2} y={H - 3 - printPx(printPt.caption)} width={estW(gridNote) + 2} height={printPx(printPt.caption) + 2} fill="#ffffff" fillOpacity="0.85" />{/* #1871 */}
+      <text x={3} y={H - 3} fontSize={printPx(printPt.caption)} fill="#1a2028" fontFamily="'Exo 2', system-ui, sans-serif">
         {gridNote}</text>
     </svg>
   );

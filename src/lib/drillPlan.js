@@ -32,6 +32,13 @@ export function fitDrillPlan(collars, w, h, presets = [500, 1000, 2000, 2500, 50
   return { scale, centre: { x: (xmin + xmax) / 2, y: (ymin + ymax) / 2 } };
 }
 
+// TASKS.csv #2305 (review #2174, WA gold) — a north-south block fitted into a landscape frame printed 36 x 61 mm in a 201 x 127 mm frame at
+// 1:20,000, while the same frame turned would hold it at 1:10,000. -> the turned frame's fit when it is a larger scale (a smaller 1:N), else null
+export function turnedFrameFit(collars, w, h, presets) {
+  const now = fitDrillPlan(collars, w, h, presets), turned = fitDrillPlan(collars, h, w, presets);
+  return now && turned && turned.scale < now.scale ? { ...turned, w: h, h: w, from: now.scale } : null;
+}
+
 // A hole's series: its id without the trailing number (21CCDD042 -> 21CCDD; 21AGBDD043B -> 21AGBDD), the year / prospect / type prefix drill programs use.
 // A letter after the number (a re-drill, 21AGBDD043B) stays in its series.
 export const holeSeries = (id) => String(id ?? "").replace(/[-_ ]?\d+[A-Za-z]?$/, "") || String(id ?? "");
