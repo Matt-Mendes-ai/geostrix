@@ -10060,5 +10060,8 @@
   "{t} t of it is rock the model has no block for (inside the outlines or their skin), counted at the density with no metal.": "{t} t en sont de la roche pour laquelle le modèle n'a pas de bloc (dans les contours ou leur peau), comptée à la densité sans métal.",
   "By wall (face° / berm m → inter-ramp): {list}.": "Par paroi (face° / berme m → inter-rampe) : {list}.",
   "Flatter than the shell was solved at: {list}. Those walls take more waste than the shell counted.": "Moins raides que la pente de la fosse conceptuelle : {list}. Ces parois prennent plus de stérile que la fosse n'en a compté.",
-  "That is the solid's own volume; the section times the line's length, as the profile line gives it, is {w} m³: the solid follows the curves by straight chords.": "C'est le volume propre du solide ; la section fois la longueur de la ligne, comme l'indique la ligne du profil, fait {w} m³ : le solide suit les courbes par des cordes droites."
+  "That is the solid's own volume; the section times the line's length, as the profile line gives it, is {w} m³: the solid follows the curves by straight chords.": "C'est le volume propre du solide ; la section fois la longueur de la ligne, comme l'indique la ligne du profil, fait {w} m³ : le solide suit les courbes par des cordes droites.",
+  "the project's coordinates (no CRS set)": "les coordonnées du projet (aucun SCR défini)",
+  "ground": "terrain",
+  "Z blank: {z} m from the drawing target under E / N": "Z vide : {z} m de la cible de dessin sous E / N"
 }
