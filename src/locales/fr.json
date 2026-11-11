@@ -10010,5 +10010,6 @@
   "Drillholes: depth to the top of logged {layer}: {code}": "Sondages : profondeur jusqu'au toit de {layer} décrit : {code}",
   "Drillholes: elevation of the base of logged {layer}: {code}": "Sondages : altitude de la base de {layer} décrit : {code}",
   "A second metal credited from its own block model, estimated on the same grid as the main one (the same cell size over the same area): Ag beside Au, Au beside Cu, Ta beside Li.": "Un second métal crédité depuis son propre modèle de blocs, estimé sur la même grille que le principal (la même taille de cellule sur la même zone) : Ag à côté de l'Au, Au à côté du Cu, Ta à côté du Li.",
-  "Cut-off: {g}": "Teneur de coupure : {g}"
+  "Cut-off: {g}": "Teneur de coupure : {g}",
+  "{p} % of the rock in this pit is outside the block model and counted as barren, and it is drilled: {n} sample(s) ({m} m) in {h} hole(s) lie there, {om} m in {oh} hole(s) at or above the cut-off{list}. Estimate a model that covers the pit before reading its waste and margin.": "{p} % de la roche de cette fosse est hors du modèle de blocs et comptée comme stérile, et elle est forée : {n} échantillon(s) ({m} m) dans {h} sondage(s) s'y trouvent, dont {om} m dans {oh} sondage(s) à la teneur de coupure ou au-dessus{list}. Estimez un modèle qui couvre la fosse avant de lire son stérile et sa marge."
 }

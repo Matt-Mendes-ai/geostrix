@@ -10010,5 +10010,6 @@
   "Drillholes: depth to the top of logged {layer}: {code}": "ثقوب الحفر: العمق حتى أعلى {layer} المسجل: {code}",
   "Drillholes: elevation of the base of logged {layer}: {code}": "ثقوب الحفر: ارتفاع قاعدة {layer} المسجل: {code}",
   "A second metal credited from its own block model, estimated on the same grid as the main one (the same cell size over the same area): Ag beside Au, Au beside Cu, Ta beside Li.": "معدن ثانٍ يُحتسب من نموذج كتله الخاص، مقدَّر على الشبكة نفسها كالمعدن الرئيسي (حجم الخلية نفسه على المساحة نفسها): Ag إلى جانب Au، وAu إلى جانب Cu، وTa بجانب Li.",
-  "Cut-off: {g}": "محتوى القطع: {g}"
+  "Cut-off: {g}": "محتوى القطع: {g}",
+  "{p} % of the rock in this pit is outside the block model and counted as barren, and it is drilled: {n} sample(s) ({m} m) in {h} hole(s) lie there, {om} m in {oh} hole(s) at or above the cut-off{list}. Estimate a model that covers the pit before reading its waste and margin.": "{p} % من صخر هذه الحفرة خارج نموذج الكتل ويُحسب عقيمًا، وهو محفور: فيه {n} عينة ({m} م) في {h} ثقب، منها {om} م في {oh} ثقب عند محتوى القطع أو فوقه{list}. قدّر نموذجًا يغطي الحفرة قبل قراءة نفاياتها وهامشها."
 }
