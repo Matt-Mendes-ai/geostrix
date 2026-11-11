@@ -552,6 +552,8 @@ export default function GeochemModule() {
     let skippedNoDepth = 0;
     const overLimitFilled = new Map(); // #600 / #542 — element -> samples filled from the ore-grade column
     const methodJoined = new Map(); // #2328 — element -> Map(method column -> samples it filled)
+    const methodKept = new Map(); // #2629 — element -> Map(method column -> its values kept beside the element's for QAQC's method pairs)
+    const repeatHeaders = format === "wide" ? new Set(repeatColumns(modal.headers || Object.keys(allRows[0] || {}), chosen, modal.numberedRepeats || []).map((rc) => rc.header)) : new Set(); // #2629 — a lab repeat is a duplicate, never a second method
     // TASKS.csv #502 — what an EMPTY element cell means in this file (the import dialog asks when there are
     // any): "missing" = not assayed (default; excluded from grades everywhere, reported as unsampled), or
     // "bdl" = below detection, stored as '<DL' at half the limit like any lab '<x'. The limit per element is
@@ -597,6 +599,7 @@ export default function GeochemModule() {
         // over-range rows; nothing else has to care).
         const quals = {};
         const valueSources = {}; // #542 — element -> the ore-grade column a value came from
+        const methodValues = {}; // #2629 — element -> { method column: value } for the element's other method columns on this row
         const anyResult = blankMode === "bdl" && chosen.some((e) => !isBlankAssayCell(r[e.header])); // #502
         chosen.forEach((e) => {
           const cell = r[e.header]; // #583 — read once (a columnar row's value is a getter)
@@ -622,6 +625,18 @@ export default function GeochemModule() {
               break;
             }
           }
+          // TASKS.csv #2629 — the element's other method columns (U_103 beside U) keep their own results on the row, in the element's unit,
+          // without changing its value: QAQC > Method pairs compares them, and a lab repeat of one method pairs with that method's result.
+          // Only measured results ('<' / '>' ones are limits, not values); never the column the value was read from.
+          if (e.methodCols?.length && e.header === e.mainHeader) {
+            for (const mc of e.methodCols) {
+              if (valueSources[e.symbol] === mc.header || repeatHeaders.has(mc.header)) continue;
+              const c3 = readAssayCell(r[mc.header], negativeMode, colMaxOf(mc.header), dlOf(mc.header), posMaxOf(mc.header));
+              if (c3.value == null || c3.qualifier) continue;
+              (methodValues[e.symbol] || (methodValues[e.symbol] = {}))[mc.header] = convertUnit(c3.value, mc.unit, existingUnit[e.symbol] || e.unit);
+              const m = methodKept.get(e.symbol) || new Map(); m.set(mc.header, (m.get(mc.header) || 0) + 1); methodKept.set(e.symbol, m);
+            }
+          }
           if (v == null && anyResult && isBlankAssayCell(cell)) ({ v, q } = blankAsBdl(e.symbol, e.header) || { v, q });
           if (v != null && !q && flagCols.has(e.symbol)) { // #2018
             const fq = flagQualifier(r[flagCols.get(e.symbol)]);
@@ -635,6 +650,7 @@ export default function GeochemModule() {
         const out = { hole_id: String(r[mapping.hole_id] ?? "").trim(), from: num(r[mapping.from]), to: num(r[mapping.to]), values, source: modal.isPxrf ? "pXRF" : "assay", ...(modal.fileName ? { srcFile: modal.fileName } : {}) }; // srcFile: #624
         if (Object.keys(quals).length) out.qualifiers = quals;
         if (Object.keys(valueSources).length) out.valueSources = valueSources; // #542 — which method each over-limit value is
+        if (Object.keys(methodValues).length) out.methodValues = methodValues; // #2629
         return tagQC(out, r);
       });
       setAssayModal((m) => (m ? { ...m, busy: false } : m));
@@ -650,7 +666,7 @@ export default function GeochemModule() {
             if (v == null) return;
             const orig = rows[i], sid = orig?.sample_id ?? null;
             const rep = { hole_id: orig?.hole_id ?? String(r[mapping.hole_id] ?? "").trim(), from: num(r[mapping.from]), to: num(r[mapping.to]), values: { [rc.symbol]: v }, source: "assay",
-              ...(modal.fileName ? { srcFile: modal.fileName } : {}), sample_type: "lab repeat", sample_id: `${sid ?? `${r[mapping.hole_id]}:${r[mapping.from]}`}#${rc.header}`, ...(sid ? { parent_id: sid } : {}) };
+              ...(modal.fileName ? { srcFile: modal.fileName } : {}), sample_type: "lab repeat", sample_id: `${sid ?? `${r[mapping.hole_id]}:${r[mapping.from]}`}#${rc.header}`, repeatColumn: rc.header /* #2629 */, ...(sid ? { parent_id: sid } : {}) };
             if (q) rep.qualifiers = { [rc.symbol]: q };
             rows.push(rep); n++;
           });
@@ -723,6 +739,7 @@ export default function GeochemModule() {
       skippedNoDepth ? tr("{n} row(s) skipped: no hole id, or a blank / non-numeric from or to depth.", { n: skippedNoDepth }) : null, // #508
       qcNoDepth.standard + qcNoDepth.blank + qcNoDepth.duplicate ? tr("{n} QC insert(s) without depths kept for QAQC ({s} standard(s), {b} blank(s), {d} duplicate(s)).", { n: qcNoDepth.standard + qcNoDepth.blank + qcNoDepth.duplicate, s: qcNoDepth.standard, b: qcNoDepth.blank, d: qcNoDepth.duplicate }) : null, // #1661
       methodJoined.size ? tr("Method columns joined (a sample's value from the first column that has one): {list}.", { list: [...methodJoined].map(([sym, m]) => `${sym} +${[...m.values()].reduce((t, n) => t + n, 0).toLocaleString()} (${[...m].map(([h, n]) => `${h} ${n.toLocaleString()}`).join(", ")})`).join("; ") }) : "", // #2328
+      methodKept.size ? tr("Other method results kept beside the element's for QAQC > Method pairs: {list}.", { list: [...methodKept].map(([sym, m]) => `${sym}: ${[...m].map(([h, n]) => `${h} ${n.toLocaleString()}`).join(", ")}`).join("; ") }) : "", // #2629
       overLimitFilled.size ? tr("Over-limit samples filled from the ore-grade column: {list}.", { list: [...overLimitFilled].map(([sym, n]) => { const e = chosen.find((x) => x.symbol === sym); return tr("{symbol} {n} (at {limit} {unit} in \"{header}\", from \"{source}\")", { symbol: sym, n, limit: e.overLimit.limit, unit: e.unit, header: e.header, source: e.overLimit.header }); }).join("; ") }) : null, // #600 / #542
       flagged.size ? tr("Qualifiers from the flag columns: {list} (the values kept as the file has them).", { list: [...flagged].map(([sym, f]) => [f.lo ? tr("{symbol} {n} below detection", { symbol: sym, n: f.lo.toLocaleString() }) : null, f.hi ? tr("{symbol} {n} over range", { symbol: sym, n: f.hi.toLocaleString() }) : null].filter(Boolean).join(", ")).join("; ") }) : null, // #2018
       blankBdl.size ? tr("Empty cells read as below detection: {list}; stored at half the limit and flagged '<'.", { list: [...blankBdl].map(([sym, n]) => { const L = blankLimits.get(sym); return tr(L.basis === "lt" ? "{symbol} {n} at <{limit} (the lab's most common '<' limit in the file)" : "{symbol} {n} at <{limit} (the lowest value reported — no '<' limit in the file)", { symbol: sym, n, limit: L.limit }); }).join("; ") }) : null, // #502

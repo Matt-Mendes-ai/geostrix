@@ -479,6 +479,11 @@ export function mergeAssayRows(prev, incoming) {
     Object.keys(r.values || {}).forEach((sym) => { delete quals[sym]; });
     Object.assign(quals, r.qualifiers || {});
     const next = { ...old, ...r, values: { ...(old.values || {}), ...(r.values || {}) } };
+    // TASKS.csv #2629 — the other method results of an element follow it: a re-imported element replaces its own, others are kept
+    const mv = { ...(old.methodValues || {}) };
+    Object.keys(r.values || {}).forEach((sym) => { delete mv[sym]; });
+    Object.assign(mv, r.methodValues || {});
+    if (Object.keys(mv).length) next.methodValues = mv; else delete next.methodValues;
     const files = unionSrcFiles(old.srcFile, r.srcFile); // #624 — a merged interval came from both files
     if (files) next.srcFile = files; else delete next.srcFile;
     if (Object.keys(quals).length) next.qualifiers = quals; else delete next.qualifiers;
@@ -529,6 +534,8 @@ export function removeAssayElement(assays, symbol) {
   let cleared = 0, emptied = 0;
   const out = [];
   (assays || []).forEach((r) => {
+    // TASKS.csv #2629 — and its other method results (kept on the row for QAQC's method pairs)
+    if (r.methodValues && symbol in r.methodValues) { const mv = { ...r.methodValues }; delete mv[symbol]; r = { ...r }; if (Object.keys(mv).length) r.methodValues = mv; else delete r.methodValues; }
     if (!r.values || !(symbol in r.values)) { out.push(r); return; }
     cleared++;
     const values = { ...r.values }; delete values[symbol];

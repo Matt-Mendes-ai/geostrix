@@ -48,6 +48,6 @@ test("wired: ribbon, insert, render, sidebar", () => {
   const m = readFileSync(new URL("../src/modules/LayoutModule.jsx", import.meta.url), "utf8");
   assert.match(m, /label="Drill plan"[^\n]*onClick=\{\(\) => addElement\("drillplan"\)\}/);
   assert.match(m, /if \(type === "drillplan"\) \{/);
-  assert.match(m, /<DrillPlanElement el=\{el\} collars=\{ctx\?\.collars \|\| \[\]\} gridCaption=\{ctx\?\.gridCaption \|\| ""\} \/>/); // gridCaption: #2301
+  assert.match(m, /<DrillPlanElement el=\{el\} collars=\{ctx\?\.collars \|\| \[\]\} gridCaption=\{ctx\?\.gridCaption \|\| ""\} [^>]*\/>/); // gridCaption: #2301; assays: #2473
   assert.match(m, /sel\.type === "drillplan" && \(\(\) => \{/);
 });

@@ -176,6 +176,13 @@ export function candidateThresholds(summary) {
   return { values: out, prob: { points: prob, breakIndex: probBreak?.k ?? null } };
 }
 
+// TASKS.csv #2675 — Grade stats' cap candidates: the same probability-plot break Thresholds suggests (Sinclair 1976), from one
+// population's values (length weights or null). null when there are too few values or no bend clear enough to report.
+export function probabilityBreak(values, weights = null) {
+  const s = populationSummary(values || [], 0, weights && weights.length === values?.length ? weights : null);
+  return s ? candidateThresholds(s).values.probbreak : null;
+}
+
 export function robustZ(value, summary) {
   if (!(value > 0) || !summary || !(summary.madL > 0)) return null;
   return (log10(value) - summary.medianL) / summary.madL;
