@@ -10152,5 +10152,12 @@
   "Its colours run from 0 (pale) to 1 (dark red).": "تمتد ألوانه من 0 (باهت) إلى 1 (أحمر داكن).",
   "The earlier score map is hidden.": "خريطة الدرجة السابقة مخفية.",
   "The {n} earlier score maps are hidden.": "خرائط الدرجة السابقة ({n}) مخفية.",
-  "Plan-view fuzzy overlay ({op}) of {n} evidence layer": "تراكب ضبابي في المسقط ({op}) لطبقة أدلة واحدة ({n})"
+  "Plan-view fuzzy overlay ({op}) of {n} evidence layer": "تراكب ضبابي في المسقط ({op}) لطبقة أدلة واحدة ({n})",
+  "Its first {mb} MB were not UTF-8, so the whole file was read as Windows-1252.": "لم تكن أول {mb} ميغابايت منه بترميز UTF-8، فقُرئ الملف كله بترميز Windows-1252.",
+  "Read in {n} parts: the file is {mb} MB, more than one text read can hold.": "قُرئ على {n} أجزاء: حجم الملف {mb} ميغابايت، أكثر مما تتسع له قراءة نصية واحدة.",
+  "No outcrop measurements yet": "لا توجد قياسات مكاشف بعد",
+  "No downhole structure picks yet": "لا توجد بنى من الثقوب بعد",
+  "{n} alpha only (no beta): a plane needs both angles to be oriented": "{n} ألفا فقط (بلا بيتا): يحتاج المستوى إلى الزاويتين ليُوجَّه",
+  "Nothing is plotted, so there is nothing to export.": "لا شيء مرسوم، فلا شيء للتصدير.",
+  "Disabled: this mean pools {n} structure types (faults, veins, bedding…), which is not one orientation. Pick one structure type first.": "معطّل: يجمع هذا المتوسط {n} أنواع من البنى (صدوع، عروق، تطبّق…)، وهذا ليس اتجاهًا واحدًا. اختر نوع بنية واحدًا أولًا."
 }

@@ -10152,5 +10152,12 @@
   "Its colours run from 0 (pale) to 1 (dark red).": "Suas cores vão de 0 (pálido) a 1 (vermelho-escuro).",
   "The earlier score map is hidden.": "O mapa de escore anterior está oculto.",
   "The {n} earlier score maps are hidden.": "Os {n} mapas de escore anteriores estão ocultos.",
-  "Plan-view fuzzy overlay ({op}) of {n} evidence layer": "Sobreposição difusa em planta ({op}) de {n} camada de evidência"
+  "Plan-view fuzzy overlay ({op}) of {n} evidence layer": "Sobreposição difusa em planta ({op}) de {n} camada de evidência",
+  "Its first {mb} MB were not UTF-8, so the whole file was read as Windows-1252.": "Os primeiros {mb} MB não eram UTF-8, então o arquivo inteiro foi lido como Windows-1252.",
+  "Read in {n} parts: the file is {mb} MB, more than one text read can hold.": "Lido em {n} partes: o arquivo tem {mb} MB, mais do que uma única leitura de texto comporta.",
+  "No outcrop measurements yet": "Ainda não há medidas de afloramento",
+  "No downhole structure picks yet": "Ainda não há estruturas de furo",
+  "{n} alpha only (no beta): a plane needs both angles to be oriented": "{n} só alfa (sem beta): um plano precisa dos dois ângulos para ser orientado",
+  "Nothing is plotted, so there is nothing to export.": "Nada está plotado, então não há nada para exportar.",
+  "Disabled: this mean pools {n} structure types (faults, veins, bedding…), which is not one orientation. Pick one structure type first.": "Desativado: esta média junta {n} tipos de estrutura (falhas, veios, acamamento…), que não são uma única orientação. Escolha primeiro um tipo de estrutura."
 }
