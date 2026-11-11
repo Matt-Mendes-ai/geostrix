@@ -35,7 +35,11 @@ import UnsampledChoice, { useUnsampled, unsampledResultLine } from "./UnsampledC
 // nugget/sill ratio (how much of the variability is unresolvable short-scale noise), and directional
 // ranges to check the anisotropy azimuth/dip they'd otherwise be typing in from geological judgement
 // alone. Those are real, immediately usable numbers for the tools that DO exist.
-export default function VariogramModal({ assays, assayElements, layers, collars, survey, onClose }) {
+export default function VariogramModal({ assays: assaysAll, assayElements, layers, collars, survey, onClose, checkedHoleIds = null, modelArea = null /* #2544 */ }) {
+  // TASKS.csv #2544 — the samples from the checked holes, by default when Model area says so (the Grade shell's and the estimate's rule)
+  const checkedN = checkedHoleIds ? collars.filter((c) => checkedHoleIds.has(c.hole_id)).length : collars.length;
+  const [samplesFrom, setSamplesFrom] = useState(() => (modelArea === "checked" && checkedHoleIds?.size ? "checked" : "all"));
+  const assays = useMemo(() => (samplesFrom === "checked" && checkedHoleIds?.size ? assaysAll.filter((a) => checkedHoleIds.has(a.hole_id)) : assaysAll), [assaysAll, samplesFrom, checkedHoleIds]);
   useEscapeKey(onClose); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
   // TASKS.csv #135 — the variogram must be computed on sample points sitting on the SAME traces the
@@ -184,7 +188,13 @@ export default function VariogramModal({ assays, assayElements, layers, collars,
         <div style={headerStyle}>
           <div>
             <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{tr("Variogram — spatial continuity")}</div>
-            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("Experimental variogram + fitted nugget / sill / range, from composited assays. {collars} holes, {assays} raw intervals loaded.", { collars: collars.length, assays: assays.length })}</div>
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("Experimental variogram + fitted nugget / sill / range, from composited assays. {collars} holes, {assays} raw intervals loaded.", { collars: samplesFrom === "checked" ? checkedN : collars.length, assays: assays.length })}</div>
+            {checkedHoleIds && checkedN > 0 && checkedN < collars.length && <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>{tr("Samples from")}{/* #2544 */}
+              <select value={samplesFrom} onChange={(e) => { setSamplesFrom(e.target.value); setResult(null); }} aria-label={tr("Samples from")} style={{ fontSize: "var(--font-size-sm)", padding: "2px 6px", border: "1px solid var(--color-border)", borderRadius: 4, background: "var(--color-bg)", color: "var(--color-text)" }}>
+                <option value="all">{tr("Every hole")}</option>
+                <option value="checked">{tr("The checked holes ({n} of {total})", { n: checkedN, total: collars.length })}</option>
+              </select>
+            </label>}
           </div>
           <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
         </div>

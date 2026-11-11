@@ -9907,5 +9907,9 @@
   "Model area range: {v}": "Rango del área del modelo: {v}",
   "{n} of {m} holes in {w} × {h} m.": "{n} de {m} sondajes en {w} × {h} m.",
   "Check only these holes": "Marcar solo estos sondajes",
-  "Not recognized: assumed stratigraphic. Check it before modelling.": "No reconocido: se asume estratigráfico. Revísalo antes de modelar."
+  "Not recognized: assumed stratigraphic. Check it before modelling.": "No reconocido: se asume estratigráfico. Revísalo antes de modelar.",
+  "Which holes' samples inform the estimate and its checks. The grid is set above, apart.": "Qué sondajes aportan muestras a la estimación y sus controles. La grilla se fija arriba, aparte.",
+  "Samples from": "Muestras de",
+  "Every hole": "Todos los sondajes",
+  "The checked holes ({n} of {total})": "Los sondajes marcados ({n} de {total})"
 }

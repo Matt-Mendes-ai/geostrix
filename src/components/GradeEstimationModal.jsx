@@ -48,7 +48,7 @@ const GradeTonnageModal = lazyModal(() => import("./GradeTonnageModal.jsx")); //
 // model not in the project, a cap kept for another element) starts at its default.
 const lastEstimateSettings = new Map(); // project key -> settings
 export const estimateSettingsKey = (project) => String(project?.id ?? project?.name ?? "");
-export default function GradeEstimationModal({ assays: assaysProp, assayElements: assayElementsProp, layers, collars, survey, onAddModel, onClose, volumeShells = [], trend: modelTrend = null, groundAt = null, groundSource = null, checkedHoleIds = null, areaStrings = [] }) { // groundAt: TASKS.csv #803; groundSource "terrain" | "collars": #1616
+export default function GradeEstimationModal({ modelArea = null /* #2544 */, assays: assaysProp, assayElements: assayElementsProp, layers, collars, survey, onAddModel, onClose, volumeShells = [], trend: modelTrend = null, groundAt = null, groundSource = null, checkedHoleIds = null, areaStrings = [] }) { // groundAt: TASKS.csv #803; groundSource "terrain" | "collars": #1616
   useEscapeKey(onClose); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
   const { desurveyMethod, voxelModels, project, customLayers = [] } = useStore(); // TASKS.csv #135 — estimation samples must sit on the same trace the 3D view draws; customLayers: #1571
@@ -234,7 +234,11 @@ export default function GradeEstimationModal({ assays: assaysProp, assayElements
   const [running, setRunning] = useState(false);
 
   const qaqcExcludedCount = useMemo(() => assays.length - excludeQAQC(assays).length, [assays]);
-  const srcAssays = useMemo(() => (includeQAQC ? assays : excludeQAQC(assays)), [assays, includeQAQC]);
+  // TASKS.csv #2544 (review #2486) — 'Fit to the checked holes' moved the grid, but all 21,500 composites (aircore included) still informed every
+  // run: the samples can come from the checked holes too, by default when Model area says so (the Grade shell's rule, #2059)
+  const [samplesFrom, setSamplesFrom] = useState(() => (modelArea === "checked" && checkedHoleIds?.size ? "checked" : "all"));
+  const sampleAssays = useMemo(() => (samplesFrom === "checked" && checkedHoleIds?.size ? assays.filter((a) => checkedHoleIds.has(a.hole_id)) : assays), [assays, samplesFrom, checkedHoleIds]);
+  const srcAssays = useMemo(() => (includeQAQC ? sampleAssays : excludeQAQC(sampleAssays)), [sampleAssays, includeQAQC]);
   const uns = useUnsampled("estimate", { assays: srcAssays, collars, symbol, unit, elementUnits }); // TASKS.csv #2417 / #2542
   // TASKS.csv #1738 (review #1645, Copley) — how far apart the holes are, under the radius and in a zero-block result
   // TASKS.csv #2062 (review #2013, Woodjam) — over the holes that carry the chosen element, not every collar: 534 district collars with no
@@ -457,7 +461,7 @@ export default function GradeEstimationModal({ assays: assaysProp, assayElements
         // "Add to project"), and travel with the block model into the project file.
         let outsideArea = 0; // #1570 — set below when a design-string area drops blocks; params read it, so it is declared first
         const params = {
-          tool: "Grade estimation", element: symbol, method, cellSizeM: matched || cell3.dz !== cell3.dx ? [cell3.dx, cell3.dy, cell3.dz] : cellSize, paddingM: padding,
+          tool: "Grade estimation", element: symbol, method, samplesFrom: samplesFrom === "checked" && checkedHoleIds?.size ? `holes checked in the Holes list (${checkedCount} of ${collars.length})` : "every hole", // #2544 cellSizeM: matched || cell3.dz !== cell3.dx ? [cell3.dx, cell3.dy, cell3.dz] : cellSize, paddingM: padding,
           ...(lattice ? { gridOrigin: [lattice.ox, lattice.oy, lattice.oz], gridMatched: matched ? matched.m.name : "typed origin" } : {}), // #724
           gridFrom: shellBox ? `box of the restricting solid "${shellBox.name}" within the drilling` : areaString ? `inside the closed design string "${areaString.name}" (${outsideArea} block(s) outside it dropped)` : gridMode === "checked" && checkedBounds ? `desurveyed traces of the ${checkedBounds.holes} checked hole(s)` : traceBounds ? `desurveyed traces of ${traceBounds.holes} assayed hole(s)` : "collar box (no hole could be desurveyed)", // #521; #1570
           searchRadiusM: searchRadius > 0 ? searchRadius : Math.round(gridDiagonal), searchRadiusWasUnlimited: !(searchRadius > 0), ...(supportRef > 0 ? { supportScoredAgainstM: Math.round(supportRef) } : {}), // #1411
@@ -760,6 +764,12 @@ export default function GradeEstimationModal({ assays: assaysProp, assayElements
                 <option value="origin">{tr("Origin (E, N, RL)…")}</option>
               </select>
             </label>
+            {checkedHoleIds && checkedCount < collars.length && checkedCount > 0 && <label style={fieldLabel} title={tr("Which holes' samples inform the estimate and its checks. The grid is set above, apart.")}>{tr("Samples from")}{/* #2544 */}
+              <select value={samplesFrom} onChange={(e) => setSamplesFrom(e.target.value)} style={inp} aria-label={tr("Samples from")}>
+                <option value="all">{tr("Every hole")}</option>
+                <option value="checked">{tr("The checked holes ({n} of {total})", { n: checkedCount, total: collars.length })}</option>
+              </select>
+            </label>}
             {gridMode === "origin" && [[originE, setOriginE, "E"], [originN, setOriginN, "N"], [originZ, setOriginZ, "RL"]].map(([v, set, lbl]) => (
               <label key={lbl} style={fieldLabel}>{tr("Origin {axis}", { axis: lbl })}<input type="number" step="any" value={v} onChange={(e) => set(e.target.value)} style={{ ...inp, width: 110 }} /></label>
             ))}

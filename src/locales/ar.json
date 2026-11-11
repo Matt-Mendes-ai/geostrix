@@ -9907,5 +9907,9 @@
   "Model area range: {v}": "نطاق منطقة النموذج: {v}",
   "{n} of {m} holes in {w} × {h} m.": "{n} من {m} ثقب في {w} × {h} م.",
   "Check only these holes": "حدد هذه الثقوب فقط",
-  "Not recognized: assumed stratigraphic. Check it before modelling.": "غير معروف: يُفترض طبقيًا. تحقّق منه قبل النمذجة."
+  "Not recognized: assumed stratigraphic. Check it before modelling.": "غير معروف: يُفترض طبقيًا. تحقّق منه قبل النمذجة.",
+  "Which holes' samples inform the estimate and its checks. The grid is set above, apart.": "أي الثقوب تُغذي التقدير وفحوصه بالعينات. الشبكة تُحدَّد أعلاه على حدة.",
+  "Samples from": "العينات من",
+  "Every hole": "كل الثقوب",
+  "The checked holes ({n} of {total})": "الثقوب المحددة ({n} من {total})"
 }

@@ -8863,7 +8863,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           trend={trendFor("estimation")} // TASKS.csv #650
           groundAt={terrain ? (x, y) => terrainGroundAt(terrain, x, y) : collarGround(collars)} // TASKS.csv #803, #927; collars: #1616
           groundSource={terrain ? "terrain" : collarGround(collars) ? "collars" : null}
-          checkedHoleIds={new Set(collars.filter((c) => visibleHoles[c.hole_id] !== false).map((c) => c.hole_id))} // TASKS.csv #1570
+          checkedHoleIds={new Set(collars.filter((c) => visibleHoles[c.hole_id] !== false).map((c) => c.hole_id))} modelArea={modelArea} // TASKS.csv #1570; #2544
           areaStrings={designStrings.filter((s) => s.closed && s.vertices.length > 2)}
           onAddModel={(model) => { const id = addVoxelModel(model); setNotices((p) => [...p, { ...notice("Added block model \"{name}\" ({cells} cells).", { name: model.name, cells: model.cells.length.toLocaleString() }), level: "info" /* #1418 */ }]); return id; }}
           onClose={() => setGradeEstOpen(false)}
@@ -8872,7 +8872,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       {/* TASKS.csv #147 — a read-only diagnostic: it takes no onAdd-style callback, so nothing it
           computes can enter the project or any estimate. */}
       {variogramOpen && (
-        <VariogramModal
+        <VariogramModal modelArea={modelArea} checkedHoleIds={new Set(collars.filter((c) => visibleHoles[c.hole_id] !== false).map((c) => c.hole_id))} /* #2544 */
           assays={assays}
           assayElements={assayElements}
           layers={layers}
