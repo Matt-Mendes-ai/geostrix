@@ -10,11 +10,11 @@ import React, { useMemo, useRef, useState } from "react";
 import { Image, Eye, EyeOff, Trash2, Loader2, Satellite, MapPinned, ScatterChart, SlidersHorizontal, Rainbow, Download } from "../components/icons.js";
 import SpectralIndexModal from "../components/SpectralIndexModal.jsx"; // TASKS.csv #783
 import { useStore } from "../lib/store.jsx";
-import { buildRasterImport, gridToSurveyRows, rasterFromGrid, ternaryRaster, parseWorldFile, tieFetchedImage } from "../lib/raster.js"; // parseWorldFile: TASKS.csv #1855; tieFetchedImage: #2648
+import { buildRasterImport, gridToSurveyRows, rasterFromGrid, ternaryRaster, parseWorldFile, tieFetchedImage, dataUrlPixels } from "../lib/raster.js"; // dataUrlPixels: #1860; // parseWorldFile: TASKS.csv #1855; tieFetchedImage: #2648
 import { b64ToF32, gridDeclination } from "../lib/inversion.js"; // TASKS.csv #373
 import { SAT_LEVELS, planLatestFetch, levelsAddingNothing, naipCoverage } from "../lib/imageryLevels.js"; // TASKS.csv #781 / #837; naipCoverage: #1474
 const NAIP_FINEST_M = 0.6; // lib/naipFetch.js, which stays out of this module until NAIP is fetched
-import { gridToGeoTIFF, saveGeoTIFF, safeFileName, rasterExportNote } from "../lib/gridExport.js"; // TASKS.csv #854; rasterExportNote: #1095
+import { gridToGeoTIFF, saveGeoTIFF, safeFileName, rasterExportNote, imageToGeoTIFF, pictureExportNote } from "../lib/gridExport.js"; // TASKS.csv #854; rasterExportNote: #1095; picture: #1860
 import { toLonLat, crsName } from "../lib/reproject.js";
 import SourceCrsField from "../components/SourceCrsField.jsx"; // TASKS.csv #488
 import InfoButton from "../components/InfoButton.jsx";
@@ -379,6 +379,18 @@ export default function RasterModule({ embedded = false } = {}) {
   // project (same reasoning as the import modal's own Source CRS field).
   const [sourceEpsg, setSourceEpsg] = useState("");
 
+  // TASKS.csv #1860 (review #1646) — a picture raster out as an RGBA GeoTIFF in the project CRS: a plan map georeferenced here can go to
+  // QGIS or a colleague without its four points being placed again
+  const exportPicture = async (r) => {
+    const epsgX = await ensureExportCrs(project); /* #1021 */
+    if (!epsgX) return;
+    try {
+      const px = await dataUrlPixels(r.dataUrl, tr("The picture of \"{name}\" could not be read.", { name: r.name }));
+      const res = await saveGeoTIFF(`${safeFileName(r.name)}.tif`, imageToGeoTIFF({ ...px, bbox: r.bbox, epsg: epsgX }));
+      if (res?.ok) setError({ info: true, text: pictureExportNote(r, px.width, px.height, epsgX) });
+      else if (res && !res.ok && res.error) setError({ info: false, text: res.error });
+    } catch (e) { setError({ info: false, text: e.message }); }
+  };
   // TASKS.csv #2129 — the collars' elevation range, for 'it looks like an elevation model'
   const collarZRange = (cs) => { let a = Infinity, b = -Infinity; for (const c of cs || []) if (Number.isFinite(c?.z)) { if (c.z < a) a = c.z; if (c.z > b) b = c.z; } return Number.isFinite(a) ? [a, b] : null; };
   const importRaster = async (file, world = null) => { // world: a world file selected with it (TASKS.csv #1855)
@@ -545,6 +557,7 @@ export default function RasterModule({ embedded = false } = {}) {
               <div style={{ flex: 1, minWidth: 0, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.name}</div>
               {r.grid && !r.geochem /* #1622 — no magnetic filters for a geochemistry grid */ && !r.terrainDerivative /* #1626 — nor for a slope / aspect / curvature */ && <SlidersHorizontal role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: filterFor === r.id ? "var(--color-info)" : "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Filter the values of \"{name}\"", { name: r.name })} title={tr("Grid filters: RTP, first vertical derivative, upward continuation, tilt derivative, analytic signal")} onClick={() => { const opening = filterFor !== r.id; setFilterFor(opening ? r.id : null); if (opening) setFilt((f) => ({ ...f, kind: defaultFilterKind(r, rasterMethodOf(r, geophysSurveys)) })); /* #1863 — RTP only for magnetics */ }} />}
               {r.grid && <Download role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Export the values of \"{name}\" as a GeoTIFF", { name: r.name })} title={tr("Export the values of \"{name}\" as a GeoTIFF", { name: r.name })} onClick={async () => { const epsgX = await ensureExportCrs(project); if (!epsgX) return; /* #1021 */ const g = r.grid; const res = await saveGeoTIFF(`${safeFileName(r.name)}.tif`, gridToGeoTIFF({ nx: g.nx, ny: g.ny, x0: g.x0, yTop: g.yTop, dx: g.dx, dy: g.dy, bands: [{ values: g.values }], epsg: epsgX })); if (res?.ok) setError({ info: true, text: rasterExportNote(r) }); /* #1095 — what the file holds */ }} />}{/* TASKS.csv #854 */}
+              {!r.grid && r.dataUrl && <Download role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Export the picture \"{name}\" as a GeoTIFF", { name: r.name })} title={tr("Export the picture \"{name}\" as a GeoTIFF", { name: r.name })} onClick={() => exportPicture(r)} />}{/* TASKS.csv #1860 — an RGB plan map, a scan, imagery */}
               {r.grid && <ScatterChart role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Use the values of \"{name}\" as survey points", { name: r.name })} title={tr("Use as survey points ({nx}×{ny} grid values, {v}) — for the Geophysics inversion", { nx: r.grid.nx, ny: r.grid.ny, v: gridCellText(r.grid) })} onClick={() => gridAsSurvey(r)} />}
               <Trash2 aria-label={tr("Remove raster \"{name}\"", { name: r.name })} title={tr("Remove raster \"{name}\"", { name: r.name })} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(tr("Remove \"{name}\"?", { name: r.name }))) removeRaster(r.id); }} />
             </div>
