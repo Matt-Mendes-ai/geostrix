@@ -71,6 +71,6 @@ test("#1017 outcrop structures to KML / GeoPackage: one Z point per measurement,
   assert.equal(f.geomType, "point");
   assert.equal(f.features.length, rows.length);
   assert.deepEqual(f.features[0].geometry, [[500000, 6000000, 950]]);
-  assert.equal(f.features[1].geometry[0][2], 0); // no elevation recorded: 0, not NaN
+  assert.ok(Number.isNaN(f.features[1].geometry[0][2])); // no elevation recorded: NaN, not 0 m (TASKS.csv #2090: a 0 m Z put the point at sea level)
   assert.deepEqual(Object.keys(f.features[0].attributes).sort(), Object.keys(rows[0]).filter((k) => !["x", "y", "z"].includes(k)).sort().concat().sort());
 });

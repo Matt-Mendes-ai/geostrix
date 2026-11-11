@@ -81,7 +81,9 @@ export function surfaceSampleRows(samples, elements, anomaly = null) {
 }
 export function surfaceSampleFeatures(samples, elements, anomaly = null) {
   const rows = surfaceSampleRows(samples, elements, anomaly);
-  return { features: rows.map(({ x, y, z, ...attributes }) => ({ geometry: [[x, y, z === "" ? 0 : z]], attributes })), geomType: "point" };
+  // TASKS.csv #2090 (review #2013) — an unknown elevation is NaN in the geometry, not 0 m: the GeoPackage's POINT Z carries NaN (QGIS shows
+  // it as no value) and the KML writes lon,lat only; the CSV leaves the cell blank as before
+  return { features: rows.map(({ x, y, z, ...attributes }) => ({ geometry: [[x, y, z === "" ? NaN : z]], attributes })), geomType: "point" };
 }
 
 // ---------- outcrop structures ----------
@@ -108,7 +110,7 @@ export function surfaceStructureRows(set, epsg, zAt = null) {
   });
 }
 export function surfaceStructureFeatures(set, epsg, zAt = null) {
-  return { features: surfaceStructureRows(set, epsg, zAt).map(({ x, y, z, ...attributes }) => ({ geometry: [[x, y, z === "" ? 0 : z]], attributes })), geomType: "point" };
+  return { features: surfaceStructureRows(set, epsg, zAt).map(({ x, y, z, ...attributes }) => ({ geometry: [[x, y, z === "" ? NaN : z]], attributes })), geomType: "point" }; // NaN: #2090
 }
 
 // ---------- KML (WGS84) ----------
@@ -131,7 +133,7 @@ export async function lonLatTransform(epsg) {
 // headingOf(f) (point icon rotation: a strike symbol), lineColor, fillAlpha }
 export function featuresToKml({ features, geomType }, { name = "GeoStrix export", toLonLat, colorOf = () => "#e2a63c", nameOf = () => "", headingOf = null, fillAlpha = 0.35 } = {}) {
   if (!toLonLat) throw new Error("featuresToKml needs a coordinate transform to WGS84");
-  const ll = ([x, y, z]) => { const [lon, lat] = toLonLat(x, y); return `${r8(lon)},${r8(lat)},${Number.isFinite(z) ? Math.round(z * 100) / 100 : 0}`; };
+  const ll = ([x, y, z]) => { const [lon, lat] = toLonLat(x, y); return Number.isFinite(z) ? `${r8(lon)},${r8(lat)},${Math.round(z * 100) / 100}` : `${r8(lon)},${r8(lat)}`; }; // no altitude when none is known: #2090
   const coords = (ring) => ring.map(ll).join(" ");
   const styles = new Map();
   const styleFor = (hex) => {

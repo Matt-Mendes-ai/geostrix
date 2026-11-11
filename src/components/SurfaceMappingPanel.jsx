@@ -467,7 +467,8 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
       crsNote = tr(" Reprojected EPSG:{src} → EPSG:{dst}{v}.", { src, dst, v: gridNorth ? tr("; dip directions turned to the project grid (up to {maxTurn}°)", { maxTurn: maxTurn.toFixed(2) }) : "" });
     }
     // TASKS.csv #547 — dip directions / strikes measured from true or magnetic north -> project grid north, per location
-    let northNote = "", rows = out.rows;
+    // TASKS.csv #2091 (review #2013) — grid north is the picker's default: said in the notice, so a compass notebook is not imported rotated unseen
+    let northNote = north.ref === "grid" ? tr(" Dip directions were taken as grid north (the project grid); for compass or true-north readings, set North on the import card and import again.") : "", rows = out.rows;
     if (north.ref !== "grid") {
       // TASKS.csv #2262 — dst is the PLACEHOLDER epsg while the CRS is not set (truthy), so this message never showed and the convergence of
       // BC UTM 9N was applied to a WA mine grid: test crsSet too

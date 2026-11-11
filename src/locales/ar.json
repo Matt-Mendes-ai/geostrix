@@ -2959,7 +2959,7 @@
   "Delete this row": "حذف هذا الصف",
   "North": "الشمال",
   "North reference of the azimuths": "مرجع الشمال للسموت",
-  "Which north the dip directions / strikes were measured from. GeoStrix draws against the project grid; a compass reads magnetic north (~17° off grid in northern BC).": "أي شمال قيست منه اتجاهات الميل / المضارب. يرسم GeoStrix مقابل شبكة المشروع؛ والبوصلة تقرأ الشمال المغناطيسي (~17° عن الشبكة في شمال كولومبيا البريطانية).",
+  "Which north the dip directions / strikes were measured from. GeoStrix draws against the project grid; a compass reads magnetic north, which differs from grid north by the declination and the grid convergence at the site (the import notice gives both).": "الشمال الذي قيست منه اتجاهات الميل / المضارب. يرسم GeoStrix على شبكة المشروع؛ تقرأ البوصلة الشمال المغناطيسي، الذي يختلف عن شمال الشبكة بالانحراف وتقارب الشبكة في الموقع (يذكرهما إشعار الاستيراد).",
   "Grid north (project grid)": "شمال الشبكة (شبكة المشروع)",
   "True north": "الشمال الحقيقي",
   "Magnetic north (compass)": "الشمال المغناطيسي (البوصلة)",
@@ -10041,5 +10041,6 @@
   "Use the drillholes' logged contacts ({n} of the {m} holes have a lithology log)": "استخدام التماسات المسجلة في الثقوب (لدى {n} من {m} ثقب سجل صخري)",
   "Only one unit ({unit}) is in the stratigraphic role: a model needs at least two units in order, one on top of the other. Set another unit's role to stratigraphic above, or build the unit as an intrusion body below.": "وحدة واحدة فقط ({unit}) في الدور الطبقي: يحتاج النموذج إلى وحدتين على الأقل بالترتيب، إحداهما فوق الأخرى. اجعل دور وحدة أخرى طبقيًا أعلاه، أو ابنِ الوحدة كجسم متداخل أدناه.",
   "No unit is in the stratigraphic role: a model needs at least two units in order. Set their roles above.": "لا توجد وحدة في الدور الطبقي: يحتاج النموذج إلى وحدتين على الأقل بالترتيب. حدّد أدوارها أعلاه.",
-  "{n} hole(s) whose log starts below the collar ({a}–{b} m down: an unlogged precollar, or logging only where something was met) were left out: their first logged unit is a point down the hole, not a subcrop ({ids}).": "استُبعد {n} ثقب يبدأ سجلّه تحت الفوهة ({a}–{b} م إلى الأسفل: جزء علوي غير مسجّل، أو تسجيل فقط حيث صودف شيء): أول وحدة مسجّلة فيه نقطة داخل الثقب، لا مكشف تحت الغطاء ({ids})."
+  "{n} hole(s) whose log starts below the collar ({a}–{b} m down: an unlogged precollar, or logging only where something was met) were left out: their first logged unit is a point down the hole, not a subcrop ({ids}).": "استُبعد {n} ثقب يبدأ سجلّه تحت الفوهة ({a}–{b} م إلى الأسفل: جزء علوي غير مسجّل، أو تسجيل فقط حيث صودف شيء): أول وحدة مسجّلة فيه نقطة داخل الثقب، لا مكشف تحت الغطاء ({ids}).",
+  " Dip directions were taken as grid north (the project grid); for compass or true-north readings, set North on the import card and import again.": " أُخذت اتجاهات الميل على أنها شمال الشبكة (شبكة المشروع)؛ لقراءات البوصلة أو الشمال الحقيقي، اضبط «الشمال» في بطاقة الاستيراد واستورد مرة أخرى."
 }
