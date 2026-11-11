@@ -8,7 +8,7 @@ self.onmessage = (e) => {
   const { buf, opts = {} } = e.data || {};
   try {
     const { text, encoding } = decodeTableBytes(buf);
-    if (opts.columnar && text.length >= COLUMNAR_MIN_CHARS) {
+    if (opts.columnar && !opts.composite && text.length >= COLUMNAR_MIN_CHARS) { // composite: TASKS.csv #2345 — the row reader composites
       const raw = parseColumnsRaw(text, opts);
       if (raw) {
         const transfer = raw.cols.flatMap((c) => (c.num ? [c.num.buffer, c.kind.buffer] : []));

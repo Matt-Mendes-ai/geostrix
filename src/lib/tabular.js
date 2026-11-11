@@ -6,6 +6,7 @@
 // field containing a comma or quote. Pure (no DOM, no Electron): unit-tested in Node.
 import Papa from "papaparse";
 import { requestTableSubset as requestTableSubsetEv } from "./tableSubsetRequest.js"; // TASKS.csv #2177
+import { makeCompositor } from "./compositeOnRead.js"; // TASKS.csv #2345
 import { normalizeCommaDecimals } from "./numberLocale.js";
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 
@@ -145,30 +146,36 @@ export function spaceTableToTabs(text) {
 }
 // keep (TASKS.csv #2177): the header names to read; every other column is never held (a table over the memory budget, its columns chosen)
 // holes (TASKS.csv #2321): { col, ids } — only the rows whose `col` (trimmed) is one of `ids` are kept, applied as each row is read
-export function parseTableText(text, { comments = "#", columnar = false, keep = null, holes = null } = {}) {
+// composite (TASKS.csv #2345): { hole, from, to, lengthM } — the kept rows composited to that length as they are read (never all held)
+export function parseTableText(text, { comments = "#", columnar = false, keep = null, holes = null, composite = null } = {}) {
   ({ text } = stripLeadingComments(text, comments)); // #720
   const spaced = spaceTableToTabs(text); // #2017
   if (spaced != null) text = spaced;
   let preamble = 0, banner = false;
   ({ text, skipped: preamble, banner } = skipPreamble(text)); // #1666; banner: #1665
   // TASKS.csv #611 — a big table can be held as COLUMNS (see parseTableColumns); null = not eligible, read as rows
-  if (columnar && text.length >= COLUMNAR_MIN_CHARS) { const c = parseTableColumns(text, { comments: false, keep, holes }); if (c) return c; }
+  if (columnar && !composite && text.length >= COLUMNAR_MIN_CHARS) { const c = parseTableColumns(text, { comments: false, keep, holes }); if (c) return c; }
   // #600 (performance) — Papa asks once per CELL; the answer depends only on the header, so cache it per header.
   const typed = new Map();
   const idLike = ID_LIKE_VALUE_IN.test(text) ? idLikeColumns(text) : null; // #1071 — only scanned when such a value exists
   const dynamicTyping = (field) => { let v = typed.get(field); if (v === undefined) { v = !isIdentifierHeader(field) && !idLike?.has(field); typed.set(field, v); } return v; };
   let res, droppedByHole = 0;
   const hf = holes?.col && holes.ids ? { col: holes.col, ids: new Set([...holes.ids].map((v) => String(v).trim())) } : null; // #2321
-  if (keep?.length || hf) { // #2177 — row by row, each row cut to the kept columns at once, so the dropped ones never accumulate; #2321 — other holes' rows too
-    const want = keep?.length ? new Set(keep) : null, data = [], errors = [];
+  let composited = null;
+  if (keep?.length || hf || composite) { // #2177 — row by row, each row cut to the kept columns at once, so the dropped ones never accumulate; #2321 — other holes' rows too
+    const want = keep?.length ? new Set([...keep, ...(composite ? [composite.hole, composite.from, composite.to] : [])]) : null, data = [], errors = []; // #2345 — the composite's own columns are always read
+    const comp = composite ? makeCompositor(composite) : null; // #2345 — each kept row goes into its hole's bins instead of the row list
     let fields = null, kept = null;
     const meta = Papa.parse(text, { header: true, dynamicTyping, skipEmptyLines: true, comments: false, step: (r) => {
       if (!kept) { fields = r.meta.fields || []; kept = want ? fields.filter((f) => want.has(f)) : fields; }
       if (r.errors?.length) errors.push(...r.errors);
       if (hf && !hf.ids.has(String(r.data[hf.col] ?? "").trim())) { droppedByHole++; return; }
-      const o = {}; for (const f of kept) o[f] = r.data[f]; data.push(o);
+      const o = {}; for (const f of kept) o[f] = r.data[f];
+      if (comp) comp.add(o); else data.push(o);
     } }).meta;
-    res = { data, errors, meta: { ...meta, fields: kept || (meta.fields || []).filter((f) => !want || want.has(f)) } };
+    let out = data;
+    if (comp) { const f = comp.finish(); out = f.rows; composited = f.stats; } // #2345 — never push(...rows): 150,000 composites overflowed the stack
+    res = { data: out, errors, meta: { ...meta, fields: kept || (meta.fields || []).filter((f) => !want || want.has(f)) } };
     void fields;
   } else res = Papa.parse(text, { header: true, dynamicTyping, skipEmptyLines: true, comments: false });
   // TASKS.csv #600 (40958Z, performance) — in a COMMA-delimited file a comma-decimal value can only exist quoted
@@ -178,7 +185,7 @@ export function parseTableText(text, { comments = "#", columnar = false, keep = 
   const { rows, note } = commaFree ? { rows: res.data, note: "" } : normalizeCommaDecimals(res.data);
   const pre = banner ? tr("The first row was a banner of group names over the field names: the second row is used as the header.") : preamble ? tr("Skipped {n} line(s) of notes above the header row.", { n: preamble }) : ""; // #1666; #1665
   const sp = spaced != null ? tr("Read as a space-separated table ({n} columns).", { n: (res.meta.fields || []).length }) : ""; // #2017
-  return { rows, headers: res.meta.fields || [], note: [note, pre, sp].filter(Boolean).join(" "), errors: res.errors || [], ...(hf ? { droppedByHole } : {}) };
+  return { rows, headers: res.meta.fields || [], note: [note, pre, sp].filter(Boolean).join(" "), errors: res.errors || [], ...(hf ? { droppedByHole } : {}), ...(composited ? { composited } : {}) };
 }
 
 // TASKS.csv #611 — large assay exports held as columns. parseTableText's rows are one object per row, and a 60 MB
@@ -356,6 +363,7 @@ export async function parseTableFile(file, opts) {
     if (!ok) throw new Error(tr("not opened: it needs more memory than this computer can safely give it"));
     if (ok.keep?.length) opts = { ...(opts || {}), keep: ok.keep }; // #2177 — only the chosen columns are read
     if (ok.holes?.col && ok.holes.ids?.length) opts = { ...(opts || {}), holes: { col: ok.holes.col, ids: [...ok.holes.ids], label: ok.holes.label || "" } }; // #2321 — only those holes' rows
+    if (ok.composite?.lengthM > 0 && ok.composite.hole && ok.composite.from && ok.composite.to) opts = { ...(opts || {}), composite: { ...ok.composite } }; // #2345 — composited as read
   }
   if (typeof Worker !== "undefined" && file.size >= WORKER_MIN_BYTES) {
     try { return subsetNote(await parseInWorker(await file.arrayBuffer(), opts || {}), opts); } catch (err) {
@@ -368,11 +376,20 @@ export async function parseTableFile(file, opts) {
 }
 // #2177 — said with the rows, so the import notice can carry it
 function subsetNote(out, opts) {
-  if (!opts?.keep?.length && !opts?.holes) return out;
+  if (!opts?.keep?.length && !opts?.holes && !opts?.composite) return out;
   const cols = opts.keep?.length ? tr("Only {k} chosen column(s) were read, to fit in memory: {list}.", { k: opts.keep.length, list: opts.keep.slice(0, 12).join(", ") + (opts.keep.length > 12 ? ", ..." : "") }) : "";
   // #2321 — the holes subset, said with how many rows it left out
   const holes = opts.holes ? tr("Only the rows of {n} hole(s) ({which}) were read: {d} other row(s) were left out as the file was read.", { n: opts.holes.ids.length, which: opts.holes.label || opts.holes.col, d: (out.droppedByHole ?? 0).toLocaleString() }) : "";
-  return { ...out, ...(opts.keep?.length ? { subset: opts.keep } : {}), ...(opts.holes ? { holesSubset: { col: opts.holes.col, n: opts.holes.ids.length } } : {}), note: [out.note, cols, holes].filter(Boolean).join(" ") };
+  return { ...out, ...(opts.keep?.length ? { subset: opts.keep } : {}), ...(opts.holes ? { holesSubset: { col: opts.holes.col, n: opts.holes.ids.length } } : {}), note: [out.note, cols, holes, compositeNote(out.composited)].filter(Boolean).join(" ") };
+}
+// TASKS.csv #2345 — what the composite did, said with the rows (the import notice carries it)
+export function compositeNote(st) {
+  if (!st) return "";
+  return [tr("Composited to {L} m as the file was read: {n} interval(s) of {h} hole(s) became {m} composite(s), each the length-weighted mean of its numeric columns ({cols}) and, for a text column, the value over most of its length; a hole's last composite stops where its intervals stop.", { L: st.lengthM, n: st.rowsIn.toLocaleString(), h: st.holes.toLocaleString(), m: st.composites.toLocaleString(), cols: st.numeric.slice(0, 8).join(", ") + (st.numeric.length > 8 ? ", ..." : "") || tr("none") }),
+    st.textInNumeric ? tr("{n} text value(s) in numeric columns (such as below-detection entries) were left out of the means.", { n: st.textInNumeric.toLocaleString() }) : "",
+    st.skipped ? tr("{n} row(s) with no hole, or no From / To with From above To, were left out.", { n: st.skipped.toLocaleString() }) : "",
+    st.notTogether.length ? tr("{n} hole(s) had rows in more than one place in the file ({ids}): their intervals were composited together by depth.", { n: st.notTogether.length, ids: st.notTogether.slice(0, 5).join(", ") + (st.notTogether.length > 5 ? ", ..." : "") }) : "",
+  ].filter(Boolean).join(" ");
 }
 
 // Rows (objects, or { fields, data }) -> CSV text with correct quoting (commas, quotes, newlines).

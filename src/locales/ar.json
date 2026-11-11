@@ -10111,5 +10111,16 @@
   " As a sheet it is {a} m thick: its map width across the dip direction × sin {dip}°, on level ground.": " كصفيحة، سمكه {a} م: عرضه على الخريطة باتجاه الميل × جا {dip}°، على أرض مستوية.",
   "{scale}, vertical exaggeration {ve}×": "{scale}، مبالغة رأسية {ve}×",
   "Cut-off: {g}": "محتوى القطع: {g}",
-  "{p} % of the rock in this pit is outside the block model and counted as barren, and it is drilled: {n} sample(s) ({m} m) in {h} hole(s) lie there, {om} m in {oh} hole(s) at or above the cut-off{list}. Estimate a model that covers the pit before reading its waste and margin.": "{p} % من صخر هذه الحفرة خارج نموذج الكتل ويُحسب عقيمًا، وهو محفور: فيه {n} عينة ({m} م) في {h} ثقب، منها {om} م في {oh} ثقب عند محتوى القطع أو فوقه{list}. قدّر نموذجًا يغطي الحفرة قبل قراءة نفاياتها وهامشها."
+  "{p} % of the rock in this pit is outside the block model and counted as barren, and it is drilled: {n} sample(s) ({m} m) in {h} hole(s) lie there, {om} m in {oh} hole(s) at or above the cut-off{list}. Estimate a model that covers the pit before reading its waste and margin.": "{p} % من صخر هذه الحفرة خارج نموذج الكتل ويُحسب عقيمًا، وهو محفور: فيه {n} عينة ({m} م) في {h} ثقب، منها {om} م في {oh} ثقب عند محتوى القطع أو فوقه{list}. قدّر نموذجًا يغطي الحفرة قبل قراءة نفاياتها وهامشها.",
+  "Composite to": "التجميع إلى",
+  "m as it is read (length-weighted)": "م أثناء القراءة (مرجّح بالطول)",
+  "Composite From column": "عمود «من» للمركّب",
+  "Composite To column": "عمود «إلى» للمركّب",
+  "Composite hole id column": "عمود معرّف الثقب للمركّب",
+  "Each hole's intervals become composites of this length: numbers as length-weighted means, text as the value over most of the length; the raw rows are not kept. The first rows' intervals average {m} m, so about {pct}% as many rows are held.": "تصبح فترات كل ثقب مركّبات بهذا الطول: الأرقام كمتوسطات مرجّحة بالطول، والنص كالقيمة على معظم الطول؛ ولا تُحفظ الصفوف الأصلية. متوسط فترات الصفوف الأولى {m} م، فيُحفظ نحو {pct}% من الصفوف.",
+  "Each hole's intervals become composites of this length: numbers as length-weighted means, text as the value over most of the length; the raw rows are not kept. Pick the From, To and hole id columns and type the length.": "تصبح فترات كل ثقب مركّبات بهذا الطول: الأرقام كمتوسطات مرجّحة بالطول، والنص كالقيمة على معظم الطول؛ ولا تُحفظ الصفوف الأصلية. اختر أعمدة «من» و«إلى» ومعرّف الثقب واكتب الطول.",
+  "Composited to {L} m as the file was read: {n} interval(s) of {h} hole(s) became {m} composite(s), each the length-weighted mean of its numeric columns ({cols}) and, for a text column, the value over most of its length; a hole's last composite stops where its intervals stop.": "جُمّع إلى {L} م أثناء قراءة الملف: صارت {n} فترة من {h} ثقب {m} مركّبًا، كل منها المتوسط المرجّح بالطول لأعمدته الرقمية ({cols})، وللعمود النصي القيمة على معظم طوله؛ وينتهي آخر مركّب في الثقب حيث تنتهي فتراته.",
+  "{n} text value(s) in numeric columns (such as below-detection entries) were left out of the means.": "استُبعدت {n} قيمة نصية في أعمدة رقمية (مثل القيم دون حد الكشف) من المتوسطات.",
+  "{n} row(s) with no hole, or no From / To with From above To, were left out.": "استُبعد {n} صف بلا ثقب، أو بلا «من» / «إلى» تكون فيها «إلى» أكبر من «من».",
+  "{n} hole(s) had rows in more than one place in the file ({ids}): their intervals were composited together by depth.": "كانت لـ {n} ثقب صفوف في أكثر من موضع في الملف ({ids}): جُمّعت فتراتها معًا حسب العمق."
 }
