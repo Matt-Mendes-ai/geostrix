@@ -18,12 +18,23 @@ export const SUSC_UNITS = {
 // nothing passes 10 (no rock does) and the median is under 0.01; a handheld meter's x10^-3 SI for medians up to 50; x10^-5 SI above.
 // PHYSICAL_MAX_SI: the warning when the chosen unit puts the log above any rock (massive magnetite is a few SI).
 export const PHYSICAL_MAX_SI = 10;
+// TASKS.csv #1713 (review #1645, Copley) — also what goes into the constraint unchecked: 17 negative readings (down to -0.845) and 7 far above
+// the rest (310, about 570 x the median) were converted as read. negative: { n, min } (a susceptibility below 0 is meter noise or drift; a
+// diamagnetic rock is -1e-5 SI, too small to read on a handheld meter); extreme: { n, max }, readings over EXTREME_X x the median. Both are
+// reported, not changed: the values constrain the cells as logged.
+export const EXTREME_X = 100;
 export function suscUnitHint(values) {
-  const v = (values || []).map(Number).filter((x) => Number.isFinite(x) && x >= 0).sort((a, b) => a - b);
+  const all = (values || []).map((x) => (x === "" || x == null ? NaN : Number(x))).filter(Number.isFinite);
+  const v = all.filter((x) => x >= 0).sort((a, b) => a - b);
   if (!v.length) return null;
   const median = v.length % 2 ? v[(v.length - 1) / 2] : (v[v.length / 2 - 1] + v[v.length / 2]) / 2, max = v[v.length - 1];
   const likely = max <= PHYSICAL_MAX_SI && median < 0.01 ? "si" : median <= 50 ? "e3" : "e5";
-  return { n: v.length, min: v[0], median, max, likely };
+  const neg = all.filter((x) => x < 0), ext = median > 0 ? v.filter((x) => x > EXTREME_X * median) : [];
+  return {
+    n: v.length, min: v[0], median, max, likely,
+    negative: neg.length ? { n: neg.length, min: neg.reduce((a, b) => (b < a ? b : a)) } : null,
+    extreme: ext.length ? { n: ext.length, max } : null,
+  };
 }
 
 // rows: {hole_id, value, depth} or {hole_id, value, from, to}. An interval is sampled every `step` metres
