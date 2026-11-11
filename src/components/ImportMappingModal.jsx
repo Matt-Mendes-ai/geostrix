@@ -374,6 +374,8 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
             <div style={{ display: "flex", flexDirection: "column", gap: 6, padding: "12px 16px", borderTop: "1px solid var(--color-border)" }}>
               {missingRequired.length > 0 && (
                 <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-danger-icon)" }}>{tr(missingRequired.length === 1 ? "Map the required field above:" : "Map the required fields above:")}{" "}{missingRequired.map((f) => tr(f.label)).join(", ")}
+                  {/* TASKS.csv #2165 — which column names were looked for: the file's own name for it is then easy to spot (or it is not this kind of table) */}
+                  {missingRequired.filter((f) => f.aliases?.length).map((f) => <div key={f.key} style={{ color: "var(--color-text-muted)" }}>{tr("{field}: no column matched; the names looked for are {names}.", { field: tr(f.label), names: f.aliases.slice(0, 10).join(", ") + (f.aliases.length > 10 ? ", …" : "") })}</div>)}
                 </div>
               )}
               <div style={{ display: "flex", gap: 8 }}>
