@@ -4025,6 +4025,7 @@
   "Grid spacing (m)": "تباعد الشبكة (م)",
   "Grid spacing in metres (blank = automatic)": "تباعد الشبكة بالأمتار (فارغ = تلقائي)",
   "A UTM grid needs a top-down, true-scale capture.": "تحتاج شبكة UTM لقطة من الأعلى بالمقياس الحقيقي.",
+  "A coordinate grid needs a top-down, true-scale capture.": "تحتاج شبكة الإحداثيات إلى لقطة علوية بمقياس حقيقي.",
   "Theme": "السمة",
   "— current view (no theme) —": "— العرض الحالي (بلا سمة) —",
   "Rendering…": "جارٍ العرض…",

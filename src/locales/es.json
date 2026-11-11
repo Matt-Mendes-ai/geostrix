@@ -4025,6 +4025,7 @@
   "Grid spacing (m)": "Espaciamiento de grilla (m)",
   "Grid spacing in metres (blank = automatic)": "Espaciamiento de grilla en metros (vacío = automático)",
   "A UTM grid needs a top-down, true-scale capture.": "Una grilla UTM necesita una captura cenital a escala real.",
+  "A coordinate grid needs a top-down, true-scale capture.": "Una cuadrícula de coordenadas necesita una captura vista desde arriba y a escala real.",
   "Theme": "Tema",
   "— current view (no theme) —": "— vista actual (sin tema) —",
   "Rendering…": "Dibujando…",

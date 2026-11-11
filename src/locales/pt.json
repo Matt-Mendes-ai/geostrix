@@ -4025,6 +4025,7 @@
   "Grid spacing (m)": "Espaçamento da grade (m)",
   "Grid spacing in metres (blank = automatic)": "Espaçamento da grade em metros (vazio = automático)",
   "A UTM grid needs a top-down, true-scale capture.": "Uma grade UTM precisa de uma captura de cima em escala real.",
+  "A coordinate grid needs a top-down, true-scale capture.": "Uma grade de coordenadas precisa de uma captura vista de cima e em escala real.",
   "Theme": "Tema",
   "— current view (no theme) —": "— visão atual (sem tema) —",
   "Rendering…": "Desenhando…",

@@ -11,6 +11,7 @@ import GenerateAtlasModal from "../components/GenerateAtlasModal.jsx";
 import { HOLE_TOKENS, SECTION_TOKENS } from "../lib/atlas.js"; // TASKS.csv #1777 — listed with the page's placeholders
 import { scaleBarLabel, scaleBarMidLabel } from "../lib/scaleBarLabel.js"; // TASKS.csv #2140
 import { offSheetPages, rectsPastSheet } from "../lib/layoutEdges.js"; // TASKS.csv #2482 / #2309
+import { fillPlaceholders } from "../lib/layoutText.js"; // TASKS.csv #2139
 import PatternSwatch from "../components/PatternSwatch.jsx"; // TASKS.csv #1995
 import { savePDF, saveFile, exportPDFData, canvasPngBytes, sendSectionResnap } from "../lib/desktop.js"; // saveFile / exportPDFData: TASKS.csv #909 Export PNG; canvasPngBytes: #1040; sendSectionResnap: #1485
 import { pdfOptions } from "../lib/pageFormats.js"; // TASKS.csv #511
@@ -66,7 +67,7 @@ const SCALE_BAR_PX = 180; // default/initial bar length (px) for a freshly-added
 const PX_PER_MM = 96 / 25.4; // matches the ~96dpi assumption used throughout Layout (scale bar, viewport scale estimate)
 const DEFAULT_PX_PER_METER = SCALE_BAR_PX / 100; // a plain "Add scale bar" starts at 100 m / 180 px, same as before this element gained a real px-per-metre ratio
 // TASKS.csv #907 — the plot scales exploration figures are drawn at (Matt: "set a scale eg 1:5000, 1:10000")
-const SCALE_PRESETS = [500, 1000, 2000, 2500, 5000, 10000, 20000, 25000, 50000, 100000, 250000, 500000, 1000000]; // 250k-1M: #2132 (a district fit read 'custom')
+const SCALE_PRESETS = [500, 1000, 1500, 2000, 2500, 5000, 10000, 15000, 20000, 25000, 50000, 100000, 150000, 200000, 250000, 500000, 1000000]; // 1,500 / 15,000 / 150,000 / 200,000: #2484 (Fit's round scales) // 250k-1M: #2132 (a district fit read 'custom')
 
 // "Customize the scale bar by changing the number, but without changing the scale — if I change 200
 // to 300 the SIZE of the bar has to change." A scale element now carries pxPerMeter: how many on-page
@@ -494,7 +495,7 @@ export default function LayoutModule() {
     const um = (u0 + u1) / 2, vm = (v0 + v1) / 2; // the box's middle, back to world (the inverse of the rotation above)
     const centreWorld = { x: um * cb - vm * sb, y: -(um * sb + vm * cb) };
     const frameWm = (sel.w / 96) * 0.0254, frameHm = (sel.h / 96) * 0.0254;
-    const roundScaleFor = (U0, U1, V0, V1) => { const nd = Math.max(((U1 - U0) * 1.1) / frameWm, ((V1 - V0) * 1.1) / frameHm, 1); const mg = 10 ** Math.floor(Math.log10(nd)); return [1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10].map((m) => Math.round(m * mg)).find((n) => n >= nd); };
+    const roundScaleFor = (U0, U1, V0, V1) => { const nd = Math.max(((U1 - U0) * 1.1) / frameWm, ((V1 - V0) * 1.1) / frameHm, 1); const mg = 10 ** Math.floor(Math.log10(nd)); return [1, 1.5, 2, 2.5, 5, 10].map((m) => Math.round(m * mg)) /* #2484 — the Scale list's steps, so a fitted scale can be picked again by name */.find((n) => n >= nd); };
     const scale = roundScaleFor(u0, u1, v0, v1);
     // #2304 — the scale the drilled holes alone would take: the assumed ones widen the frame only when it is smaller
     let scaleDrilled = scale;
@@ -1941,12 +1942,12 @@ function ViewportControls({ steepHoles = false, legendReloaded = false, sel, the
       )}
       <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: gridOk ? "var(--color-text)" : "var(--color-text-muted)", marginBottom: 6, cursor: gridOk ? "pointer" : "default" }}
         title={gridOk ? tr("Draw labelled easting/northing lines over this view") : tr("Needs a top-down, true-scale capture: set the 3D view to Top, tick true scale, and refresh this viewport.")}>
-        <input type="checkbox" disabled={!gridOk} checked={!!sel.utmGrid && gridOk} onChange={(e) => updateSelected({ utmGrid: e.target.checked })} />{crsUnset ? tr("Coordinate grid (labelled)") /* #2300: local metres are not UTM */ : tr("UTM grid (labelled)")}{gridOk && sel.utmGrid && (
+        <input type="checkbox" disabled={!gridOk} checked={!!sel.utmGrid && gridOk} onChange={(e) => updateSelected({ utmGrid: e.target.checked })} />{tr("Coordinate grid (labelled)") /* #2300: local metres are not UTM; #2484: nor is MGA / any other projection: the caption names the grid */}{gridOk && sel.utmGrid && (
           <input type="number" min="1" step="any" placeholder={tr("auto")} value={sel.utmGridStep || ""} onChange={(e) => updateSelected({ utmGridStep: Number(e.target.value) || 0 })}
             aria-label={tr("Grid spacing (m)")} title={tr("Grid spacing in metres (blank = automatic)")} style={{ width: 60, marginLeft: "auto", fontSize: "var(--font-size-sm)" }} />
         )}
       </label>
-      {!gridOk && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: -4, marginBottom: 6 }}>{tr("A UTM grid needs a top-down, true-scale capture.")}</div>}
+      {!gridOk && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: -4, marginBottom: 6 }}>{tr("A coordinate grid needs a top-down, true-scale capture.") /* #2484 */}</div>}
       {gridOk && sel.utmGrid && sel.utmGridStep > 0 && (() => { // TASKS.csv #1488 — a spacing too tight to read is drawn wider, and said so
         const g = legibleGridStep(sel.utmGridStep, metresPerPagePx(sel));
         return g.bumped ? <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginTop: -4, marginBottom: 6, lineHeight: 1.4 }}>{tr("{typed} m would put the grid lines {mm} mm apart on paper at this scale, too close to read: drawn every {step} m.", { typed: sel.utmGridStep.toLocaleString(), mm: g.mm.toFixed(1), step: g.step.toLocaleString() })}</div> : null;
@@ -2157,7 +2158,7 @@ function textContextFor(els, project, page, index, count, collars = null, credit
   const gridCaption = project?.crsSet === false ? (project?.localGrid?.name ? `local grid: ${project.localGrid.name}` : "local mine grid, no CRS") : project?.epsg ? `EPSG:${project.epsg}` : "";
   return { gridCaption, project: project?.name || "", date: `${today.getFullYear()}-${p2(today.getMonth() + 1)}-${p2(today.getDate())}`, page: String(index + 1), pages: String(count), pagename: page?.name || "", scale: pageScaleText(els), crs: crsText(project?.epsg, project?.crsSet), credits, collars, els, pageH: pagePx(pageFormatOf(page)).h, pageW: pagePx(pageFormatOf(page)).w /* #2134 */ }; // collars: the #911 table; els: the #912 overview; pageH: #1480
 }
-const fillText = (text, ctx) => (ctx && typeof text === "string" && text.includes("{") ? text.replace(PLACEHOLDER, (m, k) => (ctx[k] != null ? ctx[k] : m)) : text);
+const fillText = (text, ctx) => fillPlaceholders(text, ctx, PLACEHOLDER); // #2139 — an empty fill takes its separator with it
 
 function LayoutElement({ el, selected, multiSelected, onDown, print = false, onResizeStart, ctx = null, onSelect = null }) {
   // TASKS.csv #965 — reachable from the keyboard: Tab focuses an element and selects it, so the mm fields, arrow nudges
