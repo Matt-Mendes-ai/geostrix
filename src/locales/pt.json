@@ -3749,6 +3749,7 @@
   "Tables": "Tabelas",
   "Building…": "Montando…",
   "Nothing loaded yet — import collars/assays/layers first.": "Ainda não há nada carregado — importe antes bocas/análises/camadas.",
+  "Columns shown in double quotes (\"from\", \"to\") are SQL words or unusual names: write them with the quotes, e.g. SUM(\"to\" - \"from\") for the metres sampled.": "As colunas entre aspas duplas (\"from\", \"to\") são palavras de SQL ou nomes incomuns: escreva-as com as aspas, p. ex. SUM(\"to\" - \"from\") para os metros amostrados.",
   "Couldn't set up the SQL engine: {message}": "Não foi possível preparar o motor SQL: {message}",
   "No data loaded yet — import collars, assays, or a layer first, then reopen this workspace.": "Ainda não há dados carregados — importe bocas, análises ou uma camada e abra esta área de trabalho de novo.",
   "SELECT * FROM assays WHERE Au > 1;": "SELECT * FROM assays WHERE Au > 1;",

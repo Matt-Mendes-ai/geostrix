@@ -3749,6 +3749,7 @@
   "Tables": "الجداول",
   "Building…": "جارٍ البناء…",
   "Nothing loaded yet — import collars/assays/layers first.": "لا شيء محمّل بعد — استورد الفوهات/التحاليل/الطبقات أولًا.",
+  "Columns shown in double quotes (\"from\", \"to\") are SQL words or unusual names: write them with the quotes, e.g. SUM(\"to\" - \"from\") for the metres sampled.": "الأعمدة المكتوبة بين علامتي اقتباس مزدوجتين (\"from\"، \"to\") كلمات SQL أو أسماء غير مألوفة: اكتبها بعلامتي الاقتباس، مثل SUM(\"to\" - \"from\") للأمتار المأخوذة عينات منها.",
   "Couldn't set up the SQL engine: {message}": "تعذر إعداد محرك SQL: {message}",
   "No data loaded yet — import collars, assays, or a layer first, then reopen this workspace.": "لا بيانات محمّلة بعد — استورد فوهات أو تحاليل أو طبقة أولًا، ثم أعد فتح مساحة العمل هذه.",
   "SELECT * FROM assays WHERE Au > 1;": "SELECT * FROM assays WHERE Au > 1;",
