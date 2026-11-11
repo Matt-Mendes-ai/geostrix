@@ -10428,5 +10428,10 @@
   "The NPV is within 1 % over {n} factors in a row: the discounting flattened it.": "El VPN varía menos del 1 % en {n} factores seguidos: el descuento lo aplanó.",
   "— none: estimate a second metal with the same cell over the same holes (Estimation › Grid: Fit to the checked holes) —": "— ninguno: estime un segundo metal con la misma celda sobre los mismos sondajes (Estimación › Malla: Ajustar a los sondajes marcados) —",
   "The collars sit on {n} drill levels ({list} m), a median {s} m apart.": "Los collares están en {n} niveles de perforación ({list} m), a una mediana de {s} m entre sí.",
-  "Use the drill levels": "Usar los niveles de perforación"
+  "Use the drill levels": "Usar los niveles de perforación",
+  "The upper slope is between 0 and 90°, with the RL it starts at.": "La pendiente superior está entre 0 y 90°, con la cota donde empieza.",
+  "Upper slope (°)": "Pendiente superior (°)",
+  "Optional: the slope of the walls above the RL beside it (soft cover, weathered rock), from a geotechnical study. Blank: the overall slope everywhere.": "Opcional: la pendiente de las paredes sobre la cota de al lado (cobertura blanda, roca meteorizada), de un estudio geotécnico. En blanco: la pendiente general en todas partes.",
+  "above RL (m)": "sobre la cota (m)",
+  ", {s}° above {rl} m": ", {s}° sobre {rl} m"
 }

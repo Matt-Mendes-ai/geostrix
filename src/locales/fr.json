@@ -10428,5 +10428,10 @@
   "The NPV is within 1 % over {n} factors in a row: the discounting flattened it.": "La VAN varie de moins de 1 % sur {n} facteurs d'affilée : l'actualisation l'a aplatie.",
   "— none: estimate a second metal with the same cell over the same holes (Estimation › Grid: Fit to the checked holes) —": "— aucun : estimez un second métal avec la même cellule sur les mêmes sondages (Estimation › Grille : Ajuster aux sondages cochés) —",
   "The collars sit on {n} drill levels ({list} m), a median {s} m apart.": "Les collets sont sur {n} niveaux de forage ({list} m), espacés en médiane de {s} m.",
-  "Use the drill levels": "Utiliser les niveaux de forage"
+  "Use the drill levels": "Utiliser les niveaux de forage",
+  "The upper slope is between 0 and 90°, with the RL it starts at.": "La pente supérieure est entre 0 et 90°, avec l'altitude où elle commence.",
+  "Upper slope (°)": "Pente supérieure (°)",
+  "Optional: the slope of the walls above the RL beside it (soft cover, weathered rock), from a geotechnical study. Blank: the overall slope everywhere.": "Facultatif : la pente des parois au-dessus de l'altitude à côté (couverture meuble, roche altérée), d'après une étude géotechnique. Vide : la pente générale partout.",
+  "above RL (m)": "au-dessus de l'altitude (m)",
+  ", {s}° above {rl} m": ", {s}° au-dessus de {rl} m"
 }

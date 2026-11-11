@@ -10428,5 +10428,10 @@
   "The NPV is within 1 % over {n} factors in a row: the discounting flattened it.": "يبقى صافي القيمة الحالية ضمن 1 % عبر {n} معاملات متتالية: الخصم سطّحه.",
   "— none: estimate a second metal with the same cell over the same holes (Estimation › Grid: Fit to the checked holes) —": "— لا شيء: قدّر معدنًا ثانيًا بنفس الخلية على نفس الثقوب (التقدير › الشبكة: ملاءمة الثقوب المحددة) —",
   "The collars sit on {n} drill levels ({list} m), a median {s} m apart.": "تقع الفوهات على {n} مستوى حفر ({list} م)، بوسيط {s} م بينها.",
-  "Use the drill levels": "استخدم مستويات الحفر"
+  "Use the drill levels": "استخدم مستويات الحفر",
+  "The upper slope is between 0 and 90°, with the RL it starts at.": "الميل العلوي بين 0 و90°، مع الارتفاع الذي يبدأ عنده.",
+  "Upper slope (°)": "الميل العلوي (°)",
+  "Optional: the slope of the walls above the RL beside it (soft cover, weathered rock), from a geotechnical study. Blank: the overall slope everywhere.": "اختياري: ميل الجدران فوق الارتفاع المجاور (غطاء لين، صخر متجوّي)، من دراسة جيوتقنية. فارغ: الميل العام في كل مكان.",
+  "above RL (m)": "فوق الارتفاع (م)",
+  ", {s}° above {rl} m": "، {s}° فوق {rl} م"
 }
