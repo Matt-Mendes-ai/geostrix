@@ -138,6 +138,7 @@ import { unitShell, meshVolume, blockUnitStats } from "../lib/unitVolumes.js"; /
 const ModellingCodesPane = React.lazy(() => import("../components/ModellingCodesPane.jsx")); // TASKS.csv #599 — modelling view only, so loaded on demand (#476 budget)
 import { resolveLayerStyle, cleanLayerStyle, TUBE_SEGMENTS } from "../lib/layerStyle.js"; // TASKS.csv #635
 import { lithoPatternMap, withSectionPatterns } from "../lib/lithoPatterns.js"; // #1995
+import { assayClassRange } from "../lib/assayClasses.js"; // TASKS.csv #2519
 import { LAYER_META, colorForLithology, rqdColor, magColor, distinctValues, minMax, colorForVoxelValue, makeVoxelColorResolverRGB, roleForLithology, groupMcodeRole, isCrossCuttingRole, colorForMedium, veinSourceUnits } from "../lib/layers.js";
 import { computeMeshVolume } from "../lib/volumetrics.js";
 import { sceneVertsToWorldFlat } from "../lib/meshFlat.js"; // TASKS.csv #600 — the exporters (meshExport.js) load on first export
@@ -838,19 +839,8 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
     if (c.assays !== assays || c.elements !== assayElements || c.src !== assaySource) { c.assays = assays; c.elements = assayElements; c.src = assaySource; c.by = {}; } // src: #1695
     if (c.by[symbol] !== undefined) return c.by[symbol];
     if (!assayElements.some((e) => e.symbol === symbol)) return (c.by[symbol] = null);
-    // TASKS.csv #1695 / #1696 (review #1645, Copley) — the classes come from the lab assays (pXRF readings are a screening number, with
-    // 'not detected' zeros), and a pile of values at the detection floor (Au: P50 = the minimum) does not decide them: the percentiles
-    // are then taken over the values above the floor
     const lab = assaySource === "pxrf" ? assays.filter(isPxrfRow) : assays.filter((a) => a.source !== "pXRF"); // #1695: the shown source (lab for "both")
-    const vals = (lab.length ? lab : assays).filter((a) => a.values[symbol] != null).map((a) => a.values[symbol]);
-    // TASKS.csv #306 — p50/p90 alongside min/max, because seedBreaks' default class boundaries are percentile-based rather than
-    // equal-interval (see seedBreaks' own comment for the measured reason: equal-interval put 99.8-100% of every ore element in
-    // this file's data into class 1).
-    const all = Float64Array.from(vals.filter(Number.isFinite)).sort();
-    let atFloor = 0; while (atFloor < all.length && all[atFloor] === all[0]) atFloor++;
-    const finite = atFloor >= 0.3 * all.length && atFloor < all.length ? all.subarray(atFloor) : all;
-    const q = (p) => (finite.length ? finite[Math.min(finite.length - 1, Math.floor(p * (finite.length - 1)))] : undefined);
-    return (c.by[symbol] = { ...minMax(vals), p50: q(0.5), p90: q(0.9), p975: q(0.975) }); // not Math.min/max(...vals) — a large assay dataset can exceed the JS engine's argument-spread limit, see layers.js's minMax comment
+    return (c.by[symbol] = assayClassRange(lab.length ? lab : assays, symbol)); // #306 / #1696 percentile classes; #2519: '<' flags left out (lib/assayClasses.js)
   }, [assays, assayElements, assaySource]);
   // TASKS.csv #437 — the hover tooltip is written straight to its DOM node instead of React state:
   // setTooltip({x, y, text}) ran on every pointermove over an interval and re-rendered this whole

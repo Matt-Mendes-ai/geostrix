@@ -9870,5 +9870,13 @@
   "The commodity and alteration elements first, up to 12": "Primeiro os elementos do minério e de alteração, até 12",
   "The {shown} largest of {n} groups are drawn and listed; {more} more are in the CSV export.": "Os {shown} maiores de {n} grupos são desenhados e listados; mais {more} estão na exportação CSV.",
   "Measured from the collars: {n} drill sites (collars within 2 m are one site), median distance to the nearest site {s} m. Type a buffer to keep your own.": "Medido a partir das bocas: {n} locais de perfuração (bocas a menos de 2 m são um local), distância mediana ao local mais próximo {s} m. Digite um buffer para usar o seu.",
-  "half the {s} m drill spacing": "metade do espaçamento de {s} m"
+  "half the {s} m drill spacing": "metade do espaçamento de {s} m",
+  "Default classes: the 50th, 90th and 97.5th percentiles of the {n} detected values; the {left} reported below detection ('<') are left out.": "Classes padrão: os percentis 50, 90 e 97,5 dos {n} valores detectados; os {left} reportados abaixo do limite de detecção ('<') ficam de fora.",
+  "Default classes: the 50th, 90th and 97.5th percentiles of the {n} values above the floor {floor} {unit}; the {left} at the floor (probably half a detection limit substituted before import) are left out.": "Classes padrão: os percentis 50, 90 e 97,5 dos {n} valores acima do piso {floor} {unit}; os {left} no piso (provavelmente metade de um limite de detecção substituída antes da importação) ficam de fora.",
+  "Default classes: the 50th, 90th and 97.5th percentiles of all {n} values.": "Classes padrão: os percentis 50, 90 e 97,5 de todos os {n} valores.",
+  "Round every class limit to two significant figures": "Arredondar cada limite de classe para dois algarismos significativos",
+  "Round the limits": "Arredondar os limites",
+  "Cut-off to add as a class limit": "Teor de corte a adicionar como limite de classe",
+  "Split the class holding this grade there, so the economic cut-off is a class limit": "Divide ali a classe que contém este teor, para que o teor de corte econômico seja um limite de classe",
+  "Add as a class limit": "Adicionar como limite de classe"
 }
