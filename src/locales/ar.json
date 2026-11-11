@@ -10038,5 +10038,7 @@
   "The {n} earlier score maps are hidden.": "خرائط الدرجة السابقة ({n}) مخفية.",
   "Plan-view fuzzy overlay ({op}) of {n} evidence layer": "تراكب ضبابي في المسقط ({op}) لطبقة أدلة واحدة ({n})",
   "This project's surveyed holes: lift {l}, drift {d} °/100 m (median of {n} inclined holes, first to last station).": "ثقوب هذا المشروع المقيسة: ارتفاع {l}، انجراف {d} °/100 م (وسيط {n} ثقبًا مائلًا، من أول محطة إلى آخرها).",
-  "Use them": "استخدمها"
+  "Use them": "استخدمها",
+  "Sample medium of the occurrences": "وسط عينات مواقع التواجد",
+  "every medium": "كل الأوساط"
 }

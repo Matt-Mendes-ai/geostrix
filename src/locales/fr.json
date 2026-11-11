@@ -10038,5 +10038,7 @@
   "The {n} earlier score maps are hidden.": "Les {n} cartes de score précédentes sont masquées.",
   "Plan-view fuzzy overlay ({op}) of {n} evidence layer": "Superposition floue en plan ({op}) de {n} couche d'évidence",
   "This project's surveyed holes: lift {l}, drift {d} °/100 m (median of {n} inclined holes, first to last station).": "Sondages levés de ce projet : remontée {l}, dérive {d} °/100 m (médiane de {n} sondages inclinés, de la première à la dernière station).",
-  "Use them": "Les utiliser"
+  "Use them": "Les utiliser",
+  "Sample medium of the occurrences": "Milieu d'échantillonnage des occurrences",
+  "every medium": "tous les milieux"
 }
