@@ -16,7 +16,8 @@ self.onmessage = (e) => {
     const groundAt = terrain ? (x, y) => terrainGroundAt(terrain, x, y) : collars ? collarGround(collars) : cells.length ? modelTopGround(cells) : null; // as the pit's run (#1353; the model's column tops, #1850)
     const shell = shellFloors(shellPositions, groundAt);
     if (!shell) { self.postMessage({ failed: "no-floors" }); return; }
-    const r = benchedPit(shell, { ...opts, groundAt, cells });
+    let last = 0;
+    const r = benchedPit(shell, { ...opts, groundAt, cells, onBench: (k, n) => { const t = Date.now(); if (t - last > 150) { last = t; self.postMessage({ phases: { k, n } }); } } }); // #2286 — the bench on the busy button
     if (!r) { self.postMessage({ failed: "no-design" }); return; }
     if (r.failed) { self.postMessage({ failed: r.failed }); return; } // #1916: "area-empty"
     r.groundSource = terrain ? "terrain" : collars ? "collars" : "model top";

@@ -97,7 +97,7 @@ export const toeRL = (z, benchH, datum = 0) => datum + Math.round((z - datum) / 
 // blocks ({ x, y, z, dx, dy, dz, value, coverage }), cutoff and density from the shell's run; benchH, berm, batterDeg, datum.
 // -> { positions, indices, strings: [{ bench, rl, kind: "toe" | "crest", lines: [[[x, y, z], ...]] }], benches: [{ rl, rockT, oreT, wasteT,
 //      metalU, meanGrade }], totals, interRampDeg, faceRun, reach, cell, nCells, coarsened, daylights, crestRL, floorRL }
-export function benchedPit(shell, { groundAt = null, cells = [], cutoff = Infinity, density = 1, wasteDensity = null, benchH, berm, batterDeg, datum = 0, maxCells = MAX_DESIGN_CELLS, largestOnly = false, areaPoly = null, sectors = null, ramp = null } = {}) {
+export function benchedPit(shell, { groundAt = null, cells = [], cutoff = Infinity, density = 1, wasteDensity = null, benchH, berm, batterDeg, datum = 0, maxCells = MAX_DESIGN_CELLS, largestOnly = false, areaPoly = null, sectors = null, ramp = null, onBench = null } = {}) { // onBench(k, about): #2286
   // TASKS.csv #1916 — a design AREA (areaPoly): a closed polygon [[x, y], ...] in world metres (a design string); only the shell's columns
   // whose centre lies inside it are designed, so one prospect of a district-wide shell gets the whole grid
   let columnsInArea = null;
@@ -193,7 +193,9 @@ export function benchedPit(shell, { groundAt = null, cells = [], cutoff = Infini
     const rAt = (deg) => { const u = normDeg(deg) / 5, b0 = Math.floor(u) % 72, t = u - Math.floor(u); return r[b0] * (1 - t) + r[(b0 + 1) % 72] * t; };
     return { cx, cy, rAt };
   };
+  const aboutBenches = Number.isFinite(gTop) && benchH > 0 ? Math.max(1, Math.ceil((gTop - floorRL) / benchH)) : null; // #2286 — for the progress line
   for (let k = 0, rl = floorRL; k < 10000; k++, rl += benchH) {
+    onBench?.(k + 1, aboutBenches);
     const next = new Uint8Array(N);
     let any = false;
     if (k === 0) {
@@ -274,6 +276,8 @@ export function benchedPit(shell, { groundAt = null, cells = [], cutoff = Infini
   // the surface: the design where it is below the ground, the ground on a one-cell ring around it (so it meets the ground)
   const inPit = new Uint8Array(N);
   for (let c = 0; c < N; c++) if (Number.isFinite(z[c]) && z[c] < g[c] - 1e-6) inPit[c] = 1;
+  // TASKS.csv #2440 (review #2325) — the highest ground the design meets: the bench range ends there, not at the top bench floor + a bench in the air
+  let groundTop = -Infinity; for (let c = 0; c < N; c++) if (inPit[c] && g[c] > groundTop) groundTop = g[c];
   const nodeOf = new Int32Array(N).fill(-1), pos = [], idx = [];
   const onRing = (c) => { const j = Math.floor(c / nx), i = c - j * nx; for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) { const ii = i + di, jj = j + dj; if (ii >= 0 && ii < nx && jj >= 0 && jj < ny && inPit[jj * nx + ii]) return true; } return false; };
   const node = (c) => { if (nodeOf[c] < 0) { const j = Math.floor(c / nx), i = c - j * nx; nodeOf[c] = pos.length / 3; pos.push(X(i), Y(j), inPit[c] ? z[c] : g[c]); } return nodeOf[c]; };
@@ -340,7 +344,7 @@ export function benchedPit(shell, { groundAt = null, cells = [], cutoff = Infini
   totals.meanGrade = totals.oreT > 0 ? totals.metalU / totals.oreT : null;
   let nCells = 0;
   for (let c = 0; c < N; c++) nCells += inPit[c];
-  return { positions: Float64Array.from(pos), indices: Uint32Array.from(idx), strings, benches, totals, interRampDeg, faceRun, reach, cell, nCells, coarsened, daylights, crestRL, floorRL, partsDropped, columnsInArea,
+  return { positions: Float64Array.from(pos), indices: Uint32Array.from(idx), strings, benches, totals, interRampDeg, faceRun, reach, cell, nCells, coarsened, daylights, crestRL, floorRL, groundTopRL: Number.isFinite(groundTop) ? groundTop : null /* #2440 */, partsDropped, columnsInArea,
     sectorsUsed /* #1952 */, ramp: rampState ? { arcs: rampState.arcs, lengthM: +rampState.lengthM.toFixed(1), widthM: rampW, gradientPct: Number(ramp.gradientPct), turn: turn > 0 ? "clockwise" : "anticlockwise", azimuthDeg: normDeg(Number(ramp.azimuthDeg)), needsSwitchback: rampState.needsSwitchback, stoppedAtRL: rampState.stoppedAt, rockT: rampRockT, benches: rampState.arcs.length } : null /* #1948 */ };
 }
 

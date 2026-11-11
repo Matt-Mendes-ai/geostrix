@@ -10357,5 +10357,10 @@
   ", the same all the way down": ", a mesma ao longo de todo o furo",
   "{p}% of the scored cells sit at the lowest score ({v}): an evidence's membership is at its floor there and the operator keeps the floor. The top cells are only those no evidence vetoed, not the most favourable. Widen the 0 = points, or combine with OR / algebraic sum.": "{p}% das células pontuadas estão no escore mais baixo ({v}): ali a pertinência de uma evidência está no seu piso e o operador mantém o piso. As células do topo são só as que nenhuma evidência vetou, não as mais favoráveis. Amplie os pontos 0 = ou combine com OR / soma algébrica.",
   "Largest body only (in the shell)": "Só o maior corpo (na casca)",
-  "A closed solid around the cells in this range (marching cubes on the model's grid), added to the generated surfaces: a grade shell, or a geophysical high or low, as a body to section, query and target.": "Um sólido fechado em torno das células nesta faixa (marching cubes na malha do modelo), adicionado às superfícies geradas: uma casca de teor, ou um alto ou baixo geofísico, como corpo para seccionar, consultar e alvejar."
+  "A closed solid around the cells in this range (marching cubes on the model's grid), added to the generated surfaces: a grade shell, or a geophysical high or low, as a body to section, query and target.": "Um sólido fechado em torno das células nesta faixa (marching cubes na malha do modelo), adicionado às superfícies geradas: uma casca de teor, ou um alto ou baixo geofísico, como corpo para seccionar, consultar e alvejar.",
+  "Designing bench {k} of about {n}: cancel": "Projetando a bancada {k} de cerca de {n}: cancelar",
+  "Designing bench {k}: cancel": "Projetando a bancada {k}: cancelar",
+  "Pit area": "Área da cava",
+  "Only the blocks whose centre lies inside this closed design string are priced: one prospect of a model that covers several gets its own grid.": "Só são valorados os blocos cujo centro está dentro desta linha de projeto fechada: um prospecto de um modelo que cobre vários ganha sua própria malha.",
+  "No block of \"{model}\" lies inside \"{area}\".": "Nenhum bloco de \"{model}\" está dentro de \"{area}\"."
 }

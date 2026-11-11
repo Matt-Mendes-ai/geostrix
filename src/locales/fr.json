@@ -10357,5 +10357,10 @@
   ", the same all the way down": ", la même sur toute la longueur",
   "{p}% of the scored cells sit at the lowest score ({v}): an evidence's membership is at its floor there and the operator keeps the floor. The top cells are only those no evidence vetoed, not the most favourable. Widen the 0 = points, or combine with OR / algebraic sum.": "{p}% des cellules notées sont au score le plus bas ({v}) : l'appartenance d'une évidence y est à son plancher et l'opérateur garde le plancher. Les meilleures cellules sont seulement celles qu'aucune évidence n'a écartées, pas les plus favorables. Élargissez les points 0 =, ou combinez avec OU / somme algébrique.",
   "Largest body only (in the shell)": "Seulement le plus grand corps (dans l'enveloppe)",
-  "A closed solid around the cells in this range (marching cubes on the model's grid), added to the generated surfaces: a grade shell, or a geophysical high or low, as a body to section, query and target.": "Un solide fermé autour des cellules de cette plage (marching cubes sur la grille du modèle), ajouté aux surfaces générées : une enveloppe de teneur, ou un haut ou bas géophysique, comme corps à couper, interroger et cibler."
+  "A closed solid around the cells in this range (marching cubes on the model's grid), added to the generated surfaces: a grade shell, or a geophysical high or low, as a body to section, query and target.": "Un solide fermé autour des cellules de cette plage (marching cubes sur la grille du modèle), ajouté aux surfaces générées : une enveloppe de teneur, ou un haut ou bas géophysique, comme corps à couper, interroger et cibler.",
+  "Designing bench {k} of about {n}: cancel": "Conception du gradin {k} sur environ {n} : annuler",
+  "Designing bench {k}: cancel": "Conception du gradin {k} : annuler",
+  "Pit area": "Zone de la fosse",
+  "Only the blocks whose centre lies inside this closed design string are priced: one prospect of a model that covers several gets its own grid.": "Seuls les blocs dont le centre est dans cette polyligne de conception fermée sont valorisés : un prospect d'un modèle qui en couvre plusieurs a sa propre grille.",
+  "No block of \"{model}\" lies inside \"{area}\".": "Aucun bloc de « {model} » n'est dans « {area} »."
 }
