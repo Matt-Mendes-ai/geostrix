@@ -274,3 +274,16 @@ export function orderForControlChart(rows) {
   const coll = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
   return { rows: rows.slice().sort((a, b) => coll.compare(String(a.sample_id), String(b.sample_id))), bySampleId: true };
 }
+
+// TASKS.csv #2503 (review #2486, WA lithium) — a detection limit printed as a number a person reads: four significant figures
+// (0.004645329 -> 0.004645), never the float tail of a unit conversion
+export function formatLimit(x) {
+  return x == null || !Number.isFinite(Number(x)) ? "" : String(Number(Number(x).toPrecision(4)));
+}
+// a lab prints its limits as round figures (0.01, 0.005, 2, 0.25): a '<' limit with more than two significant figures was converted
+// at import (from another unit or an oxide: <0.01 % Li2O became <0.004645329 % Li) and is not the lab's own number
+export function limitLooksConverted(x) {
+  const v = Number(x);
+  if (!(v > 0) || !Number.isFinite(v)) return false;
+  return Math.abs(Number(v.toPrecision(2)) - v) > v * 1e-9;
+}

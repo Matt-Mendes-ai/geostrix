@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { X, Download } from "./icons.js";
 import { saveFile } from "../lib/desktop.js";
-import { classifyQAQCRow, excludedQAQCIds, standardGroups, standardSeries, blankRows, duplicatePairs, duplicateSummary, DUP_RPD_LIMITS, DUP_KIND_LABELS, suggestDetectionLimit, orderForControlChart, DEFAULT_QAQC_PATTERNS } from "../lib/qaqc.js";
+import { classifyQAQCRow, excludedQAQCIds, standardGroups, standardSeries, blankRows, duplicatePairs, duplicateSummary, DUP_RPD_LIMITS, DUP_KIND_LABELS, suggestDetectionLimit, orderForControlChart, DEFAULT_QAQC_PATTERNS } from "../lib/qaqc.js"; import { formatLimit, limitLooksConverted } from "../lib/qaqc.js";
 import { stampLines, withStamp, stampEpsg } from "../lib/provenance.js"; // TASKS.csv #534 — stamped exports
 import { version as APP_VERSION } from "../../package.json";
 import { useStore } from "../lib/store.jsx"; // TASKS.csv #400 — certified values live in the project
@@ -128,8 +128,8 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
             <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }} title={tr("The lab's lower detection limit for this element. Blanks are judged against a multiple of it and duplicate pairs near it are not counted. Saved with the project.")}>{tr("Detection limit ({unit})", { unit: unitL })}<input key={`${symbol}|${dl}`} type="number" min={0} step="any" defaultValue={dl ?? ""} placeholder={tr("not set")} onBlur={(e) => setDetectionLimit(Number(e.target.value))} onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }} style={{ ...sel, display: "block", marginTop: 4, width: 100 }} aria-label={tr("Detection limit")} />
             </label>
             {dlSuggestion.limit != null && dlSuggestion.limit !== dl && (
-              <button type="button" onClick={() => setDetectionLimit(dlSuggestion.limit)} style={{ ...tabBtn, alignSelf: "flex-end" }} title={dlSuggestion.basis === "lt" ? tr("The lab reported {n} result(s) as '<{limit}'", { n: dlSuggestion.n, limit: dlSuggestion.limit }) : tr("No '<x' results: the lowest reported value (an upper bound on the limit)")}>
-                {dlSuggestion.basis === "lt" ? tr("Use the lab's <{limit}", { limit: dlSuggestion.limit }) : dlSuggestion.basis === "floor" ? tr("Use {limit}: twice the {floor} floor that {pct} % of the results sit on (half the limit substituted before import)", { limit: dlSuggestion.limit, floor: dlSuggestion.floor, pct: Math.round(dlSuggestion.share * 100) }) : tr("Use the lowest value {limit}", { limit: dlSuggestion.limit })}
+              <button type="button" onClick={() => setDetectionLimit(dlSuggestion.limit)} style={{ ...tabBtn, alignSelf: "flex-end" }} title={dlSuggestion.basis === "lt" ? (limitLooksConverted(dlSuggestion.limit) /* #2503 */ ? tr("{n} result(s) are '<' at {limit}: not a round figure, so it was converted at import (from another unit or an oxide); the lab's own limit is the round figure in the source file", { n: dlSuggestion.n, limit: formatLimit(dlSuggestion.limit) }) : tr("The lab reported {n} result(s) as '<{limit}'", { n: dlSuggestion.n, limit: formatLimit(dlSuggestion.limit) })) : tr("No '<x' results: the lowest reported value (an upper bound on the limit)")}>
+                {dlSuggestion.basis === "lt" ? (limitLooksConverted(dlSuggestion.limit) ? tr("Use <{limit} (the '<' results, converted at import)", { limit: formatLimit(dlSuggestion.limit) }) : tr("Use the lab's <{limit}", { limit: formatLimit(dlSuggestion.limit) })) : dlSuggestion.basis === "floor" ? tr("Use {limit}: twice the {floor} floor that {pct} % of the results sit on (half the limit substituted before import)", { limit: formatLimit(dlSuggestion.limit), floor: formatLimit(dlSuggestion.floor), pct: Math.round(dlSuggestion.share * 100) }) : tr("Use the lowest value {limit}", { limit: formatLimit(dlSuggestion.limit) })}
               </button>
             )}
             <div style={{ display: "flex", gap: 4 }}>
@@ -186,7 +186,7 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
           {tab === "blanks" && (
             <>
               {dl ? (
-                <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("Contamination limit: multiple of the detection limit ({dl} {unit})", { dl, unit: unitL })}<span style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
+                <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("Contamination limit: multiple of the detection limit ({dl} {unit})", { dl: formatLimit(dl), unit: unitL }) /* #2503 */}<span style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
                     <input type="number" min={1} step="any" value={blankMult} onChange={(e) => setBlankMult(Math.max(1, Number(e.target.value) || 5))} style={{ ...sel, width: 70 }} aria-label={tr("Blank limit as a multiple of the detection limit")} />{tr("× DL =")}{" "}<b>{Number((blankMult * dl).toPrecision(4))} {unit}</b>
                   </span>
                 </label>

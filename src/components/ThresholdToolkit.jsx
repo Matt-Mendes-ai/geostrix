@@ -9,7 +9,7 @@ import { useLeadCommodity } from "../lib/useLeadCommodity.js"; // #1523 — Au o
 import { X, Download } from "./icons.js";
 import { valueIn } from "../lib/geochem.js";
 import { THRESHOLD_METHODS, MIN_N_BREAKS, MIN_N_ROBUST, candidateThresholds, groupOptions, groupKeyFn, populations, normalQuantile, hasMixedSources, intervalLength, DRILL_DOMAINS, drillDomainKeyFn } from "../lib/thresholds.js"; import { thresholdUnreachable, usableDefaultMethod } from "../lib/thresholds.js"; // drill: TASKS.csv #2196
-import { censoringFloor } from "../lib/qaqc.js"; // TASKS.csv #1520
+import { censoringFloor, formatLimit } from "../lib/qaqc.js"; // TASKS.csv #1520; formatLimit: #2503
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { saveFile } from "../lib/desktop.js";
@@ -54,11 +54,14 @@ export default function ThresholdToolkit({ surfaceSamples = [], surfaceElements 
 
   const unit = units[symbol] || "ppm";
   // TASKS.csv #1520 — values on a censoring floor (half the limit substituted in the file) count as <DL, as flagged ones do
-  const floor = useMemo(() => censoringFloor(data.map((s) => valueIn(s, symbol, unit, units))), [data, symbol, unit, units]);
+  // #2503 — a value the lab flagged '<' (surface: bdl; drill: the qualifier) is below detection by the file's own word: the floor guess of
+  // #1520 runs only on the unflagged values, for files that arrive with half the limit already substituted
+  const flaggedLt = (s) => !!s.bdl?.includes(symbol) || s.qualifiers?.[symbol] === "<";
+  const floor = useMemo(() => censoringFloor(data.filter((s) => !flaggedLt(s)).map((s) => valueIn(s, symbol, unit, units))), [data, symbol, unit, units]); // flaggedLt reads symbol only
   const keyOfNow = () => (drill ? drillDomainKeyFn(groupBy, projectLayers) : groupKeyFn(groupBy, mapLayers, surfaceSamples)); // samples: #1796 — split by medium; drill: #2196
   const pops = useMemo(() => {
     const keyOf = keyOfNow();
-    return populations(data, { valueOf: (s) => valueIn(s, symbol, unit, units), censoredOf: (s) => !!s.bdl?.includes(symbol) || (floor != null && Math.abs(valueIn(s, symbol, unit, units) - floor.floor) <= floor.floor * 1e-9), zeroOf: (s) => !!s.nd?.includes(symbol), keyOf, ...(drill ? { weightOf: intervalLength } : {}) }) // zeroOf: #931; weightOf: #2196
+    return populations(data, { valueOf: (s) => valueIn(s, symbol, unit, units), censoredOf: (s) => flaggedLt(s) || (floor != null && Math.abs(valueIn(s, symbol, unit, units) - floor.floor) <= floor.floor * 1e-9), zeroOf: (s) => !!s.nd?.includes(symbol), keyOf, ...(drill ? { weightOf: intervalLength } : {}) }) // zeroOf: #931; weightOf: #2196
       .map((p) => ({ ...p, cand: candidateThresholds(p.summary) }));
   }, [data, drill, symbol, unit, units, groupBy, mapLayers, projectLayers, floor]);
   const [viewKey, setViewKey] = useState(null);
@@ -161,7 +164,7 @@ export default function ThresholdToolkit({ surfaceSamples = [], surfaceElements 
               <div style={note}>{tr("Values in {unit}. Click a column to choose its rule, a row to plot that population. Robust rules need at least {a} samples; the probability-plot break needs {b} and is suggested only where the plot really bends.", { unit, a: MIN_N_ROBUST, b: MIN_N_BREAKS })}</div>
               {unusableRules.length > 0 && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("Struck through: {rules} land above every sample of their population (or over 100 %): such a rule finds no anomaly here, often a sign of two populations. The probability plot's break and the Populations selector separate them; these rules cannot be saved.", { rules: unusableRules.map((m) => tr(m.label)).join(", ") })}</div>}{/* #2507 */}
               {view && view.zero > 0 && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("{zero} {symbol} result(s) in \"{pop}\" were reported as 0 by the source (below detection or not analysed: the layer does not say). They are left out of n and of every threshold here; if they are below detection, the thresholds read high.", { zero: view.zero, symbol, pop: groupLabel(view.key) })}</div>}
-              {floor && <div style={note}>{tr("{pct} % of the {el} values sit on {floor} {unit}, probably half the detection limit {dl} substituted before import: counted as <DL.", { pct: Math.round(floor.share * 100), el: symbol, floor: floor.floor, unit, dl: floor.dl })}</div>}{/* #1520 */}
+              {floor && <div style={note}>{tr("{pct} % of the {el} values sit on {floor} {unit}, probably half the detection limit {dl} substituted before import: counted as <DL.", { pct: Math.round(floor.share * 100), el: symbol, floor: formatLimit(floor.floor), unit, dl: formatLimit(floor.dl) })}</div>}{/* #1520 */}
               {view && view.summary.censoredPct > 30 && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("{pct}% of {symbol} in \"{pop}\" is below detection: its statistics are mostly about the detection limit.", { pct: Math.round(view.summary.censoredPct), symbol, pop: groupLabel(view.key) })}</div>}
 
               {view && (

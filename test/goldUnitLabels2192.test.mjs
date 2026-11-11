@@ -16,5 +16,5 @@ test("Compositing's cap audit, Grade stats' probability plot and every QAQC labe
   assert.ok(rd("../src/components/GradeStatistics.jsx").includes('tr("Log-probability plot — {symbol} ({v}){v2}", { symbol, v: gradeUnitLabel(symbol, elementUnits[symbol])'));
   const q = rd("../src/components/QAQCPanel.jsx");
   assert.ok(q.includes("const unitL = gradeUnitLabel(symbol, unit);"));
-  for (const s of ['tr("Detection limit ({unit})", { unit: unitL })', "multiple of the detection limit ({dl} {unit})\", { dl, unit: unitL })", "(5x DL)\", { unit: unitL })", 'tr("Ignore pairs with a mean below ({unit}){v}", { unit: unitL,', "cert={cert} unit={unitL}"]) assert.ok(q.includes(s), s);
+  for (const s of ['tr("Detection limit ({unit})", { unit: unitL })', "multiple of the detection limit ({dl} {unit})\", { dl: formatLimit(dl), unit: unitL })" /* #2503 */, "(5x DL)\", { unit: unitL })", 'tr("Ignore pairs with a mean below ({unit}){v}", { unit: unitL,', "cert={cert} unit={unitL}"]) assert.ok(q.includes(s), s);
 });

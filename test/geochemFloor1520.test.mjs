@@ -25,7 +25,8 @@ test("#1520 a repeated minimum holding 20 % of the values is a floor: twice it i
 
 test("#1520 wired: Thresholds counts the floor as <DL and says so; QAQC offers twice the floor", () => {
   const t = readFileSync(new URL("../src/components/ThresholdToolkit.jsx", import.meta.url), "utf8");
-  assert.match(t, /censoredOf: \(s\) => !!s\.bdl\?\.includes\(symbol\) \|\| \(floor != null/);
+  assert.match(t, /censoredOf: \(s\) => flaggedLt\(s\) \|\| \(floor != null/); // #2503: flaggedLt = the bdl list or the drill '<' qualifier
+  assert.match(t, /const flaggedLt = \(s\) => !!s\.bdl\?\.includes\(symbol\)/);
   assert.match(t, /probably half the detection limit \{dl\} substituted before import/);
   const q = readFileSync(new URL("../src/components/QAQCPanel.jsx", import.meta.url), "utf8");
   assert.match(q, /dlSuggestion\.basis === "floor"/);
