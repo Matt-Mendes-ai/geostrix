@@ -10268,5 +10268,13 @@
   "{n} column(s) of the file were not imported: {cols}. Add one under Extra fields in the import dialog to keep it.": "{n} columna(s) del archivo no se importaron: {cols}. Agregue una en Campos adicionales del diálogo de importación para conservarla.",
   "The row filter keeps no row: tick at least one value under Rows.": "El filtro de filas no conserva ninguna fila: marque al menos un valor en Filas.",
   "Time-scale colours (online)": "Colores de la escala de tiempo (en línea)",
-  "The time-scale colours come from Macrostrat over the internet: offline, the units keep their colours.": "Los colores de la escala de tiempo vienen de Macrostrat por internet: sin conexión, las unidades conservan sus colores."
+  "The time-scale colours come from Macrostrat over the internet: offline, the units keep their colours.": "Los colores de la escala de tiempo vienen de Macrostrat por internet: sin conexión, las unidades conservan sus colores.",
+  "{name}: no value other than no-data": "{name}: ningún valor distinto de sin-dato",
+  "Imported the GOCAD Voxet \"{name}\" as {n} block model(s): {list}; {nx} × {ny} × {nz} nodes, each a block of {dx} × {dy} × {dz} m centred on its node. Its coordinates are taken as the project's (GOCAD files carry no EPSG code).": "Se importó el Voxet de GOCAD \"{name}\" como {n} modelo(s) de bloques: {list}; {nx} × {ny} × {nz} nodos, cada uno un bloque de {dx} × {dy} × {dz} m centrado en su nodo. Sus coordenadas se toman como las del proyecto (los archivos GOCAD no llevan código EPSG).",
+  "Averaged {fx} × {fy} × {fz} nodes into each block to stay within the block budget.": "Se promediaron {fx} × {fy} × {fz} nodos en cada bloque para no superar el presupuesto de bloques.",
+  "Not in the drop, so not read: {list}. Drop the .vo together with the files its PROP_FILE lines name.": "No estaban entre los archivos soltados, así que no se leyeron: {list}. Suelte el .vo junto con los archivos que nombran sus líneas PROP_FILE.",
+  "Could not read: {list}.": "No se pudo leer: {list}.",
+  "{name}: no block model made. {why}": "{name}: no se creó ningún modelo de bloques. {why}",
+  "The Voxet names no property.": "El Voxet no nombra ninguna propiedad.",
+  "{name}: couldn't read the GOCAD Voxet ({message}).": "{name}: no se pudo leer el Voxet de GOCAD ({message})."
 }

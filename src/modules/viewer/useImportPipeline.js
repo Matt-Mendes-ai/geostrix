@@ -45,10 +45,12 @@ import { surfaceAttrColumns, surfaceAttrs } from "../../lib/geochem.js"; // TASK
 import { rasterDrapeElevation, drapeElevationNote, planElevation } from "../../lib/drapeElevation.js"; // TASKS.csv #1505; planElevation: #2294
 import { projectTargetEpsg } from "../../lib/projectTarget.js"; // TASKS.csv #2287 — no reprojection INTO the placeholder CRS
 import { looksLikeUbcMesh } from "../../lib/leapfrogMsh.js"; // TASKS.csv #1991
+import { useStore } from "../../lib/store.jsx"; // TASKS.csv #2632 — addVoxelModel for a GOCAD Voxet, without threading it through ViewerModule
 
 const AZ_TARGETS = new Set(["collars", "survey", "structure"]); // TASKS.csv #1647 — tables with an azimuth
 
 export function useImportPipeline(ctx) {
+  const { addVoxelModel } = useStore(); // #2632
   const {
     addBoundary,
     addRaster,
@@ -945,9 +947,45 @@ export function useImportPipeline(ctx) {
   // the file inputs' own accept="" lists below. A bare .shp (no surrounding .zip) is also accepted —
   // its .dbf / .prj / .cpg dropped in the SAME drop are paired with it by basename (groupShapefileParts, #600);
   // a .shp dropped alone imports coordinates only, and the notice says to bring its .dbf and .prj.
+  // TASKS.csv #2632 — a GOCAD Voxet (.vo) dropped with its property side files: one block model per property it can read. -> the side files used
+  const importVoxet = async (vo, all) => {
+    const used = [];
+    try {
+      const vx = await import("../../lib/gocadVoxet.js"), vox = await import("../../lib/voxel.js");
+      const h = vx.parseVoxetHeader(await vo.text()), g = vx.voxetGrid(h), n = g.nx * g.ny * g.nz;
+      const made = [], missing = [], failed = [];
+      let coarse = null;
+      for (const prop of h.props) {
+        const f = vx.findPropFile(prop, all);
+        if (!f) { missing.push(`${prop.name} (${prop.file || "?"})`); continue; }
+        used.push(f.name);
+        try {
+          const vals = vx.readVoxetValues(new Uint8Array(await f.arrayBuffer()), prop, n);
+          let { mesh, values } = vx.voxetToUbc(h, vals);
+          const { fx, fy, fz } = vox.planCoarsenFactors(mesh.nx, mesh.ny, mesh.nz, vox.MAX_CELLS);
+          if (fx > 1 || fy > 1 || fz > 1) { ({ mesh, values } = vox.coarsenUBCModel(mesh, values, fx, fy, fz, { log: vox.wantsLogMean(values, prop.name) })); coarse = { fx, fy, fz }; }
+          const cells = vox.ubcMeshToCells(mesh, Array.from(values));
+          if (!cells.length) { failed.push(tr("{name}: no value other than no-data", { name: prop.name })); continue; }
+          const { min, max } = vox.cellValueRange(cells);
+          const name = `${h.name || vo.name.replace(/\.vo$/i, "")} — ${prop.name}${prop.unit ? ` (${prop.unit})` : ""}`;
+          addVoxelModel({ name, source: "gocad", cells, min, max, property: prop.name, ...(prop.unit ? { unit: prop.unit } : {}), params: { tool: "GOCAD Voxet import", file: vo.name, nodes: [g.nx, g.ny, g.nz], nodeStepM: g.step.map((s) => +s.toFixed(4)), ...(coarse ? { coarsenedBy: [coarse.fx, coarse.fy, coarse.fz] } : {}) } });
+          made.push(`${prop.name} (${cells.length.toLocaleString()} blocks)`);
+        } catch (err) { failed.push(err.message); }
+      }
+      const parts = [made.length ? tr("Imported the GOCAD Voxet \"{name}\" as {n} block model(s): {list}; {nx} × {ny} × {nz} nodes, each a block of {dx} × {dy} × {dz} m centred on its node. Its coordinates are taken as the project's (GOCAD files carry no EPSG code).", { name: h.name || vo.name, n: made.length, list: made.join(", "), nx: g.nx, ny: g.ny, nz: g.nz, dx: +g.step[0].toFixed(2), dy: +g.step[1].toFixed(2), dz: +g.step[2].toFixed(2) }) : "",
+        coarse ? tr("Averaged {fx} × {fy} × {fz} nodes into each block to stay within the block budget.", coarse) : "",
+        missing.length ? tr("Not in the drop, so not read: {list}. Drop the .vo together with the files its PROP_FILE lines name.", { list: missing.join(", ") }) : "",
+        failed.length ? tr("Could not read: {list}.", { list: failed.join("; ") }) : ""].filter(Boolean).join(" ");
+      setNotices((p) => [...p, made.length ? parts : errorNotice(tr("{name}: no block model made. {why}", { name: vo.name, why: parts || tr("The Voxet names no property.") }))]);
+    } catch (err) { setNotices((p) => [...p, errorNotice(tr("{name}: couldn't read the GOCAD Voxet ({message}).", { name: vo.name, message: err.message }))]); }
+    return used;
+  };
   const handleDrop = async (e) => {
     e.preventDefault(); setDragOver(false);
     const grouped = groupShapefileParts(Array.from(e.dataTransfer.files || [])); // #600: loose .shp + .dbf/.prj
+    // TASKS.csv #2632 — GOCAD Voxets with their side files, read first; their side files are not 'unrecognized'
+    const voFiles = grouped.files.filter((f) => /\.vo$/i.test(f.name)), voSide = new Set();
+    for (const f of voFiles) (await importVoxet(f, grouped.files)).forEach((name) => voSide.add(name));
     // TASKS.csv #600 (40958Z) — grids (.tif/.gxf), CAD lines / solids (.dxf) and .obj solids dropped here used to
     // be refused ("Only .csv … can be dropped") although the Browser panel and the Raster / 3D Modelling buttons
     // import them: they go to those same handlers (importBrowserFile / importSolidFile), outside the table queue.
@@ -982,9 +1020,9 @@ export function useImportPipeline(ctx) {
       advised.push(notice(lidarNames.length > 1 ? "{names}: lidar point clouds, read in Maps > Terrain one at a time. The first is open there; drop the others there after it." : "{names}: a lidar point cloud, opened in Maps > Terrain.", { names: lidarNames.slice(0, 4).join(", ") + (lidarNames.length > 4 ? " …" : "") }));
     }
     if (advised.length) setNotices((p) => [...p, ...advised]);
-    const skipped = grouped.files.length - files.length - direct.length - advised.length - (mshCount - mshAdvice.length) /* #1991: the Leapfrog meshes went to the solid import */ - Math.max(0, vsNames.length - 1) /* #1992 */ - Math.max(0, ediNames.length - 1) /* #1989: one notice for all of them */ - Math.max(0, lidarNames.length - 1) /* #1994 */ + grouped.unmatched.length;
+    const skipped = grouped.files.length - files.length - direct.length - advised.length - voFiles.length - voSide.size /* #2632 */ - (mshCount - mshAdvice.length) /* #1991: the Leapfrog meshes went to the solid import */ - Math.max(0, vsNames.length - 1) /* #1992 */ - Math.max(0, ediNames.length - 1) /* #1989: one notice for all of them */ - Math.max(0, lidarNames.length - 1) /* #1994 */ + grouped.unmatched.length;
     if (!files.length) {
-      if (!direct.length && !advised.length && !mshCount) setNotices((p) => [...p, notice("Only .csv, .xlsx, .zip (shapefile), .shp, .gpkg, .kml/.kmz, .las logs, GeoTIFF / .gxf grids and .dxf / .obj files can be dropped in directly.")]);
+      if (!direct.length && !advised.length && !mshCount && !voFiles.length) setNotices((p) => [...p, notice("Only .csv, .xlsx, .zip (shapefile), .shp, .gpkg, .kml/.kmz, .las logs, GeoTIFF / .gxf grids and .dxf / .obj files can be dropped in directly.")]);
       else if (skipped) setNotices((p) => [...p, notice("{skipped} unrecognized file(s) skipped.", { skipped })]);
       return;
     }
