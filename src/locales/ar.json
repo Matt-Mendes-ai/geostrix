@@ -7071,6 +7071,7 @@
   "Follows its view's north. Typing an angle frees it.": "يتبع شمال العرض المرتبط به. كتابة زاوية تفكّه.",
   "Follows its view's grid north (GN). Typing an angle frees it.": "يتبع شمال الشبكة (GN) للعرض المرتبط به. كتابة زاوية تفكّه.",
   "+ {n} more (fewer intervals; edit the legend to add them)": "+ {n} أخرى (فترات أقل؛ عدّل المفتاح لإضافتها)",
+  "+ {n} more codes, not listed": "+ {n} رموز أخرى غير مدرجة",
   " Categories from the {h} of {all} holes inside the frame.": " الفئات من {h} من أصل {all} ثقبًا داخل الإطار.",
   "Note": "ملاحظة",
   "Set from the file's {col} column.": "مأخوذ من العمود {col} في الملف.",

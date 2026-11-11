@@ -7071,6 +7071,7 @@
   "Follows its view's north. Typing an angle frees it.": "Sigue el norte de su vista. Escribir un ángulo la libera.",
   "Follows its view's grid north (GN). Typing an angle frees it.": "Sigue el norte de cuadrícula (GN) de su vista. Escribir un ángulo la libera.",
   "+ {n} more (fewer intervals; edit the legend to add them)": "+ {n} más (con menos intervalos; edite la leyenda para añadirlos)",
+  "+ {n} more codes, not listed": "+ {n} códigos más, no listados",
   " Categories from the {h} of {all} holes inside the frame.": " Categorías de los {h} de {all} sondajes dentro del marco.",
   "Note": "Nota",
   "Set from the file's {col} column.": "Tomado de la columna {col} del archivo.",

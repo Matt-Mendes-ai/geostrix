@@ -7,7 +7,7 @@ test("#1224 a new legend is built from the view, by the same builder the sync us
   const s = read("src/modules/LayoutModule.jsx");
   assert.match(s, /const \{ items \} = legendFromView\(viewerUiState \|\| \{\}, \{ frameHoles:/); // #1633 — and the frame's holes
   assert.match(s, /const \{ groups, items \} = legendFromView\(theme, \{ frameHoles, frame: frameTest\(vp\) \}\);/);
-  assert.equal(s.split("legendGroupsToItems(capLegendGroups(groups,").length - 1, 1); // #1633 — capped
+  assert.equal(s.split("legendGroupsToItems(capLegendGroups(mergeCaseTwins(groups),").length - 1, 1); // #1633 — capped; #2609: case twins merged first
   assert.match(s, /ranked = rankLegendGroups\(items\), kept = firstLegendGroups\(ranked\)[\s\S]{0,400}: \[\["Item", "#55606e"\]\]/);
 });
 test("#1225 fault-like types and the rest are separate groups", () => {
