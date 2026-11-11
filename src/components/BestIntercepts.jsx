@@ -23,6 +23,7 @@ import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { toExportCsv } from "../lib/tabular.js"; // TASKS.csv #1022 — every exported CSV: all columns, formula cells escaped
 import { interceptRows, optionalInterceptColumns } from "../lib/drillReportExport.js"; // TASKS.csv #1083, #1290
 import { localDate } from "../lib/localDate.js"; // TASKS.csv #2358
+import { cutoffOnElementChange } from "../lib/interceptCutoff.js"; // TASKS.csv #2513
 
 const RESULT_ROW_H = 26; // TASKS.csv #222 — matches AttributeTableModal's row-windowing pattern
 
@@ -63,10 +64,12 @@ export default function BestIntercepts({ assays: assaysIn, assayElements, collar
   const cutoffBySymbol = useRef({});
   const suggestCutoff = (sym) => p90Of(sym) ?? cutoff;
   const [suggested, setSuggested] = useState(() => p90Of(symbol)); // #1678 — the tooltip says the opening cutoff is a suggestion too
+  const [cutoffNote, setCutoffNote] = useState(null); // TASKS.csv #2513 — what an element change did to the cut-off
   const changeSymbol = (sym) => {
     cutoffBySymbol.current[symbol] = cutoff;
-    const kept = cutoffBySymbol.current[sym], next = kept ?? suggestCutoff(sym);
-    setSymbol(sym); setCutoff(next); setSuggested(kept == null ? next : null);
+    const r = cutoffOnElementChange({ cutoff, typed: suggested == null || cutoff !== suggested, fromUnit: elementUnits[symbol], toUnit: elementUnits[sym], kept: cutoffBySymbol.current[sym] ?? null, suggestion: suggestCutoff(sym) });
+    setSymbol(sym); setCutoff(r.cutoff); setSuggested(r.suggested ? r.cutoff : null);
+    setCutoffNote(r.note ? { ...r.note, from: symbol, to: sym } : null);
   };
   const [maxInternalDilution, setMaxInternalDilution] = useState(2);
   const [minLength, setMinLength] = useState(0);
@@ -251,8 +254,9 @@ export default function BestIntercepts({ assays: assaysIn, assayElements, collar
               </select>
             </label>
             {pctOk && <label style={{ ...fieldLabel, flexDirection: "row", alignItems: "center", gap: 4, cursor: "pointer" }} title={tr("Show the grades as % (ppm / 10,000) in the table, the Layout table and an extra CSV column. The cutoff stays in ppm.")}><input type="checkbox" checked={asPct} onChange={(e) => setAsPct(e.target.checked)} />{tr("Show as %")}</label>}
-            <label style={fieldLabel}>{tr("Cutoff ({unit})", { unit: unitL })}<input type="number" step="any" value={cutoff} onChange={(e) => { setCutoff(Number(e.target.value) || 0); setSuggested(null); }} style={inp} title={suggested != null && cutoff === suggested ? tr("Suggested: this element's 90th percentile. Set the cutoff you report at.") : undefined} />
+            <label style={fieldLabel}>{tr("Cutoff ({unit})", { unit: unitL })}<input type="number" step="any" value={cutoff} onChange={(e) => { setCutoff(Number(e.target.value) || 0); setSuggested(null); setCutoffNote(null); }} style={inp} title={suggested != null && cutoff === suggested ? tr("Suggested: this element's 90th percentile. Set the cutoff you report at.") : undefined} />
             </label>
+            {cutoffNote && <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 }}>{/* TASKS.csv #2513 */}{cutoffNote.kind === "kept" ? tr("Cut-off {v} kept from {from} (the same unit).", { v: cutoffNote.value, from: cutoffNote.from }) : cutoffNote.kind === "restored" ? tr("Cut-off back to {v}, the one last used for {to}.", { v: cutoffNote.value, to: cutoffNote.to }) : tr("Cut-off reset to the suggestion for {to} ({v}): {to} is not in {from}'s unit.", { v: cutoffNote.value, to: cutoffNote.to, from: cutoffNote.from })}</div>}
             {(() => { const offers = drillThresholdOffers(geochemThresholds, symbol, unit).slice(0, 4); return offers.length ? <div style={{ display: "flex", flexWrap: "wrap", gap: 4, fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", alignItems: "center" }}>{/* #2347 — offered, never applied */}
               <span>{tr("Saved threshold:")}</span>
               {offers.map((o) => <button key={o.key} type="button" onClick={() => { setCutoff(o.value); setSuggested(null); }} style={{ ...inp, width: "auto", cursor: "pointer", padding: "1px 6px" }} title={tr("{rule}{pop}, decided {date}. Click to use it as the cutoff.", { rule: o.rule, pop: o.population ? ` (${o.population})` : "", date: o.decided })}>{o.population ? `${o.population.split(": ").pop()} ` : ""}{+Number(o.value).toPrecision(4)}</button>)}
