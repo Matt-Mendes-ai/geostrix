@@ -8,7 +8,7 @@ import { preferredElement } from "../lib/preferredElement.js"; // TASKS.csv #152
 import { useLeadCommodity } from "../lib/useLeadCommodity.js"; // #1523 — Au on an Au-Ag project
 import { X, Download } from "./icons.js";
 import { valueIn } from "../lib/geochem.js";
-import { THRESHOLD_METHODS, MIN_N_BREAKS, MIN_N_ROBUST, candidateThresholds, groupOptions, groupKeyFn, populations, normalQuantile, hasMixedSources, intervalLength, DRILL_DOMAINS, drillDomainKeyFn } from "../lib/thresholds.js"; // drill: TASKS.csv #2196
+import { THRESHOLD_METHODS, MIN_N_BREAKS, MIN_N_ROBUST, candidateThresholds, groupOptions, groupKeyFn, populations, normalQuantile, hasMixedSources, intervalLength, DRILL_DOMAINS, drillDomainKeyFn } from "../lib/thresholds.js"; import { thresholdUnreachable, usableDefaultMethod } from "../lib/thresholds.js"; // drill: TASKS.csv #2196
 import { censoringFloor } from "../lib/qaqc.js"; // TASKS.csv #1520
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
@@ -63,6 +63,11 @@ export default function ThresholdToolkit({ surfaceSamples = [], surfaceElements 
   }, [data, drill, symbol, unit, units, groupBy, mapLayers, projectLayers, floor]);
   const [viewKey, setViewKey] = useState(null);
   const view = pops.find((p) => p.key === viewKey) || pops[0] || null;
+  // TASKS.csv #2507 — with no saved rule, open on a rule every population can reach, or on none (a rule above every sample is no threshold)
+  useEffect(() => { if (!saved && pops.length) setMethod((m) => usableDefaultMethod(pops, m || "median2mad", unit)); }, [pops, symbol]); // saved / unit follow symbol and pops
+  const unreachableIn = (id) => pops.filter((p) => thresholdUnreachable(p.cand.values[id], p.summary, unit));
+  const chosenUnusable = method ? unreachableIn(method).length > 0 : true;
+  const unusableRules = THRESHOLD_METHODS.filter((m) => unreachableIn(m.id).length > 0);
   const groupLabel = (k) => (k === "All" ? (drill ? tr("All assays") : tr("All samples")) : k);
   const gLabel = gOpts.find((o) => o.value === groupBy)?.label || groupBy;
 
@@ -83,7 +88,7 @@ export default function ThresholdToolkit({ surfaceSamples = [], surfaceElements 
 
   const exportCsv = () => {
     const keyOf = keyOfNow(); // #1796; drill: #2196
-    const rows = (drill ? drillThresholdRows : thresholdRows)(data, { symbol, unit, units, pops, keyOf, method, methodLabel: THRESHOLD_METHODS.find((x) => x.id === method).label }); // #1083 — rows in lib, tested
+    const rows = (drill ? drillThresholdRows : thresholdRows)(data, { symbol, unit, units, pops, keyOf, method, methodLabel: THRESHOLD_METHODS.find((x) => x.id === method)?.label || "none chosen" }); // #1083 — rows in lib, tested; #2507: none chosen
     saveFile({ suggestedName: `${symbol}_${drill ? "drill_" : ""}thresholds.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: toExportCsv(rows) });
   };
 
@@ -146,7 +151,7 @@ export default function ThresholdToolkit({ surfaceSamples = [], surfaceElements 
                         <td style={{ ...td, textAlign: "start" }}>{groupLabel(p.key)}</td>
                         <td style={td}>{p.summary.n}</td>
                         <td style={{ ...td, color: p.summary.censoredPct > 30 || p.zero ? "var(--color-warn-text)" : undefined }} title={p.zero ? tr("{n} more reported as 0 by the source (below detection or not analysed: the layer does not say), not in n or these statistics", { n: p.zero }) : undefined}>{p.zero ? tr("{pct} (+{n} at 0)", { pct: Math.round(p.summary.censoredPct), n: p.zero }) : Math.round(p.summary.censoredPct)}</td>
-                        {THRESHOLD_METHODS.map((m) => <td key={m.id} style={{ ...td, fontWeight: method === m.id ? 600 : 400, background: method === m.id ? "var(--color-selected-bg)" : undefined }}>{fmt(p.cand.values[m.id])}</td>)}
+                        {THRESHOLD_METHODS.map((m) => { const off = thresholdUnreachable(p.cand.values[m.id], p.summary, unit); /* #2507 */ return <td key={m.id} title={off ? tr("Above every sample of this population (its highest is {max} {unit}): no anomaly by this rule", { max: fmt(p.summary.max), unit }) : undefined} style={{ ...td, fontWeight: method === m.id ? 600 : 400, background: method === m.id ? "var(--color-selected-bg)" : undefined, color: off ? "var(--color-text-disabled)" : undefined, textDecoration: off ? "line-through" : undefined }}>{fmt(p.cand.values[m.id])}</td>; })}
                         <td style={td}>{p.cand.values[method] == null ? "—" : p.values.filter((v) => v >= p.cand.values[method]).length}</td>
                       </tr>
                     ))}
@@ -154,6 +159,7 @@ export default function ThresholdToolkit({ surfaceSamples = [], surfaceElements 
                 </table>
               </div>
               <div style={note}>{tr("Values in {unit}. Click a column to choose its rule, a row to plot that population. Robust rules need at least {a} samples; the probability-plot break needs {b} and is suggested only where the plot really bends.", { unit, a: MIN_N_ROBUST, b: MIN_N_BREAKS })}</div>
+              {unusableRules.length > 0 && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("Struck through: {rules} land above every sample of their population (or over 100 %): such a rule finds no anomaly here, often a sign of two populations. The probability plot's break and the Populations selector separate them; these rules cannot be saved.", { rules: unusableRules.map((m) => tr(m.label)).join(", ") })}</div>}{/* #2507 */}
               {view && view.zero > 0 && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("{zero} {symbol} result(s) in \"{pop}\" were reported as 0 by the source (below detection or not analysed: the layer does not say). They are left out of n and of every threshold here; if they are below detection, the thresholds read high.", { zero: view.zero, symbol, pop: groupLabel(view.key) })}</div>}
               {floor && <div style={note}>{tr("{pct} % of the {el} values sit on {floor} {unit}, probably half the detection limit {dl} substituted before import: counted as <DL.", { pct: Math.round(floor.share * 100), el: symbol, floor: floor.floor, unit, dl: floor.dl })}</div>}{/* #1520 */}
               {view && view.summary.censoredPct > 30 && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("{pct}% of {symbol} in \"{pop}\" is below detection: its statistics are mostly about the detection limit.", { pct: Math.round(view.summary.censoredPct), symbol, pop: groupLabel(view.key) })}</div>}
@@ -191,7 +197,7 @@ export default function ThresholdToolkit({ surfaceSamples = [], surfaceElements 
         </div>
 
         <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: "1px solid var(--color-border)", flexWrap: "wrap" }}>
-          <button type="button" onClick={save} disabled={!pops.length} style={btn(true)}>{tr("Save {rule} for {symbol}", { rule: tr(THRESHOLD_METHODS.find((m) => m.id === method)?.label || ""), symbol })}</button>
+          <button type="button" onClick={save} disabled={!pops.length || chosenUnusable /* #2507 */} style={{ ...btn(true), opacity: !pops.length || chosenUnusable ? 0.5 : 1 }}>{method ? tr("Save {rule} for {symbol}", { rule: tr(THRESHOLD_METHODS.find((m) => m.id === method)?.label || ""), symbol }) : tr("Choose a rule (click its column)")}</button>
           {saved && <button type="button" onClick={clear} style={btn(false)}>{tr("Remove saved rule")}</button>}
           <button type="button" onClick={exportCsv} disabled={!pops.length} style={{ ...btn(false), display: "flex", alignItems: "center", gap: 6 }}><Download size={14} />{tr("Samples with z-scores (CSV)")}</button>
           <span style={{ flex: 1 }} />

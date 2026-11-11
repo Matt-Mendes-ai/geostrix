@@ -275,3 +275,16 @@ export function drillDomainKeyFn(domain, layers) {
 }
 // a saved threshold for the surface tools (anomaly maps, catchments): not a drill one (#2196)
 export const isSurfaceThreshold = (t) => t && t.source !== "drill";
+
+// TASKS.csv #2507 (review #2486, WA lithium) — a rule whose threshold no sample of the population reaches (above its maximum, or over 100 for a
+// per-cent unit): Median + 2 MAD gave 29.1 % Li on a population topping at 3.32 %, pre-selected and ready to save. -> true when unusable
+export function thresholdUnreachable(value, summary, unit) {
+  if (value == null || !Number.isFinite(value)) return false;
+  return (Number.isFinite(summary?.max) && value > summary.max) || (String(unit).trim().startsWith("%") && value > 100);
+}
+// the rule to open on: the preferred one when every population can reach it, else none (null) — the review's advice: select nothing rather
+// than silently swap in another rule (a percentile always "works" but flags its share whether or not anything is anomalous)
+export function usableDefaultMethod(pops, preferred, unit) {
+  const ok = (id) => pops.length > 0 && pops.every((p) => { const v = p.cand.values[id]; return v != null && Number.isFinite(v) && !thresholdUnreachable(v, p.summary, unit); });
+  return ok(preferred) ? preferred : null;
+}
