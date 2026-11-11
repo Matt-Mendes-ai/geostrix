@@ -30,12 +30,15 @@ export function rigRows(holes, epsg, isoDate, trace) {
     // Where the target falls along the planned (curved) trace, how far the hole runs past it and how close it passes.
     const tgt = h.target && [h.target.x, h.target.y, h.target.z].every(Number.isFinite) ? h.target : null;
     const hit = tgt && pts.length ? missDistanceToTarget(pts, tgt) : null;
+    // TASKS.csv #2454 (review #2325, WA uranium) — a vertical hole (dip within 0.05° of 90, no lift or drift) has no bearing: its true and magnetic
+    // azimuths are left blank and the KML / GPX text says 'Vertical' (it read '359.61° true, 357.8° magnetic' as a set-up instruction)
+    const vertical = Math.abs(Math.abs(Number(h.dip)) - 90) <= 0.05 && !(Number(h.lift) || 0) && !(Number(h.drift) || 0);
     return {
       name: h.name || "", hole_type: h.type || "" /* #2581 — which rig */, x: h.x, y: h.y, z: h.z,
       lat: r7(ll?.y), lon: r7(ll?.x),
       azimuth_grid: r2(h.azimuth),
-      azimuth_true: Number.isFinite(conv) ? r2(wrap360(h.azimuth - conv)) : "",
-      azimuth_magnetic: mag ? r2(wrap360(h.azimuth - mag.offset)) : "",
+      azimuth_true: Number.isFinite(conv) && !vertical ? r2(wrap360(h.azimuth - conv)) : "",
+      azimuth_magnetic: mag && !vertical ? r2(wrap360(h.azimuth - mag.offset)) : "",
       declination_deg: mag ? r2(mag.declination) : "", convergence_deg: Number.isFinite(conv) ? r2(conv) : "",
       declination_date: mag ? isoDate : "",
       dip: h.dip, length: h.length,
@@ -53,6 +56,7 @@ export function rigRows(holes, epsg, isoDate, trace) {
     const pts = trace(holes[i]) || [], step = Math.max(1, Math.ceil(pts.length / 200));
     const ll = pts.filter((_, k) => k % step === 0 || k === pts.length - 1).map((p) => reprojectXY(p.x, p.y, epsg, 4326)).filter(Boolean).map((q) => [r7(q.x), r7(q.y)]);
     Object.defineProperty(row, "traceLonLat", { value: ll, enumerable: false });
+    const h = holes[i]; Object.defineProperty(row, "vertical", { value: Math.abs(Math.abs(Number(h.dip)) - 90) <= 0.05 && !(Number(h.lift) || 0) && !(Number(h.drift) || 0), enumerable: false }); // #2454
     return row;
   });
 }
@@ -70,10 +74,12 @@ const esc = (s) => String(s ?? "").replace(/[<>&"']/g, (c) => ({ "<": "&lt;", ">
 // was a yellow pushpin). The placemark_circle href is one of Google Earth's built-in icons, resolved by the viewer;
 // GeoStrix fetches nothing.
 const KML_PLANNED = `ff${colors.planned.slice(5, 7)}${colors.planned.slice(3, 5)}${colors.planned.slice(1, 3)}`;
+// #2454 — a trace that is one point in plan (a vertical hole) is no line: no trace placemark / track
+const planPoint = (r) => { const t = r.traceLonLat?.length > 1 ? r.traceLonLat : [[r.lon, r.lat], [r.toe_lon, r.toe_lat]]; return t.every(([lo, la]) => Math.abs(lo - t[0][0]) < 1e-7 && Math.abs(la - t[0][1]) < 1e-7); };
 export function rigKML(rows, docName) {
   const marks = rows.filter((r) => r.lat !== "" && r.lon !== "").map((r) => {
-    const desc = `Azimuth: ${r.azimuth_true !== "" ? `${r.azimuth_true}° true, ` : ""}${r.azimuth_magnetic !== "" ? `${r.azimuth_magnetic}° magnetic (${r.declination_date}), ` : ""}${r.azimuth_grid}° grid. Dip ${r.dip}°. Length ${r.length} m.${devText(r)}${r.notes ? ` ${r.notes}` : ""}`;
-    const line = r.toe_lat !== "" ? `
+    const desc = r.vertical ? `Vertical (dip ${r.dip}°). Length ${r.length} m.${devText(r)}${r.notes ? ` ${r.notes}` : ""}` /* #2454 */ : `Azimuth: ${r.azimuth_true !== "" ? `${r.azimuth_true}° true, ` : ""}${r.azimuth_magnetic !== "" ? `${r.azimuth_magnetic}° magnetic (${r.declination_date}), ` : ""}${r.azimuth_grid}° grid. Dip ${r.dip}°. Length ${r.length} m.${devText(r)}${r.notes ? ` ${r.notes}` : ""}`;
+    const line = r.toe_lat !== "" && !planPoint(r) ? `
     <Placemark><name>${esc(r.name)} trace (plan)</name><styleUrl>#trace</styleUrl><LineString><tessellate>1</tessellate><coordinates>${(r.traceLonLat?.length > 1 ? r.traceLonLat : [[r.lon, r.lat], [r.toe_lon, r.toe_lat]]).map(([lo, la]) => `${lo},${la},0`).join(" ")}</coordinates></LineString></Placemark>` : "";
     return `
     <Placemark><name>${esc(r.name)}</name><description>${esc(desc)}</description><styleUrl>#collar</styleUrl><Point><coordinates>${r.lon},${r.lat},0</coordinates></Point></Placemark>${line}`;
@@ -91,9 +97,9 @@ export function rigKML(rows, docName) {
 
 export function rigGPX(rows) {
   const wpts = rows.filter((r) => r.lat !== "" && r.lon !== "").map((r) =>
-    `  <wpt lat="${r.lat}" lon="${r.lon}"><ele>${r2(r.z)}</ele><name>${esc(r.name)}</name><desc>${esc(`Az ${r.azimuth_true !== "" ? `${r.azimuth_true} T / ` : ""}${r.azimuth_magnetic !== "" ? `${r.azimuth_magnetic} M / ` : ""}${r.azimuth_grid} G, dip ${r.dip}, ${r.length} m${devText(r) ? `.${devText(r)}` : ""}`)}</desc><sym>Flag</sym></wpt>`).join("\n");
+    `  <wpt lat="${r.lat}" lon="${r.lon}"><ele>${r2(r.z)}</ele><name>${esc(r.name)}</name><desc>${esc(r.vertical ? `Vertical, dip ${r.dip}, ${r.length} m${devText(r) ? `.${devText(r)}` : ""}` /* #2454 */ : `Az ${r.azimuth_true !== "" ? `${r.azimuth_true} T / ` : ""}${r.azimuth_magnetic !== "" ? `${r.azimuth_magnetic} M / ` : ""}${r.azimuth_grid} G, dip ${r.dip}, ${r.length} m${devText(r) ? `.${devText(r)}` : ""}`)}</desc><sym>Flag</sym></wpt>`).join("\n");
   // #1017 — each hole's planned trace in plan as a track, beside its collar waypoint
-  const trks = rows.filter((r) => r.traceLonLat?.length > 1).map((r) => `  <trk><name>${esc(`${r.name} trace (plan)`)}</name><trkseg>${r.traceLonLat.map(([lo, la]) => `<trkpt lat="${la}" lon="${lo}"/>`).join("")}</trkseg></trk>`).join("\n");
+  const trks = rows.filter((r) => r.traceLonLat?.length > 1 && !planPoint(r)).map((r) => `  <trk><name>${esc(`${r.name} trace (plan)`)}</name><trkseg>${r.traceLonLat.map(([lo, la]) => `<trkpt lat="${la}" lon="${lo}"/>`).join("")}</trkseg></trk>`).join("\n");
   return `<?xml version="1.0" encoding="UTF-8"?>
 <gpx version="1.1" creator="GeoStrix" xmlns="http://www.topografix.com/GPX/1/1">
 ${wpts}${trks ? `
