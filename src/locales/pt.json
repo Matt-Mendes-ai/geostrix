@@ -10295,5 +10295,15 @@
   "the project's coordinates (no CRS set)": "as coordenadas do projeto (sem SRC definido)",
   "ground": "terreno",
   "Z blank: {z} m from the drawing target under E / N": "Z em branco: {z} m do alvo de desenho sob E / N",
-  "Starts at twice the typical drill-site spacing ({s} m).": "Começa no dobro do espaçamento típico entre locais de sondagem ({s} m)."
+  "Starts at twice the typical drill-site spacing ({s} m).": "Começa no dobro do espaçamento típico entre locais de sondagem ({s} m).",
+  "Contained in those blocks: {m}.": "Contido nesses blocos: {m}.",
+  "The blocks fill {p} % of the solid ({bt} t of {t} t): the grade is theirs, the rest has no estimate.": "Os blocos preenchem {p} % do sólido ({bt} t de {t} t): o teor é deles; o restante não tem estimativa.",
+  "{m} m of this line, in plan, is above the ground interpolated between the collars.": "{m} m desta linha, em planta, estão acima do terreno interpolado entre os colares.",
+  "No terrain: the line is checked against the ground interpolated between the collars.": "Sem terreno: a linha é verificada contra o terreno interpolado entre os colares.",
+  "A vertical hole above the target: collar at {z} m ({src}), {d} m to the target.": "Um furo vertical acima do alvo: colar a {z} m ({src}), {d} m até o alvo.",
+  "Shallow: flatter than about {s}°.": "Raso: mais suave que cerca de {s}°.",
+  ", the same all the way down": ", a mesma ao longo de todo o furo",
+  "{p}% of the scored cells sit at the lowest score ({v}): an evidence's membership is at its floor there and the operator keeps the floor. The top cells are only those no evidence vetoed, not the most favourable. Widen the 0 = points, or combine with OR / algebraic sum.": "{p}% das células pontuadas estão no escore mais baixo ({v}): ali a pertinência de uma evidência está no seu piso e o operador mantém o piso. As células do topo são só as que nenhuma evidência vetou, não as mais favoráveis. Amplie os pontos 0 = ou combine com OR / soma algébrica.",
+  "Largest body only (in the shell)": "Só o maior corpo (na casca)",
+  "A closed solid around the cells in this range (marching cubes on the model's grid), added to the generated surfaces: a grade shell, or a geophysical high or low, as a body to section, query and target.": "Um sólido fechado em torno das células nesta faixa (marching cubes na malha do modelo), adicionado às superfícies geradas: uma casca de teor, ou um alto ou baixo geofísico, como corpo para seccionar, consultar e alvejar."
 }

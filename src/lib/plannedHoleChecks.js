@@ -112,7 +112,11 @@ export function planChecks(plannedHoles, drilled, targets, traceOf = plannedTrac
     let nearestReal = null;
     const c0 = pts[0], samePad = (drilled?.holes || []).filter((h) => h.pts[0] && Math.hypot(h.pts[0].x - c0.x, h.pts[0].y - c0.y, h.pts[0].z - c0.z) <= PAD_M).map((h) => h.hole_id);
     const skipMd = samePad.length ? COLLAR_ZONE_M : -Infinity;
-    if (drilled?.n) for (const p of pts) { if ((p.md ?? 0) < skipMd) continue; const { best, hole: h } = nearestDrilled(drilled, p); if (h != null && (!nearestReal || best < nearestReal.distance)) nearestReal = { hole_id: h, distance: best, md: p.md ?? 0, assumed: !!drilled.assumed?.has(h) }; } // assumed: #2097
+    // TASKS.csv #2457 (5) — beside parallel holes the separation is the same all the way down, and "at 48 m down this hole" read as a closest
+    // point: the spread of the distance to that hole along the trace says so (steady)
+    const spread = new Map(); let counted = 0;
+    if (drilled?.n) for (const p of pts) { if ((p.md ?? 0) < skipMd) continue; counted++; const { best, hole: h } = nearestDrilled(drilled, p); if (h != null) { const r = spread.get(h) || { lo: Infinity, hi: -Infinity, n: 0 }; r.lo = Math.min(r.lo, best); r.hi = Math.max(r.hi, best); r.n++; spread.set(h, r); } if (h != null && (!nearestReal || best < nearestReal.distance)) nearestReal = { hole_id: h, distance: best, md: p.md ?? 0, assumed: !!drilled.assumed?.has(h) }; } // assumed: #2097
+    if (nearestReal) { const r = spread.get(nearestReal.hole_id); nearestReal.steady = !!r && r.n >= 0.8 * counted && r.hi - r.lo < 1; }
     const targetHits = (targets || []).map((t) => {
       let metres = 0;
       for (let i = 1; i < pts.length; i++) {

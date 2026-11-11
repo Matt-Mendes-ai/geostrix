@@ -25,7 +25,8 @@ let kept = null; // #1356 — the last inputs and result outlive the pane (this 
 export default function DumpPane({ surfaces = [], onAdd, onClose }) {
   const { designStrings = [], terrain, collars = [] } = useStore();
   const footprints = useMemo(() => designStrings.filter((s) => s.closed && s.vertices.length > 2 && !s.stopeRun /* #2601 — not a stope outline */), [designStrings]);
-  const pits = useMemo(() => surfaces.filter((s) => s.type === "pit_shell" && Number.isFinite(s.params?.wasteTonnes)), [surfaces]);
+  // TASKS.csv #2444 (review #2325) — the benched designs too: their waste (with the walls stepped out) is what the dump must hold, not the shell's
+  const pits = useMemo(() => surfaces.filter((s) => (s.type === "pit_shell" || s.type === "pit_design") && Number.isFinite(s.params?.wasteTonnes)), [surfaces]);
   const [f, setF] = useState(() => ({ ...EMPTY, ...(kept?.inputs || {}) }));
   const [res, setRes] = useState(() => kept?.result || null);
   const [msg, setMsg] = useState(null);

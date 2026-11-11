@@ -225,12 +225,23 @@ export function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint, 
         {upward && <div role="note" style={{ fontSize: "var(--font-size-xs)", color: underground ? "var(--color-text-secondary)" : "var(--color-warn-text)", marginBottom: 4, lineHeight: 1.4 }}>{underground ? tr("The target is above the collar, so the solved hole is an uphole: normal from underground development (this project's collars look underground). From a surface collar it could not be drilled.") /* #2251 */ : tr("The target is above the collar, so the solved hole points upward. From a surface collar that is not a hole you can drill: check the target's elevation.")}</div>}
         <button onClick={solveTarget} disabled={!targetReady || !fromReady} style={{ ...miniBtn, width: "100%", background: targetReady && fromReady ? "var(--color-selected-bg)" : "var(--color-bg-subtle)", borderColor: targetReady && fromReady ? "var(--color-selected-border)" : "var(--color-border-light)", opacity: targetReady && fromReady ? 1 : 0.5 }}>{tr("Solve az/dip/length to target")}</button>
         <button onClick={solveCollar} disabled={!collarReady} style={{ ...miniBtn, width: "100%", marginTop: 4, opacity: collarReady ? 1 : 0.5 }} title={tr("Keep the azimuth and dip above and move the collar: to where a line through the target at that dip meets the terrain, or the typed Elev when no terrain is loaded")}>{tr("Solve collar for this dip/azimuth")}</button>{/* #1835 */}
-        {nearest.length > 0 && collars.length > 1 && (
+        {/* TASKS.csv #2455 (review #2325, WA uranium) — on a surface project the answer to a target is a new hole above it, not five shallow holes from
+            the neighbouring pads: the nearest-collars list is for collars drilled from underground; elsewhere one click places a vertical hole */}
+        {targetReady && !underground && ground && Number.isFinite(ground(Number(target.x), Number(target.y))) && (() => {
+          const gz = ground(Number(target.x), Number(target.y)), depth = gz - Number(target.z);
+          return depth > 0 ? (
+            <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-xs)", marginTop: 6 }}>
+              <span style={{ flex: 1 }}>{tr("A vertical hole above the target: collar at {z} m ({src}), {d} m to the target.", { z: Math.round(gz * 10) / 10, src: groundAt ? tr("the terrain") : tr("the ground interpolated between the nearest collars"), d: Math.round(depth) })}</span>
+              <button onClick={() => { setDraft((p) => ({ ...p, x: Math.round(Number(target.x) * 10) / 10, y: Math.round(Number(target.y) * 10) / 10, z: Math.round(gz * 10) / 10, azimuth: 0, dip: -90, length: Math.round((depth + PAST_TARGET_M) * 10) / 10 })); setZSource(groundAt ? "the terrain at the target's E / N" : "the ground interpolated between the nearest collars (no terrain)"); setCollarNote(null); setUpward(false); setFromCollarId(""); }} style={{ ...miniBtn, padding: "1px 7px" }}>{tr("Use")}</button>
+            </div>
+          ) : null;
+        })()}
+        {nearest.length > 0 && collars.length > 1 && underground && (
           <div style={{ marginTop: 6 }}>{/* TASKS.csv #2250 */}
             <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 3 }}>{tr("From the nearest existing collars (the hole each needs to reach the target):")}</div>
             {nearest.map((n) => (
               <div key={n.hole_id} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-xs)", marginBottom: 2 }}>
-                <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{tr("{id}: az {az}°, dip {dip}°, {len} m", { id: n.hole_id, az: Math.round(n.azimuth), dip: (n.dip > 0 ? "+" : "") + Math.round(n.dip), len: Math.round(n.length) })}</span>
+                <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: n.dip < 0 && isShallowDip(n.dip) ? "var(--color-warn-text)" : undefined }} title={n.dip < 0 && isShallowDip(n.dip) ? tr("Shallow: flatter than about {s}°.", { s: -SHALLOW_DIP_DEG }) : undefined}>{tr("{id}: az {az}°, dip {dip}°, {len} m", { id: n.hole_id, az: Math.round(n.azimuth), dip: (n.dip > 0 ? "+" : "") + Math.round(n.dip), len: Math.round(n.length) })}</span>
                 <button onClick={() => planFromNearest(n)} style={{ ...miniBtn, padding: "1px 7px" }} aria-label={tr("Plan from {id}", { id: n.hole_id })}>{tr("Use")}</button>
               </div>
             ))}
@@ -312,7 +323,7 @@ export function PlannedHoleChecks({ plannedHoles, collars, survey, voxelModels, 
             <div style={{ color: "var(--color-text)", marginBottom: 2 }}>{hole.name || tr("Planned hole")}</div>
             {samePad.length > 0 && <div style={{ color: "var(--color-text-caption)" }}>{tr("Same pad as {holes}: the first {m} m are not compared.", { holes: samePad.join(", "), m: COLLAR_ZONE_M })}</div>}{/* #1454 */}
             {nearestReal ? (
-              <div style={{ color: tooClose ? "var(--color-danger-fg)" : "var(--color-text-caption)" }}>{tr("Nearest existing hole: {hole_id} — {distance} m{v}", { hole_id: nearestReal.hole_id, distance: nearestReal.distance.toFixed(1), v: tooClose ? tr(" (within the {minSpacing} m minimum)", { minSpacing }) : "" })}{nearestReal.md > 0 ? tr(", at {md} m down this hole", { md: Math.round(nearestReal.md) }) : ""}{nearestReal.assumed ? tr(" ({hole_id} has no survey and no azimuth / dip: taken as a vertical hole)", { hole_id: nearestReal.hole_id }) : ""}{/* #2097 */}
+              <div style={{ color: tooClose ? "var(--color-danger-fg)" : "var(--color-text-caption)" }}>{tr("Nearest existing hole: {hole_id} — {distance} m{v}", { hole_id: nearestReal.hole_id, distance: nearestReal.distance.toFixed(1), v: tooClose ? tr(" (within the {minSpacing} m minimum)", { minSpacing }) : "" })}{nearestReal.steady ? tr(", the same all the way down") /* #2457 */ : nearestReal.md > 0 ? tr(", at {md} m down this hole", { md: Math.round(nearestReal.md) }) : ""}{nearestReal.assumed ? tr(" ({hole_id} has no survey and no azimuth / dip: taken as a vertical hole)", { hole_id: nearestReal.hole_id }) : ""}{/* #2097 */}
               </div>
             ) : (
               <div style={{ color: "var(--color-text-muted)" }}>{tr("No existing drilled holes to compare against.")}</div>

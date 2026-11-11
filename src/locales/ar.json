@@ -10295,5 +10295,15 @@
   "the project's coordinates (no CRS set)": "إحداثيات المشروع (دون نظام إحداثيات محدد)",
   "ground": "الأرض",
   "Z blank: {z} m from the drawing target under E / N": "Z فارغ: {z} م من هدف الرسم تحت E / N",
-  "Starts at twice the typical drill-site spacing ({s} m).": "يبدأ بضعف التباعد المعتاد بين مواقع الحفر ({s} م)."
+  "Starts at twice the typical drill-site spacing ({s} m).": "يبدأ بضعف التباعد المعتاد بين مواقع الحفر ({s} م).",
+  "Contained in those blocks: {m}.": "المحتوى في تلك الكتل: {m}.",
+  "The blocks fill {p} % of the solid ({bt} t of {t} t): the grade is theirs, the rest has no estimate.": "تملأ الكتل {p} % من المجسم ({bt} t من {t} t): المحتوى محتواها؛ والباقي بلا تقدير.",
+  "{m} m of this line, in plan, is above the ground interpolated between the collars.": "{m} م من هذا الخط، في المسقط، فوق سطح الأرض المستوفى بين الفوهات.",
+  "No terrain: the line is checked against the ground interpolated between the collars.": "لا تضاريس: يُقارن الخط بسطح الأرض المستوفى بين الفوهات.",
+  "A vertical hole above the target: collar at {z} m ({src}), {d} m to the target.": "ثقب رأسي فوق الهدف: الفوهة عند {z} م ({src})، و{d} م حتى الهدف.",
+  "Shallow: flatter than about {s}°.": "ضحل: أقل ميلًا من نحو {s}°.",
+  ", the same all the way down": "، وهي نفسها على طول الثقب",
+  "{p}% of the scored cells sit at the lowest score ({v}): an evidence's membership is at its floor there and the operator keeps the floor. The top cells are only those no evidence vetoed, not the most favourable. Widen the 0 = points, or combine with OR / algebraic sum.": "{p}% من الخلايا المقيّمة عند أدنى درجة ({v}): عضوية دليل ما عند أرضيتها هناك والمؤثر يُبقي الأرضية. الخلايا العليا هي فقط التي لم يستبعدها أي دليل، لا الأفضل. وسّع نقاط 0 =، أو اجمع بـ OR / المجموع الجبري.",
+  "Largest body only (in the shell)": "أكبر جسم فقط (في الغلاف)",
+  "A closed solid around the cells in this range (marching cubes on the model's grid), added to the generated surfaces: a grade shell, or a geophysical high or low, as a body to section, query and target.": "مجسم مغلق حول خلايا هذا المدى (المكعبات المتحركة على شبكة النموذج)، مضاف إلى الأسطح المولّدة: غلاف محتوى، أو مرتفع أو منخفض جيوفيزيائي، كجسم للقطع والاستعلام والاستهداف."
 }
