@@ -28,7 +28,7 @@ const note = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)"
 const warn = { ...note, color: "var(--color-warn-text-strong)", marginTop: 4 };
 const num = { ...smallSel, width: 84 };
 const big = (v) => new Intl.NumberFormat(undefined, { notation: "compact", maximumSignificantDigits: 3 }).format(v);
-const EMPTY = { benchH: "", berm: "", batterDeg: "", datum: "", rampAz: "", rampTurn: "clockwise", rampGrade: "", rampW: "", sectors: {} }; // ramp*: #1948; sectors: #1952
+const EMPTY = { benchH: "", berm: "", batterDeg: "", datum: "", rampAz: "", rampTurn: "clockwise", rampGrade: "", rampW: "", sectors: {}, upRL: "", upBatter: "", upBerm: "" }; // ramp*: #1948; sectors: #1952; up*: #2730
 const SECTOR_GRID = [["NW", "N", "NE"], ["W", null, "E"], ["SW", "S", "SE"]];
 const SECTORS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
 let kept = null; // #1356 — the last result (with its strings, for export) outlives the pane this session
@@ -58,11 +58,15 @@ export default function PitDesignPane({ surfaces = [], worldPositionsOf, onAdd, 
   const rampTyped = [f.rampAz, f.rampGrade, f.rampW].some((x) => x !== "" && x != null);
   const rampIn = rampTyped && Number.isFinite(Number(f.rampAz)) && f.rampAz !== "" && Number(f.rampGrade) > 0 && Number(f.rampW) > 0 ? { azimuthDeg: Number(f.rampAz), turn: f.rampTurn === "anticlockwise" ? "anticlockwise" : "clockwise", gradientPct: Number(f.rampGrade), widthM: Number(f.rampW) } : null;
   const rampBad = rampTyped && !rampIn;
+  // TASKS.csv #2730 — upper benches above an RL (soft cover), as the shell's upper slope (#2439): all three, or none
+  const upTyped = [f.upRL, f.upBatter, f.upBerm].some((x) => x !== "" && x != null);
+  const upperIn = upTyped && f.upRL !== "" && Number.isFinite(Number(f.upRL)) && Number(f.upBatter) > 0 && Number(f.upBatter) < 90 && f.upBerm !== "" && Number(f.upBerm) >= 0 ? { rl: Number(f.upRL), batterDeg: Number(f.upBatter), berm: Number(f.upBerm) } : null;
+  const upperBad = upTyped && !upperIn;
   const pitCount = Number(pit?.params?.pitCount) || 1;
   const job = useRef(null);
   const set = (k) => (e) => { setF((p) => ({ ...p, [k]: e.target.value })); setMsg(null); };
   const v = (k) => Number(f[k]);
-  const missing = !pit || !(v("benchH") > 0) || !(v("berm") >= 0) || f.berm === "" || !(v("batterDeg") > 0 && v("batterDeg") < 90) || sectorBad || rampBad; // sectorBad: #1952; rampBad: #1948
+  const missing = !pit || !(v("benchH") > 0) || !(v("berm") >= 0) || f.berm === "" || !(v("batterDeg") > 0 && v("batterDeg") < 90) || sectorBad || rampBad || upperBad; // sectorBad: #1952; rampBad: #1948; upperBad: #2730
   const reach = !missing ? v("benchH") / Math.tan((v("batterDeg") * Math.PI) / 180) + v("berm") : null;
   const interRamp = reach != null ? (Math.atan(v("benchH") / reach) * 180) / Math.PI : null;
   const shellSlope = Number(pit?.params?.inputs?.slopeDeg);
@@ -75,7 +79,7 @@ export default function PitDesignPane({ surfaces = [], worldPositionsOf, onAdd, 
   }, [pit, worldPositionsOf]);
   const areaBox = useMemo(() => { if (!area) return null; const xs = area.vertices.map((q) => q[0]), ys = area.vertices.map((q) => q[1]); return { w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys) }; }, [area]);
   const largestBox = !area && pitCount > 1 && largestOnly && Array.isArray(pit?.params?.largestPitBoxM) ? { w: pit.params.largestPitBoxM[0], h: pit.params.largestPitBoxM[1] } : null; // #1926
-  const predictArgs = (shellBox || areaBox) && pit ? { boxW: Math.min(areaBox?.w ?? Infinity, largestBox?.w ?? shellBox?.w ?? Infinity), boxH: Math.min(areaBox?.h ?? Infinity, largestBox?.h ?? shellBox?.h ?? Infinity), /* the run's box is the kept columns': within both */ depth: Math.max(Number(pit.params?.maxDepthM) || 0, shellBox?.zRange || 0), shellCell: Number(pit.params?.gridCellM?.[0]) || 10, berm: v("berm"), batterDeg: v("batterDeg"), sectors: sectorsIn, ramp: rampIn, maxCells: MAX_DESIGN_CELLS } : null; // depth, sectors, ramp: #2278
+  const predictArgs = (shellBox || areaBox) && pit ? { boxW: Math.min(areaBox?.w ?? Infinity, largestBox?.w ?? shellBox?.w ?? Infinity), boxH: Math.min(areaBox?.h ?? Infinity, largestBox?.h ?? shellBox?.h ?? Infinity), /* the run's box is the kept columns': within both */ depth: Math.max(Number(pit.params?.maxDepthM) || 0, shellBox?.zRange || 0), shellCell: Number(pit.params?.gridCellM?.[0]) || 10, berm: v("berm"), batterDeg: v("batterDeg"), sectors: sectorsIn, ramp: rampIn, upper: upperIn /* #2730 */, maxCells: MAX_DESIGN_CELLS } : null; // depth, sectors, ramp: #2278
   const predicted = !missing && predictArgs ? predictDesignCell({ ...predictArgs, benchH: v("benchH") }) : null;
   const drawsAt = predicted && !predicted.facesDrawn ? benchHeightThatDraws(predictArgs) : null;
   // the block model the shell was run on: its blocks above the shell's cut-off are the design's ore
@@ -88,7 +92,7 @@ export default function PitDesignPane({ surfaces = [], worldPositionsOf, onAdd, 
   const run = async () => {
     const positions = worldPositionsOf?.(pit.id);
     if (!positions) { setMsg(tr("The pit's mesh is not in the view: show it and try again.")); return; }
-    const inputs = { benchH: v("benchH"), berm: v("berm"), batterDeg: v("batterDeg"), datum: f.datum === "" ? 0 : Number(f.datum) || 0, ...(sectorsIn ? { sectors: sectorsIn } : {}), ...(rampIn ? { ramp: rampIn } : {}) }; // sectors: #1952; ramp: #1948
+    const inputs = { benchH: v("benchH"), berm: v("berm"), batterDeg: v("batterDeg"), datum: f.datum === "" ? 0 : Number(f.datum) || 0, ...(sectorsIn ? { sectors: sectorsIn } : {}), ...(rampIn ? { ramp: rampIn } : {}), ...(upperIn ? { upper: upperIn } : {}) /* #2730 */ }; // sectors: #1952; ramp: #1948
     const opts = { ...inputs, cutoff: Number(pit.params?.cutoffGrade) || Infinity, density: Number(pit.params?.inputs?.density) || 1, wasteDensity: Number(pit.params?.inputs?.wasteDensity) || null /* #2437 */, weathered: (() => { const w = pit.params?.inputs?.weathered; return !w ? null : w.freshCode ? { ...w, points: weatheredBasePoints(layers?.weath || [], holeTraces(collars, survey, desurveyMethod), w.freshCode).points } : w; })() /* #2671 — as the shell */, largestOnly: pitCount > 1 && largestOnly && !area, areaPoly: area ? area.vertices.map((q) => [q[0], q[1]]) : null, economics: byIn && byModel ? { ...pit.params.inputs, unit: unit || pit.params.inputs.unit } : null /* #1917 */ }; // areaPoly: #1916
     setBusy(true); setMsg(null);
     const t0 = performance.now();
@@ -156,6 +160,14 @@ export default function PitDesignPane({ surfaces = [], worldPositionsOf, onAdd, 
         {field("benchH", tr("Bench height (m)"))}
         {field("berm", tr("Berm width (m)"), { title: tr("The catch bench left between one face's crest and the next face's toe.") })}
         {field("batterDeg", tr("Face angle (°)"), { max: 89, title: tr("The angle of each bench face (batter), steeper than the overall slope.") })}
+        {/* TASKS.csv #2730 — benches above an RL with their own face and berm (soft cover), as the shell's upper slope */}
+        <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 4, flexWrap: "wrap" }}>
+          {field("upRL", tr("Upper benches above RL (m)"), { placeholder: Number.isFinite(Number(pit?.params?.inputs?.upperSlope?.rl)) ? String(pit.params.inputs.upperSlope.rl) : tr("optional"), title: tr("Optional: the benches whose face starts at or above this RL take the face angle and berm beside it (soft cover, weathered rock), as the shell's upper slope. All three, or none.") })}
+          {field("upBatter", tr("face (°)"))}
+          {field("upBerm", tr("berm (m)"))}
+        </div>
+        {upperBad && <div style={warn}>{tr("The upper benches need the RL, a face angle between 0 and 90° and a berm of 0 or more, or all three blank.")}</div>}
+        {Number.isFinite(Number(pit?.params?.inputs?.upperSlope?.rl)) && !upTyped && <div style={note}>{tr("The shell was run with a {s}° slope above {rl} m: give the upper benches their face and berm to match it.", { s: pit.params.inputs.upperSlope.slopeDeg, rl: pit.params.inputs.upperSlope.rl })}</div>}
         {field("datum", tr("Bench datum (m)"), { placeholder: "0", title: tr("Bench floors sit at this elevation plus whole bench heights. Blank: multiples of the bench height.") })}
         {/* TASKS.csv #1952 — a face angle and a berm width per wall sector: blank takes the overall */}
         <div style={{ ...note, marginTop: 2 }}><button onClick={() => setShowSectors((s) => !s)} style={linkBtn} aria-expanded={showSectors}>{showSectors ? tr("Hide the face and berm by wall sector") : tr("Face and berm by wall sector…")}</button></div>

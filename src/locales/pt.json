@@ -10824,5 +10824,11 @@
   "Zoom the plan to \"{name}\"": "Aproximar a planta de \"{name}\"",
   "The road reaches the ground at {rl} m and ends there; its length is counted to that point.": "A estrada alcança o terreno a {rl} m e termina ali; seu comprimento é contado até esse ponto.",
   "No map tiles are loaded until you ask: draw the area over the project's collars and layer outlines, or choose it from the list.": "Nenhuma peça do mapa é carregada até que você peça: desenhe a área sobre as bocas de furo e os contornos das camadas do projeto, ou escolha-a na lista.",
-  "Show the online map": "Mostrar o mapa on-line"
+  "Show the online map": "Mostrar o mapa on-line",
+  "Upper benches above RL (m)": "Bancadas superiores acima da cota (m)",
+  "face (°)": "face (°)",
+  "berm (m)": "berma (m)",
+  "Optional: the benches whose face starts at or above this RL take the face angle and berm beside it (soft cover, weathered rock), as the shell's upper slope. All three, or none.": "Opcional: as bancadas cuja face começa nesta cota ou acima tomam o ângulo de face e a berma ao lado (cobertura branda, rocha intemperizada), como o talude superior da cava. Os três, ou nenhum.",
+  "The upper benches need the RL, a face angle between 0 and 90° and a berm of 0 or more, or all three blank.": "As bancadas superiores precisam da cota, de um ângulo de face entre 0 e 90° e de uma berma de 0 ou mais, ou os três em branco.",
+  "The shell was run with a {s}° slope above {rl} m: give the upper benches their face and berm to match it.": "A cava foi rodada com um talude de {s}° acima de {rl} m: dê às bancadas superiores sua face e berma para corresponder."
 }

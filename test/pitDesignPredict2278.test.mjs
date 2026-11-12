@@ -38,5 +38,5 @@ test("with a ramp and a tight budget, the prediction coarsens as the run does (t
 test("the pane passes the ramp, the sectors and the shell's crest-to-floor height", () => {
   const p = readFileSync(new URL("../src/components/PitDesignPane.jsx", import.meta.url), "utf8");
   assert.match(p, /depth: Math\.max\(Number\(pit\.params\?\.maxDepthM\) \|\| 0, shellBox\?\.zRange \|\| 0\)/);
-  assert.match(p, /sectors: sectorsIn, ramp: rampIn, maxCells: MAX_DESIGN_CELLS/);
+  assert.match(p, /sectors: sectorsIn, ramp: rampIn, (upper: upperIn \/\* #2730 \*\/, )?maxCells: MAX_DESIGN_CELLS/); // the upper benches too since #2730
 });
