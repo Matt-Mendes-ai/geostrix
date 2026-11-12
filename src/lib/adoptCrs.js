@@ -33,9 +33,17 @@ export function askAdoptCrs({ isEmpty, currentEpsg, declaredEpsg, fileName, at =
 
 // For importers that settle the source CRS deep inside (raster.js buildRasterImport / parseDEMFiles): returns a
 // (sourceEpsg, currentEpsg) => epsg function they call once the file's CRS is known.
-export function projectEpsgChooser({ isEmpty, setEpsg, fileName, notify }) {
-  return (sourceEpsg, currentEpsg) => {
-    const d = askAdoptCrs({ isEmpty, currentEpsg, declaredEpsg: sourceEpsg, fileName });
+// bbox (TASKS.csv #2678): the file's box in its own CRS. A geographic tag on numbers that are not degrees (a mis-tagged GeoTIFF in metres)
+// is not offered at all: it would have made the whole project EPSG:4326. A box in degrees is offered the metric CRS of its place (#1148).
+export function projectEpsgChooser({ isEmpty, setEpsg, fileName, notify }, confirm = undefined) {
+  return (sourceEpsg, currentEpsg, bbox = null) => {
+    let at = null;
+    if (isGeographicCrs(Number(sourceEpsg)) && Array.isArray(bbox) && bbox.length === 4 && bbox.every(Number.isFinite)) {
+      const [x0, y0, x1, y1] = bbox;
+      if ([x0, x1].some((v) => Math.abs(v) > 180.5) || [y0, y1].some((v) => Math.abs(v) > 90.5)) return currentEpsg; // #2678 — not degrees
+      at = { lon: (x0 + x1) / 2, lat: (y0 + y1) / 2 };
+    }
+    const d = askAdoptCrs({ isEmpty, currentEpsg, declaredEpsg: sourceEpsg, fileName, at }, ...(confirm ? [confirm] : []));
     if (!d) return currentEpsg;
     setEpsg(d);
     notify?.(`Project CRS set to ${crsName(d)} (EPSG:${d}) from ${fileName}.`);

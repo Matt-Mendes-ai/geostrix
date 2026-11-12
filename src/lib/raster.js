@@ -623,7 +623,7 @@ export async function parseDEMFiles(files, targetEpsg, sourceEpsgOverride = null
 
   // TASKS.csv #419 — a user-set source CRS overrides the file's own tag (untagged or wrongly tagged DEMs).
   const epsgTag = sourceEpsgOverride ? Number(sourceEpsgOverride) : tiles[0].epsgTag;
-  if (chooseProjectEpsg && epsgTag && !tieTo) targetEpsg = Number(chooseProjectEpsg(epsgTag, targetEpsg)) || targetEpsg; // #607
+  if (chooseProjectEpsg && epsgTag && !tieTo) targetEpsg = Number(chooseProjectEpsg(epsgTag, targetEpsg, [xmin, ymin, xmax, ymax])) || targetEpsg; // #607; the box: #2678
   // #2648 — on a tied grid the DEM goes to the tie's CRS first (below), then into the grid
   const viaTie = !!(tieTo && epsgTag && tieReaches(tie, epsgTag));
   let tiedNote = null;
@@ -942,7 +942,7 @@ export async function buildRasterImport(file, { epsg, defaultElevation, sourceEp
   const tagEpsg = parsed.epsgTag ? Number(parsed.epsgTag) : null;
   const srcEpsg = Number.isFinite(overrideEpsg) ? overrideEpsg : tagEpsg;
   let projEpsg = epsg == null || epsg === "" ? null : Number(epsg);
-  if (chooseProjectEpsg && srcEpsg) projEpsg = Number(chooseProjectEpsg(srcEpsg, projEpsg)) || projEpsg; // #607 — an empty project may take this CRS
+  if (chooseProjectEpsg && srcEpsg) projEpsg = Number(chooseProjectEpsg(srcEpsg, projEpsg, parsed.bbox)) || projEpsg; // #607 — an empty project may take this CRS; the box: #2678
   const srcLabel = Number.isFinite(overrideEpsg) ? "the Source CRS you set" : "this file's own CRS tag";
 
   let crsNote = "", tiedGrid = null;
