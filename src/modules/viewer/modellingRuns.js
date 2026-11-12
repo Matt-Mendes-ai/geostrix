@@ -21,7 +21,7 @@ import { pythonImplicitModel } from "../../lib/desktop.js";
 import { makeRng, perturbPoints, perturbOrientation, pointsToMeshDistance, spreadSummary, spreadColor, SPREAD_NOT_REPRODUCED } from "../../lib/surfaceSpread.js";
 import { colorForLithology, colorForAlteration, colorForStructure, minMax, roleForLithology, groupMcodeRole } from "../../lib/layers.js";
 import { computeMeshVolume } from "../../lib/volumetrics.js";
-import { MAX_BLOCKS, SUPPORT_COLORS, MAX_BLOCK_BUDGET, gridBlockCount, cellToFit, NUMERIC_CELL_DEFAULT } from "../../lib/estimationMeta.js"; // NUMERIC_CELL_DEFAULT: #1416; // budget: #625 // #552 — the estimator itself loads in the run functions
+import { MAX_BLOCKS, SUPPORT_COLORS, MAX_BLOCK_BUDGET, gridBlockCount, cellToFit, NUMERIC_CELL_DEFAULT, gradeShellBudgetNote } from "../../lib/estimationMeta.js"; // gradeShellBudgetNote: #2223 // NUMERIC_CELL_DEFAULT: #1416; // budget: #625 // #552 — the estimator itself loads in the run functions
 import { compositeDownhole, rawSampleIntervals, capAudit, capAuditText, gradeUnitLabel, resolvedSegments } from "../../lib/geochem.js"; // capAudit: #533; rawSampleIntervals: #571; resolvedSegments: #2634
 import { assayIndicatorInGaps } from "../../lib/assayInGaps.js"; // TASKS.csv #2634
 import { excludeQAQC } from "../../lib/qaqc.js";
@@ -50,6 +50,8 @@ import { explicitInterfacePoints } from "../../lib/explicitUnits.js"; // TASKS.c
 import { pinchOutPoints } from "../../lib/pinchOut.js"; // TASKS.csv #1030
 import { fisherStats } from "../../lib/stereonet.js"; // TASKS.csv #1066
 import { captureInputs } from "../../lib/gempyInputs.js"; // TASKS.csv #1101
+import { inversionCheck, FOLD_CONTACT_TYPES } from "../../lib/topology.js"; // TASKS.csv #2058 — the fold-back check in the run's own notice
+import { shellBudgetAdvice, sharePct } from "../../lib/shellBudget.js"; // TASKS.csv #2223
 import { findNumericSource, sourceAssays, logPoints, unlogGrid } from "../../lib/numericSources.js"; // TASKS.csv #1741 — a log or a numeric layer field as the grade-shell source
 
 // TASKS.csv #803 — the interpolated grid intersected with "below the terrain" (lib/groundCap.js), so a grade shell or
@@ -421,6 +423,7 @@ export function createModellingRuns(ctx, mcRef) {
     let ensembleBase = null; // TASKS.csv #52 (a)
     const nonFinite = []; // TASKS.csv #314
     const reachNotes = []; // TASKS.csv #1335
+    const folds = []; // TASKS.csv #2058 — contact surfaces of this run that fold back over themselves
     const orderSurfs = []; // TASKS.csv #2376 — the stack's surfaces as drawn, youngest first, for the order check below
     const runId = `gempy_${Date.now()}`; // TASKS.csv #1101 — the surfaces of one run (a stack) share it, for "Model inputs"
     specs.forEach((spec, specIndex) => {
@@ -532,7 +535,16 @@ export function createModellingRuns(ctx, mcRef) {
         ...(res.faultOffsets ? { faultOffsets: res.faultOffsets } : {}), // #1054 — which units each fault offset in this run
       };
       setImplicitSurfaces((p) => [...p, { id, name: spec.label, visible: true, vertexCount: surf.vertices.length, faceCount: faces.length, type: spec.type || "other", relationships: [], params }]);
+      // TASKS.csv #2058 (review #2013) — the same one-elevation-per-location check as Check relationships, said by the run itself: an
+      // implicit 'Top of VANSS' folded back at 1 of 16 locations and only Check relationships reported it
+      if (FOLD_CONTACT_TYPES.has(spec.type)) {
+        const pos = new Float32Array(sceneVerts.length * 3);
+        sceneVerts.forEach((v, i) => { pos[i * 3] = v.x; pos[i * 3 + 1] = v.y; pos[i * 3 + 2] = v.z; });
+        const inv = inversionCheck({ positions: pos, indices: Uint32Array.from(faces.flat()) }, { up: "y" });
+        if (inv.sampled && inv.fraction > 0.05) folds.push(tr("\"{name}\" folds back over itself at {folded} of {sampled} sampled locations (a contact surface should have one elevation per location): an interpolation artefact, a real overturned fold, or a unit that is not one layer (a steep intrusive or repeated sheets, better modelled as a closed body in Modelling codes).", { name: spec.label, folded: inv.folded, sampled: inv.sampled }));
+      }
     });
+    if (folds.length) setNotices((p) => [...p, notice("{list} Check relationships lists it again with the other checks.", { list: folds.join(" ") })]); // #2058
     // TASKS.csv #512 — onlap stacks share one scalar field, so the sidecar sends each repeated pick once
     // TASKS.csv #1054 — what each fault offset, as GemPy applied it, and the limit no choice here can lift
     if (res.faultOffsets && Object.keys(res.faultOffsets).length) setNotices((p) => [...p, notice("Faults as solved: {list}. Each fault runs through the whole model box (GemPy here cannot end a fault).", { list: Object.entries(res.faultOffsets).map(([f, u]) => tr("{fault} offsets {units}", { fault: f, units: u.length ? u.join(", ") : tr("nothing") })).join("; ") })]);
@@ -2342,6 +2354,7 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
         const bounds = { xmin: xr.min - pad, xmax: xr.max + pad, ymin: yr.min - pad, ymax: yr.max + pad, zmin: zr.min - pad, zmax: zr.max + pad };
         let cs = Math.max(0.5, numericCellSize); // let: #1416
         let cellRefit = false; // #2063 — the budget chose the cell: a smaller one is not on offer
+        let neededAtDefault = null; // #2223 — the blocks the default cell would have needed
         // TASKS.csv #292 — the search radius is never allowed to be unbounded any more. An unlimited
         // search made every sample a candidate for every cell: measured at 62,500 cells x 5,000 points
         // that is 81 s of blocked main thread (250 s at the MAX_BLOCKS cap), versus 0.2 s with a real
@@ -2372,6 +2385,7 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
           const fitNotice = { ...notice("Cell size set to {fit} m: at the default {cs} m this extent needs {n} blocks, over the {budget}-block budget. A finer cell needs a larger block budget in the Grade shell pane.", { fit, cs, n: blocksNeeded.toLocaleString(), budget: blockBudget.toLocaleString() }), level: "info" };
           setNotices((p) => [...p, fitNotice]);
           setNumericCellSize?.(fit);
+          neededAtDefault = blocksNeeded; // #2223
           cs = fit; blocksNeeded = gridBlockCount(bounds, cs); cellRefit = true;
         }
         if (blocksNeeded > blockBudget) {
@@ -2528,6 +2542,13 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
         setImplicitSurfaces((p) => [...p, { id, name: label, visible: true, vertexCount: mc.vertices.length, faceCount: mc.faces.length, type: "mineralization_envelope", relationships: [], closure, params, surfaceSupportCounts: surfCounts, supportColored: false }]); // surfaceSupportCounts/supportColored: TASKS.csv #91
         setNotices((p) => [...p, notice("Added \"{label}\": {points} ({intervals}{v4}, {dropped} dropped{v5}, {above} at/above cutoff{v6}) → {nx}×{ny}×{nz} grid ({estimated} cells estimated, {skipped} outside the search radius{v7}{v8}) → {vertices} vertices / {faces} faces{v9}. Exploration target volume only — not a Mineral Resource.", { label, points: tr(points.length === 1 ? "{n} sample point" : "{n} sample points", { n: points.length }) /* #1116 */,
           intervals: numericUseComposites ? tr(intervals.length === 1 ? "{n} {len} m composite" : "{n} {len} m composites", { n: intervals.length, len: numericCompositeLength }) : tr(intervals.length === 1 ? "{n} raw interval" : "{n} raw intervals", { n: intervals.length }), v4: rawStats && (rawStats.duplicatesSkipped || rawStats.overlappingRows) ? tr(" after {duplicatesSkipped} exact duplicate(s) left out and {overlappingRows} overlapping row(s) resolved", { duplicatesSkipped: rawStats.duplicatesSkipped, overlappingRows: rawStats.overlappingRows }) : "", dropped, v5: beyondTrace ? tr(" ({beyondTrace} deeper than the hole's trace)", { beyondTrace }) : "", above, v6: clamped ? tr(clamped === 1 ? ", {clamped} negative grade clamped to zero" : ", {clamped} negative grades clamped to zero", { clamped }) : "", nx: grid.nx, ny: grid.ny, nz: grid.nz, estimated: grid.estimated.toLocaleString(), skipped: grid.skipped.toLocaleString(), v7: grid.singleHoleCells ? tr(", {singleHoleCells} informed by only ONE hole", { singleHoleCells: grid.singleHoleCells.toLocaleString() }) : "", v8: gsVariogram ? tr("; kriged with a {model} variogram {v}: nugget {v2}, sill {v3}, range {v4} m", { model: gsVariogram.model, v: gsVariogram.fitted ? tr("fitted to the samples") : tr("as entered"), v2: +gsVariogram.nugget.toPrecision(3), v3: +gsVariogram.sill.toPrecision(3), v4: Math.round(gsVariogram.range) }) + (anisotropy.enabled ? tr(" (along the trend \"{name}\")", { name: anisotropy.trend?.name || "" }) : "") : "" /* #935 */, vertices: mc.vertices.length.toLocaleString(), faces: mc.faces.length.toLocaleString(), v9: vol.watertight ? tr(", closed ({volumeM3} m³)", { volumeM3: vol.volumeM3.toLocaleString(undefined, { maximumFractionDigits: 0 }) }) : tr(", open ({openEdgeCount} open edges — shell reaches the edge of the estimated region)", { openEdgeCount: vol.openEdgeCount }) })]);
+        // TASKS.csv #2223 — the refit above counted the whole box; say how little of it the search reaches, and the budget that keeps the
+        // default cell (marching cubes needs every node, so the shell cannot budget on reachable blocks as Estimation does)
+        const budgetAdvice = shellBudgetAdvice({ refit: cellRefit, neededAtDefault, estimated: grid.estimated, skipped: grid.skipped, budget: blockBudget });
+        if (budgetAdvice) setNotices((p) => [...p, { ...notice(budgetAdvice.budget
+          ? "Only {p}% of the grid lies within the search radius of a sample, but the iso-surface needs every node of the box, so the block budget counts the empty part too (Estimation counts only reachable blocks). A {b}-block budget ({cost}) keeps the default {cs} m cells here."
+          : "Only {p}% of the grid lies within the search radius of a sample, but the iso-surface needs every node of the box, so the block budget counts the empty part too (Estimation counts only reachable blocks). The default {cs} m cells need {n} blocks here, over the largest budget.",
+        { p: sharePct(budgetAdvice.pct), b: budgetAdvice.budget?.toLocaleString(), cost: budgetAdvice.budget ? tr(gradeShellBudgetNote(budgetAdvice.budget)) : "", cs: NUMERIC_CELL_DEFAULT, n: budgetAdvice.needed.toLocaleString() }), level: "info" }]);
         if (gsBeyond && gsBeyond.inside && gsBeyond.share >= 0.05) setNotices((p) => [...p, (gsBeyond.share >= 0.5 ? errorNotice : notice)(tr("\"{label}\": {p}% of its volume lies more than one hole spacing ({s} m) from any sample: beyond the drilling, where its shape comes from the search and the cells, not from assayed rock.", { label, p: Math.round(gsBeyond.share * 100), s: Math.round(gsSpacing) }))]); // #2757
         // #2059 — which holes it was modelled from, when not all of them
         if (inArea && area.checked < area.all) setNotices((p) => [...p, notice("\"{label}\" was modelled from the {n} hole(s) checked in the Holes list (Model settings › Model area); the other {m} were left out.", { label, n: area.checked, m: area.all - area.checked })]);
