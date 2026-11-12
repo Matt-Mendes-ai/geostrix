@@ -10750,6 +10750,8 @@
   "Imported the GOCAD Voxet \"{name}\" as {n} block model(s): {list}; {nx} × {ny} × {nz} nodes, each a block of {dx} × {dy} × {dz} m centred on its node. Its coordinates are taken as the project's (GOCAD files carry no EPSG code).": "Le Voxet GOCAD « {name} » a été importé comme {n} modèle(s) de blocs : {list} ; {nx} × {ny} × {nz} nœuds, chacun un bloc de {dx} × {dy} × {dz} m centré sur son nœud. Ses coordonnées sont prises comme celles du projet (les fichiers GOCAD ne portent pas de code EPSG).",
   "Averaged {fx} × {fy} × {fz} nodes into each block to stay within the block budget.": "{fx} × {fy} × {fz} nœuds moyennés dans chaque bloc pour rester dans le budget de blocs.",
   "Not in the drop, so not read: {list}. Drop the .vo together with the files its PROP_FILE lines name.": "Absents des fichiers déposés, donc non lus : {list}. Déposez le .vo avec les fichiers que nomment ses lignes PROP_FILE.",
+  "Not found beside the .vo in its folder, so not read: {list}.": "Introuvable à côté du .vo dans son dossier, donc non lu : {list}.",
+  "{name} is {mb} MB, more than the Browser panel reads whole: drag the .vo and its files onto the 3D View instead.": "{name} fait {mb} Mo, plus que ce que le panneau Explorateur lit en entier : glissez le .vo et ses fichiers sur la vue 3D.",
   "Could not read: {list}.": "Lecture impossible : {list}.",
   "{name}: no block model made. {why}": "{name} : aucun modèle de blocs créé. {why}",
   "The Voxet names no property.": "Le Voxet ne nomme aucune propriété.",

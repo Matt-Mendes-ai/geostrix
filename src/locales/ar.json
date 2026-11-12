@@ -10750,6 +10750,8 @@
   "Imported the GOCAD Voxet \"{name}\" as {n} block model(s): {list}; {nx} × {ny} × {nz} nodes, each a block of {dx} × {dy} × {dz} m centred on its node. Its coordinates are taken as the project's (GOCAD files carry no EPSG code).": "استُورد Voxet ‏GOCAD ‏\"{name}\" كـ {n} نموذج كتل: {list}؛ {nx} × {ny} × {nz} عقدة، كل منها كتلة {dx} × {dy} × {dz} م متمركزة على عقدتها. تؤخذ إحداثياته على أنها إحداثيات المشروع (ملفات GOCAD لا تحمل رمز EPSG).",
   "Averaged {fx} × {fy} × {fz} nodes into each block to stay within the block budget.": "حُسب متوسط {fx} × {fy} × {fz} عقدة في كل كتلة للبقاء ضمن ميزانية الكتل.",
   "Not in the drop, so not read: {list}. Drop the .vo together with the files its PROP_FILE lines name.": "لم تكن ضمن الملفات المُفلتة فلم تُقرأ: {list}. أفلت ملف .vo مع الملفات التي تسمّيها أسطر PROP_FILE فيه.",
+  "Not found beside the .vo in its folder, so not read: {list}.": "لم يُعثر عليه بجانب ملف .vo في مجلده، لذا لم يُقرأ: {list}.",
+  "{name} is {mb} MB, more than the Browser panel reads whole: drag the .vo and its files onto the 3D View instead.": "حجم {name} هو {mb} ميغابايت، أكبر مما تقرؤه لوحة المتصفح كاملاً: اسحب ملف .vo وملفاته إلى العرض ثلاثي الأبعاد بدلاً من ذلك.",
   "Could not read: {list}.": "تعذّرت قراءة: {list}.",
   "{name}: no block model made. {why}": "{name}: لم يُنشأ أي نموذج كتل. {why}",
   "The Voxet names no property.": "لا يسمّي Voxet أي خاصية.",
