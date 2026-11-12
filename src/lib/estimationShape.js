@@ -16,7 +16,10 @@ export function flatSearchTrend(radius, vertical, name = "flat search") {
 // width (WA uranium: 430 vertical holes 76 m apart, 27 m sampled each, ~80 m deep over ~10 km), the body is flat at the drilling's
 // scale: a search of 2.5 x the spacing across and 1.5 composites up and down, on cells of a quarter of the spacing by one composite.
 // Derived from these holes only, never from a deposit type; the dialog offers it, it is not applied by itself.
-export function flatSearchProposal({ traces, spans, spacingM, compositeM, maxTiltDeg = 5, maxSpanShare = 0.5, maxDepthShare = 0.1 }) {
+// TASKS.csv #3011 (WA iron review) — the sampled span no longer has to be under half the hole spacing: holes 22 m apart sampled over 50 m
+// on a field 21 km wide (the flattest deposit reviewed) were never offered a flat search. Near-vertical holes and a drilled depth that is a
+// small part of the drilling's width are the evidence; maxSpanShare stays as an option (Infinity by default) and the span is reported.
+export function flatSearchProposal({ traces, spans, spacingM, compositeM, maxTiltDeg = 5, maxSpanShare = Infinity, maxDepthShare = 0.1 }) {
   const comp = Number(compositeM) > 0 ? Number(compositeM) : 2;
   if (!(spacingM > 0) || !traces?.length || !spans?.length) return null;
   let tested = 0, steep = 0, x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity, z0 = Infinity, z1 = -Infinity;
@@ -36,7 +39,7 @@ export function flatSearchProposal({ traces, spans, spacingM, compositeM, maxTil
   if (span > maxSpanShare * spacingM) return null;
   const round = (v) => (v >= 20 ? Math.round(v / 5) * 5 : Math.max(1, Math.round(v)));
   return {
-    vertical: steep / tested, holes: tested, spanM: span, spacingM,
+    vertical: steep / tested, holes: tested, spanM: span, spacingM, depthM: z1 - z0, widthM: Math.max(x1 - x0, y1 - y0), // depth / width: #3011
     radius: round(2.5 * spacingM), reachV: Math.max(2, round(1.5 * comp)), cell: round(spacingM / 4), cellHeight: comp,
   };
 }

@@ -22,10 +22,13 @@ test("vertical holes sampled over a short span, far apart: a flat search is prop
   assert.ok(p);
   assert.equal(p.radius, 190); assert.equal(p.reachV, 3); assert.equal(p.cell, 19); assert.equal(p.cellHeight, 2);
 });
-test("no proposal for inclined holes, a long sampled span, or drilling about as deep as it is wide", () => {
+test("no proposal for inclined holes or drilling about as deep as it is wide (a long sampled span alone: one since #3011)", () => {
   const inclined = Array.from({ length: 20 }, (_, i) => [{ x: i * 100, y: 0, z: 300 }, { x: i * 100 + 40, y: 0, z: 240 }]);
   assert.equal(flatSearchProposal({ traces: inclined, spans: Array(20).fill(20), spacingM: 100, compositeM: 2 }), null);
-  assert.equal(flatSearchProposal({ traces: vertical(20), spans: Array(20).fill(60), spacingM: 100, compositeM: 2 }), null);
+  // TASKS.csv #3011 — a long sampled span no longer refuses it (vertical holes, 60 m deep over 1.9 km): flat at the drilling's scale; the old
+  // rule is still there as an option
+  assert.ok(flatSearchProposal({ traces: vertical(20), spans: Array(20).fill(60), spacingM: 100, compositeM: 2 }));
+  assert.equal(flatSearchProposal({ traces: vertical(20), spans: Array(20).fill(60), spacingM: 100, compositeM: 2, maxSpanShare: 0.5 }), null);
   assert.equal(flatSearchProposal({ traces: vertical(5, 600), spans: Array(5).fill(20), spacingM: 100, compositeM: 2 }), null); // 600 m deep over 400 m
 });
 
