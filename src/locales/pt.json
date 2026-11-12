@@ -11261,5 +11261,21 @@
   "{n} vertical row(s) with a blank azimuth read as azimuth 0.": "{n} linha(s) verticais com o azimute em branco foram lidas como azimute 0.",
   "Codes with no density typed: {list}.": "Códigos sem densidade digitada: {list}.",
   "{code} ({n} blocks)": "{code} ({n} blocos)",
-  "Show all {n} codes ({k} more, the least logged)": "Mostrar os {n} códigos ({k} a mais, os menos registrados)"
+  "Show all {n} codes ({k} more, the least logged)": "Mostrar os {n} códigos ({k} a mais, os menos registrados)",
+  "{p} % of the drilled cells are occurrences: the weights have little to set them apart from, so the posterior cannot rank them. A stricter rule (a higher cut-off, or more metres at or above it) leaves fewer.": "{p} % das células perfuradas são ocorrências: os pesos têm pouco com que distingui-las, então a probabilidade posterior não consegue ordená-las. Uma regra mais rígida (um teor de corte mais alto, ou mais metros acima dele) deixa menos.",
+  "Optional: a hole is an occurrence only with at least this many metres of samples at or above the cut-off, summed down the hole. Blank: one sample at or above it is enough.": "Opcional: um furo é uma ocorrência só com pelo menos estes metros de amostras iguais ou acima do teor de corte, somados ao longo do furo. Em branco: basta uma amostra igual ou acima.",
+  "over at least": "em pelo menos",
+  "any": "qualquer",
+  "Metres at or above the cut-off in a hole": "Metros iguais ou acima do teor de corte em um furo",
+  "Holes that stopped in ore": "Furos que terminaram em minério",
+  "last sample ≥": "última amostra ≥",
+  "Cut-off of the last sample": "Teor de corte da última amostra",
+  "Type a cut-off: the holes whose last sample of the element is at or above it are listed.": "Digite um teor de corte: são listados os furos cuja última amostra do elemento é igual ou acima dele.",
+  "No hole ends with its last {el} sample at or above {c} {u}.": "Nenhum furo termina com sua última amostra de {el} igual ou acima de {c} {u}.",
+  "{n} hole(s) end with their last {el} sample at or above {c} {u}; {k} of them at the hole's length.": "{n} furo(s) terminam com sua última amostra de {el} igual ou acima de {c} {u}; {k} deles no comprimento do furo.",
+  "{hole}: {v} {u} {el} at {a}–{b} m, of {l} m": "{hole}: {v} {u} {el} a {a}–{b} m, de {l} m",
+  "{hole}: {v} {u} {el} at {a}–{b} m": "{hole}: {v} {u} {el} a {a}–{b} m",
+  "Opens Planned holes with the end of this sample as the target (RL {z} m): deepen the target there.": "Abre Furos planejados com o fim desta amostra como alvo (cota {z} m): aprofunde o alvo lá.",
+  "Plan a deeper hole here": "Planejar um furo mais profundo aqui",
+  "{n} more.": "Mais {n}."
 }

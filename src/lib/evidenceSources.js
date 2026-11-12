@@ -199,6 +199,28 @@ export function depthTestedPoints(assays, traces) {
   return [...deep].map(([h, d]) => { const p = pointOnTrace(traces.get(h), d); return { x: p.x, y: p.y, z: p.z, value: p.z, hole_id: h, depth: d }; }).filter((p) => Number.isFinite(p.value));
 }
 
+// TASKS.csv #2965 (review #2876, WA iron) — the holes that stopped in ore: each hole's last sample of the element (the largest 'to' with a
+// value), kept when it is at or above the cut-off. valueOf(row) -> the grade or null; lengthOf(hole) -> the hole's length or null.
+// -> [{ hole_id, from, to, value, length, atEnd (the sample reaches within 0.5 m of the length; null with no length), x, y, z (the sample's
+// end) }], the highest value first
+export function holesEndingAbove(assays, valueOf, cutoff, traces, lengthOf = () => null) {
+  if (!Number.isFinite(Number(cutoff))) return [];
+  const last = new Map();
+  for (const a of assays || []) {
+    const v = valueOf(a), to = Number(a.to), from = Number(a.from);
+    if (v == null || !Number.isFinite(to) || !traces?.has(a.hole_id)) continue;
+    const w = last.get(a.hole_id);
+    if (!w || to > w.to) last.set(a.hole_id, { from, to, value: v });
+  }
+  const out = [];
+  for (const [h, s] of last) {
+    if (!(s.value >= Number(cutoff))) continue;
+    const p = pointOnTrace(traces.get(h), s.to), len = Number(lengthOf(h));
+    out.push({ hole_id: h, ...s, length: len > 0 ? len : null, atEnd: len > 0 ? s.to >= len - 0.5 : null, x: p.x, y: p.y, z: p.z });
+  }
+  return out.sort((a, b) => b.value - a.value || String(a.hole_id).localeCompare(String(b.hole_id), undefined, { numeric: true }));
+}
+
 // TASKS.csv #1723 (review #1645, Copley) — the elements that have at least one value in these rows: once pXRF is kept out of the
 // drill grades (#1673), the pXRF-only elements (Br, Cl, Ir, Rh on Copley) must not be offered as "X grade along the holes".
 export function elementsWithValues(assays, elements, units) {
@@ -270,6 +292,16 @@ export function medianSiteSpacing(collars, padM = null) {
   }
   if (auto) siteSpacingMemo.set(collars, out);
   return out;
+}
+
+// TASKS.csv #2964 (review #2876, WA iron) — the holes that may be occurrences under 'at least {minM} m at or above the cut-off': the metres of
+// samples at or above min, summed down each hole. rows: assays; valueOf(row) -> the grade or null. -> Set of hole ids, or null (no metres
+// rule: every hole may be one)
+export function occurrenceHoles(rows, valueOf, min, minM) {
+  if (!(Number(minM) > 0) || !Number.isFinite(Number(min))) return null;
+  const per = new Map();
+  for (const a of rows || []) { const v = valueOf(a), len = Number(a.to) - Number(a.from); if (v != null && v >= min && len > 0) per.set(a.hole_id, (per.get(a.hole_id) || 0) + len); }
+  return new Set([...per].filter(([, m]) => m >= Number(minM) - 1e-9).map(([h]) => h));
 }
 
 // The site spacing of the drilled collars (#2097: a collar marked proposed is not drilled ground), kept per store collars array so a pane's

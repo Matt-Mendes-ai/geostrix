@@ -11261,5 +11261,21 @@
   "{n} vertical row(s) with a blank azimuth read as azimuth 0.": "قُرئ {n} صف (صفوف) رأسية بسمت فارغ على أنها بسمت 0.",
   "Codes with no density typed: {list}.": "رموز بلا كثافة مُدخلة: {list}.",
   "{code} ({n} blocks)": "{code} ({n} كتلة)",
-  "Show all {n} codes ({k} more, the least logged)": "عرض كل الرموز الـ {n} ({k} إضافية، الأقل تسجيلًا)"
+  "Show all {n} codes ({k} more, the least logged)": "عرض كل الرموز الـ {n} ({k} إضافية، الأقل تسجيلًا)",
+  "{p} % of the drilled cells are occurrences: the weights have little to set them apart from, so the posterior cannot rank them. A stricter rule (a higher cut-off, or more metres at or above it) leaves fewer.": "{p} % من الخلايا المحفورة مواقع ظهور: لا تجد الأوزان ما تميّزها به، فلا تستطيع الاحتمالية اللاحقة ترتيبها. قاعدة أشد (محتوى حدي أعلى، أو أمتار أكثر عنده أو فوقه) تُبقي عددًا أقل.",
+  "Optional: a hole is an occurrence only with at least this many metres of samples at or above the cut-off, summed down the hole. Blank: one sample at or above it is enough.": "اختياري: لا يكون الثقب موقع ظهور إلا إذا بلغت عيناته عند المحتوى الحدي أو فوقه هذا العدد من الأمتار على الأقل، مجموعةً على طول الثقب. فارغ: تكفي عينة واحدة عنده أو فوقه.",
+  "over at least": "على الأقل في",
+  "any": "أي",
+  "Metres at or above the cut-off in a hole": "الأمتار عند المحتوى الحدي أو فوقه في الثقب",
+  "Holes that stopped in ore": "ثقوب توقفت في الخام",
+  "last sample ≥": "آخر عينة ≥",
+  "Cut-off of the last sample": "المحتوى الحدي لآخر عينة",
+  "Type a cut-off: the holes whose last sample of the element is at or above it are listed.": "أدخل محتوى حديًا: تُدرج الثقوب التي آخر عينة فيها من العنصر عنده أو فوقه.",
+  "No hole ends with its last {el} sample at or above {c} {u}.": "لا ينتهي أي ثقب بآخر عينة {el} عند {c} {u} أو فوقها.",
+  "{n} hole(s) end with their last {el} sample at or above {c} {u}; {k} of them at the hole's length.": "{n} ثقب (ثقوب) تنتهي بآخر عينة {el} عند {c} {u} أو فوقها؛ {k} منها عند طول الثقب.",
+  "{hole}: {v} {u} {el} at {a}–{b} m, of {l} m": "{hole}: {v} {u} {el} عند {a}–{b} م، من {l} م",
+  "{hole}: {v} {u} {el} at {a}–{b} m": "{hole}: {v} {u} {el} عند {a}–{b} م",
+  "Opens Planned holes with the end of this sample as the target (RL {z} m): deepen the target there.": "يفتح الثقوب المخططة مع نهاية هذه العينة هدفًا (منسوب {z} م): عمِّق الهدف هناك.",
+  "Plan a deeper hole here": "خطّط ثقبًا أعمق هنا",
+  "{n} more.": "{n} أخرى."
 }

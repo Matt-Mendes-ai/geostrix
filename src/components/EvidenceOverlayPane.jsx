@@ -7,12 +7,14 @@ import { collarAttrChoices, collarsWithPick } from "../lib/holeFilter.js"; // TA
 import { Download, Layers } from "./icons.js";
 import { TaskPaneHeader } from "./Ribbon.jsx";
 import { useStore } from "../lib/store.jsx";
-import { pickDefaultReachM, drilledSiteSpacing } from "../lib/evidenceSources.js"; // TASKS.csv #1179; #1451; drilledSiteSpacing: #2949
+import { pickDefaultReachM, drilledSiteSpacing, occurrenceHoles /* #2964 */ } from "../lib/evidenceSources.js"; // TASKS.csv #1179; #1451; drilledSiteSpacing: #2949
 import { drilledCollars } from "../lib/collarStatus.js"; // TASKS.csv #2097
 import { mainClusters } from "../lib/dataClusters.js"; // TASKS.csv #1449 / #1450
 import { quantileSorted } from "../lib/arrayStats.js"; // TASKS.csv #1281
 import { defaultEvidenceEnds, gradeEndsFromSamples, topScoreShare } from "../lib/evidenceEnds.js"; // TASKS.csv #1565; gradeEndsFromSamples: #2099; topScoreShare: #2448
-import { topCells } from "../lib/evidence.js"; // TASKS.csv #1456
+import { topCells, holesInCells /* #2964 */ } from "../lib/evidence.js"; // TASKS.csv #1456
+import EndInOreList from "./EndInOreList.jsx"; // TASKS.csv #2965 — holes that stopped in ore
+import { pointOnTrace } from "../lib/desurvey.js"; // TASKS.csv #2964 — each training sample's place, for the hole counts
 import { evidenceCoverage, LOW_COVERAGE, scoreBlockers } from "../lib/evidence.js"; // TASKS.csv #2252
 import { drilledTrainingMask, evidenceGrid, evidenceExtent, rasterEvidence, distanceEvidence, pointEvidence, sampleValues, membership, fuzzyCombine, FUZZY_OPERATORS, trainingCells, trainingCoverage, bestCutoff, MIN_SIDE, posterior, predictionArea, scoreImage, scoreTop /* #1731 */, rocAuc, kdeEvidence /* #2001 */, isOverlayOutput, coveringLayers } from "../lib/evidence.js"; // coveringLayers: #1563
 import { cachedEvidence, evidenceDeps, gridSignature } from "../lib/evidenceCache.js"; // TASKS.csv #1457, #1560
@@ -394,6 +396,13 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
   // TASKS.csv #2618 (re-test of #2446) — drillhole occurrences and the drilled cells are binned finer than a grid cell (a quarter of it), so
   // each cell that holds a sample counts: the 25 m grade bins made '2,137 drilled cells' where 4,558 ten-metre cells hold a sample
   const cellBin = Math.max(0.5, (grid?.dx || 25) / 4);
+  // TASKS.csv #2964 (review #2876, WA iron) — on a drilled-out bulk deposit one 2 m sample at the cut-off made a hole an occurrence (4,800 of
+  // 6,031 holes at 55 % Fe), so 87 % of the drilled cells were occurrences and the posterior ranked nothing. Optional 'over at least {m} m':
+  // only the holes with that many metres of samples at or above the cut-off (summed down the hole) are occurrences; blank: any sample, as before.
+  const occurrenceRows = (t, min) => {
+    const u = assayUnits[t.symbol] || "ppm", ok = occurrenceHoles(cleanAssays, (a) => valueIn(a, t.symbol, u, assayUnits), min, t.minM);
+    return ok ? cleanAssays.filter((a) => ok.has(a.hole_id)) : cleanAssays;
+  };
   const trainingPoints = useMemo(() => {
     const t = training, min = t.min === "" ? NaN : Number(t.min);
     if (t.source === "layer") { const l = pointLayers.find((x) => String(x.id) === String(t.layerId)); return l ? l.features.map((f) => ({ x: f.parts[0][0][0], y: f.parts[0][0][1] })) : []; }
@@ -402,7 +411,7 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
       // a barren hole's sample stream would make it a "known occurrence" (every other grade consumer filters them too)
       // TASKS.csv #1452 (review #1352) — where the grade is along the hole, not its collar: Silvertip's mineralised fans collapsed to
       // two pad cells (and every threshold gave the same three), though the grades lie 300-1,300 m down holes spread hundreds of metres
-      return holeGradePoints(cleanAssays, t.symbol, assayUnits[t.symbol] || "ppm", assayUnits, traces, cellBin).filter((p) => p.value >= min).map((p) => ({ x: p.x, y: p.y })); // cellBin: #2618
+      return holeGradePoints(occurrenceRows(t, min), t.symbol, assayUnits[t.symbol] || "ppm", assayUnits, traces, cellBin).filter((p) => p.value >= min).map((p) => ({ x: p.x, y: p.y })); // cellBin: #2618; occurrenceRows: #2964
     }
     if (t.source === "samples" && t.symbol && Number.isFinite(min)) return surfaceSamples.filter((s) => { if (t.medium && (s.medium || "") !== t.medium) return false; /* #1836 — soils apart from rock chips */ const v = valueIn(s, t.symbol, units[t.symbol] || "ppm", units); return v != null && v >= min; }).map((s) => ({ x: s.x, y: s.y }));
     return [];
@@ -412,15 +421,23 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
   const sources = useMemo(() => (trainingPoints.length >= 2 ? [...baseSources, { key: "kde", label: tr("Density of the known occurrences (quartic kernel)"), kind: "kde", ref: JSON.stringify(training) }] : baseSources), [baseSources, trainingPoints, training]);
   // TASKS.csv #2446 — every sample of the training element along the holes (any value): the drilled cells the weights are trained on
   const sampledPoints = useMemo(() => (training.source === "collars" && training.symbol ? holeGradePoints(cleanAssays, training.symbol, assayUnits[training.symbol] || "ppm", assayUnits, traces, cellBin).map((p) => ({ x: p.x, y: p.y })) : []), [training.source, training.symbol, cleanAssays, traces, assayUnits, cellBin]);
-  // #2618 — the holes behind those cells: with a sample of the element, and with one at or over the cut-off
-  const trainingHoles = useMemo(() => {
+  // #2618 — the holes behind those cells: with a sample of the element, and with one at or over the cut-off. #2964: each sample with its hole
+  // and place, so the counts are those of the cells the weights use (in compute), not the whole project's
+  const trainingSamples = useMemo(() => {
     if (training.source !== "collars" || !training.symbol) return null;
-    const min = training.min === "" ? NaN : Number(training.min), u = assayUnits[training.symbol] || "ppm", any = new Set(), hit = new Set();
-    for (const a of cleanAssays) { if (!traces.has(a.hole_id)) continue; const v = valueIn(a, training.symbol, u, assayUnits); if (v == null) continue; any.add(a.hole_id); if (Number.isFinite(min) && v >= min) hit.add(a.hole_id); }
-    return { any: any.size, hit: hit.size };
+    const min = training.min === "" ? NaN : Number(training.min), u = assayUnits[training.symbol] || "ppm", out = [];
+    const occ = Number.isFinite(min) ? new Set(occurrenceRows(training, min).map((a) => a.hole_id)) : null; // the holes the rule lets be occurrences
+    for (const a of cleanAssays) {
+      const t = traces.get(a.hole_id); if (!t) continue;
+      const v = valueIn(a, training.symbol, u, assayUnits), f = Number(a.from), to = Number(a.to);
+      if (v == null || !Number.isFinite(f) || !Number.isFinite(to)) continue;
+      const p = pointOnTrace(t, (f + to) / 2);
+      out.push({ hole: a.hole_id, x: p.x, y: p.y, v, occ: !occ || occ.has(a.hole_id) });
+    }
+    return out;
   }, [training, cleanAssays, traces, assayUnits]);
   const circular = (training.source === "samples" && layers.some((l) => (l.kind === "element" && l.ref === training.symbol) || l.kind === "index"))
-    || (training.source === "collars" && layers.some((l) => l.kind === "grade" && l.ref === training.symbol))
+    || (training.source === "collars" && layers.some((l) => (l.kind === "grade" && l.ref === training.symbol) || (l.kind === "numeric" && parseGtRef(l.ref)?.symbol === training.symbol) /* #2964: a per-hole card of the same element */))
     || (training.source !== "none" && layers.some((l) => l.kind === "kde")); // #2001 — the density IS the occurrences
 
   const compute = () => {
@@ -451,7 +468,10 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
       // when sound layers exist: its W- of -2.35 +/- 1.00 came from one cell. With no sound layer at all, every layer is used.
       const anySound = rowsW.some((r) => !r.none && !r.thin);
       rowsW.forEach((r) => { r.used = !r.none && (!r.thin || !anySound); if (r.used) chosen.push({ values: r.values, cutoff: r.cutoff, direction: r.direction, wPlus: r.wPlus, wMinus: r.wMinus, sPlus: r.sPlus, sMinus: r.sMinus /* #2001 */ }); });
-      if (chosen.length) { const post = posterior(chosen, valid, N, ND, { countMask: drilled ? trainMask : null }); out.wofe = { rows: rowsW, N, ND, post, nD: D.size, anyMissing: rowsW.some((r) => r.nMissing > 0), drilled: !!drilled, symbol: training.symbol, holes: trainingHoles }; out.paPost = predictionArea(post.prob, D, valid); }
+      // #2964 — the holes of the cells used (in the grid, in the drilled mask), and the occurrence holes among them
+      const minT = training.min === "" ? NaN : Number(training.min);
+      const holes = drilled && trainingSamples ? { any: holesInCells(grid, trainingSamples, trainMask).size, hit: holesInCells(grid, trainingSamples.filter((x) => x.occ), D, Number.isFinite(minT) ? minT : null).size } : null;
+      if (chosen.length) { const post = posterior(chosen, valid, N, ND, { countMask: drilled ? trainMask : null }); out.wofe = { rows: rowsW, N, ND, post, nD: D.size, anyMissing: rowsW.some((r) => r.nMissing > 0), drilled: !!drilled, symbol: training.symbol, holes, mostAreHits: !!drilled && ND / N > 0.5 /* #2964 */ }; out.paPost = predictionArea(post.prob, D, valid); }
       else if (rowsW.length) out.wofeNone = { rows: rowsW, ND }; // #2098 — no card gave a weight: said, not silent
       out.pa = predictionArea(fuzzy, D, valid);
       out.auc = { fuzzy: rocAuc(fuzzy, D, valid), post: out.wofe ? rocAuc(out.wofe.post.prob, D, valid) : null }; // TASKS.csv #2001
@@ -598,6 +618,7 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
             <label style={{ ...row, cursor: "pointer" }} title={tr("Memberships run from 0.01 to 0.99 instead of 0 to 1, so an evidence at its lowest cannot veto a cell on its own under AND, product or gamma: the cell keeps a low score and its rank among the others. Off, a cell with any membership at 0 scores exactly 0.")}><input type="checkbox" checked={floor > 0} onChange={(e) => { setFloor(e.target.checked ? 0.01 : 0); setResult(null); }} />{tr("no single evidence vetoes a cell (0.01–0.99)")}</label>
           </div>
         )}
+        {traces.size > 0 && labElements.length > 0 && <EndInOreList assays={cleanAssays} elements={labElements} units={assayUnits} traces={traces} collars={collars} survey={survey} onPlanTo={onPlanTo} sel={sel} pBtn={pBtn} note={note} />}{/* #2965 */}
         <div style={{ border: "1px solid var(--color-border)", borderRadius: 6, padding: 6, display: "flex", flexDirection: "column", gap: 4 }}>
           <div style={{ color: "var(--color-text-secondary)" }}>{tr("Known occurrences (optional, for weights of evidence)")}</div>
           <select value={training.source} onChange={(e) => { const source = e.target.value, list = source === "collars" ? labElements : source === "samples" ? surfaceElements : null; setTraining((t) => ({ ...t, source, ...(source === "collars" && list?.length ? { symbol: occurrenceSymbol(layers, list, t.symbol) } /* #2656 — the first grade card's element */ : list && list.length && !list.some((x) => x.symbol === t.symbol) ? { symbol: list[0].symbol } : {}) })); }} style={sel} aria-label={tr("Known occurrences")}>{/* symbol: #1836 — a surface element for samples, a lab element for holes */}
@@ -611,6 +632,7 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
             <div style={{ display: "flex", gap: 4, alignItems: "center", flexWrap: "wrap" }}>
               <select value={training.symbol} onChange={(e) => setTraining((t) => ({ ...t, symbol: e.target.value }))} style={sel}>{(training.source === "collars" ? labElements : surfaceElements).map((e) => <option key={e.symbol} value={e.symbol}>{e.symbol} ({e.unit})</option>)}</select>
               ≥ <input type="number" step="any" value={training.min} onChange={(e) => setTraining((t) => ({ ...t, min: e.target.value }))} style={{ ...sel, width: 80 }} aria-label={tr("At least")} />
+              {training.source === "collars" && <label style={{ display: "flex", gap: 4, alignItems: "center" }} title={tr("Optional: a hole is an occurrence only with at least this many metres of samples at or above the cut-off, summed down the hole. Blank: one sample at or above it is enough.")}>{tr("over at least")}<input type="number" min={0} step="any" value={training.minM ?? ""} placeholder={tr("any")} onChange={(e) => setTraining((t) => ({ ...t, minM: e.target.value }))} style={{ ...sel, width: 56 }} aria-label={tr("Metres at or above the cut-off in a hole")} />{tr("m")}</label>}{/* #2964 */}
               {training.source === "samples" && media.length > 1 && <select value={training.medium || ""} onChange={(e) => setTraining((t) => ({ ...t, medium: e.target.value }))} style={sel} aria-label={tr("Sample medium of the occurrences")}>{/* #1836 */}
                 <option value="">{tr("every medium")}</option>{media.map((m) => <option key={m} value={m}>{m || tr("(no medium)")}</option>)}
               </select>}
@@ -650,6 +672,7 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
                 {result.cover && (result.cover.droppedCells > 0 || result.cover.inGrid < result.cover.points) && <div style={{ ...note, marginTop: 2, color: result.cover.droppedShare > 0.25 ? "var(--color-warn-text)" : undefined }}>{tr("{p} occurrence points in {c} cells; {d} cell(s) lie outside the area where every evidence has a value and are not used ({pct} %).{v}", { p: result.cover.points.toLocaleString(), c: result.cover.cells.toLocaleString(), d: result.cover.droppedCells.toLocaleString(), pct: Math.round(result.cover.droppedShare * 100), v: result.cover.inGrid < result.cover.points ? " " + tr("{m} point(s) are outside the grid.", { m: (result.cover.points - result.cover.inGrid).toLocaleString() }) : "" })}</div>}{/* #1558 */}
                 {result.wofe.anyMissing && <div style={{ ...note, marginTop: 2 }}>{tr("An evidence's weights come from the cells where it has a value; where it has none it adds nothing to the posterior (weight 0), so the score cannot reach past the drilled ground on drill evidence alone.")}</div>}{/* #1556 */}
                 {result.circular && <div style={{ color: "var(--color-warn-text)", marginTop: 2 }}>{tr("Circular: the same samples are evidence and occurrences, so the weights will flatter the evidence.")}</div>}{/* #1836 */}
+                {result.wofe.mostAreHits && <div style={{ color: "var(--color-warn-text)", marginTop: 2 }}>{tr("{p} % of the drilled cells are occurrences: the weights have little to set them apart from, so the posterior cannot rank them. A stricter rule (a higher cut-off, or more metres at or above it) leaves fewer.", { p: Math.round((100 * result.wofe.ND) / result.wofe.N) })}</div>}{/* #2964 */}
                 {result.wofe.ND < 10 && <div style={{ color: "var(--color-warn-text)", marginTop: 2 }}>{tr("Fewer than 10 occurrence cells: the weights, the posterior and the prediction-area figures are not interpretable — read them as a sketch.")}</div>}{/* #1452 */}
                 {result.wofe.rows.map((r, i) => { // wrapped lines, not a table: the sidebar is narrow
                   // TASKS.csv #1566 (review #1497, Lawyers) — a negative contrast: the occurrences sit on the other side of the cutoff, so the
