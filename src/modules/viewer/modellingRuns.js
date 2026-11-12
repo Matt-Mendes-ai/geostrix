@@ -31,7 +31,7 @@ import { excludeQAQC } from "../../lib/qaqc.js";
 import { errorNotice, notice, appendNotice, infoNotice } from "../../lib/notices.js"; // infoNotice: #2047
 import { noCollarsNotice } from "../../lib/noCollars.js"; // TASKS.csv #1841 — what is waiting for collars
 import { filterBySearchSupport, anisoWarpPoint, invScales, anisoWarpDirection, medianCollarSpacing, autoHaloParams, autoBodyParams, bodyCellPastRuns, seamCells /* #2384 */, mergedRuns, splitIntervalForSampling, spatialClusters, terrainGroundAt } from "../../lib/viewer/geomath.js";
-import { intervalEndIndex, intervalStartIndex, upperContactOf, mergeTouchingIntervals, depthKey } from "../../lib/viewer/intervals.js";
+import { intervalEndIndex, intervalStartIndex, upperContactOf, mergeTouchingIntervals, depthIndexAt } from "../../lib/viewer/intervals.js";
 import { codedRuns, topsForCode, codeInfo, withPileOrder, effectiveCode, inTargetUnit, startsBelowNonUnit, startsBelowOverburden, overburdenBases } from "../../lib/modellingCodes.js"; // TASKS.csv #599; #1367; #1684
 import { samplesInsideShell } from "../../lib/shellSupport.js"; // TASKS.csv #1735
 import { clipMesh } from "../../lib/clipMesh.js";
@@ -46,7 +46,7 @@ import { terrainGrid, unitRaster, mapAgreement } from "../../lib/predictedMap.js
 import { sectionGrid, pickSections, packUnits, sectionZRange } from "../../lib/modelSection.js"; // TASKS.csv #759
 import { smoothClusteredSpec } from "../../lib/contactSmoothing.js"; // TASKS.csv #761
 import { pickReport } from "../../lib/pickDiagnostics.js"; // TASKS.csv #762
-import { findOnTraceWorld, findOnTrace, interceptId, SOFT_NUGGET, MODEL_EXTENT_PAD_M, guessSurfaceType, pointInDomain } from "../../lib/viewer/modelHelpers.js";
+import { findOnTraceWorld, findOnTrace, traceOfHole /* #2931 */, interceptId, SOFT_NUGGET, MODEL_EXTENT_PAD_M, guessSurfaceType, pointInDomain } from "../../lib/viewer/modelHelpers.js";
 import { t as tr } from "../../lib/i18n.js"; // TASKS.csv #786
 import { capFieldAtGround, meanInsideShell } from "../../lib/groundCap.js"; // TASKS.csv #803
 import { explicitInterfacePoints } from "../../lib/explicitUnits.js"; // TASKS.csv #867
@@ -1067,7 +1067,7 @@ export function createModellingRuns(ctx, mcRef) {
         const top = upperContactOf(r, zAt, { startIndex: litStarts, endIndex: litEnds, codes: contCodes });
         if (top.continues) { splitsSkipped++; return; }
         // #1367 — under a fault, breccia, vein, dyke, no recovery or casing the start is not a top (the roles of Modelling codes)
-        const aboveVals = top.upHole ? rawStarts.get(depthKey(r.hole_id, r.to)) : rawEnds.get(depthKey(r.hole_id, r.from));
+        const aboveVals = top.upHole ? depthIndexAt(rawStarts, r.hole_id, r.to) : depthIndexAt(rawEnds, r.hole_id, r.from); // #2931
         if (!top.upHole && !(aboveVals && aboveVals.length)) { if (Number(r.from) <= (firstFrom.get(r.hole_id) ?? Infinity) + 1e-6) holeStartSkipped++; else gapSkipped++; return; } // #2527
         if (startsBelowNonUnit(aboveVals, modellingCodes, mcodeGroupOf, mcodeDefaultRole, { underOverburden })) { if (startsBelowOverburden(aboveVals, modellingCodes, mcodeGroupOf, mcodeDefaultRole)) underOvbSkipped++; else belowRoleSkipped++; return; } // #1684
         // TASKS.csv #84 — a boundary intercept the user has explicitly reviewed and excluded (via the
@@ -1572,7 +1572,7 @@ export function createModellingRuns(ctx, mcRef) {
       const used = new Set();
       for (const c of hc.contacts) {
         if (excludedIntercepts.includes(interceptId("litho", c.row))) { holeExcluded++; continue; }
-        const t = traces.find((tc) => tc.hole_id === c.hole_id);
+        const t = traceOfHole(traces, c.hole_id);
         const q = t?.pts?.length ? findOnTrace(t.pts, c.depth) : null;
         if (!q) { holeNoTrace++; continue; }
         const ry = Math.min(rank.get(c.upper), rank.get(c.lower)), ro = Math.max(rank.get(c.upper), rank.get(c.lower));
@@ -1640,7 +1640,7 @@ export function createModellingRuns(ctx, mcRef) {
     const rows = (layers.structure || []).filter((s) => String(s.value) === type && (s.structure_id || "") === id && Number.isFinite(s.dip) && Number.isFinite(s.azimuth));
     const points = [];
     rows.forEach((s) => {
-      const t = traces.find((tc) => tc.hole_id === s.hole_id);
+      const t = traceOfHole(traces, s.hole_id);
       const p = t ? findOnTrace(t.pts, s.depth) : null;
       if (p) points.push({ ...sceneToApi(p), hole_id: s.hole_id, depth: s.depth }); // #1225 — so the pick check names them; the sidecar ignores fields it doesn't declare
     });
@@ -1710,7 +1710,7 @@ export function createModellingRuns(ctx, mcRef) {
       const name = id ? `${structType} — ${id}` : named.length ? `${structType} — unnamed` : structType;
       const points = [];
       group.forEach((s) => {
-        const t = traces.find((tc) => tc.hole_id === s.hole_id);
+        const t = traceOfHole(traces, s.hole_id);
         if (!t) return;
         const p = findOnTrace(t.pts, s.depth);
         if (p) points.push({ ...sceneToApi(p), hole_id: s.hole_id, depth: s.depth }); // #1548 — the pick check names the hole and depth, as for faults (#1225)

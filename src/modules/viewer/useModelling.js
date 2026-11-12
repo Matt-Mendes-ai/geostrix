@@ -11,8 +11,7 @@
 // this hook keeps the synchronous parts (intercepts table, fault candidates, stack editor) and thin run wrappers.
 import { useCallback, useMemo, useRef } from "react";
 import { errorNotice, notice } from "../../lib/notices.js";
-import { intervalEndIndex, intervalStartIndex, upperContactOf } from "../../lib/viewer/intervals.js";
-import { findOnTrace, interceptId } from "../../lib/viewer/modelHelpers.js";
+import { boundaryIntercepts } from "../../lib/viewer/boundaryIntercepts.js"; // TASKS.csv #2931
 import { t as tr } from "../../lib/i18n.js"; // TASKS.csv #786
 import { faultLikeName } from "../../lib/layers.js"; // TASKS.csv #1549
 
@@ -47,34 +46,8 @@ export function useModelling(ctx) {
   const runs = useMemo(() => Object.fromEntries(["runAlterationModel", "runImplicitModel", "runMapModel", "runNumericModel", "runStackModel", "runStructuralModel", "runVeinModel"].map((n) => [n, lazyRun(n)])), [lazyRun]);
   const { runAlterationModel, runImplicitModel, runMapModel, runNumericModel, runStackModel, runStructuralModel, runVeinModel } = runs; // runMapModel: #817
 
-  const computeIntercepts = useCallback(() => {
-    const traces = tracesRef.current;
-    const o = originRef.current;
-    const out = [];
-    // TASKS.csv #52 (c) — the VEIN layer is listed here too now. #84's exclusions already applied to
-    // vein intercepts inside runVeinModel, but the table that exists to review them only ever showed
-    // litho and alteration, so a vein pick could be silently excluded by a filter with no UI to see it,
-    // and (c)'s named sets could not have contained one at all. Listing it closes both gaps at once.
-    [["litho", "Lithology"], ["alt", "Alteration"], ["vein", "Vein / dyke"]].forEach(([layerKey, layerLabel]) => {
-      const ends = intervalEndIndex(layers[layerKey]); // #354 — skip row splits inside one unit
-      const starts = intervalStartIndex(layers[layerKey]); // #569 — up-holes: the top is at `to`
-      (layers[layerKey] || []).forEach((r) => {
-        if (isNaN(r.from)) return;
-        const t = traces.find((tc) => tc.hole_id === r.hole_id);
-        if (!t) return;
-        const top = upperContactOf(r, (md) => findOnTrace(t.pts, md)?.y, { startIndex: starts, endIndex: ends, codes: new Set([r.value]) });
-        if (top.continues) return;
-        const p = findOnTrace(t.pts, top.md);
-        if (!p) return;
-        const api = sceneToApi(p);
-        // TASKS.csv #232 — api coords are origin-relative (see sceneToApi's own comment); add the
-        // scene origin back in so the table/CSV export shows real-world E/N/Z, matching what the
-        // mesh-export path (meshExport.js's sceneVertsToWorld) already does for the same conversion.
-        out.push({ id: interceptId(layerKey, r), layerKey, layerLabel, hole_id: r.hole_id, unit: r.value, from: top.md, x: api.x + o.x, y: api.y + o.y, z: api.z + o.z });
-      });
-    });
-    return out;
-  }, [layers.litho, layers.alt, layers.vein]);
+  // TASKS.csv #2931 — the loop is lib/viewer/boundaryIntercepts.js (tested on a 6,390-hole project)
+  const computeIntercepts = useCallback(() => boundaryIntercepts(layers, tracesRef.current, originRef.current, sceneToApi), [layers.litho, layers.alt, layers.vein]);
 
   const mcRef = useRef(modellingCodes); // TASKS.csv #599 — read by the model check after the run (closure can be stale)
   mcRef.current = modellingCodes;

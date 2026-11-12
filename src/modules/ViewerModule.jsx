@@ -194,12 +194,13 @@ import { pickOnView } from "./viewer/pickGround.js"; // #2574; #2447
 import { syncHoleLabels, declutterHoleLabels, withEveryLabel, syncTextLabels, sampleLabelItems } from "../lib/viewer/holeLabels.js"; // withEveryLabel: TASKS.csv #1770; syncTextLabels / sampleLabelText: #1443
 import { PickStandIn, PICK_ONLY_LAYER } from "../lib/viewer/pickStandIn.js"; // TASKS.csv #1500
 import { syncBatchedInstances, buildLayerBatches, eachLayerMember, eachPickTarget, batchTag } from "../lib/viewer/layerBatches.js"; // moved out (size cap, #1084)
-import { PROTO_SPHERE_10, PROTO_SPHERE_8, POINT_PROTO } from "../lib/viewer/protos.js"; // TASKS.csv #2176
+import { PROTO_SPHERE_8, POINT_PROTO } from "../lib/viewer/protos.js"; // TASKS.csv #2176
+import { assayShapeFor, assayProto, placeAssayMarker } from "../lib/viewer/assayShape.js"; // TASKS.csv #2932
 import { buildDrillholeScene, collarColorFor, voxelFitCorners, isIntervalRow } from "./viewer/drillholeScene.js"; // TASKS.csv #2176
 import { viewNdc } from "../lib/viewer/clickPoint.js"; // TASKS.csv #2803
 import { hideTraceHoles } from "../lib/viewer/traceBatch.js"; // TASKS.csv #2176
 import { closedShellsOf } from "./viewer/estimationShells.js"; // TASKS.csv #2695
-import { findOnTraceWorld, findOnTrace, traceLookup, pointInDomain, SOLID_SURFACE_TYPES, surfaceMadeAt } from "../lib/viewer/modelHelpers.js"; // TASKS.csv #445 step 2; SOLID_SURFACE_TYPES: #804
+import { findOnTraceWorld, findOnTrace, traceLookup, traceOfHole /* #2931 */, pointInDomain, SOLID_SURFACE_TYPES, surfaceMadeAt } from "../lib/viewer/modelHelpers.js"; // TASKS.csv #445 step 2; SOLID_SURFACE_TYPES: #804
 import { syncRasterDrapes, syncBoundaries, syncMapLayers, syncSectionImages, syncSurfaceStructures, syncOmfObjects, syncTerrain, outcropLabelItems } from "../lib/viewer/sceneBuilders.js"; // TASKS.csv #693; outcropLabelItems: #1443
 import { syncDrawLods, dropDrawLod } from "../lib/viewer/drawLod.js"; // TASKS.csv #795
 import { useModelling } from "./viewer/useModelling.js";
@@ -3017,7 +3018,7 @@ ${describeTrend(t)}` };
     const domain = domains.find((d) => d.id === wantId);
     if (!domain) return rows;
     return rows.filter((r) => {
-      const t = traces.find((tr) => tr.hole_id === r.hole_id);
+      const t = traceOfHole(traces, r.hole_id);
       if (!t) return false;
       const p = findOnTrace(t.pts, getDepth(r));
       if (!p) return false;
@@ -3087,7 +3088,7 @@ ${describeTrend(t)}` };
   const filterRowsBySearchEllipsoid = (rows, traces, getDepth) => {
     if (!searchEllipsoid.enabled) return rows;
     const withPos = rows.map((r) => {
-      const t = traces.find((tr) => tr.hole_id === r.hole_id);
+      const t = traceOfHole(traces, r.hole_id);
       if (!t) return null;
       const p = findOnTrace(t.pts, getDepth(r));
       if (!p) return null;
@@ -3108,7 +3109,7 @@ ${describeTrend(t)}` };
   const structureRowsToOrientations = (rows, traces) => {
     const orientations = [];
     rows.forEach((s) => {
-      const t = traces.find((tr) => tr.hole_id === s.hole_id);
+      const t = traceOfHole(traces, s.hole_id);
       if (!t) return;
       const p = findOnTrace(t.pts, s.depth);
       if (!p) return;
@@ -4227,8 +4228,9 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       const vals = assays.filter((a) => a.values[sym] != null && assayRowShown(a)).map((a) => a.values[sym]); // #1695: sizes from the shown source
       const finite = vals.filter(Number.isFinite).sort((x, y) => x - y);
       const q = (pp) => (finite.length ? finite[Math.min(finite.length - 1, Math.floor(pp * (finite.length - 1)))] : undefined);
-      ranges[sym] = { ...minMax(vals), p50: q(0.5), p90: q(0.9) };
+      ranges[sym] = { ...minMax(vals), p50: q(0.5), p90: q(0.9), n: finite.length };
     });
+    const drawnAssays = assayDisplayElements.reduce((s, sym) => s + ranges[sym].n, 0); // #2932 — along the hole above 40,000
     const traceOf = new Map(tracesRef.current.map((t) => [t.hole_id, t.pts]));
     const n = assayDisplayElements.length;
     const errors = [];
@@ -4242,21 +4244,16 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         assayDisplayElements.forEach((sym, idx) => {
           const style = assayStyle[sym];
           const angle = (2 * Math.PI * idx) / n;
-          // TASKS.csv #1696 — far enough apart that the largest marker of one element does not swallow another's (Au sat 2.2 m off the trace
-          // inside Cu spheres of radius 3.8): the largest radius (3.8 x the bigger size multiplier) between neighbours
+          // TASKS.csv #1696 — apart by the largest radius (3.8 x the bigger size multiplier), so Au is not inside Cu's spheres
           const ring = n > 1 ? (3.9 * Math.max(...assayDisplayElements.map((x) => assayStyle[x]?.sizeMult ?? 1))) / Math.sin(Math.PI / n) : 0; // neighbours 2 x 3.9 m apart
           const offX = n > 1 ? Math.cos(angle) * ring : 0, offZ = n > 1 ? Math.sin(angle) * ring : 0;
           (byHole.get(c.hole_id) || []).forEach((a) => {
             const v = a.values[sym];
             if (v == null || !assayPassesCutoff(v, style)) return;
-            const pt = look.at((a.from + a.to) / 2);
-            if (!pt) return;
-            // #312 — shared prototype + scale; #649 — the element's chosen shape and opacity
-            const px = isPxrfRow(a); // #1695 — a pXRF reading is a cube, and says so
-            const op = style?.opacity ?? 1, shape = px ? "cube" : style?.shape || "sphere";
-            const mesh = new PickStandIn(POINT_PROTO[shape] || PROTO_SPHERE_10, { color: assayColorFor(v, idx, style), transparent: op < 1, opacity: op, side: shape === "disc" ? THREE.DoubleSide : THREE.FrontSide }); // #1500
-            mesh.scale.setScalar(assaySizeFor(v, ranges[sym], style)); // #306
-            mesh.position.set(pt.x + offX, pt.y, pt.z + offZ);
+            // #312 — shared prototype + scale; #649 — the element's shape and opacity; #1695 — a pXRF reading is a cube
+            const px = isPxrfRow(a), op = style?.opacity ?? 1, shape = assayShapeFor(style, drawnAssays, px);
+            const mesh = new PickStandIn(assayProto(shape), { color: assayColorFor(v, idx, style), transparent: op < 1, opacity: op, side: shape === "disc" ? THREE.DoubleSide : THREE.FrontSide }); // #1500
+            if (!placeAssayMarker(mesh, shape, look.at, a, assaySizeFor(v, ranges[sym], style), offX, offZ)) return; // #306 size
             mesh.userData = lazyTip({ row: a, holeId: c.hole_id }, () => `${c.hole_id}\n${sym}: ${gradeText(v)} ${elementUnits[sym] || ""}${px ? " (pXRF)" : ""}\n${+a.from.toFixed(2)}–${+a.to.toFixed(2)} m`); // #1500; #2365 as stored
             g.add(mesh);
           });

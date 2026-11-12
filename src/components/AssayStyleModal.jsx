@@ -7,6 +7,7 @@ import { seedBreaks, nextDarkerClassColor, majorComponentSteps } from "../lib/co
 import { roundBreaks, addClassLimit } from "../lib/assayClasses.js"; // TASKS.csv #2519
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { SHAPES } from "../lib/layerStyle.js"; // TASKS.csv #649 — the same marker shapes as the other point layers
+import { ASSAY_AUTO_LIMIT, ASSAY_TRACE } from "../lib/viewer/assayShape.js"; // TASKS.csv #2932 — Automatic and Along the hole
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { gradeText } from "../lib/gradeText.js"; // TASKS.csv #2515
 import { useStore } from "../lib/store.jsx";
@@ -20,7 +21,7 @@ export default function AssayStyleModal({ symbol, unit, defaultColor, range, sty
   const [local, setLocal] = useState(() => ({
     color: style?.color || defaultColor,
     sizeMult: style?.sizeMult ?? 1,
-    shape: style?.shape || "sphere", // #649
+    shape: style?.shape || "auto", // #649; #2932 — none stored = automatic
     opacity: style?.opacity ?? 1, // #649
     minCutoff: style?.minCutoff ?? "",
     breaks: style?.breaks ? style.breaks.map((b) => ({ ...b })) : [],
@@ -31,7 +32,7 @@ export default function AssayStyleModal({ symbol, unit, defaultColor, range, sty
     onChange({
       color: next.color,
       sizeMult: next.sizeMult,
-      shape: next.shape === "sphere" ? null : next.shape, // #649 — only a change is stored
+      shape: next.shape === "auto" ? null : next.shape, // #649 — only a change is stored; #2932 — a chosen Sphere is stored too
       opacity: next.opacity >= 1 ? null : next.opacity,
       minCutoff: next.minCutoff === "" ? null : Number(next.minCutoff),
       breaks: next.breaks.length ? next.breaks.slice().sort((a, b) => a.max - b.max) : null,
@@ -69,7 +70,7 @@ export default function AssayStyleModal({ symbol, unit, defaultColor, range, sty
   const basisText = !basis || !basis.n ? null : basis.kind === "flags" ? tr("Default classes: the 50th, 90th and 97.5th percentiles of the {n} detected values; the {left} reported below detection ('<') are left out.", { n: basis.n.toLocaleString(), left: basis.left.toLocaleString() }) : basis.kind === "floor" ? tr("Default classes: the 50th, 90th and 97.5th percentiles of the {n} values above the floor {floor} {unit}; the {left} at the floor (probably half a detection limit substituted before import) are left out.", { n: basis.n.toLocaleString(), left: basis.left.toLocaleString(), floor: gradeText(basis.floor), unit }) : tr("Default classes: the 50th, 90th and 97.5th percentiles of all {n} values.", { n: basis.n.toLocaleString() });
 
   // TASKS.csv #2935 — Reset gives the seeded classes the dialog calls the default (was no classes: 'sphere size = grade', one colour)
-  const reset = () => commit({ color: defaultColor, sizeMult: 1, shape: "sphere", opacity: 1, minCutoff: "", breaks: seedBreaks({ ...range, unit }, defaultColor) });
+  const reset = () => commit({ color: defaultColor, sizeMult: 1, shape: "auto", opacity: 1, minCutoff: "", breaks: seedBreaks({ ...range, unit }, defaultColor) });
   const major = majorComponentSteps({ ...range, unit });
 
   return (
@@ -95,7 +96,9 @@ export default function AssayStyleModal({ symbol, unit, defaultColor, range, sty
           <label style={row}>
             <span style={rowLabel}>{tr("Shape")}</span>
             <select value={local.shape} onChange={(e) => commit({ ...local, shape: e.target.value })} aria-label={tr("Marker shape")} style={{ ...inp, flex: 1 }}>
+              <option value="auto">{tr("Automatic: spheres, or along the hole above {n} samples", { n: ASSAY_AUTO_LIMIT.toLocaleString() })}</option>
               {SHAPES.point.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
+              <option value={ASSAY_TRACE}>{tr("Along the hole")}</option>
             </select>
           </label>
           <label style={row}>

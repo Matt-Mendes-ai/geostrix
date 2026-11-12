@@ -1567,6 +1567,8 @@
   "Colour": "Cor",
   "Shape": "Forma",
   "Marker shape": "Forma do marcador",
+  "Automatic: spheres, or along the hole above {n} samples": "Automática: esferas, ou ao longo do furo acima de {n} amostras",
+  "Along the hole": "Ao longo do furo",
   "Marker opacity": "Opacidade do marcador",
   "Multiplies the value-scaled marker size (1 = default). Every marker for this element scales by this factor, keeping the same 'bigger = higher grade' relationship.": "Multiplica o tamanho do marcador escalado pelo valor (1 = padrão). Todos os marcadores deste elemento escalam por este fator, mantendo a relação “maior = teor mais alto”.",
   "Size": "Tamanho",

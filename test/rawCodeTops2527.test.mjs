@@ -4,7 +4,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { intervalEndIndex } from "../src/lib/viewer/intervals.js";
-import { depthKey } from "../src/lib/viewer/intervals.js";
+import { depthIndexAt } from "../src/lib/viewer/intervals.js"; // #2931 — was ends.get(depthKey(...))
 
 // the rule the raw-code branch applies, on the review's three kinds of start
 const rows = [
@@ -15,7 +15,7 @@ const rows = [
 ];
 const ends = intervalEndIndex(rows), first = new Map();
 for (const r of rows) if (!(first.get(r.hole_id) <= r.from)) first.set(r.hole_id, r.from);
-const classify = (r) => { const above = ends.get(depthKey(r.hole_id, r.from)); if (above && above.length) return "contact"; return r.from <= first.get(r.hole_id) + 1e-6 ? "holeStart" : "gap"; };
+const classify = (r) => { const above = depthIndexAt(ends, r.hole_id, r.from); if (above && above.length) return "contact"; return r.from <= first.get(r.hole_id) + 1e-6 ? "holeStart" : "gap"; };
 
 test("only a start under a logged unit is a top", () => {
   const p = rows.filter((r) => r.value === "P").map((r) => [r.hole_id, classify(r)]);
