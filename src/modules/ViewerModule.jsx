@@ -213,6 +213,7 @@ import { alphaOnlyFan, meanPole } from "../lib/sectionStructures.js"; // TASKS.c
 import { useTabNotices } from "../lib/useTabNotices.js"; // TASKS.csv #1203
 import { categoryColor, categoryLabel } from "../lib/layers.js"; // TASKS.csv #1289
 import { useIdentify } from "./viewer/useIdentify.js"; // TASKS.csv #1324
+import { useCollarMarkerSize } from "./viewer/useCollarMarkerSize.js"; // TASKS.csv #2823
 import { useBuildDefer } from "../lib/viewer/buildDefer.js"; // #1500
 import { lazyTip } from "../lib/viewer/lazyTip.js"; // #1500
 const IdentifyPanel = React.lazy(() => import("../components/IdentifyPanel.jsx"));
@@ -638,18 +639,9 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   const axisGizmoRef = useRef(null); // TASKS.csv #189 — small camera-synced N/E/Z axis-triad widget, bottom-left of the 3D view
   const lastTracesRef = useRef([]);
   const lastHoleTraceCountRef = useRef(0); // #1181 — lastTracesRef starts with this many hole traces
-  // TASKS.csv — user report: "we have to make it stop resetting the zoom every time user loads a new
-  // layer." Same class of bug as the earlier voxel-visibility camera-reset fix a few lines below (see
-  // voxelGeomSignature's own comment) — the geometry-rebuild effect calls fitView() unconditionally
-  // every time it runs, and that effect's dependency array includes `layers` directly, so importing
-  // ANY new layer (lithology, alteration, a raster, a boundary, a geophys classification change, etc.)
-  // reran the whole effect and wiped out the user's pan/zoom, not just a voxel-visibility toggle. This
-  // ref makes the auto-fit a true one-time "frame the data when it first appears" action instead of an
-  // every-rebuild side effect — reset to false whenever collars are cleared back to zero (a genuinely
-  // fresh dataset should still get an initial auto-frame), otherwise left alone so every subsequent
-  // layer/legend/filter change leaves the camera exactly where the user put it. "Zoom to fit all" (the
-  // existing toolbar/context-menu action) remains available for whenever a user actually wants to
-  // refit after adding something.
+  // TASKS.csv — user report: "we have to make it stop resetting the zoom every time user loads a new layer." The rebuild effect called
+  // fitView() on every run, and any import reran it. The auto-fit now frames the data once, when it first appears (reset when the
+  // collars go back to zero); later changes leave the camera where the user put it. "Zoom to fit all" refits on request.
   const hasAutoFitRef = useRef(false);
   // Perf (user report: "the app is getting a bit heavy on my laptop") — the render loop below used to
   // call renderer.render() unconditionally every requestAnimationFrame tick, forever, even when the
@@ -908,6 +900,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   // the labels alone (effect after the rebuild), not every drillhole
   const holeLabelModeRef = useRef(holeLabelMode); holeLabelModeRef.current = holeLabelMode;
   const holeLabelAnchorsRef = useRef([]);
+  const collarSize = useCollarMarkerSize(figureOverlay.collarSize, layerGroupsRef, holeLabelAnchorsRef); // #2823 — Auto / m / Off
 
   // Manual "Refresh view" trigger — the user asked for this after seeing collars render a few meters
   // off from a DEM following a delete + re-import. The geometry-rebuild effects below are all correct
@@ -1866,7 +1859,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
       // both samples land on real pick targets, exactly as they did before batching existed.
       let last = n - 1;
       while (last > 0 && children[last].userData?.pickIgnore) last--;
-      if (n) { const a = children[0].matrixWorld.elements, b = children[last].matrixWorld.elements; s += `@${a[12]},${a[13]},${a[14]},${b[12]},${b[13]},${b[14]}`; }
+      if (n) { const a = children[0].matrixWorld.elements, b = children[last].matrixWorld.elements; s += `@${a[0]},${a[12]},${a[13]},${a[14]},${b[0]},${b[12]},${b[13]},${b[14]}`; }
       // TASKS.csv #1540 / #1643 — a batch's members are not children: each batch is tagged (batchTag, lib/viewer/layerBatches.js)
       for (let i = 0; i < n; i++) s += batchTag(children[i]);
     };
@@ -4457,7 +4450,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   }, [layers]);
   useEffect(() => {
     // TASKS.csv #2176 step 1 — the drillhole scene build, moved unchanged into viewer/drillholeScene.js (#1084 size cap)
-    buildDrillholeScene({ applyCategoryVisibility, applyLegendOverrideColors, autoFitInitial, baseColorForBuild, bgColorRef, boundaries, buildAssaySpheresRef, buildDefer, buildGeophysPtsRef, buildSurfaceSamplesRef, collarMaterialRef, collars, customLayers, desurveyMethod, effectiveLabel, fitBox, hasAutoFitRef, holeLabelAnchorsRef, holeLabelModeRef, isRowVisibleForBuild, lastHoleTraceCountRef, lastTracesRef, layerGroupsRef, layers, layerStyles, mapLayers, numericLayerColor, numericRange, numericSymbology, omfObjects, originRef, placedSurfaceSamples, rasters, rebuildSeq, setDataLoaded, setNotices, setTracesSeq, surfaceStructures, survey, syncImplicitOrigin, terrain, tracesRef, voxelModels, pointBuildersStale: () => [!sameInputs(assayBuiltRef.current, assayInputs), !sameInputs(geophysBuiltRef.current, geophysInputs), !sameInputs(surfaceBuiltRef.current, surfaceInputs)] /* #2176 */ });
+    buildDrillholeScene({ applyCategoryVisibility, applyLegendOverrideColors, autoFitInitial, baseColorForBuild, bgColorRef, boundaries, buildAssaySpheresRef, buildDefer, buildGeophysPtsRef, buildSurfaceSamplesRef, collarMaterialRef, collarSize, collars, customLayers, desurveyMethod, effectiveLabel, fitBox, hasAutoFitRef, holeLabelAnchorsRef, holeLabelModeRef, isRowVisibleForBuild, lastHoleTraceCountRef, lastTracesRef, layerGroupsRef, layers, layerStyles, mapLayers, numericLayerColor, numericRange, numericSymbology, omfObjects, originRef, placedSurfaceSamples, rasters, rebuildSeq, setDataLoaded, setNotices, setTracesSeq, surfaceStructures, survey, syncImplicitOrigin, terrain, tracesRef, voxelModels, pointBuildersStale: () => [!sameInputs(assayBuiltRef.current, assayInputs), !sameInputs(geophysBuiltRef.current, geophysInputs), !sameInputs(surfaceBuiltRef.current, surfaceInputs)] /* #2176 */ });
   }, [collars, survey, survey.length ? desurveyMethod : "" /* #135 — switching method must rebuild every trace; #1528 — with no survey every method gives the same straight holes */, noHoles ? layers : layersForBuild /* #1582 */, customLayers, numericRange, isRowVisibleForBuild, baseColorForBuild, effectiveLabel, numericLayerColor, fitView, layerStylesBuildKey /* #635; #1528 — not the in-place opacities */, noHoles && anchorSourcesKey /* #435 — extents only, NOT terrain/rasters/boundaries/omfObjects themselves */, noHoles && mapAnchorKey /* #316 — extents only, NOT mapLayers: a colour edit must not rebuild every drillhole */, noHoles && voxelGeomSignature /* #1569 — with holes, only the fit box below */, fitBox, rebuildSeq, noHoles && placedSurfaceSamples /* #606 — and the no-drillhole camera anchor */]); // #551: assay / geophysics-legend / surface-visibility inputs moved to their own builders
   // TASKS.csv #1569 (review #1497, Lawyers) — with drillholes, a block model only widens the fit box (the origin and the first
   // fit come from the holes): adding one re-derives that box here instead of rebuilding every drillhole and custom layer
