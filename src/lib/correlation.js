@@ -42,6 +42,7 @@ export function correlate(xs, ys, method) {
 // On Lawyers (83,670 rows, 13 elements) every cell re-sorted both columns: 13.4 s per tick.
 // cols: symbol -> array of numbers, null for missing.
 export function correlationMatrix(cols, symbols, method, cache = new Map()) {
+  let scratch = null; // #2904 — the gapped Spearman's buffers, made on the first such pair
   const prep = (s) => {
     const key = `prep|${method}|${s}`;
     let p = cache.get(key);
@@ -55,8 +56,17 @@ export function correlationMatrix(cols, symbols, method, cache = new Map()) {
       if (Number.isNaN(x)) complete = false;
       vals[i] = x;
     }
-    // #2508 — with gaps, each element's rows are sorted once (order); a pair's ranks then come from one walk of that order (subsetRanks)
-    p = { vals, complete, ranks: method === "spearman" && complete ? Float64Array.from(ranks(Array.from(vals))) : null, order: method === "spearman" && !complete ? sortedOrder(vals) : null };
+    // #2508 — each element's rows are sorted once (order); a pair's ranks then come from one walk of that order
+    // #2904 (WA iron review: 7.6 s for 27 elements on 147,891 samples, 11.3 s per QAQC toggle) — a complete column is ranked once too, and
+    // keeps its centred ranks and their sum of squares, so a pair of complete columns is one dot product; the order comes from a native
+    // typed-array sort (sortedOrder); a complete column is never re-sorted for a pair with a gapped one
+    p = { vals, complete, order: method === "spearman" ? sortedOrder(vals) : null, dev: null, ss: 0 };
+    if (method === "spearman" && complete && vals.length) {
+      const r = ranksFromOrder(p.order, vals), mean = (vals.length + 1) / 2;
+      let ss = 0;
+      for (let i = 0; i < r.length; i++) { r[i] -= mean; ss += r[i] * r[i]; }
+      p.dev = r; p.ss = ss;
+    }
     cache.set(key, p);
     return p;
   };
@@ -69,16 +79,16 @@ export function correlationMatrix(cols, symbols, method, cache = new Map()) {
       let n = 0;
       for (let i = 0; i < pa.vals.length; i++) if (!Number.isNaN(pa.vals[i])) n++;
       c = { r: n >= 2 ? 1 : null, n };
-    } else if (method === "spearman" && pa.ranks && pb.ranks) {
-      c = { r: pearsonPaired(pa.ranks, pb.ranks).r, n: pa.vals.length };
+    } else if (method === "spearman" && pa.dev && pb.dev) {
+      const n = pa.vals.length; let sxy = 0;
+      for (let i = 0; i < n; i++) sxy += pa.dev[i] * pb.dev[i];
+      c = { r: n >= 2 && pa.ss > 0 && pb.ss > 0 ? sxy / Math.sqrt(pa.ss * pb.ss) : null, n };
     } else if (method === "spearman") {
       // #2508 (review #2486: 644 ms a tick, 10.7 s for 30 ticks on 21,974 rows) — the rows both hold, ranked by walking each element's
-      // presorted order (O(n), ties averaged as ranks() does) instead of re-sorting both columns for every pair
-      const both = new Uint8Array(pa.vals.length);
-      for (let i = 0; i < both.length; i++) both[i] = Number.isNaN(pa.vals[i]) || Number.isNaN(pb.vals[i]) ? 0 : 1;
-      const ra = pa.order ? subsetRanks(pa.order, pa.vals, both) : subsetRanks(sortedOrder(pa.vals), pa.vals, both);
-      const rb = pb.order ? subsetRanks(pb.order, pb.vals, both) : subsetRanks(sortedOrder(pb.vals), pb.vals, both);
-      c = pearsonPaired(ra, rb);
+      // presorted order (O(n), ties averaged as ranks() does) instead of re-sorting both columns for every pair. #2904 — in one fused pass
+      // per column, into scratch buffers shared by the whole matrix (no arrays per pair)
+      if (!scratch || scratch.ra.length < pa.vals.length) scratch = { ra: new Float64Array(pa.vals.length), sel: new Int32Array(pa.vals.length) };
+      c = spearmanGapped(pa, pb, scratch);
     } else {
       c = pearsonPaired(pa.vals, pb.vals);
     }
@@ -97,26 +107,65 @@ export function correlationMatrix(cols, symbols, method, cache = new Map()) {
   return m;
 }
 
-// #2508 — the row indices holding a number, sorted by value (a typed-array sort of value-index pairs packed side by side)
-function sortedOrder(vals) {
-  const idx = [];
-  for (let i = 0; i < vals.length; i++) if (!Number.isNaN(vals[i])) idx.push(i);
-  const o = Int32Array.from(idx);
-  return o.sort((a, b) => vals[a] - vals[b] || a - b);
+// #2508 — the row indices holding a number, sorted by value, ties in row order. #2904 — the values sorted natively (Float64Array.sort, no
+// comparator calls), each distinct value's first position noted, then each row placed at its value's next free slot: about 4x the speed of an
+// index sort with a comparator on 133,000 values, and the same order. (-0 and 0 are one value here, as === has them.)
+export function sortedOrder(vals) {
+  let m = 0;
+  for (let i = 0; i < vals.length; i++) if (vals[i] === vals[i]) m++;
+  const s = new Float64Array(m);
+  let k = 0;
+  for (let i = 0; i < vals.length; i++) if (vals[i] === vals[i]) s[k++] = vals[i] === 0 ? 0 : vals[i];
+  s.sort();
+  const first = new Map();
+  for (let i = 0; i < m; i++) if (i === 0 || s[i] !== s[i - 1]) first.set(s[i], i);
+  const next = new Int32Array(m), order = new Int32Array(m);
+  for (let i = 0; i < vals.length; i++) {
+    const x = vals[i];
+    if (x !== x) continue;
+    const lo = first.get(x === 0 ? 0 : x);
+    order[lo + next[lo]++] = i;
+  }
+  return order;
 }
-// ranks (1-based, ties averaged) of the rows with mask[i] = 1, walking a presorted order; NaN for the other rows
-function subsetRanks(order, vals, mask) {
-  const r = new Float64Array(vals.length).fill(NaN);
-  const sel = [];
-  for (let k = 0; k < order.length; k++) if (mask[order[k]]) sel.push(order[k]);
-  for (let i = 0; i < sel.length;) {
+// #2904 — ranks (1-based, ties averaged) of a complete column from its order -> Float64Array by row
+function ranksFromOrder(order, vals) {
+  const r = new Float64Array(vals.length);
+  for (let i = 0; i < order.length;) {
     let j = i;
-    while (j + 1 < sel.length && vals[sel[j + 1]] === vals[sel[i]]) j++;
+    while (j + 1 < order.length && vals[order[j + 1]] === vals[order[i]]) j++;
     const avg = (i + j) / 2 + 1;
-    for (let k = i; k <= j; k++) r[sel[k]] = avg;
+    for (let k = i; k <= j; k++) r[order[k]] = avg;
     i = j + 1;
   }
   return r;
+}
+// #2904 — Spearman over the rows both columns hold: a's ranks within those rows by walking a's order (into scratch.ra), then b's ranks by
+// walking b's order, accumulated against a's as they are made. Centred on the mean rank (m + 1) / 2, which averaging ties keeps. -> { r, n }
+function spearmanGapped(pa, pb, scratch) {
+  const va = pa.vals, vb = pb.vals, ra = scratch.ra, sel = scratch.sel;
+  let m = 0;
+  for (let k = 0; k < pa.order.length; k++) { const row = pa.order[k]; if (vb[row] === vb[row]) sel[m++] = row; }
+  if (m < 2) return { r: null, n: m };
+  const mean = (m + 1) / 2;
+  for (let i = 0; i < m;) {
+    let j = i; const v = va[sel[i]];
+    while (j + 1 < m && va[sel[j + 1]] === v) j++;
+    const d = (i + j) / 2 + 1 - mean;
+    for (let k = i; k <= j; k++) ra[sel[k]] = d;
+    i = j + 1;
+  }
+  let q = 0;
+  for (let k = 0; k < pb.order.length; k++) { const row = pb.order[k]; if (va[row] === va[row]) sel[q++] = row; }
+  let sxy = 0, sxx = 0, syy = 0;
+  for (let i = 0; i < q;) {
+    let j = i; const v = vb[sel[i]];
+    while (j + 1 < q && vb[sel[j + 1]] === v) j++;
+    const d = (i + j) / 2 + 1 - mean;
+    for (let k = i; k <= j; k++) { const x = ra[sel[k]]; sxy += x * d; sxx += x * x; syy += d * d; }
+    i = j + 1;
+  }
+  return { r: sxx === 0 || syy === 0 ? null : sxy / Math.sqrt(sxx * syy), n: m };
 }
 // Pearson over the rows where both columns hold a number (NaN = missing): { r, n }, as pearson() on the paired values
 function pearsonPaired(x, y) {

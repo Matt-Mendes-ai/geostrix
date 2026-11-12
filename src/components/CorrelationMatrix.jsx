@@ -48,8 +48,11 @@ export default function CorrelationMatrix({ assays: assaysIn, assayElements: ass
   const surface = source === "surface";
   const allAssays = surface ? surfaceSamples : assaysIn, assayElements = surface ? surfaceElements : assayElementsIn;
   const labRows = useMemo(() => (surface ? allAssays : labAssays(allAssays)), [allAssays, surface]), pxrfLeft = allAssays.length - labRows.length; // #1673 — lab grades only
-  const assays = useMemo(() => (includeQAQC || surface ? labRows : excludeQAQC(labRows)), [labRows, includeQAQC, surface]);
-  const qaqcCount = useMemo(() => (surface ? 0 : labRows.length - excludeQAQC(labRows).length), [labRows, surface]);
+  // TASKS.csv #2904 (WA iron review) — 'Include QAQC inserts' recomputed all 351 pairs (11.3 s on 147,891 samples) on a project with no
+  // inserts: excludeQAQC made a new array of the same rows, which reset the caches. With no inserts both states are the same array.
+  const qcFree = useMemo(() => (surface ? labRows : excludeQAQC(labRows)), [labRows, surface]);
+  const qaqcCount = labRows.length - qcFree.length;
+  const assays = includeQAQC || surface || qaqcCount === 0 ? labRows : qcFree;
   const elementUnits = useMemo(() => Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])), [assayElements]);
   const allSymbols = assayElements.map((e) => e.symbol);
   // TASKS.csv #2036 — a calculated element (CuEq, Li2O) is derived from the others: marked, and not ticked by default (as Isocon leaves it out, #1521)

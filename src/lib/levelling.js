@@ -11,7 +11,7 @@
 // values as they are and the levelled survey's adjusted ones, with a basis column saying how each value got there. Below-
 // detection and not-detected results take no part in a fit (their values are substitutes). Pure: no React, no DOM.
 import { PROJECT_SOURCE } from "./thresholds.js";
-import { median, quantileSorted } from "./arrayStats.js";
+import { median, quantileSorted, arrMax } from "./arrayStats.js"; // arrMax: #2902
 
 export const LEVEL_SUFFIX = "_lev";
 export const MIN_TIES = 5;   // fewer pairs than this is an anecdote, not a level
@@ -145,7 +145,7 @@ export function levellingPreview(samples, fit, method, { symbol, medium, column 
   if (!fn) return null;
   const vals = (key) => samples.filter((s) => s.medium === medium && surveyKey(s, column) === key).map((s) => measured(s, symbol)).filter((v) => v != null);
   const r = vals(reference), b = vals(survey), a = b.map(fn);
-  return { reference: { median: median(r), max: Math.max(...r) }, before: { median: median(b), max: Math.max(...b) }, after: { median: median(a), max: Math.max(...a) } };
+  return { reference: { median: median(r), max: arrMax(r) }, before: { median: median(b), max: arrMax(b) }, after: { median: median(a), max: arrMax(a) } }; // #2902 — a survey can hold 10^5 samples: no spread
 }
 
 // Writes the column: -> { samples, element, written: { reference, levelled } }. Only this medium's values of the levelled

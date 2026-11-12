@@ -8,6 +8,7 @@ import { preferredElement } from "../lib/preferredElement.js"; // TASKS.csv #152
 import { useLeadCommodity } from "../lib/useLeadCommodity.js"; // #1523 — Au on an Au-Ag project
 import { X, Download } from "./icons.js";
 import { valueIn } from "../lib/geochem.js";
+import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #2902 — no Math.min / max(...spread) over a population (#371)
 import { THRESHOLD_METHODS, MIN_N_BREAKS, MIN_N_ROBUST, candidateThresholds, groupOptions, groupKeyFn, populations, normalQuantile, hasMixedSources, intervalLength, DRILL_DOMAINS, drillDomainKeyFn } from "../lib/thresholds.js"; import { thresholdUnreachable, usableDefaultMethod } from "../lib/thresholds.js"; // drill: TASKS.csv #2196
 import { censoringFloor, formatLimit } from "../lib/qaqc.js"; // TASKS.csv #1520; formatLimit: #2503
 import { attributeDomainOptions, attributeDomainLabel } from "../lib/customDomains.js"; // #2504
@@ -226,7 +227,7 @@ function LogHistogram({ summary, values, method, unit }) {
   const x0 = Math.min(lo, ...tVals), x1 = Math.max(hi, ...tVals) + 1e-9, nb = Math.max(8, Math.min(40, Math.round(Math.sqrt(L.length) * 1.5)));
   const bins = new Array(nb).fill(0);
   L.forEach((v) => { bins[Math.min(nb - 1, Math.floor(((v - x0) / (x1 - x0)) * nb))]++; });
-  const maxC = Math.max(...bins), X = (v) => pl + ((v - x0) / (x1 - x0)) * (w - pl - pr), Y = (c) => h - pb - (c / maxC) * (h - pb - pt);
+  const maxC = arrMax(bins), X = (v) => pl + ((v - x0) / (x1 - x0)) * (w - pl - pr), Y = (c) => h - pb - (c / maxC) * (h - pb - pt);
   const ticks = []; for (let d = Math.floor(x0); d <= Math.ceil(x1); d++) if (d >= x0 - 1e-9 && d <= x1) ticks.push(d);
   return (
     <svg viewBox={`0 0 ${w} ${h}`} width="100%" role="img" aria-label={tr("Histogram of log values with the candidate thresholds")} style={{ display: "block" }}>
@@ -244,7 +245,9 @@ function ProbabilityPlot({ prob, values, method, unit }) {
   if (!prob?.points?.length) return null;
   const w = 420, h = 190, pl = 40, pb = 26, pr = 8, pt = 8, P = prob.points;
   const ys = P.map((p) => p[1]), tVals = Object.values(values).filter((v) => v > 0).map(Math.log10);
-  const y0 = Math.min(...ys, ...tVals), y1 = Math.max(...ys, ...tVals) + 1e-9, x0 = P[0][0], x1 = P[P.length - 1][0] + 1e-9;
+  // TASKS.csv #2902 (WA iron review) — ys has one point per sample: Math.min(...ys) on Fe's 147,659 values overflowed the call stack and
+  // closed the Geochem tab ('Maximum call stack size exceeded'); arrMin / arrMax loop, the few candidate lines are compared after
+  const y0 = Math.min(arrMin(ys), ...tVals), y1 = Math.max(arrMax(ys), ...tVals) + 1e-9, x0 = P[0][0], x1 = P[P.length - 1][0] + 1e-9;
   const X = (v) => pl + ((v - x0) / (x1 - x0)) * (w - pl - pr), Y = (v) => h - pb - ((v - y0) / (y1 - y0)) * (h - pb - pt);
   const step = Math.max(1, Math.floor(P.length / 800)); // draw at most ~800 points
   const pctTicks = [0.01, 0.1, 0.5, 0.9, 0.99].map((q) => [q, normalQuantile(q)]).filter(([, z]) => z >= x0 && z <= x1);

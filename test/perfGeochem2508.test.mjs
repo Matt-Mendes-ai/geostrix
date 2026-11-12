@@ -25,18 +25,29 @@ test("Spearman with gaps and ties: the same r and n as correlate() on the paired
   }
 });
 
-test("a tick on 22,000 rows x 42 elements with gaps computes the new row only, quickly", () => {
+// The work a tick does, counted rather than timed: a fixed millisecond budget failed on almost every loaded full gate (5-12 s against 600 ms)
+// and passed alone. Every value correlationMatrix computes goes into its cache (prep|… per element, pair|… per pair), so a counting cache
+// records exactly what was computed: ticking a 42nd element must prepare that one element and compute only its 42 cells, never the other
+// 41 x 42 / 2 pairs again. This fails if the incremental path breaks (a missing cache key, a full recompute) whatever the machine's load.
+class CountingCache extends Map {
+  constructor() { super(); this.sets = []; }
+  set(k, v) { this.sets.push(k); return super.set(k, v); }
+}
+test("a tick on 22,000 rows x 42 elements with gaps computes the new row only (counted, not timed)", () => {
   const n = 22000, cols = {}, syms = [];
   for (let e = 0; e < 42; e++) { const s = `E${e}`; syms.push(s); cols[s] = Array.from({ length: n }, () => (rnd() < 0.3 ? null : Math.round(rnd() * 1000) / 10)); }
-  const cache = new Map();
-  const t0 = performance.now();
+  const cache = new CountingCache();
   correlationMatrix(cols, syms.slice(0, 41), "spearman", cache);
-  const tAll = performance.now() - t0;
-  const t1 = performance.now();
-  correlationMatrix(cols, syms, "spearman", cache); // the 42nd element ticked
-  const tTick = performance.now() - t1;
-  assert.ok(tTick < 600, `one tick ${tTick.toFixed(0)} ms (was up to 644 ms in the app on a similar set)`);
-  assert.ok(tAll < 15000, `41 elements at once ${tAll.toFixed(0)} ms`);
+  assert.equal(cache.sets.filter((k) => k.startsWith("pair|")).length, (41 * 42) / 2, "the first pass: every pair once (upper triangle with the diagonal)");
+  cache.sets = [];
+  const m = correlationMatrix(cols, syms, "spearman", cache); // the 42nd element ticked
+  const preps = cache.sets.filter((k) => k.startsWith("prep|")), pairs = cache.sets.filter((k) => k.startsWith("pair|"));
+  assert.deepEqual(preps, ["prep|spearman|E41"], "only the new element is prepared");
+  assert.equal(pairs.length, 42, "only the new element's 41 pairs and its diagonal are computed");
+  assert.ok(pairs.every((k) => k.split("|").slice(2).includes("E41")), "every computed pair involves the new element");
+  // and the incremental row is the one a fresh full pass gives
+  const fresh = correlationMatrix(cols, ["E0", "E17", "E41"], "spearman");
+  for (const s of ["E0", "E17"]) { assert.equal(m.E41[s].n, fresh.E41[s].n); assert.ok(Math.abs(m.E41[s].r - fresh.E41[s].r) < 1e-12); }
 });
 
 test("Grade stats draws and lists at most 200 groups and says so; Correlation has All / None / Suggested suite", () => {

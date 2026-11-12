@@ -3,7 +3,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { pickElementColumns, readLoiCell, LOI } from "../src/lib/geochem.js";
+import { pickElementColumns, readLoiCell, LOI, resolvedSegments } from "../src/lib/geochem.js";
 import { oxideTotals } from "../src/lib/oxideTotals.js";
 
 test("pickElementColumns: an LOI column is the field LOI in %, the total first among several", () => {
@@ -45,6 +45,23 @@ test("wiring: the LOI cell reader in the import and the totals line", () => {
   assert.match(g, /const c = sym === LOI \? readLoiCell\(raw, posMaxOf\(header\)\)/);
   const t = readFileSync(new URL("../src/components/OxideTotalsTab.jsx", import.meta.url), "utf8");
   assert.match(t, /\{res\.loi \? " " \+ tr\("With their LOI \(\{n\} sample\(s\)\): median \{median\} %, 90 % of them between \{p5\} and \{p95\} %\."/);
+});
+
+test("#2887 — the WA iron file's -10 is no data; its real negatives stay negative; the assay questions leave LOI out", () => {
+  assert.equal(readLoiCell("-10").value, null);
+  assert.equal(readLoiCell("-10").kind, "neg_missing");
+  assert.equal(readLoiCell("-12.5").value, null);
+  for (const v of ["-0.18", "-1.05", "-0.42", "-3.4"]) assert.equal(readLoiCell(v).value, Number(v), v);
+  // Grade stats, compositing and estimation read through resolvedSegments: a negative LOI is a value there too; an element's is still a code
+  const rows = [{ hole_id: "H", from: 0, to: 2, values: { LOI: -0.42, Fe: -1 } }, { hole_id: "H", from: 2, to: 4, values: { LOI: 6.2, Fe: 5 } }];
+  assert.deepEqual(resolvedSegments(rows, "LOI", "%", { LOI: "%", Fe: "%" }).map((s) => s.value), [-0.42, 6.2]);
+  assert.deepEqual(resolvedSegments(rows, "Fe", "%", { LOI: "%", Fe: "%" }).map((s) => s.value), [5]);
+  const m = readFileSync(new URL("../src/components/AssayImportModal.jsx", import.meta.url), "utf8");
+  assert.match(m, /const codeHeaders = modal\.format === "long" \? importedHeaders : modal\.elements\.filter\(\(e\) => e\.checked && e\.symbol !== LOI\)\.map\(\(e\) => e\.header\);/);
+  assert.match(m, /negativeSummary\(scan, codeHeaders,/);
+  assert.match(m, /zeroCount\(scan, codeHeaders\)/);
+  const g = readFileSync(new URL("../src/modules/GeochemModule.jsx", import.meta.url), "utf8");
+  assert.match(g, /if \(zeroMode !== "bdl" \|\| sym === LOI \/\* #2887/);
 });
 
 test("the import findings leave every LOI column to the LOI line (LOI371 was listed as 'numeric, not an element')", async () => {
