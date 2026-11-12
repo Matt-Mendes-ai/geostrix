@@ -55,10 +55,10 @@ const SHORTCUT_GROUPS = [
     ],
   },
   {
-    title: "View",
+    title: "Window zoom (text size, not the 3D view)", // TASKS.csv #2045 — read as 3D-view zoom; the 3D view zooms with the wheel
     items: [
-      ["Ctrl/Cmd+0", "Reset zoom"],
-      ["Ctrl/Cmd+= / -", "Zoom in / out"],
+      ["Ctrl/Cmd+0", "Reset the window zoom"],
+      ["Ctrl/Cmd+= / -", "Window zoom in / out"],
     ],
   },
   {
