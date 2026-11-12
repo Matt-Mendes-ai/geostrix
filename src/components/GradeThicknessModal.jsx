@@ -16,6 +16,7 @@ import { computeBestIntercepts, gradeUnitLabel } from "../lib/geochem.js";
 import { excludeQAQC } from "../lib/qaqc.js";
 import { holeTotals, clipAssaysToUnit, planSpacing, planGrid, planSummary, contourSegments, oxideOffer, gtUnitLabel } from "../lib/accumulation.js";
 import { saveFile } from "../lib/desktop.js";
+import { gridPanels } from "../lib/flatPanels.js"; // TASKS.csv #2650 — the plan grid cut into panels
 import { toCsv, FORMULA_LEAD } from "../lib/tabular.js";
 
 export default function GradeThicknessModal({ assays, assayElements, collars, survey, layers, onClose }) {
@@ -71,6 +72,9 @@ export default function GradeThicknessModal({ assays, assayElements, collars, su
   const grid = useMemo(() => (run && pts.length >= 2 && cellM && radiusM ? planGrid(pts, { cell: cellM, radius: radiusM, pad: radiusM / 2 }) : null), [run]); // computed on Run only (the inputs above are read then)
   const gtc = gtCut === "" ? NaN : Number(gtCut);
   const summary = useMemo(() => (grid && Number.isFinite(gtc) ? planSummary(grid, gtc, density, unit) : null), [grid, gtc, density, unit]);
+  // TASKS.csv #2650 — the same grid in square panels (a strip, an in-situ recovery pattern): a panel counts when its mean GT reaches the cut-off
+  const [panelText, setPanelText] = useState("");
+  const panels = useMemo(() => (grid && Number.isFinite(gtc) && Number(panelText) > 0 && Number(density) > 0 ? gridPanels(grid, { panelM: Number(panelText), gtCut: gtc, density: Number(density) }) : null), [grid, gtc, panelText, density]);
   const contour = useMemo(() => (grid && Number.isFinite(gtc) ? contourSegments(grid, grid.gt, gtc) : []), [grid, gtc]);
 
   // plan drawing
@@ -140,6 +144,7 @@ export default function GradeThicknessModal({ assays, assayElements, collars, su
               <label style={field} title={tr("No hole within this distance of a node leaves it unestimated (not barren). Blank = 2.5 times the typical hole spacing.")}>{tr("Search radius (m)")}<input type="number" min="0" step="any" value={radius} placeholder={radiusM ? String(radiusM) : ""} onChange={(e) => setRadius(e.target.value)} style={inp} aria-label={tr("Plan search radius (m)")} /></label>
               <label style={field}>{tr("GT cut-off ({u})", { u: gtLabel })}<input type="number" min="0" step="any" value={gtCut} placeholder={tr("cut-off")} onChange={(e) => setGtCut(e.target.value)} style={inp} aria-label={tr("GT cut-off")} /></label>
               <label style={field}>{tr("Density (t/m³)")}<input type="number" min="0" step="any" value={density} onChange={(e) => setDensity(e.target.value)} style={inp} aria-label={tr("Density (t/m³)")} /></label>
+              <label style={field} title={tr("Optional: the side of a square panel (a strip, an in-situ recovery pattern); each panel counts when its mean GT reaches the GT cut-off.")}>{tr("Panel side (m)")}<input type="number" min="0" step="any" value={panelText} placeholder={tr("optional")} onChange={(e) => setPanelText(e.target.value)} style={inp} aria-label={tr("Panel side (m)")} /></label>{/* #2650 */}
               <button type="button" disabled={pts.length < 2 || !cellM || !radiusM} onClick={() => setRun((n) => n + 1)} style={{ ...inp, width: "auto", cursor: "pointer" }}>{tr("Estimate GT and thickness")}</button>
             </div>
             {spacing && <div style={note}>{tr("Holes typically {s} m apart in plan: blank cell = a quarter of that, blank search = 2.5 times it.", { s: Math.round(spacing) })}</div>}
@@ -149,6 +154,7 @@ export default function GradeThicknessModal({ assays, assayElements, collars, su
                 {!Number.isFinite(gtc) ? <div>{tr("Type the GT cut-off for the contour and the totals: none is chosen for you.")}</div> : summary && (
                   <div>{tr("At GT ≥ {c} {u}: {a} km² ({n} nodes), mean thickness {th} m, mean grade {g} {gu}{v}.", { c: gtc, u: gtLabel, a: fmt(summary.areaM2 / 1e6, 3), n: summary.nodes.toLocaleString(), th: fmt(summary.meanThicknessM, 2), g: fmt(summary.meanGrade == null ? null : summary.meanGrade, 3), gu: shownGrade, v: summary.tonnes != null ? tr("; {t} t at {d} t/m³, {m} {mu} of {el}", { t: fmt(summary.tonnes, 0), d: Number(density), m: fmt(summary.metalUnit === "g" && summary.metal >= 1e6 ? summary.metal / 1e6 : summary.metal, summary.metalUnit === "g" && summary.metal >= 1e6 ? 1 : 0), mu: summary.metalUnit === "g" && summary.metal >= 1e6 ? "t" : summary.metalUnit || "", /* a million grams and over: tonnes */ el: ox ? ox.oxide : symbol }) : tr("; type a density for tonnes and metal") })}</div>
                 )}
+                {panels && <div>{panels.totals.orePanels ? tr("In {p} m panels: {n} of {m} reach GT ≥ {c} {u}: {a} km², {t} t at {g} {gu}, mean thickness {th} m.", { p: Number(panelText), n: panels.totals.orePanels, m: panels.totals.panels, c: gtc, u: gtLabel, a: fmt(panels.totals.area / 1e6, 3), t: fmt(panels.totals.tonnes, 0), g: fmt(panels.totals.grade, 3), gu: shownGrade, th: fmt(panels.totals.thick, 2) }) : tr("In {p} m panels: none of {m} reaches GT ≥ {c} {u}.", { p: Number(panelText), m: panels.totals.panels, c: gtc, u: gtLabel })}</div>}{/* #2650 */}
                 <div style={{ ...note, marginTop: 4 }}><b>{tr("Not a resource estimate.")}</b>{" "}{tr("Inverse-distance interpolation of the holes' GT and thickness in plan: no declustering, no variogram, no classification. Between holes the numbers are the method's, not the data's; a node farther than the search radius from every hole is left out, not counted as barren. Holes assayed for the element with no intercept count as 0, so the contour closes against them; undrilled ground is not estimated.")}</div>
               </div>
             )}

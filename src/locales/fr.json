@@ -10687,15 +10687,16 @@
   "Density by {layer}: {list}.": "Densité par {layer} : {list}.",
   "A density per code of a logged layer: each block takes the nearest logged interval within reach and that code's density, ore or waste; a block with no code, or a code with no density typed, takes the densities above.": "Une densité par code d'une couche décrite : chaque bloc prend l'intervalle décrit le plus proche à portée et la densité de ce code, minerai ou stérile ; un bloc sans code, ou un code sans densité saisie, prend les densités ci-dessus.",
   "It is drawn flat at {z} m, {h} m above the grid it was continued from.": "Il est dessiné à plat à {z} m, {h} m au-dessus de la grille dont il est prolongé.",
-  "Placed flat at {z} m, {m} m above the highest collar under it, so no hole top is hidden; change Elev. on its card.": "Placé à plat à {z} m, {m} m au-dessus du collet le plus haut dessous, pour qu'aucune tête de sondage ne soit cachée ; modifiez Élév. sur sa carte.",
-  "Kriged with the fitted {model} variogram{v}: nugget {v2}, sill {v3}, range {v4} m{v5}{v6}.": "Krigé avec un variogramme {model}{v} : pépite {v2}, palier {v3}, portée {v4} m{v5}{v6}.",
   "Panels for a flat body: each column's thickness at or above the cut-off, and its grade × thickness; a panel counts when its mean grade × thickness reaches the cut-off below.": "Panneaux pour un corps plat : l'épaisseur de chaque colonne à la teneur de coupure ou au-dessus, et sa teneur × épaisseur ; un panneau compte quand sa teneur × épaisseur moyenne atteint la coupure ci-dessous.",
   "Panel side (m)": "Côté du panneau (m)",
   "Grade × thickness cut-off ({u}·m)": "Coupure teneur × épaisseur ({u}·m)",
   "Grade × thickness cut-off": "Coupure teneur × épaisseur",
-  "{n} of {m} panels reach it: {a} ha mineralized, {t} t at {g} {u} over a mean {h} m.": "{n} panneaux sur {m} l'atteignent : {a} ha minéralisés, {t} t à {g} {u} sur une épaisseur moyenne de {h} m.",
   "None of the {m} panels reaches it.": "Aucun des {m} panneaux ne l'atteint.",
-  "From the block model only: the panels are squares on the model's plan, not a mine design, and the drillholes' own grade × thickness is not used.": "Du modèle de blocs seulement : les panneaux sont des carrés sur le plan du modèle, pas une conception minière, et la teneur × épaisseur des sondages eux-mêmes n'est pas utilisée.",
   "Survey date (for IGRF)": "Date du levé (pour l'IGRF)",
-  "Fill from IGRF-14": "Remplir avec l'IGRF-14"
+  "Fill from IGRF-14": "Remplir avec l'IGRF-14",
+  "{n} of {m} panels reach it: {a} ha, {t} t at {g} {u} over a mean {h} m.": "{n} panneaux sur {m} l'atteignent : {a} ha, {t} t à {g} {u} sur une épaisseur moyenne de {h} m.",
+  "From the block model: the panels are squares on the model's plan, not a mine design. For panels from the drillholes' own grade × thickness: 3D Modelling › Grade estimation › Grade × thickness in plan, its Panel side.": "Du modèle de blocs : les panneaux sont des carrés sur le plan du modèle, pas une conception minière. Pour des panneaux tirés de la teneur × épaisseur des sondages eux-mêmes : Modélisation 3D › Estimation des teneurs › Teneur × épaisseur en plan, son Côté du panneau.",
+  "Optional: the side of a square panel (a strip, an in-situ recovery pattern); each panel counts when its mean GT reaches the GT cut-off.": "Facultatif : le côté d'un panneau carré (une bande, un motif de récupération in situ) ; chaque panneau compte quand son GT moyen atteint la coupure de GT.",
+  "In {p} m panels: {n} of {m} reach GT ≥ {c} {u}: {a} km², {t} t at {g} {gu}, mean thickness {th} m.": "En panneaux de {p} m : {n} sur {m} atteignent GT ≥ {c} {u} : {a} km², {t} t à {g} {gu}, épaisseur moyenne {th} m.",
+  "In {p} m panels: none of {m} reaches GT ≥ {c} {u}.": "En panneaux de {p} m : aucun sur {m} n'atteint GT ≥ {c} {u}."
 }

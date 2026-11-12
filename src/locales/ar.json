@@ -10687,15 +10687,16 @@
   "Density by {layer}: {list}.": "الكثافة حسب {layer}: {list}.",
   "A density per code of a logged layer: each block takes the nearest logged interval within reach and that code's density, ore or waste; a block with no code, or a code with no density typed, takes the densities above.": "كثافة لكل رمز من طبقة مسجلة: تأخذ كل كتلة أقرب فاصل مسجل ضمن المدى وكثافة ذلك الرمز، خامًا أو عقيمًا؛ والكتلة بلا رمز، أو الرمز بلا كثافة مكتوبة، تأخذ الكثافات أعلاه.",
   "It is drawn flat at {z} m, {h} m above the grid it was continued from.": "يُرسم مسطحًا عند {z} م، أعلى بـ {h} م من الشبكة التي مُدّ منها.",
-  "Placed flat at {z} m, {m} m above the highest collar under it, so no hole top is hidden; change Elev. on its card.": "وُضع مسطحًا عند {z} م، أعلى بـ {m} م من أعلى فوهة تحته حتى لا يُحجب رأس أي ثقب؛ غيّر الارتفاع في بطاقته.",
-  "Kriged with the fitted {model} variogram{v}: nugget {v2}, sill {v3}, range {v4} m{v5}{v6}.": "كريغينغ بفاريوغرام {model}{v}: الأثر الكتلي {v2}، العتبة {v3}، المدى {v4} م{v5}{v6}.",
   "Panels for a flat body: each column's thickness at or above the cut-off, and its grade × thickness; a panel counts when its mean grade × thickness reaches the cut-off below.": "ألواح لجسم مسطح: سماكة كل عمود عند حد القطع أو فوقه، ومحتواه × سماكته؛ يُحتسب اللوح عندما يبلغ متوسط المحتوى × السماكة فيه حدَّ القطع أدناه.",
   "Panel side (m)": "ضلع اللوح (م)",
   "Grade × thickness cut-off ({u}·m)": "حد قطع المحتوى × السماكة ({u}·م)",
   "Grade × thickness cut-off": "حد قطع المحتوى × السماكة",
-  "{n} of {m} panels reach it: {a} ha mineralized, {t} t at {g} {u} over a mean {h} m.": "{n} من {m} لوحًا تبلغه: {a} هكتار متمعدن، {t} طن بمحتوى {g} {u} على سماكة متوسطة {h} م.",
   "None of the {m} panels reaches it.": "لا يبلغه أي من الألواح الـ {m}.",
-  "From the block model only: the panels are squares on the model's plan, not a mine design, and the drillholes' own grade × thickness is not used.": "من نموذج الكتل فقط: الألواح مربعات على مسقط النموذج، وليست تصميمًا منجميًا، ولا يُستخدم المحتوى × السماكة للثقوب نفسها.",
   "Survey date (for IGRF)": "تاريخ المسح (لـ IGRF)",
-  "Fill from IGRF-14": "التعبئة من IGRF-14"
+  "Fill from IGRF-14": "التعبئة من IGRF-14",
+  "{n} of {m} panels reach it: {a} ha, {t} t at {g} {u} over a mean {h} m.": "{n} من {m} لوحًا تبلغه: {a} هكتار، {t} طن بمحتوى {g} {u} على سماكة متوسطة {h} م.",
+  "From the block model: the panels are squares on the model's plan, not a mine design. For panels from the drillholes' own grade × thickness: 3D Modelling › Grade estimation › Grade × thickness in plan, its Panel side.": "من نموذج الكتل: الألواح مربعات على مسقط النموذج، وليست تصميمًا منجميًا. لألواح من المحتوى × السماكة للثقوب نفسها: النمذجة ثلاثية الأبعاد › تقدير المحتوى › المحتوى × السماكة في المسقط، ضلع اللوح فيه.",
+  "Optional: the side of a square panel (a strip, an in-situ recovery pattern); each panel counts when its mean GT reaches the GT cut-off.": "اختياري: ضلع لوح مربع (شريط، نمط استخلاص في الموقع)؛ يُحتسب كل لوح عندما يبلغ متوسط GT فيه حدَّ قطع GT.",
+  "In {p} m panels: {n} of {m} reach GT ≥ {c} {u}: {a} km², {t} t at {g} {gu}, mean thickness {th} m.": "في ألواح من {p} م: {n} من {m} تبلغ GT ≥ {c} {u}: {a} كم²، {t} طن بمحتوى {g} {gu}، متوسط السماكة {th} م.",
+  "In {p} m panels: none of {m} reaches GT ≥ {c} {u}.": "في ألواح من {p} م: لا يبلغ أي من {m} GT ≥ {c} {u}."
 }
