@@ -221,6 +221,27 @@ export function surfacesToBlock({ tops = [], solids = [], extent, cell, ground =
 }
 
 // A cell size giving about `target` cells in the box, rounded to 1 / 2 / 2.5 / 5 x 10^n metres
+// TASKS.csv #2762 (split from #2429) — a closed solid's mean thickness, 2 × volume / surface area (exact for a thin flat sheet, whose
+// area is twice its face): a 15.6 Mm³ sheet opened at 20 m blocks, three layers across it. -> metres, or null for an open / empty mesh
+export function solidThickness(positions, indices) {
+  let v6 = 0, area2 = 0;
+  for (let t = 0; t < (indices?.length || 0); t += 3) {
+    const a = indices[t] * 3, b = indices[t + 1] * 3, c = indices[t + 2] * 3, P = positions;
+    const ax = P[a], ay = P[a + 1], az = P[a + 2], bx = P[b] - ax, by = P[b + 1] - ay, bz = P[b + 2] - az, cx = P[c] - ax, cy = P[c + 1] - ay, cz = P[c + 2] - az;
+    const nx = by * cz - bz * cy, ny = bz * cx - bx * cz, nz = bx * cy - by * cx;
+    area2 += Math.hypot(nx, ny, nz);
+    v6 += ax * nx + ay * ny + az * nz;
+  }
+  const area = area2 / 2, vol = Math.abs(v6) / 6;
+  return area > 0 && vol > 0 ? (2 * vol) / area : null;
+}
+// the round block size (the suggestCellSize steps) at or under a third of a thickness: three blocks across the solid
+export function cellAcross(thickness, across = 3) {
+  const raw = thickness / across;
+  if (!(raw > 0)) return null;
+  const p = 10 ** Math.floor(Math.log10(raw));
+  return [...[1, 2, 2.5, 5, 10].map((m) => m * p)].reverse().find((v) => v <= raw) || p;
+}
 export function suggestCellSize(extent, target = 250_000) {
   const [xmin, xmax, ymin, ymax, zmin, zmax] = extent;
   const raw = Math.cbrt(((xmax - xmin) * (ymax - ymin) * (zmax - zmin)) / target);

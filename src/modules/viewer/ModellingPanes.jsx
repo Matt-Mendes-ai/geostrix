@@ -25,6 +25,7 @@ import { positionFromTraces } from "../../lib/sheetCorrelation.js"; // TASKS.csv
 import { t as tr } from "../../lib/i18n.js";
 import { errorNotice } from "../../lib/notices.js";
 import { tx } from "../../lib/i18nRich.js";
+import { betaReferenceCounts } from "../../lib/coreOrientation.js"; // TASKS.csv #2055
 import { groupOverlaps, groupOfCode, caseVariantGroups } from "../../lib/lithoGroups.js"; // TASKS.csv #1685; caseVariantGroups: #2386
 import GradeTonnageLauncher from "../../components/GradeTonnageLauncher.jsx"; // TASKS.csv #1577
 import { useStore } from "../../lib/store.jsx";
@@ -933,6 +934,7 @@ export default function ModellingPanes(props) {
           style={{ ...pBtn, marginBottom: 8, opacity: (layers.structure || []).length ? 1 : 0.5, cursor: (layers.structure || []).length ? "pointer" : "default" }}
           title={tr("Downhole tadpole plot — depth vs alpha/dip with an azimuth tail, plus lithology and structure-frequency tracks, per hole")}
         ><Milestone size={14} />{" "}{tr("Downhole structure (tadpole)")}</button>
+        {(() => { const b = betaReferenceCounts(layers.structure || []); return b.top + b.bottom > 0 ? <div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", marginBottom: 8, lineHeight: 1.4 }}>{[b.bottom && tr("{n} of these picks were oriented from alpha / beta with beta measured from the {ref}-of-hole line, as chosen when they were imported (a structure file does not say). Had the core been marked on the other line, each would plot elsewhere, by tens of degrees for some.", { n: b.bottom.toLocaleString(), ref: tr("bottom") }), b.top && tr("{n} of these picks were oriented from alpha / beta with beta measured from the {ref}-of-hole line, as chosen when they were imported (a structure file does not say). Had the core been marked on the other line, each would plot elsewhere, by tens of degrees for some.", { n: b.top.toLocaleString(), ref: tr("top") })].filter(Boolean).join(" ")}</div> : null; })()}{/* #2055 */}
         {!struct_types.length && <AlphaOnlyHint layers={layers} fallback={emptyPaneHint(tr("No structure picks loaded — import downhole structure planes on the 3D View tab (Add layer › Structure planes), or load the sample project."))} />}{/* #1686 */}
         <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
           <select aria-label={tr("Structure type")} value={structuralTarget} onChange={(e) => setStructuralTarget(e.target.value)} style={{ width: 0, flex: 1, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)" }}>

@@ -173,6 +173,13 @@ export function orientFromAlphaBeta({ alphaDeg, betaDeg, holeAzDeg, holeDipDeg, 
 
 // TASKS.csv #548 — alpha/beta-derived orientations depend on the hole's survey at the pick, but were computed
 // once at import and never again: replacing a hole's survey (a gyro re-survey, a corrected azimuth reference)
+// TASKS.csv #2055 (review #2013, Woodjam) — how many picks rest on which beta reference line (the import card's choice: a structure file
+// names none), so the Stereonet and the Structures pane can say it. -> { top, bottom } counts of picks oriented from alpha / beta
+export function betaReferenceCounts(picks) {
+  let top = 0, bottom = 0;
+  for (const p of picks || []) { if (!Number.isFinite(Number(p?.dip)) || !Number.isFinite(Number(p?.azimuth)) || p?.dip === null) continue; if (p.abRef === "top") top++; else if (p.abRef === "bottom") bottom++; }
+  return { top, bottom };
+}
 // left every pick oriented from the OLD hole direction. A pick is "derived" when it carries `abRef` ("top" /
 // "bottom", stored from now on) or an orientedFrom written by the importer ("alpha/beta, top-of-hole line");
 // picks with their own logged dip / dip direction, or calibrated by the core-orientation calculator, are not

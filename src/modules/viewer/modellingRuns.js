@@ -1899,6 +1899,8 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
         // body or halo was never cut); with no terrain, the collar surface (as the GemPy cut, #2470), unless the collars look drilled from underground
         const altG = clipToTopo ? modelGround(terrainForClipRef.current, collars, survey) : null, altGround = altG?.ground || null;
         const altCap = groundCappedGrid(grid, iso, groundAtInFrame(altGround, o), anisotropy.enabled ? (q) => anisoWarpPoint(q, center, basis, altUnwarp) : null);
+        // TASKS.csv #2711 (split from #2634) — the cut closes within a cell of the ground: 37-43 m cells on Harry kept up to a cell of air
+        if (altCap.capped && cellZ >= 10) setNotices((p) => [...p, notice("\"{label}\" is cut at the ground on {z} m tall cells, so its top follows the ground only to within about a cell: up to {z} m of air kept, or of rock lost, where it meets the surface. A smaller cell height follows the ground closer.", { label, z: +(+cellZ).toFixed(1) })]);
         if (altCap.capped && altGround?.kind === "collars") setNotices((p) => [...p, notice("No terrain is loaded, so \"{label}\" was cut at the collar surface: the ground interpolated between the {n} collars, inside their footprint. A terrain (Maps > Terrain) gives the real ground.", { label, n: altG.collars })]); // #2634
         const mc = marchingCubes(altCap.values, grid.nx, grid.ny, grid.nz, iso, {
           origin: grid.origin, spacing: grid.cellSize, noData: "outside",
