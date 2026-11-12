@@ -11170,5 +11170,16 @@
   "Optional: a hole is an occurrence only with at least this many metres of samples at or above the cut-off, summed down the hole. Blank: one sample at or above it is enough.": "Facultatif : un sondage n'est une occurrence qu'avec au moins ces mètres d'échantillons égaux ou supérieurs à la teneur de coupure, additionnés le long du sondage. Vide : un échantillon égal ou supérieur suffit.",
   "over at least": "sur au moins",
   "any": "n'importe",
-  "Metres at or above the cut-off in a hole": "Mètres égaux ou supérieurs à la teneur de coupure dans un sondage"
+  "Metres at or above the cut-off in a hole": "Mètres égaux ou supérieurs à la teneur de coupure dans un sondage",
+  "Holes that stopped in ore": "Sondages arrêtés dans le minerai",
+  "last sample ≥": "dernier échantillon ≥",
+  "Cut-off of the last sample": "Teneur de coupure du dernier échantillon",
+  "Type a cut-off: the holes whose last sample of the element is at or above it are listed.": "Saisissez une teneur de coupure : les sondages dont le dernier échantillon de l'élément l'atteint ou la dépasse sont listés.",
+  "No hole ends with its last {el} sample at or above {c} {u}.": "Aucun sondage ne se termine avec son dernier échantillon de {el} à {c} {u} ou plus.",
+  "{n} hole(s) end with their last {el} sample at or above {c} {u}; {k} of them at the hole's length.": "{n} sondage(s) se terminent avec leur dernier échantillon de {el} à {c} {u} ou plus ; {k} d'entre eux à la longueur du sondage.",
+  "{hole}: {v} {u} {el} at {a}–{b} m, of {l} m": "{hole} : {v} {u} {el} à {a}–{b} m, sur {l} m",
+  "{hole}: {v} {u} {el} at {a}–{b} m": "{hole} : {v} {u} {el} à {a}–{b} m",
+  "Opens Planned holes with the end of this sample as the target (RL {z} m): deepen the target there.": "Ouvre Sondages planifiés avec la fin de cet échantillon pour cible (alt. {z} m) : approfondissez la cible là.",
+  "Plan a deeper hole here": "Planifier un sondage plus profond ici",
+  "{n} more.": "{n} de plus."
 }

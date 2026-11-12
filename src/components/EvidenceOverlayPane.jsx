@@ -13,6 +13,7 @@ import { mainClusters } from "../lib/dataClusters.js"; // TASKS.csv #1449 / #145
 import { quantileSorted } from "../lib/arrayStats.js"; // TASKS.csv #1281
 import { defaultEvidenceEnds, gradeEndsFromSamples, topScoreShare } from "../lib/evidenceEnds.js"; // TASKS.csv #1565; gradeEndsFromSamples: #2099; topScoreShare: #2448
 import { topCells, holesInCells /* #2964 */ } from "../lib/evidence.js"; // TASKS.csv #1456
+import EndInOreList from "./EndInOreList.jsx"; // TASKS.csv #2965 — holes that stopped in ore
 import { pointOnTrace } from "../lib/desurvey.js"; // TASKS.csv #2964 — each training sample's place, for the hole counts
 import { evidenceCoverage, LOW_COVERAGE, scoreBlockers } from "../lib/evidence.js"; // TASKS.csv #2252
 import { drilledTrainingMask, evidenceGrid, evidenceExtent, rasterEvidence, distanceEvidence, pointEvidence, sampleValues, membership, fuzzyCombine, FUZZY_OPERATORS, trainingCells, trainingCoverage, bestCutoff, MIN_SIDE, posterior, predictionArea, scoreImage, scoreTop /* #1731 */, rocAuc, kdeEvidence /* #2001 */, isOverlayOutput, coveringLayers } from "../lib/evidence.js"; // coveringLayers: #1563
@@ -617,6 +618,7 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
             <label style={{ ...row, cursor: "pointer" }} title={tr("Memberships run from 0.01 to 0.99 instead of 0 to 1, so an evidence at its lowest cannot veto a cell on its own under AND, product or gamma: the cell keeps a low score and its rank among the others. Off, a cell with any membership at 0 scores exactly 0.")}><input type="checkbox" checked={floor > 0} onChange={(e) => { setFloor(e.target.checked ? 0.01 : 0); setResult(null); }} />{tr("no single evidence vetoes a cell (0.01–0.99)")}</label>
           </div>
         )}
+        {traces.size > 0 && labElements.length > 0 && <EndInOreList assays={cleanAssays} elements={labElements} units={assayUnits} traces={traces} collars={collars} survey={survey} onPlanTo={onPlanTo} sel={sel} pBtn={pBtn} note={note} />}{/* #2965 */}
         <div style={{ border: "1px solid var(--color-border)", borderRadius: 6, padding: 6, display: "flex", flexDirection: "column", gap: 4 }}>
           <div style={{ color: "var(--color-text-secondary)" }}>{tr("Known occurrences (optional, for weights of evidence)")}</div>
           <select value={training.source} onChange={(e) => { const source = e.target.value, list = source === "collars" ? labElements : source === "samples" ? surfaceElements : null; setTraining((t) => ({ ...t, source, ...(source === "collars" && list?.length ? { symbol: occurrenceSymbol(layers, list, t.symbol) } /* #2656 — the first grade card's element */ : list && list.length && !list.some((x) => x.symbol === t.symbol) ? { symbol: list[0].symbol } : {}) })); }} style={sel} aria-label={tr("Known occurrences")}>{/* symbol: #1836 — a surface element for samples, a lab element for holes */}
