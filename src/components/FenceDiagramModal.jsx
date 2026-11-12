@@ -115,6 +115,7 @@ export default function FenceDiagramModal({ traces = [], litho = [], labelFor = 
   // TASKS.csv #2786 — a numeric track beside each column: an assay element or a numeric log, one scale for the panel (lib/fenceTrack.js)
   const trackSources = useMemo(() => numericTrackSources({ layers: storeLayers, customLayers, assays, assayElements }, tr), [storeLayers, customLayers, assays, assayElements]);
   const [trackKey, setTrackKey] = useState("");
+  const [trackLog, setTrackLog] = useState(false); // #2813 — a log scale for skewed values (gamma, grades)
   const trackSrc = trackSources.find((x) => x.key === trackKey) || null;
 
   const chosen = useMemo(
@@ -128,7 +129,7 @@ export default function FenceDiagramModal({ traces = [], litho = [], labelFor = 
     return buildFencePanel(chosen, Number.isFinite(az) ? { azimuth: az } : {});
   }, [chosen, azMode, manualAz, sectionLine]);
 
-  const track = useMemo(() => (trackSrc && panel ? numericTrackRows(trackSrc, panel.holes.map((h) => h.hole_id), assays) : null), [trackSrc, panel, assays]);
+  const track = useMemo(() => (trackSrc && panel ? numericTrackRows(trackSrc, panel.holes.map((h) => h.hole_id), assays, { log: trackLog }) : null), [trackSrc, panel, assays, trackLog]);
   const TRACK_PX = 26; // the track's full width, px
 
   const lithoByHole = useMemo(() => {
@@ -306,7 +307,7 @@ export default function FenceDiagramModal({ traces = [], litho = [], labelFor = 
                         for (const r of tRows) {
                           const p = at(r.at), next = at(r.at + 1), prev = next ? null : at(r.at - 1);
                           if (!p || (!next && !prev)) continue;
-                          const [nx, ny] = next ? side(p, next) : side(prev, p), off = base + TRACK_PX * trackFraction(r.v, track.lo, track.hi); // the downhole direction either way
+                          const [nx, ny] = next ? side(p, next) : side(prev, p), off = base + TRACK_PX * trackFraction(r.v, track.lo, track.hi, track.log); // the downhole direction either way
                           pts.push(`${(view.xFor(p.s) + nx * off).toFixed(1)},${(view.yFor(p.z) + ny * off).toFixed(1)}`);
                         }
                         return pts.length > 1 ? <polyline points={pts.join(" ")} fill="none" stroke="#7d3c98" strokeWidth={1} style={{ pointerEvents: "none" }} /> : null;
@@ -314,7 +315,7 @@ export default function FenceDiagramModal({ traces = [], litho = [], labelFor = 
                       return tRows.map((r, i) => {
                         const a = at(r.from), b = at(r.to);
                         if (!a || !b) return null;
-                        const [nx, ny] = side(a, b), len = TRACK_PX * trackFraction(r.v, track.lo, track.hi);
+                        const [nx, ny] = side(a, b), len = TRACK_PX * trackFraction(r.v, track.lo, track.hi, track.log);
                         const x1 = view.xFor(a.s), y1 = view.yFor(a.z), x2 = view.xFor(b.s), y2 = view.yFor(b.z);
                         const quad = `M ${x1 + nx * base} ${y1 + ny * base} L ${x2 + nx * base} ${y2 + ny * base} L ${x2 + nx * (base + len)} ${y2 + ny * (base + len)} L ${x1 + nx * (base + len)} ${y1 + ny * (base + len)} Z`;
                         return <path key={`t_${i}`} d={quad} fill="#7d3c98" opacity={0.75}><title>{`${h.hole_id} — ${trackSrc.label} ${r.v}  ${r.from}–${r.to} m`}</title></path>;
@@ -356,7 +357,8 @@ export default function FenceDiagramModal({ traces = [], litho = [], labelFor = 
                   </g>
                 );
               }); })()}
-              {track && track.n > 0 && <text x={PAD_L} y={H - 22} fontSize={8.6} fill="#7d3c98">{track.above === 0 ? tr("Track: {name}, the full width is {hi} (the 98th percentile of the panel's values)", { name: trackSrc.label, hi: Number(track.hi.toPrecision(3)).toLocaleString() })
+              {track && track.n > 0 && <text x={PAD_L} y={H - 22} fontSize={8.6} fill="#7d3c98">{track.log ? tr(track.below === 0 ? "Track: {name}, log scale from {lo} to {hi}" : track.below === 1 ? "Track: {name}, log scale from {lo} to {hi}; {n} value at or under {lo} is drawn at zero width" : "Track: {name}, log scale from {lo} to {hi}; {n} values at or under {lo} are drawn at zero width", { name: trackSrc.label, lo: Number(track.lo.toPrecision(3)).toLocaleString(undefined, { maximumFractionDigits: 10 }), hi: Number(track.hi.toPrecision(3)).toLocaleString(), n: track.below.toLocaleString() }) /* #2813 */
+                : track.above === 0 ? tr("Track: {name}, the full width is {hi} (the 98th percentile of the panel's values)", { name: trackSrc.label, hi: Number(track.hi.toPrecision(3)).toLocaleString() })
                 : tr(track.above === 1 ? "Track: {name}, the full width is {hi} (the 98th percentile of the panel's values); {n} higher value is drawn at full width" : "Track: {name}, the full width is {hi} (the 98th percentile of the panel's values); {n} higher values are drawn at full width", { name: trackSrc.label, hi: Number(track.hi.toPrecision(3)).toLocaleString(), n: track.above.toLocaleString() })}</text>}{/* #2786 */}
             </svg>
           </div>
@@ -371,6 +373,9 @@ export default function FenceDiagramModal({ traces = [], litho = [], labelFor = 
                 {trackSources.map((x) => <option key={x.key} value={x.key}>{x.label}</option>)}
               </select>
             </label>}
+            {track && track.positive >= 2 && <label style={{ ...rowLabel, flexDirection: "row", alignItems: "center", gap: 6 }} title={tr("Draws the track on a log scale, from the 2nd percentile of the positive values to the highest: for skewed values such as gamma or grades, where a linear track shows only the high end.")}>
+              <input type="checkbox" checked={trackLog} onChange={(e) => setTrackLog(e.target.checked)} />{tr("Log scale")}
+            </label>}{/* #2813 */}
             {track && track.n === 0 && <div style={warnNote}>{tr("No {name} values in the selected holes.", { name: trackSrc.label })}</div>}{/* #2786 */}
             <label style={rowLabel} title={tr("Best fit is the principal (total-least-squares) axis of the selected collars — the line that minimizes perpendicular distance, and unlike a y-on-x regression it works for a north-south drill line and does not depend on how the map is rotated.")}>{tr("Section line")}<select value={azMode} onChange={(e) => (e.target.value === "section" ? pickSection(sectionId) : setAzMode(e.target.value))} style={sel}>
                 <option value="fit">{tr("Best fit through collars")}</option>
