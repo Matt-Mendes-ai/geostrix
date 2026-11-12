@@ -71,7 +71,9 @@ function selectionOverlay(rows, traces) {
   return group;
 }
 
-export default function ModellingCodesPane({ inArea = null, litho, modellingCodes, setModellingCodes, groupOf, defaultRole, pickMode, setPickMode, selected, setSelected, connectFrom, setConnectFrom, askPrompt, pBtn, unitBody, setUnitBody, inputStyle, view, onBuildBody, assayElements = [] /* #2634 */, positionAt = null /* #2625 */ }) {
+// TASKS.csv #2054 (review #2013, Woodjam) — focus "correlate": the hole-to-hole tools only (pick / connect, auto-number, sheet correlation), for the
+// Correlation pane, which held only a Fence launcher; the codes list and closed bodies stay in Modelling codes
+export default function ModellingCodesPane({ focus = null, inArea = null, litho, modellingCodes, setModellingCodes, groupOf, defaultRole, pickMode, setPickMode, selected, setSelected, connectFrom, setConnectFrom, askPrompt, pBtn, unitBody, setUnitBody, inputStyle, view, onBuildBody, assayElements = [] /* #2634 */, positionAt = null /* #2625 */ }) {
   const mc = modellingCodes || { codes: [], assign: {}, ties: [] };
   const codes = useMemo(() => codesInUse(litho, mc, groupOf, defaultRole), [litho, mc, groupOf, defaultRole]);
   const counts = useMemo(() => {
@@ -210,7 +212,9 @@ export default function ModellingCodesPane({ inArea = null, litho, modellingCode
 
   return (
     <div style={{ fontSize: "var(--font-size-sm)" }}>
-      <div style={{ ...small, marginBottom: 8 }}>{tr("Each logged interval has a")}{" "}<b>{tr("modelling code")}</b>{tr(": its logged code (or lithology group) unless you change it. Give alternating flows their own codes (DAC1, AND1, DAC2…) and connect them between holes. Contacts are taken where the code changes down-hole, and only below a younger stratigraphic unit — never below casing, an intrusion, a gap or at a hole start. Codes you create appear in the Implicit surface and Strat. stack pickers.")}</div>
+      {focus === "correlate" ? <div style={{ ...small, marginBottom: 8 }}>{tr("Hole-to-hole correlation: pick an interval and connect it to the same unit in the next hole, number alternating flows, or match a swarm of sheets between holes. The codes, their order and roles, and closed bodies are in Modelling codes.")}</div> /* TASKS.csv #2054 */ : (
+        <div style={{ ...small, marginBottom: 8 }}>{tr("Each logged interval has a")}{" "}<b>{tr("modelling code")}</b>{tr(": its logged code (or lithology group) unless you change it. Give alternating flows their own codes (DAC1, AND1, DAC2…) and connect them between holes. Contacts are taken where the code changes down-hole, and only below a younger stratigraphic unit — never below casing, an intrusion, a gap or at a hole start. Codes you create appear in the Implicit surface and Strat. stack pickers.")}</div>
+      )}
 
       <div className="ge-section-label">{tr("Pick intervals in the 3D view")}</div>
       <button onClick={() => { setBoxOn(false); setPickMode(!pickMode); setConnectFrom(null); }} aria-pressed={pickMode} style={{ ...pBtn, marginTop: 4, background: pickMode ? "var(--color-selected-bg)" : undefined }}>
@@ -285,7 +289,7 @@ export default function ModellingCodesPane({ inArea = null, litho, modellingCode
       )}
 
       {/* TASKS.csv #1340 — a rock unit's body is built here, with its own settings, not from the Alteration pane. #1339 — the threshold, not the search, joins bodies. */}
-      {onBuildBody && unitBody && (<>
+      {focus !== "correlate" && onBuildBody && unitBody && (<>
         <div className="ge-section-label" style={{ marginTop: 12 }}>{tr("Closed body of a unit")}</div>
         <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 4 }}>
           <select value={bodyCode} onChange={(e) => setBodyCode(e.target.value)} style={{ ...inputStyle, flex: 1, minWidth: 0 }} aria-label={tr("Modelling code of the closed body")}>
@@ -319,6 +323,7 @@ export default function ModellingCodesPane({ inArea = null, litho, modellingCode
         <button onClick={() => onBuildBody(bodyCode)} disabled={!bodyCode} style={{ ...pBtn, marginTop: 5, marginBottom: 0, opacity: bodyCode ? 1 : 0.5 }}><Layers3 size={14} /> {bodyCode ? tr("Build a closed body from {code}", { code: bodyCode }) : tr("Build a closed body")}</button>
       </>)}
 
+      {focus !== "correlate" && (<>{/* #2054 */}
       <div className="ge-section-label" style={{ marginTop: 12 }}>{tr("Codes (youngest at the top)")}</div>
       <div style={small}>{tr("Order sets which unit is younger where two meet; a code you haven't placed keeps the order of the stack you run.")}</div>
       <div style={small}>{tr("Roles are suggested from each code's name and, when the import kept a notes column, from what its intervals say (dyke, lost core, monzonite ...). A code nothing recognises is assumed stratigraphic: check the roles before modelling.")}</div>{/* #2046 */}
@@ -334,6 +339,7 @@ export default function ModellingCodesPane({ inArea = null, litho, modellingCode
           <button onClick={() => moveCode(c.name, 1)} disabled={i === codes.length - 1} aria-label={tr("Move {name} down (older)", { name: c.name })} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "1px 5px" }}>▼</button>
         </div>
       ))}
+      </>)}
 
       <div className="ge-section-label" style={{ marginTop: 12 }}>{tr("Auto-number alternations (optional)")}</div>
       <div style={small}>{tr("Numbers each repeated logged unit top-down in every hole (DAC → DAC1, DAC2…) as a starting point. The numbers are per hole, so a flow that pinches out needs fixing by connecting intervals.")}</div>
