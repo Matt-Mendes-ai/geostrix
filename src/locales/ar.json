@@ -3770,6 +3770,8 @@
   "— most used here": "— الأكثر استخدامًا هنا",
   "Hide the full list": "إخفاء القائمة الكاملة",
   "Or search every CRS (name, zone or EPSG code)": "أو ابحث في كل الأنظمة (الاسم أو المنطقة أو رمز EPSG)",
+  "— your collars land {km} km from here": "— تقع فوهاتك على بعد {km} كم من هنا",
+  "— the collars do not fit this CRS": "— لا تتوافق الفوهات مع نظام الإحداثيات هذا",
   "EPSG:{choice}": "EPSG:{choice}",
   "· EPSG:{choice}": "· EPSG:{choice}",
   "Your {collars} {v} would be at": "ستكون {collars} {v} الخاصة بك عند",

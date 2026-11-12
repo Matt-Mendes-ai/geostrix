@@ -3770,6 +3770,8 @@
   "— most used here": "— los más usados aquí",
   "Hide the full list": "Ocultar la lista completa",
   "Or search every CRS (name, zone or EPSG code)": "O busque en todos los SRC (nombre, zona o código EPSG)",
+  "— your collars land {km} km from here": "— sus collares quedan a {km} km de aquí",
+  "— the collars do not fit this CRS": "— los collares no caben en este SRC",
   "EPSG:{choice}": "EPSG:{choice}",
   "· EPSG:{choice}": "· EPSG:{choice}",
   "Your {collars} {v} would be at": "Sus {collars} {v} estarían en",
