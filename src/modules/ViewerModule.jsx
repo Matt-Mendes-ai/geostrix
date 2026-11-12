@@ -215,6 +215,7 @@ import { useTabNotices } from "../lib/useTabNotices.js"; // TASKS.csv #1203
 import { categoryColor, categoryLabel } from "../lib/layers.js"; // TASKS.csv #1289
 import { useIdentify } from "./viewer/useIdentify.js"; // TASKS.csv #1324
 import { useCollarMarkerSize } from "./viewer/useCollarMarkerSize.js"; // TASKS.csv #2823
+import CollarSizeControl from "./viewer/CollarSizeControl.jsx"; // #2823 — Matt: the size beside the Collars switch
 import { useBuildDefer } from "../lib/viewer/buildDefer.js"; // #1500
 import { lazyTip } from "../lib/viewer/lazyTip.js"; // #1500
 const IdentifyPanel = React.lazy(() => import("../components/IdentifyPanel.jsx"));
@@ -256,16 +257,8 @@ const CATEGORY_LAYER_KEYS = LEGEND_CATEGORY_KEYS; // TASKS.csv #725 — one list
 // screen-filling label right on top of a collar (three.js Sprites don't have a native "distance-
 // independent" screen-space size mode without a custom shader, which felt like real overkill here).
 //
-// TASKS.csv #379 — labels are now a FIXED ON-SCREEN SIZE (SpriteMaterial.sizeAttenuation = false, which
-// three.js does support; the note above was wrong). At 0.09 world units per canvas pixel a label was
-// ~4 m tall: ~1.7 px at the 2,200 m overview and shimmering. fitScreenLabels() below sets each label's
-// scale from the camera and the viewport height so it is LABEL_PX tall on screen, for the live
-// perspective view and for orthographic captures alike. The text is also redrawn once the app font has
-// loaded: measureText used to run before 'Exo 2' was ready and bake in a fallback font and width.
-// LABEL_PX, makeTextSprite and fitScreenLabels: lib/viewer/textSprite.js (TASKS.csv #1443)
-// Scale every fixed-size label under `group` so it is LABEL_PX tall on a viewport `viewportH` px high.
-// Perspective (sizeAttenuation off): screen fraction = scale * P[5] / 2. Orthographic: three.js keeps
-// the scale in world units, so it is px * world-height-per-pixel.
+// TASKS.csv #379 — labels are a fixed on-screen size (LABEL_PX, sizeAttenuation off), in the live view and in captures, redrawn once
+// 'Exo 2' has loaded: LABEL_PX, makeTextSprite and fitScreenLabels are in lib/viewer/textSprite.js (#1443).
 // TASKS.csv #380 — render ONE frame at print resolution for a capture, then restore. A capture used to be
 // the live canvas: ~1,375 px across an A4 landscape page on a 1080p laptop (~118 dpi). The long side is
 // raised to ~3,000 px (A4 at ~300 dpi), capped by the GPU's renderbuffer/viewport limits and 4,096 px (an
@@ -6630,6 +6623,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
               <input type="checkbox" checked={!figureOverlay.collarsOff} onChange={(e) => setFigureOverlay((f) => ({ ...f, collarsOff: !e.target.checked }))} />{tr("Collars")}</label>
           </div>
         )}
+        {collars.length > 0 && !figureOverlay.collarsOff && <CollarSizeControl figureOverlay={figureOverlay} setFigureOverlay={setFigureOverlay} label={tr("Collar size")} />}
 
         {/* TASKS.csv #155 — Connect database / Run data QC / Boundary intercepts moved to the toolbar
             above (they're tools/dialogs, not data) — see the ge-subtoolbar block near the top of this

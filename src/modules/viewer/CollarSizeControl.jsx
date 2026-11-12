@@ -2,16 +2,18 @@
 // (figureOverlay.collarSize): Auto (from the drilling, lib/viewer/collarMarkerSize.js) or a radius in m. Showing / hiding the markers is the
 // 'Collars' switch beside Hole labels in the sidebar (figureOverlay.collarsOff, Matt), kept apart from the size.
 // Choosing a radius starts it at 3.2 m, the size every marker had before, to edit from there.
+// Matt ("I also would like to resize the collars"): the same control under the sidebar's 'Collars' switch too (label 'Collar size', while the
+// markers are shown); both drive figureOverlay.collarSize, so they stay in step.
 import React from "react";
 import { t as tr } from "../../lib/i18n.js";
 import { DEFAULT_COLLAR_RADIUS } from "../../lib/viewer/collarMarkerSize.js";
 
-export default function CollarSizeControl({ figureOverlay, setFigureOverlay }) {
+export default function CollarSizeControl({ figureOverlay, setFigureOverlay, label = null }) {
   const cms = figureOverlay.collarSize;
   const set = (v) => setFigureOverlay((f) => ({ ...f, collarSize: v }));
   return (
     <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", marginBottom: 8 }} title={tr("Auto sizes the collar markers from the drilling: small where the holes are short and close together (an underground drive), as before on spread drilling.")}>
-      {tr("Collar markers")}
+      {label || tr("Collar markers")}
       <select aria-label={tr("Collar markers")} value={cms > 0 ? "m" : "auto"} onChange={(e) => set(e.target.value === "m" ? DEFAULT_COLLAR_RADIUS : "auto")} style={{ fontSize: "var(--font-size-sm)", padding: "2px 4px" }}>
         <option value="auto">{tr("Auto")}</option><option value="m">{tr("Radius (m)")}</option>
       </select>

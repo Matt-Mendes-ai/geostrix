@@ -10426,6 +10426,7 @@
   "Stretches the view vertically about the point you orbit around. Coordinates, picks and measurements stay true; labels and collar markers are not stretched.": "Estira la vista en vertical alrededor del punto sobre el que orbitas. Las coordenadas, las selecciones y las mediciones siguen siendo reales; las etiquetas y los marcadores de collar no se estiran.",
   "Vertical exaggeration": "Exageración vertical",
   "Collar markers": "Marcadores de collar",
+  "Collar size": "Tamaño del collar",
   "Auto": "Auto",
   "Auto sizes the collar markers from the drilling: small where the holes are short and close together (an underground drive), as before on spread drilling.": "Auto ajusta los marcadores de collar según la perforación: pequeños donde los sondajes son cortos y cercanos (una galería subterránea), como antes en perforación espaciada.",
   "Show or hide the collar markers. The holes, their labels and picking on them stay.": "Muestra u oculta los marcadores de collar. Los sondajes, sus etiquetas y la selección sobre ellos se mantienen.",
