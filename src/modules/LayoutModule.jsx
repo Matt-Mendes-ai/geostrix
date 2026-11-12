@@ -56,6 +56,7 @@ import { groupSectionLegend } from "../lib/sectionLegend.js"; // TASKS.csv #1127
 import { firstLegendGroups, rankLegendGroups, legendGroupCount } from "../lib/legendGroups.js"; // rank / count: #1482 // TASKS.csv #1224
 import { numericLayerLegendGroups } from "../lib/legendGroups.js"; // TASKS.csv #1482 — the RQD / recovery / SG / mag susc ramps
 import { frameTest, samplesInFrame, mapLayersInFrame } from "../lib/legendFrame.js"; // TASKS.csv #2134
+import { LAYOUT_FONTS, LAYOUT_FONT_TYPES, LAYOUT_DEFAULT_FONT, layoutFontStack, pageFont, withPageFont } from "../lib/layoutFonts.js"; // TASKS.csv #2144
 import { legendFit, legendRowH, legendLabelW, legendBoxSize } from "../lib/legendFit.js"; // TASKS.csv #2134; row rules and box: #2869
 import { scoreRasterLegendGroups, isScoreRaster } from "../lib/viewer/scoreRasterLegend.js"; // TASKS.csv #2794
 import { holeAttitudeAssumed } from "../lib/desurvey.js"; // TASKS.csv #2134 — the notice counts the assumed-vertical holes
@@ -746,6 +747,8 @@ export default function LayoutModule() {
     else if (type === "table") { base.source = "collars"; base.title = "Drillhole collars"; base.w = 520; base.fontPt = 7; Object.assign(base, placeCollarTable(elements, A4, { w: 520, fontPt: 7, total: collars.length })); /* #1638 fits the sheet; #2135 free space */ base.frameWidth = 1; const f = defaultCollarTableFields(collars); if (f.length) base.extraCols = f; /* #2717 — the hole type, when there is one */ }
     // TASKS.csv #2302 (review #2174) — a drill plan ties the page's starter scale bar as a snapshot does (#1320): a '100 m' bar at 1:2,380 stood
     // beside a 1:20,000 plan
+    // TASKS.csv #2144 — a new text-bearing element takes the page's typeface (the one most of its elements use)
+    if (LAYOUT_FONT_TYPES.has(base.type)) { const pf = pageFont(elements); if (pf && pf !== LAYOUT_DEFAULT_FONT) base.fontFamily = pf; }
     if (type !== "logo") setElements((els) => (type === "drillplan" ? tieStarterFurniture([...els, base], base) : [...els, base]));
     setSelected(type !== "logo" ? id : null);
   };
@@ -1240,6 +1243,16 @@ export default function LayoutModule() {
               )}
               <label style={{ ...smallBtn, cursor: "pointer" }} title={tr("A locked element cannot be moved or resized (it can still be edited and deleted)")}><input type="checkbox" checked={!!sel.locked} onChange={(e) => updateSelected({ locked: e.target.checked })} />{tr("Lock")}</label>
             </div>
+            {LAYOUT_FONT_TYPES.has(sel.type) && ( /* TASKS.csv #2144 — the typeface, this element's or the whole page's */
+              <div style={{ display: "flex", gap: 6, alignItems: "flex-end", marginBottom: 8 }}>
+                <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>{tr("Typeface")}
+                  <select value={LAYOUT_FONTS.some((f) => f.label === sel.fontFamily) ? sel.fontFamily : LAYOUT_DEFAULT_FONT} onChange={(e) => updateSelected({ fontFamily: e.target.value === LAYOUT_DEFAULT_FONT ? undefined : e.target.value })} style={inp} title={tr("Exo 2 is the app's own font. The others are drawn and printed with the fonts this computer has.")}>
+                    {LAYOUT_FONTS.map((f) => <option key={f.label} value={f.label} style={{ fontFamily: f.stack }}>{f.label}</option>)}
+                  </select>
+                </label>
+                <button type="button" style={{ ...pBtn, marginBottom: 0 }} onClick={() => setElements((els) => withPageFont(els, LAYOUT_FONTS.some((f) => f.label === sel.fontFamily) ? sel.fontFamily : LAYOUT_DEFAULT_FONT))} title={tr("Every title, text, legend, table, title block, scale bar, north arrow and drill plan on this page takes this typeface.")}>{tr("Whole page")}</button>
+              </div>
+            )}
             {"text" in sel && (sel.type === "text" /* #1868 — several lines (a title block, a note) */
               ? <textarea value={sel.text} onChange={(e) => updateSelected({ text: e.target.value })} rows={Math.min(8, Math.max(2, String(sel.text || "").split("\n").length))} style={{ ...inp, resize: "vertical", fontFamily: "inherit" }} aria-label={tr("Text")} />
               : <input value={sel.text} onChange={(e) => updateSelected({ text: e.target.value })} style={inp} />
@@ -2286,7 +2299,8 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
   // are actually showing in the sidebar. print (#908): no selection marks, no "Rendering..." overlay.
   // TASKS.csv #965 — handles, outline and guides keep their screen size at any sheet zoom (at Fit on a laptop they were 5 px / 0.9 px)
   const outline = !print && selected ? "calc(1.5px / var(--lz, 1)) solid var(--color-info)" : !print && multiSelected ? "calc(1.5px / var(--lz, 1)) dashed var(--color-info)" : "none";
-  const wrap = { position: "absolute", left: el.x, top: el.y, cursor: el.locked ? "default" : "move", outline, outlineOffset: 3 };
+  const FONT = layoutFontStack(el.fontFamily); // TASKS.csv #2144 — the element's typeface (none: Exo 2); text without its own inherits it from wrap
+  const wrap = { position: "absolute", left: el.x, top: el.y, cursor: el.locked ? "default" : "move", outline, outlineOffset: 3, fontFamily: FONT };
   // TASKS.csv #102 — font controls (size/color/bold/italic/align) + the same frame/border fields
   // ViewportControls already uses for viewport elements. frameBorder(el) below builds the CSS border
   // shorthand shared by title/text/legend; a frameWidth of 0 (the default for these types — see
@@ -2296,7 +2310,7 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
     const b = frameBorder(el);
     return (
       <div style={{ ...wrap, width: el.w, border: b, padding: b !== "none" ? 8 : 0, boxSizing: "border-box" }} onMouseDown={onDown} data-el-id={el.id} {...kb}>
-        <div style={{ fontSize: el.fontSize ?? 26, fontWeight: (el.bold ?? true) ? 700 : 400, fontStyle: el.italic ? "italic" : "normal", textAlign: el.align || "left", color: el.color || INK, fontFamily: "'Exo 2', system-ui, sans-serif" }}>{fillText(el.text, ctx)}</div>
+        <div style={{ fontSize: el.fontSize ?? 26, fontWeight: (el.bold ?? true) ? 700 : 400, fontStyle: el.italic ? "italic" : "normal", textAlign: el.align || "left", color: el.color || INK, fontFamily: FONT }}>{fillText(el.text, ctx)}</div>
         {handles}
       </div>
     );
@@ -2314,7 +2328,7 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
     const fs = printPx(el.fontPt || 8), line = `${Math.max(0.5, el.frameWidth ?? 1)}px solid ${el.frameColor || INK}`;
     return (
       <div style={{ ...wrap, width: el.w || 340, background: "#fff", border: line, boxSizing: "border-box" }} onMouseDown={onDown} data-el-id={el.id} {...kb}>
-        <table style={{ borderCollapse: "collapse", width: "100%", fontSize: fs, color: INK, fontFamily: "'Exo 2', system-ui, sans-serif" }}>
+        <table style={{ borderCollapse: "collapse", width: "100%", fontSize: fs, color: INK, fontFamily: FONT }}>
           <tbody>{(el.rows || []).map(([label, value], i) => (
             <tr key={i} style={{ borderTop: i ? line : "none" }}>
               <td style={{ padding: "2px 6px", width: "34%", borderRight: line, color: "#55606e", fontSize: Math.max(6, fs * 0.85), verticalAlign: "top", whiteSpace: "nowrap" }}>{label}</td>
@@ -2367,7 +2381,7 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
           })()}
           {el.markHole && (() => { /* TASKS.csv #1644 — an atlas page's hole on the template's map */
             const [u, v] = worldToVp(el, el.markHole.x, el.markHole.y), inFrame = Math.abs(u) <= W / 2 - 4 && Math.abs(v) <= H / 2 - 4;
-            const font = { fontSize: printPx(printPt.small), fontFamily: "'Exo 2', system-ui, sans-serif", fontWeight: 700 };
+            const font = { fontSize: printPx(printPt.small), fontFamily: FONT, fontWeight: 700 };
             return inFrame ? (
               <svg style={{ position: "absolute", left: 0, top: 0, overflow: "visible", pointerEvents: "none" }} width={W} height={H}>
                 <circle cx={W / 2 + u} cy={H / 2 + v} r={8} fill="none" stroke="#ffffff" strokeWidth={4} />
@@ -2378,10 +2392,10 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
             ) : <div style={{ position: "absolute", left: 6, top: 6, padding: "2px 6px", background: "rgba(255,255,255,0.88)", color: "#d62f2f", pointerEvents: "none", ...font }}>{tr("{id} is outside this map", { id: el.markHole.id })}</div>;
           })()}
           {el.scaleCaption && viewportScaleText(el) && ( /* TASKS.csv #2716 — this frame's own scale, in its corner (a box, one text in the PDF) */
-            <div style={{ position: "absolute", right: 4, bottom: 4, padding: "1px 5px", background: "rgba(255,255,255,0.92)", border: "1px solid #c9ced4", color: "#1a2028", fontSize: printPx(printPt.small), fontFamily: "'Exo 2', system-ui, sans-serif", fontVariantNumeric: "tabular-nums", pointerEvents: "none", whiteSpace: "nowrap" }}>{viewportScaleText(el)}</div>
+            <div style={{ position: "absolute", right: 4, bottom: 4, padding: "1px 5px", background: "rgba(255,255,255,0.92)", border: "1px solid #c9ced4", color: "#1a2028", fontSize: printPx(printPt.small), fontFamily: FONT, fontVariantNumeric: "tabular-nums", pointerEvents: "none", whiteSpace: "nowrap" }}>{viewportScaleText(el)}</div>
           )}
           {el.refreshing && !print && (
-            <div style={{ position: "absolute", inset: 0, background: "rgba(255,255,255,0.75)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "var(--font-size-base)", color: "#333", fontFamily: "'Exo 2', system-ui, sans-serif" }}>{tr("Rendering…")}</div>
+            <div style={{ position: "absolute", inset: 0, background: "rgba(255,255,255,0.75)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "var(--font-size-base)", color: "#333", fontFamily: FONT }}>{tr("Rendering…")}</div>
           )}
         </div>
         {frameW > 0 && <div data-frame="" style={{ position: "absolute", inset: -frameW, border: `${frameW}px ${borderStyle} ${el.frameColor || INK}`, pointerEvents: "none" }} />}
@@ -2402,7 +2416,7 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
     const rateText = Number.isFinite(rate) ? tr("IGRF-14; changes {v}° {d} a year here", { v: Math.abs(rate) < 0.005 ? "<0.01" : Math.abs(rate).toFixed(2), d: rate >= 0 ? "E" : "W" }) : tr("IGRF-14"); // #2478
     return (
       <div style={{ ...wrap }} onMouseDown={onDown} data-el-id={el.id} {...kb}>
-        <svg width={DIAGRAM_W} height={DIAGRAM_H} viewBox={`0 0 ${DIAGRAM_W} ${DIAGRAM_H}`} style={{ fontFamily: "'Exo 2', system-ui, sans-serif" }}>{/* #585 — 170 wide: the 7 pt captions need up to 149 px */}
+        <svg width={DIAGRAM_W} height={DIAGRAM_H} viewBox={`0 0 ${DIAGRAM_W} ${DIAGRAM_H}`} style={{ fontFamily: FONT }}>{/* #585 — 170 wide: the 7 pt captions need up to 149 px */}
           {/* TASKS.csv #2137 — only the rays turn with a bound oblique view; the captions stay level */}
           <g transform={el.rotation ? `rotate(${el.rotation} ${ORIGIN.x} ${ORIGIN.y})` : undefined}>
             <line x1={ORIGIN.x} y1={ORIGIN.y} x2={ORIGIN.x} y2="14" stroke="#1a2028" strokeWidth="1.6" />
@@ -2427,7 +2441,7 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
         <polygon points="27,4 38,44 27,36" fill="#666" />
         {/* TASKS.csv #2138 — every Layout capture and drill plan is drawn in the project's grid, so the plain arrow is grid north and says so
             (the GN / TN / MN diagram gives true and magnetic north) */}
-        <text x="27" y="64" fontSize={printPx(printPt.label)} fontWeight="700" textAnchor="middle" fill="#1a2028" fontFamily="'Exo 2', system-ui, sans-serif">GN</text>
+        <text x="27" y="64" fontSize={printPx(printPt.label)} fontWeight="700" textAnchor="middle" fill="#1a2028" fontFamily={FONT}>GN</text>
       </svg>
     </div>
   );
@@ -2444,10 +2458,10 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
           <rect x="2" y="4" width={px / 2} height="10" fill="#1a2028" />
           <rect x={2 + px / 2} y="4" width={px / 2} height="10" fill="#fbfbf8" stroke="#1a2028" />
           <rect x="2" y="4" width={px} height="10" fill="none" stroke="#1a2028" />
-          <text x="2" y="28" fontSize={printPx(printPt.small)} fill="#1a2028" fontFamily="'Exo 2', system-ui, sans-serif">0</text>
-          <text x={px + 2} y="28" fontSize={printPx(printPt.small)} textAnchor="end" fill="#1a2028" fontFamily="'Exo 2', system-ui, sans-serif">{scaleBarLabel(el.meters || 100) /* #2140 — '5 km', not '5000 m' */}</text>
-          {scaleBarMidLabel(el.meters || 100, px) && <text x={2 + px / 2} y="28" fontSize={printPx(printPt.small)} textAnchor="middle" fill="#1a2028" fontFamily="'Exo 2', system-ui, sans-serif">{scaleBarMidLabel(el.meters || 100, px)}</text>}{/* #2140 — the half-way tick */}
-          {el.viewPlane && <text x="2" y="40" fontSize={printPx(printPt.small)} fill="#1a2028" fontFamily="'Exo 2', system-ui, sans-serif">{tr("in the view plane (oblique view)")}</text>}
+          <text x="2" y="28" fontSize={printPx(printPt.small)} fill="#1a2028" fontFamily={FONT}>0</text>
+          <text x={px + 2} y="28" fontSize={printPx(printPt.small)} textAnchor="end" fill="#1a2028" fontFamily={FONT}>{scaleBarLabel(el.meters || 100) /* #2140 — '5 km', not '5000 m' */}</text>
+          {scaleBarMidLabel(el.meters || 100, px) && <text x={2 + px / 2} y="28" fontSize={printPx(printPt.small)} textAnchor="middle" fill="#1a2028" fontFamily={FONT}>{scaleBarMidLabel(el.meters || 100, px)}</text>}{/* #2140 — the half-way tick */}
+          {el.viewPlane && <text x="2" y="40" fontSize={printPx(printPt.small)} fill="#1a2028" fontFamily={FONT}>{tr("in the view plane (oblique view)")}</text>}
         </svg>
       </div>
     );
@@ -2464,7 +2478,7 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
   if (el.type === "legend") return (
     <div style={{ ...wrap, background: "#fff", border: frameBorder(el, "1px solid #ccc"), padding: "8px 12px", minWidth: 150 * legendCols, width: legendCols > 1 ? undefined : el.w || undefined, boxSizing: "border-box" }} onMouseDown={onDown} data-el-id={el.id} {...kb}>
       {handles}
-      <div style={{ fontSize: printPx(printPt.body), fontWeight: 700, color: INK, marginBottom: 6, fontFamily: "'Exo 2', system-ui, sans-serif" }}>{tr("Legend")}</div>
+      <div style={{ fontSize: printPx(printPt.body), fontWeight: 700, color: INK, marginBottom: 6, fontFamily: FONT }}>{tr("Legend")}</div>
       <div style={legendCols > 1 ? { columnCount: legendCols, columnGap: 18 } : undefined}>
       {legendItems.map(([name, color, opt], i) => opt?.heading ? ( /* TASKS.csv #725 — a group heading; legendItems: #2134 */
         <div key={i} style={{ fontSize: printPx(printPt.small), fontWeight: 700, color: INK, margin: i ? "6px 0 2px" : "0 0 2px", breakAfter: "avoid" /* #1480 — a heading never ends a column */ }}>{name}</div>
@@ -2520,7 +2534,7 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
     const tableParts = el.source === "collars" ? splitTableRows(rows, el.split) : [rows]; // #2770
     const numeric = columns.map((_, j) => rows.length > 0 && rows.every((r) => r[j] === "" || /^[-+≥<>]?[\d.,]+[*†]?$/.test(String(r[j])))); // \*: #1483; †: #2133
     return (
-      <div style={{ ...wrap, width: el.w || 520, background: "#fff", border: frameBorder(el), padding: 6, boxSizing: "border-box", fontFamily: "'Exo 2', system-ui, sans-serif", color: "#1a2028" }} onMouseDown={onDown} data-el-id={el.id} {...kb}>
+      <div style={{ ...wrap, width: el.w || 520, background: "#fff", border: frameBorder(el), padding: 6, boxSizing: "border-box", fontFamily: FONT, color: "#1a2028" }} onMouseDown={onDown} data-el-id={el.id} {...kb}>
         {el.title && <div style={{ fontSize: printPx((el.fontPt || printPt.small) + 2), fontWeight: 700, marginBottom: 4 }}>{fillText(el.title, ctx)}</div>}
         {head && <div style={{ fontSize: fs, color: "#555", marginBottom: 3 }}>{head}</div>}{/* #1638 */}
         {/* TASKS.csv #2770 — a split collar table: two tables side by side, the rows read down then across; the empty and 'more' lines once */}
@@ -2581,7 +2595,7 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
   }
   if (el.type === "callout") return (
     <div style={{ ...wrap, width: el.w, background: el.fill, border: `1.5px solid ${el.stroke}`, borderRadius: 6, padding: "8px 12px", position: "absolute", boxSizing: "border-box" }} onMouseDown={onDown} data-el-id={el.id} {...kb}>
-      <div style={{ fontSize: printPx(printPt.small), color: INK, fontFamily: "'Exo 2', system-ui, sans-serif" }}>{el.text}</div>
+      <div style={{ fontSize: printPx(printPt.small), color: INK, fontFamily: FONT }}>{el.text}</div>
       {handles}
       <svg width="16" height="10" style={{ position: "absolute", left: 14, bottom: -9 }}>
         <polygon points="0,0 16,0 5,10" fill={el.fill} stroke={el.stroke} strokeWidth="1.5" />

@@ -27,6 +27,6 @@ test("#2143 — the logo is selected once it is added", () => {
 });
 
 test("#2138 — the plain arrow is labelled GN, and the sidebar says grid north", () => {
-  assert.match(m, /fontFamily="'Exo 2', system-ui, sans-serif">GN<\/text>/);
+  assert.match(m, /fontFamily=\{FONT\}>GN<\/text>/); // #2144 — the element's typeface
   assert.match(m, /Follows its view's grid north \(GN\)\./);
 });

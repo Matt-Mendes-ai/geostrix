@@ -9,7 +9,8 @@ import { CATEGORICAL_SAFE_COLORS } from "../lib/layers.js";
 import { printPx, printPt } from "../lib/theme.js";
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #2686 — the shape key's circle row
 
-const INK = "#1a2028", FONT = "'Exo 2', system-ui, sans-serif";
+import { layoutFontStack } from "../lib/layoutFonts.js"; // TASKS.csv #2144
+const INK = "#1a2028";
 // TASKS.csv #2611 — the categorical palette without its yellow (#F0E442 with a white outline vanished on the white map)
 const ON_WHITE = CATEGORICAL_SAFE_COLORS.filter((c) => String(c).toUpperCase() !== "#F0E442");
 const MM = 96 / 25.4, MM_PX = MM;
@@ -72,6 +73,7 @@ export function drillPlanDrawing(el, collars, assays = null, assayElements = nul
 
 // gridCaption (#2301): what the grid's numbers are ('local mine grid', the CRS name), from the page
 export default function DrillPlanElement({ el, collars, gridCaption = "", assays = null, assayElements = null }) {
+  const FONT = layoutFontStack(el?.fontFamily); // TASKS.csv #2144 — the element's typeface (none: Exo 2)
   const d = useMemo(() => drillPlanDrawing(el, collars, assays, assayElements), [el, collars, assays, assayElements]);
   const grid = useMemo(() => drillPlanGrid(el), [el]);
   const line = 0.3 * MM, { colouring, keyBox } = d; // keyBox: placed in drillPlanDrawing (#2611)
