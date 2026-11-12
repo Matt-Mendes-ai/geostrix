@@ -27,7 +27,7 @@ test("#1726 bestCutoff on the evidence that defines the occurrences no longer co
 test("#1833 Undrilled zones says there is no drilling, and counts a block-model shell as a solid", async () => {
   const { readFileSync } = await import("node:fs");
   const u = readFileSync(new URL("../src/components/UndrilledZonesPane.jsx", import.meta.url), "utf8");
-  assert.ok(u.includes("No drillholes yet: every part of a unit is undrilled.") && u.includes("Targeting > Voxel ranges > Shell at this range"));
+  assert.ok(u.includes("No drillholes yet: every part of a unit is undrilled.") && u.includes("Targeting > Voxel ranges, on the Advanced ribbon > Shell at this range") /* #2261 */);
   const { SOLID_SURFACE_TYPES } = await import("../src/lib/viewer/modelHelpers.js");
   assert.ok(SOLID_SURFACE_TYPES.has("geophysical_shell"));
 });

@@ -30,6 +30,6 @@ test("the pane: open meshes disabled in their own group, the route said, volumes
   const s = fs.readFileSync("src/components/UndrilledZonesPane.jsx", "utf8");
   assert.match(s, /<optgroup label=\{tr\("Open meshes \(no inside to search\)"\)\}>/);
   assert.match(s, /<option key=\{s\.id\} value=\{s\.id\} disabled>/);
-  assert.match(s, /Voxel ranges > Shell at this range/);
+  assert.match(s, /Voxel ranges, on the Advanced ribbon > Shell at this range/); // #2261
   assert.doesNotMatch(s, /Close it first/);
 });
