@@ -4,6 +4,7 @@
 import * as THREE from "three";
 import { layerStamp } from "../../lib/layerStamp.js"; // TASKS.csv #2388
 import { rowsByHole } from "../../lib/rowsByHole.js"; // TASKS.csv #2906
+import { stackCellCheck } from "../../lib/stackResolution.js"; // TASKS.csv #2905
 import { trendRatioText } from "../../lib/trend.js"; // TASKS.csv #2423
 import { trendBodyReach } from "../../lib/trendBodyReach.js"; // TASKS.csv #2780
 import { buildMeshQuery } from "../../lib/meshQuery.js"; // TASKS.csv #2376
@@ -324,6 +325,9 @@ export function createModellingRuns(ctx, mcRef) {
     { // #2624 — the box, the block's three cell sizes and the mesh cell, said before the solve
       const cm = blockCellsM(extent, resolution).map((v) => Math.round(v * 10) / 10), lvl = surfaceDetail || 4;
       setNotices((p) => [...p, notice(anisotropy.enabled ? "Model box {bx} x {by} x {bz} (in the structural trend's frame): the lithology block is {nx} x {ny} x {nz} cells of {dx} x {dy} x {dz} (model check fallback, volumes, Add as block model); the surface mesh cells are about {m} ({level})." : "Model box {bx} x {by} x {bz} m: the lithology block is {nx} x {ny} x {nz} cells of {dx} x {dy} x {dz} m (model check fallback, volumes, Add as block model); the surface mesh cells are about {m} m ({level}).", { bx: Math.round(extent[1] - extent[0]), by: Math.round(extent[3] - extent[2]), bz: Math.round(extent[5] - extent[4]), nx: resolution[0], ny: resolution[1], nz: resolution[2], dx: cm[0], dy: cm[1], dz: cm[2], m: Math.round(octreeCellM(extent, lvl)), level: lvl >= 6 ? tr("Very fine") : lvl === 5 ? tr("Fine") : tr("Standard") })]);
+      // TASKS.csv #2905 — units thinner than the vertical cell: said before a solve that cannot place them apart
+      const thin = specs.length > 1 ? stackCellCheck(specs, cm[2]) : null;
+      if (thin) setNotices((p) => [...p, notice("Warning: the units are about {t} m thick (the median drop from one top to the next in a hole), thinner than the model's vertical cell of {dz} m. One field cannot place them apart, so the surfaces may fold back or come out of order. For a flat-lying pile, an Explicit surface per unit from its logged tops follows the picks exactly (3D Modelling > Explicit surface); a smaller vertical cell (Model settings) costs a much longer solve.", { t: thin.thick.toFixed(1), dz: thin.dz })]);
     }
     setNotices((p) => [...p, notice(specs.length > 1 ? "Running {label} ({totalPoints} points, {totalOrientations} orientations across {specs} surfaces){v2}…" : "Running {label} ({totalPoints} points, {totalOrientations} orientations across {specs} surface){v2}…", { label, totalPoints, totalOrientations, specs: specs.length, v2: anisotropy.enabled ? tr(", with the {trendWord} \"{v}\"", { trendWord, v: anisotropy.params?.trend || tr("unnamed") }) : "" })]);
     // The sidecar call is one opaque round-trip with no real progress ticks to report, so this is a
@@ -564,7 +568,7 @@ export function createModellingRuns(ctx, mcRef) {
         o.verts.forEach((v, i) => { pos[i * 3] = v.x; pos[i * 3 + 1] = v.y; pos[i * 3 + 2] = v.z; if (v.y < yLo) yLo = v.y; if (v.y > yHi) yHi = v.y; });
         return { label: o.label, package: o.package, q: buildMeshQuery(pos, Uint32Array.from(o.faces.flat())) };
       });
-      const holes = traces.filter((t) => t.pts?.length).map((t) => ({ x: t.pts[0].x, z: t.pts[0].z }));
+      const holes = traces.filter((t) => t.pts?.length && (modelArea !== "checked" || visibleHoles?.[t.hole_id] !== false)).map((t) => ({ x: t.pts[0].x, z: t.pts[0].z })); // the Model area's holes: #2905 (293 counted on a 228-hole area)
       const ord = stackOrderAtHoles(surfaces, holes, { yLo: yLo - 10, yHi: yHi + 10 });
       const checked = Math.max(0, ...ord.pairs.map((q) => q.of));
       if (ord.outOfOrder.length) {
