@@ -36,7 +36,7 @@ import { holeTypeColumn, normalizeHoleType } from "../../lib/holeType.js"; // TA
 import { eventNotes } from "../../lib/downholeEvents.js"; // TASKS.csv #2317
 import { applyRowFilter, defaultRowFilter, overlapSummary, overlapWorthSaying } from "../../lib/importRowFilter.js"; // TASKS.csv #2330; overlap: #2391
 import { isNullSentinel, LAYER_META, TARGET_SCHEMAS, guessColumn, guessColumnExact, guessMapping, guessTargetFor, schemaSatisfied, num, replaceRowsByHole, keepDerivedPicks, isDerivedPick, replaceNote, EPSG_COL_ALIASES, diffCollarImport, mergeCollar, minMax, pickRankedCollarRows } from "../../lib/layers.js";
-import { alterationStyleFromName, styledAltValue, isBlankCode } from "../../lib/viewer/importHelpers.js"; // TASKS.csv #1511; isBlankCode: #2182
+import { alterationStyleFromName, styledAltValue, isBlankCode, NO_CODE, blankCodeText } from "../../lib/viewer/importHelpers.js"; // TASKS.csv #1511; isBlankCode: #2182
 import { fillDownHoleIds, numberedSiblings, allCodesOf, normInterval, applyCustomFields, normNumericInterval, normStructure, skippedRowsText, strikeStats, loadRaster, looksLikeAssay, isSurfaceSampleTable, looksLikeSurfaceSamples /* #2268 */, parseVectorFile, groupShapefileParts, orderImportFiles } from "../../lib/viewer/importHelpers.js"; // groupShapefileParts / orderImportFiles: #600
 import { unreadableFormatAdvice } from "../../lib/unreadableFormats.js"; // TASKS.csv #603
 import { t as tr } from "../../lib/i18n.js"; // TASKS.csv #786
@@ -51,7 +51,7 @@ import { useStore } from "../../lib/store.jsx"; // TASKS.csv #2632 — addVoxelM
 const AZ_TARGETS = new Set(["collars", "survey", "structure"]); // TASKS.csv #1647 — tables with an azimuth
 
 export function useImportPipeline(ctx) {
-  const { addVoxelModel, fillCodeDictionary } = useStore(); // #2632; fillCodeDictionary: #2163
+  const { addVoxelModel, fillCodeDictionary, recordImportLeftOut } = useStore(); // #2632; fillCodeDictionary: #2163; recordImportLeftOut: #2493
   const {
     addBoundary,
     addRaster,
@@ -738,13 +738,14 @@ export function useImportPipeline(ctx) {
       const sib = numeric ? null : numberedSiblings(Object.keys(allRows[0] || {}), mapping.value, mapping.extra); // #1650 — Min_Code1..n
       const altStyle = target === "alt" ? String(data.altStyle ?? alterationStyleFromName(fileName)).trim() : ""; // #1511 — 'Oxidation: Pchy'
       const styleCode = (v) => (altStyle && v != null && v !== "" ? styledAltValue(altStyle, v) : v);
-      let codesKept = 0, codesRows = 0;
+      let codesKept = 0, codesRows = 0, blankRows = 0, blankTookNext = 0, blankKept = 0; // blank*: #2493
       const rows = filledRows.map((raw) => {
         const r = numeric ? normNumericInterval(raw, mapping, customFields) : normInterval(raw, mapping, customFields);
         if (sib) { const a = allCodesOf(raw, sib); if (a.extra) { r.all_codes = a.all; r.codes = a.codes; codesKept += a.extra; codesRows++; } } // codes: #1650
         if (altStyle) { r.value = styleCode(r.value); r.alt_style = altStyle; if (Array.isArray(r.codes)) r.codes = r.codes.map(styleCode); } // #1511
         // #2182 — a blank code: the next numbered code if the row has one (Min_Code2), else the row is skipped and counted, not 'Unknown'
-        if (!numeric && isBlankCode(raw[mapping.value])) { const next = Array.isArray(r.codes) ? r.codes.find((c) => !isBlankCode(c)) : null; if (next) r.value = String(next).trim(); else r.value = null; }
+        // #2493 — or, when the dialog's "keep blank codes as (no code)" is ticked, kept as that explicit class (the log stays continuous)
+        if (!numeric && isBlankCode(raw[mapping.value])) { blankRows++; const next = Array.isArray(r.codes) ? r.codes.find((c) => !isBlankCode(c)) : null; if (next) { r.value = String(next).trim(); blankTookNext++; } else if (data.keepBlankCodes) { r.value = NO_CODE; blankKept++; } else r.value = null; }
         const why = !r.hole_id ? "no hole id" : isNaN(r.from) ? "no from" : numeric && isNaN(r.value) ? "no value" : !numeric && r.value == null ? "no code" : null;
         if (why) { dropped.push({ reason: why, example: why === "no from" ? raw[mapping.from] : why === "no value" ? raw[mapping.value] : null }); return null; }
         return { ...r, _src: fileName };
@@ -754,6 +755,8 @@ export function useImportPipeline(ctx) {
       const replaced = replaceRowsByHole(importStateRef.current.layers?.[target], rows, keep); // #582: replaced / appended
       setLayers((p) => ({ ...p, [target]: replaceRowsByHole(p[target], keepBatch(rows), keep, { identical: false }).rows })); // #2799 — rows only
       setLayerVisible((p) => ({ ...p, [target]: true }));
+      // TASKS.csv #2493 — the rows the import left out, kept with the project for Data QC (lib/importLeftOut.js); this file's entry replaced
+      recordImportLeftOut?.(target, fileName, dropped, allRows.length);
       const dictAdded = !numeric && fillCodeDictionary ? fillCodeDictionary(target, rows) : 0; // TASKS.csv #2163 — codes with no meaning yet take the description logged beside them
       if (numeric) { const vals = rows.map((r) => r.value); setNumericRange((p) => ({ ...p, [target]: minMax(vals) })); } // not Math.min/max(...) — see layers.js's minMax comment
       // TASKS.csv #540 — what is wrong with these rows, said now (Data QC loads on demand: not in the startup bundle)
@@ -766,6 +769,7 @@ export function useImportPipeline(ctx) {
         + replaceNote(replaced, "rows") + skippedRowsText(dropped, allRows.length) + leftOutText(data, allRows, sib?.codes || []) /* #2341 */
         + (codesKept ? " " + tr("{n} more code(s) in {cols} on {m} interval(s) are not drawn (each interval is coloured by {first}); every code is kept on its interval as all_codes, which Identify lists. Hiding the first code in the legend shows such an interval in its next code's colour.", { n: codesKept, m: codesRows, cols: sib.codes.length > 1 ? `${sib.codes[0]}–${sib.codes[sib.codes.length - 1]}` : sib.codes[0], first: sib.first }) : "") // #1650; one column named once: #2153
         + (idsFilled ? " " + tr("{n} row(s) with a blank hole id took the hole id of the row above, their depths continuing it: check them if the file is laid out otherwise.", { n: idsFilled }) : "") // #1665
+        + (blankRows ? " " + blankCodeText(mapping.value, blankRows, allRows.length, blankTookNext, blankKept) : "") // #2493 — always said
         + (dictAdded ? " " + (dictAdded === 1 ? tr("1 code took its meaning from the description logged beside it (the code dictionary in the layer's inspector, where it can be edited).") : tr("{n} codes took their meaning from the description logged beside them (the code dictionary in the layer's inspector, where they can be edited).", { n: dictAdded })) : "")]); // #2163
     }
     return true;

@@ -118,7 +118,12 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
                 {modal.headers.map((h) => <option key={h} value={h}>{h}</option>)}
               </select>
               {/* TASKS.csv #2182 — a coded log's Value column blank on many rows: those rows are skipped, said before the import */}
-              {f.key === "value" && !fieldNeedsNumber(f) && modal.target !== "custom" && modal.mapping.value && (() => { const b = blankShare(modal.allRows, modal.mapping.value); return b && b.blank / b.total >= 0.2 ? <div role="note" style={{ flexBasis: "100%", marginInlineStart: 220, fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)" }}>{tr("{col} is blank on {pct} % of the rows ({n} of {m}): those rows have no code and are skipped.", { col: modal.mapping.value, pct: Math.round((100 * b.blank) / b.total), n: b.blank.toLocaleString(), m: b.total.toLocaleString() })}</div> : null; })()}
+              {f.key === "value" && !fieldNeedsNumber(f) && modal.target !== "custom" && modal.mapping.value && (() => { const b = blankShare(modal.allRows, modal.mapping.value); if (!b || !b.blank) return null; const many = b.blank / b.total >= 0.2; /* #2493 — always said, with the choice to keep them */ return (
+                <div role="note" style={{ flexBasis: "100%", marginInlineStart: 220, fontSize: "var(--font-size-sm)", color: many ? "var(--color-warn-text)" : "var(--color-text-muted)" }}>
+                  {modal.keepBlankCodes ? tr("{col} is blank on {pct} % of the rows ({n} of {m}): those rows are kept as (no code), unless a next code column has a code.", { col: modal.mapping.value, pct: Math.round((100 * b.blank) / b.total), n: b.blank.toLocaleString(), m: b.total.toLocaleString() })
+                    : tr("{col} is blank on {pct} % of the rows ({n} of {m}): those rows have no code and are skipped.", { col: modal.mapping.value, pct: Math.round((100 * b.blank) / b.total), n: b.blank.toLocaleString(), m: b.total.toLocaleString() })}
+                  <label style={{ display: "inline-flex", gap: 4, alignItems: "center", marginInlineStart: 8 }}><input type="checkbox" checked={!!modal.keepBlankCodes} onChange={(e) => onChange({ ...modal, keepBlankCodes: e.target.checked })} />{tr("Keep them as (no code)")}</label>
+                </div>); })()}
               {fieldNeedsNumber(f) && modal.mapping[f.key] && columnHasNoNumbers(modal.sampleRows, modal.mapping[f.key]) && <div role="alert" style={{ flexBasis: "100%", marginInlineStart: 220, fontSize: "var(--font-size-sm)", color: "var(--color-danger-icon)" }}>{tr("\"{col}\" has no numbers in the preview rows: {field} needs a number.", { col: modal.mapping[f.key], field: tr(f.label) })}</div>}
             </div>
           ))}

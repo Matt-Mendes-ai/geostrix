@@ -19,6 +19,7 @@ import { didYouMean } from "./holeIds.js"; // TASKS.csv #541 (own module: dataQC
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 import { surveyAzimuthDipAt } from "./desurvey.js"; // TASKS.csv #1109
 import { surveyMethodByHole } from "./surveyMethod.js"; // TASKS.csv #2494
+import { coverageInfos } from "./dataQcCoverage.js"; // TASKS.csv #2493
 export { didYouMean };
 
 const clampSeverityIcon = { error: "🔴", warning: "🟡", info: "🔵" };
@@ -551,7 +552,7 @@ function validateCollarsVsTerrain(collars, terrain, threshold) {
   return issues;
 }
 
-export function runDataQC({ project, collars, survey, layers, boundaries, assays, terrain = null, terrainThreshold = 15, doglegWarn = 3, doglegError = 10 }) {
+export function runDataQC({ project, collars, survey, layers, boundaries, assays, terrain = null, terrainThreshold = 15, doglegWarn = 3, doglegError = 10, customLayers = [] }) { // customLayers: #2493
   const collarIds = new Set(collars.map((c) => c.hole_id));
   // TASKS.csv #339 — end of hole = the DEEPER of the collar length and the last survey station. Letting the
   // survey win outright flagged every interval below the last shot (surveys usually stop short of EOH) as
@@ -583,6 +584,8 @@ export function runDataQC({ project, collars, survey, layers, boundaries, assays
     // #1109 — calculator picks solved with a hole direction the survey no longer gives
     ...staleCalculatorPicks(collars, survey, layers.structure).map(({ pick, angle, now }) => ({ severity: "warning", category: tr("Core orientation calculator"), holeId: pick.hole_id,
       message: tr("The structure pick at {depth} m was calibrated with the hole at azimuth {az0}°, dip {dip0}°; the survey now gives {az1}°, {dip1}° ({angle}° apart), so its dip / dip direction is stale: re-enter it in the core orientation calculator.", { depth: Number(pick.depth).toFixed(1), az0: pick.hole_az_used.toFixed(1), dip0: pick.hole_dip_used.toFixed(1), az1: now.azimuth.toFixed(1), dip1: now.dip.toFixed(1), angle: angle.toFixed(1) }) })),
+    // TASKS.csv #2493 — holes missing from a layer most holes have, logs ending short of the hole, rows the imports left out (infos)
+    ...coverageInfos({ collars, layers, assays: assays || [], lengths: checkableHoleLengths(collars, survey), project, customLayers }).map((i) => ({ severity: "info", ...i })),
   ];
 
   const summary = { error: 0, warning: 0, info: 0 };

@@ -14,6 +14,7 @@ import { FIELD_KEYS, FIELDS, UNDO_KEYS, DIRTY_KEYS, PROJECT_VERSION, EMPTY_LAYER
 import { datumPatch } from "./localGridDatum.js"; // TASKS.csv #2691 / #2661
 import { fillFromRows, setEntry } from "./codeDictionary.js"; // TASKS.csv #2163
 import { changeElementBasis, rebaseRows, rebaseThresholds } from "./oxideBasisChange.js"; // TASKS.csv #2627
+import { withImportLeftOut } from "./importLeftOut.js"; // TASKS.csv #2493
 import { cappedNotice, capRemovedMapLayers, vertexCount, BIG_VERTICES } from "./undoMapLayerCap.js"; // TASKS.csv #2806; vertexCount / BIG_VERTICES: #2814
 import { useLatestCallback } from "./useLatestCallback.js"; // TASKS.csv #2769 follow-up — callbacks that keep only the current render's scope (the file says why)
 import { sectionWindowsMayClose, EXPORT_RESULT_EVENT } from "./desktop.js"; // TASKS.csv #2620; EXPORT_RESULT_EVENT: #2806
@@ -978,6 +979,8 @@ export function StoreProvider({ children }) {
   const setLocalGridTie = useCallback((tie) => setProject((p) => ({ ...p, crsSet: false, localGrid: { name: "", ...(p.localGrid || {}), tie: tie || null } })), []);
   // TASKS.csv #2691 / #2661 — the grid's RL datum offset (grid RL = elevation + rlOffset) and, untied, its typed north (lib/localGridDatum.js)
   const setLocalGridDatum = useCallback((patch) => setProject((p) => (p.localGrid ? { ...p, localGrid: { ...p.localGrid, ...datumPatch(patch) } } : p)), []);
+  // TASKS.csv #2493 — what an import left out of a built-in layer, kept in the project for Data QC (lib/importLeftOut.js)
+  const recordImportLeftOut = useCallback((layerKey, file, dropped, total) => setProject((p) => withImportLeftOut(p, layerKey, file, dropped, total)), []);
   // TASKS.csv #2627 — an element's grades reported as another basis (Li "%" <-> "% Li2O"): every stored number of that element converted with
   // its unit, in one undoable step — the drill assays (with their QC rows and per-method values) or, with { surface: true }, the surface
   // samples and their QC records; the threshold rules decided for it follow. -> the lib's result ({ changed, factor, from, to } or { error })
@@ -1740,6 +1743,7 @@ export function StoreProvider({ children }) {
     dbImports, setDbImports, // TASKS.csv #1963
     codeDictionary, setCodeDictionary, fillCodeDictionary, setCodeDictionaryEntry, // TASKS.csv #2163
     setElementBasis, // TASKS.csv #2627
+    recordImportLeftOut, // TASKS.csv #2493
     designLines, setDesignLines, // TASKS.csv #1342
     designStrings, setDesignStrings, // TASKS.csv #1876
     customLayers, setCustomLayers,
