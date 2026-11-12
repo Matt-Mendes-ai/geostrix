@@ -36,6 +36,7 @@ import { codeIndex, codeAt, NO_CODE } from "../lib/sampleLithology.js"; // TASKS
 import { labelMargin, fitLabel } from "../lib/fitLabel.js"; // TASKS.csv #2714
 import { numericSourceChoices } from "../lib/numericSources.js"; // TASKS.csv #2672
 import { logClasses, logClassRank, NO_READING } from "../lib/logClasses.js"; // TASKS.csv #2672
+import { overlapMeans, aboveCutoffRows, parseCutoffs, defaultCutoffs } from "../lib/cutoffTable.js"; // TASKS.csv #2912
 
 // Sample statistics (n-1 denominator for variance/stdev, the standard convention for a sample rather
 // than a full population — grade data is always a sample of the deposit, never the whole thing).
@@ -188,26 +189,47 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
   }, [rows, weightingActive, byHole, covLog]); // covLog: #2672
 
   const shownGroups = useMemo(() => groups.slice(0, SHOWN_MAX), [groups]); // #2508
+  const allValues = useMemo(() => rows.map((r) => r.value), [rows]); // #2912 — memoized: a new array each render re-ran overallStats every render
+  const overallStats = useMemo(() => computeStats(allValues, weightingActive ? rows.map((r) => r.weight) : null), [rows, allValues, weightingActive]);
+  const logKey = `${source}:${symbol}`;
+  const logScale = logChoice?.key === logKey ? logChoice.on : histogramWantsLog(overallStats); // #1524 — a skewed grade opens on log
+  const setLogScale = (on) => setLogChoice({ key: logKey, on });
   // TASKS.csv #1388 — the log-probability plot: each domain's points, and the cap candidates Compositing offers (the
   // length-weighted P97.5 and P99 of all the intervals) plus a cap to test, with what it would remove
   const [capTest, setCapTest] = useState("");
   const prob = useMemo(() => {
     const byDomain = new Map();
     rows.forEach((r) => { const k = r.domain == null ? NO_CODE : r.domain; /* #2510 */ if (!byDomain.has(k)) byDomain.set(k, []); byDomain.get(k).push(r); });
-    const series = groups.slice(0, SHOWN_MAX).map((g) => { /* #2508 — the plotted groups, as the table */ const rs = byDomain.get(g.key) || []; return { key: g.key, ...weightedProbPoints(rs.map((r) => r.value), weightingActive ? rs.map((r) => r.weight) : null) }; });
+    const series = groups.slice(0, SHOWN_MAX).map((g) => { /* #2508 — the plotted groups, as the table */ const rs = byDomain.get(g.key) || []; return { key: g.key, ...weightedProbPoints(rs.map((r) => r.value), weightingActive ? rs.map((r) => r.weight) : null, { log: logScale }) }; }); // log: #2912 — the histogram's scale
     const vs = rows.map((r) => r.value), ws = weightingActive ? rows.map((r) => r.weight) : null;
     // TASKS.csv #2675 — and the bend into the high tail that Thresholds suggests (Sinclair 1976), offered as a cap to test, never applied
-    return { series, vs, ws, p975: weightedPercentile(vs, ws, 97.5), p99: weightedPercentile(vs, ws, 99), brk: probabilityBreak(vs, ws) };
-  }, [rows, groups, weightingActive]);
+    return { series, vs, ws, log: logScale, p975: weightedPercentile(vs, ws, 97.5), p99: weightedPercentile(vs, ws, 99), brk: probabilityBreak(vs, ws) };
+  }, [rows, groups, weightingActive, logScale]);
+  // #2912 — the break is offered as a cap only on a skewed (log-scale) grade and above the median; on a bulk grade it was the gap between two modes
+  const brkAsCap = prob.brk > 0 && prob.log && overallStats && prob.brk > overallStats.median;
   const capValue = capTest === "" ? null : Number(capTest);
   const capFx = Number.isFinite(capValue) && capValue > 0 ? capEffect(prob.vs, prob.ws, capValue) : null;
   // #1676 — the warning Compositing gives, with the zone the capped samples form (drillhole assays only: surface samples have no depth)
   const capWarn = useMemo(() => (capFx ? capWarningText(capFx.pctMetalRemoved, source === "assays" ? capAboveZone(resolvedSegments(statsAssays, symbol, elementUnits[symbol] || "ppm", elementUnits), capValue) : null) : ""), [capFx?.pctMetalRemoved, capValue, source, statsAssays, symbol, elementUnits]);
-  const allValues = rows.map((r) => r.value);
-  const overallStats = useMemo(() => computeStats(allValues, weightingActive ? rows.map((r) => r.weight) : null), [rows, allValues, weightingActive]);
-  const logKey = `${source}:${symbol}`;
-  const logScale = logChoice?.key === logKey ? logChoice.on : histogramWantsLog(overallStats); // #1524 — a skewed grade opens on log
-  const setLogScale = (on) => setLogChoice({ key: logKey, on });
+  // TASKS.csv #2912 — the cut-off table: the user's cut-offs (the data's median / Q3 / P90 until typed) and the 'Also show' elements' means
+  const [cutText, setCutText] = useState("");
+  const [alsoSyms, setAlsoSyms] = useState([]);
+  const alsoShown = alsoSyms.filter((x) => x !== symbol && activeElements.some((e) => e.symbol === x));
+  const cutDefaults = useMemo(() => defaultCutoffs({ median: overallStats?.median, q3: overallStats?.q3, p90: weightedPercentile(prob.vs, prob.ws, 90) }), [overallStats, prob]);
+  const cutTyped = parseCutoffs(cutText);
+  const cutoffs = cutTyped.length ? cutTyped : cutDefaults;
+  const cutRows = useMemo(() => {
+    if (!rows.length || !cutoffs.length) return [];
+    const also = {};
+    if (source === "surface") {
+      const kept = surfaceSamples.filter((x) => valueIn(x, symbol, surfaceElementUnits[symbol] || "ppm", surfaceElementUnits) != null); // the rows' own order
+      alsoShown.forEach((sym) => { also[sym] = kept.map((x) => { const v = valueIn(x, sym, surfaceElementUnits[sym] || "ppm", surfaceElementUnits); return v == null ? NaN : v; }); });
+      return aboveCutoffRows(allValues, null, cutoffs, { also });
+    }
+    const main = resolvedSegments(statsAssays, symbol, elementUnits[symbol] || "ppm", elementUnits); // cached: the segments `rows` was built from, in order
+    alsoShown.forEach((sym) => { also[sym] = overlapMeans(main, resolvedSegments(statsAssays, sym, elementUnits[sym] || "ppm", elementUnits)); });
+    return aboveCutoffRows(allValues, rows.map((r) => r.weight), cutoffs, { weighted: weightingActive, also });
+  }, [rows, allValues, cutoffs.join(","), alsoShown.join(","), source, surfaceSamples, symbol, surfaceElementUnits, statsAssays, elementUnits, weightingActive]); // cutoffs / alsoShown by value: new arrays each render
 
   const histogram = useMemo(() => {
     if (!overallStats) return null;
@@ -301,7 +323,7 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
               <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginBottom: 6 }}>{tr("Grouped by sampling medium")}</div>
             )}
             <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
-              <input type="checkbox" checked={logScale} onChange={(e) => setLogScale(e.target.checked)} />{" "}{tr("Log-scale histogram")}</label>
+              <input type="checkbox" checked={logScale} onChange={(e) => setLogScale(e.target.checked)} />{" "}{tr("Log scale (histogram and probability plot)")}</label>{/* #2912 */}
             {/* TASKS.csv #267 */}
             {source === "assays" && (
               <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }} title={tr("Weight every statistic by the assay interval's own length. An unweighted mean over 0.3m and 3m intervals is biased toward whatever gets sampled at short intervals — in practice the mineralized zone.")}>
@@ -336,16 +358,17 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
 
               {/* TASKS.csv #1388 */}
               <div>
-                <div style={label}>{tr("Log-probability plot — {symbol} ({v}){v2}", { symbol, v: gradeUnitLabel(symbol, elementUnits[symbol]) /* #2192 */, v2: weightingActive ? tr(", length-weighted") : "" })}</div>
+                <div style={label}>{logScale ? tr("Log-probability plot — {symbol} ({v}){v2}", { symbol, v: gradeUnitLabel(symbol, elementUnits[symbol]) /* #2192 */, v2: weightingActive ? tr(", length-weighted") : "" }) : tr("Probability plot — {symbol} ({v}){v2}", { symbol, v: gradeUnitLabel(symbol, elementUnits[symbol]), v2: weightingActive ? tr(", length-weighted") : "" }) /* #2912 */}</div>
                 <ProbPlot prob={prob} cap={capFx ? capValue : null} domainLabel={domainLabel} unit={gradeUnitLabel(symbol, elementUnits[symbol])} />
                 <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginTop: 4 }}>
                   <span>{tr("P97.5 = {a}, P99 = {b} {unit} (the percentiles Compositing offers as caps)", { a: gradeText(prob.p975), b: gradeText(prob.p99), unit: gradeUnitLabel(symbol, elementUnits[symbol]) })}</span>
-                  {prob.brk > 0 && <button type="button" onClick={() => setCapTest(String(+prob.brk.toPrecision(4)))} style={{ ...sel, cursor: "pointer" }} title={tr("The bend between two populations that the two-line fit finds in the high tail (Sinclair 1976), as Thresholds suggests it. Check it on the plot before using it as a cap.")}>{tr("Test the probability-plot break: {v} {unit}", { v: gradeText(prob.brk), unit: gradeUnitLabel(symbol, elementUnits[symbol]) })}</button>}{/* #2675 */}
+                  {brkAsCap && <button type="button" onClick={() => setCapTest(String(+prob.brk.toPrecision(4)))} style={{ ...sel, cursor: "pointer" }} title={tr("The bend between two populations that the two-line fit finds in the high tail (Sinclair 1976), as Thresholds suggests it. Check it on the plot before using it as a cap.")}>{tr("Test the probability-plot break: {v} {unit}", { v: gradeText(prob.brk), unit: gradeUnitLabel(symbol, elementUnits[symbol]) })}</button>}{/* #2675 */}
                   <label style={{ display: "flex", alignItems: "center", gap: 5 }}>{tr("Cap to test")}<input type="number" min="0" step="any" value={capTest} onChange={(e) => setCapTest(e.target.value)} style={{ ...sel, width: 80 }} aria-label={tr("Cap to test")} /></label>
                   {capFx && <span>{weightingActive ? tr("{above} of {n} samples above it; {pct}% of the metal (grade × length) removed", { above: capFx.above, n: capFx.n, pct: capFx.pctMetalRemoved.toFixed(1) }) : tr("{above} of {n} samples above it", { above: capFx.above, n: capFx.n })}</span>}
                 </div>
                 {capWarn && <div role="status" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text-strong)", marginTop: 3, lineHeight: 1.4 }}>{capWarn}</div>}{/* #1676 */}
-                <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 2, lineHeight: 1.4 }}>{tr("Each population plots as a straight line on these axes (log-normal); a bend or a step in the high tail is where a second population starts, the usual place to cap (Sinclair 1976). Values of 0 count in the cumulative % but cannot be drawn on a log axis.")}</div>
+                {prob.brk > 0 && !brkAsCap && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginTop: 3, lineHeight: 1.4 }}>{prob.log ? tr("The probability-plot break ({v} {unit}) lies below the median, so it is not offered as a cap: it separates two populations rather than marking a high-grade tail.", { v: gradeText(prob.brk), unit: gradeUnitLabel(symbol, elementUnits[symbol]) }) : tr("These values are not strongly skewed, so the probability-plot break ({v} {unit}) is not offered as a cap: on such a grade a step usually separates two populations, not outliers.", { v: gradeText(prob.brk), unit: gradeUnitLabel(symbol, elementUnits[symbol]) })}</div>}{/* #2912 */}
+                <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 2, lineHeight: 1.4 }}>{logScale ? tr("Each population plots as a straight line on these axes (log-normal); a bend or a step in the high tail is where a second population starts, the usual place to cap (Sinclair 1976). Values of 0 count in the cumulative % but cannot be drawn on a log axis.") : tr("Arithmetic axes: a normally distributed population plots as a straight line, and a step is where a second population starts. Tick Log scale for a skewed trace element.") /* #2912 */}</div>
               </div>
 
               <div style={{ overflowX: "auto", flexShrink: 0 }}>{/* #1384: in the column body an overflow box shrank to a 25 px header strip */}
@@ -376,6 +399,42 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
                 </table>
               </div>
               {(() => { const over = groups.filter((g) => g.stats.n && g.ltN / g.stats.n > 0.5); if (!over.length) return null; const g = over[0]; return <div role="status" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", lineHeight: 1.4 }}>{tr("{pct}% of {symbol} in \"{pop}\" is below detection: its statistics are mostly about the detection limit.", { pct: Math.round((100 * g.ltN) / g.stats.n), symbol, pop: domainLabel(g.key) })}{over.length > 1 ? " " + tr("{n} more group(s) are over half below detection.", { n: over.length - 1 }) : ""}{" "}{tr("Its percentiles and caps sit on the limit, not on measured grades.")}</div>; })()}{/* #2505 */}
+
+              {/* TASKS.csv #2912 — above each cut-off: what a bulk commodity is read by */}
+              <div>
+                <div style={label}>{tr("Above cut-off — {symbol} ({v})", { symbol, v: gradeUnitLabel(symbol, (source === "surface" ? surfaceElementUnits : elementUnits)[symbol]) })}</div>
+                <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 6 }}>
+                  <label style={{ display: "flex", alignItems: "center", gap: 5 }}>{tr("Cut-offs")}<input type="text" value={cutText} onChange={(e) => setCutText(e.target.value)} placeholder={cutDefaults.join(", ")} style={{ ...sel, width: 140 }} aria-label={tr("Cut-offs")} /></label>
+                  <label style={{ display: "flex", alignItems: "center", gap: 5 }}>{tr("Also show")}<select value="" onChange={(e) => { const v = e.target.value; if (v) setAlsoSyms((a) => (a.includes(v) ? a : [...a, v])); }} style={sel} aria-label={tr("Also show")}>
+                      <option value="">{tr("add an element…")}</option>
+                      {activeElements.filter((e) => e.symbol !== symbol && !alsoShown.includes(e.symbol)).map((e) => <option key={e.symbol} value={e.symbol}>{e.symbol}</option>)}
+                    </select></label>
+                  {alsoShown.map((x) => <button key={x} type="button" onClick={() => setAlsoSyms((a) => a.filter((y) => y !== x))} style={{ ...sel, cursor: "pointer", padding: "2px 8px" }} title={tr("Remove {symbol} from the table", { symbol: x })}>{x} ×</button>)}
+                </div>
+                {cutRows.length > 0 && (
+                  <div style={{ overflowX: "auto" }}>
+                    <table style={{ borderCollapse: "collapse", fontSize: "var(--font-size-sm)", width: "100%" }}>
+                      <thead><tr>
+                        <th style={th}>{tr("Cut-off")}</th><th style={th}>n</th><th style={th}>{tr("% of samples")}</th>
+                        {source === "assays" && <><th style={th}>{tr("Metres")}</th><th style={th}>{tr("% of metres")}</th></>}
+                        <th style={th}>{tr("Mean {symbol}", { symbol })}</th>
+                        {alsoShown.map((x) => <th key={x} style={th}>{tr("Mean {symbol}", { symbol: x })} ({gradeUnitLabel(x, (source === "surface" ? surfaceElementUnits : elementUnits)[x])})</th>)}
+                      </tr></thead>
+                      <tbody>
+                        {cutRows.map((r) => (
+                          <tr key={r.cutoff}>
+                            <td style={td}>≥ {gradeText(r.cutoff)}</td><td style={td}>{r.n.toLocaleString()}</td><td style={td}>{r.pctN.toFixed(1)}</td>
+                            {source === "assays" && <><td style={td}>{r.length == null ? "—" : r.length.toFixed(1)}</td><td style={td}>{r.pctLength == null ? "—" : r.pctLength.toFixed(1)}</td></>}
+                            <td style={td}>{r.mean == null ? "—" : gradeText(r.mean)}</td>
+                            {alsoShown.map((x) => <td key={x} style={td}>{r.also[x] == null ? "—" : gradeText(r.also[x])}</td>)}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+                <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 3, lineHeight: 1.4 }}>{tr("All the samples above, every domain together; means {v}. The cut-offs are yours to type; until you do, they are the median, Q3 and P90 of these samples. An 'Also show' element is averaged over the same core.", { v: weightingActive ? tr("length-weighted") : tr("unweighted") })}</div>
+              </div>
 
               <button onClick={exportCSV} style={{ ...btn(true), alignSelf: "flex-start", padding: "7px 14px", display: "flex", alignItems: "center", gap: 6 }}>
                 <Download size={14} />{" "}{tr("Export statistics (CSV)")}</button>
@@ -472,32 +531,42 @@ const PROB_COLOURS = ["#2f6db5", "#c9863d", "#3d9a5b", "#b5463f", "#7a5aa8", "#2
 function ProbPlot({ prob, cap, domainLabel, unit }) {
   const all = prob.series.flatMap((s) => s.points);
   if (all.length < 3) return <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", padding: 8 }}>{tr("Too few values above zero for a probability plot.")}</div>;
+  const lin = prob.log === false; // #2912 — arithmetic axes: y is the value itself
+  const T = (v) => (lin ? v : Math.log10(v));
   const w = 640, h = 220, pl = 46, pb = 26, pr = 90, pt = 8;
-  const lines = [[prob.p975, "P97.5", "#b5463f"], [prob.p99, "P99", "#7a1f1f"], [cap, tr("cap"), "#1a2028"]].filter(([v]) => v > 0);
+  const lines = [[prob.p975, "P97.5", "#b5463f"], [prob.p99, "P99", "#7a1f1f"], [cap, tr("cap"), "#1a2028"]].filter(([v]) => (lin ? Number.isFinite(v) && v !== 0 : v > 0));
   let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
   for (const [x, y] of all) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
-  for (const [v] of lines) { const l = Math.log10(v); if (l < y0) y0 = l; if (l > y1) y1 = l; }
+  for (const [v] of lines) { const l = T(v); if (l < y0) y0 = l; if (l > y1) y1 = l; }
   y1 += 1e-9; x1 += 1e-9;
   const X = (v) => pl + ((v - x0) / (x1 - x0)) * (w - pl - pr), Y = (v) => h - pb - ((v - y0) / (y1 - y0)) * (h - pb - pt);
   const pct = [0.001, 0.01, 0.1, 0.5, 0.9, 0.99, 0.999].map((q) => [q, normalQuantile(q)]).filter(([, z]) => z >= x0 && z <= x1);
-  const dec = []; for (let d = Math.floor(y0); d <= Math.ceil(y1); d++) if (d >= y0 - 1e-9 && d <= y1) dec.push(d);
+  const dec = lin ? linearTicks(y0, y1) : []; if (!lin) for (let d = Math.floor(y0); d <= Math.ceil(y1); d++) if (d >= y0 - 1e-9 && d <= y1) dec.push(d);
   const fmtV = (v) => String(+v.toPrecision(3));
   const dashed = (name) => name === "P97.5" || name === "P99";
   // the line labels, top down, at least 11 px apart (a cap equal to P99 printed over its label)
   const labelY = new Map();
-  [...lines].sort((p, q) => q[0] - p[0]).reduce((prev, [v, name]) => { const y = Math.max(Y(Math.log10(v)) + 3, prev + 11); labelY.set(name, y); return y; }, -Infinity);
+  [...lines].sort((p, q) => q[0] - p[0]).reduce((prev, [v, name]) => { const y = Math.max(Y(T(v)) + 3, prev + 11); labelY.set(name, y); return y; }, -Infinity);
   return (
-    <svg viewBox={`0 0 ${w} ${h}`} width={w} style={{ maxWidth: "100%", display: "block" }} role="img" aria-label={tr("Log-probability plot")}>
+    <svg viewBox={`0 0 ${w} ${h}`} width={w} style={{ maxWidth: "100%", display: "block" }} role="img" aria-label={lin ? tr("Probability plot") : tr("Log-probability plot")}>
       <line x1={pl} x2={pl} y1={pt} y2={h - pb} style={{ stroke: "var(--color-border)" }} />
       <line x1={pl} x2={w - pr} y1={h - pb} y2={h - pb} style={{ stroke: "var(--color-border)" }} />
-      {dec.map((d) => <g key={d}><line x1={pl} x2={w - pr} y1={Y(d)} y2={Y(d)} style={{ stroke: "var(--color-hover-bg)" }} /><text x={pl - 4} y={Y(d) + 3} textAnchor="end" fontSize={fontSizes.xs} style={{ fill: "var(--color-text-muted)" }}>{fmtV(10 ** d)}</text></g>)}
+      {dec.map((d) => <g key={d}><line x1={pl} x2={w - pr} y1={Y(d)} y2={Y(d)} style={{ stroke: "var(--color-hover-bg)" }} /><text x={pl - 4} y={Y(d) + 3} textAnchor="end" fontSize={fontSizes.xs} style={{ fill: "var(--color-text-muted)" }}>{fmtV(lin ? d : 10 ** d)}</text></g>)}
       {pct.map(([q, z]) => <text key={q} x={X(z)} y={h - pb + 13} textAnchor="middle" fontSize={fontSizes.xs} style={{ fill: "var(--color-text-muted)" }}>{`${+(q * 100).toFixed(1)}%`}</text>)}
       <text x={w - pr} y={h - 2} textAnchor="end" fontSize={fontSizes.xs} style={{ fill: "var(--color-text-muted)" }}>{tr("cumulative %")}</text>
       <text x={4} y={pt + 8} fontSize={fontSizes.xs} style={{ fill: "var(--color-text-muted)" }}>{unit}</text>
-      {lines.map(([v, name, c]) => <g key={name}><line x1={pl} x2={w - pr} y1={Y(Math.log10(v))} y2={Y(Math.log10(v))} stroke={c} strokeWidth={dashed(name) ? 1 : 1.6} strokeDasharray={dashed(name) ? "5 3" : undefined} /><text x={w - pr + 4} y={labelY.get(name)} fontSize={fontSizes.xs} fill={c}>{`${name} ${fmtV(v)}`}</text></g>)}
+      {lines.map(([v, name, c]) => <g key={name}><line x1={pl} x2={w - pr} y1={Y(T(v))} y2={Y(T(v))} stroke={c} strokeWidth={dashed(name) ? 1 : 1.6} strokeDasharray={dashed(name) ? "5 3" : undefined} /><text x={w - pr + 4} y={labelY.get(name)} fontSize={fontSizes.xs} fill={c}>{`${name} ${fmtV(v)}`}</text></g>)}
       {prob.series.map((s, si) => { const c = PROB_COLOURS[si] || "#9aa5b3"; return <g key={s.key}>{thinToPixels(s.points, X, Y).map(([x, y], i) => <circle key={i} cx={X(x)} cy={Y(y)} r={1.7} fill={c} />)}</g>; })}{/* #1512 — one point per pixel, the tail kept */}
       {prob.series.length > 1 && prob.series.slice(0, PROB_COLOURS.length).map((s, si) => <text key={s.key} x={pl + 6} y={pt + 10 + si * 11} fontSize={fontSizes.xs} fill={PROB_COLOURS[si]}>{domainLabel(s.key)}</text>)}
     </svg>
   );
+}
+// #2912 — about five round ticks between a and b (1, 2 or 5 times a power of ten apart)
+export function linearTicks(a, b) {
+  if (!(b > a)) return [a];
+  const raw = (b - a) / 5, p = 10 ** Math.floor(Math.log10(raw)), step = [1, 2, 5, 10].map((m) => m * p).find((x) => x >= raw);
+  const out = [];
+  for (let v = Math.ceil(a / step) * step; v <= b + 1e-9; v += step) out.push(+v.toPrecision(12));
+  return out;
 }
 export { BoxPlots }; // TASKS.csv #1425 — the Downhole logs pane draws the same box plots

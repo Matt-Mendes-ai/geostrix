@@ -6,7 +6,8 @@ import { normalQuantile } from "./thresholds.js";
 // values, weights (null: every sample weight 1) -> { points: [[normal score, log10 value]] ascending, excluded: n of values <= 0 }
 // Plotting position of a sample: the share of the total length below its middle, (cumulative length - its length / 2) / total.
 // A zero or negative value still counts in the total (it is sampled core), but cannot be drawn on a log axis.
-export function weightedProbPoints(values, weights = null) {
+// TASKS.csv #2912 — { log: false } gives [normal score, value] (an arithmetic probability plot, for a grade that is not log-normal), zeros drawn
+export function weightedProbPoints(values, weights = null, { log = true } = {}) {
   const pairs = [];
   for (let i = 0; i < (values || []).length; i++) {
     const v = Number(values[i]), w = weights ? Number(weights[i]) : 1;
@@ -19,7 +20,8 @@ export function weightedProbPoints(values, weights = null) {
   for (const [v, w] of pairs) {
     const pos = (acc + w / 2) / total;
     acc += w;
-    if (v > 0) points.push([normalQuantile(pos), Math.log10(v)]);
+    if (!log) points.push([normalQuantile(pos), v]);
+    else if (v > 0) points.push([normalQuantile(pos), Math.log10(v)]);
     else excluded++;
   }
   return { points, excluded };
