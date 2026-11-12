@@ -10613,5 +10613,6 @@
   "Use the project's terrain instead": "استخدام تضاريس المشروع بدلًا من ذلك",
   "Zoom the plan to \"{name}\"": "تكبير المسقط إلى \"{name}\"",
   "No map tiles are loaded until you ask: draw the area over the project's collars and layer outlines, or choose it from the list.": "لا تُحمَّل أي بلاطات للخريطة حتى تطلب ذلك: ارسم المنطقة فوق فوهات المشروع وحدود طبقاته، أو اخترها من القائمة.",
-  "Show the online map": "عرض الخريطة عبر الإنترنت"
+  "Show the online map": "عرض الخريطة عبر الإنترنت",
+  "{n} reading(s) have a resistivity but no chargeability: the resistivity model uses them, the chargeability model leaves them out.": "لـ {n} قراءة مقاومية بلا قابلية شحن: يستخدمها نموذج المقاومية ويستبعدها نموذج قابلية الشحن."
 }

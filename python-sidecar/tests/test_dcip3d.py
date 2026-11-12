@@ -251,6 +251,20 @@ def test_support_per_volume():
     assert kept.max() <= 110, kept.max()
 
 
+def test_unused_ip_placeholders_need_no_uncertainty():
+    """TASKS.csv #2704 — a resistivity-only reading (ipUse false) carries a 0 placeholder chargeability: only the used readings
+    need a positive chargeability uncertainty; without ipUse a 0 reading with a percent-only uncertainty is still refused."""
+    rho = np.array([100.0, 120.0, 90.0]); charge = np.array([5.0, 0.0, 7.0]); order = np.array([2, 0, 1])
+    req = {"uncertainty": {"percent": 3}, "ipUncertainty": {"percent": 5}, "ipUse": [True, False, True]}
+    _, ip_std = D.data_std(req, rho[order], charge[order], order)
+    assert ip_std.shape == (3,)
+    try:
+        D.data_std({**req, "ipUse": None}, rho[order], charge[order], order)
+        raise AssertionError("a 0 mV/V used reading with no floor was accepted")
+    except ValueError as e:
+        print("  refused:", e)
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_") and callable(fn):

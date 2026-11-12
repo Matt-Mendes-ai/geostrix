@@ -84,6 +84,9 @@ def run_job(req, progress):
     readings = np.asarray([[np.nan if v is None else v for v in row] for row in req["readings"]], dtype=float)  # a pole = NaN
     rho = np.asarray(req["rho"], dtype=float)
     charge = np.asarray(req["chargeability"], dtype=float) if req.get("chargeability") is not None else None
+    # TASKS.csv #2704 — the readings the IP model uses (request order): DC uses every reading with a resistivity, IP only those
+    # with a chargeability (as dcip3d's ipUse, #1967); the others' chargeability values are placeholders and never read
+    ip_use = (np.asarray(req["ipUse"], dtype=bool) if req.get("ipUse") is not None else np.ones(len(rho), dtype=bool)) if charge is not None else None
     topo = np.asarray(req.get("topo") or [], dtype=float).reshape(-1, 2)
     cell = float(req["mesh"]["cell"])
     depth = float(req["mesh"]["depth"])
@@ -105,7 +108,7 @@ def run_job(req, progress):
     back = np.argsort(order)
     idx, rho = idx[order], rho[order]
     if charge is not None:
-        charge = charge[order]
+        charge, ip_use = charge[order], ip_use[order]
 
     mesh, core = _mesh(pos, topo, cell, depth)
     # topography as (x, z) points sampled across the whole mesh width (flat extension beyond the profile)
@@ -174,7 +177,7 @@ def run_job(req, progress):
         _iu = req.get("ipUncertainty") or {}
         _ip_fl = _per_reading(_iu.get("floorPerReadingMvV"), "ipUncertainty.floorPerReadingMvV")
         _ip_floor = np.maximum(float(_iu.get("floor", 0)), _ip_fl) / 1000.0 if _ip_fl is not None else float(_iu.get("floor", 0)) / 1000.0
-        _ip_std = float(_iu.get("percent", 0)) / 100.0 * np.abs(charge / 1000.0) + _ip_floor
+        _ip_std = (float(_iu.get("percent", 0)) / 100.0 * np.abs(charge / 1000.0) + _ip_floor)[ip_use] if np.ndim(_ip_floor) else float(_iu.get("percent", 0)) / 100.0 * np.abs(charge[ip_use] / 1000.0) + _ip_floor  # #2704 — the used readings
         if np.any(~np.isfinite(_ip_std)) or np.any(_ip_std <= 0):
             raise ValueError("Every chargeability reading needs a positive uncertainty (a 0 mV/V reading needs a floor).")
     dc_data = sdata.Data(survey, dobs=rho, standard_deviation=std)
@@ -273,12 +276,18 @@ def run_job(req, progress):
     out_ip = None
     if charge is not None:
         progress({"stage": "ip", "iter": 0, "maxIter": max_iter, "message": "Inverting chargeability"})
-        eta_obs = charge / 1000.0  # mV/V -> V/V
-        ip_survey = _survey(idx, locs, "apparent_chargeability")
+        # TASKS.csv #2704 — the IP survey of the used readings only, in SimPEG's own order for THAT subset (#652); pos_req: each
+        # IP reading's position in the request, so the outputs go back there (null for a resistivity-only reading)
+        sel = np.flatnonzero(ip_use)
+        ip_ord = _survey_order(idx[sel], locs)
+        sel = sel[ip_ord]
+        pos_req = order[sel]
+        eta_obs = charge[sel] / 1000.0  # mV/V -> V/V
+        ip_survey = _survey(idx[sel], locs, "apparent_chargeability")
         ip_survey.drape_electrodes_on_topography(mesh, active, topo_cell_cutoff="top", shift_horizontal=False)
         ip_unc = req.get("ipUncertainty") or {}
         # TASKS.csv #564 — no 5 % / 1 mV/V fallback (nothing physical is defaulted), and every std positive
-        ip_std = float(ip_unc.get("percent", 0)) / 100.0 * np.abs(eta_obs) + _ip_floor  # #683 — with the file's per-reading floor
+        ip_std = float(ip_unc.get("percent", 0)) / 100.0 * np.abs(eta_obs) + (_ip_floor[sel] if np.ndim(_ip_floor) else _ip_floor)  # #683 — with the file's per-reading floor; [sel]: #2704
         if np.any(~np.isfinite(ip_std)) or np.any(ip_std <= 0):
             raise ValueError("Every chargeability reading needs a positive uncertainty (a 0 mV/V reading needs a floor).")
         ip_data = sdata.Data(ip_survey, dobs=eta_obs, standard_deviation=ip_std)
@@ -292,8 +301,14 @@ def run_job(req, progress):
         ip_pred = ip_sim.dpred(m_ip)
         ip_phi = float(np.sum(((eta_obs - ip_pred) / ip_std) ** 2))
         # TASKS.csv #581 — the IP fit gets its own status, judged the same way as the DC one
-        out_ip = {"model": m_ip, "predicted": (ip_pred[back] * 1000).tolist(), "phi_d": ip_phi, "reachedTarget": ip_phi <= 1.05 * len(eta_obs), "iterations": len(hist_ip),
-                  "history": hist_ip, "standardDeviation": (ip_std[back] * 1000).tolist(), "fitChoice": fit_ip}
+        def _to_request(v):  # #2704 — request order, None where a reading had no chargeability
+            full = [None] * len(rho)
+            for p_, x_ in zip(pos_req, v):
+                full[int(p_)] = float(x_)
+            return full
+        out_ip = {"model": m_ip, "predicted": _to_request(ip_pred * 1000), "phi_d": ip_phi, "target": float(len(eta_obs)), "readingsUsed": int(len(eta_obs)),
+                  "reachedTarget": ip_phi <= 1.05 * len(eta_obs), "iterations": len(hist_ip),
+                  "history": hist_ip, "standardDeviation": _to_request(ip_std * 1000), "fitChoice": fit_ip}
 
     keep_full = core & np.isin(np.arange(mesh.n_cells), np.flatnonzero(active))
     act_index = np.full(mesh.n_cells, -1)

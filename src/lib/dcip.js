@@ -117,9 +117,16 @@ export function guessDcipColumns(headers) {
 const num = (v) => { if (v == null || String(v).trim() === "" || /^(\*|na|nan|null|inf)$/i.test(String(v).trim())) return null; const n = Number(String(v).replace(",", ".")); return Number.isFinite(n) ? n : null; };
 
 // rows: objects keyed by header. Returns { readings: [[a, b|null, m, n|null]], rho, ip|null, skipped, spacing, span, array }.
+// TASKS.csv #2704 — ip holds null where a reading has a resistivity but no chargeability ('*'); ipRequest() turns that into the
+// sidecar's chargeability + ipUse
+export function ipRequest(ip) {
+  if (!Array.isArray(ip) || !ip.some((v) => v != null)) return null;
+  const use = ip.map((v) => v != null);
+  return { chargeability: ip.map((v) => (v == null ? 0 : v)), ...(use.every(Boolean) ? {} : { ipUse: use }) };
+}
 export function parseDcipRows(rows, mapping) {
   const readings = [], rho = [], ip = [], err = [];
-  let skipped = 0, noIp = 0; // noIp: TASKS.csv #2076 — skipped only for a missing chargeability (a valid resistivity lost with it)
+  let skipped = 0, noIp = 0; // noIp: TASKS.csv #2076 / #2704 — readings with a resistivity but no chargeability: kept (ip null), for the resistivity model only
   const useIp = !!mapping.ip, useErr = !!mapping.err; // err: #683 — null where a reading has none
   for (const r of rows) {
     let a = num(r[mapping.a]), b = mapping.b ? num(r[mapping.b]) : null, m = num(r[mapping.m]), n = mapping.n ? num(r[mapping.n]) : null;
@@ -128,7 +135,8 @@ export function parseDcipRows(rows, mapping) {
     if (m == null && n != null) { m = n; n = null; }
     const v = num(r[mapping.rho]);
     const c = useIp ? num(r[mapping.ip]) : null;
-    if (a == null || m == null || !(v > 0) || (useIp && c == null)) { skipped++; if (a != null && m != null && v > 0) noIp++; continue; }
+    if (a == null || m == null || !(v > 0)) { skipped++; continue; }
+    if (useIp && c == null) noIp++; // #2704 — kept: the DC model uses it, the IP model does not (the request's ipUse)
     readings.push([a, b, m, n]); rho.push(v); if (useIp) ip.push(c);
     if (useErr) { const e = num(r[mapping.err]); err.push(e != null && e >= 0 ? e : null); }
   }
@@ -234,7 +242,7 @@ export function slimDcipResult(result) {
   const mm = (arr) => (Array.isArray(arr) ? arr.map((v) => (Number.isFinite(v) ? Math.round(v * 1000) / 1000 : null)) : arr);
   const cells = { s: mm(c.s), z: mm(c.z), ds: mm(c.ds), dz: mm(c.dz), resistivity: sig5(c.resistivity), support: sig5(c.support), ...(c.chargeability ? { chargeability: sig5(c.chargeability) } : {}), ...(c.doi ? { doi: sig5(c.doi) } : {}) }; // doi: #772
   return { kind: "dcip2d", cells, electrodes: result.electrodes, phi_d: result.phi_d, target: result.target, reachedTarget: result.reachedTarget,
-    iterations: result.iterations, ip: result.ip ? Object.fromEntries(Object.entries({ phi_d: result.ip.phi_d, reachedTarget: result.ip.reachedTarget, iterations: result.ip.iterations, fitChoice: result.ip.fitChoice, predicted: sig5(result.ip.predicted), standardDeviation: sig5(result.ip.standardDeviation) }).filter(([, v]) => v !== undefined)) : null,
+    iterations: result.iterations, ip: result.ip ? Object.fromEntries(Object.entries({ phi_d: result.ip.phi_d, target: result.ip.target /* #2704 — the readings the IP model used */, reachedTarget: result.ip.reachedTarget, iterations: result.ip.iterations, fitChoice: result.ip.fitChoice, predicted: sig5(result.ip.predicted), standardDeviation: sig5(result.ip.standardDeviation) }).filter(([, v]) => v !== undefined)) : null,
     ...(Array.isArray(result.predicted) ? { predicted: sig5(result.predicted), standardDeviation: sig5(result.standardDeviation) } : {}), mesh: result.mesh, versions: result.versions, ...(result.geometricFactor ? { geometricFactor: result.geometricFactor } : {}), ...(result.doiMethod ? { doiMethod: result.doiMethod } : {}) }; // ip fields: #581; geometricFactor: #580; doiMethod: #772
 }
 

@@ -10613,5 +10613,6 @@
   "Use the project's terrain instead": "Usar o terreno do projeto em vez disso",
   "Zoom the plan to \"{name}\"": "Aproximar a planta de \"{name}\"",
   "No map tiles are loaded until you ask: draw the area over the project's collars and layer outlines, or choose it from the list.": "Nenhuma peça do mapa é carregada até que você peça: desenhe a área sobre as bocas de furo e os contornos das camadas do projeto, ou escolha-a na lista.",
-  "Show the online map": "Mostrar o mapa on-line"
+  "Show the online map": "Mostrar o mapa on-line",
+  "{n} reading(s) have a resistivity but no chargeability: the resistivity model uses them, the chargeability model leaves them out.": "{n} leitura(s) têm resistividade mas não cargabilidade: o modelo de resistividade as usa e o de cargabilidade as deixa de fora."
 }

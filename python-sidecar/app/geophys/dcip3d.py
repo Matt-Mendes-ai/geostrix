@@ -265,7 +265,10 @@ def data_std(req, rho, charge, order):
         _ip_fl = _per_reading(iu.get("floorPerReadingMvV"), "ipUncertainty.floorPerReadingMvV")
         _ip_floor = np.maximum(float(iu.get("floor", 0)), _ip_fl) / 1000.0 if _ip_fl is not None else float(iu.get("floor", 0)) / 1000.0
         ip_std = float(iu.get("percent", 0)) / 100.0 * np.abs(charge / 1000.0) + _ip_floor
-        if np.any(~np.isfinite(ip_std)) or np.any(ip_std <= 0):
+        # TASKS.csv #2704 — only the readings the IP fit uses (ipUse) need a positive uncertainty: a resistivity-only reading's
+        # chargeability is a placeholder
+        use = np.ones(len(order), dtype=bool) if req.get("ipUse") is None else np.asarray(req["ipUse"], dtype=bool)[order]
+        if np.any(~np.isfinite(ip_std[use])) or np.any(ip_std[use] <= 0):
             raise ValueError("Every chargeability reading needs a positive uncertainty (a 0 mV/V reading needs a floor).")
     return std, (ip_std if charge is not None else None)
 
