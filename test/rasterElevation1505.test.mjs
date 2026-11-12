@@ -19,7 +19,7 @@ test("a surface grid goes 5 m above the highest collar under it; the collar far 
   const d = rasterDrapeElevation({ collars, bbox: [-10, -10, 300, 300], fileName: "LawyersMAG_RMI-RTP.tif" });
   assert.deepEqual(d, { z: 1907 + ABOVE_COLLARS_M, source: "collars", above: ABOVE_COLLARS_M, topCollarZ: 1907 });
   assert.equal(rasterDrapeElevation({ collars, fileName: "a.tif" }).z, 2200 + ABOVE_COLLARS_M); // no box: every collar
-  assert.match(drapeElevationNote(d), /^Placed flat at 1,912 m, 5 m above the highest collar under it, so no hole top is hidden/);
+  assert.match(drapeElevationNote(d), /^Placed flat at 1,912 m, 5 m above the highest collar under it: from the side no hole top is hidden, but seen from above it covers/ /* reworded: #2468 */);
   // the map-layer rule is untouched: the median collar
   assert.deepEqual(defaultDrapeElevation({ collars }), { z: (1797 + 1907) / 2, source: "collars" });
 });

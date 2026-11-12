@@ -36,7 +36,7 @@ test("no collar under it: 'above the highest collar in the project', and how far
   const u = rasterDrapeElevation({ collars, bbox: onCollars });
   assert.equal(u.noneUnder, undefined);
   assert.equal(u.far, undefined);
-  assert.match(drapeElevationNote(u), /^Placed flat at 333 m, 5 m above the highest collar under it, so no hole top is hidden/);
+  assert.match(drapeElevationNote(u), /^Placed flat at 333 m, 5 m above the highest collar under it: from the side no hole top is hidden, but seen from above it covers/ /* reworded: #2468 */);
 });
 
 test("stacking counts only rasters whose footprint overlaps", () => {

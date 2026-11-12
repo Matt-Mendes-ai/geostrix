@@ -102,7 +102,8 @@ export function drapeElevationNote(d) {
     + (d.far ? " " + farNote(d.far) : ""); // #2590 / #2125
   if (d.source === "depth") return tr("Placed flat at {z} m: {depth} m below the ground level ({ground} m), as the file name's depth says; change Elev. on its card.", { z, depth: d.depth, ground: Math.round(d.groundZ).toLocaleString() }) + stacked;
   if (d.source === "collars" && d.above && d.noneUnder) return tr("Placed flat at {z} m, {m} m above the highest collar in the project (no collar is under it); change Elev. on its card.", { z, m: d.above }) + stacked; // #2125
-  if (d.source === "collars" && d.above) return tr("Placed flat at {z} m, {m} m above the highest collar under it, so no hole top is hidden; change Elev. on its card.", { z, m: d.above }) + stacked;
+  // TASKS.csv #2468 (review #2325) — 'so no hole top is hidden' is true from the side and the opposite from above, how a map is read: both said
+  if (d.source === "collars" && d.above) return tr("Placed flat at {z} m, {m} m above the highest collar under it: from the side no hole top is hidden, but seen from above it covers the collars, boundaries and lines below it; lower Elev. or its opacity on its card to see them.", { z, m: d.above }) + stacked;
   if (d.source === "collars") return tr("Placed flat at {z} m, the median collar elevation; change Elev. on its card.", { z }) + stacked;
   if (d.source === "model") return tr("Placed flat at {z} m, the top of the block model \"{model}\" there; change Elev. on its card.", { z, model: d.model }) + stacked;
   if (d.source === "samples") return tr("Placed flat at {z} m, the median surface-sample elevation; change Elev. on its card.", { z }) + stacked;
