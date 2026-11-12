@@ -23,6 +23,8 @@ const row = { display: "flex", alignItems: "center", gap: 6, justifyContent: "sp
 const note = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 };
 // #1564 — what to do with an open mesh: the routes GeoStrix has (there is no general 'close this mesh' tool)
 const OPEN_ROUTE = "An open mesh has no inside. For an imported isosurface cut off at its model's edge, make the shell from the block model itself (Targeting > Voxel ranges > Shell at this range), which closes along the grid's edge; for a unit, build it as a closed volume in 3D Modelling (unit volumes, an envelope, a vein solid, or a solid linked from section outlines).";
+// TASKS.csv #2256 — with the field blank, gaps under this many blocks are not offered as targets (a default, typed over)
+const MIN_ZONE_BLOCKS = 8;
 const mm3 = (v) => (v >= 1e5 ? `${(v / 1e6).toFixed(2)} Mm³` : `${Math.round(v).toLocaleString()} m³`);
 
 // solids: [{ id, name, positions (world E, N, Z), indices }] (ViewerModule closedShellsForEstimation).
@@ -53,6 +55,7 @@ export default function UndrilledZonesPane({ solids = [], onAdd, onClose, onPlan
   // not selectable: Lawyers' 12 imported VLF isosurfaces were offered and each refused only after Run
   const choices = solidChoices(solids);
   const autoCell = useMemo(() => (unit && coverM > 0 ? defaultCellSize(unit.positions, coverM) : null), [unit, coverM]);
+  const minAuto = useMemo(() => { const c = Number(cellText) > 0 ? Number(cellText) : autoCell; return c > 0 ? MIN_ZONE_BLOCKS * c ** 3 : null; }, [cellText, autoCell]); // #2256 — the placeholder
   // TASKS.csv #1725 — a grade shell built from one hole, or mostly extrapolated: its undrilled parts are where it is least known
   const support = useMemo(() => (unit ? unitSupport(unit.params) : null), [unit]);
   const pct = (v) => Math.round(100 * v);
@@ -91,7 +94,7 @@ export default function UndrilledZonesPane({ solids = [], onAdd, onClose, onPlan
         // TASKS.csv #2249 — collars drilled from underground are not the ground: 15 % of a 1 g/t shell (48 % of the 3 g/t) was dropped as "air"
         const ug = terrain ? null : collarsLookUnderground(collars, survey);
         const groundAt = terrain ? (x, y) => terrainGroundAt(terrain, x, y) : ug?.underground ? null : collarGround(collars);
-        const r = undrilledZones({ solid: unit, traces: t.traces, coverM: Number(coverM), cellM: Number(cellText) || 0, insideOnly, minZoneM3: Number(minText) || 0, groundAt });
+        const r = undrilledZones({ solid: unit, traces: t.traces, coverM: Number(coverM), cellM: Number(cellText) || 0, insideOnly, minZoneM3: minText === "" ? null : Number(minText) || 0, minZoneBlocks: MIN_ZONE_BLOCKS /* #2256 — blank: under 8 blocks */, groundAt });
         setResult({ ...r, unitName: unit.name, coverM: Number(coverM), insideOnly, holes: t, groundFrom: terrain ? "terrain" : groundAt ? "collars" : null, underground: ug?.underground ? ug : null, inputs: { unitId, coverM, cellText, insideOnly, withPlanned, minText } /* #1732 */ });
       } catch (e) { setMsg({ ok: false, text: e.message }); }
       setBusy(false);
@@ -110,7 +113,7 @@ export default function UndrilledZonesPane({ solids = [], onAdd, onClose, onPlan
       // project data: English, like every other solid's params (#786)
       params: { tool: "undrilled zones (#1139)", unit: r.unitName, coverageDistanceM: r.coverM, blockSizeM: [0, 1, 2].map(() => +r.cellM.toFixed(2)) /* [dx, dy, dz] like a unit volume */, onlyHolesInsideUnit: r.insideOnly,
         drilledHoles: r.holes.drilled, plannedHolesCounted: r.holes.planned, ...(r.holes.assumed ? { drilledHolesAssumedVertical: r.holes.assumed } : {}), ...(r.holes.proposed ? { proposedCollarsLeftOut: r.holes.proposed } : {}), /* #2097 */ unitVolumeM3: Math.round(r.unitCells * r.cellVolume), volumeM3: Math.round(volumeM3),
-        zones: r.zones.length, smallGapsLeftOut: r.ignored.zones, builtAt: new Date().toISOString(),
+        zones: r.zones.length, smallGapsLeftOut: r.ignored.zones, smallGapUnderM3: Math.round(r.minZoneM3 ?? 0) /* #2256 */, builtAt: new Date().toISOString(),
         note: `Blocks of the unit whose centre is more than ${r.coverM} m from every hole trace (3D distance to the desurveyed trace). Not covered by drilling, not a resource or a target ranking.` },
     });
     setMsg({ ok: true, text: tr("Added \"{name}\" to the model surfaces: export it, slice it in sections, or turn it off there.", { name }) });
@@ -143,7 +146,7 @@ export default function UndrilledZonesPane({ solids = [], onAdd, onClose, onPlan
         <label style={row}>{tr("Block size (m)")}
           <input type="number" min="0" step="any" value={cellText} placeholder={autoCell ? tr("auto {v}", { v: autoCell }) : tr("auto")} onChange={(e) => setCellText(e.target.value)} style={{ ...smallSel, width: 70 }} /></label>
         <label style={row} title={tr("Gaps smaller than this are left out of the zones (they are counted)")}>{tr("Ignore gaps under (m³)")}
-          <input type="number" min="0" step="any" value={minText} placeholder="0" onChange={(e) => setMinText(e.target.value)} style={{ ...smallSel, width: 90 }} /></label>
+          <input type="number" min="0" step="any" value={minText} placeholder={minAuto ? tr("{n} blocks: {v}", { n: MIN_ZONE_BLOCKS, v: Math.round(minAuto).toLocaleString() }) : "0"} title={tr("Blank: gaps under {n} blocks are left out (a gap of a block or two is the grid, not a target).", { n: MIN_ZONE_BLOCKS })} onChange={(e) => setMinText(e.target.value)} style={{ ...smallSel, width: 90 }} /></label>
         <label style={{ display: "flex", gap: 5, alignItems: "flex-start", cursor: "pointer" }}><input type="checkbox" checked={insideOnly} onChange={(e) => setInsideOnly(e.target.checked)} />
           <span>{tr("Count only the parts of holes inside the unit")}<span style={{ ...note, display: "block" }}>{tr("Off: a hole just outside still tests the contact beside it.")}</span></span></label>
         <label style={{ display: "flex", gap: 5, alignItems: "center", cursor: "pointer" }}><input type="checkbox" checked={withPlanned} onChange={(e) => setWithPlanned(e.target.checked)} disabled={!plannedHoles.length} />
@@ -160,7 +163,7 @@ export default function UndrilledZonesPane({ solids = [], onAdd, onClose, onPlan
             {result.underground && <div style={note}>{tr("No part of the solid was cut as air: the collars look like underground collars ({upward} hole(s) drilled upward, {stacked} pair(s) of collars stacked over each other), so they are not a ground surface. Load a terrain to cut at the surface.", { upward: result.underground.upward, stacked: result.underground.stacked })}</div>}{/* #2249 */}
             {result.aboveGroundCells > 0 && <div style={note}>{tr(result.groundFrom === "terrain" ? "{v} of the solid lies above the terrain and was left out (air, not the unit)." : "{v} of the solid lies above the ground between the collars and was left out (air, not the unit; load a terrain for the real surface).", { v: mm3(result.aboveGroundCells * result.cellVolume) })}</div>}
             {result.groundFrom === "collars" && <CollarLevelsNote collars={collars} />}
-            {result.ignored.zones > 0 && <div style={note}>{tr(result.ignored.zones === 1 ? "1 smaller gap ({v}) left out." : "{n} smaller gaps ({v}) left out.", { n: result.ignored.zones, v: mm3(result.ignored.cells * result.cellVolume) })}</div>}
+            {result.ignored.zones > 0 && <div style={note}>{tr(result.ignored.zones === 1 ? "1 gap under {m} ({v}) left out." : "{n} gaps under {m} ({v}) left out.", { n: result.ignored.zones, v: mm3(result.ignored.cells * result.cellVolume), m: mm3(result.minZoneM3 ?? 0) }) /* #2256 — the size it was cut at */}</div>}
             {result.zones.slice(0, 8).map((z, i) => (
               <div key={i} style={{ ...note, color: "var(--color-text-secondary)" }}>{onPlanTo && <button onClick={() => onPlanTo(z.target || z.centre)} style={planBtn} title={tr("Open Planned holes aimed at the zone's point farthest from the drilling: choose a collar, then Solve")}>{/* #1724 */}{tr("Plan a hole to here")}</button>}{z.target ? tr("{i}. {v}: a hole aims at E {x}, N {y}, elevation {z} (the zone's point farthest from the drilling).", { i: i + 1, v: mm3(z.volumeM3), x: Math.round(z.target.x).toLocaleString(), y: Math.round(z.target.y).toLocaleString(), z: Math.round(z.target.z).toLocaleString() }) /* #2580 — the point handed over, not the centroid */ : tr("{i}. {v} around E {x}, N {y}, elevation {z}", { i: i + 1, v: mm3(z.volumeM3), x: Math.round(z.centre.x).toLocaleString(), y: Math.round(z.centre.y).toLocaleString(), z: Math.round(z.centre.z).toLocaleString() })}</div>
             ))}

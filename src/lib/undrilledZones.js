@@ -66,7 +66,9 @@ export function defaultCellSize(positions, coverM, target = 300_000, maxCells = 
 // TASKS.csv #1557 (review #1497, Lawyers) — groundAt(x, y) -> elevation | NaN: blocks above the ground are not the unit. A grade
 // shell closed artificially is capped above the collars, and those blocks of air, far from every hole, made the largest
 // "undrilled zone" (centred 26 m above an AGB collar), and "Plan a hole to here" then aimed a hole upward.
-export function undrilledZones({ solid, traces, coverM, cellM, insideOnly = false, minZoneM3 = 0, maxCells = 2_000_000, groundAt = null }) {
+// TASKS.csv #2256 (review #2174, WA lode gold) — minZoneM3 null: gaps under minZoneBlocks blocks are left out (a 16 m³ gap of one 2.5 m block
+// was offered as a drill target); the volume used is returned as minZoneM3.
+export function undrilledZones({ solid, traces, coverM, cellM, insideOnly = false, minZoneM3 = 0, minZoneBlocks = 0, maxCells = 2_000_000, groundAt = null }) {
   if (!(coverM > 0)) throw new Error(tr("Enter a coverage distance above zero."));
   const cell = cellM > 0 ? cellM : defaultCellSize(solid.positions, coverM, 300_000, maxCells);
   // the box snapped to whole blocks plus one: block faces on round coordinates, so a solid's flat faces fall on block
@@ -161,6 +163,7 @@ export function undrilledZones({ solid, traces, coverM, cellM, insideOnly = fals
   };
   // face-connected zones of uncovered blocks, largest first; those under minZoneM3 are dropped from the block
   const cellVolume = dx * dy * dz;
+  const minV = minZoneM3 != null && Number.isFinite(minZoneM3) ? minZoneM3 : (minZoneBlocks > 0 ? minZoneBlocks : 0) * cellVolume; // #2256
   const seen = new Uint8Array(ids.length);
   const zones = [], ignored = { zones: 0, cells: 0 };
   const stack = [];
@@ -178,7 +181,7 @@ export function undrilledZones({ solid, traces, coverM, cellM, insideOnly = fals
       }
     }
     const volumeM3 = members.length * cellVolume;
-    if (volumeM3 < minZoneM3) { ignored.zones++; ignored.cells += members.length; for (const at of members) out[at] = 0; continue; }
+    if (volumeM3 < minV) { ignored.zones++; ignored.cells += members.length; for (const at of members) out[at] = 0; continue; }
     let sx = 0, sy = 0, sz = 0;
     const box = [Infinity, -Infinity, Infinity, -Infinity, Infinity, -Infinity];
     for (const at of members) {
@@ -195,6 +198,6 @@ export function undrilledZones({ solid, traces, coverM, cellM, insideOnly = fals
   zones.sort((a, b) => b.cells - a.cells);
   return {
     block: { extent: coded.block.extent, resolution: [nx, ny, nz], ids: out, labels: ["not covered"] },
-    cellVolume, unitCells, coveredCells: unitCells - uncovered, uncoveredCells: uncovered, zones, ignored, segments: nSeg, cellM: cell, aboveGroundCells: aboveGround,
+    cellVolume, unitCells, coveredCells: unitCells - uncovered, uncoveredCells: uncovered, zones, ignored, segments: nSeg, cellM: cell, aboveGroundCells: aboveGround, minZoneM3: minV,
   };
 }

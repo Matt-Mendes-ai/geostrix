@@ -6495,8 +6495,8 @@
   "Not covered: {v} in 1 zone.": "Sem cobertura: {v} em 1 zona.",
   "Not covered: {v} in {n} zones.": "Sem cobertura: {v} em {n} zonas.",
   "Every part of the unit is within the distance of a hole.": "Toda a unidade está dentro da distância de um furo.",
-  "1 smaller gap ({v}) left out.": "1 lacuna menor ({v}) deixada de fora.",
-  "{n} smaller gaps ({v}) left out.": "{n} lacunas menores ({v}) deixadas de fora.",
+  "1 gap under {m} ({v}) left out.": "1 lacuna com menos de {m} ({v}) deixada de fora.",
+  "{n} gaps under {m} ({v}) left out.": "{n} lacunas com menos de {m} ({v}) deixadas de fora.",
   "{i}. {v} around E {x}, N {y}, elevation {z}": "{i}. {v} em torno de E {x}, N {y}, cota {z}",
   "… and {n} more.": "… e mais {n}.",
   "{drilled} drilled holes; {b} m blocks, measured from each block's centre to the hole traces in 3D.": "{drilled} furos perfurados; blocos de {b} m, medidos do centro de cada bloco até os traços dos furos em 3D.",
@@ -10532,5 +10532,7 @@
   "Density of the known occurrences (quartic kernel)": "Densidade das ocorrências conhecidas (núcleo quártico)",
   "1 collar has another collar within {plan} m in plan that is more than {rl} m lower (a pit or benches?): the ground between the collars uses the lower collar there and leaves this one out. A check by those two distances, not a survey: on a steep hillside it lowers real ground too. Load a terrain for the real surface.": "1 colar tem outro colar a menos de {plan} m em planta que está mais de {rl} m abaixo (uma cava ou bancadas?): o terreno entre os colares usa ali o colar mais baixo e deixa este de fora. É uma verificação por essas duas distâncias, não um levantamento: numa encosta íngreme também rebaixa o terreno real. Carregue um terreno para a superfície real.",
   "{n} collars have another collar within {plan} m in plan that is more than {rl} m lower (a pit or benches?): the ground between the collars uses the lowest collar there and leaves these {n} out. A check by those two distances, not a survey: on a steep hillside it lowers real ground too. Load a terrain for the real surface.": "{n} colares têm outro colar a menos de {plan} m em planta que está mais de {rl} m abaixo (uma cava ou bancadas?): o terreno entre os colares usa ali o colar mais baixo e deixa estes {n} de fora. É uma verificação por essas duas distâncias, não um levantamento: numa encosta íngreme também rebaixa o terreno real. Carregue um terreno para a superfície real.",
-  "Unit of the cut-off": "Unidade do teor de corte"
+  "Unit of the cut-off": "Unidade do teor de corte",
+  "{n} blocks: {v}": "{n} blocos: {v}",
+  "Blank: gaps under {n} blocks are left out (a gap of a block or two is the grid, not a target).": "Em branco: as lacunas com menos de {n} blocos ficam de fora (uma lacuna de um ou dois blocos é a grade, não um alvo)."
 }
