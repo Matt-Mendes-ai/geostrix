@@ -2977,7 +2977,7 @@ ${describeTrend(t)}` };
         // TASKS.csv #1770 — a drill plan labels every hole: the live view's declutter (#1294) must not hide one in the capture
         labelsOverlapping = withEveryLabel(hl, renderCamera, outW, outH, () => renderer.render(scene, renderCamera), LABEL_PX); // outW x outH: the frame fitScreenLabels sized the labels against (the canvas is that times the print pixel ratio)
         renderer.clippingPlanes = [];
-      }, outW, outH, captureLongPx(req.elementW, req.elementH, CAPTURE_LONG_PX)); // #906 — at the frame's aspect; #1479: 300 dpi of the frame
+      }, outW, outH, captureLongPx(req.elementW, req.elementH, CAPTURE_LONG_PX, req.dpi || undefined)); // #906 — at the frame's aspect; #1479: 300 dpi of the frame; #2303: the request's dpi
       encoded = shot.encoded; shotW = shot.width; shotH = shot.height;
     } catch (err) { applyTheme(liveViewBeforeRender); resolveViewportRender({ requestId: req.requestId, error: err.message }); return; }
     if (labelsOverlapping) setNotices((p) => [...p, notice("Layout capture: every hole is labelled, and {n} label(s) overlap another at this scale. A larger scale, or a shorter label mode, separates them.", { n: labelsOverlapping })]); // #1770
