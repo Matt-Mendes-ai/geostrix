@@ -69,9 +69,9 @@ const SHORTCUT_GROUPS = [
     title: "3D View mouse controls",
     items: [
       ["Left-drag", "Rotate/orbit"],
-      ["Middle-drag or Shift+Left-drag", "Pan"],
+      ["Right-drag, middle-drag or Shift+Left-drag", "Pan"], // TASKS.csv #2213 — right-drag pans
       ["Scroll", "Zoom in / out"],
-      ["Right-click", "Context menu"],
+      ["Right-click (without dragging)", "Context menu"], // #2043
       ["Shift+F10 or the Menu key", "Context menu from the keyboard (the focused 3D view or a sidebar row); arrows move, Enter chooses, Escape closes"], // TASKS.csv #730
     ],
   },
