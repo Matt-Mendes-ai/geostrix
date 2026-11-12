@@ -10,5 +10,5 @@ test("the raster card offers contours on every gridded raster; the control decod
   const g = readFileSync(new URL("../src/components/GridContourControls.jsx", import.meta.url), "utf8");
   assert.match(g, /const \[open, setOpen\] = useState\(!!raster\.geochem\);/);
   assert.match(g, /useMemo\(\(\) => \(open && raster\.grid\?\.values \? b64ToF32/);
-  assert.match(g, /raster\.geochem\?\.unit \|\| raster\.unit \|\| raster\.terrainDerivative\?\.unit/);
+  assert.match(g, /const unit = rasterUnitOf\(raster\)/); // #1858 — the same three units (lib/rasterMethod.js), a typed one first
 });

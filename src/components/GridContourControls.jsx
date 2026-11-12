@@ -1,6 +1,7 @@
 // TASKS.csv #1622 — contours of a geochemistry grid on its raster card: levels typed or the grid's upper percentiles, added as one
 // boundary (the terrain-contour shape, #1466) that sits on the ground: draped on the terrain, else flat at the raster's level.
 import React, { useMemo, useState } from "react";
+import { rasterUnitOf } from "../lib/rasterMethod.js"; // TASKS.csv #1858
 import { useStore } from "../lib/store.jsx";
 import { t as tr } from "../lib/i18n.js";
 import { b64ToF32 } from "../lib/inversion.js";
@@ -19,7 +20,7 @@ export default function GridContourControls({ raster, inputStyle }) {
   if (!raster.grid?.values) return null;
   if (!open) return <button type="button" onClick={() => setOpen(true)} style={{ marginTop: 7, padding: "3px 8px", fontSize: "var(--font-size-sm)", border: "1px solid var(--color-border)", borderRadius: 4, background: "var(--color-bg)", color: "var(--color-text-secondary)", cursor: "pointer" }}>{tr("Contours…")}</button>;
   if (!values) return null;
-  const unit = raster.geochem?.unit || raster.unit || raster.terrainDerivative?.unit || "";
+  const unit = rasterUnitOf(raster); // #1858 — the unit typed on the raster first
   const add = () => {
     const levels = text.trim() ? parseBreaks(text) : suggested;
     if (!levels.length) { setMsg(tr("Type one or more levels, e.g. 0.01, 0.05, 0.1.")); return; }

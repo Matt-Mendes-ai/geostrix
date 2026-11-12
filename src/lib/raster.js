@@ -684,15 +684,20 @@ export async function parseDEMFiles(files, targetEpsg, sourceEpsgOverride = null
 // TASKS.csv #2648 — a fetched picture ({ bbox in srcEpsg, dataUrl }, e.g. lib/imageryFetch.js fetchLatestTrueColour) brought into a tied
 // local grid: decoded, resampled through the tie (lib/rasterTie.js tieImageToLocal; outside the picture is transparent), re-encoded.
 // -> the same object with the local bbox, dataUrl, gridW / gridH, or null when the tie cannot reach srcEpsg
-export async function tieFetchedImage(r, tie, srcEpsg, maxSide = 4096) {
-  if (!tieReaches(tie, srcEpsg)) return null;
-  const img = await new Promise((resolve, reject) => { const i = new Image(); i.onload = () => resolve(i); i.onerror = () => reject(new Error(tr("The fetched picture could not be read."))); i.src = r.dataUrl; });
+// TASKS.csv #1860 — a raster's picture (its data URL) decoded to RGBA pixels: { width, height, data: Uint8ClampedArray }
+export async function dataUrlPixels(dataUrl, failText = null) {
+  const img = await new Promise((resolve, reject) => { const i = new Image(); i.onload = () => resolve(i); i.onerror = () => reject(new Error(failText || tr("The fetched picture could not be read."))); i.src = dataUrl; });
   const c = document.createElement("canvas");
   c.width = img.naturalWidth; c.height = img.naturalHeight;
   const ctx = c.getContext("2d");
   ctx.drawImage(img, 0, 0);
   const px = ctx.getImageData(0, 0, c.width, c.height);
-  const t = tieImageToLocal({ xmin: r.bbox[0], ymin: r.bbox[1], xmax: r.bbox[2], ymax: r.bbox[3], width: c.width, height: c.height, data: px.data }, tie, srcEpsg, maxSide);
+  return { width: c.width, height: c.height, data: px.data };
+}
+export async function tieFetchedImage(r, tie, srcEpsg, maxSide = 4096) {
+  if (!tieReaches(tie, srcEpsg)) return null;
+  const px = await dataUrlPixels(r.dataUrl);
+  const t = tieImageToLocal({ xmin: r.bbox[0], ymin: r.bbox[1], xmax: r.bbox[2], ymax: r.bbox[3], width: px.width, height: px.height, data: px.data }, tie, srcEpsg, maxSide);
   if (!t) return null;
   const o = document.createElement("canvas");
   o.width = t.width; o.height = t.height;

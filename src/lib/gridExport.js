@@ -48,6 +48,27 @@ export function gridToGeoTIFF({ nx, ny, x0, yTop, dx, dy, bands, epsg, nodata = 
   return writeGeoTiff(data, metadata);
 }
 
+// TASKS.csv #1860 (review #1646, Kodiak) — a picture raster (an RGB plan map georeferenced in the app, a scan, imagery) out as a GeoTIFF:
+// 8-bit red, green, blue and an unassociated alpha band (PhotometricInterpretation RGB, ExtraSamples 2), so a keyed-out background stays
+// transparent in QGIS. bbox: the picture's outer edges (pixel areas, as raster.bbox); data: RGBA, row 0 = north. -> ArrayBuffer
+export function imageToGeoTIFF({ width, height, data, bbox, epsg }) {
+  if (!(width > 0 && height > 0) || !data || data.length !== width * height * 4) throw new Error(`${data?.length} bytes for a ${width} x ${height} RGBA picture`);
+  const [xmin, ymin, xmax, ymax] = bbox;
+  const metadata = {
+    width, height, SamplesPerPixel: 4, PlanarConfiguration: 1, BitsPerSample: [8, 8, 8, 8], SampleFormat: [1, 1, 1, 1],
+    PhotometricInterpretation: 2, ExtraSamples: 2,
+    ModelPixelScale: [(xmax - xmin) / width, (ymax - ymin) / height, 0],
+    ModelTiepoint: [0, 0, 0, xmin, ymax, 0], // PixelIsArea: the picture's north-west corner
+    GTModelTypeGeoKey: 1, GTRasterTypeGeoKey: 1,
+  };
+  if (Number.isFinite(Number(epsg))) metadata.ProjectedCSTypeGeoKey = Number(epsg);
+  return writeGeoTiff(data instanceof Uint8Array ? data : new Uint8Array(data.buffer, data.byteOffset, data.byteLength), metadata);
+}
+export function pictureExportNote(r, width, height, epsg) {
+  const [xmin, , xmax] = r.bbox;
+  return tr("GeoTIFF of \"{name}\": a picture of {w} × {h} pixels (red, green, blue and transparency, 8-bit), {px} m per pixel, in EPSG:{epsg}. It holds colours only, no values.", { name: r.name, w: width, h: height, px: +((xmax - xmin) / width).toFixed(2), epsg });
+}
+
 // A node-based terrain-shaped grid ({ bbox, gridW, gridH }: nodes ON the bbox edges) -> the cell geometry above
 export function nodeGridGeometry({ bbox, gridW, gridH }) {
   const [xmin, ymin, xmax, ymax] = bbox;

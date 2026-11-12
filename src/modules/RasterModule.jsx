@@ -10,11 +10,11 @@ import React, { useMemo, useRef, useState } from "react";
 import { Image, Eye, EyeOff, Trash2, Loader2, Satellite, MapPinned, ScatterChart, SlidersHorizontal, Rainbow, Download } from "../components/icons.js";
 import SpectralIndexModal from "../components/SpectralIndexModal.jsx"; // TASKS.csv #783
 import { useStore } from "../lib/store.jsx";
-import { buildRasterImport, gridToSurveyRows, rasterFromGrid, ternaryRaster, parseWorldFile, tieFetchedImage } from "../lib/raster.js"; // parseWorldFile: TASKS.csv #1855; tieFetchedImage: #2648
+import { buildRasterImport, gridToSurveyRows, rasterFromGrid, ternaryRaster, parseWorldFile, tieFetchedImage, dataUrlPixels } from "../lib/raster.js"; // dataUrlPixels: #1860; // parseWorldFile: TASKS.csv #1855; tieFetchedImage: #2648
 import { b64ToF32, gridDeclination } from "../lib/inversion.js"; // TASKS.csv #373
 import { SAT_LEVELS, planLatestFetch, levelsAddingNothing, naipCoverage } from "../lib/imageryLevels.js"; // TASKS.csv #781 / #837; naipCoverage: #1474
 const NAIP_FINEST_M = 0.6; // lib/naipFetch.js, which stays out of this module until NAIP is fetched
-import { gridToGeoTIFF, saveGeoTIFF, safeFileName, rasterExportNote } from "../lib/gridExport.js"; // TASKS.csv #854; rasterExportNote: #1095
+import { gridToGeoTIFF, saveGeoTIFF, safeFileName, rasterExportNote, imageToGeoTIFF, pictureExportNote } from "../lib/gridExport.js"; // TASKS.csv #854; rasterExportNote: #1095; picture: #1860
 import { toLonLat, crsName } from "../lib/reproject.js";
 import SourceCrsField from "../components/SourceCrsField.jsx"; // TASKS.csv #488
 import InfoButton from "../components/InfoButton.jsx";
@@ -27,12 +27,13 @@ import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Spac
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786 — messages in the interface language
 import { mainClusters } from "../lib/dataClusters.js"; // TASKS.csv #1461
-import { fetchAreaBox } from "../lib/dataExtent.js"; // #1461
+import { fetchAreaBox, imageryAreaCollars } from "../lib/dataExtent.js"; // #1461; imageryAreaCollars: #2126
 import RasterColourControls from "../components/RasterColourControls.jsx"; // TASKS.csv #1236
 import GridContourControls from "../components/GridContourControls.jsx"; // TASKS.csv #1622
 import { gridCellText } from "../lib/raster.js"; // TASKS.csv #1242
 import { detectKeyColour } from "../lib/rasterKey.js"; // TASKS.csv #1623
 import RasterLegend from "../components/RasterLegend.jsx"; // TASKS.csv #2011
+import RasterPictureLegend from "../components/RasterPictureLegend.jsx"; // TASKS.csv #1858
 import { tieOf, localToWorld } from "../lib/localGridTie.js"; // TASKS.csv #2587 — a tied local grid's way in; localToWorld: #2648
 import { farFromCollars, farLabel } from "../lib/landingCheck.js"; // TASKS.csv #2590
 import { projectTargetEpsg } from "../lib/projectTarget.js"; // TASKS.csv #2287 — no reprojection INTO the placeholder CRS
@@ -88,7 +89,7 @@ function SpectrumPanel({ spectrum, onSplit }) {
 }
 
 export default function RasterModule({ embedded = false } = {}) {
-  const { rasters, addRaster, updateRaster, removeRaster, terrain, project, collars, boundaries, setLayers, projectIsEmpty, setEpsg, surfaceSamples = [], voxelModels = [], updateGeophysSurvey, geophysSurveys = {} } = useStore(); // voxelModels: #1856 // projectIsEmpty/setEpsg: #607; updateGeophysSurvey: #1985
+  const { rasters, addRaster, updateRaster, removeRaster, terrain, project, collars, survey = [] /* #2126 */, boundaries, setLayers, projectIsEmpty, setEpsg, surfaceSamples = [], voxelModels = [], updateGeophysSurvey, geophysSurveys = {} } = useStore(); // voxelModels: #1856 // projectIsEmpty/setEpsg: #607; updateGeophysSurvey: #1985
   // TASKS.csv #326 — a data grid's nodes as survey points (Geophysics -> Point cloud / Inversion). Replaces
   // any earlier points made from the same grid, so doing it twice does not double the survey.
   // TASKS.csv #373 — potential-field filters on a grid's kept values; each result is a new raster
@@ -260,7 +261,7 @@ export default function RasterModule({ embedded = false } = {}) {
   const defaultSatBboxLonLat = async () => {
     if (!collars.length || (!project?.epsg && !tieOf(project))) return null;
     // TASKS.csv #1461 — the collars and the surface samples near them (Silvertip's soil grid), not the collars alone
-    const [xmin, ymin, xmax, ymax] = fetchAreaBox(collars, surfaceSamples);
+    const [xmin, ymin, xmax, ymax] = fetchAreaBox(imageryAreaCollars(collars, survey).collars, surfaceSamples); // #2126 — the traced holes / the main cluster, not a whole district list
     const corners = [[xmin, ymin], [xmax, ymin], [xmax, ymax], [xmin, ymax]];
     const lonLats = await Promise.all(corners.map(([x, y]) => lonLatOf(x, y)));
     if (lonLats.some((ll) => !ll)) return null;
@@ -271,6 +272,10 @@ export default function RasterModule({ embedded = false } = {}) {
   const buildSatAreaOptions = async () => {
     if (!project?.epsg && !tieOf(project)) return [];
     const jobs = [];
+    { // TASKS.csv #2126 — the whole district box stays one click away when the seed is a part of the collars
+      const a = imageryAreaCollars(collars, survey);
+      if (a.by !== "all") { const [xmin, ymin, xmax, ymax] = fetchAreaBox(collars, surfaceSamples); jobs.push({ id: "all_collars", label: tr("Every collar ({n})", { n: a.total.toLocaleString() }), xmin, xmax, ymin, ymax }); }
+    }
     if (terrain?.bbox) {
       const [xmin, ymin, xmax, ymax] = terrain.bbox;
       jobs.push({ id: "terrain", label: `Match terrain/SRTM: ${terrain.name}`, xmin, xmax, ymin, ymax });
@@ -332,7 +337,9 @@ export default function RasterModule({ embedded = false } = {}) {
     }
     const seed = await defaultSatBboxLonLat();
     const opts = await buildSatAreaOptions();
-    setSpectralAreas([...(seed ? [{ id: "holes", label: tr("Around the drillholes"), bboxLonLat: seed }] : []), ...opts]);
+    const a = imageryAreaCollars(collars, survey); // #2126
+    const holesLabel = a.by === "traced" ? tr("Around the traced holes ({n} of {total})", { n: a.collars.length.toLocaleString(), total: a.total.toLocaleString() }) : a.by === "cluster" ? tr("Around the main group of collars ({n} of {total})", { n: a.collars.length.toLocaleString(), total: a.total.toLocaleString() }) : tr("Around the drillholes");
+    setSpectralAreas([...(seed ? [{ id: "holes", label: holesLabel, bboxLonLat: seed }] : []), ...opts]);
     setSpectralOpen(true);
   };
   openSpectralRef.current = openSpectral;
@@ -378,6 +385,18 @@ export default function RasterModule({ embedded = false } = {}) {
   // project (same reasoning as the import modal's own Source CRS field).
   const [sourceEpsg, setSourceEpsg] = useState("");
 
+  // TASKS.csv #1860 (review #1646) — a picture raster out as an RGBA GeoTIFF in the project CRS: a plan map georeferenced here can go to
+  // QGIS or a colleague without its four points being placed again
+  const exportPicture = async (r) => {
+    const epsgX = await ensureExportCrs(project); /* #1021 */
+    if (!epsgX) return;
+    try {
+      const px = await dataUrlPixels(r.dataUrl, tr("The picture of \"{name}\" could not be read.", { name: r.name }));
+      const res = await saveGeoTIFF(`${safeFileName(r.name)}.tif`, imageToGeoTIFF({ ...px, bbox: r.bbox, epsg: epsgX }));
+      if (res?.ok) setError({ info: true, text: pictureExportNote(r, px.width, px.height, epsgX) });
+      else if (res && !res.ok && res.error) setError({ info: false, text: res.error });
+    } catch (e) { setError({ info: false, text: e.message }); }
+  };
   // TASKS.csv #2129 — the collars' elevation range, for 'it looks like an elevation model'
   const collarZRange = (cs) => { let a = Infinity, b = -Infinity; for (const c of cs || []) if (Number.isFinite(c?.z)) { if (c.z < a) a = c.z; if (c.z > b) b = c.z; } return Number.isFinite(a) ? [a, b] : null; };
   const importRaster = async (file, world = null) => { // world: a world file selected with it (TASKS.csv #1855)
@@ -473,6 +492,7 @@ export default function RasterModule({ embedded = false } = {}) {
                   </select>
                   {naip && bbox && naipCoverage(bbox) !== "inside" && <span style={{ color: "var(--color-danger-icon-strong)" }}>{naipCoverage(bbox) === "outside" ? tr("Outside the USA: NAIP has no imagery here.") : tr("Part of this area is outside the USA: NAIP covers only the rest.")}</span>}{/* #1474 */}
                   {p && <span>{tr("~{v} m pixels · image {gridW} × {gridH} px{v3}", { gridW: p.gridW, gridH: p.gridH, v: naip ? (p.pixelM < 10 ? p.pixelM.toFixed(1) : Math.round(p.pixelM)) : Math.round(p.pixelM), v3: p.nativeLimited ? (naip ? tr(" · imagery's finest") : tr(" · imagery's finest (10 m)")) : "" })}</span>}
+                  {p && !p.nativeLimited && p.pixelM > 3 * (naip ? NAIP_FINEST_M : 10) && <span style={{ color: "var(--color-warn-text)" }}>{tr("Pixels {k} times coarser than the imagery's own: a smaller area gets finer ones.", { k: Math.round(p.pixelM / (naip ? NAIP_FINEST_M : 10)) })}</span>}{/* #2126 */}
                 </span>
               );
             }}
@@ -544,6 +564,7 @@ export default function RasterModule({ embedded = false } = {}) {
               <div style={{ flex: 1, minWidth: 0, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.name}</div>
               {r.grid && !r.geochem /* #1622 — no magnetic filters for a geochemistry grid */ && !r.terrainDerivative /* #1626 — nor for a slope / aspect / curvature */ && <SlidersHorizontal role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: filterFor === r.id ? "var(--color-info)" : "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Filter the values of \"{name}\"", { name: r.name })} title={tr("Grid filters: RTP, first vertical derivative, upward continuation, tilt derivative, analytic signal")} onClick={() => { const opening = filterFor !== r.id; setFilterFor(opening ? r.id : null); if (opening) setFilt((f) => ({ ...f, kind: defaultFilterKind(r, rasterMethodOf(r, geophysSurveys)) })); /* #1863 — RTP only for magnetics */ }} />}
               {r.grid && <Download role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Export the values of \"{name}\" as a GeoTIFF", { name: r.name })} title={tr("Export the values of \"{name}\" as a GeoTIFF", { name: r.name })} onClick={async () => { const epsgX = await ensureExportCrs(project); if (!epsgX) return; /* #1021 */ const g = r.grid; const res = await saveGeoTIFF(`${safeFileName(r.name)}.tif`, gridToGeoTIFF({ nx: g.nx, ny: g.ny, x0: g.x0, yTop: g.yTop, dx: g.dx, dy: g.dy, bands: [{ values: g.values }], epsg: epsgX })); if (res?.ok) setError({ info: true, text: rasterExportNote(r) }); /* #1095 — what the file holds */ }} />}{/* TASKS.csv #854 */}
+              {!r.grid && r.dataUrl && <Download role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Export the picture \"{name}\" as a GeoTIFF", { name: r.name })} title={tr("Export the picture \"{name}\" as a GeoTIFF", { name: r.name })} onClick={() => exportPicture(r)} />}{/* TASKS.csv #1860 — an RGB plan map, a scan, imagery */}
               {r.grid && <ScatterChart role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Use the values of \"{name}\" as survey points", { name: r.name })} title={tr("Use as survey points ({nx}×{ny} grid values, {v}) — for the Geophysics inversion", { nx: r.grid.nx, ny: r.grid.ny, v: gridCellText(r.grid) })} onClick={() => gridAsSurvey(r)} />}
               <Trash2 aria-label={tr("Remove raster \"{name}\"", { name: r.name })} title={tr("Remove raster \"{name}\"", { name: r.name })} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(tr("Remove \"{name}\"?", { name: r.name }))) removeRaster(r.id); }} />
             </div>
@@ -650,6 +671,7 @@ export default function RasterModule({ embedded = false } = {}) {
               <input type="range" min={0.1} max={1} step={0.05} value={r.opacity ?? 0.85} onChange={(e) => updateRaster(r.id, { opacity: Number(e.target.value) })} style={{ flex: 1 }} />
             </div>
             <RasterLegend raster={r} updateRaster={updateRaster} />{/* TASKS.csv #2011 */}
+            {!r.grid && !r.ternary && !r.legend && r.dataUrl && <RasterPictureLegend raster={r} updateRaster={updateRaster} />}{/* TASKS.csv #1858 */}
           </div>
         ))}
       </div>

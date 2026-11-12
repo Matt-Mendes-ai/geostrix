@@ -14,6 +14,8 @@ import { planDataExtent, planFarLayers } from "../lib/mapsPlan.js"; // planFarLa
 import { figureSamples, colourFromStops } from "../lib/sampleGrid.js"; // TASKS.csv #1622
 import { collarColourFields, perHoleAssay, collarColouring, declutterLabels } from "../lib/collarMapStyle.js"; // TASKS.csv #2459
 import HoleValueGridPanel from "./HoleValueGridPanel.jsx"; // TASKS.csv #2658
+import { planGridStep, planGridLines, gridLabel, measureLine, distanceText } from "../lib/planGrid.js"; // TASKS.csv #2128
+import { trueNorthBearingInGridDeg } from "../lib/inversion.js"; // TASKS.csv #2128 — the convergence at the measured line
 import { holeValueSources, holeValueRows, perHoleValue } from "../lib/holeValueGrid.js"; // TASKS.csv #2658
 
 const imageCache = new Map(); // dataUrl (+ key colour) -> { img, ready }
@@ -44,7 +46,7 @@ function hillshadeCanvas(t) {
 
 
 export default function MapsPlanView() {
-  const { rasters = [], terrain, mapLayers = [], boundaries = [], collars = [], surfaceSamples = [], assays = [], assayElements = [], layers = {}, customLayers = [] } = useStore(); // assays: #2459; layers, customLayers: #2658
+  const { rasters = [], terrain, mapLayers = [], boundaries = [], collars = [], surfaceSamples = [], assays = [], assayElements = [], layers = {}, customLayers = [], project } = useStore(); // assays: #2459; layers, customLayers: #2658; project: #2128
   const wrapRef = useRef(null), canvasRef = useRef(null), layerCache = useRef(new Map()), drag = useRef(null);
   const [size, setSize] = useState({ w: 800, h: 600 });
   const [view, setView] = useState(null); // { cx, cy, mPerPx }
@@ -55,6 +57,10 @@ export default function MapsPlanView() {
   // TASKS.csv #2459 / #2591 — collars coloured by a collar field or a per-hole assay statistic, and labelled with their ids
   const [colourBy, setColourBy] = useState(""); // "" | "f:<field>" | "max:<element>" | "mean:<element>"
   const [showIds, setShowIds] = useState(false);
+  // TASKS.csv #2128 — a coordinate grid (on by default) and a two-click measure (session state)
+  const [showGrid, setShowGrid] = useState(true);
+  const [measuring, setMeasuring] = useState(false);
+  const [mPts, setMPts] = useState([]);
   const colourFields = useMemo(() => collarColourFields(collars), [collars]);
   const colouring = useMemo(() => {
     if (!colourBy) return null;
@@ -110,6 +116,18 @@ export default function MapsPlanView() {
       }
       drawAt(c, l.bbox, l.opacity ?? 0.6);
     });
+    if (showGrid) { // #2128 — light lines at a round spacing, labelled on the top and left edges
+      const step = planGridStep(v.mPerPx), { xs, ys } = planGridLines({ left, top, w: size.w, h: size.h, mPerPx: v.mPerPx }, step);
+      ctx.strokeStyle = "rgba(30,40,52,0.16)"; ctx.lineWidth = 1;
+      ctx.beginPath();
+      xs.forEach((x) => { const px = Math.round(X(x)) + 0.5; ctx.moveTo(px, 0); ctx.lineTo(px, size.h); });
+      ys.forEach((y) => { const py = Math.round(Y(y)) + 0.5; ctx.moveTo(0, py); ctx.lineTo(size.w, py); });
+      ctx.stroke();
+      ctx.font = "10px sans-serif"; ctx.fillStyle = "rgba(30,40,52,0.7)"; ctx.textBaseline = "top";
+      xs.forEach((x) => ctx.fillText(gridLabel(x, "E"), X(x) + 3, 3));
+      ctx.textBaseline = "bottom";
+      ys.forEach((y) => ctx.fillText(gridLabel(y, "N"), 3, Y(y) - 2));
+    }
     ctx.lineJoin = "round";
     boundaries.forEach((b) => {
       if (b.visible === false) return;
@@ -140,7 +158,12 @@ export default function MapsPlanView() {
       const w = Math.min(90, 8 + Math.max(0, ...collars.slice(0, 500).map((c) => ctx.measureText(String(c.hole_id ?? "")).width)));
       for (const l of declutterLabels(pts, w, 13)) { const t = String(collars[l.i].hole_id ?? ""); ctx.strokeText(t, l.x + 5, l.y); ctx.fillText(t, l.x + 5, l.y); }
     }
-  }, [v?.cx, v?.cy, v?.mPerPx, size, rasters, terrain, hill, mapLayers, boundaries, collars, surfaceSamples, tick, figure, colouring, showIds]);
+    if (measuring && mPts.length) { // #2128 — the measured line
+      ctx.strokeStyle = "#c2185b"; ctx.lineWidth = 2; ctx.setLineDash([6, 4]);
+      ctx.beginPath(); mPts.forEach((p, i) => (i ? ctx.lineTo(X(p.x), Y(p.y)) : ctx.moveTo(X(p.x), Y(p.y)))); ctx.stroke(); ctx.setLineDash([]);
+      ctx.fillStyle = "#c2185b"; mPts.forEach((p) => { ctx.beginPath(); ctx.arc(X(p.x), Y(p.y), 3.5, 0, Math.PI * 2); ctx.fill(); });
+    }
+  }, [v?.cx, v?.cy, v?.mPerPx, size, rasters, terrain, hill, mapLayers, boundaries, collars, surfaceSamples, tick, figure, colouring, showIds, showGrid, measuring, mPts]);
 
   if (!extent || !v) return null;
   const sb = niceScaleBar(v.mPerPx, 140);
@@ -151,18 +174,31 @@ export default function MapsPlanView() {
     setView({ mPerPx: m, cx: at.x - (px - size.w / 2) * m, cy: at.y + (py - size.h / 2) * m });
   };
   const onDown = (e) => { drag.current = { x: e.clientX, y: e.clientY, cx: v.cx, cy: v.cy }; };
+  // #2128 — a click (not a drag) while measuring sets a point; a third click starts a new line
+  const measureClick = (e) => {
+    const d = drag.current;
+    if (!measuring || !d || Math.hypot(e.clientX - d.x, e.clientY - d.y) > 4) return;
+    const r = canvasRef.current.getBoundingClientRect(), p = toWorld(e.clientX - r.left, e.clientY - r.top);
+    setMPts((q) => (q.length >= 2 ? [p] : [...q, p]));
+  };
   const onMove = (e) => {
     const r = canvasRef.current.getBoundingClientRect();
     setCursor(toWorld(e.clientX - r.left, e.clientY - r.top));
     const d = drag.current;
     if (d) setView({ mPerPx: v.mPerPx, cx: d.cx - (e.clientX - d.x) * v.mPerPx, cy: d.cy + (e.clientY - d.y) * v.mPerPx });
   };
-  const onUp = () => { drag.current = null; };
+  const onUp = (e) => { if (e) measureClick(e); drag.current = null; };
+  // #2128 — the measured line's distance and grid bearing, and where true north is there (a projected project CRS only)
+  const measured = measuring && mPts.length === 2 ? (() => {
+    const m = measureLine(mPts[0], mPts[1]);
+    const conv = project?.crsSet !== false && project?.epsg ? trueNorthBearingInGridDeg((mPts[0].x + mPts[1].x) / 2, (mPts[0].y + mPts[1].y) / 2, project.epsg) : null;
+    return { ...m, conv: Number.isFinite(conv) ? conv : null };
+  })() : null;
   const chip = { position: "absolute", background: "rgba(255,255,255,0.9)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "3px 7px", fontSize: "var(--font-size-sm)", color: "#1a2028" };
   return (
     <div ref={wrapRef} className="ge-maps-plan" style={{ position: "absolute", inset: 0, overflow: "hidden" }}>
       <canvas ref={canvasRef} style={{ width: size.w, height: size.h, display: "block", cursor: drag.current ? "grabbing" : "crosshair" }} aria-label={tr("Plan of the map data")}
-        onWheel={onWheel} onMouseDown={onDown} onMouseMove={onMove} onMouseUp={onUp} onMouseLeave={() => { onUp(); setCursor(null); }} onDoubleClick={fit} />
+        onWheel={onWheel} onMouseDown={onDown} onMouseMove={onMove} onMouseUp={onUp} onMouseLeave={() => { onUp(); setCursor(null); }} onDoubleClick={measuring ? undefined : fit /* #2128 — a double-click while measuring sets points */} />
       {figure && <FigureLegend f={figure} chip={chip} />}
       {collars.length > 0 && ( /* TASKS.csv #2459 / #2591 — the collars' colour and labels, and their legend */
         <div style={{ ...chip, left: 10, top: 10, maxWidth: 270, display: "flex", flexDirection: "column", gap: 4, lineHeight: 1.35 }} onMouseDown={(e) => e.stopPropagation()}>
@@ -193,7 +229,16 @@ export default function MapsPlanView() {
       <div style={{ ...chip, right: 10, top: 10, display: "flex", gap: 8, alignItems: "center" }}>
         <span style={{ fontWeight: 700 }}>{tr("N ↑")}</span>
         <button onClick={fit} style={{ fontSize: "var(--font-size-sm)", padding: "1px 7px", border: "1px solid var(--color-border)", borderRadius: 4, background: "var(--color-bg)", cursor: "pointer" }}>{tr("Fit")}</button>
+        <label style={{ display: "flex", alignItems: "center", gap: 3 }}><input type="checkbox" checked={showGrid} onChange={(e) => setShowGrid(e.target.checked)} />{tr("Grid")}</label>{/* #2128 */}
+        <button onClick={() => { setMeasuring((m) => !m); setMPts([]); }} aria-pressed={measuring} style={{ fontSize: "var(--font-size-sm)", padding: "1px 7px", border: `1px solid ${measuring ? "var(--color-selected-border)" : "var(--color-border)"}`, borderRadius: 4, background: measuring ? "var(--color-selected-bg)" : "var(--color-bg)", cursor: "pointer" }}>{tr("Measure")}</button>
       </div>
+      {measuring && ( /* TASKS.csv #2128 */
+        <div role="status" aria-label={tr("Measured line")} style={{ ...chip, right: 10, bottom: 40, maxWidth: 340, lineHeight: 1.4, fontVariantNumeric: "tabular-nums" }}>
+          {measured
+            ? <>{tr("{d} · grid bearing {b}°", { d: distanceText(measured.distM), b: measured.bearingDeg.toFixed(1) })}{measured.conv != null && Math.abs(measured.conv) >= 0.01 ? " " + tr("(true north is {c}° {dir} of grid north here)", { c: Math.abs(measured.conv).toFixed(2), dir: measured.conv >= 0 ? tr("east") : tr("west") }) : ""}</>
+            : tr("Click two points on the plan to measure between them.")}
+        </div>
+      )}
       {farLayers.length > 0 && ( /* TASKS.csv #2125 — what Fit leaves out */
         <div role="note" style={{ ...chip, right: 10, top: 44, maxWidth: 340, lineHeight: 1.4 }}>
           {tr("Fit frames the drillholes and leaves out {n} layer(s) far from them: {names}.", { n: farLayers.length, names: farLayers.slice(0, 3).map((l) => `${l.name} (${Math.round(l.far.distM / 1000).toLocaleString()} km)`).join(", ") + (farLayers.length > 3 ? ", …" : "") })}

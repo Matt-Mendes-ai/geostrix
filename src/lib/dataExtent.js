@@ -1,4 +1,22 @@
 // Project-extent helpers for the lazily loaded Maps / Geophysics code (kept out of dataClusters.js, which the 3D view loads at start).
+import { mainClusters } from "./dataClusters.js"; // TASKS.csv #2126
+
+// TASKS.csv #2126 (review #2013, Woodjam) — the collars an imagery area is seeded from. Woodjam's 544 collars are a 1974-2024 district list
+// (50 x 55 km) of which only the 10 holes of 2024 have a survey: 10 m Sentinel-2 came out at ~53 m pixels. When some holes are traced (a
+// survey, or a dip / azimuth on the collar) and others are not, the traced ones; then the main cluster of those (lib/dataClusters.js).
+// -> { collars, total, by: "all" | "traced" | "cluster" }
+export function imageryAreaCollars(collars, survey = []) {
+  const cs = (collars || []).filter((c) => Number.isFinite(c?.x) && Number.isFinite(c?.y));
+  const surveyed = new Set((survey || []).map((s) => s?.hole_id).filter((h) => h != null));
+  const has = (v) => v !== "" && v != null && Number.isFinite(Number(v)); // an empty cell is not a dip
+  const traced = cs.filter((c) => surveyed.has(c.hole_id) || has(c.dip) || has(c.azimuth));
+  let pick = cs, by = "all";
+  if (traced.length && traced.length < cs.length) { pick = traced; by = "traced"; }
+  const { keep } = mainClusters(pick);
+  const main = pick.filter((_, i) => keep[i]);
+  if (main.length && main.length < pick.length) { pick = main; if (by === "all") by = "cluster"; }
+  return { collars: pick, total: cs.length, by };
+}
 
 // TASKS.csv #1461 — the default area to fetch terrain or imagery for: the collars AND the surface samples within `nearM` of a
 // collar (Silvertip's soil grid starts 770 m beyond a collars-only box and runs 4 km north), with the collars' usual margin
