@@ -1946,7 +1946,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
     const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
     const hit = new THREE.Vector3();
     if (raycaster.ray.intersectPlane(plane, hit)) {
-      return { x: hit.x + o.x, y: -hit.z + o.y, z: hit.y + o.z, on: null };
+      return { x: hit.x + o.x, y: -hit.z + o.y, z: hit.y + o.z, on: null, plane: true }; // plane: #2526 — the reference level, not ground
     }
     return null;
   }, []);
@@ -2311,7 +2311,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
       // intersectObjects passes over overlapping object lists on every single pointermove.
       const hoverHits = pickHits(raycasterRef.current);
       const worldPt = worldPointFromHits(raycasterRef.current, hoverHits);
-      if (worldPt) setCursor(worldPt);
+      if (worldPt) setCursor(worldPt.plane ? { ...worldPt, z: null } : worldPt); // #2526 — over open ground Z is '—': no ground was hit
       // hover tooltip on layer objects — real bug fixed here: intersectObjects() is given the raw
       // mesh children directly (not their parent THREE.Group), and Raycaster only skips an object
       // whose OWN .visible is false, not an ancestor's — so a toggled-off layer's group.visible=false
