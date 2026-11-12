@@ -11,6 +11,8 @@ import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { categoryColor, categoryLabel } from "../lib/layers.js"; // TASKS.csv #1289
 import { inspectorColumns, inspectorCell } from "../lib/inspectorColumns.js"; // TASKS.csv #1402
 import { macrostratLithColours } from "../lib/macrostratColours.js"; // TASKS.csv #2005
+import Papa from "papaparse";
+import { codeDescriptions } from "../lib/codeDescriptions.js"; // TASKS.csv #1778
 
 // TASKS.csv #123 — QGIS-specialist audit finding: "Themes save whole-view state per-project; there's
 // no reusable style definition (color ramp + classification + symbol) that travels between projects
@@ -48,6 +50,7 @@ export default function LayerInspector({ layerKey, rows, meta, categoryFilter, n
     } catch (e) { setStyleNotice({ ok: false, text: tr("Macrostrat: {message}", { message: e.message }) }); }
   };
   const styleFileInput = useRef(null);
+  const descFileInput = useRef(null); // TASKS.csv #1778
   // TASKS.csv #1233 / #1402 — the columns follow the data: Hole for every hole-based layer, description, intensity, percent
   const columns = useMemo(() => inspectorColumns(layerKey, rows), [layerKey, rows]);
   const categories = meta.numeric ? [] : distinctValues(rows);
@@ -64,6 +67,19 @@ export default function LayerInspector({ layerKey, rows, meta, categoryFilter, n
       setStyleNotice({ ok: true, text: tr("Applied style to {applied} of {n} value(s) from \"{v}\"{v2}", { applied, n: Object.keys(payload.entries).length, v: payload.layerLabel || payload.layerKind || file.name, v2: applied < Object.keys(payload.entries).length ? tr(" — the rest don't appear in this layer's current data.") : "." }) });
     } catch (err) {
       setStyleNotice({ ok: false, text: tr("Couldn't load style file: {message}", { message: err.message }) });
+    }
+  };
+  // TASKS.csv #1778 — a code -> description CSV sets the legend labels (the colours stay); every legend, section key and strip log reads them
+  const importDescriptions = async (file) => {
+    setStyleNotice(null);
+    try {
+      const parsed = Papa.parse(await file.text(), { skipEmptyLines: true });
+      const found = codeDescriptions(parsed.data, categories.map(([v]) => v));
+      found.apply.forEach(({ value, label }) => onSetLabel(value, label));
+      const extra = found.unmatched.length ? " " + tr("{n} code(s) in the file are not in this layer: {codes}.", { n: found.unmatched.length, codes: found.unmatched.slice(0, 6).join(", ") + (found.unmatched.length > 6 ? "…" : "") }) : "";
+      setStyleNotice({ ok: found.apply.length > 0, text: (found.apply.length ? tr("Labelled {applied} of {n} code(s) from \"{file}\"; their colours are kept.", { applied: found.apply.length, n: categories.length, file: file.name }) : tr("No code of this layer is in \"{file}\" (the first column, or a column named code, holds the codes).", { file: file.name })) + extra });
+    } catch (err) {
+      setStyleNotice({ ok: false, text: tr("Couldn't read the descriptions: {message}", { message: err.message }) });
     }
   };
   const searched = search ? rows.filter((r) => JSON.stringify(r).toLowerCase().includes(search.toLowerCase())) : rows;
@@ -111,6 +127,8 @@ export default function LayerInspector({ layerKey, rows, meta, categoryFilter, n
                   <button onClick={() => exportLayerStyle(layerKey, meta, categories, legendOverride)} style={miniBtn} title={tr("Save this legend's colours/labels as a reusable file")}><Download size={12} style={{ marginRight: 4, verticalAlign: -1 }} />{tr("Export style")}</button>
                   <button onClick={() => styleFileInput.current.click()} style={miniBtn} title={tr("Apply a previously-exported style file to this legend")}><Upload size={12} style={{ marginRight: 4, verticalAlign: -1 }} />{tr("Import style")}</button>
                   <input ref={styleFileInput} type="file" accept=".json" style={{ display: "none" }} onChange={(e) => { const f = e.target.files[0]; if (f) importLayerStyle(f); e.target.value = ""; }} />
+                  <button onClick={() => descFileInput.current.click()} style={miniBtn} title={tr("A table of codes and descriptions (CSV: the first two columns, or columns named code and description). Each code's label in every legend, section key and strip log becomes its description; the colours stay.")}><Upload size={12} style={{ marginRight: 4, verticalAlign: -1 }} />{tr("Descriptions from CSV…")}</button>{/* #1778 */}
+                  <input ref={descFileInput} type="file" accept=".csv,.txt,.tsv" style={{ display: "none" }} onChange={(e) => { const f = e.target.files[0]; if (f) importDescriptions(f); e.target.value = ""; }} />
                   {layerKey === "litho" && <button onClick={macrostratColours} style={miniBtn} title={tr("Colour each code like Macrostrat's lithology of the same name (from the code, its label or its logged description; data CC BY 4.0). Codes that match none keep their colour.")}>{tr("Macrostrat colours")}</button>}{/* TASKS.csv #2005 */}
                 </div>
                 {styleNotice && (
