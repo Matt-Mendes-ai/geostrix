@@ -3,10 +3,12 @@
 // collects the clicks and passes them here. Lines are written with lib/interpretation.js.
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { TaskPaneHeader } from "./Ribbon.jsx";
-import { PenTool, Trash2 } from "./icons.js";
+import { PenTool, Trash2, Pencil } from "./icons.js";
 import { useStore } from "../lib/store.jsx";
 import { surveyKey } from "../lib/geophysSurveys.js";
-import { attitudeOf, attitudeAttrs, INTERPRETATION_TYPES, CONFIDENCE, NEW_LAYER, chooseLayerId, uniqueLayerName, typeLabel, isInterpretationLayer, interpretationLayer, addInterpretationLine, removeInterpretationLine, restoreInterpretationLine, lineLengthM } from "../lib/interpretation.js";
+import { attitudeOf, attitudeAttrs, INTERPRETATION_TYPES, CONFIDENCE, NEW_LAYER, chooseLayerId, uniqueLayerName, typeLabel, isInterpretationLayer, interpretationLayer, addInterpretationLine, removeInterpretationLine, restoreInterpretationLine, lineLengthM, moveInterpretationVertex } from "../lib/interpretation.js";
+import { useInterpretVertexEdit } from "./useInterpretVertexEdit.js"; // TASKS.csv #2767
+import { terrainGroundAt } from "../lib/viewer/geomath.js";
 import { activateOnKey } from "../lib/a11y.js";
 import { pBtn, smallSel } from "../lib/sidebarStyles.js";
 import { t as tr } from "../lib/i18n.js";
@@ -17,7 +19,7 @@ const row = { display: "flex", alignItems: "center", gap: 6, justifyContent: "sp
 
 // drawing: the 3D view's state { on, points: [{ x, y, z }], finishSeq }; onStart / onUndo / onCancel / onDone drive it.
 // presetSurvey: the survey a Geophysics-tab button named (TASKS.csv #1152), or null.
-export default function InterpretPane({ drawing, onStart, onUndo, onCancel, onDone, presetSurvey, onClose, onSnap = null }) {
+export default function InterpretPane({ drawing, onStart, onUndo, onCancel, onDone, presetSurvey, onClose, onSnap = null, view = null, snapCtx = null }) { // view / snapCtx: #2767
   const { mapLayers, addMapLayer, updateMapLayer, layers, rasters, terrain, collars, survey: holeSurvey, voxelModels, surfaceSamples } = useStore(); // holeSurvey: the drillhole survey, not the geophysics one picked below
   // TASKS.csv #2269 — no terrain and no grid shown for the clicks to land on: they fall on the scene's origin plane, so the lines go at a
   // stated plan elevation instead (on a shown grid the clicks keep its elevation, as before)
@@ -66,9 +68,17 @@ export default function InterpretPane({ drawing, onStart, onUndo, onCancel, onDo
   const seen = useRef(drawing.finishSeq);
   useEffect(() => { if (drawing.finishSeq !== seen.current) { seen.current = drawing.finishSeq; if (drawing.on) finish(); } });
 
+  // TASKS.csv #2767 — Edit vertices: the line's index in the current layer while its vertices are being dragged in the 3D view
+  const [editIdx, setEditIdx] = useState(null);
+  useEffect(() => { setEditIdx(null); }, [layerId, drawing.on]);
+  const groundAt = useMemo(() => (terrain ? (x, y) => terrainGroundAt(terrain, x, y) : null), [terrain]);
+  useInterpretVertexEdit({ view, layer: editIdx != null ? layer : null, index: editIdx, groundAt, snap: { on: drawing.snap !== false, ctx: snapCtx },
+    onMove: (vi, xy, tie) => { if (layer) updateMapLayer(layer.id, (l) => ({ ...moveInterpretationVertex(l, editIdx, vi, xy, tie), id: layer.id })); } });
+  useEffect(() => { if (editIdx == null) return undefined; const k = (e) => { if (e.key !== "Escape" || /^(INPUT|TEXTAREA|SELECT)$/.test(e.target?.tagName || "")) return; e.stopImmediatePropagation(); setEditIdx(null); }; window.addEventListener("keydown", k, true); return () => window.removeEventListener("keydown", k, true); }, [editIdx]); // capture: Escape ends the edit, not the pane
+
   // TASKS.csv #2522 (review #2486) — the trash removed a line at one click with nothing to bring it back: the last removed line can be restored
   const [removed, setRemoved] = useState(null); // { layerId, index, feature }
-  const remove = (i) => { if (!layer) return; setRemoved({ layerId: layer.id, index: i, feature: layer.features[i] }); updateMapLayer(layer.id, () => ({ ...removeInterpretationLine(layer, i), id: layer.id })); };
+  const remove = (i) => { if (!layer) return; setEditIdx(null); /* #2767 — the indices shift */ setRemoved({ layerId: layer.id, index: i, feature: layer.features[i] }); updateMapLayer(layer.id, () => ({ ...removeInterpretationLine(layer, i), id: layer.id })); };
   const restore = () => { if (!removed) return; const L = mine.find((l) => l.id === removed.layerId); if (L) updateMapLayer(L.id, () => ({ ...restoreInterpretationLine(L, removed.index, removed.feature), id: L.id })); setRemoved(null); };
   // #2522 — with no terrain the lines lie flat at one RL; the text sent the user to a card this tab does not have: the Elev. box is here too
   const [elev, setElev] = useState("");
@@ -124,6 +134,12 @@ export default function InterpretPane({ drawing, onStart, onUndo, onCancel, onDo
             </div>
           </div>
         )}
+        {editIdx != null && layer?.features?.[editIdx] && (
+          <div style={{ border: "1px solid var(--color-accent)", borderRadius: 6, padding: 8, display: "flex", flexDirection: "column", gap: 6 }}>{/* #2767 */}
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)" }}>{tr("Editing \"{name}\": drag a vertex (the orange points) in the 3D view to move it. Top view works best.", { name: layer.features[editIdx].attributes.name })}</div>
+            <button type="button" onClick={() => setEditIdx(null)} style={{ ...pBtn, justifyContent: "center", marginBottom: 0 }}>{tr("Done")}</button>
+          </div>
+        )}
         {msg && <div role="status" style={note}>{msg}</div>}
         {removed && <button type="button" onClick={restore} style={{ ...pBtn, marginBottom: 0 }}>{tr("Restore \"{name}\"", { name: removed.feature?.attributes?.name || "" })}</button>}{/* #2522 — outside the list: it stays when the last line went */}
         {layer && layer.features.length > 0 && (
@@ -134,6 +150,7 @@ export default function InterpretPane({ drawing, onStart, onUndo, onCancel, onDo
                 <span style={{ display: "inline-block", width: 10, height: 3, background: layer.categories.find((c) => c.value === f.attributes.type)?.color || "#888", flexShrink: 0 }} />
                 <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={`${f.attributes.name} · ${typeLabel(f.attributes.type)} · ${f.attributes.confidence}${f.attributes.survey ? ` · ${f.attributes.survey}` : ""}${f.attributes.note ? `\n${f.attributes.note}` : ""}${f.attributes.ties ? `\n${tr("Tied to: {v}", { v: f.attributes.ties })}` : "" /* #2630 */}`}>{f.attributes.name}</span>
                 <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)", flexShrink: 0 }}>{f.attributes.length_m.toLocaleString()} m</span>
+                {view && !drawing.on && <Pencil size={13} role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Edit the vertices of \"{name}\"", { name: f.attributes.name })} onClick={() => setEditIdx((v) => (v === i ? null : i))} style={{ cursor: "pointer", color: editIdx === i ? "var(--color-accent)" : "var(--color-text-secondary)", flexShrink: 0 }} />}{/* #2767 */}
                 <Trash2 size={13} role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Remove line \"{name}\"", { name: f.attributes.name })} onClick={() => remove(i)} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} />
               </div>
             ))}

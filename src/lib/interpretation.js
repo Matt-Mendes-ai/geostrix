@@ -111,10 +111,29 @@ export function addInterpretationLine(layer, points, attrs = {}, opts = {}) {
   const elevation = layer.features.length === 0 && Number.isFinite(z) ? r2(z) : layer.elevation;
   const attitude = { ...(attrs.attitude || {}) };
   const ties = tiesText(pts); // #2630
-  if (ties) attitude.ties = ties;
+  if (ties) { attitude.ties = ties; feature.tieVerts = pts.map((p) => (p.snap?.hole_id ? { ...p.snap } : null)); } // #2767 — per vertex, for an edit
   Object.assign(feature.attributes, attitude);
   const fields = [...layer.fields, ...Object.keys(attitude).filter((k) => !layer.fields.includes(k))]; // #1239 — a field appears with its first value
   return withBbox({ ...layer, elevation, fields, features: [...layer.features, feature] });
+}
+
+// TASKS.csv #2767 (#2630 (2)) — a finished line's vertex moved (the pane's Edit vertices: a drag in the 3D view). snap: what the new spot
+// is tied to (lib/viewer/interpretSnap.js), or null. The length, the ties text (from the per-vertex ties) and the layer's box follow. A line
+// drawn before per-vertex ties were kept keeps its ties text unless the moved vertex is tied now.
+export function moveInterpretationVertex(layer, index, vi, xy, snap = null) {
+  const f = layer?.features?.[index], part = f?.parts?.[0];
+  if (!part || !(vi >= 0 && vi < part.length) || !Number.isFinite(xy?.[0]) || !Number.isFinite(xy?.[1])) return layer;
+  const nextPart = part.map((q, i) => (i === vi ? [r2(xy[0]), r2(xy[1])] : q));
+  const legacy = !f.tieVerts && !!f.attributes?.ties && !snap;
+  const tv = (f.tieVerts || part.map(() => null)).map((t, i) => (i === vi ? (snap?.hole_id ? { ...snap } : null) : t));
+  const pts = nextPart.map(([x, y], i) => ({ x, y, snap: tv[i] }));
+  const attributes = { ...f.attributes, length_m: Math.round(lineLengthM(pts)) };
+  const ties = tiesText(pts);
+  if (ties) attributes.ties = ties; else if (!legacy) delete attributes.ties;
+  const nf = { ...f, parts: [nextPart, ...f.parts.slice(1)], attributes };
+  if (tv.some(Boolean)) nf.tieVerts = tv; else delete nf.tieVerts;
+  const fields = attributes.ties != null && !layer.fields.includes("ties") ? [...layer.fields, "ties"] : layer.fields;
+  return withBbox({ ...layer, fields, features: layer.features.map((g, i) => (i === index ? nf : g)) });
 }
 
 export function removeInterpretationLine(layer, index) {

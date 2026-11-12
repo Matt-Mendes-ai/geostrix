@@ -3765,6 +3765,8 @@
   "Draw string": "رسم خط",
   "Click points along {unitPick}'s upper contact… ({drawPoints} so far)": "انقر نقاطًا على طول التماس العلوي لـ{unitPick}… ({drawPoints} حتى الآن)",
   "Undo point": "التراجع عن النقطة",
+  "Edit the vertices of \"{name}\"": "تحرير رؤوس \"{name}\"",
+  "Editing \"{name}\": drag a vertex (the orange points) in the 3D view to move it. Top view works best.": "تحرير \"{name}\": اسحب رأسًا (النقاط البرتقالية) في العرض ثلاثي الأبعاد لتحريكه. العرض العلوي هو الأنسب.",
   "Finish": "إنهاء",
   "Clicks within ~12 px of a hole snap to the chosen unit's logged top (any logged boundary for faults / strings), else to the trace; the snapped vertex keeps the hole's exact position and depth (square marker)": "النقرات ضمن ~12 بكسل من ثقب تلتصق بقمة الوحدة المختارة المسجلة (أي حد مسجل للصدوع / الخطوط)، وإلا بالمسار؛ يحتفظ الرأس الملتصق بموضع الثقب وعمقه الدقيقين (علامة مربعة)",
   "Snap to holes": "الالتصاق بالثقوب",
