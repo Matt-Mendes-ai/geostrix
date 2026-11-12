@@ -21,6 +21,8 @@ import RowFilterBox from "./RowFilterBox.jsx"; // TASKS.csv #2330 — only rows 
 import { applyRowFilter, defaultRowFilter } from "../lib/importRowFilter.js"; // TASKS.csv #2330 — the button counts the rows the filter keeps
 // the rows the Import button will bring in: after the row filter (the user's, else the flag preset), as the commit counts them
 // cached per row array and filter: the dialog re-renders on every change, and a 400,000-row table must not be scanned each time
+// TASKS.csv #2900 (5) — a share under 1 % is not '0 %' (5,840 of 2,584,475 rows read '0 %')
+const blankPct = (n, total) => { const p = (100 * n) / total; return p > 0 && p < 1 ? (p < 0.1 ? "< 0.1" : p.toFixed(1)) : String(Math.round(p)); };
 const countCache = new WeakMap();
 const importCount = (modal) => {
   const rows = modal.allRows; if (!rows?.length) return modal.rowCount;
@@ -140,10 +142,10 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
                 <div role="note" style={{ flexBasis: "100%", marginInlineStart: 220, fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)" }}>{tr("No column name matched, so {col} was chosen: the file's only column of codes ({n} codes). Check it is the one to draw.", { col: modal.valueGuess.col, n: modal.valueGuess.codes })}</div>
               )}
               {/* TASKS.csv #2182 — a coded log's Value column blank on many rows: those rows are skipped, said before the import */}
-              {f.key === "value" && !fieldNeedsNumber(f) && modal.target !== "custom" && modal.mapping.value && (() => { const b = blankShare(modal.allRows, modal.mapping.value); if (!b || !b.blank) return null; const many = b.blank / b.total >= 0.2; /* #2493 — always said, with the choice to keep them */ return (
+              {f.key === "value" && !fieldNeedsNumber(f) && modal.target !== "custom" && !LAYER_META[modal.target]?.numeric /* #2900 (5) — a numeric layer has no codes */ && modal.mapping.value && (() => { const b = blankShare(modal.allRows, modal.mapping.value); if (!b || !b.blank) return null; const many = b.blank / b.total >= 0.2; /* #2493 — always said, with the choice to keep them */ return (
                 <div role="note" style={{ flexBasis: "100%", marginInlineStart: 220, fontSize: "var(--font-size-sm)", color: many ? "var(--color-warn-text)" : "var(--color-text-muted)" }}>
-                  {modal.keepBlankCodes ? tr("{col} is blank on {pct} % of the rows ({n} of {m}): those rows are kept as (no code), unless a next code column has a code.", { col: modal.mapping.value, pct: Math.round((100 * b.blank) / b.total), n: b.blank.toLocaleString(), m: b.total.toLocaleString() })
-                    : tr("{col} is blank on {pct} % of the rows ({n} of {m}): those rows have no code and are skipped.", { col: modal.mapping.value, pct: Math.round((100 * b.blank) / b.total), n: b.blank.toLocaleString(), m: b.total.toLocaleString() })}
+                  {modal.keepBlankCodes ? tr("{col} is blank on {pct} % of the rows ({n} of {m}): those rows are kept as (no code), unless a next code column has a code.", { col: modal.mapping.value, pct: blankPct(b.blank, b.total), n: b.blank.toLocaleString(), m: b.total.toLocaleString() })
+                    : tr("{col} is blank on {pct} % of the rows ({n} of {m}): those rows have no code and are skipped.", { col: modal.mapping.value, pct: blankPct(b.blank, b.total), n: b.blank.toLocaleString(), m: b.total.toLocaleString() })}
                   <label style={{ display: "inline-flex", gap: 4, alignItems: "center", marginInlineStart: 8 }}><input type="checkbox" checked={!!modal.keepBlankCodes} onChange={(e) => onChange({ ...modal, keepBlankCodes: e.target.checked })} />{tr("Keep them as (no code)")}</label>
                 </div>); })()}
               {fieldNeedsNumber(f) && modal.mapping[f.key] && columnHasNoNumbers(modal.sampleRows, modal.mapping[f.key]) && <div role="alert" style={{ flexBasis: "100%", marginInlineStart: 220, fontSize: "var(--font-size-sm)", color: "var(--color-danger-icon)" }}>{tr("\"{col}\" has no numbers in the preview rows: {field} needs a number.", { col: modal.mapping[f.key], field: tr(f.label) })}</div>}
@@ -333,7 +335,9 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
                     ? <div role="note" style={{ marginLeft: 22, fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", lineHeight: 1.4 }}>{tr("Converted to the local grid's north through its tie to EPSG:{epsg} (grid rotation {rot}°), at each hole's collar.", { epsg: tie.epsg, rot: tie.rotationDeg.toFixed(2) })}</div>
                     : <div role="alert" style={{ marginLeft: 22, fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", lineHeight: 1.4 }}>{storeProject?.localGrid
                       ? tr("This project is on a local grid with no tie to a coordinate system, so its north is not known: these azimuths will be left as they are in the file. Tie the grid in Maps > Coordinates first (control points, or an origin and a rotation).")
-                      : tr("The project has no coordinate system yet, so these azimuths cannot be converted to grid north and will be left as they are in the file. Choose the project CRS first.")}</div>;
+                      : modal.target === "collars" // #2900 (1) — a collar import asks for the CRS first, and the azimuths are converted then
+                        ? tr("The project has no coordinate system yet: importing these collars asks for it first, and these azimuths are then converted to grid north.")
+                        : tr("The project has no coordinate system yet, so these azimuths cannot be converted to grid north and will be left as they are in the file. Choose the project CRS first.")}</div>;
                 })()}
                 {/* TASKS.csv #490 — which grid "grid north" is. Collars: the Source CRS above (their azimuths are
                     turned with their coordinates). Survey / structure files have no coordinates: pick the CRS here. */}

@@ -37,6 +37,11 @@ export function coverageInfos({ collars = [], layers = {}, assays = [], lengths 
       if (short.length) out.push({ category: label(key), holeId: null, message: tr("{n} hole(s) have their {layer} log ending more than {d} m short of the hole's length: {list}.", { n: short.length.toLocaleString(), layer: named(key), d: SHORT_M, list: list(short, 4) }) });
     }
   }
+  // TASKS.csv #2897 (review #2876, WA iron) — (1) for the assays too: 341 holes with no sample (243 exploration holes and 98 bores) went unsaid
+  if (ids.length && assays.length) {
+    const without = ids.filter((id) => !assayed.has(id)), have = ids.length - without.length;
+    if (have * 2 > ids.length && without.length) out.push({ category: "Assays", holeId: null, message: tr("{n} of {m} holes with a collar have no assays (checked because more than half the holes have assays): {list}.", { n: without.length.toLocaleString(), m: ids.length.toLocaleString(), list: list(without) }) });
+  }
   // (3) what the imports left out
   for (const e of importLeftOutList(project)) {
     if (!(layers?.[e.layerKey] || []).length) continue; // a layer cleared since: nothing to say about it

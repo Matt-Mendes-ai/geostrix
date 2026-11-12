@@ -12,19 +12,45 @@ const key = (h) => String(h ?? "").trim().replace(/[\s-]+/g, "_");
 // TASKS.csv #2652 (from #2492) — a coordinate column (MGA_Z, GBMG_RL, Easting) or a measurement (every value a number, more than two of them)
 // is not a way to pick rows: 'only rows where MGA_Z is…' was offered on a collar file. A 0 / 1 flag column stays.
 const NUMBER = /^[-+]?(\d+\.?\d*|\.\d+)([eE][-+]?\d+)?$/;
-const notAFilter = (h, values) => coordColumn(h) != null || (values.length > 2 && values.every((v) => v === "" || NUMBER.test(v)));
+// TASKS.csv #2900 (11) (review #2876, WA iron) — 'only rows where Met_ASB_pct is…' (0 or blank) and '… Total_Pct is…' (100 or blank) were
+// offered: two values counting the blank. A column named as a measurement (…_pct / percent / %, …_ppm / ppb / g/t) is never a filter, nor
+// one number beside blanks that is not a 0 / 1 flag.
+const MEASURE = /(^|[_\s.])(pct|percent|ppm|ppb|gpt|g_?t)$|%$/i;
+const notAFilter = (h, values) => {
+  if (coordColumn(h) != null) return true;
+  const filled = values.filter((v) => v !== "");
+  if (!filled.length || !filled.every((v) => NUMBER.test(v))) return false;
+  return values.length > 2 || MEASURE.test(String(h).trim()) || (filled.length === 1 && !/^(0|1|-1)$/.test(filled[0]));
+};
+// TASKS.csv #2898 (review #2876, WA iron) — a logging run column (RUN 1 on 2,539,078 readings, RUN 11 to 271 on 45,397 repeat passes, a
+// calibration hole logged 27 times): all whole numbers, so #2652 left it out, and the repeats were averaged into the bins with run 1. A
+// column named for runs / passes / repeats with whole-number values is a row filter (up to RUN_MAX values), pre-set to its main run.
+const RUN_COL = /^(run|run_?no|run_?num(ber)?|run_?id|log_?run|pass|pass_?no|repeat|repeat_?no)$/i;
+const RUN_MAX = 100;
+const isRunColumn = (h, values) => RUN_COL.test(key(h)) && values.length >= 2 && values.every((v) => v === "" || /^\d+$/.test(v));
 
 // the columns a row filter can use: 2..max distinct values over the rows -> [{ col, values: [[value, count]] }] (most common first)
 export function rowFilterColumns(headers, rows, max = 12) {
   const out = [];
   for (const h of headers || []) {
-    const counts = new Map();
+    const counts = new Map(), cap = RUN_COL.test(key(h)) ? Math.max(max, RUN_MAX) : max; // #2898 — a run column may have more values
     let over = false;
-    for (const r of rows || []) { const v = norm(r?.[h]); if (!counts.has(v)) { if (counts.size >= max) { over = true; break; } counts.set(v, 0); } counts.set(v, counts.get(v) + 1); }
-    if (over || counts.size < 2 || notAFilter(h, [...counts.keys()])) continue;
-    out.push({ col: h, values: [...counts].sort((a, b) => b[1] - a[1]) });
+    for (const r of rows || []) { const v = norm(r?.[h]); if (!counts.has(v)) { if (counts.size >= cap) { over = true; break; } counts.set(v, 0); } counts.set(v, counts.get(v) + 1); }
+    const vals = [...counts.keys()], run = !over && isRunColumn(h, vals);
+    if (over || counts.size < 2 || (!run && (vals.length > max || notAFilter(h, vals)))) continue;
+    out.push({ col: h, values: [...counts].sort((a, b) => b[1] - a[1]), ...(run ? { run: true } : {}) });
   }
   return out;
+}
+// #2898 — the pre-set filter for a run column: its most common run, when that holds most of the rows -> { col, keep, drop, flag: "run" } | null
+export function runRowFilter(columns) {
+  for (const c of columns || []) {
+    if (!c.run) continue;
+    const total = c.values.reduce((n, [, x]) => n + x, 0), [main, n] = c.values[0];
+    if (!main || n * 2 <= total) continue;
+    return { col: c.col, keep: [main], drop: total - n, flag: "run" };
+  }
+  return null;
 }
 
 // the pre-set filter for a flag column, or null -> { col, keep: [values], drop: n, flag: "superseded" | "current" }
@@ -52,7 +78,7 @@ export function applyRowFilter(rows, filter) {
 }
 
 // the filter an import gets when the user has not set one: the flag column's preset, or none (the dialog's box and the commit both ask this)
-export const defaultRowFilter = (headers, rows) => flagRowFilter(rowFilterColumns(headers, rows));
+export const defaultRowFilter = (headers, rows) => { const cols = rowFilterColumns(headers, rows); return flagRowFilter(cols) || runRowFilter(cols); }; // run: #2898
 
 // TASKS.csv #2391 (split from #2330, review #2325) — the intervals of an import that overlap another of the same hole, and the column that
 // probably explains them: one of a few values (a flag, version or priority) that the overlapping rows carry far more often than the rest.

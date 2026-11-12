@@ -768,11 +768,12 @@ export function useImportPipeline(ctx) {
       const rows = filledRows.map((raw) => {
         const r = numeric ? normNumericInterval(raw, mapping, customFields) : normInterval(raw, mapping, customFields);
         if (recCalc) r.value = recoveryPct(raw, recCalc, mapping); // #2891
-        if (sib) { const a = allCodesOf(raw, sib); if (a.extra) { r.all_codes = a.all; r.codes = a.codes; codesKept += a.extra; codesRows++; } } // codes: #1650
+        let extra = 0; // #2874 — this row's count of codes beyond the drawn one
+        if (sib) { const a = allCodesOf(raw, sib); if (a.extra) { r.all_codes = a.all; r.codes = a.codes; codesKept += a.extra; codesRows++; extra = a.extra; } } // codes: #1650
         if (altStyle) { r.value = styleCode(r.value); r.alt_style = altStyle; if (Array.isArray(r.codes)) r.codes = r.codes.map(styleCode); } // #1511
         // #2182 — a blank code: the next numbered code if the row has one (Min_Code2), else the row is skipped and counted, not 'Unknown'
         // #2493 — or, when the dialog's "keep blank codes as (no code)" is ticked, kept as that explicit class (the log stays continuous)
-        if (!numeric && isBlankCode(raw[mapping.value])) { blankRows++; const next = Array.isArray(r.codes) ? r.codes.find((c) => !isBlankCode(c)) : null; if (next) { r.value = String(next).trim(); blankTookNext++; } else if (data.keepBlankCodes) { r.value = NO_CODE; blankKept++; } else r.value = null; }
+        if (!numeric && isBlankCode(raw[mapping.value])) { blankRows++; const next = Array.isArray(r.codes) ? r.codes.find((c) => !isBlankCode(c)) : null; if (next) { r.value = String(next).trim(); blankTookNext++; if (extra) { codesKept--; if (extra === 1) codesRows--; } /* #2874 — that code is drawn now, not 'not drawn' */ } else if (data.keepBlankCodes) { r.value = NO_CODE; blankKept++; } else r.value = null; }
         const why = !r.hole_id ? "no hole id" : isNaN(r.from) ? "no from" : numeric && isNaN(r.value) ? "no value" : !numeric && r.value == null ? "no code" : null;
         if (why) { dropped.push({ reason: why, example: why === "no from" ? raw[mapping.from] : why === "no value" ? raw[mapping.value] : null }); return null; }
         return { ...r, _src: fileName };
@@ -796,7 +797,7 @@ export function useImportPipeline(ctx) {
         + (recCalc ? " " + (recCalc.loss // #2891 — said: the file had no percentage
           ? tr("Recovery % computed from {loss} and {run}: (run − loss) / run × 100.", { loss: recCalc.loss, run: recCalc.drilled || tr("To − From") })
           : tr("Recovery % computed from {rec} and {run}: recovered / run × 100.", { rec: recCalc.recovered, run: recCalc.drilled || tr("To − From") })) : "")
-        + replaceNote(replaced, "rows") + skippedRowsText(dropped, allRows.length) + leftOutText(data, allRows, [...(sib?.codes || []), ...(recCalc ? [recCalc.loss, recCalc.recovered, recCalc.drilled].filter(Boolean) : [])]) /* #2341; the columns Recovery % was computed from: #2891 */
+        + replaceNote(replaced, "rows") + skippedRowsText(blankRows ? dropped.filter((d) => d.reason !== "no code") : dropped, allRows.length) /* #2900 (3) — blank codes are said once, by blankCodeText */ + leftOutText(data, allRows, [...(sib?.codes || []), ...(recCalc ? [recCalc.loss, recCalc.recovered, recCalc.drilled].filter(Boolean) : [])]) /* #2341; the columns Recovery % was computed from: #2891 */
         + (codesKept ? " " + tr("{n} more code(s) in {cols} on {m} interval(s) are not drawn (each interval is coloured by {first}); every code is kept on its interval as all_codes, which Identify lists. Hiding the first code in the legend shows such an interval in its next code's colour.", { n: codesKept, m: codesRows, cols: sib.codes.length > 1 ? `${sib.codes[0]}–${sib.codes[sib.codes.length - 1]}` : sib.codes[0], first: sib.first }) : "") // #1650; one column named once: #2153
         + (idsFilled ? " " + tr("{n} row(s) with a blank hole id took the hole id of the row above, their depths continuing it: check them if the file is laid out otherwise.", { n: idsFilled }) : "") // #1665
         + (blankRows ? " " + blankCodeText(mapping.value, blankRows, allRows.length, blankTookNext, blankKept) : "") // #2493 — always said
@@ -971,7 +972,8 @@ export function useImportPipeline(ctx) {
       // TASKS.csv #609 — the file's own CRS (.prj / GeoPackage) and a per-row EPSG column, as openImportModal passes
       // them: a queued shapefile used to be committed with no Source CRS, so its collars stayed in their own UTM
       // zone's numbers inside a project in another zone (~400 km from the same drop's reprojected map layers).
-      const modalData = { ...(codeGuess ? { valueGuess: codeGuess } : {}), ...azRefFor(target, headers, data), file, fileName: file.name, headers, rowCount: data.length, sampleRows: data.slice(0, 5), allRows: data, target, mapping, ...dipConventionFields(data, dipColOf(target, mapping)) /* #2886 */,
+      // TASKS.csv #2899 — a queued survey gets the same pre-added instrument / method field as one dropped alone (#2187)
+      const modalData = { ...(codeGuess ? { valueGuess: codeGuess } : {}), ...(target === "survey" ? { customFields: surveyMethodFields(headers, data) } : {}), ...azRefFor(target, headers, data), file, fileName: file.name, headers, rowCount: data.length, sampleRows: data.slice(0, 5), allRows: data, target, mapping, ...dipConventionFields(data, dipColOf(target, mapping)) /* #2886 */,
         sourceEpsg: queueLl ? queueLl.sourceEpsg : meta?.detectedEpsg ? String(meta.detectedEpsg) : "", perRowEpsgCol: guessColumn(headers, EPSG_COL_ALIASES), ...guarded };
       if (confident) {
         // TASKS.csv #1501 — a log's other columns as extra fields, and a Geotech table's Recovery % as that layer too (collars keep
