@@ -11,19 +11,33 @@ export function drillLineGeometry(collars) {
   const pts = (collars || []).filter((c) => Number.isFinite(c?.x) && Number.isFinite(c?.y));
   if (pts.length < 6) return null;
   // nearest-neighbour bearings, folded to 0-180 (a fence has no direction); a grid cell index keeps it near O(n)
-  const cell = Math.max(1, Math.sqrt(((Math.max(...pts.map((p) => p.x)) - Math.min(...pts.map((p) => p.x)) + 1) * (Math.max(...pts.map((p) => p.y)) - Math.min(...pts.map((p) => p.y)) + 1)) / pts.length));
-  const grid = new Map(), key = (i, j) => `${i},${j}`;
+  // TASKS.csv #2798 follow-up — 0.35 s of a 20,000-collar commit: the extent in one pass (no spreads), a numeric cell key (a collision only
+  // adds candidates; the distance test decides), squared distances, no empty array per empty cell, and rings past the first by their edge
+  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+  for (const p of pts) { if (p.x < x0) x0 = p.x; if (p.x > x1) x1 = p.x; if (p.y < y0) y0 = p.y; if (p.y > y1) y1 = p.y; }
+  const cell = Math.max(1, Math.sqrt(((x1 - x0 + 1) * (y1 - y0 + 1)) / pts.length));
+  const grid = new Map(), key = (i, j) => i * 67108864 + j;
   pts.forEach((p, k) => { const q = key(Math.floor(p.x / cell), Math.floor(p.y / cell)); (grid.get(q) || grid.set(q, []).get(q)).push(k); });
   const bins = new Array(36).fill(0), bearings = [], nnDist = [];
   pts.forEach((p, k) => {
     let best = Infinity, bx = 0, by = 0;
     const ci = Math.floor(p.x / cell), cj = Math.floor(p.y / cell);
-    for (let r = 1; r <= 3 && !Number.isFinite(best); r++) for (let i = ci - r; i <= ci + r; i++) for (let j = cj - r; j <= cj + r; j++) for (const m of grid.get(key(i, j)) || []) {
-      if (m === k) continue;
-      const d = Math.hypot(pts[m].x - p.x, pts[m].y - p.y);
-      if (d > 0.5 && d < best) { best = d; bx = pts[m].x - p.x; by = pts[m].y - p.y; }
+    const visit = (i, j) => {
+      const list = grid.get(key(i, j));
+      if (list) for (const m of list) {
+        if (m === k) continue;
+        const dx = pts[m].x - p.x, dy = pts[m].y - p.y, d2 = dx * dx + dy * dy;
+        if (d2 > 0.25 && d2 < best) { best = d2; bx = dx; by = dy; }
+      }
+    };
+    // ring 1 is the 3 x 3 square; a wider ring only while nothing was found, and only its edge (the cells inside held nothing usable)
+    for (let r = 1; r <= 3 && !Number.isFinite(best); r++) {
+      if (r === 1) { for (let i = ci - 1; i <= ci + 1; i++) for (let j = cj - 1; j <= cj + 1; j++) visit(i, j); continue; }
+      for (let d = -r; d <= r; d++) { visit(ci + d, cj - r); visit(ci + d, cj + r); }
+      for (let d = -r + 1; d <= r - 1; d++) { visit(ci - r, cj + d); visit(ci + r, cj + d); }
     }
     if (!Number.isFinite(best)) return;
+    best = Math.sqrt(best);
     const b = (((Math.atan2(bx, by) * 180) / Math.PI) + 360) % 180;
     bearings.push(b); nnDist.push(best); bins[Math.floor(b / 5) % 36]++;
   });

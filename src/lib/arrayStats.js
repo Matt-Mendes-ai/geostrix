@@ -47,10 +47,12 @@ export function quantileSorted(s, p) {
   const h = (s.length - 1) * p, lo = Math.floor(h), hi = Math.ceil(h);
   return s[lo] + (h - lo) * (s[hi] - s[lo]);
 }
+// TASKS.csv #2798 follow-up — a Float64Array's own numeric sort (no comparator call per pair): the same ascending order, a fraction of the time
 const finiteSorted = (values) => {
-  const s = [];
-  for (let i = 0; i < values.length; i++) if (Number.isFinite(values[i])) s.push(+values[i]);
-  return s.sort((a, b) => a - b);
+  const s = new Float64Array(values.length);
+  let n = 0;
+  for (let i = 0; i < values.length; i++) if (Number.isFinite(values[i])) s[n++] = +values[i];
+  return s.subarray(0, n).sort();
 };
 export const quantileLinear = (values, p) => quantileSorted(finiteSorted(values), p);
 export const median = (values) => quantileSorted(finiteSorted(values), 0.5); // the mean of the two middle values for an even count; NaN when empty
