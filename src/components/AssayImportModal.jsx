@@ -60,6 +60,7 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
   const toggleEl = (sym) => onChange({ ...modal, elements: modal.elements.map((e) => e.symbol === sym ? { ...e, checked: !e.checked } : e) });
   const setUnit = (sym, unit) => onChange({ ...modal, elements: modal.elements.map((e) => e.symbol === sym ? { ...e, unit, unitChosen: true } : e) }); // unitChosen: #718
   const setKeepOxide = (sym, keep) => onChange({ ...modal, elements: modal.elements.map((e) => e.symbol === sym ? { ...e, keepOxide: keep } : e) }); // #2487
+  const setAllOxide = (keep) => onChange({ ...modal, elements: modal.elements.map((e) => (oxideOfHeader(e.header) ? { ...e, keepOxide: keep } : e)) }); // #2888 — every oxide column at once
   // TASKS.csv #2487 — the oxide columns and the basis each will be stored in, said before the commit
   const oxideEls = modal.format === "wide" ? modal.elements.filter((e) => e.checked && oxideOfHeader(e.header)) : [];
   const keptOx = oxideEls.filter(keepsOxide).map((e) => oxideOfHeader(e.header).oxide), storedOx = oxideEls.filter((e) => !keepsOxide(e)).map((e) => `${oxideOfHeader(e.header).oxide} → ${e.symbol}`);
@@ -167,6 +168,12 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
               {keptOx.length > 0 && tr("Kept as the oxide: {list}. These grades are read, typed (cut-offs, caps), priced and exported as the oxide; the element is used only where a diagram needs it.", { list: keptOx.join(", ") })}{" "}
               {storedOx.length > 0 && tr("Stored as the element (oxide divided by its factor): {list}. The diagrams convert them back to oxides.", { list: storedOx.join(", ") })}{" "}
               {tr("Change it per column with the as … menu.")}
+              {oxideEls.length > 1 && ( /* TASKS.csv #2888 — one control for every oxide column */
+                <span style={{ display: "inline-flex", gap: 10, marginLeft: 8 }}>
+                  <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setAllOxide(true)} style={{ color: storedOx.length ? "var(--color-accent)" : "var(--color-text-muted)", cursor: "pointer" }}>{tr("All as reported (oxides)")}</span>
+                  <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setAllOxide(false)} style={{ color: keptOx.length ? "var(--color-accent)" : "var(--color-text-muted)", cursor: "pointer" }}>{tr("All as elements")}</span>
+                </span>
+              )}
             </div>
           )}
           {modal.format === "wide" ? (
@@ -285,7 +292,7 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
               </div>
             )}
             {negatives.sentinels > 0 && <div>{tr("{sentinels} value(s) will be treated as not assayed: {list}. They are -99 / -999 / -9999 codes or bigger than anything else in their column, so they are no-data codes, not grades.", { sentinels: negatives.sentinels, list: (negatives.sentinelCols || []).join("; ") })}</div>}{/* #2336 — the codes found, not an example */}
-            {unitClashes.length > 0 && <div>{tr("Already in this project in another unit: {v}. These values will be converted to the project's unit so earlier assays keep their meaning.", { v: unitClashes.map((e) => tr("{symbol} (file {unit}, project {projectUnit})", { symbol: e.symbol, unit: importStoreUnit(e), projectUnit: existingUnits[e.symbol] })).join(", ") })}</div>}
+            {unitClashes.length > 0 && <div>{tr("Already in this project in another unit: {v}. These values will be converted to the project's unit so earlier assays keep their meaning.", { v: unitClashes.map((e) => tr("{symbol} (file {unit}, project {projectUnit})", { symbol: e.symbol, unit: importStoreUnit(e), projectUnit: existingUnits[e.symbol] })).join(", ") })}{unitClashes.some((e) => oxideOfHeader(e.header)) && " " + tr("To store an element as its oxide (or as the element) in this project, change its basis in Geochem under Imported files & elements: the assays already in the project are converted with it.")}</div>}{/* the way out: #2888 */}
           </div>
         )}
 

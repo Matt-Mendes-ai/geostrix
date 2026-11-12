@@ -22,7 +22,8 @@ test("kept as the oxide: the file's number, in '% Li2O'; stored as the element: 
 
 test("the default follows the drill import: a commodity oxide kept, a major oxide stored as the element", () => {
   assert.equal(keepsOxide({ symbol: "Li", header: "Li2O_pct" }), true);
-  assert.equal(keepsOxide({ symbol: "Fe", header: "Fe2O3_pct" }), false);
+  assert.equal(keepsOxide({ symbol: "Fe", header: "Fe2O3_pct" }), true); // #2888 — every oxide as reported by default
+  assert.equal(keepsOxide({ symbol: "Fe", header: "Fe2O3_pct", keepOxide: false }), false);
 });
 
 test("wired: the surface commit reads through the chosen basis; the dialog offers it", () => {

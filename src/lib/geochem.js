@@ -121,8 +121,12 @@ export function unitBasis(unit) {
 export const oxideBasisUnit = (base, oxide) => `${base} ${oxide}`;
 // TASKS.csv #2627 — the oxides an element can be reported as (Li -> Li2O; Fe -> Fe2O3, FeO): [{ oxide, factor }]
 export const oxidesOfElement = (symbol) => Object.entries(OXIDE_HEADERS).filter(([, [s]]) => s === symbol).map(([oxide, [, factor]]) => ({ oxide, factor }));
-// an import element read from an oxide column: kept as the oxide (its own choice, else a commodity oxide by default), or stored as the element
-export function keepsOxide(e) { const ox = oxideOfHeader(e?.header); return !!ox && (e.keepOxide ?? COMMODITY_OXIDES.has(ox.oxide)); }
+// an import element read from an oxide column: kept as the oxide (its own choice, else by default), or stored as the element
+// TASKS.csv #2888 (review #2876, WA iron) — every oxide column is kept as the oxide the lab reports by default (Matt's #2487 decision: the
+// basis is set at import from the header). Only the commodity oxides were: an iron-ore file's SiO2 15.0 / Al2O3 9.89 became Si 7.01 /
+// Al 5.23 against a product specification written in SiO2 and Al2O3, and seven menus had to be changed one by one. The diagrams and the
+// calculated-column presets read through valueIn / convertUnit, so they get the element where they need it either way.
+export function keepsOxide(e) { const ox = oxideOfHeader(e?.header); return !!ox && (e.keepOxide ?? true); }
 // the unit an import element is stored in: an oxide column kept as the oxide -> "% Li2O"; stored as the element -> the header's % / ppm / ppb
 // #2490 — a unit the user picked in the dialog wins over the header's (the box beside an oxide column was inert)
 export const oxideColumnUnit = (e, header = e?.header) => (header === e?.header && e?.unitChosen && e?.unit ? e.unit : oxideUnit(header));
