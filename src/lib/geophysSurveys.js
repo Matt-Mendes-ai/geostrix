@@ -38,6 +38,8 @@ export const SURVEY_METHODS = {
   mt_rho: { label: "MT / AMT: apparent resistivity", units: "Ω·m", group: "em" },
   mt_phase: { label: "MT / AMT: phase", units: "°", group: "em" },
   euler_depth: { label: "Euler solutions: depth below the sensor", units: "m", group: "other" }, // TASKS.csv #1985
+  worms_height: { label: "Worms: edge heights above the grid", units: "m", group: "other" }, // TASKS.csv #2639 — a filter product, not a field
+  tiltdepth_depth: { label: "Tilt-depth: contact depths below the sensor", units: "m", group: "other" }, // TASKS.csv #2639
   mt_bostick: { label: "MT / AMT: Niblett–Bostick resistivity (approximate depth)", units: "log₁₀ Ω·m", group: "em" }, // TASKS.csv #1989 — points under each station
   lidar: { label: "Lidar point cloud", units: "m", group: "other" },
   em1d_cond: { label: "FDEM 1D models: conductivity at depth", units: "log₁₀ mS/m", group: "em" }, // TASKS.csv #1986 — points under each sounding // TASKS.csv #1994 — thinned returns of a LAS / LAZ / COPC file
