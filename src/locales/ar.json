@@ -10593,5 +10593,6 @@
   "its {src} was reprojected to the project's {dst}": "أُعيد إسقاط {src} الخاص به إلى {dst} الخاص بالمشروع",
   "in {crs}, the project's coordinate system": "في {crs}، نظام إحداثيات المشروع",
   "its longitude / latitude (WGS 84) was reprojected to the project's {dst}": "أُعيد إسقاط خطوط الطول / العرض (WGS 84) الخاصة به إلى {dst} الخاص بالمشروع",
-  "its longitude / latitude (WGS 84) was brought into the local grid through its tie to EPSG:{tie}": "أُدخلت خطوط الطول / العرض (WGS 84) الخاصة به إلى الشبكة المحلية عبر ربطها بـ EPSG:{tie}"
+  "its longitude / latitude (WGS 84) was brought into the local grid through its tie to EPSG:{tie}": "أُدخلت خطوط الطول / العرض (WGS 84) الخاصة به إلى الشبكة المحلية عبر ربطها بـ EPSG:{tie}",
+  "It is drawn flat at {z} m, {h} m above the grid it was continued from.": "يُرسم مسطحًا عند {z} م، أعلى بـ {h} م من الشبكة التي مُدّ منها."
 }

@@ -10593,5 +10593,6 @@
   "its {src} was reprojected to the project's {dst}": "son {src} a été reprojeté dans le {dst} du projet",
   "in {crs}, the project's coordinate system": "en {crs}, le système de coordonnées du projet",
   "its longitude / latitude (WGS 84) was reprojected to the project's {dst}": "sa longitude / latitude (WGS 84) a été reprojetée dans le {dst} du projet",
-  "its longitude / latitude (WGS 84) was brought into the local grid through its tie to EPSG:{tie}": "sa longitude / latitude (WGS 84) a été ramenée dans la grille locale par son rattachement à EPSG:{tie}"
+  "its longitude / latitude (WGS 84) was brought into the local grid through its tie to EPSG:{tie}": "sa longitude / latitude (WGS 84) a été ramenée dans la grille locale par son rattachement à EPSG:{tie}",
+  "It is drawn flat at {z} m, {h} m above the grid it was continued from.": "Il est dessiné à plat à {z} m, {h} m au-dessus de la grille dont il est prolongé."
 }
