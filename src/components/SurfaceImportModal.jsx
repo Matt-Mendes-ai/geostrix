@@ -5,9 +5,9 @@
 // the element-column auto-detection/unit-inference helpers (isElementColumn/inferUnit, both reused
 // as-is from geochem.js) and this same left-column-mapping/right-element-checklist layout.
 import { useStore } from "../lib/store.jsx"; // TASKS.csv #615
-import React, { useRef, useState } from "react"; // useRef: #1670
+import React, { useMemo, useRef, useState } from "react"; // useRef: #1670; useMemo: #2728
 import { X } from "./icons.js";
-import { inferUnit, ELEMENT_SYMBOLS } from "../lib/geochem.js";
+import { inferUnit, ELEMENT_SYMBOLS, surfaceAttrLeftOut, SURFACE_ATTR_MAX_DISTINCT } from "../lib/geochem.js"; // left out: #2728
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay } from "../lib/modalStyles.js";
@@ -26,6 +26,8 @@ export default function SurfaceImportModal({ modal, onChange, onCancel, onCommit
   useEscapeKey(onCancel);
   useFocusTrap(); // TASKS.csv #238
   const checkedCount = modal.elements.filter((e) => e.checked).length;
+  // TASKS.csv #2728 — the columns that will not be kept as sample attributes (too many different values), named before the import
+  const leftOut = useMemo(() => surfaceAttrLeftOut(modal.headers, modal.allRows, modal.mapping, modal.elements, modal.attrExclude), [modal.headers, modal.allRows, modal.mapping, modal.elements, modal.attrExclude]);
   const [addSymbol, setAddSymbol] = useState("");
   const [addHeader, setAddHeader] = useState("");
 
@@ -57,6 +59,7 @@ export default function SurfaceImportModal({ modal, onChange, onCancel, onCommit
           <div>
             <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{tr("Import surface samples: {fileName}", { fileName: modal.fileName })}</div>
             <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("{elements} elements recognized", { elements: modal.elements.length })}</div>
+            {leftOut.length > 0 && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }} title={leftOut.join(", ")}>{tr("Not kept as sample attributes (more than {max} different values; not a note or an id): {list}", { max: SURFACE_ATTR_MAX_DISTINCT, list: leftOut.length > 8 ? `${leftOut.slice(0, 8).join(", ")} …` : leftOut.join(", ") })}</div>}{/* #2728 */}
           </div>
           <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onCancel} />
         </div>

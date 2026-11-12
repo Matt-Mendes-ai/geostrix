@@ -1247,6 +1247,17 @@ export function surfaceAttrColumns(headers, rows, mapping = {}, elements = []) {
     return seen.size > 0;
   });
 }
+// TASKS.csv #2728 (split from #1802) — the columns the import leaves out of the sample attributes because they hold too many different
+// values to be one (more than SURFACE_ATTR_MAX_DISTINCT, and neither a note nor an id): the dialog names them, so a wanted field is not
+// lost unseen. Mapped, element and empty columns are not listed. -> [header]
+export function surfaceAttrLeftOut(headers, rows, mapping = {}, elements = [], exclude = []) {
+  const kept = new Set(surfaceAttrColumns(headers, rows, mapping, elements));
+  const mapped = new Set(Object.values(mapping || {}).filter(Boolean));
+  const elementCols = new Set();
+  (elements || []).forEach((e) => { [e.header, e.mainHeader, e.overLimit?.header].forEach((h) => h && elementCols.add(h)); });
+  const skip = new Set(exclude || []);
+  return (headers || []).filter((h) => h && !kept.has(h) && !mapped.has(h) && !elementCols.has(h) && !skip.has(h) && (rows || []).some((r) => r[h] != null && String(r[h]).trim() !== ""));
+}
 // TASKS.csv #1509 — Papa's dynamic typing reads an ISO timestamp cell ('2021-06-05T00:00:00.000Z') as a Date, and String(Date) is the
 // computer's LOCAL time: 'Fri Jun 04 2021 16:00:00 GMT-0800' in BC, the day before. A date at UTC midnight is kept as 'yyyy-mm-dd',
 // any other moment as the ISO text; whatever the computer's time zone.
