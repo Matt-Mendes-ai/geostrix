@@ -299,7 +299,6 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks = []
                 );
               })()}
               </g>
-              {zoom && <text x={CX} y={SIZE - 4} textAnchor="middle" fontSize={10} fill="#65717e">{tr("Zoomed: the edge of the net is a dip of {d}°", { d: zoom.edgeDip })}</text>}
               {/* TASKS.csv #1721 — the pole plot's empty state (the rose had one): what is missing, and why the picks there are not drawn */}
               {plotted === 0 && (
                 <g fontSize={11} fill="#65717e" textAnchor="middle">
@@ -385,6 +384,7 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks = []
                   <input type="checkbox" checked={showMean} onChange={(e) => setShowMean(e.target.checked)} />{" "}{tr("Mean orientation")}</label>
                 <label style={{ ...rowLabel, flexDirection: "row", alignItems: "center", gap: 6 }} title={tr("Rescale the net so the poles fill it, with rings of equal dip: for flat-lying beds, whose poles all sit in the net's inner few degrees.")}>
                   <input type="checkbox" checked={zoomData} onChange={(e) => setZoomData(e.target.checked)} />{" "}{tr("Zoom to the data")}</label>{/* TASKS.csv #2971 */}
+                {zoom && <div style={{ fontSize: 11, color: "#65717e", marginTop: -6, lineHeight: 1.35 }}>{tr("Zoomed: the edge of the net is a dip of {d}°", { d: zoom.edgeDip })}</div>}
                 <label style={{ ...rowLabel, flexDirection: "row", alignItems: "center", gap: 6 }} title={tr("Kamb (1959) counting-circle density contours — shades the net by how much more crowded each spot is than a random (uniform) spread of the same number of poles would be")}>
                   <input type="checkbox" checked={showContours} onChange={(e) => setShowContours(e.target.checked)} />{" "}{tr("Density contours")}</label>
               </>
