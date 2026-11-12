@@ -5313,16 +5313,16 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     if (pts.length > 1) {
       const solidLine = new THREE.Line(
         new THREE.BufferGeometry().setFromPoints(pts.map((p) => new THREE.Vector3(p.x, p.y, p.z))),
-        new THREE.LineBasicMaterial({ color: MEASURE_COLOR, transparent: true, opacity: 0.95 })
+        new THREE.LineBasicMaterial({ color: MEASURE_COLOR, transparent: true, opacity: 0.95, depthTest: false }) // #1816 — on top: it was hidden inside block models
       );
-      group.add(solidLine);
+      solidLine.renderOrder = 999; group.add(solidLine);
     }
     if (measureMode === "area" && pts.length > 2) {
       const closeLine = new THREE.Line(
         new THREE.BufferGeometry().setFromPoints([pts[pts.length - 1], pts[0]].map((p) => new THREE.Vector3(p.x, p.y, p.z))),
-        new THREE.LineDashedMaterial({ color: MEASURE_COLOR, dashSize: 3, gapSize: 2, transparent: true, opacity: 0.85 })
+        new THREE.LineDashedMaterial({ color: MEASURE_COLOR, dashSize: 3, gapSize: 2, transparent: true, opacity: 0.85, depthTest: false })
       );
-      closeLine.computeLineDistances();
+      closeLine.computeLineDistances(); closeLine.renderOrder = 999;
       group.add(closeLine);
     }
     pts.forEach((p, i) => {
