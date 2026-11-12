@@ -157,8 +157,24 @@ def eqs(req, progress):
     depth_m = float(depth) if depth not in (None, "") else 1.2 * spacing
     kw = dict(damping=float(damping) if damping not in (None, "") else None, block_size=spacing, depth=depth_m)
     gb = x.size > 5000
-    model = hm.EquivalentSourcesGB(**kw, random_state=0) if gb else hm.EquivalentSources(**kw)
-    model.fit((x, y, z), v - mean)
+    win = None
+    if gb:
+        # TASKS.csv #2834 (GSC review B4) — Harmonica's default window holds ~5,000 readings (sqrt(5000 / density)): Blake River's 7,810
+        # stations over 94.5 x 50.1 km gave a 55.1 km window, wider than the survey's short side, and fit() raised a numpy ValueError.
+        # The window is capped at 0.9 x the shorter side (the gradient boosting then uses more, smaller windows).
+        w_, h_ = float(x.max() - x.min()), float(y.max() - y.min())
+        short = min(w_, h_)
+        default = float(np.sqrt(5000.0 * max(w_ * h_, 1.0) / x.size))
+        win = min(default, 0.9 * short) if short > 0 else default
+        kw_gb = dict(kw, window_size=win)
+    model = hm.EquivalentSourcesGB(**kw_gb, random_state=0) if gb else hm.EquivalentSources(**kw)
+    try:
+        model.fit((x, y, z), v - mean)
+    except ValueError as err:
+        if "window" in str(err).lower():  # #2834 — said in words, not numpy reprs
+            raise ValueError(f"The readings could not be split into windows for the gradient-boosted fit (window {win / 1000:.1f} km over a "
+                             f"{(x.max() - x.min()) / 1000:.1f} x {(y.max() - y.min()) / 1000:.1f} km survey): try a larger cell.") from None
+        raise
     progress({"stage": "predicting", "message": "Predicting on the grid…"})
     e, n = vd.grid_coordinates(region, spacing=spacing)
     u = np.full_like(e, elev)
@@ -177,7 +193,7 @@ def eqs(req, progress):
     return {"op": "eqs", "nx": cols, "ny": rows, "x0": float(e[0, 0]), "yTop": float(n[-1, 0]), "dx": float(e[0, 1] - e[0, 0]) if cols > 1 else spacing,
             "dy": float(n[1, 0] - n[0, 0]) if rows > 1 else spacing, "values": _b64(pred[::-1]), "elevation": elev, "readings": int(x.size),
             "gradient_boosted": gb, "rms_misfit": float(np.sqrt(np.mean(resid ** 2))), "data_std": float(np.std(bv)), "blocks": int(bv.size),
-            "within_block_rms": within, "depth": depth_m}
+            "within_block_rms": within, "depth": depth_m, "window": win}
 
 
 # ---- TASKS.csv #1985 — gravity reductions (Boule normal gravity, Harmonica Bouguer / topography) ----------------------------------

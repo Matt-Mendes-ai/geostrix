@@ -26,7 +26,7 @@ test("the engine: a 'pfields' job, validated, run in its own process", () => {
   assert.match(m, /The window must be at least 3 cells and at most half the grid wide\./);
   assert.match(j, /elif kind == "pfields":[\s\S]*?from app\.geophys\.pfields import run_job as run_pfields/);
   assert.match(p, /m = hm\.EulerDeconvolution\(structural_index=si\)\.fit\(tuple\(c\), tuple\(d\)\)/);
-  assert.match(p, /hm\.EquivalentSourcesGB\(\*\*kw, random_state=0\) if gb else hm\.EquivalentSources\(\*\*kw\)/);
+  assert.match(p, /hm\.EquivalentSourcesGB\(\*\*kw_gb, random_state=0\) if gb else hm\.EquivalentSources\(\*\*kw\)/); // kw_gb: #2834 (the window capped at 0.9 x the shorter side)
   assert.match(p, /if depth > max_depth_windows \* win or sd \/ depth > max_unc:/);
   assert.match(p, /depth_m = float\(depth\) if depth not in \(None, ""\) else 1\.2 \* spacing/, "sources 1.2 x the cell deep unless entered (Harmonica's 4.5 x spacing fitted a ground survey to 20 %)");
   assert.match(p, /resid = bv - \(model\.predict\(\(bmean\(x\), bmean\(y\), bmean\(z\)\)\) \+ mean\)/, "the fit is judged against the block means");
@@ -44,4 +44,12 @@ test("the app: Euler in the grid filters, equivalent sources on each survey, one
   assert.ok(g.includes('{!["euler_depth", "mt_bostick", "lidar", "em1d_cond"].includes(meta.method) /* derived points at depth, not readings; lidar: #1994; em1d_cond: #1986 */ && <button'), "not offered on derived points (nor on a lidar cloud, #1994)");
   assert.match(box, /runPfieldsJob\(request, \{ signal: abort\.current\.signal/);
   assert.equal(SURVEY_METHODS.euler_depth.units, "m");
+});
+
+test("#2834 — the gradient-boosted window is capped at 0.9 x the survey's shorter side, and a window error is said in words", () => {
+  const p = readFileSync(new URL("../python-sidecar/app/geophys/pfields.py", import.meta.url), "utf8");
+  assert.match(p, /win = min\(default, 0\.9 \* short\) if short > 0 else default/);
+  assert.match(p, /kw_gb = dict\(kw, window_size=win\)/);
+  assert.match(p, /raise ValueError\(f"The readings could not be split into windows for the gradient-boosted fit/);
+  assert.match(readFileSync(new URL("../python-sidecar/tests/test_pfields.py", import.meta.url), "utf8"), /def check_eqs_narrow\(\):/);
 });

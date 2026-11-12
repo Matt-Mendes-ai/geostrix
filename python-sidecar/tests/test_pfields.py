@@ -122,10 +122,31 @@ def check_spline():
     assert rms < 0.3 and r["damping"] in r["dampings"]
 
 
+def check_eqs_narrow():
+    """TASKS.csv #2834 — 7,810 stations over a 94.5 x 50.1 km outline (Blake River's numbers, SYNTHETIC values): Harmonica's default
+    window (sqrt(5000 / density) = 55.1 km) is wider than the short side and fit() raised a ValueError. Now a grid, the window capped."""
+    rng = np.random.default_rng(2834)
+    n = 7810
+    x = 607987.0 + rng.uniform(0, 94516.0, n)
+    y = 5324334.0 + rng.uniform(0, 50144.0, n)
+    z = 300 + rng.uniform(-20, 20, n)
+    v = gz_point(x, y, z, 650000.0, 5350000.0, -3000.0, 5e13)
+    req = {"x": x.tolist(), "y": y.tolist(), "z": z.tolist(), "value": v.tolist(), "cell": 2000.0, "elevation": 400.0,
+           "region": [609000.0, 701000.0, 5325000.0, 5373000.0], "blank": 6000.0}
+    t = time.perf_counter()
+    out = eqs(req, lambda ev: None)
+    print(f"eqs narrow: {out['readings']} readings, window {out['window'] / 1000:.1f} km (default would be "
+          f"{np.sqrt(5000 * 94516.0 * 50144.0 / n) / 1000:.1f} km), {out['nx']} x {out['ny']} grid in {(time.perf_counter() - t) * 1000:.0f} ms")
+    assert out["gradient_boosted"] and out["window"] <= 0.9 * 50144.0 + 1
+    vals = np.frombuffer(base64.b64decode(out["values"]), dtype="<f4")
+    assert np.isfinite(vals).sum() > 0.5 * vals.size
+
+
 if __name__ == "__main__":
     check_gravred()
     check_spline_small()
     check_spline()
     check_euler()
     check_eqs()
+    check_eqs_narrow()
     print("ok")
