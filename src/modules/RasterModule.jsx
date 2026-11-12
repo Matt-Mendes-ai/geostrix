@@ -407,6 +407,14 @@ export default function RasterModule({ embedded = false } = {}) {
   // wrong/absent. Session state, not project state — it describes the file being imported, not the
   // project (same reasoning as the import modal's own Source CRS field).
   const [sourceEpsg, setSourceEpsg] = useState("");
+  // TASKS.csv #2744 (follow-up of #2648) — the Source CRS line says what a local grid does with a file's tag: a grid tied to a CRS brings the
+  // file in through its tie (#2587), an untied one takes its numbers as the grid's (it read 'The project CRS — not chosen yet' for both)
+  const rasterTie = tieOf(project);
+  const rasterSourceDefault = project?.crsSet !== false
+    ? tr("From the file's own tag, else the project CRS ({crs})", { crs: crsName(project?.epsg) || `EPSG:${project?.epsg ?? "?"}` })
+    : rasterTie ? tr("From the file's own tag, brought into the local grid through its tie to {crs}", { crs: crsName(rasterTie.epsg) ? `${crsName(rasterTie.epsg)} (EPSG:${rasterTie.epsg})` : `EPSG:${rasterTie.epsg}` })
+    : project?.localGrid ? tr("The local grid's own numbers (a file's CRS tag is not used until the grid is tied to a CRS)")
+    : tr("The project CRS — not chosen yet");
 
   // TASKS.csv #1860 (review #1646) — a picture raster out as an RGBA GeoTIFF in the project CRS: a plan map georeferenced here can go to
   // QGIS or a colleague without its four points being placed again
@@ -468,7 +476,7 @@ export default function RasterModule({ embedded = false } = {}) {
             drag-dropped files too) because it has to be set before the file is read, not after. */}
         <SourceCrsField
           value={sourceEpsg} onChange={(c) => setSourceEpsg(c === "" ? "" : String(c))} mineGrid={mineSourceOf(project) /* #2684 */}
-          defaultText={project?.crsSet === false ? tr("The project CRS — not chosen yet") /* #2289 */ : tr("From the file's own tag, else the project CRS ({crs})", { crs: crsName(project?.epsg) || `EPSG:${project?.epsg ?? "?"}` })}
+          defaultText={rasterSourceDefault /* #2289; #2744 */}
           title={tr("The CRS the file's own coordinates are in. Leave it on the file's tag for a GeoTIFF; set it for a .gxf (that format has no CRS tag) or when a file's tag is wrong — the raster is then reprojected into the project CRS on import.")}
         />
         <label style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }} title={tr("For a drone or contractor orthophoto: keeps up to 4096 px on the long side instead of 2048, so a 2 km image shows about 0.5 m rather than 1 m. Uses about four times the graphics memory and a larger project file. Import the image again after changing this.")}>
