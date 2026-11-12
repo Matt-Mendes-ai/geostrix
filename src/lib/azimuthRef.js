@@ -169,7 +169,10 @@ export function bearingsToGrid(rows, ref, epsg, isoDate) {
 // "magnetic north (IGRF-14 at 2021-06-19: declination +16.9°, grid convergence -1.2°)" for notices
 export function northRefText(ref, isoDate, example) {
   const s = (v) => `${v >= 0 ? "+" : ""}${v.toFixed(2)}°`;
-  if (ref === "magnetic") return tr("magnetic north (IGRF-14 at {isoDate}{v})", { isoDate, v: example ? tr(": declination {v}, grid convergence {v2}", { v: s(example.declination), v2: s(example.convergence) }) : "" });
-  if (ref === "true") return tr("true north{v}", { v: example ? tr(" (grid convergence {v})", { v: s(example.convergence) }) : "" });
+  // TASKS.csv #2900 (2) — 'grid convergence +1.14°' read as the usual surveying sign is the wrong way round (here grid = true + 1.14:
+  // grid north is 1.14° WEST of true north): said as a direction, not a signed angle
+  const gn = (c) => (c >= 0 ? tr("grid north {d}° west of true north", { d: Math.abs(c).toFixed(2) }) : tr("grid north {d}° east of true north", { d: Math.abs(c).toFixed(2) }));
+  if (ref === "magnetic") return tr("magnetic north (IGRF-14 at {isoDate}{v})", { isoDate, v: example ? tr(": declination {v}, {gn}", { v: s(example.declination), gn: gn(example.convergence) }) : "" });
+  if (ref === "true") return tr("true north{v}", { v: example ? ` (${gn(example.convergence)})` : "" });
   return tr("grid north");
 }

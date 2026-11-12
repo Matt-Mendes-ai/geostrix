@@ -12,7 +12,16 @@ const key = (h) => String(h ?? "").trim().replace(/[\s-]+/g, "_");
 // TASKS.csv #2652 (from #2492) — a coordinate column (MGA_Z, GBMG_RL, Easting) or a measurement (every value a number, more than two of them)
 // is not a way to pick rows: 'only rows where MGA_Z is…' was offered on a collar file. A 0 / 1 flag column stays.
 const NUMBER = /^[-+]?(\d+\.?\d*|\.\d+)([eE][-+]?\d+)?$/;
-const notAFilter = (h, values) => coordColumn(h) != null || (values.length > 2 && values.every((v) => v === "" || NUMBER.test(v)));
+// TASKS.csv #2900 (11) (review #2876, WA iron) — 'only rows where Met_ASB_pct is…' (0 or blank) and '… Total_Pct is…' (100 or blank) were
+// offered: two values counting the blank. A column named as a measurement (…_pct / percent / %, …_ppm / ppb / g/t) is never a filter, nor
+// one number beside blanks that is not a 0 / 1 flag.
+const MEASURE = /(^|[_\s.])(pct|percent|ppm|ppb|gpt|g_?t)$|%$/i;
+const notAFilter = (h, values) => {
+  if (coordColumn(h) != null) return true;
+  const filled = values.filter((v) => v !== "");
+  if (!filled.length || !filled.every((v) => NUMBER.test(v))) return false;
+  return values.length > 2 || MEASURE.test(String(h).trim()) || (filled.length === 1 && !/^(0|1|-1)$/.test(filled[0]));
+};
 // TASKS.csv #2898 (review #2876, WA iron) — a logging run column (RUN 1 on 2,539,078 readings, RUN 11 to 271 on 45,397 repeat passes, a
 // calibration hole logged 27 times): all whole numbers, so #2652 left it out, and the repeats were averaged into the bins with run 1. A
 // column named for runs / passes / repeats with whole-number values is a row filter (up to RUN_MAX values), pre-set to its main run.
