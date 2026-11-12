@@ -849,6 +849,16 @@ export async function parseGRD(file) {
 
 // TASKS.csv #1347 — the drape image, the stretch and the value grid of a grid whose rows run south -> north (each west -> east, or
 // east -> west when `mirrored`), shared by the GXF reader and the Geosoft / Surfer .grd reader. -> parseGeoTIFF's shape
+// GSC geophysics review (2026-11-12) — a grid of NODES (GXF, Geosoft / Surfer .grd: x0, y0 is the first node, the last one sits (n - 1)
+// cells on) as the PIXEL-AREA extent the drape spans: half a cell beyond the end nodes on every side, so each of the picture's
+// ncols x nrows pixels is centred on its node. The node extent used to be handed over as it was, so the picture was drawn one cell
+// narrower and lower than the grid and its edges sat half a cell inside (200 m on a 400 m compilation grid): the error #560 removed
+// for PixelIsPoint GeoTIFFs. The kept values (makeValueGrid, node-based) were never off.
+export function nodeGridAreaBbox(x0, y0, dx, dy, ncols, nrows) {
+  const ax = Math.abs(dx), ay = Math.abs(dy);
+  return [x0 - ax / 2, y0 - ay / 2, x0 + dx * (ncols - 1) + ax / 2, y0 + dy * (nrows - 1) + ay / 2];
+}
+
 function rasterFromRows({ name, values, ncols, nrows, x0, y0, dx, dy, isDummy, mirrored = false, withGrid = true, note = null }) {
   const total = ncols * nrows;
   const scale = Math.min(1, MAX_TEXTURE_SIZE / Math.max(ncols, nrows));
@@ -884,7 +894,7 @@ function rasterFromRows({ name, values, ncols, nrows, x0, y0, dx, dy, isDummy, m
   }
   ctx.putImageData(imgData, 0, 0);
 
-  const bbox = [x0, y0, x0 + dx * (ncols - 1), y0 + dy * (nrows - 1)];
+  const bbox = nodeGridAreaBbox(x0, y0, dx, dy, ncols, nrows);
   // #326 — the values, north row first (GXF SENSE=1 lists rows south->north, each west->east)
   let grid = null;
   if (withGrid) {
@@ -1112,8 +1122,23 @@ export function assertNorthUp(image, label = "This GeoTIFF") {
 // tie point as the corner of the first pixel, which is right for PixelIsArea (the default) but, for PixelIsPoint
 // (common for gridded geophysics and some DEM exports), the tie point is the CENTRE of the first pixel: the whole
 // grid then sat half a cell off (12.5 m on a 25 m mag grid).
+// GSC geophysics review (2026-11-12) — a ModelTiepoint is (I, J, K, X, Y, Z): raster position (I, J) lies at world (X, Y). geotiff.js
+// 3.0.5 getOrigin / getBoundingBox read X, Y and take I, J as 0, 0, which is what most writers use. Geosoft's map export ties raster
+// (0.5, 0.5) instead (the Geological Survey of Canada's Flin Flon GeoTIFFs: 375 m pixels), so the picture sat 187.5 m east and 187.5 m
+// south of where QGIS / GDAL put it, and a file tied at its lower-left corner (J = height) would sit a whole image too low. The box
+// is moved back by (I, J) pixels here; a file with a ModelTransformation, or with several tie points, is left to geotiff.js.
+export function tiffBoundingBox(image) {
+  const box = image.getBoundingBox();
+  const tp = tiffTag(image, "ModelTiepoint");
+  if (!tp || tp.length !== 6 || tiffTag(image, "ModelTransformation")) return box;
+  const i = Number(tp[0]), j = Number(tp[1]);
+  if (!Number.isFinite(i) || !Number.isFinite(j) || (i === 0 && j === 0)) return box;
+  const [rx, ry] = image.getResolution();
+  const sx = -i * Math.abs(rx), sy = j * Math.abs(ry); // north-up: x grows with I, y falls with J
+  return [box[0] + sx, box[1] + sy, box[2] + sx, box[3] + sy];
+}
 export function rasterAreaBbox(image) {
-  const [b0, b1, b2, b3] = image.getBoundingBox();
+  const [b0, b1, b2, b3] = tiffBoundingBox(image);
   if (image.getGeoKeys?.()?.GTRasterTypeGeoKey !== 2) return [b0, b1, b2, b3];
   const [rx, ry] = image.getResolution();
   const ax = Math.abs(rx), ay = Math.abs(ry);
@@ -1121,7 +1146,7 @@ export function rasterAreaBbox(image) {
 }
 export function demNodeBbox(image) {
   assertNorthUp(image); // #560
-  const [b0, b1, b2, b3] = image.getBoundingBox();
+  const [b0, b1, b2, b3] = tiffBoundingBox(image);
   const [rx, ry] = image.getResolution();
   const ax = Math.abs(rx), ay = Math.abs(ry);
   if (image.getGeoKeys?.()?.GTRasterTypeGeoKey === 2) return [b0, b1 + ay, b2 - ax, b3]; // PixelIsPoint: the origin IS the first node
