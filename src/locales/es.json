@@ -10985,5 +10985,6 @@
   "{n} threshold rule(s) decided for {symbol} converted with it.": "{n} regla(s) de umbral definidas para {symbol} se convirtieron con él.",
   "{symbol} is now reported {basis}: {n} row(s) converted from {from} to {to} (× {factor}). Ctrl+Z to undo.": "{symbol} ahora se informa {basis}: {n} fila(s) convertidas de {from} a {to} (× {factor}). Ctrl+Z para deshacer.",
   "{symbol} reported as": "{symbol} informado como",
-  "The basis {symbol}'s grades are reported in. Changing it converts every stored value (undoable).": "La base en que se informan las leyes de {symbol}. Cambiarla convierte cada valor guardado (se puede deshacer)."
+  "The basis {symbol}'s grades are reported in. Changing it converts every stored value (undoable).": "La base en que se informan las leyes de {symbol}. Cambiarla convierte cada valor guardado (se puede deshacer).",
+  "survey method assumed: the direction below the collar was not measured (drawn dashed)": "método de levantamiento supuesto: la dirección bajo el collar no se midió (dibujado con trazos)"
 }

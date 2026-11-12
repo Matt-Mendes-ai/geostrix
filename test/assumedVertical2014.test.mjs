@@ -49,9 +49,9 @@ test("Data QC rates it a warning about an assumption, and still warns about the 
 test("the 3D view draws it dashed with a tip that says so, and the collar import notice counts them", () => {
   const v = viewerSource();
   assert.match(v, /const assumedVertical = holeAttitudeAssumed\(c, hs\);/);
-  assert.match(v, /drawn as an ASSUMED vertical hole"\)\}` : ""\}`, collar: c \}/);
+  assert.match(v, /drawn as an ASSUMED vertical hole"\)\}` : methodAssumed \? `\\n\$\{tr\("survey method assumed: [^"]*"\)\}` : ""\}`, collar: c \}/); // #2662: an assumed survey method says so too
   // #2176 — merged trace chunks: an assumed-vertical hole goes in the dashed chunk (lib/viewer/traceBatch.js)
-  assert.match(v, /traceHoles\.push\(\{ holeId: c\.hole_id, pts, dashed: assumedVertical \}\);/);
+  assert.match(v, /traceHoles\.push\(\{ holeId: c\.hole_id, pts, dashed: assumedVertical \|\| methodAssumed \}\);/); // #2662
   assert.match(read("src/lib/viewer/traceBatch.js"), /new THREE\.LineDashedMaterial\(\{ vertexColors: true, dashSize: 4, gapSize: 4, transparent: true \}\)/);
   const p = read("src/modules/viewer/useImportPipeline.js");
   assert.match(p, /const assumedVertical = applied\.filter\(\(c\) => !surveyedHoles\.has\(c\.hole_id\) && holeAttitudeAssumed\(c, \[\]\)\);/);

@@ -395,18 +395,21 @@ export function buildDrillholeScene(ctx) {
     // TASKS.csv #131 — collar (hole) labels, opt-in via holeLabelMode; #1277 — drawn from these anchors by syncHoleLabels
     labelAnchors.push({ id: c.hole_id, x: pts[0].x, y: pts[0].y, z: pts[0].z, zWorld: c.z, depth: pts.length ? pts[pts.length - 1].md : 0 });
 
+    // TASKS.csv #2662 — a hole whose survey stations are all of an 'assumed' method (#2494: the collar's 'survey method' attribute) goes
+    // where its planned direction says, not where it was measured: drawn dashed like #2014's assumed vertical sticks, and the tip says so
+    const methodAssumed = c.attrs?.["survey method"] === "assumed";
     if (rebuildHoles) { // #2176 — the holes group is kept when no hole was desurveyed again
     if (!collarMaterialRef.current) collarMaterialRef.current = collarMarkerMaterial(new THREE.MeshBasicMaterial({ color: collarColorFor(bgColorRef.current) })); // #378; #2623
     const marker = new THREE.Mesh(PROTO_SPHERE_12, collarMaterialRef.current); // TASKS.csv #312 — shared prototype + scale (was SphereGeometry(3.2, 12, 12))
     marker.scale.setScalar(3.2);
     marker.position.set(pts[0].x, pts[0].y, pts[0].z);
-    marker.userData = { tip: `${c.hole_id}\ncollar${assumedVertical ? `\n${tr("no azimuth / dip and no survey: drawn as an ASSUMED vertical hole")}` : ""}`, collar: c }; // collar: #1504 — Identify lists its fields; #2014
+    marker.userData = { tip: `${c.hole_id}\ncollar${assumedVertical ? `\n${tr("no azimuth / dip and no survey: drawn as an ASSUMED vertical hole")}` : methodAssumed ? `\n${tr("survey method assumed: the direction below the collar was not measured (drawn dashed)")}` : ""}`, collar: c }; // collar: #1504 — Identify lists its fields; #2014; #2662
     groups.holes.add(marker); // #2319
 
     // TASKS.csv #2176 step 3 — the trace goes into a merged LineSegments chunk (lib/viewer/traceBatch.js, after the loop): one THREE.Line
     // and material per hole was ~20,000 draw calls a frame at 20,544 holes. Dashed when the hole is an assumed vertical stick (#2014);
     // its hole id rides on the chunk's per-hole hits (#1533)
-    traceHoles.push({ holeId: c.hole_id, pts, dashed: assumedVertical });
+    traceHoles.push({ holeId: c.hole_id, pts, dashed: assumedVertical || methodAssumed }); // #2662: an 'assumed' survey method too
     }
 
     // TASKS.csv #137 — geotech/recovery are both known 0-100 percentages, so rqdColor's fixed

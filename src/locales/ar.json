@@ -10985,5 +10985,6 @@
   "{n} threshold rule(s) decided for {symbol} converted with it.": "حُوِّلت معه {n} من قواعد العتبة المقررة لـ {symbol}.",
   "{symbol} is now reported {basis}: {n} row(s) converted from {from} to {to} (× {factor}). Ctrl+Z to undo.": "يُعبَّر عن {symbol} الآن {basis}: حُوِّل {n} صفًا من {from} إلى {to} (× {factor}). Ctrl+Z للتراجع.",
   "{symbol} reported as": "{symbol} معبَّرًا عنه بصيغة",
-  "The basis {symbol}'s grades are reported in. Changing it converts every stored value (undoable).": "الأساس الذي يُعبَّر به عن محتويات {symbol}. تغييره يحوّل كل قيمة محفوظة (قابل للتراجع)."
+  "The basis {symbol}'s grades are reported in. Changing it converts every stored value (undoable).": "الأساس الذي يُعبَّر به عن محتويات {symbol}. تغييره يحوّل كل قيمة محفوظة (قابل للتراجع).",
+  "survey method assumed: the direction below the collar was not measured (drawn dashed)": "طريقة المسح مفترضة: لم يُقَس الاتجاه تحت الفوهة (مرسوم بخط متقطع)"
 }
