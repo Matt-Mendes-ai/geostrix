@@ -21,6 +21,7 @@ import { orientFromAlphaBeta, reorientAlphaBetaPicks } from "../../lib/coreOrien
 import { fitSimilarity, parseControlPoints, transformImportRows } from "../../lib/localGrid.js";
 import { tieOf, fileToLocal, bearingToLocal } from "../../lib/localGridTie.js"; // TASKS.csv #2288
 import { localGridAzimuthOffset } from "../../lib/localGridNorth.js"; // TASKS.csv #2491
+import { untiedNorthOf, trueToUntiedGrid } from "../../lib/localGridDatum.js"; // TASKS.csv #2661
 import { mineGridOf } from "../../lib/mineGrid.js"; // TASKS.csv #2586
 import { logChannelsFor, defaultLogBin, logChannelRows, unitFromHeader, channelNoData, noDataText } from "../../lib/downholeLogChannels.js"; // TASKS.csv #2160; no-data: #2332
 import { loadSampleFiles } from "../../lib/desktop.js";
@@ -294,6 +295,13 @@ export function useImportPipeline(ctx) {
       if (crsUnset && converting && rows.some((r) => Number.isFinite(r.azimuth))) {
         // TASKS.csv #2491 — a local grid tied to a CRS (#2288) knows its north: true / magnetic -> the tie CRS's grid -> the local grid
         const live = importStateRef.current.project || project, tie = tieOf(live);
+        // TASKS.csv #2661 — an untied grid with its north typed (Maps > Project CRS > Local mine grid): a true bearing B is B - north
+        const typedNorth = !tie ? untiedNorthOf(live) : null;
+        if (typedNorth != null && azimuthRef === "true" && !(azimuthGridEpsg && target !== "collars")) {
+          let fixed = 0;
+          const out = rows.map((r) => { if (!Number.isFinite(r.azimuth)) return r; fixed++; return { ...r, azimuth: trueToUntiedGrid(r.azimuth, typedNorth) }; });
+          return { rows: out, note: fixed ? tr(" {fixed} azimuth(s) converted from true north to the local grid's north, which the project gives as {deg}° from true north (east positive).", { fixed, deg: typedNorth }) : "", converted: fixed > 0 };
+        }
         if (tie && (azimuthRef === "true" || azimuthRef === "magnetic") && !(azimuthGridEpsg && target !== "collars")) {
           let fixed = 0, example = null; const failed = new Set();
           const out = rows.map((r) => {
