@@ -12,6 +12,7 @@ import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Spac
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { exportSvgMarkup } from "../lib/svgExport.js"; // TASKS.csv #1089 — font, size, no UI chrome
 import { stereonetFurniture } from "../lib/figureFurniture.js"; // TASKS.csv #1068
+import { betaReferenceCounts } from "../lib/coreOrientation.js"; // TASKS.csv #2055
 const deg1 = (v) => (Number.isFinite(Number(v)) ? +Number(v).toFixed(1) : v); // TASKS.csv #1238 — alpha/beta picks carry full double precision
 
 // TASKS.csv #141 — stereonet QC for structure picks (Leapfrog-specialist audit finding: dip/azimuth
@@ -61,6 +62,7 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks = []
   // TASKS.csv #2389 (review #2325, WA uranium) — nothing from either source: say where structure data comes from, as the Structures
   // pane and the Downhole plot do, instead of an empty net beside 'Mean orientation needs at least 2 picks'
   const noData = !downholePicks.length && !surfacePicks.length;
+  const betaRefs = useMemo(() => betaReferenceCounts(picks), [picks]); // #2055 — the source shown (picks is declared above, filtered below)
 
   const typeList = useMemo(() => typeEntries(picks), [picks]); // #1440 — [{ key, label, core, outcrop }]
   const types = useMemo(() => typeList.map((t) => t.key), [typeList]);
@@ -176,6 +178,7 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks = []
           </div>
           <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "#55606e" }} onClick={onClose} />
         </div>
+        {(betaRefs.top + betaRefs.bottom) > 0 && <div role="note" style={{ fontSize: 11, color: "#6b4e20", background: "#fdf6ec", border: "1px solid #e6d3b3", borderRadius: 6, padding: "5px 8px", marginBottom: 8, lineHeight: 1.4 }}>{[betaRefs.bottom && tr("{n} of these picks were oriented from alpha / beta with beta measured from the {ref}-of-hole line, as chosen when they were imported (a structure file does not say). Had the core been marked on the other line, each would plot elsewhere, by tens of degrees for some.", { n: betaRefs.bottom.toLocaleString(), ref: tr("bottom") }), betaRefs.top && tr("{n} of these picks were oriented from alpha / beta with beta measured from the {ref}-of-hole line, as chosen when they were imported (a structure file does not say). Had the core been marked on the other line, each would plot elsewhere, by tens of degrees for some.", { n: betaRefs.top.toLocaleString(), ref: tr("top") })].filter(Boolean).join(" ")}</div>}{/* #2055 */}
 
         <div style={{ display: "flex", gap: 16 }}>
           <div>

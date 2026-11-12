@@ -5,7 +5,7 @@
 import React, { useMemo, useState } from "react";
 import { Box, X as XIcon } from "./icons.js";
 import { t as tr } from "../lib/i18n.js";
-import { surfacesToBlock, suggestCellSize } from "../lib/surfaceSolids.js";
+import { surfacesToBlock, suggestCellSize, solidThickness, cellAcross } from "../lib/surfaceSolids.js"; // solidThickness, cellAcross: #2762
 import { isMeshClosed } from "../lib/meshQuery.js";
 import { validateSolid } from "../lib/meshValidate.js"; // TASKS.csv #860
 import { SOLID_SURFACE_TYPES } from "../lib/viewer/modelHelpers.js"; // TASKS.csv #804
@@ -87,6 +87,10 @@ export default function SurfaceSolidsPanel({ surfaces, explicitDefs = [], worldM
   const base = baseIn !== "" && Number.isFinite(Number(baseIn)) ? Number(baseIn) : auto?.extent[4];
   const box = auto && [auto.extent[0], auto.extent[1], auto.extent[2], auto.extent[3], Math.min(base, auto.extent[5] - (cell || 1)), auto.extent[5] + (cell || 0)];
   const nCells = box && cell ? Math.round((box[1] - box[0]) / cell) * Math.round((box[3] - box[2]) / cell) * Math.round((box[5] - box[4]) / cell) : 0;
+  // TASKS.csv #2762 — the thinnest closed solid in use, and the block size that puts three blocks across it (offered, not imposed: the box can be large)
+  const thinnest = useMemo(() => { let best = null; for (const it of solids) { const t = solidThickness(it.mesh.positions, it.mesh.indices); if (t > 0 && (!best || t < best.t)) best = { name: it.name, t }; } return best; }, [solids]);
+  const thinCell = thinnest && cell && cell > thinnest.t / 3 ? cellAcross(thinnest.t) : null;
+  const thinCells = thinCell && box ? Math.round((box[1] - box[0]) / thinCell) * Math.round((box[3] - box[2]) / thinCell) * Math.round((box[5] - box[4]) / thinCell) : 0;
 
   const build = () => {
     try {
@@ -143,6 +147,7 @@ export default function SurfaceSolidsPanel({ surfaces, explicitDefs = [], worldM
           <span style={{ width: 90, flexShrink: 0, color: "var(--color-text-secondary)" }}>{tr("Block size (m)")}</span>
           <input type="number" min="0" value={cellIn} placeholder={String(auto.cell)} onChange={(e) => setCellIn(e.target.value)} style={{ ...numInput, width: 80, flex: "none" }} aria-label={tr("Block size (m)")} />
         </div>
+        {thinCell && <div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 6, lineHeight: 1.4 }}>{thinnest.t < cell ? tr("The thinnest closed solid, \"{name}\", is about {t} m thick, thinner than one {c} m block.", { name: thinnest.name, t: +thinnest.t.toPrecision(2), c: cell }) : tr("The thinnest closed solid, \"{name}\", is about {t} m thick: at {c} m blocks it is {k} block(s) across.", { name: thinnest.name, t: +thinnest.t.toPrecision(2), c: cell, k: Math.floor(thinnest.t / cell) })}{" "}{thinCells <= 2_000_000 ? <>{tr("{c2} m gives three across it (about {n} blocks).", { c2: thinCell, n: thinCells.toLocaleString() })}{" "}<button type="button" onClick={() => setCellIn(String(thinCell))} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "2px 7px" }}>{tr("Use {v} m", { v: thinCell })}</button></> : tr("{c2} m would give three across it, but this box would then hold about {n} blocks, over the 2,000,000 limit.", { c2: thinCell, n: thinCells.toLocaleString() })}</div>}{/* #2762 — offered only within the 2,000,000-block limit */}
         <div style={row} title={tr("Where the lowest unit stops: it has no surface below it.")}>
           <span style={{ width: 90, flexShrink: 0, color: "var(--color-text-secondary)" }}>{tr("Base (m)")}</span>
           <input type="number" value={baseIn} placeholder={String(Math.round(auto.extent[4]))} onChange={(e) => setBaseIn(e.target.value)} style={{ ...numInput, width: 80, flex: "none" }} aria-label={tr("Base elevation (m)")} />
