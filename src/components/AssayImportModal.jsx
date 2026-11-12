@@ -127,7 +127,7 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
           {modal.qc && (
             <details style={{ marginBottom: 10 }} open={QC_COLUMN_KEYS.some((k) => modal.qc[k])}>
               <summary style={{ cursor: "pointer", fontSize: "var(--font-size-base)", color: "var(--color-text)", marginBottom: 6 }}>{tr("QC columns (optional)")}</summary>
-              {[["sample_id", tr("Sample ID")], ["sample_type", tr("Sample type")], ["parent_id", tr("Parent sample")], ["qc_code", tr("CRM / standard name")]].map(([key, lbl]) => (
+              {[["sample_id", tr("Sample ID")], ["sample_type", tr("Sample type")], ["parent_id", tr("Parent sample")], ["qc_code", tr("CRM / standard name")], ["certificate", tr("Lab certificate") /* #2764 */]].map(([key, lbl]) => (
                 <div key={key} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
                   <div style={{ width: 120, fontSize: "var(--font-size-base)", color: "var(--color-text)" }}>{lbl}</div>
                   <select value={modal.qc[key] || ""} aria-label={lbl} onChange={(e) => onChange({ ...modal, qc: { ...modal.qc, [key]: e.target.value } })} style={{ ...sel, flex: 1 }}>

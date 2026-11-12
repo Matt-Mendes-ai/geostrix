@@ -9,7 +9,7 @@ const read = (p) => fs.readFileSync(new URL(`../${p}`, import.meta.url), "utf8")
 
 test("#1184 SAMPLE, SAMPLE_TYPE and PARENT are found", () => {
   const c = qcColumns(["HOLEID", "FROM_M", "TO_M", "SAMPLE", "SAMPLE_TYPE", "PARENT", "Au_ppm"]);
-  assert.deepEqual(c, { sample_id: "SAMPLE", sample_type: "SAMPLE_TYPE", parent_id: "PARENT", qc_code: "" });
+  assert.deepEqual(c, { sample_id: "SAMPLE", sample_type: "SAMPLE_TYPE", parent_id: "PARENT", qc_code: "", certificate: "" }); // certificate: #2764
   assert.equal(qcColumns(["CRM"]).qc_code, "CRM");
   assert.equal(qcColumns(["Au"]).sample_id, "");
 });

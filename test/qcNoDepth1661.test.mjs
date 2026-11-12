@@ -7,7 +7,7 @@ import { isMarkedQcRow } from "../src/lib/qaqc.js";
 
 test("#1661 Kodiak's columns are guessed: Parent Sample Number and Standard Type", () => {
   const cols = qcColumns(["Hole ID", "From", "To", "Sample", "Sample Type", "Parent Sample Number", "Standard Type", "Cu_ppm"]);
-  assert.deepEqual(cols, { sample_id: "Sample", sample_type: "Sample Type", parent_id: "Parent Sample Number", qc_code: "Standard Type" });
+  assert.deepEqual(cols, { sample_id: "Sample", sample_type: "Sample Type", parent_id: "Parent Sample Number", qc_code: "Standard Type", certificate: "" }); // certificate: #2764
 });
 
 test("#1661 a 'Control' row with a CRM name is a standard; with BLK-SiO2 a blank; a plain REG row is untouched", () => {

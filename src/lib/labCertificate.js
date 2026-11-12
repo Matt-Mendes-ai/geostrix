@@ -119,6 +119,26 @@ export function assaysWithoutCertificate(certRows, assays, keep = () => true) {
   return { count, examples };
 }
 
+// TASKS.csv #2764 (split from #2024) — the certificates the assay sheet names (row.certificate, the import's certificate column) that none of
+// the given files is: by the certificate number in a file's title or by its file name without the extension. keep(assay): which rows
+// count (the caller: regular lab samples). -> { rowsWith: rows that name a certificate, missing: [{ certificate, n }] most samples first }
+export function sheetCertificatesNotGiven(assays, metas, keep = () => true) {
+  const given = new Set();
+  for (const m of metas || []) {
+    if (m?.certificate) given.add(norm(m.certificate));
+    if (m?.file) given.add(norm(String(m.file).replace(/^.*[\\/]/, "").replace(/\.[^.]+$/, "")));
+  }
+  const counts = new Map();
+  let rowsWith = 0;
+  for (const a of assays || []) {
+    const c = String(a?.certificate ?? "").trim();
+    if (!c || !keep(a)) continue;
+    rowsWith++;
+    if (!given.has(norm(c))) counts.set(c, (counts.get(c) || 0) + 1);
+  }
+  return { rowsWith, missing: [...counts].map(([certificate, n]) => ({ certificate, n })).sort((a, b) => b.n - a.n || a.certificate.localeCompare(b.certificate)) };
+}
+
 // ---- QC suggestions --------------------------------------------------------------------------------------
 const PATHFINDERS = ["Au", "Ag", "Cu", "Pb", "Zn", "Mo", "As", "Sb", "Bi", "W", "S"];
 const idParts = (id) => { const m = /^(.*?)(\d+)$/.exec(String(id).trim()); return m ? { prefix: m[1].toUpperCase(), n: Number(m[2]) } : null; };
