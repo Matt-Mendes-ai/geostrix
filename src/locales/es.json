@@ -233,6 +233,8 @@
   "Per hole, from the assays": "Por sondaje, de los ensayes",
   "Highest {el} in the hole": "{el} más alto del sondaje",
   "{el}, length-weighted mean of the hole": "{el}, media ponderada por longitud del sondaje",
+  "Highest {el} in the hole{u}": "{el} más alto del sondaje{u}",
+  "{el}{u}, length-weighted mean of the hole": "{el}{u}, media ponderada por longitud del sondaje",
   "Collar legend": "Leyenda de collares",
   "Classes at the quintiles of the holes' values; a grey ring is a hole with no value.": "Clases en los quintiles de los valores de los sondajes; un anillo gris es un sondaje sin valor.",
   "Geometry": "Geometría",

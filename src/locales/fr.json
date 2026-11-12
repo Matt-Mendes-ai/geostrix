@@ -233,6 +233,8 @@
   "Per hole, from the assays": "Par sondage, d'après les analyses",
   "Highest {el} in the hole": "{el} le plus élevé du sondage",
   "{el}, length-weighted mean of the hole": "{el}, moyenne pondérée par la longueur du sondage",
+  "Highest {el} in the hole{u}": "{el} le plus élevé du sondage{u}",
+  "{el}{u}, length-weighted mean of the hole": "{el}{u}, moyenne pondérée par la longueur du sondage",
   "Collar legend": "Légende des collets",
   "Classes at the quintiles of the holes' values; a grey ring is a hole with no value.": "Classes aux quintiles des valeurs des sondages ; un anneau gris est un sondage sans valeur.",
   "Geometry": "Géométrie",
