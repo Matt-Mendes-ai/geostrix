@@ -363,3 +363,18 @@ export function terrainGroundAt(terrain, x, y) {
   if (!b || !(x >= b[0] && x <= b[2] && y >= b[1] && y <= b[3])) return NaN;
   return terrainFillAt(terrain, x, y) ? NaN : sampleTerrainElevation(terrain, x, y);
 }
+
+// TASKS.csv #2384 (review #2325, WA uranium; Matt's decision 2026-11-11) — a thin, wide unit: one cubic cell for the three axes was
+// coarsened past the thickest logged run (LIG: 1.8 m -> 44.9 m, a 223 x 218 x 1 grid holding 8 of 1,749 samples). Its indicator grid gets
+// a cell of its own up and down: dz from the median logged run (autoB.cell, half of it, so a run is two cells thick), dx = dy from the
+// hole spacing (half of it, at least dz), grown in plan only until the grid is under the limit. Only when the cubic cell would pass the
+// thickest run (#2047's case) and the runs are known; null when the plan cell would have to pass four hole spacings (then the cubic rule
+// and its warning stand). cellsAt(dxy, dz) counts the grid. -> { dxy, dz, coarsened }
+export function seamCells(cubicCell, autoB, cellsAt, limit) {
+  if (!autoB?.fromRuns || !(autoB.maxRunM > 0) || !(cubicCell > autoB.maxRunM)) return null;
+  const dz = Math.max(0.5, autoB.cell), sp = autoB.spacing > 0 ? autoB.spacing : null;
+  if (!sp) return null;
+  let dxy = Math.max(dz, sp / 2), coarsened = false;
+  while (cellsAt(dxy, dz) > limit) { dxy *= 1.25; coarsened = true; if (dxy > 4 * sp) return null; }
+  return { dxy: Math.round(dxy * 10) / 10, dz: Math.round(dz * 10) / 10, coarsened };
+}
