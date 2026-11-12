@@ -28,7 +28,7 @@ test("used on an element with no classes: the default classes are seeded and the
 test("the assay style dialog wires the offers: offered, never applied, disabled when already a limit", () => {
   const m = readFileSync(new URL("../src/components/AssayStyleModal.jsx", import.meta.url), "utf8");
   assert.match(m, /drillThresholdOffers\(geochemThresholds, symbol, unit\)\.slice\(0, 4\)/);
-  assert.match(m, /addClassLimit\(local\.breaks\.length \? local\.breaks : seedBreaks\(range, local\.color\), v, local\.color\)/);
+  assert.match(m, /addClassLimit\(local\.breaks\.length \? local\.breaks : seedBreaks\(\{ \.\.\.range, unit \}, local\.color\), v, local\.color\)/); // the unit: #2935
   assert.match(m, /disabled=\{has\} onClick=\{\(\) => addOffer\(o\.value\)\}/);
   // nothing applies an offer without a click: no effect or initial state reads the offers
   assert.ok(!/useEffect\([^)]*offers/.test(m));

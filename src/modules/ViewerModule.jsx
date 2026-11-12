@@ -663,11 +663,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   const [assayStyleModalSymbol, setAssayStyleModalSymbol] = useState(null); // symbol string | null
   const [gradeEstOpen, setGradeEstOpen] = useState(false); // TASKS.csv #117 — grade estimation into block models
   const [variogramOpen, setVariogramOpen] = useState(false); // TASKS.csv #147 — variogram / spatial continuity
-  // Per-element min/max across ALL loaded assays for that symbol (not just the currently-visible/
-  // cutoff-passing ones) — used by AssayStyleModal so its "suggest even breaks" helper and range
-  // display reflect the element's real data range regardless of what's currently toggled on/filtered.
-  // Deliberately separate from the big rebuild effect's own local globalAssayRanges (that one only computes ranges for
-  // currently-toggled-on elements and lives inside a non-render effect closure, so it isn't available to read from JSX).
+  // Per-element range over ALL loaded assays (not only the shown / cutoff-passing ones), for the style modal and the seeded classes.
   // TASKS.csv #1500 (review #1497, Lawyers) — computed per element ON DEMAND (an element toggled on, the style modal open) and
   // cached until the assays change, not for every element on every assays change: the eager useMemo sorted every element's
   // values (83k assays x ~50 elements, 4M values) inside the open of Lawyers, 1.8 s of its 11 s with Array.sort and a
@@ -679,7 +675,8 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
     if (c.by[symbol] !== undefined) return c.by[symbol];
     if (!assayElements.some((e) => e.symbol === symbol)) return (c.by[symbol] = null);
     const lab = assaySource === "pxrf" ? assays.filter(isPxrfRow) : assays.filter((a) => a.source !== "pXRF"); // #1695: the shown source (lab for "both")
-    return (c.by[symbol] = assayClassRange(lab.length ? lab : assays, symbol)); // #306 / #1696 percentile classes; #2519: '<' flags left out (lib/assayClasses.js)
+    const r = assayClassRange(lab.length ? lab : assays, symbol); // #306 / #1696 percentile classes; #2519: '<' flags left out (lib/assayClasses.js)
+    return (c.by[symbol] = r && { ...r, unit: assayElements.find((e) => e.symbol === symbol)?.unit }); // unit: a major component's round classes, #2935
   }, [assays, assayElements, assaySource]);
   // TASKS.csv #437 — the hover tooltip is written straight to its DOM node instead of React state:
   // setTooltip({x, y, text}) ran on every pointermove over an interval and re-rendered this whole
@@ -6861,7 +6858,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                 // (a representative sample rather than any one specific value), or the default hue.
                 const color = on ? (style?.breaks?.length ? style.breaks[Math.floor(style.breaks.length / 2)].color : style?.color || ASSAY_ELEMENT_COLORS[idx % ASSAY_ELEMENT_COLORS.length]) : null;
                 const defaultHue = ASSAY_ELEMENT_COLORS[idx % ASSAY_ELEMENT_COLORS.length];
-                const styled = !!(style && ((style.color && style.color !== defaultHue) || (style.sizeMult != null && style.sizeMult !== 1) || style.minCutoff != null || style.breaks?.length || style.shape || style.opacity != null)); // #649 shape / opacity
+                const styled = !!(style && ((style.color && style.color !== defaultHue) || (style.sizeMult != null && style.sizeMult !== 1) || style.minCutoff != null || style.breaks?.some((b) => !b.seeded) || style.shape || style.opacity != null)); // #649 shape / opacity
                 return (
                   <div
                     key={e.symbol}

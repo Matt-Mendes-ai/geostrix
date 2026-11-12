@@ -19,7 +19,7 @@ test("the ranges come from lab assays, with percentiles above a pile at the dete
   const src = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
   assert.ok(src.includes('const lab = assaySource === "pxrf" ? assays.filter(isPxrfRow) : assays.filter((a) => a.source !== "pXRF");')); // TASKS.csv #1695: the shown source (lab unless the view shows pXRF alone)
   // #2519: the percentiles moved to lib/assayClasses.js (the floor test kept there for files without '<' flags)
-  assert.ok(src.includes("return (c.by[symbol] = assayClassRange(lab.length ? lab : assays, symbol));"));
+  assert.ok(src.includes("const r = assayClassRange(lab.length ? lab : assays, symbol);")); // #2935: returned with the unit
   const lib = readFileSync(new URL("../src/lib/assayClasses.js", import.meta.url), "utf8");
   assert.ok(lib.includes("const drop = atFloor >= 0.3 * all.length && atFloor < all.length;"));
   assert.ok(lib.includes("p975: q(0.975), basis }"));

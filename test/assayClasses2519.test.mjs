@@ -50,7 +50,7 @@ test("round limits, a typed cut-off as a class limit", () => {
 
 test("wired: the 3D view's ranges come from the lib; the dialog says how and offers the tools", () => {
   const v = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
-  assert.match(v, /return \(c\.by\[symbol\] = assayClassRange\(lab\.length \? lab : assays, symbol\)\);/);
+  assert.match(v, /const r = assayClassRange\(lab\.length \? lab : assays, symbol\);/); // #2935: then returned with the element's unit
   const m = readFileSync(new URL("../src/components/AssayStyleModal.jsx", import.meta.url), "utf8");
   assert.match(m, /Default classes: the 50th, 90th and 97\.5th percentiles of the \{n\} detected values/);
   assert.match(m, /onClick=\{roundAll\}/);
