@@ -233,6 +233,8 @@
   "Per hole, from the assays": "لكل ثقب، من التحاليل",
   "Highest {el} in the hole": "أعلى {el} في الثقب",
   "{el}, length-weighted mean of the hole": "{el}، المتوسط المرجّح بالطول للثقب",
+  "Highest {el} in the hole{u}": "أعلى {el} في الثقب{u}",
+  "{el}{u}, length-weighted mean of the hole": "{el}{u}، المتوسط المرجّح بالطول في الثقب",
   "Collar legend": "مفتاح الفوهات",
   "Classes at the quintiles of the holes' values; a grey ring is a hole with no value.": "الفئات عند خُمسيات قيم الثقوب؛ والحلقة الرمادية ثقب بلا قيمة.",
   "Geometry": "الهندسة",

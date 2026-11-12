@@ -14,6 +14,7 @@ import { keyedCanvas } from "../lib/rasterKey.js";
 import { planDataExtent, planFarLayers } from "../lib/mapsPlan.js"; // planFarLayers: TASKS.csv #2125
 import { figureSamples, colourFromStops } from "../lib/sampleGrid.js"; // TASKS.csv #1622
 import { collarColourFields, perHoleAssay, collarColouring, declutterLabels } from "../lib/collarMapStyle.js"; // TASKS.csv #2459
+import { collarSpacing, dotStyle, dotsInView, drawDots, polylineInView } from "../lib/planDots.js"; // TASKS.csv #2988 / #2989
 import HoleValueGridPanel from "./HoleValueGridPanel.jsx"; // TASKS.csv #2658
 import { planGridStep, planGridLines, gridLabel, measureLine, distanceText } from "../lib/planGrid.js"; // TASKS.csv #2128
 import { trueNorthBearingInGridDeg } from "../lib/inversion.js"; // TASKS.csv #2128 — the convergence at the measured line
@@ -66,6 +67,7 @@ export default function MapsPlanView() {
   const [measuring, setMeasuring] = useState(false);
   const [mPts, setMPts] = useState([]);
   const colourFields = useMemo(() => collarColourFields(collars), [collars]);
+  const spacingM = useMemo(() => collarSpacing(collars), [collars]); // #2989 — the holes' typical spacing, for the dot size
   const colouring = useMemo(() => {
     if (!colourBy) return null;
     const [kind, key] = [colourBy.slice(0, colourBy.indexOf(":")), colourBy.slice(colourBy.indexOf(":") + 1)];
@@ -134,10 +136,14 @@ export default function MapsPlanView() {
       ys.forEach((y) => ctx.fillText(gridLabel(y, "N"), 3, Y(y) - 2));
     }
     ctx.lineJoin = "round";
+    // TASKS.csv #2988 — the lines in view only (each line's box computed once), one path and one stroke per boundary
+    const viewBox = [left, top - size.h * v.mPerPx, left + size.w * v.mPerPx, top];
     boundaries.forEach((b) => {
       if (b.visible === false) return;
       ctx.strokeStyle = b.color || "#e2a63c"; ctx.lineWidth = 1.5;
-      (b.polylines || []).forEach((pl) => { if (pl.length < 2) return; ctx.beginPath(); pl.forEach((p, i) => (i ? ctx.lineTo(X(p.x), Y(p.y)) : ctx.moveTo(X(p.x), Y(p.y)))); ctx.stroke(); });
+      ctx.beginPath();
+      (b.polylines || []).forEach((pl) => { if (pl.length < 2 || !polylineInView(pl, viewBox)) return; pl.forEach((p, i) => (i ? ctx.lineTo(X(p.x), Y(p.y)) : ctx.moveTo(X(p.x), Y(p.y)))); });
+      ctx.stroke();
     });
     ctx.fillStyle = "rgba(90,96,104,0.55)";
     surfaceSamples.forEach((s) => { if (Number.isFinite(s.x)) ctx.fillRect(X(s.x) - 1, Y(s.y) - 1, 2, 2); });
@@ -150,13 +156,10 @@ export default function MapsPlanView() {
         ctx.fillStyle = c; ctx.beginPath(); ctx.arc(X(q.x), Y(q.y), rad, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
       }
     }
-    ctx.fillStyle = "#1a2028"; ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 1;
-    collars.forEach((c) => {
-      if (!Number.isFinite(c.x)) return;
-      const col = colouring ? colouring.colourOf(c) : "#1a2028"; // #2459 — a hole with no value under the colouring: a small grey ring
-      ctx.beginPath(); ctx.arc(X(c.x), Y(c.y), col ? (colouring ? 3.6 : 2.6) : 2, 0, Math.PI * 2);
-      if (col) { ctx.fillStyle = col; ctx.fill(); ctx.strokeStyle = colouring ? "#1a2028" : "#ffffff"; ctx.stroke(); } else { ctx.strokeStyle = "#8a9099"; ctx.stroke(); }
-    });
+    // TASKS.csv #2988 / #2989 — the dots in view only, one path per colour (was a beginPath / fill / stroke per hole); the dot shrinks with the
+    // holes' spacing on screen and loses its outline when the dots would touch (#2459: a hole with no value under the colouring: a grey ring)
+    const ds = dotStyle(spacingM, v.mPerPx, !!colouring);
+    drawDots(ctx, dotsInView(collars, colouring ? (c) => colouring.colourOf(c) : () => "#1a2028", X, Y, size.w, size.h, ds.r + 1), { ...ds, stroke: colouring ? "#1a2028" : "#ffffff" });
     if (gtPlan && gtMax > 0) { // #2755 — at each hole's intercept position (holeTotals: their length-weighted mid-points), area in proportion to GT
       ctx.lineWidth = 1;
       for (const h of gtPlan.holes) {
@@ -178,7 +181,7 @@ export default function MapsPlanView() {
       ctx.beginPath(); mPts.forEach((p, i) => (i ? ctx.lineTo(X(p.x), Y(p.y)) : ctx.moveTo(X(p.x), Y(p.y)))); ctx.stroke(); ctx.setLineDash([]);
       ctx.fillStyle = "#c2185b"; mPts.forEach((p) => { ctx.beginPath(); ctx.arc(X(p.x), Y(p.y), 3.5, 0, Math.PI * 2); ctx.fill(); });
     }
-  }, [v?.cx, v?.cy, v?.mPerPx, size, rasters, terrain, hill, mapLayers, boundaries, collars, surfaceSamples, tick, figure, colouring, showIds, showGrid, measuring, mPts, gtPlan, gtMax]); // gtPlan: #2755
+  }, [v?.cx, v?.cy, v?.mPerPx, size, rasters, terrain, hill, mapLayers, boundaries, collars, surfaceSamples, tick, figure, colouring, spacingM /* #2989 */, showIds, showGrid, measuring, mPts, gtPlan, gtMax]); // gtPlan: #2755
 
   if (!extent || !v) return null;
   const sb = niceScaleBar(v.mPerPx, 140);
@@ -243,6 +246,13 @@ export default function MapsPlanView() {
           )}
           {colouring && (
             <div aria-label={tr("Collar legend")} style={{ display: "flex", flexDirection: "column", gap: 2, fontSize: "var(--font-size-xs)", fontVariantNumeric: "tabular-nums", maxHeight: 220, overflowY: "auto" }}>
+              {/* TASKS.csv #2989 — the legend says what it shows, with the element's unit */}
+              <span style={{ fontWeight: 600 }}>{(() => {
+                const [kind, key] = [colourBy.slice(0, colourBy.indexOf(":")), colourBy.slice(colourBy.indexOf(":") + 1)];
+                const unit = assayElements.find((e) => e.symbol === key)?.unit;
+                const u = unit ? ` (${unit})` : "";
+                return kind === "max" ? tr("Highest {el} in the hole{u}", { el: key, u }) : kind === "mean" ? tr("{el}{u}, length-weighted mean of the hole", { el: key, u }) : key;
+              })()}</span>
               {colouring.legend.map((l) => <span key={l.label} style={{ display: "flex", alignItems: "center", gap: 5 }}><span style={{ width: 9, height: 9, borderRadius: "50%", border: "1px solid #14181e", background: l.colour, flex: "0 0 auto" }} />{l.label}</span>)}
               {colourBy.startsWith("max:") || colourBy.startsWith("mean:") ? <span>{tr("Classes at the quintiles of the holes' values; a grey ring is a hole with no value.")}</span> : null}
             </div>

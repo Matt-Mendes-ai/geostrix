@@ -233,6 +233,8 @@
   "Per hole, from the assays": "Por furo, das análises",
   "Highest {el} in the hole": "Maior {el} do furo",
   "{el}, length-weighted mean of the hole": "{el}, média ponderada pelo comprimento do furo",
+  "Highest {el} in the hole{u}": "{el} mais alto do furo{u}",
+  "{el}{u}, length-weighted mean of the hole": "{el}{u}, média ponderada pelo comprimento do furo",
   "Collar legend": "Legenda das bocas de furo",
   "Classes at the quintiles of the holes' values; a grey ring is a hole with no value.": "Classes nos quintis dos valores dos furos; um anel cinza é um furo sem valor.",
   "Geometry": "Geometria",
