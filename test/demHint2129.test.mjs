@@ -24,5 +24,5 @@ test("by values near the collars, not for a survey channel", () => {
 
 test("the raster import adds the hint and the Maps import passes the collars' range", () => {
   assert.match(readFileSync(new URL("../src/lib/raster.js", import.meta.url), "utf8"), /looksLikeDem\(parsed\.name, colour\.colourRange\[0\], colour\.colourRange\[1\], collarZ\)/);
-  assert.match(readFileSync(new URL("../src/modules/RasterModule.jsx", import.meta.url), "utf8"), /collarZ: collarZRange\(collars\), mineSource: mineSourceOf\(project\) \}\);/); // mineSource: #2684
+  assert.match(readFileSync(new URL("../src/modules/RasterModule.jsx", import.meta.url), "utf8"), /collarZ: collarZRange\(collars\), mineSource: mineSourceOf\(project\), sideCrs \}\);/); // mineSource: #2684
 });
