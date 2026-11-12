@@ -129,7 +129,7 @@ test("the picker offers the answer only where it is passed, and every importer o
   assert.equal((geo.match(/await plainSourceTransform\(\)/g) || []).length, 3); // .dxf and .ply boundaries, .dxf / .ply claims
   const ras = read("modules/RasterModule.jsx");
   assert.match(ras, /mineGrid=\{mineSourceOf\(project\)/);
-  assert.match(ras, /mineSource: mineSourceOf\(project\) \}\)/);
+  assert.match(ras, /mineSource: mineSourceOf\(project\), sideCrs \}\)/); // sideCrs: #2830
   assert.match(ras, /sourceEpsg=\{isMineSource\(sourceEpsg\) \? "" : sourceEpsg/);
   assert.match(read("components/GeoreferencerModal.jsx"), /mineGrid=\{mineChoice/);
   const smp = read("components/SurfaceMappingPanel.jsx");

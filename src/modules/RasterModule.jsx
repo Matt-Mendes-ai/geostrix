@@ -36,6 +36,7 @@ import { detectKeyColour } from "../lib/rasterKey.js"; // TASKS.csv #1623
 import RasterLegend from "../components/RasterLegend.jsx"; // TASKS.csv #2011
 import RasterPictureLegend from "../components/RasterPictureLegend.jsx"; // TASKS.csv #1858
 import { tieOf, localToWorld } from "../lib/localGridTie.js"; // TASKS.csv #2587 — a tied local grid's way in; localToWorld: #2648
+import { geosoftXmlCrs, sideXmlFor } from "../lib/geosoftXml.js"; // TASKS.csv #2830
 import { mineSourceOf, isMineSource } from "../lib/mineGrid.js"; // TASKS.csv #2684 — 'Local mine grid' as the Source CRS
 import { farFromCollars, farLabel } from "../lib/landingCheck.js"; // TASKS.csv #2590
 import { projectTargetEpsg } from "../lib/projectTarget.js"; // TASKS.csv #2287 — no reprojection INTO the placeholder CRS
@@ -430,14 +431,17 @@ export default function RasterModule({ embedded = false } = {}) {
   };
   // TASKS.csv #2129 — the collars' elevation range, for 'it looks like an elevation model'
   const collarZRange = (cs) => { let a = Infinity, b = -Infinity; for (const c of cs || []) if (Number.isFinite(c?.z)) { if (c.z < a) a = c.z; if (c.z > b) b = c.z; } return Number.isFinite(a) ? [a, b] : null; };
-  const importRaster = async (file, world = null) => { // world: a world file selected with it (TASKS.csv #1855)
+  const importRaster = async (file, world = null, xml = null) => { // world: a world file selected with it (TASKS.csv #1855); xml: a Geosoft .xml (#2830)
     if (!file) return;
     setError(null);
     setBusy(true);
     try {
       const worldFile = world ? parseWorldFile(await world.text(), world.name) : null;
+      // TASKS.csv #2830 — the Geosoft .xml beside a .grd / .gxf names its CRS (a Source CRS set by hand still wins)
+      const xc = xml && !sourceEpsg ? geosoftXmlCrs(await xml.text()) : null;
+      const sideCrs = xc ? { epsg: xc.epsg, from: xml.name } : null;
       const chooseProjectEpsg = projectEpsgChooser({ isEmpty: projectIsEmpty, setEpsg, fileName: file.name }); // #607
-      const { raster, msg } = await buildRasterImport(file, { epsg: projectTargetEpsg(project), defaultElevation, sourceEpsg, chooseProjectEpsg, keepDetail, worldFile, tie: tieOf(project), collarZ: collarZRange(collars), mineSource: mineSourceOf(project) }); // tie: #2587; collarZ: #2129; mineSource: #2684
+      const { raster, msg } = await buildRasterImport(file, { epsg: projectTargetEpsg(project), defaultElevation, sourceEpsg, chooseProjectEpsg, keepDetail, worldFile, tie: tieOf(project), collarZ: collarZRange(collars), mineSource: mineSourceOf(project), sideCrs }); // tie: #2587; collarZ: #2129; mineSource: #2684; sideCrs: #2830
       const drape = rasterDrapeElevation({ collars, voxelModels, surfaceSamples, bbox: raster.bbox, rasters, fileName: file.name }); // #1856 — the ground under this raster; #1505 — above the collars, stacked, or at the name's depth
       addRaster({ ...raster, elevation: drape.z });
       setError({ info: true, text: `${msg} ${drapeElevationNote(drape)}` });
@@ -485,14 +489,16 @@ export default function RasterModule({ embedded = false } = {}) {
         <input
           ref={fileInput}
           type="file"
-          accept=".tif,.tiff,.gxf,.grd,.tfw,.tifw,.tiffw,.wld"
+          accept=".tif,.tiff,.gxf,.grd,.tfw,.tifw,.tiffw,.wld,.xml" /* .xml: #2830 */
           multiple
           style={{ display: "none" }}
           onChange={(e) => { // #1855 — a world file goes with the image of the same name
             const all = Array.from(e.target.files || []), isWorld = (f) => /\.(tfw|tifw|tiffw|wld)$/i.test(f.name), base = (f) => f.name.replace(/\.[^.]+$/, "").toLowerCase();
-            const worlds = all.filter(isWorld), images = all.filter((f) => !isWorld(f));
+            const isXml = (f) => /\.xml$/i.test(f.name), xmls = all.filter(isXml); // #2830 — a Geosoft .xml goes with its grid
+            const worlds = all.filter(isWorld), images = all.filter((f) => !isWorld(f) && !isXml(f));
             if (!images.length && worlds.length) setError({ info: false, text: tr("A world file on its own places nothing: select it together with its image (same name).") });
-            images.forEach((f) => importRaster(f, worlds.find((w) => base(w) === base(f)) || null));
+            if (!images.length && xmls.length) setError({ info: false, text: tr("A Geosoft .xml on its own places nothing: select it together with its grid (same name).") }); // #2830
+            images.forEach((f) => importRaster(f, worlds.find((w) => base(w) === base(f)) || null, sideXmlFor(f, xmls)));
             e.target.value = "";
           }}
         />

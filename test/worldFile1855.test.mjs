@@ -16,8 +16,8 @@ test("#1855 world file: the pixel-area extent, Kodiak's Chg_100 numbers", () => 
 
 test("#1855 the import pairs a world file with its image; the Georeferencer takes TIFF", () => {
   const rm = readFileSync(new URL("../src/modules/RasterModule.jsx", import.meta.url), "utf8");
-  assert.match(rm, /accept="\.tif,\.tiff,\.gxf,\.grd,\.tfw,\.tifw,\.tiffw,\.wld"/);
-  assert.match(rm, /importRaster\(f, worlds\.find\(\(w\) => base\(w\) === base\(f\)\) \|\| null\)/);
+  assert.match(rm, /accept="\.tif,\.tiff,\.gxf,\.grd,\.tfw,\.tifw,\.tiffw,\.wld,\.xml"/); // \.xml: #2830 (a Geosoft grid's CRS)
+  assert.match(rm, /importRaster\(f, worlds\.find\(\(w\) => base\(w\) === base\(f\)\) \|\| null, sideXmlFor\(f, xmls\)\)/); // sideXmlFor: #2830
   const g = readFileSync(new URL("../src/components/GeoreferencerModal.jsx", import.meta.url), "utf8");
   assert.match(g, /accept="\.png,\.jpg,\.jpeg,\.tif,\.tiff"/);
   assert.match(g, /decodeTiffImage/);

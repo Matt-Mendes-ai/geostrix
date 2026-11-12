@@ -969,7 +969,7 @@ export const notDegrees = (epsg, bbox) => isGeographicCrs(epsg) && Array.isArray
 // mineSource (TASKS.csv #2684): lib/mineGrid.js mineSourceOf(project), used when sourceEpsg is "mine" ('Local mine grid (no CRS)'): on a CRS
 // project the picture and its values are read on the mine grid and resampled into the project CRS through the grid's tie (the inverse of
 // #2587's tie resample, lib/rasterTie.js mineImageToProject); on a project with no CRS the file's numbers are the project's own.
-export async function buildRasterImport(file, { epsg, defaultElevation, sourceEpsg, chooseProjectEpsg, bandFn = null, samples = null, name = null, keepDetail = false, worldFile = null, tie = null, collarZ = null, mineSource = null } = {}) { // samples: #807; keepDetail: #838; worldFile: #1855; tie: #2587; collarZ: #2129
+export async function buildRasterImport(file, { epsg, defaultElevation, sourceEpsg, chooseProjectEpsg, bandFn = null, samples = null, name = null, keepDetail = false, worldFile = null, tie = null, collarZ = null, mineSource = null, sideCrs = null } = {}) { // samples: #807; keepDetail: #838; worldFile: #1855; tie: #2587; collarZ: #2129; sideCrs: #2830
   const isGxf = /\.gxf$/i.test(file.name), isGrd = /\.grd$/i.test(file.name); // isGrd: #1347
   const maxSide = keepDetail ? FULL_DETAIL_SIZE : MAX_TEXTURE_SIZE;
   const parsed = isGxf ? await parseGXF(file) : isGrd ? await parseGRD(file) : await parseGeoTIFF(file, { bandFn, samples, maxSide, worldFile }); // bandFn: #783; samples: #807
@@ -982,13 +982,18 @@ export async function buildRasterImport(file, { epsg, defaultElevation, sourceEp
   // (a wrong/absent embedded tag is exactly why the user is typing one in).
   const mineSrc = !!mineSource && isMineSource(sourceEpsg); // #2684 — read on the mine grid, the file's own tag set aside
   const overrideEpsg = sourceEpsg === "" || sourceEpsg == null || mineSrc ? null : Number(sourceEpsg);
-  const tagEpsg = parsed.epsgTag && !mineSrc ? Number(parsed.epsgTag) : null;
+  // TASKS.csv #2830 — a Geosoft grid's CRS from the .xml selected with it ({ epsg, from }), when the file has no tag of its own
+  const sideUsed = !mineSrc && !parsed.epsgTag && !!sideCrs?.epsg;
+  const tagEpsg = parsed.epsgTag && !mineSrc ? Number(parsed.epsgTag) : sideUsed ? Number(sideCrs.epsg) : null;
   const srcEpsg = Number.isFinite(overrideEpsg) ? overrideEpsg : tagEpsg;
   let projEpsg = epsg == null || epsg === "" ? null : Number(epsg);
   if (chooseProjectEpsg && srcEpsg) projEpsg = Number(chooseProjectEpsg(srcEpsg, projEpsg, parsed.bbox)) || projEpsg; // #607 — an empty project may take this CRS; the box: #2678
-  const srcLabel = Number.isFinite(overrideEpsg) ? "the Source CRS you set" : "this file's own CRS tag";
+  const srcLabel = Number.isFinite(overrideEpsg) ? "the Source CRS you set" : sideUsed ? `the CRS in "${sideCrs.from}"` : "this file's own CRS tag"; // sideUsed: #2830
+  const srcLabelTr = Number.isFinite(overrideEpsg) ? tr("the Source CRS you set") : sideUsed ? tr("the CRS in \"{file}\"", { file: sideCrs.from }) : tr("this file's own CRS tag");
+  const SrcLabelTr = Number.isFinite(overrideEpsg) ? tr("The Source CRS you set") : sideUsed ? tr("The CRS in \"{file}\"", { file: sideCrs.from }) : tr("This file's own CRS tag");
 
   let crsNote = "", tiedGrid = null;
+  const sideNote = sideUsed ? " " + tr("CRS EPSG:{epsg} from \"{file}\".", { epsg: sideCrs.epsg, file: sideCrs.from }) : ""; // #2830
   // TASKS.csv #2587 / #2322 — a local-grid project tied to a real CRS: a file with a CRS comes INTO the grid through the tie
   const tied = tie && srcEpsg && !projEpsg && parsed.pixels && tieReaches(tie, srcEpsg) ? tieImageToLocal({ xmin: parsed.bbox[0], ymin: parsed.bbox[1], xmax: parsed.bbox[2], ymax: parsed.bbox[3], ...parsed.pixels }, tie, srcEpsg, maxSide) : null;
   const mined = mineSrc && mineSource.kind === "tie" && projEpsg && parsed.pixels && mineReaches(mineSource.mg, projEpsg) ? mineImageToProject({ xmin: parsed.bbox[0], ymin: parsed.bbox[1], xmax: parsed.bbox[2], ymax: parsed.bbox[3], ...parsed.pixels }, mineSource.mg, projEpsg, maxSide) : null; // #2684
@@ -1012,14 +1017,14 @@ export async function buildRasterImport(file, { epsg, defaultElevation, sourceEp
     dataUrl = keepDetail ? imageDataUrl(canvas) : canvas.toDataURL("image/png");
     if (parsed.grid) tiedGrid = tieGridToLocal(parsed.grid, tie, srcEpsg, GRID_MAX);
     crsNote = " " + (Number(srcEpsg) === Number(tie.epsg)
-      ? tr("Its EPSG:{src} ({label}) was brought into the local grid through the grid's tie, and resampled onto the grid's own north.", { src: srcEpsg, label: Number.isFinite(overrideEpsg) ? tr("the Source CRS you set") : tr("this file's own CRS tag") })
-      : tr("Its EPSG:{src} ({label}) was reprojected to EPSG:{tie} and brought into the local grid through the grid's tie, and resampled onto the grid's own north.", { src: srcEpsg, tie: tie.epsg, label: Number.isFinite(overrideEpsg) ? tr("the Source CRS you set") : tr("this file's own CRS tag") }));
+      ? tr("Its EPSG:{src} ({label}) was brought into the local grid through the grid's tie, and resampled onto the grid's own north.", { src: srcEpsg, label: srcLabelTr })
+      : tr("Its EPSG:{src} ({label}) was reprojected to EPSG:{tie} and brought into the local grid through the grid's tie, and resampled onto the grid's own north.", { src: srcEpsg, tie: tie.epsg, label: srcLabelTr }));
   } else if (tie && srcEpsg && !projEpsg) {
     crsNote = " " + tr("Its EPSG:{src} cannot be brought through the local grid's tie to EPSG:{tie} (GeoStrix has no definition for one of them), so it kept its own numbers: check where it lies.", { src: srcEpsg, tie: tie.epsg });
   } else if (srcEpsg && projEpsg && srcEpsg !== projEpsg && notDegrees(srcEpsg, parsed.bbox)) {
     // TASKS.csv #1862 (review #1646, Kodiak) — a file tagged WGS 84 degrees whose bounds run lon -180..1900, lat -2290..90 was
     // 'reprojected' into a raster 15,500 x 38,600 km wide, unsaid: degrees outside +-180 / +-90 are not degrees
-    crsNote = " " + tr("{label} says EPSG:{src}, longitude / latitude, but its bounds ({x0} to {x1}, {y0} to {y1}) are not degrees: it was NOT reprojected and kept its own numbers. Set the Source CRS to the CRS it is really in and import it again.", { label: Number.isFinite(overrideEpsg) ? tr("The Source CRS you set") : tr("This file's own CRS tag"), src: srcEpsg, x0: Math.round(parsed.bbox[0]).toLocaleString(), x1: Math.round(parsed.bbox[2]).toLocaleString(), y0: Math.round(parsed.bbox[1]).toLocaleString(), y1: Math.round(parsed.bbox[3]).toLocaleString() });
+    crsNote = " " + tr("{label} says EPSG:{src}, longitude / latitude, but its bounds ({x0} to {x1}, {y0} to {y1}) are not degrees: it was NOT reprojected and kept its own numbers. Set the Source CRS to the CRS it is really in and import it again.", { label: SrcLabelTr, src: srcEpsg, x0: Math.round(parsed.bbox[0]).toLocaleString(), x1: Math.round(parsed.bbox[2]).toLocaleString(), y0: Math.round(parsed.bbox[1]).toLocaleString(), y1: Math.round(parsed.bbox[3]).toLocaleString() });
   } else if (srcEpsg && projEpsg && srcEpsg !== projEpsg) {
     const fromDef = getProj4DefSync(srcEpsg), toDef = getProj4DefSync(projEpsg);
     if (fromDef && toDef && parsed.pixels) {
@@ -1069,7 +1074,7 @@ export async function buildRasterImport(file, { epsg, defaultElevation, sourceEp
   let msg = isMetricProjectedEpsg(projEpsg) // #2127 — metres on a metric project ('960×960 world units' beside 'RMSE 57.44 m')
     ? tr("Imported \"{name}\" ({width}×{height}px, {v} × {v2} m).", { name: parsed.name, width: parsed.width, height: parsed.height, v: Math.round(bx1 - bx0).toLocaleString(), v2: Math.round(by1 - by0).toLocaleString() })
     : tr("Imported \"{name}\" ({width}×{height}px, {v}×{v2} world units).", { name: parsed.name, width: parsed.width, height: parsed.height, v: (bx1 - bx0).toFixed(0), v2: (by1 - by0).toFixed(0) });
-  msg += crsNote;
+  msg += sideNote + crsNote; // sideNote: #2830
   if (parsed.placedBy) msg += tr(" Placed by its world file \"{w}\".", { w: parsed.placedBy }); // #1855
   if (parsed.note) msg += parsed.note;
   msg += gridNote;
