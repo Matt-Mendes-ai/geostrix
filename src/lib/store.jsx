@@ -13,6 +13,7 @@ import { readDbProfiles, writeDbProfiles, mergeDbProfiles, profilesFromFile } fr
 import { FIELD_KEYS, FIELDS, UNDO_KEYS, DIRTY_KEYS, PROJECT_VERSION, EMPTY_LAYERS, DEFAULT_LAYOUT_ELEMENTS, compactVoxelModels, emptyFields, fieldsFromPayload, payloadFromFields, projectParts, joinParts, cachedJson /* #1975 */, extraDirtyValues, projectHasContent } from "./projectFields.js"; // TASKS.csv #448
 import { datumPatch } from "./localGridDatum.js"; // TASKS.csv #2691 / #2661
 import { fillFromRows, setEntry } from "./codeDictionary.js"; // TASKS.csv #2163
+import { useLatestCallback } from "./useLatestCallback.js"; // TASKS.csv #2769 follow-up — callbacks that keep only the current render's scope (the file says why)
 import { sectionWindowsMayClose } from "./desktop.js"; // TASKS.csv #2620
 import { saveFile, saveFileTo, openFile, autosaveWrite, autosaveWriteParts /* #1975 */, autosaveRead, autosaveQuarantine, autosaveClear, dbConnect as dbConnectIpc, dbDisconnect as dbDisconnectIpc } from "./desktop.js";
 import { normalizeDesurveyMethod } from "./desurvey.js";
@@ -171,7 +172,7 @@ export function StoreProvider({ children }) {
   // the live session it was typed into).
   const [liveDbConnections, setLiveDbConnections] = useState({}); // name -> { id, config, connectedAt }
 
-  const connectDb = useCallback(async (config) => {
+  const connectDb = useLatestCallback(async (config) => {
     const existing = config.name && liveDbConnections[config.name];
     if (existing) return { ok: true, id: existing.id, info: existing.info, reused: true };
     const res = await dbConnectIpc(config);
@@ -179,15 +180,15 @@ export function StoreProvider({ children }) {
       setLiveDbConnections((prev) => ({ ...prev, [config.name]: { id: res.id, config: res.config, connectedAt: Date.now(), info: res.info } }));
     }
     return res;
-  }, [liveDbConnections]);
+  });
 
-  const disconnectDb = useCallback(async (name) => {
+  const disconnectDb = useLatestCallback(async (name) => {
     const entry = liveDbConnections[name];
     if (!entry) return { ok: true };
     const res = await dbDisconnectIpc(entry.id);
     setLiveDbConnections((prev) => { const next = { ...prev }; delete next[name]; return next; });
     return res;
-  }, [liveDbConnections]);
+  });
   // TASKS.csv #84 — geological architecture layer 3. Which boundary intercepts (litho/alt interval
   // tops, the same rows the implicit-modelling tools read) the user has explicitly excluded from
   // feeding a modelling run, by id (see ViewerModule's interceptId — `${layerKey}:${hole_id}:${from}:
@@ -601,14 +602,14 @@ export function StoreProvider({ children }) {
   // TASKS.csv #466 — a finished job's block model goes to the project that STARTED it: live if that project
   // is still open, into its stored payload (marked unsaved) if it is a background tab. Returns where it
   // went: "active" | "tab" | "gone" (that tab was closed or its project replaced — the caller says so).
-  const addVoxelModelToTab = useCallback((tok, model) => {
+  const addVoxelModelToTab = useLatestCallback((tok, model) => {
     // refs read at CALL time (declared further down the provider; a deps-array reference would hit the TDZ)
     if (tok && tok.tabId === activeTabIdRef.current && tok.seq === projectSeqRef.current) { addVoxelModel(model); return "active"; }
     const exists = autosaveTabsRef.current.workspaceTabs.some((t) => t.id === tok?.tabId && t.payload);
     if (!exists || tok.tabId === activeTabIdRef.current) return "gone"; // same tab but a different project now
     setWorkspaceTabs((prev) => prev.map((t) => (t.id === tok.tabId && t.payload ? { ...t, dirty: true, payload: { ...t.payload, voxelModels: [...(t.payload.voxelModels || []), prepareVoxelModel(model)] } } : t)));
     return "tab";
-  }, [addVoxelModel]);
+  });
   const updateVoxelModel = useCallback((id, patch) => setVoxelModels((p) => p.map((v) => (v.id === id ? { ...v, ...patch } : v))), []);
   const removeVoxelModel = useCallback((id) => setVoxelModels((p) => p.filter((v) => v.id !== id)), []);
 
@@ -726,11 +727,11 @@ export function StoreProvider({ children }) {
   const [layoutPages, setLayoutPages] = useState([{ id: "page_initial", name: "Page 1", elements: DEFAULT_LAYOUT_ELEMENTS }]);
   const [activeLayoutPageId, setActiveLayoutPageId] = useState("page_initial");
   const layoutElements = layoutPages.find((p) => p.id === activeLayoutPageId)?.elements || [];
-  const setLayoutElements = useCallback((updater) => {
+  const setLayoutElements = useLatestCallback((updater) => {
     setLayoutPages((pages) => pages.map((p) => (p.id === activeLayoutPageId
       ? { ...p, elements: typeof updater === "function" ? updater(p.elements) : updater }
       : p)));
-  }, [activeLayoutPageId]);
+  });
 
   // ---- Layout "Viewport" element (TASKS.csv #46) render round-trip. LayoutModule and ViewerModule
   // are never mounted at the same time (App.jsx only renders the active tab), so a Viewport element
@@ -1106,7 +1107,7 @@ export function StoreProvider({ children }) {
 
   // TASKS.csv #553 — Save writes straight back to the project's own file (the path it was opened from or last saved
   // to, kept per workspace tab); only a new project, Save As, or a path the main process won't allow asks where.
-  const saveProject = useCallback(async ({ saveAs = false } = {}) => {
+  const saveProject = useLatestCallback(async ({ saveAs = false } = {}) => {
     // TASKS.csv #342 — last chance before an older build overwrites fields it can't see.
     if (newerFormatTabsRef.current.has(activeTabId) && !window.confirm(tr("This project came from a newer version of GeoStrix. Saving it with this version will permanently drop anything that version added. Save anyway?"))) return { ok: false, cancelled: true };
     // TASKS.csv #467 — a failed save (disk full, no permission, OneDrive lock, a project too big to
@@ -1150,7 +1151,7 @@ export function StoreProvider({ children }) {
       setWorkspaceTabs((tabs) => tabs.map((t) => (t.id === activeTabId ? { ...t, name: displayName, dirty: false, ...(res.filePath ? { filePath: res.filePath } : {}) } : t)));
     }
     return res;
-  }, [workspaceTabs, activeTabId, project]);
+  });
 
   // Shared by openProject (loading a user-picked file), restoreAutosave (loading the silent
   // crash-recovery snapshot), and workspace-tab switching (TASKS.csv #34) — same payload shape, same
@@ -1190,7 +1191,7 @@ export function StoreProvider({ children }) {
   // becomes active below, and dirty-checked via activeTabDirty instead of a payload diff. (workspaceTabs/
   // activeTabId/activeTabDirty themselves are declared earlier, just above saveProject — see that
   // comment for why.)
-  const switchToTab = useCallback((tabId) => {
+  const switchToTab = useLatestCallback((tabId) => {
     if (tabId === activeTabId) return;
     const target = workspaceTabs.find((t) => t.id === tabId);
     if (!target) return;
@@ -1207,9 +1208,9 @@ export function StoreProvider({ children }) {
     // of the tab being left (its unsaved work now lives only in memory, as a stashed payload). The
     // autosave now carries every dirty background tab, so nothing is cleared on a switch.
     clearUndoHistory();
-  }, [activeTabId, workspaceTabs, activeTabDirty, loadProjectPayload, project?.name]); // project name: #1218 — a tab left behind keeps the name it has now
+  }); // project name: #1218 — a tab left behind keeps the name it has now
 
-  const newWorkspaceTab = useCallback(() => {
+  const newWorkspaceTab = useLatestCallback(() => {
     if (!sectionWindowsMayClose()) return false; // #2620
     const current = snapshotCurrentPayload();
     const id = `tab_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
@@ -1219,23 +1220,23 @@ export function StoreProvider({ children }) {
     ]);
     setActiveTabId(id);
     newProject();
-  }, [activeTabId, workspaceTabs, activeTabDirty, newProject, project?.name]);
+  });
 
   // TASKS.csv #1120 (review #1016, onboarding) — File > Open sample project: a new tab unless this one is still empty, then
   // the 3D View (the one ViewerModule instance) picks the request up and loads the sample once the fresh project renders
   const [sampleRequest, setSampleRequest] = useState(null);
   const hasWorkRef = useRef(false); // set below, where hasWork is computed
-  const requestSampleProject = useCallback((which) => {
+  const requestSampleProject = useLatestCallback((which) => {
     if (hasWorkRef.current && newWorkspaceTab() === false) return; // #2620 — the new tab was cancelled: never load the sample over this project
     setSampleRequest({ which, seq: Date.now() });
-  }, [newWorkspaceTab]);
+  });
   const clearSampleRequest = useCallback(() => setSampleRequest(null), []);
 
   // Opens a project file into a brand-new tab (never disturbs whatever's already open in other tabs —
   // this replaces the old single-project openProject, which used to overwrite the only project in
   // place; File > Open / Ctrl+O now always means "open into a new tab").
   // TASKS.csv #914 — `preRead`: a file already read (one Windows opened GeoStrix with), instead of the open dialog
-  const openProject = useCallback(async (preRead = null) => {
+  const openProject = useLatestCallback(async (preRead = null) => {
     // Generic "json" filter (not "geostrix.json" specifically) so both new .geostrix.json files and
     // pre-rename .geox.json files a user already has saved are still selectable/openable here.
     const res = preRead?.content != null ? preRead : await openFile({ filters: [{ name: "GeoStrix Project", extensions: ["json"] }] });
@@ -1285,12 +1286,12 @@ export function StoreProvider({ children }) {
     } catch (err) {
       return { ok: false, error: err.message };
     }
-  }, [loadProjectPayload, activeTabId, workspaceTabs, activeTabDirty, switchToTab, project?.name]);
+  });
 
   // Closes a tab, confirming first if it (or its stashed copy) has unsaved changes. Closing the last
   // remaining tab is equivalent to New Project rather than leaving zero tabs, which the tab bar isn't
   // built to represent.
-  const closeWorkspaceTab = useCallback((tabId) => {
+  const closeWorkspaceTab = useLatestCallback((tabId) => {
     const tab = workspaceTabs.find((t) => t.id === tabId);
     if (!tab) return;
     if (tabId === activeTabId && !sectionWindowsMayClose()) return; // #2620 — closing the shown project closes its section windows
@@ -1312,7 +1313,7 @@ export function StoreProvider({ children }) {
     setActiveTabId(next.id);
     clearUndoHistory(); // #340 — no autosaveClear(): other tabs may still hold unsaved work
     setWorkspaceTabs(remaining);
-  }, [workspaceTabs, activeTabId, activeTabDirty, project.name, newProject, loadProjectPayload]);
+  });
 
   // TASKS.csv #33 — autosave / crash recovery. Periodically (and silently — no save dialog) writes
   // the full project payload to a fixed location, refreshed on an interval while there's actually
@@ -1428,7 +1429,7 @@ export function StoreProvider({ children }) {
       return null;
     }
   }, []);
-  const restoreAutosave = useCallback((data) => {
+  const restoreAutosave = useLatestCallback((data) => {
     autosaveHoldRef.current = false; heldAutosaveRef.current = null;
     // TASKS.csv #465 — never replace a project the user has opened or started since launch: the recovered
     // work comes back as new tab(s) beside it (marked unsaved) instead.
@@ -1454,7 +1455,7 @@ export function StoreProvider({ children }) {
     setActiveTabDirty(data.activeDirty !== false);
     clearUndoHistory();
     return { intoNewTab: false };
-  }, [loadProjectPayload]);
+  });
   const discardAutosave = useCallback(() => { autosaveHoldRef.current = false; heldAutosaveRef.current = null; lastAutosaveSigRef.current = null; autosaveClear(); }, []);
 
   // TASKS.csv #31 — undo/redo. Snapshot-based rather than instrumenting every individual setter call
@@ -1488,7 +1489,7 @@ export function StoreProvider({ children }) {
   const undoSnapshot = () => { const snap = {}; for (const k of UNDO_KEYS) snap[k] = live[k]; return snap; }; // #448: fields with track "undo"
   // Bug fix (found while adding plannedHoles to undo-tracking for #188 and testing redo end-to-end —
   // NOT a new bug, this affected every undo-tracked field, not just plannedHoles): `undo`/`redo` below
-  // are `useCallback(fn, [applySnapshot])`, and `applySnapshot` never changes identity, so `undo`/
+  // were `useCallback(fn, [applySnapshot])` (useLatestCallback since #2769's heap check, which runs the latest render's body), and `applySnapshot` never changes identity, so `undo`/
   // `redo` are created exactly ONCE, at mount — their function bodies permanently close over THAT
   // render's `undoSnapshot` identifier, which itself closed over whatever collars/survey/.../
   // plannedHoles were at mount (typically all empty, for a fresh project). Every later call to
@@ -1587,7 +1588,7 @@ export function StoreProvider({ children }) {
     setTimeout(() => { undoApplying.current = false; }, 0);
   }, []);
 
-  const undo = useCallback(() => {
+  const undo = useLatestCallback(() => {
     if (undoDebounceTimer.current) { clearTimeout(undoDebounceTimer.current); undoDebounceTimer.current = null; }
     // A burst still "in flight" (mid-drag, say) counts as the thing to undo first — commit it as a
     // step rather than silently discarding it.
@@ -1600,9 +1601,9 @@ export function StoreProvider({ children }) {
     setRedoCount(undoFuture.current.length);
     const later = lastOutsideUndo.current && lastOutsideUndo.current.at >= at ? lastOutsideUndo.current.keys : []; // #1888
     return { keys: changedKeys(cur, prev), later }; // TASKS.csv #1087 — what changed, for the window to say (null: nothing to undo)
-  }, [applySnapshot]);
+  });
 
-  const redo = useCallback(() => {
+  const redo = useLatestCallback(() => {
     if (!undoFuture.current.length) return null;
     const next = undoFuture.current.pop(), cur = undoSnapshotRef.current();
     undoPast.current.push(cur); undoPastAt.current.push(Date.now());
@@ -1610,7 +1611,7 @@ export function StoreProvider({ children }) {
     setUndoCount(undoPast.current.length);
     setRedoCount(undoFuture.current.length);
     return { keys: changedKeys(cur, next), later: [] }; // #1087
-  }, [applySnapshot]);
+  });
 
   const clearUndoHistory = useCallback(() => {
     undoPast.current = []; undoPastAt.current = []; undoFuture.current = []; undoBeforeBurst.current = null; lastOutsideUndo.current = null;
@@ -1623,28 +1624,28 @@ export function StoreProvider({ children }) {
   // already exist — see that state's own comment further up for why. Every switch clears undo history
   // (undo is scoped to whichever page is active — see undoSnapshot's own comment), same reasoning as
   // switchToTab already applies to workspace tabs.
-  const switchLayoutPage = useCallback((pageId) => {
+  const switchLayoutPage = useLatestCallback((pageId) => {
     setActiveLayoutPageId(pageId);
     clearUndoHistory();
-  }, [clearUndoHistory]);
-  const addLayoutPage = useCallback((name) => {
+  });
+  const addLayoutPage = useLatestCallback((name) => {
     const id = `page_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
     setLayoutPages((p) => [...p, { id, name: name || `Page ${p.length + 1}`, elements: DEFAULT_LAYOUT_ELEMENTS }]);
     setActiveLayoutPageId(id);
     clearUndoHistory();
     return id;
-  }, [clearUndoHistory]);
+  });
   const renameLayoutPage = useCallback((id, name) => setLayoutPages((p) => p.map((pg) => (pg.id === id ? { ...pg, name } : pg))), []);
   // TASKS.csv #1484 (review #1352) — an element copied or moved from the active page to another (a section snapshot landed on the
   // plan's page with nowhere else to go); a copy gets a new id, a move keeps its own
   // #1634 — with what is bound to it (scale bar, legend, overview, north arrow); the destination's starter bar / arrow tie to it
-  const sendLayoutElement = useCallback((elementId, toPageId, move = false) => setLayoutPages((pages) => {
+  const sendLayoutElement = useLatestCallback((elementId, toPageId, move = false) => setLayoutPages((pages) => {
     const src = pages.find((p) => p.id === activeLayoutPageId), dst = pages.find((p) => p.id === toPageId);
     if (!src || !dst || toPageId === activeLayoutPageId) return pages;
     const r = sendElementWithFurniture(src.elements || [], dst.elements || [], elementId, move);
     if (!r) return pages;
     return pages.map((p) => (p.id === toPageId ? { ...p, elements: r.to } : p.id === activeLayoutPageId ? { ...p, elements: r.from } : p));
-  }), [activeLayoutPageId]);
+  }));
   // TASKS.csv #398 — per-page paper size / orientation ({size, orientation}, see lib/pageFormats.js). Saved
   // with the page; a page without one is A4 landscape, exactly as before.
   const setLayoutPageFormat = useCallback((id, format) => setLayoutPages((p) => p.map((pg) => (pg.id === id ? { ...pg, format } : pg))), []);
@@ -1655,7 +1656,7 @@ export function StoreProvider({ children }) {
   // clears and end with an arbitrary LAST generated page active rather than a deliberate choice.
   // Switches to the FIRST newly-created page once, clears undo history once, same as any other
   // page-navigating action.
-  const addLayoutPages = useCallback((pages) => {
+  const addLayoutPages = useLatestCallback((pages) => {
     if (!pages || !pages.length) return [];
     // TASKS.csv #1636 — batch: the run that generated the page (an atlas, a collar table's continuation), removable in one action
     const withIds = pages.map((pg, i) => ({ id: `page_${Date.now()}_${i}_${Math.random().toString(36).slice(2, 7)}`, name: pg.name, elements: pg.elements, ...(pg.batch ? { batch: pg.batch } : {}) }));
@@ -1663,10 +1664,10 @@ export function StoreProvider({ children }) {
     setActiveLayoutPageId(withIds[0].id);
     clearUndoHistory();
     return withIds.map((p) => p.id);
-  }, [clearUndoHistory]);
+  });
   // Closing the last page is treated as resetting to one fresh blank page rather than leaving zero —
   // same reasoning as closeWorkspaceTab's "last tab closed" branch above.
-  const deleteLayoutPage = useCallback((id) => { // TASKS.csv #1636 — or a list of ids (a generated batch)
+  const deleteLayoutPage = useLatestCallback((id) => { // TASKS.csv #1636 — or a list of ids (a generated batch)
     const gone = new Set(Array.isArray(id) ? id : [id]);
     setLayoutPages((pages) => {
       const remaining = pages.filter((p) => !gone.has(p.id));
@@ -1678,7 +1679,7 @@ export function StoreProvider({ children }) {
       if (gone.has(activeLayoutPageId)) { setActiveLayoutPageId(remaining[0].id); clearUndoHistory(); }
       return remaining;
     });
-  }, [activeLayoutPageId, clearUndoHistory]);
+  });
 
   const value = {
     project, setEpsg, setLocalGrid /* #2180 */, setLocalGridTie /* #2288 */, setLocalGridDatum /* #2691 / #2661 */, setMineGrid /* #2586 */, setProjectName, setDrillRates /* #2581 */, reprojectProjectTo, reprojectObjectTo, // #485 / #486
