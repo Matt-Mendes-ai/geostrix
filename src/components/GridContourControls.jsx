@@ -19,7 +19,9 @@ export default function GridContourControls({ raster, inputStyle }) {
   const [open, setOpen] = useState(!!raster.geochem);
   const values = useMemo(() => (open && raster.grid?.values ? b64ToF32(raster.grid.values) : null), [open, raster.grid]);
   // TASKS.csv #2836 / #2844 — a geochemistry grid: the upper tail of its positive values (#1622); any other grid: a round interval across its 2–98 %
-  const field = useMemo(() => (values && !raster.geochem ? fieldContourLevels(values) : null), [values, raster.geochem]);
+  // #2991 — a per-hole grid in metres (a strand's thickness, the depth or RL of its top) is a surface, not a grade: the round interval too
+  const geochemRule = !!raster.geochem && !(raster.geochem.source === "holes" && raster.geochem.unit === "m");
+  const field = useMemo(() => (values && !geochemRule ? fieldContourLevels(values) : null), [values, geochemRule]);
   const suggested = useMemo(() => (values ? (field ? field.levels : suggestedContourLevels(values)) : []), [values, field]);
   if (!raster.grid?.values) return null;
   if (!open) return <button type="button" onClick={() => setOpen(true)} style={{ marginTop: 7, padding: "3px 8px", fontSize: "var(--font-size-sm)", border: "1px solid var(--color-border)", borderRadius: 4, background: "var(--color-bg)", color: "var(--color-text-secondary)", cursor: "pointer" }}>{tr("Contours…")}</button>;

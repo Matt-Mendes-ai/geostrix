@@ -54,7 +54,10 @@ test("a hole with no survey is desurveyed straight down (under its collar); one 
 test("the panel offers the placement and the depth, and says which", () => {
   const src = readFileSync(new URL("../src/components/HoleValueGridPanel.jsx", import.meta.url), "utf8");
   assert.match(src, /<option value="collar">\{tr\("The collar"\)\}<\/option><option value="intercept">\{tr\("The intercept, down the desurveyed hole"\)\}<\/option>/);
-  assert.match(src, /\{stat === "firstOver" && <label style=\{lbl\}>\{tr\("Depth"\)\}/);
-  assert.match(src, /holeSamplesAt\(collars, values, source \? perHoleSpan\(rows, source\.symbol, stat, \{ threshold \}\) : new Map\(\), \{ key: KEY, survey, desurveyMethod, verticalDepth: vertical, at: placeAt \}\)/);
+  // #2991: the depth choice also serves a coded log's top / base (isDepth: firstOver, top or base)
+  assert.match(src, /const isDepth = st === "firstOver" \|\| st === "top" \|\| st === "base";/);
+  assert.match(src, /\{isDepth && <label style=\{lbl\}>\{tr\("Depth"\)\}/);
+  // #2991: a coded log brings its own spans (perHoleCoded), and an RL statistic asks holeSamplesAt for the elevation
+  assert.match(src, /holeSamplesAt\(collars, values, coded \? codedRes\.spans : source \? perHoleSpan\(rows, source\.symbol, st, \{ threshold \}\) : new Map\(\), \{ key: KEY, survey, desurveyMethod, verticalDepth: vertical, at: placeAt, rl \}\)/);
   assert.match(src, /at the \$\{placeAt === "intercept" \? "intercepts, on the desurveyed holes" : "collars"\}/);
 });
