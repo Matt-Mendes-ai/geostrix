@@ -10770,5 +10770,10 @@
   "+ add evidence… ({n} found)": "+ ajouter une évidence… ({n} trouvées)",
   "Drillholes: {layer} {field} where {by} = {code} along the holes": "Sondages : {layer} {field} où {by} = {code} le long des sondages",
   "1 of the {m} holes has no log of this layer: the distance is measured from the logged holes only.": "1 des {m} sondages n'a pas de description de cette couche : la distance n'est mesurée qu'à partir des sondages décrits.",
-  "{n} of the {m} holes have no log of this layer: the distance is measured from the logged holes only.": "{n} des {m} sondages n'ont pas de description de cette couche : la distance n'est mesurée qu'à partir des sondages décrits."
+  "{n} of the {m} holes have no log of this layer: the distance is measured from the logged holes only.": "{n} des {m} sondages n'ont pas de description de cette couche : la distance n'est mesurée qu'à partir des sondages décrits.",
+  "Keep within (m of the block model)": "Garder à moins de (m du modèle de blocs)",
+  "Optional: the pit may not reach further than this, in plan, from the block model's columns; a block whose slope would need ground beyond it stays in the ground. Blank: no limit, the walls go where the slope takes them and the rock outside the model counts as barren.": "Facultatif : la fosse ne peut aller plus loin que cela, en plan, des colonnes du modèle de blocs ; un bloc dont la pente demanderait du terrain au-delà reste en place. Vide : sans limite, les parois vont où la pente les mène et la roche hors du modèle compte comme stérile.",
+  "The distance must be 0 or more, or blank.": "La distance doit être de 0 ou plus, ou vide.",
+  "Kept within {m} m of the block model: {n} columns of the grid beyond it were not mined.": "Gardé à moins de {m} m du modèle de blocs : {n} colonnes de la grille au-delà n'ont pas été exploitées.",
+  "Kept within {m} m of the block model; the pit did not need to go beyond it.": "Gardé à moins de {m} m du modèle de blocs ; la fosse n'avait pas besoin d'aller au-delà."
 }
