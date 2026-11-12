@@ -18,7 +18,7 @@ export default function DrillPlanColourControls({ sel, updateSelected, collars, 
     if (k === "attr") return set(`attr:${fields.some((f) => f.key === key) ? key : fields[0]?.key || ""}`);
     return set(`${k}:${elements.includes(key) ? key : elements[0] || ""}`);
   };
-  const isGrade = kind === "max" || kind === "gt";
+  const isGrade = kind === "max" || kind === "gt" || kind === "bi"; // bi: #2685
   const blank = colouring?.key?.find((k) => k.hollow);
   return (
     <>
@@ -29,6 +29,7 @@ export default function DrillPlanColourControls({ sel, updateSelected, collars, 
           {fields.length > 0 && <option value="attr">{tr("A collar field (hole type, year...)")}</option>}
           {elements.length > 0 && <option value="max">{tr("Highest grade in the hole")}</option>}
           {elements.length > 0 && <option value="gt">{tr("Grade × length over the hole")}</option>}
+          {elements.length > 0 && <option value="bi">{tr("Best intercept, grade × length (cut-off)")}</option>}{/* #2685 */}
         </select>
       </label>
       {kind === "attr" && (
@@ -45,9 +46,18 @@ export default function DrillPlanColourControls({ sel, updateSelected, collars, 
           </select>
         </label>
       )}
+      {kind === "bi" && ( /* TASKS.csv #2685 — Best intercepts' rule, set on the plan */
+        <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+          {[["biCutoff", tr("Cut-off"), tr("P90")], ["biDilution", tr("Internal dilution (m)"), "2"], ["biMinLength", tr("Min. length (m)"), "0"]].map(([k, label, ph]) => (
+            <label key={k} style={{ ...lab, flex: 1, marginBottom: 0 }}>{label}<input type="number" min="0" step="any" value={sel[k] ?? ""} placeholder={ph} onChange={(e) => updateSelected({ [k]: e.target.value === "" ? null : Number(e.target.value) })} style={{ ...inp, marginTop: 4 }} /></label>
+          ))}
+        </div>
+      )}
       {isGrade && (
         <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>
-          {kind === "gt"
+          {kind === "bi"
+            ? tr("Each hole's best intercept (Best intercepts' rule: the cut-off, at most this much internal dilution, at least this length) as grade × length. With no cut-off typed, the plan uses the element's 90th percentile, as Best intercepts suggests. The key's classes break at the 50th, 75th and 90th percentile of the plan's holes.")
+            : kind === "gt"
             ? tr("Each hole's grade × length is summed over its assayed metres, with no cut-off. The key's classes break at the 50th, 75th and 90th percentile of the plan's holes, so they follow this project's own values.")
             : tr("The key's classes break at the 50th, 75th and 90th percentile of the plan's holes, so they follow this project's own values.")}
           {blank ? " " + tr("Holes with no result for this element are hollow rings.") : ""}

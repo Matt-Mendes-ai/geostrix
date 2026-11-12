@@ -170,6 +170,27 @@ export function holeGradeValues(segs, kind) {
   return out;
 }
 
+// TASKS.csv #2685 (split from #2473) — each hole's best intercept as grade × length, from Best intercepts' own rule (geochem.js
+// computeBestIntercepts: a cut-off, an internal dilution and a minimum length): the composites -> Map(hole_id -> the largest
+// length × grade). The whole-hole sum ('gt') stays beside it.
+export function bestInterceptGT(composites) {
+  const out = new Map();
+  for (const c of composites || []) {
+    const v = Number(c.length) * Number(c.avgGrade), id = String(c.hole_id ?? "");
+    if (!Number.isFinite(v)) continue;
+    if (!out.has(id) || v > out.get(id)) out.set(id, v);
+  }
+  return out;
+}
+// the cut-off a plan opens on when none is typed: the 90th percentile of the element's positive results rounded to one figure, the
+// suggestion Best intercepts makes (so the two tools agree until the user picks one). -> number or null
+export function p90Cutoff(values) {
+  const v = [...(values || [])].map(Number).filter((x) => Number.isFinite(x) && x > 0).sort((a, b) => a - b);
+  if (!v.length) return null;
+  const p = v[Math.floor(0.9 * (v.length - 1))], mag = 10 ** Math.floor(Math.log10(p));
+  return Number((Math.round(p / mag) * mag).toPrecision(1));
+}
+
 // Up to four classes cut at the 50th, 75th and 90th percentile of the holes' own values: no grade is assumed for any deposit or
 // element. A cut equal to the lowest value or to another cut (many holes at one value) is dropped. -> ascending breaks, [] for none
 export function gradeBreaks(values) {
@@ -187,7 +208,7 @@ const rampIndex = (i, n) => (n <= 1 ? GRADE_COLOURS.length - 1 : Math.round((i *
 
 // How each hole is drawn, and the key. holes: drillPlanGeometry's; opts: { segs (for max / gt), unit, palette (categorical), ink }.
 // -> { by, title, note, breaks, styleOf(holeId, series) -> { colour, rMm, hollow }, key: [{ label, colour, rMm, hollow }] }
-export function drillPlanColouring(el, holes, collars, { segs = null, unit = "", palette = [], ink = "#1a2028" } = {}) {
+export function drillPlanColouring(el, holes, collars, { segs = null, unit = "", palette = [], ink = "#1a2028", perHole = null, biRule = "" } = {}) { // perHole / biRule: #2685
   const by = drillPlanColourBy(el), { kind, key } = colourByKind(by);
   const dot = (colour, rMm = 0.8, hollow = false) => ({ colour, rMm, hollow });
   if (kind === "series") {
@@ -206,11 +227,11 @@ export function drillPlanColouring(el, holes, collars, { segs = null, unit = "",
       key: [...vals.map((v) => ({ label: v, ...dot(colour(v)) })), ...(blank ? [{ label: "not recorded", ...dot(NONE_COLOUR, 0.8, true) }] : [])],
     };
   }
-  if ((kind === "max" || kind === "gt") && key) {
-    const per = holeGradeValues(segs, kind);
+  if ((kind === "max" || kind === "gt" || kind === "bi") && key) {
+    const per = kind === "bi" ? perHole || new Map() : holeGradeValues(segs, kind); // bi: the best intercept's grade × length (#2685)
     // the classes come from every hole the plan takes (its hole filter), not only those in the frame, so panning keeps them
     const shown = filterHoles(collars, el.holeFilter).map((c) => per.get(String(c.hole_id ?? ""))).filter((v) => v != null);
-    const breaks = gradeBreaks(shown), n = breaks.length + 1, u = kind === "gt" ? `m × ${unit || "grade"}` : unit;
+    const breaks = gradeBreaks(shown), n = breaks.length + 1, u = kind === "gt" || kind === "bi" ? `m × ${unit || "grade"}` : unit;
     const withUnit = (t) => (u ? `${t} ${u}` : t);
     const key2 = [];
     if (shown.length) {
@@ -223,10 +244,10 @@ export function drillPlanColouring(el, holes, collars, { segs = null, unit = "",
     const blank = holes.some((h) => !per.has(h.id));
     return {
       by, breaks,
-      title: kind === "gt" ? `${key} grade × length, whole hole` : `Highest ${key} in the hole`,
-      note: breaks.length ? "classes: 50th / 75th / 90th percentile of the plan's holes" : "",
+      title: kind === "bi" ? `${key} best intercept, grade × length` : kind === "gt" ? `${key} grade × length, whole hole` : `Highest ${key} in the hole`,
+      note: [kind === "bi" ? biRule : "", breaks.length ? "classes: 50th / 75th / 90th percentile of the plan's holes" : ""].filter(Boolean).join("; "),
       styleOf: (id) => { const v = per.get(id); if (v == null) return dot(NONE_COLOUR, 0.6, true); const c = rampIndex(classOf(v, breaks), n); return dot(GRADE_COLOURS[c], GRADE_RADIUS_MM[c]); },
-      key: [...key2, ...(blank ? [{ label: `no ${key} result`, ...dot(NONE_COLOUR, 0.6, true) }] : [])],
+      key: [...key2, ...(blank ? [{ label: kind === "bi" ? `no ${key} intercept` : `no ${key} result`, ...dot(NONE_COLOUR, 0.6, true) }] : [])],
     };
   }
   return { by: "none", title: "", note: "", breaks: [], styleOf: () => dot(ink), key: [] };

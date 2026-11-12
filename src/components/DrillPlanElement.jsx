@@ -2,8 +2,9 @@
 // trace (0.3 mm), a collar symbol (1.6 mm), labels that do not overlap, and, when coloured (by series, a collar field or a grade:
 // #2473), a key. North is up.
 import React, { useMemo } from "react";
-import { drillPlanGeometry, placeLabels, drillPlanGrid, drillPlanColouring, colourByKind, emptiestCorner, labelBackdrop, drillPlanShapes, symbolPath } from "../lib/drillPlan.js"; // shapes: #2686; // labelBackdrop: #2738; // drillPlanGrid: #2301; colouring: #2473
-import { resolvedSegments, gradeUnitLabel } from "../lib/geochem.js"; // TASKS.csv #2473
+import { drillPlanGeometry, placeLabels, drillPlanGrid, drillPlanColouring, colourByKind, emptiestCorner, labelBackdrop, drillPlanShapes, symbolPath, bestInterceptGT, p90Cutoff } from "../lib/drillPlan.js"; // best intercept: #2685; // shapes: #2686; // labelBackdrop: #2738; // drillPlanGrid: #2301; colouring: #2473
+import { resolvedSegments, gradeUnitLabel, computeBestIntercepts } from "../lib/geochem.js"; // TASKS.csv #2473; computeBestIntercepts: #2685
+import { excludeQAQC } from "../lib/qaqc.js"; // TASKS.csv #2685 — QC inserts are not intercepts
 import { CATEGORICAL_SAFE_COLORS } from "../lib/layers.js";
 import { printPx, printPt } from "../lib/theme.js";
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #2686 — the shape key's circle row
@@ -13,12 +14,34 @@ const INK = "#1a2028", FONT = "'Exo 2', system-ui, sans-serif";
 const ON_WHITE = CATEGORICAL_SAFE_COLORS.filter((c) => String(c).toUpperCase() !== "#F0E442");
 const MM = 96 / 25.4, MM_PX = MM;
 
+// TASKS.csv #2685 — the best intercept per hole (grade × length) at the plan's own cut-off / dilution / minimum length, cached per assay
+// list and rule: a drag of the frame redraws the plan without running the intercepts again
+const biCache = new WeakMap();
+export function drillPlanBiRule(el, assays, key) {
+  const typed = Number(el?.biCutoff);
+  const cutoff = el?.biCutoff !== "" && el?.biCutoff != null && Number.isFinite(typed) ? typed : p90Cutoff((assays || []).map((a) => a.values?.[key]));
+  const dilution = Number.isFinite(Number(el?.biDilution)) && el?.biDilution !== "" && el?.biDilution != null ? Number(el.biDilution) : 2; // computeBestIntercepts' own default
+  const minLength = Number.isFinite(Number(el?.biMinLength)) && el?.biMinLength !== "" && el?.biMinLength != null ? Number(el.biMinLength) : 0;
+  return { cutoff, dilution, minLength, defaulted: !(el?.biCutoff !== "" && el?.biCutoff != null && Number.isFinite(typed)) };
+}
+function bestInterceptInput(el, assays, key, unit, units) {
+  const r = drillPlanBiRule(el, assays, key);
+  if (r.cutoff == null) return { perHole: new Map(), biRule: "" };
+  const ck = `${key}|${unit}|${r.cutoff}|${r.dilution}|${r.minLength}`;
+  let m = biCache.get(assays);
+  if (!m) biCache.set(assays, (m = new Map()));
+  if (!m.has(ck)) m.set(ck, bestInterceptGT(computeBestIntercepts(excludeQAQC(assays), key, unit, units, { cutoff: r.cutoff, maxInternalDilution: r.dilution, minLength: r.minLength })));
+  const u = gradeUnitLabel(key, unit);
+  return { perHole: m.get(ck), biRule: `cut-off ${r.cutoff} ${u}${r.defaulted ? " (the P90)" : ""}, at most ${r.dilution} m internal dilution${r.minLength ? `, at least ${r.minLength} m` : ""}` };
+}
+
 // TASKS.csv #2473 — the resolved assay segments and unit label a grade colouring needs (resolvedSegments is cached per assay list)
 export function drillPlanGradeInput(el, assays, assayElements) {
   const { kind, key } = colourByKind(el?.colourBy);
-  if ((kind !== "max" && kind !== "gt") || !key || !assays?.length) return { segs: null, unit: "" };
+  if ((kind !== "max" && kind !== "gt" && kind !== "bi") || !key || !assays?.length) return { segs: null, unit: "" };
   const units = Object.fromEntries((assayElements || []).map((e) => [e.symbol, e.unit || "ppm"]));
   const unit = units[key] || "ppm";
+  if (kind === "bi") return { ...bestInterceptInput(el, assays, key, unit, units), unit: gradeUnitLabel(key, unit) }; // #2685
   return { segs: resolvedSegments(assays, key, unit, units), unit: gradeUnitLabel(key, unit) };
 }
 
