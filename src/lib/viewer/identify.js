@@ -7,6 +7,7 @@ import { t as tr } from "../i18n.js";
 import { sampleIdentifyFields, orderedElements } from "./sampleTip.js"; // TASKS.csv #1821; orderedElements: #2520
 import { gradeText } from "../gradeText.js"; // TASKS.csv #2515
 import { rasterUnitOf } from "../rasterMethod.js"; // TASKS.csv #2747
+import { blockExtremesAt } from "../gridMeans.js"; // TASKS.csv #2879
 import { codeMeaning } from "./codeMeaning.js"; // TASKS.csv #2816
 
 const num = (v, d = 2) => (Number.isFinite(v) ? v.toLocaleString(undefined, { maximumFractionDigits: d }) : String(v ?? ""));
@@ -83,12 +84,26 @@ export function mapFeatureAt(layer, x, y, tol) {
 }
 
 // A raster's value at a point, or null: outside the grid, or no data there. grid: { nx, ny, x0, yTop, dx, dy, values } (base64 or an array).
-export function rasterValueAt(grid, x, y) {
+export function rasterCellAt(grid, x, y) {
   if (!grid?.values) return null;
   const col = Math.round((x - grid.x0) / grid.dx), row = Math.round((grid.yTop - y) / grid.dy);
-  if (col < 0 || row < 0 || col >= grid.nx || row >= grid.ny) return null;
-  const v = (typeof grid.values === "string" ? b64ToF32(grid.values) : grid.values)[row * grid.nx + col];
+  return col < 0 || row < 0 || col >= grid.nx || row >= grid.ny ? null : { col, row };
+}
+export function rasterValueAt(grid, x, y) {
+  const c = rasterCellAt(grid, x, y);
+  if (!c) return null;
+  const v = (typeof grid.values === "string" ? b64ToF32(grid.values) : grid.values)[c.row * grid.nx + c.col];
   return Number.isFinite(v) ? v : null;
+}
+
+// TASKS.csv #2879 (#2831) — a grid kept as f x f block means (raster.js, over 512 nodes a side) printed the mean as if it were the value:
+// Identify now says so, with the block's highest and lowest node where the import kept them (gridMeans.js blockExtremesAt).
+export function rasterValueText(grid, x, y, v, unit = "") {
+  const val = unit ? `${num(v, 4)} ${unit}` : num(v, 4);
+  if (!(grid?.averagedBy > 1)) return val;
+  const c = rasterCellAt(grid, x, y), ex = c ? blockExtremesAt(grid, c.col, c.row) : null;
+  return ex ? tr("{v} (mean of {f} × {f} nodes; highest in this cell {max}, lowest {min})", { v: val, f: grid.averagedBy, max: num(ex.max, 4), min: num(ex.min, 4) })
+    : tr("{v} (mean of {f} × {f} nodes)", { v: val, f: grid.averagedBy });
 }
 
 const visibleChain = (o) => { for (let n = o; n; n = n.parent) if (n.visible === false) return false; return true; };
@@ -158,7 +173,7 @@ function describe(hit, ctx) {
   if (rs) {
     const v = rasterValueAt(rs.grid, world.e, world.n), fields = [];
     const unit = rasterUnitOf(rs); // #2747 — the value's unit, where the raster says it
-    if (v != null) fields.push([tr("Value"), unit ? `${num(v, 4)} ${unit}` : num(v, 4)]);
+    if (v != null) fields.push([tr("Value"), rasterValueText(rs.grid, world.e, world.n, v, unit)]); // block means said: #2879
     else if (!rs.grid) fields.push([tr("Values"), tr("Picture only: colours, no values")]); // #2747 — a picture (no value grid), said
     if (rs.params?.tool) fields.push([tr("Made with"), rs.params.tool]);
     fields.push([tr("Drape"), rs.drapeMode === "terrain" ? tr("On the terrain") : rs.drapeMode === "collars" ? tr("On the ground between the collars") /* #2447 */ : tr("Flat at {z} m", { z: num(rs.elevation ?? 0, 1) })]);
