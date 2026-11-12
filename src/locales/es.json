@@ -4393,6 +4393,7 @@
   "Already in this project in another unit: {v}. These values will be converted to the project's unit so earlier assays keep their meaning.": "Ya en este proyecto en otra unidad: {v}. Estos valores se convertirán a la unidad del proyecto para que los ensayes anteriores conserven su significado.",
   "Style {symbol}": "Estilo {symbol}",
   "Data range: {min} – {max} {unit}": "Rango de datos: {min} – {max} {unit}",
+  "Data range: <{dl} ({n} below detection) – {max} {unit}": "Rango de datos: <{dl} ({n} bajo el límite de detección) – {max} {unit}",
   "Composited downhole intersections above a cutoff, with an internal-dilution allowance — {assays} intervals loaded.{v}": "Intersecciones en sondaje compositadas sobre una ley de corte, con tolerancia de dilución interna — {assays} intervalos cargados.{v}",
   "Metal equivalent ({symbol}Eq) from {symbol} and the \"Also show\" elements": "Equivalente metálico ({symbol}Eq) a partir de {symbol} y los elementos de «Mostrar también»",
   "{v}recovery": "{v}recuperación",

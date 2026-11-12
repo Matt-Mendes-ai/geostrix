@@ -14,7 +14,8 @@ for (let i = 0; i < 820; i++) li.push({ values: { Li: Number((0.01 * Math.pow(33
 
 test("flagged '<' values are left out of the class percentiles, whatever their share", () => {
   const r = assayClassRange(li, "Li");
-  assert.deepEqual(r.basis, { kind: "flags", n: 820, left: 180 });
+  assert.deepEqual({ ...r.basis, limit: undefined }, { kind: "flags", n: 820, left: 180, limit: undefined }); // limit: #2216
+  assert.ok(r.basis.limit > 0);
   assert.equal(r.min, 0.0023226, "the data range still shows every stored value");
   assert.ok(r.p50 > 0.1, `P50 ${r.p50} is a detected grade, not the floor`);
   const breaks = seedBreaks(r, "#e0894a");

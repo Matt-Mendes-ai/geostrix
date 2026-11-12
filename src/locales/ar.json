@@ -4393,6 +4393,7 @@
   "Already in this project in another unit: {v}. These values will be converted to the project's unit so earlier assays keep their meaning.": "موجود مسبقًا في هذا المشروع بوحدة أخرى: {v}. ستُحوّل هذه القيم إلى وحدة المشروع كي تحتفظ التحاليل السابقة بمعناها.",
   "Style {symbol}": "نمط {symbol}",
   "Data range: {min} – {max} {unit}": "نطاق البيانات: {min} – {max} {unit}",
+  "Data range: <{dl} ({n} below detection) – {max} {unit}": "مدى البيانات: <{dl} ({n} دون حد الكشف) – {max} {unit}",
   "Composited downhole intersections above a cutoff, with an internal-dilution allowance — {assays} intervals loaded.{v}": "تقاطعات مركّبة على طول الثقوب فوق حد قطع، مع سماح بالتخفيف الداخلي — {assays} فترة محمّلة.{v}",
   "Metal equivalent ({symbol}Eq) from {symbol} and the \"Also show\" elements": "المكافئ المعدني ({symbol}Eq) من {symbol} وعناصر «إظهار أيضًا»",
   "{v}recovery": "{v}الاستخلاص",
