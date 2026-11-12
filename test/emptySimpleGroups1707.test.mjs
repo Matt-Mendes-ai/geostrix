@@ -32,5 +32,5 @@ test("#1707 no ribbon group in the 3D View's ribbons is empty in Simple mode", (
 
 test("#1707 the View group is marked advanced", () => {
   const p = readFileSync(new URL("../src/modules/viewer/ViewerParts.jsx", import.meta.url), "utf8");
-  assert.match(p, /<RibbonGroup label="View" advanced>/);
+  assert.match(p, /<RibbonGroup label="View" advanced=\{!noHoles\}>/); // #2778 — not with no holes: 3D slice is then a Simple tool (test/simpleNoHoles2778)
 });
