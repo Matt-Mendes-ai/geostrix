@@ -53,6 +53,7 @@ import { ensureExportCrs } from "../lib/projectCrsRequest.js"; // TASKS.csv #102
 import { pointInBoundary } from "../lib/pointInPolygon.js"; // TASKS.csv #903 — not geoprocessing.js, which loads d3-delaunay
 import { buildPickIndex, queryPickIndex } from "../lib/pickIndex.js"; // TASKS.csv #304 — object-level BVH for hover/click picking
 import { useMenuKeys } from "../lib/useMenuKeys.js"; // TASKS.csv #730
+import { viewKeyZoom } from "../lib/viewer/viewKeys.js"; // TASKS.csv #2788
 import { t as tr } from "../lib/i18n.js";
 import EmptyViewerBody from "./viewer/EmptyViewerBody.jsx"; // TASKS.csv #1448
 import { featureCountText } from "../lib/featureCount.js"; // #1448 — "77 polygons", translated
@@ -137,7 +138,7 @@ import { localDate } from "../lib/localDate.js"; // TASKS.csv #2703
 import { rightDragTracker } from "./viewer/rightDrag.js"; // TASKS.csv #2213
 import { holeZoomPhi } from "./viewer/zoomHole.js"; // TASKS.csv #2375
 import { sortVoxelInstancesBackToFront } from "../lib/viewer/voxelSort.js"; // TASKS.csv #434
-import { assayValueCounts, orderAssayChips } from "../lib/viewer/assayChipOrder.js"; // TASKS.csv #2374
+import { assayValueCounts, orderAssayChips, filterAssayChips, CHIP_FILTER_MIN } from "../lib/viewer/assayChipOrder.js"; // TASKS.csv #2374; filter: #2785
 import { scoreRasterLegendGroups } from "../lib/viewer/scoreRasterLegend.js"; // TASKS.csv #2670
 import { snapInterpretClick } from "../lib/viewer/interpretSnap.js"; // TASKS.csv #2630
 import { outlinesKey, blockSourceKey } from "../lib/explicitLog.js"; // TASKS.csv #878
@@ -677,6 +678,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   // array (not a Set) so ASSAY_ELEMENT_COLORS assignment below is stable/predictable by pick order
   // rather than shuffling around as elements are toggled on/off.
   const [assayDisplayElements, setAssayDisplayElements] = useState([]);
+  const [chipQ, setChipQ] = useState(""); // #2785
   // TASKS.csv #247 — a newly-toggled-on element used to default to a single flat color regardless of
   // grade (a 0.01 g/t and a 50 g/t intercept looked identical) until a user found the small gear icon
   // and manually set grade breaks. Now the FIRST time an element is turned on (no assayStyle entry yet,
@@ -1025,6 +1027,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   const contextMenuByKeyRef = useRef(false);
   const onViewKeyDown = (e) => {
     if (e.target !== e.currentTarget) return; // a control inside the view (Fit, Top…) keeps its own keys
+    if (viewKeyZoom(e, { zoom: (f) => { camState.current.radius = Math.min(4e6, Math.max(0.05, camState.current.radius * f)); cameraRef.current?.__update?.(); }, fit: () => fitButton() })) return; // #2788 — + / - / Home
     if (e.key !== "ContextMenu" && !(e.key === "F10" && e.shiftKey)) return;
     e.preventDefault(); // no second, browser-dispatched contextmenu event
     const r = e.currentTarget.getBoundingClientRect();
@@ -2307,13 +2310,8 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
     dom.addEventListener("wheel", onWheel, { passive: false });
     dom.addEventListener("contextmenu", onContextMenuEvt);
     dom.addEventListener("mousedown", onAuxClick);
-    // TASKS.csv #207 — same "OS steals input mid-drag" safety net as SidebarResizeHandle.jsx/
-    // LayoutModule.jsx's twin fixes: without this, an orbit/pan drag or an armed rectangle-zoom drag
-    // left in progress when the window loses focus (screenshot tool, Alt-Tab, a notification) would
-    // otherwise never see its "pointerup" and stay stuck — subsequent mouse moves anywhere would keep
-    // orbiting the camera even with no button held. onPointerUp already tolerates being called without
-    // a real PointerEvent (releasePointerCapture(undefined) is wrapped in try/catch), so it's reused
-    // directly rather than duplicating its cleanup logic.
+    // TASKS.csv #207 — a drag left in progress when the window loses focus (Alt-Tab, a screenshot tool) never saw its pointerup and kept
+    // orbiting; onPointerUp tolerates a missing PointerEvent, so blur ends it.
     window.addEventListener("blur", onPointerUp);
     // TASKS.csv #212 — user report: middle-mouse pan starting to rotate instead. "pointercancel" is
     // the browser's own explicit signal for "I'm taking over this pointer sequence for something else"
@@ -6909,16 +6907,11 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                 </select>
               </div>
             )}
-            {/* User request: show several elements at once (e.g. Au/Ag/Zn/Cu/Pb together), each
-                individually toggleable — replaces the old single-<select> "one at a time" picker. Each
-                chip's swatch matches that element's marker color (custom, if styled — see
-                AssayStyleModal — else the default fixed pick-order hue), so this list doubles as the
-                legend. The gear icon (shown once an element is on) opens the style editor: color,
-                size, grade-break recategorization, and a "hide below" cutoff (TASKS.csv follow-up,
-                user request: "change the assay legend — change colour, size, recategorize, ignore
-                values lower than"). */}
+            {/* User request: several elements at once, each toggled by its chip; the swatch is its marker colour (the chips are the legend);
+                the gear opens the style editor (colour, size, classes, cutoff). #2785: a filter past 20 elements */}
+            {assayElements.length > CHIP_FILTER_MIN && <input type="search" value={chipQ} onChange={(e) => setChipQ(e.target.value)} placeholder={tr("Filter elements")} aria-label={tr("Filter elements")} style={{ margin: "0 10px 6px", width: "calc(100% - 20px)", fontSize: "var(--font-size-sm)", padding: "3px 6px" }} />}
             <div style={{ display: "flex", flexWrap: "wrap", gap: 5, padding: "0 10px 6px" }}>
-              {orderAssayChips(assayElements, assayDisplayElements, assayChipCounts).map((e) => { /* #2374 — shown first, then most values */
+              {filterAssayChips(orderAssayChips(assayElements, assayDisplayElements, assayChipCounts), chipQ, assayDisplayElements).map((e) => { /* #2374 — shown first, then most values */
                 const idx = assayDisplayElements.indexOf(e.symbol);
                 const on = idx !== -1;
                 const style = assayStyle[e.symbol];

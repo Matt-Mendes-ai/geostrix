@@ -23,3 +23,13 @@ export function orderAssayChips(elements, shown, counts) {
     return (counts?.get(b.symbol) || 0) - (counts?.get(a.symbol) || 0) || String(a.symbol).localeCompare(String(b.symbol));
   });
 }
+
+// TASKS.csv #2785 — a filter box over the chips once a project has more than CHIP_FILTER_MIN elements (WA uranium: 63). A chip stays when
+// its symbol contains the typed text (any case) or it is shown, so a shown element can always be switched off. Empty text: every chip.
+export const CHIP_FILTER_MIN = 20;
+export function filterAssayChips(chips, text, shown) {
+  const q = String(text || "").trim().toLowerCase();
+  if (!q) return chips;
+  const on = new Set(shown || []);
+  return (chips || []).filter((e) => on.has(e.symbol) || String(e.symbol).toLowerCase().includes(q));
+}
