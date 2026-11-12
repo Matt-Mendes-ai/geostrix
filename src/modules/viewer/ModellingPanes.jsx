@@ -326,6 +326,9 @@ export default function ModellingPanes(props) {
     const { tops, skipped } = topsForCode(runs, unit, modellingCodes, mcodeDefaultRole);
     return { tops: tops.map((r) => ({ hole_id: r.hole_id, md: r.from, above: r.above?.code ?? null, below: r.code })), skipped, holes };
   }, [layers.litho, modellingCodes, lithoGroups, modelArea, visibleHoles]); // mcGroupOf / mcodeDefaultRole are rebuilt every render from lithoGroups
+  // TASKS.csv #1844 (review #1646, Kodiak) — a disabled GemPy Run button said only 'Runs in GeoStrix's Python engine…' (the status bar read
+  // 'Py: idle', ready): its title now says first what is missing, or that a model is running
+  const gempyTitle = (missing) => (implicitBusy ? tr("A model is already running.") : missing || tr("Runs in GeoStrix's Python engine (GemPy) — the status bar's Py shows whether it is ready"));
   // TASKS.csv #2054 — Modelling codes' pane, whole or (focus "correlate") its hole-to-hole tools only, for the Correlation pane; one state for both
   const mcodesPane = (focus) => <ModellingCodesPane focus={focus} inArea={modelArea === "checked" ? (id) => visibleHoles?.[id] !== false : null} /* #2533 — Auto-number follows the Model area */ litho={layers.litho || []} modellingCodes={modellingCodes} setModellingCodes={setModellingCodes} groupOf={mcGroupOf} defaultRole={mcodeDefaultRole}
           pickMode={mcPickMode} setPickMode={setMcPickMode} selected={mcSelected} setSelected={setMcSelected} connectFrom={mcConnectFrom} setConnectFrom={setMcConnectFrom}
@@ -669,7 +672,7 @@ export default function ModellingPanes(props) {
           onClick={() => setFenceOpen(true)}
           disabled={!collars.length}
           style={{ ...pBtn, marginBottom: 8, opacity: collars.length ? 1 : 0.5, cursor: collars.length ? "pointer" : "default" }}
-          title={tr("Fence / panel diagram — project the holes onto a common vertical panel along the drill line and correlate lithology hole-to-hole, with each hole's perpendicular offset from the section shown")}
+          title={collars.length ? tr("Fence / panel diagram — project the holes onto a common vertical panel along the drill line and correlate lithology hole-to-hole, with each hole's perpendicular offset from the section shown") : tr("No holes with collars yet: import collars first.") /* #1844 */}
         ><Layers3 size={14} />{" "}{tr("Fence / panel diagram…")}</button>
 
         <Suspense fallback={null}>{mcodesPane("correlate")}</Suspense>{/* #2054 — the correlation tools themselves, beside the fence */}
@@ -727,7 +730,7 @@ export default function ModellingPanes(props) {
             onClick={() => runImplicitModel(implicitTarget)}
             disabled={!implicitTarget || implicitBusy}
             aria-label={tr("Run the implicit model (GemPy)")}
-            title={tr("Runs in GeoStrix's Python engine (GemPy) — the status bar's Py shows whether it is ready")}
+            title={gempyTitle(!collars.length ? tr("No holes with collars yet: import collars first.") : !implicitTarget ? tr("Choose a unit first.") : null)}
             style={{ ...pBtn, width: "auto", minWidth: 30, marginBottom: 0, padding: "6px 9px", whiteSpace: "nowrap", opacity: implicitTarget && !implicitBusy ? 1 : 0.5, cursor: implicitTarget && !implicitBusy ? "pointer" : "default" }}
           >{implicitBusy ? tr("Running…") : <><Layers3 size={14} aria-hidden="true" />{" "}{tr("Run")}</>}</button>{/* #572 — was an unlabeled icon */}
         </div>
@@ -902,7 +905,7 @@ export default function ModellingPanes(props) {
         <button
           onClick={() => runStackModel(stackUnits)}
           disabled={stackUnits.length < 2 || implicitBusy}
-          title={tr("Runs in GeoStrix's Python engine (GemPy) — the status bar's Py shows whether it is ready")}
+          title={gempyTitle(!collars.length ? tr("No holes with collars yet: import collars first.") : stackUnits.length < 2 ? tr("Choose at least two units for the stack first.") : null)}
           style={{ ...pBtn, marginTop: 4, opacity: stackUnits.length >= 2 && !implicitBusy ? 1 : 0.5, cursor: stackUnits.length >= 2 && !implicitBusy ? "pointer" : "default" }}
         ><Layers3 size={14} /> {implicitBusy ? tr("Running…") : tr(stackUnits.length === 1 ? "Run stack ({n} unit)" : "Run stack ({n} units)", { n: stackUnits.length })}</button>
 
@@ -949,7 +952,7 @@ export default function ModellingPanes(props) {
             onClick={() => runStructuralModel(structuralTarget)}
             disabled={!structuralTarget || implicitBusy}
             aria-label={tr("Run the structural model (GemPy)")}
-            title={tr("Runs in GeoStrix's Python engine (GemPy) — the status bar's Py shows whether it is ready")}
+            title={gempyTitle(!struct_types.length ? tr("No structure picks with an orientation yet.") : !structuralTarget ? tr("Choose a structure type first.") : null)}
             style={{ ...pBtn, width: "auto", minWidth: 30, marginBottom: 0, padding: "6px 9px", whiteSpace: "nowrap", opacity: structuralTarget && !implicitBusy ? 1 : 0.5, cursor: structuralTarget && !implicitBusy ? "pointer" : "default" }}
           >{implicitBusy ? tr("Running…") : <><Layers3 size={14} aria-hidden="true" />{" "}{tr("Run")}</>}</button>{/* #572 */}
         </div>
