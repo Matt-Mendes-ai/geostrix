@@ -184,6 +184,19 @@ export function holeGradePoints(assays, symbol, unit, units, traces, bin = GRADE
   return [...best.values()];
 }
 
+// TASKS.csv #2643 — how deep each hole was tested: one point per hole at its deepest sample (the largest 'to' of its assays, any element),
+// valued at that point's elevation. Between the holes it is high where the drilling stopped shallow, so a card 'favourable when high'
+// asks for ground not tested at depth (a hole that was not sampled deep must not rank below one that was).
+export function depthTestedPoints(assays, traces) {
+  const deep = new Map();
+  for (const a of assays || []) {
+    const to = Number(a.to);
+    if (!traces.has(a.hole_id) || !Number.isFinite(to)) continue;
+    if (!(deep.get(a.hole_id) >= to)) deep.set(a.hole_id, to);
+  }
+  return [...deep].map(([h, d]) => { const p = pointOnTrace(traces.get(h), d); return { x: p.x, y: p.y, z: p.z, value: p.z, hole_id: h, depth: d }; }).filter((p) => Number.isFinite(p.value));
+}
+
 // TASKS.csv #1723 (review #1645, Copley) — the elements that have at least one value in these rows: once pXRF is kept out of the
 // drill grades (#1673), the pXRF-only elements (Br, Cl, Ir, Rh on Copley) must not be offered as "X grade along the holes".
 export function elementsWithValues(assays, elements, units) {
