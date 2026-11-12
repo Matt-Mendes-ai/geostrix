@@ -196,6 +196,8 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
 
   const nPairsLow = result && result.vg.bins.some((b) => b.nPairs > 0 && b.nPairs < 30);
   const fitWeak = result && result.fit && result.fit.rSquared != null && result.fit.rSquared < 0.5;
+  // TASKS.csv #2065 — the first lag does not clear 30 pairs (Between holes on Woodjam Cu): the fitted nugget is not read from the data
+  const nuggetFree = !!(result && result.fit && !(result.vg.reliableFromLag > 0 && result.vg.reliableFromLag <= result.lag * 1.01));
   const stat = result ? variogramStationarity(result.vg, result.fit) : null; // TASKS.csv #1576
 
   return (
@@ -382,10 +384,10 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
               <div style={{ display: "flex", gap: 18, flexWrap: "wrap", fontSize: "var(--font-size-base)", color: "var(--color-text)" }}>
                 {result.fit ? (
                   <>
-                    <Stat label={tr("Nugget")} value={fmtNum(result.fit.nugget)} />
+                    <Stat label={tr("Nugget")} value={nuggetFree ? tr("{v} (not constrained)", { v: fmtNum(result.fit.nugget) }) : fmtNum(result.fit.nugget)} />
                     <Stat label={tr("Sill")} value={fmtNum(result.fit.sill)} />
                     <Stat label={tr("Variogram range")} value={result.fit.beyondData ? tr("{v} m: past the furthest lag ({max} m), not measured", { v: result.fit.range.toFixed(1), max: result.fit.maxLag.toFixed(0) }) : `${result.fit.range.toFixed(1)} m`} />{/* #1420 */}
-                    <Stat label={tr("Nugget / sill")} value={result.fit.nuggetRatio != null ? `${(result.fit.nuggetRatio * 100).toFixed(0)}%` : "—"} />
+                    <Stat label={tr("Nugget / sill")} value={result.fit.nuggetRatio == null ? "—" : nuggetFree ? tr("{v} (not constrained)", { v: `${(result.fit.nuggetRatio * 100).toFixed(0)}%` }) : `${(result.fit.nuggetRatio * 100).toFixed(0)}%`} />
                     <Stat label={tr("Fit r²")} value={result.fit.rSquared != null ? result.fit.rSquared.toFixed(3) : "—"} />
                     <Stat label={tr("Model")} value={VARIOGRAM_MODELS[result.fit.model] ? tr(VARIOGRAM_MODELS[result.fit.model].label) : result.fit.model} />
                   </>
@@ -403,8 +405,16 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
               )}
 
               {nPairsLow && (
-                <div style={noteBox("#fdf7ea", "#e2a63c")}>{tr("Some lag bins hold fewer than 30 pairs (shown in red). Below about 30 pairs a lag is not a measurement — Journel & Huijbregts' standard caution. Widen the lag distance, loosen the angular tolerance, or read only out to")}{" "}<b>{result.vg.maxReliableLag} m</b>{tr(", the furthest lag that clears 30 pairs contiguously.")}</div>
+                <div style={noteBox("#fdf7ea", "#e2a63c")}>{result.vg.reliableFromLag > result.lag * 1.01 && result.vg.maxReliableLag > 0 /* #2065 — the first lags fail: name the usable run */
+                  ? (result.vg.maxReliableLag > result.vg.reliableFromLag
+                    ? tr("Some lag bins hold fewer than 30 pairs (shown in red), the first ones among them. Below about 30 pairs a lag is not a measurement — Journel & Huijbregts' standard caution. Read only lags {a}–{b} m, the run that clears 30 pairs, or widen the lag distance or loosen the angular tolerance.", { a: Math.round(result.vg.reliableFromLag), b: Math.round(result.vg.maxReliableLag) })
+                    : tr("Some lag bins hold fewer than 30 pairs (shown in red), the first ones among them. Below about 30 pairs a lag is not a measurement — Journel & Huijbregts' standard caution. Read only the {a} m lag, the one that clears 30 pairs, or widen the lag distance or loosen the angular tolerance.", { a: Math.round(result.vg.reliableFromLag) }))
+                  : <>{tr("Some lag bins hold fewer than 30 pairs (shown in red). Below about 30 pairs a lag is not a measurement — Journel & Huijbregts' standard caution. Widen the lag distance, loosen the angular tolerance, or read only out to")}{" "}<b>{result.vg.maxReliableLag} m</b>{tr(", the furthest lag that clears 30 pairs contiguously.")}</>}</div>
               )}
+              {nuggetFree && <div role="note" style={noteBox("#fdf7ea", "#e2a63c")}>{result.vg.reliableFromLag > 0
+                ? tr("The nugget is not constrained: no lag closer than {h} m holds 30 pairs, so the fitted nugget is the model's guess, not a measurement.", { h: Math.round(result.vg.reliableFromLag) })
+                : tr("The nugget is not constrained: no lag holds 30 pairs, so the fitted nugget is the model's guess, not a measurement.")}
+                {result.holeMode !== "downhole" ? " " + tr("Take it from Downhole only, where samples in one hole are close enough to see it.") : ""}</div>}{/* #2065 */}
 
               {stat?.noSill && <div style={noteBox("#fdf7ea", "#e2a63c")}>{tr("No sill at the population variance: at the last reliable lags the variogram is {r}× it{v}. That points to a trend or mixed domains (several populations in one), not a stationary grade, so the range is not a correlation length. Estimate within a domain, or remove the trend, before trusting it.", { r: stat.endRatio.toFixed(2), v: stat.rising ? tr(" and still rising") : "" })}</div>}{/* #1576 */}
               {stat?.rangeBeyond && <div style={noteBox("#fdf7ea", "#e2a63c")}>{tr("The fitted range ({range} m) is beyond the furthest reliable lag ({lag} m): it is extrapolated past the measured pairs, not read from them.", { range: Math.round(result.fit.range), lag: Math.round(stat.reliableLagM) })}</div>}
@@ -414,7 +424,7 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
                   <b>{tr("Weak fit (r² = {rSquared}).", { rSquared: result.fit.rSquared.toFixed(3) })}</b>{" "}{tr("The experimental points do not follow the {v} shape well, so the nugget / sill / range above are not meaningfully constrained. That is itself a result: a flat variogram near the population variance means this variable has no resolvable spatial structure at these lags, and any smoothly interpolated shell of it is drawing continuity the data does not support. Try a value transform, a different domain, or a smaller lag.", { v: tr(VARIOGRAM_MODELS[result.fit.model]?.label || "").toLowerCase() })}</div>
               )}
 
-              {result.fit && result.fit.nuggetRatio != null && result.fit.nuggetRatio > 0.5 && !fitWeak && (
+              {result.fit && result.fit.nuggetRatio != null && result.fit.nuggetRatio > 0.5 && !fitWeak && !nuggetFree /* #2065 */ && (
                 <div style={noteBox("#fdf7ea", "#e2a63c")}>
                   <b>{tr("High nugget ({v}% of the sill).", { v: (result.fit.nuggetRatio * 100).toFixed(0) })}</b>{" "}{tr("Over half the variability is short-scale noise that no interpolation can recover. Estimates of this variable will be smooth because the method smooths, not because the grade is continuous — treat any resulting shell with corresponding caution.")}</div>
               )}

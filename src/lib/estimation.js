@@ -787,7 +787,22 @@ export function makeSupportClassifier(samplePoints, opts = {}) {
 // the surface panel so the wording can't drift between them.
 // TASKS.csv #2071 (review #2013, Woodjam) — opts.tool "shell": the Grade shell has no Max samples or samples-per-hole control (it takes the
 // 16 nearest samples), so its advice names what its pane does have
-export function summarizeSupport(counts, { tool = "estimate" } = {}) {
+// TASKS.csv #2066 (review #2013, Woodjam) — beyond: the blocks out of every composite's reach (supportBeyondReach). They are counted
+// unsupported in the grid (#1416 keeps the counts the same with or without the reach mask) but are not part of the estimate, so the
+// shares are of the blocks within reach: '14,732,059 unsupported (100%)' beside a dialog that said only 25,490 blocks count
+export function supportInReach(counts, beyond = 0) {
+  if (!counts) return counts;
+  const b = Math.max(0, Math.min(Number(beyond) || 0, counts.unsupported || 0));
+  return b ? { ...counts, unsupported: (counts.unsupported || 0) - b } : counts;
+}
+// the blocks of a run's grid that lie out of reach: { grid: { nx, ny, nz } } or { nx, ny, nz }, with blocksInReach
+export function supportBeyondReach(run) {
+  const g = run?.grid || run;
+  if (!g || !Number.isFinite(run?.blocksInReach)) return 0;
+  return Math.max(0, g.nx * g.ny * g.nz - run.blocksInReach);
+}
+export function summarizeSupport(counts0, { tool = "estimate", beyond = 0 } = {}) {
+  const counts = supportInReach(counts0, beyond);
   const total = (counts.interpolated || 0) + (counts.extrapolated || 0) + (counts.unsupported || 0);
   if (!total) return "no cells classified";
   const pct = (n) => `${Math.round((100 * (n || 0)) / total)}%`;
@@ -1115,7 +1130,8 @@ export function estimateDenseGrid(samplePoints, opts) {
   const wantSupport = !!opts.support;
   // TASKS.csv #1416 — nodes out of every sample's reach stay NaN without a search (the grid itself is kept whole: marching
   // cubes needs every node, so the budget here is still the box's)
-  const denseMask = opts.noReach ? null : blockReach(samplePoints, bounds, { dx, dy, dz }, worldReach(searchRadius, opts.trend), { rz: verticalReach(searchRadius, opts.trend) /* #2418 */ }).mask;
+  const denseReach = opts.noReach ? null : blockReach(samplePoints, bounds, { dx, dy, dz }, worldReach(searchRadius, opts.trend), { rz: verticalReach(searchRadius, opts.trend) /* #2418 */ });
+  const denseMask = denseReach ? denseReach.mask : null;
   const tw = twK || withTrend(samplePoints, opts); // #650
   const est0 = makeCellEstimator(tw.pts, { ...estOpts, support: wantSupport, bracketTol: Math.min(dx, dy, dz) / 2 });
   const est = tw.q ? (x, y, z) => est0(...tw.q(x, y, z)) : est0;
@@ -1156,5 +1172,6 @@ export function estimateDenseGrid(samplePoints, opts) {
   out.supportCode = supportCode;
   out.supportIndex = supportIdx;
   out.supportCounts = wantSupport ? supportCounts : null;
+  out.blocksInReach = denseMask ? denseReach.reach : totalBlocks; // #2066 — the share denominators
   return out;
 }

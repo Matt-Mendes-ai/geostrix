@@ -244,10 +244,12 @@ export function experimentalVariogram(points, opts = {}) {
     // field's extent. maxReliableLag is the largest lag that clears the 30-pair bar contiguously.
     // TASKS.csv #1420 (review #1352, Silvertip) — counted from the first bin that has pairs: an empty first bin (no pairs
     // that close, e.g. a horizontal direction between holes) made it '0 m' while the 21.6 m bin held 39 pairs
-    maxReliableLag: (() => {
-      let last = 0, started = false;
-      for (const b of bins) { if (!started && !(b.nPairs > 0)) continue; started = true; if (b.nPairs >= 30) last = b.lag; else break; }
-      return last;
+    // TASKS.csv #2065 (review #2013, Woodjam) — the run starts at the first bin that CLEARS 30 pairs (not merely the first with pairs):
+    // 'Between holes only' had a few pairs in its first bins and read 'only out to 0 m'; reliableFromLag says where the run starts
+    ...(() => {
+      let from = 0, last = 0;
+      for (const b of bins) { if (!from) { if (b.nPairs >= 30) { from = b.lag; last = b.lag; } continue; } if (b.nPairs >= 30) last = b.lag; else break; }
+      return { maxReliableLag: last, reliableFromLag: from };
     })(),
   };
 }

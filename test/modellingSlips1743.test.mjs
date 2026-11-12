@@ -41,7 +41,7 @@ test("#2071: the Grade shell's support advice names controls its pane has", () =
   const sh = summarizeSupport(counts, { tool: "shell" });
   assert.doesNotMatch(sh, /Raising max samples/);
   assert.match(sh, /Longer composites would convert those/);
-  assert.match(read("src", "modules", "viewer", "modellingRuns.js"), /summarizeSupport\(grid\.supportCounts, \{ tool: "shell" \}/);
+  assert.match(read("src", "modules", "viewer", "modellingRuns.js"), /summarizeSupport\(grid\.supportCounts, \{ tool: "shell"[,}]/); // #2066 adds beyond
 });
 
 test("#2233: picks loaded but no type ticked under Contact orientations is said as such, not 'no structure picks found'", () => {
