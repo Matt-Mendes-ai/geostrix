@@ -12,6 +12,7 @@ import { terrainGroundAt } from "../lib/viewer/geomath.js";
 import { stringStats } from "../lib/designStrings.js";
 import { pBtn, smallSel } from "../lib/sidebarStyles.js";
 import { t as tr } from "../lib/i18n.js";
+import CollarLevelsNote from "./CollarLevelsNote.jsx"; // TASKS.csv #2584 — the lowest collar used where collars stand on benches
 
 const row = { display: "flex", alignItems: "center", gap: 6, justifyContent: "space-between", marginTop: 4, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" };
 const note = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 };
@@ -74,6 +75,7 @@ export default function DumpPane({ surfaces = [], onAdd, onClose }) {
         <label style={row}>{tr("Footprint")}<select value={footprint?.id || ""} onChange={set("stringId")} style={{ ...smallSel, width: 0, flex: 1, minWidth: 0 }} aria-label={tr("Footprint string")}>{footprints.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></label>
         {ug?.underground && <div style={note}>{tr("The collars look like underground drill positions ({upward} hole(s) drilled upward, {stacked} pair(s) of collars stacked over each other): they are not used as the ground. Load a terrain (Maps > Terrain) for the real surface.", { upward: ug.upward, stacked: ug.stacked })}</div>}{/* #2276 */}
         {centre && <div style={note}>{tr("{a} ha; the ground at its centre is {g} m ({src}).", { a: (centre.area / 10000).toFixed(2), g: Math.round(centre.ground), src: groundSource === "terrain" ? tr("the terrain") : groundSource === "collars" ? tr("interpolated between the collars") : tr("no terrain or collars: the footprint's own elevation, flat") })}</div>}
+        {centre && groundSource === "collars" && <CollarLevelsNote collars={collars} />}
         {field("crestZ", tr("Crest elevation (m)"), { placeholder: centre ? String(Math.round(centre.ground)) : "" })}
         {field("repose", tr("Angle of repose (°)"), { min: 1, max: 89 })}
         {field("density", tr("In-situ density (t/m³)"), { min: 0, placeholder: tr("optional") })}

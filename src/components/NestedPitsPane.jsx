@@ -19,6 +19,7 @@ import { saveFile } from "../lib/desktop.js";
 import { pBtn, smallSel } from "../lib/sidebarStyles.js";
 import UndergroundOreNote from "./UndergroundOreNote.jsx"; // TASKS.csv #2277
 import { t as tr } from "../lib/i18n.js";
+import CollarLevelsNote from "./CollarLevelsNote.jsx"; // TASKS.csv #2584 — the lowest collar used where collars stand on benches
 import { weatheredBasePoints } from "../lib/weatheredZone.js"; // TASKS.csv #2597
 import { holeTraces } from "../lib/evidenceSources.js";
 
@@ -182,7 +183,7 @@ export default function NestedPitsPane({ surfaces = [], onAdd, onToggle, onRemov
               : tr("The series runs on one grid sized for its largest factor ({c} m; the shell's was {s} m), so its shells are not on the shell's own grid.", { c: rc.join(" × "), s: sc.join(" × ") })}</div>;
           })()}
           {line(tr("Solved in"), `${res.seconds} s`)}
-          {res.groundSource === "collars" && <div style={note}>{tr("The ground is interpolated between the collars, not a terrain.")}</div>}
+          {res.groundSource === "collars" && <><div style={note}>{tr("The ground is interpolated between the collars, not a terrain.")}</div><CollarLevelsNote collars={collars} /></>}
           {res.groundSource === "model top" && <div style={note}>{tr("The ground is the top of the block model's columns, interpolated between them, not a terrain.")}</div>}{/* #1850 */}
           {res.coarsened && <div style={warn}>{tr("The grid was made coarser to stay within the limit, so the walls are coarser than the block model.")}</div>}
           {res.runs.some((r) => r.touchesBase) && <div style={warn}>{tr("A shell reaches the bottom of the block model: it may go deeper if the body does.")}</div>}

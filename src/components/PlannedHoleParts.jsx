@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo, useRef } from "react";
 import { ChevronDown, ChevronUp, Eye, EyeOff, Trash2 } from "./icons.js";
 import { activateOnKey, iconAction } from "../lib/a11y.js";
 import { t as tr } from "../lib/i18n.js";
+import CollarLevelsNote from "./CollarLevelsNote.jsx"; // TASKS.csv #2584 — the lowest collar used where collars stand on benches
 import { colors } from "../lib/theme.js";
 import { lazyModal } from "../lib/lazyModal.jsx";
 import { solveOrientationToTarget, plannedTrace, solveCollarForTarget, isShallowDip, SHALLOW_DIP_DEG, nearestCollarsToTarget } from "../lib/holePlanning.js"; // nearestCollarsToTarget: #2250; // solveCollarForTarget / shallow: TASKS.csv #1835
@@ -187,6 +188,7 @@ export function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint, 
           <button type="button" onClick={() => { set("z", zOffer); setZSource(groundAt ? "the terrain at the typed E / N" : "the ground interpolated between the nearest collars (no terrain)"); }} style={{ ...miniBtn, flex: "none" }}>{tr("Use it")}</button>
         </div>
       )}
+      {!groundAt && !underground && (zOffer || /collars/.test(zSource)) && <CollarLevelsNote collars={collars} />}{/* #2584 */}
       <div style={{ display: "flex", gap: 4, marginBottom: 5 }}>
         <NumField label={tr("Az°")} value={draft.azimuth} onChange={(v) => set("azimuth", v)} />
         <NumField label={tr("Dip°")} value={draft.dip} onChange={(v) => set("dip", v)} />

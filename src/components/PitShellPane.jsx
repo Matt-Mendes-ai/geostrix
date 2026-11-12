@@ -6,7 +6,7 @@ import { Pickaxe, Eye, EyeOff, Trash2, Pencil } from "./icons.js";
 import { confirmDestructive } from "../lib/confirmDestructive.js"; // #1498
 import { TaskPaneHeader } from "./Ribbon.jsx";
 import { useStore } from "../lib/store.jsx";
-import { joinByProduct /* #2115 */, pitEconomics, pitMetalOf, elementOfModel, SECTORS, hasSectorSlopes, slopeForSector, priceUnitsFor, PRICED_MASS_T, metalAmountText, gradeWithElement, oxideSuffix /* #2594 */ } from "../lib/pitShell.js"; // pitMetalOf / elementOfModel: #1748; SECTORS: #1881
+import { joinByProduct /* #2115 */, pitEconomics, pitMetalOf, elementOfModel, SECTORS, hasSectorSlopes, slopeForSector, priceUnitsFor, PRICED_MASS_T, metalAmountText, gradeWithElement, oxideSuffix /* #2594 */, gradeUnitText /* #2111 */ } from "../lib/pitShell.js"; // pitMetalOf / elementOfModel: #1748; SECTORS: #1881
 import { sgSummary } from "../lib/gradeTonnage.js";
 import { valueUnit } from "../lib/blockModelExport.js";
 import { categoricalModels } from "../lib/geologyForward.js";
@@ -23,6 +23,7 @@ import { holeTraces } from "../lib/evidenceSources.js";
 import { excludeQAQC } from "../lib/qaqc.js";
 import { valueIn } from "../lib/geochem.js";
 import { t as tr } from "../lib/i18n.js";
+import CollarLevelsNote from "./CollarLevelsNote.jsx"; // TASKS.csv #2584 — the lowest collar used where collars stand on benches
 
 const row = { display: "flex", alignItems: "center", gap: 6, justifyContent: "space-between", marginTop: 4, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" };
 const note = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 };
@@ -180,7 +181,7 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove,
       if (r.cancelled) { setMsg(tr("Cancelled: nothing was added.")); return; }
       setRes(null); kept = null;
       if (r.failed || r.empty) {
-        setMsg(r.empty ? tr("At these inputs no block pays for the rock over it, so there is no pit. Cut-off grade {c} {unit}.", { c: Number(r.cutoff.toPrecision(3)), unit: `${unit}${element ? ` ${element}` : ""}${oxideSuffix(r.cutoff, unit, element)}` /* #2594 */ })
+        setMsg(r.empty ? tr("At these inputs no block pays for the rock over it, so there is no pit. Cut-off grade {c} {unit}.", { c: Number(r.cutoff.toPrecision(3)), unit: `${gradeUnitText(unit, element) /* #2111 */}${element ? ` ${element}` : ""}${oxideSuffix(r.cutoff, unit, element)}` /* #2594 */ })
           : r.failed === "underground" ? tr("The collars look like underground drill positions ({upward} hole(s) drilled upward, {stacked} pair(s) of collars stacked over each other): no ground surface is known, so no pit is cut from them. Load a terrain (Maps > Terrain) for the real surface.", { upward: r.underground?.upward ?? 0, stacked: r.underground?.stacked ?? 0 }) /* #2276 */
           : r.failed === "by-grid" ? tr("\"{by}\" is not on the same grid as \"{model}\": no block centre matches. Estimate the by-product with the same cell size over the same area (the same holes or area box) and run again.", { by: byModel?.name || "?", model: model.name }) // #1917
           : r.failed === "by-units" ? tr("The by-product model's grade unit cannot be priced.")
@@ -298,8 +299,8 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove,
         {field("revenueFactor", tr("Revenue factor"), { title: tr("Multiplies the price: below 1 gives a smaller pit, a quick test of how much it depends on price.") })}
         {field("size", tr("Pit block size (m)"), { placeholder: tr("auto"), title: tr("Blank: the block model's own size. A larger size runs faster and draws coarser walls; a block keeps its own ore or waste decision either way.") })}
         {cutoff != null && <div style={{ ...note, marginTop: 4 }}>{eco?.by
-          ? tr("Cut-off at these inputs: a block is ore when its revenue over both metals is at least the ${p}/t processing cost; alone, {el} {c} {unit} or {el2} {c2} {unit2}.", { p: value("processingCost"), el: element || model.name, c: Number(cutoff.toPrecision(3)), unit: unit + oxideSuffix(cutoff, unit, element) /* #2594 */, el2: byLabel, c2: Number(eco.by.cutoff.toPrecision(3)), unit2: byUnit + oxideSuffix(eco.by.cutoff, byUnit, byElement) }) /* #1917 */
-          : tr("Cut-off grade at these inputs: {c} {unit}.", { c: Number(cutoff.toPrecision(3)), unit: `${unit}${element ? ` ${element}` : ""}${oxideSuffix(cutoff, unit, element)}` /* #2594 — '0.119 % Li (0.256 % Li2O)' */ })}</div>}
+          ? tr("Cut-off at these inputs: a block is ore when its revenue over both metals is at least the ${p}/t processing cost; alone, {el} {c} {unit} or {el2} {c2} {unit2}.", { p: value("processingCost"), el: element || model.name, c: Number(cutoff.toPrecision(3)), unit: gradeUnitText(unit, element) + oxideSuffix(cutoff, unit, element) /* #2594; g/t: #2111 */, el2: byLabel, c2: Number(eco.by.cutoff.toPrecision(3)), unit2: gradeUnitText(byUnit, byElement) + oxideSuffix(eco.by.cutoff, byUnit, byElement) }) /* #1917 */
+          : tr("Cut-off grade at these inputs: {c} {unit}.", { c: Number(cutoff.toPrecision(3)), unit: `${gradeUnitText(unit, element)}${element ? ` ${element}` : ""}${oxideSuffix(cutoff, unit, element)}` /* #2594 — '0.119 % Li (0.256 % Li2O)' */ })}</div>}
         {!terrain && <div style={warn}>{collars.some((c) => Number.isFinite(c.z))
           ? tr("No terrain is loaded, so the ground is interpolated between the {n} collar elevations. Load a terrain in Maps for the real surface.", { n: collars.filter((c) => Number.isFinite(c.z)).length })
           : tr("No terrain is loaded and no collar has an elevation, so the top of each column of the block model stands in for the ground, interpolated between columns: nothing above the highest block is costed. Load a terrain in Maps for the real surface.")}</div>}{/* #1850 */}
@@ -363,7 +364,7 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove,
           {res.support && res.oreExtrapolatedShare > 0.5 && <div style={warn}>{tr("Most of this ore is in blocks the estimate classed as extrapolated: the pit rests on grades the drilling does not surround.")}</div>}
           <UndergroundOreNote model={model} cutoff={res.cutoff ?? cutoff} />
           {(res.slopeDeg > 65 || res.maxDepth > 500) && <div style={warn}>{tr("Steeper than 65° overall or deeper than 500 m is beyond most open pits: treat it as a sign the body is an underground question.")}</div>}
-          {res.groundSource === "collars" && <div style={note}>{tr("The ground is interpolated between the collars, not a terrain.")}</div>}
+          {res.groundSource === "collars" && <><div style={note}>{tr("The ground is interpolated between the collars, not a terrain.")}</div><CollarLevelsNote collars={collars} /></>}
           {res.groundSource === "model top" && <div style={note}>{tr("The ground is the top of the block model's columns, interpolated between them, not a terrain.")}</div>}{/* #1850 */}
           {res.oreAboveGroundBlocks > 0 && <div style={warn}>{tr("{t} t in {n} ore-grade block(s) sit wholly above the ground and were left out: the estimate was not clipped to the ground (3D Modelling › Estimation, \"Only blocks below the ground\").", { t: big(res.oreAboveGroundT), n: res.oreAboveGroundBlocks })}</div>}{/* #1616 */}
           {res.touchesBase && <div style={warn}>{tr("The pit reaches the bottom of the block model: it may go deeper if the body does.")}</div>}

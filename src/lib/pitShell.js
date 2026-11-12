@@ -67,16 +67,33 @@ export function reportedOxide(element) {
   const ox = (SOLD_AS[el] || []).find(([p]) => /O\d?$/.test(p));
   return ox ? [ox[0], ox[1]] : null;
 }
-// " (0.256 % Li2O)" after a grade already written with its element, or ""
-export function oxideSuffix(v, unit, element, fmt = (x) => String(Number(x.toPrecision(3)))) {
-  const ox = element && Number.isFinite(v) ? reportedOxide(element) : null;
-  return ox ? ` (${fmt(v * ox[1])} ${unit || ""} ${ox[0]})`.replace(/ {2,}/g, " ") : "";
+// TASKS.csv #2111 (review #2013, Woodjam) — a copper model in ppm printed 'Cu 1260 ppm' and 'Mean grade 6740 ppm' where a mining engineer
+// reads 0.126 % / 0.674 %: a ppm grade of a metal reported in percent gets its percent beside it, and a precious metal's ppm is written as
+// g/t (the same number: 1 ppm = 1 g/t by mass); a ppb one gets its g/t beside it. Uranium stays in ppm (U3O8 ppm is how it is read).
+const PRECIOUS = new Set(["Au", "Ag", "Pt", "Pd", "Rh", "Ir", "Os", "Ru"]);
+const READ_AS_PERCENT = new Set(["Cu", "Zn", "Pb", "Ni", "Co", "Sn", "Mo", "W", "Li", "Mn", "Fe", "V", "Ti", "Cr"]);
+export const gradeUnitText = (unit, element) => (/^ppm$/i.test(String(unit || "")) && PRECIOUS.has(element) ? "g/t" : unit || "");
+export const readsAsPercent = (unit, element) => /^ppm$/i.test(String(unit || "")) && READ_AS_PERCENT.has(element);
+// what follows the grade in brackets: its percent, its oxide, its g/t
+function gradeExtras(v, unit, element, fmt) {
+  if (!element || !Number.isFinite(v)) return [];
+  const ox = reportedOxide(element), pct = readsAsPercent(unit, element), out = [];
+  if (pct) out.push(`${fmt(v / 1e4)} % ${element}`);
+  if (ox) out.push(pct ? `${fmt((v / 1e4) * ox[1])} % ${ox[0]}` : `${fmt(v * ox[1])} ${gradeUnitText(unit, element)} ${ox[0]}`.replace(/ {2,}/g, " "));
+  if (/^ppb$/i.test(String(unit || "")) && PRECIOUS.has(element)) out.push(`${fmt(v / 1000)} g/t ${element}`);
+  return out;
 }
-// "0.555 % Li (1.19 % Li2O)"; fmt(v) -> text (default three significant figures). No element: the unit alone, as before.
+// " (0.256 % Li2O)" (or " (0.126 % Cu)", #2111) after a grade already written with its unit (gradeUnitText) and element, or ""
+export function oxideSuffix(v, unit, element, fmt = (x) => String(Number(x.toPrecision(3)))) {
+  const x = gradeExtras(v, unit, element, fmt);
+  return x.length ? ` (${x.join("; ")})` : "";
+}
+// "0.555 % Li (1.19 % Li2O)", "6740 ppm Cu (0.674 % Cu)", "0.391 g/t Au" (a ppm model, #2111); fmt(v) -> text (default three significant
+// figures). No element: the unit alone, as before.
 export function gradeWithElement(v, unit, element, fmt = (x) => String(Number(x.toPrecision(3)))) {
   if (v == null || !Number.isFinite(v)) return "—";
-  const el = element ? ` ${element}` : "", ox = element ? reportedOxide(element) : null;
-  return `${fmt(v)} ${unit || ""}${el}${ox ? ` (${fmt(v * ox[1])} ${unit || ""} ${ox[0]})` : ""}`.replace(/ {2,}/g, " ");
+  const el = element ? ` ${element}` : "";
+  return `${fmt(v)} ${gradeUnitText(unit, element)}${el}${oxideSuffix(v, unit, element, fmt)}`.replace(/ {2,}/g, " ");
 }
 // the element a block model holds: its estimate's parameters, else a symbol at the start of its name ("Cu estimate (idw2, 20m)")
 // TASKS.csv #2436 — a uranium oxide named inside a longer field ("Gamma: eU3O8_cased_ppm", a logged gamma grade) is that oxide, priced per lb U3O8
@@ -170,8 +187,35 @@ export function oreDepthBelowCollars(cells, cutoff, collars, survey = []) {
 export const DEEP_ORE_M = 200, DEEP_ORE_UNDERGROUND_M = 100;
 export const undergroundOreVerdict = (d) => !!d && d.median >= (d.underground ? DEEP_ORE_UNDERGROUND_M : DEEP_ORE_M);
 
-export function collarGround(collars) {
+// TASKS.csv #2584 (review #2486, WA lithium pegmatite; Matt's decision 2026-11-11) — in a mined pit the collars stand on benches of
+// different mining stages: holes 10 m apart at RL 219.8 and 234.7, and the surface through all of them (229.5 there) is a ground that
+// never existed; the present floor is at or below the lowest. A collar with another collar within BENCH_PLAN_M in plan that is more
+// than BENCH_RL_M lower is left out of the collar ground, so the lowest collar there is used. A check, not a fact about the ground: on
+// a hillside steeper than about 18 degrees it lowers real ground too, which is why every tool using this ground says so (CollarLevelsNote).
+// -> { kept: [collars], higher: [the collars left out], planM, rlM }
+export const BENCH_PLAN_M = 15, BENCH_RL_M = 5;
+export function collarBenches(collars, { planM = BENCH_PLAN_M, rlM = BENCH_RL_M } = {}) {
   const pts = (collars || []).filter((c) => Number.isFinite(c?.x) && Number.isFinite(c?.y) && Number.isFinite(c?.z));
+  const cells = new Map(), key = (i, j) => `${i},${j}`;
+  pts.forEach((c) => { const k = key(Math.floor(c.x / planM), Math.floor(c.y / planM)); (cells.get(k) || cells.set(k, []).get(k)).push(c); });
+  const kept = [], higher = [];
+  for (const c of pts) {
+    const i = Math.floor(c.x / planM), j = Math.floor(c.y / planM);
+    let lower = false;
+    for (let di = -1; di <= 1 && !lower; di++) for (let dj = -1; dj <= 1 && !lower; dj++) for (const o of cells.get(key(i + di, j + dj)) || []) {
+      if (o.z < c.z - rlM && Math.hypot(o.x - c.x, o.y - c.y) <= planM) { lower = true; break; }
+    }
+    (lower ? higher : kept).push(c);
+  }
+  return { kept, higher, planM, rlM };
+}
+// the collar ground: the four nearest collars, inverse distance squared, over the collars collarBenches keeps (#2584)
+export function collarGround(collars) {
+  return idwGround(collarBenches(collars).kept);
+}
+// the same interpolation over any points (a weathered base, the block model's column tops), with no bench check
+export function idwGround(points) {
+  const pts = (points || []).filter((c) => Number.isFinite(c?.x) && Number.isFinite(c?.y) && Number.isFinite(c?.z));
   if (!pts.length) return null;
   // TASKS.csv #1903 — the four nearest come out of a cell bucket, ring by ring, with the same answer as sorting every collar: on
   // Lawyers (446 collars) a dump grid of 30-40k cells sorted 446 distances per cell and froze the window 3-5 s; the pit and the
@@ -217,7 +261,7 @@ export function modelTopGround(cells) {
     const k = `${Math.round(c.x * 100)}|${Math.round(c.y * 100)}`, t = c.z + c.dz / 2, p = tops.get(k);
     if (!p) tops.set(k, { x: c.x, y: c.y, z: t }); else if (t > p.z) p.z = t;
   }
-  return collarGround([...tops.values()]);
+  return idwGround([...tops.values()]); // #2584: column tops, no bench check
 }
 
 // ---------- the grid ----------
@@ -618,7 +662,7 @@ export function weatheredOf(w) {
   if (!w || !(w.density > 0)) return null;
   if (w.thicknessM > 0) return { density: w.density, depthAt: () => w.thicknessM };
   const pts = (w.points || []).filter((p) => [p.x, p.y, p.depth].every(Number.isFinite)).map((p) => ({ x: p.x, y: p.y, z: p.depth }));
-  const at = pts.length ? collarGround(pts) : null;
+  const at = pts.length ? idwGround(pts) : null; // #2584: depths, not collars
   return at ? { density: w.density, depthAt: at } : null;
 }
 // the whole run, for the worker and the tests. inputs: { cells, unit, price, priceUnit, recovery, miningCost, processingCost, density, slopeDeg, revenueFactor, size }; ground as for buildPitGrid

@@ -447,8 +447,12 @@ export function parseDXFMesh(text, opts = {}) {
 // they'd expect), falling back to a shared "GEOSTRIX" layer otherwise.
 // TASKS.csv #1114 — exported with the R12 header for the surface writer (meshExport.js), which had its own of each
 export const DXF_R12_HEADER = ["0", "SECTION", "2", "HEADER", "9", "$ACADVER", "1", "AC1009", "0", "ENDSEC"];
+// TASKS.csv #1946 (Matt's decision, 2026-11-11) — a layer keeps its name as typed, spaces and accents included (DXF
+// R2000+ allows them and R12 readers tolerate them), so a string 'String 1' exported and imported again is 'String 1',
+// not 'String_1'. Only the characters a DXF symbol name forbids (< > / \ " : ; ? * | , = ` and control characters)
+// become '_'; the ends are trimmed because readers (ours too) trim group values.
 export function sanitizeLayerName(name) {
-  return (String(name || "GEOSTRIX").replace(/[^A-Za-z0-9_.$-]+/g, "_") || "GEOSTRIX").slice(0, 255);
+  return (String(name || "GEOSTRIX").replace(/[<>/\\":;?*|,=`\u0000-\u001f\u007f]+/g, "_").trim() || "GEOSTRIX").slice(0, 255);
 }
 
 // TASKS.csv #1060 (review #1016: Micromine user, structural geologist) — opts.layerOf(feature) names each entity's

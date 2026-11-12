@@ -7,7 +7,7 @@ import { Box, Download, Layers3 } from "./icons.js";
 import { TaskPaneHeader } from "./Ribbon.jsx";
 import { useStore } from "../lib/store.jsx";
 import { stopeRows } from "../lib/stopeOutlines.js";
-import { elementOfModel, gradeWithElement } from "../lib/pitShell.js"; // TASKS.csv #2594
+import { elementOfModel, gradeWithElement, gradeUnitText, readsAsPercent } from "../lib/pitShell.js"; // TASKS.csv #2594; units: #2111
 import { runStopeOutlinesAsync } from "../lib/stopeOutlinesClient.js"; // TASKS.csv #2279 — off the UI thread
 import { gradeCandidate } from "../lib/gradeCandidate.js"; // #1848
 import { categoricalModels } from "../lib/geologyForward.js";
@@ -17,6 +17,7 @@ import { toExportCsv, crsCell } from "../lib/tabular.js";
 import { saveFile } from "../lib/desktop.js";
 import { pBtn, smallSel } from "../lib/sidebarStyles.js";
 import { t as tr } from "../lib/i18n.js";
+import CollarLevelsNote from "./CollarLevelsNote.jsx"; // TASKS.csv #2584 — the lowest collar used where collars stand on benches
 import { stopeRuns, stopeIdsOnLevel, stopeStringIds } from "../lib/stopeRuns.js"; // TASKS.csv #1968
 import NotOfferedGrades from "./NotOfferedGrades.jsx"; // TASKS.csv #2436
 import { stopeGroundSource, groundGrid, flatBodyCheck, drillLevels } from "../lib/stopeGround.js"; // TASKS.csv #2438; drillLevels: #2284
@@ -28,7 +29,7 @@ const warn = { ...note, color: "var(--color-warn-text-strong)", marginTop: 4 };
 const num = { ...smallSel, width: 84 };
 const big = (v) => new Intl.NumberFormat(undefined, { notation: "compact", maximumSignificantDigits: 3 }).format(v);
 const LEVEL_COLOURS = ["#e76f51", "#f4a261", "#e9c46a", "#2a9d8f", "#264653", "#8ab17d", "#bc6c25", "#6d597a"];
-const EMPTY = { modelId: "", cutoff: "", levelH: "", zMin: "", zMax: "", minWidth: "", minLength: "", skin: "", density: "", dip: "", dipDir: "", pitId: "", pillar: "", crown: "" }; // crown: #2438 // dip / dipDir: #1953; pitId / pillar: #1964
+const EMPTY = { modelId: "", cutoff: "", levelH: "", zMin: "", zMax: "", minWidth: "", minLength: "", skin: "", density: "", dip: "", dipDir: "", pitId: "", pillar: "", crown: "", cutIn: "" }; // crown: #2438; cutIn: #2111 ("%" for a ppm model of a metal read in percent) // dip / dipDir: #1953; pitId / pillar: #1964
 let kept = null; // #1356 — the last result outlives the pane (this session)
 
 // onAdd as the pit pane's (a solid into the generated surfaces); onRemove(id) takes one out again (#1887: a re-run replaces the
@@ -56,9 +57,12 @@ export default function StopesPane({ onAdd, onRemove, onClose, stopes = [], onSh
   const blockH = model?.cells?.[0]?.dz; // #1886 — the level interval's placeholder and the slicing warning
   const set = (k) => (e) => { setF((p) => ({ ...p, [k]: e.target.value })); setMsg(null); };
   const v = (k) => (f[k] === "" ? null : Number(f[k]));
+  // TASKS.csv #2111 — a Cu model in ppm takes its cut-off in % too (0.3 % = 3000 ppm); the run, its record and the names stay in the model's unit
+  const pctOk = readsAsPercent(unit, element), pctIn = pctOk && f.cutIn === "%";
+  const cutV = v("cutoff") == null ? null : pctIn ? +(v("cutoff") * 1e4).toPrecision(12) : v("cutoff");
   const rangeBad = v("zMin") != null && v("zMax") != null && !(v("zMax") > v("zMin")); // #1893
   const dipTyped = v("dip") != null || v("dipDir") != null, dipBad = dipTyped && !(v("dip") > 0 && v("dip") < 90 && v("dipDir") != null && v("dipDir") >= 0 && v("dipDir") <= 360); // #1953 — both or neither
-  const missing = !model || !(v("cutoff") >= 0) || !(v("levelH") > 0) || !(v("density") > 0) || rangeBad || dipBad;
+  const missing = !model || !(cutV >= 0) || !(v("levelH") > 0) || !(v("density") > 0) || rangeBad || dipBad;
   const run = async () => {
     if (missing || busy) return;
     // #2279 — a level interval under the block height, said BEFORE the run (it came after a 3 s run)
@@ -82,7 +86,7 @@ export default function StopesPane({ onAdd, onRemove, onClose, stopes = [], onSh
     let r;
     setBusy({ level: 0, levels: 0 }); setMsg(null);
     try {
-      job.current = runStopeOutlinesAsync(model, { cutoff: v("cutoff"), levelH: v("levelH"), zMin: v("zMin"), zMax: v("zMax"), minWidth: v("minWidth") || 0, minLength: v("minLength") || 0, skin: v("skin") || 0, density: v("density"), dipDeg: dipTyped ? v("dip") : null, dipDirDeg: dipTyped ? v("dipDir") : null /* #1953 */, pillar: pit ? v("pillar") || 0 : 0 /* #1964 */, crown: v("crown") || 0 /* #2438 */ }, ceilingAt, (level, levels) => setBusy({ level, levels }), groundIn);
+      job.current = runStopeOutlinesAsync(model, { cutoff: cutV, levelH: v("levelH"), zMin: v("zMin"), zMax: v("zMax"), minWidth: v("minWidth") || 0, minLength: v("minLength") || 0, skin: v("skin") || 0, density: v("density"), dipDeg: dipTyped ? v("dip") : null, dipDirDeg: dipTyped ? v("dipDir") : null /* #1953 */, pillar: pit ? v("pillar") || 0 : 0 /* #1964 */, crown: v("crown") || 0 /* #2438 */ }, ceilingAt, (level, levels) => setBusy({ level, levels }), groundIn);
       r = await job.current.promise;
     } catch (e) { kept = null; setRes(null); setMsg(tr("The outlines failed: {error}", { error: e?.message || String(e) })); return; } // #1884 — never a silent stale result
     finally { job.current = null; setBusy(null); }
@@ -94,7 +98,7 @@ export default function StopesPane({ onAdd, onRemove, onClose, stopes = [], onSh
     if (addedIds.length && onRemove) addedIds.forEach((id) => onRemove(id));
     const oldStrings = kept?.addedStringIds || []; // #1922 — and its outline strings
     if (oldStrings.length) { const gone = new Set(oldStrings); setDesignStrings((L) => L.filter((s) => !gone.has(s.id))); }
-    kept = { ...r, inputs: { ...f }, model: model.name, pitName: pit ? String(pit.name) : null /* #1964 */, unit, element /* #2594 */, groundSource: groundIn ? ground.source : null /* #2438 */, seconds: Math.round((performance.now() - t0) / 100) / 10, addedIds: [], runId: `stoperun_${Date.now()}` }; // runId: #1968 — its solids and strings are managed together
+    kept = { ...r, inputs: { ...f, ...(pctIn ? { cutoff: String(cutV), cutIn: "" } : {}) /* #2111 */ }, model: model.name, pitName: pit ? String(pit.name) : null /* #1964 */, unit, element /* #2594 */, groundSource: groundIn ? ground.source : null /* #2438 */, seconds: Math.round((performance.now() - t0) / 100) / 10, addedIds: [], runId: `stoperun_${Date.now()}` }; // runId: #1968 — its solids and strings are managed together
     setRes(kept); setAdded({ solids: false, strings: false }); setMsg(null);
   };
   // #1885 — what the typed width and skin became on this model's columns
@@ -137,8 +141,10 @@ export default function StopesPane({ onAdd, onRemove, onClose, stopes = [], onSh
       <NotOfferedGrades voxelModels={voxelModels} />{/* TASKS.csv #2436 */}
       {models.length > 0 && (<>
         <label style={row}>{tr("Block model")}<select value={f.modelId} onChange={set("modelId")} style={{ ...smallSel, width: 0, flex: 1, minWidth: 0 }} aria-label={tr("Block model of the stopes")}>{models.map((m) => <option key={m.id ?? m.name} value={m.id ?? m.name}>{m.name}</option>)}</select></label>
-        {field("cutoff", unit ? tr("Cut-off ({unit})", { unit: element ? `${unit} ${element}` : unit }) : tr("Cut-off"))}
-        {element && v("cutoff") > 0 && gradeWithElement(v("cutoff"), unit, element, (x) => String(Number(x.toPrecision(4)))).includes("(") && <div style={{ ...note, marginTop: 0 }}>{tr("Cut-off: {g}", { g: gradeWithElement(v("cutoff"), unit, element, (x) => String(Number(x.toPrecision(4)))) })}</div>}{/* #2594 — 0.4645 % Li (1 % Li2O) */}
+        {pctOk
+          ? <label style={row}>{tr("Cut-off ({unit})", { unit: element })}<span style={{ display: "flex", gap: 4 }}><input type="number" min={0} step="any" value={f.cutoff} onChange={set("cutoff")} style={num} aria-label={tr("Cut-off")} /><select value={f.cutIn === "%" ? "%" : ""} onChange={set("cutIn")} style={{ ...smallSel, width: 56 }} aria-label={tr("Unit of the cut-off")}><option value="">{unit}</option><option value="%">%</option></select></span></label>
+          : field("cutoff", unit ? tr("Cut-off ({unit})", { unit: element ? `${gradeUnitText(unit, element)} ${element}` : unit }) : tr("Cut-off"))}{/* #2111 — % for a ppm Cu model; g/t for a ppm Au one */}
+        {element && cutV > 0 && gradeWithElement(cutV, unit, element, (x) => String(Number(x.toPrecision(4)))).includes("(") && <div style={{ ...note, marginTop: 0 }}>{tr("Cut-off: {g}", { g: gradeWithElement(cutV, unit, element, (x) => String(Number(x.toPrecision(4)))) })}</div>}{/* #2594 — 0.4645 % Li (1 % Li2O) */}
         {field("levelH", tr("Level interval (m)"), { title: tr("The height of each stope: the distance between sublevels. A column counts as ore on a level only where its blocks fill at least half of it."), placeholder: blockH ? String(blockH) : "" })}
         {field("zMin", tr("From RL (m)"), { placeholder: zRange ? String(Math.round(zRange[0] * 10) / 10) : "" })}{/* the level a blank run starts at (the model's base): #1923, #1919 */}
         {levels && <div style={{ ...note, marginTop: 2 }}>{tr("The collars sit on {n} drill levels ({list} m), a median {s} m apart.", { n: levels.levels.length, list: levels.levels.slice(0, 6).map((v) => Math.round(v)).join(", ") + (levels.levels.length > 6 ? ", …" : ""), s: Math.round(levels.spacing) })} <button onClick={() => setF((p) => ({ ...p, zMin: String(Math.round(levels.from)), levelH: String(Math.round(levels.spacing)) }))} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "1px 6px" }}>{tr("Use the drill levels")}</button></div>}{/* TASKS.csv #2284 */}
@@ -156,6 +162,7 @@ export default function StopesPane({ onAdd, onRemove, onClose, stopes = [], onSh
         {/* TASKS.csv #2438 — the ground the levels stop under, and an optional crown */}
         {ground.at && field("crown", tr("Crown under the ground (m)"), { placeholder: "0", title: tr("Rock left between the ground and the top of the highest stope. Blank: none; no stope reaches above the ground.") })}
         {!ground.at && <div style={note}>{ground.underground ? tr("The collars look like underground drill positions, so no ground is known: the levels are not checked against the surface. Load a terrain (Maps > Terrain).") : tr("No terrain or collar elevations: the levels are not checked against the ground.")}</div>}
+        {ground.source === "collars" && <CollarLevelsNote collars={collars} />}
         {dipBad && <div style={warn}>{tr("A dip needs both the dip (0–90°) and the dip direction (0–360°).")}</div>}
         {sg && !f.density && <div style={{ ...note, marginTop: 2 }}><button onClick={() => setF((p) => ({ ...p, density: String(sg.mean) }))} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "1px 6px" }}>{tr("Use the logged mean, {v}", { v: sg.mean })}</button></div>}
         {model && <div style={note}>{tr("Columns of {dx} × {dy} m (the model's blocks); widths and skins round to whole columns.", { dx: model.cells[0]?.dx ?? "?", dy: model.cells[0]?.dy ?? "?" })}</div>}

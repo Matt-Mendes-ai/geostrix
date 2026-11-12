@@ -17,6 +17,7 @@ import { saveFile } from "../lib/desktop.js";
 import { iconAction } from "../lib/a11y.js";
 import { pBtn, smallSel } from "../lib/sidebarStyles.js";
 import { t as tr } from "../lib/i18n.js";
+import CollarLevelsNote from "./CollarLevelsNote.jsx"; // TASKS.csv #2584 — the lowest collar used where collars stand on benches
 import { median } from "../lib/arrayStats.js";
 
 const row = { display: "flex", alignItems: "center", gap: 6, justifyContent: "space-between", marginTop: 4, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" };
@@ -367,6 +368,7 @@ export default function DesignLinesPane({ view, onAdd, surfaces = [], onClose })
             {clearance && wallSelf < 10 && <div style={warn}>{tr("The line passes within {m} m of itself near {x}, {y}, {z}: it may run through its own opening.", { m: m1(wallSelf), x: m1(clearance.at[0]), y: m1(clearance.at[1]), z: m1(clearance.at[2]) })}</div>}
             {above > 0.5 && <div style={warn}>{terrain ? tr("{m} m of this line, in plan, is above the terrain.", { m: m1(above) }) : tr("{m} m of this line, in plan, is above the ground interpolated between the collars.", { m: m1(above) })}</div>}
             {!terrain && collarSurface && <div style={note}>{tr("No terrain: the line is checked against the ground interpolated between the collars.")}</div>}{/* #2600 */}
+            {!terrain && collarSurface && <CollarLevelsNote collars={collars} />}
             {!terrain && !collarSurface && <div style={note}>{tr("No terrain: the line is not checked against the ground.")}</div>}
           </div>
           <div style={label}>{tr("Profile and clearance")}</div>
