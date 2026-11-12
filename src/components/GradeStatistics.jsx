@@ -286,6 +286,7 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
                 {activeElements.map((e) => <option key={e.symbol} value={e.symbol}>{e.symbol}</option>)}
               </select>
             </label>
+            {source === "assays" && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 4, lineHeight: 1.4 }}>{tr("n counts the samples with a {symbol} result, each metre once; a sample takes the domain code it overlaps most.", { symbol })}</div>}{/* TASKS.csv #2752 */}
             {source === "assays" ? (
               <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("Domain (optional)")}<select value={domainKey} onChange={(e) => setDomainKey(e.target.value)} style={{ ...sel, display: "block", marginTop: 4 }}>
                   <option value="">{tr("— none, all intervals together —")}</option>

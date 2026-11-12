@@ -17,7 +17,7 @@ test("two logs at the interval's middle, both required", () => {
 
 test("wired: the second layer / code and the AND in the match", () => {
   const m = readFileSync(new URL("../src/components/IsoconTool.jsx", import.meta.url), "utf8");
-  assert.match(m, /const codeOf2 = flt\.code2 && domainRows2 \? domainOfInterval\(domainRows2\) : null;/);
+  assert.match(m, /const codeOf2 = flt\.code2 && domainRows2 \? codeFn\(domainRows2\) : null;/); // the shared rule since #2766
   assert.match(m, /if \(codeOf2 && codeOf2\(a\) !== flt\.code2\) return false;/);
   assert.match(m, /aria-label=\{tr\("Second layer"\)\}/);
   assert.match(m, /\[rows, flt, domainRows, domainRows2, elementUnits\]/);

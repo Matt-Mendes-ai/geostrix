@@ -2010,6 +2010,13 @@ function ViewportControls({ steepHoles = false, legendReloaded = false, sel, the
         title={scaleText ? tr("Print this frame's scale ({s}) in its lower-right corner: for a page with maps at several scales, where one {scale} cannot name them all.", { s: scaleText }) : tr("Capture the view first: the scale comes from the capture.")}>
         <input type="checkbox" disabled={!scaleText} checked={!!sel.scaleCaption && !!scaleText} onChange={(e) => updateSelected({ scaleCaption: e.target.checked })} />{tr("Print its scale in the frame")}
       </label>
+      {/* TASKS.csv #2760 — the page's maps are at several scales and this one does not print its own: say so (one {scale} cannot name them all) */}
+      {scaleText && !sel.scaleCaption && others.some((o) => { const t = viewportScaleText(o); return t && t !== scaleText; }) && (
+        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginTop: -4, marginBottom: 6, lineHeight: 1.4 }}>
+          {tr("This page's maps are at different scales ({list}): tick this on each so every frame states its own.", { list: [...new Set([scaleText, ...others.map(viewportScaleText).filter(Boolean)])].join(", ") })}{" "}
+          <button type="button" onClick={() => updateSelected({ scaleCaption: true })} style={{ fontSize: "var(--font-size-xs)", padding: "1px 6px" }}>{tr("Print it")}</button>
+        </div>
+      )}
       <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: gridOk ? "var(--color-text)" : "var(--color-text-muted)", marginBottom: 6, cursor: gridOk ? "pointer" : "default" }}
         title={gridOk ? tr("Draw labelled easting/northing lines over this view") : tr("Needs a top-down, true-scale capture: set the 3D view to Top, tick true scale, and refresh this viewport.")}>
         <input type="checkbox" disabled={!gridOk} checked={!!sel.utmGrid && gridOk} onChange={(e) => updateSelected({ utmGrid: e.target.checked })} />{tr("Coordinate grid (labelled)") /* #2300: local metres are not UTM; #2484: nor is MGA / any other projection: the caption names the grid */}{gridOk && sel.utmGrid && (

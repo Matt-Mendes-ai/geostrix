@@ -13,7 +13,8 @@ import { toExportCsv } from "../lib/tabular.js"; // TASKS.csv #1022 — every ex
 import { useStore } from "../lib/store.jsx"; // TASKS.csv #1521 — the logs, for "add by filter"
 import { labAssays } from "../lib/qaqc.js"; // TASKS.csv #2348 — lab grades only (#1673)
 import { sharedImmobile, groupMeans, MIN_GROUP_N } from "../lib/isoconGroups.js"; // TASKS.csv #2348
-import { domainLayerChoices, domainOfInterval } from "../lib/domainLayers.js"; // #1521
+import { domainLayerChoices, foldDomainRows } from "../lib/domainLayers.js"; // #1521; foldDomainRows: #2787
+import { codeIndex, codeAt } from "../lib/sampleLithology.js"; // TASKS.csv #2766 — the shared rule for a sample's code
 import { holesMatching } from "../lib/holeFilter.js"; // #1521
 import { LAYER_META } from "../lib/layers.js"; // #1521
 import { isoconRows } from "../lib/analysisExports.js"; // TASKS.csv #1083
@@ -62,17 +63,20 @@ export default function IsoconTool({ assays: assaysIn, assayElements, onClose })
   const { layers = {}, customLayers = [] } = useStore();
   const [flt, setFlt] = useState({ layer: "", code: "", layer2: "", code2: "", sym: "", min: "", max: "", holes: "", from: "", to: "" }); // layer2 / code2: #2514
   const domainChoices = useMemo(() => domainLayerChoices(layers, customLayers, (k) => tr(LAYER_META[k]?.label || k)), [layers, customLayers]);
-  const domainRows = useMemo(() => domainChoices.find((c) => c.key === flt.layer)?.rows || null, [domainChoices, flt.layer]);
-  const codes = useMemo(() => (domainRows ? [...new Set(domainRows.map((r) => String(r.value ?? "")).filter(Boolean))].sort() : []), [domainRows]);
+  // TASKS.csv #2787 — spellings that differ only by case or spaces are one code (foldDomainRows, as Estimation since #2427)
+  const domainRows = useMemo(() => { const r = domainChoices.find((c) => c.key === flt.layer)?.rows; return r ? foldDomainRows(r).rows : null; }, [domainChoices, flt.layer]);
+  const codes = useMemo(() => (domainRows ? [...new Set(domainRows.map((r) => String(r.value ?? "").trim()).filter(Boolean))].sort() : []), [domainRows]);
   // TASKS.csv #2514 (review #2486) — a second log condition, joined by AND: 'fresh pegmatite' (rock = P and weathering = FR) against
   // 'weathered pegmatite' (rock = P and weathering = W) could not be built with one layer
-  const domainRows2 = useMemo(() => domainChoices.find((c) => c.key === flt.layer2)?.rows || null, [domainChoices, flt.layer2]);
-  const codes2 = useMemo(() => (domainRows2 ? [...new Set(domainRows2.map((r) => String(r.value ?? "")).filter(Boolean))].sort() : []), [domainRows2]);
+  const domainRows2 = useMemo(() => { const r = domainChoices.find((c) => c.key === flt.layer2)?.rows; return r ? foldDomainRows(r).rows : null; }, [domainChoices, flt.layer2]);
+  const codes2 = useMemo(() => (domainRows2 ? [...new Set(domainRows2.map((r) => String(r.value ?? "").trim()).filter(Boolean))].sort() : []), [domainRows2]);
   const matchIds = useMemo(() => {
     const active = flt.code || flt.code2 || flt.sym || flt.holes.trim() || flt.from !== "" || flt.to !== "";
     if (!active) return [];
-    const codeOf = flt.code && domainRows ? domainOfInterval(domainRows) : null;
-    const codeOf2 = flt.code2 && domainRows2 ? domainOfInterval(domainRows2) : null; // #2514
+    // TASKS.csv #2766 — the code each interval overlaps most (#2510's codeAt), as the diagram filter, Grade stats and Thresholds
+    const codeFn = (rows) => { const ix = codeIndex(rows); return (a) => codeAt(ix, a.hole_id, a.from, a.to); };
+    const codeOf = flt.code && domainRows ? codeFn(domainRows) : null;
+    const codeOf2 = flt.code2 && domainRows2 ? codeFn(domainRows2) : null; // #2514
     const lo = flt.min === "" ? -Infinity : Number(flt.min), hi = flt.max === "" ? Infinity : Number(flt.max);
     const d0 = flt.from === "" ? -Infinity : Number(flt.from), d1 = flt.to === "" ? Infinity : Number(flt.to);
     const holeOk = flt.holes.trim() ? new Set(holesMatching([...new Set(rows.map((r) => r.a.hole_id))], flt.holes)) : null;
@@ -171,7 +175,7 @@ export default function IsoconTool({ assays: assaysIn, assayElements, onClose })
           <div style={{ border: "1px solid var(--color-border)", borderRadius: 6, padding: "8px 10px", display: "flex", flexDirection: "column", gap: 6 }}>{/* TASKS.csv #1521 */}
             <div style={label}>{tr("Add intervals by filter")}</div>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center", fontSize: "var(--font-size-sm)" }}>
-              <select value={flt.layer} onChange={(e) => setFlt((f) => ({ ...f, layer: e.target.value, code: "" }))} style={sel} aria-label={tr("Layer")} title={tr("The log whose code at the interval's midpoint must match")}>
+              <select value={flt.layer} onChange={(e) => setFlt((f) => ({ ...f, layer: e.target.value, code: "" }))} style={sel} aria-label={tr("Layer")} title={tr("The log whose code the interval overlaps most must match")}>
                 <option value="">{tr("— any layer —")}</option>{domainChoices.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
               </select>
               {flt.layer && <select value={flt.code} onChange={(e) => setFlt((f) => ({ ...f, code: e.target.value }))} style={sel} aria-label={tr("Code")}><option value="">{tr("— any code —")}</option>{codes.map((v) => <option key={v} value={v}>{v}</option>)}</select>}

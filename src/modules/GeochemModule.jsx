@@ -96,6 +96,14 @@ const KEY_MAX = 16; // TASKS.csv #1519 — the on-screen colour key's entries
 // TASKS.csv #1670 — the sample-number column of a surface table (the import and the join of a second file)
 const SURFACE_ID_ALIASES = ["sample_id", "sampleid", "samp_num", "sample_num", "sample_number", "samp_id", "sample", "sample_no"];
 
+// TASKS.csv #2035 — the side panel's counts with the QC samples and the calculated elements apart (each part its own sentence for the
+// dictionaries, so no English is glued to numbers)
+function headerCounts({ n, qc, e, calc }) {
+  const a = qc ? tr("{n} intervals + {q} QC samples", { n: n.toLocaleString(), q: qc.toLocaleString() }) : tr("{n} intervals", { n: n.toLocaleString() });
+  const b = calc ? tr("{e} elements + {c} calculated", { e, c: calc }) : e === 1 ? tr("1 element") : tr("{e} elements", { e });
+  return `${a} · ${b}`;
+}
+
 export default function GeochemModule() {
   const store = useStore();
   const setTaskProgress = useSetTaskProgress(); // #2164
@@ -134,6 +142,9 @@ export default function GeochemModule() {
   // among the drill samples on every diagram ('1964 of 1964 samples plotted'). Left out by default, as Grade stats / Best intercepts /
   // Compositing do (#219), with a tick to plot them.
   const [plotQc, setPlotQc] = useKeptState(keptScope, "geochem.plotQc", false);
+  // TASKS.csv #2035 (review #2013, Woodjam) — the header counted 214 zero-length QC inserts as intervals and a calculated CuEq as an element:
+  // '1,750 intervals + 214 QC samples · 49 elements + 1 calculated'
+  const headCounts = useMemo(() => { let qc = 0; for (const a of assays) if (classifyQAQCRow(a) !== "regular") qc++; const calc = assayElements.filter((e) => e.calculated).length; return { n: assays.length - qc, qc, e: assayElements.length - calc, calc }; }, [assays, assayElements]);
   const qcInSource = useMemo(() => sourceAll.filter((a) => classifyQAQCRow(a) !== "regular").length, [sourceAll]);
   const sourceRows = useMemo(() => (plotQc || !qcInSource ? sourceAll : sourceAll.filter((a) => classifyQAQCRow(a) === "regular")), [sourceAll, plotQc, qcInSource]);
   const [lithMenuOpen, setLithMenuOpen] = useState(false);
@@ -1251,7 +1262,7 @@ export default function GeochemModule() {
 
         <div className="ge-section-label">{tr("Assays & pXRF")}</div>
         <div style={{ fontSize: 11, color: "#65717e", margin: "10px 0 4px" }}>
-          {assays.length ? tr(assayElements.length === 1 ? "{assays} intervals · 1 element" : "{assays} intervals · {assayElements} elements", { assays: assays.length, assayElements: assayElements.length }) : tr("No assays loaded")}{/* #2201 — a singular / plural pair */}
+          {assays.length ? (headCounts.qc || headCounts.calc ? headerCounts(headCounts) : tr(assayElements.length === 1 ? "{assays} intervals · 1 element" : "{assays} intervals · {assayElements} elements", { assays: assays.length, assayElements: assayElements.length })) : tr("No assays loaded")}{/* #2201 — a singular / plural pair; QC / calculated apart: #2035 */}
         </div>
         {/* TASKS.csv #624 — remove what was imported: a whole file, one element, or everything (all undoable) */}
         {assays.length > 0 && <AssayRemovePanel assays={assays} assayElements={assayElements} setAssays={setAssays} setAssayElements={setAssayElements} setNotices={setNotices} colorElement={colorElement} setColorElement={setColorElement} />}
@@ -1413,6 +1424,7 @@ export default function GeochemModule() {
                     <button type="button" onClick={() => setLithFilter(null)} style={{ ...selectStyle, padding: "3px 8px" }}>{tr("All")}</button>
                     <button type="button" onClick={() => setLithFilter(new Set())} style={{ ...selectStyle, padding: "3px 8px" }}>{tr("None")}</button>
                   </div>
+                  <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, maxWidth: 260, lineHeight: 1.4 }}>{tr("Counts every sample of the chosen source, with or without the plotted elements; a sample takes the code it overlaps most.")}</div>{/* TASKS.csv #2752 */}
                   {lithCounts.map(([code, n]) => {
                     const on = !lithFilter || lithFilter.has(code);
                     const toggle = () => setLithFilter((prev) => { const next = new Set(prev || lithCounts.map(([k]) => k)); if (next.has(code)) next.delete(code); else next.add(code); return next.size === lithCounts.length ? null : next; });
