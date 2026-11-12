@@ -11,7 +11,7 @@ import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay } from "../lib/modalStyles.js";
 import { activateOnKey } from "../lib/a11y.js";
 import { crsName, datumNote, loadEpsgRegistry, onEpsgRegistry } from "../lib/reproject.js";
-import { crsCandidatesAt, localCrsAt, parseLatLon, collarCentreLonLat, formatLonLat, collarSpread } from "../lib/projectCrs.js"; // collarSpread: #2181
+import { crsCandidatesAt, crsCandidatesByLanding, localCrsAt, parseLatLon, collarCentreLonLat, formatLonLat, collarSpread } from "../lib/projectCrs.js"; // collarSpread: #2181; ByLanding: #2892
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { smallGridCoordinates } from "../lib/crsFromColumns.js"; // TASKS.csv #2180 — a local grid pre-selected by the magnitude check
 
@@ -37,7 +37,9 @@ export default function ProjectCrsModal({ reason, points, suggested = null, noLo
   const [regTick, setRegTick] = useState(0);
   useEffect(() => { const off = onEpsgRegistry(() => setRegTick((n) => n + 1)); loadEpsgRegistry().catch(() => {}); return off; }, []);
   const at = parseLatLon(where);
-  const candidates = useMemo(() => (at ? crsCandidatesAt(at.lon, at.lat) : []), [at?.lat, at?.lon, regTick]);
+  // TASKS.csv #2892 — with collars: this zone and both neighbours, ranked by where the collars land (a point typed across a zone edge)
+  const hasCollars = (collars || []).some((c) => Number.isFinite(c?.x) && Number.isFinite(c?.y));
+  const candidates = useMemo(() => (!at ? [] : hasCollars ? crsCandidatesByLanding(at.lon, at.lat, collars) : crsCandidatesAt(at.lon, at.lat)), [at?.lat, at?.lon, regTick, hasCollars, collars]);
   const locals = useMemo(() => (at ? localCrsAt(at.lon, at.lat, { exclude: candidates.map((c) => c.code) }) : []), [at?.lat, at?.lon, candidates]);
   const [moreLocal, setMoreLocal] = useState(false);
   // TASKS.csv #2495 — the grid family the coordinate columns name (MGA_E / MGA_N): each of its zones with where the collars would land
@@ -94,7 +96,7 @@ export default function ProjectCrsModal({ reason, points, suggested = null, noLo
             {where && !at && <div style={{ ...note, marginTop: 4 }}>{tr("Type latitude then longitude in decimal degrees (south and west negative, or add S / W).")}</div>}
             {candidates.length > 0 && (
               <div role="listbox" aria-label={tr("Suggested CRSs")} style={{ marginTop: 6, border: "1px solid var(--color-border)", borderRadius: 5 }}>
-                {candidates.slice(0, 8).map((c, i) => option(c, i === 0 ? tr("— most used here") : null))}
+                {candidates.slice(0, 8).map((c, i) => option(c, hasCollars ? (c.km == null ? tr("— the collars do not fit this CRS") : tr("— your collars land {km} km from here", { km: c.km.toLocaleString() })) : i === 0 ? tr("— most used here") : null))}{/* the landing: #2892 */}
               </div>
             )}
             {locals.length > 0 && (

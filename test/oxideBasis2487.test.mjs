@@ -29,16 +29,18 @@ test("the basis unit: '% Li2O' is Li2O wt%; reading it as % gives Li, in its own
   assert.equal(gradeUnitLabel("Li", "% Li2O"), "% Li2O");
 });
 
-test("the import: a commodity oxide is kept as the oxide by default, a whole-rock oxide is stored as the element; either can be switched", () => {
+test("the import: an oxide column is kept as the oxide by default (#2888: whole-rock oxides too); either can be switched", () => {
   assert.ok(keepsOxide({ header: "Li2O_pct" }));
   assert.ok(keepsOxide({ header: "Ta2O5_ppm" }));
-  assert.ok(!keepsOxide({ header: "SiO2" }));
+  assert.ok(keepsOxide({ header: "SiO2" })); // #2888 — every oxide as reported by default
+  assert.ok(!keepsOxide({ header: "SiO2", keepOxide: false }));
   assert.ok(!keepsOxide({ header: "Li2O_pct", keepOxide: false }));
   assert.ok(keepsOxide({ header: "Fe2O3", keepOxide: true })); // iron ore, chosen
   assert.ok(!keepsOxide({ header: "Li_ppm" }));
   assert.equal(importStoreUnit({ header: "Li2O_pct", unit: "%" }), "% Li2O");
   assert.equal(importStoreUnit({ header: "Ta2O5_ppm", unit: "ppm" }), "ppm Ta2O5");
-  assert.equal(importStoreUnit({ header: "SiO2", unit: "%" }), "%");
+  assert.equal(importStoreUnit({ header: "SiO2", unit: "%" }), "% SiO2"); // #2888
+  assert.equal(importStoreUnit({ header: "SiO2", unit: "%", keepOxide: false }), "%");
   assert.equal(importStoreUnit({ header: "Li2O_pct", unit: "%", keepOxide: false }), "%");
   assert.equal(importStoreUnit({ header: "Cu_ppm", unit: "ppm" }), "ppm");
   // the commit reads each oxide column at its own basis into the stored unit

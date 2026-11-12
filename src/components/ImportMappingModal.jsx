@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useStore } from "../lib/store.jsx"; // TASKS.csv #615
 import { crsName } from "../lib/reproject.js"; // TASKS.csv #488
 import SourceCrsField from "../components/SourceCrsField.jsx"; // TASKS.csv #488
@@ -30,10 +30,13 @@ const importCount = (modal) => {
   return c.get(k);
 };
 import { logChannelsFor } from "../lib/downholeLogChannels.js";
+import { numberColumnsLeft } from "../lib/valueGuess.js"; // TASKS.csv #2889
+import { recoveryColumns } from "../lib/recoveryCalc.js"; // TASKS.csv #2891
+import { codeOverlap, otherCodeSystem } from "../lib/codeOverlap.js"; // TASKS.csv #2893
 
 
 export default function ImportMappingModal({ modal, onChange, onCancel, onCommit, projectEpsg, replaceInfo = null }) { // replaceInfo: #1649
-  const storeProject = useStore().project; // #2492
+  const { project: storeProject, layers: storeLayers } = useStore(); // #2492; layers: #2893
   const crsUnset = storeProject?.crsSet === false; // TASKS.csv #615
   useEscapeKey(onCancel); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
@@ -59,6 +62,16 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
   };
   const removeCustomField = (i) => onChange({ ...modal, customFields: customFields.filter((_, j) => j !== i) });
   const setCustomFieldType = (i, type) => onChange({ ...modal, customFields: customFields.map((cf, j) => (j === i ? { ...cf, type } : cf)) });
+  // TASKS.csv #2889 — every number column left over, added at once (the WA iron material-type log: 43 Met_*_pct columns, one Add each)
+  const numbersLeft = numberColumnsLeft(modal.headers, modal.allRows || modal.sampleRows || [], modal.mapping, customFields);
+  // TASKS.csv #2893 — the file's codes against the layer's (a code layer that already holds another file's rows)
+  const codeClash = useMemo(() => {
+    if (!modal.mapping?.value || modal.target === "custom" || LAYER_META[modal.target]?.numeric || !TARGET_SCHEMAS[modal.target]?.fields.some((f) => f.key === "from")) return null;
+    const o = codeOverlap(storeLayers?.[modal.target], modal.allRows || modal.sampleRows || [], modal.mapping.value, modal.mapping.hole_id);
+    return otherCodeSystem(o) ? o : null;
+  }, [modal.target, modal.mapping?.value, modal.mapping?.hole_id, modal.allRows, storeLayers]);
+  const asOwnLayer = () => onChange({ ...modal, target: "custom", customName: String(modal.fileName || "").replace(/ \(\d+ more queued\)$/, "").replace(/\.(csv|txt|xlsx?)$/i, ""), mapping: { hole_id: modal.mapping.hole_id, from: modal.mapping.from, to: modal.mapping.to, depth: "", value: modal.mapping.value } });
+  const addAllNumbers = () => onChange({ ...modal, customFields: [...customFields, ...numbersLeft.map((c) => ({ column: c, name: c, type: "number" }))] });
   // TASKS.csv #120 — only targets carrying ABSOLUTE world x/y (collars; every other target is
   // hole-relative and inherits its position from the already-reprojected collar) can meaningfully
   // have a different source CRS than the project.
@@ -117,6 +130,15 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
                 <option value="">{tr("— none —")}</option>
                 {modal.headers.map((h) => <option key={h} value={h}>{h}</option>)}
               </select>
+              {f.key === "value" && codeClash && ( /* TASKS.csv #2893 — another code system than the layer's: said, with the way out */
+                <div role="note" style={{ flexBasis: "100%", marginInlineStart: 220, fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", lineHeight: 1.45 }}>
+                  {tr(codeClash.shared ? "Only {shared} of the {n} codes in {col} are in {layer}, which holds {m} codes from {files}: adding them puts two code systems in one layer." : "None of the {n} codes in {col} is in {layer}, which holds {m} codes from {files}: adding them puts two code systems in one layer.", { shared: codeClash.shared, n: codeClash.codes, col: modal.mapping.value, layer: tr(LAYER_META[modal.target]?.label || modal.target), m: codeClash.layerCodes, files: codeClash.files.slice(0, 3).join(", ") || tr("an earlier import") })}{" "}
+                  <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={asOwnLayer} style={{ color: "var(--color-accent)", cursor: "pointer" }}>{tr("Import it as its own layer")}</span>
+                </div>
+              )}
+              {f.key === "value" && modal.valueGuess && modal.mapping.value === modal.valueGuess.col && ( /* TASKS.csv #2889 — a guess, said as one */
+                <div role="note" style={{ flexBasis: "100%", marginInlineStart: 220, fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)" }}>{tr("No column name matched, so {col} was chosen: the file's only column of codes ({n} codes). Check it is the one to draw.", { col: modal.valueGuess.col, n: modal.valueGuess.codes })}</div>
+              )}
               {/* TASKS.csv #2182 — a coded log's Value column blank on many rows: those rows are skipped, said before the import */}
               {f.key === "value" && !fieldNeedsNumber(f) && modal.target !== "custom" && modal.mapping.value && (() => { const b = blankShare(modal.allRows, modal.mapping.value); if (!b || !b.blank) return null; const many = b.blank / b.total >= 0.2; /* #2493 — always said, with the choice to keep them */ return (
                 <div role="note" style={{ flexBasis: "100%", marginInlineStart: 220, fontSize: "var(--font-size-sm)", color: many ? "var(--color-warn-text)" : "var(--color-text-muted)" }}>
@@ -134,11 +156,22 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
               source actually carries). Carried straight through to the attribute table (which
               already derives its columns from whatever keys a row has) and, for interval layers, the
               hover tooltip shows one named "description" specifically — see ViewerModule.jsx. */}
+          {modal.target === "recovery" && !modal.mapping.value && (() => { const rc = recoveryColumns(modal.headers); if (!rc) return null; const run = rc.drilled || tr("To − From"); return ( /* TASKS.csv #2891 */
+            <label style={{ display: "flex", gap: 6, alignItems: "flex-start", fontSize: "var(--font-size-sm)", color: "var(--color-text)", marginBottom: 12, lineHeight: 1.45 }}>
+              <input type="checkbox" checked={!modal.recoveryCalcOff} onChange={(e) => onChange({ ...modal, recoveryCalcOff: !e.target.checked })} style={{ marginTop: 2 }} />
+              <span>{rc.loss ? tr("No recovery column: compute Recovery % from {loss} and {run}, as (run − loss) / run × 100.", { loss: rc.loss, run }) : tr("No recovery column: compute Recovery % from {rec} and {run}, as recovered / run × 100.", { rec: rc.recovered, run })}</span>
+            </label>); })()}
           <CoordSetsNote modal={modal} project={storeProject} />{/* #2492 */}
           <LogChannelsBox modal={modal} onChange={onChange} sel={sel} />{/* #2160 */}
           <RowFilterBox modal={modal} onChange={onChange} sel={sel} />{/* #2330 */}
           <div style={{ marginTop: 4, marginBottom: 14 }}>
             <div style={label}>{tr("Extra fields (optional)")}</div>
+            {numbersLeft.length > 1 && ( /* #2889 */
+              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginBottom: 6 }}>
+                <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={addAllNumbers} style={{ color: "var(--color-accent)", cursor: "pointer" }}>{tr("Add every number column ({n})", { n: numbersLeft.length })}</span>
+                {" "}{tr("as number fields on each row: {list}", { list: numbersLeft.slice(0, 6).join(", ") + (numbersLeft.length > 6 ? " …" : "") })}
+              </div>
+            )}
             {customFields.map((cf, i) => (
               <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
                 <div style={{ flex: 1, fontSize: "var(--font-size-base)", color: "var(--color-text)" }}>{cf.column} <span style={{ color: "var(--color-text-muted)" }}>→</span> {cf.name}</div>
@@ -376,7 +409,8 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
             red-border cues above already exist; this just stops the click from being possible at all. */}
         {(() => {
           const logOn = !!logChannelsFor(modal.target, modal.headers, modal.allRows || modal.sampleRows || [], modal.mapping, modal.logChannels); // #2160 — the channels are the values
-          const missingRequired = schema.fields.filter((f) => f.required && !modal.mapping[f.key] && !(logOn && f.key === "value"))
+          const recOn = modal.target === "recovery" && !modal.mapping.value && !modal.recoveryCalcOff && !!recoveryColumns(modal.headers); // #2891 — the value is computed
+          const missingRequired = schema.fields.filter((f) => f.required && !modal.mapping[f.key] && !(logOn && f.key === "value") && !(recOn && f.key === "value"))
             .concat(schema.oneOf && !schema.oneOf.some((keys) => keys.every((k) => modal.mapping[k])) ? [{ key: "oneOf", label: "From + To, or Depth" }] : []); // #605
           return (
             <div style={{ display: "flex", flexDirection: "column", gap: 6, padding: "12px 16px", borderTop: "1px solid var(--color-border)" }}>

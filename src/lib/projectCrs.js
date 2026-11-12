@@ -122,6 +122,24 @@ export function collarCentreLonLat(collars, epsg) {
   return Number.isFinite(lon) && Number.isFinite(lat) && Math.abs(lat) <= 90 && Math.abs(lon) <= 180.0001 ? { lon, lat } : null;
 }
 
+// TASKS.csv #2892 (review #2876, WA iron) — a point typed just east of 120° E (zone 51) offered only zone-51 CRSs, though the collars'
+// eastings are zone-50 values: picking one put them 607 km away, with no way on but retyping. With collars, the candidates are the typed
+// point's zone AND both neighbours, each with where the collars land, nearest to the typed point first. -> [{ code, name, zone, km }]
+// (km null: the collars do not fit that CRS; those last)
+export function crsCandidatesByLanding(lon, lat, collars) {
+  if (!Number.isFinite(lon) || !Number.isFinite(lat)) return [];
+  const seen = new Set(), list = [];
+  for (const d of [0, -6, 6]) for (const c of crsCandidatesAt(lon + d, lat)) if (!seen.has(c.code)) { seen.add(c.code); list.push(c); }
+  const coslat = Math.cos((lat * Math.PI) / 180);
+  const out = list.map((c, i) => {
+    const p = collarCentreLonLat(collars, c.code);
+    const km = p ? Math.round(Math.hypot((p.lat - lat) * 111, (p.lon - lon) * 111 * coslat)) : null;
+    return { ...c, km, i };
+  });
+  out.sort((a, b) => (a.km === null) - (b.km === null) || (a.km ?? 0) - (b.km ?? 0) || a.i - b.i);
+  return out.map(({ i, ...c }) => c);
+}
+
 // TASKS.csv #2181 (review #2174, WA gold) — the landing check used the median only: 3 collars on a local grid among 5 in MGA landed 400 km
 // away and passed as "1 km from where you said". -> { far, total, km } : the collars more than `maxKm` from the median landing point.
 export function collarSpread(collars, epsg, maxKm = 50) {

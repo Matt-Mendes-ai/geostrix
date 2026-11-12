@@ -24,6 +24,9 @@ import { localGridAzimuthOffset } from "../../lib/localGridNorth.js"; // TASKS.c
 import { untiedNorthOf, trueToUntiedGrid } from "../../lib/localGridDatum.js"; // TASKS.csv #2661
 import { mineGridOf } from "../../lib/mineGrid.js"; // TASKS.csv #2586
 import { dipConventionFields, upwardHoles } from "../../lib/dipSign.js"; // TASKS.csv #2886
+import { codeColumnGuess } from "../../lib/valueGuess.js"; // TASKS.csv #2889
+import { codeOverlap, otherCodeSystem } from "../../lib/codeOverlap.js"; // TASKS.csv #2893
+import { recoveryColumns, recoveryPct } from "../../lib/recoveryCalc.js"; // TASKS.csv #2891
 import { logChannelsFor, defaultLogBin, logChannelRows, unitFromHeader, channelNoData, noDataText, logBinEstimate, needsBinning } from "../../lib/downholeLogChannels.js"; // TASKS.csv #2160; no-data: #2332; logBinEstimate: #2885
 import { loadSampleFiles, readSiblingFiles } from "../../lib/desktop.js";
 const isXlsxName = (name) => /\.xlsx$/i.test(String(name || "")); // TASKS.csv #605 (same test as xlsx.js; the reader itself loads on demand, #552)
@@ -141,9 +144,10 @@ export function useImportPipeline(ctx) {
       }
       const target = forceTarget || guessTargetFor(headers, file.name, data); // #605: the file name as a hint; data: #2884
       const ll = lonLatForCollars(target, guessMapping(target, headers), headers, data); // #1235
-      const mapping = azColFor(target, headers, data, ll ? ll.mapping : guessMapping(target, headers)); // #426; #2015
+      const mapping0 = azColFor(target, headers, data, ll ? ll.mapping : guessMapping(target, headers)); // #426; #2015
+      const codeGuess = codeColumnGuess(target, headers, data, mapping0), mapping = codeGuess ? { ...mapping0, value: codeGuess.col } : mapping0; // #2889 — no name matched: the file's one code column, said as a guess
       const perRowEpsgCol = guessColumn(headers, EPSG_COL_ALIASES);
-      setImportModal({ ...azRefFor(target, headers, data), ...(target === "survey" ? { customFields: surveyMethodFields(headers, data) } : {}) /* #2187 */, file, fileName: file.name, headers, rowCount: data.length, sampleRows: data.slice(0, 5), allRows: data, target, mapping, ...(forceTarget ? {} : guardGuess(target, mapping, headers, data, file.name)), ...dipConventionFields(data, dipColOf(target, mapping)) /* #2886 */, perRowEpsgCol, sourceEpsg: ll ? ll.sourceEpsg : meta?.detectedEpsg ? String(meta.detectedEpsg) : "" });
+      setImportModal({ ...(codeGuess ? { valueGuess: codeGuess } : {}), ...azRefFor(target, headers, data), ...(target === "survey" ? { customFields: surveyMethodFields(headers, data) } : {}) /* #2187 */, file, fileName: file.name, headers, rowCount: data.length, sampleRows: data.slice(0, 5), allRows: data, target, mapping, ...(forceTarget ? {} : guardGuess(target, mapping, headers, data, file.name)), ...dipConventionFields(data, dipColOf(target, mapping)) /* #2886 */, perRowEpsgCol, sourceEpsg: ll ? ll.sourceEpsg : meta?.detectedEpsg ? String(meta.detectedEpsg) : "" });
       if (meta?.note) setNotices((p) => [...p, `${file.name}:${meta.note}`]);
     }, chosenLayer);
   };
@@ -224,9 +228,10 @@ export function useImportPipeline(ctx) {
     }
     const target = guessTargetFor(headers, sourceName, rows); // #605; rows: #2884
     const ll = lonLatForCollars(target, guessMapping(target, headers), headers, rows); // #1235
-    const mapping = azColFor(target, headers, rows, ll ? ll.mapping : guessMapping(target, headers)); // #426; #2015
+    const mapping0 = azColFor(target, headers, rows, ll ? ll.mapping : guessMapping(target, headers)); // #426; #2015
+    const codeGuess = codeColumnGuess(target, headers, rows, mapping0), mapping = codeGuess ? { ...mapping0, value: codeGuess.col } : mapping0; // #2889
     const perRowEpsgCol = guessColumn(headers, EPSG_COL_ALIASES);
-    setImportModal({ dbSource, ...azRefFor(target, headers, rows), fileName: sourceName, headers, rowCount: rows.length, sampleRows: rows.slice(0, 5), allRows: rows, target, mapping, ...guardGuess(target, mapping, headers, rows, sourceName), ...dipConventionFields(rows, dipColOf(target, mapping)) /* #2886 */, perRowEpsgCol, ...(ll ? { sourceEpsg: ll.sourceEpsg } : {}) });
+    setImportModal({ dbSource, ...(codeGuess ? { valueGuess: codeGuess } : {}), ...azRefFor(target, headers, rows), fileName: sourceName, headers, rowCount: rows.length, sampleRows: rows.slice(0, 5), allRows: rows, target, mapping, ...guardGuess(target, mapping, headers, rows, sourceName), ...dipConventionFields(rows, dipColOf(target, mapping)) /* #2886 */, perRowEpsgCol, ...(ll ? { sourceEpsg: ll.sourceEpsg } : {}) });
     setDbModalOpen(false);
   };
 
@@ -373,7 +378,9 @@ export function useImportPipeline(ctx) {
     const liveCollarAt = (() => { const m = new Map((importStateRef.current.collars || []).map((c) => [c.hole_id, c])); return (r) => m.get(r.hole_id) || null; })();
     const schema = TARGET_SCHEMAS[target];
     const logChans = logChannelsFor(target, Object.keys(allRows[0] || {}), allRows, mapping, data.logChannels); // #2160 — the channels are the values
-    const missing = schema.fields.filter((f) => f.required && !mapping[f.key] && !(logChans && f.key === "value"));
+    // TASKS.csv #2891 — Recovery % with no Value column: computed from core loss (or recovered length) and the drilled run, unless declined
+    const recCalc = target === "recovery" && !mapping.value && !data.recoveryCalcOff ? recoveryColumns(Object.keys(allRows[0] || {})) : null;
+    const missing = schema.fields.filter((f) => f.required && !mapping[f.key] && !(logChans && f.key === "value") && !(recCalc && f.key === "value"));
     if (missing.length) { setNotices((p) => [...p, notice("{fileName}: map required field(s) — {v}", { fileName, v: missing.map((f) => f.label).join(", ") })]); return false; }
     // TASKS.csv #1963 — a table pulled from a database: its record (profile, schema, table, these choices) for "Reload from database"
     if (dbSource?.profile && setDbImports) { const rec = dbImportRecord(data, dbSource, target); if (rec) setDbImports((prev) => upsertDbImport(prev, rec)); }
@@ -749,6 +756,7 @@ export function useImportPipeline(ctx) {
       let codesKept = 0, codesRows = 0, blankRows = 0, blankTookNext = 0, blankKept = 0; // blank*: #2493
       const rows = filledRows.map((raw) => {
         const r = numeric ? normNumericInterval(raw, mapping, customFields) : normInterval(raw, mapping, customFields);
+        if (recCalc) r.value = recoveryPct(raw, recCalc, mapping); // #2891
         if (sib) { const a = allCodesOf(raw, sib); if (a.extra) { r.all_codes = a.all; r.codes = a.codes; codesKept += a.extra; codesRows++; } } // codes: #1650
         if (altStyle) { r.value = styleCode(r.value); r.alt_style = altStyle; if (Array.isArray(r.codes)) r.codes = r.codes.map(styleCode); } // #1511
         // #2182 — a blank code: the next numbered code if the row has one (Min_Code2), else the row is skipped and counted, not 'Unknown'
@@ -774,7 +782,10 @@ export function useImportPipeline(ctx) {
         if (msg) setNotices((p) => [...p, msg]);
       }).catch(() => {});
       setNotices((p) => [...p, tr("Loaded {rows} rows into {label} from {fileName}.", { rows: rows.length, label: LAYER_META[target].label, fileName })
-        + replaceNote(replaced, "rows") + skippedRowsText(dropped, allRows.length) + leftOutText(data, allRows, sib?.codes || []) /* #2341 */
+        + (recCalc ? " " + (recCalc.loss // #2891 — said: the file had no percentage
+          ? tr("Recovery % computed from {loss} and {run}: (run − loss) / run × 100.", { loss: recCalc.loss, run: recCalc.drilled || tr("To − From") })
+          : tr("Recovery % computed from {rec} and {run}: recovered / run × 100.", { rec: recCalc.recovered, run: recCalc.drilled || tr("To − From") })) : "")
+        + replaceNote(replaced, "rows") + skippedRowsText(dropped, allRows.length) + leftOutText(data, allRows, [...(sib?.codes || []), ...(recCalc ? [recCalc.loss, recCalc.recovered, recCalc.drilled].filter(Boolean) : [])]) /* #2341; the columns Recovery % was computed from: #2891 */
         + (codesKept ? " " + tr("{n} more code(s) in {cols} on {m} interval(s) are not drawn (each interval is coloured by {first}); every code is kept on its interval as all_codes, which Identify lists. Hiding the first code in the legend shows such an interval in its next code's colour.", { n: codesKept, m: codesRows, cols: sib.codes.length > 1 ? `${sib.codes[0]}–${sib.codes[sib.codes.length - 1]}` : sib.codes[0], first: sib.first }) : "") // #1650; one column named once: #2153
         + (idsFilled ? " " + tr("{n} row(s) with a blank hole id took the hole id of the row above, their depths continuing it: check them if the file is laid out otherwise.", { n: idsFilled }) : "") // #1665
         + (blankRows ? " " + blankCodeText(mapping.value, blankRows, allRows.length, blankTookNext, blankKept) : "") // #2493 — always said
@@ -927,7 +938,8 @@ export function useImportPipeline(ctx) {
       const target = guessTargetFor(headers, file.name, data); // #605; data: #2884
       const schema = TARGET_SCHEMAS[target];
       const queueLl = lonLatForCollars(target, guessMapping(target, headers), headers, data); // #1235
-      const mapping = azColFor(target, headers, data, queueLl ? queueLl.mapping : guessMapping(target, headers)); // #426; #2015
+      const mapping0 = azColFor(target, headers, data, queueLl ? queueLl.mapping : guessMapping(target, headers)); // #426; #2015
+      const codeGuess = codeColumnGuess(target, headers, data, mapping0), mapping = codeGuess ? { ...mapping0, value: codeGuess.col } : mapping0; // #2889 — a guess: never 'exact', so the dialog opens
       const missingRequired = schema.fields.filter((f) => f.required && !mapping[f.key]).concat(schemaSatisfied(target, mapping) || !schema.oneOf ? [] : [{ key: "oneOf", label: "From / To or Depth" }]); // #605
       // TASKS.csv #335 — only commit unseen when every REQUIRED column matched a header exactly (not
       // just by substring), and — for tables with a dip — when every dip in the file is <= 0, i.e.
@@ -942,11 +954,13 @@ export function useImportPipeline(ctx) {
       const azDetected = AZ_TARGETS.has(target) ? detectAzimuthRef(headers, data) : null;
       const azOk = !azDetected || (!azDetected.mixed && azDetected.ref !== "magnetic" && !azDetected.hint && !azDetected.also); // hint (#2015): gyros only, no corrected column: asked; also (#2154): two azimuth columns, asked
       const guarded = guardGuess(target, mapping, headers, data, file.name); // #1649 — never unseen into another file's log
-      const confident = target !== "custom" && !guarded.guessNote && missingRequired.length === 0 && exactRequired && dipsAgree && azOk;
+      // TASKS.csv #2893 — never unseen into a code layer whose codes this file shares none of (another code system: the dialog says so)
+      const otherCodes = !LAYER_META[target]?.numeric && otherCodeSystem(codeOverlap(importStateRef.current.layers?.[target], data, mapping.value, mapping.hole_id));
+      const confident = target !== "custom" && !guarded.guessNote && missingRequired.length === 0 && exactRequired && dipsAgree && azOk && !otherCodes;
       // TASKS.csv #609 — the file's own CRS (.prj / GeoPackage) and a per-row EPSG column, as openImportModal passes
       // them: a queued shapefile used to be committed with no Source CRS, so its collars stayed in their own UTM
       // zone's numbers inside a project in another zone (~400 km from the same drop's reprojected map layers).
-      const modalData = { ...azRefFor(target, headers, data), file, fileName: file.name, headers, rowCount: data.length, sampleRows: data.slice(0, 5), allRows: data, target, mapping, ...dipConventionFields(data, dipColOf(target, mapping)) /* #2886 */,
+      const modalData = { ...(codeGuess ? { valueGuess: codeGuess } : {}), ...azRefFor(target, headers, data), file, fileName: file.name, headers, rowCount: data.length, sampleRows: data.slice(0, 5), allRows: data, target, mapping, ...dipConventionFields(data, dipColOf(target, mapping)) /* #2886 */,
         sourceEpsg: queueLl ? queueLl.sourceEpsg : meta?.detectedEpsg ? String(meta.detectedEpsg) : "", perRowEpsgCol: guessColumn(headers, EPSG_COL_ALIASES), ...guarded };
       if (confident) {
         // TASKS.csv #1501 — a log's other columns as extra fields, and a Geotech table's Recovery % as that layer too (collars keep
