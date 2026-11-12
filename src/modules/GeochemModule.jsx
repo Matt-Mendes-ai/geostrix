@@ -38,7 +38,7 @@ import { lithologyBySample, lithologyCounts, NOT_LOGGED } from "../lib/sampleLit
 import AssayImportModal from "../components/AssayImportModal.jsx";
 import { dbImportRecord, upsertDbImport } from "../lib/dbImports.js"; // TASKS.csv #1963
 import LabCertificateModal from "../components/LabCertificateModal.jsx"; // TASKS.csv #601
-import { isLabCertificateText, parseLabCertificate, combineCertificates, joinCertificatesToAssays, assaysWithoutCertificate /* #2024 */, suggestQcTypes, qcRowPlacement, indexAssaysForPlacement } from "../lib/labCertificate.js"; // TASKS.csv #601
+import { isLabCertificateText, parseLabCertificate, combineCertificates, joinCertificatesToAssays, assaysWithoutCertificate /* #2024 */, sheetCertificatesNotGiven /* #2764 */, suggestQcTypes, qcRowPlacement, indexAssaysForPlacement } from "../lib/labCertificate.js"; // TASKS.csv #601
 import AlterationBoxModal from "../components/AlterationBoxModal.jsx"; // TASKS.csv #503
 import { applyRowFilter, defaultRowFilter, overlapSummary, overlapWorthSaying } from "../lib/importRowFilter.js"; // TASKS.csv #2391
 import VolcanicCodesModal, { NOT_LOGGED_CODE } from "../components/VolcanicCodesModal.jsx"; // TASKS.csv #2352
@@ -468,6 +468,7 @@ export default function GeochemModule() {
     const all = combineCertificates(parsed);
     const join = joinCertificatesToAssays(all.rows, assays);
     const noCert = assaysWithoutCertificate(all.rows, assays, (a) => !isPxrfRow(a) && classifyQAQCRow(a) === "regular"); // #2024 — the drill side
+    const sheetCerts = sheetCertificatesNotGiven(assays, parsed.map((p) => p.meta), (a) => !isPxrfRow(a) && classifyQAQCRow(a) === "regular"); // #2764
     if (!join.matched.length) {
       setNotices((p) => [...p, errorNotice(tr("None of the {rows} certificate samples matches a loaded assay's sample id{v}. Certificates are joined to the drill samples by sample id.", { rows: all.rows.length.toLocaleString(), v: join.assaysWithoutId ? tr(" ({assaysWithoutId} assay rows carry no sample id — import the drill samples with their sample-number column)", { assaysWithoutId: join.assaysWithoutId.toLocaleString() }) : "" }))]);
       return;
@@ -495,7 +496,7 @@ export default function GeochemModule() {
       .map((s, i) => ({ ...s, certificate: join.unmatched[i].certificate }));
     setCertReview({
       all, elementCols, suggestions, fill: fillable > 0,
-      summary: { certificates: parsed.length, rows: all.rows.length, matched: join.matched.length, unmatched: join.unmatched.length, noCert /* #2024 */, mismatchCount, mismatchExamples, fillable, fillElements: [...fillElements].slice(0, 12), labs: [...new Set(parsed.map((p) => p.meta.project).filter(Boolean))].join(", ") },
+      summary: { certificates: parsed.length, rows: all.rows.length, matched: join.matched.length, unmatched: join.unmatched.length, noCert /* #2024 */, sheetCerts /* #2764 */, mismatchCount, mismatchExamples, fillable, fillElements: [...fillElements].slice(0, 12), labs: [...new Set(parsed.map((p) => p.meta.project).filter(Boolean))].join(", ") },
       matched: join.matched,
     });
   };
@@ -809,7 +810,7 @@ export default function GeochemModule() {
       // TASKS.csv #2498 — what the import met on the way: below-detection cells and their limits, per-cent values over 100, numeric columns
       // it did not read, sample types that are not drill intervals
       ...(() => {
-        const f = assayImportFindings({ rows, elements: chosen, unitOf: (s) => existingUnit[s] || importStoreUnit(chosen.find((e) => e.symbol === s) || {}), headers: format === "wide" ? modal.headers || [] : [], used: Object.values(mapping || {}), allRows, at: (r) => `${r[mapping.hole_id]} ${r[mapping.from]}-${r[mapping.to]} m` });
+        const f = assayImportFindings({ rows, elements: chosen, unitOf: (s) => existingUnit[s] || importStoreUnit(chosen.find((e) => e.symbol === s) || {}), headers: format === "wide" ? modal.headers || [] : [], used: [...Object.values(mapping || {}), ...Object.values(qcCols || {})] /* #2764 — the QC columns (sample id, certificate) are read */, allRows, at: (r) => `${r[mapping.hole_id]} ${r[mapping.from]}-${r[mapping.to]} m` });
         const list = (xs, k, fn) => xs.slice(0, k).map(fn).join(", ") + (xs.length > k ? ", …" : "");
         return [
           f.below.length ? tr("In all, {n} cell(s) below detection, stored at half the limit and flagged '<': {list}.", { n: f.below.reduce((t, b) => t + b.n, 0).toLocaleString(), list: list(f.below, 8, (b) => (b.limit != null ? `${b.symbol} ${b.n.toLocaleString()} (<${b.limit} ${b.unit})` : `${b.symbol} ${b.n.toLocaleString()}`)) }) : null,

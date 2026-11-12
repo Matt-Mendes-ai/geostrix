@@ -7,12 +7,18 @@ const ALIASES = {
   sample_type: ["sample_type", "samp_type", "sampletype", "qc_type", "qctype", "qaqc_type", "qaqc", "sample_class", "sample_category", "type"],
   parent_id: ["parent_id", "parent", "parent_sample", "parent_sample_id", "original_id", "original", "orig_sample_id", "primary_id", "original_sample", "parent_sample_number", "parent_sample_no", "parent_number"], // parent_sample_number: #1661 (Kodiak's Appendix B)
   qc_code: ["standard_id", "std_id", "standard", "crm", "crm_id", "crm_name", "standard_name", "qc_code", "qc_id", "qc_name", "reference_material", "standard_type", "std_type", "crm_type", "control_type", "reference_material_id"], // standard_type: #1661
+  // TASKS.csv #2764 — the lab certificate (or lab job) a sample was reported on, so the Lab certificates review can name the sheet's
+  // certificates that no given file is (VA23186444 in the sheet, VA24189659.csv in the folder)
+  certificate: ["certificate", "cert", "cert_no", "cert_num", "cert_number", "cert_id", "certificate_no", "certificate_num", "certificate_number", "certificate_id", "lab_certificate", "lab_cert", "assay_certificate", "lab_job", "lab_job_no", "lab_job_number", "labjob", "labjobno", "job_no", "job_number", "lab_batch", "lab_batch_no", "batch_no", "batch_number"],
 };
 export const QC_COLUMN_KEYS = Object.keys(ALIASES);
 
 export function qcColumns(headers) {
   const norm = (h) => String(h).trim().toLowerCase().replace(/[\s-]+/g, "_");
-  return Object.fromEntries(QC_COLUMN_KEYS.map((k) => [k, (headers || []).find((h) => ALIASES[k].includes(norm(h))) || ""]));
+  const out = Object.fromEntries(QC_COLUMN_KEYS.map((k) => [k, (headers || []).find((h) => ALIASES[k].includes(norm(h))) || ""]));
+  // #2764 — a drillhole database with a certificate per element ('Cu certificate', 'Au_Cert_No'): the first of them
+  if (!out.certificate) out.certificate = (headers || []).find((h) => /^[a-z]{1,2}_(cert|certificate)(_?(no|num|number|id))?$/.test(norm(h))) || "";
+  return out;
 }
 
 // One row's QC fields. A file with one PARENT column holds the parent sample for a duplicate and the CRM name for a standard: without a column of CRM

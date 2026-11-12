@@ -2,7 +2,7 @@
 // page: a section snapshot over the plan, its legend exactly over the plan's legend, its scale bar on the plan's bar. A new item now
 // takes the free spot on the page that overlaps the least of what is there (top-left first on a tie), inside a margin.
 // Pure: no DOM, no React. Boxes in page pixels { x, y, w, h }.
-import { collarTableHeight, collarRowsThatFit } from "./collarTable.js"; // TASKS.csv #2135
+import { collarTableHeight, collarRowsThatFit, tableColumnRows } from "./collarTable.js"; // TASKS.csv #2135; tableColumnRows: #2770
 import { DIAGRAM_W, DIAGRAM_H } from "./northDiagram.js"; // TASKS.csv #2478
 import { legendBoxSize } from "./legendFit.js"; // TASKS.csv #2869
 
@@ -15,7 +15,7 @@ export function elementBox(el) {
   if (el?.type === "legend" && Array.isArray(el.items) && el.items.length) { const s = legendBoxSize(el.items); d = [s.w, s.h]; }
   const w = Number(el?.w) > 0 ? Number(el.w) : d[0];
   // #2135 — a collar table stores no height: it is as tall as its rows (a 40-row table was taken for 200 px)
-  const tableH = el?.type === "table" && Number(el.maxRows) > 0 ? collarTableHeight(Number(el.maxRows), Number(el.fontPt) || 7) : null;
+  const tableH = el?.type === "table" && Number(el.maxRows) > 0 ? collarTableHeight(tableColumnRows(el) /* #2770 — a split table is half as tall */, Number(el.fontPt) || 7) : null;
   const h = Number(el?.h) > 0 ? Number(el.h) : tableH ?? (el?.aspect > 0 ? w / el.aspect : d[1]);
   return { x: Number(el?.x) || 0, y: Number(el?.y) || 0, w, h };
 }
