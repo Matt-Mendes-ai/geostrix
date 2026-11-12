@@ -85,7 +85,12 @@ const SCALE_PRESETS = [500, 1000, 1500, 2000, 2500, 5000, 10000, 15000, 20000, 2
 // the two can never quietly disagree about what a metre is.
 
 // TASKS.csv #923 — the seq of the last print request carried out; module scope, so it outlives a remount
+import { printPassItems, pagesWithPrintSrcs, PAGE_DPI } from "../lib/layoutPrintPass.js"; // TASKS.csv #2303
 let handledPrintSeq = null;
+// TASKS.csv #2303 — an export waiting for its print pass (this module unmounts while the 3D View renders the viewports at 300 dpi)
+let pendingPrint = null;
+// the export note's tail when some viewport could not be rendered at 300 dpi
+const printFailedText = (p) => (p?.printFailed ? " " + tr(p.printFailed === 1 ? "1 viewport could not be rendered at print resolution and was printed from its page image." : "{n} viewports could not be rendered at print resolution and were printed from their page images.", { n: p.printFailed }) : "");
 // TASKS.csv #956 — the collar table re-rendered on every mousemove of any drag and re-sorted every collar with
 // localeCompare(…, { numeric: true }), which builds a collator per comparison (5,000 collars: ~410 ms a render). One
 // shared collator, and the sorted copy is cached per collars array (a new array only when the collars change).
@@ -139,6 +144,7 @@ export default function LayoutModule() {
     viewerUiState, // TASKS.csv #1092 — legendOverride for the Atlas strip logs
     customLayers = [], // TASKS.csv #2472 — the custom layers' legend groups
     viewportBatchDone, setViewportBatchDone, // TASKS.csv #1644 — an atlas's maps centred on their holes
+    requestViewportBatch, printSrcs, setPrintSrcs, // TASKS.csv #2303 — the export's 300 dpi print pass
   } = useStore();
   const setTaskProgress = useSetTaskProgress();
   useEffect(() => { if (viewportBatchDone) setTaskProgress?.(null); }, [viewportBatchDone, setTaskProgress]);
@@ -204,8 +210,28 @@ export default function LayoutModule() {
     // TASKS.csv #2471 — a legend whose viewport was refreshed after it was loaded, and whose rows were edited, still lists the old view
     const staleLegends = staleBoundLegends(layoutPages).length;
     if (staleLegends && !window.confirm(tr(staleLegends === 1 ? "{n} legend is out of step with its viewport: the viewport was refreshed after the legend was loaded, and the legend's rows were edited, so they were kept. Export anyway?" : "{n} legends are out of step with their viewports: each viewport was refreshed after its legend was loaded, and the legend's rows were edited, so they were kept. Export anyway?", { n: staleLegends }))) return;
+    // TASKS.csv #2303 — the page's viewports are 200 dpi captures: the export renders each again at 300 dpi first (in the 3D View, as an
+    // atlas batch), then prints from those images; the page keeps its own
+    const toPrint = layoutPrintRequest.kind === "png" ? layoutPages.filter((pg) => pg.id === activeLayoutPageId) : layoutPages;
+    const items = printPassItems(toPrint);
+    if (items.length) {
+      pendingPrint = layoutPrintRequest;
+      setPrintSrcs({});
+      items[0].batchLabel = tr("Rendering the viewports at print resolution (300 dpi) for the export");
+      requestViewportBatch(items);
+      return;
+    }
     setPrinting(layoutPrintRequest);
   }, [layoutPrintRequest]);
+  // #2303 — the print pass is done: print (a viewport whose pass failed prints its page image)
+  useEffect(() => {
+    if (!viewportBatchDone?.printPass || !pendingPrint) return;
+    const req = pendingPrint;
+    pendingPrint = null;
+    setViewportBatchDone(null);
+    if (viewportBatchDone.cancelled) { setPrintSrcs({}); setExportNote({ text: tr("Export cancelled while the viewports were rendered at print resolution."), error: false }); return; }
+    setPrinting({ ...req, printFailed: viewportBatchDone.failed || 0 });
+  }, [viewportBatchDone]);
   useEffect(() => {
     if (!printing) return;
     let cancelled = false;
@@ -231,14 +257,14 @@ export default function LayoutModule() {
           const png = await canvasPngBytes(canvas); // #1040 — an A3 page at 300 dpi is ~17 Mpx
           const name = `${base}_p${pageNo}_${dpi}dpi.png`;
           const res = await saveFile({ quiet: "success", suggestedName: name, filters: [{ name: "PNG", extensions: ["png"] }], content: png });
-          if (res?.ok) setExportNote({ text: tr("Exported page {n} as a {w} × {h} px PNG ({dpi} dpi) to {path}.", { n: pageNo, w: canvas.width, h: canvas.height, dpi, path: res.filePath || name }), error: false });
+          if (res?.ok) setExportNote({ text: tr("Exported page {n} as a {w} × {h} px PNG ({dpi} dpi) to {path}.", { n: pageNo, w: canvas.width, h: canvas.height, dpi, path: res.filePath || name }) + printFailedText(printing), error: false });
           return;
         }
         const name = `${base}.pdf`;
         const res = await savePDF(name, { ...pdfOptions(layoutPages[0]?.format), preferCSSPageSize: true });
-        if (res?.ok) setExportNote({ text: tr("Exported {n} page(s) to {path}.", { n: layoutPages.length, path: res.filePath || name }), error: false });
+        if (res?.ok) setExportNote({ text: tr("Exported {n} page(s) to {path}.", { n: layoutPages.length, path: res.filePath || name }) + printFailedText(printing), error: false });
       } catch (e) { setExportNote({ text: e.message || String(e), error: true }); }
-      finally { if (!cancelled) setPrinting(null); }
+      finally { if (!cancelled) { setPrinting(null); setPrintSrcs({}); /* #2303 — the print images are for this export only */ } }
     })();
     return () => { cancelled = true; };
   }, [printing]);
@@ -427,7 +453,7 @@ export default function LayoutModule() {
     if (targetElementId !== "new") {
       setElements((els) => els.map((el) => el.id === targetElementId ? { ...el, themeId, refreshing: true } : el));
     }
-    requestViewportRender(themeId, targetElementId, trueScale, false, opts);
+    requestViewportRender(themeId, targetElementId, trueScale, false, { dpi: PAGE_DPI, ...opts }); // #2303 — 200 dpi on the page
     setThemePickerFor(null);
     goToModule("viewer");
   };
@@ -446,7 +472,7 @@ export default function LayoutModule() {
     const theme = themeId ? themes.find((t) => t.id === themeId) : null;
     if (themeId && !theme) return;
     setElements((els) => els.map((el) => el.id === targetElementId ? { ...el, themeId, refreshing: true } : el));
-    requestViewportRender(themeId, targetElementId, trueScale, true, opts);
+    requestViewportRender(themeId, targetElementId, trueScale, true, { dpi: PAGE_DPI, ...opts }); // #2303
     setThemePickerFor(null);
     goToModule("viewer");
   };
@@ -1116,7 +1142,7 @@ export default function LayoutModule() {
 
   return (
     <div className="ge-body" style={{ width: "100%" }}>
-      {printing && <LayoutPrintRoot ref={printRootRef} pages={printing.kind === "png" ? layoutPages.filter((pg) => pg.id === activeLayoutPageId) : layoutPages} pageOffset={printing.kind === "png" ? Math.max(0, layoutPages.findIndex((pg) => pg.id === activeLayoutPageId)) : 0} pageTotal={layoutPages.length} /* #2614 — a PNG prints its one page, not the whole document */ project={project} collars={tableCollars} credits={credits} assays={assays} assayElements={assayElements} surfaceSamples={surfaceSamples} surfaceElements={surfaceElements} layers={layers} /* #1869 */ />}{/* TASKS.csv #908 */}
+      {printing && <LayoutPrintRoot ref={printRootRef} pages={pagesWithPrintSrcs(printing.kind === "png" ? layoutPages.filter((pg) => pg.id === activeLayoutPageId) : layoutPages, printSrcs) /* #2303 — the 300 dpi images */} pageOffset={printing.kind === "png" ? Math.max(0, layoutPages.findIndex((pg) => pg.id === activeLayoutPageId)) : 0} pageTotal={layoutPages.length} /* #2614 — a PNG prints its one page, not the whole document */ project={project} collars={tableCollars} credits={credits} assays={assays} assayElements={assayElements} surfaceSamples={surfaceSamples} surfaceElements={surfaceElements} layers={layers} /* #1869 */ />}{/* TASKS.csv #908 */}
       <div className="ge-panel" style={{ padding: "16px 14px", width: sidebarWidth }}>
         {/* TASKS.csv #458 — Layout ribbon (replaces the #65 icon palette and the Templates / Output buttons). */}
         <Ribbon label="Layout tools">

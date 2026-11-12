@@ -33,7 +33,7 @@ export function atlasRecaptureItems(pages, pageIds) {
       const mpp = metresPerPagePx(el);
       const scale = el.capturedFixedScale > 0 ? el.capturedFixedScale : el.fixedScale > 0 ? el.fixedScale : mpp ? Math.round(mpp / (0.0254 / 96)) : null;
       if (!scale || !pageIds[i]) continue;
-      items.push({ pageId: pageIds[i], elementId: el.id, themeId: el.themeId || null, viewState: el.themeId ? null : el.viewState || null, fixedScale: scale, elementW: el.w, elementH: el.h, centreWorld: { x: el.markHole.x, y: el.markHole.y } });
+      items.push({ dpi: 200 /* #2303 — a page capture */, pageId: pageIds[i], elementId: el.id, themeId: el.themeId || null, viewState: el.themeId ? null : el.viewState || null, fixedScale: scale, elementW: el.w, elementH: el.h, centreWorld: { x: el.markHole.x, y: el.markHole.y } });
     }
   });
   return items;

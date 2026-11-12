@@ -773,8 +773,10 @@ export function StoreProvider({ children }) {
     // TASKS.csv #1644 — an atlas batch: the element lives on another page (pageId), the template's own view settings are applied
     // for a theme-less viewport (viewState: the camera it was captured with), and the 3D View shows the batch's progress
     const targetPageId = opts.pageId || null, viewState = opts.viewState || null, batch = opts.batch || null;
-    setViewportPendingRequest({ requestId, targetElementId, themeId, trueScale, interactive, fixedScale, elementW, elementH, targetPageId });
-    setViewportRenderRequest({ requestId, themeId, trueScale, interactive, fixedScale, elementW, elementH, centreWorld, viewState, batch });
+    // TASKS.csv #2303 — dpi (200 on the page, 300 for an export's print pass) and printPass (the image goes to printSrcs, not the element)
+    const dpi = Number(opts.dpi) > 0 ? Number(opts.dpi) : null, printPass = !!opts.printPass;
+    setViewportPendingRequest({ requestId, targetElementId, themeId, trueScale, interactive, fixedScale, elementW, elementH, targetPageId, printPass });
+    setViewportRenderRequest({ requestId, themeId, trueScale, interactive, fixedScale, elementW, elementH, centreWorld, viewState, batch, dpi });
     setViewportRenderRequestSeq((s) => s + 1);
     return requestId;
   }, []);
@@ -800,10 +802,12 @@ export function StoreProvider({ children }) {
   // own page and the next request goes out from the 3D View (no hop back to Layout in between); Layout is shown once at the end
   const viewportBatchRef = useRef(null);
   const [viewportBatchDone, setViewportBatchDone] = useState(null);
-  const issueBatchItem = (it, b) => requestViewportRender(it.themeId || null, it.elementId, true, false, { fixedScale: it.fixedScale, elementW: it.elementW, elementH: it.elementH, centreWorld: it.centreWorld, pageId: it.pageId, viewState: it.viewState || null, batch: { index: b.done + 1, total: b.total } });
+  const issueBatchItem = (it, b) => requestViewportRender(it.themeId || null, it.elementId, it.trueScale ?? true /* #2303: a print pass keeps the element's own */, false, { fixedScale: it.fixedScale, elementW: it.elementW, elementH: it.elementH, centreWorld: it.centreWorld, pageId: it.pageId, viewState: it.viewState || null, dpi: it.dpi, printPass: it.printPass, batch: { index: b.done + 1, total: b.total, ...(b.label ? { label: b.label } : {}) } });
+  // TASKS.csv #2303 — an export's print pass: each viewport's 300 dpi image, session only (never in the project file or Undo), by element id
+  const [printSrcs, setPrintSrcs] = useState({});
   const requestViewportBatch = useCallback((items) => {
     if (!items?.length) return;
-    const b = { queue: items.slice(1), done: 0, total: items.length, failed: 0, cancelled: false };
+    const b = { queue: items.slice(1), done: 0, total: items.length, failed: 0, cancelled: false, printPass: !!items[0].printPass /* #2303 */, label: items[0].batchLabel || null };
     viewportBatchRef.current = b;
     issueBatchItem(items[0], b);
     goToModule("viewer");
@@ -816,7 +820,7 @@ export function StoreProvider({ children }) {
     b.done++; if (failed) b.failed++;
     if (!b.cancelled && b.queue.length) { issueBatchItem(b.queue.shift(), b); return true; }
     viewportBatchRef.current = null;
-    setViewportBatchDone({ done: b.done, total: b.total, failed: b.failed, cancelled: b.cancelled, seq: Date.now() });
+    setViewportBatchDone({ done: b.done, total: b.total, failed: b.failed, cancelled: b.cancelled, printPass: b.printPass /* #2303 */, seq: Date.now() });
     return false;
   };
   // Applies a viewport render result to layoutElements as soon as it matches the outstanding pending
@@ -826,8 +830,15 @@ export function StoreProvider({ children }) {
     if (!viewportRenderResult || !viewportPendingRequest) return;
     if (viewportRenderResult.requestId !== viewportPendingRequest.requestId) return;
     const res = viewportRenderResult;
-    const { targetElementId, elementW: reqW, elementH: reqH, targetPageId } = viewportPendingRequest;
+    const { targetElementId, elementW: reqW, elementH: reqH, targetPageId, printPass } = viewportPendingRequest;
     setViewportPendingRequest(null);
+    // TASKS.csv #2303 — a print-pass image goes to printSrcs only: the element's src, frame, capture time and the selection stay as they are
+    if (printPass) {
+      if (!res.error && res.src) setPrintSrcs((m) => ({ ...m, [targetElementId]: res.src }));
+      if (continueViewportBatch(!!res.error)) return;
+      goToModule("layout");
+      return;
+    }
     // #1644 — an atlas page's element is written on its own page, not the active one
     const applyEls = targetPageId ? (fn) => setLayoutPages((pages) => pages.map((p) => (p.id === targetPageId ? { ...p, elements: fn(p.elements) } : p))) : setLayoutElements;
 
@@ -1723,6 +1734,7 @@ export function StoreProvider({ children }) {
     layoutTemplates, addLayoutTemplate, renameLayoutTemplate, deleteLayoutTemplate,
     viewportRenderRequest, viewportRenderRequestSeq, requestViewportRender, viewportPendingRequest,
     requestViewportBatch, cancelViewportBatch, viewportBatchDone, setViewportBatchDone, // TASKS.csv #1644
+    printSrcs, setPrintSrcs, // TASKS.csv #2303 — session only
     viewportRenderResult, viewportRenderResultSeq, resolveViewportRender,
     layoutSelectRequest, setLayoutSelectRequest,
     layoutPrintRequest, requestLayoutPrint, // TASKS.csv #908

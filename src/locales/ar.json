@@ -10841,5 +10841,9 @@
   "Drillholes: {name} × thickness or metres above a cut-off, per hole…": "ثقوب الحفر: {name} × السماكة أو الأمتار فوق حد قطع، لكل ثقب…",
   "Drillholes: metres of {name} at or above {c} in each hole": "ثقوب الحفر: أمتار {name} عند {c} أو فوقها في كل ثقب",
   "Drillholes: {name} × thickness at or above {c} in each hole": "ثقوب الحفر: {name} × السماكة عند {c} أو فوقها في كل ثقب",
-  "at or above ({name})": "عند أو فوق ({name})"
+  "at or above ({name})": "عند أو فوق ({name})",
+  "Rendering the viewports at print resolution (300 dpi) for the export": "عرض نوافذ العرض بدقة الطباعة (300 نقطة/بوصة) للتصدير",
+  "Export cancelled while the viewports were rendered at print resolution.": "أُلغي التصدير أثناء عرض نوافذ العرض بدقة الطباعة.",
+  "1 viewport could not be rendered at print resolution and was printed from its page image.": "تعذّر عرض نافذة عرض واحدة بدقة الطباعة فطُبعت من صورتها في الصفحة.",
+  "{n} viewports could not be rendered at print resolution and were printed from their page images.": "تعذّر عرض {n} نوافذ عرض بدقة الطباعة فطُبعت من صورها في الصفحة."
 }
