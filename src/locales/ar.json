@@ -1178,7 +1178,6 @@
   "{noTo} with a blank or non-numeric from/to": "{noTo} بقيمة من/إلى فارغة أو غير رقمية",
   "{swapped} with from > to": "{swapped} حيث من > إلى",
   "{negative} with a negative depth": "{negative} بعمق سالب",
-  "{pastEoh} past the end of their hole": "{pastEoh} بعد قاع ثقبها",
   "{size} hole id(s) with no collar ({ex}{v})": "{size} معرّف ثقب بلا فوهة ({ex}{v})",
   "Check these {label}: {parts}. They were imported as they are — Data QC lists each one.": "افحص هذه {label}: {parts}. استُوردت كما هي — يدرج فحص جودة البيانات كلًا منها.",
   "Interval references hole \"{hole_id}\", which has no matching collar.{v}": "الفترة تشير إلى الثقب «{hole_id}» الذي لا فوهة مطابقة له.{v}",
@@ -11036,5 +11035,9 @@
   "{symbol} is now reported {basis}: {n} row(s) converted from {from} to {to} (× {factor}). Ctrl+Z to undo.": "يُعبَّر عن {symbol} الآن {basis}: حُوِّل {n} صفًا من {from} إلى {to} (× {factor}). Ctrl+Z للتراجع.",
   "{symbol} reported as": "{symbol} معبَّرًا عنه بصيغة",
   "The basis {symbol}'s grades are reported in. Changing it converts every stored value (undoable).": "الأساس الذي يُعبَّر به عن محتويات {symbol}. تغييره يحوّل كل قيمة محفوظة (قابل للتراجع).",
-  "survey method assumed: the direction below the collar was not measured (drawn dashed)": "طريقة المسح مفترضة: لم يُقَس الاتجاه تحت الفوهة (مرسوم بخط متقطع)"
+  "survey method assumed: the direction below the collar was not measured (drawn dashed)": "طريقة المسح مفترضة: لم يُقَس الاتجاه تحت الفوهة (مرسوم بخط متقطع)",
+  "{pastEoh} past the end of their hole (its length from the collar file)": "{pastEoh} بعد قاع ثقبها (طوله من ملف الفوهات)",
+  "{pastEoh} past the end of their hole (its length from the deepest survey station, deeper than the collar's)": "{pastEoh} بعد قاع ثقبها (طوله من أعمق محطة مسح، وهي أعمق من طول الفوهة)",
+  "{pastEoh} past the end of their hole ({collar} by the collar's length, {survey} by the deepest survey station)": "{pastEoh} بعد قاع ثقبها ({collar} حسب طول الفوهة، {survey} حسب أعمق محطة مسح)",
+  "{n} hole(s) not checked against a hole length (no collar yet, or neither a collar length nor a survey station below 0 m)": "{n} من الثقوب لم يُتحقق منها مقابل طول الثقب (لا فوهة بعد، أو لا طول للفوهة ولا محطة مسح أدنى من 0 م)"
 }

@@ -35,7 +35,7 @@ export default function CodeDictionaryTable({ layerKey, rows, categories, legend
       </div>
       {notice && <div role="status" style={{ ...note, marginBottom: 8, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 5 }}>{notice}</div>}
       <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "var(--font-size-base)" }}>
-        <thead><tr><th style={th}>{tr("Code")}</th><th style={th}>{tr("Rows")}</th><th style={th}>{tr("Meaning in this project")}</th><th style={th}>{tr("Set by")}</th><th style={th}>{tr("Logged beside it")}</th></tr></thead>
+        <thead><tr><th style={th}>{tr("Code")}</th><th style={th}>{tr("Rows")}</th><th style={th}>{tr("Meaning in this project")}</th><th style={{ ...th, whiteSpace: "nowrap" }}>{tr("Set by")}</th><th style={th}>{tr("Logged beside it")}</th></tr></thead>
         <tbody>
           {categories.slice(0, SHOWN).map(([value, count]) => {
             const e = entryOf(dict, value), info = logged.get(codeKey(value));
@@ -49,7 +49,7 @@ export default function CodeDictionaryTable({ layerKey, rows, categories, legend
                     onBlur={(ev) => setCodeDictionaryEntry(layerKey, value, ev.target.value)}
                     onKeyDown={(ev) => { if (ev.key === "Enter") ev.currentTarget.blur(); }} style={inp} />
                 </td>
-                <td style={{ ...td, color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)" }}>{e ? (e.source === "file" ? tr("the file") : tr("you")) : "—"}</td>
+                <td style={{ ...td, color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)", whiteSpace: "nowrap" }}>{e ? (e.source === "file" ? tr("the file") : tr("you")) : "—"}</td>
                 <td style={{ ...td, maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "var(--color-text-secondary)", fontSize: "var(--font-size-sm)" }} title={info?.top ? info.top + others : undefined}>{info?.top ? info.top + others : "—"}</td>
               </tr>
             );

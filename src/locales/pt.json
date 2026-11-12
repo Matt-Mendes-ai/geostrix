@@ -1178,7 +1178,6 @@
   "{noTo} with a blank or non-numeric from/to": "{noTo} com de/até vazio ou não numérico",
   "{swapped} with from > to": "{swapped} com de > até",
   "{negative} with a negative depth": "{negative} com profundidade negativa",
-  "{pastEoh} past the end of their hole": "{pastEoh} além do fim do furo",
   "{size} hole id(s) with no collar ({ex}{v})": "{size} id(s) de furo sem boca ({ex}{v})",
   "Check these {label}: {parts}. They were imported as they are — Data QC lists each one.": "Verifique estes {label}: {parts}. Foram importados como estão — o Controle de dados lista cada um.",
   "Interval references hole \"{hole_id}\", which has no matching collar.{v}": "Um intervalo faz referência ao furo “{hole_id}”, que não tem boca correspondente.{v}",
@@ -11036,5 +11035,9 @@
   "{symbol} is now reported {basis}: {n} row(s) converted from {from} to {to} (× {factor}). Ctrl+Z to undo.": "{symbol} agora é reportado {basis}: {n} linha(s) convertida(s) de {from} para {to} (× {factor}). Ctrl+Z para desfazer.",
   "{symbol} reported as": "{symbol} reportado como",
   "The basis {symbol}'s grades are reported in. Changing it converts every stored value (undoable).": "A base em que os teores de {symbol} são reportados. Alterá-la converte cada valor armazenado (pode ser desfeito).",
-  "survey method assumed: the direction below the collar was not measured (drawn dashed)": "método de levantamento presumido: a direção abaixo do colar não foi medida (desenhado tracejado)"
+  "survey method assumed: the direction below the collar was not measured (drawn dashed)": "método de levantamento presumido: a direção abaixo do colar não foi medida (desenhado tracejado)",
+  "{pastEoh} past the end of their hole (its length from the collar file)": "{pastEoh} além do fim do furo (o comprimento do arquivo de colares)",
+  "{pastEoh} past the end of their hole (its length from the deepest survey station, deeper than the collar's)": "{pastEoh} além do fim do furo (o comprimento da estação de levantamento mais profunda, mais funda que a do colar)",
+  "{pastEoh} past the end of their hole ({collar} by the collar's length, {survey} by the deepest survey station)": "{pastEoh} além do fim do furo ({collar} pelo comprimento do colar, {survey} pela estação de levantamento mais profunda)",
+  "{n} hole(s) not checked against a hole length (no collar yet, or neither a collar length nor a survey station below 0 m)": "{n} furo(s) não verificado(s) contra um comprimento de furo (ainda sem colar, ou sem comprimento no colar nem estação de levantamento abaixo de 0 m)"
 }
