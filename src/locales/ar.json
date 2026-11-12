@@ -11323,5 +11323,7 @@
   "Block height (m)": "ارتفاع الكتلة (م)",
   "= block size": "= حجم الكتلة",
   "Blocks of {b} m: the shell's own cells.": "كتل {b} م: خلايا الغلاف نفسه.",
-  "Three volumes of the same body: its {n} cells in the range hold {c}; the shell drawn between the cell centres holds {s}; the run counts its blocks, so its volume depends on the block size.": "ثلاثة أحجام للجسم نفسه: خلاياه الـ {n} في المدى تحتوي {c}؛ والغلاف المرسوم بين مراكز الخلايا يحتوي {s}؛ والتشغيل يعدّ كتله، فيتوقف حجمه على حجم الكتلة."
+  "Three volumes of the same body: its {n} cells in the range hold {c}; the shell drawn between the cell centres holds {s}; the run counts its blocks, so its volume depends on the block size.": "ثلاثة أحجام للجسم نفسه: خلاياه الـ {n} في المدى تحتوي {c}؛ والغلاف المرسوم بين مراكز الخلايا يحتوي {s}؛ والتشغيل يعدّ كتله، فيتوقف حجمه على حجم الكتلة.",
+  " (the median hole spacing, {s} m, out to a third of the drilling's width)": " (التباعد الوسيط بين الثقوب، {s} م، حتى ثلث عرض الحفر)",
+  "These holes are near-vertical, so 'All pairs' mixes the pairs down each hole (a sample length apart) with the pairs between holes (a hole spacing apart): a weak fit here does not say the grade has no spatial structure. Compute Downhole pairs (the nugget and the short range), then Between holes or In the plane (the range along the bedding), apart.": "هذه الثقوب شبه رأسية، لذا تخلط «كل الأزواج» الأزواج على طول كل ثقب (بطول عينة) مع الأزواج بين الثقوب (بتباعد الثقوب): الملاءمة الضعيفة هنا لا تعني أن المحتوى بلا بنية مكانية. احسب أزواج «على طول الثقب» (الأثر النقطي والمدى القصير)، ثم «بين الثقوب» أو «في المستوى» (المدى على امتداد التطبق)، كلاً على حدة."
 }

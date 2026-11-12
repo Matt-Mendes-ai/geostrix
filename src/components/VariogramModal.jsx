@@ -10,7 +10,7 @@ import { useLeadCommodity } from "../lib/useLeadCommodity.js"; // TASKS.csv #255
 import { samplePointsFromIntervals } from "../lib/estimation.js";
 import { desurveyHole } from "../lib/desurvey.js";
 import {
-  fitVariogramModel, /* experimentalVariogram, directionRow: in the worker since #3009 */ variogramModelValue, VARIOGRAM_MODELS,
+  fitVariogramModel, /* experimentalVariogram, directionRow: in the worker since #3009 */ variogramModelValue, VARIOGRAM_MODELS, verticalShare /* #3015 */,
   VALUE_TRANSFORMS, applyValueTransform, groupPointsByDomain, suggestLagDistance, suggestBetweenHoleLag, variogramStationarity, siteSpacingLag, lagsShortOfSpacing, downholeLinePoints /* #1843 */, DIRECTION_TABLE, longestDirection /* #1996 */ } from "../lib/variogram.js";
 import { holeSpacingSummary } from "../lib/holeSpacing.js"; // TASKS.csv #2221
 import { useEscapeKey } from "../lib/useEscapeKey.js";
@@ -94,7 +94,10 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
   const [lagDistance, setLagDistance] = useState(0); // 0 => use the suggested value
   const [nLags, setNLags] = useState(12);
   const [lagTolerance, setLagTolerance] = useState(0.5);
-  const [holeMode, setHoleMode] = useState("all");
+  // TASKS.csv #3015 (WA iron review) — on near-vertical drilling the first variogram is the one down the holes (the nugget and the short
+  // range); 'All pairs' mixed 2 m downhole pairs with pairs tens of metres apart between holes and read as 'no spatial structure'
+  const vertical = useMemo(() => verticalShare(collars, survey) >= 0.9, [collars, survey]);
+  const [holeMode, setHoleMode] = useState(() => (verticalShare(collars, survey) >= 0.9 ? "downhole" : "all"));
   const [directional, setDirectional] = useState(false);
   const [azimuth, setAzimuth] = useState(0);
   const [dip, setDip] = useState(0);
@@ -174,10 +177,23 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
         const spacing = holeMode === "downhole" ? null : holeSpacingSummary((collars || []).filter((c) => holesIn.has(c.hole_id)));
         const site = holeMode === "between" ? siteSpacingLag(spacing) : null;
         const suggested = site ? site.lag : between != null ? between / 4 : suggestLagDistance(tPoints); // a quarter of it, as ordinary kriging's fit
-        const lag = lagDistance > 0 ? lagDistance : Math.max(1, Math.round(suggested || 10));
-        const nLagsUsed = site && !(lagDistance > 0) ? Math.max(nLags, site.nLags) : nLags; // #2221 — auto lag between sites: out to the farthest one
+        let lag = lagDistance > 0 ? lagDistance : Math.max(1, Math.round(suggested || 10));
+        let nLagsUsed = site && !(lagDistance > 0) ? Math.max(nLags, site.nLags) : nLags; // #2221 — auto lag between sites: out to the farthest one
 
         const usePlane = inPlane ? planeChoice(planeKind) : null, half = Number(planeHalf) > 0 ? Number(planeHalf) : compositeLength; // #2424
+        // TASKS.csv #3015 — in the plane with no lag typed: the median hole spacing, out to a third of the drilling's width (the in-plane
+        // default stopped at 60 m with holes 22 m apart)
+        let planeLagFrom = null;
+        if (usePlane && !(lagDistance > 0)) {
+          const sp = spacing || holeSpacingSummary((collars || []).filter((c) => holesIn.has(c.hole_id)));
+          if (sp?.medianM > 0) {
+            let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+            for (const p of tPoints) { if (p.x < x0) x0 = p.x; if (p.x > x1) x1 = p.x; if (p.y < y0) y0 = p.y; if (p.y > y1) y1 = p.y; }
+            lag = Math.max(1, Math.round(sp.medianM));
+            nLagsUsed = Math.min(60, Math.max(nLags, Math.ceil(Math.max(x1 - x0, y1 - y0) / 3 / lag)));
+            planeLagFrom = sp.medianM;
+          }
+        }
         // TASKS.csv #2710 — below a surface: each composite's elevation becomes its depth below it, then the pairs are level within ± half
         let vgPoints = tPoints, flatOutside = 0;
         if (usePlane?.surface) {
@@ -192,7 +208,7 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
         lastRun.current = { points: vgPoints, base: { lagDistance: lag, nLags: nLagsUsed, lagTolerance, holeMode, estimator }, model }; setDirTable(null); // #1996
         const fit = fitVariogramModel(vg.bins, { model });
         setResult({
-          vg, fit, lag, suggested, capValue, domainLabel, spacing, nLagsUsed, fromSites: !!site, // #2221
+          vg, fit, lag, suggested, capValue, domainLabel, spacing, nLagsUsed, fromSites: !!site, planeLagFrom, // #2221; planeLagFrom: #3015
           nLagsTyped: nLags, plane: usePlane ? { label: usePlane.label, half, outside: flatOutside } : null, holeMode, compositeLength, medianSampleM: medianSampleLength(srcAssays, symbol), // #2424
           nComposites: points.length, dropped, transform, model, tP95, tFloor, // #1746
           byDepthHoles: byDepth.holes, // #1843
@@ -363,7 +379,7 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
           {result && plot && (
             <>
               <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
-                {tr("{nComposites} composites{v}{v2} · {nPairsUsed} pairs used · lag {lag} m{v4}{v5}{v6}", { nComposites: result.nComposites.toLocaleString(), v: result.domainLabel ? tr(" in domain \"{domainLabel}\"", { domainLabel: result.domainLabel }) : "", v2: !result.vg.subsampled ? "" : result.vg.holesTotal != null ? tr(" ({used} of {total} holes, whole holes, for the pair loop)", { used: result.vg.holesUsed.toLocaleString(), total: result.vg.holesTotal.toLocaleString() }) /* #1572 */ : result.vg.firstPairLag != null ? tr(" (subsampled to {nPoints} for the pair loop; no pairs closer than {h} m — Downhole only resolves the nugget)", { nPoints: result.vg.nPoints.toLocaleString(), h: result.vg.firstPairLag.toFixed(1) }) : tr(" (subsampled to {nPoints} for the pair loop)", { nPoints: result.vg.nPoints.toLocaleString() }), nPairsUsed: result.vg.nPairsUsed.toLocaleString(), lag: result.lag, v4: result.suggested != null ? (result.fromSites ? tr(" (suggested {suggested} m from the drill-site spacing)", { suggested: result.suggested.toFixed(1) }) : tr(" (suggested {suggested} m)", { suggested: result.suggested.toFixed(1) })) : "", v5: result.dropped ? tr(" · {dropped} composites could not be placed in 3D", { dropped: result.dropped }) : "", v6: result.capValue != null ? tr(" · capped at {capValue}", { capValue: +Number(result.capValue).toPrecision(4) /* #1420: was 2.7857037499998807 */ }) : "" })}
+                {tr("{nComposites} composites{v}{v2} · {nPairsUsed} pairs used · lag {lag} m{v4}{v5}{v6}", { nComposites: result.nComposites.toLocaleString(), v: result.domainLabel ? tr(" in domain \"{domainLabel}\"", { domainLabel: result.domainLabel }) : "", v2: !result.vg.subsampled ? "" : result.vg.holesTotal != null ? tr(" ({used} of {total} holes, whole holes, for the pair loop)", { used: result.vg.holesUsed.toLocaleString(), total: result.vg.holesTotal.toLocaleString() }) /* #1572 */ : result.vg.firstPairLag != null ? tr(" (subsampled to {nPoints} for the pair loop; no pairs closer than {h} m — Downhole only resolves the nugget)", { nPoints: result.vg.nPoints.toLocaleString(), h: result.vg.firstPairLag.toFixed(1) }) : tr(" (subsampled to {nPoints} for the pair loop)", { nPoints: result.vg.nPoints.toLocaleString() }), nPairsUsed: result.vg.nPairsUsed.toLocaleString(), lag: result.lag, v4: result.planeLagFrom ? tr(" (the median hole spacing, {s} m, out to a third of the drilling's width)", { s: Math.round(result.planeLagFrom) }) /* #3015 */ : result.suggested != null ? (result.fromSites ? tr(" (suggested {suggested} m from the drill-site spacing)", { suggested: result.suggested.toFixed(1) }) : tr(" (suggested {suggested} m)", { suggested: result.suggested.toFixed(1) })) : "", v5: result.dropped ? tr(" · {dropped} composites could not be placed in 3D", { dropped: result.dropped }) : "", v6: result.capValue != null ? tr(" · capped at {capValue}", { capValue: +Number(result.capValue).toPrecision(4) /* #1420: was 2.7857037499998807 */ }) : "" })}
               </div>
 
               {/* TASKS.csv #1996 — the direction table: 13 directions, each fitted, one per tick so the window keeps painting */}
@@ -477,7 +493,12 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
               {stat?.noSill && <div style={noteBox("#fdf7ea", "#e2a63c")}>{tr("No sill at the population variance: at the last reliable lags the variogram is {r}× it{v}. That points to a trend or mixed domains (several populations in one), not a stationary grade, so the range is not a correlation length. Estimate within a domain, or remove the trend, before trusting it.", { r: stat.endRatio.toFixed(2), v: stat.rising ? tr(" and still rising") : "" })}</div>}{/* #1576 */}
               {stat?.rangeBeyond && <div style={noteBox("#fdf7ea", "#e2a63c")}>{tr("The fitted range ({range} m) is beyond the furthest reliable lag ({lag} m): it is extrapolated past the measured pairs, not read from them.", { range: Math.round(result.fit.range), lag: Math.round(stat.reliableLagM) })}</div>}
 
-              {fitWeak && (
+              {fitWeak && vertical && result.holeMode === "all" && ( /* TASKS.csv #3015 */
+                <div style={noteBox("#fdf7ea", "#e2a63c")}>
+                  <b>{tr("Weak fit (r² = {rSquared}).", { rSquared: result.fit.rSquared.toFixed(3) })}</b>{" "}{tr("These holes are near-vertical, so 'All pairs' mixes the pairs down each hole (a sample length apart) with the pairs between holes (a hole spacing apart): a weak fit here does not say the grade has no spatial structure. Compute Downhole pairs (the nugget and the short range), then Between holes or In the plane (the range along the bedding), apart.")}
+                </div>
+              )}
+              {fitWeak && !(vertical && result.holeMode === "all") && (
                 <div style={noteBox("#fdf7ea", "#e2a63c")}>
                   <b>{tr("Weak fit (r² = {rSquared}).", { rSquared: result.fit.rSquared.toFixed(3) })}</b>{" "}{tr("The experimental points do not follow the {v} shape well, so the nugget / sill / range above are not meaningfully constrained. That is itself a result: a flat variogram near the population variance means this variable has no resolvable spatial structure at these lags, and any smoothly interpolated shell of it is drawing continuity the data does not support. Try a value transform, a different domain, or a smaller lag.", { v: tr(VARIOGRAM_MODELS[result.fit.model]?.label || "").toLowerCase() })}</div>
               )}

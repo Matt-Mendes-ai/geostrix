@@ -479,6 +479,16 @@ export function nearestAmong(queries, pts, accept) {
   return out;
 }
 
+// TASKS.csv #3015 (WA iron review) — the share of holes within `maxTiltDeg` of vertical (collar and every survey station; dip positive
+// down or negative down, either sign read as its size). -> 0..1 (0 with no hole)
+export function verticalShare(collars, survey, maxTiltDeg = 5) {
+  const bad = new Set(), lim = 90 - maxTiltDeg;
+  for (const s of survey || []) { const d = Math.abs(Number(s?.dip)); if (Number.isFinite(d) && d < lim) bad.add(s.hole_id); }
+  let n = 0, v = 0;
+  for (const c of collars || []) { const d = Math.abs(Number(c?.dip)); n++; if ((!Number.isFinite(d) || d >= lim) && !bad.has(c.hole_id)) v++; }
+  return n ? v / n : 0;
+}
+
 function randomSubsample(points, maxPoints, seed = 1) {
   if (points.length <= maxPoints) return points;
   const idx = Uint32Array.from(points, (_, i) => i);
