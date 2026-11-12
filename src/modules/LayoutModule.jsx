@@ -56,7 +56,8 @@ import { groupSectionLegend } from "../lib/sectionLegend.js"; // TASKS.csv #1127
 import { firstLegendGroups, rankLegendGroups, legendGroupCount } from "../lib/legendGroups.js"; // rank / count: #1482 // TASKS.csv #1224
 import { numericLayerLegendGroups } from "../lib/legendGroups.js"; // TASKS.csv #1482 — the RQD / recovery / SG / mag susc ramps
 import { frameTest, samplesInFrame, mapLayersInFrame } from "../lib/legendFrame.js"; // TASKS.csv #2134
-import { legendFit } from "../lib/legendFit.js"; // TASKS.csv #2134
+import { legendFit, legendRowH, legendLabelW, legendBoxSize } from "../lib/legendFit.js"; // TASKS.csv #2134; row rules and box: #2869
+import { scoreRasterLegendGroups, isScoreRaster } from "../lib/viewer/scoreRasterLegend.js"; // TASKS.csv #2794
 import { holeAttitudeAssumed } from "../lib/desurvey.js"; // TASKS.csv #2134 — the notice counts the assumed-vertical holes
 import { freeSpot, placeCollarTable, elementBox, copyOffset } from "../lib/layoutPlace.js"; // copyOffset: #2715 // elementBox: #1870 // TASKS.csv #1484 — new items into free space; #2135 the collar table
 import { roundScale } from "../lib/layoutGeometry.js"; // TASKS.csv #1486
@@ -725,7 +726,8 @@ export default function LayoutModule() {
       base.items = items.length ? (left > 0 ? [...kept, [tr("+ {n} more group(s): Load from view adds them", { n: left }), null, { heading: true }]] : kept) : [["Item", "#55606e"]];
       const viewports = elements.filter((el) => el.type === "viewport");
       if (viewports.length === 1) Object.assign(base, { boundViewportId: viewports[0].id, loadedItems: base.items, loadedCapturedAt: viewports[0].capturedAt || null }); // stamp: #2471
-      Object.assign(base, freeSpot(elements, 220, Math.min(A4.h - 80, 30 + 15 * base.items.length), A4)); // #1484
+      const box = legendBoxSize(base.items); // #2869 — the size it draws at: a 220 px guess grew over the north arrow beside it
+      Object.assign(base, freeSpot(elements, box.w, Math.min(A4.h - 80, box.h), A4)); // #1484
     }
     // TASKS.csv #19 — shapes/annotation
     if (type === "rect") { base.w = 180; base.h = 110; base.stroke = "#1a2028"; base.strokeWidth = 2; base.fill = "#ffffff"; base.fillOpacity = 0; }
@@ -1047,7 +1049,9 @@ export default function LayoutModule() {
     const groups = [
       ...categoryLegendGroups({ keys: LEGEND_CATEGORY_KEYS, layers, layerVisible, placed: new Set((collars || []).map((c) => String(c.hole_id))) /* #1867 */, hidden: theme.categoryFilter || {}, visibleHoles: frameHoles ? { ...(theme.visibleHoles || {}), ...Object.fromEntries(collars.filter((c) => !frameHoles.has(c.hole_id)).map((c) => [c.hole_id, false])) } : theme.visibleHoles || {}, singleColor: Object.fromEntries(LEGEND_CATEGORY_KEYS.filter((k) => theme.layerStyles?.[k]?.color).map((k) => [k, theme.layerStyles[k].color])), labelFor, colorFor }), // #1288
       ...assayLegendGroups({ assays: inFrame(assays), assayElements, assayVisible: theme.assayVisible !== false, assayDisplayElements: theme.assayDisplayElements || (theme.assayDisplayElement ? [theme.assayDisplayElement] : []), assayStyle: theme.assayStyle || {} }),
-      ...voxelLegendGroups(voxelModels), ...rasterLegendGroups(rasters), // #1236
+      // #2794 — score maps (Targeting's overlays sent to the map) as their ramp, as the 3D legend has them (#2670); #2860 — a picture raster
+      // (colours, no values, no colour bar attached) by name, where it was left out and a view of pictures only gave a grey 'Item' row
+      ...voxelLegendGroups(voxelModels), ...rasterLegendGroups((rasters || []).filter((r) => !isScoreRaster(r)), { pictureNote: tr("picture: colours only, no values") }), ...scoreRasterLegendGroups(rasters), // #1236
       // TASKS.csv #2472 (review #2325) — the custom layers the view draws (a stratigraphic unit, a gamma log): the 3D legend lists them and
       // the sheet's did not; the same builder, its rows narrowed to the frame's holes
       ...customLegendGroups(frameHoles ? customLayers.map((l) => ({ ...l, rows: inFrame(l.rows) })) : customLayers, theme.customVisible || viewerUiState?.customVisible || {}, theme.layerStyles || viewerUiState?.layerStyles || {}),
@@ -2447,8 +2451,7 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
   // columns (up to 4) as it needs to end above the sheet's bottom margin, from the rows' printed heights
   // TASKS.csv #2134 — held to the room right of the legend too; rows past the sheet are left out and counted
   const legendLay = el.type === "legend" ? (() => {
-    const row = (it) => (it?.[2]?.heading ? printPx(printPt.small) + 8 : it?.[2]?.note ? printPx(printPt.caption) + 4 : it?.[2]?.ramp ? 44 : Math.max(17, printPx(printPt.small) + 5));
-    const labelW = (it) => (it?.[2]?.ramp ? 152 : String(it?.[0] ?? "").length * printPx(printPt.small) * 0.55);
+    const row = legendRowH, labelW = legendLabelW; // #2869 — shared with the placement of a new legend (lib/legendFit.js)
     return legendFit(el.items || [], { x: Number(el.x) || 0, y: Number(el.y) || 0, pageW: ctx?.pageW || 1123, pageH: ctx?.pageH || 794, rowH: row, labelW });
   })() : { cols: 1, shown: 0, left: 0 };
   const legendCols = legendLay.cols;
