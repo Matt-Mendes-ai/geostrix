@@ -18,11 +18,12 @@ import { holeTotals, clipAssaysToUnit, planSpacing, planGrid, planSummary, conto
 import { saveFile } from "../lib/desktop.js";
 import { gridPanels } from "../lib/flatPanels.js"; // TASKS.csv #2650 — the plan grid cut into panels
 import { toCsv, FORMULA_LEAD } from "../lib/tabular.js";
+import { showGtOnPlan, gtContourLayer } from "../lib/planGt.js"; // TASKS.csv #2755 — the totals on the Maps plan, the contour as a map layer
 
 export default function GradeThicknessModal({ assays, assayElements, collars, survey, layers, onClose }) {
   useEscapeKey(onClose);
   useFocusTrap();
-  const { desurveyMethod } = useStore();
+  const { desurveyMethod, addMapLayer } = useStore(); // addMapLayer: #2755
   const symbols = (assayElements || []).map((e) => e.symbol);
   const [symbol, setSymbol] = useState(symbols[0] || "");
   const unit = (assayElements || []).find((e) => e.symbol === symbol)?.unit || "ppm";
@@ -74,6 +75,7 @@ export default function GradeThicknessModal({ assays, assayElements, collars, su
   const summary = useMemo(() => (grid && Number.isFinite(gtc) ? planSummary(grid, gtc, density, unit) : null), [grid, gtc, density, unit]);
   // TASKS.csv #2650 — the same grid in square panels (a strip, an in-situ recovery pattern): a panel counts when its mean GT reaches the cut-off
   const [panelText, setPanelText] = useState("");
+  const [planMsg, setPlanMsg] = useState(null); // #2755
   const panels = useMemo(() => (grid && Number.isFinite(gtc) && Number(panelText) > 0 && Number(density) > 0 ? gridPanels(grid, { panelM: Number(panelText), gtCut: gtc, density: Number(density) }) : null), [grid, gtc, panelText, density]);
   const contour = useMemo(() => (grid && Number.isFinite(gtc) ? contourSegments(grid, grid.gt, gtc) : []), [grid, gtc]);
 
@@ -137,7 +139,12 @@ export default function GradeThicknessModal({ assays, assayElements, collars, su
                 </svg>
               )}
             </div>
-            <div style={{ display: "flex", gap: 8 }}><button type="button" onClick={exportCsv} style={{ ...inp, width: "auto", display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}><Download size={14} />{tr("Export per-hole totals (CSV)")}</button></div>
+            <div style={{ display: "flex", gap: 8 }}><button type="button" onClick={exportCsv} style={{ ...inp, width: "auto", display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}><Download size={14} />{tr("Export per-hole totals (CSV)")}</button>
+              <button type="button" disabled={!totals?.holes?.length} /* TASKS.csv #2755 */ onClick={() => { showGtOnPlan({ symbol: ox ? ox.oxide : symbol, label: gtLabel, title: `GT (${gtLabel}), intercepts at ${cut} ${shownGrade}`, holes: [...totals.holes.filter((h) => Number.isFinite(h.x)), ...totals.zeros].map((h) => ({ hole_id: h.hole_id, x: h.x, y: h.y, gt: h.gt, thicknessM: h.thicknessM })) }); setPlanMsg(tr("The holes' GT is on the Maps tab's plan, as circles sized by GT (until the app is closed or you clear it there).")); }}
+                style={{ ...inp, width: "auto", cursor: totals?.holes?.length ? "pointer" : "default" }} title={tr("Graduate the collars on the Maps tab's plan by these totals: circle area in proportion to GT, a hole assayed with no intercept as a hollow ring.")}>{tr("Show on the Maps plan")}</button>
+              <button type="button" disabled={!contour.length} /* TASKS.csv #2755 */ onClick={() => { const l = gtContourLayer(contour, { level: gtc, label: gtLabel, symbol: ox ? ox.oxide : symbol, cellM: grid?.cell }); if (l) { addMapLayer(l); setPlanMsg(tr("Added \"{name}\" as a map layer: on the Maps plan and in the 3D View, and exported like any other.", { name: l.name })); } }}
+                style={{ ...inp, width: "auto", cursor: contour.length ? "pointer" : "default" }} title={tr("The contour at the GT cut-off, as lines in a map layer of the project.")}>{tr("Add the GT contour as a map layer")}</button></div>
+            {planMsg && <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)" }}>{planMsg}</div>}
             <div className="ge-section-label" style={{ marginTop: 4 }}>{tr("Estimate in plan")}</div>
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
               <label style={field}>{tr("Cell (m)")}<input type="number" min="0" step="any" value={cell} placeholder={cellM ? String(cellM) : ""} onChange={(e) => setCell(e.target.value)} style={inp} aria-label={tr("Plan cell (m)")} /></label>
