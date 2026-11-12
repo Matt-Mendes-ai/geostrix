@@ -32,3 +32,14 @@ export function mapGroundCount({ contacts, order, groundAt, measurements = [], s
   }
   return { points, pointsOnGround, measurements: n, measurementsOnGround: nOn };
 }
+
+// TASKS.csv #2973 (WA iron review) — logged contacts [{ hole_id }] split by whether their hole is collared inside bbox [x0, y0, x1, y1]
+// (the map layer's area) -> { inside, insideHoles, outside } (a contact whose hole has no collar counts as outside)
+export function contactsInArea(contacts, collars, bbox) {
+  const [x0, y0, x1, y1] = bbox || [];
+  const inBox = new Set((collars || []).filter((c) => Number(c.x) >= x0 && Number(c.x) <= x1 && Number(c.y) >= y0 && Number(c.y) <= y1).map((c) => c.hole_id));
+  let inside = 0;
+  const holes = new Set();
+  for (const c of contacts || []) if (inBox.has(c.hole_id)) { inside++; holes.add(c.hole_id); }
+  return { inside, insideHoles: holes.size, outside: (contacts || []).length - inside };
+}

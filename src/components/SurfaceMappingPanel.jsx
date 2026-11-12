@@ -35,6 +35,7 @@ import { CATEGORICAL_SAFE_COLORS } from "../lib/layers.js";
 import { saveFile } from "../lib/desktop.js";
 import { collarSubcrop, subcropLayer, roleWithCodes, subcropLeftOut, holeStartCodes } from "../lib/collarSubcrop.js"; // TASKS.csv #1719; roleWithCodes: #2407; subcropLeftOut: #2566; holeStartCodes: #2956
 import { outlineLayer, defaultReach, medianSpacing } from "../lib/subcropOutlines.js"; // TASKS.csv #2956
+import { loggedCodeSpellings, withLogColours } from "../lib/logColours.js"; // TASKS.csv #2970
 import { categoryColor, LAYER_META } from "../lib/layers.js"; // TASKS.csv #1719 — the logs' own colours
 import { ensureExportCrs } from "../lib/projectCrsRequest.js"; // TASKS.csv #1021
 import { toExportCsv } from "../lib/tabular.js";
@@ -77,6 +78,10 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
   const [busy, setBusy] = useState(false);
   const [openLegend, setOpenLegend] = useState({});
   const [pendingStruct, setPendingStruct] = useState(null); // { name, rows, headers, cols }
+  // TASKS.csv #2970 — a map unit named like a logged code takes the logs' colour (at import, and whenever 'Colour by' returns to the field)
+  const logSpell = useMemo(() => loggedCodeSpellings(layers.litho), [layers.litho]);
+  const logColourOf = (u) => categoryColor(viewerUiState?.legendOverride?.litho?.[u], LAYER_META.litho, u);
+  const logCats = (layer, cats) => withLogColours(cats, logSpell, logColourOf, { byCount: !!(layer.subcropFromCollars || layer.subcropOutlines) });
   const [subDepth, setSubDepth] = useState(""); // TASKS.csv #2956 — blank: the first unit under the cover; a number: the unit that far down each hole
   const [subcropCard, setSubcropCard] = useState(null); // TASKS.csv #2956 — { name, pts, reach, depth } after a subcrop run
   const [typing, setTyping] = useState(null); // TASKS.csv #1719 — one measurement typed in: { station, x, y, z, type, dip, dipDir, comment }
@@ -149,6 +154,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
       let layer = buildLayer(parsed, { sourceName, projectEpsg, qml, sourceOverride: srcOv, mineSource: mineSourceOf(project) /* #2684 */, tie: tieOf(project) /* #2320 */, mineGrid: srcOv ? null : mineGridOf(project), collars /* #2586 */, clipTo: projectClipBox([...(collars || []), ...(surfaceSamples || [])]) });
       if (layer?.outside) { failed.push(tr("{name}: none of its {n} features comes within reach of the project's holes and samples, so nothing was imported (check its CRS if it should).", { name: sourceName, n: layer.outside.toLocaleString() })); return; }
       if (!layer) { failed.push(tr("{name}: no usable features", { name: `${sourceName}${parsed.name ? ` (${parsed.name})` : ""}` })); return; }
+      if (!qml && !layer.styleBreaks && layer.categories.length > 1) layer = { ...layer, categories: logCats(layer, layer.categories) }; // #2970 — the logs' colours
       // #1325 — a layer with no units to tell apart gets a colour of its own: a batch used to be one amber
       if (!qml && layer.categories.length <= 1) { const color = CATEGORICAL_SAFE_COLORS[colourAt % CATEGORICAL_SAFE_COLORS.length]; layer = { ...layer, color, categories: layer.categories.map((c) => ({ ...c, color })) }; }
       colourAt++;
@@ -396,13 +402,13 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
   };
   const changeStyleField = (layer, field) => {
     const grad = graduatedStyle(layer.features, field); // TASKS.csv #1600 - a numeric field in classes
-    updateMapLayer(layer.id, grad ? { styleField: field, ...grad } : { styleField: field, styleBreaks: null, categories: autoCategories(layer.features, field, autoColorFor()) });
+    updateMapLayer(layer.id, grad ? { styleField: field, ...grad } : { styleField: field, styleBreaks: null, categories: logCats(layer, autoCategories(layer.features, field, autoColorFor())) /* #2970 */ });
   };
   const setBreaks = (layer, text) => { // #1600
     const b = parseBreaks(text);
     if (b.length) updateMapLayer(layer.id, { styleBreaks: b, categories: graduatedCategories(layer.features, layer.styleField, b) });
   };
-  const eachValue = (layer) => updateMapLayer(layer.id, { styleBreaks: null, categories: autoCategories(layer.features, layer.styleField, autoColorFor()) });
+  const eachValue = (layer) => updateMapLayer(layer.id, { styleBreaks: null, categories: logCats(layer, autoCategories(layer.features, layer.styleField, autoColorFor())) /* #2970 */ });
 
   const readStructCsv = async (fileList) => {
     const all = Array.from(fileList || []);
@@ -781,6 +787,10 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
               const n = (v) => (String(v ?? "").trim() === "" ? NaN : Number(String(v).replace(",", ".")));
               // TASKS.csv #2958 — a horizontal reading (dip 0) needs no dip direction
               if (![typing.x, typing.y, typing.dip].every((v) => Number.isFinite(n(v))) || !(Number.isFinite(n(typing.dipDir)) || n(typing.dip) === 0)) { setStructMsg({ ok: false, text: tr("Type at least the easting, northing, dip and dip direction (a horizontal reading, dip 0, needs no direction).") }); return; }
+              // TASKS.csv #2974 (6) — the ranges checked here, the value named: dip 95 / dip direction 400 went to the card, whose Import then said
+              // only 'No rows had usable coordinates and dip.'
+              if (!(n(typing.dip) >= 0 && n(typing.dip) <= 90)) { setStructMsg({ ok: false, text: tr("The dip must be from 0 to 90° (typed: {v}).", { v: typing.dip }) }); return; }
+              if (Number.isFinite(n(typing.dipDir)) && !(n(typing.dipDir) >= 0 && n(typing.dipDir) <= 360)) { setStructMsg({ ok: false, text: tr("The dip direction must be from 0 to 360° (typed: {v}).", { v: typing.dipDir }) }); return; }
               const headers = ["Station", "Easting", "Northing", "Elevation", "Type", "Dip", "Dip direction", "Comments"];
               const rowObj = { Station: typing.station || "", Easting: typing.x, Northing: typing.y, Elevation: typing.z || "", Type: typing.type || "", Dip: typing.dip, "Dip direction": typing.dipDir, Comments: typing.comment || "" };
               setPendingStruct({ name: "Typed measurements", typed: true, rows: [rowObj], headers, cols: { x: "Easting", y: "Northing", z: Number.isFinite(n(typing.z)) ? "Elevation" : null, dip: "Dip", dipDir: "Dip direction", strike: null, type: "Type", station: "Station", comment: "Comments" }, sourceEpsg: project?.epsg ? String(project.epsg) : "" });

@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { X, Download } from "./icons.js";
 import { findOriQualityLayer, oriQualityIndex, filterByQuality, qualityLevels, qualityNote } from "../lib/oriQuality.js"; // TASKS.csv #1545
 import { projectPole, projectLowerHemisphere, greatCirclePoints, fisherStats, kambContourGrid, roseDiagramBins, DEFAULT_TERZAGHI_MAX_WEIGHT, fabricShape } from "../lib/stereonet.js";
+import { netZoom } from "../lib/stereonetZoom.js"; // TASKS.csv #2971
 import { colorForStructure, PALETTES } from "../lib/layers.js";
 import { typeKeyOf, typeEntries } from "../lib/stereonetTypes.js"; // TASKS.csv #1440
 import { saveFile } from "../lib/desktop.js";
@@ -50,6 +51,7 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks = []
   const qIndex = useMemo(() => (oriLayer ? oriQualityIndex(oriLayer) : null), [oriLayer]);
   const [domainId, setDomainId] = useState(""); // TASKS.csv #281 — "" = whole property
   const [showMean, setShowMean] = useState(true); // TASKS.csv #236
+  const [zoomData, setZoomData] = useState(false); // TASKS.csv #2971 — the net rescaled to the poles (flat-lying beds sit in its inner few degrees)
   const [showContours, setShowContours] = useState(false); // TASKS.csv #141 follow-up (Kamb density)
   const [terzaghiOn, setTerzaghiOn] = useState(false); // TASKS.csv #280
   const [roseMode, setRoseMode] = useState("strike"); // TASKS.csv #278
@@ -146,7 +148,10 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks = []
   const pooledTypes = typeFilter === "all" && types.length > 1; // TASKS.csv #1827
 
   const SIZE = 420, PAD = 24, R = SIZE / 2 - PAD, CX = SIZE / 2, CY = SIZE / 2;
-  const toSvg = (p) => ({ x: CX + p.x * R, y: CY - p.y * R }); // net y+ = north = up on screen, so flip for SVG's y-down
+  // TASKS.csv #2971 — 'Zoom to the data': k scales the net so the farthest pole sits near the edge, with dip rings of its own
+  const zoom = useMemo(() => (zoomData && view === "stereonet" ? netZoom(filtered.filter((p) => Number.isFinite(p.dip) && Number.isFinite(p.azimuth)).map((p) => projectPole(p.azimuth, p.dip, projection)), projection) : null), [zoomData, view, filtered, projection]);
+  const K = zoom ? zoom.k : 1;
+  const toSvg = (p) => ({ x: CX + p.x * R * K, y: CY - p.y * R * K }); // net y+ = north = up on screen, so flip for SVG's y-down
 
   const svgRef = React.useRef(null);
   const exportSvg = () => {
@@ -205,7 +210,7 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks = []
                       const cellNet = 2 / contour.gridSize;
                       const i = idx % contour.gridSize, j = Math.floor(idx / contour.gridSize);
                       const c = toSvg({ x: -1 + (i + 0.5) * cellNet, y: -1 + (j + 0.5) * cellNet });
-                      const px = cellNet * R;
+                      const px = cellNet * R * K; // K: #2971
                       return <rect key={`kc_${idx}`} x={c.x - px / 2} y={c.y - px / 2} width={px + 0.4} height={px + 0.4} fill={contourColor(v)} />;
                     })}
                   </g>
@@ -217,15 +222,24 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks = []
               <line x1={CX} y1={CY - R} x2={CX} y2={CY + R} stroke="#d9dce1" strokeWidth={1} />
               <line x1={CX - R} y1={CY} x2={CX + R} y2={CY} stroke="#d9dce1" strokeWidth={1} />
               {/* 10/20 deg equal-area grid rings for eyeballing plunge, decorative only (not a full net) */}
-              {[30, 60].map((plungeRing) => {
+              {!zoom && [30, 60].map((plungeRing) => {
                 const rr = (projection === "equalAngle" ? Math.tan((Math.PI / 4) - (plungeRing * Math.PI / 180) / 2) : Math.SQRT2 * Math.sin((Math.PI / 4) - (plungeRing * Math.PI / 180) / 2)) * R;
                 return <circle key={plungeRing} cx={CX} cy={CY} r={rr} fill="none" stroke="#e7e9ec" strokeWidth={1} />;
               })}
+              {zoom && zoom.rings.map((g) => ( /* TASKS.csv #2971 — rings of equal dip in the zoomed net, labelled */
+                <g key={`zr_${g.dip}`}>
+                  <circle cx={CX} cy={CY} r={g.r * R * K} fill="none" stroke="#d3d7dd" strokeWidth={1} strokeDasharray="3 3" />
+                  <text x={CX + g.r * R * K * Math.SQRT1_2 + 2} y={CY - g.r * R * K * Math.SQRT1_2 - 2} fontSize={10} fill="#8a939e">{`${g.dip}°`}</text>
+                </g>
+              ))}
+
               <text x={CX} y={CY - R - 6} textAnchor="middle" fontSize={11} fill="#55606e">N</text>
               <text x={CX} y={CY + R + 14} textAnchor="middle" fontSize={11} fill="#55606e">S</text>
               <text x={CX + R + 10} y={CY + 4} textAnchor="middle" fontSize={11} fill="#55606e">E</text>
               <text x={CX - R - 10} y={CY + 4} textAnchor="middle" fontSize={11} fill="#55606e">{tr("W")}</text>
 
+              <defs><clipPath id="stereonet-zoom-clip"><circle cx={CX} cy={CY} r={R} /></clipPath></defs>
+              <g clipPath={zoom ? "url(#stereonet-zoom-clip)" : undefined}>{/* TASKS.csv #2971 — the zoomed data kept inside the net */}
               {showCircles && filtered.map((p, i) => {
                 if (p.dip == null || p.azimuth == null || isNaN(p.dip) || isNaN(p.azimuth)) return null;
                 const pts = greatCirclePoints(p.azimuth, p.dip, projection, 48).map(toSvg);
@@ -239,7 +253,7 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks = []
                 const pt = toSvg(projectPole(p.azimuth, p.dip, projection));
                 const color = colorOf(p), open = both && p.outcrop; // #1440 — filled = core, open = outcrop
                 return <circle key={`pole_${i}`} cx={pt.x} cy={pt.y} r={3.2} fill={open ? "#ffffff" : color} stroke={open ? color : "#1a2028"} strokeWidth={open ? 1.4 : 0.5} opacity={0.9}>
-                  <title>{tr("{v} — dip {dip}° / dipdir {azimuth}°{v2}", { v: p.value || tr("(unlabeled)"), dip: deg1(p.dip), azimuth: deg1(p.azimuth), v2: p.hole_id ? ` (${p.hole_id} @ ${p.depth}m)` : "" })}</title>
+                  <title>{tr("{v} — dip {dip}° / dipdir {azimuth}°{v2}", { v: p.value || tr("(unlabeled)"), dip: deg1(p.dip), azimuth: deg1(p.azimuth), v2: p.hole_id ? ` (${p.hole_id} @ ${p.depth}m)` : p.outcrop && Number.isFinite(p.x) && Number.isFinite(p.y) ? ` (${p.station ? `${p.station}, ` : ""}${Math.round(p.x)} E, ${Math.round(p.y)} N)` /* #2971 */ : "" })}</title>
                 </circle>;
               })}
 
@@ -284,6 +298,7 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks = []
                   </g>
                 );
               })()}
+              </g>
               {/* TASKS.csv #1721 — the pole plot's empty state (the rose had one): what is missing, and why the picks there are not drawn */}
               {plotted === 0 && (
                 <g fontSize={11} fill="#65717e" textAnchor="middle">
@@ -367,6 +382,9 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks = []
                   <input type="checkbox" checked={showCircles} onChange={(e) => setShowCircles(e.target.checked)} />{" "}{tr("Great circles")}</label>
                 <label style={{ ...rowLabel, flexDirection: "row", alignItems: "center", gap: 6 }}>
                   <input type="checkbox" checked={showMean} onChange={(e) => setShowMean(e.target.checked)} />{" "}{tr("Mean orientation")}</label>
+                <label style={{ ...rowLabel, flexDirection: "row", alignItems: "center", gap: 6 }} title={tr("Rescale the net so the poles fill it, with rings of equal dip: for flat-lying beds, whose poles all sit in the net's inner few degrees.")}>
+                  <input type="checkbox" checked={zoomData} onChange={(e) => setZoomData(e.target.checked)} />{" "}{tr("Zoom to the data")}</label>{/* TASKS.csv #2971 */}
+                {zoom && <div style={{ fontSize: 11, color: "#65717e", marginTop: -6, lineHeight: 1.35 }}>{tr("Zoomed: the edge of the net is a dip of {d}°", { d: zoom.edgeDip })}</div>}
                 <label style={{ ...rowLabel, flexDirection: "row", alignItems: "center", gap: 6 }} title={tr("Kamb (1959) counting-circle density contours — shades the net by how much more crowded each spot is than a random (uniform) spread of the same number of poles would be")}>
                   <input type="checkbox" checked={showContours} onChange={(e) => setShowContours(e.target.checked)} />{" "}{tr("Density contours")}</label>
               </>

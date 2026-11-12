@@ -6938,7 +6938,7 @@
   "Snapped to {hole} at {md} m ({label}).": "Ajustado a {hole} a {md} m ({label}).",
   "Snapped to {hole} at {md} m.": "Ajustado a {hole} a {md} m.",
   "Snapped to the collar of {hole}.": "Ajustado al collar de {hole}.",
-  "A click near a collar, a logged boundary of a shown layer or a hole's trace takes that point, and the line records which hole it is tied to": "Un clic cerca de un collar, de un límite registrado de una capa visible o de la traza de un sondaje toma ese punto, y la línea registra a qué sondaje está ligada",
+  "A click near a collar, a logged boundary of a shown layer or a hole's trace takes that point, and the line records which hole it is tied to. Looking straight down (Top view) only collars are taken: every contact of a vertical hole is under its collar there.": "Un clic cerca de un collar, de un límite registrado de una capa visible o de la traza de un sondaje toma ese punto, y la línea registra a qué sondaje está ligada. Mirando en vertical (vista superior) solo se toman collares: allí todos los contactos de un sondaje vertical quedan bajo su collar.",
   "Snap to holes and logged contacts": "Ajustar a sondajes y contactos registrados",
   "{n} point(s), {m} m. Click to add a point; double-click or Finish to end the line.": "{n} punto(s), {m} m. Haga clic para agregar un punto; doble clic o Terminar para cerrar la línea.",
   "A line needs at least two points.": "Una línea necesita al menos dos puntos.",
@@ -11218,5 +11218,11 @@
   "break-even": "de equilibrio",
   "Optional: a cut-off grade of your own, such as the grade a saleable ore must meet. A block at or above it is ore and one below it is waste, whatever it would pay. Blank: the break-even grade at these prices and costs.": "Opcional: una ley de corte propia, como la ley que debe cumplir un mineral vendible. Un bloque igual o superior a ella es mineral y uno inferior es estéril, pague lo que pague. En blanco: la ley de equilibrio con estos precios y costos.",
   "Cut-off grade {c} {unit}, typed: a block below it is waste whatever it would pay. The break-even at these inputs is {b} {unit}.": "Ley de corte {c} {unit}, ingresada: un bloque inferior a ella es estéril, pague lo que pague. La ley de equilibrio con estos datos es {b} {unit}.",
-  "{el} is priced per tonne of contained {el} or per dmtu (1 % {el} in a dry tonne), and the break-even cut-off is on the contained {el}, not a product specification: every block above it is ore. Type a cut-off to set one.": "El {el} se valora por tonelada de {el} contenido o por dmtu (1 % de {el} en una tonelada seca), y la ley de corte de equilibrio es sobre el {el} contenido, no una especificación de producto: todo bloque por encima de ella es mineral. Ingrese una ley de corte para fijar una."
+  "{el} is priced per tonne of contained {el} or per dmtu (1 % {el} in a dry tonne), and the break-even cut-off is on the contained {el}, not a product specification: every block above it is ore. Type a cut-off to set one.": "El {el} se valora por tonelada de {el} contenido o por dmtu (1 % de {el} en una tonelada seca), y la ley de corte de equilibrio es sobre el {el} contenido, no una especificación de producto: todo bloque por encima de ella es mineral. Ingrese una ley de corte para fijar una.",
+  "Zoomed: the edge of the net is a dip of {d}°": "Ampliada: el borde de la red es un buzamiento de {d}°",
+  "Rescale the net so the poles fill it, with rings of equal dip: for flat-lying beds, whose poles all sit in the net's inner few degrees.": "Reescalar la red para que los polos la llenen, con anillos de igual buzamiento: para capas subhorizontales, cuyos polos quedan todos en los pocos grados centrales de la red.",
+  "Zoom to the data": "Ampliar a los datos",
+  "{k} of them in {hh} hole(s) collared inside the map's area; {o} in holes outside it (the run uses them all).": "{k} de ellos en {hh} sondaje(s) con collar dentro del área del mapa; {o} en sondajes fuera de ella (la corrida los usa todos).",
+  "The dip must be from 0 to 90° (typed: {v}).": "El buzamiento debe estar entre 0 y 90° (escrito: {v}).",
+  "The dip direction must be from 0 to 360° (typed: {v}).": "La dirección de buzamiento debe estar entre 0 y 360° (escrito: {v})."
 }

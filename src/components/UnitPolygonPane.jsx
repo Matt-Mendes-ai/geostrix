@@ -38,12 +38,19 @@ export default function UnitPolygonPane({ drawing, onStart, onUndo, onCancel, on
   const [noteText, setNoteText] = useState("");
   const [msg, setMsg] = useState(null);
   const pts = drawing.points, n = pts.length;
-  // the units already on any map layer with a unit-like field, so a drawn map reuses the legend's names
+  // the units already on any map layer with a unit-like field, so a drawn map reuses the legend's names. TASKS.csv #2974 (7) — only polygon
+  // layers' style values (a GPX track's waypoint names and 'SYNTHETIC traverse' were offered as strands) and graduated classes left out; the
+  // logged lithology codes added
   const knownUnits = useMemo(() => {
     const s = new Set();
-    for (const l of mapLayers) { const f = l.styleField || "unit"; for (const ft of l.features || []) { const v = ft.attributes?.[f]; if (v != null && v !== "") s.add(String(v)); } }
+    for (const l of mapLayers) {
+      if (l.geomType !== "polygon" || l.styleBreaks?.length) continue;
+      const f = l.styleField || "unit";
+      for (const ft of l.features || []) { const v = ft.attributes?.[f]; if (v != null && v !== "") s.add(String(v)); }
+    }
+    for (const r of layers?.litho || []) { const v = String(r?.value ?? "").trim(); if (v) s.add(v); }
     return [...s].sort();
-  }, [mapLayers]);
+  }, [mapLayers, layers?.litho]);
 
   const finish = (closedOnFirst = false) => {
     const corners = closedOnFirst ? pts.slice(0, -1) : pts; // #2414 — the click that closed the ring is not a corner

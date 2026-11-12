@@ -128,7 +128,7 @@ export default function InterpretPane({ drawing, onStart, onUndo, onCancel, onDo
         )}
         <input value={name} onChange={(e) => setName(e.target.value)} placeholder={tr("Name (optional)")} aria-label={tr("Line name")} style={{ ...smallSel, width: "100%", boxSizing: "border-box" }} />
         <input value={noteText} onChange={(e) => setNoteText(e.target.value)} placeholder={tr("Note (optional)")} aria-label={tr("Line note")} style={{ ...smallSel, width: "100%", boxSizing: "border-box" }} />
-        {onSnap && <label style={{ ...row, justifyContent: "flex-start" }} title={tr("A click near a collar, a logged boundary of a shown layer or a hole's trace takes that point, and the line records which hole it is tied to")}>{/* #2630 */}
+        {onSnap && <label style={{ ...row, justifyContent: "flex-start" }} title={tr("A click near a collar, a logged boundary of a shown layer or a hole's trace takes that point, and the line records which hole it is tied to. Looking straight down (Top view) only collars are taken: every contact of a vertical hole is under its collar there.")} /* plan: #2972 */>{/* #2630 */}
           <input type="checkbox" checked={drawing.snap !== false} onChange={(e) => onSnap(e.target.checked)} />{tr("Snap to holes and logged contacts")}</label>}
         {!drawing.on ? (
           <button type="button" onClick={onStart} style={{ ...pBtn, justifyContent: "center", marginBottom: 0 }}>{tr("Draw a line")}</button>
