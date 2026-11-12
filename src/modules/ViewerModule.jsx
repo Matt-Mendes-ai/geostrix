@@ -187,6 +187,7 @@ import { PickStandIn, PICK_ONLY_LAYER } from "../lib/viewer/pickStandIn.js"; // 
 import { syncBatchedInstances, buildLayerBatches, eachLayerMember } from "../lib/viewer/layerBatches.js"; // moved out (size cap, #1084)
 import { PROTO_SPHERE_10, PROTO_SPHERE_8, POINT_PROTO } from "../lib/viewer/protos.js"; // TASKS.csv #2176
 import { buildDrillholeScene, collarColorFor, voxelFitCorners, isIntervalRow } from "./viewer/drillholeScene.js"; // TASKS.csv #2176
+import { hideTraceHoles } from "../lib/viewer/traceBatch.js"; // TASKS.csv #2176
 import { closedShellsOf } from "./viewer/estimationShells.js"; // TASKS.csv #2695
 import { findOnTraceWorld, findOnTrace, traceLookup, pointInDomain, SOLID_SURFACE_TYPES, surfaceMadeAt } from "../lib/viewer/modelHelpers.js"; // TASKS.csv #445 step 2; SOLID_SURFACE_TYPES: #804
 import { syncRasterDrapes, syncBoundaries, syncMapLayers, syncSectionImages, syncSurfaceStructures, syncOmfObjects, syncTerrain, outcropLabelItems } from "../lib/viewer/sceneBuilders.js"; // TASKS.csv #693; outcropLabelItems: #1443
@@ -5401,6 +5402,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     holesHiddenRef.current = anyHidden;
     Object.values(groups).forEach((g) => {
       eachLayerMember(g, (child) => { // TASKS.csv #312 — an InstancedMesh batch has no tip of its own; its members are handled individually and mirrored by the sync below; #1540: reached through the batch
+        if (child.userData?.traceChunk) { hideTraceHoles(child, visibleHoles); return; } // #2176 — merged traces: per hole, in place
         const holeId = child.userData?.holeId ?? (child.userData?.tip || "").split("\n")[0]; // holeId: #1500
         child.visible = !(holeId && visibleHoles[holeId] === false);
         if (child.isSprite) child.userData.holeHidden = !child.visible; // #1533

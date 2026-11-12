@@ -10,7 +10,7 @@ const v = viewerSource();
 test("collars and traces go to their own 'holes' group, not the Lithology layer's", () => {
   assert.match(v, /const holeGroup = new THREE\.Group\(\); holeGroup\.name = "holes"; root\.add\(holeGroup\); groups\.holes = holeGroup;/);
   assert.match(v, /groups\.holes\.add\(marker\);/);
-  assert.match(v, /groups\.holes\.add\(traceLine\);/);
+  assert.match(v, /addTraceChunks\(groups\.holes, traceHoles\);/); // #2176 — merged trace chunks
   assert.doesNotMatch(v, /groups\.litho\.add\((marker|traceLine)\)/);
 });
 

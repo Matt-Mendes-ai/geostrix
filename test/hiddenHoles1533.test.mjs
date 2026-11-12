@@ -7,7 +7,8 @@ import { viewerSource } from "./helpers/viewerSource.mjs"; // #2176 — the dril
 const v = viewerSource();
 
 test("the trace line carries its hole id, so the visibleHoles effect hides it", () => {
-  assert.match(v, /traceLine\.userData = \{ holeId: c\.hole_id \};/);
+  assert.match(v, /traceHoles\.push\(\{ holeId: c\.hole_id, pts, dashed: assumedVertical \}\);/); // #2176 — a merged chunk knows each hole's range
+  assert.match(v, /if \(child\.userData\?\.traceChunk\) \{ hideTraceHoles\(child, visibleHoles\); return; \}/);
   assert.match(v, /const holeId = child\.userData\?\.holeId \?\? /);
 });
 

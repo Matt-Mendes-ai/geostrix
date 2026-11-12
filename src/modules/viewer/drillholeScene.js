@@ -13,6 +13,7 @@ import { customColour } from "../../lib/customColour.js";
 import { PickStandIn } from "../../lib/viewer/pickStandIn.js";
 import { buildLayerBatches, collarMarkerMaterial } from "../../lib/viewer/layerBatches.js";
 import { syncHoleLabels } from "../../lib/viewer/holeLabels.js";
+import { addTraceChunks } from "../../lib/viewer/traceBatch.js"; // #2176 step 3
 import { makeTextSprite } from "../../lib/viewer/textSprite.js";
 import { lazyTip } from "../../lib/viewer/lazyTip.js";
 import { traceLookup } from "../../lib/viewer/modelHelpers.js";
@@ -308,6 +309,7 @@ export function buildDrillholeScene(ctx) {
     sg: numericRangeFor("sg", layers.sg),
   };
   const buildErrors = [];
+  const traceHoles = []; // #2176 step 3 — { holeId, pts, dashed } for addTraceChunks
   const traceById = new Map(tracesRef.current.map((t) => [t.hole_id, t])); // #2170: was a filter per hole, O(holes²) (11.8 s at 20,544)
   collars.forEach((c) => {
    try {
@@ -342,12 +344,10 @@ export function buildDrillholeScene(ctx) {
     marker.userData = { tip: `${c.hole_id}\ncollar${assumedVertical ? `\n${tr("no azimuth / dip and no survey: drawn as an ASSUMED vertical hole")}` : ""}`, collar: c }; // collar: #1504 — Identify lists its fields; #2014
     groups.holes.add(marker); // #2319
 
-    const traceLine = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts.map((p) => new THREE.Vector3(p.x, p.y, p.z))), assumedVertical
-      ? new THREE.LineDashedMaterial({ color: 0x445064, dashSize: 4, gapSize: 4, transparent: true, opacity: 0.5 }) // #2014 — dashed, like a planned hole: this stick is an assumption
-      : new THREE.LineBasicMaterial({ color: 0x445064, transparent: true, opacity: 0.5 }));
-    if (assumedVertical) traceLine.computeLineDistances();
-    traceLine.userData = { holeId: c.hole_id }; // #1533
-    groups.holes.add(traceLine);
+    // TASKS.csv #2176 step 3 — the trace goes into a merged LineSegments chunk (lib/viewer/traceBatch.js, after the loop): one THREE.Line
+    // and material per hole was ~20,000 draw calls a frame at 20,544 holes. Dashed when the hole is an assumed vertical stick (#2014);
+    // its hole id rides on the chunk's per-hole hits (#1533)
+    traceHoles.push({ holeId: c.hole_id, pts, dashed: assumedVertical });
     }
 
     // TASKS.csv #137 — geotech/recovery are both known 0-100 percentages, so rqdColor's fixed
@@ -532,6 +532,7 @@ export function buildDrillholeScene(ctx) {
    }
   });
   if (rebuildHoles) tracesRef.current = [...traceById.values()]; // #2176 — the same list otherwise
+  if (rebuildHoles) addTraceChunks(groups.holes, traceHoles); // #2176 step 3
   if (plan.holeEntries) sceneCaches.set(groups, { ox, oy, oz, rebuildSeq, holes: plan.holeEntries, sigs, holeSets }); else sceneCaches.delete(groups);
 
   // Bug fix (user report: imported a real OMF block model — resistivity.omf — into a project that
