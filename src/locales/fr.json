@@ -9409,6 +9409,7 @@
   "Centre each page's map on its hole": "Centrer la carte de chaque page sur son sondage",
   "Each page's top-down map is rendered again in the 3D View, centred on its hole at the template's scale: about a second per page. Off: every page shows the template's map, with its hole marked.": "La carte en plan de chaque page est rendue à nouveau dans la vue 3D, centrée sur son sondage à l'échelle du modèle : environ une seconde par page. Désactivé : chaque page montre la carte du modèle, avec son sondage marqué.",
   "Centring each atlas page's map on its hole: {i} of {n}": "Centrage de la carte de chaque page de l'atlas sur son sondage : {i} sur {n}",
+  "{v}: {i} of {n}": "{v} : {i} sur {n}",
   "Centred the map on its hole on {n} of {t} atlas page(s), at the template's scale.": "Carte centrée sur son sondage sur {n} des {t} page(s) de l'atlas, à l'échelle du modèle.",
   "Cancelled: the other pages keep the template's map, with their hole marked.": "Annulé : les autres pages gardent la carte du modèle, avec leur sondage marqué.",
   "{n} page(s) could not be captured and keep the template's map.": "{n} page(s) n'ont pas pu être capturées et gardent la carte du modèle.",
