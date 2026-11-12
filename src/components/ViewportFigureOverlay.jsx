@@ -195,7 +195,9 @@ export default function ViewportFigureOverlay({ config, title, legendGroups, cam
   const allRamps = (legendGroups || []).filter((g) => g.ramp);
   const ramps = allRamps.slice(0, Math.min(6, fit.ramps));
   const hiddenCount = total - shown.length + (allRamps.length - ramps.length); // #1534 — ramps left out are counted too
-  const showLegend = config.legend && (shown.length > 0 || ramps.length > 0);
+  // TASKS.csv #2747 — a picture raster's attached colour bar (legendImage), drawn as the image itself
+  const images = (legendGroups || []).filter((g) => g.image?.src).slice(0, 2);
+  const showLegend = config.legend && (shown.length > 0 || ramps.length > 0 || images.length > 0);
   const fmtR = (v) => (Math.abs(v) >= 1000 ? v.toFixed(0) : Math.abs(v) >= 10 ? v.toFixed(1) : Math.abs(v) >= 0.1 ? v.toFixed(2) : v.toPrecision(2));
   const showTitle = config.title && !!title;
 
@@ -239,6 +241,12 @@ export default function ViewportFigureOverlay({ config, title, legendGroups, cam
                   .map((t) => <span key={t.label} style={{ position: "absolute", left: `${t.at * 100}%`, transform: "translateX(-50%)" }}>{t.label}</span>)}
                 <span style={{ position: "absolute", right: 0 }}>{g.ramp.maxLabel ?? fmtR(g.ramp.max)}</span>
               </div>
+            </div>
+          ))}
+          {images.map((g) => ( /* #2747 */
+            <div key={g.key} style={{ marginTop: 6 }}>
+              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={g.label}>{g.label}</div>
+              <img src={g.image.src} alt="" style={{ display: "block", maxWidth: 180, maxHeight: 110 }} draggable={false} />
             </div>
           ))}
         </div>
