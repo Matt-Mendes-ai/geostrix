@@ -9,6 +9,7 @@ import { Plus, Trash2, Pencil } from "./icons.js";
 import { cleanTrend, describeTrend, DEFAULT_TREND, planeFromPoles, poleOf, planeFromPoints } from "../lib/trend.js";
 import { fisherStats, fabricShape } from "../lib/stereonet.js"; // TASKS.csv #672
 import { fitPlane } from "../lib/vein.js"; // TASKS.csv #672 — planarity / collinearity
+import { startingTrendPlane, MIN_TOP_HOLES } from "../lib/trendStart.js"; // TASKS.csv #2428
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 
 export const TREND_USERS = [
@@ -74,7 +75,8 @@ function RatiosEditor({ trend, onApply, field, inputStyle, small }) {
 }
 
 // structurePicks: [{ value (code), dip, azimuth (dip direction) }]; surfaces: [{ id, name }]; surfacePoints(id) -> [{x, y, z}]
-export default function TrendsPanel({ structuralTrends, setStructuralTrends, structurePicks, surfaces, surfacePoints, onView, viewingId, small, inputStyle, btnStyle }) {
+// units: the logged lithology codes; unitTopPoints(code) -> [{x, y, z}] (east, north, up) of each hole's top of it (#2428)
+export default function TrendsPanel({ structuralTrends, setStructuralTrends, structurePicks, surfaces, surfacePoints, units = [], unitTopPoints = null, onView, viewingId, small, inputStyle, btnStyle }) {
   const { trends = [], use = {} } = structuralTrends || {};
   const [editId, setEditId] = useState(null);
   const [note, setNote] = useState(null);
@@ -85,10 +87,18 @@ export default function TrendsPanel({ structuralTrends, setStructuralTrends, str
   }, [structurePicks]);
 
   const update = (id, patch) => setStructuralTrends((s) => ({ ...s, trends: s.trends.map((t) => (t.id === id ? cleanTrend({ ...t, ...patch }) : t)) }));
+  // TASKS.csv #2428 — a new trend starts from the data (the tops of the unit logged in the most holes), or flat, never at a
+  // steep made-up plane; the note says which, and that the ratios are a starting guess
   const add = () => {
-    const t = { ...cleanTrend({ ...DEFAULT_TREND, name: `Trend ${trends.length + 1}` }), id: newId() };
+    const start = startingTrendPlane(unitTopPoints ? (units || []).map((code) => ({ code, pts: unitTopPoints(code) || [] })) : []);
+    const t = { ...cleanTrend({ ...DEFAULT_TREND, name: `Trend ${trends.length + 1}`, dip: start.dip, ...(start.dipAzimuth != null ? { dipAzimuth: start.dipAzimuth } : {}) }), id: newId() };
     setStructuralTrends((s) => ({ ...s, trends: [...(s.trends || []), t] }));
     setEditId(t.id);
+    setNote({ id: t.id, text: (start.code != null
+      ? tr("Started from the best-fit plane of {n} logged tops of {code}: dip {dip}° → {az}°.", { code: start.code, n: start.n, dip: start.dip.toFixed(1), az: start.dipAzimuth.toFixed(1) })
+        + (start.planarity != null && start.planarity > 0.25 ? " " + tr("Those tops are far from planar, so this plane is a rough average.") : "")
+      : tr("Started flat (dip 0°): no logged unit has tops in enough holes to fit a plane."))
+      + " " + tr("The pitch and the ratios {max} : {int} : {min} are a starting guess, not measured. Type the plane or set it from the data below.", { max: t.ratios.max, int: t.ratios.int, min: t.ratios.min }) });
   };
   const remove = (id) => setStructuralTrends((s) => ({ trends: s.trends.filter((t) => t.id !== id), use: Object.fromEntries(Object.entries(s.use || {}).filter(([, v]) => v !== id)) }));
   const setUse = (tool, id) => setStructuralTrends((s) => ({ ...s, use: { ...(s.use || {}), [tool]: id || undefined } }));
@@ -119,6 +129,18 @@ export default function TrendsPanel({ structuralTrends, setStructuralTrends, str
       what = tr(picks.length === 1 ? "the mean of {n} {key} measurement" : "the mean of {n} {key} measurements", { n: picks.length, key }) + quality
         + (unoriented ? "; " + tr(unoriented === 1 ? "{n} {key} row has no dip / dip direction and was left out" : "{n} {key} rows have no dip / dip direction and were left out", { n: unoriented, key }) : "")
         + "." + warn + " " + tr("Not corrected for drillhole sampling bias (Terzaghi) — the Stereonet can");
+    } else if (kind === "flat") { // #2428
+      plane = { dip: 0, dipAzimuth: t.dipAzimuth };
+      what = tr("a horizontal plane");
+    } else if (kind === "tops") { // #2428 — the best-fit plane of one unit's tops (the code may hold a colon)
+      const code = src.slice(src.indexOf(":") + 1);
+      const pts = unitTopPoints?.(code) || [];
+      const fit = pts.length >= 3 ? fitPlane(pts) : null;
+      if (fit && fit.collinearity < 0.02) { setNote({ id: t.id, text: tr("Not set: the tops of {code} lie along a single line of holes, so no plane is fixed by them.", { code }) }); return; }
+      plane = pts.length >= MIN_TOP_HOLES ? planeFromPoints(pts) : null;
+      const rough = fit && Number.isFinite(fit.planarity) ? fit.planarity : null;
+      what = tr("the best-fit plane of {n} logged tops of {code}", { code, n: pts.length })
+        + (rough != null ? ` (${tr("RMS off the plane {pct}% of its extent", { pct: (rough * 100).toFixed(0) })}${rough > 0.25 ? " — " + tr("far from planar: this surface is not well described by one plane") : ""})` : "");
     } else if (kind === "surface") {
       const s = (surfaces || []).find((x) => x.id === key);
       const pts = surfacePoints?.(key) || [];
@@ -138,7 +160,7 @@ export default function TrendsPanel({ structuralTrends, setStructuralTrends, str
     // TASKS.csv #1237 — a name that states the plane follows it; a name the geologist typed stays
     const autoName = /^(Stereonet mean|Mean of .+|Plane of .+) \(\d+° → \d+°\)$/.test(t.name || "");
     const plan = ` (${plane.dip.toFixed(0)}° → ${plane.dipAzimuth.toFixed(0)}°)`;
-    update(t.id, { dip: Math.round(plane.dip * 10) / 10, dipAzimuth: Math.round(plane.dipAzimuth * 10) / 10, ...(autoName ? { name: (kind === "code" ? `Mean of ${key}` : `Plane of ${(surfaces || []).find((x) => x.id === key)?.name || "surface"}`) + plan } : {}) });
+    update(t.id, { dip: Math.round(plane.dip * 10) / 10, dipAzimuth: Math.round(plane.dipAzimuth * 10) / 10, ...(autoName ? { name: (kind === "code" ? `Mean of ${key}` : kind === "flat" ? "Plane of horizontal" : kind === "tops" ? `Plane of tops of ${src.slice(src.indexOf(":") + 1)}` : `Plane of ${(surfaces || []).find((x) => x.id === key)?.name || "surface"}`) + plan } : {}) });
     setNote({ id: t.id, text: tr("Dip {dip}° → {dipAzimuth}° from {what}. Pitch and ratios unchanged.", { dip: plane.dip.toFixed(1), dipAzimuth: plane.dipAzimuth.toFixed(1), what }) });
   };
 
@@ -175,6 +197,8 @@ export default function TrendsPanel({ structuralTrends, setStructuralTrends, str
                 <RatiosEditor key={t.id} trend={t} onApply={(r) => update(t.id, { ratios: r })} field={field} inputStyle={inputStyle} small={small} />
                 <select value="" onChange={(e) => setFrom(t, e.target.value)} aria-label={tr("Set the plane from")} style={{ ...inputStyle, width: "100%" }}>
                   <option value="">{tr("Set the plane from…")}</option>
+                  <option value="flat">{tr("Horizontal (dip 0°)")}</option>{/* #2428 */}
+                  {unitTopPoints && (units || []).length > 0 && <optgroup label={tr("Tops of a logged unit (best-fit plane)")}>{units.map((u) => <option key={u} value={`tops:${u}`}>{u}</option>)}</optgroup>}
                   {codes.length > 0 && <optgroup label={tr("Structure measurements (mean)")}>{codes.map(([c, n]) => <option key={c} value={`code:${c}`}>{c} ({n})</option>)}</optgroup>}
                   {(surfaces || []).length > 0 && <optgroup label={tr("Generated surface (best-fit plane)")}>{surfaces.map((s) => <option key={s.id} value={`surface:${s.id}`}>{surfaceOptionLabels(surfaces).get(s.id) ?? s.name}</option>)}</optgroup>}
                 </select>

@@ -513,6 +513,7 @@ export default function ModellingPanes(props) {
         <Suspense fallback={null}>
           <TrendsPanel structuralTrends={structuralTrends} setStructuralTrends={setStructuralTrends}
             structurePicks={structurePicksWithHoleAttitude}
+            units={litho_units} unitTopPoints={(code) => (topsOfUnit(code)?.tops || []).map((t) => sheetPositionAt(t.hole_id, t.md)).filter(Boolean)} /* #2428 */
             surfaces={implicitSurfaces.map((x) => ({ id: x.id, name: x.name }))}
             surfacePoints={(id) => {
               const geo = implicitMeshesRef.current[id]?.geometry; if (!geo) return [];
