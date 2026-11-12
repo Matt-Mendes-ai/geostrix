@@ -10597,5 +10597,6 @@
   "It is drawn flat at {z} m, {h} m above the grid it was continued from.": "يُرسم مسطحًا عند {z} م، أعلى بـ {h} م من الشبكة التي مُدّ منها.",
   "Survey date (for IGRF)": "تاريخ المسح (لـ IGRF)",
   "Fill from IGRF-14": "التعبئة من IGRF-14",
-  "Cell {c} m by default: a quarter to a half of the median spacing ({s} m).": "خلية {c} م افتراضيًا: بين ربع ونصف التباعد الوسيط ({s} م)."
+  "Cell {c} m by default: a quarter to a half of the median spacing ({s} m).": "خلية {c} م افتراضيًا: بين ربع ونصف التباعد الوسيط ({s} م).",
+  "IGRF-14 covers {first} to {last}; {date} is outside it.": "يغطي IGRF-14 من {first} إلى {last}؛ و{date} خارج ذلك."
 }

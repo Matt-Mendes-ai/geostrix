@@ -14,11 +14,14 @@ import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the inter
 const RE = 6371.2; // IGRF reference radius, km
 const WGS84_A = 6378.137, WGS84_B = 6356.7523142; // km
 
+// TASKS.csv #2563 — the years the model covers, for a refusal that names them beside the date as typed
+export function igrfYearRange() { return { first: IGRF14_EPOCHS[0], last: IGRF14_EPOCHS[IGRF14_EPOCHS.length - 1] + 5 }; }
+
 // Coefficients (g, h) at a decimal year: linear between 5-year epochs; after the last epoch, the
 // published secular variation, valid to 5 years past it (IGRF-14: 2025.0-2030.0).
 function coeffsAt(year) {
   const first = IGRF14_EPOCHS[0], last = IGRF14_EPOCHS[IGRF14_EPOCHS.length - 1];
-  if (!(year >= first && year <= last + 5)) throw new RangeError(tr("IGRF-14 covers {first}-{v}; got {year}.", { first, v: last + 5, year }));
+  if (!(year >= first && year <= last + 5)) throw new RangeError(tr("IGRF-14 covers {first}-{v}; got {year}.", { first, v: last + 5, year: Number.isFinite(year) ? year.toFixed(1) : year }) /* one decimal, #2563 (was 2031.4931506849316) */);
   const nmax = 13;
   const g = Array.from({ length: nmax + 1 }, () => new Float64Array(nmax + 1));
   const h = Array.from({ length: nmax + 1 }, () => new Float64Array(nmax + 1));

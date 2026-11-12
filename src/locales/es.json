@@ -10597,5 +10597,6 @@
   "It is drawn flat at {z} m, {h} m above the grid it was continued from.": "Se dibuja plano a {z} m, {h} m sobre la grilla desde la que se continuó.",
   "Survey date (for IGRF)": "Fecha del levantamiento (para el IGRF)",
   "Fill from IGRF-14": "Completar con IGRF-14",
-  "Cell {c} m by default: a quarter to a half of the median spacing ({s} m).": "Celda de {c} m por defecto: entre un cuarto y la mitad del espaciado mediano ({s} m)."
+  "Cell {c} m by default: a quarter to a half of the median spacing ({s} m).": "Celda de {c} m por defecto: entre un cuarto y la mitad del espaciado mediano ({s} m).",
+  "IGRF-14 covers {first} to {last}; {date} is outside it.": "El IGRF-14 cubre de {first} a {last}; {date} queda fuera."
 }

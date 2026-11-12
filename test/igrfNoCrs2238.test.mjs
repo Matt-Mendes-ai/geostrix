@@ -9,7 +9,7 @@ test("the IGRF button, the compute and a magnetic run all refuse while the proje
   assert.ok(s.includes("const crsUnset = project?.crsSet === false;"));
   assert.ok(s.includes("disabled={!field.date || !rows.length || crsUnset}"));
   const compute = s.slice(s.indexOf("const computeIgrf = async () => {"), s.indexOf("const ll = await toLonLat(cx, cy, project.epsg);"));
-  assert.ok(compute.includes("if (crsUnset) { setMsg({ ok: false, text: tr(\"IGRF needs the survey's real-world location"));
+  assert.ok(compute.includes("if (crsUnset) { setIgrfMsg({ ok: false, text: tr(\"IGRF needs the survey's real-world location")); // beside the button since #2563
   const run = s.indexOf('if (method === "mag" && crsUnset) return { problems: ['), conv = s.indexOf('if (method === "mag") { decl = gridDeclination(');
   assert.ok(run > 0 && run < conv, "checked before the grid convergence");
 });
