@@ -76,7 +76,7 @@ export default function AssayStyleModal({ symbol, unit, defaultColor, range, sty
         <div style={header}>
           <div>
             <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{tr("Style {symbol}", { symbol })}</div>
-            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("Data range: {min} – {max} {unit}", { min: gradeText(range.min), max: gradeText(range.max), unit }) /* gradeText: #2515 */}</div>
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{range.basis?.kind === "flags" && Number.isFinite(range.basis.limit) /* #2216 — the substitutes are not data */ ? tr("Data range: <{dl} ({n} below detection) – {max} {unit}", { dl: gradeText(range.basis.limit), n: range.basis.left.toLocaleString(), max: gradeText(range.max), unit }) : tr("Data range: {min} – {max} {unit}", { min: gradeText(range.min), max: gradeText(range.max), unit }) /* gradeText: #2515 */}</div>
           </div>
           <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
         </div>

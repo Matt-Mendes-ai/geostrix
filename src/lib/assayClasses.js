@@ -9,18 +9,19 @@ import { minMax } from "./layers.js";
 // rows: the assays shown (lab or pXRF); -> { min, max, p50, p90, p975, basis: { kind: "flags" | "floor" | "all", n, left, floor? } } | null
 export function assayClassRange(rows, symbol) {
   const vals = [], detected = [];
-  let flagged = 0;
+  let flagged = 0, flaggedMin = Infinity;
   for (const a of rows || []) {
     const v = a?.values?.[symbol];
     if (v == null || !Number.isFinite(v)) continue;
     vals.push(v);
-    if (a.qualifiers?.[symbol] === "<" || a.bdl?.includes?.(symbol)) flagged++; else detected.push(v);
+    if (a.qualifiers?.[symbol] === "<" || a.bdl?.includes?.(symbol)) { flagged++; if (v < flaggedMin) flaggedMin = v; } else detected.push(v);
   }
   if (!vals.length) return { ...minMax(vals), p50: undefined, p90: undefined, p975: undefined, basis: { kind: "all", n: 0, left: 0 } };
   let pool, basis;
   if (flagged) {
     pool = Float64Array.from(detected).sort();
-    basis = { kind: "flags", n: pool.length, left: flagged };
+    // #2216 — the lowest detection limit as the lab wrote it ('<0.01'): twice the stored half-limit substitute (#2520)
+    basis = { kind: "flags", n: pool.length, left: flagged, limit: flaggedMin * 2 };
   } else {
     const all = Float64Array.from(vals).sort();
     let atFloor = 0; while (atFloor < all.length && all[atFloor] === all[0]) atFloor++;
