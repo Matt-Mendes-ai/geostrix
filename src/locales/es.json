@@ -1149,7 +1149,6 @@
   "{noTo} with a blank or non-numeric from/to": "{noTo} con desde/hasta vacío o no numérico",
   "{swapped} with from > to": "{swapped} con desde > hasta",
   "{negative} with a negative depth": "{negative} con profundidad negativa",
-  "{pastEoh} past the end of their hole": "{pastEoh} más allá del final de su sondaje",
   "{size} hole id(s) with no collar ({ex}{v})": "{size} id(s) de sondaje sin collar ({ex}{v})",
   "Check these {label}: {parts}. They were imported as they are — Data QC lists each one.": "Revise estos {label}: {parts}. Se importaron tal cual — Control de datos lista cada uno.",
   "Interval references hole \"{hole_id}\", which has no matching collar.{v}": "Un intervalo hace referencia al sondaje «{hole_id}», que no tiene collar.{v}",
@@ -10885,5 +10884,9 @@
   "{n} threshold rule(s) decided for {symbol} converted with it.": "{n} regla(s) de umbral definidas para {symbol} se convirtieron con él.",
   "{symbol} is now reported {basis}: {n} row(s) converted from {from} to {to} (× {factor}). Ctrl+Z to undo.": "{symbol} ahora se informa {basis}: {n} fila(s) convertidas de {from} a {to} (× {factor}). Ctrl+Z para deshacer.",
   "{symbol} reported as": "{symbol} informado como",
-  "The basis {symbol}'s grades are reported in. Changing it converts every stored value (undoable).": "La base en que se informan las leyes de {symbol}. Cambiarla convierte cada valor guardado (se puede deshacer)."
+  "The basis {symbol}'s grades are reported in. Changing it converts every stored value (undoable).": "La base en que se informan las leyes de {symbol}. Cambiarla convierte cada valor guardado (se puede deshacer).",
+  "{pastEoh} past the end of their hole (its length from the collar file)": "{pastEoh} más allá del final de su sondaje (su longitud según el archivo de collares)",
+  "{pastEoh} past the end of their hole (its length from the deepest survey station, deeper than the collar's)": "{pastEoh} más allá del final de su sondaje (su longitud según la estación de medición más profunda, más profunda que la del collar)",
+  "{pastEoh} past the end of their hole ({collar} by the collar's length, {survey} by the deepest survey station)": "{pastEoh} más allá del final de su sondaje ({collar} según la longitud del collar, {survey} según la estación de medición más profunda)",
+  "{n} hole(s) not checked against a hole length (no collar yet, or neither a collar length nor a survey station below 0 m)": "{n} sondaje(s) sin verificar contra una longitud de sondaje (aún sin collar, o sin longitud en el collar ni estación de medición por debajo de 0 m)"
 }

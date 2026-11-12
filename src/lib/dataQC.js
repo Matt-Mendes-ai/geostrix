@@ -209,13 +209,27 @@ function validateSurveyAndTrajectory(collars, survey, { doglegWarn = 3, doglegEr
 // TASKS.csv #1531 / #1508 — the plausible value range of a numeric interval layer, for Data QC and for the import notice
 export const PLAUSIBLE_RANGE = { geotech: { min: 0, max: 110 }, recovery: { min: 0, max: 110 }, sg: { min: 1, max: 6 } };
 // range (#1508): { min, max } of a plausible value: an SG of -7.27 went in with only 'Loaded 1240 rows'; Data QC listed it, the notice did not
+// TASKS.csv #2167 (WA review #2148, T19) — a hole's length for the past-the-end checks: the deeper of the collar's length and the deepest
+// survey station (#339), ONLY for a hole that has a collar and a length above 0 m. The uranium run flagged 22,404 of 22,407 lithology rows
+// 'past the end of their hole': its surveys were in before the collars, one station at 0 m each, and that 0 was taken as the hole's length.
+// -> Map hole_id -> { length, source: "collar" | "survey" }
+export function checkableHoleLengths(collars, survey) {
+  const ids = new Set(), collarLen = new Map(), deepest = new Map();
+  for (const c of collars || []) { ids.add(c.hole_id); if (Number.isFinite(c.length) && c.length > 0) collarLen.set(c.hole_id, c.length); }
+  for (const s of survey || []) if (ids.has(s.hole_id) && Number.isFinite(s.depth) && s.depth > 0) deepest.set(s.hole_id, Math.max(s.depth, deepest.get(s.hole_id) ?? 0));
+  const out = new Map();
+  for (const id of ids) {
+    const c = collarLen.get(id), d = deepest.get(id);
+    if (c == null && d == null) continue;
+    out.set(id, d != null && (c == null || d > c) ? { length: d, source: "survey" } : { length: c, source: "collar" });
+  }
+  return out;
+}
 export function importCheckSummary(rows, collars, survey, label = "rows", range = null) {
   const collarIds = new Set((collars || []).map((c) => c.hole_id));
-  const len = new Map();
-  (collars || []).forEach((c) => { if (Number.isFinite(c.length)) len.set(c.hole_id, c.length); });
-  (survey || []).forEach((s) => { if (Number.isFinite(s.depth)) len.set(s.hole_id, Math.max(s.depth, len.get(s.hole_id) ?? -Infinity)); });
-  let noTo = 0, swapped = 0, negative = 0, pastEoh = 0, outside = 0, lo = Infinity, hi = -Infinity;
-  const orphans = new Set();
+  const len = checkableHoleLengths(collars, survey); // #2167
+  let noTo = 0, swapped = 0, negative = 0, pastEoh = 0, pastBySurvey = 0, outside = 0, lo = Infinity, hi = -Infinity;
+  const orphans = new Set(), unchecked = new Set();
   for (const r of rows || []) {
     if (collarIds.size && !collarIds.has(r.hole_id) && !isMarkedQcRow(r)) orphans.add(r.hole_id); // #1211 — a standard kept under its own name belongs to no hole
     if (range && typeof r.value === "number" && Number.isFinite(r.value) && (r.value < range.min || r.value > range.max)) { outside++; lo = Math.min(lo, r.value); hi = Math.max(hi, r.value); } // #1508
@@ -223,13 +237,18 @@ export function importCheckSummary(rows, collars, survey, label = "rows", range 
     if (r.from > r.to) swapped++;
     if (r.from < 0 || r.to < 0) negative++;
     const L = len.get(r.hole_id);
-    if (Number.isFinite(L) && r.to > L + 0.5) pastEoh++;
+    if (!L) { if (r.hole_id && !isMarkedQcRow(r)) unchecked.add(r.hole_id); continue; } // #2167 — no collar or no length: not checked, counted
+    if (r.to > L.length + 0.5) { pastEoh++; if (L.source === "survey") pastBySurvey++; }
   }
   const parts = [];
   if (noTo) parts.push(tr("{noTo} with a blank or non-numeric from/to", { noTo }));
   if (swapped) parts.push(tr("{swapped} with from > to", { swapped }));
   if (negative) parts.push(tr("{negative} with a negative depth", { negative }));
-  if (pastEoh) parts.push(tr("{pastEoh} past the end of their hole", { pastEoh }));
+  // #2167 — and where the hole's length came from
+  if (pastEoh) parts.push(!pastBySurvey ? tr("{pastEoh} past the end of their hole (its length from the collar file)", { pastEoh })
+    : pastBySurvey === pastEoh ? tr("{pastEoh} past the end of their hole (its length from the deepest survey station, deeper than the collar's)", { pastEoh })
+    : tr("{pastEoh} past the end of their hole ({collar} by the collar's length, {survey} by the deepest survey station)", { pastEoh, collar: pastEoh - pastBySurvey, survey: pastBySurvey }));
+  if (unchecked.size) parts.push(tr("{n} hole(s) not checked against a hole length (no collar yet, or neither a collar length nor a survey station below 0 m)", { n: unchecked.size }));
   if (outside) parts.push(tr("{n} with a value outside the plausible {min}–{max} ({range}: a keying or unit error?)", { n: outside, min: range.min, max: range.max, range: lo === hi ? String(lo) : `${lo} … ${hi}` })); // #1508
   if (orphans.size) {
     const ex = [...orphans].slice(0, 3).map((id) => { const m = /Did you mean "([^"]+)"/.exec(didYouMean(collarIds, id)); return m ? `${id} — collar ${m[1]} exists` : id; });
@@ -534,18 +553,11 @@ function validateCollarsVsTerrain(collars, terrain, threshold) {
 
 export function runDataQC({ project, collars, survey, layers, boundaries, assays, terrain = null, terrainThreshold = 15, doglegWarn = 3, doglegError = 10 }) {
   const collarIds = new Set(collars.map((c) => c.hole_id));
-  const holeLengths = new Map();
-  collars.forEach((c) => { if (Number.isFinite(c.length)) holeLengths.set(c.hole_id, c.length); });
-  const surveyMaxByHole = new Map();
-  survey.forEach((s) => {
-    if (!Number.isFinite(s.depth)) return;
-    const cur = surveyMaxByHole.get(s.hole_id);
-    if (cur === undefined || s.depth > cur) surveyMaxByHole.set(s.hole_id, s.depth);
-  });
   // TASKS.csv #339 — end of hole = the DEEPER of the collar length and the last survey station. Letting the
   // survey win outright flagged every interval below the last shot (surveys usually stop short of EOH) as
   // "past the end of the hole". A survey deeper than the collar length is its own warning (Survey).
-  surveyMaxByHole.forEach((maxDepth, id) => holeLengths.set(id, Math.max(maxDepth, holeLengths.has(id) ? holeLengths.get(id) : -Infinity)));
+  // #2167 — only for a hole with a collar and a length above 0 m (checkableHoleLengths)
+  const holeLengths = new Map([...checkableHoleLengths(collars, survey)].map(([id, l]) => [id, l.length]));
 
   const issues = [
     ...validateProject(project),
