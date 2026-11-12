@@ -16,7 +16,7 @@ import { topCells } from "../lib/evidence.js"; // TASKS.csv #1456
 import { evidenceCoverage, LOW_COVERAGE, scoreBlockers } from "../lib/evidence.js"; // TASKS.csv #2252
 import { drilledTrainingMask, evidenceGrid, evidenceExtent, rasterEvidence, distanceEvidence, pointEvidence, sampleValues, membership, fuzzyCombine, FUZZY_OPERATORS, trainingCells, trainingCoverage, bestCutoff, MIN_SIDE, posterior, predictionArea, scoreImage, scoreTop /* #1731 */, rocAuc, kdeEvidence /* #2001 */, isOverlayOutput, coveringLayers } from "../lib/evidence.js"; // coveringLayers: #1563
 import { cachedEvidence, evidenceDeps, gridSignature } from "../lib/evidenceCache.js"; // TASKS.csv #1457, #1560
-import { DRILL_REACH_M, surveyNames, surveyPoints, reachFromSpacing, reachFromNeighbours, voxelColumnEvidence, voxelZRange, holeTraces, holeGradePoints, assaysOfHoles, gradeCardReads /* #2577 */, structureCodes, structureParts, drilledParts /* #1456 */, scoreRasterPlacement /* #2447 */, elementsWithValues, numericLayerFields, UNCERTAINTY_FIELD, codeLikeField /* #2260 */, depthTestedPoints /* #2643 */, layerFieldPoints, zoneParts, levelSet, targetElevation /* #2326 */, codedFields, foldedCodes, zoneHolePoints, codedRef, parseCodedRef, codedRowsOf /* #2453 */, codesOf /* #2102 */ } from "../lib/evidenceSources.js"; // numericLayerFields, layerFieldPoints, zoneCodes, zoneParts: TASKS.csv #1728 // TASKS.csv #1154; elementsWithValues: #1723
+import { DRILL_REACH_M, surveyNames, surveyPoints, reachFromSpacing, reachFromNeighbours, voxelColumnEvidence, voxelZRange, holeTraces, holeGradePoints, assaysOfHoles, gradeCardReads /* #2577 */, structureCodes, structureParts, drilledParts /* #1456 */, scoreRasterPlacement /* #2447 */, elementsWithValues, numericLayerFields, UNCERTAINTY_FIELD, codeLikeField /* #2260 */, depthTestedPoints /* #2643 */, gtRef, parseGtRef, holeIntervalPoints /* #2653 */, layerFieldPoints, zoneParts, levelSet, targetElevation /* #2326 */, codedFields, foldedCodes, zoneHolePoints, codedRef, parseCodedRef, codedRowsOf /* #2453 */, codesOf /* #2102 */ } from "../lib/evidenceSources.js"; // numericLayerFields, layerFieldPoints, zoneCodes, zoneParts: TASKS.csv #1728 // TASKS.csv #1154; elementsWithValues: #1723
 const LEVEL_KINDS = new Set(["grade", "pxrf", "numeric", "zone", "pick", "voxel"]); // TASKS.csv #2326 — the cards a Level filters
 import { categoricalModels } from "../lib/geologyForward.js";
 import { PATHFINDER_PRESETS } from "../lib/anomalyMap.js";
@@ -28,6 +28,8 @@ import { ensureExportCrs } from "../lib/projectCrsRequest.js"; // TASKS.csv #102
 import { fontSizes } from "../lib/theme.js";
 import { pBtn as sidebarBtn, smallSel } from "../lib/sidebarStyles.js"; // TASKS.csv #997
 import { t as tr } from "../lib/i18n.js";
+import { computeBestIntercepts } from "../lib/geochem.js"; // TASKS.csv #2653 — Best intercepts' rules
+import { holeTotals } from "../lib/accumulation.js"; // TASKS.csv #2653 — #2419's per-hole totals
 import { LAYER_META } from "../lib/layers.js"; // TASKS.csv #1728
 const CODED_LAYERS = ["litho", "alt", "vein", "breccia", "weath", "mnlgy", "structzone", "litho_gc", "alt_gc"]; // TASKS.csv #1455 — the coded logs offered as "distance to"
 import { SURVEY_METHODS } from "../lib/geophysSurveys.js"; // TASKS.csv #1209
@@ -129,6 +131,8 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
   // #2453 — a per-hole measure of a code (its ref parsed), else the rows' numeric field
   const numericPointsOf = (ref, lv) => {
     if (ref === "depth:assays") return depthTestedPoints(cleanAssays, traces); // #2643 — every hole's deepest sample, whatever the level
+    const gtz = parseGtRef(ref); // #2653 — per hole: GT or metres at or above the card's cut-off
+    if (gtz) return holeIntervalPoints(cleanAssays, gtz.symbol, assayUnits[gtz.symbol] || "ppm", assayUnits, traces, { how: gtz.how, cutoff: gtz.cutoff, computeBestIntercepts, holeTotals });
     const z = parseCodedRef(ref);
     if (z) return zoneHolePoints(codedRowsOf(z.l, projectLayers, customLayers), z.c, traces, z.how, { field: z.f, fold: !!z.fold, level: lv });
     const { rows, field } = numericRowsOf(ref); return layerFieldPoints(rows, field, traces, undefined, lv);
@@ -191,6 +195,7 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
       out.push({ key: `vox:mean:${m.id ?? m.name}`, label: tr("Block model: {name} (mean in each column)", { name: modelListName(m, voxelModels) /* #1839 */ }), kind: "voxel", ref: m.id ?? m.name, how: "mean" }); // #1831
     });
     if (traces.size) labElements.forEach((e) => out.push({ key: `grade:${e.symbol}`, label: tr("Drillholes: {sym} grade along the holes", { sym: e.symbol }), kind: "grade", ref: e.symbol })); // #1723: lab assays only
+    if (traces.size) labElements.forEach((e) => out.push({ key: `gtpick:${e.symbol}`, label: tr("Drillholes: {sym} grade × thickness or metres above a cut-off, per hole…", { sym: e.symbol }), kind: "gtpick", ref: e.symbol })); // #2653 — asks its cut-off first
     if (traces.size) pxrfElements.forEach((e) => out.push({ key: `pxrf:${e.symbol}`, label: tr("Drillholes: {sym} pXRF along the holes (screening readings, not assays)", { sym: e.symbol }), kind: "pxrf", ref: e.symbol })); // #1723
     structureCodes(structurePicks, traces).forEach((code) => out.push({ key: `pick:${code}`, label: tr("Distance to logged structure: {code}", { code }), kind: "pick", ref: code }));
     if (traces.size) out.push({ key: "drilled", label: tr("Distance to drilling (hole traces, in plan)"), kind: "drilled", ref: "traces" }); // #1456 — far from every hole = untested
@@ -245,8 +250,9 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
   // TASKS.csv #2099 — a drill-grade card's ends from the lab assays of its element (QC and pXRF excluded), length-weighted P50 / P95
   // lowest: #2578 — a card favourable when LOW takes its ends from the low tail (P5 = 1, P50 = 0), the bins' lowest values
   const gradeEnds = (sym, lowest = false) => gradeEndsFromSamples(cleanAssays, (a) => valueIn(a, sym, assayUnits[sym] || "ppm", assayUnits), lowest ? { qLow: 0.05, qHigh: 0.5 } : { mapped: holeGradePoints(cleanAssays, sym, assayUnits[sym] || "ppm", assayUnits, traces, undefined, level, lowest).map((p) => p.value) }); // mapped: #2448
-  const addLayer = (key) => {
-    const src = sources.find((s) => s.key === key); if (!src) return;
+  const [gtPick, setGtPick] = useState(null); // #2653 — { symbol, how, cut } while its cut-off is typed
+  const addLayer = (key, given = null) => {
+    const src = given || sources.find((s) => s.key === key); if (!src) return; // given: #2653
     // #1449 — sample evidence starts on the medium with the most samples when there are several (changeable on the card)
     const medium = (src.kind === "element" || src.kind === "index") && media.length > 1 ? media[0] : null;
     const pick = medium != null ? { field: "medium", value: medium, reach: reachOf(src, medium) } : src.kind === "grade" || src.kind === "pxrf" || src.kind === "numeric" ? { reach: drillReach } /* #2644 — the first values at the card's own reach */ : {};
@@ -474,10 +480,21 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
           </div>
         )}
         {grid && cellTyped && Math.round(grid.dx) > Math.round(cellTyped) && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("The {c} m cell would make more cells than the grid can hold over this area, so it was coarsened to {d} m. A smaller area keeps it.", { c: cellTyped, d: Math.round(grid.dx) })}</div>}
-        <select value="" onChange={(e) => addLayer(e.target.value)} style={sel} aria-label={tr("Add evidence")} disabled={!grid || !sources.length}>
+        <select value="" onChange={(e) => { const k = e.target.value; if (k.startsWith("gtpick:")) setGtPick({ symbol: k.slice(7), how: "gt", cut: "" }); else addLayer(k); }} style={sel} aria-label={tr("Add evidence")} disabled={!grid || !sources.length}>
           <option value="">{tr("+ add evidence…")}</option>
           {sources.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
         </select>
+        {gtPick && (() => { // TASKS.csv #2653 — the cut-off first (none is chosen for you), then the card
+          const u = assayUnits[gtPick.symbol] || "ppm", cut = gtPick.cut === "" ? NaN : Number(gtPick.cut), ok = Number.isFinite(cut) && cut >= 0;
+          const add = () => { const how = gtPick.how; addLayer(null, { key: `num${gtRef(gtPick.symbol, how, cut)}`, label: how === "m" ? tr("Drillholes: metres at or above {c} {u} {sym} in each hole", { c: cut, u, sym: gtPick.symbol }) : tr("Drillholes: {sym} grade × thickness at or above {c} {u} in each hole", { c: cut, u, sym: gtPick.symbol }), kind: "numeric", ref: gtRef(gtPick.symbol, how, cut) }); setGtPick(null); };
+          return (<div style={{ display: "flex", gap: 4, alignItems: "center", flexWrap: "wrap", fontSize: "var(--font-size-sm)" }}>
+            <select value={gtPick.how} onChange={(e) => setGtPick((p) => ({ ...p, how: e.target.value }))} style={sel} aria-label={tr("Per-hole measure")}><option value="gt">{tr("grade × thickness")}</option><option value="m">{tr("metres")}</option></select>
+            <label style={row}>{tr("at or above ({u} {sym})", { u, sym: gtPick.symbol })}<input type="number" min={0} step="any" value={gtPick.cut} onChange={(e) => setGtPick((p) => ({ ...p, cut: e.target.value }))} style={{ ...sel, width: 70 }} aria-label={tr("Intercept cut-off")} /></label>
+            <button type="button" disabled={!ok} onClick={add} style={{ ...sel, cursor: "pointer" }}>{tr("Add")}</button>
+            <button type="button" onClick={() => setGtPick(null)} style={{ ...sel, cursor: "pointer" }}>{tr("Cancel")}</button>
+            <span style={note}>{tr("Intervals at or above the cut-off with Best intercepts' rules (2 m of internal dilution, no minimum length), summed per hole; a hole assayed with none counts as 0.")}</span>
+          </div>);
+        })()}
         {/* TASKS.csv #2010 — a multiband satellite picture becomes evidence through a band ratio, made in Maps */}
         {pictureRasters.length > 0 && <div style={note}>{tr("A multiband satellite scene (Sentinel-2, Landsat, ASTER) scores after a band ratio: Maps > Spectral index makes iron oxide, clay / hydroxyl or your own ratio (b4 / b2…) as a raster with values, listed here.")}</div>}
         {pictureRasters.length > 0 && <div style={note}>{tr("{n} raster(s) are pictures without values ({names}): a colour image has no numbers to score. Import the data grid (a single-band GeoTIFF, .grd or .gxf) to use it as evidence.", { n: pictureRasters.length, names: pictureRasters.slice(0, 3).map((r) => r.name).join(", ") + (pictureRasters.length > 3 ? ", …" : "") })}</div>}{/* #1567 */}

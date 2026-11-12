@@ -453,3 +453,28 @@ export function gradeCardReads(assays, symbol, unit, units) {
 export const codedRef = (o) => `@${JSON.stringify(o)}`;
 export const parseCodedRef = (ref) => { if (typeof ref !== "string" || ref[0] !== "@") return null; try { return JSON.parse(ref.slice(1)); } catch { return null; } };
 export const codedRowsOf = (l, projectLayers, customLayers) => (String(l).startsWith("custom:") ? (customLayers || []).find((c) => String(c.id) === String(l).slice(7))?.rows || [] : projectLayers?.[l] || []);
+
+// TASKS.csv #2653 (follow-up of #2453) — a per-hole measure of a grade as evidence: the hole's grade x thickness (GT) or its metres at or
+// above a cut-off, from Best intercepts' rules (lib/geochem.js computeBestIntercepts, summed per hole by #2419's accumulation.js holeTotals),
+// placed at the intercepts' length-weighted centre; a hole assayed for the element with no intercept is a 0 at its assayed mid-depth (drilled,
+// nothing at the cut-off). The cut-off is the user's, carried in the card's ref: "gt:{symbol}:{gt|m}:{cutoff}".
+export const gtRef = (symbol, how, cutoff) => `gt:${symbol}:${how}:${cutoff}`;
+export const parseGtRef = (ref) => { const m = /^gt:([^:]+):(gt|m):(.+)$/.exec(String(ref || "")); return m && Number.isFinite(Number(m[3])) ? { symbol: m[1], how: m[2], cutoff: Number(m[3]) } : null; };
+export function holeIntervalPoints(assays, symbol, unit, units, traces, { how, cutoff, computeBestIntercepts, holeTotals, maxInternalDilution = 2, minLength = 0 }) {
+  const rows = computeBestIntercepts(assays, symbol, unit, units, { cutoff, maxInternalDilution, minLength });
+  const totals = holeTotals(rows, (h, md) => { const t = traces.get(h); return t ? pointOnTrace(t, md) : null; });
+  const out = [], seen = new Set();
+  for (const t of totals) {
+    if (!Number.isFinite(t.x) || !Number.isFinite(t.y)) continue;
+    seen.add(t.hole_id);
+    out.push({ x: t.x, y: t.y, z: null, value: how === "m" ? t.thicknessM : t.gt, hole_id: t.hole_id });
+  }
+  const span = new Map();
+  for (const a of assays || []) {
+    if (seen.has(a.hole_id) || !traces.has(a.hole_id) || valueIn(a, symbol, unit, units) == null) continue;
+    const f = Number(a.from), to = Number(a.to); if (!(to > f)) continue;
+    const s = span.get(a.hole_id) || [Infinity, -Infinity]; span.set(a.hole_id, [Math.min(s[0], f), Math.max(s[1], to)]);
+  }
+  for (const [h, [f, to]] of span) { const p = pointOnTrace(traces.get(h), (f + to) / 2); if (p) out.push({ x: p.x, y: p.y, z: p.z, value: 0, hole_id: h }); }
+  return out;
+}

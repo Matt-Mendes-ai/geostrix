@@ -10705,5 +10705,13 @@
   "{n} row(s) skipped (lines {list}): a missing or bad value.": "{n} linha(s) ignorada(s) (linhas {list}): um valor ausente ou inválido.",
   "Added {n} planned hole(s) from {f}.": "Adicionado(s) {n} furo(s) planejado(s) de {f}.",
   "Could not read {f}: {error}": "Não foi possível ler {f}: {error}",
-  "Planned holes from a CSV with columns for E, N, Elev, azimuth (grid), dip and length; name, hole type, notes, target and lift / drift are read when present.": "Furos planejados de um CSV com colunas de E, N, Cota, azimute (quadrícula), mergulho e comprimento; nome, tipo de furo, notas, alvo e subida / deriva são lidos quando presentes."
+  "Planned holes from a CSV with columns for E, N, Elev, azimuth (grid), dip and length; name, hole type, notes, target and lift / drift are read when present.": "Furos planejados de um CSV com colunas de E, N, Cota, azimute (quadrícula), mergulho e comprimento; nome, tipo de furo, notas, alvo e subida / deriva são lidos quando presentes.",
+  "Drillholes: {sym} grade × thickness or metres above a cut-off, per hole…": "Furos: teor × espessura ou metros acima de um teor de corte de {sym}, por furo…",
+  "Drillholes: metres at or above {c} {u} {sym} in each hole": "Furos: metros em ou acima de {c} {u} {sym} em cada furo",
+  "Drillholes: {sym} grade × thickness at or above {c} {u} in each hole": "Furos: teor × espessura de {sym} em ou acima de {c} {u} em cada furo",
+  "Per-hole measure": "Medida por furo",
+  "grade × thickness": "teor × espessura",
+  "metres": "metros",
+  "at or above ({u} {sym})": "em ou acima de ({u} {sym})",
+  "Intervals at or above the cut-off with Best intercepts' rules (2 m of internal dilution, no minimum length), summed per hole; a hole assayed with none counts as 0.": "Intervalos no teor de corte ou acima com as regras de Melhores interseções (2 m de diluição interna, sem comprimento mínimo), somados por furo; um furo analisado sem nenhum conta como 0."
 }

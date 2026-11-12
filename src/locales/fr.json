@@ -10705,5 +10705,13 @@
   "{n} row(s) skipped (lines {list}): a missing or bad value.": "{n} ligne(s) ignorée(s) (lignes {list}) : une valeur manquante ou invalide.",
   "Added {n} planned hole(s) from {f}.": "{n} sondage(s) prévu(s) ajouté(s) depuis {f}.",
   "Could not read {f}: {error}": "Impossible de lire {f} : {error}",
-  "Planned holes from a CSV with columns for E, N, Elev, azimuth (grid), dip and length; name, hole type, notes, target and lift / drift are read when present.": "Sondages prévus depuis un CSV avec des colonnes E, N, Alt., azimut (quadrillage), pendage et longueur ; nom, type de sondage, notes, cible et relèvement / dérive sont lus s'ils sont présents."
+  "Planned holes from a CSV with columns for E, N, Elev, azimuth (grid), dip and length; name, hole type, notes, target and lift / drift are read when present.": "Sondages prévus depuis un CSV avec des colonnes E, N, Alt., azimut (quadrillage), pendage et longueur ; nom, type de sondage, notes, cible et relèvement / dérive sont lus s'ils sont présents.",
+  "Drillholes: {sym} grade × thickness or metres above a cut-off, per hole…": "Sondages : teneur × épaisseur ou mètres au-dessus d'une coupure en {sym}, par sondage…",
+  "Drillholes: metres at or above {c} {u} {sym} in each hole": "Sondages : mètres à {c} {u} {sym} ou plus dans chaque sondage",
+  "Drillholes: {sym} grade × thickness at or above {c} {u} in each hole": "Sondages : teneur × épaisseur en {sym} à {c} {u} ou plus dans chaque sondage",
+  "Per-hole measure": "Mesure par sondage",
+  "grade × thickness": "teneur × épaisseur",
+  "metres": "mètres",
+  "at or above ({u} {sym})": "à ou au-dessus de ({u} {sym})",
+  "Intervals at or above the cut-off with Best intercepts' rules (2 m of internal dilution, no minimum length), summed per hole; a hole assayed with none counts as 0.": "Intervalles à la coupure ou au-dessus avec les règles de Meilleures intersections (2 m de dilution interne, sans longueur minimale), additionnés par sondage ; un sondage analysé sans aucun compte pour 0."
 }
