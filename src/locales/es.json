@@ -1772,6 +1772,8 @@
   "No '<x' results: the lowest reported value (an upper bound on the limit)": "Sin resultados '<x': el valor informado más bajo (un tope superior del límite)",
   "Use the lab's <{limit}": "Usar el <{limit} del laboratorio",
   "main column": "columna principal",
+  "Limit": "Límite",
+  "Judge each blank against its own method's limit: {mult} × {list}": "Juzgar cada blanco con el límite de su propio método: {mult} × {list}",
   "{symbol} was joined from {n} method columns whose detection limits differ: {list}. One limit for all of them judges some samples against another method's.": "{symbol} se unió desde {n} columnas de método cuyos límites de detección difieren: {list}. Un solo límite para todas evalúa algunas muestras contra el de otro método.",
   "Use the lowest value {limit}": "Usar el valor más bajo {limit}",
   "Standards ({groups})": "Estándares ({groups})",

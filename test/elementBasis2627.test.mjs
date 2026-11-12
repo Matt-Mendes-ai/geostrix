@@ -87,3 +87,11 @@ test("#2627 wiring: the store setter (one step over the fields), the Geochem ele
   const sel = fs.readFileSync(new URL("../src/components/ElementBasisSelect.jsx", import.meta.url), "utf8");
   assert.match(sel, /confirmDestructive\(q, \{ undoable: true \}\)/);
 });
+
+// TASKS.csv #2822 — the box shows 'as Li2O' only (the unit in the titles), so it fits the 3D View's narrow sidebar
+test("ElementBasisSelect: short option text, the full choice in the titles, no fixed 90 px cap", () => {
+  const sel = fs.readFileSync(new URL("../src/components/ElementBasisSelect.jsx", import.meta.url), "utf8");
+  assert.match(sel, /<option key=\{c\.unit\} value=\{c\.unit\} title=\{full\(c\)\}>\{label\(c\)\}<\/option>/);
+  assert.match(sel, /title=\{`\$\{cur \? full\(cur\) \+ "\. " : ""\}/);
+  assert.doesNotMatch(sel, /maxWidth: 90/);
+});
