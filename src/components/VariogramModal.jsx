@@ -96,7 +96,7 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
   const [running, setRunning] = useState(false);
 
   const srcAssays = useMemo(() => excludeQAQC(assays), [assays]);
-  const uns = useUnsampled("variogram", { assays: srcAssays, collars, symbol, unit, elementUnits }); // TASKS.csv #2417 / #2542
+  const uns = useUnsampled("variogram", { assays: srcAssays, collars, symbol, unit, elementUnits, layers, customLayers }); // TASKS.csv #2417 / #2542; a picked log: #2721
 
   // Distinct values of the chosen domain layer, so a user can run one domain at a time — the whole
   // point of the row ("per domain"): a variogram mixing two geologically different populations

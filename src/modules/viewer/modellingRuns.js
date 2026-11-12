@@ -2234,10 +2234,11 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
         let unsFill = null, unsParams = null;
         if (!numSrc) {
           const { resolveUnsampled } = await import("../../components/UnsampledChoice.jsx");
-          const u = resolveUnsampled("gradeShell", { assays: srcAssays, collars, symbol, unit, elementUnits });
+          const u = resolveUnsampled("gradeShell", { assays: srcAssays, collars, symbol, unit, elementUnits, logCtx: { layers, customLayers } }); // logCtx: a picked log, #2721
           if (!u.ready) throw new Error(tr("Choose how the unsampled metres inside the sampled holes are read (and, for barren, type their value) before running."));
           unsFill = u.apply(srcAssays); unsParams = u.params(unsFill);
-          if (unsFill.filledM > 0) setNotices((q) => [...q, notice("Unsampled metres read as barren: {m} m in {n} hole(s) filled at the value typed ({v}).", { m: unsParams.unsampledFilledM.toLocaleString(), n: unsParams.unsampledHolesFilled, v: `${unsParams.unsampledValue} ${unit}` })]);
+          if (unsFill.filledM > 0 && u.mode === "log") setNotices((q) => [...q, notice("Unsampled metres read from the log \"{log}\" × {f} ({lu} to {u}, the factor you gave): {m} m in {n} hole(s) filled from its readings; {r} m had no reading and stay not known.", { log: unsParams.unsampledLog, f: unsParams.unsampledLogFactor, lu: unsParams.unsampledLogUnit, u: unsParams.unsampledUnit, m: unsParams.unsampledLogFilledM.toLocaleString(), n: unsParams.unsampledHolesFilled, r: unsParams.unsampledLogNoReadingM.toLocaleString() })]); // #2721
+          else if (unsFill.filledM > 0) setNotices((q) => [...q, notice("Unsampled metres read as barren: {m} m in {n} hole(s) filled at the value typed ({v}).", { m: unsParams.unsampledFilledM.toLocaleString(), n: unsParams.unsampledHolesFilled, v: `${unsParams.unsampledValue} ${unit}` })]);
         }
         const runAssays = unsFill ? unsFill.assays : srcAssays;
         let intervals, rawStats = null;

@@ -244,7 +244,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
   const [samplesFrom, setSamplesFrom] = useState(() => (modelArea === "checked" && checkedHoleIds?.size ? "checked" : "all"));
   const sampleAssays = useMemo(() => (samplesFrom === "checked" && checkedHoleIds?.size ? assays.filter((a) => checkedHoleIds.has(a.hole_id)) : assays), [assays, samplesFrom, checkedHoleIds]);
   const srcAssays = useMemo(() => (includeQAQC ? sampleAssays : excludeQAQC(sampleAssays)), [sampleAssays, includeQAQC]);
-  const uns = useUnsampled("estimate", { assays: srcAssays, collars, symbol, unit, elementUnits }); // TASKS.csv #2417 / #2542
+  const uns = useUnsampled("estimate", { assays: srcAssays, collars, symbol, unit, elementUnits, layers, customLayers }); // TASKS.csv #2417 / #2542; layers / customLayers: a picked log, #2721
   // TASKS.csv #1738 (review #1645, Copley) — how far apart the holes are, under the radius and in a zero-block result
   // TASKS.csv #2062 (review #2013, Woodjam) — over the holes that carry the chosen element, not every collar: 534 district collars with no
   // assays made it '442 drill sites ... typically 82 m from the next' for an estimate informed by 8 holes in clusters 3-5 km apart
@@ -419,6 +419,12 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
           rawStats = raw.stats;
         }
         let { points, dropped, clamped, beyondTrace } = samplePointsFromIntervals(intervals, collars, survey, desurveyHole, desurveyMethod); // #135
+        // TASKS.csv #2721 — each composite's share of its metres filled from the picked log (its value is partly the log's)
+        const logFills = uns.mode === "log" ? (filled.fills || []).filter((f) => f.unsampledFill === "log") : [];
+        if (logFills.length) {
+          const byHole = new Map(); for (const f of logFills) (byHole.get(f.hole_id) || byHole.set(f.hole_id, []).get(f.hole_id)).push(f);
+          points = points.map((p) => { const L = byHole.get(p.hole_id); if (!L) return p; let m = 0; for (const f of L) { const a = Math.max(p.from, f.from), b = Math.min(p.to, f.to); if (b > a) m += b - a; } return m > 0 ? { ...p, logFrac: Math.min(1, m / Math.max(1e-9, p.to - p.from)) } : p; });
+        }
         // TASKS.csv #517 — a hard boundary at a closed modelled volume: only samples inside it inform the estimate,
         // and only blocks whose centre is inside it are kept (a block outside is not estimated, not set to zero)
         let inShell = null, shellInfo = null;
@@ -477,6 +483,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
           ...(method === "ok" ? { variogram: { model: vgModel, ...(vgNugget !== "" && vgSill !== "" && vgRange !== "" ? { nugget: Number(vgNugget), sill: Number(vgSill), range: Number(vgRange) } : {}) } } : {}), // #709
           ...(trend ? { trend: { basis: trendBasis(trend), scales: trendSearchScales(trend) } } : {}), // TASKS.csv #650 — ellipsoidal search
           ...(unsPts.length ? { unsampledPoints: unsPts } : {}), // #2596
+          ...(logFills.length ? { logShare: true } : {}), // #2721
         }, { onProgress: (f) => setProgress(method === "nn" ? f : 0.8 * f), signal: ac.signal });
         // TASKS.csv #1051 — a nearest-neighbour model over the same grid, search, domains and trend (one sample per block,
         // so it is cheap): its mean over the same blocks is the declustered mean the estimate is checked against
@@ -555,6 +562,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
         est.topUnsupported = topCompositesWithoutBlocks(points, est.cells, Math.max(cell3.dx, cell3.dy, cell3.dz)); // #2418: the real cell
         { let all = 0, out = 0; for (const c of est.cells) { const m = Math.max(0, c.value) * c.dx * c.dy * c.dz; all += m; if (c.beyond) out += m; } est.beyondShare = all > 0 ? out / all : 0; } // #2417 — metal share above / below every informing sample
         { let all = 0, near = 0, nb = 0; for (const c of est.cells) { const m = Math.max(0, c.value) * c.dx * c.dy * c.dz; all += m; if (c.nearUnsampled) { near += m; nb++; } } est.nearUnsampledShare = all > 0 ? near / all : 0; est.nearUnsampledCount = nb; } // #2596 — the kept blocks
+        if (logFills.length) { let all = 0, lg = 0; for (const c of est.cells) { const m = Math.max(0, c.value) * c.dx * c.dy * c.dz; all += m; lg += m * (c.fromLog || 0); } est.fromLogShare = all > 0 ? lg / all : 0; } // #2721
         await new Promise((r) => setTimeout(r, 0)); // #2547
         est.belowDrilling = belowDrilling(est.cells, points, Number(searchRadius) || 0); // TASKS.csv #2546
         setResult({ ...est, params, nnCells: method === "nn" ? est.cells : nnEst.cells, checkPoints: points, samplePointCount: points.length, noCodeComposites: domainKey ? points.filter((p) => p.domain == null).length : 0 /* #2541 */, droppedCount: dropped, clampedCount: clamped, beyondTraceCount: beyondTrace, rawStats, intervalCount: intervals.length });
@@ -941,6 +949,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
               {unsampledResultLine(result.params, symbol) && <div style={{ color: result.params.unsampledFilledM != null ? "var(--color-text-secondary)" : "var(--color-warn-text)" }}>{unsampledResultLine(result.params, symbol)}</div>}{/* #2417 */}
               {result.beyondShare > 0 && <div style={{ color: result.beyondShare > 0.1 ? "var(--color-warn-text)" : "var(--color-text-secondary)" }}>{tr("{p} % of the estimated metal is in blocks above or below every sample that informs them (Grade-tonnage gives it per cutoff).", { p: Math.round(result.beyondShare * 1000) / 10 })}</div>}{/* #2417 */}
               {result.nearUnsampledShare > 0 && <div style={{ color: result.nearUnsampledShare > 0.1 ? "var(--color-warn-text)" : "var(--color-text-secondary)" }}>{tr("{p} % of the estimated metal ({n} blocks) is in blocks whose nearest drilling was never sampled for {el}: the grade was carried across unsampled core, which is unknown here, not barren (Unsampled metres inside a sampled hole reads it as barren).", { p: Math.round(result.nearUnsampledShare * 1000) / 10, n: result.nearUnsampledCount.toLocaleString(), el: symbol })}</div>}{/* #2596 */}
+              {result.fromLogShare > 0 && <div style={{ color: "var(--color-text-secondary)" }}>{tr("About {p} % of the estimated metal comes from the readings of the log \"{log}\" that filled the unsampled metres (Grade-tonnage gives it per cutoff).", { p: Math.round(result.fromLogShare * 1000) / 10, log: result.params.unsampledLog })}</div>}{/* #2721 */}
               {result.params?.supportScoredAgainstM > 0 && <div style={{ color: "var(--color-text-secondary)" }}>{tr("No search radius: data support was scored against {m} m (twice the median spacing between holes); a block farther than that from every sample, not between holes, is unsupported.", { m: result.params.supportScoredAgainstM.toLocaleString() })}</div>}{/* #1411 */}
               {result.params?.restrictedToVolume && <div style={{ color: "var(--color-text-secondary)" }}>{tr("Restricted to {v}.", { v: result.params.restrictedToVolume })}</div>}{/* #1410 */}
               {/* TASKS.csv #676 — passing the hole rule while one hole carries nearly all the weight */}
