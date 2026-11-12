@@ -10,7 +10,7 @@ import CapAuditHint from "./CapAuditHint.jsx"; // TASKS.csv #533
 import EstimateCheck from "./EstimateCheck.jsx"; // TASKS.csv #1051
 import { excludeQAQC, labAssays } from "../lib/qaqc.js"; // TASKS.csv #266
 import { samplePointsFromIntervals, MAX_BLOCKS, ESTIMATION_METHODS, SUPPORT_COLORS, summarizeSupport, supportInReach, supportBeyondReach, retallyKeptCells } from "../lib/estimation.js"; // retallyKeptCells: #2106
-import { BLOCK_MODEL_BUDGETS, MAX_BLOCK_MODEL_BUDGET, blockModelBudgetNote, cellToFit, blockModelLattice, snapBoundsToLattice, overlapBox } from "../lib/estimationMeta.js"; // TASKS.csv #626; block-model budgets: #661
+import { BLOCK_MODEL_BUDGETS, MAX_BLOCK_MODEL_BUDGET, blockModelBudgetNote, cellToFit, blockModelLattice, snapBoundsToLattice, overlapBox, blockModelExtent /* #2729 */ } from "../lib/estimationMeta.js"; // TASKS.csv #626; block-model budgets: #661
 import { runEstimation } from "../lib/estimationClient.js"; // TASKS.csv #520 — off the UI thread
 import { makeReachClient } from "../lib/blockReachClient.js"; // TASKS.csv #1416; in a worker: #1579
 import { preferredElement, rememberElement } from "../lib/preferredElement.js"; // TASKS.csv #2552
@@ -181,7 +181,10 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
   const [flatReach, setFlatReach] = useState(() => { const v = Number(keep("flatReach", "")); return Number.isFinite(v) && v > 0 ? v : ""; });
   // TASKS.csv #724 — the grid: "data" (the drilling's box + padding, as before), "model:<id>" (an existing block model's
   // cell size and origin, so the estimate's centroids coincide with it), or "origin" (the cell size above on a typed origin)
-  const [gridMode, setGridMode] = useState(() => keep("gridMode", "data", (g) => !g.startsWith("model:") || (voxelModels || []).some((m) => m.id === g.slice(6))));
+  // TASKS.csv #2425 (review #2325) — Model settings › Model area = the checked holes: the grid fits them too, as the Grade shell's does (#2059);
+  // samples follow it since #2544. A remembered model match or origin still wins; a remembered 'data' box does not override the Model area.
+  const areaChecked = modelArea === "checked" && checkedHoleIds?.size > 0 && collars.some((c) => !checkedHoleIds.has(c.hole_id));
+  const [gridMode, setGridMode] = useState(() => keep("gridMode", areaChecked ? "checked" : "data", (g) => !(areaChecked && g === "data") && (!g.startsWith("model:") || (voxelModels || []).some((m) => m.id === g.slice(6)))));
   const [originE, setOriginE] = useState(() => keep("originE", "")); const [originN, setOriginN] = useState(() => keep("originN", "")); const [originZ, setOriginZ] = useState(() => keep("originZ", ""));
   const latticeModels = useMemo(() => (voxelModels || []).map((m) => ({ m, L: blockModelLattice(m) })).filter((x) => x.L), [voxelModels]);
   // TASKS.csv #626 — block budget, as the grade shell's (#625): a per-computer preference, 200,000 by default
@@ -296,7 +299,9 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
     ymin: gridBox.ymin - padding, ymax: gridBox.ymax + padding,
     zmin: gridBox.zmin - padding, zmax: gridBox.zmax + padding,
   } : null;
-  const bounds = dataBounds && lattice ? snapBoundsToLattice(dataBounds, lattice) : dataBounds; // #724
+  // TASKS.csv #2729 — 'Match <model>': its extent too, so a by-product (#2598) lands on the same blocks
+  const matchedExtent = useMemo(() => (matched ? blockModelExtent(matched.m) : null), [matched]);
+  const bounds = matchedExtent || (dataBounds && lattice ? snapBoundsToLattice(dataBounds, lattice) : dataBounds); // #724
   const gridPreview = bounds ? {
     nx: Math.max(1, Math.round((bounds.xmax - bounds.xmin) / cell3.dx)),
     ny: Math.max(1, Math.round((bounds.ymax - bounds.ymin) / cell3.dy)),
@@ -821,6 +826,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
                 <option value="origin">{tr("Origin (E, N, RL)…")}</option>
               </select>
             </label>
+            {matchedExtent && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("The grid takes {name}'s blocks and its extent, so every estimated block is one of its blocks.", { name: matched.m.name })}</div>}{/* #2729 */}
             {checkedHoleIds && checkedCount < collars.length && checkedCount > 0 && <label style={fieldLabel} title={tr("Which holes' samples inform the estimate and its checks. The grid is set above, apart.")}>{tr("Samples from")}{/* #2544 */}
               <select value={samplesFrom} onChange={(e) => setSamplesFrom(e.target.value)} style={inp} aria-label={tr("Samples from")}>
                 <option value="all">{tr("Every hole")}</option>
