@@ -6706,6 +6706,7 @@
   "Uncheck {n}": "Décocher {n}",
   "Only these": "Seulement ceux-ci",
   "{ticked} of {total} checked": "{ticked} sur {total} cochés",
+  "No hole id contains this text: listing the {n} hole(s) with it in a collar field.": "Aucun identifiant de sondage ne contient ce texte : liste des {n} sondage(s) qui l'ont dans un champ du collet.",
   "Holes unchecked in the hole list are left out of the model. Tick this to use them anyway.": "Les sondages décochés dans la liste sont exclus du modèle. Cochez ceci pour les utiliser quand même.",
   "Also using the {n} holes unchecked in the hole list": "Utilise aussi les {n} sondages décochés dans la liste",
   "Leaving out the {n} holes unchecked in the hole list (tick to use them)": "Exclut les {n} sondages décochés dans la liste (cochez pour les utiliser)",
