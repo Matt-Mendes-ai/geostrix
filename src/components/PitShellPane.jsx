@@ -23,7 +23,7 @@ import { holeTraces } from "../lib/evidenceSources.js";
 import { excludeQAQC } from "../lib/qaqc.js";
 import { valueIn } from "../lib/geochem.js";
 import { t as tr } from "../lib/i18n.js";
-import { DENSITY_CODE_LAYERS, modelWithCodeDensity, typedCodeDensities } from "../lib/densityByCode.js"; // TASKS.csv #2647
+import { DENSITY_CODE_LAYERS, modelWithCodeDensity, typedCodeDensities, codesByMetres /* #2993 */ } from "../lib/densityByCode.js"; // TASKS.csv #2647
 import { densityUsedText } from "./densityUsedText.js"; // TASKS.csv #2647
 import CollarLevelsNote from "./CollarLevelsNote.jsx"; // TASKS.csv #2584 — the lowest collar used where collars stand on benches
 
@@ -41,6 +41,7 @@ const byFields = (inp) => ({ byModelId: inp?.by?.modelId ?? "", byPrice: inp?.by
 const SECTOR_GRID = [["NW", "N", "NE"], ["W", null, "E"], ["SW", "S", "SE"]]; // the compass layout of the sector slopes
 const PRICE_UNIT_MASS = { g: { g: 1, oz: 31.1034768 }, t: { t: 1, lb: 1 / 2204.62262 } }; // #1898 — the mass each price unit prices
 const FIELDS = ["price", "recovery", "miningCost", "processingCost", "density", "slopeDeg"];
+const CODES_SHOWN = 30; // TASKS.csv #2993 — density boxes shown before "Show all"
 let keptForm = null; // TASKS.csv #2602 — the form as last set (a by-product cleared stays cleared when the pane reopens)
 let kept = null; // #1356 — the last result, shown again when the pane or the tab comes back (this session)
 
@@ -137,7 +138,10 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove,
   const value = (k) => (k === "price" && priceStale ? NaN : Number(f[k]));
   // TASKS.csv #2647 — a density per code of a logged layer (Lithology: LIG 1.3, SAN 1.9 ...), each block taking the nearest logged interval
   const codeLayers = useMemo(() => DENSITY_CODE_LAYERS.filter((k) => (layers?.[k] || []).some((r) => r.value != null && String(r.value).trim() !== "")), [layers]);
-  const layerCodes = useMemo(() => (f.densityLayer ? [...new Set((layers?.[f.densityLayer] || []).map((r) => String(r.value ?? "").trim()).filter(Boolean))].sort().slice(0, 30) : []), [f.densityLayer, layers]);
+  // TASKS.csv #2993 — every code, most logged metres first; the first 30 shown until 'Show all' (was the first 30 by name, the rest left out unsaid)
+  const allLayerCodes = useMemo(() => (f.densityLayer ? codesByMetres(layers?.[f.densityLayer]).map((c) => c.code) : []), [f.densityLayer, layers]);
+  const [allCodesShown, setAllCodesShown] = useState(false);
+  const layerCodes = allCodesShown ? allLayerCodes : allLayerCodes.slice(0, CODES_SHOWN);
   const codeDensityBad = Object.values(f.densityByCode || {}).some((v) => v !== "" && v != null && !(Number(v) > 0));
   // TASKS.csv #2437 (review #2325, WA uranium) — an optional waste density: blank, every rock takes the one density
   const wasteBad = f.wasteDensity !== "" && f.wasteDensity != null && !(Number(f.wasteDensity) > 0);
@@ -213,7 +217,7 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove,
       const beyondFlagged = !!model.params?.beyondFlagged || model.cells.some((c) => c.beyond); // #2435 — the estimate flagged blocks beyond its samples (#2417)
       const nearUnsFlagged = !!model.params?.nearUnsampledFlagged || model.cells.some((c) => c.nearUnsampled); // #2596 — and blocks whose nearest drilling was never sampled
       const logFilled = Number(model.params?.unsampledLogFilledM) > 0 ? { log: model.params.unsampledLog, factor: model.params.unsampledLogFactor } : null; // #2748 — as Grade-tonnage's logKnown (#2721)
-      kept = { ...r, densityUsed: coded.used ? { layer: inputs.densityLayer, used: coded.used } : null /* #2647 */, unit, seconds, hasTerrain: !!terrain, model: model.name, slopeDeg: inputs.slopeDeg, sectorSlopes: inputs.sectorSlopes || null, upperSlope: inputs.upperSlope || null /* #2985 */, support, beyondFlagged, nearUnsFlagged /* #2596 */, logFilled /* #2748 */, byUnit, byLabel, byElement, element /* #2594 */, outside /* #2593 */, weathered: inputs.weathered || null /* #2597 */ }; // byUnit / byLabel: #1917; beyondFlagged: #2435
+      kept = { ...r, densityUsed: coded.used ? { layer: inputs.densityLayer, used: coded.used, untyped: coded.untyped || null /* #2993 */ } : null /* #2647 */, unit, seconds, hasTerrain: !!terrain, model: model.name, slopeDeg: inputs.slopeDeg, sectorSlopes: inputs.sectorSlopes || null, upperSlope: inputs.upperSlope || null /* #2985 */, support, beyondFlagged, nearUnsFlagged /* #2596 */, logFilled /* #2748 */, byUnit, byLabel, byElement, element /* #2594 */, outside /* #2593 */, weathered: inputs.weathered || null /* #2597 */ }; // byUnit / byLabel: #1917; beyondFlagged: #2435
       setRes(kept);
       const contained = r.metalU * r.metalFactor;
       if (hideEarlier) surfaces.filter((s) => s.type === "pit_shell" && s.visible && s.id !== editingId).forEach((s) => onToggle?.(s.id)); // #1356 — one pit on view at a time
@@ -282,7 +286,7 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove,
         {field("density", tr("Density (t/m³)"), { title: tr("The density of the ore blocks; of all the rock when no waste density is entered.") })}
         {field("wasteDensity", tr("Waste density (t/m³)"), { placeholder: tr("optional"), title: tr("Optional: the density of the blocks below cut-off and of the rock outside the block model (cover, host rock). Blank: the density above for all rock.") })}{/* #2437 */}
         {codeLayers.length > 0 && <label style={row} title={tr("A density per code of a logged layer: each block takes the nearest logged interval within reach and that code's density, ore or waste; a block with no code, or a code with no density typed, takes the densities above.")}>{tr("Density by")}<select value={f.densityLayer} onChange={set("densityLayer")} style={{ ...smallSel, width: 0, flex: 1, minWidth: 0 }} aria-label={tr("Density by")}><option value="">{tr("one value")}</option>{codeLayers.map((k) => <option key={k} value={k}>{k === "weath" ? tr("Weathering") : k === "litho" ? tr("Lithology") : tr("Alteration")}</option>)}</select></label>}{/* #2647 */}
-        {f.densityLayer && layerCodes.length > 0 && <div style={{ display: "flex", flexWrap: "wrap", gap: "2px 10px", marginTop: 4, fontSize: "var(--font-size-sm)" }}>{layerCodes.map((code) => <label key={code} style={{ display: "flex", alignItems: "center", gap: 4 }}>{code}<input type="number" min={0} step={0.01} value={f.densityByCode?.[code] ?? ""} placeholder={tr("blank")} onChange={(e) => { const v = e.target.value; setF((p) => ({ ...p, densityByCode: { ...(p.densityByCode || {}), [code]: v } })); setMsg(null); }} aria-label={tr("Density of {code} (t/m³)", { code })} style={{ ...smallSel, width: 60 }} /></label>)}</div>}
+        {f.densityLayer && layerCodes.length > 0 && <div style={{ display: "flex", flexWrap: "wrap", gap: "2px 10px", marginTop: 4, fontSize: "var(--font-size-sm)" }}>{layerCodes.map((code) => <label key={code} style={{ display: "flex", alignItems: "center", gap: 4 }}>{code}<input type="number" min={0} step={0.01} value={f.densityByCode?.[code] ?? ""} placeholder={tr("blank")} onChange={(e) => { const v = e.target.value; setF((p) => ({ ...p, densityByCode: { ...(p.densityByCode || {}), [code]: v } })); setMsg(null); }} aria-label={tr("Density of {code} (t/m³)", { code })} style={{ ...smallSel, width: 60 }} /></label>)}{allLayerCodes.length > layerCodes.length && <button type="button" onClick={() => setAllCodesShown(true)} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "1px 6px" }}>{tr("Show all {n} codes ({k} more, the least logged)", { n: allLayerCodes.length, k: allLayerCodes.length - layerCodes.length })}</button>}</div>}{/* #2993 */}
         {codeDensityBad && <div style={warn}>{tr("A code's density must be above 0, or blank.")}</div>}
         {/* TASKS.csv #2597 — an optional weathered zone with its own density */}
         <label style={row}>{tr("Weathered zone (optional)")}<select value={f.weathMode} onChange={set("weathMode")} style={{ ...smallSel, width: 0, flex: 1, minWidth: 0 }} aria-label={tr("Weathered zone")}>

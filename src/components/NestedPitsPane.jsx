@@ -89,7 +89,7 @@ export default function NestedPitsPane({ surfaces = [], onAdd, onToggle, onRemov
       if (r.failed || r.empty) { setMsg(r.empty ? tr("At these inputs no block pays for the rock over it at the largest factor, so there is no pit.") : tr("The series failed: {v}", { v: r.failed })); return; }
       const seconds = Math.round((performance.now() - t0) / 100) / 10;
       if (kept?.seriesId && onRemove) surfaces.filter((s) => s.params?.seriesId === kept.seriesId).forEach((s) => onRemove(s.id)); // #1931 — the earlier series' shells go
-      kept = { ...r, densityUsed: coded.used ? { layer: inputs.densityLayer, used: coded.used } : null /* #2647 */, seconds, pitId: lastPit.id, factorsText: f.factors, rateText: f.rate, discountText: f.discount, unit, priceLabel, price: inputs.price, seriesId: `series_${Date.now()}`, shown: {} };
+      kept = { ...r, densityUsed: coded.used ? { layer: inputs.densityLayer, used: coded.used, untyped: coded.untyped || null /* #2993 */ } : null /* #2647 */, seconds, pitId: lastPit.id, factorsText: f.factors, rateText: f.rate, discountText: f.discount, unit, priceLabel, price: inputs.price, seriesId: `series_${Date.now()}`, shown: {} };
       setRes(kept);
     } catch (e) { setMsg(tr("The series failed: {v}", { v: e.message || e })); }
     finally { setBusy(null); job.current = null; }

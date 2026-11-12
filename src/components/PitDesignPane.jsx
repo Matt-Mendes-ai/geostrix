@@ -118,7 +118,7 @@ export default function PitDesignPane({ surfaces = [], worldPositionsOf, onAdd, 
           sectorsUsed: r.sectorsUsed || null /* #1952 */, ramp: r.ramp ? { ...r.ramp, rockT: Math.round(r.ramp.rockT) } : null /* #1948 */,
           caution: "geometric design on a conceptual shell (with the ramp and the sector slopes as entered): no dilution or scheduling; not a Mineral Reserve or Resource", generatedAt: new Date().toISOString() }, // TASKS.csv #1971: the ramp and sectors exist; the always-null metalFactor removed
       });
-      kept = { ...r, densityUsed: coded.used ? { layer: pit.params?.inputs?.densityLayer, used: coded.used } : null /* #2647 */, inputs, seconds, designId, pitName: pit.name, unit, shell: pit.params || {}, modelMissing: !model, areaName: area?.name || null };
+      kept = { ...r, densityUsed: coded.used ? { layer: pit.params?.inputs?.densityLayer, used: coded.used, untyped: coded.untyped || null /* #2993 */ } : null /* #2647 */, inputs, seconds, designId, pitName: pit.name, unit, shell: pit.params || {}, modelMissing: !model, areaName: area?.name || null };
       setRes(kept);
     } catch (e) {
       setMsg(e.message === "no-floors" ? tr("No mined column was found under the ground: the shell may sit above the terrain loaded now.")

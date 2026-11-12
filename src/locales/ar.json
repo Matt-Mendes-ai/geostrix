@@ -11230,5 +11230,8 @@
   "The dip direction must be from 0 to 360° (typed: {v}).": "يجب أن يكون اتجاه الميل بين 0 و360° (المكتوب: {v}).",
   "{f} has no azimuth or dip column. Add every hole at the form's Az {a}° / Dip {d}°?": "لا يحتوي {f} على عمود للسمت أو للميل. هل تُضاف كل الثقوب بسمت {a}° / ميل {d}° الموجودين في النموذج؟",
   "Every hole takes the form's Az {a}° / Dip {d}° (the file has no azimuth or dip column).": "تأخذ كل الثقوب سمت {a}° / ميل {d}° من النموذج (لا يحتوي الملف على عمود للسمت أو للميل).",
-  "{n} vertical row(s) with a blank azimuth read as azimuth 0.": "قُرئ {n} صف (صفوف) رأسية بسمت فارغ على أنها بسمت 0."
+  "{n} vertical row(s) with a blank azimuth read as azimuth 0.": "قُرئ {n} صف (صفوف) رأسية بسمت فارغ على أنها بسمت 0.",
+  "Codes with no density typed: {list}.": "رموز بلا كثافة مُدخلة: {list}.",
+  "{code} ({n} blocks)": "{code} ({n} كتلة)",
+  "Show all {n} codes ({k} more, the least logged)": "عرض كل الرموز الـ {n} ({k} إضافية، الأقل تسجيلًا)"
 }
