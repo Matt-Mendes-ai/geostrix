@@ -16,7 +16,7 @@ import { topCells } from "../lib/evidence.js"; // TASKS.csv #1456
 import { evidenceCoverage, LOW_COVERAGE, scoreBlockers } from "../lib/evidence.js"; // TASKS.csv #2252
 import { drilledTrainingMask, evidenceGrid, evidenceExtent, rasterEvidence, distanceEvidence, pointEvidence, sampleValues, membership, fuzzyCombine, FUZZY_OPERATORS, trainingCells, trainingCoverage, bestCutoff, MIN_SIDE, posterior, predictionArea, scoreImage, scoreTop /* #1731 */, rocAuc, kdeEvidence /* #2001 */, isOverlayOutput, coveringLayers } from "../lib/evidence.js"; // coveringLayers: #1563
 import { cachedEvidence, evidenceDeps, gridSignature } from "../lib/evidenceCache.js"; // TASKS.csv #1457, #1560
-import { DRILL_REACH_M, surveyNames, surveyPoints, reachFromSpacing, reachFromNeighbours, voxelColumnEvidence, voxelZRange, holeTraces, holeGradePoints, assaysOfHoles, gradeCardReads /* #2577 */, structureCodes, structureParts, drilledParts /* #1456 */, scoreRasterPlacement /* #2447 */, elementsWithValues, numericLayerFields, UNCERTAINTY_FIELD, codeLikeField /* #2260 */, depthTestedPoints /* #2643 */, gtRef, parseGtRef, holeIntervalPoints /* #2653 */, layerFieldPoints, zoneParts, levelSet, targetElevation /* #2326 */, codedFields, foldedCodes, zoneHolePoints, codedRef, parseCodedRef, codedRowsOf /* #2453 */, codesOf /* #2102 */ } from "../lib/evidenceSources.js"; // numericLayerFields, layerFieldPoints, zoneCodes, zoneParts: TASKS.csv #1728 // TASKS.csv #1154; elementsWithValues: #1723
+import { DRILL_REACH_M, surveyNames, surveyPoints, reachFromSpacing, reachFromNeighbours, voxelColumnEvidence, voxelZRange, holeTraces, holeGradePoints, assaysOfHoles, gradeCardReads /* #2577 */, structureCodes, structureParts, drilledParts /* #1456 */, scoreRasterPlacement /* #2447 */, elementsWithValues, numericLayerFields, UNCERTAINTY_FIELD, codeLikeField /* #2260 */, depthTestedPoints /* #2643 */, gtRef, parseGtRef, holeIntervalPoints /* #2653 */, filterSources, groupSources /* #2654 */, layerFieldPoints, zoneParts, levelSet, targetElevation /* #2326 */, codedFields, foldedCodes, zoneHolePoints, codedRef, parseCodedRef, codedRowsOf /* #2453 */, codesOf /* #2102 */ } from "../lib/evidenceSources.js"; // numericLayerFields, layerFieldPoints, zoneCodes, zoneParts: TASKS.csv #1728 // TASKS.csv #1154; elementsWithValues: #1723
 const LEVEL_KINDS = new Set(["grade", "pxrf", "numeric", "zone", "pick", "voxel"]); // TASKS.csv #2326 — the cards a Level filters
 import { categoricalModels } from "../lib/geologyForward.js";
 import { PATHFINDER_PRESETS } from "../lib/anomalyMap.js";
@@ -251,6 +251,7 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
   // lowest: #2578 — a card favourable when LOW takes its ends from the low tail (P5 = 1, P50 = 0), the bins' lowest values
   const gradeEnds = (sym, lowest = false) => gradeEndsFromSamples(cleanAssays, (a) => valueIn(a, sym, assayUnits[sym] || "ppm", assayUnits), lowest ? { qLow: 0.05, qHigh: 0.5 } : { mapped: holeGradePoints(cleanAssays, sym, assayUnits[sym] || "ppm", assayUnits, traces, undefined, level, lowest).map((p) => p.value) }); // mapped: #2448
   const [gtPick, setGtPick] = useState(null); // #2653 — { symbol, how, cut } while its cut-off is typed
+  const [evQuery, setEvQuery] = useState(""); // #2654 — the add list's search
   const addLayer = (key, given = null) => {
     const src = given || sources.find((s) => s.key === key); if (!src) return; // given: #2653
     // #1449 — sample evidence starts on the medium with the most samples when there are several (changeable on the card)
@@ -480,9 +481,10 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
           </div>
         )}
         {grid && cellTyped && Math.round(grid.dx) > Math.round(cellTyped) && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("The {c} m cell would make more cells than the grid can hold over this area, so it was coarsened to {d} m. A smaller area keeps it.", { c: cellTyped, d: Math.round(grid.dx) })}</div>}
+        {sources.length > 15 && <input type="search" value={evQuery} onChange={(e) => setEvQuery(e.target.value)} placeholder={tr("Search the {n} evidence sources…", { n: sources.length })} aria-label={tr("Search the evidence sources")} style={{ ...sel, width: "100%" }} />}{/* #2654 */}
         <select value="" onChange={(e) => { const k = e.target.value; if (k.startsWith("gtpick:")) setGtPick({ symbol: k.slice(7), how: "gt", cut: "" }); else addLayer(k); }} style={sel} aria-label={tr("Add evidence")} disabled={!grid || !sources.length}>
-          <option value="">{tr("+ add evidence…")}</option>
-          {sources.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
+          <option value="">{evQuery.trim() ? tr("+ add evidence… ({n} found)", { n: filterSources(sources, evQuery).length }) : tr("+ add evidence…")}</option>
+          {groupSources(filterSources(sources, evQuery)).map(([g, list]) => <optgroup key={g} label={tr(g)}>{list.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}</optgroup>)}{/* #2654 — grouped, searched */}
         </select>
         {gtPick && (() => { // TASKS.csv #2653 — the cut-off first (none is chosen for you), then the card
           const u = assayUnits[gtPick.symbol] || "ppm", cut = gtPick.cut === "" ? NaN : Number(gtPick.cut), ok = Number.isFinite(cut) && cut >= 0;

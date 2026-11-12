@@ -10713,5 +10713,14 @@
   "grade × thickness": "teneur × épaisseur",
   "metres": "mètres",
   "at or above ({u} {sym})": "à ou au-dessus de ({u} {sym})",
-  "Intervals at or above the cut-off with Best intercepts' rules (2 m of internal dilution, no minimum length), summed per hole; a hole assayed with none counts as 0.": "Intervalles à la coupure ou au-dessus avec les règles de Meilleures intersections (2 m de dilution interne, sans longueur minimale), additionnés par sondage ; un sondage analysé sans aucun compte pour 0."
+  "Intervals at or above the cut-off with Best intercepts' rules (2 m of internal dilution, no minimum length), summed per hole; a hole assayed with none counts as 0.": "Intervalles à la coupure ou au-dessus avec les règles de Meilleures intersections (2 m de dilution interne, sans longueur minimale), additionnés par sondage ; un sondage analysé sans aucun compte pour 0.",
+  "Modelled bodies": "Corps modélisés",
+  "Drillholes: grades": "Sondages : teneurs",
+  "Drillholes: logs and measures": "Sondages : descriptions et mesures",
+  "Drillholes: logged codes": "Sondages : codes décrits",
+  "Drillholes: structures": "Sondages : structures",
+  "Drilling": "Forage",
+  "Search the {n} evidence sources…": "Chercher parmi les {n} sources d'évidence…",
+  "Search the evidence sources": "Chercher les sources d'évidence",
+  "+ add evidence… ({n} found)": "+ ajouter une évidence… ({n} trouvées)"
 }

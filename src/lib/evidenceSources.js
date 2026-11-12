@@ -478,3 +478,19 @@ export function holeIntervalPoints(assays, symbol, unit, units, traces, { how, c
   for (const [h, [f, to]] of span) { const p = pointOnTrace(traces.get(h), (f + to) / 2); if (p) out.push({ x: p.x, y: p.y, z: p.z, value: 0, hole_id: h }); }
   return out;
 }
+
+// TASKS.csv #2654 (follow-up of #2453) — the add-evidence list ran to 241 entries on the WA uranium sample: grouped by what the evidence comes
+// from, and narrowed by a search (every word of the query in the label, any order, case ignored). Group names are English keys for tr().
+const SOURCE_GROUP = { raster: "Rasters", distance: "Map layers", element: "Surface samples", index: "Surface samples", survey: "Geophysics", voxel: "Block models", solid: "Modelled bodies", grade: "Drillholes: grades", pxrf: "Drillholes: grades", gtpick: "Drillholes: grades", numeric: "Drillholes: logs and measures", zone: "Drillholes: logged codes", pick: "Drillholes: structures", drilled: "Drilling", kde: "Known occurrences" };
+export const sourceGroup = (src) => SOURCE_GROUP[src?.kind] || "Other";
+export function filterSources(sources, query) {
+  const words = String(query || "").toLowerCase().split(/\s+/).filter(Boolean);
+  return words.length ? (sources || []).filter((s) => { const l = String(s.label || "").toLowerCase(); return words.every((w) => l.includes(w)); }) : sources || [];
+}
+// -> [[group, [sources]]] in the order the groups first appear
+export function groupSources(sources) {
+  const m = new Map();
+  for (const s of sources || []) { const g = sourceGroup(s); (m.get(g) || m.set(g, []).get(g)).push(s); }
+  return [...m];
+}
+

@@ -10713,5 +10713,14 @@
   "grade × thickness": "ley × espesor",
   "metres": "metros",
   "at or above ({u} {sym})": "en o sobre ({u} {sym})",
-  "Intervals at or above the cut-off with Best intercepts' rules (2 m of internal dilution, no minimum length), summed per hole; a hole assayed with none counts as 0.": "Intervalos en o sobre la ley de corte con las reglas de Mejores interceptos (2 m de dilución interna, sin largo mínimo), sumados por sondaje; un sondaje ensayado sin ninguno cuenta como 0."
+  "Intervals at or above the cut-off with Best intercepts' rules (2 m of internal dilution, no minimum length), summed per hole; a hole assayed with none counts as 0.": "Intervalos en o sobre la ley de corte con las reglas de Mejores interceptos (2 m de dilución interna, sin largo mínimo), sumados por sondaje; un sondaje ensayado sin ninguno cuenta como 0.",
+  "Modelled bodies": "Cuerpos modelados",
+  "Drillholes: grades": "Sondajes: leyes",
+  "Drillholes: logs and measures": "Sondajes: registros y medidas",
+  "Drillholes: logged codes": "Sondajes: códigos registrados",
+  "Drillholes: structures": "Sondajes: estructuras",
+  "Drilling": "Perforación",
+  "Search the {n} evidence sources…": "Buscar entre las {n} fuentes de evidencia…",
+  "Search the evidence sources": "Buscar las fuentes de evidencia",
+  "+ add evidence… ({n} found)": "+ agregar evidencia… ({n} encontradas)"
 }

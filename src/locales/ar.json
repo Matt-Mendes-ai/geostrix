@@ -10713,5 +10713,14 @@
   "grade × thickness": "المحتوى × السماكة",
   "metres": "أمتار",
   "at or above ({u} {sym})": "عند أو فوق ({u} {sym})",
-  "Intervals at or above the cut-off with Best intercepts' rules (2 m of internal dilution, no minimum length), summed per hole; a hole assayed with none counts as 0.": "الفواصل عند حد القطع أو فوقه بقواعد أفضل التقاطعات (2 م من التخفيف الداخلي، بلا طول أدنى)، مجموعة لكل ثقب؛ والثقب المحلَّل بلا أي منها يُحتسب 0."
+  "Intervals at or above the cut-off with Best intercepts' rules (2 m of internal dilution, no minimum length), summed per hole; a hole assayed with none counts as 0.": "الفواصل عند حد القطع أو فوقه بقواعد أفضل التقاطعات (2 م من التخفيف الداخلي، بلا طول أدنى)، مجموعة لكل ثقب؛ والثقب المحلَّل بلا أي منها يُحتسب 0.",
+  "Modelled bodies": "الأجسام المنمذجة",
+  "Drillholes: grades": "ثقوب الحفر: المحتويات",
+  "Drillholes: logs and measures": "ثقوب الحفر: السجلات والقياسات",
+  "Drillholes: logged codes": "ثقوب الحفر: الرموز المسجلة",
+  "Drillholes: structures": "ثقوب الحفر: البنيات",
+  "Drilling": "الحفر",
+  "Search the {n} evidence sources…": "ابحث في مصادر الأدلة الـ {n}…",
+  "Search the evidence sources": "ابحث في مصادر الأدلة",
+  "+ add evidence… ({n} found)": "+ أضف دليلًا… (عُثر على {n})"
 }

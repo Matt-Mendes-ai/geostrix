@@ -10713,5 +10713,14 @@
   "grade × thickness": "teor × espessura",
   "metres": "metros",
   "at or above ({u} {sym})": "em ou acima de ({u} {sym})",
-  "Intervals at or above the cut-off with Best intercepts' rules (2 m of internal dilution, no minimum length), summed per hole; a hole assayed with none counts as 0.": "Intervalos no teor de corte ou acima com as regras de Melhores interseções (2 m de diluição interna, sem comprimento mínimo), somados por furo; um furo analisado sem nenhum conta como 0."
+  "Intervals at or above the cut-off with Best intercepts' rules (2 m of internal dilution, no minimum length), summed per hole; a hole assayed with none counts as 0.": "Intervalos no teor de corte ou acima com as regras de Melhores interseções (2 m de diluição interna, sem comprimento mínimo), somados por furo; um furo analisado sem nenhum conta como 0.",
+  "Modelled bodies": "Corpos modelados",
+  "Drillholes: grades": "Furos: teores",
+  "Drillholes: logs and measures": "Furos: descrições e medidas",
+  "Drillholes: logged codes": "Furos: códigos descritos",
+  "Drillholes: structures": "Furos: estruturas",
+  "Drilling": "Sondagem",
+  "Search the {n} evidence sources…": "Buscar entre as {n} fontes de evidência…",
+  "Search the evidence sources": "Buscar as fontes de evidência",
+  "+ add evidence… ({n} found)": "+ adicionar evidência… ({n} encontradas)"
 }
