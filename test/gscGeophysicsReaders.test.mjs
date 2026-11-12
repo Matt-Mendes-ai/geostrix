@@ -105,3 +105,27 @@ test("a tie point at raster (0, 0) places a file exactly as before; one at the l
   assert.deepEqual(rasterAreaBbox(low), [500000, 5999925, 500100, 6000000]);
   assert.deepEqual(low.getBoundingBox(), [500000, 5999850, 500100, 5999925]); // what geotiff.js alone answers: 75 m too low
 });
+
+// (4) the same station file as a .csv goes through lib/tabular.js: notes above the header AND a trailing comma on every data row
+import { skipPreamble, parseTableText } from "../src/lib/tabular.js";
+
+test("a table whose data rows end with the delimiter keeps its header under a block of notes, and its first row", () => {
+  const s = skipPreamble(GSC.replace(/\r\n/g, "\n"));
+  assert.equal(s.skipped, 8);
+  assert.equal(s.text.split("\n")[0], HEADER);
+  const t = parseTableText(GSC);
+  assert.deepEqual(t.headers, HEADER.split(","));
+  assert.equal(t.rows.length, 3); // it was 2: the first station had become the column names
+  assert.equal(t.rows[0].X, -79.4);
+  assert.equal(t.rows[0].BOUGUER, -65.53);
+  assert.equal(t.rows[2].STATUS, 1);
+});
+
+test("the preamble rule is otherwise as it was: equal widths pass, a wider row that does not end with the delimiter does not", () => {
+  const notes = "Client: Example\nDatum: NAD83\nLine,Station,Easting,Northing\n1,10,500000,6000000\n1,20,500010,6000000\n";
+  assert.equal(skipPreamble(notes).skipped, 2);
+  // rows one field WIDER with a real last value are not this header's rows: nothing is skipped, as before
+  const odd = "Client: Example\nA,B,C\n1,2,3,4\n5,6,7,8\n9,10,11,12\n13,14,15,16\n";
+  const r = skipPreamble(odd);
+  assert.equal(r.text.split("\n")[0], "1,2,3,4"); // the old rule's answer (the first row that the next rows match), unchanged
+});
