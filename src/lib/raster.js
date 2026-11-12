@@ -849,7 +849,7 @@ export async function parseGRD(file) {
 
 // TASKS.csv #1347 — the drape image, the stretch and the value grid of a grid whose rows run south -> north (each west -> east, or
 // east -> west when `mirrored`), shared by the GXF reader and the Geosoft / Surfer .grd reader. -> parseGeoTIFF's shape
-// GSC geophysics review (2026-11-12) — a grid of NODES (GXF, Geosoft / Surfer .grd: x0, y0 is the first node, the last one sits (n - 1)
+// TASKS.csv #2828 (GSC geophysics review, 2026-11-12) — a grid of NODES (GXF, Geosoft / Surfer .grd: x0, y0 is the first node, the last one sits (n - 1)
 // cells on) as the PIXEL-AREA extent the drape spans: half a cell beyond the end nodes on every side, so each of the picture's
 // ncols x nrows pixels is centred on its node. The node extent used to be handed over as it was, so the picture was drawn one cell
 // narrower and lower than the grid and its edges sat half a cell inside (200 m on a 400 m compilation grid): the error #560 removed
@@ -1122,7 +1122,7 @@ export function assertNorthUp(image, label = "This GeoTIFF") {
 // tie point as the corner of the first pixel, which is right for PixelIsArea (the default) but, for PixelIsPoint
 // (common for gridded geophysics and some DEM exports), the tie point is the CENTRE of the first pixel: the whole
 // grid then sat half a cell off (12.5 m on a 25 m mag grid).
-// GSC geophysics review (2026-11-12) — a ModelTiepoint is (I, J, K, X, Y, Z): raster position (I, J) lies at world (X, Y). geotiff.js
+// TASKS.csv #2828 (GSC geophysics review, 2026-11-12) — a ModelTiepoint is (I, J, K, X, Y, Z): raster position (I, J) lies at world (X, Y). geotiff.js
 // 3.0.5 getOrigin / getBoundingBox read X, Y and take I, J as 0, 0, which is what most writers use. Geosoft's map export ties raster
 // (0.5, 0.5) instead (the Geological Survey of Canada's Flin Flon GeoTIFFs: 375 m pixels), so the picture sat 187.5 m east and 187.5 m
 // south of where QGIS / GDAL put it, and a file tied at its lower-left corner (J = height) would sit a whole image too low. The box

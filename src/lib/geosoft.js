@@ -169,7 +169,7 @@ export function parseXYZ(text) {
   // landed under "Gem" / "Systems". Every "/" line is a candidate until the first data row; the header is the
   // last candidate with that row's token count (else the last candidate).
   const candidates = [];
-  // GSC geophysics review (2026-11-12) — the Geological Survey of Canada's point-data downloads (a Geosoft export of an .hxyz) open with
+  // TASKS.csv #2828 (GSC geophysics review, 2026-11-12) — the Geological Survey of Canada's point-data downloads (a Geosoft export of an .hxyz) open with
   // "/" lines that only DESCRIBE the file ('/ Projection:"WGS 84"', '/ Local:"WGS 84",0,0,0,0,0,0,0'), then give the column names on a
   // PLAIN comma line ('X,Y,PROJECT,STATION,...'), and end every data row with a comma. The last "/" line was taken as the header (columns
   // 'Local:"WGS 84"', '0', '0', ...) and the real header became a first row of nulls. A plain line of names (three or more tokens, none a

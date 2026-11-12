@@ -104,7 +104,7 @@ export async function streamXyzRows(blob, { columns, keep = columns, every = 1, 
     const lm = /^(Line|Tie)\s+(\S+)/i.exec(t);
     if (lm) { let n = lineNames.get(lm[2]); if (n === undefined) { n = Array.from(lm[2]).join(""); lineNames.set(n, n); } current = n; return; }
     const toks = xyzTokens(t); // #1351
-    // GSC geophysics review (2026-11-12) — a plain line that IS the column header parseXYZ found (a Geosoft export whose "/" lines only
+    // TASKS.csv #2828 (GSC geophysics review, 2026-11-12) — a plain line that IS the column header parseXYZ found (a Geosoft export whose "/" lines only
     // describe the file) is the header, not a reading
     if (!seen && toks.length === columns.length && toks.every((x, k) => x === columns[k])) return;
     if (seen++ % every !== 0) return;

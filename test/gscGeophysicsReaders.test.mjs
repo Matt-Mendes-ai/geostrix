@@ -1,4 +1,4 @@
-// GSC geophysics review (2026-11-12) — two reader faults found on the Geological Survey of Canada's public grids and gravity stations:
+// TASKS.csv #2828 (GSC geophysics review, 2026-11-12) — two reader faults found on the Geological Survey of Canada's public grids and gravity stations:
 // (1) a point-data download (a Geosoft export) names its columns on a PLAIN comma line after "/" lines that only describe the file, and
 //     parseXYZ took the last "/" line as the header; (2) a Geosoft / GXF grid's NODE extent was handed to the drape as its pixel-area
 //     extent, so the picture sat up to half a cell inside the grid. The rows below are made up; only the layout is the survey's.

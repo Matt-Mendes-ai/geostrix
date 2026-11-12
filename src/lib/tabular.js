@@ -112,7 +112,7 @@ export function skipPreamble(text, maxLines = 300) {
     const w = width(head[h]);
     if (w < 3 || w <= width(head[first])) continue;
     const next = head.slice(h + 1).filter((l) => l.trim() !== "").slice(0, 3);
-    // GSC geophysics review (2026-11-12) — the Geological Survey of Canada's station downloads (a Geosoft export) end every DATA row with
+    // TASKS.csv #2828 (GSC geophysics review, 2026-11-12) — the Geological Survey of Canada's station downloads (a Geosoft export) end every DATA row with
     // the delimiter and the header row without it: 22 names over rows of 23 fields, the last one empty. The header was passed over for
     // not matching, and the first station row (23 fields, like the rows under it) became the column names. Rows one field wider than
     // the header, that field empty, are its rows.
