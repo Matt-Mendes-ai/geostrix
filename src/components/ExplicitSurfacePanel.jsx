@@ -872,6 +872,7 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
   const digOpen = !!def && (!!(def.lines || []).length || digDrawing);
   const mapOpen = !!def?.mapContacts?.length;
   const settingsOpen = !!def && (def.margin != null || (!!def.shape && def.shape !== "auto") || (!!def.resolution && def.resolution !== 80));
+  const dxfStrings = def ? (def.lines || []).filter((l) => l.pts?.length >= 2 && l.imageId === "dxf").length : 0; // #2057, as the build line counts them (#1959)
   const lineHint = def ? tr("To draw this surface on a section: 3D View > Draw section, then in the section window pick \"{name}\" under Explicit surfaces, draw the line and press Save contacts. The surface passes exactly through every such line.", { name: def.name }) : ""; // TASKS.csv #884
   const row = { display: "flex", alignItems: "center", gap: 6, marginBottom: 6 };
   return (
@@ -979,7 +980,12 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
           <div style={row}>
             <select value={def.boundedBy?.surfaceId || ""} onChange={(e) => update({ boundedBy: e.target.value ? { surfaceId: e.target.value, side: def.boundedBy?.side || 1 } : null })} style={{ ...smallSel, flex: 1, minWidth: 0 }} aria-label={tr("Trim at the fault")}>
               <option value="">{tr("Not trimmed at a fault")}</option>
-              {faultChoices.map((x) => <option key={x.id} value={x.id}>{x.type === "fault" ? `${surfaceNames.get(x.id) ?? x.name} · ${tr("fault")}` : surfaceNames.get(x.id) ?? x.name}</option>)}{/* #1550 */}
+              {/* TASKS.csv #2237 (review #2013) — 'Top of IMZ' (a contact) sat in one list with the faults: the faults apart, the other surfaces
+                  after them under their own heading (an imported or untyped surface can still bound a block) */}
+              {[[true, tr("Faults")], [false, tr("Other surfaces (not typed as faults)")]].map(([isFault, label]) => {
+                const list = faultChoices.filter((x) => (x.type === "fault") === isFault);
+                return list.length ? <optgroup key={label} label={label}>{list.map((x) => <option key={x.id} value={x.id}>{surfaceNames.get(x.id) ?? x.name}</option>)}</optgroup> : null;
+              })}{/* #1550: the fault type was a ' · fault' suffix */}
             </select>
           </div>
           {def.boundedBy && (<>
@@ -1037,7 +1043,10 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
         </div>
         {exportNote && <div role="status" style={{ fontSize: "var(--font-size-sm)", marginBottom: 6, color: "var(--color-text-secondary)" }}>{exportNote}</div>}{/* #880 */}
         <div style={{ fontSize: "var(--font-size-xs)", marginBottom: 6, lineHeight: 1.4 }}>
-          {ep.lines ? tr("{lines} section line(s) on {sections} section(s) are hard lines of this surface (a point every {sp} m along them).", { lines: ep.lines, sections: ep.sections, sp: Math.round(ep.spacing || LINE_SPACING) }) : tr("No section lines yet.")}{" "}<span style={{ color: "var(--color-text-muted)" }}>{lineHint}</span>
+          {/* TASKS.csv #2057 (review #2013) — 'No section lines yet' beside 'Includes 2 string(s) imported from DXF': the DXF strings are hard lines too, counted apart */}
+          {ep.lines ? tr("{lines} section line(s) on {sections} section(s) are hard lines of this surface (a point every {sp} m along them).", { lines: ep.lines, sections: ep.sections, sp: Math.round(ep.spacing || LINE_SPACING) })
+            : dxfStrings ? tr(dxfStrings === 1 ? "No lines drawn on sections yet; {n} string imported from DXF is a hard line of this surface." : "No lines drawn on sections yet; {n} strings imported from DXF are hard lines of this surface.", { n: dxfStrings })
+            : tr("No section lines yet.")}{" "}<span style={{ color: "var(--color-text-muted)" }}>{lineHint}</span>
         </div>
         {/* TASKS.csv #824 — digitize contacts on a section image in the 3D view */}
         <details open={digOpen} style={{ borderTop: "1px solid var(--color-border)", paddingTop: 6, marginBottom: 6 }}>
