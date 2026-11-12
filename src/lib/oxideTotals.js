@@ -49,7 +49,11 @@ export function oxideTotals(assays, majors) {
   }
   const sorted = totals.map((t) => t.total).sort((x, y) => x - y);
   const q = (p) => (sorted.length ? sorted[Math.min(sorted.length - 1, Math.max(0, Math.round(p * (sorted.length - 1))))] : null);
-  return { n: totals.length, incomplete, totals, median: q(0.5), p5: q(0.05), p95: q(0.95), min: sorted[0] ?? null, max: sorted[sorted.length - 1] ?? null, over100 };
+  // TASKS.csv #2734 — the samples that carry LOI (the import's 'LOI' field, wt%): the major oxides plus LOI, which a sound analysis brings to about 100
+  const withLoi = totals.map((t) => { const l = Number(t.a?.values?.LOI); return t.a?.values?.LOI != null && Number.isFinite(l) ? t.total + l : null; }).filter((v) => v != null).sort((x, y) => x - y);
+  const ql = (p) => (withLoi.length ? withLoi[Math.min(withLoi.length - 1, Math.max(0, Math.round(p * (withLoi.length - 1))))] : null);
+  const loi = withLoi.length ? { n: withLoi.length, median: ql(0.5), p5: ql(0.05), p95: ql(0.95) } : null;
+  return { n: totals.length, incomplete, totals, median: q(0.5), p5: q(0.05), p95: q(0.95), min: sorted[0] ?? null, max: sorted[sorted.length - 1] ?? null, over100, loi };
 }
 
 // the samples whose sum lies outside [lo, hi] (either bound may be blank), and every sample with an oxide over 100 %

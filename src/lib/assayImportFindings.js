@@ -1,7 +1,7 @@
 // TASKS.csv #2498 (review #2486, WA lithium) — the assay import handled its file right but said nothing of what it met on the way:
 // 364,097 cells below detection (and their limits), a total_pct column it left out, 22 GRAB rows taken as drill intervals, an Fe2O3 of
 // 110.9 %. These are the counts the import already has, gathered from the rows it built and the file's columns. Pure.
-import { isElementColumn } from "./geochem.js";
+import { isElementColumn, isLoiHeader } from "./geochem.js"; // isLoiHeader: #2734
 
 const NON_DRILL = /^(grab|rock(?:[\s_-]*chip)?|chip|float|outcrop|soil|stream|channel|trench|surface)$/i;
 const round = (v) => Number(v.toPrecision(3));
@@ -37,7 +37,7 @@ export function assayImportFindings({ rows = [], elements = [], unitOf = () => "
   for (const e of elements) [e.header, e.mainHeader, e.overLimit?.header, ...(e.methodCols || []).map((m) => m.header)].forEach((h) => h && usedSet.add(h));
   const sample = allRows.slice(0, 500);
   const notImported = headers.filter((h) => {
-    if (!h || usedSet.has(h) || isElementColumn(h) || /^loi\b|^loi[\s_-]/i.test(String(h).trim())) return false; // LOI: the import's own line says it
+    if (!h || usedSet.has(h) || isElementColumn(h) || isLoiHeader(h) /* #2734: 'LOI371' too */) return false; // LOI: the import's own line says it
     let filled = 0, numeric = 0;
     for (const r of sample) { const v = r?.[h]; if (v == null || String(v).trim() === "") continue; filled++; if (Number.isFinite(Number(String(v).replace(/^[<>]/, "")))) numeric++; }
     return filled > 0 && numeric >= 0.8 * filled;

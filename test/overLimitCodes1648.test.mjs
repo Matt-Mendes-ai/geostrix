@@ -25,5 +25,5 @@ test("the dialog offers it and the import applies it per column", () => {
   const modal = readFileSync(new URL("../src/components/AssayImportModal.jsx", import.meta.url), "utf8");
   assert.ok(modal.includes("onChange({ ...modal, overLimitCodes: e.target.checked })"));
   const gm = readFileSync(new URL("../src/modules/GeochemModule.jsx", import.meta.url), "utf8");
-  assert.ok(gm.includes("const c = readAssayCell(raw, negativeMode, colMaxOf(header), dlOf(header), posMaxOf(header));")); // dlOf: #2158; posMaxOf: #2336
+  assert.ok(gm.includes(": readAssayCell(raw, negativeMode, colMaxOf(header), dlOf(header), posMaxOf(header)); // posMax: #2336")); // dlOf: #2158; posMaxOf: #2336; #2734 — LOI has its own reader before it
 });
