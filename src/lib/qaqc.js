@@ -238,6 +238,30 @@ export function originalMethodValue(orig, rep, symbol) {
 // methods' results on the row (methodValues, in the element's unit); here each method column is paired with the element's own value on
 // the regular samples that carry both. Censored ('<' / '>') element values are left out. ratio = method / element.
 // -> [{ header, base, n, medianRpd, medianRatio, pairs: [{ hole_id, from, to, sample_id, v1, v2, rpd }] }], most pairs first
+// TASKS.csv #2687 (split from #2629) — 'Use this method instead': on every sample that carries the other method's result, that result
+// becomes the element's value and the value it replaces is kept as a method value under its own column's name (valueSources, else the
+// element's symbol), so the swap can be made back. A replaced value with a '<' / '>' qualifier is a limit, not a result: it is not kept
+// as a method value (#2629's rule), and the swapped-in value carries no qualifier (method values are measured results).
+// -> { rows, swapped }
+export function swapInMethod(assays, symbol, header) {
+  let swapped = 0;
+  const rows = (assays || []).map((a) => {
+    const mv = a?.methodValues?.[symbol];
+    const v2 = mv?.[header];
+    if (!Number.isFinite(v2)) return a;
+    swapped++;
+    const oldKey = a.valueSources?.[symbol] || symbol, old = a.values?.[symbol], oldQ = a.qualifiers?.[symbol];
+    const rest = { ...mv };
+    delete rest[header];
+    if (Number.isFinite(old) && !oldQ && oldKey !== header) rest[oldKey] = old;
+    const methodValues = { ...a.methodValues };
+    if (Object.keys(rest).length) methodValues[symbol] = rest; else delete methodValues[symbol];
+    const qualifiers = a.qualifiers ? { ...a.qualifiers } : undefined;
+    if (qualifiers) delete qualifiers[symbol];
+    return { ...a, values: { ...a.values, [symbol]: v2 }, methodValues, valueSources: { ...(a.valueSources || {}), [symbol]: header }, ...(qualifiers ? { qualifiers } : {}) };
+  });
+  return { rows, swapped };
+}
 export function methodPairs(assays, symbol, patterns = DEFAULT_QAQC_PATTERNS) {
   const by = new Map();
   for (const a of assays || []) {
