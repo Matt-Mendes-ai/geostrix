@@ -16,7 +16,7 @@ import { topCells } from "../lib/evidence.js"; // TASKS.csv #1456
 import { evidenceCoverage, LOW_COVERAGE, scoreBlockers } from "../lib/evidence.js"; // TASKS.csv #2252
 import { drilledTrainingMask, evidenceGrid, evidenceExtent, rasterEvidence, distanceEvidence, pointEvidence, sampleValues, membership, fuzzyCombine, FUZZY_OPERATORS, trainingCells, trainingCoverage, bestCutoff, MIN_SIDE, posterior, predictionArea, scoreImage, scoreTop /* #1731 */, rocAuc, kdeEvidence /* #2001 */, isOverlayOutput, coveringLayers } from "../lib/evidence.js"; // coveringLayers: #1563
 import { cachedEvidence, evidenceDeps, gridSignature } from "../lib/evidenceCache.js"; // TASKS.csv #1457, #1560
-import { DRILL_REACH_M, surveyNames, surveyPoints, reachFromSpacing, reachFromNeighbours, voxelColumnEvidence, voxelZRange, holeTraces, holeGradePoints, assaysOfHoles, gradeCardReads /* #2577 */, structureCodes, structureParts, drilledParts /* #1456 */, scoreRasterPlacement /* #2447 */, elementsWithValues, numericLayerFields, UNCERTAINTY_FIELD, codeLikeField /* #2260 */, depthTestedPoints /* #2643 */, gtRef, parseGtRef, holeIntervalPoints /* #2653 */, filterSources, groupSources /* #2654 */, siblingCodedFields, siblingRef, parseSiblingRef, siblingRows /* #2655 */, unloggedHoles, occurrenceSymbol /* #2656 */, layerFieldPoints, zoneParts, levelSet, targetElevation /* #2326 */, codedFields, foldedCodes, zoneHolePoints, codedRef, parseCodedRef, codedRowsOf /* #2453 */, codesOf /* #2102 */ } from "../lib/evidenceSources.js"; // numericLayerFields, layerFieldPoints, zoneCodes, zoneParts: TASKS.csv #1728 // TASKS.csv #1154; elementsWithValues: #1723
+import { DRILL_REACH_M, surveyNames, surveyPoints, reachFromSpacing, reachFromNeighbours, voxelColumnEvidence, voxelZRange, holeTraces, holeGradePoints, assaysOfHoles, gradeCardReads /* #2577 */, structureCodes, structureParts, drilledParts /* #1456 */, scoreRasterPlacement /* #2447 */, elementsWithValues, numericLayerFields, UNCERTAINTY_FIELD, codeLikeField /* #2260 */, depthTestedPoints /* #2643 */, gtRef, parseGtRef, holeIntervalPoints /* #2653 */, filterSources, groupSources /* #2654 */, siblingCodedFields, siblingRef, parseSiblingRef, siblingRows /* #2655 */, unloggedHoles, occurrenceSymbol /* #2656 */, gtlRef, parseGtlRef, logIntervals /* #2781 */, layerFieldPoints, zoneParts, levelSet, targetElevation /* #2326 */, codedFields, foldedCodes, zoneHolePoints, codedRef, parseCodedRef, codedRowsOf /* #2453 */, codesOf /* #2102 */ } from "../lib/evidenceSources.js"; // numericLayerFields, layerFieldPoints, zoneCodes, zoneParts: TASKS.csv #1728 // TASKS.csv #1154; elementsWithValues: #1723
 const LEVEL_KINDS = new Set(["grade", "pxrf", "numeric", "zone", "pick", "voxel"]); // TASKS.csv #2326 — the cards a Level filters
 import { categoricalModels } from "../lib/geologyForward.js";
 import { PATHFINDER_PRESETS } from "../lib/anomalyMap.js";
@@ -89,10 +89,10 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
     const out = [];
     for (const [key, meta] of Object.entries(LAYER_META)) {
       if (!meta.numeric || key === "geophys_pts" || !projectLayers?.[key]?.length) continue;
-      if (numericLayerFields(projectLayers[key]).includes("value")) out.push({ key: `num:${key}:value`, label: tr("Drillholes: {name} along the holes", { name: tr(meta.label) }), kind: "numeric", ref: `${key}:value` });
+      if (numericLayerFields(projectLayers[key]).includes("value")) out.push({ key: `num:${key}:value`, label: tr("Drillholes: {name} along the holes", { name: tr(meta.label) }), kind: "numeric", ref: `${key}:value`, name: tr(meta.label) /* #2781 */ });
     }
     for (const cl of customLayers) for (const s of siblingCodedFields(cl.rows)) for (const code of s.codes) out.push({ key: `num${siblingRef(cl.id, s.field, s.by, code)}`, label: tr("Drillholes: {layer} {field} where {by} = {code} along the holes", { layer: cl.name, field: s.field, by: s.by, code }), kind: "numeric", ref: siblingRef(cl.id, s.field, s.by, code) }); // #2655
-    for (const cl of customLayers) for (const f of numericLayerFields(cl.rows).filter((x) => !UNCERTAINTY_FIELD.test(x) /* #2260 — TSA_Error is no evidence */)) out.push({ key: `num:custom:${cl.id}:${f}`, label: tr("Drillholes: {layer} {field} along the holes", { layer: cl.name, field: f }), kind: "numeric", ref: `custom:${cl.id}:${f}` });
+    for (const cl of customLayers) for (const f of numericLayerFields(cl.rows).filter((x) => !UNCERTAINTY_FIELD.test(x) /* #2260 — TSA_Error is no evidence */)) out.push({ key: `num:custom:${cl.id}:${f}`, name: `${cl.name} ${f}` /* #2781 */, label: tr("Drillholes: {layer} {field} along the holes", { layer: cl.name, field: f }), kind: "numeric", ref: `custom:${cl.id}:${f}` });
     return out;
   }, [traces, projectLayers, customLayers]);
   // TASKS.csv #1455 (review #1352, Silvertip) — every coded log as "distance to" evidence (codes logged at least 3 times), and a
@@ -136,6 +136,8 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
   // #2453 — a per-hole measure of a code (its ref parsed), else the rows' numeric field
   const numericPointsOf = (ref, lv) => {
     if (ref === "depth:assays") return depthTestedPoints(cleanAssays, traces); // #2643 — every hole's deepest sample, whatever the level
+    const gl = parseGtlRef(ref); // #2781 — a numeric log's per-hole GT / metres
+    if (gl) { const { rows, field } = numericRowsOf(gl.ref); return holeIntervalPoints(logIntervals(rows, field), "v", "ppm", { v: "ppm" }, traces, { how: gl.how, cutoff: gl.cutoff, computeBestIntercepts, holeTotals }); }
     const gtz = parseGtRef(ref); // #2653 — per hole: GT or metres at or above the card's cut-off
     if (gtz) return holeIntervalPoints(cleanAssays, gtz.symbol, assayUnits[gtz.symbol] || "ppm", assayUnits, traces, { how: gtz.how, cutoff: gtz.cutoff, computeBestIntercepts, holeTotals });
     const z = parseCodedRef(ref);
@@ -209,6 +211,7 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
     if (solidMesh) (solids || []).filter((s) => SOLID_SURFACE_TYPES.has(s.type)).forEach((s) => out.push({ key: `solid:${s.id}`, label: tr("Distance in plan to the body: {name}", { name: s.name }), kind: "solid", ref: s.id }));
     if (traces.size && cleanAssays.length) out.push({ key: "num:depth:assays", label: tr("Drillholes: elevation of the deepest sample in each hole"), kind: "numeric", ref: "depth:assays" }); // #2643
     out.push(...numericLayerSources); // #1728
+    numericLayerSources.filter((s) => s.name).forEach((s) => out.push({ key: `gtlpick:${s.ref}`, label: tr("Drillholes: {name} × thickness or metres above a cut-off, per hole…", { name: s.name }), kind: "gtpick", ref: s.ref, name: s.name })); // #2781
     out.push(...codedSources); // #1455 / #1728 — distance to a logged code, a mineral's percent
     return out;
   }, [valueRasters, mapLayers, surfaceElements, geophysPts, voxelModels, traces, labElements, pxrfElements, structurePicks, numericLayerSources, codedSources, solids, solidMesh, cleanAssays]);
@@ -499,16 +502,17 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
         )}
         {grid && cellTyped && Math.round(grid.dx) > Math.round(cellTyped) && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("The {c} m cell would make more cells than the grid can hold over this area, so it was coarsened to {d} m. A smaller area keeps it.", { c: cellTyped, d: Math.round(grid.dx) })}</div>}
         {sources.length > 15 && <input type="search" value={evQuery} onChange={(e) => setEvQuery(e.target.value)} placeholder={tr("Search the {n} evidence sources…", { n: sources.length })} aria-label={tr("Search the evidence sources")} style={{ ...sel, width: "100%" }} />}{/* #2654 */}
-        <select value="" onChange={(e) => { const k = e.target.value; if (k.startsWith("gtpick:")) setGtPick({ symbol: k.slice(7), how: "gt", cut: "" }); else addLayer(k); }} style={sel} aria-label={tr("Add evidence")} disabled={!grid || !sources.length}>
+        <select value="" onChange={(e) => { const k = e.target.value; if (k.startsWith("gtpick:")) setGtPick({ symbol: k.slice(7), how: "gt", cut: "" }); else if (k.startsWith("gtlpick:")) { const s0 = sources.find((x) => x.key === k); setGtPick({ layer: { ref: s0.ref, name: s0.name }, how: "gt", cut: "" }); } /* #2781 */ else addLayer(k); }} style={sel} aria-label={tr("Add evidence")} disabled={!grid || !sources.length}>
           <option value="">{evQuery.trim() ? tr("+ add evidence… ({n} found)", { n: filterSources(sources, evQuery).length }) : tr("+ add evidence…")}</option>
           {groupSources(filterSources(sources, evQuery)).map(([g, list]) => <optgroup key={g} label={tr(g)}>{list.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}</optgroup>)}{/* #2654 — grouped, searched */}
         </select>
         {gtPick && (() => { // TASKS.csv #2653 — the cut-off first (none is chosen for you), then the card
           const u = assayUnits[gtPick.symbol] || "ppm", cut = gtPick.cut === "" ? NaN : Number(gtPick.cut), ok = Number.isFinite(cut) && cut >= 0;
-          const add = () => { const how = gtPick.how; addLayer(null, { key: `num${gtRef(gtPick.symbol, how, cut)}`, label: how === "m" ? tr("Drillholes: metres at or above {c} {u} {sym} in each hole", { c: cut, u, sym: gtPick.symbol }) : tr("Drillholes: {sym} grade × thickness at or above {c} {u} in each hole", { c: cut, u, sym: gtPick.symbol }), kind: "numeric", ref: gtRef(gtPick.symbol, how, cut) }); setGtPick(null); };
+          const lg = gtPick.layer; // #2781 — a numeric log, in its own units
+          const add = () => { const how = gtPick.how; if (lg) { addLayer(null, { key: `num${gtlRef(lg.ref, how, cut)}`, label: how === "m" ? tr("Drillholes: metres of {name} at or above {c} in each hole", { name: lg.name, c: cut }) : tr("Drillholes: {name} × thickness at or above {c} in each hole", { name: lg.name, c: cut }), kind: "numeric", ref: gtlRef(lg.ref, how, cut) }); setGtPick(null); return; } addLayer(null, { key: `num${gtRef(gtPick.symbol, how, cut)}`, label: how === "m" ? tr("Drillholes: metres at or above {c} {u} {sym} in each hole", { c: cut, u, sym: gtPick.symbol }) : tr("Drillholes: {sym} grade × thickness at or above {c} {u} in each hole", { c: cut, u, sym: gtPick.symbol }), kind: "numeric", ref: gtRef(gtPick.symbol, how, cut) }); setGtPick(null); };
           return (<div style={{ display: "flex", gap: 4, alignItems: "center", flexWrap: "wrap", fontSize: "var(--font-size-sm)" }}>
             <select value={gtPick.how} onChange={(e) => setGtPick((p) => ({ ...p, how: e.target.value }))} style={sel} aria-label={tr("Per-hole measure")}><option value="gt">{tr("grade × thickness")}</option><option value="m">{tr("metres")}</option></select>
-            <label style={row}>{tr("at or above ({u} {sym})", { u, sym: gtPick.symbol })}<input type="number" min={0} step="any" value={gtPick.cut} onChange={(e) => setGtPick((p) => ({ ...p, cut: e.target.value }))} style={{ ...sel, width: 70 }} aria-label={tr("Intercept cut-off")} /></label>
+            <label style={row}>{lg ? tr("at or above ({name})", { name: lg.name }) : tr("at or above ({u} {sym})", { u, sym: gtPick.symbol })}<input type="number" min={0} step="any" value={gtPick.cut} onChange={(e) => setGtPick((p) => ({ ...p, cut: e.target.value }))} style={{ ...sel, width: 70 }} aria-label={tr("Intercept cut-off")} /></label>
             <button type="button" disabled={!ok} onClick={add} style={{ ...sel, cursor: "pointer" }}>{tr("Add")}</button>
             <button type="button" onClick={() => setGtPick(null)} style={{ ...sel, cursor: "pointer" }}>{tr("Cancel")}</button>
             <span style={note}>{tr("Intervals at or above the cut-off with Best intercepts' rules (2 m of internal dilution, no minimum length), summed per hole; a hole assayed with none counts as 0.")}</span>

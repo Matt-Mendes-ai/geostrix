@@ -10848,5 +10848,9 @@
   "berm (m)": "risberme (m)",
   "Optional: the benches whose face starts at or above this RL take the face angle and berm beside it (soft cover, weathered rock), as the shell's upper slope. All three, or none.": "Facultatif : les gradins dont le front commence à cette altitude ou au-dessus prennent l'angle de front et la risberme à côté (couverture meuble, roche altérée), comme la pente supérieure de la fosse. Les trois, ou aucun.",
   "The upper benches need the RL, a face angle between 0 and 90° and a berm of 0 or more, or all three blank.": "Les gradins supérieurs demandent l'altitude, un angle de front entre 0 et 90° et une risberme de 0 ou plus, ou les trois vides.",
-  "The shell was run with a {s}° slope above {rl} m: give the upper benches their face and berm to match it.": "La fosse a été calculée avec une pente de {s}° au-dessus de {rl} m : donnez aux gradins supérieurs leur front et leur risberme pour la suivre."
+  "The shell was run with a {s}° slope above {rl} m: give the upper benches their face and berm to match it.": "La fosse a été calculée avec une pente de {s}° au-dessus de {rl} m : donnez aux gradins supérieurs leur front et leur risberme pour la suivre.",
+  "Drillholes: {name} × thickness or metres above a cut-off, per hole…": "Sondages : {name} × épaisseur ou mètres au-dessus d'une coupure, par sondage…",
+  "Drillholes: metres of {name} at or above {c} in each hole": "Sondages : mètres de {name} à {c} ou plus dans chaque sondage",
+  "Drillholes: {name} × thickness at or above {c} in each hole": "Sondages : {name} × épaisseur à {c} ou plus dans chaque sondage",
+  "at or above ({name})": "à ou au-dessus de ({name})"
 }

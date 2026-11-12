@@ -10848,5 +10848,9 @@
   "berm (m)": "berma (m)",
   "Optional: the benches whose face starts at or above this RL take the face angle and berm beside it (soft cover, weathered rock), as the shell's upper slope. All three, or none.": "Opcional: as bancadas cuja face começa nesta cota ou acima tomam o ângulo de face e a berma ao lado (cobertura branda, rocha intemperizada), como o talude superior da cava. Os três, ou nenhum.",
   "The upper benches need the RL, a face angle between 0 and 90° and a berm of 0 or more, or all three blank.": "As bancadas superiores precisam da cota, de um ângulo de face entre 0 e 90° e de uma berma de 0 ou mais, ou os três em branco.",
-  "The shell was run with a {s}° slope above {rl} m: give the upper benches their face and berm to match it.": "A cava foi rodada com um talude de {s}° acima de {rl} m: dê às bancadas superiores sua face e berma para corresponder."
+  "The shell was run with a {s}° slope above {rl} m: give the upper benches their face and berm to match it.": "A cava foi rodada com um talude de {s}° acima de {rl} m: dê às bancadas superiores sua face e berma para corresponder.",
+  "Drillholes: {name} × thickness or metres above a cut-off, per hole…": "Furos: {name} × espessura ou metros acima de um corte, por furo…",
+  "Drillholes: metres of {name} at or above {c} in each hole": "Furos: metros de {name} em ou acima de {c} em cada furo",
+  "Drillholes: {name} × thickness at or above {c} in each hole": "Furos: {name} × espessura em ou acima de {c} em cada furo",
+  "at or above ({name})": "em ou acima de ({name})"
 }

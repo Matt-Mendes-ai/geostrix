@@ -10848,5 +10848,9 @@
   "berm (m)": "المصطبة (م)",
   "Optional: the benches whose face starts at or above this RL take the face angle and berm beside it (soft cover, weathered rock), as the shell's upper slope. All three, or none.": "اختياري: المصاطب التي تبدأ واجهتها عند هذا المنسوب أو فوقه تأخذ زاوية الواجهة والمصطبة المجاورتين (غطاء لين، صخر متجوّى)، كالمنحدر العلوي للحفرة. الثلاثة، أو لا شيء.",
   "The upper benches need the RL, a face angle between 0 and 90° and a berm of 0 or more, or all three blank.": "تحتاج المصاطب العليا إلى المنسوب وزاوية واجهة بين 0 و90° ومصطبة 0 أو أكثر، أو ترك الثلاثة فارغة.",
-  "The shell was run with a {s}° slope above {rl} m: give the upper benches their face and berm to match it.": "حُسبت الحفرة بمنحدر {s}° فوق {rl} م: أعطِ المصاطب العليا واجهتها ومصطبتها لتطابقه."
+  "The shell was run with a {s}° slope above {rl} m: give the upper benches their face and berm to match it.": "حُسبت الحفرة بمنحدر {s}° فوق {rl} م: أعطِ المصاطب العليا واجهتها ومصطبتها لتطابقه.",
+  "Drillholes: {name} × thickness or metres above a cut-off, per hole…": "ثقوب الحفر: {name} × السماكة أو الأمتار فوق حد قطع، لكل ثقب…",
+  "Drillholes: metres of {name} at or above {c} in each hole": "ثقوب الحفر: أمتار {name} عند {c} أو فوقها في كل ثقب",
+  "Drillholes: {name} × thickness at or above {c} in each hole": "ثقوب الحفر: {name} × السماكة عند {c} أو فوقها في كل ثقب",
+  "at or above ({name})": "عند أو فوق ({name})"
 }
