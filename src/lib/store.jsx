@@ -14,7 +14,8 @@ import { FIELD_KEYS, FIELDS, UNDO_KEYS, DIRTY_KEYS, PROJECT_VERSION, EMPTY_LAYER
 import { datumPatch } from "./localGridDatum.js"; // TASKS.csv #2691 / #2661
 import { fillFromRows, setEntry } from "./codeDictionary.js"; // TASKS.csv #2163
 import { changeElementBasis, rebaseRows, rebaseThresholds } from "./oxideBasisChange.js"; // TASKS.csv #2627
-import { cappedNotice, capRemovedMapLayers } from "./undoMapLayerCap.js"; // TASKS.csv #2806
+import { withImportLeftOut } from "./importLeftOut.js"; // TASKS.csv #2493
+import { cappedNotice, capRemovedMapLayers, vertexCount, BIG_VERTICES } from "./undoMapLayerCap.js"; // TASKS.csv #2806; vertexCount / BIG_VERTICES: #2814
 import { useLatestCallback } from "./useLatestCallback.js"; // TASKS.csv #2769 follow-up — callbacks that keep only the current render's scope (the file says why)
 import { sectionWindowsMayClose, EXPORT_RESULT_EVENT } from "./desktop.js"; // TASKS.csv #2620; EXPORT_RESULT_EVENT: #2806
 import { saveFile, saveFileTo, openFile, autosaveWrite, autosaveWriteParts /* #1975 */, autosaveRead, autosaveQuarantine, autosaveClear, dbConnect as dbConnectIpc, dbDisconnect as dbDisconnectIpc } from "./desktop.js";
@@ -35,12 +36,22 @@ export const useStore = () => useContext(StoreContext);
 // everything that changed in one render. Pair it with React.memo on the child, or the parent's own
 // re-render still re-renders it. Only for a subtree that is not visible and doesn't need to react while
 // hidden: anything that needs the viewer (Layout's viewport render requests, #202) first switches to it.
+// TASKS.csv #2814 — does `held` (map layers) have a big layer (by its features array, lib/undoMapLayerCap.js) that `now` no longer has?
+export function heldBigLayerGone(held, now) {
+  if (!held?.length || held === now) return false;
+  const live = new Set((now || []).map((l) => l?.features));
+  return held.some((l) => l?.features && !live.has(l.features) && vertexCount(l.features) >= BIG_VERTICES);
+}
 export function FreezeStore({ frozen, children }) {
   const live = useContext(StoreContext);
   // the value is captured once, in the render where `frozen` turns true ("storing information from previous
   // renders" — a render-phase update, only on that transition)
   const [hold, setHold] = useState({ frozen, value: live });
   if (hold.frozen !== frozen) setHold({ frozen, value: live });
+  // TASKS.csv #2814 — while frozen, a big map layer the held value still has but the project no longer has (removed in another tab) was
+  // kept in memory until the view was shown again (measured: all 20,000 features of a 1 M-vertex layer). The hold then takes the live value:
+  // one render of the hidden subtree, which drops the layer from its scene too; every other write still skips it.
+  else if (frozen && hold.value !== live && heldBigLayerGone(hold.value?.mapLayers, live?.mapLayers)) setHold({ frozen, value: live });
   return <StoreContext.Provider value={frozen ? (hold.frozen ? hold.value : live) : live}>{children}</StoreContext.Provider>;
 }
 
@@ -968,6 +979,8 @@ export function StoreProvider({ children }) {
   const setLocalGridTie = useCallback((tie) => setProject((p) => ({ ...p, crsSet: false, localGrid: { name: "", ...(p.localGrid || {}), tie: tie || null } })), []);
   // TASKS.csv #2691 / #2661 — the grid's RL datum offset (grid RL = elevation + rlOffset) and, untied, its typed north (lib/localGridDatum.js)
   const setLocalGridDatum = useCallback((patch) => setProject((p) => (p.localGrid ? { ...p, localGrid: { ...p.localGrid, ...datumPatch(patch) } } : p)), []);
+  // TASKS.csv #2493 — what an import left out of a built-in layer, kept in the project for Data QC (lib/importLeftOut.js)
+  const recordImportLeftOut = useCallback((layerKey, file, dropped, total) => setProject((p) => withImportLeftOut(p, layerKey, file, dropped, total)), []);
   // TASKS.csv #2627 — an element's grades reported as another basis (Li "%" <-> "% Li2O"): every stored number of that element converted with
   // its unit, in one undoable step — the drill assays (with their QC rows and per-method values) or, with { surface: true }, the surface
   // samples and their QC records; the threshold rules decided for it follow. -> the lib's result ({ changed, factor, from, to } or { error })
@@ -1730,6 +1743,7 @@ export function StoreProvider({ children }) {
     dbImports, setDbImports, // TASKS.csv #1963
     codeDictionary, setCodeDictionary, fillCodeDictionary, setCodeDictionaryEntry, // TASKS.csv #2163
     setElementBasis, // TASKS.csv #2627
+    recordImportLeftOut, // TASKS.csv #2493
     designLines, setDesignLines, // TASKS.csv #1342
     designStrings, setDesignStrings, // TASKS.csv #1876
     customLayers, setCustomLayers,

@@ -406,7 +406,7 @@ export function parseCSV(file, onDone) {
 // "NR", "<10" and a blank kept 2 of 5 rows and the notice said only "Loaded 2 rows". dropped: [{ reason, example }]
 // (reason: a short English key below; example: the cell as written). -> " Skipped 3 of 5 row(s): value not a number
 // (NR, <10, (blank))." or "".
-const SKIP_REASONS = {
+export const SKIP_REASONS = { // exported: #2493 (Data QC names the reasons the import left rows out)
   "no hole id": () => tr("no hole id"),
   "no depth": () => tr("blank or non-numeric depth"),
   "no from": () => tr("blank or non-numeric From"),
@@ -417,6 +417,19 @@ const SKIP_REASONS = {
 // TASKS.csv #2182 (review #2174, WA gold) — a coded log's row with a blank code cell is not a logged interval: it was imported as 'Unknown'
 // (11,432 of geology_4's 11,558 rows as Mineralization) and drew an 'Unknown' tube down every hole. The share blank, for the dialog.
 export const isBlankCode = (v) => v == null || String(v).trim() === "";
+// TASKS.csv #2493 (review #2486, WA lithium) — a blank code kept as this explicit class when the import dialog says so (off by default: the
+// rows are skipped, #2182). Project data: English, like every stored code.
+export const NO_CODE = "(no code)";
+// the notice's line about blank codes, said whenever there are any: how many, and what became of them
+export function blankCodeText(col, n, total, tookNext = 0, kept = 0) {
+  const skipped = n - tookNext - kept;
+  const parts = [
+    tookNext ? tr("{n} took the code of the next code column", { n: tookNext.toLocaleString() }) : "",
+    kept ? tr("{n} kept as (no code)", { n: kept.toLocaleString() }) : "",
+    skipped > 0 ? tr("{n} skipped", { n: skipped.toLocaleString() }) : "",
+  ].filter(Boolean);
+  return tr("{n} of {m} row(s) have a blank {col}: {what}.", { n: n.toLocaleString(), m: total.toLocaleString(), col, what: parts.join(", ") });
+}
 export function blankShare(rows, col) {
   if (!col || !rows?.length) return null;
   let blank = 0;

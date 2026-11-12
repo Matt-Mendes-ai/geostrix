@@ -35,7 +35,7 @@ const SEVERITY_META = {
 export default function DataQCModal({ onCancel }) {
   useEscapeKey(onCancel); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
-  const { project, collars, survey, layers, boundaries, assays, terrain, setCollars } = useStore();
+  const { project, collars, survey, layers, boundaries, assays, terrain, setCollars, customLayers } = useStore(); // customLayers: #2493
   // TASKS.csv #558 — collars vs the loaded terrain, with an adjustable threshold and an (undoable) snap
   const [terrainThreshold, setTerrainThreshold] = useState(15);
   // TASKS.csv #723 — the dogleg warning level (deg per 30 m), remembered on this computer: ordinary deviated
@@ -43,7 +43,7 @@ export default function DataQCModal({ onCancel }) {
   const [doglegWarn, setDoglegWarn] = useState(() => { try { return Number(localStorage.getItem("geostrix.qc.doglegWarn")) || 3; } catch { return 3; } });
   useEffect(() => { try { if (Number(doglegWarn) > 0) localStorage.setItem("geostrix.qc.doglegWarn", String(doglegWarn)); } catch { /* storage unavailable */ } }, [doglegWarn]);
   const warnDeg = Number(doglegWarn) > 0 ? Number(doglegWarn) : 3;
-  const qcArgs = () => ({ project, collars, survey, layers, boundaries, assays, terrain, terrainThreshold: Number(terrainThreshold) > 0 ? Number(terrainThreshold) : 15, doglegWarn: warnDeg, doglegError: Math.max(10, warnDeg) });
+  const qcArgs = () => ({ project, collars, survey, layers, boundaries, assays, terrain, customLayers, terrainThreshold: Number(terrainThreshold) > 0 ? Number(terrainThreshold) : 15, doglegWarn: warnDeg, doglegError: Math.max(10, warnDeg) });
   const ranWith = useRef(null); // TASKS.csv #1269 — the thresholds of the run on screen: the export's stamp must describe its issues, not the boxes
   const runQC = () => { ranWith.current = { warnDeg, terrainThreshold: Number(terrainThreshold) > 0 ? Number(terrainThreshold) : 15 }; return runDataQC(qcArgs()); };
   const [result, setResult] = useState(runQC);
