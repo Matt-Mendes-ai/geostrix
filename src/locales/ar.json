@@ -10872,5 +10872,15 @@
   "Rendering the viewports at print resolution (300 dpi) for the export": "عرض نوافذ العرض بدقة الطباعة (300 نقطة/بوصة) للتصدير",
   "Export cancelled while the viewports were rendered at print resolution.": "أُلغي التصدير أثناء عرض نوافذ العرض بدقة الطباعة.",
   "1 viewport could not be rendered at print resolution and was printed from its page image.": "تعذّر عرض نافذة عرض واحدة بدقة الطباعة فطُبعت من صورتها في الصفحة.",
-  "{n} viewports could not be rendered at print resolution and were printed from their page images.": "تعذّر عرض {n} نوافذ عرض بدقة الطباعة فطُبعت من صورها في الصفحة."
+  "{n} viewports could not be rendered at print resolution and were printed from their page images.": "تعذّر عرض {n} نوافذ عرض بدقة الطباعة فطُبعت من صورها في الصفحة.",
+  "Grid north is": "شمال الشبكة يقع",
+  "from the tie": "من الربط",
+  "Between -180 and 180°.": "بين -180 و180°.",
+  "RL datum: grid RL = elevation +": "مرجع المنسوب: منسوب الشبكة = الارتفاع +",
+  "RL datum offset (m)": "إزاحة مرجع المنسوب (م)",
+  "° east of true north": "° شرق الشمال الحقيقي",
+  "Grid north from true north (degrees, east positive)": "شمال الشبكة من الشمال الحقيقي (درجات، الشرق موجب)",
+  "Grid RL = elevation + this offset (a mine datum of +1000: RL 1,250 is 250 m above sea level). Blank: the RLs are elevations.": "منسوب الشبكة = الارتفاع + هذه الإزاحة (مرجع منجم +1000: المنسوب 1250 يقع 250 م فوق مستوى سطح البحر). فارغ: المناسيب ارتفاعات.",
+  "For a grid not tied to a CRS: how far grid north is turned from true north, east positive (west negative). A true-north survey is converted with it on import. A tie, when there is one, knows its own rotation.": "لشبكة غير مربوطة بنظام إحداثيات: مقدار دوران شمال الشبكة عن الشمال الحقيقي، الشرق موجب (الغرب سالب). يُحوَّل به مسح الشمال الحقيقي عند الاستيراد. والربط، إن وُجد، يعرف دورانه.",
+  " {fixed} azimuth(s) converted from true north to the local grid's north, which the project gives as {deg}° from true north (east positive).": " حُوِّل {fixed} سمت من الشمال الحقيقي إلى شمال الشبكة المحلية، الذي يعطيه المشروع {deg}° من الشمال الحقيقي (الشرق موجب)."
 }

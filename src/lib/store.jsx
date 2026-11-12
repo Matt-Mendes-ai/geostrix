@@ -11,6 +11,7 @@ import { setKnownHoleIds } from "./qaqcCore.js"; // TASKS.csv #400; qaqcCore: #1
 import { compactLayers } from "./compactRows.js"; // TASKS.csv #374
 import { readDbProfiles, writeDbProfiles, mergeDbProfiles, profilesFromFile } from "./dbProfiles.js"; // TASKS.csv #1081
 import { FIELD_KEYS, FIELDS, UNDO_KEYS, DIRTY_KEYS, PROJECT_VERSION, EMPTY_LAYERS, DEFAULT_LAYOUT_ELEMENTS, compactVoxelModels, emptyFields, fieldsFromPayload, payloadFromFields, projectParts, joinParts, cachedJson /* #1975 */, extraDirtyValues, projectHasContent } from "./projectFields.js"; // TASKS.csv #448
+import { datumPatch } from "./localGridDatum.js"; // TASKS.csv #2691 / #2661
 import { sectionWindowsMayClose } from "./desktop.js"; // TASKS.csv #2620
 import { saveFile, saveFileTo, openFile, autosaveWrite, autosaveWriteParts /* #1975 */, autosaveRead, autosaveQuarantine, autosaveClear, dbConnect as dbConnectIpc, dbDisconnect as dbDisconnectIpc } from "./desktop.js";
 import { normalizeDesurveyMethod } from "./desurvey.js";
@@ -959,6 +960,8 @@ export function StoreProvider({ children }) {
   const setLocalGrid = useCallback((name) => setProject((p) => ({ ...p, crsSet: false, localGrid: { ...(p.localGrid || {}), name: String(name ?? "").trim() } })), []);
   // TASKS.csv #2288 — the local grid's tie to a real CRS (lib/localGridTie.js), or null to remove it
   const setLocalGridTie = useCallback((tie) => setProject((p) => ({ ...p, crsSet: false, localGrid: { name: "", ...(p.localGrid || {}), tie: tie || null } })), []);
+  // TASKS.csv #2691 / #2661 — the grid's RL datum offset (grid RL = elevation + rlOffset) and, untied, its typed north (lib/localGridDatum.js)
+  const setLocalGridDatum = useCallback((patch) => setProject((p) => (p.localGrid ? { ...p, localGrid: { ...p.localGrid, ...datumPatch(patch) } } : p)), []);
   // TASKS.csv #2586 — a mine grid BESIDE a real CRS ({ name, tie } or null); the CRS stays set (lib/mineGrid.js)
   const setMineGrid = useCallback((mg) => setProject((p) => ({ ...p, mineGrid: mg || null })), []);
   // TASKS.csv #485 — Cartography: move EVERYTHING in the open project into another CRS (projectReproject.js for
@@ -1672,7 +1675,7 @@ export function StoreProvider({ children }) {
   }, [activeLayoutPageId, clearUndoHistory]);
 
   const value = {
-    project, setEpsg, setLocalGrid /* #2180 */, setLocalGridTie /* #2288 */, setMineGrid /* #2586 */, setProjectName, setDrillRates /* #2581 */, reprojectProjectTo, reprojectObjectTo, // #485 / #486
+    project, setEpsg, setLocalGrid /* #2180 */, setLocalGridTie /* #2288 */, setLocalGridDatum /* #2691 / #2661 */, setMineGrid /* #2586 */, setProjectName, setDrillRates /* #2581 */, reprojectProjectTo, reprojectObjectTo, // #485 / #486
     sampleRequest, requestSampleProject, clearSampleRequest, // TASKS.csv #1120
     projectIsEmpty: !hasWork, // TASKS.csv #607 — nothing loaded yet (same test as autosave): an import may adopt its CRS
     desurveyMethod, setDesurveyMethod, // TASKS.csv #135

@@ -34,7 +34,7 @@ test("adding a layer re-encodes only that layer (the rows' encoding is cached)",
 test("the project file round trip: version 25, customLayers through save / load; an older plain file still opens", () => {
   const live = { ...emptyFields(), customLayers: [{ id: "g", name: "Gamma", rows: log(2500) }] };
   const file = JSON.parse(JSON.stringify(payloadFromFields(live)));
-  assert.equal(file.version, 25);
+  assert.ok(file.version >= 25, String(file.version)); // 25 brought the columns; later versions keep them (#2691: 26)
   assert.equal(file.customLayers[0].rows.__compactTable, 1);
   const opened = fieldsFromPayload(file);
   assert.deepEqual(opened.customLayers[0].rows, JSON.parse(JSON.stringify(live.customLayers[0].rows)));

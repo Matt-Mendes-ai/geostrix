@@ -10872,5 +10872,15 @@
   "Rendering the viewports at print resolution (300 dpi) for the export": "Rendu des vues à la résolution d'impression (300 ppp) pour l'export",
   "Export cancelled while the viewports were rendered at print resolution.": "Export annulé pendant le rendu des vues à la résolution d'impression.",
   "1 viewport could not be rendered at print resolution and was printed from its page image.": "1 vue n'a pas pu être rendue à la résolution d'impression et a été imprimée depuis son image de la page.",
-  "{n} viewports could not be rendered at print resolution and were printed from their page images.": "{n} vues n'ont pas pu être rendues à la résolution d'impression et ont été imprimées depuis leurs images de la page."
+  "{n} viewports could not be rendered at print resolution and were printed from their page images.": "{n} vues n'ont pas pu être rendues à la résolution d'impression et ont été imprimées depuis leurs images de la page.",
+  "Grid north is": "Le nord du quadrillage est à",
+  "from the tie": "du rattachement",
+  "Between -180 and 180°.": "Entre -180 et 180°.",
+  "RL datum: grid RL = elevation +": "Datum d'altitude : altitude du quadrillage = élévation +",
+  "RL datum offset (m)": "Décalage du datum d'altitude (m)",
+  "° east of true north": "° à l'est du nord vrai",
+  "Grid north from true north (degrees, east positive)": "Nord du quadrillage par rapport au nord vrai (degrés, est positif)",
+  "Grid RL = elevation + this offset (a mine datum of +1000: RL 1,250 is 250 m above sea level). Blank: the RLs are elevations.": "Altitude du quadrillage = élévation + ce décalage (un datum de mine de +1000 : l'altitude 1 250 est à 250 m au-dessus du niveau de la mer). Vide : les altitudes sont des élévations.",
+  "For a grid not tied to a CRS: how far grid north is turned from true north, east positive (west negative). A true-north survey is converted with it on import. A tie, when there is one, knows its own rotation.": "Pour un quadrillage non rattaché à un SCR : de combien le nord du quadrillage est tourné par rapport au nord vrai, est positif (ouest négatif). Un levé au nord vrai est converti avec lui à l'import. Un rattachement, s'il y en a un, connaît sa propre rotation.",
+  " {fixed} azimuth(s) converted from true north to the local grid's north, which the project gives as {deg}° from true north (east positive).": " {fixed} azimut(s) converti(s) du nord vrai au nord du quadrillage local, que le projet donne à {deg}° du nord vrai (est positif)."
 }

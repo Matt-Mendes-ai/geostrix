@@ -10872,5 +10872,15 @@
   "Rendering the viewports at print resolution (300 dpi) for the export": "Renderizando as janelas na resolução de impressão (300 ppp) para a exportação",
   "Export cancelled while the viewports were rendered at print resolution.": "Exportação cancelada enquanto as janelas eram renderizadas na resolução de impressão.",
   "1 viewport could not be rendered at print resolution and was printed from its page image.": "1 janela não pôde ser renderizada na resolução de impressão e foi impressa a partir da sua imagem na página.",
-  "{n} viewports could not be rendered at print resolution and were printed from their page images.": "{n} janelas não puderam ser renderizadas na resolução de impressão e foram impressas a partir das suas imagens na página."
+  "{n} viewports could not be rendered at print resolution and were printed from their page images.": "{n} janelas não puderam ser renderizadas na resolução de impressão e foram impressas a partir das suas imagens na página.",
+  "Grid north is": "O norte da quadrícula está a",
+  "from the tie": "da amarração",
+  "Between -180 and 180°.": "Entre -180 e 180°.",
+  "RL datum: grid RL = elevation +": "Datum de cota: cota da quadrícula = elevação +",
+  "RL datum offset (m)": "Deslocamento do datum de cota (m)",
+  "° east of true north": "° a leste do norte verdadeiro",
+  "Grid north from true north (degrees, east positive)": "Norte da quadrícula em relação ao norte verdadeiro (graus, leste positivo)",
+  "Grid RL = elevation + this offset (a mine datum of +1000: RL 1,250 is 250 m above sea level). Blank: the RLs are elevations.": "Cota da quadrícula = elevação + este deslocamento (um datum de mina de +1000: a cota 1.250 está 250 m acima do nível do mar). Em branco: as cotas são elevações.",
+  "For a grid not tied to a CRS: how far grid north is turned from true north, east positive (west negative). A true-north survey is converted with it on import. A tie, when there is one, knows its own rotation.": "Para uma quadrícula não amarrada a um SRC: quanto o norte da quadrícula gira em relação ao norte verdadeiro, leste positivo (oeste negativo). Um levantamento ao norte verdadeiro é convertido com ele na importação. Uma amarração, quando houver, conhece sua própria rotação.",
+  " {fixed} azimuth(s) converted from true north to the local grid's north, which the project gives as {deg}° from true north (east positive).": " {fixed} azimute(s) convertido(s) do norte verdadeiro para o norte da quadrícula local, que o projeto dá como {deg}° em relação ao norte verdadeiro (leste positivo)."
 }

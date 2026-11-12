@@ -15,7 +15,7 @@ const row = { display: "flex", alignItems: "center", gap: 6, marginTop: 6, fontS
 const num = (v) => (v === "" || v == null ? NaN : Number(v));
 
 export default function LocalGridPanel() {
-  const { project, collars = [], setLocalGrid, setLocalGridTie } = useStore();
+  const { project, collars = [], setLocalGrid, setLocalGridTie, setLocalGridDatum } = useStore();
   const lg = project.localGrid || null, saved = tieOf(project);
   const [name, setName] = useState(lg?.name || "");
   const [epsg, setEpsgTie] = useState(saved?.epsg || null);
@@ -23,6 +23,7 @@ export default function LocalGridPanel() {
   const [text, setText] = useState(saved?.controlText || "");
   const [o, setO] = useState(() => ({ lx: "", ly: "", wx: "", wy: "", rot: "0", scale: "1", ...(saved?.mode === "origin" ? { lx: String(saved.origin.lx), ly: String(saved.origin.ly), wx: String(saved.origin.wx), wy: String(saved.origin.wy), rot: String(saved.rotationDeg), scale: String(saved.scale) } : {}) }));
   const [msg, setMsg] = useState(null);
+  const [rl, setRl] = useState(lg?.rlOffset != null ? String(lg.rlOffset) : ""), [north, setNorth] = useState(lg?.northDeg != null ? String(lg.northDeg) : ""); // #2691 / #2661
   const fit = useMemo(() => {
     if (!epsg) return null;
     try {
@@ -56,6 +57,10 @@ export default function LocalGridPanel() {
     <div style={{ border: "1px solid var(--color-border)", borderRadius: 6, padding: "8px 10px", marginTop: 10 }}>
       <div style={{ fontWeight: 600, color: "var(--color-text)", fontSize: "var(--font-size-sm)" }}>{tr("Local mine grid")}</div>
       <label style={row}>{tr("Name")}<input value={name} onChange={(e) => setName(e.target.value)} onBlur={() => setLocalGrid(name)} placeholder={tr("e.g. Wallaby mine grid")} aria-label={tr("Local grid name")} style={{ ...smallSel, flex: 1, minWidth: 0 }} /></label>
+      {/* TASKS.csv #2691 / #2661 — the grid's RL datum and, with no tie, its north */}
+      <label style={row} title={tr("Grid RL = elevation + this offset (a mine datum of +1000: RL 1,250 is 250 m above sea level). Blank: the RLs are elevations.")}>{tr("RL datum: grid RL = elevation +")}<input type="number" step="any" value={rl} onChange={(e) => setRl(e.target.value)} onBlur={() => setLocalGridDatum({ rlOffset: rl })} placeholder={tr("blank")} aria-label={tr("RL datum offset (m)")} style={{ ...smallSel, width: 80 }} />{tr("m")}</label>
+      <label style={row} title={tr("For a grid not tied to a CRS: how far grid north is turned from true north, east positive (west negative). A true-north survey is converted with it on import. A tie, when there is one, knows its own rotation.")}>{tr("Grid north is")}<input type="number" step="any" value={north} disabled={!!saved} onChange={(e) => setNorth(e.target.value)} onBlur={() => setLocalGridDatum({ northDeg: north })} placeholder={saved ? tr("from the tie") : tr("blank")} aria-label={tr("Grid north from true north (degrees, east positive)")} style={{ ...smallSel, width: 80 }} />{tr("° east of true north")}</label>
+      {north !== "" && !(Math.abs(Number(north)) <= 180) && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("Between -180 and 180°.")}</div>}
       <div style={{ ...note, marginTop: 8 }}>{saved
         ? tr("Tied to {crs} (EPSG:{epsg}): rotation {rot}°, scale {scale}{rms}.", { crs: crsName(saved.epsg) || "", epsg: saved.epsg, rot: saved.rotationDeg.toFixed(4), scale: saved.scale.toFixed(6), rms: saved.rmsM != null ? tr(", {rms} m RMS over {n} control points", { rms: saved.rmsM.toFixed(3), n: saved.n }) : "" })
         : tr("Not tied to a real CRS. Optional: a tie brings files with their own CRS (an MGA collar file, a .prj) into this grid. Exports with a coordinate system stay unavailable on a local grid.")}</div>
