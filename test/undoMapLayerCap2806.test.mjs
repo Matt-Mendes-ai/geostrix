@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import { capRemovedMapLayers, vertexCount, KEEP_REMOVED, BIG_VERTICES } from "../src/lib/undoMapLayerCap.js";
+import { capRemovedMapLayers, vertexCount, cappedNotice, KEEP_REMOVED, BIG_VERTICES } from "../src/lib/undoMapLayerCap.js";
 
 const ring = (n) => Array.from({ length: n }, (_, i) => [i, i]);
 const layer = (name, verts) => ({ id: name, name, features: [{ parts: [[ring(verts)]] }] });
@@ -51,7 +51,20 @@ test("#2806 kept whatever the count: layers in the project (shared features: a r
 
 test("#2806 wired where a step is pushed", () => {
   const store = fs.readFileSync(new URL("../src/lib/store.jsx", import.meta.url), "utf8");
-  assert.match(store, /const capped = capRemovedMapLayers\(undoPast\.current, \[undoPrevSnapshot\.current\?\.mapLayers\]\);\s+if \(capped\.dropped\) undoPast\.current = capped\.steps;/);
+  assert.match(store, /const capped = capRemovedMapLayers\(undoPast\.current, \[undoPrevSnapshot\.current\?\.mapLayers\]\);\s+if \(capped\.dropped\) \{ undoPast\.current = capped\.steps; sayUndoCap\(capped\.names\); \}/);
+  assert.equal(store.match(/sayUndoCap\(capped\.names\)/g).length, 2, "said at both places");
+  assert.match(store, /const sayUndoCap = \(names\) => \{ const message = cappedNotice\(names\); if \(message\) try \{ window\.dispatchEvent\(new CustomEvent\(EXPORT_RESULT_EVENT/);
   // and where Undo commits an edit still in flight (the redo steps kept whole)
   assert.match(store, /capRemovedMapLayers\(undoPast\.current, \[undoSnapshotRef\.current\(\)\?\.mapLayers, \.\.\.undoFuture\.current\.map\(\(s\) => s\?\.mapLayers\)\]\); \/\/ #2806/);
+});
+
+test("#2806 a layer dropped from the older undo steps is said once, by name", () => {
+  const big = 10;
+  const [A, B] = ["Geology A", "Geology B"].map((n) => layer(n, 20));
+  const r = capRemovedMapLayers([{ mapLayers: [A] }, { mapLayers: [] }, { mapLayers: [B] }], [[]], { big, keep: 1 });
+  assert.deepEqual(r.names, ["Geology A"]);
+  assert.equal(cappedNotice(r.names), 'The map layer "Geology A" is too large to keep in the older undo steps: undo can bring back the last 3 removed large layers.');
+  assert.equal(cappedNotice(["A", "B"], 2), 'The map layers "A", "B" are too large to keep in the older undo steps: undo can bring back the last 2 removed large layers.');
+  assert.equal(cappedNotice([]), "");
+  assert.deepEqual(capRemovedMapLayers(r.steps, [[]], { big, keep: 1 }).names, [], "not said again: it is gone from every step");
 });
