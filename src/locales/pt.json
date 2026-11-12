@@ -10634,5 +10634,9 @@
   "Drillholes: elevation of the deepest sample in each hole": "Furos: cota da amostra mais profunda de cada furo",
   "The elevation of each hole's deepest sample, between the holes: high where the drilling stopped shallow. Favourable when high asks for ground not tested at depth; beyond the reach of every hole there is no value.": "A cota da amostra mais profunda de cada furo, entre os furos: alta onde a sondagem parou rasa. Favorável quando alto pede terreno não testado em profundidade; além do alcance de todos os furos não há valor.",
   "{p} % of this ore is in blocks above or below every sample that informs them: unsampled ground, neither barren nor ore, so the strip ratio rests on it.": "{p} % deste minério está em blocos acima ou abaixo de todas as amostras que os informam: terreno não amostrado, nem estéril nem minério, então a relação estéril/minério depende dele.",
-  "Largest pit (revenue factor {rf}): {text}": "Maior cava (fator de receita {rf}): {text}"
+  "Largest pit (revenue factor {rf}): {text}": "Maior cava (fator de receita {rf}): {text}",
+  "its {src} was reprojected to the project's {dst}": "seu {src} foi reprojetado para o {dst} do projeto",
+  "in {crs}, the project's coordinate system": "em {crs}, o sistema de coordenadas do projeto",
+  "its longitude / latitude (WGS 84) was reprojected to the project's {dst}": "sua longitude / latitude (WGS 84) foi reprojetada para o {dst} do projeto",
+  "its longitude / latitude (WGS 84) was brought into the local grid through its tie to EPSG:{tie}": "sua longitude / latitude (WGS 84) foi trazida para a grade local pela sua amarração a EPSG:{tie}"
 }

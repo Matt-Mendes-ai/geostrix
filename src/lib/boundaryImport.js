@@ -2,7 +2,13 @@
 // every feature (outer rings, holes, the other parts of a multi-part claim), reprojected from the file's own CRS (.prj
 // or GeoPackage srs_id) to the project CRS. Before, only each feature's first ring was kept and the coordinates were
 // assumed to be in the project CRS: a BC Albers (EPSG:3005) tenure shapefile landed 5,036 km away with 77 of 131 rings.
-import { getProj4Def, guessEpsgFromPrjWkt, pointTransform } from "./reproject.js";
+import { getProj4Def, guessEpsgFromPrjWkt, pointTransform, crsName, datumNote } from "./reproject.js"; // crsName, datumNote: #2467
+
+// TASKS.csv #2467 (review #2325, WA uranium) — what an import says about its CRS depended on the file type: a GDA94 shapefile and a lon / lat
+// KML said nothing, another CRS read 'reprojected from EPSG:20351 to EPSG:28351' in bare codes, and the AGD84 datum-shift caveat was never
+// shown. One shape now: the CRS the file declared, by name, what was done, and the datum caveat when a datum shift was applied.
+export const crsLabel = (c) => { const n = crsName(Number(c)); return n ? `${n} (EPSG:${c})` : `EPSG:${c}`; };
+const withDatum = (note, ...codes) => { const d = codes.map((c) => datumNote(c)).find(Boolean); return d ? `${note}; ${String(d).replace(/\.\s*$/, "")}` : note; };
 import { t as tr } from "./i18n.js"; // TASKS.csv #1974 — the CRS notes in the interface language
 import { readsAsMineGrid, mineToProject, kmFromCollars, partsBox } from "./mineGrid.js"; // TASKS.csv #2586
 import { fileToLocal } from "./localGridTie.js"; // TASKS.csv #2587
@@ -28,9 +34,9 @@ export async function vectorToBoundaryPolylines(parsed, projectEpsg, { mineGrid 
   } else if (src && dst && src !== dst) {
     await Promise.all([getProj4Def(src), getProj4Def(dst)]); // registry codes load on demand (#834)
     T = pointTransform(src, dst);
-    note = T ? tr("reprojected from EPSG:{src} to EPSG:{dst}", { src, dst }) : tr("its CRS (EPSG:{src}) could not be converted: the coordinates were taken as EPSG:{dst}, check where it lies", { src, dst });
+    note = T ? withDatum(tr("its {src} was reprojected to the project's {dst}", { src: crsLabel(src), dst: crsLabel(dst) }), src, dst) : tr("its CRS (EPSG:{src}) could not be converted: the coordinates were taken as EPSG:{dst}, check where it lies", { src, dst });
   } else if (src && !dst) note = tr("the project has no coordinate system yet: its EPSG:{src} coordinates were kept as they are, check where it lies", { src }); // #2287
-  else if (src) note = null; // already the project CRS
+  else if (src) note = tr("in {crs}, the project's coordinate system", { crs: crsLabel(src) }); // already the project CRS: said too (#2467)
   else if (!dst) note = tr("neither the file nor the project states a coordinate system: the coordinates were kept as they are, check where it lies"); // #2287
   else {
     const box = partsBox((parsed.features || []).flatMap((f) => (f.parts?.length ? f.parts : [f.geometry])));

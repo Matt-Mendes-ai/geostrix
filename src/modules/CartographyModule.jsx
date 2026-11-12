@@ -19,7 +19,7 @@ import { Ribbon, RibbonGroup, RibbonButton, TaskPaneHeader } from "../components
 import CrsPicker from "../components/CrsPicker.jsx";
 import SidebarResizeHandle from "../components/SidebarResizeHandle.jsx";
 import { useSidebarWidth } from "../lib/useSidebarWidth.js";
-import { crsName, isMetricProjectedEpsg, pointTransform, getProj4DefSync, isGeographicCrs } from "../lib/reproject.js";
+import { crsName, isMetricProjectedEpsg, pointTransform, getProj4DefSync, isGeographicCrs, datumNote } from "../lib/reproject.js"; // datumNote: #2467
 import { trueNorthBearingInGridDeg } from "../lib/inversion.js";
 import { parseTableFile, toExportCsv } from "../lib/tabular.js";
 import { saveFile } from "../lib/desktop.js";
@@ -113,7 +113,8 @@ export default function CartographyModule({ embedded = false, forcePane = null }
   const moveObject = () => run(async () => {
     if (project?.crsSet === false) throw new Error(tr("The project's coordinate system is not chosen yet, so there is no CRS to reproject a layer into. Choose it under Project CRS first.")); // #2290
     const report = await reprojectObjectTo({ kind: obj.kind, id: obj.id }, Number(objFrom), { rotateAzimuths: rotate });
-    setMsg({ ok: true, text: reportText(report, `${obj.label} moved from ${nameOf(objFrom)} into the project CRS, ${nameOf(project.epsg)}`) });
+    const dn = datumNote(objFrom) || datumNote(project.epsg); // TASKS.csv #2467 — the datum shift applied, said (AGD84 -> GDA94: EPSG's national fit, ~1 m)
+    setMsg({ ok: true, text: reportText(report, `${obj.label} moved from ${nameOf(objFrom)} into the project CRS, ${nameOf(project.epsg)}`) + (dn ? ` ${dn}` : "") });
   });
 
   // ---- reproject a file pane ----

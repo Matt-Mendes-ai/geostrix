@@ -10634,5 +10634,9 @@
   "Drillholes: elevation of the deepest sample in each hole": "ثقوب الحفر: منسوب أعمق عينة في كل ثقب",
   "The elevation of each hole's deepest sample, between the holes: high where the drilling stopped shallow. Favourable when high asks for ground not tested at depth; beyond the reach of every hole there is no value.": "منسوب أعمق عينة في كل ثقب، بين الثقوب: مرتفع حيث توقف الحفر ضحلًا. «ملائم عند الارتفاع» يطلب أرضًا لم تُختبر في العمق؛ وخارج مدى كل الثقوب لا توجد قيمة.",
   "{p} % of this ore is in blocks above or below every sample that informs them: unsampled ground, neither barren nor ore, so the strip ratio rests on it.": "{p} % من هذا الخام في كتل فوق أو تحت كل العينات التي تُعلمها: أرض غير مُعيَّنة، لا عقيمة ولا خام، لذا تعتمد عليها نسبة الإزالة.",
-  "Largest pit (revenue factor {rf}): {text}": "أكبر حفرة (معامل الإيراد {rf}): {text}"
+  "Largest pit (revenue factor {rf}): {text}": "أكبر حفرة (معامل الإيراد {rf}): {text}",
+  "its {src} was reprojected to the project's {dst}": "أُعيد إسقاط {src} الخاص به إلى {dst} الخاص بالمشروع",
+  "in {crs}, the project's coordinate system": "في {crs}، نظام إحداثيات المشروع",
+  "its longitude / latitude (WGS 84) was reprojected to the project's {dst}": "أُعيد إسقاط خطوط الطول / العرض (WGS 84) الخاصة به إلى {dst} الخاص بالمشروع",
+  "its longitude / latitude (WGS 84) was brought into the local grid through its tie to EPSG:{tie}": "أُدخلت خطوط الطول / العرض (WGS 84) الخاصة به إلى الشبكة المحلية عبر ربطها بـ EPSG:{tie}"
 }

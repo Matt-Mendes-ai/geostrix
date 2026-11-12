@@ -10634,5 +10634,9 @@
   "Drillholes: elevation of the deepest sample in each hole": "Sondages : altitude de l'échantillon le plus profond de chaque sondage",
   "The elevation of each hole's deepest sample, between the holes: high where the drilling stopped shallow. Favourable when high asks for ground not tested at depth; beyond the reach of every hole there is no value.": "L'altitude de l'échantillon le plus profond de chaque sondage, entre les sondages : haute là où le forage s'est arrêté peu profond. Favorable quand haut demande du terrain non testé en profondeur ; hors de portée de tout sondage, il n'y a pas de valeur.",
   "{p} % of this ore is in blocks above or below every sample that informs them: unsampled ground, neither barren nor ore, so the strip ratio rests on it.": "{p} % de ce minerai est dans des blocs au-dessus ou au-dessous de tous les échantillons qui les renseignent : du terrain non échantillonné, ni stérile ni minerai, donc le rapport de décapage en dépend.",
-  "Largest pit (revenue factor {rf}): {text}": "Plus grande fosse (facteur de revenu {rf}) : {text}"
+  "Largest pit (revenue factor {rf}): {text}": "Plus grande fosse (facteur de revenu {rf}) : {text}",
+  "its {src} was reprojected to the project's {dst}": "son {src} a été reprojeté dans le {dst} du projet",
+  "in {crs}, the project's coordinate system": "en {crs}, le système de coordonnées du projet",
+  "its longitude / latitude (WGS 84) was reprojected to the project's {dst}": "sa longitude / latitude (WGS 84) a été reprojetée dans le {dst} du projet",
+  "its longitude / latitude (WGS 84) was brought into the local grid through its tie to EPSG:{tie}": "sa longitude / latitude (WGS 84) a été ramenée dans la grille locale par son rattachement à EPSG:{tie}"
 }
