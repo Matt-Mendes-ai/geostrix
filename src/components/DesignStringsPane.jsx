@@ -18,7 +18,7 @@ import { toExportCsv, crsCell } from "../lib/tabular.js";
 import { saveFile } from "../lib/desktop.js";
 import { iconAction } from "../lib/a11y.js";
 import { pBtn, smallSel } from "../lib/sidebarStyles.js";
-import { collarGround, collarsLookUnderground, pitMetalOf, elementOfModel, metalAmountText } from "../lib/pitShell.js"; // #1905; metal: #2441
+import { collarGround, collarsLookUnderground, pitMetalOf, elementOfModel, metalAmountText, gradeWithElement /* #2111 */ } from "../lib/pitShell.js"; // #1905; metal: #2441
 import { terrainGroundAt } from "../lib/viewer/geomath.js";
 import { t as tr } from "../lib/i18n.js";
 import CollarLevelsNote from "./CollarLevelsNote.jsx"; // TASKS.csv #2584 — the lowest collar used where collars stand on benches
@@ -303,7 +303,7 @@ export default function DesignStringsPane({ view, onAdd, onClose, surfaces = [],
       tip: tr("Solid from design strings ({how}): a drawn shape, not a modelled one", { how }),
       params: { tool: `solid from design strings (${how})`, strings: how === "extrude" ? [string.name] : solid.loft.map((id) => designStrings.find((s) => s.id === id)?.name), volumeM3: Math.round(r.volume), ...(tonnes != null ? { density, tonnes: Math.round(tonnes) } : {}), ...(tonnage ? { blockModel: model.name, blockSizeM: blockM, blocksInside: tonnage.blocks, blockTonnes: Math.round(tonnage.tonnes), meanGrade: tonnage.meanGrade == null ? null : +tonnage.meanGrade.toPrecision(4), gradeUnit: valueUnit(model) || null, gradeFrom: "blocks whose centre lies inside, counted whole" } : {}), warnings: r.warnings || [], generatedAt: new Date().toISOString() } });
     setMsg(prefix + (tonnage
-      ? tr("\"{name}\": {v} m³ = {t} t at {d} t/m³{g} from {n} block(s) of {m} ({b} m, counted whole by their centre).", { name, v: big(r.volume), t: big(tonnes), d: density, n: tonnage.blocks, m: model.name, b: blockM, g: tonnage.meanGrade == null ? tr("; no grade") : tr("; mean grade {g} {u}", { g: Number(tonnage.meanGrade.toPrecision(3)), u: valueUnit(model) || "" }) }) + solidCoverText(tonnage, tonnes) /* #2441 / #2599 */
+      ? tr("\"{name}\": {v} m³ = {t} t at {d} t/m³{g} from {n} block(s) of {m} ({b} m, counted whole by their centre).", { name, v: big(r.volume), t: big(tonnes), d: density, n: tonnage.blocks, m: model.name, b: blockM, g: tonnage.meanGrade == null ? tr("; no grade") : tr("; mean grade {g}", { g: gradeWithElement(tonnage.meanGrade, valueUnit(model) || "", elementOfModel(model)) }) /* #2111 — 6510 ppm Cu (0.651 % Cu) */ }) + solidCoverText(tonnage, tonnes) /* #2441 / #2599 */
       : tonnes != null ? tr("\"{name}\": {v} m³ = {t} t at {d} t/m³. Choose a block model for its grade.", { name, v: big(r.volume), t: big(tonnes), d: density })
       : tr("\"{name}\": {v} m³. Enter a density for its tonnes, and a block model for its grade.", { name, v: big(r.volume) })));
   };

@@ -23,7 +23,7 @@ test("the panes use it: Pit shell's mean grade and cut-offs, Stope outlines' cut
   assert.match(pit, /line\(tr\("Mean grade"\), gradeWithElement\(res\.meanGrade, res\.unit, res\.element\)\)/);
   assert.equal((pit.match(/oxideSuffix\(/g) || []).length, 4);
   const st = fs.readFileSync("src/components/StopesPane.jsx", "utf8");
-  assert.match(st, /tr\("Cut-off \(\{unit\}\)", \{ unit: element \? `\$\{unit\} \$\{element\}` : unit \}\)/);
+  assert.match(st, /tr\("Cut-off \(\{unit\}\)", \{ unit: element \? `\$\{gradeUnitText\(unit, element\)\} \$\{element\}` : unit \}\)/); // g/t for a ppm Au model since #2111
   assert.match(st, /const g = \(x\) => \(x == null \? "—" : gradeWithElement\(x, res\.unit, res\.element\)\)/);
   assert.match(st, /element: res\.element \|\| ""/);
   assert.match(fs.readFileSync("src/components/PitDesignPane.jsx", "utf8"), /gradeWithElement\(g, unit, pit\?\.params\?\.element/);

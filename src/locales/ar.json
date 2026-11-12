@@ -7560,7 +7560,7 @@
   "Nothing under the cursor there: the target was not changed.": "لا شيء تحت المؤشر هناك: لم يتغير الهدف.",
   "{x} times the {t} t": "{x} أضعاف الـ{t} طن",
   "The swell factor is 1 or more: broken rock takes more room than in place, never less.": "معامل الانتفاش 1 أو أكثر: الصخر المكسَّر يشغل حيزًا أكبر مما في موضعه، لا أقل أبدًا.",
-  "; mean grade {g} {u}": "؛ متوسط المحتوى {g} {u}",
+  "; mean grade {g}": "؛ متوسط المحتوى {g}",
   "The grid was made coarser than the {a} m asked, to stay within the cell limit: {c} m cells, {rel} the block model's {b} m.": "جُعلت الشبكة أخشن من الـ{a} م المطلوبة للبقاء ضمن حد الخلايا: خلايا {c} م، {rel} الـ{b} م لنموذج الكتل.",
   "coarser than": "أخشن من",
   "finer than": "أدق من",
@@ -10476,5 +10476,6 @@
   "ROC-AUC on the occurrence cells: fuzzy {a} (0.5 is chance; on the points the map was made from, so optimistic).": "ROC-AUC على خلايا التواجد: الضبابي {a} (0.5 هو الصدفة؛ على النقاط التي صُنعت منها الخريطة، لذا متفائل).",
   "Density of the known occurrences (quartic kernel)": "كثافة مواقع التواجد المعروفة (نواة رباعية)",
   "1 collar has another collar within {plan} m in plan that is more than {rl} m lower (a pit or benches?): the ground between the collars uses the lower collar there and leaves this one out. A check by those two distances, not a survey: on a steep hillside it lowers real ground too. Load a terrain for the real surface.": "لفوهة واحدة فوهة أخرى على بعد أقل من {plan} م في المسقط وأدنى منها بأكثر من {rl} م (حفرة أو مصاطب؟): يستخدم السطح بين الفوهات هناك الفوهة الأدنى ويستبعد هذه. هذا فحص بهاتين المسافتين، وليس مسحًا: على منحدر شديد يخفض الأرض الحقيقية أيضًا. حمّل تضاريس للسطح الحقيقي.",
-  "{n} collars have another collar within {plan} m in plan that is more than {rl} m lower (a pit or benches?): the ground between the collars uses the lowest collar there and leaves these {n} out. A check by those two distances, not a survey: on a steep hillside it lowers real ground too. Load a terrain for the real surface.": "{n} فوهات لكل منها فوهة أخرى على بعد أقل من {plan} م في المسقط وأدنى منها بأكثر من {rl} م (حفرة أو مصاطب؟): يستخدم السطح بين الفوهات هناك الفوهة الأدنى ويستبعد هذه الـ {n}. هذا فحص بهاتين المسافتين، وليس مسحًا: على منحدر شديد يخفض الأرض الحقيقية أيضًا. حمّل تضاريس للسطح الحقيقي."
+  "{n} collars have another collar within {plan} m in plan that is more than {rl} m lower (a pit or benches?): the ground between the collars uses the lowest collar there and leaves these {n} out. A check by those two distances, not a survey: on a steep hillside it lowers real ground too. Load a terrain for the real surface.": "{n} فوهات لكل منها فوهة أخرى على بعد أقل من {plan} م في المسقط وأدنى منها بأكثر من {rl} م (حفرة أو مصاطب؟): يستخدم السطح بين الفوهات هناك الفوهة الأدنى ويستبعد هذه الـ {n}. هذا فحص بهاتين المسافتين، وليس مسحًا: على منحدر شديد يخفض الأرض الحقيقية أيضًا. حمّل تضاريس للسطح الحقيقي.",
+  "Unit of the cut-off": "وحدة حد القطع"
 }

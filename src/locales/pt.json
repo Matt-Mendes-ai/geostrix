@@ -7560,7 +7560,7 @@
   "Nothing under the cursor there: the target was not changed.": "Nada sob o cursor ali: o alvo não mudou.",
   "{x} times the {t} t": "{x} vezes as {t} t",
   "The swell factor is 1 or more: broken rock takes more room than in place, never less.": "O fator de empolamento é 1 ou mais: a rocha desmontada ocupa mais espaço que in situ, nunca menos.",
-  "; mean grade {g} {u}": "; teor médio {g} {u}",
+  "; mean grade {g}": "; teor médio {g}",
   "The grid was made coarser than the {a} m asked, to stay within the cell limit: {c} m cells, {rel} the block model's {b} m.": "A grade foi feita mais grossa que os {a} m pedidos, para ficar dentro do limite de células: células de {c} m, {rel} os {b} m do modelo de blocos.",
   "coarser than": "mais grossas que",
   "finer than": "mais finas que",
@@ -10476,5 +10476,6 @@
   "ROC-AUC on the occurrence cells: fuzzy {a} (0.5 is chance; on the points the map was made from, so optimistic).": "ROC-AUC nas células com ocorrências: fuzzy {a} (0,5 é o acaso; nos pontos com que o mapa foi feito, então otimista).",
   "Density of the known occurrences (quartic kernel)": "Densidade das ocorrências conhecidas (núcleo quártico)",
   "1 collar has another collar within {plan} m in plan that is more than {rl} m lower (a pit or benches?): the ground between the collars uses the lower collar there and leaves this one out. A check by those two distances, not a survey: on a steep hillside it lowers real ground too. Load a terrain for the real surface.": "1 colar tem outro colar a menos de {plan} m em planta que está mais de {rl} m abaixo (uma cava ou bancadas?): o terreno entre os colares usa ali o colar mais baixo e deixa este de fora. É uma verificação por essas duas distâncias, não um levantamento: numa encosta íngreme também rebaixa o terreno real. Carregue um terreno para a superfície real.",
-  "{n} collars have another collar within {plan} m in plan that is more than {rl} m lower (a pit or benches?): the ground between the collars uses the lowest collar there and leaves these {n} out. A check by those two distances, not a survey: on a steep hillside it lowers real ground too. Load a terrain for the real surface.": "{n} colares têm outro colar a menos de {plan} m em planta que está mais de {rl} m abaixo (uma cava ou bancadas?): o terreno entre os colares usa ali o colar mais baixo e deixa estes {n} de fora. É uma verificação por essas duas distâncias, não um levantamento: numa encosta íngreme também rebaixa o terreno real. Carregue um terreno para a superfície real."
+  "{n} collars have another collar within {plan} m in plan that is more than {rl} m lower (a pit or benches?): the ground between the collars uses the lowest collar there and leaves these {n} out. A check by those two distances, not a survey: on a steep hillside it lowers real ground too. Load a terrain for the real surface.": "{n} colares têm outro colar a menos de {plan} m em planta que está mais de {rl} m abaixo (uma cava ou bancadas?): o terreno entre os colares usa ali o colar mais baixo e deixa estes {n} de fora. É uma verificação por essas duas distâncias, não um levantamento: numa encosta íngreme também rebaixa o terreno real. Carregue um terreno para a superfície real.",
+  "Unit of the cut-off": "Unidade do teor de corte"
 }

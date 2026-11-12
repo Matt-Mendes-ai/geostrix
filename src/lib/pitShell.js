@@ -67,16 +67,33 @@ export function reportedOxide(element) {
   const ox = (SOLD_AS[el] || []).find(([p]) => /O\d?$/.test(p));
   return ox ? [ox[0], ox[1]] : null;
 }
-// " (0.256 % Li2O)" after a grade already written with its element, or ""
-export function oxideSuffix(v, unit, element, fmt = (x) => String(Number(x.toPrecision(3)))) {
-  const ox = element && Number.isFinite(v) ? reportedOxide(element) : null;
-  return ox ? ` (${fmt(v * ox[1])} ${unit || ""} ${ox[0]})`.replace(/ {2,}/g, " ") : "";
+// TASKS.csv #2111 (review #2013, Woodjam) — a copper model in ppm printed 'Cu 1260 ppm' and 'Mean grade 6740 ppm' where a mining engineer
+// reads 0.126 % / 0.674 %: a ppm grade of a metal reported in percent gets its percent beside it, and a precious metal's ppm is written as
+// g/t (the same number: 1 ppm = 1 g/t by mass); a ppb one gets its g/t beside it. Uranium stays in ppm (U3O8 ppm is how it is read).
+const PRECIOUS = new Set(["Au", "Ag", "Pt", "Pd", "Rh", "Ir", "Os", "Ru"]);
+const READ_AS_PERCENT = new Set(["Cu", "Zn", "Pb", "Ni", "Co", "Sn", "Mo", "W", "Li", "Mn", "Fe", "V", "Ti", "Cr"]);
+export const gradeUnitText = (unit, element) => (/^ppm$/i.test(String(unit || "")) && PRECIOUS.has(element) ? "g/t" : unit || "");
+export const readsAsPercent = (unit, element) => /^ppm$/i.test(String(unit || "")) && READ_AS_PERCENT.has(element);
+// what follows the grade in brackets: its percent, its oxide, its g/t
+function gradeExtras(v, unit, element, fmt) {
+  if (!element || !Number.isFinite(v)) return [];
+  const ox = reportedOxide(element), pct = readsAsPercent(unit, element), out = [];
+  if (pct) out.push(`${fmt(v / 1e4)} % ${element}`);
+  if (ox) out.push(pct ? `${fmt((v / 1e4) * ox[1])} % ${ox[0]}` : `${fmt(v * ox[1])} ${gradeUnitText(unit, element)} ${ox[0]}`.replace(/ {2,}/g, " "));
+  if (/^ppb$/i.test(String(unit || "")) && PRECIOUS.has(element)) out.push(`${fmt(v / 1000)} g/t ${element}`);
+  return out;
 }
-// "0.555 % Li (1.19 % Li2O)"; fmt(v) -> text (default three significant figures). No element: the unit alone, as before.
+// " (0.256 % Li2O)" (or " (0.126 % Cu)", #2111) after a grade already written with its unit (gradeUnitText) and element, or ""
+export function oxideSuffix(v, unit, element, fmt = (x) => String(Number(x.toPrecision(3)))) {
+  const x = gradeExtras(v, unit, element, fmt);
+  return x.length ? ` (${x.join("; ")})` : "";
+}
+// "0.555 % Li (1.19 % Li2O)", "6740 ppm Cu (0.674 % Cu)", "0.391 g/t Au" (a ppm model, #2111); fmt(v) -> text (default three significant
+// figures). No element: the unit alone, as before.
 export function gradeWithElement(v, unit, element, fmt = (x) => String(Number(x.toPrecision(3)))) {
   if (v == null || !Number.isFinite(v)) return "—";
-  const el = element ? ` ${element}` : "", ox = element ? reportedOxide(element) : null;
-  return `${fmt(v)} ${unit || ""}${el}${ox ? ` (${fmt(v * ox[1])} ${unit || ""} ${ox[0]})` : ""}`.replace(/ {2,}/g, " ");
+  const el = element ? ` ${element}` : "";
+  return `${fmt(v)} ${gradeUnitText(unit, element)}${el}${oxideSuffix(v, unit, element, fmt)}`.replace(/ {2,}/g, " ");
 }
 // the element a block model holds: its estimate's parameters, else a symbol at the start of its name ("Cu estimate (idw2, 20m)")
 // TASKS.csv #2436 — a uranium oxide named inside a longer field ("Gamma: eU3O8_cased_ppm", a logged gamma grade) is that oxide, priced per lb U3O8
