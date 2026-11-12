@@ -1257,6 +1257,8 @@
   "{sym} value {v} at {from}–{to}m is negative — assay results shouldn't be below zero.": "قيمة {sym} ‏{v} عند {from}–{to} م سالبة — لا ينبغي أن تكون نتائج التحاليل تحت الصفر.",
   "Overlapping assay intervals: {from}–{to}m and {from2}–{to2}m.": "فترات تحليل متداخلة: {from}–{to} م و{from2}–{to2} م.",
   "Duplicate assay interval {from}–{to}m — likely imported twice.": "فترة تحليل مكررة {from}–{to} م — على الأرجح استُوردت مرتين.",
+  "Two samples at {from}–{to}m ({a}, {b}): a field or lab duplicate pair, not a double import. Both count in the statistics unless one is marked as a QAQC duplicate.": "عينتان عند {from}–{to}م ({a}، {b}): زوج من المكررات الحقلية أو المخبرية، وليس استيرادًا مزدوجًا. تُحتسب الاثنتان في الإحصاءات ما لم تُوسم إحداهما كمكرر لضبط الجودة.",
+  "{n} of {m} holes with a collar have no assays (checked because more than half the holes have assays): {list}.": "{n} من {m} ثقبًا لها فوهة بلا تحاليل (فُحص لأن أكثر من نصف الثقوب لها تحاليل): {list}.",
   "No EPSG/CRS set for this project — collars/survey/rasters are assumed to already share one consistent CRS, but nothing here confirms it.": "لا EPSG/نظام إحداثيات لهذا المشروع — يُفترض أن الفوهات والمسح والراستر تتشارك نظامًا متسقًا واحدًا، لكن لا شيء هنا يؤكد ذلك.",
   "Two consecutive vertices are at (near) the same point (~{x}, {y}) — a zero-length edge.": "رأسان متتاليان في النقطة نفسها تقريبًا (~{x}، {y}) — حافة بطول صفر.",
   "Self-intersecting boundary — edge {v} crosses edge {v2}. This will render as a bowtie/twisted shape and its area calculation will be wrong.": "حد متقاطع ذاتيًا — الحافة {v} تقطع الحافة {v2}. سيظهر بشكل ملتوٍ وسيكون حساب مساحته خاطئًا.",

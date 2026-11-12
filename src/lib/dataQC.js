@@ -427,16 +427,22 @@ function validateAssays(assays, collarIds, holeLengths) {
     let maxEnd = -Infinity, maxEndOwner = null;
     for (let i = 0; i < sorted.length; i++) {
       const cur = sorted[i];
-      if (i > 0 && cur.from < maxEnd - 0.01 && maxEndOwner) {
+      // TASKS.csv #2897 — the same interval twice is said once, by the duplicate rule below (it was 'Overlapping' AND 'Duplicate')
+      if (i > 0 && cur.from < maxEnd - 0.01 && maxEndOwner && !(cur.from === maxEndOwner.from && cur.to === maxEndOwner.to)) {
         pushIssue(issues, "warning", "Assays", holeId, tr("Overlapping assay intervals: {from}–{to}m and {from2}–{to2}m.", { from: maxEndOwner.from, to: maxEndOwner.to, from2: cur.from, to2: cur.to }));
       }
       if (cur.to > maxEnd) { maxEnd = cur.to; maxEndOwner = cur; }
     }
-    const seen = new Set();
+    // TASKS.csv #2897 (review #2876, WA iron) — 100 field duplicates (RCB... beside RCA..., different results, once each in the source) were
+    // all 'likely imported twice': two samples with different ids are a duplicate pair, worded so
+    const seen = new Map();
     sorted.forEach((a) => {
-      const key = `${a.from}|${a.to}`;
-      if (seen.has(key)) pushIssue(issues, "warning", "Assays", holeId, tr("Duplicate assay interval {from}–{to}m — likely imported twice.", { from: a.from, to: a.to }));
-      seen.add(key);
+      const key = `${a.from}|${a.to}`, first = seen.get(key);
+      if (first) {
+        const ida = String(first.sample_id ?? "").trim(), idb = String(a.sample_id ?? "").trim();
+        if (ida && idb && ida !== idb) pushIssue(issues, "warning", "Assays", holeId, tr("Two samples at {from}–{to}m ({a}, {b}): a field or lab duplicate pair, not a double import. Both count in the statistics unless one is marked as a QAQC duplicate.", { from: a.from, to: a.to, a: ida, b: idb }));
+        else pushIssue(issues, "warning", "Assays", holeId, tr("Duplicate assay interval {from}–{to}m — likely imported twice.", { from: a.from, to: a.to }));
+      } else seen.set(key, a);
     });
   });
   orphans.forEach((n, id) => pushIssue(issues, "error", "Assays", id, n === 1 ? tr("Assay interval references hole \"{hole_id}\", which has no matching collar.{v}", { hole_id: id, v: didYouMean(collarIds, id) }) : tr("{n} assay intervals reference hole \"{hole_id}\", which has no matching collar.{v}", { n, hole_id: id, v: didYouMean(collarIds, id) })));
