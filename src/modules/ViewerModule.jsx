@@ -17,6 +17,7 @@ import { metresPerPixel, minSymbolRadiusM, needsSymbolRebuild } from "../lib/vie
 import { lazyModal } from "../lib/lazyModal.jsx"; // TASKS.csv #301
 import * as THREE from "three";
 import { setVerticalExaggeration, veOf } from "./viewer/verticalExaggeration.js"; // TASKS.csv #2628
+import ViewVeSelect from "./viewer/ViewVeSelect.jsx"; // TASKS.csv #2934
 import { piercePoints as surfacePierces, piercePointRows } from "../lib/piercePoints.js"; // TASKS.csv #1009
 import { Info, Upload, Scissors, AlertTriangle, RotateCcw, RefreshCw, Eye, EyeOff, Trash2, Maximize2, Pencil, X, Layers3, ChevronUp, ChevronDown, ShieldAlert, GitFork, Map as MapIcon, Mountain, Image, FileBarChart2, Settings2, Box, Waypoints, Triangle, MapPin, ArrowUpRight, Shapes, Ruler, Beaker, Compass, Activity, GitCompare, Check } from "../components/icons.js"; // TASKS.csv #445 step 4 — memoised lucide icons // GitCompare/Check: TASKS.csv #93
 const AssayStyleModal = lazyModal(() => import("../components/AssayStyleModal.jsx")); // TASKS.csv #476
@@ -2414,17 +2415,13 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
     return () => cancelAnimationFrame(raf);
   }, [visible]);
 
-  // TASKS.csv #313 — DO NOT "fix" the 1.3 here thinking it is arbitrary padding on a conservative
-  // diagonal bound. It is not padding: 1/(2 sin(fov/2)) at fov 45 is 1.3066, so this is a snug fit to
-  // the box's bounding sphere, i.e. (to within 0.4%, verified by an orientation sweep against the
-  // exact per-corner perspective fit) the tightest radius that
-  // frames the box from EVERY orbit angle. Every caller of fitBox is an explicit user "zoom to this"
-  // action (zoom-to-layer / zoom-to-custom / zoom-to-fit-all / zoom-to-screen-rect / the context menu
-  // / each surface-generation routine), and all of them should keep doing exactly what they say
-  // regardless of which way the user then orbits.
+  // TASKS.csv #313 — the 1.3 is not padding: 1/(2 sin(fov/2)) at fov 45 is 1.3066, a snug fit to the box's bounding sphere (within 0.4% of
+  // the exact per-corner fit), so the box stays framed from EVERY orbit angle. Every caller is an explicit "zoom to this".
+  // TASKS.csv #2934 / #2664 — under vertical exaggeration the box drawn is VE times as tall about the orbit target (its centre here): Fit at
+  // 20x cut both ends of the field and Zoom to hole at 10x left the collar off screen. The height is scaled by VE before the fit.
   const fitBox = useCallback((box, padFactor = 1.3, minRadius = 80) => {
     if (box.isEmpty()) return false;
-    const center = box.getCenter(new THREE.Vector3()), size = box.getSize(new THREE.Vector3()).length();
+    const center = box.getCenter(new THREE.Vector3()), s = box.getSize(new THREE.Vector3()), size = s.setY(s.y * (cameraRef.current?.userData?.ve || 1)).length();
     camState.current.target.copy(center); camState.current.radius = Math.max(minRadius, size * padFactor);
     cameraRef.current?.__update?.();
     return true;
@@ -2447,10 +2444,10 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   const zoomToCustom = useCallback((id) => { const g = layerGroupsRef.current[id]; if (g && g.children.length) fitBox(new THREE.Box3().setFromObject(g)); }, [fitBox]);
   // TASKS.csv #1407 — everything shown (surface samples, map layers, terrain...), with the holes and block models as before
   const zoomToFitAll = () => { const b = visibleSceneBox(sceneRef.current?.getObjectByName("root")); (lastTracesRef.current || []).forEach((pts) => pts.forEach((p) => b.expandByPoint(new THREE.Vector3(p.x, p.y, p.z)))); fitBox(b); };
-  // TASKS.csv #1181 — Fit frames the drilling, as the opening view does (a 25 km mesh left 5 km of holes a few pixels); All: right-click menu
+  // TASKS.csv #1181 — Fit frames the drilling, as the opening view does; All: right-click menu
   const zoomToHoles = () => autoFitInitial(lastTracesRef.current, lastHoleTraceCountRef.current);
   const fitButton = () => (mode === "surface" ? zoomToFitAll() : zoomToHoles()); // #2092 — Fit on the Surface Geology tab: everything shown
-  // TASKS.csv #393 — zoom to one hole from the Holes list (its desurveyed trace, scene coords).
+  // TASKS.csv #393 — zoom to one hole (Holes list)
   const zoomToHole = useCallback((holeId) => { const t = tracesRef.current.find((x) => x.hole_id === holeId); if (!t?.pts?.length) return; const cs = camState.current, ph = holeZoomPhi(t.pts, cs.phi, cs.theta); if (ph != null) cs.phi = ph; /* #2375 — not end-on */ fitBox(new THREE.Box3().setFromPoints(t.pts.map((p) => new THREE.Vector3(p.x, p.y, p.z))), 1.6 /* #2375 — the collar not cut by the top edge */); }, [fitBox]);
   const zoomToPoint = (point) => fitBox(new THREE.Box3().setFromCenterAndSize(point, new THREE.Vector3(80, 80, 80)));
   const resetView = () => { camState.current.theta = Math.PI / 4; camState.current.phi = Math.PI / 3; cameraRef.current?.__update?.(); };
@@ -7764,6 +7761,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           <button onClick={() => { camState.current.theta = 0; camState.current.phi = 0.02; cameraRef.current.__update(); }} style={miniBtn}>{tr("Top")}</button>{/* #1200 — north up, as a map */}
           <button onClick={() => { camState.current.phi = Math.PI - 0.02; cameraRef.current.__update(); }} style={miniBtn}>{tr("Bottom")}</button>
           <button onClick={fitButton} style={miniBtn} title={mode === "surface" ? tr("Zoom to fit all") : tr("Zoom to the holes (to include everything shown: right-click the view, Zoom to fit all)")} aria-label={mode === "surface" ? tr("Zoom to fit all") : tr("Zoom to the holes")}>{tr("Fit")}</button>{/* #567 — the keyboard / visible path the notices pointed to */}
+          <ViewVeSelect figureOverlay={figureOverlay} setFigureOverlay={setFigureOverlay} />
         </div>
         {/* TASKS.csv #189 — the old "■ East ■ Elevation ■ North" text legend used to render here;
             replaced by axisGizmo (created above, rendered every frame via the same viewport/scissor
