@@ -9,7 +9,7 @@ import { compositeDownhole, rawSampleIntervals, PRECIOUS_METALS, capAudit, lengt
 import CapAuditHint from "./CapAuditHint.jsx"; // TASKS.csv #533
 import EstimateCheck from "./EstimateCheck.jsx"; // TASKS.csv #1051
 import { excludeQAQC, labAssays } from "../lib/qaqc.js"; // TASKS.csv #266
-import { samplePointsFromIntervals, MAX_BLOCKS, ESTIMATION_METHODS, SUPPORT_COLORS, summarizeSupport, retallyKeptCells } from "../lib/estimation.js"; // retallyKeptCells: #2106
+import { samplePointsFromIntervals, MAX_BLOCKS, ESTIMATION_METHODS, SUPPORT_COLORS, summarizeSupport, supportInReach, supportBeyondReach, retallyKeptCells } from "../lib/estimation.js"; // retallyKeptCells: #2106
 import { BLOCK_MODEL_BUDGETS, MAX_BLOCK_MODEL_BUDGET, blockModelBudgetNote, cellToFit, blockModelLattice, snapBoundsToLattice, overlapBox } from "../lib/estimationMeta.js"; // TASKS.csv #626; block-model budgets: #661
 import { runEstimation } from "../lib/estimationClient.js"; // TASKS.csv #520 — off the UI thread
 import { makeReachClient } from "../lib/blockReachClient.js"; // TASKS.csv #1416; in a worker: #1579
@@ -975,15 +975,16 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
                 <div style={{ marginTop: 6, padding: "8px 9px", background: "#f5f7f9", border: "1px solid #e2e6ea", borderRadius: 6, lineHeight: 1.5 }}>
                   <div style={{ fontWeight: 600, color: "var(--color-text-secondary)", marginBottom: 4 }}>{tr("Data support")}</div>
                   <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-                    {["interpolated", "extrapolated", "unsupported"].map((k) => (
+                    {["interpolated", "extrapolated", "unsupported"].map((k) => ( /* #2066: unsupported within reach */
                       <span key={k} style={{ display: "inline-flex", alignItems: "center", gap: 5, color: "var(--color-text-secondary)" }}>
                         <span style={{ width: 10, height: 10, borderRadius: 2, background: SUPPORT_COLORS[k], display: "inline-block" }} />
-                        {result.supportCounts[k].toLocaleString()} {k}
+                        {supportInReach(result.supportCounts, supportBeyondReach(result))[k].toLocaleString()} {k}
                       </span>
                     ))}
                   </div>
                   <div style={{ marginTop: 5, color: "var(--color-warn-text)" }}>
-                    {summarizeSupport(result.supportCounts)}
+                    {summarizeSupport(result.supportCounts, { beyond: supportBeyondReach(result) })}
+                    {supportBeyondReach(result) > 0 && <>{" "}{tr("{n} more blocks of the grid's box lie beyond every composite's reach: not estimated, and not counted here.", { n: supportBeyondReach(result).toLocaleString() })}</>}{/* #2066 */}
                   </div>
                   <div style={{ marginTop: 5, color: "var(--color-text-muted)" }}>{tr("Only blocks whose informing composites bracket them on all three axes, from at least two holes, count as interpolated. Everything else with a value is being carried outward from the data rather than between it — a real number, but not an interpolation.")}</div>
                 </div>

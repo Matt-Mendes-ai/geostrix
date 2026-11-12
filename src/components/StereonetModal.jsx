@@ -58,6 +58,9 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks = []
   // type text, so core "Bedding" and outcrop "Bedding" are one type (counted by source); with Both, outcrop poles are open.
   const [source, setSource] = useState(downholePicks.length ? "downhole" : "surface");
   const picks = useMemo(() => (source === "downhole" ? downholePicks : source === "surface" ? surfacePicks : [...downholePicks, ...surfacePicks]), [source, downholePicks, surfacePicks]);
+  // TASKS.csv #2389 (review #2325, WA uranium) — nothing from either source: say where structure data comes from, as the Structures
+  // pane and the Downhole plot do, instead of an empty net beside 'Mean orientation needs at least 2 picks'
+  const noData = !downholePicks.length && !surfacePicks.length;
 
   const typeList = useMemo(() => typeEntries(picks), [picks]); // #1440 — [{ key, label, core, outcrop }]
   const types = useMemo(() => typeList.map((t) => t.key), [typeList]);
@@ -281,7 +284,9 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks = []
               {/* TASKS.csv #1721 — the pole plot's empty state (the rose had one): what is missing, and why the picks there are not drawn */}
               {plotted === 0 && (
                 <g fontSize={11} fill="#65717e" textAnchor="middle">
-                  <text x={CX} y={CY - 6}>{picks.length ? tr("No picks with a valid dip / dip direction") : source === "surface" ? tr("No outcrop measurements yet") : tr("No downhole structure picks yet")}</text>
+                  <text x={CX} y={CY - 6}>{picks.length ? tr("No picks with a valid dip / dip direction") : noData ? tr("No structure picks or outcrop measurements yet") : source === "surface" ? tr("No outcrop measurements yet") : tr("No downhole structure picks yet")}</text>
+                  {noData && <text x={CX} y={CY + 12}>{tr("Downhole: 3D View › Add layer › Structure planes.")}</text>}
+                  {noData && <text x={CX} y={CY + 28}>{tr("Outcrop: Surface Geology › Surface structures.")}</text>}
                   {unplotted.alphaOnly > 0 && <text x={CX} y={CY + 12}>{tr("{n} alpha only (no beta): a plane needs both angles to be oriented", { n: unplotted.alphaOnly.toLocaleString() })}</text>}
                 </g>
               )}
@@ -485,7 +490,7 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks = []
                   >{tr("Add as structural trend")}</button>
                 )}
               </div>
-            ) : (
+            ) : noData ? null /* #2389 */ : (
               <div style={{ fontSize: 10, color: "#65717e", lineHeight: 1.4 }}>{tr("Mean orientation needs at least 2 picks with a valid dip and dip direction.")}</div>
             )}
 
