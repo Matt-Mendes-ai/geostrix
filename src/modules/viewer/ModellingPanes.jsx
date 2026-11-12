@@ -326,6 +326,11 @@ export default function ModellingPanes(props) {
     const { tops, skipped } = topsForCode(runs, unit, modellingCodes, mcodeDefaultRole);
     return { tops: tops.map((r) => ({ hole_id: r.hole_id, md: r.from, above: r.above?.code ?? null, below: r.code })), skipped, holes };
   }, [layers.litho, modellingCodes, lithoGroups, modelArea, visibleHoles]); // mcGroupOf / mcodeDefaultRole are rebuilt every render from lithoGroups
+  // TASKS.csv #2054 — Modelling codes' pane, whole or (focus "correlate") its hole-to-hole tools only, for the Correlation pane; one state for both
+  const mcodesPane = (focus) => <ModellingCodesPane focus={focus} inArea={modelArea === "checked" ? (id) => visibleHoles?.[id] !== false : null} /* #2533 — Auto-number follows the Model area */ litho={layers.litho || []} modellingCodes={modellingCodes} setModellingCodes={setModellingCodes} groupOf={mcGroupOf} defaultRole={mcodeDefaultRole}
+          pickMode={mcPickMode} setPickMode={setMcPickMode} selected={mcSelected} setSelected={setMcSelected} connectFrom={mcConnectFrom} setConnectFrom={setMcConnectFrom}
+          view={mcodesView} unitBody={unitBody} setUnitBody={setUnitBody} onBuildBody={(code) => runAlterationModel(`mcode:${code}`, unitBody)} assayElements={assayElements} /* #2634 */ positionAt={sheetPositionAt} /* #2625 */
+          askPrompt={askPrompt} pBtn={pBtn} inputStyle={{ background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, padding: "3px 5px", color: "var(--color-text)", fontSize: "var(--font-size-sm)" }} />;
   return (<>
         {toolPane === "settings" && (<>
         {paneHeader("Model settings", Settings, "model")}
@@ -578,10 +583,7 @@ export default function ModellingPanes(props) {
         </>)}
         {toolPane === "mcodes" && (<>
         {paneHeader("Modelling codes", Waypoints, "model")}
-        <Suspense fallback={null}>        <ModellingCodesPane inArea={modelArea === "checked" ? (id) => visibleHoles?.[id] !== false : null} /* #2533 — Auto-number follows the Model area */ litho={layers.litho || []} modellingCodes={modellingCodes} setModellingCodes={setModellingCodes} groupOf={mcGroupOf} defaultRole={mcodeDefaultRole}
-          pickMode={mcPickMode} setPickMode={setMcPickMode} selected={mcSelected} setSelected={setMcSelected} connectFrom={mcConnectFrom} setConnectFrom={setMcConnectFrom}
-          view={mcodesView} unitBody={unitBody} setUnitBody={setUnitBody} onBuildBody={(code) => runAlterationModel(`mcode:${code}`, unitBody)} assayElements={assayElements} /* #2634 */ positionAt={sheetPositionAt} /* #2625 */
-          askPrompt={askPrompt} pBtn={pBtn} inputStyle={{ background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, padding: "3px 5px", color: "var(--color-text)", fontSize: "var(--font-size-sm)" }} /></Suspense>
+        <Suspense fallback={null}>        {mcodesPane(null)}</Suspense>
         </>)}
         {toolPane === "groups" && (<>
         {paneHeader("Lithology groups", Group, "model")}
@@ -669,6 +671,8 @@ export default function ModellingPanes(props) {
           style={{ ...pBtn, marginBottom: 8, opacity: collars.length ? 1 : 0.5, cursor: collars.length ? "pointer" : "default" }}
           title={tr("Fence / panel diagram — project the holes onto a common vertical panel along the drill line and correlate lithology hole-to-hole, with each hole's perpendicular offset from the section shown")}
         ><Layers3 size={14} />{" "}{tr("Fence / panel diagram…")}</button>
+
+        <Suspense fallback={null}>{mcodesPane("correlate")}</Suspense>{/* #2054 — the correlation tools themselves, beside the fence */}
 
         {/* TASKS.csv #318 — mapped surface contacts projected underground (dip projection), or fed to the
             implicit model run just below as extra interface points + orientations. */}
