@@ -11178,5 +11178,7 @@
   "m from a hole": "m de um furo",
   "A polygon map: each hole's nearest-hole area, cut back to this distance from the hole, with the unit of its point. Model it can build from it.": "Um mapa de polígonos: a área mais próxima de cada furo, recortada a esta distância do furo, com a unidade do seu ponto. Modelar pode construir a partir dele.",
   "Outline": "Contornar",
-  "No hole's log covers {d} m down.": "A descrição de nenhum furo cobre {d} m de profundidade."
+  "No hole's log covers {d} m down.": "A descrição de nenhum furo cobre {d} m de profundidade.",
+  "Terrain under the inputs: {a} of {n} contact point(s) and {b} of {m} measurement(s). The rest will be placed at the map layer's elevation{z} and the surfaces cut there; a terrain over the whole map (Maps > Terrain) puts them on the ground.": "Terreno sob os dados: {a} de {n} ponto(s) de contato e {b} de {m} medição(ões). O resto será colocado na elevação da camada do mapa{z} e as superfícies cortadas ali; um terreno sobre todo o mapa (Mapas > Terreno) os coloca no solo.",
+  " (RL {z})": " (cota {z})"
 }

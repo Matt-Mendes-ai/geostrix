@@ -11178,5 +11178,7 @@
   "m from a hole": "م من الثقب",
   "A polygon map: each hole's nearest-hole area, cut back to this distance from the hole, with the unit of its point. Model it can build from it.": "خريطة مضلّعات: المنطقة الأقرب إلى كل ثقب، مقصوصة على هذه المسافة منه، بوحدة نقطته. يمكن لـ«نمذجتها» البناء عليها.",
   "Outline": "ارسم المحيط",
-  "No hole's log covers {d} m down.": "لا يغطي سجل أي ثقب عمق {d} م."
+  "No hole's log covers {d} m down.": "لا يغطي سجل أي ثقب عمق {d} م.",
+  "Terrain under the inputs: {a} of {n} contact point(s) and {b} of {m} measurement(s). The rest will be placed at the map layer's elevation{z} and the surfaces cut there; a terrain over the whole map (Maps > Terrain) puts them on the ground.": "التضاريس تحت المدخلات: {a} من {n} نقطة تماس و{b} من {m} قياس. سيوضع الباقي على منسوب طبقة الخريطة{z} وتُقطع الأسطح هناك؛ تضاريس تغطي الخريطة كلها (الخرائط > التضاريس) تضعها على الأرض.",
+  " (RL {z})": " (المنسوب {z})"
 }

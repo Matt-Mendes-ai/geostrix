@@ -7,7 +7,8 @@ import React, { useEffect, useMemo, useState } from "react";
 import { deepestUnitIntercept } from "../lib/holeMapContacts.js"; // TASKS.csv #2568
 import { contactOrientationNear } from "../lib/sheetFromContacts.js"; // TASKS.csv #2642
 import { fitSheetToLogs } from "../lib/sheetLogCheck.js"; // TASKS.csv #2724
-import { featureCategoryValue } from "../lib/mapLayers.js"; // TASKS.csv #2724
+import { featureCategoryValue, extractMapContacts } from "../lib/mapLayers.js"; // TASKS.csv #2724; extractMapContacts: #2959
+import { mapGroundCount } from "../lib/mapGroundCount.js"; // TASKS.csv #2959
 import { useStore } from "../lib/store.jsx"; // TASKS.csv #2724 — the collars and survey the logged intercepts are placed on
 import { ChevronUp, ChevronDown } from "./icons.js";
 import { t as tr } from "../lib/i18n.js";
@@ -141,6 +142,12 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
     const ok = (m) => [m.dip, m.dipDir].every(Number.isFinite) && Number.isFinite(groundAt(m.x, m.y));
     return { beds: bedding.filter(ok).length, planes: planes.filter(ok).length };
   }, [bedding, planes, groundAt]);
+  // TASKS.csv #2959 (WA iron review) — the run's contact points and measurements with terrain under them, said before the run (the review's run
+  // found out after it that 265 of 357 sat on the map layer's flat elevation)
+  const groundCount = useMemo(() => {
+    if (!groundAt || !layer || !unitField || order.length < 2) return null;
+    try { return mapGroundCount({ contacts: extractMapContacts(layer, unitField).contacts, order, groundAt, measurements: [...bedding, ...planes] }); } catch { return null; }
+  }, [groundAt, layer, unitField, order, bedding, planes]);
   const [codeEdit, setCodeEdit] = useState({});
   const codeUnit = useMemo(() => ({ ...suggestCodeUnits(codes.map((c) => c.code), mapUnits), ...codeEdit }), [codes, mapUnits, codeEdit]);
   const [useHolesChoice, setUseHoles] = useState(null);
@@ -250,6 +257,11 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
             {[...(holePreview.repeats || new Map())].sort((a, b) => a[1].metres / a[1].runs - b[1].metres / b[1].runs).slice(0, 1) /* the thinner repeating unit is the sheet; its host repeats between the sheets */.map(([u, e]) => <div key={u} style={{ color: "var(--color-warn-text)" }}>{tr("{unit} is met {r} times in {h} hole(s), up to {max} in one: it repeats down the holes, as stacked sheets (dykes, sills, pegmatites) or a fold or fault do. Its tops and bases all feed one top of {unit} here, which cannot fit them; model sheets with 3D Modelling > Veins / dykes instead.", { unit: u, r: e.runs.toLocaleString(), h: e.holes.toLocaleString(), max: e.maxRuns })}</div>)}{/* #2567 */}
             {orderCheck && orderCheck.against > orderCheck.agree && <div style={{ color: "var(--color-warn-text)" }}>{tr("{a} of {n} logged contacts run the other way: {upper} is logged over {lower} in {k} of them. In this order {lower} is the younger: move {upper} up?", { a: orderCheck.against, n: orderCheck.agree + orderCheck.against, upper: orderCheck.worst.upper, lower: orderCheck.worst.lower, k: orderCheck.worst.n })}</div>}{/* #2408 */}
           </div>}
+        </div>
+      )}
+      {groundCount && (groundCount.pointsOnGround < groundCount.points || groundCount.measurementsOnGround < groundCount.measurements) && ( /* TASKS.csv #2959 */
+        <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 4, lineHeight: 1.4 }}>
+          {tr("Terrain under the inputs: {a} of {n} contact point(s) and {b} of {m} measurement(s). The rest will be placed at the map layer's elevation{z} and the surfaces cut there; a terrain over the whole map (Maps > Terrain) puts them on the ground.", { a: groundCount.pointsOnGround, n: groundCount.points, b: groundCount.measurementsOnGround, m: groundCount.measurements, z: Number.isFinite(Number(layer?.elevation)) ? tr(" (RL {z})", { z: Math.round(Number(layer.elevation)) }) : "" })}
         </div>
       )}
       <button onClick={() => onRun({ layer, field: unitField, order, breaks, bedding, planes, faults: faults.filter((f) => f.on).map((f) => ({ name: f.name, line: f.line, dip: f.dip, dipDir: f.dipDir })), relation, leftOut, holeCodes: useHoles && holeCount > 0 ? codeUnit : null })}

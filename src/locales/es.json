@@ -11178,5 +11178,7 @@
   "m from a hole": "m de un sondaje",
   "A polygon map: each hole's nearest-hole area, cut back to this distance from the hole, with the unit of its point. Model it can build from it.": "Un mapa de polígonos: el área más cercana a cada sondaje, recortada a esta distancia del sondaje, con la unidad de su punto. Modelarlo puede construir a partir de él.",
   "Outline": "Contornear",
-  "No hole's log covers {d} m down.": "El registro de ningún sondaje cubre {d} m de profundidad."
+  "No hole's log covers {d} m down.": "El registro de ningún sondaje cubre {d} m de profundidad.",
+  "Terrain under the inputs: {a} of {n} contact point(s) and {b} of {m} measurement(s). The rest will be placed at the map layer's elevation{z} and the surfaces cut there; a terrain over the whole map (Maps > Terrain) puts them on the ground.": "Terreno bajo los datos: {a} de {n} punto(s) de contacto y {b} de {m} medición(es). El resto se colocará a la elevación de la capa del mapa{z} y las superficies se cortarán allí; un terreno sobre todo el mapa (Mapas > Terreno) los pone sobre el suelo.",
+  " (RL {z})": " (cota {z})"
 }
