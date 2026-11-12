@@ -50,6 +50,8 @@ export function ViewToolbar({
   const { collars: spacingCollars = [], assays: gAssays = [], assayElements: gEls = [], survey: gSurvey = [], layers: gLayers = {} } = useStore() || {};
   const [gradeIntOpen, setGradeIntOpen] = useState(false); // #1702
   const spacing = useMemo(() => drillSiteSpacing(spacingCollars), [spacingCollars]);
+  // TASKS.csv #2778 (Matt: b) — no collars: Simple shows 3D slice and Level plan instead of the drillhole tools
+  const noHoles = !spacingCollars.length;
   // TASKS.csv #2318 — the grid's size from the data while it is on auto; a typed size or divisions turns auto off
   const gridAuto = useMemo(() => autoGridSize(spacingCollars), [spacingCollars]);
   const gridOnAuto = !!gridAuto && isAutoGrid(gridConfig);
@@ -57,7 +59,7 @@ export function ViewToolbar({
   useEffect(() => { if (!bufferTyped.current && spacing?.buffer && setSectionCorridor) setSectionCorridor(spacing.buffer); }, [spacing]); // the setter is stable
   return (
     <Ribbon show={show} label="3D View tools">
-      <RibbonGroup label="View" advanced>{/* #1707 — Grid, Figure, Themes and 3D slice are all Advanced: no empty caption in Simple */}
+      <RibbonGroup label="View" advanced={!noHoles}>{/* #1707 — all Advanced (3D slice not with no holes, #2778): no empty caption in Simple */}
         <div className="ge-ribbon-cell ge-adv">
           <HoverToolInfo title={tr("Grid")} text={tr("Toggles the ground reference grid on or off, and lets you resize it, change its division spacing/colour, or add two vertical wall grids for a full 3D reference box. Turn it off if it's cluttering a dense model or a figure you're about to snapshot.")} suppress={openPopover === "grid"}>
             <button className={`ge-ribbon-btn ${openPopover === "grid" ? "active" : ""}`} aria-expanded={openPopover === "grid"} aria-haspopup="dialog" onClick={() => toggle("grid")}><Grid3x3 size={22} strokeWidth={1.7} color={RIBBON_TONES.view} aria-hidden="true" /><span className="ge-ribbon-label">{tr("Grid")}</span></button>
@@ -81,10 +83,7 @@ export function ViewToolbar({
               </div>
               {gridAuto && <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginTop: 4 }} title={tr("Size and centre the grid from the collars' extent, with a round cell; a size you type turns this off")}>{/* #2318 */}
                 <input type="checkbox" checked={gridOnAuto} onChange={(e) => setGridConfig((g) => (e.target.checked ? { ...g, sizeAuto: true } : { ...g, sizeAuto: false, size: gridAuto.size, divisions: gridAuto.divisions }))} />{tr("Size from the data ({cell} m cells)", { cell: (gridAuto.size / gridAuto.divisions).toLocaleString() })}</label>}
-              {/* TASKS.csv #311 — the world-origin axis lines, grouped here because they are the same
-                  kind of reference-furniture decision as the grid. Off by default now (they sit at the
-                  arbitrary project origin and are the most debug-view-looking thing in a screenshot);
-                  switching them on still gives colours that agree with the corner gizmo, per #189. */}
+              {/* TASKS.csv #311 — the origin axis lines: off by default (debug-looking in a screenshot); colours as the gizmo's (#189) */}
               <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginTop: 8, cursor: "pointer" }} title={tr("Draw the red/green/blue X/Y/Z axis lines at the project origin. Off by default — the corner gizmo already shows orientation, and these sit at an arbitrary point relative to your data.")}>
                 <input type="checkbox" checked={!!gridConfig.axes} onChange={(e) => setGridConfig((g) => ({ ...g, axes: e.target.checked }))} />{" "}{tr("Origin axis lines")}</label>
             </div>
@@ -184,7 +183,7 @@ export function ViewToolbar({
             </div>
           )}
         </div>
-        <RibbonButton advanced icon={SquareSplitVertical} label="3D slice" tone="section" title="Cut the view with a moving vertical or horizontal slab" {...paneProps("slice3d")} />
+        <RibbonButton advanced={!noHoles} icon={SquareSplitVertical} label="3D slice" tone="section" title="Cut the view with a moving vertical or horizontal slab" {...paneProps("slice3d")} />
       </RibbonGroup>
       <RibbonGroup label="Sections">
         <div className="ge-ribbon-cell">
@@ -199,7 +198,7 @@ export function ViewToolbar({
         )}
         <RibbonButton advanced icon={Crosshair} label="By coordinates" tone="section" title="Open a section from a centre, azimuth and length — or through a hole (scissors in the Holes list)" {...paneProps("sectionCoords")} />
         <RibbonButton advanced icon={Rows3} label="Fence series" tone="section" title="Parallel sections at a set azimuth and spacing, on round grid lines" {...paneProps("fence")} />
-        <RibbonButton advanced icon={Layers3} label="Level plan" tone="section" title="Horizontal section (level plan) at an RL: pierce points, logs and assays in a slab, block-model cells and surfaces cut at that elevation" onClick={onLevelPlan} />
+        <RibbonButton advanced={!noHoles} icon={Layers3} label="Level plan" tone="section" title="Horizontal section (level plan) at an RL: pierce points, logs and assays in a slab, block-model cells and surfaces cut at that elevation" onClick={onLevelPlan} />
       </RibbonGroup>
       <RibbonGroup label="Measure & check">
         <div className="ge-ribbon-cell">
@@ -218,17 +217,17 @@ export function ViewToolbar({
             <button className={`ge-ribbon-btn ${interpretOpen ? "active" : ""}`} aria-pressed={!!interpretOpen} onClick={onInterpret}><PenTool size={22} strokeWidth={1.7} color={RIBBON_TONES.analyse} aria-hidden="true" /><span className="ge-ribbon-label">{tr("Interpret")}</span></button>
           </HoverToolInfo>
         </div>
-        <div className="ge-ribbon-cell">
+        <div className={`ge-ribbon-cell${noHoles ? " ge-adv" : ""}`}>
           <HoverToolInfo title={tr("Run data QC")} text={qcDisabled ? tr("Load some drillhole data (collars, intervals or assays) first. Scans the currently loaded collars, survey, and interval data for common drilling-data mistakes — duplicate hole IDs, out-of-order or overlapping depths, survey stations beyond a hole's stated length, and similar — and lists everything it finds so you can fix it before modelling.") : tr("Scans the currently loaded collars, survey, and interval data for common drilling-data mistakes — duplicate hole IDs, out-of-order or overlapping depths, survey stations beyond a hole's stated length, and similar — and lists everything it finds so you can fix it before modelling.")}>
             <button className={`ge-ribbon-btn${qcDisabled ? " is-disabled" : ""}`} onClick={qcDisabled ? undefined : onQc} aria-disabled={qcDisabled || undefined}><ShieldAlert size={22} strokeWidth={1.7} color={RIBBON_TONES.analyse} aria-hidden="true" /><span className="ge-ribbon-label">{tr("Data QC")}</span></button>
           </HoverToolInfo>
         </div>
-        <div className="ge-ribbon-cell">
+        <div className={`ge-ribbon-cell${noHoles ? " ge-adv" : ""}`}>
           <HoverToolInfo title={tr("Boundary intercepts")} text={boundaryDisabled ? `${boundaryWhy || tr("Load some lithology/alteration interval data first.")} ` + tr("Lists every geological unit boundary (top of each litho/alteration interval) resolved to a real 3D position along each hole — the same control points the implicit-modelling tools use — so you can review, exclude, or mark individual points \"soft\" before running a surface.") : tr("Lists every geological unit boundary (top of each litho/alteration interval) resolved to a real 3D position along each hole — the same control points the implicit-modelling tools use — so you can review, exclude, or mark individual points \"soft\" before running a surface.")}>
             <button className={`ge-ribbon-btn${boundaryDisabled ? " is-disabled" : ""}`} onClick={boundaryDisabled ? undefined : onBoundaryIntercepts} aria-disabled={boundaryDisabled || undefined}><Milestone size={22} strokeWidth={1.7} color={RIBBON_TONES.analyse} aria-hidden="true" /><span className="ge-ribbon-label">{tr("Contact picks")}</span></button>{/* #1702 — was "Intercepts" */}
           </HoverToolInfo>
         </div>
-        <RibbonButton icon={FileBarChart2} label="Grade intercepts" tone="analyse" disabled={!gAssays.length} disabledReason="Load assays first (Geochem tab)" title="Best intercepts: length-weighted runs of the assays above a cut-off, as reported (e.g. 24 m @ 0.44 % Cu)" onClick={() => setGradeIntOpen(true)} />{/* #1702 */}
+        <RibbonButton advanced={noHoles} icon={FileBarChart2} label="Grade intercepts" tone="analyse" disabled={!gAssays.length} disabledReason="Load assays first (Geochem tab)" title="Best intercepts: length-weighted runs of the assays above a cut-off, as reported (e.g. 24 m @ 0.44 % Cu)" onClick={() => setGradeIntOpen(true)} />{/* #1702 */}
         {gradeIntOpen && <BestIntercepts assays={gAssays} assayElements={gEls} collars={spacingCollars} survey={gSurvey} layers={gLayers} onClose={() => setGradeIntOpen(false)} />}
       </RibbonGroup>
       <RibbonGroup advanced label="Database">
