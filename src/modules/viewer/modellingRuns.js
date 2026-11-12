@@ -1927,6 +1927,10 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
         // TASKS.csv #1740 — the share of the envelope farther than 50 m (or a cell) from every sample point: search, not logs
         const { farFromSamples } = await import("../../lib/haloSupport.js");
         const farLogs = farFromSamples(altCap.values, grid.nx, grid.ny, grid.nz, grid.origin, grid.cellSize, iso, pts, Math.max(50, cell), { toReal: anisotropy.enabled ? (q) => anisoWarpPoint(q, center, basis, altUnwarp) : null });
+        // TASKS.csv #2757 (from #2384) — the share more than ONE HOLE SPACING from every logged interval: beyond the drilling. #1740's
+        // distance is the larger of 50 m and the cell, and a coarse plan cell (180.7 m on WA uranium's LIG, holes 76 m apart) hid that
+        // 7.6 of the body's 14.1 Mm³ lay beyond the drilling
+        const beyondSp = auto.spacing > 0 ? farFromSamples(altCap.values, grid.nx, grid.ny, grid.nz, grid.origin, grid.cellSize, iso, pts, auto.spacing, { toReal: anisotropy.enabled ? (q) => anisoWarpPoint(q, center, basis, altUnwarp) : null }) : null;
         // Same honesty rule as the grade shell (#257): if part of the boundary is the search-radius
         // wall rather than a real 0/1 alteration boundary, the enclosed volume is a parameter choice.
         const closure = mc.closingVertices > 0 ? "artificial" : "natural";
@@ -1943,6 +1947,7 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
           interceptSet: activeInterceptSetRef.current ? { name: activeInterceptSetRef.current.name, intercepts: (activeInterceptSetRef.current.ids || []).length } : null, // TASKS.csv #52 (c)
           samplePoints: pts.length, alteredSamplePoints: insideCount, cellsEstimated: grid.estimated,
           farFromLogs: { share: +farLogs.share.toFixed(3), beyondM: farLogs.dist }, // #1740
+          ...(beyondSp ? { beyondDrilling: { share: +beyondSp.share.toFixed(3), holeSpacingM: Math.round(auto.spacing) } } : {}), // #2757
           ...(contain ? { samplesInside: { inside: contain.inside, of: contain.above }, volumeWithheld: withheld } : {}), // #1683
           ...(isCode && autoB.fromRuns ? { loggedRuns: { n: autoB.runs, medianM: +autoB.medianRunM.toFixed(2), maxM: +autoB.maxRunM.toFixed(2) } } : {}),
           ...(radiusRaisedFrom != null ? { searchRaisedFromM: Math.round(radiusRaisedFrom * 10) / 10 } : {}),
@@ -1956,7 +1961,10 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
         setNotices((p) => [...p, notice(isCode ? "Added \"{label}\": {insideCount} of {pts} sample point(s) inside the code{v} → {nx}×{ny}×{nz} grid ({cell} m cells{v2}, {v3} m search{v4}) → {vertices} vertices / {faces} faces{v5}. Closed indicator envelope, not a draped contact." : "Added \"{label}\": {insideCount} altered of {pts} indicator sample point(s){v} → {nx}×{ny}×{nz} grid ({cell} m cells{v2}, {v3} m search{v4}) → {vertices} vertices / {faces} faces{v5}. Closed indicator envelope, not a draped contact.", { label, insideCount, pts: pts.length, v: dropped ? tr(", {dropped} unplaceable", { dropped }) : "", nx: grid.nx, ny: grid.ny, nz: grid.nz, cell: cellZ !== cell ? cellText : cell.toFixed(1) /* #2384 */, v2: coarsened ? tr(", coarsened to stay under the grid limit") : "", v3: Math.round(radius), v4: anisotropy.enabled ? tr(", anisotropy applied") : "", vertices: mc.vertices.length.toLocaleString(), faces: mc.faces.length.toLocaleString(), v5: vol.watertight ? tr(", closed (about {volumeM3} m³)", { volumeM3: roundVolume(vol.volumeM3).toLocaleString() }) : tr(", open") })]); // about: #2530, two significant figures
         // TASKS.csv #2530 — a check on the order of the volume, by hand: the code's logged length times the area each hole stands for
         { const hc = vol.watertight && loggedBody ? loggedVolumeCheck(codeRuns, auto.spacing) : null; if (hc) setNotices((p) => [...p, notice("A hand check on \"{label}\": {m} m of it logged in {n} hole(s), times the {s} m hole spacing squared, is about {v} m³ (logged lengths, not true thicknesses). The envelope's {e} m³ follows its {cell} m cells and {r} m search.", { label, m: Math.round(hc.metres).toLocaleString(), n: hc.holes, s: Math.round(hc.spacingM), v: roundVolume(hc.m3).toLocaleString(), e: roundVolume(vol.volumeM3).toLocaleString(), cell: cellZ !== cell ? cellText : cell.toFixed(1) /* #2384 */, r: Math.round(radius) })]); }
-        if (farLogs.inside) { // #1740 — half or more of it far from the logs: a warning, not a grey note
+        const sayBeyond = !!(beyondSp && beyondSp.inside && beyondSp.share >= 0.05); // #2757
+        if (sayBeyond) setNotices((p) => [...p, (beyondSp.share >= 0.5 ? errorNotice : notice)(tr("\"{label}\": {p}% of its volume lies more than one hole spacing ({s} m) from any logged interval: beyond the drilling, where its shape comes from the {r} m search and the cells, not from logged rock.", { label, p: Math.round(beyondSp.share * 100), s: Math.round(auto.spacing), r: Math.round(radius) }))]);
+        // #1740's line too when its distance is shorter than the spacing (it then also counts the gaps between holes)
+        if (farLogs.inside && (!sayBeyond || farLogs.dist < 0.9 * auto.spacing)) { // #1740 — half or more of it far from the logs: a warning, not a grey note
           const farText = tr("\"{label}\": {p}% of its volume lies farther than {d} m from any logged interval: that part is the {r} m search reaching between holes, not logged rock.", { label, p: Math.round(farLogs.share * 100), d: Math.round(farLogs.dist), r: Math.round(radius) });
           setNotices((p) => [...p, farLogs.share >= 0.5 ? errorNotice(farText) : notice(farText)]);
         }
@@ -2289,6 +2297,7 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
           ? { x: points.reduce((s, p) => s + p.x, 0) / points.length, y: points.reduce((s, p) => s + p.y, 0) / points.length, z: points.reduce((s, p) => s + p.z, 0) / points.length }
           : null;
         const gridPoints = anisotropy.enabled ? points.map((p) => anisoWarpPoint(p, gsCenter, gsBasis, gsScl)) : points;
+        const holesOfPoints = new Set(points.map((p) => p.hole_id)); // #2757 — the hole spacing of the holes that carry the samples
         const logInfo = numSrc?.logScale ? logPoints(gridPoints) : null; // #1741 — susceptibility is interpolated as log10 values (a geometric mean)
         const estPoints = logInfo ? logInfo.points : gridPoints;
 
@@ -2391,6 +2400,9 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
         // Min holes 2 on holes 100-1,350 m apart, the blocks round the only Cu intercept had one hole and were not estimated, so
         // the "Cu > 1000 ppm" shell closed where two holes converge, 90-110 m away, and held no composite at all.
         const inShell = samplesInsideShell(gridPoints, grid, gsCap.values, numericCutoff);
+        // TASKS.csv #2757 — the shell's share more than one hole spacing from every sample (real frame), as the unit body says it
+        const gsSpacing = autoHaloParams(collars.filter((c) => holesOfPoints.has(c.hole_id)), tracesRef.current || null).spacing;
+        const gsBeyond = gsSpacing > 0 ? (await import("../../lib/haloSupport.js")).farFromSamples(gsCap.values, grid.nx, grid.ny, grid.nz, grid.origin, grid.cellSize, numericCutoff, points, gsSpacing, { toReal: anisotropy.enabled ? (q) => anisoWarpPoint(q, gsCenter, gsBasis, invScales(gsScl)) : null }) : null;
 
         const o = originRef.current;
         const pos = new Float32Array(mc.vertices.length * 3);
@@ -2468,6 +2480,7 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
           samplePoints: points.length, cellsEstimated: grid.estimated, ...(gsVariogram ? { variogram: gsVariogram } : {}), // #709; #935 — range in m along the trend
           singleHoleCells: grid.singleHoleCells, meanGradeInShell,
           compositesInShell: inShell, // #1735 — { above, inside, outside, noData }: the at/above-cutoff composites against the shell
+          ...(gsBeyond ? { beyondDrilling: { share: +gsBeyond.share.toFixed(3), holeSpacingM: Math.round(gsSpacing) } } : {}), // #2757
           // TASKS.csv #91/#92 — grid-wide classification, and the same classification restricted to the
           // shell's own surface. The second is the one that matters for a reported volume: it says what
           // fraction of the BOUNDARY is bracketed by data rather than carried out beyond it.
@@ -2481,6 +2494,7 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
         setImplicitSurfaces((p) => [...p, { id, name: label, visible: true, vertexCount: mc.vertices.length, faceCount: mc.faces.length, type: "mineralization_envelope", relationships: [], closure, params, surfaceSupportCounts: surfCounts, supportColored: false }]); // surfaceSupportCounts/supportColored: TASKS.csv #91
         setNotices((p) => [...p, notice("Added \"{label}\": {points} ({intervals}{v4}, {dropped} dropped{v5}, {above} at/above cutoff{v6}) → {nx}×{ny}×{nz} grid ({estimated} cells estimated, {skipped} outside the search radius{v7}{v8}) → {vertices} vertices / {faces} faces{v9}. Exploration target volume only — not a Mineral Resource.", { label, points: tr(points.length === 1 ? "{n} sample point" : "{n} sample points", { n: points.length }) /* #1116 */,
           intervals: numericUseComposites ? tr(intervals.length === 1 ? "{n} {len} m composite" : "{n} {len} m composites", { n: intervals.length, len: numericCompositeLength }) : tr(intervals.length === 1 ? "{n} raw interval" : "{n} raw intervals", { n: intervals.length }), v4: rawStats && (rawStats.duplicatesSkipped || rawStats.overlappingRows) ? tr(" after {duplicatesSkipped} exact duplicate(s) left out and {overlappingRows} overlapping row(s) resolved", { duplicatesSkipped: rawStats.duplicatesSkipped, overlappingRows: rawStats.overlappingRows }) : "", dropped, v5: beyondTrace ? tr(" ({beyondTrace} deeper than the hole's trace)", { beyondTrace }) : "", above, v6: clamped ? tr(clamped === 1 ? ", {clamped} negative grade clamped to zero" : ", {clamped} negative grades clamped to zero", { clamped }) : "", nx: grid.nx, ny: grid.ny, nz: grid.nz, estimated: grid.estimated.toLocaleString(), skipped: grid.skipped.toLocaleString(), v7: grid.singleHoleCells ? tr(", {singleHoleCells} informed by only ONE hole", { singleHoleCells: grid.singleHoleCells.toLocaleString() }) : "", v8: gsVariogram ? tr("; kriged with a {model} variogram {v}: nugget {v2}, sill {v3}, range {v4} m", { model: gsVariogram.model, v: gsVariogram.fitted ? tr("fitted to the samples") : tr("as entered"), v2: +gsVariogram.nugget.toPrecision(3), v3: +gsVariogram.sill.toPrecision(3), v4: Math.round(gsVariogram.range) }) + (anisotropy.enabled ? tr(" (along the trend \"{name}\")", { name: anisotropy.trend?.name || "" }) : "") : "" /* #935 */, vertices: mc.vertices.length.toLocaleString(), faces: mc.faces.length.toLocaleString(), v9: vol.watertight ? tr(", closed ({volumeM3} m³)", { volumeM3: vol.volumeM3.toLocaleString(undefined, { maximumFractionDigits: 0 }) }) : tr(", open ({openEdgeCount} open edges — shell reaches the edge of the estimated region)", { openEdgeCount: vol.openEdgeCount }) })]);
+        if (gsBeyond && gsBeyond.inside && gsBeyond.share >= 0.05) setNotices((p) => [...p, (gsBeyond.share >= 0.5 ? errorNotice : notice)(tr("\"{label}\": {p}% of its volume lies more than one hole spacing ({s} m) from any sample: beyond the drilling, where its shape comes from the search and the cells, not from assayed rock.", { label, p: Math.round(gsBeyond.share * 100), s: Math.round(gsSpacing) }))]); // #2757
         // #2059 — which holes it was modelled from, when not all of them
         if (inArea && area.checked < area.all) setNotices((p) => [...p, notice("\"{label}\" was modelled from the {n} hole(s) checked in the Holes list (Model settings › Model area); the other {m} were left out.", { label, n: area.checked, m: area.all - area.checked })]);
         // TASKS.csv #1735 — said after the result, in numbers: a shell that holds none of its own composites is not where the grade is
