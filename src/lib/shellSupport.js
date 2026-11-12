@@ -27,7 +27,11 @@ export function samplesInsideShell(points, grid, values, cutoff) {
 // cell of each: a block model whose rule removed every block round the discovery intercept has nothing near its top
 // composites. composites: [{ x, y, z, value, hole_id? }]; cells: [{ x, y, z }] (centres); cellSize: m (the diagonal is the reach).
 // -> { checked, unsupported: [{ value, hole_id, nearestM }] (sorted by value, highest first), reachM }
-const NEAREST_FOR = 3; // TASKS.csv #2547 — the message lists the first three
+const NEAREST_FOR = 3;
+const NO_CELLS = [];
+// the 27 bins round a composite's own, its own first (#3008)
+const BIN_ORDER = [[0, 0, 0]];
+for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) for (let k = -1; k <= 1; k++) if (i || j || k) BIN_ORDER.push([i, j, k]); // TASKS.csv #2547 — the message lists the first three
 // TASKS.csv #2456 (review #2325) — bounds: the estimate's grid box; only composites inside it (plus one cell) are checked, so 'Fit to the
 // checked holes' no longer warns about '269 of the 294 highest composites' hundreds of metres outside the grid. outsideGrid: how many
 // of the highest composites (ranked over all of them) lie outside, to say so. Without bounds the result is as before.
@@ -47,12 +51,18 @@ export function topCompositesWithoutBlocks(composites, cells, cellSize, { share 
     const l = buckets.get(kk); if (l) l.push(c); else buckets.set(kk, [c]);
   }
   const unsupported = [];
+  // TASKS.csv #3008 (WA iron review) — 7,350 top composites x ~1,700 flat 25 x 25 x 2 m cells in the 27 bins round each (Math.hypot) took
+  // 3.3 s on the main thread after a whole-field run: a block within reach is all a supported composite needs, so the search stops at the
+  // first one, its own bin first; distances by sqrt (Math.hypot is slow in V8)
+  const r2 = reachM * reachM;
   for (const c of top) {
-    let best = Infinity;
+    let best = Infinity, near = false;
     const bx = Math.floor(c.x / bin), by = Math.floor(c.y / bin), bz = Math.floor(c.z / bin);
-    for (let i = -1; i <= 1 && best > reachM; i++) for (let j = -1; j <= 1 && best > reachM; j++) for (let k = -1; k <= 1 && best > reachM; k++) {
-      for (const cell of buckets.get(key(bx + i, by + j, bz + k)) || []) { const d = Math.hypot(cell.x - c.x, cell.y - c.y, cell.z - c.z); if (d < best) best = d; }
+    for (const [i, j, k] of BIN_ORDER) {
+      for (const cell of buckets.get(key(bx + i, by + j, bz + k)) || NO_CELLS) { const d2 = (cell.x - c.x) ** 2 + (cell.y - c.y) ** 2 + (cell.z - c.z) ** 2; if (d2 <= r2) { near = true; break; } if (d2 < best) best = d2; }
+      if (near) break;
     }
+    best = near ? 0 : Math.sqrt(best);
     if (!(best <= reachM)) {
       // the true nearest, for the message, which names the first three (they come highest first): a full scan for those only. The scan per
       // failure was 1,070 x 90,000 distances on the review's project (#2547); the others keep nearestM null
