@@ -2,7 +2,7 @@ import { canvasPngDataUrl } from "../lib/canvasEncode.js";
 import { corridorScatter } from "../lib/sectionScatter.js"; // TASKS.csv #1807
 import { exportDrillholeTablesWith } from "./viewer/drillholeExport.js"; // TASKS.csv #1034, moved at the #1084 cap
 import { interceptsDisabledText, noCollarsNotice } from "../lib/noCollars.js"; // TASKS.csv #1810, #1841
-import { levelPlanZRange } from "../lib/viewer/levelPlanRange.js"; // TASKS.csv #1782
+import { levelPlanZRange, mainTraces } from "../lib/viewer/levelPlanRange.js"; // TASKS.csv #1782; mainTraces: #2936
 import { sampleUserData, mappedOfSample } from "../lib/viewer/sampleTip.js"; // TASKS.csv #1821; #1500
 import HoleFilterBar from "./viewer/HoleFilterBar.jsx";
 import { holesForFilter } from "../lib/holeFilter.js"; // #1504; #1703
@@ -1642,11 +1642,9 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
     return groups;
   }, [rasters, sampleLegendGroup, mapLayers, boundaries, layerStyles, figureOverlay.enabled, layerVisible, layers, categoryFilter, visibleHoles, effectiveLabel, effectiveColor, assayVisible, assayDisplayElements, assayStyle, assays, assayElements, voxelModels, geophysSurveys, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, numericLayerColor, isRowVisible, collars, customLayers, customVisible, holeScheme, holeColourBy]); // the last two: #1398; collars: #1813; holeScheme: #1504
 
-  // TASKS.csv #453 — build the clipping planes from the slice settings over the drilled extent (hole
-  // traces; the terrain bbox when there is no drilling). Vertical: across the azimuth line, position along
-  // its perpendicular; horizontal: an elevation. Thickness 0 = one half-space, else a slab (two planes).
+  // TASKS.csv #453 — the 3D slice's planes over the drilled extent: vertical (azimuth, position) or horizontal (an elevation); thickness 0 = a half-space
   const sliceExtent = useMemo(() => {
-    const ts = tracesRef.current || [];
+    const ts = mainTraces(tracesRef.current, (t) => t.pts?.[0]?.y); // #2936 — not a stray collar's (two at z = 0 among 6,388)
     const pts = ts.flatMap((t) => t.pts || []);
     if (pts.length) {
       let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity, z0 = Infinity, z1 = -Infinity;
