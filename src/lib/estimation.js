@@ -159,7 +159,7 @@ export function estimateBlockModel(samplePoints, opts) {
   // search and adds per-cell work, so it must never be paid for by a caller that didn't ask. `bracketTol`
   // is half a cell, so bracketing has to be real at the scale the block model is drawn at.
   const tw = tw0 || withTrend(samplePoints, opts); // #650
-  const est0 = makeCellEstimator(tw.pts, { ...estOpts, support: !!opts.support, bracketTol: Math.min(dx, dy, dz) / 2, zRange: true, usedPoints: !!opts.unsampledPoints?.length }); // zRange: #2417; usedPoints: #2596
+  const est0 = makeCellEstimator(tw.pts, { ...estOpts, support: !!opts.support, bracketTol: Math.min(dx, dy, dz) / 2, zRange: true, usedPoints: !!opts.unsampledPoints?.length || !!opts.logShare }); // zRange: #2417; usedPoints: #2596, #2721
   const est = tw.q ? (x, y, z) => est0(...tw.q(x, y, z)) : est0;
   const wantSupport = !!opts.support;
   // TASKS.csv #2417 / #2542 — a block whose whole height lies above (1) or below (2) every sample informing it: the estimate carried
@@ -178,6 +178,15 @@ export function estimateBlockModel(samplePoints, opts) {
     return unsIdx.anyWithin(cx, cy, cz, dS) ? 1 : 0;
   };
   let nearUnsampledBlocks = 0;
+  // TASKS.csv #2721 — opts.logShare: the points carry logFrac (the share of their metres filled from a picked log); a block's share of its
+  // value from the log is about the inverse-distance-weighted share of its informing samples' value (the method's power, 2 for kriging / MLS)
+  const logPow = methodPower(method) ?? 2;
+  const logShareOf = (r) => {
+    if (!opts.logShare || !r.used?.length) return 0;
+    let num = 0, den = 0;
+    for (const u of r.used) { const p = u.p, w = (p.length || 1) / Math.max(1e-6, Math.sqrt(u.d2)) ** logPow, v = Math.max(0, p.value) * w; den += v; num += v * (p.logFrac || 0); }
+    return den > 0 ? num / den : 0;
+  };
   // TASKS.csv #710 — under a trend the search distance is in the trend's scaled frame (30 m across the minor axis of
   // a 3:2:1 trend reads 90); the support index rightly uses it (how far inside the search ellipsoid), but the value
   // saved as nearestSampleM must be metres, from the sample's real position to the block centre.
@@ -194,6 +203,7 @@ export function estimateBlockModel(samplePoints, opts) {
     ...(method === "ok" ? { kv: new Float64Array(cap) } : {}), // #709 — kriging variance
     beyond: new Uint8Array(cap), // #2417
     ...(opts.unsampledPoints?.length ? { nearUnsampled: new Uint8Array(cap) } : {}), // #2596
+    ...(opts.logShare ? { fromLog: new Float32Array(cap) } : {}), // #2721
   } : null;
   let blocksSkipped = 0;
   let noCodeBlocks = 0; // TASKS.csv #2541 — left out because the nearest composite has no domain code
@@ -225,9 +235,11 @@ export function estimateBlockModel(samplePoints, opts) {
         if (by === 1) beyondCounts.above++; else if (by === 2) beyondCounts.below++;
         const nu = nearUnsampledOf(r, cx, cy, cz); // #2596
         if (nu) nearUnsampledBlocks++;
+        const fl = logShareOf(r); // #2721
         if (asColumns) {
           col.beyond[n] = by;
           if (col.nearUnsampled) col.nearUnsampled[n] = nu; // #2596
+          if (col.fromLog) col.fromLog[n] = fl; // #2721
           col.x[n] = cx; col.y[n] = cy; col.z[n] = cz; col.value[n] = r.value; col.nSamples[n] = r.nSamples; col.nHoles[n] = r.nHoles;
           col.holeShare[n] = r.nHoles === 1 ? 1 : r.domShare ?? NaN; // #1617 — the dominant hole's share, for the pit's single-hole count
           if (col.kv) col.kv[n] = r.kv ?? NaN;
@@ -240,6 +252,7 @@ export function estimateBlockModel(samplePoints, opts) {
         if (r.kv != null) cell.kv = r.kv; // #709
         if (by) cell.beyond = by === 1 ? "above" : "below"; // #2417
         if (nu) cell.nearUnsampled = true; // #2596
+        if (fl > 0) cell.fromLog = fl; // #2721
         if (r.support) {
           cell.support = r.support.cls;
           cell.supportIndex = r.support.index;

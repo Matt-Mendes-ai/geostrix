@@ -57,6 +57,7 @@ export default function GradeTonnageModal({ model, epsg, onClose }) {
   const cutoffs = useMemo(() => [...new Set(cutoffText.split(/[,;\s]+/).map(Number).filter(Number.isFinite))], [cutoffText]);
   const rho = Number(density) > 0 ? Number(density) : null;
   const beyondKnown = !!model.params?.beyondFlagged; // #2417 — blocks above / below every sample informing them
+  const logKnown = Number(model.params?.unsampledLogFilledM) > 0; // #2721 — unsampled metres filled from a picked log
   // TASKS.csv #2550 (review #2486) — a density per code of a logged layer (Weathering: fresh rock about 2.7, clay-weathered 1.8-2.0), each block
   // taking the nearest logged interval within reach; the Density above is the default (no code within reach, or no density typed)
   const codeLayers = useMemo(() => ["weath", "litho", "alt"].filter((k) => (layers?.[k] || []).some((r) => r.value != null && String(r.value).trim() !== "")), [layers]);
@@ -88,7 +89,7 @@ export default function GradeTonnageModal({ model, epsg, onClose }) {
     for (const c of cellsUsed) { const code = codeOf(c), k = code != null && Number(codeDensity[code]) > 0 ? code : null; m.set(k, (m.get(k) || 0) + 1); }
     return [...m.entries()].sort((x, y) => y[1] - x[1]).map(([code, n]) => ({ code, n, rho: code == null ? rho : Number(codeDensity[code]) }));
   }, [codeOf, cellsUsed, codeDensity, rho]);
-  const rows = useMemo(() => gradeTonnageTable(cellsUsed, { cutoffs, density: rho, unit, interpolatedOnly: interpOnly, beyondKnown, densityOf: byCode?.of || null }), [cellsUsed, cutoffs, rho, unit, interpOnly, beyondKnown, byCode]);
+  const rows = useMemo(() => gradeTonnageTable(cellsUsed, { cutoffs, density: rho, unit, interpolatedOnly: interpOnly, beyondKnown, logKnown, densityOf: byCode?.of || null }), [cellsUsed, cutoffs, rho, unit, interpOnly, beyondKnown, logKnown, byCode]);
   const benchCut = cutoffs.includes(Number(benchCutoff)) ? Number(benchCutoff) : cutoffs[0];
   const benchRows = useMemo(() => (byBench && Number(benchH) > 0 && benchCut != null ? gradeTonnageByBench(cellsUsed, { cutoff: benchCut, benchH: Number(benchH), datum: Number(benchDatum) || 0, density: rho, unit, interpolatedOnly: interpOnly }) : []), [byBench, benchH, benchDatum, benchCut, cellsUsed, rho, unit, interpOnly]); // #1957
   const shown = rows.find((r) => r.blocks > 0) || null, lowSupport = shown?.interpolatedShare != null && shown.interpolatedShare < 0.5;
@@ -110,6 +111,7 @@ export default function GradeTonnageModal({ model, epsg, onClose }) {
       `Density: ${rho ? (fromSg ? `${rho} t/m3, length-weighted mean of ${sgLayer.n} Specific gravity rows, ${sgLayer.min}-${sgLayer.max}${sgLayer.left ? `, ${sgLayer.left} outside 1-8 left out` : ""} (one value for every block)` : `${rho} t/m3, entered by the user (one value for every block)`) : "not entered: volumes only"}${merged ? " | merged blocks counted at their COVERAGE share" : ""}`,
       "Mean grade: volume-weighted over the blocks at or above the cutoff",
       ...(hasSupport ? [interpOnly ? "Blocks: only those the estimate classed interpolated" : "Blocks: every estimated block; interpolated_pct / one_hole_pct give the volume share by support"] : []), // #1409
+      ...(logKnown ? [`from_log_metal_pct: about the share of the metal from the readings of the log "${model.params.unsampledLog}" x ${model.params.unsampledLogFactor} that filled the unsampled metres (picked by the user)`] : []), // #2721
       ...(beyondKnown ? [`beyond_samples_metal_pct: share of the metal in blocks wholly above or below every sample informing them | unsampled metres: ${model.params?.unsampledMetres || "not known (left out)"}`] : []), // #2417
       EXPLORATION_TARGET_CAUTION,
     ] });
@@ -178,6 +180,7 @@ export default function GradeTonnageModal({ model, epsg, onClose }) {
             {rho && <th style={th}>{tr("Tonnes")}</th>}{rho && mcols.map((c) => <th key={c.key} style={th}>{tr(c.label, c.args)}</th>)}
             {hasSupport && <th style={th} title={tr("Share of the volume in blocks the estimate classed interpolated (between holes, from at least two)")}>{tr("Interpolated")}</th>}
             {beyondKnown && <th style={th} title={tr("Share of the metal in blocks lying wholly above or below every sample that informs them: grade carried up or down the holes into metres their samples do not reach")}>{tr("Beyond the samples")}</th>}
+            {logKnown && <th style={th} title={tr("About the share of the metal from the readings of the log that filled the unsampled metres: neither a sample nor a typed barren value")}>{tr("From the log")}</th>}{/* #2721 */}
           </tr></thead>
           <tbody>{rows.map((r) => (
             <tr key={r.cutoff}>
@@ -185,6 +188,7 @@ export default function GradeTonnageModal({ model, epsg, onClose }) {
               {rho && <td style={td}>{fmt(r.tonnes)}</td>}{rho && mcols.map((c) => <td key={c.key} style={td}>{r.metal == null ? "—" : fmt(r.metal * c.factor, c.factor < 1e-2 && c.key !== "metal_oz" ? 1 : 0)}</td>)}
               {hasSupport && <td style={td}>{r.interpolatedShare == null ? "—" : `${Math.round(r.interpolatedShare * 100)} %`}</td>}
               {beyondKnown && <td style={td}>{r.beyondShare == null ? "—" : `${Math.round(r.beyondShare * 100)} %`}</td>}
+              {logKnown && <td style={td}>{r.logShare == null ? "—" : `${Math.round(r.logShare * 100)} %`}</td>}{/* #2721 */}
             </tr>))}</tbody>
         </table>
         {densityUse && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 6, lineHeight: 1.5 }}>{/* #2550 */}{tr("Density by {layer}, the nearest logged interval within {r} m: {list}.", { layer: densityLayer === "weath" ? tr("Weathering") : densityLayer === "litho" ? tr("Lithology") : tr("Alteration"), r: Math.round(reachM), list: densityUse.map((d) => tr("{code} {rho} t/m³ ({n} blocks)", { code: d.code ?? tr("the default"), rho: d.rho ?? "—", n: d.n })).join("; ") })}{byBench ? " " + tr("The bench table uses the one density above.") : ""}{!rho ? " " + tr("Enter the default density to show the tonnes.") : ""}</div>}
