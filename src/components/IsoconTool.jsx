@@ -60,14 +60,19 @@ export default function IsoconTool({ assays: assaysIn, assayElements, onClose })
   // TASKS.csv #1521 — a group built by a filter instead of one tick at a time (83,670 rows on Lawyers): a log code at the interval's
   // midpoint (lithology, alteration, a custom layer), an element or index range, holes and a depth range; the matches are added to a group
   const { layers = {}, customLayers = [] } = useStore();
-  const [flt, setFlt] = useState({ layer: "", code: "", sym: "", min: "", max: "", holes: "", from: "", to: "" });
+  const [flt, setFlt] = useState({ layer: "", code: "", layer2: "", code2: "", sym: "", min: "", max: "", holes: "", from: "", to: "" }); // layer2 / code2: #2514
   const domainChoices = useMemo(() => domainLayerChoices(layers, customLayers, (k) => tr(LAYER_META[k]?.label || k)), [layers, customLayers]);
   const domainRows = useMemo(() => domainChoices.find((c) => c.key === flt.layer)?.rows || null, [domainChoices, flt.layer]);
   const codes = useMemo(() => (domainRows ? [...new Set(domainRows.map((r) => String(r.value ?? "")).filter(Boolean))].sort() : []), [domainRows]);
+  // TASKS.csv #2514 (review #2486) — a second log condition, joined by AND: 'fresh pegmatite' (rock = P and weathering = FR) against
+  // 'weathered pegmatite' (rock = P and weathering = W) could not be built with one layer
+  const domainRows2 = useMemo(() => domainChoices.find((c) => c.key === flt.layer2)?.rows || null, [domainChoices, flt.layer2]);
+  const codes2 = useMemo(() => (domainRows2 ? [...new Set(domainRows2.map((r) => String(r.value ?? "")).filter(Boolean))].sort() : []), [domainRows2]);
   const matchIds = useMemo(() => {
-    const active = flt.code || flt.sym || flt.holes.trim() || flt.from !== "" || flt.to !== "";
+    const active = flt.code || flt.code2 || flt.sym || flt.holes.trim() || flt.from !== "" || flt.to !== "";
     if (!active) return [];
     const codeOf = flt.code && domainRows ? domainOfInterval(domainRows) : null;
+    const codeOf2 = flt.code2 && domainRows2 ? domainOfInterval(domainRows2) : null; // #2514
     const lo = flt.min === "" ? -Infinity : Number(flt.min), hi = flt.max === "" ? Infinity : Number(flt.max);
     const d0 = flt.from === "" ? -Infinity : Number(flt.from), d1 = flt.to === "" ? Infinity : Number(flt.to);
     const holeOk = flt.holes.trim() ? new Set(holesMatching([...new Set(rows.map((r) => r.a.hole_id))], flt.holes)) : null;
@@ -76,10 +81,11 @@ export default function IsoconTool({ assays: assaysIn, assayElements, onClose })
       const mid = (Number(a.from) + Number(a.to)) / 2;
       if (Number.isFinite(mid) ? mid < d0 || mid > d1 : d0 !== -Infinity || d1 !== Infinity) return false;
       if (codeOf && codeOf(a) !== flt.code) return false;
+      if (codeOf2 && codeOf2(a) !== flt.code2) return false; // #2514 — and the second log
       if (flt.sym) { const v = valueIn(a, flt.sym, elementUnits[flt.sym] || "ppm", elementUnits); if (v == null || !Number.isFinite(v) || v < lo || v > hi) return false; }
       return true;
     }).map((r) => r.id);
-  }, [rows, flt, domainRows, elementUnits]);
+  }, [rows, flt, domainRows, domainRows2, elementUnits]);
   const addMatches = (setSet) => setSet((prev) => new Set([...prev, ...matchIds]));
 
   // Average each element (in ppm, via valueIn) across a selected group of intervals. #2348 — by default over the samples that carry every
@@ -169,6 +175,11 @@ export default function IsoconTool({ assays: assaysIn, assayElements, onClose })
                 <option value="">{tr("— any layer —")}</option>{domainChoices.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
               </select>
               {flt.layer && <select value={flt.code} onChange={(e) => setFlt((f) => ({ ...f, code: e.target.value }))} style={sel} aria-label={tr("Code")}><option value="">{tr("— any code —")}</option>{codes.map((v) => <option key={v} value={v}>{v}</option>)}</select>}
+              {flt.code && <>{/* #2514 — and a second log */}<span style={{ color: "var(--color-text-muted)" }}>{tr("and")}</span>
+                <select value={flt.layer2} onChange={(e) => setFlt((f) => ({ ...f, layer2: e.target.value, code2: "" }))} style={sel} aria-label={tr("Second layer")} title={tr("A second log whose code must match too, e.g. the weathering of the same rock")}>
+                  <option value="">{tr("— any layer —")}</option>{domainChoices.filter((c) => c.key !== flt.layer).map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
+                </select>
+                {flt.layer2 && <select value={flt.code2} onChange={(e) => setFlt((f) => ({ ...f, code2: e.target.value }))} style={sel} aria-label={tr("Second code")}><option value="">{tr("— any code —")}</option>{codes2.map((v) => <option key={v} value={v}>{v}</option>)}</select>}</>}
               <select value={flt.sym} onChange={(e) => setFlt((f) => ({ ...f, sym: e.target.value }))} style={sel} aria-label={tr("Element")} title={tr("An element or index whose value must lie in the range")}>
                 <option value="">{tr("— any element —")}</option>{symbols.map((s) => <option key={s} value={s}>{s}</option>)}
               </select>

@@ -40,6 +40,7 @@ export default function LabCertificateModal({ review, assays, onChange, onCancel
             <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>
               {tr("{matched} matched to drill samples by sample id · {unmatched} not in the drillhole data (QC inserts?){v}", { matched: s.matched.toLocaleString(), unmatched: s.unmatched.toLocaleString(), v: s.labs ? ` · ${s.labs}` : "" })}
             </div>
+            {s.noCert?.count > 0 && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", marginTop: 2 }} title={s.noCert.examples.join(", ")}>{tr("{n} drill sample(s) have no certificate in these files, e.g. {list}: a certificate not given, or a sample id written differently.", { n: s.noCert.count.toLocaleString(), list: s.noCert.examples.slice(0, 3).join(", ") })}</div>}{/* #2024 */}
           </div>
           <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onCancel} />
         </div>

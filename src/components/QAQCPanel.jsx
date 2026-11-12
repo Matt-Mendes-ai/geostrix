@@ -85,7 +85,7 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
       rows = methods.flatMap((m) => m.pairs.map((p) => ({ element: symbol, unit, method_column: m.header, against: m.base || symbol, hole_id: p.hole_id, from: p.from, to: p.to, sample_id: p.sample_id ?? "", element_value: p.v1, method_value: p.v2, rpd_pct: +p.rpd.toFixed(2) })));
       name = `qaqc_method_pairs_${symbol}.csv`;
     } else if (tab === "pxrf") { // #1675
-      rows = pxrf.rows.map((r) => ({ element: r.symbol, unit: r.unit, pairs: r.n, pearson_r: r.r == null ? "" : +r.r.toFixed(3), spearman_rho: r.rho == null ? "" : +r.rho.toFixed(3), median_pxrf_over_lab: r.medianRatio == null ? "" : +r.medianRatio.toFixed(3), mean_pxrf: +r.meanPxrf.toPrecision(4), mean_lab: +r.meanLab.toPrecision(4) }));
+      rows = pxrf.rows.map((r) => ({ element: r.symbol, unit: r.unit, lab_intervals: r.n, pxrf_readings_averaged: r.readings, pxrf_readings_below_lod: r.belowLod /* #2355 */, pearson_r: r.r == null ? "" : +r.r.toFixed(3), spearman_rho: r.rho == null ? "" : +r.rho.toFixed(3), median_pxrf_over_lab: r.medianRatio == null ? "" : +r.medianRatio.toFixed(3), mean_pxrf: +r.meanPxrf.toPrecision(4), mean_lab: +r.meanLab.toPrecision(4) }));
       name = "qaqc_pxrf_vs_lab.csv";
     } else if (tab === "standards" && activeGroup) {
       rows = qaqcStandardRows(series.points, activeGroup.id, symbol); // #1083 — rows in lib, tested
@@ -158,11 +158,11 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
           {tab === "totals" && <OxideTotalsTab assays={assays} majors={majors} setAssays={setAssays || null} sel={sel} tabBtn={tabBtn} />}{/* #2506 */}
           {tab === "pxrf" && ( /* TASKS.csv #1675 */
             <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.5 }}>
-              <div style={{ marginBottom: 6 }}>{tr("{p} of {n} pXRF reading(s) sit inside a lab interval of the same hole and are paired with it. Rank r near 1: pXRF orders that element as the lab does (usable for mapping it); a median ratio away from 1: a bias to correct before the two are mixed. pXRF stays out of the grade tools either way.", { p: pxrf.pairs, n: pxrf.readings })}</div>
+              <div style={{ marginBottom: 6 }}>{tr("{p} of {n} pXRF reading(s) sit inside a lab interval of the same hole and are paired with it. Rank r near 1: pXRF orders that element as the lab does (usable for mapping it); a median ratio away from 1: a bias to correct before the two are mixed. pXRF stays out of the grade tools either way.", { p: pxrf.pairs, n: pxrf.readings })} {tr("Each lab interval counts once: the readings inside it are averaged first. Readings below the instrument's detection limit are counted apart, not compared.")}</div>{/* #2355 */}
               {pxrf.rows.length ? (
                 <table style={{ borderCollapse: "collapse", fontSize: "var(--font-size-sm)" }}>
-                  <thead><tr>{[tr("Element"), tr("Pairs"), tr("Spearman rank r"), tr("Pearson r"), tr("Median pXRF / lab"), tr("Mean pXRF"), tr("Mean lab")].map((h) => <th key={h} style={{ textAlign: "right", padding: "3px 8px", borderBottom: "1px solid var(--color-border)" }}>{h}</th>)}</tr></thead>
-                  <tbody>{pxrf.rows.map((r) => <tr key={r.symbol}>{[`${r.symbol} (${r.unit})`, r.n, r.rho == null ? "—" : r.rho.toFixed(2), r.r == null ? "—" : r.r.toFixed(2), r.medianRatio == null ? "—" : r.medianRatio.toFixed(2), +r.meanPxrf.toPrecision(3), +r.meanLab.toPrecision(3)].map((v, i) => <td key={i} style={{ textAlign: "right", padding: "2px 8px", color: i === 2 && r.rho != null && r.rho < 0.5 ? "var(--color-warn-text-strong)" : undefined }}>{v}</td>)}</tr>)}</tbody>
+                  <thead><tr>{[tr("Element"), tr("Lab intervals"), tr("Readings"), tr("Below LOD"), tr("Spearman rank r"), tr("Pearson r"), tr("Median pXRF / lab"), tr("Mean pXRF"), tr("Mean lab")].map((h) => <th key={h} style={{ textAlign: "right", padding: "3px 8px", borderBottom: "1px solid var(--color-border)" }}>{h}</th>)}</tr></thead>
+                  <tbody>{pxrf.rows.map((r) => <tr key={r.symbol}>{[`${r.symbol} (${r.unit})`, r.n, r.readings, r.belowLod, r.rho == null ? "—" : r.rho.toFixed(2), r.r == null ? "—" : r.r.toFixed(2), r.medianRatio == null ? "—" : r.medianRatio.toFixed(2), +r.meanPxrf.toPrecision(3), +r.meanLab.toPrecision(3)].map((v, i) => <td key={i} style={{ textAlign: "right", padding: "2px 8px", color: i === 4 /* the rank r, after the #2355 columns */ && r.rho != null && r.rho < 0.5 ? "var(--color-warn-text-strong)" : undefined }}>{v}</td>)}</tr>)}</tbody>
                 </table>
               ) : <div>{tr("No element has 10 or more pairs with a value on both sides.")}</div>}
             </div>

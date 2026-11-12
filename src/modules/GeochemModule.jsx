@@ -36,7 +36,7 @@ import { lithologyBySample, lithologyCounts, NOT_LOGGED } from "../lib/sampleLit
 import AssayImportModal from "../components/AssayImportModal.jsx";
 import { dbImportRecord, upsertDbImport } from "../lib/dbImports.js"; // TASKS.csv #1963
 import LabCertificateModal from "../components/LabCertificateModal.jsx"; // TASKS.csv #601
-import { isLabCertificateText, parseLabCertificate, combineCertificates, joinCertificatesToAssays, suggestQcTypes, qcRowPlacement, indexAssaysForPlacement } from "../lib/labCertificate.js"; // TASKS.csv #601
+import { isLabCertificateText, parseLabCertificate, combineCertificates, joinCertificatesToAssays, assaysWithoutCertificate /* #2024 */, suggestQcTypes, qcRowPlacement, indexAssaysForPlacement } from "../lib/labCertificate.js"; // TASKS.csv #601
 import AlterationBoxModal from "../components/AlterationBoxModal.jsx"; // TASKS.csv #503
 import { applyRowFilter, defaultRowFilter, overlapSummary, overlapWorthSaying } from "../lib/importRowFilter.js"; // TASKS.csv #2391
 import VolcanicCodesModal, { NOT_LOGGED_CODE } from "../components/VolcanicCodesModal.jsx"; // TASKS.csv #2352
@@ -453,6 +453,7 @@ export default function GeochemModule() {
     if (!parsed.length) return;
     const all = combineCertificates(parsed);
     const join = joinCertificatesToAssays(all.rows, assays);
+    const noCert = assaysWithoutCertificate(all.rows, assays, (a) => !isPxrfRow(a) && classifyQAQCRow(a) === "regular"); // #2024 — the drill side
     if (!join.matched.length) {
       setNotices((p) => [...p, errorNotice(tr("None of the {rows} certificate samples matches a loaded assay's sample id{v}. Certificates are joined to the drill samples by sample id.", { rows: all.rows.length.toLocaleString(), v: join.assaysWithoutId ? tr(" ({assaysWithoutId} assay rows carry no sample id — import the drill samples with their sample-number column)", { assaysWithoutId: join.assaysWithoutId.toLocaleString() }) : "" }))]);
       return;
@@ -480,7 +481,7 @@ export default function GeochemModule() {
       .map((s, i) => ({ ...s, certificate: join.unmatched[i].certificate }));
     setCertReview({
       all, elementCols, suggestions, fill: fillable > 0,
-      summary: { certificates: parsed.length, rows: all.rows.length, matched: join.matched.length, unmatched: join.unmatched.length, mismatchCount, mismatchExamples, fillable, fillElements: [...fillElements].slice(0, 12), labs: [...new Set(parsed.map((p) => p.meta.project).filter(Boolean))].join(", ") },
+      summary: { certificates: parsed.length, rows: all.rows.length, matched: join.matched.length, unmatched: join.unmatched.length, noCert /* #2024 */, mismatchCount, mismatchExamples, fillable, fillElements: [...fillElements].slice(0, 12), labs: [...new Set(parsed.map((p) => p.meta.project).filter(Boolean))].join(", ") },
       matched: join.matched,
     });
   };
