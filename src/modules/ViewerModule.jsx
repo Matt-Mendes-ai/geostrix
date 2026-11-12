@@ -18,7 +18,7 @@ import { lazyModal } from "../lib/lazyModal.jsx"; // TASKS.csv #301
 import * as THREE from "three";
 import { setVerticalExaggeration, veOf } from "./viewer/verticalExaggeration.js"; // TASKS.csv #2628
 import { piercePoints as surfacePierces, piercePointRows } from "../lib/piercePoints.js"; // TASKS.csv #1009
-import { Upload, Scissors, AlertTriangle, RotateCcw, RefreshCw, Eye, EyeOff, Trash2, Maximize2, Pencil, X, Layers3, ChevronUp, ChevronDown, ShieldAlert, GitFork, Map as MapIcon, Mountain, Image, FileBarChart2, Settings2, Box, Waypoints, Triangle, MapPin, ArrowUpRight, Shapes, Ruler, Beaker, Compass, Activity, GitCompare, Check } from "../components/icons.js"; // TASKS.csv #445 step 4 — memoised lucide icons // GitCompare/Check: TASKS.csv #93
+import { Info, Upload, Scissors, AlertTriangle, RotateCcw, RefreshCw, Eye, EyeOff, Trash2, Maximize2, Pencil, X, Layers3, ChevronUp, ChevronDown, ShieldAlert, GitFork, Map as MapIcon, Mountain, Image, FileBarChart2, Settings2, Box, Waypoints, Triangle, MapPin, ArrowUpRight, Shapes, Ruler, Beaker, Compass, Activity, GitCompare, Check } from "../components/icons.js"; // TASKS.csv #445 step 4 — memoised lucide icons // GitCompare/Check: TASKS.csv #93
 const AssayStyleModal = lazyModal(() => import("../components/AssayStyleModal.jsx")); // TASKS.csv #476
 import { seedBreaks } from "../lib/colorRamp.js"; // TASKS.csv #476
 const GradeEstimationModal = lazyModal(() => import("../components/GradeEstimationModal.jsx"));  // TASKS.csv #301
@@ -132,6 +132,7 @@ import { sliceReadoutText } from "../lib/sliceReadout.js";
 import { buildVectorFeatures as buildVectorFeaturesOf } from "../lib/viewer/vectorFeatures.js"; // TASKS.csv #1083
 import { isRepeatClick } from "../lib/interpretation.js"; // TASKS.csv #1152
 import { syncInterpretPreview } from "../lib/viewer/interpretDraw.js"; // TASKS.csv #1152
+import { localDate } from "../lib/localDate.js"; // TASKS.csv #2703
 import { snapInterpretClick } from "../lib/viewer/interpretSnap.js"; // TASKS.csv #2630
 import { outlinesKey, blockSourceKey } from "../lib/explicitLog.js"; // TASKS.csv #878
 import { extrapolationNotice } from "../lib/extrapolatedInputs.js"; // #1840
@@ -4356,7 +4357,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   const exportPlannedHoles = useCallback(async (format = "csv") => {
     if (!plannedHoles.length) { setNotices((p) => [...p, notice("No planned drillholes to export yet.")]); return; }
     const { rigRows, rigKML, rigGPX } = await import("../lib/rigExport.js"); // TASKS.csv #397; loaded on first export (#476)
-    const today = new Date().toISOString().slice(0, 10);
+    const today = localDate(); // #2703 — the local calendar day, not UTC's
     // TASKS.csv #1021 — lat / lon and true / magnetic azimuths need the real CRS; #2254 — a CSV on a project with no CRS is written in its own
     // grid (E / N / RL, grid azimuth, dip, length, target, toe), lat / lon and true / magnetic left blank; KML / GPX still ask
     const local = project?.crsSet === false && format === "csv";
@@ -7619,7 +7620,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             { label: tr("Style (colour, size, shape)…"), onClick: () => openCustomStyle(l) },
             "-", { label: tr("Remove…"), onClick: () => { if (confirmDestructive(tr("Remove the custom layer \"{name}\"?", { name: l.name }))) removeCustomLayer(l.id); } }])} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
             <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => toggleCustom(l.id)} style={{ cursor: "pointer", flex: 1, fontSize: "var(--font-size-base)", color: customVisible[l.id] === false ? "var(--color-text-disabled)" : "var(--color-text)", display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
-              {customVisible[l.id] === false ? <EyeOff size={14} /> : <Eye size={14} />} <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{l.name}</span> <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)", flexShrink: 0 }}>({l.rows.length})</span>
+              {customVisible[l.id] === false ? <EyeOff size={14} /> : <Eye size={14} />} <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={l.notes ? `${l.name}\n${l.notes}` : l.name}>{l.name}</span> <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)", flexShrink: 0 }}>({l.rows.length})</span>{l.notes && <span title={l.notes} style={{ display: "inline-flex", flexShrink: 0, color: "var(--color-text-muted)" }}><Info size={12} aria-label={tr("Layer notes: {v}", { v: l.notes })} /></span>}{/* #2432 — what the import left out or assumed */}
             </div>
             <Settings2 size={12} style={{ cursor: "pointer", flexShrink: 0 }} {...iconAction(() => openCustomStyle(l), tr("Style"))} /><Maximize2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => zoomToCustom(l.id), tr("Zoom to custom layer \"{name}\"", { name: l.name }))} />
             <Trash2 size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(() => { if (confirmDestructive(tr("Remove the custom layer \"{name}\"?", { name: l.name }))) removeCustomLayer(l.id); } /* #2338 — asks, as the menu does */, tr("Remove custom layer \"{name}\"", { name: l.name }))} />
@@ -8036,7 +8037,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                       {/* TASKS.csv #257 — an ARTIFICIALLY closed shell is watertight, so the old
                           !watertight-only caution never fired for the single most misleading case in
                           the whole tool. Closure mode is recorded on the surface at generation time. */}
-                      {s.closure === "artificial" && <ClosureNote type={s.type} />}{/* #1689 — worded for the kind of body */}
+                      {s.closure === "artificial" && <ClosureNote type={s.type} params={s.params} /* #2693 */ />}{/* #1689 — worded for the kind of body */}
                       {/* TASKS.csv #263 — the watertight test is a manifold test, not a connectivity
                           test: two disjoint balloons 200 m apart are each closed and report as one
                           volume. Union-find over the indexed mesh says how many bodies there really are. */}
