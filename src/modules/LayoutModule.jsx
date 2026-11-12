@@ -11,7 +11,8 @@ import GenerateAtlasModal from "../components/GenerateAtlasModal.jsx";
 import { HOLE_TOKENS, SECTION_TOKENS } from "../lib/atlas.js"; // TASKS.csv #1777 — listed with the page's placeholders
 import { scaleBarLabel, scaleBarMidLabel } from "../lib/scaleBarLabel.js"; // TASKS.csv #2140
 import { offSheetPages, rectSidesPast, elementCaption } from "../lib/layoutEdges.js"; // TASKS.csv #2482 / #2309; named elements: #2700
-import { fillPlaceholders, northName, pageConvergence, formatConvergence } from "../lib/layoutText.js"; // TASKS.csv #2139; north / convergence: #2712
+import { fillPlaceholders, northName, pageConvergence, formatConvergence } from "../lib/layoutText.js";
+import { samplesTableRows, holesWithoutCollars } from "../lib/samplesTable.js"; // TASKS.csv #1869 // TASKS.csv #2139; north / convergence: #2712
 import { mergeCaseTwins } from "../lib/legendCaseTwins.js"; // TASKS.csv #2609
 import { collarGridName } from "../lib/gridName.js"; // TASKS.csv #2306
 import PatternSwatch from "../components/PatternSwatch.jsx"; // TASKS.csv #1995
@@ -125,6 +126,7 @@ export default function LayoutModule() {
     // TASKS.csv #130 — collars/sections needed for the Atlas batch-page-generation feature below.
     layers, collars, sections, project, survey, // survey: #1476
     surfaceSamples, boundaries, // TASKS.csv #907 — what "Fit the holes" fits when there are no holes
+    surfaceElements = [], // TASKS.csv #1869 — the samples table's element list
     mapLayers, surfaceSampleLegend, // TASKS.csv #948 — the Surface Geology map's legend groups
     surfaceStructures, // TASKS.csv #1437 — the outcrop sets' legend group
     assays, assayElements, voxelModels, // TASKS.csv #725 — the legend loads assay classes and block-model keys too
@@ -711,7 +713,8 @@ export default function LayoutModule() {
       Object.assign(base, freeSpot(elements, base.w, base.h, A4)); // #2135 — it landed at (60, 80) over the views
       Object.assign(base, fitDrillPlan(collars, base.w, base.h, SCALE_PRESETS) || { scale: 10000, centre: { x: 0, y: 0 } });
     }
-    if (type === "table") { base.source = "collars"; base.title = "Drillhole collars"; base.w = 520; base.fontPt = 7; Object.assign(base, placeCollarTable(elements, A4, { w: 520, fontPt: 7, total: collars.length })); /* #1638 fits the sheet; #2135 free space */ base.frameWidth = 1; const f = defaultCollarTableFields(collars); if (f.length) base.extraCols = f; /* #2717 — the hole type, when there is one */ }
+    if (type === "samplestable") { type = "table"; base.type = "table"; base.source = "samples"; base.title = "Surface samples"; base.w = 460; base.fontPt = 7; base.maxRows = 25; base.frameWidth = 1; base.symbol = surfaceElements[0]?.symbol || ""; Object.assign(base, freeSpot(elements, 460, 25 * 16 + 60, A4)); } // TASKS.csv #1869
+    else if (type === "table") { base.source = "collars"; base.title = "Drillhole collars"; base.w = 520; base.fontPt = 7; Object.assign(base, placeCollarTable(elements, A4, { w: 520, fontPt: 7, total: collars.length })); /* #1638 fits the sheet; #2135 free space */ base.frameWidth = 1; const f = defaultCollarTableFields(collars); if (f.length) base.extraCols = f; /* #2717 — the hole type, when there is one */ }
     // TASKS.csv #2302 (review #2174) — a drill plan ties the page's starter scale bar as a snapshot does (#1320): a '100 m' bar at 1:2,380 stood
     // beside a 1:20,000 plan
     if (type !== "logo") setElements((els) => (type === "drillplan" ? tieStarterFurniture([...els, base], base) : [...els, base]));
@@ -952,7 +955,7 @@ export default function LayoutModule() {
   const credits = useMemo(() => projectCredits(terrain, rasters), [terrain, rasters]); // TASKS.csv #949
   // TASKS.csv #1483 — a collar with no azimuth / dip of its own (Silvertip's) takes its shallowest survey station's, marked so
   const tableCollars = useMemo(() => collarsWithSurveyAttitude(collars, survey), [collars, survey]); // #1483 / #1771 / #2133 (lib/collarTable.js)
-  const textCtx = useMemo(() => ({ ...textContextFor(elements, project, activePage, activePageIndex, layoutPages.length, tableCollars, credits), assays, assayElements /* #2473 — a drill plan coloured by grade */ }), [elements, project, activePage, activePageIndex, layoutPages.length, tableCollars, credits, assays, assayElements]);
+  const textCtx = useMemo(() => ({ ...textContextFor(elements, project, activePage, activePageIndex, layoutPages.length, tableCollars, credits), assays, assayElements /* #2473 — a drill plan coloured by grade */, surfaceSamples, surfaceElements, layers /* #1869 — the samples table; the holes without a collar */ }), [elements, project, activePage, activePageIndex, layoutPages.length, tableCollars, credits, assays, assayElements, surfaceSamples, surfaceElements, layers]);
 
   // "Each viewport and cross section need an option to assign a scale bar to it" — previously there
   // was only ever ONE scale-bar element on a page (onSyncScaleBar found-or-created the single
@@ -1113,7 +1116,7 @@ export default function LayoutModule() {
 
   return (
     <div className="ge-body" style={{ width: "100%" }}>
-      {printing && <LayoutPrintRoot ref={printRootRef} pages={printing.kind === "png" ? layoutPages.filter((pg) => pg.id === activeLayoutPageId) : layoutPages} pageOffset={printing.kind === "png" ? Math.max(0, layoutPages.findIndex((pg) => pg.id === activeLayoutPageId)) : 0} pageTotal={layoutPages.length} /* #2614 — a PNG prints its one page, not the whole document */ project={project} collars={tableCollars} credits={credits} assays={assays} assayElements={assayElements} />}{/* TASKS.csv #908 */}
+      {printing && <LayoutPrintRoot ref={printRootRef} pages={printing.kind === "png" ? layoutPages.filter((pg) => pg.id === activeLayoutPageId) : layoutPages} pageOffset={printing.kind === "png" ? Math.max(0, layoutPages.findIndex((pg) => pg.id === activeLayoutPageId)) : 0} pageTotal={layoutPages.length} /* #2614 — a PNG prints its one page, not the whole document */ project={project} collars={tableCollars} credits={credits} assays={assays} assayElements={assayElements} surfaceSamples={surfaceSamples} surfaceElements={surfaceElements} layers={layers} /* #1869 */ />}{/* TASKS.csv #908 */}
       <div className="ge-panel" style={{ padding: "16px 14px", width: sidebarWidth }}>
         {/* TASKS.csv #458 — Layout ribbon (replaces the #65 icon palette and the Templates / Output buttons). */}
         <Ribbon label="Layout tools">
@@ -1125,6 +1128,7 @@ export default function LayoutModule() {
             <RibbonButton icon={Plus} label="Legend" tone="output" title="Add legend" onClick={() => addElement("legend")} />
             <RibbonButton icon={LayoutTemplate} label="Title block" tone="output" title="Add a title block: a ruled box of labelled fields (title, company, project, claims, map sheet, figure, author, date, scale, datum, page), the project, date, scale and datum filled in" onClick={() => addElement("titleblock")} />{/* TASKS.csv #1868 */}
             <RibbonButton icon={Sheet} label="Collar table" /* #1776 — in Simple too: a report's figure set needs it */ tone="output" title="Add a table of the drillhole collars (hole, easting, northing, elevation, azimuth, dip, depth), kept up to date with the project. Best intercepts puts its results on the page from its own window." onClick={() => addElement("table")} />{/* TASKS.csv #911 */}
+            {(surfaceSamples || []).length > 0 && <RibbonButton icon={Sheet} label="Samples table" tone="output" title="Add a table of the surface samples (rock chips, soils…) with one element, highest first, kept up to date with the project" onClick={() => addElement("samplestable")} />}{/* TASKS.csv #1869 */}
           </RibbonGroup>
           <RibbonGroup label="Views">
             <RibbonButton icon={Camera} label="Current view" tone="view" title="Add a viewport snapshot of the current 3D View (no theme needed)" onClick={() => startViewportRender(null, "new")} />
@@ -1250,7 +1254,14 @@ export default function LayoutModule() {
                   {sel.source === "collars" && <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>{tr("Rows at most")}<input type="number" min="1" step="1" value={sel.maxRows || 40} onChange={(e) => updateSelected({ maxRows: Math.max(1, Math.round(Number(e.target.value) || 40)) })} style={inp} /></label>}
                 </div>
                 <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: -4, marginBottom: 8, lineHeight: 1.4 }}>
-                  {sel.source === "collars" ? tr("Kept up to date with the project's collars, sorted by hole; holes beyond the row limit are counted in the last line.") : tr("A copy of the results when it was sent (from {from}); send it again to update it.", { from: sel.from || tr("Best intercepts") })}</div>
+                  {sel.source === "collars" ? tr("Kept up to date with the project's collars, sorted by hole; holes beyond the row limit are counted in the last line.") : sel.source === "samples" ? tr("Kept up to date with the project's surface samples, highest first; samples beyond the row limit are counted in the last line.") /* #1869 */ : tr("A copy of the results when it was sent (from {from}); send it again to update it.", { from: sel.from || tr("Best intercepts") })}</div>
+                {sel.source === "samples" && ( /* TASKS.csv #1869 — the element, a threshold, the rows */
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>{tr("Element")}<select value={sel.symbol || ""} onChange={(e) => updateSelected({ symbol: e.target.value })} style={inp}>{(surfaceElements || []).map((e) => <option key={e.symbol} value={e.symbol}>{e.symbol}</option>)}</select></label>
+                    <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>{tr("At or above")}<input type="number" step="any" value={sel.threshold ?? ""} placeholder={tr("all")} onChange={(e) => updateSelected({ threshold: e.target.value === "" ? null : Number(e.target.value) })} style={inp} /></label>
+                    <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>{tr("Rows at most")}<input type="number" min="1" step="1" value={sel.maxRows || 25} onChange={(e) => updateSelected({ maxRows: Math.max(1, Math.round(Number(e.target.value) || 25)) })} style={inp} /></label>
+                  </div>
+                )}
                 {sel.source === "collars" && (() => { // TASKS.csv #1638 — an appendix of every hole: a first row, a filter, continuation pages
                   const sl = collarTableSlice(sortedCollars(tableCollars || []), { firstRow: sel.firstRow, maxRows: sel.maxRows, filter: sel.holeFilter });
                   const conts = sl.after > 0 ? continuationTables(sel, sl.total) : [];
@@ -2167,7 +2178,7 @@ function frameBorder(el, fallback = "none") {
 
 // TASKS.csv #908 — every page at its paper size, in mm, for printToPDF; shown only under @media print (app.css), its
 // siblings hidden. A named @page per distinct format lets one PDF hold A4 landscape and A3 portrait pages.
-const LayoutPrintRoot = React.forwardRef(function LayoutPrintRoot({ pages, project, collars, credits = "", assays = null, assayElements = null, pageOffset = 0, pageTotal = null }, ref) { // assays: #2473; pageOffset / pageTotal: #2614 (one page printed, its {page} / {pages} as in the document)
+const LayoutPrintRoot = React.forwardRef(function LayoutPrintRoot({ pages, project, collars, credits = "", assays = null, assayElements = null, pageOffset = 0, pageTotal = null, surfaceSamples = null, surfaceElements = null, layers = null }, ref) { // surfaceSamples / surfaceElements / layers: #1869 // assays: #2473; pageOffset / pageTotal: #2614 (one page printed, its {page} / {pages} as in the document)
   const formats = [...new Map(pages.map((pg) => { const f = pageFormatOf(pg); return [pageCssName(f), f]; })).values()];
   const css = formats.map((f) => { const [w, h] = pageMm(f), n = pageCssName(f); return `@page ${n} { size: ${w}mm ${h}mm; margin: 0; }\n.ge-print-${n} { page: ${n}; }`; }).join("\n");
   return (
@@ -2177,7 +2188,7 @@ const LayoutPrintRoot = React.forwardRef(function LayoutPrintRoot({ pages, proje
         const f = pageFormatOf(pg), [w, h] = pageMm(f);
         return (
           <div key={pg.id} className={`ge-print-page ge-print-${pageCssName(f)}`} style={{ width: `${w}mm`, height: `${h}mm` }}>
-            {withLiveScaleBars(pg.elements).map((el) => <LayoutElement key={el.id} el={el} selected={false} multiSelected={false} print onDown={() => {}} ctx={{ ...textContextFor(pg.elements || [], project, pg, i + pageOffset, pageTotal ?? pages.length, collars, credits), assays, assayElements, continuedOn: (t, r) => { const j = continuationPageIndex(pages, i, t, r); return j == null ? null : j + pageOffset + 1; } /* #2718 */ }} />)}
+            {withLiveScaleBars(pg.elements).map((el) => <LayoutElement key={el.id} el={el} selected={false} multiSelected={false} print onDown={() => {}} ctx={{ ...textContextFor(pg.elements || [], project, pg, i + pageOffset, pageTotal ?? pages.length, collars, credits), assays, assayElements, surfaceSamples, surfaceElements, layers /* #1869 */, continuedOn: (t, r) => { const j = continuationPageIndex(pages, i, t, r); return j == null ? null : j + pageOffset + 1; } /* #2718 */ }} />)}
           </div>
         );
       })}
@@ -2450,6 +2461,14 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
       const differs = sl.rows.filter((c) => Number.isFinite(c.azSurvey));
       if (differs.length) surveyNote = (surveyNote ? surveyNote + " " : "") + tr("† The collar record's azimuth, which differs from the hole's shallowest survey station (grid north) by more than 0.5°: {list}. The collar file may use another north reference, or hold the planned azimuth.", { list: differs.slice(0, 6).map((c) => `${c.hole_id} ${f(c.azSurvey, 1)}`).join(", ") + (differs.length > 6 ? ` (+${differs.length - 6})` : "") });
     }
+    // TASKS.csv #1869 — the surface samples with one element, highest first (a rock-chip / soil results table on a pre-drilling project)
+    if (el.source === "samples") {
+      const units = Object.fromEntries((ctx?.surfaceElements || []).map((e) => [e.symbol, e.unit || "ppm"]));
+      const t = samplesTableRows(ctx?.surfaceSamples || [], { symbol: el.symbol, units, maxRows: el.maxRows, threshold: el.threshold ?? null });
+      columns = [tr("Sample"), tr("Easting"), tr("Northing"), tr("Medium"), t.columns[4]];
+      rows = t.rows; more = t.more; nextRow = rows.length + 1;
+      head = el.threshold != null ? tr("{n} sample(s) at or above {v} {u}, highest first", { n: t.total.toLocaleString(), v: el.threshold, u: t.unitLabel }) : tr("{n} sample(s), highest first", { n: t.total.toLocaleString() });
+    }
     const fs = printPx(el.fontPt || printPt.small), cell = { padding: `${Math.round(fs * 0.25)}px ${Math.round(fs * 0.5)}px`, borderBottom: "1px solid #c9ced4" /* #999 — 0.26 mm on paper like the scale bar; 0.5 px vanished on screen at Fit zoom */, whiteSpace: "nowrap" };
     const numeric = columns.map((_, j) => rows.length > 0 && rows.every((r) => r[j] === "" || /^[-+≥<>]?[\d.,]+[*†]?$/.test(String(r[j])))); // \*: #1483; †: #2133
     return (
@@ -2460,8 +2479,9 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
           <thead><tr>{columns.map((h, j) => <th key={j} style={{ ...cell, textAlign: numeric[j] ? "right" : "left", fontWeight: 600, borderBottom: "1px solid #1a2028" }}>{h}</th>)}</tr></thead>
           <tbody>
             {rows.map((r, i) => <tr key={i}>{r.map((v, j) => <td key={j} style={{ ...cell, textAlign: numeric[j] ? "right" : "left" }}>{v}</td>)}</tr>)}
-            {!rows.length && <tr><td colSpan={Math.max(1, columns.length)} style={{ ...cell, color: "#777" }}>{el.source === "collars" ? (el.holeFilter ? tr("No hole id contains \"{f}\".", { f: el.holeFilter }) : tr("No collars in the project yet.")) : tr("No rows.")}</td></tr>}
-            {more > 0 && <tr><td colSpan={columns.length} style={{ ...cell, color: "#555", fontStyle: "italic" }}>{print ? (ctx?.continuedOn?.(el, nextRow) ? tr("Continued on page {p}", { p: ctx.continuedOn(el, nextRow) }) /* #2718 — its continuation is in this export */ : tr("… {n} more hole(s), from row {r}", { n: more, r: nextRow })) /* #2480 — the editing hint is for the screen, not the paper */ : tr("… and {n} more hole(s), from row {r}: a table with that First row, or Continue on new pages", { n: more, r: nextRow })}</td></tr>}
+            {!rows.length && <tr><td colSpan={Math.max(1, columns.length)} style={{ ...cell, color: "#777" }}>{el.source === "collars" ? (el.holeFilter ? tr("No hole id contains \"{f}\".", { f: el.holeFilter }) : (() => { const k = holesWithoutCollars(ctx?.collars, ctx?.assays, ctx?.layers); return k ? tr("No collars: {n} hole(s) have assays or logs but no collar coordinates.", { n: k.toLocaleString() }) : tr("No collars in the project yet."); })() /* #1869 */) : el.source === "samples" ? (el.symbol ? tr("No sample has a {s} value{v}.", { s: el.symbol, v: el.threshold != null ? tr(" at or above {t}", { t: el.threshold }) : "" }) : tr("Pick an element for the table.")) : tr("No rows.")}</td></tr>}
+            {more > 0 && el.source === "samples" && <tr><td colSpan={columns.length} style={{ ...cell, color: "#555", fontStyle: "italic" }}>{tr("… and {n} more sample(s)", { n: more.toLocaleString() })}</td></tr>}{/* #1869 */}
+            {more > 0 && el.source !== "samples" && <tr><td colSpan={columns.length} style={{ ...cell, color: "#555", fontStyle: "italic" }}>{print ? (ctx?.continuedOn?.(el, nextRow) ? tr("Continued on page {p}", { p: ctx.continuedOn(el, nextRow) }) /* #2718 — its continuation is in this export */ : tr("… {n} more hole(s), from row {r}", { n: more, r: nextRow })) /* #2480 — the editing hint is for the screen, not the paper */ : tr("… and {n} more hole(s), from row {r}: a table with that First row, or Continue on new pages", { n: more, r: nextRow })}</td></tr>}
           </tbody>
         </table>
         {surveyNote && <div style={{ fontSize: printPx(Math.max(5, (el.fontPt || printPt.small) - 1)), fontStyle: "italic", color: "#3a424c", marginTop: 4, lineHeight: 1.35, whiteSpace: "normal" }}>{surveyNote}</div>}
