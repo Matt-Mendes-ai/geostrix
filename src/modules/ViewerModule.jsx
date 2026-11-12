@@ -346,31 +346,10 @@ function disposeThreeGroup(group) {
 }
 
 // ---------- TASKS.csv #312 — GPU-side batching for drillhole layer objects ----------
-// #304 fixed the CPU-side consequence of "one small mesh per interval" (a hover raycast linear-
-// scanning 12,429 objects). This is the GPU-side half of the same structure: every one of those
-// objects was also its own draw call. Measured on the real 37-hole harry_property sample in the
-// REAL Electron window: 13,011 draw calls per main-scene frame, 9.86 fps while orbiting.
-//
-// THE APPROACH, and why it is shaped this way. Everything in this file that matters resolves a
-// pick to ONE specific interval object: pickIndex.js (#304), the hover tooltip, the right-click
-// context menu, applyCategoryVisibility, applyLegendOverrideColors, the visibleHoles effect,
-// zoomToLayer. A naive merge would break those SILENTLY (a plausible-but-wrong interval). So the
-// per-interval Mesh objects are NOT removed and NOT changed structurally — they keep their layer
-// group as `parent`, their own userData.tip/catValue, their own material.color and their own
-// .visible flag (since TASKS.csv #1540 they are no longer in the group's `children` array: see
-// buildLayerBatches and eachLayerMember). They simply stop being DRAWN: each one is
-// moved onto a non-camera three.js layer channel (PICK_ONLY_LAYER), and one InstancedMesh per
-// (geometry prototype + material signature) family is added to the same group to draw all of them
-// in a single call. The instanced mesh is a pure RENDER-SIDE MIRROR derived from those objects; the
-// objects remain the single source of truth. Consequences worth stating explicitly:
-//   * The picking path is untouched. pickHoverTargets/pickIndex/firstVisibleLayerHit still see the
-//     same per-interval objects, in the same order, under the same parents.
-//   * Because they are never rendered, three.js never uploads their 12,000+ geometries to the GPU.
-//   * Category/legend/hole-visibility bookkeeping keeps operating on the individual objects and is
-//     mirrored into the instance buffers afterwards by syncBatchedInstances().
-// three.js's Raycaster does NOT test object.visible (only WebGLRenderer does — see the note in
-// firstVisibleLayerHit), so moving an object to another layer channel is the only way to stop it
-// drawing without changing what is pickable. pickHits() enables PICK_ONLY_LAYER on the raycaster.
+// One draw call per interval (13,011 a frame, 9.9 fps on harry_property) became one InstancedMesh per geometry + material family.
+// The per-interval objects stay the source of truth for picking (pickIndex #304, tooltips, menus), category / colour / hole visibility
+// and zoomToLayer: they keep their parent, userData, colour and .visible, move to the PICK_ONLY_LAYER channel (the Raycaster ignores
+// .visible, not layers) and are mirrored into the instance buffers by syncBatchedInstances (lib/viewer/layerBatches.js; #1540).
 // TASKS.csv #1500 — the high-volume members (interval tubes, assay markers, point and custom layers) are now built as
 // PickStandIn objects (lib/viewer/pickStandIn.js, which also owns PICK_ONLY_LAYER): the pick-only form from the start, never a
 // Mesh + Material per interval. A family of them too small to batch is promoted to real Meshes here and drawn as before.
@@ -627,6 +606,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   // same category legendOverride already occupies, not project data.
   const [numericSymbology, setNumericSymbology] = useState({});
   const [visibleHoles, setVisibleHoles] = useState({});
+  const visibleHolesRef = useRef(visibleHoles); visibleHolesRef.current = visibleHoles; // #2930 — read by applyCategoryVisibility
   const [holeFilter, setHoleFilter] = useState(""); // TASKS.csv #222 — sidebar Holes list filter, UI-only (not persisted)
   const [holeColourBy, setHoleColourBy] = useState(""); // TASKS.csv #1504 — a collar field the holes are coloured by ("" = none), UI-only
   const holeScheme = useMemo(() => holeColourScheme(collars, holeColourBy), [collars, holeColourBy]);
@@ -1437,6 +1417,9 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   const filteredKeysRef = useRef(new Set());
   const applyCategoryVisibility = useCallback(() => {
     const groups = layerGroupsRef.current;
+    // TASKS.csv #2930 (WA iron review) — a member stays hidden while its hole is unchecked: a legend chip showed every unchecked hole's log again
+    const vh = visibleHolesRef.current, anyOff = Object.values(vh).some((v) => v === false);
+    const holeOn = (c) => { if (!anyOff) return true; const id = c.userData?.holeId ?? (c.userData?.tip || "").split("\n")[0]; return !(id && vh[id] === false); };
     const keys = CATEGORY_LAYER_KEYS.filter((key) => { const on = categoryFilter[key]?.size > 0, was = filteredKeysRef.current.has(key); filteredKeysRef.current[on ? "add" : "delete"](key); return on || was; }); // #1500
     if (!keys.length) return;
     keys.forEach((key) => {
@@ -1447,8 +1430,8 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
       eachLayerMember(g, (child) => { // #1540
         // TASKS.csv #1650 — an interval logging several minerals (PY 1 · CP 0.3) stays while any of them is shown, in the first shown one's colour
         const codes = codeList(child.userData?.row);
-        if (codes.length > 1) { const shown = codes.find((c) => (hidden?.size ? known.has(String(c)) && !hidden.has(String(c)) : true)); child.visible = shown != null; if (shown != null && !single && child.material?.color) child.material.color.set(effectiveColor(key, shown)); return; }
-        child.visible = !(hidden && hidden.has(String(child.userData?.catValue)));
+        if (codes.length > 1) { const shown = codes.find((c) => (hidden?.size ? known.has(String(c)) && !hidden.has(String(c)) : true)); child.visible = shown != null && holeOn(child); if (shown != null && !single && child.material?.color) child.material.color.set(effectiveColor(key, shown)); return; }
+        child.visible = !(hidden && hidden.has(String(child.userData?.catValue))) && holeOn(child);
       });
     });
     syncLayerBatches(keys); // TASKS.csv #312
@@ -5212,7 +5195,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       });
     });
     syncLayerBatches(); // TASKS.csv #312
-  }, [visibleHoles, syncLayerBatches]);
+    applyCategoryVisibility(); // #2930 — the category filters again, on top of the holes (it ANDs both)
+  }, [visibleHoles, syncLayerBatches, applyCategoryVisibility]);
 
   // ---------- generic import pipeline ----------
   // TASKS.csv #445 step 3 — the import pipeline (viewer/useImportPipeline.js), called where its code sat: same hook order
