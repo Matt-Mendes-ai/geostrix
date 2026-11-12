@@ -2557,6 +2557,8 @@
   "What the values of \"{name}\" are": "O que são os valores de \"{name}\"",
   "What are the values (property and unit)?": "O que são os valores (propriedade e unidade)?",
   "Not stated (the file names no unit)": "Não informado (o arquivo não cita unidade)",
+  "{el} ({unit}), from the estimate": "{el} ({unit}), da estimativa",
+  "{el}, from the estimate": "{el}, da estimativa",
   "Other…": "Outro…",
   "Cutoff": "Corte",
   "Range": "Faixa",
