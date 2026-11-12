@@ -10666,5 +10666,6 @@
   "A code's density must be above 0, or blank.": "La densité d'un code doit être supérieure à 0, ou vide.",
   "Density by {layer}: {list}; {n} other blocks took the density above.": "Densité par {layer} : {list} ; {n} autres blocs ont pris la densité ci-dessus.",
   "Density by {layer}: {list}.": "Densité par {layer} : {list}.",
-  "A density per code of a logged layer: each block takes the nearest logged interval within reach and that code's density, ore or waste; a block with no code, or a code with no density typed, takes the densities above.": "Une densité par code d'une couche décrite : chaque bloc prend l'intervalle décrit le plus proche à portée et la densité de ce code, minerai ou stérile ; un bloc sans code, ou un code sans densité saisie, prend les densités ci-dessus."
+  "A density per code of a logged layer: each block takes the nearest logged interval within reach and that code's density, ore or waste; a block with no code, or a code with no density typed, takes the densities above.": "Une densité par code d'une couche décrite : chaque bloc prend l'intervalle décrit le plus proche à portée et la densité de ce code, minerai ou stérile ; un bloc sans code, ou un code sans densité saisie, prend les densités ci-dessus.",
+  "It is drawn flat at {z} m, {h} m above the grid it was continued from.": "Il est dessiné à plat à {z} m, {h} m au-dessus de la grille dont il est prolongé."
 }

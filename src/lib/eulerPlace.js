@@ -16,6 +16,15 @@ export function filteredLevelM(src, kind, params = {}) {
   return kind === "upward" && Number(params.height) > 0 ? lv + Number(params.height) : lv;
 }
 
+// TASKS.csv #2560 (review #2486) — how a filter's product is drawn: as its parent is (RTP, 1VD, tilt ... of a grid drawn flat at its 332 m level
+// were draped on the terrain, the store's default once a terrain exists), and an upward continuation by h is drawn h higher (it kept 332).
+// -> { drapeMode, elevation, raisedM }
+export function filteredPlacement(src, kind, params = {}) {
+  const mode = src?.drapeMode === "terrain" || src?.drapeMode === "collars" ? src.drapeMode : "flat";
+  const h = kind === "upward" && mode === "flat" && Number(params.height) > 0 ? Number(params.height) : 0;
+  return { drapeMode: mode, elevation: (Number(src?.elevation) || 0) + h, raisedM: h };
+}
+
 // solutions { x[], y[], depth[] } -> { z[] (null where none), placed, byLevel, byTerrain, missing }
 export function placeEulerSolutions(d, { levelM = null, groundAt = null } = {}) {
   const z = [];

@@ -37,7 +37,7 @@ import RasterPictureLegend from "../components/RasterPictureLegend.jsx"; // TASK
 import { tieOf, localToWorld } from "../lib/localGridTie.js"; // TASKS.csv #2587 — a tied local grid's way in; localToWorld: #2648
 import { farFromCollars, farLabel } from "../lib/landingCheck.js"; // TASKS.csv #2590
 import { projectTargetEpsg } from "../lib/projectTarget.js"; // TASKS.csv #2287 — no reprojection INTO the placeholder CRS
-import { rasterLevelM, filteredLevelM, placeEulerSolutions } from "../lib/eulerPlace.js"; // TASKS.csv #2553
+import { rasterLevelM, filteredLevelM, placeEulerSolutions, filteredPlacement } from "../lib/eulerPlace.js"; // TASKS.csv #2553; filteredPlacement: #2560
 import { rasterMethodOf, filterBlockedBy, ternaryChoices } from "../lib/rasterMethod.js"; // TASKS.csv #2557
 import { SURVEY_METHODS } from "../lib/geophysSurveys.js"; // TASKS.csv #2557 — the method's label
 import { defaultFilterKind } from "../lib/filterDefault.js"; // TASKS.csv #1863
@@ -97,6 +97,8 @@ export default function RasterModule({ embedded = false } = {}) {
   const [filt, setFilt] = useState({ kind: "rtp", inclination: "", declination: "", height: "", amplitudeInclination: "", integrate: false, si: "1", window: "" }); // amplitudeInclination, integrate: #1988; si, window: #1985
   const [filtering, setFiltering] = useState(false);
   const [spectrum, setSpectrum] = useState(null); // TASKS.csv #808 — { rasterId, spec, fit } for the open grid
+  // TASKS.csv #2560 — a filter's product is drawn as its parent is (lib/eulerPlace.js filteredPlacement)
+  const placeOf = (r, kind, params = {}) => { const { drapeMode, elevation } = filteredPlacement(r, kind, params); return { drapeMode, elevation }; };
   const runFilter = async (r) => {
     if (filterBlockedBy(filt.kind, rasterMethodOf(r, geophysSurveys))) return; // #2557 — the button is disabled too
     const { applyGridFilter, FILTERS, tiltDepth, radialSpectrum, fitSpectrumDepths, worms } = await import("../lib/gridFilters.js"); // loaded on first use; worms: #1988
@@ -148,7 +150,7 @@ export default function RasterModule({ embedded = false } = {}) {
         if (!w.count) { setError({ info: false, text: tr("No edges found in \"{name}\".", { name: r.name }) }); return; }
         const nr = rasterFromGrid({ name: `${r.name} — Worms (edge heights, m)`, values: w.values, nx: g.nx, ny: g.ny, x0: g.x0, yTop: g.yTop, dx: g.dx, dy: g.dy, averagedBy: g.averagedBy || 1, sourceSize: g.sourceSize, elevation: r.elevation,
           extra: { filter: { kind: "worms", label: "Worms (Hornby et al. 1999)", params: { heightsM: w.levels.map((l) => l.h), nodesPerHeight: w.levels.map((l) => l.count), integrated: !!filt.integrate }, sourceRaster: r.name, method: "upward continuation to each height, total horizontal gradient, crests by the Blakely & Simpson 1986 test (2 of 4 directions, above the level's median); the node keeps the greatest height (gridFilters.js worms)", at: new Date().toISOString() } } });
-        addRaster(nr);
+        addRaster({ ...nr, ...placeOf(r, filt.kind) }); // drawn as its parent: #2560
         setError({ info: true, text: tr("Added \"{name}\": edges at {n} heights ({heights} m above the grid), {count} nodes. Each node holds the greatest height at which it is still an edge: an edge that stays put as the height grows is steep, one that walks sideways dips that way, and a deep-rooted one lasts to the greatest heights.", { name: nr.name, n: w.levels.length, heights: w.levels.map((l) => l.h.toLocaleString()).join(", "), count: w.count.toLocaleString() }) });
         setFilterFor(null);
         return;
@@ -158,7 +160,7 @@ export default function RasterModule({ embedded = false } = {}) {
         if (!td.count) { setError({ info: false, text: tr("No tilt zero-crossings with a usable depth in \"{name}\".", { name: r.name }) }); return; }
         const nr = rasterFromGrid({ name: `${r.name} — Tilt-depth (contact depths, m)`, values: td.values, nx: g.nx, ny: g.ny, x0: g.x0, yTop: g.yTop, dx: g.dx, dy: g.dy, averagedBy: g.averagedBy || 1, sourceSize: g.sourceSize, elevation: r.elevation,
           extra: { filter: { kind: "tiltdepth", label: "Tilt-depth (Salem et al. 2007)", params: { contactNodes: td.count, medianDepthM: Math.round(td.median) }, sourceRaster: r.name, method: "depth = 1 / |horizontal gradient of the tilt (radians)| at its zero contour, on the kept grid (gridFilters.js tiltDepth)", at: new Date().toISOString() } } });
-        addRaster(nr);
+        addRaster({ ...nr, ...placeOf(r, filt.kind) }); // drawn as its parent: #2560
         setError({ info: true, text: tr("Added \"{name}\": {n} nodes along the tilt's zero contour (the contacts), median depth {median} m below the sensor. Valid on an RTP grid over near-vertical contacts; subtract the survey's sensor height for depth below ground.", { name: nr.name, n: td.count.toLocaleString(), median: Math.round(td.median) }) });
         setFilterFor(null);
         return;
@@ -169,8 +171,9 @@ export default function RasterModule({ embedded = false } = {}) {
       if (filt.kind === "rtpa") params.amplitudeInclination = out.amplitudeInclination; // #1988 — the one used, recorded with the raster
       const nr = rasterFromGrid({ name: `${r.name} — ${label}${suffix}`, values: out.values, nx: g.nx, ny: g.ny, x0: g.x0, yTop: g.yTop, dx: g.dx, dy: g.dy, averagedBy: g.averagedBy || 1, sourceSize: g.sourceSize, elevation: r.elevation,
         extra: { levelM: filteredLevelM(r, filt.kind, params) /* #2553 */, surveyMethod: rasterMethodOf(r, geophysSurveys) || undefined, units: r.units ? FILTERS[filt.kind].unitsOut(r.units) : undefined /* #2557 */, filter: { kind: filt.kind, label, params, sourceRaster: r.name, method: "FFT on the kept grid: mean plane removed, gaps filled from neighbours, mirror-padded to >= 2x with a cosine taper (gridFilters.js)", at: new Date().toISOString() } } });
-      addRaster(nr);
-      setError({ info: !out.warning, text: tr("Added \"{name}\" (colours span the 2nd–98th percentile: {v}).{v2}", { name: nr.name, v: nr.colourRange.map((v) => v.toPrecision(3)).join(" to "), v2: out.warning ? " " + out.warning : "" }) });
+      const place = filteredPlacement(r, filt.kind, params);
+      addRaster({ ...nr, drapeMode: place.drapeMode, elevation: place.elevation }); // drawn as its parent, an upward continuation h higher: #2560
+      setError({ info: !out.warning, text: tr("Added \"{name}\" (colours span the 2nd–98th percentile: {v}).{v2}", { name: nr.name, v: nr.colourRange.map((v) => v.toPrecision(3)).join(" to "), v2: out.warning ? " " + out.warning : "" }) + (place.raisedM ? " " + tr("It is drawn flat at {z} m, {h} m above the grid it was continued from.", { z: Math.round(place.elevation).toLocaleString(), h: place.raisedM }) : "") });
       setFilterFor(null);
     } catch (err) {
       setError({ info: false, text: tr("Filter failed: {message}", { message: err.message }) });
@@ -185,7 +188,7 @@ export default function RasterModule({ embedded = false } = {}) {
       const h = Math.round(fit[which].h);
       const nr = rasterFromGrid({ name: `${r.name} — ${which === "deep" ? "deep" : "shallow"} component (~${h} m, matched filter)`, values: m[which], nx: g.nx, ny: g.ny, x0: g.x0, yTop: g.yTop, dx: g.dx, dy: g.dy, averagedBy: g.averagedBy || 1, sourceSize: g.sourceSize, elevation: r.elevation,
         extra: { filter: { kind: `matched-${which}`, label: "Matched filter (Spector & Grant 1970)", params: { deepDepthM: Math.round(fit.deep.h), shallowDepthM: Math.round(fit.shallow.h) }, sourceRaster: r.name, method: "w(k) = sqrt(P_i / (P_deep + P_shallow)) from the two fitted spectrum segments (gridFilters.js matchedFilter)", at: new Date().toISOString() } } });
-      addRaster(nr);
+      addRaster({ ...nr, ...placeOf(r, `matched-${which}`) }); // #2560
       setError({ info: true, text: tr("Added \"{name}\".", { name: nr.name }) });
     } catch (err) { setError({ info: false, text: tr("Filter failed: {message}", { message: err.message }) }); }
   };
