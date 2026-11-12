@@ -7171,8 +7171,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           </RibbonGroup>
           <RibbonGroup label="Export planned holes">
             <RibbonButton icon={FileSpreadsheet} label="CSV" tone="output" disabled={!plannedHoles.length} disabledReason="Plan a hole first" title="Collar and toe in project coordinates and lat/lon, azimuth against grid, true and magnetic north" onClick={() => exportPlannedHoles("csv")} />
-            <RibbonButton advanced icon={Globe} label="KML" tone="output" disabled={!plannedHoles.length} disabledReason="Plan a hole first" title="Google Earth / phone maps" onClick={() => exportPlannedHoles("kml")} />
-            <RibbonButton advanced icon={MapPin} label="GPX" tone="output" disabled={!plannedHoles.length} disabledReason="Plan a hole first" title="Handheld GPS: collar waypoints" onClick={() => exportPlannedHoles("gpx")} />
+            <RibbonButton advanced={project?.crsSet === false} /* #2705 — Simple mode too with a real CRS */ icon={Globe} label="KML" tone="output" disabled={!plannedHoles.length} disabledReason="Plan a hole first" title="Google Earth / phone maps" onClick={() => exportPlannedHoles("kml")} />
+            <RibbonButton advanced={project?.crsSet === false} icon={MapPin} label="GPX" tone="output" disabled={!plannedHoles.length} disabledReason="Plan a hole first" title="Handheld GPS: collar waypoints" onClick={() => exportPlannedHoles("gpx")} />
           </RibbonGroup>
         </Ribbon>
       )}
