@@ -412,6 +412,10 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
           const recOn = modal.target === "recovery" && !modal.mapping.value && !modal.recoveryCalcOff && !!recoveryColumns(modal.headers); // #2891 — the value is computed
           const missingRequired = schema.fields.filter((f) => f.required && !modal.mapping[f.key] && !(logOn && f.key === "value") && !(recOn && f.key === "value"))
             .concat(schema.oneOf && !schema.oneOf.some((keys) => keys.every((k) => modal.mapping[k])) ? [{ key: "oneOf", label: "From + To, or Depth" }] : []); // #605
+          // TASKS.csv #2895 (review #2876, WA iron) — magnetic azimuths with no survey date: Import was enabled, the dialog closed and nothing
+          // was imported (the commit refuses it), so the mapping had to be redone from a fresh drop. The button waits for the date instead.
+          const needsDate = ["collars", "survey", "structure"].includes(modal.target) && modal.azimuthRef === "magnetic" && !/^\d{4}-\d{2}-\d{2}$/.test(modal.azimuthDate || "");
+          const blocked = missingRequired.length > 0 || needsDate || importCount(modal) === 0;
           return (
             <div style={{ display: "flex", flexDirection: "column", gap: 6, padding: "12px 16px", borderTop: "1px solid var(--color-border)" }}>
               {missingRequired.length > 0 && (
@@ -420,12 +424,13 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
                   {missingRequired.filter((f) => f.aliases?.length).map((f) => <div key={f.key} style={{ color: "var(--color-text-muted)" }}>{tr("{field}: no column matched; the names looked for are {names}.", { field: tr(f.label), names: f.aliases.slice(0, 10).join(", ") + (f.aliases.length > 10 ? ", …" : "") })}</div>)}
                 </div>
               )}
+              {needsDate && <div role="alert" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-danger-icon)" }}>{tr("Type the survey date above: magnetic azimuths need it to work out the declination.")}</div>}{/* #2895 */}
               <div style={{ display: "flex", gap: 8 }}>
                 <button onClick={onCancel} style={{ ...btn(false), flex: 1 }}>{tr("Cancel")}</button>
                 <button
                   onClick={onCommit}
-                  disabled={missingRequired.length > 0 || importCount(modal) === 0} // 0 rows: TASKS.csv #2431 — the row filter keeps none
-                  style={{ ...btn(true), flex: 2, opacity: missingRequired.length > 0 || importCount(modal) === 0 ? 0.5 : 1, cursor: missingRequired.length > 0 || importCount(modal) === 0 ? "not-allowed" : "pointer" }}
+                  disabled={blocked} // 0 rows: TASKS.csv #2431 — the row filter keeps none; the survey date: #2895
+                  style={{ ...btn(true), flex: 2, opacity: blocked ? 0.5 : 1, cursor: blocked ? "not-allowed" : "pointer" }}
                   title={importCount(modal) === 0 ? tr("The row filter keeps no row: tick at least one value under Rows.") : undefined}
                 >{tr("Import {rowCount} rows", { rowCount: importCount(modal) })}</button>
               </div>

@@ -325,6 +325,7 @@
   "Style (colour, size, shape)…": "النمط (اللون والحجم والشكل)…",
   "Survey bends sharper than this are warned about. Ordinary deviated holes bend 3-7° per 30 m; bends of 10° per 30 m or more are always errors. Remembered on this computer.": "يُحذَّر من انحناءات المسح الأشد من هذا. تنحني الثقوب المنحرفة العادية 3-7° لكل 30 م؛ والانحناء 10° لكل 30 م أو أكثر خطأ دائمًا. يُحفظ على هذا الحاسوب.",
   "Survey date": "تاريخ المسح",
+  "Type the survey date above: magnetic azimuths need it to work out the declination.": "اكتب تاريخ المسح أعلاه: تحتاجه السموت المغناطيسية لحساب الانحراف.",
   "Survey": "المسح",
   "This computer": "هذا الحاسوب",
   "Toggle all layers in this group": "تبديل كل طبقات هذه المجموعة",

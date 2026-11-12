@@ -371,7 +371,7 @@ export function useImportPipeline(ctx) {
         + (failed.size ? tr(" {size} hole(s) have no collar yet, so their azimuths were left as they are: {v}.", { size: failed.size, v: [...failed].slice(0, 6).join(", ") }) : "");
       return { rows: out, note };
     }
-    if (azimuthRef === "magnetic" && !/^\d{4}-\d{2}-\d{2}$/.test(azimuthDate || "")) {
+    if (AZ_TARGETS.has(target) && azimuthRef === "magnetic" && !/^\d{4}-\d{2}-\d{2}$/.test(azimuthDate || "")) { // AZ_TARGETS: #2895 — a magnetic choice left from another kind does not block a log
       setNotices((p) => [...p, notice("{fileName}: magnetic azimuths need the survey date to work out the declination — nothing was imported.", { fileName })]);
       return false;
     }

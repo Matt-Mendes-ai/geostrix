@@ -325,6 +325,7 @@
   "Style (colour, size, shape)…": "Style (couleur, taille, forme)…",
   "Survey bends sharper than this are warned about. Ordinary deviated holes bend 3-7° per 30 m; bends of 10° per 30 m or more are always errors. Remembered on this computer.": "Les courbures de levé plus fortes que ceci déclenchent une alerte. Les sondages déviés ordinaires courbent de 3 à 7° par 30 m ; 10° par 30 m ou plus est toujours une erreur. Mémorisé sur cet ordinateur.",
   "Survey date": "Date du levé",
+  "Type the survey date above: magnetic azimuths need it to work out the declination.": "Saisissez la date du levé ci-dessus : les azimuts magnétiques en ont besoin pour calculer la déclinaison.",
   "Survey": "Levé",
   "This computer": "Cet ordinateur",
   "Toggle all layers in this group": "Basculer toutes les couches de ce groupe",
