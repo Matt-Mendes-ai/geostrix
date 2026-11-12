@@ -10936,5 +10936,13 @@
   "Showing the first {shown} of {total} codes.": "Mostrando os primeiros {shown} de {total} códigos.",
   "Code dictionary": "Dicionário de códigos",
   "1 code took its meaning from the description logged beside it (the code dictionary in the layer's inspector, where it can be edited).": "1 código recebeu seu significado da descrição registrada ao lado dele (o dicionário de códigos no inspetor da camada, onde pode ser editado).",
-  "{n} codes took their meaning from the description logged beside them (the code dictionary in the layer's inspector, where they can be edited).": "{n} códigos receberam seu significado da descrição registrada ao lado deles (o dicionário de códigos no inspetor da camada, onde podem ser editados)."
+  "{n} codes took their meaning from the description logged beside them (the code dictionary in the layer's inspector, where they can be edited).": "{n} códigos receberam seu significado da descrição registrada ao lado deles (o dicionário de códigos no inspetor da camada, onde podem ser editados).",
+  "as {oxide}": "como {oxide}",
+  "as {symbol}": "como {symbol}",
+  "Report {symbol} {basis}? Every stored {symbol} value is converted, {from} → {to}. Cut-offs and colour ranges already typed for {symbol} keep their numbers: check them after.": "Reportar {symbol} {basis}? Cada valor de {symbol} armazenado é convertido, {from} → {to}. Teores de corte e faixas de cor já digitados para {symbol} mantêm seus números: confira-os depois.",
+  "{symbol} was not converted.": "{symbol} não foi convertido.",
+  "{n} threshold rule(s) decided for {symbol} converted with it.": "{n} regra(s) de limiar definida(s) para {symbol} convertida(s) junto.",
+  "{symbol} is now reported {basis}: {n} row(s) converted from {from} to {to} (× {factor}). Ctrl+Z to undo.": "{symbol} agora é reportado {basis}: {n} linha(s) convertida(s) de {from} para {to} (× {factor}). Ctrl+Z para desfazer.",
+  "{symbol} reported as": "{symbol} reportado como",
+  "The basis {symbol}'s grades are reported in. Changing it converts every stored value (undoable).": "A base em que os teores de {symbol} são reportados. Alterá-la converte cada valor armazenado (pode ser desfeito)."
 }

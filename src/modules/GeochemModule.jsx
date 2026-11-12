@@ -31,6 +31,7 @@ import { detectLongAssay, pivotLongAssays, longAssayNote } from "../lib/longAssa
 import { isSurfaceSampleTable, surfaceXYColumns } from "../lib/viewer/importHelpers.js"; // TASKS.csv #975; surfaceXYColumns: #2564
 import { assayFileSummary, removeAssayFile, removeAssayElement, carbonateShare, VOLCANIC_DIAGRAMS } from "../lib/geochem.js"; // TASKS.csv #624; carbonateShare: #1392
 import { confirmDestructive } from "../lib/confirmDestructive.js"; // TASKS.csv #624
+import ElementBasisSelect from "../components/ElementBasisSelect.jsx"; // TASKS.csv #2627
 import GeochemPlot from "../components/GeochemPlot.jsx";
 import { lithologyBySample, lithologyCounts, NOT_LOGGED } from "../lib/sampleLithology.js"; // TASKS.csv #619
 import AssayImportModal from "../components/AssayImportModal.jsx";
@@ -1703,6 +1704,7 @@ function AssayRemovePanel({ assays, assayElements, setAssays, setAssayElements, 
             {assayElements.map((e) => (
               <span key={e.symbol} style={{ display: "inline-flex", alignItems: "center", gap: 2, border: "1px solid var(--color-border)", borderRadius: 4, padding: "1px 2px 1px 6px" }}>
                 {e.symbol}
+                <ElementBasisSelect element={e} onNotice={(n) => setNotices((p) => [...p, n])} />{/* TASKS.csv #2627 */}
                 <button type="button" style={xBtn} onClick={() => removeElement(e.symbol)} aria-label={tr("Remove element {symbol}", { symbol: e.symbol })} title={tr("Remove {symbol} from every interval", { symbol: e.symbol })}><X size={12} /></button>
               </span>
             ))}

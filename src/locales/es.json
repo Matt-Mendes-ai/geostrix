@@ -10936,5 +10936,13 @@
   "Showing the first {shown} of {total} codes.": "Se muestran los primeros {shown} de {total} códigos.",
   "Code dictionary": "Diccionario de códigos",
   "1 code took its meaning from the description logged beside it (the code dictionary in the layer's inspector, where it can be edited).": "1 código tomó su significado de la descripción registrada junto a él (el diccionario de códigos en el inspector de la capa, donde se puede editar).",
-  "{n} codes took their meaning from the description logged beside them (the code dictionary in the layer's inspector, where they can be edited).": "{n} códigos tomaron su significado de la descripción registrada junto a ellos (el diccionario de códigos en el inspector de la capa, donde se pueden editar)."
+  "{n} codes took their meaning from the description logged beside them (the code dictionary in the layer's inspector, where they can be edited).": "{n} códigos tomaron su significado de la descripción registrada junto a ellos (el diccionario de códigos en el inspector de la capa, donde se pueden editar).",
+  "as {oxide}": "como {oxide}",
+  "as {symbol}": "como {symbol}",
+  "Report {symbol} {basis}? Every stored {symbol} value is converted, {from} → {to}. Cut-offs and colour ranges already typed for {symbol} keep their numbers: check them after.": "¿Informar {symbol} {basis}? Cada valor de {symbol} guardado se convierte, {from} → {to}. Las leyes de corte y los rangos de color ya escritos para {symbol} conservan sus números: revíselos después.",
+  "{symbol} was not converted.": "{symbol} no se convirtió.",
+  "{n} threshold rule(s) decided for {symbol} converted with it.": "{n} regla(s) de umbral definidas para {symbol} se convirtieron con él.",
+  "{symbol} is now reported {basis}: {n} row(s) converted from {from} to {to} (× {factor}). Ctrl+Z to undo.": "{symbol} ahora se informa {basis}: {n} fila(s) convertidas de {from} a {to} (× {factor}). Ctrl+Z para deshacer.",
+  "{symbol} reported as": "{symbol} informado como",
+  "The basis {symbol}'s grades are reported in. Changing it converts every stored value (undoable).": "La base en que se informan las leyes de {symbol}. Cambiarla convierte cada valor guardado (se puede deshacer)."
 }

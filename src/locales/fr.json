@@ -10936,5 +10936,13 @@
   "Showing the first {shown} of {total} codes.": "Affichage des {shown} premiers codes sur {total}.",
   "Code dictionary": "Dictionnaire des codes",
   "1 code took its meaning from the description logged beside it (the code dictionary in the layer's inspector, where it can be edited).": "1 code a pris sa signification de la description consignée à côté de lui (le dictionnaire des codes dans l'inspecteur de la couche, où il peut être modifié).",
-  "{n} codes took their meaning from the description logged beside them (the code dictionary in the layer's inspector, where they can be edited).": "{n} codes ont pris leur signification de la description consignée à côté d'eux (le dictionnaire des codes dans l'inspecteur de la couche, où ils peuvent être modifiés)."
+  "{n} codes took their meaning from the description logged beside them (the code dictionary in the layer's inspector, where they can be edited).": "{n} codes ont pris leur signification de la description consignée à côté d'eux (le dictionnaire des codes dans l'inspecteur de la couche, où ils peuvent être modifiés).",
+  "as {oxide}": "en {oxide}",
+  "as {symbol}": "en {symbol}",
+  "Report {symbol} {basis}? Every stored {symbol} value is converted, {from} → {to}. Cut-offs and colour ranges already typed for {symbol} keep their numbers: check them after.": "Exprimer {symbol} {basis} ? Chaque valeur de {symbol} enregistrée est convertie, {from} → {to}. Les teneurs de coupure et les plages de couleur déjà saisies pour {symbol} gardent leurs nombres : vérifiez-les ensuite.",
+  "{symbol} was not converted.": "{symbol} n'a pas été converti.",
+  "{n} threshold rule(s) decided for {symbol} converted with it.": "{n} règle(s) de seuil décidée(s) pour {symbol} convertie(s) avec lui.",
+  "{symbol} is now reported {basis}: {n} row(s) converted from {from} to {to} (× {factor}). Ctrl+Z to undo.": "{symbol} est maintenant exprimé {basis} : {n} ligne(s) convertie(s) de {from} en {to} (× {factor}). Ctrl+Z pour annuler.",
+  "{symbol} reported as": "{symbol} exprimé en",
+  "The basis {symbol}'s grades are reported in. Changing it converts every stored value (undoable).": "La base dans laquelle les teneurs de {symbol} sont exprimées. La changer convertit chaque valeur enregistrée (annulable)."
 }
