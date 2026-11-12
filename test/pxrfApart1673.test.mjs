@@ -23,7 +23,7 @@ test("the grade dialogs take lab assays at their input and say how many pXRF rea
     assert.ok(s.includes("{pxrfLeft > 0 && <div"), f);
   }
   const c = readFileSync(new URL("../src/components/CorrelationMatrix.jsx", import.meta.url), "utf8");
-  assert.ok(c.includes("const labRows = useMemo(() => (surface ? allAssays : labAssays(allAssays))") && c.includes("const assays = useMemo(() => (includeQAQC || surface ? labRows : excludeQAQC(labRows))")); // #1799: drill assays still lab-only; surface samples are their own rows
+  assert.ok(c.includes("const labRows = useMemo(() => (surface ? allAssays : labAssays(allAssays))") && c.includes("const assays = includeQAQC || surface || qaqcCount === 0 ? labRows : qcFree;") /* #2904 */); // #1799: drill assays still lab-only; surface samples are their own rows
   const g = readFileSync(new URL("../src/modules/GeochemModule.jsx", import.meta.url), "utf8");
   assert.ok(g.includes("const rows = labRows.map((a) => {"), "Classify uses lab assays only");
 });
