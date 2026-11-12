@@ -13,7 +13,7 @@ test("the texts say what the tools do now", () => {
   assert.match(g, /moving-least-squares or ordinary-kriging interpolation from composited assays/);
   assert.match(g, /no declustering and no resource classification\./);
   assert.match(g, /no declustering, no variogram, and no resource classification\./);
-  assert.match(g, /Kriged with the fitted \{model\} variogram/);
+  assert.match(g, /Kriged with the \{model\} variogram/); // #2429: 'the fitted ... fitted to' said it twice
   assert.ok(!/Kriged with a \{model\}/.test(g));
   const m = src("../src/modules/viewer/ModellingPanes.jsx");
   assert.match(m, /interpolation onto a grid \(by the method chosen below\)/);

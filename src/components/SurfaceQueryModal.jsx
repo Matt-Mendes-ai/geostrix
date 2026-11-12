@@ -133,7 +133,7 @@ export default function SurfaceQueryModal({ surfaces = [], traces = [], sceneToW
   }, [mesh, tab, ptX, ptY, ptZ, worldToScene, sceneToWorld]);
 
   const exportCsv = () => {
-    const lines = surfaceQueryRows(rows, { surfaceName: surface?.name, closed: !!mesh?.closed }); // #1083 — rows in lib, tested; TASKS.csv #1082 — written by Papa
+    const lines = surfaceQueryRows(rows, { surfaceName: surface?.name, closed: !!mesh?.closed, sampledFor: mesh?.closed ? shellEl : null /* #2720 */ }); // #1083 — rows in lib, tested; TASKS.csv #1082 — written by Papa
     saveFile({
       suggestedName: `surface_query_${(surface?.name || "surface").replace(/[^a-z0-9_-]+/gi, "_").toLowerCase()}.csv`,
       filters: [{ name: "CSV", extensions: ["csv"] }],

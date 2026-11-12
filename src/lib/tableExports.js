@@ -102,13 +102,14 @@ export function surfaceCompareRows({ nameA, nameB, exported, editsMessage, resul
 }
 
 // Hole-to-surface query (SurfaceQueryModal): plain rows with their header
-export function surfaceQueryRows(results, { surfaceName, closed }) {
-  const lines = [["hole_id", "surface", "closest_approach_m", "closest_approach_md_m", "n_pierce_points", "pierce_mds_m", "metres_inside", "hole_length_m", "surface_watertight"]];
+// TASKS.csv #2720 — sampledFor: a grade shell's element (#2626): the metres inside sampled for it, as the dialog's column
+export function surfaceQueryRows(results, { surfaceName, closed, sampledFor = null }) {
+  const lines = [["hole_id", "surface", "closest_approach_m", "closest_approach_md_m", "n_pierce_points", "pierce_mds_m", "metres_inside", ...(sampledFor ? [`metres_inside_sampled_for_${sampledFor}`] : []), "hole_length_m", "surface_watertight"]];
   results.forEach((r) => lines.push([
     r.hole_id, surfaceName || "",
     r.minDistance != null ? r.minDistance.toFixed(3) : "", r.atMd != null ? r.atMd.toFixed(2) : "",
     r.intercepts.length, r.intercepts.map((i) => i.md.toFixed(2)).join(" "),
-    r.insideLength != null ? r.insideLength.toFixed(2) : "", r.totalLength != null ? r.totalLength.toFixed(2) : "",
+    r.insideLength != null ? r.insideLength.toFixed(2) : "", ...(sampledFor ? [r.insideLength > 0 && r.sampledInside != null ? r.sampledInside.toFixed(2) : ""] : []), r.totalLength != null ? r.totalLength.toFixed(2) : "",
     closed ? "yes" : "no",
   ]));
   return lines;

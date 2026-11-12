@@ -13,6 +13,8 @@ import { samplePointsFromIntervals, MAX_BLOCKS, ESTIMATION_METHODS, SUPPORT_COLO
 import { BLOCK_MODEL_BUDGETS, MAX_BLOCK_MODEL_BUDGET, blockModelBudgetNote, cellToFit, blockModelLattice, snapBoundsToLattice, overlapBox } from "../lib/estimationMeta.js"; // TASKS.csv #626; block-model budgets: #661
 import { runEstimation } from "../lib/estimationClient.js"; // TASKS.csv #520 — off the UI thread
 import { makeReachClient } from "../lib/blockReachClient.js"; // TASKS.csv #1416; in a worker: #1579
+import { preferredElement, rememberElement } from "../lib/preferredElement.js"; // TASKS.csv #2552
+import { useLeadCommodity } from "../lib/useLeadCommodity.js"; // TASKS.csv #2552
 import { sampledByHole, unsampledDrillPoints } from "../lib/insideSampling.js"; // TASKS.csv #2596
 import { verticalReach } from "../lib/blockReach.js"; // TASKS.csv #2422 — a flat trend's vertical reach, as the estimator counts it
 import { desurveyHole } from "../lib/desurvey.js";
@@ -70,8 +72,12 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
   const [logValues, setLogValues] = useState(() => keep("logValues", false)); // log10 values: each block a geometric mean, the usual for susceptibility
   const assays = useMemo(() => labAssays(assaysIn), [assaysIn]), pxrfLeft = (assaysIn || []).length - assays.length; // #1673 — lab grades only
   const elementUnits = useMemo(() => Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])), [assayElements]);
-  const symbols = assayElements.map((e) => e.symbol);
-  const [symbol, setSymbol] = useState(() => keep("symbol", symbols[0] || "Au", (v) => sourceKey !== "assay" || symbols.includes(v)));
+  // TASKS.csv #1744 (review #1645) — only elements with a lab value (pXRF-only and empty columns cannot be estimated); #2552 / #2429 — it opens on
+  // the element last used here, else the project's lead commodity (lib/preferredElement.js), not the file's first column
+  const symbols = useMemo(() => { const all = assayElements.map((e) => e.symbol); if (sourceData) return all; const has = new Set(); for (const a of assays) for (const k in a.values || {}) if (Number.isFinite(a.values[k])) has.add(k); return all.filter((s) => has.has(s)); }, [assayElements, assays, sourceData]);
+  const lead = useLeadCommodity();
+  const [symbol, setSymbolRaw] = useState(() => keep("symbol", preferredElement(symbols, "estimate", lead) || symbols[0] || "Au", (v) => sourceKey !== "assay" || symbols.includes(v)));
+  const setSymbol = (v) => { setSymbolRaw(v); if (sourceKey === "assay") rememberElement("estimate", v); };
   const unit = elementUnits[symbol] || "ppm";
 
   const [useComposites, setUseComposites] = useState(() => keep("useComposites", true));
@@ -647,7 +653,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
             </label>}
             {sourceData && <div style={{ width: "100%", fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{tr("{n} readings from {label}, values as logged (the import does not rescale them){v}.", { n: sourceData.assays.length.toLocaleString(), label: source.label, v: sourceData.pointRows ? tr("; {p} depth-only readings are given {s} m of core each", { p: sourceData.pointRows.toLocaleString(), s: sourceData.pointSupport }) : "" })}</div>}
             <label style={fieldLabel}>{tr("Element")}<select value={symbol} onChange={(e) => { setSymbol(e.target.value); setCapValue(NaN); setResult(null); }} style={inp}>{/* #1736 — a cap belongs to its element */}
-                {symbols.map((s) => <option key={s} value={s}>{s} ({elementUnits[s] || "ppm"})</option>)}
+                {symbols.map((s) => <option key={s} value={s}>{s} ({gradeUnitLabel(s, elementUnits[s] || "ppm")})</option>)}{/* #2429 — g/t for gold, as the cap field */}
               </select>
             </label>
             <label style={fieldLabel}>{tr("Method")}{/* TASKS.csv #87 — the method list comes from estimation.js's own table so the dropdown
@@ -900,7 +906,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
                   ? <div style={{ fontWeight: 600 }}>{tr("{k} of {n} blocks ({pct}%) lie between holes (interpolated); {e} are extrapolated beyond the data.", { k: sc.interpolated.toLocaleString(), n: n.toLocaleString(), pct, e: sc.extrapolated.toLocaleString() })}{tail}</div>
                   : <div style={{ fontWeight: 600, color: "var(--color-warn-text)" }}>{tr("None of these {n} blocks lies between holes: every one is extrapolated from the nearest holes.", { n: n.toLocaleString() })}{tail}</div>;
               })()}
-              {result.belowDrilling?.blocks > 0 && result.belowDrilling.metalShare >= 0.05 && <div style={{ color: "var(--color-warn-text)" }}>{tr("{pct}% of the estimated metal ({k} of {n} blocks) lies below the deepest sample of every hole within {r} m: carried down past the drilling. A Vertical reach under the search radius keeps it near the samples.", { pct: Math.round(100 * result.belowDrilling.metalShare), k: result.belowDrilling.blocks.toLocaleString(), n: result.belowDrilling.of.toLocaleString(), r: Number(searchRadius) || 0 })}</div>}{/* #2546 */}
+              {result.belowDrilling?.blocks > 0 && result.belowDrilling.metalShare >= 0.05 && <div style={{ color: "var(--color-warn-text)" }}>{modelTrend ? tr("{pct}% of the estimated metal ({k} of {n} blocks) lies below the deepest sample of every hole within {r} m: carried down past the drilling. The structural trend \"{name}\" sets the reach up and down: a flatter trend in Model settings keeps it nearer the samples.", { pct: Math.round(100 * result.belowDrilling.metalShare), k: result.belowDrilling.blocks.toLocaleString(), n: result.belowDrilling.of.toLocaleString(), r: Number(searchRadius) || 0, name: modelTrend.name }) /* #2697 — the Vertical reach box is disabled under a trend */ : tr("{pct}% of the estimated metal ({k} of {n} blocks) lies below the deepest sample of every hole within {r} m: carried down past the drilling. A Vertical reach under the search radius keeps it near the samples.", { pct: Math.round(100 * result.belowDrilling.metalShare), k: result.belowDrilling.blocks.toLocaleString(), n: result.belowDrilling.of.toLocaleString(), r: Number(searchRadius) || 0 })}</div>}{/* #2546 */}
               <div>{tr("{samplePointCount} sample point(s) placed ({intervalCount} interval(s), {droppedCount} dropped — no collar/survey to place them{v}{v2}).", { samplePointCount: result.samplePointCount, intervalCount: result.intervalCount, droppedCount: result.droppedCount, v: result.beyondTraceCount ? tr(", {beyondTraceCount} of them deeper than the hole's trace", { beyondTraceCount: result.beyondTraceCount }) : "", v2: result.clampedCount ? tr("; {clampedCount} negative grade(s) clamped to zero", { clampedCount: result.clampedCount }) : "" })}</div>
               {/* TASKS.csv #571 */}
               {result.rawStats && (result.rawStats.duplicatesSkipped > 0 || result.rawStats.overlappingRows > 0) && (
@@ -922,7 +928,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
               {/* TASKS.csv #258 */}
               {/* TASKS.csv #516 — say how MLS (linear) actually ran */}
               {result.variogram && (
-                <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginTop: 4 }}>{tr("Kriged with the fitted {model} variogram{v}: nugget {v2}, sill {v3}, range {v4} m{v5}{v6}.", { model: result.variogram.model, v: result.variogram.fitted ? tr(" fitted to these composites") : tr(" as entered"), v2: +result.variogram.nugget.toPrecision(3), v3: +result.variogram.sill.toPrecision(3), v4: Math.round(result.variogram.range), v5: trend ? tr(" (along the trend \"{name}\")", { name: trend.name }) : "", v6: result.variogram.fitted ? tr(" — check it against the Variogram tool before trusting it") : "" })}{(() => { // TASKS.csv #1027 — a range the holes cannot see across
+                <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginTop: 4 }}>{tr("Kriged with the {model} variogram{v}: nugget {v2}, sill {v3}, range {v4} m{v5}{v6}." /* #2429: was 'the fitted ... fitted to' */, { model: result.variogram.model, v: result.variogram.fitted ? tr(" fitted to these composites") : tr(" as entered"), v2: +result.variogram.nugget.toPrecision(3), v3: +result.variogram.sill.toPrecision(3), v4: Math.round(result.variogram.range), v5: trend ? tr(" (along the trend \"{name}\")", { name: trend.name }) : "", v6: result.variogram.fitted ? tr(" — check it against the Variogram tool before trusting it") : "" })}{(() => { // TASKS.csv #1027 — a range the holes cannot see across
                   const v = result.variogram, far = result.params?.krigingBlocks?.beyondRange || 0, kr = result.params?.krigingBlocks?.kriged || 0;
                   const short = v.betweenHoleM != null && v.range < v.betweenHoleM;
                   if (short) return <span style={{ color: "var(--color-warn-text)" }}>{" "}{tr("The variogram cannot see between your holes: the range ({r} m) is shorter than the typical spacing between holes ({s} m){v}, so kriging is close to a plain average of the neighbours here.", { r: Math.round(v.range), s: v.betweenHoleM, v: kr ? tr(" and {n} of {m} kriged blocks have their nearest composite beyond it", { n: far.toLocaleString(), m: kr.toLocaleString() }) : "" })}</span>;
