@@ -2,7 +2,7 @@
 // trace (0.3 mm), a collar symbol (1.6 mm), labels that do not overlap, and, when coloured (by series, a collar field or a grade:
 // #2473), a key. North is up.
 import React, { useMemo } from "react";
-import { drillPlanGeometry, placeLabels, drillPlanGrid, drillPlanColouring, colourByKind, emptiestCorner } from "../lib/drillPlan.js"; // drillPlanGrid: #2301; colouring: #2473
+import { drillPlanGeometry, placeLabels, drillPlanGrid, drillPlanColouring, colourByKind, emptiestCorner, labelBackdrop } from "../lib/drillPlan.js"; // labelBackdrop: #2738; // drillPlanGrid: #2301; colouring: #2473
 import { resolvedSegments, gradeUnitLabel } from "../lib/geochem.js"; // TASKS.csv #2473
 import { CATEGORICAL_SAFE_COLORS } from "../lib/layers.js";
 import { printPx, printPt } from "../lib/theme.js";
@@ -54,17 +54,21 @@ export default function DrillPlanElement({ el, collars, gridCaption = "", assays
       <defs><clipPath id={`dp_${el.id}`}><rect x="0" y="0" width={d.w} height={d.h} /></clipPath></defs>
       <g clipPath={`url(#dp_${el.id})`}>
         {grid && <g stroke="#d5dae1" strokeWidth={0.6}>{grid.xs.map((t) => <line key={`gx${t.px}`} x1={t.px} y1={0} x2={t.px} y2={d.h} />)}{grid.ys.map((t) => <line key={`gy${t.px}`} x1={0} y1={t.px} x2={d.w} y2={t.px} />)}</g>}{/* #2301 */}
-        {grid && <g fontSize={Math.max(6, d.fontPx - 1)} fill="#55606e" fontFamily={FONT} stroke="#ffffff" strokeWidth={2} paintOrder="stroke">
-          {grid.xs.filter((t) => !(keyBox && keyBox.y < d.fontPx + 2 && t.px + 2 < keyBox.x + keyBox.w && t.px + 2 + t.label.length * d.fontPx * 0.5 > keyBox.x)).map((t) => <text key={`lx${t.px}`} x={t.px + 2} y={Math.max(6, d.fontPx - 1) + 1}>{t.label}</text>)}
-          {grid.ys.filter((t) => !(keyBox && keyBox.x < 2 + t.label.length * d.fontPx * 0.5 && t.px - d.fontPx < keyBox.y + keyBox.h && t.px > keyBox.y)).map((t) => <text key={`ly${t.px}`} x={2} y={t.px - 2}>{t.label}</text>)}{/* #2611 — not under the key */}
-          <text x={d.w - 4} y={d.h - 4} textAnchor="end">{gridCaption ? `Grid ${grid.spacing.toLocaleString("en-US")} m, ${gridCaption}` : `Grid ${grid.spacing.toLocaleString("en-US")} m`}</text>
-        </g>}
+        {grid && (() => { /* #2738 — a white box behind each label, not a stroked halo (one text per label in the PDF) */
+          const gf = Math.max(6, d.fontPx - 1), cap = gridCaption ? `Grid ${grid.spacing.toLocaleString("en-US")} m, ${gridCaption}` : `Grid ${grid.spacing.toLocaleString("en-US")} m`;
+          const boxed = (key, text, x, y, anchor = "start") => { const b = labelBackdrop(text, x, y, gf, anchor); return <g key={key}><rect x={b.x} y={b.y} width={b.w} height={b.h} fill="#ffffff" fillOpacity="0.85" /><text x={x} y={y} textAnchor={anchor}>{text}</text></g>; };
+          return <g fontSize={gf} fill="#55606e" fontFamily={FONT}>
+            {grid.xs.filter((t) => !(keyBox && keyBox.y < d.fontPx + 2 && t.px + 2 < keyBox.x + keyBox.w && t.px + 2 + t.label.length * d.fontPx * 0.5 > keyBox.x)).map((t) => boxed(`lx${t.px}`, t.label, t.px + 2, gf + 1))}
+            {grid.ys.filter((t) => !(keyBox && keyBox.x < 2 + t.label.length * d.fontPx * 0.5 && t.px - d.fontPx < keyBox.y + keyBox.h && t.px > keyBox.y)).map((t) => boxed(`ly${t.px}`, t.label, 2, t.px - 2))}{/* #2611 — not under the key */}
+            {boxed("cap", cap, d.w - 4, d.h - 4, "end")}
+          </g>;
+        })()}
         {d.holes.map((hh) => <line key={`t${hh.id}`} x1={hh.ax} y1={hh.ay} x2={hh.bx} y2={hh.by} stroke={styles.get(hh.id).hollow ? INK : styles.get(hh.id).colour} strokeWidth={line} strokeLinecap="round" />)}
         {/* #2473 — a hole with no value is a hollow ring; higher grade classes are drawn last, on top */}
         {d.holes.filter((hh) => hh.inside).sort((a, b) => styles.get(a.id).rMm - styles.get(b.id).rMm).map((hh) => { const s = styles.get(hh.id); return s.hollow
           ? <circle key={`c${hh.id}`} cx={hh.ax} cy={hh.ay} r={s.rMm * MM} fill="#ffffff" stroke={s.colour} strokeWidth={0.9} />
           : <circle key={`c${hh.id}`} cx={hh.ax} cy={hh.ay} r={s.rMm * MM} fill={s.colour} stroke="#ffffff" strokeWidth={0.6} />; })}
-        {d.labels.placed.map((l) => <text key={`l${l.id}`} x={l.x} y={l.y} textAnchor={l.anchor} fontSize={d.fontPx} fill={INK} stroke="#ffffff" strokeWidth={2.5} paintOrder="stroke" fontFamily={FONT}>{l.id}</text>)}
+        {d.labels.placed.map((l) => { const b = labelBackdrop(l.id, l.x, l.y, d.fontPx, l.anchor); return <g key={`l${l.id}`}><rect x={b.x} y={b.y} width={b.w} height={b.h} fill="#ffffff" fillOpacity="0.85" /><text x={l.x} y={l.y} textAnchor={l.anchor} fontSize={d.fontPx} fill={INK} fontFamily={FONT}>{l.id}</text></g>; })}{/* #2738 — boxed, not haloed */}
       </g>
       {keyBox && (
         <g transform={`translate(${keyBox.x},${keyBox.y})`}>

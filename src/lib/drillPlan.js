@@ -57,6 +57,15 @@ export const holeSeries = (id) => String(id ?? "").replace(/[-_ ]?\d+[A-Za-z]?$/
 
 // Labels placed greedily (right, left, above, below the collar), each kept only when it overlaps no label already placed and stays
 // inside the frame. points: [{ id, x, y }] in frame px. -> { placed: [{ id, x, y, anchor }], skipped }
+// TASKS.csv #2738 (split from #1871) — the white box behind a label, in place of a stroked halo: a halo is drawn as a second, outlined
+// copy of the text, so a PDF reader copied or searched every label twice. Width estimated as placeLabels does (0.56 em a character);
+// anchor: the text's textAnchor; y is the text's baseline. -> { x, y, w, h }
+export function labelBackdrop(text, x, y, fontPx, anchor = "start", pad = 1) {
+  const w = String(text ?? "").length * fontPx * 0.56 + 2 * pad, h = fontPx + pad;
+  const left = anchor === "end" ? x - w + pad : anchor === "middle" ? x - w / 2 : x - pad;
+  return { x: left, y: y - fontPx + 1, w, h };
+}
+
 // avoid: boxes no label may overlap (the key, #2473)
 // TASKS.csv #2611 — the boxes sit in a uniform grid of CELL px cells, so avoiding every collar of a 2,248-hole plan stays a few ms
 export function placeLabels(points, { fontPx = 9, w, h, gap = 5, avoid = [] } = {}) {

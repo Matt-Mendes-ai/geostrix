@@ -11,7 +11,7 @@ import GenerateAtlasModal from "../components/GenerateAtlasModal.jsx";
 import { HOLE_TOKENS, SECTION_TOKENS } from "../lib/atlas.js"; // TASKS.csv #1777 — listed with the page's placeholders
 import { scaleBarLabel, scaleBarMidLabel } from "../lib/scaleBarLabel.js"; // TASKS.csv #2140
 import { offSheetPages, rectSidesPast, elementCaption } from "../lib/layoutEdges.js"; // TASKS.csv #2482 / #2309; named elements: #2700
-import { fillPlaceholders } from "../lib/layoutText.js"; // TASKS.csv #2139
+import { fillPlaceholders, northName, pageConvergence, formatConvergence } from "../lib/layoutText.js"; // TASKS.csv #2139; north / convergence: #2712
 import { mergeCaseTwins } from "../lib/legendCaseTwins.js"; // TASKS.csv #2609
 import { collarGridName } from "../lib/gridName.js"; // TASKS.csv #2306
 import PatternSwatch from "../components/PatternSwatch.jsx"; // TASKS.csv #1995
@@ -23,7 +23,7 @@ import { minMax, LAYER_META } from "../lib/layers.js";
 import { categoryLegendGroups, assayLegendGroups, voxelLegendGroups, rasterLegendGroups, legendGroupsToItems, LEGEND_CATEGORY_KEYS, mapLayerLegendGroups, boundaryLegendGroups, swatchShape, capLegendGroups, outcropLegendGroup } from "../lib/legendGroups.js"; // TASKS.csv #725; #948; #1633; outcropLegendGroup: #1437
 import { niceScaleNumber } from "../lib/figureScale.js"; // TASKS.csv #311 — shared with the 3D viewport's scale bar
 import { collarTableSlice, continuationTables, collarsWithSurveyAttitude, continuationPageIndex } from "../lib/collarTable.js"; // continuationPageIndex: #2718 // TASKS.csv #1638; collarsWithSurveyAttitude: #2133
-import { fitDrillPlan, filterHoles, allHolesSteep, STEEP_DIP, turnedFrameFit } from "../lib/drillPlan.js"; // TASKS.csv #1639; allHolesSteep: #2473; turnedFrameFit: #2305
+import { fitDrillPlan, filterHoles, allHolesSteep, STEEP_DIP, turnedFrameFit, labelBackdrop } from "../lib/drillPlan.js"; // labelBackdrop: #2738; // TASKS.csv #1639; allHolesSteep: #2473; turnedFrameFit: #2305
 import DrillPlanColourControls from "../components/DrillPlanColourControls.jsx"; // TASKS.csv #2473
 import DrillPlanElement, { drillPlanDrawing } from "../components/DrillPlanElement.jsx"; // TASKS.csv #1639
 import { withLiveScaleBars, relinkCopies, tieStarterFurniture, northRotationOf, insertScaleBar, scaleBarTargets, bindScaleBar } from "../lib/layoutLinks.js"; // TASKS.csv #909 / #920 / #924 / #1632
@@ -522,8 +522,11 @@ export default function LayoutModule() {
     const um = (u0 + u1) / 2, vm = (v0 + v1) / 2; // the box's middle, back to world (the inverse of the rotation above)
     const centreWorld = { x: um * cb - vm * sb, y: -(um * sb + vm * cb) };
     const frameWm = (sel.w / 96) * 0.0254, frameHm = (sel.h / 96) * 0.0254;
-    const roundScaleFor = (U0, U1, V0, V1) => { const nd = Math.max(((U1 - U0) * 1.1) / frameWm, ((V1 - V0) * 1.1) / frameHm, 1); const mg = 10 ** Math.floor(Math.log10(nd)); return [1, 1.5, 2, 2.5, 5, 10].map((m) => Math.round(m * mg)) /* #2484 — the Scale list's steps, so a fitted scale can be picked again by name */.find((n) => n >= nd); };
+    const roundScaleFor = (U0, U1, V0, V1, fw = frameWm, fh = frameHm) => { const nd = Math.max(((U1 - U0) * 1.1) / fw, ((V1 - V0) * 1.1) / fh, 1); const mg = 10 ** Math.floor(Math.log10(nd)); return [1, 1.5, 2, 2.5, 5, 10].map((m) => Math.round(m * mg)) /* #2484 — the Scale list's steps, so a fitted scale can be picked again by name */.find((n) => n >= nd); };
     const scale = roundScaleFor(u0, u1, v0, v1);
+    // TASKS.csv #2737 (split from #2305) — the holes run across the frame's long side the other way (north-south in a landscape frame): the
+    // scale the frame would take turned (its width and height swapped), offered under the button when it is finer
+    const turnedScale = roundScaleFor(u0, u1, v0, v1, frameHm, frameWm);
     // #2304 — the scale the drilled holes alone would take: the assumed ones widen the frame only when it is smaller
     let scaleDrilled = scale;
     if (assumedIds.size && ptsDrilled.length && ptsDrilled.length < pts.length) {
@@ -536,7 +539,7 @@ export default function LayoutModule() {
     // 1:500,000 with the 10 drilled holes as specks, and nothing said why. (A notice would be cleared by the refresh re-selecting the frame.)
     const nHoles = (collars || []).filter((c) => Number.isFinite(c.x) && Number.isFinite(c.y)).length;
     const assumed = (collars || []).filter((c) => Number.isFinite(c.x) && Number.isFinite(c.y) && assumedIds.has(c.hole_id)).length;
-    updateSelected({ fixedScale: scale, trueScale: true, fitInfo: nHoles ? { scale, holes: nHoles, assumed, ...(assumed && scaleDrilled < scale ? { drilledScale: scaleDrilled } : {}) } : null }); // drilledScale: #2304
+    updateSelected({ fixedScale: scale, trueScale: true, fitInfo: nHoles ? { scale, holes: nHoles, assumed, ...(assumed && scaleDrilled < scale ? { drilledScale: scaleDrilled } : {}), ...(turnedScale < scale ? { turnedScale } : {}) } : null }); // drilledScale: #2304; turnedScale: #2737
     startViewportRender(sel.themeId, sel.id, true, { fixedScale: scale, elementW: sel.w, elementH: sel.h, centreWorld });
   };
   // TASKS.csv #906 — a resize handle was pressed (see Handles / the resize branch of the drag effect above)
@@ -1199,7 +1202,7 @@ export default function LayoutModule() {
             )}
             {sel.type === "titleblock" && <TitleBlockControls sel={sel} updateSelected={updateSelected} />}{/* TASKS.csv #1868 */}
             {(sel.type === "title" || sel.type === "text") && (
-              <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: -4, marginBottom: 8, lineHeight: 1.4 }} title={tr("Filled in when the page is shown and printed: the project's name, today's date, this page's number and name, the number of pages, the scale of the page's viewport, the project's coordinate system, the credit lines the licences of fetched terrain and imagery ask for.")}>{tr("Placeholders: {project} {date} {page} {pages} {pagename} {scale} {crs} {credits}")}
+              <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: -4, marginBottom: 8, lineHeight: 1.4 }} title={tr("Filled in when the page is shown and printed: the project's name, today's date, this page's number and name, the number of pages, the scale of the page's viewport, the project's coordinate system, the credit lines the licences of fetched terrain and imagery ask for, which north the maps are drawn to, and the angle from grid to true north.")}>{tr("Placeholders: {project} {date} {page} {pages} {pagename} {scale} {crs} {credits} {north} {convergence}")}
                 {/* TASKS.csv #1777 — the atlas's tokens, same single-brace syntax, listed here too */}
                 <div title={tr("Left as written on this page; Atlas… fills them on each page it generates, from that page's hole or section.")}>{tr("On atlas pages also: {list}", { list: [...new Set([...HOLE_TOKENS, ...SECTION_TOKENS])].map((k) => `{${k}}`).join(" ") })}</div></div>
             )}{/* TASKS.csv #909 */}
@@ -1974,6 +1977,11 @@ function ViewportControls({ steepHoles = false, legendReloaded = false, sel, the
       {sel.samplesUnplaced > 0 && ( // TASKS.csv #1864 — the 3D view could not place these, so no capture holds them
         <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 6, lineHeight: 1.4 }}>{tr(sel.samplesUnplaced === 1 ? "{n} surface sample is not in this frame: it lies over a void of the terrain, with no ground to sit on. Geochem > Plan map draws every sample by X / Y." : "{n} surface samples are not in this frame: they lie over a void of the terrain, with no ground to sit on. Geochem > Plan map draws every sample by X / Y.", { n: sel.samplesUnplaced.toLocaleString() })}</div>
       )}
+      {/* TASKS.csv #2716 — a page with frames at several scales: each frame can print its own scale in its corner */}
+      <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: scaleText ? "var(--color-text)" : "var(--color-text-muted)", marginBottom: 6, cursor: "pointer" }}
+        title={scaleText ? tr("Print this frame's scale ({s}) in its lower-right corner: for a page with maps at several scales, where one {scale} cannot name them all.", { s: scaleText }) : tr("Capture the view first: the scale comes from the capture.")}>
+        <input type="checkbox" disabled={!scaleText} checked={!!sel.scaleCaption && !!scaleText} onChange={(e) => updateSelected({ scaleCaption: e.target.checked })} />{tr("Print its scale in the frame")}
+      </label>
       <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: gridOk ? "var(--color-text)" : "var(--color-text-muted)", marginBottom: 6, cursor: gridOk ? "pointer" : "default" }}
         title={gridOk ? tr("Draw labelled easting/northing lines over this view") : tr("Needs a top-down, true-scale capture: set the 3D view to Top, tick true scale, and refresh this viewport.")}>
         <input type="checkbox" disabled={!gridOk} checked={!!sel.utmGrid && gridOk} onChange={(e) => updateSelected({ utmGrid: e.target.checked })} />{tr("Coordinate grid (labelled)") /* #2300: local metres are not UTM; #2484: nor is MGA / any other projection: the caption names the grid */}{gridOk && sel.utmGrid && (
@@ -2055,6 +2063,8 @@ function ViewportControls({ steepHoles = false, legendReloaded = false, sel, the
         <div style={{ fontSize: "var(--font-size-xs)", color: sel.fitInfo.drilledScale ? "var(--color-warn-text)" : "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>
           {tr("Fitted {n} hole(s) at 1:{scale}.", { n: sel.fitInfo.holes.toLocaleString(), scale: sel.fitInfo.scale.toLocaleString() })}
           {sel.fitInfo.drilledScale > 0 && " " + tr("{k} of them have no survey and no azimuth / dip (drawn as assumed vertical holes) and widen the frame: the drilled holes alone would fit at 1:{s}. Set the scale by hand, or remove those collars.", { k: sel.fitInfo.assumed.toLocaleString(), s: sel.fitInfo.drilledScale.toLocaleString() })}{/* #2304 — only when they do */}
+          {sel.fitInfo.turnedScale > 0 && sel.w !== sel.h && <> {tr("They run the other way: the frame turned ({w} × {h} mm) would show them at 1:{s}.", { w: Math.round(sel.h / PX_PER_MM), h: Math.round(sel.w / PX_PER_MM), s: sel.fitInfo.turnedScale.toLocaleString() })}{" "}
+            <button type="button" onClick={() => updateSelected({ w: sel.h, h: sel.w, fitInfo: null })} style={{ fontSize: "var(--font-size-xs)", padding: "1px 6px" }}>{tr("Turn the frame")}</button></>}{/* #2737 — then Fit again */}
         </div>
       )}
       {steepHoles && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>{tr("Every hole in this frame is steeper than {d}°, so a top-down view draws each one as a point. Insert > Drill plan draws a collar map, coloured by a collar field or a grade if you like.", { d: STEEP_DIP })}</div>}{/* TASKS.csv #2473 */}
@@ -2176,7 +2186,7 @@ function Handles({ which, onStart, at = {} }) {
 
 
 // TASKS.csv #909 — the dynamic-text context of a page, and the fill
-const PLACEHOLDER = /\{(project|date|page|pages|pagename|scale|crs|credits)\}/g; // credits: TASKS.csv #949
+const PLACEHOLDER = /\{(project|date|page|pages|pagename|scale|crs|credits|north|convergence)\}/g; // credits: TASKS.csv #949; north / convergence: #2712
 // TASKS.csv #947 — a map frame with a UTM grid never said which datum and zone: {crs} and the grid's caption print it
 // TASKS.csv #2300 (review #2174) — with the CRS not set, project.epsg is a placeholder (BC UTM 9N): the title block and grid caption named it on a
 // WA mine grid. Only a chosen CRS is named.
@@ -2191,7 +2201,7 @@ function textContextFor(els, project, page, index, count, collars = null, credit
   const today = new Date(), p2 = (v) => String(v).padStart(2, "0"); // #1489 — ISO: '11/2/2026' read as 11 February to many readers
   // gridCaption (#2301): what a drill plan's grid numbers are
   const gridCaption = project?.crsSet === false ? (project?.localGrid?.name ? `local grid: ${project.localGrid.name}` : "local mine grid, no CRS") : project?.epsg ? crsText(project.epsg) /* #2611 — the CRS by name, as a viewport grid says it */ : "";
-  return { gridCaption, project: project?.name || "", date: `${today.getFullYear()}-${p2(today.getMonth() + 1)}-${p2(today.getDate())}`, page: String(index + 1), pages: String(count), pagename: page?.name || "", scale: pageScaleText(els), crs: crsText(project?.epsg, project?.crsSet, project?.crsSet === false ? project?.localGrid?.name || collarGridName(collars) : null /* #2306 */), credits, collars, els, pageH: pagePx(pageFormatOf(page)).h, pageW: pagePx(pageFormatOf(page)).w /* #2134 */ }; // collars: the #911 table; els: the #912 overview; pageH: #1480
+  return { gridCaption, project: project?.name || "", date: `${today.getFullYear()}-${p2(today.getMonth() + 1)}-${p2(today.getDate())}`, page: String(index + 1), pages: String(count), pagename: page?.name || "", scale: pageScaleText(els), crs: crsText(project?.epsg, project?.crsSet, project?.crsSet === false ? project?.localGrid?.name || collarGridName(collars) : null /* #2306 */), credits, north: northName(project) ? tr(northName(project)) : "", convergence: formatConvergence(pageConvergence(els, project, collars)) /* #2712 */, collars, els, pageH: pagePx(pageFormatOf(page)).h, pageW: pagePx(pageFormatOf(page)).w /* #2134 */ }; // collars: the #911 table; els: the #912 overview; pageH: #1480
 }
 const fillText = (text, ctx) => fillPlaceholders(text, ctx, PLACEHOLDER); // #2139 — an empty fill takes its separator with it
 
@@ -2291,10 +2301,14 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
               <svg style={{ position: "absolute", left: 0, top: 0, overflow: "visible", pointerEvents: "none" }} width={W} height={H}>
                 <circle cx={W / 2 + u} cy={H / 2 + v} r={8} fill="none" stroke="#ffffff" strokeWidth={4} />
                 <circle cx={W / 2 + u} cy={H / 2 + v} r={8} fill="none" stroke="#d62f2f" strokeWidth={2} />
-                <text x={W / 2 + u + 11} y={H / 2 + v + 4} fill="#d62f2f" stroke="#ffffff" strokeWidth={3} paintOrder="stroke" style={font}>{el.markHole.id}</text>
+                {(() => { const b = labelBackdrop(el.markHole.id, W / 2 + u + 11, H / 2 + v + 4, font.fontSize); return <rect x={b.x} y={b.y} width={b.w} height={b.h} fill="#ffffff" fillOpacity="0.85" />; })()}{/* #2738 — a box, not a halo */}
+                <text x={W / 2 + u + 11} y={H / 2 + v + 4} fill="#d62f2f" style={font}>{el.markHole.id}</text>
               </svg>
             ) : <div style={{ position: "absolute", left: 6, top: 6, padding: "2px 6px", background: "rgba(255,255,255,0.88)", color: "#d62f2f", pointerEvents: "none", ...font }}>{tr("{id} is outside this map", { id: el.markHole.id })}</div>;
           })()}
+          {el.scaleCaption && viewportScaleText(el) && ( /* TASKS.csv #2716 — this frame's own scale, in its corner (a box, one text in the PDF) */
+            <div style={{ position: "absolute", right: 4, bottom: 4, padding: "1px 5px", background: "rgba(255,255,255,0.92)", border: "1px solid #c9ced4", color: "#1a2028", fontSize: printPx(printPt.small), fontFamily: "'Exo 2', system-ui, sans-serif", fontVariantNumeric: "tabular-nums", pointerEvents: "none", whiteSpace: "nowrap" }}>{viewportScaleText(el)}</div>
+          )}
           {el.refreshing && !print && (
             <div style={{ position: "absolute", inset: 0, background: "rgba(255,255,255,0.75)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "var(--font-size-base)", color: "#333", fontFamily: "'Exo 2', system-ui, sans-serif" }}>{tr("Rendering…")}</div>
           )}
