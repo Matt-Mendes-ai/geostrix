@@ -15,7 +15,9 @@ test("projectKeepsOxide: the basis the project already stores; nothing when the 
   assert.deepEqual(projectKeepsOxide({ symbol: "Cu", header: "Cu_ppm" }, units), {}, "not an oxide column");
   // what the import then stores
   assert.equal(importStoreUnit({ ...si, ...projectKeepsOxide(si, units) }), "% SiO2");
-  assert.equal(keepsOxide(si), false, "without the project, a major oxide is stored as the element (as before)");
+  // #2888 (merged after this row): without the project, every oxide column now keeps the oxide reported by default
+  assert.equal(keepsOxide(si), true, "without the project, an oxide column keeps the oxide (#2888's default)");
+  assert.equal(importStoreUnit({ ...fe, ...projectKeepsOxide(fe, units) }), "%", "the project's element basis still wins over that default");
 });
 
 test("an LOI column on a rock-chip file is offered as LOI (the drill route, #2734)", () => {
