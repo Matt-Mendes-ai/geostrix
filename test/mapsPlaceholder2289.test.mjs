@@ -9,7 +9,8 @@ test("#2289 the Project CRS main area and the raster / boundary help", () => {
   assert.match(c, /\{project\.crsSet === false \? \(/);
   assert.match(c, /Coordinate system not chosen yet/);
   const r = read("src/modules/RasterModule.jsx");
-  assert.match(r, /defaultText=\{project\?\.crsSet === false \? tr\("The project CRS — not chosen yet"\)/);
+  assert.match(r, /defaultText=\{rasterSourceDefault \/\* #2289; #2744 \*\/\}/); // #2744: the line is worked out above, a local grid's state named
+  assert.match(r, /: project\?\.localGrid \? tr\("The local grid's own numbers[^"]*"\)\s+: tr\("The project CRS — not chosen yet"\);/); // still the placeholder's answer when no CRS and no grid
   assert.ok((r.match(/project\?\.crsSet === false \? tr\("not chosen yet"\)/g) || []).length >= 1);
 });
 test("#2290 A layer: no move into the placeholder", () => {
