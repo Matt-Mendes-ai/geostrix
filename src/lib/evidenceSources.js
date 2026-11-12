@@ -264,6 +264,22 @@ export function numericLayerFields(rows, { min = 5 } = {}) {
   const keys = [...counts].filter(([k, n]) => n >= min && n >= 0.9 * filled.get(k)).map(([k]) => k);
   return keys.sort((a, b) => (/intensity|^int$|_int(_|$)/i.test(b) ? 1 : 0) - (/intensity|^int$|_int(_|$)/i.test(a) ? 1 : 0));
 }
+// TASKS.csv #2260 (review #2174, WA lode gold) — a field that measures how wrong another is (a spectral fit's TSA_Error, a standard
+// deviation, a residual) is never favourability: it is left out of the evidence list
+export const UNCERTAINTY_FIELD = /(^|[_\s-])(err|error|errors|uncert|uncertainty|stdev|std_?dev|sd|mse|rmse|residual|resid)$/i;
+// and a numeric field that holds a few whole numbers (a weathering class 1-6) may be a code, not a measure: -> { values } (sorted) or null
+export function codeLikeField(rows, field, { maxCodes = 8, min = 5 } = {}) {
+  const seen = new Set();
+  let n = 0;
+  for (const r of rows || []) {
+    const v = numericCell(r?.[field]);
+    if (v == null) continue;
+    if (!Number.isInteger(v)) return null;
+    n++; seen.add(v);
+    if (seen.size > maxCodes) return null;
+  }
+  return n >= min && seen.size >= 2 ? { values: [...seen].sort((x, y) => x - y) } : null;
+}
 const rowDepth = (r) => { const from = Number(r.from), to = Number(r.to); if (Number.isFinite(from) && Number.isFinite(to)) return (from + to) / 2; const d = Number(r.depth); return Number.isFinite(d) ? d : NaN; };
 // one point per 25 m plan bin, the highest value in it (as holeGradePoints)
 export function layerFieldPoints(rows, field, traces, bin = GRADE_BIN_M, level = null) {

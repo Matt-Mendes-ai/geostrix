@@ -22,7 +22,7 @@ import CollarLevelsNote from "./CollarLevelsNote.jsx"; // TASKS.csv #2584 — th
 const row = { display: "flex", alignItems: "center", gap: 6, justifyContent: "space-between" };
 const note = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 };
 // #1564 — what to do with an open mesh: the routes GeoStrix has (there is no general 'close this mesh' tool)
-const OPEN_ROUTE = "An open mesh has no inside. For an imported isosurface cut off at its model's edge, make the shell from the block model itself (Targeting > Voxel ranges > Shell at this range), which closes along the grid's edge; for a unit, build it as a closed volume in 3D Modelling (unit volumes, an envelope, a vein solid, or a solid linked from section outlines).";
+const OPEN_ROUTE = "An open mesh has no inside. For an imported isosurface cut off at its model's edge, make the shell from the block model itself (Targeting > Voxel ranges, on the Advanced ribbon > Shell at this range), which closes along the grid's edge; for a unit, build it as a closed volume in 3D Modelling (unit volumes, an envelope, a vein solid, or a solid linked from section outlines).";
 // TASKS.csv #2256 — with the field blank, gaps under this many blocks are not offered as targets (a default, typed over)
 const MIN_ZONE_BLOCKS = 8;
 const mm3 = (v) => (v >= 1e5 ? `${(v / 1e6).toFixed(2)} Mm³` : `${Math.round(v).toLocaleString()} m³`);
@@ -133,7 +133,7 @@ export default function UndrilledZonesPane({ solids = [], onAdd, onClose, onPlan
       <TaskPaneHeader title={tr("Undrilled zones")} helpId="undrilled-zones" icon={Crosshair} tone="model" onClose={onClose} />
       <div style={{ display: "flex", flexDirection: "column", gap: 7, fontSize: "var(--font-size-sm)" }}>
         <div style={note}>{tr("The parts of a modelled unit farther than a chosen distance from every drillhole: where the unit has not been tested yet.")}</div>
-        {!solids.length && <div style={{ ...note, color: "var(--color-danger-fg)" }}>{tr("No modelled solids yet. Build a closed unit in 3D Modelling (unit volumes, an envelope, a vein solid or an imported solid), or make a shell of a block model's value range (Targeting > Voxel ranges > Shell at this range), first.")}</div>}
+        {!solids.length && <div style={{ ...note, color: "var(--color-danger-fg)" }}>{tr("No modelled solids yet. Build a closed unit in 3D Modelling (unit volumes, an envelope, a vein solid or an imported solid), or make a shell of a block model's value range (Targeting > Voxel ranges, on the Advanced ribbon > Shell at this range), first.")}</div>}
         {!collars.length && solids.length > 0 && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr(plannedHoles.length ? "No drillholes yet: every part of a unit is undrilled. The {n} planned hole(s) are the only coverage that can be counted." : "No drillholes yet: every part of a unit is undrilled. Plan holes (Targeting > Planned holes) and count them here to see what they would leave untested.", { n: plannedHoles.length })}</div>}{/* TASKS.csv #1833 — Kodiak: zero holes, said instead of a 0 % figure */}
         <select value={unitId} onChange={(e) => { setUnitId(e.target.value); setResult(null); }} style={{ ...smallSel, width: "100%" }} aria-label={tr("Modelled unit")}>
           <option value="">{tr("Modelled unit…")}</option>
