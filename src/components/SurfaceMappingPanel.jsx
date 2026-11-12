@@ -43,6 +43,7 @@ import CoveringLayers from "./CoveringLayers.jsx"; // TASKS.csv #1823
 import { graduatedStyle, graduatedCategories, parseBreaks, isNumericField } from "../lib/mapGraduated.js"; // TASKS.csv #1600
 import { projectTargetEpsg } from "../lib/projectTarget.js"; // TASKS.csv #2287 — no reprojection INTO the placeholder CRS
 import { tieOf, fileToLocal, bearingToLocal } from "../lib/localGridTie.js"; // TASKS.csv #2320
+import { strikeSymbolPng, STRIKE_ICON_PATH } from "../lib/strikeIcon.js"; // TASKS.csv #2681
 import { mineGridOf, mineSourceOf, isMineSource, mineChoiceToProject, mineSourceSentence } from "../lib/mineGrid.js"; // TASKS.csv #2586; the mine-grid Source CRS: #2684
 import { collarsLookUnderground } from "../lib/pitShell.js"; // TASKS.csv #2265
 import { structureGroundCounts } from "../lib/viewer/surfacePlacement.js"; import { terrainGroundAt } from "../lib/viewer/geomath.js"; // TASKS.csv #2485 (2)
@@ -95,8 +96,11 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
       else if (fmt === "kml") {
         const toLonLat = await ox.lonLatTransform(epsg);
         if (!toLonLat) throw new Error(tr("EPSG:{epsg} cannot be converted to latitude / longitude.", { epsg }));
-        const kml = ox.featuresToKml(ox.surfaceStructureFeatures(s, epsg, zAt), { name: s.name, toLonLat, nameOf: (f) => (f.attributes.dip !== "" ? `${Math.round(f.attributes.dip)}°` : ""), colorOf: (f) => STRUCTURE_CLASS_COLORS[f.attributes.cls] || "#555555", headingOf: (f) => (f.attributes.strike_rhr_true !== "" ? f.attributes.strike_rhr_true : null) });
-        res = await saveFile({ quiet: "success", suggestedName: `${base}.kml`, filters: [{ name: "KML", extensions: ["kml"] }], content: kml });
+        const kml = ox.featuresToKml(ox.surfaceStructureFeatures(s, epsg, zAt), { name: s.name, toLonLat, nameOf: (f) => (f.attributes.dip !== "" ? `${Math.round(f.attributes.dip)}°` : ""), colorOf: (f) => STRUCTURE_CLASS_COLORS[f.attributes.cls] || "#555555", headingOf: (f) => (f.attributes.strike_rhr_true !== "" ? f.attributes.strike_rhr_true : null), iconHref: STRIKE_ICON_PATH /* #2681 */ });
+        // TASKS.csv #2681 — a .kmz: the KML and the strike-symbol icon it points at, so Google Earth turns a dip symbol, not its pushpin
+        const { buildZip } = await import("../lib/shapefile.js");
+        const kmz = buildZip([{ name: "doc.kml", data: new TextEncoder().encode(kml) }, { name: STRIKE_ICON_PATH, data: strikeSymbolPng(64) }]);
+        res = await saveFile({ quiet: "success", suggestedName: `${base}.kmz`, filters: [{ name: "KMZ", extensions: ["kmz"] }], content: kmz });
       } else {
         const bytes = await (await import("../lib/gpkg.js")).buildGeoPackage([{ name: base, ...ox.surfaceStructureFeatures(s, epsg, zAt), epsg }]);
         res = await saveFile({ quiet: "success", suggestedName: `${base}.gpkg`, filters: [{ name: "GeoPackage", extensions: ["gpkg"] }], content: bytes });
@@ -780,7 +784,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
               <div style={{ flex: 1, minWidth: 0, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.name}</div>
               <span style={{ color: "var(--color-text-muted)", flexShrink: 0 }} title={s.azimuthRef && s.azimuthRef !== "grid" ? tr(s.azimuthRef === "magnetic" ? "Measured from magnetic north{v}; converted to grid north at import" : "Measured from true north{v}; converted to grid north at import", { v: s.azimuthDate ? tr(" on {date}", { date: s.azimuthDate }) : "" }) : tr("Dip directions in project grid north")}>{s.rows.length}{s.azimuthRef === "magnetic" ? " · MN" : s.azimuthRef === "true" ? " · TN" : ""}</span>
               <select value="" onChange={(e) => { const f = e.target.value; e.target.value = ""; if (f) exportStructSet(s, f); }} aria-label={tr("Export structure set \"{name}\"", { name: s.name })} title={tr("Export: dip, dip direction and strike (right-hand rule) in grid and true north")} style={{ ...select, width: "auto", flexShrink: 0, padding: "1px 2px", fontSize: "var(--font-size-xs)" }}>
-                <option value="">{tr("Export…")}</option><option value="gpkg">GeoPackage</option><option value="kml">{tr("KML (Google Earth)")}</option><option value="csv">CSV</option>
+                <option value="">{tr("Export…")}</option><option value="gpkg">GeoPackage</option><option value="kml">{tr("KMZ (Google Earth, with strike symbols)") /* #2681 */}</option><option value="csv">CSV</option>
               </select>
               <Trash2 aria-label={tr("Remove structure set \"{name}\"", { name: s.name })} title={tr("Remove structure set \"{name}\"", { name: s.name })} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(tr("Remove \"{name}\"?", { name: s.name }))) { removeSurfaceStructureSet(s.id); setStructMsg(null); /* #2573 — its import notice goes with it */ } }} />
             </div>
