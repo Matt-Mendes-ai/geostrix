@@ -111,6 +111,21 @@ export const VALUE_TRANSFORMS = {
   },
 };
 
+// TASKS.csv #1843 (review #1754, Kodiak) — a downhole variogram needs only the distance down each hole: composites of holes that could
+// not be placed in 3D (no collar, or past the trace) go on a vertical line per hole at their mid depth, each hole far from the others
+// (downhole pairs never cross holes). skipHoles: the holes already placed. Same point shape as samplePointsFromIntervals.
+export function downholeLinePoints(intervals, skipHoles = new Set()) {
+  const out = [], idx = new Map();
+  for (const iv of intervals || []) {
+    if (skipHoles.has(iv.hole_id) || iv.from == null || iv.to == null || !Number.isFinite(iv.avgGrade)) continue;
+    if (!idx.has(iv.hole_id)) idx.set(iv.hole_id, idx.size);
+    const length = iv.length != null ? iv.length : iv.to - iv.from;
+    out.push({ x: idx.get(iv.hole_id) * 1e6, y: 0, z: -(Number(iv.from) + Number(iv.to)) / 2, value: Math.max(0, iv.avgGrade), hole_id: iv.hole_id, from: iv.from, to: iv.to,
+      length: Number.isFinite(length) && length > 0 ? length : null, coverage: iv.coverage != null ? iv.coverage : null, domain: iv.domain != null ? iv.domain : null, byDepth: true });
+  }
+  return { points: out, holes: idx.size };
+}
+
 // Applies a transform to a point set, returning NEW point objects (never mutating the caller's).
 // `capPercentile` is 0-100 and only used by the "cap" transform.
 export function applyValueTransform(points, transform = "none", capPercentile = 98) {

@@ -37,6 +37,8 @@ export default function PredictivePanel({ visibleHoles, collars: allCollars, sur
   const survey = useMemo(() => (follow ? tickedHoles(allSurvey || [], visibleHoles) : allSurvey), [follow, allSurvey, visibleHoles]);
   const litho = useMemo(() => (follow ? tickedHoles(allLitho || [], visibleHoles) : allLitho), [follow, allLitho, visibleHoles]);
   const assays = useMemo(() => (follow ? tickedHoles(allAssays || [], visibleHoles) : allAssays), [follow, allAssays, visibleHoles]);
+  // TASKS.csv #1845 (review #1754, Kodiak) — the 554 MB install was offered on a project with no placed hole to model: say so first
+  const modelableHoles = useMemo(() => { const withData = new Set([...(allLitho || []), ...(allAssays || [])].map((r) => r.hole_id)); return (allCollars || []).filter((c) => withData.has(c.hole_id) && Number.isFinite(Number(c.x)) && Number.isFinite(Number(c.y))).length; }, [allCollars, allLitho, allAssays]);
   const [st, setSt] = useState(null);
   const [busyJob, setBusyJob] = useState(null);
   const [denseNear, setDenseNear] = useState(null); // TASKS.csv #1312 — null: by the rule (thin runs)
@@ -242,6 +244,7 @@ export default function PredictivePanel({ visibleHoles, collars: allCollars, sur
           <div style={h}>{tr("Install the add-on")}</div>
           {/* TASKS.csv #688 — what you get, what it costs and what the licence means, then ONE confirm step: the button
               used to start a 553 MB download on the click (wrong on a metered camp connection) */}
+          {modelableHoles === 0 && <div role="note" style={{ marginBottom: 6, color: "var(--color-warn-text)" }}>{tr("geoML models drillholes, and this project has no hole with a collar and a lithology log or assays yet, so it would have nothing to model here. Load the drillholes first; the add-on can be installed at any time.")}</div>}{/* #1845 */}
           <div><strong>{tr("What you get:")}</strong>{" "}{tr("rock-unit and grade models with their uncertainty.")}</div>
           <div style={{ marginTop: 4 }}><strong>{tr("What it costs:")}</strong>{" "}{tr("a download{v} from GitHub, {v2} (it carries TensorFlow), about 2 GB of free memory while a model runs, and a processor with AVX (most made since 2012; some budget Celeron / Pentium chips lack it).", { v: st.downloadBytes ? tr(" of about {v}", { v: fmtMB(st.downloadBytes) }) : "", v2: st.installedBytes ? tr("{v} on disk", { v: fmtMB(st.installedBytes) }) : tr("a few GB on disk") })}</div>
           <div style={{ marginTop: 4 }}><strong>{tr("Licence:")}</strong>{" "}{tr("free to use; it is GPL-3.0, which only matters if you redistribute it (")}<a href="https://www.gnu.org/licenses/gpl-3.0.html" target="_blank" rel="noreferrer">{tr("licence text")}</a>{tr("). GeoStrix itself stays MIT. You can remove it here (3D Modelling › geoML models) at any time.")}</div>
@@ -261,7 +264,7 @@ export default function PredictivePanel({ visibleHoles, collars: allCollars, sur
                 {inst.phase === "download" && <button type="button" style={btn(false)} onClick={() => addonCancelInstall()}>{tr("Cancel")}</button>}
               </>
             ) : (
-              <button type="button" style={btn(true, !st.url && !st.browser)} disabled={!st.url} onClick={() => setConfirmInstall(true)}>{tr("Install predictive modelling…")}</button>
+              <button type="button" style={btn(modelableHoles > 0 /* #1845: not the primary action with nothing to model */, !st.url && !st.browser)} disabled={!st.url} onClick={() => setConfirmInstall(true)}>{tr("Install predictive modelling…")}</button>
             )}
           </div>
           {!st.url && !st.browser && <div style={{ marginTop: 6 }}>{tr("The add-on download isn't published for this version yet.")}</div>}

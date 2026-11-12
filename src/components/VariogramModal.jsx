@@ -10,7 +10,7 @@ import { samplePointsFromIntervals } from "../lib/estimation.js";
 import { desurveyHole } from "../lib/desurvey.js";
 import {
   experimentalVariogram, fitVariogramModel, variogramModelValue, VARIOGRAM_MODELS,
-  VALUE_TRANSFORMS, applyValueTransform, groupPointsByDomain, suggestLagDistance, suggestBetweenHoleLag, variogramStationarity, siteSpacingLag, lagsShortOfSpacing } from "../lib/variogram.js";
+  VALUE_TRANSFORMS, applyValueTransform, groupPointsByDomain, suggestLagDistance, suggestBetweenHoleLag, variogramStationarity, siteSpacingLag, lagsShortOfSpacing, downholeLinePoints /* #1843 */ } from "../lib/variogram.js";
 import { holeSpacingSummary } from "../lib/holeSpacing.js"; // TASKS.csv #2221
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
@@ -126,7 +126,11 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
           domainRows: domainChoice ? domainChoice.rows : null, // #1571
         });
         if (!intervals.length) { setError(tr("Compositing produced no intervals — check the element and composite length.")); setRunning(false); return; }
-        const { points: allPoints, dropped } = samplePointsFromIntervals(intervals, collars, survey, desurveyHole, desurveyMethod); // #135
+        const { points: placed3d, dropped: dropped3d } = samplePointsFromIntervals(intervals, collars, survey, desurveyHole, desurveyMethod); // #135
+        // TASKS.csv #1843 — Downhole only needs depths: the holes that could not be placed in 3D are placed by depth along the hole
+        const byDepth = holeMode === "downhole" ? downholeLinePoints(intervals, new Set(placed3d.map((p) => p.hole_id))) : { points: [], holes: 0 };
+        const allPoints = byDepth.points.length ? [...placed3d, ...byDepth.points] : placed3d;
+        const dropped = Math.max(0, dropped3d - byDepth.points.length);
         if (!allPoints.length) { setError(collars.length ? tr("No composite could be placed in 3D — check that holes have collars and (ideally) survey data.") : noCollarsNotice(tr("the variogram"), layers, srcAssays).text); setRunning(false); return; } // #1841 — no collars at all: say what is waiting
 
         let points = allPoints;
@@ -162,6 +166,7 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
           vg, fit, lag, suggested, capValue, domainLabel, spacing, nLagsUsed, fromSites: !!site, // #2221
           nLagsTyped: nLags, plane: usePlane ? { label: usePlane.label, half } : null, holeMode, compositeLength, medianSampleM: medianSampleLength(srcAssays, symbol), // #2424
           nComposites: points.length, dropped, transform, model, tP95, tFloor, // #1746
+          byDepthHoles: byDepth.holes, // #1843
           nIntervals: intervals.length, unsampled: uns.params(filled), // #2417
         });
       } catch (e) {
@@ -324,6 +329,7 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
                 {tr("{nComposites} composites{v}{v2} · {nPairsUsed} pairs used · lag {lag} m{v4}{v5}{v6}", { nComposites: result.nComposites.toLocaleString(), v: result.domainLabel ? tr(" in domain \"{domainLabel}\"", { domainLabel: result.domainLabel }) : "", v2: !result.vg.subsampled ? "" : result.vg.holesTotal != null ? tr(" ({used} of {total} holes, whole holes, for the pair loop)", { used: result.vg.holesUsed.toLocaleString(), total: result.vg.holesTotal.toLocaleString() }) /* #1572 */ : result.vg.firstPairLag != null ? tr(" (subsampled to {nPoints} for the pair loop; no pairs closer than {h} m — Downhole only resolves the nugget)", { nPoints: result.vg.nPoints.toLocaleString(), h: result.vg.firstPairLag.toFixed(1) }) : tr(" (subsampled to {nPoints} for the pair loop)", { nPoints: result.vg.nPoints.toLocaleString() }), nPairsUsed: result.vg.nPairsUsed.toLocaleString(), lag: result.lag, v4: result.suggested != null ? (result.fromSites ? tr(" (suggested {suggested} m from the drill-site spacing)", { suggested: result.suggested.toFixed(1) }) : tr(" (suggested {suggested} m)", { suggested: result.suggested.toFixed(1) })) : "", v5: result.dropped ? tr(" · {dropped} composites could not be placed in 3D", { dropped: result.dropped }) : "", v6: result.capValue != null ? tr(" · capped at {capValue}", { capValue: +Number(result.capValue).toPrecision(4) /* #1420: was 2.7857037499998807 */ }) : "" })}
               </div>
 
+              {result.byDepthHoles > 0 && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr(result.byDepthHoles === 1 ? "One hole has no collar or trace: its composites are paired by their depths down the hole, which is all Downhole only needs." : "{n} holes have no collar or trace: their composites are paired by their depths down each hole, which is all Downhole only needs.", { n: result.byDepthHoles })}</div>}{/* #1843 */}
               {result.plane && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("Pairs in the plane {p}, every azimuth, within ± {w} m across it.", { p: result.plane.label, w: result.plane.half })}</div>}{/* #2424 */}
               {result.nLagsUsed !== result.nLagsTyped && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("{n} lags drawn, out to {max} m, to reach the farthest drill site ({typed} typed).", { n: result.nLagsUsed, max: Math.round(result.nLagsUsed * result.lag), typed: result.nLagsTyped })}</div>}{/* #2424: the lag count actually used (#2221) */}
               {result.holeMode === "downhole" && result.fit?.nuggetRatio >= 0.95 && result.medianSampleM > 0 && result.medianSampleM < 0.75 * result.compositeLength && <div role="note" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", lineHeight: 1.45 }}>{tr("Downhole pairs on {c} m composites are pure nugget here, and the samples are typically {s} m long: a composite as long as the samples may show the short range.", { c: result.compositeLength, s: +result.medianSampleM.toFixed(2) })}</div>}{/* #2424 */}

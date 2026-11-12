@@ -287,6 +287,7 @@ export default function ModellingPanes(props) {
   }, [shellSymbols, shellLead]); // once per element list (the choice itself stays the user's)
   const [unitBody, setUnitBody] = useState({ iso: 0.5, largest: false, search: 0, cell: 0 }); // TASKS.csv #1340 — its own settings: a rock unit is not an alteration halo
   const sheetPositionAt = useMemo(() => positionFromTraces(tracesRef?.current || []), [tracesSeq]); // #2625: the traces change with tracesSeq (#888)
+  const tracedHoles = useMemo(() => new Set((tracesRef?.current || []).filter((t) => t?.pts?.length >= 2).map((t) => t.hole_id)).size, [tracesSeq]); // #2053
   // TASKS.csv #1574 (review #1497, Lawyers) — the alteration halo from the Alteration log OR a categorical custom layer, and only
   // the intervals whose numeric field is at or above a value (Silicification intensity >= 2)
   const { customLayers: customLayersAll = [], layers: storeLayers = {}, geochemThresholds = [] /* #2689 */ } = useStore();
@@ -343,7 +344,9 @@ export default function ModellingPanes(props) {
         </div>
         <select aria-label={tr("Model area")} value={modelArea || "all"} onChange={(e) => setModelArea(e.target.value)} style={{ width: "100%", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)" }}>
           <option value="all">{tr("Whole property")}</option>
-          <option value="checked">{tr("Holes checked in the Holes list ({n} of {m})", { n: checkedHoleCount(collars, visibleHoles).checked, m: checkedHoleCount(collars, visibleHoles).all })}</option>
+          <option value="checked">{tracedHoles < checkedHoleCount(collars, visibleHoles).all /* #2053 — 544 collars, 10 with a trace on Woodjam */
+            ? tr("Holes checked in the Holes list ({n} of {m}; {t} of the holes have a trace)", { n: checkedHoleCount(collars, visibleHoles).checked, m: checkedHoleCount(collars, visibleHoles).all, t: tracedHoles })
+            : tr("Holes checked in the Holes list ({n} of {m})", { n: checkedHoleCount(collars, visibleHoles).checked, m: checkedHoleCount(collars, visibleHoles).all })}</option>
         </select>
         {modelArea === "checked" && <Suspense fallback={null}><ModelAreaRange collars={collars} visibleHoles={visibleHoles} setVisibleHoles={setVisibleHoles} small={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 }} inp={{ background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "3px 6px", color: "var(--color-text)", fontSize: "var(--font-size-sm)" }} /></Suspense>}{/* #2536 */}
         {/* TASKS.csv #2378 (review #2325, WA uranium) — rock code and stratigraphic unit logged on the same intervals: which one the tools model */}
