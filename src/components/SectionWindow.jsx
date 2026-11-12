@@ -18,7 +18,10 @@ import { loadPatternTiles, patternDefs, patternFill, sectionTilePx } from "../li
 import { flushSync } from "react-dom"; // TASKS.csv #1090 — render at print size for an export, synchronously
 import { hoverTitle } from "../lib/svgLazyTitle.js"; // TASKS.csv #2210
 import { gradeText } from "../lib/gradeText.js"; // TASKS.csv #2515
-import { defaultSectionVE } from "../lib/sectionVE.js"; // TASKS.csv #2363
+import { defaultSectionVE, plotAspect, MAX_SECTION_VE } from "../lib/sectionVE.js"; // TASKS.csv #2363; plotAspect: #2933
+// TASKS.csv #2933 / #2387 — the VE of the section a step (‹ ›) was taken from, for the section that step opens in the next tab of this
+// window (the tabs share this module): a parallel section keeps the user's 8x instead of opening at its own automatic 3x
+let stepVE = null;
 
 const SECTION_W = 1100, SECTION_H = 660;
 
@@ -93,7 +96,7 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
   // page height itself grows/shrinks with the exaggerated z-range rather than squeezing a fixed box,
   // since faking exaggeration inside a fixed box would just be a different, undisclosed distortion.
   // TASKS.csv #2363 — null until the section first reports its own shape (SectionSVG onAutoVE), then that value; the user's from then on
-  const [vExag, setVExag] = useState(null);
+  const [vExag, setVExag] = useState(() => { const v = stepVE && Date.now() - stepVE.at < 30000 ? stepVE.ve : null; stepVE = null; return v; }); // #2933 — a step's VE
   const [showSectionImages, setShowSectionImages] = useState(true); // TASKS.csv #631
   const [showModel, setShowModel] = useState(true); // TASKS.csv #759
   // TASKS.csv #1131 — Matt: "set thickness of drill holes on cross sections and the cross section buffer in the section
@@ -366,7 +369,7 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
   useEffect(() => { setStepping(false); }, [rawData]);
   useEffect(() => (stepping ? onSectionData(() => setStepping(false)) : undefined), [stepping]); // the step opened in another tab of this window
   useEffect(() => { if (!stepping) return undefined; const t = setTimeout(() => setStepping(false), 5000); return () => clearTimeout(t); }, [stepping]);
-  const stepTo = (msg) => { setStepping(true); sendSectionContacts(msg); };
+  const stepTo = (msg) => { if (vExag != null) stepVE = { ve: vExag, at: Date.now() }; setStepping(true); sendSectionContacts(msg); }; // stepVE: #2933
   const toolbarRef = useRef(null), toolbarHeight = useRef(0);
   useLayoutEffect(() => { if (!drawing && toolbarRef.current) toolbarHeight.current = toolbarRef.current.offsetHeight; });
   if (!data) return <div style={{ padding: 20, color: "#55606e", fontFamily: "'Exo 2', system-ui, sans-serif" }}>{tr("Waiting for section data…")}</div>;
@@ -476,7 +479,7 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
             <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: "#55606e" }} title={tr("Georeferenced section image(s) on this line, drawn behind the holes and contacts: {v}", { v: data.sectionImages.map((i) => i.name).join(", ") })}>
               <input type="checkbox" checked={showSectionImages} onChange={(e) => setShowSectionImages(e.target.checked)} />{" "}{tr("Section image")}</label>
           )}
-          <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: "#55606e" }} title={tr("Vertical exaggeration — 1x is true scale (vertical and horizontal axes at the same real-world-units-per-pixel)")}>{tr("VE")}<input type="number" min="0.1" max="20" step="0.5" value={vExag ?? ""} onChange={(e) => setVExag(Math.max(0.1, Number(e.target.value) || 1))} style={{ width: 46, background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 4, color: "#1a2028", fontSize: 11, padding: "3px 5px" }} />
+          <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: "#55606e" }} title={tr("Vertical exaggeration — 1x is true scale (vertical and horizontal axes at the same real-world-units-per-pixel)")}>{tr("VE")}<input type="number" min="0.1" max="20" step="0.5" value={vExag ?? ""} onChange={(e) => setVExag(Math.min(MAX_SECTION_VE, Math.max(0.1, Number(e.target.value) || 1)))} style={{ width: 46, background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 4, color: "#1a2028", fontSize: 11, padding: "3px 5px" }} />
             ×
           </label>
           {onPopOut && !drawing && <button onClick={() => onPopOut({ ...data, contacts, labels, savedContactsKey: savedKey })} style={btnStyle(false)} title={tr("Open this section in a window of its own, to compare it beside another. It uses more memory than a tab.")}>{tr("Own window")}</button>}{/* #1303 */}
@@ -607,7 +610,7 @@ function SectionSVG({ printing = false, patterns = null, textFont = SECTION_FONT
   scatter.forEach((p) => { minZ = Math.min(minZ, p.z); maxZ = Math.max(maxZ, p.z); }); // #1807 — the geophysics points and samples in the corridor
   if (showSectionImages) sectionImages.forEach((im) => [im.tl, im.tr, im.bl].forEach(([, z]) => { minZ = Math.min(minZ, z); maxZ = Math.max(maxZ, z); })); // #631
   // TASKS.csv #2363 — the opening VE from the section's length and its unpadded height (before the fallback below)
-  const autoVE = isFinite(minZ) ? defaultSectionVE(len, maxZ - minZ) : null;
+  const autoVE = isFinite(minZ) ? defaultSectionVE(len, maxZ - minZ, typeof window !== "undefined" ? plotAspect(window.innerWidth, window.innerHeight, document.querySelector(".ge-section-toolbar")?.offsetHeight) : null) : null; // the window's shape: #2933
   autoVERef.current = autoVE;
   const vExag = vExagIn ?? autoVE ?? 1;
   // TASKS.csv #1256 — at a large text size the subtitle ran past the frame and the PNG cut the sentence
