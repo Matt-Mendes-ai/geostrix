@@ -23,6 +23,7 @@ import { t as tr } from "../../lib/i18n.js";
 import { orphanHoleIds } from "../../lib/noCollars.js"; // TASKS.csv #1809
 import { VE_CHOICES, veOf } from "./verticalExaggeration.js"; // TASKS.csv #2623
 import { drillSiteSpacing } from "../../lib/drillSpacing.js"; // TASKS.csv #2517
+import CollarSizeControl from "./CollarSizeControl.jsx"; // TASKS.csv #2823
 import { autoGridSize, isAutoGrid } from "../../lib/viewer/gridGroup.js"; // TASKS.csv #2318
 import { useStore } from "../../lib/store.jsx"; // TASKS.csv #2517 — the collars
 // TASKS.csv #1702 (review #1645, Copley) — "Intercepts" opened lithology boundary picks; to a geologist an intercept is "24 m @ 0.44 % Cu".
@@ -109,6 +110,7 @@ export function ViewToolbar({
                   {VE_CHOICES.map((v) => <option key={v} value={v}>{v === 1 ? tr("none (1x)") : `${v}x`}</option>)}
                 </select>
               </label>
+              <CollarSizeControl figureOverlay={figureOverlay} setFigureOverlay={setFigureOverlay} />{/* #2823 */}
               <div style={{ display: "flex", flexDirection: "column", gap: 5, marginBottom: 8, opacity: figureOverlay.enabled ? 1 : 0.45 }}>
                 <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", cursor: "pointer" }}>
                   <input type="checkbox" disabled={!figureOverlay.enabled} checked={!!figureOverlay.title} onChange={(e) => setFigureOverlay((f) => ({ ...f, title: e.target.checked }))} />{" "}{tr("Title")}</label>
@@ -300,17 +302,9 @@ export function ContextItem({ label, onClick, disabled, title }) {
   // TASKS.csv #730 — menuitem (was button); tabIndex 0 stays, #575's menuItemsOf finds items by it
   return <div role="menuitem" tabIndex={0} onKeyDown={activateOnKey} onClick={onClick} title={title} onMouseEnter={(e) => (e.currentTarget.style.background = "#242e3c")} onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")} style={{ padding: "7px 10px", borderRadius: 5, cursor: "pointer", color: "var(--color-text)" }}>{label}</div>;
 }
-// TASKS.csv #222 (QGIS-specialist audit finding: 38ms blocking per single hole-visibility toggle at
-// 200 holes) — collars.map(...) recreated every hole row's JSX on every render, so toggling ONE hole's
-// eye icon forced React to reconcile all 200 sibling rows too, not just the one that actually changed.
-// React.memo here + toggleHole/onOpenStripLog both being useCallback-stable (see their own definitions)
-// means an unrelated row's props are referentially unchanged across that render, so React skips it
-// entirely. A full windowed-scroll virtualization (like DataQCModal/AttributeTableModal got) wasn't
-// used here because the Holes list isn't its own isolated scroll region — it's one section inline
-// within the whole sidebar's single mixed-content scroll container (Geometry/Layers/Slice-series/Holes/
-// notices all together), and windowing a sub-range of a larger shared scroll needs real layout
-// restructuring this pass didn't attempt; memoization fixes the actual measured symptom (the toggle
-// cost) without that risk.
+// TASKS.csv #222 (audit: 38 ms per hole-visibility toggle at 200 holes) — React.memo, with toggleHole / onOpenStripLog useCallback-stable:
+// toggling one hole's eye re-renders that row only. Not windowed: the Holes list shares the sidebar's one scroll container with the
+// other sections, so windowing it needs a layout change; memoization fixes the measured toggle cost.
 export const typedSectionInput = { width: "100%", boxSizing: "border-box", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 6px", color: "var(--color-text)", fontSize: "var(--font-size-sm)" }; // #393
 // TASKS.csv #1809 (review #1646, Kodiak) — holes known only from their logs and assays (no collar): listed with a strip-log button, as
 // the strip log needs only depths. With 0 collars, Kodiak's 33 holes (904 lithology, 782 alteration, 6,239 assay intervals) had no

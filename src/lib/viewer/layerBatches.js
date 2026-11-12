@@ -225,7 +225,7 @@ export function batchTag(c) {
   const bm = c.userData?.batchMembers;
   if (!bm || !bm.length) return "";
   const a = bm[0].matrixWorld.elements, b = bm[bm.length - 1].matrixWorld.elements;
-  return `#${bm.length}:${bm[0].id}:${bm[bm.length - 1].id}@${a[12]},${a[13]},${a[14]},${b[12]},${b[13]},${b[14]}`;
+  return `#${bm.length}:${bm[0].id}:${bm[bm.length - 1].id}@${a[0]},${a[12]},${a[13]},${a[14]},${b[0]},${b[12]},${b[13]},${b[14]}`; // [0]: a collar marker resized in place (#2823)
 }
 // TASKS.csv #1643 — the pick list: a compact batch itself (pickIndex.js boxes its instances), every other member as eachLayerMember
 export function eachPickTarget(g, fn) {

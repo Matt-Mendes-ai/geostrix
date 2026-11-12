@@ -131,7 +131,7 @@ export function keptOrigin(prev, mean, tol = ORIGIN_KEEP_M) {
 }
 
 export function buildDrillholeScene(ctx) {
-  const { applyCategoryVisibility, applyLegendOverrideColors, autoFitInitial, baseColorForBuild, bgColorRef, boundaries, buildAssaySpheresRef, buildDefer, buildGeophysPtsRef, buildSurfaceSamplesRef, collarMaterialRef, collars, customLayers, desurveyMethod, effectiveLabel, fitBox, hasAutoFitRef, holeLabelAnchorsRef, holeLabelModeRef, isRowVisibleForBuild, lastHoleTraceCountRef, lastTracesRef, layerGroupsRef, layers, layerStyles, mapLayers, numericLayerColor, numericRange, numericSymbology, omfObjects, originRef, placedSurfaceSamples, pointBuildersStale, rasters, rebuildSeq, setDataLoaded, setNotices, setTracesSeq, surfaceStructures, survey, syncImplicitOrigin, terrain, tracesRef, voxelModels } = ctx;
+  const { applyCategoryVisibility, applyLegendOverrideColors, autoFitInitial, baseColorForBuild, bgColorRef, boundaries, buildAssaySpheresRef, buildDefer, buildGeophysPtsRef, buildSurfaceSamplesRef, collarMaterialRef, collarSize /* #2823 */, collars, customLayers, desurveyMethod, effectiveLabel, fitBox, hasAutoFitRef, holeLabelAnchorsRef, holeLabelModeRef, isRowVisibleForBuild, lastHoleTraceCountRef, lastTracesRef, layerGroupsRef, layers, layerStyles, mapLayers, numericLayerColor, numericRange, numericSymbology, omfObjects, originRef, placedSurfaceSamples, pointBuildersStale, rasters, rebuildSeq, setDataLoaded, setNotices, setTracesSeq, surfaceStructures, survey, syncImplicitOrigin, terrain, tracesRef, voxelModels } = ctx;
   const groups = layerGroupsRef.current;
   if (!groups.litho || buildDefer.skip()) return; // #1500 — a restore just scheduled its state: build once, next render
   // TASKS.csv #131 — c.material?.map?.dispose?.() added alongside the existing geometry/material
@@ -403,7 +403,7 @@ export function buildDrillholeScene(ctx) {
     const marker = new THREE.Mesh(PROTO_SPHERE_12, collarMaterialRef.current); // TASKS.csv #312 — shared prototype + scale (was SphereGeometry(3.2, 12, 12))
     marker.scale.setScalar(3.2);
     marker.position.set(pts[0].x, pts[0].y, pts[0].z);
-    marker.userData = { tip: `${c.hole_id}\ncollar${assumedVertical ? `\n${tr("no azimuth / dip and no survey: drawn as an ASSUMED vertical hole")}` : methodAssumed ? `\n${tr("survey method assumed: the direction below the collar was not measured (drawn dashed)")}` : ""}`, collar: c }; // collar: #1504 — Identify lists its fields; #2014; #2662
+    marker.userData = { collarMarker: true /* #2823 */, tip: `${c.hole_id}\ncollar${assumedVertical ? `\n${tr("no azimuth / dip and no survey: drawn as an ASSUMED vertical hole")}` : methodAssumed ? `\n${tr("survey method assumed: the direction below the collar was not measured (drawn dashed)")}` : ""}`, collar: c }; // collar: #1504 — Identify lists its fields; #2014; #2662
     groups.holes.add(marker); // #2319
 
     // TASKS.csv #2176 step 3 — the trace goes into a merged LineSegments chunk (lib/viewer/traceBatch.js, after the loop): one THREE.Line
@@ -644,6 +644,7 @@ export function buildDrillholeScene(ctx) {
   // the common case — toggling a chip with no rebuild involved.
   if (rebuildHoles) { // #2176 — the labels stand on the collars: kept with them (1.5 s for 2,248 labels)
     holeLabelAnchorsRef.current = labelAnchors; // #1277
+    collarSize?.apply(groups.holes, labelAnchors); // TASKS.csv #2823 — the markers' size from the drilling / the setting, now they are batched
     syncHoleLabels(groups.hole_labels, labelAnchors, holeLabelModeRef.current, makeTextSprite);
   }
   applyCategoryVisibility();
