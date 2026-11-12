@@ -18,7 +18,10 @@ const overlaps = (a, b, gap) => a.x - a.w / 2 < b.x + b.w / 2 + gap && b.x - b.w
 
 // TASKS.csv #1536 (review #1497, Lawyers) — dropCrowded: a label with nowhere free is left out instead of overprinting its
 // natural spot (48 holes fanned from a few pads made one blot of names); the caller counts what is missing from the result.
-export function placeLabels(items, { fontSize = 9, bounds = null, yBounds = null, fixed = {}, gap = 2, maxTiers = 12, avoid = [], dropCrowded = false } = {}) {
+// TASKS.csv #2761 (#2604 follow-up) — fixedYield: a dragged label keeps its offset only where it still fits (inside the bounds, clear of the
+// labels already placed); otherwise it is placed like the others. The section window uses it for the print-size pass, where the text is
+// larger than when the label was dragged and two dragged labels could overprint.
+export function placeLabels(items, { fontSize = 9, bounds = null, yBounds = null, fixed = {}, gap = 2, maxTiers = 12, avoid = [], dropCrowded = false, fixedYield = false } = {}) {
   // avoid: boxes to keep clear that are not labels of ours (#1144: the elevation numbers in the left margin)
   const h = fontSize + 2, base = 6, out = [], placed = [...avoid];
   const clampX = (x, w) => (bounds ? Math.min(bounds[1] - w / 2, Math.max(bounds[0] + w / 2, x)) : x);
@@ -26,16 +29,18 @@ export function placeLabels(items, { fontSize = 9, bounds = null, yBounds = null
   // the spot it would take with no bounds: a label pushed in from an anchor near or past the edge is called out too
   const ideal = (it) => ({ x: it.ax, y: it.dir < 0 ? it.ay - base : it.ay + base + fontSize });
   // dragged labels first: where the geologist put them
+  const yielded = new Set(); // #2761
   for (const it of items) {
     const f = fixed[it.key];
     if (!f) continue;
     const w = labelWidth(it.text, fontSize), x = it.ax + f.dx, y = it.ay + f.dy;
     const box = { key: it.key, text: it.text, x, y, w, h, ax: it.ax, ay: it.ay, dir: it.dir, moved: true };
+    if (fixedYield && (placed.some((p) => overlaps(box, p, gap)) || (bounds && (x - w / 2 < bounds[0] || x + w / 2 > bounds[1])) || (yBounds && (y - h < yBounds[0] || y > yBounds[1])))) { yielded.add(it.key); continue; }
     const n = ideal(it);
     box.leader = Math.hypot(x - n.x, y - n.y) > 3;
     placed.push(box); out.push(box);
   }
-  const auto = items.filter((it) => !fixed[it.key]).sort((a, b) => a.ax - b.ax || a.ay - b.ay);
+  const auto = items.filter((it) => !fixed[it.key] || yielded.has(it.key)).sort((a, b) => a.ax - b.ax || a.ay - b.ay);
   for (const it of auto) {
     const w = labelWidth(it.text, fontSize), n = natural(it, w);
     let best = null;
