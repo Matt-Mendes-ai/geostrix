@@ -53,6 +53,7 @@ import { ensureExportCrs } from "../lib/projectCrsRequest.js"; // TASKS.csv #102
 import { pointInBoundary } from "../lib/pointInPolygon.js"; // TASKS.csv #903 — not geoprocessing.js, which loads d3-delaunay
 import { buildPickIndex, queryPickIndex } from "../lib/pickIndex.js"; // TASKS.csv #304 — object-level BVH for hover/click picking
 import { useMenuKeys } from "../lib/useMenuKeys.js"; // TASKS.csv #730
+import { outlineLinkCandidates, outlineOptionText, linkableOutline, linkDisabledReason } from "../lib/viewer/outlineLink.js"; // TASKS.csv #2235
 import { viewKeyZoom } from "../lib/viewer/viewKeys.js"; // TASKS.csv #2788
 import { t as tr } from "../lib/i18n.js";
 import EmptyViewerBody from "./viewer/EmptyViewerBody.jsx"; // TASKS.csv #1448
@@ -215,6 +216,7 @@ import { useTabNotices } from "../lib/useTabNotices.js"; // TASKS.csv #1203
 import { categoryColor, categoryLabel } from "../lib/layers.js"; // TASKS.csv #1289
 import { useIdentify } from "./viewer/useIdentify.js"; // TASKS.csv #1324
 import { useCollarMarkerSize } from "./viewer/useCollarMarkerSize.js"; // TASKS.csv #2823
+import { useModellingSimple } from "./viewer/useModellingSimple.js"; // TASKS.csv #2390 / #2773
 import CollarSizeControl from "./viewer/CollarSizeControl.jsx"; // #2823 — Matt: the size beside the Collars switch
 import { useBuildDefer } from "../lib/viewer/buildDefer.js"; // #1500
 import { lazyTip } from "../lib/viewer/lazyTip.js"; // #1500
@@ -879,6 +881,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   // the labels alone (effect after the rebuild), not every drillhole
   const holeLabelModeRef = useRef(holeLabelMode); holeLabelModeRef.current = holeLabelMode;
   const holeLabelAnchorsRef = useRef([]);
+  const simpleTools = useModellingSimple(mode === "modelling"); // #2390 — the 3D Modelling ribbon's Simple set, from the data
   const collarSize = useCollarMarkerSize(figureOverlay.collarsOff ? "off" : figureOverlay.collarSize, layerGroupsRef, holeLabelAnchorsRef); // #2823 — shown, Auto / m
 
   // Manual "Refresh view" trigger — the user asked for this after seeing collars render a few meters
@@ -3253,17 +3256,7 @@ ${describeTrend(t)}` };
     return { positions: w, indices, color };
   }, []);
   // TASKS.csv #570 — explicit wireframes: the outline names drawn on two or more sections, and linking them
-  const outlineNames = useMemo(() => {
-    const m = new Map();
-    // TASKS.csv #860 — count SECTIONS (two outlines on one section read "2 sections" and enabled the button)
-    for (const s of sections || []) for (const c of s.contacts || []) if (c.kind === "outline" && c.points?.length >= 3) m.set(c.unit, (m.get(c.unit) || new Set()).add(s.id ?? s.name));
-    const fromSections = [...m].filter(([, k]) => k.size >= 2).map(([name, k]) => ({ name, sections: k.size }));
-    // TASKS.csv #894 — outlines saved from level plans (boundaries at an elevation, drawn flat) with one name at two or
-    // more elevations link too, as a flat-lying body; a name already linked from sections keeps the sections
-    const pm = new Map();
-    for (const b of boundaries || []) if (b.drapeMode === "flat" && Number.isFinite(b.elevation) && b.polylines?.[0]?.length >= 3 && !m.has(b.name)) pm.set(b.name, (pm.get(b.name) || new Set()).add(Math.round(b.elevation * 10) / 10));
-    return [...fromSections, ...[...pm].filter(([, k]) => k.size >= 2).map(([name, k]) => ({ name, sections: k.size, plans: true }))];
-  }, [sections, boundaries]);
+  const outlineNames = useMemo(() => outlineLinkCandidates(sections, boundaries), [sections, boundaries]); // #860 / #894; every name, a single one disabled: #2235
   const [wireframeName, setWireframeName] = useState("");
   const [wireframeEnds, setWireframeEnds] = useState("flat"); // TASKS.csv #894 — flat / extend / pinch
   // TASKS.csv #878 — products whose sources changed since they were built: a wireframe whose outlines were edited, a unit
@@ -6455,29 +6448,29 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           (the generated surfaces and domains stay below it); the analysis plots open directly. */}
       {mode === "modelling" && (
         <Ribbon show={visible && !bare} label="3D Modelling tools">
-          <RibbonGroup advanced label="Setup">
-            <RibbonButton icon={Settings} label="Model settings" tone="model" title="Domain, intercept set, contact orientations, resolution, stiffness, search ellipsoid, anisotropy" {...paneProps("settings")} />
+          <RibbonGroup advanced={!simpleTools.strat} label="Setup">
+            <RibbonButton advanced icon={Settings} label="Model settings" tone="model" title="Domain, intercept set, contact orientations, resolution, stiffness, search ellipsoid, anisotropy" {...paneProps("settings")} />
             <RibbonButton icon={Group} label="Litho groups" tone="model" title="Lump lithology codes into modelling units" {...paneProps("groups")} />
             <RibbonButton icon={Waypoints} label="Modelling codes" tone="model" title="Give intervals modelling codes (alternating flows), connect units between holes, set roles and pile order" {...paneProps("mcodes")} />
-            <RibbonButton icon={GitCompare} label="Correlation" tone="model" title="Section correlation" {...paneProps("correlation")} />
+            <RibbonButton advanced icon={GitCompare} label="Correlation" tone="model" title="Section correlation" {...paneProps("correlation")} />
           </RibbonGroup>
           {/* TASKS.csv #750 — Matt: "predictive could go into 3d modelling as a tool, geoML modelling group. the other one should
               be named gempy modelling group" */}
           <RibbonGroup label="GemPy modelling">
             <RibbonButton icon={Mountain} label="Implicit surface" tone="model" title="Model one unit's top surface (GemPy)" {...paneProps("implicit")} />
-            <RibbonButton advanced icon={Layers} label="Strat. stack" tone="model" title="Model a stratigraphic stack of units together (GemPy)" {...paneProps("stack")} />
-            <RibbonButton icon={MapIcon} label="Model from map" tone="model" title="A 3D model from the geological map and outcrop measurements alone, no drillholes needed (GemPy)" {...paneProps("mapmodel")} />{/* TASKS.csv #817 */}
+            <RibbonButton advanced={!simpleTools.strat} icon={Layers} label="Strat. stack" tone="model" title="Model a stratigraphic stack of units together (GemPy)" {...paneProps("stack")} />
+            <RibbonButton advanced={!simpleTools.mapModel} icon={MapIcon} label="Model from map" tone="model" title="A 3D model from the geological map and outcrop measurements alone, no drillholes needed (GemPy)" {...paneProps("mapmodel")} />{/* TASKS.csv #817 */}
           </RibbonGroup>
           {/* TASKS.csv #811 — Matt: "a tool specifically for explicit modelling ... the hard line of the modelled surface" */}
           <RibbonGroup label="Explicit modelling">
             <RibbonButton icon={PenTool} label="Explicit surface" tone="model" title="A surface exactly through your own picks in 3D and lines drawn on sections" {...paneProps("explicit")} />
           </RibbonGroup>
-          <RibbonGroup label="geoML modelling">
+          <RibbonGroup advanced={!simpleTools.geoml} label="geoML modelling">
             <RibbonButton icon={Sparkles} label="geoML models" tone="model" title="Rock-unit and grade models with uncertainty (geoML, Gaussian processes — optional add-on)" {...paneProps("geoml")} />
           </RibbonGroup>
-          <RibbonGroup label="Structure">
+          <RibbonGroup advanced={!simpleTools.stereonet} label="Structure">
             <RibbonButton advanced icon={Compass} label="Structures" tone="model" title="Structural modelling from structure picks" {...paneProps("structural")} />
-            <RibbonButton icon={Target} label="Stereonet" tone="analyse" title="Stereonet of structure picks (and outcrop measurements)" onClick={() => setStereonetOpen(true)} />
+            <RibbonButton icon={Target} label="Stereonet" tone="analyse" title="Stereonet of structure picks (and outcrop measurements)" disabled={!simpleTools.stereonet} disabledReason="No structure picks with an orientation, nor outcrop measurements, yet." onClick={() => setStereonetOpen(true)} />{/* #2773 */}
             <RibbonButton advanced icon={Activity} label="Downhole plot" tone="analyse" title="Downhole structure (tadpole) plot" onClick={() => setTadpoleOpen(true)} />
             <RibbonButton advanced icon={Crosshair} label="Core orient." tone="analyse" title="Core orientation (alpha-beta) calculator for non-oriented core" onClick={() => setCoreOrientOpen(true)} />
           </RibbonGroup>
@@ -7177,14 +7170,14 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         ><Box size={14} />{" "}{tr("Solid blocks from surfaces…")}</button>
         {/* TASKS.csv #570 — explicit wireframe from outlines drawn on sections */}
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8, alignItems: "center" }} title={tr("Draw an \"Outline (closed, for a solid)\" with the same name on two or more cross-sections; this links them into a closed solid.")}>
-          <select value={outlineNames.some((o) => o.name === wireframeName) ? wireframeName : ""} onChange={(e) => setWireframeName(e.target.value)} disabled={!outlineNames.length} style={{ ...smallSel, flex: "1 0 100%", minWidth: 0 }} aria-label={tr("Section outlines to link")}>
+          <select value={linkableOutline(outlineNames, wireframeName) ? wireframeName : ""} onChange={(e) => setWireframeName(e.target.value)} disabled={!outlineNames.length} style={{ ...smallSel, flex: "1 0 100%", minWidth: 0 }} aria-label={tr("Section outlines to link")}>
             <option value="">{outlineNames.length ? tr("Section outlines…") : tr("No section outlines yet")}</option>
-            {outlineNames.map((o) => <option key={o.name} value={o.name}>{o.plans ? tr("{name} ({n} level plans)", { name: o.name, n: o.sections }) : tr("{name} ({n} sections)", { name: o.name, n: o.sections })}</option>)}
+            {outlineNames.map((o) => <option key={o.name} value={o.name} disabled={!!o.single}>{outlineOptionText(o)}</option>)}
           </select>
           <select value={wireframeEnds} onChange={(e) => setWireframeEnds(e.target.value)} style={{ ...smallSel, width: 92, flexShrink: 0 }} aria-label={tr("Ends of the solid")} title={tr("How the solid ends beyond the first and last outline: flat at them, extended half a section spacing, or pinched out to a point half a spacing beyond")}>{/* TASKS.csv #894 */}
             <option value="flat">{tr("Flat ends")}</option><option value="extend">{tr("Extend ½ spacing")}</option><option value="pinch">{tr("Pinch out")}</option>
           </select>
-          <button onClick={() => linkWireframe(wireframeName)} disabled={!outlineNames.some((o) => o.name === wireframeName)} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "5px 8px", opacity: outlineNames.some((o) => o.name === wireframeName) ? 1 : 0.5 }}>{tr("Link into a solid")}</button>
+          <button onClick={() => linkWireframe(wireframeName)} disabled={!linkableOutline(outlineNames, wireframeName)} title={linkDisabledReason(outlineNames, wireframeName) || undefined} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "5px 8px", opacity: linkableOutline(outlineNames, wireframeName) ? 1 : 0.5 }}>{tr("Link into a solid")}</button>
         </div>
         {/* TASKS.csv #859 — vein solid from two surfaces */}
         <div style={{ display: "flex", gap: 6, marginBottom: 8, alignItems: "center", flexWrap: "wrap" }} title={tr("A vein or dyke as a closed solid between its hangingwall and footwall surfaces (any dip, vertical included), with its true thickness")}>
@@ -7498,7 +7491,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                             title={tr("Record that this run replaces an earlier one. Both runs stay in the project — this only links them so they can be compared.")}
                           >
                             <option value="">{tr("— nothing (this is an original run) —")}</option>
-                            {cands.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                            {cands.map((c) => <option key={c.id} value={c.id}>{surfaceLabels.get(c.id) ?? c.name}</option>)}
                           </select>
                         </label>
                         <div style={{ display: "flex", gap: 4 }}>
