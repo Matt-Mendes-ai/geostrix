@@ -11280,5 +11280,10 @@
   "{n} more.": "Mais {n}.",
   "The custom layer \"{name}\" is too large to keep in the older undo steps: undo can bring back the last {n} removed large layers.": "A camada personalizada \"{name}\" é grande demais para ser mantida nas etapas de desfazer mais antigas: desfazer pode trazer de volta as últimas {n} camadas grandes removidas.",
   "The custom layers {names} are too large to keep in the older undo steps: undo can bring back the last {n} removed large layers.": "As camadas personalizadas {names} são grandes demais para serem mantidas nas etapas de desfazer mais antigas: desfazer pode trazer de volta as últimas {n} camadas grandes removidas.",
-  "An earlier assay table ({rows} rows) is too large to keep in the older undo steps: undoing that far leaves the assays as they were later.": "Uma tabela de análises anterior ({rows} linhas) é grande demais para ser mantida nas etapas de desfazer mais antigas: desfazer até lá deixa as análises como estavam depois."
+  "An earlier assay table ({rows} rows) is too large to keep in the older undo steps: undoing that far leaves the assays as they were later.": "Uma tabela de análises anterior ({rows} linhas) é grande demais para ser mantida nas etapas de desfazer mais antigas: desfazer até lá deixa as análises como estavam depois.",
+  "Optional: a block height of its own, for a flat body. Blank: the block size (cubes), or the shell's own cell height for a shell of a block model's range.": "Opcional: uma altura de bloco própria, para um corpo plano. Em branco: o tamanho de bloco (cubos), ou a altura de célula do próprio invólucro quando é um invólucro de um intervalo de um modelo de blocos.",
+  "Block height (m)": "Altura de bloco (m)",
+  "= block size": "= tamanho de bloco",
+  "Blocks of {b} m: the shell's own cells.": "Blocos de {b} m: as células do próprio invólucro.",
+  "Three volumes of the same body: its {n} cells in the range hold {c}; the shell drawn between the cell centres holds {s}; the run counts its blocks, so its volume depends on the block size.": "Três volumes do mesmo corpo: suas {n} células no intervalo contêm {c}; o invólucro traçado entre os centros das células contém {s}; a execução conta seus blocos, então seu volume depende do tamanho de bloco."
 }

@@ -11280,5 +11280,10 @@
   "{n} more.": "{n} más.",
   "The custom layer \"{name}\" is too large to keep in the older undo steps: undo can bring back the last {n} removed large layers.": "La capa personalizada \"{name}\" es demasiado grande para conservarla en los pasos de deshacer más antiguos: deshacer puede recuperar las últimas {n} capas grandes eliminadas.",
   "The custom layers {names} are too large to keep in the older undo steps: undo can bring back the last {n} removed large layers.": "Las capas personalizadas {names} son demasiado grandes para conservarlas en los pasos de deshacer más antiguos: deshacer puede recuperar las últimas {n} capas grandes eliminadas.",
-  "An earlier assay table ({rows} rows) is too large to keep in the older undo steps: undoing that far leaves the assays as they were later.": "Una tabla de análisis anterior ({rows} filas) es demasiado grande para conservarla en los pasos de deshacer más antiguos: deshacer hasta allí deja los análisis como estaban después."
+  "An earlier assay table ({rows} rows) is too large to keep in the older undo steps: undoing that far leaves the assays as they were later.": "Una tabla de análisis anterior ({rows} filas) es demasiado grande para conservarla en los pasos de deshacer más antiguos: deshacer hasta allí deja los análisis como estaban después.",
+  "Optional: a block height of its own, for a flat body. Blank: the block size (cubes), or the shell's own cell height for a shell of a block model's range.": "Opcional: una altura de bloque propia, para un cuerpo plano. En blanco: el tamaño de bloque (cubos), o la altura de celda de la propia envolvente si es una envolvente de un rango de un modelo de bloques.",
+  "Block height (m)": "Altura de bloque (m)",
+  "= block size": "= tamaño de bloque",
+  "Blocks of {b} m: the shell's own cells.": "Bloques de {b} m: las celdas de la propia envolvente.",
+  "Three volumes of the same body: its {n} cells in the range hold {c}; the shell drawn between the cell centres holds {s}; the run counts its blocks, so its volume depends on the block size.": "Tres volúmenes del mismo cuerpo: sus {n} celdas en el rango contienen {c}; la envolvente trazada entre los centros de celda contiene {s}; la corrida cuenta sus bloques, así que su volumen depende del tamaño de bloque."
 }

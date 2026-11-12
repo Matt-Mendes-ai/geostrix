@@ -116,10 +116,12 @@ export function extendColumns(z, nx, ny, r = 5, maxCols = Infinity) {
   return out;
 }
 
-export function surfacesToBlock({ tops = [], solids = [], extent, cell, ground = null, maxCells = 2_000_000, extend = true }) {
+// cellZ: TASKS.csv #2966 — an optional block height (flat blocks for a flat body); blank, cubes of `cell` as before
+export function surfacesToBlock({ tops = [], solids = [], extent, cell, cellZ = null, ground = null, maxCells = 2_000_000, extend = true }) {
   const [xmin, xmax, ymin, ymax, zmin, zmax] = extent;
   if (!(cell > 0) || !(xmax > xmin && ymax > ymin && zmax > zmin)) throw new Error(tr("The model box is empty or the block size is zero.")); // tr: TASKS.csv #898
-  const nx = Math.max(1, Math.round((xmax - xmin) / cell)), ny = Math.max(1, Math.round((ymax - ymin) / cell)), nz = Math.max(1, Math.round((zmax - zmin) / cell));
+  const cz = cellZ > 0 ? cellZ : cell;
+  const nx = Math.max(1, Math.round((xmax - xmin) / cell)), ny = Math.max(1, Math.round((ymax - ymin) / cell)), nz = Math.max(1, Math.round((zmax - zmin) / cz));
   if (nx * ny * nz > maxCells) throw new Error(tr("{nx} x {ny} x {nz} blocks is over the {max} limit: use a larger block size.", { nx, ny, nz, max: maxCells.toLocaleString() }));
   const dx = (xmax - xmin) / nx, dy = (ymax - ymin) / ny, dz = (zmax - zmin) / nz;
   const ncol = nx * ny;

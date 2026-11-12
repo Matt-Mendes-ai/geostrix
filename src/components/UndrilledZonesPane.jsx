@@ -10,7 +10,7 @@ import { plannedTrace } from "../lib/holePlanning.js";
 import { isMeshClosed } from "../lib/meshQuery.js";
 import { solidChoices } from "../lib/solidChoices.js"; // TASKS.csv #1564
 import { unitShell } from "../lib/unitVolumes.js";
-import { defaultCellSize, defaultCoverM, undrilledBlockCount } from "../lib/undrilledZones.js"; // defaultCoverM: #2452; the run itself is in a worker (#2258)
+import { defaultCellSize, defaultCoverM, undrilledBlockCount, shellOwnCells, shellCellsVolume /* #2966 */ } from "../lib/undrilledZones.js"; // defaultCoverM: #2452; the run itself is in a worker (#2258)
 import { drilledSiteSpacing } from "../lib/evidenceSources.js"; // TASKS.csv #2452; drilledSiteSpacing: #2949
 import { collarsLookUnderground } from "../lib/pitShell.js"; // TASKS.csv #1557 — the ground between the collars (collarGround, in the worker since #2258); #2249: unless they are underground
 import { unitSupport } from "../lib/unitSupport.js"; // TASKS.csv #1725 — a one-hole / extrapolated shell is said
@@ -43,6 +43,7 @@ export default function UndrilledZonesPane({ solids = [], onAdd, onClose, onPlan
   const siteSpacing = useMemo(() => drilledSiteSpacing(collars), [collars]); // #2949 — grid-hashed, kept per collars array
   const [coverM, setCoverM] = useState(() => was?.coverM ?? defaultCoverM(siteSpacing));
   const [cellText, setCellText] = useState(() => was?.cellText ?? "");
+  const [cellZText, setCellZText] = useState(() => was?.cellZText ?? ""); // #2966 — an optional block height
   const [insideOnly, setInsideOnly] = useState(() => was?.insideOnly ?? false);
   const [withPlanned, setWithPlanned] = useState(() => was?.withPlanned ?? false);
   const [minText, setMinText] = useState(() => was?.minText ?? "");
@@ -56,9 +57,15 @@ export default function UndrilledZonesPane({ solids = [], onAdd, onClose, onPlan
   // TASKS.csv #1564 — closed solids first with their volumes (two 'Au > 1 ppm shell' could not be told apart), open meshes apart and
   // not selectable: Lawyers' 12 imported VLF isosurfaces were offered and each refused only after Run
   const choices = solidChoices(solids);
-  const autoCell = useMemo(() => (unit && coverM > 0 ? defaultCellSize(unit.positions, coverM) : null), [unit, coverM]);
-  const blockCount = useMemo(() => { const c = Number(cellText) > 0 ? Number(cellText) : autoCell; return unit && c > 0 ? undrilledBlockCount(unit.positions, c) : 0; }, [unit, cellText, autoCell]); // #2258 — said before Run
-  const minAuto = useMemo(() => { const c = Number(cellText) > 0 ? Number(cellText) : autoCell; return c > 0 ? MIN_ZONE_BLOCKS * c ** 3 : null; }, [cellText, autoCell]); // #2256 — the placeholder
+  // TASKS.csv #2966 (review #2876, WA iron) — a shell of a block model's range is tested on its own cells by default (10 x 10 x 4 m, not a
+  // 7.5 m cube re-blocking of a body made of 4 m-thick cells); any other unit, cubes as before. A typed size or height wins.
+  const own = useMemo(() => shellOwnCells(unit), [unit]);
+  const autoCell = useMemo(() => (own ? own.cellM : unit && coverM > 0 ? defaultCellSize(unit.positions, coverM) : null), [unit, coverM, own]);
+  const autoZ = Number(cellText) > 0 ? null : own?.cellZM ?? null; // a typed plan size: cubes unless a height is typed too
+  const cellZ = Number(cellZText) > 0 ? Number(cellZText) : autoZ;
+  const blockCount = useMemo(() => { const c = Number(cellText) > 0 ? Number(cellText) : autoCell; return unit && c > 0 ? undrilledBlockCount(unit.positions, c, cellZ) : 0; }, [unit, cellText, autoCell, cellZ]); // #2258 — said before Run
+  const minAuto = useMemo(() => { const c = Number(cellText) > 0 ? Number(cellText) : autoCell; return c > 0 ? MIN_ZONE_BLOCKS * c * c * (cellZ > 0 ? cellZ : c) : null; }, [cellText, autoCell, cellZ]); // #2256 — the placeholder
+  const cellsVol = useMemo(() => shellCellsVolume(unit), [unit]); // #2966
   // TASKS.csv #1725 — a grade shell built from one hole, or mostly extrapolated: its undrilled parts are where it is least known
   const support = useMemo(() => (unit ? unitSupport(unit.params) : null), [unit]);
   const pct = (v) => Math.round(100 * v);
@@ -96,8 +103,8 @@ export default function UndrilledZonesPane({ solids = [], onAdd, onClose, onPlan
     // TASKS.csv #2249 — collars drilled from underground are not the ground: 15 % of a 1 g/t shell (48 % of the 3 g/t) was dropped as "air"
     const ug = terrain ? null : collarsLookUnderground(collars, survey);
     const onCollars = !terrain && !ug?.underground && collars.some((c) => Number.isFinite(c?.x) && Number.isFinite(c?.y) && Number.isFinite(c?.z));
-    const args = { solid: { positions: unit.positions, indices: unit.indices }, traces: t.traces, coverM: Number(coverM), cellM: Number(cellText) || 0, insideOnly, minZoneM3: minText === "" ? null : Number(minText) || 0, minZoneBlocks: MIN_ZONE_BLOCKS /* #2256 — blank: under 8 blocks */ };
-    const inputs = { unitId, coverM, cellText, insideOnly, withPlanned, minText }, unitName = unit.name;
+    const args = { solid: { positions: unit.positions, indices: unit.indices }, traces: t.traces, coverM: Number(coverM), cellM: Number(cellText) > 0 ? Number(cellText) : own ? own.cellM : 0, cellZM: cellZ > 0 ? cellZ : 0 /* #2966 */, insideOnly, minZoneM3: minText === "" ? null : Number(minText) || 0, minZoneBlocks: MIN_ZONE_BLOCKS /* #2256 — blank: under 8 blocks */ };
+    const inputs = { unitId, coverM, cellText, cellZText, insideOnly, withPlanned, minText }, unitName = unit.name;
     job.current?.cancel();
     const j = runUndrilledZonesAsync(args, terrain ? { terrain } : onCollars ? { collars } : null);
     job.current = j;
@@ -118,7 +125,7 @@ export default function UndrilledZonesPane({ solids = [], onAdd, onClose, onPlan
       name, positions: s.positions, indices: s.indices, volumeM3,
       tip: tr(r.zones.length === 1 ? "{name}\n{v} in 1 zone, {pct}% of the unit" : "{name}\n{v} in {n} zones, {pct}% of the unit", { name, v: mm3(volumeM3), n: r.zones.length, pct: ((100 * volumeM3) / (r.unitCells * r.cellVolume)).toFixed(1) }),
       // project data: English, like every other solid's params (#786)
-      params: { tool: "undrilled zones (#1139)", unit: r.unitName, coverageDistanceM: r.coverM, blockSizeM: [0, 1, 2].map(() => +r.cellM.toFixed(2)) /* [dx, dy, dz] like a unit volume */, onlyHolesInsideUnit: r.insideOnly,
+      params: { tool: "undrilled zones (#1139)", unit: r.unitName, coverageDistanceM: r.coverM, blockSizeM: [r.cellM, r.cellM, r.cellZM || r.cellM].map((v) => +v.toFixed(2)) /* [dx, dy, dz] like a unit volume; dz: #2966 */, onlyHolesInsideUnit: r.insideOnly,
         drilledHoles: r.holes.drilled, plannedHolesCounted: r.holes.planned, ...(r.holes.assumed ? { drilledHolesAssumedVertical: r.holes.assumed } : {}), ...(r.holes.proposed ? { proposedCollarsLeftOut: r.holes.proposed } : {}), /* #2097 */ unitVolumeM3: Math.round(r.unitCells * r.cellVolume), volumeM3: Math.round(volumeM3),
         zones: r.zones.length, smallGapsLeftOut: r.ignored.zones, smallGapUnderM3: Math.round(r.minZoneM3 ?? 0) /* #2256 */, builtAt: new Date().toISOString(),
         note: `Blocks of the unit whose centre is more than ${r.coverM} m from every hole trace (3D distance to the desurveyed trace). Not covered by drilling, not a resource or a target ranking.` },
@@ -152,6 +159,10 @@ export default function UndrilledZonesPane({ solids = [], onAdd, onClose, onPlan
         {siteSpacing > 0 && <div style={note}>{tr("Drill sites are typically {s} m apart; covered within starts at half that.", { s: Math.round(siteSpacing) })}</div>}{/* #2452 */}
         <label style={row}>{tr("Block size (m)")}
           <input type="number" min="0" step="any" value={cellText} placeholder={autoCell ? tr("auto {v}", { v: autoCell }) : tr("auto")} onChange={(e) => setCellText(e.target.value)} style={{ ...smallSel, width: 70 }} /></label>
+        <label style={row} title={tr("Optional: a block height of its own, for a flat body. Blank: the block size (cubes), or the shell's own cell height for a shell of a block model's range.")}>{tr("Block height (m)")}
+          <input type="number" min="0" step="any" value={cellZText} placeholder={autoZ ? tr("auto {v}", { v: autoZ }) : tr("= block size")} onChange={(e) => setCellZText(e.target.value)} style={{ ...smallSel, width: 70 }} aria-label={tr("Block height (m)")} /></label>{/* #2966 */}
+        {own && !(Number(cellText) > 0) && !(Number(cellZText) > 0) && <div style={note}>{tr("Blocks of {b} m: the shell's own cells.", { b: `${own.cellM} × ${own.cellM} × ${own.cellZM}` })}</div>}
+        {cellsVol && unit && <div style={note}>{tr("Three volumes of the same body: its {n} cells in the range hold {c}; the shell drawn between the cell centres holds {s}; the run counts its blocks, so its volume depends on the block size.", { n: cellsVol.cells.toLocaleString(), c: mm3(cellsVol.volumeM3), s: mm3(choices.closed.find((x) => x.id === unit.id)?.volumeM3 ?? 0) })}</div>}{/* #2966 */}
         {blockCount > 0 && <div style={{ ...note, ...(blockCount > 1_000_000 ? { color: "var(--color-warn-text)" } : {}) }}>{tr("About {n} blocks in the unit's box at this size.", { n: blockCount.toLocaleString() })}</div>}{/* #2258 */}
         <label style={row} title={tr("Gaps smaller than this are left out of the zones (they are counted)")}>{tr("Ignore gaps under (m³)")}
           <input type="number" min="0" step="any" value={minText} placeholder={minAuto ? tr("{n} blocks: {v}", { n: MIN_ZONE_BLOCKS, v: Math.round(minAuto).toLocaleString() }) : "0"} title={tr("Blank: gaps under {n} blocks are left out (a gap of a block or two is the grid, not a target).", { n: MIN_ZONE_BLOCKS })} onChange={(e) => setMinText(e.target.value)} style={{ ...smallSel, width: 90 }} /></label>
@@ -176,7 +187,7 @@ export default function UndrilledZonesPane({ solids = [], onAdd, onClose, onPlan
               <div key={i} style={{ ...note, color: "var(--color-text-secondary)" }}>{onPlanTo && <button onClick={() => onPlanTo(z.target || z.centre)} style={planBtn} title={tr("Open Planned holes aimed at the zone's point farthest from the drilling: choose a collar, then Solve")}>{/* #1724 */}{tr("Plan a hole to here")}</button>}{z.target ? tr("{i}. {v}: a hole aims at E {x}, N {y}, elevation {z} (the zone's point farthest from the drilling).", { i: i + 1, v: mm3(z.volumeM3), x: Math.round(z.target.x).toLocaleString(), y: Math.round(z.target.y).toLocaleString(), z: Math.round(z.target.z).toLocaleString() }) /* #2580 — the point handed over, not the centroid */ : tr("{i}. {v} around E {x}, N {y}, elevation {z}", { i: i + 1, v: mm3(z.volumeM3), x: Math.round(z.centre.x).toLocaleString(), y: Math.round(z.centre.y).toLocaleString(), z: Math.round(z.centre.z).toLocaleString() })}</div>
             ))}
             {result.zones.length > 8 && <div style={note}>{tr("… and {n} more.", { n: result.zones.length - 8 })}</div>}
-            <div style={note}>{tr(result.holes.planned ? "{drilled} drilled and {planned} planned holes; {b} m blocks, measured from each block's centre to the hole traces in 3D." : "{drilled} drilled holes; {b} m blocks, measured from each block's centre to the hole traces in 3D.", { drilled: result.holes.drilled, planned: result.holes.planned, b: +result.cellM.toFixed(2) })}{result.holes.assumed ? " " + tr("{n} of the drilled holes have no survey and no azimuth / dip and are taken as vertical.", { n: result.holes.assumed }) : ""}{result.holes.proposed ? " " + tr("{n} collar(s) whose status is proposed are not counted.", { n: result.holes.proposed }) : ""}</div>{/* #2097 */}
+            <div style={note}>{tr(result.holes.planned ? "{drilled} drilled and {planned} planned holes; {b} m blocks, measured from each block's centre to the hole traces in 3D." : "{drilled} drilled holes; {b} m blocks, measured from each block's centre to the hole traces in 3D.", { drilled: result.holes.drilled, planned: result.holes.planned, b: result.cellZM > 0 && Math.abs(result.cellZM - result.cellM) > 1e-6 ? `${+result.cellM.toFixed(2)} × ${+result.cellM.toFixed(2)} × ${+result.cellZM.toFixed(2)}` : +result.cellM.toFixed(2) /* #2966 */ })}{result.holes.assumed ? " " + tr("{n} of the drilled holes have no survey and no azimuth / dip and are taken as vertical.", { n: result.holes.assumed }) : ""}{result.holes.proposed ? " " + tr("{n} collar(s) whose status is proposed are not counted.", { n: result.holes.proposed }) : ""}</div>{/* #2097 */}
             {result.cellM > result.coverM && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("The blocks ({b} m) are coarser than the coverage distance ({c} m): a block counts as covered by where its centre falls, so the covered share and the smallest zones move with the block grid. Type a smaller block size if the unit's box allows it.", { b: +result.cellM.toFixed(2), c: result.coverM })}</div>}{/* #1568 */}
             {result.zones.length > 0 && <button onClick={add} style={{ ...pBtn, justifyContent: "center", marginBottom: 0 }}>{tr("Add the zones to the 3D view")}</button>}
           </div>

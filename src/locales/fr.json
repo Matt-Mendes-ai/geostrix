@@ -11280,5 +11280,10 @@
   "{n} more.": "{n} de plus.",
   "The custom layer \"{name}\" is too large to keep in the older undo steps: undo can bring back the last {n} removed large layers.": "La couche personnalisée « {name} » est trop volumineuse pour être gardée dans les anciennes étapes d'annulation : annuler peut rétablir les {n} dernières grandes couches supprimées.",
   "The custom layers {names} are too large to keep in the older undo steps: undo can bring back the last {n} removed large layers.": "Les couches personnalisées {names} sont trop volumineuses pour être gardées dans les anciennes étapes d'annulation : annuler peut rétablir les {n} dernières grandes couches supprimées.",
-  "An earlier assay table ({rows} rows) is too large to keep in the older undo steps: undoing that far leaves the assays as they were later.": "Une table d'analyses antérieure ({rows} lignes) est trop volumineuse pour être gardée dans les anciennes étapes d'annulation : annuler jusque-là laisse les analyses telles qu'elles étaient plus tard."
+  "An earlier assay table ({rows} rows) is too large to keep in the older undo steps: undoing that far leaves the assays as they were later.": "Une table d'analyses antérieure ({rows} lignes) est trop volumineuse pour être gardée dans les anciennes étapes d'annulation : annuler jusque-là laisse les analyses telles qu'elles étaient plus tard.",
+  "Optional: a block height of its own, for a flat body. Blank: the block size (cubes), or the shell's own cell height for a shell of a block model's range.": "Facultatif : une hauteur de bloc propre, pour un corps plat. Vide : la taille de bloc (des cubes), ou la hauteur de cellule de l'enveloppe elle-même pour une enveloppe d'une plage d'un modèle de blocs.",
+  "Block height (m)": "Hauteur de bloc (m)",
+  "= block size": "= taille de bloc",
+  "Blocks of {b} m: the shell's own cells.": "Blocs de {b} m : les cellules de l'enveloppe elle-même.",
+  "Three volumes of the same body: its {n} cells in the range hold {c}; the shell drawn between the cell centres holds {s}; the run counts its blocks, so its volume depends on the block size.": "Trois volumes du même corps : ses {n} cellules dans la plage contiennent {c} ; l'enveloppe tracée entre les centres des cellules contient {s} ; la passe compte ses blocs, donc son volume dépend de la taille de bloc."
 }
