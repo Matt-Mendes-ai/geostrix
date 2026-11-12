@@ -7,6 +7,7 @@ import { t as tr } from "../i18n.js";
 import { sampleIdentifyFields, orderedElements } from "./sampleTip.js"; // TASKS.csv #1821; orderedElements: #2520
 import { gradeText } from "../gradeText.js"; // TASKS.csv #2515
 import { rasterUnitOf } from "../rasterMethod.js"; // TASKS.csv #2747
+import { codeMeaning } from "./codeMeaning.js"; // TASKS.csv #2816
 
 const num = (v, d = 2) => (Number.isFinite(v) ? v.toLocaleString(undefined, { maximumFractionDigits: d }) : String(v ?? ""));
 const metres = (v) => `${num(v, 2)} m`;
@@ -122,6 +123,8 @@ function describe(hit, ctx) {
     const nameLine = tipLines[1]?.includes(":") ? tipLines[1].slice(tipLines[1].indexOf(":") + 1).trim() : null;
     if (nameLine) fields.push([tr("Value"), nameLine]);
     else if (row?.value != null) fields.push([tr("Value"), gradeText(row.value)]); // #2515
+    const meaning = ctx.meaningOf?.(o, o.userData?.catValue ?? row?.value, nameLine || ""); // #2816 — the project's code dictionary
+    if (meaning) fields.push([tr("Meaning"), meaning]);
     if (row?.from != null && row?.to != null) { fields.push([tr("From"), metres(row.from)], [tr("To"), metres(row.to)], [tr("Length"), metres(row.to - row.from)]); } else if (row?.depth != null) fields.push([tr("Depth"), metres(row.depth)]);
     // TASKS.csv #2520 (review #2486) — every element (the card scrolls), the one this bar shows first, then the commodities; a '<' result as
     // the lab wrote it (twice the stored half-limit), a '>' as its ceiling. It listed the first 16 in the lab file's column order: Cs never showed
@@ -216,6 +219,7 @@ export function identifyAt(r, clientX, clientY) {
     origin: r.originRef.current,
     rayDirection: rc.ray.direction,
     units: r.units,
+    meaningOf: (o, v, shown) => (r.codeDictionary ? codeMeaning(r.codeDictionary, groups.get(o.parent), v, shown) : null), // #2816
     isHole: (id) => r.tracesRef.current.some((t) => t.hole_id === id),
     traceOf: (id) => r.tracesRef.current.find((t) => t.hole_id === id)?.pts,
     layerOf: (o) => { const k = groups.get(o.parent); return k == null ? null : r.layerLabel(k); },

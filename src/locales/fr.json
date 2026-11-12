@@ -2517,6 +2517,7 @@
   "Convert heights to elevations (terrain + height)": "Convertir les hauteurs en élévations (terrain + hauteur)",
   "\"{fileName}\" — {rows} row(s), {columns} column(s). Pick which columns to import as points:": "« {fileName} » — {rows} ligne(s), {columns} colonne(s). Choisissez les colonnes à importer comme points :",
   "Value": "Valeur",
+  "Meaning": "Signification",
   "Z / elevation (optional)": "Z / élévation (facultatif)",
   "(none — elevation not recorded)": "(aucune — élévation non enregistrée)",
   "(choose a column)": "(choisir une colonne)",
