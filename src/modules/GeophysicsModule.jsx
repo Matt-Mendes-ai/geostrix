@@ -12,7 +12,8 @@ import Papa from "papaparse";
 import { zeroMeansMissing } from "../lib/missingElevation.js"; // TASKS.csv #1436
 import { mainClusters } from "../lib/dataClusters.js"; // TASKS.csv #1461
 import { fetchAreaBox, modelGapKm } from "../lib/dataExtent.js"; // #1461; modelGapKm: #1427
-import { Radio, Upload, Trash2, ArrowRight, Eye, EyeOff, Loader2, Mountain, Triangle, Box, MapPin, Waypoints, Plus, Palette, Download, Flag, Globe, ArrowDownToLine, PackageOpen, Scale } from "../components/icons.js"; // Scale: #1052
+import { Radio, Upload, Trash2, ArrowRight, Eye, EyeOff, Loader2, Mountain, Triangle, Box, MapPin, Waypoints, Plus, Palette, Download, Flag, Globe, ArrowDownToLine, PackageOpen, Scale, Crosshair } from "../components/icons.js"; // Crosshair: #2657
+import { requestPlanZoom, polylinesBox } from "../lib/planZoom.js"; // TASKS.csv #2657 // Scale: #1052
 import { lazyModal } from "../lib/lazyModal.jsx";
 import { sampleModelOnHoles } from "../lib/voxelSample.js"; // TASKS.csv #323
 import { logStops, SEQUENTIAL_ANCHORS } from "../lib/inversion.js"; // TASKS.csv #481
@@ -2384,6 +2385,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
               </div>
               <div style={{ flex: 1, minWidth: 0, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{b.name}</div>
               <span style={{ color: "var(--color-text-muted)", flexShrink: 0 }} title={b.partNames?.some(Boolean) ? b.partNames.filter(Boolean).join(", ") : undefined}>{tr("{v} part(s)", { v: b.polylines?.length || 0 })}</span>
+              {polylinesBox(b.polylines) && <Crosshair role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Zoom the plan to \"{name}\"", { name: b.name })} title={tr("Zoom the plan to \"{name}\"", { name: b.name })} onClick={() => requestPlanZoom(polylinesBox(b.polylines))} />}{/* TASKS.csv #2657 */}
               <Trash2 aria-label={tr("Remove boundary \"{name}\"", { name: b.name })} title={tr("Remove boundary \"{name}\"", { name: b.name })} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(tr("Remove \"{name}\"?", { name: b.name }))) removeBoundary(b.id); }} />
             </div>
             {b.partNames?.some(Boolean) && ( /* TASKS.csv #1767 — the parts' own names, from the file */
@@ -2479,6 +2481,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                 value={c.name} onChange={(e) => updateBoundary(c.id, { name: e.target.value })}
                 style={{ flex: 1, minWidth: 0, background: "transparent", border: "none", color: "var(--color-text)", fontSize: "var(--font-size-base)", padding: 0 }}
               />
+              {polylinesBox(c.polylines) && <Crosshair role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Zoom the plan to \"{name}\"", { name: c.name })} title={tr("Zoom the plan to \"{name}\"", { name: c.name })} onClick={() => requestPlanZoom(polylinesBox(c.polylines))} />}{/* TASKS.csv #2657 */}
               <Trash2 aria-label={tr("Remove claim \"{name}\"", { name: c.name })} title={tr("Remove claim \"{name}\"", { name: c.name })} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(tr("Remove claim \"{name}\"?", { name: c.name }))) removeBoundary(c.id); }} />
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7 }}>

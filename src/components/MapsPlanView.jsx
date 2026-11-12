@@ -16,6 +16,7 @@ import { collarColourFields, perHoleAssay, collarColouring, declutterLabels } fr
 import HoleValueGridPanel from "./HoleValueGridPanel.jsx"; // TASKS.csv #2658
 import { planGridStep, planGridLines, gridLabel, measureLine, distanceText } from "../lib/planGrid.js"; // TASKS.csv #2128
 import { trueNorthBearingInGridDeg } from "../lib/inversion.js"; // TASKS.csv #2128 — the convergence at the measured line
+import { usePlanZoom, viewForBox } from "../lib/planZoom.js"; // TASKS.csv #2657
 import { holeValueSources, holeValueRows, perHoleValue } from "../lib/holeValueGrid.js"; // TASKS.csv #2658
 
 const imageCache = new Map(); // dataUrl (+ key colour) -> { img, ready }
@@ -87,6 +88,7 @@ export default function MapsPlanView() {
     return () => ro.disconnect();
   }, [!!extent]); // the frame exists only once there is data
   const fit = () => { if (extent) setView({ cx: (extent[0] + extent[2]) / 2, cy: (extent[1] + extent[3]) / 2, mPerPx: Math.max((extent[2] - extent[0]) / size.w, (extent[3] - extent[1]) / size.h) * 1.08 }); };
+  usePlanZoom((bbox) => setView(viewForBox(bbox, size.w, size.h))); // #2657 — a card's 'Zoom to'
   const v = view || (extent ? { cx: (extent[0] + extent[2]) / 2, cy: (extent[1] + extent[3]) / 2, mPerPx: Math.max((extent[2] - extent[0]) / size.w, (extent[3] - extent[1]) / size.h) * 1.08 } : null);
 
   useEffect(() => {
