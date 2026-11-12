@@ -6,7 +6,7 @@
 // collar point (nothing rasterizes) and shown again by writing its points back. An assumed-vertical hole (#2014) goes in a dashed
 // chunk whose line distances restart at each collar, as its own Line's did.
 // Picking: a chunk is a pick target like the Lines were; its raycast hands back a small per-hole stand-in ({ isLine, userData:
-// { holeId }, parent: the chunk, visible }) for each hit, so hover, Identify and firstVisibleLayerHit see what a hole's Line gave them.
+// { holeId }, parent: the holes group, visible }) for each hit, so hover, Identify and firstVisibleLayerHit see what a hole's Line gave them.
 import * as THREE from "three";
 
 export const TRACE_GREY = 0x445064;
@@ -104,8 +104,9 @@ function raycastChunk(raycaster, intersects) {
 function traceHoleProxy(chunk, k) {
   const tc = chunk.userData.traceChunk;
   return {
-    isObject3D: true, isLine: true, type: "Line", traceProxy: true, userData: { holeId: tc.holeIds[k] }, parent: chunk, layers: chunk.layers,
-    get visible() { return !tc.hidden[k]; }, get matrixWorld() { return chunk.matrixWorld; }, get material() { return chunk.material; }, geometry: chunk.geometry,
+    isObject3D: true, isLine: true, type: "Line", traceProxy: true, userData: { holeId: tc.holeIds[k] }, layers: chunk.layers,
+    get parent() { return chunk.parent; }, get visible() { return !tc.hidden[k]; }, // parent: the layer group, as a hole's Line had (Identify's layerOf)
+     get matrixWorld() { return chunk.matrixWorld; }, get material() { return chunk.material; }, geometry: chunk.geometry,
   };
 }
 
