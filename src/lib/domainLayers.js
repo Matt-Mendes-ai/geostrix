@@ -3,6 +3,7 @@
 // assessment report's estimation domain and was not offered). A layer of numbers is not a domain (#1413), a point layer has no
 // interval to be in, and a layer whose intervals overlap in the same hole (vein types) has no single domain at a depth: offered,
 // flagged, with the share of overlapping intervals so the dialogs can say how a depth is resolved. Pure.
+import { caseVariantGroups } from "./lithoGroups.js"; // #2427
 const BUILT_IN = ["litho", "alt", "vein", "breccia", "weath", "structzone", "geotech"]; // weath: #2162
 
 export function isNumericLayer(rows) {
@@ -37,6 +38,17 @@ export function domainLayerChoices(layers, customLayers, labelOf = (k) => k) {
     out.push({ key: `custom:${c.id}`, label: c.name, rows: rows.map((r) => ({ hole_id: r.hole_id, from: Number(r.from), to: Number(r.to), value: r.value == null ? r.value : String(r.value) })), custom: true, overlap: overlapShare(rows) });
   }
   return out;
+}
+
+// TASKS.csv #2427 (review #2325, WA uranium) — Dcb (1,252 samples), DCB (733) and DCb (11) were three domains, capped and searched apart.
+// For Estimation and the Variogram only (domainLayerChoices stays as it is for the other tools): spellings that differ only by case or
+// spaces become the most logged one. -> { rows (values replaced), folded: [{ name, codes }] }
+export function foldDomainRows(rows) {
+  const sug = caseVariantGroups(rows);
+  if (!sug.length) return { rows, folded: [] };
+  const to = new Map();
+  for (const s of sug) for (const c of s.codes) to.set(c, s.codes[0]);
+  return { rows: (rows || []).map((r) => (r.value != null && to.has(String(r.value)) && String(r.value) !== to.get(String(r.value)) ? { ...r, value: to.get(String(r.value)) } : r)), folded: sug.map((s) => ({ name: s.codes[0], codes: s.codes })) };
 }
 
 // each raw assay interval's domain: the value of the domain row covering its midpoint (the first by depth when they overlap)

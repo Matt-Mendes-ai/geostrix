@@ -22,7 +22,7 @@ import { arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min
 import { fontSizes } from "../lib/theme.js"; // TASKS.csv #385 — SVG font-size attributes on the type scale
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { noCollarsNotice } from "../lib/noCollars.js"; // TASKS.csv #1841
-import { domainLayerChoices } from "../lib/domainLayers.js"; // TASKS.csv #1571
+import { domainLayerChoices, foldDomainRows } from "../lib/domainLayers.js"; // TASKS.csv #1571; foldDomainRows: #2427
 import UnsampledChoice, { useUnsampled, unsampledResultLine } from "./UnsampledChoice.jsx"; // TASKS.csv #2417 / #2542
 
 // TASKS.csv #147 — variogram / spatial-continuity analysis per domain.
@@ -74,7 +74,9 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
   // TASKS.csv #1413 (review #1352) — a layer of numbers (Silvertip's RQD %) is not a domain: every distinct value became one
   // TASKS.csv #1571 (review #1497, Lawyers) — custom layers (Lawyers' Min Domain) are domains too
   const domainChoices = useMemo(() => domainLayerChoices(layers, customLayers, (k) => tr(LAYER_META[k]?.label || k)), [layers, customLayers]);
-  const domainChoice = domainChoices.find((c) => c.key === domainKey) || null;
+  const domainChoice0 = domainChoices.find((c) => c.key === domainKey) || null;
+  const domainFold = useMemo(() => (domainChoice0 ? foldDomainRows(domainChoice0.rows) : null), [domainChoice0]); // #2427
+  const domainChoice = domainChoice0 && domainFold ? { ...domainChoice0, rows: domainFold.rows } : domainChoice0;
 
   const [transform, setTransform] = useState("none");
   const [capPercentile, setCapPercentile] = useState(98);
@@ -245,6 +247,7 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
                 {domainChoices.map((c) => <option key={c.key} value={c.key}>{c.custom ? tr("{name} (custom layer)", { name: c.label }) : c.label}</option>)}
               </select>
             </label>
+            {domainFold?.folded.length > 0 && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", gridColumn: "1 / -1" }}>{tr("Spellings that differ only by case or spaces are one domain here: {list}.", { list: domainFold.folded.map((f) => f.codes.join(" = ")).join("; ") })}</div>}{/* #2427 */}
             {domainKey && (
               <label style={fieldLabel} title={tr("A variogram over two geologically different populations measures the contrast between them, not the continuity within either — run one domain at a time.")}>{tr("Domain")}<select value={domainValue} onChange={(e) => setDomainValue(e.target.value)} style={inp}>
                   <option value="__all__">{tr("All domains together")}</option>
