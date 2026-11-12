@@ -42,7 +42,9 @@ export default function LevelPlanWindow({ build, zRange, defaultRl, onClose, onS
   const [askPrompt, promptEl] = usePrompt(); // TASKS.csv #1779 — window.prompt throws in Electron
   useEscapeKey(onClose);
   useFocusTrap();
-  const [rl, setRl] = useState(() => Math.round(defaultRl));
+  // TASKS.csv #2929 (WA iron review) — opened on the RL most holes cross, worked out before the first render: #2518 mounted the plan at
+  // defaultRl and moved it in an effect, so a 6,036-point plan was committed twice (81-114 s frozen there)
+  const [rl, setRl] = useState(() => { const r0 = Math.round(defaultRl); try { const b = busiestRl(build(r0, 12.5).holes); return b ?? r0; } catch { return r0; } });
   const [half, setHalf] = useState(12.5);
   const [colourBy, setColourBy] = useState("");
   const [labels, setLabels] = useState(true);
@@ -63,9 +65,11 @@ export default function LevelPlanWindow({ build, zRange, defaultRl, onClose, onS
   const [applied, setApplied] = useState(() => ({ rl, half }));
   useEffect(() => { const t = setTimeout(() => setApplied({ rl, half }), 150); return () => clearTimeout(t); }, [rl, half]);
   const data = useMemo(() => buildRef.current(Number(applied.rl), Math.max(0.1, Number(applied.half) || 0)), [applied, rev]);
-  // #2518 — open on the RL most holes cross (not the middle of the range); once, unless the user has moved it
-  const openedAt = useRef(null);
-  useEffect(() => { if (openedAt.current != null) return; openedAt.current = rl; const best = busiestRl(data.holes); if (best != null && best !== Math.round(Number(rl))) { setRl(best); setApplied((a) => ({ ...a, rl: best })); } }, [data]); // runs once: openedAt
+  // #2518 — open on the RL most holes cross (not the middle of the range): now the initial RL above (#2929)
+  // TASKS.csv #2929 — each build's layers in one group keyed by the build: an RL change replaces the group in one placement, where thousands of
+  // newly keyed siblings among kept ones were each placed one by one (React walks past the other new siblings for every placement)
+  const buildSeq = useRef(0);
+  const dataKey = useMemo(() => (buildSeq.current += 1), [data]);
   const layerKeys = useMemo(() => [...new Set(data.intervals.map((iv) => iv.layer))], [data]);
   const activeLayer = layerKeys.includes(colourBy) ? colourBy : layerKeys.includes("litho") ? "litho" : layerKeys[0] || "";
   // #1404 — the legend is the "Colour holes by" layer (categories, or a numeric layer's colours at their values) plus the
@@ -207,6 +211,7 @@ export default function LevelPlanWindow({ build, zRange, defaultRl, onClose, onS
           {/* grid */}
           {gx.map((x) => <g key={`gx${x}`}><line x1={X(x)} y1={PAD / 2} x2={X(x)} y2={H - PAD / 2} stroke="#eceef2" /><text x={X(x)} y={H - 6} fontSize="10" fill="#7a8494" textAnchor="middle">{Math.round(x)}E</text></g>)}
           {gy.map((y) => <g key={`gy${y}`}><line x1={PAD / 2} y1={Y(y)} x2={W - PAD / 2} y2={Y(y)} stroke="#eceef2" /><text x={4} y={Y(y) - 3} fontSize="10" fill="#7a8494">{Math.round(y)}N</text></g>)}
+          <g key={`plan${dataKey}`}>{/* #2929 — one build's layers, replaced whole on an RL change */}
           {/* block-model cells at the RL */}
           {data.voxelSlices.map((v) => v.rects.map((r, i) => <rect key={`${v.id}_${i}`} x={X(r.x0)} y={Y(r.y1)} width={(r.x1 - r.x0) * s + 0.4} height={(r.y1 - r.y0) * s + 0.4} fill={r.color} opacity={0.55} />))}
           {/* model surfaces / solids cut by the plane */}
@@ -238,6 +243,7 @@ export default function LevelPlanWindow({ build, zRange, defaultRl, onClose, onS
           )))}
           {/* #1404 — hole ids through the sections' declutter (#1144): a fan's collars no longer print over each other */}
           {idLabels && idLabels.placed.map((l) => <g key={`hl${l.key}`}>{l.leaderFrom && <line x1={l.leaderFrom.x} y1={l.leaderFrom.y} x2={l.x} y2={l.y - 4} stroke="#7a8494" strokeWidth={0.6} />}<text x={l.x} y={l.y} fontSize="10.5" textAnchor={l.anchor} fill="#1a2028" stroke="#ffffff" strokeWidth={2.5} paintOrder="stroke">{l.text}{l.ids.length > 1 && <title>{l.ids.join(", ")}</title>}</text></g>)}{/* #2212 */}
+          </g>
           {/* the outline being drawn */}
           {pts.length > 0 && <path d={path(hover && drawing ? [...pts, hover] : pts) + (pts.length > 2 && !drawing ? " Z" : "")} stroke="#d1495b" strokeWidth={1.8} fill="rgba(209,73,91,0.08)" />}
           {pts.map((p, i) => <circle key={`d${i}`} cx={X(p[0])} cy={Y(p[1])} r={2.6} fill="#d1495b" />)}
