@@ -256,7 +256,11 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
   const [samplesFrom, setSamplesFrom] = useState(() => (modelArea === "checked" && checkedHoleIds?.size ? "checked" : "all"));
   const sampleAssays = useMemo(() => (samplesFrom === "checked" && checkedHoleIds?.size ? assays.filter((a) => checkedHoleIds.has(a.hole_id)) : assays), [assays, samplesFrom, checkedHoleIds]);
   const srcAssays = useMemo(() => (includeQAQC ? sampleAssays : excludeQAQC(sampleAssays)), [sampleAssays, includeQAQC]);
-  const uns = useUnsampled("estimate", { assays: srcAssays, collars, symbol, unit, elementUnits, layers, customLayers }); // TASKS.csv #2417 / #2542; layers / customLayers: a picked log, #2721
+  // TASKS.csv #3006 (WA iron review) — with the samples from the checked holes, the holes the run uses are the checked ones: every unchecked hole
+  // was a hole 'never assayed' (5,968 of them, 288,935 m written at 0 % Fe by the barren option, the composite mean 38.3 -> 1.78 %) and its
+  // drilled metres 'unsampled drilling' nearer than a block's samples. A hole left out of the run is neither sampled nor unsampled.
+  const runCollars = useMemo(() => (samplesFrom === "checked" && checkedHoleIds?.size ? collars.filter((c) => checkedHoleIds.has(c.hole_id)) : collars), [collars, samplesFrom, checkedHoleIds]);
+  const uns = useUnsampled("estimate", { assays: srcAssays, collars: runCollars /* #3006 */, symbol, unit, elementUnits, layers, customLayers }); // TASKS.csv #2417 / #2542; layers / customLayers: a picked log, #2721
   // TASKS.csv #1738 (review #1645, Copley) — how far apart the holes are, under the radius and in a zero-block result
   // TASKS.csv #2062 (review #2013, Woodjam) — over the holes that carry the chosen element, not every collar: 534 district collars with no
   // assays made it '442 drill sites ... typically 82 m from the next' for an estimate informed by 8 holes in clusters 3-5 km apart
@@ -481,7 +485,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
         const unsPts = (() => {
           const sampled = sampledByHole(resolvedSegments(runAssays, symbol, unit, elementUnits));
           const byHole = new Map(); for (const sv of survey) { if (!byHole.has(sv.hole_id)) byHole.set(sv.hole_id, []); byHole.get(sv.hole_id).push(sv); }
-          const traces = collars.map((c) => { let pts = []; try { pts = desurveyHole(c, byHole.get(c.hole_id) || [], desurveyMethod) || []; } catch { pts = []; } return { hole_id: c.hole_id, pts }; });
+          const traces = runCollars.map((c) => { let pts = []; try { pts = desurveyHole(c, byHole.get(c.hole_id) || [], desurveyMethod) || []; } catch { pts = []; } return { hole_id: c.hole_id, pts }; }); // runCollars: #3006
           const pad = Math.min(searchRadius > 0 ? searchRadius : gridDiagonal, 1000);
           const step = Math.max(1, Math.min(useComposites ? compositeLength : 2, Math.min(cell3.dx, cell3.dy, cell3.dz) / 2));
           return unsampledDrillPoints(traces, sampled, step, { xmin: bounds.xmin - pad, xmax: bounds.xmax + pad, ymin: bounds.ymin - pad, ymax: bounds.ymax + pad, zmin: bounds.zmin - pad, zmax: bounds.zmax + pad });

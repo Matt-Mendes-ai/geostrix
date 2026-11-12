@@ -53,7 +53,7 @@ test("#2721: wiring: the picker lists the logs, the factor is only offered (a bu
   assert.match(ch, /set\(\{ logKey: e\.target\.value, factor: "" \}\)/, "a new log clears the factor");
   const est = fs.readFileSync("src/components/GradeEstimationModal.jsx", "utf8");
   assert.match(est, /\.\.\.\(logFills\.length \? \{ logShare: true \} : \{\}\)/);
-  assert.match(est, /useUnsampled\("estimate", \{ assays: srcAssays, collars, symbol, unit, elementUnits, layers, customLayers \}\)/);
+  assert.match(est, /useUnsampled\("estimate", \{ assays: srcAssays, collars(: runCollars \/\* #3006 \*\/)?, symbol, unit, elementUnits, layers, customLayers \}\)/);
   const gtm = fs.readFileSync("src/components/GradeTonnageModal.jsx", "utf8");
   assert.match(gtm, /const logKnown = Number\(model\.params\?\.unsampledLogFilledM\) > 0;/);
   assert.match(fs.readFileSync("src/modules/viewer/modellingRuns.js", "utf8"), /resolveUnsampled\("gradeShell", \{ [^}]*logCtx: \{ layers, customLayers \} \}\)/);
