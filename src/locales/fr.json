@@ -10598,5 +10598,11 @@
   "Survey date (for IGRF)": "Date du levé (pour l'IGRF)",
   "Fill from IGRF-14": "Remplir avec l'IGRF-14",
   "Cell {c} m by default: a quarter to a half of the median spacing ({s} m).": "Cellule de {c} m par défaut : entre le quart et la moitié de l'espacement médian ({s} m).",
-  "IGRF-14 covers {first} to {last}; {date} is outside it.": "L'IGRF-14 couvre {first} à {last} ; {date} est en dehors."
+  "IGRF-14 covers {first} to {last}; {date} is outside it.": "L'IGRF-14 couvre {first} à {last} ; {date} est en dehors.",
+  "\"{name}\" is now the project's terrain.": "« {name} » est maintenant le terrain du projet.",
+  "Make it the project's terrain…": "En faire le terrain du projet…",
+  "The project has no terrain: this ground is used for this inversion only.": "Le projet n'a pas de terrain : ce sol ne sert qu'à cette inversion.",
+  "The project's terrain (\"{name}\") is kept for everything else.": "Le terrain du projet (« {name} ») est conservé pour tout le reste.",
+  "This inversion uses a ground from {n} station elevations: {w} × {h} nodes at {cell} m, blanked beyond {blank} m of a station ({zmin} to {zmax} m). It is the survey's own GPS heights, not a DEM.": "Cette inversion utilise un sol issu de {n} altitudes de stations : {w} × {h} nœuds à {cell} m, vide au-delà de {blank} m d'une station ({zmin} à {zmax} m). Ce sont les hauteurs GPS du levé lui-même, pas un MNT.",
+  "Use the project's terrain instead": "Utiliser plutôt le terrain du projet"
 }
