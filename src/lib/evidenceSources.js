@@ -478,3 +478,38 @@ export function holeIntervalPoints(assays, symbol, unit, units, traces, { how, c
   for (const [h, [f, to]] of span) { const p = pointOnTrace(traces.get(h), (f + to) / 2); if (p) out.push({ x: p.x, y: p.y, z: p.z, value: 0, hole_id: h }); }
   return out;
 }
+
+// TASKS.csv #2654 (follow-up of #2453) — the add-evidence list ran to 241 entries on the WA uranium sample: grouped by what the evidence comes
+// from, and narrowed by a search (every word of the query in the label, any order, case ignored). Group names are English keys for tr().
+const SOURCE_GROUP = { raster: "Rasters", distance: "Map layers", element: "Surface samples", index: "Surface samples", survey: "Geophysics", voxel: "Block models", solid: "Modelled bodies", grade: "Drillholes: grades", pxrf: "Drillholes: grades", gtpick: "Drillholes: grades", numeric: "Drillholes: logs and measures", zone: "Drillholes: logged codes", pick: "Drillholes: structures", drilled: "Drilling", kde: "Known occurrences" };
+export const sourceGroup = (src) => SOURCE_GROUP[src?.kind] || "Other";
+export function filterSources(sources, query) {
+  const words = String(query || "").toLowerCase().split(/\s+/).filter(Boolean);
+  return words.length ? (sources || []).filter((s) => { const l = String(s.label || "").toLowerCase(); return words.every((w) => l.includes(w)); }) : sources || [];
+}
+// -> [[group, [sources]]] in the order the groups first appear
+export function groupSources(sources) {
+  const m = new Map();
+  for (const s of sources || []) { const g = sourceGroup(s); (m.get(g) || m.set(g, []).get(g)).push(s); }
+  return [...m];
+}
+
+// TASKS.csv #2655 (follow-up of #2583, review #2486 WA lithium) — a custom layer's numeric field that belongs to a coded sibling (GEOL_Rock2_pct
+// is the percent of the GEOL_Rock2 rock): the field read only where the sibling holds one code ("GEOL_Rock2_pct where GEOL_Rock2 = P").
+// A sibling is a coded field whose name the numeric field starts with (after _ or a space). -> [{ field, by, codes: [code] }]
+export function siblingCodedFields(rows, { maxCodes = 12 } = {}) {
+  const coded = codedFields(rows), numeric = numericLayerFields(rows);
+  const out = [];
+  for (const f of numeric) for (const c of coded) {
+    if (f === c || !(f.toLowerCase().startsWith(c.toLowerCase() + "_") || f.toLowerCase().startsWith(c.toLowerCase() + " "))) continue;
+    const n = new Map();
+    for (const r of rows || []) { const v = String(r?.[c] ?? "").trim(); if (v && numericCell(r?.[f]) != null) n.set(v.toUpperCase(), (n.get(v.toUpperCase()) || 0) + 1); }
+    const codes = [...n].filter(([, k]) => k >= 3).sort((a, b) => b[1] - a[1]).slice(0, maxCodes).map(([code]) => code).sort();
+    if (codes.length) out.push({ field: f, by: c, codes });
+  }
+  return out;
+}
+export const siblingRef = (id, field, by, code) => `cw:${JSON.stringify({ id: String(id), f: field, c: by, v: code })}`;
+export const parseSiblingRef = (ref) => { if (typeof ref !== "string" || !ref.startsWith("cw:")) return null; try { return JSON.parse(ref.slice(3)); } catch { return null; } };
+// the rows of the sibling's code (case folded)
+export const siblingRows = (rows, s) => (rows || []).filter((r) => String(r?.[s.c] ?? "").trim().toUpperCase() === String(s.v).toUpperCase());

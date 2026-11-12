@@ -3,7 +3,7 @@
 // are a pure function of the grid, the source and its options, and the project data, so they are kept here between openings:
 // keyed by grid + source + options, and reused only while every data input is the same object (the store replaces an array when
 // it changes, so identity is the version). Least recently used first out; at most MAX layers (each is one value per grid cell).
-import { parseCodedRef, codedRowsOf } from "./evidenceSources.js"; // TASKS.csv #2453
+import { parseCodedRef, codedRowsOf, parseSiblingRef } from "./evidenceSources.js"; // TASKS.csv #2453; parseSiblingRef: #2655
 
 const MAX = 16;
 const cache = new Map();
@@ -45,6 +45,7 @@ export function evidenceDeps(src, opts = {}, d = {}) {
     case "numeric": {
       if (src.ref === "depth:assays") return [d.assays, ...holes]; // #2643 — the deepest sample of each hole
       if (String(src.ref).startsWith("gt:")) return [d.assays, d.assayElements, ...holes]; // #2653 — a grade x thickness per hole
+      const sw = parseSiblingRef(src.ref); if (sw) return [(d.customLayers || []).find((l) => String(l.id) === sw.id)?.rows, ...holes]; // #2655
       const c = /^custom:(.+):[^:]+$/.exec(src.ref); if (c) return [(d.customLayers || []).find((l) => String(l.id) === c[1])?.rows, ...holes];
       const k = src.ref.startsWith("coded:") ? src.ref.split(":")[1] : src.ref.split(":")[0]; return [d.projectLayers?.[k], ...holes];
     }

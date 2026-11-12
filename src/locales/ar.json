@@ -10744,5 +10744,15 @@
   "The project has no terrain: this ground is used for this inversion only.": "لا تضاريس في المشروع: يُستخدم هذا السطح لهذا الانعكاس فقط.",
   "The project's terrain (\"{name}\") is kept for everything else.": "تُحفظ تضاريس المشروع (\"{name}\") لكل ما عدا ذلك.",
   "This inversion uses a ground from {n} station elevations: {w} × {h} nodes at {cell} m, blanked beyond {blank} m of a station ({zmin} to {zmax} m). It is the survey's own GPS heights, not a DEM.": "يستخدم هذا الانعكاس سطحًا من {n} ارتفاع محطة: {w} × {h} عقدة بتباعد {cell} م، فارغ أبعد من {blank} م من أي محطة (من {zmin} إلى {zmax} م). إنها ارتفاعات GPS الخاصة بالمسح، لا نموذج ارتفاع رقمي.",
-  "Use the project's terrain instead": "استخدام تضاريس المشروع بدلًا من ذلك"
+  "Use the project's terrain instead": "استخدام تضاريس المشروع بدلًا من ذلك",
+  "Modelled bodies": "الأجسام المنمذجة",
+  "Drillholes: grades": "ثقوب الحفر: المحتويات",
+  "Drillholes: logs and measures": "ثقوب الحفر: السجلات والقياسات",
+  "Drillholes: logged codes": "ثقوب الحفر: الرموز المسجلة",
+  "Drillholes: structures": "ثقوب الحفر: البنيات",
+  "Drilling": "الحفر",
+  "Search the {n} evidence sources…": "ابحث في مصادر الأدلة الـ {n}…",
+  "Search the evidence sources": "ابحث في مصادر الأدلة",
+  "+ add evidence… ({n} found)": "+ أضف دليلًا… (عُثر على {n})",
+  "Drillholes: {layer} {field} where {by} = {code} along the holes": "ثقوب الحفر: {layer} {field} حيث {by} = {code} على امتداد الثقوب"
 }

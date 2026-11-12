@@ -10744,5 +10744,15 @@
   "The project has no terrain: this ground is used for this inversion only.": "O projeto não tem terreno: este terreno é usado só para esta inversão.",
   "The project's terrain (\"{name}\") is kept for everything else.": "O terreno do projeto (\"{name}\") é mantido para todo o resto.",
   "This inversion uses a ground from {n} station elevations: {w} × {h} nodes at {cell} m, blanked beyond {blank} m of a station ({zmin} to {zmax} m). It is the survey's own GPS heights, not a DEM.": "Esta inversão usa um terreno de {n} elevações de estações: {w} × {h} nós a {cell} m, em branco além de {blank} m de uma estação ({zmin} a {zmax} m). São as alturas GPS do próprio levantamento, não um MDE.",
-  "Use the project's terrain instead": "Usar o terreno do projeto em vez disso"
+  "Use the project's terrain instead": "Usar o terreno do projeto em vez disso",
+  "Modelled bodies": "Corpos modelados",
+  "Drillholes: grades": "Furos: teores",
+  "Drillholes: logs and measures": "Furos: descrições e medidas",
+  "Drillholes: logged codes": "Furos: códigos descritos",
+  "Drillholes: structures": "Furos: estruturas",
+  "Drilling": "Sondagem",
+  "Search the {n} evidence sources…": "Buscar entre as {n} fontes de evidência…",
+  "Search the evidence sources": "Buscar as fontes de evidência",
+  "+ add evidence… ({n} found)": "+ adicionar evidência… ({n} encontradas)",
+  "Drillholes: {layer} {field} where {by} = {code} along the holes": "Furos: {layer} {field} onde {by} = {code} ao longo dos furos"
 }
