@@ -10482,5 +10482,7 @@
   "Blank: gaps under {n} blocks are left out (a gap of a block or two is the grid, not a target).": "فارغ: تُستبعد الفجوات الأصغر من {n} كتل (فجوة من كتلة أو اثنتين هي الشبكة، لا هدف).",
   "About {n} blocks in the unit's box at this size.": "نحو {n} كتلة في صندوق الوحدة بهذا الحجم.",
   "Its values are {n} whole numbers ({list}): it may be a code (a weathering or intensity class), not a measure, and a ramp between them treats the order as meaningful. Check that, and the direction above.": "قيمه {n} أعداد صحيحة ({list}): قد يكون رمزًا (فئة تجوية أو شدة)، لا قياسًا، والتدرج بينها يعامل الترتيب على أنه ذو معنى. تحقق من ذلك، ومن الاتجاه أعلاه.",
-  "A field of a custom layer: check that higher means more favourable here, or choose favourable when low.": "حقل من طبقة مخصصة: تحقق من أن القيمة الأعلى أكثر ملاءمة هنا، أو اختر ملائم عند الانخفاض."
+  "A field of a custom layer: check that higher means more favourable here, or choose favourable when low.": "حقل من طبقة مخصصة: تحقق من أن القيمة الأعلى أكثر ملاءمة هنا، أو اختر ملائم عند الانخفاض.",
+  "Drillholes: elevation of the deepest sample in each hole": "ثقوب الحفر: منسوب أعمق عينة في كل ثقب",
+  "The elevation of each hole's deepest sample, between the holes: high where the drilling stopped shallow. Favourable when high asks for ground not tested at depth; beyond the reach of every hole there is no value.": "منسوب أعمق عينة في كل ثقب، بين الثقوب: مرتفع حيث توقف الحفر ضحلًا. «ملائم عند الارتفاع» يطلب أرضًا لم تُختبر في العمق؛ وخارج مدى كل الثقوب لا توجد قيمة."
 }

@@ -16,7 +16,7 @@ import { topCells } from "../lib/evidence.js"; // TASKS.csv #1456
 import { evidenceCoverage, LOW_COVERAGE, scoreBlockers } from "../lib/evidence.js"; // TASKS.csv #2252
 import { drilledTrainingMask, evidenceGrid, evidenceExtent, rasterEvidence, distanceEvidence, pointEvidence, sampleValues, membership, fuzzyCombine, FUZZY_OPERATORS, trainingCells, trainingCoverage, bestCutoff, MIN_SIDE, posterior, predictionArea, scoreImage, scoreTop /* #1731 */, rocAuc, kdeEvidence /* #2001 */, isOverlayOutput, coveringLayers } from "../lib/evidence.js"; // coveringLayers: #1563
 import { cachedEvidence, evidenceDeps, gridSignature } from "../lib/evidenceCache.js"; // TASKS.csv #1457, #1560
-import { DRILL_REACH_M, surveyNames, surveyPoints, reachFromSpacing, reachFromNeighbours, voxelColumnEvidence, voxelZRange, holeTraces, holeGradePoints, assaysOfHoles, gradeCardReads /* #2577 */, structureCodes, structureParts, drilledParts /* #1456 */, scoreRasterPlacement /* #2447 */, elementsWithValues, numericLayerFields, UNCERTAINTY_FIELD, codeLikeField /* #2260 */, layerFieldPoints, zoneParts, levelSet, targetElevation /* #2326 */, codedFields, foldedCodes, zoneHolePoints, codedRef, parseCodedRef, codedRowsOf /* #2453 */, codesOf /* #2102 */ } from "../lib/evidenceSources.js"; // numericLayerFields, layerFieldPoints, zoneCodes, zoneParts: TASKS.csv #1728 // TASKS.csv #1154; elementsWithValues: #1723
+import { DRILL_REACH_M, surveyNames, surveyPoints, reachFromSpacing, reachFromNeighbours, voxelColumnEvidence, voxelZRange, holeTraces, holeGradePoints, assaysOfHoles, gradeCardReads /* #2577 */, structureCodes, structureParts, drilledParts /* #1456 */, scoreRasterPlacement /* #2447 */, elementsWithValues, numericLayerFields, UNCERTAINTY_FIELD, codeLikeField /* #2260 */, depthTestedPoints /* #2643 */, layerFieldPoints, zoneParts, levelSet, targetElevation /* #2326 */, codedFields, foldedCodes, zoneHolePoints, codedRef, parseCodedRef, codedRowsOf /* #2453 */, codesOf /* #2102 */ } from "../lib/evidenceSources.js"; // numericLayerFields, layerFieldPoints, zoneCodes, zoneParts: TASKS.csv #1728 // TASKS.csv #1154; elementsWithValues: #1723
 const LEVEL_KINDS = new Set(["grade", "pxrf", "numeric", "zone", "pick", "voxel"]); // TASKS.csv #2326 — the cards a Level filters
 import { categoricalModels } from "../lib/geologyForward.js";
 import { PATHFINDER_PRESETS } from "../lib/anomalyMap.js";
@@ -128,6 +128,7 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
   }, [traces, projectLayers, customLayers]);
   // #2453 — a per-hole measure of a code (its ref parsed), else the rows' numeric field
   const numericPointsOf = (ref, lv) => {
+    if (ref === "depth:assays") return depthTestedPoints(cleanAssays, traces); // #2643 — every hole's deepest sample, whatever the level
     const z = parseCodedRef(ref);
     if (z) return zoneHolePoints(codedRowsOf(z.l, projectLayers, customLayers), z.c, traces, z.how, { field: z.f, fold: !!z.fold, level: lv });
     const { rows, field } = numericRowsOf(ref); return layerFieldPoints(rows, field, traces, undefined, lv);
@@ -195,10 +196,11 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
     if (traces.size) out.push({ key: "drilled", label: tr("Distance to drilling (hole traces, in plan)"), kind: "drilled", ref: "traces" }); // #1456 — far from every hole = untested
     // #1567 — a modelled body (grade shell, envelope, imported isosurface): the distance in plan to its footprint
     if (solidMesh) (solids || []).filter((s) => SOLID_SURFACE_TYPES.has(s.type)).forEach((s) => out.push({ key: `solid:${s.id}`, label: tr("Distance in plan to the body: {name}", { name: s.name }), kind: "solid", ref: s.id }));
+    if (traces.size && cleanAssays.length) out.push({ key: "num:depth:assays", label: tr("Drillholes: elevation of the deepest sample in each hole"), kind: "numeric", ref: "depth:assays" }); // #2643
     out.push(...numericLayerSources); // #1728
     out.push(...codedSources); // #1455 / #1728 — distance to a logged code, a mineral's percent
     return out;
-  }, [valueRasters, mapLayers, surfaceElements, geophysPts, voxelModels, traces, labElements, pxrfElements, structurePicks, numericLayerSources, codedSources, solids, solidMesh]);
+  }, [valueRasters, mapLayers, surfaceElements, geophysPts, voxelModels, traces, labElements, pxrfElements, structurePicks, numericLayerSources, codedSources, solids, solidMesh, cleanAssays]);
   // #1567 — rasters that are pictures (RGB, no values) cannot be evidence: said, so three geophysics maps on screen and none in the list is explained
   const pictureRasters = useMemo(() => rasters.filter((r) => !r.grid && !isOverlayOutput(r)), [rasters]);
 
@@ -513,6 +515,7 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
               <label style={row}>{l.shape === "decreasing" ? "0" : "1"} ={" "}<input type="number" step="any" value={l.highText} onChange={(e) => updateLayer(l.id, { highText: e.target.value, high: e.target.value === "" ? NaN : Number(e.target.value), endsEdited: true /* #1565 */ })} style={{ ...sel, width: 76 }} aria-label={l.shape === "decreasing" ? tr("Membership 0 at") : tr("Membership 1 at")} /></label>
               {l.kind !== "distance" && l.kind !== "pick" && l.low > 0 && l.high > 0 && <label style={{ ...row, cursor: "pointer" }} title={tr("The ramp runs on the logarithm of the values: even steps in grade ratio, as a lognormal grade is spread. Off, it runs on the values and is flat over most of a skewed layer.")}><input type="checkbox" checked={!!l.log} onChange={(e) => updateLayer(l.id, { log: e.target.checked })} />{tr("log ramp")}</label>}{/* #1555 */}
             </div>
+            {l.kind === "numeric" && l.ref === "depth:assays" && <div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.35 }}>{tr("The elevation of each hole's deepest sample, between the holes: high where the drilling stopped shallow. Favourable when high asks for ground not tested at depth; beyond the reach of every hole there is no value.")}</div>}{/* #2643 */}
             {l.kind === "numeric" && /^custom:/.test(l.ref || "") && (() => { // TASKS.csv #2260 — a custom layer's field is not known to be a grade
               const { rows, field } = numericRowsOf(l.ref), code = codeLikeField(rows, field);
               return <div role="note" style={{ fontSize: "var(--font-size-xs)", color: code ? "var(--color-warn-text)" : "var(--color-text-muted)", lineHeight: 1.35 }}>{code
