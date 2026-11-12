@@ -35,6 +35,8 @@ const RESULT_ROW_H = 26; // TASKS.csv #222 — matches AttributeTableModal's row
 // that GeoStrix had no equivalent of — the composite math itself lives in lib/geochem.js's
 // computeBestIntercepts (grouped by hole, internal-dilution bridging, length-weighted grade); this is
 // just the control panel + results table + CSV export around it.
+const ALSO_MAX = 16; // TASKS.csv #2356 — above this many other elements, 'Also show' lists only the ticked ones
+
 export default function BestIntercepts({ assays: assaysIn, assayElements, collars, survey, layers, onClose }) {
   const assays = useMemo(() => labAssays(assaysIn), [assaysIn]), pxrfLeft = (assaysIn || []).length - assays.length; // #1673 — lab grades only
   useEscapeKey(onClose); // TASKS.csv #238
@@ -309,12 +311,20 @@ export default function BestIntercepts({ assays: assaysIn, assayElements, collar
           {symbols.length > 1 && (
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center" }} title={tr("Extra elements' length-weighted average over each already-composited interval — the intercept itself is still only built/cut off against the primary Element above.")}>
               <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("Also show:")}</span>
-              {symbols.filter((s) => s !== symbol).map((s) => (
+              {/* TASKS.csv #2356 (review #2325) — a 63-element suite filled half the dialog with tick boxes: above ALSO_MAX elements only the
+                  ticked ones are shown (click to remove), the others are in an 'Add an element' list */}
+              {(symbols.length - 1 > ALSO_MAX ? extraSymbols.filter((s) => s !== symbol) : symbols.filter((s) => s !== symbol)).map((s) => (
                 <label key={s} style={{ fontSize: "var(--font-size-sm)", color: extraSymbols.includes(s) ? "var(--color-text)" : "var(--color-text-muted)", display: "flex", alignItems: "center", gap: 3, cursor: "pointer", padding: "3px 7px", borderRadius: 5, border: `1px solid ${extraSymbols.includes(s) ? "var(--color-success-border)" : "var(--color-border)"}` }}>
                   <input type="checkbox" checked={extraSymbols.includes(s)} onChange={() => toggleExtraSymbol(s)} style={{ margin: 0 }} />
                   {s} ({elementUnits[s] || "ppm"})
                 </label>
               ))}
+              {symbols.length - 1 > ALSO_MAX && (
+                <select aria-label={tr("Add an element")} value="" onChange={(e) => { if (e.target.value) toggleExtraSymbol(e.target.value); }} style={{ fontSize: "var(--font-size-sm)", padding: "3px 6px" }}>
+                  <option value="">{tr("Add an element… ({n} more)", { n: symbols.filter((s) => s !== symbol && !extraSymbols.includes(s)).length })}</option>
+                  {symbols.filter((s) => s !== symbol && !extraSymbols.includes(s)).map((s) => <option key={s} value={s}>{`${s} (${elementUnits[s] || "ppm"})`}</option>)}
+                </select>
+              )}
             </div>
           )}
 

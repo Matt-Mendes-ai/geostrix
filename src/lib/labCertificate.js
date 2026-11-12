@@ -102,6 +102,21 @@ export function joinCertificatesToAssays(certRows, assays) {
   for (const r of certRows) { const a = byId.get(norm(r.sample_id)); if (a) matched.push({ cert: r, assay: a }); else unmatched.push(r); }
   return { matched, unmatched, assaysWithoutId: withoutId };
 }
+// TASKS.csv #2024 (review #2013, Woodjam) — the review reported the certificate side only; the drill side too: the drill samples (with a
+// sample id) that no certificate row in these files names. keep(assay): which rows count (the caller passes 'a regular lab sample', so QC
+// inserts and pXRF readings are not counted). -> { count, examples: [sample_id, …] (up to 6) }
+export function assaysWithoutCertificate(certRows, assays, keep = () => true) {
+  const ids = new Set((certRows || []).map((r) => norm(r.sample_id)).filter(Boolean));
+  let count = 0;
+  const examples = [];
+  for (const a of assays || []) {
+    const k = norm(a?.sample_id);
+    if (!k || ids.has(k) || !keep(a)) continue;
+    count++;
+    if (examples.length < 6) examples.push(String(a.sample_id));
+  }
+  return { count, examples };
+}
 
 // ---- QC suggestions --------------------------------------------------------------------------------------
 const PATHFINDERS = ["Au", "Ag", "Cu", "Pb", "Zn", "Mo", "As", "Sb", "Bi", "W", "S"];

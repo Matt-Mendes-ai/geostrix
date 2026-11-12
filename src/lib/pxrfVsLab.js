@@ -5,6 +5,7 @@
 import { isPxrfRow } from "./qaqc.js";
 import { valueIn } from "./geochem.js";
 import { median } from "./arrayStats.js"; // #1114 — the one median
+import { isBelowDetection } from "./assayFlags.js"; // TASKS.csv #2355
 
 // the sample-type values the assays carry, most common first: [[value, count]] (so 'no QC found' can be told from 'QC not recognised')
 export function sampleTypesSeen(assays, max = 8) {
@@ -42,17 +43,36 @@ export function pxrfLabPairs(assays) {
   return out;
 }
 
-// per element with at least minPairs pairs: { symbol, n, r, rho, medianRatio, meanPxrf, meanLab } sorted by rho (best first)
+// TASKS.csv #2355 (review #2325, WA uranium) — each 10 cm reading was its own pair, so 426 U 'pairs' were 133 lab intervals, the close
+// readings of one interval counted many times over; and a reading below the instrument's LOD was dropped without a word, so the ratio
+// held for detected readings only. Now the readings inside one lab interval are averaged first (n = lab intervals, `readings` = how many
+// went into them), and the readings reported below the LOD are counted (belowLod) instead of silently left out.
+// per element with at least minPairs lab intervals: { symbol, unit, n, readings, belowLod, r, rho, medianRatio, meanPxrf, meanLab },
+// sorted by rho (best first)
 export function pxrfVsLab(assays, elements, units = {}, minPairs = 10) {
   const pairs = pxrfLabPairs(assays), out = [];
   for (const e of elements || []) {
-    const s = e.symbol ?? e, u = units[s] || e.unit || "ppm", x = [], y = [];
+    const s = e.symbol ?? e, u = units[s] || e.unit || "ppm";
+    const byLab = new Map(); // lab row -> { sum, k }
+    let belowLod = 0;
     for (const { pxrf, lab } of pairs) {
-      const a = valueIn(pxrf, s, u, units), b = valueIn(lab, s, u, units);
-      if (Number.isFinite(a) && Number.isFinite(b) && a > 0 && b > 0) { x.push(a); y.push(b); }
+      if (pxrf?.values?.[s] == null) continue;
+      if (isBelowDetection(pxrf, s)) { belowLod++; continue; }
+      const a = valueIn(pxrf, s, u, units);
+      if (!Number.isFinite(a) || a <= 0) continue;
+      let g = byLab.get(lab);
+      if (!g) byLab.set(lab, (g = { sum: 0, k: 0 }));
+      g.sum += a; g.k++;
+    }
+    const x = [], y = [];
+    let used = 0;
+    for (const [lab, g] of byLab) {
+      const b = valueIn(lab, s, u, units);
+      if (!Number.isFinite(b) || b <= 0) continue;
+      x.push(g.sum / g.k); y.push(b); used += g.k;
     }
     if (x.length < minPairs) continue;
-    out.push({ symbol: s, unit: u, n: x.length, r: pearson(x, y), rho: pearson(ranks(x), ranks(y)), medianRatio: median(x.map((v, i) => v / y[i])), meanPxrf: x.reduce((t, v) => t + v, 0) / x.length, meanLab: y.reduce((t, v) => t + v, 0) / y.length });
+    out.push({ symbol: s, unit: u, n: x.length, readings: used, belowLod, r: pearson(x, y), rho: pearson(ranks(x), ranks(y)), medianRatio: median(x.map((v, i) => v / y[i])), meanPxrf: x.reduce((t, v) => t + v, 0) / x.length, meanLab: y.reduce((t, v) => t + v, 0) / y.length });
   }
   return { pairs: pairs.length, readings: (assays || []).filter(isPxrfRow).length, rows: out.sort((a, b) => (b.rho ?? -2) - (a.rho ?? -2)) };
 }
