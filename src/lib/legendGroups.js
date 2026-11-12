@@ -8,6 +8,7 @@ import { STRUCTURE_CLASS_COLORS, STRUCTURE_CLASS_LABELS } from "./mapLayers.js";
 import { legendScale } from "./legendScale.js";
 import { gradeUnitLabel } from "./geochem.js"; // TASKS.csv #2218
 import { rasterUnitOf } from "./rasterMethod.js"; // TASKS.csv #2747
+import { idwColourFields } from "./idw.js"; // TASKS.csv #2845
 
 // the per-element identity hues of assay markers (moved from ViewerModule; TASKS.csv #306)
 export const ASSAY_ELEMENT_COLORS = [0, 1, 2, 3, 4, 5, 6, 7, 11, 14, 15, 8, 10, 13].map((i) => CATEGORICAL_SAFE_COLORS[i]);
@@ -85,12 +86,15 @@ export function scaleLegendGroup(key, label, model, lo, hi) {
   return L.kind === "classes" ? { key, label, items: L.items, grade: true /* #1714 — low to high: a cut keeps the top */ } : { key, label, items: [], ramp: L };
 }
 // TASKS.csv #1236 — a raster whose value range is known, as its ramp
-export function rasterLegendGroups(rasters) {
+// pictureNote (TASKS.csv #2860, the Layout legend): a visible picture raster (no values, no colour bar, no units) as its name and this note
+export function rasterLegendGroups(rasters, { pictureNote = null } = {}) {
   const groups = [];
-  for (const r of rasters || []) {
+  for (let r of rasters || []) {
     if (r.visible === false) continue;
     // TASKS.csv #2747 (side session 6) — a value raster's ramp says what its values are (rasterUnitOf, #1858's 'Values are'): '… (nT)'
     const u = rasterUnitOf(r), named = u && !String(r.name).includes(`(${u})`) ? `${r.name} (${u})` : r.name;
+    // TASKS.csv #2845 — an IDW grid saved before it was given colour fields: its stretch (drawn in viridis) is the ramp
+    if (!r.colourStops && r.grid && r.stretch && !r.colourStyle) r = { ...r, ...idwColourFields(r.stretch) };
     if (r.colourStops?.length > 1 && r.colourRange) groups.push(scaleLegendGroup(`raster_${r.id}`, r.colourStyle?.stretch === "equalise" ? `${named} (equalized)` : named, { colorMode: "continuous", stops: r.colourStops }, r.colourRange[0], r.colourRange[1]));
     // TASKS.csv #2011 — a Macrostrat geology drape: its map units as swatches, youngest first (as the legend under the layer lists them);
     // the age is added when the name does not already say it; a unit Macrostrat gives no colour is grey, as the tiles draw it
@@ -99,7 +103,7 @@ export function rasterLegendGroups(rasters) {
     else if (r.legend?.units?.length) {
       const o = { kind: "fill", ...(Number.isFinite(r.opacity) && r.opacity < 1 ? { opacity: r.opacity } : {}) };
       groups.push({ key: `raster_${r.id}`, label: r.name, items: r.legend.units.map((u) => [u.age && u.age !== "Age Unknown" && !u.name.toLowerCase().includes(u.age.toLowerCase()) ? `${u.name} (${u.age})` : u.name, u.color || "#777777", o]) });
-    }
+    } else if (pictureNote && r.dataUrl && !r.grid) groups.push({ key: `raster_${r.id}`, label: r.name, items: [[pictureNote, null, { note: true }]], alwaysHead: true }); // #2860
   }
   return groups;
 }
