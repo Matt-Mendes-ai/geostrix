@@ -19,6 +19,7 @@ import { saveFile } from "../lib/desktop.js";
 import { pBtn, smallSel } from "../lib/sidebarStyles.js";
 import UndergroundOreNote from "./UndergroundOreNote.jsx"; // TASKS.csv #2277
 import { t as tr } from "../lib/i18n.js";
+import NotOfferedGrades from "./NotOfferedGrades.jsx"; // TASKS.csv #2646
 import CollarLevelsNote from "./CollarLevelsNote.jsx"; // TASKS.csv #2584 — the lowest collar used where collars stand on benches
 import { weatheredBasePoints } from "../lib/weatheredZone.js"; // TASKS.csv #2597
 import { holeTraces } from "../lib/evidenceSources.js";
@@ -127,6 +128,7 @@ export default function NestedPitsPane({ surfaces = [], onAdd, onToggle, onRemov
           {pitChoices.map((s) => <option key={s.id} value={s.id}>{String(s.name).replace(/^Pit shell: /, "")}</option>)}
         </select></label>
       )}
+      <NotOfferedGrades voxelModels={voxelModels} />{/* TASKS.csv #2646 — the models the Pit shell (and so the series) leaves out, and why (#2436) */}
       {lastPit && !model && <div style={warn}>{tr("The block model the shell was run on (\"{m}\") is not in the project any more.", { m: lastPit.params?.blockModel || "?" })}</div>}
       {lastPit && model && (<>
         <div style={{ ...note, marginTop: 4 }}>{tr("From \"{pit}\": {price} {unit}, recovery {rec} %, mining ${mc}/t, processing ${pc}/t, density {d}, slope {s}°{sec}.", { pit: String(lastPit.name).replace(/^Pit shell: /, ""), price: inputs.price, unit: priceLabel, rec: inputs.recovery, mc: inputs.miningCost, pc: inputs.processingCost, d: inputs.wasteDensity > 0 ? tr("{o} ore, {w} waste", { o: inputs.density, w: inputs.wasteDensity }) : inputs.density /* #2437 */, s: inputs.slopeDeg, sec: inputs.sectorSlopes ? tr(" (by sector)") : "" })}</div>{/* sec: #1897 */}
