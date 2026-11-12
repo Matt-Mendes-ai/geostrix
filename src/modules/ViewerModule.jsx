@@ -216,6 +216,7 @@ import { useBuildDefer } from "../lib/viewer/buildDefer.js"; // #1500
 import { lazyTip } from "../lib/viewer/lazyTip.js"; // #1500
 const IdentifyPanel = React.lazy(() => import("../components/IdentifyPanel.jsx"));
 const UnitPolygonPane = React.lazy(() => import("../components/UnitPolygonPane.jsx")); // TASKS.csv #1439
+const SurfaceElementBasis = React.lazy(() => import("./viewer/SurfaceElementBasis.jsx")); // TASKS.csv #2627 / #2641
 
 const toRad = (d) => (d * Math.PI) / 180;
 
@@ -6885,11 +6886,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           </>
         )}
 
-        {/* TASKS.csv #228 — surface geochemistry samples get one toggleable row (not a row per sample —
-            unlike boundaries/OMF objects/voxel models, these are one flat imported collection, same
-            "single row for the whole collection" treatment terrain gets). Color legend by medium is
-            shown inline since there's no per-sample edit UI to jump to yet — "Edit" just goes to
-            Geochem, where the import/element data actually lives. */}
+        {/* TASKS.csv #228 — surface samples: one row for the whole collection, the medium legend inline; edits are on Geochem */}
         {surfaceSamples.length > 0 && (
           <>
             <div onContextMenu={(e) => openRowMenu(e, `${surfaceSamples.length} surface samples`, [
@@ -6911,6 +6908,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             </div></div>
             <SurfacePlacementNotices counts={placementCounts} z={surfaceFlatZ} />{/* #1818 / #1806 / #606 / #2571 */}
             {anomalyControls}{/* TASKS.csv #843 / #854 */}
+            <Suspense fallback={null}><SurfaceElementBasis elements={surfaceElements} onNotice={(n) => setNotices((p) => [...p, n])} /></Suspense>{/* #2627: Li % <-> % Li2O */}
             {!surfaceAnomaly && <div style={{ display: "flex", gap: 8, flexWrap: "wrap", padding: "2px 2px 8px" }}>
               {Array.from(new Set(surfaceSamples.map((s) => s.medium))).map((m) => (
                 <div key={m} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)" }}>
