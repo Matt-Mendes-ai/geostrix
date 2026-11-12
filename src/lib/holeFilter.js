@@ -33,6 +33,18 @@ export function collarsMatching(collars, filter) {
     return attrTerms.every(([k, v]) => attrsOf(c, k).some((got) => got === v || got.split(/[^a-z0-9.]+/).includes(v)));
   });
 }
+// TASKS.csv #1703 (review #1645, Copley) — 'East Dome' typed in the 3D View's Holes filter found nothing although every collar carries
+// PROSPECT. When plain text (no 'field=value' term) matches no hole id, the holes whose collar fields contain that text (case-insensitive,
+// '_' as a space) are listed instead. -> { holes, byField } (byField: true when the fallback answered). The Layout drill plan keeps
+// collarsMatching as it is.
+export function holesForFilter(collars, filter) {
+  const holes = collarsMatching(collars, filter);
+  const text = norm(filter).replace(/\s+/g, " ");
+  if (holes.length || !text || String(filter).includes("=")) return { holes, byField: false };
+  const hits = (collars || []).filter((c) => Object.values(c?.attrs || {}).some((v) => norm(v).replace(/\s+/g, " ").includes(text)));
+  return { holes: hits, byField: hits.length > 0 };
+}
+
 // The collar fields worth offering as a pick: 2 to 30 distinct values over the holes. -> [{ key, values: [...] }]
 export function collarAttrChoices(collars, maxValues = 30) {
   const by = new Map();

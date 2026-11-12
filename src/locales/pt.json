@@ -6801,6 +6801,7 @@
   "Uncheck {n}": "Desmarcar {n}",
   "Only these": "Só estes",
   "{ticked} of {total} checked": "{ticked} de {total} marcados",
+  "No hole id contains this text: listing the {n} hole(s) with it in a collar field.": "Nenhum ID de furo contém este texto: listando o(s) {n} furo(s) que o têm em um campo do colar.",
   "Holes unchecked in the hole list are left out of the model. Tick this to use them anyway.": "Os furos desmarcados na lista ficam fora do modelo. Marque isto para usá-los mesmo assim.",
   "Also using the {n} holes unchecked in the hole list": "Usando também os {n} furos desmarcados na lista",
   "Leaving out the {n} holes unchecked in the hole list (tick to use them)": "Exclui os {n} furos desmarcados na lista (marque para usá-los)",

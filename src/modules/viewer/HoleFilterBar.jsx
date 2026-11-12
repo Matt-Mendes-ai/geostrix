@@ -1,13 +1,14 @@
 // TASKS.csv #1316 — Matt: "a filter on the hole list so I can uncheck or check them quickly". The filter box could only narrow the list: 398 holes meant 398 clicks.
 import { t as tr } from "../../lib/i18n.js";
-import { collarsMatching, collarAttrChoices, visibilityPatch } from "../../lib/holeFilter.js"; // collars / attrs: #1504
+import { holesForFilter, collarAttrChoices, visibilityPatch } from "../../lib/holeFilter.js"; // collars / attrs: #1504; collar-field text: #1703
 import { useMemo } from "react";
 
 const btn = { flex: 1, minWidth: 0, padding: "3px 4px", fontSize: "var(--font-size-xs)", background: "var(--color-bg)", color: "var(--color-text-secondary)", border: "1px solid var(--color-border)", borderRadius: 4, cursor: "pointer" };
 
 export default function HoleFilterBar({ collars, filter, setFilter, visibleHoles, setVisibleHoles, colourBy = "", setColourBy = null }) { // colourBy: #1504
   const ids = collars.map((c) => c.hole_id);
-  const shown = collarsMatching(collars, filter).map((c) => c.hole_id); // #1504 — "drill_type=RC" picks by a collar field
+  const found = holesForFilter(collars, filter); // #1504 — "drill_type=RC" picks by a collar field; #1703 — or text in one
+  const shown = found.holes.map((c) => c.hole_id);
   const choices = useMemo(() => collarAttrChoices(collars), [collars]);
   const ticked = ids.filter((id) => visibleHoles[id] !== false).length;
   const apply = (mode) => setVisibleHoles((p) => visibilityPatch(p, ids, shown, mode));
@@ -35,6 +36,7 @@ export default function HoleFilterBar({ collars, filter, setFilter, visibleHoles
         <button type="button" style={btn} onClick={() => apply("only")} title={tr("Show the holes listed below and hide all the others")}>{tr("Only these")}</button>
       </div>
       <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 3 }}>{tr("{ticked} of {total} checked", { ticked, total: ids.length })}</div>
+      {found.byField && <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("No hole id contains this text: listing the {n} hole(s) with it in a collar field.", { n: shown.length })}</div>}{/* #1703 */}
     </div>
   );
 }

@@ -6801,6 +6801,7 @@
   "Uncheck {n}": "إلغاء تحديد {n}",
   "Only these": "هذه فقط",
   "{ticked} of {total} checked": "{ticked} من {total} محددة",
+  "No hole id contains this text: listing the {n} hole(s) with it in a collar field.": "لا يحتوي أي معرّف ثقب على هذا النص: تُعرض {n} من الثقوب التي تحمله في حقل من حقول الفوهة.",
   "Holes unchecked in the hole list are left out of the model. Tick this to use them anyway.": "تُستبعد الثقوب غير المحددة في القائمة من النموذج. فعّل هذا لاستخدامها رغم ذلك.",
   "Also using the {n} holes unchecked in the hole list": "يستخدم أيضًا الثقوب غير المحددة وعددها {n}",
   "Leaving out the {n} holes unchecked in the hole list (tick to use them)": "يستبعد الثقوب غير المحددة وعددها {n} (فعّل لاستخدامها)",
