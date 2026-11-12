@@ -10716,5 +10716,13 @@
   "Added {n} planned hole(s) from {f}.": "أُضيف {n} ثقب مخطط من {f}.",
   "Could not read {f}: {error}": "تعذرت قراءة {f}: {error}",
   "Planned holes from a CSV with columns for E, N, Elev, azimuth (grid), dip and length; name, hole type, notes, target and lift / drift are read when present.": "ثقوب مخططة من ملف CSV بأعمدة E وN والمنسوب والسمت (الشبكة) والميل والطول؛ وتُقرأ الأسماء ونوع الثقب والملاحظات والهدف والرفع / الانحراف عند وجودها.",
-  "IGRF-14 covers {first} to {last}; {date} is outside it.": "يغطي IGRF-14 من {first} إلى {last}؛ و{date} خارج ذلك."
+  "IGRF-14 covers {first} to {last}; {date} is outside it.": "يغطي IGRF-14 من {first} إلى {last}؛ و{date} خارج ذلك.",
+  "Drillholes: {sym} grade × thickness or metres above a cut-off, per hole…": "ثقوب الحفر: المحتوى × السماكة أو الأمتار فوق حد قطع {sym}، لكل ثقب…",
+  "Drillholes: metres at or above {c} {u} {sym} in each hole": "ثقوب الحفر: الأمتار عند {c} {u} {sym} أو فوقها في كل ثقب",
+  "Drillholes: {sym} grade × thickness at or above {c} {u} in each hole": "ثقوب الحفر: المحتوى × السماكة لـ {sym} عند {c} {u} أو فوقها في كل ثقب",
+  "Per-hole measure": "القياس لكل ثقب",
+  "grade × thickness": "المحتوى × السماكة",
+  "metres": "أمتار",
+  "at or above ({u} {sym})": "عند أو فوق ({u} {sym})",
+  "Intervals at or above the cut-off with Best intercepts' rules (2 m of internal dilution, no minimum length), summed per hole; a hole assayed with none counts as 0.": "الفواصل عند حد القطع أو فوقه بقواعد أفضل التقاطعات (2 م من التخفيف الداخلي، بلا طول أدنى)، مجموعة لكل ثقب؛ والثقب المحلَّل بلا أي منها يُحتسب 0."
 }

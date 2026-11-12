@@ -44,6 +44,7 @@ export function evidenceDeps(src, opts = {}, d = {}) {
     case "pick": return [d.structurePicks, ...holes];
     case "numeric": {
       if (src.ref === "depth:assays") return [d.assays, ...holes]; // #2643 — the deepest sample of each hole
+      if (String(src.ref).startsWith("gt:")) return [d.assays, d.assayElements, ...holes]; // #2653 — a grade x thickness per hole
       const c = /^custom:(.+):[^:]+$/.exec(src.ref); if (c) return [(d.customLayers || []).find((l) => String(l.id) === c[1])?.rows, ...holes];
       const k = src.ref.startsWith("coded:") ? src.ref.split(":")[1] : src.ref.split(":")[0]; return [d.projectLayers?.[k], ...holes];
     }

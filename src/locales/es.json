@@ -10716,5 +10716,13 @@
   "Added {n} planned hole(s) from {f}.": "Se agregaron {n} sondaje(s) planificado(s) desde {f}.",
   "Could not read {f}: {error}": "No se pudo leer {f}: {error}",
   "Planned holes from a CSV with columns for E, N, Elev, azimuth (grid), dip and length; name, hole type, notes, target and lift / drift are read when present.": "Sondajes planificados desde un CSV con columnas de E, N, Cota, azimut (cuadrícula), inclinación y largo; nombre, tipo de sondaje, notas, objetivo y elevación / deriva se leen si están.",
-  "IGRF-14 covers {first} to {last}; {date} is outside it.": "El IGRF-14 cubre de {first} a {last}; {date} queda fuera."
+  "IGRF-14 covers {first} to {last}; {date} is outside it.": "El IGRF-14 cubre de {first} a {last}; {date} queda fuera.",
+  "Drillholes: {sym} grade × thickness or metres above a cut-off, per hole…": "Sondajes: ley × espesor o metros sobre una ley de corte de {sym}, por sondaje…",
+  "Drillholes: metres at or above {c} {u} {sym} in each hole": "Sondajes: metros en o sobre {c} {u} {sym} en cada sondaje",
+  "Drillholes: {sym} grade × thickness at or above {c} {u} in each hole": "Sondajes: ley × espesor de {sym} en o sobre {c} {u} en cada sondaje",
+  "Per-hole measure": "Medida por sondaje",
+  "grade × thickness": "ley × espesor",
+  "metres": "metros",
+  "at or above ({u} {sym})": "en o sobre ({u} {sym})",
+  "Intervals at or above the cut-off with Best intercepts' rules (2 m of internal dilution, no minimum length), summed per hole; a hole assayed with none counts as 0.": "Intervalos en o sobre la ley de corte con las reglas de Mejores interceptos (2 m de dilución interna, sin largo mínimo), sumados por sondaje; un sondaje ensayado sin ninguno cuenta como 0."
 }
