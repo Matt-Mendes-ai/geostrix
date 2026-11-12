@@ -729,6 +729,7 @@
   "None yet — run one of the tools above. Generated surfaces now save with the project (mesh, type, declared relationships and the parameters that produced them), so a reported volume or tonnage can be reproduced after a restart. Binding a surface to a saved theme is still a follow-up.": "لا شيء بعد — شغّل إحدى الأدوات أعلاه. تُحفظ الأسطح المُنشأة الآن مع المشروع (الشبكة والنوع والعلاقات المعلنة والمعاملات التي أنتجتها)، فيمكن إعادة إنتاج الحجم أو الحمولة المبلغ عنهما بعد إعادة التشغيل. ربط سطح بسمة محفوظة ما زال قيد التنفيذ.",
   "Style (colour, opacity)…": "النمط (اللون، العتامة)…",
   "Type & relationships": "النوع والعلاقات",
+  "Show or hide {name}": "إظهار {name} أو إخفاؤه",
   "Show normal colours": "إظهار الألوان العادية",
   "Colour by data support": "التلوين حسب دعم البيانات",
   "Counted over this surface's own vertices. Green means the composites that produced that part of the surface bracket it on all three axes from at least two holes. A geometric data-support measure — not a confidence interval or a kriging variance.": "محسوب على رؤوس هذا السطح. الأخضر يعني أن العينات المركّبة التي أنتجت ذلك الجزء تحيط به على المحاور الثلاثة من ثقبين على الأقل. مقياس هندسي لدعم البيانات — ليس فاصل ثقة ولا تباين كريغينغ.",

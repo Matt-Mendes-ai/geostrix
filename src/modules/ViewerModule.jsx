@@ -7213,7 +7213,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
               "-", { label: tr("Remove…"), onClick: () => { if (confirmRemoveSurface(s)) removeImplicitSurface(s.id); } }])}
               style={{ background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px" }}>
-                <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => toggleImplicitSurface(s.id)} style={{ cursor: "pointer", color: s.visible ? "var(--color-accent)" : "var(--color-text-disabled)" }}>{s.visible ? <Eye size={14} /> : <EyeOff size={14} />}</div>
+                <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => toggleImplicitSurface(s.id)} aria-label={tr("Show or hide {name}", { name: surfaceLabels.get(s.id) ?? s.name })} aria-pressed={!!s.visible} style={{ cursor: "pointer", color: s.visible ? "var(--color-accent)" : "var(--color-text-disabled)" }}>{/* #2058 */}{s.visible ? <Eye size={14} /> : <EyeOff size={14} />}</div>
                 <div style={{ flex: 1, minWidth: 0, fontSize: "var(--font-size-base)", color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={tr("{vertexCount} vertices, {faceCount} faces", { vertexCount: s.vertexCount, faceCount: s.faceCount })}>{surfaceLabels.get(s.id) ?? s.name}</div>
                 {/* TASKS.csv #93 — version badge, only when this surface is actually part of a lineage,
                     so a project with no re-runs looks exactly as it did before. */}
@@ -7228,9 +7228,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                   );
                 })()}
                 {isStaleStamp(s.params?.lithoStamp, lithoNow) && <span style={{ flexShrink: 0, fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", border: "1px solid var(--color-border)", borderRadius: 4, padding: "1px 4px" }} title={tr("Built from a lithology log that has changed since (replaced, re-imported or edited). Run it again to model the log as it is now.")}>{tr("source changed")}</span>}{/* #2388 */}
-                {/* TASKS.csv #83 — expand to set this surface's geological type + declared
-                    relationships to other surfaces (metadata only for now — see this entry's own
-                    TASKS.csv note on what reads it later: #88 constraints, #90 topology checks). */}
+                {/* TASKS.csv #83 — expand: the surface's geological type and relationships (#88 constraints, #90 topology) */}
                 <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setExpandedSurfaceId(expanded ? null : s.id)} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} title={tr("Type & relationships")}>
                   {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                 </div>
