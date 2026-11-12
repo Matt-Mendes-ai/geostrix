@@ -11212,5 +11212,8 @@
   "break-even": "نقطة التعادل",
   "Optional: a cut-off grade of your own, such as the grade a saleable ore must meet. A block at or above it is ore and one below it is waste, whatever it would pay. Blank: the break-even grade at these prices and costs.": "اختياري: محتوى حدي من اختيارك، مثل المحتوى الذي يجب أن يبلغه خام قابل للبيع. الكتلة التي تساويه أو تزيد عليه خام، والتي دونه نفايات، مهما كان عائدها. فارغ: محتوى التعادل بهذه الأسعار والتكاليف.",
   "Cut-off grade {c} {unit}, typed: a block below it is waste whatever it would pay. The break-even at these inputs is {b} {unit}.": "المحتوى الحدي {c} {unit}، مُدخل: الكتلة التي دونه نفايات مهما كان عائدها. محتوى التعادل بهذه المدخلات {b} {unit}.",
-  "{el} is priced per tonne of contained {el} or per dmtu (1 % {el} in a dry tonne), and the break-even cut-off is on the contained {el}, not a product specification: every block above it is ore. Type a cut-off to set one.": "يُسعَّر {el} لكل طن من {el} المحتوى أو لكل dmtu (1 % من {el} في طن جاف)، والمحتوى الحدي للتعادل محسوب على {el} المحتوى وليس مواصفة منتج: كل كتلة فوقه خام. أدخل محتوى حديًا لتحديده."
+  "{el} is priced per tonne of contained {el} or per dmtu (1 % {el} in a dry tonne), and the break-even cut-off is on the contained {el}, not a product specification: every block above it is ore. Type a cut-off to set one.": "يُسعَّر {el} لكل طن من {el} المحتوى أو لكل dmtu (1 % من {el} في طن جاف)، والمحتوى الحدي للتعادل محسوب على {el} المحتوى وليس مواصفة منتج: كل كتلة فوقه خام. أدخل محتوى حديًا لتحديده.",
+  "Zoomed: the edge of the net is a dip of {d}°": "مكبَّرة: حافة الشبكة تمثّل ميلاً قدره {d}°",
+  "Rescale the net so the poles fill it, with rings of equal dip: for flat-lying beds, whose poles all sit in the net's inner few degrees.": "أعد تحجيم الشبكة لتملأها الأقطاب، مع حلقات ميل متساوٍ: للطبقات شبه الأفقية التي تقع أقطابها كلها في الدرجات القليلة الوسطى من الشبكة.",
+  "Zoom to the data": "تكبير إلى البيانات"
 }
