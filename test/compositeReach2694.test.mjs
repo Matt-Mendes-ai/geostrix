@@ -34,5 +34,5 @@ test("estimates are unchanged by the mask (as #1416 checks against noReach)", ()
   assert.equal(a.blocksEstimated, b.blocksEstimated);
   assert.ok(a.blocksInReach < b.blocksInReach);
   const e = readFileSync(new URL("../src/lib/estimation.js", import.meta.url), "utf8");
-  assert.match(e, /return segmentReach\(compositesToSegments\(points, tol\), bounds, cell, R, \{ margin: tol, rz \}\);/);
+  assert.match(e, /return segmentReach\(compositesToSegments\(points, tol\), bounds, cell, R, \{ margin: tol, rz, metric \}\);/); // metric: #2696
 });

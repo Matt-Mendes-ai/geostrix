@@ -194,7 +194,73 @@ function capsuleRow(ux, uy, uz, L2, wy, wz, R2) {
   return Number.isFinite(lo) && hi >= lo ? [lo, hi] : null;
 }
 
-export function segmentReach(segments, bounds, cell, radius, { margin = 0, rz = null } = {}) {
+// TASKS.csv #2696 (split from #2422) — a structural trend's search is an ellipsoid |M (p - q)| <= R with M = scales x basis^T (estimation.js
+// trendFrame), tilted when the trend dips. Counted as the sphere of the major semi-axis it held far more blocks than the run can fill.
+// The row x = x0 + s of the grid maps to a line c + s d in the trend frame; the capsule of a mapped segment (start 0, direction u)
+// meets it in one interval of s (the set is convex): the hull of the two end spheres' intervals and the cylinder's, clipped to 0..1.
+function capsuleRowDir(c0, c1, c2, d0, d1, d2, u0, u1, u2, R2) {
+  let lo = Infinity, hi = -Infinity;
+  const dd = d0 * d0 + d1 * d1 + d2 * d2;
+  const sphere = (e0, e1, e2) => { const cd = e0 * d0 + e1 * d1 + e2 * d2, cc = e0 * e0 + e1 * e1 + e2 * e2, disc = cd * cd - dd * (cc - R2); if (dd > 0 && disc >= 0) { const r = Math.sqrt(disc); if ((-cd - r) / dd < lo) lo = (-cd - r) / dd; if ((-cd + r) / dd > hi) hi = (-cd + r) / dd; } };
+  sphere(c0, c1, c2);
+  const uu = u0 * u0 + u1 * u1 + u2 * u2;
+  if (uu > 1e-18) {
+    sphere(c0 - u0, c1 - u1, c2 - u2);
+    const du = d0 * u0 + d1 * u1 + d2 * u2, cu = c0 * u0 + c1 * u1 + c2 * u2, cd = c0 * d0 + c1 * d1 + c2 * d2, cc = c0 * c0 + c1 * c1 + c2 * c2;
+    const A = dd - (du * du) / uu, Bq = 2 * (cd - (cu * du) / uu), C = cc - (cu * cu) / uu - R2;
+    let s0, s1;
+    if (A < 1e-12 * Math.max(1, dd)) { if (C > 0) { s0 = 1; s1 = 0; } else { s0 = -Infinity; s1 = Infinity; } } // the row runs along the segment
+    else { const disc = Bq * Bq - 4 * A * C; if (disc < 0) { s0 = 1; s1 = 0; } else { const r = Math.sqrt(disc); s0 = (-Bq - r) / (2 * A); s1 = (-Bq + r) / (2 * A); } }
+    // the foot t = (cu + s du) / uu within 0..1
+    if (Math.abs(du) < 1e-12) { if (cu < 0 || cu > uu) { s0 = 1; s1 = 0; } }
+    else { const e0 = -cu / du, e1 = (uu - cu) / du; s0 = Math.max(s0, Math.min(e0, e1)); s1 = Math.min(s1, Math.max(e0, e1)); }
+    if (s1 >= s0) { if (s0 < lo) lo = s0; if (s1 > hi) hi = s1; }
+  }
+  return Number.isFinite(lo) && hi >= lo ? [lo, hi] : null;
+}
+// metric: { basis: { major, semiMajor, minor }, scales: { major, semiMajor, minor } }; margin (world metres) is widened by the largest scale
+function segmentReachMetric(segments, bounds, cell, radius, margin, metric) {
+  const g = gridShape(bounds, cell);
+  if (!(radius > 0) || !Number.isFinite(radius)) return { ...g, reach: g.total, mask: null };
+  if (g.total > REACH_MAX_GRID) return { ...g, reach: NaN, mask: null, tooBig: true };
+  const { major: a, semiMajor: b, minor: c } = metric.basis, S = metric.scales;
+  const sMax = Math.max(S.major, S.semiMajor, S.minor);
+  const R = radius + Math.max(0, margin) * sMax, R2 = R * R * (1 + 1e-12) + 1e-12;
+  const M = [[a.x * S.major, a.y * S.major, a.z * S.major], [b.x * S.semiMajor, b.y * S.semiMajor, b.z * S.semiMajor], [c.x * S.minor, c.y * S.minor, c.z * S.minor]];
+  const map = (x, y, z) => [M[0][0] * x + M[0][1] * y + M[0][2] * z, M[1][0] * x + M[1][1] * y + M[1][2] * z, M[2][0] * x + M[2][1] * y + M[2][2] * z];
+  // the ellipsoid's half-extent along each world axis: R x |row of B S^-1| (Q^-1 = B S^-2 B^T)
+  const half = (k) => R * Math.sqrt((a[k] / S.major) ** 2 + (b[k] / S.semiMajor) ** 2 + (c[k] / S.minor) ** 2);
+  const hx = half("x"), hy = half("y"), hz = half("z");
+  const [d0, d1, d2] = map(1, 0, 0);
+  const { dx, dy, dz, nx, ny, nz } = g;
+  const mask = new Uint8Array(g.total);
+  const pad = R * 1e-9 + 1e-9;
+  const x0 = bounds.xmin + 0.5 * dx, y0 = bounds.ymin + 0.5 * dy, z0 = bounds.zmin + 0.5 * dz;
+  const lo = (v, o, d) => Math.max(0, Math.ceil((v - o) / d - 1e-9)), hi = (v, o, d, n) => Math.min(n - 1, Math.floor((v - o) / d + 1e-9));
+  for (const sg of segments) {
+    const [ax, ay, az, bx, by, bz] = sg;
+    const [u0, u1, u2] = map(bx - ax, by - ay, bz - az);
+    const iz0 = lo(Math.min(az, bz) - hz, z0, dz), iz1 = hi(Math.max(az, bz) + hz, z0, dz, nz);
+    const iy0 = lo(Math.min(ay, by) - hy, y0, dy), iy1 = hi(Math.max(ay, by) + hy, y0, dy, ny);
+    for (let iz = iz0; iz <= iz1; iz++) {
+      const wz = z0 + iz * dz - az;
+      for (let iy = iy0; iy <= iy1; iy++) {
+        const wy = y0 + iy * dy - ay;
+        const [c0, c1, c2] = map(0, wy, wz);
+        const iv = capsuleRowDir(c0, c1, c2, d0, d1, d2, u0, u1, u2, R2);
+        if (!iv) continue;
+        const ix0 = lo(ax + Math.max(iv[0], -hx - Math.abs(bx - ax)) - pad, x0, dx), ix1 = hi(ax + Math.min(iv[1], hx + Math.abs(bx - ax)) + pad, x0, dx, nx);
+        if (ix1 >= ix0) { const base = nx * (iy + ny * iz); mask.fill(1, base + ix0, base + ix1 + 1); }
+      }
+    }
+  }
+  let reach = 0;
+  for (let i = 0; i < mask.length; i++) reach += mask[i];
+  return { ...g, reach, mask };
+}
+
+export function segmentReach(segments, bounds, cell, radius, { margin = 0, rz = null, metric = null } = {}) {
+  if (metric?.basis && metric?.scales) return segmentReachMetric(segments, bounds, cell, radius, margin, metric); // #2696
   const g = gridShape(bounds, cell);
   const R = radius > 0 && Number.isFinite(radius) ? radius + Math.max(0, margin) : null;
   const Rz = R && rz > 0 && Number.isFinite(rz) ? Math.min(R, rz + Math.max(0, margin)) : R, kz = R ? R / Rz : 1;
@@ -231,11 +297,11 @@ export function segmentReach(segments, bounds, cell, radius, { margin = 0, rz = 
 // a 5 x 6 km box). traces: desurveyed holes [[{x, y, z}]]; cell3: { dx, dy, dz }; from: the cell size the fit searches start at;
 // fit10: also the smallest cell from 10 m (#1570, a box that changed). -> { reach, tooBig, fitCell, fitCellMax, fit10 } (null where
 // not asked or not needed; the fits only when the current cell is over the budget, as the dialog shows them).
-export function reachSummary({ traces, segments = null, margin = 0, bounds, cell3, radius, rz = null, fixedDz = null, budget, maxBudget = null, from, fitAllowed = true, fit10 = false }) {
+export function reachSummary({ traces, segments = null, margin = 0, bounds, cell3, radius, rz = null, metric = null /* #2696 */, fixedDz = null, budget, maxBudget = null, from, fitAllowed = true, fit10 = false }) {
   // #2636 — segments (exact, no margin); `segments` / `margin` given: the parts of the traces inside a restricting solid (#2422)
   const tol = segments ? 0 : Math.min(cell3.dx, cell3.dy, cell3.dz) / 4; // the simplified traces stay within tol of the stations
   const segs = segments || tracesToSegments(traces, tol);
-  const opts = { margin: segments ? margin : tol, rz, dz: fixedDz, segments: true }; // rz / dz: #2418
+  const opts = { margin: segments ? margin : tol, rz, metric, dz: fixedDz, segments: true }; // rz / dz: #2418; metric: #2696
   const r = segmentReach(segs, bounds, cell3, radius, opts);
   const over = !!r.tooBig || r.reach > budget;
   return {

@@ -332,8 +332,8 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
     if (solidCache.current.key !== key) solidCache.current = { key, closed: !!isMeshClosed(sh.positions, sh.indices)?.closed };
     return solidCache.current.closed ? { key, positions: sh.positions, indices: sh.indices, name: sh.name } : null; // an open mesh is refused at Run
   })();
-  const reachArgs = traceBounds?.traces?.length && reachRadius && bounds ? { traces: traceBounds.traces, bounds: { xmin: bounds.xmin, xmax: bounds.xmax, ymin: bounds.ymin, ymax: bounds.ymax, zmin: bounds.zmin, zmax: bounds.zmax }, cell3: { dx: cell3.dx, dy: cell3.dy, dz: cell3.dz }, radius: reachRadius, rz: reachRz, ...(reachSolid ? { solid: reachSolid } : {}) /* #2422 */, fixedDz: cellHeight > 0 && !matched ? cellHeight : null /* #2418 */, budget: blockBudget, maxBudget: MAX_BLOCK_MODEL_BUDGET, from: cellSize, fitAllowed: !matched } : null;
-  const reachKey = reachArgs ? JSON.stringify([reachArgs.bounds, reachArgs.cell3, reachRadius, reachArgs.rz, reachSolid?.key ?? null, reachArgs.fixedDz, blockBudget, cellSize, !!matched, traceBounds.traces.length]) : null;
+  const reachArgs = traceBounds?.traces?.length && reachRadius && bounds ? { traces: traceBounds.traces, bounds: { xmin: bounds.xmin, xmax: bounds.xmax, ymin: bounds.ymin, ymax: bounds.ymax, zmin: bounds.zmin, zmax: bounds.zmax }, cell3: { dx: cell3.dx, dy: cell3.dy, dz: cell3.dz }, radius: reachRadius, rz: reachRz, ...(modelTrend && !flatTrend ? { metric: { basis: trendBasis(modelTrend), scales: trendSearchScales(modelTrend) } } : {}) /* #2696: the tilted ellipsoid, as the estimator counts it */, ...(reachSolid ? { solid: reachSolid } : {}) /* #2422 */, fixedDz: cellHeight > 0 && !matched ? cellHeight : null /* #2418 */, budget: blockBudget, maxBudget: MAX_BLOCK_MODEL_BUDGET, from: cellSize, fitAllowed: !matched } : null;
+  const reachKey = reachArgs ? JSON.stringify([reachArgs.bounds, reachArgs.cell3, reachRadius, reachArgs.rz, reachArgs.metric ?? null /* #2696 */, reachSolid?.key ?? null, reachArgs.fixedDz, blockBudget, cellSize, !!matched, traceBounds.traces.length]) : null;
   const [reachState, setReachState] = useState(null); // { key, reach, tooBig, fitCell, fitCellMax }
   useEffect(() => {
     if (!reachArgs) return undefined;
@@ -859,10 +859,10 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
           </label>
           {gridPreview && (
             <div style={{ fontSize: "var(--font-size-sm)", color: overLimit ? "var(--color-danger-icon-strong)" : "var(--color-text-muted)" }}>{tr("Grid: {nx} × {ny} × {nz} = {totalBlocksPreview} blocks{v}", { nx: gridPreview.nx, ny: gridPreview.ny, nz: gridPreview.nz, totalBlocksPreview: totalBlocksPreview.toLocaleString(),
-              v: (reachPending ? (reachSolid || reachRz ? tr(", counting the blocks within reach of the drilling…") : tr(", counting the blocks within {r} m of the drilling…", { r: reachRadius }))
+              v: (reachPending ? (reachSolid || reachRz || reachArgs?.metric /* #2696: an ellipsoid has no one radius */ ? tr(", counting the blocks within reach of the drilling…") : tr(", counting the blocks within {r} m of the drilling…", { r: reachRadius }))
                 : reach && blocksInReach < totalBlocksPreview ? (reachSolid /* #2422: the trace parts inside the solid, the search shaped by the trend */
                   ? tr(", {n} within reach of the drilling inside \"{name}\" (only those can be estimated, and only those count)", { n: Number.isFinite(blocksInReach) ? blocksInReach.toLocaleString() : "?", name: reachSolid.name })
-                  : reachRz ? tr(", {n} within reach of the drilling (only those can be estimated, and only those count)", { n: Number.isFinite(blocksInReach) ? blocksInReach.toLocaleString() : "?" })
+                  : reachRz || reachArgs?.metric ? tr(", {n} within reach of the drilling (only those can be estimated, and only those count)", { n: Number.isFinite(blocksInReach) ? blocksInReach.toLocaleString() : "?" })
                   : tr(", {n} within {r} m of the drilling (only those can be estimated, and only those count)", { n: Number.isFinite(blocksInReach) ? blocksInReach.toLocaleString() : "?", r: reachRadius })) : "") + (overLimit ? tr(" — over the {blockBudget}-block budget.", { blockBudget: blockBudget.toLocaleString() }) : "") })}
               {overLimit && (
                 <span style={{ display: "inline-flex", gap: 6, marginLeft: 6, flexWrap: "wrap" }}>
