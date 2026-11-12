@@ -10231,6 +10231,8 @@
   "{fileName}: {n} downhole log channel(s) imported as numeric layers{v}: {list}. The first is shown; the others are in the Layers list.": "{fileName} : {n} canal(aux) de diagraphie importé(s) en couches numériques{v} : {list}. Le premier est affiché ; les autres sont dans la liste des couches.",
   ", averaged to {b} m bins (mean, with min and max)": ", moyennés par pas de {b} m (moyenne, avec min et max)",
   ", every reading kept": ", chaque lecture gardée",
+  "{b} m bins: about {n} rows per channel, {mb} MB in all": "Intervalles de {b} m : environ {n} lignes par canal, {mb} Mo au total",
+  "Every reading (no bins): {n} rows per channel, about {mb} MB in all": "Chaque lecture (sans intervalles) : {n} lignes par canal, environ {mb} Mo au total",
   "{n} brought into the local grid through its tie to EPSG:{tie}.": "{n} ramenée(s) dans la grille locale par son rattachement à EPSG:{tie}.",
   " (suggested {suggested} m from the drill-site spacing)": " (suggéré {suggested} m d'après l'espacement des sites de forage)",
   "The lags stop at {max} m; the {sites} drill sites are typically {typ} m apart (nearest {near} m, up to {far} m): raise the lag or the number of lags to see continuity between holes.": "Les pas s'arrêtent à {max} m ; les {sites} sites de forage sont typiquement à {typ} m (le plus proche {near} m, jusqu'à {far} m) : augmentez le pas ou le nombre de pas pour voir la continuité entre sondages.",

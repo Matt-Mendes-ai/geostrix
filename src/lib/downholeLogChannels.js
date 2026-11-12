@@ -23,11 +23,10 @@ export function zeroLengthRows(headers, rows, sample = 500) {
   const hs = (headers || []).map((h) => String(h));
   const f = hs.find((h) => isFromTo(h) && /from$/i.test(under(h))), t = hs.find((h) => isFromTo(h) && /to$/i.test(under(h)));
   if (!f || !t || !rows?.length) return null;
-  const num = (v) => (typeof v === "number" ? v : Number(String(v ?? "").replace(",", ".")));
   const step = Math.max(1, Math.floor(rows.length / sample));
   let n = 0, same = 0;
   for (let i = 0; i < rows.length && n < sample; i += step) {
-    const a = num(rows[i]?.[f]), b = num(rows[i]?.[t]);
+    const a = toNum(rows[i]?.[f]), b = toNum(rows[i]?.[t]);
     if (rows[i]?.[f] === "" || rows[i]?.[t] === "" || !Number.isFinite(a) || !Number.isFinite(b)) continue;
     n++; if (Math.abs(a - b) < 1e-9) same++;
   }
@@ -46,7 +45,15 @@ export function unitFromHeader(h) {
   for (const [re, u] of UNITS) if (re.test(s)) return u;
   return "";
 }
-const isNum = (v) => v !== null && v !== "" && Number.isFinite(typeof v === "number" ? v : Number(String(v).replace(",", ".")));
+// TASKS.csv #2885 — a cell as a number, as Number(String(v).replace(",", ".")) gave it (blank / null -> 0) but without a new string per cell:
+// a string is read with + first and the comma decimal is tried only when that fails. The WA iron log (2.58 M rows x 5 numeric cells) spent
+// most of its binning here.
+function toNum(v) {
+  if (typeof v === "number") return v;
+  if (typeof v === "string") { const x = +v; return x === x ? x : Number(v.replace(",", ".")); }
+  return Number(String(v ?? "").replace(",", "."));
+}
+const isNum = (v) => v != null && v !== "" && Number.isFinite(toNum(v));
 // the columns of a point-depth table that hold numeric readings (the hole and depth columns left out): [{ col, unit, named }] —
 // named: the header names a known log channel (pre-ticked); other numeric columns are offered unticked
 export function logChannelColumns(headers, rows, mapping = {}, sample = 200) {
@@ -76,9 +83,8 @@ export function looksLikeLogTable(headers, rows = null) {
 }
 // #2329 — a reading's depth: the depth column, else the middle of its From / To
 export function readingDepth(r, mapping) {
-  const num = (v) => (typeof v === "number" ? v : Number(String(v ?? "").replace(",", ".")));
-  if (mapping?.depth) return num(r?.[mapping.depth]);
-  if (mapping?.from && mapping?.to) { const f = num(r?.[mapping.from]), t = num(r?.[mapping.to]); return Number.isFinite(f) && Number.isFinite(t) ? (f + t) / 2 : NaN; }
+  if (mapping?.depth) return toNum(r?.[mapping.depth]);
+  if (mapping?.from && mapping?.to) { const f = toNum(r?.[mapping.from]), t = toNum(r?.[mapping.to]); return Number.isFinite(f) && Number.isFinite(t) ? (f + t) / 2 : NaN; }
   return NaN;
 }
 
@@ -89,9 +95,8 @@ export function readingDepth(r, mapping) {
 const SENTINELS = new Set([-999, -999.25, -9999, -99999, -999999]);
 const NON_NEGATIVE_UNITS = new Set(["ppm", "cps", "g/cc", "%", "API", "ohm.m", "mS/m", "mm", "in"]);
 export function channelNoData(rows, col, unit = "") {
-  const num = (v) => (typeof v === "number" ? v : Number(String(v ?? "").replace(",", ".")));
   const vals = [];
-  for (const r of rows || []) { const v = r?.[col]; if (isNum(v)) vals.push(num(v)); }
+  for (const r of rows || []) { const v = r?.[col]; if (isNum(v)) vals.push(toNum(v)); }
   if (!vals.length) return null;
   // the 99th percentile of the positive readings, from at most 20,000 of them spread through the file
   const pos = vals.filter((v) => v > 0), step = Math.max(1, Math.floor(pos.length / 20000)), sample = [];
@@ -116,44 +121,89 @@ export const needsBinning = (readings, channels) => readings * Math.max(1, chann
 // close to 1 KB a value (one point row each). An estimate for the dialog's text, rounded to 10 MB; never below 10.
 export const LOG_BYTES_PER_VALUE = 1000;
 export const rawLogMB = (readings, channels) => Math.max(10, Math.round((readings * Math.max(1, channels) * LOG_BYTES_PER_VALUE) / 1e7) * 10);
+// TASKS.csv #2885 (review #2876, WA iron) — the bins offered. 0.5 m bins cut the 2.58 M readings of a 6,292-hole log only to about 480,000
+// rows a channel (seven times the budget): one 23.8 s freeze, 2.4 GB of heap, and a 29 s reopen. Coarser bins are offered, each with the
+// rows it leaves, and the smallest that fits the budget is pre-selected.
+export const LOG_BINS = [0.5, 1, 2, 5];
+// the rows each bin leaves per channel, from one pass over the readings: per hole, the bins between its shallowest and deepest reading
+// (an upper bound: a gap in the readings leaves empty bins out). -> { readings, holes, bins: [{ binM, rows }] }
+// Kept per table (the rows array) and mapping, so the dialog's renders and the commit read it once.
+const estCache = new WeakMap();
+export function logBinEstimate(rows, mapping, bins = LOG_BINS) {
+  const key = [mapping?.hole_id, mapping?.depth, mapping?.from, mapping?.to, ...bins].join("\u0001");
+  const cached = Array.isArray(rows) ? estCache.get(rows) : null;
+  if (cached?.key === key) return cached.est;
+  const est = binEstimate(rows, mapping, bins);
+  if (Array.isArray(rows)) estCache.set(rows, { key, est });
+  return est;
+}
+function binEstimate(rows, mapping, bins) {
+  const span = new Map();
+  let readings = 0;
+  for (const r of rows || []) {
+    const hole = r?.[mapping?.hole_id];
+    if (hole == null || hole === "") continue;
+    const d = readingDepth(r, mapping);
+    if (!Number.isFinite(d)) continue;
+    readings++;
+    const s = span.get(hole);
+    if (!s) span.set(hole, [d, d]); else { if (d < s[0]) s[0] = d; if (d > s[1]) s[1] = d; }
+  }
+  return {
+    readings, holes: span.size,
+    bins: bins.map((binM) => { let n = 0; for (const [a, b] of span.values()) n += Math.floor(b / binM + 1e-9) - Math.floor(a / binM + 1e-9) + 1; return { binM, rows: n }; }),
+  };
+}
+// #2885 — the bin that fits: the smallest offered whose rows x channels stay under the budget, else the coarsest
+export function fittingLogBin(est, channels) {
+  const k = Math.max(1, channels), list = est?.bins || [];
+  if (!list.length) return LOG_BINS[0];
+  return (list.find((b) => b.rows * k <= LOG_RAW_BUDGET) || list[list.length - 1]).binM;
+}
 
 // one channel's layer rows. binM null: a row per reading { hole_id, depth, value }; binM > 0: per hole, per bin [k*binM, (k+1)*binM):
 // { hole_id, from, to, value (mean), min, max, n }. Readings with no number are left out (counted in skipped).
 // drop (#2332): a Set of values left out as no-data codes (counted in dropped)
 export function logChannelRows(rows, mapping, col, binM = null, drop = null) {
-  const num = (v) => (typeof v === "number" ? v : Number(String(v ?? "").replace(",", ".")));
-  const pts = [];
-  let skipped = 0, dropped = 0;
+  const pts = [], binned = binM > 0;
+  // TASKS.csv #2885 — binned, the readings go straight into their bins (per hole, by bin number): no object per reading and no string key
+  // per reading, which made most of the 23.8 s freeze on the 2.58 M-reading WA iron log
+  const byHole = binned ? new Map() : null;
+  let skipped = 0, dropped = 0, readings = 0;
   for (const r of rows || []) {
     const hole = String(r?.[mapping.hole_id] ?? "").trim(), d = readingDepth(r, mapping), v = r?.[col]; // #2329 — or the From / To middle
     if (!hole || !Number.isFinite(d) || !isNum(v)) { skipped++; continue; }
-    if (drop && drop.has(num(v))) { dropped++; continue; } // #2332
-    pts.push({ hole_id: hole, depth: d, value: num(v) });
+    const x = toNum(v);
+    if (drop && drop.has(x)) { dropped++; continue; } // #2332
+    if (!binned) { pts.push({ hole_id: hole, depth: d, value: x }); continue; }
+    readings++;
+    const k = Math.floor(d / binM + 1e-9);
+    let hm = byHole.get(hole);
+    if (!hm) byHole.set(hole, (hm = new Map()));
+    let b = hm.get(k);
+    if (!b) hm.set(k, (b = { sum: 0, n: 0, min: Infinity, max: -Infinity }));
+    b.sum += x; b.n++; if (x < b.min) b.min = x; if (x > b.max) b.max = x;
   }
-  if (!(binM > 0)) return { rows: pts, skipped, dropped, binned: false };
-  const bins = new Map();
-  for (const p of pts) {
-    const k = Math.floor(p.depth / binM + 1e-9), key = `${p.hole_id}\u0000${k}`;
-    let b = bins.get(key);
-    if (!b) bins.set(key, (b = { hole_id: p.hole_id, k, sum: 0, n: 0, min: Infinity, max: -Infinity }));
-    b.sum += p.value; b.n++; if (p.value < b.min) b.min = p.value; if (p.value > b.max) b.max = p.value;
-  }
+  if (!binned) return { rows: pts, skipped, dropped, binned: false };
   const r4 = (v) => Math.round(v * 1e4) / 1e4;
-  const out = [...bins.values()].sort((a, b) => (a.hole_id < b.hole_id ? -1 : a.hole_id > b.hole_id ? 1 : a.k - b.k))
-    .map((b) => ({ hole_id: b.hole_id, from: r4(b.k * binM), to: r4((b.k + 1) * binM), value: b.sum / b.n, min: b.min, max: b.max, n: b.n }));
-  return { rows: out, skipped, dropped, binned: true, readings: pts.length };
+  const out = [];
+  for (const hole of [...byHole.keys()].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))) {
+    const hm = byHole.get(hole);
+    for (const k of [...hm.keys()].sort((a, b) => a - b)) { const b = hm.get(k); out.push({ hole_id: hole, from: r4(k * binM), to: r4((k + 1) * binM), value: b.sum / b.n, min: b.min, max: b.max, n: b.n }); }
+  }
+  return { rows: out, skipped, dropped, binned: true, readings };
 }
 // the channels ticked when the dialog opens: the columns named as log channels (null: none named, the one-layer path as before)
 export function defaultLogChannels(channels) {
   const named = (channels || []).filter((c) => c.named).map((c) => c.col);
   return named.length ? named : null;
 }
-// the bin offered by default: 0.5 m when the readings would not fit, else none (raw)
-export const defaultLogBin = (readings, channels) => (needsBinning(readings, channels) ? 0.5 : null);
+// the bin offered by default: none (raw) when the readings fit; else 0.5 m, or with est (#2885, logBinEstimate) the smallest bin that fits
+export const defaultLogBin = (readings, channels, est = null) => (needsBinning(readings, channels) ? (est ? fittingLogBin(est, channels) : 0.5) : null);
 // TASKS.csv #2333 (review #2325, WA uranium) — the bin is the user's only once they pick it in the bin menu; until then it follows the ticked
 // channels. The box wrote the then-current default (every reading) on the first tick, so ticking a 2nd and 3rd channel on a 439,225-reading
 // log left 'Every reading (no bins)' selected under a note saying the readings would be averaged, and the import would have kept 1.3 M.
-export const effectiveLogBin = (modal, readings, channels) => (modal.logBinM !== undefined ? modal.logBinM : defaultLogBin(readings, channels));
+export const effectiveLogBin = (modal, readings, channels, est = null) => (modal.logBinM !== undefined ? modal.logBinM : defaultLogBin(readings, channels, est)); // est: #2885
 // the modal after a change in the box: the ticked channels, and the patch (a bin only when the patch carries one)
 export const logBoxPatch = (modal, ticked, patch) => ({ ...modal, logChannels: ticked, ...patch });
 // the channels an import will make layers of: the user's choice, else the named ones; null when this is not a point-depth custom layer

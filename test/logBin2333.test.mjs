@@ -29,5 +29,5 @@ test("the box writes no bin on a tick, shows the menu whenever a channel is tick
   assert.match(b, /over && binM\s*\? tr\("\{n\} readings × \{k\} channel\(s\) is more than GeoStrix keeps reading by reading on this computer: they are averaged/);
   assert.match(b, /Every reading is kept \(about \{mb\} MB of memory\)\. A bin averages them/);
   const u = readFileSync(new URL("../src/modules/viewer/useImportPipeline.js", import.meta.url), "utf8");
-  assert.match(u, /const binM = data\.logBinM !== undefined \? data\.logBinM : defaultLogBin\(allRows\.length, chans\.length\);/);
+  assert.match(u, /const binM = data\.logBinM !== undefined \? data\.logBinM : defaultLogBin\(allRows\.length, chans\.length, needsBinning\(allRows\.length, chans\.length\) \? logBinEstimate\(allRows, mapping\) : null\);/); // the estimate: #2885
 });

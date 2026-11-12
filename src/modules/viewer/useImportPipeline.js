@@ -23,7 +23,7 @@ import { tieOf, fileToLocal, bearingToLocal } from "../../lib/localGridTie.js"; 
 import { localGridAzimuthOffset } from "../../lib/localGridNorth.js"; // TASKS.csv #2491
 import { untiedNorthOf, trueToUntiedGrid } from "../../lib/localGridDatum.js"; // TASKS.csv #2661
 import { mineGridOf } from "../../lib/mineGrid.js"; // TASKS.csv #2586
-import { logChannelsFor, defaultLogBin, logChannelRows, unitFromHeader, channelNoData, noDataText } from "../../lib/downholeLogChannels.js"; // TASKS.csv #2160; no-data: #2332
+import { logChannelsFor, defaultLogBin, logChannelRows, unitFromHeader, channelNoData, noDataText, logBinEstimate, needsBinning } from "../../lib/downholeLogChannels.js"; // TASKS.csv #2160; no-data: #2332; logBinEstimate: #2885
 import { loadSampleFiles, readSiblingFiles } from "../../lib/desktop.js";
 const isXlsxName = (name) => /\.xlsx$/i.test(String(name || "")); // TASKS.csv #605 (same test as xlsx.js; the reader itself loads on demand, #552)
 import { buildLayer, sameMapLayer } from "../../lib/mapLayerBuild.js"; // TASKS.csv #609; sameMapLayer: #2019
@@ -670,7 +670,7 @@ export function useImportPipeline(ctx) {
       // TASKS.csv #2160 (Matt's decision 2026-11-09) — a downhole log: one numeric layer per ticked channel, the unit from the column
       // name; binned (mean, min, max per bin) when chosen, which the dialog proposes when the readings would not fit
       const chans = logChans;
-      const binM = data.logBinM !== undefined ? data.logBinM : defaultLogBin(allRows.length, chans.length);
+      const binM = data.logBinM !== undefined ? data.logBinM : defaultLogBin(allRows.length, chans.length, needsBinning(allRows.length, chans.length) ? logBinEstimate(allRows, mapping) : null); // #2885 — the bin that fits, as the dialog shows
       const base = String(fileName).replace(/\.(csv|txt|las|xlsx?)$/i, "");
       const made = [];
       chans.forEach((col, k) => {
@@ -683,7 +683,7 @@ export function useImportPipeline(ctx) {
         layerGroupsRef.current[id] = group;
         sceneRef.current.getObjectByName("root").add(group);
         const name = `${base}: ${col}`;
-        const rowsOut = out.rows.map((r) => ({ ...r, _src: fileName }));
+        const rowsOut = out.rows; for (const r of rowsOut) r._src = fileName; // #2885 — stamped in place, not a second copy of every row
         // TASKS.csv #2329 — a From / To log: each reading placed at its interval's middle, said in the layer's notes (project text: English)
         const mid = !mapping.depth && mapping.from && mapping.to ? `Each reading placed at the middle of its ${mapping.from}-${mapping.to} interval.` : "";
         const binNote = out.binned ? `Binned on import to ${binM} m: mean of ${out.readings} reading(s), with each bin's min and max (fields min, max, n). Source: ${fileName}.` : "";

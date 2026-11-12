@@ -10231,6 +10231,8 @@
   "{fileName}: {n} downhole log channel(s) imported as numeric layers{v}: {list}. The first is shown; the others are in the Layers list.": "{fileName}: استُوردت {n} قناة تسجيل بئري كطبقات رقمية{v}: {list}. تُعرض الأولى؛ والبقية في قائمة الطبقات.",
   ", averaged to {b} m bins (mean, with min and max)": "، مُتوسَّطة على فواصل {b} م (المتوسط مع الأدنى والأعلى)",
   ", every reading kept": "، مع حفظ كل قراءة",
+  "{b} m bins: about {n} rows per channel, {mb} MB in all": "فواصل {b} م: نحو {n} صف لكل قناة، {mb} ميغابايت إجمالًا",
+  "Every reading (no bins): {n} rows per channel, about {mb} MB in all": "كل قراءة (بلا فواصل): {n} صف لكل قناة، نحو {mb} ميغابايت إجمالًا",
   "{n} brought into the local grid through its tie to EPSG:{tie}.": "جُلب {n} إلى الشبكة المحلية عبر ربطها بـ EPSG:{tie}.",
   " (suggested {suggested} m from the drill-site spacing)": " (مقترح {suggested} م من تباعد مواقع الحفر)",
   "The lags stop at {max} m; the {sites} drill sites are typically {typ} m apart (nearest {near} m, up to {far} m): raise the lag or the number of lags to see continuity between holes.": "تتوقف الفواصل عند {max} م؛ تتباعد مواقع الحفر الـ{sites} عادةً {typ} م (الأقرب {near} م، وحتى {far} م): زد الفاصل أو عدد الفواصل لرؤية الاستمرارية بين الثقوب.",
