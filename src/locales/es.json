@@ -11277,5 +11277,8 @@
   "{hole}: {v} {u} {el} at {a}–{b} m": "{hole}: {v} {u} {el} a {a}–{b} m",
   "Opens Planned holes with the end of this sample as the target (RL {z} m): deepen the target there.": "Abre Sondajes planificados con el final de esta muestra como objetivo (cota {z} m): profundice el objetivo allí.",
   "Plan a deeper hole here": "Planificar un sondaje más profundo aquí",
-  "{n} more.": "{n} más."
+  "{n} more.": "{n} más.",
+  "The custom layer \"{name}\" is too large to keep in the older undo steps: undo can bring back the last {n} removed large layers.": "La capa personalizada \"{name}\" es demasiado grande para conservarla en los pasos de deshacer más antiguos: deshacer puede recuperar las últimas {n} capas grandes eliminadas.",
+  "The custom layers {names} are too large to keep in the older undo steps: undo can bring back the last {n} removed large layers.": "Las capas personalizadas {names} son demasiado grandes para conservarlas en los pasos de deshacer más antiguos: deshacer puede recuperar las últimas {n} capas grandes eliminadas.",
+  "An earlier assay table ({rows} rows) is too large to keep in the older undo steps: undoing that far leaves the assays as they were later.": "Una tabla de análisis anterior ({rows} filas) es demasiado grande para conservarla en los pasos de deshacer más antiguos: deshacer hasta allí deja los análisis como estaban después."
 }

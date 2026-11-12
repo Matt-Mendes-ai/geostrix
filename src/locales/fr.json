@@ -11277,5 +11277,8 @@
   "{hole}: {v} {u} {el} at {a}–{b} m": "{hole} : {v} {u} {el} à {a}–{b} m",
   "Opens Planned holes with the end of this sample as the target (RL {z} m): deepen the target there.": "Ouvre Sondages planifiés avec la fin de cet échantillon pour cible (alt. {z} m) : approfondissez la cible là.",
   "Plan a deeper hole here": "Planifier un sondage plus profond ici",
-  "{n} more.": "{n} de plus."
+  "{n} more.": "{n} de plus.",
+  "The custom layer \"{name}\" is too large to keep in the older undo steps: undo can bring back the last {n} removed large layers.": "La couche personnalisée « {name} » est trop volumineuse pour être gardée dans les anciennes étapes d'annulation : annuler peut rétablir les {n} dernières grandes couches supprimées.",
+  "The custom layers {names} are too large to keep in the older undo steps: undo can bring back the last {n} removed large layers.": "Les couches personnalisées {names} sont trop volumineuses pour être gardées dans les anciennes étapes d'annulation : annuler peut rétablir les {n} dernières grandes couches supprimées.",
+  "An earlier assay table ({rows} rows) is too large to keep in the older undo steps: undoing that far leaves the assays as they were later.": "Une table d'analyses antérieure ({rows} lignes) est trop volumineuse pour être gardée dans les anciennes étapes d'annulation : annuler jusque-là laisse les analyses telles qu'elles étaient plus tard."
 }
