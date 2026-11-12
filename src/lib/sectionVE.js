@@ -4,7 +4,7 @@
 // (the VE box's range); one that is not stays at true scale. The user's own value is kept from then on (SectionWindow).
 // TASKS.csv #2933 (WA iron review) / #2387 — that 10:1 target opened a 1,138 m section of 50 m holes as a 105 px strip under 300 px of
 // empty window. With `aspect` (the window's plot area, height / width) the VE fills that shape instead: the largest round value
-// (1, 2, 3, 4, 5, 6, 8, 10, 12, 15, 20) at which the plot still fits, so the 1,138 m section opens at 6x in a 1084 x 655 window.
+// (1, 2, 3, 4, 5, 6, 8, 10, 12, 15, 20) at which the plot still fits, so the 1,138 m section opens at 4x in a 1084 x 655 window (was 1x).
 export const MAX_SECTION_VE = 20;
 const ROUND_VE = [1, 2, 3, 4, 5, 6, 8, 10, 12, 15, 20];
 
