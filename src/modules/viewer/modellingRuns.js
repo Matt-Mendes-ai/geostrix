@@ -3,6 +3,7 @@
 // (exactly what the old useCallback closures saw), and mcRef is the hook's live ref (#599).
 import * as THREE from "three";
 import { layerStamp } from "../../lib/layerStamp.js"; // TASKS.csv #2388
+import { rowsByHole } from "../../lib/rowsByHole.js"; // TASKS.csv #2906
 import { trendRatioText } from "../../lib/trend.js"; // TASKS.csv #2423
 import { trendBodyReach } from "../../lib/trendBodyReach.js"; // TASKS.csv #2780
 import { buildMeshQuery } from "../../lib/meshQuery.js"; // TASKS.csv #2376
@@ -1054,7 +1055,7 @@ export function createModellingRuns(ctx, mcRef) {
     }
     if (!isMcode && !isOverburdenUnit) traces.forEach((t) => {
       const zAt = (md) => findOnTrace(t.pts, md)?.y; // scene y = elevation
-      (layers.litho || []).filter((r) => r.hole_id === t.hole_id && !isNaN(r.from)).forEach((r) => {
+      (rowsByHole(layers.litho).get(t.hole_id) || []).filter((r) => !isNaN(r.from)).forEach((r) => { // #2906 — the hole's rows, not a scan of the whole log per hole
         const isIn = inUnit(r);
         if (hasAssign && isIn !== codes.has(r.value)) { if (isIn) assignedIn++; else assignedOut++; }
         if (!isIn) return;
@@ -1828,7 +1829,8 @@ export function createModellingRuns(ctx, mcRef) {
         // TASKS.csv #2531 (review #2486) — a unit body: the drilled metres with no rock code are unknown (as before) or, when asked, outside the
         // unit (a 0), so selectively logged grade-control holes close the body; said either way, with the share of the drilling
         if (isCode && !customSrc) {
-          const holesHere = new Set((tracesRef.current || []).map((t) => t.hole_id));
+          // TASKS.csv #2920 (WA iron review) — the Model area's holes only: every hole outside it was counted as a hole with no log (6,165 of them)
+          const holesHere = new Set((tracesRef.current || []).filter((t) => modelArea !== "checked" || visibleHoles?.[t.hole_id] !== false).map((t) => t.hole_id));
           const un = unloggedDrilling(collars.filter((c) => !holesHere.size || holesHere.has(c.hole_id)), altRows, () => true); // any lithology row covers its metres: a blank-code row is already an outside (0) sample above
           if (un.metres > 0.5) {
             // TASKS.csv #2634 — where the log is blank and the hole is assayed for the chosen element, the assay decides: at or above the typed
