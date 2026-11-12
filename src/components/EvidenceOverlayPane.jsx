@@ -38,6 +38,10 @@ import { modelListName } from "../lib/modelListName.js"; // TASKS.csv #1839
 const fmt = (v, d = 2) => (v == null || !Number.isFinite(v) ? "—" : Math.abs(v) >= 1000 ? Math.round(v).toLocaleString() : Math.abs(v) >= 10 ? v.toFixed(1) : Math.abs(v) >= 0.1 || v === 0 ? v.toFixed(d) : v.toPrecision(2)); // a small cutoff keeps its digits, not "-0.00"
 const numText = (v) => (Number.isFinite(v) ? String(+v.toPrecision(3)) : ""); // what a number input can hold
 let nextId = 1;
+// TASKS.csv #2706 (#2585 (5)) — the last result outlives the pane: a hand-over to Planned holes closed it and the score was gone on return,
+// though the cards came back (the recipe, #1003). Kept with the recipe it was computed from, the grid and the data it read; given back only
+// when all are the same on reopening (else Compute again, as before).
+let keptResult = null;
 const DRILL_KINDS = new Set(["grade", "pxrf", "pick", "numeric", "zone"]); // TASKS.csv #1458 — evidence projected up from the holes
 
 import { SOLID_SURFACE_TYPES } from "../lib/viewer/modelHelpers.js"; // TASKS.csv #1567
@@ -325,6 +329,17 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
     setLayers(back);
     if (missing.length) setMsg(tr("Restored the saved overlay without {list}: not in this project any more.", { list: missing.join(", ") }));
   }, [grid, evidenceOverlay]); // once, when there is a grid; sources / computeValues are read at that moment
+  const resultBack = useRef(false);
+  const dataDeps = [rasters, mapLayers, surfaceSamples, assays, collars, survey, voxelModels, projectLayers, customLayers, geophysSurveys, solids];
+  useEffect(() => { // #2706 — save the result with what it came from
+    if (!result || !grid) return;
+    keptResult = { result, recipe: JSON.stringify(recipe), sig: gridSignature(grid), deps: dataDeps };
+  }, [result]); // the recipe / grid / data at that moment
+  useEffect(() => { // #2706 — and give it back once, when the restored cards, the grid and the data are the ones it was computed from
+    if (resultBack.current || result || !keptResult || !grid || !layers.length) return;
+    const k = keptResult;
+    if (k.sig === gridSignature(grid) && k.recipe === JSON.stringify(recipe) && k.deps.length === dataDeps.length && k.deps.every((d, i) => d === dataDeps[i])) { resultBack.current = true; setResult(k.result); }
+  }, [layers, grid]); // once the restored cards are in
   const recipe = useMemo(() => ({
     layers: layers.map((l) => ({ key: l.key, kind: l.kind, ref: l.ref, label: l.label, shape: l.shape, low: l.low, high: l.high, ...(l.log ? { log: true } : {}), ...(l.lowest ? { lowest: true } : {}) /* #2578 */, field: l.field || "", value: l.value || "", reach: l.reach, ...(l.kind === "voxel" ? { zMin: l.zMin ?? null, zMax: l.zMax ?? null } : {}) })),
     operator, gamma, floor, training,
