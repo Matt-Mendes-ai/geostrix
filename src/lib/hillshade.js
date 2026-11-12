@@ -32,6 +32,21 @@ function clamp01(v) { return v < 0 ? 0 : v > 1 ? 1 : v; }
 // Returns a Float32Array of shading values in [0,1] (0 = fully shadowed, 1 = facing the sun directly),
 // same size as the input grid. Edge cells (no full 3x3 neighborhood) reuse the nearest interior row/col
 // — a standard, simple edge-handling choice (matches GDAL's default) rather than leaving a NaN border.
+// TASKS.csv #2990 (WA iron review) — the Maps plan drew a terrain's hillshade over its whole box: a terrain built from collars, 98 %
+// filled cells (the no-data mask, demFill.js), showed as a grey slab 21.7 x 17.4 km. The plan's picture: grey levels, and the cells the
+// mask marks as filled left transparent. -> Uint8ClampedArray RGBA, row 0 = north
+export function hillshadeRGBA(t, maskBytes = null) {
+  const [xmin, ymin, xmax, ymax] = t.bbox;
+  const v = hillshadeValues(t.elevations, t.gridW, t.gridH, (xmax - xmin) / Math.max(1, t.gridW - 1), (ymax - ymin) / Math.max(1, t.gridH - 1));
+  const out = new Uint8ClampedArray(v.length * 4);
+  for (let i = 0; i < v.length; i++) {
+    const g = Math.round(v[i] * 255);
+    out[i * 4] = g; out[i * 4 + 1] = g; out[i * 4 + 2] = g;
+    out[i * 4 + 3] = maskBytes && (maskBytes[i >> 3] & (1 << (i & 7))) ? 0 : 255;
+  }
+  return out;
+}
+
 export function hillshadeValues(elevations, gridW, gridH, cellSizeX, cellSizeY, { azimuthDeg = 315, altitudeDeg = 45, zFactor = 1 } = {}) {
   const az = (azimuthDeg * Math.PI) / 180;
   const alt = (altitudeDeg * Math.PI) / 180;

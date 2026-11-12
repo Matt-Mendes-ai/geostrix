@@ -7,7 +7,8 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useStore } from "../lib/store.jsx";
 import { t as tr } from "../lib/i18n.js";
 import { niceScaleBar } from "../lib/surfacePlan.js";
-import { hillshadeValues } from "../lib/hillshade.js";
+import { hillshadeRGBA } from "../lib/hillshade.js"; // TASKS.csv #2990 — the no-data cells transparent
+import { decodeNoDataMask } from "../lib/demFill.js"; // TASKS.csv #2990
 import { drawMapLayer, mapStyleSignature, mapTextureSize } from "../lib/mapLayers.js";
 import { keyedCanvas } from "../lib/rasterKey.js";
 import { planDataExtent, planFarLayers } from "../lib/mapsPlan.js"; // planFarLayers: TASKS.csv #2125
@@ -36,12 +37,10 @@ function cachedImage(url, keyColour, onReady) {
 }
 
 function hillshadeCanvas(t) {
-  const [xmin, ymin, xmax, ymax] = t.bbox;
-  const v = hillshadeValues(t.elevations, t.gridW, t.gridH, (xmax - xmin) / Math.max(1, t.gridW - 1), (ymax - ymin) / Math.max(1, t.gridH - 1));
   const c = document.createElement("canvas");
   c.width = t.gridW; c.height = t.gridH;
   const ctx = c.getContext("2d"), img = ctx.createImageData(t.gridW, t.gridH);
-  for (let i = 0; i < v.length; i++) { const g = Math.round(v[i] * 255); img.data[i * 4] = g; img.data[i * 4 + 1] = g; img.data[i * 4 + 2] = g; img.data[i * 4 + 3] = 255; }
+  img.data.set(hillshadeRGBA(t, decodeNoDataMask(t.noDataMask))); // #2990 — filled (no-data) cells left transparent
   ctx.putImageData(img, 0, 0);
   return c;
 }
