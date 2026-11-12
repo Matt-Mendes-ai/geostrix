@@ -12,6 +12,7 @@ import { pBtn, smallSel } from "../lib/sidebarStyles.js";
 import { t as tr } from "../lib/i18n.js";
 import { planElevation, planElevationText } from "../lib/drapeElevation.js"; // TASKS.csv #2269
 import { categoryColor, LAYER_META } from "../lib/layers.js"; // TASKS.csv #2572 — the logs' colour for a logged code
+import { closesRing } from "../lib/viewer/interpretDraw.js"; // TASKS.csv #2682 — one rule for the click and the 3D view's hover highlight
 
 const note = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 };
 const row = { display: "flex", alignItems: "center", gap: 6, justifyContent: "space-between", fontSize: "var(--font-size-sm)" };
@@ -62,10 +63,7 @@ export default function UnitPolygonPane({ drawing, onStart, onUndo, onCancel, on
   // TASKS.csv #2414 — a click on the first corner closes the ring (what the intro says): within 2 % of the outline's size, at least 1 m
   useEffect(() => {
     if (!drawing.on || n < 4 || !unit.trim()) return;
-    const a = pts[0], b = pts[n - 1];
-    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
-    for (const p of pts) { x0 = Math.min(x0, p.x); y0 = Math.min(y0, p.y); x1 = Math.max(x1, p.x); y1 = Math.max(y1, p.y); }
-    if (Math.hypot(b.x - a.x, b.y - a.y) <= Math.max(1, 0.02 * Math.hypot(x1 - x0, y1 - y0))) finish(true);
+    if (closesRing(pts.slice(0, -1), pts[n - 1])) finish(true);
   }, [n]);
 
   const remove = (i) => { if (!layer) return; updateMapLayer(layer.id, () => ({ ...removeUnitPolygon(layer, i), id: layer.id })); };

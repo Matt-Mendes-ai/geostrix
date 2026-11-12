@@ -131,7 +131,7 @@ import { slabRuns, piercePoints, tracePolylines, pointAtMd, voxelPlanRects, mesh
 import { sliceReadoutText } from "../lib/sliceReadout.js";
 import { buildVectorFeatures as buildVectorFeaturesOf } from "../lib/viewer/vectorFeatures.js"; // TASKS.csv #1083
 import { isRepeatClick } from "../lib/interpretation.js"; // TASKS.csv #1152
-import { syncInterpretPreview } from "../lib/viewer/interpretDraw.js"; // TASKS.csv #1152
+import { syncInterpretPreview, hoverFirstCorner } from "../lib/viewer/interpretDraw.js"; // TASKS.csv #1152; hover: #2682
 import { localDate } from "../lib/localDate.js"; // TASKS.csv #2703
 import { rightDragTracker } from "./viewer/rightDrag.js"; // TASKS.csv #2213
 import { holeZoomPhi } from "./viewer/zoomHole.js"; // TASKS.csv #2375
@@ -2227,13 +2227,8 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
     };
     const onPointerMove = (e) => {
       const rect = renderer.domElement.getBoundingClientRect();
-      // TASKS.csv #225 — this handler is registered on `window` (see below), not the canvas, and never
-      // checked whether the viewer is even the visible tab. Once ViewerModule can stay mounted-but-
-      // hidden, moving the mouse anywhere in the app (Geochem, Layout, ...) would otherwise still
-      // raycast this hidden scene's every visible layer object and push a setCursor() store update on
-      // every single mousemove — a real, new perf regression, not just a correctness one. A hidden
-      // element's own getBoundingClientRect() is all zeros, so !rect.width already catches it, but the
-      // explicit visibleRef check makes the intent obvious rather than relying on that as a side effect.
+      // TASKS.csv #225 — registered on `window`: a hidden viewer (another tab shown) must not raycast and push setCursor on every
+      // mousemove. A hidden element's rect is all zeros, so !rect.width catches it too; visibleRef says it outright.
       if (!visibleRef.current || !rect.width) return;
       rightDrag.move(e.clientX, e.clientY); // #2213
       const mx = e.clientX - rect.left, my = e.clientY - rect.top;
@@ -2306,6 +2301,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
       const hoverHits = pickHits(raycasterRef.current);
       const worldPt = worldPointFromHits(raycasterRef.current, hoverHits);
       if (worldPt) setCursor(worldPt.plane ? { ...worldPt, z: null } : worldPt); // #2526 — over open ground Z is '—': no ground was hit
+      hoverFirstCorner(interpretGroupRef.current, interpretRef.current, worldPt, originRef.current); // #2682 — a click here closes the unit polygon
       // hover tooltip on layer objects — real bug fixed here: intersectObjects() is given the raw
       // mesh children directly (not their parent THREE.Group), and Raycaster only skips an object
       // whose OWN .visible is false, not an ancestor's — so a toggled-off layer's group.visible=false
@@ -6523,7 +6519,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   const toggleIdentify = () => { if (identify.on) { identify.stop(); return; } setRectZoomMode(false); setSectionMode(false); sectionPts.current = []; setSectionPreview(null); setMeasureMode(null); setMeasurePts([]); identify.setOn(true); };
   const openInterpret = (kind) => { if (interpretOpen) stopInterpret(); setInterpretOpen((v) => (v === kind ? false : kind)); };
   const interpretPane = interpretOpen && (<Suspense fallback={null}>{React.createElement(interpretOpen === "polygon" ? UnitPolygonPane : InterpretPane, { drawing: interpret, presetSurvey: interpret.survey,
-    onStart: () => { setRectZoomMode(false); setSectionMode(false); setMeasureMode(null); setMeasurePts([]); setPickHoleMode(false); setInterpret((s) => ({ ...s, on: true, points: [] })); },
+    onStart: () => { setRectZoomMode(false); setSectionMode(false); setMeasureMode(null); setMeasurePts([]); setPickHoleMode(false); setInterpret((s) => ({ ...s, on: true, points: [], ring: interpretOpen === "polygon" /* #2682 */ })); },
     onUndo: () => setInterpret((s) => ({ ...s, points: s.points.slice(0, -1) })), onSnap: (v) => setInterpret((s) => ({ ...s, snap: v })) /* #2630 */, view: { scene: sceneRef, camera: cameraRef, renderer: rendererRef, dragHook: viewDragHookRef, origin: originRef, activity: lastActivityRef }, snapCtx: () => ({ traces: tracesRef.current, layers, visible: layerVisible }) /* #2767 */, onCancel: stopInterpret, onDone: stopInterpret, onClose: () => { setInterpretOpen(false); stopInterpret(); } })}</Suspense>);
   const assayChipCounts = useMemo(() => assayValueCounts(assays), [assays]); // #2374
   const anomalyControls = <Suspense fallback={null}><SurfaceAnomalyControls cfg={layerStyles.surface_anomaly} setCfg={(cfg) => setLayerStyles((p) => ({ ...p, surface_anomaly: cfg }))} surfaceSamples={surfaceSamples} surfaceElements={surfaceElements} mapLayers={mapLayers} thresholds={geochemThresholds} result={surfaceAnomaly} drawn={surfaceSamples} /* #1819 — the class CSV holds every sample */ /></Suspense>; // #1603 — also on the Surface Geology tab
