@@ -10888,5 +10888,7 @@
   "{pastEoh} past the end of their hole (its length from the collar file)": "{pastEoh} بعد قاع ثقبها (طوله من ملف الفوهات)",
   "{pastEoh} past the end of their hole (its length from the deepest survey station, deeper than the collar's)": "{pastEoh} بعد قاع ثقبها (طوله من أعمق محطة مسح، وهي أعمق من طول الفوهة)",
   "{pastEoh} past the end of their hole ({collar} by the collar's length, {survey} by the deepest survey station)": "{pastEoh} بعد قاع ثقبها ({collar} حسب طول الفوهة، {survey} حسب أعمق محطة مسح)",
-  "{n} hole(s) not checked against a hole length (no collar yet, or neither a collar length nor a survey station below 0 m)": "{n} من الثقوب لم يُتحقق منها مقابل طول الثقب (لا فوهة بعد، أو لا طول للفوهة ولا محطة مسح أدنى من 0 م)"
+  "{n} hole(s) not checked against a hole length (no collar yet, or neither a collar length nor a survey station below 0 m)": "{n} من الثقوب لم يُتحقق منها مقابل طول الثقب (لا فوهة بعد، أو لا طول للفوهة ولا محطة مسح أدنى من 0 م)",
+  "The map layer \"{name}\" is too large to keep in the older undo steps: undo can bring back the last {n} removed large layers.": "طبقة الخريطة \"{name}\" أكبر من أن تُحفظ في خطوات التراجع الأقدم: يمكن للتراجع استعادة آخر {n} من الطبقات الكبيرة المحذوفة.",
+  "The map layers {names} are too large to keep in the older undo steps: undo can bring back the last {n} removed large layers.": "طبقات الخريطة {names} أكبر من أن تُحفظ في خطوات التراجع الأقدم: يمكن للتراجع استعادة آخر {n} من الطبقات الكبيرة المحذوفة."
 }

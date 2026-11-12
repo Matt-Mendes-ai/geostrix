@@ -4,6 +4,8 @@
 // project (nor in the redo steps); an older one is dropped from every undo step that holds it, so an Undo that far back restores the map
 // layers without it (the other layers of that step as they were). Small layers are never dropped. A layer is known by its `features` array:
 // a style or visibility edit makes a new layer object that shares it, so it is not a second copy. Pure.
+// Dropping one is said once (Main, 2026-11-12): cappedNotice(names), shown by the store.
+import { t as tr } from "./i18n.js";
 
 export const KEEP_REMOVED = 3; // big removed layers the history keeps (the newest)
 export const BIG_VERTICES = 100000; // a layer this big or bigger (~5 MB) counts; smaller ones are kept whatever their number
@@ -22,7 +24,7 @@ export function vertexCount(features) {
 }
 
 // steps: the undo steps, oldest first ({ mapLayers, ... } snapshots); held: the map-layer lists that must stay whole (the project now,
-// the redo steps). -> { steps (the same array when nothing changed), dropped (layers dropped from the history) }
+// the redo steps). -> { steps (the same array when nothing changed), dropped (layers dropped from the history), names (their names) }
 export function capRemovedMapLayers(steps, held, { keep = KEEP_REMOVED, big = BIG_VERTICES } = {}) {
   const live = new Set();
   for (const list of held || []) for (const l of list || []) if (l?.features) live.add(l.features);
@@ -34,7 +36,17 @@ export function capRemovedMapLayers(steps, held, { keep = KEEP_REMOVED, big = BI
       (kept.size < keep ? kept : drop).add(f);
     }
   }
-  if (!drop.size) return { steps, dropped: 0 };
+  if (!drop.size) return { steps, dropped: 0, names: [] };
+  const names = [];
+  for (const s of steps) for (const l of s?.mapLayers || []) if (drop.has(l?.features) && !names.includes(l.name || l.id)) names.push(l.name || l.id);
   const out = steps.map((s) => (s?.mapLayers?.some((l) => drop.has(l?.features)) ? { ...s, mapLayers: s.mapLayers.filter((l) => !drop.has(l?.features)) } : s));
-  return { steps: out, dropped: drop.size };
+  return { steps: out, dropped: drop.size, names };
+}
+
+// the notice when big layers leave the older undo steps (said once: a dropped layer is gone from every step, so it is not dropped again)
+export function cappedNotice(names, keep = KEEP_REMOVED) {
+  if (!names?.length) return "";
+  return names.length === 1
+    ? tr("The map layer \"{name}\" is too large to keep in the older undo steps: undo can bring back the last {n} removed large layers.", { name: names[0], n: keep })
+    : tr("The map layers {names} are too large to keep in the older undo steps: undo can bring back the last {n} removed large layers.", { names: names.map((x) => `"${x}"`).join(", "), n: keep });
 }

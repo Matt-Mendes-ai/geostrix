@@ -14,9 +14,9 @@ import { FIELD_KEYS, FIELDS, UNDO_KEYS, DIRTY_KEYS, PROJECT_VERSION, EMPTY_LAYER
 import { datumPatch } from "./localGridDatum.js"; // TASKS.csv #2691 / #2661
 import { fillFromRows, setEntry } from "./codeDictionary.js"; // TASKS.csv #2163
 import { changeElementBasis, rebaseRows, rebaseThresholds } from "./oxideBasisChange.js"; // TASKS.csv #2627
-import { capRemovedMapLayers } from "./undoMapLayerCap.js"; // TASKS.csv #2806
+import { cappedNotice, capRemovedMapLayers } from "./undoMapLayerCap.js"; // TASKS.csv #2806
 import { useLatestCallback } from "./useLatestCallback.js"; // TASKS.csv #2769 follow-up — callbacks that keep only the current render's scope (the file says why)
-import { sectionWindowsMayClose } from "./desktop.js"; // TASKS.csv #2620
+import { sectionWindowsMayClose, EXPORT_RESULT_EVENT } from "./desktop.js"; // TASKS.csv #2620; EXPORT_RESULT_EVENT: #2806
 import { saveFile, saveFileTo, openFile, autosaveWrite, autosaveWriteParts /* #1975 */, autosaveRead, autosaveQuarantine, autosaveClear, dbConnect as dbConnectIpc, dbDisconnect as dbDisconnectIpc } from "./desktop.js";
 import { normalizeDesurveyMethod } from "./desurvey.js";
 import { readCellBudget, saveCellBudget } from "./estimationMeta.js"; // TASKS.csv #1970
@@ -1532,6 +1532,8 @@ export function StoreProvider({ children }) {
   const [undoCount, setUndoCount] = useState(0); // just for UI enable/disable — the stacks themselves live in refs so pushing to them doesn't itself trigger renders
   const [redoCount, setRedoCount] = useState(0);
   const undoPast = useRef([]);
+  // TASKS.csv #2806 — a big map layer dropped from the older undo steps is said once (the window's message line, as Undo's own)
+  const sayUndoCap = (names) => { const message = cappedNotice(names); if (message) try { window.dispatchEvent(new CustomEvent(EXPORT_RESULT_EVENT, { detail: { ok: true, message } })); } catch { /* no window */ } };
   const undoFuture = useRef([]);
   const undoBeforeBurst = useRef(null); // snapshot from the moment the CURRENT quiet-period burst started
   const undoDebounceTimer = useRef(null);
@@ -1594,7 +1596,7 @@ export function StoreProvider({ children }) {
       undoFuture.current = [];
       // TASKS.csv #2806 — at most KEEP_REMOVED big map layers no longer in the project stay in the history (lib/undoMapLayerCap.js)
       const capped = capRemovedMapLayers(undoPast.current, [undoPrevSnapshot.current?.mapLayers]);
-      if (capped.dropped) undoPast.current = capped.steps;
+      if (capped.dropped) { undoPast.current = capped.steps; sayUndoCap(capped.names); }
       setUndoCount(undoPast.current.length);
       setRedoCount(0);
     }, UNDO_DEBOUNCE_MS);
@@ -1618,7 +1620,7 @@ export function StoreProvider({ children }) {
     if (undoBeforeBurst.current) {
       undoPast.current.push(undoBeforeBurst.current); undoPastAt.current.push(undoBurstAt.current); undoBeforeBurst.current = null;
       const capped = capRemovedMapLayers(undoPast.current, [undoSnapshotRef.current()?.mapLayers, ...undoFuture.current.map((s) => s?.mapLayers)]); // #2806
-      if (capped.dropped) undoPast.current = capped.steps;
+      if (capped.dropped) { undoPast.current = capped.steps; sayUndoCap(capped.names); }
     }
     if (!undoPast.current.length) return null;
     const prev = undoPast.current.pop(), at = undoPastAt.current.pop() ?? 0, cur = undoSnapshotRef.current();
