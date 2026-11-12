@@ -17,7 +17,7 @@ const row = { display: "flex", alignItems: "center", gap: 6, justifyContent: "sp
 
 // drawing: the 3D view's state { on, points: [{ x, y, z }], finishSeq }; onStart / onUndo / onCancel / onDone drive it.
 // presetSurvey: the survey a Geophysics-tab button named (TASKS.csv #1152), or null.
-export default function InterpretPane({ drawing, onStart, onUndo, onCancel, onDone, presetSurvey, onClose }) {
+export default function InterpretPane({ drawing, onStart, onUndo, onCancel, onDone, presetSurvey, onClose, onSnap = null }) {
   const { mapLayers, addMapLayer, updateMapLayer, layers, rasters, terrain, collars, survey: holeSurvey, voxelModels, surfaceSamples } = useStore(); // holeSurvey: the drillhole survey, not the geophysics one picked below
   // TASKS.csv #2269 — no terrain and no grid shown for the clicks to land on: they fall on the scene's origin plane, so the lines go at a
   // stated plan elevation instead (on a shown grid the clicks keep its elevation, as before)
@@ -44,6 +44,7 @@ export default function InterpretPane({ drawing, onStart, onUndo, onCancel, onDo
   const attitude = attitudeOf(type);
   const [msg, setMsg] = useState(null);
   const pts = drawing.points, n = pts.length;
+  const lastSnap = n ? pts[n - 1].snap : null; // TASKS.csv #2630 — what the last click was tied to
 
   const finish = () => {
     if (n < 2) { setMsg(tr("A line needs at least two points.")); return; }
@@ -108,11 +109,14 @@ export default function InterpretPane({ drawing, onStart, onUndo, onCancel, onDo
         )}
         <input value={name} onChange={(e) => setName(e.target.value)} placeholder={tr("Name (optional)")} aria-label={tr("Line name")} style={{ ...smallSel, width: "100%", boxSizing: "border-box" }} />
         <input value={noteText} onChange={(e) => setNoteText(e.target.value)} placeholder={tr("Note (optional)")} aria-label={tr("Line note")} style={{ ...smallSel, width: "100%", boxSizing: "border-box" }} />
+        {onSnap && <label style={{ ...row, justifyContent: "flex-start" }} title={tr("A click near a collar, a logged boundary of a shown layer or a hole's trace takes that point, and the line records which hole it is tied to")}>{/* #2630 */}
+          <input type="checkbox" checked={drawing.snap !== false} onChange={(e) => onSnap(e.target.checked)} />{tr("Snap to holes and logged contacts")}</label>}
         {!drawing.on ? (
           <button type="button" onClick={onStart} style={{ ...pBtn, justifyContent: "center", marginBottom: 0 }}>{tr("Draw a line")}</button>
         ) : (
           <div style={{ border: "1px solid var(--color-accent)", borderRadius: 6, padding: 8, display: "flex", flexDirection: "column", gap: 6 }}>
             <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)" }}>{n ? tr("{n} point(s), {m} m. Click to add a point; double-click or Finish to end the line.", { n, m: Math.round(lineLengthM(pts)).toLocaleString() }) : tr("Click the first point of the line.") /* #2274 — the pane is also the mapping tab's */}</div>
+            {lastSnap && <div style={note}>{lastSnap.kind === "collar" ? tr("Snapped to the collar of {hole}.", { hole: lastSnap.hole_id }) : lastSnap.kind === "trace" ? tr("Snapped to {hole} at {md} m.", { hole: lastSnap.hole_id, md: lastSnap.md }) : tr("Snapped to {hole} at {md} m ({label}).", { hole: lastSnap.hole_id, md: lastSnap.md, label: lastSnap.label })}</div>}{/* #2630 */}
             <div style={{ display: "flex", gap: 6 }}>
               <button type="button" onClick={finish} disabled={n < 2} style={{ ...pBtn, flex: 1, justifyContent: "center", marginBottom: 0, opacity: n < 2 ? 0.5 : 1 }}>{tr("Finish")}</button>
               <button type="button" onClick={onUndo} disabled={!n} style={{ ...pBtn, width: "auto", marginBottom: 0, opacity: n ? 1 : 0.5 }}>{tr("Undo point")}</button>
@@ -128,7 +132,7 @@ export default function InterpretPane({ drawing, onStart, onUndo, onCancel, onDo
             {layer.features.map((f, i) => (
               <div key={i} style={{ ...row, padding: "4px 6px", borderBottom: "1px solid var(--color-divider)" }}>
                 <span style={{ display: "inline-block", width: 10, height: 3, background: layer.categories.find((c) => c.value === f.attributes.type)?.color || "#888", flexShrink: 0 }} />
-                <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={`${f.attributes.name} · ${typeLabel(f.attributes.type)} · ${f.attributes.confidence}${f.attributes.survey ? ` · ${f.attributes.survey}` : ""}${f.attributes.note ? `\n${f.attributes.note}` : ""}`}>{f.attributes.name}</span>
+                <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={`${f.attributes.name} · ${typeLabel(f.attributes.type)} · ${f.attributes.confidence}${f.attributes.survey ? ` · ${f.attributes.survey}` : ""}${f.attributes.note ? `\n${f.attributes.note}` : ""}${f.attributes.ties ? `\n${tr("Tied to: {v}", { v: f.attributes.ties })}` : "" /* #2630 */}`}>{f.attributes.name}</span>
                 <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)", flexShrink: 0 }}>{f.attributes.length_m.toLocaleString()} m</span>
                 <Trash2 size={13} role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Remove line \"{name}\"", { name: f.attributes.name })} onClick={() => remove(i)} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} />
               </div>

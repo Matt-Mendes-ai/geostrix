@@ -90,6 +90,12 @@ function withBbox(layer) {
 // the layer unchanged when the line has fewer than two distinct points. With no terrain the layer sits flat at its
 // `elevation`: the first line sets it to the median elevation of the clicks, so the lines sit at the survey, not at 0.
 // opts.elevation (#2269): the elevation a first line sets when the clicks hit nothing (no terrain, no grid), in place of their median
+// TASKS.csv #2630 (1) — the vertices snapped to a hole (lib/viewer/interpretSnap.js), as the line's 'ties' attribute: 'RC538 229 m
+// (Lithology: P); RC540 collar'. Project data: English.
+export function tiesText(points) {
+  return (points || []).filter((p) => p?.snap?.hole_id).map(({ snap: s }) => (s.kind === "collar" ? `${s.hole_id} collar` : s.kind === "trace" ? `${s.hole_id} ${s.md} m` : `${s.hole_id} ${s.md} m (${s.label})`)).join("; ");
+}
+
 export function addInterpretationLine(layer, points, attrs = {}, opts = {}) {
   const pts = points.filter((p, i) => i === 0 || Math.hypot(p.x - points[i - 1].x, p.y - points[i - 1].y) > 0.01);
   if (pts.length < 2) return layer;
@@ -103,7 +109,9 @@ export function addInterpretationLine(layer, points, attrs = {}, opts = {}) {
   };
   const z = Number.isFinite(opts.elevation) ? opts.elevation : median(pts.map((p) => p.z)); // NaN with no elevations
   const elevation = layer.features.length === 0 && Number.isFinite(z) ? r2(z) : layer.elevation;
-  const attitude = attrs.attitude || {};
+  const attitude = { ...(attrs.attitude || {}) };
+  const ties = tiesText(pts); // #2630
+  if (ties) attitude.ties = ties;
   Object.assign(feature.attributes, attitude);
   const fields = [...layer.fields, ...Object.keys(attitude).filter((k) => !layer.fields.includes(k))]; // #1239 — a field appears with its first value
   return withBbox({ ...layer, elevation, fields, features: [...layer.features, feature] });
