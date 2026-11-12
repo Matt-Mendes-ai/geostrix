@@ -122,6 +122,16 @@ export const oxideBasisUnit = (base, oxide) => `${base} ${oxide}`;
 // TASKS.csv #2627 — the oxides an element can be reported as (Li -> Li2O; Fe -> Fe2O3, FeO): [{ oxide, factor }]
 export const oxidesOfElement = (symbol) => Object.entries(OXIDE_HEADERS).filter(([, [s]]) => s === symbol).map(([oxide, [, factor]]) => ({ oxide, factor }));
 // an import element read from an oxide column: kept as the oxide (its own choice, else a commodity oxide by default), or stored as the element
+// TASKS.csv #2957 (WA iron review) — the basis an import element takes from the project: an element the project already stores ('% SiO2' in
+// 147,659 drill samples) keeps that basis, so one symbol means one thing in one project (a rock chip of 16.02 % SiO2 was stored as Si 7.49
+// beside drill assays in % SiO2). units: symbol -> stored unit (surface elements first, then drill assays). -> { keepOxide } or {} (no
+// oxide column, or the project does not hold the element: the header's default stays)
+export function projectKeepsOxide(e, units) {
+  const ox = oxideOfHeader(e?.header), u = ox ? units?.[ox.symbol] : null;
+  if (!ox || u == null) return {};
+  const b = unitBasis(u);
+  return { keepOxide: !!b.oxide && b.oxide === ox.oxide };
+}
 export function keepsOxide(e) { const ox = oxideOfHeader(e?.header); return !!ox && (e.keepOxide ?? COMMODITY_OXIDES.has(ox.oxide)); }
 // the unit an import element is stored in: an oxide column kept as the oxide -> "% Li2O"; stored as the element -> the header's % / ppm / ppb
 // #2490 — a unit the user picked in the dialog wins over the header's (the box beside an oxide column was inert)

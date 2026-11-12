@@ -31,7 +31,7 @@ import { qcRecordFromFileRow, emptySurfaceQc, looksLikeQcTypeColumn, mergeQcReco
 import { mapInChunks } from "../lib/mapInChunks.js"; // TASKS.csv #583
 import { detectLongAssay, pivotLongAssays, longAssayNote } from "../lib/longAssays.js"; // TASKS.csv #623
 import { isSurfaceSampleTable, surfaceXYColumns } from "../lib/viewer/importHelpers.js"; // TASKS.csv #975; surfaceXYColumns: #2564
-import { assayFileSummary, removeAssayFile, removeAssayElement, carbonateShare, VOLCANIC_DIAGRAMS, LOI, isLoiHeader, readLoiCell } from "../lib/geochem.js"; // LOI: #2734; // TASKS.csv #624; carbonateShare: #1392
+import { assayFileSummary, removeAssayFile, removeAssayElement, carbonateShare, VOLCANIC_DIAGRAMS, LOI, isLoiHeader, readLoiCell, projectKeepsOxide, unitBasis } from "../lib/geochem.js"; // LOI: #2734; // TASKS.csv #624; carbonateShare: #1392
 import { confirmDestructive } from "../lib/confirmDestructive.js"; // TASKS.csv #624
 import ElementBasisSelect from "../components/ElementBasisSelect.jsx"; // TASKS.csv #2627
 import GeochemPlot from "../components/GeochemPlot.jsx";
@@ -216,6 +216,8 @@ export default function GeochemModule() {
   const svgRef = useRef(null);
 
   const elementUnits = useMemo(() => Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])), [assayElements]);
+  // TASKS.csv #2957 — the units the project already stores an element in (surface samples first, then drill assays): a new file's oxide column takes that basis
+  const projectUnits = useMemo(() => ({ ...Object.fromEntries(assayElements.filter((e) => !e.calculated).map((e) => [e.symbol, e.unit])), ...Object.fromEntries(surfaceElements.filter((e) => !e.calculated).map((e) => [e.symbol, e.unit])) }), [assayElements, surfaceElements]);
   // TASKS.csv #1678 — the X-Y scatter's axes: elements, then the numeric downhole logs and custom-layer fields (read at each sample's depth)
   const xyChoices = useMemo(() => numericSourceChoices({ layers: store.layers, customLayers: store.customLayers }), [store.layers, store.customLayers]);
   // TASKS.csv #2719 — with pXRF and lab results, an element measured by only one of them offered an empty axis in the other source:
@@ -887,7 +889,7 @@ export default function GeochemModule() {
         // numeric column per element, over-limit column paired, descriptive columns skipped. The old
         // first-match dedupe took "au_cert_num" (a certificate number) as Au and "v_datum" as vanadium in an
         // MX soil export (ARIS 42648Z).
-        const elements = pickElementColumns(headers.filter((h) => !mappedCols.has(h)), data).map((e) => ({ ...e, mainHeader: e.header, checked: e.n > 0 })); // #1389 — a column with no value in any row stays unticked
+        const elements = pickElementColumns(headers.filter((h) => !mappedCols.has(h)), data).map((e) => ({ ...e, mainHeader: e.header, checked: e.n > 0, ...projectKeepsOxide(e, projectUnits) })); // #1389 — a column with no value in any row stays unticked; projectKeepsOxide: #2957
         // TASKS.csv #600 — a CRS tag column (srid_source / epsg...) with one recognised code pre-fills the Source CRS.
         const crsCol = headers.find((h) => /^(srid(_source)?|source_srid|epsg(_srid)?|source_epsg|crs_epsg)$/i.test(h.trim()));
         const codes = crsCol ? [...new Set(data.map((r) => Number(r[crsCol])).filter((v) => Number.isInteger(v) && v > 0))] : [];
@@ -918,7 +920,7 @@ export default function GeochemModule() {
   const openPublicImport = ({ headers, rows, entry, notes, checked }) => {
     const mapping = { x: "longitude", y: "latitude", z: rows.some((r) => String(r.elevation ?? "").trim() !== "") ? "elevation" : null, sample_id: "sample_id", medium: "medium" };
     const mapped = new Set(["longitude", "latitude", "elevation", "sample_id", "medium"]);
-    const elements = pickElementColumns(headers.filter((h) => !mapped.has(h)), rows).map((e) => ({ ...e, mainHeader: e.header, checked: e.n > 0 })); // #1389 — a column with no value in any row stays unticked
+    const elements = pickElementColumns(headers.filter((h) => !mapped.has(h)), rows).map((e) => ({ ...e, mainHeader: e.header, checked: e.n > 0, ...projectKeepsOxide(e, projectUnits) })); // #1389 — a column with no value in any row stays unticked; #2957
     // a survey's other analyses of an element (Cu by AAS and by ICP-MS) are not sample attributes: only the chosen column is read
     const attrExclude = headers.filter((h) => !mapped.has(h) && isElementColumn(h));
     setPublicOpen(false);
@@ -983,7 +985,7 @@ export default function GeochemModule() {
       const bdl = []; // TASKS.csv #841 — elements reported below detection (stored at half the limit), for the censored share
       const nd = []; // TASKS.csv #931 — elements a public layer reported as 0 (below detection or not analysed: it does not say), no value
       chosen.forEach((e) => {
-        const c = readAssayCell(r[e.header], "bdl", 0, svDlOf(e.header)); // svDlOf: #2158
+        const c = e.symbol === LOI ? readLoiCell(r[e.header]) /* #2957 — a surface sample's LOI by the drill route (#2734 / #2887): negatives kept, -10 no data */ : readAssayCell(r[e.header], "bdl", 0, svDlOf(e.header)); // svDlOf: #2158
         if (c.qualifier === "<") bdl.push(e.symbol);
         else if (c.value != null && !c.qualifier && flagCols.has(e.symbol) && flagQualifier(r[flagCols.get(e.symbol)]) === "<") { bdl.push(e.symbol); flaggedLo.set(e.symbol, (flaggedLo.get(e.symbol) || 0) + 1); } // #2018
         if (c.value == null && r.zeroReported?.includes(e.header)) nd.push(e.symbol);
@@ -1048,11 +1050,16 @@ export default function GeochemModule() {
     setSurfaceElements((prev) => { const merged = new Map(prev.map((e) => [e.symbol, e])); orderElements(chosen, leadFor(rows, chosen)) /* #2032 — the lead first, not the file's column order */.forEach((e) => { if (!merged.has(e.symbol)) merged.set(e.symbol, oxideOfHeader(e.header) ? { ...e, unit: importStoreUnit(e) } : e); }); return Array.from(merged.values()); }); // #403; oxideUnit: #2157; the chosen basis: #2627
     // TASKS.csv #2565 (review #2486) — the drillhole route says what it did to an oxide column (#2487); this one said nothing: Li2O 1.747 % was
     // stored as Li 0.81 and every '<0.005' soil as a number. Now the oxide conversions and the below-detection cells are named.
-    const surfOx = chosen.map((e) => ({ e, ox: oxideOfHeader(e.header) })).filter((x) => x.ox).map(({ e, ox }) => `${e.header} → ${ox.symbol} (÷${ox.factor})`);
+    // #2957 — a column kept as its oxide (the project's basis, or as chosen) is named as kept, as the drill notice does (#2487): the notice listed
+    // every oxide column as converted to the element, kept ones too
+    const surfOxAll = chosen.map((e) => ({ e, ox: oxideOfHeader(e.header) })).filter((x) => x.ox);
+    const surfKept = surfOxAll.filter(({ e, ox }) => unitBasis(existingUnit[e.symbol] || importStoreUnit(e)).oxide === ox.oxide);
+    const surfOx = surfOxAll.filter((x) => !surfKept.includes(x)).map(({ e, ox }) => `${e.header} → ${ox.symbol} (÷${ox.factor})`);
     const bdlCount = new Map();
     for (const r of rows) for (const s of r.bdl || []) bdlCount.set(s, (bdlCount.get(s) || 0) + 1);
     const extra = [
       surfOx.length ? tr("Oxide columns stored as the element, in element %: {list}. Labels, colours and Identify show the element; the diagrams convert back to oxides.", { list: surfOx.join(", ") }) : null, // #2565
+      surfKept.length ? tr("Oxide columns kept as the oxide, as the project stores them: {list}.", { list: surfKept.map(({ e, ox }) => `${e.header} → ${ox.symbol} (% ${ox.oxide})`).join(", ") }) : null, // #2957
       bdlCount.size ? tr("Below detection: {list} (each stored at half its limit and flagged; a label shows it as '<limit').", { list: [...bdlCount].map(([s, n]) => `${s} ${n.toLocaleString()}`).join(", ") }) : null, // #2565
       modal.publicNote || null, // TASKS.csv #846
       twinNote || null, // #2085
