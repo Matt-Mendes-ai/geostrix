@@ -10599,5 +10599,7 @@
   "About {n} blocks in the unit's box at this size.": "Cerca de {n} blocos na caixa da unidade com este tamanho.",
   "Kriged with the {model} variogram{v}: nugget {v2}, sill {v3}, range {v4} m{v5}{v6}.": "Krigado com um variograma {model}{v}: pepita {v2}, patamar {v3}, alcance {v4} m{v5}{v6}.",
   "{pct}% of the estimated metal ({k} of {n} blocks) lies below the deepest sample of every hole within {r} m: carried down past the drilling. The structural trend \"{name}\" sets the reach up and down: a flatter trend in Model settings keeps it nearer the samples.": "{pct}% do metal estimado ({k} de {n} blocos) está abaixo da amostra mais profunda de todo furo a menos de {r} m: levado para baixo além da perfuração. A tendência estrutural \"{name}\" define o alcance para cima e para baixo: uma tendência mais plana em Ajustes do modelo o mantém mais perto das amostras.",
-  "{rule}{pop}, decided {date}. Click to use it as the shell level.": "{rule}{pop}, decidido em {date}. Clique para usá-lo como nível da envoltória."
+  "{rule}{pop}, decided {date}. Click to use it as the shell level.": "{rule}{pop}, decidido em {date}. Clique para usá-lo como nível da envoltória.",
+  "Evaluating \"{name}\" ({cells} cells) along {holes} hole(s)…": "Avaliando \"{name}\" ({cells} células) ao longo de {holes} furo(s)…",
+  "({s} s)": "({s} s)"
 }

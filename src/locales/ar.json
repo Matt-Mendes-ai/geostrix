@@ -10599,5 +10599,7 @@
   "About {n} blocks in the unit's box at this size.": "نحو {n} كتلة في صندوق الوحدة بهذا الحجم.",
   "Kriged with the {model} variogram{v}: nugget {v2}, sill {v3}, range {v4} m{v5}{v6}.": "كريغينغ بفاريوغرام {model}{v}: الأثر الكتلي {v2}، العتبة {v3}، المدى {v4} م{v5}{v6}.",
   "{pct}% of the estimated metal ({k} of {n} blocks) lies below the deepest sample of every hole within {r} m: carried down past the drilling. The structural trend \"{name}\" sets the reach up and down: a flatter trend in Model settings keeps it nearer the samples.": "{pct}% من المعدن المقدَّر ({k} من {n} كتلة) تحت أعمق عينة لكل ثقب ضمن {r} م: حُمل إلى الأسفل بعد الحفر. يحدد الاتجاه البنيوي «{name}» المدى صعودًا وهبوطًا: اتجاه أكثر تسطحًا في إعدادات النموذج يبقيه أقرب إلى العينات.",
-  "{rule}{pop}, decided {date}. Click to use it as the shell level.": "{rule}{pop}، تقرر في {date}. انقر لاستخدامه مستوى للغلاف."
+  "{rule}{pop}, decided {date}. Click to use it as the shell level.": "{rule}{pop}، تقرر في {date}. انقر لاستخدامه مستوى للغلاف.",
+  "Evaluating \"{name}\" ({cells} cells) along {holes} hole(s)…": "جارٍ تقييم \"{name}\" ({cells} خلية) على امتداد {holes} ثقب…",
+  "({s} s)": "({s} ث)"
 }

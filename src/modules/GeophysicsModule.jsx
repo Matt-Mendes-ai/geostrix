@@ -185,17 +185,29 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     const res = await saveFile({ quiet: "success", suggestedName: `${r.base}_export.zip`, filters: [{ name: "Zip", extensions: ["zip"] }], content: r.zip /* #1040 bytes */ });
     if (res?.ok) setVoxelError({ info: true, text: tr("Exported \"{name}\": {files} files ({n} depth slices).{v}", { name: model.name, files: r.files.length, n: r.files.filter((f) => f.endsWith(".tif")).length, v: r.warnings.length ? " " + r.warnings.join(" ") : "" }) });
   };
-  const evaluateOnHoles = (model) => {
+  // TASKS.csv #2248 (review #2174) — 'Evaluate onto the drillholes' showed nothing while it ran (31 s under load on a 36,267-cell
+  // estimate and 245 holes; 0.6 s for 36,000 cells and 245 surveyed holes here): a busy line first, the time it took after, and no second
+  // run while one is going
+  const evaluatingRef = useRef(false);
+  const evaluateOnHoles = async (model) => {
+    if (evaluatingRef.current) return;
     // TASKS.csv #1791 (review #1646, Kodiak) — with no collars no hole can be placed: 'No drillhole passes through' read as if holes had missed it
     if (!(collars || []).some((c) => Number.isFinite(c?.x) && Number.isFinite(c?.y) && Number.isFinite(c?.z))) { setVoxelError({ text: tr("No drillholes can be placed: the project has no collar coordinates. Import the collars to evaluate \"{name}\" along the holes.", { name: model.name }) }); return; }
-    const { rows, holes } = sampleModelOnHoles({ model, collars, survey, desurveyMethod });
+    evaluatingRef.current = true;
+    const nHoles = (collars || []).filter((c) => Number.isFinite(c?.x) && Number.isFinite(c?.y) && Number.isFinite(c?.z)).length;
+    setVoxelError({ info: true, text: tr("Evaluating \"{name}\" ({cells} cells) along {holes} hole(s)…", { name: model.name, cells: (model.cells?.length || 0).toLocaleString(), holes: nHoles.toLocaleString() }) });
+    await new Promise((r) => setTimeout(r, 30)); // let the line paint before the work holds the window
+    const t0 = performance.now();
+    let rows, holes;
+    try { ({ rows, holes } = sampleModelOnHoles({ model, collars, survey, desurveyMethod })); } finally { evaluatingRef.current = false; }
+    const secs = (performance.now() - t0) / 1000;
     if (!rows.length) { setVoxelError({ text: tr("No drillhole passes through \"{name}\".", { name: model.name }) }); return; }
     const discrete = model.colorMode === "discrete";
     const labelOf = (v) => (model.valueLabels && model.valueLabels[v]) || v;
     const out = rows.map((r) => ({ ...r, value: discrete ? labelOf(r.value) : r.value, modelled: true, ...(discrete ? {} : { numeric: true }), modelColor: colorForVoxelValue(model, r.value) }));
     const id = `custom_${Date.now()}`;
     setCustomLayers((p) => [...p, { id, name: `On holes: ${model.name}`, rows: out, sourceModel: model.id, unit: model.property || model.unitLabel || null }]);
-    setVoxelError({ info: true, text: tr("Added \"On holes: {name}\" — the model's value in {rows} cell crossing(s) along {holes} hole(s). Open a hole's strip log to compare it with the logs, or Downhole logs for a cross-plot against one.", { name: model.name, rows: rows.length.toLocaleString(), holes }) });
+    setVoxelError({ info: true, text: tr("Added \"On holes: {name}\" — the model's value in {rows} cell crossing(s) along {holes} hole(s). Open a hole's strip log to compare it with the logs, or Downhole logs for a cross-plot against one.", { name: model.name, rows: rows.length.toLocaleString(), holes }) + " " + tr("({s} s)", { s: secs < 10 ? secs.toFixed(1) : Math.round(secs) }) });
   };
   // User question after the MAX_CELLS coarsening budget was lowered (perf investigation done in this
   // sandbox, which has no real GPU — see voxel.js's MAX_CELLS comment): "do you think we can increase
