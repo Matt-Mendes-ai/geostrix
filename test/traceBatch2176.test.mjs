@@ -97,7 +97,7 @@ test("holes coloured by a collar field colour each hole's trace in the chunk and
 
 test("the build adds the chunks and the Holes-list pass hides holes in them", () => {
   const v = viewerSource();
-  assert.ok(v.includes("traceHoles.push({ holeId: c.hole_id, pts, dashed: assumedVertical });"));
+  assert.ok(v.includes("traceHoles.push({ holeId: c.hole_id, pts, dashed: assumedVertical || methodAssumed });")); // #2662
   assert.ok(v.includes("if (rebuildHoles) addTraceChunks(groups.holes, traceHoles);"));
   assert.ok(!v.includes("new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts.map("), "no Line per hole");
   assert.ok(v.includes("if (child.userData?.traceChunk) { hideTraceHoles(child, visibleHoles); return; }"));
