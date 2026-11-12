@@ -261,6 +261,26 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
   const gradeEnds = (sym, lowest = false) => gradeEndsFromSamples(cleanAssays, (a) => valueIn(a, sym, assayUnits[sym] || "ppm", assayUnits), lowest ? { qLow: 0.05, qHigh: 0.5 } : { mapped: holeGradePoints(cleanAssays, sym, assayUnits[sym] || "ppm", assayUnits, traces, undefined, level, lowest).map((p) => p.value) }); // mapped: #2448
   const [gtPick, setGtPick] = useState(null); // #2653 — { symbol, how, cut } while its cut-off is typed
   const [evQuery, setEvQuery] = useState(""); // #2654 — the add list's search
+  // TASKS.csv #2961 (review #2876, WA iron) — a per-hole measure card (#2653; a numeric log's, #2781), from its element or log, its measure
+  // and its cut-off. The add form and the restore build it here: the add list only has the 'gtpick:' entry that opens the cut-off form, so
+  // the restore never found a saved 'numgt:' card ('Restored the saved overlay without ... not in this project any more') and dropped it.
+  // pick: { symbol } or { layer: { ref, name } }
+  const perHoleSource = (pick, how, cut) => {
+    const lg = pick.layer;
+    if (lg) return { key: `num${gtlRef(lg.ref, how, cut)}`, label: how === "m" ? tr("Drillholes: metres of {name} at or above {c} in each hole", { name: lg.name, c: cut }) : tr("Drillholes: {name} × thickness at or above {c} in each hole", { name: lg.name, c: cut }), kind: "numeric", ref: gtlRef(lg.ref, how, cut) };
+    const u = assayUnits[pick.symbol] || "ppm";
+    return { key: `num${gtRef(pick.symbol, how, cut)}`, label: how === "m" ? tr("Drillholes: metres at or above {c} {u} {sym} in each hole", { c: cut, u, sym: pick.symbol }) : tr("Drillholes: {sym} grade × thickness at or above {c} {u} in each hole", { c: cut, u, sym: pick.symbol }), kind: "numeric", ref: gtRef(pick.symbol, how, cut) };
+  };
+  // a saved per-hole card's source, while its element still has assays (or its log is still there) and the holes have traces; else null
+  const perHoleFromKey = (key) => {
+    const k = String(key || "");
+    if (!traces.size) return null;
+    const g = k.startsWith("numgt:") ? parseGtRef(k.slice(3)) : null;
+    if (g) return labElements.some((e) => e.symbol === g.symbol) ? perHoleSource({ symbol: g.symbol }, g.how, g.cutoff) : null;
+    const l = k.startsWith("numgtl:") ? parseGtlRef(k.slice(3)) : null;
+    const ls = l && numericLayerSources.find((x) => x.ref === l.ref && x.name);
+    return ls ? perHoleSource({ layer: { ref: ls.ref, name: ls.name } }, l.how, l.cutoff) : null;
+  };
   const addLayer = (key, given = null) => {
     const src = given || sources.find((s) => s.key === key); if (!src) return; // given: #2653
     // #1449 — sample evidence starts on the medium with the most samples when there are several (changeable on the card)
@@ -323,7 +343,7 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
     if (R.training) setTraining((t) => ({ ...t, ...R.training }));
     const missing = [];
     const back = (R.layers || []).flatMap((l) => {
-      const src = sources.find((x) => x.key === l.key);
+      const src = sources.find((x) => x.key === l.key) || perHoleFromKey(l.key); // perHoleFromKey: #2961
       if (!src) { missing.push(l.label || l.key); return []; }
       const band = { zMin: Number.isFinite(l.zMin) ? l.zMin : null, zMax: Number.isFinite(l.zMax) ? l.zMax : null }; // #1831
       const values = computeValues(src, { field: l.field, value: l.value, reach: l.reach, lowest: !!l.lowest /* #2578 */, ...band }, lvSaved);
@@ -509,7 +529,7 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
         {gtPick && (() => { // TASKS.csv #2653 — the cut-off first (none is chosen for you), then the card
           const u = assayUnits[gtPick.symbol] || "ppm", cut = gtPick.cut === "" ? NaN : Number(gtPick.cut), ok = Number.isFinite(cut) && cut >= 0;
           const lg = gtPick.layer; // #2781 — a numeric log, in its own units
-          const add = () => { const how = gtPick.how; if (lg) { addLayer(null, { key: `num${gtlRef(lg.ref, how, cut)}`, label: how === "m" ? tr("Drillholes: metres of {name} at or above {c} in each hole", { name: lg.name, c: cut }) : tr("Drillholes: {name} × thickness at or above {c} in each hole", { name: lg.name, c: cut }), kind: "numeric", ref: gtlRef(lg.ref, how, cut) }); setGtPick(null); return; } addLayer(null, { key: `num${gtRef(gtPick.symbol, how, cut)}`, label: how === "m" ? tr("Drillholes: metres at or above {c} {u} {sym} in each hole", { c: cut, u, sym: gtPick.symbol }) : tr("Drillholes: {sym} grade × thickness at or above {c} {u} in each hole", { c: cut, u, sym: gtPick.symbol }), kind: "numeric", ref: gtRef(gtPick.symbol, how, cut) }); setGtPick(null); };
+          const add = () => { addLayer(null, perHoleSource(gtPick, gtPick.how, cut)); setGtPick(null); }; // #2961: the same builder as the restore
           return (<div style={{ display: "flex", gap: 4, alignItems: "center", flexWrap: "wrap", fontSize: "var(--font-size-sm)" }}>
             <select value={gtPick.how} onChange={(e) => setGtPick((p) => ({ ...p, how: e.target.value }))} style={sel} aria-label={tr("Per-hole measure")}><option value="gt">{tr("grade × thickness")}</option><option value="m">{tr("metres")}</option></select>
             <label style={row}>{lg ? tr("at or above ({name})", { name: lg.name }) : tr("at or above ({u} {sym})", { u, sym: gtPick.symbol })}<input type="number" min={0} step="any" value={gtPick.cut} onChange={(e) => setGtPick((p) => ({ ...p, cut: e.target.value }))} style={{ ...sel, width: 70 }} aria-label={tr("Intercept cut-off")} /></label>

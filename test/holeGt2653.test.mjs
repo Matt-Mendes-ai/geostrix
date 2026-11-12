@@ -38,6 +38,6 @@ test("the pane: one list entry per lab element opens the cut-off form; the card 
   assert.match(p, /key: `gtpick:\$\{e\.symbol\}`/);
   assert.match(p, /if \(k\.startsWith\("gtpick:"\)\) setGtPick\(\{ symbol: k\.slice\(7\), how: "gt", cut: "" \}\); else if \(k\.startsWith\("gtlpick:"\)\)/); // a numeric log since #2781
   assert.match(p, /\/\* #2781 \*\/ else addLayer\(k\);/);
-  assert.match(p, /kind: "numeric", ref: gtRef\(gtPick\.symbol, how, cut\) \}\)/);
+  assert.match(p, /kind: "numeric", ref: gtRef\(pick\.symbol, how, cut\) \};/); // #2961: one builder (perHoleSource) for the form and the restore
   assert.match(p, /const gtz = parseGtRef\(ref\);/);
 });
