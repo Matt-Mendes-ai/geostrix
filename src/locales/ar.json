@@ -10775,5 +10775,6 @@
   "Optional: the pit may not reach further than this, in plan, from the block model's columns; a block whose slope would need ground beyond it stays in the ground. Blank: no limit, the walls go where the slope takes them and the rock outside the model counts as barren.": "اختياري: لا يجوز أن تمتد الحفرة أبعد من هذا، في المسقط، عن أعمدة نموذج الكتل؛ والكتلة التي يحتاج منحدرها أرضًا أبعد من ذلك تبقى في الأرض. فارغ: بلا حد، تمتد الجدران حيث يأخذها المنحدر وتُحتسب الصخور خارج النموذج عقيمة.",
   "The distance must be 0 or more, or blank.": "يجب أن تكون المسافة 0 أو أكثر، أو فارغة.",
   "Kept within {m} m of the block model: {n} columns of the grid beyond it were not mined.": "أُبقي ضمن {m} م من نموذج الكتل: لم تُعدَّن {n} عمودًا من الشبكة خارجه.",
-  "Kept within {m} m of the block model; the pit did not need to go beyond it.": "أُبقي ضمن {m} م من نموذج الكتل؛ لم تحتج الحفرة إلى تجاوزه."
+  "Kept within {m} m of the block model; the pit did not need to go beyond it.": "أُبقي ضمن {m} م من نموذج الكتل؛ لم تحتج الحفرة إلى تجاوزه.",
+  "The road reaches the ground at {rl} m and ends there; its length is counted to that point.": "يبلغ الطريق الأرض عند {rl} م وينتهي هناك؛ ويُحتسب طوله حتى تلك النقطة."
 }

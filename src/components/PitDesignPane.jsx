@@ -242,7 +242,8 @@ export default function PitDesignPane({ surfaces = [], worldPositionsOf, onAdd, 
           {res.ramp && line(tr("Ramp"), tr("{L} m at {g} %, {w} m wide, over {n} bench(es)", { L: Math.round(res.ramp.lengthM).toLocaleString(), g: res.ramp.gradientPct, w: res.ramp.widthM, n: res.ramp.benches }))}{/* #1948 */}
           {res.ramp && line(tr("Rock under the road"), `${big(res.ramp.rockT)} t`)}
           {res.ramp?.needsSwitchback && <div style={warn}>{tr("The wall at {rl} m is too short for a {g} % run at this width: the ramp stops there and a switchback is needed, which is not drawn.", { rl: Math.round(res.ramp.stoppedAtRL), g: res.ramp.gradientPct })}</div>}
-          {res.ramp && !res.ramp.needsSwitchback && res.ramp.benches < res.benches.length && <div style={note}>{tr("The ramp climbs {n} of the {m} benches: the benches above it have no road.", { n: res.ramp.benches, m: res.benches.length })}</div>}
+          {res.ramp?.daylightRL != null && <div style={note}>{tr("The road reaches the ground at {rl} m and ends there; its length is counted to that point.", { rl: Math.round(res.ramp.daylightRL * 10) / 10 })}</div>}{/* #2713 */}
+          {res.ramp && !res.ramp.needsSwitchback && res.ramp.daylightRL == null && res.ramp.benches < res.benches.length && <div style={note}>{tr("The ramp climbs {n} of the {m} benches: the benches above it have no road.", { n: res.ramp.benches, m: res.benches.length })}</div>}
           {/* #1929 — when the largest part alone was designed, the comparison is that part's, not the whole shell's */}
           {line(cmpLabel(tr("Ore (shell)"), tr("Ore (largest pit)")), `${big(res.totals.oreT)} t (${big(Number(cmp.oreTonnes) || 0)} t)`)}
           {line(cmpLabel(tr("Mean grade (shell)"), tr("Mean grade (largest pit)")), `${gradeText(res.totals.meanGrade)} (${gradeText(Number(cmp.meanGrade) || null)})`)}

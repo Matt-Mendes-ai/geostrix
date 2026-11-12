@@ -10775,5 +10775,6 @@
   "Optional: the pit may not reach further than this, in plan, from the block model's columns; a block whose slope would need ground beyond it stays in the ground. Blank: no limit, the walls go where the slope takes them and the rock outside the model counts as barren.": "Opcional: a cava não pode ir mais longe que isto, em planta, das colunas do modelo de blocos; um bloco cujo talude precisaria de terreno além fica no terreno. Em branco: sem limite, as paredes vão aonde o talude as leva e a rocha fora do modelo conta como estéril.",
   "The distance must be 0 or more, or blank.": "A distância deve ser 0 ou mais, ou ficar em branco.",
   "Kept within {m} m of the block model: {n} columns of the grid beyond it were not mined.": "Mantido dentro de {m} m do modelo de blocos: {n} colunas da grade além não foram lavradas.",
-  "Kept within {m} m of the block model; the pit did not need to go beyond it.": "Mantido dentro de {m} m do modelo de blocos; a cava não precisou ir além."
+  "Kept within {m} m of the block model; the pit did not need to go beyond it.": "Mantido dentro de {m} m do modelo de blocos; a cava não precisou ir além.",
+  "The road reaches the ground at {rl} m and ends there; its length is counted to that point.": "A estrada alcança o terreno a {rl} m e termina ali; seu comprimento é contado até esse ponto."
 }

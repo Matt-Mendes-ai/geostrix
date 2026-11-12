@@ -222,7 +222,7 @@ export function benchedPit(shell, { groundAt = null, cells = [], cutoff = Infini
       // #1948 — this bench's stretch of the road: from where it meets the floor below (thetaLo, at rl - benchH) back against the
       // turn to where it meets this floor (thetaHi, at rl), the run measured along the wall outside the berm
       let arc = null;
-      if (rampState && !rampState.needsSwitchback) {
+      if (rampState && !rampState.needsSwitchback && !rampState.daylit) { // daylit: #2713 — the road has reached the ground
         const prof = toeProfile();
         if (prof) {
           const thetaLo = rampState.theta, step = 0.5;
@@ -237,11 +237,32 @@ export function benchedPit(shell, { groundAt = null, cells = [], cutoff = Infini
             const cl = [], ein = [], eout = [];
             const steps = []; for (let s = sweep; s > 0; s -= 2) steps.push(s); steps.push(0); // the last point exactly at the floor below
             for (const s of steps) { const b = thetaLo - turn * s, rr = prof.rAt(b) + reachAt(b), zz = rl - benchH * (1 - s / sweep), sx = Math.sin(b * RAD), sy = Math.cos(b * RAD); cl.push([prof.cx + (rr + rampW / 2) * sx, prof.cy + (rr + rampW / 2) * sy, zz]); ein.push([prof.cx + rr * sx, prof.cy + rr * sy, zz]); eout.push([prof.cx + (rr + rampW) * sx, prof.cy + (rr + rampW) * sy, zz]); }
+            // TASKS.csv #2713 (follow-up of #2440) — where the road's centreline reaches the ground it daylights: it ends there (its length, its
+            // strings), and no road is built on the benches above. The crossing is found every half degree and placed between the two steps.
+            if (groundAt) {
+              const zAt = (s2) => rl - benchH * (1 - s2 / sweep), gAt2 = (s2) => { const b = thetaLo - turn * s2, rr = prof.rAt(b) + reachAt(b) + rampW / 2; return groundAt(prof.cx + rr * Math.sin(b * RAD), prof.cy + rr * Math.cos(b * RAD)); };
+              let prev = 0, sd = null;
+              for (let s2 = 0; s2 <= sweep + 1e-9; s2 += 0.5) {
+                const gz = gAt2(s2);
+                if (Number.isFinite(gz) && zAt(s2) >= gz - 1e-9) { const gp = gAt2(prev), fp = Number.isFinite(gp) ? zAt(prev) - gp : -1, fs = zAt(s2) - gz; sd = s2 > prev && fs > fp ? prev + (s2 - prev) * (-fp / (fs - fp)) : s2; break; }
+                prev = s2;
+              }
+              if (sd != null && sd < sweep - 1e-6) {
+                const zd = zAt(sd), keep = (line) => line.filter((q) => q[2] <= zd + 1e-9);
+                const b = thetaLo - turn * sd, rr = prof.rAt(b) + reachAt(b), sx = Math.sin(b * RAD), sy = Math.cos(b * RAD);
+                const cl2 = [[prof.cx + (rr + rampW / 2) * sx, prof.cy + (rr + rampW / 2) * sy, zd], ...keep(cl)];
+                cl.length = 0; cl.push(...cl2); const e1 = keep(ein), e2 = keep(eout); ein.length = 0; ein.push(...e1); eout.length = 0; eout.push(...e2);
+                const counted = run * (sd / sweep);
+                rampState.lengthM -= run - counted; rampState.daylit = true; rampState.daylightRL = +zd.toFixed(2);
+                const last = rampState.arcs[rampState.arcs.length - 1]; last.runM = +counted.toFixed(1); last.daylightRL = rampState.daylightRL;
+              }
+            }
             rampState.centre.push({ bench: k, line: cl }); rampState.edgeIn.push({ bench: k, line: ein }); rampState.edgeOut.push({ bench: k, line: eout });
           }
         }
       }
-      // is a bearing (from the toe region's centre) within this bench's arc, and how far along the descent (0 at the top, 1 at the floor below)
+      // is a bearing (from the toe region's centre) within this bench's arc, and how far along it from its start (lo, where the road meets the
+      // floor below) to its end (this bench): TASKS.csv #2713 — the road's z rises with it, as its centreline does (it ran the other way)
       const onArc = (x, y) => { if (!arc) return -1; const u = normDeg((arc.lo - bearingOf(x - arc.cx, y - arc.cy)) * turn); return u <= arc.sweep ? u / arc.sweep : -1; };
       for (let c = 0; c < N; c++) {
         if (T[c]) { next[c] = 1; continue; }
@@ -251,7 +272,7 @@ export function benchedPit(shell, { groundAt = null, cells = [], cutoff = Infini
           z[c] = d <= fr ? rl - benchH + d * Math.tan(batterAt(b) * RAD) : rl; // on the face, else the berm or the floor (#1952: by the wall's sector)
         } else if (arc && d <= re + rampW) {
           const j = Math.floor(c / nx), i = c - j * nx, u = onArc(X(i), Y(j));
-          if (u >= 0) { next[c] = 1; any = true; z[c] = rl - benchH * u; isRamp[c] = 1; } // #1948 — the road, descending across the arc
+          if (u >= 0) { next[c] = 1; any = true; z[c] = rl - benchH * (1 - u); isRamp[c] = 1; } // #1948 — the road across the arc; #2713: rising from the floor below
         }
       }
     }
@@ -361,7 +382,7 @@ export function benchedPit(shell, { groundAt = null, cells = [], cutoff = Infini
   let nCells = 0;
   for (let c = 0; c < N; c++) nCells += inPit[c];
   return { positions: Float64Array.from(pos), indices: Uint32Array.from(idx), strings, benches, totals, interRampDeg, faceRun, reach, cell, nCells, coarsened, daylights, crestRL, floorRL, groundTopRL: Number.isFinite(groundTop) ? groundTop : null /* #2440 */, partsDropped, columnsInArea,
-    sectorsUsed /* #1952 */, ramp: rampState ? { arcs: rampState.arcs, lengthM: +rampState.lengthM.toFixed(1), widthM: rampW, gradientPct: Number(ramp.gradientPct), turn: turn > 0 ? "clockwise" : "anticlockwise", azimuthDeg: normDeg(Number(ramp.azimuthDeg)), needsSwitchback: rampState.needsSwitchback, stoppedAtRL: rampState.stoppedAt, rockT: rampRockT, benches: rampState.arcs.length } : null /* #1948 */ };
+    sectorsUsed /* #1952 */, ramp: rampState ? { arcs: rampState.arcs, lengthM: +rampState.lengthM.toFixed(1), daylightRL: rampState.daylightRL ?? null /* #2713 */, widthM: rampW, gradientPct: Number(ramp.gradientPct), turn: turn > 0 ? "clockwise" : "anticlockwise", azimuthDeg: normDeg(Number(ramp.azimuthDeg)), needsSwitchback: rampState.needsSwitchback, stoppedAtRL: rampState.stoppedAt, rockT: rampRockT, benches: rampState.arcs.length } : null /* #1948 */ };
 }
 
 // export rows: one per string vertex
