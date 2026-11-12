@@ -175,6 +175,24 @@ export function idwGridToRasterInput(points, { xmin, ymin, xmax, ymax, cellSize,
 // between lines: with line labels, the spacing is the median distance from a station to the nearest station of
 // ANOTHER line, and the default is 1.5x that. Scattered stations (no lines): 2x the median nearest spacing.
 // Sampled (400 stations) so it stays fast on 100k-point surveys. -> { distance, spacing, basis } or null.
+// TASKS.csv #2562 (review #2486) — the IDW cell was 25 m whatever the stations: 100 m gravity stations were gridded at 25 m. A default from the
+// spacing the box already measures: the first round value (1, 2, 2.5, 5 x 10^n m) at or above a quarter of it, so the cell is a quarter
+// to a half of the spacing. null with no spacing.
+export function suggestIdwCell(spacing) {
+  const q = Number(spacing) / 4;
+  if (!(q > 0)) return null;
+  const p = 10 ** Math.floor(Math.log10(q));
+  return +([1, 2, 2.5, 5, 10].map((k) => k * p).find((v) => v >= q - 1e-9) || 10 * p).toPrecision(6);
+}
+// TASKS.csv #2562 — a name already taken gets ' (2)', ' (3)' ...: two rasters were both 'SYNTHETIC_groundmag_mga50 IDW 25 m, blanked > 75 m'
+export function uniqueName(name, taken) {
+  const set = new Set(taken || []);
+  if (!set.has(name)) return name;
+  let k = 2;
+  while (set.has(`${name} (${k})`)) k++;
+  return `${name} (${k})`;
+}
+
 export function suggestBlankingDistance(points, sample = 400) {
   const pts = points.filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y));
   const n = pts.length;

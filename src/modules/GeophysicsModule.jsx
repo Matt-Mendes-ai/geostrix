@@ -48,7 +48,7 @@ import { readKmlFile, kmlToProjectPolylines } from "../lib/kml.js"; // TASKS.csv
 import { parseShapefileZip, parseShapefileParts } from "../lib/shapefile.js";
 import { groupShapefileParts } from "../lib/viewer/importHelpers.js"; // TASKS.csv #2121 — a loose .shp with its .prj / .dbf / .cpg
 import { parseGeoPackage } from "../lib/gpkg.js";
-import { idwGridToRasterInput, suggestBlankingDistance } from "../lib/idw.js";
+import { idwGridToRasterInput, suggestBlankingDistance, suggestIdwCell, uniqueName } from "../lib/idw.js"; // suggestIdwCell, uniqueName: #2562
 import { hillshadeToRasterInput, terrainDerivativeToRasterInput, autoZFactor, earlierDerivatives } from "../lib/hillshade.js"; // derivatives: TASKS.csv #797; autoZFactor: #2460; earlierDerivatives: #1764
 import { contourTerrain } from "../lib/contours.js";
 import SpatialAnalysis from "../components/SpatialAnalysis.jsx";
@@ -256,7 +256,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
   const [omfPick, setOmfPick] = useState({});
   const omfInput = useRef(null);
   const [idwOpen, setIdwOpen] = useState(false); // TASKS.csv #235 — grid geophys_pts to a raster (IDW)
-  const [idwCellSize, setIdwCellSize] = useState(25);
+  const [idwCellText, setIdwCellText] = useState(""); // TASKS.csv #2562 — blank: from the station spacing (idwCellSize below)
   const [idwPower, setIdwPower] = useState(2);
   const [idwStretch, setIdwStretch] = useState("p2-98"); // TASKS.csv #372
   const [idwSurvey, setIdwSurvey] = useState(""); // TASKS.csv #538 — one survey at a time ("" = the only / first one)
@@ -353,6 +353,8 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     return idwRows.filter((r) => Number.isFinite(r.z) && r.z >= lo && r.z <= hi);
   }, [idwRows, idwShape, idwZ]);
   const idwSuggest = useMemo(() => (idwSlice.length ? suggestBlankingDistance(idwSlice) : null), [idwSlice]); // the slice's own spacing (#1783)
+  const idwAutoCell = suggestIdwCell(idwSuggest?.spacing) || 25; // #2562 — a quarter to a half of the spacing
+  const idwCellSize = idwCellText === "" ? idwAutoCell : Math.max(0.1, Number(idwCellText) || idwAutoCell);
   // #451 — radar-altimeter heights -> elevations on the loaded terrain
   const convertAgl = (key) => {
     if (!terrain) return;
@@ -1960,7 +1962,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
             {manySurveys && ( // #1587 — which survey the legend below edits
               <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 4, marginBottom: 4, fontSize: "var(--font-size-sm)" }}>
                 <span style={{ color: "var(--color-text-faint)", flexShrink: 0 }}>{tr("Survey")}</span>
-                <select value={legendKey} onChange={(e) => setLegendSurvey(e.target.value)} aria-label={tr("Survey whose legend to edit")} style={{ ...numInput, flex: 1, minWidth: 0 }}>
+                <select value={legendKey} onChange={(e) => { setLegendSurvey(e.target.value); setIdwSurvey(e.target.value); /* #2562 — one choice for the pane */ }} aria-label={tr("Survey whose legend to edit")} style={{ ...numInput, flex: 1, minWidth: 0 }}>
                   {surveyList.map((s) => <option key={s.key} value={s.key}>{s.key} ({s.count.toLocaleString()}{geophysSurveys[s.key]?.units ? `, ${geophysSurveys[s.key].units}` : ""})</option>)}
                 </select>
               </div>
@@ -2037,8 +2039,9 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                 )}
                 <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }}>
                   <span style={{ color: "var(--color-text-faint)", width: 70, flexShrink: 0 }}>{tr("Cell size")}</span>
-                  <input type="number" min="0.1" step="any" value={idwCellSize} onChange={(e) => setIdwCellSize(Math.max(0.1, Number(e.target.value) || 25))} style={numInput} />
+                  <input type="number" min="0.1" step="any" value={idwCellText} placeholder={String(idwAutoCell)} onChange={(e) => setIdwCellText(e.target.value)} style={numInput} aria-label={tr("Cell size")} />
                 </div>
+                {idwSuggest && idwCellText === "" && <div style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)", marginBottom: 6 }}>{tr("Cell {c} m by default: a quarter to a half of the median spacing ({s} m).", { c: idwAutoCell, s: idwSuggest.spacing.toFixed(1) })}</div>}{/* #2562 */}
                 <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
                   <span style={{ color: "var(--color-text-faint)", width: 70, flexShrink: 0 }} title={tr("How sharply influence falls off with distance — higher means nearer points dominate more.")}>{tr("Power")}</span>
                   <input type="number" min="0.5" step="0.5" value={idwPower} onChange={(e) => setIdwPower(Math.max(0.5, Number(e.target.value) || 2))} style={numInput} />
@@ -2047,7 +2050,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                 {surveyList.length > 1 && (
                   <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }}>
                     <span style={{ color: "var(--color-text-faint)", width: 70, flexShrink: 0 }}>{tr("Survey")}</span>
-                    <select value={idwKey} onChange={(e) => setIdwSurvey(e.target.value)} style={{ ...numInput, flex: 1, minWidth: 0 }} aria-label={tr("Survey to grid")}>
+                    <select value={idwKey} onChange={(e) => { setIdwSurvey(e.target.value); setLegendSurvey(e.target.value); /* #2562 */ }} style={{ ...numInput, flex: 1, minWidth: 0 }} aria-label={tr("Survey to grid")}>
                       {surveyList.map((s) => <option key={s.key} value={s.key}>{s.key} ({s.count.toLocaleString()})</option>)}
                     </select>
                   </div>
@@ -2080,7 +2083,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                     const blank = idwBlank === "" ? idwSuggest?.distance ?? Infinity : Number(idwBlank) > 0 ? Number(idwBlank) : Infinity; // #538
                     const label = surveyLabel(idwKey); // #2559 — 'file.csv · K_pct' kept its channel ('[^.]+$' took '.csv · K_pct' off)
                     const raster = idwGridToRasterInput(pts, { xmin, ymin, xmax, ymax, cellSize: idwCellSize, power: idwPower, stretch: idwStretch, maxDistance: blank,
-                      name: `${label}${sliceTag} IDW ${idwCellSize} m${Number.isFinite(blank) ? `, blanked > ${Math.round(blank)} m` : ""}` }); // sliceTag: #1783
+                      name: uniqueName(`${label}${sliceTag} IDW ${idwCellSize} m${Number.isFinite(blank) ? `, blanked > ${Math.round(blank)} m` : ""}`, rasters.map((x) => x.name)) }); // sliceTag: #1783; uniqueName: #2562
                     // TASKS.csv #2239 (review #2174) — stations with elevations are drawn at THEIR median elevation: a ground-mag grid at z 400 went to the
                     // collars' median (192.55 m, an underground mine level), 207 m under the survey and through the holes. The collar median only when
                     // the points have no z.

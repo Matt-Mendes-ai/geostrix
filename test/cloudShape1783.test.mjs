@@ -24,7 +24,7 @@ test("#1783 a surface survey is not 3D (its elevations follow the ground); an in
 
 test("#1783 the IDW pane grids the chosen slice of a 3D cloud and names it; Spatial analysis says what its means are over", () => {
   const g = readFileSync(new URL("../src/modules/GeophysicsModule.jsx", import.meta.url), "utf8");
-  assert.ok(g.includes("const pts = idwSlice; // #1783") && g.includes("name: `${label}${sliceTag} IDW ${idwCellSize} m"));
+  assert.ok(g.includes("const pts = idwSlice; // #1783") && g.includes("`${label}${sliceTag} IDW ${idwCellSize} m")); // the name is wrapped in uniqueName since #2562
   const s = readFileSync(new URL("../src/components/SpatialAnalysis.jsx", import.meta.url), "utf8");
   assert.ok(s.includes('tr("Left out (same plan position)")') && s.includes("A 3D point cloud ({lo} to {hi} m elevation)"));
 });
