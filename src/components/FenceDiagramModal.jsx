@@ -13,6 +13,7 @@ import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { exportSvgMarkup } from "../lib/svgExport.js"; // TASKS.csv #1089 — font, size, no UI chrome
 import { fenceFurniture } from "../lib/figureFurniture.js"; // TASKS.csv #1017
 import { lithoPatternMap, loadPatternTiles, patternDefs, patternFill, sectionTilePx } from "../lib/lithoPatterns.js"; // TASKS.csv #1995
+import { numericTrackSources, numericTrackRows, trackFraction } from "../lib/fenceTrack.js"; // TASKS.csv #2786
 
 // TASKS.csv #139 — FENCE / PANEL DIAGRAM (hole-to-hole lithology correlation along a drill line).
 //
@@ -98,7 +99,7 @@ export default function FenceDiagramModal({ traces = [], litho = [], labelFor = 
   const [tiles, setTiles] = useState({});
   // TASKS.csv #1745 / #2426 — which interval log the columns (and the correlation bands) show: Lithology only, it joined sand to sand
   // across units on a palaeochannel whose stratigraphic unit is a custom layer
-  const { layers: storeLayers = {}, customLayers = [] } = useStore() || {};
+  const { layers: storeLayers = {}, customLayers = [], assays = [], assayElements = [] } = useStore() || {}; // assays: #2786
   const showSources = useMemo(() => [
     { key: "litho", label: tr("Lithology") },
     ...((storeLayers.alt || []).length ? [{ key: "alt", label: tr("Alteration") }] : []),
@@ -111,6 +112,11 @@ export default function FenceDiagramModal({ traces = [], litho = [], labelFor = 
   const shownRows = show === "litho" || !showSrc || showSrc.key === "litho" ? litho : showSrc.layer ? showSrc.layer.rows || [] : storeLayers[showSrc.key] || [];
   const colorOf = (v) => (showSrc?.key === "alt" ? colorForAlteration(v) : showSrc?.key === "vein" ? colorForVein(v) : showSrc?.key === "weath" ? colorForWeathering(v) : showSrc?.layer ? customCodeColour(showSrc.layer, "value", v) : colorForLithology(v));
 
+  // TASKS.csv #2786 — a numeric track beside each column: an assay element or a numeric log, one scale for the panel (lib/fenceTrack.js)
+  const trackSources = useMemo(() => numericTrackSources({ layers: storeLayers, customLayers, assays, assayElements }, tr), [storeLayers, customLayers, assays, assayElements]);
+  const [trackKey, setTrackKey] = useState("");
+  const trackSrc = trackSources.find((x) => x.key === trackKey) || null;
+
   const chosen = useMemo(
     () => (traces || []).filter((t) => t?.wx?.length > 1 && selected.has(t.hole_id)),
     [traces, selected]
@@ -121,6 +127,9 @@ export default function FenceDiagramModal({ traces = [], litho = [], labelFor = 
     const az = azMode === "manual" ? Number(manualAz) : null;
     return buildFencePanel(chosen, Number.isFinite(az) ? { azimuth: az } : {});
   }, [chosen, azMode, manualAz, sectionLine]);
+
+  const track = useMemo(() => (trackSrc && panel ? numericTrackRows(trackSrc, panel.holes.map((h) => h.hole_id), assays) : null), [trackSrc, panel, assays]);
+  const TRACK_PX = 26; // the track's full width, px
 
   const lithoByHole = useMemo(() => {
     const m = {};
@@ -288,6 +297,29 @@ export default function FenceDiagramModal({ traces = [], litho = [], labelFor = 
                 ><title>{tr("{code} correlated between adjacent holes (shallowest occurrence in each) — an interpretation, not a measurement", { code: b.code })}</title></path>
               ))}
 
+              {view && panel && track && panel.holes.map((h) => <g key={`tk_${h.hole_id}`}>{(track.byHole[h.hole_id] || []).length > 0 && (() => { // #2786 — the numeric track, on the +normal side of each column; drawn before the columns so a close neighbour's bars never cover them
+                      const at = (d) => panelPointAtDepth(h, d);
+                      const side = (a, b) => { const dx = view.xFor(b.s) - view.xFor(a.s), dy = view.yFor(b.z) - view.yFor(a.z), L = Math.hypot(dx, dy) || 1; return [-dy / L, dx / L]; };
+                      const tRows = track.byHole[h.hole_id], base = colWidth + 1.5;
+                      if (track.points) {
+                        const pts = [];
+                        for (const r of tRows) {
+                          const p = at(r.at), next = at(r.at + 1), prev = next ? null : at(r.at - 1);
+                          if (!p || (!next && !prev)) continue;
+                          const [nx, ny] = next ? side(p, next) : side(prev, p), off = base + TRACK_PX * trackFraction(r.v, track.lo, track.hi); // the downhole direction either way
+                          pts.push(`${(view.xFor(p.s) + nx * off).toFixed(1)},${(view.yFor(p.z) + ny * off).toFixed(1)}`);
+                        }
+                        return pts.length > 1 ? <polyline points={pts.join(" ")} fill="none" stroke="#7d3c98" strokeWidth={1} style={{ pointerEvents: "none" }} /> : null;
+                      }
+                      return tRows.map((r, i) => {
+                        const a = at(r.from), b = at(r.to);
+                        if (!a || !b) return null;
+                        const [nx, ny] = side(a, b), len = TRACK_PX * trackFraction(r.v, track.lo, track.hi);
+                        const x1 = view.xFor(a.s), y1 = view.yFor(a.z), x2 = view.xFor(b.s), y2 = view.yFor(b.z);
+                        const quad = `M ${x1 + nx * base} ${y1 + ny * base} L ${x2 + nx * base} ${y2 + ny * base} L ${x2 + nx * (base + len)} ${y2 + ny * (base + len)} L ${x1 + nx * (base + len)} ${y1 + ny * (base + len)} Z`;
+                        return <path key={`t_${i}`} d={quad} fill="#7d3c98" opacity={0.75}><title>{`${h.hole_id} — ${trackSrc.label} ${r.v}  ${r.from}–${r.to} m`}</title></path>;
+                      });
+                    })()}</g>)}
               {/* ---- each hole: its projected trace, then its lithology intervals as a column ---- */}
               {view && panel && (() => { const slots = stackCollarLabels(panel.holes.map((h) => ({ id: h.hole_id, x: view.xFor(h.pts[0].s), y: view.yFor(h.pts[0].z) }))); return panel.holes.map((h) => {
                 const lift = 19 * (slots[h.hole_id] || 0); // #1375 — fan holes from one collar: their labels stacked, not printed over each other
@@ -324,6 +356,8 @@ export default function FenceDiagramModal({ traces = [], litho = [], labelFor = 
                   </g>
                 );
               }); })()}
+              {track && track.n > 0 && <text x={PAD_L} y={H - 22} fontSize={8.6} fill="#7d3c98">{track.above === 0 ? tr("Track: {name}, the full width is {hi} (the 98th percentile of the panel's values)", { name: trackSrc.label, hi: Number(track.hi.toPrecision(3)).toLocaleString() })
+                : tr(track.above === 1 ? "Track: {name}, the full width is {hi} (the 98th percentile of the panel's values); {n} higher value is drawn at full width" : "Track: {name}, the full width is {hi} (the 98th percentile of the panel's values); {n} higher values are drawn at full width", { name: trackSrc.label, hi: Number(track.hi.toPrecision(3)).toLocaleString(), n: track.above.toLocaleString() })}</text>}{/* #2786 */}
             </svg>
           </div>
 
@@ -332,6 +366,12 @@ export default function FenceDiagramModal({ traces = [], litho = [], labelFor = 
                 {showSources.map((x) => <option key={x.key} value={x.key}>{x.label}</option>)}
               </select>
             </label>}{/* #1745 / #2426 */}
+            {trackSources.length > 0 && <label style={rowLabel} title={tr("An assay element or a numeric log beside each column, on the hole's own depth: bars for intervals, a line for point readings. One scale for the whole panel.")}>{tr("Numeric track")}<select value={trackSrc?.key || ""} onChange={(e) => setTrackKey(e.target.value)} style={sel} aria-label={tr("Numeric track")}>
+                <option value="">{tr("— none —")}</option>
+                {trackSources.map((x) => <option key={x.key} value={x.key}>{x.label}</option>)}
+              </select>
+            </label>}
+            {track && track.n === 0 && <div style={warnNote}>{tr("No {name} values in the selected holes.", { name: trackSrc.label })}</div>}{/* #2786 */}
             <label style={rowLabel} title={tr("Best fit is the principal (total-least-squares) axis of the selected collars — the line that minimizes perpendicular distance, and unlike a y-on-x regression it works for a north-south drill line and does not depend on how the map is rotated.")}>{tr("Section line")}<select value={azMode} onChange={(e) => (e.target.value === "section" ? pickSection(sectionId) : setAzMode(e.target.value))} style={sel}>
                 <option value="fit">{tr("Best fit through collars")}</option>
                 <option value="manual">{tr("Fixed azimuth…")}</option>
