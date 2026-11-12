@@ -15,8 +15,10 @@ test("#2404 U3O8 in millions of pounds, from the U3O8 tonnes", () => {
   const [row] = gradeTonnageRows([{ cutoff: 100, blocks: 4834, volumeM3: 75531250, meanGrade: 161.47, tonnes: 135956250, metal }], { vname: "U", density: 1.8, metal: metalOf("ppm"), columns: cols });
   assert.ok(Math.abs(row.metal_t - 21953.5) < 0.5, String(row.metal_t));
   assert.ok(Math.abs(row.metal_mlb_U3O8 - 57.07) < 0.01, String(row.metal_mlb_U3O8));
-  // nothing in pounds for other elements
-  for (const [u, el] of [["ppm", "Cu"], ["%", "Li"], ["g/t", "Au"], ["%", "Ta"]]) assert.ok(!metalColumns(metalOf(u), el).some((c) => c.key.startsWith("metal_mlb")), el);
+  // nothing in pounds for the elements not quoted in pounds. TASKS.csv #1747 (DECISION 2026-11-12, Matt): Cu / Zn / Pb / Ni now are (Cu was in
+  // this list), so it is checked the other way round below
+  for (const [u, el] of [["%", "Li"], ["g/t", "Au"], ["%", "Ta"], ["ppm", "Mo"]]) assert.ok(!metalColumns(metalOf(u), el).some((c) => c.key.startsWith("metal_mlb")), el);
+  for (const el of ["Cu", "Zn", "Pb", "Ni"]) assert.ok(metalColumns(metalOf("ppm"), el).some((c) => c.key === `metal_mlb_${el}`), el);
 });
 
 test("#2404 the table's grade header names its unit", () => {

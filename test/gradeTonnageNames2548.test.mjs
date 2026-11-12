@@ -26,7 +26,7 @@ test("an oxide basis keeps its oxide column first and adds the element (and LCE 
 });
 
 test("other elements: their name, U3O8 / Ta2O5 where usual, nothing invented elsewhere", () => {
-  assert.deepEqual(metalColumns(metalOf("%"), "Zn").map((c) => [c.key, c.args?.el, c.factor]), [["metal_t", "Zn", 1]]);
+  assert.deepEqual(metalColumns(metalOf("%"), "Zn").map((c) => [c.key, c.args?.el, c.factor]), [["metal_t", "Zn", 1], ["metal_mlb_Zn", "Zn", 2204.62262 / 1e6]]); // + Mlb Zn: #1747 (DECISION 2026-11-12, Matt)
   assert.deepEqual(metalColumns(metalOf("ppm"), "U").map((c) => c.key), ["metal_t", "metal_t_U3O8", "metal_mlb_U3O8"]); // + Mlb U3O8: #2404
   assert.deepEqual(metalColumns(metalOf("ppm"), "Au").map((c) => c.key), ["metal_kg", "metal_oz"]);
   assert.deepEqual(metalColumns(metalOf("%"), null).map((c) => c.label), ["Metal (t)"], "no element: as before");
@@ -37,7 +37,7 @@ test("the table's headers name the unit; a typed cut-off keeps four figures", ()
   assert.match(s, /tr\(c\.label, c\.args\)/);
   assert.match(s, /unitL \? tr\("Mean grade \(\{unit\}\)", \{ unit: unitL \}\)/);
   assert.match(s, /unitL \? tr\("Cutoff \(\{unit\}\)", \{ unit: unitL \}\)/);
-  assert.match(s, /<td style=\{td\}>\{sig4\(r\.cutoff\)\}<\/td>/);
+  assert.match(s, /<td style=\{td\}>\{sig4\(r\.cutoff\)\}\{cutoffPct\(r\.cutoff, element, unit\) != null \? /); // + the cut-off in % for a base metal in ppm: #1747
   assert.match(s, /Number\(v\.toPrecision\(4\)\)\.toLocaleString\(undefined, \{ maximumFractionDigits: 10 \}\)/, "toLocaleString would round to 3 decimals");
   assert.equal(Number((0.2323).toPrecision(4)).toLocaleString("en", { maximumFractionDigits: 10 }), "0.2323");
 });
