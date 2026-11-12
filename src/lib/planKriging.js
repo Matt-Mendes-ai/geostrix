@@ -22,10 +22,13 @@ export function planVariogram(points, key, spacing) {
 
 // TASKS.csv #2756 — ordinary kriging at one point in plan, for a spherical variogram, with preallocated buffers: the estimator's okEstimate
 // allocated per call and took about 1 s for 7,800 nodes and two variables; this solves the same (n+1) system (covariances divided by the
-// sill, Gaussian elimination with partial pivoting) several times faster. -> the value, or NaN when the system is singular
+// sill, Gaussian elimination with partial pivoting) several times faster. -> the value, or NaN when the system is singular.
+// #2820 — solve.variance is then the kriging variance at that point (in the variable's unit squared): sill × (1 − Σ λi ci0 − μ), the
+// covariances divided by the sill as above; NaN when singular.
 function makeOkSolver(maxN) {
-  const m0 = maxN + 1, A = new Float64Array(m0 * m0), rhs = new Float64Array(m0), x = new Float64Array(m0);
-  return (xs, ys, vals, n, px, py, vg) => {
+  const m0 = maxN + 1, A = new Float64Array(m0 * m0), rhs = new Float64Array(m0), x = new Float64Array(m0), r0 = new Float64Array(m0);
+  const solve = (xs, ys, vals, n, px, py, vg) => {
+    solve.variance = NaN;
     const { nugget, sill, range } = vg, c1 = sill - nugget;
     const k1 = c1 / sill, ir = 1 / range; // Math.hypot and ** were most of the time: plain arithmetic
     const cov = (dx, dy) => { const h = Math.sqrt(dx * dx + dy * dy); if (h <= 0) return 1; if (h >= range) return 0; const u = h * ir; return k1 * (1 - (1.5 * u - 0.5 * u * u * u)); }; // C(h) / sill; C(0) = sill
@@ -33,7 +36,7 @@ function makeOkSolver(maxN) {
     for (let i = 0; i < n; i++) {
       for (let j = i; j < n; j++) { const c = i === j ? 1 : cov(xs[i] - xs[j], ys[i] - ys[j]); A[i * m + j] = c; A[j * m + i] = c; }
       A[i * m + n] = 1; A[n * m + i] = 1;
-      rhs[i] = cov(xs[i] - px, ys[i] - py);
+      rhs[i] = cov(xs[i] - px, ys[i] - py); r0[i] = rhs[i];
     }
     A[n * m + n] = 0; rhs[n] = 1;
     for (let col = 0; col < m; col++) {
@@ -45,16 +48,32 @@ function makeOkSolver(maxN) {
       for (let r = col + 1; r < m; r++) { const f = A[r * m + col] / d; if (f === 0) continue; for (let k = col; k < m; k++) A[r * m + k] -= f * A[col * m + k]; rhs[r] -= f * rhs[col]; }
     }
     for (let r = m - 1; r >= 0; r--) { let t = rhs[r]; for (let k = r + 1; k < m; k++) t -= A[r * m + k] * x[k]; x[r] = t / A[r * m + r]; }
-    let v = 0;
-    for (let i = 0; i < n; i++) v += x[i] * vals[i];
+    let v = 0, lc = 0;
+    for (let i = 0; i < n; i++) { v += x[i] * vals[i]; lc += x[i] * r0[i]; }
+    solve.variance = sill * Math.max(0, 1 - lc - x[n]); // rounding can leave a hair under 0 beside a hole
     return v;
   };
+  solve.variance = NaN;
+  return solve;
+}
+
+// #2820 — the spread of a kriging standard deviation grid (NaN = not kriged there) -> { min, median, max, n } or null
+export function sdSummary(sd) {
+  if (!sd) return null;
+  const v = [];
+  for (let i = 0; i < sd.length; i++) if (Number.isFinite(sd[i])) v.push(sd[i]);
+  if (!v.length) return null;
+  v.sort((a, b) => a - b);
+  return { min: v[0], median: v[v.length >> 1], max: v[v.length - 1], n: v.length };
 }
 
 // planGrid's grid (same nodes), its values replaced by ordinary kriging where the variable has a fitted (spherical) variogram (vgGT / vgTh:
 // planVariogram's fit, or null to keep inverse distance for that variable). Negative kriged values (negative weights) are set to 0 and
 // counted; a singular system keeps the node's inverse-distance value and is counted.
-// -> the grid plus { method: "ok", kriged: { gt, thickness }, clamped, fallback, maxSamples }
+// #2820 — sdGT / sdTh: each node's kriging standard deviation (the square root of the kriging variance, in the variable's own unit), 0 on a
+// hole, NaN where the node is not kriged (unestimated, a singular system, or that variable has no variogram: then the array is null).
+// It depends on the holes' layout and the variogram only, not on their values: it says where the plan is least sure.
+// -> the grid plus { method: "ok", kriged: { gt, thickness }, clamped, fallback, maxSamples, sdGT, sdTh }
 export function planGridOK(points, { cell, radius, pad = 0, maxNodes = 250000, maxSamples = 12, vgGT = null, vgTh = null }) {
   const g = planGrid(points, { cell, radius, pad, maxNodes });
   if (!g) return null;
@@ -62,6 +81,7 @@ export function planGridOK(points, { cell, radius, pad = 0, maxNodes = 250000, m
   const b = radius, key = (i, j) => i * 100003 + j, buckets = new Map();
   for (const p of P) { const k = key(Math.floor((p.x - g.x0) / b), Math.floor((p.y - g.y0) / b)); (buckets.get(k) || buckets.set(k, []).get(k)).push(p); }
   const gt = Float64Array.from(g.gt), th = Float64Array.from(g.thickness);
+  const sdGT = vgGT ? new Float64Array(gt.length).fill(NaN) : null, sdTh = vgTh ? new Float64Array(gt.length).fill(NaN) : null; // #2820
   const solve = makeOkSolver(maxSamples);
   const xs = new Float64Array(maxSamples), ys = new Float64Array(maxSamples), vG = new Float64Array(maxSamples), vT = new Float64Array(maxSamples);
   let clamped = 0, fallback = 0;
@@ -83,16 +103,30 @@ export function planGridOK(points, { cell, radius, pad = 0, maxNodes = 250000, m
       while (k > 0 && kd[k - 1] > d2) { kd[k] = kd[k - 1]; kp[k] = kp[k - 1]; k--; }
       kd[k] = d2; kp[k] = p;
     }
-    if (onHole) continue; // on a hole: its own value (inverse distance's exact match)
+    if (onHole) { if (sdGT) sdGT[idx] = 0; if (sdTh) sdTh[idx] = 0; continue; } // on a hole: its own value (inverse distance's exact match), known there
     for (let k = 0; k < n; k++) { const p = kp[k]; xs[k] = p.x; ys[k] = p.y; vG[k] = p.gt; vT[k] = Number(p.thicknessM) || 0; }
     for (let v = 0; v < 2; v++) {
       const vg = v ? vgTh : vgGT;
       if (!vg) continue;
       let val = solve(xs, ys, v ? vT : vG, n, x, y, vg);
       if (!Number.isFinite(val)) { fallback++; continue; }
+      (v ? sdTh : sdGT)[idx] = Math.sqrt(solve.variance); // #2820
       if (val < 0) { val = 0; clamped++; }
       (v ? th : gt)[idx] = val;
     }
   }
-  return { ...g, gt, thickness: th, method: "ok", kriged: { gt: !!vgGT, thickness: !!vgTh }, clamped, fallback, maxSamples };
+  return { ...g, gt, thickness: th, method: "ok", kriged: { gt: !!vgGT, thickness: !!vgTh }, clamped, fallback, maxSamples, sdGT, sdTh };
+}
+
+// TASKS.csv #2820 — RGBA pixels for a standard deviation grid (node i + nx * j, j north from the grid's south row): row 0 of the image is
+// the north row; violet, its opacity in proportion to sd / max (clear at a hole, 70 % at the grid's largest), clear where not kriged
+export function sdPixels(sd, nx, ny, max) {
+  const px = new Uint8ClampedArray(nx * ny * 4), k = max > 0 ? 0.7 * 255 / max : 0;
+  for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
+    const v = sd[i + nx * j];
+    if (!Number.isFinite(v)) continue;
+    const o = ((ny - 1 - j) * nx + i) * 4;
+    px[o] = 109; px[o + 1] = 40; px[o + 2] = 217; px[o + 3] = Math.round(v * k);
+  }
+  return px;
 }
