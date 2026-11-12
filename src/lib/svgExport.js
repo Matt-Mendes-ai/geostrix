@@ -17,12 +17,15 @@ const SVG_NS = "http://www.w3.org/2000/svg";
 // fit the page (at most PLACED_W page px wide), so a 1,100 px section's 8-10 px labels printed at 3.5-4.4 pt, a strip
 // log's at 4.3-5.7 pt. In the exported copy, text whose size would print under printPt.caption (7 pt) at that placement
 // is raised to it, and the caption / key band is drawn at printPt.small. printFloor: false keeps the screen sizes.
-export function exportSvgMarkup(svg, { background = "#ffffff", furniture = null, printFloor = true } = {}) {
+// TASKS.csv #2604 — placedW: the page px width the figure will be placed at, when the caller knows it (a section re-snapshot for a
+// Layout frame at a plot scale). The floor must be the one the figure was laid out for: raised to PLACED_W's floor, the labels of a
+// section laid out for a wider frame overprinted each other and its caption lines overlapped. Default: PLACED_W, as before.
+export function exportSvgMarkup(svg, { background = "#ffffff", furniture = null, printFloor = true, placedW = PLACED_W } = {}) {
   const clone = svg.cloneNode(true);
   clone.setAttribute("xmlns", SVG_NS);
   const vb = svg.viewBox?.baseVal;
   const w = vb && vb.width ? vb.width : Number(svg.getAttribute("width")) || svg.clientWidth || 800;
-  const k = w / PLACED_W, floorPx = printFloor ? printPx(printPt.caption) * k : 0;
+  const k = w / (placedW > 0 ? placedW : PLACED_W), floorPx = printFloor ? printPx(printPt.caption) * k : 0;
   if (floorPx > 0 && typeof window !== "undefined" && window.getComputedStyle) {
     // sizes read from the live figure (attribute, inline style, CSS or inherited), set on the same text in the copy
     const live = svg.querySelectorAll("text"), copy = clone.querySelectorAll("text");

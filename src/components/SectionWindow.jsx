@@ -202,7 +202,9 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
     const svgEl = svgRef.current;
     const dims = svgDims();
     if (!svgEl || !dims) return;
-    const { markup } = exportSvgMarkup(svgEl); // #1089 — the same figure as the SVG / PNG export (font, size, white ground)
+    // #1089 — the same figure as the SVG / PNG export (font, size, white ground); #2604 — its print floor for the frame Layout
+    // places it in (PLACED_W / textFactor page px), the one atPrintSize laid the labels out for
+    const { markup } = exportSvgMarkup(svgEl, { placedW: PLACED_W / (Number(textFactor) > 0 ? Number(textFactor) : 1) });
     const src = `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(markup)))}`;
     const hScale = geomRef.current.hScale;
     sendSectionSnapshot({
