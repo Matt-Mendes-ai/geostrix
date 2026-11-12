@@ -2556,6 +2556,8 @@
   "What the values of \"{name}\" are": "ماهية قيم «{name}»",
   "What are the values (property and unit)?": "ما هي القيم (الخاصية والوحدة)؟",
   "Not stated (the file names no unit)": "غير مذكور (لا يسمي الملف وحدة)",
+  "{el} ({unit}), from the estimate": "{el} ({unit})، من التقدير",
+  "{el}, from the estimate": "{el}، من التقدير",
   "Other…": "أخرى…",
   "Cutoff": "الحد",
   "Range": "النطاق",

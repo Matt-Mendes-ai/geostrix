@@ -2810,7 +2810,9 @@ function VoxelModelRow({ others = null, model, onUpdate, onRemove, onEvaluate, o
           <select value={VOXEL_PROPERTIES.includes(model.property) ? model.property : model.property ? "__other" : ""} aria-label={tr("What the values of \"{name}\" are", { name: model.name })}
             onChange={(e) => { const v = e.target.value; if (v === "__other") { askPrompt(tr("What are the values (property and unit)?"), model.property || "", (other) => { if (other && other.trim()) onUpdate(model.id, { property: other.trim(), propertyChosen: true }); }); return; } onUpdate(model.id, { property: v || null, propertyChosen: true }); }}
             style={{ flex: 1, minWidth: 0, fontSize: "var(--font-size-sm)", padding: "2px 4px", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, color: "var(--color-text)" }}>
-            <option value="">{tr("Not stated (the file names no unit)")}</option>
+            {/* TASKS.csv #2067 (review #2013) — an estimate knows its element and unit (params): said here, not set as property, which would
+                rename its export column (lib/blockModelExport.js) */}
+            <option value="">{!model.property && model.params?.element ? (model.params.unit ? tr("{el} ({unit}), from the estimate", { el: model.params.element, unit: model.params.unit }) : tr("{el}, from the estimate", { el: model.params.element })) : tr("Not stated (the file names no unit)")}</option>
             {VOXEL_PROPERTIES.map((v) => <option key={v} value={v}>{tr(v)}</option>)}
             <option value="__other">{model.property && !VOXEL_PROPERTIES.includes(model.property) ? model.property : tr("Other…")}</option>
           </select>
