@@ -11329,5 +11329,8 @@
   "the block model \"{name}\" (same blocks)": "le modèle de blocs « {name} » (mêmes blocs)",
   "Density from the block model \"{name}\" on the same blocks: {k} block(s) take its value (a mean of {m} t/m³), {f} take {d} (no block of it there, or a value outside {lo}-{hi} t/m³).": "Densité du modèle de blocs « {name} » sur les mêmes blocs : {k} bloc(s) prennent sa valeur (une moyenne de {m} t/m³), {f} prennent {d} (pas de bloc de lui là, ou une valeur hors de {lo}-{hi} t/m³).",
   "the Density field ({rho} t/m³)": "le champ Densité ({rho} t/m³)",
-  "no density, so no tonnes": "aucune densité, donc pas de tonnes"
+  "no density, so no tonnes": "aucune densité, donc pas de tonnes",
+  "{pct}% of the estimated metal ({k} of {n} blocks) lies below the deepest sample of every hole within {r} m: carried down past the drilling, within the {h} m Vertical reach.": "{pct} % du métal estimé ({k} blocs sur {n}) se trouve sous l'échantillon le plus profond de chaque sondage à moins de {r} m : porté vers le bas au-delà des forages, dans la portée verticale de {h} m.",
+  "Kriged before {n} block(s) were removed (above the ground, outside the area or outside the solid), so more were kriged than are kept.": "Krigés avant que {n} bloc(s) ne soient retirés (au-dessus du sol, hors de la zone ou hors du solide) : davantage ont été krigés que conservés.",
+  "Cutoff {v}: the 90th percentile of the {n} {symbol} values, proposed when {symbol} was chosen. Type your own.": "Teneur de coupure {v} : le 90e centile des {n} valeurs de {symbol}, proposé au choix de {symbol}. Saisissez la vôtre."
 }

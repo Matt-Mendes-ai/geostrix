@@ -254,6 +254,9 @@ export default function ModellingPanes(props) {
     vein_units,
     worldPointFromHits,
   } = props;
+  // TASKS.csv #3025 (6) — the Grade shell's cutoff proposed on an element change (the 90th percentile of its assays) said as such: 57.3 % Fe
+  // appeared with no word
+  const [shellCutoffAuto, setShellCutoffAuto] = useState(null); // { symbol, value }
   // TASKS.csv #871 — the logged tops of a unit for the Explicit surface pane, by the implicit tool's rules (#354 / #495 /
   // #599); recomputed only when the logs, the modelling codes or the groups change
   // TASKS.csv #2532 (review #2486) — a raw lithology code's role: the one set for it in Modelling codes when listed there, else the guess from its name
@@ -1106,7 +1109,7 @@ export default function ModellingPanes(props) {
                     // #2060 (review #2013, Woodjam) — and without the QC inserts unless the pane includes them: Cu proposed 4470 ppm (a CRM's value), the drill samples' P90 is 4120
                     const rowsFor = ns ? sourceAssays(ns, { layers, customLayers: customLayersAll }).assays : (numericIncludeQAQC ? (assays || []).filter((a) => a.source !== "pXRF") : excludeQAQC(assays || []));
                     const v = rowsFor.map((a) => a.values?.[ns ? ns.symbol : next]).filter((x) => Number.isFinite(x) && x > 0).sort((x, y) => x - y);
-                    if (v.length) setNumericCutoff(+v[Math.floor(0.9 * (v.length - 1))].toPrecision(3));
+                    if (v.length) { const p90 = +v[Math.floor(0.9 * (v.length - 1))].toPrecision(3); setNumericCutoff(p90); setShellCutoffAuto({ symbol: next, value: p90, n: v.length }); } // said below: #3025 (6)
                   }} style={{ ...smallSel, width: "100%" }} disabled={!symbols.length && !numericSources.length}>
                     {symbols.length === 0 && numericSources.length === 0 && <option value="">{tr("— no assays —")}</option>}
                     {symbols.map((s) => <option key={s} value={s}>{s} ({gradeUnitLabel(s, assayElements.find((e) => e.symbol === s)?.unit || "ppm")})</option>)}{/* #2218 */}
@@ -1120,6 +1123,7 @@ export default function ModellingPanes(props) {
                   <input type="number" step="any" value={numericCutoff} onChange={(e) => setNumericCutoff(e.target.value === "" ? NaN : Number(e.target.value))} style={{ ...smallSel, width: "100%" }} />
                 </label>
               </div>
+              {shellCutoffAuto && shellCutoffAuto.symbol === sym && numericCutoff === shellCutoffAuto.value && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>{tr("Cutoff {v}: the 90th percentile of the {n} {symbol} values, proposed when {symbol} was chosen. Type your own.", { v: shellCutoffAuto.value, n: shellCutoffAuto.n.toLocaleString(), symbol: sym })}</div>}{/* #3025 (6) */}
               {!numSrc && (() => { const offers = drillThresholdOffers(geochemThresholds, sym, unit).slice(0, 4); return offers.length ? ( /* TASKS.csv #2689 (#2675 part 2) — saved drill thresholds offered as shell levels, never applied */
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 4, fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", alignItems: "center", marginBottom: 6 }}>
                   <span>{tr("Saved threshold:")}</span>

@@ -11329,5 +11329,8 @@
   "the block model \"{name}\" (same blocks)": "نموذج الكتل «{name}» (الكتل نفسها)",
   "Density from the block model \"{name}\" on the same blocks: {k} block(s) take its value (a mean of {m} t/m³), {f} take {d} (no block of it there, or a value outside {lo}-{hi} t/m³).": "الكثافة من نموذج الكتل «{name}» على الكتل نفسها: {k} كتلة تأخذ قيمته (بمتوسط {m} طن/م³)، و{f} تأخذ {d} (لا كتلة منه هناك، أو قيمة خارج {lo}-{hi} طن/م³).",
   "the Density field ({rho} t/m³)": "حقل الكثافة ({rho} طن/م³)",
-  "no density, so no tonnes": "لا كثافة، فلا أطنان"
+  "no density, so no tonnes": "لا كثافة، فلا أطنان",
+  "{pct}% of the estimated metal ({k} of {n} blocks) lies below the deepest sample of every hole within {r} m: carried down past the drilling, within the {h} m Vertical reach.": "{pct}% من المعدن المقدَّر ({k} من {n} كتلة) يقع تحت أعمق عينة لكل ثقب ضمن {r} م: محمول إلى الأسفل بعد الحفر، ضمن المدى الرأسي البالغ {h} م.",
+  "Kriged before {n} block(s) were removed (above the ground, outside the area or outside the solid), so more were kriged than are kept.": "كُرِّجت قبل إزالة {n} كتلة (فوق الأرض أو خارج المنطقة أو خارج المجسم)، لذا كُرِّج أكثر مما حُفظ.",
+  "Cutoff {v}: the 90th percentile of the {n} {symbol} values, proposed when {symbol} was chosen. Type your own.": "حد القطع {v}: المئين التسعون لقيم {symbol} البالغة {n}، مقترح عند اختيار {symbol}. اكتب قيمتك."
 }

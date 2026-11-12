@@ -11329,5 +11329,8 @@
   "the block model \"{name}\" (same blocks)": "o modelo de blocos \"{name}\" (mesmos blocos)",
   "Density from the block model \"{name}\" on the same blocks: {k} block(s) take its value (a mean of {m} t/m³), {f} take {d} (no block of it there, or a value outside {lo}-{hi} t/m³).": "Densidade do modelo de blocos \"{name}\" nos mesmos blocos: {k} bloco(s) usam o seu valor (uma média de {m} t/m³), {f} usam {d} (sem bloco dele ali, ou um valor fora de {lo}-{hi} t/m³).",
   "the Density field ({rho} t/m³)": "o campo Densidade ({rho} t/m³)",
-  "no density, so no tonnes": "nenhuma densidade, então sem toneladas"
+  "no density, so no tonnes": "nenhuma densidade, então sem toneladas",
+  "{pct}% of the estimated metal ({k} of {n} blocks) lies below the deepest sample of every hole within {r} m: carried down past the drilling, within the {h} m Vertical reach.": "{pct}% do metal estimado ({k} de {n} blocos) está abaixo da amostra mais profunda de cada furo a menos de {r} m: levado para baixo além da sondagem, dentro do alcance vertical de {h} m.",
+  "Kriged before {n} block(s) were removed (above the ground, outside the area or outside the solid), so more were kriged than are kept.": "Krigados antes de remover {n} bloco(s) (acima do terreno, fora da área ou fora do sólido), então foram krigados mais do que os mantidos.",
+  "Cutoff {v}: the 90th percentile of the {n} {symbol} values, proposed when {symbol} was chosen. Type your own.": "Teor de corte {v}: o percentil 90 dos {n} valores de {symbol}, proposto ao escolher {symbol}. Digite o seu."
 }
