@@ -19,6 +19,7 @@ import { saveFile } from "../lib/desktop.js";
 import { pBtn, smallSel } from "../lib/sidebarStyles.js";
 import UndergroundOreNote from "./UndergroundOreNote.jsx"; // TASKS.csv #2277
 import { t as tr } from "../lib/i18n.js";
+import NotOfferedGrades from "./NotOfferedGrades.jsx"; // TASKS.csv #2646
 import CollarLevelsNote from "./CollarLevelsNote.jsx"; // TASKS.csv #2584 — the lowest collar used where collars stand on benches
 import { weatheredBasePoints } from "../lib/weatheredZone.js"; // TASKS.csv #2597
 import { holeTraces } from "../lib/evidenceSources.js";
@@ -127,6 +128,7 @@ export default function NestedPitsPane({ surfaces = [], onAdd, onToggle, onRemov
           {pitChoices.map((s) => <option key={s.id} value={s.id}>{String(s.name).replace(/^Pit shell: /, "")}</option>)}
         </select></label>
       )}
+      <NotOfferedGrades voxelModels={voxelModels} />{/* TASKS.csv #2646 — the models the Pit shell (and so the series) leaves out, and why (#2436) */}
       {lastPit && !model && <div style={warn}>{tr("The block model the shell was run on (\"{m}\") is not in the project any more.", { m: lastPit.params?.blockModel || "?" })}</div>}
       {lastPit && model && (<>
         <div style={{ ...note, marginTop: 4 }}>{tr("From \"{pit}\": {price} {unit}, recovery {rec} %, mining ${mc}/t, processing ${pc}/t, density {d}, slope {s}°{sec}.", { pit: String(lastPit.name).replace(/^Pit shell: /, ""), price: inputs.price, unit: priceLabel, rec: inputs.recovery, mc: inputs.miningCost, pc: inputs.processingCost, d: inputs.wasteDensity > 0 ? tr("{o} ore, {w} waste", { o: inputs.density, w: inputs.wasteDensity }) : inputs.density /* #2437 */, s: inputs.slopeDeg, sec: inputs.sectorSlopes ? tr(" (by sector)") : "" })}</div>{/* sec: #1897 */}
@@ -184,6 +186,13 @@ export default function NestedPitsPane({ surfaces = [], onAdd, onToggle, onRemov
           })()}
           {line(tr("Solved in"), `${res.seconds} s`)}
           {res.groundSource === "collars" && <><div style={note}>{tr("The ground is interpolated between the collars, not a terrain.")}</div><CollarLevelsNote collars={collars} /></>}
+          {(() => { // TASKS.csv #2645 — as the Pit shell (#2435): the largest pit's ore in blocks beyond every sample informing them
+            if (!(model?.params?.beyondFlagged || model?.cells?.some((c) => c.beyond))) return null;
+            const largest = [...res.runs].reverse().find((r) => r.oreT > 0), p = largest?.oreBeyondSampleShare || 0;
+            if (!(p > 0)) return null;
+            const text = p > 0.2 ? tr("{p} % of this ore is in blocks above or below every sample that informs them: unsampled ground, neither barren nor ore, so the strip ratio rests on it.", { p: Math.round(p * 100) }) : tr("{p} % of the ore is in blocks above or below every sample that informs them.", { p: Math.round(p * 100) });
+            return <div style={p > 0.2 ? warn : note}>{tr("Largest pit (revenue factor {rf}): {text}", { rf: largest.rf, text })}</div>;
+          })()}
           {res.groundSource === "model top" && <div style={note}>{tr("The ground is the top of the block model's columns, interpolated between them, not a terrain.")}</div>}{/* #1850 */}
           {res.coarsened && <div style={warn}>{tr("The grid was made coarser to stay within the limit, so the walls are coarser than the block model.")}</div>}
           {res.runs.some((r) => r.touchesBase) && <div style={warn}>{tr("A shell reaches the bottom of the block model: it may go deeper if the body does.")}</div>}
