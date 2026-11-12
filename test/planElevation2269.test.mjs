@@ -35,6 +35,6 @@ test("both panes pass it with no terrain and say it", () => {
   for (const f of ["UnitPolygonPane", "InterpretPane"]) {
     const s = readFileSync(new URL(`../src/components/${f}.jsx`, import.meta.url), "utf8");
     assert.match(s, /plan \? \{ elevation: (plan\.z|elevNow) \} : \{\}/, f); // #2522: InterpretPane's Elev. box (elevNow falls back to plan.z)
-    assert.match(s, /\{plan && <div role="note"[^>]*>\{planElevationText\(plan\)\}<\/div>\}/, f);
+    assert.match(s, /\{plan (&& !onCollars )?&& <div role="note"[^>]*>\{planElevationText\(plan\)\}<\/div>\}/, f); // #2768: InterpretPane says it only when flat
   }
 });

@@ -12,5 +12,6 @@ test("both import paths store 'terrain' (or 'file' for 3D points / lines with no
 test("the renderer draws a 'terrain' layer flat until a terrain exists, then on it", () => {
   const s = fs.readFileSync("src/lib/viewer/sceneBuilders.js", "utf8");
   assert.match(s, /const drapeOnTerrain = l\.drapeMode === "terrain" && !!terrain;/);
-  assert.match(s, /drapeOnTerrain \? `terrain:\$\{terrain\.id\}` : `flat:\$\{l\.elevation \|\| 0\}`/);
+  // #2768 — an interpretation layer with no terrain drapes on the collars' ground in between
+  assert.match(s, /drapeOnTerrain \? `terrain:\$\{terrain\.id\}` : onCollars \? `collars:\$\{collarsKey\(collars\)\}` : `flat:\$\{l\.elevation \|\| 0\}`/);
 });
