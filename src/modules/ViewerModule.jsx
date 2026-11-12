@@ -132,6 +132,7 @@ import { sliceReadoutText } from "../lib/sliceReadout.js";
 import { buildVectorFeatures as buildVectorFeaturesOf } from "../lib/viewer/vectorFeatures.js"; // TASKS.csv #1083
 import { isRepeatClick } from "../lib/interpretation.js"; // TASKS.csv #1152
 import { syncInterpretPreview, hoverFirstCorner } from "../lib/viewer/interpretDraw.js"; // TASKS.csv #1152; hover: #2682
+import { tipWithMeaning } from "../lib/viewer/codeMeaning.js"; // TASKS.csv #2816
 import { localDate } from "../lib/localDate.js"; // TASKS.csv #2703
 import { rightDragTracker } from "./viewer/rightDrag.js"; // TASKS.csv #2213
 import { holeZoomPhi } from "./viewer/zoomHole.js"; // TASKS.csv #2375
@@ -550,7 +551,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   const {
     collars, setCollars, survey, setSurvey, layers, setLayers, replaceLayer, assays, assayElements,
     desurveyMethod, // TASKS.csv #135 — project-wide desurvey method; every trace built here must use it
-    surfaceSamples, surfaceElements,
+    surfaceSamples, surfaceElements, codeDictionary, // #2816
     designLines, /* TASKS.csv #1342 */ designStrings, /* TASKS.csv #1876 */ plannedHoles, addPlannedHole, updatePlannedHole, removePlannedHole,
     generatedSurfaces, setGeneratedSurfaces, modelDomains, setModelDomains, // TASKS.csv #52 — persisted implicit surfaces + domains
     getProjectToken, isSameProject, // TASKS.csv #466
@@ -2305,14 +2306,10 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
       if (worldPt) setCursor(worldPt.plane ? { ...worldPt, z: null } : worldPt); // #2526 — over open ground Z is '—': no ground was hit
       hoverFirstCorner(interpretGroupRef.current, interpretRef.current, worldPt, originRef.current); // #2682 — a click here closes the unit polygon
       // hover tooltip on layer objects — real bug fixed here: intersectObjects() is given the raw
-      // mesh children directly (not their parent THREE.Group), and Raycaster only skips an object
-      // whose OWN .visible is false, not an ancestor's — so a toggled-off layer's group.visible=false
-      // never actually stopped its children from being hit-tested, meshes just weren't drawn, and
-      // hovering over (say) a hidden lithology interval that happened to sit at the same spot as a
-      // visible one would show the wrong tooltip, or a tooltip for data the user just turned off.
-      // Filtering to only visible groups' children here (mirrors what actually renders) fixes it.
+      // mesh children directly, and Raycaster skips only an object whose OWN .visible is false: a hidden layer's intervals were
+      // hit-tested and gave the wrong tooltip. Only visible groups' children count here (as rendered).
       const layerHit = firstVisibleLayerHit(hoverHits);
-      if (layerHit && layerHit.object.userData?.tip) setTooltip({ x: e.clientX, y: e.clientY, text: layerHit.object.userData.tip });
+      if (layerHit && layerHit.object.userData?.tip) setTooltip({ x: e.clientX, y: e.clientY, text: tipWithMeaning(layerHit.object, layerGroupsRef.current, codeDictRef.current) }); // + the code's meaning: #2816
       else setTooltip(null);
     };
     // Max radius raised again (500km -> 4,000km) alongside the far-plane bump above, so there's no
@@ -4669,7 +4666,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   // src/lib/useSculpt.js, hand-verified in bare Node against analytic ground truth before any of this
   // was wired up — see the TASKS.csv #145 notes for the numbers.
   // TASKS.csv #1324 — what is under a click
-  const identify = useIdentify({ mountRef, cameraRef, sceneRef, pickHits, lastActivityRef, originRef, tracesRef, layerGroupsRef, rasterMeshesRef, mapLayerMeshesRef, surfStructObjsRef, mapLayerGroupRef, surfStructGroupRef, terrainMeshRef, rasters, mapLayers, surfaceStructures, units: Object.fromEntries((assayElements || []).map((e) => [e.symbol, e.unit])),
+  const codeDictRef = useRef(codeDictionary); codeDictRef.current = codeDictionary; // #2816 — for the mount-once hover handler
+  const identify = useIdentify({ mountRef, cameraRef, sceneRef, pickHits, lastActivityRef, originRef, tracesRef, layerGroupsRef, rasterMeshesRef, mapLayerMeshesRef, surfStructObjsRef, mapLayerGroupRef, surfStructGroupRef, terrainMeshRef, rasters, mapLayers, surfaceStructures, codeDictionary /* #2816 */, units: Object.fromEntries((assayElements || []).map((e) => [e.symbol, e.unit])),
     layerLabel: (k) => tr(LAYER_META[k]?.label || customLayers.find((l) => l.id === k)?.name || { assay: "Assays", geophys_pts: "Geophysics points", surface_samples: "Surface samples", holes: "Drillholes" /* #2041 */ }[k] || k),
     kinds: [[implicitGroupRef, tr("Generated surfaces")], [omfGroupRef, tr("OMF objects")], [plannedGroupRef, tr("Planned holes")], [boundaryGroupRef, tr("Boundaries")]] });
   identifyStopRef.current = () => { if (!identify.on) return false; identify.stop(); return true; };

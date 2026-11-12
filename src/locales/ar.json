@@ -2539,6 +2539,7 @@
   "Convert heights to elevations (terrain + height)": "تحويل الارتفاعات النسبية إلى مناسيب (التضاريس + الارتفاع)",
   "\"{fileName}\" — {rows} row(s), {columns} column(s). Pick which columns to import as points:": "«{fileName}» — {rows} صف، {columns} عمود. اختر الأعمدة المراد استيرادها كنقاط:",
   "Value": "القيمة",
+  "Meaning": "المعنى",
   "Z / elevation (optional)": "Z / الارتفاع (اختياري)",
   "(none — elevation not recorded)": "(لا شيء — الارتفاع غير مسجل)",
   "(choose a column)": "(اختر عمودًا)",
