@@ -132,6 +132,7 @@ import { sliceReadoutText } from "../lib/sliceReadout.js";
 import { buildVectorFeatures as buildVectorFeaturesOf } from "../lib/viewer/vectorFeatures.js"; // TASKS.csv #1083
 import { isRepeatClick } from "../lib/interpretation.js"; // TASKS.csv #1152
 import { syncInterpretPreview } from "../lib/viewer/interpretDraw.js"; // TASKS.csv #1152
+import { snapInterpretClick } from "../lib/viewer/interpretSnap.js"; // TASKS.csv #2630
 import { outlinesKey, blockSourceKey } from "../lib/explicitLog.js"; // TASKS.csv #878
 import { extrapolationNotice } from "../lib/extrapolatedInputs.js"; // #1840
 import { withAlphaOnlyPicks } from "../lib/alphaPicks.js"; // #1686
@@ -6307,11 +6308,11 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     const rect = mountRef.current.getBoundingClientRect();
     const raycaster = new THREE.Raycaster();
     raycaster.setFromCamera(new THREE.Vector2(((e.clientX - rect.left) / rect.width) * 2 - 1, -((e.clientY - rect.top) / rect.height) * 2 + 1), cameraRef.current);
-    const world = raycastWorldPoint(raycaster);
+    const world = snapInterpretClick(raycastWorldPoint(raycaster), raycaster.ray, { on: interpretOpen === true && interpretRef.current.snap !== false /* lines only, not unit polygons */, traces: tracesRef.current, layers, visible: layerVisible, origin: originRef.current, camera: cameraRef.current, heightPx: rect.height }); // #2630
     if (!world) return;
     const at = Date.now();
     setInterpret((s) => (isRepeatClick(s.points[s.points.length - 1], { ...world, at }) ? { ...s, finishSeq: s.finishSeq + 1 } : { ...s, points: [...s.points, { ...world, at }] }));
-  }, [raycastWorldPoint]);
+  }, [raycastWorldPoint, layers, layerVisible, interpretOpen]);
   useEffect(() => { // the line being drawn, in the scene
     const scene = sceneRef.current; if (!scene) return;
     if (!interpretGroupRef.current) { interpretGroupRef.current = new THREE.Group(); scene.add(interpretGroupRef.current); }
@@ -7061,7 +7062,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   const openInterpret = (kind) => { if (interpretOpen) stopInterpret(); setInterpretOpen((v) => (v === kind ? false : kind)); };
   const interpretPane = interpretOpen && (<Suspense fallback={null}>{React.createElement(interpretOpen === "polygon" ? UnitPolygonPane : InterpretPane, { drawing: interpret, presetSurvey: interpret.survey,
     onStart: () => { setRectZoomMode(false); setSectionMode(false); setMeasureMode(null); setMeasurePts([]); setPickHoleMode(false); setInterpret((s) => ({ ...s, on: true, points: [] })); },
-    onUndo: () => setInterpret((s) => ({ ...s, points: s.points.slice(0, -1) })), onCancel: stopInterpret, onDone: stopInterpret, onClose: () => { setInterpretOpen(false); stopInterpret(); } })}</Suspense>);
+    onUndo: () => setInterpret((s) => ({ ...s, points: s.points.slice(0, -1) })), onSnap: (v) => setInterpret((s) => ({ ...s, snap: v })) /* #2630 */, onCancel: stopInterpret, onDone: stopInterpret, onClose: () => { setInterpretOpen(false); stopInterpret(); } })}</Suspense>);
   const anomalyControls = <Suspense fallback={null}><SurfaceAnomalyControls cfg={layerStyles.surface_anomaly} setCfg={(cfg) => setLayerStyles((p) => ({ ...p, surface_anomaly: cfg }))} surfaceSamples={surfaceSamples} surfaceElements={surfaceElements} mapLayers={mapLayers} thresholds={geochemThresholds} result={surfaceAnomaly} drawn={surfaceSamples} /* #1819 — the class CSV holds every sample */ /></Suspense>; // #1603 — also on the Surface Geology tab
   return (
     <div style={{ display: visible ? "flex" : "none", flexDirection: "column", flex: 1, minHeight: 0, width: "100%", order: bare ? 1 : 0 }}>
