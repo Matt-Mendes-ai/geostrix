@@ -3,7 +3,7 @@
 // dilution), optionally within one logged unit and reported as the element's oxide (offered, stated, never applied by itself: #2721);
 // the holes as graduated circles on a plan; then a 2D estimate of GT and thickness, a contour at a GT cut-off the user types, and
 // area x GT x density = metal, with the same honesty as Estimation. No default cut-off reads as a fact (#264): every cut-off is typed.
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react"; // useEffect: #2756
 import { X, Download } from "./icons.js";
 import { t as tr } from "../lib/i18n.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
@@ -69,7 +69,23 @@ export default function GradeThicknessModal({ assays, assayElements, collars, su
   const cellM = Number(cell) > 0 ? Number(cell) : spacing ? Math.max(1, Math.round(spacing / 4)) : null;
   const radiusM = Number(radius) > 0 ? Number(radius) : spacing ? Math.round(spacing * 2.5) : null; // #2420's rule: a block between two holes reaches both
   const [run, setRun] = useState(0);
-  const grid = useMemo(() => (run && pts.length >= 2 && cellM && radiusM ? planGrid(pts, { cell: cellM, radius: radiusM, pad: radiusM / 2 }) : null), [run]); // computed on Run only (the inputs above are read then)
+  const idwGrid = useMemo(() => (run && pts.length >= 2 && cellM && radiusM ? planGrid(pts, { cell: cellM, radius: radiusM, pad: radiusM / 2 }) : null), [run]); // computed on Run only (the inputs above are read then)
+  // TASKS.csv #2756 — ordinary kriging beside inverse distance: each variable's own 2D variogram, the same nodes (lib/planKriging.js, loaded
+  // on demand with the estimator's okEstimate). The method in force is the one chosen when Run was pressed.
+  const [method, setMethod] = useState("idw"), [runMethod, setRunMethod] = useState("idw");
+  const [ok, setOk] = useState(null);
+  useEffect(() => {
+    if (!run || runMethod !== "ok" || pts.length < 2 || !cellM || !radiusM) { setOk(null); return undefined; }
+    let live = true;
+    setOk({ busy: true });
+    import("../lib/planKriging.js").then(({ planVariogram, planGridOK }) => {
+      if (!live) return;
+      const vgGT = planVariogram(pts, "gt", spacing), vgTh = planVariogram(pts, "thicknessM", spacing);
+      setOk({ grid: planGridOK(pts, { cell: cellM, radius: radiusM, pad: radiusM / 2, vgGT: vgGT.fit, vgTh: vgTh.fit }), vgGT, vgTh });
+    });
+    return () => { live = false; };
+  }, [run]); // as the inverse-distance grid: on Run only
+  const grid = runMethod === "ok" ? ok?.grid ?? null : idwGrid;
   const gtc = gtCut === "" ? NaN : Number(gtCut);
   const summary = useMemo(() => (grid && Number.isFinite(gtc) ? planSummary(grid, gtc, density, unit) : null), [grid, gtc, density, unit]);
   // TASKS.csv #2650 — the same grid in square panels (a strip, an in-situ recovery pattern): a panel counts when its mean GT reaches the cut-off
@@ -145,17 +161,30 @@ export default function GradeThicknessModal({ assays, assayElements, collars, su
               <label style={field}>{tr("GT cut-off ({u})", { u: gtLabel })}<input type="number" min="0" step="any" value={gtCut} placeholder={tr("cut-off")} onChange={(e) => setGtCut(e.target.value)} style={inp} aria-label={tr("GT cut-off")} /></label>
               <label style={field}>{tr("Density (t/m³)")}<input type="number" min="0" step="any" value={density} onChange={(e) => setDensity(e.target.value)} style={inp} aria-label={tr("Density (t/m³)")} /></label>
               <label style={field} title={tr("Optional: the side of a square panel (a strip, an in-situ recovery pattern); each panel counts when its mean GT reaches the GT cut-off.")}>{tr("Panel side (m)")}<input type="number" min="0" step="any" value={panelText} placeholder={tr("optional")} onChange={(e) => setPanelText(e.target.value)} style={inp} aria-label={tr("Panel side (m)")} /></label>{/* #2650 */}
-              <button type="button" disabled={pts.length < 2 || !cellM || !radiusM} onClick={() => setRun((n) => n + 1)} style={{ ...inp, width: "auto", cursor: "pointer" }}>{tr("Estimate GT and thickness")}</button>
+              <label style={field} title={tr("Ordinary kriging fits a 2D variogram to the holes' GT, and another to their thickness, and weighs the nearest holes by it; inverse distance weighs them by distance alone. Both estimate the same nodes.")}>{tr("Method")}<select value={method} onChange={(e) => setMethod(e.target.value)} style={{ ...inp, width: "auto" }} aria-label={tr("Plan estimation method")}>
+                <option value="idw">{tr("Inverse distance (squared)")}</option>
+                <option value="ok">{tr("Ordinary kriging (a 2D variogram of each)")}</option>
+              </select></label>{/* #2756 */}
+              <button type="button" disabled={pts.length < 2 || !cellM || !radiusM} onClick={() => { setRunMethod(method); setRun((n) => n + 1); }} style={{ ...inp, width: "auto", cursor: "pointer" }}>{tr("Estimate GT and thickness")}</button>
             </div>
+            {runMethod === "ok" && ok?.busy && <div style={note}>{tr("Kriging the plan grid…")}</div>}{/* #2756 */}
             {spacing && <div style={note}>{tr("Holes typically {s} m apart in plan: blank cell = a quarter of that, blank search = 2.5 times it.", { s: Math.round(spacing) })}</div>}
             {grid && (
               <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.6 }}>
+                {grid.method === "ok" ? <div>{tr("{n} of {t} nodes estimated ({c} m cells{v}, {r} m search, ordinary kriging from the nearest {k} holes).", { n: grid.estimated.toLocaleString(), t: (grid.nx * grid.ny).toLocaleString(), c: +grid.cell.toFixed(1), v: grid.cell !== grid.cellAsked ? tr(", coarsened to stay under the node limit") : "", r: grid.radius, k: grid.maxSamples })}</div> : (
                 <div>{tr("{n} of {t} nodes estimated ({c} m cells{v}, {r} m search, inverse distance squared).", { n: grid.estimated.toLocaleString(), t: (grid.nx * grid.ny).toLocaleString(), c: +grid.cell.toFixed(1), v: grid.cell !== grid.cellAsked ? tr(", coarsened to stay under the node limit") : "", r: grid.radius })}</div>
+                )}
+                {grid.method === "ok" && ok && [[ok.vgGT, tr("GT")], [ok.vgTh, tr("Thickness")]].map(([v, what]) => <div key={what}>{v.fit
+                  ? tr("{what}: variogram nugget {n}, sill {s}, range {r} m, r² {q} ({p} pairs).", { what, n: Number(v.fit.nugget.toPrecision(3)).toLocaleString(), s: Number(v.fit.sill.toPrecision(3)).toLocaleString(), /* three figures, whatever the unit */ r: Math.round(v.fit.range), q: v.fit.rSquared == null ? "—" : v.fit.rSquared.toFixed(2), p: v.nPairs.toLocaleString() })
+                    + ((v.fit.rSquared != null && v.fit.rSquared < 0.5) || v.fit.nuggetRatio >= 0.8 ? " " + tr("A weak or nugget-dominated fit: kriging adds little over inverse distance here.") : "")
+                    + (v.rangeBeyond ? " " + tr("Its range lies past the reliable lags: extrapolated, not measured.") : "")
+                  : tr("{what}: no variogram could be fitted (too few holes or pairs, or every hole the same): estimated by inverse distance.", { what })}</div>)}
+                {grid.method === "ok" && (grid.clamped > 0 || grid.fallback > 0) && <div>{tr("{c} negative kriged value(s) set to 0; {f} node value(s) kept inverse distance (a singular system).", { c: grid.clamped.toLocaleString(), f: grid.fallback.toLocaleString() })}</div>}{/* #2756 */}
                 {!Number.isFinite(gtc) ? <div>{tr("Type the GT cut-off for the contour and the totals: none is chosen for you.")}</div> : summary && (
                   <div>{tr("At GT ≥ {c} {u}: {a} km² ({n} nodes), mean thickness {th} m, mean grade {g} {gu}{v}.", { c: gtc, u: gtLabel, a: fmt(summary.areaM2 / 1e6, 3), n: summary.nodes.toLocaleString(), th: fmt(summary.meanThicknessM, 2), g: fmt(summary.meanGrade == null ? null : summary.meanGrade, 3), gu: shownGrade, v: summary.tonnes != null ? tr("; {t} t at {d} t/m³, {m} {mu} of {el}", { t: fmt(summary.tonnes, 0), d: Number(density), m: fmt(summary.metalUnit === "g" && summary.metal >= 1e6 ? summary.metal / 1e6 : summary.metal, summary.metalUnit === "g" && summary.metal >= 1e6 ? 1 : 0), mu: summary.metalUnit === "g" && summary.metal >= 1e6 ? "t" : summary.metalUnit || "", /* a million grams and over: tonnes */ el: ox ? ox.oxide : symbol }) : tr("; type a density for tonnes and metal") })}</div>
                 )}
                 {panels && <div>{panels.totals.orePanels ? tr("In {p} m panels: {n} of {m} reach GT ≥ {c} {u}: {a} km², {t} t at {g} {gu}, mean thickness {th} m.", { p: Number(panelText), n: panels.totals.orePanels, m: panels.totals.panels, c: gtc, u: gtLabel, a: fmt(panels.totals.area / 1e6, 3), t: fmt(panels.totals.tonnes, 0), g: fmt(panels.totals.grade, 3), gu: shownGrade, th: fmt(panels.totals.thick, 2) }) : tr("In {p} m panels: none of {m} reaches GT ≥ {c} {u}.", { p: Number(panelText), m: panels.totals.panels, c: gtc, u: gtLabel })}</div>}{/* #2650 */}
-                <div style={{ ...note, marginTop: 4 }}><b>{tr("Not a resource estimate.")}</b>{" "}{tr("Inverse-distance interpolation of the holes' GT and thickness in plan: no declustering, no variogram, no classification. Between holes the numbers are the method's, not the data's; a node farther than the search radius from every hole is left out, not counted as barren. Holes assayed for the element with no intercept count as 0, so the contour closes against them; undrilled ground is not estimated.")}</div>
+                <div style={{ ...note, marginTop: 4 }}><b>{tr("Not a resource estimate.")}</b>{" "}{grid.method === "ok" ? tr("Ordinary kriging of the holes' GT and thickness in plan, each with its own fitted 2D variogram: no declustering, no classification. Between holes the numbers are the model's, not the data's; a node farther than the search radius from every hole is left out, not counted as barren. Holes assayed for the element with no intercept count as 0, so the contour closes against them; undrilled ground is not estimated.") : tr("Inverse-distance interpolation of the holes' GT and thickness in plan: no declustering, no variogram, no classification. Between holes the numbers are the method's, not the data's; a node farther than the search radius from every hole is left out, not counted as barren. Holes assayed for the element with no intercept count as 0, so the contour closes against them; undrilled ground is not estimated.")}</div>
               </div>
             )}
           </>
