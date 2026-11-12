@@ -41,7 +41,7 @@ test("the section marks EOH and offset tags optional, drops crowded names and sa
   const s = readFileSync(new URL("../src/components/SectionWindow.jsx", import.meta.url), "utf8");
   assert.match(s, /text: tr\("EOH \{v\} m", \{ v: Math\.round\(eoh\) \}\), size: fs\(9\), fill: "#1a2028", prio: 2, optional: true/);
   assert.match(s, /key: `off\$\{hi\}`, text: off, size: fs\(9\), fill: "#7a8494", prio: 2, optional: true/);
-  assert.match(s, /avoid: axisLabelBoxes, dropCrowded: true \}\);\n\s+leftOutRef\.current \+= items\.length - placed\.length;/);
+  assert.match(s, /avoid: axisLabelBoxes, dropCrowded: true(, fixedYield: printing \/\* #2761 \*\/)? \}\);\n\s+leftOutRef\.current \+= items\.length - placed\.length;/);
   assert.match(s, /onLeftOut=\{printScale == null \? setLabelsLeftOut : null\}/);
   assert.match(s, /tr\("\{n\} labels left out: no room", \{ n: labelsLeftOut \}\)/);
 });
