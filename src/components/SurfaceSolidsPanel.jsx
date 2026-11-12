@@ -34,6 +34,8 @@ export default function SurfaceSolidsPanel({ surfaces, explicitDefs = [], worldM
     // TASKS.csv #860 — closed is not enough: inside a self-intersection the parity test that codes a solid is wrong
     const v = closed && s.type !== "unit_volume" ? validateSolid(m.positions, m.indices) : null;
     const broken = v && (v.selfIntersectingPairs > 0 || v.nonManifoldEdges > 0 || v.windingConflicts > 0) ? v : null;
+    // TASKS.csv #2633 — the defects the edge counts cannot see, said beside the solid (not blocking: see meshValidate.js)
+    const defects = v && !broken ? [v.nonManifoldVertices && tr(v.nonManifoldVertices === 1 ? "{n} vertex where two parts touch at a point (a bow-tie)" : "{n} vertices where two parts touch at a point (bow-ties)", { n: v.nonManifoldVertices }), v.degenerateTriangles && tr("{n} triangle(s) with no area", { n: v.degenerateTriangles }), v.isolatedVertices && tr("{n} vertex(es) no triangle uses", { n: v.isolatedVertices }), v.coincidentVertices && tr("{n} vertex(es) repeated at the same place", { n: v.coincidentVertices })].filter(Boolean) : [];
     if (broken) closed = false;
     let xmin = Infinity, xmax = -Infinity, ymin = Infinity, ymax = -Infinity;
     for (let i = 0; i < m.positions.length; i += 3) { const x = m.positions[i], y = m.positions[i + 1]; if (x < xmin) xmin = x; if (x > xmax) xmax = x; if (y < ymin) ymin = y; if (y > ymax) ymax = y; }
@@ -52,7 +54,7 @@ export default function SurfaceSolidsPanel({ surfaces, explicitDefs = [], worldM
     // surface 'Top of X' bounds the unit X (it named the unit 'Top of V-Vcl-Intermed')
     const notATop = /^structure:/i.test(s.name || "") || ["dyke", "breccia_body", "alteration_envelope", "mineralization_envelope"].includes(s.type);
     const unitName = String(s.name || "").replace(/^top of\s+/i, "");
-    return { broken, dip, steep, leaning, id: s.id, name: s.name, unit: d ? layerLabel(d) : unitName, baseUnit: d ? unitOf(d) : unitName, mesh: m, closed, xy: [xmin, xmax, ymin, ymax], z: zStats(m.positions), defaultRole: s.type === "unit_volume" ? "none" : closed ? "solid" : d ? (contactOf(d) === "lower" ? "base" : "top") : (s.type === "fault" || s.type === "vein_hangingwall" || s.type === "vein_footwall" || SOLID_SURFACE_TYPES.has(s.type) || notATop) ? "none" : "top" }; // unit volumes are this tool's own output; faults / vein walls are steep, not unit tops; an OPEN body (#804) has no inside and is no top either
+    return { broken, defects, dip, steep, leaning, id: s.id, name: s.name, unit: d ? layerLabel(d) : unitName, baseUnit: d ? unitOf(d) : unitName, mesh: m, closed, xy: [xmin, xmax, ymin, ymax], z: zStats(m.positions), defaultRole: s.type === "unit_volume" ? "none" : closed ? "solid" : d ? (contactOf(d) === "lower" ? "base" : "top") : (s.type === "fault" || s.type === "vein_hangingwall" || s.type === "vein_footwall" || SOLID_SURFACE_TYPES.has(s.type) || notATop) ? "none" : "top" }; // unit volumes are this tool's own output; faults / vein walls are steep, not unit tops; an OPEN body (#804) has no inside and is no top either
   }).filter(Boolean).map((it, k, all) => { // #1544 — an earlier run of a surface that was modelled again is not used by default
     const key = it.name.trim().toLowerCase(), older = all.slice(k + 1).some((o) => o.name.trim().toLowerCase() === key);
     return older ? { ...it, older, defaultRole: "none" } : it;
@@ -141,6 +143,7 @@ export default function SurfaceSolidsPanel({ surfaces, explicitDefs = [], worldM
           <span style={{ color: "var(--color-text-faint)", fontSize: "var(--font-size-xs)", flexShrink: 0 }}>{it.steep || it.leaning ? <span title={it.steep ? tr("A wall, not a top: dips {d}°. Vertical columns meet it over a sliver of the box, so it cannot bound units here. For a vein or dyke use Vein solid from two surfaces.", { d: it.dip.toFixed(0) }) : tr("Dips {d}°: blocks coded from a top this steep are approximate near its edges. For a vein or dyke use Vein solid from two surfaces.", { d: it.dip.toFixed(0) })}>{tr("dips {d}°", { d: it.dip.toFixed(0) })}</span> : it.broken ? <span title={tr("Closed, but it crosses itself ({n} triangle pairs) or its faces point both ways, so it has no well-defined inside. Fix or rebuild it before using it as a solid.", { n: it.broken.selfIntersectingPairs })}>{tr("crosses itself")}</span> : it.closed ? tr("closed") : tr("open")}</span>
         </div>
       ))}
+      {solids.filter((it) => it.defects?.length).map((it) => <div key={`df_${it.id}`} role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 6, lineHeight: 1.4 }}>{tr("{name}: {list}. Its volume and the inside test can be off there.", { name: it.name, list: it.defects.join("; ") })}</div>)}{/* #2633 */}
       {tops.length > 1 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6 }}>{tr("Stack, top to bottom: {list}", { list: tops.map((t) => (roleOf(t) === "base" ? tr("base of {unit}", { unit: t.unit }) : t.unit === t.name ? t.name : tr("top of {unit}", { unit: t.unit }))).join(" › ") })}</div>}
       {auto && (<>
         <div style={row}>
