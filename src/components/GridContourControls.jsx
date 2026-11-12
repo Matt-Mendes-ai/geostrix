@@ -8,6 +8,7 @@ import { b64ToF32 } from "../lib/inversion.js";
 import { gridContours, suggestedContourLevels } from "../lib/sampleGrid.js";
 import { parseBreaks } from "../lib/mapGraduated.js";
 import { averagedInfo, missedLevelsText } from "../lib/gridMeans.js"; // TASKS.csv #2831
+import { fieldContourLevels, levelsEvery, everyInterval, p2p98 } from "../lib/gridContourLevels.js"; // TASKS.csv #2836 / #2844
 
 export default function GridContourControls({ raster, inputStyle }) {
   const { addBoundary, terrain } = useStore();
@@ -17,13 +18,17 @@ export default function GridContourControls({ raster, inputStyle }) {
   // can be millions of cells: it is decoded (and sorted for the suggested levels) only once the contours are asked for, not on every card
   const [open, setOpen] = useState(!!raster.geochem);
   const values = useMemo(() => (open && raster.grid?.values ? b64ToF32(raster.grid.values) : null), [open, raster.grid]);
-  const suggested = useMemo(() => (values ? suggestedContourLevels(values) : []), [values]);
+  // TASKS.csv #2836 / #2844 — a geochemistry grid: the upper tail of its positive values (#1622); any other grid: a round interval across its 2–98 %
+  const field = useMemo(() => (values && !raster.geochem ? fieldContourLevels(values) : null), [values, raster.geochem]);
+  const suggested = useMemo(() => (values ? (field ? field.levels : suggestedContourLevels(values)) : []), [values, field]);
   if (!raster.grid?.values) return null;
   if (!open) return <button type="button" onClick={() => setOpen(true)} style={{ marginTop: 7, padding: "3px 8px", fontSize: "var(--font-size-sm)", border: "1px solid var(--color-border)", borderRadius: 4, background: "var(--color-bg)", color: "var(--color-text-secondary)", cursor: "pointer" }}>{tr("Contours…")}</button>;
   if (!values) return null;
   const unit = rasterUnitOf(raster); // #1858 — the unit typed on the raster first
   const add = () => {
-    const levels = text.trim() ? parseBreaks(text) : suggested;
+    const every = everyInterval(text), r98 = every ? p2p98(values) : null; // #2844 — 'every 5'
+    const levels = every ? (r98 ? levelsEvery(every, r98[0], r98[1]) : []) : text.trim() ? parseBreaks(text) : suggested;
+    if (every && !levels.length) { setMsg(tr("Every {d} gives too many levels (or none) across this grid's 2–98 % range: try a larger interval.", { d: every })); return; }
     if (!levels.length) { setMsg(tr("Type one or more levels, e.g. 0.01, 0.05, 0.1.")); return; }
     const res = gridContours(raster.grid, values, levels);
     const avg = averagedInfo(raster.grid, values), missed = missedLevelsText(levels, res.map((l) => l.level), avg, values); // #2831 — a level the block means never reach, said
@@ -42,7 +47,9 @@ export default function GridContourControls({ raster, inputStyle }) {
     <div style={{ marginTop: 7 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
         <span style={{ color: "var(--color-text-faint)", width: 46, flexShrink: 0 }}>{tr("Contours")}</span>
-        <input type="text" value={text} onChange={(e) => setText(e.target.value)} placeholder={suggested.join(", ")} aria-label={tr("Contour levels")} title={tr("Levels in {unit}, lowest first; blank: the grid's 75th, 90th, 95th and 98th percentiles", { unit: unit || tr("the grid's unit") })} style={{ ...inputStyle, flex: 1, minWidth: 0 }} />
+        <input type="text" value={text} onChange={(e) => setText(e.target.value)} placeholder={field ? tr("every {d}", { d: field.interval }) : suggested.join(", ")} aria-label={tr("Contour levels")} title={field /* #2836 / #2844 */
+          ? tr("Levels in {unit}, lowest first, or 'every 5'; blank: every {d}{du} across the grid's 2–98 % range ({lo} to {hi}){z}", { unit: unit || tr("the grid's unit"), d: field.interval, du: unit ? " " + unit : "", lo: +field.range[0].toPrecision(3), hi: +field.range[1].toPrecision(3), z: field.range[0] < 0 && field.range[1] > 0 ? tr(", with the zero line") : "" })
+          : tr("Levels in {unit}, lowest first; blank: the 75th, 90th, 95th and 98th percentiles of the grid's positive values", { unit: unit || tr("the grid's unit") })} style={{ ...inputStyle, flex: 1, minWidth: 0 }} />
         <button onClick={add} style={{ padding: "3px 8px", fontSize: "var(--font-size-sm)", border: "1px solid var(--color-border)", borderRadius: 4, background: "var(--color-bg)", color: "var(--color-text-secondary)", cursor: "pointer", flexShrink: 0 }}>{tr("Add")}</button>
       </div>
       {msg && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 4, lineHeight: 1.4 }}>{msg}</div>}
