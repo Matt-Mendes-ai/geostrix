@@ -199,14 +199,17 @@ export function createModellingRuns(ctx, mcRef) {
     });
     if (!specs.length) { setNotices((p) => [...p, notice("Nothing left to model after removing invalid points/orientations — see notices above for which columns to check.")]); return; }
     // TASKS.csv #762 — the picks themselves, before the solve (GemPy's condition number was measured blind to most of this)
-    const pickIssues = specs.map((sp) => pickReport(sp, { origin: originRef.current })).filter(Boolean);
+    // TASKS.csv #2539 (review #2486) — an orientation the run estimated itself (no structure pick) is not a pick to 'fix or exclude': worded apart
+    const pickIssues = specs.map((sp) => { const r = pickReport(sp, { origin: originRef.current }); return r && { ...r, estimated: !!sp.orientationEstimated }; }).filter(Boolean);
     if (pickIssues.length) {
-      setNotices((p) => [...p, notice("Pick check before solving — {v} The run goes ahead as it is: fix or exclude these in the Boundary intercepts table if they are wrong.", { v: pickIssues.map((r) => [
+      const onlyEstimate = pickIssues.every((r) => r.estimated && !r.duplicates && !r.close && !r.conflicts);
+      setNotices((p) => [...p, notice(onlyEstimate ? "Pick check before solving — {v} The run goes ahead as it is." : "Pick check before solving — {v} The run goes ahead as it is: fix or exclude these in the Boundary intercepts table if they are wrong.", { v: pickIssues.map((r) => [
         `${r.label}:`,
         r.duplicates ? tr(" {duplicates} pick(s) repeated at the same spot ({duplicateExamples}{v}) — GemPy honours every copy, which only slows and stiffens the solve;", { duplicates: r.duplicates, duplicateExamples: r.duplicateExamples.join(", "), v: r.duplicates > 3 ? "…" : "" }) : "",
         r.close ? tr(" {n} pair(s) of picks less than 0.5 m apart down the hole ({examples}{v}) — separate structures close together (veinlets of one interval) or a near-repeat; GemPy honours each, which stiffens the solve;", { n: r.close, examples: r.closeExamples.join(", "), v: r.close > 3 ? "…" : "" }) : "", // #2048
         r.conflicts ? tr(" {conflicts} pair(s) of picks almost on top of each other but far apart in elevation ({conflictExamples}{v}) — the surface has to stand near-vertical there to honour both: usually a mis-picked or mislabelled contact, the unit repeated by a fold or fault, or stacked sheets of an intrusion (model those as veins / dykes);", { conflicts: r.conflicts, conflictExamples: r.conflictExamples.join("; "), v: r.conflicts > 3 ? "…" : "" }) : "",
-        r.orientations ? tr(" {orientations} of {orientationsTotal} orientation(s) differ by more than 45° from the plane through the contacts around them ({orientationExamples}{v}) — GemPy bends the surface between the two;", { orientations: r.orientations, orientationsTotal: r.orientationsTotal, orientationExamples: r.orientationExamples.join(", "), v: r.orientations > 3 ? "…" : "" }) : "",
+        r.orientations && r.estimated ? tr(" the dip estimated from the contacts themselves (no structure pick was used) differs by more than 45° from the plane through the contacts near it ({orientationExamples}): one plane fitted to all of the contacts does not match them there (a fold, a change of dip, or two populations of contacts). It is not a pick to fix; a structural trend from the tops of a unit (Model settings) or real structure picks give the surface a better guide;", { orientationExamples: r.orientationExamples.join(", ") }) /* #2539 */
+          : r.orientations ? tr(" {orientations} of {orientationsTotal} orientation(s) differ by more than 45° from the plane through the contacts around them ({orientationExamples}{v}) — GemPy bends the surface between the two;", { orientations: r.orientations, orientationsTotal: r.orientationsTotal, orientationExamples: r.orientationExamples.join(", "), v: r.orientations > 3 ? "…" : "" }) : "",
       ].join("")).join(" ").replace(/;(?=\s|$)/g, ".") })]);
     }
     const clipDomain = clipToDomainBoundary ? domains.find((d) => d.id === modelDomainId) : null;
@@ -1272,12 +1275,14 @@ export function createModellingRuns(ctx, mcRef) {
       near.forEach((m) => orientations.push({ x: m.x - o.x, y: m.y - o.y, z: m.z - o.z, dip: m.dip, azimuth: m.dipDir }));
       if (!silent) setNotices((p) => [...p, near.length ? notice("Added {near} outcrop measurement(s) ({classes}) within {radius} m of the mapped contact as orientations.", { near: near.length, classes: mapC.classes.join(", "), radius: mapC.radius }) : notice("No outcrop measurements of the chosen types lie within {radius} m of the mapped contact — none added as orientations.", { radius: mapC.radius })]);
     }
+    let orientationEstimated = false; // TASKS.csv #2539 — the orientation below is the run's own estimate, not a pick
     if (!orientations.length) {
       // No structure/contact data to draw an orientation from — estimate one from the shape of the
       // litho points themselves instead of blocking the run. Less accurate than a real structure
       // pick, but lets the tool interpolate a surface from contacts alone, which is the point.
       const est = estimateOrientationFromPoints(points);
       orientations = [est];
+      orientationEstimated = true;
       { const oh = !silent && oneHoleDipNotice(points, unitName); if (oh) setNotices((p) => [...p, oh]); } // #1687
       if (!silent && nearPicks.total) setNotices((p) => [...p, notice("No structure pick within {reachM} m of the \"{unitName}\" contacts: its dip was estimated from the contact points (~{dip}°/~{azimuth}°).", { reachM, unitName, dip: Math.round(est.dip), azimuth: Math.round(est.azimuth) })]);
       // TASKS.csv #2233 (review #2174) — picks loaded but no type chosen under Contact orientations is not "no structure picks found"
@@ -1299,7 +1304,7 @@ export function createModellingRuns(ctx, mcRef) {
     // A group's own assignable color drives its surface/legend; falls back to the first member's
     // per-code color if none set. Raw intervals in the 3D log keep their individual code colors.
     const color = isMcode ? (mcodeInfo.color || colorForLithology([...(mcodeLogged || [])][0] || unitName)) : isGroup ? (target.color || colorForLithology([...codes][0])) : colorForLithology(unitName);
-    return { label: isOverburdenUnit ? `Base of ${unitName}` : `Top of ${unitName}` /* #1684 */, meshName: unitName, ...(isMcode ? { contactHoles: holeCounts(points) } : {}), /* #1337 */ points, orientations, color, type, codes: isMcode ? [...mcodeLogged] : [...codes], sectionTags: [...sectionTags] /* #810 */, ...(isMcode ? { mcode: true } : {}), params: { ...(thinNote ? { orientationsAveraged: thinNote } : {}), ...(nearPicks.total ? { picksNearContacts: { kept: nearPicks.kept.length, of: nearPicks.total, withinM: reachM, automatic: !(orientationReachM > 0) } } : {}) } }; // codes: #356 model check (logged codes); mcode: #599
+    return { label: isOverburdenUnit ? `Base of ${unitName}` : `Top of ${unitName}` /* #1684 */, meshName: unitName, ...(orientationEstimated ? { orientationEstimated: true } : {}) /* #2539 */, ...(isMcode ? { contactHoles: holeCounts(points) } : {}), /* #1337 */ points, orientations, color, type, codes: isMcode ? [...mcodeLogged] : [...codes], sectionTags: [...sectionTags] /* #810 */, ...(isMcode ? { mcode: true } : {}), params: { ...(thinNote ? { orientationsAveraged: thinNote } : {}), ...(nearPicks.total ? { picksNearContacts: { kept: nearPicks.kept.length, of: nearPicks.total, withinM: reachM, automatic: !(orientationReachM > 0) } } : {}) } }; // codes: #356 model check (logged codes); mcode: #599
   };
 
   // TASKS.csv #810 — drawn upper contacts whose unit tag matches no unit of this run: name them, so a contact tagged
@@ -1974,7 +1979,9 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
           : notice("\"{label}\" contains {n} of the {m} sample points of {code} it was built from{v}.", { label, n: contain.inside, m: contain.above, code: altValue, v: contain.inside < contain.above ? tr(" ({k} outside: logged intervals the body does not reach)", { k: contain.above - contain.inside }) : "" })]); // #1683
         if (bodies.count > 1) setNotices((p) => [...p, bodyOpts.largest
           ? notice("\"{label}\": threshold {iso}. Kept the largest of {n} separate bodies, {p} % of the triangles; the other {m} were left out.", { label, iso, n: bodies.count, p: Math.round(bodies.largestShare * 100), m: bodies.count - 1 })
-          : notice("\"{label}\": threshold {iso} gives {n} separate bodies; the largest has {p} % of the triangles. A lower \"Inside at\" or a geology trend can join them, but a lower threshold can also add small separate bodies around isolated holes (Modelling codes).", { label, iso, n: bodies.count, p: Math.round(bodies.largestShare * 100) })]);
+          : notice(anisotropy.enabled /* TASKS.csv #2538 (review #2486): with a trend on, 'a geology trend can join them' was wrong (23 bodies with it, 16 without) */
+            ? "\"{label}\": threshold {iso} gives {n} separate bodies under the structural trend; the largest has {p} % of the triangles. The trend's ratios shorten the search across its plane, which can split a body: compare a run without the trend. A lower \"Inside at\" can join them, but can also add small separate bodies around isolated holes (Modelling codes)."
+            : "\"{label}\": threshold {iso} gives {n} separate bodies; the largest has {p} % of the triangles. A lower \"Inside at\" or a geology trend can join them, but a lower threshold can also add small separate bodies around isolated holes (Modelling codes).", { label, iso, n: bodies.count, p: Math.round(bodies.largestShare * 100) })]);
         if (closure === "artificial") setNotices((p) => [...p, notice(isCode ? "\"{label}\" closes partly against the search-radius boundary rather than a logged interval of another code, so its extent there reflects the {v} m search radius, not the data." : "\"{label}\" closes partly against the search-radius boundary rather than a logged alteration boundary, so its extent there reflects the {v} m search radius, not the data.", { label, v: Math.round(radius) })]);
         fitBox(new THREE.Box3().setFromObject(mesh));
       } catch (e) {
