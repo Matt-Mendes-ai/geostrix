@@ -11204,5 +11204,13 @@
   "Outline": "ارسم المحيط",
   "No hole's log covers {d} m down.": "لا يغطي سجل أي ثقب عمق {d} م.",
   "Terrain under the inputs: {a} of {n} contact point(s) and {b} of {m} measurement(s). The rest will be placed at the map layer's elevation{z} and the surfaces cut there; a terrain over the whole map (Maps > Terrain) puts them on the ground.": "التضاريس تحت المدخلات: {a} من {n} نقطة تماس و{b} من {m} قياس. سيوضع الباقي على منسوب طبقة الخريطة{z} وتُقطع الأسطح هناك؛ تضاريس تغطي الخريطة كلها (الخرائط > التضاريس) تضعها على الأرض.",
-  " (RL {z})": " (المنسوب {z})"
+  " (RL {z})": " (المنسوب {z})",
+  "The typed {a}° slope was NOT applied: the walls are vertical. On cells of {c} m the arc pattern has no step to the next column; a Pit block size of {s} m or less lets it draw the slope.": "لم يُطبَّق الميل المُدخل {a}°: الجدران رأسية. على خلايا {c} م لا يملك نمط الأقواس خطوة إلى العمود التالي؛ حجم كتلة الحفرة {s} م أو أقل يتيح له رسم الميل.",
+  "Above {rl} m the walls stand {f}–{s}° for a typed {a}°.": "فوق {rl} م تقف الجدران عند {f}–{s}° لقيمة مُدخلة {a}°.",
+  "The typed cut-off must be above 0, or blank.": "يجب أن يكون المحتوى الحدي المُدخل أكبر من 0، أو يُترك فارغًا.",
+  "Cut-off ({unit}, optional)": "المحتوى الحدي ({unit}، اختياري)",
+  "break-even": "نقطة التعادل",
+  "Optional: a cut-off grade of your own, such as the grade a saleable ore must meet. A block at or above it is ore and one below it is waste, whatever it would pay. Blank: the break-even grade at these prices and costs.": "اختياري: محتوى حدي من اختيارك، مثل المحتوى الذي يجب أن يبلغه خام قابل للبيع. الكتلة التي تساويه أو تزيد عليه خام، والتي دونه نفايات، مهما كان عائدها. فارغ: محتوى التعادل بهذه الأسعار والتكاليف.",
+  "Cut-off grade {c} {unit}, typed: a block below it is waste whatever it would pay. The break-even at these inputs is {b} {unit}.": "المحتوى الحدي {c} {unit}، مُدخل: الكتلة التي دونه نفايات مهما كان عائدها. محتوى التعادل بهذه المدخلات {b} {unit}.",
+  "{el} is priced per tonne of contained {el} or per dmtu (1 % {el} in a dry tonne), and the break-even cut-off is on the contained {el}, not a product specification: every block above it is ore. Type a cut-off to set one.": "يُسعَّر {el} لكل طن من {el} المحتوى أو لكل dmtu (1 % من {el} في طن جاف)، والمحتوى الحدي للتعادل محسوب على {el} المحتوى وليس مواصفة منتج: كل كتلة فوقه خام. أدخل محتوى حديًا لتحديده."
 }

@@ -21,7 +21,7 @@ test("a grade with its element and the oxide it is reported as", () => {
 test("the panes use it: Pit shell's mean grade and cut-offs, Stope outlines' cut-off label and grades, the designs and the series", () => {
   const pit = fs.readFileSync("src/components/PitShellPane.jsx", "utf8");
   assert.match(pit, /line\(tr\("Mean grade"\), gradeWithElement\(res\.meanGrade, res\.unit, res\.element\)\)/);
-  assert.equal((pit.match(/oxideSuffix\(/g) || []).length, 4);
+  assert.equal((pit.match(/oxideSuffix\(/g) || []).length, 5); // #2986: + the typed cut-off's line
   const st = fs.readFileSync("src/components/StopesPane.jsx", "utf8");
   assert.match(st, /tr\("Cut-off \(\{unit\}\)", \{ unit: element \? `\$\{gradeUnitText\(unit, element\)\} \$\{element\}` : unit \}\)/); // g/t for a ppm Au model since #2111
   assert.match(st, /const g = \(x\) => \(x == null \? "—" : gradeWithElement\(x, res\.unit, res\.element\)\)/);

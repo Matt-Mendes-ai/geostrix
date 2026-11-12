@@ -11204,5 +11204,13 @@
   "Outline": "Contornar",
   "No hole's log covers {d} m down.": "A descrição de nenhum furo cobre {d} m de profundidade.",
   "Terrain under the inputs: {a} of {n} contact point(s) and {b} of {m} measurement(s). The rest will be placed at the map layer's elevation{z} and the surfaces cut there; a terrain over the whole map (Maps > Terrain) puts them on the ground.": "Terreno sob os dados: {a} de {n} ponto(s) de contato e {b} de {m} medição(ões). O resto será colocado na elevação da camada do mapa{z} e as superfícies cortadas ali; um terreno sobre todo o mapa (Mapas > Terreno) os coloca no solo.",
-  " (RL {z})": " (cota {z})"
+  " (RL {z})": " (cota {z})",
+  "The typed {a}° slope was NOT applied: the walls are vertical. On cells of {c} m the arc pattern has no step to the next column; a Pit block size of {s} m or less lets it draw the slope.": "A inclinação de {a}° digitada NÃO foi aplicada: as paredes são verticais. Em células de {c} m o padrão de arcos não tem um passo até a coluna seguinte; um tamanho de bloco da cava de {s} m ou menos permite desenhar a inclinação.",
+  "Above {rl} m the walls stand {f}–{s}° for a typed {a}°.": "Acima de {rl} m as paredes ficam a {f}–{s}° para {a}° digitados.",
+  "The typed cut-off must be above 0, or blank.": "O teor de corte digitado deve ser maior que 0, ou ficar em branco.",
+  "Cut-off ({unit}, optional)": "Teor de corte ({unit}, opcional)",
+  "break-even": "de equilíbrio",
+  "Optional: a cut-off grade of your own, such as the grade a saleable ore must meet. A block at or above it is ore and one below it is waste, whatever it would pay. Blank: the break-even grade at these prices and costs.": "Opcional: um teor de corte próprio, como o teor que um minério vendável deve atender. Um bloco igual ou acima dele é minério e um abaixo é estéril, seja qual for o que pagaria. Em branco: o teor de equilíbrio com estes preços e custos.",
+  "Cut-off grade {c} {unit}, typed: a block below it is waste whatever it would pay. The break-even at these inputs is {b} {unit}.": "Teor de corte {c} {unit}, digitado: um bloco abaixo dele é estéril, seja qual for o que pagaria. O teor de equilíbrio com estes dados é {b} {unit}.",
+  "{el} is priced per tonne of contained {el} or per dmtu (1 % {el} in a dry tonne), and the break-even cut-off is on the contained {el}, not a product specification: every block above it is ore. Type a cut-off to set one.": "O {el} é precificado por tonelada de {el} contido ou por dmtu (1 % de {el} em uma tonelada seca), e o teor de corte de equilíbrio é sobre o {el} contido, não uma especificação de produto: todo bloco acima dele é minério. Digite um teor de corte para fixar um."
 }

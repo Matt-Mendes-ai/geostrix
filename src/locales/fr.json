@@ -11204,5 +11204,13 @@
   "Outline": "Contour",
   "No hole's log covers {d} m down.": "Le log d'aucun sondage ne couvre {d} m de profondeur.",
   "Terrain under the inputs: {a} of {n} contact point(s) and {b} of {m} measurement(s). The rest will be placed at the map layer's elevation{z} and the surfaces cut there; a terrain over the whole map (Maps > Terrain) puts them on the ground.": "Terrain sous les données : {a} point(s) de contact sur {n} et {b} mesure(s) sur {m}. Le reste sera placé à l'altitude de la couche de la carte{z} et les surfaces coupées là ; un terrain sur toute la carte (Cartes > Terrain) les pose sur le sol.",
-  " (RL {z})": " (cote {z})"
+  " (RL {z})": " (cote {z})",
+  "The typed {a}° slope was NOT applied: the walls are vertical. On cells of {c} m the arc pattern has no step to the next column; a Pit block size of {s} m or less lets it draw the slope.": "La pente de {a}° saisie n'a PAS été appliquée : les parois sont verticales. Sur des cellules de {c} m le motif d'arcs n'a aucun pas vers la colonne voisine ; une taille de bloc de la fosse de {s} m ou moins lui permet de tracer la pente.",
+  "Above {rl} m the walls stand {f}–{s}° for a typed {a}°.": "Au-dessus de {rl} m les parois sont à {f}–{s}° pour {a}° saisis.",
+  "The typed cut-off must be above 0, or blank.": "La teneur de coupure saisie doit être supérieure à 0, ou rester vide.",
+  "Cut-off ({unit}, optional)": "Teneur de coupure ({unit}, facultatif)",
+  "break-even": "d'équilibre",
+  "Optional: a cut-off grade of your own, such as the grade a saleable ore must meet. A block at or above it is ore and one below it is waste, whatever it would pay. Blank: the break-even grade at these prices and costs.": "Facultatif : une teneur de coupure à vous, comme la teneur qu'un minerai vendable doit atteindre. Un bloc égal ou supérieur est du minerai et un bloc inférieur du stérile, quoi qu'il rapporte. Vide : la teneur d'équilibre à ces prix et coûts.",
+  "Cut-off grade {c} {unit}, typed: a block below it is waste whatever it would pay. The break-even at these inputs is {b} {unit}.": "Teneur de coupure {c} {unit}, saisie : un bloc en dessous est du stérile, quoi qu'il rapporte. La teneur d'équilibre avec ces données est {b} {unit}.",
+  "{el} is priced per tonne of contained {el} or per dmtu (1 % {el} in a dry tonne), and the break-even cut-off is on the contained {el}, not a product specification: every block above it is ore. Type a cut-off to set one.": "Le {el} est valorisé par tonne de {el} contenu ou par dmtu (1 % de {el} dans une tonne sèche), et la teneur de coupure d'équilibre porte sur le {el} contenu, pas sur une spécification de produit : tout bloc au-dessus est du minerai. Saisissez une teneur de coupure pour en fixer une."
 }

@@ -25,9 +25,13 @@ export const SOLD_AS = {
   // Ta2O5 price was read as per lb of Ta metal (cut-off 0.034 % Ta for 0.028 %, the revenue 18 % short)
   Ta: [["Ta2O5", 1.221, null, true]], Nb: [["Nb2O5", 1.4305, null]], Sn: [["SnO2", 1.2695, null]], W: [["WO3", 1.2611, null]], V: [["V2O5", 1.7852, null, true]],
 };
+// TASKS.csv #2986 (review #2876, WA iron) — a bulk commodity sold by the unit: iron ore (and manganese ore) is quoted per dry metric tonne unit,
+// 1 % of the element in a dry tonne (100 $/dmt for a 62 % Fe product = 1.61 $/dmtu), never per pound. It is offered as $/dmtu and $/t of the
+// element, and its contained metal is said in tonnes only.
+export const UNIT_PRICED = new Set(["Fe", "Mn"]);
 export function pitMetalOf(unit, element) {
   const m = metalOf(unit);
-  if (m && m.unit === "g" && (BASE_METALS.has(String(element || "")) || isUraniumOxide(element) || SOLD_AS[String(element || "")])) return { factor: m.factor / 1e6, unit: "t" }; // oxide: #2434; SOLD_AS: #2592
+  if (m && m.unit === "g" && (BASE_METALS.has(String(element || "")) || UNIT_PRICED.has(String(element || "")) /* #2986 */ || isUraniumOxide(element) || SOLD_AS[String(element || "")])) return { factor: m.factor / 1e6, unit: "t" }; // oxide: #2434; SOLD_AS: #2592
   return m;
 }
 // TASKS.csv #2434 (review #2325, WA uranium) — uranium is quoted and sold per lb of U3O8, and the pit panes read '$/lb' as per lb of U METAL: an
@@ -37,12 +41,13 @@ export const U3O8_PER_U = 1.1792;
 export const isUranium = (el) => String(el || "") === "U";
 export const isUraniumOxide = (el) => /^e?U3O8$/i.test(String(el || ""));
 // tonnes of metal one priced unit is (a price per that unit / this = $ per tonne of the counted metal)
-export const PRICED_MASS_T = { t: 1, lb: 1 / LB_PER_T, lbU3O8: 1 / (LB_PER_T * U3O8_PER_U), kgU: 0.001 };
+export const PRICED_MASS_T = { t: 1, lb: 1 / LB_PER_T, lbU3O8: 1 / (LB_PER_T * U3O8_PER_U), kgU: 0.001, dmtu: 0.01 /* #2986: 1 % of a dry tonne */ };
 for (const list of Object.values(SOLD_AS)) for (const [p, f, , lb] of list) { PRICED_MASS_T[`t${p}`] = 1 / f; if (lb) PRICED_MASS_T[`lb${p}`] = 1 / (f * LB_PER_T); } // #2592 — a tonne of the product is 1 / f t of element; a pound of it (#2595)
 export function priceUnitsFor(metal, element) {
   if (!metal) return null;
   if (metal.unit === "t" && isUranium(element)) return [["lbU3O8", "$/lb U3O8"], ["lb", "$/lb U"], ["kgU", "$/kg U"]];
   if (metal.unit === "t" && isUraniumOxide(element)) return [["lb", "$/lb U3O8"], ["t", "$/t U3O8"]];
+  if (metal.unit === "t" && UNIT_PRICED.has(String(element || ""))) return [["dmtu", `$/dmtu ${element}`], ["t", `$/t ${element}`]]; // #2986 — no $/lb
   // #2592 — the products first (as sold), then the element itself, named
   const sold = metal.unit === "t" && SOLD_AS[String(element || "")];
   if (sold) return [...sold.flatMap(([p, , what, lb]) => [...(lb ? [[`lb${p}`, `$/lb ${p}`]] : []) /* #2595 — the quoted unit first */, [`t${p}`, what ? `$/t ${p} (${what})` : `$/t ${p}`]]), ["t", `$/t ${element}`], ["lb", `$/lb ${element}`]];
@@ -56,6 +61,7 @@ export function metalAmountText(tonnesOrGrams, metalUnit, element, fmt) {
   if (isUranium(element)) return `${fmt(t)} t U (${fmt(t * U3O8_PER_U * LB_PER_T)} lb U3O8)`;
   if (isUraniumOxide(element)) return `${fmt(t)} t U3O8 (${fmt(t * LB_PER_T)} lb U3O8)`;
   const sold = SOLD_AS[String(element || "")]; // #2592 — the element and what it is sold as
+  if (UNIT_PRICED.has(String(element || ""))) return `${fmt(t)} t ${element}`; // #2986 — iron is not sold by the pound
   if (sold) return `${fmt(t)} t ${element} (${sold.map(([p, f, , lb]) => (lb ? `${fmt(t * f)} t / ${fmt(t * f * LB_PER_T)} lb ${p}` : `${fmt(t * f)} t ${p}`)).join(", ")})`; // lb: #2595
   return `${fmt(t)} t (${fmt(t * LB_PER_T)} lb)`;
 }
@@ -120,28 +126,33 @@ export const PRICE_UNITS = { g: [["oz", "$/oz"], ["g", "$/g"]], t: [["lb", "$/lb
 
 // economics: { unit (of the block values), price, priceUnit, recovery (%), miningCost, processingCost ($/t rock), revenueFactor? }
 // -> { revenuePerGrade: $ per tonne of rock per unit of grade, cutoff: the grade that just pays for processing } or null
-export function pitEconomics({ unit, element = null, price, priceUnit, recovery, processingCost, revenueFactor = 1, by = null }) {
+// TASKS.csv #2986 — typedCutoff: a cut-off typed by the user (a product specification: iron ore is what meets 55 or 58 % Fe), which replaces
+// the break-even one: a block at or above it is ore, one below it waste, whatever it would pay. It stays the same at every revenue factor
+// (Nested pits). e.cutoffTyped says it is in force; e.breakEven keeps the break-even at these inputs.
+export function pitEconomics({ unit, element = null, price, priceUnit, recovery, processingCost, revenueFactor = 1, by = null, typedCutoff = null }) {
   const m = pitMetalOf(unit, element); // #1748
   if (!m) return null;
   const perBase = m.unit === "g" ? (priceUnit === "oz" ? price / G_PER_OZ : price) : price / (PRICED_MASS_T[priceUnit] || 1); // $ per t of metal; lbU3O8 / kgU: #2434
   const revenuePerGrade = m.factor * (recovery / 100) * perBase * revenueFactor;
   if (!(revenuePerGrade > 0)) return null;
   const e = { revenuePerGrade, cutoff: processingCost / revenuePerGrade, metalUnit: m.unit, metalFactor: m.factor };
+  if (Number(typedCutoff) > 0) { e.breakEven = e.cutoff; e.cutoff = Number(typedCutoff); e.cutoffTyped = true; } // #2986
   // TASKS.csv #1917 (from #1615 Lawyers, #1749 Copley) — a BY-PRODUCT metal (Ag beside Au, Au beside Cu) with its own price and
   // recovery: its revenue per tonne per unit of ITS grade; a block's revenue is the sum over the metals (cellRevenue), so the ore
   // decision and the pit follow both. by: { unit, element, price, priceUnit, recovery }; the revenue factor scales both prices.
-  if (by) { const b = pitEconomics({ ...by, by: null, processingCost, revenueFactor }); e.by = b; e.byFailed = !b; }
+  if (by) { const b = pitEconomics({ ...by, by: null, typedCutoff: null, processingCost, revenueFactor }); e.by = b; e.byFailed = !b; }
   return e;
 }
 
 // a block's money per tonne: processed if that pays more than sending it to the dump (both pay for mining)
 export const marginPerTonne = (grade, e, miningCost, processingCost) => {
   const rev = grade * e.revenuePerGrade;
+  if (e.cutoffTyped) return grade >= e.cutoff ? rev - processingCost - miningCost : -miningCost; // #2986 — the typed cut-off decides
   return rev > processingCost ? rev - processingCost - miningCost : -miningCost;
 };
 // TASKS.csv #1917 — a block's revenue per tonne summed over the metals (c.by: its by-product grade, from joinByProduct), and its margin
 export const cellRevenue = (c, e) => c.value * e.revenuePerGrade + (e.by && c.by > 0 ? c.by * e.by.revenuePerGrade : 0);
-export const cellMargin = (c, e, miningCost, processingCost) => { const rev = cellRevenue(c, e); return rev > processingCost ? rev - processingCost - miningCost : -miningCost; };
+export const cellMargin = (c, e, miningCost, processingCost) => { const rev = cellRevenue(c, e); if (e.cutoffTyped) return c.value >= e.cutoff ? rev - processingCost - miningCost : -miningCost; /* #2986 — on the main grade */ return rev > processingCost ? rev - processingCost - miningCost : -miningCost; };
 // the by-product model's grades joined to the main model's blocks by block centre (to the centimetre): the same grid, so the same
 // centres. A block without a match keeps no by-product grade; no match at all means another grid. -> { cells, matched }
 export function joinByProduct(cells, byCells) {
@@ -331,14 +342,26 @@ export function coneWalls(arcs, dx, dy, dz) {
 // deepest pattern within the cap. Cached: a run asks for it two or three times.
 const arcCache = new Map();
 const better = (w, n, best) => !best || w.flattest < best.w.flattest - 1e-6 || (Math.abs(w.flattest - best.w.flattest) <= 1e-6 && (w.steepest < best.w.steepest - 1e-6 || (Math.abs(w.steepest - best.w.steepest) <= 1e-6 && n < best.a.length)));
+// TASKS.csv #2985 (review #2876, WA iron) — the pattern spanned 1 to 8 levels only, so on flat cells (25 x 25 x 2 m) no wall steeper than
+// atan(8 x 2 / 25) = 32.6 deg reached the next column: a typed 35-45 deg had no sideways arc at all and was cut with vertical walls ('walls
+// 90-90°'). The levels now follow the cell shape: 8 as before whenever 8 levels reach the next column at the steepest slope tried (cubes
+// and near-cubes, so their patterns are unchanged), else enough for about three columns, at most 48.
+// the largest plan cell on which a slope still gets a sideways step at this block height (for the run's message when it did not)
+export const planCellForSlope = (dz, slopeDeg) => Math.floor((48 * dz) / Math.tan((Math.min(89, slopeDeg) * Math.PI) / 180));
+export function arcLevelsFor(dx, dy, dz, slopeDeg) {
+  const oneColumn = Math.ceil((Math.max(dx, dy) * Math.tan((Math.min(89, slopeDeg) * Math.PI) / 180)) / dz - 1e-9);
+  return oneColumn <= 8 ? 8 : Math.min(48, 3 * oneColumn);
+}
 function chooseArcs(dx, dy, dz, slopeDeg, sectorSlopes) {
   if (hasSectorSlopes(sectorSlopes)) {
     let deepest = null;
-    for (let L = 1; L <= 8; L++) { const a = precedenceArcs(dx, dy, dz, slopeDeg, L, sectorSlopes); if (a.length > MAX_ARCS) break; deepest = a; }
+    const steep = Math.max(slopeDeg, ...SECTORS.map((k) => slopeForSector(slopeDeg, sectorSlopes, k)));
+    for (let L = 1, Lmax = arcLevelsFor(dx, dy, dz, steep); L <= Lmax; L++) { const a = precedenceArcs(dx, dy, dz, slopeDeg, L, sectorSlopes); if (a.length > MAX_ARCS) break; deepest = a; }
     return deepest;
   }
   let best = null;
-  for (let d = 0; d <= 20 && slopeDeg + d < 89; d += 0.5) for (let L = 1; L <= 8; L++) {
+  const Lmax = arcLevelsFor(dx, dy, dz, Math.min(89, slopeDeg + 20)); // #2985
+  for (let d = 0; d <= 20 && slopeDeg + d < 89; d += 0.5) for (let L = 1; L <= Lmax; L++) {
     const a = precedenceArcs(dx, dy, dz, slopeDeg + d, L);
     if (a.length > MAX_ARCS) break;
     const w = coneWalls(a, dx, dy, dz);
@@ -371,8 +394,11 @@ export function precedenceArcs(dx, dy, dz, slopeDeg, maxLevels = null, sectorSlo
 
 // The flattest and steepest wall that pattern really makes, over all bearings, in degrees: it can only stand at or above the
 // slope asked for, so a run says what it got.
-export function wallAngles(dx, dy, dz, slopeDeg, levels = 32, sectorSlopes = null) {
-  const arcs = precedenceArcs(dx, dy, dz, slopeDeg, null, sectorSlopes), reach = Array.from({ length: levels + 1 }, () => new Map());
+export function wallAngles(dx, dy, dz, slopeDeg, levels = null, sectorSlopes = null) {
+  const arcs = precedenceArcs(dx, dy, dz, slopeDeg, null, sectorSlopes);
+  // #2985 — 32 benches, or four of the pattern's longest arcs when they are longer (a wall of 11-level arcs had taken two steps in 32)
+  if (!(levels > 0)) levels = Math.max(32, 4 * Math.max(1, ...(arcs || []).map((x) => x[2])));
+  const reach = Array.from({ length: levels + 1 }, () => new Map());
   reach[0].set("0,0", [0, 0]);
   for (let l = 0; l < levels; l++) for (const [a, b] of reach[l].values()) for (const [p, q, m] of arcs) if (l + m <= levels) reach[l + m].set(`${a + p},${b + q}`, [a + p, b + q]);
   const bins = new Float64Array(16);
@@ -732,7 +758,7 @@ export function runPitShell(inputs, { groundAt = null, collars = null, onProgres
   if (!summary.blocks) return { empty: true, cutoff: economics.cutoff, cell: [grid.dx, grid.dy, grid.dz], groundSource };
   // #1917 — the by-product's figures: its metal, mean grade over the ore, its share of the revenue, and how many blocks carried it
   const by = economics.by ? (() => { const r1 = summary.metalU * economics.revenuePerGrade, r2 = summary.metalU2 * economics.by.revenuePerGrade; return { metalU: summary.metalU2, meanGrade: summary.meanGrade2, metalUnit: economics.by.metalUnit, metalFactor: economics.by.metalFactor, cutoff: economics.by.cutoff, revenueShare: r1 + r2 > 0 ? r2 / (r1 + r2) : 0, matchedShare: byMatched }; })() : null;
-  return { ...summary, ...pitSurface(grid, solve.mined), by, parts: pitParts(grid, solve.mined) /* #1608 */, limitM: grid.limitM, limitedCols: grid.limitedCols /* #2665 */, oreAboveGroundT: grid.oreAboveGroundT, oreAboveGroundBlocks: grid.oreAboveGroundBlocks /* #1616 */, askedSize: grid.askedSize, modelCellM: grid.modelCell, modelCellZM: grid.modelCellZ /* #2110 */ /* #1610 */, cutoff: economics.cutoff, metalUnit: economics.metalUnit, metalFactor: economics.metalFactor, cell: [grid.dx, grid.dy, grid.dz], grid: [grid.nx, grid.ny, grid.nz], walls: wallAngles(grid.dx, grid.dy, grid.dz, inputs.slopeDeg, 32, inputs.sectorSlopes), groundSource, nodes: solve.nodes, arcs: solve.arcs, topAssumed: grid.topAssumed / (grid.nx * grid.ny), coarsened: grid.coarsened };
+  return { ...summary, ...pitSurface(grid, solve.mined), by, parts: pitParts(grid, solve.mined) /* #1608 */, limitM: grid.limitM, limitedCols: grid.limitedCols /* #2665 */, oreAboveGroundT: grid.oreAboveGroundT, oreAboveGroundBlocks: grid.oreAboveGroundBlocks /* #1616 */, askedSize: grid.askedSize, modelCellM: grid.modelCell, modelCellZM: grid.modelCellZ /* #2110 */ /* #1610 */, cutoff: economics.cutoff, cutoffTyped: !!economics.cutoffTyped, breakEven: economics.breakEven ?? null /* #2986 */, metalUnit: economics.metalUnit, metalFactor: economics.metalFactor, cell: [grid.dx, grid.dy, grid.dz], grid: [grid.nx, grid.ny, grid.nz], walls: wallAngles(grid.dx, grid.dy, grid.dz, inputs.slopeDeg, null, inputs.sectorSlopes) /* levels: #2985 */, upperWalls: inputs.upperSlope?.slopeDeg > 0 && inputs.upperSlope.slopeDeg < 90 ? wallAngles(grid.dx, grid.dy, grid.dz, inputs.upperSlope.slopeDeg) : null /* #2985 */, groundSource, nodes: solve.nodes, arcs: solve.arcs, topAssumed: grid.topAssumed / (grid.nx * grid.ny), coarsened: grid.coarsened };
 }
 
 // TASKS.csv #1875 — what a shell is worth at the ENTERED price (#1609 valued a revenue-factor shell at the scaled price): the
