@@ -586,10 +586,10 @@ export function useImportPipeline(ctx) {
         const none = cols.filter((c) => !surveyed.has(c.hole_id)).map((c) => c.hole_id);
         if (cols.length && none.length) svExtraNote += tr(" {n} hole(s) still have no survey ({ids}).", { n: none.length, ids: none.slice(0, 5).join(", ") + (none.length > 5 ? " …" : "") });
       }
-      setSurvey((prev) => replaceRowsByHole(prev, keepBatch(rows), keep).rows);
+      setSurvey((prev) => replaceRowsByHole(prev, keepBatch(rows), keep, { identical: false }).rows); // #2799 — rows only
       // #2494 — the hole's survey method on its collar (an attr: the hole list's 'By a collar field' and 'Colour holes by' offer it)
       if (methodSum) setCollars((prev) => prev.map((c) => (methodSum.byHole.has(c.hole_id) ? { ...c, attrs: { ...(c.attrs || {}), "survey method": methodSum.byHole.get(c.hole_id) } } : c)));
-      reorientAfter(new Set(rows.map((r) => r.hole_id)), replaceRowsByHole(importStateRef.current.survey, rows, keep).rows, null, fileName); // #548
+      reorientAfter(new Set(rows.map((r) => r.hole_id)), replaceRowsByHole(importStateRef.current.survey, rows, keep, { identical: false }).rows, null, fileName); // #548
       // TASKS.csv #1268 — the same row check the interval layers get; a station has one depth
       import("../../lib/dataQC.js").then(({ importCheckSummary }) => {
         const msg = importCheckSummary(rows.map((r) => ({ hole_id: r.hole_id, from: r.depth, to: r.depth })), importStateRef.current.collars, null, `survey stations from ${fileName}`);
@@ -651,7 +651,7 @@ export function useImportPipeline(ctx) {
       }
       const keep = keepDerivedPicks(batchRowsRef.current); // #1234 — a pick worked out in the app is not the earlier file's data
       const replaced = replaceRowsByHole(importStateRef.current.layers?.structure, rows, keep);
-      setLayers((p) => ({ ...p, structure: replaceRowsByHole(p.structure, keepBatch(rows), keep).rows })); // TASKS.csv #336
+      setLayers((p) => ({ ...p, structure: replaceRowsByHole(p.structure, keepBatch(rows), keep, { identical: false }).rows })); // #2799 // TASKS.csv #336
       if (replaced.replacedHoles.length || replaced.appendedHoles.length) setNotices((p) => [...p, `${fileName}:${replaceNote(replaced, "structure picks")}`]); // #582
       { const holes = new Set(rows.map((r) => r.hole_id)), saved = (importStateRef.current.layers?.structure || []).filter((r) => isDerivedPick(r) && holes.has(r.hole_id)).length; if (saved) setNotices((p) => [...p, tr("{saved} pick(s) from the Core orientation calculator were kept in these holes.", { saved })]); } // #1234
       setLayerVisible((p) => ({ ...p, structure: true }));
@@ -742,7 +742,7 @@ export function useImportPipeline(ctx) {
       // TASKS.csv #336 — rows for a hole already in this layer replace that hole's earlier rows.
       const keep = batchRowsRef.current;
       const replaced = replaceRowsByHole(importStateRef.current.layers?.[target], rows, keep); // #582: replaced / appended
-      setLayers((p) => ({ ...p, [target]: replaceRowsByHole(p[target], keepBatch(rows), keep).rows }));
+      setLayers((p) => ({ ...p, [target]: replaceRowsByHole(p[target], keepBatch(rows), keep, { identical: false }).rows })); // #2799 — rows only
       setLayerVisible((p) => ({ ...p, [target]: true }));
       if (numeric) { const vals = rows.map((r) => r.value); setNumericRange((p) => ({ ...p, [target]: minMax(vals) })); } // not Math.min/max(...) — see layers.js's minMax comment
       // TASKS.csv #540 — what is wrong with these rows, said now (Data QC loads on demand: not in the startup bundle)
