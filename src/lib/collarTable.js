@@ -13,6 +13,18 @@ export function collarTableSlice(sorted, { firstRow = 1, maxRows = 40, filter = 
   return { rows, total: list.length, start, end: start + rows.length, after: Math.max(0, list.length - start - rows.length) };
 }
 
+// TASKS.csv #2718 — the page after `fromIndex` whose collar table starts at `nextRow` with the same hole filter (the continuation a
+// 'Continue on new pages' made, or one the user set up), as an index into `pages`, or null. The printed table then says where it goes on.
+export function continuationPageIndex(pages, fromIndex, el, nextRow) {
+  const f = String(el?.holeFilter || "").trim();
+  for (let i = fromIndex + 1; i < (pages || []).length; i++) {
+    for (const e of pages[i]?.elements || []) {
+      if (e?.type === "table" && e.source === "collars" && Math.round(Number(e.firstRow) || 1) === nextRow && String(e.holeFilter || "").trim() === f) return i;
+    }
+  }
+  return null;
+}
+
 // One table row's height on the page (LayoutModule's cell: the font, 0.25 em padding top and bottom, a 1 px rule).
 const rowPx = (fontPt) => { const fs = printPx(fontPt); return fs * 1.2 + 2 * Math.round(fs * 0.25) + 1; };
 

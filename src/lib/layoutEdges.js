@@ -11,15 +11,23 @@ const knownBox = (el) => {
   if (Number(el?.w) > 0 && (Number(el?.h) > 0 || Number(el?.aspect) > 0)) return elementBox(el);
   return null;
 };
-const off = (b, page, tol = 1) => b.x < -tol || b.y < -tol || b.x + b.w > page.w + tol || b.y + b.h > page.h + tol;
+// TASKS.csv #2700 — which sides of the sheet a box crosses ("left", "top", "right", "bottom"), so the confirm can say where
+const sides = (left, top, right, bottom, W, H, tol) => [left < -tol && "left", top < -tol && "top", right > W + tol && "right", bottom > H + tol && "bottom"].filter(Boolean);
+// #2700 — a short name the user can find the element by: its label or its text, else "" (the confirm then gives its kind only)
+export function elementCaption(el, max = 24) {
+  const t = String(el?.label || el?.text || el?.title || "").replace(/\{\{?[^}]*\}\}?/g, "").replace(/\s+/g, " ").trim();
+  return t.length > max ? `${t.slice(0, max - 1)}…` : t;
+}
 
-// the elements of one page past its edge -> [{ id, type }]
-export function offSheetElements(elements, page) {
+// the elements of one page past its edge -> [{ id, type, caption, sides }]
+export function offSheetElements(elements, page, tol = 1) {
   const out = [];
   for (const el of elements || []) {
     const b = knownBox(el);
-    const past = b ? off(b, page) : (Number(el?.x) || 0) >= page.w || (Number(el?.y) || 0) >= page.h || (Number(el?.x) || 0) < 0 || (Number(el?.y) || 0) < 0;
-    if (past) out.push({ id: el.id, type: el.type });
+    const x = Number(el?.x) || 0, y = Number(el?.y) || 0;
+    // sized by its content: only where it starts is known
+    const past = b ? sides(b.x, b.y, b.x + b.w, b.y + b.h, page.w, page.h, tol) : [x < 0 && "left", y < 0 && "top", x >= page.w && "right", y >= page.h && "bottom"].filter(Boolean);
+    if (past.length) out.push({ id: el.id, type: el.type, caption: elementCaption(el), sides: past });
   }
   return out;
 }
@@ -38,5 +46,14 @@ export function offSheetPages(pages, skipId, sizeOf) {
 // the page on screen: an element counts when its box or any text inside it reaches past the sheet (#2309: an SVG's captions can run
 // outside the element's own box). rects: [{ left, top, right, bottom }] for the element and its text; sheet likewise.
 export function rectsPastSheet(rects, sheet, tol = 1) {
-  return rects.some((b) => b && (b.right - b.left > 0 || b.bottom - b.top > 0) && (b.right > sheet.right + tol || b.bottom > sheet.bottom + tol || b.left < sheet.left - tol || b.top < sheet.top - tol));
+  return rectSidesPast(rects, sheet, tol).length > 0;
+}
+// #2700 — the sides of the sheet any of the rects crosses, in the order left, top, right, bottom
+export function rectSidesPast(rects, sheet, tol = 1) {
+  const hit = new Set();
+  for (const b of rects || []) {
+    if (!b || !(b.right - b.left > 0 || b.bottom - b.top > 0)) continue;
+    for (const sd of sides(b.left - sheet.left, b.top - sheet.top, b.right - sheet.left, b.bottom - sheet.top, sheet.right - sheet.left, sheet.bottom - sheet.top, tol)) hit.add(sd);
+  }
+  return ["left", "top", "right", "bottom"].filter((sd) => hit.has(sd));
 }

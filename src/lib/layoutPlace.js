@@ -17,6 +17,18 @@ export function elementBox(el) {
   return { x: Number(el?.x) || 0, y: Number(el?.y) || 0, w, h };
 }
 
+// TASKS.csv #2715 — Duplicate / paste on the same page moves the copy `off` px right and down; a selection already at the sheet's right
+// (or bottom) edge went past it. The step goes the other way on a side where it would cross the sheet and there is room behind; the
+// whole selection moves as one, so a group keeps its arrangement. -> { dx, dy }
+export function copyOffset(els, page, off) {
+  if (!els?.length || !(page?.w > 0)) return { dx: off, dy: off };
+  const boxes = els.map(elementBox);
+  const x0 = Math.min(...boxes.map((b) => b.x)), y0 = Math.min(...boxes.map((b) => b.y));
+  const x1 = Math.max(...boxes.map((b) => b.x + b.w)), y1 = Math.max(...boxes.map((b) => b.y + b.h));
+  const step = (lo, hi, size) => (hi + off <= size ? off : lo - off >= 0 ? -off : 0);
+  return { dx: step(x0, x1, page.w), dy: step(y0, y1, page.h) };
+}
+
 const overlap = (a, b) => Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x)) * Math.max(0, Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y));
 
 // the top-left corner for a w x h item on a page { w, h } holding `elements`
