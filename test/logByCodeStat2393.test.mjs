@@ -20,6 +20,6 @@ test("by median shale leads; by mean, P90 or the share above 100 lignite does", 
 
 test("the pane offers the choice and prints the share with its counts", () => {
   const p = readFileSync(new URL("../src/components/DownholeLogsPane.jsx", import.meta.url), "utf8");
-  assert.match(p, /logByCode\(data\.assays, data\.symbol, domain\.rows, \{ stat: rankStat, above: Number\(rankAbove\) \}\)/);
+  assert.match(p, /logByCode\(data\.assays, data\.symbol, domainFold\.rows, \{ stat: rankStat, above: Number\(rankAbove\) \}\)/); // domainFold: #2790 (case / space variants folded)
   assert.match(p, /Share of readings above \{v\} per code, highest first/);
 });

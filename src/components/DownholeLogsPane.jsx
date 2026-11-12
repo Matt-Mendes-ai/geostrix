@@ -4,7 +4,7 @@ import React, { useMemo } from "react";
 import { TaskPaneHeader } from "./Ribbon.jsx";
 import { Activity } from "./icons.js";
 import { numericSourceChoices, sourceAssays } from "../lib/numericSources.js";
-import { domainLayerChoices } from "../lib/domainLayers.js";
+import { domainLayerChoices, foldDomainRows } from "../lib/domainLayers.js"; // foldDomainRows: TASKS.csv #2790
 import { LAYER_META } from "../lib/layers.js";
 import { logByCode, logVsAssay, logVsModel, NOT_LOGGED, strideSample, logScaleSuits, allAboveZero, countAtOrBelowZero, sig3 } from "../lib/downholeLogs.js"; // logVsModel: #1595; strideSample: #2331; logScaleSuits...: #2558
 import { BoxPlots } from "./GradeStatistics.jsx";
@@ -75,7 +75,9 @@ export default function DownholeLogsPane({ layers, customLayers = [], assays = [
   // TASKS.csv #2393 — rank the codes by the median (default), the mean, P90 or the share of readings above a value
   const [rankStat, setRankStat] = useKeptState(keptScope, "dhlogs.rankStat", "median");
   const [rankAbove, setRankAbove] = useKeptState(keptScope, "dhlogs.rankAbove", "100");
-  const groups = useMemo(() => (data && domain ? logByCode(data.assays, data.symbol, domain.rows, { stat: rankStat, above: Number(rankAbove) }) : []), [data, domain, rankStat, rankAbove]);
+  // TASKS.csv #2790 — spellings that differ only by case or spaces are one code (foldDomainRows, as Estimation #2427 and Isocon #2787 do)
+  const domainFold = useMemo(() => (domain ? foldDomainRows(domain.rows) : null), [domain]);
+  const groups = useMemo(() => (data && domainFold ? logByCode(data.assays, data.symbol, domainFold.rows, { stat: rankStat, above: Number(rankAbove) }) : []), [data, domainFold, rankStat, rankAbove]);
   const symbols = assayElements.map((e) => e.symbol);
   const [element, setElement] = useKeptState(keptScope, "dhlogs.element", "");
   const el = symbols.includes(element) ? element : symbols[0] || "";
@@ -107,6 +109,7 @@ export default function DownholeLogsPane({ layers, customLayers = [], assays = [
               {!domains.length && <option value="">{tr("— no logged codes —")}</option>}
               {domains.map((d) => <option key={d.key} value={d.key}>{d.label}</option>)}
             </select></label>
+          {domainFold?.folded.length > 0 && <div style={note}>{tr("Spellings that differ only by case or spaces are one domain here: {list}.", { list: domainFold.folded.map((f) => f.codes.join(" = ")).join("; ") })}</div>}{/* #2790 */}
           <label style={{ ...row, justifyContent: "flex-start" }}><input type="checkbox" checked={logScale} onChange={(e) => setLogChoice(e.target.checked ? "on" : "off")} />{tr("Log scale")}</label>
           {logHidden > 0 && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("{k} of {n} readings are zero or negative and are not shown on the log scale.", { k: logHidden.toLocaleString(), n: logValues.filter(Number.isFinite).length.toLocaleString() })}</div>}
           {groups.length > 0 ? (
