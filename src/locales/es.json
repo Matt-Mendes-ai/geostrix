@@ -4867,6 +4867,7 @@
   "Remove custom layer \"{name}\"": "Quitar la capa personalizada \"{name}\"",
   "Remove the map layer \"{name}\" from the project?": "¿Quitar la capa de mapa \"{name}\" del proyecto?",
   "Zoom to map layer \"{name}\"": "Acercar a la capa de mapa \"{name}\"",
+  "Zoom to \"{name}\"": "Acercar a \"{name}\"",
   "Remove the section image \"{name}\" from the project?": "¿Quitar la imagen de sección \"{name}\" del proyecto?",
   "Zoom to section image \"{name}\"": "Acercar a la imagen de sección \"{name}\"",
   "Remove section image \"{name}\"": "Quitar la imagen de sección \"{name}\"",

@@ -2630,6 +2630,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   const zoomToFitAll = () => { const b = visibleSceneBox(sceneRef.current?.getObjectByName("root")); (lastTracesRef.current || []).forEach((pts) => pts.forEach((p) => b.expandByPoint(new THREE.Vector3(p.x, p.y, p.z)))); fitBox(b); };
   // TASKS.csv #1181 — Fit frames the drilling, as the opening view does (a 25 km mesh left 5 km of holes a few pixels); All: right-click menu
   const zoomToHoles = () => autoFitInitial(lastTracesRef.current, lastHoleTraceCountRef.current);
+  const fitButton = () => (mode === "surface" ? zoomToFitAll() : zoomToHoles()); // #2092 — Fit on the Surface Geology tab: everything shown
   // TASKS.csv #393 — zoom to one hole from the Holes list (its desurveyed trace, scene coords).
   const zoomToHole = useCallback((holeId) => { const t = tracesRef.current.find((x) => x.hole_id === holeId); if (t?.pts?.length) fitView([t.pts]); }, [fitView]);
   const zoomToPoint = (point) => fitBox(new THREE.Box3().setFromCenterAndSize(point, new THREE.Vector3(80, 80, 80)));
@@ -7399,6 +7400,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                 </div>
                 <Image size={14} style={{ color: "var(--color-text-secondary)", flexShrink: 0 }} />
                 <span style={{ flex: 1, minWidth: 0, fontSize: "var(--font-size-base)", color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.name}</span>
+                <Maximize2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => zoomToObject(rasterMeshesRef.current[r.id]), tr("Zoom to \"{name}\"", { name: r.name }))} />{/* #2080 */}
                 <input
                   type="range" min={0.1} max={1} step={0.05} value={r.opacity ?? 0.85}
                   onChange={(e) => updateRaster(r.id, { opacity: Number(e.target.value) })}
@@ -7480,6 +7482,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                   onChange={(e) => updateVoxelModel(v.id, { opacity: Number(e.target.value) })}
                   style={{ width: 46, flexShrink: 0 }} title={(v.cells?.length || 0) > TRANSPARENT_BOX_LIMIT ? tr("Opacity. Over {n} blocks a see-through model is drawn as its outer skin (and, for a unit model, the contacts between units), so it stays fast; use the cutoff or a 3D slice to look inside.", { n: TRANSPARENT_BOX_LIMIT.toLocaleString() }) : tr("Opacity")} /* #904 */
                 />
+                <Maximize2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => zoomToObject(voxelMeshesRef.current[v.id]), tr("Zoom to \"{name}\"", { name: v.name }))} />{/* #2080 */}
                 <ArrowUpRight size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => { goToModule("geophysics"); requestModuleAction("edit-block-model", { id: v.id }); }, tr("Edit legend / classify / palette for this model in the Geophysics tab"))} />
                 <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => { if (confirmDestructive(tr("Remove block/voxel model \"{name}\"?", { name: v.name }), { recover: tr("it would have to be re-imported or re-run.") })) removeVoxelModel(v.id); }, tr("Remove block/voxel model \"{name}\"", { name: v.name }))} />
               </div>
@@ -8476,7 +8479,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         <div style={{ position: "absolute", top: 178, right: 12, display: "flex", flexDirection: "column", gap: 6 }}>{/* #1300 — 8 px below the compass card */}
           <button onClick={() => { camState.current.theta = 0; camState.current.phi = 0.02; cameraRef.current.__update(); }} style={miniBtn}>{tr("Top")}</button>{/* #1200 — north up, as a map */}
           <button onClick={() => { camState.current.phi = Math.PI - 0.02; cameraRef.current.__update(); }} style={miniBtn}>{tr("Bottom")}</button>
-          <button onClick={() => zoomToHoles()} style={miniBtn} title={tr("Zoom to the holes (to include everything shown: right-click the view, Zoom to fit all)")} aria-label={tr("Zoom to the holes")}>{tr("Fit")}</button>{/* #567 — the keyboard / visible path the notices pointed to */}
+          <button onClick={fitButton} style={miniBtn} title={mode === "surface" ? tr("Zoom to fit all") : tr("Zoom to the holes (to include everything shown: right-click the view, Zoom to fit all)")} aria-label={mode === "surface" ? tr("Zoom to fit all") : tr("Zoom to the holes")}>{tr("Fit")}</button>{/* #567 — the keyboard / visible path the notices pointed to */}
         </div>
         {/* TASKS.csv #189 — the old "■ East ■ Elevation ■ North" text legend used to render here;
             replaced by axisGizmo (created above, rendered every frame via the same viewport/scissor

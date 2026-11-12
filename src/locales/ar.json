@@ -4867,6 +4867,7 @@
   "Remove custom layer \"{name}\"": "إزالة الطبقة المخصصة «{name}»",
   "Remove the map layer \"{name}\" from the project?": "إزالة طبقة الخريطة «{name}» من المشروع؟",
   "Zoom to map layer \"{name}\"": "التكبير إلى طبقة الخريطة «{name}»",
+  "Zoom to \"{name}\"": "تكبير إلى \"{name}\"",
   "Remove the section image \"{name}\" from the project?": "إزالة صورة المقطع «{name}» من المشروع؟",
   "Zoom to section image \"{name}\"": "التكبير إلى صورة المقطع «{name}»",
   "Remove section image \"{name}\"": "إزالة صورة المقطع «{name}»",

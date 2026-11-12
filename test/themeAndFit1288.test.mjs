@@ -6,7 +6,9 @@ import { wrapText } from "../src/lib/figureFurniture.js";
 const read = (f) => readFileSync(f, "utf8");
 const viewer = read("src/modules/ViewerModule.jsx");
 test("#1181 Fit frames the holes, the full extent stays on the menu", () => {
-  assert.match(viewer, /<button onClick=\{\(\) => zoomToHoles\(\)\}/);
+  // #2092 — on the Surface Geology tab the Fit button frames everything shown; elsewhere the holes, as before
+  assert.match(viewer, /<button onClick=\{fitButton\}/);
+  assert.match(viewer, /const fitButton = \(\) => \(mode === "surface" \? zoomToFitAll\(\) : zoomToHoles\(\)\);/);
   assert.match(viewer, /zoomToHoles = \(\) => autoFitInitial\(lastTracesRef\.current, lastHoleTraceCountRef\.current\)/);
   assert.equal(viewer.split('label={tr("Zoom to fit all")}').length - 1, 2);
 });
