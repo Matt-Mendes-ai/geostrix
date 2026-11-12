@@ -12,7 +12,7 @@ import { correlationMatrix } from "../lib/correlation.js"; // TASKS.csv #405, #1
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { toExportCsv } from "../lib/tabular.js"; // TASKS.csv #1022 — every exported CSV: all columns, formula cells escaped
 import { correlationRows } from "../lib/analysisExports.js"; // TASKS.csv #1083
-import { correlationDefaults } from "../lib/preferredElement.js"; // TASKS.csv #1678
+import { correlationDefaults, BULK_COMMODITIES } from "../lib/preferredElement.js"; // TASKS.csv #1678; BULK_COMMODITIES: #2908
 import { isBelowDetection } from "../lib/assayFlags.js"; // TASKS.csv #2505
 
 // TASKS.csv #21 — multi-element correlation matrix. Pearson r between every pair of selected
@@ -63,9 +63,21 @@ export default function CorrelationMatrix({ assays: assaysIn, assayElements: ass
   // TASKS.csv #2351 — the lead commodity and the best-covered elements first (counted on the rows shown), the fixed suite only breaking ties
   const lead = useLeadCommodity();
   const countsOf = (rows, syms) => { const c = {}; for (const s of syms) c[s] = 0; for (const r of rows || []) for (const s of syms) if (r?.values?.[s] != null && r.values[s] !== "") c[s]++; return c; };
-  const defaultsFor = (rows, syms) => correlationDefaults(measuredOf(syms), 12, { lead, counts: countsOf(rows, syms) }); // measuredOf: #2036
+  // TASKS.csv #2908 — a bulk commodity's project (Fe, Mn, Al) ticks the majors after the lead: ties broken by the median grade (ppm of the
+  // element), read from at most 5,000 evenly spread rows so a 150,000-sample table pays little for it
+  const mediansOf = (rows, syms, units) => {
+    const step = Math.max(1, Math.floor((rows || []).length / 5000)), out = {};
+    for (const s of syms) {
+      const v = [];
+      for (let i = 0; i < (rows || []).length; i += step) { const x = valueIn(rows[i], s, "ppm", units); if (x != null && Number.isFinite(x)) v.push(x); }
+      v.sort((a, b) => a - b);
+      if (v.length) out[s] = v[Math.floor(v.length / 2)];
+    }
+    return out;
+  };
+  const defaultsFor = (rows, syms, units = elementUnits) => correlationDefaults(measuredOf(syms), 12, { lead, counts: countsOf(rows, syms), ...(BULK_COMMODITIES.has(lead) ? { medians: mediansOf(rows, syms, units) } : {}) }); // measuredOf: #2036
   const [selected, setSelected] = useState(() => new Set(defaultsFor(assays, allSymbols))); // #1678 — the commodity first; #2351 — from the data
-  const pickSource = (next) => { setSource(next); const els = (next === "surface" ? surfaceElements : assayElementsIn).map((e) => e.symbol); setSelected(new Set(defaultsFor(next === "surface" ? surfaceSamples : excludeQAQC(labAssays(assaysIn)), els))); }; // #1799
+  const pickSource = (next) => { setSource(next); const nextEls = next === "surface" ? surfaceElements : assayElementsIn, els = nextEls.map((e) => e.symbol); setSelected(new Set(defaultsFor(next === "surface" ? surfaceSamples : excludeQAQC(labAssays(assaysIn)), els, Object.fromEntries(nextEls.map((e) => [e.symbol, e.unit]))))); }; // units: #2908 // #1799
   const toggle = (sym) => setSelected((p) => { const n = new Set(p); n.has(sym) ? n.delete(sym) : n.add(sym); return n; });
 
   // TASKS.csv #1514 — a memo, not a new array per render (it made every re-render recompute the whole matrix); columns and

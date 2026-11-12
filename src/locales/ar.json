@@ -1787,6 +1787,7 @@
   "No '<x' results: the lowest reported value (an upper bound on the limit)": "لا نتائج '<x': أصغر قيمة مبلغ عنها (حد أعلى للحد)",
   "Use the lab's <{limit}": "استخدام <{limit} الخاص بالمختبر",
   "main column": "العمود الرئيسي",
+  "Oxide columns kept as the oxide, as the project stores them: {list}.": "أُبقيت أعمدة الأكاسيد كأكاسيد، كما يخزّنها المشروع: {list}.",
   "Added {name}: the robust multivariate score of {n} sample(s) on {els}; {k} lie above the 97.5 % line ({cut}). It ranks how unusual each sample's composition is; it is not a probability of mineralization.": "أُضيف {name}: الدرجة متعددة المتغيرات المتينة لـ {n} عينة على {els}؛ تقع {k} فوق خط 97.5 % ({cut}). ترتّب مدى شذوذ تركيب كل عينة؛ وليست احتمالًا للتمعدن.",
   "Multivariate anomaly score": "درجة الشذوذ متعددة المتغيرات",
   "How far each sample's whole composition lies from the bulk of the data: the robust Mahalanobis distance on log ratios of the chosen elements, with the centre and spread from the Minimum Covariance Determinant (Filzmoser, Garrett & Reimann 2005), so up to a quarter of the samples can be unusual without hiding each other. It is a ranking, not a probability of mineralization.": "مدى ابتعاد التركيب الكامل لكل عينة عن معظم البيانات: مسافة ماهالانوبيس المتينة على النسب اللوغاريتمية للعناصر المختارة، مع المركز والتشتت من محدد التغاير الأدنى (Filzmoser, Garrett & Reimann 2005)، بحيث يمكن أن يكون حتى ربع العينات شاذًا دون أن يخفي بعضها بعضًا. إنها ترتيب، لا احتمال للتمعدن.",

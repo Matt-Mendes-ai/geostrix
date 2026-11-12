@@ -23,7 +23,7 @@ test("the bundled Silvertip assays no longer list B, Hg, Pd or Pt", () => {
 
 test("Geochem's import dialogs start an empty column unticked and tag it", () => {
   const g = readFileSync(new URL("../src/modules/GeochemModule.jsx", import.meta.url), "utf8");
-  assert.equal((g.match(/mainHeader: e\.header, checked: e\.n > 0 \}\)\)/g) || []).length, 3);
+  assert.equal((g.match(/mainHeader: e\.header, checked: e\.n > 0( \}|, \.\.\.projectKeepsOxide\(e, projectUnits\) \})\)\)/g) || []).length, 3); // the two surface dialogs add the project's basis (#2957)
   for (const f of ["../src/components/AssayImportModal.jsx", "../src/components/SurfaceImportModal.jsx"]) {
     assert.match(readFileSync(new URL(f, import.meta.url), "utf8"), /\{e\.n === 0 && <span [^>]*>\{tr\("no values"\)\}<\/span>\}/, f);
   }
