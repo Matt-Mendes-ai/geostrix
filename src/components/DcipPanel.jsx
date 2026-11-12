@@ -8,7 +8,7 @@ import { useKeptState, scopeOf } from "../lib/keptState.js"; // TASKS.csv #1174
 import { Upload, Play, Download, Trash2 } from "./icons.js";
 import { useStore, useSetTaskProgress } from "../lib/store.jsx";
 import { parseTableFile, decodeTableBytes, toExportCsv } from "../lib/tabular.js";
-import { guessDcipColumns, parseDcipRows, parseDcipWhitespaceText, lineTagOf, lineGeometry, lineFromTwoPoints, terrainProfile, slopeToHorizontalFromProfile, slopeToHorizontalFromStations, readingsToHorizontal, pseudoPositions, dataFitRows, worstReadings, sectionCells, slimDcipResult, savedLineToFile, sectionTableRows, suggestModelDepth, deepestPseudoDepth, columnReach, smoothReachLine } from "../lib/dcip.js";
+import { guessDcipColumns, parseDcipRows, parseDcipWhitespaceText, lineTagOf, lineGeometry, lineFromTwoPoints, terrainProfile, slopeToHorizontalFromProfile, slopeToHorizontalFromStations, readingsToHorizontal, pseudoPositions, dataFitRows, worstReadings, sectionCells, slimDcipResult, savedLineToFile, sectionTableRows, suggestModelDepth, deepestPseudoDepth, columnReach, smoothReachLine, ipRequest } from "../lib/dcip.js"; // ipRequest: TASKS.csv #2704
 import { renderDcipSectionPng, sig3, rampRange } from "../lib/dcipSectionImage.js"; // sig3: #322; rampRange: #2073
 import { parseRes2dinv } from "../lib/res2dinv.js"; // TASKS.csv #826
 import { confirmDestructive } from "../lib/confirmDestructive.js"; // TASKS.csv #322 — a saved line (and its inversion) is not in Undo
@@ -164,7 +164,7 @@ export default function DcipPanel({ pBtn, numInput, resultSlot = null }) {
       const keptName = f.name.replace(/\.(csv|txt|dat|ipg)$/i, "");
       const newlyKept = !!(p?.readings.length && !(dcipLines || []).some((l) => l.name === keptName));
       if (newlyKept) { const cell = p.spacing ? String(+(p.spacing / 2).toFixed(2)) : ""; saveDcipLine({ name: keptName, readings: p.readings, rho: p.rho, ip: p.ip, ...(p.err ? { err: p.err } : {}), line: { x0: "", y0: "", x1: "", y1: "", ground: "", scale: "", stations: null }, opts: { ...opts, cell: opts.cell || cell, depth: opts.depth || (p.spacing ? String(suggestModelDepth(p.readings, p.span, p.spacing / 2)) : "") }, savedAt: new Date().toISOString() }); }
-      setMsg(p ? { ok: true, text: tr("{name}: {n} readings ({array}), electrodes {a}–{b} m, smallest spacing {s} m{ip}{skipped}.", { name: f.name, n: p.readings.length, array: p.array, a: p.span[0], b: p.span[1], s: p.spacing, ip: p.ip ? tr(", with chargeability") : "", skipped: p.skipped ? tr("; {n} row(s) skipped (missing A/M, non-positive resistivity{v})", { n: p.skipped, v: m.ip ? tr(" or no chargeability") : "" }) : "" }) + (p.noIp ? " " + tr("{n} of them have a resistivity but no chargeability: they are left out of the resistivity inversion too. To keep them for resistivity, set the chargeability column to none and invert resistivity alone.", { n: p.noIp }) : "") /* #2076 */ + (t.note ? " " + t.note : "") + (newlyKept ? " " + tr("Kept in the project as \"{name}\" (place it on the map before inverting).", { name: keptName }) : "") } // #1974; kept: #2026
+      setMsg(p ? { ok: true, text: tr("{name}: {n} readings ({array}), electrodes {a}–{b} m, smallest spacing {s} m{ip}{skipped}.", { name: f.name, n: p.readings.length, array: p.array, a: p.span[0], b: p.span[1], s: p.spacing, ip: p.ip ? tr(", with chargeability") : "", skipped: p.skipped ? tr("; {n} row(s) skipped (missing A/M, non-positive resistivity{v})", { n: p.skipped, v: "" /* #2704 — a missing chargeability no longer skips a row */ }) : "" }) + (p.noIp ? " " + tr("{n} reading(s) have a resistivity but no chargeability: the resistivity model uses them, the chargeability model leaves them out.", { n: p.noIp }) /* #2704 */ : "") /* #2076 */ + (t.note ? " " + t.note : "") + (newlyKept ? " " + tr("Kept in the project as \"{name}\" (place it on the map before inverting).", { name: keptName }) : "") } // #1974; kept: #2026
         : { ok: false, text: tr("Map the A, M and apparent-resistivity columns below.") });
     } catch (e) { setMsg({ ok: false, text: tr("Could not read {name}: {message}", { name: f.name, message: e.message }) }); }
   };
@@ -280,7 +280,7 @@ export default function DcipPanel({ pBtn, numInput, resultSlot = null }) {
     if (!(num(opts.pct) > 0) && !(num(opts.floor) > 0)) problems.push(tr("Enter the resistivity data uncertainty (% and / or a floor) — how far you trust each reading."));
     if (parsed?.ip && !(num(opts.ipPct) > 0) && !(num(opts.ipFloor) > 0)) problems.push(tr("Enter the chargeability uncertainty (% and / or a floor in mV/V)."));
     // TASKS.csv #564 — a percent of 0 mV/V is 0: that reading would get zero uncertainty (infinite weight)
-    else if (parsed?.ip && !(num(opts.ipFloor) > 0) && parsed.ip.some((v) => !(Math.abs(v) > 0))) problems.push(tr("{n} chargeability reading(s) are 0 mV/V: a percent alone gives them no uncertainty. Enter a floor in mV/V as well.", { n: parsed.ip.filter((v) => !(Math.abs(v) > 0)).length }));
+    else if (parsed?.ip && !(num(opts.ipFloor) > 0) && parsed.ip.some((v) => v != null && !(Math.abs(v) > 0))) problems.push(tr("{n} chargeability reading(s) are 0 mV/V: a percent alone gives them no uncertainty. Enter a floor in mV/V as well.", { n: parsed.ip.filter((v) => v != null && !(Math.abs(v) > 0)).length })); // v != null: a missing one is not used (#2704)
     let topo = null, groundNote = "", readingsH = parsed?.readings, posNote = "", lineGeom = geom;
     if (parsed && geom) {
       const st = line.stations?.list || [];
@@ -321,14 +321,14 @@ export default function DcipPanel({ pBtn, numInput, resultSlot = null }) {
     }
     if (problems.length) { setMsg({ ok: false, text: problems.join(" ") }); return; }
     const request = {
-      readings: readingsH, rho: parsed.rho, ...(parsed.ip ? { chargeability: parsed.ip } : {}), topo, // #539 — horizontal positions
+      readings: readingsH, rho: parsed.rho, ...(ipRequest(parsed.ip) || {}), topo, // #539 — horizontal positions; ipRequest: #2704 (chargeability + ipUse)
       mesh: { cell: num(opts.cell), depth: num(opts.depth) }, maxIter: Number(opts.maxIter) || 20,
       geometricFactor: opts.geomFactor || "flat", // TASKS.csv #580
       ...(line.positions === "slope" ? { chain: parsed.readings } : {}), // #969 — the file's along-ground positions, for the flat-ground K
       ...(opts.doi ? { doi: true } : {}), // TASKS.csv #772
       // #683 — the file's own error column as a per-reading floor, once the user has said what it measures
       uncertainty: { percent: num(opts.pct) || 0, floor: num(opts.floor) || 0, ...(parsed.err && opts.errKind === "rhoPct" ? { floorPerReadingPercent: parsed.err } : {}) },
-      ...(parsed.ip ? { ipUncertainty: { percent: num(opts.ipPct) || 0, floor: num(opts.ipFloor) || 0, ...(parsed.err && opts.errKind === "ipMvV" ? { floorPerReadingMvV: parsed.err } : {}) } } : {}),
+      ...(ipRequest(parsed.ip) ? { ipUncertainty: { percent: num(opts.ipPct) || 0, floor: num(opts.ipFloor) || 0, ...(parsed.err && opts.errKind === "ipMvV" ? { floorPerReadingMvV: parsed.err } : {}) } } : {}),
     };
     const name = lineName;
     keepLine();
@@ -718,7 +718,7 @@ function lineVoxelModels(result, geom, { name, thick, cut, params, kinds, dataRh
       // colours and the legend; the range filter keeps every cell, VoxelRangeRow)
       if (kind === "extrapolated" || method === "dc") { lo = percentile(vals, 0.02); hi = percentile(vals, 0.98); }
       const stops = method === "dc" ? logStops(lo, hi) : sequentialStops(0, kind === "observed" ? percentile(vals, 0.98) : hi); // p98: a few spikes do not wash the line out
-      const ipFit = method === "ip" && result.ip ? { ip: { phiD: result.ip.phi_d, target: result.target, ...ipFitStored(result) } } : {};
+      const ipFit = method === "ip" && result.ip ? { ip: { phiD: result.ip.phi_d, target: result.ip.target ?? result.target /* #2704 */, ...ipFitStored(result) } } : {};
       out.push({
         source: "simpeg", colorMode: "continuous", method, property, cells, min: lo, max: hi, stops,
         // TASKS.csv #1093 — the cells are axis-aligned boxes around rotated section cells: the line's direction and the
@@ -743,7 +743,7 @@ function exportCsv(last, epsg, cutoff) {
   const r = last.result;
   const stamp = stampLines({ tool: "2D DC resistivity / IP inversion (SimPEG) — section cells", version: APP_VERSION, epsg, params: [
     `Line: ${last.name}; azimuth ${last.geom.azimuth.toFixed(2)} deg (grid); distance 0 at the line start`,
-    `Fit: resistivity misfit ${(r.phi_d / r.target).toFixed(2)}x the target${r.ip ? `, chargeability ${(r.ip.phi_d / r.target).toFixed(2)}x` : ""}`,
+    `Fit: resistivity misfit ${(r.phi_d / r.target).toFixed(2)}x the target${r.ip ? `, chargeability ${(r.ip.phi_d / (r.ip.target ?? r.target)).toFixed(2)}x` : ""}`,
     "support = normalized sensitivity (how much the data see the cell); low-support cells are poorly constrained",
     `envelope_support = the largest support at or below the cell in its column; shown = envelope_support >= the cutoff (${cutoff}): cells below the deepest well-seen cell of their column are hidden`,
     ...(r.cells.doi ? [`doi_index = Oldenburg & Li (1999) depth-of-investigation index from resistivity inversions with reference models ${(r.doiMethod?.referenceFactors || [0.1, 10]).join(" and ")}x the median: ~0 = data-controlled, ~1 = reference-controlled (threshold ${r.doiMethod?.threshold ?? 0.2}); single-cell values depend on how closely the two runs fit (${(r.doiMethod?.misfitOfEachRun || []).map((v) => `${v}x`).join(" / ")}) - read the depth per column, not one cell`] : []), // #772

@@ -11,15 +11,15 @@ test("#322 columns guessed, poles kept as null, bad rows skipped, spacing and ar
     { A: "0", B: "", M: "20", N: "30", R: "105.2", IP: "12" },
     { A: "10", B: "", M: "30", N: "40", R: "98,5", IP: "11" },   // comma decimal
     { A: "20", B: "", M: "40", N: "50", R: "-3", IP: "10" },     // not a resistivity
-    { A: "30", B: "", M: "50", N: "60", R: "101", IP: "*" },     // no chargeability -> skipped when IP is mapped
+    { A: "30", B: "", M: "50", N: "60", R: "101", IP: "*" },     // no chargeability -> kept for the resistivity model, ip null (#2704; was skipped)
   ];
   const p = parseDcipRows(rows, { a: "A", b: "B", m: "M", n: "N", rho: "R", ip: "IP" });
-  assert.deepEqual(p.readings, [[0, null, 20, 30], [10, null, 30, 40]]);
-  assert.deepEqual(p.rho, [105.2, 98.5]);
-  assert.deepEqual(p.ip, [12, 11]);
-  assert.equal(p.skipped, 2);
+  assert.deepEqual(p.readings, [[0, null, 20, 30], [10, null, 30, 40], [30, null, 50, 60]]);
+  assert.deepEqual(p.rho, [105.2, 98.5, 101]);
+  assert.deepEqual(p.ip, [12, 11, null]);
+  assert.equal(p.skipped, 1);
   assert.equal(p.spacing, 10);
-  assert.deepEqual(p.span, [0, 40]);
+  assert.deepEqual(p.span, [0, 60]);
   assert.equal(p.array, "pole-dipole");
   assert.equal(parseDcipRows(rows.slice(0, 2), { a: "A", b: "B", m: "M", n: "N", rho: "R" }).ip, null);
 });

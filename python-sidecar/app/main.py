@@ -323,8 +323,15 @@ def _validate_dcip2d(req):
         floor_ok = isinstance(iu.get("floor"), (int, float)) and iu["floor"] > 0
         if not (pct_ok or floor_ok):
             raise HTTPException(400, "chargeability uncertainty needs a percent or a floor above zero — GeoStrix never assumes it.")
-        if not floor_ok and any((c is None) or (not isinstance(c, (int, float))) or c == 0 for c in req["chargeability"]):
+        # TASKS.csv #2704 — ipUse (as dcip3d's, #1967): the readings the IP model uses; the others are resistivity-only (no chargeability)
+        u_ip = req.get("ipUse")
+        if u_ip is not None and (not isinstance(u_ip, list) or len(u_ip) != len(r) or not all(isinstance(v, bool) for v in u_ip) or not any(u_ip)):
+            raise HTTPException(400, "ipUse must hold true / false per reading, with at least one true.")
+        used = [c for c, k in zip(req["chargeability"], u_ip or [True] * len(r)) if k]
+        if not floor_ok and any((c is None) or (not isinstance(c, (int, float))) or c == 0 for c in used):
             raise HTTPException(400, "some chargeability readings are 0 mV/V: a percent alone gives them no uncertainty — add a floor in mV/V.")
+    elif req.get("ipUse") is not None:
+        raise HTTPException(400, "ipUse goes with chargeability.")
     # TASKS.csv #683 — optional per-reading floors from the file's own error column (null = none for that reading)
     for key, arr in (("uncertainty.floorPerReadingPercent", u.get("floorPerReadingPercent")),
                      ("ipUncertainty.floorPerReadingMvV", (req.get("ipUncertainty") or {}).get("floorPerReadingMvV"))):

@@ -16,8 +16,9 @@ const mapping = { a: "A", b: "B", m: "M", n: "N", rho: "RHO", ip: "MX" };
 
 test("resistivity-only readings are counted apart from bad rows", () => {
   const p = parseDcipRows(rows, mapping);
-  assert.equal(p.readings.length, 1);
-  assert.equal(p.skipped, 4);
+  assert.equal(p.readings.length, 3); // since #2704 the two resistivity-only readings are kept (ip null) for the resistivity model
+  assert.deepEqual(p.ip, [6.1, null, null]);
+  assert.equal(p.skipped, 2);
   assert.equal(p.noIp, 2);
   const dcOnly = parseDcipRows(rows, { ...mapping, ip: null });
   assert.equal(dcOnly.readings.length, 3); // with no chargeability column the two come back
@@ -26,5 +27,5 @@ test("resistivity-only readings are counted apart from bad rows", () => {
 
 test("the read notice says so", () => {
   const src = readFileSync(new URL("../src/components/DcipPanel.jsx", import.meta.url), "utf8");
-  assert.match(src, /p\.noIp \? " " \+ tr\("\{n\} of them have a resistivity but no chargeability: they are left out of the resistivity inversion too\./);
+  assert.match(src, /p\.noIp \? " " \+ tr\("\{n\} reading\(s\) have a resistivity but no chargeability: the resistivity model uses them, the chargeability model leaves them out\."/); // #2704
 });

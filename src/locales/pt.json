@@ -10852,5 +10852,6 @@
   "Drillholes: {name} × thickness or metres above a cut-off, per hole…": "Furos: {name} × espessura ou metros acima de um corte, por furo…",
   "Drillholes: metres of {name} at or above {c} in each hole": "Furos: metros de {name} em ou acima de {c} em cada furo",
   "Drillholes: {name} × thickness at or above {c} in each hole": "Furos: {name} × espessura em ou acima de {c} em cada furo",
-  "at or above ({name})": "em ou acima de ({name})"
+  "at or above ({name})": "em ou acima de ({name})",
+  "{n} reading(s) have a resistivity but no chargeability: the resistivity model uses them, the chargeability model leaves them out.": "{n} leitura(s) têm resistividade mas não cargabilidade: o modelo de resistividade as usa e o de cargabilidade as deixa de fora."
 }

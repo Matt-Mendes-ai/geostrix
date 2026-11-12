@@ -268,6 +268,42 @@ def test_depth_of_investigation_index():
     assert len(fits) == 2 and all(0.3 < f <= 1.5 for f in fits), fits
 
 
+def test_ip_from_a_subset_of_readings():
+    """TASKS.csv #2704 — DC on every reading with a resistivity, IP only on those with a chargeability (ipUse, as dcip3d's
+    #1967): a quarter of the readings get absurd placeholder chargeabilities and ipUse false; the IP fit ignores them
+    (its target counts the used readings, its outputs are null there), DC still uses all, and the block is still found."""
+    from fastapi import HTTPException
+    from app.main import _validate_dcip2d
+    rows, rho, ch, topo = _synthetic()
+    n = len(rows)
+    use = [(i % 4) != 0 for i in range(n)]
+    ch_wild = [999.0 if not u else float(c) for c, u in zip(ch, use)]
+    req = {"readings": rows.tolist(), "rho": rho.tolist(), "chargeability": ch_wild, "ipUse": use, "topo": topo.tolist(),
+           "mesh": {"cell": 5.0, "depth": 150.0}, "uncertainty": {"percent": 3, "floor": 0.0},
+           "ipUncertainty": {"percent": 3, "floor": 0.5}, "maxIter": 20}
+    _validate_dcip2d(dict(req))
+    for bad in ([True] * (n - 1), [False] * n, ["yes"] * n):
+        try:
+            _validate_dcip2d(dict(req, ipUse=bad)); raise AssertionError(f"accepted ipUse {str(bad)[:20]}")
+        except HTTPException as e:
+            print("  refused:", e.detail)
+    out = D.run_job(req, lambda e: None)
+    ip = out["ip"]
+    n_used = sum(use)
+    assert ip["target"] == n_used and ip["readingsUsed"] == n_used and out["target"] == n, (ip["target"], out["target"])
+    assert len(ip["predicted"]) == n and all((p is None) == (not u) for p, u in zip(ip["predicted"], use))
+    assert len(out["predicted"]) == n and all(v is not None for v in out["predicted"])
+    c = out["cells"]
+    s, z, eta = (np.asarray(c[k]) for k in ("s", "z", "chargeability"))
+    ground = np.interp(s, topo[:, 0], topo[:, 1])
+    inb = (s > 280) & (s < 360) & (ground - z > 20) & (ground - z < 60)
+    far = (s < 150) & (ground - z < 30)
+    hi = int(np.argmax(eta))
+    print(f"IP subset: {n_used} of {n} readings, phi_d {ip['phi_d']:.0f} / {ip['target']:.0f} (reached={ip['reachedTarget']}); max {eta[hi]:.1f} mV/V at s={s[hi]:.0f}, block median {np.median(eta[inb]):.1f}")
+    assert ip["reachedTarget"]  # the 999 placeholders were never fitted
+    assert 260 <= s[hi] <= 380 and np.median(eta[inb]) > 5 * max(1e-3, np.median(eta[far]))
+
+
 if __name__ == "__main__":
     test_ip_zero_reading_needs_a_floor()
     test_pole_dipole_homogeneous()
@@ -277,5 +313,6 @@ if __name__ == "__main__":
     test_flat_geometric_factor_on_a_ridge()
     test_per_reading_floor_from_the_file()
     test_depth_of_investigation_index()
+    test_ip_from_a_subset_of_readings()
     print("ALL PASSED")
 

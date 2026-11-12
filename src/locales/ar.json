@@ -10852,5 +10852,6 @@
   "Drillholes: {name} × thickness or metres above a cut-off, per hole…": "ثقوب الحفر: {name} × السماكة أو الأمتار فوق حد قطع، لكل ثقب…",
   "Drillholes: metres of {name} at or above {c} in each hole": "ثقوب الحفر: أمتار {name} عند {c} أو فوقها في كل ثقب",
   "Drillholes: {name} × thickness at or above {c} in each hole": "ثقوب الحفر: {name} × السماكة عند {c} أو فوقها في كل ثقب",
-  "at or above ({name})": "عند أو فوق ({name})"
+  "at or above ({name})": "عند أو فوق ({name})",
+  "{n} reading(s) have a resistivity but no chargeability: the resistivity model uses them, the chargeability model leaves them out.": "لـ {n} قراءة مقاومية بلا قابلية شحن: يستخدمها نموذج المقاومية ويستبعدها نموذج قابلية الشحن."
 }

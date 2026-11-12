@@ -4,7 +4,7 @@
 // the ground: the surveyed station elevations, else the terrain, else the line's entered flat ground), and the
 // along-line distances are kept for the flat-ground geometric factor the readings were computed with (#580).
 // Pure: no React.
-import { lineGeometry, terrainProfile, slopeToHorizontalFromProfile, slopeToHorizontalFromStations, readingsToHorizontal, suggestModelDepth } from "./dcip.js";
+import { lineGeometry, terrainProfile, slopeToHorizontalFromProfile, slopeToHorizontalFromStations, readingsToHorizontal, suggestModelDepth, ipRequest } from "./dcip.js"; // ipRequest: #2704
 import { stationGroundProfile } from "./dcipStations.js";
 import { terrainElevationAt, logStops, sequentialStops } from "./inversion.js";
 import { percentile } from "./arrayStats.js";
@@ -128,7 +128,8 @@ export function build3dRequest(lines, terrain, { core, depth, step = 1, pct, flo
     }
   }
   return {
-    readings, chain, rho, ...(withIp ? { chargeability: parts.flatMap((l) => l.ip) } : {}), topo, ...(terrain ? { topoSkipped } : {}),
+    // ipRequest: TASKS.csv #2704 — a line's resistivity-only readings (ip null) go in with ipUse false
+    readings, chain, rho, ...(withIp ? ipRequest(parts.flatMap((l) => l.ip)) || {} : {}), topo, ...(terrain ? { topoSkipped } : {}),
     mesh: { core: Number(core), depth: Number(depth) }, maxIter: Number(maxIter) || 12, geometricFactor,
     uncertainty: { percent: num(pct) || 0, floor: num(floor) || 0, ...(flPct ? { floorPerReadingPercent: flPct } : {}) },
     ...(withIp ? { ipUncertainty: { percent: num(ipPct) || 0, floor: num(ipFloor) || 0, ...(flIp ? { floorPerReadingMvV: flIp } : {}) } } : {}),
