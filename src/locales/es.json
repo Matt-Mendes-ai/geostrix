@@ -10586,5 +10586,7 @@
   "Unit of the cut-off": "Unidad de la ley de corte",
   "{n} blocks: {v}": "{n} bloques: {v}",
   "Blank: gaps under {n} blocks are left out (a gap of a block or two is the grid, not a target).": "En blanco: se dejan fuera los vacíos de menos de {n} bloques (un vacío de uno o dos bloques es la grilla, no un objetivo).",
-  "About {n} blocks in the unit's box at this size.": "Unos {n} bloques en la caja de la unidad con este tamaño."
+  "About {n} blocks in the unit's box at this size.": "Unos {n} bloques en la caja de la unidad con este tamaño.",
+  "Evaluating \"{name}\" ({cells} cells) along {holes} hole(s)…": "Evaluando «{name}» ({cells} celdas) a lo largo de {holes} sondaje(s)…",
+  "({s} s)": "({s} s)"
 }

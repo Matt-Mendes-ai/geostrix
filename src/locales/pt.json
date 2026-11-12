@@ -10586,5 +10586,7 @@
   "Unit of the cut-off": "Unidade do teor de corte",
   "{n} blocks: {v}": "{n} blocos: {v}",
   "Blank: gaps under {n} blocks are left out (a gap of a block or two is the grid, not a target).": "Em branco: as lacunas com menos de {n} blocos ficam de fora (uma lacuna de um ou dois blocos é a grade, não um alvo).",
-  "About {n} blocks in the unit's box at this size.": "Cerca de {n} blocos na caixa da unidade com este tamanho."
+  "About {n} blocks in the unit's box at this size.": "Cerca de {n} blocos na caixa da unidade com este tamanho.",
+  "Evaluating \"{name}\" ({cells} cells) along {holes} hole(s)…": "Avaliando \"{name}\" ({cells} células) ao longo de {holes} furo(s)…",
+  "({s} s)": "({s} s)"
 }

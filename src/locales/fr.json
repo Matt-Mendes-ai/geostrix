@@ -10586,5 +10586,7 @@
   "Unit of the cut-off": "Unité de la teneur de coupure",
   "{n} blocks: {v}": "{n} blocs : {v}",
   "Blank: gaps under {n} blocks are left out (a gap of a block or two is the grid, not a target).": "Vide : les lacunes de moins de {n} blocs sont laissées de côté (une lacune d'un ou deux blocs, c'est la grille, pas une cible).",
-  "About {n} blocks in the unit's box at this size.": "Environ {n} blocs dans la boîte de l'unité à cette taille."
+  "About {n} blocks in the unit's box at this size.": "Environ {n} blocs dans la boîte de l'unité à cette taille.",
+  "Evaluating \"{name}\" ({cells} cells) along {holes} hole(s)…": "Évaluation de « {name} » ({cells} cellules) le long de {holes} sondage(s)…",
+  "({s} s)": "({s} s)"
 }

@@ -10586,5 +10586,7 @@
   "Unit of the cut-off": "وحدة حد القطع",
   "{n} blocks: {v}": "{n} كتل: {v}",
   "Blank: gaps under {n} blocks are left out (a gap of a block or two is the grid, not a target).": "فارغ: تُستبعد الفجوات الأصغر من {n} كتل (فجوة من كتلة أو اثنتين هي الشبكة، لا هدف).",
-  "About {n} blocks in the unit's box at this size.": "نحو {n} كتلة في صندوق الوحدة بهذا الحجم."
+  "About {n} blocks in the unit's box at this size.": "نحو {n} كتلة في صندوق الوحدة بهذا الحجم.",
+  "Evaluating \"{name}\" ({cells} cells) along {holes} hole(s)…": "جارٍ تقييم \"{name}\" ({cells} خلية) على امتداد {holes} ثقب…",
+  "({s} s)": "({s} ث)"
 }
