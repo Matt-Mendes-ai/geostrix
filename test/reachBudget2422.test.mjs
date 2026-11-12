@@ -82,7 +82,7 @@ test("#2422: the client sends a solid's mesh to the worker once", async () => {
 test("#2422: the dialog passes the trend's vertical reach and the restricting solid to the count, and says what it counted", () => {
   const m = fs.readFileSync(path.join(root, "src", "components", "GradeEstimationModal.jsx"), "utf8");
   assert.match(m, /const reachRz = flatTrend \? flatReach : modelTrend && reachRadius \? verticalReach\(reachRadius, \{ basis: trendBasis\(modelTrend\), scales: trendSearchScales\(modelTrend\) \}\) : null;/);
-  assert.match(m, /rz: reachRz, \.\.\.\(reachSolid \? \{ solid: reachSolid \} : \{\}\)/);
-  assert.match(m, /reachArgs\.rz, reachSolid\?\.key \?\? null,/); // a new solid is a new count
+  assert.match(m, /rz: reachRz, \.\.\.\(modelTrend && !flatTrend \? \{ metric: \{ basis: trendBasis\(modelTrend\), scales: trendSearchScales\(modelTrend\) \} \} : \{\}\) \/\* #2696[^*]*\*\/, \.\.\.\(reachSolid \? \{ solid: reachSolid \} : \{\}\)/); // #2696: and the trend's metric
+  assert.match(m, /reachArgs\.rz, reachArgs\.metric \?\? null \/\* #2696 \*\/, reachSolid\?\.key \?\? null,/); // a new solid is a new count; a new trend too (#2696)
   assert.ok(m.includes('tr(", {n} within reach of the drilling inside \\"{name}\\" (only those can be estimated, and only those count)"'));
 });

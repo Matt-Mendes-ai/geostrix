@@ -46,7 +46,9 @@ function reachOfComposites(points, bounds, cell, searchRadius, trend) {
   const R = worldReach(searchRadius, trend), rz = verticalReach(searchRadius, trend); // #2418
   const c = cell && typeof cell === "object" ? cell : { dx: cell, dy: cell, dz: cell };
   const tol = Math.max(0, Math.min(c.dx, c.dy, c.dz) / 8);
-  return segmentReach(compositesToSegments(points, tol), bounds, cell, R, { margin: tol, rz });
+  // TASKS.csv #2696 — under a structural trend, the search's own (tilted) ellipsoid, not the sphere of its major semi-axis
+  const metric = trend?.basis && trend?.scales ? { basis: trend.basis, scales: trend.scales } : null;
+  return segmentReach(compositesToSegments(points, tol), bounds, cell, R, { margin: tol, rz, metric });
 }
 
 export function samplePointsFromIntervals(intervals, collars, survey, desurveyHole, method) {
