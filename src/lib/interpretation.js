@@ -168,11 +168,13 @@ export function geologyPolygonLayer(name) {
 // the first colour of the curated palette no unit of the layer has yet (hex: the legend's colour picker and the KML read only #rrggbb; the
 // name hash put every one-letter code in one purple band), the hash only when the palette is used up. A unit left with no polygon leaves
 // the legend (#2095).
+// unitField (TASKS.csv #2682): a copy of an imported layer keeps its own unit field (LITHCODE…); a layer drawn here uses 'unit'
+export const unitFieldOf = (layer) => (layer?.unitField ? String(layer.unitField) : "unit");
 function withUnitBbox(layer, colorOf = null) {
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
   for (const f of layer.features) for (const part of f.parts) for (const [x, y] of part) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
-  const counts = {};
-  for (const f of layer.features) counts[f.attributes.unit] = (counts[f.attributes.unit] || 0) + 1;
+  const counts = {}, uf = unitFieldOf(layer);
+  for (const f of layer.features) { const u = f.attributes?.[uf]; if (u == null || u === "") continue; counts[u] = (counts[u] || 0) + 1; }
   const kept = layer.categories.map((c) => ({ ...c, count: counts[c.value] || 0 })).filter((c) => c.count > 0);
   const used = new Set(kept.map((c) => String(c.color).toLowerCase()));
   const pick = (u) => {
@@ -193,10 +195,25 @@ export function addUnitPolygon(layer, points, attrs = {}, opts = {}) { // opts.e
   const ring = pts.map((p) => [r2(p.x), r2(p.y)]);
   ring.push(ring[0]);
   const unit = String(attrs.unit || "").trim() || "Unit";
-  const feature = { parts: [ring], attributes: { unit, area_m2: Math.round(ringArea(ring)), note: attrs.note || "" } };
+  const feature = { parts: [ring], attributes: { [unitFieldOf(layer)]: unit, area_m2: Math.round(ringArea(ring)), note: attrs.note || "" } }; // unitFieldOf: #2682
   const z = Number.isFinite(opts.elevation) ? opts.elevation : median(pts.map((p) => p.z));
   const elevation = layer.features.length === 0 && Number.isFinite(z) ? r2(z) : layer.elevation;
   return withUnitBbox({ ...layer, elevation, features: [...layer.features, feature] }, opts.colorOf); // colorOf: #2572
+}
+// TASKS.csv #2682 (Matt's decision 2026-11-12) — a drawn polygon may go onto an imported polygon map layer with a unit field, but onto a
+// COPY of it, never the layer the user brought in. offerableForDrawing: an imported polygon layer whose legend is by category (a unit
+// field), not graduated. drawnCopyOf: the copy, every imported feature and its attributes kept, marked drawn, its unit field kept.
+export const offerableForDrawing = (l) => !!l && !l.drawnGeology && l.geomType === "polygon" && !!l.styleField && !(l.styleBreaks?.length) && (l.features || []).length > 0;
+export function drawnCopyOf(src, existing = []) {
+  const { id: _id, ...rest } = src; // a new layer: the store gives it its own id
+  return {
+    ...rest,
+    name: uniqueLayerName(`${src.name} (with drawn units)`, existing),
+    drawnGeology: true, unitField: src.styleField, copiedFrom: src.name,
+    features: (src.features || []).map((f) => ({ ...f, parts: (f.parts || []).map((p) => p.map((v) => v.slice())), attributes: { ...(f.attributes || {}) } })),
+    categories: (src.categories || []).map((c) => ({ ...c })),
+    fields: [...new Set([...(src.fields || []), "area_m2", "note"])],
+  };
 }
 export function removeUnitPolygon(layer, index) {
   if (index < 0 || index >= layer.features.length) return layer;

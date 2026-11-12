@@ -6,7 +6,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { TaskPaneHeader } from "./Ribbon.jsx";
 import { Shapes, Trash2 } from "./icons.js";
 import { useStore } from "../lib/store.jsx";
-import { NEW_LAYER, uniqueLayerName, isDrawnGeologyLayer, geologyPolygonLayer, addUnitPolygon, removeUnitPolygon } from "../lib/interpretation.js";
+import { NEW_LAYER, uniqueLayerName, isDrawnGeologyLayer, geologyPolygonLayer, addUnitPolygon, removeUnitPolygon, offerableForDrawing, drawnCopyOf, unitFieldOf } from "../lib/interpretation.js"; // offerable…: #2682
 import { activateOnKey } from "../lib/a11y.js";
 import { pBtn, smallSel } from "../lib/sidebarStyles.js";
 import { t as tr } from "../lib/i18n.js";
@@ -29,6 +29,10 @@ export default function UnitPolygonPane({ drawing, onStart, onUndo, onCancel, on
   const [layerPick, setLayerPick] = useState("");
   const layerId = layerPick || mine[0]?.id || NEW_LAYER;
   const layer = mine.find((l) => l.id === layerId) || null;
+  // TASKS.csv #2682 — imported polygon layers with a unit field, offered as 'Copy of …': the first polygon finished makes the copy
+  const imported = useMemo(() => mapLayers.filter(offerableForDrawing), [mapLayers]);
+  const copySrc = String(layerId).startsWith("copy:") ? imported.find((l) => `copy:${l.id}` === layerId) || null : null;
+  const uf = unitFieldOf(layer);
   const [newName, setNewName] = useState("");
   const [unit, setUnit] = useState("");
   const [noteText, setNoteText] = useState("");
@@ -46,7 +50,10 @@ export default function UnitPolygonPane({ drawing, onStart, onUndo, onCancel, on
     if (corners.length < 3) { setMsg(tr("A polygon needs at least three points.")); return; }
     if (!unit.trim()) { setMsg(tr("Name the unit before finishing the polygon.")); return; }
     let target = layer, id = layerId;
-    if (!target) {
+    if (!target && copySrc) { // #2682 — the copy, never the imported layer itself
+      target = drawnCopyOf(copySrc, mapLayers);
+      id = addMapLayer(target); setLayerPick(id);
+    } else if (!target) {
       const fresh = geologyPolygonLayer(newName.trim());
       target = { ...fresh, name: uniqueLayerName(fresh.name, mapLayers) };
       id = addMapLayer(target); setLayerPick(id); setNewName("");
@@ -54,7 +61,7 @@ export default function UnitPolygonPane({ drawing, onStart, onUndo, onCancel, on
     const next = addUnitPolygon(target, corners, { unit: unit.trim(), note: noteText.trim() }, { ...(plan ? { elevation: plan.z } : {}), colorOf }); // colorOf: #2572
     updateMapLayer(id, () => ({ ...next, id }));
     const f = next.features[next.features.length - 1];
-    setNoteText(""); setMsg(tr("Added polygon {unit} ({ha} ha) to \"{layer}\".", { unit: f.attributes.unit, ha: (f.attributes.area_m2 / 10000).toFixed(2), layer: next.name }) /* #2095 — no article to get wrong */ + (plan ? " " + tr("It lies flat at {z} m RL (no terrain).", { z: Math.round(next.elevation).toLocaleString() }) : ""));
+    setNoteText(""); setMsg((copySrc ? tr("Made \"{layer}\", a copy of \"{src}\" (that layer is unchanged).", { layer: next.name, src: copySrc.name }) + " " : "") + tr("Added polygon {unit} ({ha} ha) to \"{layer}\".", { unit: f.attributes[unitFieldOf(next)], ha: (f.attributes.area_m2 / 10000).toFixed(2), layer: next.name }) /* #2095 — no article to get wrong */ + (plan ? " " + tr("It lies flat at {z} m RL (no terrain).", { z: Math.round(next.elevation).toLocaleString() }) : ""));
     onDone();
   };
   // a double-click in the 3D view ends the polygon (ViewerModule bumps finishSeq)
@@ -78,7 +85,9 @@ export default function UnitPolygonPane({ drawing, onStart, onUndo, onCancel, on
           <select value={layerId} onChange={(e) => setLayerPick(e.target.value)} style={{ ...smallSel, maxWidth: 170 }} aria-label={tr("Drawn geology layer")}>
             {mine.map((l) => <option key={l.id} value={l.id}>{l.name} ({l.features.length})</option>)}
             <option value={NEW_LAYER}>{tr("New layer…")}</option>
+            {imported.length > 0 && <optgroup label={tr("A copy of an imported layer (the original is not changed)")}>{imported.map((l) => <option key={l.id} value={`copy:${l.id}`}>{tr("Copy of \"{name}\" ({field})", { name: l.name, field: l.styleField })}</option>)}</optgroup>}{/* #2682 */}
           </select></label>
+        {copySrc && <div style={note}>{tr("The first polygon you finish makes a copy of \"{name}\" with all its features, and goes on the copy; the imported layer stays as it was. The unit goes in its {field} field.", { name: copySrc.name, field: copySrc.styleField })}</div>}
         {layerId === NEW_LAYER && <input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder={tr("Geology (drawn)")} aria-label={tr("New layer name")} style={{ ...smallSel, width: "100%", boxSizing: "border-box" }} />}
         <input value={unit} onChange={(e) => setUnit(e.target.value)} list="ge-unit-polygon-units" placeholder={tr("Unit (for example Basalt, Rhyolite)")} aria-label={tr("Unit")} style={{ ...smallSel, width: "100%", boxSizing: "border-box" }} />
         <datalist id="ge-unit-polygon-units">{knownUnits.map((u) => <option key={u} value={u} />)}</datalist>
@@ -89,7 +98,7 @@ export default function UnitPolygonPane({ drawing, onStart, onUndo, onCancel, on
           <div style={{ border: "1px solid var(--color-accent)", borderRadius: 6, padding: 8, display: "flex", flexDirection: "column", gap: 6 }}>
             <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)" }}>{n ? tr("{n} corner(s). Click to add a corner; double-click or Finish to close the polygon.", { n }) : tr("Click the first corner of the unit.")}</div>
             <div style={{ display: "flex", gap: 6 }}>
-              <button type="button" onClick={finish} disabled={n < 3} style={{ ...pBtn, flex: 1, justifyContent: "center", marginBottom: 0, opacity: n < 3 ? 0.5 : 1 }}>{tr("Finish")}</button>
+              <button type="button" onClick={() => finish() /* #2682 (found live): handing finish itself to onClick passed the click event as closedOnFirst, which dropped the last corner */} disabled={n < 3} style={{ ...pBtn, flex: 1, justifyContent: "center", marginBottom: 0, opacity: n < 3 ? 0.5 : 1 }}>{tr("Finish")}</button>
               <button type="button" onClick={onUndo} disabled={!n} style={{ ...pBtn, width: "auto", marginBottom: 0, opacity: n ? 1 : 0.5 }}>{tr("Undo point")}</button>
               <button type="button" onClick={onCancel} style={{ ...pBtn, width: "auto", marginBottom: 0 }}>{tr("Cancel")}</button>
             </div>
@@ -101,9 +110,9 @@ export default function UnitPolygonPane({ drawing, onStart, onUndo, onCancel, on
             <div className="ge-section-label" style={{ marginTop: 6 }}>{tr("Polygons in \"{layer}\"", { layer: layer.name })}</div>
             {layer.features.map((f, i) => (
               <div key={i} style={{ ...row, padding: "4px 6px", borderBottom: "1px solid var(--color-divider)" }}>
-                <span style={{ display: "inline-block", width: 10, height: 10, borderRadius: 2, background: layer.categories.find((c) => c.value === f.attributes.unit)?.color || "#888", flexShrink: 0 }} />
-                <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={f.attributes.note || f.attributes.unit}>{f.attributes.unit}</span>
-                <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)", flexShrink: 0 }}>{(f.attributes.area_m2 / 10000).toFixed(2)} ha</span>
+                <span style={{ display: "inline-block", width: 10, height: 10, borderRadius: 2, background: layer.categories.find((c) => c.value === f.attributes[uf])?.color || "#888", flexShrink: 0 }} />
+                <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={f.attributes.note || String(f.attributes[uf] ?? "")}>{String(f.attributes[uf] ?? "")}</span>
+                <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)", flexShrink: 0 }}>{Number.isFinite(f.attributes.area_m2) ? `${(f.attributes.area_m2 / 10000).toFixed(2)} ha` : "—" /* #2682: an imported feature has no area_m2 */}</span>
                 <Trash2 size={13} role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Remove polygon {v}", { v: i + 1 })} onClick={() => remove(i)} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} />
               </div>
             ))}
