@@ -12,6 +12,8 @@ import { terrainGroundAt } from "../lib/viewer/geomath.js";
 import { stringStats } from "../lib/designStrings.js";
 import { pBtn, smallSel } from "../lib/sidebarStyles.js";
 import { t as tr } from "../lib/i18n.js";
+import DumpRunList from "../modules/viewer/DumpRunList.jsx"; // TASKS.csv #2285
+import { confirmDestructive } from "../lib/confirmDestructive.js";
 import CollarLevelsNote from "./CollarLevelsNote.jsx"; // TASKS.csv #2584 — the lowest collar used where collars stand on benches
 
 const row = { display: "flex", alignItems: "center", gap: 6, justifyContent: "space-between", marginTop: 4, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" };
@@ -23,7 +25,7 @@ const EMPTY = { stringId: "", crestZ: "", repose: "", density: "", swell: "", pi
 let kept = null; // #1356 — the last inputs and result outlive the pane (this session)
 
 // surfaces: the generated surfaces (pit shells for the comparison); onAdd as the pit pane's
-export default function DumpPane({ surfaces = [], onAdd, onClose }) {
+export default function DumpPane({ surfaces = [], onAdd, onToggle, onRemove, onClose }) { // onToggle / onRemove: #2285
   const { designStrings = [], terrain, collars = [] } = useStore();
   const footprints = useMemo(() => designStrings.filter((s) => s.closed && s.vertices.length > 2 && !s.stopeRun /* #2601 — not a stope outline */), [designStrings]);
   // TASKS.csv #2444 (review #2325) — the benched designs too: their waste (with the walls stepped out) is what the dump must hold, not the shell's
@@ -32,6 +34,16 @@ export default function DumpPane({ surfaces = [], onAdd, onClose }) {
   const [res, setRes] = useState(() => kept?.result || null);
   const [msg, setMsg] = useState(null);
   const busy = useRef(false);
+  // TASKS.csv #2285 — the dumps made here, listed with show / hide, Edit (inputs back; the next run replaces it) and remove
+  const dumps = useMemo(() => surfaces.filter((s) => s.type === "dump"), [surfaces]);
+  const [editingId, setEditingId] = useState(null);
+  const editDump = (s) => {
+    const p = s.params || {}, str = footprints.find((x) => x.name === p.footprint);
+    const val = (x) => (x == null ? "" : String(x));
+    setF((q) => ({ ...q, ...(str ? { stringId: str.id } : {}), crestZ: val(p.crestZ), repose: val(p.reposeDeg), density: val(p.density), swell: val(p.swell) }));
+    setEditingId(s.id); setMsg(str ? null : tr("Its footprint string \"{name}\" is no longer in the project: pick one.", { name: p.footprint || "" }));
+  };
+  const removeDump = (s) => { if (!confirmDestructive(tr("Remove the dump \"{name}\"?", { name: s.name }), { recover: tr("run it again with the same inputs (Edit keeps them until then).") })) return; if (editingId === s.id) setEditingId(null); onRemove?.(s.id); };
   const footprint = footprints.find((s) => s.id === f.stringId) || footprints[0] || null;
   const pit = pits.find((s) => s.id === f.pitId) || null;
   // TASKS.csv #2276 — not the surface between UNDERGROUND collars (a dump stood 168 m high at RL 86-250 under a surface near 400)
@@ -60,6 +72,7 @@ export default function DumpPane({ surfaces = [], onAdd, onClose }) {
         params: { tool: "dump / stockpile from a footprint (platform at the crest, sides at the angle of repose to the ground)", footprint: footprint.name, crestZ: v("crestZ"), reposeDeg: v("repose"), density: v("density"), swell: v("swell"), looseVolumeM3: Math.round(r.volume), looseTonnes: tonnes == null ? null : Math.round(tonnes), footprintAreaM2: Math.round(centre?.area ?? r.footprintArea), footprintGridAreaM2: Math.round(r.footprintArea), dumpAreaM2: Math.round(r.dumpArea), ...(pit ? { comparedPit: pit.name, pitWasteTonnes: Number(pit.params.wasteTonnes) } : {}), maxHeightM: +r.maxHeight.toFixed(1), toeReachM: +r.toeReach.toFixed(1), groundFrom: groundSource, cellM: +r.cell.toFixed(2), caution: "a conceptual shape: no stability, lift, drainage or foundation check", generatedAt: new Date().toISOString() } });
       const result = { ...r, tonnes, name, seconds: Math.round((performance.now() - t0) / 100) / 10, pitWaste: pit ? Number(pit.params.wasteTonnes) : null, pitName: pit?.name || null, stringArea: centre?.area ?? null };
       kept = { inputs: { ...f }, result }; setRes(result); setMsg(null);
+      if (editingId) { onRemove?.(editingId); setEditingId(null); } // #2285 — the edited dump is replaced by this run
     } catch (e) { setMsg(e.message || String(e)); }
     finally { busy.current = false; }
   };
@@ -103,6 +116,7 @@ export default function DumpPane({ surfaces = [], onAdd, onClose }) {
           <div style={{ ...note, marginTop: 4 }}>{tr("\"{name}\" is in the generated surfaces with these figures. The capacity is the space between the shape and the ground as it is now.", { name: res.name })}</div>
         </div>
       )}
+      <DumpRunList dumps={dumps} editingId={editingId} onToggle={onToggle} onEdit={editDump} onRemove={onRemove ? removeDump : null} />{/* #2285 */}
     </div>
   );
 }
