@@ -60,7 +60,7 @@ import { LAYOUT_FONTS, LAYOUT_FONT_TYPES, LAYOUT_DEFAULT_FONT, layoutFontStack, 
 import { legendFit, legendRowH, legendLabelW, legendBoxSize } from "../lib/legendFit.js"; // TASKS.csv #2134; row rules and box: #2869
 import { scoreRasterLegendGroups, isScoreRaster } from "../lib/viewer/scoreRasterLegend.js"; // TASKS.csv #2794
 import { holeAttitudeAssumed } from "../lib/desurvey.js"; // TASKS.csv #2134 — the notice counts the assumed-vertical holes
-import { freeSpot, placeCollarTable, elementBox, copyOffset } from "../lib/layoutPlace.js"; // copyOffset: #2715 // elementBox: #1870 // TASKS.csv #1484 — new items into free space; #2135 the collar table
+import { freeSpot, placeCollarTable, elementBox, copyOffset, followResize /* #2483 */ } from "../lib/layoutPlace.js"; // copyOffset: #2715 // elementBox: #1870 // TASKS.csv #1484 — new items into free space; #2135 the collar table
 import { roundScale } from "../lib/layoutGeometry.js"; // TASKS.csv #1486
 import { numericClips, numericLayerColorFn } from "../lib/numericClip.js"; // TASKS.csv #1482
 import { categoryColor, categoryLabel } from "../lib/layers.js"; // TASKS.csv #1289
@@ -1490,7 +1490,7 @@ export default function LayoutModule() {
             {isDepthImage(sel) && <DepthScaleControls sel={sel} pageH={A4.h} updateSelected={updateSelected} /> /* TASKS.csv #1480 */}
             {sel.type === "image" && sel.worldWidthAtCaptureM != null && (
               <>
-                <SectionScaleControls sel={sel} pageW={A4.w} pageH={A4.h} updateSelected={updateSelected} />
+                <SectionScaleControls sel={sel} pageW={A4.w} pageH={A4.h} updateSelected={updateSelected} onResize={(next) => setElements((els) => followResize(els, sel.id, next))} />
                 <button onClick={() => syncScaleBarForElement(sel, sel.worldWidthAtCaptureM, sel.w)} style={{ ...pBtn, marginTop: 4 }}>
                   <Ruler size={12} />{" "}{sel.planMap ? tr("Assign scale bar to this map") : tr("Assign scale bar to this section")}</button>
                 {syncNotice && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-accent-dark)", margin: "4px 0 8px", lineHeight: 1.4 }}>{syncNotice}</div>}
@@ -1988,13 +1988,14 @@ function DepthScaleControls({ sel, pageH, updateSelected }) {
     </div>
   );
 }
-function SectionScaleControls({ sel, pageW, pageH, updateSelected }) {
+function SectionScaleControls({ sel, pageW, pageH, updateSelected, onResize = null }) {
   const [custom, setCustom] = useState(false);
   const [resnapNote, setResnapNote] = useState(""); // #1485
   const d = sectionScaleDenom(sel), n = d ? Math.round(d) : 0;
   const preset = SCALE_PRESETS.find((p) => Math.abs(d - p) < 0.5);
   const choice = custom ? "custom" : preset ? String(preset) : "";
-  const setScale = (k) => { if (!(k > 0)) return; const w = sectionWidthForScale(sel, k); updateSelected({ w, h: w / (sel.aspect || (sel.naturalW && sel.naturalH ? sel.naturalW / sel.naturalH : 1)) }); };
+  // #2483 (3) — onResize: its bound scale bar and legend below / right of it move with its new edge (layoutPlace followResize)
+  const setScale = (k) => { if (!(k > 0)) return; const w = sectionWidthForScale(sel, k); (onResize || updateSelected)({ w, h: w / (sel.aspect || (sel.naturalW && sel.naturalH ? sel.naturalW / sel.naturalH : 1)) }); };
   const tooBig = sel.w > pageW || sel.h > pageH;
   return (
     <div style={{ marginTop: 4, marginBottom: 6 }}>
