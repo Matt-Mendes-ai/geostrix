@@ -6800,6 +6800,7 @@
   "feed the estimator by itself: the Estimation tool's ordinary kriging takes its own nugget, sill and range (type the ones you read here, or leave them blank to fit at run time), and nearest-neighbour / inverse-distance use none. Fitting a model here does not change any estimate you have run.": "لا يغذّي المقدّر بذاته: يأخذ الكريجينغ العادي في أداة التقدير قيم النَغِت والسقف والمدى الخاصة به (اكتب ما تقرؤه هنا، أو اتركها فارغة لضبطها عند التشغيل)، ولا يستخدم أقرب جار / معكوس المسافة أيًا منها. ضبط نموذج هنا لا يغيّر أي تقدير نفّذته.",
   "Dip azimuth°": "سمت الميل°",
   "Pitch°": "الانحدار°",
+  "At {max} : {int} : {min}, a search that reaches the next drill site ({s} m away) in every direction of the plane is {t} m thick across it, less than a typical sample ({l} m): each block sees only the samples within that distance of its own plane in each hole, often one or none.": "عند {max} : {int} : {min}، يكون البحث الذي يصل إلى موقع الحفر التالي ({s} م) في كل اتجاهات المستوى بسماكة {t} م عبره، أقل من عينة نموذجية ({l} م): لا يرى كل بلوك إلا العينات الواقعة ضمن تلك المسافة من مستواه في كل ثقب، وغالبًا واحدة أو لا شيء.",
   "at an unrecorded time": "في وقت غير مسجَّل",
   "This file's {list} had the wrong form and were left empty. Everything else was read. Save it under another name if you want to keep the original.": "كانت حقول {list} في هذا الملف بصيغة خاطئة فتُركت فارغة. قُرئ كل شيء آخر. احفظه باسم آخر إن أردت الاحتفاظ بالأصل.",
   "Enter the host (the server's name or address).": "أدخل المضيف (اسم الخادم أو عنوانه).",
