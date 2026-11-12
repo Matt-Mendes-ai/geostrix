@@ -4436,6 +4436,7 @@
   "HAND-EDIT WARNING,\"{v}\"": "HAND-EDIT WARNING,\"{v}\"",
   "Import surface samples: {fileName}": "Importar muestras superficiales: {fileName}",
   "{elements} elements recognized": "{elements} elementos reconocidos",
+  "1 element recognized": "1 elemento reconocido",
   "Not kept as sample attributes (more than {max} different values; not a note or an id): {list}": "No se guardan como atributos de muestra (más de {max} valores distintos; no es una nota ni un identificador): {list}",
   "Read from the file's \"{sourceEpsgFrom}\" column — check it. Samples are reprojected into the project CRS on import.": "Leído de la columna \"{sourceEpsgFrom}\" del archivo — verifíquelo. Las muestras se reproyectan al SRC del proyecto al importar.",
   "Import {checkedCount} {v}": "Importar {checkedCount} {v}",

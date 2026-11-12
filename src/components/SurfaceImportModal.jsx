@@ -58,7 +58,7 @@ export default function SurfaceImportModal({ modal, onChange, onCancel, onCommit
         <div style={header}>
           <div>
             <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{tr("Import surface samples: {fileName}", { fileName: modal.fileName })}</div>
-            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("{elements} elements recognized", { elements: modal.elements.length })}</div>
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{modal.elements.length === 1 ? tr("1 element recognized") /* TASKS.csv #2707 */ : tr("{elements} elements recognized", { elements: modal.elements.length })}</div>
             {leftOut.length > 0 && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }} title={leftOut.join(", ")}>{tr("Not kept as sample attributes (more than {max} different values; not a note or an id): {list}", { max: SURFACE_ATTR_MAX_DISTINCT, list: leftOut.length > 8 ? `${leftOut.slice(0, 8).join(", ")} …` : leftOut.join(", ") })}</div>}{/* #2728 */}
           </div>
           <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onCancel} />
