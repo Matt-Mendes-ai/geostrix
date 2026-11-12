@@ -11285,8 +11285,8 @@
   "\"{label}\" leaves {n} of its {above} composite(s) at/above {cutoff} {unit} outside the shell on blocks that were not estimated: the Min holes rule ({minHoles}) or the search radius removed the blocks around them.": "\"{label}\" deixa {n} de seus {above} composto(s) em ou acima de {cutoff} {unit} fora do envelope em blocos que não foram estimados: a regra de Mín. furos ({minHoles}) ou o raio de busca removeu os blocos ao redor deles.",
   "\"{label}\": {n} of its {above} composite(s) at/above {cutoff} {unit} sit on blocks estimated below it: the {cell} cells and the search average each sample with its neighbours, so a high sample thinner than a cell is diluted. A smaller cell (or a flatter one across the bedding) keeps more of them.": "\"{label}\": {n} de seus {above} composto(s) em ou acima de {cutoff} {unit} estão em blocos estimados abaixo dele: as células de {cell} e a busca fazem a média de cada amostra com as vizinhas, então uma amostra alta mais fina que uma célula é diluída. Uma célula menor (ou mais achatada através do acamamento) mantém mais delas.",
   "Show the first 30": "Mostrar os primeiros 30",
-  "{code} ({n} blocks)": "{code} ({n} blocos)",
   "No density typed for {list}: their blocks take the default ({rho} t/m³).": "Sem densidade digitada para {list}: seus blocos usam o valor padrão ({rho} t/m³).",
   "{n} block(s) of this model take this code": "{n} bloco(s) deste modelo usam este código",
-  "No block of this model takes this code": "Nenhum bloco deste modelo usa este código"
+  "No block of this model takes this code": "Nenhum bloco deste modelo usa este código",
+  "No density typed for {list}: with no default density typed, their blocks have a volume but no tonnes.": "Sem densidade digitada para {list}: sem uma densidade padrão digitada, seus blocos têm volume mas não toneladas."
 }
