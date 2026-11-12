@@ -118,6 +118,11 @@ export function bundledData() {
   const ts = path.join(ROOT, "src", "lib", "timeScaleIntervals.txt");
   if (existsSync(ts)) out.push({ name: "International time scale interval colours (Macrostrat)", version: "2026-11-12", license: "CC-BY-4.0",
     url: "https://macrostrat.org", text: readFileSync(ts, "utf8").trim() });
+  // TASKS.csv #2829 — the Blake River gravity sample (Geological Survey of Canada, Open Government Licence - Canada): its README carries
+  // the attribution statement and says what is real; listed here like the time scale (#2690) so Help -> Third-party licences names it
+  const br = path.join(ROOT, "sample_data", "blake_river", "README.md");
+  if (existsSync(br)) out.push({ name: "Blake River gravity sample (Geological Survey of Canada, Natural Resources Canada)", version: "2026-11", license: "OGL-Canada-2.0",
+    url: "https://open.canada.ca/en/open-government-licence-canada", text: readFileSync(br, "utf8").trim() });
   return out;
 }
 

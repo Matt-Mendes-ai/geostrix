@@ -97,3 +97,16 @@ test("the sample is offered on both empty views, named on its tab, and the READM
   assert.match(main, /"sample:blake"/);
   for (const lang of ["es", "pt", "fr", "ar"]) assert.ok(new RegExp(`\\n  ${lang}: \\{[^\\n]*"Blake River gravity \\(7,810 stations, no drillholes\\)": "`).test(main), lang);
 });
+
+// Main (2026-11-12): the sample's Open Government Licence - Canada attribution is in Help > Third-party Licences and the installer
+// notice, like the time-scale colours (#2690), not only in its README
+import { bundledData as bundledData2829 } from "../scripts/third-party-licenses.mjs";
+test("the Blake River sample is named in Third-party Licences and the installer notice", async () => {
+  const { readFileSync: rf } = await import("node:fs");
+  const d = bundledData2829().find((x) => /Blake River/.test(x.name));
+  assert.ok(d, "listed in bundledData");
+  assert.equal(d.license, "OGL-Canada-2.0");
+  assert.match(d.text, /Open Government Licen[cs]e/);
+  const notice = rf(new URL("../build/installer-notice.txt", import.meta.url), "utf8");
+  assert.match(notice, /Blake River gravity sample[^\r\n]*Open Government Licence - Canada/);
+});
