@@ -53,6 +53,7 @@ import { ensureExportCrs } from "../lib/projectCrsRequest.js"; // TASKS.csv #102
 import { pointInBoundary } from "../lib/pointInPolygon.js"; // TASKS.csv #903 — not geoprocessing.js, which loads d3-delaunay
 import { buildPickIndex, queryPickIndex } from "../lib/pickIndex.js"; // TASKS.csv #304 — object-level BVH for hover/click picking
 import { useMenuKeys } from "../lib/useMenuKeys.js"; // TASKS.csv #730
+import { layerStamp, isStaleStamp } from "../lib/layerStamp.js"; // TASKS.csv #2388
 import { outlineLinkCandidates, outlineOptionText, linkableOutline, linkDisabledReason } from "../lib/viewer/outlineLink.js"; // TASKS.csv #2235
 import { viewKeyZoom } from "../lib/viewer/viewKeys.js"; // TASKS.csv #2788
 import { t as tr } from "../lib/i18n.js";
@@ -331,37 +332,10 @@ const DEFAULT_BG_COLOR = "#f4f5f7";
 // element's OWN value still modulates marker size within its own min/max range (see the marker-
 // building loop below). Cycles if more than 14 elements are ever toggled on at once.
 //
-// TASKS.csv #306 — this was eight hand-picked hues that #249's colourblind-safety pass never saw,
-// because that pass was scoped to layers.js and this array lives here. A Vienot-1999 LMS-projection
-// deuteranopia simulation over all 28 pairs found two genuine collisions: #4a9be0 (idx 1) vs #b47ee0
-// (idx 4) at 10.2 units of simulated-sRGB distance, and #e05a4a (idx 0) vs #a97c3f (idx 7) at 12.1 —
-// with the next-closest pair at 30.9, so those two were isolated failures rather than a palette-wide
-// squeeze. The 1-vs-4 collision bites at a FIVE-element selection, an ordinary multi-element view.
-// Replaced with CATEGORICAL_SAFE_COLORS (Okabe-Ito + Paul Tol, already in layers.js for exactly this),
-// NOT a third bespoke palette. Two notes on the ordering:
-//   • the first eight are Okabe-Ito in its canonical order, which is the straight substitution;
-//   • the remaining six are a subset of layers.js's Paul Tol tail, reordered greedily for maximum
-//     minimum-pair separation. Taking all 16 in their layers.js order is NOT safe past nine — #009E73
-//     vs #CC6677 collapse to 10.3 and #CC79A7 vs #44AA99 to 11.1 under deuteranopia, i.e. as bad as the
-//     palette being replaced. This 14 keeps the worst pair at 33.8 (deuteranopia and protanopia both),
-//     ~3x the collision it replaces, and 14 is exactly the length of a routine multi-element ICP
-//     package (the bundled harry_property assay_wide.csv has 14), so a full package now gets a
-//     distinguishable colour per element instead of wrapping at 8.
-// Verification numbers and the simulation are written up in this row's TASKS.csv notes.
-// (ASSAY_ELEMENT_COLORS now lives in lib/legendGroups.js, shared with the Layout legend: TASKS.csv #725)
-
-// User request: "change the assay legend — change colour, size, recategorize, ignore values lower
-// than". `style` is one entry of the assayStyle state (or undefined for "never customized" — every
-// helper below falls back to the original fixed-hue/continuous-size behavior in that case, so a
-// project with no styling set up looks and behaves exactly as before this feature existed).
-//
-// assayColorFor: with style.breaks set (a "recategorized"/graduated element), color comes from the
-// first break whose `max` the value is <= — i.e. breaks act like class upper bounds, same convention
-// as a QGIS graduated-symbol renderer. A value above every break's max still gets a color (the last
-// break's, rather than falling through to nothing) since an unclassified high outlier disappearing
-// from the view would be a worse surprise than it being lumped into the top class.
-// assayColorFor: lib/legendGroups.js (TASKS.csv #725)
-// assaySizeFor / assayPassesCutoff: lib/viewer/assaySize.js (moved for the #1084 size cap, TASKS.csv #1533)
+// TASKS.csv #306 — the assay hues are CATEGORICAL_SAFE_COLORS (Okabe-Ito, then a Paul Tol subset ordered for separation): 14 colours,
+// the worst pair 33.8 apart under deuteranopia / protanopia (the old palette's 10.2), one per element of a routine 14-element ICP
+// package; the numbers are in the row's notes. ASSAY_ELEMENT_COLORS and assayColorFor: lib/legendGroups.js (#725) — a value above
+// every class break takes the last class's colour. assaySizeFor / assayPassesCutoff: lib/viewer/assaySize.js (#1533)
 
 // buildGridGroup: lib/viewer/gridGroup.js (TASKS.csv #2211)
 function disposeThreeGroup(group) {
@@ -1071,7 +1045,10 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   const [includeSectionContacts, setIncludeSectionContacts] = useState(true); // #810: on by default (drawn contacts are deliberate picks)
   // TASKS.csv #356 — the last implicit run's lithology block (session only), offered as a block model and as
   // a "modelled unit" interval layer. { block, units: [{name,label,color}], origin, when, title }
-  const [lastLithBlock, setLastLithBlock] = useState(null);
+  const [lastLithBlock, setLastLithBlockRaw] = useState(null);
+  // TASKS.csv #2388 — the last model and the generated surfaces keep a stamp of the lithology log they read (lib/layerStamp.js): marked stale when it changes
+  const setLastLithBlock = (lb) => setLastLithBlockRaw(lb && { ...lb, lithoStamp: layerStamp(layers.litho) }); // `layers` of the render the run started from
+  const lithoNow = useMemo(() => layerStamp(layers.litho), [layers.litho]);
   const [surfaceSolidsOpen, setSurfaceSolidsOpen] = useState(false); // TASKS.csv #802
   // TASKS.csv #318 — a mapped surface contact (plus nearby outcrop measurements) to feed the next
   // single-unit implicit run: { layerId, contactKey, units, classes, radius, tolerance, ... } | null.
@@ -7134,7 +7111,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             would otherwise leave another block model and layer behind). */}
         {lastLithBlock && (
           <div style={{ margin: "8px 0 4px", padding: "8px 10px", border: "1px solid var(--color-border)", borderRadius: 6, background: "var(--color-bg-subtle)", fontSize: "var(--font-size-sm)" }}>
-            <div style={{ color: "var(--color-text)", marginBottom: 6 }}>{lastLithBlock.matchedPct != null ? tr("Last model ({title}, {when}) reproduces {pct}% of the logged metres.", { title: lastLithBlock.title, when: lastLithBlock.when, pct: lastLithBlock.matchedPct }) : tr("Last model ({title}, {when}).", { title: lastLithBlock.title, when: lastLithBlock.when })}</div>
+            <div style={{ color: "var(--color-text)", marginBottom: 6, opacity: isStaleStamp(lastLithBlock.lithoStamp, lithoNow) ? 0.55 : 1 }}>{isStaleStamp(lastLithBlock.lithoStamp, lithoNow) && tr("Built from a lithology log that has changed since:") + " "}{lastLithBlock.matchedPct != null ? tr("Last model ({title}, {when}) reproduces {pct}% of the logged metres.", { title: lastLithBlock.title, when: lastLithBlock.when, pct: lastLithBlock.matchedPct }) : tr("Last model ({title}, {when}).", { title: lastLithBlock.title, when: lastLithBlock.when })}</div>
             {!lastLithBlock.structural && <>{/* #1554 */}
             <button onClick={addUnitVolumes} style={{ ...pBtn, marginBottom: 4 }} title={tr("Each modelled unit as a closed solid (its cells, closed at the model box): export as DXF / OBJ, volume / tonnage, cut on sections and plans, and a domain for grade estimation")}><Box size={14} />{" "}{tr("Add unit volumes (closed)")}</button>
             <button onClick={addLithBlockModel} style={{ ...pBtn, marginBottom: 4 }} title={tr("The model's units as a block model: 3D view, slice/cutoff controls and cross-sections, like any other block model. The space above every modelled top is left out.")}><Box size={14} />{" "}{tr("Add as block model")}</button>
@@ -7250,6 +7227,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                     >v{info.index + 1}/{info.lineage.length}{s.accepted ? " ✓" : ""}</span>
                   );
                 })()}
+                {isStaleStamp(s.params?.lithoStamp, lithoNow) && <span style={{ flexShrink: 0, fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", border: "1px solid var(--color-border)", borderRadius: 4, padding: "1px 4px" }} title={tr("Built from a lithology log that has changed since (replaced, re-imported or edited). Run it again to model the log as it is now.")}>{tr("source changed")}</span>}{/* #2388 */}
                 {/* TASKS.csv #83 — expand to set this surface's geological type + declared
                     relationships to other surfaces (metadata only for now — see this entry's own
                     TASKS.csv note on what reads it later: #88 constraints, #90 topology checks). */}

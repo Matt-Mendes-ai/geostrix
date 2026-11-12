@@ -2,6 +2,7 @@
 // model run instead of at startup. Bodies unchanged: each run reads the context snapshot it was started with
 // (exactly what the old useCallback closures saw), and mcRef is the hook's live ref (#599).
 import * as THREE from "three";
+import { layerStamp } from "../../lib/layerStamp.js"; // TASKS.csv #2388
 import { trendRatioText } from "../../lib/trend.js"; // TASKS.csv #2423
 import { trendBodyReach } from "../../lib/trendBodyReach.js"; // TASKS.csv #2780
 import { buildMeshQuery } from "../../lib/meshQuery.js"; // TASKS.csv #2376
@@ -506,6 +507,7 @@ export function createModellingRuns(ctx, mcRef) {
         surface: spec.meshName, sourcePoints: spec.points.length, orientations: spec.orientations.length,
         relation, resolution, blockCellM: blockCellsM(extent, resolution).map((v) => Math.round(v * 10) / 10), // #2624 — per axis, from the box's shape
         ...(unitField ? { unitsFrom: unitField } : {}), // #2378 — the Lithology field the units were read from
+        lithoStamp: layerStamp(layers.litho), // #2388 — the log it read: the surface is marked 'source changed' when the log is replaced or edited
         surfaceDetail: res.surfaceDetail ?? 4, // #766 — GemPy's octree level for the mesh (4 = its floor)
         gempyRange: res.rangeUsed ?? null, gempyRangeDefault: res.rangeDefault ?? null, engineDtype: res.precision ?? "float64", // engineDtype: #767 (an older engine solved in float64)
         gempyRangeMultiplier: rangeMultiplier || null, gempyCO: res.cO ?? null,
