@@ -104,6 +104,7 @@ export const gradeShellRows = (assays, inArea, visibleHoles, includeQAQC) => { c
 export function GradeShellUnsampled({ assays, collars, symbol, assayElements, inArea, visibleHoles, includeQAQC, selStyle = null, layers = null, customLayers = null /* #2721 */ }) {
   const rows = useMemo(() => gradeShellRows(assays, inArea, visibleHoles, includeQAQC), [assays, inArea, visibleHoles, includeQAQC]);
   const elementUnits = useMemo(() => Object.fromEntries((assayElements || []).map((e) => [e.symbol, e.unit])), [assayElements]);
-  const u = useUnsampled("gradeShell", { assays: rows, collars, symbol, unit: elementUnits[symbol] || "ppm", elementUnits, layers, customLayers });
+  const runCollars = useMemo(() => (inArea ? restrictRowsToHoles(collars, visibleHoles) : collars || []), [collars, inArea, visibleHoles]); // #3006 — the holes the run uses
+  const u = useUnsampled("gradeShell", { assays: rows, collars: runCollars, symbol, unit: elementUnits[symbol] || "ppm", elementUnits, layers, customLayers });
   return <UnsampledChoice u={u} selStyle={selStyle} style={{ marginBottom: 6 }} />;
 }
