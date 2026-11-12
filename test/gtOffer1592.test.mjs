@@ -14,7 +14,8 @@ test("unstated OMF / UBC: none; stated as a grade: offered; a geophysical proper
 
 test("estimates and block-model CSV imports keep it; SimPEG, categorical, indices and variances never", () => {
   assert.equal(offersGradeTonnage({ source: "estimate-ok", params: { element: "Au" } }, { geophysProperty: geo }), true);
-  assert.equal(offersGradeTonnage({ source: "blockmodel-csv" }, { geophysProperty: geo }), true);
+  assert.equal(offersGradeTonnage({ source: "blockmodel-csv" }, { geophysProperty: geo }), false); // since #2667: a CSV model waits until it is said to be a grade
+  assert.equal(offersGradeTonnage({ source: "blockmodel-csv", params: { element: "Cu", unit: "ppm", declaredGrade: true } }, { geophysProperty: geo }), true);
   assert.equal(offersGradeTonnage({ source: "simpeg" }, { geophysProperty: geo }), false);
   assert.equal(offersGradeTonnage({ source: "estimate-ok" }, { categorical: true }), false);
   assert.equal(offersGradeTonnage({ source: "support-index-ok" }), false);

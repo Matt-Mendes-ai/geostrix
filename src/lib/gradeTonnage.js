@@ -42,6 +42,8 @@ export function offersGradeTonnage(model, { categorical = false, geophysProperty
   const src = String(model.source || "");
   if (src === "simpeg" || geophysProperty(model.property)) return false;
   if ((src === "omf" || src.startsWith("ubc")) && !model.property) return false;
+  // TASKS.csv #2667 — a CSV block model is a grade only once it is said to be one ('A grade (element, unit)' under Values are, or a typed property)
+  if ((src === "csv" || src === "blockmodel-csv") && !model.property && !model.params?.element) return false;
   return true;
 }
 const isPrecious = (element) => PRECIOUS.has(String(element || "").trim());

@@ -73,7 +73,7 @@ import { unreadableFormatAdvice } from "../lib/unreadableFormats.js"; // TASKS.c
 import { t as tr } from "../lib/i18n.js";
 import { decadesBetween, isLogSpaced, logViridisStops } from "../lib/pointSurveyScale.js"; // TASKS.csv #1787
 import { defaultModelLegend } from "../lib/modelDefaultStops.js"; // TASKS.csv #2400
-import { guessVoxelProperty, isLogProperty, propertyRamp } from "../lib/voxelProperty.js"; // TASKS.csv #1786; propertyRamp: #1788
+import { guessVoxelProperty, isLogProperty, propertyRamp, parseGradeLabel } from "../lib/voxelProperty.js"; // TASKS.csv #1786; propertyRamp: #1788; parseGradeLabel: #2667
 import { cloudShape } from "../lib/cloudShape.js"; // TASKS.csv #1783
 import { defaultDrapeElevation, rasterDrapeElevation, drapeElevationNote, planElevation } from "../lib/drapeElevation.js"; // planElevation: #2294; // TASKS.csv #1856; rasterDrapeElevation: #1505
 import { collarTerrainOffset } from "../lib/terrainCheck.js"; // TASKS.csv #1620
@@ -2757,7 +2757,7 @@ async function exportBlockModelVTK(model, epsg) {
 // TASKS.csv #711 — what an imported volume's values can be (the units the rest of the app uses)
 // TASKS.csv #1779 (review #1646, Kodiak) — chargeability in both conventions: the integral Mx in ms (SJ Geophysics and many contractors:
 // "Mx (in ms): calculated apparent chargeability") beside mV/V; the legend, the section key and the exports carry whichever is chosen
-const VOXEL_PROPERTIES = ["Conductivity (S/m)", "Resistivity (ohm·m)", "Chargeability (mV/V)", "Chargeability (ms)", "Susceptibility (SI)", "Density (g/cc)", "Density contrast (g/cc)"];
+const VOXEL_PROPERTIES = ["Conductivity (S/m)", "Resistivity (ohm·m)", "Chargeability (mV/V)", "Chargeability (ms)", "Susceptibility (SI)", "Susceptibility (×10⁻³ SI)" /* #2667 — KT-10 / KT-20 / SM-30 logs */, "Density (g/cc)", "Density contrast (g/cc)"];
 // TASKS.csv #1178 — a conductivity cutoff read "0" with 5,765 cells hidden: three significant figures, whatever the size
 export const sigFigs = (v) => (Number.isFinite(v) ? (v === 0 ? "0" : Number(v.toPrecision(3)).toLocaleString(undefined, { maximumSignificantDigits: 3 })) : "—");
 // #1593 — the 3D View's palette link opens one card's legend
@@ -2827,13 +2827,18 @@ function VoxelModelRow({ others = null, model, onUpdate, onRemove, onEvaluate, o
       {!categorical && ( // #1786 — every block model of values (a CSV import too), not only OMF / UBC
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7 }}>
           <span style={{ color: "var(--color-text-faint)", width: 62, flexShrink: 0 }}>{tr("Values are")}</span>
-          <select value={VOXEL_PROPERTIES.includes(model.property) ? model.property : model.property ? "__other" : ""} aria-label={tr("What the values of \"{name}\" are", { name: model.name })}
-            onChange={(e) => { const v = e.target.value; if (v === "__other") { askPrompt(tr("What are the values (property and unit)?"), model.property || "", (other) => { if (other && other.trim()) onUpdate(model.id, { property: other.trim(), propertyChosen: true }); }); return; } onUpdate(model.id, { property: v || null, propertyChosen: true }); }}
+          <select value={model.params?.declaredGrade && !model.property ? "__grade" /* #2667 */ : VOXEL_PROPERTIES.includes(model.property) ? model.property : model.property ? "__other" : ""} aria-label={tr("What the values of \"{name}\" are", { name: model.name })}
+            onChange={(e) => { const v = e.target.value;
+              // TASKS.csv #2667 — a grade: its element and unit (Grade-tonnage then offered on a CSV model); a property chosen after one drops it
+              if (v === "__grade") { askPrompt(tr("Which element and unit are the values? (e.g. Cu ppm, Au g/t, Fe %)"), model.params?.declaredGrade ? `${model.params.element} ${model.params.unit}` : "", (txt) => { const g = parseGradeLabel(txt); if (g) onUpdate(model.id, { property: null, propertyChosen: true, params: { ...(model.params || {}), element: g.element, unit: g.unit, declaredGrade: true } }); }); return; }
+              if (model.params?.declaredGrade) { const { element: _e, unit: _u, declaredGrade: _d, ...rest } = model.params; onUpdate(model.id, { params: rest }); }
+              if (v === "__other") { askPrompt(tr("What are the values (property and unit)?"), model.property || "", (other) => { if (other && other.trim()) onUpdate(model.id, { property: other.trim(), propertyChosen: true }); }); return; } onUpdate(model.id, { property: v || null, propertyChosen: true }); }}
             style={{ flex: 1, minWidth: 0, fontSize: "var(--font-size-sm)", padding: "2px 4px", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, color: "var(--color-text)" }}>
             {/* TASKS.csv #2067 (review #2013) — an estimate knows its element and unit (params): said here, not set as property, which would
                 rename its export column (lib/blockModelExport.js) */}
-            <option value="">{!model.property && model.params?.element ? (model.params.unit ? tr("{el} ({unit}), from the estimate", { el: model.params.element, unit: model.params.unit }) : tr("{el}, from the estimate", { el: model.params.element })) : tr("Not stated (the file names no unit)")}</option>
+            <option value="">{!model.property && model.params?.element && !model.params?.declaredGrade ? (model.params.unit ? tr("{el} ({unit}), from the estimate", { el: model.params.element, unit: model.params.unit }) : tr("{el}, from the estimate", { el: model.params.element })) : tr("Not stated (the file names no unit)")}</option>
             {VOXEL_PROPERTIES.map((v) => <option key={v} value={v}>{tr(v)}</option>)}
+            <option value="__grade">{model.params?.declaredGrade ? tr("{el} ({unit}), a grade", { el: model.params.element, unit: model.params.unit }) : tr("A grade (element, unit)…")}</option>{/* #2667 */}
             <option value="__other">{model.property && !VOXEL_PROPERTIES.includes(model.property) ? model.property : tr("Other…")}</option>
           </select>
         </div>
