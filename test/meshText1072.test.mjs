@@ -3,6 +3,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import * as THREE from "three";
 import { exportSurfaceOBJ, exportSurfaceDXF, sceneVertsToWorld, provenanceLines } from "../src/lib/meshExport.js";
+import { sanitizeLayerName } from "../src/lib/dxf.js";
 
 // the writers as they were before #1072 (verbatim apart from the names)
 const sanitizeName = (name) => String(name || "surface").replace(/[^a-zA-Z0-9_.-]+/g, "_").slice(0, 64) || "surface";
@@ -17,7 +18,7 @@ function oldOBJ(name, geometry, origin, provenance = null, extra = {}) {
 }
 function oldDXF(name, geometry, origin, provenance = null, extra = {}) {
   const { vertices, indices } = sceneVertsToWorld(geometry, origin);
-  const layer = sanitizeName(name).slice(0, 255) || "SURFACE";
+  const layer = sanitizeLayerName(name || "SURFACE"); // since #1946 the layer keeps its spaces (dxf.js's rule)
   const lines = [];
   provenanceLines(name, provenance, extra).forEach((l) => lines.push("999", l));
   lines.push("0", "SECTION", "2", "HEADER", "9", "$ACADVER", "1", "AC1009", "0", "ENDSEC"); // #1114 — the R12 header both DXF writers now share
