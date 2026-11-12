@@ -23,6 +23,21 @@ type, which the State's database keeps in its core collar table and the export i
 (refused)" result in section 5 was therefore measured on a file missing four of the company's eleven columns. The iron and composite
 areas are still unchecked.
 
+**Third erratum, 2026-11-12.** The "iron" test area (report A119232) has now been checked against its tables too (TASKS #2876, the
+complete review run on it). It is not a channel iron deposit. The log is a stratigraphic strand code with 43 columns of material
+percentages, and the iron sits in strands of a banded iron formation that lie flat under 10 to 30 m of alluvium, clay and detritals:
+the strand logged ONAM averages 57.0 % Fe (71 % of its samples at or above 55 %), TNAM 54.5 %, HNAM 50.7 %, against 24.5 % in the
+unenriched iron formation and 24 % in the alluvium; the detrital strands hold few samples above 55 %. "BIF iron ore" is right, "channel
+iron" is not. The field is in the east Pilbara at 22.48 S, 119.97 E, at the east edge of MGA zone 50 (the 120 E meridian crosses it);
+its tables name no basin or province, so "Hamersley" stays a label. Of the 6,390 holes, 98 are water bores (dewatering and injection)
+with their own collar and log files and a dip of +90 meaning down; the 6,292 exploration holes are 6,091 RC, 143 diamond and 58 with
+no type in the company's file (the State's core table calls those 58 RC, which is where "6,149 RC" below comes from). As with the
+lithium area, the export in `projects\iron\csv` left the total depth out of both collar files; the review took it from the State's
+core collar table. Two smaller corrections to what the profile of 2026-11-08 implied: the 42 samples coded COMP are ordinary 2 m and
+4 m samples, not long composites, and the 100 repeated assay intervals are field duplicates. The sizes, timings and import results
+in sections 4 and 5 stand as the record of that day; what the current build does with the same files is in TASKS #2884 to #2900.
+The composite area is still unchecked.
+
 ## 1. Source and licence
 
 The 15 zips are the "Mineral exploration drillholes (open file)" export of the WAMEX company mineral drillhole database,
