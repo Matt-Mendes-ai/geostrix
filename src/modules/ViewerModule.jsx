@@ -189,7 +189,7 @@ import { gradeText } from "../lib/gradeText.js"; // #2515
 import { pickOnView } from "./viewer/pickGround.js"; // #2574; #2447
 import { syncHoleLabels, declutterHoleLabels, withEveryLabel, syncTextLabels, sampleLabelItems } from "../lib/viewer/holeLabels.js"; // withEveryLabel: TASKS.csv #1770; syncTextLabels / sampleLabelText: #1443
 import { PickStandIn, PICK_ONLY_LAYER } from "../lib/viewer/pickStandIn.js"; // TASKS.csv #1500
-import { syncBatchedInstances, buildLayerBatches, eachLayerMember } from "../lib/viewer/layerBatches.js"; // moved out (size cap, #1084)
+import { syncBatchedInstances, buildLayerBatches, eachLayerMember, eachPickTarget, batchTag } from "../lib/viewer/layerBatches.js"; // moved out (size cap, #1084)
 import { PROTO_SPHERE_10, PROTO_SPHERE_8, POINT_PROTO } from "../lib/viewer/protos.js"; // TASKS.csv #2176
 import { buildDrillholeScene, collarColorFor, voxelFitCorners, isIntervalRow } from "./viewer/drillholeScene.js"; // TASKS.csv #2176
 import { hideTraceHoles } from "../lib/viewer/traceBatch.js"; // TASKS.csv #2176
@@ -1483,7 +1483,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   // legend colour edit, a hole show/hide) — never per frame, and never a geometry rebuild.
   const syncLayerBatches = useCallback((keys) => {
     const groups = layerGroupsRef.current;
-    const walk = (g) => { if (!g) return; for (const c of g.children) if (c.isInstancedMesh && c.userData.batchMembers) syncBatchedInstances(c); };
+    const walk = (g) => { if (!g) return; for (const c of g.children) if (c.isInstancedMesh && (c.userData.batchMembers || c.userData.compact)) syncBatchedInstances(c); }; // compact: #1643
     if (keys) keys.forEach((k) => walk(groups[k]));
     else for (const key in groups) walk(groups[key]);
   }, []);
@@ -1815,7 +1815,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
     // still in this list, unchanged — they simply no longer render.
     Object.values(layerGroupsRef.current).forEach((g) => {
       if (!g || g.visible === false) return;
-      eachLayerMember(g, (c) => list.push(c)); // the batches' members too (#1540)
+      eachPickTarget(g, (c) => list.push(c)); // the batches' members too (#1540); a compact batch itself (#1643)
     });
     return list;
   }, []);
@@ -1864,14 +1864,8 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
       let last = n - 1;
       while (last > 0 && children[last].userData?.pickIgnore) last--;
       if (n) { const a = children[0].matrixWorld.elements, b = children[last].matrixWorld.elements; s += `@${a[12]},${a[13]},${a[14]},${b[12]},${b[13]},${b[14]}`; }
-      // TASKS.csv #1540 — a batch's members are no longer children: each batch is tagged by its members' count, first / last id
-      // and sampled world translations, so the signature still describes every pick target (O(batches), never O(members))
-      for (let i = 0; i < n; i++) {
-        const bm = children[i].userData?.batchMembers;
-        if (!bm || !bm.length) continue;
-        const a = bm[0].matrixWorld.elements, b = bm[bm.length - 1].matrixWorld.elements;
-        s += `#${bm.length}:${bm[0].id}:${bm[bm.length - 1].id}@${a[12]},${a[13]},${a[14]},${b[12]},${b[13]},${b[14]}`;
-      }
+      // TASKS.csv #1540 / #1643 — a batch's members are not children: each batch is tagged (batchTag, lib/viewer/layerBatches.js)
+      for (let i = 0; i < n; i++) s += batchTag(children[i]);
     };
     tag("v", voxelGroupRef.current?.children);
     tag("o", omfGroupRef.current?.children);

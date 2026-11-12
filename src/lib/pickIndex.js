@@ -48,6 +48,7 @@ import * as THREE from "three";
 const LEAF_SIZE = 8; // objects per leaf; below this a linear scan is cheaper than more traversal
 
 const _corner = new THREE.Vector3();
+const _instM = new THREE.Matrix4(); // #1643
 
 // True only for objects whose geometry.boundingBox is a sound conservative bound on everything
 // three.js's own raycast() for that object could report a hit on. Everything else is handled
@@ -72,6 +73,15 @@ export function buildPickIndex(objects) {
   for (let i = 0; i < objects.length; i++) {
     const o = objects[i];
     if (!o) continue;
+    // TASKS.csv #1643 — a compact batch (layerBatches.js) stands for its instances: one box each, from the shared geometry's box
+    // through the instance's own placement, exactly as for the member objects it replaced
+    const cp = o.userData?.compact;
+    if (cp) {
+      if (!o.geometry.boundingBox) o.geometry.computeBoundingBox();
+      const n = cp.rows.length;
+      for (let k = 0; k < n; k++) boxed.push({ obj: o, slot: i + (k + 1) / (n + 2), inst: k });
+      continue;
+    }
     if (isBoxBounded(o)) {
       if (!o.geometry.boundingBox) o.geometry.computeBoundingBox();
       // computeBoundingBox can still yield NaN for a degenerate/empty geometry — treat that as
@@ -86,16 +96,18 @@ export function buildPickIndex(objects) {
 
   const n = boxed.length;
   const objArr = new Array(n);
-  const slotArr = new Int32Array(n);
+  const slotArr = new Float64Array(n); // #1643: an instance's slot is its batch's plus a fraction, so list order still breaks ties
+  const instArr = new Int32Array(n).fill(-1);
   const bounds = new Float64Array(n * 6); // minx,miny,minz,maxx,maxy,maxz per object
   const cent = new Float64Array(n * 3);
 
   for (let i = 0; i < n; i++) {
-    const { obj, slot } = boxed[i];
+    const { obj, slot, inst } = boxed[i];
     objArr[i] = obj;
     slotArr[i] = slot;
     const bb = obj.geometry.boundingBox;
-    const m = obj.matrixWorld;
+    let m = obj.matrixWorld;
+    if (inst !== undefined) { instArr[i] = inst; m = _instM.fromArray(obj.userData.compact.base, inst * 16).premultiply(obj.matrixWorld); }
     let nx = Infinity, ny = Infinity, nz = Infinity, xx = -Infinity, xy = -Infinity, xz = -Infinity;
     // 8 transformed corners — correct (and conservative) under rotation, unlike transforming
     // min/max alone.
@@ -171,6 +183,7 @@ export function buildPickIndex(objects) {
     order,
     objects: objArr,
     slots: slotArr,
+    insts: instArr,
     bounds: new Float64Array(nodeBounds),
     nodeA: new Int32Array(nodeA),
     nodeB: new Int32Array(nodeB),
@@ -232,8 +245,8 @@ export function queryPickIndex(idx, raycaster) {
       if (a < 0) {
         const start = idx.nodeStart[node], count = idx.nodeCount[node];
         for (let i = start; i < start + count; i++) {
-          const oi = idx.order[i];
-          picked.push({ obj: idx.objects[oi], slot: idx.slots[oi] });
+          const oi = idx.order[i], k = idx.insts ? idx.insts[oi] : -1;
+          picked.push({ obj: k >= 0 ? idx.objects[oi].userData.compact.view(k) : idx.objects[oi], slot: idx.slots[oi] }); // #1643: an instance's view
         }
       } else {
         // Depth is ~log2(n/LEAF_SIZE); the guard keeps a pathological tree from writing past the
