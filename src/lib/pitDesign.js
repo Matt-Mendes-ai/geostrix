@@ -38,15 +38,19 @@ export const MAX_DESIGN_CELLS = 1000000; // #1916: was 250,000; a Treaty Creek s
 // Both now take their reaches from designReaches, and the pane passes the shell's crest-to-floor height as the depth.
 const sectorParam = (sectors, bearing, key, base) => { const s = sectors ? sectors[sectorOfBearing(bearing)] : null, v = s ? Number(s[key]) : NaN; return Number.isFinite(v) && (key === "berm" ? v >= 0 : v > 0 && v < 90) ? v : base; };
 export const rampIsOn = (ramp) => !!ramp && Number(ramp.widthM) > 0 && Number(ramp.gradientPct) > 0 && Number.isFinite(Number(ramp.azimuthDeg));
-export function designReaches({ benchH, berm, batterDeg, sectors = null, ramp = null }) {
+// TASKS.csv #2730 (follow-up of #2439) — upper: { rl, batterDeg, berm } for the benches whose face starts at or above an RL (soft cover), as the
+// shell's upper slope; null = every bench alike. upperOk tells a usable one.
+export const upperOk = (u) => !!u && Number.isFinite(Number(u.rl)) && Number(u.batterDeg) > 0 && Number(u.batterDeg) < 90 && Number(u.berm) >= 0;
+export function designReaches({ benchH, berm, batterDeg, sectors = null, ramp = null, upper = null }) {
   const faceRun = benchH / Math.tan(batterDeg * RAD), reach = faceRun + berm;
   const reachAt = (b) => benchH / Math.tan(sectorParam(sectors, b, "batterDeg", batterDeg) * RAD) + sectorParam(sectors, b, "berm", berm);
   const all = DESIGN_SECTORS.map((k, i) => reachAt(i * 45));
+  if (upperOk(upper)) all.push(benchH / Math.tan(Number(upper.batterDeg) * RAD) + Number(upper.berm)); // #2730
   return { faceRun, reach, reachMax: Math.max(reach, ...all) + (rampIsOn(ramp) ? Number(ramp.widthM) : 0), reachMin: Math.min(reach, ...all) };
 }
-export function predictDesignCell({ boxW, boxH, depth, shellCell, benchH, berm, batterDeg, sectors = null, ramp = null, maxCells = MAX_DESIGN_CELLS }) {
+export function predictDesignCell({ boxW, boxH, depth, shellCell, benchH, berm, batterDeg, sectors = null, ramp = null, upper = null /* #2730 */, maxCells = MAX_DESIGN_CELLS }) {
   if (!(benchH > 0) || !(berm >= 0) || !(batterDeg > 0 && batterDeg < 90)) return null;
-  const { faceRun, reach, reachMax, reachMin } = designReaches({ benchH, berm, batterDeg, sectors, ramp }); // #2278 — as the run pads
+  const { faceRun, reach, reachMax, reachMin } = designReaches({ benchH, berm, batterDeg, sectors, ramp, upper }); // #2278 — as the run pads; upper: #2730
   const pad = (Math.ceil(Math.max(0, depth) / benchH) + 1) * reachMax + shellCell, w = boxW + 2 * pad, h = boxH + 2 * pad;
   let cell = Math.max(0.5, Math.min(reachMin / 4, shellCell)), coarsened = false;
   const n = () => (Math.ceil(w / cell) + 1) * (Math.ceil(h / cell) + 1);
@@ -97,7 +101,7 @@ export const toeRL = (z, benchH, datum = 0) => datum + Math.round((z - datum) / 
 // blocks ({ x, y, z, dx, dy, dz, value, coverage }), cutoff and density from the shell's run; benchH, berm, batterDeg, datum.
 // -> { positions, indices, strings: [{ bench, rl, kind: "toe" | "crest", lines: [[[x, y, z], ...]] }], benches: [{ rl, rockT, oreT, wasteT,
 //      metalU, meanGrade }], totals, interRampDeg, faceRun, reach, cell, nCells, coarsened, daylights, crestRL, floorRL }
-export function benchedPit(shell, { groundAt = null, cells = [], cutoff = Infinity, density = 1, wasteDensity = null, benchH, berm, batterDeg, datum = 0, maxCells = MAX_DESIGN_CELLS, largestOnly = false, areaPoly = null, sectors = null, ramp = null, onBench = null, weathered = null } = {}) { // weathered: #2671 — { depthAt(x, y), density } (pitShell.js weatheredOf) // onBench(k, about): #2286
+export function benchedPit(shell, { groundAt = null, cells = [], cutoff = Infinity, density = 1, wasteDensity = null, benchH, berm, batterDeg, datum = 0, maxCells = MAX_DESIGN_CELLS, largestOnly = false, areaPoly = null, sectors = null, ramp = null, onBench = null, weathered = null, upper = null /* #2730 */ } = {}) { // weathered: #2671 — { depthAt(x, y), density } (pitShell.js weatheredOf) // onBench(k, about): #2286
   // TASKS.csv #1916 — a design AREA (areaPoly): a closed polygon [[x, y], ...] in world metres (a design string); only the shell's columns
   // whose centre lies inside it are designed, so one prospect of a district-wide shell gets the whole grid
   let columnsInArea = null;
@@ -133,13 +137,16 @@ export function benchedPit(shell, { groundAt = null, cells = [], cutoff = Infini
   const interRampDeg = Math.atan(benchH / reach) / RAD;
   // #1952 — the batter and berm for a bearing: the sector's own when typed, else the overall
   const secParam = (bearing, key, base) => sectorParam(sectors, bearing, key, base); // #2278 — shared with the prediction
-  const batterAt = (b) => secParam(b, "batterDeg", batterDeg), bermAt = (b) => secParam(b, "berm", berm);
+  // TASKS.csv #2730 — above the upper RL every wall takes the upper face angle and berm (the sectors are for the walls below it)
+  const upperOn = upperOk(upper), up = upperOn ? { rl: Number(upper.rl), batterDeg: Number(upper.batterDeg), berm: Number(upper.berm) } : null;
+  let inUpper = false;
+  const batterAt = (b) => (inUpper ? up.batterDeg : secParam(b, "batterDeg", batterDeg)), bermAt = (b) => (inUpper ? up.berm : secParam(b, "berm", berm));
   const faceRunAt = (b) => benchH / Math.tan(batterAt(b) * RAD), reachAt = (b) => faceRunAt(b) + bermAt(b);
   const sectorsUsed = sectors ? Object.fromEntries(DESIGN_SECTORS.map((k, i) => [k, { batterDeg: batterAt(i * 45), berm: bermAt(i * 45) }])) : null;
   // #1948 — the ramp's figures; rampW widens the reach wherever the road runs
   const rampOn = rampIsOn(ramp);
   const rampW = rampOn ? Number(ramp.widthM) : 0, rampRun = rampOn ? benchH / (Number(ramp.gradientPct) / 100) : 0, turn = rampOn && ramp.turn === "anticlockwise" ? -1 : 1;
-  const { reachMax, reachMin } = designReaches({ benchH, berm, batterDeg, sectors, ramp }); // #2278 — the prediction's figures
+  const { reachMax, reachMin } = designReaches({ benchH, berm, batterDeg, sectors, ramp, upper }); // #2278 — the prediction's figures; upper: #2730
   const rampState = rampOn ? { theta: normDeg(Number(ramp.azimuthDeg)), arcs: [], lengthM: 0, needsSwitchback: false, stoppedAt: null, centre: [], edgeIn: [], edgeOut: [] } : null;
   // the bench RLs the shell's floors take
   let floorRL = Infinity, floorMax = -Infinity, sx0 = Infinity, sx1 = -Infinity, sy0 = Infinity, sy1 = -Infinity;
@@ -196,6 +203,7 @@ export function benchedPit(shell, { groundAt = null, cells = [], cutoff = Infini
   const aboutBenches = Number.isFinite(gTop) && benchH > 0 ? Math.max(1, Math.ceil((gTop - floorRL) / benchH)) : null; // #2286 — for the progress line
   for (let k = 0, rl = floorRL; k < 10000; k++, rl += benchH) {
     onBench?.(k + 1, aboutBenches);
+    inUpper = !!up && rl - benchH >= up.rl - 1e-9; // #2730 — this bench's face starts at or above the upper RL
     const next = new Uint8Array(N);
     let any = false;
     if (k === 0) {
@@ -382,7 +390,7 @@ export function benchedPit(shell, { groundAt = null, cells = [], cutoff = Infini
   let nCells = 0;
   for (let c = 0; c < N; c++) nCells += inPit[c];
   return { positions: Float64Array.from(pos), indices: Uint32Array.from(idx), strings, benches, totals, interRampDeg, faceRun, reach, cell, nCells, coarsened, daylights, crestRL, floorRL, groundTopRL: Number.isFinite(groundTop) ? groundTop : null /* #2440 */, partsDropped, columnsInArea,
-    sectorsUsed /* #1952 */, ramp: rampState ? { arcs: rampState.arcs, lengthM: +rampState.lengthM.toFixed(1), daylightRL: rampState.daylightRL ?? null /* #2713 */, widthM: rampW, gradientPct: Number(ramp.gradientPct), turn: turn > 0 ? "clockwise" : "anticlockwise", azimuthDeg: normDeg(Number(ramp.azimuthDeg)), needsSwitchback: rampState.needsSwitchback, stoppedAtRL: rampState.stoppedAt, rockT: rampRockT, benches: rampState.arcs.length } : null /* #1948 */ };
+    sectorsUsed /* #1952 */, upperUsed: up /* #2730 */, ramp: rampState ? { arcs: rampState.arcs, lengthM: +rampState.lengthM.toFixed(1), daylightRL: rampState.daylightRL ?? null /* #2713 */, widthM: rampW, gradientPct: Number(ramp.gradientPct), turn: turn > 0 ? "clockwise" : "anticlockwise", azimuthDeg: normDeg(Number(ramp.azimuthDeg)), needsSwitchback: rampState.needsSwitchback, stoppedAtRL: rampState.stoppedAt, rockT: rampRockT, benches: rampState.arcs.length } : null /* #1948 */ };
 }
 
 // export rows: one per string vertex

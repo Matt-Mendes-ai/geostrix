@@ -10776,5 +10776,11 @@
   "The distance must be 0 or more, or blank.": "يجب أن تكون المسافة 0 أو أكثر، أو فارغة.",
   "Kept within {m} m of the block model: {n} columns of the grid beyond it were not mined.": "أُبقي ضمن {m} م من نموذج الكتل: لم تُعدَّن {n} عمودًا من الشبكة خارجه.",
   "Kept within {m} m of the block model; the pit did not need to go beyond it.": "أُبقي ضمن {m} م من نموذج الكتل؛ لم تحتج الحفرة إلى تجاوزه.",
-  "The road reaches the ground at {rl} m and ends there; its length is counted to that point.": "يبلغ الطريق الأرض عند {rl} م وينتهي هناك؛ ويُحتسب طوله حتى تلك النقطة."
+  "The road reaches the ground at {rl} m and ends there; its length is counted to that point.": "يبلغ الطريق الأرض عند {rl} م وينتهي هناك؛ ويُحتسب طوله حتى تلك النقطة.",
+  "Upper benches above RL (m)": "المصاطب العليا فوق المنسوب (م)",
+  "face (°)": "الواجهة (°)",
+  "berm (m)": "المصطبة (م)",
+  "Optional: the benches whose face starts at or above this RL take the face angle and berm beside it (soft cover, weathered rock), as the shell's upper slope. All three, or none.": "اختياري: المصاطب التي تبدأ واجهتها عند هذا المنسوب أو فوقه تأخذ زاوية الواجهة والمصطبة المجاورتين (غطاء لين، صخر متجوّى)، كالمنحدر العلوي للحفرة. الثلاثة، أو لا شيء.",
+  "The upper benches need the RL, a face angle between 0 and 90° and a berm of 0 or more, or all three blank.": "تحتاج المصاطب العليا إلى المنسوب وزاوية واجهة بين 0 و90° ومصطبة 0 أو أكثر، أو ترك الثلاثة فارغة.",
+  "The shell was run with a {s}° slope above {rl} m: give the upper benches their face and berm to match it.": "حُسبت الحفرة بمنحدر {s}° فوق {rl} م: أعطِ المصاطب العليا واجهتها ومصطبتها لتطابقه."
 }

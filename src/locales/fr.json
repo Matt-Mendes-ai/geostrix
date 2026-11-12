@@ -10776,5 +10776,11 @@
   "The distance must be 0 or more, or blank.": "La distance doit être de 0 ou plus, ou vide.",
   "Kept within {m} m of the block model: {n} columns of the grid beyond it were not mined.": "Gardé à moins de {m} m du modèle de blocs : {n} colonnes de la grille au-delà n'ont pas été exploitées.",
   "Kept within {m} m of the block model; the pit did not need to go beyond it.": "Gardé à moins de {m} m du modèle de blocs ; la fosse n'avait pas besoin d'aller au-delà.",
-  "The road reaches the ground at {rl} m and ends there; its length is counted to that point.": "La route atteint le terrain à {rl} m et s'y arrête ; sa longueur est comptée jusqu'à ce point."
+  "The road reaches the ground at {rl} m and ends there; its length is counted to that point.": "La route atteint le terrain à {rl} m et s'y arrête ; sa longueur est comptée jusqu'à ce point.",
+  "Upper benches above RL (m)": "Gradins supérieurs au-dessus de l'altitude (m)",
+  "face (°)": "front (°)",
+  "berm (m)": "risberme (m)",
+  "Optional: the benches whose face starts at or above this RL take the face angle and berm beside it (soft cover, weathered rock), as the shell's upper slope. All three, or none.": "Facultatif : les gradins dont le front commence à cette altitude ou au-dessus prennent l'angle de front et la risberme à côté (couverture meuble, roche altérée), comme la pente supérieure de la fosse. Les trois, ou aucun.",
+  "The upper benches need the RL, a face angle between 0 and 90° and a berm of 0 or more, or all three blank.": "Les gradins supérieurs demandent l'altitude, un angle de front entre 0 et 90° et une risberme de 0 ou plus, ou les trois vides.",
+  "The shell was run with a {s}° slope above {rl} m: give the upper benches their face and berm to match it.": "La fosse a été calculée avec une pente de {s}° au-dessus de {rl} m : donnez aux gradins supérieurs leur front et leur risberme pour la suivre."
 }

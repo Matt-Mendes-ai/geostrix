@@ -10776,5 +10776,11 @@
   "The distance must be 0 or more, or blank.": "A distância deve ser 0 ou mais, ou ficar em branco.",
   "Kept within {m} m of the block model: {n} columns of the grid beyond it were not mined.": "Mantido dentro de {m} m do modelo de blocos: {n} colunas da grade além não foram lavradas.",
   "Kept within {m} m of the block model; the pit did not need to go beyond it.": "Mantido dentro de {m} m do modelo de blocos; a cava não precisou ir além.",
-  "The road reaches the ground at {rl} m and ends there; its length is counted to that point.": "A estrada alcança o terreno a {rl} m e termina ali; seu comprimento é contado até esse ponto."
+  "The road reaches the ground at {rl} m and ends there; its length is counted to that point.": "A estrada alcança o terreno a {rl} m e termina ali; seu comprimento é contado até esse ponto.",
+  "Upper benches above RL (m)": "Bancadas superiores acima da cota (m)",
+  "face (°)": "face (°)",
+  "berm (m)": "berma (m)",
+  "Optional: the benches whose face starts at or above this RL take the face angle and berm beside it (soft cover, weathered rock), as the shell's upper slope. All three, or none.": "Opcional: as bancadas cuja face começa nesta cota ou acima tomam o ângulo de face e a berma ao lado (cobertura branda, rocha intemperizada), como o talude superior da cava. Os três, ou nenhum.",
+  "The upper benches need the RL, a face angle between 0 and 90° and a berm of 0 or more, or all three blank.": "As bancadas superiores precisam da cota, de um ângulo de face entre 0 e 90° e de uma berma de 0 ou mais, ou os três em branco.",
+  "The shell was run with a {s}° slope above {rl} m: give the upper benches their face and berm to match it.": "A cava foi rodada com um talude de {s}° acima de {rl} m: dê às bancadas superiores sua face e berma para corresponder."
 }
