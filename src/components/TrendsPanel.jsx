@@ -11,6 +11,8 @@ import { fisherStats, fabricShape } from "../lib/stereonet.js"; // TASKS.csv #67
 import { fitPlane } from "../lib/vein.js"; // TASKS.csv #672 — planarity / collinearity
 import { startingTrendPlane, MIN_TOP_HOLES } from "../lib/trendStart.js"; // TASKS.csv #2428
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
+import { useStore } from "../lib/store.jsx"; // TASKS.csv #2779 — the drill spacing and the sample length
+import { trendThinness, trendContext } from "../lib/trendThin.js"; // TASKS.csv #2779
 
 export const TREND_USERS = [
   ["implicit", "Geology models (implicit surfaces, stacks)"], // stack faults follow the stack's trend
@@ -80,6 +82,11 @@ export default function TrendsPanel({ structuralTrends, setStructuralTrends, str
   const { trends = [], use = {} } = structuralTrends || {};
   const [editId, setEditId] = useState(null);
   const [note, setNote] = useState(null);
+  // TASKS.csv #2779 — how thin each trend's search is across its plane, against the drill spacing and a typical sample (only with a trend)
+  const { collars = [], assays = [], layers = {} } = useStore() || {};
+  const hasTrends = trends.length > 0;
+  const ctx = useMemo(() => (hasTrends ? trendContext(collars, assays, layers.litho) : { spacingM: null, sampleM: null }), [hasTrends, collars, assays, layers.litho]);
+  const metres = (v) => (v >= 10 ? Math.round(v) : Number(v.toPrecision(2))).toLocaleString();
   const codes = useMemo(() => {
     const m = new Map();
     (structurePicks || []).forEach((p) => { if (Number.isFinite(p.dip) && Number.isFinite(p.azimuth)) m.set(String(p.value ?? "?"), (m.get(String(p.value ?? "?")) || 0) + 1); });
@@ -185,6 +192,7 @@ export default function TrendsPanel({ structuralTrends, setStructuralTrends, str
               <Pencil size={14} style={{ cursor: "pointer", color: editing ? "var(--color-accent)" : "var(--color-text-secondary)" }} {...iconAction(() => setEditId(editing ? null : t.id), tr("Edit {name}", { name: t.name }))} />
               <Trash2 size={14} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} {...iconAction(() => { if (window.confirm(tr("Delete trend \"{name}\"? Models using it will no longer follow a trend.", { name: t.name }))) remove(t.id); }, tr("Delete {name}", { name: t.name }))} />
             </div>
+            {(() => { const th = trendThinness(t.ratios, ctx.spacingM, ctx.sampleM); return th ? <div role="note" style={{ ...small, color: "var(--color-warn-text)", marginTop: 4 }}>{tr("At {max} : {int} : {min}, a search that reaches the next drill site ({s} m away) in every direction of the plane is {t} m thick across it, less than a typical sample ({l} m): each block sees only the samples within that distance of its own plane in each hole, often one or none.", { max: t.ratios.max, int: t.ratios.int, min: t.ratios.min, s: metres(th.spacingM), t: metres(th.thickM), l: metres(th.sampleM) })}</div> : null; })()}{/* #2779 */}
             {editing && (
               <div style={{ marginTop: 6 }}>
                 <input value={t.name} onChange={(e) => update(t.id, { name: e.target.value })} aria-label={tr("Trend name")} style={{ ...inputStyle, width: "100%", boxSizing: "border-box", marginBottom: 6 }} />
