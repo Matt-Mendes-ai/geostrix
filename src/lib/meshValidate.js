@@ -24,7 +24,10 @@ const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 // does segment p->q pass through the interior of triangle (a, b, c)? (Moller-Trumbore, ends and edges excluded)
 function segHitsTri(p, q, a, b, c, eps) {
   const d = sub(q, p), e1 = sub(b, a), e2 = sub(c, a), h = cross(d, e2), det = dot(e1, h);
-  if (Math.abs(det) < 1e-12) return false; // parallel / coplanar: not counted
+  // TASKS.csv #1693 — parallel / coplanar: not counted. The test was |det| < 1e-12 in absolute terms; det scales with |d| |e1| |e2| (metres
+  // cubed), so two coplanar cap triangles tens of metres across, at world coordinates, left a rounding det far above it and 'crossed' on
+  // noise: Link into a solid refused flat-capped outlines ('1 self-crossing triangle pairs'). Relative to the three lengths now.
+  if (Math.abs(det) <= 1e-9 * Math.sqrt(dot(d, d) * dot(e1, e1) * dot(e2, e2))) return false;
   const f = 1 / det, s = sub(p, a), u = f * dot(s, h);
   if (u <= eps || u >= 1 - eps) return false;
   const qv = cross(s, e1), v = f * dot(d, qv);
