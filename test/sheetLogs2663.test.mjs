@@ -27,7 +27,7 @@ test("no logged interval of the unit: null; logged but no collar: counted, not p
 });
 
 test("the pane passes the logs with a sheet; the run receives collars and survey and says the result", () => {
-  assert.match(readFileSync(new URL("../src/components/MapModelPanel.jsx", import.meta.url), "utf8"), /logs: bodyShape === "sheet" && lithoRows\?\.length \? \{ codeUnit, litho: lithoRows \} : null/);
+  assert.match(readFileSync(new URL("../src/components/MapModelPanel.jsx", import.meta.url), "utf8"), /logs: lithoRows\?\.length \? \{ codeUnit, litho: lithoRows \} : null/); // every shape since #2819 (plugs and stocks checked too)
   assert.match(readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8"), /setNotices, terrain, collars, survey, desurveyMethod/);
   assert.match(readFileSync(new URL("../src/modules/viewer/intrusionRun.js", import.meta.url), "utf8"), /notice\("Against the logs: \{lines\}/);
 });

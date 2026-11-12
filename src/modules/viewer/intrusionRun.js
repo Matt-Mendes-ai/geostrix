@@ -69,13 +69,15 @@ export function buildIntrusionBodies(p, { implicitGroupRef, implicitMeshesRef, o
       }
       const polys = grp.length, num = overlap ? gi + 1 : null;
       const world = Float64Array.from(pos), indices = Uint32Array.from(idx), scene = new Float32Array(world.length);
-      // TASKS.csv #2663 — a sheet against the unit's logged intervals: inside or not, and their true thickness across the sheet
-      if (p.sheet && p.logs) {
-        const ck = sheetLogCheck({ positions: world, indices, sheet: p.sheet, unit, litho: p.logs.litho, codeUnit: p.logs.codeUnit, collars, survey, desurveyMethod });
-        if (ck?.placed) logLines.push(tr("{unit}: {k} of {n} logged intercept(s) ({h} hole(s)) lie inside the sheet{t}.", { unit: num ? `${unit} ${num}` : unit, k: ck.inside, n: ck.placed, h: ck.holes,
+      // TASKS.csv #2663 — a sheet against the unit's logged intervals: inside or not, and their true thickness across the sheet;
+      // #2819 — a plug or stock too (no sheet: inside or not only)
+      if (p.logs) {
+        const ck = sheetLogCheck({ positions: world, indices, sheet: p.sheet || null, unit, litho: p.logs.litho, codeUnit: p.logs.codeUnit, collars, survey, desurveyMethod });
+        if (ck?.placed && !p.sheet) logLines.push(tr("{unit}: {k} of {n} logged intercept(s) ({h} hole(s)) lie inside the body.", { unit: num ? `${unit} ${num}` : unit, k: ck.inside, n: ck.placed, h: ck.holes }));
+        else if (ck?.placed) logLines.push(tr("{unit}: {k} of {n} logged intercept(s) ({h} hole(s)) lie inside the sheet{t}.", { unit: num ? `${unit} ${num}` : unit, k: ck.inside, n: ck.placed, h: ck.holes,
           t: !ck.thickness ? "" : Math.round(ck.thickness.min * 10) === Math.round(ck.thickness.max * 10) ? tr("; its true thickness across it is {a} m", { a: Math.round(ck.thickness.min * 10) / 10 })
             : tr("; their true thickness across it is {a}–{b} m (median {m} m)", { a: Math.round(ck.thickness.min * 10) / 10, b: Math.round(ck.thickness.max * 10) / 10, m: Math.round(ck.thickness.median * 10) / 10 }) }));
-        else if (ck) logLines.push(tr("{unit}: {n} logged intercept(s), none on a hole with a collar and survey to place it.", { unit, n: ck.intercepts }));
+        else if (ck) logLines.push(tr("{unit}: {n} logged intercept(s), none on a hole with a collar and survey to place it.", { unit: num ? `${unit} ${num}` : unit, n: ck.intercepts }));
       }
       for (let i = 0; i < world.length; i += 3) { scene[i] = world[i] - o.x; scene[i + 1] = world[i + 2] - o.z; scene[i + 2] = o.y - world[i + 1]; }
       const geo = new THREE.BufferGeometry();
@@ -114,7 +116,8 @@ ${p.sheet ? tr("{v} Mm³, {d} m below the outcrop, a sheet dipping {dip}° towar
     // #939 — a narrowing body is cut off flat where its base would be a fifth of the outline, and the walls actually built
     + (pinched.length ? tr(" {k} narrow outcrop(s) would close before {d} m with these walls: they are cut off flat where the base would be a fifth of the outline ({a}–{b} m down).", { k: pinched.length, d: p.depthM, a: Math.round(Math.min(...pinched)), b: Math.round(Math.max(...pinched)) }) : "")
     + (p.wallDip < 89.99 && dipRanges.length && (Math.min(...dipRanges.map((d) => d[0])) < p.wallDip - 5 || Math.max(...dipRanges.map((d) => d[1])) > p.wallDip + 5) ? tr(" The walls as built dip {a}–{b}° (asked {dip}°): the base follows a simplified outline.", { a: Math.round(Math.min(...dipRanges.map((d) => d[0]))), b: Math.round(Math.max(...dipRanges.map((d) => d[1]))), dip: p.wallDip }) : "")));
-  if (logLines.length) msgs.push(notice("Against the logs: {lines} An intercept outside the sheet, or a thickness far from the map's, says the dip, the dip direction or the outline does not fit the drilling there.", { lines: logLines.join(" ") })); // #2663
+  if (logLines.length) msgs.push(p.sheet ? notice("Against the logs: {lines} An intercept outside the sheet, or a thickness far from the map's, says the dip, the dip direction or the outline does not fit the drilling there.", { lines: logLines.join(" ") }) // #2663
+    : notice("Against the logs: {lines} An intercept outside the body says its walls, its depth or the outline do not fit the drilling there.", { lines: logLines.join(" ") })); // #2819 — a plug or stock
   if (gapFilled.k) msgs.push(notice("{k} of {n} outline point(s) fell in gaps of the terrain (cells it has no ground for) and took the ground of the nearest outline point that has some.", { k: gapFilled.k, n: gapFilled.n })); // #2569
   if (failed.length) msgs.push(errorNotice(tr("{k} polygon(s) could not be built: {list}", { k: failed.length, list: [...new Set(failed)].slice(0, 3).join(" ") })));
   if (!added.length && !failed.length) msgs.push(notice("None of the chosen units has a polygon on this map."));
