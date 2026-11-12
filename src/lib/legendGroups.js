@@ -74,7 +74,7 @@ export function assayLegendGroups({ assays, assayElements, assayVisible, assayDi
         const last = i === style.breaks.length - 1;
         return [lo == null ? `≤ ${fmt(b.max)} ${unit}` : last ? `> ${fmt(lo)} ${unit}` : `${fmt(lo)}–${fmt(b.max)} ${unit}`, b.color];
       })
-      : [[`${sym} (sphere size = grade)`, assayColorFor(0, idx, style)]];
+      : [[`${sym} (size = grade)`, assayColorFor(0, idx, style)]]; // #3056 — not "sphere": assays can be drawn along the hole (#2932)
     if (style?.minCutoff != null && Number.isFinite(style.minCutoff)) items.push([`below ${fmt(style.minCutoff)} ${unit} hidden`, "transparent"]);
     return { key: `assay_${sym}`, label: `${sym} (${unit})`, items, grade: !!style?.breaks?.length, alwaysHead: true }; // grade: #1534 — classes low to high; alwaysHead: #2370, a one-element key named
   });
