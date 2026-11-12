@@ -4695,6 +4695,8 @@
   "Close the grid settings popover": "Fermer la fenêtre des réglages de la grille",
   "Add two vertical wall grids to the ground grid, forming a 3D reference box": "Ajouter deux grilles murales verticales à la grille au sol, formant une boîte de référence 3D",
   "Grid size (m)": "Taille de la grille (m)",
+  "Size and centre the grid from the collars' extent, with a round cell; a size you type turns this off": "Dimensionne et centre la grille d'après l'étendue des collets, avec une cellule ronde ; une taille saisie désactive ceci",
+  "Size from the data ({cell} m cells)": "Taille d'après les données (cellules de {cell} m)",
   "Divisions": "Divisions",
   "Grid colour": "Couleur de la grille",
   "Draw the red/green/blue X/Y/Z axis lines at the project origin. Off by default — the corner gizmo already shows orientation, and these sit at an arbitrary point relative to your data.": "Dessiner les axes X/Y/Z rouge/vert/bleu à l'origine du projet. Désactivé par défaut — le gizmo d'angle montre déjà l'orientation, et ces axes sont à un point arbitraire par rapport à vos données.",

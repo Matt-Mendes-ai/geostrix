@@ -23,6 +23,7 @@ import { t as tr } from "../../lib/i18n.js";
 import { orphanHoleIds } from "../../lib/noCollars.js"; // TASKS.csv #1809
 import { VE_CHOICES, veOf } from "./verticalExaggeration.js"; // TASKS.csv #2623
 import { drillSiteSpacing } from "../../lib/drillSpacing.js"; // TASKS.csv #2517
+import { autoGridSize, isAutoGrid } from "../../lib/viewer/gridGroup.js"; // TASKS.csv #2318
 import { useStore } from "../../lib/store.jsx"; // TASKS.csv #2517 — the collars
 // TASKS.csv #1702 (review #1645, Copley) — "Intercepts" opened lithology boundary picks; to a geologist an intercept is "24 m @ 0.44 % Cu".
 // The button is now "Contact picks", and "Grade intercepts" opens Best intercepts (Geochem's tool) on the loaded assays from here.
@@ -49,6 +50,9 @@ export function ViewToolbar({
   const { collars: spacingCollars = [], assays: gAssays = [], assayElements: gEls = [], survey: gSurvey = [], layers: gLayers = {} } = useStore() || {};
   const [gradeIntOpen, setGradeIntOpen] = useState(false); // #1702
   const spacing = useMemo(() => drillSiteSpacing(spacingCollars), [spacingCollars]);
+  // TASKS.csv #2318 — the grid's size from the data while it is on auto; a typed size or divisions turns auto off
+  const gridAuto = useMemo(() => autoGridSize(spacingCollars), [spacingCollars]);
+  const gridOnAuto = !!gridAuto && isAutoGrid(gridConfig);
   const bufferTyped = useRef(false);
   useEffect(() => { if (!bufferTyped.current && spacing?.buffer && setSectionCorridor) setSectionCorridor(spacing.buffer); }, [spacing]); // the setter is stable
   return (
@@ -71,10 +75,12 @@ export function ViewToolbar({
                 </label>
               </div>
               <div style={{ display: "flex", gap: 6 }}>
-                <input type="number" title={tr("Grid size (m)")} value={gridConfig.size} onChange={(e) => setGridConfig((g) => ({ ...g, size: Math.max(10, Number(e.target.value) || g.size) }))} style={{ width: 0, flex: 1, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 6px", color: "var(--color-text)", fontSize: "var(--font-size-sm)", fontFamily: "inherit" }} />
-                <input type="number" title={tr("Divisions")} value={gridConfig.divisions} onChange={(e) => setGridConfig((g) => ({ ...g, divisions: Math.max(1, Number(e.target.value) || g.divisions) }))} style={{ width: 0, flex: 1, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 6px", color: "var(--color-text)", fontSize: "var(--font-size-sm)", fontFamily: "inherit" }} />
+                <input type="number" title={tr("Grid size (m)")} value={gridOnAuto ? gridAuto.size : gridConfig.size} onChange={(e) => setGridConfig((g) => ({ ...g, sizeAuto: false, size: Math.max(10, Number(e.target.value) || g.size) }))} style={{ width: 0, flex: 1, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 6px", color: "var(--color-text)", fontSize: "var(--font-size-sm)", fontFamily: "inherit" }} />
+                <input type="number" title={tr("Divisions")} value={gridOnAuto ? gridAuto.divisions : gridConfig.divisions} onChange={(e) => setGridConfig((g) => ({ ...g, sizeAuto: false, divisions: Math.max(1, Number(e.target.value) || g.divisions) }))} style={{ width: 0, flex: 1, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 6px", color: "var(--color-text)", fontSize: "var(--font-size-sm)", fontFamily: "inherit" }} />
                 <input type="color" title={tr("Grid colour")} value={gridConfig.color} onChange={(e) => setGridConfig((g) => ({ ...g, color: e.target.value }))} style={{ width: 30, height: 28, padding: 0, border: "1px solid var(--color-border)", borderRadius: 5, background: "none", cursor: "pointer" }} />
               </div>
+              {gridAuto && <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginTop: 4 }} title={tr("Size and centre the grid from the collars' extent, with a round cell; a size you type turns this off")}>{/* #2318 */}
+                <input type="checkbox" checked={gridOnAuto} onChange={(e) => setGridConfig((g) => (e.target.checked ? { ...g, sizeAuto: true } : { ...g, sizeAuto: false, size: gridAuto.size, divisions: gridAuto.divisions }))} />{tr("Size from the data ({cell} m cells)", { cell: (gridAuto.size / gridAuto.divisions).toLocaleString() })}</label>}
               {/* TASKS.csv #311 — the world-origin axis lines, grouped here because they are the same
                   kind of reference-furniture decision as the grid. Off by default now (they sit at the
                   arbitrary project origin and are the most debug-view-looking thing in a screenshot);

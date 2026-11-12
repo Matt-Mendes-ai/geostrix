@@ -4695,6 +4695,8 @@
   "Close the grid settings popover": "Fechar a janela de configuração da grade",
   "Add two vertical wall grids to the ground grid, forming a 3D reference box": "Adicionar duas grades de parede verticais à grade do solo, formando uma caixa de referência 3D",
   "Grid size (m)": "Tamanho da grade (m)",
+  "Size and centre the grid from the collars' extent, with a round cell; a size you type turns this off": "Dimensiona e centra a grade pela extensão dos colares, com uma célula redonda; um tamanho digitado desativa isto",
+  "Size from the data ({cell} m cells)": "Tamanho pelos dados (células de {cell} m)",
   "Divisions": "Divisões",
   "Grid colour": "Cor da grade",
   "Draw the red/green/blue X/Y/Z axis lines at the project origin. Off by default — the corner gizmo already shows orientation, and these sit at an arbitrary point relative to your data.": "Desenha as linhas de eixo X/Y/Z vermelho/verde/azul na origem do projeto. Desligado por padrão — o indicador do canto já mostra a orientação, e estas ficam num ponto arbitrário em relação aos seus dados.",
