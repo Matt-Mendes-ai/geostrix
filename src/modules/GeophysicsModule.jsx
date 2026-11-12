@@ -35,7 +35,8 @@ import { version as APP_VERSION } from "../../package.json"; // TASKS.csv #529
 import InfoButton from "../components/InfoButton.jsx";
 import { fetchSRTMTerrain, collarGroundMisfit, findBetterUtmZone } from "../lib/srtmFetch.js";
 import { fetchCopernicusTerrain } from "../lib/copernicusDem.js"; // TASKS.csv #814
-import { toLonLat, reprojectXY, crsName, pointTransform, getProj4Def, isMetricProjectedEpsg } from "../lib/reproject.js"; // isMetricProjectedEpsg: #2127
+import { toLonLat, reprojectXY, crsName, pointTransform, getProj4Def, isMetricProjectedEpsg, isGeographicCrs } from "../lib/reproject.js"; // isMetricProjectedEpsg: #2127; isGeographicCrs: #2832
+import { geosoftHeaderEpsg, xyLookLikeDegrees } from "../lib/stationDegrees.js"; // TASKS.csv #2832
 import { omfToProjectObjectsAsync } from "../lib/omfImport.js"; // TASKS.csv #637; #1280
 import { isDcip2dMeshText } from "../lib/ubc2d.js"; // TASKS.csv #1348
 import { parseUBCMesh, isUBCMeshText, parseUBCModelStream, maskAirCells, ubcMeshToCells, cellValueRange, MAX_CELLS, planCoarsenFactors, coarsenUBCModel, coarsenRecord, wantsLogMean, MEAN_RULE } from "../lib/voxel.js"; // coarsenRecord: #1095
@@ -386,7 +387,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         // file. Not sure which is which -> the column picker below (shared with .xyz), never a dead end.
         const cols = guessGeophysColumns(res.meta.fields || []);
         const openPicker = (why, extra = {}) => {
-          setXyzPending({ ...extra, fileName: file.name, columns: res.meta.fields || [], rows: res.data, source: "csv", xCol: cols.x, yCol: cols.y, zCol: cols.z, valueCol: cols.value, lineCol: cols.line, fidCol: cols.fid, labelCol: cols.label, ...cleaningDefaults(res.meta.fields || []) /* #1583 */ });
+          setXyzPending({ headerEpsg: geosoftHeaderEpsg(head) /* #2832 */, ...extra, fileName: file.name, columns: res.meta.fields || [], rows: res.data, source: "csv", xCol: cols.x, yCol: cols.y, zCol: cols.z, valueCol: cols.value, lineCol: cols.line, fidCol: cols.fid, labelCol: cols.label, ...cleaningDefaults(res.meta.fields || []) /* #1583 */ });
           setError({ info: true, text: tr("{why} Pick the columns below, then Import.", { why }) });
         };
         if (!cols.ok) {
@@ -412,8 +413,14 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         }
         // Longitude/latitude columns and no Source CRS typed: they can only be WGS84.
         const mineSrc = isMineSource(geophysSourceEpsg); // #2684 — 'Local mine grid' as the Source CRS
-        const srcEpsg = mineSrc ? "" : geophysSourceEpsg || (cols.geographic ? "4326" : "");
-        let reprojectNote = "";
+        // TASKS.csv #2832 — no Source CRS set: the file's Geosoft header ('/ Projection:"WGS 84"', '/ Unit:dega'), else X / Y that can only be
+        // degrees in a projected project (Blake River's columns are called X and Y): never metres in a 1.3 m pillar
+        const hdrEpsg = !mineSrc && !geophysSourceEpsg && !cols.geographic ? geosoftHeaderEpsg(head) : null;
+        const projected = project?.crsSet !== false && !!project?.epsg && !isGeographicCrs(project.epsg);
+        const asDegrees = !mineSrc && !geophysSourceEpsg && !cols.geographic && !hdrEpsg && projected && xyLookLikeDegrees(res.data, cols.x, cols.y);
+        const srcEpsg = mineSrc ? "" : geophysSourceEpsg || (cols.geographic ? "4326" : "") || (hdrEpsg ? String(hdrEpsg) : "") || (asDegrees ? "4326" : "");
+        let reprojectNote = hdrEpsg ? " " + tr("Its header names {crs} (EPSG:{epsg}), so its X / Y were read in it.", { crs: crsName(hdrEpsg) || `EPSG:${hdrEpsg}`, epsg: hdrEpsg })
+          : asDegrees ? " " + tr("Every X is within ±180 and every Y within ±90, so they were read as WGS 84 longitude / latitude; set the Source CRS if they are in another datum.") : "";
         if (mineSrc) { const m = mineRowsToProject(good, project); good = m.rows; reprojectNote = m.note; }
         else if (srcEpsg && project?.epsg && Number(srcEpsg) !== Number(project.epsg)) {
           let failed = 0;
@@ -422,7 +429,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
             if (!p) { failed++; return r; }
             return { ...r, x: p.x, y: p.y };
           });
-          reprojectNote = failed
+          reprojectNote += failed // += : #2832 keeps the header / degrees sentence before it
             ? tr(" Couldn't resolve a proj4 definition for EPSG:{srcEpsg} or EPSG:{epsg} — no reprojection happened.", { srcEpsg, epsg: project.epsg })
             : tr(" Reprojected from EPSG:{srcEpsg}{v} to the project's EPSG:{epsg}.", { srcEpsg, v: !geophysSourceEpsg && cols.geographic ? tr(" (longitude/latitude columns)") : "", epsg: project.epsg });
         }
@@ -1249,7 +1256,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         const head = await headText(file);
         const { columns, rows: sample } = parseXYZ(head);
         const g = guessXyzChannels(columns, sample), estimate = Math.round((sample.length / Math.max(1, head.length)) * file.size);
-        setXyzPending({ fileName: file.name, columns, rows: sample, xCol: guessColumn(columns, XY_NAME_HINTS.x), yCol: guessColumn(columns, XY_NAME_HINTS.y), zCol: g.z, valueCol: g.value, header: gemHeaderInfo(head), headerEpsg: gemHeaderEpsg(head), ...cleaningDefaults(columns),
+        setXyzPending({ fileName: file.name, columns, rows: sample, xCol: guessColumn(columns, XY_NAME_HINTS.x), yCol: guessColumn(columns, XY_NAME_HINTS.y), zCol: g.z, valueCol: g.value, header: gemHeaderInfo(head), headerEpsg: gemHeaderEpsg(head) || geosoftHeaderEpsg(head) /* #2832 */, ...cleaningDefaults(columns),
           stream: { file, kind: "xyz", columns, estimate, keepEvery: suggestKeepEvery(estimate, undefined, (layers.geophys_pts || []).length) } });
         setXyzError({ info: true, text: tr("\"{name}\" is {v} MB, about {rows} readings: too big to read whole on most computers. Check the columns and how many readings to keep below, then Import: the file is read in pieces and only the kept readings and columns are held.", { name: file.name, v: (file.size / 1e6).toFixed(0), rows: estimate.toLocaleString() }) });
         return;
@@ -1266,7 +1273,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         zCol: g.z,
         valueCol: g.value,
         header: gemHeaderInfo(text), // #610 — survey date / UTC offset, for matching base-station files
-        headerEpsg: gemHeaderEpsg(text), // #1329
+        headerEpsg: gemHeaderEpsg(text) || geosoftHeaderEpsg(text), // #1329; a Geosoft header: #2832
         ...cleaningDefaults(columns), // #1583
       });
     } catch (err) {
@@ -1491,7 +1498,10 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     // an empty project is offered the GPS file's CRS, as every other import offers its own (#607): its placeholder zone can be the wrong one
     const mineSrc = !placed?.epsg && isMineSource(geophysSourceEpsg); // #2684 — 'Local mine grid' as the Source CRS (a GPS file's own CRS wins)
     if (mineSrc) { const m = mineRowsToProject(mapped, project); mapped = m.rows; reprojectNote += m.note; }
-    const statedEpsg = placed?.epsg || (mineSrc ? null : geophysSourceEpsg) || (mineSrc ? null : xyzPending.headerEpsg) || null; // headerEpsg: #1329 — a GEM file says, a Source CRS set by hand still wins
+    // TASKS.csv #2832 — nothing stated and X / Y that can only be degrees in a projected project: read as WGS 84 longitude / latitude, and said
+    const pickerDegrees = !placed?.epsg && !mineSrc && !geophysSourceEpsg && !xyzPending.headerEpsg && project?.crsSet !== false && !!project?.epsg && !isGeographicCrs(project.epsg) && xyLookLikeDegrees(xyzPending.rows, xyzPending.xCol, xyzPending.yCol);
+    if (pickerDegrees) reprojectNote += " " + tr("Every X is within ±180 and every Y within ±90, so they were read as WGS 84 longitude / latitude; set the Source CRS if they are in another datum.");
+    const statedEpsg = placed?.epsg || (mineSrc ? null : geophysSourceEpsg) || (mineSrc ? null : xyzPending.headerEpsg) || (pickerDegrees ? 4326 : null) || null; // headerEpsg: #1329 — a GEM file says, a Source CRS set by hand still wins; degrees: #2832
     const adopted = statedEpsg ? askAdoptCrs({ isEmpty: projectIsEmpty, currentEpsg: project?.epsg, declaredEpsg: statedEpsg, fileName }) : null;
     if (adopted) { setEpsg(adopted); reprojectNote += tr(" Project CRS set to EPSG:{epsg}.", { epsg: adopted }); }
     const targetEpsg = adopted || project?.epsg;
@@ -1504,7 +1514,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         if (!p) { failed++; return r; }
         return { ...r, x: p.x, y: p.y };
       });
-      reprojectNote = failed
+      reprojectNote += failed // += (#2832): it overwrote the notes before it (the degrees / header sentence, a GPS placement, 'Project CRS set to')
         ? tr(" Couldn't resolve a proj4 definition for EPSG:{geophysSourceEpsg} or EPSG:{epsg} — no reprojection happened.", { geophysSourceEpsg, epsg: targetEpsg })
         : tr(" Reprojected from EPSG:{geophysSourceEpsg} to the project's EPSG:{epsg}.", { geophysSourceEpsg, epsg: targetEpsg });
     }
@@ -1994,6 +2004,14 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                   );
                 })()}
               </div>
+            )}
+            {!geophysSourceEpsg && !xyzPending.headerEpsg && project?.crsSet !== false && !!project?.epsg && !isGeographicCrs(project.epsg) && xyLookLikeDegrees(xyzPending.rows, xyzPending.xCol, xyzPending.yCol) && ( /* TASKS.csv #2832 */
+              <div style={{ marginTop: 8, padding: "6px 8px", background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", borderRadius: 5, color: "var(--color-warn-text)", fontSize: "var(--font-size-sm)" }}>
+                {tr("{x} and {y} are all within ±180 / ±90: longitude and latitude, not metres. They will be read as WGS 84 and reprojected into the project CRS; set the Source CRS above if they are in another datum (NAD83, NAD27…).", { x: xyzPending.xCol, y: xyzPending.yCol })}
+              </div>
+            )}
+            {xyzPending.headerEpsg && !geophysSourceEpsg && ( /* TASKS.csv #2832 — said before Import, not only after */
+              <div style={{ marginTop: 8, color: "var(--color-text-secondary)", fontSize: "var(--font-size-sm)" }}>{tr("The file's header names {crs} (EPSG:{epsg}): its X / Y are read in it.", { crs: crsName(xyzPending.headerEpsg) || `EPSG:${xyzPending.headerEpsg}`, epsg: xyzPending.headerEpsg })}</div>
             )}
             {!xyzPending.batch?.gpsFiles.length && !xyzPending.grid && looksLikeLocalGrid(xyzPending.rows, xyzPending.xCol, xyzPending.yCol) && (
               <div style={{ marginTop: 8, padding: "6px 8px", background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", borderRadius: 5, color: "var(--color-warn-text)", fontSize: "var(--font-size-sm)" }}>
