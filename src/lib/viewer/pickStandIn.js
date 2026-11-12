@@ -19,26 +19,44 @@ let seq = 0;
 // a colour parsed once per distinct string (Color.setStyle was 169 ms of the Lawyers open); every stand-in gets its own copy,
 // as the legend repaint sets a member's colour in place
 const colorCache = new Map();
-export function colorFrom(c) {
-  if (c && c.isColor) return c.clone();
+export function colorFrom(c, shared = false) {
+  if (c && c.isColor) return shared ? c : c.clone();
   if (typeof c === "number") return new THREE.Color(c);
   let parsed = colorCache.get(c);
   if (!parsed) { parsed = new THREE.Color(c); if (colorCache.size < 4096) colorCache.set(c, parsed); }
-  return parsed.clone();
+  return shared ? parsed : parsed.clone(); // shared: TASKS.csv #1643, read-only until ownColor()
 }
+
+// TASKS.csv #1643 — the stand-in's pick-only material: its colour copied on first read
+class StandInMaterial {
+  constructor(shared, transparent, opacity, side) { this._shared = shared; this._own = null; this.transparent = transparent; this.opacity = opacity; this.side = side; }
+  get color() { return this._own || (this._own = this._shared.clone()); }
+  set color(c) { this._own = c; }
+  get baseColor() { return this._own || this._shared; } // read-only use
+  dispose() {}
+}
+Object.assign(StandInMaterial.prototype, { isPickOnlyMaterial: true, type: "MeshLambertMaterial", depthWrite: true, depthTest: true, visible: true });
 
 export class PickStandIn {
   constructor(geometry, { color, transparent = false, opacity = 1, side = THREE.FrontSide } = {}) {
     this.id = 1e9 + ++seq; // unique and monotonic, as Object3D ids are (pickTargetsSignature samples a batch's first / last id); above any real id
     this.isObject3D = true; this.isMesh = true; this.isPickStandIn = true; this.type = "PickStandIn";
     this.geometry = geometry;
-    this.material = { isPickOnlyMaterial: true, type: "MeshLambertMaterial", color: colorFrom(color), transparent, opacity, side, depthWrite: true, depthTest: true, visible: true, dispose() {} };
+    // TASKS.csv #1643 — the material holds the parsed colour, shared, and gives the stand-in its own copy the first time anything reads
+    // material.color (a repaint, toMesh, a member batch); a compact batch reads the shared one (baseColor) into its instanceColor and no
+    // copy is made. The matrices are made only if asked for (a compact batch composes its instances from position / quaternion /
+    // scale): two Matrix4 per row were most of the stand-in's 1.2 kB.
+    this.material = new StandInMaterial(colorFrom(color, true), transparent, opacity, side);
     this.position = new THREE.Vector3(); this.quaternion = new THREE.Quaternion(); this.scale = new THREE.Vector3(1, 1, 1);
-    this.matrix = new THREE.Matrix4(); this.matrixWorld = new THREE.Matrix4();
+    this._matrix = null; this._matrixWorld = null;
     this.matrixAutoUpdate = false; this.matrixWorldAutoUpdate = false; this.matrixWorldNeedsUpdate = false;
     this.layers = pickLayers; this.visible = true; this.parent = null; this.children = NO_CHILDREN; this.userData = {};
     this.renderOrder = 0; this.frustumCulled = false; this.castShadow = false; this.receiveShadow = false;
   }
+  get matrix() { return this._matrix || (this._matrix = new THREE.Matrix4()); }
+  set matrix(m) { this._matrix = m; }
+  get matrixWorld() { return this._matrixWorld || (this._matrixWorld = new THREE.Matrix4()); }
+  set matrixWorld(m) { this._matrixWorld = m; }
   updateMatrix() { this.matrix.compose(this.position, this.quaternion, this.scale); }
   updateMatrixWorld() { if (this.parent) this.matrixWorld.multiplyMatrices(this.parent.matrixWorld, this.matrix); else this.matrixWorld.copy(this.matrix); }
   updateWorldMatrix() { this.updateMatrixWorld(); }

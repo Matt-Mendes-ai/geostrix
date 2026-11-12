@@ -10,6 +10,75 @@ export { collarMarkerMaterial }; // for ViewerModule (its size cap)
 // saves — a handful of collar markers is not worth batching.
 const BATCH_MIN_MEMBERS = 24;
 
+// ---------- TASKS.csv #1643: compact batches ----------
+// A batch of pick stand-ins (#1500: intervals, point markers, custom rows, assays, geophysics readings, surface samples) kept every
+// member as an object (~1.2 kB each: vectors, a quaternion, two matrices, a colour): 174 MB on Lawyers' ~142,000. A COMPACT batch keeps
+// what the members held in arrays on the batch (userData.compact): each row's userData (its tip, row, hole id, category), its placement
+// (16 floats), a hidden flag, and its colour in the batch's own instanceColor. Readers see an InstanceView per instance - through
+// eachLayerMember (the category / legend / Holes-list passes: userData, visible, material.color, parent) and through the pick index
+// (pickIndex.js: one box per instance; a candidate is an InstanceView that ray-casts as the member Mesh did and reports itself as the
+// hit's object, with the same userData / parent / visible the hit consumers read).
+const PICK_LAYERS = new THREE.Layers();
+PICK_LAYERS.set(PICK_ONLY_LAYER);
+const _cv = new THREE.Color();
+// an instance's colour, read and written in its batch's instanceColor
+class InstanceColor {
+  constructor(batch, i) { this.batch = batch; this.i = i; this.isColor = true; }
+  get r() { return this.batch.instanceColor.array[this.i * 3]; }
+  get g() { return this.batch.instanceColor.array[this.i * 3 + 1]; }
+  get b() { return this.batch.instanceColor.array[this.i * 3 + 2]; }
+  set(v) { _cv.set(v); const a = this.batch.instanceColor.array, o = this.i * 3; a[o] = _cv.r; a[o + 1] = _cv.g; a[o + 2] = _cv.b; return this; }
+  setHex(h) { return this.set(h); }
+  copy(c) { const a = this.batch.instanceColor.array, o = this.i * 3; a[o] = c.r; a[o + 1] = c.g; a[o + 2] = c.b; return this; }
+  getHex() { return _cv.setRGB(this.r, this.g, this.b).getHex(); }
+  clone() { return new THREE.Color(this.r, this.g, this.b); }
+}
+export class InstanceView {
+  constructor(batch, i) { this.batch = batch; this.i = i; this._mw = null; this._mat = null; }
+  get instanceId() { return this.i; }
+  get userData() { return this.batch.userData.compact.rows[this.i]; }
+  get visible() { return !this.batch.userData.compact.hidden[this.i]; }
+  set visible(v) { this.batch.userData.compact.hidden[this.i] = v === false ? 1 : 0; }
+  get parent() { return this.batch.parent; }
+  get geometry() { return this.batch.geometry; }
+  get layers() { return PICK_LAYERS; }
+  get matrixWorld() { return this._mw || (this._mw = new THREE.Matrix4().fromArray(this.batch.userData.compact.base, this.i * 16).premultiply(this.batch.matrixWorld)); }
+  get material() {
+    if (!this._mat) { const cp = this.batch.userData.compact; this._mat = { isPickOnlyMaterial: true, side: cp.side, transparent: cp.transparent, opacity: cp.opacity, visible: true, color: new InstanceColor(this.batch, this.i), dispose() {} }; }
+    return this._mat;
+  }
+  getWorldPosition(t) { return t.setFromMatrixPosition(this.matrixWorld); }
+}
+InstanceView.prototype.isObject3D = true;
+InstanceView.prototype.isMesh = true;
+InstanceView.prototype.isInstanceView = true;
+InstanceView.prototype.raycast = THREE.Mesh.prototype.raycast;
+InstanceView.prototype._computeIntersections = THREE.Mesh.prototype._computeIntersections;
+InstanceView.prototype.getVertexPosition = THREE.Mesh.prototype.getVertexPosition;
+
+// stand-ins (all of one family) -> the batch's compact record; their colours go into its instanceColor
+function makeCompact(inst, members, material) {
+  const n = members.length, base = new Float32Array(n * 16), rows = new Array(n), hidden = new Uint8Array(n), col = new Float32Array(n * 3);
+  for (let k = 0; k < n; k++) {
+    const m = members[k];
+    _batchMatrix.compose(m.position, m.quaternion, m.scale).toArray(base, k * 16);
+    rows[k] = m.userData;
+    if (m.visible === false) hidden[k] = 1;
+    const c = m.material.baseColor || m.material.color; col[k * 3] = c.r; col[k * 3 + 1] = c.g; col[k * 3 + 2] = c.b; // baseColor: no copy (#1643)
+  }
+  inst.instanceColor = new THREE.InstancedBufferAttribute(col, 3);
+  inst.userData.compact = { rows, base, hidden, side: material.side, transparent: material.transparent, opacity: material.opacity, view: (i) => new InstanceView(inst, i) };
+}
+function syncCompact(inst) {
+  const { base, hidden } = inst.userData.compact, a = inst.instanceMatrix.array;
+  a.set(base);
+  for (let i = 0; i < hidden.length; i++) if (hidden[i]) { const o = i * 16; a[o] = a[o + 1] = a[o + 2] = a[o + 4] = a[o + 5] = a[o + 6] = a[o + 8] = a[o + 9] = a[o + 10] = 0; } // zero scale, as below
+  inst.instanceMatrix.needsUpdate = true;
+  if (inst.instanceColor) inst.instanceColor.needsUpdate = true;
+  inst.boundingBox = null;
+  inst.boundingSphere = null;
+}
+
 // TASKS.csv #695 — what a batched (never drawn) member keeps of its material; see buildLayerBatches
 export function pickOnlyMaterial(src) {
   return { isPickOnlyMaterial: true, color: src.color, side: src.side, transparent: src.transparent, opacity: src.opacity, visible: true, dispose() {} };
@@ -24,6 +93,7 @@ const _batchZero = new THREE.Vector3(0, 0, 0);
 // nothing rasterizes — the instance is still there, so re-showing it is just another matrix write
 // and never a rebuild.
 export function syncBatchedInstances(inst) {
+  if (inst.userData.compact) { syncCompact(inst); return; } // #1643
   const members = inst.userData.batchMembers;
   for (let i = 0; i < members.length; i++) {
     const m = members[i];
@@ -51,17 +121,20 @@ export function syncBatchedInstances(inst) {
 // drillhole trace Line, a hole-label Sprite) is simply not a candidate and keeps drawing as before.
 export function buildLayerBatches(group) {
   const families = new Map(), dropped = new Set(); // dropped: #1540
+  let prev = null, prevFam = null; // TASKS.csv #1643 — a row drawn like the one before joins its family without a key string
   for (const child of group.children) {
     if (!child.isMesh || child.isInstancedMesh) continue;
     if (child.userData.batched) continue; // #695 — already mirrored by a batch (and holding a pick-only material)
     const protoKey = child.geometry?.userData?.protoKey;
     if (!protoKey) continue;
     const m = child.material;
-    if (!m || Array.isArray(m) || !m.color) continue;
+    if (!m || Array.isArray(m) || !(m.baseColor || m.color)) continue; // baseColor: a stand-in's, without copying it (#1643)
+    if (prev && child.geometry === prev.geometry && m.type === prev.type && m.transparent === prev.transparent && m.opacity === prev.opacity && m.side === prev.side && m.depthWrite === prev.depthWrite && m.depthTest === prev.depthTest) { prevFam.members.push(child); continue; }
     const sig = `${protoKey}|${m.type}|${m.transparent ? 1 : 0}|${m.opacity}|${m.side}|${m.depthWrite ? 1 : 0}|${m.depthTest ? 1 : 0}`;
     let fam = families.get(sig);
     if (!fam) families.set(sig, (fam = { geometry: child.geometry, material: m, members: [] }));
     fam.members.push(child);
+    prev = { geometry: child.geometry, type: m.type, transparent: m.transparent, opacity: m.opacity, side: m.side, depthWrite: m.depthWrite, depthTest: m.depthTest }; prevFam = fam;
   }
   const promote = new Map(); // #1500 — a stand-in in a family too small to batch becomes a real Mesh, drawn on its own
   for (const fam of families.values()) {
@@ -102,6 +175,16 @@ export function buildLayerBatches(group) {
     // between a rebuild and the next frame sees the right placement.
     group.updateWorldMatrix(true, false);
     group.matrixAutoUpdate = false;
+    // TASKS.csv #1643 — a family of stand-ins only (no real Mesh among them) becomes a compact batch: no member objects are kept
+    if (fam.members.every((m) => m.isPickStandIn)) {
+      inst.userData.pickIgnore = true;
+      delete inst.userData.batchMembers; // the members are not kept
+      makeCompact(inst, fam.members, fam.material);
+      group.add(inst);
+      syncCompact(inst);
+      for (const m of fam.members) dropped.add(m);
+      continue;
+    }
     for (const m of fam.members) {
       if (m.isPickStandIn) { m.updateMatrix(); m.updateMatrixWorld(); m.userData.batched = true; continue; } // #1500 — already the pick-only form, on the pick-only channel
       m.layers.set(PICK_ONLY_LAYER); m.updateMatrix(); m.matrixAutoUpdate = false; m.updateMatrixWorld(); m.matrixWorldAutoUpdate = false;
@@ -129,6 +212,25 @@ export function buildLayerBatches(group) {
 // TASKS.csv #1540 — every pickable member of a layer group: the unbatched children and each batch's members
 export function eachLayerMember(g, fn) {
   for (const c of g.children) {
+    const bm = c.userData?.batchMembers, cp = c.userData?.compact;
+    if (bm) { for (let i = 0; i < bm.length; i++) fn(bm[i]); } else if (cp) { for (let i = 0; i < cp.rows.length; i++) fn(new InstanceView(c, i)); } else if (!c.userData?.pickIgnore) fn(c); // #1643: a view per instance
+  }
+}
+// ViewerModule's pickTargetsSignature, per child of a layer group (TASKS.csv #1540, moved here for its size cap with #1643): a batch's
+// members are no longer children, so each batch is tagged by its members' count, first / last id and sampled world translations
+// (O(batches), never O(members)); a compact batch by its id and size (it is rebuilt, never moved); anything else adds nothing
+export function batchTag(c) {
+  const cp = c.userData?.compact;
+  if (cp) return `#c${c.id}:${cp.rows.length}`;
+  const bm = c.userData?.batchMembers;
+  if (!bm || !bm.length) return "";
+  const a = bm[0].matrixWorld.elements, b = bm[bm.length - 1].matrixWorld.elements;
+  return `#${bm.length}:${bm[0].id}:${bm[bm.length - 1].id}@${a[12]},${a[13]},${a[14]},${b[12]},${b[13]},${b[14]}`;
+}
+// TASKS.csv #1643 — the pick list: a compact batch itself (pickIndex.js boxes its instances), every other member as eachLayerMember
+export function eachPickTarget(g, fn) {
+  for (const c of g.children) {
+    if (c.userData?.compact) { fn(c); continue; }
     const bm = c.userData?.batchMembers;
     if (bm) { for (let i = 0; i < bm.length; i++) fn(bm[i]); } else if (!c.userData?.pickIgnore) fn(c);
   }
