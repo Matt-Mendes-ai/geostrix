@@ -131,21 +131,29 @@ export function parseGeoJSON(text) {
 // toLocal (TASKS.csv #2587): (x, y, fromEpsg) -> { x, y } | null, a tied local grid's way in (lib/localGridTie.js fileToLocal); every
 // point that states a CRS goes through it (a 'not degrees' file is already in the grid's numbers)
 // partNames (TASKS.csv #1767): each part's feature name (a name / label property), '' when none
+// featureOf / attributes (TASKS.csv #2742): the feature each polyline came from, and each feature's attributes, so a claims file gives one
+// claim per feature with its tenure number, status and expiry (lib/boundaryImport.js claimsFromVector), as a shapefile does (#1970)
 export function layersToBoundaryPolylines(layers, epsg, reproject, toLocal = null) {
-  const polylines = [], closedFlags = [], partNames = [];
+  const polylines = [], closedFlags = [], partNames = [], featureOf = [], attributes = [];
   let failed = 0;
   for (const l of layers) {
     if (l.geomType === "point") continue;
     const from = l.notDegrees ? Number(epsg) : l.epsg || 4326; // #1757 — not degrees: already in the project CRS
-    for (const f of l.features) for (const part of f.parts) {
+    for (const f of l.features) {
+      let fi = -1;
+      for (const part of f.parts) {
       const pts = [];
       for (const [x, y] of part) {
         const p = toLocal ? (l.notDegrees ? { x, y } : toLocal(x, y, from)) : epsg && from !== Number(epsg) ? reproject(x, y, from, Number(epsg)) : { x, y };
         if (!p) { failed++; continue; }
         pts.push({ x: p.x, y: p.y });
       }
-      if (pts.length >= 2) { polylines.push(pts); closedFlags.push(l.geomType === "polygon"); partNames.push(featureLabel(f.attributes)); }
+      if (pts.length >= 2) {
+        if (fi < 0) { fi = attributes.length; attributes.push(f.attributes || {}); }
+        polylines.push(pts); closedFlags.push(l.geomType === "polygon"); partNames.push(featureLabel(f.attributes)); featureOf.push(fi);
+      }
+      }
     }
   }
-  return { polylines, closedFlags, failed, ...(partNames.some(Boolean) ? { partNames } : {}) };
+  return { polylines, closedFlags, failed, featureOf, attributes, ...(partNames.some(Boolean) ? { partNames } : {}) };
 }

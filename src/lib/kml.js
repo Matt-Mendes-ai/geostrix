@@ -108,10 +108,13 @@ export function kmlToMapLayers(features) {
 // Lines/rings as {x, y, z?} polylines in the project CRS (for boundaries and claims). Returns null
 // polylines entry for any point that can't be reprojected; `failed` counts them.
 // toLocal (TASKS.csv #2587): (lon, lat, 4326) -> { x, y } | null, a tied local grid's way in (lib/localGridTie.js fileToLocal)
+// featureOf / attributes / closedFlags (TASKS.csv #2742): the Placemark each polyline came from (a MultiGeometry's parts share one), each
+// Placemark's name and ExtendedData / SchemaData, and whether it is a polygon, so a claims KML gives one claim per Placemark with its
+// tenure number, status and expiry (lib/boundaryImport.js claimsFromVector), as a shapefile does
 export function kmlToProjectPolylines(features, epsg, { includePoints = false, toLocal = null } = {}) {
-  const polylines = [];
+  const polylines = [], featureOf = [], attributes = [], closedFlags = [], byPlacemark = new Map();
   let failed = 0;
-  features.forEach((f) => {
+  features.forEach((f, k) => {
     if (f.geomType === "point" && !includePoints) return;
     const pts = [];
     for (const [lon, lat, alt] of f.coords) {
@@ -119,9 +122,12 @@ export function kmlToProjectPolylines(features, epsg, { includePoints = false, t
       if (!p) { failed++; return; }
       pts.push(Number.isFinite(alt) ? { x: p.x, y: p.y, z: alt } : { x: p.x, y: p.y });
     }
-    if (pts.length) polylines.push(pts);
+    if (!pts.length) return;
+    const key = f.placemark ?? `f${k}`;
+    if (!byPlacemark.has(key)) { byPlacemark.set(key, attributes.length); attributes.push({ ...(f.name ? { name: f.name } : {}), ...(f.attrs || {}) }); }
+    polylines.push(pts); featureOf.push(byPlacemark.get(key)); closedFlags.push(f.geomType === "polygon");
   });
-  return { polylines, failed };
+  return { polylines, failed, featureOf, attributes, closedFlags };
 }
 
 // Flat rows for the general vector importer (lon/lat, left for its own source-CRS reprojection as

@@ -60,7 +60,7 @@ export function claimStatusOf(v) {
   return null;
 }
 const NAME_COL = /^(claim|tenure|title)_?name$|^name$/i;
-const EXPIRY_COL = /good_?to|expir/i;
+const EXPIRY_COL = /good_?to|expir|^end_?date$/i; // ^end_?date$: TASKS.csv #2742 — Western Australian tenement files (ENDDATE)
 // TASKS.csv #1767 (review #1645, Copley) — a feature's own name (a name / label / title property), so the parts of one boundary file (a claim
 // block, two prospect outlines, a road) can be told apart. '' when it has none.
 export function featureLabel(attrs) {
