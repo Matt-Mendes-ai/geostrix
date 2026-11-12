@@ -21,7 +21,7 @@ import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Spac
 // as importable in the Browser tree at all — a QGIS user treats the Browser as the one place to pull
 // in ANY supported file. The routing per extension lives in ViewerModule's importBrowserFile (the
 // `onImportFile` prop), which dispatches to the handler each format already had.
-export const IMPORTABLE_EXT = [".csv", ".zip", ".shp", ".gpkg", ".tif", ".tiff", ".gxf", ".dxf", ".las", ".xlsx", ".kml", ".kmz", ".grd"]; // .las: TASKS.csv #492; .xlsx / .kml / .kmz: #717; .grd: #2725 — importBrowserFile reads it (#1347)
+export const IMPORTABLE_EXT = [".csv", ".zip", ".shp", ".gpkg", ".tif", ".tiff", ".gxf", ".dxf", ".las", ".xlsx", ".kml", ".kmz", ".grd", ".vo", ".pl"]; // .las: TASKS.csv #492; .xlsx / .kml / .kmz: #717; .grd, .vo (GOCAD Voxet), .pl (GOCAD PLine): #2725 — importBrowserFile reads them
 
 // TASKS.csv #282 — the table import's bounds and guard rails live in lib/useTablePull.js (#921).
 
