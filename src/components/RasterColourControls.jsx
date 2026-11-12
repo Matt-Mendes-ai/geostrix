@@ -5,6 +5,8 @@ import { PALETTES, paletteShortName } from "../lib/layers.js"; // paletteShortNa
 import { t as tr } from "../lib/i18n.js";
 import { rasterUnitOf } from "../lib/rasterMethod.js"; // TASKS.csv #1858
 import { averagedInfo, averagedRangeText } from "../lib/gridMeans.js"; // TASKS.csv #2831
+import { guessRasterMethod } from "../lib/rasterMethod.js"; // TASKS.csv #2835 / #2842
+import { SURVEY_METHODS, SURVEY_METHOD_GROUPS } from "../lib/geophysSurveys.js"; // TASKS.csv #2835 / #2842
 
 // TASKS.csv #1236 — ramp, stretch, typed range and inverted ramp for a raster that kept its values, and a bar with the value range
 const fmt = (v) => (v == null || !Number.isFinite(v) ? "—" : Number(v.toPrecision(4)).toLocaleString());
@@ -42,6 +44,21 @@ export default function RasterColourControls({ raster: r, onUpdate, inputStyle }
           onChange={(e) => setUnitText(e.target.value)} onBlur={() => { if (unitText != null && unitText.trim() !== unit) onUpdate(r.id, { unit: unitText.trim() }); setUnitText(null); }} onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
           style={{ ...inputStyle, minWidth: 0, flex: 1 }} />
       </div>
+      {/* TASKS.csv #2835 / #2842 — an imported grid says what it is (a grid made from a survey already knows): the filters and the ternary follow it */}
+      {!r.provenance?.survey && !r.geochem && !r.terrainDerivative && (() => {
+        const guess = !r.surveyMethod ? guessRasterMethod(r) : null;
+        return (<>
+          <div style={row}>
+            <span style={lbl}>{tr("This grid is")}</span>
+            <select value={r.surveyMethod || ""} onChange={(e) => onUpdate(r.id, { surveyMethod: e.target.value || null })} aria-label={tr("What \"{name}\" is", { name: r.name })} style={{ ...inputStyle, minWidth: 0, flex: 1 }}>
+              <option value="">{tr("(not set)")}</option>
+              {Object.entries(SURVEY_METHOD_GROUPS).map(([g, gl]) => <optgroup key={g} label={tr(gl)}>{Object.entries(SURVEY_METHODS).filter(([, m]) => m.group === g).map(([k, m]) => <option key={k} value={k}>{tr(m.label)}</option>)}</optgroup>)}
+            </select>
+          </div>
+          {guess && <div style={{ marginTop: -2, marginBottom: 4, fontSize: "var(--font-size-xs)", color: "var(--color-text-caption)", lineHeight: 1.35 }}>{tr("From its name or unit it looks like {method}.", { method: tr(SURVEY_METHODS[guess].label) })}{" "}
+            <button type="button" onClick={() => onUpdate(r.id, { surveyMethod: guess, ...(r.unit ? {} : { unit: SURVEY_METHODS[guess].units }) })} style={{ background: "none", border: "none", padding: 0, color: "var(--color-accent)", cursor: "pointer", fontSize: "inherit" }}>{tr("Set it")}</button></div>}
+        </>);
+      })()}
       <div style={row}>
         <span style={lbl}>{tr("Ramp")}</span>
         <select value={style.palette} aria-label={tr("Colour ramp of \"{name}\"", { name: r.name })} onChange={(e) => apply({ palette: e.target.value })} style={{ ...inputStyle, minWidth: 0 }} title={PALETTES[style.palette]?.label}>
