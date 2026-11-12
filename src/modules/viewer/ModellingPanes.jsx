@@ -17,6 +17,9 @@ import { codedRuns, topsForCode, codeInfo, overburdenBases } from "../../lib/mod
 import { pBtn, smallSel } from "../../lib/sidebarStyles.js";
 import { sceneVertsToWorldFlat } from "../../lib/meshFlat.js";
 import { octreeCellM } from "../../lib/viewer/contactFit.js"; // TASKS.csv #1171
+import { drillThresholdOffers } from "../../lib/thresholds.js"; // TASKS.csv #2689
+import { preferredElement, rememberElement } from "../../lib/preferredElement.js"; // TASKS.csv #2552
+import { useLeadCommodity } from "../../lib/useLeadCommodity.js"; // TASKS.csv #2552
 import { describeTrend, searchEllipsoidAxes } from "../../lib/trend.js"; // TASKS.csv #2676 — the Grade shell pane's trend line
 import { positionFromTraces } from "../../lib/sheetCorrelation.js"; // TASKS.csv #2625
 import { t as tr } from "../../lib/i18n.js";
@@ -28,7 +31,7 @@ import { useStore } from "../../lib/store.jsx";
 import { numericLayerFields } from "../../lib/evidenceSources.js"; // TASKS.csv #1574 — the numeric fields of a log (intensity 1-3)
 import { intensityVocabFields } from "../../lib/intensityVocab.js"; // TASKS.csv #2230 — intensity letters (W / M / S / I) ranked
 import { numericSourceChoices, findNumericSource, sourceAssays } from "../../lib/numericSources.js"; // TASKS.csv #1741 — logs and numeric layer fields as a grade-shell source
-import { excludeQAQC } from "../../lib/qaqc.js"; // TASKS.csv #2060 — the proposed cutoff without the QC inserts (this file loads lazily, so qaqc.js stays off the startup path)
+import { excludeQAQC, labAssays } from "../../lib/qaqc.js"; // labAssays: #1744; TASKS.csv #2060 — the proposed cutoff without the QC inserts (this file loads lazily, so qaqc.js stays off the startup path)
 import { checkedHoleCount } from "../../lib/modelArea.js"; // TASKS.csv #1546
 import { GradeShellUnsampled } from "../../components/UnsampledChoice.jsx"; // TASKS.csv #2417 / #2542
 import ShellCapNote from "./ShellCapNote.jsx"; // TASKS.csv #2222 — the Estimation dialog's default cap (#1573) here too
@@ -274,11 +277,19 @@ export default function ModellingPanes(props) {
     return () => { live = false; };
   }, [toolPane, faultCandidates, layers.structure]);
   const [gtOpen, setGtOpen] = useState(false); // TASKS.csv #2419
+  // TASKS.csv #1744 / #2552 — the Grade shell offers only elements with a lab value, and opens on the element last used for a shell, else the
+  // project's lead commodity; set into the shared state so the run reads the same element as the pane (modellingRuns falls back to the first)
+  const shellSymbols = useMemo(() => { const has = new Set(); for (const a of labAssays(assays || [])) for (const k in a.values || {}) if (Number.isFinite(a.values[k])) has.add(k); return (assayElements || []).map((e) => e.symbol).filter((x) => has.has(x)); }, [assays, assayElements]);
+  const shellLead = useLeadCommodity();
+  useEffect(() => {
+    if (!shellSymbols.length || findNumericSource(numericSymbol, { layers, customLayers: customLayersAll })) return;
+    if (!numericSymbol || !shellSymbols.includes(numericSymbol)) setNumericSymbol(preferredElement(shellSymbols, "gradeShell", shellLead));
+  }, [shellSymbols, shellLead]); // once per element list (the choice itself stays the user's)
   const [unitBody, setUnitBody] = useState({ iso: 0.5, largest: false, search: 0, cell: 0 }); // TASKS.csv #1340 — its own settings: a rock unit is not an alteration halo
   const sheetPositionAt = useMemo(() => positionFromTraces(tracesRef?.current || []), [tracesSeq]); // #2625: the traces change with tracesSeq (#888)
   // TASKS.csv #1574 (review #1497, Lawyers) — the alteration halo from the Alteration log OR a categorical custom layer, and only
   // the intervals whose numeric field is at or above a value (Silicification intensity >= 2)
-  const { customLayers: customLayersAll = [], layers: storeLayers = {} } = useStore();
+  const { customLayers: customLayersAll = [], layers: storeLayers = {}, geochemThresholds = [] /* #2689 */ } = useStore();
   const numericSources = useMemo(() => numericSourceChoices({ layers, customLayers: customLayersAll }), [layers, customLayersAll]); // TASKS.csv #1741
   const [altSource, setAltSource] = useState({ layer: "alt", field: "", min: "" });
   const altCustomLayers = useMemo(() => customLayersAll.filter((c) => (c.rows || []).some((r) => r.value != null && r.value !== "" && !Number.isFinite(Number(r.value)))), [customLayersAll]);
@@ -1036,7 +1047,7 @@ export default function ModellingPanes(props) {
               for the user to discover. */}
           {" "}{tx("It honours the model domain and the structural trend chosen for grade shells (Model settings → Structural trends). It does {not} apply the search ellipsoid's minimum-neighbour filter — that exists to drop under-supported contact picks, and dropping isolated assays would delete grade rather than improve the shell.", { not: <strong>{tr("not")}</strong> })}</div>
         {(() => {
-          const symbols = assayElements.map((e) => e.symbol);
+          const symbols = shellSymbols; // #1744 — lab elements only
           const numSrc = findNumericSource(numericSymbol, { layers, customLayers: customLayersAll }); // #1741 — a downhole log or a numeric layer field
           const sym = numericSymbol || symbols[0] || numericSources[0]?.key || "";
           const unit = numSrc ? numSrc.unit : (assayElements.find((e) => e.symbol === sym)?.unit || "ppm");
@@ -1048,7 +1059,7 @@ export default function ModellingPanes(props) {
                     // TASKS.csv #1736 (review #1645, Copley) — a cap and a cutoff belong to their element: Au's 0.078 cap and Cu's 1000 cutoff were kept
                     // across a switch. The cap is cleared; the cutoff is proposed as the new element's P90 of lab assays (pXRF left out).
                     const next = e.target.value;
-                    setNumericSymbol(next); setNumericCapValue(NaN);
+                    setNumericSymbol(next); setNumericCapValue(NaN); if (!findNumericSource(next, { layers, customLayers: customLayersAll })) rememberElement("gradeShell", next); // #2552
                     const ns = findNumericSource(next, { layers, customLayers: customLayersAll }); // #1741
                     // #2060 (review #2013, Woodjam) — and without the QC inserts unless the pane includes them: Cu proposed 4470 ppm (a CRM's value), the drill samples' P90 is 4120
                     const rowsFor = ns ? sourceAssays(ns, { layers, customLayers: customLayersAll }).assays : (numericIncludeQAQC ? (assays || []).filter((a) => a.source !== "pXRF") : excludeQAQC(assays || []));
@@ -1067,6 +1078,11 @@ export default function ModellingPanes(props) {
                   <input type="number" step="any" value={numericCutoff} onChange={(e) => setNumericCutoff(e.target.value === "" ? NaN : Number(e.target.value))} style={{ ...smallSel, width: "100%" }} />
                 </label>
               </div>
+              {!numSrc && (() => { const offers = drillThresholdOffers(geochemThresholds, sym, unit).slice(0, 4); return offers.length ? ( /* TASKS.csv #2689 (#2675 part 2) — saved drill thresholds offered as shell levels, never applied */
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 4, fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", alignItems: "center", marginBottom: 6 }}>
+                  <span>{tr("Saved threshold:")}</span>
+                  {offers.map((o) => <button key={o.key} type="button" onClick={() => setNumericCutoff(o.value)} style={{ ...smallSel, cursor: "pointer", padding: "1px 6px" }} title={tr("{rule}{pop}, decided {date}. Click to use it as the shell level.", { rule: o.rule, pop: o.population ? ` (${o.population})` : "", date: o.decided })}>{o.population ? `${o.population.split(": ").pop()} ` : ""}{+Number(o.value).toPrecision(4)}</button>)}
+                </div>) : null; })()}
               {numSrc && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>{numSrc.logScale ? tr("{label}: {n} readings, values as logged. Interpolated as log10 values (a geometric mean between readings); the cutoff is in the same units as the readings.", { label: numSrc.label, n: numSrc.n.toLocaleString() }) : tr("{label}: {n} readings, values as logged; the cutoff is in the same units.", { label: numSrc.label, n: numSrc.n.toLocaleString() })}</div>}{/* #1741 */}
               <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
                 <label style={{ ...miniField }} title={tr("Interpolation grid cell size (cubic). Smaller = smoother shell but more cells, within the block budget below.")}>{tr("Cell (m)")}<input type="number" min="0.5" step="any" value={numericCellSize} onChange={(e) => { setNumericCellSize(Math.max(0.5, Number(e.target.value) || 10)); setNumericBudgetHint(null); }} style={{ ...smallSel, width: "100%" }} />

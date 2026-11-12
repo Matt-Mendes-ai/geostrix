@@ -2,8 +2,10 @@ import { LAYER_META } from "../lib/layers.js"; // TASKS.csv #1215
 import CompositeLengthNote from "./CompositeLengthNote.jsx"; // TASKS.csv #2549
 import React, { useMemo, useState } from "react";
 import { X, Play } from "./icons.js";
-import { compositeDownhole } from "../lib/geochem.js";
-import { excludeQAQC } from "../lib/qaqc.js"; // TASKS.csv #266 — same QAQC exclusion the estimator uses
+import { compositeDownhole, gradeUnitLabel } from "../lib/geochem.js"; // gradeUnitLabel: #2429
+import { excludeQAQC, labAssays } from "../lib/qaqc.js"; // TASKS.csv #266 — same QAQC exclusion the estimator uses; labAssays: #1744
+import { preferredElement, rememberElement } from "../lib/preferredElement.js"; // TASKS.csv #2552
+import { useLeadCommodity } from "../lib/useLeadCommodity.js"; // TASKS.csv #2552
 import { samplePointsFromIntervals } from "../lib/estimation.js";
 import { desurveyHole } from "../lib/desurvey.js";
 import {
@@ -55,8 +57,11 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
   const estTrend = useMemo(() => { const id = structuralTrends?.use?.estimation; const t = id && (structuralTrends.trends || []).find((x) => x.id === id); return t ? cleanTrend(t) : null; }, [structuralTrends]);
 
   const elementUnits = useMemo(() => Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])), [assayElements]);
-  const symbols = assayElements.map((e) => e.symbol);
-  const [symbol, setSymbol] = useState(symbols[0] || "Au");
+  // TASKS.csv #1744 — only elements with a lab value; #2552 / #2429 — the element last used here, else the project's lead commodity
+  const symbols = useMemo(() => { const has = new Set(); for (const a of excludeQAQC(labAssays(assays || []))) for (const k in a.values || {}) if (Number.isFinite(a.values[k])) has.add(k); return assayElements.map((e) => e.symbol).filter((s) => has.has(s)); }, [assayElements, assays]);
+  const lead = useLeadCommodity();
+  const [symbol, setSymbolRaw] = useState(() => preferredElement(symbols, "variogram", lead) || symbols[0] || "Au");
+  const setSymbol = (v) => { setSymbolRaw(v); rememberElement("variogram", v); };
   const unit = elementUnits[symbol] || "ppm";
 
   // --- input / compositing (mirrors GradeEstimationModal so the variogram characterises the SAME
@@ -220,7 +225,7 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
 
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
             <label style={fieldLabel}>{tr("Element")}<select value={symbol} onChange={(e) => setSymbol(e.target.value)} style={inp}>
-                {symbols.map((s) => <option key={s} value={s}>{s} ({elementUnits[s] || "ppm"})</option>)}
+                {symbols.map((s) => <option key={s} value={s}>{s} ({gradeUnitLabel(s, elementUnits[s] || "ppm")})</option>)}{/* #2429 */}
               </select>
             </label>
             <label style={fieldLabel} title={tr("A variogram assumes a common support — every sample the same volume. Compositing to a fixed length is what provides that; raw ragged intervals do not.")}>{tr("Composite length (m)")}<input type="number" min="0.1" step="any" value={compositeLength} onChange={(e) => setCompositeLength(Math.max(0.1, Number(e.target.value) || 2))} style={inp} />
