@@ -10596,5 +10596,6 @@
   "its longitude / latitude (WGS 84) was brought into the local grid through its tie to EPSG:{tie}": "su longitud / latitud (WGS 84) se llevó a la grilla local a través de su amarre a EPSG:{tie}",
   "It is drawn flat at {z} m, {h} m above the grid it was continued from.": "Se dibuja plano a {z} m, {h} m sobre la grilla desde la que se continuó.",
   "Survey date (for IGRF)": "Fecha del levantamiento (para el IGRF)",
-  "Fill from IGRF-14": "Completar con IGRF-14"
+  "Fill from IGRF-14": "Completar con IGRF-14",
+  "Cell {c} m by default: a quarter to a half of the median spacing ({s} m).": "Celda de {c} m por defecto: entre un cuarto y la mitad del espaciado mediano ({s} m)."
 }

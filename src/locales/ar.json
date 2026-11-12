@@ -10596,5 +10596,6 @@
   "its longitude / latitude (WGS 84) was brought into the local grid through its tie to EPSG:{tie}": "أُدخلت خطوط الطول / العرض (WGS 84) الخاصة به إلى الشبكة المحلية عبر ربطها بـ EPSG:{tie}",
   "It is drawn flat at {z} m, {h} m above the grid it was continued from.": "يُرسم مسطحًا عند {z} م، أعلى بـ {h} م من الشبكة التي مُدّ منها.",
   "Survey date (for IGRF)": "تاريخ المسح (لـ IGRF)",
-  "Fill from IGRF-14": "التعبئة من IGRF-14"
+  "Fill from IGRF-14": "التعبئة من IGRF-14",
+  "Cell {c} m by default: a quarter to a half of the median spacing ({s} m).": "خلية {c} م افتراضيًا: بين ربع ونصف التباعد الوسيط ({s} م)."
 }
