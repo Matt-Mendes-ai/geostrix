@@ -11215,5 +11215,6 @@
   "{el} is priced per tonne of contained {el} or per dmtu (1 % {el} in a dry tonne), and the break-even cut-off is on the contained {el}, not a product specification: every block above it is ore. Type a cut-off to set one.": "يُسعَّر {el} لكل طن من {el} المحتوى أو لكل dmtu (1 % من {el} في طن جاف)، والمحتوى الحدي للتعادل محسوب على {el} المحتوى وليس مواصفة منتج: كل كتلة فوقه خام. أدخل محتوى حديًا لتحديده.",
   "Zoomed: the edge of the net is a dip of {d}°": "مكبَّرة: حافة الشبكة تمثّل ميلاً قدره {d}°",
   "Rescale the net so the poles fill it, with rings of equal dip: for flat-lying beds, whose poles all sit in the net's inner few degrees.": "أعد تحجيم الشبكة لتملأها الأقطاب، مع حلقات ميل متساوٍ: للطبقات شبه الأفقية التي تقع أقطابها كلها في الدرجات القليلة الوسطى من الشبكة.",
-  "Zoom to the data": "تكبير إلى البيانات"
+  "Zoom to the data": "تكبير إلى البيانات",
+  "{k} of them in {hh} hole(s) collared inside the map's area; {o} in holes outside it (the run uses them all).": "{k} منها في {hh} ثقب فوهته داخل منطقة الخريطة؛ و{o} في ثقوب خارجها (التشغيل يستخدمها كلها)."
 }

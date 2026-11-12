@@ -8,7 +8,7 @@ import { deepestUnitIntercept } from "../lib/holeMapContacts.js"; // TASKS.csv #
 import { contactOrientationNear } from "../lib/sheetFromContacts.js"; // TASKS.csv #2642
 import { fitSheetToLogs } from "../lib/sheetLogCheck.js"; // TASKS.csv #2724
 import { featureCategoryValue, extractMapContacts } from "../lib/mapLayers.js"; // TASKS.csv #2724; extractMapContacts: #2959
-import { mapGroundCount } from "../lib/mapGroundCount.js"; // TASKS.csv #2959
+import { mapGroundCount, contactsInArea } from "../lib/mapGroundCount.js"; // TASKS.csv #2959; contactsInArea: #2973
 import { useStore } from "../lib/store.jsx"; // TASKS.csv #2724 — the collars and survey the logged intercepts are placed on
 import { ChevronUp, ChevronDown } from "./icons.js";
 import { t as tr } from "../lib/i18n.js";
@@ -159,6 +159,9 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
   const outcropNone = orientCount && orientCount.beds + orientCount.planes === 0;
   const holeFit = outcropNone && (holePreview?.contacts?.length || 0) >= 3;
   const noOrient = outcropNone && !holeFit;
+  // TASKS.csv #2973 (WA iron review) — the count was field-wide (9,013 contacts in 4,935 holes for a 2 km map on a 21 km field): how many
+  // are in holes collared inside the map layer's area is said beside it
+  const inArea = useMemo(() => (holePreview?.contacts?.length && layer?.bbox ? contactsInArea(holePreview.contacts, storeCollars, layer.bbox) : null), [holePreview, storeCollars, layer]);
   const orderCheck = useMemo(() => (holePreview?.contacts?.length ? contactsAgainstOrder(holePreview.contacts, order) : null), [holePreview, order]); // #2408
   // TASKS.csv #1718 (review #1645, Copley) — on a drilled prospect, say that the holes are not used here and where they are
   const holesNote = holeCount > 0 ? <div className="ge-holes-note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 8, lineHeight: 1.4 }}>{loggedHoles > 0 /* TASKS.csv #2053 (review #2013): 'the 544 drillhole(s) are not used' while #1718 matches the logged holes to map units */
@@ -253,6 +256,7 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
           )}
           {useHoles && holePreview && <div style={{ fontSize: "var(--font-size-xs)", color: holePreview.contacts.length ? "var(--color-text-muted)" : "var(--color-warn-text)", lineHeight: 1.4 }}>
             {holePreview.contacts.length ? tr("{c} contact(s) in {h} hole(s) between units of the order.", { c: holePreview.contacts.length, h: holePreview.holes }) : tr("No contact yet: no hole passes between two units of the order with these codes.")}
+            {inArea && inArea.outside > 0 ? " " + tr("{k} of them in {hh} hole(s) collared inside the map's area; {o} in holes outside it (the run uses them all).", { k: inArea.inside, hh: inArea.insideHoles, o: inArea.outside }) : ""}{/* #2973 */}
             {holePreview.gaps ? " " + tr("{g} more left out: over {m} m unlogged or not used between the two units.", { g: holePreview.gaps, m: MAX_GAP_M }) : ""}
             {[...(holePreview.repeats || new Map())].sort((a, b) => a[1].metres / a[1].runs - b[1].metres / b[1].runs).slice(0, 1) /* the thinner repeating unit is the sheet; its host repeats between the sheets */.map(([u, e]) => <div key={u} style={{ color: "var(--color-warn-text)" }}>{tr("{unit} is met {r} times in {h} hole(s), up to {max} in one: it repeats down the holes, as stacked sheets (dykes, sills, pegmatites) or a fold or fault do. Its tops and bases all feed one top of {unit} here, which cannot fit them; model sheets with 3D Modelling > Veins / dykes instead.", { unit: u, r: e.runs.toLocaleString(), h: e.holes.toLocaleString(), max: e.maxRuns })}</div>)}{/* #2567 */}
             {orderCheck && orderCheck.against > orderCheck.agree && <div style={{ color: "var(--color-warn-text)" }}>{tr("{a} of {n} logged contacts run the other way: {upper} is logged over {lower} in {k} of them. In this order {lower} is the younger: move {upper} up?", { a: orderCheck.against, n: orderCheck.agree + orderCheck.against, upper: orderCheck.worst.upper, lower: orderCheck.worst.lower, k: orderCheck.worst.n })}</div>}{/* #2408 */}

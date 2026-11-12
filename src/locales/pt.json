@@ -11215,5 +11215,6 @@
   "{el} is priced per tonne of contained {el} or per dmtu (1 % {el} in a dry tonne), and the break-even cut-off is on the contained {el}, not a product specification: every block above it is ore. Type a cut-off to set one.": "O {el} é precificado por tonelada de {el} contido ou por dmtu (1 % de {el} em uma tonelada seca), e o teor de corte de equilíbrio é sobre o {el} contido, não uma especificação de produto: todo bloco acima dele é minério. Digite um teor de corte para fixar um.",
   "Zoomed: the edge of the net is a dip of {d}°": "Ampliada: a borda da rede é um mergulho de {d}°",
   "Rescale the net so the poles fill it, with rings of equal dip: for flat-lying beds, whose poles all sit in the net's inner few degrees.": "Reescalar a rede para que os polos a preencham, com anéis de mergulho igual: para camadas sub-horizontais, cujos polos ficam todos nos poucos graus centrais da rede.",
-  "Zoom to the data": "Ampliar para os dados"
+  "Zoom to the data": "Ampliar para os dados",
+  "{k} of them in {hh} hole(s) collared inside the map's area; {o} in holes outside it (the run uses them all).": "{k} deles em {hh} furo(s) com boca dentro da área do mapa; {o} em furos fora dela (a execução usa todos)."
 }

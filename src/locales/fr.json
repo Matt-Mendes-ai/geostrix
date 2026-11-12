@@ -11215,5 +11215,6 @@
   "{el} is priced per tonne of contained {el} or per dmtu (1 % {el} in a dry tonne), and the break-even cut-off is on the contained {el}, not a product specification: every block above it is ore. Type a cut-off to set one.": "Le {el} est valorisé par tonne de {el} contenu ou par dmtu (1 % de {el} dans une tonne sèche), et la teneur de coupure d'équilibre porte sur le {el} contenu, pas sur une spécification de produit : tout bloc au-dessus est du minerai. Saisissez une teneur de coupure pour en fixer une.",
   "Zoomed: the edge of the net is a dip of {d}°": "Agrandi : le bord du canevas est un pendage de {d}°",
   "Rescale the net so the poles fill it, with rings of equal dip: for flat-lying beds, whose poles all sit in the net's inner few degrees.": "Remettre le canevas à l'échelle pour que les pôles le remplissent, avec des cercles d'égal pendage : pour des couches subhorizontales, dont les pôles sont tous dans les quelques degrés centraux du canevas.",
-  "Zoom to the data": "Zoomer sur les données"
+  "Zoom to the data": "Zoomer sur les données",
+  "{k} of them in {hh} hole(s) collared inside the map's area; {o} in holes outside it (the run uses them all).": "{k} d'entre eux dans {hh} sondage(s) au collet dans l'emprise de la carte ; {o} dans des sondages hors de celle-ci (le calcul les utilise tous)."
 }
