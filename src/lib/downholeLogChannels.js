@@ -94,17 +94,36 @@ export function readingDepth(r, mapping) {
 // channel's own 99th percentile either way (-1.83E+09 in a channel of unknown unit too). -> { n, codes: [[value, count]], values: Set } | null
 const SENTINELS = new Set([-999, -999.25, -9999, -99999, -999999]);
 const NON_NEGATIVE_UNITS = new Set(["ppm", "cps", "g/cc", "%", "API", "ohm.m", "mS/m", "mm", "in"]);
+// TASKS.csv #2890 (review #2876, WA iron) — 'Density_Best', 'Gamma_Best' and 'Suscep_Best' name no unit, so their negatives were never
+// questioned: density -1.47 g/cc stayed in. A channel whose NAME says it cannot be negative (density, natural gamma, caliper) is treated as
+// such whatever the unit. Susceptibility can be slightly negative (diamagnetic rock), so it is not on this list.
+const NON_NEGATIVE_NAME = /densit|\bdens\b|\bsg\b|gamma|\bgrs?\b|\bngam|calip|\bcal\b/i;
+// #2890 — and a reading far below the channel's body: under the median by more than 50 interquartile ranges (and negative). The
+// susceptibility log's -821,754.9 (a saturated tool, median 133) was 'not 1,000 times the 99th percentile' and stayed in. Only the low
+// side: real highs far above the body are kept (the WA uranium gamma reaches 54,938 cps beside a median near 100, #2332).
+const LOW_FENCE_IQR = 50, FENCE_MIN_VALUES = 20;
 export function channelNoData(rows, col, unit = "") {
   const vals = [];
   for (const r of rows || []) { const v = r?.[col]; if (isNum(v)) vals.push(toNum(v)); }
   if (!vals.length) return null;
+  // #2890 — the quartiles of the readings that are not null sentinels, from at most 20,000 of them spread through the file
+  let lowFence = -Infinity;
+  {
+    const body = [], stepB = Math.max(1, Math.floor(vals.length / 20000));
+    for (let i = 0; i < vals.length; i += stepB) if (!SENTINELS.has(vals[i])) body.push(vals[i]);
+    if (body.length >= FENCE_MIN_VALUES) {
+      body.sort((a, b) => a - b);
+      const q = (p) => body[Math.floor(p * (body.length - 1))], iqr = q(0.75) - q(0.25);
+      if (iqr > 0) lowFence = Math.min(0, q(0.5) - LOW_FENCE_IQR * iqr);
+    }
+  }
   // the 99th percentile of the positive readings, from at most 20,000 of them spread through the file
   const pos = vals.filter((v) => v > 0), step = Math.max(1, Math.floor(pos.length / 20000)), sample = [];
   for (let i = 0; i < pos.length; i += step) sample.push(pos[i]);
   sample.sort((a, b) => a - b);
   const p99 = sample.length ? sample[Math.min(sample.length - 1, Math.floor(0.99 * (sample.length - 1)))] : null;
-  const noNeg = NON_NEGATIVE_UNITS.has(unit), codes = new Map();
-  for (const v of vals) if (SENTINELS.has(v) || (noNeg && v < 0) || (p99 > 0 && Math.abs(v) > 1000 * p99)) codes.set(v, (codes.get(v) || 0) + 1);
+  const noNeg = NON_NEGATIVE_UNITS.has(unit) || NON_NEGATIVE_NAME.test(spaced(col)), codes = new Map(); // the name: #2890
+  for (const v of vals) if (SENTINELS.has(v) || (noNeg && v < 0) || v < lowFence || (p99 > 0 && Math.abs(v) > 1000 * p99)) codes.set(v, (codes.get(v) || 0) + 1); // lowFence: #2890
   if (!codes.size) return null;
   let n = 0; for (const c of codes.values()) n += c;
   return { n, codes: [...codes].sort((a, b) => b[1] - a[1]), values: new Set(codes.keys()) };
