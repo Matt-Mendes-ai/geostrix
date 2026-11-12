@@ -20,6 +20,7 @@ import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the inter
 import { surveyAzimuthDipAt } from "./desurvey.js"; // TASKS.csv #1109
 import { surveyMethodByHole } from "./surveyMethod.js"; // TASKS.csv #2494
 import { coverageInfos } from "./dataQcCoverage.js"; // TASKS.csv #2493
+import { suspectElevationIds } from "./collarElevationTrust.js"; // TASKS.csv #3004 / #2896
 export { didYouMean };
 
 const clampSeverityIcon = { error: "🔴", warning: "🟡", info: "🔵" };
@@ -174,6 +175,10 @@ function validateSurveyAndTrajectory(collars, survey, { doglegWarn = 3, doglegEr
   // TASKS.csv #2169 — a collar imported with no elevation sits at an assumed one (collarElevation.js)
   const zHow = { terrain: () => tr("on the terrain"), median: () => tr("at the median collar elevation"), zero: () => tr("at 0 m") };
   collars.filter((c) => c.zAssumed).forEach((c) => pushIssue(issues, "warning", "Collars", c.hole_id, tr("No elevation in the collar file — placed {how} ({z} m), an ASSUMED elevation: everything on the hole sits at that height. Add the collar RL and re-import the collars.", { how: (zHow[c.zAssumed] || zHow.zero)(), z: Number.isFinite(c.z) ? Math.round(c.z) : "?" })));
+  // TASKS.csv #3004 / #2896 — an elevation in the file that is probably a missing value (0 m on raised ground, or a stray far from every
+  // other collar): recomputed here, so a project saved before the rule is checked too
+  { const sus = suspectElevationIds(collars); if (sus.size) { const ok = collars.filter((c) => Number.isFinite(c.z) && !c.zAssumed && !sus.has(c.hole_id)).map((c) => c.z); const lo = arrMin(ok), hi = arrMax(ok);
+    collars.filter((c) => sus.has(c.hole_id)).forEach((c) => pushIssue(issues, "warning", "Collars", c.hole_id, tr("Elevation {z} m in the collar file, far from the other collars ({lo}–{hi} m): probably a missing value. Everything on the hole sits at that height; check the collar RL and re-import the collars.", { z: Math.round(c.z), lo: Number.isFinite(lo) ? Math.round(lo) : "?", hi: Number.isFinite(hi) ? Math.round(hi) : "?" }))); } }
   const untraceable = noSurvey.filter((c) => !Number.isFinite(c.azimuth) || !Number.isFinite(c.dip));
   untraceable.forEach((c) => pushIssue(issues, "warning", "Survey", c.hole_id, tr("No survey rows and no collar azimuth/dip — drawn as an ASSUMED vertical hole (dashed in the 3D view), and every interval, assay and pick on it is placed on that assumption. Add the collar azimuth and dip, or a survey.")));
   const traceable = noSurvey.filter((c) => !untraceable.includes(c));
