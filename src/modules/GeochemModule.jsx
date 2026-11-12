@@ -16,7 +16,8 @@ import { askAdoptCrs } from "../lib/adoptCrs.js"; // TASKS.csv #607
 import { lonLatColumns } from "../lib/projectCrs.js"; // TASKS.csv #1149
 import { Ribbon, RibbonGroup, RibbonButton } from "../components/Ribbon.jsx"; // TASKS.csv #458
 import { MapPin as GMapPin, Triangle as GTriangle, Shapes as GShapes, BarChart3 as GBarChart, Award as GAward, Rows3 as GRows, Sheet as GSheet, Image as GImage } from "../components/icons.js";
-import { Upload, Download, FlaskConical, Beaker, Scale, Grid3x3, ShieldCheck, TerminalSquare, Sigma, FileCheck, X, AlertTriangle, Globe, Database } from "../components/icons.js";
+import { Upload, Download, FlaskConical, Beaker, Scale, Grid3x3, ShieldCheck, TerminalSquare, Sigma, FileCheck, X, AlertTriangle, Globe, Database, Radar } from "../components/icons.js"; // Radar: #1999
+const McdAnomalyPanel = React.lazy(() => import("../components/McdAnomalyPanel.jsx")); // TASKS.csv #1999 — a lazy chunk: opened rarely
 import { noticeText, noticeLevel, errorNotice, notice } from "../lib/notices.js"; // TASKS.csv #729
 import { addCalculatedElement, CALC_PRESETS, presetUnitsFor } from "../lib/calcElement.js"; // TASKS.csv #401; presetUnitsFor: #2619
 import { useStore, useSetTaskProgress } from "../lib/store.jsx"; // useSetTaskProgress: #2164
@@ -163,6 +164,7 @@ export default function GeochemModule() {
   // TASKS.csv #401 — calculated element (vectoring index) panel
   const [calc, setCalc] = useState(null); // null | { name, expr, msg }
   const [corrOpen, setCorrOpen] = useState(false);
+  const [mcdOpen, setMcdOpen] = useState(false); // TASKS.csv #1999
   const [bestIntOpen, setBestIntOpen] = useState(false);
   const [compositingOpen, setCompositingOpen] = useState(false);
   const [gradeStatsOpen, setGradeStatsOpen] = useState(false);
@@ -1256,6 +1258,7 @@ export default function GeochemModule() {
           </RibbonGroup>
           <RibbonGroup label="Analyze">
             <RibbonButton advanced={assayElements.length + surfaceElements.length < 2} /* #2199 — a matrix needs two elements */ icon={Grid3x3} label="Correlation" tone="analyse" disabled={!assayElements.length && !surfaceElements.length} disabledReason="Import assays or surface samples first" title="Correlation matrix" onClick={() => setCorrOpen(true)} />
+            <RibbonButton advanced icon={Radar} label="Anomaly score" tone="analyse" disabled={(assayElements.filter((e) => !e.calculated).length < 3) && (surfaceElements.filter((e) => !e.calculated).length < 3)} disabledReason="Needs at least three assayed elements" title="Robust multivariate anomaly score (MCD distance on log ratios): how unusual each sample's whole composition is" onClick={() => setMcdOpen(true)} />{/* TASKS.csv #1999 */}
             <RibbonButton icon={GBarChart} label="Grade stats" tone="analyse" disabled={!(assayElements.length || surfaceElements.length)} disabledReason="Import assays or surface samples first" title="Grade statistics (assays or surface samples)" onClick={() => setGradeStatsOpen(true)} />
             <RibbonButton advanced={!hasSurfaceData} icon={GBarChart} label="Thresholds" tone="analyse" disabled={!surfaceElements.length && !(assays.length && assayElements.length)} disabledReason="Import surface samples or drill assays first" /* drill: #2196 */ title="Anomaly thresholds for soil and stream-sediment samples, and length-weighted for drill assays, judged within populations" onClick={() => setThresholdsOpen(true)} />{/* TASKS.csv #841 */}
             <RibbonButton advanced={!hasSurfaceData} icon={GMapPin} label="Plan map" tone="output" disabled={!surfaceSamples.length} disabledReason="Import surface samples first" title="Surface samples in plan, classed by the saved threshold, over a block-model level slice: to Layout or PNG" onClick={() => setPlanMapOpen(true)} />{/* TASKS.csv #1792 / #1864 */}
@@ -1563,6 +1566,9 @@ export default function GeochemModule() {
         />
       )}
 
+      {mcdOpen && ( /* TASKS.csv #1999 */
+        <React.Suspense fallback={null}><McdAnomalyPanel assays={assays} assayElements={assayElements} surfaceSamples={surfaceSamples} surfaceElements={surfaceElements} setAssays={setAssays} setAssayElements={setAssayElements} setSurfaceSamples={setSurfaceSamples} setSurfaceElements={setSurfaceElements} onNotice={(n) => setNotices((p) => [...p, n])} onClose={() => setMcdOpen(false)} /></React.Suspense>
+      )}
       {corrOpen && (
         <CorrelationMatrix
           assays={assays}
