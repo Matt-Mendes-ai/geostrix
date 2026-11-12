@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { desurveyHole, desurveyStations, surveyAzimuthDipAt, holeAttitudeAssumed } from "../src/lib/desurvey.js";
 import { runDataQC } from "../src/lib/dataQC.js";
+import { viewerSource } from "./helpers/viewerSource.mjs"; // #2176 — the drillhole build moved out of ViewerModule
 const read = (p) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8").replace(/\r\n/g, "\n");
 
 const bare = { hole_id: "TK10-23", x: 612000, y: 5788000, z: 967, length: 360 };
@@ -46,7 +47,7 @@ test("Data QC rates it a warning about an assumption, and still warns about the 
 });
 
 test("the 3D view draws it dashed with a tip that says so, and the collar import notice counts them", () => {
-  const v = read("src/modules/ViewerModule.jsx");
+  const v = viewerSource();
   assert.match(v, /const assumedVertical = holeAttitudeAssumed\(c, hs\);/);
   assert.match(v, /drawn as an ASSUMED vertical hole"\)\}` : ""\}`, collar: c \}/);
   assert.match(v, /assumedVertical\n\s+\? new THREE\.LineDashedMaterial\(/);

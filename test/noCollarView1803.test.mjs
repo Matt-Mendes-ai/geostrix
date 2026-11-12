@@ -2,8 +2,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { viewerSource } from "./helpers/viewerSource.mjs"; // #2176 — the drillhole build moved out of ViewerModule
 
-const v = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
+const v = viewerSource();
 const parts = readFileSync(new URL("../src/modules/viewer/ViewerParts.jsx", import.meta.url), "utf8");
 
 test("the no-collars branch records its anchor box as the fit extent and enables Snapshot", () => {

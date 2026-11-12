@@ -3,13 +3,14 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { viewerSource } from "./helpers/viewerSource.mjs"; // #2176 — the drillhole build moved out of ViewerModule
 
-const src = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
+const src = viewerSource().replace(/\r\n/g, "\n");
 
 test("the trace list is indexed once per rebuild, not filtered per hole", () => {
   assert.ok(!src.includes("tracesRef.current = tracesRef.current.filter((t) => t.hole_id !== c.hole_id);"));
   assert.ok(src.includes("const traceById = new Map(tracesRef.current.map((t) => [t.hole_id, t]));"));
-  assert.ok(src.includes("traceById.delete(c.hole_id);\n      traceById.set(c.hole_id, {"), "delete + set keeps the old order (a rebuilt hole moves to the end)");
+  assert.ok(src.includes("traceById.delete(c.hole_id);\n    traceById.set(c.hole_id, {"), "delete + set keeps the old order (a rebuilt hole moves to the end)");
   assert.ok(src.includes("tracesRef.current = [...traceById.values()];"));
 });
 

@@ -2,8 +2,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { viewerSource } from "./helpers/viewerSource.mjs"; // #2176 — the drillhole build moved out of ViewerModule
 
-const v = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
+const v = viewerSource();
 
 test("the trace line carries its hole id, so the visibleHoles effect hides it", () => {
   assert.match(v, /traceLine\.userData = \{ holeId: c\.hole_id \};/);

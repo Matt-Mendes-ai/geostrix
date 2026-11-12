@@ -3,6 +3,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { guessTarget, guessTargetFor, guessMapping, LAYER_META, TARGET_SCHEMAS, colorForWeathering } from "../src/lib/layers.js";
+import { viewerSource } from "./helpers/viewerSource.mjs"; // #2176 — the drillhole build moved out of ViewerModule
 const H = (s) => s.split(",");
 
 test("#2162 a weathering, oxidation or regolith log is recognized by its columns or its file name", () => {
@@ -26,7 +27,7 @@ test("#2162 the layer, its schema and its colours: a ramp from fresh to oxidised
 });
 
 test("#2162 wired into the viewer, strip logs, QC, legends and the domain lists", () => {
-  const v = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
+  const v = viewerSource();
   assert.match(v, /buildIntervalTube\("weath"\)/); assert.match(v, /weath: groupByHole\(layers\.weath\)/);
   for (const f of ["src/lib/dataQC.js", "src/lib/domainLayers.js", "src/lib/legendGroups.js", "src/lib/striplogSvg.js", "src/components/StripLog.jsx", "src/components/CompositingModal.jsx", "src/components/GradeStatistics.jsx", "src/components/EvidenceOverlayPane.jsx", "src/components/SectionEditModal.jsx", "src/components/BestIntercepts.jsx"]) {
     assert.match(readFileSync(new URL(`../${f}`, import.meta.url), "utf8"), /"weath"|layers\.weath/, f);

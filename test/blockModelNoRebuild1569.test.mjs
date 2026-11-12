@@ -2,8 +2,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { viewerSource } from "./helpers/viewerSource.mjs"; // #2176 — the drillhole build moved out of ViewerModule
 
-const src = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
+const src = viewerSource();
 
 test("the big build depends on the block models only for a project without holes", () => {
   assert.ok(src.includes('noHoles && voxelGeomSignature /* #1569 — with holes, only the fit box below */'));

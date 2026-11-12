@@ -3,8 +3,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { viewerSource } from "./helpers/viewerSource.mjs"; // #2176 — the drillhole build moved out of ViewerModule
 
-const v = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
+const v = viewerSource();
 
 test("collars and traces go to their own 'holes' group, not the Lithology layer's", () => {
   assert.match(v, /const holeGroup = new THREE\.Group\(\); holeGroup\.name = "holes"; root\.add\(holeGroup\); groups\.holes = holeGroup;/);

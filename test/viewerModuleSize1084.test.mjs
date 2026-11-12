@@ -6,8 +6,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const MAX_BYTES = 775000; // lowered from 780,000 when buildVectorFeatures moved to lib (#1083)
-const MAX_LINES = 9350;
+const MAX_BYTES = 735000; // lowered from 775,000 when the drillhole scene build moved to viewer/drillholeScene.js (#2176: 732,344 bytes then); 780,000 before #1083
+const MAX_LINES = 8600; // #2176: 8,472 lines then (9,350 before)
 
 test("#1084 ViewerModule.jsx stays under its size ceiling", () => {
   // counted with LF line endings: a Windows checkout (CI's core.autocrlf) adds a CR per line, 9,240 bytes, which failed

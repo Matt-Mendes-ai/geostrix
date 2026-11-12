@@ -2,9 +2,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { viewerSource } from "./helpers/viewerSource.mjs"; // #2176 — the drillhole build moved out of ViewerModule
 
 test("no 3D tooltip rounds a depth to whole metres", () => {
-  const v = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
+  const v = viewerSource();
   assert.doesNotMatch(v, /\.from\.toFixed\(0\)\}–\$\{[a-z]+\.to\.toFixed\(0\)\} m/);
   assert.equal((v.match(/\$\{\+(a|row)\.from\.toFixed\(2\)\}–\$\{\+(a|row)\.to\.toFixed\(2\)\} m/g) || []).length, 3); // assays, logged layers, custom layers
   // the format itself: 50.5 -> "50.5", 51 -> "51", 12.345 -> "12.35" (two decimals at most, no trailing zeros)

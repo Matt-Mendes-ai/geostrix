@@ -6,6 +6,7 @@ import { readFileSync } from "node:fs";
 import * as THREE from "three";
 import { setVerticalExaggeration, veOf, VE_CHOICES, veMatrix } from "../src/modules/viewer/verticalExaggeration.js";
 import { collarMarkerMaterial, collarMarkerVertex, COLLAR_MARKER_UNIFORMS } from "../src/lib/viewer/collarMarkerShader.js";
+import { viewerSource } from "./helpers/viewerSource.mjs"; // #2176 — the drillhole build moved out of ViewerModule
 
 const rig = (ve) => {
   const camera = new THREE.PerspectiveCamera(45, 1.5, 0.1, 100000);
@@ -81,7 +82,7 @@ test("collar markers: the shader undoes VE and floors the size; one hook, kept t
   assert.equal(collarMarkerMaterial(c).onBeforeCompile, hook);
   const lb = readFileSync(new URL("../src/lib/viewer/layerBatches.js", import.meta.url), "utf8");
   assert.match(lb, /if \(fam\.material\.userData\?\.collarMarker\) collarMarkerMaterial\(material\);/);
-  const v = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
+  const v = viewerSource();
   assert.match(v, /collarMaterialRef\.current = collarMarkerMaterial\(new THREE\.MeshBasicMaterial/);
 });
 
