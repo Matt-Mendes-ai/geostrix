@@ -22,8 +22,8 @@ export default function VolcanicCodesModal({ label, codes, onCancel, onRun }) {
         <div style={{ display: "flex", flexDirection: "column", gap: 3, marginTop: 10 }}>
           {codes.map((c) => (
             <label key={c.code} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text)" }}>
-              <input type="checkbox" checked={ticked.has(c.code)} onChange={() => flip(c.code)} aria-label={tr("Volcanic: {code}", { code: c.code || tr("not logged") })} />
-              <span style={{ minWidth: 90 }}>{c.code || <em>{tr("not logged")}</em>}</span>
+              <input type="checkbox" checked={ticked.has(c.code)} onChange={() => flip(c.code)} aria-label={tr("Volcanic: {code}", { code: c.code || tr("no code logged") })} />
+              <span style={{ minWidth: 90 }}>{c.code || <em>{tr("no code logged")}</em>}</span>
               <span style={{ color: "var(--color-text-muted)" }}>{tr("{n} sample(s)", { n: c.n.toLocaleString() })}</span>
             </label>
           ))}

@@ -1095,7 +1095,7 @@ export default function GeochemModule() {
         if (!protolith) { noProtolith++; return null; }
         opts = { protolith, boxes: altSetup.boxes };
       }
-      if (method.volcanicOnly && method.requires.every((el) => a.values?.[el] != null)) { const code = loggedCodeAt(a, lithoByHole); /* #2352: counted only where the classifier could run */ if (volcanic ? !volcanic.has(code ?? NOT_LOGGED_CODE) : isSedimentaryCode(code)) { const k = code || tr("not logged"); sedSkipped[k] = (sedSkipped[k] || 0) + 1; return null; } } // #2352: the ticked codes
+      if (method.volcanicOnly && method.requires.every((el) => a.values?.[el] != null)) { const code = loggedCodeAt(a, lithoByHole); /* #2352: counted only where the classifier could run */ if (volcanic ? !volcanic.has(code ?? NOT_LOGGED_CODE) : isSedimentaryCode(code)) { const k = code || tr("no code logged") /* #2510 */; sedSkipped[k] = (sedSkipped[k] || 0) + 1; return null; } } // #2352: the ticked codes
       if (method.ratio) { const c = censoredOperand(a, method.requires); if (c) { bdlLeft[c] = (bdlLeft[c] || 0) + 1; return null; } } // #2501
       let value = method.classify(a.values, elementUnits, a, opts);
       if (!value) return null;
@@ -1133,7 +1133,7 @@ export default function GeochemModule() {
   const plotFurniture = () => {
     const n = plottedCount; // #1519
     const keyItems = colorMode === "hole" ? [...new Set(plotted.map((a) => a.hole_id))].map((h) => ({ label: String(h), color: holeColors[h] || "#55606e", shape: "dot" }))
-      : colorMode === "lithology" ? lithCounts.filter(([k]) => !lithFilter || lithFilter.has(k)).map(([k]) => ({ label: k === NOT_LOGGED ? "not logged" : String(k), color: lithColors[k] || "#b8bec7", shape: "dot" }))
+      : colorMode === "lithology" ? lithCounts.filter(([k]) => !lithFilter || lithFilter.has(k)).map(([k]) => ({ label: k === NOT_LOGGED ? "no code logged" /* #2510 */ : String(k), color: lithColors[k] || "#b8bec7", shape: "dot" }))
       : colorMode === "element" && colorRange ? elementKey().map(({ v, color }) => ({ label: `${+v.toPrecision(3)} ${colorUnit}`, color, shape: "dot" }))
       : [];
     const keyTitle = colorMode === "hole" ? "Hole" : colorMode === "lithology" ? "Lithology" : colorMode === "element" ? `${colorEl} (${colorRange?.log ? "log" : "linear"} scale)` : "";
@@ -1196,7 +1196,7 @@ export default function GeochemModule() {
             <RibbonButton icon={Upload} label="Assays" tone="data" title="Import drillhole assays (CSV)" onClick={() => fileRef.current.click()} />
             <RibbonButton icon={Database} label="Database" tone="data" title="Import drillhole assays straight from a database (PostgreSQL or MySQL): a table or a query" onClick={() => setDbOpen(true)} />{/* TASKS.csv #917 */}
             <RibbonButton advanced icon={Beaker} label="pXRF" tone="data" title="Import pXRF readings (CSV)" onClick={() => pxrfRef.current.click()} />
-            <RibbonButton advanced icon={FileCheck} label="Lab certificates" tone="data" disabled={!assays.length} disabledReason="Import the drill samples (hole, from, to, sample id) first" title={assays.length ? "Lab certificates (ALS CSV): join them to the drill samples by sample id, check the values, and review GeoStrix's QC-type suggestions for the samples only the lab has (blanks, standards, duplicates)" : "Import the drill samples (hole, from, to, sample id) first — certificates are joined to them by sample id"} onClick={() => certRef.current.click()} />
+            <RibbonButton advanced={!assays.length} /* #2723 — in Simple once the project has assays */ icon={FileCheck} label="Lab certificates" tone="data" disabled={!assays.length} disabledReason="Import the drill samples (hole, from, to, sample id) first" title={assays.length ? "Lab certificates (ALS CSV): join them to the drill samples by sample id, check the values, and review GeoStrix's QC-type suggestions for the samples only the lab has (blanks, standards, duplicates)" : "Import the drill samples (hole, from, to, sample id) first — certificates are joined to them by sample id"} onClick={() => certRef.current.click()} />
             <RibbonButton icon={GMapPin} label="Surface samples" tone="data" title="Soil, rock-chip, stream-sediment or talus-fines samples (CSV) — no drillhole needed" onClick={() => surfaceFileRef.current.click()} />
             <RibbonButton advanced={drillOnly} /* #2199 — a drill-only project keeps the surface-program tools in Advanced */ icon={Globe} label="Public data" tone="data" title="Public geochemistry: government stream-sediment surveys (BC RGS, Australia's NGSA and others) for the project area, with their licences" onClick={() => setPublicOpen(true)} />{/* TASKS.csv #846 */}
           </RibbonGroup>
@@ -1205,9 +1205,9 @@ export default function GeochemModule() {
             <RibbonButton icon={GTriangle} label="Winchester" tone="analyse" disabled={!assayElements.length || methodMissing("litho_winchester").length > 0} disabledReason={!assayElements.length ? "Import assays first" : tr("Needs {list} in the assays", { list: methodMissing("litho_winchester").join(", ") })} /* #2205 — greyed with its reason, not an error after the click */ title="Lithology from immobile elements (Winchester & Floyd) — screening level" onClick={() => runMethod("litho_winchester")} />
             <RibbonButton icon={GShapes} label="Jensen" tone="analyse" disabled={!assayElements.length || methodMissing("litho_jensen").length > 0} disabledReason={!assayElements.length ? "Import assays first" : tr("Needs {list} in the assays", { list: methodMissing("litho_jensen").join(", ") })} /* #2205 — greyed with its reason, not an error after the click */ title="Lithology (Jensen cation plot) — screening level" onClick={() => runMethod("litho_jensen")} />
           </RibbonGroup>
-          <RibbonGroup advanced label="Calculate">
+          <RibbonGroup advanced={!assays.length} /* #2723 — Calc. element joins Simple once there are assays; Isocon stays in Advanced */ label="Calculate">
             <RibbonButton icon={Sigma} label="Calc. element" tone="analyse" disabled={!assayElements.length && !surfaceElements.length} disabledReason="Import assays or surface samples first" active={!!calc} title="Add a calculated element from a formula (AI, CCPI, ratios...) — usable everywhere a real element is" onClick={() => setCalc((c) => (c ? null : { name: "", expr: "", unit: "index", msg: null, source: assayElements.length ? "assays" : "surface" }))} />{/* source: TASKS.csv #1799 */}
-            <RibbonButton icon={Scale} label="Isocon" tone="analyse" disabled={assayElements.filter((e) => !e.calculated).length < 2} disabledReason={assayElements.length ? "Isocon needs at least two assayed elements, one of them immobile (Al, Ti, Zr)" : "Import assays first"} /* #2197 */ title="Isocon / mass-change calculator" onClick={() => setIsoconOpen(true)} />
+            <RibbonButton advanced icon={Scale} label="Isocon" tone="analyse" disabled={assayElements.filter((e) => !e.calculated).length < 2} disabledReason={assayElements.length ? "Isocon needs at least two assayed elements, one of them immobile (Al, Ti, Zr)" : "Import assays first"} /* #2197 */ title="Isocon / mass-change calculator" onClick={() => setIsoconOpen(true)} />
           </RibbonGroup>
           <RibbonGroup label="Analyze">
             <RibbonButton advanced={assayElements.length + surfaceElements.length < 2} /* #2199 — a matrix needs two elements */ icon={Grid3x3} label="Correlation" tone="analyse" disabled={!assayElements.length && !surfaceElements.length} disabledReason="Import assays or surface samples first" title="Correlation matrix" onClick={() => setCorrOpen(true)} />
@@ -1378,7 +1378,7 @@ export default function GeochemModule() {
             {/* TASKS.csv #1519 (review #1497) — 'by hole' and 'by logged lithology' had no key on screen (the export had one) */}
             {(colorMode === "lithology" || (colorMode === "hole" && plottedHoles.length <= KEY_MAX)) && (() => {
               const items = colorMode === "hole" ? plottedHoles.map((h) => [String(h), holeColors[h] || "#55606e"])
-                : lithCounts.filter(([k]) => !lithFilter || lithFilter.has(k)).map(([k]) => [k === NOT_LOGGED ? tr("not logged") : String(k), lithColors[k] || "#b8bec7"]);
+                : lithCounts.filter(([k]) => !lithFilter || lithFilter.has(k)).map(([k]) => [k === NOT_LOGGED ? tr("no code logged") /* #2510 */ : String(k), lithColors[k] || "#b8bec7"]);
               return (
                 <span style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 6, fontSize: "var(--font-size-xs)", color: "#55606e", maxWidth: 520 }}>
                   {items.slice(0, KEY_MAX).map(([label, color]) => <span key={label} style={{ display: "flex", alignItems: "center", gap: 2 }}><span style={{ width: 9, height: 9, borderRadius: 5, background: color, border: "1px solid rgba(0,0,0,0.15)" }} />{label}</span>)}
@@ -1409,7 +1409,7 @@ export default function GeochemModule() {
                       <label key={code} role="menuitemcheckbox" aria-checked={on} style={{ display: "flex", alignItems: "center", gap: 6, padding: "3px 2px", cursor: "pointer", fontSize: 12, color: "var(--color-text)" }}>
                         <input type="checkbox" checked={on} onChange={toggle} />
                         <span style={{ width: 9, height: 9, borderRadius: 2, background: lithColors[code], flexShrink: 0 }} />
-                        <span style={{ flex: 1 }}>{code === NOT_LOGGED ? tr("not logged") : code}</span>
+                        <span style={{ flex: 1 }}>{code === NOT_LOGGED ? tr("no code logged") /* #2510 */ : code}</span>
                         <span style={{ color: "var(--color-text-muted)" }}>{n}</span>
                       </label>
                     );
