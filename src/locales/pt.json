@@ -10671,5 +10671,14 @@
   "Density by {layer}: {list}; {n} other blocks took the density above.": "Densidade por {layer}: {list}; outros {n} blocos tomaram a densidade acima.",
   "Density by {layer}: {list}.": "Densidade por {layer}: {list}.",
   "A density per code of a logged layer: each block takes the nearest logged interval within reach and that code's density, ore or waste; a block with no code, or a code with no density typed, takes the densities above.": "Uma densidade por código de uma camada descrita: cada bloco toma o intervalo descrito mais próximo ao alcance e a densidade desse código, minério ou estéril; um bloco sem código, ou um código sem densidade digitada, toma as densidades acima.",
-  "It is drawn flat at {z} m, {h} m above the grid it was continued from.": "É desenhado plano a {z} m, {h} m acima da grade a partir da qual foi continuado."
+  "It is drawn flat at {z} m, {h} m above the grid it was continued from.": "É desenhado plano a {z} m, {h} m acima da grade a partir da qual foi continuado.",
+  "Placed flat at {z} m, {m} m above the highest collar under it, so no hole top is hidden; change Elev. on its card.": "Colocado plano a {z} m, {m} m acima da boca de furo mais alta sob ele, para que o topo de nenhum furo fique escondido; altere Elev. no seu cartão.",
+  "Kriged with the fitted {model} variogram{v}: nugget {v2}, sill {v3}, range {v4} m{v5}{v6}.": "Krigado com um variograma {model}{v}: pepita {v2}, patamar {v3}, alcance {v4} m{v5}{v6}.",
+  "Panels for a flat body: each column's thickness at or above the cut-off, and its grade × thickness; a panel counts when its mean grade × thickness reaches the cut-off below.": "Painéis para um corpo plano: a espessura de cada coluna no teor de corte ou acima, e seu teor × espessura; um painel conta quando seu teor × espessura médio alcança o corte abaixo.",
+  "Panel side (m)": "Lado do painel (m)",
+  "Grade × thickness cut-off ({u}·m)": "Corte de teor × espessura ({u}·m)",
+  "Grade × thickness cut-off": "Corte de teor × espessura",
+  "{n} of {m} panels reach it: {a} ha mineralized, {t} t at {g} {u} over a mean {h} m.": "{n} de {m} painéis o alcançam: {a} ha mineralizados, {t} t a {g} {u} numa espessura média de {h} m.",
+  "None of the {m} panels reaches it.": "Nenhum dos {m} painéis o alcança.",
+  "From the block model only: the panels are squares on the model's plan, not a mine design, and the drillholes' own grade × thickness is not used.": "Só do modelo de blocos: os painéis são quadrados na planta do modelo, não um projeto de mina, e o teor × espessura dos próprios furos não é usado."
 }

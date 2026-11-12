@@ -17,6 +17,7 @@ import { toExportCsv, crsCell } from "../lib/tabular.js";
 import { saveFile } from "../lib/desktop.js";
 import { pBtn, smallSel } from "../lib/sidebarStyles.js";
 import { t as tr } from "../lib/i18n.js";
+import FlatPanels from "./FlatPanels.jsx"; // TASKS.csv #2650
 import CollarLevelsNote from "./CollarLevelsNote.jsx"; // TASKS.csv #2584 — the lowest collar used where collars stand on benches
 import { stopeRuns, stopeIdsOnLevel, stopeStringIds } from "../lib/stopeRuns.js"; // TASKS.csv #1968
 import NotOfferedGrades from "./NotOfferedGrades.jsx"; // TASKS.csv #2436
@@ -186,6 +187,7 @@ export default function StopesPane({ onAdd, onRemove, onClose, stopes = [], onSh
           {res.pit && <div style={note}>{tr("Below {pit}: {n} column-level(s) at the cut-off lie inside the pit or its {p} m pillar and were left out.", { pit: res.pitName, n: res.pit.shut, p: res.pit.pillar })}</div>}{/* #1964 */}
           {res.ground && res.ground.shut > 0 && <div style={note}>{tr("{n} column-level(s) at the cut-off reach above the ground less the {c} m crown ({src}) and were left out.", { n: res.ground.shut, c: res.ground.crown, src: res.groundSource === "terrain" ? tr("the terrain") : tr("interpolated between the collars") })}</div>}{/* #2438 */}
           {flat?.flat && <div style={warn}>{tr("A flat-lying body: the largest outline spans {a} × {b} m in plan on a {h} m level ({t} t). These are level outlines, not stopes; a flat body is a question for the pit tools or a method this tool does not design.", { a: Math.round(flat.a), b: Math.round(flat.b), h: +flat.h.toFixed(1), t: big(flat.tonnes) })}</div>}{/* #2438 */}
+          {flat?.flat && <FlatPanels model={models.find((m) => m.name === res.model) || model} cutoff={Number(res.inputs?.cutoff)} density={Number(res.inputs?.density)} unit={res.unit} element={res.element} inputStyle={num} />}{/* #2650 */}
           {res.dip && <div style={note}>{tr("Along a dip of {d}° towards {a}°: each stope leans with the vein; the {w} m width and {s} m skin across it are {wg} m and {sg} m on the ground.", { d: res.dip.dipDeg, a: res.dip.dipDirDeg, w: res.inputs.minWidth || 0, s: res.inputs.skin || 0, wg: +res.dip.widthOnGroundM.toFixed(1), sg: +res.dip.skinOnGroundM.toFixed(1) })}</div>}{/* #1953 */}
           {/* #1885 — the width and skin as applied; #1886 — a level interval below the block height slices the same block */}
           <div style={note}>{tr("Width {w} m → {n} column(s) ({m} m); skin {s} m → {k} column(s) ({t} m).", { w: res.inputs.minWidth || 0, n: res.widthCols, m: +effWidthM.toFixed(1), s: res.inputs.skin || 0, k: res.skinCols, t: +effSkinM.toFixed(1) })}</div>
