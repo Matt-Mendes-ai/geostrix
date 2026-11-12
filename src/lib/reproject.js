@@ -553,6 +553,29 @@ export function bilinearSample(band, w, h, xmin, ymin, xmax, ymax, x, y) {
   return top + (bot - top) * ty;
 }
 
+// TASKS.csv #2983 (WA iron review) — bilinearSample is NaN as soon as ONE of its four corners is NaN, so every reprojection of a grid with
+// no-data cells ate one node off each no-data edge: GDA94 -> GDA2020 -> GDA94 (the same definition, an identity) left a soil grid with
+// 12,455 of its 17,479 cells and the terrain without 22 % of its ground. Here the finite corners are averaged with their bilinear weights,
+// as long as the NEAREST corner is finite (so a no-data edge stays where it was, half a cell either way, instead of growing or shrinking).
+export function bilinearSampleNaN(band, w, h, xmin, ymin, xmax, ymax, x, y) {
+  const ex = edgeTol(xmin, xmax), ey = edgeTol(ymin, ymax);
+  if (x < xmin - ex || x > xmax + ex || y < ymin - ey || y > ymax + ey || w < 2 || h < 2) return null;
+  x = Math.min(xmax, Math.max(xmin, x)); y = Math.min(ymax, Math.max(ymin, y));
+  const fx = ((x - xmin) / (xmax - xmin)) * (w - 1);
+  const fyTop = ((ymax - y) / (ymax - ymin)) * (h - 1);
+  const x0 = Math.max(0, Math.min(w - 2, Math.floor(fx))), x1 = x0 + 1;
+  const y0 = Math.max(0, Math.min(h - 2, Math.floor(fyTop))), y1 = y0 + 1;
+  const tx = fx - x0, ty = fyTop - y0;
+  const v = [band[y0 * w + x0], band[y0 * w + x1], band[y1 * w + x0], band[y1 * w + x1]];
+  const wt = [(1 - tx) * (1 - ty), tx * (1 - ty), (1 - tx) * ty, tx * ty];
+  let nearest = 0;
+  for (let k = 1; k < 4; k++) if (wt[k] > wt[nearest]) nearest = k;
+  if (!Number.isFinite(v[nearest])) return NaN;
+  let s = 0, sw = 0;
+  for (let k = 0; k < 4; k++) if (Number.isFinite(v[k])) { s += v[k] * wt[k]; sw += wt[k]; }
+  return sw > 0 ? s / sw : NaN;
+}
+
 // Reprojects a regular lon/lat (or other geographic) elevation grid into a target CRS. Because a
 // forward projection of a rectangular geographic tile is generally NOT itself an axis-aligned
 // rectangle (meridians converge toward the poles), this: (1) forward-projects the 4 corners to get
@@ -630,7 +653,7 @@ export function projectedBounds(fromDef, toDef, xmin, ymin, xmax, ymax, perEdge 
 }
 
 export function reprojectGrid({ xmin, ymin, xmax, ymax, gridW, gridH, band, bands }, fromDef, toDef, outW, outH, opts = {}) {
-  const sample = opts.nearest ? nearestSample : bilinearSample;
+  const sample = opts.nearest ? nearestSample : opts.nanAware ? bilinearSampleNaN : bilinearSample; // nanAware: #2983
   const [txmin, tymin, txmax, tymax] = projectedBounds(fromDef, toDef, xmin, ymin, xmax, ymax); // #559 — edges, not corners
 
   const srcBands = bands || [band];

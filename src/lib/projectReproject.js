@@ -238,7 +238,7 @@ export function reprojectProject(live, fromEpsg, toEpsg, opts = {}) {
     const src = Float32Array.from(t.elevations);
     const mask = t.noDataMask ? maskBits(t.noDataMask, src.length) : null;
     if (mask) for (let i = 0; i < src.length; i++) if (mask[i]) src[i] = NaN; // filled cells are not data
-    const rp = reprojectGrid({ xmin, ymin, xmax, ymax, gridW: t.gridW, gridH: t.gridH, band: src }, fromDef, toDef, t.gridW, t.gridH);
+    const rp = reprojectGrid({ xmin, ymin, xmax, ymax, gridW: t.gridW, gridH: t.gridH, band: src }, fromDef, toDef, t.gridW, t.gridH, { nanAware: true }); // #2983 — no erosion of the ground
     const fill = fillNoData(rp.elevations);
     f.terrain = { ...t, bbox: rp.bbox, elevations: fill.elevations, noDataMask: fill.noDataMask };
     count("terrain", 1);
@@ -312,7 +312,7 @@ export function reprojectProject(live, fromEpsg, toEpsg, opts = {}) {
 export function reprojectValueGrid(g, fromDef, toDef) {
   const vals = b64ToF32(g.values);
   const xmin = g.x0, xmax = g.x0 + (g.nx - 1) * g.dx, ymax = g.yTop, ymin = g.yTop - (g.ny - 1) * g.dy;
-  const rp = reprojectGrid({ xmin, ymin, xmax, ymax, gridW: g.nx, gridH: g.ny, band: vals }, fromDef, toDef, g.nx, g.ny);
+  const rp = reprojectGrid({ xmin, ymin, xmax, ymax, gridW: g.nx, gridH: g.ny, band: vals }, fromDef, toDef, g.nx, g.ny, { nanAware: true }); // #2983
   const [bx0, by0, bx1, by1] = rp.bbox;
   let valid = 0;
   for (const v of rp.elevations) if (fin(v)) valid++;
