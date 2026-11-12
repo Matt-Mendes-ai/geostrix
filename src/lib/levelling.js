@@ -80,6 +80,39 @@ function shiftAt(knots, lv) {
   return last.shift;
 }
 
+// TASKS.csv #2000 — regression levelling on the tie sites, after Main & Champion (2022, J. Geochem. Explor. 240, 107028): log10 reference
+// = a + b log10 survey, fitted by Huber's M-estimator (iteratively reweighted least squares, k = 1.345 sigma, sigma from the residuals'
+// MAD / 0.6745, re-estimated each pass), so a tie that disagrees (a nugget, a mislabelled site) weighs less instead of tilting the line.
+// Unlike the one-factor tie level, the slope can differ from 1: the level then depends on the value, which is what a digestion or a
+// detection difference does. -> { a, b, sigma, n, downweighted, iterations } or null (under MIN_TIES pairs, or no spread in x)
+export function huberLine(xs, ys, { k = 1.345, maxIter = 50, tol = 1e-9 } = {}) {
+  const n = Math.min(xs?.length || 0, ys?.length || 0);
+  if (n < MIN_TIES) return null;
+  let w = new Array(n).fill(1), a = 0, b = 1, sigma = 0, it = 0;
+  const wls = () => {
+    let sw = 0, sx = 0, sy = 0;
+    for (let i = 0; i < n; i++) { sw += w[i]; sx += w[i] * xs[i]; sy += w[i] * ys[i]; }
+    const mx = sx / sw, my = sy / sw;
+    let sxx = 0, sxy = 0;
+    for (let i = 0; i < n; i++) { const dx = xs[i] - mx; sxx += w[i] * dx * dx; sxy += w[i] * dx * (ys[i] - my); }
+    if (!(sxx > 0)) return false;
+    b = sxy / sxx; a = my - b * mx; return true;
+  };
+  if (!wls()) return null;
+  for (it = 1; it <= maxIter; it++) {
+    const r = xs.slice(0, n).map((x, i) => ys[i] - (a + b * x));
+    const mad = median(r.map((v) => Math.abs(v - median(r))));
+    sigma = mad / 0.6745;
+    if (!(sigma > 0)) break; // the ties lie on a line: least squares is the answer
+    const c = k * sigma;
+    w = r.map((v) => (Math.abs(v) <= c ? 1 : c / Math.abs(v)));
+    const a0 = a, b0 = b;
+    if (!wls()) return null;
+    if (Math.abs(a - a0) < tol && Math.abs(b - b0) < tol) break;
+  }
+  return { a, b, sigma, n, downweighted: w.filter((x) => x < 1).length, iterations: it };
+}
+
 // What each method would do. o: { symbol, medium, column, reference, survey, radiusM }.
 // -> { nReference, nSurvey, ties: { n, ok, factor, low, high, pairs } | null, stats: { ok, knots, need } }
 export function fitLevelling(samples, { symbol, medium, column = "source", reference, survey, radiusM = 25 }) {
@@ -91,14 +124,17 @@ export function fitLevelling(samples, { symbol, medium, column = "source", refer
   if (pairs.length) {
     const ratios = pairs.map((p) => measured(p.a, symbol) / measured(p.b, symbol)).sort((a, b) => a - b);
     ties = { n: pairs.length, ok: pairs.length >= MIN_TIES, factor: median(ratios), low: quantileSorted(ratios, 0.16), high: quantileSorted(ratios, 0.84), pairs };
+    // #2000 — the Huber line through the same pairs (log10 survey -> log10 reference)
+    ties.huber = ties.ok ? huberLine(pairs.map((p) => Math.log10(measured(p.b, symbol))), pairs.map((p) => Math.log10(measured(p.a, symbol)))) : null;
   }
   const statOk = refV.length >= MIN_STAT && surV.length >= MIN_STAT;
   return { nReference: refV.length, nSurvey: surV.length, ties, stats: { ok: statOk, need: MIN_STAT, knots: statOk ? quantileKnots(refV, surV) : null }, medianReference: refV.length ? median(refV) : null, medianSurvey: surV.length ? median(surV) : null };
 }
 
-// fit + method ("ties" | "quantile") -> value => levelled value
+// fit + method ("ties" | "huber" | "quantile") -> value => levelled value
 export function leveller(fit, method) {
   if (method === "ties") { if (!fit.ties?.ok) return null; const f = fit.ties.factor; return (v) => v * f; }
+  if (method === "huber") { const h = fit.ties?.huber; if (!h) return null; return (v) => (v > 0 ? 10 ** (h.a + h.b * Math.log10(v)) : v); } // #2000
   if (method === "quantile") { if (!fit.stats.ok) return null; const k = fit.stats.knots; return (v) => (v > 0 ? 10 ** (Math.log10(v) + shiftAt(k, Math.log10(v))) : v); }
   return null;
 }
@@ -120,7 +156,9 @@ export function writeLevelled(samples, elements, fit, method, { symbol, medium, 
   const sym = levelledSymbol(symbol), basisCol = basisColumn(symbol);
   const basis = method === "ties"
     ? `levelled to ${reference}: x${+fit.ties.factor.toPrecision(4)}, median ratio of ${fit.ties.n} tie sites within ${radiusM} m`
-    : `levelled to ${reference}: STATISTICAL quantile match, no tie samples; assumes both surveys sampled the same population`;
+    : method === "huber" // #2000
+      ? `levelled to ${reference}: log10 ref = ${+fit.ties.huber.a.toPrecision(4)} + ${+fit.ties.huber.b.toPrecision(4)} x log10 value, Huber regression (k = 1.345) on ${fit.ties.n} tie sites within ${radiusM} m (Main & Champion 2022)`
+      : `levelled to ${reference}: STATISTICAL quantile match, no tie samples; assumes both surveys sampled the same population`;
   const written = { reference: 0, levelled: 0 };
   const out = samples.map((s) => {
     if (s.medium !== medium) return s;

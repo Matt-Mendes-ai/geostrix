@@ -1783,6 +1783,7 @@
   "No '<x' results: the lowest reported value (an upper bound on the limit)": "لا نتائج '<x': أصغر قيمة مبلغ عنها (حد أعلى للحد)",
   "Use the lab's <{limit}": "استخدام <{limit} الخاص بالمختبر",
   "main column": "العمود الرئيسي",
+  "Fit a line through the ties instead (Huber regression on log values, after Main & Champion 2022): log {ref} = {a} + {b} × log value, {d} of {n} tie(s) given less weight. A slope away from 1 levels low and high values differently, as a digestion or detection difference does.": "بدلًا من ذلك، طابِق خطًا عبر مواقع الربط (انحدار هوبر على القيم اللوغاريتمية، وفق Main & Champion 2022): log {ref} = {a} + {b} × log القيمة؛ أُعطي {d} من {n} موقع ربط وزنًا أقل. الميل البعيد عن 1 يسوّي القيم المنخفضة والعالية بشكل مختلف، كما يفعل فرق الهضم أو الكشف.",
   "Not imported: {cols} (LOI was read from {main}).": "لم يُستورد: {cols} (قُرئ الفقد بالحرق من {main}).",
   "Not imported: {cols} (loss on ignition: tick LOI in the element list to keep it).": "لم يُستورد: {cols} (الفقد بالحرق: حدّد LOI في قائمة العناصر للاحتفاظ به).",
   "With their LOI ({n} sample(s)): median {median} %, 90 % of them between {p5} and {p95} %.": "مع الفقد بالحرق ({n} عينة): الوسيط {median} %، و90 % منها بين {p5} و{p95} %.",

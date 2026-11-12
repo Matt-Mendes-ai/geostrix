@@ -1783,6 +1783,7 @@
   "No '<x' results: the lowest reported value (an upper bound on the limit)": "Sem resultados '<x': o menor valor informado (um teto para o limite)",
   "Use the lab's <{limit}": "Usar o <{limit} do laboratório",
   "main column": "coluna principal",
+  "Fit a line through the ties instead (Huber regression on log values, after Main & Champion 2022): log {ref} = {a} + {b} × log value, {d} of {n} tie(s) given less weight. A slope away from 1 levels low and high values differently, as a digestion or detection difference does.": "Ajustar uma reta pelos pares em vez disso (regressão de Huber sobre valores logarítmicos, segundo Main & Champion 2022): log {ref} = {a} + {b} × log valor; {d} de {n} par(es) com menos peso. Uma inclinação diferente de 1 nivela valores baixos e altos de modo diferente, como faz uma diferença de digestão ou de detecção.",
   "Not imported: {cols} (LOI was read from {main}).": "Não importado: {cols} (a LOI foi lida de {main}).",
   "Not imported: {cols} (loss on ignition: tick LOI in the element list to keep it).": "Não importado: {cols} (perda ao fogo: marque LOI na lista de elementos para mantê-la).",
   "With their LOI ({n} sample(s)): median {median} %, 90 % of them between {p5} and {p95} %.": "Com a LOI ({n} amostra(s)): mediana {median} %, 90 % delas entre {p5} e {p95} %.",

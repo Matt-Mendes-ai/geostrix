@@ -32,6 +32,23 @@ export function copyOffset(els, page, off) {
   return { dx: step(x0, x1, page.w), dy: step(y0, y1, page.h) };
 }
 
+// TASKS.csv #2483 (3) (review #2325, WA uranium) — a section snapshot resized to a plot scale ('Scale 1 :' 5,000) grew over the scale bar and
+// the legend placed under / beside it. The elements bound to it (a scale bar's boundTo, a legend's boundViewportId) that sat below its old
+// bottom edge or right of its old right edge move with the new edge; the rest stay. -> a new elements array with `next` applied to `id`
+export function followResize(elements, id, next) {
+  const el = (elements || []).find((e) => e.id === id);
+  if (!el) return elements;
+  const old = elementBox(el), nb = elementBox({ ...el, ...next });
+  const dx = nb.x + nb.w - (old.x + old.w), dy = nb.y + nb.h - (old.y + old.h);
+  return elements.map((e) => {
+    if (e.id === id) return { ...e, ...next };
+    if (e.boundTo !== id && e.boundViewportId !== id) return e;
+    const b = elementBox(e), below = b.y >= old.y + old.h - 4, right = b.x >= old.x + old.w - 4;
+    if (!below && !right) return e;
+    return { ...e, ...(below && dy ? { y: Math.round(b.y + dy) } : {}), ...(right && dx ? { x: Math.round(b.x + dx) } : {}) };
+  });
+}
+
 const overlap = (a, b) => Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x)) * Math.max(0, Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y));
 
 // the top-left corner for a w x h item on a page { w, h } holding `elements`

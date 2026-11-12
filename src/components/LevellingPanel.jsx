@@ -48,7 +48,8 @@ export default function LevellingPanel({ onClose }) {
   const opts = { symbol, medium, column, reference, survey, radiusM };
   const fit = useMemo(() => (reference && survey && symbol ? fitLevelling(surfaceSamples, opts) : null), [surfaceSamples, symbol, medium, column, reference, survey, radiusM]);
   const canTies = !!fit?.ties?.ok, canStat = !!fit?.stats.ok;
-  const method = methodPick === "quantile" && canStat ? "quantile" : canTies ? "ties" : null;
+  const canHuber = !!fit?.ties?.huber; // #2000
+  const method = methodPick === "quantile" && canStat ? "quantile" : methodPick === "huber" && canHuber ? "huber" : canTies ? "ties" : null;
   const preview = useMemo(() => (fit && method ? levellingPreview(surfaceSamples, fit, method, opts) : null), [fit, method, surfaceSamples]);
   const unit = surfaceElements.find((e) => e.symbol === symbol)?.unit || "ppm";
 
@@ -90,6 +91,12 @@ export default function LevellingPanel({ onClose }) {
                   ? tr("{n} sites were sampled by both surveys. The median ratio is x{f}; most pairs fall between x{lo} and x{hi}. A wide range means the ties disagree: check them before relying on the level.", { n: fit.ties.n, f: num(fit.ties.factor), lo: num(fit.ties.low), hi: num(fit.ties.high) })
                   : tr("{n} sites were sampled by both surveys within this distance; tie levelling needs at least {min}. A larger distance finds more pairs, but sites further apart can differ for real.", { n: fit.ties?.n || 0, min: MIN_TIES })}
               </div>
+              {canHuber && ( /* TASKS.csv #2000 — regression levelling on the same ties */
+                <label style={{ ...note, display: "flex", gap: 6, alignItems: "flex-start", cursor: "pointer" }}>
+                  <input type="checkbox" checked={method === "huber"} onChange={(e) => setMethodPick(e.target.checked ? "huber" : null)} />
+                  <span>{tr("Fit a line through the ties instead (Huber regression on log values, after Main & Champion 2022): log {ref} = {a} + {b} × log value, {d} of {n} tie(s) given less weight. A slope away from 1 levels low and high values differently, as a digestion or detection difference does.", { ref: reference, a: num(fit.ties.huber.a), b: num(fit.ties.huber.b), d: fit.ties.huber.downweighted, n: fit.ties.huber.n })}</span>
+                </label>
+              )}
               <label style={{ ...note, display: "flex", gap: 6, alignItems: "flex-start", cursor: canStat ? "pointer" : "default", opacity: canStat ? 1 : 0.6 }}>
                 <input type="checkbox" disabled={!canStat} checked={method === "quantile"} onChange={(e) => setMethodPick(e.target.checked ? "quantile" : null)} />
                 <span>{canStat ? tr("Use statistical quantile matching instead. It assumes both surveys sampled the same population, so it can erase or create real differences (Darnley et al. 1995). Use it only without tie samples, and treat the result as a guide.") : tr("Statistical quantile matching needs at least {min} measured samples in each survey (here {a} and {b}).", { min: MIN_STAT, a: fit.nReference, b: fit.nSurvey })}</span>
