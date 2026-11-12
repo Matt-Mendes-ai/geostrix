@@ -461,7 +461,8 @@ export function buildPitGrid(cells, { size = null, slopeDeg, sectorSlopes = null
       const v = Math.min(rockV[q] - modelV[q], ox * oy * oz * cover);
       if (v <= 0) continue;
       const lo = Math.max(c.z - c.dz / 2, zb), fw = dW ? wPart(j * nx + i, lo, lo + oz) : 0; // #2597 — the block's part in the weathered zone
-      const barren = v * (fw * (dW || 0) + (1 - fw) * wd), t = v * (fw * (dW || 0) + (1 - fw) * (ore ? density : wd)); // #2437
+      const own = c.density > 0 ? c.density : null; // TASKS.csv #2647 — the block's code's density (lib/densityByCode.js), ore or waste
+      const barren = v * (fw * (dW || 0) + (1 - fw) * wd), t = v * (fw * (dW || 0) + (1 - fw) * (own ?? (ore ? density : wd))); // #2437
       modelV[q] += v; modelT[q] += t; rockT[q] += t - barren;
       value[q] += barren * miningCost + t * margin; // it was counted as barren: take that back
       if (ore) { oreT[q] += t; metalU[q] += t * c.value; if (c.by > 0) metalU2[q] += t * c.by; if (oneHoleBlock(c)) oreThin[q] += t; /* #1617 */ if (c.support === "extrapolated" || c.support === "unsupported") oreExtrap[q] += t; if (c.beyond === "above" || c.beyond === "below") oreBeyond[q] += t; /* #2435 */ if (c.nearUnsampled) oreNearUns[q] += t; /* #2596 */ }

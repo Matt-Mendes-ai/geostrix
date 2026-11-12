@@ -19,6 +19,8 @@ import { saveFile } from "../lib/desktop.js";
 import { pBtn, smallSel } from "../lib/sidebarStyles.js";
 import UndergroundOreNote from "./UndergroundOreNote.jsx"; // TASKS.csv #2277
 import { t as tr } from "../lib/i18n.js";
+import { modelWithCodeDensity } from "../lib/densityByCode.js"; // TASKS.csv #2647 — the shell's per-code densities
+import { densityUsedText } from "./densityUsedText.js"; // TASKS.csv #2647
 import NotOfferedGrades from "./NotOfferedGrades.jsx"; // TASKS.csv #2646
 import CollarLevelsNote from "./CollarLevelsNote.jsx"; // TASKS.csv #2584 — the lowest collar used where collars stand on benches
 import { weatheredBasePoints } from "../lib/weatheredZone.js"; // TASKS.csv #2597
@@ -79,14 +81,15 @@ export default function NestedPitsPane({ surfaces = [], onAdd, onToggle, onRemov
     setBusy({ idx: 0, of: factors.length }); setMsg(null);
     const t0 = performance.now();
     try {
-      job.current = runPitSeriesAsync(model, { ...inputs, unit, element, ...(inputs.weathered?.freshCode ? { weathered: { ...inputs.weathered, points: weatheredBasePoints(layers?.weath || [], holeTraces(collars, survey, desurveyMethod), inputs.weathered.freshCode).points } } : {}) /* #2597 — the shell's weathered zone, rebuilt from the log */ }, factors, { rate, discountPct: Number.isFinite(discount) ? discount : null, terrain, collars, byModel /* #1917 */, onProgress: (p) => setBusy(p) });
+      const coded = modelWithCodeDensity(model, inputs, layers, collars, survey, desurveyMethod); // #2647 — weighed as the shell was
+      job.current = runPitSeriesAsync(coded.model, { ...inputs, unit, element, ...(inputs.weathered?.freshCode ? { weathered: { ...inputs.weathered, points: weatheredBasePoints(layers?.weath || [], holeTraces(collars, survey, desurveyMethod), inputs.weathered.freshCode).points } } : {}) /* #2597 — the shell's weathered zone, rebuilt from the log */ }, factors, { rate, discountPct: Number.isFinite(discount) ? discount : null, terrain, collars, byModel /* #1917 */, onProgress: (p) => setBusy(p) });
       const r = await job.current.promise;
       if (r.cancelled) { setMsg(tr("Cancelled: nothing was added.")); return; }
       if (r.failed === "underground") { setMsg(tr("The collars look like underground drill positions ({upward} hole(s) drilled upward, {stacked} pair(s) of collars stacked over each other): no ground surface is known, so no pit is cut from them. Load a terrain (Maps > Terrain) for the real surface.", { upward: r.underground?.upward ?? 0, stacked: r.underground?.stacked ?? 0 })); return; } // #2276
       if (r.failed || r.empty) { setMsg(r.empty ? tr("At these inputs no block pays for the rock over it at the largest factor, so there is no pit.") : tr("The series failed: {v}", { v: r.failed })); return; }
       const seconds = Math.round((performance.now() - t0) / 100) / 10;
       if (kept?.seriesId && onRemove) surfaces.filter((s) => s.params?.seriesId === kept.seriesId).forEach((s) => onRemove(s.id)); // #1931 — the earlier series' shells go
-      kept = { ...r, seconds, pitId: lastPit.id, factorsText: f.factors, rateText: f.rate, discountText: f.discount, unit, priceLabel, price: inputs.price, seriesId: `series_${Date.now()}`, shown: {} };
+      kept = { ...r, densityUsed: coded.used ? { layer: inputs.densityLayer, used: coded.used } : null /* #2647 */, seconds, pitId: lastPit.id, factorsText: f.factors, rateText: f.rate, discountText: f.discount, unit, priceLabel, price: inputs.price, seriesId: `series_${Date.now()}`, shown: {} };
       setRes(kept);
     } catch (e) { setMsg(tr("The series failed: {v}", { v: e.message || e })); }
     finally { setBusy(null); job.current = null; }
@@ -185,6 +188,7 @@ export default function NestedPitsPane({ surfaces = [], onAdd, onToggle, onRemov
               : tr("The series runs on one grid sized for its largest factor ({c} m; the shell's was {s} m), so its shells are not on the shell's own grid.", { c: rc.join(" × "), s: sc.join(" × ") })}</div>;
           })()}
           {line(tr("Solved in"), `${res.seconds} s`)}
+          {res.densityUsed && <div style={note}>{densityUsedText(res.densityUsed)}</div>}{/* #2647 */}
           {res.groundSource === "collars" && <><div style={note}>{tr("The ground is interpolated between the collars, not a terrain.")}</div><CollarLevelsNote collars={collars} /></>}
           {(() => { // TASKS.csv #2645 — as the Pit shell (#2435): the largest pit's ore in blocks beyond every sample informing them
             if (!(model?.params?.beyondFlagged || model?.cells?.some((c) => c.beyond))) return null;

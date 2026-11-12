@@ -10662,5 +10662,9 @@
   "its {src} was reprojected to the project's {dst}": "su {src} se reproyectó al {dst} del proyecto",
   "in {crs}, the project's coordinate system": "en {crs}, el sistema de coordenadas del proyecto",
   "its longitude / latitude (WGS 84) was reprojected to the project's {dst}": "su longitud / latitud (WGS 84) se reproyectó al {dst} del proyecto",
-  "its longitude / latitude (WGS 84) was brought into the local grid through its tie to EPSG:{tie}": "su longitud / latitud (WGS 84) se llevó a la grilla local a través de su amarre a EPSG:{tie}"
+  "its longitude / latitude (WGS 84) was brought into the local grid through its tie to EPSG:{tie}": "su longitud / latitud (WGS 84) se llevó a la grilla local a través de su amarre a EPSG:{tie}",
+  "A code's density must be above 0, or blank.": "La densidad de un código debe ser mayor que 0, o quedar en blanco.",
+  "Density by {layer}: {list}; {n} other blocks took the density above.": "Densidad por {layer}: {list}; otros {n} bloques tomaron la densidad de arriba.",
+  "Density by {layer}: {list}.": "Densidad por {layer}: {list}.",
+  "A density per code of a logged layer: each block takes the nearest logged interval within reach and that code's density, ore or waste; a block with no code, or a code with no density typed, takes the densities above.": "Una densidad por código de una capa registrada: cada bloque toma el intervalo registrado más cercano a su alcance y la densidad de ese código, mineral o estéril; un bloque sin código, o un código sin densidad escrita, toma las densidades de arriba."
 }

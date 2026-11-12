@@ -10662,5 +10662,9 @@
   "its {src} was reprojected to the project's {dst}": "أُعيد إسقاط {src} الخاص به إلى {dst} الخاص بالمشروع",
   "in {crs}, the project's coordinate system": "في {crs}، نظام إحداثيات المشروع",
   "its longitude / latitude (WGS 84) was reprojected to the project's {dst}": "أُعيد إسقاط خطوط الطول / العرض (WGS 84) الخاصة به إلى {dst} الخاص بالمشروع",
-  "its longitude / latitude (WGS 84) was brought into the local grid through its tie to EPSG:{tie}": "أُدخلت خطوط الطول / العرض (WGS 84) الخاصة به إلى الشبكة المحلية عبر ربطها بـ EPSG:{tie}"
+  "its longitude / latitude (WGS 84) was brought into the local grid through its tie to EPSG:{tie}": "أُدخلت خطوط الطول / العرض (WGS 84) الخاصة به إلى الشبكة المحلية عبر ربطها بـ EPSG:{tie}",
+  "A code's density must be above 0, or blank.": "يجب أن تكون كثافة الرمز أكبر من 0، أو فارغة.",
+  "Density by {layer}: {list}; {n} other blocks took the density above.": "الكثافة حسب {layer}: {list}؛ أخذت {n} كتلة أخرى الكثافة أعلاه.",
+  "Density by {layer}: {list}.": "الكثافة حسب {layer}: {list}.",
+  "A density per code of a logged layer: each block takes the nearest logged interval within reach and that code's density, ore or waste; a block with no code, or a code with no density typed, takes the densities above.": "كثافة لكل رمز من طبقة مسجلة: تأخذ كل كتلة أقرب فاصل مسجل ضمن المدى وكثافة ذلك الرمز، خامًا أو عقيمًا؛ والكتلة بلا رمز، أو الرمز بلا كثافة مكتوبة، تأخذ الكثافات أعلاه."
 }
