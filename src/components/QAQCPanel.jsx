@@ -7,7 +7,7 @@ import { majorOxides, MIN_MAJORS } from "../lib/oxideTotals.js"; // TASKS.csv #2
 import { X, Download } from "./icons.js";
 import { saveFile } from "../lib/desktop.js";
 import { methodPairs, labAssays } from "../lib/qaqc.js"; // TASKS.csv #2629; labAssays: #2354
-import { classifyQAQCRow, excludedQAQCIds, standardGroups, standardSeries, blankRows, duplicatePairs, duplicateSummary, DUP_RPD_LIMITS, DUP_KIND_LABELS, suggestDetectionLimit, orderForControlChart, DEFAULT_QAQC_PATTERNS } from "../lib/qaqc.js"; import { formatLimit, limitLooksConverted } from "../lib/qaqc.js";
+import { classifyQAQCRow, excludedQAQCIds, standardGroups, standardSeries, blankRows, duplicatePairs, duplicateSummary, DUP_RPD_LIMITS, DUP_KIND_LABELS, suggestDetectionLimit, methodDetectionLimits /* #2732 */, orderForControlChart, DEFAULT_QAQC_PATTERNS } from "../lib/qaqc.js"; import { formatLimit, limitLooksConverted } from "../lib/qaqc.js";
 import { stampLines, withStamp, stampEpsg } from "../lib/provenance.js"; // TASKS.csv #534 — stamped exports
 import { version as APP_VERSION } from "../../package.json";
 import { useStore } from "../lib/store.jsx"; // TASKS.csv #400 — certified values live in the project
@@ -48,6 +48,7 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
   const unitL = gradeUnitLabel(symbol, unit); // #2192 — the label on screen (g/t for a precious metal in ppm, #1680); exports keep unit
   const dl = assayElements.find((e) => e.symbol === symbol)?.detectionLimit ?? null;
   const dlSuggestion = useMemo(() => suggestDetectionLimit(labAssays(assays), symbol), [assays, symbol]); // labAssays: #2354 — a pXRF reading is not the lab's limit
+  const methodLimits = useMemo(() => methodDetectionLimits(labAssays(assays), symbol), [assays, symbol]); // #2732 — one limit per joined method column
   const setDetectionLimit = (v) => setAssayElements?.((prev) => prev.map((e) => (e.symbol === symbol ? { ...e, detectionLimit: v > 0 ? v : null } : e)));
   const [blankMult, setBlankMult] = useState(5);
   const blankLimit = dl ? blankMult * dl : blankThreshold;
@@ -144,6 +145,11 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
               <button type="button" onClick={() => setDetectionLimit(dlSuggestion.limit)} style={{ ...tabBtn, alignSelf: "flex-end" }} title={dlSuggestion.basis === "lt" ? (limitLooksConverted(dlSuggestion.limit) /* #2503 */ ? tr("{n} result(s) are '<' at {limit}: not a round figure, so it was converted at import (from another unit or an oxide); the lab's own limit is the round figure in the source file", { n: dlSuggestion.n, limit: formatLimit(dlSuggestion.limit) }) : tr("The lab reported {n} result(s) as '<{limit}'", { n: dlSuggestion.n, limit: formatLimit(dlSuggestion.limit) })) : tr("No '<x' results: the lowest reported value (an upper bound on the limit)")}>
                 {dlSuggestion.basis === "lt" ? (limitLooksConverted(dlSuggestion.limit) ? tr("Use <{limit} (the '<' results, converted at import)", { limit: formatLimit(dlSuggestion.limit) }) : tr("Use the lab's <{limit}", { limit: formatLimit(dlSuggestion.limit) })) : dlSuggestion.basis === "floor" ? tr("Use {limit}: twice the {floor} floor that {pct} % of the results sit on (half the limit substituted before import)", { limit: formatLimit(dlSuggestion.limit), floor: formatLimit(dlSuggestion.floor), pct: Math.round(dlSuggestion.share * 100) }) : tr("Use the lowest value {limit}", { limit: formatLimit(dlSuggestion.limit) })}
               </button>
+            )}
+            {methodLimits.length > 1 && new Set(methodLimits.map((m) => m.limit)).size > 1 && ( /* TASKS.csv #2732 */
+              <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", lineHeight: 1.4, maxWidth: 520 }}>
+                {tr("{symbol} was joined from {n} method columns whose detection limits differ: {list}. One limit for all of them judges some samples against another method's.", { symbol, n: methodLimits.length, list: methodLimits.map((m) => `${m.method ?? tr("main column")} (${m.n.toLocaleString()}): ${m.limit == null ? "—" : formatLimit(m.limit)}`).join("; ") })}
+              </div>
             )}
             <div style={{ display: "flex", gap: 4 }}>
               {tabs.map((t) => (

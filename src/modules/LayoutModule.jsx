@@ -3,7 +3,7 @@ import { customLegendGroups } from "../lib/customColour.js"; // TASKS.csv #2472
 import { Ribbon, RibbonGroup, RibbonButton } from "../components/Ribbon.jsx"; // TASKS.csv #458
 import { confirmDestructive } from "../lib/confirmDestructive.js"; // TASKS.csv #386
 import { MapPinned, Plus, X, Maximize2, Sheet, Image as ImageIcon, Type, Compass, Ruler, FileDown, MonitorPlay, RefreshCw, Grid3x3, Trash2, Square, ArrowUpRight, Pencil, MessageSquare, Save, FolderOpen, LogIn, Bold, Italic, AlignLeft, AlignCenter, AlignRight, Camera, LayoutGrid, Lock, LayoutTemplate, Download, Upload, HardDrive } from "../components/icons.js";
-import { newTitleBlock, STOCK_TEMPLATES, stockTemplateElements, templateFile, parseTemplateFile, templateElements } from "../lib/layoutTitleBlock.js"; // TASKS.csv #1868; templateElements: #1487
+import { newTitleBlock, STOCK_TEMPLATES, stockTemplateElements, templateFile, parseTemplateFile, templateElements, refitStockTemplate } from "../lib/layoutTitleBlock.js"; // refitStockTemplate: #2312; // TASKS.csv #1868; templateElements: #1487
 import ComputerTemplates from "../components/ComputerTemplates.jsx"; // TASKS.csv #1487
 import { keepTemplateOnComputer } from "../lib/computerTemplates.js"; // TASKS.csv #1487
 import { hasComputerTemplates } from "../lib/desktop.js"; // TASKS.csv #1487
@@ -253,6 +253,15 @@ export default function LayoutModule() {
   // right under the button; cleared when selection changes so a stale message from a different element
   // doesn't linger.
   const [syncNotice, setSyncNotice] = useState("");
+  // TASKS.csv #2312 — a new paper size or orientation lays a starter template out again (its frame, title, title block and north arrow),
+  // and says so; other elements stay where they were (the export's past-the-edge check names any left outside)
+  const [formatNote, setFormatNote] = useState("");
+  const changePageFormat = (f) => {
+    const r = refitStockTemplate(elements, f);
+    setLayoutPageFormat(activeLayoutPageId, f);
+    if (r.refitted) setElements(r.elements);
+    setFormatNote(r.refitted ? tr("The starter template's frame, title, title block and north arrow were laid out again for the new paper; the other elements stay where they were.") : "");
+  };
   const [sidebarWidth, setSidebarWidth] = useSidebarWidth();
   const dragState = useRef(null);
   const pageRef = useRef(null);
@@ -1630,7 +1639,7 @@ export default function LayoutModule() {
           {/* TASKS.csv #398 — paper size / orientation of this page (also used for its PDF export). */}
           <select
             value={pageFormat.size}
-            onChange={(e) => setLayoutPageFormat(activeLayoutPageId, { ...pageFormat, size: e.target.value })}
+            onChange={(e) => changePageFormat({ ...pageFormat, size: e.target.value }) /* #2312 */}
             aria-label={tr("Paper size")} title={tr("Paper size of this page (also used for its PDF export)")}
             style={{ height: 22, marginBottom: 2, marginLeft: 8, fontSize: "var(--font-size-sm)", border: "1px solid var(--color-border)", borderRadius: 5, background: "var(--color-bg)", color: "var(--color-text)" }}
           >
@@ -1638,13 +1647,14 @@ export default function LayoutModule() {
           </select>
           <select
             value={pageFormat.orientation}
-            onChange={(e) => setLayoutPageFormat(activeLayoutPageId, { ...pageFormat, orientation: e.target.value })}
+            onChange={(e) => changePageFormat({ ...pageFormat, orientation: e.target.value }) /* #2312 */}
             aria-label={tr("Orientation")} title={tr("Page orientation")}
             style={{ height: 22, marginBottom: 2, marginLeft: 4, fontSize: "var(--font-size-sm)", border: "1px solid var(--color-border)", borderRadius: 5, background: "var(--color-bg)", color: "var(--color-text)" }}
           >
             <option value="landscape">{tr("Landscape")}</option>
             <option value="portrait">{tr("Portrait")}</option>
           </select>
+          {formatNote && <span role="status" style={{ marginLeft: 8, fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", maxWidth: 360, lineHeight: 1.3 }}>{formatNote} <button type="button" onClick={() => setFormatNote("")} aria-label={tr("Dismiss")} style={{ border: "none", background: "none", cursor: "pointer", color: "inherit", padding: 0 }}>×</button></span>}{/* #2312 */}
           {/* TASKS.csv #909 — canvas zoom and the PNG export's resolution */}
           <select value={zoomChoice} onChange={(e) => setZoom(e.target.value)} aria-label={tr("Zoom")} title={tr("Zoom of the sheet on screen (the paper size does not change)")}
             style={{ height: 22, marginBottom: 2, marginLeft: 8, fontSize: "var(--font-size-sm)", border: "1px solid var(--color-border)", borderRadius: 5, background: "var(--color-bg)", color: "var(--color-text)" }}>

@@ -46,6 +46,29 @@ export function stockTemplateElements(tpl, stamp = Date.now()) {
   return els;
 }
 
+// TASKS.csv #2312 (review #2174) — a page made from a starter template, then switched to another paper size or orientation, kept the
+// template's neatline, title block and north arrow at their old places (an A4 frame in the top of an A3 portrait sheet). The starter
+// elements are known by their ids (kind_<stamp>_<plan|section>); they are laid out again for the new format (place and size only: the
+// title's text, the title block's rows and every other element stay as they are). -> { elements, refitted } (refitted: how many moved)
+const STOCK_ID = /^(rect|text|titleblock|north)_(\d+)_(plan|section)$/;
+export function refitStockTemplate(elements, format) {
+  const hit = (elements || []).map((el) => STOCK_ID.exec(String(el?.id || ""))).find(Boolean);
+  if (!hit) return { elements, refitted: 0 };
+  const [, , stamp, kind] = hit;
+  const fresh = new Map(stockTemplateElements({ format, kind }, stamp).map((el) => [el.id, el]));
+  let refitted = 0;
+  const out = (elements || []).map((el) => {
+    const f = fresh.get(el.id);
+    if (!f) return el;
+    refitted++;
+    const geo = { x: f.x, y: f.y };
+    if (f.w != null) geo.w = f.w;
+    if (f.h != null) geo.h = f.h;
+    return { ...el, ...geo };
+  });
+  return { elements: out, refitted };
+}
+
 // A template as a file: { geostrixLayoutTemplate: 1, name, format, elements }.
 export function templateFile(tpl) {
   return JSON.stringify({ geostrixLayoutTemplate: 1, name: tpl.name, format: tpl.format || null, elements: tpl.elements }, null, 1);

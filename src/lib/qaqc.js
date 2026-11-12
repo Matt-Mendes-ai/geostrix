@@ -298,6 +298,22 @@ export function censoringFloor(values, { minShare = 0.05 } = {}) {
   for (const v of values) if (typeof v === "number" && Math.abs(v - min) <= min * 1e-9) n++;
   return n >= 20 && n / nPos >= minShare ? { floor: min, n, share: n / nPos, dl: Math.round(min * 2 * 1e9) / 1e9 } : null;
 }
+// TASKS.csv #2732 (split from #2354) — an element joined from several lab method columns (#2328: U from U_102, else U_100, U_101 …) has
+// one detection limit per method, and one limit for all judged some samples against another method's. The samples grouped by the
+// column their value came from (valueSources, kept since #542 / #2328; none = the element's main column), each with its suggested
+// limit. -> [{ method (header or null), n, limit, basis }] sorted by n; empty when every value comes from one column
+export function methodDetectionLimits(assays, symbol) {
+  const groups = new Map();
+  for (const a of assays || []) {
+    if (a?.values?.[symbol] == null) continue;
+    const m = a.valueSources?.[symbol] ?? null;
+    let g = groups.get(m);
+    if (!g) groups.set(m, (g = []));
+    g.push(a);
+  }
+  if (groups.size < 2) return [];
+  return [...groups].map(([method, rows]) => { const s = suggestDetectionLimit(rows, symbol); return { method, n: rows.length, limit: s.limit ?? null, basis: s.basis ?? null }; }).sort((a, b) => b.n - a.n);
+}
 export function suggestDetectionLimit(assays, symbol) {
   const counts = new Map();
   let minPos = Infinity;
