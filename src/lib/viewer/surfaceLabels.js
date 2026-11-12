@@ -14,7 +14,7 @@ const metres = (v) => (Number.isFinite(Number(v)) ? String(Math.round(Number(v) 
 const SETTINGS = [
   [(p) => p.sourceLayer, (v) => (v == null ? null : tr("from {v}", { v }))],
   [(p) => p.searchRadiusM, (v) => (v == null ? null : tr("{v} m search", { v: metres(v) }))],
-  [(p) => p.cellSizeM, (v) => (v == null ? null : tr("{v} m cells", { v: metres(v) }))],
+  [(p) => p.cellAlongTrendM || p.cellSizeM, (v) => (v == null ? null : Array.isArray(v) ? tr("cells of about {v} m along the trend", { v: v.map(metres).join(" × ") }) : tr("{v} m cells", { v: metres(v) }))], // along the trend: #3010
   [(p) => (p.anisotropy === undefined ? undefined : p.anisotropy?.trend ?? null), (v) => (v == null ? tr("no trend") : tr("trend {v}", { v }))],
   [(p) => p.domain, (v) => (v == null ? tr("no domain") : tr("domain {v}", { v }))],
   [(p) => (p.interceptSet === undefined ? undefined : p.interceptSet?.name ?? null), (v) => (v == null ? null : tr("intercept set {v}", { v }))],

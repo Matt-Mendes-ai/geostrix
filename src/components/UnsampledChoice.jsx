@@ -3,7 +3,7 @@
 // closing (the Grade shell's settings are rendered by ModellingPanes and read by modellingRuns, with no ViewerModule state).
 import React, { useMemo, useSyncExternalStore } from "react";
 import { t as tr } from "../lib/i18n.js";
-import { sampledShare, fillUnsampled, fillFromLog, logFactorOffer, unsampledReady, defaultUnsampledMode, ASK_BELOW_SHARE, unassayedHoles, loggedEndsOf } from "../lib/unsampledFill.js"; // unassayedHoles, loggedEndsOf: #2736 // fillFromLog / logFactorOffer: #2721
+import { coverageSummary, sampledShare, fillUnsampled, fillFromLog, logFactorOffer, unsampledReady, defaultUnsampledMode, ASK_BELOW_SHARE, loggedEndsOf } from "../lib/unsampledFill.js"; // loggedEndsOf: #2736 (unassayedHoles: through coverageSummary, #3007) // fillFromLog / logFactorOffer: #2721
 import { numericSourceChoices, findNumericSource, sourceAssays } from "../lib/numericSources.js"; // TASKS.csv #2721 — the logs a user may pick
 import { restrictRowsToHoles } from "../lib/modelArea.js";
 import { excludeQAQC } from "../lib/qaqc.js";
@@ -45,10 +45,12 @@ export function resolveUnsampled(tool, { assays, collars, symbol, unit, elementU
 
 export function useUnsampled(tool, { assays, collars, symbol, unit, elementUnits, layers = null, customLayers = null }) {
   useSyncExternalStore(subscribe, getVersion);
-  const info = useMemo(() => sampledShare(assays, collars, symbol, unit, elementUnits), [assays, collars, symbol, unit, elementUnits]);
+  // TASKS.csv #3007 — the share and the never-assayed holes from one coverage pass (was two over every assay)
+  const cov = useMemo(() => coverageSummary(assays, collars, symbol, unit, elementUnits, { loggedEnds: layers ? loggedEndsOf(layers) : null }), [assays, collars, symbol, unit, elementUnits, layers]);
+  const info = cov.info;
   const logCtx = useMemo(() => (layers || customLayers ? { layers, customLayers } : null), [layers, customLayers]); // #2721
   const logChoices = useMemo(() => (logCtx ? numericSourceChoices({ ...logCtx, models: false }) : []), [logCtx]);
-  const unassayed = useMemo(() => unassayedHoles(assays, collars, symbol, unit, elementUnits, { loggedEnds: layers ? loggedEndsOf(layers) : null }), [assays, collars, symbol, unit, elementUnits, layers]); // #2736
+  const unassayed = cov.unassayed; // #2736; one pass with the share: #3007
   return { ...resolveUnsampled(tool, { assays, collars, symbol, unit, elementUnits, info, logCtx }), set: (patch) => setUnsampledChoice(tool, symbol, patch), symbol, unit, logChoices, unassayed };
 }
 

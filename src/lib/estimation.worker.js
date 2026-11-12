@@ -5,9 +5,11 @@
 // the worker. A dense grid's typed arrays are transferred, not copied.
 import { estimateBlockModel, estimateDenseGrid } from "./estimation.js";
 import { columnBuffers } from "./estimationCells.js"; // #661
+import { unpackPoints } from "./pointColumns.js"; // TASKS.csv #3008
 
 self.onmessage = (e) => {
-  const { kind, points, opts } = e.data || {};
+  const { kind, opts } = e.data || {};
+  const points = e.data?.packed ? unpackPoints(e.data.packed) : e.data?.points; // #3008 — columns from the UI thread
   try {
     let last = 0;
     const onProgress = (fraction) => {

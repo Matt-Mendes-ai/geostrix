@@ -18,7 +18,7 @@ import { useStore } from "../lib/store.jsx"; // TASKS.csv #1216
 import { isMeshClosed } from "../lib/meshQuery.js"; // TASKS.csv #2061
 import { version as APP_VERSION } from "../../package.json";
 import { gradeUnitLabel } from "../lib/geochem.js"; // TASKS.csv #2218
-import { nearestCodeLookup, densityByCode, intervalCodePoints } from "../lib/densityByCode.js"; // TASKS.csv #2550
+import { nearestCodeLookup, densityByCode, intervalCodePoints, codesByMetres } from "../lib/densityByCode.js"; // TASKS.csv #2550; codesByMetres: #3013
 import { desurveyHole } from "../lib/desurvey.js"; // TASKS.csv #2550 — the code intervals placed in 3D
 
 const fmt = (v, d = 0) => (v == null || !Number.isFinite(v) ? "—" : v.toLocaleString(undefined, { maximumFractionDigits: d }));
@@ -63,7 +63,11 @@ export default function GradeTonnageModal({ model, epsg, onClose }) {
   const codeLayers = useMemo(() => ["weath", "litho", "alt"].filter((k) => (layers?.[k] || []).some((r) => r.value != null && String(r.value).trim() !== "")), [layers]);
   const [densityLayer, setDensityLayer] = useState("");
   const [codeDensity, setCodeDensity] = useState({});
-  const layerCodes = useMemo(() => (densityLayer ? [...new Set((layers?.[densityLayer] || []).map((r) => String(r.value ?? "").trim()).filter(Boolean))].sort().slice(0, 30) : []), [densityLayer, layers]);
+  // TASKS.csv #3013 (WA iron review) — the first 30 codes by NAME had boxes: SC, SNAM, SONAM and TNAM (the second ore strand) took the default
+  // without a word. All the layer's codes now, those the blocks take first (most blocks first), then the rest by logged metres (#2993's order);
+  // 30 shown until 'Show all'
+  const [allCodes, setAllCodes] = useState(false);
+  const layerCodesAll = useMemo(() => (densityLayer ? codesByMetres(layers?.[densityLayer] || []).map((c) => c.code) : []), [densityLayer, layers]);
   const cellMax = useMemo(() => model.cells.reduce((m, c) => Math.max(m, c.dx || 0, c.dy || 0, c.dz || 0), 0), [model.cells]);
   const reachM = Math.max(50, 3 * cellMax);
   const codeOf = useMemo(() => {
@@ -82,6 +86,10 @@ export default function GradeTonnageModal({ model, epsg, onClose }) {
     return nearestCodeLookup(pts, reachM);
   }, [densityLayer, layers, collars, survey, desurveyMethod, cellMax, reachM]);
   const byCode = useMemo(() => (codeOf ? densityByCode(codeOf, codeDensity, rho) : null), [codeOf, codeDensity, rho]);
+  const blockCodes = useMemo(() => { if (!codeOf) return new Map(); const m = new Map(); for (const c of cellsUsed) { const code = codeOf(c); if (code != null) m.set(code, (m.get(code) || 0) + 1); } return m; }, [codeOf, cellsUsed]); // #3013
+  const layerCodesOrdered = useMemo(() => [...[...blockCodes].sort((a, b) => b[1] - a[1]).map(([c]) => c), ...layerCodesAll.filter((c) => !blockCodes.has(c))], [blockCodes, layerCodesAll]);
+  const layerCodes = allCodes ? layerCodesOrdered : layerCodesOrdered.slice(0, 30);
+  const untypedCodes = useMemo(() => [...blockCodes].filter(([c]) => !(Number(codeDensity[c]) > 0)).sort((a, b) => b[1] - a[1]), [blockCodes, codeDensity]); // #3013 — named under the table
   // the blocks per density, for the line under the table (counted here, not inside the table's sums, so a cutoff change does not add up)
   const densityUse = useMemo(() => {
     if (!codeOf) return null;
@@ -140,7 +148,8 @@ export default function GradeTonnageModal({ model, epsg, onClose }) {
         </div>
         {densityLayer && layerCodes.length > 0 && (
           <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 12px", marginBottom: 8, fontSize: "var(--font-size-sm)" }}>{/* #2550 */}
-            {layerCodes.map((code) => <label key={code} style={{ display: "flex", alignItems: "center", gap: 4 }}>{code}<input type="number" min={0} step={0.01} value={codeDensity[code] ?? ""} placeholder={density || tr("default")} onChange={(e) => setCodeDensity((p) => ({ ...p, [code]: e.target.value }))} aria-label={tr("Density of {code} (t/m³)", { code })} style={{ ...inp, width: 70 }} /></label>)}
+            {layerCodes.map((code) => <label key={code} title={blockCodes.has(code) ? tr("{n} block(s) of this model take this code", { n: blockCodes.get(code).toLocaleString() }) : tr("No block of this model takes this code")} style={{ display: "flex", alignItems: "center", gap: 4 }}>{code}<input type="number" min={0} step={0.01} value={codeDensity[code] ?? ""} placeholder={density || tr("default")} onChange={(e) => setCodeDensity((p) => ({ ...p, [code]: e.target.value }))} aria-label={tr("Density of {code} (t/m³)", { code })} style={{ ...inp, width: 70 }} /></label>)}
+            {layerCodesOrdered.length > 30 && <button type="button" onClick={() => setAllCodes((v) => !v)} style={{ ...inp, width: "auto", cursor: "pointer" }}>{allCodes ? tr("Show the first 30") : tr("Show all {n}", { n: layerCodesOrdered.length })}</button>}{/* #3013 */}
           </div>
         )}
         {/* TASKS.csv #1949 — inside a closed solid; #1957 — bench by bench */}
@@ -191,6 +200,7 @@ export default function GradeTonnageModal({ model, epsg, onClose }) {
               {logKnown && <td style={td}>{r.logShare == null ? "—" : `${Math.round(r.logShare * 100)} %`}</td>}{/* #2721 */}
             </tr>))}</tbody>
         </table>
+        {untypedCodes.length > 0 && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", marginBottom: 6, lineHeight: 1.5 }}>{/* #3013 */}{(() => { const list = untypedCodes.slice(0, 12).map(([c, n]) => tr("{code} ({n} blocks)", { code: c, n: n.toLocaleString() })).join(", ") + (untypedCodes.length > 12 ? ", …" : ""); return rho ? tr("No density typed for {list}: their blocks take the default ({rho} t/m³).", { list, rho }) : tr("No density typed for {list}: with no default density typed, their blocks have a volume but no tonnes.", { list }); })()}</div>}
         {densityUse && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 6, lineHeight: 1.5 }}>{/* #2550 */}{tr("Density by {layer}, the nearest logged interval within {r} m: {list}.", { layer: densityLayer === "weath" ? tr("Weathering") : densityLayer === "litho" ? tr("Lithology") : tr("Alteration"), r: Math.round(reachM), list: densityUse.map((d) => tr("{code} {rho} t/m³ ({n} blocks)", { code: d.code ?? tr("the default"), rho: d.rho ?? "—", n: d.n })).join("; ") })}{byBench ? " " + tr("The bench table uses the one density above.") : ""}{!rho ? " " + tr("Enter the default density to show the tonnes.") : ""}</div>}
         {beyondKnown && shown?.beyondShare > 0.1 && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", marginBottom: 6, lineHeight: 1.5 }}>{tr("{p} % of the metal at the {c} cutoff is in blocks above or below every sample that informs them: the estimate carried grade up or down the holes past their samples (unsampled core reads as not known unless the estimate filled it).", { p: Math.round(shown.beyondShare * 100), c: sig(shown.cutoff) })}</div>}
         {hasSupport && <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", marginBottom: 6 }}><input type="checkbox" checked={interpOnly} onChange={(e) => setInterpOnly(e.target.checked)} />{tr("Only blocks classed interpolated")}</label>}

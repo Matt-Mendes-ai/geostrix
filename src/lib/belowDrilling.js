@@ -13,15 +13,17 @@ export function belowDrilling(cells, points, radiusM) {
   for (const b of deepest.values()) { const k = key(Math.floor(b.x / R), Math.floor(b.y / R)); if (!bins.has(k)) bins.set(k, []); bins.get(k).push(b); }
   // #2547 — blocks of one column share their plan position: the lowest deepest-sample within R is found once per column (33 levels on the
   // profiled run), with squared distances
+  // TASKS.csv #3008 — the column cache keyed by x then y (numbers), not a string per block (0.46 s over 627,000 blocks)
   const R2 = R * R, colLow = new Map();
   const lowAt = (x, y) => {
-    const ck = `${x}|${y}`;
-    let low = colLow.get(ck);
+    let byY = colLow.get(x);
+    if (!byY) colLow.set(x, (byY = new Map()));
+    let low = byY.get(y);
     if (low !== undefined) return low;
     low = Infinity;
     const i0 = Math.floor(x / R), j0 = Math.floor(y / R);
     for (let i = i0 - 1; i <= i0 + 1; i++) for (let j = j0 - 1; j <= j0 + 1; j++) for (const b of bins.get(key(i, j)) || []) { const ddx = b.x - x, ddy = b.y - y; if (ddx * ddx + ddy * ddy <= R2 && b.z < low) low = b.z; }
-    colLow.set(ck, low);
+    byY.set(y, low);
     return low;
   };
   let blocks = 0, all = 0, below = 0;

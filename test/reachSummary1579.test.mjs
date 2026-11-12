@@ -59,7 +59,7 @@ test("wired: the worker, the counting state, the remembered settings, the sample
   assert.ok(m.includes('import { makeReachClient } from "../lib/blockReachClient.js";') && !m.includes("blockReach(reachPts"));
   assert.ok(m.includes("disabled={!bounds || overLimit || reachPending || running || !symbol || !uns.ready /* #2417 */}"));
   assert.ok(m.includes('tr(", counting the blocks within {r} m of the drilling…", { r: reachRadius })'));
-  assert.ok(read("src/lib/blockReach.worker.js").includes("reachSummary(reachArgsWithSolid(args))")); // #2422: a restricting solid is clipped first
+  assert.ok(/reachSummary\(reachArgsWithSolid\((args|a)\)\)/.test(read("src/lib/blockReach.worker.js"))); // #2422: a restricting solid is clipped first; a: the kept traces put back, #3007
   assert.ok(m.includes("lastEstimateSettings.set(settingsKey, remember.current)") && m.includes('const [method, setMethod] = useState(() => keep("method", "idw2"));'));
   assert.ok(m.includes('const [capValue, setCapValue] = useState(() => (sameElement ? keep("capValue", NaN) : NaN));'), "a cap belongs to its element");
   assert.ok(m.includes("composited={result.params.composited !== false}"));

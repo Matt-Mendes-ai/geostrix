@@ -453,6 +453,32 @@ export function groupPointsByDomain(points) {
 // TASKS.csv #1027 (review #1016, resource geologist) — a seeded random subsample (the same points every run). A stride
 // through composites stored hole by hole, down the hole, picks every k-th composite of the same hole (k = n / max), so a
 // "nearest neighbour" measured on it was the downhole spacing times k: the lag grew with the number of holes loaded.
+// TASKS.csv #3009 (WA iron review) — each query point's nearest accepted point among `pts`, by rings of a plan grid (a hole's composites
+// share a column, so a 2D grid holds them together; the 3D distance is checked, and a ring is only searched while it can still be nearer):
+// the same distances as the 600 x n scan, which took 2.9 s on the main thread on 147,000 composites. accept(a, b, d2) -> boolean.
+// -> the distances found (unsorted)
+export function nearestAmong(queries, pts, accept) {
+  if (!pts.length || !queries.length) return [];
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const p of pts) { if (p.x < x0) x0 = p.x; if (p.x > x1) x1 = p.x; if (p.y < y0) y0 = p.y; if (p.y > y1) y1 = p.y; }
+  const cell = Math.max(1e-6, Math.sqrt(Math.max(1, (x1 - x0) * (y1 - y0)) / pts.length) * 4);
+  const key = (i, j) => i * 67108864 + j, grid = new Map();
+  for (const p of pts) { const k = key(Math.floor((p.x - x0) / cell), Math.floor((p.y - y0) / cell)); const l = grid.get(k); if (l) l.push(p); else grid.set(k, [p]); }
+  const span = Math.ceil(Math.max(x1 - x0, y1 - y0) / cell) + 2, out = [];
+  for (const a of queries) {
+    const i0 = Math.floor((a.x - x0) / cell), j0 = Math.floor((a.y - y0) / cell);
+    let best = Infinity;
+    const visit = (i, j) => { const l = grid.get(key(i, j)); if (!l) return; for (const b of l) { const dx = b.x - a.x, dy = b.y - a.y, dz = b.z - a.z, d2 = dx * dx + dy * dy + dz * dz; if (d2 < best && accept(a, b, d2)) best = d2; } };
+    for (let r = 0; r <= span; r++) {
+      if (r === 0) visit(i0, j0);
+      else { for (let d = -r; d <= r; d++) { visit(i0 + d, j0 - r); visit(i0 + d, j0 + r); } for (let d = -r + 1; d <= r - 1; d++) { visit(i0 - r, j0 + d); visit(i0 + r, j0 + d); } }
+      if (best <= (r * cell) ** 2) break; // a point in a farther ring is more than r cells away in plan
+    }
+    if (best < Infinity) out.push(Math.sqrt(best));
+  }
+  return out;
+}
+
 function randomSubsample(points, maxPoints, seed = 1) {
   if (points.length <= maxPoints) return points;
   const idx = Uint32Array.from(points, (_, i) => i);
@@ -471,16 +497,7 @@ function randomSubsample(points, maxPoints, seed = 1) {
 export function suggestBetweenHoleLag(points) {
   const pts = (points || []).filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y) && Number.isFinite(p.z) && p.hole_id != null);
   if (new Set(pts.map((p) => p.hole_id)).size < 2) return null;
-  const nn = [];
-  for (const a of randomSubsample(pts, 600)) {
-    let best = Infinity;
-    for (const b of pts) {
-      if (b.hole_id === a.hole_id) continue;
-      const dx = b.x - a.x, dy = b.y - a.y, dz = b.z - a.z, d2 = dx * dx + dy * dy + dz * dz;
-      if (d2 < best) best = d2;
-    }
-    if (best < Infinity) nn.push(Math.sqrt(best));
-  }
+  const nn = nearestAmong(randomSubsample(pts, 600), pts, (a, b) => b.hole_id !== a.hole_id); // #3009 — grid-searched, the same distances
   if (!nn.length) return null;
   nn.sort((a, b) => a - b);
   return nn[Math.floor(nn.length / 2)];
@@ -507,17 +524,7 @@ export function suggestLagDistance(points) {
   if (pts.length < 2) return null;
   // #1027 — a random 600 of the points, each one's nearest neighbour among ALL the points (600 x n): the median of a
   // stride subsample's own neighbours was a multiple of the real spacing that grew with n
-  const sub = randomSubsample(pts, 600);
-  const nn = [];
-  for (let i = 0; i < sub.length; i++) {
-    let best = Infinity;
-    for (let j = 0; j < pts.length; j++) {
-      const dx = pts[j].x - sub[i].x, dy = pts[j].y - sub[i].y, dz = pts[j].z - sub[i].z;
-      const d2 = dx * dx + dy * dy + dz * dz;
-      if (d2 > 0 && d2 < best) best = d2;
-    }
-    if (best < Infinity) nn.push(Math.sqrt(best));
-  }
+  const nn = nearestAmong(randomSubsample(pts, 600), pts, (a, b, d2) => d2 > 0); // #3009 — grid-searched, the same distances
   if (!nn.length) return null;
   nn.sort((a, b) => a - b);
   return nn[Math.floor(nn.length / 2)];

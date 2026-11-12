@@ -5,16 +5,25 @@ import { reachArgsWithSolid } from "./reachSolid.js"; // TASKS.csv #2422
 
 export function makeReachClient() {
   let worker = null, nextId = 0, sentSolid = null; // sentSolid: the key of the solid mesh this worker already holds (#2422)
+  let sentTraces = null, tracesSeq = 0; const tracesIds = new WeakMap(); // #3007 — the traces array the worker holds, by identity
   const pending = new Map(), newest = new Map(); // newest: channel -> id of its latest request (#2636)
   const start = () => {
     if (worker || typeof Worker === "undefined") return worker;
     try { worker = new Worker(new URL("./blockReach.worker.js", import.meta.url), { type: "module" }); } catch { worker = null; return null; }
     worker.onmessage = (e) => { const p = pending.get(e.data.id); if (!p) return; pending.delete(e.data.id); if (e.data.failed) p.reject(new Error(e.data.failed)); else p.resolve(e.data.result); };
-    worker.onerror = (e) => { e.preventDefault?.(); const all = [...pending.values()]; pending.clear(); worker?.terminate(); worker = null; sentSolid = null; all.forEach((p) => { try { p.resolve(reachSummary(reachArgsWithSolid(p.args))); } catch (err) { p.reject(err); } }); };
+    worker.onerror = (e) => { e.preventDefault?.(); const all = [...pending.values()]; pending.clear(); worker?.terminate(); worker = null; sentSolid = null; sentTraces = null; all.forEach((p) => { try { p.resolve(reachSummary(reachArgsWithSolid(p.args))); } catch (err) { p.reject(err); } }); };
     return worker;
   };
   // #2422 — a restricting solid's mesh goes to the worker once per solid; later requests name it by key (the worker keeps the last)
   const lean = (args) => { if (!args?.solid) return args; if (sentSolid === args.solid.key) return { ...args, solid: { key: args.solid.key } }; sentSolid = args.solid.key; return args; };
+  // TASKS.csv #3007 — the traces likewise: sent with the first request that has them (and after a restart), then named by key
+  const leanTraces = (args) => {
+    if (!Array.isArray(args?.traces)) return args;
+    if (!tracesIds.has(args.traces)) tracesIds.set(args.traces, ++tracesSeq);
+    const key = tracesIds.get(args.traces);
+    if (sentTraces === key) return { ...args, traces: null, tracesKey: key };
+    sentTraces = key; return { ...args, tracesKey: key };
+  };
   return {
     // -> Promise of reachSummary's result; `latest()` says whether this is still the newest request OF ITS CHANNEL when it resolves.
     // TASKS.csv #2636 — one counter for every request made the dialog's 10 m cell-fit request (#1570) supersede the block count sent
@@ -24,9 +33,9 @@ export function makeReachClient() {
       const id = ++nextId;
       newest.set(channel, id);
       const w = start();
-      const promise = w ? new Promise((resolve, reject) => { pending.set(id, { resolve, reject, args }); w.postMessage({ id, args: lean(args) }); }) : new Promise((resolve) => resolve(reachSummary(reachArgsWithSolid(args))));
+      const promise = w ? new Promise((resolve, reject) => { pending.set(id, { resolve, reject, args }); w.postMessage({ id, args: leanTraces(lean(args)) }); }) : new Promise((resolve) => resolve(reachSummary(reachArgsWithSolid(args))));
       return { promise, latest: () => newest.get(channel) === id };
     },
-    stop() { worker?.terminate(); worker = null; sentSolid = null; pending.clear(); },
+    stop() { worker?.terminate(); worker = null; sentSolid = null; sentTraces = null; pending.clear(); },
   };
 }

@@ -18,8 +18,26 @@ function joined(cells, nnCells) {
   const idx = (c) => {
     const i = Math.round((c.x - o.x) / o.dx), j = Math.round((c.y - o.y) / o.dy), k = Math.round((c.z - o.z) / o.dz);
     if (Math.abs(c.x - o.x - i * o.dx) > 1e-3 || Math.abs(c.y - o.y - j * o.dy) > 1e-3 || Math.abs(c.z - o.z - k * o.dz) > 1e-3 || Math.abs(i) > 99999 || Math.abs(j) > 99999 || Math.abs(k) > 99999) return null;
-    return ((i + 100000) * 200001 + (j + 100000)) * 200001 + (k + 100000);
+    return ((k + 100000) * 200001 + (j + 100000)) * 200001 + (i + 100000); // z, then y, then x: the estimator's own loop order (#3008)
   };
+  // TASKS.csv #3008 (WA iron review) — both models come from the same z / y / x loop (the NN pass is a second run over the same grid), so
+  // their blocks are already in ascending lattice order: a merge in one pass, no Map of 627,000 keys (1.0 s on the main thread after a
+  // whole-field run). Any block off the lattice, or out of order, falls back to the Map join below.
+  if (ok) {
+    const keysOf = (arr) => { const out = new Float64Array(arr.length); let last = -Infinity; for (let q = 0; q < arr.length; q++) { const c = arr[q]; if (!Number.isFinite(c.value)) { out[q] = NaN; continue; } const k = idx(c); if (k == null || k <= last) return null; out[q] = last = k; } return out; };
+    const ka = keysOf(cells), kb = ka && keysOf(nnCells);
+    if (ka && kb) {
+      const pairs = [];
+      let b = 0;
+      for (let a = 0; a < cells.length; a++) {
+        const k = ka[a]; if (k !== k) continue; // NaN: no value
+        while (b < nnCells.length && !(kb[b] >= k)) b++; // NaN entries are skipped too
+        if (b < nnCells.length && kb[b] === k) pairs.push([cells[a], nnCells[b].value]);
+      }
+      joinCache.set(cells, { nn: nnCells, pairs });
+      return pairs;
+    }
+  }
   const nnBy = new Map();
   let lattice = ok;
   if (lattice) for (const c of nnCells) { if (!Number.isFinite(c.value)) continue; const k = idx(c); if (k == null) { lattice = false; break; } nnBy.set(k, c.value); }

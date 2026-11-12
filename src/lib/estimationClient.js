@@ -1,4 +1,5 @@
 import { cellsFromColumns } from "./estimationCells.js"; // TASKS.csv #661
+import { packPoints } from "./pointColumns.js"; // TASKS.csv #3008 — the points as columns, not 147,000 cloned objects
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 // TASKS.csv #520 — UI-thread side of estimation.worker.js. runEstimation("block" | "dense", points, opts,
 // { onProgress(fraction), signal }) resolves with exactly what estimateBlockModel / estimateDenseGrid return.
@@ -41,6 +42,6 @@ export function runEstimation(kind, points, opts, { onProgress, signal } = {}) {
       settled = true; worker.terminate(); signal?.removeEventListener?.("abort", onAbort);
       inline();
     };
-    worker.postMessage({ kind, points, opts });
+    worker.postMessage({ kind, packed: packPoints(points), opts }); // #3008
   });
 }

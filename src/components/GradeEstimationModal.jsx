@@ -156,20 +156,20 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
     const byHole = new Map();
     survey.forEach((s) => { if (!byHole.has(s.hole_id)) byHole.set(s.hole_id, []); byHole.get(s.hole_id).push(s); });
     let xmin = Infinity, ymin = Infinity, zmin = Infinity, xmax = -Infinity, ymax = -Infinity, zmax = -Infinity, holes = 0;
-    const traces = []; // TASKS.csv #1416 — for the blocks within reach of the drilling
+    const traces = [], traceOf = new Map(); // TASKS.csv #1416 — for the blocks within reach of the drilling; traceOf: hole -> trace, reused by the run (#3008)
     for (const c of collars) {
       if (assayed.size && !assayed.has(c.hole_id)) continue;
       let trace = [];
       try { trace = desurveyHole(c, byHole.get(c.hole_id) || [], desurveyMethod) || []; } catch { trace = []; }
       if (!trace.length) continue;
-      traces.push(trace);
+      traces.push(trace); traceOf.set(c.hole_id, trace);
       holes++;
       for (const p of trace) {
         if (p.x < xmin) xmin = p.x; if (p.x > xmax) xmax = p.x; if (p.y < ymin) ymin = p.y; if (p.y > ymax) ymax = p.y;
         if (p.z < zmin) zmin = p.z; if (p.z > zmax) zmax = p.z;
       }
     }
-    return holes && Number.isFinite(xmin) ? { xmin, xmax, ymin, ymax, zmin, zmax, holes, traces } : null;
+    return holes && Number.isFinite(xmin) ? { xmin, xmax, ymin, ymax, zmin, zmax, holes, traces, traceOf } : null;
   }, [assays, collars, survey, desurveyMethod]);
 
   const [padding, setPadding] = useState(() => keep("padding", 25));
@@ -485,7 +485,9 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
         const unsPts = (() => {
           const sampled = sampledByHole(resolvedSegments(runAssays, symbol, unit, elementUnits));
           const byHole = new Map(); for (const sv of survey) { if (!byHole.has(sv.hole_id)) byHole.set(sv.hole_id, []); byHole.get(sv.hole_id).push(sv); }
-          const traces = runCollars.map((c) => { let pts = []; try { pts = desurveyHole(c, byHole.get(c.hole_id) || [], desurveyMethod) || []; } catch { pts = []; } return { hole_id: c.hole_id, pts }; }); // runCollars: #3006
+          // #3008 — the traces desurveyed when the dialog opened are reused; only the holes it skipped (no assay) are desurveyed here
+          const known = traceBounds?.traceOf;
+          const traces = runCollars.map((c) => { let pts = known?.get(c.hole_id) || null; if (!pts) { try { pts = desurveyHole(c, byHole.get(c.hole_id) || [], desurveyMethod) || []; } catch { pts = []; } } return { hole_id: c.hole_id, pts }; }); // runCollars: #3006
           const pad = Math.min(searchRadius > 0 ? searchRadius : gridDiagonal, 1000);
           const step = Math.max(1, Math.min(useComposites ? compositeLength : 2, Math.min(cell3.dx, cell3.dy, cell3.dz) / 2));
           return unsampledDrillPoints(traces, sampled, step, { xmin: bounds.xmin - pad, xmax: bounds.xmax + pad, ymin: bounds.ymin - pad, ymax: bounds.ymax + pad, zmin: bounds.zmin - pad, zmax: bounds.zmax + pad });
