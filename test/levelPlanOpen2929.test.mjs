@@ -17,6 +17,6 @@ test("the RL-dependent layers are one group keyed per build; the drawn outline a
   const open = s.indexOf("<g key={`plan${dataKey}`}>"), close = s.indexOf("{/* the outline being drawn */}");
   assert.ok(open > 0 && close > open);
   const inside = s.slice(open, close);
-  for (const part of ["data.voxelSlices.map", "data.holes.map((h) => <path key={`c", "data.points.map", "h.pierce.map", "idLabels.placed.map"]) assert.ok(inside.includes(part), part);
+  for (const part of ["data.voxelSlices.map", "dw.ctx", "dw.ivPaths.map", "data.points.map", "dw.pierce.map", /* #2982 — merged paths */ "idLabels.placed.map"]) assert.ok(inside.includes(part), part);
   assert.ok(/<\/g>\s*$/.test(inside.trimEnd()), "the group closes before the outline");
 });

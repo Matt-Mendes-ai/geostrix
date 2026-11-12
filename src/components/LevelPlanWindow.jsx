@@ -12,6 +12,8 @@ import { planLegend } from "../lib/levelPlanLegend.js"; // TASKS.csv #1404
 import { resolveLabels, clusterLabelPoints, groupLabelText } from "../lib/sectionLabels.js"; // TASKS.csv #1404 — the sections' label declutter (#1144); clusters: #2212
 import { LAYER_META } from "../lib/layers.js";
 import { usePrompt } from "./usePrompt.jsx"; // TASKS.csv #1779
+import { mergedPath, pathsByColour, dotsPath, segmentFinder } from "../lib/levelPlanDraw.js"; // TASKS.csv #2982
+import { hoverTitle } from "../lib/svgLazyTitle.js"; // TASKS.csv #2982 — titles made on hover, as the section window (#2210)
 
 // TASKS.csv #525 — the LEVEL PLAN window: a horizontal section at an RL, at true scale with E / N axes, a scale bar
 // and a north arrow. What the plane z = RL cuts — and what lies in the slab RL ± half-width — comes from
@@ -119,9 +121,21 @@ export default function LevelPlanWindow({ build, zRange, defaultRl, onClose, onS
 
   const ctxCache = useMemo(() => pathCache(), [frame]); // TASKS.csv #2210 — the whole-hole traces' path strings, per frame
   const labelMemo = useRef({ data: null, frame: null, on: null, v: null }); // #2518 — the declutter ran on every render (each hover)
+  const drawMemo = useRef({}); // #2982 — the merged paths, per plan, frame and chosen log
   if (!frame) return null;
   const { X, Y, s } = frame;
   const path = (line) => line.map(([x, y], i) => `${i ? "L" : "M"}${X(x).toFixed(1)},${Y(y).toFixed(1)}`).join(" ");
+  // TASKS.csv #2982 (WA iron review) — 189,332 SVG elements at 6,390 holes (a path and a <title> per interval, a <g>, circle and <title> per
+  // pierce point, a path and a circle per hole): the open blocked 5-6 s, an RL step 4.2-4.5 s. The traces, collars and in-slab parts are one
+  // path each, the intervals one path per colour (lib/levelPlanDraw.js), and every tooltip is made when it is hovered.
+  if (drawMemo.current.data !== data || drawMemo.current.frame !== frame || drawMemo.current.layer !== activeLayer) {
+    const ivs = data.intervals.filter((iv) => iv.layer === activeLayer);
+    drawMemo.current = { data, frame, layer: activeLayer, ivs, ivPaths: pathsByColour(ivs, X, Y), findIv: segmentFinder(ivs, X, Y),
+      ctx: data.holes.map((h) => ctxCache(h.hole_id, h.context, path)).join(" "), collars: dotsPath(data.holes.map((h) => h.collar), X, Y),
+      slab: mergedPath(data.holes.flatMap((h) => h.polylines), X, Y), pierce: data.holes.flatMap((h) => h.pierce.map((pc) => ({ h, pc }))) };
+  }
+  const dw = drawMemo.current;
+  const svgXY = (e) => { const el = svgRef.current, p = el.createSVGPoint(); p.x = e.clientX; p.y = e.clientY; return p.matrixTransform(el.getScreenCTM().inverse()); };
   // TASKS.csv #2212 (review #2174) — the hole ids: pierce points within a symbol's reach share one label ('ID +n', the ids in its tooltip),
   // and a label with no free spot near its point is left out, not printed over another (the section window's #1536 rule)
   const idLabels = !labels ? null : labelMemo.current.data === data && labelMemo.current.frame === frame && labelMemo.current.v ? labelMemo.current.v : (labelMemo.current = { data, frame, on: labels, v: (() => {
@@ -217,13 +231,17 @@ export default function LevelPlanWindow({ build, zRange, defaultRl, onClose, onS
           {/* model surfaces / solids cut by the plane */}
           {data.surfaceCuts.map((sc) => <g key={sc.id}>{sc.segs.map((g, i) => <line key={i} x1={X(g[0])} y1={Y(g[1])} x2={X(g[2])} y2={Y(g[3])} stroke={sc.color} strokeWidth={2} />)}</g>)}
           {/* hole context (whole trace, faint) and collars */}
-          {data.holes.map((h) => <path key={`c${h.hole_id}`} d={ctxCache(h.hole_id, h.context, path)} stroke="#c9ced6" strokeWidth={1} fill="none" />)}
-          {data.holes.map((h) => <circle key={`k${h.hole_id}`} cx={X(h.collar[0])} cy={Y(h.collar[1])} r={1.8} fill="#9aa3b0" />)}
-          {/* the in-slab parts: plain dark, then coloured by the chosen log */}
-          {data.holes.map((h) => h.polylines.map((pl, i) => <path key={`r${h.hole_id}_${i}`} d={path(pl)} stroke="#2a323c" strokeWidth={2} fill="none" />))}
-          {data.intervals.filter((iv) => iv.layer === activeLayer).map((iv, i) => iv.lines.map((pl, j) => <path key={`iv${i}_${j}`} d={path(pl)} stroke={iv.color} strokeWidth={5} fill="none" strokeLinecap="butt"><title>{`${iv.hole_id} ${iv.from}–${iv.to} m — ${iv.label}`}</title></path>))}
+          {dw.ctx && <path d={dw.ctx} stroke="#c9ced6" strokeWidth={1} fill="none" />}
+          {dw.collars && <path d={dw.collars} stroke="#9aa3b0" strokeWidth={3.6} strokeLinecap="round" fill="none" />}{/* r 1.8 dots */}
+          {/* the in-slab parts: plain dark, then coloured by the chosen log (the interval under the cursor names itself) */}
+          {dw.slab && <path d={dw.slab} stroke="#2a323c" strokeWidth={2} fill="none" />}
+          <g onMouseMove={(e) => { const q = svgXY(e), k = dw.findIv(q.x, q.y); const iv = dw.ivs[k]; if (iv) hoverTitle(e.target, `${iv.hole_id} ${iv.from}–${iv.to} m — ${iv.label}`); }}>
+            {dw.ivPaths.map(([c, d]) => <path key={c} d={d} stroke={c} strokeWidth={5} fill="none" strokeLinecap="butt" />)}
+          </g>
           {/* assays / mineralisation dots */}
-          {data.points.map((p, i) => <circle key={`p${i}`} cx={X(p.x)} cy={Y(p.y)} r={2.6} fill={p.color} stroke="#ffffff" strokeWidth={0.6}><title>{`${p.hole_id} @ ${p.md.toFixed(1)} m — ${p.label}`}</title></circle>)}
+          <g onMouseOver={(e) => { const p = data.points[Number(e.target?.dataset?.pt)]; if (p) hoverTitle(e.target, `${p.hole_id} @ ${p.md.toFixed(1)} m — ${p.label}`); }}>
+            {data.points.map((p, i) => <circle key={`p${i}`} data-pt={i} cx={X(p.x)} cy={Y(p.y)} r={2.6} fill={p.color} stroke="#ffffff" strokeWidth={0.6} />)}
+          </g>
           {/* structures: strike-dip symbols (oriented) or a small cross (unoriented) */}
           {data.structures.map((st, i) => {
             if (st.dip == null) return <path key={`s${i}`} d={`M${X(st.x) - 3},${Y(st.y)} h6 M${X(st.x)},${Y(st.y) - 3} v6`} stroke={st.color} strokeWidth={1.4}><title>{tr("{hole_id} @ {depth} m — {label} (not oriented)", { hole_id: st.hole_id, depth: st.depth, label: st.label })}</title></path>;
@@ -233,14 +251,10 @@ export default function LevelPlanWindow({ build, zRange, defaultRl, onClose, onS
           {/* planned holes */}
           {data.planned.map((p) => <g key={`pl${p.name}`}><path d={path(p.context)} stroke={colors.planned} strokeWidth={1} strokeDasharray="4 3" fill="none" opacity={0.6} />{p.lines.map((l, i) => <path key={i} d={path(l)} stroke={colors.planned} strokeWidth={2.4} strokeDasharray="5 3" fill="none" />)}{p.pierce.map((pc, i) => <g key={`pp${i}`}><rect x={X(pc.x) - 4} y={Y(pc.y) - 4} width={8} height={8} fill="#ffffff" stroke={colors.planned} strokeWidth={1.6} /><title>{tr("Planned {name}: pierces {rl} m at {md} m", { name: p.name, rl, md: pc.md.toFixed(1) })}</title></g>)}{labels && p.pierce[0] && <text x={X(p.pierce[0].x) + 6} y={Y(p.pierce[0].y) + 3} fontSize="10" fill={colors.planned}>{p.name}</text>}</g>)}
           {/* pierce points */}
-          {data.holes.map((h) => h.pierce.map((pc, i) => (
-            <g key={`pc${h.hole_id}_${i}`}>
-              {/* filled with the chosen log's colour at the RL (white: not logged there) */}
-              <circle cx={X(pc.x)} cy={Y(pc.y)} r={4.6} fill={(pc.logs || []).find((l) => l.layer === activeLayer)?.color || "#ffffff"} stroke="#1a2028" strokeWidth={1.6}>
-                <title>{[tr("{hole_id} pierces {rl} m at {md} m", { hole_id: h.hole_id, rl, md: pc.md.toFixed(1) }), ...(pc.logs || []).filter((l) => !l.layer?.startsWith("assay:")).map((l) => l.label), ...(pc.assays || [])].join("\n")}</title>
-              </circle>
-            </g>
-          )))}
+          <g onMouseOver={(e) => { const it = dw.pierce[Number(e.target?.dataset?.pc)]; if (!it) return; const { h, pc } = it; hoverTitle(e.target, [tr("{hole_id} pierces {rl} m at {md} m", { hole_id: h.hole_id, rl, md: pc.md.toFixed(1) }), ...(pc.logs || []).filter((l) => !l.layer?.startsWith("assay:")).map((l) => l.label), ...(pc.assays || [])].join("\n")); }}>
+            {/* filled with the chosen log's colour at the RL (white: not logged there) */}
+            {dw.pierce.map(({ h, pc }, k) => <circle key={`pc${h.hole_id}_${k}`} data-pc={k} cx={X(pc.x)} cy={Y(pc.y)} r={4.6} fill={(pc.logs || []).find((l) => l.layer === activeLayer)?.color || "#ffffff"} stroke="#1a2028" strokeWidth={1.6} />)}
+          </g>
           {/* #1404 — hole ids through the sections' declutter (#1144): a fan's collars no longer print over each other */}
           {idLabels && idLabels.placed.map((l) => <g key={`hl${l.key}`}>{l.leaderFrom && <line x1={l.leaderFrom.x} y1={l.leaderFrom.y} x2={l.x} y2={l.y - 4} stroke="#7a8494" strokeWidth={0.6} />}<text x={l.x} y={l.y} fontSize="10.5" textAnchor={l.anchor} fill="#1a2028" stroke="#ffffff" strokeWidth={2.5} paintOrder="stroke">{l.text}{l.ids.length > 1 && <title>{l.ids.join(", ")}</title>}</text></g>)}{/* #2212 */}
           </g>
