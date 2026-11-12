@@ -4,7 +4,7 @@ import { macrostratFetch } from "./desktop.js";
 import { reprojectImageRGBA, getProj4DefSync } from "./reproject.js";
 import { wmsImageSize, wmsPixelMetres } from "./webLayers.js";
 import { MACROSTRAT_TILE_URL, MACROSTRAT_MVT_URL, MACROSTRAT_API, MACROSTRAT_CREDIT, planMacrostratTiles, mercatorToLonLat, parseMacrostratUnits, parseMacrostratSources, tilePixelMetres, outputLongPx, macrostratLegend, macrostratUnitFeatures, macrostratLayersInArea } from "./macrostrat.js"; // MVT / legend: #2011; unit features: #2012
-import { parseLithologies, parseIntervals } from "./macrostratColours.js";
+import { parseLithologies } from "./macrostratColours.js";
 import { readVectorTile } from "./mvt.js"; // TASKS.csv #2011
 import { buildLayer } from "./mapLayerBuild.js"; // TASKS.csv #2012
 import { t as tr } from "./i18n.js";
@@ -117,13 +117,10 @@ export async function fetchMacrostratMapLayer({ bboxLonLat, projectEpsg, onProgr
 }
 
 // TASKS.csv #2005 — the colour lists, fetched once per session when a button asks (lib/macrostratColours.js matches them)
-let lithCache = null, intervalCache = null;
+let lithCache = null;
 const getJson = async (url) => { const r = await macrostratFetch({ url }); if (!r.ok) throw new Error(r.message || tr("Request failed (HTTP {status}).", { status: r.status })); return JSON.parse(r.text); };
 export async function fetchMacrostratLithologies() {
   if (!lithCache) lithCache = getJson(`${MACROSTRAT_API}/defs/lithologies?all`).then(parseLithologies).catch((e) => { lithCache = null; throw e; });
   return lithCache;
 }
-export async function fetchMacrostratIntervals() {
-  if (!intervalCache) intervalCache = getJson(`${MACROSTRAT_API}/defs/intervals?timescale=international%20intervals`).then(parseIntervals).catch((e) => { intervalCache = null; throw e; });
-  return intervalCache;
-}
+// the time scale's colours are bundled since TASKS.csv #2690 (lib/macrostratColours.js bundledTimeScaleIntervals): no fetch here

@@ -18,6 +18,11 @@ Code signing policy: https://github.com/Matt-Mendes-ai/geostrix/blob/master/CODE
 UNINSTALLING
 Windows Settings > Apps > Installed apps > GeoStrix > Uninstall (or Control Panel > Programs and Features). Your project files are not deleted.
 
+DATA INCLUDED
+ - FGDC lithology patterns (FGDC-STD-013-2006), repackaged by Daven Quinn: CC0 1.0 (public domain). https://github.com/davenquinn/geologic-patterns
+ - International time scale interval colours, from Macrostrat (macrostrat.org), downloaded 2026-11-12: CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/). Peters, S.E. et al. Macrostrat: a platform for geological data integration and deep-time research. https://macrostrat.org
+Full texts: Help > Third-party Licences.
+
 LICENCE (MIT)
 Copyright (c) 2026 Matt Mendes
 

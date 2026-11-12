@@ -659,16 +659,16 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
                 {legendOpen && (
                   <div style={{ marginTop: 5, display: "flex", flexDirection: "column", gap: 3 }}>
                     {/* TASKS.csv #2005 — units named by age ('Late Jurassic') in the international time scale's colours, from Macrostrat */}
-                    <button type="button" style={{ ...pBtn, padding: "2px 6px", width: "auto", fontSize: "var(--font-size-xs)", marginBottom: 4 }} title={tr("Colour the units whose name gives an age (Late Jurassic, Eocene ...) in the international time scale's colours, fetched from Macrostrat (CC BY 4.0) over the internet. The others keep their colours.")}
+                    <button type="button" style={{ ...pBtn, padding: "2px 6px", width: "auto", fontSize: "var(--font-size-xs)", marginBottom: 4 }} title={tr("Colour the units whose name gives an age (Late Jurassic, Eocene ...) in the international time scale's colours (Macrostrat, CC BY 4.0, included with GeoStrix: no internet needed). The others keep their colours.")}
                       onClick={async () => {
                         try {
-                          const [{ fetchMacrostratIntervals }, { timeScaleColours }] = await Promise.all([import("../lib/macrostratFetch.js"), import("../lib/macrostratColours.js")]);
-                          const hits = timeScaleColours(l.categories.map((c) => ({ value: c.value, label: c.label })), await fetchMacrostratIntervals());
+                          const { bundledTimeScaleIntervals, timeScaleColours } = await import("../lib/macrostratColours.js"); // #2690 — bundled, offline
+                          const hits = timeScaleColours(l.categories.map((c) => ({ value: c.value, label: c.label })), await bundledTimeScaleIntervals());
                           const byValue = new Map(hits.map((h) => [h.value, h.color]));
                           updateMapLayer(l.id, (cur) => ({ categories: cur.categories.map((x) => (byValue.has(x.value) ? { ...x, color: byValue.get(x.value) } : x)) }));
                           setMapMsg({ ok: true, text: tr("\"{name}\": {n} of {total} units coloured by the time scale (Macrostrat, CC BY 4.0); the others keep their colours.", { name: l.name, n: hits.length, total: l.categories.length }) });
-                        } catch (e) { setMapMsg({ ok: false, text: tr("Macrostrat: {message}", { message: e.message }) + " " + tr("The time-scale colours come from Macrostrat over the internet: offline, the units keep their colours.") }); } // #2415
-                      }}>{tr("Time-scale colours (online)")}</button>{/* "(online)", "over the internet": TASKS.csv #2415 */}
+                        } catch (e) { setMapMsg({ ok: false, text: tr("Macrostrat: {message}", { message: e.message }) }); } // #2415; offline since #2690
+                      }}>{tr("Time-scale colours")}</button>{/* TASKS.csv #2690: bundled, so no '(online)' (#2415) */}
                     {l.categories.map((c, ci) => (
                       <div key={String(c.value)} style={{ display: "flex", alignItems: "center", gap: 6 }}>
                         <input type="checkbox" checked={c.visible !== false} title={tr("Show this unit")}

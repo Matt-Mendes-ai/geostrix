@@ -114,6 +114,10 @@ export function bundledData() {
     out.push({ name: "FGDC lithology patterns (FGDC-STD-013-2006), repackaged by Daven Quinn", version: "", license: "CC0-1.0 (public domain)",
       url: "https://github.com/davenquinn/geologic-patterns", text: [readme, readFileSync(path.join(fgdc, "LICENSE.txt"), "utf8").trim()].filter(Boolean).join("\n\n") });
   }
+  // TASKS.csv #2690 — the international time scale's interval colours (Macrostrat, CC BY 4.0), bundled for 'Time-scale colours'
+  const ts = path.join(ROOT, "src", "lib", "timeScaleIntervals.txt");
+  if (existsSync(ts)) out.push({ name: "International time scale interval colours (Macrostrat)", version: "2026-11-12", license: "CC-BY-4.0",
+    url: "https://macrostrat.org", text: readFileSync(ts, "utf8").trim() });
   return out;
 }
 

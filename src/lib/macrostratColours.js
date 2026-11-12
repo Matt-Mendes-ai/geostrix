@@ -40,6 +40,12 @@ export function macrostratLithColours(codes, liths) {
   return out;
 }
 
+// TASKS.csv #2690 (Matt's decision 2026-11-12) — the international time scale's interval colours ship with the app (timeScaleIntervals.json,
+// Macrostrat, CC BY 4.0; source, date and licence in timeScaleIntervals.txt), so 'Time-scale colours' works offline and asks nothing online
+export async function bundledTimeScaleIntervals() {
+  const m = await import("./timeScaleIntervals.json");
+  return parseIntervals(m.default || m);
+}
 export function parseIntervals(json) {
   return (json?.success?.data || []).filter((i) => i?.name && HEX.test(i.color || "")).map((i) => ({ name: String(i.name), color: i.color.toUpperCase(), ma: [i.b_age, i.t_age], type: i.int_type || "" }));
 }
