@@ -240,7 +240,9 @@ export async function orderImportFiles(files) {
     }
     return { f, i, r: rank[target] ?? 2 };
   }));
-  return keyed.sort((a, b) => a.r - b.r || a.i - b.i).map((k) => k.f);
+  // TASKS.csv #2899 (review #2876, WA iron) — among the collar files the biggest leads: 98 water bores were asked first and set the CRS
+  // question for the 6,292 drill collars. The byte size stands in for the row count (the files are not read yet).
+  return keyed.sort((a, b) => a.r - b.r || (a.r === 0 ? (b.f.size || 0) - (a.f.size || 0) : 0) || a.i - b.i).map((k) => k.f);
 }
 
 export const SHAPEFILE_SIDECAR = /\.(dbf|prj|cpg|shx|qix|sbn|sbx|xml)$/i;

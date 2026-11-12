@@ -972,7 +972,8 @@ export function useImportPipeline(ctx) {
       // TASKS.csv #609 — the file's own CRS (.prj / GeoPackage) and a per-row EPSG column, as openImportModal passes
       // them: a queued shapefile used to be committed with no Source CRS, so its collars stayed in their own UTM
       // zone's numbers inside a project in another zone (~400 km from the same drop's reprojected map layers).
-      const modalData = { ...(codeGuess ? { valueGuess: codeGuess } : {}), ...azRefFor(target, headers, data), file, fileName: file.name, headers, rowCount: data.length, sampleRows: data.slice(0, 5), allRows: data, target, mapping, ...dipConventionFields(data, dipColOf(target, mapping)) /* #2886 */,
+      // TASKS.csv #2899 — a queued survey gets the same pre-added instrument / method field as one dropped alone (#2187)
+      const modalData = { ...(codeGuess ? { valueGuess: codeGuess } : {}), ...(target === "survey" ? { customFields: surveyMethodFields(headers, data) } : {}), ...azRefFor(target, headers, data), file, fileName: file.name, headers, rowCount: data.length, sampleRows: data.slice(0, 5), allRows: data, target, mapping, ...dipConventionFields(data, dipColOf(target, mapping)) /* #2886 */,
         sourceEpsg: queueLl ? queueLl.sourceEpsg : meta?.detectedEpsg ? String(meta.detectedEpsg) : "", perRowEpsgCol: guessColumn(headers, EPSG_COL_ALIASES), ...guarded };
       if (confident) {
         // TASKS.csv #1501 — a log's other columns as extra fields, and a Geotech table's Recovery % as that layer too (collars keep
