@@ -26,7 +26,7 @@
 //     long polylines by matching shared endpoints, which is what makes the result usable (and is
 //     what makes closed contours actually close).
 
-import { terrainNodeIsFill } from "./viewer/geomath.js";
+import { decodeNoDataMask } from "./demFill.js"; // TASKS.csv #2992 — the mask decoded once (was terrainNodeIsFill per node)
 
 // Quantized key for endpoint matching during stitching. Floating-point endpoints computed from two
 // different cells that SHOULD be identical can differ in the last bits, so exact === matching would
@@ -46,8 +46,26 @@ function interp(x1, y1, v1, x2, y2, v2, level) {
   return { x: x1 + (x2 - x1) * tc, y: y1 + (y2 - y1) * tc };
 }
 
+// TASKS.csv #2992 (WA iron review) — Generate contours scanned every cell of the grid once per level: on a 1,025 x 822 terrain from collars
+// (98 % fill, 16,491 ground nodes) 129 levels froze the window 6.9-8.4 s. The cells with four ground corners are listed once with their
+// lowest and highest corner; each level then visits only the listed cells it can cross, in the same row-major order, so the segments
+// and the stitched lines are exactly those of the full scan. -> { cells: Int32Array (row * gridW + col), lo, hi: Float64Array }
+export function contourCells({ gridW, gridH, elevations }) {
+  const idx = [], lo = [], hi = [];
+  for (let row = 0; row < gridH - 1; row++) {
+    for (let col = 0; col < gridW - 1; col++) {
+      const k = row * gridW + col;
+      const a = elevations[k], b = elevations[k + 1], c = elevations[k + gridW + 1], d = elevations[k + gridW];
+      if (!Number.isFinite(a) || !Number.isFinite(b) || !Number.isFinite(c) || !Number.isFinite(d)) continue;
+      idx.push(k); lo.push(Math.min(a, b, c, d)); hi.push(Math.max(a, b, c, d));
+    }
+  }
+  return { cells: Int32Array.from(idx), lo: Float64Array.from(lo), hi: Float64Array.from(hi) };
+}
+
 // Returns an array of polylines ([{x,y}, ...]) tracing `level` across the grid, in world coords.
-export function contourLevel({ bbox, gridW, gridH, elevations }, level) {
+// index (optional, #2992): contourCells(terrain) computed once for many levels.
+export function contourLevel({ bbox, gridW, gridH, elevations }, level, index = null) {
   const [xmin, ymin, xmax, ymax] = bbox;
   const dx = (xmax - xmin) / Math.max(1, gridW - 1);
   const dy = (ymax - ymin) / Math.max(1, gridH - 1);
@@ -57,8 +75,15 @@ export function contourLevel({ bbox, gridW, gridH, elevations }, level) {
   const at = (row, col) => elevations[row * gridW + col];
 
   const segments = [];
-  for (let row = 0; row < gridH - 1; row++) {
-    for (let col = 0; col < gridW - 1; col++) {
+  const nCells = index ? index.cells.length : (gridW - 1) * Math.max(0, gridH - 1);
+  for (let n = 0; n < nCells; n++) {
+    let row, col;
+    if (index) {
+      // #2992 — a cell wholly above or below the level has no crossing (the full scan skips it too: case 0 / 15)
+      if (level > index.hi[n] || level <= index.lo[n]) continue;
+      row = Math.floor(index.cells[n] / gridW); col = index.cells[n] - row * gridW;
+    } else { row = Math.floor(n / (gridW - 1)); col = n - row * (gridW - 1); }
+    {
       // Corners, going clockwise from top-left, with their world positions.
       const vTL = at(row, col), vTR = at(row, col + 1), vBR = at(row + 1, col + 1), vBL = at(row + 1, col);
       if (!Number.isFinite(vTL) || !Number.isFinite(vTR) || !Number.isFinite(vBR) || !Number.isFinite(vBL)) continue;
@@ -178,7 +203,14 @@ export function contourTerrain(terrain0, { interval = 50, maxLevels = 200 } = {}
   // TASKS.csv #1619 (review #1497, Lawyers) — a filled no-data node (the mean-elevation fill, #927) is not ground: as NaN, every
   // marching-squares cell touching it is skipped, so lines stop (open) at the edge of the data. On a terrain from 446 collars
   // 74 % of the contour vertices were a rim stacked along the fill's edge.
-  const terrain = terrain0.noDataMask ? { ...terrain0, elevations: Float64Array.from(terrain0.elevations, (v, i) => (terrainNodeIsFill(terrain0, i) ? NaN : v)) } : terrain0;
+  // #2992 — the mask decoded once (terrainNodeIsFill per node looked it up 842,550 times: 0.57 s on a 1,025 x 822 terrain)
+  let terrain = terrain0;
+  if (terrain0.noDataMask) {
+    const m = terrain0.noDataMask, bits = m instanceof Uint8Array ? m : decodeNoDataMask(String(m));
+    const e = Float64Array.from(terrain0.elevations);
+    for (let i = 0; i < e.length; i++) if (bits[i >> 3] & (1 << (i & 7))) e[i] = NaN;
+    terrain = { ...terrain0, elevations: e };
+  }
   const { elevations } = terrain;
   let min = Infinity, max = -Infinity;
   for (let i = 0; i < elevations.length; i++) {
@@ -193,9 +225,10 @@ export function contourTerrain(terrain0, { interval = 50, maxLevels = 200 } = {}
   const first = Math.ceil(min / interval) * interval;
   const levels = [];
   let truncated = false;
+  const index = contourCells(terrain); // #2992 — once, for every level
   for (let lv = first; lv <= max; lv += interval) {
     if (levels.length >= maxLevels) { truncated = true; break; }
-    const polylines = contourLevel(terrain, lv);
+    const polylines = contourLevel(terrain, lv, index);
     if (polylines.length) levels.push({ level: lv, polylines });
   }
   return { levels, min, max, truncated };
