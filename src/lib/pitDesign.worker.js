@@ -1,6 +1,6 @@
 // TASKS.csv #1874 — the benched pit design off the UI thread: a few hundred thousand design cells and their contours
 import { shellFloors, benchedPit } from "./pitDesign.js";
-import { collarGround, modelTopGround, pitEconomics, joinByProduct, cellRevenue, collarsLookUnderground } from "./pitShell.js"; // modelTopGround: #1850; // pitEconomics / joinByProduct / cellRevenue: #1917
+import { collarGround, modelTopGround, pitEconomics, joinByProduct, cellRevenue, collarsLookUnderground, weatheredOf } from "./pitShell.js"; // weatheredOf: #2671 // modelTopGround: #1850; // pitEconomics / joinByProduct / cellRevenue: #1917
 import { terrainGroundAt } from "./viewer/geomath.js";
 
 self.onmessage = (e) => {
@@ -17,7 +17,7 @@ self.onmessage = (e) => {
     const shell = shellFloors(shellPositions, groundAt);
     if (!shell) { self.postMessage({ failed: "no-floors" }); return; }
     let last = 0;
-    const r = benchedPit(shell, { ...opts, groundAt, cells, onBench: (k, n) => { const t = Date.now(); if (t - last > 150) { last = t; self.postMessage({ phases: { k, n } }); } } }); // #2286 — the bench on the busy button
+    const r = benchedPit(shell, { ...opts, groundAt, cells, weathered: weatheredOf(opts.weathered) /* #2671 */, onBench: (k, n) => { const t = Date.now(); if (t - last > 150) { last = t; self.postMessage({ phases: { k, n } }); } } }); // #2286 — the bench on the busy button
     if (!r) { self.postMessage({ failed: "no-design" }); return; }
     if (r.failed) { self.postMessage({ failed: r.failed }); return; } // #1916: "area-empty"
     r.groundSource = terrain ? "terrain" : collars ? "collars" : "model top";
