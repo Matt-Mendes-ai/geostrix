@@ -10738,5 +10738,11 @@
   "grade × thickness": "المحتوى × السماكة",
   "metres": "أمتار",
   "at or above ({u} {sym})": "عند أو فوق ({u} {sym})",
-  "Intervals at or above the cut-off with Best intercepts' rules (2 m of internal dilution, no minimum length), summed per hole; a hole assayed with none counts as 0.": "الفواصل عند حد القطع أو فوقه بقواعد أفضل التقاطعات (2 م من التخفيف الداخلي، بلا طول أدنى)، مجموعة لكل ثقب؛ والثقب المحلَّل بلا أي منها يُحتسب 0."
+  "Intervals at or above the cut-off with Best intercepts' rules (2 m of internal dilution, no minimum length), summed per hole; a hole assayed with none counts as 0.": "الفواصل عند حد القطع أو فوقه بقواعد أفضل التقاطعات (2 م من التخفيف الداخلي، بلا طول أدنى)، مجموعة لكل ثقب؛ والثقب المحلَّل بلا أي منها يُحتسب 0.",
+  "\"{name}\" is now the project's terrain.": "أصبح \"{name}\" تضاريس المشروع.",
+  "Make it the project's terrain…": "جعله تضاريس المشروع…",
+  "The project has no terrain: this ground is used for this inversion only.": "لا تضاريس في المشروع: يُستخدم هذا السطح لهذا الانعكاس فقط.",
+  "The project's terrain (\"{name}\") is kept for everything else.": "تُحفظ تضاريس المشروع (\"{name}\") لكل ما عدا ذلك.",
+  "This inversion uses a ground from {n} station elevations: {w} × {h} nodes at {cell} m, blanked beyond {blank} m of a station ({zmin} to {zmax} m). It is the survey's own GPS heights, not a DEM.": "يستخدم هذا الانعكاس سطحًا من {n} ارتفاع محطة: {w} × {h} عقدة بتباعد {cell} م، فارغ أبعد من {blank} م من أي محطة (من {zmin} إلى {zmax} م). إنها ارتفاعات GPS الخاصة بالمسح، لا نموذج ارتفاع رقمي.",
+  "Use the project's terrain instead": "استخدام تضاريس المشروع بدلًا من ذلك"
 }

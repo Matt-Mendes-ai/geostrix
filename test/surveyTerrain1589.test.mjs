@@ -38,7 +38,7 @@ test("the inversion pane says the coverage before Estimate and offers the ground
   assert.match(p, /The terrain covers \{pct\}% of the stations; the others would be left out\./);
   assert.match(p, /No terrain yet: an inversion needs one to know which cells are underground\./);
   assert.match(p, /terrainFromSurveyElevations\(rows, \{ sensorHeight: sh \}\)/);
-  assert.match(p, /addTerrain\(\{ name, bbox: t\.bbox, gridW: t\.gridW, gridH: t\.gridH, elevations: t\.elevations, noDataMask: t\.noDataMask/);
+  assert.match(p, /setRunGround\(\{ survey: activeSurvey, t: \{ name, bbox: t\.bbox, gridW: t\.gridW, gridH: t\.gridH, elevations: t\.elevations, noDataMask: t\.noDataMask/ /* the run's own ground since #2638 */);
   const g = readFileSync(new URL("../src/modules/GeophysicsModule.jsx", import.meta.url), "utf8");
   assert.match(g, /if \(\/\\\.xyz\$\/i\.test\(file\.name\) && \/\^\\s\*\\\/\/\.test\(raw\)\) \{ const \{ columns, rows: xr \} = parseXYZ\(raw\);/);
 });

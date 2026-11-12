@@ -48,7 +48,7 @@ const METHODS = {
 const num = (v) => (v === "" || v == null ? NaN : Number(v));
 
 export default function InversionPanel({ pBtn, numInput, inPane = false, resultSlot = null }) { // inPane: TASKS.csv #458
-  const { layers, terrain, project, surfaceStructures, getProjectToken, addVoxelModelToTab, collars, survey: drillSurvey, desurveyMethod, geophysSurveys, voxelModels, addTerrain, goToModule } = useStore(); // goToModule: #1429 // addTerrain: #1589
+  const { layers, terrain: projectTerrain /* #2638 — the run may use its own ground, below */, project, surfaceStructures, getProjectToken, addVoxelModelToTab, collars, survey: drillSurvey, desurveyMethod, geophysSurveys, voxelModels, addTerrain, goToModule } = useStore(); // goToModule: #1429 // addTerrain: #1589
   const keptScope = scopeOf(getProjectToken()); // TASKS.csv #1284 — survives a tab switch
   const setTaskProgress = useSetTaskProgress();
   // TASKS.csv #364 — every imported point file lands in the one geophys_pts layer, so a mag survey and a
@@ -58,6 +58,11 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
   const surveys = useMemo(() => Array.from(new Set(allRows.map((r) => r._src || "(unnamed import)"))), [allRows]);
   const [survey, setSurvey] = useKeptState(keptScope, "inversion.survey", "");
   const activeSurvey = surveys.length === 1 ? surveys[0] : survey; // (the planned grid stands in below, #1710)
+  // TASKS.csv #2638 — a ground from the stations' own elevations is this run's ground (passed to the engine, named in the run's record), not
+  // the project's terrain: a fetched DEM over a whole airborne survey no longer has to be given up to invert a small ground survey.
+  // 'terrain' below is that ground when set (for this survey), else the project's.
+  const [runGround, setRunGround] = useState(null); // { survey, t: terrain-shaped, stats }
+  const terrain = runGround && runGround.survey === activeSurvey ? runGround.t : projectTerrain;
   const surveyRows = useMemo(() => (surveys.length === 1 || survey ? allRows.filter((r) => (r._src || "(unnamed import)") === (surveys.length === 1 ? surveys[0] : survey)) : []), [allRows, surveys, survey]);
   // TASKS.csv #1710 (review #1645, Copley) — a planned station grid instead of a survey: a drilled prospect with no survey can
   // forward-model its block model or a plate on the grid it would walk, before spending on the survey
@@ -98,6 +103,8 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
   // survey changed (from the diurnal-corrected walk mag to another line set)
   const surveySeen = useRef(activeSurvey);
   useEffect(() => { if (surveySeen.current !== activeSurvey) { surveySeen.current = activeSurvey; setConfirmed(false); } }, [activeSurvey]);
+  const groundSeen = useRef(activeSurvey); // #2638 — the station-ground note belongs to one survey
+  useEffect(() => { if (groundSeen.current !== activeSurvey) { groundSeen.current = activeSurvey; setGroundNote(null); } }, [activeSurvey]);
   // TASKS.csv #2563 — a note about one survey or method ('Filled from IGRF-14 …') stayed after switching to the gravity survey
   const noteSeen = useRef(`${activeSurvey}|${method}`);
   useEffect(() => { const k = `${activeSurvey}|${method}`; if (noteSeen.current !== k) { noteSeen.current = k; setMsg(null); setIgrfMsg(null); } }, [activeSurvey, method]);
@@ -164,11 +171,21 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
       const sh = zMode === "ground" ? 0 : num(sensorHeight) > 0 ? num(sensorHeight) : 0;
       const t = terrainFromSurveyElevations(rows, { sensorHeight: sh });
       const name = tr("Ground from the {survey} stations", { survey: activeSurvey || tr("survey") });
-      if (!confirmReplaceTerrain(terrain, name)) return; // #2554 — it replaced a fetched / collar terrain without asking
-      const replaced = replacedTerrainNote(terrain);
-      addTerrain({ name, bbox: t.bbox, gridW: t.gridW, gridH: t.gridH, elevations: t.elevations, noDataMask: t.noDataMask, source: { kind: "survey station elevations", survey: activeSurvey, ...t.stats } });
-      setGroundNote(replaced + tr("Added the terrain \"{name}\": {w} × {h} nodes at {cell} m from {n} station elevations{v}, blanked beyond {blank} m of a station ({pct}% of its box has ground, {zmin} to {zmax} m). It is the survey's own GPS heights, not a DEM: good enough for which cells are underground, coarse for anything else.", { name, w: t.gridW, h: t.gridH, cell: +t.stats.cellM.toFixed(1), n: t.stats.stations.toLocaleString(), v: sh ? tr(" minus the {sh} m sensor height", { sh }) : "", blank: Number.isFinite(t.stats.blankM) ? Math.round(t.stats.blankM) : "—", pct: Math.round(t.stats.coveredPct), zmin: Math.round(t.stats.zmin), zmax: Math.round(t.stats.zmax) }));
+      // #2638 — this run's ground; the project's terrain is left as it is
+      setRunGround({ survey: activeSurvey, t: { name, bbox: t.bbox, gridW: t.gridW, gridH: t.gridH, elevations: t.elevations, noDataMask: t.noDataMask, source: { kind: "survey station elevations", survey: activeSurvey, ...t.stats } }, stats: t.stats });
+      setGroundNote(tr("This inversion uses a ground from {n} station elevations: {w} × {h} nodes at {cell} m, blanked beyond {blank} m of a station ({zmin} to {zmax} m). It is the survey's own GPS heights, not a DEM.", { n: t.stats.stations.toLocaleString(), w: t.gridW, h: t.gridH, cell: +t.stats.cellM.toFixed(1), blank: Number.isFinite(t.stats.blankM) ? Math.round(t.stats.blankM) : "—", zmin: Math.round(t.stats.zmin), zmax: Math.round(t.stats.zmax) })
+        + " " + (projectTerrain ? tr("The project's terrain (\"{name}\") is kept for everything else.", { name: projectTerrain.name || tr("loaded") }) : tr("The project has no terrain: this ground is used for this inversion only.")));
     } catch (e) { setGroundNote(e.message); }
+  };
+  // #2638 — the old behaviour, now a choice: the station ground as the project's terrain (asks before replacing one)
+  const groundToProject = () => {
+    if (!runGround) return;
+    const t = runGround.t;
+    if (!confirmReplaceTerrain(projectTerrain, t.name)) return; // #2554
+    const replaced = replacedTerrainNote(projectTerrain);
+    addTerrain({ ...t });
+    setRunGround(null);
+    setGroundNote(replaced + tr("\"{name}\" is now the project's terrain.", { name: t.name }));
   };
   const thinSuggestion = useMemo(() => (rows.length > MAX_STATIONS ? suggestThinSpacing(xs, ys) : null), [rows]);
 
@@ -343,6 +360,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
       stationsUsed: p.meta.stationsUsed, stationsTotal: p.meta.stationsTotal, thinnedToM: p.meta.thinnedTo, droppedOutsideTerrain: p.meta.dropped,
       uncertainty: { floor: num(unc.floor), percent: Number.isFinite(num(unc.percent)) ? num(unc.percent) : 0, units: M.unit, source: "entered by user" },
       ...(method === "mag" ? { inducingField: { strengthNT: num(field.strength), inclination: num(field.inclination), declinationTrue: num(field.declination), declinationGrid: p.meta.gridDeclination, gridConvergence: p.meta.convergence, surveyDate: field.date || null, source: field.source || "entered by user" } } : { signConvention: "positive gz over dense rock (converted to/from SimPEG's up-positive gz)" }),
+      ground: runGround && runGround.survey === activeSurvey ? `this run's own: ${runGround.stats.stations} station elevations of ${activeSurvey}, ${runGround.t.gridW} x ${runGround.t.gridH} nodes at ${Math.round(runGround.stats.cellM)} m (the project's terrain was not used)` : terrain ? `the project's terrain: ${terrain.name || "unnamed"}` : null, // TASKS.csv #2638
       mesh: { type: mesh.type, coreCellM: num(mesh.coreCell), depthM: num(mesh.depth), padCells: 6, padFactor: 1.3, terrainSpacingM: p.meta.topoSpacing, terrainCoversMesh: p.meta.terrainCovers,
         ...(mesh.type === "octree" ? { octree: { fineLayers: octreeSettings.fine, doubledLayers: octreeSettings.fine2, maxCellInModel: `${octreeSettings.maxFactor * num(mesh.coreCell)} m`, cellSizesM: p.octree?.cellSizes || null, how: `core cell in the first ${octreeSettings.fine} layers under the terrain over the survey, then ${octreeSettings.fine2} layers of 2x, never coarser than ${octreeSettings.maxFactor}x inside the model volume` } } : {}) }, // #324
       regularization: vector
@@ -692,7 +710,13 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
                   {terrain
                     ? (coverage && <span style={{ color: coverage.pct < 90 ? "var(--color-warn-text)" : "var(--color-text-secondary)" }}>{coverage.pct >= 99.95 ? tr("The terrain covers every station.") : tr("The terrain covers {pct}% of the stations; the others would be left out.", { pct: Math.round(coverage.pct) }) /* #2247 — 'the others' only when there are some */}</span>)
                     : <span style={{ color: "var(--color-warn-text)" }}>{tr("No terrain yet: an inversion needs one to know which cells are underground.")}</span>}
-                  {(!terrain || (coverage && coverage.pct < 90)) && <div><button onClick={groundFromStations} style={{ ...pBtn, marginTop: 4, marginBottom: 0 }}>{tr("Ground from the stations' own elevations…")}</button></div>}
+                  {(!terrain || (coverage && coverage.pct < 90)) && !(runGround && runGround.survey === activeSurvey) && <div><button onClick={groundFromStations} style={{ ...pBtn, marginTop: 4, marginBottom: 0 }}>{tr("Ground from the stations' own elevations…")}</button></div>}
+                  {runGround && runGround.survey === activeSurvey && ( /* #2638 */
+                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 4 }}>
+                      {projectTerrain && <button onClick={() => { setRunGround(null); setGroundNote(null); }} style={{ ...pBtn, width: "auto", margin: 0, padding: "2px 8px" }}>{tr("Use the project's terrain instead")}</button>}
+                      <button onClick={groundToProject} style={{ ...pBtn, width: "auto", margin: 0, padding: "2px 8px" }}>{tr("Make it the project's terrain…")}</button>
+                    </div>
+                  )}
                   {groundNote && <div style={{ marginTop: 4 }}>{groundNote}</div>}
                 </div>
               )}

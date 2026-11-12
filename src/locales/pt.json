@@ -10738,5 +10738,11 @@
   "grade × thickness": "teor × espessura",
   "metres": "metros",
   "at or above ({u} {sym})": "em ou acima de ({u} {sym})",
-  "Intervals at or above the cut-off with Best intercepts' rules (2 m of internal dilution, no minimum length), summed per hole; a hole assayed with none counts as 0.": "Intervalos no teor de corte ou acima com as regras de Melhores interseções (2 m de diluição interna, sem comprimento mínimo), somados por furo; um furo analisado sem nenhum conta como 0."
+  "Intervals at or above the cut-off with Best intercepts' rules (2 m of internal dilution, no minimum length), summed per hole; a hole assayed with none counts as 0.": "Intervalos no teor de corte ou acima com as regras de Melhores interseções (2 m de diluição interna, sem comprimento mínimo), somados por furo; um furo analisado sem nenhum conta como 0.",
+  "\"{name}\" is now the project's terrain.": "\"{name}\" agora é o terreno do projeto.",
+  "Make it the project's terrain…": "Torná-lo o terreno do projeto…",
+  "The project has no terrain: this ground is used for this inversion only.": "O projeto não tem terreno: este terreno é usado só para esta inversão.",
+  "The project's terrain (\"{name}\") is kept for everything else.": "O terreno do projeto (\"{name}\") é mantido para todo o resto.",
+  "This inversion uses a ground from {n} station elevations: {w} × {h} nodes at {cell} m, blanked beyond {blank} m of a station ({zmin} to {zmax} m). It is the survey's own GPS heights, not a DEM.": "Esta inversão usa um terreno de {n} elevações de estações: {w} × {h} nós a {cell} m, em branco além de {blank} m de uma estação ({zmin} a {zmax} m). São as alturas GPS do próprio levantamento, não um MDE.",
+  "Use the project's terrain instead": "Usar o terreno do projeto em vez disso"
 }

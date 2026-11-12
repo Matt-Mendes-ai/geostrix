@@ -10738,5 +10738,11 @@
   "grade × thickness": "ley × espesor",
   "metres": "metros",
   "at or above ({u} {sym})": "en o sobre ({u} {sym})",
-  "Intervals at or above the cut-off with Best intercepts' rules (2 m of internal dilution, no minimum length), summed per hole; a hole assayed with none counts as 0.": "Intervalos en o sobre la ley de corte con las reglas de Mejores interceptos (2 m de dilución interna, sin largo mínimo), sumados por sondaje; un sondaje ensayado sin ninguno cuenta como 0."
+  "Intervals at or above the cut-off with Best intercepts' rules (2 m of internal dilution, no minimum length), summed per hole; a hole assayed with none counts as 0.": "Intervalos en o sobre la ley de corte con las reglas de Mejores interceptos (2 m de dilución interna, sin largo mínimo), sumados por sondaje; un sondaje ensayado sin ninguno cuenta como 0.",
+  "\"{name}\" is now the project's terrain.": "«{name}» es ahora el terreno del proyecto.",
+  "Make it the project's terrain…": "Convertirlo en el terreno del proyecto…",
+  "The project has no terrain: this ground is used for this inversion only.": "El proyecto no tiene terreno: este terreno se usa solo para esta inversión.",
+  "The project's terrain (\"{name}\") is kept for everything else.": "El terreno del proyecto («{name}») se conserva para todo lo demás.",
+  "This inversion uses a ground from {n} station elevations: {w} × {h} nodes at {cell} m, blanked beyond {blank} m of a station ({zmin} to {zmax} m). It is the survey's own GPS heights, not a DEM.": "Esta inversión usa un terreno de {n} elevaciones de estaciones: {w} × {h} nodos a {cell} m, en blanco más allá de {blank} m de una estación ({zmin} a {zmax} m). Son las alturas GPS del propio levantamiento, no un MDE.",
+  "Use the project's terrain instead": "Usar en su lugar el terreno del proyecto"
 }
