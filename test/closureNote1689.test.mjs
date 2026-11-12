@@ -12,6 +12,6 @@ test("the note branches on the body's type; the grade-shell text stays for grade
   assert.match(c, /not a logged alteration boundary/);
   assert.match(c, /Part of its boundary is not a grade boundary/);
   const v = read("src/modules/ViewerModule.jsx");
-  assert.match(v, /\{s\.closure === "artificial" && <ClosureNote type=\{s\.type\} \/>\}/);
+  assert.match(v, /\{s\.closure === "artificial" && <ClosureNote type=\{s\.type\} params=\{s\.params\} \/\* #2693 \*\/ \/>\}/); // params: #2693
   assert.ok(!v.includes("Part of its boundary is not a grade boundary"));
 });
