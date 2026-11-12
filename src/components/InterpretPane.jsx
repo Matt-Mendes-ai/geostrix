@@ -6,7 +6,7 @@ import { TaskPaneHeader } from "./Ribbon.jsx";
 import { PenTool, Trash2, Pencil } from "./icons.js";
 import { useStore } from "../lib/store.jsx";
 import { surveyKey } from "../lib/geophysSurveys.js";
-import { attitudeOf, attitudeAttrs, INTERPRETATION_TYPES, CONFIDENCE, NEW_LAYER, chooseLayerId, uniqueLayerName, typeLabel, isInterpretationLayer, interpretationLayer, addInterpretationLine, removeInterpretationLine, restoreInterpretationLine, lineLengthM, moveInterpretationVertex } from "../lib/interpretation.js";
+import { attitudeOf, attitudeAttrs, INTERPRETATION_TYPES, CONFIDENCE, NEW_LAYER, chooseLayerId, uniqueLayerName, typeLabel, isInterpretationLayer, interpretationLayer, addInterpretationLine, removeInterpretationLine, restoreInterpretationLine, lineLengthM, moveInterpretationVertex, insertInterpretationVertex, removeInterpretationVertex } from "../lib/interpretation.js";
 import { useInterpretVertexEdit } from "./useInterpretVertexEdit.js"; // TASKS.csv #2767
 import { terrainGroundAt } from "../lib/viewer/geomath.js";
 import { collarGround } from "../lib/pitShell.js"; // TASKS.csv #2768
@@ -78,7 +78,9 @@ export default function InterpretPane({ drawing, onStart, onUndo, onCancel, onDo
   const collarG = useMemo(() => (onCollars ? collarGround(collars) : null), [onCollars, collars]);
   const groundAt = useMemo(() => (terrain ? (x, y) => terrainGroundAt(terrain, x, y) : collarG), [terrain, collarG]);
   useInterpretVertexEdit({ view, layer: editIdx != null ? layer : null, index: editIdx, groundAt, snap: { on: drawing.snap !== false, ctx: snapCtx },
-    onMove: (vi, xy, tie) => { if (layer) updateMapLayer(layer.id, (l) => ({ ...moveInterpretationVertex(l, editIdx, vi, xy, tie), id: layer.id })); } });
+    onMove: (vi, xy, tie) => { if (layer) updateMapLayer(layer.id, (l) => ({ ...moveInterpretationVertex(l, editIdx, vi, xy, tie), id: layer.id })); },
+    onInsert: (at, xy, tie) => { if (layer) updateMapLayer(layer.id, (l) => ({ ...insertInterpretationVertex(l, editIdx, at, xy, tie), id: layer.id })); }, // #2784
+    onRemove: (vi) => { if (layer) updateMapLayer(layer.id, (l) => ({ ...removeInterpretationVertex(l, editIdx, vi), id: layer.id })); } });
   useEffect(() => { if (editIdx == null) return undefined; const k = (e) => { if (e.key !== "Escape" || /^(INPUT|TEXTAREA|SELECT)$/.test(e.target?.tagName || "")) return; e.stopImmediatePropagation(); setEditIdx(null); }; window.addEventListener("keydown", k, true); return () => window.removeEventListener("keydown", k, true); }, [editIdx]); // capture: Escape ends the edit, not the pane
 
   // TASKS.csv #2522 (review #2486) — the trash removed a line at one click with nothing to bring it back: the last removed line can be restored
@@ -143,7 +145,7 @@ export default function InterpretPane({ drawing, onStart, onUndo, onCancel, onDo
         )}
         {editIdx != null && layer?.features?.[editIdx] && (
           <div style={{ border: "1px solid var(--color-accent)", borderRadius: 6, padding: 8, display: "flex", flexDirection: "column", gap: 6 }}>{/* #2767 */}
-            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)" }}>{tr("Editing \"{name}\": drag a vertex (the orange points) in the 3D view to move it. Top view works best.", { name: layer.features[editIdx].attributes.name })}</div>
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)" }}>{tr("Editing \"{name}\": drag a vertex (the orange points) in the 3D view to move it, drag a midpoint (the small yellow points) to add one, Alt+click a vertex to remove it. Top view works best.", { name: layer.features[editIdx].attributes.name })}</div>
             <button type="button" onClick={() => setEditIdx(null)} style={{ ...pBtn, justifyContent: "center", marginBottom: 0 }}>{tr("Done")}</button>
           </div>
         )}

@@ -45,7 +45,7 @@ test("wiring: the pane's pencil, the drag hook and ViewerModule's view refs", ()
   assert.match(p, /useInterpretVertexEdit\(\{ view, layer: editIdx != null \? layer : null, index: editIdx, groundAt,/);
   assert.match(p, /moveInterpretationVertex\(l, editIdx, vi, xy, tie\)/);
   const h = readFileSync(new URL("../src/components/useInterpretVertexEdit.js", import.meta.url), "utf8");
-  assert.match(h, /view\.dragHook\.current = \(e\) => \{\s*const vi = nearest\(e\);\s*if \(vi < 0\) return false;/);
+  assert.match(h, /view\.dragHook\.current = \(e\) => \{\s*const vi = nearest\(e\);[\s\S]*?if \(vi < 0 && mi < 0\) return false;/); // #2784: a midpoint handle claims the press too
   const v = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
   assert.match(v, /view: \{ scene: sceneRef, camera: cameraRef, renderer: rendererRef, dragHook: viewDragHookRef, origin: originRef, activity: lastActivityRef \}, snapCtx: \(\) => \(\{ traces: tracesRef\.current, layers, visible: layerVisible \}\)/);
 });

@@ -126,6 +126,26 @@ export function moveInterpretationVertex(layer, index, vi, xy, snap = null) {
   const nextPart = part.map((q, i) => (i === vi ? [r2(xy[0]), r2(xy[1])] : q));
   const legacy = !f.tieVerts && !!f.attributes?.ties && !snap;
   const tv = (f.tieVerts || part.map(() => null)).map((t, i) => (i === vi ? (snap?.hole_id ? { ...snap } : null) : t));
+  return withLineEdit(layer, index, f, nextPart, tv, legacy);
+}
+
+// TASKS.csv #2784 — a vertex added at position `at` (a midpoint handle dragged in the 3D view), or removed (Alt+click a vertex; a line keeps
+// at least two). Length, ties and box follow, as for a move.
+export function insertInterpretationVertex(layer, index, at, xy, snap = null) {
+  const f = layer?.features?.[index], part = f?.parts?.[0];
+  if (!part || !(at >= 1 && at <= part.length - 1) || !Number.isFinite(xy?.[0]) || !Number.isFinite(xy?.[1])) return layer;
+  const nextPart = [...part.slice(0, at), [r2(xy[0]), r2(xy[1])], ...part.slice(at)];
+  const tv0 = f.tieVerts || part.map(() => null), tv = [...tv0.slice(0, at), snap?.hole_id ? { ...snap } : null, ...tv0.slice(at)];
+  return withLineEdit(layer, index, f, nextPart, tv, !f.tieVerts && !!f.attributes?.ties && !snap);
+}
+export function removeInterpretationVertex(layer, index, vi) {
+  const f = layer?.features?.[index], part = f?.parts?.[0];
+  if (!part || part.length <= 2 || !(vi >= 0 && vi < part.length)) return layer;
+  const tv = (f.tieVerts || part.map(() => null)).filter((_, i) => i !== vi);
+  return withLineEdit(layer, index, f, part.filter((_, i) => i !== vi), tv, !f.tieVerts && !!f.attributes?.ties);
+}
+
+function withLineEdit(layer, index, f, nextPart, tv, legacy) {
   const pts = nextPart.map(([x, y], i) => ({ x, y, snap: tv[i] }));
   const attributes = { ...f.attributes, length_m: Math.round(lineLengthM(pts)) };
   const ties = tiesText(pts);
