@@ -36,7 +36,8 @@ test("the ref carries the cut-off; the cache follows the assays", () => {
 test("the pane: one list entry per lab element opens the cut-off form; the card is a numeric card with that ref", () => {
   const p = fs.readFileSync("src/components/EvidenceOverlayPane.jsx", "utf8");
   assert.match(p, /key: `gtpick:\$\{e\.symbol\}`/);
-  assert.match(p, /if \(k\.startsWith\("gtpick:"\)\) setGtPick\(\{ symbol: k\.slice\(7\), how: "gt", cut: "" \}\); else addLayer\(k\);/);
+  assert.match(p, /if \(k\.startsWith\("gtpick:"\)\) setGtPick\(\{ symbol: k\.slice\(7\), how: "gt", cut: "" \}\); else if \(k\.startsWith\("gtlpick:"\)\)/); // a numeric log since #2781
+  assert.match(p, /\/\* #2781 \*\/ else addLayer\(k\);/);
   assert.match(p, /kind: "numeric", ref: gtRef\(gtPick\.symbol, how, cut\) \}\)/);
   assert.match(p, /const gtz = parseGtRef\(ref\);/);
 });

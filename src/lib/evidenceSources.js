@@ -528,3 +528,24 @@ export function occurrenceSymbol(layers, list, current = null) {
   if (card) return card.ref;
   return syms.includes(current) ? current : syms[0] || "";
 }
+
+// TASKS.csv #2781 (follow-up of #2653) — the same per-hole grade x thickness / metres above a cut-off for a numeric downhole log (the gamma
+// log's eU3O8, a custom layer's field): its rows as assay-shaped intervals { hole_id, from, to, values: { v } }; a point log (depth only)
+// becomes intervals from each reading to the next in its hole, the last one as long as the hole's median step. Then holeIntervalPoints.
+export const gtlRef = (ref, how, cutoff) => `gtl:${JSON.stringify({ r: ref, how, c: cutoff })}`;
+export const parseGtlRef = (ref) => { if (typeof ref !== "string" || !ref.startsWith("gtl:")) return null; try { const z = JSON.parse(ref.slice(4)); return z && (z.how === "gt" || z.how === "m") && Number.isFinite(Number(z.c)) ? { ref: z.r, how: z.how, cutoff: Number(z.c) } : null; } catch { return null; } };
+export function logIntervals(rows, field) {
+  const out = [], points = new Map();
+  for (const r of rows || []) {
+    const v = numericCell(r?.[field]); if (v == null) continue;
+    const f = Number(r.from), t = Number(r.to);
+    if (Number.isFinite(f) && Number.isFinite(t) && t > f) { out.push({ hole_id: r.hole_id, from: f, to: t, values: { v } }); continue; }
+    const d = Number(r.depth); if (Number.isFinite(d)) (points.get(r.hole_id) || points.set(r.hole_id, []).get(r.hole_id)).push([d, v]);
+  }
+  for (const [h, list] of points) {
+    list.sort((a, b) => a[0] - b[0]);
+    const steps = list.slice(1).map((p, i) => p[0] - list[i][0]).filter((x) => x > 0).sort((a, b) => a - b), step = steps.length ? steps[steps.length >> 1] : 0;
+    list.forEach(([d, v], i) => { const to = i + 1 < list.length ? list[i + 1][0] : d + step; if (to > d) out.push({ hole_id: h, from: d, to, values: { v } }); });
+  }
+  return out;
+}
