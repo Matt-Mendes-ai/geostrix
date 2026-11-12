@@ -75,20 +75,25 @@ export function makeValueGrid(values, nx, ny, x0, yTop, dx, dy, isNoData) {
   const f = Math.max(1, Math.ceil(Math.max(nx, ny) / GRID_MAX));
   const gx = Math.ceil(nx / f), gy = Math.ceil(ny / f);
   const out = new Float32Array(gx * gy);
+  // TASKS.csv #2831 — averaged, each block's highest and lowest value are kept beside its mean, and the range of the values averaged
+  const mx = f > 1 ? new Float32Array(gx * gy) : null, mn = f > 1 ? new Float32Array(gx * gy) : null;
+  let lo = Infinity, hi = -Infinity;
   for (let j = 0; j < gy; j++) for (let i = 0; i < gx; i++) {
-    let s = 0, n = 0;
+    let s = 0, n = 0, bmx = -Infinity, bmn = Infinity;
     for (let b = 0; b < f; b++) for (let a = 0; a < f; a++) {
       const ii = i * f + a, jj = j * f + b;
       if (ii >= nx || jj >= ny) continue;
       const v = values[jj * nx + ii];
-      if (!isNoData(v)) { s += v; n++; }
+      if (!isNoData(v)) { s += v; n++; if (v > bmx) bmx = v; if (v < bmn) bmn = v; }
     }
     out[j * gx + i] = n ? s / n : NaN;
+    if (mx) { mx[j * gx + i] = n ? bmx : NaN; mn[j * gx + i] = n ? bmn : NaN; }
+    if (n) { if (bmx > hi) hi = bmx; if (bmn < lo) lo = bmn; }
   }
   // a block's centre: the mean of the node positions it averages
   const cx = (i) => x0 + dx * (i * f + (Math.min(f, nx - i * f) - 1) / 2);
   const cy = (j) => yTop - dy * (j * f + (Math.min(f, ny - j * f) - 1) / 2);
-  return { nx: gx, ny: gy, x0: cx(0), yTop: cy(0), dx: dx * f, dy: dy * f, values: out, averagedBy: f, sourceSize: [nx, ny] };
+  return { nx: gx, ny: gy, x0: cx(0), yTop: cy(0), dx: dx * f, dy: dy * f, values: out, averagedBy: f, sourceSize: [nx, ny], ...(mx ? { maxValues: mx, minValues: mn, sourceRange: Number.isFinite(lo) ? [lo, hi] : null } : {}) }; // #2831
 }
 
 
@@ -1050,7 +1055,8 @@ export async function buildRasterImport(file, { epsg, defaultElevation, sourceEp
     if (bbox === parsed.bbox) {
       const g = parsed.grid;
       let n = 0; for (let i = 0; i < g.values.length; i++) if (Number.isFinite(g.values[i])) n++;
-      grid = { nx: g.nx, ny: g.ny, x0: g.x0, yTop: g.yTop, dx: g.dx, dy: g.dy, values: f32ToB64(g.values), valid: n, averagedBy: g.averagedBy, sourceSize: g.sourceSize };
+      grid = { nx: g.nx, ny: g.ny, x0: g.x0, yTop: g.yTop, dx: g.dx, dy: g.dy, values: f32ToB64(g.values), valid: n, averagedBy: g.averagedBy, sourceSize: g.sourceSize,
+        ...(g.maxValues && g.averagedBy > 1 ? { maxValues: f32ToB64(g.maxValues), minValues: f32ToB64(g.minValues), sourceRange: g.sourceRange } : {}) }; // #2831 — each block's extremes and the source range
       gridNote = ` Values kept for analysis (${g.nx}×${g.ny} nodes at ${gridCellText(g)}${g.averagedBy > 1 ? `, block-averaged ${g.averagedBy}×${g.averagedBy} from ${g.sourceSize[0]}×${g.sourceSize[1]}` : ""}) — the raster's menu can turn them into survey points for an inversion.`;
     } else if (tiedGrid && tiedGrid.valid) { // #2587 — the values resampled with the picture (nearest node: the readings themselves)
       const g = tiedGrid;
