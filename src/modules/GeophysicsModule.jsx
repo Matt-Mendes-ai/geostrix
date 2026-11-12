@@ -1,7 +1,7 @@
 import React, { Suspense, useEffect, useMemo, useRef, useState } from "react"; // Suspense: TASKS.csv #1425
 import { ensureProjectCrs, ensureExportCrs } from "../lib/projectCrsRequest.js"; // TASKS.csv #615; export: #1021
 import { useModuleAction, requestModuleAction } from "../lib/menuRequests.js"; // TASKS.csv #565; requestModuleAction: #1152
-import { askAdoptCrs, projectEpsgChooser } from "../lib/adoptCrs.js"; // TASKS.csv #607
+import { askAdoptCrs, projectEpsgChooser, medianLonLat } from "../lib/adoptCrs.js"; // TASKS.csv #607; medianLonLat: #2833
 import { gemHeaderEpsg, KEEP_CHOICES, suggestKeepEvery, everyNth, batchSurveyName, pairGpsFile } from "../lib/xyzBatch.js"; // TASKS.csv #1329
 import BlockModelMappingModal from "../components/BlockModelMappingModal.jsx"; // TASKS.csv #410
 import { guessBlockModelMapping, numericColumns, importBlockModelAttrs } from "../lib/blockModelCsv.js"; // importBlockModelAttrs: #1671 (in a worker)
@@ -1394,7 +1394,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
           if (pl.epsg) mineSrc = false; // the GPS file's own CRS places them
         }
         if (mineSrc) { const m = mineRowsToProject(mapped, project); mapped = m.rows; mineNote = m.note.trim(); }
-        if (srcEpsg && !asked) { asked = true; const adopted = askAdoptCrs({ isEmpty: projectIsEmpty, currentEpsg: project?.epsg, declaredEpsg: srcEpsg, fileName: f.name }); if (adopted) { setEpsg(adopted); target = adopted; } }
+        if (srcEpsg && !asked) { asked = true; const adopted = askAdoptCrs({ isEmpty: projectIsEmpty, currentEpsg: project?.epsg, declaredEpsg: srcEpsg, fileName: f.name, at: isGeographicCrs(Number(srcEpsg)) ? medianLonLat(mapped) : null, crsSet: project?.crsSet === true }); if (adopted) { setEpsg(adopted); target = adopted; } } // at, crsSet: #2833
         if (srcEpsg && target && Number(srcEpsg) !== Number(target)) mapped = mapped.map((r) => { const p = reprojectXY(r.x, r.y, srcEpsg, target); return p ? { ...r, x: p.x, y: p.y } : r; });
         kept += mapped.length;
         collected.push(mapped);
@@ -1502,7 +1502,9 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     const pickerDegrees = !placed?.epsg && !mineSrc && !geophysSourceEpsg && !xyzPending.headerEpsg && project?.crsSet !== false && !!project?.epsg && !isGeographicCrs(project.epsg) && xyLookLikeDegrees(xyzPending.rows, xyzPending.xCol, xyzPending.yCol);
     if (pickerDegrees) reprojectNote += " " + tr("Every X is within ±180 and every Y within ±90, so they were read as WGS 84 longitude / latitude; set the Source CRS if they are in another datum.");
     const statedEpsg = placed?.epsg || (mineSrc ? null : geophysSourceEpsg) || (mineSrc ? null : xyzPending.headerEpsg) || (pickerDegrees ? 4326 : null) || null; // headerEpsg: #1329 — a GEM file says, a Source CRS set by hand still wins; degrees: #2832
-    const adopted = statedEpsg ? askAdoptCrs({ isEmpty: projectIsEmpty, currentEpsg: project?.epsg, declaredEpsg: statedEpsg, fileName }) : null;
+    // TASKS.csv #2833 — the stations' place for a CRS in degrees (the metric CRS there is offered, never the degrees themselves), and nothing asked
+    // once the project's CRS was chosen (it was replaced by EPSG:4269 on OK)
+    const adopted = statedEpsg ? askAdoptCrs({ isEmpty: projectIsEmpty, currentEpsg: project?.epsg, declaredEpsg: statedEpsg, fileName, at: isGeographicCrs(Number(statedEpsg)) ? medianLonLat(mapped) : null, crsSet: project?.crsSet === true }) : null;
     if (adopted) { setEpsg(adopted); reprojectNote += tr(" Project CRS set to EPSG:{epsg}.", { epsg: adopted }); }
     const targetEpsg = adopted || project?.epsg;
     const sourceEpsgNow = statedEpsg;
