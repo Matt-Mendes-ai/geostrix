@@ -191,6 +191,14 @@ export function seedBreaks(range, baseColor) {
   const span = max - min;
   const C = lightnessRamp(baseColor) || ["#f2ddb8", "#e0894a", "#8c2f1f"]; // low / medium / high — see the lightness argument above
   if (!(span > 0)) return [{ max: max || 1, color: C[2], label: "All", seeded: true }];
+  // TASKS.csv #2935 (WA iron review) — a major component (a % unit, median 5 % or more: Fe, SiO2, Al2O3) gets round equal steps; the
+  // percentile classes put Fe's 50 % and 55 % cut-offs inside one 35-57 % class holding 40 % of the samples
+  const steps = majorComponentSteps(range);
+  if (steps) {
+    const cols = [];
+    for (let i = 0; i < steps.length; i++) cols.push(i < 3 ? C[i] : nextDarkerClassColor(baseColor, cols[i - 1]));
+    return steps.map((lim, i) => ({ max: lim, color: cols[i], label: i === 0 ? `\u2264 ${lim}` : `${steps[i - 1]}\u2013${lim}`, seeded: true }));
+  }
   // Percentile boundaries when the caller supplied a distribution; equal-interval otherwise.
   const usable = Number.isFinite(p50) && Number.isFinite(p90) && p50 > min && p90 > p50 && p90 < max;
   const b1 = usable ? p50 : min + span / 3;
@@ -208,6 +216,26 @@ export function seedBreaks(range, baseColor) {
     { max: round(veryHigh ? p975 : max), color: C[2], label: "High", seeded: true },
     ...(veryHigh ? [{ max: round(max), color: nextDarkerClassColor(baseColor, C[2]), label: "Very high", seeded: true }] : []),
   ];
+}
+
+// TASKS.csv #2935 — a major component: range.unit a percentage ('%', '% SiO2') and a median of 5 % or more
+export const isMajorComponent = (range) => /^%/.test(String(range?.unit ?? "").trim()) && range?.p50 >= 5 && range.max > range.p50;
+const NICE = [1, 2, 2.5, 5, 10];
+const niceStep = (raw) => { const p = 10 ** Math.floor(Math.log10(raw)); return NICE.reduce((b, f) => (Math.abs(f * p - raw) < Math.abs(b - raw) ? f * p : b), NICE[0] * p); }; // the nearest round step
+// the class limits for a major component: a round step (1, 2, 2.5, 5 x 10^k) near a third of the median-to-maximum spread, from the step at
+// or below the median up to the maximum (Fe 0-68.5 %, median 35.4: 30 / 40 / 50 / 60 / 68.51), at most 6 classes; null otherwise
+export function majorComponentSteps(range) {
+  if (!isMajorComponent(range)) return null;
+  const { p50, max } = range;
+  let step = niceStep((max - p50) / 3);
+  for (let k = 0; k < 4; k++) {
+    const lo = Math.floor(p50 / step) * step, lims = [];
+    for (let v = lo; v < max - 1e-9; v += step) if (v > (range.min ?? -Infinity)) lims.push(+v.toFixed(6));
+    lims.push(+max.toFixed(3));
+    if (lims.length <= 6) return lims.length >= 2 ? lims : null;
+    step = niceStep(step * 1.5);
+  }
+  return null;
 }
 
 // TASKS.csv #701 — the colour for a class added ABOVE the last one in the assay style editor: the element's own hue,

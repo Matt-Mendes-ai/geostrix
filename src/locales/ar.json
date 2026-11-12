@@ -10586,6 +10586,7 @@
   "Measured from the collars: {n} drill sites (collars within 2 m are one site), median distance to the nearest site {s} m. Type a buffer to keep your own.": "مقيس من الفوهات: {n} موقع حفر (الفوهات ضمن 2 م موقع واحد)، والمسافة الوسيطة إلى أقرب موقع {s} م. اكتب نطاقًا لتحتفظ بقيمتك.",
   "half the {s} m drill spacing": "نصف تباعد الحفر البالغ {s} م",
   "Default classes: the 50th, 90th and 97.5th percentiles of the {n} detected values; the {left} reported below detection ('<') are left out.": "الفئات الافتراضية: المئين 50 و90 و97.5 لقيم مكتشفة عددها {n}؛ وتُستبعد {left} قيمة مُبلغ عنها دون حد الكشف ('<').",
+  "Default classes: round steps of the data, as for a major component (a median of {p50} {unit}): {limits}.": "الفئات الافتراضية: درجات مستديرة على البيانات، كما لمكوّن رئيسي (وسيط {p50} {unit}): {limits}.",
   "Default classes: the 50th, 90th and 97.5th percentiles of the {n} values above the floor {floor} {unit}; the {left} at the floor (probably half a detection limit substituted before import) are left out.": "الفئات الافتراضية: المئين 50 و90 و97.5 لقيم عددها {n} فوق الحد الأدنى {floor} {unit}؛ وتُستبعد {left} قيمة عند الحد (على الأرجح نصف حد كشف مُستبدل قبل الاستيراد).",
   "Default classes: the 50th, 90th and 97.5th percentiles of all {n} values.": "الفئات الافتراضية: المئين 50 و90 و97.5 لكل القيم البالغ عددها {n}.",
   "Round every class limit to two significant figures": "قرّب كل حد فئة إلى رقمين معنويين",

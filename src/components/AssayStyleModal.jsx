@@ -3,7 +3,7 @@ import { X, Plus, Trash2, RotateCcw } from "./icons.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay, backdropProps } from "../lib/modalStyles.js";
-import { seedBreaks, nextDarkerClassColor } from "../lib/colorRamp.js"; // TASKS.csv #319 / #476; #701
+import { seedBreaks, nextDarkerClassColor, majorComponentSteps } from "../lib/colorRamp.js"; // TASKS.csv #319 / #476; #701; #2935
 import { roundBreaks, addClassLimit } from "../lib/assayClasses.js"; // TASKS.csv #2519
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { SHAPES } from "../lib/layerStyle.js"; // TASKS.csv #649 — the same marker shapes as the other point layers
@@ -43,7 +43,7 @@ export default function AssayStyleModal({ symbol, unit, defaultColor, range, sty
       // Seed with a sensible 3-class split of the element's real data range so the user has something
       // concrete to edit rather than a blank row — same "nice round numbers" spirit as the scale-bar
       // helper elsewhere in the app, just simpler (no cartographic convention needed here).
-      commit({ ...local, breaks: seedBreaks(range, local.color) }); // #319 — seed from THIS element's colour
+      commit({ ...local, breaks: seedBreaks({ ...range, unit }, local.color) }); // #319 — seed from THIS element's colour
       return;
     }
     const last = local.breaks[local.breaks.length - 1];
@@ -64,11 +64,13 @@ export default function AssayStyleModal({ symbol, unit, defaultColor, range, sty
   // OFFERED as a class limit (never applied): a click splits the class holding it there, seeding the default classes first
   const { geochemThresholds } = useStore();
   const offers = useMemo(() => drillThresholdOffers(geochemThresholds, symbol, unit).slice(0, 4), [geochemThresholds, symbol, unit]);
-  const addOffer = (v) => commit({ ...local, breaks: addClassLimit(local.breaks.length ? local.breaks : seedBreaks(range, local.color), v, local.color) });
+  const addOffer = (v) => commit({ ...local, breaks: addClassLimit(local.breaks.length ? local.breaks : seedBreaks({ ...range, unit }, local.color), v, local.color) });
   const basis = range?.basis;
   const basisText = !basis || !basis.n ? null : basis.kind === "flags" ? tr("Default classes: the 50th, 90th and 97.5th percentiles of the {n} detected values; the {left} reported below detection ('<') are left out.", { n: basis.n.toLocaleString(), left: basis.left.toLocaleString() }) : basis.kind === "floor" ? tr("Default classes: the 50th, 90th and 97.5th percentiles of the {n} values above the floor {floor} {unit}; the {left} at the floor (probably half a detection limit substituted before import) are left out.", { n: basis.n.toLocaleString(), left: basis.left.toLocaleString(), floor: gradeText(basis.floor), unit }) : tr("Default classes: the 50th, 90th and 97.5th percentiles of all {n} values.", { n: basis.n.toLocaleString() });
 
-  const reset = () => commit({ color: defaultColor, sizeMult: 1, shape: "sphere", opacity: 1, minCutoff: "", breaks: [] });
+  // TASKS.csv #2935 — Reset gives the seeded classes the dialog calls the default (was no classes: 'sphere size = grade', one colour)
+  const reset = () => commit({ color: defaultColor, sizeMult: 1, shape: "sphere", opacity: 1, minCutoff: "", breaks: seedBreaks({ ...range, unit }, defaultColor) });
+  const major = majorComponentSteps({ ...range, unit });
 
   return (
     <div style={overlay} {...backdropProps(onClose)}>
@@ -118,7 +120,7 @@ export default function AssayStyleModal({ symbol, unit, defaultColor, range, sty
               <span style={{ ...rowLabel, marginBottom: 0 }} title={tr("Recategorize: instead of one flat colour, split this element into grade classes, each with its own colour — like a graduated/categorized legend.")}>{tr("Grade classes (recategorize)")}</span>
               {!local.breaks.length && <button onClick={addBreak} style={smallBtn}><Plus size={12} />{" "}{tr("Add classes")}</button>}
             </div>
-            {basisText && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>{basisText}</div>}{/* #2519 */}
+            {(major || basisText) && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>{major ? tr("Default classes: round steps of the data, as for a major component (a median of {p50} {unit}): {limits}.", { p50: +range.p50.toFixed(2), unit, limits: major.join(" / ") }) : basisText}</div>}{/* #2519; #2935 */}
             {offers.length > 0 && (
               <div style={{ display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap", marginBottom: 6, fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{/* #2688 — offered, never applied */}
                 <span>{tr("Saved threshold:")}</span>
