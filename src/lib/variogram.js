@@ -99,6 +99,12 @@ export const VALUE_TRANSFORMS = {
     label: "log10(value + 1)",
     note: "For skewed grade (most precious/base metals). Reveals structure that outliers hide. Range is still metres; sill/nugget are in log units and are NOT a grade variance.",
   },
+  // TASKS.csv #1746 (review #1645, Copley) — 99 % of Copley's Au is below 0.08 g/t, where log10(x + 1) is about 0.43 x: the 'log'
+  // variogram was the raw one rescaled. This one takes the log of the value itself, with a floor for zeros.
+  logfloor: {
+    label: "log10(value), zeros at half the smallest value",
+    note: "For skewed grade whose values are mostly below 1 (gold in g/t, most elements in %), where + 1 barely changes them. Zeros and values below half the smallest positive value are set to that half (a stand-in for below detection). Range is still metres; sill/nugget are in log units and are NOT a grade variance.",
+  },
   cap: {
     label: "Cap at percentile",
     note: "Keeps raw units by pulling extreme values back to a percentile, the same top-cut idea as the estimation cap. Less distorting than a log, less effective on very skewed data.",
@@ -113,7 +119,17 @@ export function applyValueTransform(points, transform = "none", capPercentile = 
     // +1 rather than a small epsilon: assays legitimately include exact zeros (below detection, already
     // substituted upstream), and log(eps) would turn each of those into a huge negative outlier — the
     // exact failure mode the transform exists to avoid.
-    return { points: pts.map((p) => ({ ...p, value: Math.log10(Math.max(0, p.value) + 1) })), capValue: null };
+    // #1746 — p95: when it is well below 1, log10(x + 1) is nearly linear (0.43 x) and the panel says so
+    const v = pts.map((p) => Math.max(0, p.value)).sort((a, b) => a - b);
+    const p95 = v.length ? v[Math.min(v.length - 1, Math.floor(0.95 * (v.length - 1)))] : null;
+    return { points: pts.map((p) => ({ ...p, value: Math.log10(Math.max(0, p.value) + 1) })), capValue: null, p95 };
+  }
+  if (transform === "logfloor") { // #1746 — log10 of the value; zeros and anything below half the smallest positive value at that half
+    let minPos = Infinity;
+    for (const p of pts) if (p.value > 0 && p.value < minPos) minPos = p.value;
+    if (!Number.isFinite(minPos)) return { points: [], capValue: null, floor: null };
+    const floor = minPos / 2;
+    return { points: pts.map((p) => ({ ...p, value: Math.log10(Math.max(floor, p.value)) })), capValue: null, floor };
   }
   if (transform === "cap") {
     const sorted = pts.map((p) => p.value).sort((a, b) => a - b);

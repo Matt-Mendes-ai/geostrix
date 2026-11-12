@@ -141,7 +141,7 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
           }
         }
 
-        const { points: tPoints, capValue } = applyValueTransform(points, transform, capPercentile);
+        const { points: tPoints, capValue, p95: tP95 = null, floor: tFloor = null } = applyValueTransform(points, transform, capPercentile); // p95 / floor: #1746
         // TASKS.csv #1027 — downhole pairs: the downhole spacing; all / between-hole pairs: the spacing between holes
         const between = holeMode === "downhole" ? null : suggestBetweenHoleLag(tPoints);
         // TASKS.csv #2221 — the drill sites of the holes in this run (collars within 25 m are one site)
@@ -161,7 +161,7 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
         setResult({
           vg, fit, lag, suggested, capValue, domainLabel, spacing, nLagsUsed, fromSites: !!site, // #2221
           nLagsTyped: nLags, plane: usePlane ? { label: usePlane.label, half } : null, holeMode, compositeLength, medianSampleM: medianSampleLength(srcAssays, symbol), // #2424
-          nComposites: points.length, dropped, transform, model,
+          nComposites: points.length, dropped, transform, model, tP95, tFloor, // #1746
           nIntervals: intervals.length, unsampled: uns.params(filled), // #2417
         });
       } catch (e) {
@@ -401,8 +401,10 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
 
               {result.transform !== "none" && (
                 <div style={noteBox("#fdf7ea", "#e2a63c")}>
-                  <b>{tr("Transformed values ({label}).", { label: tr((VALUE_TRANSFORMS[result.transform] || VALUE_TRANSFORMS.none).label) })}</b> {tr("{note}{v} The", { note: tr((VALUE_TRANSFORMS[result.transform] || VALUE_TRANSFORMS.none).note), v: result.transform === "log" && tr(" In particular, do not quote this sill as a grade variance — back-transforming it correctly needs a lognormal correction GeoStrix does not apply.") })}{" "}<b>{tr("range")}</b>{" "}{tr("is still a distance in metres and is the number to carry into a search radius.")}</div>
+                  <b>{tr("Transformed values ({label}).", { label: tr((VALUE_TRANSFORMS[result.transform] || VALUE_TRANSFORMS.none).label) })}</b> {tr("{note}{v} The", { note: tr((VALUE_TRANSFORMS[result.transform] || VALUE_TRANSFORMS.none).note), v: (result.transform === "log" || result.transform === "logfloor") && tr(" In particular, do not quote this sill as a grade variance — back-transforming it correctly needs a lognormal correction GeoStrix does not apply.") })}{" "}<b>{tr("range")}</b>{" "}{tr("is still a distance in metres and is the number to carry into a search radius.")}</div>
               )}
+              {result.transform === "log" && result.tP95 != null && result.tP95 < 0.2 && <div role="note" style={noteBox("#fdf7ea", "#e2a63c")}>{tr("95 % of these values are below {p} {unit}: there log10(value + 1) is close to 0.43 × value, so this variogram is nearly the raw one rescaled. Choose \"log10(value), zeros at half the smallest value\" instead.", { p: +result.tP95.toPrecision(2), unit: gradeUnitLabel(symbol, unit) })}</div>}{/* #1746 */}
+              {result.transform === "logfloor" && result.tFloor != null && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("Zeros and values below {f} {unit} (half the smallest positive value) were set to {f} before the log.", { f: +result.tFloor.toPrecision(3), unit: gradeUnitLabel(symbol, unit) })}</div>}{/* #1746 */}
 
               {nPairsLow && (
                 <div style={noteBox("#fdf7ea", "#e2a63c")}>{result.vg.reliableFromLag > result.lag * 1.01 && result.vg.maxReliableLag > 0 /* #2065 — the first lags fail: name the usable run */

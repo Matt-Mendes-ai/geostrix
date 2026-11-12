@@ -28,8 +28,14 @@ export function samplesInsideShell(points, grid, values, cutoff) {
 // composites. composites: [{ x, y, z, value, hole_id? }]; cells: [{ x, y, z }] (centres); cellSize: m (the diagonal is the reach).
 // -> { checked, unsupported: [{ value, hole_id, nearestM }] (sorted by value, highest first), reachM }
 const NEAREST_FOR = 3; // TASKS.csv #2547 — the message lists the first three
-export function topCompositesWithoutBlocks(composites, cells, cellSize, { share = 0.05, min = 3 } = {}) {
-  const sorted = (composites || []).filter((c) => Number.isFinite(c.value)).sort((a, b) => b.value - a.value);
+// TASKS.csv #2456 (review #2325) — bounds: the estimate's grid box; only composites inside it (plus one cell) are checked, so 'Fit to the
+// checked holes' no longer warns about '269 of the 294 highest composites' hundreds of metres outside the grid. outsideGrid: how many
+// of the highest composites (ranked over all of them) lie outside, to say so. Without bounds the result is as before.
+export function topCompositesWithoutBlocks(composites, cells, cellSize, { share = 0.05, min = 3, bounds = null } = {}) {
+  const all = (composites || []).filter((c) => Number.isFinite(c.value)).sort((a, b) => b.value - a.value);
+  const inGrid = (c) => !bounds || (c.x >= bounds.xmin - cellSize && c.x <= bounds.xmax + cellSize && c.y >= bounds.ymin - cellSize && c.y <= bounds.ymax + cellSize && c.z >= bounds.zmin - cellSize && c.z <= bounds.zmax + cellSize);
+  const sorted = bounds ? all.filter(inGrid) : all;
+  const outsideGrid = bounds ? all.slice(0, Math.min(all.length, Math.max(min, Math.ceil(share * all.length)))).filter((c) => !inGrid(c)).length : 0;
   const n = Math.min(sorted.length, Math.max(min, Math.ceil(share * sorted.length)));
   const top = sorted.slice(0, n), reachM = Math.sqrt(3) * cellSize;
   // a coarse hash of the cells, so each composite looks only at the cells of its own and the neighbouring bins
@@ -55,5 +61,5 @@ export function topCompositesWithoutBlocks(composites, cells, cellSize, { share 
       unsupported.push({ value: c.value, hole_id: c.hole_id ?? null, nearestM: Number.isFinite(best) ? best : null });
     }
   }
-  return { checked: n, unsupported, reachM };
+  return { checked: n, unsupported, reachM, ...(bounds ? { outsideGrid } : {}) };
 }
