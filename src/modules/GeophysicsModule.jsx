@@ -87,7 +87,7 @@ import { tieTerrainToLocal } from "../lib/terrainTie.js"; // TASKS.csv #2648
 import { farFromCollars, farLabel } from "../lib/landingCheck.js"; // TASKS.csv #2590
 import { collarCentreLonLat } from "../lib/projectCrs.js"; // TASKS.csv #2465
 import { niceContourInterval, terrainRange, MIN_CONTOUR_INTERVAL } from "../lib/contourInterval.js"; // TASKS.csv #2462
-import { vectorToBoundaryPolylines, claimsFromVector, isAreaBoundary, fileStem } from "../lib/boundaryImport.js"; // fileStem: #1767; // TASKS.csv #1035; claims per feature: #1970; isAreaBoundary: #1466
+import { vectorToBoundaryPolylines, claimsFromVector, isAreaBoundary, fileStem, crsLabel } from "../lib/boundaryImport.js"; // crsLabel: #2467; // fileStem: #1767; // TASKS.csv #1035; claims per feature: #1970; isAreaBoundary: #1466
 import { clampCellBudget, MIN_CELL_BUDGET, MAX_BLOCK_MODEL_BUDGET } from "../lib/estimationMeta.js"; // TASKS.csv #1074
 import { checkGpkgSize } from "../lib/gpkgSize.js"; // TASKS.csv #1716
 import { sniffTable, estimateRows, streamTableRows, streamXyzRows, headText } from "../lib/streamTable.js"; // TASKS.csv #1351
@@ -950,6 +950,8 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
   // file) is normally meant to be treated as a single layer. KML was NOT added: it needs its own XML
   // parser (a different format entirely, not a shapefile variant), out of scope for this pass — flagged
   // as still open.
+  // TASKS.csv #2467 — a KML / GPX / GeoJSON is longitude / latitude: said like any other import's CRS
+  const lonLatNote = (tie) => (!tie && !(project?.crsSet !== false && project?.epsg) ? null : tie ? tr("its longitude / latitude (WGS 84) was brought into the local grid through its tie to EPSG:{tie}", { tie: tie.epsg }) : tr("its longitude / latitude (WGS 84) was reprojected to the project's {dst}", { dst: crsLabel(project?.epsg) }));
   async function shapeFileToPolylines(file) {
     const name = file.name.toLowerCase();
     // TASKS.csv #424 — KML/KMZ (MTO claims, Google Earth, phone waypoints). Always WGS84, so it is
@@ -960,7 +962,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       if (tie) await getProj4Def(Number(tie.epsg)); // a registry code loads on demand (#834)
       const { polylines, failed } = kmlToProjectPolylines(features, project?.epsg, { toLocal: tie ? (x, y, from) => fileToLocal(tie, x, y, from) : null });
       if (!polylines.length) throw new Error(failed ? tr("KML coordinates could not be converted to EPSG:{v}.", { v: project?.epsg }) : tr("No lines or polygons found in this KML (points are imported through the 3D View importer)."));
-      return { polylines };
+      return { polylines, note: lonLatNote(tie) }; // #2467
     }
     // TASKS.csv #1106 — GPX tracks / routes and GeoJSON lines / polygons, WGS 84 (or a GeoJSON "crs" EPSG) to the project CRS
     if (name.endsWith(".gpx") || name.endsWith(".geojson") || name.endsWith(".json")) {
@@ -971,7 +973,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       if (tie) await getProj4Def(Number(tie.epsg)); // a registry code loads on demand (#834)
       const { polylines, closedFlags, failed, partNames } = layersToBoundaryPolylines(layers, project?.epsg, reprojectXY, tie ? (x, y, from) => fileToLocal(tie, x, y, from) : null); // closedFlags: #1760; partNames: #1767
       if (!polylines.length) throw new Error(failed ? tr("Coordinates could not be converted to EPSG:{v}.", { v: project?.epsg }) : tr("No lines or polygons found in this file (GPX waypoints and GeoJSON points are imported as a map layer in Surface Geology)."));
-      return { polylines, closedFlags, ...(partNames ? { partNames } : {}) };
+      return { polylines, closedFlags, ...(partNames ? { partNames } : {}), note: lonLatNote(tie) }; // note: #2467
     }
     // TASKS.csv #1035 — every part of every feature, reprojected from the file's own CRS (lib/boundaryImport.js)
     if (name.endsWith(".zip") || name.endsWith(".shp")) {

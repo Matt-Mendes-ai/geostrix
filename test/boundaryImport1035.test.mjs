@@ -20,7 +20,7 @@ test("#1035 shapefile in EPSG:3005 into a 26910 project: all 4 rings, each verte
   assert.equal(r.sourceEpsg, 3005);
   assert.equal(r.polylines.length, 4, "outer + hole + second part + second feature");
   assert.deepEqual(r.closedFlags, [true, true, true, true]);
-  assert.match(r.note, /reprojected from EPSG:3005 to EPSG:26910/);
+  assert.match(r.note, /its NAD83 \/ BC Albers \(EPSG:3005\) was reprojected to the project's NAD83 \/ UTM zone 10N \(EPSG:26910\)/); // by name since #2467
   const want = reprojectXY(1000000, 1000000, 3005, 26910);
   const all = r.polylines.flat();
   assert.ok(all.some((p) => Math.abs(p.x - want.x) < 0.01 && Math.abs(p.y - want.y) < 0.01), "the outer ring's corner, reprojected");
@@ -35,7 +35,7 @@ test("#1035 GeoPackage layer: srs_id used; same project CRS: untouched, no note;
   assert.equal(g.sourceEpsg, 3005); assert.ok(g.polylines.length >= 3);
   assert.ok(g.polylines.flat().every((p) => p.x > 100000 && p.x < 900000));
   const same = await vectorToBoundaryPolylines({ features, geomType: "polygon", epsg: 26910 }, 26910);
-  assert.equal(same.note, null); assert.equal(same.polylines[0][0].x, 1000000);
+  assert.match(same.note, /^in .*\(EPSG:26910\), the project's coordinate system$/); // said since #2467 (was null) assert.equal(same.polylines[0][0].x, 1000000);
   const none = await vectorToBoundaryPolylines({ features, geomType: "polyline" }, 26910);
   assert.match(none.note, /states no CRS/); assert.deepEqual(none.closedFlags, [false, false, false, false]);
 });

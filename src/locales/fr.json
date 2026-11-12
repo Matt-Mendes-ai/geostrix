@@ -10589,5 +10589,9 @@
   "Blank: gaps under {n} blocks are left out (a gap of a block or two is the grid, not a target).": "Vide : les lacunes de moins de {n} blocs sont laissées de côté (une lacune d'un ou deux blocs, c'est la grille, pas une cible).",
   "About {n} blocks in the unit's box at this size.": "Environ {n} blocs dans la boîte de l'unité à cette taille.",
   "Evaluating \"{name}\" ({cells} cells) along {holes} hole(s)…": "Évaluation de « {name} » ({cells} cellules) le long de {holes} sondage(s)…",
-  "({s} s)": "({s} s)"
+  "({s} s)": "({s} s)",
+  "its {src} was reprojected to the project's {dst}": "son {src} a été reprojeté dans le {dst} du projet",
+  "in {crs}, the project's coordinate system": "en {crs}, le système de coordonnées du projet",
+  "its longitude / latitude (WGS 84) was reprojected to the project's {dst}": "sa longitude / latitude (WGS 84) a été reprojetée dans le {dst} du projet",
+  "its longitude / latitude (WGS 84) was brought into the local grid through its tie to EPSG:{tie}": "sa longitude / latitude (WGS 84) a été ramenée dans la grille locale par son rattachement à EPSG:{tie}"
 }
