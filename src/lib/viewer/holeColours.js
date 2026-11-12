@@ -61,5 +61,5 @@ export function applyHoleColours(group, scheme, { collarMaterial, collarsById } 
 // the legend section: "Holes by {field}", one row per value (with its hole count), "(no value)" last
 export function holeColourLegendGroup(scheme, label, noValueLabel) {
   if (!scheme) return null;
-  return { key: "hole_colour", label, items: scheme.items.map(([v, hex, n]) => [`${v == null ? noValueLabel : v} (${n})`, hex]) };
+  return { key: "hole_colour", label, items: scheme.items.map(([v, hex, n]) => [`${v == null ? noValueLabel : v} (${n})`, hex]), counts: scheme.items.map(([, , n]) => n) }; // counts: #2214 — a cut keeps the commonest rows, not "(no value)" last
 }
