@@ -21,8 +21,13 @@ export function viewForBox([x0, y0, x1, y1], w, h) {
   return { cx: (x0 + x1) / 2, cy: (y0 + y1) / 2, mPerPx: Math.max(bw / Math.max(1, w), bh / Math.max(1, h)) * 1.08 };
 }
 
+// TASKS.csv #2793 — a card on another tab (Surface Geology's map layers) switches to Maps and asks at once: the plan is not mounted yet, so
+// the request is kept a few seconds for the plan that mounts next
+let pending = null; // { bbox, at }
+const PENDING_MS = 5000;
 export function requestPlanZoom(bbox) {
   if (!bbox || !bbox.every(Number.isFinite)) return;
+  pending = { bbox, at: Date.now() };
   window.dispatchEvent(new CustomEvent(EVENT, { detail: { bbox } }));
 }
 
@@ -30,8 +35,9 @@ export function usePlanZoom(handler) {
   const ref = useRef(handler);
   ref.current = handler;
   useEffect(() => {
-    const on = (e) => ref.current(e.detail.bbox);
+    const on = (e) => { pending = null; ref.current(e.detail.bbox); };
     window.addEventListener(EVENT, on);
+    if (pending && Date.now() - pending.at < PENDING_MS) { const b = pending.bbox; pending = null; ref.current(b); } // #2793 — asked before this plan mounted
     return () => window.removeEventListener(EVENT, on);
   }, []);
 }
