@@ -32,7 +32,7 @@ test("1 % extreme values inflate Matheron, not the robust two", () => {
 
 test("the dialog offers them", () => {
   const v = readFileSync(new URL("../src/components/VariogramModal.jsx", import.meta.url), "utf8");
-  assert.match(v, /experimentalVariogram\(tPoints, \{ lagDistance: lag, nLags: nLagsUsed, lagTolerance, holeMode, direction, estimator \}\)/);
+  assert.match(v, /experimentalVariogram\(vgPoints, \{ lagDistance: lag, nLags: nLagsUsed, lagTolerance, holeMode, direction, estimator \}\)/); // vgPoints: the composites, flattened on a surface when chosen (#2710)
   assert.match(v, /<option value="cressie">\{tr\("Cressie-Hawkins \(robust\)"\)\}<\/option>/);
   assert.match(v, /<option value="dowd">\{tr\("Dowd \(median, robust\)"\)\}<\/option>/);
 });

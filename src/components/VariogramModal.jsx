@@ -17,6 +17,8 @@ import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay, backdropProps } from "../lib/modalStyles.js";
 import { useStore } from "../lib/store.jsx"; // TASKS.csv #135 — project desurvey method
 import { cleanTrend, trendBasis } from "../lib/trend.js"; // TASKS.csv #2424 — the block-estimation trend's plane
+import { surfaceElevation, flattenOnSurface } from "../lib/flattenOnSurface.js"; // TASKS.csv #2710 — pairs below a modelled contact
+import { surfaceOptionLabels } from "../lib/viewer/surfaceLabels.js"; // #2710 — repeated surface names told apart
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 import { fontSizes } from "../lib/theme.js"; // TASKS.csv #385 — SVG font-size attributes on the type scale
@@ -52,7 +54,10 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
   // and silently fell back to the default method — meaning a project set to, say, tangential would
   // have had its variogram computed on minimum-curvature traces. Same store field GradeEstimationModal
   // reads.
-  const { desurveyMethod, customLayers = [], structuralTrends } = useStore(); // customLayers: TASKS.csv #1571; structuralTrends: #2424 (read only)
+  const { desurveyMethod, customLayers = [], structuralTrends, generatedSurfaces = [] } = useStore(); // customLayers: TASKS.csv #1571; structuralTrends: #2424 (read only); generatedSurfaces: #2710
+  // TASKS.csv #2710 — a generated surface (a Top of a unit) the in-plane pairs may follow: the composites flattened on it
+  const flatSurfaces = useMemo(() => generatedSurfaces.filter((x) => x.vertices?.length >= 9 && x.indices?.length >= 3), [generatedSurfaces]);
+  const flatLabels = useMemo(() => surfaceOptionLabels(flatSurfaces), [flatSurfaces]);
   // TASKS.csv #2424 — the trend chosen for block estimation, whose plane (normal = its minor axis) the in-plane pairs may follow
   const estTrend = useMemo(() => { const id = structuralTrends?.use?.estimation; const t = id && (structuralTrends.trends || []).find((x) => x.id === id); return t ? cleanTrend(t) : null; }, [structuralTrends]);
 
@@ -99,6 +104,11 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
   const [inPlane, setInPlane] = useState(false);
   const [planeKind, setPlaneKind] = useState("auto"); // "auto" (the trend if one is set for block estimation, else horizontal) | "horizontal"
   const [planeHalf, setPlaneHalf] = useState("");
+  const planeChoice = (kind) => {
+    const sf = String(kind).startsWith("surface:") ? flatSurfaces.find((x) => `surface:${x.id}` === kind) : null;
+    if (sf) return { normal: { x: 0, y: 0, z: 1 }, label: tr("below \"{name}\" (flattened)", { name: flatLabels.get(sf.id) ?? sf.name }), surface: sf }; // #2710
+    return planeOf(kind === "horizontal" ? "horizontal" : "auto", estTrend);
+  };
   const [model, setModel] = useState("spherical");
 
   const [result, setResult] = useState(null);
@@ -161,16 +171,23 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
         const lag = lagDistance > 0 ? lagDistance : Math.max(1, Math.round(suggested || 10));
         const nLagsUsed = site && !(lagDistance > 0) ? Math.max(nLags, site.nLags) : nLags; // #2221 — auto lag between sites: out to the farthest one
 
-        const usePlane = inPlane ? planeOf(planeKind, estTrend) : null, half = Number(planeHalf) > 0 ? Number(planeHalf) : compositeLength; // #2424
+        const usePlane = inPlane ? planeChoice(planeKind) : null, half = Number(planeHalf) > 0 ? Number(planeHalf) : compositeLength; // #2424
+        // TASKS.csv #2710 — below a surface: each composite's elevation becomes its depth below it, then the pairs are level within ± half
+        let vgPoints = tPoints, flatOutside = 0;
+        if (usePlane?.surface) {
+          const fl = flattenOnSurface(tPoints, surfaceElevation(usePlane.surface.vertices, usePlane.surface.indices));
+          vgPoints = fl.points; flatOutside = fl.outside;
+          if (vgPoints.length < 20) { setError(tr("Only {n} composites lie over \"{name}\": too few to pair below it.", { n: vgPoints.length, name: flatLabels.get(usePlane.surface.id) ?? usePlane.surface.name })); setRunning(false); return; }
+        }
         const direction = usePlane ? { plane: { normal: usePlane.normal, halfWidth: half } } : directional
           ? { azimuth, dip, angleTol, bandwidth: bandwidth > 0 ? bandwidth : null }
           : null;
-        const vg = experimentalVariogram(tPoints, { lagDistance: lag, nLags: nLagsUsed, lagTolerance, holeMode, direction, estimator }); // estimator: #1996
-        lastRun.current = { points: tPoints, base: { lagDistance: lag, nLags: nLagsUsed, lagTolerance, holeMode, estimator }, model }; setDirTable(null); // #1996
+        const vg = experimentalVariogram(vgPoints, { lagDistance: lag, nLags: nLagsUsed, lagTolerance, holeMode, direction, estimator }); // estimator: #1996; vgPoints: #2710
+        lastRun.current = { points: vgPoints, base: { lagDistance: lag, nLags: nLagsUsed, lagTolerance, holeMode, estimator }, model }; setDirTable(null); // #1996
         const fit = fitVariogramModel(vg.bins, { model });
         setResult({
           vg, fit, lag, suggested, capValue, domainLabel, spacing, nLagsUsed, fromSites: !!site, // #2221
-          nLagsTyped: nLags, plane: usePlane ? { label: usePlane.label, half } : null, holeMode, compositeLength, medianSampleM: medianSampleLength(srcAssays, symbol), // #2424
+          nLagsTyped: nLags, plane: usePlane ? { label: usePlane.label, half, outside: flatOutside } : null, holeMode, compositeLength, medianSampleM: medianSampleLength(srcAssays, symbol), // #2424
           nComposites: points.length, dropped, transform, model, tP95, tFloor, // #1746
           byDepthHoles: byDepth.holes, // #1843
           nIntervals: intervals.length, unsampled: uns.params(filled), // #2417
@@ -315,11 +332,12 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
             {/* TASKS.csv #2424 — every azimuth within a plane (the bedding), within ± a half-width across it */}
             <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", cursor: "pointer", marginTop: 8 }} title={tr("For a layered deposit: pairs in every direction within a plane, kept only when they are within the half-width across it, so samples of the same layer in different holes are paired and samples of other layers are not. It replaces the single direction above.")}>
               <input type="checkbox" checked={inPlane} onChange={(e) => setInPlane(e.target.checked)} />{tr("In a plane, all azimuths (bedding)")}</label>
-            {inPlane && (() => { const pl = planeOf(planeKind, estTrend); return (
+            {inPlane && (() => { const pl = planeChoice(planeKind); return (
               <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end", marginTop: 8 }}>
                 <label style={fieldLabel}>{tr("Plane")}<select value={planeKind} onChange={(e) => setPlaneKind(e.target.value)} style={inp} aria-label={tr("Plane of the pairs")}>
                     <option value="auto">{estTrend ? tr("The block-estimation trend \"{name}\"", { name: estTrend.name }) : tr("Horizontal (no trend is set for block estimation)")}</option>
                     {estTrend && <option value="horizontal">{tr("Horizontal")}</option>}
+                    {flatSurfaces.length > 0 && <optgroup label={tr("Below a generated surface (flattened)")}>{flatSurfaces.map((x) => <option key={x.id} value={`surface:${x.id}`}>{flatLabels.get(x.id) ?? x.name}</option>)}</optgroup>}{/* #2710 */}
                   </select>
                 </label>
                 <label style={fieldLabel} title={tr("How far a pair may sit across the plane. Blank = the composite length.")}>{tr("Half-width across it (m)")}<input type="number" min="0" step="any" value={planeHalf} placeholder={String(compositeLength)} onChange={(e) => setPlaneHalf(e.target.value === "" ? "" : Math.max(0, Number(e.target.value)))} style={inp} aria-label={tr("Half-width across the plane (m)")} />
@@ -355,6 +373,7 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
               {result.vg.estimator && result.vg.estimator !== "matheron" && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr(result.vg.estimator === "cressie" ? "Semivariances by the Cressie-Hawkins estimator: led by the bulk of the pairs, not by a few extreme ones. Compare with Matheron: a Matheron sill well above this one is a few outlier pairs." : "Semivariances by Dowd's median estimator: led by the bulk of the pairs, not by a few extreme ones. Compare with Matheron: a Matheron sill well above this one is a few outlier pairs.")}</div>}{/* #1996 */}
               {result.byDepthHoles > 0 && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr(result.byDepthHoles === 1 ? "One hole has no collar or trace: its composites are paired by their depths down the hole, which is all Downhole only needs." : "{n} holes have no collar or trace: their composites are paired by their depths down each hole, which is all Downhole only needs.", { n: result.byDepthHoles })}</div>}{/* #1843 */}
               {result.plane && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("Pairs in the plane {p}, every azimuth, within ± {w} m across it.", { p: result.plane.label, w: result.plane.half })}</div>}{/* #2424 */}
+              {result.plane?.outside > 0 && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("{n} composites lie outside the surface's footprint and are left out.", { n: result.plane.outside.toLocaleString() })}</div>}{/* #2710 */}
               {result.nLagsUsed !== result.nLagsTyped && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("{n} lags drawn, out to {max} m, to reach the farthest drill site ({typed} typed).", { n: result.nLagsUsed, max: Math.round(result.nLagsUsed * result.lag), typed: result.nLagsTyped })}</div>}{/* #2424: the lag count actually used (#2221) */}
               {result.holeMode === "downhole" && result.fit?.nuggetRatio >= 0.95 && result.medianSampleM > 0 && result.medianSampleM < 0.75 * result.compositeLength && <div role="note" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", lineHeight: 1.45 }}>{tr("Downhole pairs on {c} m composites are pure nugget here, and the samples are typically {s} m long: a composite as long as the samples may show the short range.", { c: result.compositeLength, s: +result.medianSampleM.toFixed(2) })}</div>}{/* #2424 */}
               {result.unsampled?.unsampledFilledM != null && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{unsampledResultLine(result.unsampled, symbol)}</div>}{/* #2417 */}
