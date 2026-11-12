@@ -10480,5 +10480,7 @@
   "Unit of the cut-off": "Unidad de la ley de corte",
   "{n} blocks: {v}": "{n} bloques: {v}",
   "Blank: gaps under {n} blocks are left out (a gap of a block or two is the grid, not a target).": "En blanco: se dejan fuera los vacíos de menos de {n} bloques (un vacío de uno o dos bloques es la grilla, no un objetivo).",
-  "About {n} blocks in the unit's box at this size.": "Unos {n} bloques en la caja de la unidad con este tamaño."
+  "About {n} blocks in the unit's box at this size.": "Unos {n} bloques en la caja de la unidad con este tamaño.",
+  "Its values are {n} whole numbers ({list}): it may be a code (a weathering or intensity class), not a measure, and a ramp between them treats the order as meaningful. Check that, and the direction above.": "Sus valores son {n} números enteros ({list}): puede ser un código (una clase de meteorización o de intensidad), no una medida, y una rampa entre ellos trata el orden como significativo. Verifíquelo, y la dirección de arriba.",
+  "A field of a custom layer: check that higher means more favourable here, or choose favourable when low.": "Un campo de una capa personalizada: verifique que un valor más alto sea más favorable aquí, o elija favorable cuando es bajo."
 }

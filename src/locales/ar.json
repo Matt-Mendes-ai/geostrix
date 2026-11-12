@@ -10480,5 +10480,7 @@
   "Unit of the cut-off": "وحدة حد القطع",
   "{n} blocks: {v}": "{n} كتل: {v}",
   "Blank: gaps under {n} blocks are left out (a gap of a block or two is the grid, not a target).": "فارغ: تُستبعد الفجوات الأصغر من {n} كتل (فجوة من كتلة أو اثنتين هي الشبكة، لا هدف).",
-  "About {n} blocks in the unit's box at this size.": "نحو {n} كتلة في صندوق الوحدة بهذا الحجم."
+  "About {n} blocks in the unit's box at this size.": "نحو {n} كتلة في صندوق الوحدة بهذا الحجم.",
+  "Its values are {n} whole numbers ({list}): it may be a code (a weathering or intensity class), not a measure, and a ramp between them treats the order as meaningful. Check that, and the direction above.": "قيمه {n} أعداد صحيحة ({list}): قد يكون رمزًا (فئة تجوية أو شدة)، لا قياسًا، والتدرج بينها يعامل الترتيب على أنه ذو معنى. تحقق من ذلك، ومن الاتجاه أعلاه.",
+  "A field of a custom layer: check that higher means more favourable here, or choose favourable when low.": "حقل من طبقة مخصصة: تحقق من أن القيمة الأعلى أكثر ملاءمة هنا، أو اختر ملائم عند الانخفاض."
 }

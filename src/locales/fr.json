@@ -10480,5 +10480,7 @@
   "Unit of the cut-off": "Unité de la teneur de coupure",
   "{n} blocks: {v}": "{n} blocs : {v}",
   "Blank: gaps under {n} blocks are left out (a gap of a block or two is the grid, not a target).": "Vide : les lacunes de moins de {n} blocs sont laissées de côté (une lacune d'un ou deux blocs, c'est la grille, pas une cible).",
-  "About {n} blocks in the unit's box at this size.": "Environ {n} blocs dans la boîte de l'unité à cette taille."
+  "About {n} blocks in the unit's box at this size.": "Environ {n} blocs dans la boîte de l'unité à cette taille.",
+  "Its values are {n} whole numbers ({list}): it may be a code (a weathering or intensity class), not a measure, and a ramp between them treats the order as meaningful. Check that, and the direction above.": "Ses valeurs sont {n} nombres entiers ({list}) : c'est peut-être un code (une classe d'altération météorique ou d'intensité), pas une mesure, et une rampe entre elles traite l'ordre comme significatif. Vérifiez-le, ainsi que le sens ci-dessus.",
+  "A field of a custom layer: check that higher means more favourable here, or choose favourable when low.": "Un champ d'une couche personnalisée : vérifiez qu'une valeur plus haute est plus favorable ici, ou choisissez favorable quand bas."
 }
