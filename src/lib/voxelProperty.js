@@ -36,3 +36,12 @@ export function propertyRamp(property) {
   if (/conduct/i.test(p)) return { anchors: [...PALETTES.resistivity.colors].reverse(), palette: null };
   return null;
 }
+
+// TASKS.csv #2667 — 'A grade (element, unit)' under a block model's Values are: "Cu ppm", "Au (g/t)", "Fe %", "U3O8 ppm" -> { element, unit },
+// or null when it does not read as an element (or oxide) and a unit
+export function parseGradeLabel(text) {
+  const m = /^\s*([A-Z][A-Za-z0-9]{0,7})(?:\s+|\s*[,(]\s*)([^()]+?)\s*\)?\s*$/.exec(String(text ?? "")); // a space, comma or bracket between them
+  if (!m) return null;
+  const unit = m[2].trim();
+  return unit && /[a-z%]/i.test(unit) ? { element: m[1], unit } : null;
+}
