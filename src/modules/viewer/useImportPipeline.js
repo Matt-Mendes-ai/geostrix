@@ -25,6 +25,7 @@ import { untiedNorthOf, trueToUntiedGrid } from "../../lib/localGridDatum.js"; /
 import { mineGridOf } from "../../lib/mineGrid.js"; // TASKS.csv #2586
 import { dipConventionFields, upwardHoles } from "../../lib/dipSign.js"; // TASKS.csv #2886
 import { codeColumnGuess } from "../../lib/valueGuess.js"; // TASKS.csv #2889
+import { codeOverlap, otherCodeSystem } from "../../lib/codeOverlap.js"; // TASKS.csv #2893
 import { recoveryColumns, recoveryPct } from "../../lib/recoveryCalc.js"; // TASKS.csv #2891
 import { logChannelsFor, defaultLogBin, logChannelRows, unitFromHeader, channelNoData, noDataText, logBinEstimate, needsBinning } from "../../lib/downholeLogChannels.js"; // TASKS.csv #2160; no-data: #2332; logBinEstimate: #2885
 import { loadSampleFiles, readSiblingFiles } from "../../lib/desktop.js";
@@ -953,7 +954,9 @@ export function useImportPipeline(ctx) {
       const azDetected = AZ_TARGETS.has(target) ? detectAzimuthRef(headers, data) : null;
       const azOk = !azDetected || (!azDetected.mixed && azDetected.ref !== "magnetic" && !azDetected.hint && !azDetected.also); // hint (#2015): gyros only, no corrected column: asked; also (#2154): two azimuth columns, asked
       const guarded = guardGuess(target, mapping, headers, data, file.name); // #1649 — never unseen into another file's log
-      const confident = target !== "custom" && !guarded.guessNote && missingRequired.length === 0 && exactRequired && dipsAgree && azOk;
+      // TASKS.csv #2893 — never unseen into a code layer whose codes this file shares none of (another code system: the dialog says so)
+      const otherCodes = !LAYER_META[target]?.numeric && otherCodeSystem(codeOverlap(importStateRef.current.layers?.[target], data, mapping.value, mapping.hole_id));
+      const confident = target !== "custom" && !guarded.guessNote && missingRequired.length === 0 && exactRequired && dipsAgree && azOk && !otherCodes;
       // TASKS.csv #609 — the file's own CRS (.prj / GeoPackage) and a per-row EPSG column, as openImportModal passes
       // them: a queued shapefile used to be committed with no Source CRS, so its collars stayed in their own UTM
       // zone's numbers inside a project in another zone (~400 km from the same drop's reprojected map layers).

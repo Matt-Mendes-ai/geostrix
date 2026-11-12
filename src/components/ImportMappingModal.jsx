@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useStore } from "../lib/store.jsx"; // TASKS.csv #615
 import { crsName } from "../lib/reproject.js"; // TASKS.csv #488
 import SourceCrsField from "../components/SourceCrsField.jsx"; // TASKS.csv #488
@@ -32,10 +32,11 @@ const importCount = (modal) => {
 import { logChannelsFor } from "../lib/downholeLogChannels.js";
 import { numberColumnsLeft } from "../lib/valueGuess.js"; // TASKS.csv #2889
 import { recoveryColumns } from "../lib/recoveryCalc.js"; // TASKS.csv #2891
+import { codeOverlap, otherCodeSystem } from "../lib/codeOverlap.js"; // TASKS.csv #2893
 
 
 export default function ImportMappingModal({ modal, onChange, onCancel, onCommit, projectEpsg, replaceInfo = null }) { // replaceInfo: #1649
-  const storeProject = useStore().project; // #2492
+  const { project: storeProject, layers: storeLayers } = useStore(); // #2492; layers: #2893
   const crsUnset = storeProject?.crsSet === false; // TASKS.csv #615
   useEscapeKey(onCancel); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
@@ -63,6 +64,13 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
   const setCustomFieldType = (i, type) => onChange({ ...modal, customFields: customFields.map((cf, j) => (j === i ? { ...cf, type } : cf)) });
   // TASKS.csv #2889 — every number column left over, added at once (the WA iron material-type log: 43 Met_*_pct columns, one Add each)
   const numbersLeft = numberColumnsLeft(modal.headers, modal.allRows || modal.sampleRows || [], modal.mapping, customFields);
+  // TASKS.csv #2893 — the file's codes against the layer's (a code layer that already holds another file's rows)
+  const codeClash = useMemo(() => {
+    if (!modal.mapping?.value || modal.target === "custom" || LAYER_META[modal.target]?.numeric || !TARGET_SCHEMAS[modal.target]?.fields.some((f) => f.key === "from")) return null;
+    const o = codeOverlap(storeLayers?.[modal.target], modal.allRows || modal.sampleRows || [], modal.mapping.value, modal.mapping.hole_id);
+    return otherCodeSystem(o) ? o : null;
+  }, [modal.target, modal.mapping?.value, modal.mapping?.hole_id, modal.allRows, storeLayers]);
+  const asOwnLayer = () => onChange({ ...modal, target: "custom", customName: String(modal.fileName || "").replace(/ \(\d+ more queued\)$/, "").replace(/\.(csv|txt|xlsx?)$/i, ""), mapping: { hole_id: modal.mapping.hole_id, from: modal.mapping.from, to: modal.mapping.to, depth: "", value: modal.mapping.value } });
   const addAllNumbers = () => onChange({ ...modal, customFields: [...customFields, ...numbersLeft.map((c) => ({ column: c, name: c, type: "number" }))] });
   // TASKS.csv #120 — only targets carrying ABSOLUTE world x/y (collars; every other target is
   // hole-relative and inherits its position from the already-reprojected collar) can meaningfully
@@ -122,6 +130,12 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
                 <option value="">{tr("— none —")}</option>
                 {modal.headers.map((h) => <option key={h} value={h}>{h}</option>)}
               </select>
+              {f.key === "value" && codeClash && ( /* TASKS.csv #2893 — another code system than the layer's: said, with the way out */
+                <div role="note" style={{ flexBasis: "100%", marginInlineStart: 220, fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", lineHeight: 1.45 }}>
+                  {tr(codeClash.shared ? "Only {shared} of the {n} codes in {col} are in {layer}, which holds {m} codes from {files}: adding them puts two code systems in one layer." : "None of the {n} codes in {col} is in {layer}, which holds {m} codes from {files}: adding them puts two code systems in one layer.", { shared: codeClash.shared, n: codeClash.codes, col: modal.mapping.value, layer: tr(LAYER_META[modal.target]?.label || modal.target), m: codeClash.layerCodes, files: codeClash.files.slice(0, 3).join(", ") || tr("an earlier import") })}{" "}
+                  <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={asOwnLayer} style={{ color: "var(--color-accent)", cursor: "pointer" }}>{tr("Import it as its own layer")}</span>
+                </div>
+              )}
               {f.key === "value" && modal.valueGuess && modal.mapping.value === modal.valueGuess.col && ( /* TASKS.csv #2889 — a guess, said as one */
                 <div role="note" style={{ flexBasis: "100%", marginInlineStart: 220, fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)" }}>{tr("No column name matched, so {col} was chosen: the file's only column of codes ({n} codes). Check it is the one to draw.", { col: modal.valueGuess.col, n: modal.valueGuess.codes })}</div>
               )}
