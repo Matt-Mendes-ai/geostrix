@@ -6400,11 +6400,14 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     if (refresh) { reopenSection(s); return; }
     const { stepSection } = await import("../lib/sectionDigitise.js"); // on use: #903
     const buf = s.corridor || sectionCorridor || 25;
-    const r = by === "buffer" ? stepSection(s, sections, step, { fallback: buf, exact: true }) // #1131 — ± exactly the buffer
+    const r = s.stepped && s.stepM > 0 && by !== "buffer" ? stepSection(s, sections, step, { fallback: s.stepM, exact: true }) // #2525 — a moving section keeps its step
+      : by === "buffer" ? stepSection(s, sections, step, { fallback: buf, exact: true }) // #1131 — ± exactly the buffer
       : stepSection(s, sections, step, { fallback: Math.max(25, 2 * buf) });
     if (r.existing) { reopenSection(r.existing); return; }
     const { steppedSectionName } = await import("../lib/sectionDigitise.js"); // #1131 — one total offset in the name
-    openDefinedSection({ ...r.create, corridor: s.corridor }, steppedSectionName(s.name, r.offset));
+    // #2525 — a section a step made, with nothing digitised on it, moves with the next step instead of leaving one more saved section behind
+    if (s.stepped && !(s.contacts || []).length) { const next = { ...s, ...r.create, corridor: s.corridor, name: steppedSectionName(s.name, r.offset) }; upsertSection(next); reopenSection(next); return; }
+    openDefinedSection({ ...r.create, corridor: s.corridor }, steppedSectionName(s.name, r.offset), { stepped: true, stepM: Math.abs(r.offset) });
   };
   useEffect(() => {
     const on = (e) => sectionStepRef.current?.(e.detail || {});
@@ -6424,11 +6427,11 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
 
   // TASKS.csv #393 — sections defined by numbers rather than two clicks: saved to the Cross-sections list
   // (same shape as a drawn one) and opened at once.
-  const openDefinedSection = (geom, name) => {
+  const openDefinedSection = (geom, name, extra = null) => { // extra: #2525
     // TASKS.csv #1303 — the same line again is the same section: its tab comes forward, with no second row in the list
     const same = (sections || []).find((x) => x.name === name && Math.hypot(x.ax - geom.ax, x.ay - geom.ay) < 0.5 && Math.hypot(x.bx - geom.bx, x.by - geom.by) < 0.5);
     if (same) { reopenSection(same); return same; }
-    const s = { id: `sect_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`, name, ax: geom.ax, ay: geom.ay, bx: geom.bx, by: geom.by, azimuth: geom.azimuth, corridor: geom.corridor || sectionCorridor, contacts: [] }; // geom.corridor: #1131 — a stepped section keeps its parent's buffer
+    const s = { id: `sect_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`, name, ax: geom.ax, ay: geom.ay, bx: geom.bx, by: geom.by, azimuth: geom.azimuth, corridor: geom.corridor || sectionCorridor, contacts: [], ...(extra || {}) }; // geom.corridor: #1131 — a stepped section keeps its parent's buffer
     upsertSection(s);
     reopenSection(s);
     return s;
