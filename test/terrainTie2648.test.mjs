@@ -65,7 +65,7 @@ test("#2648 a local box in the tie's CRS", () => {
 
 test("#2648 the terrain, satellite and spectral flows go through the tie", () => {
   const g = read("modules/GeophysicsModule.jsx");
-  assert.match(g, /parseDEMFiles\(files, tie \? null : project\?\.epsg, [^;]*tie, chooseProjectEpsg/);
+  assert.match(g, /parseDEMFiles\(files, tie \? null : project\?\.epsg, [^;]*tie, mineSource: mineSourceOf\(project\) \/\* #2684 \*\/, chooseProjectEpsg/);
   assert.match(g, /if \(project\?\.crsSet === false && !tieOf\(project\)\) \{ \/\/ #2648/);
   assert.match(g, /tieTerrainToLocal\(parsed, tie, targetEpsg, terrainDetail\)/);
   assert.match(g, /if \(parsed\.tiedNote\) msg \+= " " \+ parsed\.tiedNote;/);

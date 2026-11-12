@@ -82,13 +82,13 @@ import { VoxelRangeRow } from "./viewer/ViewerParts.jsx"; // TASKS.csv #1780
 import { terrainFromBlockModel } from "../lib/terrainFromModel.js"; // TASKS.csv #1806
 import { confirmReplaceTerrain, replacedTerrainNote } from "../lib/terrainReplace.js"; // TASKS.csv #2554
 import { guessQualityColumn, filterSignalQuality, despikeAlongLines } from "../lib/surveyClean.js"; // TASKS.csv #1583 // TASKS.csv #786
-import { mineGridOf } from "../lib/mineGrid.js"; // TASKS.csv #2586
+import { mineGridOf, mineSourceOf, isMineSource, mineRowsToProject } from "../lib/mineGrid.js"; // TASKS.csv #2586; the mine-grid Source CRS: #2684
 import { tieOf, fileToLocal, localToWorld } from "../lib/localGridTie.js"; // TASKS.csv #2587 — a tied local grid's way in; localToWorld: #2648
 import { tieTerrainToLocal } from "../lib/terrainTie.js"; // TASKS.csv #2648
 import { farFromCollars, farLabel } from "../lib/landingCheck.js"; // TASKS.csv #2590
 import { collarCentreLonLat } from "../lib/projectCrs.js"; // TASKS.csv #2465
 import { niceContourInterval, terrainRange, MIN_CONTOUR_INTERVAL } from "../lib/contourInterval.js"; // TASKS.csv #2462
-import { vectorToBoundaryPolylines, claimsFromVector, isAreaBoundary, fileStem, crsLabel } from "../lib/boundaryImport.js"; // crsLabel: #2467; // fileStem: #1767; // TASKS.csv #1035; claims per feature: #1970; isAreaBoundary: #1466
+import { vectorToBoundaryPolylines, boundaryCrsTransform, claimsFromVector, isAreaBoundary, fileStem, crsLabel } from "../lib/boundaryImport.js"; // crsLabel: #2467; // fileStem: #1767; // TASKS.csv #1035; claims per feature: #1970; isAreaBoundary: #1466
 import { clampCellBudget, MIN_CELL_BUDGET, MAX_BLOCK_MODEL_BUDGET } from "../lib/estimationMeta.js"; // TASKS.csv #1074
 import { checkGpkgSize } from "../lib/gpkgSize.js"; // TASKS.csv #1716
 import { sniffTable, estimateRows, streamTableRows, streamXyzRows, headText } from "../lib/streamTable.js"; // TASKS.csv #1351
@@ -251,6 +251,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
   const [voxelProgress, setVoxelProgress] = useState(null);
   const [boundaryError, setBoundaryError] = useState(null);
   const [claimMsg, setClaimMsg] = useState(null); // TASKS.csv #1970 — the Claims pane's own import message (it showed only under Boundaries)
+  const [boundarySource, setBoundarySource] = useState(""); // TASKS.csv #2684 — the Boundaries / Claims panes' Source CRS: "" (the file's own), an EPSG code or "mine"
   const [omfError, setOmfError] = useState(null);
   const [omfBusy, setOmfBusy] = useState(false);
   const [omfChoices, setOmfChoices] = useState(null); // TASKS.csv #1970 — { file, choices: [{ volume, shown, attributes }] }
@@ -409,9 +410,11 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
           return;
         }
         // Longitude/latitude columns and no Source CRS typed: they can only be WGS84.
-        const srcEpsg = geophysSourceEpsg || (cols.geographic ? "4326" : "");
+        const mineSrc = isMineSource(geophysSourceEpsg); // #2684 — 'Local mine grid' as the Source CRS
+        const srcEpsg = mineSrc ? "" : geophysSourceEpsg || (cols.geographic ? "4326" : "");
         let reprojectNote = "";
-        if (srcEpsg && project?.epsg && Number(srcEpsg) !== Number(project.epsg)) {
+        if (mineSrc) { const m = mineRowsToProject(good, project); good = m.rows; reprojectNote = m.note; }
+        else if (srcEpsg && project?.epsg && Number(srcEpsg) !== Number(project.epsg)) {
           let failed = 0;
           good = good.map((r) => {
             const p = reprojectXY(r.x, r.y, srcEpsg, project.epsg);
@@ -483,7 +486,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       const cc = (collars || []).filter((c) => Number.isFinite(c.x) && Number.isFinite(c.y));
       const cropTo = demCrop && cc.length ? (() => { const xs = cc.map((c) => c.x), ys = cc.map((c) => c.y); const b = Math.max(1000, Number(demCropBuffer) || 2000); return [arrMin(xs) - b, arrMin(ys) - b, arrMax(xs) + b, arrMax(ys) + b]; })() : null;
       const tie = tieOf(project); // TASKS.csv #2648 — a tied local grid: the DEM comes into the grid through the tie
-      const parsed = await parseDEMFiles(files, tie ? null : project?.epsg, demSourceEpsg.trim() || null, { cropTo, gridMax: terrainDetail, tie, chooseProjectEpsg: projectEpsgChooser({ isEmpty: projectIsEmpty, setEpsg, fileName: files[0]?.name || "the DEM" }) }); // override: #419; chooser: #607
+      const parsed = await parseDEMFiles(files, tie ? null : project?.epsg, demSourceEpsg.trim() || null, { cropTo, gridMax: terrainDetail, tie, mineSource: mineSourceOf(project) /* #2684 */, chooseProjectEpsg: projectEpsgChooser({ isEmpty: projectIsEmpty, setEpsg, fileName: files[0]?.name || "the DEM" }) }); // override: #419; chooser: #607
       const [xmin, ymin, xmax, ymax] = parsed.bbox;
       if (terrain && !window.confirm(tr("Replace the current terrain (\"{name}\") with \"{name2}\"? Only one terrain surface is supported at a time.", { name: terrain.name, name2: parsed.name }))) {
         setTerrainBusy(false);
@@ -955,6 +958,14 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
   // as still open.
   // TASKS.csv #2467 — a KML / GPX / GeoJSON is longitude / latitude: said like any other import's CRS
   const lonLatNote = (tie) => (!tie && !(project?.crsSet !== false && project?.epsg) ? null : tie ? tr("its longitude / latitude (WGS 84) was brought into the local grid through its tie to EPSG:{tie}", { tie: tie.epsg }) : tr("its longitude / latitude (WGS 84) was reprojected to the project's {dst}", { dst: crsLabel(project?.epsg) }));
+  // TASKS.csv #2684 — KML / GPX / GeoJSON are longitude / latitude by their spec: a Source CRS chosen in the pane is not used for them, and said
+  const withLonLatSource = (note) => (boundarySource ? [note, tr("the Source CRS was not used: KML, GPX and GeoJSON are longitude / latitude")].filter(Boolean).join("; ") : note);
+  // TASKS.csv #2684 — a .ply / .dxf states no CRS: a Source CRS chosen in the pane (a code, or 'Local mine grid') places its strings. -> { map, note } | null
+  async function plainSourceTransform() {
+    if (!boundarySource) return null;
+    const { T, note } = await boundaryCrsTransform({ src: null, dst: projectTargetEpsg(project), tie: tieOf(project), source: boundarySource, mineSource: mineSourceOf(project) });
+    return { map: (pls) => (T ? pls.map((pl) => pl.map((pt) => { const [x, y] = T(pt.x, pt.y); return Number.isFinite(x) && Number.isFinite(y) ? { ...pt, x, y } : pt; })) : pls), note };
+  }
   async function shapeFileToPolylines(file) {
     const name = file.name.toLowerCase();
     // TASKS.csv #424 — KML/KMZ (MTO claims, Google Earth, phone waypoints). Always WGS84, so it is
@@ -965,7 +976,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       if (tie) await getProj4Def(Number(tie.epsg)); // a registry code loads on demand (#834)
       const { polylines, failed } = kmlToProjectPolylines(features, project?.epsg, { toLocal: tie ? (x, y, from) => fileToLocal(tie, x, y, from) : null });
       if (!polylines.length) throw new Error(failed ? tr("KML coordinates could not be converted to EPSG:{v}.", { v: project?.epsg }) : tr("No lines or polygons found in this KML (points are imported through the 3D View importer)."));
-      return { polylines, note: lonLatNote(tie) }; // #2467
+      return { polylines, note: withLonLatSource(lonLatNote(tie)) }; // #2467; #2684
     }
     // TASKS.csv #1106 — GPX tracks / routes and GeoJSON lines / polygons, WGS 84 (or a GeoJSON "crs" EPSG) to the project CRS
     if (name.endsWith(".gpx") || name.endsWith(".geojson") || name.endsWith(".json")) {
@@ -976,7 +987,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       if (tie) await getProj4Def(Number(tie.epsg)); // a registry code loads on demand (#834)
       const { polylines, closedFlags, failed, partNames } = layersToBoundaryPolylines(layers, project?.epsg, reprojectXY, tie ? (x, y, from) => fileToLocal(tie, x, y, from) : null); // closedFlags: #1760; partNames: #1767
       if (!polylines.length) throw new Error(failed ? tr("Coordinates could not be converted to EPSG:{v}.", { v: project?.epsg }) : tr("No lines or polygons found in this file (GPX waypoints and GeoJSON points are imported as a map layer in Surface Geology)."));
-      return { polylines, closedFlags, ...(partNames ? { partNames } : {}), note: lonLatNote(tie) }; // note: #2467
+      return { polylines, closedFlags, ...(partNames ? { partNames } : {}), note: withLonLatSource(lonLatNote(tie)) }; // note: #2467; #2684
     }
     // TASKS.csv #1035 — every part of every feature, reprojected from the file's own CRS (lib/boundaryImport.js)
     if (name.endsWith(".zip") || name.endsWith(".shp")) {
@@ -985,13 +996,13 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       // in the import handlers), as the map-layer importer does: alone, a zone 9N file landed 409 km off as 'it states no CRS'
       const parts = file.shpParts || {};
       const parsed = name.endsWith(".zip") ? await parseShapefileZip(buf) : parseShapefileParts({ shp: new Uint8Array(buf), dbf: parts.dbf ? new Uint8Array(await parts.dbf.arrayBuffer()) : null, cpg: parts.cpg ? await parts.cpg.text() : null }, 0, parts.prj ? await parts.prj.text() : null);
-      const r = await vectorToBoundaryPolylines(parsed, projectTargetEpsg(project), { mineGrid: mineGridOf(project), collars, tie: tieOf(project) }); // mineGrid: #2586; tie: #2587
+      const r = await vectorToBoundaryPolylines(parsed, projectTargetEpsg(project), { mineGrid: mineGridOf(project), collars, tie: tieOf(project), source: boundarySource, mineSource: mineSourceOf(project) }); // mineGrid: #2586; tie: #2587; source: #2684
       // TASKS.csv #2122 (review #2013, Woodjam) — points are not a boundary or a claim: 8 collars became an empty '0 part(s)' boundary,
       // 691 an empty 'Active' claim of 0 ha
       if (!r.polylines.length) throw new Error(parsed.geomType === "point"
         ? tr("it holds points, not lines or polygons: import collars in the 3D View, samples in Geochem, or any points as a map layer in Surface Geology.")
         : tr("no lines or polygons were found in it."));
-      if (name.endsWith(".shp") && !parts.prj && !parsed.prjWkt && !r.mineGrid /* #2586 */) r.note = tr("no .prj was read with it (select the .zip, or the .prj with the .shp): the coordinates were taken as EPSG:{dst}, check where it lies", { dst: project?.epsg });
+      if (name.endsWith(".shp") && !parts.prj && !parsed.prjWkt && !r.mineGrid /* #2586 */ && !boundarySource /* #2684 */) r.note = tr("no .prj was read with it (select the .zip, or the .prj with the .shp): the coordinates were taken as EPSG:{dst}, check where it lies", { dst: project?.epsg });
       return r;
     }
     if (name.endsWith(".gpkg")) {
@@ -1002,7 +1013,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       const parts = [];
       for (const layer of layers) {
         if (!layer.features.length) continue;
-        const r = await vectorToBoundaryPolylines(layer, projectTargetEpsg(project), { mineGrid: mineGridOf(project), collars, tie: tieOf(project) }); // #2586; tie: #2587
+        const r = await vectorToBoundaryPolylines(layer, projectTargetEpsg(project), { mineGrid: mineGridOf(project), collars, tie: tieOf(project), source: boundarySource, mineSource: mineSourceOf(project) }); // #2586; tie: #2587; source: #2684
         if (r.polylines.length) parts.push({ ...r, table: layer.name });
       }
       if (!parts.length) throw new Error(tr("No usable features found in this GeoPackage."));
@@ -1030,7 +1041,9 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         if (!shapePolylines && /\.dxf$/i.test(file.name)) {
           // TASKS.csv #408 — one boundary per DXF layer, keeping 3D elevations.
           const specs = dxfToBoundaries(await file.text(), file.name);
-          specs.forEach((sp) => { addBoundary({ ...sp, elevation: boundaryElevation }); imported++; });
+          const st = await plainSourceTransform(); // #2684
+          if (st?.note) dxfNotes.push(`${file.name}: ${st.note}`);
+          specs.forEach((sp) => { addBoundary({ ...sp, ...(st ? { polylines: st.map(sp.polylines) } : {}), elevation: boundaryElevation }); imported++; });
           const sk = dxfSkippedText(specs[0]?.dxfSkipped); // #550 — say what was left out
           if (sk || specs[0]?.dxfZerosDropped) dxfNotes.push(`${file.name}: ${[specs[0]?.dxfZerosDropped ? "every string had elevation 0, read as a 2D plan" : "", sk].filter(Boolean).join("; ")}`);
           continue;
@@ -1042,6 +1055,8 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         } else {
           const text = await file.text();
           ({ polylines } = parsePLYBoundary(text));
+          const st = await plainSourceTransform(); // #2684
+          if (st) { polylines = st.map(polylines); if (st.note) dxfNotes.push(`${file.name}: ${st.note}`); }
         }
         addBoundary({ name: fileStem(file.name), polylines, ...(closedFlags ? { closedFlags } : {}), ...(partNames ? { partNames } : {}), elevation: boundaryElevation }); // fileStem, partNames: #1767 — the claims path already named by the stem
         imported++;
@@ -1105,7 +1120,10 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         } else {
           const text = await file.text();
           const isDxf = /\.dxf$/i.test(file.name);
-          addClaim({ name: base, polylines: (isDxf ? parseDXF(text) : parsePLYBoundary(text)).polylines });
+          const st = await plainSourceTransform(); // #2684
+          if (st?.note) notes.push(`${file.name}: ${st.note}`);
+          const pls = (isDxf ? parseDXF(text) : parsePLYBoundary(text)).polylines;
+          addClaim({ name: base, polylines: st ? st.map(pls) : pls });
         }
       } catch (err) {
         failed.push(`${file.name}: ${err.message}`);
@@ -1330,6 +1348,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     const cleaning = { sqCol: xyzPending.sqCol, minQuality: xyzPending.minQuality, despike: xyzPending.despike }, minQ = xyzPending.minQuality;
     const bases = batch.bases || [], timeCol = batch.timeCol; // #1585
     let dcFiles = 0, dcUsed = 0, dcLeft = 0; const noBase = []; // #1585
+    let mineNote = ""; // #2684
     setXyzPending(null);
     for (let i = 0; i < files.length; i++) {
       const f = files[i];
@@ -1357,13 +1376,16 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
           .filter((r) => Number.isFinite(r.x) && Number.isFinite(r.y) && Number.isFinite(r.value) && !(r.x === 0 && r.y === 0)); // #538 — no GPS fix
         mapped = everyNth(mapped, keepEvery);
         const gpsName = pairGpsFile(f.name, gpsFiles.map((g) => g.name));
-        let srcEpsg = geophysSourceEpsg || gemHeaderEpsg(text) || null;
+        let mineSrc = isMineSource(geophysSourceEpsg); // #2684
+        let srcEpsg = mineSrc ? null : geophysSourceEpsg || gemHeaderEpsg(text) || null;
         if (gpsName) {
           if (!placers.has(gpsName)) { const sf = parseStationFile(await gpsFiles.find((g) => g.name === gpsName).text(), gpsName), pairs = gridPairs(sf.lines); placers.set(gpsName, { placer: stationPlacer(pairs), pairs, epsg: sf.epsg }); }
           const pl = placers.get(gpsName);
           mapped = mapped.map((r) => { const p = pl.placer.place(r.x, r.y); return p ? { ...r, x: p.x, y: p.y, z: r.z ?? nearestStationZ(pl.pairs, r.x, r.y) } : null; }).filter(Boolean);
           srcEpsg = pl.epsg || srcEpsg;
+          if (pl.epsg) mineSrc = false; // the GPS file's own CRS places them
         }
+        if (mineSrc) { const m = mineRowsToProject(mapped, project); mapped = m.rows; mineNote = m.note.trim(); }
         if (srcEpsg && !asked) { asked = true; const adopted = askAdoptCrs({ isEmpty: projectIsEmpty, currentEpsg: project?.epsg, declaredEpsg: srcEpsg, fileName: f.name }); if (adopted) { setEpsg(adopted); target = adopted; } }
         if (srcEpsg && target && Number(srcEpsg) !== Number(target)) mapped = mapped.map((r) => { const p = reprojectXY(r.x, r.y, srcEpsg, target); return p ? { ...r, x: p.x, y: p.y } : r; });
         kept += mapped.length;
@@ -1380,6 +1402,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     }
     setXyzError({ info: !failed.length, text: [
       tr("Imported {kept} point(s) from {n} of {total} files ({read} readings in them).", { kept: kept.toLocaleString(), n: files.length - failed.length, total: files.length, read: read.toLocaleString() }),
+      mineNote, // #2684
       keepEvery > 1 ? tr("Kept 1 reading in {n}: a short anomaly between kept readings is not shown.", { n: keepEvery }) : "",
       lowQuality ? tr("Dropped {n} reading(s) with signal quality under {q}.", { n: lowQuality.toLocaleString(), q: minQ }) : "", // #1583
       spikes ? tr("Dropped {n} spike(s) more than 6 MAD from the running median along their line.", { n: spikes.toLocaleString() }) : "",
@@ -1465,7 +1488,9 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       if (none) reprojectNote += tr(" Left out {n} reading(s) that could not be placed.", { n: none.toLocaleString() });
     }
     // an empty project is offered the GPS file's CRS, as every other import offers its own (#607): its placeholder zone can be the wrong one
-    const statedEpsg = placed?.epsg || geophysSourceEpsg || xyzPending.headerEpsg || null; // headerEpsg: #1329 — a GEM file says, a Source CRS set by hand still wins
+    const mineSrc = !placed?.epsg && isMineSource(geophysSourceEpsg); // #2684 — 'Local mine grid' as the Source CRS (a GPS file's own CRS wins)
+    if (mineSrc) { const m = mineRowsToProject(mapped, project); mapped = m.rows; reprojectNote += m.note; }
+    const statedEpsg = placed?.epsg || (mineSrc ? null : geophysSourceEpsg) || (mineSrc ? null : xyzPending.headerEpsg) || null; // headerEpsg: #1329 — a GEM file says, a Source CRS set by hand still wins
     const adopted = statedEpsg ? askAdoptCrs({ isEmpty: projectIsEmpty, currentEpsg: project?.epsg, declaredEpsg: statedEpsg, fileName }) : null;
     if (adopted) { setEpsg(adopted); reprojectNote += tr(" Project CRS set to EPSG:{epsg}.", { epsg: adopted }); }
     const targetEpsg = adopted || project?.epsg;
@@ -1777,7 +1802,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         {/* TASKS.csv #120 — optional source EPSG, shared by the CSV and .xyz importers below. Left
             blank, x/y is assumed to already be in the project's EPSG (unchanged behavior). */}
         <SourceCrsField
-          value={geophysSourceEpsg} onChange={(c) => setGeophysSourceEpsg(c === "" ? "" : String(c))}
+          value={geophysSourceEpsg} onChange={(c) => setGeophysSourceEpsg(c === "" ? "" : String(c))} mineGrid={mineSourceOf(project) /* #2684 */}
           defaultText={project?.crsSet === false ? tr("The project CRS — not chosen yet") /* #2242: never the placeholder as the project's */ : tr("Same as project — {crs} (longitude/latitude columns: WGS 84)", { crs: crsName(project?.epsg) || `EPSG:${project?.epsg ?? "?"}` })}
           title={tr("The CRS these points' x/y are in. They are reprojected into the project CRS on import.")}
         />
@@ -2128,7 +2153,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         </div>
         {/* TASKS.csv #419 — for a DEM with no CRS tag or a wrong one */}
         <SourceCrsField
-          label={tr("DEM source CRS")} value={demSourceEpsg} onChange={(c) => setDemSourceEpsg(c === "" ? "" : String(c))}
+          label={tr("DEM source CRS")} value={demSourceEpsg} onChange={(c) => setDemSourceEpsg(c === "" ? "" : String(c))} mineGrid={mineSourceOf(project) /* #2684 */}
           defaultText={tr("From the file's own CRS tag")}
           title={tr("Leave it on the file's own tag. Change it when the DEM has no tag or a wrong one (e.g. NAD83 / BC Albers for a BC TRIM DEM, NAD83(CSRS) longitude/latitude for NRCan CDEM).")}
         />
@@ -2362,6 +2387,11 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         <TaskPaneHeader title="Boundaries" icon={RShapes} tone="data" />
         <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>{tr("Boundaries (.ply / DXF / shapefile / GeoPackage)")}<InfoButton title={tr("Boundaries")} text={tr("Import a Geosoft .ply boundary/polygon export, a DXF file, a shapefile (.zip/.shp), a GeoPackage (.gpkg), KML/KMZ, GPX or GeoJSON — property lines, claim blocks, survey/blind-grid extents, section templates from a surveyor or CAD/GIS package — as a polyline in the 3D view. Select multiple files at once, mixed formats if you like. DXF: only LINE/LWPOLYLINE/POLYLINE/POINT entities are read (2D plan-view CAD data, not 3D solids/text/blocks). Shapefile: every feature in the file becomes its own part of the same boundary. GeoPackage: each table with lines or polygons becomes its own boundary. Shapefile and GeoPackage are reprojected from their own CRS to the project's EPSG ({v}); KML/KMZ, GPX and GeoJSON from WGS 84. .ply and DXF files are taken to be in the project's EPSG already. A shapefile or GeoPackage that states no CRS is taken to be in the project's EPSG, and the import message says so: check where it lies.", { v: project?.crsSet === false ? tr("not chosen yet") : project?.epsg ?? "?" } /* #2289 */)} />
         </div>
+        <SourceCrsField /* TASKS.csv #2684 — over the file's own CRS (.prj / GeoPackage); places a .ply / .dxf, which states none */
+          value={boundarySource} onChange={(c) => setBoundarySource(c === "" ? "" : String(c))} mineGrid={mineSourceOf(project)}
+          defaultText={tr("From the file (.prj / GeoPackage), else the project CRS")}
+          title={tr("Leave it on the file's own CRS. Change it when a shapefile has no .prj or a wrong one, or for a .ply / .dxf on a mine grid or in another CRS. KML, GPX and GeoJSON are always longitude / latitude.")}
+        />
         <button onClick={() => boundaryInput.current.click()} style={pBtn}>
           <Waypoints size={14} />{" "}{tr("Import boundary (.ply / .dxf / .zip / .shp / .gpkg / .kml / .gpx / .geojson)…")}</button>
         <input
@@ -2453,6 +2483,11 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         <TaskPaneHeader title="Mineral claims / tenure" icon={RFlag} tone="data" />
         <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>{tr("Mineral claims / tenure")}<InfoButton title={tr("Mineral claims / tenure")} text={tr("Import a claim/tenure boundary — .ply, DXF, shapefile (.zip/.shp), GeoPackage (.gpkg), KML/KMZ, GPX or GeoJSON, the same formats as the Boundaries pane (BC's Mineral Titles Online distributes claims as shapefiles, not .ply) — tracked with its own tenure number, status, and expiry date, and its area computed automatically (hectares, holes taken away). A shapefile or GeoPackage with several features (up to 300) becomes one claim per feature, its tenure number, name and good-to date read from attribute columns named that way. Status sets a default colour (active = green, pending = amber, expired = red) so standing is visible at a glance in the 3D view — still overridable per claim. Shapefile and GeoPackage are reprojected from their own CRS to the project's EPSG; KML/KMZ, GPX and GeoJSON from WGS 84; .ply and DXF files are taken to be in the project's EPSG already. A shapefile or GeoPackage that states no CRS is taken to be in the project's EPSG, and the import message says so: check where it lies.")} />
         </div>
+        <SourceCrsField /* TASKS.csv #2684 — over the file's own CRS (.prj / GeoPackage); places a .ply / .dxf, which states none */
+          value={boundarySource} onChange={(c) => setBoundarySource(c === "" ? "" : String(c))} mineGrid={mineSourceOf(project)}
+          defaultText={tr("From the file (.prj / GeoPackage), else the project CRS")}
+          title={tr("Leave it on the file's own CRS. Change it when a shapefile has no .prj or a wrong one, or for a .ply / .dxf on a mine grid or in another CRS. KML, GPX and GeoJSON are always longitude / latitude.")}
+        />
         <button onClick={() => claimInput.current.click()} style={pBtn}>
           <Flag size={14} />{" "}{tr("Import claim boundary (.ply / .dxf / .zip / .shp / .gpkg / .kml / .gpx / .geojson)…")}</button>
         <input

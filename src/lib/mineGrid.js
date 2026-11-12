@@ -4,6 +4,7 @@
 // a 2D similarity), beside the project's own CRS; project.localGrid keeps meaning "no CRS" (#2180). Pure: no UI.
 import { localToWorld, worldToLocal } from "./localGridTie.js";
 import { reprojectXY } from "./reproject.js";
+import { t as tr } from "./i18n.js"; // TASKS.csv #2684 — the mine-grid Source CRS notes
 
 // the project's mine grid, when it has a CRS and a tie
 export function mineGridOf(project) {
@@ -91,4 +92,59 @@ export function collarControlText(collars, eField, nField, max = 2000) {
     if (lines.length >= max) break;
   }
   return lines.join("\n");
+}
+
+// TASKS.csv #2684 (#2275 / #2586's open part) — 'Local mine grid (no CRS)' as an explicit Source CRS answer (components/SourceCrsField.jsx
+// value "mine"). Before, a file on the mine grid was read on it only when it stated no CRS AND lay where the collars are on the grid
+// (readsAsMineGrid); anything else was taken as the project CRS. What the answer means depends on the project:
+//   "tie"   a CRS project with a mine grid beside it (mineGridOf): read on the grid, brought into the project CRS through its tie;
+//   "local" a project with no CRS (a local grid, #2180, tied or not): the numbers are the project's own, kept as they are;
+//   "none"  a CRS project with no mine grid: nothing to read it on (the picker shows the answer disabled, saying where to set one up).
+export const MINE_SOURCE = "mine";
+export const isMineSource = (v) => String(v ?? "").trim().toLowerCase() === MINE_SOURCE;
+export function mineSourceOf(project) {
+  if (!project) return null;
+  if (project.crsSet === false) return { kind: "local", name: String(project.localGrid?.name || "").trim() };
+  const mg = mineGridOf(project);
+  return mg ? { kind: "tie", name: mg.name, epsg: Number(project.epsg) || null, mg } : { kind: "none", name: "" };
+}
+// (x, y) on the mine grid -> [x, y] in the project's coordinates; null when the project has no mine grid to read on
+export const mineSourceToProject = (project) => mineChoiceToProject(mineSourceOf(project), project?.epsg);
+// the same from a mineSourceOf result (what SourceCrsField's mineGrid prop holds), and its inverse (project -> the grid's numbers)
+export function mineChoiceToProject(s, projectEpsg) {
+  if (!s || s.kind === "none") return null;
+  if (s.kind === "local") return (x, y) => [x, y];
+  return mineToProject(s.mg, projectEpsg);
+}
+export function mineChoiceFromProject(s, projectEpsg) {
+  if (!s || s.kind === "none") return null;
+  if (s.kind === "local") return (x, y) => [x, y];
+  return projectToMine(s.mg, projectEpsg);
+}
+// the project CRS -> the mine grid (mineToProject's inverse)
+export function projectToMine(mg, projectEpsg) {
+  const src = Number(projectEpsg), te = Number(mg.tie.epsg);
+  return (X, Y) => {
+    const w = src && src !== te ? reprojectXY(X, Y, src, te) : { x: X, y: Y };
+    if (!w || !Number.isFinite(w.x) || !Number.isFinite(w.y)) return [NaN, NaN];
+    const l = worldToLocal(mg.tie, w.x, w.y);
+    return [l.x, l.y];
+  };
+}
+// what an import says when it was read on the mine grid (lower case, joins a sentence as the other CRS notes do)
+export function mineSourceNote(s, projectEpsg) {
+  if (s?.kind === "local") return s.name ? tr("read as the local grid \"{name}\" (the Source CRS you set): its numbers were kept as they are", { name: s.name }) : tr("read as the project's local grid (the Source CRS you set): its numbers were kept as they are");
+  if (s?.kind === "tie") return tr("read on the project's mine grid{grid} (the Source CRS you set) and brought into EPSG:{dst} through its tie", { grid: s.name ? ` (${s.name})` : "", dst: Number(projectEpsg) || s.epsg });
+  return tr("the project has no mine grid to read it on (set one up under Maps > Project CRS): the coordinates were kept as they are, check where it lies");
+}
+// the same note as a sentence of its own, with a leading space (the point imports' " Reprojected from …" style)
+export function mineSourceSentence(s, projectEpsg) {
+  const n = mineSourceNote(s, projectEpsg);
+  return ` ${n.charAt(0).toUpperCase()}${n.slice(1)}.`;
+}
+// rows with x / y on the mine grid -> the project's coordinates. -> { rows, note } (rows unchanged when the project has no mine grid)
+export function mineRowsToProject(rows, project) {
+  const s = mineSourceOf(project), T = mineSourceToProject(project);
+  const out = T ? rows.map((r) => { const [x, y] = T(r.x, r.y); return Number.isFinite(x) && Number.isFinite(y) ? { ...r, x, y } : r; }) : rows;
+  return { rows: out, note: mineSourceSentence(s, project?.epsg) };
 }

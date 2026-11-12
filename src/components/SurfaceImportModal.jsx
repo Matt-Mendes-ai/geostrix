@@ -20,7 +20,7 @@ import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 // stream waters are different measurements from active sediment and are kept as their own media (never ranked together)
 export const SURFACE_MEDIA = ["soil", "rock chip", "stream sediment", "moss mat", "heavy mineral concentrate", "BLEG", "stream water", "talus fines", "other"];
 
-export default function SurfaceImportModal({ modal, onChange, onCancel, onCommit, onJoinFile, projectEpsg }) { // onJoinFile: #1670
+export default function SurfaceImportModal({ modal, onChange, onCancel, onCommit, onJoinFile, projectEpsg, mineGrid = null }) { // onJoinFile: #1670; mineGrid: #2684 (lib/mineGrid.js mineSourceOf)
   const joinRef = useRef(null);
   const crsUnset = useStore().project?.crsSet === false; // TASKS.csv #615
   useEscapeKey(onCancel);
@@ -128,7 +128,7 @@ export default function SurfaceImportModal({ modal, onChange, onCancel, onCommit
           {/* TASKS.csv #600 — reprojected into the project CRS on import, like collars */}
           <div style={{ marginTop: 12 }}>
             <SourceCrsField
-              value={modal.sourceEpsg || ""} onChange={(c) => onChange({ ...modal, sourceEpsg: c === "" ? "" : String(c), sourceEpsgFrom: null })}
+              value={modal.sourceEpsg || ""} onChange={(c) => onChange({ ...modal, sourceEpsg: c === "" ? "" : String(c), sourceEpsgFrom: null })} mineGrid={mineGrid}
               defaultText={crsUnset ? tr("The project CRS isn't chosen yet — pick these coordinates' CRS here, or GeoStrix asks on import") : tr("Same as project — {v}", { v: crsName(projectEpsg) || tr("EPSG:{v}", { v: projectEpsg ?? "?" }) })}
             />
             {modal.sourceEpsgFrom === "(own CRS)" ? ( /* TASKS.csv #2016 — from the shapefile's .prj / the GeoPackage's SRS */

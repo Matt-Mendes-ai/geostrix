@@ -6,7 +6,7 @@ import { readFileSync } from "node:fs";
 
 test("#2091 — grid north is said in the import notice", () => {
   const p = readFileSync(new URL("../src/components/SurfaceMappingPanel.jsx", import.meta.url), "utf8");
-  assert.match(p, /let northNote = north\.ref === "grid" \? tr\(" Dip directions were taken as grid north \(the project grid\); for compass or true-north readings, set North on the import card and import again\."\) : ""/);
+  assert.match(p, /let northNote = north\.ref === "grid" && !mineTurned \? tr\(" Dip directions were taken as grid north \(the project grid\); for compass or true-north readings, set North on the import card and import again\."\) : ""/); // && !mineTurned: #2684 (after a mine grid's turn that sentence says it instead) // !mineTurned: #2684 (the mine grid's turn says it instead)
   assert.match(p, /\+ crsNote \+ northNote,/);
 });
 

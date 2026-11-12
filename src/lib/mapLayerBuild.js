@@ -1,7 +1,7 @@
 // TASKS.csv #609 — builds a store-ready map layer (Map layers, #316) from a parsed vector layer. Moved out of
 // SurfaceMappingPanel.jsx so the 3D view's drop can send a line / polygon shapefile to Map layers too.
 import { CATEGORICAL_SAFE_COLORS } from "./layers.js";
-import { readsAsMineGrid, mineToProject, partsBox } from "./mineGrid.js"; // TASKS.csv #2586
+import { readsAsMineGrid, mineToProject, partsBox, isMineSource, mineChoiceToProject } from "./mineGrid.js"; // TASKS.csv #2586; isMineSource, mineChoiceToProject: #2684
 import { fileToLocal } from "./localGridTie.js"; // TASKS.csv #2320
 import { reprojectXY, getProj4DefSync, prjRefusal, datumNote } from "./reproject.js";
 import { autoCategories, applyQmlToCategories, guessStyleField, normalizeMapLayer } from "./mapLayers.js";
@@ -38,13 +38,22 @@ export function projectClipBox(points) {
 // The result carries clipped: { kept, total }; when nothing is inside, { outside: total } (and no layer).
 // tie (TASKS.csv #2320): a local-grid project's tie (lib/localGridTie.js): a file with a CRS comes INTO the grid through it
 // mineGrid / collars (TASKS.csv #2586): as lib/boundaryImport.js — a file with no CRS whose coordinates lie on the project's mine grid
-export function buildLayer(parsed, { sourceName, projectEpsg, qml, sourceOverride, clipTo = null, tie = null, mineGrid = null, collars = null }) {
+// mineSource (TASKS.csv #2684): lib/mineGrid.js mineSourceOf(project), used when sourceOverride is "mine" ('Local mine grid (no CRS)'). The
+// crsNote stays English: it is kept with the layer in the project file.
+export function buildLayer(parsed, { sourceName, projectEpsg, qml, sourceOverride, clipTo = null, tie = null, mineGrid = null, collars = null, mineSource = null }) {
+  const mineSrc = !!mineSource && isMineSource(sourceOverride); // #2684
   // #488 — a Source CRS chosen in the panel wins over the file's own (.prj / GeoPackage) CRS
-  const src = sourceOverride ? Number(sourceOverride) : parsed.epsg ? Number(parsed.epsg) : null;
+  const src = mineSrc ? null : sourceOverride && Number(sourceOverride) > 0 ? Number(sourceOverride) : parsed.epsg ? Number(parsed.epsg) : null;
   const dst = projectEpsg ? Number(projectEpsg) : null;
   let transform;
   let crsNote;
-  if (tie && src && (Number(src) === Number(tie.epsg) || getProj4DefSync(src))) { // #2320
+  if (mineSrc) { // #2684
+    const T = mineSource.kind === "tie" && dst ? mineChoiceToProject(mineSource, dst) : null;
+    if (T) transform = (x, y) => { const r = T(x, y); return Number.isFinite(r[0]) && Number.isFinite(r[1]) ? r : [x, y]; };
+    const grid = mineSource.name ? ` (${mineSource.name})` : "";
+    crsNote = mineSource.kind === "tie" ? (T ? `read on the project's mine grid${grid} (the Source CRS set), into EPSG:${dst} through its tie` : `the mine grid${grid} could not be brought into EPSG:${dst ?? "?"}: kept its own numbers`)
+      : mineSource.kind === "local" ? `read as the project's local grid${grid} (the Source CRS set): its numbers kept` : "no mine grid in the project to read it on: kept its own numbers";
+  } else if (tie && src && (Number(src) === Number(tie.epsg) || getProj4DefSync(src))) { // #2320
     transform = (x, y) => { const r = fileToLocal(tie, x, y, src); return r ? [r.x, r.y] : [x, y]; };
     crsNote = `brought into the local grid through its tie to EPSG:${tie.epsg} (from EPSG:${src})`;
   } else if (src && dst && src !== dst && getProj4DefSync(src) && getProj4DefSync(dst)) {

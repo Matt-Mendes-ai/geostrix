@@ -24,7 +24,7 @@ test("#2467 the project CRS itself, and the labels", async () => {
 
 test("#2467 KML / GPX / GeoJSON boundaries and claims say their lon / lat, and Maps > A layer gives the datum caveat", () => {
   const g = read("modules/GeophysicsModule.jsx");
-  assert.equal((g.match(/note: lonLatNote\(tie\)/g) || []).length, 2);
+  assert.equal((g.match(/note: withLonLatSource\(lonLatNote\(tie\)\)/g) || []).length, 2); // withLonLatSource: #2684 (a Source CRS chosen in the pane is not used, and said)
   assert.match(g, /tr\("its longitude \/ latitude \(WGS 84\) was reprojected to the project's \{dst\}", \{ dst: crsLabel\(project\?\.epsg\) \}\)/);
   assert.match(read("modules/CartographyModule.jsx"), /const dn = datumNote\(objFrom\) \|\| datumNote\(project\.epsg\);/);
 });

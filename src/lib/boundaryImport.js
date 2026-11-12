@@ -10,7 +10,7 @@ import { getProj4Def, guessEpsgFromPrjWkt, pointTransform, crsName, datumNote } 
 export const crsLabel = (c) => { const n = crsName(Number(c)); return n ? `${n} (EPSG:${c})` : `EPSG:${c}`; };
 const withDatum = (note, ...codes) => { const d = codes.map((c) => datumNote(c)).find(Boolean); return d ? `${note}; ${String(d).replace(/\.\s*$/, "")}` : note; };
 import { t as tr } from "./i18n.js"; // TASKS.csv #1974 — the CRS notes in the interface language
-import { readsAsMineGrid, mineToProject, kmFromCollars, partsBox } from "./mineGrid.js"; // TASKS.csv #2586
+import { readsAsMineGrid, mineToProject, kmFromCollars, partsBox, isMineSource, mineSourceNote } from "./mineGrid.js"; // TASKS.csv #2586; isMineSource, mineSourceNote: #2684
 import { fileToLocal } from "./localGridTie.js"; // TASKS.csv #2587
 
 // parsed: { features: [{ geometry, parts? }], geomType, epsg?, prjWkt? } (parseShapefileZip / a parseGeoPackage layer)
@@ -20,38 +20,13 @@ import { fileToLocal } from "./localGridTie.js"; // TASKS.csv #2587
 // tie (TASKS.csv #2587, review #2486): a local-grid project tied to a real CRS (lib/localGridTie.js tieOf): a file with a CRS is brought
 // INTO the grid through the tie, as a map layer dropped on the plan already was (#2320). Before, Boundaries kept an MGA tenement at its
 // MGA numbers, 6,240 km from the collars, saying 'the project has no coordinate system yet'.
-export async function vectorToBoundaryPolylines(parsed, projectEpsg, { mineGrid = null, collars = null, tie = null } = {}) {
+// source / mineSource (TASKS.csv #2684): a Source CRS chosen in the Boundaries / Claims pane (components/SourceCrsField.jsx) over the file's
+// own: an EPSG code, or "mine" with mineSource = lib/mineGrid.js mineSourceOf(project) ('Local mine grid (no CRS)')
+export async function vectorToBoundaryPolylines(parsed, projectEpsg, { mineGrid = null, collars = null, tie = null, source = null, mineSource = null } = {}) {
   const dst = Number(projectEpsg) || null;
   const src = Number(parsed.epsg) || (parsed.prjWkt ? guessEpsgFromPrjWkt(parsed.prjWkt) : null) || null;
-  let T = null, note, mineGridUsed = false;
-  if (tie && src && !dst) {
-    if (src !== Number(tie.epsg)) await Promise.all([getProj4Def(src), getProj4Def(Number(tie.epsg))]);
-    const ok = src === Number(tie.epsg) || !!pointTransform(src, Number(tie.epsg));
-    if (ok) {
-      T = (x, y) => { const r = fileToLocal(tie, x, y, src); return r ? [r.x, r.y] : [x, y]; };
-      note = tr("brought into the local grid through its tie to EPSG:{tie} (from EPSG:{src})", { tie: tie.epsg, src });
-    } else note = tr("its CRS (EPSG:{src}) cannot be brought through the local grid's tie to EPSG:{tie}: the coordinates were kept as they are, check where it lies", { src, tie: tie.epsg });
-  } else if (src && dst && src !== dst) {
-    await Promise.all([getProj4Def(src), getProj4Def(dst)]); // registry codes load on demand (#834)
-    T = pointTransform(src, dst);
-    note = T ? withDatum(tr("its {src} was reprojected to the project's {dst}", { src: crsLabel(src), dst: crsLabel(dst) }), src, dst) : tr("its CRS (EPSG:{src}) could not be converted: the coordinates were taken as EPSG:{dst}, check where it lies", { src, dst });
-  } else if (src && !dst) note = tr("the project has no coordinate system yet: its EPSG:{src} coordinates were kept as they are, check where it lies", { src }); // #2287
-  else if (src) note = tr("in {crs}, the project's coordinate system", { crs: crsLabel(src) }); // already the project CRS: said too (#2467)
-  else if (!dst) note = tr("neither the file nor the project states a coordinate system: the coordinates were kept as they are, check where it lies"); // #2287
-  else {
-    const box = partsBox((parsed.features || []).flatMap((f) => (f.parts?.length ? f.parts : [f.geometry])));
-    if (!parsed.prjWkt && readsAsMineGrid(box, mineGrid, collars, dst)) { // #2586
-      const M = mineToProject(mineGrid, dst);
-      T = (x, y) => M(x, y);
-      mineGridUsed = true;
-      note = tr("it states no CRS, and its coordinates lie on the project's mine grid{grid} where the collars are: read on that grid and brought into EPSG:{dst} through its tie", { grid: mineGrid.name ? ` (${mineGrid.name})` : "", dst });
-    } else {
-      const km = kmFromCollars(box, collars);
-      const far = km != null && km > 20 ? tr(" (it landed {km} km from the collars)", { km: Math.round(km).toLocaleString() }) : ""; // #2586
-      note = (parsed.prjWkt ? tr("its .prj names a CRS GeoStrix does not recognize: the coordinates were taken as EPSG:{dst}, check where it lies", { dst })
-        : tr("it states no CRS: the coordinates were taken as EPSG:{dst}, check where it lies", { dst })) + far;
-    }
-  }
+  const box = () => partsBox((parsed.features || []).flatMap((f) => (f.parts?.length ? f.parts : [f.geometry])));
+  const { T, note, mineGridUsed } = await boundaryCrsTransform({ src, prjWkt: parsed.prjWkt, dst, box, mineGrid, collars, tie, source, mineSource });
   const closed = parsed.geomType === "polygon";
   const polylines = [], closedFlags = [], featureOf = []; // featureOf: TASKS.csv #1970 — the feature each polyline came from
   (parsed.features || []).forEach((f, fi) => {
@@ -127,3 +102,45 @@ export function claimsFromVector(result, baseName, max = 300) {
 // flagged open. Contours, streams, survey lines and roads are open lines: the terrain / imagery area lists and Select by location skip them.
 // A contour layer (contourLevels) is never an area, even where a level closes on itself.
 export const isAreaBoundary = (b) => !(b?.contourLevels || []).length && (b?.polylines || []).some((l, i) => (l?.length || 0) >= 3 && b.closedFlags?.[i] !== false);
+
+// TASKS.csv #2684 — the CRS part of vectorToBoundaryPolylines, shared with the DXF / PLY routes when a Source CRS is chosen. src: the file's
+// own EPSG (null when it states none); prjWkt: its .prj text; box: its [xmin, ymin, xmax, ymax] (or a function giving it), for the mine-grid
+// read (#2586). -> { T: (x, y) -> [x, y] | null (null = keep the numbers), note, mineGridUsed }
+export async function boundaryCrsTransform({ src = null, prjWkt = null, dst = null, box = null, mineGrid = null, collars = null, tie = null, source = null, mineSource = null } = {}) {
+  let T = null, note, mineGridUsed = false;
+  if (isMineSource(source)) { // #2684 — 'Local mine grid (no CRS)' wins over the file's own CRS
+    const set = src ? tr("; its own {crs} was set aside", { crs: crsLabel(src) }) : "";
+    if (mineSource?.kind === "tie") { const M = mineToProject({ name: mineSource.name, tie: mineSource.mg.tie }, dst); T = (x, y) => M(x, y); mineGridUsed = true; }
+    return { T, note: mineSourceNote(mineSource, dst) + set, mineGridUsed };
+  }
+  if (source !== "" && source != null && Number(source) > 0) { src = Number(source); prjWkt = null; } // #2684 — a code chosen by hand
+  if (tie && src && !dst) {
+    if (src !== Number(tie.epsg)) await Promise.all([getProj4Def(src), getProj4Def(Number(tie.epsg))]);
+    const ok = src === Number(tie.epsg) || !!pointTransform(src, Number(tie.epsg));
+    if (ok) {
+      T = (x, y) => { const r = fileToLocal(tie, x, y, src); return r ? [r.x, r.y] : [x, y]; };
+      note = tr("brought into the local grid through its tie to EPSG:{tie} (from EPSG:{src})", { tie: tie.epsg, src });
+    } else note = tr("its CRS (EPSG:{src}) cannot be brought through the local grid's tie to EPSG:{tie}: the coordinates were kept as they are, check where it lies", { src, tie: tie.epsg });
+  } else if (src && dst && src !== dst) {
+    await Promise.all([getProj4Def(src), getProj4Def(dst)]); // registry codes load on demand (#834)
+    T = pointTransform(src, dst);
+    note = T ? withDatum(tr("its {src} was reprojected to the project's {dst}", { src: crsLabel(src), dst: crsLabel(dst) }), src, dst) : tr("its CRS (EPSG:{src}) could not be converted: the coordinates were taken as EPSG:{dst}, check where it lies", { src, dst });
+  } else if (src && !dst) note = tr("the project has no coordinate system yet: its EPSG:{src} coordinates were kept as they are, check where it lies", { src }); // #2287
+  else if (src) note = tr("in {crs}, the project's coordinate system", { crs: crsLabel(src) }); // already the project CRS: said too (#2467)
+  else if (!dst) note = tr("neither the file nor the project states a coordinate system: the coordinates were kept as they are, check where it lies"); // #2287
+  else {
+    const b = typeof box === "function" ? box() : box;
+    if (!prjWkt && readsAsMineGrid(b, mineGrid, collars, dst)) { // #2586
+      const M = mineToProject(mineGrid, dst);
+      T = (x, y) => M(x, y);
+      mineGridUsed = true;
+      note = tr("it states no CRS, and its coordinates lie on the project's mine grid{grid} where the collars are: read on that grid and brought into EPSG:{dst} through its tie", { grid: mineGrid.name ? ` (${mineGrid.name})` : "", dst });
+    } else {
+      const km = kmFromCollars(b, collars);
+      const far = km != null && km > 20 ? tr(" (it landed {km} km from the collars)", { km: Math.round(km).toLocaleString() }) : ""; // #2586
+      note = (prjWkt ? tr("its .prj names a CRS GeoStrix does not recognize: the coordinates were taken as EPSG:{dst}, check where it lies", { dst })
+        : tr("it states no CRS: the coordinates were taken as EPSG:{dst}, check where it lies", { dst })) + far;
+    }
+  }
+  return { T, note, mineGridUsed };
+}
