@@ -1,6 +1,7 @@
 // TASKS.csv #1313 — the classification diagrams, spider plots, alteration boxes and method tables: 40 kB only Geochem needs, split from geochem.js so
 // they load with that tab. geochem.js is in the startup bundle for a few helpers, and a module's exports all land in one chunk.
 import { valueIn, toOxide } from "./geochem.js";
+import { codeIndex, codeAt } from "./sampleLithology.js"; // TASKS.csv #2751
 
 function winchesterClass(nbY, zrTi) {
   // approximate boundaries of Winchester & Floyd (1977)
@@ -365,25 +366,23 @@ export function classifyAlterationBox(ai, ccpi, protolith, boxes = PROVISIONAL_A
   if (aiLo) return "ALB";          // down: albite / Na-gain
   return "LOWCCPI";                // in the AI range but left of the box
 }
-// The protolith of a sample: one fixed for every sample, or from the logged lithology at its midpoint.
+// The protolith of a sample: one fixed for every sample, or from the logged lithology (the code it overlaps most, #2751).
 export function protolithForSample(sample, { fixed = null, lithoByHole = null, map = {} } = {}) {
   if (fixed) return fixed;
-  const rows = lithoByHole?.get(sample.hole_id);
-  if (!rows) return null;
-  const mid = (Number(sample.from) + Number(sample.to)) / 2;
-  const r = rows.find((x) => mid >= Number(x.from) && mid < Number(x.to));
-  if (!r) return null;
-  const code = String(r.value ?? "").trim();
+  const code = loggedCodeAt(sample, lithoByHole);
+  if (!code) return null;
   return code in map ? map[code] || null : guessProtolith(code);
 }
 
-// TASKS.csv #1380 — the logged lithology code at a sample's midpoint (lithoByHole: hole -> rows), or null
+// TASKS.csv #1380 — the logged code of a sample (lithoByHole: hole -> rows), or null. TASKS.csv #2751 (split from #2510) — by the shared
+// rule (lib/sampleLithology.js codeAt: the code the sample overlaps most), not the code at its midpoint, so Classify's counts match the
+// diagram filter, Grade stats and Thresholds. The index is built once per lithoByHole map (and it was a find over each hole's rows a sample).
+const indexCache = new WeakMap();
 export function loggedCodeAt(sample, lithoByHole) {
-  const rows = lithoByHole?.get(sample.hole_id);
-  if (!rows) return null;
-  const mid = (Number(sample.from) + Number(sample.to)) / 2;
-  const r = rows.find((x) => mid >= Number(x.from) && mid < Number(x.to));
-  return r ? String(r.value ?? "").trim() || null : null;
+  if (!lithoByHole) return null;
+  let ix = indexCache.get(lithoByHole);
+  if (!ix) { ix = codeIndex([...lithoByHole].flatMap(([hole, rows]) => (rows || []).map((r) => ({ ...r, hole_id: hole })))); indexCache.set(lithoByHole, ix); } // the map's key is the hole
+  return codeAt(ix, sample.hole_id, sample.from, sample.to);
 }
 // #1380 — the usual whole codes of sedimentary and carbonate rocks: a volcanic classifier (Jensen, Winchester & Floyd) called
 // Silvertip's limestone and dolostone "komatiite" because their MgO dominates the cation sum
