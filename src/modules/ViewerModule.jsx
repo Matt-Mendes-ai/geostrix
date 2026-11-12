@@ -53,6 +53,7 @@ import { ensureExportCrs } from "../lib/projectCrsRequest.js"; // TASKS.csv #102
 import { pointInBoundary } from "../lib/pointInPolygon.js"; // TASKS.csv #903 — not geoprocessing.js, which loads d3-delaunay
 import { buildPickIndex, queryPickIndex } from "../lib/pickIndex.js"; // TASKS.csv #304 — object-level BVH for hover/click picking
 import { useMenuKeys } from "../lib/useMenuKeys.js"; // TASKS.csv #730
+import { viewKeyZoom } from "../lib/viewer/viewKeys.js"; // TASKS.csv #2788
 import { t as tr } from "../lib/i18n.js";
 import EmptyViewerBody from "./viewer/EmptyViewerBody.jsx"; // TASKS.csv #1448
 import { featureCountText } from "../lib/featureCount.js"; // #1448 — "77 polygons", translated
@@ -1025,6 +1026,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   const contextMenuByKeyRef = useRef(false);
   const onViewKeyDown = (e) => {
     if (e.target !== e.currentTarget) return; // a control inside the view (Fit, Top…) keeps its own keys
+    if (viewKeyZoom(e, { zoom: (f) => { camState.current.radius = Math.min(4e6, Math.max(0.05, camState.current.radius * f)); cameraRef.current?.__update?.(); }, fit: () => fitButton() })) return; // #2788 — + / - / Home
     if (e.key !== "ContextMenu" && !(e.key === "F10" && e.shiftKey)) return;
     e.preventDefault(); // no second, browser-dispatched contextmenu event
     const r = e.currentTarget.getBoundingClientRect();
@@ -2307,13 +2309,8 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
     dom.addEventListener("wheel", onWheel, { passive: false });
     dom.addEventListener("contextmenu", onContextMenuEvt);
     dom.addEventListener("mousedown", onAuxClick);
-    // TASKS.csv #207 — same "OS steals input mid-drag" safety net as SidebarResizeHandle.jsx/
-    // LayoutModule.jsx's twin fixes: without this, an orbit/pan drag or an armed rectangle-zoom drag
-    // left in progress when the window loses focus (screenshot tool, Alt-Tab, a notification) would
-    // otherwise never see its "pointerup" and stay stuck — subsequent mouse moves anywhere would keep
-    // orbiting the camera even with no button held. onPointerUp already tolerates being called without
-    // a real PointerEvent (releasePointerCapture(undefined) is wrapped in try/catch), so it's reused
-    // directly rather than duplicating its cleanup logic.
+    // TASKS.csv #207 — a drag left in progress when the window loses focus (Alt-Tab, a screenshot tool) never saw its pointerup and kept
+    // orbiting; onPointerUp tolerates a missing PointerEvent, so blur ends it.
     window.addEventListener("blur", onPointerUp);
     // TASKS.csv #212 — user report: middle-mouse pan starting to rotate instead. "pointercancel" is
     // the browser's own explicit signal for "I'm taking over this pointer sequence for something else"

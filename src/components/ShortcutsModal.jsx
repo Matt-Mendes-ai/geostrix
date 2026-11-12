@@ -71,6 +71,8 @@ const SHORTCUT_GROUPS = [
       ["Left-drag", "Rotate/orbit"],
       ["Right-drag, middle-drag or Shift+Left-drag", "Pan"], // TASKS.csv #2213 — right-drag pans
       ["Scroll", "Zoom in / out"],
+      ["+ / - (the 3D view focused: click it first)", "Zoom in / out"], // TASKS.csv #2788
+      ["Home (the 3D view focused)", "Fit the view, as the Fit button"], // TASKS.csv #2788
       ["Right-click (without dragging)", "Context menu"], // #2043
       ["Shift+F10 or the Menu key", "Context menu from the keyboard (the focused 3D view or a sidebar row); arrows move, Enter chooses, Escape closes"], // TASKS.csv #730
     ],
