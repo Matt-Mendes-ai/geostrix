@@ -222,25 +222,9 @@ const SurfaceElementBasis = React.lazy(() => import("./viewer/SurfaceElementBasi
 
 const toRad = (d) => (d * Math.PI) / 180;
 
-// TASKS.csv #188 — bug caught during verification (hand-checked a planned hole's rendered toe
-// position against its azimuth/dip/length and found it pointing UP instead of down): desurveyHole
-// (src/lib/desurvey.js) internally expects dip as POSITIVE-below-horizontal (verified directly:
-// dip=+60 on a real sample_data collar drops elevation by the expected amount over its length,
-// dip=-60 RAISES it) — but real collar/survey CSV IMPORTS (commitImportData's `flipDip`, further
-// down this file) negate the user's raw CSV value on the way in specifically because CSVs
-// conventionally use NEGATIVE-below-horizontal (see sample_data/collars.csv: -60, -65, -70 for
-// genuinely downward holes, and dataQC.js's own "this app's convention: negative = down" comment,
-// which describes that external/CSV-facing convention). Planned holes have no import step to do
-// that flip for them — a user typing "-60" into the Targeting form (the natural, CSV-matching way
-// to describe a hole angled 60° below horizontal) would otherwise get a hole that plots pointing up.
-// Rather than storing plannedHoles.dip in the internal (positive-down) convention and translating at
-// every UI touchpoint (the add form, the row display, the row's inline edit — three places to get
-// right and re-verify), this keeps plannedHoles.dip in the SAME natural convention the user types/
-// sees/exports everywhere (matching real collars.csv), and negates it at the ONE place it actually
-// needs the internal convention: right before handing off to desurveyHole. Module-level (not inside
-// ViewerModule) since PlannedHoleRow, a separate top-level component below, needs it too — all three
-// desurveyHole call sites for planned holes (the CSV export, the 3D render effect, and the row's toe
-// display) go through this one function, so there's exactly one place this conversion could go wrong.
+// TASKS.csv #188 — planned holes keep dip in the convention users type and export (negative = down, as collars.csv), but desurveyHole
+// (lib/desurvey.js) takes positive = down (CSV imports flip it in commitImportData). Negated here, the one place every planned-hole
+// desurvey goes through (the CSV export, the 3D render, the row's toe): a typed -60 had plotted pointing up. Module level for PlannedHoleRow.
 function plannedHoleTrace(hole) {
   // TASKS.csv #135 — deliberately does NOT take the project's desurvey method. A planned hole has no
   // survey stations at all, so desurveyHole's collar-only fallback builds a single constant-attitude
@@ -900,7 +884,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   // the labels alone (effect after the rebuild), not every drillhole
   const holeLabelModeRef = useRef(holeLabelMode); holeLabelModeRef.current = holeLabelMode;
   const holeLabelAnchorsRef = useRef([]);
-  const collarSize = useCollarMarkerSize(figureOverlay.collarSize, layerGroupsRef, holeLabelAnchorsRef); // #2823 — Auto / m / Off
+  const collarSize = useCollarMarkerSize(figureOverlay.collarsOff ? "off" : figureOverlay.collarSize, layerGroupsRef, holeLabelAnchorsRef); // #2823 — shown, Auto / m
 
   // Manual "Refresh view" trigger — the user asked for this after seeing collars render a few meters
   // off from a DEM following a delete + re-import. The geometry-rebuild effects below are all correct
@@ -6625,11 +6609,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         </div>
         <input ref={setInputRef("survey")} type="file" multiple accept=".csv,.xlsx,.zip,.gpkg,.shp,.dbf,.prj,.cpg,.shx,.kml,.kmz,.las" style={{ display: "none" }} onChange={(e) => { const f = groupShapefileParts(Array.from(e.target.files)).files[0]; if (f) openImportModal(f, "survey"); e.target.value = ""; }} />
 
-        {/* TASKS.csv #131 — hole (collar) labels, QGIS-specialist audit finding: GeoStrix had no text
-            labeling anywhere in the 3D scene at all. Scoped to a small fixed set of label contents
-            rather than a full expression language — see holeLabelMode's own declaration comment. Only
-            shown once there's something to label, same "don't clutter the sidebar with nothing to
-            show" convention every other conditional sidebar section here already follows. */}
+        {/* TASKS.csv #131 — hole labels (a fixed set of contents, see holeLabelMode), once there are holes; #2823 — the collar markers' switch */}
         {collars.length > 0 && (
           <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
             <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", flexShrink: 0 }}>{tr("Hole labels")}</span>
@@ -6643,6 +6623,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
               <option value="hole_id_z">{tr("Hole ID + elevation")}</option>
               <option value="hole_id_depth">{tr("Hole ID + total depth")}</option>
             </select>
+            <label style={{ display: "flex", alignItems: "center", gap: 3, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", flexShrink: 0, cursor: "pointer" }} title={tr("Show or hide the collar markers. The holes, their labels and picking on them stay.")}>
+              <input type="checkbox" checked={!figureOverlay.collarsOff} onChange={(e) => setFigureOverlay((f) => ({ ...f, collarsOff: !e.target.checked }))} />{tr("Collars")}</label>
           </div>
         )}
 
