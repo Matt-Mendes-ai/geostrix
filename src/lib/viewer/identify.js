@@ -6,6 +6,7 @@ import { pointInRings, STRUCTURE_CLASS_LABELS } from "../mapLayers.js"; // label
 import { t as tr } from "../i18n.js";
 import { sampleIdentifyFields, orderedElements } from "./sampleTip.js"; // TASKS.csv #1821; orderedElements: #2520
 import { gradeText } from "../gradeText.js"; // TASKS.csv #2515
+import { rasterUnitOf } from "../rasterMethod.js"; // TASKS.csv #2747
 
 const num = (v, d = 2) => (Number.isFinite(v) ? v.toLocaleString(undefined, { maximumFractionDigits: d }) : String(v ?? ""));
 const metres = (v) => `${num(v, 2)} m`;
@@ -153,7 +154,9 @@ function describe(hit, ctx) {
   const rs = ctx.rasterOf(o);
   if (rs) {
     const v = rasterValueAt(rs.grid, world.e, world.n), fields = [];
-    if (v != null) fields.push([tr("Value"), num(v, 4)]);
+    const unit = rasterUnitOf(rs); // #2747 — the value's unit, where the raster says it
+    if (v != null) fields.push([tr("Value"), unit ? `${num(v, 4)} ${unit}` : num(v, 4)]);
+    else if (!rs.grid) fields.push([tr("Values"), tr("Picture only: colours, no values")]); // #2747 — a picture (no value grid), said
     if (rs.params?.tool) fields.push([tr("Made with"), rs.params.tool]);
     fields.push([tr("Drape"), rs.drapeMode === "terrain" ? tr("On the terrain") : rs.drapeMode === "collars" ? tr("On the ground between the collars") /* #2447 */ : tr("Flat at {z} m", { z: num(rs.elevation ?? 0, 1) })]);
     return { ...base, backdrop: true, layer: tr("Rasters"), title: rs.name, fields };

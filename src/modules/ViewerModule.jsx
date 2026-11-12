@@ -2972,12 +2972,8 @@ ${describeTrend(t)}` };
     if (!viewportPendingRequest || viewportPendingRequest.requestId !== req.requestId) return;
     if (lastHandledRequestId.current === req.requestId) return; // avoid double-handling within one mount's re-renders
     lastHandledRequestId.current = req.requestId;
-    // TASKS.csv — user request: "add a feature on the layout view that will let the user add a
-    // viewport with the current view and not only when save a theme." A falsy themeId (null/
-    // undefined) means "just capture whatever's live right now" — no theme to look up or apply at
-    // all, skip straight to the same snapshot/capture/restore path every themed viewport already uses.
-    // A NON-falsy themeId that doesn't resolve to a real theme is still the original error case (the
-    // theme was deleted after this request was queued).
+    // A falsy themeId captures whatever is live (Layout's 'Current view'); a themeId that resolves to no theme (deleted after the
+    // request was queued) is an error.
     const theme = req.themeId ? themes.find((t) => t.id === req.themeId) : null;
     if (req.themeId && !theme) { resolveViewportRender({ requestId: req.requestId, error: "Theme not found (it may have been deleted)." }); return; }
     // TASKS.csv #202 fix — snapshot whatever the user actually had live (layers/filters/camera)
@@ -2988,7 +2984,7 @@ ${describeTrend(t)}` };
     // state that's already live.
     const liveViewBeforeRender = liveViewBundleFromStoreRef.current();
     if (theme) applyTheme(theme); else if (req.viewState) applyTheme(req.viewState); // #1644 — the template viewport's own view (camera)
-    if (req.batch) setTaskProgress?.({ label: tr("Centring each atlas page's map on its hole: {i} of {n}", { i: req.batch.index, n: req.batch.total }), pct: Math.round((100 * (req.batch.index - 1)) / req.batch.total), onCancel: cancelViewportBatch });
+    if (req.batch) setTaskProgress?.({ label: req.batch.label ? tr("{v}: {i} of {n}", { v: req.batch.label, i: req.batch.index, n: req.batch.total }) /* #2804 — the batch's own task */ : tr("Centring each atlas page's map on its hole: {i} of {n}", { i: req.batch.index, n: req.batch.total }), pct: Math.round((100 * (req.batch.index - 1)) / req.batch.total), onCancel: cancelViewportBatch });
     // TASKS.csv #198 (part 3) — interactive sessions skip the automatic timer entirely: the theme's
     // camera is now live on screen, the existing orbit/pan/zoom pointer handlers already work
     // unconditionally, and the user drives when capture actually happens via the banner below
