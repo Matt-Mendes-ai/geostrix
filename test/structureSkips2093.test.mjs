@@ -40,5 +40,5 @@ test("the Kodiak rock sheet: Sample_Number (filled on every measured row) over W
 test("the panel uses them", () => {
   const p = readFileSync(new URL("../src/components/SurfaceMappingPanel.jsx", import.meta.url), "utf8");
   assert.match(p, /cols\.station = bestStationColumn\(headers, res\.data, cols\);/);
-  assert.match(p, /tr\(" Skipped \{skipped\} row\(s\): \{why\}\.", \{ skipped: out\.skipped, why: skipReasons\(out\.skipWhy\) \}\)/);
+  assert.match(p, /tr\(" Skipped \{skipped\} row\(s\): \{why\}\.", \{ skipped: out\.skipped, why: skipReasons\(out\.skipWhy(, out\.skipNames)?\) \}\)/); // skipNames: #2958 names the rows with no direction
 });

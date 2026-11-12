@@ -5,6 +5,7 @@
 // object) and the store list, and makes the group match the list. ViewerModule calls them from the same effects, with
 // the same dependencies. No React here, so they run in Node with three (test/sceneBuilders693.test.mjs).
 import * as THREE from "three";
+import { t as tr } from "../i18n.js"; // TASKS.csv #2958
 import { sampleTerrainElevation, terrainGroundAt } from "./geomath.js"; // terrainGroundAt: #2753 — NaN off the terrain / over its gaps
 import { drawMapLayer, mapStyleSignature, mapTextureSize, STRUCTURE_CLASS_COLORS, layerCategoryValue } from "../mapLayers.js"; // featureCategoryValue: #1601
 import { decodeNoDataMask, isNoData } from "../demFill.js"; // TASKS.csv #421
@@ -444,7 +445,7 @@ export function syncSurfaceStructures(group, cache, surfaceStructures, { origin,
     const size = set.size ?? 25;
     const g = new THREE.Group();
     const inst = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.5, 0.5, 0.06, 28), new THREE.MeshLambertMaterial({ side: THREE.DoubleSide }), rows.length);
-    const tickPos = new Float32Array(rows.length * 6);
+    const tickPos = new Float32Array(rows.length * 12); // two segments a row: the dip tick (and a null one), or a horizontal reading's cross (#2958)
     const m = new THREE.Matrix4(), q = new THREE.Quaternion(), p = new THREE.Vector3(), sc = new THREE.Vector3(size, size, size), col = new THREE.Color();
     const pole = new THREE.Vector3(), down = new THREE.Vector3();
     rows.forEach((r, i) => {
@@ -463,7 +464,10 @@ export function syncSurfaceStructures(group, cache, surfaceStructures, { origin,
       // except past the rim, so 35° -> 120 and 35° -> 300 drew the same ellipse. It now sits just above the upper face (along the pole), so in
       // plan it runs from the centre toward the dip direction, long for a shallow dip, short for a steep one.
       const lx = pole.x * size * 0.04, ly = pole.y * size * 0.04, lz = pole.z * size * 0.04;
-      tickPos.set([p.x + lx, p.y + ly, p.z + lz, p.x + lx + down.x, p.y + ly + down.y, p.z + lz + down.z], i * 6);
+      if (r.horizontal || r.dip === 0) { // TASKS.csv #2958 — a flat plane has no dip direction to point at: the horizontal-bedding cross
+        const h = size * 0.4, y0 = p.y + ly;
+        tickPos.set([p.x - h, y0, p.z, p.x + h, y0, p.z, p.x, y0, p.z - h, p.x, y0, p.z + h], i * 12);
+      } else tickPos.set([p.x + lx, p.y + ly, p.z + lz, p.x + lx + down.x, p.y + ly + down.y, p.z + lz + down.z, p.x + lx, p.y + ly, p.z + lz, p.x + lx, p.y + ly, p.z + lz], i * 12);
     });
     inst.instanceMatrix.needsUpdate = true;
     if (inst.instanceColor) inst.instanceColor.needsUpdate = true;
@@ -490,7 +494,7 @@ export function outcropLabelItems(surfaceStructures, { origin, terrain, flatZ = 
       if (!Number.isFinite(r.dip) || !Number.isFinite(r.x) || !Number.isFinite(r.y)) continue;
       const z = outcropZ(r, set, terrain, flatZ, oz); // #2753 — the disc's own elevation
       const lift = size * 0.5 * Math.sin((r.dip * Math.PI) / 180) + 0.5;
-      items.push({ x: r.x - ox, y: z - oz + lift + size * 0.35, z: -(r.y - oy), text: String(Math.round(r.dip)), tip: `${set.name || ""}\n${r.cls || "other"}: ${Math.round(r.dip)}° → ${Math.round(r.dipDir)}°` });
+      items.push({ x: r.x - ox, y: z - oz + lift + size * 0.35, z: -(r.y - oy), text: String(Math.round(r.dip)), tip: `${set.name || ""}\n${r.cls || "other"}: ${r.horizontal ? tr("horizontal") : `${Math.round(r.dip)}° → ${Math.round(r.dipDir)}°`}` }); // horizontal: #2958
     }
   }
   return items;

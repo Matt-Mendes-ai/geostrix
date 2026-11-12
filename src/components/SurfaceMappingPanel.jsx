@@ -33,7 +33,8 @@ import MapImportReview from "./MapImportReview.jsx"; // TASKS.csv #1325
 import { classifyTables, needsImportReview, isCoveringPolygon } from "../lib/mapImportReview.js";
 import { CATEGORICAL_SAFE_COLORS } from "../lib/layers.js";
 import { saveFile } from "../lib/desktop.js";
-import { collarSubcrop, subcropLayer, roleWithCodes, subcropLeftOut } from "../lib/collarSubcrop.js"; // TASKS.csv #1719; roleWithCodes: #2407; subcropLeftOut: #2566
+import { collarSubcrop, subcropLayer, roleWithCodes, subcropLeftOut, holeStartCodes } from "../lib/collarSubcrop.js"; // TASKS.csv #1719; roleWithCodes: #2407; subcropLeftOut: #2566; holeStartCodes: #2956
+import { outlineLayer, defaultReach, medianSpacing } from "../lib/subcropOutlines.js"; // TASKS.csv #2956
 import { categoryColor, LAYER_META } from "../lib/layers.js"; // TASKS.csv #1719 — the logs' own colours
 import { ensureExportCrs } from "../lib/projectCrsRequest.js"; // TASKS.csv #1021
 import { toExportCsv } from "../lib/tabular.js";
@@ -50,14 +51,14 @@ import { collarsLookUnderground } from "../lib/pitShell.js"; // TASKS.csv #2265
 import { structureGroundCounts, surfaceFlatElevation } from "../lib/viewer/surfacePlacement.js"; import { terrainGroundAt } from "../lib/viewer/geomath.js"; // TASKS.csv #2485 (2); surfaceFlatElevation: #2753
 
 // TASKS.csv #2093 / #1826 — the structure import's skipped rows, one reason each (parseStructureRows' skipWhy)
-export function skipReasons(w = {}) {
+export function skipReasons(w = {}, names = {}) { // names: the rows skipped for no direction (#2958)
   return [
     w.noMeasurement && tr("{n} with no measurement at all", { n: w.noMeasurement }),
     w.noXY && tr("{n} with no easting or northing", { n: w.noXY }),
     w.noDip && tr("{n} with a bearing but no dip (a chip line or a trend, not a plane)", { n: w.noDip }),
     w.badDip && tr("{n} with a dip that is not a number from 0 to 90", { n: w.badDip }),
     w.bearingUnread && tr("{n} with a dip direction or strike that is not a number (a quadrant bearing such as N45E is not read)", { n: w.bearingUnread }),
-    w.noDirection && tr("{n} with a dip but no dip direction or strike", { n: w.noDirection }),
+    w.noDirection && tr("{n} with a dip over 0 but no dip direction or strike ({rows})", { n: w.noDirection, rows: (names.noDirection || []).slice(0, 8).join(", ") + ((names.noDirection || []).length > 8 ? "…" : "") }), // #2958
   ].filter(Boolean).join("; ");
 }
 
@@ -66,7 +67,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
     project, terrain, projectIsEmpty, setEpsg, // #607
     mapLayers, addMapLayer, updateMapLayer, removeMapLayer, goToModule /* #2793 */,
     surfaceStructures, addSurfaceStructureSet, updateSurfaceStructureSet, removeSurfaceStructureSet,
-  collars = [], /* #1325 */ surfaceSamples = [], /* #1715 */ survey = [], layers = {}, desurveyMethod, viewerUiState, /* #1719 */ setStructureCodeClasses /* #2266 */, modellingCodes /* #2407 */ } = useStore();
+  collars = [], /* #1325 */ surfaceSamples = [], /* #1715 */ survey = [], layers = {}, desurveyMethod, viewerUiState, /* #1719 */ setStructureCodeClasses /* #2266 */, modellingCodes /* #2407 */, setModellingCodes /* #2956 */ } = useStore();
   const mapInput = useRef(null);
   const qmlInput = useRef(null);
   const qmlTargetRef = useRef(null);
@@ -76,6 +77,8 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
   const [busy, setBusy] = useState(false);
   const [openLegend, setOpenLegend] = useState({});
   const [pendingStruct, setPendingStruct] = useState(null); // { name, rows, headers, cols }
+  const [subDepth, setSubDepth] = useState(""); // TASKS.csv #2956 — blank: the first unit under the cover; a number: the unit that far down each hole
+  const [subcropCard, setSubcropCard] = useState(null); // TASKS.csv #2956 — { name, pts, reach, depth } after a subcrop run
   const [typing, setTyping] = useState(null); // TASKS.csv #1719 — one measurement typed in: { station, x, y, z, type, dip, dipDir, comment }
   const [mapSourceEpsg, setMapSourceEpsg] = useState(""); // #488 — "" = the file's own CRS
 
@@ -351,6 +354,46 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
     setMapMsg({ ok: true, text: tr("Applied {name} to \"{name2}\": {matched} of {cats} unit(s) matched a style category.", { name: file.name, name2: layer.name, matched, cats: cats.length }) });
   };
 
+  // TASKS.csv #1719 / #2956 — the subcrop from collars (the button's body, a function since #2956 so 'Make it again' can run it); replace: the
+  // layer a previous run made, removed first
+  const makeSubcrop = (replace = null) => {
+    // TASKS.csv #2265 (review #2174) — on a project drilled from underground the 'top of each hole' is a drill position on a mine level,
+    // not the surface: asked first, named for what it is. (Its NPRC / Unknown 'units' are cover since #2227: roleForLithology reads the notes.)
+    const ug = collarsLookUnderground(collars, survey);
+    if (ug.underground && !window.confirm(tr("The collars look underground ({upward} hole(s) drilled upward, {stacked} pair(s) of collars stacked over each other): these points would be the first logged unit at the drill positions on the mine levels, not a subcrop map. Make them anyway?", { upward: ug.upward, stacked: ug.stacked }))) return;
+    const rep = { lateStart: [] }; // TASKS.csv #2411 / #2570 — logs that start below the collar
+    const depth = String(subDepth).trim() === "" ? null : Number(subDepth); // #2956
+    if (depth != null && !(depth >= 0)) { setMapMsg({ ok: false, text: tr("The depth below the collar must be a number of metres, 0 or more.") }); return; }
+    const pts = collarSubcrop({ collars, survey, litho: layers.litho, desurveyMethod, roleOf: roleWithCodes(modellingCodes), report: rep, atDepthM: depth }); // roleOf: #2407; atDepthM: #2956
+    const late = rep.lateStart.length ? tr("{n} hole(s) whose log starts below the collar ({a}–{b} m down: an unlogged precollar, or logging only where something was met) were left out: their first logged unit is a point down the hole, not a subcrop ({ids}).", { n: rep.lateStart.length, a: Math.round(Math.min(...rep.lateStart.map((h) => h.logStart)) * 10) / 10, b: Math.round(Math.max(...rep.lateStart.map((h) => h.logStart)) * 10) / 10, ids: rep.lateStart.slice(0, 5).map((h) => h.hole_id).join(", ") + (rep.lateStart.length > 5 ? ", …" : "") }) : "";
+    if (!pts.length) { setMapMsg({ ok: false, text: [depth != null ? tr("No hole's log covers {d} m down.", { d: depth }) /* #2956 */ : tr("No hole has a logged unit under its overburden / casing to place."), late].filter(Boolean).join(" ") }); return; }
+    const base = depth != null ? tr("Units {d} m below the collars", { d: depth }) : ug.underground ? tr("Units at the collars") : tr("Subcrop from collars"); // #2265; at a depth: #2956
+    if (replace) removeMapLayer(replace.id); // #2956 — 'Make it again' replaces the layer it made
+    let name = base; for (let k = 2; mapLayers.some((l) => l.name === name && l.id !== replace?.id); k++) name = `${base} (${k})`;
+    const layer = subcropLayer(pts, name, (u) => categoryColor(viewerUiState?.legendOverride?.litho?.[u], LAYER_META.litho, u));
+    addMapLayer({ ...layer, drapeMode: terrain ? "terrain" : "file" });
+    const skipped = collars.length - pts.length - rep.lateStart.length - (rep.notAtDepth || 0); // the late starts are said on their own (#2411)
+    setSubcropCard({ name, pts, reach: String(defaultReach(pts)), depth }); // #2956
+    setMapMsg({ ok: true, text: [depth != null ? tr("{name}: {n} point(s), {units} unit(s): the unit logged {d} m down each hole, at the hole's position at that depth.", { name, n: pts.length, units: layer.categories.length, d: depth }) /* #2956 */ : tr("{name}: {n} point(s), {units} unit(s): the first logged unit under the overburden / casing / no recovery at the top of each hole, at the hole's position at that depth. A start for the map, not a mapped outcrop.", { name, n: pts.length, units: layer.categories.length }),
+      rep.notAtDepth ? tr("{n} hole(s) whose log does not cover {d} m down were left out.", { n: rep.notAtDepth, d: depth }) : "" /* #2956 */, skipped > 0 ? (() => { const lo = subcropLeftOut({ collars, litho: layers.litho, roleOf: roleWithCodes(modellingCodes) }); return tr("{n} hole(s) were left out: {a} with no lithology log, {b} with only blank codes, {c} with only cover (overburden / casing / no recovery).", { n: skipped, a: lo.noLog, b: lo.blankOnly, c: lo.coverOnly }); })() /* #2566 — the reason, not one guess for all */ : "", late, depth == null ? tr("Each point keeps the depth of the cover above it (cover_m): 'Colour by depth of cover' below maps it.") : ""].filter(Boolean).join(" ") }); // cover_m: #2956
+  };
+  // TASKS.csv #2956 — a code ticked as cover in the subcrop card: its role written as 3D Modelling > Modelling codes would (unticked: stratigraphic)
+  const setCoverRole = (code, on) => setModellingCodes((p) => {
+    const base = p || { codes: [], assign: {}, ties: [] }, list = [...(base.codes || [])];
+    const i = list.findIndex((c) => String(c.name).trim().toUpperCase() === code.toUpperCase()), role = on ? "overburden" : "stratigraphic";
+    if (i < 0) list.push({ name: code, role }); else list[i] = { ...list[i], role };
+    return { ...base, codes: list };
+  });
+  const outlineSubcrop = () => {
+    const c = subcropCard, reachM = Number(c?.reach);
+    if (!c || !(reachM > 0)) { setMapMsg({ ok: false, text: tr("Give the distance from the holes as a number of metres above 0.") }); return; }
+    const base = tr("{name} outlines", { name: c.name });
+    let name = base; for (let k = 2; mapLayers.some((l) => l.name === name); k++) name = `${base} (${k})`;
+    const layer = outlineLayer(c.pts, name, (u) => categoryColor(viewerUiState?.legendOverride?.litho?.[u], LAYER_META.litho, u), { reachM });
+    if (!layer.features.length) { setMapMsg({ ok: false, text: tr("No outline could be made from these points.") }); return; }
+    addMapLayer(layer);
+    setMapMsg({ ok: true, text: tr("{name}: {n} polygon(s), {units} unit(s): each hole's nearest-hole area, cut back to {r} m from the hole (the median hole spacing is {s} m). A unit map from the drilling, not a mapped outline: Model it can build from it.", { name, n: layer.features.length, units: layer.categories.length, r: reachM, s: Math.round(medianSpacing(c.pts)) }) });
+  };
   const changeStyleField = (layer, field) => {
     const grad = graduatedStyle(layer.features, field); // TASKS.csv #1600 - a numeric field in classes
     updateMapLayer(layer.id, grad ? { styleField: field, ...grad } : { styleField: field, styleBreaks: null, categories: autoCategories(layer.features, field, autoColorFor()) });
@@ -507,7 +550,8 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
     setStructMsg({
       ok: !out.skipped,
       text: tr("Imported {rows} measurement(s) from {name}.", { rows: out.rows.length, name: p.name })
-        + (out.skipped ? tr(" Skipped {skipped} row(s): {why}.", { skipped: out.skipped, why: skipReasons(out.skipWhy) }) : "") // #2093 — each reason apart
+        + (out.skipped ? tr(" Skipped {skipped} row(s): {why}.", { skipped: out.skipped, why: skipReasons(out.skipWhy, out.skipNames) }) : "") // #2093 — each reason apart
+        + (out.horizontal ? tr(" {n} horizontal reading(s) (dip 0, no dip direction) kept as flat planes: a cross on the map, a pole at the centre of the stereonet.", { n: out.horizontal }) : "") // #2958
         + (out.derivedFromStrike ? (out.strikeRule === "lhr" ? tr(" {derivedFromStrike} dip direction(s) derived from strike by the left-hand rule (strike − 90°).", { derivedFromStrike: out.derivedFromStrike }) : tr(" {derivedFromStrike} dip direction(s) derived from strike by the right-hand rule.", { derivedFromStrike: out.derivedFromStrike })) : "")
         + (out.fromQuadrant ? tr(" {n} dip direction(s) taken from the strike and the dip quadrant.", { n: out.fromQuadrant }) : "") // #2083
         + (out.quadrantUnread ? tr(" {n} dip quadrant(s) could not be read (not N, NE, E…), so the strike convention was used there.", { n: out.quadrantUnread }) : "")
@@ -560,26 +604,44 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
         onChange={(e) => { applyQmlToLayer(e.target.files[0]); e.target.value = ""; }} />
       {/* TASKS.csv #1719 (review #1645, Copley) — the collars' top-of-hole lithology as a starting map */}
       {collars.length > 0 && (layers.litho || []).length > 0 && (
-        <button onClick={() => {
-          // TASKS.csv #2265 (review #2174) — on a project drilled from underground the 'top of each hole' is a drill position on a mine level,
-          // not the surface: asked first, named for what it is. (Its NPRC / Unknown 'units' are cover since #2227: roleForLithology reads the notes.)
-          const ug = collarsLookUnderground(collars, survey);
-          if (ug.underground && !window.confirm(tr("The collars look underground ({upward} hole(s) drilled upward, {stacked} pair(s) of collars stacked over each other): these points would be the first logged unit at the drill positions on the mine levels, not a subcrop map. Make them anyway?", { upward: ug.upward, stacked: ug.stacked }))) return;
-          const rep = { lateStart: [] }; // TASKS.csv #2411 / #2570 — logs that start below the collar
-          const pts = collarSubcrop({ collars, survey, litho: layers.litho, desurveyMethod, roleOf: roleWithCodes(modellingCodes), report: rep }); // roleOf: #2407
-          const late = rep.lateStart.length ? tr("{n} hole(s) whose log starts below the collar ({a}–{b} m down: an unlogged precollar, or logging only where something was met) were left out: their first logged unit is a point down the hole, not a subcrop ({ids}).", { n: rep.lateStart.length, a: Math.round(Math.min(...rep.lateStart.map((h) => h.logStart)) * 10) / 10, b: Math.round(Math.max(...rep.lateStart.map((h) => h.logStart)) * 10) / 10, ids: rep.lateStart.slice(0, 5).map((h) => h.hole_id).join(", ") + (rep.lateStart.length > 5 ? ", …" : "") }) : "";
-          if (!pts.length) { setMapMsg({ ok: false, text: [tr("No hole has a logged unit under its overburden / casing to place."), late].filter(Boolean).join(" ") }); return; }
-          const base = ug.underground ? tr("Units at the collars") : tr("Subcrop from collars"); // #2265
-          let name = base; for (let k = 2; mapLayers.some((l) => l.name === name); k++) name = `${base} (${k})`;
-          const layer = subcropLayer(pts, name, (u) => categoryColor(viewerUiState?.legendOverride?.litho?.[u], LAYER_META.litho, u));
-          addMapLayer({ ...layer, drapeMode: terrain ? "terrain" : "file" });
-          const skipped = collars.length - pts.length - rep.lateStart.length; // the late starts are said on their own (#2411)
-          setMapMsg({ ok: true, text: [tr("{name}: {n} point(s), {units} unit(s): the first logged unit under the overburden / casing / no recovery at the top of each hole, at the hole's position at that depth. A start for the map, not a mapped outcrop.", { name, n: pts.length, units: layer.categories.length }), skipped > 0 ? (() => { const lo = subcropLeftOut({ collars, litho: layers.litho, roleOf: roleWithCodes(modellingCodes) }); return tr("{n} hole(s) were left out: {a} with no lithology log, {b} with only blank codes, {c} with only cover (overburden / casing / no recovery).", { n: skipped, a: lo.noLog, b: lo.blankOnly, c: lo.coverOnly }); })() /* #2566 — the reason, not one guess for all */ : "", late].filter(Boolean).join(" ") });
-        }} style={{ ...pBtn, marginTop: 6 }} title={tr("A point map layer at each hole: the first logged unit under its overburden, casing or no recovery, coloured like the logs. It lists the hole and the depth of cover in its attributes.")}>
+        <button onClick={() => makeSubcrop()} style={{ ...pBtn, marginTop: 6 }} title={tr("A point map layer at each hole: the first logged unit under its overburden, casing or no recovery, coloured like the logs. It lists the hole and the depth of cover in its attributes.")}>
           <MapIcon size={14} /> {tr("Subcrop from collars")}
         </button>
       )}
+      {collars.length > 0 && (layers.litho || []).length > 0 && ( /* TASKS.csv #2956 — or the unit at a depth down each hole */
+        <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4, fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>
+          <span>{tr("Unit at")}</span>
+          <input type="number" min={0} value={subDepth} onChange={(e) => setSubDepth(e.target.value)} placeholder={tr("under cover")} aria-label={tr("Depth below the collar for the subcrop, m (blank: the first unit under the cover)")} style={{ ...numInput, width: 90 }} />
+          <span>{tr("m down each hole")}</span>
+        </div>
+      )}
       {msgBox(mapMsg)}
+      {subcropCard && mapLayers.some((l) => l.name === subcropCard.name) && (() => { /* TASKS.csv #2956 — what the holes start in, cover, outlines */
+        const layer = mapLayers.find((l) => l.name === subcropCard.name);
+        const starts = holeStartCodes({ collars, litho: layers.litho, roleOf: roleWithCodes(modellingCodes) }), total = starts.reduce((a, c) => a + c.holes, 0) || 1;
+        return (
+          <div style={{ marginTop: 8, padding: "8px 10px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.5 }}>
+            <div style={{ marginBottom: 4 }}>{tr("What the holes start in (the first logged code at the collar). Tick the codes that are cover and make it again: the map then shows the first unit under them. A tick sets the code's role to overburden, as 3D Modelling > Modelling codes does.")}</div>
+            {starts.slice(0, 10).map((c) => (
+              <label key={c.code} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <input type="checkbox" checked={c.role === "overburden" || c.role === "no recovery"} onChange={(e) => setCoverRole(c.code, e.target.checked)} aria-label={tr("{code} is cover", { code: c.code })} />
+                <span style={{ flex: 1 }}>{c.code}</span><span>{tr("{n} hole(s), {p}%", { n: c.holes, p: Math.round((100 * c.holes) / total) })}</span>
+              </label>
+            ))}
+            {starts.length > 10 && <div>{tr("…and {n} more code(s): all of them are in 3D Modelling > Modelling codes.", { n: starts.length - 10 })}</div>}
+            <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
+              <button onClick={() => makeSubcrop(layer)} style={{ ...pBtn, marginBottom: 0, flex: 1, justifyContent: "center" }}>{tr("Make it again")}</button>
+              {subcropCard.depth == null && <button onClick={() => changeStyleField(layer, "cover_m")} style={{ ...pBtn, marginBottom: 0, flex: 1, justifyContent: "center" }}>{tr("Colour by depth of cover")}</button>}
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6 }}>
+              <span>{tr("Outline the units out to")}</span>
+              <input type="number" min={1} value={subcropCard.reach} onChange={(e) => setSubcropCard((c) => ({ ...c, reach: e.target.value }))} aria-label={tr("Outline distance from the holes, m")} style={{ ...numInput, width: 70 }} />
+              <span>{tr("m from a hole")}</span>
+              <button onClick={outlineSubcrop} title={tr("A polygon map: each hole's nearest-hole area, cut back to this distance from the hole, with the unit of its point. Model it can build from it.")} style={{ ...pBtn, marginBottom: 0, width: "auto" }}>{tr("Outline")}</button>
+            </div>
+          </div>
+        );
+      })()}
       {mapLayers.map((l) => {
         const legendOpen = !!openLegend[l.id];
         return (
@@ -717,7 +779,8 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
           <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
             <button onClick={() => {
               const n = (v) => (String(v ?? "").trim() === "" ? NaN : Number(String(v).replace(",", ".")));
-              if (![typing.x, typing.y, typing.dip, typing.dipDir].every((v) => Number.isFinite(n(v)))) { setStructMsg({ ok: false, text: tr("Type at least the easting, northing, dip and dip direction.") }); return; }
+              // TASKS.csv #2958 — a horizontal reading (dip 0) needs no dip direction
+              if (![typing.x, typing.y, typing.dip].every((v) => Number.isFinite(n(v))) || !(Number.isFinite(n(typing.dipDir)) || n(typing.dip) === 0)) { setStructMsg({ ok: false, text: tr("Type at least the easting, northing, dip and dip direction (a horizontal reading, dip 0, needs no direction).") }); return; }
               const headers = ["Station", "Easting", "Northing", "Elevation", "Type", "Dip", "Dip direction", "Comments"];
               const rowObj = { Station: typing.station || "", Easting: typing.x, Northing: typing.y, Elevation: typing.z || "", Type: typing.type || "", Dip: typing.dip, "Dip direction": typing.dipDir, Comments: typing.comment || "" };
               setPendingStruct({ name: "Typed measurements", typed: true, rows: [rowObj], headers, cols: { x: "Easting", y: "Northing", z: Number.isFinite(n(typing.z)) ? "Elevation" : null, dip: "Dip", dipDir: "Dip direction", strike: null, type: "Type", station: "Station", comment: "Comments" }, sourceEpsg: project?.epsg ? String(project.epsg) : "" });

@@ -514,14 +514,21 @@ export function parseStructureRows(rawRows, cols, codeClasses = null) {
   const rule = cols.strikeRule === "lhr" ? "lhr" : "rhr", offset = rule === "lhr" ? 270 : 90;
   const QUAD = { n: 0, nne: 22.5, ne: 45, ene: 67.5, e: 90, ese: 112.5, se: 135, sse: 157.5, s: 180, ssw: 202.5, sw: 225, wsw: 247.5, w: 270, wnw: 292.5, nw: 315, nnw: 337.5 };
   const angDiff = (a, b) => { const d = Math.abs((((a - b) % 360) + 360) % 360); return Math.min(d, 360 - d); };
-  let skipped = 0, derivedFromStrike = 0, rhrMismatches = 0, fromQuadrant = 0, quadrantUnread = 0;
+  let skipped = 0, derivedFromStrike = 0, rhrMismatches = 0, fromQuadrant = 0, quadrantUnread = 0, horizontal = 0;
+  // TASKS.csv #2958 (WA iron review) — a horizontal reading (dip 0, or 'flat' / 'horizontal' in the dip column) has no dip direction: it was
+  // skipped as 'a dip but no dip direction', so a flat-lying field kept only the beds that dip and every mean came out steeper. It is kept
+  // as dip 0, dipDir 0 (any direction is the same plane; its pole is vertical) with horizontal: true, so the disc and Identify say so.
+  const FLAT = /^(flat|horizontal|horiz\.?|hz|hor\.?)$/i;
+  const skipNames = { noDirection: [] }; // #2958 — the rows skipped for a dip with no direction, named in the notice
   // TASKS.csv #2093 / #1826 — each skipped row counted by its reason: 'missing coordinates or a valid 0-90 dip' lumped a quadrant bearing,
   // a missing dip, a dip of 95, a missing easting and the 50 rows of a rock sheet that simply hold no structure
   const skipWhy = { noMeasurement: 0, noXY: 0, noDip: 0, badDip: 0, bearingUnread: 0, noDirection: 0 };
   const blank = (v) => v == null || String(v).trim() === "";
   const skip = (why) => { skipped++; skipWhy[why]++; };
-  rawRows.forEach((r) => {
-    const x = num(r[cols.x]), y = num(r[cols.y]), dip = num(r[cols.dip]);
+  rawRows.forEach((r, ri) => {
+    const x = num(r[cols.x]), y = num(r[cols.y]);
+    let dip = num(r[cols.dip]);
+    if (dip == null && FLAT.test(String(r[cols.dip] ?? "").trim())) dip = 0; // #2958
     let dipDir = cols.dipDir ? num(r[cols.dipDir]) : null;
     const strike = cols.strike ? num(r[cols.strike]) : null;
     const rawDip = r[cols.dip], rawDir = cols.dipDir ? r[cols.dipDir] : null, rawStrike = cols.strike ? r[cols.strike] : null;
@@ -529,8 +536,14 @@ export function parseStructureRows(rawRows, cols, codeClasses = null) {
     if (x == null || y == null) { skip("noXY"); return; }
     if (blank(rawDip)) { skip("noDip"); return; }
     if (dip == null || dip < 0 || dip > 90) { skip("badDip"); return; }
+    let flat = false;
+    if (dipDir == null && strike == null && dip === 0 && blank(rawDir) && blank(rawStrike)) { dipDir = 0; flat = true; horizontal++; } // #2958
     if (dipDir == null) {
-      if (strike == null) { skip(!blank(rawDir) || !blank(rawStrike) ? "bearingUnread" : "noDirection"); return; }
+      if (strike == null) {
+        const why = !blank(rawDir) || !blank(rawStrike) ? "bearingUnread" : "noDirection";
+        if (why === "noDirection") skipNames.noDirection.push((cols.station && String(r[cols.station] ?? "").trim()) || `row ${ri + 2}`);
+        skip(why); return;
+      }
       const q = cols.dipQuad ? String(r[cols.dipQuad] ?? "").trim().toLowerCase() : "";
       if (q && q in QUAD) { const a = (strike + 90) % 360, b = (strike + 270) % 360; dipDir = angDiff(a, QUAD[q]) <= angDiff(b, QUAD[q]) ? a : b; fromQuadrant++; }
       else { if (q) quadrantUnread++; dipDir = (strike + offset) % 360; derivedFromStrike++; }
@@ -539,9 +552,9 @@ export function parseStructureRows(rawRows, cols, codeClasses = null) {
       if (d > 2 && d < 358) rhrMismatches++;
     }
     const type = cols.type ? String(r[cols.type] ?? "") : "";
-    rows.push({ x, y, z: cols.z ? num(r[cols.z]) : null, dip, dipDir: ((dipDir % 360) + 360) % 360, strike, type, cls: structureClass(type, codeClasses), ...(cols.station ? { station: String(r[cols.station] ?? "").trim() } : {}), comment: cols.comment ? String(r[cols.comment] ?? "") : "" });
+    rows.push({ x, y, z: cols.z ? num(r[cols.z]) : null, dip, dipDir: ((dipDir % 360) + 360) % 360, strike, type, cls: structureClass(type, codeClasses), ...(flat ? { horizontal: true } : {}), ...(cols.station ? { station: String(r[cols.station] ?? "").trim() } : {}), comment: cols.comment ? String(r[cols.comment] ?? "") : "" });
   });
-  return { rows, skipped, skipWhy, derivedFromStrike, rhrMismatches, fromQuadrant, quadrantUnread, strikeRule: rule };
+  return { rows, skipped, skipWhy, skipNames, horizontal, derivedFromStrike, rhrMismatches, fromQuadrant, quadrantUnread, strikeRule: rule };
 }
 
 // Upward-pointing unit pole (E, N, Up) of a plane with dip direction/dip.

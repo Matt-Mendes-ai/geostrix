@@ -24,9 +24,9 @@ export function recordedElevationField(row) {
 }
 export function structureIdentifyFields(r) {
   const named = { type: tr("Type"), station: tr("Station"), comment: tr("Comment"), strike: tr("Strike") };
-  return [[tr("Dip"), `${num(r.dip, 0)}°`], [tr("Dip direction"), `${num(r.dipDir, 0)}°`],
+  return [[tr("Dip"), `${num(r.dip, 0)}°`], [tr("Dip direction"), r.horizontal ? tr("none (horizontal)") /* #2958 */ : `${num(r.dipDir, 0)}°`],
     ...(r.cls ? [[tr("Class"), tr(STRUCTURE_CLASS_LABELS[r.cls] || r.cls)]] : []),
-    ...attributeFields(r, new Set(["dip", "dipDir", ...PLACEMENT_KEYS])).map(([k, v]) => [named[k] || k, k === "strike" ? `${v}°` : v]),
+    ...attributeFields(r, new Set(["dip", "dipDir", "horizontal", ...PLACEMENT_KEYS])).map(([k, v]) => [named[k] || k, k === "strike" ? `${v}°` : v]),
     recordedElevationField(r)];
 }
 
