@@ -1789,6 +1789,7 @@
   "No '<x' results: the lowest reported value (an upper bound on the limit)": "لا نتائج '<x': أصغر قيمة مبلغ عنها (حد أعلى للحد)",
   "Use the lab's <{limit}": "استخدام <{limit} الخاص بالمختبر",
   "main column": "العمود الرئيسي",
+  "No logged lithology code here reads as a volcanic rock: this diagram's fields assume one, so they may not apply to these samples.": "لا يدل أي رمز صخري مسجل هنا على صخر بركاني: حقول هذا المخطط تفترض وجوده، لذا قد لا تنطبق على هذه العينات.",
   "Oxide columns kept as the oxide, as the project stores them: {list}.": "أُبقيت أعمدة الأكاسيد كأكاسيد، كما يخزّنها المشروع: {list}.",
   "Added {name}: the robust multivariate score of {n} sample(s) on {els}; {k} lie above the 97.5 % line ({cut}). It ranks how unusual each sample's composition is; it is not a probability of mineralization.": "أُضيف {name}: الدرجة متعددة المتغيرات المتينة لـ {n} عينة على {els}؛ تقع {k} فوق خط 97.5 % ({cut}). ترتّب مدى شذوذ تركيب كل عينة؛ وليست احتمالًا للتمعدن.",
   "Multivariate anomaly score": "درجة الشذوذ متعددة المتغيرات",

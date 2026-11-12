@@ -1,5 +1,5 @@
 import { qcColumns, qcFields } from "../lib/assayQcColumns.js"; // TASKS.csv #1184
-import { correlationDefaults, bestPartner } from "../lib/preferredElement.js"; // TASKS.csv #2512; bestPartner: #2741
+import { correlationDefaults, bestPartner, BULK_COMMODITIES } from "../lib/preferredElement.js"; // BULK_COMMODITIES: #2911; // TASKS.csv #2512; bestPartner: #2741
 import { orderElements } from "../lib/elementOrder.js"; // TASKS.csv #2032
 import { leadFor } from "../lib/useLeadCommodity.js"; // TASKS.csv #2032
 import { zeroMeansMissing } from "../lib/missingElevation.js"; // TASKS.csv #1394
@@ -26,7 +26,7 @@ const ELEMENT_SCAN_CHUNKED_ROWS = 50000; // #2164 — below this the element col
 import { saveFile, loadSampleFiles } from "../lib/desktop.js"; // loadSampleFiles: TASKS.csv #391
 import { assayImportFindings } from "../lib/assayImportFindings.js"; // TASKS.csv #2498
 import { repeatColumns, columnDetectionLimit, isElementColumn, inferUnit, pickElementColumns, assayExportRows, parseAssayValue, valueIn, readAssayCell, columnPositiveMax, convertUnit, mergeAssayRows, holesWithChangedIntervals, dropHoleAssays, blankDetectionLimit, isBlankAssayCell, oxideOfHeader, fromOxideHeader, oxideUnit, importStoreUnit, oxideBasisUnit, oxideColumnUnit, surfaceAttrColumns, surfaceAttrs, mergeSurfaceSamples, otherMediumTwins } from "../lib/geochem.js"; // otherMediumTwins: #2085
-import { DIAGRAMS, SPIDER_DIAGRAMS, GEOCHEM_METHODS, diagramExportRows, protolithForSample, PROVISIONAL_ALTERATION_BOXES, GEOCHEM_LABELS, reeProfile, loggedCodeAt, isSedimentaryCode, mergeClassRuns, FITTED_PROTOLITH, fitLeastAlteredBox, nameAiUpTrend , censoredOperand, censoredLeftOut, guessProtolith } from "../lib/geochemDiagrams.js"; // fitted: #2028; nameAiUpTrend: #2145
+import { DIAGRAMS, SPIDER_DIAGRAMS, GEOCHEM_METHODS, diagramExportRows, protolithForSample, PROVISIONAL_ALTERATION_BOXES, GEOCHEM_LABELS, reeProfile, loggedCodeAt, isSedimentaryCode, noVolcanicCodes /* #2911 */, mergeClassRuns, FITTED_PROTOLITH, fitLeastAlteredBox, nameAiUpTrend , censoredOperand, censoredLeftOut, guessProtolith } from "../lib/geochemDiagrams.js"; // fitted: #2028; nameAiUpTrend: #2145
 import { qcRecordFromFileRow, emptySurfaceQc, looksLikeQcTypeColumn, mergeQcRecords } from "../lib/surfaceQaqc.js"; // TASKS.csv #842; looksLikeQcTypeColumn, mergeQcRecords: #1794
 import { mapInChunks } from "../lib/mapInChunks.js"; // TASKS.csv #583
 import { detectLongAssay, pivotLongAssays, longAssayNote } from "../lib/longAssays.js"; // TASKS.csv #623
@@ -127,7 +127,10 @@ export default function GeochemModule() {
     if (openingChecked.current || !assayElements.length) return;
     openingChecked.current = true;
     const req = ALL_DIAGRAMS[diagramId]?.requires || [];
-    if (req.length && req.some((sym) => !assaySymSet.has(sym))) setDiagramId("xy");
+    if (req.length && req.some((sym) => !assaySymSet.has(sym))) { setDiagramId("xy"); return; }
+    // TASKS.csv #2911 (WA iron review) — 147,659 iron-ore samples opened on the VMS Alteration Box Plot: on the default diagram, a project whose
+    // log holds no volcanic code, or whose lead commodity is mined in bulk (Fe, Mn, Al), opens on the X-Y scatter (the lead against its partner)
+    if (diagramId === "boxplot" && (noVolcanicCodes((layers?.litho || []).map((r) => r.value)) || BULK_COMMODITIES.has(leadFor(assays, assayElements)))) setDiagramId("xy");
   }, [assayElements]); // once per mount, on the project as loaded
   const [xyX, setXyX] = useKeptState(keptScope, "geochem.xyX", ""); // #1678 — "el:Cu" or a numeric source key
   const [xyY, setXyY] = useKeptState(keptScope, "geochem.xyY", "");
@@ -253,8 +256,6 @@ export default function GeochemModule() {
   // 1964 'plottable' samples: below SPIDER_MIN of its elements in the samples shown, the diagram says so instead of drawing
   const spiderPresent = useMemo(() => { const d = ALL_DIAGRAMS[diagramId]; return d?.spider ? d.order.filter((sym) => sourceRows.some((r) => Number.isFinite(r.values?.[sym]))) : null; }, [diagramId, sourceRows]);
   const xyDiag = useMemo(() => (xyAxes ? xyDiagram(xyAxes[0], xyAxes[1], sourceRows, elementUnits, { oneToOne: !!xyOne }) : null), [xyAxes, sourceRows, elementUnits, xyOne]);
-  // TASKS.csv #2353 — n, Spearman, the median Y / X and the length-weighted ratio, over X >= the typed value
-  const xyStat = useMemo(() => (xyAxes && xyAxes[0] && xyAxes[1] ? xyStats(xyAxes[0], xyAxes[1], sourceRows, elementUnits, { xMin: xyMin !== "" && Number.isFinite(Number(xyMin)) ? Number(xyMin) : null }) : null), [xyAxes, sourceRows, elementUnits, xyMin]);
   // TASKS.csv #1091 (review #1016, software artist) — holes from the colour-blind-safe categorical palette, in name order
   // (golden-angle HSL at one lightness put neighbouring hues at the same lightness, not dichromat-safe)
   const holeColors = useMemo(() => {
@@ -274,6 +275,10 @@ export default function GeochemModule() {
   const lithOverride = viewerUiState?.legendOverride?.litho;
   const lithColors = useMemo(() => Object.fromEntries(lithCounts.map(([k]) => [k, k === NOT_LOGGED ? "#b8bec7" : lithOverride?.[k]?.color || colorForLithology(k)])), [lithCounts, lithOverride]);
   const plotted = useMemo(() => (lithFilter ? sourceRows.filter((a) => lithFilter.has(sampleLith.get(a) ?? NOT_LOGGED)) : sourceRows), [sourceRows, lithFilter, sampleLith]); // sourceRows: #1673
+  // TASKS.csv #2353 — n, Spearman, the median Y / X and the length-weighted ratio, over X >= the typed value
+  // TASKS.csv #2909 (WA iron review) — the statistics line of the samples the plot draws: it read every sample ('n 147,659 · Spearman -0.96') under a
+  // lithology filter showing 26,253 (three ore strands), the question the filter is for
+  const xyStat = useMemo(() => (xyAxes && xyAxes[0] && xyAxes[1] ? xyStats(xyAxes[0], xyAxes[1], plotted, elementUnits, { xMin: xyMin !== "" && Number.isFinite(Number(xyMin)) ? Number(xyMin) : null }) : null), [xyAxes, plotted, elementUnits, xyMin]);
   // TASKS.csv #1519 — the holes plotted, for the on-screen key of 'by hole' (only worked out in that mode: 83,670 samples on Lawyers)
   const plottedHoles = useMemo(() => (colorMode === "hole" ? [...new Set(plotted.map((a) => a.hole_id))] : []), [colorMode, plotted]);
   const describeSample = (sm) => {
@@ -318,6 +323,9 @@ export default function GeochemModule() {
   const diagram = diagramId === "xy" ? xyDiag || XY_ENTRY : ALL_DIAGRAMS[diagramId]; // xy: #1678
   // TASKS.csv #1392 — a volcanic-protolith diagram on mostly calcareous samples says so (see carbonateShare)
   const carbShare = useMemo(() => carbonateShare(assays, elementUnits), [assays, elementUnits]);
+  // TASKS.csv #2911 — the volcanic diagrams say when no logged code is a volcanic rock (TAS drew alluvium and iron formation across its fields)
+  const noVolcanicLogged = useMemo(() => noVolcanicCodes((layers?.litho || []).map((r) => r.value)), [layers?.litho]);
+  const volcanicNote = VOLCANIC_DIAGRAMS.includes(diagramId) && noVolcanicLogged ? tr("No logged lithology code here reads as a volcanic rock: this diagram's fields assume one, so they may not apply to these samples.") : "";
   const carbonateNote = VOLCANIC_DIAGRAMS.includes(diagramId) && carbShare != null && carbShare > 1 / 3 ? tr("{pct} % of the samples hold 10 % Ca or more (carbonate rock): this diagram assumes a volcanic protolith, so read it with care here.", { pct: Math.round(carbShare * 100) }) : "";
   // #1519 — how many samples the diagram can place: computed once per diagram / sample set, not on every render (it projected
   // all 83,670 samples again in the caption and the export furniture)
@@ -1192,7 +1200,7 @@ export default function GeochemModule() {
       : [];
     const keyTitle = colorMode === "hole" ? "Hole" : colorMode === "lithology" ? "Lithology" : colorMode === "element" ? `${colorEl} (${colorRange?.log ? "log" : "linear"} scale)` : "";
     const pdx = partialDigestionFor(assayElements, diagram.requires); // #1518 — the warning travels with the exported figure
-    return geochemFurniture({ title: diagram.label, caption: (carbonateNote ? `${carbonateNote} ` : "") + (pdx.length ? `${diagram.caption} ${tr("Partial digestion: {list}. A four-acid or aqua-regia digestion does not fully dissolve zircon and other resistant minerals, so Zr and Hf (and partly Nb, Ta, Y and the REE) read low and the fields shift. Immobile-element diagrams and classifiers need a total (fusion / lithium-borate) digestion.", { list: pdx.map(([s, m]) => `${s} ${m}`).join(", ") })}` : diagram.caption), plotted: n, total: assays.length, spider: !!diagram.spider, hidden: lithFilter ? assays.length - plotted.length : null, keyTitle, keyItems, date: new Date().toISOString().slice(0, 10), censored: censoredCount }); // #1017 — in lib, tested; censored: #2018
+    return geochemFurniture({ title: diagram.label, caption: (carbonateNote ? `${carbonateNote} ` : "") + (volcanicNote ? `${volcanicNote} ` : "") /* #2911 */ + (pdx.length ? `${diagram.caption} ${tr("Partial digestion: {list}. A four-acid or aqua-regia digestion does not fully dissolve zircon and other resistant minerals, so Zr and Hf (and partly Nb, Ta, Y and the REE) read low and the fields shift. Immobile-element diagrams and classifiers need a total (fusion / lithium-borate) digestion.", { list: pdx.map(([s, m]) => `${s} ${m}`).join(", ") })}` : diagram.caption), plotted: n, total: assays.length, spider: !!diagram.spider, hidden: lithFilter ? assays.length - plotted.length : null, keyTitle, keyItems, date: new Date().toISOString().slice(0, 10), censored: censoredCount }); // #1017 — in lib, tested; censored: #2018
   };
   const exportPlotSVG = () => {
     const svg = svgRef.current;
@@ -1478,6 +1486,7 @@ export default function GeochemModule() {
 
         <div style={{ fontSize: 11, color: "#65717e", marginBottom: 10 }}>{tr(diagram.caption)}</div>
         {carbonateNote && <div style={{ fontSize: 11, color: "var(--color-warn-text)", marginBottom: 10, lineHeight: 1.4 }}>{carbonateNote}</div>} {/* #1392 */}
+        {volcanicNote && <div style={{ fontSize: 11, color: "var(--color-warn-text)", marginBottom: 10, lineHeight: 1.4 }}>{volcanicNote}</div>} {/* #2911 */}
         {(() => { const pd = partialDigestionFor(assayElements, diagram.requires); return pd.length ? <div style={{ fontSize: 11, color: "var(--color-warn-text)", marginBottom: 10, lineHeight: 1.4 }}>{tr("Partial digestion: {list}. A four-acid or aqua-regia digestion does not fully dissolve zircon and other resistant minerals, so Zr and Hf (and partly Nb, Ta, Y and the REE) read low and the fields shift. Immobile-element diagrams and classifiers need a total (fusion / lithium-borate) digestion.", { list: pd.map(([s, m]) => `${s} ${m}`).join(", ") })}</div> : null; })()}{/* #1518 */}
 
         {assays.length > 0 && missingForDiagram.length > 0 && (
