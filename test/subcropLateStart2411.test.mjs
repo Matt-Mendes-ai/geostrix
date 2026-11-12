@@ -32,5 +32,5 @@ test("the notice says how many and how deep, and the left-out count excludes the
   const p = readFileSync(new URL("../src/components/SurfaceMappingPanel.jsx", import.meta.url), "utf8");
   assert.match(p, /const rep = \{ lateStart: \[\] \};/);
   assert.match(p, /hole\(s\) whose log starts below the collar \(\{a\}–\{b\} m down/);
-  assert.match(p, /const skipped = collars\.length - pts\.length - rep\.lateStart\.length;/);
+  assert.match(p, /const skipped = collars\.length - pts\.length - rep\.lateStart\.length( - \(rep\.notAtDepth \|\| 0\))?;/); // notAtDepth: #2956
 });

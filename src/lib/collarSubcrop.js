@@ -23,7 +23,10 @@ export function roleWithCodes(modellingCodes) {
 // unit is a point down the hole, not a subcrop) and listed in report.lateStart [{ hole_id, logStart, unit }]. LATE_START_M: a log that
 // starts within a metre of the collar counts as from the collar.
 export const LATE_START_M = 1;
-export function collarSubcrop({ collars, survey, litho, desurveyMethod, roleOf = roleForLithology, report = null }) {
+// TASKS.csv #2956 (WA iron review) — atDepthM: the unit logged at that depth down each hole instead of the first one under the cover (a
+// 'map at N m below the collar'); a hole whose log does not cover that depth is left out and counted in report.notAtDepth.
+export function collarSubcrop({ collars, survey, litho, desurveyMethod, roleOf = roleForLithology, report = null, atDepthM = null }) {
+  const depth = Number.isFinite(atDepthM) && atDepthM >= 0 ? atDepthM : null;
   const byHoleSurvey = new Map(), byHoleLitho = new Map();
   for (const s of survey || []) (byHoleSurvey.get(s.hole_id) || byHoleSurvey.set(s.hole_id, []).get(s.hole_id)).push(s);
   for (const r of litho || []) {
@@ -42,12 +45,18 @@ export function collarSubcrop({ collars, survey, litho, desurveyMethod, roleOf =
     const f0 = rows.find((r) => !SKIP.has(roleOf(r.value)));
     if (!f0) continue;
     if (rows[0].from > LATE_START_M) { report?.lateStart?.push({ hole_id: c.hole_id, logStart: rows[0].from, unit: f0.value }); continue; } // #2411 / #2570
-    const first = { ...f0, value: canon.get(f0.value.toUpperCase()) || f0.value };
+    let pick = f0;
+    if (depth != null) { // #2956
+      pick = rows.find((r) => r.from <= depth && depth < r.to) || null;
+      if (!pick) { if (report) report.notAtDepth = (report.notAtDepth || 0) + 1; continue; }
+    }
+    const first = { ...pick, value: canon.get(pick.value.toUpperCase()) || pick.value };
     let trace = [];
     try { trace = desurveyHole(c, byHoleSurvey.get(c.hole_id) || [], desurveyMethod) || []; } catch { trace = []; }
-    const p = trace.length ? pointOnTrace(trace, first.from) : (Number.isFinite(Number(c.x)) && Number.isFinite(Number(c.y)) ? { x: Number(c.x), y: Number(c.y), z: Number(c.z) } : null);
+    const at = depth != null ? depth : first.from;
+    const p = trace.length ? pointOnTrace(trace, at) : (Number.isFinite(Number(c.x)) && Number.isFinite(Number(c.y)) ? { x: Number(c.x), y: Number(c.y), z: Number(c.z) } : null);
     if (!p) continue;
-    out.push({ hole_id: c.hole_id, unit: first.value, from: first.from, to: first.to, cover: first.from, x: p.x, y: p.y, z: p.z });
+    out.push({ hole_id: c.hole_id, unit: first.value, from: depth != null ? depth : first.from, to: first.to, cover: f0.from, x: p.x, y: p.y, z: p.z });
   }
   return out;
 }
@@ -84,4 +93,24 @@ export function subcropLeftOut({ collars, litho, roleOf = roleForLithology }) {
     if (coded.every((r) => SKIP.has(roleOf(String(r.value).trim())))) coverOnly++;
   }
   return { noLog, blankOnly, coverOnly };
+}
+
+// TASKS.csv #2956 (WA iron review) — the codes the holes START in (the first logged interval at the collar), with how many holes and the
+// role each has now: on a field under cover a few codes start most holes, and the pane asks which of them are cover. -> [{ code, holes, role }]
+export function holeStartCodes({ collars, litho, roleOf = roleForLithology }) {
+  const first = new Map();
+  for (const r of litho || []) {
+    const f = Number(r.from), v = String(r.value ?? "").trim();
+    if (!Number.isFinite(f) || !v) continue;
+    const cur = first.get(r.hole_id);
+    if (!cur || f < cur.from) first.set(r.hole_id, { from: f, value: v });
+  }
+  const ids = new Set((collars || []).map((c) => c.hole_id)), by = new Map();
+  for (const [h, r] of first) {
+    if (!ids.has(h) || r.from > LATE_START_M) continue;
+    const k = r.value.toUpperCase(), e = by.get(k) || { holes: 0, spell: new Map() };
+    e.holes++; e.spell.set(r.value, (e.spell.get(r.value) || 0) + 1); by.set(k, e);
+  }
+  return [...by.values()].map((e) => { const code = [...e.spell].sort((a, b) => b[1] - a[1])[0][0]; return { code, holes: e.holes, role: roleOf(code) || null }; })
+    .sort((a, b) => b.holes - a.holes || (a.code < b.code ? -1 : 1));
 }
