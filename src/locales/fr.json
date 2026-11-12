@@ -105,6 +105,8 @@
   "Inversion": "Inversion",
   "Lab certificates": "Certificats de labo",
   "Legend": "Légende",
+  "Two table columns side by side": "Deux colonnes de tableau côte à côte",
+  "The rows read down the left column, then the right one. The row limit doubles and the table is as tall as before, so a long list takes half the pages.": "Les lignes se lisent de haut en bas dans la colonne de gauche, puis dans celle de droite. La limite de lignes double et le tableau garde sa hauteur : une longue liste prend deux fois moins de pages.",
   "picture: colours only, no values": "image : couleurs seulement, sans valeurs",
   "Level plan": "Plan de niveau",
   "Litho groups": "Groupes litho",

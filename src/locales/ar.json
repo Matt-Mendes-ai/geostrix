@@ -105,6 +105,8 @@
   "Inversion": "النمذجة العكسية",
   "Lab certificates": "شهادات المختبر",
   "Legend": "مفتاح الرموز",
+  "Two table columns side by side": "عمودان من الجدول جنبًا إلى جنب",
+  "The rows read down the left column, then the right one. The row limit doubles and the table is as tall as before, so a long list takes half the pages.": "تُقرأ الصفوف نزولًا في العمود الأيسر ثم في الأيمن. يتضاعف حد الصفوف ويبقى الجدول بالارتفاع نفسه، فتشغل القائمة الطويلة نصف عدد الصفحات.",
   "picture: colours only, no values": "صورة: ألوان فقط، بلا قيم",
   "Level plan": "مسقط مستوي",
   "Litho groups": "مجموعات صخرية",

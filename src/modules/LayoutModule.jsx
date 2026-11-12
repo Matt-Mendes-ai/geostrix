@@ -23,7 +23,7 @@ import PromptModal from "../components/PromptModal.jsx";
 import { minMax, LAYER_META } from "../lib/layers.js";
 import { categoryLegendGroups, assayLegendGroups, voxelLegendGroups, rasterLegendGroups, legendGroupsToItems, LEGEND_CATEGORY_KEYS, mapLayerLegendGroups, boundaryLegendGroups, swatchShape, capLegendGroups, outcropLegendGroup } from "../lib/legendGroups.js"; // TASKS.csv #725; #948; #1633; outcropLegendGroup: #1437
 import { niceScaleNumber } from "../lib/figureScale.js"; // TASKS.csv #311 — shared with the 3D viewport's scale bar
-import { collarTableSlice, continuationTables, collarsWithSurveyAttitude, continuationPageIndex, collarTableFieldChoices, defaultCollarTableFields } from "../lib/collarTable.js"; // field columns: #2717; // continuationPageIndex: #2718 // TASKS.csv #1638; collarsWithSurveyAttitude: #2133
+import { collarTableSlice, continuationTables, collarsWithSurveyAttitude, continuationPageIndex, collarTableFieldChoices, defaultCollarTableFields, splitTableRows } from "../lib/collarTable.js"; // splitTableRows: #2770; // field columns: #2717; // continuationPageIndex: #2718 // TASKS.csv #1638; collarsWithSurveyAttitude: #2133
 import { fitDrillPlan, filterHoles, allHolesSteep, STEEP_DIP, turnedFrameFit, labelBackdrop } from "../lib/drillPlan.js"; // labelBackdrop: #2738; // TASKS.csv #1639; allHolesSteep: #2473; turnedFrameFit: #2305
 import DrillPlanColourControls from "../components/DrillPlanColourControls.jsx"; // TASKS.csv #2473
 import DrillPlanElement, { drillPlanDrawing } from "../components/DrillPlanElement.jsx"; // TASKS.csv #1639
@@ -1302,6 +1302,11 @@ export default function LayoutModule() {
                       <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>{tr("Holes containing")}<input type="text" value={sel.holeFilter || ""} placeholder={tr("all")} onChange={(e) => updateSelected({ holeFilter: e.target.value, firstRow: 1 })} style={inp} /></label>
                     </div>
                     <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: -4, marginBottom: 6 }}>{tr("Rows {a}–{b} of {n}.", { a: sl.total ? sl.start + 1 : 0, b: sl.end, n: sl.total })}</div>
+                    {/* TASKS.csv #2770 — two table columns per page: twice the rows at the same height, twice the width (up to the sheet's) */}
+                    <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 8, cursor: "pointer" }} title={tr("The rows read down the left column, then the right one. The row limit doubles and the table is as tall as before, so a long list takes half the pages.")}>
+                      <input type="checkbox" checked={sel.split === 2} onChange={(e) => { const on = e.target.checked, lim = Math.max(1, Math.round(Number(sel.maxRows) || 40)), w = Number(sel.w) || 520; updateSelected(on ? { split: 2, maxRows: lim * 2, w: Math.min(A4.w - 80, w * 2) } : { split: 1, maxRows: Math.max(1, Math.ceil(lim / 2)), w: Math.max(260, Math.round(w / 2)) }); }} />
+                      {tr("Two table columns side by side")}
+                    </label>
                     {(() => { const choices = collarTableFieldChoices(tableCollars); return choices.length > 0 && ( /* TASKS.csv #2717 — collar fields as extra columns */
                       <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 8 }}>{tr("Also as columns:")}
                         <div style={{ display: "flex", flexWrap: "wrap", gap: "2px 10px", marginTop: 2 }}>{choices.map((k) => (
@@ -2512,20 +2517,26 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
       head = el.threshold != null ? tr("{n} sample(s) at or above {v} {u}, highest first", { n: t.total.toLocaleString(), v: el.threshold, u: t.unitLabel }) : tr("{n} sample(s), highest first", { n: t.total.toLocaleString() });
     }
     const fs = printPx(el.fontPt || printPt.small), cell = { padding: `${Math.round(fs * 0.25)}px ${Math.round(fs * 0.5)}px`, borderBottom: "1px solid #c9ced4" /* #999 — 0.26 mm on paper like the scale bar; 0.5 px vanished on screen at Fit zoom */, whiteSpace: "nowrap" };
+    const tableParts = el.source === "collars" ? splitTableRows(rows, el.split) : [rows]; // #2770
     const numeric = columns.map((_, j) => rows.length > 0 && rows.every((r) => r[j] === "" || /^[-+≥<>]?[\d.,]+[*†]?$/.test(String(r[j])))); // \*: #1483; †: #2133
     return (
       <div style={{ ...wrap, width: el.w || 520, background: "#fff", border: frameBorder(el), padding: 6, boxSizing: "border-box", fontFamily: "'Exo 2', system-ui, sans-serif", color: "#1a2028" }} onMouseDown={onDown} data-el-id={el.id} {...kb}>
         {el.title && <div style={{ fontSize: printPx((el.fontPt || printPt.small) + 2), fontWeight: 700, marginBottom: 4 }}>{fillText(el.title, ctx)}</div>}
         {head && <div style={{ fontSize: fs, color: "#555", marginBottom: 3 }}>{head}</div>}{/* #1638 */}
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: fs, fontVariantNumeric: "tabular-nums", tableLayout: "auto" }}>
-          <thead><tr>{columns.map((h, j) => <th key={j} style={{ ...cell, textAlign: numeric[j] ? "right" : "left", fontWeight: 600, borderBottom: "1px solid #1a2028" }}>{h}</th>)}</tr></thead>
-          <tbody>
-            {rows.map((r, i) => <tr key={i}>{r.map((v, j) => <td key={j} style={{ ...cell, textAlign: numeric[j] ? "right" : "left" }}>{v}</td>)}</tr>)}
-            {!rows.length && <tr><td colSpan={Math.max(1, columns.length)} style={{ ...cell, color: "#777" }}>{el.source === "collars" ? (el.holeFilter ? tr("No hole id contains \"{f}\".", { f: el.holeFilter }) : (() => { const k = holesWithoutCollars(ctx?.collars, ctx?.assays, ctx?.layers); return k ? tr("No collars: {n} hole(s) have assays or logs but no collar coordinates.", { n: k.toLocaleString() }) : tr("No collars in the project yet."); })() /* #1869 */) : el.source === "samples" ? (el.symbol ? tr("No sample has a {s} value{v}.", { s: el.symbol, v: el.threshold != null ? tr(" at or above {t}", { t: el.threshold }) : "" }) : tr("Pick an element for the table.")) : tr("No rows.")}</td></tr>}
-            {more > 0 && el.source === "samples" && <tr><td colSpan={columns.length} style={{ ...cell, color: "#555", fontStyle: "italic" }}>{tr("… and {n} more sample(s)", { n: more.toLocaleString() })}</td></tr>}{/* #1869 */}
-            {more > 0 && el.source !== "samples" && <tr><td colSpan={columns.length} style={{ ...cell, color: "#555", fontStyle: "italic" }}>{print ? (ctx?.continuedOn?.(el, nextRow) ? tr("Continued on page {p}", { p: ctx.continuedOn(el, nextRow) }) /* #2718 — its continuation is in this export */ : tr("… {n} more hole(s), from row {r}", { n: more, r: nextRow })) /* #2480 — the editing hint is for the screen, not the paper */ : tr("… and {n} more hole(s), from row {r}: a table with that First row, or Continue on new pages", { n: more, r: nextRow })}</td></tr>}
-          </tbody>
-        </table>
+        {/* TASKS.csv #2770 — a split collar table: two tables side by side, the rows read down then across; the empty and 'more' lines once */}
+        <div style={tableParts.length > 1 ? { display: "flex", gap: 14, alignItems: "flex-start" } : undefined}>
+        {tableParts.map((part, pi) => (
+          <table key={pi} style={{ width: tableParts.length > 1 ? "50%" : "100%", borderCollapse: "collapse", fontSize: fs, fontVariantNumeric: "tabular-nums", tableLayout: "auto" }}>
+            <thead><tr>{columns.map((h, j) => <th key={j} style={{ ...cell, textAlign: numeric[j] ? "right" : "left", fontWeight: 600, borderBottom: "1px solid #1a2028" }}>{h}</th>)}</tr></thead>
+            <tbody>
+              {part.map((r, i) => <tr key={i}>{r.map((v, j) => <td key={j} style={{ ...cell, textAlign: numeric[j] ? "right" : "left" }}>{v}</td>)}</tr>)}
+              {!rows.length && pi === 0 && <tr><td colSpan={Math.max(1, columns.length)} style={{ ...cell, color: "#777" }}>{el.source === "collars" ? (el.holeFilter ? tr("No hole id contains \"{f}\".", { f: el.holeFilter }) : (() => { const k = holesWithoutCollars(ctx?.collars, ctx?.assays, ctx?.layers); return k ? tr("No collars: {n} hole(s) have assays or logs but no collar coordinates.", { n: k.toLocaleString() }) : tr("No collars in the project yet."); })() /* #1869 */) : el.source === "samples" ? (el.symbol ? tr("No sample has a {s} value{v}.", { s: el.symbol, v: el.threshold != null ? tr(" at or above {t}", { t: el.threshold }) : "" }) : tr("Pick an element for the table.")) : tr("No rows.")}</td></tr>}
+              {more > 0 && pi === tableParts.length - 1 && el.source === "samples" && <tr><td colSpan={columns.length} style={{ ...cell, color: "#555", fontStyle: "italic" }}>{tr("… and {n} more sample(s)", { n: more.toLocaleString() })}</td></tr>}{/* #1869 */}
+              {more > 0 && pi === tableParts.length - 1 && el.source !== "samples" && <tr><td colSpan={columns.length} style={{ ...cell, color: "#555", fontStyle: "italic" }}>{print ? (ctx?.continuedOn?.(el, nextRow) ? tr("Continued on page {p}", { p: ctx.continuedOn(el, nextRow) }) /* #2718 — its continuation is in this export */ : tr("… {n} more hole(s), from row {r}", { n: more, r: nextRow })) /* #2480 — the editing hint is for the screen, not the paper */ : tr("… and {n} more hole(s), from row {r}: a table with that First row, or Continue on new pages", { n: more, r: nextRow })}</td></tr>}
+            </tbody>
+          </table>
+        ))}
+        </div>
         {surveyNote && <div style={{ fontSize: printPx(Math.max(5, (el.fontPt || printPt.small) - 1)), fontStyle: "italic", color: "#3a424c", marginTop: 4, lineHeight: 1.35, whiteSpace: "normal" }}>{surveyNote}</div>}
         {el.note && <div style={{ fontSize: printPx(Math.max(5, (el.fontPt || printPt.small) - 1)), fontStyle: "italic", color: "#3a424c", marginTop: 4, lineHeight: 1.35, whiteSpace: "normal" }}>{fillText(el.note, ctx)}</div>}{/* TASKS.csv #936 */}
         {handles}

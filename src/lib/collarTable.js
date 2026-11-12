@@ -51,6 +51,20 @@ export function collarTableHeight(rows, fontPt = 7) {
   return Math.ceil(2 * r + printPx(fontPt + 2) * 1.2 + 4 + 12 + Math.max(1, rows) * r);
 }
 
+// TASKS.csv #2770 (split from #2717) — a long collar list in two table columns side by side, read down then across: the first half of a
+// page's rows on the left, the rest on the right (half the pages for a 400-hole appendix). -> [rows] or [left, right]
+export function splitTableRows(rows, parts = 1) {
+  const list = rows || [];
+  if (Math.round(Number(parts) || 1) !== 2 || list.length < 2) return [list];
+  const k = Math.ceil(list.length / 2);
+  return [list.slice(0, k), list.slice(k)];
+}
+// the rows down one table column: a split table's maxRows is shared by its two columns
+export function tableColumnRows(el) {
+  const lim = Math.max(1, Math.round(Number(el?.maxRows) || 40));
+  return el?.split === 2 ? Math.ceil(lim / 2) : lim;
+}
+
 // The tables that carry on after `el` (same columns, filter and length), one per new page, at the top of the sheet.
 export function continuationTables(el, total) {
   const lim = Math.max(1, Math.round(Number(el.maxRows) || 40));
