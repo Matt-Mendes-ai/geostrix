@@ -729,6 +729,7 @@
   "None yet — run one of the tools above. Generated surfaces now save with the project (mesh, type, declared relationships and the parameters that produced them), so a reported volume or tonnage can be reproduced after a restart. Binding a surface to a saved theme is still a follow-up.": "Aucune pour l'instant — exécutez l'un des outils ci-dessus. Les surfaces générées sont désormais enregistrées avec le projet (maillage, type, relations déclarées et paramètres qui les ont produites), donc un volume ou un tonnage déclaré peut être reproduit après un redémarrage. Lier une surface à un thème enregistré reste à faire.",
   "Style (colour, opacity)…": "Style (couleur, opacité)…",
   "Type & relationships": "Type et relations",
+  "Show or hide {name}": "Afficher ou masquer {name}",
   "Show normal colours": "Afficher les couleurs normales",
   "Colour by data support": "Colorer selon le soutien des données",
   "Counted over this surface's own vertices. Green means the composites that produced that part of the surface bracket it on all three axes from at least two holes. A geometric data-support measure — not a confidence interval or a kriging variance.": "Compté sur les sommets propres de cette surface. Vert signifie que les composites qui ont produit cette partie de la surface l'encadrent sur les trois axes depuis au moins deux sondages. Une mesure géométrique du soutien des données — pas un intervalle de confiance ni une variance de krigeage.",
