@@ -185,7 +185,10 @@ export const FIELDS = [
   // snapshot cost ~49 ms per compare with one 4 MB raster. #462: they still mark the project unsaved.
   { key: "rasters", track: "dirty", empty: list },
   { key: "boundaries", track: "undo", empty: list },
-  { key: "mapLayers", track: "dirty", empty: list }, // TASKS.csv #316
+  // TASKS.csv #2769 (#2630 (4)) — undoable: an interpretation line added, removed or restored (InterpretPane) is a map-layer edit, and Ctrl+Z
+  // did not take it back. The undo watcher compares by reference since #432, so a large imported layer costs nothing per edit; the stack
+  // holds references to the earlier arrays (unchanged layers are shared).
+  { key: "mapLayers", track: "undo", empty: list }, // TASKS.csv #316
   { key: "sectionImages", track: "dirty", empty: list }, // TASKS.csv #630 — georeferenced vertical (cross-section) images
   { key: "surfaceStructures", track: "dirty", empty: list }, // TASKS.csv #317
   { key: "fieldStructuralRefs", track: "dirty", empty: list },
