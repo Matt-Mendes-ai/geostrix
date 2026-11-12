@@ -23,6 +23,6 @@ test("most values first, ties alphabetical, the shown elements ahead in their ow
 
 test("the 3D View's chip row uses it", () => {
   const v = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
-  assert.match(v, /\{orderAssayChips\(assayElements, assayDisplayElements, assayChipCounts\)\.map\(\(e\) => \{/);
+  assert.match(v, /\{filterAssayChips\(orderAssayChips\(assayElements, assayDisplayElements, assayChipCounts\), chipQ, assayDisplayElements\)\.map\(\(e\) => \{/); // filter: #2785
   assert.match(v, /const assayChipCounts = useMemo\(\(\) => assayValueCounts\(assays\), \[assays\]\);/);
 });
