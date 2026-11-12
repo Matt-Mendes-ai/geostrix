@@ -156,8 +156,9 @@ export function buildLayerBatches(group) {
     // same reason) removes that: every instance blends over what is already there. Blend ORDER is
     // still approximate for overlapping transparent tubes, which is the one accepted visual
     // trade-off of this row — opaque layers are unaffected and keep depthWrite:true.
-    if (material.transparent) material.depthWrite = false;
+    if (material.transparent && material.opacity < 1) material.depthWrite = false; // #2776 — opacity 1 (collar markers over a flat raster) keeps its depth
     const inst = new THREE.InstancedMesh(fam.geometry, material, fam.members.length);
+    inst.renderOrder = fam.members[0].renderOrder || 0; // #2776 — the members' draw order (collar markers: after a flat raster)
     // Never a pick target: pickHoverTargets skips it, so a hit always resolves to the real
     // per-interval object and never to the batch (which could not answer "which interval?").
     inst.userData.pickIgnore = true;
