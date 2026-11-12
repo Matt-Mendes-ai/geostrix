@@ -7,7 +7,7 @@ import { collarAttrChoices, collarsMatching } from "../lib/holeFilter.js"; // TA
 import { Download, Layers } from "./icons.js";
 import { TaskPaneHeader } from "./Ribbon.jsx";
 import { useStore } from "../lib/store.jsx";
-import { pickDefaultReachM, medianSiteSpacing } from "../lib/evidenceSources.js"; // TASKS.csv #1179; #1451
+import { pickDefaultReachM, drilledSiteSpacing } from "../lib/evidenceSources.js"; // TASKS.csv #1179; #1451; drilledSiteSpacing: #2949
 import { drilledCollars } from "../lib/collarStatus.js"; // TASKS.csv #2097
 import { mainClusters } from "../lib/dataClusters.js"; // TASKS.csv #1449 / #1450
 import { quantileSorted } from "../lib/arrayStats.js"; // TASKS.csv #1281
@@ -75,7 +75,7 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
   const traces = useMemo(() => holeTraces(drilledCollars(collars).collars, survey, project?.desurveyMethod), [collars, survey, project?.desurveyMethod]);
   // TASKS.csv #2644 — a drillhole card's default Reach from the drilling: twice the typical drill-site spacing (as sample and survey cards
   // take theirs from their own spacing), 50-1,000 m; the fixed 250 m when the spacing is unknown (ten spacings on a 25 m grid)
-  const siteSpacing = useMemo(() => medianSiteSpacing(drilledCollars(collars).collars), [collars]);
+  const siteSpacing = useMemo(() => drilledSiteSpacing(collars), [collars]); // #2949 — grid-hashed, kept per collars array
   const drillReach = siteSpacing > 0 ? Math.round(Math.min(1000, Math.max(50, 2 * siteSpacing))) : DRILL_REACH_M; // drilledCollars: #2097 — a proposed collar is not drilled ground
   // TASKS.csv #1727 (review #1645, Copley) — the grid around the drilling grows with the largest reach a drillhole evidence was given
   // (a 1,000 m reach ran into the edge of a box that ended 250 m past the outer holes), and a drill-only overlay says what it ranks
@@ -271,7 +271,7 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
     const finite = values.filter(Number.isFinite);
     if (!finite.length) { setMsg(tr("\"{name}\" has no values over the grid.", { name: src.label })); return; }
     finite.sort(); // TASKS.csv #1281 — one numeric sort of the typed copy, not a comparator sort per quantile (a third of the stall)
-    const dec = src.kind === "distance" || src.kind === "solid" /* #1567 */ || src.kind === "pick" || src.kind === "zone", low0 = dec ? 0 : quantileSorted(finite, 0.1), high0 = src.kind === "pick" || src.kind === "zone" ? Math.max(3 * Math.max(grid.dx, grid.dy), pickDefaultReachM(quantileSorted(finite, 0.5), (medianSiteSpacing(collars) || 0) / 3)) /* #1451: one site spacing, at least 3 cells */ : dec ? quantileSorted(finite, 0.5) : quantileSorted(finite, 0.9); // #1179
+    const dec = src.kind === "distance" || src.kind === "solid" /* #1567 */ || src.kind === "pick" || src.kind === "zone", low0 = dec ? 0 : quantileSorted(finite, 0.1), high0 = src.kind === "pick" || src.kind === "zone" ? Math.max(3 * Math.max(grid.dx, grid.dy), pickDefaultReachM(quantileSorted(finite, 0.5), (siteSpacing || 0) / 3)) /* #2949: the pane's one measure, not a fresh one per card */ /* #1451: one site spacing, at least 3 cells */ : dec ? quantileSorted(finite, 0.5) : quantileSorted(finite, 0.9); // #1179
     let low = low0, high = high0; // let: #2099 (a drill grade takes its assays' ends)
     let log = (src.kind === "grade" || src.kind === "pxrf") && low > 0 && high > low; // #1555: a drill grade ramps on its logarithm (10th -> 90th percentile of a lognormal grade is otherwise flat over most of the holes)
     // #2099 — where the ends came from, said on the card; a drill grade's from its assays
@@ -280,7 +280,7 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
     if (ge) { low = ge.low; high = ge.high; log = true; endsFrom = { kind: "assays", q: ge.q, n: ge.n, highFrom: ge.highFrom, m: ge.m }; }
     // TASKS.csv #1456 — distance to drilling rises with distance: 0 on a trace, full membership from half the spacing between drill sites
     // (the median, #1451; else the median distance over the grid), at least 3 cells — "untested" is the geologist's to set on the card
-    if (src.kind === "drilled") { const site = medianSiteSpacing(collars); const hi = Math.max(3 * Math.max(grid.dx, grid.dy), site ? site / 2 : quantileSorted(finite, 0.5)); setLayers((L) => [...L, { id: nextId++, ...src, shape: "increasing", low: 0, high: hi, log: false, lowText: "0", highText: numText(hi), field: "", value: "", reach: null, values }]); setResult(null); setMsg(null); return; }
+    if (src.kind === "drilled") { const site = siteSpacing; /* #2949 */ const hi = Math.max(3 * Math.max(grid.dx, grid.dy), site ? site / 2 : quantileSorted(finite, 0.5)); setLayers((L) => [...L, { id: nextId++, ...src, shape: "increasing", low: 0, high: hi, log: false, lowText: "0", highText: numText(hi), field: "", value: "", reach: null, values }]); setResult(null); setMsg(null); return; }
     setLayers((L) => [...L, { id: nextId++, ...src, shape: dec ? "decreasing" : "increasing", low, high, log, endsFrom, lowText: numText(low), highText: numText(high), field: pick.field || "", value: pick.value ?? "", reach: pick.reach || reachOf(src), values }]);
     setResult(null); setMsg(null);
   };
