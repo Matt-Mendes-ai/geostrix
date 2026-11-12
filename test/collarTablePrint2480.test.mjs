@@ -6,7 +6,7 @@ import { readFileSync } from "node:fs";
 
 test("the closing row has a print form without the keyboard instruction", () => {
   const m = readFileSync(new URL("../src/modules/LayoutModule.jsx", import.meta.url), "utf8");
-  assert.match(m, /\{print \? tr\("… \{n\} more hole\(s\), from row \{r\}", \{ n: more, r: nextRow \}\) [^:]*: tr\("… and \{n\} more hole\(s\), from row \{r\}: a table with that First row, or Continue on new pages"/);
+  assert.match(m, /: tr\("… \{n\} more hole\(s\), from row \{r\}", \{ n: more, r: nextRow \}\)\) \/\* #2480 — the editing hint is for the screen, not the paper \*\/ : tr\("… and \{n\} more hole\(s\), from row \{r\}: a table with that First row, or Continue on new pages"/); // the print form, after #2718's 'Continued on page'
   for (const lang of ["es", "pt", "fr", "ar"]) {
     const d = JSON.parse(readFileSync(new URL(`../src/locales/${lang}.json`, import.meta.url), "utf8"));
     assert.ok(d["… {n} more hole(s), from row {r}"], lang);

@@ -38,6 +38,36 @@ export function leadCommodity(samples, valueOf) {
 // was ticked on a uranium project and U was not: with { lead, counts } the project's lead commodity comes first, then the elements with
 // the most values (at least MIN_PAIRS: Bi on 46 core samples, all below detection, was a row of dashes), the suite only breaking ties.
 export const MIN_PAIRS = 10;
+
+// TASKS.csv #2741 (split from #2512) — the X-Y scatter's default Y: the element whose values follow the lead's most closely in these
+// samples (Pearson on log10 values, |r|, over the samples with both above zero and at least MIN_PAIRS of them), not the next of a fixed
+// suite. With no such element: the one with the most values. symbols: the candidates (assayed elements, the lead excluded by the caller
+// or here; calculated ones should be left out, a CuEq follows its Cu by construction). -> a symbol, or null
+export function bestPartner(rows, lead, symbols) {
+  const cands = (symbols || []).filter((s) => s && s !== lead);
+  if (!cands.length) return null;
+  const pos = (v) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? Math.log10(n) : null; };
+  const leadLogs = lead ? (rows || []).map((r) => pos(r?.values?.[lead])) : null;
+  let best = null, bestR = -1, most = null, mostN = -1;
+  for (const s of cands) {
+    let n = 0, sx = 0, sy = 0, sxx = 0, syy = 0, sxy = 0, have = 0;
+    (rows || []).forEach((r, i) => {
+      const y = pos(r?.values?.[s]);
+      if (y == null) return;
+      have++;
+      const x = leadLogs ? leadLogs[i] : null;
+      if (x == null) return;
+      n++; sx += x; sy += y; sxx += x * x; syy += y * y; sxy += x * y;
+    });
+    if (have > mostN) { mostN = have; most = s; }
+    if (n < MIN_PAIRS) continue;
+    const vx = sxx - (sx * sx) / n, vy = syy - (sy * sy) / n;
+    if (!(vx > 0 && vy > 0)) continue;
+    const r = Math.abs((sxy - (sx * sy) / n) / Math.sqrt(vx * vy));
+    if (r > bestR) { bestR = r; best = s; }
+  }
+  return best || (mostN > 0 ? most : null);
+}
 export function correlationDefaults(symbols, n = 12, { lead = null, counts = null } = {}) {
   const list = (symbols || []).filter(Boolean);
   if (!counts) {

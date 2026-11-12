@@ -1,5 +1,5 @@
 import { qcColumns, qcFields } from "../lib/assayQcColumns.js"; // TASKS.csv #1184
-import { correlationDefaults } from "../lib/preferredElement.js"; // TASKS.csv #2512
+import { correlationDefaults, bestPartner } from "../lib/preferredElement.js"; // TASKS.csv #2512; bestPartner: #2741
 import { orderElements } from "../lib/elementOrder.js"; // TASKS.csv #2032
 import { leadFor } from "../lib/useLeadCommodity.js"; // TASKS.csv #2032
 import { zeroMeansMissing } from "../lib/missingElevation.js"; // TASKS.csv #1394
@@ -207,7 +207,14 @@ export default function GeochemModule() {
   // TASKS.csv #2512 (review #2486) — the X-Y scatter opened on the file's first two columns (As on a lithium project): X is the project's lead
   // commodity (from the assay values, #2351), Y the next element correlationDefaults would tick
   const xyLead = useMemo(() => leadFor(assays, assayElements), [assays, assayElements]);
-  const xyPair = useMemo(() => correlationDefaults(assayElements.map((e) => e.symbol), 2, { lead: xyLead }), [assayElements, xyLead]);
+  // TASKS.csv #2741 — Y is the element that follows X most closely in the samples shown (|r| of the logs), not the fixed suite's next;
+  // calculated elements are left out (a CuEq follows its Cu by construction)
+  const xyPair = useMemo(() => {
+    const two = correlationDefaults(assayElements.map((e) => e.symbol), 2, { lead: xyLead });
+    if (!two[0]) return two;
+    const partner = bestPartner(sourceRows, two[0], assayElements.filter((e) => !e.calculated).map((e) => e.symbol));
+    return [two[0], partner || two[1]].filter(Boolean);
+  }, [assayElements, xyLead, sourceRows]);
   const xyKeyX = xyX || (xyPair[0] ? `el:${xyPair[0]}` : ""), xyKeyY = xyY || (xyPair[1] ? `el:${xyPair[1]}` : xyChoices[0]?.key || (xyPair[0] ? `el:${xyPair[0]}` : ""));
   const xyAxes = useMemo(() => {
     if (diagramId !== "xy") return null;

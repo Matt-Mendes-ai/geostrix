@@ -35,7 +35,7 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
   const lead = useLeadCommodity(); // TASKS.csv #2351 — open on the lead commodity, not the first element in import order (Co on a uranium project)
   const [symbol, setSymbol] = useState(() => preferredElement(assayElements.map((e) => e.symbol), null, lead));
   const [tab, setTab] = useState("standards");
-  const [blankThreshold, setBlankThreshold] = useState(0.1);
+  const [blankThreshold, setBlankThreshold] = useState(null); // TASKS.csv #2733 — no 0.1 pre-fill: a number in no unit that read as a rule; blanks are listed, not judged, until one is set
   const [selectedStdId, setSelectedStdId] = useState(null);
   const { crmCertificates = {}, setCrmCertificate, setAssayElements, project, setAssays } = useStore() || {}; // #400; setAssays: #2506
   const majors = useMemo(() => majorOxides(assayElements), [assayElements]); // #2506 — the oxide-total check needs six majors
@@ -102,7 +102,7 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
     const stamp = stampLines({ tool: "QAQC", version: APP_VERSION, epsg: stampEpsg(project) /* #2195 */, params: [
       `Element: ${symbol} (${unit}) | detection limit: ${dl ? `${dl} ${unit}` : "not set"}`,
       tab === "standards" && activeGroup ? `Standard ${activeGroup.id}: ${series.limits?.certified ? `certified mean ${series.limits.mean} ± ${series.limits.sd} (1 SD, from the certificate)` : "no certificate values: self-referencing mean ± 2SD/3SD"} | order: ${ordered.bySampleId ? "sample id" : "import order (no sample ids)"}` : "",
-      tab === "blanks" ? `Blank limit: ${dl ? `${blankMult} x DL = ${blankLimit} ${unit}` : `${blankThreshold} ${unit} (manual; no detection limit set)`}` : "",
+      tab === "blanks" ? `Blank limit: ${dl ? `${blankMult} x DL = ${blankLimit} ${unit}` : (blankThreshold == null ? "none set (no detection limit, no manual threshold): blanks not judged" : `${blankThreshold} ${unit} (manual; no detection limit set)`)}` : "",
       tab === "duplicates" ? `RPD limits by duplicate type: field ${DUP_RPD_LIMITS.field}%, coarse reject ${DUP_RPD_LIMITS.coarse}%, pulp ${DUP_RPD_LIMITS.pulp}%, type not stated ${DUP_RPD_LIMITS.unknown}% | pairs with a mean below ${pairFloor} ${unit} not counted` : "",
       `QC recognized from a sample-type column when present, else hole_id patterns: ${Object.entries(DEFAULT_QAQC_PATTERNS || {}).map(([k, v]) => `${k} ${Array.isArray(v) ? v.join("/") : v}`).join("; ")}`,
     ] });
@@ -206,9 +206,10 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
                   </span>
                 </label>
               ) : (
-                <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("Contamination threshold ({unit}) — set the element's detection limit above to judge blanks against a multiple of it (5x DL)", { unit: unitL })}<input type="number" step="any" value={blankThreshold} onChange={(e) => setBlankThreshold(Number(e.target.value))} style={{ ...sel, display: "block", marginTop: 4, width: 100 }} />
+                <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("Contamination threshold ({unit}) — set the element's detection limit above to judge blanks against a multiple of it (5x DL)", { unit: unitL })}<input type="number" step="any" value={blankThreshold ?? ""} placeholder={tr("none")} onChange={(e) => setBlankThreshold(e.target.value === "" || !Number.isFinite(Number(e.target.value)) ? null : Number(e.target.value))} style={{ ...sel, display: "block", marginTop: 4, width: 100 }} />
                 </label>
               )}
+              {!dl && blankThreshold == null && blanks.length > 0 && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", margin: "6px 0" }}>{tr("No threshold set, so the {n} blank(s) are listed but not judged. Enter a threshold in {unit}, or set {symbol}'s detection limit to judge them against a multiple of it.", { n: blanks.length, unit: unitL, symbol })}</div>}{/* #2733 */}
               {blanks.length === 0 ? (
                 <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", padding: 8 }}>{tr("No blanks found (hole_id containing \"blank\"/\"blk\"), or none have a {symbol} value.", { symbol })}</div>
               ) : (
@@ -219,7 +220,7 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
                       <tr key={i} style={b.flagged ? { background: "var(--color-danger-bg-soft)" } : undefined}>
                         <td style={td}>{b.hole_id}</td><td style={td}>{b.from}</td><td style={td}>{b.to}</td>
                         <td style={{ ...td, color: b.flagged ? "var(--color-danger-fg)" : "var(--color-text)" }}>{b.value.toFixed(4)}</td>
-                        <td style={td}>{b.flagged ? "⚠ contaminated" : "ok"}</td>
+                        <td style={td}>{blankLimit == null ? "—" /* #2733 — not judged */ : b.flagged ? tr("⚠ contaminated") : tr("ok")}</td>
                       </tr>
                     ))}
                   </tbody>

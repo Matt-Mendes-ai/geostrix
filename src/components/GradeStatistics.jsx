@@ -33,6 +33,7 @@ import { preferredElement, rememberElement } from "../lib/preferredElement.js"; 
 import { useLeadCommodity } from "../lib/useLeadCommodity.js"; // #1523 — the project's lead commodity
 import { customDomainOptions, isCategoricalLayer, attributeDomainOptions, attributeDomainLabel } from "../lib/customDomains.js"; // TASKS.csv #1678; #1515; attributes: #2504
 import { codeIndex, codeAt, NO_CODE } from "../lib/sampleLithology.js"; // TASKS.csv #2510 — the one rule for a sample's logged code
+import { labelMargin, fitLabel } from "../lib/fitLabel.js"; // TASKS.csv #2714
 
 // Sample statistics (n-1 denominator for variance/stdev, the standard convention for a sample rather
 // than a full population — grade data is always a sample of the deposit, never the whole thing).
@@ -420,7 +421,10 @@ export function boxPlotScale(stats, logScale, x0, x1) {
 
 function BoxPlots({ groups, domainLabel, logScale, unit, fit = false }) { // fit: TASKS.csv #1425 — scaled to a narrow pane instead of clipped
   if (!groups.length) return null;
-  const w = fit ? 360 : 640, rowH = fit ? 26 : 34, padL = fit ? 110 : 90, padR = 20;
+  const w = fit ? 360 : 640, rowH = fit ? 26 : 34, padR = 20;
+  // TASKS.csv #2714 — the label margin follows the longest label (up to 40 % of the width); a longer one is cut with an ellipsis
+  const names = groups.map((g) => String(domainLabel(g.key)));
+  const padL = labelMargin(names, fontSizes.sm, { min: fit ? 110 : 90, width: w });
   const h = groups.length * rowH + 34;
   const { x, low, high } = boxPlotScale(groups.map((g) => g.stats), logScale, padL, w - padR); // TASKS.csv #1185
   return (
@@ -430,7 +434,7 @@ function BoxPlots({ groups, domainLabel, logScale, unit, fit = false }) { // fit
         const s = g.stats;
         return (
           <g key={g.key}>
-            <text x={padL - 8} y={y + 4} fontSize={fontSizes.sm} fill="#1a2028" textAnchor="end">{domainLabel(g.key)}</text>
+            <text x={padL - 8} y={y + 4} fontSize={fontSizes.sm} fill="#1a2028" textAnchor="end">{fitLabel(names[i], padL - 12, fontSizes.sm)}<title>{names[i]}</title></text>
             <line x1={x(s.min)} y1={y} x2={x(s.max)} y2={y} stroke="#55606e" strokeWidth="1" />
             <line x1={x(s.min)} y1={y - 5} x2={x(s.min)} y2={y + 5} stroke="#55606e" strokeWidth="1" />
             <line x1={x(s.max)} y1={y - 5} x2={x(s.max)} y2={y + 5} stroke="#55606e" strokeWidth="1" />

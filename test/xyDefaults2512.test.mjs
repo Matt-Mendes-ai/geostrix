@@ -12,6 +12,6 @@ test("the lead first, then the next default element", () => {
 
 test("wired", () => {
   const g = readFileSync(new URL("../src/modules/GeochemModule.jsx", import.meta.url), "utf8");
-  assert.match(g, /const xyPair = useMemo\(\(\) => correlationDefaults\(assayElements\.map\(\(e\) => e\.symbol\), 2, \{ lead: xyLead \}\)/);
+  assert.match(g, /const two = correlationDefaults\(assayElements\.map\(\(e\) => e\.symbol\), 2, \{ lead: xyLead \}\);/); // Y by correlation since #2741
   assert.match(g, /const xyKeyX = xyX \|\| \(xyPair\[0\] \? `el:\$\{xyPair\[0\]\}` : ""\)/);
 });

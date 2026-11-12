@@ -10,7 +10,7 @@ import { hasComputerTemplates } from "../lib/desktop.js"; // TASKS.csv #1487
 import GenerateAtlasModal from "../components/GenerateAtlasModal.jsx";
 import { HOLE_TOKENS, SECTION_TOKENS } from "../lib/atlas.js"; // TASKS.csv #1777 — listed with the page's placeholders
 import { scaleBarLabel, scaleBarMidLabel } from "../lib/scaleBarLabel.js"; // TASKS.csv #2140
-import { offSheetPages, rectsPastSheet } from "../lib/layoutEdges.js"; // TASKS.csv #2482 / #2309
+import { offSheetPages, rectSidesPast, elementCaption } from "../lib/layoutEdges.js"; // TASKS.csv #2482 / #2309; named elements: #2700
 import { fillPlaceholders } from "../lib/layoutText.js"; // TASKS.csv #2139
 import { mergeCaseTwins } from "../lib/legendCaseTwins.js"; // TASKS.csv #2609
 import { collarGridName } from "../lib/gridName.js"; // TASKS.csv #2306
@@ -22,7 +22,7 @@ import PromptModal from "../components/PromptModal.jsx";
 import { minMax, LAYER_META } from "../lib/layers.js";
 import { categoryLegendGroups, assayLegendGroups, voxelLegendGroups, rasterLegendGroups, legendGroupsToItems, LEGEND_CATEGORY_KEYS, mapLayerLegendGroups, boundaryLegendGroups, swatchShape, capLegendGroups, outcropLegendGroup } from "../lib/legendGroups.js"; // TASKS.csv #725; #948; #1633; outcropLegendGroup: #1437
 import { niceScaleNumber } from "../lib/figureScale.js"; // TASKS.csv #311 — shared with the 3D viewport's scale bar
-import { collarTableSlice, continuationTables, collarsWithSurveyAttitude } from "../lib/collarTable.js"; // TASKS.csv #1638; collarsWithSurveyAttitude: #2133
+import { collarTableSlice, continuationTables, collarsWithSurveyAttitude, continuationPageIndex } from "../lib/collarTable.js"; // continuationPageIndex: #2718 // TASKS.csv #1638; collarsWithSurveyAttitude: #2133
 import { fitDrillPlan, filterHoles, allHolesSteep, STEEP_DIP, turnedFrameFit } from "../lib/drillPlan.js"; // TASKS.csv #1639; allHolesSteep: #2473; turnedFrameFit: #2305
 import DrillPlanColourControls from "../components/DrillPlanColourControls.jsx"; // TASKS.csv #2473
 import DrillPlanElement, { drillPlanDrawing } from "../components/DrillPlanElement.jsx"; // TASKS.csv #1639
@@ -57,7 +57,7 @@ import { numericLayerLegendGroups } from "../lib/legendGroups.js"; // TASKS.csv 
 import { frameTest, samplesInFrame, mapLayersInFrame } from "../lib/legendFrame.js"; // TASKS.csv #2134
 import { legendFit } from "../lib/legendFit.js"; // TASKS.csv #2134
 import { holeAttitudeAssumed } from "../lib/desurvey.js"; // TASKS.csv #2134 — the notice counts the assumed-vertical holes
-import { freeSpot, placeCollarTable, elementBox } from "../lib/layoutPlace.js"; // elementBox: #1870 // TASKS.csv #1484 — new items into free space; #2135 the collar table
+import { freeSpot, placeCollarTable, elementBox, copyOffset } from "../lib/layoutPlace.js"; // copyOffset: #2715 // elementBox: #1870 // TASKS.csv #1484 — new items into free space; #2135 the collar table
 import { roundScale } from "../lib/layoutGeometry.js"; // TASKS.csv #1486
 import { numericClips, numericLayerColorFn } from "../lib/numericClip.js"; // TASKS.csv #1482
 import { categoryColor, categoryLabel } from "../lib/layers.js"; // TASKS.csv #1289
@@ -98,6 +98,9 @@ function sortedCollars(collars) {
 
 // TASKS.csv #1484 — Layout's own copy / paste buffer (elements as JSON), kept for the app session across pages and tabs
 let layoutClipboard = null;
+
+// TASKS.csv #2700 — an element kind as the ribbon names it (the export's 'past the edge' confirm)
+const ELEMENT_KIND_NAMES = { text: "Text", rect: "Rectangle", north: "North arrow", scale: "Scale bar", legend: "Legend", viewport: "Viewport", image: "Image", table: "Collar table", titleblock: "Title block", drillplan: "Drill plan", logo: "Logo", arrow: "Arrow", callout: "Callout" };
 
 export default function LayoutModule() {
   const {
@@ -185,12 +188,16 @@ export default function LayoutModule() {
     // kinds of element; #2482 — the other pages of a PDF are checked as well, from the elements' own boxes (only the open page is drawn)
     const pg = pageRef.current;
     const past = [];
+    // TASKS.csv #2700 — each element by its kind and caption, with the side(s) it crosses: 'Legend past the right edge'
+    const kindName = (t) => tr(ELEMENT_KIND_NAMES[t] || "Element");
+    const sideName = (sd) => ({ left: tr("left edge"), top: tr("top edge"), right: tr("right edge"), bottom: tr("bottom edge") })[sd];
+    const namePast = (it) => tr("{what} past the {sides}", { what: it.caption ? `${kindName(it.type)} "${it.caption}"` : kindName(it.type), sides: it.sides.map(sideName).join(" / ") });
     if (pg) {
       const r = pg.getBoundingClientRect();
-      const offEls = [...pg.querySelectorAll("[data-el-id]")].filter((e) => rectsPastSheet([e, ...e.querySelectorAll("text")].map((n) => n.getBoundingClientRect()), r));
-      if (offEls.length) past.push(tr("{n} on this page ({kinds})", { n: offEls.length, kinds: [...new Set(offEls.map((e) => elements.find((x) => x.id === e.getAttribute("data-el-id"))?.type || "element"))].join(", ") }));
+      const offEls = [...pg.querySelectorAll("[data-el-id]")].map((e) => { const el = elements.find((x) => x.id === e.getAttribute("data-el-id")); return { type: el?.type, caption: elementCaption(el), sides: rectSidesPast([e, ...e.querySelectorAll("text")].map((n) => n.getBoundingClientRect()), r) }; }).filter((it) => it.sides.length);
+      if (offEls.length) past.push(tr("on this page: {list}", { list: offEls.map(namePast).join(", ") }));
     }
-    if (layoutPrintRequest.kind !== "png") for (const o of offSheetPages(layoutPages, activeLayoutPageId, (pp) => pagePx(pageFormatOf(pp)))) past.push(tr("{n} on {page} ({kinds})", { n: o.items.length, page: o.name, kinds: [...new Set(o.items.map((it) => it.type))].join(", ") }));
+    if (layoutPrintRequest.kind !== "png") for (const o of offSheetPages(layoutPages, activeLayoutPageId, (pp) => pagePx(pageFormatOf(pp)))) past.push(tr("on {page}: {list}", { page: o.name, list: o.items.map(namePast).join(", ") }));
     if (past.length && !window.confirm(tr("Elements reach past the sheet's edge and will be cut off in the export: {list}. Export anyway?", { list: past.join("; ") }))) return;
     // TASKS.csv #2471 — a legend whose viewport was refreshed after it was loaded, and whose rows were edited, still lists the old view
     const staleLegends = staleBoundLegends(layoutPages).length;
@@ -838,9 +845,10 @@ export default function LayoutModule() {
   const duplicateSelected = () => {
     const ids = selectionIds();
     if (!ids.length) return;
-    const off = Math.round(5 * PX_PER_MM);
+    const src = elements.filter((e) => ids.includes(e.id));
+    const { dx, dy } = copyOffset(src, A4, Math.round(5 * PX_PER_MM)); // #2715 — back onto the sheet at its right / bottom edge
     const idMap = new Map(ids.map((id) => [id, `${(elements.find((e) => e.id === id) || {}).type}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`]));
-    const copies = relinkCopies(elements.filter((e) => ids.includes(e.id)).map((e) => ({ ...e, id: idMap.get(e.id), x: e.x + off, y: e.y + off, locked: false })), idMap, false); // #924
+    const copies = relinkCopies(src.map((e) => ({ ...e, id: idMap.get(e.id), x: e.x + dx, y: e.y + dy, locked: false })), idMap, false); // #924
     setElements((els) => [...els, ...copies]);
     setSelected(copies[copies.length - 1].id);
     setMultiSelected(new Set(copies.length > 1 ? copies.map((c) => c.id) : []));
@@ -856,9 +864,9 @@ export default function LayoutModule() {
   };
   const pasteClipboard = () => {
     if (!layoutClipboard?.els?.length) return false;
-    const off = layoutClipboard.pageId === activeLayoutPageId ? Math.round(5 * PX_PER_MM) : 0;
+    const { dx, dy } = layoutClipboard.pageId === activeLayoutPageId ? copyOffset(layoutClipboard.els, A4, Math.round(5 * PX_PER_MM)) /* #2715 */ : { dx: 0, dy: 0 };
     const idMap = new Map(layoutClipboard.els.map((e) => [e.id, `${e.type}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`]));
-    const copies = relinkCopies(layoutClipboard.els.map((e) => ({ ...e, id: idMap.get(e.id), x: e.x + off, y: e.y + off, locked: false })), idMap, false); // #924
+    const copies = relinkCopies(layoutClipboard.els.map((e) => ({ ...e, id: idMap.get(e.id), x: e.x + dx, y: e.y + dy, locked: false })), idMap, false); // #924
     setElements((els) => [...els, ...copies]);
     setSelected(copies[copies.length - 1].id);
     setMultiSelected(new Set(copies.length > 1 ? copies.map((c) => c.id) : []));
@@ -2142,7 +2150,7 @@ const LayoutPrintRoot = React.forwardRef(function LayoutPrintRoot({ pages, proje
         const f = pageFormatOf(pg), [w, h] = pageMm(f);
         return (
           <div key={pg.id} className={`ge-print-page ge-print-${pageCssName(f)}`} style={{ width: `${w}mm`, height: `${h}mm` }}>
-            {withLiveScaleBars(pg.elements).map((el) => <LayoutElement key={el.id} el={el} selected={false} multiSelected={false} print onDown={() => {}} ctx={{ ...textContextFor(pg.elements || [], project, pg, i + pageOffset, pageTotal ?? pages.length, collars, credits), assays, assayElements }} />)}
+            {withLiveScaleBars(pg.elements).map((el) => <LayoutElement key={el.id} el={el} selected={false} multiSelected={false} print onDown={() => {}} ctx={{ ...textContextFor(pg.elements || [], project, pg, i + pageOffset, pageTotal ?? pages.length, collars, credits), assays, assayElements, continuedOn: (t, r) => { const j = continuationPageIndex(pages, i, t, r); return j == null ? null : j + pageOffset + 1; } /* #2718 */ }} />)}
           </div>
         );
       })}
@@ -2421,7 +2429,7 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
           <tbody>
             {rows.map((r, i) => <tr key={i}>{r.map((v, j) => <td key={j} style={{ ...cell, textAlign: numeric[j] ? "right" : "left" }}>{v}</td>)}</tr>)}
             {!rows.length && <tr><td colSpan={Math.max(1, columns.length)} style={{ ...cell, color: "#777" }}>{el.source === "collars" ? (el.holeFilter ? tr("No hole id contains \"{f}\".", { f: el.holeFilter }) : tr("No collars in the project yet.")) : tr("No rows.")}</td></tr>}
-            {more > 0 && <tr><td colSpan={columns.length} style={{ ...cell, color: "#555", fontStyle: "italic" }}>{print ? tr("… {n} more hole(s), from row {r}", { n: more, r: nextRow }) /* #2480 — the editing hint is for the screen, not the paper */ : tr("… and {n} more hole(s), from row {r}: a table with that First row, or Continue on new pages", { n: more, r: nextRow })}</td></tr>}
+            {more > 0 && <tr><td colSpan={columns.length} style={{ ...cell, color: "#555", fontStyle: "italic" }}>{print ? (ctx?.continuedOn?.(el, nextRow) ? tr("Continued on page {p}", { p: ctx.continuedOn(el, nextRow) }) /* #2718 — its continuation is in this export */ : tr("… {n} more hole(s), from row {r}", { n: more, r: nextRow })) /* #2480 — the editing hint is for the screen, not the paper */ : tr("… and {n} more hole(s), from row {r}: a table with that First row, or Continue on new pages", { n: more, r: nextRow })}</td></tr>}
           </tbody>
         </table>
         {surveyNote && <div style={{ fontSize: printPx(Math.max(5, (el.fontPt || printPt.small) - 1)), fontStyle: "italic", color: "#3a424c", marginTop: 4, lineHeight: 1.35, whiteSpace: "normal" }}>{surveyNote}</div>}
