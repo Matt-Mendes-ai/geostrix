@@ -14,6 +14,7 @@ import { arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { exportSvgMarkup } from "../lib/svgExport.js"; // TASKS.csv #1089 — font, size, no UI chrome
 import { tadpoleFurniture } from "../lib/figureFurniture.js"; // TASKS.csv #1017
+import { betaReferenceCounts } from "../lib/coreOrientation.js"; // TASKS.csv #2792
 const deg1 = (v) => (Number.isFinite(Number(v)) ? +Number(v).toFixed(1) : v); // TASKS.csv #1238 — alpha/beta picks carry full double precision
 
 // TASKS.csv #277 — DOWNHOLE STRUCTURAL (TADPOLE) PLOT.
@@ -130,6 +131,9 @@ export default function DownholeStructurePlot({ picks, holes, litho = [], onClos
   const hasAlpha = holePicks.some((p) => p.alpha != null);
   const effectiveMode = xMode === "alpha" && !hasAlpha ? "dip" : xMode;
   const alphaOnly = holePicks.filter((p) => !p.oriented).length; // #527 — not drawable in true-dip mode
+  // TASKS.csv #2792 (split from #2055) — a true dip from alpha / beta rests on the beta reference line chosen at import, as the Stereonet
+  // and the Structures pane say; alpha (to the core axis) does not, so the note shows in True dip only, for this hole's shown picks.
+  const betaRefs = useMemo(() => betaReferenceCounts(holePicks.filter((p) => p.oriented)), [holePicks]);
 
   const holeLitho = useMemo(
     () => (litho || []).filter((r) => r.hole_id === activeHole && r.from != null && r.to != null && !isNaN(r.from) && !isNaN(r.to)).sort((a, b) => a.from - b.from),
@@ -339,6 +343,7 @@ export default function DownholeStructurePlot({ picks, holes, litho = [], onClos
               </label>
             )}
             {oriLayer && qualityMax !== "" && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: -4, marginBottom: 6 }}>{qualityNote(filterByQuality((picks || []).filter((p) => p.hole_id === activeHole), Number(qualityMax), qIndex), qualityMax, tr)}</div>}
+            {effectiveMode === "dip" && betaRefs.top + betaRefs.bottom > 0 && <div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", marginTop: -4, marginBottom: 6, lineHeight: 1.4 }}>{[betaRefs.bottom && tr("{n} of these picks were oriented from alpha / beta with beta measured from the {ref}-of-hole line, as chosen when they were imported (a structure file does not say). Had the core been marked on the other line, each would plot elsewhere, by tens of degrees for some.", { n: betaRefs.bottom.toLocaleString(), ref: tr("bottom") }), betaRefs.top && tr("{n} of these picks were oriented from alpha / beta with beta measured from the {ref}-of-hole line, as chosen when they were imported (a structure file does not say). Had the core been marked on the other line, each would plot elsewhere, by tens of degrees for some.", { n: betaRefs.top.toLocaleString(), ref: tr("top") })].filter(Boolean).join(" ")}</div>}{/* #2792 */}
             <label style={rowLabel}>{tr("Structure type")}<select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} style={sel}>
                 <option value="all">{tr("All types")}</option>
                 {types.map((t) => <option key={t} value={t}>{t}</option>)}
