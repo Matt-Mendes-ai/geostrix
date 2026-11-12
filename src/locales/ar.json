@@ -1550,6 +1550,8 @@
   "Colour": "اللون",
   "Shape": "الشكل",
   "Marker shape": "شكل العلامة",
+  "Automatic: spheres, or along the hole above {n} samples": "تلقائي: كرات، أو على امتداد ثقب الحفر فوق {n} عينة",
+  "Along the hole": "على امتداد ثقب الحفر",
   "Marker opacity": "عتامة العلامة",
   "Multiplies the value-scaled marker size (1 = default). Every marker for this element scales by this factor, keeping the same 'bigger = higher grade' relationship.": "يضرب حجم العلامة المتناسب مع القيمة (1 = الافتراضي). تُقاس كل علامات هذا العنصر بهذا المعامل مع الحفاظ على علاقة «الأكبر = المحتوى الأعلى».",
   "Size": "الحجم",

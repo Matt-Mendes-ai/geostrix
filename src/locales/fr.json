@@ -1550,6 +1550,8 @@
   "Colour": "Couleur",
   "Shape": "Forme",
   "Marker shape": "Forme du marqueur",
+  "Automatic: spheres, or along the hole above {n} samples": "Automatique : sphères, ou le long du sondage au-delà de {n} échantillons",
+  "Along the hole": "Le long du sondage",
   "Marker opacity": "Opacité du marqueur",
   "Multiplies the value-scaled marker size (1 = default). Every marker for this element scales by this factor, keeping the same 'bigger = higher grade' relationship.": "Multiplie la taille du marqueur proportionnelle à la valeur (1 = par défaut). Chaque marqueur de cet élément est mis à l'échelle par ce facteur, en gardant la même relation « plus gros = plus haute teneur ».",
   "Size": "Taille",

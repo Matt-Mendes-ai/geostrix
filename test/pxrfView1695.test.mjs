@@ -23,7 +23,7 @@ test("#1695 pXRF rows raise no zero-length or overlap warnings and are said once
 test("#1695 the 3D view keeps a source choice, draws a pXRF reading as a cube that says pXRF, and the strip log gives pXRF its own dots", () => {
   const vm = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
   assert.match(vm, /const \[assaySource, setAssaySource\] = useState\("lab"\)/);
-  assert.match(vm, /shape = px \? "cube" : style\?\.shape \|\| "sphere"/);
+  assert.match(vm, /shape = assayShapeFor\(style, drawnAssays, px\)/); // #2932 — the pXRF cube is decided in lib/viewer/assayShape.js (test/assayAlongHole2932)
   assert.match(vm, /\$\{px \? " \(pXRF\)" : ""\}/);
   assert.match(vm, /<option value="pxrf">/);
   const sl = readFileSync(new URL("../src/components/StripLog.jsx", import.meta.url), "utf8");

@@ -32,7 +32,7 @@ test("wiring: the range carries the unit; Reset seeds; the chip's 'customized' i
   assert.match(v, /return \(c\.by\[symbol\] = r && \{ \.\.\.r, unit: assayElements\.find\(\(e\) => e\.symbol === symbol\)\?\.unit \}\);/);
   assert.match(v, /style\.breaks\?\.some\(\(b\) => !b\.seeded\) \|\| style\.shape/);
   const m = fs.readFileSync(new URL("../src/components/AssayStyleModal.jsx", import.meta.url), "utf8");
-  assert.match(m, /const reset = \(\) => commit\(\{ color: defaultColor, sizeMult: 1, shape: "sphere", opacity: 1, minCutoff: "", breaks: seedBreaks\(\{ \.\.\.range, unit \}, defaultColor\) \}\);/);
+  assert.match(m, /const reset = \(\) => commit\(\{ color: defaultColor, sizeMult: 1, shape: "auto", opacity: 1, minCutoff: "", breaks: seedBreaks\(\{ \.\.\.range, unit \}, defaultColor\) \}\);/);
   assert.ok(!/seedBreaks\(range, /.test(m), "every seeding passes the unit");
   assert.match(m, /Default classes: round steps of the data, as for a major component/);
 });
