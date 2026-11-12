@@ -9131,6 +9131,8 @@
   "{n} of the readings have no elevation: enter the height they were all taken at.": "{n} من القراءات بلا ارتفاع: أدخل الارتفاع الذي أُخذت عنده كلها.",
   "Added the point survey \"{src}\": {n} solutions from {w} windows, depth {lo} to {hi} m below the grid's level (median {med} m){v}. Each kept solution lies inside its window and its depth is known to within 15 %. A depth is below the sensor: subtract the survey's height above ground for depth below ground.": "أُضيف مسح النقاط \"{src}\": {n} حلاً من {w} نافذة، بعمق من {lo} إلى {hi} م تحت مستوى الشبكة (الوسيط {med} م){v}. كل حل محفوظ يقع داخل نافذته وعمقه معروف بدقة 15 %. العمق تحت المستشعر: اطرح ارتفاع المسح فوق الأرض لتحصل على العمق تحت الأرض.",
   "Euler solutions: depth below the sensor": "حلول أويلر: العمق تحت المستشعر",
+  "Worms: edge heights above the grid": "الديدان (Worms): ارتفاعات الحواف فوق الشبكة",
+  "Tilt-depth: contact depths below the sensor": "Tilt-depth: أعماق التماسات تحت المستشعر",
   "Added \"{name}\" in {s} s: {n} readings, {nx} × {ny} nodes at {elev} m, sources {depth} m below the readings. They reproduce the readings' {cell} m block means to {rms} {units} RMS ({pct} % of their spread){v}. Inside a block the readings themselves vary by {within} {units} RMS, which a {cell} m grid cannot show.": "أُضيف \"{name}\" في {s} ث: {n} قراءة، {nx} × {ny} عقدة عند {elev} م، والمصادر على عمق {depth} م تحت القراءات. تعيد إنتاج متوسطات القراءات لكل كتلة {cell} م بخطأ {rms} {units} RMS ({pct} % من تشتتها){v}. داخل الكتلة تتغير القراءات نفسها بمقدار {within} {units} RMS، وهو ما لا تُظهره شبكة {cell} م.",
   "Source depth (m)": "عمق المصادر (م)",
   "Equivalent-source depth below the readings": "عمق المصادر المكافئة تحت القراءات",
