@@ -23,6 +23,7 @@ import { useLeadCommodity } from "../../lib/useLeadCommodity.js"; // TASKS.csv #
 import { describeTrend, searchEllipsoidAxes } from "../../lib/trend.js"; // TASKS.csv #2676 — the Grade shell pane's trend line
 import { positionFromTraces } from "../../lib/sheetCorrelation.js"; // TASKS.csv #2625
 import { t as tr } from "../../lib/i18n.js";
+import GeochemCompositingNote from "../../components/GeochemCompositingNote.jsx"; // TASKS.csv #2224
 import { errorNotice } from "../../lib/notices.js";
 import { tx } from "../../lib/i18nRich.js";
 import { betaReferenceCounts } from "../../lib/coreOrientation.js"; // TASKS.csv #2055
@@ -1174,6 +1175,8 @@ export default function ModellingPanes(props) {
                 {numericUseComposites && <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>m</span>}
               </label>
               {!findNumericSource(numericSymbol, { layers, customLayers: customLayersAll }) && <GradeShellUnsampled assays={assays} collars={collars} symbol={numericSymbol || assayElements[0]?.symbol} assayElements={assayElements} inArea={modelArea === "checked"} visibleHoles={visibleHoles} includeQAQC={numericIncludeQAQC} selStyle={smallSel}  layers={layers} customLayers={customLayersAll} /* #2721 */ />}{/* TASKS.csv #2417 / #2542 */}
+              {numericUseComposites && !numSrc && <GeochemCompositingNote symbol={sym} length={numericCompositeLength} minCoverage={numericMinCoverage} cap={numericCapValue} unitLabel={gradeUnitLabel(sym, unit)} style={{ marginBottom: 4 }}
+                onUse={(g) => { setNumericCompositeLength(g.length); setNumericMinCoverage(g.minCoverage); setNumericCapValue(g.cap ?? NaN); }} />}{/* TASKS.csv #2224 */}
               {/* TASKS.csv #262 — minCoverage was hardcoded at 0.5 here with no way to tighten it. */}
               {numericUseComposites && (
                 <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 4 }} title={tr("Minimum fraction of a composite interval that must actually be covered by real assay data (vs. missing/lost core) for it to be used. At the 50% default, a half-missing-core composite still counts as a full sample.")}>{tr("Min coverage")}<input type="number" step="1" min="0" max="100" value={Math.round(numericMinCoverage * 100)} onChange={(e) => setNumericMinCoverage(Math.max(0, Math.min(100, Number(e.target.value) || 0)) / 100)} style={{ ...smallSel, width: 50 }} />

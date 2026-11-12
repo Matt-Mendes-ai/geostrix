@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { X, Download } from "./icons.js";
 import { preferredElement, rememberElement } from "../lib/preferredElement.js"; // TASKS.csv #1678
 import { useLeadCommodity } from "../lib/useLeadCommodity.js"; // #1523 — the project's lead commodity
@@ -20,6 +20,7 @@ import { saveFile } from "../lib/desktop.js";
 import { overlay, backdropProps } from "../lib/modalStyles.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
+import { rememberCompositing } from "../lib/lastCompositing.js"; // TASKS.csv #2224 — these settings, offered by Estimation and the grade shell
 import { toExportCsv } from "../lib/tabular.js"; // TASKS.csv #1022 — every exported CSV: all columns, formula cells escaped
 
 const RESULT_ROW_H = 26; // TASKS.csv #222 — composited-interval count can genuinely reach the thousands (e.g. a 300m hole at 2m composites), unlike a toy dataset
@@ -37,7 +38,7 @@ const DOMAIN_LAYER_KEYS = ["litho", "alt", "vein", "breccia", "weath", "structzo
 export default function CompositingModal({ assays: assaysIn, assayElements, layers, onClose }) {
   const assays = useMemo(() => labAssays(assaysIn), [assaysIn]), pxrfLeft = (assaysIn || []).length - assays.length; // #1673 — lab grades only
   // TASKS.csv #411 — composites go out with from/to/mid XYZ on the project's own desurveyed traces.
-  const { collars, survey, desurveyMethod, project } = useStore();
+  const { collars, survey, desurveyMethod, project, getProjectToken } = useStore(); // getProjectToken: #2224
   const tracesByHole = useMemo(() => {
     const byHole = new Map();
     (survey || []).forEach((s) => { if (!byHole.has(s.hole_id)) byHole.set(s.hole_id, []); byHole.get(s.hole_id).push(s); });
@@ -82,6 +83,10 @@ export default function CompositingModal({ assays: assaysIn, assayElements, laye
       domainRows,
     });
   }, [compAssays, symbol, unit, elementUnits, length, minCoverage, capValue, domainRows]);
+  // TASKS.csv #2224 — these settings, for Estimation and the grade shell to offer (this window and this project; not saved in the file)
+  useEffect(() => {
+    if (results.length) rememberCompositing(getProjectToken?.(), { symbol, length: Number(length), minCoverage: Number(minCoverage), cap: capValue === "" ? null : Number(capValue), domain: domainKey ? (customDomain ? customDomain.label : tr(domainMeta?.label || domainKey)) : null });
+  }, [results]); // results changes with every setting it was made from
   // TASKS.csv #286 — compositeDownhole now drops exact-duplicate raw intervals before length-
   // weighting (a double-imported row used to silently double-weight into the composite grade). Tell
   // the user it happened rather than quietly fixing their data underneath them, and separately flag
