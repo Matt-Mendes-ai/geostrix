@@ -137,22 +137,34 @@ export function anisoWarpDirection(dip, azimuth, basis, scales) {
 // Median nearest-neighbour horizontal distance between collars — the natural length scale of a
 // drillhole property, used to auto-pick a halo search radius/cell size that suits the actual hole
 // spacing instead of a hardcoded metre value that's wrong on all but one property size.
+// TASKS.csv #2906 (WA iron review) — was an all-pairs loop (6,292 collars: ~40 M distances, 8 s of a frozen window, once per unit of a stack):
+// now the collars sorted along their longer plan axis and each one's neighbours scanned only while the gap on that axis is under the best
+// distance so far, kept per collar array (the store's arrays are replaced, never mutated). The same answer: plan distance, a collar at the
+// same spot not a neighbour, the upper median.
+const spacingCache = new WeakMap();
 export function medianCollarSpacing(collarList) {
   if (!collarList || collarList.length < 2) return null;
-  const nn = [];
-  for (let i = 0; i < collarList.length; i++) {
+  if (spacingCache.has(collarList)) return spacingCache.get(collarList);
+  const p = collarList.filter((c) => Number.isFinite(c?.x) && Number.isFinite(c?.y));
+  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+  for (const c of p) { x0 = Math.min(x0, c.x); x1 = Math.max(x1, c.x); y0 = Math.min(y0, c.y); y1 = Math.max(y1, c.y); }
+  const ax = x1 - x0 >= y1 - y0 ? "x" : "y";
+  const s = p.slice().sort((a, b) => a[ax] - b[ax]), nn = [];
+  for (let i = 0; i < s.length; i++) {
     let best = Infinity;
-    for (let j = 0; j < collarList.length; j++) {
-      if (i === j) continue;
-      const dx = collarList[i].x - collarList[j].x, dy = collarList[i].y - collarList[j].y;
-      const d = Math.sqrt(dx * dx + dy * dy);
-      if (d > 0 && d < best) best = d;
+    for (let dir = -1; dir <= 1; dir += 2) {
+      for (let j = i + dir; j >= 0 && j < s.length; j += dir) {
+        if (Math.abs(s[j][ax] - s[i][ax]) >= best) break;
+        const dx = s[i].x - s[j].x, dy = s[i].y - s[j].y, d = Math.sqrt(dx * dx + dy * dy);
+        if (d > 0 && d < best) best = d;
+      }
     }
     if (Number.isFinite(best)) nn.push(best);
   }
-  if (!nn.length) return null;
   nn.sort((a, b) => a - b);
-  return nn[Math.floor(nn.length / 2)];
+  const out = nn.length ? nn[Math.floor(nn.length / 2)] : null;
+  spacingCache.set(collarList, out);
+  return out;
 }
 
 // Auto search radius / cell size for the halo, from the hole spacing. Radius ~1.2x the median spacing

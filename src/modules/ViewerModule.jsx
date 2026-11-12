@@ -597,18 +597,9 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   // fitView() on every run, and any import reran it. The auto-fit now frames the data once, when it first appears (reset when the
   // collars go back to zero); later changes leave the camera where the user put it. "Zoom to fit all" refits on request.
   const hasAutoFitRef = useRef(false);
-  // Perf (user report: "the app is getting a bit heavy on my laptop") — the render loop below used to
-  // call renderer.render() unconditionally every requestAnimationFrame tick, forever, even when the
-  // camera hasn't moved and nothing in the scene changed — a genuinely idle 3D view (which, realistically,
-  // is most of the time a geologist spends looking at a model rather than actively dragging it) was still
-  // pushing a full re-render of every tube/sphere/mesh in the scene at 60fps, burning GPU/CPU (and, on a
-  // laptop, battery/fan) for frames that are pixel-identical to the one before. lastActivityRef is bumped
-  // on every camera change (updateCamera, below, covers drag/wheel/fitView/fitBox/compass-snap — every
-  // path that moves the camera already funnels through it) and read in the animate() loop to drop the
-  // render rate to a low idle cap after a short quiet period, snapping straight back to full rate the
-  // instant there's new activity — no visual change while interacting, no stale-frame risk (idle cap is a
-  // THROTTLE, never a full skip, so any scene change from elsewhere — an import, a filter, a style edit —
-  // still reaches the screen within one idle-interval, imperceptibly).
+  // Perf (user report: "the app is getting a bit heavy on my laptop") — an idle view rendered at 60 fps. lastActivityRef is bumped on every
+  // camera move (updateCamera) and scene change; animate() drops to a low idle rate after a quiet spell and is back at full rate on the next
+  // activity. A throttle, never a skip: a change from elsewhere still shows within one idle interval.
   const lastActivityRef = useRef(Date.now());
   const lastFrameAtRef = useRef(0);
 
@@ -3478,16 +3469,16 @@ ${describeTrend(t)}` };
     const lb = lastLithBlock; if (!lb) return;
     // TASKS.csv #756 — the units GemPy evaluated exactly at each interval's midpoint, when the run asked for them
     const exactRows = lb.intervals ? lb.intervals.map((q) => ({ hole_id: q.hole_id, from: q.from, to: q.to, value: q.modelled ?? ABOVE_TOPS, logged: q.logged })) : null;
-    const samples = [];
-    tracesRef.current.forEach((t) => {
-      (unitLayers.litho || []).forEach((r) => { // #2378
-        if (r.hole_id !== t.hole_id || !Number.isFinite(r.from) || !Number.isFinite(r.to) || r.to <= r.from) return;
-        const p = findOnTrace(t.pts, (r.from + r.to) / 2);
-        if (!p) return;
-        const api = sceneToApi(p);
-        samples.push({ hole_id: t.hole_id, from: r.from, to: r.to, x: api.x, y: api.y, z: api.z, logged: r.value });
-      });
-    });
+    // TASKS.csv #2906 — the samples only when the run gave no exact intervals, from one pass over the rows (was every trace x every row: 27 s)
+    const samples = [], traceOf = exactRows ? null : new Map(tracesRef.current.map((t) => [t.hole_id, t]));
+    if (traceOf) for (const r of unitLayers.litho || []) { // #2378
+      const t = traceOf.get(r.hole_id);
+      if (!t || !Number.isFinite(r.from) || !Number.isFinite(r.to) || r.to <= r.from) continue;
+      const p = findOnTrace(t.pts, (r.from + r.to) / 2);
+      if (!p) continue;
+      const api = sceneToApi(p);
+      samples.push({ hole_id: t.hole_id, from: r.from, to: r.to, x: api.x, y: api.y, z: api.z, logged: r.value });
+    }
     const rows = (exactRows || modelledIntervals(lb.block, samples)).map((r) => {
       const unit = lb.units.find((u) => u.name === r.value);
       return { ...r, value: unit?.label || r.value, modelled: true, modelColor: r.value === ABOVE_TOPS ? "#d9dce1" : lithUnitColor(lb, r.value) };

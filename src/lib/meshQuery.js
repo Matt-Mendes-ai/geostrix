@@ -357,9 +357,12 @@ export function isMeshClosed(positions, indices) {
       counts.set(key, (counts.get(key) || 0) + 1);
     }
   }
-  let boundary = 0;
-  counts.forEach((c) => { if (c !== 2) boundary++; });
-  return { closed: boundary === 0, boundaryEdges: boundary, edges: counts.size };
+  // TASKS.csv #2907 (WA iron review) — an edge used an EVEN number of times is closed: 4 where two closed blocks of a unit touch along an
+  // edge (Solid blocks from surfaces, unit volumes). Only an odd use leaves a hole. Counting every edge not used exactly twice called those
+  // shells open, with no volume or tonnage. nonManifoldEdges: the even ones above 2 (reported, not a hole).
+  let boundary = 0, nonManifold = 0;
+  counts.forEach((c) => { if (c % 2) boundary++; else if (c > 2) nonManifold++; });
+  return { closed: boundary === 0, boundaryEdges: boundary, nonManifoldEdges: nonManifold, edges: counts.size };
 }
 
 // Half-open [0, 1): a crossing that lands exactly on the SHARED vertex between two consecutive
