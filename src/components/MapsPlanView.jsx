@@ -17,6 +17,7 @@ import HoleValueGridPanel from "./HoleValueGridPanel.jsx"; // TASKS.csv #2658
 import { planGridStep, planGridLines, gridLabel, measureLine, distanceText } from "../lib/planGrid.js"; // TASKS.csv #2128
 import { trueNorthBearingInGridDeg } from "../lib/inversion.js"; // TASKS.csv #2128 — the convergence at the measured line
 import { usePlanZoom, viewForBox } from "../lib/planZoom.js"; // TASKS.csv #2657
+import { usePlanGt, showGtOnPlan, gtRadius, gtLegend } from "../lib/planGt.js"; // TASKS.csv #2755
 import { holeValueSources, holeValueRows, perHoleValue } from "../lib/holeValueGrid.js"; // TASKS.csv #2658
 
 const imageCache = new Map(); // dataUrl (+ key colour) -> { img, ready }
@@ -58,6 +59,9 @@ export default function MapsPlanView() {
   // TASKS.csv #2459 / #2591 — collars coloured by a collar field or a per-hole assay statistic, and labelled with their ids
   const [colourBy, setColourBy] = useState(""); // "" | "f:<field>" | "max:<element>" | "mean:<element>"
   const [showIds, setShowIds] = useState(false);
+  // TASKS.csv #2755 — 3D Modelling > Grade × thickness in plan's per-hole totals, sent with 'Show on the Maps plan': circles sized by GT
+  const gtPlan = usePlanGt();
+  const gtMax = useMemo(() => { let m = 0; for (const h of gtPlan?.holes || []) if (h.gt > m) m = h.gt; return m; }, [gtPlan]);
   // TASKS.csv #2128 — a coordinate grid (on by default) and a two-click measure (session state)
   const [showGrid, setShowGrid] = useState(true);
   const [measuring, setMeasuring] = useState(false);
@@ -154,6 +158,16 @@ export default function MapsPlanView() {
       ctx.beginPath(); ctx.arc(X(c.x), Y(c.y), col ? (colouring ? 3.6 : 2.6) : 2, 0, Math.PI * 2);
       if (col) { ctx.fillStyle = col; ctx.fill(); ctx.strokeStyle = colouring ? "#1a2028" : "#ffffff"; ctx.stroke(); } else { ctx.strokeStyle = "#8a9099"; ctx.stroke(); }
     });
+    if (gtPlan && gtMax > 0) { // #2755 — at each hole's intercept position (holeTotals: their length-weighted mid-points), area in proportion to GT
+      ctx.lineWidth = 1;
+      for (const h of gtPlan.holes) {
+        if (!Number.isFinite(h.x) || !Number.isFinite(h.y)) continue;
+        const r = gtRadius(h.gt, gtMax);
+        ctx.beginPath(); ctx.arc(X(h.x), Y(h.y), r ?? 3, 0, Math.PI * 2);
+        if (r) { ctx.fillStyle = "rgba(194,65,12,0.55)"; ctx.fill(); }
+        ctx.strokeStyle = "#7c2d12"; ctx.stroke(); // a hole assayed with no intercept: a hollow ring (GT 0)
+      }
+    }
     if (showIds) { // #2459 — the hole ids, decluttered: a label that would overlap one already drawn is left out
       ctx.font = "10px sans-serif"; ctx.textBaseline = "middle"; ctx.lineWidth = 3; ctx.strokeStyle = "rgba(255,255,255,0.9)"; ctx.fillStyle = "#1a2028";
       const pts = collars.map((c) => (Number.isFinite(c.x) ? { x: X(c.x), y: Y(c.y) } : null)).map((p) => (p && p.x > -60 && p.y > -10 && p.x < size.w + 10 && p.y < size.h + 10 ? p : { x: NaN, y: NaN }));
@@ -165,7 +179,7 @@ export default function MapsPlanView() {
       ctx.beginPath(); mPts.forEach((p, i) => (i ? ctx.lineTo(X(p.x), Y(p.y)) : ctx.moveTo(X(p.x), Y(p.y)))); ctx.stroke(); ctx.setLineDash([]);
       ctx.fillStyle = "#c2185b"; mPts.forEach((p) => { ctx.beginPath(); ctx.arc(X(p.x), Y(p.y), 3.5, 0, Math.PI * 2); ctx.fill(); });
     }
-  }, [v?.cx, v?.cy, v?.mPerPx, size, rasters, terrain, hill, mapLayers, boundaries, collars, surfaceSamples, tick, figure, colouring, showIds, showGrid, measuring, mPts]);
+  }, [v?.cx, v?.cy, v?.mPerPx, size, rasters, terrain, hill, mapLayers, boundaries, collars, surfaceSamples, tick, figure, colouring, showIds, showGrid, measuring, mPts, gtPlan, gtMax]); // gtPlan: #2755
 
   if (!extent || !v) return null;
   const sb = niceScaleBar(v.mPerPx, 140);
@@ -216,6 +230,18 @@ export default function MapsPlanView() {
           </label>
           <label style={{ display: "flex", alignItems: "center", gap: 5 }}><input type="checkbox" checked={showIds} onChange={(e) => setShowIds(e.target.checked)} />{tr("Hole ids")}</label>
           <HoleValueGridPanel /> {/* TASKS.csv #2658 */}
+          {gtPlan && gtMax > 0 && ( /* TASKS.csv #2755 */
+            <div aria-label={tr("Grade × thickness legend")} style={{ display: "flex", flexDirection: "column", gap: 2, fontSize: "var(--font-size-xs)", fontVariantNumeric: "tabular-nums" }}>
+              <span style={{ display: "flex", alignItems: "center", gap: 5 }}>{tr("GT per hole ({u}), from 3D Modelling > Grade × thickness in plan", { u: gtPlan.label })}
+                <button type="button" onClick={() => showGtOnPlan(null)} style={{ marginLeft: "auto", fontSize: "var(--font-size-xs)", background: "none", border: "none", color: "var(--color-accent)", cursor: "pointer", padding: 0 }}>{tr("Clear")}</button></span>
+              <span style={{ color: "var(--color-text-muted)" }}>{gtPlan.title}</span>
+              <span style={{ display: "flex", alignItems: "flex-end", gap: 8 }}>
+                {gtLegend(gtMax).map((l) => <span key={l.gt} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}><svg width={l.r * 2 + 2} height={l.r * 2 + 2} aria-hidden="true"><circle cx={l.r + 1} cy={l.r + 1} r={l.r} fill="rgba(194,65,12,0.55)" stroke="#7c2d12" /></svg>{l.gt.toLocaleString()}</span>)}
+                <span style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}><svg width={8} height={8} aria-hidden="true"><circle cx={4} cy={4} r={3} fill="none" stroke="#7c2d12" /></svg>0</span>
+              </span>
+              <span style={{ color: "var(--color-text-muted)" }}>{tr("Circle area in proportion to GT; a hollow ring is a hole assayed with no intercept. Each sits at its intercepts' mid-point.")}</span>
+            </div>
+          )}
           {colouring && (
             <div aria-label={tr("Collar legend")} style={{ display: "flex", flexDirection: "column", gap: 2, fontSize: "var(--font-size-xs)", fontVariantNumeric: "tabular-nums", maxHeight: 220, overflowY: "auto" }}>
               {colouring.legend.map((l) => <span key={l.label} style={{ display: "flex", alignItems: "center", gap: 5 }}><span style={{ width: 9, height: 9, borderRadius: "50%", border: "1px solid #14181e", background: l.colour, flex: "0 0 auto" }} />{l.label}</span>)}
