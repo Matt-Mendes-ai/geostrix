@@ -30,7 +30,7 @@ test("the licence text, Help > Third-party Licences and the installer notice nam
   assert.equal(d.license, "CC-BY-4.0");
   assert.match(d.text, /macrostrat\.org\/api\/v2\/meta/);
   const notice = readFileSync(new URL("../build/installer-notice.txt", import.meta.url), "utf8");
-  assert.match(notice, /DATA INCLUDED\n - FGDC lithology patterns[^\n]*CC0[^\n]*\n - International time scale interval colours, from Macrostrat[^\n]*CC BY 4\.0/);
+  assert.match(notice, /DATA INCLUDED\r?\n - FGDC lithology patterns[^\r\n]*CC0[^\r\n]*\r?\n - International time scale interval colours, from Macrostrat[^\r\n]*CC BY 4\.0/); // \r?\n: a CRLF checkout (Main, 2026-11-12)
 });
 
 test("'Time-scale colours' reads the bundle, not the network", () => {
