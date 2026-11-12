@@ -8,16 +8,20 @@ import { CATEGORICAL_SAFE_COLORS, VIRIDIS_ANCHORS } from "./layers.js";
 const SKIP = new Set(["x", "y", "z", "hole_id", "id", "depth", "dip", "azimuth", "azi", "_src", "_row", "lon", "lat", "lng", "elev", "elevation", "easting", "northing", "max_depth", "length"]);
 const num = (v) => (typeof v === "number" ? v : v === "" || v == null ? NaN : Number(v));
 const MAX_CATEGORIES = 16;
+// TASKS.csv #2984 (WA iron review) — an import keeps a collar file's other columns in collar.attrs (#1504), never as top-level keys, so the
+// Maps plan offered no collar field on an imported project (the #2459 test built collars no import makes). A field is read at the top
+// level first, then in attrs.
+export const collarFieldValue = (c, k) => (c?.[k] !== undefined && typeof c[k] !== "object" ? c[k] : c?.attrs?.[k]);
 
 // -> [{ key, kind: "category" | "number", n }] the collar fields worth colouring by: a field with 2-16 distinct values is a category, a
 // field whose values are all numbers is a number (an id-like column, a different value on every hole and not numeric, is left out)
 export function collarColourFields(collars) {
   const cs = (collars || []).filter((c) => c && typeof c === "object");
   const keys = new Set();
-  for (const c of cs.slice(0, 2000)) for (const k of Object.keys(c)) if (!SKIP.has(k.toLowerCase()) && !k.startsWith("_")) keys.add(k);
+  for (const c of cs.slice(0, 2000)) for (const k of [...Object.keys(c), ...Object.keys(c.attrs && typeof c.attrs === "object" ? c.attrs : {})]) if (k !== "attrs" && !SKIP.has(k.toLowerCase()) && !k.startsWith("_")) keys.add(k);
   const out = [];
   for (const k of keys) {
-    const vals = cs.map((c) => c[k]).filter((v) => v !== "" && v != null && typeof v !== "object");
+    const vals = cs.map((c) => collarFieldValue(c, k)).filter((v) => v !== "" && v != null && typeof v !== "object");
     if (vals.length < 2) continue;
     const distinct = new Set(vals.map((v) => String(v).trim()));
     if (vals.every((v) => Number.isFinite(num(v))) && distinct.size > MAX_CATEGORIES) out.push({ key: k, kind: "number", n: vals.length });
@@ -55,7 +59,7 @@ const fmt = (v) => (Math.abs(v) >= 100 ? Math.round(v).toLocaleString() : Number
 // values: Map(hole_id -> value) or a collar field. -> { colourOf(collar) -> colour | null, legend: [{ colour, label }], kind }
 // Numbers: five classes at the quintiles of the holes' values (viridis, low dark to high yellow); categories: one colour each, by count.
 export function collarColouring(collars, { field = null, values = null } = {}) {
-  const valueOf = values ? (c) => values.get(c.hole_id) : (c) => c?.[field];
+  const valueOf = values ? (c) => values.get(c.hole_id) : (c) => collarFieldValue(c, field); // #2984 — attrs too
   const vals = (collars || []).map(valueOf).filter((v) => v !== "" && v != null);
   if (!vals.length) return null;
   const numeric = values || vals.every((v) => Number.isFinite(num(v))) && new Set(vals.map(String)).size > MAX_CATEGORIES;
