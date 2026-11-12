@@ -81,7 +81,7 @@ import { version as APP_VERSION } from "../../package.json"; // TASKS.csv #1212
 import { useTabNotices } from "../lib/useTabNotices.js"; // TASKS.csv #1203
 import SampleGridPanel from "../components/SampleGridPanel.jsx"; // TASKS.csv #1622
 import { methodColumnFor, methodsIn, partialDigestionFor } from "../lib/digestion.js"; // TASKS.csv #1518
-import { axisOf, xyDiagram, xyStats } from "../lib/geochemXY.js"; // TASKS.csv #1678; xyStats: #2353
+import { axisOf, xyDiagram, xyStats, elementsWithoutValues } from "../lib/geochemXY.js"; // TASKS.csv #1678; xyStats: #2353; elementsWithoutValues: #2719
 import { numericSourceChoices } from "../lib/numericSources.js"; // TASKS.csv #1678
 import { requestProjectCrs } from "../lib/projectCrsRequest.js"; // TASKS.csv #1445
 import { tieOf, fileToLocal } from "../lib/localGridTie.js"; // TASKS.csv #2320
@@ -202,6 +202,9 @@ export default function GeochemModule() {
   const elementUnits = useMemo(() => Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])), [assayElements]);
   // TASKS.csv #1678 — the X-Y scatter's axes: elements, then the numeric downhole logs and custom-layer fields (read at each sample's depth)
   const xyChoices = useMemo(() => numericSourceChoices({ layers: store.layers, customLayers: store.customLayers }), [store.layers, store.customLayers]);
+  // TASKS.csv #2719 — with pXRF and lab results, an element measured by only one of them offered an empty axis in the other source:
+  // the X / Y lists mark (and grey out) the elements with no value in the samples shown
+  const xyEmptyElements = useMemo(() => (diagramId === "xy" && hasPxrf ? elementsWithoutValues(sourceRows, assayElements.map((e) => e.symbol)) : new Set()), [diagramId, hasPxrf, sourceRows, assayElements]);
   // TASKS.csv #2193 (review #2174) — with one element Y defaulted to '' and the select showed its first option (Au) over an empty plot: the
   // second element, else the first downhole log (Au vs RQD / recovery), else the one element again; never a blank shown as a choice
   // TASKS.csv #2512 (review #2486) — the X-Y scatter opened on the file's first two columns (As on a lithium project): X is the project's lead
@@ -1343,7 +1346,7 @@ export default function GeochemModule() {
                 <label key={axis} style={{ display: "flex", gap: 4, alignItems: "center", fontSize: 11.5, color: "#55606e" }}>{axis}
                   <select aria-label={tr("{axis} axis", { axis })} value={value} onChange={(e) => set(e.target.value)} style={{ ...selectStyle, padding: "5px 8px", maxWidth: 220 }}>
                     {!value && <option value="">{tr("— choose —")}</option>}{/* #2193 */}
-                    <optgroup label={tr("Elements")}>{assayElements.map((e) => <option key={e.symbol} value={`el:${e.symbol}`}>{e.unit ? `${e.symbol} (${e.unit})` : e.symbol}</option>)}</optgroup>
+                    <optgroup label={tr("Elements")}>{assayElements.map((e) => { const none = xyEmptyElements.has(e.symbol), name = e.unit ? `${e.symbol} (${e.unit})` : e.symbol; return <option key={e.symbol} value={`el:${e.symbol}`} disabled={none && value !== `el:${e.symbol}`}>{none ? tr("{name} — no value in these samples", { name }) : name}</option>; })}</optgroup>{/* none: #2719 */}
                     {xyChoices.length > 0 && <optgroup label={tr("Downhole logs and custom fields (at each sample's depth)")}>{xyChoices.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}</optgroup>}
                   </select>
                 </label>

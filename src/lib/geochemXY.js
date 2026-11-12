@@ -102,3 +102,16 @@ export function xyStats(xAxis, yAxis, samples, units, { xMin = null } = {}) {
   ratios.sort((a, b) => a - b);
   return { n: xs.length, r: xs.length >= 3 ? correlate(xs, ys, "spearman").r : NaN, medianRatio: ratios.length ? ratios[ratios.length >> 1] : NaN, weightedRatio: sx > 0 ? sy / sx : NaN };
 }
+
+// TASKS.csv #2719 — the elements with no numeric value in these samples (a pXRF-only element when the lab results are shown, or the
+// reverse): the X / Y lists mark them. One pass over the samples; stops looking for an element once it has a value. -> Set of symbols
+export function elementsWithoutValues(samples, symbols) {
+  const left = new Set(symbols || []);
+  for (const s of samples || []) {
+    if (!left.size) break;
+    const v = s?.values;
+    if (!v) continue;
+    for (const sym of left) if (v[sym] != null && v[sym] !== "" && Number.isFinite(Number(v[sym]))) left.delete(sym);
+  }
+  return left;
+}
