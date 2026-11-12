@@ -50,6 +50,7 @@ import { explicitInterfacePoints } from "../../lib/explicitUnits.js"; // TASKS.c
 import { pinchOutPoints } from "../../lib/pinchOut.js"; // TASKS.csv #1030
 import { fisherStats } from "../../lib/stereonet.js"; // TASKS.csv #1066
 import { captureInputs } from "../../lib/gempyInputs.js"; // TASKS.csv #1101
+import { inversionCheck, FOLD_CONTACT_TYPES } from "../../lib/topology.js"; // TASKS.csv #2058 — the fold-back check in the run's own notice
 import { findNumericSource, sourceAssays, logPoints, unlogGrid } from "../../lib/numericSources.js"; // TASKS.csv #1741 — a log or a numeric layer field as the grade-shell source
 
 // TASKS.csv #803 — the interpolated grid intersected with "below the terrain" (lib/groundCap.js), so a grade shell or
@@ -422,6 +423,7 @@ export function createModellingRuns(ctx, mcRef) {
     const nonFinite = []; // TASKS.csv #314
     const reachNotes = []; // TASKS.csv #1335
     const orderSurfs = []; // TASKS.csv #2376 — the stack's surfaces as drawn, youngest first, for the order check below
+    const folds = []; // TASKS.csv #2058 — contact surfaces of this run that fold back over themselves
     const runId = `gempy_${Date.now()}`; // TASKS.csv #1101 — the surfaces of one run (a stack) share it, for "Model inputs"
     specs.forEach((spec, specIndex) => {
       let surf = byName[spec.meshName];
@@ -533,7 +535,16 @@ export function createModellingRuns(ctx, mcRef) {
       };
       setImplicitSurfaces((p) => [...p, { id, name: spec.label, visible: true, vertexCount: surf.vertices.length, faceCount: faces.length, type: spec.type || "other", relationships: [], params }]);
     });
+      // TASKS.csv #2058 (review #2013) — the same one-elevation-per-location check as Check relationships, said by the run itself: an
+      // implicit 'Top of VANSS' folded back at 1 of 16 locations and only Check relationships reported it
+      if (FOLD_CONTACT_TYPES.has(spec.type)) {
+        const pos = new Float32Array(sceneVerts.length * 3);
+        sceneVerts.forEach((v, i) => { pos[i * 3] = v.x; pos[i * 3 + 1] = v.y; pos[i * 3 + 2] = v.z; });
+        const inv = inversionCheck({ positions: pos, indices: Uint32Array.from(faces.flat()) }, { up: "y" });
+        if (inv.sampled && inv.fraction > 0.05) folds.push(tr("\"{name}\" folds back over itself at {folded} of {sampled} sampled locations (a contact surface should have one elevation per location): an interpolation artefact, a real overturned fold, or a unit that is not one layer (a steep intrusive or repeated sheets, better modelled as a closed body in Modelling codes).", { name: spec.label, folded: inv.folded, sampled: inv.sampled }));
+      }
     // TASKS.csv #512 — onlap stacks share one scalar field, so the sidecar sends each repeated pick once
+    if (folds.length) setNotices((p) => [...p, notice("{list} Check relationships lists it again with the other checks.", { list: folds.join(" ") })]); // #2058
     // TASKS.csv #1054 — what each fault offset, as GemPy applied it, and the limit no choice here can lift
     if (res.faultOffsets && Object.keys(res.faultOffsets).length) setNotices((p) => [...p, notice("Faults as solved: {list}. Each fault runs through the whole model box (GemPy here cannot end a fault).", { list: Object.entries(res.faultOffsets).map(([f, u]) => tr("{fault} offsets {units}", { fault: f, units: u.length ? u.join(", ") : tr("nothing") })).join("; ") })]);
     if (res.orientationsDeduplicated > 0) setNotices((p) => [...p, notice("{orientationsDeduplicated} repeated orientation(s) were given to GemPy once rather than once per unit: in an onlap stack every unit shares one field, so the copies added solve time but no information.", { orientationsDeduplicated: res.orientationsDeduplicated })]);

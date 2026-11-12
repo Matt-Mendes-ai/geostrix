@@ -301,6 +301,9 @@ const ORDER_RELATIONS = { below: "below", above: "above" };
  * @returns {{violations:[{kind, surfaceId, targetId, message, point}], checked:number,
  *            skipped:number, surfacesChecked:number}}
  */
+// the open contact-type surfaces checked for folding back (#2058: the implicit run checks its own with the same list)
+export const FOLD_CONTACT_TYPES = new Set(["stratigraphic_contact", "unconformity", "intrusive_contact"]);
+
 export function checkTopology(surfaces, opts = {}) {
   const up = opts.up || "y";
   const byId = new Map();
@@ -363,8 +366,7 @@ export function checkTopology(surfaces, opts = {}) {
   // Closed envelopes (a grade shell, a closed alteration halo) are excluded by construction — see
   // inversionCheck's own comment.
   for (const a of prepared) {
-    const isOpenContact = (a.type === "stratigraphic_contact" || a.type === "unconformity" || a.type === "intrusive_contact")
-      && !a.closure;
+    const isOpenContact = FOLD_CONTACT_TYPES.has(a.type) && !a.closure;
     if (!isOpenContact) continue;
     checked++;
     const inv = inversionCheck({ ...a, query: q(a) }, { up, grid: opts.grid });
