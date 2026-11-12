@@ -5,7 +5,7 @@
 // object) and the store list, and makes the group match the list. ViewerModule calls them from the same effects, with
 // the same dependencies. No React here, so they run in Node with three (test/sceneBuilders693.test.mjs).
 import * as THREE from "three";
-import { sampleTerrainElevation } from "./geomath.js";
+import { sampleTerrainElevation, terrainGroundAt } from "./geomath.js"; // terrainGroundAt: #2753 — NaN off the terrain / over its gaps
 import { drawMapLayer, mapStyleSignature, mapTextureSize, STRUCTURE_CLASS_COLORS, layerCategoryValue } from "../mapLayers.js"; // featureCategoryValue: #1601
 import { decodeNoDataMask, isNoData } from "../demFill.js"; // TASKS.csv #421
 import { buildAdaptiveTerrain } from "../terrainMesh.js"; // TASKS.csv #796
@@ -417,7 +417,16 @@ export function syncSectionImages(group, cache, sectionImages, { origin, rendere
 // along the pole) plus one LineSegments of down-dip ticks from each disc's centre — two draw calls per
 // file however many measurements it holds, same "don't do it one mesh per item" rule as #312. The tick
 // is what makes a moderately dipping disc readable from above, where its tilt alone is hard to judge.
-export function syncSurfaceStructures(group, cache, surfaceStructures, { origin, terrain }) {
+// TASKS.csv #2753 (side 2's steps) — an outcrop measurement's drawn elevation. On the terrain: the ground (snapToTerrain, or a row with no z).
+// Off the terrain or over a no-data gap, a row with no z lies flat at flatZ, the elevation the surface samples are drawn flat at
+// (lib/viewer/surfacePlacement.js surfaceFlatElevation), as the Surface Geology import notice says (#2485); it used to take the terrain's
+// clamped edge or filled level. A row with its own z keeps it off the terrain. No flatZ: the scene origin, as before.
+export function outcropZ(r, set, terrain, flatZ, oz) {
+  const g = terrain ? terrainGroundAt(terrain, r.x, r.y) : NaN;
+  if (r.z == null) return Number.isFinite(g) ? g : Number.isFinite(flatZ) ? flatZ : oz;
+  return Number.isFinite(g) && set.snapToTerrain !== false ? g : r.z;
+}
+export function syncSurfaceStructures(group, cache, surfaceStructures, { origin, terrain, flatZ = null }) {
   Object.values(cache).forEach((g) => { group.remove(g); g.children.forEach((c) => { c.geometry?.dispose?.(); c.material?.dispose?.(); c.dispose?.(); }); }); // #433 — InstancedMesh buffers
   for (const id of Object.keys(cache)) delete cache[id]; // the caller owns the object: emptied, not replaced
   const { x: ox, y: oy, z: oz } = origin;
@@ -432,9 +441,7 @@ export function syncSurfaceStructures(group, cache, surfaceStructures, { origin,
     const m = new THREE.Matrix4(), q = new THREE.Quaternion(), p = new THREE.Vector3(), sc = new THREE.Vector3(size, size, size), col = new THREE.Color();
     const pole = new THREE.Vector3(), down = new THREE.Vector3();
     rows.forEach((r, i) => {
-      let z = r.z;
-      if (terrain && (set.snapToTerrain !== false || z == null)) z = sampleTerrainElevation(terrain, r.x, r.y);
-      if (z == null) z = oz;
+      const z = outcropZ(r, set, terrain, flatZ, oz);
       const dd = (r.dipDir * Math.PI) / 180, dp = (r.dip * Math.PI) / 180;
       // Upward pole (E, N, U) -> scene (x = E, y = U, z = -N).
       pole.set(Math.sin(dd) * Math.sin(dp), Math.cos(dp), -Math.cos(dd) * Math.sin(dp)).normalize();
@@ -466,7 +473,7 @@ export function syncSurfaceStructures(group, cache, surfaceStructures, { origin,
 
 // TASKS.csv #1443 — the dip label beside each disc of the sets that ask for one (set.labels === "dip"): the same anchor and
 // terrain snapping as the disc, so the number sits where the symbol is
-export function outcropLabelItems(surfaceStructures, { origin, terrain }) {
+export function outcropLabelItems(surfaceStructures, { origin, terrain, flatZ = null }) {
   const { x: ox, y: oy, z: oz } = origin;
   const items = [];
   for (const set of surfaceStructures || []) {
@@ -474,9 +481,7 @@ export function outcropLabelItems(surfaceStructures, { origin, terrain }) {
     const size = set.size ?? 25;
     for (const r of set.rows || []) {
       if (!Number.isFinite(r.dip) || !Number.isFinite(r.x) || !Number.isFinite(r.y)) continue;
-      let z = r.z;
-      if (terrain && (set.snapToTerrain !== false || z == null)) z = sampleTerrainElevation(terrain, r.x, r.y);
-      if (z == null) z = oz;
+      const z = outcropZ(r, set, terrain, flatZ, oz); // #2753 — the disc's own elevation
       const lift = size * 0.5 * Math.sin((r.dip * Math.PI) / 180) + 0.5;
       items.push({ x: r.x - ox, y: z - oz + lift + size * 0.35, z: -(r.y - oy), text: String(Math.round(r.dip)), tip: `${set.name || ""}\n${r.cls || "other"}: ${Math.round(r.dip)}° → ${Math.round(r.dipDir)}°` });
     }

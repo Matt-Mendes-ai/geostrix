@@ -2241,19 +2241,9 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
         setRectVisual({ x: Math.min(d.x1, d.x2), y: Math.min(d.y1, d.y2), w: Math.abs(d.x2 - d.x1), h: Math.abs(d.y2 - d.y1) });
         return;
       }
-      // TASKS.csv #212 — user report: "pan is not the same. Now instead of pan it rotates." dragRef
-      // is only ever SET on pointerdown (dragging + panning based on e.button there), and this handler
-      // never re-checks whether a button is actually still held — it just trusts that stale state. If
-      // the matching pointerup is ever missed (the exact "OS/browser swallows an expected mouse event"
-      // class of bug #207 already found and fixed elsewhere in this file, e.g. Chromium's own native
-      // middle-click autoscroll potentially intercepting a real middle-click before this app's own
-      // preventDefault fully suppresses it), dragRef.current.dragging can stay stuck true with
-      // whatever `panning` value the LAST real drag happened to set — so plain mouse movement
-      // afterward, with no button actually held, keeps being interpreted as a drag of the WRONG kind
-      // (e.g. a stale panning:false from an earlier rotate silently turning a later middle-click drag
-      // into more rotation). e.buttons is a live bitmask of what's currently held — checking it here
-      // makes a dropped release self-heal on the very next mousemove instead of staying stuck until
-      // some other click happens to reset it.
+      // TASKS.csv #212 — user report: "pan is not the same. Now instead of pan it rotates." dragRef is set only on pointerdown; a missed
+      // pointerup (#207's class: the OS / Chromium's middle-click autoscroll swallowing it) left it stuck dragging with the last drag's
+      // `panning`, so plain moves panned or rotated the wrong way. e.buttons is live: a dropped release self-heals on the next move.
       if (dragRef.current.dragging && e.buttons === 0) {
         dragRef.current.dragging = false;
       }
@@ -4873,7 +4863,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
 
   // ---------- rebuild surface structure symbols (TASKS.csv #317) ----------
   // moved to lib/viewer/sceneBuilders.js syncSurfaceStructures (TASKS.csv #693); its comments explain the build
-  useEffect(() => { if (surfStructGroupRef.current && !buildDefer.skip()) { syncSurfaceStructures(surfStructGroupRef.current, surfStructObjsRef.current, surfaceStructures, { origin: originRef.current, terrain }); const lg = layerGroupsRef.current?.outcrop_labels; if (lg) syncTextLabels(lg, outcropLabelItems(surfaceStructures, { origin: originRef.current, terrain }), makeTextSprite, 0); /* #1443 */ } }, [surfaceStructures, collars, terrain, rebuildSeq, deferRound]);
+  useEffect(() => { if (surfStructGroupRef.current && !buildDefer.skip()) { syncSurfaceStructures(surfStructGroupRef.current, surfStructObjsRef.current, surfaceStructures, { origin: originRef.current, terrain, flatZ: surfaceFlatZ }); const lg = layerGroupsRef.current?.outcrop_labels; if (lg) syncTextLabels(lg, outcropLabelItems(surfaceStructures, { origin: originRef.current, terrain, flatZ: surfaceFlatZ }), makeTextSprite, 0); /* #1443 */ } }, [surfaceStructures, collars, terrain, surfaceFlatZ /* #2753 */, rebuildSeq, deferRound]);
 
   // ---------- rebuild OMF objects (TASKS.csv — Open Mining Format import) ----------
   // moved to lib/viewer/sceneBuilders.js syncOmfObjects (TASKS.csv #693); its comments explain the build
