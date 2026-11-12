@@ -22,7 +22,7 @@ test("the datum and the north read back, only on a local grid; the north only wi
 });
 
 test("saved and loaded with the project (PROJECT_VERSION 26)", () => {
-  assert.equal(PROJECT_VERSION, 26);
+  assert.ok(PROJECT_VERSION >= 26, "the version that added rlOffset / northDeg");
   const live = { ...emptyFields(), project: grid({ rlOffset: -1000, northDeg: -3.5 }) };
   const back = fieldsFromPayload(JSON.parse(JSON.stringify(payloadFromFields(live))), "t.geostrix.json");
   assert.equal(back.project.localGrid.rlOffset, -1000); assert.equal(back.project.localGrid.northDeg, -3.5);

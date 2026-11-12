@@ -51,7 +51,7 @@ import { useStore } from "../../lib/store.jsx"; // TASKS.csv #2632 — addVoxelM
 const AZ_TARGETS = new Set(["collars", "survey", "structure"]); // TASKS.csv #1647 — tables with an azimuth
 
 export function useImportPipeline(ctx) {
-  const { addVoxelModel } = useStore(); // #2632
+  const { addVoxelModel, fillCodeDictionary } = useStore(); // #2632; fillCodeDictionary: #2163
   const {
     addBoundary,
     addRaster,
@@ -752,6 +752,7 @@ export function useImportPipeline(ctx) {
       const replaced = replaceRowsByHole(importStateRef.current.layers?.[target], rows, keep); // #582: replaced / appended
       setLayers((p) => ({ ...p, [target]: replaceRowsByHole(p[target], keepBatch(rows), keep, { identical: false }).rows })); // #2799 — rows only
       setLayerVisible((p) => ({ ...p, [target]: true }));
+      const dictAdded = !numeric && fillCodeDictionary ? fillCodeDictionary(target, rows) : 0; // TASKS.csv #2163 — codes with no meaning yet take the description logged beside them
       if (numeric) { const vals = rows.map((r) => r.value); setNumericRange((p) => ({ ...p, [target]: minMax(vals) })); } // not Math.min/max(...) — see layers.js's minMax comment
       // TASKS.csv #540 — what is wrong with these rows, said now (Data QC loads on demand: not in the startup bundle)
       const liveAtImport = importStateRef.current;
@@ -762,7 +763,8 @@ export function useImportPipeline(ctx) {
       setNotices((p) => [...p, tr("Loaded {rows} rows into {label} from {fileName}.", { rows: rows.length, label: LAYER_META[target].label, fileName })
         + replaceNote(replaced, "rows") + skippedRowsText(dropped, allRows.length) + leftOutText(data, allRows, sib?.codes || []) /* #2341 */
         + (codesKept ? " " + tr("{n} more code(s) in {cols} on {m} interval(s) are not drawn (each interval is coloured by {first}); every code is kept on its interval as all_codes, which Identify lists. Hiding the first code in the legend shows such an interval in its next code's colour.", { n: codesKept, m: codesRows, cols: sib.codes.length > 1 ? `${sib.codes[0]}–${sib.codes[sib.codes.length - 1]}` : sib.codes[0], first: sib.first }) : "") // #1650; one column named once: #2153
-        + (idsFilled ? " " + tr("{n} row(s) with a blank hole id took the hole id of the row above, their depths continuing it: check them if the file is laid out otherwise.", { n: idsFilled }) : "")]); // #1665
+        + (idsFilled ? " " + tr("{n} row(s) with a blank hole id took the hole id of the row above, their depths continuing it: check them if the file is laid out otherwise.", { n: idsFilled }) : "") // #1665
+        + (dictAdded ? " " + (dictAdded === 1 ? tr("1 code took its meaning from the description logged beside it (the code dictionary in the layer's inspector, where it can be edited).") : tr("{n} codes took their meaning from the description logged beside them (the code dictionary in the layer's inspector, where they can be edited).", { n: dictAdded })) : "")]); // #2163
     }
     return true;
   };

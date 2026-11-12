@@ -13,6 +13,7 @@ import { inspectorColumns, inspectorCell } from "../lib/inspectorColumns.js"; //
 import { macrostratLithColours } from "../lib/macrostratColours.js"; // TASKS.csv #2005
 import Papa from "papaparse";
 import { codeDescriptions } from "../lib/codeDescriptions.js"; // TASKS.csv #1778
+import CodeDictionaryTable from "./CodeDictionaryTable.jsx"; // TASKS.csv #2163
 
 // TASKS.csv #123 — QGIS-specialist audit finding: "Themes save whole-view state per-project; there's
 // no reusable style definition (color ramp + classification + symbol) that travels between projects
@@ -35,6 +36,7 @@ export default function LayerInspector({ layerKey, rows, meta, categoryFilter, n
   useFocusTrap(); // TASKS.csv #238
   const [search, setSearch] = useState("");
   const [styleNotice, setStyleNotice] = useState(null);
+  const [rightPane, setRightPane] = useState("rows"); // TASKS.csv #2163 — the rows, or the code dictionary
   // TASKS.csv #2005 — the lithology codes coloured like Macrostrat's lithologies (its list fetched once, when asked)
   const macrostratColours = async () => {
     setStyleNotice({ ok: true, text: tr("Asking Macrostrat for its lithology colours…") });
@@ -169,6 +171,14 @@ export default function LayerInspector({ layerKey, rows, meta, categoryFilter, n
             )}
           </div>
           <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
+            {!meta.numeric && (
+              <div role="tablist" style={{ display: "flex", gap: 4, padding: "8px 14px 0" }}>{/* TASKS.csv #2163 */}
+                {[["rows", tr("Rows")], ["dict", tr("Code dictionary")]].map(([k, text]) => (
+                  <button key={k} role="tab" aria-selected={rightPane === k} onClick={() => setRightPane(k)} style={{ ...miniBtn, flex: "none", padding: "4px 10px", ...(rightPane === k ? { color: "var(--color-accent-dark)", borderColor: "var(--color-accent)" } : {}) }}>{text}</button>
+                ))}
+              </div>
+            )}
+            {!meta.numeric && rightPane === "dict" ? <CodeDictionaryTable layerKey={layerKey} rows={rows} categories={categories} legendOverride={legendOverride} meta={meta} onSetLabel={onSetLabel} /> : <>
             <div style={{ padding: "10px 14px", borderBottom: "1px solid var(--color-border)" }}>
               <input placeholder={tr("Search rows…")} value={search} onChange={(e) => setSearch(e.target.value)} style={{ width: "100%", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "7px 10px", color: "var(--color-text)", fontSize: "var(--font-size-base)", fontFamily: "inherit" }} />
             </div>
@@ -185,6 +195,7 @@ export default function LayerInspector({ layerKey, rows, meta, categoryFilter, n
               </table>
               {searched.length > 400 && <div style={{ padding: "8px 0", color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)" }}>{tr("Showing first 400 of {searched} matching rows.", { searched: searched.length })}</div>}
             </div>
+            </>}
           </div>
         </div>
       </div>

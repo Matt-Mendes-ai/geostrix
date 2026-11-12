@@ -12,6 +12,7 @@ import { compactLayers } from "./compactRows.js"; // TASKS.csv #374
 import { readDbProfiles, writeDbProfiles, mergeDbProfiles, profilesFromFile } from "./dbProfiles.js"; // TASKS.csv #1081
 import { FIELD_KEYS, FIELDS, UNDO_KEYS, DIRTY_KEYS, PROJECT_VERSION, EMPTY_LAYERS, DEFAULT_LAYOUT_ELEMENTS, compactVoxelModels, emptyFields, fieldsFromPayload, payloadFromFields, projectParts, joinParts, cachedJson /* #1975 */, extraDirtyValues, projectHasContent } from "./projectFields.js"; // TASKS.csv #448
 import { datumPatch } from "./localGridDatum.js"; // TASKS.csv #2691 / #2661
+import { fillFromRows, setEntry } from "./codeDictionary.js"; // TASKS.csv #2163
 import { sectionWindowsMayClose } from "./desktop.js"; // TASKS.csv #2620
 import { saveFile, saveFileTo, openFile, autosaveWrite, autosaveWriteParts /* #1975 */, autosaveRead, autosaveQuarantine, autosaveClear, dbConnect as dbConnectIpc, dbDisconnect as dbDisconnectIpc } from "./desktop.js";
 import { normalizeDesurveyMethod } from "./desurvey.js";
@@ -154,6 +155,7 @@ export function StoreProvider({ children }) {
   const [surfaceSampleLegend, setSurfaceSampleLegend] = useState(null);
   const [surfaceQc, setSurfaceQc] = useState(null); // TASKS.csv #842 — surface-program QC: { records, certificates, settings }
   const [dbImports, setDbImports] = useState([]); // TASKS.csv #1963 — the database imports to reload (lib/dbImports.js)
+  const [codeDictionary, setCodeDictionary] = useState({}); // TASKS.csv #2163 — the project's own meaning of each logging code (lib/codeDictionary.js)
   const [evidenceOverlay, setEvidenceOverlay] = useState(null); // TASKS.csv #1003 — the Evidence overlay pane's recipe
   const [customLayers, setCustomLayers] = useState([]); // plain {id,name,rows} mirror for save/load; ViewerModule owns the live three.js groups
   // saved (non-secret) connection profiles — TASKS.csv #1081: kept on this computer (lib/dbProfiles.js), not in the project
@@ -943,6 +945,7 @@ export function StoreProvider({ children }) {
     plannedHoles: [plannedHoles, setPlannedHoles], designLines: [designLines, setDesignLines], designStrings: [designStrings, setDesignStrings], surfaceSamples: [surfaceSamples, setSurfaceSamples], surfaceElements: [surfaceElements, setSurfaceElements], geochemThresholds: [geochemThresholds, setGeochemThresholds], surfaceQc: [surfaceQc, setSurfaceQc],
     evidenceOverlay: [evidenceOverlay, setEvidenceOverlay], // TASKS.csv #1003
     dbImports: [dbImports, setDbImports], // TASKS.csv #1963
+    codeDictionary: [codeDictionary, setCodeDictionary], // TASKS.csv #2163
     generatedSurfaces: [generatedSurfaces, setGeneratedSurfaces], modelDomains: [modelDomains, setModelDomains],
   };
   const live = {};
@@ -962,6 +965,9 @@ export function StoreProvider({ children }) {
   const setLocalGridTie = useCallback((tie) => setProject((p) => ({ ...p, crsSet: false, localGrid: { name: "", ...(p.localGrid || {}), tie: tie || null } })), []);
   // TASKS.csv #2691 / #2661 — the grid's RL datum offset (grid RL = elevation + rlOffset) and, untied, its typed north (lib/localGridDatum.js)
   const setLocalGridDatum = useCallback((patch) => setProject((p) => (p.localGrid ? { ...p, localGrid: { ...p.localGrid, ...datumPatch(patch) } } : p)), []);
+  // TASKS.csv #2163 — the code dictionary of one layer: filled from a file's logged descriptions (codes with no entry only), or one entry typed
+  const fillCodeDictionary = useCallback((layerKey, rows) => { setCodeDictionary((d) => { const r = fillFromRows(d?.[layerKey], rows); return r.added ? { ...d, [layerKey]: r.dict } : d; }); return fillFromRows(liveRef.current.codeDictionary?.[layerKey], rows).added; }, []); // -> the codes added (counted on the dictionary as it is now)
+  const setCodeDictionaryEntry = useCallback((layerKey, code, desc) => setCodeDictionary((d) => { const next = setEntry(d?.[layerKey], code, desc); return next === d?.[layerKey] ? d : { ...d, [layerKey]: next }; }), []);
   // TASKS.csv #2586 — a mine grid BESIDE a real CRS ({ name, tie } or null); the CRS stays set (lib/mineGrid.js)
   const setMineGrid = useCallback((mg) => setProject((p) => ({ ...p, mineGrid: mg || null })), []);
   // TASKS.csv #485 — Cartography: move EVERYTHING in the open project into another CRS (projectReproject.js for
@@ -1692,6 +1698,7 @@ export function StoreProvider({ children }) {
     surfaceQc, setSurfaceQc, // TASKS.csv #842
     evidenceOverlay, setEvidenceOverlay, // TASKS.csv #1003
     dbImports, setDbImports, // TASKS.csv #1963
+    codeDictionary, setCodeDictionary, fillCodeDictionary, setCodeDictionaryEntry, // TASKS.csv #2163
     designLines, setDesignLines, // TASKS.csv #1342
     designStrings, setDesignStrings, // TASKS.csv #1876
     customLayers, setCustomLayers,
