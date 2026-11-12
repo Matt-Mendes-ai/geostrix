@@ -1176,10 +1176,13 @@ const G_PER_OZT = 31.1034768, G_PER_LB = 453.59237;
 // TASKS.csv #2731 (split from #2357) — the metals sold as an oxide are priced per pound of that oxide (uranium's spot price is per lb U3O8),
 // while the grades are of the element: such a price is turned into one per gram of the element by the element's mass share of the oxide.
 // factor: the element's share by mass (U3O8 0.8480, V2O5 0.5602, WO3 0.7930, from the atomic masses).
-export const TRADED_OXIDE = { U: { oxide: "U3O8", factor: 0.848 }, V: { oxide: "V2O5", factor: 0.5602 }, W: { oxide: "WO3", factor: 0.793 } };
+// TASKS.csv #2771 — lithium is sold as lithium carbonate (LCE) and quoted per tonne: Li is 0.1879 of Li2CO3 by mass (2 x 6.94 / 73.89).
+// per: the unit the price is quoted in ("lb" unless said)
+export const TRADED_OXIDE = { U: { oxide: "U3O8", factor: 0.848 }, V: { oxide: "V2O5", factor: 0.5602 }, W: { oxide: "WO3", factor: 0.793 }, Li: { oxide: "Li2CO3", factor: 0.1879, per: "t" } };
+const G_PER_T = 1e6;
 // oxide (#2731): true when `price` is per lb of the element's traded oxide
 export function pricePerGram(symbol, price, oxide = false) {
-  if (oxide && TRADED_OXIDE[symbol]) return price / G_PER_LB / TRADED_OXIDE[symbol].factor;
+  if (oxide && TRADED_OXIDE[symbol]) return price / (TRADED_OXIDE[symbol].per === "t" ? G_PER_T : G_PER_LB) / TRADED_OXIDE[symbol].factor; // per t: #2771
   return PRECIOUS_METALS.has(symbol) ? price / G_PER_OZT : price / G_PER_LB;
 }
 function toGt(value, unit) { return elementPpm(value, unit); } // #2487 — g/t of the element (the prices are per unit of the element)
@@ -1221,7 +1224,7 @@ export function withMetalEquivalent(assays, metals, elementUnits) {
 
 export function metalEquivalentFormula(metals) {
   const b = metals[0];
-  const per = (s, oxide) => (oxide && TRADED_OXIDE[s] ? `/lb ${TRADED_OXIDE[s].oxide}` : PRECIOUS_METALS.has(s) ? "/oz" : "/lb"); // oxide: #2731
+  const per = (s, oxide) => (oxide && TRADED_OXIDE[s] ? `/${TRADED_OXIDE[s].per || "lb"} ${TRADED_OXIDE[s].oxide}` : PRECIOUS_METALS.has(s) ? "/oz" : "/lb"); // oxide: #2731; per t: #2771
   return `${b.symbol}Eq = ${metals.map((m) => `${m.symbol} x ${m.symbol === b.symbol ? "1" : `(${m.price}${per(m.symbol, m.oxide)} x ${Math.round(m.recovery * 100)}%) / (${b.price}${per(b.symbol, b.oxide)} x ${Math.round(b.recovery * 100)}%)${m.unit !== b.unit ? ` [${m.unit} -> ${b.unit}]` : ""}`}`).join(" + ")}`;
 }
 

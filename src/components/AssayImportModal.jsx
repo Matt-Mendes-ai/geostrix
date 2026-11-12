@@ -47,6 +47,9 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
   // format's elements come from distinct analyte VALUES in one column, not headers — a different,
   // already-complete picker via the method/analyte dropdowns above).
   const [addSymbol, setAddSymbol] = useState("");
+  // TASKS.csv #2765 (split from #2356) — a 60-element suite: a filter over the element list (symbol or column name)
+  const [elFilter, setElFilter] = useState("");
+  const shownEls = useMemo(() => { const f = elFilter.trim().toLowerCase(); return f ? modal.elements.filter((e) => e.symbol.toLowerCase().includes(f) || String(e.header || "").toLowerCase().includes(f)) : modal.elements; }, [modal.elements, elFilter]);
   const [addHeader, setAddHeader] = useState("");
 
   const setMapping = (key, col) => onChange({ ...modal, mapping: { ...modal.mapping, [key]: col } });
@@ -148,7 +151,8 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
           {modal.format === "wide" && <div style={{ marginTop: 12 }}><RowFilterBox modal={modal} onChange={onChange} sel={sel} /></div>}{/* TASKS.csv #2391 */}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 16, marginBottom: 8 }}>
             <div style={{ ...label, marginBottom: 0 }}>{tr("Elements ({checkedCount} of {elements})", { checkedCount, elements: modal.elements.length })}</div>
-            <div style={{ display: "flex", gap: 8 }}>
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              {modal.elements.length > 12 && <input type="search" value={elFilter} onChange={(e) => setElFilter(e.target.value)} placeholder={tr("Filter elements")} aria-label={tr("Filter elements")} style={{ ...sel, width: 130, padding: "3px 6px" }} />}{/* #2765 */}
               <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setAll(true)} style={{ fontSize: "var(--font-size-sm)", color: "var(--color-accent)", cursor: "pointer" }}>{tr("All")}</span>
               <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setAll(false)} style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", cursor: "pointer" }}>{tr("None")}</span>
             </div>
@@ -167,7 +171,7 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
           )}
           {modal.format === "wide" ? (
             <div style={{ display: "flex", flexDirection: "column", gap: 4, maxHeight: 280, overflowY: "auto", padding: 4, border: "1px solid var(--color-border)", borderRadius: 6 }}>
-              {modal.elements.map((e) => (
+              {shownEls.map((e) => (
                 <div key={e.symbol} style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 7px", background: e.checked ? "var(--color-bg-subtle)" : "transparent", borderRadius: 5 }}>
                   <input type="checkbox" checked={e.checked} onChange={() => toggleEl(e.symbol)} />
                   <span style={{ fontSize: "var(--font-size-base)", color: e.checked ? "var(--color-text)" : "var(--color-text-muted)", width: 28, flexShrink: 0 }}>{e.symbol}</span>
@@ -202,7 +206,7 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
             </div>
           ) : (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 6, maxHeight: 280, overflowY: "auto", padding: 4, border: "1px solid var(--color-border)", borderRadius: 6 }}>
-              {modal.elements.map((e) => (
+              {shownEls.map((e) => (
                 <div key={e.symbol} style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 7px", background: e.checked ? "var(--color-bg-subtle)" : "transparent", borderRadius: 5 }}>
                   <input type="checkbox" checked={e.checked} onChange={() => toggleEl(e.symbol)} />
                   <span style={{ fontSize: "var(--font-size-base)", color: e.checked ? "var(--color-text)" : "var(--color-text-muted)", flex: 1 }}>{e.symbol}</span>

@@ -7,7 +7,7 @@ import { readFileSync } from "node:fs";
 const src = readFileSync(new URL("../src/components/IsoconTool.jsx", import.meta.url), "utf8");
 
 test("add by filter: a log code at the midpoint, an element range, holes and a depth range, added to either group", () => {
-  assert.match(src, /const codeOf = flt\.code && domainRows \? domainOfInterval\(domainRows\) : null;/);
+  assert.match(src, /const codeOf = flt\.code && domainRows \? codeFn\(domainRows\) : null;/); // the code the interval overlaps most since #2766
   assert.match(src, /holesMatching\(\[\.\.\.new Set\(rows\.map\(\(r\) => r\.a\.hole_id\)\)\], flt\.holes\)/);
   assert.match(src, /const mid = \(Number\(a\.from\) \+ Number\(a\.to\)\) \/ 2;/);
   assert.match(src, /if \(flt\.sym\) \{ const v = valueIn\(a, flt\.sym, elementUnits\[flt\.sym\] \|\| "ppm", elementUnits\); if \(v == null \|\| !Number\.isFinite\(v\) \|\| v < lo \|\| v > hi\) return false; \}/);
