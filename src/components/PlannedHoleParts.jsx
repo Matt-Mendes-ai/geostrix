@@ -62,6 +62,8 @@ const PAST_TARGET_M = 30;
 // TASKS.csv #1838 (review #1646, Kodiak) — a pick fills the form ONCE: the "already applied" marker lived in a ref, reset when the pane
 // remounted, so the last picked collar came back into the form each time Planned holes reopened (after it had been used for a hole)
 const appliedPicks = new WeakSet();
+// TASKS.csv #2257 — a handed-over target is used once, too: reopening the pane refilled Target E / N / Elev with a zone already planned
+const appliedPresets = new WeakSet();
 export function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint, collars, noTerrain, presetTarget = null, epsg = null, groundAt = null, survey = null }) {
   // TASKS.csv #2450 — the starting azimuth, dip and length from the drilled holes (median), else az 0 / dip -60 / 100 m as before
   const seed = useMemo(() => drilledDefaults(collars, survey || []), [collars, survey]);
@@ -90,12 +92,14 @@ export function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint, 
   const lastPreset = useRef(null);
   const [upward, setUpward] = useState(false);
   useEffect(() => {
-    if (!presetTarget || presetTarget === lastPreset.current) return;
-    lastPreset.current = presetTarget;
+    if (!presetTarget || presetTarget === lastPreset.current || appliedPresets.has(presetTarget)) return;
+    lastPreset.current = presetTarget; appliedPresets.add(presetTarget);
     const r = (v) => (Number.isFinite(v) ? Math.round(v * 10) / 10 : ""); // #1456 — an overlay's place has no elevation: left blank to type
     setTarget({ x: r(presetTarget.x), y: r(presetTarget.y), z: r(presetTarget.z) });
   }, [presetTarget]);
   const set = (k, v) => setDraft((p) => ({ ...p, [k]: v }));
+  // TASKS.csv #2257 — a typed collar is a new one: the notes about the solved / picked one (above the collar, the picked Elev) go
+  const editCollar = (k, v) => { set(k, v); setCollarNote(null); setUpward(false); setPickInForm(false); };
   const lastAppliedPick = useRef(null);
   const [pickInForm, setPickInForm] = useState(false); // #1838 — the pick's no-terrain note belongs to a pick that is in the form
   useEffect(() => {
@@ -166,7 +170,7 @@ export function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint, 
       zSource, // #1835
       ...(targetReady ? { target: { x: Number(target.x), y: Number(target.y), z: Number(target.z) }, pastTargetM: PAST_TARGET_M } : {}) }); // #1456 — the target goes with the hole
     setDraft((p) => ({ name: "", x: "", y: "", z: "", azimuth: p.azimuth, dip: p.dip, length: p.length })); // #2450 — the next hole starts like the last one
-    setFromCollarId(""); setTarget({ x: "", y: "", z: "" }); setZSource("typed"); setCollarNote(null); setPickInForm(false); // #1838
+    setFromCollarId(""); setTarget({ x: "", y: "", z: "" }); setZSource("typed"); setCollarNote(null); setPickInForm(false); setUpward(false); // #1838; upward: #2257
   };
   return (
     <div style={{ padding: "8px 9px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6 }}>
@@ -177,9 +181,9 @@ export function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint, 
           title={tr("Fill E/N/Elev below from an existing real collar, to design a new hole starting there")} />
       )}
       <div style={{ display: "flex", gap: 4, marginBottom: 5 }}>
-        <NumField label="E" value={draft.x} onChange={(v) => set("x", v)} />
-        <NumField label="N" value={draft.y} onChange={(v) => set("y", v)} />
-        <NumField label={tr("Elev")} value={draft.z} onChange={(v) => { set("z", v); setZSource("typed"); }} />{/* zSource: #1835 */}
+        <NumField label="E" value={draft.x} onChange={(v) => editCollar("x", v)} />
+        <NumField label="N" value={draft.y} onChange={(v) => editCollar("y", v)} />
+        <NumField label={tr("Elev")} value={draft.z} onChange={(v) => { editCollar("z", v); setZSource("typed"); }} />{/* zSource: #1835; editCollar: #2257 */}
       </div>
       {/* TASKS.csv #2451 — a typed E / N with no Elev: the ground there, offered (the terrain, else the collar surface the pick and the solver use) */}
       {zOffer && (
@@ -386,7 +390,7 @@ export function PlannedHoleRow({ hole, onUpdate, onRemove, collars, survey }) { 
         {expanded ? <ChevronUp size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} {...iconAction(() => setExpanded(false), tr("Collapse this planned hole"))} /> : <ChevronDown size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} {...iconAction(() => setExpanded(true), tr("Expand this planned hole"))} />}
         <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => { if (window.confirm(tr("Remove planned hole \"{v}\"?", { v: hole.name || hole.id }))) onRemove(hole.id); }, tr("Remove planned hole \"{v}\"", { v: hole.name || hole.id }))} />
       </div>
-      <div style={{ marginTop: 3, fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>{tr("Az {v}° / Dip {v2}° / {v3} m{v4}", { v: Math.round(hole.azimuth), v2: Math.round(hole.dip), v3: Math.round(hole.length), v4: toe ? tr(" — toe E {x} N {y} Elev {z}", { x: toe.x.toFixed(0), y: toe.y.toFixed(0), z: toe.z.toFixed(0) }) : "" })}
+      <div style={{ marginTop: 3, fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>{tr("Az {v}° / Dip {v2}° / {v3} m{v4}", { v: Math.round(wrap360(Number(hole.azimuth))) % 360 /* #2257 — 359.6 is 0°, not 360° */, v2: Math.round(hole.dip), v3: Math.round(hole.length), v4: toe ? tr(" — toe E {x} N {y} Elev {z}", { x: toe.x.toFixed(0), y: toe.y.toFixed(0), z: toe.z.toFixed(0) }) : "" })}
       </div>
       {expanded && (
         <div style={{ marginTop: 6, borderTop: "1px solid var(--color-divider)", paddingTop: 6 }}>
