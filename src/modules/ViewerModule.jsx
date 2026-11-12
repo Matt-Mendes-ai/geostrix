@@ -39,7 +39,7 @@ import { openSectionWindow, saveFile, copyText, loadSampleFiles } from "../lib/d
 import { sampleProjectName } from "../lib/sampleProjectName.js"; // TASKS.csv #1218
 import { sampleCardsFor, sampleFootnote } from "../lib/sampleCards.js"; // TASKS.csv #1346
 import { symbolRadiusByMedium } from "../lib/viewer/surfaceSymbols.js"; // TASKS.csv #1346
-import { sectionFromCentre, sectionThroughHole, fenceLinesWithData, fenceExtentPoints, fenceLabels } from "../lib/sectionDefs.js"; // fenceLinesWithData: #2040
+import { sectionFromCentre, sectionThroughHole, fenceLinesWithData, fenceExtentPoints } from "../lib/sectionDefs.js"; // fenceLinesWithData: #2040
 import { Ribbon, RibbonGroup, RibbonButton, TaskPaneHeader, PaneNotice } from "../components/Ribbon.jsx"; // TASKS.csv #458
 import { Pickaxe, Layers, Group, Droplets, Waves, Gem, Calculator, Settings, FileSpreadsheet, Globe, Spline, PenTool, Rows3, Crosshair, Target, SquareSplitVertical, Sparkles } from "../components/icons.js"; // TASKS.csv #445 step 4 — memoised lucide icons // #458 ribbon icons
 import { solidBounds, SOLID_IMPORT_EXTENSIONS, SOLID_FACE_WARN } from "../lib/solidImportMeta.js"; // TASKS.csv #148; #552 split
@@ -5083,79 +5083,15 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     }));
   }, [sections, showSectionStrings, deferRound]);
 
-  // TASKS.csv #1011 — Matt: "have the cross section display as on the 3d view so I can see it when looking from top. Have
-  // it display as a thick line". Each saved section's line A -> B as a flat ribbon (WebGL draws every line 1 px wide, so a
-  // thick line is a strip of triangles), laid on the terrain where there is one (2 m above it), else 2 m above the
-  // median collar elevation, drawn over everything so it stays visible from above and through the model. Its width follows the
-  // section's length (0.6 %, at least 4 m), so it reads at the scale the section is seen at. Labelled by its tooltip.
-  // TASKS.csv #1126 — Matt: "add the label to the 3d line for the cross section", "make that line thinner and make it a
-  // standard cross section line like the ones used in geology maps". Now a thin dark line on a white halo with a tick at
-  // each end pointing the way the section is viewed (A on the left, B on the right in the section window, so the viewer
-  // faces the line's left-hand normal), and the section's name at A and name′ at B as fixed-size screen labels.
+  // TASKS.csv #1011 / #1126 / #1705 — the saved sections' traces ('lines in 3D'), screen-width lines: lib/viewer/sectionTraces.js, on first use
   useEffect(() => {
     const group = sectionLinesGroupRef.current;
     if (!group || buildDefer.skip()) return; // #1980
-    group.children.slice().forEach((ch) => { group.remove(ch); ch.geometry?.dispose(); ch.material?.map?.dispose(); ch.material?.dispose(); }); // map: #1126 label textures
-    if (!showSectionLines || !(sections || []).length) return;
-    const { x: ox, y: oy, z: oz } = originRef.current;
-    // without a terrain, flat at the median collar elevation: a median, because one outlying high collar (Harry's 1,468 m
-    // against 1,077-1,160 m) lifted a max-based line ~300 m above the holes and perspective pushed it off screen; flat,
-    // because following the nearest collars made it step up and down
-    const czs = (collars || []).map((c) => c.z).filter(Number.isFinite).sort((u, v) => u - v);
-    const flatZ = czs.length ? czs[czs.length >> 1] : oz;
-    const fences = fenceLabels(sections); // #1255
-    (sections || []).forEach((sct) => {
-      const { ax, ay, bx, by } = sct;
-      if (![ax, ay, bx, by].every(Number.isFinite)) return;
-      const L = Math.hypot(bx - ax, by - ay);
-      if (!(L > 0)) return;
-      const width = Math.max(1.5, L * 0.003), ux = (bx - ax) / L, uy = (by - ay) / L, nx = -uy, ny = ux; // #1126: thin
-      const n = Math.max(2, Math.min(200, Math.ceil(L / 10)));
-      const zs = [];
-      for (let k = 0; k <= n; k++) { const g = terrain ? terrainGroundAt(terrain, ax + (bx - ax) * (k / n), ay + (by - ay) * (k / n)) : NaN; zs.push(Number.isFinite(g) ? g + 2 : flatZ + 2); }
-      const tip = `${tr("Cross-section: {name}", { name: sct.name })}\n${Math.round(L).toLocaleString()} m, ${tr("azimuth {v}°", { v: Math.round(sct.azimuth ?? 0) })}`;
-      // #1126 — a dark line on a white halo (the halo runs a little past both ends)
-      const ink = "#1a2028";
-      const fence = fences.get(sct); // #1255 — at 15 m with a halo, lines 50 m apart were a solid block over the holes
-      (fence ? [[Math.max(1, L * 0.0006), ink, 11]] : [[width * 2.6, "#ffffff", 10], [width, ink, 11]]).forEach(([w, color, order]) => {
-        const half = w / 2, ext = (w - width) / 2, pos = [], idx = [];
-        for (let k = 0; k <= n; k++) {
-          const along = k === 0 ? -ext : k === n ? ext : 0;
-          const x = ax + (bx - ax) * (k / n) + ux * along, y = ay + (by - ay) * (k / n) + uy * along;
-          for (const sgn of [-1, 1]) { const px = x + sgn * half * nx, py = y + sgn * half * ny; pos.push(px - ox, zs[k] - oz, -(py - oy)); }
-          if (k) { const v = 2 * k; idx.push(v - 2, v - 1, v, v - 1, v + 1, v); }
-        }
-        const geo = new THREE.BufferGeometry();
-        geo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
-        geo.setIndex(idx);
-        const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: new THREE.Color(color), side: THREE.DoubleSide, depthTest: false, transparent: true, opacity: 0.95 }));
-        mesh.renderOrder = order;
-        mesh.userData = { tip };
-        group.add(mesh);
-      });
-      // #1126 — end ticks toward the viewing side (n), and the labels at their tips
-      const tickLen = Math.max(12, L * 0.05);
-      const endB = `${sct.name}${/[\p{L}\p{N}]$/u.test(sct.name || "") ? "" : "\u2009"}′`; // a thin space before ′ after "39°"
-      (fence ? (fence.label ? [[ax, ay, zs[0], fence.label]] : []) : [[ax, ay, zs[0], sct.name], [bx, by, zs[n], endB]]).forEach(([ex, ey, ez, label]) => {
-        (fence ? [[Math.max(1, L * 0.0006), ink, 11]] : [[width * 2.6, "#ffffff", 10], [width, ink, 11]]).forEach(([w, color, order]) => {
-          const h = w / 2, tx = ex + nx * tickLen, ty = ey + ny * tickLen;
-          const quad = [[ex - ux * h, ey - uy * h], [ex + ux * h, ey + uy * h], [tx + ux * h, ty + uy * h], [tx - ux * h, ty - uy * h]];
-          const geo = new THREE.BufferGeometry();
-          geo.setAttribute("position", new THREE.Float32BufferAttribute(quad.flatMap(([px, py]) => [px - ox, ez - oz, -(py - oy)]), 3));
-          geo.setIndex([0, 1, 2, 0, 2, 3]);
-          const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: new THREE.Color(color), side: THREE.DoubleSide, depthTest: false, transparent: true, opacity: 0.95 }));
-          mesh.renderOrder = order;
-          mesh.userData = { tip };
-          group.add(mesh);
-        });
-        const sp = makeTextSprite(label, { color: ink, bg: "rgba(255,255,255,0.9)" });
-        sp.position.set(ex + nx * tickLen * 1.15 - ox, ez - oz, -(ey + ny * tickLen * 1.15 - oy));
-        sp.center.set(0.5, 0.5);
-        sp.renderOrder = 12;
-        group.add(sp);
-      });
-    });
-    lastActivityRef.current = Date.now();
+    const want = showSectionLines && (sections || []).length > 0;
+    if (!want && !group.children.length) return;
+    let live = true;
+    import("../lib/viewer/sectionTraces.js").then((m) => { if (live) { m.buildSectionTraces(group, want ? sections : [], { origin: originRef.current, terrain, collars }); lastActivityRef.current = Date.now(); } });
+    return () => { live = false; };
   }, [sections, showSectionLines, terrain, collars, deferRound]);
 
   useEffect(() => {
