@@ -25,6 +25,8 @@ test("Variogram: the same choice and default; the header counts the holes used",
 test("ViewerModule passes Model area and the checked holes to both", () => {
   const v = src("modules/ViewerModule.jsx");
   assert.match(v, /modelArea=\{modelArea\} \/\/ TASKS\.csv #1570; #2544/);
-  assert.match(v, /<VariogramModal modelArea=\{modelArea\} checkedHoleIds=\{new Set\(collars\.filter\(\(c\) => visibleHoles\[c\.hole_id\] !== false\)\.map\(\(c\) => c\.hole_id\)\)\}/);
+  // #2695 — one memoized Set of the checked holes, passed to both
+  assert.match(v, /const checkedHoleIds = useMemo\(\(\) => new Set\(collars\.filter\(\(c\) => visibleHoles\[c\.hole_id\] !== false\)\.map\(\(c\) => c\.hole_id\)\), \[collars, visibleHoles\]\);/);
+  assert.match(v, /<VariogramModal modelArea=\{modelArea\} checkedHoleIds=\{checkedHoleIds\}/);
   for (const l of ["es", "pt", "fr", "ar"]) assert.ok(JSON.parse(readFileSync(new URL(`../src/locales/${l}.json`, import.meta.url), "utf8"))["Samples from"], l);
 });
