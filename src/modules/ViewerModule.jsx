@@ -133,6 +133,7 @@ import { buildVectorFeatures as buildVectorFeaturesOf } from "../lib/viewer/vect
 import { isRepeatClick } from "../lib/interpretation.js"; // TASKS.csv #1152
 import { syncInterpretPreview } from "../lib/viewer/interpretDraw.js"; // TASKS.csv #1152
 import { localDate } from "../lib/localDate.js"; // TASKS.csv #2703
+import { rightDragTracker } from "./viewer/rightDrag.js"; // TASKS.csv #2213
 import { snapInterpretClick } from "../lib/viewer/interpretSnap.js"; // TASKS.csv #2630
 import { outlinesKey, blockSourceKey } from "../lib/explicitLog.js"; // TASKS.csv #878
 import { extrapolationNotice } from "../lib/extrapolatedInputs.js"; // #1840
@@ -2268,10 +2269,11 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
       return null;
     };
 
+    const rightDrag = rightDragTracker(); // #2043 / #2213
     const onPointerDown = (e) => {
       const rect = renderer.domElement.getBoundingClientRect();
       const mx = e.clientX - rect.left, my = e.clientY - rect.top;
-      if (e.button === 2) return; // handled by contextmenu event
+      if (e.button === 2) { rightDrag.down(e.clientX, e.clientY); dragRef.current = { dragging: true, panning: true, lastX: e.clientX, lastY: e.clientY }; renderer.domElement.setPointerCapture(e.pointerId); return; } // #2213 — a right-drag pans; a clean right-click still opens the menu
       if (e.button === 0 && viewDragHookRef.current?.(e, mx, my)) return; // TASKS.csv #813 — e.g. dragging an explicit-surface pick
       if (rectZoomRef.current && e.button === 0) {
         // "Zoom to selected area" (armed via the right-click menu): this click starts a drag
@@ -2311,6 +2313,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
       }
       dragRef.current.dragging = false;
       try { renderer.domElement.releasePointerCapture(e.pointerId); } catch (_) {}
+      if (e.button === 2) { const at = rightDrag.up(Date.now()); if (at) onContextMenuEvt({ preventDefault() {}, ...at }); } // #2213 — the menu deferred on a press-time platform
     };
     const onPointerMove = (e) => {
       const rect = renderer.domElement.getBoundingClientRect();
@@ -2322,6 +2325,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
       // element's own getBoundingClientRect() is all zeros, so !rect.width already catches it, but the
       // explicit visibleRef check makes the intent obvious rather than relying on that as a side effect.
       if (!visibleRef.current || !rect.width) return;
+      rightDrag.move(e.clientX, e.clientY); // #2213
       const mx = e.clientX - rect.left, my = e.clientY - rect.top;
       if (rectDragRef.current) {
         rectDragRef.current.x2 = mx; rectDragRef.current.y2 = my;
@@ -2410,6 +2414,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
     const onWheel = (e) => { e.preventDefault(); wheelZoom(e, renderer.domElement, camera, raycasterRef.current, camState.current, (rc) => firstVisibleLayerHit(pickHits(rc))?.point); updateCamera(); }; // #2368 toward the cursor
     const onContextMenuEvt = (e) => {
       e.preventDefault();
+      const rd = rightDrag.onMenu(Date.now(), { clientX: e.clientX, clientY: e.clientY }); if (rd !== "open") return; // #2043 — no menu after a right-drag (pan)
       if (rectZoomRef.current) { setRectZoomMode(false); rectDragRef.current = null; setRectVisual(null); return; } // right-click cancels an armed/in-progress rectangle-zoom
       if (pickHoleModeRef.current) { setPickHoleMode(false); return; } // right-click cancels an armed planned-hole pick
       const rect = renderer.domElement.getBoundingClientRect();
