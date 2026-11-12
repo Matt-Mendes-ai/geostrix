@@ -7,7 +7,7 @@
 import { useStore } from "../lib/store.jsx"; // TASKS.csv #615
 import React, { useMemo, useRef, useState } from "react"; // useRef: #1670; useMemo: #2728
 import { X } from "./icons.js";
-import { inferUnit, ELEMENT_SYMBOLS, surfaceAttrLeftOut, SURFACE_ATTR_MAX_DISTINCT } from "../lib/geochem.js"; // left out: #2728
+import { inferUnit, ELEMENT_SYMBOLS, surfaceAttrLeftOut, SURFACE_ATTR_MAX_DISTINCT, oxideOfHeader, keepsOxide } from "../lib/geochem.js"; // left out: #2728; basis: #2627
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay } from "../lib/modalStyles.js";
@@ -49,6 +49,7 @@ export default function SurfaceImportModal({ modal, onChange, onCancel, onCommit
     setAddSymbol(""); setAddHeader("");
   };
   const setAll = (checked) => onChange({ ...modal, elements: modal.elements.map((e) => ({ ...e, checked })) });
+  const setKeepOxide = (sym, keep) => onChange({ ...modal, elements: modal.elements.map((e) => (e.symbol === sym ? { ...e, keepOxide: keep } : e)) }); // TASKS.csv #2627
 
   const required = [["x", "Easting (X)"], ["y", "Northing (Y)"]]; // #606: Z is optional (missing -> placed on the terrain)
 
@@ -157,6 +158,11 @@ export default function SurfaceImportModal({ modal, onChange, onCancel, onCommit
                 <select value={e.unit} onChange={(ev) => setUnit(e.symbol, ev.target.value)} style={{ ...sel, fontSize: "var(--font-size-xs)", padding: "1px 3px", flexShrink: 0 }}>
                   <option value="ppm">{tr("ppm")}</option><option value="%">%</option><option value="ppb">{tr("ppb")}</option>
                 </select>
+                {oxideOfHeader(e.header) && ( /* TASKS.csv #2627 — the basis this oxide column is stored in, as the drill import (#2487) */
+                  <select value={keepsOxide(e) ? "oxide" : "element"} onChange={(ev) => setKeepOxide(e.symbol, ev.target.value === "oxide")} aria-label={tr("Basis of {symbol}", { symbol: e.symbol })} style={{ ...sel, fontSize: "var(--font-size-xs)", padding: "1px 3px", flexShrink: 0 }}>
+                    <option value="oxide">{tr("as {v}", { v: oxideOfHeader(e.header).oxide })}</option><option value="element">{tr("as {v}", { v: e.symbol })}</option>
+                  </select>
+                )}
                 <X role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} onClick={() => removeEl(e.symbol)} title={tr("Remove this element mapping")} aria-label={tr("Remove the {symbol} mapping", { symbol: e.symbol })} />
               </div>
             ))}

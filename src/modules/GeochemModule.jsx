@@ -983,7 +983,8 @@ export default function GeochemModule() {
         if (c.value == null && r.zeroReported?.includes(e.header)) nd.push(e.symbol);
         if (c.kind === "neg_bdl") negBdl++; else if (c.kind === "neg_missing") negMissing++;
         const ox = oxideOfHeader(e.header); // TASKS.csv #403
-        let v = convertUnit(fromOxideHeader(c.value, e.header), ox ? oxideUnit(e.header) : e.unit, existingUnit[e.symbol] || (ox ? oxideUnit(e.header) : e.unit)); // oxideUnit: #2157
+        // TASKS.csv #2627 part 2 — an oxide column kept as the oxide ('% Li2O') or stored as the element, as chosen, the drill import's rule (#2487)
+        let v = convertUnit(c.value, ox ? oxideBasisUnit(oxideColumnUnit(e), ox.oxide) : e.unit, existingUnit[e.symbol] || importStoreUnit(e)); // oxideUnit: #2157
         const ol = e.overLimit && e.header === e.mainHeader ? e.overLimit : null;
         if (ol && parseAssayValue(r[e.header]) === ol.limit) {
           const og = parseAssayValue(r[ol.header]);
@@ -1038,7 +1039,7 @@ export default function GeochemModule() {
     // current samples (not inside the setter) so the notice can say how many were updated.
     const merged = mergeSurfaceSamples(surfaceSamples, rows);
     setSurfaceSamples(merged.samples);
-    setSurfaceElements((prev) => { const merged = new Map(prev.map((e) => [e.symbol, e])); orderElements(chosen, leadFor(rows, chosen)) /* #2032 — the lead first, not the file's column order */.forEach((e) => { if (!merged.has(e.symbol)) merged.set(e.symbol, oxideOfHeader(e.header) ? { ...e, unit: oxideUnit(e.header) } : e); }); return Array.from(merged.values()); }); // #403; oxideUnit: #2157
+    setSurfaceElements((prev) => { const merged = new Map(prev.map((e) => [e.symbol, e])); orderElements(chosen, leadFor(rows, chosen)) /* #2032 — the lead first, not the file's column order */.forEach((e) => { if (!merged.has(e.symbol)) merged.set(e.symbol, oxideOfHeader(e.header) ? { ...e, unit: importStoreUnit(e) } : e); }); return Array.from(merged.values()); }); // #403; oxideUnit: #2157; the chosen basis: #2627
     // TASKS.csv #2565 (review #2486) — the drillhole route says what it did to an oxide column (#2487); this one said nothing: Li2O 1.747 % was
     // stored as Li 0.81 and every '<0.005' soil as a number. Now the oxide conversions and the below-detection cells are named.
     const surfOx = chosen.map((e) => ({ e, ox: oxideOfHeader(e.header) })).filter((x) => x.ox).map(({ e, ox }) => `${e.header} → ${ox.symbol} (÷${ox.factor})`);
