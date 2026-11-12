@@ -1403,8 +1403,8 @@ export default function LayoutModule() {
                 {syncNotice && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-accent-dark)", margin: "4px 0 8px", lineHeight: 1.4 }}>{syncNotice}</div>}
                 {sel.items.map(([name, color, opt], i) => (
                   <div key={i} style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 5 }}>
-                    {opt?.heading || opt?.ramp || opt?.note /* TASKS.csv #725 — a group heading or a ramp has no single colour; #1633 a note */
-                      ? <span title={opt.ramp ? tr("Colour scale") : opt.note ? tr("Note") : tr("Group heading")} style={{ width: 24, height: 24, flexShrink: 0, borderRadius: 4, border: "1px solid var(--color-border)", background: opt.ramp ? `linear-gradient(to right, ${opt.ramp.colors.join(", ")})` : "transparent" }} />
+                    {opt?.heading || opt?.ramp || opt?.note || opt?.image /* TASKS.csv #725 — a group heading or a ramp has no single colour; #1633 a note; #2747 an image */
+                      ? <span title={opt.ramp || opt.image ? tr("Colour scale") : opt.note ? tr("Note") : tr("Group heading")} style={{ width: 24, height: 24, flexShrink: 0, borderRadius: 4, border: "1px solid var(--color-border)", background: opt.ramp ? `linear-gradient(to right, ${opt.ramp.colors.join(", ")})` : "transparent" }} />
                       : <input type="color" value={color} onChange={(e) => {
                         const items = sel.items.map((it, j) => j === i ? [it[0], e.target.value, ...it.slice(2)] : it);
                         updateSelected({ items });
@@ -2462,6 +2462,11 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
         <div key={i} style={{ fontSize: printPx(printPt.small), fontWeight: 700, color: INK, margin: i ? "6px 0 2px" : "0 0 2px", breakAfter: "avoid" /* #1480 — a heading never ends a column */ }}>{name}</div>
       ) : opt?.note ? ( /* TASKS.csv #1633 — what a capped group left out */
         <div key={i} style={{ fontSize: printPx(printPt.caption), fontStyle: "italic", color: "#55606e", margin: "0 0 3px 28px", maxWidth: 200 /* #2134 — a long note wraps, it does not widen the legend past the sheet */ }}>{name}</div>
+      ) : opt?.image ? ( /* TASKS.csv #2747 — a picture raster's own colour bar (its values are not known: the image says them) */
+        <div key={i} style={{ marginBottom: 4, breakInside: "avoid" }}>
+          <div style={{ fontSize: printPx(printPt.small), fontWeight: 700, color: INK, marginTop: i ? 6 : 0 }}>{name}</div>
+          <img src={opt.image} alt="" style={{ display: "block", maxWidth: 160, maxHeight: 120 }} draggable={false} />
+        </div>
       ) : opt?.ramp ? ( /* a block model's continuous scale */
         <div key={i} style={{ marginBottom: 4, breakInside: "avoid" }}>
           <div style={{ fontSize: printPx(printPt.small), fontWeight: 700, color: INK, marginTop: i ? 6 : 0 }}>{name}{opt.ramp.log ? tr(" · log scale") : ""}</div>

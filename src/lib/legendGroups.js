@@ -7,6 +7,7 @@ import { LAYER_META, CATEGORICAL_SAFE_COLORS, colorForMedium } from "./layers.js
 import { STRUCTURE_CLASS_COLORS, STRUCTURE_CLASS_LABELS } from "./mapLayers.js"; // TASKS.csv #1437
 import { legendScale } from "./legendScale.js";
 import { gradeUnitLabel } from "./geochem.js"; // TASKS.csv #2218
+import { rasterUnitOf } from "./rasterMethod.js"; // TASKS.csv #2747
 
 // the per-element identity hues of assay markers (moved from ViewerModule; TASKS.csv #306)
 export const ASSAY_ELEMENT_COLORS = [0, 1, 2, 3, 4, 5, 6, 7, 11, 14, 15, 8, 10, 13].map((i) => CATEGORICAL_SAFE_COLORS[i]);
@@ -88,9 +89,13 @@ export function rasterLegendGroups(rasters) {
   const groups = [];
   for (const r of rasters || []) {
     if (r.visible === false) continue;
-    if (r.colourStops?.length > 1 && r.colourRange) groups.push(scaleLegendGroup(`raster_${r.id}`, r.colourStyle?.stretch === "equalise" ? `${r.name} (equalized)` : r.name, { colorMode: "continuous", stops: r.colourStops }, r.colourRange[0], r.colourRange[1]));
+    // TASKS.csv #2747 (side session 6) — a value raster's ramp says what its values are (rasterUnitOf, #1858's 'Values are'): '… (nT)'
+    const u = rasterUnitOf(r), named = u && !String(r.name).includes(`(${u})`) ? `${r.name} (${u})` : r.name;
+    if (r.colourStops?.length > 1 && r.colourRange) groups.push(scaleLegendGroup(`raster_${r.id}`, r.colourStyle?.stretch === "equalise" ? `${named} (equalized)` : named, { colorMode: "continuous", stops: r.colourStops }, r.colourRange[0], r.colourRange[1]));
     // TASKS.csv #2011 — a Macrostrat geology drape: its map units as swatches, youngest first (as the legend under the layer lists them);
     // the age is added when the name does not already say it; a unit Macrostrat gives no colour is grey, as the tiles draw it
+    // #2747 — a picture raster (colours, no values) with the colour bar attached to it (RasterPictureLegend: legendImage) shows that bar
+    else if (r.legendImage?.dataUrl) groups.push({ key: `raster_${r.id}`, label: r.name, items: [], image: { src: r.legendImage.dataUrl } });
     else if (r.legend?.units?.length) {
       const o = { kind: "fill", ...(Number.isFinite(r.opacity) && r.opacity < 1 ? { opacity: r.opacity } : {}) };
       groups.push({ key: `raster_${r.id}`, label: r.name, items: r.legend.units.map((u) => [u.age && u.age !== "Age Unknown" && !u.name.toLowerCase().includes(u.age.toLowerCase()) ? `${u.name} (${u.age})` : u.name, u.color || "#777777", o]) });
@@ -191,6 +196,7 @@ export function legendGroupsToItems(groups) {
   const items = [];
   groups.forEach((g) => {
     if (g.ramp) { items.push([g.label, null, { ramp: { colors: g.ramp.colors, minLabel: g.ramp.minLabel, maxLabel: g.ramp.maxLabel, log: !!g.ramp.log } }]); return; }
+    if (g.image) { items.push([g.label, null, { image: g.image.src }]); return; } // #2747 — a picture raster's colour bar
     if (multi || g.alwaysHead) items.push([g.label, null, { heading: true }]); // TASKS.csv #843 — the anomaly map's rule is always printed
     g.items.forEach(([label, color, opt]) => items.push(opt ? [label, color, opt] : [label, color]));
   });
