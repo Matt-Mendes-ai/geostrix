@@ -10695,5 +10695,7 @@
   "Grade × thickness cut-off": "Corte de ley × espesor",
   "{n} of {m} panels reach it: {a} ha mineralized, {t} t at {g} {u} over a mean {h} m.": "{n} de {m} paneles lo alcanzan: {a} ha mineralizadas, {t} t a {g} {u} en un espesor medio de {h} m.",
   "None of the {m} panels reaches it.": "Ninguno de los {m} paneles lo alcanza.",
-  "From the block model only: the panels are squares on the model's plan, not a mine design, and the drillholes' own grade × thickness is not used.": "Solo del modelo de bloques: los paneles son cuadrados sobre la planta del modelo, no un diseño minero, y no se usa la ley × espesor de los propios sondajes."
+  "From the block model only: the panels are squares on the model's plan, not a mine design, and the drillholes' own grade × thickness is not used.": "Solo del modelo de bloques: los paneles son cuadrados sobre la planta del modelo, no un diseño minero, y no se usa la ley × espesor de los propios sondajes.",
+  "Survey date (for IGRF)": "Fecha del levantamiento (para el IGRF)",
+  "Fill from IGRF-14": "Completar con IGRF-14"
 }

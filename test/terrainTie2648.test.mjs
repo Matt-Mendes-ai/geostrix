@@ -76,7 +76,7 @@ test("#2648 the terrain, satellite and spectral flows go through the tie", () =>
   assert.match(r, /tieFetchedImage\(r, tie, opts\.targetEpsg/);
   assert.match(r, /targetEpsg: tie \? Number\(tie\.epsg\) : project\.epsg/);
   assert.match(r, /<SpectralIndexModal epsg=\{tieOf\(project\) \? null : project\?\.epsg\} tie=\{tieOf\(project\)/);
-  assert.equal((r.match(/project\?\.crsSet === false && !tieOf\(project\)/g) || []).length, 2);
+  assert.equal((r.match(/project\?\.crsSet === false && !tieOf\(project\)/g) || []).length, 3); // Satellite, Spectral; the RTP IGRF fill since #2561
   const s = read("components/SpectralIndexModal.jsx");
   assert.match(s, /targetEpsg: tie \? Number\(tie\.epsg\) : epsg/);
   assert.match(s, /epsg, tie, defaultElevation/);

@@ -10695,5 +10695,7 @@
   "Grade × thickness cut-off": "Coupure teneur × épaisseur",
   "{n} of {m} panels reach it: {a} ha mineralized, {t} t at {g} {u} over a mean {h} m.": "{n} panneaux sur {m} l'atteignent : {a} ha minéralisés, {t} t à {g} {u} sur une épaisseur moyenne de {h} m.",
   "None of the {m} panels reaches it.": "Aucun des {m} panneaux ne l'atteint.",
-  "From the block model only: the panels are squares on the model's plan, not a mine design, and the drillholes' own grade × thickness is not used.": "Du modèle de blocs seulement : les panneaux sont des carrés sur le plan du modèle, pas une conception minière, et la teneur × épaisseur des sondages eux-mêmes n'est pas utilisée."
+  "From the block model only: the panels are squares on the model's plan, not a mine design, and the drillholes' own grade × thickness is not used.": "Du modèle de blocs seulement : les panneaux sont des carrés sur le plan du modèle, pas une conception minière, et la teneur × épaisseur des sondages eux-mêmes n'est pas utilisée.",
+  "Survey date (for IGRF)": "Date du levé (pour l'IGRF)",
+  "Fill from IGRF-14": "Remplir avec l'IGRF-14"
 }

@@ -10695,5 +10695,7 @@
   "Grade × thickness cut-off": "حد قطع المحتوى × السماكة",
   "{n} of {m} panels reach it: {a} ha mineralized, {t} t at {g} {u} over a mean {h} m.": "{n} من {m} لوحًا تبلغه: {a} هكتار متمعدن، {t} طن بمحتوى {g} {u} على سماكة متوسطة {h} م.",
   "None of the {m} panels reaches it.": "لا يبلغه أي من الألواح الـ {m}.",
-  "From the block model only: the panels are squares on the model's plan, not a mine design, and the drillholes' own grade × thickness is not used.": "من نموذج الكتل فقط: الألواح مربعات على مسقط النموذج، وليست تصميمًا منجميًا، ولا يُستخدم المحتوى × السماكة للثقوب نفسها."
+  "From the block model only: the panels are squares on the model's plan, not a mine design, and the drillholes' own grade × thickness is not used.": "من نموذج الكتل فقط: الألواح مربعات على مسقط النموذج، وليست تصميمًا منجميًا، ولا يُستخدم المحتوى × السماكة للثقوب نفسها.",
+  "Survey date (for IGRF)": "تاريخ المسح (لـ IGRF)",
+  "Fill from IGRF-14": "التعبئة من IGRF-14"
 }
