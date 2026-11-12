@@ -13,14 +13,16 @@ export function syncHoleLabels(group, anchors, mode, makeSprite) {
   if (!group) return 0;
   while (group.children.length) { const c = group.children.pop(); c.material?.map?.dispose?.(); c.material?.dispose?.(); c.geometry?.dispose?.(); } idle.delete(group); // #2364 — new sprites: the declutter runs again, not only after a camera move
   if (mode === "none") return 0;
-  for (const g of groupSharedCollars(anchors || [])) {
-    const a = g[0];
-    // TASKS.csv #2208 — a fan of holes from one collar (an underground cuddy) gets ONE label, 'WB0817D +6', its ids in the tip
-    const sprite = makeSprite(g.length > 1 ? `${holeLabelText(a, mode)} +${g.length - 1}` : holeLabelText(a, mode));
+  const fans = groupSharedCollars(anchors || []);
+  // TASKS.csv #2208 — a fan of holes from one collar (an underground cuddy) gets ONE label, 'WB0817D +6', its ids in the tip
+  const texts = fans.map((g) => (g.length > 1 ? `${holeLabelText(g[0], mode)} +${g.length - 1}` : holeLabelText(g[0], mode)));
+  const sprites = makeSprite.many ? makeSprite.many(texts) : texts.map((t) => makeSprite(t)); // #2795 — one atlas, not a canvas per label
+  fans.forEach((g, i) => {
+    const a = g[0], sprite = sprites[i];
     sprite.position.set(a.x, a.y + 6, a.z); // above the collar marker, as before
     sprite.userData = { tip: g.length > 1 ? g.map((x) => x.id).join("\n") : `${a.id}\nLabel` };
     group.add(sprite);
-  }
+  });
   return group.children.length;
 }
 // TASKS.csv #2208 (review #2174, WA underground fans) — collars within `tol` scene units (metres) of one another, in anchor order: fans
@@ -104,13 +106,15 @@ export function declutterHoleLabels(group, camera, width, height, labelPx = 16, 
 export function syncTextLabels(group, items, makeSprite, lift = 6) {
   if (!group) return 0;
   while (group.children.length) { const c = group.children.pop(); c.material?.map?.dispose?.(); c.material?.dispose?.(); c.geometry?.dispose?.(); } idle.delete(group); // #2364 — new sprites: the declutter runs again, not only after a camera move
-  for (const it of items || []) {
-    if (it.text == null || it.text === "") continue;
-    const sprite = makeSprite(String(it.text));
+  const shown = (items || []).filter((it) => it.text != null && it.text !== "");
+  const texts = shown.map((it) => String(it.text));
+  const sprites = makeSprite.many ? makeSprite.many(texts) : texts.map((t) => makeSprite(t)); // #2795
+  shown.forEach((it, i) => {
+    const sprite = sprites[i];
     sprite.position.set(it.x, it.y + lift, it.z);
     sprite.userData = { tip: it.tip || String(it.text) };
     group.add(sprite);
-  }
+  });
   return group.children.length;
 }
 const shortNum = (v) => (Math.abs(v) >= 100 ? String(Math.round(v)) : Math.abs(v) >= 10 ? v.toFixed(1) : Math.abs(v) >= 1 ? v.toFixed(2) : String(+v.toPrecision(2)));
