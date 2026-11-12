@@ -10611,5 +10611,7 @@
   "The project's terrain (\"{name}\") is kept for everything else.": "El terreno del proyecto («{name}») se conserva para todo lo demás.",
   "This inversion uses a ground from {n} station elevations: {w} × {h} nodes at {cell} m, blanked beyond {blank} m of a station ({zmin} to {zmax} m). It is the survey's own GPS heights, not a DEM.": "Esta inversión usa un terreno de {n} elevaciones de estaciones: {w} × {h} nodos a {cell} m, en blanco más allá de {blank} m de una estación ({zmin} a {zmax} m). Son las alturas GPS del propio levantamiento, no un MDE.",
   "Use the project's terrain instead": "Usar en su lugar el terreno del proyecto",
-  "Zoom the plan to \"{name}\"": "Acercar el plano a «{name}»"
+  "Zoom the plan to \"{name}\"": "Acercar el plano a «{name}»",
+  "No map tiles are loaded until you ask: draw the area over the project's collars and layer outlines, or choose it from the list.": "No se cargan teselas de mapa hasta que lo pida: dibuje el área sobre los collares y los contornos de las capas del proyecto, o elíjala de la lista.",
+  "Show the online map": "Mostrar el mapa en línea"
 }

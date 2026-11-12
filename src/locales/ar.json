@@ -10611,5 +10611,7 @@
   "The project's terrain (\"{name}\") is kept for everything else.": "تُحفظ تضاريس المشروع (\"{name}\") لكل ما عدا ذلك.",
   "This inversion uses a ground from {n} station elevations: {w} × {h} nodes at {cell} m, blanked beyond {blank} m of a station ({zmin} to {zmax} m). It is the survey's own GPS heights, not a DEM.": "يستخدم هذا الانعكاس سطحًا من {n} ارتفاع محطة: {w} × {h} عقدة بتباعد {cell} م، فارغ أبعد من {blank} م من أي محطة (من {zmin} إلى {zmax} م). إنها ارتفاعات GPS الخاصة بالمسح، لا نموذج ارتفاع رقمي.",
   "Use the project's terrain instead": "استخدام تضاريس المشروع بدلًا من ذلك",
-  "Zoom the plan to \"{name}\"": "تكبير المسقط إلى \"{name}\""
+  "Zoom the plan to \"{name}\"": "تكبير المسقط إلى \"{name}\"",
+  "No map tiles are loaded until you ask: draw the area over the project's collars and layer outlines, or choose it from the list.": "لا تُحمَّل أي بلاطات للخريطة حتى تطلب ذلك: ارسم المنطقة فوق فوهات المشروع وحدود طبقاته، أو اخترها من القائمة.",
+  "Show the online map": "عرض الخريطة عبر الإنترنت"
 }
