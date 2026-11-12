@@ -84,6 +84,15 @@ export function planGroups(prev, sigs, changedHoles, full) {
   return out;
 }
 
+// TASKS.csv #2797 — the last build's origin when the collars' new mean is within `tol` metres of it (and both are finite), else the mean
+// 50 m, not 1 m: five collars added near the middle of the WA lithium project (2,248 holes) moved the mean 1.3 m. The origin only has to
+// stay near the data: float32 vertices 50 m off-centre lose nothing visible (about 4 micrometres at 50 m).
+export const ORIGIN_KEEP_M = 50;
+export function keptOrigin(prev, mean, tol = ORIGIN_KEEP_M) {
+  if (prev && [prev.ox, prev.oy, prev.oz, mean.ox, mean.oy, mean.oz].every(Number.isFinite) && Math.hypot(mean.ox - prev.ox, mean.oy - prev.oy, mean.oz - prev.oz) < tol) return { ox: prev.ox, oy: prev.oy, oz: prev.oz };
+  return mean;
+}
+
 export function buildDrillholeScene(ctx) {
   const { applyCategoryVisibility, applyLegendOverrideColors, autoFitInitial, baseColorForBuild, bgColorRef, boundaries, buildAssaySpheresRef, buildDefer, buildGeophysPtsRef, buildSurfaceSamplesRef, collarMaterialRef, collars, customLayers, desurveyMethod, effectiveLabel, fitBox, hasAutoFitRef, holeLabelAnchorsRef, holeLabelModeRef, isRowVisibleForBuild, lastHoleTraceCountRef, lastTracesRef, layerGroupsRef, layers, layerStyles, mapLayers, numericLayerColor, numericRange, numericSymbology, omfObjects, originRef, placedSurfaceSamples, pointBuildersStale, rasters, rebuildSeq, setDataLoaded, setNotices, setTracesSeq, surfaceStructures, survey, syncImplicitOrigin, terrain, tracesRef, voxelModels } = ctx;
   const groups = layerGroupsRef.current;
@@ -228,9 +237,14 @@ export function buildDrillholeScene(ctx) {
     return;
   }
 
-  const ox = collars.reduce((s, c) => s + c.x, 0) / collars.length;
-  const oy = collars.reduce((s, c) => s + c.y, 0) / collars.length;
-  const oz = collars.reduce((s, c) => s + c.z, 0) / collars.length;
+  // TASKS.csv #2797 — the origin is the collars' mean, kept from the last build while the mean stays within ORIGIN_KEEP_M (50 m) of it:
+  // a new origin moves every object, so any collar commit was a full rebuild (a few added or corrected collars move the mean by
+  // a metre or so). Measured from the kept origin, so the drift never adds up past it; a full build re-centres.
+  const { ox, oy, oz } = keptOrigin(sceneCaches.get(groups), {
+    ox: collars.reduce((s, c) => s + c.x, 0) / collars.length,
+    oy: collars.reduce((s, c) => s + c.y, 0) / collars.length,
+    oz: collars.reduce((s, c) => s + c.z, 0) / collars.length,
+  });
   originRef.current = { x: ox, y: oy, z: oz };
   syncImplicitOrigin(); // #407 — re-base surfaces/solids built against an earlier origin
 
