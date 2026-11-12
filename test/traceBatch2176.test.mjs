@@ -75,7 +75,7 @@ test("a pick on a chunk names the hole hit, and a hidden hole's hit is not visib
   const hits = rc.intersectObject(ch, false);
   assert.ok(hits.length >= 1);
   assert.equal(hits[0].object.userData.holeId, "B");
-  assert.ok(hits[0].object.isLine && hits[0].object.parent === ch && hits[0].object.visible);
+  assert.ok(hits[0].object.isLine && hits[0].object.parent === g && hits[0].object.visible);
   setTraceHoleHidden(ch, "B", true);
   ch.geometry.boundingSphere = null;
   const again = rc.intersectObject(ch, false);
@@ -101,4 +101,20 @@ test("the build adds the chunks and the Holes-list pass hides holes in them", ()
   assert.ok(v.includes("if (rebuildHoles) addTraceChunks(groups.holes, traceHoles);"));
   assert.ok(!v.includes("new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts.map("), "no Line per hole");
   assert.ok(v.includes("if (child.userData?.traceChunk) { hideTraceHoles(child, visibleHoles); return; }"));
+});
+
+test("Identify on a merged trace: the holes layer, the hole hit, and the depth at the click", async () => {
+  const { describeHits } = await import("../src/lib/viewer/identify.js");
+  const g = new THREE.Group();
+  const [ch] = addTraceChunks(g, [hole("A", 0, 0), hole("B", 100, 0)]);
+  g.updateMatrixWorld(true);
+  const hits = new THREE.Raycaster(new THREE.Vector3(100, -15, 50), new THREE.Vector3(0, 0, -1)).intersectObject(ch, false);
+  const traceB = [{ md: 0, x: 100, y: 0, z: 0 }, { md: 30, x: 100, y: -30, z: 0 }];
+  const ctx = { origin: { x: 0, y: 0, z: 0 }, rayDirection: new THREE.Vector3(0, 0, -1), isHole: (id) => id === "A" || id === "B", traceOf: (id) => (id === "B" ? traceB : null),
+    layerOf: (o) => (o.parent === g ? "Holes" : null), rasterOf: () => null, mapLayerOf: () => null, structureSetOf: () => null, terrainMesh: null, kindOf: () => null, tolerance: () => 5 };
+  const [it] = describeHits(hits, ctx);
+  assert.equal(it.layer, "Holes");
+  assert.equal(it.hole, "B");
+  assert.equal(it.title, "B");
+  assert.ok(it.fields.some(([k]) => /Depth at this point/.test(k)), JSON.stringify(it.fields));
 });
