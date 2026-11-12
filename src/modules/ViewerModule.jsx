@@ -5313,6 +5313,11 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       } catch (e) { setNotices((p) => [...p, errorNotice(tr("Couldn't load the sample project: {message}", { message: e.message }))]); }
       return;
     }
+    if (which === "blake") { // TASKS.csv #2829 — gravity grid + stations, no drillhole tables: lib/sampleBlakeRiver.js
+      try { const { loadBlakeRiver } = await import("../lib/sampleBlakeRiver.js"); const notes = await loadBlakeRiver(async (rel) => (await loadSampleFiles("blake_river", [rel]))[0], store, store.project); setNotices((p) => [...p, ...notes]); }
+      catch (e) { setNotices((p) => [...p, errorNotice(tr("Couldn't load the sample project: {message}", { message: e.message }))]); }
+      return;
+    }
     const ok = await loadSampleProject(which);
     if (ok && which === "silvertip") { // TASKS.csv #1346 — assays and surface samples
       try {

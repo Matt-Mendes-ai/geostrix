@@ -152,6 +152,14 @@ branch fixes were each checked on the real files, in Node and live on the branch
 
 ## 5. Bundling proposal (nothing is bundled; for Matt to approve)
 
+> **Update, 2026-11-12.** Matt: "approved, bundle the Blake River sample". Built as `sample_data/blake_river/` (the grid as
+> delivered, 0.87 MB, and `stations.csv`, 0.49 MB) by `scripts/samples/build-blake-river.mjs`, loaded by
+> `src/lib/sampleBlakeRiver.js`. **Licence confirmed:** the Open Government Portal record "CAGDB - Compilation - Blake River, QC --
+> 100 m" (558187bf-e32e-5be3-9447-112e9598abd6, publisher Natural Resources Canada, the same acquisition dates as these files)
+> is under the Open Government Licence - Canada; the sample's README carries the attribution. The stations load as a gravity
+> survey and the grid as a raster that knows it is gravity in mGal, so reduction to the pole is refused on it. Still true: the
+> grid is over the 512-node limit, so the values the app keeps are 2 × 2 averages until that row is fixed.
+
 **Proposed: Blake River gravity**, as a sample with no drillholes: the published Bouguer grid and the 7,810 stations behind it.
 
 - **Why this one.** It is the only area where the survey's own points and the grid made from them are both in the set, so it shows
