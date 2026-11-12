@@ -37,9 +37,30 @@ export function sampledShare(assays, collars, symbol, unit, elementUnits) {
   return { holes: holes.length, drilledM, sampledM, share: drilledM > 0 ? sampledM / drilledM : 1, holesNoLength };
 }
 
+// TASKS.csv #2736 (split from #2596) — holes drilled but never assayed for the element: [{ hole_id, end, endFrom }]. A hole's length is the
+// collar's max_depth, else the deepest logged interval in any layer (loggedEnds: Map hole -> metres; WA exports carry no max_depth)
+export function unassayedHoles(assays, collars, symbol, unit, elementUnits, { loggedEnds = null } = {}) {
+  const carrying = new Set(coverage(assays, collars, symbol, unit, elementUnits).map((h) => h.hole_id));
+  const out = [];
+  for (const c of collars || []) {
+    if (!c || c.hole_id == null || carrying.has(c.hole_id)) continue;
+    const md = Number(c.max_depth), lg = loggedEnds?.get(c.hole_id);
+    if (md > 0) out.push({ hole_id: c.hole_id, end: md, endFrom: "collar" });
+    else if (lg > 0) out.push({ hole_id: c.hole_id, end: lg, endFrom: "logs" });
+  }
+  return out;
+}
+// the deepest logged interval of each hole over interval layers ({ litho: [...], alt: [...] ... }) -> Map
+export function loggedEndsOf(layers) {
+  const m = new Map();
+  for (const rows of Object.values(layers || {})) if (Array.isArray(rows)) for (const r of rows) { const t = Number(r?.to); if (r?.hole_id != null && t > 0 && !(t <= (m.get(r.hole_id) || 0))) m.set(r.hole_id, t); }
+  return m;
+}
+
 // the gaps (0 .. hole end) of every hole carrying the element, as assay rows holding `value` (in `unit`) for that element only.
-// -> { assays: the rows plus the fills, filledM, holesFilled, fills }
-export function fillUnsampled(assays, collars, symbol, unit, elementUnits, value) {
+// alsoUnassayed (#2736, the user's choice): the holes never assayed for it too, over their whole length.
+// -> { assays: the rows plus the fills, filledM, holesFilled, fills, unassayedHoles, unassayedM }
+export function fillUnsampled(assays, collars, symbol, unit, elementUnits, value, { alsoUnassayed = false, loggedEnds = null } = {}) {
   const v = Number(value);
   if (!Number.isFinite(v) || v < 0) return { assays, filledM: 0, holesFilled: 0, fills: [] };
   const native = toNative(v, unit, (elementUnits || {})[symbol] || "ppm");
@@ -56,7 +77,12 @@ export function fillUnsampled(assays, collars, symbol, unit, elementUnits, value
     for (const iv of h.ivs) { gap(at, iv.from); at = Math.max(at, iv.to); }
     gap(at, h.end);
   }
-  return { assays: fills.length ? [...(assays || []), ...fills] : assays, filledM, holesFilled: holesFilled.size, fills };
+  let unassayedM = 0, nUnassayed = 0;
+  if (alsoUnassayed) for (const h of unassayedHoles(assays, collars, symbol, unit, elementUnits, { loggedEnds })) {
+    fills.push({ hole_id: h.hole_id, from: 0, to: h.end, values: { [symbol]: native }, unsampledFill: true, unassayedHole: true });
+    unassayedM += h.end; nUnassayed++;
+  }
+  return { assays: fills.length ? [...(assays || []), ...fills] : assays, filledM, holesFilled: holesFilled.size, fills, ...(alsoUnassayed ? { unassayedHoles: nUnassayed, unassayedM } : {}) };
 }
 
 // TASKS.csv #2721 (Matt's decision 2026-11-11) — the gaps of every hole carrying the element filled from a downhole log the user PICKED (never

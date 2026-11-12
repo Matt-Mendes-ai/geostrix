@@ -2,7 +2,9 @@ import React, { useMemo, useState } from "react";
 import { X, Download } from "./icons.js";
 import { findOriQualityLayer, oriQualityIndex, filterByQuality, qualityLevels, qualityNote } from "../lib/oriQuality.js"; // TASKS.csv #1545
 import { alphaAngle } from "../lib/stereonet.js";
-import { colorForStructure, colorForLithology } from "../lib/layers.js";
+import { colorForStructure, colorForLithology, LAYER_META } from "../lib/layers.js";
+import { useStore } from "../lib/store.jsx"; // TASKS.csv #2236 — the numeric logs
+import { isNumericLayer } from "../lib/domainLayers.js"; // #2236
 import { saveFile } from "../lib/desktop.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
@@ -76,6 +78,15 @@ export default function DownholeStructurePlot({ picks, holes, litho = [], onClos
   const oriLayer = useMemo(() => findOriQualityLayer(customLayers), [customLayers]);
   const qIndex = useMemo(() => (oriLayer ? oriQualityIndex(oriLayer) : null), [oriLayer]);
   const [showFreq, setShowFreq] = useState(true);
+  // TASKS.csv #2236 (review #2174, WA gold) — a numeric track beside the tadpoles (RQD %, recovery, any numeric custom layer): structure
+  // density read against RQD is this plot's usual use, and only a Litho ribbon was offered
+  const { layers: storeLayers = {} } = useStore() || {};
+  const numSources = useMemo(() => [
+    ...Object.entries(LAYER_META).filter(([k, m]) => m.numeric && (m.kind === "interval" || m.kind === "point") && (storeLayers[k] || []).length).map(([k, m]) => ({ key: k, label: tr(m.label), rows: storeLayers[k] })),
+    ...(customLayers || []).filter((c) => (c.rows || []).length && isNumericLayer(c.rows)).map((c) => ({ key: `custom:${c.id}`, label: c.name, rows: c.rows })),
+  ], [storeLayers, customLayers]);
+  const [numKey, setNumKey] = useState("");
+  const numSrc = numSources.find((x) => x.key === numKey) || null;
   const [binSize, setBinSize] = useState(10); // metres, for the frequency histogram
 
   const activeHole = holeId || holeIds[0] || "";
@@ -150,10 +161,22 @@ export default function DownholeStructurePlot({ picks, holes, litho = [], onClos
     return { counts, nBins, max: counts.reduce((m, c) => Math.max(m, c), 0) };
   }, [holePicks, maxDepth, binSize, showFreq]);
 
-  // Layout. One tall column: lithology track | tadpole panel | frequency track.
+  // #2236 — the chosen numeric log's rows in this hole: intervals (from / to) or points (depth)
+  const numRows = useMemo(() => {
+    if (!numSrc) return null;
+    const rows = numSrc.rows.filter((r) => r.hole_id === activeHole && Number.isFinite(Number(r.value)) && r.value !== "" && r.value !== null)
+      .map((r) => (r.from != null && r.to != null ? { from: Number(r.from), to: Number(r.to), v: Number(r.value) } : { at: Number(r.depth), v: Number(r.value) }))
+      .filter((r) => (r.at != null ? Number.isFinite(r.at) : Number.isFinite(r.from) && r.to > r.from));
+    let lo = Infinity, hi = -Infinity;
+    for (const r of rows) { if (r.v < lo) lo = r.v; if (r.v > hi) hi = r.v; }
+    return { rows: rows.sort((a, b) => (a.at ?? a.from) - (b.at ?? b.from)), lo: Math.min(0, lo), hi: hi > Math.min(0, lo) ? hi : Math.min(0, lo) + 1, points: rows.some((r) => r.at != null) };
+  }, [numSrc, activeHole]);
+
+  // Layout. One tall column: lithology track | tadpole panel | frequency track | numeric track (#2236).
   const H = 520, PLOT_H = H - 54;
-  const LITHO_W = 22, GAP = 8, PLOT_W = 300, FREQ_W = showFreq ? 62 : 0;
-  const W = 44 + LITHO_W + GAP + PLOT_W + (showFreq ? GAP + FREQ_W : 0) + 14;
+  const LITHO_W = 22, GAP = 8, PLOT_W = 300, FREQ_W = showFreq ? 62 : 0, NUM_W = numSrc ? 76 : 0;
+  const W = 44 + LITHO_W + GAP + PLOT_W + (showFreq ? GAP + FREQ_W : 0) + (numSrc ? GAP + NUM_W : 0) + 14;
+  const NX0 = 44 + LITHO_W + GAP + PLOT_W + (showFreq ? GAP + FREQ_W : 0) + GAP; // the numeric track's left edge
   const X0 = 44 + LITHO_W + GAP;         // left edge of the tadpole panel
   const Y0 = 34;                          // top edge of every track
   const yFor = (d) => Y0 + (Math.min(maxDepth, Math.max(0, d)) / maxDepth) * PLOT_H;
@@ -281,6 +304,20 @@ export default function DownholeStructurePlot({ picks, holes, litho = [], onClos
                   <text x={X0 + PLOT_W + GAP + FREQ_W - 2} y={H - 8} textAnchor="end" fontSize={9} fill="#65717e">{tr("max {v}", { v: freq.max })}</text>
                 </>
               )}
+              {/* TASKS.csv #2236 — the numeric track: bars for intervals, a line for points, from the track's lowest value (0 or below) to its highest */}
+              {numSrc && numRows && (() => {
+                const xv = (v) => NX0 + 1 + ((v - numRows.lo) / (numRows.hi - numRows.lo)) * (NUM_W - 2);
+                return <g>
+                  <rect x={NX0} y={Y0} width={NUM_W} height={PLOT_H} fill="#ffffff" stroke="#d9dce1" strokeWidth={1} />
+                  <text x={NX0 + NUM_W / 2} y={Y0 - 6} textAnchor="middle" fontSize={9} fill="#55606e">{numSrc.label.length > 14 ? numSrc.label.slice(0, 13) + "…" : numSrc.label}<title>{numSrc.label}</title></text>
+                  {numRows.points
+                    ? <polyline fill="none" stroke="#7d3c98" strokeWidth={1} points={numRows.rows.filter((r) => r.at != null && r.at <= maxDepth).map((r) => `${xv(r.v).toFixed(1)},${yFor(r.at).toFixed(1)}`).join(" ")} />
+                    : numRows.rows.map((r, i) => { const y1 = yFor(r.from), y2 = yFor(r.to); return y2 > y1 ? <rect key={`nm_${i}`} x={NX0 + 1} y={y1} width={Math.max(0, xv(r.v) - NX0 - 1)} height={Math.max(0.6, y2 - y1 - 0.3)} fill="#7d3c98" opacity={0.55}><title>{`${numSrc.label}: ${r.v} — ${r.from}–${r.to} m`}</title></rect> : null; })}
+                  <text x={NX0 + 2} y={H - 8} fontSize={9} fill="#65717e">{+numRows.lo.toPrecision(3)}</text>
+                  <text x={NX0 + NUM_W - 2} y={H - 8} textAnchor="end" fontSize={9} fill="#65717e">{+numRows.hi.toPrecision(3)}</text>
+                  {!numRows.rows.length && <text x={NX0 + NUM_W / 2} y={Y0 + 20} textAnchor="middle" fontSize={9} fill="#65717e">{tr("none in this hole")}</text>}
+                </g>;
+              })()}
             </svg>
           </div>
 
@@ -309,6 +346,11 @@ export default function DownholeStructurePlot({ picks, holes, litho = [], onClos
             </label>
             <label style={{ ...rowLabel, flexDirection: "row", alignItems: "center", gap: 6 }} title={tr("Structure picks per depth bin — a spike is a fracture/fault zone.")}>
               <input type="checkbox" checked={showFreq} onChange={(e) => setShowFreq(e.target.checked)} />{" "}{tr("Frequency track")}</label>
+            {numSources.length > 0 && <label style={rowLabel} title={tr("A numeric log of this hole beside the tadpoles (RQD %, recovery, a custom layer): structure density read against it.")}>{tr("Numeric track")}<select value={numKey} onChange={(e) => setNumKey(e.target.value)} style={sel} aria-label={tr("Numeric track")}>
+                <option value="">{tr("— none —")}</option>
+                {numSources.map((x) => <option key={x.key} value={x.key}>{x.label}</option>)}
+              </select>
+            </label>}{/* #2236 */}
             {showFreq && (
               <label style={rowLabel}>{tr("Frequency bin")}<select value={binSize} onChange={(e) => setBinSize(Number(e.target.value))} style={sel}>
                   {[1, 2, 5, 10, 20, 25].map((b) => <option key={b} value={b}>{b} m</option>)}
