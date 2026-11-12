@@ -46,12 +46,15 @@ export function computeMeshVolume(geometry) {
     edgeCounts.set(e2, (edgeCounts.get(e2) || 0) + 1);
   }
 
-  let openEdgeCount = 0;
-  edgeCounts.forEach((c) => { if (c !== 2) openEdgeCount++; });
+  // TASKS.csv #2907 — an edge used an even number of times (4: two closed blocks touching along it) is closed; only an odd use is open.
+  // The signed-volume sum is right for such a union of closed shells (each shell's faces cancel in pairs).
+  let openEdgeCount = 0, nonManifoldEdgeCount = 0;
+  edgeCounts.forEach((c) => { if (c % 2) openEdgeCount++; else if (c > 2) nonManifoldEdgeCount++; });
 
   return {
     volumeM3: Math.abs(vol6) / 6,
     openEdgeCount,
+    nonManifoldEdgeCount, // #2907
     watertight: openEdgeCount === 0 && triCount > 0,
     triangleCount: triCount,
     // TASKS.csv #263 — manifold-ness (every edge shared by exactly two triangles) is NOT connectivity:
