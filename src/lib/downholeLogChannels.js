@@ -5,7 +5,7 @@
 
 // a column that names a log channel; and one that is an id / depth / coordinate column (never a channel)
 const CHANNEL = /gamma|\bgrs?\b|\bngam|\bcps\b|\bapi\b|densit|\bdens\b|\bsg\b|suscep|\bmsus|\bmag[\s_-]*sus|calip|\bcal\b|conduct|resist|\bres\b|ohm|eu3o8|\beu\b|\bek\b|\bth\b.*ppm|neutron|sonic|velocity|temperat|\bk[\s_-]*%|\bu[\s_-]*ppm/i;
-const NOT_CHANNEL = /^(hole|holeid|hole_id|bhid|dhid|site|depth|md|dept|from|to|mfrom|mto|m_from|m_to|depth_from|depth_to|x|y|z|east|north|rl|elev|date|time|comment|remark|tool|run|probe|operator|company|project|priority)$/i;
+const NOT_CHANNEL = /^(hole|holeid|hole_id|bhid|dhid|site|depth|md|dept|from|to|mfrom|mto|m_from|m_to|depth_from|depth_to|depthstep|depth_step|step|x|y|z|east|north|rl|elev|date|time|comment|remark|tool|run|probe|operator|company|project|priority)$/i; // depthstep: #2884
 // TASKS.csv #2329 (review #2325, WA uranium) — "Raw_cps" failed \bcps\b: "_" is a word character. Headers are tested with _ and . as spaces.
 const spaced = (h) => String(h ?? "").replace(/[_.]+/g, " ");
 const isChannel = (h) => CHANNEL.test(spaced(h));
@@ -13,6 +13,26 @@ const isChannel = (h) => CHANNEL.test(spaced(h));
 const LOG_ONLY = /gamma|\bgrs?\b|\bngam|\bcps\b|\bapi\b|eu3o8|neutron|calip|conduct|resist|ohm/i;
 const isLogOnly = (h) => LOG_ONLY.test(spaced(h));
 const FROM_TO = /^(from|to|depth_?from|depth_?to|geolfrom|geolto|sampfrom|sampto|m_?from|m_?to)$/i;
+// TASKS.csv #2884 (review #2876, WA iron) — headers are tested with spaces as "_": "Depth From" / "Depth To" (every WAMEX export) matched
+// nothing, so the 121 MB density / gamma / susceptibility log was guessed as a Specific gravity interval layer of 2.48 M zero-length rows.
+const under = (h) => String(h ?? "").trim().replace(/\s+/g, "_");
+const isFromTo = (h) => FROM_TO.test(under(h));
+// #2884 — the From and To columns of the headers, and whether From equals To on (nearly) every sampled row: point readings, whatever the
+// headers say. At most 500 rows, spread through the table; null when fewer than 10 rows have both numbers.
+export function zeroLengthRows(headers, rows, sample = 500) {
+  const hs = (headers || []).map((h) => String(h));
+  const f = hs.find((h) => isFromTo(h) && /from$/i.test(under(h))), t = hs.find((h) => isFromTo(h) && /to$/i.test(under(h)));
+  if (!f || !t || !rows?.length) return null;
+  const num = (v) => (typeof v === "number" ? v : Number(String(v ?? "").replace(",", ".")));
+  const step = Math.max(1, Math.floor(rows.length / sample));
+  let n = 0, same = 0;
+  for (let i = 0; i < rows.length && n < sample; i += step) {
+    const a = num(rows[i]?.[f]), b = num(rows[i]?.[t]);
+    if (rows[i]?.[f] === "" || rows[i]?.[t] === "" || !Number.isFinite(a) || !Number.isFinite(b)) continue;
+    n++; if (Math.abs(a - b) < 1e-9) same++;
+  }
+  return n >= 10 ? same / n >= 0.95 : null;
+}
 // the unit a header names: "Density_Best (g/cc)", "Gamma_cps", "Suscep_SI", "eU3O8_cased_ppm", "RES_ohmm"
 const UNITS = [
   [/\bcps\b|_cps\b|counts?[\s_]*per[\s_]*sec/i, "cps"], [/\bapi\b|_api\b/i, "API"], [/g\s*\/\s*cc|g\/cm3|g\s*cm-?3|\bgcc\b|_gcc\b/i, "g/cc"],
@@ -44,12 +64,13 @@ export function logChannelColumns(headers, rows, mapping = {}, sample = 200) {
 // a table that is a downhole log rather than an SG / lithology / mag-susc layer: point depths, and two or more channel columns, or one that
 // only a log has (gamma, cps, API, eU3O8, caliper, conductivity / resistivity). #2329 — also a From / To table at short steps (the WA
 // 5 cm gamma log: Hole_ID, mFrom, mTo, Raw_cps, eU3O8_cased_ppm) when a column only a log has is present: read at each interval's middle.
-export function looksLikeLogTable(headers) {
+// rows (optional, #2884): an interval table whose From equals To on every sampled row is a log with any named channel (density alone too)
+export function looksLikeLogTable(headers, rows = null) {
   const hs = (headers || []).map((h) => String(h));
-  const named = hs.filter((h) => isChannel(h) && !NOT_CHANNEL.test(h.trim()));
+  const named = hs.filter((h) => isChannel(h) && !NOT_CHANNEL.test(under(h)));
   if (!named.length) return false;
   if (hs.some((h) => /^alpha/i.test(h.trim())) && hs.some((h) => /^beta/i.test(h.trim()))) return false; // oriented core: its 'Gamma' is an angle (#604's Woodjam event log)
-  if (hs.some((h) => FROM_TO.test(h.trim()))) return named.some(isLogOnly); // #2329 — an interval table is a log only with a log-only channel
+  if (hs.some(isFromTo)) return named.some(isLogOnly) || zeroLengthRows(hs, rows) === true; // #2329 — an interval table is a log only with a log-only channel; #2884 — or point readings
   if (!hs.some((h) => /^(depth|md|dept|depth_?m|depth_?\(m\)|depth_?metres?|sampdepth)$/i.test(h.trim().replace(/\s+/g, "_")))) return false;
   return named.length >= 2 || named.some(isLogOnly);
 }
@@ -140,7 +161,7 @@ export const logBoxPatch = (modal, ticked, patch) => ({ ...modal, logChannels: t
 export function logChannelsFor(target, headers, rows, mapping, chosen) {
   if (target !== "custom") return null;
   const point = mapping?.depth && !mapping?.from, interval = !mapping?.depth && mapping?.from && mapping?.to; // interval: #2329 — read at the middles
-  if (!point && !(interval && looksLikeLogTable(headers))) return null;
+  if (!point && !(interval && looksLikeLogTable(headers, rows))) return null; // rows: #2884
   const list = chosen ?? defaultLogChannels(logChannelColumns(headers, rows, mapping));
   return list?.length ? list : null;
 }

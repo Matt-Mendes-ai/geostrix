@@ -39,7 +39,7 @@ test("readings sit at the interval middles, raw and binned", () => {
 
 test("the dialog shows the channels box for the interval log and says where the readings go", () => {
   const b = readFileSync(new URL("../src/components/LogChannelsBox.jsx", import.meta.url), "utf8");
-  assert.match(b, /interval = !modal\.mapping\?\.depth && modal\.mapping\?\.from && modal\.mapping\?\.to && looksLikeLogTable\(modal\.headers\)/);
+  assert.match(b, /interval = !modal\.mapping\?\.depth && modal\.mapping\?\.from && modal\.mapping\?\.to && looksLikeLogTable\(modal\.headers, rows\)/); // rows: #2884
   assert.match(b, /Each reading is placed at the middle of its From–To interval/);
   const ip = readFileSync(new URL("../src/modules/viewer/useImportPipeline.js", import.meta.url), "utf8");
   assert.match(ip, /Each reading placed at the middle of its \$\{mapping\.from\}-\$\{mapping\.to\} interval\./);

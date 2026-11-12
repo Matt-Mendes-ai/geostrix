@@ -3,7 +3,7 @@
 // ============================================================
 import { rowKey } from "./modellingCodes.js"; // TASKS.csv #2533 — the vein sources read the modelling codes' assign map
 import { voxelStretch } from "./voxelStretch.js"; // TASKS.csv #1812
-import { looksLikeLogTable } from "./downholeLogChannels.js"; // TASKS.csv #2160
+import { looksLikeLogTable, zeroLengthRows } from "./downholeLogChannels.js"; // TASKS.csv #2160; zeroLengthRows: #2884
 import { looksLikeEventTable } from "./downholeEvents.js"; // TASKS.csv #2317
 import { guessStructureColumns } from "./mapLayers.js"; // TASKS.csv #426
 import { gridCoordinateColumns, gridElevation } from "./gridColumns.js"; // TASKS.csv #2151, moved: #2564
@@ -1184,8 +1184,12 @@ const SPECTRAL_COL = /(^|[\s_])tsa([\s_]|$)|mineral[\s_]*\d|weight[\s_]*\d|^[wd]
 export const spectralColumns = (headers) => (headers || []).filter((h) => SPECTRAL_COL.test(String(h).trim())).length;
 // the mineral column of a spectral table: the first Mineral1 (TSA_S before TSA_V by header order)
 export const spectralMineralColumn = (headers) => (headers || []).find((h) => /mineral[\s_]*1$/i.test(String(h).trim())) || "";
-export function guessTargetFor(headers, name) {
+// rows (optional, TASKS.csv #2884): the file's rows, for the zero-length test below
+export function guessTargetFor(headers, name, rows = null) {
   if (CUSTOM_LOG_NAMES.test(String(name || ""))) return "custom";
+  // #2884 (review #2876, WA iron) — From equals To on every sampled row and a log channel is named (Density_Best, Gamma_Best ...): point
+  // readings, a downhole log, before any name hint ("density.csv" would keep Specific gravity: millions of zero-length intervals)
+  if (rows && zeroLengthRows(headers, rows) === true && looksLikeLogTable(headers, rows)) return "custom";
   if (spectralColumns(headers) >= 4) return "custom"; // #2339 — a mineral table from spectra, not Mineralization (ore minerals)
   // TASKS.csv #2317 — regolith boundary events (BOCO, TOFR, ... at one depth per hole, no from / to): a custom point layer of codes, not
   // structure picks without an orientation (where 'Event_Code + Depth' used to land)
@@ -1201,7 +1205,7 @@ export function guessTargetFor(headers, name) {
     const interval = hint === "structure" && guessMapping("structzone", headers).to;
     if (!interval && TARGET_SCHEMAS[hint]?.fields.every((f) => !f.required || f.key === "value" || m[f.key])) return hint;
   }
-  if (looksLikeLogTable(headers)) return "custom"; // TASKS.csv #2160 — a gamma / density / susceptibility log, not SG or Lithology (after the name hint)
+  if (looksLikeLogTable(headers, rows)) return "custom"; // TASKS.csv #2160 — a gamma / density / susceptibility log, not SG or Lithology (after the name hint)
   return guessTarget(headers);
 }
 export function getCol(row, keys) {

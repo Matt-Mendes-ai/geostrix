@@ -136,7 +136,7 @@ export function useImportPipeline(ctx) {
         assayHandoffRef.current.push(assayHandoffOf(file, data, headers, meta)); handOverAssays(); // #1350; #2016
         return;
       }
-      const target = forceTarget || guessTargetFor(headers, file.name); // #605: the file name as a hint
+      const target = forceTarget || guessTargetFor(headers, file.name, data); // #605: the file name as a hint; data: #2884
       const ll = lonLatForCollars(target, guessMapping(target, headers), headers, data); // #1235
       const mapping = azColFor(target, headers, data, ll ? ll.mapping : guessMapping(target, headers)); // #426; #2015
       const perRowEpsgCol = guessColumn(headers, EPSG_COL_ALIASES);
@@ -219,7 +219,7 @@ export function useImportPipeline(ctx) {
         : notice("{name} looks like an assay table, so it opened in Geochem's assay import, where you choose the elements.", { name: sourceName })]); // #995 — the tab switch is said
       return;
     }
-    const target = guessTargetFor(headers, sourceName); // #605
+    const target = guessTargetFor(headers, sourceName, rows); // #605; rows: #2884
     const ll = lonLatForCollars(target, guessMapping(target, headers), headers, rows); // #1235
     const mapping = azColFor(target, headers, rows, ll ? ll.mapping : guessMapping(target, headers)); // #426; #2015
     const perRowEpsgCol = guessColumn(headers, EPSG_COL_ALIASES);
@@ -916,7 +916,7 @@ export function useImportPipeline(ctx) {
         processImportQueue();
         return;
       }
-      const target = guessTargetFor(headers, file.name); // #605
+      const target = guessTargetFor(headers, file.name, data); // #605; data: #2884
       const schema = TARGET_SCHEMAS[target];
       const queueLl = lonLatForCollars(target, guessMapping(target, headers), headers, data); // #1235
       const mapping = azColFor(target, headers, data, queueLl ? queueLl.mapping : guessMapping(target, headers)); // #426; #2015

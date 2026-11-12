@@ -9,7 +9,7 @@ const note = { fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)"
 export default function LogChannelsBox({ modal, onChange, sel }) {
   const rows = modal.allRows || modal.sampleRows || [];
   const channels = useMemo(() => logChannelColumns(modal.headers, rows, modal.mapping), [modal.headers, rows, modal.mapping]);
-  const point = modal.mapping?.depth && !modal.mapping?.from, interval = !modal.mapping?.depth && modal.mapping?.from && modal.mapping?.to && looksLikeLogTable(modal.headers); // interval: TASKS.csv #2329
+  const point = modal.mapping?.depth && !modal.mapping?.from, interval = !modal.mapping?.depth && modal.mapping?.from && modal.mapping?.to && looksLikeLogTable(modal.headers, rows); // interval: TASKS.csv #2329; rows: #2884
   const shown = modal.target === "custom" && !!(point || interval) && channels.length >= 1;
   const ticked = (shown && (modal.logChannels ?? defaultLogChannels(channels, modal.mapping))) || [];
   // TASKS.csv #2332 — per ticked channel, the values that look like no-data codes; left out unless the user keeps them (a hook: before the
