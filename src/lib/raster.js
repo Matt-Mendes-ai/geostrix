@@ -29,7 +29,8 @@ import { rasterStops, DEFAULT_RASTER_STYLE } from "./rasterColour.js"; // TASKS.
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 import { b64ToBytes } from "./base64.js"; // TASKS.csv #1114
 import { borderKeyColour, colourFraction, hexRgb } from "./rasterKey.js"; // TASKS.csv #1623
-import { tieReaches, tieImageToLocal, tieGridToLocal } from "./rasterTie.js"; // TASKS.csv #2587 / #2322
+import { tieReaches, tieImageToLocal, tieGridToLocal, mineReaches, mineImageToProject, mineGridToProject, mineBoxOf } from "./rasterTie.js"; // TASKS.csv #2587 / #2322; mine*: #2684
+import { isMineSource, mineSourceSentence } from "./mineGrid.js"; // TASKS.csv #2684
 import { tieDemGridToLocal, tieWorldBox } from "./terrainTie.js"; // TASKS.csv #2648
 
 // TASKS.csv #707 — a GeoTIFF's CRS as an EPSG code. 32767 means "user-defined" (what ArcGIS and Oasis montaj write for a
@@ -555,17 +556,27 @@ async function peekDemTile(file) {
 // tie (TASKS.csv #2648): a local-grid project tied to a real CRS (lib/localGridTie.js tieOf), targetEpsg null: a DEM with a CRS tag is
 // reprojected to the tie's CRS and resampled into the local grid (lib/terrainTie.js); cropTo is in the local grid then. An untagged DEM
 // keeps its numbers (taken to be the grid's own).
-export async function parseDEMFiles(files, targetEpsg, sourceEpsgOverride = null, { cropTo = null, chooseProjectEpsg = null, gridMax = DEM_MAX_GRID, tie = null } = {}) { // gridMax: TASKS.csv #796
+// mineSource (TASKS.csv #2684): lib/mineGrid.js mineSourceOf(project), used when the Source CRS is "mine" ('Local mine grid (no CRS)'): on a
+// CRS project the DEM is read on the mine grid (the crop box taken onto the grid) and its nodes resampled into the project CRS through the
+// grid's tie, nearest node (lib/rasterTie.js mineGridToProject); on a project with no CRS its numbers are the project's own.
+export async function parseDEMFiles(files, targetEpsg, sourceEpsgOverride = null, { cropTo = null, chooseProjectEpsg = null, gridMax = DEM_MAX_GRID, tie = null, mineSource = null } = {}) { // gridMax: TASKS.csv #796
   const list = Array.from(files || []).filter(Boolean);
   if (!list.length) throw new Error(tr("No file selected."));
   const tiles = [];
+  const mineSrc = !!mineSource && isMineSource(sourceEpsgOverride); // #2684
+  const mineTie = mineSrc && mineSource.kind === "tie" && targetEpsg && mineReaches(mineSource.mg, targetEpsg) ? mineSource.mg : null;
+  if (mineSrc) { sourceEpsgOverride = null; tie = null; }
   const tieTo = tie && !targetEpsg ? Number(tie.epsg) : null; // #2648
   const tieCrop = tieTo && cropTo ? tieWorldBox(tie, cropTo) : null;
   // TASKS.csv #422 — cropTo: [xmin, ymin, xmax, ymax] in the PROJECT CRS. Converted into each tile's CRS
   // (corners + edge midpoints, then their bbox, padded 2%) before reading.
   for (const file of list) {
     let crop = null;
-    if (cropTo) {
+    if (cropTo && mineTie) { // #2684 — the crop box (project CRS) taken onto the mine grid, padded 2 %
+      const b = mineBoxOf(mineTie, targetEpsg, cropTo);
+      if (b) { const padX = (b[2] - b[0]) * 0.02, padY = (b[3] - b[1]) * 0.02; crop = [b[0] - padX, b[1] - padY, b[2] + padX, b[3] + padY]; }
+    } else if (cropTo && mineSrc && mineSource.kind !== "tie") crop = cropTo; // a project with no CRS: the grid's own numbers
+    else if (cropTo && !mineSrc) {
       const head = await peekDemTile(file);
       const tileEpsg = sourceEpsgOverride ? Number(sourceEpsgOverride) : head.epsgTag;
       const viaTie = !!(tieCrop && tileEpsg && tieReaches(tie, tileEpsg)); // #2648 — the local crop box, in the tie's CRS
@@ -622,7 +633,7 @@ export async function parseDEMFiles(files, targetEpsg, sourceEpsgOverride = null
   }
 
   // TASKS.csv #419 — a user-set source CRS overrides the file's own tag (untagged or wrongly tagged DEMs).
-  const epsgTag = sourceEpsgOverride ? Number(sourceEpsgOverride) : tiles[0].epsgTag;
+  const epsgTag = mineSrc ? null : sourceEpsgOverride ? Number(sourceEpsgOverride) : tiles[0].epsgTag; // mineSrc: #2684 — the tag set aside
   if (chooseProjectEpsg && epsgTag && !tieTo) targetEpsg = Number(chooseProjectEpsg(epsgTag, targetEpsg, [xmin, ymin, xmax, ymax])) || targetEpsg; // #607; the box: #2678
   // #2648 — on a tied grid the DEM goes to the tie's CRS first (below), then into the grid
   const viaTie = !!(tieTo && epsgTag && tieReaches(tie, epsgTag));
@@ -661,6 +672,19 @@ export async function parseDEMFiles(files, targetEpsg, sourceEpsgOverride = null
       ? tr("Its EPSG:{src} ({label}) was brought into the local grid through the grid's tie, and resampled onto the grid's own north.", { src: epsgTag, label })
       : tr("Its EPSG:{src} ({label}) was reprojected to EPSG:{tie} and brought into the local grid through the grid's tie, and resampled onto the grid's own north.", { src: epsgTag, tie: tieTo, label });
     reprojectedTo = null;
+  }
+
+  if (mineSrc) { // #2684
+    if (mineTie) {
+      const src = { nx: gridW, ny: gridH, x0: xmin, yTop: ymax, dx: (xmax - xmin) / Math.max(1, gridW - 1), dy: (ymax - ymin) / Math.max(1, gridH - 1), values: raw };
+      srcCellM = Math.sqrt(((xmax - xmin) * (ymax - ymin)) / Math.max(1, tiles.reduce((s, x) => s + x.srcW * x.srcH, 0))) * (mineTie.tie.scale || 1); // the read window's cell, in project units
+      const clip = cropTo ? [cropTo[0] - (cropTo[2] - cropTo[0]) * 0.02, cropTo[1] - (cropTo[3] - cropTo[1]) * 0.02, cropTo[2] + (cropTo[2] - cropTo[0]) * 0.02, cropTo[3] + (cropTo[3] - cropTo[1]) * 0.02] : null;
+      const g = mineGridToProject(src, mineTie, targetEpsg, gridMax, clip);
+      if (!g || !g.valid) throw new Error(tr("None of these DEM tiles overlaps the drillhole area — untick 'Crop to the drillholes' to import them whole, or check the source CRS."));
+      outBbox = [g.x0, g.yTop - g.dy * (g.ny - 1), g.x0 + g.dx * (g.nx - 1), g.yTop]; outGridW = g.nx; outGridH = g.ny; outElevations = g.values;
+      tiedNote = mineSourceSentence(mineSource, targetEpsg).trim() + " " + tr("It was resampled onto the project's own north.");
+    } else if (mineSource.kind === "tie") tiedNote = tr("It could not be brought through the mine grid's tie to EPSG:{dst} (GeoStrix has no definition for one of the CRSs), so it kept its own numbers: check where it lies.", { dst: targetEpsg || mineSource.mg.tie.epsg });
+    else tiedNote = mineSourceSentence(mineSource, targetEpsg).trim();
   }
 
   // TASKS.csv #421 — no-data cells are still filled (for sampling) but recorded and reported; see demFill.js.
@@ -927,7 +951,10 @@ export function looksLikeDem(name, lo, hi, collarZ = null) {
   return Number.isFinite(zmin) && Number.isFinite(zmax) && lo >= zmin - 100 && hi <= zmax + 100 && hi - lo >= 10;
 }
 export const notDegrees = (epsg, bbox) => isGeographicCrs(epsg) && Array.isArray(bbox) && (Math.abs(bbox[0]) > 180.5 || Math.abs(bbox[2]) > 180.5 || Math.abs(bbox[1]) > 90.5 || Math.abs(bbox[3]) > 90.5);
-export async function buildRasterImport(file, { epsg, defaultElevation, sourceEpsg, chooseProjectEpsg, bandFn = null, samples = null, name = null, keepDetail = false, worldFile = null, tie = null, collarZ = null } = {}) { // samples: #807; keepDetail: #838; worldFile: #1855; tie: #2587; collarZ: #2129
+// mineSource (TASKS.csv #2684): lib/mineGrid.js mineSourceOf(project), used when sourceEpsg is "mine" ('Local mine grid (no CRS)'): on a CRS
+// project the picture and its values are read on the mine grid and resampled into the project CRS through the grid's tie (the inverse of
+// #2587's tie resample, lib/rasterTie.js mineImageToProject); on a project with no CRS the file's numbers are the project's own.
+export async function buildRasterImport(file, { epsg, defaultElevation, sourceEpsg, chooseProjectEpsg, bandFn = null, samples = null, name = null, keepDetail = false, worldFile = null, tie = null, collarZ = null, mineSource = null } = {}) { // samples: #807; keepDetail: #838; worldFile: #1855; tie: #2587; collarZ: #2129
   const isGxf = /\.gxf$/i.test(file.name), isGrd = /\.grd$/i.test(file.name); // isGrd: #1347
   const maxSide = keepDetail ? FULL_DETAIL_SIZE : MAX_TEXTURE_SIZE;
   const parsed = isGxf ? await parseGXF(file) : isGrd ? await parseGRD(file) : await parseGeoTIFF(file, { bandFn, samples, maxSide, worldFile }); // bandFn: #783; samples: #807
@@ -938,8 +965,9 @@ export async function buildRasterImport(file, { epsg, defaultElevation, sourceEp
 
   // An explicit override always wins over the file's own tag — that's the whole point of the field
   // (a wrong/absent embedded tag is exactly why the user is typing one in).
-  const overrideEpsg = sourceEpsg === "" || sourceEpsg == null ? null : Number(sourceEpsg);
-  const tagEpsg = parsed.epsgTag ? Number(parsed.epsgTag) : null;
+  const mineSrc = !!mineSource && isMineSource(sourceEpsg); // #2684 — read on the mine grid, the file's own tag set aside
+  const overrideEpsg = sourceEpsg === "" || sourceEpsg == null || mineSrc ? null : Number(sourceEpsg);
+  const tagEpsg = parsed.epsgTag && !mineSrc ? Number(parsed.epsgTag) : null;
   const srcEpsg = Number.isFinite(overrideEpsg) ? overrideEpsg : tagEpsg;
   let projEpsg = epsg == null || epsg === "" ? null : Number(epsg);
   if (chooseProjectEpsg && srcEpsg) projEpsg = Number(chooseProjectEpsg(srcEpsg, projEpsg, parsed.bbox)) || projEpsg; // #607 — an empty project may take this CRS; the box: #2678
@@ -948,7 +976,20 @@ export async function buildRasterImport(file, { epsg, defaultElevation, sourceEp
   let crsNote = "", tiedGrid = null;
   // TASKS.csv #2587 / #2322 — a local-grid project tied to a real CRS: a file with a CRS comes INTO the grid through the tie
   const tied = tie && srcEpsg && !projEpsg && parsed.pixels && tieReaches(tie, srcEpsg) ? tieImageToLocal({ xmin: parsed.bbox[0], ymin: parsed.bbox[1], xmax: parsed.bbox[2], ymax: parsed.bbox[3], ...parsed.pixels }, tie, srcEpsg, maxSide) : null;
-  if (tied) {
+  const mined = mineSrc && mineSource.kind === "tie" && projEpsg && parsed.pixels && mineReaches(mineSource.mg, projEpsg) ? mineImageToProject({ xmin: parsed.bbox[0], ymin: parsed.bbox[1], xmax: parsed.bbox[2], ymax: parsed.bbox[3], ...parsed.pixels }, mineSource.mg, projEpsg, maxSide) : null; // #2684
+  if (mineSrc) {
+    if (mined) {
+      const canvas = document.createElement("canvas");
+      canvas.width = mined.width; canvas.height = mined.height;
+      canvas.getContext("2d").putImageData(new ImageData(mined.data, mined.width, mined.height), 0, 0);
+      bbox = mined.bbox; px = mined;
+      dataUrl = keepDetail ? imageDataUrl(canvas) : canvas.toDataURL("image/png");
+      if (parsed.grid) tiedGrid = mineGridToProject(parsed.grid, mineSource.mg, projEpsg, GRID_MAX);
+      crsNote = mineSourceSentence(mineSource, projEpsg) + " " + tr("It was resampled onto the project's own north.");
+    } else if (mineSource.kind === "tie") {
+      crsNote = " " + tr("It could not be brought through the mine grid's tie to EPSG:{dst} (GeoStrix has no definition for one of the CRSs), so it kept its own numbers: check where it lies.", { dst: projEpsg || mineSource.mg.tie.epsg });
+    } else crsNote = mineSourceSentence(mineSource, projEpsg);
+  } else if (tied) {
     const canvas = document.createElement("canvas");
     canvas.width = tied.width; canvas.height = tied.height;
     canvas.getContext("2d").putImageData(new ImageData(tied.data, tied.width, tied.height), 0, 0);

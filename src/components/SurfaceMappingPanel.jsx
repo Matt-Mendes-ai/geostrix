@@ -43,7 +43,7 @@ import CoveringLayers from "./CoveringLayers.jsx"; // TASKS.csv #1823
 import { graduatedStyle, graduatedCategories, parseBreaks, isNumericField } from "../lib/mapGraduated.js"; // TASKS.csv #1600
 import { projectTargetEpsg } from "../lib/projectTarget.js"; // TASKS.csv #2287 — no reprojection INTO the placeholder CRS
 import { tieOf, fileToLocal, bearingToLocal } from "../lib/localGridTie.js"; // TASKS.csv #2320
-import { mineGridOf } from "../lib/mineGrid.js"; // TASKS.csv #2586
+import { mineGridOf, mineSourceOf, isMineSource, mineChoiceToProject, mineSourceSentence } from "../lib/mineGrid.js"; // TASKS.csv #2586; the mine-grid Source CRS: #2684
 import { collarsLookUnderground } from "../lib/pitShell.js"; // TASKS.csv #2265
 import { structureGroundCounts } from "../lib/viewer/surfacePlacement.js"; import { terrainGroundAt } from "../lib/viewer/geomath.js"; // TASKS.csv #2485 (2)
 
@@ -133,11 +133,12 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
       if (parsed.name && String(parsed.name).startsWith(`${sourceName} (`)) parsed = { ...parsed, name: parsed.name.slice(sourceName.length + 2).replace(/\)$/, "") };
       const qml = qmlByBase[sourceName.toLowerCase()] || soleQml || null;
       // #1106 — a GPX / GeoJSON file is in longitude / latitude: never offered as the project CRS (not metric)
-      const adopted = wgs84 ? null : askAdoptCrs({ isEmpty: empty, currentEpsg: projectEpsg, declaredEpsg: mapSourceEpsg || parsed.epsg, fileName: sourceName });
+      const mineSrc = isMineSource(mapSourceEpsg), srcOv = wgs84 && mineSrc ? "" : mapSourceEpsg; // #2684 — a GPX / GeoJSON / KML is longitude / latitude, never on the mine grid
+      const adopted = wgs84 || mineSrc ? null : askAdoptCrs({ isEmpty: empty, currentEpsg: projectEpsg, declaredEpsg: mapSourceEpsg || parsed.epsg, fileName: sourceName });
       if (adopted) { setEpsg(adopted); projectEpsg = adopted; done.push(tr("project CRS set to EPSG:{epsg}", { epsg: adopted })); }
       empty = false;
       // #1715 — clipped to the project area (collars, surface samples) when there is one
-      let layer = buildLayer(parsed, { sourceName, projectEpsg, qml, sourceOverride: mapSourceEpsg, tie: tieOf(project) /* #2320 */, mineGrid: mapSourceEpsg ? null : mineGridOf(project), collars /* #2586 */, clipTo: projectClipBox([...(collars || []), ...(surfaceSamples || [])]) });
+      let layer = buildLayer(parsed, { sourceName, projectEpsg, qml, sourceOverride: srcOv, mineSource: mineSourceOf(project) /* #2684 */, tie: tieOf(project) /* #2320 */, mineGrid: srcOv ? null : mineGridOf(project), collars /* #2586 */, clipTo: projectClipBox([...(collars || []), ...(surfaceSamples || [])]) });
       if (layer?.outside) { failed.push(tr("{name}: none of its {n} features comes within reach of the project's holes and samples, so nothing was imported (check its CRS if it should).", { name: sourceName, n: layer.outside.toLocaleString() })); return; }
       if (!layer) { failed.push(tr("{name}: no usable features", { name: `${sourceName}${parsed.name ? ` (${parsed.name})` : ""}` })); return; }
       // #1325 — a layer with no units to tell apart gets a colour of its own: a batch used to be one amber
@@ -172,7 +173,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
           layers.forEach((l) => addParsed({ ...l, name: layers.length > 1 ? l.name : null }, base(f), { wgs84: true }));
         } else if (n.endsWith(".gpkg")) {
           // #1716 — a big file is opened in place by the desktop app and only the features around the project are read
-          const near = f.size > GPKG_IN_PLACE_BYTES && canReadGpkgInPlace()
+          const near = f.size > GPKG_IN_PLACE_BYTES && canReadGpkgInPlace() && !isMineSource(mapSourceEpsg) /* #2684 — the clip box is in the project CRS, not the grid's */
             ? await readGeoPackageNear(f, { clipBox: projectClipBox([...(collars || []), ...(surfaceSamples || [])]), projectEpsg, sourceEpsg: mapSourceEpsg || null })
             : null;
           if (near) {
@@ -286,7 +287,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
       // tick box, so the geology polygons and contacts could not be taken without 386,025 lake polygons
       const keyOf = (q) => (q.parsed.name ? `${q.sourceName} — ${q.parsed.name}` : q.sourceName);
       const byTable = new Map();
-      for (const q of queued) { const k = keyOf(q); if (!byTable.has(k)) byTable.set(k, { name: k, epsg: mapSourceEpsg ? Number(mapSourceEpsg) : q.opts.wgs84 ? 4326 : Number(q.parsed.epsg) || null, layers: [], items: [] }); }
+      for (const q of queued) { const k = keyOf(q); if (!byTable.has(k)) byTable.set(k, { name: k, epsg: isMineSource(mapSourceEpsg) ? (q.opts.wgs84 ? 4326 : null) /* #2684 */ : mapSourceEpsg ? Number(mapSourceEpsg) : q.opts.wgs84 ? 4326 : Number(q.parsed.epsg) || null, layers: [], items: [] }); }
       for (const q of queued) { const t = byTable.get(keyOf(q)); t.layers.push(q.parsed); t.items.push(q); if (!t.epsg && q.parsed.epsg) t.epsg = Number(q.parsed.epsg); }
       const tables = [...byTable.values()];
       const counts = new Map();
@@ -433,10 +434,21 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
         updateSurfaceStructureSet(set.id, { rows: set.rows.map((r) => (picked[structureCodeKey(r.type)] ? { ...r, cls: picked[structureCodeKey(r.type)] } : r)) });
       });
     }
-    const src = Number(p.sourceEpsg), dst = Number(project?.epsg);
-    let crsNote = "";
+    const src = isMineSource(p.sourceEpsg) ? 0 : Number(p.sourceEpsg), dst = Number(project?.epsg);
+    let crsNote = "", mineTurned = false; // mineTurned: #2684 — the grid bearings were said as the mine grid's
     const gridTie = tieOf(project); // TASKS.csv #2320 — a local-grid project: a file with a CRS comes into the grid through its tie
-    if (gridTie && src && src !== dst) {
+    if (isMineSource(p.sourceEpsg)) { // TASKS.csv #2684 — 'Local mine grid (no CRS)': read on the grid, a grid bearing turned by the grid's rotation
+      const ms = mineSourceOf(project), T = ms?.kind === "tie" ? mineChoiceToProject(ms, dst) : null;
+      const rot = ms?.mg?.tie?.rotationDeg || 0, turn = (d) => Math.round((((d - rot) % 360) + 360) % 360 * 100) / 100;
+      if (T) out.rows.forEach((r) => {
+        const [x, y] = T(r.x, r.y);
+        if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+        r.x = x; r.y = y;
+        if (north.ref === "grid" && Number.isFinite(r.dipDir)) { r.dipDir = turn(r.dipDir); if (Number.isFinite(r.strike)) r.strike = turn(r.strike); }
+      });
+      mineTurned = !!(T && north.ref === "grid");
+      crsNote = mineSourceSentence(ms, dst) + (T && north.ref === "grid" && rot ? " " + tr("Dip directions were turned from the mine grid's north to the project grid's ({deg}°).", { deg: (-rot).toFixed(2) }) : "");
+    } else if (gridTie && src && src !== dst) {
       let n = 0;
       out.rows.forEach((r) => {
         const t = fileToLocal(gridTie, r.x, r.y, src);
@@ -470,7 +482,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
     }
     // TASKS.csv #547 — dip directions / strikes measured from true or magnetic north -> project grid north, per location
     // TASKS.csv #2091 (review #2013) — grid north is the picker's default: said in the notice, so a compass notebook is not imported rotated unseen
-    let northNote = north.ref === "grid" ? tr(" Dip directions were taken as grid north (the project grid); for compass or true-north readings, set North on the import card and import again.") : "", rows = out.rows;
+    let northNote = north.ref === "grid" && !mineTurned ? tr(" Dip directions were taken as grid north (the project grid); for compass or true-north readings, set North on the import card and import again.") : "", rows = out.rows;
     if (north.ref !== "grid") {
       // TASKS.csv #2262 — dst is the PLACEHOLDER epsg while the CRS is not set (truthy), so this message never showed and the convergence of
       // BC UTM 9N was applied to a WA mine grid: test crsSet too
@@ -528,7 +540,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
       <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>{tr("Map layers")}<InfoButton title={tr("Map layers")} text={tr("Import surface mapping — a geology map, alteration or outcrop polygons, fault traces, sample points — from a GeoPackage (.gpkg), shapefile (.zip, or .shp with its .dbf/.prj), MapInfo TAB (with its .map/.id/.dat) or MIF (with its .mid), GPX, GeoJSON or KML / KMZ and drape it on the terrain in the 3D view, coloured by an attribute. Select a QGIS style (.qml) in the same dialog to reuse your map's colours; otherwise each unit gets its own colour, editable below. Every feature table in a GeoPackage becomes its own layer. Polygons keep their holes and multipart pieces. A layer with a known CRS is reprojected into the project's EPSG ({v}). Mapped contacts between units can be projected underground from the 3D Modelling tab.", { v: project?.epsg ?? "?" })} />
       </div>
       <SourceCrsField
-        value={mapSourceEpsg} onChange={(c) => setMapSourceEpsg(c === "" ? "" : String(c))}
+        value={mapSourceEpsg} onChange={(c) => setMapSourceEpsg(c === "" ? "" : String(c))} mineGrid={mineSourceOf(project) /* #2684 */}
         defaultText={project?.crsSet === false ? tr("From the file (.prj / GeoPackage), else the project CRS (not chosen yet)") /* #2262 */ : tr("From the file (.prj / GeoPackage), else the project CRS ({v})", { v: crsName(project?.epsg) || tr("EPSG:{v}", { v: project?.epsg ?? "?" }) })}
         title={tr("Leave it on the file's own CRS. Change it when a shapefile has no .prj or a wrong one.")}
       />
@@ -730,7 +742,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
             </div>
           )}
           <SourceCrsField
-            value={pendingStruct.sourceEpsg ?? ""} onChange={(c) => setPendingStruct((p) => ({ ...p, sourceEpsg: c === "" ? "" : String(c) }))}
+            value={pendingStruct.sourceEpsg ?? ""} onChange={(c) => setPendingStruct((p) => ({ ...p, sourceEpsg: c === "" ? "" : String(c) }))} mineGrid={mineSourceOf(project) /* #2684 */}
             defaultText={project?.crsSet === false ? tr("The project CRS — not chosen yet") /* #2262 */ : tr("Same as project — {v}", { v: crsName(project?.epsg) || tr("EPSG:{v}", { v: project?.epsg ?? "?" }) })}
             title={tr("The CRS of this file's easting/northing. It is reprojected into the project CRS on import.")}
           />

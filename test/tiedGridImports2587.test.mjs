@@ -95,7 +95,7 @@ test("the importers pass the project's tie, and the Project CRS page names the t
   assert.match(r, /const tied = tie && srcEpsg && !projEpsg && parsed\.pixels && tieReaches\(tie, srcEpsg\)/);
   assert.match(readFileSync(new URL("../src/modules/RasterModule.jsx", import.meta.url), "utf8"), /worldFile, tie: tieOf\(project\)[,} ]/); // collarZ follows since #2129
   const gm = readFileSync(new URL("../src/modules/GeophysicsModule.jsx", import.meta.url), "utf8");
-  assert.equal((gm.match(/collars, tie: tieOf\(project\) \}\);/g) || []).length, 2);
+  assert.equal((gm.match(/collars, tie: tieOf\(project\), source: boundarySource, mineSource: mineSourceOf\(project\) \}\);/g) || []).length, 2); // source: #2684
   assert.match(gm, /kmlToProjectPolylines\(features, project\?\.epsg, \{ toLocal: tie \?/);
   assert.match(gm, /layersToBoundaryPolylines\(layers, project\?\.epsg, reprojectXY, tie \?/);
   assert.match(gm, /tie: tieOf\(project\) \}\); \/\/ #607; tie: #2587/);

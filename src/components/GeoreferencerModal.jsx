@@ -9,6 +9,7 @@ import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay } from "../lib/modalStyles.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786 — messages in the interface language
+import { mineSourceOf, isMineSource, mineChoiceToProject, mineChoiceFromProject, mineSourceSentence } from "../lib/mineGrid.js"; // TASKS.csv #2684
 
 // TASKS.csv #129 — QGIS-specialist audit finding: "there's no way to georeference an ungeoreferenced
 // scanned map ... the way QGIS's Georeferencer does with manual control points." This is that tool:
@@ -34,7 +35,7 @@ export default function GeoreferencerModal({ onImport, onClose, projectEpsg }) {
   useFocusTrap(); // TASKS.csv #238
   const [img, setImg] = useState(null); // { bitmap, width, height, dataUrl } | null
   const [points, setPoints] = useState([]); // [{id, px, py, x, y, hole?}]
-  const { collars = [] } = useStore(); // #1763
+  const { collars = [], project } = useStore(); // #1763; project: #2684
   const holes = useMemo(() => collars.filter((c) => c?.hole_id != null && Number.isFinite(c.x) && Number.isFinite(c.y)).sort((a, b) => String(a.hole_id).localeCompare(String(b.hole_id), undefined, { numeric: true })), [collars]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
@@ -83,7 +84,9 @@ export default function GeoreferencerModal({ onImport, onClose, projectEpsg }) {
 
   // TASKS.csv #290 — "" means "already in the project's CRS" (the previous, only behavior).
   const [cpEpsg, setCpEpsg] = useState(""); // #488 — "" = same as project (any listed CRS, chosen by name)
-  const needsReproject = !!cpEpsg && !!projectEpsg && Number(cpEpsg) !== Number(projectEpsg);
+  // TASKS.csv #2684 — 'Local mine grid (no CRS)': the points are read on the project's mine grid and brought in through its tie before the fit
+  const mineChoice = useMemo(() => mineSourceOf(project), [project]), cpMine = isMineSource(cpEpsg);
+  const needsReproject = !cpMine && !!cpEpsg && !!projectEpsg && Number(cpEpsg) !== Number(projectEpsg);
   const isGeographicCp = needsReproject && /\+proj=longlat/.test(getProj4DefSync(cpEpsg) || "");
   // Set when a CRS was asked for but can't be used — surfaced in the UI instead of silently falling
   // back to "assume project coordinates", which is exactly the failure this row is about.
@@ -96,12 +99,20 @@ export default function GeoreferencerModal({ onImport, onClose, projectEpsg }) {
   const usablePoints = useMemo(() => {
     const parsed = points.filter((p) => p.x !== "" && p.y !== "" && Number.isFinite(Number(p.x)) && Number.isFinite(Number(p.y)))
       .map((p) => ({ ...p, x: Number(p.x), y: Number(p.y) }));
+    if (cpMine) { const T = mineChoiceToProject(mineChoice, projectEpsg); return T ? parsed.map((p) => { const [x, y] = T(p.x, p.y); return Number.isFinite(x) && Number.isFinite(y) ? { ...p, x, y } : p; }) : parsed; } // #2684
     if (!needsReproject || crsError) return parsed;
     // Reprojected BEFORE the fit (not after), so the affine transform, its RMSE and the per-point
     // residual column below are all expressed in the project's own world units.
     return parsed.map((p) => { const t = reprojectXY(p.x, p.y, cpEpsg, projectEpsg); return t ? { ...p, x: t.x, y: t.y } : p; });
-  }, [points, needsReproject, crsError, cpEpsg, projectEpsg]);
+  }, [points, needsReproject, crsError, cpEpsg, projectEpsg, cpMine, mineChoice]);
 
+  // #2684 — a collar's X / Y on the mine grid (its project coordinates taken back through the tie)
+  const mineCollarXY = (c) => {
+    const F = mineChoiceFromProject(mineChoice, projectEpsg);
+    if (!F || !Number.isFinite(c?.x) || !Number.isFinite(c?.y)) return null;
+    const [x, y] = F(c.x, c.y);
+    return Number.isFinite(x) && Number.isFinite(y) ? { x: String(+x.toFixed(3)), y: String(+y.toFixed(3)) } : null;
+  };
   const fit = useMemo(() => {
     if (usablePoints.length < 3) return null;
     try { return fitAffine(usablePoints); } catch { return null; }
@@ -175,10 +186,13 @@ export default function GeoreferencerModal({ onImport, onClose, projectEpsg }) {
             {/* TASKS.csv #290 — control-point CRS. Defaults to "same as project", so an existing
                 workflow that types project coordinates behaves exactly as it did before. */}
             <SourceCrsField
-              label={tr("Control points are in")} value={cpEpsg} onChange={(c) => setCpEpsg(c === "" ? "" : String(c))}
+              label={tr("Control points are in")} value={cpEpsg} onChange={(c) => setCpEpsg(c === "" ? "" : String(c))} mineGrid={mineChoice /* #2684 */}
               defaultText="Same as project (already project coordinates)"
               title={tr("The CRS of the coordinates printed on the scanned map (e.g. WGS 84 latitude/longitude, BC Albers). They're reprojected into the project's CRS before the transform is fitted.")}
             />
+            {cpMine && mineChoice?.kind !== "local" && ( /* #2684 */
+              <div style={{ fontSize: "var(--font-size-sm)", color: mineChoice?.kind === "tie" ? "var(--color-text-secondary)" : "var(--color-warn-text)" }}>{mineSourceSentence(mineChoice, projectEpsg).trim()}</div>
+            )}
             {needsReproject && !crsError && (
               <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("Points are reprojected EPSG:{cpEpsg} → EPSG:{projectEpsg} before fitting, so the errors below are in project units.", { cpEpsg, projectEpsg })}</div>
             )}
@@ -200,7 +214,7 @@ export default function GeoreferencerModal({ onImport, onClose, projectEpsg }) {
                         <td style={td}>{p.px}, {p.py}</td>
                         {holes.length > 0 && ( /* TASKS.csv #1763 — a collar the scan shows fills X / Y (in the control points' CRS) */
                           <td style={td}><select value={p.hole ?? ""} aria-label={tr("Collar at control point {n}", { n: i + 1 })} style={{ ...numInput, width: 90 }}
-                            onChange={(e) => { const c = holes.find((h) => String(h.hole_id) === e.target.value); const xy = c ? collarControlXY(c, { cpEpsg, projectEpsg, reproject: reprojectXY, geographic: isGeographicCp }) : null; updatePoint(p.id, xy ? { hole: e.target.value, ...xy } : { hole: "" }); }}>
+                            onChange={(e) => { const c = holes.find((h) => String(h.hole_id) === e.target.value); const xy = c ? (cpMine ? mineCollarXY(c) : collarControlXY(c, { cpEpsg, projectEpsg, reproject: reprojectXY, geographic: isGeographicCp })) : null; /* mine: #2684 */ updatePoint(p.id, xy ? { hole: e.target.value, ...xy } : { hole: "" }); }}>
                             <option value="">{tr("(typed)")}</option>
                             {holes.map((h) => <option key={h.hole_id} value={String(h.hole_id)}>{h.hole_id}</option>)}
                           </select></td>

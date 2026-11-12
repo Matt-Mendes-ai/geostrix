@@ -6,6 +6,7 @@
 // Pure: no DOM (the caller draws the RGBA into a canvas).
 import { localToWorld } from "./localGridTie.js";
 import { reprojectXY, getProj4DefSync } from "./reproject.js";
+import { mineToProject, projectToMine } from "./mineGrid.js"; // TASKS.csv #2684
 
 // can this file's CRS reach the tie's? (the same CRS, or both codes proj4 can build)
 export const tieReaches = (tie, srcEpsg) => !!tie && !!Number(srcEpsg) && (Number(srcEpsg) === Number(tie.epsg) || (!!getProj4DefSync(Number(srcEpsg)) && !!getProj4DefSync(Number(tie.epsg))));
@@ -32,8 +33,8 @@ function fileToLocalFn(tie, srcEpsg) {
   };
 }
 // the local-grid box covering a file-CRS box (its edges walked, so a reprojection's curved edge is covered too)
-export function localBoxOf(tie, srcEpsg, [xmin, ymin, xmax, ymax], steps = 16) {
-  const f = fileToLocalFn(tie, srcEpsg);
+export const localBoxOf = (tie, srcEpsg, box, steps = 16) => boxThrough(fileToLocalFn(tie, srcEpsg), box, steps);
+function boxThrough(f, [xmin, ymin, xmax, ymax], steps = 16) {
   let a = Infinity, b = Infinity, c = -Infinity, e = -Infinity;
   for (let k = 0; k <= steps; k++) {
     const t = k / steps, x = xmin + t * (xmax - xmin), y = ymin + t * (ymax - ymin);
@@ -57,12 +58,15 @@ function outSize(lb, srcBox, w, h, scale, maxSide) {
 
 // An RGBA picture (bbox in the file's CRS, row 0 = north, pixel AREAS covering the bbox) -> the same in the local grid.
 // -> { bbox, width, height, data } | null when the file's CRS cannot reach the tie
-export function tieImageToLocal({ xmin, ymin, xmax, ymax, width, height, data }, tie, srcEpsg, maxSide = 4096) {
+export function tieImageToLocal(img, tie, srcEpsg, maxSide = 4096) {
   if (!tieReaches(tie, srcEpsg)) return null;
-  const lb = localBoxOf(tie, srcEpsg, [xmin, ymin, xmax, ymax]);
+  return resampleImage(img, fileToLocalFn(tie, srcEpsg), localToFile(tie, srcEpsg), tie.scale, maxSide);
+}
+// fwd: file -> out, inv: out -> file ({ x, y } | null); scale: file units per out unit (the out pixel = the file's pixel / scale)
+function resampleImage({ xmin, ymin, xmax, ymax, width, height, data }, fwd, inv, scale, maxSide) {
+  const lb = boxThrough(fwd, [xmin, ymin, xmax, ymax]);
   if (!lb) return null;
-  const [ow, oh] = outSize(lb, [xmin, ymin, xmax, ymax], width, height, tie.scale, maxSide);
-  const inv = localToFile(tie, srcEpsg);
+  const [ow, oh] = outSize(lb, [xmin, ymin, xmax, ymax], width, height, scale, maxSide);
   const out = new Uint8ClampedArray(ow * oh * 4);
   const pw = (lb[2] - lb[0]) / ow, ph = (lb[3] - lb[1]) / oh;
   for (let row = 0; row < oh; row++) {
@@ -83,15 +87,18 @@ export function tieImageToLocal({ xmin, ymin, xmax, ymax, width, height, data },
 // nearest node. -> { nx, ny, x0, yTop, dx, dy, values: Float32Array, valid } | null
 export function tieGridToLocal(g, tie, srcEpsg, maxNodes = 512) {
   if (!tieReaches(tie, srcEpsg) || !g?.nx || !g?.ny) return null;
+  return resampleGrid(g, fileToLocalFn(tie, srcEpsg), localToFile(tie, srcEpsg), tie.scale, maxNodes);
+}
+function resampleGrid(g, fwd, inv, scale, maxNodes, clip = null) {
   const x1 = g.x0 + g.dx * (g.nx - 1), yB = g.yTop - g.dy * (g.ny - 1);
-  const lb = localBoxOf(tie, srcEpsg, [g.x0, yB, x1, g.yTop]);
+  let lb = boxThrough(fwd, [g.x0, yB, x1, g.yTop]);
   if (!lb) return null;
-  const d = Math.sqrt(g.dx * g.dy) / (tie.scale || 1);
+  if (clip) { lb = [Math.max(clip[0], lb[0]), Math.max(clip[1], lb[1]), Math.min(clip[2], lb[2]), Math.min(clip[3], lb[3])]; if (!(lb[2] > lb[0] && lb[3] > lb[1])) return null; } // #2684 — a crop box in the out CRS
+  const d = Math.sqrt(g.dx * g.dy) / (scale || 1);
   let nx = Math.max(1, Math.round((lb[2] - lb[0]) / d) + 1), ny = Math.max(1, Math.round((lb[3] - lb[1]) / d) + 1);
   const k = Math.max(nx, ny) / maxNodes;
   if (k > 1) { nx = Math.max(2, Math.round(nx / k)); ny = Math.max(2, Math.round(ny / k)); }
   const dx = nx > 1 ? (lb[2] - lb[0]) / (nx - 1) : d, dy = ny > 1 ? (lb[3] - lb[1]) / (ny - 1) : d;
-  const inv = localToFile(tie, srcEpsg);
   const values = new Float32Array(nx * ny).fill(NaN);
   let valid = 0;
   const half = 0.5 + 1e-9;
@@ -105,4 +112,30 @@ export function tieGridToLocal(g, tie, srcEpsg, maxNodes = 512) {
     if (Number.isFinite(v)) { values[j * nx + i] = v; valid++; }
   }
   return { nx, ny, x0: lb[0], yTop: lb[3], dx, dy, values, valid };
+}
+
+// TASKS.csv #2684 — the other way: a raster read on a CRS project's MINE GRID (the Source CRS 'Local mine grid', lib/mineGrid.js) brought
+// into the project CRS through the grid's tie, resampled onto the project's own north (nearest pixel / node, as above).
+// mg: mineGridOf(project). -> as tieImageToLocal / tieGridToLocal, or null when the tie's CRS cannot reach the project's
+export const mineReaches = (mg, projectEpsg) => !!mg && tieReaches(mg.tie, Number(projectEpsg) || Number(mg.tie.epsg));
+function mineFns(mg, projectEpsg) {
+  const to = mineToProject(mg, projectEpsg), from = projectToMine(mg, projectEpsg);
+  const wrap = (f) => (x, y) => { const [a, b] = f(x, y); return Number.isFinite(a) && Number.isFinite(b) ? { x: a, y: b } : null; };
+  return [wrap(to), wrap(from)];
+}
+export function mineImageToProject(img, mg, projectEpsg, maxSide = 4096) {
+  if (!mineReaches(mg, projectEpsg)) return null;
+  const [fwd, inv] = mineFns(mg, projectEpsg);
+  return resampleImage(img, fwd, inv, 1 / (mg.tie.scale || 1), maxSide);
+}
+// clip: a box in the project CRS to cover instead of the whole grid (a DEM crop)
+export function mineGridToProject(g, mg, projectEpsg, maxNodes = 512, clip = null) {
+  if (!mineReaches(mg, projectEpsg) || !g?.nx || !g?.ny) return null;
+  const [fwd, inv] = mineFns(mg, projectEpsg);
+  return resampleGrid(g, fwd, inv, 1 / (mg.tie.scale || 1), maxNodes, clip);
+}
+// a box in the project CRS -> the mine-grid box covering it (edges walked)
+export function mineBoxOf(mg, projectEpsg, box) {
+  const [, inv] = mineFns(mg, projectEpsg);
+  return boxThrough(inv, box);
 }

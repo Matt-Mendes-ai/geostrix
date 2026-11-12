@@ -36,6 +36,7 @@ import { detectKeyColour } from "../lib/rasterKey.js"; // TASKS.csv #1623
 import RasterLegend from "../components/RasterLegend.jsx"; // TASKS.csv #2011
 import RasterPictureLegend from "../components/RasterPictureLegend.jsx"; // TASKS.csv #1858
 import { tieOf, localToWorld } from "../lib/localGridTie.js"; // TASKS.csv #2587 — a tied local grid's way in; localToWorld: #2648
+import { mineSourceOf, isMineSource } from "../lib/mineGrid.js"; // TASKS.csv #2684 — 'Local mine grid' as the Source CRS
 import { farFromCollars, farLabel } from "../lib/landingCheck.js"; // TASKS.csv #2590
 import { projectTargetEpsg } from "../lib/projectTarget.js"; // TASKS.csv #2287 — no reprojection INTO the placeholder CRS
 import { rasterLevelM, filteredLevelM, placeEulerSolutions, filteredPlacement } from "../lib/eulerPlace.js"; // TASKS.csv #2553; filteredPlacement: #2560
@@ -428,7 +429,7 @@ export default function RasterModule({ embedded = false } = {}) {
     try {
       const worldFile = world ? parseWorldFile(await world.text(), world.name) : null;
       const chooseProjectEpsg = projectEpsgChooser({ isEmpty: projectIsEmpty, setEpsg, fileName: file.name }); // #607
-      const { raster, msg } = await buildRasterImport(file, { epsg: projectTargetEpsg(project), defaultElevation, sourceEpsg, chooseProjectEpsg, keepDetail, worldFile, tie: tieOf(project), collarZ: collarZRange(collars) }); // tie: #2587; collarZ: #2129
+      const { raster, msg } = await buildRasterImport(file, { epsg: projectTargetEpsg(project), defaultElevation, sourceEpsg, chooseProjectEpsg, keepDetail, worldFile, tie: tieOf(project), collarZ: collarZRange(collars), mineSource: mineSourceOf(project) }); // tie: #2587; collarZ: #2129; mineSource: #2684
       const drape = rasterDrapeElevation({ collars, voxelModels, surfaceSamples, bbox: raster.bbox, rasters, fileName: file.name }); // #1856 — the ground under this raster; #1505 — above the collars, stacked, or at the name's depth
       addRaster({ ...raster, elevation: drape.z });
       setError({ info: true, text: `${msg} ${drapeElevationNote(drape)}` });
@@ -466,7 +467,7 @@ export default function RasterModule({ embedded = false } = {}) {
         {/* TASKS.csv #287 — Source CRS override. Sits ABOVE the import button (and applies to
             drag-dropped files too) because it has to be set before the file is read, not after. */}
         <SourceCrsField
-          value={sourceEpsg} onChange={(c) => setSourceEpsg(c === "" ? "" : String(c))}
+          value={sourceEpsg} onChange={(c) => setSourceEpsg(c === "" ? "" : String(c))} mineGrid={mineSourceOf(project) /* #2684 */}
           defaultText={project?.crsSet === false ? tr("The project CRS — not chosen yet") /* #2289 */ : tr("From the file's own tag, else the project CRS ({crs})", { crs: crsName(project?.epsg) || `EPSG:${project?.epsg ?? "?"}` })}
           title={tr("The CRS the file's own coordinates are in. Leave it on the file's tag for a GeoTIFF; set it for a .gxf (that format has no CRS tag) or when a file's tag is wrong — the raster is then reprojected into the project CRS on import.")}
         />
@@ -521,7 +522,7 @@ export default function RasterModule({ embedded = false } = {}) {
           />
         )}
         {spectralOpen && ( // TASKS.csv #783
-          <SpectralIndexModal epsg={tieOf(project) ? null : project?.epsg} tie={tieOf(project) /* #2648 */} defaultElevation={defaultElevation} sourceEpsg={sourceEpsg} areaOptions={spectralAreas}
+          <SpectralIndexModal epsg={tieOf(project) ? null : project?.epsg} tie={tieOf(project) /* #2648 */} defaultElevation={defaultElevation} sourceEpsg={isMineSource(sourceEpsg) ? "" : sourceEpsg /* #2684 — a satellite scene is never on a mine grid */} areaOptions={spectralAreas}
             onClose={() => setSpectralOpen(false)}
             onImport={(raster, msg) => { // TASKS.csv #2294 — placed as a GeoTIFF of the same footprint is (#1505), and said
               const list = [].concat(raster), drape = rasterDrapeElevation({ collars, voxelModels, surfaceSamples, bbox: list[0]?.bbox, rasters, fileName: list[0]?.name });

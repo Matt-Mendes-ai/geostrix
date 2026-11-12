@@ -85,6 +85,7 @@ import { axisOf, xyDiagram, xyStats, elementsWithoutValues } from "../lib/geoche
 import { numericSourceChoices } from "../lib/numericSources.js"; // TASKS.csv #1678
 import { requestProjectCrs } from "../lib/projectCrsRequest.js"; // TASKS.csv #1445
 import { tieOf, fileToLocal } from "../lib/localGridTie.js"; // TASKS.csv #2320
+import { isMineSource, mineSourceOf, mineSourceToProject, mineSourceSentence } from "../lib/mineGrid.js"; // TASKS.csv #2684 — 'Local mine grid' as the samples' Source CRS
 import { flagColumns, flagQualifier, censoredSamples } from "../lib/assayFlags.js"; // TASKS.csv #2018
 import { groupShapefileParts, parseVectorFile } from "../lib/viewer/importHelpers.js"; // TASKS.csv #2016
 const VECTOR_FILE = /\.(shp|zip|gpkg|kml|kmz)$/i; // #2016 — sample points from GIS files
@@ -932,14 +933,15 @@ export default function GeochemModule() {
     const svDlOf = (h) => { let d = svDlCache.get(h); if (d === undefined) { d = columnDetectionLimit((modal.allRows || []).map((x) => x[h])); svDlCache.set(h, d); } return d; };
     // TASKS.csv #600 — surface samples in another CRS are reprojected into the project CRS like collars are
     // (they used to be stored as-is, so an MX soil file in UTM 10 sat ~400 km from collars reprojected to UTM 9).
-    const fromEpsg = modal.sourceEpsg ? Number(modal.sourceEpsg) : null;
+    const mineSrc = isMineSource(modal.sourceEpsg), mineT = mineSrc ? mineSourceToProject(project) : null; // #2684 — read on the mine grid
+    const fromEpsg = modal.sourceEpsg && !mineSrc ? Number(modal.sourceEpsg) : null;
     let toEpsg = project?.epsg ? Number(project.epsg) : null;
     // #1148 — where the rows are, in case they are in latitude / longitude: the metric CRS for that place is offered, not degrees
     const rowAt = allRows.map((r) => ({ lon: num(r[mapping.x]), lat: num(r[mapping.y]) })).find((q) => Number.isFinite(q.lon) && Number.isFinite(q.lat) && Math.abs(q.lon) <= 180 && Math.abs(q.lat) <= 90) || null;
     // TASKS.csv #1445 (review #1352) — the dialog says 'GeoStrix asks on import' when the project CRS was never chosen, and nothing asked:
     // rocks.csv came in with the project still 'CRS: not set'. Now it asks, as a collar import does, showing where the samples would land
     // (projected coordinates; latitude / longitude goes through the adopt step below, #1148). 'Decide later' imports them as before.
-    if (project?.crsSet === false && !project?.localGrid /* #2180 */ && !fromEpsg && !rowAt) {
+    if (project?.crsSet === false && !project?.localGrid /* #2180 */ && !fromEpsg && !rowAt && !mineSrc /* #2684 */) {
       const pts = allRows.slice(0, 2000).map((r) => ({ x: num(r[mapping.x]), y: num(r[mapping.y]) })).filter((q) => Number.isFinite(q.x) && Number.isFinite(q.y));
       const picked = await requestProjectCrs(tr("These samples' coordinates need the project's coordinate system: choose the one they are in."), pts);
       if (picked) toEpsg = Number(picked);
@@ -982,7 +984,8 @@ export default function GeochemModule() {
         if (rec) { rec.batch = rec.attrs?.[Object.keys(rec.attrs || {}).find((k) => /cert|batch|job|work\s*order/i.test(k))] ?? null; qcRecords.push(rec); return null; }
       }
       let x = num(r[mapping.x]), y = num(r[mapping.y]);
-      if (doReproject && Number.isFinite(x) && Number.isFinite(y)) {
+      if (mineT && Number.isFinite(x) && Number.isFinite(y)) { const [mx, my] = mineT(x, y); if (Number.isFinite(mx) && Number.isFinite(my)) { x = mx; y = my; } } // #2684
+      else if (doReproject && Number.isFinite(x) && Number.isFinite(y)) {
         const p = gridTie ? fileToLocal(gridTie, x, y, fromEpsg) : reprojectXY(x, y, fromEpsg, toEpsg); // gridTie: #2320
         if (p) ({ x, y } = p); else { reprojectFailed++; x = NaN; }
       }
@@ -1042,6 +1045,7 @@ export default function GeochemModule() {
       qcRecords.length ? `${qcRecords.length} QC insert(s) (${["standard", "blank", "duplicate"].map((k) => `${qcRecords.filter((q) => q.kind === k).length} ${k}`).join(", ")}) kept apart for Surface QA/QC, not as samples.` : null,
       noXY > 0 ? tr("{n} row(s) with no easting / northing were left out (not QC inserts: their type was not standard, blank or duplicate).", { n: noXY }) : null, // #1664
       noZ ? `${noZ} sample(s) have no elevation${zeroMissing ? ` (a 0 in the "${mapping.z}" column is read as no elevation)` : ""} — ${store.terrain ? "the 3D view places them on the terrain" : "with no terrain the 3D view draws them flat (at the highest collar on a project drilled from underground, else the median collar) until a terrain is loaded"}.` : null, // no terrain: #2264
+      mineSrc ? mineSourceSentence(mineSourceOf(project), toEpsg).trim() : null, // #2684
       doReproject ? `Reprojected from EPSG:${fromEpsg} to the project's EPSG:${toEpsg}${reprojectFailed ? ` (${reprojectFailed} row(s) could not be converted and were skipped)` : ""}.` : null,
     ].filter(Boolean).join(" ");
     setNotices((p) => [...p, notice(chosen.length === 1 ? "Loaded {rows} surface samples (1 element). Switch to 3D View to see them.{v}" : "Loaded {rows} surface samples ({chosen} elements). Switch to 3D View to see them.{v}", /* #2201 */ { rows: rows.length, chosen: chosen.length, v: extra ? " " + extra : "" })]);
@@ -1528,6 +1532,7 @@ export default function GeochemModule() {
           onCommit={() => commitSurfaceImport(surfaceModal)}
           onJoinFile={joinSurfaceFile}
           projectEpsg={project?.epsg}
+          mineGrid={mineSourceOf(project) /* #2684 */}
         />
       )}
 
