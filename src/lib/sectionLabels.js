@@ -65,6 +65,23 @@ export function placeLabels(items, { fontSize = 9, bounds = null, yBounds = null
   return out;
 }
 
+// TASKS.csv #2705 (#2457 (10), review #2325) — a planned hole's pierce labels on a section: 'Not covered by drilling (> 50 m): U estimate
+// (idw2, 4m, r120m) 200-424 shell' eight times across the middle of the plot. The name loses its parenthesised run parameters and, past
+// `max` characters, its middle (the end tells two shells of one estimate apart: '... 200-424 shell'); the full name stays in the marker's
+// tooltip. Only the first and last crossing of each surface along the hole are labelled. pierces: [{ name, md }] in downhole order ->
+// Set of the indices to label
+export function shortSurfaceName(name, max = 40) {
+  const s = String(name ?? "").replace(/\s*\([^()]*\)/g, "").replace(/\s+/g, " ").trim() || String(name ?? "");
+  if (s.length <= max) return s;
+  const tail = Math.min(16, Math.floor(max / 2));
+  return `${s.slice(0, max - tail - 1).trimEnd()}…${s.slice(-tail).trimStart()}`;
+}
+export function pierceLabelIndices(pierces) {
+  const first = new Map(), last = new Map();
+  (pierces || []).forEach((q, k) => { if (!first.has(q.name)) first.set(q.name, k); last.set(q.name, k); });
+  return new Set([...first.values(), ...last.values()]);
+}
+
 // where a leader line meets its label: the middle of the box's edge that faces the anchor
 export function leaderEnd(b) {
   const top = b.y - b.h + 1, bottom = b.y + 2;

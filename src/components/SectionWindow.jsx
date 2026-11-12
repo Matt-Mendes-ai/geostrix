@@ -6,7 +6,7 @@ import { snapTargets, snapClick, moveVertex, deleteVertex, insertVertex, nearest
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { sectionPaper } from "../lib/pageFormats.js"; // TASKS.csv #1143
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
-import { placeLabels, leaderEnd, resolveLabels, labelWidth } from "../lib/sectionLabels.js"; // TASKS.csv #823
+import { placeLabels, leaderEnd, resolveLabels, labelWidth, shortSurfaceName, pierceLabelIndices } from "../lib/sectionLabels.js"; // TASKS.csv #823; short pierce labels: #2705
 import { groupSectionLegend, sectionAssayLegend, sectionMineralLegend, sectionModelLegend, rampRows, ribbonOrder, ribbonLayers } from "../lib/sectionLegend.js"; // TASKS.csv #1128 — the key goes to Layout, grouped; #1475
 import { LAYER_META } from "../lib/layers.js"; // #1475 — the mineralization group name
 import { exportSvgMarkup, FIGURE_FONT } from "../lib/svgExport.js"; // TASKS.csv #1089 — font, size, no UI chrome
@@ -1047,10 +1047,11 @@ function SectionSVG({ patterns = null, textFont = SECTION_FONTS[0].stack, textSc
           const last = t[t.length - 1];
           { const ex = sx(along(last.x, last.y)), ey = sz(last.z); if (inPlot([ex, ey])) floatLabels.push({ key: `peoh${i}`, text: tr("planned EOH {v} m", { v: Math.round(eoh) }), size: fs(9), fill: colors.planned, prio: 2, cands: [{ x: ex, y: ey + fs(11), anchor: "middle" }, { x: ex + 6, y: ey + 3, anchor: "start" }, { x: ex - 6, y: ey + 3, anchor: "end" }, { x: ex, y: ey + fs(22), anchor: "middle" }] }); } // #1134
         }
+        const labelled = pierceLabelIndices(ph.pierces); // #2705 — each surface's first and last crossing
         (ph.pierces || []).forEach((q, k) => {
           const x = sx(along(q.x, q.y)), y = sz(q.z);
           marks.push(<g key={`p${k}`}><circle cx={x} cy={y} r="3.2" fill="#fff" stroke={colors.planned} strokeWidth="1.4" /><title>{tr("{hole} crosses {surface} at {md} m downhole", { hole: ph.name, surface: q.name, md: q.md.toFixed(1) })}</title></g>);
-          floatLabels.push({ key: `pp${i}_${k}`, text: tr("{md} m · {surface}", { md: q.md.toFixed(1), surface: q.name }), size: fs(9), fill: colors.warnText, weight: 600, prio: 3, cands: [{ x: x + 6, y: y - 4, anchor: "start" }, { x: x - 6, y: y - 4, anchor: "end" }, { x: x + 6, y: y + fs(12), anchor: "start" }, { x: x - 6, y: y + fs(12), anchor: "end" }] }); // #1134
+          if (labelled.has(k)) floatLabels.push({ key: `pp${i}_${k}`, text: tr("{md} m · {surface}", { md: q.md.toFixed(1), surface: shortSurfaceName(q.name) }), size: fs(9), fill: colors.warnText, weight: 600, prio: 3, cands: [{ x: x + 6, y: y - 4, anchor: "start" }, { x: x - 6, y: y - 4, anchor: "end" }, { x: x + 6, y: y + fs(12), anchor: "start" }, { x: x - 6, y: y + fs(12), anchor: "end" }] }); // #1134
         });
         return (
           <g key={`ph${i}`}>
