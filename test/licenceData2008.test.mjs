@@ -6,7 +6,7 @@ import { bundledData } from "../scripts/third-party-licenses.mjs";
 
 test("the bundled pattern tiles are listed with their CC0 text", () => {
   const d = bundledData();
-  assert.equal(d.length, 1);
+  assert.equal(d.length, 2); // #2690: and the time scale's colours (timeScaleIntervals2690.test.mjs)
   assert.match(d[0].name, /^FGDC lithology patterns/);
   assert.equal(d[0].license, "CC0-1.0 (public domain)");
   assert.match(d[0].text, /FGDC-STD-013-2006/);

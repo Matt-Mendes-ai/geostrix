@@ -1,0 +1,13 @@
+International time scale interval colours (bundled with GeoStrix since TASKS.csv #2690)
+
+What: the 170 intervals of Macrostrat's "international intervals" timescale (eons to ages), each with its name, abbreviation,
+type, top and base age (Ma) and colour, as used by Surface Geology > Map layers > Time-scale colours. Nothing else was kept.
+
+Source: Macrostrat API, https://macrostrat.org/api/v2/defs/intervals?timescale=international%20intervals
+Downloaded: 2026-11-12, once, and trimmed to the fields above (no values changed). The colours are those of the international
+chronostratigraphic chart as Macrostrat publishes them.
+
+Licence: Creative Commons Attribution 4.0 International (CC BY 4.0), https://creativecommons.org/licenses/by/4.0/
+Macrostrat states: "All data are licensed under Creative Commons BY 4.0 International" (https://macrostrat.org/api/v2/meta).
+Citation (as Macrostrat asks): Peters, S.E. et al. Macrostrat: a platform for geological data integration and deep-time research.
+https://macrostrat.org, accessed on 2026-11-12.

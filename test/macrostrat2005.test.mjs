@@ -87,5 +87,5 @@ test("colour lookups: lithology codes and age-named units, the most specific nam
   const ts = timeScaleColours([{ value: "Late Jurassic granite" }, { value: "Jurassic sediments" }, { value: "Unit 7", label: "Eocene volcanics" }, { value: "Quaternary till" }], ints);
   assert.deepEqual(ts.map((t) => [t.value, t.interval]), [["Late Jurassic granite", "Late Jurassic"], ["Jurassic sediments", "Jurassic"], ["Unit 7", "Eocene"]]);
   assert.ok(read("src/components/LayerInspector.jsx").includes('layerKey === "litho" && <button onClick={macrostratColours}'));
-  assert.ok(read("src/components/SurfaceMappingPanel.jsx").includes('tr("Time-scale colours (online)")')); // "(online)": TASKS.csv #2415
+  assert.ok(read("src/components/SurfaceMappingPanel.jsx").includes('tr("Time-scale colours")')); // "(online)" (#2415) went with #2690: the colours are bundled
 });

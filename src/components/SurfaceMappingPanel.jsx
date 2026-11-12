@@ -9,7 +9,8 @@ import SourceCrsField from "../components/SourceCrsField.jsx"; // TASKS.csv #488
 import AzimuthRefPicker from "./AzimuthRefPicker.jsx"; // TASKS.csv #547
 import { bearingsToGrid, northRefText, loadIgrf } from "../lib/azimuthRef.js";
 import Papa from "papaparse";
-import { Eye, EyeOff, Trash2, Map as MapIcon, Compass, ChevronDown, ChevronRight, Palette } from "./icons.js";
+import { Eye, EyeOff, Trash2, Map as MapIcon, Compass, ChevronDown, ChevronRight, Palette, Crosshair } from "./icons.js"; // Crosshair: #2793
+import { requestPlanZoom } from "../lib/planZoom.js"; // TASKS.csv #2793
 import { useStore } from "../lib/store.jsx";
 import InfoButton from "./InfoButton.jsx";
 import { parseShapefileZip, parseShapefileParts, listZipNames, readZipEntries } from "../lib/shapefile.js";
@@ -63,7 +64,7 @@ export function skipReasons(w = {}) {
 export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { // part: "maps" | "structures" | null = both (TASKS.csv #458)
   const {
     project, terrain, projectIsEmpty, setEpsg, // #607
-    mapLayers, addMapLayer, updateMapLayer, removeMapLayer,
+    mapLayers, addMapLayer, updateMapLayer, removeMapLayer, goToModule /* #2793 */,
     surfaceStructures, addSurfaceStructureSet, updateSurfaceStructureSet, removeSurfaceStructureSet,
   collars = [], /* #1325 */ surfaceSamples = [], /* #1715 */ survey = [], layers = {}, desurveyMethod, viewerUiState, /* #1719 */ setStructureCodeClasses /* #2266 */, modellingCodes /* #2407 */ } = useStore();
   const mapInput = useRef(null);
@@ -587,6 +588,8 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
               </div>
               <div style={{ flex: 1, minWidth: 0, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={`${l.name}\n${l.crsNote || ""}`}>{l.name}</div>
               <span style={{ color: "var(--color-text-muted)", flexShrink: 0 }}>{featureCountText(l.features.length, l.geomType) /* #1448 — was '710 polygon' */}</span>
+              {Array.isArray(l.bbox) && l.bbox.every(Number.isFinite) && <Crosshair role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} /* TASKS.csv #2793 — as Maps' raster / boundary / claim cards (#2657) */
+                aria-label={tr("Zoom the plan to \"{name}\"", { name: l.name })} title={tr("Zoom the plan to \"{name}\"", { name: l.name })} onClick={() => { goToModule("maps"); requestPlanZoom(l.bbox); }} />}
               <Trash2 aria-label={tr("Remove map layer \"{name}\"", { name: l.name })} title={tr("Remove map layer \"{name}\"", { name: l.name })} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(tr("Remove \"{name}\"?", { name: l.name }))) removeMapLayer(l.id); }} />
             </div>
             <label style={{ ...row, cursor: terrain ? "pointer" : "default", opacity: terrain ? 1 : 0.45 }}>
@@ -656,16 +659,16 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
                 {legendOpen && (
                   <div style={{ marginTop: 5, display: "flex", flexDirection: "column", gap: 3 }}>
                     {/* TASKS.csv #2005 — units named by age ('Late Jurassic') in the international time scale's colours, from Macrostrat */}
-                    <button type="button" style={{ ...pBtn, padding: "2px 6px", width: "auto", fontSize: "var(--font-size-xs)", marginBottom: 4 }} title={tr("Colour the units whose name gives an age (Late Jurassic, Eocene ...) in the international time scale's colours, fetched from Macrostrat (CC BY 4.0) over the internet. The others keep their colours.")}
+                    <button type="button" style={{ ...pBtn, padding: "2px 6px", width: "auto", fontSize: "var(--font-size-xs)", marginBottom: 4 }} title={tr("Colour the units whose name gives an age (Late Jurassic, Eocene ...) in the international time scale's colours (Macrostrat, CC BY 4.0, included with GeoStrix: no internet needed). The others keep their colours.")}
                       onClick={async () => {
                         try {
-                          const [{ fetchMacrostratIntervals }, { timeScaleColours }] = await Promise.all([import("../lib/macrostratFetch.js"), import("../lib/macrostratColours.js")]);
-                          const hits = timeScaleColours(l.categories.map((c) => ({ value: c.value, label: c.label })), await fetchMacrostratIntervals());
+                          const { bundledTimeScaleIntervals, timeScaleColours } = await import("../lib/macrostratColours.js"); // #2690 — bundled, offline
+                          const hits = timeScaleColours(l.categories.map((c) => ({ value: c.value, label: c.label })), await bundledTimeScaleIntervals());
                           const byValue = new Map(hits.map((h) => [h.value, h.color]));
                           updateMapLayer(l.id, (cur) => ({ categories: cur.categories.map((x) => (byValue.has(x.value) ? { ...x, color: byValue.get(x.value) } : x)) }));
                           setMapMsg({ ok: true, text: tr("\"{name}\": {n} of {total} units coloured by the time scale (Macrostrat, CC BY 4.0); the others keep their colours.", { name: l.name, n: hits.length, total: l.categories.length }) });
-                        } catch (e) { setMapMsg({ ok: false, text: tr("Macrostrat: {message}", { message: e.message }) + " " + tr("The time-scale colours come from Macrostrat over the internet: offline, the units keep their colours.") }); } // #2415
-                      }}>{tr("Time-scale colours (online)")}</button>{/* "(online)", "over the internet": TASKS.csv #2415 */}
+                        } catch (e) { setMapMsg({ ok: false, text: tr("Macrostrat: {message}", { message: e.message }) }); } // #2415; offline since #2690
+                      }}>{tr("Time-scale colours")}</button>{/* TASKS.csv #2690: bundled, so no '(online)' (#2415) */}
                     {l.categories.map((c, ci) => (
                       <div key={String(c.value)} style={{ display: "flex", alignItems: "center", gap: 6 }}>
                         <input type="checkbox" checked={c.visible !== false} title={tr("Show this unit")}
