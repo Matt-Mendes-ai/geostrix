@@ -10606,5 +10606,6 @@
   "The project has no terrain: this ground is used for this inversion only.": "Le projet n'a pas de terrain : ce sol ne sert qu'à cette inversion.",
   "The project's terrain (\"{name}\") is kept for everything else.": "Le terrain du projet (« {name} ») est conservé pour tout le reste.",
   "This inversion uses a ground from {n} station elevations: {w} × {h} nodes at {cell} m, blanked beyond {blank} m of a station ({zmin} to {zmax} m). It is the survey's own GPS heights, not a DEM.": "Cette inversion utilise un sol issu de {n} altitudes de stations : {w} × {h} nœuds à {cell} m, vide au-delà de {blank} m d'une station ({zmin} à {zmax} m). Ce sont les hauteurs GPS du levé lui-même, pas un MNT.",
-  "Use the project's terrain instead": "Utiliser plutôt le terrain du projet"
+  "Use the project's terrain instead": "Utiliser plutôt le terrain du projet",
+  "Zoom the plan to \"{name}\"": "Cadrer le plan sur « {name} »"
 }
