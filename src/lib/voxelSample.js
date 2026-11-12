@@ -38,6 +38,21 @@ export function buildVoxelLookup(cells) {
   return { find, minCell };
 }
 
+// TASKS.csv #2727 (split from #1846) — Surface query's block-model rows: per hole, the metres inside the model and those at or above a
+// cutoff (from sampleModelOnHoles' intervals), with their length-weighted mean. -> [{ hole_id, inM, aboveM, meanAbove }] by aboveM, then inM
+export function holesInBlockModel(rows, cutoff = null) {
+  const by = new Map();
+  for (const r of rows || []) {
+    const L = Number(r.to) - Number(r.from), v = Number(r.value);
+    if (!(L > 0)) continue;
+    const h = by.get(r.hole_id) || by.set(r.hole_id, { hole_id: r.hole_id, inM: 0, aboveM: 0, sumAbove: 0 }).get(r.hole_id);
+    h.inM += L;
+    if (cutoff != null && Number.isFinite(v) && v >= cutoff) { h.aboveM += L; h.sumAbove += v * L; }
+  }
+  return [...by.values()].map((h) => ({ hole_id: h.hole_id, inM: h.inM, aboveM: cutoff != null ? h.aboveM : null, meanAbove: h.aboveM > 0 ? h.sumAbove / h.aboveM : null }))
+    .sort((a, b) => (b.aboveM ?? 0) - (a.aboveM ?? 0) || b.inM - a.inM);
+}
+
 // model: { cells: [{x,y,z,dx,dy,dz,value}] } in project coordinates. Returns { rows, holes, step }.
 export function sampleModelOnHoles({ model, collars, survey, desurveyMethod, step }) {
   const { find, minCell } = buildVoxelLookup(model.cells || []);
