@@ -27,5 +27,5 @@ test("the note shows under the caption and travels with the exported figure", ()
   const g = readFileSync(new URL("../src/modules/GeochemModule.jsx", import.meta.url), "utf8");
   assert.match(g, /const carbonateNote = VOLCANIC_DIAGRAMS\.includes\(diagramId\) && carbShare != null && carbShare > 1 \/ 3/);
   assert.match(g, /\{carbonateNote && <div /);
-  assert.match(g, /caption: \(carbonateNote \? `\$\{carbonateNote\} ` : ""\) \+ \(pdx\.length/);
+  assert.match(g, /caption: \(carbonateNote \? `\$\{carbonateNote\} ` : ""\) \+ (\(volcanicNote \? `\$\{volcanicNote\} ` : ""\) \/\* #2911 \*\/ \+ )?\(pdx\.length/); // #2911 adds the volcanic note beside it
 });

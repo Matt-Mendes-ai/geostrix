@@ -388,6 +388,13 @@ export function loggedCodeAt(sample, lithoByHole) {
 // Silvertip's limestone and dolostone "komatiite" because their MgO dominates the cation sum
 // TASKS.csv #2352 (review #2325, WA uranium) — and the cover / palaeochannel codes: lignite, clay, claystone, sand, silt, lignitic clay,
 // conglomerate, calcrete, carbonaceous clay, mud (LIG, CLY, CLS, SAN, SLT, STS, LIC, CON, CAL, CBC)
+// TASKS.csv #2911 (WA iron review) — a lithology log with codes and none of them a volcanic rock (Classify's own test, #2352: a code
+// guessProtolith reads and isSedimentaryCode does not): the volcanic diagrams' fields (the Alteration Box Plot, TAS, AFM, Jensen …) do
+// not apply. false with no code at all (nothing logged says so either way). codes: the distinct logged values
+export function noVolcanicCodes(codes) {
+  const list = [...new Set((codes || []).map((c) => String(c ?? "").trim()).filter(Boolean))];
+  return list.length > 0 && !list.some((c) => !isSedimentaryCode(c) && !!guessProtolith(c));
+}
 export function isSedimentaryCode(code) {
   return /^(lmst|lst|ls|limestone|dlst|dolst|dolostone|dolomite|dol|marble|mbl|slst|sltst|siltstone|slt|sts|sndst|sst|sandstone|san|sand|sh|shale|arg|argillite|mdst|mudstone|mud|cong|cgl|con|conglomerate|chert|cht|wacke|gwke|greywacke|graywacke|evap|evaporite|coal|lig|lignite|lic|cly|clay|cls|claystone|cbc|cal|calcrete)$/i.test(String(code || "").trim());
 }

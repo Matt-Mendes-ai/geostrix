@@ -1787,6 +1787,7 @@
   "No '<x' results: the lowest reported value (an upper bound on the limit)": "Sin resultados '<x': el valor informado más bajo (un tope superior del límite)",
   "Use the lab's <{limit}": "Usar el <{limit} del laboratorio",
   "main column": "columna principal",
+  "No logged lithology code here reads as a volcanic rock: this diagram's fields assume one, so they may not apply to these samples.": "Ningún código de litología registrado aquí corresponde a una roca volcánica: los campos de este diagrama la suponen, así que pueden no aplicarse a estas muestras.",
   "Oxide columns kept as the oxide, as the project stores them: {list}.": "Columnas de óxido conservadas como óxido, como las guarda el proyecto: {list}.",
   "Added {name}: the robust multivariate score of {n} sample(s) on {els}; {k} lie above the 97.5 % line ({cut}). It ranks how unusual each sample's composition is; it is not a probability of mineralization.": "Se agregó {name}: el puntaje multivariado robusto de {n} muestra(s) con {els}; {k} quedan sobre la línea del 97,5 % ({cut}). Ordena qué tan inusual es la composición de cada muestra; no es una probabilidad de mineralización.",
   "Multivariate anomaly score": "Puntaje de anomalía multivariado",

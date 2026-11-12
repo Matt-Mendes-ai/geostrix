@@ -20,6 +20,6 @@ test("the buttons are disabled with 'Needs ... in the assays' when an element is
 });
 
 test("the first look at a project opens on the X-Y scatter when the kept diagram cannot plot", () => {
-  assert.match(g, /const req = ALL_DIAGRAMS\[diagramId\]\?\.requires \|\| \[\];\r?\n {4}if \(req\.length && req\.some\(\(sym\) => !assaySymSet\.has\(sym\)\)\) setDiagramId\("xy"\);/);
+  assert.match(g, /const req = ALL_DIAGRAMS\[diagramId\]\?\.requires \|\| \[\];\r?\n {4}if \(req\.length && req\.some\(\(sym\) => !assaySymSet\.has\(sym\)\)\) \{ setDiagramId\("xy"\); return; \}/); // #2911: then the volcanic / bulk check
   assert.match(g, /if \(openingChecked\.current \|\| !assayElements\.length\) return;/);
 });
