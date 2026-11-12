@@ -7,7 +7,7 @@ import { Box, Download, Layers3 } from "./icons.js";
 import { TaskPaneHeader } from "./Ribbon.jsx";
 import { useStore } from "../lib/store.jsx";
 import { stopeRows } from "../lib/stopeOutlines.js";
-import { elementOfModel, gradeWithElement, gradeUnitText, readsAsPercent } from "../lib/pitShell.js"; // TASKS.csv #2594; units: #2111
+import { elementOfModel, gradeWithElement, gradeUnitText, cutoffUnits } from "../lib/pitShell.js"; // TASKS.csv #2594; units: #2111; cutoffUnits: #2666
 import { runStopeOutlinesAsync } from "../lib/stopeOutlinesClient.js"; // TASKS.csv #2279 — off the UI thread
 import { gradeCandidate } from "../lib/gradeCandidate.js"; // #1848
 import { categoricalModels } from "../lib/geologyForward.js";
@@ -59,8 +59,9 @@ export default function StopesPane({ onAdd, onRemove, onClose, stopes = [], onSh
   const set = (k) => (e) => { setF((p) => ({ ...p, [k]: e.target.value })); setMsg(null); };
   const v = (k) => (f[k] === "" ? null : Number(f[k]));
   // TASKS.csv #2111 — a Cu model in ppm takes its cut-off in % too (0.3 % = 3000 ppm); the run, its record and the names stay in the model's unit
-  const pctOk = readsAsPercent(unit, element), pctIn = pctOk && f.cutIn === "%";
-  const cutV = v("cutoff") == null ? null : pctIn ? +(v("cutoff") * 1e4).toPrecision(12) : v("cutoff");
+  // TASKS.csv #2666 — and in the reported oxide (% Li2O for a Li model, ppm U3O8 for U): every unit converts to the model's before the run
+  const cutUnits = cutoffUnits(unit, element), cutUnit = cutUnits.find((u) => u.key === f.cutIn) || cutUnits[0], pctOk = cutUnits.length > 1, pctIn = cutUnit.key !== "";
+  const cutV = v("cutoff") == null ? null : cutUnit.toModel(v("cutoff"));
   const rangeBad = v("zMin") != null && v("zMax") != null && !(v("zMax") > v("zMin")); // #1893
   const dipTyped = v("dip") != null || v("dipDir") != null, dipBad = dipTyped && !(v("dip") > 0 && v("dip") < 90 && v("dipDir") != null && v("dipDir") >= 0 && v("dipDir") <= 360); // #1953 — both or neither
   const missing = !model || !(cutV >= 0) || !(v("levelH") > 0) || !(v("density") > 0) || rangeBad || dipBad;
@@ -143,7 +144,7 @@ export default function StopesPane({ onAdd, onRemove, onClose, stopes = [], onSh
       {models.length > 0 && (<>
         <label style={row}>{tr("Block model")}<select value={f.modelId} onChange={set("modelId")} style={{ ...smallSel, width: 0, flex: 1, minWidth: 0 }} aria-label={tr("Block model of the stopes")}>{models.map((m) => <option key={m.id ?? m.name} value={m.id ?? m.name}>{m.name}</option>)}</select></label>
         {pctOk
-          ? <label style={row}>{tr("Cut-off ({unit})", { unit: element })}<span style={{ display: "flex", gap: 4 }}><input type="number" min={0} step="any" value={f.cutoff} onChange={set("cutoff")} style={num} aria-label={tr("Cut-off")} /><select value={f.cutIn === "%" ? "%" : ""} onChange={set("cutIn")} style={{ ...smallSel, width: 56 }} aria-label={tr("Unit of the cut-off")}><option value="">{unit}</option><option value="%">%</option></select></span></label>
+          ? <label style={row}>{tr("Cut-off ({unit})", { unit: element })}<span style={{ display: "flex", gap: 4 }}><input type="number" min={0} step="any" value={f.cutoff} onChange={set("cutoff")} style={num} aria-label={tr("Cut-off")} /><select value={cutUnit.key} onChange={set("cutIn")} style={{ ...smallSel, width: 92 }} aria-label={tr("Unit of the cut-off")}>{cutUnits.map((u) => <option key={u.key} value={u.key}>{u.label}</option>)}</select>{/* #2666 */}</span></label>
           : field("cutoff", unit ? tr("Cut-off ({unit})", { unit: element ? `${gradeUnitText(unit, element)} ${element}` : unit }) : tr("Cut-off"))}{/* #2111 — % for a ppm Cu model; g/t for a ppm Au one */}
         {element && cutV > 0 && gradeWithElement(cutV, unit, element, (x) => String(Number(x.toPrecision(4)))).includes("(") && <div style={{ ...note, marginTop: 0 }}>{tr("Cut-off: {g}", { g: gradeWithElement(cutV, unit, element, (x) => String(Number(x.toPrecision(4)))) })}</div>}{/* #2594 — 0.4645 % Li (1 % Li2O) */}
         {field("levelH", tr("Level interval (m)"), { title: tr("The height of each stope: the distance between sublevels. A column counts as ore on a level only where its blocks fill at least half of it."), placeholder: blockH ? String(blockH) : "" })}

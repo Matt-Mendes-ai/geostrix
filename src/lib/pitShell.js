@@ -83,6 +83,17 @@ function gradeExtras(v, unit, element, fmt) {
   if (/^ppb$/i.test(String(unit || "")) && PRECIOUS.has(element)) out.push(`${fmt(v / 1000)} g/t ${element}`);
   return out;
 }
+// TASKS.csv #2666 (follow-up of #2594) — the units a typed cut-off can be in, for a model of this unit and element: its own unit, % for a ppm
+// model of a metal read in percent (#2111), and the reported oxide in either (a Li model's cut-off typed as % Li2O: 1 % Li2O = 0.4645 % Li).
+// -> [{ key, label, toModel(v) }] (the first is the model's own unit: key "")
+export function cutoffUnits(unit, element) {
+  const u = gradeUnitText(unit, element), out = [{ key: "", label: `${u} ${element || ""}`.trim(), toModel: (v) => v }];
+  const pct = readsAsPercent(unit, element), ox = element ? reportedOxide(element) : null;
+  if (pct) out.push({ key: "%", label: `% ${element}`, toModel: (v) => +(v * 1e4).toPrecision(12) });
+  if (ox) out.push({ key: "ox", label: `${u} ${ox[0]}`, toModel: (v) => +(v / ox[1]).toPrecision(12) });
+  if (ox && pct) out.push({ key: "ox%", label: `% ${ox[0]}`, toModel: (v) => +((v / ox[1]) * 1e4).toPrecision(12) });
+  return out;
+}
 // " (0.256 % Li2O)" (or " (0.126 % Cu)", #2111) after a grade already written with its unit (gradeUnitText) and element, or ""
 export function oxideSuffix(v, unit, element, fmt = (x) => String(Number(x.toPrecision(3)))) {
   const x = gradeExtras(v, unit, element, fmt);

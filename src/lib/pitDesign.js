@@ -97,7 +97,7 @@ export const toeRL = (z, benchH, datum = 0) => datum + Math.round((z - datum) / 
 // blocks ({ x, y, z, dx, dy, dz, value, coverage }), cutoff and density from the shell's run; benchH, berm, batterDeg, datum.
 // -> { positions, indices, strings: [{ bench, rl, kind: "toe" | "crest", lines: [[[x, y, z], ...]] }], benches: [{ rl, rockT, oreT, wasteT,
 //      metalU, meanGrade }], totals, interRampDeg, faceRun, reach, cell, nCells, coarsened, daylights, crestRL, floorRL }
-export function benchedPit(shell, { groundAt = null, cells = [], cutoff = Infinity, density = 1, wasteDensity = null, benchH, berm, batterDeg, datum = 0, maxCells = MAX_DESIGN_CELLS, largestOnly = false, areaPoly = null, sectors = null, ramp = null, onBench = null } = {}) { // onBench(k, about): #2286
+export function benchedPit(shell, { groundAt = null, cells = [], cutoff = Infinity, density = 1, wasteDensity = null, benchH, berm, batterDeg, datum = 0, maxCells = MAX_DESIGN_CELLS, largestOnly = false, areaPoly = null, sectors = null, ramp = null, onBench = null, weathered = null } = {}) { // weathered: #2671 — { depthAt(x, y), density } (pitShell.js weatheredOf) // onBench(k, about): #2286
   // TASKS.csv #1916 — a design AREA (areaPoly): a closed polygon [[x, y], ...] in world metres (a design string); only the shell's columns
   // whose centre lies inside it are designed, so one prospect of a district-wide shell gets the whole grid
   let columnsInArea = null;
@@ -310,9 +310,14 @@ export function benchedPit(shell, { groundAt = null, cells = [], cutoff = Infini
   }
   // the bench table: the rock between the design and the ground per slab, the ore from the blocks inside the design
   const area = cell * cell;
+  // TASKS.csv #2671 (follow-up of #2597) — the shell's weathered zone: every tonne above its base, ore or waste, at the weathered density
+  const dW = weathered && weathered.density > 0 ? weathered.density : null;
+  const wBase = dW ? new Float64Array(N).fill(NaN) : null;
+  const wPart = (c, lo, hi) => { const base = wBase ? wBase[c] : NaN; return Number.isFinite(base) && hi > lo ? Math.max(0, hi - Math.max(lo, base)) : 0; }; // metres of [lo, hi] above the base
   for (let c = 0; c < N; c++) {
     if (!inPit[c]) continue;
-    benches.forEach((b) => { const h = Math.min(g[c], b.rl + benchH) - Math.max(z[c], b.rl); if (h > 0) b.rockV += h * area; });
+    if (wBase) { const j = Math.floor(c / nx), i = c - j * nx, d = weathered.depthAt(X(i), Y(j)); if (Number.isFinite(d) && d > 0) wBase[c] = g[c] - d; }
+    benches.forEach((b) => { const lo = Math.max(z[c], b.rl), hi = Math.min(g[c], b.rl + benchH); if (hi > lo) { b.rockV += (hi - lo) * area; if (wBase) b.rockWV = (b.rockWV || 0) + wPart(c, lo, hi) * area; } });
   }
   // each block's overlap with every design cell's square (cells are centred on the lattice nodes), as buildPitGrid does
   const span = (lo, hi, o, N1) => [Math.max(0, Math.ceil((lo - o) / cell - 0.5)), Math.min(N1 - 1, Math.floor((hi - o) / cell + 0.5))];
@@ -331,7 +336,9 @@ export function benchedPit(shell, { groundAt = null, cells = [], cutoff = Infini
         if (oz <= 0) continue;
         const v = ox * oy * oz * cover;
         const rho = bl.density > 0 ? bl.density : density; // TASKS.csv #2647 — the block's code density
-        b.oreV += v; b.oreM = (b.oreM || 0) + v * rho; b.metalU += v * rho * bl.value;
+        const vw = wBase ? ox * oy * wPart(c, Math.max(zlo, z[c], b.rl), Math.max(zlo, z[c], b.rl) + oz) * cover : 0; // #2671 — the part above the weathered base
+        b.oreV += v; b.oreM = (b.oreM || 0) + (v - vw) * rho + vw * dW; b.metalU += ((v - vw) * rho + vw * dW) * bl.value;
+        if (vw > 0) b.oreWV = (b.oreWV || 0) + vw;
         if (bl.beyond === "above" || bl.beyond === "below") b.beyondV = (b.beyondV || 0) + v; // #2645 — ore beyond every sample informing it (#2435)
       }
     }
@@ -340,13 +347,17 @@ export function benchedPit(shell, { groundAt = null, cells = [], cutoff = Infini
   benches.forEach((b) => {
     const oreV = Math.min(b.oreV, b.rockV), scale = b.oreV > 0 ? oreV / b.oreV : 1; // #2437 — volumes first, then each part at its density
     beyondT += (b.beyondV || 0) * scale * density; delete b.beyondV;
-    b.oreT = (b.oreM != null ? b.oreM : b.oreV * density) * scale /* #2647: the ore at its blocks' densities */; b.metalU *= scale; delete b.oreM; b.wasteT = (b.rockV - oreV) * wd; b.rockT = b.oreT + b.wasteT;
+    b.oreT = (b.oreM != null ? b.oreM : b.oreV * density) * scale /* #2647: the ore at its blocks' densities */; b.metalU *= scale; delete b.oreM;
+    const wasteW = Math.max(0, (b.rockWV || 0) - (b.oreWV || 0) * scale); // #2671 — the waste above the weathered base
+    b.wasteT = (b.rockV - oreV - wasteW) * wd + wasteW * (dW || 0); b.rockT = b.oreT + b.wasteT;
+    b.weatheredT = dW ? ((b.oreWV || 0) * scale + wasteW) * dW : 0; delete b.rockWV; delete b.oreWV;
     b.meanGrade = b.oreT > 0 ? b.metalU / b.oreT : null; delete b.rockV; delete b.oreV;
   });
   const totals = benches.reduce((a, b) => ({ rockT: a.rockT + b.rockT, oreT: a.oreT + b.oreT, wasteT: a.wasteT + b.wasteT, metalU: a.metalU + b.metalU }), { rockT: 0, oreT: 0, wasteT: 0, metalU: 0 });
   totals.stripRatio = totals.oreT > 0 ? totals.wasteT / totals.oreT : null;
   totals.meanGrade = totals.oreT > 0 ? totals.metalU / totals.oreT : null;
   totals.oreBeyondSampleShare = totals.oreT > 0 ? beyondT / totals.oreT : 0; // #2645
+  totals.weatheredT = benches.reduce((s, b) => s + (b.weatheredT || 0), 0); totals.weatheredDensity = dW; // #2671
   let nCells = 0;
   for (let c = 0; c < N; c++) nCells += inPit[c];
   return { positions: Float64Array.from(pos), indices: Uint32Array.from(idx), strings, benches, totals, interRampDeg, faceRun, reach, cell, nCells, coarsened, daylights, crestRL, floorRL, groundTopRL: Number.isFinite(groundTop) ? groundTop : null /* #2440 */, partsDropped, columnsInArea,

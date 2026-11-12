@@ -17,6 +17,8 @@ import { saveFile } from "../lib/desktop.js";
 import { pBtn, smallSel } from "../lib/sidebarStyles.js";
 import UndergroundOreNote from "./UndergroundOreNote.jsx"; // TASKS.csv #2277
 import { t as tr } from "../lib/i18n.js";
+import { weatheredBasePoints } from "../lib/weatheredZone.js"; // TASKS.csv #2671 — the shell's weathered zone, rebuilt from the log
+import { holeTraces } from "../lib/evidenceSources.js"; // TASKS.csv #2671
 import { modelWithCodeDensity } from "../lib/densityByCode.js"; // TASKS.csv #2647 — the shell's per-code densities
 import { densityUsedText } from "./densityUsedText.js"; // TASKS.csv #2647
 import CollarLevelsNote from "./CollarLevelsNote.jsx"; // TASKS.csv #2584 — the lowest collar used where collars stand on benches
@@ -87,7 +89,7 @@ export default function PitDesignPane({ surfaces = [], worldPositionsOf, onAdd, 
     const positions = worldPositionsOf?.(pit.id);
     if (!positions) { setMsg(tr("The pit's mesh is not in the view: show it and try again.")); return; }
     const inputs = { benchH: v("benchH"), berm: v("berm"), batterDeg: v("batterDeg"), datum: f.datum === "" ? 0 : Number(f.datum) || 0, ...(sectorsIn ? { sectors: sectorsIn } : {}), ...(rampIn ? { ramp: rampIn } : {}) }; // sectors: #1952; ramp: #1948
-    const opts = { ...inputs, cutoff: Number(pit.params?.cutoffGrade) || Infinity, density: Number(pit.params?.inputs?.density) || 1, wasteDensity: Number(pit.params?.inputs?.wasteDensity) || null /* #2437 */, largestOnly: pitCount > 1 && largestOnly && !area, areaPoly: area ? area.vertices.map((q) => [q[0], q[1]]) : null, economics: byIn && byModel ? { ...pit.params.inputs, unit: unit || pit.params.inputs.unit } : null /* #1917 */ }; // areaPoly: #1916
+    const opts = { ...inputs, cutoff: Number(pit.params?.cutoffGrade) || Infinity, density: Number(pit.params?.inputs?.density) || 1, wasteDensity: Number(pit.params?.inputs?.wasteDensity) || null /* #2437 */, weathered: (() => { const w = pit.params?.inputs?.weathered; return !w ? null : w.freshCode ? { ...w, points: weatheredBasePoints(layers?.weath || [], holeTraces(collars, survey, desurveyMethod), w.freshCode).points } : w; })() /* #2671 — as the shell */, largestOnly: pitCount > 1 && largestOnly && !area, areaPoly: area ? area.vertices.map((q) => [q[0], q[1]]) : null, economics: byIn && byModel ? { ...pit.params.inputs, unit: unit || pit.params.inputs.unit } : null /* #1917 */ }; // areaPoly: #1916
     setBusy(true); setMsg(null);
     const t0 = performance.now();
     try {
@@ -257,6 +259,7 @@ export default function PitDesignPane({ surfaces = [], worldPositionsOf, onAdd, 
           {Number(res.shell?.gridCellM?.[0]) > Number(res.inputs?.benchH) && <div style={note}>{tr("The shell's walls are {d} m block steps, wider than a {h} m bench: the shell's waste understates what the benched walls take out.", { d: res.shell.gridCellM[0], h: res.inputs.benchH })}</div>}{/* #1899 */}
           {!res.daylights && <div style={warn}>{tr("The walls never met the ground: the design stops at the top bench.")}</div>}
           {res.densityUsed && <div style={note}>{densityUsedText(res.densityUsed)}</div>}{/* #2647 */}
+          {res.totals?.weatheredT > 0 && line(tr("Of the rock, weathered"), tr("{t} t at {d} t/m³", { t: big(res.totals.weatheredT), d: res.totals.weatheredDensity }))}{/* #2671 — as the Pit shell (#2597) */}
           {res.groundSource === "collars" && <><div style={note}>{tr("The ground is interpolated between the collars, not a terrain.")}</div><CollarLevelsNote collars={collars} /></>}
           {(() => { // TASKS.csv #2645 — as the Pit shell (#2435): the design's ore in blocks beyond every sample informing them
             const p = res.totals?.oreBeyondSampleShare || 0;

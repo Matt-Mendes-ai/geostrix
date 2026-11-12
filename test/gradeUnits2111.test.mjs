@@ -24,9 +24,9 @@ test("the panes: the cut-off lines, the solid's mean grade and the stope cut-off
   const pit = fs.readFileSync("src/components/PitShellPane.jsx", "utf8");
   assert.equal((pit.match(/gradeUnitText\(/g) || []).length, 4);
   const st = fs.readFileSync("src/components/StopesPane.jsx", "utf8");
-  assert.match(st, /const cutV = v\("cutoff"\) == null \? null : pctIn \? \+\(v\("cutoff"\) \* 1e4\)\.toPrecision\(12\) : v\("cutoff"\);/);
+  assert.match(st, /const cutV = v\("cutoff"\) == null \? null : cutUnit\.toModel\(v\("cutoff"\)\);/); // #2666: the unit list (% for ppm Cu among them)
   assert.match(st, /\{ cutoff: cutV, levelH/);
   assert.match(st, /inputs: \{ \.\.\.f, \.\.\.\(pctIn \? \{ cutoff: String\(cutV\), cutIn: "" \} : \{\}\)/); // the record stays in ppm
-  assert.match(st, /<option value="%">%<\/option>/);
+  assert.match(st, /\{cutUnits\.map\(\(u\) => <option key=\{u\.key\} value=\{u\.key\}>\{u\.label\}<\/option>\)\}/);
   assert.match(fs.readFileSync("src/components/DesignStringsPane.jsx", "utf8"), /tr\("; mean grade \{g\}", \{ g: gradeWithElement\(tonnage\.meanGrade/);
 });
