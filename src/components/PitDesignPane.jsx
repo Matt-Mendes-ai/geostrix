@@ -274,6 +274,11 @@ export default function PitDesignPane({ surfaces = [], worldPositionsOf, onAdd, 
           {res.densityUsed && <div style={note}>{densityUsedText(res.densityUsed)}</div>}{/* #2647 */}
           {res.totals?.weatheredT > 0 && line(tr("Of the rock, weathered"), tr("{t} t at {d} t/m³", { t: big(res.totals.weatheredT), d: res.totals.weatheredDensity }))}{/* #2671 — as the Pit shell (#2597) */}
           {res.groundSource === "collars" && <><div style={note}>{tr("The ground is interpolated between the collars, not a terrain.")}</div><CollarLevelsNote collars={collars} /></>}
+          {(() => { // TASKS.csv #2735 — as the Pit shell (#2596): the design's ore in blocks whose nearest drilling was never sampled
+            const p = res.totals?.oreNearUnsampledShare || 0;
+            if (!(p > 0) || !(model?.params?.nearUnsampledFlagged || model?.cells?.some((c) => c.nearUnsampled))) return null;
+            return <div style={p > 0.2 ? warn : note}>{p > 0.2 ? tr("{p} % of this ore is in blocks whose nearest drilling was never sampled: the estimate carried sampled grade across unsampled core, which is unknown, not ore. Drilled metres with no sample can be estimated as barren: 3D Modelling › Estimation, \"Unsampled metres inside a sampled hole\".", { p: Math.round(p * 100) }) : tr("{p} % of the ore is in blocks whose nearest drilling was never sampled.", { p: Math.round(p * 100) })}</div>;
+          })()}
           {(() => { // TASKS.csv #2645 — as the Pit shell (#2435): the design's ore in blocks beyond every sample informing them
             const p = res.totals?.oreBeyondSampleShare || 0;
             if (!(p > 0) || !(model?.params?.beyondFlagged || model?.cells?.some((c) => c.beyond))) return null;

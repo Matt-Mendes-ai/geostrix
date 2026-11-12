@@ -190,6 +190,12 @@ export default function NestedPitsPane({ surfaces = [], onAdd, onToggle, onRemov
           {line(tr("Solved in"), `${res.seconds} s`)}
           {res.densityUsed && <div style={note}>{densityUsedText(res.densityUsed)}</div>}{/* #2647 */}
           {res.groundSource === "collars" && <><div style={note}>{tr("The ground is interpolated between the collars, not a terrain.")}</div><CollarLevelsNote collars={collars} /></>}
+          {(() => { // TASKS.csv #2735 — as the Pit shell (#2596): the largest pit's ore in blocks whose nearest drilling was never sampled
+            if (!(model?.params?.nearUnsampledFlagged || model?.cells?.some((c) => c.nearUnsampled))) return null;
+            const largest = [...res.runs].reverse().find((r) => r.oreT > 0), p = largest?.oreNearUnsampledShare || 0;
+            if (!(p > 0)) return null;
+            return <div style={p > 0.2 ? warn : note}>{tr("Largest pit (revenue factor {rf}): {text}", { rf: largest.rf, text: p > 0.2 ? tr("{p} % of this ore is in blocks whose nearest drilling was never sampled: the estimate carried sampled grade across unsampled core, which is unknown, not ore. Drilled metres with no sample can be estimated as barren: 3D Modelling › Estimation, \"Unsampled metres inside a sampled hole\".", { p: Math.round(p * 100) }) : tr("{p} % of the ore is in blocks whose nearest drilling was never sampled.", { p: Math.round(p * 100) }) })}</div>;
+          })()}
           {(() => { // TASKS.csv #2645 — as the Pit shell (#2435): the largest pit's ore in blocks beyond every sample informing them
             if (!(model?.params?.beyondFlagged || model?.cells?.some((c) => c.beyond))) return null;
             const largest = [...res.runs].reverse().find((r) => r.oreT > 0), p = largest?.oreBeyondSampleShare || 0;

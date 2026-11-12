@@ -369,13 +369,15 @@ export function benchedPit(shell, { groundAt = null, cells = [], cutoff = Infini
         b.oreV += v; b.oreM = (b.oreM || 0) + (v - vw) * rho + vw * dW; b.metalU += ((v - vw) * rho + vw * dW) * bl.value;
         if (vw > 0) b.oreWV = (b.oreWV || 0) + vw;
         if (bl.beyond === "above" || bl.beyond === "below") b.beyondV = (b.beyondV || 0) + v; // #2645 — ore beyond every sample informing it (#2435)
+        if (bl.nearUnsampled) b.nearUnsV = (b.nearUnsV || 0) + v; // #2735 — ore whose nearest drilling was never sampled (#2596)
       }
     }
   }
-  let beyondT = 0; // #2645
+  let beyondT = 0, nearUnsT = 0; // #2645; nearUnsT: #2735
   benches.forEach((b) => {
     const oreV = Math.min(b.oreV, b.rockV), scale = b.oreV > 0 ? oreV / b.oreV : 1; // #2437 — volumes first, then each part at its density
     beyondT += (b.beyondV || 0) * scale * density; delete b.beyondV;
+    nearUnsT += (b.nearUnsV || 0) * scale * density; delete b.nearUnsV; // #2735
     b.oreT = (b.oreM != null ? b.oreM : b.oreV * density) * scale /* #2647: the ore at its blocks' densities */; b.metalU *= scale; delete b.oreM;
     const wasteW = Math.max(0, (b.rockWV || 0) - (b.oreWV || 0) * scale); // #2671 — the waste above the weathered base
     b.wasteT = (b.rockV - oreV - wasteW) * wd + wasteW * (dW || 0); b.rockT = b.oreT + b.wasteT;
@@ -386,6 +388,7 @@ export function benchedPit(shell, { groundAt = null, cells = [], cutoff = Infini
   totals.stripRatio = totals.oreT > 0 ? totals.wasteT / totals.oreT : null;
   totals.meanGrade = totals.oreT > 0 ? totals.metalU / totals.oreT : null;
   totals.oreBeyondSampleShare = totals.oreT > 0 ? beyondT / totals.oreT : 0; // #2645
+  totals.oreNearUnsampledShare = totals.oreT > 0 ? nearUnsT / totals.oreT : 0; // #2735
   totals.weatheredT = benches.reduce((s, b) => s + (b.weatheredT || 0), 0); totals.weatheredDensity = dW; // #2671
   let nCells = 0;
   for (let c = 0; c < N; c++) nCells += inPit[c];
