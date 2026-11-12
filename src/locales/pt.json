@@ -10594,5 +10594,7 @@
   "in {crs}, the project's coordinate system": "em {crs}, o sistema de coordenadas do projeto",
   "its longitude / latitude (WGS 84) was reprojected to the project's {dst}": "sua longitude / latitude (WGS 84) foi reprojetada para o {dst} do projeto",
   "its longitude / latitude (WGS 84) was brought into the local grid through its tie to EPSG:{tie}": "sua longitude / latitude (WGS 84) foi trazida para a grade local pela sua amarração a EPSG:{tie}",
-  "It is drawn flat at {z} m, {h} m above the grid it was continued from.": "É desenhado plano a {z} m, {h} m acima da grade a partir da qual foi continuado."
+  "It is drawn flat at {z} m, {h} m above the grid it was continued from.": "É desenhado plano a {z} m, {h} m acima da grade a partir da qual foi continuado.",
+  "Survey date (for IGRF)": "Data do levantamento (para o IGRF)",
+  "Fill from IGRF-14": "Preencher com o IGRF-14"
 }

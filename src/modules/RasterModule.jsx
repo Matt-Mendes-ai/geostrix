@@ -94,9 +94,27 @@ export default function RasterModule({ embedded = false } = {}) {
   // any earlier points made from the same grid, so doing it twice does not double the survey.
   // TASKS.csv #373 — potential-field filters on a grid's kept values; each result is a new raster
   const [filterFor, setFilterFor] = useState(null); // raster id whose filter form is open
-  const [filt, setFilt] = useState({ kind: "rtp", inclination: "", declination: "", height: "", amplitudeInclination: "", integrate: false, si: "1", window: "" }); // amplitudeInclination, integrate: #1988; si, window: #1985
+  const [filt, setFilt] = useState({ kind: "rtp", inclination: "", declination: "", height: "", amplitudeInclination: "", integrate: false, si: "1", window: "", date: "", igrfSource: null }); // amplitudeInclination, integrate: #1988; si, window: #1985; date, igrfSource: #2561
   const [filtering, setFiltering] = useState(false);
   const [spectrum, setSpectrum] = useState(null); // TASKS.csv #808 — { rasterId, spec, fit } for the open grid
+  // TASKS.csv #2561 (review #2486) — RTP / RTE asked for I and D that 'IGRF gives both', with nothing to compute them: the field at the grid's
+  // centre and level for a survey date, as Inversion's 'Compute from IGRF-14' does; typed values stay possible (and win)
+  const fillIgrf = async (r) => {
+    if (project?.crsSet === false && !tieOf(project)) { setError({ info: false, text: tr("IGRF needs the survey's real-world location, and the project CRS isn't set: set it in the status bar first.") }); return; }
+    const { igrfField, decimalYear } = await import("../lib/igrf.js");
+    const yr = decimalYear(filt.date);
+    if (!Number.isFinite(yr)) { setError({ info: false, text: tr("Enter the survey date first — the field changes by tens of nT per year.") }); return; }
+    const g = r.grid, cx = g.x0 + (g.dx * (g.nx - 1)) / 2, cy = g.yTop - (g.dy * (g.ny - 1)) / 2;
+    const ll = await lonLatOf(cx, cy);
+    if (!ll) { setError({ info: false, text: tr("Can't convert EPSG:{epsg} to longitude/latitude for IGRF.", { epsg: tieOf(project)?.epsg ?? project?.epsg }) }); return; }
+    const lon = ll.lon ?? ll[0], lat = ll.lat ?? ll[1], zM = rasterLevelM(r) ?? (Number(r.elevation) || 0);
+    try {
+      const f = igrfField(lon, lat, zM / 1000, yr);
+      const source = `IGRF-14 for ${filt.date} at ${lat.toFixed(3)}, ${lon.toFixed(3)}, ${Math.round(zM)} m (grid centre)`;
+      setFilt((p) => ({ ...p, inclination: f.inclination.toFixed(2), declination: f.declination.toFixed(2), igrfSource: source }));
+      setError({ info: true, text: tr("Filled from IGRF-14 for {date}: {total} nT, inclination {inclination}°, declination {declination}° (true north). Check them against your survey report — the contractor's values win.", { date: filt.date, total: f.total.toFixed(0), inclination: f.inclination.toFixed(2), declination: f.declination.toFixed(2) }) });
+    } catch (e) { setError({ info: false, text: e.message }); }
+  };
   // TASKS.csv #2560 — a filter's product is drawn as its parent is (lib/eulerPlace.js filteredPlacement)
   const placeOf = (r, kind, params = {}) => { const { drapeMode, elevation } = filteredPlacement(r, kind, params); return { drapeMode, elevation }; };
   const runFilter = async (r) => {
@@ -112,7 +130,7 @@ export default function RasterModule({ embedded = false } = {}) {
       const d = gridDeclination(D, cx, cy, project?.epsg);
       if (!d) { setError({ info: false, text: tr("Could not compute grid convergence for this project CRS.") }); return; }
       declGrid = d.grid;
-      Object.assign(params, { inclination: I, declinationTrue: D, declinationGrid: +d.grid.toFixed(3), gridConvergence: +d.convergence.toFixed(3) });
+      Object.assign(params, { inclination: I, declinationTrue: D, declinationGrid: +d.grid.toFixed(3), gridConvergence: +d.convergence.toFixed(3), fieldSource: filt.igrfSource || "typed by the user" }); // fieldSource: #2561
       if (filt.kind === "rtpa" && filt.amplitudeInclination !== "") params.amplitudeInclination = Number(filt.amplitudeInclination);
     }
     if (filt.kind === "upward") {
@@ -593,8 +611,15 @@ export default function RasterModule({ embedded = false } = {}) {
                 </div>
                 {(filt.kind === "rtp" || filt.kind === "rtpa" || filt.kind === "rte") && (
                   <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6 }}>
-                    <input type="number" placeholder={tr("Inclination °")} value={filt.inclination} onChange={(e) => setFilt((p) => ({ ...p, inclination: e.target.value }))} style={numInput} aria-label={tr("Field inclination")} />
-                    <input type="number" placeholder={tr("Declination ° (true)")} value={filt.declination} onChange={(e) => setFilt((p) => ({ ...p, declination: e.target.value }))} style={numInput} aria-label={tr("Field declination, true north")} />
+                    <input type="number" placeholder={tr("Inclination °")} value={filt.inclination} onChange={(e) => setFilt((p) => ({ ...p, inclination: e.target.value, igrfSource: null }))} style={numInput} aria-label={tr("Field inclination")} />
+                    <input type="number" placeholder={tr("Declination ° (true)")} value={filt.declination} onChange={(e) => setFilt((p) => ({ ...p, declination: e.target.value, igrfSource: null }))} style={numInput} aria-label={tr("Field declination, true north")} />
+                  </div>
+                )}
+                {(filt.kind === "rtp" || filt.kind === "rtpa" || filt.kind === "rte") && ( /* TASKS.csv #2561 — I and D from IGRF-14 for the survey date */
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6, flexWrap: "wrap" }}>
+                    <input type="date" value={filt.date} onChange={(e) => setFilt((p) => ({ ...p, date: e.target.value }))} style={{ ...numInput, flex: 1 }} aria-label={tr("Survey date (for IGRF)")} />
+                    <button type="button" onClick={() => fillIgrf(r)} style={{ ...numInput, cursor: "pointer", flex: "0 0 auto" }}>{tr("Fill from IGRF-14")}</button>
+                    {filt.igrfSource && <div style={{ flexBasis: "100%", fontSize: "var(--font-size-xs)", color: "var(--color-text-caption)" }}>{tr("Source: {source}", { source: filt.igrfSource })}</div>}
                   </div>
                 )}
                 {filt.kind === "rtpa" && (
