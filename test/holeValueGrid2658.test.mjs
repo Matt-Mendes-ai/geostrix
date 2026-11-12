@@ -53,5 +53,6 @@ test("#2658 the plan offers it and its figure draws the collars", () => {
   assert.match(m, /\{n\} holes at their collars, on the grid's colour scale/);
   assert.match(p, /source: "holes", sourceId: source\.id, stat/);
   assert.match(p, /gridSamples\(samples, KEY, \{ log, cellM/);
-  assert.match(p, /const log = stat === "firstOver" \? false : logChoice \?\? logByDefault\(source\?\.unit\)/);
+  // #2991: st is the statistic valid for the source (a coded log has its own), and a coded log's thickness / depth is never logged
+  assert.match(p, /const log = st === "firstOver" \|\| coded \? false : logChoice \?\? logByDefault\(source\?\.unit\)/);
 });

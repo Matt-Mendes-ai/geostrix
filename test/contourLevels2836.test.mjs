@@ -44,7 +44,9 @@ test("'every N' and its limits", () => {
 
 test("wired: geochemistry keeps its rule; any other grid the interval; tooltips say which", () => {
   const c = readFileSync(new URL("../src/components/GridContourControls.jsx", import.meta.url), "utf8");
-  assert.match(c, /values && !raster\.geochem \? fieldContourLevels\(values\) : null/);
+  // #2991: a per-hole grid in metres (thickness, depth, RL) takes the round interval as well
+  assert.match(c, /const geochemRule = !!raster\.geochem && !\(raster\.geochem\.source === "holes" && raster\.geochem\.unit === "m"\);/);
+  assert.match(c, /values && !geochemRule \? fieldContourLevels\(values\) : null/);
   assert.match(c, /field \? field\.levels : suggestedContourLevels\(values\)/);
   assert.match(c, /every \? \(r98 \? levelsEvery\(every, r98\[0\], r98\[1\]\) : \[\]\)/);
   assert.match(c, /percentiles of the grid's positive values/);

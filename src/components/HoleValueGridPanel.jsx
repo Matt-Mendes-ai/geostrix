@@ -5,12 +5,20 @@ import React, { useMemo, useState } from "react";
 import { useStore } from "../lib/store.jsx";
 import { t as tr } from "../lib/i18n.js";
 import { gridSamples, logByDefault, samplePoints, suggestSampleGrid, MINCURV_MAX_CELLS } from "../lib/sampleGrid.js";
-import { holeValueSources, holeValueRows, perHoleValue, holeValueMeta, perHoleSpan, holeSamplesAt } from "../lib/holeValueGrid.js"; // perHoleSpan, holeSamplesAt: #2745
+import { holeValueSources, holeValueRows, perHoleValue, holeValueMeta, perHoleSpan, holeSamplesAt, perHoleCoded } from "../lib/holeValueGrid.js"; // perHoleSpan, holeSamplesAt: #2745; perHoleCoded: #2991
+import { LAYER_META } from "../lib/layers.js"; // TASKS.csv #2991 — a built-in log's name
 import { rasterColourFields } from "../lib/rasterColour.js";
 import { f32ToB64 } from "../lib/inversion.js";
 import { defaultDrapeElevation } from "../lib/drapeElevation.js";
 
 const KEY = "value";
+
+// TASKS.csv #2991 — what a coded-log grid stands for, in English (project data: the raster's name). -> { unit: "m", what }
+function codedMeta(layer, codes, st, vertical) {
+  const c = `${layer} ${codes.join(" + ")}`;
+  const what = st === "thick" ? `${c} thickness` : st === "topRL" ? `RL of the top of ${c}` : st === "baseRL" ? `RL of the base of ${c}` : `${vertical ? "vertical depth" : "depth"} to the ${st === "base" ? "base" : "top"} of ${c}`;
+  return { unit: "m", what };
+}
 
 export default function HoleValueGridPanel() {
   const { collars = [], assays = [], assayElements = [], layers = {}, customLayers = [], addRaster, voxelModels, surfaceSamples, survey = [], desurveyMethod } = useStore(); // survey, desurveyMethod: #2745
@@ -27,28 +35,38 @@ export default function HoleValueGridPanel() {
   // threshold depth as vertical depth below the collar
   const [placeAt, setPlaceAt] = useState("collar");
   const [depthAs, setDepthAs] = useState("along");
-  const sources = useMemo(() => (open ? holeValueSources({ assayElements, layers, customLayers }) : []), [open, assayElements, layers, customLayers]);
+  const sources = useMemo(() => (open ? holeValueSources({ assayElements, layers, customLayers, labelOf: (k) => LAYER_META[k]?.label || k }) : []), [open, assayElements, layers, customLayers]);
   const source = sources.find((s) => s.id === sourceId) || sources[0] || null;
-  const values = useMemo(() => (source ? perHoleValue(holeValueRows(source, { assays, layers, customLayers }), source.symbol, stat, { threshold }) : new Map()), [source, stat, threshold, assays, layers, customLayers]);
-  const rows = useMemo(() => (source ? holeValueRows(source, { assays, layers, customLayers }) : []), [source, assays, layers, customLayers]);
-  const vertical = stat === "firstOver" && depthAs === "vertical";
-  const placed = useMemo(() => holeSamplesAt(collars, values, source ? perHoleSpan(rows, source.symbol, stat, { threshold }) : new Map(), { key: KEY, survey, desurveyMethod, verticalDepth: vertical, at: placeAt }), [collars, values, rows, source, stat, threshold, survey, desurveyMethod, vertical, placeAt]);
+  // TASKS.csv #2991 (WA iron review) — a coded log (a strand, a lithology): the chosen code(s), and thickness, depth or RL of their top / base
+  const coded = source?.kind === "coded";
+  const [codes, setCodes] = useState([]);
+  const codesOn = coded ? (codes.filter((c) => source.codes.some((x) => x.code === c)).length ? codes.filter((c) => source.codes.some((x) => x.code === c)) : [source.codes[0].code]) : [];
+  const CODED_STATS = ["thick", "top", "base", "topRL", "baseRL"];
+  const st = coded ? (CODED_STATS.includes(stat) ? stat : "thick") : CODED_STATS.includes(stat) ? "max" : stat;
+  const codedBase = st === "topRL" ? "top" : st === "baseRL" ? "base" : st;
+  const codedRes = useMemo(() => (coded ? perHoleCoded(source.rows, codesOn, codedBase) : null), [coded, source, codesOn.join("\u0001"), codedBase]);
+  const values = useMemo(() => (coded ? codedRes.values : source ? perHoleValue(holeValueRows(source, { assays, layers, customLayers }), source.symbol, st, { threshold }) : new Map()), [coded, codedRes, source, st, threshold, assays, layers, customLayers]);
+  const rows = useMemo(() => (source && !coded ? holeValueRows(source, { assays, layers, customLayers }) : []), [source, coded, assays, layers, customLayers]);
+  const isDepth = st === "firstOver" || st === "top" || st === "base";
+  const vertical = isDepth && depthAs === "vertical";
+  const rl = st === "topRL" || st === "baseRL";
+  const placed = useMemo(() => holeSamplesAt(collars, values, coded ? codedRes.spans : source ? perHoleSpan(rows, source.symbol, st, { threshold }) : new Map(), { key: KEY, survey, desurveyMethod, verticalDepth: vertical, at: placeAt, rl }), [collars, values, coded, codedRes, rows, source, st, threshold, survey, desurveyMethod, vertical, placeAt, rl]);
   const samples = placed.samples;
-  const log = stat === "firstOver" ? false : logChoice ?? logByDefault(source?.unit);
+  const log = st === "firstOver" || coded ? false : logChoice ?? logByDefault(source?.unit);
   const suggestion = useMemo(() => (samples.length >= 3 ? suggestSampleGrid(samplePoints(samples, KEY).points) : null), [samples]);
   if (!collars.length) return null;
   const inp = { width: "100%", boxSizing: "border-box", fontSize: "var(--font-size-sm)", padding: "2px 4px", border: "1px solid var(--color-border)", borderRadius: 4, background: "var(--color-bg)", color: "var(--color-text)" };
   const lbl = { display: "flex", flexDirection: "column", gap: 2, flex: 1, minWidth: 0, fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)" };
   const run = () => {
     setMsg(null);
-    if (stat === "firstOver" && !Number.isFinite(Number(threshold === "" ? NaN : threshold))) { setMsg({ err: true, text: tr("Type the threshold the depth is measured to.") }); return; }
+    if (st === "firstOver" && !Number.isFinite(Number(threshold === "" ? NaN : threshold))) { setMsg({ err: true, text: tr("Type the threshold the depth is measured to.") }); return; }
     const res = gridSamples(samples, KEY, { log, cellM: cell === "" ? suggestion?.cellM : Number(cell), blankM: blank === "" ? suggestion?.blankM : Number(blank), method });
     if (res.error === "few") { setMsg({ err: true, text: tr("Too few holes with a value to grid ({n}): at least 3 are needed.", { n: res.n }) }); return; }
     if (res.error === "mincurvCells") { setMsg({ err: true, text: tr("Minimum curvature takes grids up to {max} cells, and this one is {gridW}×{gridH}. Use a bigger cell size, or IDW.", { max: MINCURV_MAX_CELLS.toLocaleString(), gridW: res.nx, gridH: res.ny }) }); return; }
     if (res.error === "natneighWork") { setMsg({ err: true, text: tr("Natural neighbour at this cell size is far finer than the sample spacing ({gridW}×{gridH} cells): use a bigger cell size.", { gridW: res.nx, gridH: res.ny }) }); return; }
     if (res.error === "cells") { setMsg({ err: true, text: tr("That cell size would produce a {gridW}×{gridH} grid — too large. Use a bigger cell size.", { gridW: res.nx, gridH: res.ny }) }); return; }
     const { grid, bbox } = res;
-    const { unit, what } = holeValueMeta(source, stat, threshold, { verticalDepth: vertical });
+    const { unit, what } = coded ? codedMeta(source.symbol, codesOn, st, vertical) : holeValueMeta(source, st, threshold, { verticalDepth: vertical }); // #2991
     const colour = rasterColourFields(grid.values, grid.nx, grid.ny, { palette: "viridis", stretch: log ? "log" : "p2-98", invert: false });
     const how = method === "mincurv" ? "min. curvature T0.25" : method === "natneigh" ? "nat. neighbour" : "IDW";
     const drape = defaultDrapeElevation({ collars, voxelModels, surfaceSamples, bbox });
@@ -56,11 +74,13 @@ export default function HoleValueGridPanel() {
       name: `${what} per hole${unit ? ` (${unit})` : ""} ${how}${log ? " log10" : ""} ${res.cellM} m`, bbox, ...colour, elevation: drape.z,
       grid: { nx: grid.nx, ny: grid.ny, x0: grid.x0, yTop: grid.yTop, dx: grid.dx, dy: grid.dy, values: f32ToB64(grid.values), valid: res.valid },
       // source "holes": the figure draws the collars with their values, not surface samples (MapsPlanView)
-      geochem: { symbol: source.symbol, unit, log, medium: null, samples: res.points, cellM: res.cellM, method, ...(method === "mincurv" ? { tension: 0.25 } : method === "natneigh" ? {} : { power: 2 }), blankM: res.blankM, source: "holes", sourceId: source.id, stat, ...(stat === "firstOver" ? { threshold: Number(threshold) } : {}) },
+      geochem: { symbol: source.symbol, unit, log, medium: null, samples: res.points, cellM: res.cellM, method, ...(method === "mincurv" ? { tension: 0.25 } : method === "natneigh" ? {} : { power: 2 }), blankM: res.blankM, source: "holes", sourceId: source.id, stat: st, ...(st === "firstOver" ? { threshold: Number(threshold) } : {}), ...(coded ? { codes: codesOn } : {}), ...(vertical ? { verticalDepth: true } : {}) },
       provenance: { tool: `Per-hole value gridding (${what}, at the ${placeAt === "intercept" ? "intercepts, on the desurveyed holes" : "collars"}; ${method === "mincurv" ? "minimum curvature with tension" : method === "natneigh" ? "natural neighbour, discrete Sibson" : "inverse distance weighting"})` },
     });
     setMsg({ err: false, text: tr(placeAt === "intercept" ? "Gridded a value per hole from {n} hole(s) at their intercepts, {cell} m cells: {valid} of {cells} cells have a value. It is in Maps > GeoTIFF / GXF and the 3D View, where it can be contoured." : "Gridded a value per hole from {n} hole(s) at the collars, {cell} m cells: {valid} of {cells} cells have a value. It is in Maps > GeoTIFF / GXF and the 3D View, where it can be contoured.", { n: res.points.toLocaleString(), cell: res.cellM, valid: res.valid.toLocaleString(), cells: (grid.nx * grid.ny).toLocaleString() })
       + (log && res.nonPositive ? " " + tr("{n} zero or negative value(s) left out of the log10 grid.", { n: res.nonPositive }) : "")
+      + (coded && st === "thick" ? " " + tr("A hole logged in this layer without the chosen code(s) counts as 0 m thick; a hole not logged in it has no value.") : "")
+      + (placed.noRl ? " " + tr("{n} hole(s) have no trace or collar elevation to give an RL and are left out.", { n: placed.noRl.toLocaleString() }) : "")
       + (collars.length > res.points ? " " + tr("{n} hole(s) have no value and are not in it (not a zero).", { n: (collars.length - res.points).toLocaleString() }) : "") });
   };
   return (
@@ -72,19 +92,30 @@ export default function HoleValueGridPanel() {
           <label style={lbl}>{tr("Value")}<select value={source.id} onChange={(e) => { setSourceId(e.target.value); setLogChoice(null); }} aria-label={tr("Per-hole value source")} style={inp}>
             {sources.map((s) => <option key={s.id} value={s.id}>{s.unit ? `${s.symbol} (${s.unit})` : s.symbol}</option>)}
           </select></label>
-          <label style={lbl}>{tr("Per hole")}<select value={stat} onChange={(e) => setStat(e.target.value)} aria-label={tr("Per-hole statistic")} style={inp}>
-            <option value="max">{tr("The highest value in the hole")}</option>
-            <option value="mean">{tr("The length-weighted mean of the hole")}</option>
-            <option value="firstOver">{tr("The depth of the first interval at or over a threshold")}</option>
+          {coded && <label style={lbl}>{tr("Code(s)")}<select multiple size={Math.min(5, source.codes.length)} value={codesOn} onChange={(e) => setCodes([...e.target.selectedOptions].map((o) => o.value))} aria-label={tr("Codes of the layer")} style={inp}>
+            {source.codes.map((c) => <option key={c.code} value={c.code}>{`${c.code} (${c.n.toLocaleString()})`}</option>)}
+          </select></label>}
+          <label style={lbl}>{tr("Per hole")}<select value={st} onChange={(e) => setStat(e.target.value)} aria-label={tr("Per-hole statistic")} style={inp}>
+            {coded ? <>{/* TASKS.csv #2991 */}
+              <option value="thick">{tr("The thickness of the code(s) in the hole")}</option>
+              <option value="top">{tr("The depth to their top (the cover above them)")}</option>
+              <option value="base">{tr("The depth to their base")}</option>
+              <option value="topRL">{tr("The RL of their top")}</option>
+              <option value="baseRL">{tr("The RL of their base")}</option>
+            </> : <>
+              <option value="max">{tr("The highest value in the hole")}</option>
+              <option value="mean">{tr("The length-weighted mean of the hole")}</option>
+              <option value="firstOver">{tr("The depth of the first interval at or over a threshold")}</option>
+            </>}
           </select></label>
           <label style={lbl}>{tr("Placed at")}<select value={placeAt} onChange={(e) => setPlaceAt(e.target.value)} aria-label={tr("Where each hole's value is placed")} style={inp}>
             <option value="collar">{tr("The collar")}</option><option value="intercept">{tr("The intercept, down the desurveyed hole")}</option>
           </select></label>
-          {stat === "firstOver" && <label style={lbl}>{tr("Depth")}<select value={depthAs} onChange={(e) => setDepthAs(e.target.value)} aria-label={tr("How the depth is measured")} style={inp}>
+          {isDepth && <label style={lbl}>{tr("Depth")}<select value={depthAs} onChange={(e) => setDepthAs(e.target.value)} aria-label={tr("How the depth is measured")} style={inp}>
             <option value="along">{tr("Down the hole (from the collar)")}</option><option value="vertical">{tr("Vertical, below the collar")}</option>
           </select></label>}
-          {stat === "firstOver" && <label style={lbl}>{tr("Threshold ({unit})", { unit: source.unit || tr("as logged") })}<input type="number" value={threshold} onChange={(e) => setThreshold(e.target.value)} aria-label={tr("Threshold")} style={inp} /></label>}
-          {stat !== "firstOver" && <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: "var(--font-size-xs)", cursor: "pointer" }}><input type="checkbox" checked={log} onChange={(e) => setLogChoice(e.target.checked)} />{tr("Interpolate log10 of the values")}</label>}
+          {st === "firstOver" && <label style={lbl}>{tr("Threshold ({unit})", { unit: source.unit || tr("as logged") })}<input type="number" value={threshold} onChange={(e) => setThreshold(e.target.value)} aria-label={tr("Threshold")} style={inp} /></label>}
+          {st !== "firstOver" && !coded && <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: "var(--font-size-xs)", cursor: "pointer" }}><input type="checkbox" checked={log} onChange={(e) => setLogChoice(e.target.checked)} />{tr("Interpolate log10 of the values")}</label>}
           <div style={{ display: "flex", gap: 5 }}>
             <label style={lbl}>{tr("Method")}<select value={method} onChange={(e) => setMethod(e.target.value)} aria-label={tr("Gridding method")} style={inp}>
               <option value="idw">{tr("IDW")}</option><option value="mincurv">{tr("Minimum curvature")}</option><option value="natneigh">{tr("Natural neighbour")}</option>

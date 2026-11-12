@@ -20,7 +20,7 @@ import { planGridStep, planGridLines, gridLabel, measureLine, distanceText } fro
 import { trueNorthBearingInGridDeg } from "../lib/inversion.js"; // TASKS.csv #2128 — the convergence at the measured line
 import { usePlanZoom, viewForBox } from "../lib/planZoom.js"; // TASKS.csv #2657
 import { usePlanGt, showGtOnPlan, gtRadius, gtLegend } from "../lib/planGt.js"; // TASKS.csv #2755
-import { holeValueSources, holeValueRows, perHoleValue } from "../lib/holeValueGrid.js"; // TASKS.csv #2658
+import { perHoleValuesOf } from "../lib/holeValueGrid.js"; // TASKS.csv #2658; perHoleValuesOf: #2991 (a coded log's values too)
 
 const imageCache = new Map(); // dataUrl (+ key colour) -> { img, ready }
 function cachedImage(url, keyColour, onReady) {
@@ -48,7 +48,7 @@ function hillshadeCanvas(t) {
 
 
 export default function MapsPlanView() {
-  const { rasters = [], terrain, mapLayers = [], boundaries = [], collars = [], surfaceSamples = [], assays = [], assayElements = [], layers = {}, customLayers = [], project } = useStore(); // assays: #2459; layers, customLayers: #2658; project: #2128
+  const { rasters = [], terrain, mapLayers = [], boundaries = [], collars = [], surfaceSamples = [], assays = [], assayElements = [], layers = {}, customLayers = [], project, survey = [], desurveyMethod } = useStore(); // assays: #2459; layers, customLayers: #2658; project: #2128; survey, desurveyMethod: #2991 (a coded RL figure)
   const wrapRef = useRef(null), canvasRef = useRef(null), layerCache = useRef(new Map()), drag = useRef(null);
   const [size, setSize] = useState({ w: 800, h: 600 });
   const [view, setView] = useState(null); // { cx, cy, mPerPx }
@@ -82,8 +82,8 @@ export default function MapsPlanView() {
     if (!r) return null;
     const contours = boundaries.filter((b) => b.visible !== false && b.contourLevels?.length && (b.sourceRaster === r.id || (!b.sourceRaster && String(b.name || "").startsWith(`${r.name} contours`))));
     const levels = [...new Set(contours.flatMap((b) => b.contourLevels))].sort((a, b) => a - b);
-    return { r, pts: r.geochem.source === "holes" ? holeFigurePoints(r.geochem, { collars, assays, assayElements, layers, customLayers }) : figureSamples(surfaceSamples, r.geochem), log: r.colourStyle?.stretch === "log", levels }; // holes: #2658
-  }, [rasters, boundaries, surfaceSamples, collars, assays, assayElements, layers, customLayers]);
+    return { r, pts: r.geochem.source === "holes" ? holeFigurePoints(r.geochem, { collars, assays, assayElements, layers, customLayers, survey, desurveyMethod }) : figureSamples(surfaceSamples, r.geochem), log: r.colourStyle?.stretch === "log", levels }; // holes: #2658
+  }, [rasters, boundaries, surfaceSamples, collars, assays, assayElements, layers, customLayers, survey, desurveyMethod]); // survey, desurveyMethod: #2991
 
   useEffect(() => {
     const el = wrapRef.current;
@@ -291,9 +291,7 @@ export default function MapsPlanView() {
 // TASKS.csv #2658 — a per-hole value grid's figure points: the collars with the value the grid was made from (recomputed: the project
 // file does not keep a second copy), [{ x, y, v }]
 function holeFigurePoints(g, ctx) {
-  const src = holeValueSources(ctx).find((s) => s.id === g.sourceId);
-  if (!src) return [];
-  const vals = perHoleValue(holeValueRows(src, ctx), src.symbol, g.stat, { threshold: g.threshold });
+  const vals = perHoleValuesOf(g, ctx); // #2991 — a coded log (thickness, depth or RL of a strand) as well as an assay or a numeric log
   const out = [];
   for (const c of ctx.collars || []) { const v = vals.get(c.hole_id); if (Number.isFinite(v) && Number.isFinite(c.x) && Number.isFinite(c.y)) out.push({ x: c.x, y: c.y, v }); }
   return out;
