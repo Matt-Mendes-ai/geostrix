@@ -47,7 +47,7 @@ import { tieOf, fileToLocal, bearingToLocal } from "../lib/localGridTie.js"; // 
 import { strikeSymbolPng, STRIKE_ICON_PATH } from "../lib/strikeIcon.js"; // TASKS.csv #2681
 import { mineGridOf, mineSourceOf, isMineSource, mineChoiceToProject, mineSourceSentence } from "../lib/mineGrid.js"; // TASKS.csv #2586; the mine-grid Source CRS: #2684
 import { collarsLookUnderground } from "../lib/pitShell.js"; // TASKS.csv #2265
-import { structureGroundCounts } from "../lib/viewer/surfacePlacement.js"; import { terrainGroundAt } from "../lib/viewer/geomath.js"; // TASKS.csv #2485 (2)
+import { structureGroundCounts, surfaceFlatElevation } from "../lib/viewer/surfacePlacement.js"; import { terrainGroundAt } from "../lib/viewer/geomath.js"; // TASKS.csv #2485 (2); surfaceFlatElevation: #2753
 
 // TASKS.csv #2093 / #1826 — the structure import's skipped rows, one reason each (parseStructureRows' skipWhy)
 export function skipReasons(w = {}) {
@@ -521,7 +521,9 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
 
   // TASKS.csv #2485 (2) — of the measurements with no elevation, how many found the terrain's ground and how many lie outside it or
   // over its gaps (a TIN's voids, a DEM's no-data), where they are drawn at the terrain's edge or filled level, not on ground
-  const structNoZText = (noZ, g) => (g.off ? tr(" {noZ} had no elevation: {ground} sit on the terrain; {off} lie outside it or over its gaps, where it has no data, and are drawn at its edge or filled level.", { noZ, ground: g.ground, off: g.off }) : tr(" {noZ} had no elevation and sit on the terrain{v}.", { noZ, v: "" }));
+  // TASKS.csv #2753 — since side 6's e3aa5f76 the ones off the terrain or over a gap are drawn flat at the samples' plan elevation (the flatZ the 3D View
+  // uses: lib/viewer/surfacePlacement.js surfaceFlatElevation), not at its edge or filled level
+  const structNoZText = (noZ, g) => (g.off ? tr(" {noZ} had no elevation: {ground} sit on the terrain; {off} lie outside it or over its gaps and are drawn flat at {z} m, the samples' plan elevation.", { noZ, ground: g.ground, off: g.off, z: Math.round(surfaceFlatElevation(collars, surfaceSamples, collars.length > 1 && collarsLookUnderground(collars, survey).underground)).toLocaleString() }) : tr(" {noZ} had no elevation and sit on the terrain{v}.", { noZ, v: "" }));
   // TASKS.csv #2266 — the pending file's type codes that would be Other (no rule, no class kept for this project), most frequent first
   const unknownCodes = useMemo(() => {
     const col = pendingStruct?.cols?.type;

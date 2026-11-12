@@ -4095,6 +4095,7 @@
   " {rhrMismatches} row(s) have a strike and dip direction that aren't 90° apart — the dip direction was used; check whether those strikes are left-hand-rule.": " {rhrMismatches} صف بمضرب واتجاه ميل ليسا متباعدين بـ90° — استُخدم اتجاه الميل؛ تحقق مما إذا كانت تلك المضارب بقاعدة اليد اليسرى.",
   " {noZ} had no elevation and sit on the terrain{v}.": " {noZ} بلا ارتفاع وتقع على التضاريس{v}.",
   " {noZ} had no elevation: {ground} sit on the terrain; {off} lie outside it or over its gaps, where it has no data, and are drawn at its edge or filled level.": " {noZ} بلا ارتفاع: {ground} تقع على التضاريس؛ و{off} تقع خارجها أو فوق فجواتها حيث لا توجد بيانات، وتُرسم عند منسوب حافتها أو منسوب الملء.",
+  " {noZ} had no elevation: {ground} sit on the terrain; {off} lie outside it or over its gaps and are drawn flat at {z} m, the samples' plan elevation.": " {noZ} بلا ارتفاع: {ground} تقع على التضاريس؛ و{off} تقع خارجها أو فوق فجواتها وتُرسم مستوية عند {z} م، ارتفاع المسقط للعينات.",
   " once one is loaded": " بعد تحميلها",
   "Map layers (GeoPackage / shapefile)": "طبقات الخرائط (GeoPackage / shapefile)",
   "Leave it on the file's own CRS. Change it when a shapefile has no .prj or a wrong one.": "اتركه على نظام إحداثيات الملف. غيّره عندما يكون shapefile بلا ‎.prj أو بواحد خاطئ.",

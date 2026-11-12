@@ -4095,6 +4095,7 @@
   " {rhrMismatches} row(s) have a strike and dip direction that aren't 90° apart — the dip direction was used; check whether those strikes are left-hand-rule.": " {rhrMismatches} ligne(s) ont une direction et une direction de pendage qui ne sont pas à 90° — la direction de pendage a été utilisée ; vérifiez si ces directions suivent la règle de la main gauche.",
   " {noZ} had no elevation and sit on the terrain{v}.": " {noZ} n'avaient pas d'élévation et reposent sur le terrain{v}.",
   " {noZ} had no elevation: {ground} sit on the terrain; {off} lie outside it or over its gaps, where it has no data, and are drawn at its edge or filled level.": " {noZ} n'avaient pas d'élévation : {ground} reposent sur le terrain ; {off} se trouvent hors de celui-ci ou sur ses lacunes, où il n'a pas de données, et sont dessinées au niveau de son bord ou de son remplissage.",
+  " {noZ} had no elevation: {ground} sit on the terrain; {off} lie outside it or over its gaps and are drawn flat at {z} m, the samples' plan elevation.": " {noZ} n'avaient pas d'altitude : {ground} sont posées sur le terrain ; {off} sont hors de celui-ci ou sur ses lacunes et sont dessinées à plat à {z} m, l'altitude en plan des échantillons.",
   " once one is loaded": " une fois qu'il est chargé",
   "Map layers (GeoPackage / shapefile)": "Couches cartographiques (GeoPackage / shapefile)",
   "Leave it on the file's own CRS. Change it when a shapefile has no .prj or a wrong one.": "Laissez sur le SCR propre au fichier. Changez-le quand un shapefile n'a pas de .prj ou un mauvais.",
