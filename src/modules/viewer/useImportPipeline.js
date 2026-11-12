@@ -24,6 +24,7 @@ import { localGridAzimuthOffset } from "../../lib/localGridNorth.js"; // TASKS.c
 import { untiedNorthOf, trueToUntiedGrid } from "../../lib/localGridDatum.js"; // TASKS.csv #2661
 import { mineGridOf } from "../../lib/mineGrid.js"; // TASKS.csv #2586
 import { dipConventionFields, upwardHoles } from "../../lib/dipSign.js"; // TASKS.csv #2886
+import { codeColumnGuess } from "../../lib/valueGuess.js"; // TASKS.csv #2889
 import { logChannelsFor, defaultLogBin, logChannelRows, unitFromHeader, channelNoData, noDataText, logBinEstimate, needsBinning } from "../../lib/downholeLogChannels.js"; // TASKS.csv #2160; no-data: #2332; logBinEstimate: #2885
 import { loadSampleFiles, readSiblingFiles } from "../../lib/desktop.js";
 const isXlsxName = (name) => /\.xlsx$/i.test(String(name || "")); // TASKS.csv #605 (same test as xlsx.js; the reader itself loads on demand, #552)
@@ -141,9 +142,10 @@ export function useImportPipeline(ctx) {
       }
       const target = forceTarget || guessTargetFor(headers, file.name, data); // #605: the file name as a hint; data: #2884
       const ll = lonLatForCollars(target, guessMapping(target, headers), headers, data); // #1235
-      const mapping = azColFor(target, headers, data, ll ? ll.mapping : guessMapping(target, headers)); // #426; #2015
+      const mapping0 = azColFor(target, headers, data, ll ? ll.mapping : guessMapping(target, headers)); // #426; #2015
+      const codeGuess = codeColumnGuess(target, headers, data, mapping0), mapping = codeGuess ? { ...mapping0, value: codeGuess.col } : mapping0; // #2889 — no name matched: the file's one code column, said as a guess
       const perRowEpsgCol = guessColumn(headers, EPSG_COL_ALIASES);
-      setImportModal({ ...azRefFor(target, headers, data), ...(target === "survey" ? { customFields: surveyMethodFields(headers, data) } : {}) /* #2187 */, file, fileName: file.name, headers, rowCount: data.length, sampleRows: data.slice(0, 5), allRows: data, target, mapping, ...(forceTarget ? {} : guardGuess(target, mapping, headers, data, file.name)), ...dipConventionFields(data, dipColOf(target, mapping)) /* #2886 */, perRowEpsgCol, sourceEpsg: ll ? ll.sourceEpsg : meta?.detectedEpsg ? String(meta.detectedEpsg) : "" });
+      setImportModal({ ...(codeGuess ? { valueGuess: codeGuess } : {}), ...azRefFor(target, headers, data), ...(target === "survey" ? { customFields: surveyMethodFields(headers, data) } : {}) /* #2187 */, file, fileName: file.name, headers, rowCount: data.length, sampleRows: data.slice(0, 5), allRows: data, target, mapping, ...(forceTarget ? {} : guardGuess(target, mapping, headers, data, file.name)), ...dipConventionFields(data, dipColOf(target, mapping)) /* #2886 */, perRowEpsgCol, sourceEpsg: ll ? ll.sourceEpsg : meta?.detectedEpsg ? String(meta.detectedEpsg) : "" });
       if (meta?.note) setNotices((p) => [...p, `${file.name}:${meta.note}`]);
     }, chosenLayer);
   };
@@ -224,9 +226,10 @@ export function useImportPipeline(ctx) {
     }
     const target = guessTargetFor(headers, sourceName, rows); // #605; rows: #2884
     const ll = lonLatForCollars(target, guessMapping(target, headers), headers, rows); // #1235
-    const mapping = azColFor(target, headers, rows, ll ? ll.mapping : guessMapping(target, headers)); // #426; #2015
+    const mapping0 = azColFor(target, headers, rows, ll ? ll.mapping : guessMapping(target, headers)); // #426; #2015
+    const codeGuess = codeColumnGuess(target, headers, rows, mapping0), mapping = codeGuess ? { ...mapping0, value: codeGuess.col } : mapping0; // #2889
     const perRowEpsgCol = guessColumn(headers, EPSG_COL_ALIASES);
-    setImportModal({ dbSource, ...azRefFor(target, headers, rows), fileName: sourceName, headers, rowCount: rows.length, sampleRows: rows.slice(0, 5), allRows: rows, target, mapping, ...guardGuess(target, mapping, headers, rows, sourceName), ...dipConventionFields(rows, dipColOf(target, mapping)) /* #2886 */, perRowEpsgCol, ...(ll ? { sourceEpsg: ll.sourceEpsg } : {}) });
+    setImportModal({ dbSource, ...(codeGuess ? { valueGuess: codeGuess } : {}), ...azRefFor(target, headers, rows), fileName: sourceName, headers, rowCount: rows.length, sampleRows: rows.slice(0, 5), allRows: rows, target, mapping, ...guardGuess(target, mapping, headers, rows, sourceName), ...dipConventionFields(rows, dipColOf(target, mapping)) /* #2886 */, perRowEpsgCol, ...(ll ? { sourceEpsg: ll.sourceEpsg } : {}) });
     setDbModalOpen(false);
   };
 
@@ -927,7 +930,8 @@ export function useImportPipeline(ctx) {
       const target = guessTargetFor(headers, file.name, data); // #605; data: #2884
       const schema = TARGET_SCHEMAS[target];
       const queueLl = lonLatForCollars(target, guessMapping(target, headers), headers, data); // #1235
-      const mapping = azColFor(target, headers, data, queueLl ? queueLl.mapping : guessMapping(target, headers)); // #426; #2015
+      const mapping0 = azColFor(target, headers, data, queueLl ? queueLl.mapping : guessMapping(target, headers)); // #426; #2015
+      const codeGuess = codeColumnGuess(target, headers, data, mapping0), mapping = codeGuess ? { ...mapping0, value: codeGuess.col } : mapping0; // #2889 — a guess: never 'exact', so the dialog opens
       const missingRequired = schema.fields.filter((f) => f.required && !mapping[f.key]).concat(schemaSatisfied(target, mapping) || !schema.oneOf ? [] : [{ key: "oneOf", label: "From / To or Depth" }]); // #605
       // TASKS.csv #335 — only commit unseen when every REQUIRED column matched a header exactly (not
       // just by substring), and — for tables with a dip — when every dip in the file is <= 0, i.e.
@@ -946,7 +950,7 @@ export function useImportPipeline(ctx) {
       // TASKS.csv #609 — the file's own CRS (.prj / GeoPackage) and a per-row EPSG column, as openImportModal passes
       // them: a queued shapefile used to be committed with no Source CRS, so its collars stayed in their own UTM
       // zone's numbers inside a project in another zone (~400 km from the same drop's reprojected map layers).
-      const modalData = { ...azRefFor(target, headers, data), file, fileName: file.name, headers, rowCount: data.length, sampleRows: data.slice(0, 5), allRows: data, target, mapping, ...dipConventionFields(data, dipColOf(target, mapping)) /* #2886 */,
+      const modalData = { ...(codeGuess ? { valueGuess: codeGuess } : {}), ...azRefFor(target, headers, data), file, fileName: file.name, headers, rowCount: data.length, sampleRows: data.slice(0, 5), allRows: data, target, mapping, ...dipConventionFields(data, dipColOf(target, mapping)) /* #2886 */,
         sourceEpsg: queueLl ? queueLl.sourceEpsg : meta?.detectedEpsg ? String(meta.detectedEpsg) : "", perRowEpsgCol: guessColumn(headers, EPSG_COL_ALIASES), ...guarded };
       if (confident) {
         // TASKS.csv #1501 — a log's other columns as extra fields, and a Geotech table's Recovery % as that layer too (collars keep

@@ -30,6 +30,7 @@ const importCount = (modal) => {
   return c.get(k);
 };
 import { logChannelsFor } from "../lib/downholeLogChannels.js";
+import { numberColumnsLeft } from "../lib/valueGuess.js"; // TASKS.csv #2889
 
 
 export default function ImportMappingModal({ modal, onChange, onCancel, onCommit, projectEpsg, replaceInfo = null }) { // replaceInfo: #1649
@@ -59,6 +60,9 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
   };
   const removeCustomField = (i) => onChange({ ...modal, customFields: customFields.filter((_, j) => j !== i) });
   const setCustomFieldType = (i, type) => onChange({ ...modal, customFields: customFields.map((cf, j) => (j === i ? { ...cf, type } : cf)) });
+  // TASKS.csv #2889 — every number column left over, added at once (the WA iron material-type log: 43 Met_*_pct columns, one Add each)
+  const numbersLeft = numberColumnsLeft(modal.headers, modal.allRows || modal.sampleRows || [], modal.mapping, customFields);
+  const addAllNumbers = () => onChange({ ...modal, customFields: [...customFields, ...numbersLeft.map((c) => ({ column: c, name: c, type: "number" }))] });
   // TASKS.csv #120 — only targets carrying ABSOLUTE world x/y (collars; every other target is
   // hole-relative and inherits its position from the already-reprojected collar) can meaningfully
   // have a different source CRS than the project.
@@ -117,6 +121,9 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
                 <option value="">{tr("— none —")}</option>
                 {modal.headers.map((h) => <option key={h} value={h}>{h}</option>)}
               </select>
+              {f.key === "value" && modal.valueGuess && modal.mapping.value === modal.valueGuess.col && ( /* TASKS.csv #2889 — a guess, said as one */
+                <div role="note" style={{ flexBasis: "100%", marginInlineStart: 220, fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)" }}>{tr("No column name matched, so {col} was chosen: the file's only column of codes ({n} codes). Check it is the one to draw.", { col: modal.valueGuess.col, n: modal.valueGuess.codes })}</div>
+              )}
               {/* TASKS.csv #2182 — a coded log's Value column blank on many rows: those rows are skipped, said before the import */}
               {f.key === "value" && !fieldNeedsNumber(f) && modal.target !== "custom" && modal.mapping.value && (() => { const b = blankShare(modal.allRows, modal.mapping.value); if (!b || !b.blank) return null; const many = b.blank / b.total >= 0.2; /* #2493 — always said, with the choice to keep them */ return (
                 <div role="note" style={{ flexBasis: "100%", marginInlineStart: 220, fontSize: "var(--font-size-sm)", color: many ? "var(--color-warn-text)" : "var(--color-text-muted)" }}>
@@ -139,6 +146,12 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
           <RowFilterBox modal={modal} onChange={onChange} sel={sel} />{/* #2330 */}
           <div style={{ marginTop: 4, marginBottom: 14 }}>
             <div style={label}>{tr("Extra fields (optional)")}</div>
+            {numbersLeft.length > 1 && ( /* #2889 */
+              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginBottom: 6 }}>
+                <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={addAllNumbers} style={{ color: "var(--color-accent)", cursor: "pointer" }}>{tr("Add every number column ({n})", { n: numbersLeft.length })}</span>
+                {" "}{tr("as number fields on each row: {list}", { list: numbersLeft.slice(0, 6).join(", ") + (numbersLeft.length > 6 ? " …" : "") })}
+              </div>
+            )}
             {customFields.map((cf, i) => (
               <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
                 <div style={{ flex: 1, fontSize: "var(--font-size-base)", color: "var(--color-text)" }}>{cf.column} <span style={{ color: "var(--color-text-muted)" }}>→</span> {cf.name}</div>
