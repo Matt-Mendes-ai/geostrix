@@ -4,6 +4,7 @@ import { b64ToF32 } from "../lib/inversion.js";
 import { PALETTES, paletteShortName } from "../lib/layers.js"; // paletteShortName: #1859
 import { t as tr } from "../lib/i18n.js";
 import { rasterUnitOf } from "../lib/rasterMethod.js"; // TASKS.csv #1858
+import { averagedInfo, averagedRangeText } from "../lib/gridMeans.js"; // TASKS.csv #2831
 
 // TASKS.csv #1236 — ramp, stretch, typed range and inverted ramp for a raster that kept its values, and a bar with the value range
 const fmt = (v) => (v == null || !Number.isFinite(v) ? "—" : Number(v.toPrecision(4)).toLocaleString());
@@ -11,6 +12,7 @@ export default function RasterColourControls({ raster: r, onUpdate, inputStyle }
   const style = r.colourStyle || DEFAULT_RASTER_STYLE;
   const values = useMemo(() => b64ToF32(r.grid.values), [r.grid.values]);
   const range = r.colourRange || (() => { const { lo, hi } = rasterRange(values, style); return [lo, hi]; })();
+  const avg = useMemo(() => averagedInfo(r.grid, values), [r.grid, values]); // #2831 — 'min-max' and the bar are of block means: said, with the source's range
   const [typed, setTyped] = useState({ min: "", max: "" });
   // TASKS.csv #1630 (review #1497, Lawyers) — 'Typed range' filled the boxes with float32 noise (0.0005000000237487257, 1.1027064323425293)
   const sig4 = (v) => (Number.isFinite(v) && v !== 0 ? Number(v.toPrecision(4)) : v);
@@ -78,6 +80,7 @@ export default function RasterColourControls({ raster: r, onUpdate, inputStyle }
           <div dir="ltr" style={{ display: "flex", justifyContent: "space-between", fontSize: "var(--font-size-xs)", color: "var(--color-text-caption)", marginTop: 2 }}><span>{fmt(range[0])}</span>{style.stretch === "equalise" && <span>{tr("equalized: colour does not scale with value")}</span>}{style.stretch === "log" && <span>{tr("log scale")}</span>}{unit && <span>{unit}</span>}{/* #1858 */}<span>{fmt(range[1])}</span></div>
         </div>
       )}
+      {avg && <div style={{ marginTop: 4, fontSize: "var(--font-size-xs)", color: "var(--color-text-caption)", lineHeight: 1.35 }}>{averagedRangeText(avg)}</div>}{/* #2831 */}
       {r.grid.averagedBy > 1 && r.colourStyle && <div style={{ marginTop: 4, fontSize: "var(--font-size-xs)", color: "var(--color-text-caption)", lineHeight: 1.35 }}>{tr("Drawn from the kept values, where every {n} × {n} pixels were averaged, so this image is coarser than the imported one.", { n: r.grid.averagedBy })}</div>}
     </div>
   );

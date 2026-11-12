@@ -7,6 +7,7 @@ import { t as tr } from "../lib/i18n.js";
 import { b64ToF32 } from "../lib/inversion.js";
 import { gridContours, suggestedContourLevels } from "../lib/sampleGrid.js";
 import { parseBreaks } from "../lib/mapGraduated.js";
+import { averagedInfo, missedLevelsText } from "../lib/gridMeans.js"; // TASKS.csv #2831
 
 export default function GridContourControls({ raster, inputStyle }) {
   const { addBoundary, terrain } = useStore();
@@ -25,7 +26,8 @@ export default function GridContourControls({ raster, inputStyle }) {
     const levels = text.trim() ? parseBreaks(text) : suggested;
     if (!levels.length) { setMsg(tr("Type one or more levels, e.g. 0.01, 0.05, 0.1.")); return; }
     const res = gridContours(raster.grid, values, levels);
-    if (!res.length) { setMsg(tr("None of those levels crosses the grid.")); return; }
+    const avg = averagedInfo(raster.grid, values), missed = missedLevelsText(levels, res.map((l) => l.level), avg, values); // #2831 — a level the block means never reach, said
+    if (!res.length) { setMsg(tr("None of those levels crosses the grid.") + (missed ? " " + missed : "")); return; }
     const lines = [], closed = [], lineLevels = [];
     res.forEach(({ level, polylines }) => polylines.forEach((pl) => {
       lines.push(pl);
@@ -34,7 +36,7 @@ export default function GridContourControls({ raster, inputStyle }) {
       lineLevels.push(level);
     }));
     addBoundary({ name: tr("{name} contours ({levels} {unit})", { name: raster.name, levels: res.map((l) => l.level).join(", "), unit }), polylines: lines, closedFlags: closed, contourLevels: lineLevels, sourceRaster: raster.id, color: "#d62f2f", /* #1622: the plan view's figure lists them under their grid */ drapeMode: terrain ? "terrain" : "flat", elevation: raster.elevation });
-    setMsg(tr("Added {n} contour line(s) at {levels} {unit} to Maps > Boundaries{d}.", { n: lines.length, levels: res.map((l) => l.level).join(", "), unit, d: terrain ? tr(", draped on the terrain") : "" }));
+    setMsg(tr("Added {n} contour line(s) at {levels} {unit} to Maps > Boundaries{d}.", { n: lines.length, levels: res.map((l) => l.level).join(", "), unit, d: terrain ? tr(", draped on the terrain") : "" }) + (text.trim() && missed ? " " + missed : "")); // missed: #2831 (typed levels only)
   };
   return (
     <div style={{ marginTop: 7 }}>
