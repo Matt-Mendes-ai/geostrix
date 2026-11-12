@@ -1,7 +1,7 @@
 import { QC_COLUMN_KEYS } from "../lib/assayQcColumns.js"; // TASKS.csv #1184
 import React, { useEffect, useMemo, useState } from "react";
 import { X } from "./icons.js";
-import { isElementColumn, inferUnit, ELEMENT_SYMBOLS, unitAssumed, repeatColumns, numberedRepeatCandidates, oxideOfHeader, keepsOxide, importStoreUnit, oxidesOver100 } from "../lib/geochem.js"; // importStoreUnit, oxidesOver100: #2490 // numberedRepeatCandidates: #2350 // repeatColumns: #2194; oxide basis: #2487
+import { isElementColumn, inferUnit, ELEMENT_SYMBOLS, unitAssumed, repeatColumns, numberedRepeatCandidates, oxideOfHeader, keepsOxide, importStoreUnit, oxidesOver100, LOI } from "../lib/geochem.js"; // LOI: #2887; // importStoreUnit, oxidesOver100: #2490 // numberedRepeatCandidates: #2350 // repeatColumns: #2194; oxide basis: #2487
 import { scanAssayColumns, negativeSummary, zeroCount, blankCount } from "../lib/assayColumnScan.js"; // TASKS.csv #2164
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
@@ -36,8 +36,12 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
   const importedHeaders = modal.format === "long" ? [modal.mapping.value] : modal.elements.filter((e) => e.checked).map((e) => e.header);
   const NONE = { codes: 0, sentinels: 0, over: 0, overCols: [], overAny: 0 };
   // #1648 — over-limit codes are counted apart, and fall back into the other two when the user turns their reading off
-  const negatives = scan ? negativeSummary(scan, importedHeaders, modal.overLimitCodes !== false) : NONE;
-  const zeros = scan ? zeroCount(scan, importedHeaders) : 0;
+  // TASKS.csv #2887 (WA iron review) — the questions about negative and zero values are about assays: an LOI column's negatives are gains on
+  // ignition and its -10s no-data codes, read by its own rule (geochem.js readLoiCell), so they are not counted here ('69 negative values …
+  // Assays can't be negative' counted the two LOI columns)
+  const codeHeaders = modal.format === "long" ? importedHeaders : modal.elements.filter((e) => e.checked && e.symbol !== LOI).map((e) => e.header);
+  const negatives = scan ? negativeSummary(scan, codeHeaders, modal.overLimitCodes !== false) : NONE;
+  const zeros = scan ? zeroCount(scan, codeHeaders) : 0;
   const blanks = useMemo(() => (scan ? blankCount(scan, importedHeaders, { long: modal.format === "long" }) : 0), [scan, importedHeaders.join("\u0001"), modal.format]);
   // TASKS.csv #334 — elements already in the project under a different unit get converted on import.
   // #2490 — against the unit the import will actually store (an oxide column's own basis), not the box's raw text

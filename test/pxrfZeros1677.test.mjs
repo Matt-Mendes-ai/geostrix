@@ -16,6 +16,6 @@ test("the import reads a zero as '<' at half the column's smallest reading when 
 });
 
 test("the dialog counts the zeros and asks, below detection pre-selected for pXRF", () => {
-  assert.ok(modal.includes("const zeros = scan ? zeroCount(scan, importedHeaders) : 0;")); // #2164: counted in assayColumnScan.js (one chunked pass)
+  assert.ok(modal.includes("const zeros = scan ? zeroCount(scan, codeHeaders) : 0;")); // #2887: the LOI columns left out; #2164: counted in assayColumnScan.js (one chunked pass)
   assert.ok(modal.includes('onChange({ ...modal, zeroMode: "bdl" })') && modal.includes('onChange({ ...modal, zeroMode: "real" })'));
 });

@@ -628,7 +628,7 @@ export default function GeochemModule() {
     const zeroMode = modal.zeroMode || (modal.isPxrf ? "bdl" : "real");
     const zeroLimits = new Map(); let zeroBdl = 0, zeroNoLimit = 0;
     const zeroAsBdl = (cell, sym, header) => {
-      if (zeroMode !== "bdl" || parseAssayValue(cell) !== 0) return null;
+      if (zeroMode !== "bdl" || sym === LOI /* #2887 — a zero LOI is measured */ || parseAssayValue(cell) !== 0) return null;
       let L = zeroLimits.get(header);
       if (L === undefined) { L = Infinity; for (const r of allRows) { const x = parseAssayValue(format === "wide" ? r[header] : r[mapping.value]); if (x > 0 && x < L) L = x; } zeroLimits.set(header, L); }
       if (!Number.isFinite(L)) { zeroNoLimit++; return { v: null, q: null }; }

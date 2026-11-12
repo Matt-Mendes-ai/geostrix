@@ -348,11 +348,15 @@ export function isNoDataCode(value, posMax = 0) {
   return ALL_NINES.test(String(x)) || !(posMax > 0) || x > posMax;
 }
 // TASKS.csv #2734 — an LOI cell: a negative LOI is a value (a mass gain on ignition, oxidation of magnetite or sulphides), not a
-// below-detection code; only a no-data code (-99, -999, …) is empty. -> readAssayCell's shape
+// below-detection code; only a no-data code is empty. -> readAssayCell's shape
+// TASKS.csv #2887 (WA iron review) — the WA iron file writes no-data as -10 in LOI1000_XRF_pct / LOITOTAL_XRF_pct beside 56 real negatives
+// (-0.18, -1.05 …). No rock gains 10 % on ignition (pure magnetite to hematite gains 3.45 %; even wustite to hematite 11 % is not a rock),
+// so -10 and below is a code, as -99 / -999 are; above it, a negative is the measured gain.
+export const LOI_MIN_REAL = -10;
 export function readLoiCell(raw, posMax = 0) {
   const value = parseAssayValue(raw);
   if (value == null || !Number.isFinite(value)) return { value: null, qualifier: null, kind: null };
-  if (value < 0 && isNoDataCode(value, posMax)) return { value: null, qualifier: null, kind: "neg_missing" };
+  if (value < 0 && (value <= LOI_MIN_REAL || isNoDataCode(value, posMax))) return { value: null, qualifier: null, kind: "neg_missing" };
   return { value, qualifier: assayQualifier(raw), kind: null };
 }
 // raw cell -> { value, qualifier, kind } with negative codes resolved:
@@ -759,7 +763,7 @@ function resolveAssaySegments(rows, symbol, unit, elementUnits, stats) {
   const sorted = rows.slice().sort((a, b) => a.from - b.from || a.to - b.to);
   const vals = sorted.map((r) => {
     const v = valueIn(r, symbol, unit, elementUnits);
-    if (v != null && v < 0) { if (stats) stats.negativeValues++; return null; }
+    if (v != null && v < 0 && symbol !== LOI /* #2887 — a negative LOI is a measured gain on ignition, read at import (readLoiCell) */) { if (stats) stats.negativeValues++; return null; }
     return v;
   });
   const bps = Array.from(new Set(sorted.flatMap((r) => [r.from, r.to]))).sort((a, b) => a - b);
@@ -976,6 +980,17 @@ export function countDuplicateAssayIntervals(assays) {
   return { exactDuplicates, conflictingIntervals: conflicting.size };
 }
 
+// TASKS.csv #2903 — sorted domain rows of one hole with touching (or overlapping) rows of the same value joined -> new rows
+export function mergeTouchingDomainRows(rows, eps = 1e-6) {
+  const out = [];
+  for (const r of rows || []) {
+    const last = out[out.length - 1];
+    if (last && r.value === last.value && r.from <= last.to + eps) { if (r.to > last.to) last.to = r.to; continue; }
+    out.push({ ...r });
+  }
+  return out;
+}
+
 export function compositeDownhole(assays, symbol, unit, elementUnits, opts = {}) {
   const length = opts.length ?? 2;
   const minCoverage = opts.minCoverage ?? 0.5;
@@ -1017,6 +1032,11 @@ export function compositeDownhole(assays, symbol, unit, elementUnits, opts = {})
       domainByHole.get(d.hole_id).push(d);
     });
     domainByHole.forEach((rows) => rows.sort((a, b) => a.from - b.from));
+    // TASKS.csv #2903 (WA iron review) — a log recorded sample by sample (every RC chip log: ALU 0-2, ALU 2-4, ALU 4-6, CLA 6-8 …) put a
+    // domain edge at every sample, so 'Honour domain' gave one composite per raw sample whatever the length (147,601 two-metre pieces for
+    // 4 m and 6 m composites); the variogram and grade estimation by domain use this function too. Touching rows of the same value are one
+    // domain interval: an edge is where the value changes or the log has a gap.
+    domainByHole.forEach((rows, h) => domainByHole.set(h, mergeTouchingDomainRows(rows, EPS)));
   }
 
   // domain value covering depth d in this hole's domain rows (or null if unsampled/undefined there)
