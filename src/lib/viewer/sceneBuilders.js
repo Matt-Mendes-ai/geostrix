@@ -267,7 +267,11 @@ export function mapLayerAtOwnZ(l, origin) {
   if (l.geomType === "point") return new THREE.Points(geometry, new THREE.PointsMaterial({ size: 7, sizeAttenuation: false, vertexColors: true, transparent: true, opacity: Math.max(0.5, l.opacity ?? 0.6) }));
   return new THREE.LineSegments(geometry, new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: Math.max(0.5, l.opacity ?? 0.6) }));
 }
-export function syncMapLayers(group, cache, mapLayers, { origin, terrain, renderer }) {
+// TASKS.csv #2768 (#2630 (3)) — with no terrain an interpretation layer lay flat at one RL (the median collar) while collars ran 160-330 m,
+// so a line floated up to 96 m off the ground: it is now draped on the surface through the collar elevations (pitShell collarGround, as a
+// raster's 'collars' drape, #2447), unless the layer is set flat (drapeMode "flat", the pane's 'Flat at one RL instead').
+export const interpretationOnCollars = (l, terrain, collars) => !!l?.interpretation && !terrain && l.drapeMode !== "flat" && (collars?.length || 0) >= 3;
+export function syncMapLayers(group, cache, mapLayers, { origin, terrain, renderer, collars = null }) {
   const disposeMesh = (mesh) => { group.remove(mesh); mesh.geometry?.dispose?.(); mesh.material?.map?.dispose?.(); mesh.material?.dispose?.(); };
   const wanted = new Set(mapLayers.map((l) => l.id));
   Object.keys(cache).forEach((id) => { if (!wanted.has(id)) { disposeMesh(cache[id]); delete cache[id]; } });
@@ -293,7 +297,8 @@ export function syncMapLayers(group, cache, mapLayers, { origin, terrain, render
     const w = bbox[2] - bbox[0], h = bbox[3] - bbox[1];
     const cx = (bbox[0] + bbox[2]) / 2, cy = (bbox[1] + bbox[3]) / 2;
     const drapeOnTerrain = l.drapeMode === "terrain" && !!terrain;
-    const geoKey = `${drapeOnTerrain ? `terrain:${terrain.id}` : `flat:${l.elevation || 0}`}|${ox},${oy},${oz}|${lift}|${bbox.join(",")}`;
+    const onCollars = interpretationOnCollars(l, terrain, collars); // #2768
+    const geoKey = `${drapeOnTerrain ? `terrain:${terrain.id}` : onCollars ? `collars:${collarsKey(collars)}` : `flat:${l.elevation || 0}`}|${ox},${oy},${oz}|${lift}|${bbox.join(",")}`;
     const styleKey = mapStyleSignature(l);
     let mesh = cache[l.id];
     if (mesh && mesh.userData.geoKey !== geoKey) { disposeMesh(mesh); mesh = null; delete cache[l.id]; }
@@ -320,12 +325,18 @@ export function syncMapLayers(group, cache, mapLayers, { origin, terrain, render
           pos.setZ(i, el - oz + lift);
         }
         pos.needsUpdate = true;
+      } else if (onCollars) { // #2768 — on the surface through the collar elevations
+        const ground = collarGround(collars);
+        geometry = new THREE.PlaneGeometry(w, h, COLLAR_DRAPE_SEG, COLLAR_DRAPE_SEG);
+        const pos = geometry.attributes.position;
+        for (let i = 0; i < pos.count; i++) { const g = ground ? ground(cx + pos.getX(i), cy + pos.getY(i)) : NaN; pos.setZ(i, (Number.isFinite(g) ? g : l.elevation || 0) - oz + lift); }
+        pos.needsUpdate = true;
       } else {
         geometry = new THREE.PlaneGeometry(w, h);
       }
       mesh = new THREE.Mesh(geometry, material);
       mesh.rotation.x = -Math.PI / 2; // plane local +Y (image top = north) becomes scene -z, the app's north
-      mesh.position.set(cx - ox, drapeOnTerrain ? 0 : (l.elevation || 0) - oz + lift - 0.3, -(cy - oy));
+      mesh.position.set(cx - ox, drapeOnTerrain || onCollars ? 0 : (l.elevation || 0) - oz + lift - 0.3, -(cy - oy));
       mesh.renderOrder = 2 + li;
       mesh.userData = { geoKey, styleKey: null, canvas };
       group.add(mesh);

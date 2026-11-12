@@ -6754,6 +6754,8 @@
   "Note (optional)": "Nota (opcional)",
   "Draw a line": "Desenhar uma linha",
   "Click the first point of the line.": "Clique no primeiro ponto da linha.",
+  "Flat at one RL instead": "Plano a uma única cota",
+  "No terrain: the lines are draped on the ground between the collars (a surface through the collar elevations).": "Sem terreno: as linhas são drapeadas sobre o terreno entre os colares (uma superfície que passa pelas cotas dos colares).",
   "Tied to: {v}": "Ligada a: {v}",
   "Snapped to {hole} at {md} m ({label}).": "Ajustado a {hole} a {md} m ({label}).",
   "Snapped to {hole} at {md} m.": "Ajustado a {hole} a {md} m.",

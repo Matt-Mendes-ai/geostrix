@@ -4918,7 +4918,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
 
   // ---------- rebuild draped map layers (TASKS.csv #316) ----------
   // moved to lib/viewer/sceneBuilders.js syncMapLayers (TASKS.csv #693); its comments explain the build
-  useEffect(() => { if (mapLayerGroupRef.current && !buildDefer.skip()) syncMapLayers(mapLayerGroupRef.current, mapLayerMeshesRef.current, mapLayers, { origin: originRef.current, terrain, renderer: rendererRef.current }); }, [mapLayers, collars, terrain, rebuildSeq, deferRound]);
+  useEffect(() => { if (mapLayerGroupRef.current && !buildDefer.skip()) syncMapLayers(mapLayerGroupRef.current, mapLayerMeshesRef.current, mapLayers, { origin: originRef.current, terrain, renderer: rendererRef.current, collars /* #2768 */ }); }, [mapLayers, collars, terrain, rebuildSeq, deferRound]);
 
   // ---------- georeferenced section images (TASKS.csv #630) ----------
   // moved to lib/viewer/sceneBuilders.js syncSectionImages (TASKS.csv #693); its comments explain the build
