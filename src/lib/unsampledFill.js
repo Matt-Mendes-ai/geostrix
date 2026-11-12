@@ -30,17 +30,24 @@ function coverage(assays, collars, symbol, unit, elementUnits) {
 }
 
 // -> { holes, drilledM, sampledM, share, holesNoLength } over the holes that carry the element
-export function sampledShare(assays, collars, symbol, unit, elementUnits) {
-  const holes = coverage(assays, collars, symbol, unit, elementUnits);
+export function sampledShare(assays, collars, symbol, unit, elementUnits, holes = null) { // holes: a coverage already made (#3007)
+  if (!holes) holes = coverage(assays, collars, symbol, unit, elementUnits);
   let drilledM = 0, sampledM = 0, holesNoLength = 0;
   for (const h of holes) { drilledM += h.end; sampledM += h.sampled; if (!h.known) holesNoLength++; }
   return { holes: holes.length, drilledM, sampledM, share: drilledM > 0 ? sampledM / drilledM : 1, holesNoLength };
 }
 
+// TASKS.csv #3007 (WA iron review) — the share and the never-assayed holes from ONE coverage pass: each ran rawSampleIntervals over every
+// assay (0.4-0.55 s apiece on 147,000 samples) on every open of the Estimation dialog and on each Element / Samples-from change
+export function coverageSummary(assays, collars, symbol, unit, elementUnits, { loggedEnds = null } = {}) {
+  const holes = coverage(assays, collars, symbol, unit, elementUnits);
+  return { info: sampledShare(assays, collars, symbol, unit, elementUnits, holes), unassayed: unassayedHoles(assays, collars, symbol, unit, elementUnits, { loggedEnds, holes }) };
+}
+
 // TASKS.csv #2736 (split from #2596) — holes drilled but never assayed for the element: [{ hole_id, end, endFrom }]. A hole's length is the
 // collar's max_depth, else the deepest logged interval in any layer (loggedEnds: Map hole -> metres; WA exports carry no max_depth)
-export function unassayedHoles(assays, collars, symbol, unit, elementUnits, { loggedEnds = null } = {}) {
-  const carrying = new Set(coverage(assays, collars, symbol, unit, elementUnits).map((h) => h.hole_id));
+export function unassayedHoles(assays, collars, symbol, unit, elementUnits, { loggedEnds = null, holes = null } = {}) { // holes: #3007
+  const carrying = new Set((holes || coverage(assays, collars, symbol, unit, elementUnits)).map((h) => h.hole_id));
   const out = [];
   for (const c of collars || []) {
     if (!c || c.hole_id == null || carrying.has(c.hole_id)) continue;
