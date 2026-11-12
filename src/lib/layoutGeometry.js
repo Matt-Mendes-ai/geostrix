@@ -171,9 +171,12 @@ export function snapToGuides(vals, lines, thr) {
 // size (elementW / elementH in page px at 96 dpi), at least 600 px, at most `max`. Every capture used to be 3,000 px long, so a
 // 60 x 40 mm overview frame was drawn at a pixel ratio of up to 13 (points and labels overdrawn) and froze the window for seconds.
 // No frame size (a capture that is not for a Layout frame): `max`.
-export function captureLongPx(elementW, elementH, max = 3000) {
+// TASKS.csv #2303 (Matt's option (b), 2026-11-09) — dpi: 200 for the captures shown on the page (44 % of the pixels: a shorter stall), 300
+// for the print pass an export runs; 300 when not given, as before
+export function captureLongPx(elementW, elementH, max = 3000, dpi = 300) {
   if (!(elementW > 0)) return max;
-  return Math.min(max, Math.max(600, Math.round((Math.max(elementW, elementH || 0) * 300) / 96)));
+  const d = Number(dpi) > 0 ? Number(dpi) : 300;
+  return Math.min(max, Math.max(600, Math.round((Math.max(elementW, elementH || 0) * d) / 96)));
 }
 
 // TASKS.csv #1485 (review #1352, Silvertip) — a section snapshot is drawn so that its caption prints at `captionPt` when the image is

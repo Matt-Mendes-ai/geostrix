@@ -10866,5 +10866,9 @@
   "Drillholes: metres of {name} at or above {c} in each hole": "Sondages : mètres de {name} à {c} ou plus dans chaque sondage",
   "Drillholes: {name} × thickness at or above {c} in each hole": "Sondages : {name} × épaisseur à {c} ou plus dans chaque sondage",
   "at or above ({name})": "à ou au-dessus de ({name})",
-  "{n} reading(s) have a resistivity but no chargeability: the resistivity model uses them, the chargeability model leaves them out.": "{n} lecture(s) ont une résistivité mais pas de chargeabilité : le modèle de résistivité les utilise, celui de chargeabilité les laisse de côté."
+  "{n} reading(s) have a resistivity but no chargeability: the resistivity model uses them, the chargeability model leaves them out.": "{n} lecture(s) ont une résistivité mais pas de chargeabilité : le modèle de résistivité les utilise, celui de chargeabilité les laisse de côté.",
+  "Rendering the viewports at print resolution (300 dpi) for the export": "Rendu des vues à la résolution d'impression (300 ppp) pour l'export",
+  "Export cancelled while the viewports were rendered at print resolution.": "Export annulé pendant le rendu des vues à la résolution d'impression.",
+  "1 viewport could not be rendered at print resolution and was printed from its page image.": "1 vue n'a pas pu être rendue à la résolution d'impression et a été imprimée depuis son image de la page.",
+  "{n} viewports could not be rendered at print resolution and were printed from their page images.": "{n} vues n'ont pas pu être rendues à la résolution d'impression et ont été imprimées depuis leurs images de la page."
 }

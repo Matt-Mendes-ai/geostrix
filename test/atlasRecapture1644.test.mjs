@@ -15,7 +15,7 @@ test("one capture per marked top-down map: centred on the hole, at the template'
   const items = atlasRecaptureItems(pages, ["p1", "p2", "p3"]);
   assert.equal(items.length, 2);
   // 2,540 m over 360 page px: 1 : 26,667
-  assert.deepEqual(items[0], { pageId: "p1", elementId: "vp1", themeId: null, viewState: vp.viewState, fixedScale: 26667, elementW: 500, elementH: 360, centreWorld: { x: 1000, y: 2000 } });
+  assert.deepEqual(items[0], { dpi: 200 /* #2303 */, pageId: "p1", elementId: "vp1", themeId: null, viewState: vp.viewState, fixedScale: 26667, elementW: 500, elementH: 360, centreWorld: { x: 1000, y: 2000 } });
   assert.equal(items[1].elementW, 300, "a frame a strip log narrowed keeps its scale and shows less ground");
   assert.equal(items[1].fixedScale, 26667);
   // a fixed scale wins over the measured one; a themed map is re-rendered with its theme, not a saved view

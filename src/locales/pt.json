@@ -10866,5 +10866,9 @@
   "Drillholes: metres of {name} at or above {c} in each hole": "Furos: metros de {name} em ou acima de {c} em cada furo",
   "Drillholes: {name} × thickness at or above {c} in each hole": "Furos: {name} × espessura em ou acima de {c} em cada furo",
   "at or above ({name})": "em ou acima de ({name})",
-  "{n} reading(s) have a resistivity but no chargeability: the resistivity model uses them, the chargeability model leaves them out.": "{n} leitura(s) têm resistividade mas não cargabilidade: o modelo de resistividade as usa e o de cargabilidade as deixa de fora."
+  "{n} reading(s) have a resistivity but no chargeability: the resistivity model uses them, the chargeability model leaves them out.": "{n} leitura(s) têm resistividade mas não cargabilidade: o modelo de resistividade as usa e o de cargabilidade as deixa de fora.",
+  "Rendering the viewports at print resolution (300 dpi) for the export": "Renderizando as janelas na resolução de impressão (300 ppp) para a exportação",
+  "Export cancelled while the viewports were rendered at print resolution.": "Exportação cancelada enquanto as janelas eram renderizadas na resolução de impressão.",
+  "1 viewport could not be rendered at print resolution and was printed from its page image.": "1 janela não pôde ser renderizada na resolução de impressão e foi impressa a partir da sua imagem na página.",
+  "{n} viewports could not be rendered at print resolution and were printed from their page images.": "{n} janelas não puderam ser renderizadas na resolução de impressão e foram impressas a partir das suas imagens na página."
 }
