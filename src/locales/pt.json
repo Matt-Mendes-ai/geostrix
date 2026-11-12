@@ -10708,5 +10708,12 @@
   "Optional: the side of a square panel (a strip, an in-situ recovery pattern); each panel counts when its mean GT reaches the GT cut-off.": "Opcional: o lado de um painel quadrado (uma faixa, um padrão de recuperação in situ); cada painel conta quando seu GT médio alcança o corte de GT.",
   "In {p} m panels: {n} of {m} reach GT ≥ {c} {u}: {a} km², {t} t at {g} {gu}, mean thickness {th} m.": "Em painéis de {p} m: {n} de {m} alcançam GT ≥ {c} {u}: {a} km², {t} t a {g} {gu}, espessura média {th} m.",
   "In {p} m panels: none of {m} reaches GT ≥ {c} {u}.": "Em painéis de {p} m: nenhum de {m} alcança GT ≥ {c} {u}.",
-  "Cell {c} m by default: a quarter to a half of the median spacing ({s} m).": "Célula de {c} m por padrão: entre um quarto e metade do espaçamento mediano ({s} m)."
+  "Cell {c} m by default: a quarter to a half of the median spacing ({s} m).": "Célula de {c} m por padrão: entre um quarto e metade do espaçamento mediano ({s} m).",
+  "{f} has {col} but no grid azimuth column (azimuth, azimuth_grid, az): a true or magnetic bearing is not converted on import. Nothing was added.": "{f} tem {col} mas nenhuma coluna de azimute de quadrícula (azimuth, azimuth_grid, az): um rumo verdadeiro ou magnético não é convertido na importação. Nada foi adicionado.",
+  "{f} lacks the column(s) {cols} (E / N / Elev, azimuth, dip, length are needed). Nothing was added.": "Faltam em {f} a(s) coluna(s) {cols} (são necessárias E / N / Cota, azimute, mergulho, comprimento). Nada foi adicionado.",
+  "Every dip in {f} is positive. GeoStrix reads a positive dip as an upward hole. Are these downward holes written with positive dips (flip them to negative)?": "Todos os mergulhos em {f} são positivos. O GeoStrix lê um mergulho positivo como um furo para cima. São furos para baixo escritos com mergulhos positivos (inverter para negativos)?",
+  "{n} row(s) skipped (lines {list}): a missing or bad value.": "{n} linha(s) ignorada(s) (linhas {list}): um valor ausente ou inválido.",
+  "Added {n} planned hole(s) from {f}.": "Adicionado(s) {n} furo(s) planejado(s) de {f}.",
+  "Could not read {f}: {error}": "Não foi possível ler {f}: {error}",
+  "Planned holes from a CSV with columns for E, N, Elev, azimuth (grid), dip and length; name, hole type, notes, target and lift / drift are read when present.": "Furos planejados de um CSV com colunas de E, N, Cota, azimute (quadrícula), mergulho e comprimento; nome, tipo de furo, notas, alvo e subida / deriva são lidos quando presentes."
 }
