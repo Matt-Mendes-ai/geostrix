@@ -185,7 +185,7 @@ export default function GenerateAtlasModal({ onClose, templateElements, collars,
                 <option value="">{tr("By a collar field…")}</option>{attrChoices.flatMap((ch) => ch.values.map((v) => <option key={`${ch.key}=${v}`} value={`${ch.key}=${v}`}>{`${ch.key} = ${v}`}</option>))}</select>}
             </div>}
             <div style={{ maxHeight: 180, overflowY: "auto", border: "1px solid #2a323c", borderRadius: 6, padding: 6 }}>
-              {items.length === 0 && <div style={{ fontSize: "var(--font-size-sm)", opacity: 0.6, padding: 6 }}>{mode === "hole" ? tr("No collars loaded.") : tr("No sections drawn yet.")}</div>}
+              {items.length === 0 && <div style={{ fontSize: "var(--font-size-sm)", opacity: 0.6, padding: 6 }}>{/* #1873 — say why a mode is empty and what fills it (a geophysics-only project has neither) */}{mode === "hole" ? (holeFilter.trim() && holeIds.length ? tr("No hole matches the filter.") : collars.length ? tr("No collar has a depth, so no hole has a trace to make a page from.") : tr("No holes have collars, so there is no page per hole: import collars, or use one page per section.")) : tr("No sections drawn yet: draw one with Draw section in the 3D View, then make one page per section here.")}</div>}
               {items.map((it) => {
                 const key = itemKey(it);
                 return (

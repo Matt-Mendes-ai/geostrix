@@ -27,6 +27,7 @@
 import { isLabMetaField, fieldLabel } from "./labMetaFields.js"; // TASKS.csv #1828
 import { pointInRings } from "./mapLayers.js";
 import { quantileSorted, median } from "./arrayStats.js"; // TASKS.csv #1114
+import { codeIndex, codeAt, NO_CODE } from "./sampleLithology.js"; // TASKS.csv #2510
 
 const LN10 = Math.log(10);
 const log10 = (v) => Math.log(v) / LN10;
@@ -275,14 +276,8 @@ export const intervalLength = (a) => { const f = Number(a.from), t = Number(a.to
 export const DRILL_DOMAINS = [{ value: "none", label: "All assays" }, { value: "litho", label: "Lithology" }, { value: "alt", label: "Alteration" }, { value: "weath", label: "Weathering" }];
 export function drillDomainKeyFn(domain, layers) {
   if (!domain || domain === "none") return () => "All";
-  const by = new Map();
-  for (const r of layers?.[domain] || []) { const a = by.get(r.hole_id); if (a) a.push(r); else by.set(r.hole_id, [r]); }
-  return (a) => {
-    const mid = (Number(a.from) + Number(a.to)) / 2, rows = by.get(a.hole_id);
-    const hit = rows && rows.find((r) => mid >= Number(r.from) && mid <= Number(r.to));
-    const v = hit ? String(hit.value ?? "").trim() : "";
-    return v || "(not logged)";
-  };
+  const index = codeIndex(layers?.[domain]); // #2510 — the shared rule (largest overlap), as the diagram filter and Grade stats use
+  return (a) => codeAt(index, a.hole_id, a.from, a.to) ?? NO_CODE;
 }
 // a saved threshold for the surface tools (anomaly maps, catchments): not a drill one (#2196)
 export const isSurfaceThreshold = (t) => t && t.source !== "drill";

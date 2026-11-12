@@ -33,7 +33,7 @@ test("drill populations: weights from the interval lengths, domains from the log
   ];
   const layers = { litho: [{ hole_id: "A", from: 0, to: 10, value: "BIF" }, { hole_id: "B", from: 0, to: 3, value: "Basalt" }] };
   const keyOf = drillDomainKeyFn("litho", layers);
-  assert.deepEqual(assays.map(keyOf), ["BIF", "BIF", "Basalt", "(not logged)"]);
+  assert.deepEqual(assays.map(keyOf), ["BIF", "BIF", "Basalt", "no code logged"] /* the one no-code name: #2510 */);
   assert.equal(drillDomainKeyFn("none", layers)(assays[0]), "All");
   assert.equal(intervalLength({ from: 2, to: 2 }), null);
   const pops = populations(assays, { valueOf: (a) => a.values.Au, keyOf, weightOf: intervalLength });

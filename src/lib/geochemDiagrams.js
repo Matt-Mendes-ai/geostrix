@@ -393,6 +393,20 @@ export function isSedimentaryCode(code) {
   return /^(lmst|lst|ls|limestone|dlst|dolst|dolostone|dolomite|dol|marble|mbl|slst|sltst|siltstone|slt|sts|sndst|sst|sandstone|san|sand|sh|shale|arg|argillite|mdst|mudstone|mud|cong|cgl|con|conglomerate|chert|cht|wacke|gwke|greywacke|graywacke|evap|evaporite|coal|lig|lignite|lic|cly|clay|cls|claystone|cbc|cal|calcrete)$/i.test(String(code || "").trim());
 }
 
+// TASKS.csv #2509 (review #2486, WA lithium) — the Jensen split, from cation percentages a (Al), f (Fe+Ti) and m (Mg). The Fe-against-Mg
+// test used to come first, so a spodumene pegmatite (Al 98.9 %, Fe+Ti 0.7 %, Mg 0.3 %) was an 'Mg-tholeiite'. Aluminium now decides first:
+// the calc-alkaline fields from the Al corner down (rhyolite, dacite, andesite, basalt), and only below that divider komatiite and the
+// Fe- / Mg-tholeiites by Fe+Ti against Mg. Still a simplified threshold split, not the published fields (#1379; the notice says so).
+export function jensenClass(a, f, m) {
+  if (![a, f, m].every(Number.isFinite)) return null;
+  if (a >= 72) return "CA-RHY";
+  if (a >= 64) return "CA-DAC";
+  if (a >= 56) return "CA-AND";
+  if (a >= 50) return "CA-BASALT";
+  if (m > 50) return "KOM";
+  return f > m ? "THOL-FE" : "THOL-MAFIC";
+}
+
 // ---------- alteration / litho classification (reuse projections above) ----------
 export const GEOCHEM_METHODS = {
   alteration_boxplot: {
@@ -428,12 +442,7 @@ export const GEOCHEM_METHODS = {
       const alC = toOxide(Al, "Al") / 50.98, feC = toOxide(Fe, "Fe") / 71.85 + toOxide(Ti, "Ti") / 79.87, mgC = toOxide(Mg, "Mg") / 40.30;
       const t = alC + feC + mgC || 1;
       const a = (alC / t) * 100, f = (feC / t) * 100, m = (mgC / t) * 100;
-      if (m > 50) return "KOM";
-      if (f > m) return a < 60 ? "THOL-FE" : "THOL-MAFIC";
-      if (a < 56) return "CA-BASALT";
-      if (a < 64) return "CA-AND";
-      if (a < 72) return "CA-DAC";
-      return "CA-RHY";
+      return jensenClass(a, f, m);
     },
   },
 };

@@ -31,7 +31,8 @@ import { normalQuantile, probabilityBreak } from "../lib/thresholds.js"; // prob
 import { capAboveZone, capWarningText } from "../lib/capWarning.js"; // TASKS.csv #1676
 import { preferredElement, rememberElement } from "../lib/preferredElement.js"; // TASKS.csv #1678
 import { useLeadCommodity } from "../lib/useLeadCommodity.js"; // #1523 — the project's lead commodity
-import { customDomainOptions, isCategoricalLayer, domainIndex, domainAtMid, attributeDomainOptions, attributeDomainLabel } from "../lib/customDomains.js"; // TASKS.csv #1678; #1515; attributes: #2504
+import { customDomainOptions, isCategoricalLayer, attributeDomainOptions, attributeDomainLabel } from "../lib/customDomains.js"; // TASKS.csv #1678; #1515; attributes: #2504
+import { codeIndex, codeAt, NO_CODE } from "../lib/sampleLithology.js"; // TASKS.csv #2510 — the one rule for a sample's logged code
 
 // Sample statistics (n-1 denominator for variance/stdev, the standard convention for a sample rather
 // than a full population — grade data is always a sample of the deposit, never the whole thing).
@@ -89,7 +90,7 @@ function computeStats(values, weights = null) {
   return { n, mean, median, stdev, variance, cv, min: sorted[0], max: sorted[sorted.length - 1], q1: quantile(0.25), q3: quantile(0.75), sorted, totalLength: weights ? V1 : null };
 }
 
-// TASKS.csv #1515 — the domain lookup (midpoint in an interval of the hole) is lib/customDomains.js domainIndex / domainAtMid, indexed by hole
+// TASKS.csv #1515 — the domain lookup is indexed by hole; since #2510 it is lib/sampleLithology.js codeIndex / codeAt (the code the sample overlaps most)
 
 function niceBinCount(n) {
   // Sturges' rule, clamped to a sane range for a small UI histogram.
@@ -132,9 +133,9 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
   // TASKS.csv #2029 (review #2013, Geochem) — group by hole (and hole + lithology): a per-hole mean needed the SQL workspace
   const byHole = domainKey === HOLE_KEY || domainKey === HOLE_LITHO_KEY;
   const domainRows = domainKey === HOLE_KEY ? null : domainKey === HOLE_LITHO_KEY ? layers.litho : domainKey ? (customDomain ? customDomain.rows : layers[domainKey]) : null;
-  const domainIdx = useMemo(() => (domainRows ? domainIndex(domainRows) : null), [domainRows]); // #1515
+  const domainIdx = useMemo(() => (domainRows ? codeIndex(domainRows) : null), [domainRows]); // #1515; the shared rule: #2510
   const domainName = (k) => (k === HOLE_KEY ? "Hole" : k === HOLE_LITHO_KEY ? "Hole + lithology" : customDomains.find((d) => d.key === k)?.label || LAYER_META[k]?.label || k); // #1678; hole: #2029
-  const domainLabel = (v) => (domainKey === "litho" ? (UNIT_NAMES[v] || v) : v === "All" || v === "(unclassified)" ? tr(v) : v); // #786: the two built-in group names
+  const domainLabel = (v) => (v === NO_CODE ? tr("no code logged") : domainKey === "litho" ? (UNIT_NAMES[v] || v) : v === "All" || v === "(unclassified)" ? tr(v) : v); // #786: the built-in group names; no code: #2510
 
   // Per-sample {value, domain} pairs — every row that has a real numeric value for the selected
   // element (log scale needs strictly positive values; a handful of at/below-zero rows, e.g. a
@@ -153,8 +154,8 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
     // logged twice (overlapping or repeated rows) counts once, negative lab codes are not assays. Raw rows counted the
     // repeats twice, so this panel's percentiles disagreed with the cap audit's.
     return resolvedSegments(statsAssays, symbol, elementUnits[symbol] || "ppm", elementUnits).map((s) => {
-      const lith = domainIdx ? domainAtMid(domainIdx, s.hole_id, s.from, s.to) : null; // #1515 — indexed
-      const domain = domainKey === HOLE_KEY ? s.hole_id : domainKey === HOLE_LITHO_KEY ? `${s.hole_id} · ${lith == null ? "(unclassified)" : lith}` : domainIdx ? lith : "All"; // #2029
+      const lith = domainIdx ? codeAt(domainIdx, s.hole_id, s.from, s.to) : null; // #1515 — indexed; #2510 — largest overlap, as the diagram filter and Thresholds
+      const domain = domainKey === HOLE_KEY ? s.hole_id : domainKey === HOLE_LITHO_KEY ? `${s.hole_id} · ${lith == null ? NO_CODE : lith}` : domainIdx ? lith : "All"; // #2029
       return { value: s.value, weight: s.to - s.from, domain, lt: s.lt }; // weight: #267; lt (every result '<'): #2505
     });
   }, [source, surfaceSamples, statsAssays, symbol, elementUnits, surfaceElementUnits, domainIdx, domainKey]);
@@ -167,7 +168,7 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
   const groups = useMemo(() => {
     const byDomain = new Map();
     rows.forEach((r) => {
-      const key = r.domain == null ? "(unclassified)" : r.domain;
+      const key = r.domain == null ? NO_CODE : r.domain; // #2510
       if (!byDomain.has(key)) byDomain.set(key, []);
       byDomain.get(key).push(r);
     });
@@ -183,7 +184,7 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
   const [capTest, setCapTest] = useState("");
   const prob = useMemo(() => {
     const byDomain = new Map();
-    rows.forEach((r) => { const k = r.domain == null ? "(unclassified)" : r.domain; if (!byDomain.has(k)) byDomain.set(k, []); byDomain.get(k).push(r); });
+    rows.forEach((r) => { const k = r.domain == null ? NO_CODE : r.domain; /* #2510 */ if (!byDomain.has(k)) byDomain.set(k, []); byDomain.get(k).push(r); });
     const series = groups.slice(0, SHOWN_MAX).map((g) => { /* #2508 — the plotted groups, as the table */ const rs = byDomain.get(g.key) || []; return { key: g.key, ...weightedProbPoints(rs.map((r) => r.value), weightingActive ? rs.map((r) => r.weight) : null) }; });
     const vs = rows.map((r) => r.value), ws = weightingActive ? rows.map((r) => r.weight) : null;
     // TASKS.csv #2675 — and the bend into the high tail that Thresholds suggests (Sinclair 1976), offered as a cap to test, never applied
