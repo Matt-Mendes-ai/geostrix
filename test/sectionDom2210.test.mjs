@@ -33,7 +33,7 @@ test("the section draws intervals in one clipped group without a title each", ()
 
 test("a step or refresh says the section is being built until the new one arrives", () => {
   const s = readFileSync(new URL("../src/components/SectionWindow.jsx", import.meta.url), "utf8");
-  assert.match(s, /const stepTo = \(msg\) => \{ setStepping\(true\); sendSectionContacts\(msg\); \};/);
+  assert.match(s, /const stepTo = \(msg\) => \{ (if \(vExag != null\) stepVE = \{ ve: vExag, at: Date\.now\(\) \}; )?setStepping\(true\); sendSectionContacts\(msg\); \};/);
   assert.match(s, /useEffect\(\(\) => \{ setStepping\(false\); \}, \[rawData\]\);/);
   for (const m of ["step: -1 })", "step: 1 })", 'step: -1, by: "buffer" })', 'step: 1, by: "buffer" })', "refresh: true })"]) assert.ok(s.includes(`onClick={() => stepTo({ id: data.id, ${m}}`), m);
   assert.doesNotMatch(s, /onClick=\{\(\) => sendSectionContacts\(\{ id: data\.id, (step|refresh)/);
