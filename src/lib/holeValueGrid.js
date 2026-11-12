@@ -6,6 +6,7 @@
 // point: it is not a zero. Pure.
 import { perHoleAssay } from "./collarMapStyle.js";
 import { numericSourceChoices, sourceAssays } from "./numericSources.js";
+import { desurveyHole, pointOnTrace } from "./desurvey.js"; // TASKS.csv #2745
 
 const num = (v) => (typeof v === "number" ? v : v === "" || v == null ? NaN : Number(v));
 
@@ -49,8 +50,52 @@ export function holeSamples(collars, values, key = "value") {
 }
 
 // what the grid stands for, in English (project data: the raster's name and geochem record). unit: the value's unit (metres for a depth)
-export function holeValueMeta(source, stat, threshold) {
+// verticalDepth (#2745): a 'firstOver' depth measured vertically below the collar
+export function holeValueMeta(source, stat, threshold, { verticalDepth = false } = {}) {
   const unit = stat === "firstOver" ? "m" : source?.unit || "";
-  const what = stat === "max" ? `highest ${source.symbol}` : stat === "mean" ? `${source.symbol} length-weighted mean` : `depth to ${source.symbol} >= ${threshold}${source.unit ? ` ${source.unit}` : ""}`;
+  const what = stat === "max" ? `highest ${source.symbol}` : stat === "mean" ? `${source.symbol} length-weighted mean` : `${verticalDepth ? "vertical depth" : "depth"} to ${source.symbol} >= ${threshold}${source.unit ? ` ${source.unit}` : ""}`;
   return { unit, what };
+}
+
+// TASKS.csv #2745 (follow-up of #2658) — where a hole's value sits down the hole, so it can be placed there in plan rather than at the
+// collar (an inclined hole's intercept can be hundreds of metres from it): the interval the value came from. max: the highest interval
+// (the shallowest of equal ones); firstOver: the shallowest interval at or over the threshold; mean: the span of the hole's valued
+// intervals. -> Map(hole_id -> { from, to })
+export function perHoleSpan(rows, symbol, stat = "max", { threshold = NaN } = {}) {
+  const out = new Map(), t = num(threshold), best = new Map();
+  for (const r of rows || []) {
+    const v = num(r?.values?.[symbol]), from = num(r?.from), to = num(r?.to);
+    if (r?.hole_id == null || !Number.isFinite(v) || !Number.isFinite(from) || !Number.isFinite(to)) continue;
+    if (stat === "mean") { const s = out.get(r.hole_id); out.set(r.hole_id, s ? { from: Math.min(s.from, from), to: Math.max(s.to, to) } : { from, to }); continue; }
+    if (stat === "firstOver" && !(Number.isFinite(t) && v >= t)) continue;
+    const b = best.get(r.hole_id);
+    const better = !b || (stat === "firstOver" ? from < b.from : v > b.v || (v === b.v && from < b.from));
+    if (better) { best.set(r.hole_id, { v, from }); out.set(r.hole_id, { from, to }); }
+  }
+  return out;
+}
+
+// the holes as samples placed at the intercept (at "intercept"): each at the middle of its span on its desurveyed trace (lib/desurvey.js);
+// a hole whose trace cannot be built stays at its collar and is counted. at "collar": every hole at its collar (as holeSamples). verticalDepth (a 'firstOver' depth): the value becomes the vertical depth below
+// the collar of the interval's top, not the depth along the hole. -> { samples, atCollar }
+export function holeSamplesAt(collars, values, spans, { key = "value", survey = [], desurveyMethod, verticalDepth = false, at = "intercept" } = {}) {
+  const bySurvey = new Map();
+  for (const s of survey || []) (bySurvey.get(s.hole_id) || bySurvey.set(s.hole_id, []).get(s.hole_id)).push(s);
+  const samples = [];
+  let atCollar = 0;
+  for (const c of collars || []) {
+    let v = values.get(c?.hole_id);
+    if (!Number.isFinite(v) || !Number.isFinite(c.x) || !Number.isFinite(c.y)) continue;
+    const span = spans.get(c.hole_id);
+    let tr = [];
+    try { tr = span && (at === "intercept" || verticalDepth) ? desurveyHole(c, bySurvey.get(c.hole_id) || [], desurveyMethod) || [] : []; } catch { tr = []; }
+    const mid = at === "intercept" && tr.length ? pointOnTrace(tr, (span.from + span.to) / 2) : null;
+    if (verticalDepth) {
+      const top = tr.length ? pointOnTrace(tr, span.from) : null;
+      if (top && Number.isFinite(top.z) && Number.isFinite(c.z)) v = c.z - top.z; // z up: the collar's elevation minus the interval top's
+    }
+    if (mid && Number.isFinite(mid.x) && Number.isFinite(mid.y)) samples.push({ x: mid.x, y: mid.y, values: { [key]: v }, hole_id: c.hole_id });
+    else { if (at === "intercept") atCollar++; samples.push({ x: c.x, y: c.y, values: { [key]: v }, hole_id: c.hole_id }); }
+  }
+  return { samples, atCollar };
 }
