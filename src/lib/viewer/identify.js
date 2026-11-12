@@ -195,6 +195,13 @@ export function describeHits(hits, ctx, max = 20) {
   return [...kept.filter((d) => !backdrop(d)), ...kept.filter(backdrop)];
 }
 
+// TASKS.csv #2796 — where the click really was: the press's position (pointer events keep fractions of a pixel) when it is the same click
+// as the event's whole-pixel clientX / clientY, else the event's own
+export function clickPoint(e, down) {
+  if (down && Math.abs(down.x - e.clientX) < 1 && Math.abs(down.y - e.clientY) < 1) return { x: down.x, y: down.y };
+  return { x: e.clientX, y: e.clientY };
+}
+
 // One click: the ray, everything it meets, described. r: the view's refs and data (useIdentify). { items, point of the first, camera distance }.
 export function identifyAt(r, clientX, clientY) {
   const rect = r.mountRef.current.getBoundingClientRect(), camera = r.cameraRef.current;
