@@ -50,14 +50,14 @@ import { collarsLookUnderground } from "../lib/pitShell.js"; // TASKS.csv #2265
 import { structureGroundCounts, surfaceFlatElevation } from "../lib/viewer/surfacePlacement.js"; import { terrainGroundAt } from "../lib/viewer/geomath.js"; // TASKS.csv #2485 (2); surfaceFlatElevation: #2753
 
 // TASKS.csv #2093 / #1826 — the structure import's skipped rows, one reason each (parseStructureRows' skipWhy)
-export function skipReasons(w = {}) {
+export function skipReasons(w = {}, names = {}) { // names: the rows skipped for no direction (#2958)
   return [
     w.noMeasurement && tr("{n} with no measurement at all", { n: w.noMeasurement }),
     w.noXY && tr("{n} with no easting or northing", { n: w.noXY }),
     w.noDip && tr("{n} with a bearing but no dip (a chip line or a trend, not a plane)", { n: w.noDip }),
     w.badDip && tr("{n} with a dip that is not a number from 0 to 90", { n: w.badDip }),
     w.bearingUnread && tr("{n} with a dip direction or strike that is not a number (a quadrant bearing such as N45E is not read)", { n: w.bearingUnread }),
-    w.noDirection && tr("{n} with a dip but no dip direction or strike", { n: w.noDirection }),
+    w.noDirection && tr("{n} with a dip over 0 but no dip direction or strike ({rows})", { n: w.noDirection, rows: (names.noDirection || []).slice(0, 8).join(", ") + ((names.noDirection || []).length > 8 ? "…" : "") }), // #2958
   ].filter(Boolean).join("; ");
 }
 
@@ -507,7 +507,8 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
     setStructMsg({
       ok: !out.skipped,
       text: tr("Imported {rows} measurement(s) from {name}.", { rows: out.rows.length, name: p.name })
-        + (out.skipped ? tr(" Skipped {skipped} row(s): {why}.", { skipped: out.skipped, why: skipReasons(out.skipWhy) }) : "") // #2093 — each reason apart
+        + (out.skipped ? tr(" Skipped {skipped} row(s): {why}.", { skipped: out.skipped, why: skipReasons(out.skipWhy, out.skipNames) }) : "") // #2093 — each reason apart
+        + (out.horizontal ? tr(" {n} horizontal reading(s) (dip 0, no dip direction) kept as flat planes: a cross on the map, a pole at the centre of the stereonet.", { n: out.horizontal }) : "") // #2958
         + (out.derivedFromStrike ? (out.strikeRule === "lhr" ? tr(" {derivedFromStrike} dip direction(s) derived from strike by the left-hand rule (strike − 90°).", { derivedFromStrike: out.derivedFromStrike }) : tr(" {derivedFromStrike} dip direction(s) derived from strike by the right-hand rule.", { derivedFromStrike: out.derivedFromStrike })) : "")
         + (out.fromQuadrant ? tr(" {n} dip direction(s) taken from the strike and the dip quadrant.", { n: out.fromQuadrant }) : "") // #2083
         + (out.quadrantUnread ? tr(" {n} dip quadrant(s) could not be read (not N, NE, E…), so the strike convention was used there.", { n: out.quadrantUnread }) : "")
@@ -717,7 +718,8 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
           <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
             <button onClick={() => {
               const n = (v) => (String(v ?? "").trim() === "" ? NaN : Number(String(v).replace(",", ".")));
-              if (![typing.x, typing.y, typing.dip, typing.dipDir].every((v) => Number.isFinite(n(v)))) { setStructMsg({ ok: false, text: tr("Type at least the easting, northing, dip and dip direction.") }); return; }
+              // TASKS.csv #2958 — a horizontal reading (dip 0) needs no dip direction
+              if (![typing.x, typing.y, typing.dip].every((v) => Number.isFinite(n(v))) || !(Number.isFinite(n(typing.dipDir)) || n(typing.dip) === 0)) { setStructMsg({ ok: false, text: tr("Type at least the easting, northing, dip and dip direction (a horizontal reading, dip 0, needs no direction).") }); return; }
               const headers = ["Station", "Easting", "Northing", "Elevation", "Type", "Dip", "Dip direction", "Comments"];
               const rowObj = { Station: typing.station || "", Easting: typing.x, Northing: typing.y, Elevation: typing.z || "", Type: typing.type || "", Dip: typing.dip, "Dip direction": typing.dipDir, Comments: typing.comment || "" };
               setPendingStruct({ name: "Typed measurements", typed: true, rows: [rowObj], headers, cols: { x: "Easting", y: "Northing", z: Number.isFinite(n(typing.z)) ? "Elevation" : null, dip: "Dip", dipDir: "Dip direction", strike: null, type: "Type", station: "Station", comment: "Comments" }, sourceEpsg: project?.epsg ? String(project.epsg) : "" });

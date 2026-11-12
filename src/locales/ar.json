@@ -8800,7 +8800,7 @@
   "Add a measurement": "إضافة قياس",
   "Template CSV": "قالب CSV",
   "A CSV with the column headers this importer reads, to fill in a spreadsheet": "ملف CSV بعناوين الأعمدة التي يقرأها هذا المستورد، لتعبئته في جدول بيانات",
-  "Type at least the easting, northing, dip and dip direction.": "اكتب على الأقل الإحداثي الشرقي والشمالي والميل واتجاه الميل.",
+  "Type at least the easting, northing, dip and dip direction (a horizontal reading, dip 0, needs no direction).": "اكتب على الأقل الإحداثي الشرقي والشمالي والميل واتجاه الميل (القراءة الأفقية، ميل 0، لا تحتاج إلى اتجاه).",
   "Check and add": "تحقق وأضف",
   "Too few {el} values to grid ({n}): at least 3 samples with a value are needed.": "قيم {el} قليلة جداً للتشبيك ({n}): يلزم 3 عينات على الأقل لها قيمة.",
   "Gridded {el} ({unit}) from {n} sample(s){m} at {cell} m cells, power {pw}{lg}{bl}: {valid} of {cells} cells have a value. It is in Maps > GeoTIFF / GXF and the 3D View.": "تم تشبيك {el} ({unit}) من {n} عينة{m} بخلايا {cell} م، أُس {pw}{lg}{bl}: {valid} من {cells} خلية لها قيمة. موجود في Maps > GeoTIFF / GXF وفي العرض ثلاثي الأبعاد.",
@@ -10871,7 +10871,7 @@
   "{n} with a bearing but no dip (a chip line or a trend, not a plane)": "{n} باتجاه دون ميل (خط عيّنات أو اتجاه عام، لا مستوى)",
   "{n} with a dip that is not a number from 0 to 90": "{n} بميل ليس رقمًا من 0 إلى 90",
   "{n} with a dip direction or strike that is not a number (a quadrant bearing such as N45E is not read)": "{n} باتجاه ميل أو مضرب ليس رقمًا (لا يُقرأ اتجاه الأرباع مثل N45E)",
-  "{n} with a dip but no dip direction or strike": "{n} بميل دون اتجاه ميل أو مضرب",
+  "{n} with a dip over 0 but no dip direction or strike ({rows})": "{n} بميل أكبر من 0 دون اتجاه ميل أو مضرب ({rows})",
   "Lab column: {v}": "عمود المختبر: {v}",
   "Other fields: lab bookkeeping, one value on every sample, or a different one on each": "حقول أخرى: سجلات المختبر، أو قيمة واحدة لكل العينات، أو قيمة مختلفة لكل عينة",
   " · trend \"{name}\" {ratios}{ell}": " · الاتجاه \"{name}\" {ratios}{ell}",
@@ -11151,5 +11151,7 @@
   "The Blake River stations could not be loaded: {message}": "تعذّر تحميل محطات Blake River: {message}",
   "The Blake River grid could not be loaded: {message}": "تعذّر تحميل شبكة Blake River: {message}",
   "Loaded the Blake River gravity sample (Geological Survey of Canada, Abitibi, Quebec; no drillholes): the published Bouguer anomaly grid ({size} nodes at 100 m, mGal) and {n} gravity stations. Open Maps for the grid, its contours and filters, or Geophysics > Point survey to grid the stations yourself and compare. See sample_data/blake_river/README.md for the source and the licence.": "حُمّلت عينة جاذبية Blake River (هيئة المسح الجيولوجي الكندية، أبيتيبي، كيبيك؛ بلا ثقوب حفر): شبكة شذوذ بوغير المنشورة ({size} عقدة بتباعد 100 م، mGal) و{n} محطة جاذبية. افتح الخرائط للشبكة وخطوط الكنتور والمرشحات، أو الجيوفيزياء > مسح نقطي لتحويل المحطات إلى شبكة بنفسك والمقارنة. راجع sample_data/blake_river/README.md للمصدر والترخيص.",
-  "This project is EPSG:{epsg2}, not the sample's EPSG:{epsg} ({crs}): the stations and the grid's picture were reprojected into it, and the grid's values were not kept. Load the sample into a new project to work in its own coordinates.": "هذا المشروع على EPSG:{epsg2} وليس على EPSG:{epsg} الخاص بالعينة ({crs}): أُعيد إسقاط المحطات وصورة الشبكة إليه، ولم تُحفظ قيم الشبكة. حمّل العينة في مشروع جديد للعمل بإحداثياتها الأصلية."
+  "This project is EPSG:{epsg2}, not the sample's EPSG:{epsg} ({crs}): the stations and the grid's picture were reprojected into it, and the grid's values were not kept. Load the sample into a new project to work in its own coordinates.": "هذا المشروع على EPSG:{epsg2} وليس على EPSG:{epsg} الخاص بالعينة ({crs}): أُعيد إسقاط المحطات وصورة الشبكة إليه، ولم تُحفظ قيم الشبكة. حمّل العينة في مشروع جديد للعمل بإحداثياتها الأصلية.",
+  " {n} horizontal reading(s) (dip 0, no dip direction) kept as flat planes: a cross on the map, a pole at the centre of the stereonet.": " {n} قراءة أفقية (ميل 0، دون اتجاه ميل) حُفظت كمستويات أفقية: علامة + على الخريطة، وقطب في مركز الشبكة المجسامية.",
+  "none (horizontal)": "لا يوجد (أفقي)"
 }

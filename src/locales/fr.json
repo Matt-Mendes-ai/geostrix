@@ -8800,7 +8800,7 @@
   "Add a measurement": "Ajouter une mesure",
   "Template CSV": "Modèle CSV",
   "A CSV with the column headers this importer reads, to fill in a spreadsheet": "Un CSV avec les en-têtes de colonnes que lit cet importateur, à remplir dans un tableur",
-  "Type at least the easting, northing, dip and dip direction.": "Saisissez au moins l'abscisse, l'ordonnée, le pendage et la direction de pendage.",
+  "Type at least the easting, northing, dip and dip direction (a horizontal reading, dip 0, needs no direction).": "Saisissez au moins l'abscisse, l'ordonnée, le pendage et la direction de pendage (une mesure horizontale, pendage 0, n'a pas besoin de direction).",
   "Check and add": "Vérifier et ajouter",
   "Too few {el} values to grid ({n}): at least 3 samples with a value are needed.": "Trop peu de valeurs de {el} pour un maillage ({n}) : il faut au moins 3 échantillons avec une valeur.",
   "Gridded {el} ({unit}) from {n} sample(s){m} at {cell} m cells, power {pw}{lg}{bl}: {valid} of {cells} cells have a value. It is in Maps > GeoTIFF / GXF and the 3D View.": "{el} ({unit}) maillé à partir de {n} échantillon(s){m} en cellules de {cell} m, puissance {pw}{lg}{bl} : {valid} cellules sur {cells} ont une valeur. Il est dans Maps > GeoTIFF / GXF et la vue 3D.",
@@ -10871,7 +10871,7 @@
   "{n} with a bearing but no dip (a chip line or a trend, not a plane)": "{n} avec une direction mais sans pendage (une ligne d'échantillonnage ou une tendance, pas un plan)",
   "{n} with a dip that is not a number from 0 to 90": "{n} avec un pendage qui n'est pas un nombre de 0 à 90",
   "{n} with a dip direction or strike that is not a number (a quadrant bearing such as N45E is not read)": "{n} avec une direction de pendage ou une direction qui n'est pas un nombre (un relèvement par quadrant comme N45E n'est pas lu)",
-  "{n} with a dip but no dip direction or strike": "{n} avec un pendage mais sans direction de pendage ni direction",
+  "{n} with a dip over 0 but no dip direction or strike ({rows})": "{n} avec un pendage supérieur à 0 mais sans direction de pendage ni direction ({rows})",
   "Lab column: {v}": "Colonne de laboratoire : {v}",
   "Other fields: lab bookkeeping, one value on every sample, or a different one on each": "Autres champs : suivi du laboratoire, une même valeur sur tous les échantillons ou une différente sur chacun",
   " · trend \"{name}\" {ratios}{ell}": " · tendance « {name} » {ratios}{ell}",
@@ -11151,5 +11151,7 @@
   "The Blake River stations could not be loaded: {message}": "Les stations de Blake River n'ont pas pu être chargées : {message}",
   "The Blake River grid could not be loaded: {message}": "La grille de Blake River n'a pas pu être chargée : {message}",
   "Loaded the Blake River gravity sample (Geological Survey of Canada, Abitibi, Quebec; no drillholes): the published Bouguer anomaly grid ({size} nodes at 100 m, mGal) and {n} gravity stations. Open Maps for the grid, its contours and filters, or Geophysics > Point survey to grid the stations yourself and compare. See sample_data/blake_river/README.md for the source and the licence.": "Exemple de gravimétrie de Blake River chargé (Commission géologique du Canada, Abitibi, Québec ; sans sondages) : la grille publiée d'anomalie de Bouguer ({size} nœuds à 100 m, mGal) et {n} stations gravimétriques. Ouvrez Cartes pour la grille, ses courbes et ses filtres, ou Géophysique > Levé ponctuel pour interpoler vous-même les stations et comparer. Voir sample_data/blake_river/README.md pour la source et la licence.",
-  "This project is EPSG:{epsg2}, not the sample's EPSG:{epsg} ({crs}): the stations and the grid's picture were reprojected into it, and the grid's values were not kept. Load the sample into a new project to work in its own coordinates.": "Ce projet est en EPSG:{epsg2}, et non dans l'EPSG:{epsg} de l'exemple ({crs}) : les stations et l'image de la grille y ont été reprojetées, et les valeurs de la grille n'ont pas été conservées. Chargez l'exemple dans un nouveau projet pour travailler dans ses propres coordonnées."
+  "This project is EPSG:{epsg2}, not the sample's EPSG:{epsg} ({crs}): the stations and the grid's picture were reprojected into it, and the grid's values were not kept. Load the sample into a new project to work in its own coordinates.": "Ce projet est en EPSG:{epsg2}, et non dans l'EPSG:{epsg} de l'exemple ({crs}) : les stations et l'image de la grille y ont été reprojetées, et les valeurs de la grille n'ont pas été conservées. Chargez l'exemple dans un nouveau projet pour travailler dans ses propres coordonnées.",
+  " {n} horizontal reading(s) (dip 0, no dip direction) kept as flat planes: a cross on the map, a pole at the centre of the stereonet.": " {n} mesure(s) horizontale(s) (pendage 0, sans direction de pendage) conservée(s) comme plans horizontaux : une croix sur la carte, un pôle au centre du stéréogramme.",
+  "none (horizontal)": "aucune (horizontal)"
 }
