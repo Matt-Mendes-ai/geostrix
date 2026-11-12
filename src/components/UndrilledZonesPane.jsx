@@ -11,7 +11,7 @@ import { isMeshClosed } from "../lib/meshQuery.js";
 import { solidChoices } from "../lib/solidChoices.js"; // TASKS.csv #1564
 import { unitShell } from "../lib/unitVolumes.js";
 import { defaultCellSize, defaultCoverM, undrilledBlockCount } from "../lib/undrilledZones.js"; // defaultCoverM: #2452; the run itself is in a worker (#2258)
-import { medianSiteSpacing } from "../lib/evidenceSources.js"; // TASKS.csv #2452
+import { drilledSiteSpacing } from "../lib/evidenceSources.js"; // TASKS.csv #2452; drilledSiteSpacing: #2949
 import { collarsLookUnderground } from "../lib/pitShell.js"; // TASKS.csv #1557 — the ground between the collars (collarGround, in the worker since #2258); #2249: unless they are underground
 import { unitSupport } from "../lib/unitSupport.js"; // TASKS.csv #1725 — a one-hole / extrapolated shell is said
 import { pBtn, smallSel } from "../lib/sidebarStyles.js";
@@ -40,7 +40,7 @@ export default function UndrilledZonesPane({ solids = [], onAdd, onClose, onPlan
   const [unitId, setUnitId] = useState(() => was?.unitId ?? "");
   // TASKS.csv #2452 (review #2325, WA uranium) — "Covered within" from the drilling: half the median drill-site spacing (sites 77 m apart ->
   // 40 m), not 25 m whatever the spacing (83 % of the 200 ppm sheet "not covered" on the WA grid, as one zone)
-  const siteSpacing = useMemo(() => medianSiteSpacing(drilledCollars(collars).collars), [collars]);
+  const siteSpacing = useMemo(() => drilledSiteSpacing(collars), [collars]); // #2949 — grid-hashed, kept per collars array
   const [coverM, setCoverM] = useState(() => was?.coverM ?? defaultCoverM(siteSpacing));
   const [cellText, setCellText] = useState(() => was?.cellText ?? "");
   const [insideOnly, setInsideOnly] = useState(() => was?.insideOnly ?? false);

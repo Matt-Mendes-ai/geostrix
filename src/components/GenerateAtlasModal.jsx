@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { isNumericLayer } from "../lib/domainLayers.js"; // TASKS.csv #2477
-import { collarAttrChoices, collarsMatching } from "../lib/holeFilter.js"; // TASKS.csv #2607
+import { collarAttrChoices, collarsMatching, pickTerm } from "../lib/holeFilter.js"; // TASKS.csv #2607; pickTerm: #2960
 import { assayTrackRange } from "../lib/striplogSvg.js"; // TASKS.csv #2605
 import { X, LayoutGrid, Loader2 } from "./icons.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
@@ -182,7 +182,7 @@ export default function GenerateAtlasModal({ onClose, templateElements, collars,
             {mode === "hole" && <div style={{ display: "flex", gap: 6, marginBottom: 5 }}>{/* #2607 */}
               <input value={holeFilter} onChange={(e) => setHoleFilter(e.target.value)} placeholder={tr("Filter: hole id, or field=value")} aria-label={tr("Filter the holes")} style={{ ...sel, flex: 1, minWidth: 0 }} />
               {attrChoices.length > 0 && <select value="" onChange={(e) => e.target.value && setHoleFilter(e.target.value)} aria-label={tr("By a collar field")} style={{ ...sel, flex: "none", width: "auto" }}>
-                <option value="">{tr("By a collar field…")}</option>{attrChoices.flatMap((ch) => ch.values.map((v) => <option key={`${ch.key}=${v}`} value={`${ch.key}=${v}`}>{`${ch.key} = ${v}`}</option>))}</select>}
+                <option value="">{tr("By a collar field…")}</option>{attrChoices.flatMap((ch) => ch.values.map((v) => <option key={`${ch.key}=${v}`} value={pickTerm(ch.key, v) /* #2960 — the typed filter splits on spaces */}>{`${ch.key} = ${v}`}</option>))}</select>}
             </div>}
             <div style={{ maxHeight: 180, overflowY: "auto", border: "1px solid #2a323c", borderRadius: 6, padding: 6 }}>
               {items.length === 0 && <div style={{ fontSize: "var(--font-size-sm)", opacity: 0.6, padding: 6 }}>{/* #1873 — say why a mode is empty and what fills it (a geophysics-only project has neither) */}{mode === "hole" ? (holeFilter.trim() && holeIds.length ? tr("No hole matches the filter.") : collars.length ? tr("No collar has a depth, so no hole has a trace to make a page from.") : tr("No holes have collars, so there is no page per hole: import collars, or use one page per section.")) : tr("No sections drawn yet: draw one with Draw section in the 3D View, then make one page per section here.")}</div>}

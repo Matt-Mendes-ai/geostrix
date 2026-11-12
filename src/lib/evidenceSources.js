@@ -8,6 +8,8 @@ import { surveyKey } from "./geophysSurveys.js";
 import { valueIn } from "./geochem.js";
 import { modelGround } from "./modelGround.js"; // TASKS.csv #2447
 import { median } from "./arrayStats.js"; // TASKS.csv #2447
+import { drillSiteSpacing } from "./drillSpacing.js"; // TASKS.csv #2949
+import { drilledCollars } from "./collarStatus.js"; // TASKS.csv #2949
 
 export const DRILL_REACH_M = 250;
 const GRADE_BIN_M = 25;
@@ -239,18 +241,44 @@ export function structureParts(rows, code, traces, level = null) {
 export const pickDefaultReachM = (medianOverGrid, collarSpacingM) => (collarSpacingM > 0 ? Math.min(medianOverGrid, Math.round(3 * collarSpacingM)) : medianOverGrid);
 
 // TASKS.csv #1451 — collars on one pad are one drill site: on Silvertip's three pads neighbouring collars are 1-3 m apart, so the
-// collar spacing (1.3 m) made "distance to a logged structure" favourable only within 4 m. Collars within `padM` of a site join it;
+// collar spacing (1.3 m) made "distance to a logged structure" favourable only within 4 m. Collars within a pad of a site join it;
 // the median distance from each site to the next is the spacing. collars: [{ x, y }] -> metres, or null with fewer than 2 sites.
-export function medianSiteSpacing(collars, padM = 25) {
-  const sites = [];
-  for (const c of collars || []) {
-    if (!Number.isFinite(c?.x) || !Number.isFinite(c?.y)) continue;
-    const s = sites.find((q) => Math.hypot(q.x - c.x, q.y - c.y) <= padM);
-    if (s) { s.n++; s.x += (c.x - s.x) / s.n; s.y += (c.y - s.y) / s.n; } else sites.push({ x: c.x, y: c.y, n: 1 });
+// TASKS.csv #2949 (review #2876, WA iron) — this compared every site with every other (2.8-4.7 s at 6,390 collars, on every open of
+// Evidence overlay and Undrilled zones and on each distance card), and its fixed 25 m pad joined the holes of a 23 m pattern into sites of
+// 2-7 holes ('typically 27 m apart'). It is now lib/drillSpacing.js's grid-hashed drillSiteSpacing with the pad following the drilling
+// (#2545's idea): a tenth of the spacing a 25 m pad gives, kept between 3 and 25 m, and below the median nearest-collar distance when the
+// collars are not on pads (that distance 3 m or more), so a pad's collars 1-3 m apart still merge and a regular pattern does not. With no
+// padM it is kept per collars array (the panes remount on every open).
+const siteSpacingMemo = new WeakMap();
+export function medianSiteSpacing(collars, padM = null) {
+  const auto = !(padM > 0) && Array.isArray(collars);
+  if (auto && siteSpacingMemo.has(collars)) return siteSpacingMemo.get(collars);
+  const pts = (collars || []).filter((c) => Number.isFinite(c?.x) && Number.isFinite(c?.y));
+  let pad = padM;
+  if (!(pad > 0)) {
+    const opts = { minBuffer: 0, maxBuffer: Infinity };
+    const coarse = drillSiteSpacing(pts, { ...opts, siteM: 25 }), nearest = drillSiteSpacing(pts, { ...opts, siteM: 0.01 });
+    pad = coarse ? Math.min(25, Math.max(3, coarse.spacing / 10)) : 25;
+    if (nearest && nearest.spacing >= 3) pad = Math.min(pad, 0.9 * nearest.spacing); // a 3-5 m grid is not one pad
   }
-  if (sites.length < 2) return null;
-  const nn = sites.map((a) => Math.min(...sites.filter((b) => b !== a).map((b) => Math.hypot(a.x - b.x, a.y - b.y)))).sort((a, b) => a - b);
-  return nn[nn.length >> 1];
+  let out = drillSiteSpacing(pts, { siteM: pad, minBuffer: 0, maxBuffer: Infinity })?.spacing ?? null;
+  if (out == null) {
+    // drillSiteSpacing needs 3 sites: two (or one) by hand
+    const sites = [];
+    for (const c of pts) if (!sites.some((q) => Math.hypot(q.x - c.x, q.y - c.y) <= pad)) sites.push(c);
+    out = sites.length === 2 ? Math.hypot(sites[0].x - sites[1].x, sites[0].y - sites[1].y) : null;
+  }
+  if (auto) siteSpacingMemo.set(collars, out);
+  return out;
+}
+
+// The site spacing of the drilled collars (#2097: a collar marked proposed is not drilled ground), kept per store collars array so a pane's
+// remount does not measure again (#2949)
+const drilledSpacingMemo = new WeakMap();
+export function drilledSiteSpacing(collars) {
+  if (!Array.isArray(collars)) return null;
+  if (!drilledSpacingMemo.has(collars)) drilledSpacingMemo.set(collars, medianSiteSpacing(drilledCollars(collars).collars));
+  return drilledSpacingMemo.get(collars);
 }
 
 // TASKS.csv #1728 (review #1645, Copley) — the porphyry vectors a drilling project logs can be evidence too: a numeric downhole layer
