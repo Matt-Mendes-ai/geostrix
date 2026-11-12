@@ -142,6 +142,33 @@ def check_eqs_narrow():
     assert np.isfinite(vals).sum() > 0.5 * vals.size
 
 
+def check_eqs_draped():
+    """TASKS.csv #2839 — a SYNTHETIC ground gravity survey over hills (stations ~400 m apart at 170-370 m), gridded at 100 m. Gridded at the
+    highest station (the old default) the grid is an upward continuation and misses the readings; draped on the readings' own surface
+    (elevation "draped") it passes through them, and the job says how far the grid is from the readings (grid_rms)."""
+    rng = np.random.default_rng(2839)
+    gx, gy = np.meshgrid(np.arange(0, 20000, 400.0), np.arange(0, 12000, 400.0))
+    x = 500000 + gx.ravel() + rng.uniform(-120, 120, gx.size)
+    y = 6000000 + gy.ravel() + rng.uniform(-120, 120, gx.size)
+    z = 270 + 100 * np.sin((x - 500000) / 2500) * np.cos((y - 6000000) / 3000)
+    v = sum(gz_point(x, y, z, xs, ys, zs, m) for xs, ys, zs, m in [(505000.0, 6004000.0, -400.0, 8e11), (512000.0, 6007000.0, -900.0, 2e12)])
+    base = {"x": x.tolist(), "y": y.tolist(), "z": z.tolist(), "value": v.tolist(), "cell": 100.0,
+            "region": [500200.0, 519600.0, 6000200.0, 6011600.0], "blank": 800.0, "depth": 480.0}
+    level = eqs({**base, "elevation": float(np.ceil(z.max()))}, lambda ev: None)
+    t = time.perf_counter()
+    drape = eqs({**base, "elevation": "draped"}, lambda ev: None)
+    ms = (time.perf_counter() - t) * 1000
+    print(f"eqs draped: {drape['readings']} stations, grid vs readings RMS {drape['grid_rms']:.3f} mGal (max {drape['grid_max']:.3f}) draped, "
+          f"{level['grid_rms']:.3f} mGal at the highest station ({level['elevation']:.0f} m); surface {drape['surface'][0]:.0f}-{drape['surface'][1]:.0f} m; "
+          f"spread {np.std(v):.3f} mGal; {ms:.0f} ms")
+    assert drape["draped"] and drape["elevation"] is None
+    assert drape["grid_rms"] < 0.25 * level["grid_rms"]
+    assert 165 <= drape["surface"][0] and drape["surface"][1] <= 375
+    # the draped grid against the true field at each node's interpolated height, where the stations are dense
+    vals = np.frombuffer(base64.b64decode(drape["values"]), dtype="<f4").reshape(drape["ny"], drape["nx"])
+    assert np.isfinite(vals).sum() > 0.8 * vals.size
+
+
 if __name__ == "__main__":
     check_gravred()
     check_spline_small()
@@ -149,4 +176,5 @@ if __name__ == "__main__":
     check_euler()
     check_eqs()
     check_eqs_narrow()
+    check_eqs_draped()
     print("ok")

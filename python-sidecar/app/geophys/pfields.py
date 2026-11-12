@@ -147,7 +147,11 @@ def eqs(req, progress):
     if x.size < 10:
         raise ValueError("Fewer than 10 readings with a position, an elevation and a value.")
     spacing = float(req["cell"])
-    elev = float(req["elevation"])
+    # TASKS.csv #2839 (GSC review B7) — elevation "draped": every node is predicted at the readings' own surface (their heights interpolated
+    # linearly between the stations, the nearest one outside them), so a ground survey is gridded where it was measured instead of being
+    # continued up to its highest station (Matagami: 370 m against a median of 270 m, 0.74 mGal off the stations)
+    draped = req.get("elevation") == "draped"
+    elev = None if draped else float(req["elevation"])
     blank = float(req.get("blank") or 3 * spacing)
     region = [float(r) for r in req["region"]]  # w, e, s, n of the node centres
     mean = float(np.mean(v))
@@ -177,7 +181,13 @@ def eqs(req, progress):
         raise
     progress({"stage": "predicting", "message": "Predicting on the grid…"})
     e, n = vd.grid_coordinates(region, spacing=spacing)
-    u = np.full_like(e, elev)
+    if draped:
+        from scipy.interpolate import LinearNDInterpolator, NearestNDInterpolator
+        xy = np.column_stack([x, y])
+        lin = LinearNDInterpolator(xy, z)(e, n)
+        u = np.where(np.isfinite(lin), lin, NearestNDInterpolator(xy, z)(e, n))
+    else:
+        u = np.full_like(e, elev)
     pred = model.predict((e, n, u)) + mean
     far = vd.distance_mask((x, y), maxdist=blank, coordinates=(e, n))
     pred = np.where(far, pred, np.nan)
@@ -189,11 +199,20 @@ def eqs(req, progress):
     bv = bmean(v)
     resid = bv - (model.predict((bmean(x), bmean(y), bmean(z))) + mean)
     within = float(np.sqrt(np.mean((v - bv[inv]) ** 2)))
+    # #2839 — the GRID against the readings themselves (not their block means): the grid's nodes interpolated bilinearly to each reading
+    # inside the node area, so a continuation away from the readings and the cell size both show in the message
+    from scipy.interpolate import RegularGridInterpolator
+    at = RegularGridInterpolator((n[:, 0], e[0, :]), pred, bounds_error=False, fill_value=np.nan)(np.column_stack([y, x]))
+    use = np.isfinite(at)
+    grid_rms = float(np.sqrt(np.mean((v[use] - at[use]) ** 2))) if use.any() else None
+    grid_max = float(np.max(np.abs(v[use] - at[use]))) if use.any() else None
+    grid_n = int(use.sum())
     rows, cols = e.shape
     return {"op": "eqs", "nx": cols, "ny": rows, "x0": float(e[0, 0]), "yTop": float(n[-1, 0]), "dx": float(e[0, 1] - e[0, 0]) if cols > 1 else spacing,
-            "dy": float(n[1, 0] - n[0, 0]) if rows > 1 else spacing, "values": _b64(pred[::-1]), "elevation": elev, "readings": int(x.size),
+            "dy": float(n[1, 0] - n[0, 0]) if rows > 1 else spacing, "values": _b64(pred[::-1]), "elevation": elev, "draped": draped, "readings": int(x.size),
             "gradient_boosted": gb, "rms_misfit": float(np.sqrt(np.mean(resid ** 2))), "data_std": float(np.std(bv)), "blocks": int(bv.size),
-            "within_block_rms": within, "depth": depth_m, "window": win}
+            "within_block_rms": within, "depth": depth_m, "window": win, "grid_rms": grid_rms, "grid_max": grid_max, "grid_n": grid_n,
+            "surface": [float(np.min(u)), float(np.max(u))] if draped else None}
 
 
 # ---- TASKS.csv #1985 — gravity reductions (Boule normal gravity, Harmonica Bouguer / topography) ----------------------------------

@@ -127,7 +127,7 @@ export default function RasterModule({ embedded = false } = {}) {
   const runFilter = async (r) => {
     if (filterBlockedBy(filt.kind, rasterMethodOf(r, geophysSurveys))) return; // #2557 — the button is disabled too
     if (unknownNeedsTick(r)) return; // #2835 — an imported grid of unknown method: the method or the tick first
-    const { applyGridFilter, FILTERS, tiltDepth, radialSpectrum, fitSpectrumDepths, worms, filterOutputUnits } = await import("../lib/gridFilters.js"); // loaded on first use; worms: #1988; filterOutputUnits: #2837
+    const { FILTERS, tiltDepth, radialSpectrum, fitSpectrumDepths, worms, filterOutputUnits } = await import("../lib/gridFilters.js"); // loaded on first use; worms: #1988; filterOutputUnits: #2837
     const g = r.grid;
     const params = {};
     let declGrid = null;
@@ -191,7 +191,9 @@ export default function RasterModule({ embedded = false } = {}) {
         setFilterFor(null);
         return;
       }
-      const out = applyGridFilter({ nx: g.nx, ny: g.ny, dx: g.dx, dy: g.dy, values }, filt.kind, { ...params, declination: declGrid ?? undefined });
+      // TASKS.csv #2838 / #2850 — the FFTs run in a worker (the same applyGridFilter): the window froze 1–2 s on a 422 x 332 grid, 5–7 s on 945 x 501
+      const { applyGridFilterAsync } = await import("../lib/gridFilterClient.js");
+      const out = await applyGridFilterAsync({ nx: g.nx, ny: g.ny, dx: g.dx, dy: g.dy, values }, filt.kind, { ...params, declination: declGrid ?? undefined });
       const label = FILTERS[filt.kind].label;
       const ou = filterOutputUnits(filt.kind, rasterUnitOf(r)); // TASKS.csv #2837 / #2843 — the typed unit too; tilt: degrees; a gravity derivative per km
       if (ou.scale !== 1) for (let i = 0; i < out.values.length; i++) out.values[i] *= ou.scale;
