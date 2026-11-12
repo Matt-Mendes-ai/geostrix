@@ -11020,6 +11020,8 @@
   "as {symbol}": "بصيغة {symbol}",
   "Report {symbol} {basis}? Every stored {symbol} value is converted, {from} → {to}. Cut-offs and colour ranges already typed for {symbol} keep their numbers: check them after.": "هل تريد التعبير عن {symbol} {basis}؟ تُحوَّل كل قيمة محفوظة لـ {symbol}، {from} → {to}. تحتفظ حدود القطع ونطاقات الألوان المكتوبة مسبقًا لـ {symbol} بأرقامها: راجعها بعد ذلك.",
   "{symbol} was not converted.": "لم يُحوَّل {symbol}.",
+  "Elements: reported as element or oxide ({n})": "العناصر: مُبلَّغ عنها كعنصر أو كأكسيد ({n})",
+  "Report a surface element as the element or as its oxide (Li or Li2O): every stored value is converted, in one undoable step.": "أبلغ عن عنصر سطحي كعنصر أو كأكسيده (Li أو Li2O): تُحوَّل كل قيمة مخزنة، في خطوة واحدة قابلة للتراجع.",
   "{n} threshold rule(s) decided for {symbol} converted with it.": "حُوِّلت معه {n} من قواعد العتبة المقررة لـ {symbol}.",
   "{symbol} is now reported {basis}: {n} row(s) converted from {from} to {to} (× {factor}). Ctrl+Z to undo.": "يُعبَّر عن {symbol} الآن {basis}: حُوِّل {n} صفًا من {from} إلى {to} (× {factor}). Ctrl+Z للتراجع.",
   "{symbol} reported as": "{symbol} معبَّرًا عنه بصيغة",

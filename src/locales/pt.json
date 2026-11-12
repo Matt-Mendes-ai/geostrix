@@ -11020,6 +11020,8 @@
   "as {symbol}": "como {symbol}",
   "Report {symbol} {basis}? Every stored {symbol} value is converted, {from} → {to}. Cut-offs and colour ranges already typed for {symbol} keep their numbers: check them after.": "Reportar {symbol} {basis}? Cada valor de {symbol} armazenado é convertido, {from} → {to}. Teores de corte e faixas de cor já digitados para {symbol} mantêm seus números: confira-os depois.",
   "{symbol} was not converted.": "{symbol} não foi convertido.",
+  "Elements: reported as element or oxide ({n})": "Elementos: reportados como elemento ou óxido ({n})",
+  "Report a surface element as the element or as its oxide (Li or Li2O): every stored value is converted, in one undoable step.": "Reporte um elemento de superfície como o elemento ou como o seu óxido (Li ou Li2O): cada valor guardado é convertido, num só passo que pode ser desfeito.",
   "{n} threshold rule(s) decided for {symbol} converted with it.": "{n} regra(s) de limiar definida(s) para {symbol} convertida(s) junto.",
   "{symbol} is now reported {basis}: {n} row(s) converted from {from} to {to} (× {factor}). Ctrl+Z to undo.": "{symbol} agora é reportado {basis}: {n} linha(s) convertida(s) de {from} para {to} (× {factor}). Ctrl+Z para desfazer.",
   "{symbol} reported as": "{symbol} reportado como",
