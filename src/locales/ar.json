@@ -10877,5 +10877,13 @@
   "Showing the first {shown} of {total} codes.": "عرض أول {shown} من {total} رمزًا.",
   "Code dictionary": "قاموس الرموز",
   "1 code took its meaning from the description logged beside it (the code dictionary in the layer's inspector, where it can be edited).": "أخذ رمز واحد معناه من الوصف المسجّل بجانبه (قاموس الرموز في مفتش الطبقة، حيث يمكن تعديله).",
-  "{n} codes took their meaning from the description logged beside them (the code dictionary in the layer's inspector, where they can be edited).": "أخذ {n} من الرموز معانيها من الوصف المسجّل بجانبها (قاموس الرموز في مفتش الطبقة، حيث يمكن تعديلها)."
+  "{n} codes took their meaning from the description logged beside them (the code dictionary in the layer's inspector, where they can be edited).": "أخذ {n} من الرموز معانيها من الوصف المسجّل بجانبها (قاموس الرموز في مفتش الطبقة، حيث يمكن تعديلها).",
+  "as {oxide}": "بصيغة {oxide}",
+  "as {symbol}": "بصيغة {symbol}",
+  "Report {symbol} {basis}? Every stored {symbol} value is converted, {from} → {to}. Cut-offs and colour ranges already typed for {symbol} keep their numbers: check them after.": "هل تريد التعبير عن {symbol} {basis}؟ تُحوَّل كل قيمة محفوظة لـ {symbol}، {from} → {to}. تحتفظ حدود القطع ونطاقات الألوان المكتوبة مسبقًا لـ {symbol} بأرقامها: راجعها بعد ذلك.",
+  "{symbol} was not converted.": "لم يُحوَّل {symbol}.",
+  "{n} threshold rule(s) decided for {symbol} converted with it.": "حُوِّلت معه {n} من قواعد العتبة المقررة لـ {symbol}.",
+  "{symbol} is now reported {basis}: {n} row(s) converted from {from} to {to} (× {factor}). Ctrl+Z to undo.": "يُعبَّر عن {symbol} الآن {basis}: حُوِّل {n} صفًا من {from} إلى {to} (× {factor}). Ctrl+Z للتراجع.",
+  "{symbol} reported as": "{symbol} معبَّرًا عنه بصيغة",
+  "The basis {symbol}'s grades are reported in. Changing it converts every stored value (undoable).": "الأساس الذي يُعبَّر به عن محتويات {symbol}. تغييره يحوّل كل قيمة محفوظة (قابل للتراجع)."
 }

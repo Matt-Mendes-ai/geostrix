@@ -119,6 +119,8 @@ export function unitBasis(unit) {
   return b;
 }
 export const oxideBasisUnit = (base, oxide) => `${base} ${oxide}`;
+// TASKS.csv #2627 — the oxides an element can be reported as (Li -> Li2O; Fe -> Fe2O3, FeO): [{ oxide, factor }]
+export const oxidesOfElement = (symbol) => Object.entries(OXIDE_HEADERS).filter(([, [s]]) => s === symbol).map(([oxide, [, factor]]) => ({ oxide, factor }));
 // an import element read from an oxide column: kept as the oxide (its own choice, else a commodity oxide by default), or stored as the element
 export function keepsOxide(e) { const ox = oxideOfHeader(e?.header); return !!ox && (e.keepOxide ?? COMMODITY_OXIDES.has(ox.oxide)); }
 // the unit an import element is stored in: an oxide column kept as the oxide -> "% Li2O"; stored as the element -> the header's % / ppm / ppb
