@@ -19,6 +19,8 @@ import { collarGround, collarsLookUnderground } from "../lib/pitShell.js"; // TA
 const PlannedHoleTargeting = lazyModal(() => import("./PlannedHoleTargeting.jsx")); // TASKS.csv #119
 import CollarPicker from "./CollarPicker.jsx"; // TASKS.csv #2104
 import PlannedHolePattern from "./PlannedHolePattern.jsx"; // TASKS.csv #2449 — a line / grid of holes
+import { plannedHolesFromRows } from "../lib/plannedImport.js"; // TASKS.csv #2651
+import { parseTableText } from "../lib/tabular.js"; // TASKS.csv #2651
 // the same one-line wrapper ViewerModule keeps (see its plannedHoleTrace comment): holePlanning.plannedTrace builds every plan's trace
 const plannedHoleTrace = (hole) => plannedTrace(hole);
 
@@ -91,6 +93,23 @@ export function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint, 
   const [target, setTarget] = useState({ x: "", y: "", z: "" });
   const lastPreset = useRef(null);
   const [upward, setUpward] = useState(false);
+  // TASKS.csv #2651 — planned holes from a CSV: the rig sheet's columns (name, E, N, Elev, azimuth, dip, length), GeoStrix's own export included
+  const importRef = useRef(null);
+  const [importMsg, setImportMsg] = useState(null);
+  const importCsv = async (file) => {
+    if (!file) return;
+    try {
+      const { rows, headers } = parseTableText(await file.text());
+      const r = plannedHolesFromRows(rows, headers);
+      if (r.missing.length) { setImportMsg({ warn: true, text: r.onlyNonGridAzimuth && r.missing.join(",") === "azimuth" ? tr("{f} has {col} but no grid azimuth column (azimuth, azimuth_grid, az): a true or magnetic bearing is not converted on import. Nothing was added.", { f: file.name, col: r.onlyNonGridAzimuth }) : tr("{f} lacks the column(s) {cols} (E / N / Elev, azimuth, dip, length are needed). Nothing was added.", { f: file.name, cols: r.missing.join(", ") }) }); return; }
+      let holes = r.holes;
+      // GeoStrix keeps a downward hole's dip negative; a sheet whose every dip is positive may count down as positive: asked, never assumed
+      if (r.allDipsPositive && window.confirm(tr("Every dip in {f} is positive. GeoStrix reads a positive dip as an upward hole. Are these downward holes written with positive dips (flip them to negative)?", { f: file.name }))) holes = holes.map((h) => ({ ...h, dip: -h.dip }));
+      holes.forEach((h) => onAdd({ ...h, zSource: `imported from ${file.name}` }));
+      const sk = r.skipped.length ? " " + tr("{n} row(s) skipped (lines {list}): a missing or bad value.", { n: r.skipped.length, list: r.skipped.slice(0, 6).map((s) => `${s.row} (${s.why})`).join(", ") + (r.skipped.length > 6 ? ", …" : "") }) : "";
+      setImportMsg({ warn: !holes.length || r.skipped.length > 0, text: tr("Added {n} planned hole(s) from {f}.", { n: holes.length, f: file.name }) + sk });
+    } catch (e) { setImportMsg({ warn: true, text: tr("Could not read {f}: {error}", { f: file.name, error: e?.message || String(e) }) }); }
+  };
   useEffect(() => {
     if (!presetTarget || presetTarget === lastPreset.current || appliedPresets.has(presetTarget)) return;
     lastPreset.current = presetTarget; appliedPresets.add(presetTarget);
@@ -216,6 +235,11 @@ export function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint, 
         </button>
         <button onClick={submit} disabled={!canAdd} title={canAdd ? undefined : tr("+ Add hole needs E, N and Elev as numbers, and a length above 0.")} style={{ ...miniBtn, flex: 1, background: canAdd ? "var(--color-selected-bg)" : "var(--color-bg-subtle)", borderColor: canAdd ? "var(--color-selected-border)" : "var(--color-border-light)", opacity: canAdd ? 1 : 0.5 }}>{tr("+ Add hole")}</button>
       </div>
+      <div style={{ display: "flex", gap: 4, marginBottom: 5 }}>{/* #2651 */}
+        <input ref={importRef} type="file" accept=".csv,.txt,.tsv" style={{ display: "none" }} onChange={(e) => { importCsv(e.target.files?.[0]); e.target.value = ""; }} />
+        <button type="button" onClick={() => importRef.current?.click()} style={{ ...miniBtn, flex: 1 }} title={tr("Planned holes from a CSV with columns for E, N, Elev, azimuth (grid), dip and length; name, hole type, notes, target and lift / drift are read when present.")}>{tr("Import CSV…")}</button>
+      </div>
+      {importMsg && <div role="status" style={{ fontSize: "var(--font-size-xs)", color: importMsg.warn ? "var(--color-warn-text)" : "var(--color-text-secondary)", lineHeight: 1.4, marginBottom: 5 }}>{importMsg.text}</div>}
       {/* TASKS.csv #2449 — a line or grid of holes from the E / N above, with the Az / Dip / Length above */}
       <PlannedHolePattern start={{ x: draft.x, y: draft.y, z: draft.z }} orient={!isNaN(Number(draft.azimuth)) && draft.azimuth !== "" && !isNaN(Number(draft.dip)) && draft.dip !== "" && Number(draft.length) > 0 && azOffset && gridAz != null ? { azimuth: azRef === "grid" ? Number(draft.azimuth) : gridAz, dip: Number(draft.dip), length: Number(draft.length) } : null}
         ground={underground ? null : ground} groundLabel={groundAt ? "the terrain under the hole" : "the ground interpolated between the nearest collars (no terrain)"} onAdd={onAdd} btn={miniBtn} />

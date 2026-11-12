@@ -10698,5 +10698,12 @@
   "From the block model: the panels are squares on the model's plan, not a mine design. For panels from the drillholes' own grade × thickness: 3D Modelling › Grade estimation › Grade × thickness in plan, its Panel side.": "من نموذج الكتل: الألواح مربعات على مسقط النموذج، وليست تصميمًا منجميًا. لألواح من المحتوى × السماكة للثقوب نفسها: النمذجة ثلاثية الأبعاد › تقدير المحتوى › المحتوى × السماكة في المسقط، ضلع اللوح فيه.",
   "Optional: the side of a square panel (a strip, an in-situ recovery pattern); each panel counts when its mean GT reaches the GT cut-off.": "اختياري: ضلع لوح مربع (شريط، نمط استخلاص في الموقع)؛ يُحتسب كل لوح عندما يبلغ متوسط GT فيه حدَّ قطع GT.",
   "In {p} m panels: {n} of {m} reach GT ≥ {c} {u}: {a} km², {t} t at {g} {gu}, mean thickness {th} m.": "في ألواح من {p} م: {n} من {m} تبلغ GT ≥ {c} {u}: {a} كم²، {t} طن بمحتوى {g} {gu}، متوسط السماكة {th} م.",
-  "In {p} m panels: none of {m} reaches GT ≥ {c} {u}.": "في ألواح من {p} م: لا يبلغ أي من {m} GT ≥ {c} {u}."
+  "In {p} m panels: none of {m} reaches GT ≥ {c} {u}.": "في ألواح من {p} م: لا يبلغ أي من {m} GT ≥ {c} {u}.",
+  "{f} has {col} but no grid azimuth column (azimuth, azimuth_grid, az): a true or magnetic bearing is not converted on import. Nothing was added.": "يحتوي {f} على {col} لكن لا يوجد عمود سمت الشبكة (azimuth أو azimuth_grid أو az): لا يُحوَّل الاتجاه الحقيقي أو المغناطيسي عند الاستيراد. لم يُضف شيء.",
+  "{f} lacks the column(s) {cols} (E / N / Elev, azimuth, dip, length are needed). Nothing was added.": "ينقص {f} العمود (الأعمدة) {cols} (المطلوب: E / N / المنسوب، السمت، الميل، الطول). لم يُضف شيء.",
+  "Every dip in {f} is positive. GeoStrix reads a positive dip as an upward hole. Are these downward holes written with positive dips (flip them to negative)?": "كل الميول في {f} موجبة. يقرأ GeoStrix الميل الموجب كثقب صاعد. هل هذه ثقوب نازلة كُتبت بميول موجبة (اقلبها إلى سالبة)؟",
+  "{n} row(s) skipped (lines {list}): a missing or bad value.": "تم تخطي {n} صف (الأسطر {list}): قيمة مفقودة أو غير صالحة.",
+  "Added {n} planned hole(s) from {f}.": "أُضيف {n} ثقب مخطط من {f}.",
+  "Could not read {f}: {error}": "تعذرت قراءة {f}: {error}",
+  "Planned holes from a CSV with columns for E, N, Elev, azimuth (grid), dip and length; name, hole type, notes, target and lift / drift are read when present.": "ثقوب مخططة من ملف CSV بأعمدة E وN والمنسوب والسمت (الشبكة) والميل والطول؛ وتُقرأ الأسماء ونوع الثقب والملاحظات والهدف والرفع / الانحراف عند وجودها."
 }
