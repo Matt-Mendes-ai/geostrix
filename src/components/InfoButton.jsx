@@ -1,6 +1,8 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useLayoutEffect } from "react";
+import { createPortal } from "react-dom"; // TASKS.csv #3048
 import { Info } from "./icons.js";
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
+import { infoPopoverPlace } from "../lib/infoPopoverPlace.js"; // TASKS.csv #3048
 
 // TASKS.csv #192 — user request: "Let's make an 'i' info button beside the tools that require
 // explaining. When the user hover or click on the button it will display those texts you have in
@@ -27,13 +29,20 @@ export default function InfoButton({ text, title, width = 240, align = "left" })
   const [hovering, setHovering] = useState(false);
   const [pinned, setPinned] = useState(false);
   const rootRef = useRef(null);
+  const popRef = useRef(null); // #3048 — the popover lives in document.body now, outside rootRef
+  const hoverTimer = useRef(null);
+  const [place, setPlace] = useState(null);
+  // #3048 — moving from the button onto the popover crosses a gap (they are no longer nested), so leaving waits a moment
+  const enter = () => { clearTimeout(hoverTimer.current); setHovering(true); };
+  const leave = () => { clearTimeout(hoverTimer.current); hoverTimer.current = setTimeout(() => setHovering(false), 120); };
+  useEffect(() => () => clearTimeout(hoverTimer.current), []);
 
   // Click-to-pin behavior: a click toggles a PINNED state independent of hover, so the popover stays
   // open after the mouse leaves (useful on a trackpad/touch device, or just to read a longer
   // explanation without holding the mouse still) — closed by clicking anywhere outside it, or Escape.
   useEffect(() => {
     if (!pinned) return;
-    const onDocClick = (e) => { if (rootRef.current && !rootRef.current.contains(e.target)) setPinned(false); };
+    const onDocClick = (e) => { if (rootRef.current && !rootRef.current.contains(e.target) && !popRef.current?.contains(e.target)) setPinned(false); };
     const onKey = (e) => { if (e.key === "Escape") setPinned(false); };
     document.addEventListener("mousedown", onDocClick);
     document.addEventListener("keydown", onKey);
@@ -41,6 +50,24 @@ export default function InfoButton({ text, title, width = 240, align = "left" })
   }, [pinned]);
 
   const visible = hovering || pinned;
+
+  // TASKS.csv #3048 — the popover was position:absolute inside the button, so a scrolling sidebar (overflow hidden / auto) cut it off
+  // at its edge. It is drawn in document.body at fixed window coordinates, kept inside the window (flipped above the button when
+  // there is no room below), and follows the button while a panel scrolls or the window resizes.
+  useLayoutEffect(() => {
+    if (!visible) { setPlace(null); return undefined; }
+    const update = () => {
+      const b = rootRef.current?.getBoundingClientRect();
+      if (!b) return;
+      const h = popRef.current ? popRef.current.offsetHeight : 0;
+      setPlace(infoPopoverPlace(b, { width, height: h, align, viewW: window.innerWidth, viewH: window.innerHeight }));
+    };
+    update();
+    const raf = requestAnimationFrame(update); // once more with the popover's real height
+    window.addEventListener("scroll", update, true);
+    window.addEventListener("resize", update);
+    return () => { cancelAnimationFrame(raf); window.removeEventListener("scroll", update, true); window.removeEventListener("resize", update); };
+  }, [visible, width, align]);
 
   // Reset text-transform/letter-spacing/font-weight on the root span: some section headers this button
   // sits inside (ge-section-label) are styled uppercase/letter-spaced/bold via CSS, which would
@@ -50,8 +77,8 @@ export default function InfoButton({ text, title, width = 240, align = "left" })
     <span
       ref={rootRef}
       style={{ position: "relative", display: "inline-flex", alignItems: "center", flexShrink: 0, textTransform: "none", letterSpacing: "normal", fontWeight: 400 }}
-      onMouseEnter={() => setHovering(true)}
-      onMouseLeave={() => setHovering(false)}
+      onMouseEnter={enter}
+      onMouseLeave={leave}
     >
       <button
         type="button"
@@ -68,14 +95,19 @@ export default function InfoButton({ text, title, width = 240, align = "left" })
       >
         <Info size={12} />
       </button>
-      {visible && (
+      {visible && typeof document !== "undefined" && createPortal(
         <div
+          ref={popRef}
+          role="tooltip"
           onClick={(e) => e.stopPropagation()}
           onMouseDown={(e) => e.stopPropagation()}
+          onMouseEnter={enter}
+          onMouseLeave={leave}
           style={{
-            position: "absolute", zIndex: 90, top: "calc(100% + 6px)",
-            [align === "right" ? "right" : "left"]: 0,
-            width, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 8,
+            position: "fixed", zIndex: 4000, left: place ? place.left : -9999, top: place ? place.top : -9999,
+            width: place ? place.width : width, maxHeight: place ? place.maxHeight : undefined, overflowY: "auto",
+            textTransform: "none", letterSpacing: "normal", fontWeight: 400, textAlign: "left", whiteSpace: "normal",
+            background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 8,
             boxShadow: "0 6px 20px rgba(0,0,0,0.16)", padding: "9px 11px",
           }}
         >
@@ -85,7 +117,8 @@ export default function InfoButton({ text, title, width = 240, align = "left" })
             </div>
           )}
           <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text)", lineHeight: 1.55 }}>{text}</div>
-        </div>
+        </div>,
+        document.body,
       )}
     </span>
   );
