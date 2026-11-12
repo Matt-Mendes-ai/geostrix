@@ -30,7 +30,7 @@ import { qcRecordFromFileRow, emptySurfaceQc, looksLikeQcTypeColumn, mergeQcReco
 import { mapInChunks } from "../lib/mapInChunks.js"; // TASKS.csv #583
 import { detectLongAssay, pivotLongAssays, longAssayNote } from "../lib/longAssays.js"; // TASKS.csv #623
 import { isSurfaceSampleTable, surfaceXYColumns } from "../lib/viewer/importHelpers.js"; // TASKS.csv #975; surfaceXYColumns: #2564
-import { assayFileSummary, removeAssayFile, removeAssayElement, carbonateShare, VOLCANIC_DIAGRAMS } from "../lib/geochem.js"; // TASKS.csv #624; carbonateShare: #1392
+import { assayFileSummary, removeAssayFile, removeAssayElement, carbonateShare, VOLCANIC_DIAGRAMS, LOI, isLoiHeader, readLoiCell } from "../lib/geochem.js"; // LOI: #2734; // TASKS.csv #624; carbonateShare: #1392
 import { confirmDestructive } from "../lib/confirmDestructive.js"; // TASKS.csv #624
 import ElementBasisSelect from "../components/ElementBasisSelect.jsx"; // TASKS.csv #2627
 import GeochemPlot from "../components/GeochemPlot.jsx";
@@ -578,7 +578,7 @@ export default function GeochemModule() {
     const dlCache = new Map(); // #2158 — each column's detection limit, once
     const dlOf = (header) => { let d = dlCache.get(header); if (d === undefined) { d = columnDetectionLimit((modal.allRows || []).map((r) => r[header])); dlCache.set(header, d); } return d; };
     const read = (raw, sym, header) => {
-      const c = readAssayCell(raw, negativeMode, colMaxOf(header), dlOf(header), posMaxOf(header)); // posMax: #2336
+      const c = sym === LOI ? readLoiCell(raw, posMaxOf(header)) /* #2734 — a negative LOI is a value */ : readAssayCell(raw, negativeMode, colMaxOf(header), dlOf(header), posMaxOf(header)); // posMax: #2336
       if (c.kind === "txt_bdl") textCodes.bdl++; else if (c.kind === "txt_bdl_nodl") { textCodes.nodl++; textCodes.nodlCols.add(sym); } else if (c.kind === "na_text") textCodes.na++; // #2158
       if (c.kind === "neg_bdl") negBdl++;
       else if (c.kind === "neg_missing") negMissing++;
@@ -796,7 +796,8 @@ export default function GeochemModule() {
       qcNoDepth.standard + qcNoDepth.blank + qcNoDepth.duplicate ? tr("{n} QC insert(s) without depths kept for QAQC ({s} standard(s), {b} blank(s), {d} duplicate(s)).", { n: qcNoDepth.standard + qcNoDepth.blank + qcNoDepth.duplicate, s: qcNoDepth.standard, b: qcNoDepth.blank, d: qcNoDepth.duplicate }) : null, // #1661
       methodJoined.size ? tr("Method columns joined (a sample's value from the first column that has one): {list}.", { list: [...methodJoined].map(([sym, m]) => `${sym} +${[...m.values()].reduce((t, n) => t + n, 0).toLocaleString()} (${[...m].map(([h, n]) => `${h} ${n.toLocaleString()}`).join(", ")})`).join("; ") }) : "", // #2328
       methodKept.size ? tr("Other method results kept beside the element's for QAQC > Method pairs: {list}.", { list: [...methodKept].map(([sym, m]) => `${sym}: ${[...m].map(([h, n]) => `${h} ${n.toLocaleString()}`).join(", ")}`).join("; ") }) : "", // #2629
-      (() => { const loi = format === "wide" ? (modal.headers || []).filter((h) => /^loi(?:[\s_-]*(?:\d{3,4}|total|tot))?(?:[\s_-]*(?:xrf|grav))?(?:[\s_-]*(?:pct|%|wt))?$/i.test(String(h).trim())) : []; return loi.length ? tr("Not imported: {cols} (loss on ignition is not an element, and the assays do not keep it yet).", { cols: loi.join(", ") }) : ""; })(), // #2316 — said, until LOI has a field of its own
+      // #2316 / #2734 — LOI is kept as the field 'LOI' (wt%) when it is ticked; the LOI columns it was not read from are named
+      (() => { const loiEl = chosen.find((e) => e.symbol === LOI), took = new Set(loiEl ? [loiEl.header, ...(loiEl.join ? (loiEl.methodCols || []).map((c) => c.header) : [])] : []); const loi = format === "wide" ? (modal.headers || []).filter((h) => isLoiHeader(h) && !took.has(h)) : []; return loi.length ? (loiEl ? tr("Not imported: {cols} (LOI was read from {main}).", { cols: loi.join(", "), main: loiEl.header }) : tr("Not imported: {cols} (loss on ignition: tick LOI in the element list to keep it).", { cols: loi.join(", ") })) : ""; })(),
       overLimitFilled.size ? tr("Over-limit samples filled from the ore-grade column: {list}.", { list: [...overLimitFilled].map(([sym, n]) => { const e = chosen.find((x) => x.symbol === sym); return tr("{symbol} {n} (at {limit} {unit} in \"{header}\", from \"{source}\")", { symbol: sym, n, limit: e.overLimit.limit, unit: e.unit, header: e.header, source: e.overLimit.header }); }).join("; ") }) : null, // #600 / #542
       flagged.size ? tr("Qualifiers from the flag columns: {list} (the values kept as the file has them).", { list: [...flagged].map(([sym, f]) => [f.lo ? tr("{symbol} {n} below detection", { symbol: sym, n: f.lo.toLocaleString() }) : null, f.hi ? tr("{symbol} {n} over range", { symbol: sym, n: f.hi.toLocaleString() }) : null].filter(Boolean).join(", ")).join("; ") }) : null, // #2018
       blankBdl.size ? tr("Empty cells read as below detection: {list}; stored at half the limit and flagged '<'.", { list: [...blankBdl].map(([sym, n]) => { const L = blankLimits.get(sym); return tr(L.basis === "lt" ? "{symbol} {n} at <{limit} (the lab's most common '<' limit in the file)" : "{symbol} {n} at <{limit} (the lowest value reported — no '<' limit in the file)", { symbol: sym, n, limit: L.limit }); }).join("; ") }) : null, // #502

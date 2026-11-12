@@ -188,10 +188,18 @@ export function preciousReadsPpb(symbol, header, rows, max) {
 }
 const DESCRIPTIVE_COLUMN = /\b(status|certificate|cert|laboratory|lab|method|workflow|date|completed|analys(is|ed)|comment|flag|qc|batch|job|lod|dl|plot)\b/i;
 // stats (optional, #2164): Map(header -> { n, max }) counted beforehand in chunks (assayColumnScan.js elementColumnStats)
+// TASKS.csv #2734 (split from #2316) — loss on ignition (LOI, LOI1000_XRF_pct, LOITOTAL, LOI371, LOI650, 'LOI (%)'): not an element, but kept
+// beside them as the field 'LOI' in wt% (Identify, colour by, filters, the oxide totals). With several, the total, then LOI1000, then plain
+// LOI is the main column; the others are its other columns, as an element's method columns are.
+export const LOI = "LOI";
+export const LOI_HEADER = /^loi(?:[\s_-]*(?:\d{3,4}|total|tot))?(?:[\s_-]*(?:xrf|grav))?(?:[\s_-]*(?:pct|%|wt))?$/i;
+export const isLoiHeader = (h) => LOI_HEADER.test(String(h ?? "").replace(/\(.*?\)/g, " ").trim());
+const loiRank = (h) => { const s = String(h).toLowerCase(); return /total|tot/.test(s) ? 0 : /1000/.test(s) ? 1 : /^loi[\s_-]*(pct|%|wt)?$/.test(s.replace(/\(.*?\)/g, "").trim()) ? 2 : 3; };
+
 export function pickElementColumns(headers, rows, stats = null) {
   const bySym = new Map();
   headers.forEach((h, order) => {
-    const sym = isElementColumn(h);
+    const sym = isElementColumn(h) || (isLoiHeader(h) ? LOI : false); // #2734
     if (!sym) return;
     const words = String(h).replace(/[_]/g, " ");
     if (DESCRIPTIVE_COLUMN.test(words) || /error/i.test(h)) return;
@@ -203,13 +211,13 @@ export function pickElementColumns(headers, rows, stats = null) {
     if (!bySym.has(sym)) bySym.set(sym, []);
     // #2157 — a lab repeat / duplicate / check column (AuRp1, Au-Rp1, Au_Rep, Au_Dup, Au_Check) is never the main column beside one that is not
     const repeat = /^[a-z]{1,2}[\s_-]*(rp|rep|repeat|dup|duplicate|chk|check|r)\d*([\s_-]|$)/i.test(String(h).replace(/\(.*?\)/g, "").trim());
-    bySym.get(sym).push({ header: h, n, max, order, exact: String(h).trim() === sym, repeat });
+    bySym.get(sym).push({ header: h, n, max, order, exact: String(h).trim() === sym, repeat, rank: sym === LOI ? loiRank(h) : 0 /* #2734 */ });
   });
   const out = [];
   bySym.forEach((cands, symbol) => {
-    const sorted = [...cands].sort((a, b) => Number(a.repeat) - Number(b.repeat) || b.n - a.n || Number(b.exact) - Number(a.exact) || a.order - b.order); // repeat: #2157
+    const sorted = [...cands].sort((a, b) => Number(a.repeat) - Number(b.repeat) || (symbol === LOI ? a.rank - b.rank : 0) || b.n - a.n || Number(b.exact) - Number(a.exact) || a.order - b.order); // repeat: #2157; rank: #2734
     const main = sorted[0];
-    let unit = inferUnit(main.header, symbol);
+    let unit = symbol === LOI ? "%" : inferUnit(main.header, symbol); // #2734 — LOI is a weight per cent
     const unitInHeader = /ppm|ppb|gpt|g\/t|pct|%/i.test(main.header);
     // TASKS.csv #2490 (review #2486, WA lithium) — not for an oxide column: Fe2O3 / SiO2 in per cent with one impossible value over 100 were
     // relabelled ppm; that value is flagged by the dialog instead (oxidesOver100)
@@ -228,7 +236,7 @@ export function pickElementColumns(headers, rows, stats = null) {
     // TASKS.csv #2328 (review #2325, WA uranium) — the other method columns of the element (U_100, U_101, U, U_103 beside U_102): each sample
     // was analysed by one method set, so they hardly overlap; read from the fullest only, U kept 5,060 of 9,746 values. Their counts and how
     // many rows carry two or more of them; joined by default when at most 5 % of the rows with a value carry several (first value wins).
-    const methodCols = sorted.slice(1).filter((c) => c.n > 0 && !c.repeat && (!overLimit || c.header !== overLimit.header)).map((c) => ({ header: c.header, n: c.n, unit: inferUnit(c.header, symbol) }));
+    const methodCols = symbol === LOI ? [] /* #2734 — LOI371 / LOI650 / LOI1000 are other measurements, not methods of one */ : sorted.slice(1).filter((c) => c.n > 0 && !c.repeat && (!overLimit || c.header !== overLimit.header)).map((c) => ({ header: c.header, n: c.n, unit: inferUnit(c.header, symbol) }));
     let withAny = 0, withSeveral = 0;
     if (methodCols.length && rows?.length) {
       const hs = [main.header, ...methodCols.map((c) => c.header)];
@@ -338,6 +346,14 @@ export function isNoDataCode(value, posMax = 0) {
   if (!(value <= NO_DATA_SENTINEL_MAX)) return false;
   const x = -value;
   return ALL_NINES.test(String(x)) || !(posMax > 0) || x > posMax;
+}
+// TASKS.csv #2734 — an LOI cell: a negative LOI is a value (a mass gain on ignition, oxidation of magnetite or sulphides), not a
+// below-detection code; only a no-data code (-99, -999, …) is empty. -> readAssayCell's shape
+export function readLoiCell(raw, posMax = 0) {
+  const value = parseAssayValue(raw);
+  if (value == null || !Number.isFinite(value)) return { value: null, qualifier: null, kind: null };
+  if (value < 0 && isNoDataCode(value, posMax)) return { value: null, qualifier: null, kind: "neg_missing" };
+  return { value, qualifier: assayQualifier(raw), kind: null };
 }
 // raw cell -> { value, qualifier, kind } with negative codes resolved:
 //   mode "bdl"     (default) -0.005 -> 0.0025 with qualifier '<' (same half-detection rule as "<0.005")

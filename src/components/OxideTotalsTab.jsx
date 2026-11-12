@@ -30,6 +30,7 @@ export default function OxideTotalsTab({ assays, majors, setAssays, sel, tabBtn 
       <div style={{ fontSize: "var(--font-size-sm)" }}>
         {res.n ? tr("{n} sample(s) with every major: median {median} %, 90 % of them between {p5} and {p95} %, range {min} to {max} %.", { n: res.n.toLocaleString(), median: fmt(res.median), p5: fmt(res.p5), p95: fmt(res.p95), min: fmt(res.min), max: fmt(res.max) }) : tr("No sample holds every major oxide.")}
         {res.incomplete ? " " + tr("{n} sample(s) miss at least one major and have no total.", { n: res.incomplete.toLocaleString() }) : ""}
+        {res.loi ? " " + tr("With their LOI ({n} sample(s)): median {median} %, 90 % of them between {p5} and {p95} %.", { n: res.loi.n.toLocaleString(), median: fmt(res.loi.median), p5: fmt(res.loi.p5), p95: fmt(res.loi.p95) }) : ""}{/* TASKS.csv #2734 */}
       </div>
       {hist && (
         <svg viewBox={`0 0 ${W} ${H + 18}`} style={{ width: "100%", maxWidth: W, direction: "ltr" }} role="img" aria-label={tr("Histogram of the oxide totals")}>
