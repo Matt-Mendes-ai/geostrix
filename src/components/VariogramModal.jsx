@@ -1,6 +1,7 @@
 import { LAYER_META } from "../lib/layers.js"; // TASKS.csv #1215
 import CompositeLengthNote from "./CompositeLengthNote.jsx"; // TASKS.csv #2549
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { makeVariogramClient } from "../lib/variogramClient.js"; // TASKS.csv #3009 — the pair loop in a worker
 import { X, Play } from "./icons.js";
 import { compositeDownhole, gradeUnitLabel } from "../lib/geochem.js"; // gradeUnitLabel: #2429
 import { excludeQAQC, labAssays } from "../lib/qaqc.js"; // TASKS.csv #266 — same QAQC exclusion the estimator uses; labAssays: #1744
@@ -9,8 +10,8 @@ import { useLeadCommodity } from "../lib/useLeadCommodity.js"; // TASKS.csv #255
 import { samplePointsFromIntervals } from "../lib/estimation.js";
 import { desurveyHole } from "../lib/desurvey.js";
 import {
-  experimentalVariogram, fitVariogramModel, variogramModelValue, VARIOGRAM_MODELS,
-  VALUE_TRANSFORMS, applyValueTransform, groupPointsByDomain, suggestLagDistance, suggestBetweenHoleLag, variogramStationarity, siteSpacingLag, lagsShortOfSpacing, downholeLinePoints /* #1843 */, DIRECTION_TABLE, directionRow, longestDirection /* #1996 */ } from "../lib/variogram.js";
+  fitVariogramModel, /* experimentalVariogram, directionRow: in the worker since #3009 */ variogramModelValue, VARIOGRAM_MODELS,
+  VALUE_TRANSFORMS, applyValueTransform, groupPointsByDomain, suggestLagDistance, suggestBetweenHoleLag, variogramStationarity, siteSpacingLag, lagsShortOfSpacing, downholeLinePoints /* #1843 */, DIRECTION_TABLE, longestDirection /* #1996 */ } from "../lib/variogram.js";
 import { holeSpacingSummary } from "../lib/holeSpacing.js"; // TASKS.csv #2221
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
@@ -114,6 +115,11 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
   const [result, setResult] = useState(null);
   const [error, setError] = useState("");
   const [running, setRunning] = useState(false);
+  // TASKS.csv #3009 (WA iron review) — the pair loop and the direction table run in a worker: on 147,601 composites the window froze
+  // 4.3-12 s with no progress and no cancel
+  const vgClient = useRef(null);
+  if (!vgClient.current) vgClient.current = makeVariogramClient();
+  useEffect(() => () => vgClient.current?.stop(), []);
 
   const srcAssays = useMemo(() => excludeQAQC(assays), [assays]);
   const uns = useUnsampled("variogram", { assays: srcAssays, collars, symbol, unit, elementUnits, layers, customLayers }); // TASKS.csv #2417 / #2542; a picked log: #2721
@@ -133,7 +139,7 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
     // Deferred so "Running…" actually paints before the O(n^2) pair loop blocks the main thread. A
     // timer, not requestAnimationFrame — rAF never fires in a hidden window, which strands the run
     // forever (the exact bug TASKS.csv #258's verification found in GradeEstimationModal).
-    setTimeout(() => {
+    setTimeout(async () => {
       try {
         const filled = uns.apply(srcAssays); // #2417 / #2542 — barren: the unsampled metres filled at the typed value
         const intervals = compositeDownhole(filled.assays, symbol, unit, elementUnits, {
@@ -182,7 +188,7 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
         const direction = usePlane ? { plane: { normal: usePlane.normal, halfWidth: half } } : directional
           ? { azimuth, dip, angleTol, bandwidth: bandwidth > 0 ? bandwidth : null }
           : null;
-        const vg = experimentalVariogram(vgPoints, { lagDistance: lag, nLags: nLagsUsed, lagTolerance, holeMode, direction, estimator }); // estimator: #1996; vgPoints: #2710
+        const vg = await vgClient.current.variogram(vgPoints, { lagDistance: lag, nLags: nLagsUsed, lagTolerance, holeMode, direction, estimator }); // estimator: #1996; vgPoints: #2710; in the worker: #3009
         lastRun.current = { points: vgPoints, base: { lagDistance: lag, nLags: nLagsUsed, lagTolerance, holeMode, estimator }, model }; setDirTable(null); // #1996
         const fit = fitVariogramModel(vg.bins, { model });
         setResult({
@@ -193,7 +199,7 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
           nIntervals: intervals.length, unsampled: uns.params(filled), // #2417
         });
       } catch (e) {
-        setError(e.message || tr("Variogram calculation failed."));
+        if (!e?.cancelled) setError(e.message || tr("Variogram calculation failed.")); // #3009 — Cancel says nothing
       }
       setRunning(false);
     }, 40);
@@ -350,6 +356,7 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
           <button onClick={run} disabled={running || !symbols.length || !uns.ready} style={{ ...btn(true), display: "flex", alignItems: "center", justifyContent: "center", gap: 6, opacity: running || !symbols.length || !uns.ready ? 0.6 : 1 }}>
             <Play size={14} /> {running ? tr("Running…") : tr("Compute variogram")}
           </button>
+          {running && <button type="button" onClick={() => { vgClient.current.cancel(); setRunning(false); }} style={{ ...btn(false), marginTop: 4 }}>{tr("Cancel")}</button>}{/* #3009 */}
 
           {error && <div style={noteBox("#fbf0f0", "#e0a9a9")}>{error}</div>}
 
@@ -361,7 +368,7 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
 
               {/* TASKS.csv #1996 — the direction table: 13 directions, each fitted, one per tick so the window keeps painting */}
               {lastRun.current && holeMode !== "downhole" && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
-                {!dirTable && <button type="button" onClick={() => { const run = lastRun.current; if (!run) return; const rows = []; setDirTable({ rows, done: false }); const step = (i) => { if (lastRun.current !== run) return; if (i >= DIRECTION_TABLE.length) { setDirTable({ rows: [...rows], done: true }); return; } rows.push(directionRow(run.points, run.base, DIRECTION_TABLE[i], run.model)); setDirTable({ rows: [...rows], done: false }); setTimeout(() => step(i + 1), 0); }; setTimeout(() => step(0), 0); }} style={{ fontSize: "var(--font-size-sm)" }}>{tr("Direction table (13 directions)")}</button>}
+                {!dirTable && <button type="button" onClick={() => { const run = lastRun.current; if (!run) return; const rows = []; setDirTable({ rows, done: false }); const step = (i) => { if (lastRun.current !== run) return; if (i >= DIRECTION_TABLE.length) { setDirTable({ rows: [...rows], done: true }); return; } vgClient.current.directionRow(run.points, run.base, DIRECTION_TABLE[i], run.model).then((row) => { if (lastRun.current !== run) return; rows.push(row); setDirTable({ rows: [...rows], done: false }); step(i + 1); }).catch(() => {}); /* in the worker: #3009 */ }; step(0); }} style={{ fontSize: "var(--font-size-sm)" }}>{tr("Direction table (13 directions)")}</button>}
                 {dirTable && (() => { const best = dirTable.done ? longestDirection(dirTable.rows) : null; return <>
                   <table style={{ borderCollapse: "collapse", marginTop: 4 }}><thead><tr>{[tr("Azimuth (°)"), tr("Dip (°)"), tr("Pairs"), tr("Range (m)"), tr("Nugget / sill"), tr("Fit r²")].map((h) => <th key={h} style={{ textAlign: "start", padding: "2px 8px", fontWeight: 600 }}>{h}</th>)}</tr></thead>
                   <tbody>{dirTable.rows.map((r) => <tr key={`${r.azimuth}_${r.dip}`} style={{ background: best && r === best ? "#eef6ee" : undefined }}><td style={{ padding: "1px 8px" }}>{r.dip === 90 ? "—" : r.azimuth}</td><td style={{ padding: "1px 8px" }}>{r.dip}</td><td style={{ padding: "1px 8px" }}>{r.nPairs.toLocaleString()}</td><td style={{ padding: "1px 8px", color: r.range != null && r.maxReliableLag > 0 && r.range > r.maxReliableLag ? "var(--color-warn-text)" : undefined }}>{r.range == null ? "—" : Math.round(r.range)}</td><td style={{ padding: "1px 8px" }}>{r.sill > 0 ? `${Math.round((100 * r.nugget) / r.sill)}%` : "—"}</td><td style={{ padding: "1px 8px" }}>{r.rSquared != null ? r.rSquared.toFixed(2) : "—"}</td></tr>)}</tbody></table>

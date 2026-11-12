@@ -32,7 +32,7 @@ test("1 % extreme values inflate Matheron, not the robust two", () => {
 
 test("the dialog offers them", () => {
   const v = readFileSync(new URL("../src/components/VariogramModal.jsx", import.meta.url), "utf8");
-  assert.match(v, /experimentalVariogram\(vgPoints, \{ lagDistance: lag, nLags: nLagsUsed, lagTolerance, holeMode, direction, estimator \}\)/); // vgPoints: the composites, flattened on a surface when chosen (#2710)
+  assert.match(v, /(experimentalVariogram|vgClient\.current\.variogram)\(vgPoints, \{ lagDistance: lag, nLags: nLagsUsed, lagTolerance, holeMode, direction, estimator \}\)/); // vgPoints: the composites, flattened on a surface when chosen (#2710)
   assert.match(v, /<option value="cressie">\{tr\("Cressie-Hawkins \(robust\)"\)\}<\/option>/);
   assert.match(v, /<option value="dowd">\{tr\("Dowd \(median, robust\)"\)\}<\/option>/);
 });
@@ -48,7 +48,7 @@ test("the direction table: the long axis of an anisotropic field has the longest
   assert.ok(ew.range != null && ns.range != null, JSON.stringify([ew.range, ns.range]));
   assert.ok(ew.range > 2 * ns.range, `east-west ${Math.round(ew.range)} m vs north-south ${Math.round(ns.range)} m`);
   const v = readFileSync(new URL("../src/components/VariogramModal.jsx", import.meta.url), "utf8");
-  assert.match(v, /rows\.push\(directionRow\(run\.points, run\.base, DIRECTION_TABLE\[i\], run\.model\)\); setDirTable\(\{ rows: \[\.\.\.rows\], done: false \}\); setTimeout\(\(\) => step\(i \+ 1\), 0\);/);
+  assert.match(v, /vgClient\.current\.directionRow\(run\.points, run\.base, DIRECTION_TABLE\[i\], run\.model\)\.then\(\(row\) => \{ if \(lastRun\.current !== run\) return; rows\.push\(row\); setDirTable\(\{ rows: \[\.\.\.rows\], done: false \}\); step\(i \+ 1\); \}\)/); // one row per answer from the worker (#3009; was one per tick on this thread)
 });
 
 test("the long axis is named only from fits that mean something", async () => {
