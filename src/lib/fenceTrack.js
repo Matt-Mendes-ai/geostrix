@@ -25,7 +25,9 @@ const num = (v) => (v === null || v === "" || v === undefined ? NaN : Number(v))
 
 // The source's rows of the given holes: { byHole: { id: [{ from, to, v } | { at, v }] sorted by depth }, lo, hi, above, points, n }.
 // `above` counts values past `hi`, drawn at full length.
-export function numericTrackRows(src, holeIds, assays = []) {
+// opts.log (#2813): a log scale from the 2nd percentile of the positive values to the highest (gamma and grades are skewed); `below` then
+// counts the values at or under that start (zero, negative or below it), drawn at zero width. `positive` counts the values above 0.
+export function numericTrackRows(src, holeIds, assays = [], opts = {}) {
   const want = new Set(holeIds || []);
   const byHole = {};
   const vals = [];
@@ -48,15 +50,29 @@ export function numericTrackRows(src, holeIds, assays = []) {
     }
   }
   for (const rows of Object.values(byHole)) rows.sort((a, b) => (a.at ?? a.from) - (b.at ?? b.from));
-  if (!vals.length) return { byHole, lo: 0, hi: 1, above: 0, points, n: 0 };
+  if (!vals.length) return { byHole, lo: 0, hi: 1, above: 0, points, n: 0, positive: 0, log: false, below: 0 };
   const sorted = Float64Array.from(vals).sort();
+  let first = 0;
+  while (first < sorted.length && !(sorted[first] > 0)) first++;
+  const positive = sorted.length - first;
+  if (opts.log && positive >= 2 && sorted[sorted.length - 1] > sorted[first]) {
+    const lo = sorted[first + Math.floor(0.02 * (positive - 1))];
+    let hi = sorted[sorted.length - 1];
+    if (!(hi > lo)) hi = lo * 10;
+    let below = 0;
+    for (const v of vals) if (!(v > lo)) below++;
+    return { byHole, lo, hi, above: 0, points, n: vals.length, positive, log: true, below };
+  }
   const lo = Math.min(0, sorted[0]);
   let hi = sorted[Math.min(sorted.length - 1, Math.floor(0.98 * (sorted.length - 1)))];
   if (!(hi > lo)) hi = sorted[sorted.length - 1] > lo ? sorted[sorted.length - 1] : lo + 1;
   let above = 0;
   for (const v of vals) if (v > hi) above++;
-  return { byHole, lo, hi, above, points, n: vals.length };
+  return { byHole, lo, hi, above, points, n: vals.length, positive, log: false, below: 0 };
 }
 
-// 0..1 along the track for a value (clamped)
-export const trackFraction = (v, lo, hi) => Math.max(0, Math.min(1, (v - lo) / (hi - lo || 1)));
+// 0..1 along the track for a value (clamped); log: on log10 between lo and hi (lo > 0), zero for a value at or under lo
+export const trackFraction = (v, lo, hi, log = false) => {
+  if (log) return v > lo ? Math.min(1, Math.log(v / lo) / Math.log(hi / lo || 10)) : 0;
+  return Math.max(0, Math.min(1, (v - lo) / (hi - lo || 1)));
+};

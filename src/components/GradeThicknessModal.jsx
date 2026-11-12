@@ -20,6 +20,18 @@ import { gridPanels } from "../lib/flatPanels.js"; // TASKS.csv #2650 — the pl
 import { toCsv, FORMULA_LEAD } from "../lib/tabular.js";
 import { showGtOnPlan, gtContourLayer } from "../lib/planGt.js"; // TASKS.csv #2755 — the totals on the Maps plan, the contour as a map layer
 
+// TASKS.csv #2820 — a kriging standard deviation grid as a PNG, one pixel per node (north up), for an <image> under the plan; sdPixels
+// comes with lib/planKriging.js, loaded on demand
+function sdImageUrl(sdPixels, sd, nx, ny, max) {
+  try {
+    const c = document.createElement("canvas"); c.width = nx; c.height = ny;
+    const ctx = c.getContext("2d"), img = ctx.createImageData(nx, ny);
+    img.data.set(sdPixels(sd, nx, ny, max));
+    ctx.putImageData(img, 0, 0);
+    return c.toDataURL("image/png");
+  } catch { return null; }
+}
+
 export default function GradeThicknessModal({ assays, assayElements, collars, survey, layers, onClose }) {
   useEscapeKey(onClose);
   useFocusTrap();
@@ -79,14 +91,18 @@ export default function GradeThicknessModal({ assays, assayElements, collars, su
     if (!run || runMethod !== "ok" || pts.length < 2 || !cellM || !radiusM) { setOk(null); return undefined; }
     let live = true;
     setOk({ busy: true });
-    import("../lib/planKriging.js").then(({ planVariogram, planGridOK }) => {
+    import("../lib/planKriging.js").then(({ planVariogram, planGridOK, sdSummary, sdPixels }) => {
       if (!live) return;
       const vgGT = planVariogram(pts, "gt", spacing), vgTh = planVariogram(pts, "thicknessM", spacing);
-      setOk({ grid: planGridOK(pts, { cell: cellM, radius: radiusM, pad: radiusM / 2, vgGT: vgGT.fit, vgTh: vgTh.fit }), vgGT, vgTh });
+      const grid = planGridOK(pts, { cell: cellM, radius: radiusM, pad: radiusM / 2, vgGT: vgGT.fit, vgTh: vgTh.fit });
+      // #2820 — each variable's kriging standard deviation, and GT's as a shaded image under the plan (one pixel per node)
+      const sd = { gt: sdSummary(grid?.sdGT), thickness: sdSummary(grid?.sdTh) };
+      setOk({ grid, vgGT, vgTh, sd, sdImage: grid?.sdGT && sd.gt ? sdImageUrl(sdPixels, grid.sdGT, grid.nx, grid.ny, sd.gt.max) : null });
     });
     return () => { live = false; };
   }, [run]); // as the inverse-distance grid: on Run only
   const grid = runMethod === "ok" ? ok?.grid ?? null : idwGrid;
+  const [showSd, setShowSd] = useState(true); // #2820 — the GT kriging standard deviation shaded under the plan
   const gtc = gtCut === "" ? NaN : Number(gtCut);
   const summary = useMemo(() => (grid && Number.isFinite(gtc) ? planSummary(grid, gtc, density, unit) : null), [grid, gtc, density, unit]);
   // TASKS.csv #2650 — the same grid in square panels (a strip, an in-situ recovery pattern): a panel counts when its mean GT reaches the cut-off
@@ -149,6 +165,8 @@ export default function GradeThicknessModal({ assays, assayElements, collars, su
               </div>
               {view && (
                 <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} role="img" aria-label={tr("Plan of grade × thickness per hole")} style={{ border: "1px solid var(--color-border)", borderRadius: 6, background: "var(--color-bg-subtle)", direction: "ltr" }}>
+                  {grid?.method === "ok" && showSd && ok?.sdImage && (() => { const x0 = grid.x0 - grid.cell / 2, x1 = grid.x0 + (grid.nx - 0.5) * grid.cell, y0 = grid.y0 - grid.cell / 2, y1 = grid.y0 + (grid.ny - 0.5) * grid.cell; /* #2820 */
+                    return <image href={ok.sdImage} x={view.X(x0)} y={view.Y(y1)} width={view.X(x1) - view.X(x0)} height={view.Y(y0) - view.Y(y1)} preserveAspectRatio="none" style={{ imageRendering: "pixelated" }}><title>{tr("GT kriging standard deviation: palest beside the holes, darkest where they are farthest apart")}</title></image>; })()}
                   {contour.map((s, k) => <line key={`c${k}`} x1={view.X(s[0])} y1={view.Y(s[1])} x2={view.X(s[2])} y2={view.Y(s[3])} stroke="#c2410c" strokeWidth={1.5} />)}
                   {totals.zeros.map((p) => <circle key={`z${p.hole_id}`} cx={view.X(p.x)} cy={view.Y(p.y)} r={view.R(0)} fill="none" stroke="#8a94a3" strokeWidth={1}><title>{`${p.hole_id}: 0`}</title></circle>)}
                   {totals.holes.filter((h) => Number.isFinite(h.x)).map((h) => <circle key={h.hole_id} cx={view.X(h.x)} cy={view.Y(h.y)} r={view.R(h.gt)} fill="#2563eb" fillOpacity={0.45} stroke="#1e3a8a" strokeWidth={0.8}><title>{`${h.hole_id}: ${fmt(h.gt, 3)} ${gtLabel}, ${fmt(h.thicknessM, 2)} m`}</title></circle>)}
@@ -186,6 +204,8 @@ export default function GradeThicknessModal({ assays, assayElements, collars, su
                     + ((v.fit.rSquared != null && v.fit.rSquared < 0.5) || v.fit.nuggetRatio >= 0.8 ? " " + tr("A weak or nugget-dominated fit: kriging adds little over inverse distance here.") : "")
                     + (v.rangeBeyond ? " " + tr("Its range lies past the reliable lags: extrapolated, not measured.") : "")
                   : tr("{what}: no variogram could be fitted (too few holes or pairs, or every hole the same): estimated by inverse distance.", { what })}</div>)}
+                {grid.method === "ok" && ok?.sd && [[ok.sd.gt, tr("GT"), gtLabel], [ok.sd.thickness, tr("Thickness"), "m"]].filter(([s]) => s).map(([s, what, u]) => <div key={`sd${what}`}>{tr("{what}: kriging standard deviation {a}–{b} {u} (median {m}): lowest beside the holes, highest where they are farthest apart.", { what, a: Number(s.min.toPrecision(3)).toLocaleString(), b: Number(s.max.toPrecision(3)).toLocaleString(), m: Number(s.median.toPrecision(3)).toLocaleString(), u })}</div>)}{/* #2820 */}
+                {grid.method === "ok" && ok?.sdImage && <label style={{ display: "flex", alignItems: "center", gap: 5 }} title={tr("The square root of each node's kriging variance: it depends on where the holes are and on the variogram, not on their values, so it shows where the kriged plan is least sure.")}><input type="checkbox" checked={showSd} onChange={(e) => setShowSd(e.target.checked)} />{tr("Shade the plan by the GT kriging standard deviation (darkest = least sure)")}</label>}{/* #2820 */}
                 {grid.method === "ok" && (grid.clamped > 0 || grid.fallback > 0) && <div>{tr("{c} negative kriged value(s) set to 0; {f} node value(s) kept inverse distance (a singular system).", { c: grid.clamped.toLocaleString(), f: grid.fallback.toLocaleString() })}</div>}{/* #2756 */}
                 {!Number.isFinite(gtc) ? <div>{tr("Type the GT cut-off for the contour and the totals: none is chosen for you.")}</div> : summary && (
                   <div>{tr("At GT ≥ {c} {u}: {a} km² ({n} nodes), mean thickness {th} m, mean grade {g} {gu}{v}.", { c: gtc, u: gtLabel, a: fmt(summary.areaM2 / 1e6, 3), n: summary.nodes.toLocaleString(), th: fmt(summary.meanThicknessM, 2), g: fmt(summary.meanGrade == null ? null : summary.meanGrade, 3), gu: shownGrade, v: summary.tonnes != null ? tr("; {t} t at {d} t/m³, {m} {mu} of {el}", { t: fmt(summary.tonnes, 0), d: Number(density), m: fmt(summary.metalUnit === "g" && summary.metal >= 1e6 ? summary.metal / 1e6 : summary.metal, summary.metalUnit === "g" && summary.metal >= 1e6 ? 1 : 0), mu: summary.metalUnit === "g" && summary.metal >= 1e6 ? "t" : summary.metalUnit || "", /* a million grams and over: tonnes */ el: ox ? ox.oxide : symbol }) : tr("; type a density for tonnes and metal") })}</div>
