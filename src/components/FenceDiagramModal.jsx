@@ -1,7 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { X, Download } from "./icons.js";
-import { colorForLithology } from "../lib/layers.js";
-import { buildFencePanel, panelPointAtDepth, correlationBands, stackCollarLabels, lineFromSection, holesInCorridor, initialFenceSelection, FENCE_MANY, dropOffLineSelection } from "../lib/fence.js"; // stackCollarLabels: #1375; section / corridor / initial: #1552
+import { colorForLithology, colorForAlteration, colorForVein, colorForWeathering } from "../lib/layers.js";
+import { customCodeColour } from "../lib/customColour.js"; // TASKS.csv #1745 — a custom layer's codes in its own colours
+import { useStore } from "../lib/store.jsx"; // #1745 — the other interval logs
+import { buildFencePanel, panelPointAtDepth, correlationBands, stackCollarLabels, lineFromSection, holesInCorridor, initialFenceSelection, FENCE_MANY, dropOffLineSelection, FENCE_LABEL_SLOTS, FENCE_VE, suggestFenceVe } from "../lib/fence.js"; // stackCollarLabels: #1375; section / corridor / initial: #1552
 import { saveFile } from "../lib/desktop.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
@@ -94,6 +96,20 @@ export default function FenceDiagramModal({ traces = [], litho = [], labelFor = 
   const setPatternsOn = (on) => { setPatternsOnState(on); try { localStorage.setItem("geostrix.fencePatterns", on ? "1" : "0"); } catch { /* private window */ } };
   const patternByCode = useMemo(() => lithoPatternMap(litho, (v) => (labelFor ? labelFor("litho", v) : v), patternOverride), [litho, labelFor, patternOverride]);
   const [tiles, setTiles] = useState({});
+  // TASKS.csv #1745 / #2426 — which interval log the columns (and the correlation bands) show: Lithology only, it joined sand to sand
+  // across units on a palaeochannel whose stratigraphic unit is a custom layer
+  const { layers: storeLayers = {}, customLayers = [] } = useStore() || {};
+  const showSources = useMemo(() => [
+    { key: "litho", label: tr("Lithology") },
+    ...((storeLayers.alt || []).length ? [{ key: "alt", label: tr("Alteration") }] : []),
+    ...((storeLayers.vein || []).length ? [{ key: "vein", label: tr("Veins") }] : []),
+    ...((storeLayers.weath || []).length ? [{ key: "weath", label: tr("Weathering") }] : []),
+    ...customLayers.filter((c) => (c.rows || []).some((r) => r.value != null && r.value !== "" && !Number.isFinite(Number(r.value)))).map((c) => ({ key: `custom:${c.id}`, label: c.name, layer: c })),
+  ], [storeLayers.alt, storeLayers.vein, storeLayers.weath, customLayers]);
+  const [show, setShow] = useState("litho");
+  const showSrc = showSources.find((x) => x.key === show) || showSources[0];
+  const shownRows = show === "litho" || !showSrc || showSrc.key === "litho" ? litho : showSrc.layer ? showSrc.layer.rows || [] : storeLayers[showSrc.key] || [];
+  const colorOf = (v) => (showSrc?.key === "alt" ? colorForAlteration(v) : showSrc?.key === "vein" ? colorForVein(v) : showSrc?.key === "weath" ? colorForWeathering(v) : showSrc?.layer ? customCodeColour(showSrc.layer, "value", v) : colorForLithology(v));
 
   const chosen = useMemo(
     () => (traces || []).filter((t) => t?.wx?.length > 1 && selected.has(t.hole_id)),
@@ -108,13 +124,13 @@ export default function FenceDiagramModal({ traces = [], litho = [], labelFor = 
 
   const lithoByHole = useMemo(() => {
     const m = {};
-    (litho || []).forEach((r) => {
+    (shownRows || []).forEach((r) => { // #1745 — the chosen log
       if (r.from == null || r.to == null || isNaN(r.from) || isNaN(r.to)) return;
       (m[r.hole_id] = m[r.hole_id] || []).push({ value: r.value, from: Number(r.from), to: Number(r.to) });
     });
     Object.values(m).forEach((rows) => rows.sort((a, b) => a.from - b.from));
     return m;
-  }, [litho]);
+  }, [shownRows]);
 
   const codes = useMemo(() => {
     const set = new Set();
@@ -130,7 +146,7 @@ export default function FenceDiagramModal({ traces = [], litho = [], labelFor = 
     loadPatternTiles(fencePatternCodes.split(",").map(Number)).then((t) => { if (live) setTiles(t); });
     return () => { live = false; };
   }, [patternsOn, fencePatternCodes]);
-  const patternOf = (v) => { const p = patternByCode[v]; return patternsOn && p != null && tiles[p] ? patternFill(p, colorForLithology(v)) : null; };
+  const patternOf = (v) => { if (showSrc && showSrc.key !== "litho") return null; const p = patternByCode[v]; return patternsOn && p != null && tiles[p] ? patternFill(p, colorForLithology(v)) : null; }; // FGDC patterns are lithology's only (#1745)
 
   // ---- layout ----
   const PLOT_W = 760, PLOT_H = 430, RIBBON_H = 34;
@@ -153,7 +169,7 @@ export default function FenceDiagramModal({ traces = [], litho = [], labelFor = 
     // TASKS.csv #1375 — room above the collars for a stack of fan-hole labels (19 px a label): Silvertip's four PAD42 labels ran up
     // into the offset ribbon. The tallest stack, from the collars as drawn at the first scale.
     const slots = stackCollarLabels(panel.holes.map((h) => ({ id: h.hole_id, x: h.pts[0].s / sPerPx, y: (-h.pts[0].z * ve) / sPerPx })));
-    const need = 26 + 19 * Math.max(0, ...Object.values(slots));
+    const need = 26 + 19 * Math.min(FENCE_LABEL_SLOTS - 1, Math.max(0, ...Object.values(slots))); // #2327 — a stack of at most three labels
     const topCollar = Math.max(...panel.holes.map((h) => h.pts[0].z));
     const room = ((z1 - topCollar) * ve) / sPerPx;
     if (room < need) { z1 += ((need - room) * sPerPx) / ve * 1.1; sPerPx = Math.max(sSpan / PLOT_W, ((z1 - z0) * ve) / PLOT_H); }
@@ -178,7 +194,7 @@ export default function FenceDiagramModal({ traces = [], litho = [], labelFor = 
       suggestedName: "fence_diagram.svg",
       filters: [{ name: "SVG", extensions: ["svg"] }],
       // TASKS.csv #1048 — the title, the holes, the section line and the lithology key, drawn into the file
-      content: exportSvgMarkup(svgRef.current, { furniture: panel ? fenceFurniture({ holeIds: panel.holes.map((h) => h.hole_id), azimuth: panel.line.azimuth, fitted: azMode === "fit", ve, offsetLimit, bands: showBands, codes, colorOf: colorForLithology, patternOf, date: new Date().toISOString().slice(0, 10) }) : null }).markup, encoding: "text", // #1017 — in lib, tested
+      content: exportSvgMarkup(svgRef.current, { furniture: panel ? fenceFurniture({ holeIds: panel.holes.map((h) => h.hole_id), azimuth: panel.line.azimuth, fitted: azMode === "fit", ve, offsetLimit, bands: showBands, codes, colorOf, patternOf, keyTitle: showSrc?.label, /* #1745 */ date: new Date().toISOString().slice(0, 10) }) : null }).markup, encoding: "text", // #1017 — in lib, tested
     });
   };
 
@@ -268,13 +284,14 @@ export default function FenceDiagramModal({ traces = [], litho = [], labelFor = 
                 <path
                   key={`band_${i}`}
                   d={`M ${view.xFor(b.aTop.s)} ${view.yFor(b.aTop.z)} L ${view.xFor(b.bTop.s)} ${view.yFor(b.bTop.z)} L ${view.xFor(b.bBot.s)} ${view.yFor(b.bBot.z)} L ${view.xFor(b.aBot.s)} ${view.yFor(b.aBot.z)} Z`}
-                  fill={colorForLithology(b.code)} opacity={0.16} stroke={colorForLithology(b.code)} strokeWidth={0.6} strokeOpacity={0.5}
+                  fill={colorOf(b.code)} opacity={0.16} stroke={colorOf(b.code)} strokeWidth={0.6} strokeOpacity={0.5}
                 ><title>{tr("{code} correlated between adjacent holes (shallowest occurrence in each) — an interpretation, not a measurement", { code: b.code })}</title></path>
               ))}
 
               {/* ---- each hole: its projected trace, then its lithology intervals as a column ---- */}
               {view && panel && (() => { const slots = stackCollarLabels(panel.holes.map((h) => ({ id: h.hole_id, x: view.xFor(h.pts[0].s), y: view.yFor(h.pts[0].z) }))); return panel.holes.map((h) => {
                 const lift = 19 * (slots[h.hole_id] || 0); // #1375 — fan holes from one collar: their labels stacked, not printed over each other
+                const labelled = (slots[h.hole_id] || 0) < FENCE_LABEL_SLOTS; // #2327 — past three in a stack: the name on hover only
                 const rows = lithoByHole[h.hole_id] || [];
                 const over = h.maxAbsOffset > offsetLimit;
                 const traceD = h.pts.map((p, i) => `${i ? "L" : "M"} ${view.xFor(p.s)} ${view.yFor(p.z)}`).join(" ");
@@ -292,18 +309,18 @@ export default function FenceDiagramModal({ traces = [], litho = [], labelFor = 
                       const quad = `M ${x1 + nx} ${y1 + ny} L ${x2 + nx} ${y2 + ny} L ${x2 - nx} ${y2 - ny} L ${x1 - nx} ${y1 - ny} Z`, pat = patternOf(r.value);
                       return (
                         <g key={`i_${i}`}>
-                          <path d={quad} fill={colorForLithology(r.value)} opacity={0.92} stroke="#ffffff" strokeWidth={0.3}
+                          <path d={quad} fill={colorOf(r.value)} opacity={0.92} stroke="#ffffff" strokeWidth={0.3}
                           ><title>{`${h.hole_id} — ${r.value}  ${r.from}–${r.to} m`}</title></path>
                           {pat && <path d={quad} fill={pat} style={{ pointerEvents: "none" }} />}{/* #1995 — white lines on a dark colour */}
                         </g>
                       );
                     })}
-                    <circle cx={view.xFor(h.pts[0].s)} cy={view.yFor(h.pts[0].z)} r={2.6} fill="#1a2028" />
-                    <text x={view.xFor(h.pts[0].s)} y={view.yFor(h.pts[0].z) - 12 - lift} textAnchor="middle" fontSize={8.6} fill="#1a2028">{h.hole_id}</text>
+                    <circle cx={view.xFor(h.pts[0].s)} cy={view.yFor(h.pts[0].z)} r={2.6} fill="#1a2028"><title>{`${h.hole_id} — ${h.maxAbsOffset.toFixed(0)} m off section`}</title></circle>
+                    {labelled && <text x={view.xFor(h.pts[0].s)} y={view.yFor(h.pts[0].z) - 12 - lift} textAnchor="middle" fontSize={8.6} fill="#1a2028">{h.hole_id}</text>}
                     {/* Offset printed ON the diagram, per hole — the projection's error bar, not a footnote. */}
-                    <text x={view.xFor(h.pts[0].s)} y={view.yFor(h.pts[0].z) - 4 - lift} textAnchor="middle" fontSize={7.6} fill={over ? "#a8741a" : "#65717e"}>
+                    {labelled && <text x={view.xFor(h.pts[0].s)} y={view.yFor(h.pts[0].z) - 4 - lift} textAnchor="middle" fontSize={7.6} fill={over ? "#a8741a" : "#65717e"}>
                       {h.maxAbsOffset < 0.05 ? tr("on section") : `${h.maxAbsOffset.toFixed(0)} m off`}
-                    </text>
+                    </text>}
                   </g>
                 );
               }); })()}
@@ -311,6 +328,10 @@ export default function FenceDiagramModal({ traces = [], litho = [], labelFor = 
           </div>
 
           <div style={{ width: 210, display: "flex", flexDirection: "column", gap: 9, maxHeight: "72vh", overflow: "auto" }}>
+            {showSources.length > 1 && <label style={rowLabel} title={tr("The interval log drawn in the columns; the correlation bands join its codes.")}>{tr("Show")}<select value={showSrc?.key || "litho"} onChange={(e) => setShow(e.target.value)} style={sel} aria-label={tr("Log shown in the columns")}>
+                {showSources.map((x) => <option key={x.key} value={x.key}>{x.label}</option>)}
+              </select>
+            </label>}{/* #1745 / #2426 */}
             <label style={rowLabel} title={tr("Best fit is the principal (total-least-squares) axis of the selected collars — the line that minimizes perpendicular distance, and unlike a y-on-x regression it works for a north-south drill line and does not depend on how the map is rotated.")}>{tr("Section line")}<select value={azMode} onChange={(e) => (e.target.value === "section" ? pickSection(sectionId) : setAzMode(e.target.value))} style={sel}>
                 <option value="fit">{tr("Best fit through collars")}</option>
                 <option value="manual">{tr("Fixed azimuth…")}</option>
@@ -335,9 +356,10 @@ export default function FenceDiagramModal({ traces = [], litho = [], labelFor = 
               </label>
             )}
             <label style={rowLabel} title={tr("1x is true scale — a 60° hole is drawn at 60° and you can measure a dip off the page. Any other value is labelled on the diagram itself.")}>{tr("Vertical scale")}<select value={ve} onChange={(e) => setVe(Number(e.target.value))} style={sel}>
-                {[1, 1.5, 2, 3, 5].map((v) => <option key={v} value={v}>{v === 1 ? tr("1× (true scale)") : `${v}× exaggerated`}</option>)}
+                {FENCE_VE.map((v) => <option key={v} value={v}>{v === 1 ? tr("1× (true scale)") : `${v}× exaggerated`}</option>)}{/* #2426 — up to 50× for a shallow flat deposit */}
               </select>
             </label>
+            {panel && suggestFenceVe(panel.sRange, panel.zRange) > ve && <div style={{ fontSize: 10.5, color: "#55606e", lineHeight: 1.4 }}>{tr("This section is {r} times longer than the holes are deep: {v}× makes the columns readable.", { r: Math.round((panel.sRange.max - panel.sRange.min) / Math.max(1e-6, panel.zRange.max - panel.zRange.min)), v: suggestFenceVe(panel.sRange, panel.zRange) })}{" "}<button onClick={() => setVe(suggestFenceVe(panel.sRange, panel.zRange))} style={miniBtn}>{tr("Use {v}×", { v: suggestFenceVe(panel.sRange, panel.zRange) })}</button></div>}{/* #2426 */}
             <label style={rowLabel}>{tr("Column width")}<select value={colWidth} onChange={(e) => setColWidth(Number(e.target.value))} style={sel}>
                 {[5, 7, 9, 13, 18].map((v) => <option key={v} value={v}>{tr("{v} px", { v })}</option>)}
               </select>
@@ -379,18 +401,18 @@ export default function FenceDiagramModal({ traces = [], litho = [], labelFor = 
 
             {codes.length > 0 && (
               <>
-                <div style={{ fontSize: 10, color: "#55606e", fontWeight: 600, marginTop: 2 }}>{tr("Lithology")}</div>
+                <div style={{ fontSize: 10, color: "#55606e", fontWeight: 600, marginTop: 2 }}>{showSrc?.label || tr("Lithology")}</div>{/* #1745 */}
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
                   {codes.map((c) => (
                     <div key={c} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 9.6, color: "#55606e" }}>
-                      <div style={{ width: 8, height: 8, borderRadius: 2, background: colorForLithology(c) }} />{c}
+                      <div style={{ width: 8, height: 8, borderRadius: 2, background: colorOf(c) }} />{c}
                     </div>
                   ))}
                 </div>
               </>
             )}
             {!codes.length && (
-              <div style={warnNote}>{tr("No lithology intervals for the selected holes — the panel shows the projected traces only.")}</div>
+              <div style={warnNote}>{showSrc && showSrc.key !== "litho" ? tr("No {layer} intervals for the selected holes — the panel shows the projected traces only.", { layer: showSrc.label }) : tr("No lithology intervals for the selected holes — the panel shows the projected traces only.")}</div>
             )}
 
             <div style={{ background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, padding: "7px 8px", fontSize: 10, color: "#55606e", lineHeight: 1.5 }}>
