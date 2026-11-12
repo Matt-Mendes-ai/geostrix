@@ -21,6 +21,6 @@ test("#1725 a one-hole, all-extrapolated grade shell is weak; a bracketed many-h
 test("#1725 the pane shows the support line, and the solids carry their params", () => {
   const u = readFileSync(new URL("../src/components/UndrilledZonesPane.jsx", import.meta.url), "utf8");
   assert.ok(u.includes("unitSupport(unit.params)") && u.includes("rests on one hole") && u.includes("is mostly extrapolated"));
-  const v = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
+  const v = readFileSync(new URL("../src/modules/viewer/estimationShells.js", import.meta.url), "utf8"); // moved out of ViewerModule: #2695
   assert.ok(v.includes("type: sf.type, params: sf.params || null, ...(sf.type === \"unit_volume\""));
 });

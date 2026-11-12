@@ -10451,6 +10451,8 @@
   "Cut-off back to {v}, the one last used for {to}.": "Teneur de coupure revenue à {v}, la dernière utilisée pour {to}.",
   "Cut-off reset to the suggestion for {to} ({v}): {to} is not in {from}'s unit.": "Teneur de coupure remise à la suggestion pour {to} ({v}) : {to} n'est pas dans l'unité de {from}.",
   "{rule}{pop}, decided {date}. Click to use it as the cutoff.": "{rule}{pop}, décidé le {date}. Cliquez pour l'utiliser comme seuil de coupure.",
+  "Already a class limit.": "Déjà une limite de classe.",
+  "{rule}{pop}, decided {date}. Click to add it as a class limit.": "{rule}{pop}, décidé le {date}. Cliquez pour l'ajouter comme limite de classe.",
   " Skipped {skipped} row(s): {why}.": " {skipped} ligne(s) ignorée(s) : {why}.",
   "{name} looks like a downhole table ({cols}: a hole id and down-hole depths, no easting or northing). Outcrop measurements need map coordinates: import this file in the 3D View (drag it onto the view), where downhole structure logs go.": "{name} ressemble à une table de sondage ({cols} : un ID de sondage et des profondeurs le long du trou, sans est ni nord). Les mesures d'affleurement ont besoin de coordonnées cartographiques : importez ce fichier dans la Vue 3D (glissez-le sur la vue), où vont les relevés structuraux de sondage.",
   "{n} with no measurement at all": "{n} sans aucune mesure",

@@ -183,6 +183,7 @@ import { pickOnView } from "./viewer/pickGround.js"; // #2574; #2447
 import { syncHoleLabels, declutterHoleLabels, withEveryLabel, syncTextLabels, sampleLabelItems } from "../lib/viewer/holeLabels.js"; // withEveryLabel: TASKS.csv #1770; syncTextLabels / sampleLabelText: #1443
 import { PickStandIn, PICK_ONLY_LAYER } from "../lib/viewer/pickStandIn.js"; // TASKS.csv #1500
 import { syncBatchedInstances, buildLayerBatches, eachLayerMember, collarMarkerMaterial } from "../lib/viewer/layerBatches.js"; // moved out (size cap, #1084)
+import { closedShellsOf } from "./viewer/estimationShells.js"; // TASKS.csv #2695
 import { findOnTraceWorld, findOnTrace, traceLookup, pointInDomain, SOLID_SURFACE_TYPES, surfaceMadeAt } from "../lib/viewer/modelHelpers.js"; // TASKS.csv #445 step 2; SOLID_SURFACE_TYPES: #804
 import { syncRasterDrapes, syncBoundaries, syncMapLayers, syncSectionImages, syncSurfaceStructures, syncOmfObjects, syncTerrain, outcropLabelItems } from "../lib/viewer/sceneBuilders.js"; // TASKS.csv #693; outcropLabelItems: #1443
 import { syncDrawLods, dropDrawLod } from "../lib/viewer/drawLod.js"; // TASKS.csv #795
@@ -3366,24 +3367,12 @@ ${describeTrend(t)}` };
   // no-op for a one-element group.
   // TASKS.csv #356 — see lastLithBlock.
   const lithUnitColor = (lb, name) => lb.units.find((u) => u.name === name)?.color || colorForLithology(name);
-  // TASKS.csv #517 — closed model solids (unit volumes, imported solids) in WORLD coordinates for Grade estimation's
-  // "restrict to a modelled volume": [{ id, name, positions (E, N, Z), indices }]. Open surfaces are left out.
-  const closedShellsForEstimation = () => {
-    const o = originRef.current;
-    // TASKS.csv #804 — any body type (grade shells, envelopes, vein solids... not only unit volumes and imports): the
-    // estimation dialog still refuses one that is not actually closed
-    return (implicitSurfaces || []).filter((sf) => SOLID_SURFACE_TYPES.has(sf.type)).flatMap((sf) => {
-      const mesh = implicitMeshesRef.current[sf.id];
-      const pos = mesh?.geometry?.attributes?.position?.array;
-      if (!pos) return [];
-      const n = pos.length / 3, w = new Float64Array(pos.length);
-      for (let i = 0; i < n; i++) { w[i * 3] = pos[i * 3] + o.x; w[i * 3 + 1] = o.y - pos[i * 3 + 2]; w[i * 3 + 2] = pos[i * 3 + 1] + o.z; }
-      const idx = mesh.geometry.index ? mesh.geometry.index.array : Uint32Array.from({ length: n }, (_, i) => i);
-      // TASKS.csv #896 — a unit volume says the block size it was counted at (#877; before that only the cell volume)
-      const bs = sf.params?.blockSizeM ? Math.max(...sf.params.blockSizeM) : sf.params?.cellVolumeM3 ? Math.cbrt(sf.params.cellVolumeM3) : null;
-      return [{ id: sf.id, name: sf.name, positions: w, indices: idx, type: sf.type, params: sf.params || null, ...(sf.type === "unit_volume" && bs ? { blockSizeM: +bs.toFixed(2) } : {}) }]; // type / params: #1725
-    });
-  };
+  // TASKS.csv #517 — the closed solids in WORLD coordinates for Grade estimation / Undrilled zones; cached, the same array while no
+  // solid changed (#2695, viewer/estimationShells.js)
+  const shellsRef = useRef(null);
+  const closedShellsForEstimation = () => (shellsRef.current = closedShellsOf(implicitSurfaces, implicitMeshesRef.current, originRef.current, shellsRef.current));
+  const estGround = useMemo(() => (!gradeEstOpen ? null : terrain ? (x, y) => terrainGroundAt(terrain, x, y) : collarGround(collars)), [gradeEstOpen, terrain, collars]); // #2695
+  const checkedHoleIds = useMemo(() => new Set(collars.filter((c) => visibleHoles[c.hole_id] !== false).map((c) => c.hole_id)), [collars, visibleHoles]); // #2544; one Set per change: #2695
   // TASKS.csv #802 — a generated / imported surface's mesh in WORLD coordinates (E, N, Z) with its colour, for
   // "Solid blocks from surfaces"
   const surfaceWorldMesh = useCallback((id) => {
@@ -8805,9 +8794,9 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           survey={survey}
           volumeShells={closedShellsForEstimation()}
           trend={trendFor("estimation")} // TASKS.csv #650
-          groundAt={terrain ? (x, y) => terrainGroundAt(terrain, x, y) : collarGround(collars)} // TASKS.csv #803, #927; collars: #1616
-          groundSource={terrain ? "terrain" : collarGround(collars) ? "collars" : null}
-          checkedHoleIds={new Set(collars.filter((c) => visibleHoles[c.hole_id] !== false).map((c) => c.hole_id))} modelArea={modelArea} // TASKS.csv #1570; #2544
+          groundAt={estGround} // TASKS.csv #803, #927; collars: #1616; memoized: #2695
+          groundSource={terrain ? "terrain" : estGround ? "collars" : null}
+          checkedHoleIds={checkedHoleIds} modelArea={modelArea} // TASKS.csv #1570; #2544
           areaStrings={designStrings.filter((s) => s.closed && s.vertices.length > 2)}
           onAddModel={(model) => { const id = addVoxelModel(model); setNotices((p) => [...p, { ...notice("Added block model \"{name}\" ({cells} cells).", { name: model.name, cells: model.cells.length.toLocaleString() }), level: "info" /* #1418 */ }]); return id; }}
           onClose={() => setGradeEstOpen(false)}
@@ -8816,7 +8805,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       {/* TASKS.csv #147 — a read-only diagnostic: it takes no onAdd-style callback, so nothing it
           computes can enter the project or any estimate. */}
       {variogramOpen && (
-        <VariogramModal modelArea={modelArea} checkedHoleIds={new Set(collars.filter((c) => visibleHoles[c.hole_id] !== false).map((c) => c.hole_id))} /* #2544 */
+        <VariogramModal modelArea={modelArea} checkedHoleIds={checkedHoleIds} /* #2544 */
           assays={assays}
           assayElements={assayElements}
           layers={layers}
