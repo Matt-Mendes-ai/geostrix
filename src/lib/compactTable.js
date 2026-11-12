@@ -33,13 +33,21 @@ function encodeColumn(get, n) {
     for (let i = 0; i < n; i++) { const v = get(i); a[i] = v === undefined ? "" : String(v); }
     return { n: a.join(",") };
   }
-  const dict = [], index = new Map(), codes = new Array(n);
+  // TASKS.csv #2334 — strings keyed by themselves, everything else by its JSON (NaN/Infinity -> "null", as JSON writes them):
+  // the same codes as one map of "s"+v / "j"+JSON keys, without building a key string per row
+  const dict = [], strIndex = new Map(), index = new Map(), codes = new Array(n);
   for (let i = 0; i < n; i++) {
     const v = get(i);
     if (v === undefined) { codes[i] = -1; continue; }
-    const key = typeof v === "string" ? "s" + v : "j" + JSON.stringify(v); // NaN/Infinity -> "jnull", as JSON writes them
-    let c = index.get(key);
-    if (c === undefined) { c = dict.length; index.set(key, c); dict.push(typeof v === "number" && !Number.isFinite(v) ? null : v); }
+    let c;
+    if (typeof v === "string") {
+      c = strIndex.get(v);
+      if (c === undefined) { c = dict.length; strIndex.set(v, c); dict.push(v); }
+    } else {
+      const key = JSON.stringify(v);
+      c = index.get(key);
+      if (c === undefined) { c = dict.length; index.set(key, c); dict.push(typeof v === "number" && !Number.isFinite(v) ? null : v); }
+    }
     codes[i] = c;
   }
   return { d: dict, c: codes.join(",") };
@@ -166,3 +174,21 @@ export const expandIntervalLayers = (layers) => {
   for (const [k, v] of Object.entries(layers)) if (v && v.__compactTable) { if (out === layers) out = { ...layers }; out[k] = expandTable(v); }
   return out;
 };
+
+// TASKS.csv #2334 (review #2325, WA uranium) — custom layers ({ id, name, rows, unit, ... }) had no compact form: the 439,780-reading
+// gamma log was 32.6 MB of '{ hole_id, depth, value, _src }' objects in the project file (customLayers was nearly all of its 35.8 MB).
+// A layer of 2,000+ rows now stores its rows as exact columns like the assays (7.0 MB, the same numbers back); smaller ones stay plain.
+// The encoding is cached per rows array (above), so adding or removing one layer re-encodes only that layer.
+export const compactCustomLayers = (list) => {
+  if (!Array.isArray(list)) return list;
+  let out = list;
+  list.forEach((l, i) => {
+    const r = l?.rows;
+    if (!Array.isArray(r) || r.length < COMPACT_TABLE_MIN_ROWS) return;
+    const c = compactTable(r);
+    if (c !== r) { if (out === list) out = list.slice(); out[i] = { ...l, rows: c }; }
+  });
+  return out;
+};
+export const expandCustomLayers = (list) => (Array.isArray(list) && list.some((l) => l?.rows?.__compactTable)
+  ? list.map((l) => (l?.rows?.__compactTable ? { ...l, rows: expandTable(l.rows) } : l)) : list);

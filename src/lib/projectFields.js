@@ -29,7 +29,7 @@ export function expandTerrain(t) {
   return { ...rest, elevations: Array.from(b64ToF32(elevationsF32)) };
 }
 import { compactLayers, expandLayers } from "./compactRows.js"; // TASKS.csv #374
-import { compactTable, expandTable, compactIntervalLayers, expandIntervalLayers } from "./compactTable.js"; // TASKS.csv #555
+import { compactTable, expandTable, compactIntervalLayers, expandIntervalLayers, compactCustomLayers, expandCustomLayers } from "./compactTable.js"; // TASKS.csv #555; custom layers: #2334
 import { compactSurfaces, expandSurfaces } from "./compactSurfaces.js"; // TASKS.csv #483
 import { DEFAULT_DESURVEY_METHOD, normalizeDesurveyMethod } from "./desurvey.js";
 import { poolLayoutImages, expandLayoutImages } from "./layoutImagePool.js"; // TASKS.csv #1631
@@ -58,9 +58,10 @@ import { poolLayoutImages, expandLayoutImages } from "./layoutImagePool.js"; // 
 // v21 (TASKS.csv #1342) adds designLines (Mine Design linework: a start and segments; the geometry is recomputed from them).
 // v23 (TASKS.csv #1876) adds designStrings (free 3D polylines / polygons: { id, name, color, closed, visible, vertices: [[E, N, Z]] }).
 // v22 (TASKS.csv #1631) writes Layout pages and templates with each repeated image once ({ __layoutImages, images, items }).
+// v25 (TASKS.csv #2334) stores a custom layer's rows as exact columns (compactTable.js) from 2,000 rows, as assays are.
 // v24 (TASKS.csv #1963) adds dbImports: what each database import pulled (profile name, schema, table) and the dialog's choices, so
 // "Reload from database" can pull the tables again. No host, login or password: those stay on the computer (#1081, #621).
-export const PROJECT_VERSION = 24; // #1963: dbImports. Was 23; // #1876: designStrings. Was 22 // #1631: layout image pool. Was 21 // #1342: designLines. Was 20 // #1081: no dbConnections (per computer now). Was 19 // #1073: surface samples may be stored as exact columns. Was 18 // #1003: evidenceOverlay. Was 17 // #842: surfaceQc. Was 16 // #841: geochemThresholds. Was 15 // #811: explicitSurfaces. Was 14 // #796: big terrain grids as elevationsF32. Was 13 // #660: every voxel model may be compacted (compactCells.keys). Was 12 // #650: structuralTrends. Was 11 // #630: sectionImages. Was 10 // #555: assays and big interval layers may be stored as exact columns ({ __compactTable })
+export const PROJECT_VERSION = 25; // #2334: custom layers of 2,000+ rows as exact columns. Was 24; // #1963: dbImports. Was 23; // #1876: designStrings. Was 22 // #1631: layout image pool. Was 21 // #1342: designLines. Was 20 // #1081: no dbConnections (per computer now). Was 19 // #1073: surface samples may be stored as exact columns. Was 18 // #1003: evidenceOverlay. Was 17 // #842: surfaceQc. Was 16 // #841: geochemThresholds. Was 15 // #811: explicitSurfaces. Was 14 // #796: big terrain grids as elevationsF32. Was 13 // #660: every voxel model may be compacted (compactCells.keys). Was 12 // #650: structuralTrends. Was 11 // #630: sectionImages. Was 10 // #555: assays and big interval layers may be stored as exact columns ({ __compactTable })
 
 export const EMPTY_LAYERS = { litho: [], alt: [], vein: [], geotech: [], mnlgy: [], magsusc: [], structure: [], litho_gc: [], alt_gc: [], geophys_pts: [] };
 
@@ -176,7 +177,7 @@ export const FIELDS = [
     save: (l) => compactIntervalLayers(compactLayers(l)), load: (data) => ({ ...EMPTY_LAYERS, ...(expandIntervalLayers(expandLayers(data.layers)) || {}) }) }, // #374 point surveys (Float32); #555 big interval layers (exact columns)
   { key: "assays", track: "undo", empty: list, save: compactTable, load: (data) => expandTable(data.assays) || [] }, // #555 — exact columns from 2,000 rows
   { key: "assayElements", track: "undo", empty: list },
-  { key: "customLayers", track: "undo", empty: list },
+  { key: "customLayers", track: "undo", empty: list, save: compactCustomLayers, load: (data) => expandCustomLayers(data.customLayers) || [] }, // #2334 — a layer of 2,000+ rows as exact columns
   // Older project files (version < 2) won't have this — null, and ViewerModule falls back to its defaults.
   { key: "viewerUiState", track: "view", empty: () => null },
   { key: "themes", track: "dirty", empty: list },
