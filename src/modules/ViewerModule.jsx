@@ -136,6 +136,7 @@ import { localDate } from "../lib/localDate.js"; // TASKS.csv #2703
 import { rightDragTracker } from "./viewer/rightDrag.js"; // TASKS.csv #2213
 import { holeZoomPhi } from "./viewer/zoomHole.js"; // TASKS.csv #2375
 import { assayValueCounts, orderAssayChips } from "../lib/viewer/assayChipOrder.js"; // TASKS.csv #2374
+import { scoreRasterLegendGroups } from "../lib/viewer/scoreRasterLegend.js"; // TASKS.csv #2670
 import { snapInterpretClick } from "../lib/viewer/interpretSnap.js"; // TASKS.csv #2630
 import { outlinesKey, blockSourceKey } from "../lib/explicitLog.js"; // TASKS.csv #878
 import { extrapolationNotice } from "../lib/extrapolatedInputs.js"; // #1840
@@ -1730,7 +1731,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
     const groups = [
       ...categoryLegendGroups({ keys: CATEGORY_LAYER_KEYS, layers, layerVisible, hidden: categoryFilter, visibleHoles, singleColor, labelFor: effectiveLabel, colorFor: effectiveColor, placed: new Set(collars.map((c) => String(c.hole_id))) }), // #1813
       ...assayLegendGroups({ assays, assayElements, assayVisible: assayVisible && collars.length > 0 /* #1813 */, assayDisplayElements, assayStyle }),
-      ...voxelLegendGroups(voxelModels), ...rasterLegendGroups(rasters), // #1236
+      ...voxelLegendGroups(voxelModels), ...rasterLegendGroups(rasters), ...scoreRasterLegendGroups(rasters) /* #2670 — score maps */, // #1236
       ...numericLayerLegendGroups({ layers, layerVisible, isRowVisible, colorOf: numericLayerColor, symbology: numericSymbology, clips: numericClip }), // #1398 — the RQD / recovery / SG / mag susc ramps
       ...customLegendGroups(customLayers, customVisible, layerStyles), // #1697
     ];
