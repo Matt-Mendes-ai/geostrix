@@ -70,17 +70,29 @@ export function layerCodeLookup(rows, collars, survey, desurveyMethod, cellMax) 
   }
   return pts.length ? { codeOf: nearestCodeLookup(pts, reachM), reachM } : null;
 }
+// TASKS.csv #2993 (review #2876, WA iron) — the codes of a logged layer by logged metres, most first (a point row counts 1 m): the pane listed
+// the first 30 by name, so TNAM and SONAM, two of the five ore strands, had no density box. -> [{ code, m }]
+export function codesByMetres(rows) {
+  const m = new Map();
+  for (const r of rows || []) {
+    const code = String(r?.value ?? "").trim(); if (!code) continue;
+    const len = Number(r.to) - Number(r.from);
+    m.set(code, (m.get(code) || 0) + (len > 0 ? len : 1));
+  }
+  return [...m].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], undefined, { numeric: true })).map(([code, metres]) => ({ code, m: metres }));
+}
 // the blocks with .density where their code has one typed (a positive number); the rest unchanged (the pane's densities apply).
-// -> { cells, used: [{ code, n, rho }] (rho null: no code density) }
+// -> { cells, used: [{ code, n, rho }] (rho null: no code density), untyped: [{ code, n }] (#2993: blocks whose code has no density typed) }
 export function cellsWithCodeDensity(cells, codeOf, densities) {
-  const used = new Map();
+  const used = new Map(), untyped = new Map();
   const out = (cells || []).map((c) => {
     const code = codeOf ? codeOf(c) : null, d = code != null ? Number(densities?.[code]) : NaN;
     const k = d > 0 ? code : null;
     used.set(k, (used.get(k) || 0) + 1);
+    if (code != null && !(d > 0)) untyped.set(code, (untyped.get(code) || 0) + 1);
     return d > 0 ? { ...c, density: d } : c;
   });
-  return { cells: out, used: [...used].sort((a, b) => b[1] - a[1]).map(([code, n]) => ({ code, n, rho: code == null ? null : Number(densities[code]) })) };
+  return { cells: out, used: [...used].sort((a, b) => b[1] - a[1]).map(([code, n]) => ({ code, n, rho: code == null ? null : Number(densities[code]) })), untyped: [...untyped].sort((a, b) => b[1] - a[1]).map(([code, n]) => ({ code, n })) };
 }
 // the pit inputs' per-code densities as numbers ({ code: t/m3 > 0 }), or null when none is typed
 export function typedCodeDensities(table) {
@@ -97,5 +109,5 @@ export function modelWithCodeDensity(model, inputs, layers, collars, survey, des
   const look = layerCodeLookup(layers?.[inputs.densityLayer], collars, survey, desurveyMethod, cellMax);
   if (!look) return { model, used: null };
   const j = cellsWithCodeDensity(model.cells, look.codeOf, table);
-  return { model: { ...model, cells: j.cells }, used: j.used, reachM: look.reachM };
+  return { model: { ...model, cells: j.cells }, used: j.used, untyped: j.untyped /* #2993 */, reachM: look.reachM };
 }

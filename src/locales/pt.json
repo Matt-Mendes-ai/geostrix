@@ -11162,5 +11162,8 @@
   "{el} is priced per tonne of contained {el} or per dmtu (1 % {el} in a dry tonne), and the break-even cut-off is on the contained {el}, not a product specification: every block above it is ore. Type a cut-off to set one.": "O {el} é precificado por tonelada de {el} contido ou por dmtu (1 % de {el} em uma tonelada seca), e o teor de corte de equilíbrio é sobre o {el} contido, não uma especificação de produto: todo bloco acima dele é minério. Digite um teor de corte para fixar um.",
   "{f} has no azimuth or dip column. Add every hole at the form's Az {a}° / Dip {d}°?": "{f} não tem coluna de azimute nem de mergulho. Adicionar todos os furos com o Az {a}° / Mergulho {d}° do formulário?",
   "Every hole takes the form's Az {a}° / Dip {d}° (the file has no azimuth or dip column).": "Todos os furos usam o Az {a}° / Mergulho {d}° do formulário (o arquivo não tem coluna de azimute nem de mergulho).",
-  "{n} vertical row(s) with a blank azimuth read as azimuth 0.": "{n} linha(s) verticais com o azimute em branco foram lidas como azimute 0."
+  "{n} vertical row(s) with a blank azimuth read as azimuth 0.": "{n} linha(s) verticais com o azimute em branco foram lidas como azimute 0.",
+  "Codes with no density typed: {list}.": "Códigos sem densidade digitada: {list}.",
+  "{code} ({n} blocks)": "{code} ({n} blocos)",
+  "Show all {n} codes ({k} more, the least logged)": "Mostrar os {n} códigos ({k} a mais, os menos registrados)"
 }

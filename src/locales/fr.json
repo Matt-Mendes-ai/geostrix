@@ -11162,5 +11162,8 @@
   "{el} is priced per tonne of contained {el} or per dmtu (1 % {el} in a dry tonne), and the break-even cut-off is on the contained {el}, not a product specification: every block above it is ore. Type a cut-off to set one.": "Le {el} est valorisé par tonne de {el} contenu ou par dmtu (1 % de {el} dans une tonne sèche), et la teneur de coupure d'équilibre porte sur le {el} contenu, pas sur une spécification de produit : tout bloc au-dessus est du minerai. Saisissez une teneur de coupure pour en fixer une.",
   "{f} has no azimuth or dip column. Add every hole at the form's Az {a}° / Dip {d}°?": "{f} n'a pas de colonne d'azimut ni de pendage. Ajouter tous les sondages à l'Az {a}° / Pendage {d}° du formulaire ?",
   "Every hole takes the form's Az {a}° / Dip {d}° (the file has no azimuth or dip column).": "Tous les sondages prennent l'Az {a}° / Pendage {d}° du formulaire (le fichier n'a pas de colonne d'azimut ni de pendage).",
-  "{n} vertical row(s) with a blank azimuth read as azimuth 0.": "{n} ligne(s) verticales à l'azimut vide lues comme azimut 0."
+  "{n} vertical row(s) with a blank azimuth read as azimuth 0.": "{n} ligne(s) verticales à l'azimut vide lues comme azimut 0.",
+  "Codes with no density typed: {list}.": "Codes sans densité saisie : {list}.",
+  "{code} ({n} blocks)": "{code} ({n} blocs)",
+  "Show all {n} codes ({k} more, the least logged)": "Afficher les {n} codes ({k} de plus, les moins décrits)"
 }
