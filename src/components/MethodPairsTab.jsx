@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { t as tr } from "../lib/i18n.js";
 import { fontSizes } from "../lib/theme.js";
+import { swapInMethod } from "../lib/qaqc.js"; // TASKS.csv #2687
 
 const fmt = (x) => (x == null || !Number.isFinite(x) ? "—" : Math.abs(x) >= 1000 ? Math.round(x).toLocaleString() : String(+x.toPrecision(3)));
 const th = { textAlign: "right", padding: "3px 8px", borderBottom: "1px solid var(--color-border)" };
@@ -30,8 +31,10 @@ function MethodScatter({ g, unit, symbol }) {
   );
 }
 
-export default function MethodPairsTab({ methods, symbol, unit }) {
+export default function MethodPairsTab({ methods, symbol, unit, assays = null, setAssays = null }) { // assays / setAssays: #2687
   const [pick, setPick] = useState(0);
+  const [asking, setAsking] = useState(false); // #2687 — the swap asks first, inline
+  const [done, setDone] = useState("");
   if (!methods.length) {
     return <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", padding: 8 }}>{tr("No sample carries {symbol} by a second lab method. Method pairs come from the element's other method columns in the assay file (U_103 beside U), kept at import from now on: re-import a file to see its pairs.", { symbol })}</div>;
   }
@@ -52,6 +55,15 @@ export default function MethodPairsTab({ methods, symbol, unit }) {
       </table>
       <MethodScatter g={g} unit={unit} symbol={symbol} />
       <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{tr("Green: the 1:1 line. Dashed: the median ratio. Censored ('<' / '>') results are left out.")}</div>
+      {setAssays && assays && ( /* TASKS.csv #2687 — use the other method's results as the element's value */
+        <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+          {!asking ? <button type="button" onClick={() => { setAsking(true); setDone(""); }}>{tr("Use {m} instead", { m: g.header })}</button> : <>
+            <span>{tr("On every sample with a {m} result, {m} becomes the {symbol} value; the value it replaces is kept as a method result, so this can be swapped back. Every tool then reads {m}.", { m: g.header, symbol })}</span>
+            <button type="button" onClick={() => { const r = swapInMethod(assays, symbol, g.header); setAssays(r.rows); setAsking(false); setDone(tr("{n} sample(s) now take {symbol} from {m}.", { n: r.swapped.toLocaleString(), symbol, m: g.header })); }}>{tr("Swap")}</button>
+            <button type="button" onClick={() => setAsking(false)}>{tr("Cancel")}</button></>}
+          {done && <span role="status" style={{ color: "var(--color-success-fg)" }}>{done}</span>}
+        </div>
+      )}
     </div>
   );
 }

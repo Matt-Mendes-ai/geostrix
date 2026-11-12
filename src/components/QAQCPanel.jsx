@@ -160,7 +160,7 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
             </div>
           </div>
 
-          {tab === "methods" && <MethodPairsTab methods={methods} symbol={symbol} unit={unitL} />}{/* #2629 */}
+          {tab === "methods" && <MethodPairsTab methods={methods} symbol={symbol} unit={unitL} assays={assays} setAssays={setAssays || null} />}{/* #2629; swap: #2687 */}
           {tab === "totals" && <OxideTotalsTab assays={assays} majors={majors} setAssays={setAssays || null} sel={sel} tabBtn={tabBtn} />}{/* #2506 */}
           {tab === "pxrf" && ( /* TASKS.csv #1675 */
             <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.5 }}>
