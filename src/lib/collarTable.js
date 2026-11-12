@@ -2,6 +2,7 @@
 // pages, and a default length that fits the sheet. It listed rows 1-40 of 446 and said "add a second table", which listed the
 // same 40 (no offset); 40 rows at its default place ran to page px 800 on a 794 px A4 landscape sheet.
 import { printPx } from "./theme.js";
+import { collarAttrChoices } from "./holeFilter.js"; // TASKS.csv #2717
 
 // sorted: the collars in table order. firstRow is 1-based; filter keeps holes whose id contains it (any case).
 export function collarTableSlice(sorted, { firstRow = 1, maxRows = 40, filter = "" } = {}) {
@@ -23,6 +24,17 @@ export function continuationPageIndex(pages, fromIndex, el, nextRow) {
     }
   }
   return null;
+}
+
+// TASKS.csv #2717 (split from #2480) — the collar fields a table can add as columns (hole type, a programme, a tenement: the categorical
+// fields, 2-30 values, collarAttrChoices' rule), and the one a new table takes by default: the hole type when the project has one (every
+// WAMEX collar table carries it). -> [key] / key or null
+export function collarTableFieldChoices(collars) {
+  return collarAttrChoices(collars).map((c) => c.key);
+}
+export function defaultCollarTableFields(collars) {
+  const k = collarTableFieldChoices(collars).find((key) => /^hole[\s_-]?type$/i.test(String(key).trim()));
+  return k ? [k] : [];
 }
 
 // One table row's height on the page (LayoutModule's cell: the font, 0.25 em padding top and bottom, a 1 px rule).

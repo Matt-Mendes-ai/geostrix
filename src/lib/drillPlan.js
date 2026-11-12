@@ -57,6 +57,35 @@ export const holeSeries = (id) => String(id ?? "").replace(/[-_ ]?\d+[A-Za-z]?$/
 
 // Labels placed greedily (right, left, above, below the collar), each kept only when it overlaps no label already placed and stays
 // inside the frame. points: [{ id, x, y }] in frame px. -> { placed: [{ id, x, y, anchor }], skipped }
+// TASKS.csv #2686 (split from #2473) — a symbol shape by a collar field (the hole type), together with the colour by grade: the field's
+// three commonest values get a square, a triangle and a diamond; every other value, and a hole without the field, keeps the circle, so a
+// circle never means two things. -> { shapeOf(holeId) -> shape, key: [{ label, shape, n }] } (key empty when the field is not set)
+const SHAPES = ["square", "triangle", "diamond"];
+export function drillPlanShapes(collars, field, holeIds = null) {
+  if (!field) return { shapeOf: () => "circle", key: [] };
+  const want = holeIds ? new Set(holeIds) : null;
+  const valueOf = new Map(), counts = new Map();
+  for (const c of collars || []) {
+    if (want && !want.has(c.hole_id)) continue;
+    const v = String(c?.attrs?.[field] ?? "").trim();
+    valueOf.set(c.hole_id, v);
+    if (v) counts.set(v, (counts.get(v) || 0) + 1);
+  }
+  const ranked = [...counts].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], undefined, { numeric: true }));
+  const shapeOfValue = new Map(ranked.slice(0, SHAPES.length).map(([v], i) => [v, SHAPES[i]]));
+  const key = ranked.slice(0, SHAPES.length).map(([v, n], i) => ({ label: v, shape: SHAPES[i], n }));
+  const others = [...valueOf.values()].filter((v) => !shapeOfValue.has(v)).length;
+  if (others) key.push({ label: ranked.length > SHAPES.length ? "other / not recorded" : "not recorded", shape: "circle", n: others });
+  return { shapeOf: (id) => shapeOfValue.get(valueOf.get(id)) || "circle", key };
+}
+// the outline of a symbol of radius r at (cx, cy), as an SVG path (the circle is drawn as a <circle>)
+export function symbolPath(shape, cx, cy, r) {
+  if (shape === "square") { const s = r * 0.9; return `M${cx - s},${cy - s}h${2 * s}v${2 * s}h${-2 * s}z`; }
+  if (shape === "triangle") { const s = r * 1.25; return `M${cx},${cy - s}L${cx + s * 0.866},${cy + s * 0.5}L${cx - s * 0.866},${cy + s * 0.5}z`; }
+  if (shape === "diamond") { const s = r * 1.25; return `M${cx},${cy - s}L${cx + s},${cy}L${cx},${cy + s}L${cx - s},${cy}z`; }
+  return null;
+}
+
 // TASKS.csv #2738 (split from #1871) — the white box behind a label, in place of a stroked halo: a halo is drawn as a second, outlined
 // copy of the text, so a PDF reader copied or searched every label twice. Width estimated as placeLabels does (0.56 em a character);
 // anchor: the text's textAnchor; y is the text's baseline. -> { x, y, w, h }
