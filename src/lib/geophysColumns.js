@@ -7,6 +7,8 @@
 // Anything that can't be matched falls back to the column picker, never a dead end.
 
 // "Raw_Mag_nT" -> ["raw", "mag", "nt"]; "EastingUTM" -> ["easting", "utm"]; "X(m)" -> ["x", "m"]
+import { gridXY } from "./gridColumns.js"; // TASKS.csv #2649
+
 export function headerWords(h) {
   return String(h ?? "")
     .replace(/([a-z])([A-Z][a-z]|[A-Z]{2,})/g, "$1 $2") // MagRaw, EastingUTM — but not the unit in "nT"
@@ -65,12 +67,19 @@ export function guessGeophysColumns(headers) {
   const hs = (headers || []).filter((h) => h != null && String(h).trim() !== "");
   const taken = new Set();
   const out = {};
+  // TASKS.csv #2649 (review #2486) — coordinate columns named for their grid (MGA_E / MGA_N, GDA94_East / GDA94_North, AMG_E ...), as the
+  // collar import and Maps > A file read them (lib/gridColumns.js): when no plain X / Easting pair is there, the first map-grid pair is
+  const grid = gridXY(hs);
   for (const role of ["x", "y", "z", "line", "fid", "label", "value"]) {
+    if (role === "z" && grid && (!out.x || !out.y || out.gridPair)) {
+      if (!out.x || !out.y) { for (const c of [out.x, out.y]) if (c) taken.delete(c); out.x = grid.x; out.y = grid.y; out.gridPair = true; taken.add(grid.x); taken.add(grid.y); }
+    }
     const { col, candidates } = pick(hs, role, taken);
-    out[role] = col;
-    if (col) taken.add(col);
+    out[role] = col || (role === "z" && out.gridPair && grid.z && !taken.has(grid.z) ? grid.z : col);
+    if (out[role]) taken.add(out[role]);
     if (role === "value") out.valueCandidates = candidates;
   }
+  if (!out.gridPair) delete out.gridPair;
   out.ok = !!(out.x && out.y && out.value);
   // x/y are longitude/latitude: the caller reprojects from WGS84 (EPSG:4326) unless told otherwise
   out.geographic = !!(out.x && out.y && [out.x, out.y].every((c) => headerWords(c).some((w) => GEOGRAPHIC.includes(w))));
