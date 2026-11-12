@@ -6,6 +6,7 @@ import { SHAPES, SIZE_MIN, SIZE_MAX, resolveLayerStyle } from "../lib/layerStyle
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { useStore } from "../lib/store.jsx"; // TASKS.csv #2367 — the custom layer's rows, for its default range
 import { customScaleDefault } from "../lib/customColour.js"; // TASKS.csv #2367
+import { useDragPanel } from "../lib/useDragPanel.js"; // TASKS.csv #3058
 
 // TASKS.csv #635 — "edit the styles of each layer, colour, size, type (circle, plane, cylinder)". A small floating
 // panel (not a blocking dialog) beside the 3D view, so every change is seen live; changes apply as they are made
@@ -36,9 +37,11 @@ export default function LayerStyleModal({ target, style, onChange, onReset, onCl
   const numIn = (k) => (e) => onChange({ [k]: e.target.value === "" ? null : Number(e.target.value) });
   const lbl = { fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", width: 74, flexShrink: 0 };
   const row = { display: "flex", alignItems: "center", gap: 8, marginBottom: 10 };
+  // TASKS.csv #3058 — opens in the middle of the window (it was pinned at the far right, where it went unseen) and drags by its header
+  const { panelRef, pos, dragProps } = useDragPanel(300);
   return (
-    <div role="dialog" aria-label={tr("Style of {label}", { label: target.label })} style={{ position: "fixed", right: 76, top: 150, width: 300, zIndex: 60, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, boxShadow: "0 12px 32px rgba(0,0,0,0.25)", fontSize: "var(--font-size-base)" }}>
-      <div style={{ display: "flex", alignItems: "center", padding: "10px 12px", borderBottom: "1px solid var(--color-border)" }}>
+    <div ref={panelRef} role="dialog" aria-label={tr("Style of {label}", { label: target.label })} style={{ position: "fixed", left: pos.left, top: pos.top, width: 300, zIndex: 60, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, boxShadow: "0 12px 32px rgba(0,0,0,0.25)", fontSize: "var(--font-size-base)" }}>
+      <div {...dragProps} title={tr("Drag to move")} style={{ ...dragProps.style, display: "flex", alignItems: "center", padding: "10px 12px", borderBottom: "1px solid var(--color-border)" }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontWeight: 600, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{tr("Style — {label}", { label: target.label })}</div>
           <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{tr("Changes show in 3D straight away and are saved with the project.")}</div>

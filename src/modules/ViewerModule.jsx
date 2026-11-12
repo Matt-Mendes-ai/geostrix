@@ -7852,7 +7852,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
               <label
                 htmlFor="viewport-bg-color-picker"
                 style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "7px 10px", borderRadius: 5, cursor: "pointer", color: "var(--color-text)" }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = "#242e3c")}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "var(--color-hover-bg)")}
                 onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
               >
                 <span>{tr("Background colour")}</span>

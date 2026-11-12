@@ -300,7 +300,7 @@ export function ContextItem({ label, onClick, disabled, title }) {
     return <div role="menuitem" aria-disabled="true" title={title} style={{ padding: "7px 10px", borderRadius: 5, cursor: "default", color: "var(--color-text-disabled)" }}>{label}</div>;
   }
   // TASKS.csv #730 — menuitem (was button); tabIndex 0 stays, #575's menuItemsOf finds items by it
-  return <div role="menuitem" tabIndex={0} onKeyDown={activateOnKey} onClick={onClick} title={title} onMouseEnter={(e) => (e.currentTarget.style.background = "#242e3c")} onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")} style={{ padding: "7px 10px", borderRadius: 5, cursor: "pointer", color: "var(--color-text)" }}>{label}</div>;
+  return <div role="menuitem" tabIndex={0} onKeyDown={activateOnKey} onClick={onClick} title={title} onMouseEnter={(e) => (e.currentTarget.style.background = "var(--color-hover-bg)")} onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")} style={{ padding: "7px 10px", borderRadius: 5, cursor: "pointer", color: "var(--color-text)" }}>{label}</div>;
 }
 // TASKS.csv #222 (audit: 38 ms per hole-visibility toggle at 200 holes) — React.memo, with toggleHole / onOpenStripLog useCallback-stable:
 // toggling one hole's eye re-renders that row only. Not windowed: the Holes list shares the sidebar's one scroll container with the

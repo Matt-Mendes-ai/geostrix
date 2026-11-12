@@ -11280,5 +11280,6 @@
   "{n} more.": "{n} أخرى.",
   "The custom layer \"{name}\" is too large to keep in the older undo steps: undo can bring back the last {n} removed large layers.": "الطبقة المخصصة \"{name}\" أكبر من أن تُحفظ في خطوات التراجع الأقدم: يمكن للتراجع استعادة آخر {n} طبقات كبيرة محذوفة.",
   "The custom layers {names} are too large to keep in the older undo steps: undo can bring back the last {n} removed large layers.": "الطبقات المخصصة {names} أكبر من أن تُحفظ في خطوات التراجع الأقدم: يمكن للتراجع استعادة آخر {n} طبقات كبيرة محذوفة.",
-  "An earlier assay table ({rows} rows) is too large to keep in the older undo steps: undoing that far leaves the assays as they were later.": "جدول تحاليل سابق ({rows} صف) أكبر من أن يُحفظ في خطوات التراجع الأقدم: التراجع إلى ذلك الحد يترك التحاليل كما كانت لاحقًا."
+  "An earlier assay table ({rows} rows) is too large to keep in the older undo steps: undoing that far leaves the assays as they were later.": "جدول تحاليل سابق ({rows} صف) أكبر من أن يُحفظ في خطوات التراجع الأقدم: التراجع إلى ذلك الحد يترك التحاليل كما كانت لاحقًا.",
+  "Drag to move": "اسحب للنقل"
 }
