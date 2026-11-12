@@ -44,13 +44,13 @@ export function traceChunkArrays(holes, { dashed = false } = {}) {
     let d = 0;
     for (let i = 0; i + 1 < h.pts.length; i++) {
       const a = h.pts[i], b = h.pts[i + 1];
-      position.set([a.x, a.y, a.z, b.x, b.y, b.z], v * 3);
+      const o = v * 3; position[o] = a.x; position[o + 1] = a.y; position[o + 2] = a.z; position[o + 3] = b.x; position[o + 4] = b.y; position[o + 5] = b.z; // no array per segment
       if (dist) { dist[v] = d; d += Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z); dist[v + 1] = d; }
       v += 2;
     }
     count[k] = v - start[k];
   });
-  for (let i = 0; i < verts; i++) color.set([_c.r, _c.g, _c.b, TRACE_OPACITY], i * 4);
+  for (let i = 0; i < verts * 4; i += 4) { color[i] = _c.r; color[i + 1] = _c.g; color[i + 2] = _c.b; color[i + 3] = TRACE_OPACITY; }
   return { position, color, dist, start, count };
 }
 
@@ -130,7 +130,8 @@ export function setTraceHoleColour(chunk, holeId, hex) {
   if (!ks) return false;
   _c.set(hex == null ? TRACE_GREY : hex);
   const a = hex == null ? TRACE_OPACITY : TRACE_OPACITY_COLOURED, col = chunk.geometry.attributes.color;
-  for (const k of ks) for (let v = tc.start[k], end = v + tc.count[k]; v < end; v++) col.array.set([_c.r, _c.g, _c.b, a], v * 4);
+  const arr = col.array;
+  for (const k of ks) for (let i = tc.start[k] * 4, end = i + tc.count[k] * 4; i < end; i += 4) { arr[i] = _c.r; arr[i + 1] = _c.g; arr[i + 2] = _c.b; arr[i + 3] = a; }
   col.needsUpdate = true;
   return true;
 }
