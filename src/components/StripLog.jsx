@@ -26,6 +26,7 @@ import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no 
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { exportSvgMarkup } from "../lib/svgExport.js"; // TASKS.csv #1089 — font, size, no UI chrome
 import { embedFigureFont } from "../lib/svgFontEmbed.js"; // TASKS.csv #2610 — the subset Exo 2 inside the figure
+import { localDate } from "../lib/localDate.js";
 import { stripLogFurniture, pngScaleFor } from "../lib/figureFurniture.js"; // TASKS.csv #1048
 import { stripLogTextPt } from "../lib/atlas.js"; // TASKS.csv #1480 — the size its labels print at
 const DEPTH_COL_W = 50;
@@ -177,7 +178,7 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
   };
   // TASKS.csv #1048 — hole, collar, attitude, depth, scale and a key of the codes in each colour track, drawn into the file
   const [pngNote, setPngNote] = useState("");
-  const furniture = () => stripLogFurniture({ holeId, collar, fromDepth: d0, maxDepth: d1, pxPerMeter, date: new Date().toISOString().slice(0, 10),
+  const furniture = () => stripLogFurniture({ holeId, collar, fromDepth: d0, maxDepth: d1, pxPerMeter, date: localDate() /* the local day, not UTC's (#2703's rule) */,
     tracks: tracks.filter((t) => t.kind === "fill" || t.kind === "struct").map((t) => { // struct: #1400
       const seen = [...new Set(t.rows.map((r) => r.value).filter((v) => v != null && v !== ""))];
       return { title: t.title || t.label, items: seen.map((v) => ({ label: t.nameFn ? `${v} ${t.nameFn(v) !== v ? `(${t.nameFn(v)})` : ""}`.trim() : String(v), color: t.colorFn(v), ...(t.key === "litho" && patternOf(v) ? { pattern: patternFill(patternOf(v), t.colorFn(v)) } : {}) })) }; // pattern: #1995
@@ -198,7 +199,7 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
     // TASKS.csv #1641 (review #1497, Lawyers) — a depth range is part of the label: two sends of 21AGBDD007 (whole hole, 100-250 m) were both 'Strip log — 21AGBDD007'
     const rangeText = ranged ? `, ${Number(d0.toFixed(1))}-${Number(d1.toFixed(1))} m` : "";
     const addTo = onAddToLayout;
-    embedFigureFont(markup).catch(() => markup).then((m) => addTo({ label: `Strip log — ${holeId}${rangeText}` /* project data stays English */, src: `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(m)))}` /* #2610 — with the subset Exo 2 */, naturalW: fw, naturalH: fh, legendItems, depthHeightAtCaptureM: fh / pxPerMeter /* #1480 — Layout's depth scale */ }));
+    embedFigureFont(markup).catch(() => markup).then((m) => addTo({ label: `Strip log — ${holeId}${rangeText}` /* project data stays English */, src: `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(m)))}` /* #2610 — with the subset Exo 2 */, naturalW: fw, naturalH: fh, legendItems, depthHeightAtCaptureM: fh / pxPerMeter /* #1480 — Layout's depth scale */, keyDrawn: legendItems.length > 0 /* #2739 — the image draws its colour key: Layout need not add a second legend */ }));
     const ptAt = (h) => stripLogTextPt(h, Math.min(700 * (h / fw), 794 - 160)); // Layout: 700 px wide, at most the sheet height less margins (A4 landscape)
     const pt = ptAt(fh), pt1 = ptAt(fh - (d1 - d0) * (pxPerMeter - 1)); // the same log drawn at 1 px/m
     const wide = 700 * (fh / fw) <= 794 - 160; // Layout's 700 px width, not the sheet height, sets its size: many tracks
