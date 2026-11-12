@@ -24,7 +24,7 @@ test("codeList: the stored list, else read back from all_codes (projects importe
 
 test("the category pass shows a several-mineral interval while one of its listed codes is shown, in that code's colour", () => {
   const s = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
-  assert.match(s, /const codes = codeList\(child\.userData\?\.row\);\n\s+if \(codes\.length > 1\) \{ const shown = codes\.find\(\(c\) => \(hidden\?\.size \? known\.has\(String\(c\)\) && !hidden\.has\(String\(c\)\) : true\)\); child\.visible = shown != null; if \(shown != null && !single && child\.material\?\.color\) child\.material\.color\.set\(effectiveColor\(key, shown\)\); return; \}/);
+  assert.match(s, /const codes = codeList\(child\.userData\?\.row\);\n\s+if \(codes\.length > 1\) \{ const shown = codes\.find\(\(c\) => \(hidden\?\.size \? known\.has\(String\(c\)\) && !hidden\.has\(String\(c\)\) : true\)\); child\.visible = shown != null && holeOn\(child\); if \(shown != null && !single && child\.material\?\.color\) child\.material\.color\.set\(effectiveColor\(key, shown\)\); return; \}/);
   assert.match(s, /\}, \[categoryFilter, syncLayerBatches, effectiveColor, layerStyles\]\);/);
   const p = readFileSync(new URL("../src/modules/viewer/useImportPipeline.js", import.meta.url), "utf8");
   assert.match(p, /r\.all_codes = a\.all; r\.codes = a\.codes;/);
