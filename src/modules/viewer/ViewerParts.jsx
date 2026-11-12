@@ -24,6 +24,9 @@ import { orphanHoleIds } from "../../lib/noCollars.js"; // TASKS.csv #1809
 import { VE_CHOICES, veOf } from "./verticalExaggeration.js"; // TASKS.csv #2623
 import { drillSiteSpacing } from "../../lib/drillSpacing.js"; // TASKS.csv #2517
 import { useStore } from "../../lib/store.jsx"; // TASKS.csv #2517 — the collars
+// TASKS.csv #1702 (review #1645, Copley) — "Intercepts" opened lithology boundary picks; to a geologist an intercept is "24 m @ 0.44 % Cu".
+// The button is now "Contact picks", and "Grade intercepts" opens Best intercepts (Geochem's tool) on the loaded assays from here.
+const BestIntercepts = lazyModal(() => import("../../components/BestIntercepts.jsx"));
 
 export const MeasureResults = lazyModal(() => import("../../components/MeasureResults.jsx"));
 const NumericSymbologyEditor = lazyModal(() => import("../../components/NumericSymbologyEditor.jsx"));
@@ -43,7 +46,8 @@ export function ViewToolbar({
   const toggle = (name) => setOpenPopover((p) => (p === name ? null : name));
   // TASKS.csv #2517 — the section Buffer opens at half the drill-site spacing (±12.5 m on a 25 m grid, not ±100 m), until the user types one;
   // the section step 'next line' (2 x buffer) is then the line spacing
-  const { collars: spacingCollars = [] } = useStore() || {};
+  const { collars: spacingCollars = [], assays: gAssays = [], assayElements: gEls = [], survey: gSurvey = [], layers: gLayers = {} } = useStore() || {};
+  const [gradeIntOpen, setGradeIntOpen] = useState(false); // #1702
   const spacing = useMemo(() => drillSiteSpacing(spacingCollars), [spacingCollars]);
   const bufferTyped = useRef(false);
   useEffect(() => { if (!bufferTyped.current && spacing?.buffer && setSectionCorridor) setSectionCorridor(spacing.buffer); }, [spacing]); // the setter is stable
@@ -215,9 +219,11 @@ export function ViewToolbar({
         </div>
         <div className="ge-ribbon-cell">
           <HoverToolInfo title={tr("Boundary intercepts")} text={boundaryDisabled ? `${boundaryWhy || tr("Load some lithology/alteration interval data first.")} ` + tr("Lists every geological unit boundary (top of each litho/alteration interval) resolved to a real 3D position along each hole — the same control points the implicit-modelling tools use — so you can review, exclude, or mark individual points \"soft\" before running a surface.") : tr("Lists every geological unit boundary (top of each litho/alteration interval) resolved to a real 3D position along each hole — the same control points the implicit-modelling tools use — so you can review, exclude, or mark individual points \"soft\" before running a surface.")}>
-            <button className={`ge-ribbon-btn${boundaryDisabled ? " is-disabled" : ""}`} onClick={boundaryDisabled ? undefined : onBoundaryIntercepts} aria-disabled={boundaryDisabled || undefined}><Milestone size={22} strokeWidth={1.7} color={RIBBON_TONES.analyse} aria-hidden="true" /><span className="ge-ribbon-label">{tr("Intercepts")}</span></button>
+            <button className={`ge-ribbon-btn${boundaryDisabled ? " is-disabled" : ""}`} onClick={boundaryDisabled ? undefined : onBoundaryIntercepts} aria-disabled={boundaryDisabled || undefined}><Milestone size={22} strokeWidth={1.7} color={RIBBON_TONES.analyse} aria-hidden="true" /><span className="ge-ribbon-label">{tr("Contact picks")}</span></button>{/* #1702 — was "Intercepts" */}
           </HoverToolInfo>
         </div>
+        <RibbonButton icon={FileBarChart2} label="Grade intercepts" tone="analyse" disabled={!gAssays.length} disabledReason="Load assays first (Geochem tab)" title="Best intercepts: length-weighted runs of the assays above a cut-off, as reported (e.g. 24 m @ 0.44 % Cu)" onClick={() => setGradeIntOpen(true)} />{/* #1702 */}
+        {gradeIntOpen && <BestIntercepts assays={gAssays} assayElements={gEls} collars={spacingCollars} survey={gSurvey} layers={gLayers} onClose={() => setGradeIntOpen(false)} />}
       </RibbonGroup>
       <RibbonGroup advanced label="Database">
         <div className="ge-ribbon-cell">
