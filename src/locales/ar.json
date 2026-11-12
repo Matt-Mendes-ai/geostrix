@@ -7049,6 +7049,8 @@
   "Picture only: colours, no values. Its colours can be read against the map's own colour bar.": "صورة فقط: ألوان بلا قيم. تُقرأ ألوانها بمقابلتها بشريط ألوان الخريطة نفسها.",
   "Values": "القيم",
   "Picture only: colours, no values": "صورة فقط: ألوان بلا قيم",
+  "{v} (mean of {f} × {f} nodes; highest in this cell {max}, lowest {min})": "{v} (متوسط {f} × {f} عقدة؛ الأعلى في هذه الخلية {max}، الأدنى {min})",
+  "{v} (mean of {f} × {f} nodes)": "{v} (متوسط {f} × {f} عقدة)",
   "\"{name}\" is not a picture GeoStrix can read (PNG, JPEG, WebP, GIF).": "\"{name}\" ليست صورة يستطيع GeoStrix قراءتها (PNG أو JPEG أو WebP أو GIF).",
   "Colour bar of \"{name}\"": "شريط ألوان \"{name}\"",
   "Colour bar picture of \"{name}\"": "صورة شريط ألوان \"{name}\"",
