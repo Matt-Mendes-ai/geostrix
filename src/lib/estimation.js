@@ -129,7 +129,8 @@ function resolveVariogram(pts, given, cellSize) {
     if (df && df.sill > 0) { const ratio = Math.min(1, Math.max(0, df.nugget / df.sill)); nugget = ratio * fit.sill; nuggetFrom = { ratio: +ratio.toFixed(3), lagM: +dhLag.toFixed(2), pairs: dv.nPairsUsed, firstPairLagM: +ev.firstPairLag.toFixed(1) }; }
   }
   const st = variogramStationarity(ev, fit); // #1576 — no sill, or a range past the measured lags
-  return { model, nugget, sill: fit.sill, range: fit.range, fitted: true, lagM: +lag.toFixed(2), betweenHoleM, nuggetFrom, stationarity: { noSill: st.noSill, rising: st.rising, endRatio: st.endRatio != null ? +st.endRatio.toFixed(2) : null, rangeBeyond: st.rangeBeyond, reliableLagM: st.reliableLagM != null ? +st.reliableLagM.toFixed(1) : null } };
+  // TASKS.csv #1742 (review #1645, Copley) — the auto fit's quality goes with it: Cu spherical 886 m at 51 % nugget, Au pure nugget, and no r² said
+  return { model, nugget, sill: fit.sill, range: fit.range, fitted: true, rSquared: Number.isFinite(fit.rSquared) ? +fit.rSquared.toFixed(3) : null, lagM: +lag.toFixed(2), betweenHoleM, nuggetFrom, stationarity: { noSill: st.noSill, rising: st.rising, endRatio: st.endRatio != null ? +st.endRatio.toFixed(2) : null, rangeBeyond: st.rangeBeyond, reliableLagM: st.reliableLagM != null ? +st.reliableLagM.toFixed(1) : null } };
 }
 
 function withTrend(samplePoints, opts) {

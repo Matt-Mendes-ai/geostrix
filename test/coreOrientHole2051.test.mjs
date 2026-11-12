@@ -13,5 +13,6 @@ test("holes with a survey or a collar azimuth and dip are listed; district colla
 });
 test("no attitude at the depth: the fields are cleared and a note says so", () => {
   assert.match(c, /else \{ setAzimuth\(""\); setDip\(""\); setHoleNote\(tr\("No survey or collar azimuth \/ dip for \{hole\} at \{depth\} m/);
-  assert.match(c, /\{orientable\.map\(\(c\) => <option key=\{c\.hole_id\}/);
+  assert.match(c, /\{shownHoles\.map\(\(c\) => <option key=\{c\.hole_id\}/); // #2540: the orientable holes, filtered by name
+  assert.match(c, /const shownHoles = useMemo\(\(\) => \{[^\n]*orientable\.filter/);
 });

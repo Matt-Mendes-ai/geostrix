@@ -19,7 +19,9 @@ test("the estimate name, the shell label and the parameters line carry the trend
   assert.match(e, /const tr3 = trendRatioText\(p\.searchTrend \|\| p\.anisotropy\), a = tr3 \? `, \$\{tr3\}` : ""/);
   assert.match(e, /estimate \(\$\{method\}, \$\{cellLabel\}m\$\{r\}\$\{a\}\)/);
   const m = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8");
-  assert.match(m, /shell\$\{anisotropy\.enabled && trendRatioText\(anisotropy\.params\) \? ` \(trend \$\{trendRatioText\(anisotropy\.params\)\}\)` : ""\}/);
+  // #2551: the trend is one of the label's tags (with the checked holes)
+  assert.match(m, /anisotropy\.enabled && trendRatioText\(anisotropy\.params\) \? `trend \$\{trendRatioText\(anisotropy\.params\)\}` : ""/);
+  assert.match(m, /shell\$\{shellTags\.length \? ` \(\$\{shellTags\.join\(", "\)\}\)` : ""\}/);
   const v = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
   assert.match(v, /s\.params\.anisotropy && trendRatioText\(s\.params\.anisotropy\) \? tr\(" · trend \\"\{name\}\\" \{ratios\}\{ell\}"/);
 });

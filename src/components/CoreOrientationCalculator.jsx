@@ -87,6 +87,9 @@ export default function CoreOrientationCalculator({ collars, survey, fieldStruct
     else { setAzimuth(""); setDip(""); setHoleNote(tr("No survey or collar azimuth / dip for {hole} at {depth} m: enter the hole's attitude by hand.", { hole: hId, depth: d })); }
   };
   const orientable = useMemo(() => holesWithAttitude(collars, survey), [collars, survey]);
+  // TASKS.csv #2540 (4) (review #2486) — 2,249 holes in one select, the 39 with core at the far end: a type-ahead filter
+  const [holeFilter, setHoleFilter] = useState("");
+  const shownHoles = useMemo(() => { const f = holeFilter.trim().toLowerCase(); return f ? orientable.filter((c) => String(c.hole_id).toLowerCase().includes(f) || c.hole_id === holeId) : orientable; }, [orientable, holeFilter, holeId]);
   const leftOut = collars.length - orientable.length;
 
   // TASKS.csv #428 — outcrop measurements (Geophysics > Surface structures) near the chosen collar can
@@ -164,10 +167,11 @@ export default function CoreOrientationCalculator({ collars, survey, fieldStruct
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
           <div>
             <div className="ge-section-label">{tr("Hole & reference line")}</div>
+            {orientable.length > 30 && <div style={row}><input type="search" value={holeFilter} onChange={(e) => setHoleFilter(e.target.value)} placeholder={tr("Filter the {n} holes by name", { n: orientable.length.toLocaleString() })} aria-label={tr("Filter the holes by name")} style={{ ...sel, padding: "4px 8px" }} /></div>}{/* #2540 (4) */}
             <div style={row}>
               <select aria-label={tr("Hole for the core orientation")} value={holeId} onChange={(e) => { setHoleId(e.target.value); autoFillFromHole(e.target.value, depth); }} style={sel}>
                 <option value="">{tr("Manual entry (no hole)")}</option>
-                {orientable.map((c) => <option key={c.hole_id} value={c.hole_id}>{c.hole_id}</option>)}{/* #2051 — holes with a known attitude */}
+                {shownHoles.map((c) => <option key={c.hole_id} value={c.hole_id}>{c.hole_id}</option>)}{/* #2051 — holes with a known attitude; filtered: #2540 */}
               </select>
               <input type="number" placeholder={tr("Depth (m)")} value={depth} onChange={(e) => { setDepth(e.target.value); if (holeId) autoFillFromHole(holeId, e.target.value); }} style={{ ...num, width: 90 }} />
             </div>
