@@ -110,7 +110,7 @@ function describe(hit, ctx) {
   if (group) {
     const row = o.userData?.row;
     const collar = tipLines[1] === "collar";
-    const hole = row?.hole_id || (ctx.isHole(tipLines[0]) ? tipLines[0] : null);
+    const hole = row?.hole_id || o.userData?.holeId /* #2041 — a trace line: its hole and the depth at the click */ || (ctx.isHole(tipLines[0]) ? tipLines[0] : null);
     const fields = [];
     if (hole) fields.push([tr("Hole"), hole]);
     // TASKS.csv #1504 — a collar's own record: position, orientation, length and the columns kept from its file
@@ -133,7 +133,9 @@ function describe(hit, ctx) {
     const trace = hole && ctx.traceOf(hole);
     if (trace && !(row?.from != null) && row?.depth == null) { const md = depthOnTrace(trace, p); if (md != null) fields.push([tr("Depth at this point"), metres(md)]); }
     const at = row?.from != null && row?.to != null ? `${num(row.from, 2)}–${num(row.to, 2)} m` : row?.depth != null ? `${num(row.depth, 2)} m` : null; // #2520 — told apart in 'Under this click'
-    return { ...base, layer: group, title: hole || tipLines[0] || group, hole, fields, ...(at ? { at } : {}) };
+    // TASKS.csv #2041 — a layer's drawn batch (no row, no hole, no tip) says nothing: 'bare', dropped when the layer has a real entry here
+    const bare = !row && !hole && !tipLines.length && !fields.length;
+    return { ...base, layer: group, title: hole || tipLines[0] || group, hole, fields, ...(at ? { at } : {}), ...(bare ? { bare: true } : {}) };
   }
   // a block model: the block under the click
   if (o.userData?.srcModel) {
@@ -187,7 +189,10 @@ export function describeHits(hits, ctx, max = 20) {
     out.push(d);
     if (out.length >= max) break;
   }
-  return [...out.filter((d) => !backdrop(d)), ...out.filter(backdrop)];
+  // #2041 — 'Lithology: Lithology' with no hole, value or depth beside the interval itself: the same tube's batch mesh
+  const real = new Set(out.filter((d) => !d.bare).map((d) => d.layer));
+  const kept = out.filter((d) => !d.bare || !real.has(d.layer));
+  return [...kept.filter((d) => !backdrop(d)), ...kept.filter(backdrop)];
 }
 
 // One click: the ray, everything it meets, described. r: the view's refs and data (useIdentify). { items, point of the first, camera distance }.
