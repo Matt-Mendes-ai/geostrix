@@ -11294,5 +11294,10 @@
   "No density typed for {list}: their blocks take the default ({rho} t/m³).": "Aucune densité saisie pour {list} : leurs blocs prennent la valeur par défaut ({rho} t/m³).",
   "{n} block(s) of this model take this code": "{n} bloc(s) de ce modèle prennent ce code",
   "No block of this model takes this code": "Aucun bloc de ce modèle ne prend ce code",
-  "No density typed for {list}: with no default density typed, their blocks have a volume but no tonnes.": "Aucune densité saisie pour {list} : sans densité par défaut saisie, leurs blocs ont un volume mais pas de tonnes."
+  "No density typed for {list}: with no default density typed, their blocks have a volume but no tonnes.": "Aucune densité saisie pour {list} : sans densité par défaut saisie, leurs blocs ont un volume mais pas de tonnes.",
+  "Optional: a block height of its own, for a flat body. Blank: the block size (cubes), or the shell's own cell height for a shell of a block model's range.": "Facultatif : une hauteur de bloc propre, pour un corps plat. Vide : la taille de bloc (des cubes), ou la hauteur de cellule de l'enveloppe elle-même pour une enveloppe d'une plage d'un modèle de blocs.",
+  "Block height (m)": "Hauteur de bloc (m)",
+  "= block size": "= taille de bloc",
+  "Blocks of {b} m: the shell's own cells.": "Blocs de {b} m : les cellules de l'enveloppe elle-même.",
+  "Three volumes of the same body: its {n} cells in the range hold {c}; the shell drawn between the cell centres holds {s}; the run counts its blocks, so its volume depends on the block size.": "Trois volumes du même corps : ses {n} cellules dans la plage contiennent {c} ; l'enveloppe tracée entre les centres des cellules contient {s} ; la passe compte ses blocs, donc son volume dépend de la taille de bloc."
 }

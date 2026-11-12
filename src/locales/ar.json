@@ -11294,5 +11294,10 @@
   "No density typed for {list}: their blocks take the default ({rho} t/m³).": "لا كثافة مكتوبة لـ{list}: تأخذ كتلها القيمة الافتراضية ({rho} طن/م³).",
   "{n} block(s) of this model take this code": "{n} كتلة من هذا النموذج تأخذ هذا الرمز",
   "No block of this model takes this code": "لا كتلة في هذا النموذج تأخذ هذا الرمز",
-  "No density typed for {list}: with no default density typed, their blocks have a volume but no tonnes.": "لا كثافة مكتوبة لـ{list}: من دون كثافة افتراضية مكتوبة، لكتلها حجم ولكن بلا أطنان."
+  "No density typed for {list}: with no default density typed, their blocks have a volume but no tonnes.": "لا كثافة مكتوبة لـ{list}: من دون كثافة افتراضية مكتوبة، لكتلها حجم ولكن بلا أطنان.",
+  "Optional: a block height of its own, for a flat body. Blank: the block size (cubes), or the shell's own cell height for a shell of a block model's range.": "اختياري: ارتفاع خاص للكتلة، لجسم مسطح. فارغ: حجم الكتلة (مكعبات)، أو ارتفاع خلية الغلاف نفسه إن كان غلافًا لمدى من نموذج كتل.",
+  "Block height (m)": "ارتفاع الكتلة (م)",
+  "= block size": "= حجم الكتلة",
+  "Blocks of {b} m: the shell's own cells.": "كتل {b} م: خلايا الغلاف نفسه.",
+  "Three volumes of the same body: its {n} cells in the range hold {c}; the shell drawn between the cell centres holds {s}; the run counts its blocks, so its volume depends on the block size.": "ثلاثة أحجام للجسم نفسه: خلاياه الـ {n} في المدى تحتوي {c}؛ والغلاف المرسوم بين مراكز الخلايا يحتوي {s}؛ والتشغيل يعدّ كتله، فيتوقف حجمه على حجم الكتلة."
 }

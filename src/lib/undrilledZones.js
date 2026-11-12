@@ -45,12 +45,30 @@ export const defaultCoverM = (siteSpacingM) => (siteSpacingM > 0 ? Math.max(5, M
 
 // TASKS.csv #2258 — the blocks a run at this size makes (the unit's box snapped to whole blocks plus one on each side, as undrilledZones
 // grids it), said beside the Block size field before Run
-export function undrilledBlockCount(positions, cell) {
+export function undrilledBlockCount(positions, cell, cellZ = null) {
   if (!(cell > 0) || !positions?.length) return 0;
   const e = meshBox(positions);
   let n = 1;
-  for (let a = 0; a < 3; a++) n *= Math.ceil(e[2 * a + 1] / cell) + 1 - (Math.floor(e[2 * a] / cell) - 1);
+  for (let a = 0; a < 3; a++) { const c = a === 2 && cellZ > 0 ? cellZ : cell; n *= Math.ceil(e[2 * a + 1] / c) + 1 - (Math.floor(e[2 * a] / c) - 1); } // cellZ: #2966
   return n;
+}
+
+// TASKS.csv #2966 (review #2876, WA iron) — the blocks a shell of a block model's range is tested on: its own lattice (the model's cells, or
+// the coarser lattice the shell was drawn on), so a body of 10 x 10 x 4 m cells is not re-blocked as 7.5 m cubes. -> { cellM, cellZM } or
+// null (not such a shell, or over the block budget at that size)
+export function shellOwnCells(unit, maxCells = 2_000_000) {
+  const sp = unit?.params?.latticeSpacingM;
+  if (!Array.isArray(sp) || !(sp[0] > 0 && sp[1] > 0 && sp[2] > 0)) return null;
+  const cellM = +Math.max(sp[0], sp[1]).toFixed(2), cellZM = +sp[2].toFixed(2);
+  return undrilledBlockCount(unit.positions, cellM, cellZM) <= maxCells ? { cellM, cellZM } : null;
+}
+// the volume of the shell's cells in the range (the model's own count), or null. params.cellVolumeM3 is the SUM over those cells
+// (lib/voxelShell.js), not one cell's; with 'largest body only' the kept share of it
+export function shellCellsVolume(unit) {
+  const p = unit?.params;
+  if (!(p?.cellsInRange > 0 && p?.cellVolumeM3 > 0)) return null;
+  const share = p.largestBodyOnly && p.keptShareOfRange > 0 && p.keptShareOfRange < 1 ? p.keptShareOfRange : 1;
+  return { cells: Math.round(p.cellsInRange * share), volumeM3: p.cellVolumeM3 * share, share, model: p.model || null };
 }
 
 export function defaultCellSize(positions, coverM, target = 300_000, maxCells = 2_000_000) {
@@ -78,14 +96,15 @@ export function defaultCellSize(positions, coverM, target = 300_000, maxCells = 
 // "undrilled zone" (centred 26 m above an AGB collar), and "Plan a hole to here" then aimed a hole upward.
 // TASKS.csv #2256 (review #2174, WA lode gold) — minZoneM3 null: gaps under minZoneBlocks blocks are left out (a 16 m³ gap of one 2.5 m block
 // was offered as a drill target); the volume used is returned as minZoneM3.
-export function undrilledZones({ solid, traces, coverM, cellM, insideOnly = false, minZoneM3 = 0, minZoneBlocks = 0, maxCells = 2_000_000, groundAt = null }) {
+export function undrilledZones({ solid, traces, coverM, cellM, cellZM = 0, insideOnly = false, minZoneM3 = 0, minZoneBlocks = 0, maxCells = 2_000_000, groundAt = null }) {
   if (!(coverM > 0)) throw new Error(tr("Enter a coverage distance above zero."));
   const cell = cellM > 0 ? cellM : defaultCellSize(solid.positions, coverM, 300_000, maxCells);
+  const cz = cellZM > 0 ? cellZM : cell; // #2966 — a block height of its own (flat blocks), else cubes
   // the box snapped to whole blocks plus one: block faces on round coordinates, so a solid's flat faces fall on block
   // faces, not through block centres
   const e0 = meshBox(solid.positions);
-  const extent = e0.map((v, i) => (i % 2 ? Math.ceil(v / cell) + 1 : Math.floor(v / cell) - 1) * cell);
-  const coded = surfacesToBlock({ solids: [{ name: "unit", positions: solid.positions, indices: solid.indices }], extent, cell, maxCells, extend: false });
+  const extent = e0.map((v, i) => { const c = i >= 4 ? cz : cell; return (i % 2 ? Math.ceil(v / c) + 1 : Math.floor(v / c) - 1) * c; });
+  const coded = surfacesToBlock({ solids: [{ name: "unit", positions: solid.positions, indices: solid.indices }], extent, cell, cellZ: cz, maxCells, extend: false });
   const { ids, labels, resolution: [nx, ny, nz] } = coded.block;
   const [xmin, xmax, ymin, ymax, zmin, zmax] = coded.block.extent;
   const dx = (xmax - xmin) / nx, dy = (ymax - ymin) / ny, dz = (zmax - zmin) / nz;
@@ -208,6 +227,6 @@ export function undrilledZones({ solid, traces, coverM, cellM, insideOnly = fals
   zones.sort((a, b) => b.cells - a.cells);
   return {
     block: { extent: coded.block.extent, resolution: [nx, ny, nz], ids: out, labels: ["not covered"] },
-    cellVolume, unitCells, coveredCells: unitCells - uncovered, uncoveredCells: uncovered, zones, ignored, segments: nSeg, cellM: cell, aboveGroundCells: aboveGround, minZoneM3: minV,
+    cellVolume, unitCells, coveredCells: unitCells - uncovered, uncoveredCells: uncovered, zones, ignored, segments: nSeg, cellM: cell, cellZM: cz /* #2966 */, aboveGroundCells: aboveGround, minZoneM3: minV,
   };
 }

@@ -11294,5 +11294,10 @@
   "No density typed for {list}: their blocks take the default ({rho} t/m³).": "Sin densidad escrita para {list}: sus bloques toman el valor por defecto ({rho} t/m³).",
   "{n} block(s) of this model take this code": "{n} bloque(s) de este modelo toman este código",
   "No block of this model takes this code": "Ningún bloque de este modelo toma este código",
-  "No density typed for {list}: with no default density typed, their blocks have a volume but no tonnes.": "Sin densidad escrita para {list}: sin una densidad por defecto escrita, sus bloques tienen volumen pero no toneladas."
+  "No density typed for {list}: with no default density typed, their blocks have a volume but no tonnes.": "Sin densidad escrita para {list}: sin una densidad por defecto escrita, sus bloques tienen volumen pero no toneladas.",
+  "Optional: a block height of its own, for a flat body. Blank: the block size (cubes), or the shell's own cell height for a shell of a block model's range.": "Opcional: una altura de bloque propia, para un cuerpo plano. En blanco: el tamaño de bloque (cubos), o la altura de celda de la propia envolvente si es una envolvente de un rango de un modelo de bloques.",
+  "Block height (m)": "Altura de bloque (m)",
+  "= block size": "= tamaño de bloque",
+  "Blocks of {b} m: the shell's own cells.": "Bloques de {b} m: las celdas de la propia envolvente.",
+  "Three volumes of the same body: its {n} cells in the range hold {c}; the shell drawn between the cell centres holds {s}; the run counts its blocks, so its volume depends on the block size.": "Tres volúmenes del mismo cuerpo: sus {n} celdas en el rango contienen {c}; la envolvente trazada entre los centros de celda contiene {s}; la corrida cuenta sus bloques, así que su volumen depende del tamaño de bloque."
 }
