@@ -10378,6 +10378,7 @@
   "Keep rows where {col} is {v}": "Garder les lignes où {col} vaut {v}",
   "(blank)": "(vide)",
   "{col} marks {n} row(s) as superseded (out of date): they are left out. Tick their value to keep them.": "{col} marque {n} ligne(s) comme remplacées (périmées) : elles sont laissées de côté. Cochez leur valeur pour les garder.",
+  "{col}: {n} row(s) are repeat runs, not run {keep} (the main one): they are left out, so each depth is read once. Tick their value to keep them.": "{col} : {n} ligne(s) sont des passes répétées, pas la passe {keep} (la principale) : elles sont écartées, chaque profondeur est donc lue une fois. Cochez leur valeur pour les garder.",
   "{col} marks {n} row(s) as not current: they are left out. Tick their value to keep them.": "{col} marque {n} ligne(s) comme non actuelles : elles sont laissées de côté. Cochez leur valeur pour les garder.",
   "{k} of {n} rows will be imported.": "{k} lignes sur {n} seront importées.",
   "{fileName}: {n} row(s) left out by the row filter ({col} kept only where it is {values}).": "{fileName} : {n} ligne(s) laissées de côté par le filtre de lignes ({col} gardé seulement là où il vaut {values}).",

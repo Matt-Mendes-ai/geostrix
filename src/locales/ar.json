@@ -10378,6 +10378,7 @@
   "Keep rows where {col} is {v}": "احتفظ بالصفوف التي يكون فيها {col} هو {v}",
   "(blank)": "(فارغ)",
   "{col} marks {n} row(s) as superseded (out of date): they are left out. Tick their value to keep them.": "يعلّم {col} عدد {n} صفًا بأنها مستبدلة (قديمة): تُستبعد. حدد قيمتها للاحتفاظ بها.",
+  "{col}: {n} row(s) are repeat runs, not run {keep} (the main one): they are left out, so each depth is read once. Tick their value to keep them.": "{col}: {n} صف تمريرات مكررة، وليست التمريرة {keep} (الرئيسية): تُستبعد، فتُقرأ كل عمق مرة واحدة. أشّر على قيمتها للإبقاء عليها.",
   "{col} marks {n} row(s) as not current: they are left out. Tick their value to keep them.": "يعلّم {col} عدد {n} صفًا بأنها غير حالية: تُستبعد. حدد قيمتها للاحتفاظ بها.",
   "{k} of {n} rows will be imported.": "سيُستورد {k} من {n} صفًا.",
   "{fileName}: {n} row(s) left out by the row filter ({col} kept only where it is {values}).": "{fileName}: استُبعد {n} صفًا بمرشح الصفوف ({col} يُحتفظ به فقط حيث يكون {values}).",

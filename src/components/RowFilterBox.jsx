@@ -36,7 +36,9 @@ export default function RowFilterBox({ modal, onChange, sel }) {
       )}
       {/* TASKS.csv #2431 — the line follows the ticks: shown while a value the preset leaves out is still unticked */}
       {preset && f && f.col === preset.col && col && col.values.some(([v]) => !preset.keep.includes(v) && !f.keep.includes(v)) && (
-        <div style={{ ...note, marginTop: 4, color: "var(--color-warn-text)" }}>{preset.flag === "superseded"
+        <div style={{ ...note, marginTop: 4, color: "var(--color-warn-text)" }}>{preset.flag === "run" /* TASKS.csv #2898 */
+          ? tr("{col}: {n} row(s) are repeat runs, not run {keep} (the main one): they are left out, so each depth is read once. Tick their value to keep them.", { col: preset.col, n: preset.drop.toLocaleString(), keep: preset.keep[0] })
+          : preset.flag === "superseded"
           ? tr("{col} marks {n} row(s) as superseded (out of date): they are left out. Tick their value to keep them.", { col: preset.col, n: preset.drop.toLocaleString() })
           : tr("{col} marks {n} row(s) as not current: they are left out. Tick their value to keep them.", { col: preset.col, n: preset.drop.toLocaleString() })}</div>
       )}
