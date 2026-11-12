@@ -24,6 +24,21 @@ test("PROP_FILE names are read from the header; only bare names pass", () => {
   for (const bad of ["../secret.txt", "..", ".", "C:\\x.txt", "C:x.txt", "\\\\server\\share\\x", "/etc/passwd", "sub\\y.bin", "sub/y.bin", "", "a\0b"]) assert.equal(bareName(bad), null, bad);
 });
 
+test("Main's hardenings: ':' anywhere (an NTFS alternate data stream) and Windows device names are refused", () => {
+  for (const bad of ["rock@@:hidden", "rock_density@@:$DATA", "a:b", "x.bin:", ":x"]) assert.equal(bareName(bad), null, bad);
+  for (const bad of ["CON", "con", "PRN", "aux", "NUL", "nul.txt", "COM1", "com9.bin", "LPT1", "lpt3.dat", "CON.", "nul .txt", "Aux.tar.gz", "COM¹"]) assert.equal(bareName(bad), null, bad);
+  for (const ok of ["CONSOLE@@", "con_density@@", "nullable.bin", "COM10", "lpt0", "auxiliary@@", "PRN2@@", "rock_density@@"]) assert.equal(bareName(ok), ok, ok);
+});
+
+test("an ADS or device name in a PROP_FILE is never allowed by the registry", async () => {
+  const reg = createVoxetSideRegistry();
+  await reg.note(vo, header("rock_density@@:hidden", "NUL", "con.bin", "rock_density@@"));
+  assert.equal(reg.has(path.join(vox, "rock_density@@:hidden")), false);
+  assert.equal(reg.has(path.join(vox, "NUL")), false);
+  assert.equal(reg.has(path.join(vox, "con.bin")), false);
+  assert.equal(reg.has(path.join(vox, "rock_density@@")), true);
+});
+
 test("a plain same-folder rock_density@@ is allowed; ../secret.txt, absolute paths and sub\\y.bin are refused", async () => {
   const got = await voxetSidePaths(vo, header("rock_density@@", "../secret.txt", path.join(tmp, "secret.txt"), "C:\\x.txt", "sub\\y.bin", "sub/y.bin", "missing@@"));
   assert.deepEqual(got, [path.join(vox, "rock_density@@")]); // a missing file is not allowed either

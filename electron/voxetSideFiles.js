@@ -23,11 +23,18 @@ function propFileNames(text) {
   return out;
 }
 
-// the name itself when it is a bare file name, else null
+// Windows device names (CON, PRN, AUX, NUL, COM1-9, LPT1-9), any case, with any extension: the part before the first dot, its trailing
+// spaces dropped as Windows drops them ("nul .txt" is NUL)
+const RESERVED = /^(con|prn|aux|nul|com[1-9¹²³]|lpt[1-9¹²³])$/i;
+const isDeviceName = (s) => RESERVED.test(s.split(".")[0].replace(/ +$/, ""));
+
+// the name itself when it is a bare file name, else null. Refused: a folder part, a ':' anywhere (a drive, or an NTFS alternate data
+// stream "rock@@:hidden" of a same-folder file — Main's review), a Windows device name, ".", "..", NUL.
 function bareName(name) {
   const s = String(name ?? "");
-  if (!s || s === "." || s === ".." || s.includes("\0")) return null;
-  if (/[\\/]/.test(s) || /^[a-zA-Z]:/.test(s) || path.isAbsolute(s) || path.win32.isAbsolute(s) || path.posix.isAbsolute(s)) return null;
+  if (!s || s === "." || s === ".." || s.includes("\0") || s.includes(":")) return null;
+  if (/[\\/]/.test(s) || path.isAbsolute(s) || path.win32.isAbsolute(s) || path.posix.isAbsolute(s)) return null;
+  if (isDeviceName(s)) return null;
   return s;
 }
 
