@@ -178,8 +178,14 @@ export function applyValueTransform(points, transform = "none", capPercentile = 
 //                 the nugget, since only downhole samples get close enough to resolve it) |
 //                 "between" (pairs from different holes only).
 //   maxPoints     subsample cap (default 6000).
+//   estimator     TASKS.csv #1996 — "matheron" (default: the mean of half the squared differences), "cressie" (Cressie & Hawkins
+//                 1980: (mean of |dv|^0.5)^4 / (2 (0.457 + 0.494 / N + 0.045 / N^2)), robust to a few extreme pairs) or "dowd" (Dowd
+//                 1984: 2.198 × median(|dv|)^2 / 2). A few massive-sulphide composites dictate a Matheron sill; these two are not
+//                 led by them. scikit-gstat (MIT) is the reference implementation; nothing is borrowed from it.
 //
 // Returns { bins, nPairsUsed, nPoints, variance, mean, subsampled, maxReliableLag }.
+// #1996 — the median of a typed array (sorted in place: it is the bin's own scratch copy)
+function medianOf(a) { if (!a.length) return NaN; a.sort(); const m = a.length >> 1; return a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2; }
 export function experimentalVariogram(points, opts = {}) {
   const lagDistance = Number(opts.lagDistance) > 0 ? Number(opts.lagDistance) : 10;
   const nLags = Math.max(1, Math.round(opts.nLags ?? 12));
@@ -208,6 +214,9 @@ export function experimentalVariogram(points, opts = {}) {
   const maxDist2 = maxDist * maxDist;
 
   const sum = new Float64Array(nLags + 1);   // sum of squared differences per bin
+  const estimator = opts.estimator === "cressie" || opts.estimator === "dowd" ? opts.estimator : "matheron"; // #1996
+  const sumRoot = estimator === "cressie" ? new Float64Array(nLags + 1) : null; // sum of |dv|^0.5 per bin
+  const absBins = estimator === "dowd" ? Array.from({ length: nLags + 1 }, () => ({ a: new Float32Array(64), n: 0 })) : null; // every |dv| per bin, for its median
   const cnt = new Float64Array(nLags + 1);   // pair count per bin
   const hSum = new Float64Array(nLags + 1);  // sum of actual separations, for the bin's mean distance
 
@@ -248,6 +257,8 @@ export function experimentalVariogram(points, opts = {}) {
       }
       const dv = a.value - b.value;
       sum[k] += dv * dv;
+      if (sumRoot) sumRoot[k] += Math.sqrt(Math.abs(dv));
+      else if (absBins) { const B = absBins[k]; if (B.n === B.a.length) { const g = new Float32Array(B.a.length * 2); g.set(B.a); B.a = g; } B.a[B.n++] = Math.abs(dv); }
       cnt[k] += 1;
       hSum[k] += h;
       nPairsUsed++;
@@ -260,7 +271,9 @@ export function experimentalVariogram(points, opts = {}) {
     bins.push({
       lag: k * lagDistance,
       h: hSum[k] / cnt[k],              // the bin's MEAN separation — what gamma should be plotted at
-      gamma: sum[k] / (2 * cnt[k]),     // Matheron: mean of half the squared differences
+      gamma: estimator === "cressie" ? (sumRoot[k] / cnt[k]) ** 4 / (2 * (0.457 + 0.494 / cnt[k] + 0.045 / (cnt[k] * cnt[k]))) // #1996
+        : estimator === "dowd" ? 1.099 * medianOf(absBins[k].a.subarray(0, absBins[k].n)) ** 2 // #1996: 2.198 × median² / 2
+        : sum[k] / (2 * cnt[k]),     // Matheron: mean of half the squared differences
       nPairs: cnt[k],
     });
   }
@@ -268,7 +281,7 @@ export function experimentalVariogram(points, opts = {}) {
   // #1572 — what the stride subsample cannot see: the shortest lag that holds any pair (the caption says so)
   const firstPairLag = bins.find((b) => b.nPairs > 0)?.h ?? null;
   return {
-    bins, nPairsUsed, nPoints: n, mean, variance, subsampled, firstPairLag,
+    bins, nPairsUsed, nPoints: n, mean, variance, subsampled, firstPairLag, estimator, // estimator: #1996
     holesUsed: dh ? dh.holesUsed : null, holesTotal: dh ? dh.holesTotal : null,
     // Journel & Huijbregts' standard caution, surfaced rather than assumed: a lag with fewer than ~30
     // pairs is not a measurement, and a variogram should not be interpreted past about half the
@@ -341,6 +354,23 @@ export function variogramStationarity(vg, fit) {
   }
   if (fit?.range > 0 && out.reliableLagM > 0) out.rangeBeyond = fit.range > out.reliableLagM * 1.05;
   return out;
+}
+
+// TASKS.csv #1996 — the directional variogram table: the same experimental variogram in 13 directions (azimuth 0-150° every 30° at dips
+// 0° and 45°, and vertical), each fitted, so the direction of longest continuity is read off one table instead of 13 runs by hand.
+// The pair cone is ±22.5° (the dialog's default). One direction per call, so the dialog can paint between them. -> { azimuth, dip,
+// nPairs, range, nugget, sill, rSquared, maxReliableLag } (range null when no model could be fitted)
+export const DIRECTION_TABLE = [...[0, 30, 60, 90, 120, 150].map((azimuth) => ({ azimuth, dip: 0 })), ...[0, 30, 60, 90, 120, 150].map((azimuth) => ({ azimuth, dip: 45 })), { azimuth: 0, dip: 90 }];
+export function directionRow(points, base, dir, model = "spherical") {
+  const vg = experimentalVariogram(points, { ...base, direction: { azimuth: dir.azimuth, dip: dir.dip, angleTol: 22.5, bandwidth: null } });
+  const fit = vg.nPairsUsed >= 30 ? fitVariogramModel(vg.bins, { model }) : null;
+  return { azimuth: dir.azimuth, dip: dir.dip, nPairs: vg.nPairsUsed, range: fit && fit.range > 0 ? fit.range : null, nugget: fit ? fit.nugget : null, sill: fit ? fit.sill : null, rSquared: fit ? fit.rSquared : null, maxReliableLag: vg.maxReliableLag };
+}
+
+// the direction to read the long axis from: the longest range among the fits that mean something (r² of 0.5 or more, 30 pairs, and a
+// range within 1.5 × that direction's reliable lags); null when none does. On Woodjam Cu the longest raw range (993 m) had r² 0.10.
+export function longestDirection(rows) {
+  return (rows || []).filter((r) => r.range != null && r.nPairs >= 30 && r.rSquared >= 0.5 && !(r.maxReliableLag > 0 && r.range > 1.5 * r.maxReliableLag)).sort((a, b) => b.range - a.range)[0] || null;
 }
 
 export function fitVariogramModel(bins, opts = {}) {

@@ -10,7 +10,7 @@ import { samplePointsFromIntervals } from "../lib/estimation.js";
 import { desurveyHole } from "../lib/desurvey.js";
 import {
   experimentalVariogram, fitVariogramModel, variogramModelValue, VARIOGRAM_MODELS,
-  VALUE_TRANSFORMS, applyValueTransform, groupPointsByDomain, suggestLagDistance, suggestBetweenHoleLag, variogramStationarity, siteSpacingLag, lagsShortOfSpacing, downholeLinePoints /* #1843 */ } from "../lib/variogram.js";
+  VALUE_TRANSFORMS, applyValueTransform, groupPointsByDomain, suggestLagDistance, suggestBetweenHoleLag, variogramStationarity, siteSpacingLag, lagsShortOfSpacing, downholeLinePoints /* #1843 */, DIRECTION_TABLE, directionRow, longestDirection /* #1996 */ } from "../lib/variogram.js";
 import { holeSpacingSummary } from "../lib/holeSpacing.js"; // TASKS.csv #2221
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
@@ -79,6 +79,9 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
   const domainChoice = domainChoice0 && domainFold ? { ...domainChoice0, rows: domainFold.rows } : domainChoice0;
 
   const [transform, setTransform] = useState("none");
+  const [estimator, setEstimator] = useState("matheron"); // TASKS.csv #1996
+  const lastRun = React.useRef(null); // #1996 — the last run's points and settings, for the direction table
+  const [dirTable, setDirTable] = useState(null); // { rows, done } while it fills
   const [capPercentile, setCapPercentile] = useState(98);
 
   // --- variogram parameters ---
@@ -162,7 +165,8 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
         const direction = usePlane ? { plane: { normal: usePlane.normal, halfWidth: half } } : directional
           ? { azimuth, dip, angleTol, bandwidth: bandwidth > 0 ? bandwidth : null }
           : null;
-        const vg = experimentalVariogram(tPoints, { lagDistance: lag, nLags: nLagsUsed, lagTolerance, holeMode, direction });
+        const vg = experimentalVariogram(tPoints, { lagDistance: lag, nLags: nLagsUsed, lagTolerance, holeMode, direction, estimator }); // estimator: #1996
+        lastRun.current = { points: tPoints, base: { lagDistance: lag, nLags: nLagsUsed, lagTolerance, holeMode, estimator }, model }; setDirTable(null); // #1996
         const fit = fitVariogramModel(vg.bins, { model });
         setResult({
           vg, fit, lag, suggested, capValue, domainLabel, spacing, nLagsUsed, fromSites: !!site, // #2221
@@ -263,6 +267,11 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
                 {Object.entries(VALUE_TRANSFORMS).map(([k, v]) => <option key={k} value={k}>{tr(v.label)}</option>)}
               </select>
             </label>
+            <label style={fieldLabel} title={tr("How each lag's semivariance is computed from its pairs. Matheron is the mean of half the squared differences; a few extreme pairs (a massive-sulphide composite) can dictate it. Cressie-Hawkins and Dowd are robust: they follow the bulk of the pairs.")}>{tr("Estimator")}<select value={estimator} onChange={(e) => setEstimator(e.target.value)} style={inp} aria-label={tr("Variogram estimator")}>
+                <option value="matheron">{tr("Matheron (classical)")}</option>
+                <option value="cressie">{tr("Cressie-Hawkins (robust)")}</option>
+                <option value="dowd">{tr("Dowd (median, robust)")}</option>
+              </select></label>{/* #1996 */}
             {transform === "cap" && (
               <label style={fieldLabel}>{tr("Cap percentile")}<input type="number" min="50" max="100" step="0.5" value={capPercentile} onChange={(e) => setCapPercentile(Math.min(100, Math.max(50, Number(e.target.value) || 98)))} style={inp} />
               </label>
@@ -332,6 +341,18 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
                 {tr("{nComposites} composites{v}{v2} · {nPairsUsed} pairs used · lag {lag} m{v4}{v5}{v6}", { nComposites: result.nComposites.toLocaleString(), v: result.domainLabel ? tr(" in domain \"{domainLabel}\"", { domainLabel: result.domainLabel }) : "", v2: !result.vg.subsampled ? "" : result.vg.holesTotal != null ? tr(" ({used} of {total} holes, whole holes, for the pair loop)", { used: result.vg.holesUsed.toLocaleString(), total: result.vg.holesTotal.toLocaleString() }) /* #1572 */ : result.vg.firstPairLag != null ? tr(" (subsampled to {nPoints} for the pair loop; no pairs closer than {h} m — Downhole only resolves the nugget)", { nPoints: result.vg.nPoints.toLocaleString(), h: result.vg.firstPairLag.toFixed(1) }) : tr(" (subsampled to {nPoints} for the pair loop)", { nPoints: result.vg.nPoints.toLocaleString() }), nPairsUsed: result.vg.nPairsUsed.toLocaleString(), lag: result.lag, v4: result.suggested != null ? (result.fromSites ? tr(" (suggested {suggested} m from the drill-site spacing)", { suggested: result.suggested.toFixed(1) }) : tr(" (suggested {suggested} m)", { suggested: result.suggested.toFixed(1) })) : "", v5: result.dropped ? tr(" · {dropped} composites could not be placed in 3D", { dropped: result.dropped }) : "", v6: result.capValue != null ? tr(" · capped at {capValue}", { capValue: +Number(result.capValue).toPrecision(4) /* #1420: was 2.7857037499998807 */ }) : "" })}
               </div>
 
+              {/* TASKS.csv #1996 — the direction table: 13 directions, each fitted, one per tick so the window keeps painting */}
+              {lastRun.current && holeMode !== "downhole" && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
+                {!dirTable && <button type="button" onClick={() => { const run = lastRun.current; if (!run) return; const rows = []; setDirTable({ rows, done: false }); const step = (i) => { if (lastRun.current !== run) return; if (i >= DIRECTION_TABLE.length) { setDirTable({ rows: [...rows], done: true }); return; } rows.push(directionRow(run.points, run.base, DIRECTION_TABLE[i], run.model)); setDirTable({ rows: [...rows], done: false }); setTimeout(() => step(i + 1), 0); }; setTimeout(() => step(0), 0); }} style={{ fontSize: "var(--font-size-sm)" }}>{tr("Direction table (13 directions)")}</button>}
+                {dirTable && (() => { const best = dirTable.done ? longestDirection(dirTable.rows) : null; return <>
+                  <table style={{ borderCollapse: "collapse", marginTop: 4 }}><thead><tr>{[tr("Azimuth (°)"), tr("Dip (°)"), tr("Pairs"), tr("Range (m)"), tr("Nugget / sill"), tr("Fit r²")].map((h) => <th key={h} style={{ textAlign: "start", padding: "2px 8px", fontWeight: 600 }}>{h}</th>)}</tr></thead>
+                  <tbody>{dirTable.rows.map((r) => <tr key={`${r.azimuth}_${r.dip}`} style={{ background: best && r === best ? "#eef6ee" : undefined }}><td style={{ padding: "1px 8px" }}>{r.dip === 90 ? "—" : r.azimuth}</td><td style={{ padding: "1px 8px" }}>{r.dip}</td><td style={{ padding: "1px 8px" }}>{r.nPairs.toLocaleString()}</td><td style={{ padding: "1px 8px", color: r.range != null && r.maxReliableLag > 0 && r.range > r.maxReliableLag ? "var(--color-warn-text)" : undefined }}>{r.range == null ? "—" : Math.round(r.range)}</td><td style={{ padding: "1px 8px" }}>{r.sill > 0 ? `${Math.round((100 * r.nugget) / r.sill)}%` : "—"}</td><td style={{ padding: "1px 8px" }}>{r.rSquared != null ? r.rSquared.toFixed(2) : "—"}</td></tr>)}</tbody></table>
+                  {!dirTable.done && <div>{tr("Computing {n} of {m}…", { n: dirTable.rows.length + 1, m: DIRECTION_TABLE.length })}</div>}
+                  {best && <div style={{ marginTop: 3 }}>{tr("Longest well-fitted range: azimuth {a}°, dip {d}°, {r} m (shaded; fits with r² 0.5 or more, within their reliable lags). A range in amber is past that direction's reliable lags; a weak r² is no direction at all. Read it as a guide to the anisotropy, then check that direction with its own variogram.", { a: best.azimuth, d: best.dip, r: Math.round(best.range) })}</div>}
+                  {dirTable.done && !best && <div style={{ marginTop: 3, color: "var(--color-warn-text)" }}>{tr("No direction has a fit good enough (r² 0.5 or more, within its reliable lags) to name a long axis: this variable shows no clear anisotropy at these lags.")}</div>}
+                </>; })()}
+              </div>}
+              {result.vg.estimator && result.vg.estimator !== "matheron" && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr(result.vg.estimator === "cressie" ? "Semivariances by the Cressie-Hawkins estimator: led by the bulk of the pairs, not by a few extreme ones. Compare with Matheron: a Matheron sill well above this one is a few outlier pairs." : "Semivariances by Dowd's median estimator: led by the bulk of the pairs, not by a few extreme ones. Compare with Matheron: a Matheron sill well above this one is a few outlier pairs.")}</div>}{/* #1996 */}
               {result.byDepthHoles > 0 && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr(result.byDepthHoles === 1 ? "One hole has no collar or trace: its composites are paired by their depths down the hole, which is all Downhole only needs." : "{n} holes have no collar or trace: their composites are paired by their depths down each hole, which is all Downhole only needs.", { n: result.byDepthHoles })}</div>}{/* #1843 */}
               {result.plane && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("Pairs in the plane {p}, every azimuth, within ± {w} m across it.", { p: result.plane.label, w: result.plane.half })}</div>}{/* #2424 */}
               {result.nLagsUsed !== result.nLagsTyped && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("{n} lags drawn, out to {max} m, to reach the farthest drill site ({typed} typed).", { n: result.nLagsUsed, max: Math.round(result.nLagsUsed * result.lag), typed: result.nLagsTyped })}</div>}{/* #2424: the lag count actually used (#2221) */}
