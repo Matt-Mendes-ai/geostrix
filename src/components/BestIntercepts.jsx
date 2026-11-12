@@ -26,6 +26,7 @@ import { localDate } from "../lib/localDate.js"; // TASKS.csv #2358
 import { cutoffOnElementChange } from "../lib/interceptCutoff.js"; // TASKS.csv #2513
 import { interceptTablePlan, interceptCount } from "../lib/interceptTable.js"; // TASKS.csv #2200 / #2479
 import { pagePx, pageFormatOf } from "../lib/pageFormats.js"; // TASKS.csv #2479
+import { holeTotals } from "../lib/accumulation.js"; // TASKS.csv #2419 — Total per hole
 
 const RESULT_ROW_H = 26; // TASKS.csv #222 — matches AttributeTableModal's row-windowing pattern
 
@@ -75,6 +76,7 @@ export default function BestIntercepts({ assays: assaysIn, assayElements, collar
   };
   const [maxInternalDilution, setMaxInternalDilution] = useState(2);
   const [minLength, setMinLength] = useState(0);
+  const [perHole, setPerHole] = useState(false); // TASKS.csv #2419 — the intercepts summed per hole (thickness, grade × thickness)
   const [minGradeLen, setMinGradeLen] = useState(0); // grade × length screening cutoff, e.g. "gram-metres"
   const [includeCutoff, setIncludeCutoff] = useState(""); // TASKS.csv #402 — "" = off
   // TASKS.csv #402 — metal equivalent: prices/recoveries are ENTERED, never defaulted.
@@ -348,7 +350,15 @@ export default function BestIntercepts({ assays: assaysIn, assayElements, collar
           )}
 
           {results.length > 0 && (() => { const c = interceptCount(results); return <div role="status" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{/* TASKS.csv #2200 — how many, with the filters above */}{c.n === 1 ? tr("1 intercept, in 1 hole") : c.holes === 1 ? tr("{n} intercepts, in 1 hole", { n: c.n.toLocaleString() }) : tr("{n} intercepts, in {holes} holes", { n: c.n.toLocaleString(), holes: c.holes.toLocaleString() })}</div>; })()}
-          {symbols.length === 0 ? (
+          {results.length > 0 && <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", cursor: "pointer" }} title={tr("Each hole's intercepts summed: their downhole thickness and grade × thickness over the sampled metres. Graduated on a plan and estimated in 2D: 3D Modelling › Estimation › Grade × thickness in plan.")}><input type="checkbox" checked={perHole} onChange={(e) => setPerHole(e.target.checked)} />{tr("Total per hole")}</label>}{/* #2419 */}
+          {perHole && results.length > 0 && (() => { const hs = holeTotals(results); return (
+            <div style={{ overflow: "auto", maxHeight: 380, minHeight: 120, flexShrink: 0 }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "var(--font-size-base)" }}>
+                <thead><tr style={{ position: "sticky", top: 0, background: "var(--color-bg)" }}>{[tr("Hole"), tr("Intercepts"), tr("Thickness (m)"), tr("Grade × thickness ({unit} × m)", { unit: dispUnit }), `${gradeSym} (${dispUnit})`].map((h) => <th key={h} style={th}>{h}</th>)}</tr></thead>
+                <tbody>{hs.map((h) => <tr key={h.hole_id}><td style={td}>{h.hole_id}</td><td style={td}>{h.intercepts}</td><td style={td}>{h.thicknessM.toFixed(2)}</td><td style={td}>{h.gt.toLocaleString(undefined, { maximumFractionDigits: 3 })}</td><td style={td}>{h.meanGrade == null ? "—" : h.meanGrade.toLocaleString(undefined, { maximumFractionDigits: 3 })}</td></tr>)}</tbody>
+              </table>
+            </div>); })()}
+          {perHole && results.length > 0 ? null : symbols.length === 0 ? (
             <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", padding: 8 }}>{tr("No assay elements loaded — import assays first.")}</div>
           ) : results.length === 0 ? (
             <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", padding: 8 }}>{tr("No intervals meet these criteria — try a lower cutoff or shorter minimum length.")}</div>

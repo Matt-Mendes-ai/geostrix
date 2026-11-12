@@ -34,6 +34,7 @@ import { GradeShellUnsampled } from "../../components/UnsampledChoice.jsx"; // T
 import ShellCapNote from "./ShellCapNote.jsx"; // TASKS.csv #2222 — the Estimation dialog's default cap (#1573) here too
 import { zoneAlphaPicks, customAlphaPicks } from "../../lib/alphaPicks.js"; // TASKS.csv #1686
 const ModelAreaRange = lazy(() => import("../../components/ModelAreaRange.jsx")); // TASKS.csv #2536
+const GradeThicknessModal = lazy(() => import("../../components/GradeThicknessModal.jsx")); // TASKS.csv #2419
 
 export default function ModellingPanes(props) {
   const {
@@ -272,6 +273,7 @@ export default function ModellingPanes(props) {
     }).catch(() => {});
     return () => { live = false; };
   }, [toolPane, faultCandidates, layers.structure]);
+  const [gtOpen, setGtOpen] = useState(false); // TASKS.csv #2419
   const [unitBody, setUnitBody] = useState({ iso: 0.5, largest: false, search: 0, cell: 0 }); // TASKS.csv #1340 — its own settings: a rock unit is not an alteration halo
   const sheetPositionAt = useMemo(() => positionFromTraces(tracesRef?.current || []), [tracesSeq]); // #2625: the traces change with tracesSeq (#888)
   // TASKS.csv #1574 (review #1497, Lawyers) — the alteration halo from the Alteration log OR a categorical custom layer, and only
@@ -518,6 +520,10 @@ export default function ModellingPanes(props) {
         <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("Populate a block model FROM composited assays — nearest neighbour, inverse distance, moving least squares or ordinary kriging, not a surface — a separate workflow from the implicit surface tools.")}</div>
         <button onClick={() => setGradeEstOpen(true)} disabled={!assayElements.length} style={{ ...pBtn, opacity: assayElements.length ? 1 : 0.5, marginBottom: 8 }}>
           <FileBarChart2 size={14} />{" "}{tr("Estimate grade into block model…")}</button>
+        {/* TASKS.csv #2419 — grade × thickness per hole and its plan estimate: a thin flat body, lighter than a block model */}
+        <button onClick={() => setGtOpen(true)} disabled={!assayElements.length} style={{ ...pBtn, opacity: assayElements.length ? 1 : 0.5, marginBottom: 8 }} title={tr("Per hole, thickness and grade × thickness from the intercepts; graduated on a plan, estimated in 2D and contoured at a GT cut-off you choose")}>
+          <FileBarChart2 size={14} />{" "}{tr("Grade × thickness in plan…")}</button>
+        {gtOpen && <Suspense fallback={null}><GradeThicknessModal assays={assays} assayElements={assayElements} collars={collars} survey={survey} layers={layers} onClose={() => setGtOpen(false)} /></Suspense>}
         {/* TASKS.csv #147 — deliberately sits directly under the estimation button, because it is the
             diagnostic you are supposed to run BEFORE choosing a search radius or an anisotropy ratio,
             not a separate curiosity. It does NOT feed the estimator (GeoStrix still does not krige) —
