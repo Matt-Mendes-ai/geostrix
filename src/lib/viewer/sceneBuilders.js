@@ -13,6 +13,7 @@ import { keyedCanvas } from "../rasterKey.js"; // TASKS.csv #1623
 import { contourLabelSpots, indexLevels } from "../contourLabels.js"; // TASKS.csv #1466 / #1622
 import { makeTextSprite } from "./textSprite.js"; // TASKS.csv #1466 / #1622
 import { collarGround } from "../pitShell.js"; // TASKS.csv #2447
+import { DRAW_ORDER } from "./drawOrder.js"; // TASKS.csv #2776
 
 // TASKS.csv #2447 / #2576 (reviews #2325 / #2486) — a raster drawn on the collar surface (drapeMode "collars", a project with no terrain): a
 // score map at the round level under the deepest hole (#1204) sat 43-137 m off its holes in Top view, the view being in perspective. The
@@ -137,6 +138,10 @@ export function syncRasterDrapes(group, cache, rasters, { origin, terrain, rende
       // collar picked on it took that elevation, ~1,230 m under the pads. Collar picks pass through it (ViewerModule onPickHoleClick).
       mesh.userData.flatRaster = !drapeOnTerrain;
       if (ground) { mesh.renderOrder = -1; mesh.userData.collarDrape = true; } // #2447: drawn first, under everything else
+      // TASKS.csv #2776 (Matt's #2777 decision (a); side 2's steps) — a flat raster (a scan floated a few metres above the collars, #1505 /
+      // #2294) is drawn first in the transparent pass: the collar markers (6), traces (5) and boundary lines (7) come after it at full opacity,
+      // so they show over it in plan, as the Maps plan draws them. It writes no depth, so they pass the depth test under it.
+      else if (!drapeOnTerrain) mesh.renderOrder = DRAW_ORDER.flatRaster;
       group.add(mesh);
       cache[r.id] = mesh;
     } else {
@@ -186,7 +191,7 @@ export function syncBoundaries(group, cache, boundaries, { origin, terrain }) {
     g = new THREE.Group();
     const drapeOnTerrain = b.drapeMode === "terrain" && !!terrain;
     const elevation = b.elevation ?? oz;
-    const material = new THREE.LineBasicMaterial({ color: b.color || "#e2a63c" });
+    const material = new THREE.LineBasicMaterial({ color: b.color || "#e2a63c", transparent: true }); // #2776 — opacity 1: in the pass after flat rasters
     // TASKS.csv #1466 / #1622 — a contour layer: the in-between levels drawn fainter than the index contours (lib/contourLabels.js),
     // which carry the labels. A layer of a few chosen levels (a geochemistry grid's) has every level as an index contour.
     const isContours = (b.contourLevels || []).length > 0;
@@ -211,7 +216,9 @@ export function syncBoundaries(group, cache, boundaries, { origin, terrain }) {
       // flags, i.e. every pre-#408 import) are drawn as loops.
       const isClosed = Array.isArray(b.closedFlags) ? !!b.closedFlags[pi] : true;
       const m = isContours && !index.has(Number(b.contourLevels[pi])) ? faint : material;
-      g.add(isClosed ? new THREE.LineLoop(geometry, m) : new THREE.Line(geometry, m));
+      const line = isClosed ? new THREE.LineLoop(geometry, m) : new THREE.Line(geometry, m);
+      line.renderOrder = DRAW_ORDER.lines; // #2776
+      g.add(line);
     });
     if (isContours && b.contourLabels !== false) {
       const labels = new THREE.Group();

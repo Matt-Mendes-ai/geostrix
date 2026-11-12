@@ -8,6 +8,7 @@
 // Picking: a chunk is a pick target like the Lines were; its raycast hands back a small per-hole stand-in ({ isLine, userData:
 // { holeId }, parent: the holes group, visible }) for each hit, so hover, Identify and firstVisibleLayerHit see what a hole's Line gave them.
 import * as THREE from "three";
+import { DRAW_ORDER } from "./drawOrder.js"; // TASKS.csv #2776
 
 export const TRACE_GREY = 0x445064;
 export const TRACE_OPACITY = 0.5; // a grey trace, as LineBasicMaterial({ opacity: 0.5 }) drew it
@@ -74,6 +75,7 @@ function makeChunk(holes, dashed) {
     ? new THREE.LineDashedMaterial({ vertexColors: true, dashSize: 4, gapSize: 4, transparent: true }) // #2014 — dashed, like a planned hole: this stick is an assumption
     : new THREE.LineBasicMaterial({ vertexColors: true, transparent: true });
   const lines = new THREE.LineSegments(geo, material);
+  lines.renderOrder = DRAW_ORDER.traces; // TASKS.csv #2776 — after a flat raster in the transparent pass
   const holeIds = holes.map((h) => h.holeId);
   lines.userData = { traceChunk: { holeIds, index: indexOf(holeIds), start: a.start, count: a.count, base: a.position.slice(), hidden: new Uint8Array(holes.length), proxies: new Array(holes.length) } };
   lines.raycast = raycastChunk;

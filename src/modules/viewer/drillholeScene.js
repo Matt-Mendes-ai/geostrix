@@ -3,6 +3,7 @@
 // project with no holes, the layer batches and the passes that follow a rebuild. ViewerModule's effect calls buildDrillholeScene with
 // the values and refs the body used to close over, on the same dependency list. The comments below are the effect's own.
 import * as THREE from "three";
+import { DRAW_ORDER } from "../../lib/viewer/drawOrder.js"; // TASKS.csv #2776
 import { t as tr } from "../../lib/i18n.js";
 import { LAYER_META, minMax } from "../../lib/layers.js";
 import { arrMin, arrMax } from "../../lib/arrayStats.js";
@@ -399,9 +400,10 @@ export function buildDrillholeScene(ctx) {
     // where its planned direction says, not where it was measured: drawn dashed like #2014's assumed vertical sticks, and the tip says so
     const methodAssumed = c.attrs?.["survey method"] === "assumed";
     if (rebuildHoles) { // #2176 — the holes group is kept when no hole was desurveyed again
-    if (!collarMaterialRef.current) collarMaterialRef.current = collarMarkerMaterial(new THREE.MeshBasicMaterial({ color: collarColorFor(bgColorRef.current) })); // #378; #2623
+    if (!collarMaterialRef.current) collarMaterialRef.current = collarMarkerMaterial(new THREE.MeshBasicMaterial({ color: collarColorFor(bgColorRef.current), transparent: true })); // #378; #2623; transparent (opacity 1): #2776
     const marker = new THREE.Mesh(PROTO_SPHERE_12, collarMaterialRef.current); // TASKS.csv #312 — shared prototype + scale (was SphereGeometry(3.2, 12, 12))
     marker.scale.setScalar(3.2);
+    marker.renderOrder = DRAW_ORDER.collars; // TASKS.csv #2776 — over a flat raster (its batch takes it)
     marker.position.set(pts[0].x, pts[0].y, pts[0].z);
     marker.userData = { collarMarker: true /* #2823 */, tip: `${c.hole_id}\ncollar${assumedVertical ? `\n${tr("no azimuth / dip and no survey: drawn as an ASSUMED vertical hole")}` : methodAssumed ? `\n${tr("survey method assumed: the direction below the collar was not measured (drawn dashed)")}` : ""}`, collar: c }; // collar: #1504 — Identify lists its fields; #2014; #2662
     groups.holes.add(marker); // #2319
