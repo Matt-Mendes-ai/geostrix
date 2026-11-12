@@ -21,7 +21,7 @@ import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Spac
 // as importable in the Browser tree at all — a QGIS user treats the Browser as the one place to pull
 // in ANY supported file. The routing per extension lives in ViewerModule's importBrowserFile (the
 // `onImportFile` prop), which dispatches to the handler each format already had.
-export const IMPORTABLE_EXT = [".csv", ".zip", ".shp", ".gpkg", ".tif", ".tiff", ".gxf", ".dxf", ".las", ".xlsx", ".kml", ".kmz"]; // .las: TASKS.csv #492; .xlsx / .kml / .kmz: #717
+export const IMPORTABLE_EXT = [".csv", ".zip", ".shp", ".gpkg", ".tif", ".tiff", ".gxf", ".dxf", ".las", ".xlsx", ".kml", ".kmz", ".grd"]; // .las: TASKS.csv #492; .xlsx / .kml / .kmz: #717; .grd: #2725 — importBrowserFile reads it (#1347)
 
 // TASKS.csv #282 — the table import's bounds and guard rails live in lib/useTablePull.js (#921).
 
@@ -49,7 +49,7 @@ export default function DbBrowserPanel({ onImportFile, onImportRows, onError }) 
     if (!res.ok) { onError?.(`${entry.name}: ${res.error || "could not be read."}`); return; } // #717 — was silent
     const file = res.big ? bigFileByRange(entry.path, res) : readResultToFile(res, res.name); // #346; big: #1351 — a GeoTIFF over 200 MB, read by range
     noteRecentFolder(entry.path.slice(0, Math.max(0, entry.path.length - entry.name.length - 1)) || entry.path);
-    onImportFile(file);
+    onImportFile(file, entry.path); // the path: a GOCAD Voxet's side files are read from its folder (#2725)
   }, [onImportFile, noteRecentFolder, onError]);
 
   return (

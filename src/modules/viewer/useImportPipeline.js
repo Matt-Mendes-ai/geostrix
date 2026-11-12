@@ -24,7 +24,7 @@ import { localGridAzimuthOffset } from "../../lib/localGridNorth.js"; // TASKS.c
 import { untiedNorthOf, trueToUntiedGrid } from "../../lib/localGridDatum.js"; // TASKS.csv #2661
 import { mineGridOf } from "../../lib/mineGrid.js"; // TASKS.csv #2586
 import { logChannelsFor, defaultLogBin, logChannelRows, unitFromHeader, channelNoData, noDataText } from "../../lib/downholeLogChannels.js"; // TASKS.csv #2160; no-data: #2332
-import { loadSampleFiles } from "../../lib/desktop.js";
+import { loadSampleFiles, readSiblingFiles } from "../../lib/desktop.js";
 const isXlsxName = (name) => /\.xlsx$/i.test(String(name || "")); // TASKS.csv #605 (same test as xlsx.js; the reader itself loads on demand, #552)
 import { buildLayer, sameMapLayer } from "../../lib/mapLayerBuild.js"; // TASKS.csv #609; sameMapLayer: #2019
 import { askAdoptCrs } from "../../lib/adoptCrs.js"; // TASKS.csv #607
@@ -155,7 +155,7 @@ export function useImportPipeline(ctx) {
   // DXF and simply doesn't find it, with no explanation. The dispatch below is purely that filter-list
   // gap being closed: each extension is routed to the handler that already exists for it, so a file
   // picked from the Browser behaves exactly like the same file imported from its own module's button.
-  const importBrowserFile = async (file) => {
+  const importBrowserFile = async (file, filePath) => { // filePath: the Browser panel's (#2725)
     const name = (file?.name || "").toLowerCase();
     // Drape elevation default, the rule RasterModule / GeophysicsModule use (#1505: above the collars under it, stacked over an
     // earlier raster, or at the depth the file name says). The per-raster elevation control on the Maps tab moves it after.
@@ -173,6 +173,8 @@ export function useImportPipeline(ctx) {
       return;
     }
     // TASKS.csv #1992 — a GOCAD PLine (.pl): one boundary layer per PLine object, its vertices' own elevations kept
+    // TASKS.csv #2725 — a GOCAD Voxet picked in the Browser panel: its PROP_FILE side files are read from the .vo's own folder
+    if (/\.vo$/.test(name)) { await importVoxet(file, filePath ? (h) => readSiblingFiles(filePath, h.props.map((p) => p.file)) : [file], !!filePath); return; }
     if (/\.pl$/.test(name)) {
       try {
         const { parseGocad, gocadCrsText } = await import("../../lib/gocad.js");
@@ -958,14 +960,14 @@ export function useImportPipeline(ctx) {
   // its .dbf / .prj / .cpg dropped in the SAME drop are paired with it by basename (groupShapefileParts, #600);
   // a .shp dropped alone imports coordinates only, and the notice says to bring its .dbf and .prj.
   // TASKS.csv #2632 — a GOCAD Voxet (.vo) dropped with its property side files: one block model per property it can read. -> the side files used
-  const importVoxet = async (vo, all) => {
+  const importVoxet = async (vo, allIn, fromFolder = false) => { // allIn: the dropped files, or (header) => the side files (#2725)
     const used = [];
     try {
       const vx = await import("../../lib/gocadVoxet.js"), vox = await import("../../lib/voxel.js");
       const h = vx.parseVoxetHeader(await vo.text()), n = h.n[0] * h.n[1] * h.n[2];
       // TASKS.csv #2692 — a rotated voxet is resampled onto an east / north / up lattice (each block the nearest voxet node), and says so
       const lattice = vx.isVoxetAligned(h) ? null : vx.alignedLattice(h), g = vx.voxetGrid(lattice ? lattice.header : h);
-      const made = [], missing = [], failed = [];
+      const made = [], missing = [], failed = [], all = typeof allIn === "function" ? await allIn(h) : allIn;
       let coarse = null;
       for (const prop of h.props) {
         const f = vx.findPropFile(prop, all);
@@ -987,7 +989,7 @@ export function useImportPipeline(ctx) {
       const parts = [made.length ? tr("Imported the GOCAD Voxet \"{name}\" as {n} block model(s): {list}; {nx} × {ny} × {nz} nodes, each a block of {dx} × {dy} × {dz} m centred on its node. Its coordinates are taken as the project's (GOCAD files carry no EPSG code).", { name: h.name || vo.name, n: made.length, list: made.join(", "), nx: g.nx, ny: g.ny, nz: g.nz, dx: +g.step[0].toFixed(2), dy: +g.step[1].toFixed(2), dz: +g.step[2].toFixed(2) }) : "",
         made.length && lattice ? tr("The Voxet is rotated ({deg}° from east in plan), so it was resampled onto a lattice along east, north and up of {nx} × {ny} × {nz} blocks of {dx} × {dy} × {dz} m, each taking the value of the nearest voxet node (blocks outside the voxet are left empty).", { deg: +lattice.rotationDeg.toFixed(1), nx: g.nx, ny: g.ny, nz: g.nz, dx: +lattice.step[0].toFixed(2), dy: +lattice.step[1].toFixed(2), dz: +lattice.step[2].toFixed(2) }) : "",
         coarse ? tr("Averaged {fx} × {fy} × {fz} nodes into each block to stay within the block budget.", coarse) : "",
-        missing.length ? tr("Not in the drop, so not read: {list}. Drop the .vo together with the files its PROP_FILE lines name.", { list: missing.join(", ") }) : "",
+        missing.length ? (fromFolder ? tr("Not found beside the .vo in its folder, so not read: {list}.", { list: missing.join(", ") }) : tr("Not in the drop, so not read: {list}. Drop the .vo together with the files its PROP_FILE lines name.", { list: missing.join(", ") })) : "",
         failed.length ? tr("Could not read: {list}.", { list: failed.join("; ") }) : ""].filter(Boolean).join(" ");
       setNotices((p) => [...p, made.length ? parts : errorNotice(tr("{name}: no block model made. {why}", { name: vo.name, why: parts || tr("The Voxet names no property.") }))]);
     } catch (err) { setNotices((p) => [...p, errorNotice(tr("{name}: couldn't read the GOCAD Voxet ({message}).", { name: vo.name, message: err.message }))]); }

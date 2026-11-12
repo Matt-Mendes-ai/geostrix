@@ -342,6 +342,17 @@ export function readResultToFile(res, name) {
   if (res.data) return new File([res.data], name || res.name);
   return base64ToFile(res.base64, name || res.name);
 }
+// TASKS.csv #2725 — the files named `names` (by base name) in filePath's folder, e.g. a GOCAD Voxet's PROP_FILE side files. One that
+// can't be read is left out (the caller says it was not found); one over fs-read-file's 200 MB limit comes back as a file whose read fails.
+export async function readSiblingFiles(filePath, names) {
+  const cut = Math.max(filePath.lastIndexOf("\\"), filePath.lastIndexOf("/")), dir = filePath.slice(0, cut + 1), out = [];
+  for (const n of new Set((names || []).map((x) => String(x || "").replace(/^.*[\\/]/, "")).filter(Boolean))) {
+    const r = await fsReadFile(dir + n);
+    if (r.ok && r.big) out.push({ name: n, arrayBuffer: () => Promise.reject(new Error(tr("{name} is {mb} MB, more than the Browser panel reads whole: drag the .vo and its files onto the 3D View instead.", { name: n, mb: Math.round(r.size / 1048576).toLocaleString() }))) });
+    else if (r.ok) out.push(readResultToFile(r, n));
+  }
+  return out;
+}
 
 // ---------- bundled sample data (TASKS.csv #293) ----------
 // Returns real browser File objects for a list of files inside the shipped sample_data/ folder, so
