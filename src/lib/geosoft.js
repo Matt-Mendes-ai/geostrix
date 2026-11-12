@@ -169,6 +169,13 @@ export function parseXYZ(text) {
   // landed under "Gem" / "Systems". Every "/" line is a candidate until the first data row; the header is the
   // last candidate with that row's token count (else the last candidate).
   const candidates = [];
+  // GSC geophysics review (2026-11-12) — the Geological Survey of Canada's point-data downloads (a Geosoft export of an .hxyz) open with
+  // "/" lines that only DESCRIBE the file ('/ Projection:"WGS 84"', '/ Local:"WGS 84",0,0,0,0,0,0,0'), then give the column names on a
+  // PLAIN comma line ('X,Y,PROJECT,STATION,...'), and end every data row with a comma. The last "/" line was taken as the header (columns
+  // 'Local:"WGS 84"', '0', '0', ...) and the real header became a first row of nulls. A plain line of names (three or more tokens, none a
+  // number) before the first data row is the header when that row has as many fields, or one more that is empty (the trailing comma).
+  let plainHeader = null;
+  const isNameRow = (toks) => toks.length >= 3 && toks.every((t) => t !== "" && t !== "*" && !Number.isFinite(Number(t)) && !t.includes(":"));
   for (const raw of lines) {
     const trimmed = raw.trim();
     if (!trimmed) continue;
@@ -184,8 +191,13 @@ export function parseXYZ(text) {
     if (lineMatch) { currentLine = lineMatch[1]; continue; }
     const toks = xyzTokens(trimmed); // #1351
     if (!columns) {
-      if (!candidates.length) continue; // a data-shaped row before any header was seen — can't map columns, skip
-      columns = [...candidates].reverse().find((c) => c.length === toks.length) || candidates[candidates.length - 1];
+      if (isNameRow(toks)) { plainHeader = toks; continue; } // a plain line of column names: a header candidate, never a data row
+      const n = toks.length;
+      if (plainHeader && (plainHeader.length === n || (plainHeader.length === n - 1 && toks[n - 1] === ""))) columns = plainHeader;
+      else {
+        if (!candidates.length) continue; // a data-shaped row before any header was seen — can't map columns, skip
+        columns = [...candidates].reverse().find((c) => c.length === toks.length) || candidates[candidates.length - 1];
+      }
     }
     const row = { _line: currentLine };
     for (let i = 0; i < columns.length; i++) {
