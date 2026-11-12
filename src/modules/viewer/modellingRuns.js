@@ -2224,7 +2224,10 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
     const elementUnits = Object.fromEntries((numSrc ? srcData.assayElements : assayElements).map((e) => [e.symbol, e.unit]));
     const unit = elementUnits[symbol] || "ppm";
     const unitL = gradeUnitLabel(symbol, unit); // TASKS.csv #2218 — what a person reads: 'Au > 1 g/t shell' (#1680); unit stays the stored one
-    const label = `${symbol} > ${numericCutoff} ${unitL} shell${anisotropy.enabled && trendRatioText(anisotropy.params) ? ` (trend ${trendRatioText(anisotropy.params)})` : ""}`; // #2423 — shells under different trends are told apart
+    // TASKS.csv #2551 (review #2486) — and from the checked holes only (Model area), as Estimation's names say since #2069
+    const shellArea = modelArea === "checked" ? checkedHoleCount(collars, visibleHoles) : null;
+    const shellTags = [anisotropy.enabled && trendRatioText(anisotropy.params) ? `trend ${trendRatioText(anisotropy.params)}` : "", shellArea && shellArea.checked < shellArea.all ? `${shellArea.checked} checked holes` : ""].filter(Boolean);
+    const label = `${symbol} > ${numericCutoff} ${unitL} shell${shellTags.length ? ` (${shellTags.join(", ")})` : ""}`; // #2423 — shells under different trends are told apart
     setNumericBusy(true);
     ownTask(label).set(20); // #2379
     setTimeout(async () => {

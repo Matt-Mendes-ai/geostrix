@@ -294,6 +294,13 @@ export default function ModellingPanes(props) {
   const numericSources = useMemo(() => numericSourceChoices({ layers, customLayers: customLayersAll }), [layers, customLayersAll]); // TASKS.csv #1741
   const [altSource, setAltSource] = useState({ layer: "alt", field: "", min: "" });
   const altCustomLayers = useMemo(() => customLayersAll.filter((c) => (c.rows || []).some((r) => r.value != null && r.value !== "" && !Number.isFinite(Number(r.value)))), [customLayersAll]);
+  // TASKS.csv #2540 (2) (review #2486, WA lithium) — the halo opened on an empty 'Alteration' layer: start on the first layer that has codes
+  const altEmpty = !(storeLayers.alt || []).length;
+  useEffect(() => {
+    if (altSource.layer !== "alt" || !altEmpty) return;
+    const first = (storeLayers.vein || []).length ? "vein" : (storeLayers.litho || []).length ? "litho" : (storeLayers.weath || []).length ? "weath" : altCustomLayers[0] ? `custom:${altCustomLayers[0].id}` : null;
+    if (first) setAltSource({ layer: first, field: "", min: "" });
+  }, [altEmpty, altSource.layer, storeLayers.vein, storeLayers.litho, storeLayers.weath, altCustomLayers]);
   // TASKS.csv #2050 — the Vein log too: a vein SET (stockwork) is modelled as an envelope of where it occurs, floored on its density
   const altSourceRows = useMemo(() => (altSource.layer === "alt" ? storeLayers.alt || [] : altSource.layer === "vein" ? storeLayers.vein || [] : altSource.layer === "litho" ? storeLayers.litho || [] : altSource.layer === "weath" ? storeLayers.weath || [] /* #2529 */ : altCustomLayers.find((c) => `custom:${c.id}` === altSource.layer)?.rows || []), [altSource.layer, storeLayers.alt, storeLayers.vein, storeLayers.litho, storeLayers.weath, altCustomLayers]);
   const altSourceCodes = useMemo(() => (altSource.layer === "alt" ? alt_units.filter((u) => !isNotLogged(u)) : [...new Set(altSourceRows.map((r) => String(r.value ?? "")).filter((v) => v && !isNotLogged(v)))].sort()), [altSource.layer, alt_units, altSourceRows]);
@@ -944,7 +951,7 @@ export default function ModellingPanes(props) {
               <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
                 <span style={{ flexShrink: 0 }}>{tr("Layer")}</span>
                 <select aria-label={tr("Alteration layer")} value={altSource.layer} onChange={(e) => { setAltSource({ layer: e.target.value, field: "", min: "" }); setAlterationTarget(""); }} style={{ flex: 1, minWidth: 0, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "4px 6px", color: "var(--color-text)" }}>
-                  <option value="alt">{tr("Alteration")}</option>
+                  <option value="alt">{altEmpty ? tr("Alteration (none logged)") : tr("Alteration")}</option>{/* #2540 (2) */}
                   {(storeLayers.vein || []).length > 0 && <option value="vein">{tr("Veins (a vein set as an envelope)")}</option>}{/* #2050 */}
                   {(storeLayers.litho || []).length > 0 && <option value="litho">{tr("Lithology (a code set as an envelope)")}</option>}{/* #2226 */}
                   {(storeLayers.weath || []).length > 0 && <option value="weath">{tr("Weathering (a code set as an envelope)")}</option>}{/* #2529 */}
@@ -1013,7 +1020,7 @@ export default function ModellingPanes(props) {
             title={tr("Build paired hangingwall/footwall surfaces (and a closed solid when they do not cross) from the logged vein intervals (runs in-app)")}
             aria-label={tr("Build paired hangingwall/footwall surfaces (and a closed solid when they do not cross) from the logged vein intervals (runs in-app)")}
             style={{ ...pBtn, width: "auto", minWidth: 30, marginBottom: 0, padding: "6px 9px", opacity: veinTarget && !veinBusy ? 1 : 0.5, cursor: veinTarget && !veinBusy ? "pointer" : "default" }}
-          >{veinBusy ? <span style={{ fontSize: "var(--font-size-sm)" }}>…</span> : <Layers3 size={14} />}</button>
+          >{veinBusy ? <span style={{ fontSize: "var(--font-size-sm)" }}>…</span> : <><Layers3 size={14} />{" "}{tr("Build vein")}</>}</button>{/* #2540 (1): a worded button, as every other tool */}
         </div>
         <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
           <label style={{ ...miniField }} title={tr("Grid spacing across the vein plane. 0 = auto (about 1/12 of the search radius).")}>{tr("Cell size (m)")}<input type="number" min={0} value={veinCellSize} onChange={(e) => setVeinCellSize(Math.max(0, Number(e.target.value) || 0))} style={{ ...smallSel, width: "100%" }} />
