@@ -11216,5 +11216,7 @@
   "Zoomed: the edge of the net is a dip of {d}°": "مكبَّرة: حافة الشبكة تمثّل ميلاً قدره {d}°",
   "Rescale the net so the poles fill it, with rings of equal dip: for flat-lying beds, whose poles all sit in the net's inner few degrees.": "أعد تحجيم الشبكة لتملأها الأقطاب، مع حلقات ميل متساوٍ: للطبقات شبه الأفقية التي تقع أقطابها كلها في الدرجات القليلة الوسطى من الشبكة.",
   "Zoom to the data": "تكبير إلى البيانات",
-  "{k} of them in {hh} hole(s) collared inside the map's area; {o} in holes outside it (the run uses them all).": "{k} منها في {hh} ثقب فوهته داخل منطقة الخريطة؛ و{o} في ثقوب خارجها (التشغيل يستخدمها كلها)."
+  "{k} of them in {hh} hole(s) collared inside the map's area; {o} in holes outside it (the run uses them all).": "{k} منها في {hh} ثقب فوهته داخل منطقة الخريطة؛ و{o} في ثقوب خارجها (التشغيل يستخدمها كلها).",
+  "The dip must be from 0 to 90° (typed: {v}).": "يجب أن يكون الميل بين 0 و90° (المكتوب: {v}).",
+  "The dip direction must be from 0 to 360° (typed: {v}).": "يجب أن يكون اتجاه الميل بين 0 و360° (المكتوب: {v})."
 }

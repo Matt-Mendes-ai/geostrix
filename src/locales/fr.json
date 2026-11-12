@@ -11216,5 +11216,7 @@
   "Zoomed: the edge of the net is a dip of {d}°": "Agrandi : le bord du canevas est un pendage de {d}°",
   "Rescale the net so the poles fill it, with rings of equal dip: for flat-lying beds, whose poles all sit in the net's inner few degrees.": "Remettre le canevas à l'échelle pour que les pôles le remplissent, avec des cercles d'égal pendage : pour des couches subhorizontales, dont les pôles sont tous dans les quelques degrés centraux du canevas.",
   "Zoom to the data": "Zoomer sur les données",
-  "{k} of them in {hh} hole(s) collared inside the map's area; {o} in holes outside it (the run uses them all).": "{k} d'entre eux dans {hh} sondage(s) au collet dans l'emprise de la carte ; {o} dans des sondages hors de celle-ci (le calcul les utilise tous)."
+  "{k} of them in {hh} hole(s) collared inside the map's area; {o} in holes outside it (the run uses them all).": "{k} d'entre eux dans {hh} sondage(s) au collet dans l'emprise de la carte ; {o} dans des sondages hors de celle-ci (le calcul les utilise tous).",
+  "The dip must be from 0 to 90° (typed: {v}).": "Le pendage doit être compris entre 0 et 90° (saisi : {v}).",
+  "The dip direction must be from 0 to 360° (typed: {v}).": "La direction de pendage doit être comprise entre 0 et 360° (saisi : {v})."
 }

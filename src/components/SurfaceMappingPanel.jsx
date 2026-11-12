@@ -787,6 +787,10 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
               const n = (v) => (String(v ?? "").trim() === "" ? NaN : Number(String(v).replace(",", ".")));
               // TASKS.csv #2958 — a horizontal reading (dip 0) needs no dip direction
               if (![typing.x, typing.y, typing.dip].every((v) => Number.isFinite(n(v))) || !(Number.isFinite(n(typing.dipDir)) || n(typing.dip) === 0)) { setStructMsg({ ok: false, text: tr("Type at least the easting, northing, dip and dip direction (a horizontal reading, dip 0, needs no direction).") }); return; }
+              // TASKS.csv #2974 (6) — the ranges checked here, the value named: dip 95 / dip direction 400 went to the card, whose Import then said
+              // only 'No rows had usable coordinates and dip.'
+              if (!(n(typing.dip) >= 0 && n(typing.dip) <= 90)) { setStructMsg({ ok: false, text: tr("The dip must be from 0 to 90° (typed: {v}).", { v: typing.dip }) }); return; }
+              if (Number.isFinite(n(typing.dipDir)) && !(n(typing.dipDir) >= 0 && n(typing.dipDir) <= 360)) { setStructMsg({ ok: false, text: tr("The dip direction must be from 0 to 360° (typed: {v}).", { v: typing.dipDir }) }); return; }
               const headers = ["Station", "Easting", "Northing", "Elevation", "Type", "Dip", "Dip direction", "Comments"];
               const rowObj = { Station: typing.station || "", Easting: typing.x, Northing: typing.y, Elevation: typing.z || "", Type: typing.type || "", Dip: typing.dip, "Dip direction": typing.dipDir, Comments: typing.comment || "" };
               setPendingStruct({ name: "Typed measurements", typed: true, rows: [rowObj], headers, cols: { x: "Easting", y: "Northing", z: Number.isFinite(n(typing.z)) ? "Elevation" : null, dip: "Dip", dipDir: "Dip direction", strike: null, type: "Type", station: "Station", comment: "Comments" }, sourceEpsg: project?.epsg ? String(project.epsg) : "" });

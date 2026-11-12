@@ -11216,5 +11216,7 @@
   "Zoomed: the edge of the net is a dip of {d}°": "Ampliada: el borde de la red es un buzamiento de {d}°",
   "Rescale the net so the poles fill it, with rings of equal dip: for flat-lying beds, whose poles all sit in the net's inner few degrees.": "Reescalar la red para que los polos la llenen, con anillos de igual buzamiento: para capas subhorizontales, cuyos polos quedan todos en los pocos grados centrales de la red.",
   "Zoom to the data": "Ampliar a los datos",
-  "{k} of them in {hh} hole(s) collared inside the map's area; {o} in holes outside it (the run uses them all).": "{k} de ellos en {hh} sondaje(s) con collar dentro del área del mapa; {o} en sondajes fuera de ella (la corrida los usa todos)."
+  "{k} of them in {hh} hole(s) collared inside the map's area; {o} in holes outside it (the run uses them all).": "{k} de ellos en {hh} sondaje(s) con collar dentro del área del mapa; {o} en sondajes fuera de ella (la corrida los usa todos).",
+  "The dip must be from 0 to 90° (typed: {v}).": "El buzamiento debe estar entre 0 y 90° (escrito: {v}).",
+  "The dip direction must be from 0 to 360° (typed: {v}).": "La dirección de buzamiento debe estar entre 0 y 360° (escrito: {v})."
 }
