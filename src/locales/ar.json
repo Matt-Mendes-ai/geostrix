@@ -6754,6 +6754,8 @@
   "Note (optional)": "ملاحظة (اختياري)",
   "Draw a line": "رسم خط",
   "Click the first point of the line.": "انقر على أول نقطة في الخط.",
+  "Flat at one RL instead": "مسطح عند منسوب واحد بدلًا من ذلك",
+  "No terrain: the lines are draped on the ground between the collars (a surface through the collar elevations).": "لا توجد تضاريس: تُكسى الخطوط على الأرض بين الفوهات (سطح يمر بمناسيب الفوهات).",
   "Tied to: {v}": "مرتبط بـ: {v}",
   "Snapped to {hole} at {md} m ({label}).": "تم الالتقاط إلى {hole} عند {md} م ({label}).",
   "Snapped to {hole} at {md} m.": "تم الالتقاط إلى {hole} عند {md} م.",

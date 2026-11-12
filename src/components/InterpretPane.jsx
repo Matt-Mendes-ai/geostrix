@@ -9,6 +9,8 @@ import { surveyKey } from "../lib/geophysSurveys.js";
 import { attitudeOf, attitudeAttrs, INTERPRETATION_TYPES, CONFIDENCE, NEW_LAYER, chooseLayerId, uniqueLayerName, typeLabel, isInterpretationLayer, interpretationLayer, addInterpretationLine, removeInterpretationLine, restoreInterpretationLine, lineLengthM, moveInterpretationVertex } from "../lib/interpretation.js";
 import { useInterpretVertexEdit } from "./useInterpretVertexEdit.js"; // TASKS.csv #2767
 import { terrainGroundAt } from "../lib/viewer/geomath.js";
+import { collarGround } from "../lib/pitShell.js"; // TASKS.csv #2768
+import { interpretationOnCollars } from "../lib/viewer/sceneBuilders.js";
 import { activateOnKey } from "../lib/a11y.js";
 import { pBtn, smallSel } from "../lib/sidebarStyles.js";
 import { t as tr } from "../lib/i18n.js";
@@ -71,7 +73,10 @@ export default function InterpretPane({ drawing, onStart, onUndo, onCancel, onDo
   // TASKS.csv #2767 — Edit vertices: the line's index in the current layer while its vertices are being dragged in the 3D view
   const [editIdx, setEditIdx] = useState(null);
   useEffect(() => { setEditIdx(null); }, [layerId, drawing.on]);
-  const groundAt = useMemo(() => (terrain ? (x, y) => terrainGroundAt(terrain, x, y) : null), [terrain]);
+  // TASKS.csv #2768 — with no terrain the layer is draped on the collars' ground unless it is set flat; the handles follow the same ground
+  const onCollars = interpretationOnCollars(layer || { interpretation: true }, terrain, collars);
+  const collarG = useMemo(() => (onCollars ? collarGround(collars) : null), [onCollars, collars]);
+  const groundAt = useMemo(() => (terrain ? (x, y) => terrainGroundAt(terrain, x, y) : collarG), [terrain, collarG]);
   useInterpretVertexEdit({ view, layer: editIdx != null ? layer : null, index: editIdx, groundAt, snap: { on: drawing.snap !== false, ctx: snapCtx },
     onMove: (vi, xy, tie) => { if (layer) updateMapLayer(layer.id, (l) => ({ ...moveInterpretationVertex(l, editIdx, vi, xy, tie), id: layer.id })); } });
   useEffect(() => { if (editIdx == null) return undefined; const k = (e) => { if (e.key !== "Escape" || /^(INPUT|TEXTAREA|SELECT)$/.test(e.target?.tagName || "")) return; e.stopImmediatePropagation(); setEditIdx(null); }; window.addEventListener("keydown", k, true); return () => window.removeEventListener("keydown", k, true); }, [editIdx]); // capture: Escape ends the edit, not the pane
@@ -90,8 +95,10 @@ export default function InterpretPane({ drawing, onStart, onUndo, onCancel, onDo
       <TaskPaneHeader title={tr("Interpretation lines")} helpId="interpretation-lines" icon={PenTool} tone="analyse" onClose={onClose} />
       <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
         <div style={note}>{tr("Draw faults, contacts and lineaments over the map or a survey in the 3D view (Top view works best). Each set of lines is a map layer: it drapes on the terrain, exports as Shapefile, GeoPackage, KML or DXF, and prints in the Layout legend.")}</div>
-        {plan && <div role="note" style={{ ...note, color: "var(--color-warn-text)" }}>{planElevationText(plan)}</div>}{/* #2269 */}
-        {plan && <label style={{ ...row, justifyContent: "flex-start" }} title={tr("The RL the lines of this layer are drawn at while there is no terrain to drape them on")}>{tr("Elev. (m RL)")}<input type="number" step="any" value={elev !== "" ? elev : Number.isFinite(elevNow) ? Math.round(elevNow * 100) / 100 : ""} onChange={(e) => setLayerElev(e.target.value)} aria-label={tr("Elevation of the interpretation lines (m RL)")} style={{ ...smallSel, width: 90 }} /></label>}{/* #2522 */}
+        {plan && onCollars && <div role="note" style={note}>{tr("No terrain: the lines are draped on the ground between the collars (a surface through the collar elevations).")}</div>}{/* #2768 */}
+        {plan && !terrain && layer && (collars || []).length >= 3 && <label style={{ ...row, justifyContent: "flex-start" }}><input type="checkbox" checked={layer.drapeMode === "flat"} onChange={(e) => updateMapLayer(layer.id, (l) => ({ ...l, drapeMode: e.target.checked ? "flat" : "terrain" }))} />{tr("Flat at one RL instead")}</label>}
+        {plan && !onCollars && <div role="note" style={{ ...note, color: "var(--color-warn-text)" }}>{planElevationText(plan)}</div>}{/* #2269 */}
+        {plan && !onCollars && <label style={{ ...row, justifyContent: "flex-start" }} title={tr("The RL the lines of this layer are drawn at while there is no terrain to drape them on")}>{tr("Elev. (m RL)")}<input type="number" step="any" value={elev !== "" ? elev : Number.isFinite(elevNow) ? Math.round(elevNow * 100) / 100 : ""} onChange={(e) => setLayerElev(e.target.value)} aria-label={tr("Elevation of the interpretation lines (m RL)")} style={{ ...smallSel, width: 90 }} /></label>}{/* #2522 */}
         {surveys.length > 0 && <label style={row}>{tr("Survey")}{/* TASKS.csv #2274 — no Survey row when the project has none */}
           <select value={survey} onChange={(e) => { setSurvey(e.target.value); setLayerPick(""); }} style={{ ...smallSel, maxWidth: 170 }} aria-label={tr("Survey the lines are drawn on")}>
             <option value="">{tr("(none named)")}</option>
