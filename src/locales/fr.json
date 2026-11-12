@@ -10813,5 +10813,6 @@
   "The distance must be 0 or more, or blank.": "La distance doit être de 0 ou plus, ou vide.",
   "Kept within {m} m of the block model: {n} columns of the grid beyond it were not mined.": "Gardé à moins de {m} m du modèle de blocs : {n} colonnes de la grille au-delà n'ont pas été exploitées.",
   "Kept within {m} m of the block model; the pit did not need to go beyond it.": "Gardé à moins de {m} m du modèle de blocs ; la fosse n'avait pas besoin d'aller au-delà.",
-  "Zoom the plan to \"{name}\"": "Cadrer le plan sur « {name} »"
+  "Zoom the plan to \"{name}\"": "Cadrer le plan sur « {name} »",
+  "The road reaches the ground at {rl} m and ends there; its length is counted to that point.": "La route atteint le terrain à {rl} m et s'y arrête ; sa longueur est comptée jusqu'à ce point."
 }

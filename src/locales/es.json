@@ -10813,5 +10813,6 @@
   "The distance must be 0 or more, or blank.": "La distancia debe ser 0 o más, o quedar en blanco.",
   "Kept within {m} m of the block model: {n} columns of the grid beyond it were not mined.": "Mantenido dentro de {m} m del modelo de bloques: {n} columnas de la grilla más allá no se minaron.",
   "Kept within {m} m of the block model; the pit did not need to go beyond it.": "Mantenido dentro de {m} m del modelo de bloques; el rajo no necesitó ir más allá.",
-  "Zoom the plan to \"{name}\"": "Acercar el plano a «{name}»"
+  "Zoom the plan to \"{name}\"": "Acercar el plano a «{name}»",
+  "The road reaches the ground at {rl} m and ends there; its length is counted to that point.": "El camino alcanza el terreno a {rl} m y termina allí; su largo se cuenta hasta ese punto."
 }
