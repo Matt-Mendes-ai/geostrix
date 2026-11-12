@@ -9,6 +9,12 @@
 //   same direction (neighbouring triangles facing opposite ways); selfIntersectingPairs: triangle pairs sharing no
 //   vertex whose interiors cross (an edge of one passing through the other), found with a uniform grid over the
 //   triangles' boxes. Above maxTriangles the intersection test is skipped (checked: false) - it is said, not guessed.
+// TASKS.csv #2633 (Matt 2026-11-11, from the OpenGeode-Inspector review) — four more checks, linear in the triangles, each with a count
+// and a first example: degenerateTriangles (two indices equal, or no area: they pass every edge count), isolatedVertices (positions no
+// triangle uses: they stretch a box and an export), nonManifoldVertices (a 'bow-tie': two fans of triangles meeting at one vertex - every
+// edge is in two triangles, so the edge counts say 'closed', while inside tests are ambiguous there) and coincidentVertices (a vertex at
+// the same place as an earlier one, to 1 mm as orientMesh welds: an unwelded mesh reads as open edges, and this says why). They are
+// reported, not folded into isValidSolid (its callers' wording would not say them).
 // Pure: no three.js.
 
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
@@ -44,7 +50,7 @@ export function validateSolid(positions, indices, { maxTriangles = 200000 } = {}
     else if (n > 2) nonManifoldEdges++;
     else if (fwd !== 1) windingConflicts++;
   }
-  const out = { triangles: nT, openEdges, nonManifoldEdges, windingConflicts, selfIntersectingPairs: 0, checked: nT <= maxTriangles, firstIntersection: null };
+  const out = { triangles: nT, openEdges, nonManifoldEdges, windingConflicts, selfIntersectingPairs: 0, checked: nT <= maxTriangles, firstIntersection: null, ...meshDefects(positions, indices) };
   if (!out.checked || nT < 2) return out;
   // a uniform grid over the bounding box, cell ~ mean triangle size; each triangle registered in the cells its box covers
   const P = (i) => [positions[3 * i], positions[3 * i + 1], positions[3 * i + 2]];
@@ -92,6 +98,66 @@ export function validateSolid(positions, indices, { maxTriangles = 200000 } = {}
     }
   }
   return out;
+}
+
+// #2633 — -> { degenerateTriangles, firstDegenerate, isolatedVertices, nonManifoldVertices, firstNonManifoldVertex, coincidentVertices }
+export function meshDefects(positions, indices) {
+  const nV = (positions.length / 3) | 0, nT = (indices.length / 3) | 0, X = positions;
+  // degenerate triangles, relative to the mean squared edge (no arrays per triangle: #2547's lesson)
+  let sumL2 = 0;
+  for (let t = 0; t < nT; t++) { const a = 3 * indices[3 * t], b = 3 * indices[3 * t + 1]; const dx = X[b] - X[a], dy = X[b + 1] - X[a + 1], dz = X[b + 2] - X[a + 2]; sumL2 += dx * dx + dy * dy + dz * dz; }
+  const tiny2 = (1e-12 * (nT ? sumL2 / nT : 1)) ** 2;
+  let degenerateTriangles = 0, firstDegenerate = null;
+  const deg = new Int32Array(nV + 1), used = new Uint8Array(nV);
+  for (let t = 0; t < nT; t++) {
+    const i0 = indices[3 * t], i1 = indices[3 * t + 1], i2 = indices[3 * t + 2];
+    used[i0] = used[i1] = used[i2] = 1; deg[i0]++; deg[i1]++; deg[i2]++;
+    const a = 3 * i0, b = 3 * i1, c = 3 * i2;
+    const ux = X[b] - X[a], uy = X[b + 1] - X[a + 1], uz = X[b + 2] - X[a + 2], vx = X[c] - X[a], vy = X[c + 1] - X[a + 1], vz = X[c + 2] - X[a + 2];
+    const nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
+    if (i0 === i1 || i1 === i2 || i0 === i2 || nx * nx + ny * ny + nz * nz <= tiny2) { degenerateTriangles++; if (!firstDegenerate) firstDegenerate = [X[a], X[a + 1], X[a + 2]]; }
+  }
+  let isolatedVertices = 0;
+  for (let v = 0; v < nV; v++) if (!used[v]) isolatedVertices++;
+  // vertex -> its triangles, as one flat table (CSR)
+  const start = new Int32Array(nV + 1);
+  for (let v = 0; v < nV; v++) start[v + 1] = start[v] + deg[v];
+  const fill = start.slice(0, nV), tri = new Int32Array(start[nV]);
+  for (let t = 0; t < nT; t++) for (let j = 0; j < 3; j++) { const v = indices[3 * t + j]; tri[fill[v]++] = t; }
+  // a vertex's triangles joined through the edges at it (two triangles sharing the vertex and one more): more than one group = a bow-tie
+  let nonManifoldVertices = 0, firstNonManifoldVertex = null;
+  let parent = new Int32Array(16), otherV = new Int32Array(32), otherK = new Int32Array(32);
+  const find = (k) => { while (parent[k] !== k) { parent[k] = parent[parent[k]]; k = parent[k]; } return k; };
+  for (let v = 0; v < nV; v++) {
+    const s0 = start[v], d = start[v + 1] - s0;
+    if (d < 2) continue;
+    if (parent.length < d) { parent = new Int32Array(2 * d); otherV = new Int32Array(4 * d); otherK = new Int32Array(4 * d); }
+    for (let k = 0; k < d; k++) parent[k] = k;
+    let m = 0;
+    for (let k = 0; k < d; k++) {
+      const t = tri[s0 + k];
+      for (let j = 0; j < 3; j++) {
+        const w = indices[3 * t + j];
+        if (w === v) continue;
+        let hit = -1;
+        for (let q = 0; q < m; q++) if (otherV[q] === w) { hit = q; break; } // d is small (a fan of ~6)
+        if (hit < 0) { otherV[m] = w; otherK[m] = k; m++; } else { const a = find(k), b = find(otherK[hit]); if (a !== b) parent[a] = b; }
+      }
+    }
+    let groups = 0;
+    for (let k = 0; k < d; k++) if (find(k) === k) groups++;
+    if (groups > 1) { nonManifoldVertices++; if (!firstNonManifoldVertex) firstNonManifoldVertex = [X[3 * v], X[3 * v + 1], X[3 * v + 2]]; }
+  }
+  // coincident vertices: the same place to 1 mm (orientMesh's weld), by sorting the used vertices on their millimetre coordinates
+  const Q = new Float64Array(3 * nV);
+  let nu = 0;
+  for (let v = 0; v < nV; v++) { Q[3 * v] = Math.round(X[3 * v] * 1000); Q[3 * v + 1] = Math.round(X[3 * v + 1] * 1000); Q[3 * v + 2] = Math.round(X[3 * v + 2] * 1000); if (used[v]) nu++; }
+  const ids = new Int32Array(nu);
+  for (let v = 0, k = 0; v < nV; v++) if (used[v]) ids[k++] = v;
+  ids.sort((a, b) => Q[3 * a] - Q[3 * b] || Q[3 * a + 1] - Q[3 * b + 1] || Q[3 * a + 2] - Q[3 * b + 2]);
+  let coincidentVertices = 0;
+  for (let k = 1; k < nu; k++) { const a = 3 * ids[k - 1], b = 3 * ids[k]; if (Q[a] === Q[b] && Q[a + 1] === Q[b + 1] && Q[a + 2] === Q[b + 2]) coincidentVertices++; }
+  return { degenerateTriangles, firstDegenerate, isolatedVertices, nonManifoldVertices, firstNonManifoldVertex, coincidentVertices };
 }
 
 // a valid solid: closed, manifold, consistently wound, not self-intersecting (when checked)
