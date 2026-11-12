@@ -272,3 +272,36 @@ export function reprojectTableRows(rows, { xCol, yCol, xName, yName, T, geograph
   });
   return { rows: out, bad };
 }
+
+// TASKS.csv #2130 (review #2013, Woodjam) — a table that says its own CRS: Woodjam's soil CSV has srid_source = 26910 on every row (the
+// collar importer reads it, DATA.md), but 'A file' left From blank. A srid / epsg / crs column (srid_source, epsg_code, crs_in ...; not an
+// output / target one) whose filled rows all hold the same known EPSG code. -> { epsg, col } | null
+export function sridColumnEpsg(headers, rows) {
+  const col = (headers || []).find((h) => /^(srid|epsg|crs)(_?(source|src|in|input|code|from))?$/i.test(String(h).trim()));
+  if (!col) return null;
+  let v = null;
+  for (const r of rows || []) {
+    const s = String(r?.[col] ?? "").trim().replace(/^epsg:/i, "");
+    if (!s) continue;
+    const n = Number(s);
+    if (!Number.isInteger(n) || n <= 0 || (v != null && v !== n)) return null;
+    v = n;
+  }
+  return v != null && crsName(v) ? { epsg: v, col } : null;
+}
+
+// TASKS.csv #2130 — a table's rows as GeoJSON points (RFC 7946: WGS 84 longitude / latitude, 8 decimals), every column a property.
+// T: the From CRS -> EPSG:4326 transform. Rows with no usable X / Y are left out and counted. -> { geojson (text), points, bad }
+export function rowsToGeoJSON(rows, { xCol, yCol, T, fromGeographic = false, fromUtm = false }) {
+  const num = (v) => (v === "" || v == null ? NaN : Number(v));
+  const features = [];
+  let bad = 0;
+  for (const r of rows || []) {
+    const x = num(r[xCol]), y = num(r[yCol]);
+    if (!Number.isFinite(x) || !Number.isFinite(y) || (fromGeographic && outsideDegrees(x, y)) || (fromUtm && outsideUtm(x, y))) { bad++; continue; }
+    const [lon, lat] = T(x, y);
+    if (!Number.isFinite(lon) || !Number.isFinite(lat) || outsideDegrees(lon, lat)) { bad++; continue; }
+    features.push({ type: "Feature", geometry: { type: "Point", coordinates: [+lon.toFixed(8), +lat.toFixed(8)] }, properties: { ...r } });
+  }
+  return { geojson: JSON.stringify({ type: "FeatureCollection", features }), points: features.length, bad };
+}

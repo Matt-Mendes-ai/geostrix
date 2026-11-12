@@ -24,7 +24,7 @@ import { trueNorthBearingInGridDeg } from "../lib/inversion.js";
 import { parseTableFile, toExportCsv } from "../lib/tabular.js";
 import { saveFile } from "../lib/desktop.js";
 import SourceCrsField from "../components/SourceCrsField.jsx";
-import { readShapefileLayers, reprojectShapefileZip, reportShapefileText, readGeoTiffInfo, reprojectGeoTiff, reportGeoTiffText, reprojectTableRows, degreesOutOfRange, utmOutOfRange, isUtmCrs, fileXYColumns, fromForGridPrefix } from "../lib/fileReproject.js"; // #487; degreesOutOfRange: #2461; utmOutOfRange ... fromForGridPrefix: #2588
+import { readShapefileLayers, reprojectShapefileZip, reportShapefileText, readGeoTiffInfo, reprojectGeoTiff, reportGeoTiffText, reprojectTableRows, degreesOutOfRange, utmOutOfRange, isUtmCrs, fileXYColumns, fromForGridPrefix , sridColumnEpsg, rowsToGeoJSON /* #2130 */ } from "../lib/fileReproject.js"; // #487; degreesOutOfRange: #2461; utmOutOfRange ... fromForGridPrefix: #2588
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786 — messages in the interface language
 import { collarCentreLonLat, collarSpread, formatLonLat, medianPoint, crsCandidatesAt } from "../lib/projectCrs.js"; // TASKS.csv #2291; medianPoint: #2463; crsCandidatesAt: #2465
 import { smallGridCoordinates } from "../lib/crsFromColumns.js"; // TASKS.csv #2291
@@ -141,9 +141,12 @@ export default function CartographyModule({ embedded = false, forcePane = null }
     const t = await parseTableFile(f);
     const g = fileXYColumns(t.headers); // #2588 — a map-grid pair (MGA_E / MGA_N) before a mine grid's (GBMG_East)
     setFile({ name: f.name, headers: t.headers, rows: t.rows, xCol: g.x, yCol: g.y });
-    const implied = g.geographic ? 4326 : fromForGridPrefix(g.prefix, project?.crsSet !== false ? project?.epsg : null); // #2588 — MGA_ columns on an MGA project
+    const srid = sridColumnEpsg(t.headers, t.rows); // #2130 — the table's own srid / epsg column, when every row agrees
+    const implied = srid ? srid.epsg : g.geographic ? 4326 : fromForGridPrefix(g.prefix, project?.crsSet !== false ? project?.epsg : null); // #2588 — MGA_ columns on an MGA project
     setFileFrom(implied || null);
-    setMsg({ ok: true, text: implied && !g.geographic
+    setMsg({ ok: true, text: srid
+      ? tr("\"{name}\": {rows} rows. X / Y are {x} / {y}, and From is {crs}, from its {col} column: check both, then save.", { name: f.name, rows: t.rows.length.toLocaleString(), x: g.x || "?", y: g.y || "?", crs: nameOf(srid.epsg), col: srid.col })
+      : implied && !g.geographic
       ? tr("\"{name}\": {rows} rows. X / Y are {x} / {y}, and From is the project's {crs}, as their names say: check both, then save.", { name: f.name, rows: t.rows.length.toLocaleString(), x: g.x, y: g.y, crs: nameOf(implied) })
       : tr("\"{name}\": {rows} rows. Check the X / Y columns and both CRSs, then save.", { name: f.name, rows: t.rows.length.toLocaleString() }) });
   });
@@ -165,6 +168,16 @@ export default function CartographyModule({ embedded = false, forcePane = null }
   const fromDegrees = useMemo(() => (file && !file.kind && file.xCol && file.yCol && fileFrom && isGeographicCrs(fileFrom) ? degreesOutOfRange(file.rows, file.xCol, file.yCol) : null), [file, fileFrom]);
   // TASKS.csv #2588 — and under a UTM / MGA From: eastings / northings no zone has (a local mine grid's) are not converted or stamped
   const fromUtm = useMemo(() => (file && !file.kind && file.xCol && file.yCol && fileFrom && isUtmCrs(fileFrom) ? utmOutOfRange(file.rows, file.xCol, file.yCol) : null), [file, fileFrom]);
+  // TASKS.csv #2130 — the table as GeoJSON points (WGS 84 longitude / latitude, as the format requires), for web GIS
+  const saveGeoJSON = () => run(async () => {
+    const T = pointTransform(fileFrom, 4326);
+    if (!T) throw new Error(tr("Pick both CRSs."));
+    const { geojson, points, bad } = rowsToGeoJSON(file.rows, { xCol: file.xCol, yCol: file.yCol, T, fromGeographic: isGeographicCrs(fileFrom), fromUtm: isUtmCrs(fileFrom) });
+    const base = file.name.replace(/\.[^.]+$/, "");
+    const res = await saveFile({ quiet: true, suggestedName: `${base}.geojson`, filters: [{ name: "GeoJSON", extensions: ["geojson", "json"] }], content: geojson });
+    if (!res?.ok) { if (res?.error) throw new Error(res.error); setMsg(null); return; }
+    setMsg({ ok: true, text: tr("Saved {n} points as GeoJSON in WGS 84 longitude / latitude, with every column as a property.", { n: points.toLocaleString() }) + (bad ? " " + tr("{bad} row(s) had no usable X / Y and were left out.", { bad }) : "") });
+  });
   const saveReprojected = () => run(async () => {
     const T = pointTransform(fileFrom, fileTo);
     if (!T) throw new Error(tr("Pick both CRSs."));
@@ -313,6 +326,9 @@ export default function CartographyModule({ embedded = false, forcePane = null }
                 )}
                 <button style={primary} disabled={busy || !file.xCol || !file.yCol || !fileFrom || !fileTo || (fromDegrees && fromDegrees.outside > fromDegrees.checked / 2) || (fromUtm && fromUtm.outside > fromUtm.checked / 2)} onClick={saveReprojected}>
                   {busy ? <Loader2 size={14} className="spin" /> : <FileSpreadsheet size={14} />}{" "}{tr("Save reprojected CSV…")}</button>
+                {/* TASKS.csv #2130 — GeoJSON is always WGS 84, so only From matters */}
+                <button style={{ ...primary, marginTop: 6 }} disabled={busy || !file.xCol || !file.yCol || !fileFrom || (fromDegrees && fromDegrees.outside > fromDegrees.checked / 2) || (fromUtm && fromUtm.outside > fromUtm.checked / 2)} onClick={saveGeoJSON}>
+                  {tr("Save as GeoJSON points (WGS 84)…")}</button>
               </>
             )}
           </>
