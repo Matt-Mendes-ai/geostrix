@@ -29,6 +29,7 @@ import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786 — messages in the 
 import { collarCentreLonLat, collarSpread, formatLonLat, medianPoint, crsCandidatesAt } from "../lib/projectCrs.js"; // TASKS.csv #2291; medianPoint: #2463; crsCandidatesAt: #2465
 import { smallGridCoordinates } from "../lib/crsFromColumns.js"; // TASKS.csv #2291
 import { tieOf } from "../lib/localGridTie.js"; // TASKS.csv #2587
+import { gridToCrsChoice, isMineSource, MINE_SOURCE } from "../lib/mineGrid.js"; // TASKS.csv #2812 — 'A file' from the mine grid
 const LocalGridPanel = React.lazy(() => import("../components/LocalGridPanel.jsx")); // TASKS.csv #2288 — on demand
 const MineGridPanel = React.lazy(() => import("../components/MineGridPanel.jsx")); // TASKS.csv #2586 — on demand
 
@@ -119,7 +120,10 @@ export default function CartographyModule({ embedded = false, forcePane = null }
 
   // ---- reproject a file pane ----
   const [file, setFile] = useState(null); // CSV: { name, headers, rows, xCol, yCol }; #487 shapefile: { kind: "shp", name, bytes, layers }; GeoTIFF: { kind: "tif", name, bytes, epsg, width, height, bands }
-  const [fileFrom, setFileFrom] = useState(null);
+  const [fileFrom, setFileFrom] = useState(null); // an EPSG code, or "mine" (TASKS.csv #2812)
+  // TASKS.csv #2812 — 'From' may be the project's mine grid (or its tied local grid): the file's numbers taken to 'To' through the grid's tie
+  const fileGrid = gridToCrsChoice(project, tieOf(project));
+  const fileMine = isMineSource(fileFrom) && fileGrid ? { mg: fileGrid.mg, name: fileGrid.name } : null;
   const [fileTo, setFileTo] = useState(() => (project?.crsSet !== false && project?.epsg ? project.epsg : null)); // #1630 — the project's CRS, the obvious target (was 'No CRS chosen')
   const pickFile = (f) => run(async () => {
     if (/\.zip$/i.test(f.name)) { // #487 — a zipped shapefile (one or more layers)
@@ -152,14 +156,14 @@ export default function CartographyModule({ embedded = false, forcePane = null }
       : tr("\"{name}\": {rows} rows. Check the X / Y columns and both CRSs, then save.", { name: f.name, rows: t.rows.length.toLocaleString() }) });
   });
   const saveReprojectedShp = () => run(async () => {
-    const { bytes, report } = await reprojectShapefileZip(file.bytes, fileFrom || null, fileTo);
+    const { bytes, report } = await reprojectShapefileZip(file.bytes, fileMine ? null : fileFrom || null, fileTo, { mine: fileMine }); // mine: #2812
     const base = file.name.replace(/\.[^.]+$/, "");
     const res = await saveFile({ quiet: true, suggestedName: `${base}_EPSG${fileTo}.zip`, filters: [{ name: "Shapefile (zipped)", extensions: ["zip"] }], content: bytes /* #1040 bytes */ });
     if (!res?.ok) { if (res?.error) throw new Error(res.error); setMsg(null); return; } // cancelled in the dialog
     setMsg({ ok: true, text: reportShapefileText(report, fileTo) });
   });
   const saveReprojectedTif = () => run(async () => {
-    const { bytes, report } = await reprojectGeoTiff(file.bytes, fileFrom || null, fileTo);
+    const { bytes, report } = await reprojectGeoTiff(file.bytes, fileMine ? null : fileFrom || null, fileTo, { mine: fileMine }); // mine: #2812
     const base = file.name.replace(/\.[^.]+$/, "");
     const res = await saveFile({ quiet: true, suggestedName: `${base}_EPSG${fileTo}.tif`, filters: [{ name: "GeoTIFF", extensions: ["tif", "tiff"] }], content: bytes /* #1040 bytes */ });
     if (!res?.ok) { if (res?.error) throw new Error(res.error); setMsg(null); return; } // cancelled in the dialog
@@ -281,7 +285,7 @@ export default function CartographyModule({ embedded = false, forcePane = null }
             {file?.kind === "tif" && (
               <>
                 <div style={{ marginTop: 10 }}>
-                  <SourceCrsField label={tr("From")} value={fileFrom ?? ""} onChange={(c) => setFileFrom(c === "" ? null : Number(c))}
+                  <SourceCrsField label={tr("From")} value={fileFrom ?? ""} onChange={(c) => setFileFrom(c === "" ? null : isMineSource(c) ? MINE_SOURCE : Number(c))} mineGrid={fileGrid /* #2812 */}
                     defaultText={file.epsg ? tr("The file's own tag — {v}", { v: nameOf(file.epsg) }) : tr("Choose — the file has no EPSG tag")}
                     title={tr("Leave it on the file's tag unless that is missing or wrong.")} />
                 </div>
@@ -296,7 +300,7 @@ export default function CartographyModule({ embedded = false, forcePane = null }
                   {file.layers.map((l) => <li key={l.name}>{tr("{name}: {features} {geomType} feature(s) · {v}", { name: l.name, features: l.features.length.toLocaleString(), geomType: l.geomType, v: l.epsg ? nameOf(l.epsg) : l.hasPrj ? tr(".prj not recognized") : tr("no .prj") })}</li>)}
                 </ul>
                 <div style={{ marginTop: 10 }}>
-                  <SourceCrsField label={tr("From")} value={fileFrom ?? ""} onChange={(c) => setFileFrom(c === "" ? null : Number(c))}
+                  <SourceCrsField label={tr("From")} value={fileFrom ?? ""} onChange={(c) => setFileFrom(c === "" ? null : isMineSource(c) ? MINE_SOURCE : Number(c))} mineGrid={fileGrid /* #2812 */}
                     defaultText={file.layers.every((l) => l.epsg) ? tr("Each layer's own .prj") : tr("Choose — not every layer has a recognisable .prj")}
                     title={tr("Leave it on the .prj unless that is missing or wrong.")} />
                 </div>

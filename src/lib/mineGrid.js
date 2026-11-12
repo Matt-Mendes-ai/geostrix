@@ -121,6 +121,15 @@ export function mineChoiceFromProject(s, projectEpsg) {
   if (s.kind === "local") return (x, y) => [x, y];
   return projectToMine(s.mg, projectEpsg);
 }
+// TASKS.csv #2812 — Maps > A file's 'From': a grid with a tie to a real CRS, as the mine-grid choice of SourceCrsField: a CRS project's mine
+// grid (#2586) or a tied local grid (#2288; its numbers are that grid's). null when neither (nothing to bring a file out of the grid with).
+// A file's mine-grid numbers can then be taken to any CRS ('To'): mineToProject(choice.mg, toEpsg).
+export function gridToCrsChoice(project, localTie = null) {
+  const s = mineSourceOf(project);
+  if (s?.kind === "tie") return s;
+  if (project?.crsSet === false && localTie) return { kind: "tie", name: String(project.localGrid?.name || "").trim(), epsg: null, mg: { name: String(project.localGrid?.name || "").trim(), tie: localTie } };
+  return null;
+}
 // the project CRS -> the mine grid (mineToProject's inverse)
 export function projectToMine(mg, projectEpsg) {
   const src = Number(projectEpsg), te = Number(mg.tie.epsg);

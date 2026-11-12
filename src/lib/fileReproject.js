@@ -10,6 +10,8 @@ import { demNodeBbox, epsgFromGeoKeys } from "./raster.js";
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 import { guessGeophysColumns } from "./geophysColumns.js"; // TASKS.csv #2588
 import { gridCoordinateColumns } from "./gridColumns.js"; // TASKS.csv #2588
+import { mineToProject } from "./mineGrid.js"; // TASKS.csv #2812
+import { mineReaches, mineGridToProject } from "./rasterTie.js"; // TASKS.csv #2812
 
 // zipBytes -> { layers: [{ name, epsg (from its .prj, or null), features, geomType }] }
 export async function readShapefileLayers(zipBytes) {
@@ -87,7 +89,8 @@ function shxFor(shp, shxBytes) {
 }
 
 // fromEpsg: null = each layer's own .prj. Returns { bytes (the new zip), report: [{ name, from, features, vertices, failed, unsupported }] }.
-export async function reprojectShapefileZip(zipBytes, fromEpsg, toEpsg) {
+// mine (TASKS.csv #2812): { mg, name } — the files' numbers are on that mine grid (lib/mineGrid.js), taken to toEpsg through its tie
+export async function reprojectShapefileZip(zipBytes, fromEpsg, toEpsg, { mine = null } = {}) {
   const entries = await readZipEntries(zipBytes);
   const names = Object.keys(entries);
   const bases = [...new Set(names.filter((n) => /\.shp$/i.test(n)).map((n) => n.replace(/\.shp$/i, "")))];
@@ -98,6 +101,15 @@ export async function reprojectShapefileZip(zipBytes, fromEpsg, toEpsg) {
   for (const base of bases) {
     const prj = entry(base, "prj");
     const epsg = prj ? guessEpsgFromPrjWkt(new TextDecoder().decode(prj.data)) : null;
+    if (mine) { // #2812 — the mine grid's tie, not a .prj
+      const M = mineToProject(mine.mg, toEpsg), T = (x, y) => M(x, y);
+      const r = reprojectShpBytes(entry(base, "shp").data, T);
+      files.push({ name: `${base}.shp`, data: r.shp }, { name: `${base}.shx`, data: shxFor(r.shp, entry(base, "shx")?.data) });
+      for (const ext of ["dbf", "cpg", "qml"]) { const e = entry(base, ext); if (e) files.push({ name: e.name, data: e.data }); }
+      if (wkt) files.push({ name: `${base}.prj`, data: new TextEncoder().encode(wkt) });
+      report.push({ name: base, from: null, fromName: mineGridLabel(mine), features: r.records, vertices: r.vertices, failed: r.failed, unsupported: r.unsupported, noDbf: !entry(base, "dbf") });
+      continue;
+    }
     const from = fromEpsg ? Number(fromEpsg) : epsg;
     if (!from) throw new Error(tr(prj ? "\"{base}\" has a .prj GeoStrix doesn't recognize — choose its CRS under \"From\"." : "\"{base}\" has no .prj — choose its CRS under \"From\".", { base }));
     const T = pointTransform(from, toEpsg);
@@ -113,7 +125,7 @@ export async function reprojectShapefileZip(zipBytes, fromEpsg, toEpsg) {
 }
 
 export function reportShapefileText(report, toEpsg) {
-  const lines = report.map((r) => `${r.name}: ${r.features.toLocaleString()} feature(s), ${r.vertices.toLocaleString()} vertices from ${crsName(r.from) || `EPSG:${r.from}`}`
+  const lines = report.map((r) => `${r.name}: ${r.features.toLocaleString()} feature(s), ${r.vertices.toLocaleString()} vertices from ${r.fromName || crsName(r.from) || `EPSG:${r.from}`}` // fromName: #2812
     + (r.failed ? `; ${r.failed} vertices could not be converted and were kept as they were` : "")
     + (r.unsupported ? `; ${r.unsupported} record(s) of a shape type GeoStrix doesn't know were copied unchanged` : ""));
   return tr("Saved {report} layer(s) in {v}, each with a new .prj. Only the coordinates changed: shape types, Z / M, parts and the attribute table (.dbf, field types and encoding) are as they were. {lines}.", { report: report.length, v: crsName(toEpsg) || tr("EPSG:{toEpsg}", { toEpsg }), lines: lines.join(". ") });
@@ -140,9 +152,12 @@ export async function readGeoTiffInfo(buf) {
   return { image, epsg, noData, width: image.getWidth(), height: image.getHeight(), bands: image.getSamplesPerPixel() };
 }
 
-export async function reprojectGeoTiff(buf, fromEpsg, toEpsg) {
+// mine (TASKS.csv #2812): { mg, name } — the GeoTIFF's numbers are on that mine grid: each band resampled into toEpsg through the grid's tie,
+// nearest node (lib/rasterTie.js mineGridToProject: a rotated grid turns the pixels, so no value is invented), its own tag set aside
+export async function reprojectGeoTiff(buf, fromEpsg, toEpsg, { mine = null } = {}) {
   const info = await readGeoTiffInfo(buf);
   const { image, width: w, height: h, bands: nb } = info;
+  if (mine) return mineGeoTiff(info, toEpsg, mine);
   const from = fromEpsg ? Number(fromEpsg) : info.epsg;
   if (!from) throw new Error(tr("This GeoTIFF has no EPSG code in its tags — choose its CRS under \"From\"."));
   const fromDef = getProj4DefSync(from), toDef = getProj4DefSync(toEpsg);
@@ -199,9 +214,45 @@ export async function reprojectGeoTiff(buf, fromEpsg, toEpsg) {
   return { bytes, report: { from, width: w, height: h, bands: nb, outW, outH, pixel: pw, resampling: nearest ? "nearest" : "bilinear", emptyFraction: empty / (outW * outH), geographic } };
 }
 
+const mineGridLabel = (mine) => (mine?.name ? tr("the mine grid \"{name}\"", { name: mine.name }) : tr("the mine grid")); // #2812
+async function mineGeoTiff(info, toEpsg, mine) {
+  const { image, width: w, height: h, bands: nb } = info;
+  const toDef = getProj4DefSync(toEpsg);
+  if (!toDef || !mineReaches(mine.mg, toEpsg)) throw new Error(tr("Can't take the mine grid to EPSG:{toEpsg} through its tie.", { toEpsg }));
+  if (w * h * nb > GEOTIFF_REPROJECT_MAX_SAMPLES) throw new Error(tr("This GeoTIFF is {w} × {h} × {nb} band(s) — over the {v} million-value limit for reprojecting in GeoStrix. Use QGIS / gdalwarp for a file this size.", { w: w.toLocaleString(), h: h.toLocaleString(), nb, v: (GEOTIFF_REPROJECT_MAX_SAMPLES / 1e6).toFixed(0) })); // #2812: the same limit and message
+  let nodes;
+  try { nodes = demNodeBbox(image); } catch (err) { if (err.code === "rotated") throw err; throw new Error(tr("This GeoTIFF has no georeferencing (bounding box).")); }
+  const [xmin, ymin, xmax, ymax] = nodes;
+  const src = await image.readRasters();
+  const Ctor = src[0].constructor, isFloat = Ctor === Float32Array || Ctor === Float64Array;
+  const outs = src.map((b) => {
+    const values = new Float64Array(b.length);
+    for (let i = 0; i < b.length; i++) { const v = b[i]; values[i] = info.noData !== null && v === info.noData ? NaN : v; }
+    return mineGridToProject({ nx: w, ny: h, x0: xmin, yTop: ymax, dx: (xmax - xmin) / Math.max(1, w - 1), dy: (ymax - ymin) / Math.max(1, h - 1), values }, mine.mg, toEpsg, Math.max(w, h) * 2);
+  });
+  const g0 = outs[0];
+  if (!g0 || !g0.valid) throw new Error(tr("None of the GeoTIFF lands in EPSG:{toEpsg} through the mine grid's tie.", { toEpsg }));
+  const outW = g0.nx, outH = g0.ny, fill = info.noData !== null ? info.noData : isFloat ? -9999 : 0;
+  const out = new (isFloat ? Float32Array : Ctor)(outW * outH * nb);
+  let empty = 0;
+  for (let i = 0; i < outW * outH; i++) {
+    let allNaN = true;
+    for (let b = 0; b < nb; b++) { const v = outs[b].values[i]; if (Number.isFinite(v)) { out[i * nb + b] = v; allNaN = false; } else out[i * nb + b] = fill; }
+    if (allNaN) empty++;
+  }
+  const pw = g0.dx, ph = g0.dy, bx0 = g0.x0, by1 = g0.yTop, geographic = /\+proj=longlat/.test(toDef);
+  const meta = {
+    width: outW, height: outH, ModelPixelScale: [pw, ph, 0], ModelTiepoint: [0, 0, 0, bx0 - pw / 2, by1 + ph / 2, 0], GTModelTypeGeoKey: geographic ? 2 : 1, GTRasterTypeGeoKey: 1,
+    ...(geographic ? { GeographicTypeGeoKey: Number(toEpsg) } : { ProjectedCSTypeGeoKey: Number(toEpsg) }),
+    ...(nb === 3 && !isFloat ? { PhotometricInterpretation: 2 } : {}), ...(info.noData !== null || isFloat ? { GDAL_NODATA: String(fill) } : {}),
+  };
+  const bytes = new Uint8Array(writeGeoTiff(out, meta));
+  return { bytes, report: { from: null, fromName: mineGridLabel(mine), width: w, height: h, bands: nb, outW, outH, pixel: pw, resampling: "nearest", emptyFraction: empty / (outW * outH), geographic } };
+}
+
 export function reportGeoTiffText(r, toEpsg) {
   const size = r.geographic ? `${(r.pixel * 3600).toFixed(2)} arc-second` : `${r.pixel.toFixed(2)} m`;
-  return tr("Saved a {outW} × {outH} GeoTIFF ({bands} band(s), {size} pixels, {resampling} resampling) in {v2}, from {v3} ({width} × {height}).", { outW: r.outW.toLocaleString(), outH: r.outH.toLocaleString(), bands: r.bands, size, resampling: r.resampling, v2: crsName(toEpsg) || tr("EPSG:{toEpsg}", { toEpsg }), v3: crsName(r.from) || tr("EPSG:{from}", { from: r.from }), width: r.width.toLocaleString(), height: r.height.toLocaleString() })
+  return tr("Saved a {outW} × {outH} GeoTIFF ({bands} band(s), {size} pixels, {resampling} resampling) in {v2}, from {v3} ({width} × {height}).", { outW: r.outW.toLocaleString(), outH: r.outH.toLocaleString(), bands: r.bands, size, resampling: r.resampling, v2: crsName(toEpsg) || tr("EPSG:{toEpsg}", { toEpsg }), v3: r.fromName || crsName(r.from) || tr("EPSG:{from}", { from: r.from }), /* fromName: #2812 */ width: r.width.toLocaleString(), height: r.height.toLocaleString() })
     + (r.emptyFraction > 0.001 ? tr(" {v}% of it lies outside the original footprint (the corners of the new rectangle) and is nodata.", { v: (r.emptyFraction * 100).toFixed(1) }) : "");
 }
 
