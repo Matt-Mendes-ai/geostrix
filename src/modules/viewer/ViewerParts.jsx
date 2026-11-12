@@ -49,7 +49,7 @@ export function ViewToolbar({
   useEffect(() => { if (!bufferTyped.current && spacing?.buffer && setSectionCorridor) setSectionCorridor(spacing.buffer); }, [spacing]); // the setter is stable
   return (
     <Ribbon show={show} label="3D View tools">
-      <RibbonGroup label="View">
+      <RibbonGroup label="View" advanced>{/* #1707 — Grid, Figure, Themes and 3D slice are all Advanced: no empty caption in Simple */}
         <div className="ge-ribbon-cell ge-adv">
           <HoverToolInfo title={tr("Grid")} text={tr("Toggles the ground reference grid on or off, and lets you resize it, change its division spacing/colour, or add two vertical wall grids for a full 3D reference box. Turn it off if it's cluttering a dense model or a figure you're about to snapshot.")} suppress={openPopover === "grid"}>
             <button className={`ge-ribbon-btn ${openPopover === "grid" ? "active" : ""}`} aria-expanded={openPopover === "grid"} aria-haspopup="dialog" onClick={() => toggle("grid")}><Grid3x3 size={22} strokeWidth={1.7} color={RIBBON_TONES.view} aria-hidden="true" /><span className="ge-ribbon-label">{tr("Grid")}</span></button>
