@@ -76,7 +76,12 @@ test("wiring: the build flags and sizes the markers; ViewerModule keeps the sett
   assert.match(ds, /marker\.userData = \{ collarMarker: true/);
   assert.match(ds, /holeLabelAnchorsRef\.current = labelAnchors; \/\/ #1277\n\s+collarSize\?\.apply\(groups\.holes, labelAnchors\);/);
   const v = read("../src/modules/ViewerModule.jsx");
-  assert.match(v, /const collarSize = useCollarMarkerSize\(figureOverlay\.collarSize, layerGroupsRef, holeLabelAnchorsRef\);/);
+  assert.match(v, /const collarSize = useCollarMarkerSize\(figureOverlay\.collarsOff \? "off" : figureOverlay\.collarSize, layerGroupsRef, holeLabelAnchorsRef\);/);
+  // Matt: "we also need a way to turn collars on and off" — a 'Collars' switch beside Hole labels, saved with the view, apart from the size
+  assert.match(v, /<input type="checkbox" checked=\{!figureOverlay\.collarsOff\} onChange=\{\(e\) => setFigureOverlay\(\(f\) => \(\{ \.\.\.f, collarsOff: !e\.target\.checked \}\)\)\} \/>\{tr\("Collars"\)\}<\/label>/);
+  const ctl = read("../src/modules/viewer/CollarSizeControl.jsx");
+  assert.ok(!/value="off"/.test(ctl), "the size select is Auto / Radius only");
+  for (const l of ["es", "pt", "fr", "ar"]) assert.ok(JSON.parse(read(`../src/locales/${l}.json`))["Show or hide the collar markers. The holes, their labels and picking on them stay."], l);
   assert.match(v, /collarMaterialRef, collarSize, collars,/);
   assert.match(v, /s \+= `@\$\{a\[0\]\},\$\{a\[12\]\}/); // the pick signature sees a scale change of an unbatched marker
   assert.match(read("../src/modules/viewer/ViewerParts.jsx"), /<CollarSizeControl figureOverlay=\{figureOverlay\} setFigureOverlay=\{setFigureOverlay\} \/>/);
