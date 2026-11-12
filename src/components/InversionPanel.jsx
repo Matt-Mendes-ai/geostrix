@@ -20,7 +20,7 @@ import InfoButton from "./InfoButton.jsx";
 import { activateOnKey } from "../lib/a11y.js";
 import { pythonHealth, sidecarPlanPotential, ensureSidecarUp } from "../lib/desktop.js";
 import { toLonLat } from "../lib/reproject.js";
-import { igrfField, decimalYear } from "../lib/igrf.js";
+import { igrfField, decimalYear, igrfYearRange } from "../lib/igrf.js"; // igrfYearRange: TASKS.csv #2563
 import {
   gridDeclination, terrainElevationAt, terrainPoints, thinStationIndices, medianNearestSpacing, crsProblem, formatBytes,
   fitVerdict, resultToVoxelModel, trueDeclination, remanenceText, simpegMagFloorHint, sequentialStops, divergingStops, f32ToB64, suggestThinSpacing, MAX_STATIONS,
@@ -98,6 +98,9 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
   // survey changed (from the diurnal-corrected walk mag to another line set)
   const surveySeen = useRef(activeSurvey);
   useEffect(() => { if (surveySeen.current !== activeSurvey) { surveySeen.current = activeSurvey; setConfirmed(false); } }, [activeSurvey]);
+  // TASKS.csv #2563 — a note about one survey or method ('Filled from IGRF-14 …') stayed after switching to the gravity survey
+  const noteSeen = useRef(`${activeSurvey}|${method}`);
+  useEffect(() => { const k = `${activeSurvey}|${method}`; if (noteSeen.current !== k) { noteSeen.current = k; setMsg(null); setIgrfMsg(null); } }, [activeSurvey, method]);
   // TASKS.csv #323 — drillhole logs as constraints: mag susceptibility (units stated) or SG (background stated)
   const [dh, setDh] = useKeptState(keptScope, "inversion.dh", { on: false, units: "", background: "", tolerance: "" });
   const [adv, setAdv] = useKeptState(keptScope, "inversion.adv", { open: false, maxIter: 15, lx: 1, ly: 1, lz: 1, lower: "", upper: "", supportCutoff: 0.005 });
@@ -111,6 +114,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
   const [plan, setPlan] = useState(null);
   const [planBusy, setPlanBusy] = useState(false);
   const [msg, setMsg] = useState(null);
+  const [igrfMsg, setIgrfMsg] = useState(null); // TASKS.csv #2563 — the IGRF answer beside its button, not at the foot of the pane
   const [job, setJob] = useState(null);
   // { result, prepared, verdict } — TASKS.csv #1431: kept per project, so leaving the pane (or the tab) and coming back shows the
   // fit again. The run's own scope is written even when this pane closed before the run finished; a pane open again picks it up below.
@@ -283,12 +287,14 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
 
   const computeIgrf = async () => {
     if (!rows.length) return;
-    if (crsUnset) { setMsg({ ok: false, text: tr("IGRF needs the survey's real-world location, and the project CRS isn't set: set it in the status bar first.") }); return; } // #2238
+    if (crsUnset) { setIgrfMsg({ ok: false, text: tr("IGRF needs the survey's real-world location, and the project CRS isn't set: set it in the status bar first.") }); return; } // #2238
     const d = decimalYear(field.date);
-    if (!Number.isFinite(d)) { setMsg({ ok: false, text: tr("Enter the survey date first — the field changes by tens of nT per year.") }); return; }
+    const range = igrfYearRange(); // #2563 — refused here, with the date as typed
+    if (Number.isFinite(d) && (d < range.first || d > range.last)) { setIgrfMsg({ ok: false, text: tr("IGRF-14 covers {first} to {last}; {date} is outside it.", { first: range.first, last: range.last, date: field.date }) }); return; }
+    if (!Number.isFinite(d)) { setIgrfMsg({ ok: false, text: tr("Enter the survey date first — the field changes by tens of nT per year.") }); return; }
     const cx = xs.reduce((a, b) => a + b, 0) / xs.length, cy = ys.reduce((a, b) => a + b, 0) / ys.length;
     const ll = await toLonLat(cx, cy, project.epsg);
-    if (!ll) { setMsg({ ok: false, text: tr("Can't convert EPSG:{epsg} to longitude/latitude for IGRF.", { epsg: project.epsg }) }); return; }
+    if (!ll) { setIgrfMsg({ ok: false, text: tr("Can't convert EPSG:{epsg} to longitude/latitude for IGRF.", { epsg: project.epsg }) }); return; }
     const lon = ll.lon ?? ll[0], lat = ll.lat ?? ll[1];
     const zs = rows.map((r) => r.z).filter(Number.isFinite);
     const hKm = zs.length ? zs.reduce((a, b) => a + b, 0) / zs.length / 1000 : 0;
@@ -300,8 +306,8 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
       const igrfPlane = llE && llN ? { x0: cx, y0: cy, f0: f.total, fx: (at(llE) - f.total) / 1000, fy: (at(llN) - f.total) / 1000, date: field.date } : null;
       setField((p) => ({ ...p, igrfPlane, strength: f.total.toFixed(0), inclination: f.inclination.toFixed(2), declination: f.declination.toFixed(2),
         source: `IGRF-14 for ${field.date} at ${lat.toFixed(3)}, ${lon.toFixed(3)}, ${Math.round(hKm * 1000)} m (survey centre)` }));
-      setMsg({ ok: true, text: tr("Filled from IGRF-14 for {date}: {total} nT, inclination {inclination}°, declination {declination}° (true north). Check them against your survey report — the contractor's values win.", { date: field.date, total: f.total.toFixed(0), inclination: f.inclination.toFixed(2), declination: f.declination.toFixed(2) }) });
-    } catch (e) { setMsg({ ok: false, text: e.message }); }
+      setIgrfMsg({ ok: true, text: tr("Filled from IGRF-14 for {date}: {total} nT, inclination {inclination}°, declination {declination}° (true north). Check them against your survey report — the contractor's values win.", { date: field.date, total: f.total.toFixed(0), inclination: f.inclination.toFixed(2), declination: f.declination.toFixed(2) }) });
+    } catch (e) { setIgrfMsg({ ok: false, text: e.message }); }
   };
 
   // `extra` is merged into the request BEFORE the sidecar sees it: the forward tool's plates must be part of
@@ -570,7 +576,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
                 </div>
               </>)}
               {method === "mag" && step(2, tr("Inducing field"), <>
-                <div style={row}><span style={lbl}>{tr("Survey date")}</span><input type="date" value={field.date} onChange={(e) => setField((p) => ({ ...p, date: e.target.value }))} style={{ ...numInput, flex: "none" }} /></div>
+                <div style={row}><span style={lbl}>{tr("Survey date")}</span><input type="date" value={field.date} onChange={(e) => { const date = e.target.value; setIgrfMsg(null); setField((p) => ({ ...p, date, ...(String(p.source || "").startsWith("IGRF") && !String(p.source).startsWith(`IGRF-14 for ${date} `) ? { source: "" } : {}) })); /* #2563 — an IGRF source for another date is dropped */ }} style={{ ...numInput, flex: "none" }} /></div>
                 {[["strength", tr("Strength (nT)")], ["inclination", tr("Inclination (°)")], ["declination", tr("Declination (° true)")]].map(([k, l]) => (
                   <div key={k} style={row}><span style={lbl}>{l}</span><input type="number" value={field[k]} onChange={(e) => setField((p) => ({ ...p, [k]: e.target.value, source: "entered by user" }))} style={inp} /></div>
                 ))}
@@ -578,6 +584,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
                   <Compass size={14} />{" "}{tr("Compute from IGRF-14 for the survey date")}</button>
                 {crsUnset && <div style={{ ...small, marginTop: 4, color: "var(--color-warn-text)" }}>{tr("IGRF needs the survey's real-world location, and the project CRS isn't set: set it in the status bar first.")}</div>}{/* #2238 */}
                 {field.source && <div style={{ ...small, marginTop: 4 }}>{tr("Source: {source}", { source: field.source })}</div>}
+                {igrfMsg && <div role={igrfMsg.ok ? "status" : "alert"} style={{ ...small, marginTop: 4, color: igrfMsg.ok ? "var(--color-text-secondary)" : "var(--color-danger-fg)" }}>{igrfMsg.text}</div>}{/* #2563 */}
               </>)}
               {step(method === "mag" ? 3 : 2, tr("Uncertainty & mesh"), <>
                 <div style={row} title={tr("How far you trust each reading. Too small and the model invents detail to chase noise; too large and real bodies are smoothed away. There is no default.")}><span style={lbl}>{tr("Uncertainty floor")}</span><input type="number" min={0} value={unc.floor} onChange={(e) => setUnc((p) => ({ ...p, floor: e.target.value }))} style={inp} /> {M?.unit || ""}</div>
@@ -710,7 +717,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
                 {plate.open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}{" "}{tr("Test a body (forward model)")}</div>
               {plate.open && (
                 <div style={{ paddingLeft: 4 }}>
-                  <div style={small}>{tr("A rectangular plate with a {v} contrast. Uses steps 1{v2} and the mesh settings; no uncertainty or inversion.", { v: M ? M.property : tr("property"), v2: method === "mag" ? "–2" : "" })}</div>
+                  <div style={small}>{tr("A rectangular plate with a {v} contrast. Uses steps 1{v2} and the mesh settings; no uncertainty or inversion.", { v: M ? String(M.property).replace(/^density contrast/, "density") /* #2563 — 'a density contrast (g/cc) contrast' */ : tr("property"), v2: method === "mag" ? "–2" : "" })}</div>
                   {[["cx", tr("Centre easting")], ["cy", tr("Centre northing")], ["cz", tr("Centre elevation")], ["dipDirection", tr("Dip direction (°)")], ["dip", tr("Dip (°)")], ["strikeLength", tr("Strike length (m)")], ["dipExtent", tr("Down-dip extent (m)")], ["thickness", tr("Thickness (m)")], ["contrast", M ? M.contrastLabel : tr("Contrast")]].map(([k, l]) => (
                     <div key={k} style={row}><span style={lbl}>{l}</span><input type="number" value={plate[k]} onChange={(e) => setPlate((p) => ({ ...p, [k]: e.target.value }))} style={inp} /></div>
                   ))}

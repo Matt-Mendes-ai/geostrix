@@ -10715,5 +10715,6 @@
   "{n} row(s) skipped (lines {list}): a missing or bad value.": "تم تخطي {n} صف (الأسطر {list}): قيمة مفقودة أو غير صالحة.",
   "Added {n} planned hole(s) from {f}.": "أُضيف {n} ثقب مخطط من {f}.",
   "Could not read {f}: {error}": "تعذرت قراءة {f}: {error}",
-  "Planned holes from a CSV with columns for E, N, Elev, azimuth (grid), dip and length; name, hole type, notes, target and lift / drift are read when present.": "ثقوب مخططة من ملف CSV بأعمدة E وN والمنسوب والسمت (الشبكة) والميل والطول؛ وتُقرأ الأسماء ونوع الثقب والملاحظات والهدف والرفع / الانحراف عند وجودها."
+  "Planned holes from a CSV with columns for E, N, Elev, azimuth (grid), dip and length; name, hole type, notes, target and lift / drift are read when present.": "ثقوب مخططة من ملف CSV بأعمدة E وN والمنسوب والسمت (الشبكة) والميل والطول؛ وتُقرأ الأسماء ونوع الثقب والملاحظات والهدف والرفع / الانحراف عند وجودها.",
+  "IGRF-14 covers {first} to {last}; {date} is outside it.": "يغطي IGRF-14 من {first} إلى {last}؛ و{date} خارج ذلك."
 }

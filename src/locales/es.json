@@ -10715,5 +10715,6 @@
   "{n} row(s) skipped (lines {list}): a missing or bad value.": "{n} fila(s) omitida(s) (líneas {list}): un valor faltante o inválido.",
   "Added {n} planned hole(s) from {f}.": "Se agregaron {n} sondaje(s) planificado(s) desde {f}.",
   "Could not read {f}: {error}": "No se pudo leer {f}: {error}",
-  "Planned holes from a CSV with columns for E, N, Elev, azimuth (grid), dip and length; name, hole type, notes, target and lift / drift are read when present.": "Sondajes planificados desde un CSV con columnas de E, N, Cota, azimut (cuadrícula), inclinación y largo; nombre, tipo de sondaje, notas, objetivo y elevación / deriva se leen si están."
+  "Planned holes from a CSV with columns for E, N, Elev, azimuth (grid), dip and length; name, hole type, notes, target and lift / drift are read when present.": "Sondajes planificados desde un CSV con columnas de E, N, Cota, azimut (cuadrícula), inclinación y largo; nombre, tipo de sondaje, notas, objetivo y elevación / deriva se leen si están.",
+  "IGRF-14 covers {first} to {last}; {date} is outside it.": "El IGRF-14 cubre de {first} a {last}; {date} queda fuera."
 }
