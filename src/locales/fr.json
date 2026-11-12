@@ -10486,5 +10486,9 @@
   "Drillholes: elevation of the deepest sample in each hole": "Sondages : altitude de l'échantillon le plus profond de chaque sondage",
   "The elevation of each hole's deepest sample, between the holes: high where the drilling stopped shallow. Favourable when high asks for ground not tested at depth; beyond the reach of every hole there is no value.": "L'altitude de l'échantillon le plus profond de chaque sondage, entre les sondages : haute là où le forage s'est arrêté peu profond. Favorable quand haut demande du terrain non testé en profondeur ; hors de portée de tout sondage, il n'y a pas de valeur.",
   "{p} % of this ore is in blocks above or below every sample that informs them: unsampled ground, neither barren nor ore, so the strip ratio rests on it.": "{p} % de ce minerai est dans des blocs au-dessus ou au-dessous de tous les échantillons qui les renseignent : du terrain non échantillonné, ni stérile ni minerai, donc le rapport de décapage en dépend.",
-  "Largest pit (revenue factor {rf}): {text}": "Plus grande fosse (facteur de revenu {rf}) : {text}"
+  "Largest pit (revenue factor {rf}): {text}": "Plus grande fosse (facteur de revenu {rf}) : {text}",
+  "A code's density must be above 0, or blank.": "La densité d'un code doit être supérieure à 0, ou vide.",
+  "Density by {layer}: {list}; {n} other blocks took the density above.": "Densité par {layer} : {list} ; {n} autres blocs ont pris la densité ci-dessus.",
+  "Density by {layer}: {list}.": "Densité par {layer} : {list}.",
+  "A density per code of a logged layer: each block takes the nearest logged interval within reach and that code's density, ore or waste; a block with no code, or a code with no density typed, takes the densities above.": "Une densité par code d'une couche décrite : chaque bloc prend l'intervalle décrit le plus proche à portée et la densité de ce code, minerai ou stérile ; un bloc sans code, ou un code sans densité saisie, prend les densités ci-dessus."
 }

@@ -330,7 +330,8 @@ export function benchedPit(shell, { groundAt = null, cells = [], cutoff = Infini
         const oz = Math.min(zhi, g[c], b.rl + benchH) - Math.max(zlo, z[c], b.rl);
         if (oz <= 0) continue;
         const v = ox * oy * oz * cover;
-        b.oreV += v; b.metalU += v * density * bl.value;
+        const rho = bl.density > 0 ? bl.density : density; // TASKS.csv #2647 — the block's code density
+        b.oreV += v; b.oreM = (b.oreM || 0) + v * rho; b.metalU += v * rho * bl.value;
         if (bl.beyond === "above" || bl.beyond === "below") b.beyondV = (b.beyondV || 0) + v; // #2645 — ore beyond every sample informing it (#2435)
       }
     }
@@ -339,7 +340,7 @@ export function benchedPit(shell, { groundAt = null, cells = [], cutoff = Infini
   benches.forEach((b) => {
     const oreV = Math.min(b.oreV, b.rockV), scale = b.oreV > 0 ? oreV / b.oreV : 1; // #2437 — volumes first, then each part at its density
     beyondT += (b.beyondV || 0) * scale * density; delete b.beyondV;
-    b.oreT = oreV * density; b.metalU *= scale; b.wasteT = (b.rockV - oreV) * wd; b.rockT = b.oreT + b.wasteT;
+    b.oreT = (b.oreM != null ? b.oreM : b.oreV * density) * scale /* #2647: the ore at its blocks' densities */; b.metalU *= scale; delete b.oreM; b.wasteT = (b.rockV - oreV) * wd; b.rockT = b.oreT + b.wasteT;
     b.meanGrade = b.oreT > 0 ? b.metalU / b.oreT : null; delete b.rockV; delete b.oreV;
   });
   const totals = benches.reduce((a, b) => ({ rockT: a.rockT + b.rockT, oreT: a.oreT + b.oreT, wasteT: a.wasteT + b.wasteT, metalU: a.metalU + b.metalU }), { rockT: 0, oreT: 0, wasteT: 0, metalU: 0 });

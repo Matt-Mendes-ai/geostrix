@@ -17,6 +17,8 @@ import { saveFile } from "../lib/desktop.js";
 import { pBtn, smallSel } from "../lib/sidebarStyles.js";
 import UndergroundOreNote from "./UndergroundOreNote.jsx"; // TASKS.csv #2277
 import { t as tr } from "../lib/i18n.js";
+import { modelWithCodeDensity } from "../lib/densityByCode.js"; // TASKS.csv #2647 — the shell's per-code densities
+import { densityUsedText } from "./densityUsedText.js"; // TASKS.csv #2647
 import CollarLevelsNote from "./CollarLevelsNote.jsx"; // TASKS.csv #2584 — the lowest collar used where collars stand on benches
 
 const row = { display: "flex", alignItems: "center", gap: 6, justifyContent: "space-between", marginTop: 4, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" };
@@ -32,7 +34,7 @@ let kept = null; // #1356 — the last result (with its strings, for export) out
 // surfaces: the project's generated surfaces (pit shells in, designs out); worldPositionsOf(id) -> Float64Array of E, N, Z for a
 // surface's mesh; onAdd / onToggle / onRemove as the pit pane's
 export default function PitDesignPane({ surfaces = [], worldPositionsOf, onAdd, onToggle, onRemove, onClose }) {
-  const { voxelModels = [], terrain, collars = [], project, designStrings = [] } = useStore();
+  const { voxelModels = [], terrain, collars = [], project, designStrings = [], layers, survey = [], desurveyMethod } = useStore(); // layers..desurveyMethod: #2647
   const areas = useMemo(() => designStrings.filter((s) => s.closed && s.vertices.length > 2 && !s.stopeRun /* #2601 */), [designStrings]); // #1916 — design areas
   const [areaId, setAreaId] = useState("");
   const area = areas.find((s) => s.id === areaId) || null;
@@ -89,7 +91,8 @@ export default function PitDesignPane({ surfaces = [], worldPositionsOf, onAdd, 
     setBusy(true); setMsg(null);
     const t0 = performance.now();
     try {
-      job.current = runPitDesignAsync(positions, model, opts, terrain, collars, (p) => setBusy(p && p.k ? p : true) /* #2286 */, byIn ? byModel : null); // byModel: #1917
+      const coded = modelWithCodeDensity(model, pit.params?.inputs, layers, collars, survey, desurveyMethod); // #2647 — weighed as the shell was
+      job.current = runPitDesignAsync(positions, coded.model, opts, terrain, collars, (p) => setBusy(p && p.k ? p : true) /* #2286 */, byIn ? byModel : null); // byModel: #1917
       const r = await job.current.promise;
       if (r.cancelled) { setMsg(tr("Cancelled: nothing was added.")); return; }
       if (r.failed === "area-empty") { setMsg(tr("No column of the shell lies inside \"{name}\": move or enlarge the area, or pick another.", { name: area?.name || "?" })); return; } // #1916
@@ -109,7 +112,7 @@ export default function PitDesignPane({ surfaces = [], worldPositionsOf, onAdd, 
           sectorsUsed: r.sectorsUsed || null /* #1952 */, ramp: r.ramp ? { ...r.ramp, rockT: Math.round(r.ramp.rockT) } : null /* #1948 */,
           caution: "geometric design on a conceptual shell (with the ramp and the sector slopes as entered): no dilution or scheduling; not a Mineral Reserve or Resource", generatedAt: new Date().toISOString() }, // TASKS.csv #1971: the ramp and sectors exist; the always-null metalFactor removed
       });
-      kept = { ...r, inputs, seconds, designId, pitName: pit.name, unit, shell: pit.params || {}, modelMissing: !model, areaName: area?.name || null };
+      kept = { ...r, densityUsed: coded.used ? { layer: pit.params?.inputs?.densityLayer, used: coded.used } : null /* #2647 */, inputs, seconds, designId, pitName: pit.name, unit, shell: pit.params || {}, modelMissing: !model, areaName: area?.name || null };
       setRes(kept);
     } catch (e) {
       setMsg(e.message === "no-floors" ? tr("No mined column was found under the ground: the shell may sit above the terrain loaded now.")
@@ -253,6 +256,7 @@ export default function PitDesignPane({ surfaces = [], worldPositionsOf, onAdd, 
           {res.cell > res.faceRun && <div style={warn}>{tr("The design cell ({c} m) is wider than a face ({f} m): faces and berms are not drawn at this size, and the surface is the shell stepped to bench floors.", { c: res.cell.toFixed(1), f: res.faceRun.toFixed(1) })}</div>}{/* #1899 */}
           {Number(res.shell?.gridCellM?.[0]) > Number(res.inputs?.benchH) && <div style={note}>{tr("The shell's walls are {d} m block steps, wider than a {h} m bench: the shell's waste understates what the benched walls take out.", { d: res.shell.gridCellM[0], h: res.inputs.benchH })}</div>}{/* #1899 */}
           {!res.daylights && <div style={warn}>{tr("The walls never met the ground: the design stops at the top bench.")}</div>}
+          {res.densityUsed && <div style={note}>{densityUsedText(res.densityUsed)}</div>}{/* #2647 */}
           {res.groundSource === "collars" && <><div style={note}>{tr("The ground is interpolated between the collars, not a terrain.")}</div><CollarLevelsNote collars={collars} /></>}
           {(() => { // TASKS.csv #2645 — as the Pit shell (#2435): the design's ore in blocks beyond every sample informing them
             const p = res.totals?.oreBeyondSampleShare || 0;
