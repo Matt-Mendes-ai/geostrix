@@ -14,6 +14,33 @@ export const methodGroup = (method) => SURVEY_METHODS[method]?.group || null;
 // geochemistry grid's element unit, else a terrain derivative's ("" when nothing says)
 export const rasterUnitOf = (r) => String(r?.unit || r?.geochem?.unit || r?.units /* a gridded survey's unit (#2557), #2639 */ || r?.terrainDerivative?.unit || "").trim();
 
+// TASKS.csv #2835 / #2842 (GSC geophysics review) — an IMPORTED grid (a .grd, GeoTIFF, GXF) had no method and nowhere to state one, so RTP
+// ran on an EM conductance, a TEM decay constant, an eU and a Bouguer grid without a word. The raster card now has 'This grid is' (the
+// method list above, stored as raster.surveyMethod, so the rules below apply); this guess, from the name and the typed unit, is OFFERED
+// there, never set by itself. -> a SURVEY_METHODS key or null
+const GUESS = [
+  [/(^|[^a-z])(bouguer|bou|cba|grav|gravity|freeair|faa)([^a-z]|$)/i, "grav"],
+  [/(^|[^a-z])(tau|taux?\d*)([^a-z]|$)|decay/i, "em_tau"],
+  [/(^|[^a-z])(cond|conductance|conductivity|sigma)([^a-z]|$)/i, "em_cond"],
+  [/(^|[^a-z])(eu|ura|uran|uranium)([^a-z]|$)/i, "rad_u"],
+  [/(^|[^a-z])(eth|thor|thorium)([^a-z]|$)/i, "rad_th"],
+  [/(^|[^a-z])(potassium|k_pct|kpct)([^a-z]|$)/i, "rad_k"],
+  [/(^|[^a-z])(tc|totcount|total_count|dose)([^a-z]|$)/i, "rad_tc"],
+  [/(^|[^a-z])(mag|mags|magnetic|magnetics|tmi|rmi|tfi|igrf)([^a-z]|$)/i, "mag"], // before res: "mag_res" is a residual magnetic grid (#2862)
+  [/(^|[^a-z])(chg|charg|chargeability|ip)([^a-z]|$)/i, "ip"],
+  [/(^|[^a-z])(res|resist|resistivity|rho)([^a-z]|$)/i, "res"],
+];
+const UNIT_GUESS = { mgal: "grav", "µgal": "grav", ugal: "grav", nt: "mag", cps: "rad_tc", "mv/v": "ip", ms: "em_tau", "ms/m": "em_cond", s: "em_cond" };
+export function guessRasterMethod(raster) {
+  const u = String(rasterUnitOf(raster)).trim().toLowerCase();
+  if (UNIT_GUESS[u]) return UNIT_GUESS[u];
+  const name = String(raster?.name ?? "").replace(/\.[a-z0-9]{2,5}$/i, "");
+  for (const [re, m] of GUESS) if (re.test(name)) return m;
+  return null;
+}
+// the filters that assume a magnetic or gravity field; on a grid of unknown method they wait for the method or a tick (#2835)
+export const fieldFilterNeedsMethod = (kind) => kind !== "upward" && kind !== "spectrum";
+
 const NEEDS_FIELD = new Set(["rtp", "rtpa", "rte"]);
 // why a grid filter does not apply to a raster of this method: "potential" (the filters assume a magnetic or gravity field: radiometrics,
 // EM, depths...), "magnetic" (a reduction to the pole or equator on gravity), or null

@@ -41,7 +41,7 @@ import { mineSourceOf, isMineSource } from "../lib/mineGrid.js"; // TASKS.csv #2
 import { farFromCollars, farLabel } from "../lib/landingCheck.js"; // TASKS.csv #2590
 import { projectTargetEpsg } from "../lib/projectTarget.js"; // TASKS.csv #2287 — no reprojection INTO the placeholder CRS
 import { rasterLevelM, filteredLevelM, placeEulerSolutions, filteredPlacement } from "../lib/eulerPlace.js"; // TASKS.csv #2553; filteredPlacement: #2560
-import { rasterMethodOf, filterBlockedBy, ternaryChoices } from "../lib/rasterMethod.js"; // TASKS.csv #2557
+import { rasterMethodOf, filterBlockedBy, ternaryChoices, fieldFilterNeedsMethod } from "../lib/rasterMethod.js"; // TASKS.csv #2557; fieldFilterNeedsMethod: #2835
 import { SURVEY_METHODS } from "../lib/geophysSurveys.js"; // TASKS.csv #2557 — the method's label
 import { defaultFilterKind } from "../lib/filterDefault.js"; // TASKS.csv #1863
 
@@ -97,6 +97,10 @@ export default function RasterModule({ embedded = false } = {}) {
   // any earlier points made from the same grid, so doing it twice does not double the survey.
   // TASKS.csv #373 — potential-field filters on a grid's kept values; each result is a new raster
   const [filterFor, setFilterFor] = useState(null); // raster id whose filter form is open
+  // TASKS.csv #2835 / #2842 — a grid of unknown method (an imported one, 'This grid is' not set): the field filters say what they assume and
+  // run once the method is set on the card or this is ticked (per raster, this session)
+  const [assumeField, setAssumeField] = useState({});
+  const unknownNeedsTick = (r) => !rasterMethodOf(r, geophysSurveys) && fieldFilterNeedsMethod(filt.kind) && !assumeField[r.id];
   const [filt, setFilt] = useState({ kind: "rtp", inclination: "", declination: "", height: "", amplitudeInclination: "", integrate: false, si: "1", window: "", date: "", igrfSource: null }); // amplitudeInclination, integrate: #1988; si, window: #1985; date, igrfSource: #2561
   const [filtering, setFiltering] = useState(false);
   const [spectrum, setSpectrum] = useState(null); // TASKS.csv #808 — { rasterId, spec, fit } for the open grid
@@ -122,6 +126,7 @@ export default function RasterModule({ embedded = false } = {}) {
   const placeOf = (r, kind, params = {}) => { const { drapeMode, elevation } = filteredPlacement(r, kind, params); return { drapeMode, elevation }; };
   const runFilter = async (r) => {
     if (filterBlockedBy(filt.kind, rasterMethodOf(r, geophysSurveys))) return; // #2557 — the button is disabled too
+    if (unknownNeedsTick(r)) return; // #2835 — an imported grid of unknown method: the method or the tick first
     const { applyGridFilter, FILTERS, tiltDepth, radialSpectrum, fitSpectrumDepths, worms } = await import("../lib/gridFilters.js"); // loaded on first use; worms: #1988
     const g = r.grid;
     const params = {};
@@ -673,7 +678,13 @@ export default function RasterModule({ embedded = false } = {}) {
                      worms: tr("Edges at doubling heights of upward continuation (Hornby et al. 1999): crests of the horizontal gradient at each height. Run it on gravity, or on an RTP grid with the box ticked. Takes a few seconds on a large grid."), vd1: tr("Sharpens shallow sources; also amplifies noise."), tiltdepth: tr("Depth to the top of contacts along the tilt's zero contour: 1 / its horizontal gradient (Salem et al. 2007). Run it on an RTP grid; it assumes near-vertical contacts and reads depth below the sensor."), spectrum: tr("Radially averaged power spectrum: the slope of each straight segment gives the mean depth of a group of sources (Spector & Grant 1970). Deep and shallow segments are fitted for you; the matched filter then splits the grid into those two parts."), tilt: tr("Angle between vertical and horizontal gradients (±90°); zero-crossings trace source edges whatever the depth or amplitude."), as: tr("Peaks over source edges regardless of magnetization direction — the honest choice where remanence breaks RTP."), upward: tr("Smooths out shallow sources to show the deeper / regional field; the height is metres above the grid's observation level.") }[filt.kind]}
                 </div>
                 {(() => { const m = rasterMethodOf(r, geophysSurveys), why = filterBlockedBy(filt.kind, m); /* #2557 */ return why ? <div style={{ marginTop: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.4 }}>{why === "magnetic" ? tr("\"{name}\" is {method}: a reduction to the pole or equator turns a magnetic field into a vertical one, and gravity is already vertical. Use the derivatives, continuation, worms or Euler.", { name: r.name, method: tr(SURVEY_METHODS[m].label) }) : tr("\"{name}\" is {method}: these filters assume a magnetic or gravity field (a potential field), which this grid is not.", { name: r.name, method: tr(SURVEY_METHODS[m].label) })}</div> : null; })()}
-                <button onClick={() => runFilter(r)} disabled={filtering || !!filterBlockedBy(filt.kind, rasterMethodOf(r, geophysSurveys))} style={{ marginTop: 6, width: "100%", padding: "5px 8px", border: "1px solid var(--color-selected-border)", background: "var(--color-selected-bg)", color: "var(--color-primary)", borderRadius: 5, cursor: filtering ? "default" : "pointer", fontSize: "var(--font-size-sm)" }}>
+                {!rasterMethodOf(r, geophysSurveys) && fieldFilterNeedsMethod(filt.kind) && ( /* TASKS.csv #2835 / #2842 */
+                  <div style={{ marginTop: 6, fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", lineHeight: 1.4 }}>
+                    {tr("\"{name}\" has no method set: this filter assumes a magnetic or gravity field (an RTP, a magnetic one), which an EM, radiometric or IP grid is not. Set 'This grid is' on its card, or tick to run it anyway.", { name: r.name })}
+                    <label style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 3, color: "var(--color-text-secondary)" }}><input type="checkbox" checked={!!assumeField[r.id]} onChange={(e) => setAssumeField((p) => ({ ...p, [r.id]: e.target.checked }))} />{tr("It is a magnetic or gravity field")}</label>
+                  </div>
+                )}
+                <button onClick={() => runFilter(r)} disabled={filtering || !!filterBlockedBy(filt.kind, rasterMethodOf(r, geophysSurveys)) || unknownNeedsTick(r) /* #2835 */} style={{ marginTop: 6, width: "100%", padding: "5px 8px", border: "1px solid var(--color-selected-border)", background: "var(--color-selected-bg)", color: "var(--color-primary)", borderRadius: 5, cursor: filtering ? "default" : "pointer", fontSize: "var(--font-size-sm)" }}>
                   {filtering ? tr("Filtering…") : filt.kind === "spectrum" ? tr("Compute the spectrum") : tr("Apply — adds a new raster")}
                 </button>
                 {/* TASKS.csv #808 — the spectrum, its fitted depths and the matched-filter split */}
