@@ -1089,7 +1089,10 @@ export function createModellingRuns(ctx, mcRef) {
     // worst miss): the holes are named, inside a stack too, with what splits them
     { const per = new Map(); points.forEach((p) => { if (p.hole_id != null) per.set(p.hole_id, (per.get(p.hole_id) || 0) + 1); });
       const multi = [...per].filter(([, n]) => n > 1).sort((a, b) => b[1] - a[1]);
-      if (multi.length) setNotices((p) => [...p, notice("{unitName}: {n} hole(s) give more than one top of this one surface ({list}), so it is forced through all of them. A repeated unit is several surfaces: split it with Modelling codes (Auto-number or Connect) or an intercept set.", { unitName, n: multi.length, list: multi.slice(0, 6).map(([h, k]) => `${h} ${k}`).join(", ") + (multi.length > 6 ? ", …" : "") })]); }
+      if (multi.length) setNotices((p) => [...p, notice("{unitName}: {n} hole(s) give more than one top of this one surface ({list}), so it is forced through all of them. A repeated unit is several surfaces: split it with Modelling codes (Auto-number or Connect) or an intercept set.", { unitName, n: multi.length, list: multi.slice(0, 6).map(([h, k]) => `${h} ${k}`).join(", ") + (multi.length > 6 ? ", …" : "") })]);
+      // TASKS.csv #2234 (review #2174, WA gold) — a unit repeated in most of its holes (a steep monzonite: 57 holes, 75 near-vertical pick pairs) is
+      // not a layer: one 'top of' surface folds back over itself; the closed-body and vein tools model it as a body
+      if (per.size >= 4 && multi.length / per.size >= 0.25) setNotices((p) => [...p, notice("{unitName} repeats in {p} % of the holes that log it: it behaves like a steep body or a set of sheets, not one layer. A closed body (Modelling codes › Closed body) or Veins / dykes models it as a body.", { unitName, p: Math.round((100 * multi.length) / per.size) })]); }
     // #1367 — said inside a stack too: it changes which picks the surface follows
     if (belowRoleSkipped) setNotices((p) => [...p, notice("{unitName}: {n} interval start(s) right under a fault, breccia, vein, dyke, no-recovery or casing interval were not used as tops (roles in Modelling codes).", { unitName, n: belowRoleSkipped })]);
     // #1684 — the contact under overburden is the base of overburden, an erosional surface: not this unit's top on its own

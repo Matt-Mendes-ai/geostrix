@@ -372,7 +372,7 @@ export function checkTopology(surfaces, opts = {}) {
       violations.push({
         kind: "inverted",
         surfaceId: a.id, targetId: null,
-        message: tr("\"{name}\" folds back over itself at {folded} of {sampled} sampled locations (a contact surface should have one elevation per location) — usually an interpolation artefact rather than a real overturned fold.", { name: a.name, folded: inv.folded, sampled: inv.sampled }),
+        message: tr("\"{name}\" folds back over itself at {folded} of {sampled} sampled locations (a contact surface should have one elevation per location): an interpolation artefact, a real overturned fold, or a unit that is not one layer (a steep intrusive or repeated sheets, better modelled as a closed body in Modelling codes).", { name: a.name, folded: inv.folded, sampled: inv.sampled }),
         point: null,
       });
     }
