@@ -130,7 +130,10 @@ that phrasing), that's a flag this task deserves a *real* verification pass now 
   `sample_data/wa_uranium/` (TASKS.csv #2168, WAMEX report A87304, CC BY 4.0: 430 shallow aircore / diamond holes of a Western
   Australian palaeochannel (lignite-hosted) uranium prospect with lithology, alteration, multi-element assays and a downhole gamma / eU3O8 log, loaded
   as a numeric custom layer) is built by `scripts/samples/build-wa-uranium.mjs` from the WA drillhole review's export
-  (docs/ideas/wa-drillhole-database-review.md). The 3D View's empty state offers all the samples (with `perk_rocky/`, surface mapping).
+  (docs/ideas/wa-drillhole-database-review.md). `sample_data/blake_river/` (TASKS.csv #2829, the Geological Survey of Canada's compilation "Blake River, QC — 100 m", Open Government
+  Licence - Canada: the published Bouguer gravity grid and its 7,810 stations, no drillholes, loaded as a gravity raster and a gravity
+  point survey) is built by `scripts/samples/build-blake-river.mjs` from the GSC geophysics review's downloads
+  (docs/ideas/gsc-geophysics-review.md). The 3D View's empty state offers all the samples (with `perk_rocky/`, surface mapping).
   Each has its own README explaining exactly what's real vs. synthetic — read those before
   reusing this data for anything, and don't present the synthesized parts as real to anyone.
 - `python-sidecar/` — optional local Python server for scipy-backed geoprocessing (interpolation
