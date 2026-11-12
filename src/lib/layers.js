@@ -882,7 +882,9 @@ export function num(v) {
 // incoming one wins.
 const rowTop = (r) => (Number.isFinite(r.from) ? r.from : Number.isFinite(r.depth) ? r.depth : NaN);
 const rowBottom = (r) => (Number.isFinite(r.to) ? r.to : Number.isFinite(r.depth) ? r.depth : NaN);
-export function replaceRowsByHole(prev, incoming, keepRows = null) {
+// TASKS.csv #2799 — opts.identical false: only the rows (a state setter after the notice's own call): the identical-hole check is most of the
+// cost (0.29 s of 0.35 s for 430 holes x 50 rows) and the import ran it two or three times per file
+export function replaceRowsByHole(prev, incoming, keepRows = null, { identical = true } = {}) {
   const incomingHoles = new Set(incoming.map((r) => r.hole_id));
   const inTop = new Map();
   incoming.forEach((r) => { const t = rowTop(r); if (Number.isFinite(t)) inTop.set(r.hole_id, Math.min(inTop.get(r.hole_id) ?? Infinity, t)); });
@@ -908,10 +910,29 @@ export function replaceRowsByHole(prev, incoming, keepRows = null) {
   });
   // TASKS.csv #2191 (review #2174) — a byte-identical re-import was told as 'replaced 216 holes' and 'extended 16': a hole whose rows equal the
   // ones it had (every field but the internal _ ones) is reported as identical, neither replaced nor extended
-  const sig = (r) => JSON.stringify(Object.keys(r).filter((k) => !k.startsWith("_")).sort().map((k) => [k, r[k]]));
-  const byHole = (rows) => { const m = new Map(); for (const r of rows) (m.get(r.hole_id) || m.set(r.hole_id, []).get(r.hole_id)).push(sig(r)); return m; };
-  const oldBy = byHole((prev || []).filter((r) => incomingHoles.has(r.hole_id) && !keepRows?.has(r))), newBy = byHole(incoming);
-  const identicalHoles = [...replacedHoles, ...appendedHoles].filter((h) => { const a = oldBy.get(h), b = newBy.get(h); return a && b && a.length === b.length && a.slice().sort().join("\u0001") === b.slice().sort().join("\u0001"); });
+  if (!identical) return { rows: [...kept, ...incoming], replacedHoles: [...replacedHoles], appendedHoles: [...appendedHoles], identicalHoles: [] }; // #2799
+  // #2799 — the check compares values, not strings: each hole's old and new rows (only holes with as many rows as before can be identical)
+  // sorted by depth and compared field by field; a hole with two rows at the same depth falls back to the signature compare (as before)
+  const keyCache = new Map();
+  const keysOf = (r) => { const raw = Object.keys(r), id = raw.join("\u0002"); let e = keyCache.get(id); if (!e) { const ks = raw.filter((k) => !k.startsWith("_")).sort(); e = { ks, id: ks.join("\u0002") }; keyCache.set(id, e); } return e; };
+  const sig = (r) => { const e = keysOf(r); return e.id + "\u0003" + JSON.stringify(e.ks.map((k) => r[k])); };
+  const sameVal = (x, y) => x === y || (Number.isNaN(x) && Number.isNaN(y)) || (x && y && typeof x === "object" && typeof y === "object" && JSON.stringify(x) === JSON.stringify(y));
+  const sameRow = (a, b) => { const ea = keysOf(a), eb = keysOf(b); if (ea.id !== eb.id) return false; for (const k of ea.ks) if (!sameVal(a[k], b[k])) return false; return true; };
+  const depthKey = (r) => { const t = rowTop(r), b = rowBottom(r); return [Number.isFinite(t) ? t : -Infinity, Number.isFinite(b) ? b : -Infinity]; };
+  const group = (rows, keep) => { const m = new Map(); for (const r of rows) { if (!keep.has(r.hole_id)) continue; (m.get(r.hole_id) || m.set(r.hole_id, []).get(r.hole_id)).push(r); } return m; };
+  const count = (rows) => { const m = new Map(); for (const r of rows) m.set(r.hole_id, (m.get(r.hole_id) || 0) + 1); return m; };
+  const oldRows = (prev || []).filter((r) => incomingHoles.has(r.hole_id) && !keepRows?.has(r)), oldN = count(oldRows), newN = count(incoming);
+  const maybe = new Set([...replacedHoles, ...appendedHoles].filter((h) => oldN.get(h) && oldN.get(h) === newN.get(h)));
+  const oldBy = group(oldRows, maybe), newBy = group(incoming, maybe);
+  const sorted = (rows) => { const d = rows.map((r) => [depthKey(r), r]); d.sort((p, q) => p[0][0] - q[0][0] || p[0][1] - q[0][1]); let tie = false; for (let k = 1; k < d.length; k++) if (d[k][0][0] === d[k - 1][0][0] && d[k][0][1] === d[k - 1][0][1]) { tie = true; break; } return { rows: d.map((x) => x[1]), tie }; };
+  const identicalHole = (h) => {
+    const a = sorted(oldBy.get(h) || []), b = sorted(newBy.get(h) || []);
+    if (a.rows.length !== b.rows.length || !a.rows.length) return false;
+    if (a.tie || b.tie) return a.rows.map(sig).sort().join("\u0001") === b.rows.map(sig).sort().join("\u0001");
+    for (let k = 0; k < a.rows.length; k++) if (!sameRow(a.rows[k], b.rows[k])) return false;
+    return true;
+  };
+  const identicalHoles = [...replacedHoles, ...appendedHoles].filter((h) => maybe.has(h) && identicalHole(h));
   const same = new Set(identicalHoles);
   return { rows: [...kept, ...incoming], replacedHoles: [...replacedHoles].filter((h) => !same.has(h)), appendedHoles: [...appendedHoles].filter((h) => !same.has(h)), identicalHoles };
 }
