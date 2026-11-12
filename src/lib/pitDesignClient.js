@@ -6,8 +6,8 @@ import { byColumnsOf } from "./pitShellClient.js"; // #1917
 
 export function runPitDesignAsync(shellPositions, model, opts, terrain, collars, onProgress = null, byModel = null) { // byModel: #1917
   const cells = model ? (model.cells || []).filter((c) => voxelCellSupported(model, c)) : [], n = cells.length;
-  const col = () => new Float64Array(n), columns = { x: col(), y: col(), z: col(), dx: col(), dy: col(), dz: col(), value: col(), coverage: col() };
-  cells.forEach((c, i) => { columns.x[i] = c.x; columns.y[i] = c.y; columns.z[i] = c.z; columns.dx[i] = c.dx; columns.dy[i] = c.dy; columns.dz[i] = c.dz; columns.value[i] = c.value; columns.coverage[i] = Number.isFinite(c.coverage) ? c.coverage : NaN; });
+  const col = () => new Float64Array(n), columns = { x: col(), y: col(), z: col(), dx: col(), dy: col(), dz: col(), value: col(), coverage: col(), beyond: new Uint8Array(n) /* #2645 — 1 above, 2 below every sample */ };
+  cells.forEach((c, i) => { columns.x[i] = c.x; columns.y[i] = c.y; columns.z[i] = c.z; columns.dx[i] = c.dx; columns.dy[i] = c.dy; columns.dz[i] = c.dz; columns.value[i] = c.value; columns.coverage[i] = Number.isFinite(c.coverage) ? c.coverage : NaN; columns.beyond[i] = c.beyond === "above" ? 1 : c.beyond === "below" ? 2 : 0; });
   let worker = null, settle = null;
   const promise = new Promise((resolve, reject) => {
     settle = resolve;
