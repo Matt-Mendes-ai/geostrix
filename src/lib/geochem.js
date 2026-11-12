@@ -1401,11 +1401,17 @@ export function assayExportRows(assays, assayElements) {
 // TASKS.csv #1524 — open a grade histogram on the log scale when a linear one would be one bar: positive values spanning
 // more than two decades (the plot colour ramp's own log switch, #1091), or a CV above 150 %. Lawyers' Au: CV 962 %, 0.0025-136 ppm.
 // stats: { sorted (ascending), cv (%) } as Grade stats computes them
+// TASKS.csv #2912 (review #2876, WA iron) — a wide range alone does not make a linear histogram one bar: SiO2 of an iron ore runs 0.8 to 95 %
+// with its median near 25 %, and opened on log. Past two decades the log scale is taken only when half the samples would sit in the lowest
+// tenth of a linear axis (a log-normal trace metal: its median is a few % of the way up; a percentage-scale major: a quarter or more).
 export function histogramWantsLog(stats) {
   if (!stats?.sorted?.length) return false;
-  const pos = stats.sorted.find((v) => v > 0), max = stats.sorted[stats.sorted.length - 1];
+  const sorted = stats.sorted, pos = sorted.find((v) => v > 0), min = sorted[0], max = sorted[sorted.length - 1];
   if (!(pos > 0) || !(max > pos)) return false;
-  return max / pos > 100 || (Number.isFinite(stats.cv) && stats.cv > 150);
+  if (Number.isFinite(stats.cv) && stats.cv > 150) return true;
+  if (!(max / pos > 100)) return false;
+  const n = sorted.length, median = n % 2 ? sorted[(n - 1) / 2] : (sorted[n / 2 - 1] + sorted[n / 2]) / 2;
+  return (median - min) / (max - min) < 0.1;
 }
 
 // TASKS.csv #1392 (review #1352, Silvertip) — the Alteration Box Plot and the volcanic classifiers assume a volcanic protolith; on a
