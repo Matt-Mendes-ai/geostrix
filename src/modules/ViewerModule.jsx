@@ -199,7 +199,7 @@ import { buildDrillholeScene, collarColorFor, voxelFitCorners, isIntervalRow } f
 import { viewNdc } from "../lib/viewer/clickPoint.js"; // TASKS.csv #2803
 import { hideTraceHoles } from "../lib/viewer/traceBatch.js"; // TASKS.csv #2176
 import { closedShellsOf } from "./viewer/estimationShells.js"; // TASKS.csv #2695
-import { findOnTraceWorld, findOnTrace, traceLookup, pointInDomain, SOLID_SURFACE_TYPES, surfaceMadeAt } from "../lib/viewer/modelHelpers.js"; // TASKS.csv #445 step 2; SOLID_SURFACE_TYPES: #804
+import { findOnTraceWorld, findOnTrace, traceLookup, traceOfHole /* #2931 */, pointInDomain, SOLID_SURFACE_TYPES, surfaceMadeAt } from "../lib/viewer/modelHelpers.js"; // TASKS.csv #445 step 2; SOLID_SURFACE_TYPES: #804
 import { syncRasterDrapes, syncBoundaries, syncMapLayers, syncSectionImages, syncSurfaceStructures, syncOmfObjects, syncTerrain, outcropLabelItems } from "../lib/viewer/sceneBuilders.js"; // TASKS.csv #693; outcropLabelItems: #1443
 import { syncDrawLods, dropDrawLod } from "../lib/viewer/drawLod.js"; // TASKS.csv #795
 import { useModelling } from "./viewer/useModelling.js";
@@ -3017,7 +3017,7 @@ ${describeTrend(t)}` };
     const domain = domains.find((d) => d.id === wantId);
     if (!domain) return rows;
     return rows.filter((r) => {
-      const t = traces.find((tr) => tr.hole_id === r.hole_id);
+      const t = traceOfHole(traces, r.hole_id);
       if (!t) return false;
       const p = findOnTrace(t.pts, getDepth(r));
       if (!p) return false;
@@ -3087,7 +3087,7 @@ ${describeTrend(t)}` };
   const filterRowsBySearchEllipsoid = (rows, traces, getDepth) => {
     if (!searchEllipsoid.enabled) return rows;
     const withPos = rows.map((r) => {
-      const t = traces.find((tr) => tr.hole_id === r.hole_id);
+      const t = traceOfHole(traces, r.hole_id);
       if (!t) return null;
       const p = findOnTrace(t.pts, getDepth(r));
       if (!p) return null;
@@ -3108,7 +3108,7 @@ ${describeTrend(t)}` };
   const structureRowsToOrientations = (rows, traces) => {
     const orientations = [];
     rows.forEach((s) => {
-      const t = traces.find((tr) => tr.hole_id === s.hole_id);
+      const t = traceOfHole(traces, s.hole_id);
       if (!t) return;
       const p = findOnTrace(t.pts, s.depth);
       if (!p) return;

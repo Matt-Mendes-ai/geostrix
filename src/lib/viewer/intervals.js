@@ -8,33 +8,32 @@
 // fold the surface through them (flat contact test: z range 50 m / sd 17.7 m instead of flat). Keyed by
 // hole + depth rounded to a millimetre, so float noise in from/to doesn't break the match.
 export const depthKey = (hole, d) => `${hole}|${Number(d).toFixed(3)}`;
-export function intervalEndIndex(rows) {
+// TASKS.csv #2931 (WA iron review) — the two indexes below were one Map keyed by depthKey strings: on 150,455 strand intervals building
+// them was most of Contact picks' time once the trace lookups were fixed. They are now hole -> (whole millimetres -> values), about
+// six times faster to build; read them with depthIndexAt(index, hole, depth) (the same 1 mm match, holes compared as text).
+const mmOf = (d) => Math.round(Number(d) * 1000);
+function depthIndex(rows, field) {
   const m = new Map();
-  (rows || []).forEach((r) => {
-    if (r.hole_id == null || !Number.isFinite(Number(r.to))) return;
-    const k = depthKey(r.hole_id, r.to);
-    if (!m.has(k)) m.set(k, []);
-    m.get(k).push(r.value);
-  });
+  let last, hm = null;
+  for (const r of rows || []) {
+    if (r.hole_id == null || !Number.isFinite(Number(r[field]))) continue;
+    const h = String(r.hole_id);
+    if (h !== last || !hm) { last = h; hm = m.get(h); if (!hm) m.set(h, (hm = new Map())); }
+    const k = mmOf(r[field]), v = hm.get(k);
+    if (v) v.push(r.value); else hm.set(k, [r.value]);
+  }
   return m;
 }
+export const depthIndexAt = (index, hole, d) => (hole == null ? undefined : index?.get(String(hole))?.get(mmOf(d)));
+export const intervalEndIndex = (rows) => depthIndex(rows, "to"); // #2931 — read with depthIndexAt
 // True when a row of one of `codes` ends exactly where `r` starts in the same hole, i.e. `r` continues
 // the same unit (or the same lithology group) rather than starting it.
 export function continuesUnitAbove(endIndex, r, codes) {
-  const above = endIndex.get(depthKey(r.hole_id, r.from));
+  const above = depthIndexAt(endIndex, r.hole_id, r.from);
   return !!above && above.some((v) => codes.has(v));
 }
 // TASKS.csv #569 — rows indexed by START depth (hole|from), the mirror of intervalEndIndex, for up-holes below.
-export function intervalStartIndex(rows) {
-  const m = new Map();
-  (rows || []).forEach((r) => {
-    if (r.hole_id == null || !Number.isFinite(Number(r.from))) return;
-    const k = depthKey(r.hole_id, r.from);
-    if (!m.has(k)) m.set(k, []);
-    m.get(k).push(r.value);
-  });
-  return m;
-}
+export const intervalStartIndex = (rows) => depthIndex(rows, "from"); // #2931
 // TASKS.csv #569 — where a logged interval's UPPER contact is. Picking used to take `from` (the shallower end
 // along the hole) as the unit's top, which is right for a down-hole but, in a hole drilled UPWARD (common
 // underground), `from` is the stratigraphically LOWER end: every pick was the unit's base fed in as its top.
@@ -46,7 +45,7 @@ export function upperContactOf(r, zAt, { startIndex, endIndex, codes }) {
   const zf = zAt ? zAt(Number(r.from)) : NaN, zt = zAt ? zAt(Number(r.to)) : NaN;
   const upHole = Number.isFinite(zf) && Number.isFinite(zt) && zt > zf + 1e-6;
   if (!upHole) return { md: Number(r.from), upHole: false, continues: continuesUnitAbove(endIndex, r, codes) };
-  const next = startIndex.get(depthKey(r.hole_id, r.to));
+  const next = depthIndexAt(startIndex, r.hole_id, r.to);
   return { md: Number(r.to), upHole: true, continues: !!next && next.some((v) => codes.has(v)) };
 }
 // TASKS.csv #354 — back-to-back rows of one code in one hole (a vein logged as 12.0-12.4 + 12.4-13.1)

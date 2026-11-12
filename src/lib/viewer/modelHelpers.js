@@ -56,6 +56,24 @@ export function traceLookup(pts) {
   return { at, between };
 }
 
+// TASKS.csv #2931 (WA iron review) — Contact picks froze 9-12.6 s on 6,390 holes: every one of 150,455 intervals looked its hole up
+// with traces.find (half of 6,390 traces each, ~480 M comparisons) and then scanned the trace from its collar three times.
+// traceOfHole: the first trace of a hole, from a Map built once per trace list (a rebuild makes a new list, drillholeScene.js).
+// traceAtOf: traceLookup(pts).at, built once per trace (the same answer as findOnTrace, by binary search).
+const traceMaps = new WeakMap(), lookups = new WeakMap();
+export function traceOfHole(traces, holeId) {
+  if (!traces) return undefined;
+  let m = traceMaps.get(traces);
+  if (!m) { m = new Map(); for (const t of traces) if (t && !m.has(t.hole_id)) m.set(t.hole_id, t); traceMaps.set(traces, m); }
+  return m.get(holeId);
+}
+export function traceAtOf(pts) {
+  if (!pts) return () => null;
+  let l = lookups.get(pts);
+  if (!l) lookups.set(pts, (l = traceLookup(pts)));
+  return l.at;
+}
+
 export function findOnTrace(pts, md) {
   if (!pts.length) return null;
   for (let i = 0; i < pts.length - 1; i++) {
