@@ -6474,8 +6474,8 @@
   "Not covered: {v} in 1 zone.": "Non couvert : {v} en 1 zone.",
   "Not covered: {v} in {n} zones.": "Non couvert : {v} en {n} zones.",
   "Every part of the unit is within the distance of a hole.": "Toute l'unité est à la distance d'un sondage.",
-  "1 smaller gap ({v}) left out.": "1 lacune plus petite ({v}) laissée de côté.",
-  "{n} smaller gaps ({v}) left out.": "{n} lacunes plus petites ({v}) laissées de côté.",
+  "1 gap under {m} ({v}) left out.": "1 lacune de moins de {m} ({v}) laissée de côté.",
+  "{n} gaps under {m} ({v}) left out.": "{n} lacunes de moins de {m} ({v}) laissées de côté.",
   "{i}. {v} around E {x}, N {y}, elevation {z}": "{i}. {v} autour de E {x}, N {y}, altitude {z}",
   "… and {n} more.": "… et {n} de plus.",
   "{drilled} drilled holes; {b} m blocks, measured from each block's centre to the hole traces in 3D.": "{drilled} sondages forés ; blocs de {b} m, mesurés du centre de chaque bloc aux tracés des sondages en 3D.",
@@ -10477,5 +10477,7 @@
   "Density of the known occurrences (quartic kernel)": "Densité des occurrences connues (noyau quartique)",
   "1 collar has another collar within {plan} m in plan that is more than {rl} m lower (a pit or benches?): the ground between the collars uses the lower collar there and leaves this one out. A check by those two distances, not a survey: on a steep hillside it lowers real ground too. Load a terrain for the real surface.": "1 collet a un autre collet à moins de {plan} m en plan qui est plus de {rl} m plus bas (une fosse ou des gradins ?) : le terrain entre les collets prend là le collet le plus bas et laisse celui-ci de côté. Une vérification par ces deux distances, pas un levé : sur un versant raide, elle abaisse aussi le vrai terrain. Chargez un terrain pour la vraie surface.",
   "{n} collars have another collar within {plan} m in plan that is more than {rl} m lower (a pit or benches?): the ground between the collars uses the lowest collar there and leaves these {n} out. A check by those two distances, not a survey: on a steep hillside it lowers real ground too. Load a terrain for the real surface.": "{n} collets ont un autre collet à moins de {plan} m en plan qui est plus de {rl} m plus bas (une fosse ou des gradins ?) : le terrain entre les collets prend là le collet le plus bas et laisse ces {n} de côté. Une vérification par ces deux distances, pas un levé : sur un versant raide, elle abaisse aussi le vrai terrain. Chargez un terrain pour la vraie surface.",
-  "Unit of the cut-off": "Unité de la teneur de coupure"
+  "Unit of the cut-off": "Unité de la teneur de coupure",
+  "{n} blocks: {v}": "{n} blocs : {v}",
+  "Blank: gaps under {n} blocks are left out (a gap of a block or two is the grid, not a target).": "Vide : les lacunes de moins de {n} blocs sont laissées de côté (une lacune d'un ou deux blocs, c'est la grille, pas une cible)."
 }

@@ -6474,8 +6474,8 @@
   "Not covered: {v} in 1 zone.": "غير مغطى: {v} في منطقة واحدة.",
   "Not covered: {v} in {n} zones.": "غير مغطى: {v} في {n} مناطق.",
   "Every part of the unit is within the distance of a hole.": "كل أجزاء الوحدة ضمن المسافة من ثقب.",
-  "1 smaller gap ({v}) left out.": "استُبعدت فجوة أصغر واحدة ({v}).",
-  "{n} smaller gaps ({v}) left out.": "استُبعدت {n} فجوات أصغر ({v}).",
+  "1 gap under {m} ({v}) left out.": "استُبعدت فجوة واحدة أصغر من {m} ({v}).",
+  "{n} gaps under {m} ({v}) left out.": "استُبعدت {n} فجوات أصغر من {m} ({v}).",
   "{i}. {v} around E {x}, N {y}, elevation {z}": "{i}. {v} حول E {x}، N {y}، الارتفاع {z}",
   "… and {n} more.": "… و{n} أخرى.",
   "{drilled} drilled holes; {b} m blocks, measured from each block's centre to the hole traces in 3D.": "{drilled} ثقوب محفورة؛ كتل {b} م، مقيسة من مركز كل كتلة إلى مسارات الثقوب ثلاثيًا.",
@@ -10477,5 +10477,7 @@
   "Density of the known occurrences (quartic kernel)": "كثافة مواقع التواجد المعروفة (نواة رباعية)",
   "1 collar has another collar within {plan} m in plan that is more than {rl} m lower (a pit or benches?): the ground between the collars uses the lower collar there and leaves this one out. A check by those two distances, not a survey: on a steep hillside it lowers real ground too. Load a terrain for the real surface.": "لفوهة واحدة فوهة أخرى على بعد أقل من {plan} م في المسقط وأدنى منها بأكثر من {rl} م (حفرة أو مصاطب؟): يستخدم السطح بين الفوهات هناك الفوهة الأدنى ويستبعد هذه. هذا فحص بهاتين المسافتين، وليس مسحًا: على منحدر شديد يخفض الأرض الحقيقية أيضًا. حمّل تضاريس للسطح الحقيقي.",
   "{n} collars have another collar within {plan} m in plan that is more than {rl} m lower (a pit or benches?): the ground between the collars uses the lowest collar there and leaves these {n} out. A check by those two distances, not a survey: on a steep hillside it lowers real ground too. Load a terrain for the real surface.": "{n} فوهات لكل منها فوهة أخرى على بعد أقل من {plan} م في المسقط وأدنى منها بأكثر من {rl} م (حفرة أو مصاطب؟): يستخدم السطح بين الفوهات هناك الفوهة الأدنى ويستبعد هذه الـ {n}. هذا فحص بهاتين المسافتين، وليس مسحًا: على منحدر شديد يخفض الأرض الحقيقية أيضًا. حمّل تضاريس للسطح الحقيقي.",
-  "Unit of the cut-off": "وحدة حد القطع"
+  "Unit of the cut-off": "وحدة حد القطع",
+  "{n} blocks: {v}": "{n} كتل: {v}",
+  "Blank: gaps under {n} blocks are left out (a gap of a block or two is the grid, not a target).": "فارغ: تُستبعد الفجوات الأصغر من {n} كتل (فجوة من كتلة أو اثنتين هي الشبكة، لا هدف)."
 }
