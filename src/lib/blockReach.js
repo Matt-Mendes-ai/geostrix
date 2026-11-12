@@ -138,6 +138,30 @@ export function simplifyTrace(t, tol) {
   return t.filter((_, i) => keep[i]);
 }
 
+// TASKS.csv #2694 (split from #2636) — the estimator's own reach count from its composites, as segments: each hole's composites in depth
+// order joined while they are contiguous (the next starts within half a composite of the last one's end), so a sample gap is not
+// bridged, then simplified to within `tol`. The caller widens the radius by `tol`: the capsules hold every composite's sphere, so no block
+// a composite reaches is left out, and the count stays at or under the dialog's (from the traces). points: [{ x, y, z, hole_id, from, to }]
+export function compositesToSegments(points, tol = 0) {
+  const byHole = new Map(), loose = [];
+  for (const p of points || []) {
+    if (![p.x, p.y, p.z].every(Number.isFinite)) continue;
+    if (p.hole_id == null || !Number.isFinite(Number(p.from)) || !Number.isFinite(Number(p.to))) { loose.push(p); continue; }
+    (byHole.get(p.hole_id) || byHole.set(p.hole_id, []).get(p.hole_id)).push(p);
+  }
+  const runs = [];
+  for (const list of byHole.values()) {
+    list.sort((a, b) => Number(a.from) - Number(b.from));
+    let run = [list[0]];
+    for (let i = 1; i < list.length; i++) {
+      const prev = list[i - 1], cur = list[i], len = Math.max(Number(prev.to) - Number(prev.from), Number(cur.to) - Number(cur.from), 0);
+      if (Number(cur.from) - Number(prev.to) <= 0.5 * len + 1e-6) run.push(cur); else { runs.push(run); run = [cur]; }
+    }
+    runs.push(run);
+  }
+  return [...tracesToSegments(runs, tol), ...loose.map((a) => [a.x, a.y, a.z, a.x, a.y, a.z])];
+}
+
 export function tracesToSegments(traces, tol = 0) {
   const out = [];
   for (const t0 of traces || []) {

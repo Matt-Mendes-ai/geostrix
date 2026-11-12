@@ -15,6 +15,7 @@ import { resolvedSegments } from "../lib/geochem.js";
 import { excludeQAQC } from "../lib/qaqc.js";
 import { sampledByHole, sampledMetres } from "../lib/insideSampling.js"; // TASKS.csv #2626
 import { pointFromInputs } from "../lib/pointInput.js"; // TASKS.csv #1743
+import { buildVoxelLookup, sampleModelOnHoles, holesInBlockModel } from "../lib/voxelSample.js"; // TASKS.csv #2727
 
 // TASKS.csv #146 — DISTANCE-TO-SURFACE / POINT-IN-DOMAIN QUERY AND REPORTING.
 //
@@ -64,7 +65,18 @@ export default function SurfaceQueryModal({ surfaces = [], traces = [], sceneToW
 
   const surface = surfaces.find((s) => s.id === surfaceId) || surfaces[0] || null;
   // TASKS.csv #2626 — a grade shell's own element (its stored params): the metres inside it, sampled for that element or not
-  const { generatedSurfaces = [], assays = [], assayElements = [] } = useStore();
+  const { generatedSurfaces = [], assays = [], assayElements = [], voxelModels = [], collars = [], survey = [], desurveyMethod } = useStore();
+  // TASKS.csv #2727 — block models too: the value at a point (and against a cutoff), and per hole the metres in the model and above a cutoff
+  const blockModels = useMemo(() => (voxelModels || []).filter((m) => (m.cells || []).length && m.colorMode !== "discrete"), [voxelModels]);
+  const [bmId, setBmId] = useState("");
+  const [bmCut, setBmCut] = useState("");
+  const bm = blockModels.find((m) => m.id === bmId) || null;
+  const bmUnit = bm ? bm.params?.gradeUnit || bm.params?.unit || bm.unit || "" : "";
+  const bmCutoff = bmCut !== "" && Number.isFinite(Number(bmCut)) ? Number(bmCut) : null;
+  const bmLookup = useMemo(() => (bm ? buildVoxelLookup(bm.cells) : null), [bm]);
+  const bmHoles = useMemo(() => (bm && tab === "holes" ? sampleModelOnHoles({ model: bm, collars, survey, desurveyMethod }).rows : null), [bm, tab, collars, survey, desurveyMethod]);
+  const bmRows = useMemo(() => (bmHoles ? holesInBlockModel(bmHoles, bmCutoff) : []), [bmHoles, bmCutoff]);
+  const bmPoint = useMemo(() => { if (!bmLookup || tab !== "point") return undefined; const p = pointFromInputs(ptX, ptY, ptZ); return p ? bmLookup.find(p.x, p.y, p.z) : undefined; }, [bmLookup, tab, ptX, ptY, ptZ]);
   const shellEl = useMemo(() => { const el = generatedSurfaces.find((g) => g.id === surface?.id)?.params?.element; return el && assayElements.some((e) => e.symbol === el) ? el : null; }, [generatedSurfaces, surface, assayElements]);
   const sampledHoles = useMemo(() => { if (!shellEl) return null; const units = Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])); return sampledByHole(resolvedSegments(excludeQAQC(assays), shellEl, units[shellEl] || "ppm", units)); }, [shellEl, assays, assayElements]);
 
@@ -268,6 +280,20 @@ export default function SurfaceQueryModal({ surfaces = [], traces = [], sceneToW
             )}
           </>
         )}
+        {blockModels.length > 0 && (<div style={{ marginTop: 12, paddingTop: 10, borderTop: "1px solid var(--color-border)" }}>{/* TASKS.csv #2727 */}
+          <div style={{ display: "flex", gap: 8, alignItems: "flex-end", flexWrap: "wrap", marginBottom: 6 }}>
+            <label style={rowLabel}>{tr("Block model")}<select value={bmId} onChange={(e) => setBmId(e.target.value)} style={{ ...sel, minWidth: 210 }} aria-label={tr("Block model to query")}>
+              <option value="">{tr("— none —")}</option>
+              {blockModels.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+            </select></label>
+            {bm && <label style={rowLabel}>{tr("Cutoff ({unit})", { unit: bmUnit || "—" })}<input type="number" step="any" value={bmCut} onChange={(e) => setBmCut(e.target.value)} placeholder={tr("none")} style={{ ...sel, width: 90 }} aria-label={tr("Cutoff of the block model")} /></label>}
+          </div>
+          {bm && tab === "holes" && (bmRows.length ? <div style={{ maxHeight: "32vh", overflow: "auto", border: "1px solid var(--color-border)", borderRadius: 6 }}><table style={{ borderCollapse: "collapse", width: "100%", fontSize: "var(--font-size-sm)" }}>
+            <thead><tr>{[tr("Hole"), tr("In the model (m)"), ...(bmCutoff != null ? [tr("At or above {c} {unit} (m)", { c: bmCutoff, unit: bmUnit }), tr("Mean there ({unit})", { unit: bmUnit })] : [])].map((h) => <th key={h} style={th}>{h}</th>)}</tr></thead>
+            <tbody>{bmRows.map((r) => <tr key={r.hole_id}><td style={{ ...td, fontWeight: 600 }}>{r.hole_id}</td><td style={td}>{r.inM.toFixed(1)}</td>{bmCutoff != null && <><td style={td}>{r.aboveM.toFixed(1)}</td><td style={td}>{r.meanAbove == null ? "—" : +r.meanAbove.toPrecision(4)}</td></>}</tr>)}</tbody>
+          </table></div> : <div style={hint}>{tr("No drillhole passes through \"{name}\".", { name: bm.name })}</div>)}
+          {bm && tab === "point" && <div style={{ fontSize: "var(--font-size-base)", lineHeight: 1.7 }}>{bmPoint === undefined ? <span style={{ color: "var(--color-text-muted)" }}>{tr("Enter all three coordinates above to read the model at that point.")}</span> : !bmPoint ? tr("The point is outside every block of \"{name}\".", { name: bm.name }) : <>{tr("Block value at the point: {v} {unit}", { v: +Number(bmPoint.value).toPrecision(5), unit: bmUnit })}{bmCutoff != null ? " · " + (Number(bmPoint.value) >= bmCutoff ? tr("at or above the cutoff") : tr("below the cutoff")) : ""}{bmPoint.support ? " · " + tr("support: {s}", { s: bmPoint.support }) : ""}</>}</div>}
+        </div>)}
       </div>
     </div>
   );

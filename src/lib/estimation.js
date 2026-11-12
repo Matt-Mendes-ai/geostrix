@@ -14,7 +14,7 @@
 // still routinely used for early-stage/scoping estimates). The variogram-modelling UI now exists (#147, the Variogram
 // tool fits nugget / sill / range); TASKS.csv #709 adds ordinary kriging with it (method "ok", okEstimate below):
 // point kriging at the block centre with the nearest maxSamples composites, the kriging variance reported per block.
-import { blockReach, worldReach, verticalReach, gridShape } from "./blockReach.js"; // TASKS.csv #1416
+import { worldReach, verticalReach, gridShape, segmentReach, compositesToSegments } from "./blockReach.js"; // segmentReach, compositesToSegments: #2694 // TASKS.csv #1416
 import { makePointIndex } from "./nearestIndex.js"; // TASKS.csv #2596
 import { MAX_BLOCKS, MAX_BLOCK_BUDGET, SUPPORT_COLORS, ESTIMATION_METHODS } from "./estimationMeta.js"; // #552; budget: #625
 export { MAX_BLOCKS, SUPPORT_COLORS, ESTIMATION_METHODS };
@@ -39,6 +39,16 @@ const EXACT_D2 = 1e-6;
 // injected desurveyHole — estimation samples MUST sit on the same trace the 3D view draws, or an
 // isosurface silently stops lining up with the holes that produced it. Omitting it falls back to
 // minimum curvature inside desurveyHole, i.e. the pre-#135 behaviour.
+// TASKS.csv #2694 — the blocks any composite reaches, counted on its composites' runs (segments) rather than one sphere per composite:
+// the same mask (widened by a tolerance of an eighth of the smallest cell, so it never leaves out a reached block) at a fraction of the
+// work on long, densely composited holes. The noReach comparison (#1416) still gives the same estimates.
+function reachOfComposites(points, bounds, cell, searchRadius, trend) {
+  const R = worldReach(searchRadius, trend), rz = verticalReach(searchRadius, trend); // #2418
+  const c = cell && typeof cell === "object" ? cell : { dx: cell, dy: cell, dz: cell };
+  const tol = Math.max(0, Math.min(c.dx, c.dy, c.dz) / 8);
+  return segmentReach(compositesToSegments(points, tol), bounds, cell, R, { margin: tol, rz });
+}
+
 export function samplePointsFromIntervals(intervals, collars, survey, desurveyHole, method) {
   const collarById = new Map(collars.map((c) => [c.hole_id, c]));
   const surveyByHole = new Map();
@@ -147,7 +157,7 @@ export function estimateBlockModel(samplePoints, opts) {
   const { bounds, cellSize, method = "idw2", searchRadius = null, minSamples = 1, maxSamples = 16, minHoles = 1, maxPerHole = 0, lengthWeight = true, restrictToDomain = false, noCodeAsDomain = false } = opts; // noCodeAsDomain: #2541
   // TASKS.csv #1416 — the blocks any composite can reach (lib/blockReach.js): the budget counts them, the loop skips the rest
   // (opts.noReach: the whole box, for the tests that hold the two equal)
-  const reachInfo = opts.noReach ? null : blockReach(samplePoints, bounds, cellSize, worldReach(searchRadius, opts.trend), { rz: verticalReach(searchRadius, opts.trend) /* #2418 */ });
+  const reachInfo = opts.noReach ? null : reachOfComposites(samplePoints, bounds, cellSize, searchRadius, opts.trend); // #2694
   const { dx, dy, dz, nx, ny, nz, totalBlocks } = gridDims(bounds, cellSize, opts.maxBlocks, reachInfo); // maxBlocks: #626
   const mask = reachInfo?.mask || null;
   if (!samplePoints.length) return { cells: [], blocksEstimated: 0, blocksSkipped: totalBlocks, singleHoleCells: 0 };
@@ -1131,7 +1141,7 @@ export function estimateDenseGrid(samplePoints, opts) {
   const wantSupport = !!opts.support;
   // TASKS.csv #1416 — nodes out of every sample's reach stay NaN without a search (the grid itself is kept whole: marching
   // cubes needs every node, so the budget here is still the box's)
-  const denseReach = opts.noReach ? null : blockReach(samplePoints, bounds, { dx, dy, dz }, worldReach(searchRadius, opts.trend), { rz: verticalReach(searchRadius, opts.trend) /* #2418 */ });
+  const denseReach = opts.noReach ? null : reachOfComposites(samplePoints, bounds, { dx, dy, dz }, searchRadius, opts.trend); // #2694
   const denseMask = denseReach ? denseReach.mask : null;
   const tw = twK || withTrend(samplePoints, opts); // #650
   const est0 = makeCellEstimator(tw.pts, { ...estOpts, support: wantSupport, bracketTol: Math.min(dx, dy, dz) / 2 });
