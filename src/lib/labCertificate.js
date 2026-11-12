@@ -84,7 +84,8 @@ export function parseLabCertificate(text, fileName = "") {
 export function combineCertificates(parsed) {
   const headers = ["sample_id", "certificate"];
   for (const p of parsed) for (const c of p.columns) if (!headers.includes(c.header)) headers.push(c.header);
-  const rows = parsed.flatMap((p) => p.rows);
+  // TASKS.csv #2791 — each row keeps the certificate file it came from (_file), so the QC rows it adds name it as their source
+  const rows = parsed.flatMap((p) => (p.meta?.file ? p.rows.map((r) => { r._file = p.meta.file; return r; }) : p.rows));
   const count = new Map(); rows.forEach((r) => count.set(r.sample_id, (count.get(r.sample_id) || 0) + 1));
   rows.forEach((r) => { if (count.get(r.sample_id) > 1) r._repeated = true; });
   return { headers, rows, certificates: parsed.map((p) => p.meta) };

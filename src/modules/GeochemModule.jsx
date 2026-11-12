@@ -513,14 +513,14 @@ export default function GeochemModule() {
       const placed = qcRowPlacement(s, { byId, byPrefix });
       if (!cert || !placed) { unplaced++; continue; }
       const { own, ...place } = placed;
-      const row = { ...place, sample_type: s.type, sample_id: s.sample_id, parent_id: s.type === "duplicate" ? (s.parent_id || "") : "", qc_code: s.type === "standard" ? (s.qc_code || "") : "" };
+      const row = { ...place, sample_type: s.type, sample_id: s.sample_id, parent_id: s.type === "duplicate" ? (s.parent_id || "") : "", qc_code: s.type === "standard" ? (s.qc_code || "") : "", src_file: cert._file || "" /* #2791 */ };
       certHeaders.forEach((h) => { row[h] = cert[h]; });
       rows.push(row); counts[s.type]++;
     }
     let filled = 0;
     if (fill) {
       for (const { cert, assay } of matched) {
-        const row = { hole_id: assay.hole_id, from: assay.from, to: assay.to, sample_id: assay.sample_id, sample_type: assay.sample_type || "", parent_id: assay.parent_id || "", qc_code: assay.qc_code || "" };
+        const row = { hole_id: assay.hole_id, from: assay.from, to: assay.to, sample_id: assay.sample_id, sample_type: assay.sample_type || "", parent_id: assay.parent_id || "", qc_code: assay.qc_code || "", src_file: cert._file || "" /* #2791 */ };
         let any = false;
         for (const e of elementCols) {
           const has = assay.values?.[e.symbol] != null;
@@ -535,7 +535,7 @@ export default function GeochemModule() {
     commitAssayImport({
       format: "wide", isPxrf: false, negativeMode: "bdl", blankMode: "missing",
       headers: ["hole_id", "from", "to", "sample_type", "sample_id", "parent_id", "qc_code", ...certHeaders],
-      allRows: rows, mapping: { hole_id: "hole_id", from: "from", to: "to" },
+      allRows: rows, mapping: { hole_id: "hole_id", from: "from", to: "to", src_file: "src_file" /* #2791 — each row's certificate file */ },
       elements: elementCols.map((e) => ({ ...e, mainHeader: e.header, checked: true })),
     });
     setNotices((p) => [...p, notice("Lab certificates: imported {standard} standard(s), {blank} blank(s) and {duplicate} duplicate(s) as QC samples{v}{v2}. They are in the QAQC panel; intercepts, statistics and models leave them out.", { standard: counts.standard, blank: counts.blank, duplicate: counts.duplicate, v: fill && filled ? tr(", and filled {filled} missing value(s) of the drill samples", { filled: filled.toLocaleString() }) : "", v2: unplaced ? tr("; {unplaced} could not be placed (no drill sample with a nearby number or the given parent)", { unplaced }) : "" })]);
@@ -700,7 +700,9 @@ export default function GeochemModule() {
             if (q) quals[e.symbol] = q;
           }
         });
-        const out = { hole_id: String(r[mapping.hole_id] ?? "").trim(), from: num(r[mapping.from]), to: num(r[mapping.to]), values, source: modal.isPxrf ? "pXRF" : "assay", ...(modal.fileName ? { srcFile: modal.fileName } : {}) }; // srcFile: #624
+        // srcFile: #624; #2791 — a row's own file (mapping.src_file: the lab certificates' QC rows, each from its certificate) before the import's
+        const srcFile = (mapping.src_file && String(r[mapping.src_file] ?? "").trim()) || modal.fileName;
+        const out = { hole_id: String(r[mapping.hole_id] ?? "").trim(), from: num(r[mapping.from]), to: num(r[mapping.to]), values, source: modal.isPxrf ? "pXRF" : "assay", ...(srcFile ? { srcFile } : {}) };
         if (Object.keys(quals).length) out.qualifiers = quals;
         if (Object.keys(valueSources).length) out.valueSources = valueSources; // #542 — which method each over-limit value is
         if (Object.keys(methodValues).length) out.methodValues = methodValues; // #2629
