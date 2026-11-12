@@ -10252,6 +10252,7 @@
   "The checked holes ({n} of {total})": "Os furos marcados ({n} de {total})",
   "{pct}% of the estimated metal ({k} of {n} blocks) lies below the deepest sample of every hole within {r} m: carried down past the drilling. A Vertical reach under the search radius keeps it near the samples.": "{pct}% do metal estimado ({k} de {n} blocos) está abaixo da amostra mais profunda de todo furo a menos de {r} m: levado para baixo além da perfuração. Um Alcance vertical menor que o raio de busca o mantém perto das amostras.",
   "{el} (t)": "{el} (t)",
+  "{el} (Mlb)": "{el} (Mlb)",
   "Mean grade ({unit})": "Teor médio ({unit})",
   "{pct}% of the sampled metres of {el} are in samples longer than {len} m (length-weighted median {med} m): a composite shorter than its sample repeats the sample's grade, so the pairs inside one sample are identical{v}.": "{pct}% dos metros amostrados de {el} estão em amostras mais longas que {len} m (mediana ponderada pelo comprimento {med} m): um composto mais curto que sua amostra repete o teor da amostra, então os pares dentro de uma amostra são idênticos{v}.",
   " and the nugget is understated": " e o efeito pepita fica subestimado",
