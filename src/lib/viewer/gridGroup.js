@@ -19,7 +19,7 @@ export function gridPlacement(collars, survey = []) {
   const mean = (k) => cs.reduce((s, c) => s + Number(c[k]), 0) / cs.length;
   const origin = { x: mean("x"), y: mean("y"), z: mean("z") };
   const top = Math.max(...cs.map((c) => Number(c.z)));
-  const lift = cs.length > 1 && collarsLookUnderground(cs, survey).underground ? top - origin.z : 0;
+  const lift = cs.length > 1 && collarsLookUnderground(cs.length === collars.length ? collars : cs, survey).underground ? top - origin.z : 0; // the store's array when none was left out: the answer is kept per array (#2798)
   return { depth: drillDepthBelowOrigin(cs), lift, origin, auto: autoGridSize(cs) };
 }
 

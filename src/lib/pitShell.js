@@ -162,17 +162,28 @@ export function joinByProduct(cells, byCells) {
 // below 0, stored as degrees below horizontal, #339) and pairs of collars within 5 m in plan but over 10 m apart in elevation. Counted
 // against the project's size: Woodjam's surface compilation (544 collars) has 2 duplicate collars with conflicting elevations, the WA
 // mine 12 upholes in 245 holes. Upward holes: at least 2 and 2 % of the holes; stacked pairs: at least 3 and 5 % of the collars.
-export function collarsLookUnderground(collars, survey = []) {
+// TASKS.csv #2798 — a 20,000-collar commit spent 0.28 s here: about 15 callers ask on each collar change with the same arrays (the store
+// replaces them, never edits them in place), so the last answers are kept per collars / survey array; and the grid key is a number, not a
+// string per neighbour cell. A key collision only adds candidates: the distance test decides.
+const UG_SEEN = new WeakMap(), NO_SURVEY = {}, NO_CELL = [];
+export function collarsLookUnderground(collars, survey) {
+  const a = collars || NO_SURVEY, b = survey || NO_SURVEY;
+  if (typeof a === "object") { const m = UG_SEEN.get(a); if (m?.has(b)) return { ...m.get(b) }; }
+  const r = lookUnderground(collars, survey || []);
+  if (typeof a === "object") { let m = UG_SEEN.get(a); if (!m) UG_SEEN.set(a, (m = new Map())); if (m.size > 4) m.clear(); m.set(b, r); }
+  return { ...r };
+}
+function lookUnderground(collars, survey) {
   const up = new Set();
   for (const c of collars || []) if (Number.isFinite(c?.dip) && c.dip < 0) up.add(c.hole_id);
   for (const s of survey || []) if (Number.isFinite(s?.dip) && s.dip < 0) up.add(s.hole_id);
   const pts = (collars || []).filter((c) => Number.isFinite(c?.x) && Number.isFinite(c?.y) && Number.isFinite(c?.z));
-  const cells = new Map(), key = (i, j) => `${i},${j}`;
+  const cells = new Map(), key = (i, j) => i * 67108864 + j;
   let stacked = 0;
   for (const c of pts) {
     const i = Math.floor(c.x / 5), j = Math.floor(c.y / 5);
-    for (let di = -1; di <= 1; di++) for (let dj = -1; dj <= 1; dj++) for (const o of cells.get(key(i + di, j + dj)) || []) {
-      if (Math.hypot(o.x - c.x, o.y - c.y) <= 5 && Math.abs(o.z - c.z) > 10) stacked++;
+    for (let di = -1; di <= 1; di++) for (let dj = -1; dj <= 1; dj++) for (const o of cells.get(key(i + di, j + dj)) || NO_CELL) {
+      if ((o.x - c.x) ** 2 + (o.y - c.y) ** 2 <= 25 && Math.abs(o.z - c.z) > 10) stacked++; // no Math.hypot (slow in V8), no array per empty cell (#2798)
     }
     (cells.get(key(i, j)) || cells.set(key(i, j), []).get(key(i, j))).push(c);
   }
