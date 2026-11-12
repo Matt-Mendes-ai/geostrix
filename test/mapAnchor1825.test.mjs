@@ -4,8 +4,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { viewerSource } from "./helpers/viewerSource.mjs"; // #2176 — the drillhole build moved out of ViewerModule
 
-const m = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
+const m = viewerSource();
 
 test("the map layers' extents rebuild the scene only when they are the anchor", () => {
   assert.match(m, /const mapAnchorUsed = !\(terrain\?\.bbox \|\| rasters\?\.\[0\]\?\.bbox \|\| \(boundaries \|\| \[\]\)\.some\(.*\(omfObjects \|\| \[\]\)\.some\(.*layers\.geophys_pts\?\.length \|\| placedSurfaceSamples\.length\);/);

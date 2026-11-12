@@ -40,7 +40,9 @@ export function drillLineGeometry(collars) {
   const along = pts.map((p) => (p.x - centre.x) * ux + (p.y - centre.y) * uy);
   const across = pts.map((p) => (p.x - centre.x) * uy - (p.y - centre.y) * ux).sort((a, b) => a - b);
   const steps = []; for (let i = 1; i < across.length; i++) steps.push(across[i] - across[i - 1]);
-  const gaps = steps.filter((s) => s > Math.max(0.75 * median(nnDist), 10));
+  // #2176 — the cut-off once: median(nnDist) inside the filter sorted every distance again per collar (2.3 s of a 2,248-collar commit)
+  const cut = Math.max(0.75 * median(nnDist), 10);
+  const gaps = steps.filter((s) => s > cut);
   const spacing = gaps.length ? median(gaps) : null;
   const alongM = Math.max(...along) - Math.min(...along);
   return { azimuth, spacing: spacing ? Math.round(spacing) : null, alongM, centre };

@@ -3,6 +3,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { lazyTip } from "../src/lib/viewer/lazyTip.js";
+import { viewerSource } from "./helpers/viewerSource.mjs"; // #2176 — the drillhole build moved out of ViewerModule
 
 test("lazyTip: built once on first read, assignable, the other fields kept as own properties", () => {
   let made = 0;
@@ -16,7 +17,7 @@ test("lazyTip: built once on first read, assignable, the other fields kept as ow
 });
 
 test("the build: intervals, point logs, custom layers and assay markers use lazyTip with their hole id; vectors only for a bent interval", () => {
-  const s = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
+  const s = viewerSource().replace(/\r\n/g, "\n");
   assert.equal((s.match(/mesh\.userData = lazyTip\(\{ row(: a)?, holeId: c\.hole_id/g) || []).length, 5);
   assert.ok(!/mesh\.userData = \{ row, tip: `\$\{c\.hole_id\}/.test(s), "no eager per-row drillhole tooltip left");
   assert.match(s, /mesh_\.quaternion\.setFromUnitVectors\(UP_Y, DIR_TMP\.set\(dx \/ len, dy \/ len, dz \/ len\)\);/);

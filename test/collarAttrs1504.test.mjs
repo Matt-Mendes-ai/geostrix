@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { surfaceAttrColumns, surfaceAttrs } from "../src/lib/geochem.js";
 import { attributeFields } from "../src/lib/viewer/identify.js";
+import { viewerSource } from "./helpers/viewerSource.mjs"; // #2176 — the drillhole build moved out of ViewerModule
 
 const rows = Array.from({ length: 120 }, (_, i) => ({ hole_id: `H${i}`, x: String(600000 + i), y: "6350000", z: "1500", azimuth: "70", dip: "-50", depth: "200", year: i < 60 ? "2021" : "2022", drill_type: i % 4 ? "DD" : "RC", zone: ["CC", "AGB", "DR-PX"][i % 3], comments: `core lost ${i} m, see daily report` }));
 const mapping = { hole_id: "hole_id", x: "x", y: "y", z: "z", azimuth: "azimuth", dip: "dip", length: "depth" };
@@ -25,7 +26,7 @@ test("wired: the import keeps them and says so; the marker carries its collar; I
   assert.match(p, /\.\.\.(withHoleType\()?surfaceAttrs\(r, attrCols\)(, r\))?, \/\/ #1504/); // withHoleType: #2161
   assert.match(p, /more column\(s\) kept with each hole/);
   assert.match(p, /no survey loaded, so each hole is drawn straight/);
-  const v = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
+  const v = viewerSource();
   assert.match(v, /, collar: c \}; \/\/ collar: #1504/, "the collar marker carries its collar record"); // the tip gained a #2014 suffix
   const i = readFileSync(new URL("../src/lib/viewer/identify.js", import.meta.url), "utf8");
   assert.match(i, /attributeFields\(c\.attrs, new Set\(\)\)/);

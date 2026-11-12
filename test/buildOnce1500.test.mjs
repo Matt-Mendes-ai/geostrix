@@ -4,6 +4,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { buildDeferModel } from "../src/lib/viewer/buildDefer.js";
+import { viewerSource } from "./helpers/viewerSource.mjs"; // #2176 — the drillhole build moved out of ViewerModule
 
 test("a mark skips the build of its own commit only", () => {
   const d = buildDeferModel();
@@ -15,7 +16,7 @@ test("a mark skips the build of its own commit only", () => {
 });
 
 test("the viewer marks in the UI-state restore and the custom-layer restore, and the build checks", () => {
-  const s = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
+  const s = viewerSource().replace(/\r\n/g, "\n");
   assert.match(s, /lastHydratedSeq\.current = viewerUiStateSeq;\n {4}buildDefer\.mark\(\);/);
   assert.match(s, /if \(!missing\.length\) \{ if \(fresh && drop\.length\) setCustomLayers\(\[\]\); return; \}\n {4}buildDefer\.mark\(\);/ /* #2361: a project change with nothing to build clears the list */);
   assert.match(s, /if \(!groups\.litho \|\| buildDefer\.skip\(\)\) return;/);
@@ -25,7 +26,7 @@ test("the viewer marks in the UI-state restore and the custom-layer restore, and
 });
 
 test("the assay, geophysics and surface-sample builders also skip a deferred commit; the big build that follows rebuilds them", () => {
-  const s = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
+  const s = viewerSource().replace(/\r\n/g, "\n");
   for (const [built, inputs, ref] of [["assayBuiltRef", "assayInputs", "buildAssaySpheresRef"], ["geophysBuiltRef", "geophysInputs", "buildGeophysPtsRef"], ["surfaceBuiltRef", "surfaceInputs", "buildSurfaceSamplesRef"]]) {
     assert.ok(s.includes(`useEffect(() => { if (!buildDefer.skip() && !sameInputs(${built}.current, ${inputs})) ${ref}.current(); }, ${inputs});`), ref);
   }

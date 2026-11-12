@@ -2,9 +2,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { viewerSource } from "./helpers/viewerSource.mjs"; // #2176 — the drillhole build moved out of ViewerModule
 
-const src = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n"); // a CRLF checkout (CI) reads the same
-const block = src.slice(src.indexOf("customLayers.forEach((layer) => {\n        const stI"), src.indexOf("layer.group.add(mesh);"));
+const src = viewerSource().replace(/\r\n/g, "\n"); // a CRLF checkout (CI) reads the same
+const block = src.slice(src.indexOf("customLayers.forEach((layer) => {\n      const stI"), src.indexOf("layer.group.add(mesh);"));
 
 test("a custom interval is the shared cylinder scaled between its ends, not a TubeGeometry per row", () => {
   assert.ok(block.length > 100);

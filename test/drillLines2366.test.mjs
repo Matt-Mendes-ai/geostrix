@@ -37,3 +37,14 @@ test("the viewer takes the seeded state and the median collar", () => {
   assert.match(v, /= useDrillLineDefaults\(collars\); \/\/ #2366/);
   assert.match(v, /e = lineCentre\?\.x \?\? \(arrMin\(xs\) \+ arrMax\(xs\)\) \/ 2/);
 });
+
+// #2176 — the fence cut-off is computed once: a 3,000-collar grid took seconds when median(nnDist) ran inside the filter
+test("drillLineGeometry on 3,000 collars runs in well under a second (#2176)", () => {
+  const pts = [];
+  for (let i = 0; i < 60; i++) for (let j = 0; j < 50; j++) pts.push({ x: 400000 + i * 100 + (j % 2) * 3, y: 6000000 + j * 25 });
+  const t = performance.now();
+  const g = drillLineGeometry(pts);
+  const ms = performance.now() - t;
+  assert.ok(g && g.spacing > 0, "a spacing is found");
+  assert.ok(ms < 400, `took ${ms.toFixed(0)} ms`);
+});

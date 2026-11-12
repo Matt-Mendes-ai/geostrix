@@ -4,6 +4,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { buildDeferModel } from "../src/lib/viewer/buildDefer.js";
+import { viewerSource } from "./helpers/viewerSource.mjs"; // #2176 — the drillhole build moved out of ViewerModule
 
 test("round goes up in the render after a marked commit only", () => {
   const d = buildDeferModel();
@@ -21,12 +22,13 @@ test("mark() schedules a render, so the round after it always comes", () => {
 });
 
 test("the viewer's origin-placed objects skip the deferred commit and list deferRound", () => {
-  const v = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
+  const v = viewerSource().replace(/\r\n/g, "\n");
   assert.match(v, /const deferRound = buildDefer\.round;/);
   for (const g of ["rasterGroupRef", "boundaryGroupRef", "mapLayerGroupRef", "surfStructGroupRef", "omfGroupRef", "terrainGroupRef", "sectionImageGroupRef"]) assert.ok(v.includes(`if (${g}.current && !buildDefer.skip())`), g);
   for (const g of ["voxelGroupRef", "sectionStringsGroupRef", "sectionLinesGroupRef", "plannedGroupRef"]) assert.ok(v.includes(`const group = ${g}.current;\n    if (!group || buildDefer.skip()) return; // #1980`), g);
   for (const deps of ["[rasters, collars, terrain, rebuildSeq, deferRound]", "[voxelModels, collars, slice3d.on, deferRound]", "[plannedHoles, deferRound]", "[designLines, collars, deferRound]", "[designStrings, collars, deferRound]", "[omfObjects, collars, rebuildSeq, deferRound]", "[terrain, collars, rebuildSeq, deferRound]", "[sections, showSectionLines, terrain, collars, deferRound]"]) assert.ok(v.includes(deps), deps);
   // they are declared after the big build effect, so in the round's render the build sets the origin first
-  const big = v.indexOf("if (!groups.litho || buildDefer.skip()) return;");
+  assert.ok(v.includes("if (!groups.litho || buildDefer.skip()) return;")); // in viewer/drillholeScene.js since #2176
+  const big = v.indexOf("buildDrillholeScene({"); // ViewerModule's big build effect, which calls it
   assert.ok(big > 0 && big < v.indexOf("[voxelModels, collars, slice3d.on, deferRound]") && big < v.indexOf("[rasters, collars, terrain, rebuildSeq, deferRound]"));
 });
