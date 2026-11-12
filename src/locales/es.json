@@ -10585,5 +10585,6 @@
   "{n} collars have another collar within {plan} m in plan that is more than {rl} m lower (a pit or benches?): the ground between the collars uses the lowest collar there and leaves these {n} out. A check by those two distances, not a survey: on a steep hillside it lowers real ground too. Load a terrain for the real surface.": "{n} collares tienen otro collar a menos de {plan} m en planta que está más de {rl} m más abajo (¿un rajo o bancos?): el terreno entre los collares usa ahí el collar más bajo y deja fuera estos {n}. Es una verificación por esas dos distancias, no un levantamiento: en una ladera empinada también baja el terreno real. Cargue un terreno para la superficie real.",
   "Unit of the cut-off": "Unidad de la ley de corte",
   "{n} blocks: {v}": "{n} bloques: {v}",
-  "Blank: gaps under {n} blocks are left out (a gap of a block or two is the grid, not a target).": "En blanco: se dejan fuera los vacíos de menos de {n} bloques (un vacío de uno o dos bloques es la grilla, no un objetivo)."
+  "Blank: gaps under {n} blocks are left out (a gap of a block or two is the grid, not a target).": "En blanco: se dejan fuera los vacíos de menos de {n} bloques (un vacío de uno o dos bloques es la grilla, no un objetivo).",
+  "About {n} blocks in the unit's box at this size.": "Unos {n} bloques en la caja de la unidad con este tamaño."
 }

@@ -10585,5 +10585,6 @@
   "{n} collars have another collar within {plan} m in plan that is more than {rl} m lower (a pit or benches?): the ground between the collars uses the lowest collar there and leaves these {n} out. A check by those two distances, not a survey: on a steep hillside it lowers real ground too. Load a terrain for the real surface.": "{n} collets ont un autre collet à moins de {plan} m en plan qui est plus de {rl} m plus bas (une fosse ou des gradins ?) : le terrain entre les collets prend là le collet le plus bas et laisse ces {n} de côté. Une vérification par ces deux distances, pas un levé : sur un versant raide, elle abaisse aussi le vrai terrain. Chargez un terrain pour la vraie surface.",
   "Unit of the cut-off": "Unité de la teneur de coupure",
   "{n} blocks: {v}": "{n} blocs : {v}",
-  "Blank: gaps under {n} blocks are left out (a gap of a block or two is the grid, not a target).": "Vide : les lacunes de moins de {n} blocs sont laissées de côté (une lacune d'un ou deux blocs, c'est la grille, pas une cible)."
+  "Blank: gaps under {n} blocks are left out (a gap of a block or two is the grid, not a target).": "Vide : les lacunes de moins de {n} blocs sont laissées de côté (une lacune d'un ou deux blocs, c'est la grille, pas une cible).",
+  "About {n} blocks in the unit's box at this size.": "Environ {n} blocs dans la boîte de l'unité à cette taille."
 }

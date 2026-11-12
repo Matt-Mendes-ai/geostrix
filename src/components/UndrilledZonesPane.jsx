@@ -1,6 +1,6 @@
 // TASKS.csv #1139 — the Targeting pane for undrilled zones: the parts of a modelled unit (a closed solid) farther than a
 // chosen distance from every drillhole, as a closed solid in the 3D view with the volumes. Maths in lib/undrilledZones.js.
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Crosshair } from "./icons.js";
 import { TaskPaneHeader } from "./Ribbon.jsx";
 import { useStore } from "../lib/store.jsx";
@@ -10,13 +10,13 @@ import { plannedTrace } from "../lib/holePlanning.js";
 import { isMeshClosed } from "../lib/meshQuery.js";
 import { solidChoices } from "../lib/solidChoices.js"; // TASKS.csv #1564
 import { unitShell } from "../lib/unitVolumes.js";
-import { undrilledZones, defaultCellSize, defaultCoverM } from "../lib/undrilledZones.js"; // defaultCoverM: #2452
+import { defaultCellSize, defaultCoverM, undrilledBlockCount } from "../lib/undrilledZones.js"; // defaultCoverM: #2452; the run itself is in a worker (#2258)
 import { medianSiteSpacing } from "../lib/evidenceSources.js"; // TASKS.csv #2452
-import { collarGround, collarsLookUnderground } from "../lib/pitShell.js"; // TASKS.csv #1557 — the ground between the collars; #2249: unless they are underground
+import { collarsLookUnderground } from "../lib/pitShell.js"; // TASKS.csv #1557 — the ground between the collars (collarGround, in the worker since #2258); #2249: unless they are underground
 import { unitSupport } from "../lib/unitSupport.js"; // TASKS.csv #1725 — a one-hole / extrapolated shell is said
-import { terrainGroundAt } from "../lib/viewer/geomath.js";
 import { pBtn, smallSel } from "../lib/sidebarStyles.js";
 import { t as tr } from "../lib/i18n.js";
+import { runUndrilledZonesAsync } from "../lib/undrilledZonesClient.js"; // TASKS.csv #2258 — off the UI thread
 import CollarLevelsNote from "./CollarLevelsNote.jsx"; // TASKS.csv #2584 — the lowest collar used where collars stand on benches
 
 const row = { display: "flex", alignItems: "center", gap: 6, justifyContent: "space-between" };
@@ -47,6 +47,8 @@ export default function UndrilledZonesPane({ solids = [], onAdd, onClose, onPlan
   const [withPlanned, setWithPlanned] = useState(() => was?.withPlanned ?? false);
   const [minText, setMinText] = useState(() => was?.minText ?? "");
   const [busy, setBusy] = useState(false);
+  const job = useRef(null); // #2258 — the worker run; a closed pane stops it
+  useEffect(() => () => job.current?.cancel(), []);
   const [msg, setMsg] = useState(null);
   const [result, setResultState] = useState(() => lastResult);
   const setResult = (r) => { lastResult = r; setResultState(r); };
@@ -55,6 +57,7 @@ export default function UndrilledZonesPane({ solids = [], onAdd, onClose, onPlan
   // not selectable: Lawyers' 12 imported VLF isosurfaces were offered and each refused only after Run
   const choices = solidChoices(solids);
   const autoCell = useMemo(() => (unit && coverM > 0 ? defaultCellSize(unit.positions, coverM) : null), [unit, coverM]);
+  const blockCount = useMemo(() => { const c = Number(cellText) > 0 ? Number(cellText) : autoCell; return unit && c > 0 ? undrilledBlockCount(unit.positions, c) : 0; }, [unit, cellText, autoCell]); // #2258 — said before Run
   const minAuto = useMemo(() => { const c = Number(cellText) > 0 ? Number(cellText) : autoCell; return c > 0 ? MIN_ZONE_BLOCKS * c ** 3 : null; }, [cellText, autoCell]); // #2256 — the placeholder
   // TASKS.csv #1725 — a grade shell built from one hole, or mostly extrapolated: its undrilled parts are where it is least known
   const support = useMemo(() => (unit ? unitSupport(unit.params) : null), [unit]);
@@ -87,18 +90,22 @@ export default function UndrilledZonesPane({ solids = [], onAdd, onClose, onPlan
     const closed = isMeshClosed(unit.positions, unit.indices);
     if (!closed.closed) { setMsg({ ok: false, text: tr("\"{name}\" is not a closed solid ({n} open edges), so its inside is not defined.", { name: unit.name, n: closed.boundaryEdges }) + " " + tr(OPEN_ROUTE, { n: 1 }) }); return; }
     setBusy(true); setMsg(null); setResult(null);
-    setTimeout(() => { // let the busy state paint
-      try {
-        const t = traces();
-        // #1557 — blocks above the ground are not the unit: the terrain, else the ground between the collars (as the pit shell, #1353)
-        // TASKS.csv #2249 — collars drilled from underground are not the ground: 15 % of a 1 g/t shell (48 % of the 3 g/t) was dropped as "air"
-        const ug = terrain ? null : collarsLookUnderground(collars, survey);
-        const groundAt = terrain ? (x, y) => terrainGroundAt(terrain, x, y) : ug?.underground ? null : collarGround(collars);
-        const r = undrilledZones({ solid: unit, traces: t.traces, coverM: Number(coverM), cellM: Number(cellText) || 0, insideOnly, minZoneM3: minText === "" ? null : Number(minText) || 0, minZoneBlocks: MIN_ZONE_BLOCKS /* #2256 — blank: under 8 blocks */, groundAt });
-        setResult({ ...r, unitName: unit.name, coverM: Number(coverM), insideOnly, holes: t, groundFrom: terrain ? "terrain" : groundAt ? "collars" : null, underground: ug?.underground ? ug : null, inputs: { unitId, coverM, cellText, insideOnly, withPlanned, minText } /* #1732 */ });
-      } catch (e) { setMsg({ ok: false, text: e.message }); }
-      setBusy(false);
-    }, 30);
+    // TASKS.csv #2258 — in a worker: the run froze the window 0.7 s on a 1.07 Mm³ shell (seconds near the 2 M block budget)
+    const t = traces();
+    // #1557 — blocks above the ground are not the unit: the terrain, else the ground between the collars (as the pit shell, #1353)
+    // TASKS.csv #2249 — collars drilled from underground are not the ground: 15 % of a 1 g/t shell (48 % of the 3 g/t) was dropped as "air"
+    const ug = terrain ? null : collarsLookUnderground(collars, survey);
+    const onCollars = !terrain && !ug?.underground && collars.some((c) => Number.isFinite(c?.x) && Number.isFinite(c?.y) && Number.isFinite(c?.z));
+    const args = { solid: { positions: unit.positions, indices: unit.indices }, traces: t.traces, coverM: Number(coverM), cellM: Number(cellText) || 0, insideOnly, minZoneM3: minText === "" ? null : Number(minText) || 0, minZoneBlocks: MIN_ZONE_BLOCKS /* #2256 — blank: under 8 blocks */ };
+    const inputs = { unitId, coverM, cellText, insideOnly, withPlanned, minText }, unitName = unit.name;
+    job.current?.cancel();
+    const j = runUndrilledZonesAsync(args, terrain ? { terrain } : onCollars ? { collars } : null);
+    job.current = j;
+    j.promise.then((r) => {
+      if (job.current !== j || r?.cancelled) return;
+      setResult({ ...r, unitName, coverM: Number(coverM), insideOnly, holes: t, groundFrom: terrain ? "terrain" : onCollars ? "collars" : null, underground: ug?.underground ? ug : null, inputs /* #1732 */ });
+    }).catch((e) => { if (job.current === j) setMsg({ ok: false, text: e.message }); })
+      .finally(() => { if (job.current === j) { job.current = null; setBusy(false); } });
   };
 
   const add = () => {
@@ -145,6 +152,7 @@ export default function UndrilledZonesPane({ solids = [], onAdd, onClose, onPlan
         {siteSpacing > 0 && <div style={note}>{tr("Drill sites are typically {s} m apart; covered within starts at half that.", { s: Math.round(siteSpacing) })}</div>}{/* #2452 */}
         <label style={row}>{tr("Block size (m)")}
           <input type="number" min="0" step="any" value={cellText} placeholder={autoCell ? tr("auto {v}", { v: autoCell }) : tr("auto")} onChange={(e) => setCellText(e.target.value)} style={{ ...smallSel, width: 70 }} /></label>
+        {blockCount > 0 && <div style={{ ...note, ...(blockCount > 1_000_000 ? { color: "var(--color-warn-text)" } : {}) }}>{tr("About {n} blocks in the unit's box at this size.", { n: blockCount.toLocaleString() })}</div>}{/* #2258 */}
         <label style={row} title={tr("Gaps smaller than this are left out of the zones (they are counted)")}>{tr("Ignore gaps under (m³)")}
           <input type="number" min="0" step="any" value={minText} placeholder={minAuto ? tr("{n} blocks: {v}", { n: MIN_ZONE_BLOCKS, v: Math.round(minAuto).toLocaleString() }) : "0"} title={tr("Blank: gaps under {n} blocks are left out (a gap of a block or two is the grid, not a target).", { n: MIN_ZONE_BLOCKS })} onChange={(e) => setMinText(e.target.value)} style={{ ...smallSel, width: 90 }} /></label>
         <label style={{ display: "flex", gap: 5, alignItems: "flex-start", cursor: "pointer" }}><input type="checkbox" checked={insideOnly} onChange={(e) => setInsideOnly(e.target.checked)} />

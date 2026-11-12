@@ -43,6 +43,16 @@ export function meshBox(positions, pad = 0) {
 // nearest 5 m and at least 5 m; 25 m with no spacing (fewer than two sites)
 export const defaultCoverM = (siteSpacingM) => (siteSpacingM > 0 ? Math.max(5, Math.round(siteSpacingM / 2 / 5) * 5) : 25);
 
+// TASKS.csv #2258 — the blocks a run at this size makes (the unit's box snapped to whole blocks plus one on each side, as undrilledZones
+// grids it), said beside the Block size field before Run
+export function undrilledBlockCount(positions, cell) {
+  if (!(cell > 0) || !positions?.length) return 0;
+  const e = meshBox(positions);
+  let n = 1;
+  for (let a = 0; a < 3; a++) n *= Math.ceil(e[2 * a + 1] / cell) + 1 - (Math.floor(e[2 * a] / cell) - 1);
+  return n;
+}
+
 export function defaultCellSize(positions, coverM, target = 300_000, maxCells = 2_000_000) {
   const e = meshBox(positions);
   let c = suggestCellSize(e, target);
