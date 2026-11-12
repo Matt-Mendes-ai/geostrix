@@ -1763,7 +1763,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   const sampleLegendGroup = useMemo(() => surfaceSampleLegendGroup({ samples: placedSurfaceSamples, visible: !!layerVisible.surface_samples, style: layerStyles.surface_samples?.color ? layerStyles.surface_samples : null, anomalyGroup: surfaceAnomaly?.legendGroup || null }), [placedSurfaceSamples, layerVisible.surface_samples, layerStyles.surface_samples, surfaceAnomaly]);
   useEffect(() => { setSurfaceSampleLegend(sampleLegendGroup); }, [sampleLegendGroup, setSurfaceSampleLegend]);
   const overlayLegendGroups = useMemo(() => {
-    if (!figureOverlay.enabled || !figureOverlay.legend) return [];
+    if (!figureOverlay.enabled) return []; // #2042 — counted with the Legend tick off too (the label states the project, not the tick); drawn only when on
     // TASKS.csv #725 — the same builders the Layout legend uses (lib/legendGroups.js), so the two keys cannot disagree
     const singleColor = Object.fromEntries(CATEGORY_LAYER_KEYS.filter((k) => layerStyles[k]?.color).map((k) => [k, layerStyles[k].color])); // #635
     const groups = [
@@ -1794,7 +1794,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
       }
     }
     return groups;
-  }, [rasters, sampleLegendGroup, mapLayers, boundaries, layerStyles, figureOverlay.enabled, figureOverlay.legend, layerVisible, layers, categoryFilter, visibleHoles, effectiveLabel, effectiveColor, assayVisible, assayDisplayElements, assayStyle, assays, assayElements, voxelModels, geophysSurveys, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, numericLayerColor, isRowVisible, collars, customLayers, customVisible, holeScheme, holeColourBy]); // the last two: #1398; collars: #1813; holeScheme: #1504
+  }, [rasters, sampleLegendGroup, mapLayers, boundaries, layerStyles, figureOverlay.enabled, layerVisible, layers, categoryFilter, visibleHoles, effectiveLabel, effectiveColor, assayVisible, assayDisplayElements, assayStyle, assays, assayElements, voxelModels, geophysSurveys, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, numericLayerColor, isRowVisible, collars, customLayers, customVisible, holeScheme, holeColourBy]); // the last two: #1398; collars: #1813; holeScheme: #1504
 
   // TASKS.csv #453 — build the clipping planes from the slice settings over the drilled extent (hole
   // traces; the terrain bbox when there is no drilling). Vertical: across the azimuth line, position along
@@ -5226,7 +5226,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   // was wired up — see the TASKS.csv #145 notes for the numbers.
   // TASKS.csv #1324 — what is under a click
   const identify = useIdentify({ mountRef, cameraRef, sceneRef, pickHits, lastActivityRef, originRef, tracesRef, layerGroupsRef, rasterMeshesRef, mapLayerMeshesRef, surfStructObjsRef, mapLayerGroupRef, surfStructGroupRef, terrainMeshRef, rasters, mapLayers, surfaceStructures, units: Object.fromEntries((assayElements || []).map((e) => [e.symbol, e.unit])),
-    layerLabel: (k) => tr(LAYER_META[k]?.label || customLayers.find((l) => l.id === k)?.name || { assay: "Assays", geophys_pts: "Geophysics points", surface_samples: "Surface samples" }[k] || k),
+    layerLabel: (k) => tr(LAYER_META[k]?.label || customLayers.find((l) => l.id === k)?.name || { assay: "Assays", geophys_pts: "Geophysics points", surface_samples: "Surface samples", holes: "Drillholes" /* #2041 */ }[k] || k),
     kinds: [[implicitGroupRef, tr("Generated surfaces")], [omfGroupRef, tr("OMF objects")], [plannedGroupRef, tr("Planned holes")], [boundaryGroupRef, tr("Boundaries")]] });
   identifyStopRef.current = () => { if (!identify.on) return false; identify.stop(); return true; };
   const sculpt = useSculpt({
@@ -8416,7 +8416,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           <ViewportFigureOverlay
             config={figureOverlay}
             title={overlayTitle}
-            legendGroups={overlayLegendGroups}
+            legendGroups={figureOverlay.legend ? overlayLegendGroups : []}
             camStateRef={camState}
             cameraRef={cameraRef}
             mountRef={mountRef}
