@@ -10426,6 +10426,7 @@
   "Stretches the view vertically about the point you orbit around. Coordinates, picks and measurements stay true; labels and collar markers are not stretched.": "يمدّ العرض رأسيًا حول النقطة التي تدور حولها. تبقى الإحداثيات والتحديدات والقياسات حقيقية؛ ولا تُمدّ التسميات وعلامات رؤوس الآبار.",
   "Vertical exaggeration": "المبالغة الرأسية",
   "Collar markers": "علامات فوهات الثقوب",
+  "Collar size": "حجم الفوهة",
   "Auto": "تلقائي",
   "Auto sizes the collar markers from the drilling: small where the holes are short and close together (an underground drive), as before on spread drilling.": "يحدد الوضع التلقائي حجم علامات الفوهات من الحفر: صغيرة حيث الثقوب قصيرة ومتقاربة (نفق تحت الأرض)، وكما كانت سابقاً في الحفر المتباعد.",
   "Show or hide the collar markers. The holes, their labels and picking on them stay.": "إظهار علامات الفوهات أو إخفاؤها. تبقى الثقوب وتسمياتها وإمكانية تحديدها.",
