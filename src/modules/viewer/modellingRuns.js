@@ -3,6 +3,7 @@
 // (exactly what the old useCallback closures saw), and mcRef is the hook's live ref (#599).
 import * as THREE from "three";
 import { trendRatioText } from "../../lib/trend.js"; // TASKS.csv #2423
+import { trendBodyReach } from "../../lib/trendBodyReach.js"; // TASKS.csv #2780
 import { buildMeshQuery } from "../../lib/meshQuery.js"; // TASKS.csv #2376
 import { modelGround, boxTallerThanDrilling, groundAtInFrame } from "../../lib/modelGround.js"; // TASKS.csv #2470; groundAtInFrame: #2634
 import { roundVolume, loggedVolumeCheck } from "../../lib/volumeCheck.js"; // TASKS.csv #2530
@@ -1854,6 +1855,16 @@ export function createModellingRuns(ctx, mcRef) {
         // warped space IS an anisotropic one in real space.
         const basis = anisotropy.enabled ? anisotropy.basis : null;
         const scl = anisotropy.enabled ? anisotropy.scales : null;
+        // TASKS.csv #2780 (DECISION 2026-11-12) — under a trend, the runs' automatic reach is the reach ACROSS the layer, times the trend's ratio
+        // along it (at least the hole spacing); said, with the old reach, since a saved body differs from a rebuilt one
+        if (anisotropy.enabled && isCode && autoB.fromRuns && !(searchSetting > 0)) {
+          const tr2780 = trendBodyReach(autoB.radius, scl, autoB.spacing);
+          if (tr2780) {
+            radius = tr2780.alongM;
+            const m1 = (v) => +v.toFixed(1);
+            setNotices((p) => [...p, notice(tr2780.bySpacing ? "\"{label}\": under the trend \"{trend}\" ({ratio}) the automatic search now reaches {along} m along the layer (the {s} m hole spacing, so a node between two holes reaches one) and {across} m across it (by the trend's ratio; the logged runs of {code} alone give {runs} m). Before, the runs' reach was the long axis: {oldAlong} m along and {oldAcross} m across. A body of {code} saved earlier was built with the old reach and differs from one built now." : "\"{label}\": under the trend \"{trend}\" ({ratio}) the automatic search now reaches {across} m across the layer (from the logged runs of {code}) and {along} m along it (that times the trend's ratio). Before, the runs' reach was the long axis: {oldAlong} m along and {oldAcross} m across. A body of {code} saved earlier was built with the old reach and differs from one built now.", { runs: m1(tr2780.runsAcrossM), label, trend: anisotropy.params?.trend || "", ratio: trendRatioText(anisotropy.params), code: altValue, across: m1(tr2780.acrossM), along: m1(tr2780.alongM), s: m1(autoB.spacing || 0), oldAlong: m1(tr2780.oldAlongM), oldAcross: m1(tr2780.oldAcrossM) })]);
+          }
+        }
         const center = anisotropy.enabled
           ? { x: pts.reduce((s, p) => s + p.x, 0) / pts.length, y: pts.reduce((s, p) => s + p.y, 0) / pts.length, z: pts.reduce((s, p) => s + p.z, 0) / pts.length }
           : null;
@@ -1883,7 +1894,7 @@ export function createModellingRuns(ctx, mcRef) {
         if (radius < 1.5 * cell) { radiusRaisedFrom = radius; radius = 1.5 * cell; } // #1683 — a search under a cell and a half finds nothing at most nodes
         // TASKS.csv #2047 — say it before the run, not after two minutes: the coarsened cell is thicker than any logged run of the code
         const past = isCode && !seam ? bodyCellPastRuns(cell, autoB, coarsened) : null;
-        if (seam) { const km = (a) => +((a.max - a.min) / 1000).toFixed(1); setNotices((p) => [...p, notice("\"{label}\": {code} is logged in thin runs (median {med} m, {max} m at most) over {w} × {h} km, so one cubic cell would be {cube} m, thicker than any run. The grid uses {dx} × {dx} × {dz} m cells instead: the height from the logged runs, the plan from the {s} m hole spacing. Between holes the search is still a sphere: a geology trend in Model settings flattens it along the layer. A seam may fit better as paired hangingwall / footwall surfaces: Veins / dykes.", { label, code: altValue, med: +autoB.medianRunM.toFixed(1), max: +autoB.maxRunM.toFixed(1), w: km(xr), h: km(yr), cube: +cubicWouldBe.toFixed(1), dx: seam.dxy, dz: seam.dz, s: Math.round(autoB.spacing) })]); } // #2384 — said before the run
+        if (seam) { const km = (a) => +((a.max - a.min) / 1000).toFixed(1); setNotices((p) => [...p, notice("\"{label}\": {code} is logged in thin runs (median {med} m, {max} m at most) over {w} × {h} km, so one cubic cell would be {cube} m, thicker than any run. The grid uses {dx} × {dx} × {dz} m cells instead: the height from the logged runs, the plan from the {s} m hole spacing. Between holes the search is still a sphere. To flatten it along the layer: Model settings › Structural trends › New trend; in 'Set the plane from…' pick 'Tops of a logged unit (best-fit plane)' › {code}; then under 'Used by' choose that trend for 'Geology models (implicit surfaces, stacks)' (the GemPy implicit and stack runs follow it too). A seam may fit better as paired hangingwall / footwall surfaces: Veins / dykes.", { label, code: altValue, /* #2749: the steps named */ med: +autoB.medianRunM.toFixed(1), max: +autoB.maxRunM.toFixed(1), w: km(xr), h: km(yr), cube: +cubicWouldBe.toFixed(1), dx: seam.dxy, dz: seam.dz, s: Math.round(autoB.spacing) })]); } // #2384 — said before the run
         if (past) {
           const km = (a) => +((a.max - a.min) / 1000).toFixed(1);
           const msg = tr("\"{label}\": to stay under the grid limit the {cs} m cells would be coarsened to {cell} m, larger than the thickest logged run of {code} ({max} m). A body cannot be thinner than a cell, so it cannot follow the logged runs: after a long run it will most likely not appear, or appear where {code} was not logged. The {code} runs span {w} × {h} km: model a smaller area first (Model settings › Model area with the holes of one cluster checked, a domain, or an intercept set).", { label, cs: +cs.toFixed(1), cell: cellZ !== cell ? cellText : +cell.toFixed(1) /* #2384 */, code: altValue, max: +past.maxRunM.toFixed(1), w: km(xr), h: km(yr) });
