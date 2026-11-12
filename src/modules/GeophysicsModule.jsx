@@ -306,6 +306,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
   const terrainInput = useRef(null);
   const ubcInput = useRef(null);
   const blockModelInput = useRef(null);
+  const sgridInput = useRef(null); // TASKS.csv #2726 — a GOCAD SGrid with its side files
   const boundaryInput = useRef(null);
   const claimInput = useRef(null);
   const xyzInput = useRef(null);
@@ -1535,6 +1536,49 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     addTerrain({ name, bbox: t.bbox, gridW: t.gridW, gridH: t.gridH, elevations: t.elevations, noDataMask: t.noDataMask, source: { kind: "top of a block model", model: model.name, columns: t.stats.columns, nodeM: t.stats.nodeM.map((v) => Math.round(v * 10) / 10) } });
     setVoxelError({ info: true, text: replaced + tr("Added the terrain \"{name}\": {w} × {h} nodes at {dx} × {dy} m from the top cell of {cols} column(s), {zmin} to {zmax} m{v}. It is the mesh's own ground, as fine as its columns and only where the mesh is{v2}. Samples with no elevation now sit on it; sections take its profile.", { name, w: t.gridW, h: t.gridH, dx: Math.round(t.stats.nodeM[0] * 10) / 10, dy: Math.round(t.stats.nodeM[1] * 10) / 10, cols: t.stats.columns.toLocaleString(), zmin: Math.round(t.stats.relief[0]), zmax: Math.round(t.stats.relief[1]), v: t.stats.empty ? tr(", {n} node(s) with no column marked as no ground", { n: t.stats.empty.toLocaleString() }) : "", v2: "" /* #2554: said by "Replaced the terrain" first */ }) });
   };
+  // TASKS.csv #2726 — a GOCAD SGrid (.sg) chosen with its side files (points, properties): one block model per property it can read, its
+  // nodes or cell centres resampled onto an east / north / up lattice (lib/gocadSgrid.js), then the Voxet path (#2632: voxetToUbc, the cell
+  // budget's block-averaging, ubcMeshToCells)
+  const importSgrid = async (fileList) => {
+    const files = Array.from(fileList || []);
+    const sg = files.find((f) => /\.sg$/i.test(f.name));
+    if (!sg) { setVoxelError({ info: false, text: tr("Choose the .sg file together with the files it names (its points file and a file per property).") }); return; }
+    setVoxelError(null); setVoxelBusy(true);
+    try {
+      const [sgl, vx] = await Promise.all([import("../lib/gocadSgrid.js"), import("../lib/gocadVoxet.js")]);
+      const h = sgl.parseSgridHeader(await sg.text());
+      const pf = vx.findPropFile({ file: h.pointsFile }, files);
+      if (!pf) throw new Error(tr("its points file ({file}) was not chosen with it.", { file: h.pointsFile }));
+      const smp = sgl.sgridSamples(h, sgl.readSgridPoints(new Uint8Array(await pf.arrayBuffer()), h));
+      const L = sgl.sgridLattice(smp);
+      const made = [], missing = [], failed = [];
+      let coarse = null;
+      for (const prop of h.props) {
+        const f = vx.findPropFile(prop, files);
+        if (!f) { missing.push(`${prop.name} (${prop.file || "?"})`); continue; }
+        try {
+          const vals = sgl.readSgridValues(new Uint8Array(await f.arrayBuffer()), prop, smp.count);
+          let { mesh, values } = vx.voxetToUbc(L.header, sgl.resampleSgrid(L, vals));
+          const { fx, fy, fz } = planCoarsenFactors(mesh.nx, mesh.ny, mesh.nz, effectiveMaxCells);
+          if (fx > 1 || fy > 1 || fz > 1) { ({ mesh, values } = coarsenUBCModel(mesh, values, fx, fy, fz, { log: wantsLogMean(values, prop.name) })); coarse = { fx, fy, fz }; }
+          const cells = ubcMeshToCells(mesh, Array.from(values));
+          if (!cells.length) { failed.push(tr("{name}: no value other than no-data", { name: prop.name })); continue; }
+          const { min, max } = cellValueRange(cells);
+          addVoxelModel({ name: `${h.name || sg.name.replace(/\.sg$/i, "")} — ${prop.name}${prop.unit ? ` (${prop.unit})` : ""}`, source: "gocad", cells, min, max, property: prop.name, ...(prop.unit ? { unit: prop.unit } : {}),
+            params: { tool: "GOCAD SGrid import", file: sg.name, sgridNodes: h.n, alignment: h.align, lattice: L.header.n, blockM: L.step.map((s) => +s.toFixed(3)), reachM: +L.reach.toFixed(3), ...(coarse ? { coarsened: [coarse.fx, coarse.fy, coarse.fz] } : {}) } });
+          made.push(`${prop.name} (${cells.length.toLocaleString()} blocks)`);
+        } catch (err) { failed.push(err.message); }
+      }
+      const [nx, ny, nz] = L.header.n, [dx, dy, dz] = L.step.map((s) => +s.toFixed(1));
+      const parts = [made.length ? tr("Imported the GOCAD SGrid \"{name}\" as {n} block model(s): {list}. Its {nu} × {nv} × {nw} nodes ({on}) were resampled onto {nx} × {ny} × {nz} blocks of {dx} × {dy} × {dz} m along east, north and up, each taking the value of the nearest {what} within {reach} m (blocks farther from every one are left empty). Its coordinates are taken as the project's (GOCAD files carry no EPSG code).", { name: h.name || sg.name, n: made.length, list: made.join(", "), nu: h.n[0], nv: h.n[1], nw: h.n[2], on: h.align === "CELLS" ? tr("values on the cells") : tr("values on the nodes"), nx, ny, nz, dx, dy, dz, what: h.align === "CELLS" ? tr("cell centre") : tr("node"), reach: +L.reach.toFixed(1) }) : "",
+        coarse ? tr("Averaged {fx} × {fy} × {fz} nodes into each block to stay within the block budget.", coarse) : "",
+        missing.length ? tr("Not chosen with it, so not read: {list}. Choose the .sg together with the files its PROP_FILE lines name.", { list: missing.join(", ") }) : "",
+        failed.length ? tr("Could not read: {list}.", { list: failed.join("; ") }) : ""].filter(Boolean).join(" ");
+      setVoxelError({ info: made.length > 0 && !failed.length, text: made.length ? parts : tr("{name}: no block model made. {why}", { name: sg.name, why: parts || tr("The SGrid names no property.") }) });
+    } catch (err) {
+      setVoxelError({ info: false, text: tr("{name}: couldn't read the GOCAD SGrid ({message}).", { name: sg.name, message: err.message }) });
+    } finally { setVoxelBusy(false); }
+  };
   const importUBC = async (fileList) => {
     const files = Array.from(fileList || []);
     if (!files.length) return;
@@ -2669,6 +2713,16 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
           accept=".csv"
           style={{ display: "none" }}
           onChange={(e) => { const f = e.target.files[0]; importBlockModelCSV(f); e.target.value = ""; }}
+        />
+        <button onClick={() => sgridInput.current.click()} style={pBtn} disabled={voxelBusy} /* TASKS.csv #2726 */
+          title={tr("A GOCAD stratigraphic grid: select the .sg file together with its points file and its property files (names like model__points@@, model__Density@@).")}>
+          <Box size={14} />{" "}{tr("Import GOCAD SGrid (.sg + its side files)…")}</button>
+        <input
+          ref={sgridInput}
+          type="file"
+          multiple
+          style={{ display: "none" }}
+          onChange={(e) => { importSgrid(e.target.files); e.target.value = ""; }}
         />
         {voxelError && (
           <div style={{ marginTop: 8, padding: "8px 10px", background: voxelError.info ? "var(--color-bg-subtle)" : "var(--color-danger-bg)", border: `1px solid ${voxelError.info ? "var(--color-border)" : "var(--color-danger-border)"}`, borderRadius: 6, fontSize: "var(--font-size-base)", color: voxelError.info ? "var(--color-text-secondary)" : "var(--color-danger-text)", lineHeight: 1.5 }}>

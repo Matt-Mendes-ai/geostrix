@@ -6,6 +6,9 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { deepestUnitIntercept } from "../lib/holeMapContacts.js"; // TASKS.csv #2568
 import { contactOrientationNear } from "../lib/sheetFromContacts.js"; // TASKS.csv #2642
+import { fitSheetToLogs } from "../lib/sheetLogCheck.js"; // TASKS.csv #2724
+import { featureCategoryValue } from "../lib/mapLayers.js"; // TASKS.csv #2724
+import { useStore } from "../lib/store.jsx"; // TASKS.csv #2724 — the collars and survey the logged intercepts are placed on
 import { ChevronUp, ChevronDown } from "./icons.js";
 import { t as tr } from "../lib/i18n.js";
 import { suggestPileOrder } from "../lib/pileOrder.js";
@@ -95,6 +98,22 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
   const [sheetDip, setSheetDip] = useState("");
   const [sheetDipDir, setSheetDipDir] = useState("");
   const contactOffer = useMemo(() => (bodyShape === "sheet" ? contactOrientationNear(allRows, layer, unitField, bodyUnits) : null), [bodyShape, allRows, layer, unitField, bodyUnits.join("\u0001")]);
+  // TASKS.csv #2724 — the dip and dip direction fitted to the unit's logged intercepts (strike from the map outline), offered on a click
+  const { collars: storeCollars, survey: storeSurvey, desurveyMethod } = useStore();
+  const [sheetFit, setSheetFit] = useState(null); // { text, warn }
+  useEffect(() => { setSheetFit(null); }, [bodyShape, bodyUnits.join("\u0001"), layer, unitField]);
+  const fitUnit = bodyShape === "sheet" && bodyUnits.length === 1 ? bodyUnits[0] : null;
+  const fitToLogs = () => {
+    const polygons = (layer?.features || []).filter((f) => String(featureCategoryValue(f, unitField)) === String(fitUnit)).map((f) => f.parts || []);
+    const r = fitSheetToLogs({ polygons, groundAt, unit: fitUnit, litho: lithoRows, codeUnit, collars: storeCollars, survey: storeSurvey, desurveyMethod });
+    if (!r) { setSheetFit({ warn: true, text: tr("No logged interval of {unit}: nothing to fit.", { unit: fitUnit }) }); return; }
+    if (r.reason === "no-trace") { setSheetFit({ warn: true, text: tr("{unit} has no map outline to take the strike from.", { unit: fitUnit }) }); return; }
+    if (r.reason === "too-few") { setSheetFit({ warn: true, text: tr("None of the {n} logged intercept(s) of {unit} lies below the ground beside its map trace on a hole with a collar and survey: nothing to fit.", { n: r.intercepts, unit: fitUnit }) }); return; }
+    if (r.reason === "flat") { setSheetFit({ warn: true, text: tr("The logs fit a dip of {dip}° toward {dir}°: under 10°, a sill rather than a sheet, so the boxes were not filled.", { dip: r.dip, dir: r.dipDir }) }); return; }
+    setSheetDip(String(r.dip)); setSheetDipDir(String(r.dipDir));
+    const th = r.thickness.min.toFixed(1) === r.thickness.max.toFixed(1) /* as shown: a float spread under 0.05 m is one value */ ? tr("their true thickness across it is {a} m", { a: r.thickness.median.toFixed(1) }) : tr("their true thickness across it is {a}–{b} m (median {m} m)", { a: r.thickness.min.toFixed(1), b: r.thickness.max.toFixed(1), m: r.thickness.median.toFixed(1) });
+    setSheetFit({ warn: r.holes < 3, text: tr("Fitted to {n} logged intercept(s) in {h} hole(s): {dip}° toward {dir}°, {rms} m RMS off the plane; {th}. The strike is the map outline's long axis; the plane passes through its trace.", { n: r.used, h: r.holes, dip: r.dip, dir: r.dipDir, rms: r.rmsM.toFixed(1), th }) + (r.holes < 3 ? " " + tr("From fewer than three holes: a guide, not a fit.") : "") });
+  };
   const sheetOk = bodyShape !== "sheet" || (Number(sheetDip) >= 10 && Number(sheetDip) <= 90 && sheetDipDir !== "" && Number(sheetDipDir) >= 0 && Number(sheetDipDir) < 360);
   const why = (u) => {
     const i = unitInfo.get(u);
@@ -270,6 +289,9 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
               <span style={{ flexShrink: 0 }}>{tr("toward")}</span>
               <input type="number" min={0} max={359} step={1} value={sheetDipDir} placeholder={tr("required")} onChange={(e) => setSheetDipDir(e.target.value)} style={{ ...sel, width: 60, flex: "none" }} aria-label={tr("Sheet dip direction")} /><span>°</span></div>
             {contactOffer && (sheetDip === "" || sheetDipDir === "") && <button type="button" onClick={() => { setSheetDip(String(contactOffer.dip)); setSheetDipDir(String(contactOffer.dipDir)); }} style={{ ...sel, width: "auto", cursor: "pointer", marginBottom: 6 }} title={tr("The mean of the {n} contact readings within {m} m of the ticked units' polygons.", { n: contactOffer.n, m: contactOffer.maxM })}>{tr("Use {dip}° toward {dir}° ({n} contact readings)", { dip: contactOffer.dip, dir: contactOffer.dipDir, n: contactOffer.n })}</button>}
+            {fitUnit && lithoRows?.length > 0 && Object.values(codeUnit).includes(fitUnit) /* codeUnit is declared below the hooks above */ && <button type="button" onClick={fitToLogs} disabled={!groundAt} style={{ ...sel, width: "auto", cursor: "pointer", marginBottom: 6 }} /* TASKS.csv #2724 */
+              title={tr("Strike from the unit's map outline, dip from where its logged intercepts lie below the ground beside that trace (least squares); fills the two boxes.")}>{tr("Fit to the logged intercepts")}</button>}
+            {sheetFit && <div role="status" style={{ fontSize: "var(--font-size-xs)", color: sheetFit.warn ? "var(--color-warn-text)" : "var(--color-text-secondary)", lineHeight: 1.4, marginBottom: 6 }}>{sheetFit.text}</div>}
             <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4, marginBottom: 6 }}>{tr("Each outline point goes down the sheet's plane: the base is the mapped outline moved down-dip, so both walls dip the same way. Its thickness comes from the map width across the dip, said when it is built.")}</div>
           </>) : (
           <div style={row}><span style={{ width: 120, flexShrink: 0 }}>{tr("Wall dip")}</span>
