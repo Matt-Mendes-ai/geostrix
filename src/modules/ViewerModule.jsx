@@ -134,6 +134,8 @@ import { isRepeatClick } from "../lib/interpretation.js"; // TASKS.csv #1152
 import { syncInterpretPreview } from "../lib/viewer/interpretDraw.js"; // TASKS.csv #1152
 import { localDate } from "../lib/localDate.js"; // TASKS.csv #2703
 import { rightDragTracker } from "./viewer/rightDrag.js"; // TASKS.csv #2213
+import { holeZoomPhi } from "./viewer/zoomHole.js"; // TASKS.csv #2375
+import { assayValueCounts, orderAssayChips } from "../lib/viewer/assayChipOrder.js"; // TASKS.csv #2374
 import { snapInterpretClick } from "../lib/viewer/interpretSnap.js"; // TASKS.csv #2630
 import { outlinesKey, blockSourceKey } from "../lib/explicitLog.js"; // TASKS.csv #878
 import { extrapolationNotice } from "../lib/extrapolatedInputs.js"; // #1840
@@ -2596,7 +2598,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   const zoomToHoles = () => autoFitInitial(lastTracesRef.current, lastHoleTraceCountRef.current);
   const fitButton = () => (mode === "surface" ? zoomToFitAll() : zoomToHoles()); // #2092 — Fit on the Surface Geology tab: everything shown
   // TASKS.csv #393 — zoom to one hole from the Holes list (its desurveyed trace, scene coords).
-  const zoomToHole = useCallback((holeId) => { const t = tracesRef.current.find((x) => x.hole_id === holeId); if (t?.pts?.length) fitView([t.pts]); }, [fitView]);
+  const zoomToHole = useCallback((holeId) => { const t = tracesRef.current.find((x) => x.hole_id === holeId); if (!t?.pts?.length) return; const cs = camState.current, ph = holeZoomPhi(t.pts, cs.phi, cs.theta); if (ph != null) cs.phi = ph; /* #2375 — not end-on */ fitBox(new THREE.Box3().setFromPoints(t.pts.map((p) => new THREE.Vector3(p.x, p.y, p.z))), 1.6 /* #2375 — the collar not cut by the top edge */); }, [fitBox]);
   const zoomToPoint = (point) => fitBox(new THREE.Box3().setFromCenterAndSize(point, new THREE.Vector3(80, 80, 80)));
   const resetView = () => { camState.current.theta = Math.PI / 4; camState.current.phi = Math.PI / 3; cameraRef.current?.__update?.(); };
 
@@ -6568,6 +6570,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   const interpretPane = interpretOpen && (<Suspense fallback={null}>{React.createElement(interpretOpen === "polygon" ? UnitPolygonPane : InterpretPane, { drawing: interpret, presetSurvey: interpret.survey,
     onStart: () => { setRectZoomMode(false); setSectionMode(false); setMeasureMode(null); setMeasurePts([]); setPickHoleMode(false); setInterpret((s) => ({ ...s, on: true, points: [] })); },
     onUndo: () => setInterpret((s) => ({ ...s, points: s.points.slice(0, -1) })), onSnap: (v) => setInterpret((s) => ({ ...s, snap: v })) /* #2630 */, view: { scene: sceneRef, camera: cameraRef, renderer: rendererRef, dragHook: viewDragHookRef, origin: originRef, activity: lastActivityRef }, snapCtx: () => ({ traces: tracesRef.current, layers, visible: layerVisible }) /* #2767 */, onCancel: stopInterpret, onDone: stopInterpret, onClose: () => { setInterpretOpen(false); stopInterpret(); } })}</Suspense>);
+  const assayChipCounts = useMemo(() => assayValueCounts(assays), [assays]); // #2374
   const anomalyControls = <Suspense fallback={null}><SurfaceAnomalyControls cfg={layerStyles.surface_anomaly} setCfg={(cfg) => setLayerStyles((p) => ({ ...p, surface_anomaly: cfg }))} surfaceSamples={surfaceSamples} surfaceElements={surfaceElements} mapLayers={mapLayers} thresholds={geochemThresholds} result={surfaceAnomaly} drawn={surfaceSamples} /* #1819 — the class CSV holds every sample */ /></Suspense>; // #1603 — also on the Surface Geology tab
   return (
     <div style={{ display: visible ? "flex" : "none", flexDirection: "column", flex: 1, minHeight: 0, width: "100%", order: bare ? 1 : 0 }}>
@@ -7066,7 +7069,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                 user request: "change the assay legend — change colour, size, recategorize, ignore
                 values lower than"). */}
             <div style={{ display: "flex", flexWrap: "wrap", gap: 5, padding: "0 10px 6px" }}>
-              {assayElements.map((e) => {
+              {orderAssayChips(assayElements, assayDisplayElements, assayChipCounts).map((e) => { /* #2374 — shown first, then most values */
                 const idx = assayDisplayElements.indexOf(e.symbol);
                 const on = idx !== -1;
                 const style = assayStyle[e.symbol];
