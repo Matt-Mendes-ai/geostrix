@@ -1,3 +1,10 @@
+// medianLonLat (TASKS.csv #2833): the middle of points whose x / y are longitude / latitude, for askAdoptCrs's `at`; null when they are not degrees
+export function medianLonLat(points) {
+  const ok = (points || []).filter((p) => Number.isFinite(p?.x) && Number.isFinite(p?.y) && Math.abs(p.x) <= 180 && Math.abs(p.y) <= 90);
+  if (!ok.length || ok.length < (points || []).length * 0.9) return null;
+  const m = (k) => ok.map((p) => p[k]).sort((a, b) => a - b)[ok.length >> 1];
+  return { lon: m("x"), lat: m("y") };
+}
 // TASKS.csv #607 — the default project CRS is 3156 (NAD83(CSRS) UTM 9N, the Golden Triangle). Data from anywhere
 // else, imported into an EMPTY project, used to be reprojected into zone 9 without a word (a UTM 10 property
 // landed at ~1,020,000 E). When nothing is loaded yet and the file DECLARES a different CRS GeoStrix can use
@@ -15,9 +22,13 @@ export function shouldOfferCrs({ isEmpty, currentEpsg, declaredEpsg }) {
 // TASKS.csv #1148 — at: { lon, lat } of the data, when it is known. A file in latitude / longitude must not become the project's
 // CRS: x and y in degrees against elevations in metres draws terrain as spikes (Matt: public samples in Australia, then SRTM).
 // With a place, the metric CRS for it is offered instead, and the data is reprojected into that.
-export function askAdoptCrs({ isEmpty, currentEpsg, declaredEpsg, fileName, at = null }, confirm = (m) => window.confirm(m)) {
-  if (!shouldOfferCrs({ isEmpty, currentEpsg, declaredEpsg })) return null;
+// crsSet (TASKS.csv #2833): the project's CRS was chosen (store project.crsSet); then a file never offers to replace it. Callers that pass
+// nothing keep the #607 behaviour. A geographic CRS with no `at` is never offered (#1148's rule, whatever the caller): before, a caller
+// without `at` offered EPSG:4269 to an empty project and OK made it the project CRS (GSC review B3).
+export function askAdoptCrs({ isEmpty, currentEpsg, declaredEpsg, fileName, at = null, crsSet = false }, confirm = (m) => window.confirm(m)) {
+  if (crsSet || !shouldOfferCrs({ isEmpty, currentEpsg, declaredEpsg })) return null;
   const cur = Number(currentEpsg), d = Number(declaredEpsg);
+  if (isGeographicCrs(d) && !at) return null; // #2833 — degrees never become the project CRS
   if (at && isGeographicCrs(d)) {
     const m = crsCandidatesAt(at.lon, at.lat)[0];
     if (!m || m.code === cur) return null;
