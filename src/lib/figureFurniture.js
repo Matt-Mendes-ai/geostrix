@@ -112,11 +112,11 @@ export function pngScaleFor(w, h, want = 2, maxSide = 32000) {
 
 // Fence diagram: the holes, the section bearing and how it was chosen, the exaggeration, the off-section flag, the
 // correlation-band caveat, the lithology key. colorOf(code) -> colour.
-export function fenceFurniture({ holeIds, azimuth, fitted, ve, offsetLimit, bands, codes = [], colorOf, patternOf = null, date }) { // patternOf: #1995, code -> a pattern fill
+export function fenceFurniture({ holeIds, azimuth, fitted, ve, offsetLimit, bands, codes = [], colorOf, patternOf = null, keyTitle = "Lithology", date }) { // patternOf: #1995, code -> a pattern fill; keyTitle: #1745, the log shown
   return {
     title: `Fence diagram: ${holeIds.join(", ")}`,
     caption: [`Section bearing ${azimuth.toFixed(1)}° (${fitted ? "best fit through the collars" : "fixed"}) · vertical exaggeration ${ve}x · holes more than ${offsetLimit} m off the section flagged amber${bands ? " · shaded bands join the shallowest shared code between adjacent holes: an interpretation, not a measurement" : ""}`, `GeoStrix · ${date}`],
-    keys: codes.length ? [{ title: "Lithology", items: codes.map((c) => ({ label: c, color: colorOf(c), ...(patternOf?.(c) ? { pattern: patternOf(c) } : {}) })) }] : [],
+    keys: codes.length ? [{ title: keyTitle || "Lithology", items: codes.map((c) => ({ label: c, color: colorOf(c), ...(patternOf?.(c) ? { pattern: patternOf(c) } : {}) })) }] : [],
   };
 }
 

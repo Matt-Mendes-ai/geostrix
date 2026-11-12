@@ -324,6 +324,20 @@ export function correlationBands(a, b, byHole) {
 // TASKS.csv #1375 (review #1352, Silvertip) — fan holes share a collar, so their labels printed on top of each other (three PAD34 labels at
 // 710-711, 222-224). points: [{ id, x, y }] in screen px -> { id: slot }: labels within dx horizontally and dy vertically of one already
 // placed go one slot higher (the caller lifts each slot by a label's height), in the order given.
+// TASKS.csv #2327 / #2426 — at most FENCE_LABEL_SLOTS labels per stack are drawn (the rest keep their name on the collar's hover): 55
+// stacked labels lifted the top of the panel by about 1,000 px, so the RL axis read 500-2,500 m for holes at RL 250-347
+export const FENCE_LABEL_SLOTS = 3;
+// TASKS.csv #2426 — the vertical exaggeration that makes a long shallow section readable: the length-to-depth ratio over about 3 (a
+// panel 3 × wider than tall), rounded down to an offered step; 1 when the section is already deep enough. -> one of FENCE_VE
+export const FENCE_VE = [1, 1.5, 2, 3, 5, 10, 20, 50];
+export function suggestFenceVe(sRange, zRange) {
+  const len = (sRange?.max ?? 0) - (sRange?.min ?? 0), depth = (zRange?.max ?? 0) - (zRange?.min ?? 0);
+  if (!(len > 0) || !(depth > 0)) return 1;
+  const want = len / depth / 3;
+  let best = 1;
+  for (const v of FENCE_VE) if (v <= want) best = v;
+  return best;
+}
 export function stackCollarLabels(points, { dx = 40, dy = 12 } = {}) {
   const slots = {}, placed = [];
   for (const p of points) {
