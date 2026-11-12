@@ -3,7 +3,7 @@
 // weights of evidence and a prediction-area plot; the score goes on the map as a raster drape (with its values, so
 // the Raster module exports it as GeoTIFF, #854). Maths and the caveats in lib/evidence.js.
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { collarAttrChoices, collarsMatching } from "../lib/holeFilter.js"; // TASKS.csv #2577
+import { collarAttrChoices, collarsWithPick } from "../lib/holeFilter.js"; // TASKS.csv #2577; collarsWithPick: #2960
 import { Download, Layers } from "./icons.js";
 import { TaskPaneHeader } from "./Ribbon.jsx";
 import { useStore } from "../lib/store.jsx";
@@ -221,7 +221,7 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
   // #1457 — through the cache: a reopened pane, or the same layer added again, reuses values computed from the same grid and data
   // #2577 — a grade card's holes: every hole, or those whose collar field matches ('field = holes', value 'Drill_Code=RC')
   const holeAttrChoices = useMemo(() => collarAttrChoices(collars), [collars]);
-  const gradeAssaysOf = (assays, opts) => (opts?.field === "holes" && opts.value ? assaysOfHoles(assays, new Set(collarsMatching(collars, opts.value).map((c) => c.hole_id))) : assays);
+  const gradeAssaysOf = (assays, opts) => (opts?.field === "holes" && opts.value ? assaysOfHoles(assays, new Set(collarsWithPick(collars, opts.value).map((c) => c.hole_id))) /* #2960 — the pick whole, spaces and all */ : assays);
   const computeValues = (src, opts = {}, lv = level) => (grid ? cachedEvidence(
     `${gridSignature(grid)}|${src.kind}|${src.ref}|${src.how || ""}|${opts.field || ""}|${opts.value ?? ""}|${opts.reach || ""}|${opts.zMin ?? ""}|${opts.zMax ?? ""}|${opts.lowest ? "lo" : ""}|L${LEVEL_KINDS.has(src.kind) ? `${lv?.zMin ?? ""}:${lv?.zMax ?? ""}` : ""}`, // L: #2326
     evidenceDeps(src, opts, { rasters, mapLayers, surfaceSamples, surfaceElements, collars, survey, desurveyMethod: project?.desurveyMethod, assays, assayElements, voxelModels, geophysPts, structurePicks, projectLayers, customLayers, solids }), // #1560: only what this source reads
