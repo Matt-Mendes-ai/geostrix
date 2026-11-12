@@ -11165,5 +11165,10 @@
   "{n} vertical row(s) with a blank azimuth read as azimuth 0.": "{n} fila(s) verticales con el azimut en blanco se leyeron como azimut 0.",
   "Codes with no density typed: {list}.": "Códigos sin densidad ingresada: {list}.",
   "{code} ({n} blocks)": "{code} ({n} bloques)",
-  "Show all {n} codes ({k} more, the least logged)": "Mostrar los {n} códigos ({k} más, los menos registrados)"
+  "Show all {n} codes ({k} more, the least logged)": "Mostrar los {n} códigos ({k} más, los menos registrados)",
+  "{p} % of the drilled cells are occurrences: the weights have little to set them apart from, so the posterior cannot rank them. A stricter rule (a higher cut-off, or more metres at or above it) leaves fewer.": "El {p} % de las celdas perforadas son ocurrencias: los pesos tienen poco contra qué distinguirlas, así que la probabilidad posterior no puede ordenarlas. Una regla más estricta (una ley de corte más alta, o más metros sobre ella) deja menos.",
+  "Optional: a hole is an occurrence only with at least this many metres of samples at or above the cut-off, summed down the hole. Blank: one sample at or above it is enough.": "Opcional: un sondaje es una ocurrencia solo con al menos estos metros de muestras iguales o superiores a la ley de corte, sumados a lo largo del sondaje. En blanco: basta una muestra igual o superior.",
+  "over at least": "en al menos",
+  "any": "cualquiera",
+  "Metres at or above the cut-off in a hole": "Metros iguales o superiores a la ley de corte en un sondaje"
 }

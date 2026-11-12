@@ -244,6 +244,18 @@ export function trainingCoverage(g, points, valid) {
   for (const p of points) { const i = Math.round((p.x - g.x0) / g.dx), j = Math.round((g.yTop - p.y) / g.dy); if (i >= 0 && j >= 0 && i < g.nx && j < g.ny) inGrid++; }
   return { points: points.length, inGrid, cells: all.size, validCells: kept.size, droppedCells: all.size - kept.size, droppedShare: all.size ? (all.size - kept.size) / all.size : 0 };
 }
+// TASKS.csv #2964 (review #2876, WA iron) — the holes behind the cells the weights use: the header said '... in 6,031 holes ... in 4,800
+// holes' (the whole project) on a box that held 410 drilled cells. samples: [{ hole, x, y, v }]; cells: a Set of cell indices, or a mask
+// array (cells where it is 1). -> Set of hole ids with a sample in those cells (and v >= min when min is given)
+export function holesInCells(g, samples, cells, min = null) {
+  const out = new Set(), has = cells instanceof Set ? (k) => cells.has(k) : (k) => !!cells?.[k];
+  for (const s of samples || []) {
+    if (min != null && !(s.v >= min)) continue;
+    const i = Math.round((s.x - g.x0) / g.dx), j = Math.round((g.yTop - s.y) / g.dy);
+    if (i >= 0 && j >= 0 && i < g.nx && j < g.ny && has(j * g.nx + i)) out.add(s.hole);
+  }
+  return out;
+}
 export function trainingCells(g, points, valid) {
   const set = new Set();
   for (const p of points) { const i = Math.round((p.x - g.x0) / g.dx), j = Math.round((g.yTop - p.y) / g.dy); if (i >= 0 && j >= 0 && i < g.nx && j < g.ny) { const k = j * g.nx + i; if (!valid || valid[k]) set.add(k); } }

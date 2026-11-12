@@ -11165,5 +11165,10 @@
   "{n} vertical row(s) with a blank azimuth read as azimuth 0.": "{n} linha(s) verticais com o azimute em branco foram lidas como azimute 0.",
   "Codes with no density typed: {list}.": "Códigos sem densidade digitada: {list}.",
   "{code} ({n} blocks)": "{code} ({n} blocos)",
-  "Show all {n} codes ({k} more, the least logged)": "Mostrar os {n} códigos ({k} a mais, os menos registrados)"
+  "Show all {n} codes ({k} more, the least logged)": "Mostrar os {n} códigos ({k} a mais, os menos registrados)",
+  "{p} % of the drilled cells are occurrences: the weights have little to set them apart from, so the posterior cannot rank them. A stricter rule (a higher cut-off, or more metres at or above it) leaves fewer.": "{p} % das células perfuradas são ocorrências: os pesos têm pouco com que distingui-las, então a probabilidade posterior não consegue ordená-las. Uma regra mais rígida (um teor de corte mais alto, ou mais metros acima dele) deixa menos.",
+  "Optional: a hole is an occurrence only with at least this many metres of samples at or above the cut-off, summed down the hole. Blank: one sample at or above it is enough.": "Opcional: um furo é uma ocorrência só com pelo menos estes metros de amostras iguais ou acima do teor de corte, somados ao longo do furo. Em branco: basta uma amostra igual ou acima.",
+  "over at least": "em pelo menos",
+  "any": "qualquer",
+  "Metres at or above the cut-off in a hole": "Metros iguais ou acima do teor de corte em um furo"
 }

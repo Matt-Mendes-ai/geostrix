@@ -11165,5 +11165,10 @@
   "{n} vertical row(s) with a blank azimuth read as azimuth 0.": "قُرئ {n} صف (صفوف) رأسية بسمت فارغ على أنها بسمت 0.",
   "Codes with no density typed: {list}.": "رموز بلا كثافة مُدخلة: {list}.",
   "{code} ({n} blocks)": "{code} ({n} كتلة)",
-  "Show all {n} codes ({k} more, the least logged)": "عرض كل الرموز الـ {n} ({k} إضافية، الأقل تسجيلًا)"
+  "Show all {n} codes ({k} more, the least logged)": "عرض كل الرموز الـ {n} ({k} إضافية، الأقل تسجيلًا)",
+  "{p} % of the drilled cells are occurrences: the weights have little to set them apart from, so the posterior cannot rank them. A stricter rule (a higher cut-off, or more metres at or above it) leaves fewer.": "{p} % من الخلايا المحفورة مواقع ظهور: لا تجد الأوزان ما تميّزها به، فلا تستطيع الاحتمالية اللاحقة ترتيبها. قاعدة أشد (محتوى حدي أعلى، أو أمتار أكثر عنده أو فوقه) تُبقي عددًا أقل.",
+  "Optional: a hole is an occurrence only with at least this many metres of samples at or above the cut-off, summed down the hole. Blank: one sample at or above it is enough.": "اختياري: لا يكون الثقب موقع ظهور إلا إذا بلغت عيناته عند المحتوى الحدي أو فوقه هذا العدد من الأمتار على الأقل، مجموعةً على طول الثقب. فارغ: تكفي عينة واحدة عنده أو فوقه.",
+  "over at least": "على الأقل في",
+  "any": "أي",
+  "Metres at or above the cut-off in a hole": "الأمتار عند المحتوى الحدي أو فوقه في الثقب"
 }

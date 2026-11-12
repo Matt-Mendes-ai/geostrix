@@ -272,6 +272,16 @@ export function medianSiteSpacing(collars, padM = null) {
   return out;
 }
 
+// TASKS.csv #2964 (review #2876, WA iron) — the holes that may be occurrences under 'at least {minM} m at or above the cut-off': the metres of
+// samples at or above min, summed down each hole. rows: assays; valueOf(row) -> the grade or null. -> Set of hole ids, or null (no metres
+// rule: every hole may be one)
+export function occurrenceHoles(rows, valueOf, min, minM) {
+  if (!(Number(minM) > 0) || !Number.isFinite(Number(min))) return null;
+  const per = new Map();
+  for (const a of rows || []) { const v = valueOf(a), len = Number(a.to) - Number(a.from); if (v != null && v >= min && len > 0) per.set(a.hole_id, (per.get(a.hole_id) || 0) + len); }
+  return new Set([...per].filter(([, m]) => m >= Number(minM) - 1e-9).map(([h]) => h));
+}
+
 // The site spacing of the drilled collars (#2097: a collar marked proposed is not drilled ground), kept per store collars array so a pane's
 // remount does not measure again (#2949)
 const drilledSpacingMemo = new WeakMap();
