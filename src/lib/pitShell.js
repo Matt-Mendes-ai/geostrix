@@ -331,14 +331,26 @@ export function coneWalls(arcs, dx, dy, dz) {
 // deepest pattern within the cap. Cached: a run asks for it two or three times.
 const arcCache = new Map();
 const better = (w, n, best) => !best || w.flattest < best.w.flattest - 1e-6 || (Math.abs(w.flattest - best.w.flattest) <= 1e-6 && (w.steepest < best.w.steepest - 1e-6 || (Math.abs(w.steepest - best.w.steepest) <= 1e-6 && n < best.a.length)));
+// TASKS.csv #2985 (review #2876, WA iron) — the pattern spanned 1 to 8 levels only, so on flat cells (25 x 25 x 2 m) no wall steeper than
+// atan(8 x 2 / 25) = 32.6 deg reached the next column: a typed 35-45 deg had no sideways arc at all and was cut with vertical walls ('walls
+// 90-90°'). The levels now follow the cell shape: 8 as before whenever 8 levels reach the next column at the steepest slope tried (cubes
+// and near-cubes, so their patterns are unchanged), else enough for about three columns, at most 48.
+// the largest plan cell on which a slope still gets a sideways step at this block height (for the run's message when it did not)
+export const planCellForSlope = (dz, slopeDeg) => Math.floor((48 * dz) / Math.tan((Math.min(89, slopeDeg) * Math.PI) / 180));
+export function arcLevelsFor(dx, dy, dz, slopeDeg) {
+  const oneColumn = Math.ceil((Math.max(dx, dy) * Math.tan((Math.min(89, slopeDeg) * Math.PI) / 180)) / dz - 1e-9);
+  return oneColumn <= 8 ? 8 : Math.min(48, 3 * oneColumn);
+}
 function chooseArcs(dx, dy, dz, slopeDeg, sectorSlopes) {
   if (hasSectorSlopes(sectorSlopes)) {
     let deepest = null;
-    for (let L = 1; L <= 8; L++) { const a = precedenceArcs(dx, dy, dz, slopeDeg, L, sectorSlopes); if (a.length > MAX_ARCS) break; deepest = a; }
+    const steep = Math.max(slopeDeg, ...SECTORS.map((k) => slopeForSector(slopeDeg, sectorSlopes, k)));
+    for (let L = 1, Lmax = arcLevelsFor(dx, dy, dz, steep); L <= Lmax; L++) { const a = precedenceArcs(dx, dy, dz, slopeDeg, L, sectorSlopes); if (a.length > MAX_ARCS) break; deepest = a; }
     return deepest;
   }
   let best = null;
-  for (let d = 0; d <= 20 && slopeDeg + d < 89; d += 0.5) for (let L = 1; L <= 8; L++) {
+  const Lmax = arcLevelsFor(dx, dy, dz, Math.min(89, slopeDeg + 20)); // #2985
+  for (let d = 0; d <= 20 && slopeDeg + d < 89; d += 0.5) for (let L = 1; L <= Lmax; L++) {
     const a = precedenceArcs(dx, dy, dz, slopeDeg + d, L);
     if (a.length > MAX_ARCS) break;
     const w = coneWalls(a, dx, dy, dz);
@@ -371,8 +383,11 @@ export function precedenceArcs(dx, dy, dz, slopeDeg, maxLevels = null, sectorSlo
 
 // The flattest and steepest wall that pattern really makes, over all bearings, in degrees: it can only stand at or above the
 // slope asked for, so a run says what it got.
-export function wallAngles(dx, dy, dz, slopeDeg, levels = 32, sectorSlopes = null) {
-  const arcs = precedenceArcs(dx, dy, dz, slopeDeg, null, sectorSlopes), reach = Array.from({ length: levels + 1 }, () => new Map());
+export function wallAngles(dx, dy, dz, slopeDeg, levels = null, sectorSlopes = null) {
+  const arcs = precedenceArcs(dx, dy, dz, slopeDeg, null, sectorSlopes);
+  // #2985 — 32 benches, or four of the pattern's longest arcs when they are longer (a wall of 11-level arcs had taken two steps in 32)
+  if (!(levels > 0)) levels = Math.max(32, 4 * Math.max(1, ...(arcs || []).map((x) => x[2])));
+  const reach = Array.from({ length: levels + 1 }, () => new Map());
   reach[0].set("0,0", [0, 0]);
   for (let l = 0; l < levels; l++) for (const [a, b] of reach[l].values()) for (const [p, q, m] of arcs) if (l + m <= levels) reach[l + m].set(`${a + p},${b + q}`, [a + p, b + q]);
   const bins = new Float64Array(16);
@@ -732,7 +747,7 @@ export function runPitShell(inputs, { groundAt = null, collars = null, onProgres
   if (!summary.blocks) return { empty: true, cutoff: economics.cutoff, cell: [grid.dx, grid.dy, grid.dz], groundSource };
   // #1917 — the by-product's figures: its metal, mean grade over the ore, its share of the revenue, and how many blocks carried it
   const by = economics.by ? (() => { const r1 = summary.metalU * economics.revenuePerGrade, r2 = summary.metalU2 * economics.by.revenuePerGrade; return { metalU: summary.metalU2, meanGrade: summary.meanGrade2, metalUnit: economics.by.metalUnit, metalFactor: economics.by.metalFactor, cutoff: economics.by.cutoff, revenueShare: r1 + r2 > 0 ? r2 / (r1 + r2) : 0, matchedShare: byMatched }; })() : null;
-  return { ...summary, ...pitSurface(grid, solve.mined), by, parts: pitParts(grid, solve.mined) /* #1608 */, limitM: grid.limitM, limitedCols: grid.limitedCols /* #2665 */, oreAboveGroundT: grid.oreAboveGroundT, oreAboveGroundBlocks: grid.oreAboveGroundBlocks /* #1616 */, askedSize: grid.askedSize, modelCellM: grid.modelCell, modelCellZM: grid.modelCellZ /* #2110 */ /* #1610 */, cutoff: economics.cutoff, metalUnit: economics.metalUnit, metalFactor: economics.metalFactor, cell: [grid.dx, grid.dy, grid.dz], grid: [grid.nx, grid.ny, grid.nz], walls: wallAngles(grid.dx, grid.dy, grid.dz, inputs.slopeDeg, 32, inputs.sectorSlopes), groundSource, nodes: solve.nodes, arcs: solve.arcs, topAssumed: grid.topAssumed / (grid.nx * grid.ny), coarsened: grid.coarsened };
+  return { ...summary, ...pitSurface(grid, solve.mined), by, parts: pitParts(grid, solve.mined) /* #1608 */, limitM: grid.limitM, limitedCols: grid.limitedCols /* #2665 */, oreAboveGroundT: grid.oreAboveGroundT, oreAboveGroundBlocks: grid.oreAboveGroundBlocks /* #1616 */, askedSize: grid.askedSize, modelCellM: grid.modelCell, modelCellZM: grid.modelCellZ /* #2110 */ /* #1610 */, cutoff: economics.cutoff, metalUnit: economics.metalUnit, metalFactor: economics.metalFactor, cell: [grid.dx, grid.dy, grid.dz], grid: [grid.nx, grid.ny, grid.nz], walls: wallAngles(grid.dx, grid.dy, grid.dz, inputs.slopeDeg, null, inputs.sectorSlopes) /* levels: #2985 */, upperWalls: inputs.upperSlope?.slopeDeg > 0 && inputs.upperSlope.slopeDeg < 90 ? wallAngles(grid.dx, grid.dy, grid.dz, inputs.upperSlope.slopeDeg) : null /* #2985 */, groundSource, nodes: solve.nodes, arcs: solve.arcs, topAssumed: grid.topAssumed / (grid.nx * grid.ny), coarsened: grid.coarsened };
 }
 
 // TASKS.csv #1875 — what a shell is worth at the ENTERED price (#1609 valued a revenue-factor shell at the scaled price): the
