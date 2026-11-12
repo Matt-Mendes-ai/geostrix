@@ -975,9 +975,9 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       const { features } = await readKmlFile(file);
       const tie = tieOf(project); // #2587
       if (tie) await getProj4Def(Number(tie.epsg)); // a registry code loads on demand (#834)
-      const { polylines, failed } = kmlToProjectPolylines(features, project?.epsg, { toLocal: tie ? (x, y, from) => fileToLocal(tie, x, y, from) : null });
+      const { polylines, failed, featureOf, attributes } = kmlToProjectPolylines(features, project?.epsg, { toLocal: tie ? (x, y, from) => fileToLocal(tie, x, y, from) : null }); // featureOf, attributes: #2742
       if (!polylines.length) throw new Error(failed ? tr("KML coordinates could not be converted to EPSG:{v}.", { v: project?.epsg }) : tr("No lines or polygons found in this KML (points are imported through the 3D View importer)."));
-      return { polylines, note: withLonLatSource(lonLatNote(tie)) }; // #2467; #2684
+      return { polylines, featureOf, attributes, note: withLonLatSource(lonLatNote(tie)) }; // #2467; #2684; featureOf / attributes: #2742 — one claim per Placemark
     }
     // TASKS.csv #1106 — GPX tracks / routes and GeoJSON lines / polygons, WGS 84 (or a GeoJSON "crs" EPSG) to the project CRS
     if (name.endsWith(".gpx") || name.endsWith(".geojson") || name.endsWith(".json")) {
@@ -986,9 +986,9 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       const layers = name.endsWith(".gpx") ? gpxToLayers(parseGPX(text)) : parseGeoJSON(text).layers;
       const tie = tieOf(project); // #2587
       if (tie) await getProj4Def(Number(tie.epsg)); // a registry code loads on demand (#834)
-      const { polylines, closedFlags, failed, partNames } = layersToBoundaryPolylines(layers, project?.epsg, reprojectXY, tie ? (x, y, from) => fileToLocal(tie, x, y, from) : null); // closedFlags: #1760; partNames: #1767
+      const { polylines, closedFlags, failed, partNames, featureOf, attributes } = layersToBoundaryPolylines(layers, project?.epsg, reprojectXY, tie ? (x, y, from) => fileToLocal(tie, x, y, from) : null); // closedFlags: #1760; partNames: #1767
       if (!polylines.length) throw new Error(failed ? tr("Coordinates could not be converted to EPSG:{v}.", { v: project?.epsg }) : tr("No lines or polygons found in this file (GPX waypoints and GeoJSON points are imported as a map layer in Surface Geology)."));
-      return { polylines, closedFlags, ...(partNames ? { partNames } : {}), note: withLonLatSource(lonLatNote(tie)) }; // note: #2467; #2684
+      return { polylines, closedFlags, featureOf, attributes, ...(partNames ? { partNames } : {}), note: withLonLatSource(lonLatNote(tie)) }; // note: #2467; #2684; featureOf / attributes: #2742 — one claim per feature
     }
     // TASKS.csv #1035 — every part of every feature, reprojected from the file's own CRS (lib/boundaryImport.js)
     if (name.endsWith(".zip") || name.endsWith(".shp")) {
