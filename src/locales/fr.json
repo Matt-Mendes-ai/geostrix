@@ -10722,5 +10722,6 @@
   "Drilling": "Forage",
   "Search the {n} evidence sources…": "Chercher parmi les {n} sources d'évidence…",
   "Search the evidence sources": "Chercher les sources d'évidence",
-  "+ add evidence… ({n} found)": "+ ajouter une évidence… ({n} trouvées)"
+  "+ add evidence… ({n} found)": "+ ajouter une évidence… ({n} trouvées)",
+  "Drillholes: {layer} {field} where {by} = {code} along the holes": "Sondages : {layer} {field} où {by} = {code} le long des sondages"
 }

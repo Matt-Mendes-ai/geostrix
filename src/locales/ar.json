@@ -10722,5 +10722,6 @@
   "Drilling": "الحفر",
   "Search the {n} evidence sources…": "ابحث في مصادر الأدلة الـ {n}…",
   "Search the evidence sources": "ابحث في مصادر الأدلة",
-  "+ add evidence… ({n} found)": "+ أضف دليلًا… (عُثر على {n})"
+  "+ add evidence… ({n} found)": "+ أضف دليلًا… (عُثر على {n})",
+  "Drillholes: {layer} {field} where {by} = {code} along the holes": "ثقوب الحفر: {layer} {field} حيث {by} = {code} على امتداد الثقوب"
 }

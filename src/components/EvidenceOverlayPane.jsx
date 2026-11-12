@@ -16,7 +16,7 @@ import { topCells } from "../lib/evidence.js"; // TASKS.csv #1456
 import { evidenceCoverage, LOW_COVERAGE, scoreBlockers } from "../lib/evidence.js"; // TASKS.csv #2252
 import { drilledTrainingMask, evidenceGrid, evidenceExtent, rasterEvidence, distanceEvidence, pointEvidence, sampleValues, membership, fuzzyCombine, FUZZY_OPERATORS, trainingCells, trainingCoverage, bestCutoff, MIN_SIDE, posterior, predictionArea, scoreImage, scoreTop /* #1731 */, rocAuc, kdeEvidence /* #2001 */, isOverlayOutput, coveringLayers } from "../lib/evidence.js"; // coveringLayers: #1563
 import { cachedEvidence, evidenceDeps, gridSignature } from "../lib/evidenceCache.js"; // TASKS.csv #1457, #1560
-import { DRILL_REACH_M, surveyNames, surveyPoints, reachFromSpacing, reachFromNeighbours, voxelColumnEvidence, voxelZRange, holeTraces, holeGradePoints, assaysOfHoles, gradeCardReads /* #2577 */, structureCodes, structureParts, drilledParts /* #1456 */, scoreRasterPlacement /* #2447 */, elementsWithValues, numericLayerFields, UNCERTAINTY_FIELD, codeLikeField /* #2260 */, depthTestedPoints /* #2643 */, gtRef, parseGtRef, holeIntervalPoints /* #2653 */, filterSources, groupSources /* #2654 */, layerFieldPoints, zoneParts, levelSet, targetElevation /* #2326 */, codedFields, foldedCodes, zoneHolePoints, codedRef, parseCodedRef, codedRowsOf /* #2453 */, codesOf /* #2102 */ } from "../lib/evidenceSources.js"; // numericLayerFields, layerFieldPoints, zoneCodes, zoneParts: TASKS.csv #1728 // TASKS.csv #1154; elementsWithValues: #1723
+import { DRILL_REACH_M, surveyNames, surveyPoints, reachFromSpacing, reachFromNeighbours, voxelColumnEvidence, voxelZRange, holeTraces, holeGradePoints, assaysOfHoles, gradeCardReads /* #2577 */, structureCodes, structureParts, drilledParts /* #1456 */, scoreRasterPlacement /* #2447 */, elementsWithValues, numericLayerFields, UNCERTAINTY_FIELD, codeLikeField /* #2260 */, depthTestedPoints /* #2643 */, gtRef, parseGtRef, holeIntervalPoints /* #2653 */, filterSources, groupSources /* #2654 */, siblingCodedFields, siblingRef, parseSiblingRef, siblingRows /* #2655 */, layerFieldPoints, zoneParts, levelSet, targetElevation /* #2326 */, codedFields, foldedCodes, zoneHolePoints, codedRef, parseCodedRef, codedRowsOf /* #2453 */, codesOf /* #2102 */ } from "../lib/evidenceSources.js"; // numericLayerFields, layerFieldPoints, zoneCodes, zoneParts: TASKS.csv #1728 // TASKS.csv #1154; elementsWithValues: #1723
 const LEVEL_KINDS = new Set(["grade", "pxrf", "numeric", "zone", "pick", "voxel"]); // TASKS.csv #2326 — the cards a Level filters
 import { categoricalModels } from "../lib/geologyForward.js";
 import { PATHFINDER_PRESETS } from "../lib/anomalyMap.js";
@@ -87,6 +87,7 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
       if (!meta.numeric || key === "geophys_pts" || !projectLayers?.[key]?.length) continue;
       if (numericLayerFields(projectLayers[key]).includes("value")) out.push({ key: `num:${key}:value`, label: tr("Drillholes: {name} along the holes", { name: tr(meta.label) }), kind: "numeric", ref: `${key}:value` });
     }
+    for (const cl of customLayers) for (const s of siblingCodedFields(cl.rows)) for (const code of s.codes) out.push({ key: `num${siblingRef(cl.id, s.field, s.by, code)}`, label: tr("Drillholes: {layer} {field} where {by} = {code} along the holes", { layer: cl.name, field: s.field, by: s.by, code }), kind: "numeric", ref: siblingRef(cl.id, s.field, s.by, code) }); // #2655
     for (const cl of customLayers) for (const f of numericLayerFields(cl.rows).filter((x) => !UNCERTAINTY_FIELD.test(x) /* #2260 — TSA_Error is no evidence */)) out.push({ key: `num:custom:${cl.id}:${f}`, label: tr("Drillholes: {layer} {field} along the holes", { layer: cl.name, field: f }), kind: "numeric", ref: `custom:${cl.id}:${f}` });
     return out;
   }, [traces, projectLayers, customLayers]);
@@ -138,6 +139,7 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
     const { rows, field } = numericRowsOf(ref); return layerFieldPoints(rows, field, traces, undefined, lv);
   };
   const numericRowsOf = (ref) => {
+    const sw = parseSiblingRef(ref); if (sw) { const cl = customLayers.find((c) => String(c.id) === sw.id); return { rows: siblingRows(cl?.rows, sw), field: sw.f }; } // #2655
     const m = /^custom:(.+):([^:]+)$/.exec(ref); if (m) { const cl = customLayers.find((c) => String(c.id) === m[1]); return { rows: cl?.rows || [], field: m[2] }; }
     const c = /^coded:([^:]+):(.+):([^:]+)$/.exec(ref); if (c) return { rows: (projectLayers?.[c[1]] || []).filter((r) => String(r.value ?? "").trim() === c[2]), field: c[3] }; // #1455 — one code's rows
     const [key, field] = ref.split(":"); return { rows: projectLayers?.[key] || [], field };

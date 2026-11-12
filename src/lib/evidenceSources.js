@@ -494,3 +494,22 @@ export function groupSources(sources) {
   return [...m];
 }
 
+// TASKS.csv #2655 (follow-up of #2583, review #2486 WA lithium) — a custom layer's numeric field that belongs to a coded sibling (GEOL_Rock2_pct
+// is the percent of the GEOL_Rock2 rock): the field read only where the sibling holds one code ("GEOL_Rock2_pct where GEOL_Rock2 = P").
+// A sibling is a coded field whose name the numeric field starts with (after _ or a space). -> [{ field, by, codes: [code] }]
+export function siblingCodedFields(rows, { maxCodes = 12 } = {}) {
+  const coded = codedFields(rows), numeric = numericLayerFields(rows);
+  const out = [];
+  for (const f of numeric) for (const c of coded) {
+    if (f === c || !(f.toLowerCase().startsWith(c.toLowerCase() + "_") || f.toLowerCase().startsWith(c.toLowerCase() + " "))) continue;
+    const n = new Map();
+    for (const r of rows || []) { const v = String(r?.[c] ?? "").trim(); if (v && numericCell(r?.[f]) != null) n.set(v.toUpperCase(), (n.get(v.toUpperCase()) || 0) + 1); }
+    const codes = [...n].filter(([, k]) => k >= 3).sort((a, b) => b[1] - a[1]).slice(0, maxCodes).map(([code]) => code).sort();
+    if (codes.length) out.push({ field: f, by: c, codes });
+  }
+  return out;
+}
+export const siblingRef = (id, field, by, code) => `cw:${JSON.stringify({ id: String(id), f: field, c: by, v: code })}`;
+export const parseSiblingRef = (ref) => { if (typeof ref !== "string" || !ref.startsWith("cw:")) return null; try { return JSON.parse(ref.slice(3)); } catch { return null; } };
+// the rows of the sibling's code (case folded)
+export const siblingRows = (rows, s) => (rows || []).filter((r) => String(r?.[s.c] ?? "").trim().toUpperCase() === String(s.v).toUpperCase());
