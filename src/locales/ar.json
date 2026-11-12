@@ -1767,6 +1767,8 @@
   "No '<x' results: the lowest reported value (an upper bound on the limit)": "لا نتائج '<x': أصغر قيمة مبلغ عنها (حد أعلى للحد)",
   "Use the lab's <{limit}": "استخدام <{limit} الخاص بالمختبر",
   "main column": "العمود الرئيسي",
+  "Limit": "الحد",
+  "Judge each blank against its own method's limit: {mult} × {list}": "الحكم على كل عينة فارغة بحد طريقتها الخاصة: {mult} × {list}",
   "{symbol} was joined from {n} method columns whose detection limits differ: {list}. One limit for all of them judges some samples against another method's.": "جُمع {symbol} من {n} أعمدة طرائق تختلف حدود كشفها: {list}. حد واحد لها جميعاً يقيّم بعض العينات بحد طريقة أخرى.",
   "Use the lowest value {limit}": "استخدام أصغر قيمة {limit}",
   "Standards ({groups})": "المعايير ({groups})",

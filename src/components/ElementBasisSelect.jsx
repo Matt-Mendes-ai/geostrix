@@ -24,11 +24,14 @@ export default function ElementBasisSelect({ element, surface = false, onNotice 
     const n = notice("{symbol} is now reported {basis}: {n} row(s) converted from {from} to {to} (× {factor}). Ctrl+Z to undo.", { symbol: element.symbol, basis: label(to), n: r.changed.toLocaleString(), from: r.from, to: r.to, factor: Number(r.factor.toPrecision(5)) });
     onNotice?.(th ? { ...n, text: n.text + th } : n);
   };
+  // TASKS.csv #2822 — the box shows 'as Li2O' only: 'as Li2O (% Li2O)' was clipped at 90 px in the 3D View's narrow sidebar. The unit is in each
+  // option's title and the select's title starts with the whole current choice; the choices' names already differ (the element, each oxide).
+  const full = (c) => `${label(c)} (${c.unit})`, cur = choices.find((c) => c.unit === element.unit);
   return (
     <select value={element.unit} onChange={(e) => change(e.target.value)} aria-label={tr("{symbol} reported as", { symbol: element.symbol })}
-      title={tr("The basis {symbol}'s grades are reported in. Changing it converts every stored value (undoable).", { symbol: element.symbol })}
-      style={{ fontSize: "var(--font-size-xs)", padding: "0 2px", border: "1px solid var(--color-border)", borderRadius: 3, background: "var(--color-bg)", color: "var(--color-text-secondary)", fontFamily: "inherit", maxWidth: 90 }}>
-      {choices.map((c) => <option key={c.unit} value={c.unit}>{label(c)} ({c.unit})</option>)}
+      title={`${cur ? full(cur) + ". " : ""}${tr("The basis {symbol}'s grades are reported in. Changing it converts every stored value (undoable).", { symbol: element.symbol })}`}
+      style={{ fontSize: "var(--font-size-xs)", padding: "0 2px", border: "1px solid var(--color-border)", borderRadius: 3, background: "var(--color-bg)", color: "var(--color-text-secondary)", fontFamily: "inherit", minWidth: 0, maxWidth: "100%" }}>
+      {choices.map((c) => <option key={c.unit} value={c.unit} title={full(c)}>{label(c)}</option>)}
     </select>
   );
 }

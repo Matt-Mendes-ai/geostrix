@@ -7,7 +7,7 @@ import { majorOxides, MIN_MAJORS } from "../lib/oxideTotals.js"; // TASKS.csv #2
 import { X, Download } from "./icons.js";
 import { saveFile } from "../lib/desktop.js";
 import { methodPairs, labAssays } from "../lib/qaqc.js"; // TASKS.csv #2629; labAssays: #2354
-import { classifyQAQCRow, excludedQAQCIds, standardGroups, standardSeries, blankRows, duplicatePairs, duplicateSummary, DUP_RPD_LIMITS, DUP_KIND_LABELS, suggestDetectionLimit, methodDetectionLimits /* #2732 */, orderForControlChart, DEFAULT_QAQC_PATTERNS } from "../lib/qaqc.js"; import { formatLimit, limitLooksConverted } from "../lib/qaqc.js";
+import { classifyQAQCRow, excludedQAQCIds, standardGroups, standardSeries, blankRows, duplicatePairs, duplicateSummary, DUP_RPD_LIMITS, DUP_KIND_LABELS, suggestDetectionLimit, methodDetectionLimits /* #2732 */, methodBlankLimits /* #2772 */, orderForControlChart, DEFAULT_QAQC_PATTERNS } from "../lib/qaqc.js"; import { formatLimit, limitLooksConverted } from "../lib/qaqc.js";
 import { stampLines, withStamp, stampEpsg } from "../lib/provenance.js"; // TASKS.csv #534 — stamped exports
 import { version as APP_VERSION } from "../../package.json";
 import { useStore } from "../lib/store.jsx"; // TASKS.csv #400 — certified values live in the project
@@ -68,7 +68,11 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
   const ordered = useMemo(() => orderForControlChart(activeGroup?.rows || []), [activeGroup]);
   const series = useMemo(() => (activeGroup ? standardSeries(ordered.rows, symbol, elementUnits, cert) : { points: [], limits: null }), [activeGroup, ordered, symbol, elementUnits, cert]);
 
-  const blanks = useMemo(() => blankRows(assays, symbol, elementUnits, blankLimit), [assays, symbol, elementUnits, blankLimit]);
+  // TASKS.csv #2772 — an element joined from method columns whose limits differ: each blank judged against blankMult x its own method's limit
+  const methodsDiffer = methodLimits.length > 1 && new Set(methodLimits.map((m) => m.limit)).size > 1;
+  const [perMethod, setPerMethod] = useState(false);
+  const blankByMethod = useMemo(() => (methodsDiffer && perMethod ? methodBlankLimits(methodLimits, blankMult) : null), [methodsDiffer, perMethod, methodLimits, blankMult]);
+  const blanks = useMemo(() => blankRows(assays, symbol, elementUnits, blankLimit, undefined, { methodLimits: blankByMethod }), [assays, symbol, elementUnits, blankLimit, blankByMethod]);
   const dups = useMemo(() => duplicatePairs(assays, symbol, elementUnits, undefined, { minMean: pairFloor, repeatedIntervals: repeatedAsDup }), [assays, symbol, elementUnits, pairFloor, repeatedAsDup]);
   const dupSummary = useMemo(() => duplicateSummary(dups, DUP_RPD_LIMITS), [dups]); // #534 — per duplicate type
   const dupLimit = (d) => DUP_RPD_LIMITS[d.kind] ?? DUP_RPD_LIMITS.unknown;
@@ -103,7 +107,7 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
     const stamp = stampLines({ tool: "QAQC", version: APP_VERSION, epsg: stampEpsg(project) /* #2195 */, params: [
       `Element: ${symbol} (${unit}) | detection limit: ${dl ? `${dl} ${unit}` : "not set"}`,
       tab === "standards" && activeGroup ? `Standard ${activeGroup.id}: ${series.limits?.certified ? `certified mean ${series.limits.mean} ± ${series.limits.sd} (1 SD, from the certificate)` : "no certificate values: self-referencing mean ± 2SD/3SD"} | order: ${ordered.bySampleId ? "sample id" : "import order (no sample ids)"}` : "",
-      tab === "blanks" ? `Blank limit: ${dl ? `${blankMult} x DL = ${blankLimit} ${unit}` : (blankThreshold == null ? "none set (no detection limit, no manual threshold): blanks not judged" : `${blankThreshold} ${unit} (manual; no detection limit set)`)}` : "",
+      tab === "blanks" ? (blankByMethod ? `Blank limit per method column: ${blankMult} x each method's detection limit (${methodLimits.map((m) => `${m.method ?? "main column"} ${m.limit == null ? `none, ${blankLimit ?? "not judged"}` : `${m.limit} -> ${Number((blankMult * m.limit).toPrecision(6))}`} ${unit}`).join("; ")})` /* #2772 */ : `Blank limit: ${dl ? `${blankMult} x DL = ${blankLimit} ${unit}` : (blankThreshold == null ? "none set (no detection limit, no manual threshold): blanks not judged" : `${blankThreshold} ${unit} (manual; no detection limit set)`)}`) : "",
       tab === "duplicates" ? `RPD limits by duplicate type: field ${DUP_RPD_LIMITS.field}%, coarse reject ${DUP_RPD_LIMITS.coarse}%, pulp ${DUP_RPD_LIMITS.pulp}%, type not stated ${DUP_RPD_LIMITS.unknown}% | pairs with a mean below ${pairFloor} ${unit} not counted` : "",
       `QC recognized from a sample-type column when present, else hole_id patterns: ${Object.entries(DEFAULT_QAQC_PATTERNS || {}).map(([k, v]) => `${k} ${Array.isArray(v) ? v.join("/") : v}`).join("; ")}`,
     ] });
@@ -215,18 +219,26 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
                 <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("Contamination threshold ({unit}) — set the element's detection limit above to judge blanks against a multiple of it (5x DL)", { unit: unitL })}<input type="number" step="any" value={blankThreshold ?? ""} placeholder={tr("none")} onChange={(e) => setBlankThreshold(e.target.value === "" || !Number.isFinite(Number(e.target.value)) ? null : Number(e.target.value))} style={{ ...sel, display: "block", marginTop: 4, width: 100 }} />
                 </label>
               )}
-              {!dl && blankThreshold == null && blanks.length > 0 && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", margin: "6px 0" }}>{tr("No threshold set, so the {n} blank(s) are listed but not judged. Enter a threshold in {unit}, or set {symbol}'s detection limit to judge them against a multiple of it.", { n: blanks.length, unit: unitL, symbol })}</div>}{/* #2733 */}
+              {methodsDiffer && ( /* TASKS.csv #2772 */
+                <label style={{ display: "flex", alignItems: "flex-start", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", margin: "6px 0" }}>
+                  <input type="checkbox" checked={perMethod} onChange={(e) => setPerMethod(e.target.checked)} style={{ marginTop: 2 }} />
+                  <span>{tr("Judge each blank against its own method's limit: {mult} × {list}", { mult: blankMult, list: methodLimits.map((m) => `${m.method ?? tr("main column")} ${m.limit == null ? "—" : formatLimit(m.limit)}`).join(", ") })}</span>
+                  {perMethod && !dl && <input type="number" min={1} step="any" value={blankMult} onChange={(e) => setBlankMult(Math.max(1, Number(e.target.value) || 5))} style={{ ...sel, width: 60 }} aria-label={tr("Blank limit as a multiple of the detection limit")} />}
+                </label>
+              )}
+              {!dl && blankThreshold == null && !blankByMethod && blanks.length > 0 && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", margin: "6px 0" }}>{tr("No threshold set, so the {n} blank(s) are listed but not judged. Enter a threshold in {unit}, or set {symbol}'s detection limit to judge them against a multiple of it.", { n: blanks.length, unit: unitL, symbol })}</div>}{/* #2733 */}
               {blanks.length === 0 ? (
                 <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", padding: 8 }}>{tr("No blanks found (hole_id containing \"blank\"/\"blk\"), or none have a {symbol} value.", { symbol })}</div>
               ) : (
                 <table style={{ borderCollapse: "collapse", fontSize: "var(--font-size-sm)", width: "100%" }}>
-                  <thead><tr><th style={th}>{tr("Hole ID")}</th><th style={th}>{tr("From")}</th><th style={th}>{tr("To")}</th><th style={th}>{symbol}</th><th style={th}>{tr("Flag")}</th></tr></thead>
+                  <thead><tr><th style={th}>{tr("Hole ID")}</th><th style={th}>{tr("From")}</th><th style={th}>{tr("To")}</th><th style={th}>{symbol}</th>{blankByMethod && <th style={th}>{tr("Method")}</th>}{blankByMethod && <th style={th}>{tr("Limit")}</th>}<th style={th}>{tr("Flag")}</th></tr></thead>
                   <tbody>
                     {blanks.map((b, i) => (
                       <tr key={i} style={b.flagged ? { background: "var(--color-danger-bg-soft)" } : undefined}>
                         <td style={td}>{b.hole_id}</td><td style={td}>{b.from}</td><td style={td}>{b.to}</td>
                         <td style={{ ...td, color: b.flagged ? "var(--color-danger-fg)" : "var(--color-text)" }}>{b.value.toFixed(4)}</td>
-                        <td style={td}>{blankLimit == null ? "—" /* #2733 — not judged */ : b.flagged ? tr("⚠ contaminated") : tr("ok")}</td>
+                        {blankByMethod && <td style={td}>{b.method ?? tr("main column")}</td>}{blankByMethod && <td style={td}>{b.limit == null ? "—" : formatLimit(b.limit)}</td>}{/* #2772 */}
+                        <td style={td}>{(blankByMethod ? b.limit : blankLimit) == null ? "—" /* #2733 — not judged */ : b.flagged ? tr("⚠ contaminated") : tr("ok")}</td>
                       </tr>
                     ))}
                   </tbody>

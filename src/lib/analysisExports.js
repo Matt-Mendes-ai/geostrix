@@ -10,7 +10,8 @@ export function qaqcStandardRows(points, standardId, symbol) {
   return points.map((p) => ({ standard: standardId, hole_id: p.hole_id, from: p.from, to: p.to, [symbol]: p.value, outside_2sd: p.outside2sd, outside_3sd: p.outside3sd }));
 }
 export function qaqcBlankRows(blanks, symbol, limit) {
-  return blanks.map((b) => ({ hole_id: b.hole_id, from: b.from, to: b.to, [symbol]: b.value, threshold: limit, flagged: b.flagged }));
+  // TASKS.csv #2772 — a blank judged against its own method's limit says the method and that limit
+  return blanks.map((b) => ({ hole_id: b.hole_id, from: b.from, to: b.to, [symbol]: b.value, ...(b.method !== undefined ? { method: b.method ?? "main column" } : {}), threshold: b.limit !== undefined ? b.limit : limit, flagged: b.flagged }));
 }
 // kindLabels: duplicate type -> its name; limitOf(d): the RPD limit for that pair's type
 export function qaqcDuplicateRows(dups, kindLabels, limitOf) {

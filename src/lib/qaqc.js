@@ -138,11 +138,25 @@ export function standardSeries(rows, symbol, elementUnits, certified = null) {
 // Blank rows for a given element, flagged against `threshold` (an absolute value in the element's
 // display unit — e.g. 0.05 ppm Au — since there's no universal "5x detection limit" GeoStrix can
 // derive automatically without a detection-limit field in the assay schema, which it doesn't have).
-export function blankRows(assays, symbol, elementUnits, threshold, patterns = DEFAULT_QAQC_PATTERNS) {
+// TASKS.csv #2772 — methodLimits (a Map: the method column a value came from, null = the main column -> that method's limit): each blank is
+// judged against its own method's limit (and the row says which, method / limit); a method with no limit in the map uses `threshold`.
+// An element joined from several method columns (#2328) was judged against one limit, so a blank from a coarser method read as contaminated.
+export function blankRows(assays, symbol, elementUnits, threshold, patterns = DEFAULT_QAQC_PATTERNS, { methodLimits = null } = {}) {
   return assays.filter((a) => classifyQAQCRow(a, patterns) === "blank") // #400: the row (sample_type), not just the name
-    .map((a) => ({ hole_id: a.hole_id, from: a.from, to: a.to, value: valueIn(a, symbol, elementUnits[symbol] || "ppm", elementUnits) }))
+    .map((a) => {
+      const r = { hole_id: a.hole_id, from: a.from, to: a.to, value: valueIn(a, symbol, elementUnits[symbol] || "ppm", elementUnits) };
+      if (!methodLimits) return r;
+      const method = a.valueSources?.[symbol] ?? null, own = methodLimits.get(method);
+      return { ...r, method, limit: own != null ? own : threshold };
+    })
     .filter((r) => r.value != null)
-    .map((r) => ({ ...r, flagged: threshold != null && r.value > threshold }));
+    .map((r) => { const lim = methodLimits ? r.limit : threshold; return { ...r, flagged: lim != null && r.value > lim }; });
+}
+// TASKS.csv #2772 — methodDetectionLimits' groups as blankRows' methodLimits: each method's limit times `mult` (5 x DL by default)
+export function methodBlankLimits(methodLimits, mult) {
+  const m = new Map();
+  for (const g of methodLimits || []) if (g.limit != null && mult > 0) m.set(g.method, Number((mult * g.limit).toPrecision(6)));
+  return m;
 }
 
 // Strips a recognized duplicate marker substring out of a hole_id to recover the original sample's
