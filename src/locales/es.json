@@ -6933,6 +6933,8 @@
   "the unit, e.g. nT, mV/V, ohm·m, ppm": "la unidad, p. ej., nT, mV/V, ohm·m, ppm",
   "Unit of the values of \"{name}\"": "Unidad de los valores de «{name}»",
   "Picture only: colours, no values. Its colours can be read against the map's own colour bar.": "Solo imagen: colores, sin valores. Sus colores se pueden leer con la barra de colores del propio mapa.",
+  "Values": "Valores",
+  "Picture only: colours, no values": "Solo imagen: colores, sin valores",
   "\"{name}\" is not a picture GeoStrix can read (PNG, JPEG, WebP, GIF).": "«{name}» no es una imagen que GeoStrix pueda leer (PNG, JPEG, WebP, GIF).",
   "Colour bar of \"{name}\"": "Barra de colores de «{name}»",
   "Colour bar picture of \"{name}\"": "Imagen de la barra de colores de «{name}»",
