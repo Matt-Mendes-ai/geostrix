@@ -6,6 +6,7 @@ import * as THREE from "three";
 import { CATEGORICAL_SAFE_COLORS } from "../layers.js";
 import { pickOnlyMaterial, syncBatchedInstances, eachLayerMember } from "./layerBatches.js";
 import { collarMarkerMaterial } from "./collarMarkerShader.js"; // TASKS.csv #2623
+import { setTraceHoleColour } from "./traceBatch.js"; // TASKS.csv #2176
 
 export const NO_VALUE_COLOUR = "#9aa3ad";
 export const TRACE_GREY = 0x445064;
@@ -43,6 +44,8 @@ export function applyHoleColours(group, scheme, { collarMaterial, collarsById } 
         touched.add(ch);
       } else ch.material = hex ? matFor(hex) : (collarMaterial || ch.material);
       n++;
+    } else if (ch.userData?.traceChunk) { // TASKS.csv #2176 — merged traces (traceBatch.js): each hole's own vertex colours
+      for (const id of ch.userData.traceChunk.holeIds) { const c = collarsById?.get(String(id)); setTraceHoleColour(ch, id, scheme && c ? scheme.colourOf(c) : null); }
     } else if (ch.isLine && ch.userData?.holeId != null && ch.material?.color) {
       const c = collarsById?.get(String(ch.userData.holeId));
       const hex = scheme && c ? scheme.colourOf(c) : null;
