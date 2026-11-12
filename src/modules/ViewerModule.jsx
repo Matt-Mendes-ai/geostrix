@@ -17,6 +17,7 @@ import { metresPerPixel, minSymbolRadiusM, needsSymbolRebuild } from "../lib/vie
 import { lazyModal } from "../lib/lazyModal.jsx"; // TASKS.csv #301
 import * as THREE from "three";
 import { setVerticalExaggeration, veOf } from "./viewer/verticalExaggeration.js"; // TASKS.csv #2628
+import ViewVeSelect from "./viewer/ViewVeSelect.jsx"; // TASKS.csv #2934
 import { piercePoints as surfacePierces, piercePointRows } from "../lib/piercePoints.js"; // TASKS.csv #1009
 import { Info, Upload, Scissors, AlertTriangle, RotateCcw, RefreshCw, Eye, EyeOff, Trash2, Maximize2, Pencil, X, Layers3, ChevronUp, ChevronDown, ShieldAlert, GitFork, Map as MapIcon, Mountain, Image, FileBarChart2, Settings2, Box, Waypoints, Triangle, MapPin, ArrowUpRight, Shapes, Ruler, Beaker, Compass, Activity, GitCompare, Check } from "../components/icons.js"; // TASKS.csv #445 step 4 — memoised lucide icons // GitCompare/Check: TASKS.csv #93
 const AssayStyleModal = lazyModal(() => import("../components/AssayStyleModal.jsx")); // TASKS.csv #476
@@ -2414,17 +2415,13 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
     return () => cancelAnimationFrame(raf);
   }, [visible]);
 
-  // TASKS.csv #313 — DO NOT "fix" the 1.3 here thinking it is arbitrary padding on a conservative
-  // diagonal bound. It is not padding: 1/(2 sin(fov/2)) at fov 45 is 1.3066, so this is a snug fit to
-  // the box's bounding sphere, i.e. (to within 0.4%, verified by an orientation sweep against the
-  // exact per-corner perspective fit) the tightest radius that
-  // frames the box from EVERY orbit angle. Every caller of fitBox is an explicit user "zoom to this"
-  // action (zoom-to-layer / zoom-to-custom / zoom-to-fit-all / zoom-to-screen-rect / the context menu
-  // / each surface-generation routine), and all of them should keep doing exactly what they say
-  // regardless of which way the user then orbits.
+  // TASKS.csv #313 — the 1.3 is not padding: 1/(2 sin(fov/2)) at fov 45 is 1.3066, a snug fit to the box's bounding sphere (within 0.4% of
+  // the exact per-corner fit), so the box stays framed from EVERY orbit angle. Every caller is an explicit "zoom to this".
+  // TASKS.csv #2934 / #2664 — under vertical exaggeration the box drawn is VE times as tall about the orbit target (its centre here): Fit at
+  // 20x cut both ends of the field and Zoom to hole at 10x left the collar off screen. The height is scaled by VE before the fit.
   const fitBox = useCallback((box, padFactor = 1.3, minRadius = 80) => {
     if (box.isEmpty()) return false;
-    const center = box.getCenter(new THREE.Vector3()), size = box.getSize(new THREE.Vector3()).length();
+    const center = box.getCenter(new THREE.Vector3()), s = box.getSize(new THREE.Vector3()), size = s.setY(s.y * (cameraRef.current?.userData?.ve || 1)).length();
     camState.current.target.copy(center); camState.current.radius = Math.max(minRadius, size * padFactor);
     cameraRef.current?.__update?.();
     return true;
@@ -2447,10 +2444,10 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   const zoomToCustom = useCallback((id) => { const g = layerGroupsRef.current[id]; if (g && g.children.length) fitBox(new THREE.Box3().setFromObject(g)); }, [fitBox]);
   // TASKS.csv #1407 — everything shown (surface samples, map layers, terrain...), with the holes and block models as before
   const zoomToFitAll = () => { const b = visibleSceneBox(sceneRef.current?.getObjectByName("root")); (lastTracesRef.current || []).forEach((pts) => pts.forEach((p) => b.expandByPoint(new THREE.Vector3(p.x, p.y, p.z)))); fitBox(b); };
-  // TASKS.csv #1181 — Fit frames the drilling, as the opening view does (a 25 km mesh left 5 km of holes a few pixels); All: right-click menu
+  // TASKS.csv #1181 — Fit frames the drilling, as the opening view does; All: right-click menu
   const zoomToHoles = () => autoFitInitial(lastTracesRef.current, lastHoleTraceCountRef.current);
   const fitButton = () => (mode === "surface" ? zoomToFitAll() : zoomToHoles()); // #2092 — Fit on the Surface Geology tab: everything shown
-  // TASKS.csv #393 — zoom to one hole from the Holes list (its desurveyed trace, scene coords).
+  // TASKS.csv #393 — zoom to one hole (Holes list)
   const zoomToHole = useCallback((holeId) => { const t = tracesRef.current.find((x) => x.hole_id === holeId); if (!t?.pts?.length) return; const cs = camState.current, ph = holeZoomPhi(t.pts, cs.phi, cs.theta); if (ph != null) cs.phi = ph; /* #2375 — not end-on */ fitBox(new THREE.Box3().setFromPoints(t.pts.map((p) => new THREE.Vector3(p.x, p.y, p.z))), 1.6 /* #2375 — the collar not cut by the top edge */); }, [fitBox]);
   const zoomToPoint = (point) => fitBox(new THREE.Box3().setFromCenterAndSize(point, new THREE.Vector3(80, 80, 80)));
   const resetView = () => { camState.current.theta = Math.PI / 4; camState.current.phi = Math.PI / 3; cameraRef.current?.__update?.(); };
@@ -5765,22 +5762,10 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     setMeasureMode(mode);
   };
 
-  // TASKS.csv — factored out of launchSection so a SAVED section (store.sections, see below) can be
-  // reopened later and rebuilt from the CURRENT layer/filter/color state, rather than only ever being
-  // buildable from a fresh 2-click pick. Pure function of (a, b, corridor) — everything else it reads
-  // (layers, layerVisible, isRowVisible, etc.) is current component state, so a reopened section always
-  // reflects whatever's visible/colored right now, same as a freshly-drawn one would.
-  // TASKS.csv #240 — user report: "there's no way to choose which layers/voxels/rasters a section
-  // actually shows -- an unrelated large SRTM terrain area was ending up in a section that should
-  // have shown one voxel model and the drillholes." `scope` (a section's own `.scope` field, default
-  // {} — every key below defaults to "whatever's currently visible in the 3D view", i.e. the exact
-  // pre-existing behavior) lets a section opt OUT of specific content instead of always drawing
-  // everything currently visible regardless of relevance. null/undefined on any individual scope key
-  // means "don't override — use the live visibility state", so an old section with no scope field at
-  // all (every section saved before this feature existed) renders identically to before.
-  // Flatten every currently-visible layer into plain {color,label} primitives here, in the main
-  // window, where all the color/legend/filter logic already lives — so the pop-out window just
-  // draws shapes and never needs to know about layer types, filters, or overrides.
+  // TASKS.csv — out of launchSection so a SAVED section (store.sections) reopens from the CURRENT layer / filter / colour state.
+  // TASKS.csv #240 — `scope` (a section's own `.scope`, default {}: what the 3D view shows) lets a section leave out layers / voxels /
+  // rasters (an SRTM area in a section meant for one voxel model and the holes); a null key = the live visibility, so old sections draw as before.
+  // Every shown layer as plain { color, label } primitives, made here where the colour / filter logic lives: the window only draws.
   // TASKS.csv #525 — factored out of buildSectionPayload so the level plan colours holes exactly as sections do.
   const layerPrimitivesFor = (holeIds, scope = {}) => {
     const intervals = [];
@@ -6084,22 +6069,32 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   // rl ± half (hole runs, their logs, assays, structures), plus pierce points, block-model cells at the RL, model
   // surfaces / solids cut by the plane and planned holes. Same layer colours / filters / legend as a section
   // (layerPrimitivesFor). Geometry is in lib/levelPlan.js; coordinates are E / N.
+  const planCacheRef = useRef(null);
   const buildPlanPayload = (rl, half) => {
     const zmin = rl - half, zmax = rl + half;
     const holes = [];
+    // TASKS.csv #2982 — what the RL does not change, kept until the view re-renders (a new layerPrimitivesFor = new layers, filters or
+    // colours): each RL step re-made 108,000 trace points and every layer's primitives (WA iron)
+    let pc = planCacheRef.current;
+    if (!pc || pc.fn !== layerPrimitivesFor || pc.traces !== tracesRef.current || pc.vh !== visibleHoles) {
+      const all = new Set(tracesRef.current.filter((t) => visibleHoles[t.hole_id] !== false).map((t) => t.hole_id)), prims = layerPrimitivesFor(all, {}); // SG: scaled over the shown holes
+      pc = planCacheRef.current = { fn: layerPrimitivesFor, traces: tracesRef.current, vh: visibleHoles, base: new Map(), prims, ivBy: groupByHole(prims.intervals), ptBy: groupByHole(prims.points.filter((pt) => pt.assay)) };
+    }
     for (const t of tracesRef.current) {
       if (visibleHoles[t.hole_id] === false) continue; // #1533
-      const trace = t.pts.map((p, i) => ({ md: p.md, x: t.wx[i], y: t.wy[i], z: t.wz[i] }));
+      let b = pc.base.get(t.hole_id);
+      if (!b) {
+        const tr0 = t.pts.map((p, i) => ({ md: p.md, x: t.wx[i], y: t.wy[i], z: t.wz[i] })), k = Math.max(1, Math.floor(tr0.length / 200)); // context: thinned to ~200 points
+        pc.base.set(t.hole_id, (b = { trace: tr0, context: tr0.filter((_, i) => i % k === 0 || i === tr0.length - 1).map((p) => [p.x, p.y]) }));
+      }
+      const { trace, context } = b;
       if (!trace.length) continue;
       const runs = slabRuns(trace, zmin, zmax);
-      // context: the whole hole, thinned to ~200 points
-      const k = Math.max(1, Math.floor(trace.length / 200));
-      const context = trace.filter((_, i) => i % k === 0 || i === trace.length - 1).map((p) => [p.x, p.y]);
       holes.push({ hole_id: t.hole_id, trace, runs, polylines: tracePolylines(trace, runs), pierce: piercePoints(trace, rl), collar: [trace[0].x, trace[0].y], context });
     }
     const inSlab = holes.filter((h) => h.runs.length);
     const holeIds = new Set(inSlab.map((h) => h.hole_id));
-    const { intervals, points } = layerPrimitivesFor(holeIds, {});
+    const intervals = pc.prims.intervals.filter((iv) => holeIds.has(iv.hole_id)), points = pc.prims.points.filter((pt) => holeIds.has(pt.hole_id)); // #2982
     const byId = new Map(holes.map((h) => [h.hole_id, h]));
     const clip = (h, from, to) => h.runs.map(([r0, r1]) => [Math.max(from, r0), Math.min(to, r1)]).filter(([f, t]) => t - f > 1e-6);
     const planIntervals = [];
@@ -6117,8 +6112,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       planPoints.push({ hole_id: pt.hole_id, md, x: q.x, y: q.y, color: pt.color, label: pt.label, assay: pt.assay || null });
     });
     // what each pierce point sits in: the interval of every logged layer at that depth, and the assays there
-    // #2210 — rows grouped by hole once: a filter over every interval per pierce point was ~200 ms at RL 82 on the WA gold project
-    const ivBy = groupByHole(intervals), ptBy = groupByHole(points.filter((pt) => pt.assay));
+    // #2210 — rows grouped by hole (a filter per pierce point was ~200 ms on WA gold)
+    const { ivBy, ptBy } = pc; // #2982
     holes.forEach((h) => h.pierce.forEach((pc) => {
       pc.logs = (ivBy.get(h.hole_id) || []).filter((iv) => pc.md >= iv.from && pc.md <= iv.to).map((iv) => ({ label: iv.label, color: iv.color, layer: iv.layer }));
       pc.assays = (ptBy.get(h.hole_id) || []).filter((pt) => pc.md >= pt.assay.from && pc.md <= pt.assay.to).map((pt) => pt.label);
@@ -7764,6 +7759,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           <button onClick={() => { camState.current.theta = 0; camState.current.phi = 0.02; cameraRef.current.__update(); }} style={miniBtn}>{tr("Top")}</button>{/* #1200 — north up, as a map */}
           <button onClick={() => { camState.current.phi = Math.PI - 0.02; cameraRef.current.__update(); }} style={miniBtn}>{tr("Bottom")}</button>
           <button onClick={fitButton} style={miniBtn} title={mode === "surface" ? tr("Zoom to fit all") : tr("Zoom to the holes (to include everything shown: right-click the view, Zoom to fit all)")} aria-label={mode === "surface" ? tr("Zoom to fit all") : tr("Zoom to the holes")}>{tr("Fit")}</button>{/* #567 — the keyboard / visible path the notices pointed to */}
+          <ViewVeSelect figureOverlay={figureOverlay} setFigureOverlay={setFigureOverlay} />
         </div>
         {/* TASKS.csv #189 — the old "■ East ■ Elevation ■ North" text legend used to render here;
             replaced by axisGizmo (created above, rendered every frame via the same viewport/scissor
@@ -8137,7 +8133,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             build={buildPlanPayload}
             zRange={[z0, z1]}
             defaultRl={(z0 + z1) / 2}
-            onClose={() => setLevelPlanOpen(false)}
+            onClose={() => { planCacheRef.current = null; setLevelPlanOpen(false); }} /* #2982 — the plan's cache goes with it */
             onSaveBoundary={(pts, rl, name) => addBoundary({ name, polylines: [pts.map(([x, y]) => ({ x, y }))], elevation: rl, drapeMode: "flat" })}
             onAddToLayout={(img) => { addLayoutImage(img); goToModule("layout"); }}
           />
