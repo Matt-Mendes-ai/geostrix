@@ -2,7 +2,13 @@
 // Correlation pre-ticked the first 12 (Ag ... Co, no Cu or Mo) on a copper porphyry. They now open on the element last used in that
 // tool on this computer (a convenience, localStorage), else the first commodity present; Correlation pre-ticks the commodity and
 // alteration suite present, topped up in the file's order.
+// TASKS.csv #2908 (WA iron review) — the bulk commodities too, after the metals (so a metal wins a tie): an iron-ore table (36 % mean Fe)
+// opened every tool on Cu (mean 0.006 %), the only listed metal with any sample above its level
 const COMMODITY = ["Cu", "Au", "Ag", "Zn", "Pb", "Mo", "Ni", "Co", "U", "Li", "Sn", "W"];
+// the bulk ones only through leadCommodity (a grade above their level): as a plain fallback order Al would open every multi-element file
+const LEAD_CANDIDATES = [...COMMODITY, "Fe", "Mn", "Al"];
+// the commodities mined in bulk, where the major elements are the grade and the gangue: their correlation suite is the majors
+export const BULK_COMMODITIES = new Set(["Fe", "Mn", "Al"]);
 const SUITE = ["Cu", "Au", "Mo", "Ag", "S", "Fe", "K", "Na", "As", "Bi", "Te", "Zn"];
 const key = (tool) => `geostrix.lastElement.${tool}`;
 
@@ -23,10 +29,13 @@ export function preferredElement(symbols, tool = null, lead = null) {
 // from its own analyses: for each commodity, the share of the samples that have it at or above a grade typical of mineralization
 // (MINERALIZED_PPM); the largest share wins, the fixed order breaking ties. Only a default: the user picks any element.
 // samples: rows with `values`; valueOf(sample, symbol) -> ppm or null. -> a symbol, or null when nothing reaches its level
-export const MINERALIZED_PPM = { Cu: 1000, Au: 0.1, Ag: 5, Zn: 1000, Pb: 1000, Mo: 100, Ni: 1000, Co: 500, U: 50, Li: 500, Sn: 500, W: 500 };
+// #2908 — the bulk levels are ore grades, set high so a host rock does not read as the commodity: Fe 50 % (direct-shipping iron ore; banded
+// iron formation itself runs about 25-35 %, so a BIF-hosted gold project keeps Au), Mn 25 %, Al 21 % (about 40 % Al2O3, bauxite; an
+// ordinary rock holds 13-18 % Al2O3). In ppm of the element, as valueOf gives it (an oxide kept as the oxide is read as its element).
+export const MINERALIZED_PPM = { Cu: 1000, Au: 0.1, Ag: 5, Zn: 1000, Pb: 1000, Mo: 100, Ni: 1000, Co: 500, U: 50, Li: 500, Sn: 500, W: 500, Fe: 500000, Mn: 250000, Al: 212000 };
 export function leadCommodity(samples, valueOf) {
   let best = null, bestShare = 0;
-  for (const sym of COMMODITY) {
+  for (const sym of LEAD_CANDIDATES) {
     let n = 0, hi = 0;
     for (const s of samples || []) { if (s?.values?.[sym] == null) continue; const v = valueOf(s, sym); if (v == null || !Number.isFinite(v)) continue; n++; if (v >= MINERALIZED_PPM[sym]) hi++; }
     const share = n ? hi / n : 0;
@@ -68,7 +77,9 @@ export function bestPartner(rows, lead, symbols) {
   }
   return best || (mostN > 0 ? most : null);
 }
-export function correlationDefaults(symbols, n = 12, { lead = null, counts = null } = {}) {
+// #2908 — medians ({ symbol: median grade in ppm }, given for a bulk commodity's project): ties in the count are broken by the higher median
+// (the majors: SiO2, Al2O3, LOI, Mn, P beside Fe), not by the sulphide suite
+export function correlationDefaults(symbols, n = 12, { lead = null, counts = null, medians = null } = {}) {
   const list = (symbols || []).filter(Boolean);
   if (!counts) {
     const out = [...(lead && list.includes(lead) ? [lead] : []), ...SUITE.filter((s) => list.includes(s) && s !== lead)];
@@ -77,6 +88,7 @@ export function correlationDefaults(symbols, n = 12, { lead = null, counts = nul
   }
   const out = lead && list.includes(lead) ? [lead] : [];
   const rank = (s) => { const i = SUITE.indexOf(s); return i < 0 ? SUITE.length + list.indexOf(s) : i; };
-  const rest = list.filter((s) => !out.includes(s) && (counts[s] || 0) >= MIN_PAIRS).sort((a, b) => (counts[b] || 0) - (counts[a] || 0) || rank(a) - rank(b));
+  const med = (s) => (medians && Number.isFinite(medians[s]) ? medians[s] : -Infinity);
+  const rest = list.filter((s) => !out.includes(s) && (counts[s] || 0) >= MIN_PAIRS).sort((a, b) => (counts[b] || 0) - (counts[a] || 0) || (medians ? med(b) - med(a) : 0) || rank(a) - rank(b));
   return [...out, ...rest].slice(0, n);
 }

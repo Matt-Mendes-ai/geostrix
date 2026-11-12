@@ -24,7 +24,7 @@ test("without counts the old order stays, the lead put first when given", () => 
 
 test("Correlation and QAQC open from the data", () => {
   const c = readFileSync(new URL("../src/components/CorrelationMatrix.jsx", import.meta.url), "utf8");
-  assert.match(c, /correlationDefaults\(measuredOf\(syms\), 12, \{ lead, counts: countsOf\(rows, syms\) \}\)/); // measuredOf: #2036 — a calculated element is not a default
+  assert.ok(c.includes("correlationDefaults(measuredOf(syms), 12, { lead, counts: countsOf(rows, syms), ...(BULK_COMMODITIES.has(lead) ? { medians: mediansOf(rows, syms, units) } : {}) })")); // measuredOf: #2036 — a calculated element is not a default
   const q = readFileSync(new URL("../src/components/QAQCPanel.jsx", import.meta.url), "utf8");
   assert.match(q, /useState\(\(\) => preferredElement\(assayElements\.map\(\(e\) => e\.symbol\), null, lead\)\)/);
 });
