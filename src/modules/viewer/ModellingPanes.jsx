@@ -21,6 +21,7 @@ import { drillThresholdOffers } from "../../lib/thresholds.js"; // TASKS.csv #26
 import { preferredElement, rememberElement } from "../../lib/preferredElement.js"; // TASKS.csv #2552
 import { useLeadCommodity } from "../../lib/useLeadCommodity.js"; // TASKS.csv #2552
 import { describeTrend, searchEllipsoidAxes } from "../../lib/trend.js"; // TASKS.csv #2676 — the Grade shell pane's trend line
+import { trendCellM, trendCellText } from "../../lib/trendCell.js"; // TASKS.csv #3010
 import { positionFromTraces } from "../../lib/sheetCorrelation.js"; // TASKS.csv #2625
 import { t as tr } from "../../lib/i18n.js";
 import GeochemCompositingNote from "../../components/GeochemCompositingNote.jsx"; // TASKS.csv #2224
@@ -1141,7 +1142,8 @@ export default function ModellingPanes(props) {
               {(() => { /* TASKS.csv #2676 / #2551 — the trend chosen for grade shells reshapes this search: say so, as Estimation does */
                 const gt = trendFor("gradeShell"); if (!gt) return null;
                 const [, v, v2] = searchEllipsoidAxes(gt, numericSearchRadius > 0 ? numericSearchRadius : 100);
-                return <div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>{numericSearchRadius > 0
+                const tc = numericCellSize > 0 ? trendCellM(gt, numericCellSize) : null; // TASKS.csv #3010 — the real cell under the trend
+                return <div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>{tc && <div>{tr("Under this trend the grid's cells are about {c} m (along its long, intermediate and short axes): Cell is their size in the trend's volume-keeping frame, so a thinner cell across the trend needs a smaller Cell.", { c: trendCellText(tc) })}</div>}{numericSearchRadius > 0
                   ? tr("Along trend \"{name}\": an ellipsoid of {searchRadius} × {v} × {v2} m ({v3})", { name: gt.name, searchRadius: numericSearchRadius, v: Math.round(v), v2: Math.round(v2), v3: describeTrend(gt) })
                   : tr("Along trend \"{name}\": with no radius the search reaches the grid diagonal along the trend and {v}% and {v2}% of it across ({v3}).", { name: gt.name, v: Math.round(v), v2: Math.round(v2), v3: describeTrend(gt) })}</div>;
               })()}
