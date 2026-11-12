@@ -30,6 +30,7 @@ import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no 
 import { trendBasis, trendSearchScales, describeTrend } from "../lib/trend.js"; // TASKS.csv #650
 import { flatSearchTrend, flatSearchProposal } from "../lib/estimationShape.js"; // TASKS.csv #2418
 import { t as tr } from "../lib/i18n.js";
+import GeochemCompositingNote from "./GeochemCompositingNote.jsx"; // TASKS.csv #2224
 import CollarLevelsNote from "./CollarLevelsNote.jsx"; // TASKS.csv #2584 — the lowest collar used where collars stand on benches
 import { holeSpacingSummary, zeroBlockAdvice, searchFromSpacingM } from "../lib/holeSpacing.js"; // TASKS.csv #1738; searchFromSpacingM: #2420
 import { topCompositesWithoutBlocks } from "../lib/shellSupport.js"; // TASKS.csv #1735 // TASKS.csv #786
@@ -743,6 +744,8 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
             <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", cursor: "pointer" }}>
               <input type="checkbox" checked={useComposites} onChange={(e) => setUseComposites(e.target.checked)} />{tr("Composite raw assays first (recommended)")}</label>
             <UnsampledChoice u={uns} selStyle={{ ...inp, width: "auto", padding: "3px 6px" }} />{/* TASKS.csv #2417 / #2542 */}
+            {useComposites && <GeochemCompositingNote symbol={symbol} length={compositeLength} minCoverage={minCoverage} cap={capValue} unitLabel={gradeUnitLabel(symbol, unit)}
+              onUse={(g) => { setCompositeLength(g.length); setMinCoverage(g.minCoverage); setCapValue(g.cap ?? NaN); setCapAuto(false); capClearedFor.current = g.cap == null ? symbol : null; setResult(null); }} />}{/* TASKS.csv #2224 */}
             {useComposites && (
               <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
                 <label style={fieldLabel}>{tr("Composite length (m)")}<input type="number" step="any" min="0.1" value={compositeLength} onChange={(e) => setCompositeLength(Math.max(0.1, Number(e.target.value) || 2))} style={inp} />
