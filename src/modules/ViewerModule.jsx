@@ -192,6 +192,7 @@ import { PickStandIn, PICK_ONLY_LAYER } from "../lib/viewer/pickStandIn.js"; // 
 import { syncBatchedInstances, buildLayerBatches, eachLayerMember, eachPickTarget, batchTag } from "../lib/viewer/layerBatches.js"; // moved out (size cap, #1084)
 import { PROTO_SPHERE_10, PROTO_SPHERE_8, POINT_PROTO } from "../lib/viewer/protos.js"; // TASKS.csv #2176
 import { buildDrillholeScene, collarColorFor, voxelFitCorners, isIntervalRow } from "./viewer/drillholeScene.js"; // TASKS.csv #2176
+import { viewNdc } from "../lib/viewer/clickPoint.js"; // TASKS.csv #2803
 import { hideTraceHoles } from "../lib/viewer/traceBatch.js"; // TASKS.csv #2176
 import { closedShellsOf } from "./viewer/estimationShells.js"; // TASKS.csv #2695
 import { findOnTraceWorld, findOnTrace, traceLookup, pointInDomain, SOLID_SURFACE_TYPES, surfaceMadeAt } from "../lib/viewer/modelHelpers.js"; // TASKS.csv #445 step 2; SOLID_SURFACE_TYPES: #804
@@ -5708,7 +5709,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   const onSectionClick = useCallback((e) => {
     if (!sectionMode) return;
     const rect = mountRef.current.getBoundingClientRect();
-    const mx = ((e.clientX - rect.left) / rect.width) * 2 - 1, my = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+    const { x: mx, y: my } = viewNdc(e, rect, mcDownRef.current); // #2803 — the press's own point
     const raycaster = new THREE.Raycaster();
     raycaster.setFromCamera(new THREE.Vector2(mx, my), cameraRef.current);
     const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
@@ -5733,7 +5734,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   const onMeasureClick = useCallback((e) => {
     if (!measureMode) return;
     const rect = mountRef.current.getBoundingClientRect();
-    const mx = ((e.clientX - rect.left) / rect.width) * 2 - 1, my = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+    const { x: mx, y: my } = viewNdc(e, rect, mcDownRef.current); // #2803 — the press's own point
     const raycaster = new THREE.Raycaster();
     raycaster.setFromCamera(new THREE.Vector2(mx, my), cameraRef.current);
     // Same broadened "nearest real feature" raycast the status-bar cursor uses (see raycastWorldPoint's
@@ -5747,7 +5748,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   const onPickHoleClick = useCallback((e) => {
     if (!pickHoleMode) return;
     const rect = mountRef.current.getBoundingClientRect();
-    const mx = ((e.clientX - rect.left) / rect.width) * 2 - 1, my = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+    const { x: mx, y: my } = viewNdc(e, rect, mcDownRef.current); // #2803 — the press's own point
     const raycaster = new THREE.Raycaster();
     raycaster.setFromCamera(new THREE.Vector2(mx, my), cameraRef.current);
     const hits = pickHits(raycaster), world = pickOnView(raycaster.ray, hits, (h) => worldPointFromHits(raycaster, h), terrain ? null : collars, originRef.current); // #1453; #2574; #2447
@@ -5761,7 +5762,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     if (!interpretRef.current.on) return;
     const rect = mountRef.current.getBoundingClientRect();
     const raycaster = new THREE.Raycaster();
-    raycaster.setFromCamera(new THREE.Vector2(((e.clientX - rect.left) / rect.width) * 2 - 1, -((e.clientY - rect.top) / rect.height) * 2 + 1), cameraRef.current);
+    raycaster.setFromCamera(viewNdc(e, rect, mcDownRef.current) /* #2803 */, cameraRef.current);
     const world = snapInterpretClick(raycastWorldPoint(raycaster), raycaster.ray, { on: interpretOpen === true && interpretRef.current.snap !== false /* lines only, not unit polygons */, traces: tracesRef.current, layers, visible: layerVisible, origin: originRef.current, camera: cameraRef.current, heightPx: rect.height }); // #2630
     if (!world) return;
     const at = Date.now();
@@ -5807,7 +5808,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     if (d && Math.hypot(e.clientX - d.x, e.clientY - d.y) > 4) return;
     const rect = mountRef.current.getBoundingClientRect();
     const raycaster = new THREE.Raycaster();
-    raycaster.setFromCamera(new THREE.Vector2(((e.clientX - rect.left) / rect.width) * 2 - 1, -((e.clientY - rect.top) / rect.height) * 2 + 1), cameraRef.current);
+    raycaster.setFromCamera(viewNdc(e, rect, mcDownRef.current) /* #2803 */, cameraRef.current);
     const hit = pickHits(raycaster).find((h) => h.object.userData?.lithoRow && h.object.parent?.visible !== false);
     if (!hit) return;
     const row = hit.object.userData.lithoRow;
@@ -5829,7 +5830,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     if (d && Math.hypot(e.clientX - d.x, e.clientY - d.y) > 4) return;
     const rect = mountRef.current.getBoundingClientRect();
     const raycaster = new THREE.Raycaster();
-    raycaster.setFromCamera(new THREE.Vector2(((e.clientX - rect.left) / rect.width) * 2 - 1, -((e.clientY - rect.top) / rect.height) * 2 + 1), cameraRef.current);
+    raycaster.setFromCamera(viewNdc(e, rect, mcDownRef.current) /* #2803 */, cameraRef.current);
     explicitClickRef.current(pickHits(raycaster).filter((h) => h.object.parent?.visible !== false), raycaster);
   }, [explicitPickFor, mode, pickHits]);
   // the picks of every explicit surface, in its colour, while the Modelling tab is shown
