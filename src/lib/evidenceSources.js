@@ -513,3 +513,18 @@ export const siblingRef = (id, field, by, code) => `cw:${JSON.stringify({ id: St
 export const parseSiblingRef = (ref) => { if (typeof ref !== "string" || !ref.startsWith("cw:")) return null; try { return JSON.parse(ref.slice(3)); } catch { return null; } };
 // the rows of the sibling's code (case folded)
 export const siblingRows = (rows, s) => (rows || []).filter((r) => String(r?.[s.c] ?? "").trim().toUpperCase() === String(s.v).toUpperCase());
+
+// TASKS.csv #2656 (follow-up of #2583) — a "distance to logged" card reads only the holes that logged the layer: a hole with no log of it is
+// neither near nor far from the code. -> { none, total } (holes with a trace; none: those with no row of the layer)
+export function unloggedHoles(rows, traces) {
+  const logged = new Set();
+  for (const r of rows || []) if (traces.has(r?.hole_id)) logged.add(r.hole_id);
+  return { none: traces.size - logged.size, total: traces.size };
+}
+// the occurrence element: the first grade card's element when it is one of the offered list, else the list's first (#2656)
+export function occurrenceSymbol(layers, list, current = null) {
+  const syms = (list || []).map((e) => e.symbol);
+  const card = (layers || []).find((l) => l.kind === "grade" && syms.includes(l.ref));
+  if (card) return card.ref;
+  return syms.includes(current) ? current : syms[0] || "";
+}

@@ -10761,5 +10761,7 @@
   "Search the {n} evidence sources…": "ابحث في مصادر الأدلة الـ {n}…",
   "Search the evidence sources": "ابحث في مصادر الأدلة",
   "+ add evidence… ({n} found)": "+ أضف دليلًا… (عُثر على {n})",
-  "Drillholes: {layer} {field} where {by} = {code} along the holes": "ثقوب الحفر: {layer} {field} حيث {by} = {code} على امتداد الثقوب"
+  "Drillholes: {layer} {field} where {by} = {code} along the holes": "ثقوب الحفر: {layer} {field} حيث {by} = {code} على امتداد الثقوب",
+  "1 of the {m} holes has no log of this layer: the distance is measured from the logged holes only.": "ثقب واحد من {m} ثقبًا ليس له سجل لهذه الطبقة: تُقاس المسافة من الثقوب المسجلة فقط.",
+  "{n} of the {m} holes have no log of this layer: the distance is measured from the logged holes only.": "{n} من {m} ثقبًا ليس لها سجل لهذه الطبقة: تُقاس المسافة من الثقوب المسجلة فقط."
 }

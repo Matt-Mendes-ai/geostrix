@@ -10761,5 +10761,7 @@
   "Search the {n} evidence sources…": "Buscar entre as {n} fontes de evidência…",
   "Search the evidence sources": "Buscar as fontes de evidência",
   "+ add evidence… ({n} found)": "+ adicionar evidência… ({n} encontradas)",
-  "Drillholes: {layer} {field} where {by} = {code} along the holes": "Furos: {layer} {field} onde {by} = {code} ao longo dos furos"
+  "Drillholes: {layer} {field} where {by} = {code} along the holes": "Furos: {layer} {field} onde {by} = {code} ao longo dos furos",
+  "1 of the {m} holes has no log of this layer: the distance is measured from the logged holes only.": "1 dos {m} furos não tem descrição desta camada: a distância é medida só a partir dos furos descritos.",
+  "{n} of the {m} holes have no log of this layer: the distance is measured from the logged holes only.": "{n} dos {m} furos não têm descrição desta camada: a distância é medida só a partir dos furos descritos."
 }
