@@ -60,6 +60,9 @@ function groundCappedGrid(grid, iso, groundAt, toReal = null) {
   return capFieldAtGround(grid.values, grid.nx, grid.ny, grid.nz, grid.origin, grid.cellSize, iso, groundAt, { toReal });
 }
 
+// TASKS.csv #2782 — the layer an envelope was built from, as saved in its provenance (project data: English)
+const SOURCE_NAME = { litho: "Lithology", alt: "Alteration", vein: "Veins", weath: "Weathering" };
+
 export function createModellingRuns(ctx, mcRef) {
   const {
     activeInterceptSetRef,
@@ -1748,8 +1751,12 @@ export function createModellingRuns(ctx, mcRef) {
 
     const domain = domains.find((d) => d.id === modelDomainId);
     const o = originRef.current;
-    let label = isCode ? `Unit body: ${altValue}` : `${sourceKey === "vein" ? "Vein set envelope" : sourceKey === "litho" ? "Envelope" : "Alteration halo"}: ${customSrc ? `${customSrc.name} ` : ""}${altValue}${minField ? ` (${minField.field} ≥ ${minField.vocab ? (minField.label || minField.min) : minField.min})` : ""}`; // #1574; vein: #2050
-    if (sourceKey === "weath") label = label.replace(/^Alteration halo/, "Envelope"); // #2529
+    // TASKS.csv #2782 (split from #2540) — one name for the body of a code whatever the route: 'Envelope: P' from Lithology, a custom layer,
+    // Weathering (#2529) or Modelling codes (it was 'Unit body: P' and 'Alteration halo: Rock2 P'); an Alteration code stays a halo, a vein set
+    // its envelope. The intensity floor stays in the name (it defines the body); the source layer is a setting (params.sourceLayer), and
+    // repeats are told apart by the settings that differ (lib/viewer/surfaceLabels.js).
+    const head = sourceKey === "vein" ? "Vein set envelope" : sourceKey === "alt" && !customSrc ? "Alteration halo" : "Envelope";
+    const label = `${head}: ${altValue}${minField ? ` (${minField.field} ≥ ${minField.vocab ? (minField.label || minField.min) : minField.min})` : ""}`; // #1574; vein: #2050
     setAlterationBusy(true);
     ownTask(label).set(20); // #2379
     // Deferred exactly like runNumericModel (see its comment) so the busy state paints before the
@@ -1947,6 +1954,7 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
         // TASKS.csv #276 — provenance for this surface, so the panel and every export can stamp it.
         const params = {
           tool: isCode ? "unit body (indicator envelope)" : "alteration halo (indicator envelope)", target: altValue, isoLevel: iso,
+          sourceLayer: customSrc ? customSrc.name : isCode ? "Modelling codes" : SOURCE_NAME[sourceKey] || sourceKey, // #2782
           ...(minField ? { intensityFloor: { field: minField.field, atLeast: minField.vocab ? (minField.label || minField.min) : minField.min, ...(minField.vocab ? { rank: minField.min, scale: INTENSITY_SCALE } : {}) } } : {}), // #2230 ...(bodies.count > 1 ? { bodies: bodies.count, keptLargestOnly: !!bodyOpts.largest } : {}), // #1339
           method: "idw2", searchRadiusM: radius, searchRadiusAuto: !(searchSetting > 0),
           ...(anisotropy.enabled ? { searchEllipsoidM: [1, scl.major / scl.semiMajor, scl.major / scl.minor].map((f) => Math.round(radius * f * 10) / 10) } : {}), // #656
