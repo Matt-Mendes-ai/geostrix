@@ -15,6 +15,7 @@ import * as THREE from "three";
 import { reprojectXY, pointTransform, turnGridBearing, bearingTurn, crsName, guessEpsgFromPrjWkt } from "../../lib/reproject.js";
 import { surveyAzimuthDipAt, holeAttitudeAssumed } from "../../lib/desurvey.js"; // holeAttitudeAssumed: #2014
 import { fillMissingCollarZ, settleAssumedZ } from "../../lib/collarElevation.js"; // TASKS.csv #2169
+import { markSuspectElevations } from "../../lib/collarElevationTrust.js"; // TASKS.csv #3004 / #2896
 import { terrainGroundAt } from "../../lib/viewer/geomath.js"; // #2169 — a collar with no elevation on the terrain
 import { azimuthToGridOffset, wrap360, loadIgrf, detectAzimuthRef } from "../../lib/azimuthRef.js"; // loadIgrf: #552; detectAzimuthRef: #1647
 import { orientFromAlphaBeta, reorientAlphaBetaPicks } from "../../lib/coreOrientation.js";
@@ -371,7 +372,7 @@ export function useImportPipeline(ctx) {
         + (failed.size ? tr(" {size} hole(s) have no collar yet, so their azimuths were left as they are: {v}.", { size: failed.size, v: [...failed].slice(0, 6).join(", ") }) : "");
       return { rows: out, note };
     }
-    if (azimuthRef === "magnetic" && !/^\d{4}-\d{2}-\d{2}$/.test(azimuthDate || "")) {
+    if (AZ_TARGETS.has(target) && azimuthRef === "magnetic" && !/^\d{4}-\d{2}-\d{2}$/.test(azimuthDate || "")) { // AZ_TARGETS: #2895 — a magnetic choice left from another kind does not block a log
       setNotices((p) => [...p, notice("{fileName}: magnetic azimuths need the survey date to work out the declination — nothing was imported.", { fileName })]);
       return false;
     }
@@ -549,7 +550,11 @@ export function useImportPipeline(ctx) {
       // a value the existing collar lacks is filled in even when the overwrite was declined.
       const prevById = new Map(liveCollars.map((c) => [c.hole_id, c]));
       const applied = rows.map((r) => (prevById.has(r.hole_id) ? settleAssumedZ(mergeCollar(prevById.get(r.hole_id), r, overwriteExisting), r) : r)); // settleAssumedZ: #2169
-      setCollars((prev) => Array.from(new Map([...prev, ...applied].map((c) => [c.hole_id, c])).values()));
+      // TASKS.csv #3004 / #2896 — the shared elevation rule: collars whose file elevation is probably a missing value (0 m among collars on
+      // raised ground, or a stray far from all the others) are marked zSuspect, kept where the file puts them, and named in the notice
+      setCollars((prev) => markSuspectElevations(Array.from(new Map([...prev, ...applied].map((c) => [c.hole_id, c])).values())).collars);
+      const zTrust = markSuspectElevations(Array.from(new Map([...liveCollars, ...applied].map((c) => [c.hole_id, c])).values()));
+      const appliedIds = new Set(applied.map((r) => r.hole_id)), suspectHere = zTrust.ids.filter((id) => appliedIds.has(id));
       reorientAfter(new Set(applied.map((r) => r.hole_id)), null, applied, fileName); // #548 — a collar's az / dip orients a hole without a survey
       setVisibleHoles((prev) => ({ ...prev, ...Object.fromEntries(applied.map((r) => [r.hole_id, true])) }));
       // The specific accounting the finding asked for ("12 of 40 collars already existed; 3 had
@@ -580,6 +585,12 @@ export function useImportPipeline(ctx) {
       { const up = upwardHoles(rows), list = up.slice(0, 5).join(", "); if (up.length) parts.push(up.length > 5 // #2886
         ? tr("{n} hole(s) point upward (a dip above horizontal: right for underground up-holes; for surface drilling, re-import with the other dip sign convention): {list} and {more} more", { n: up.length, list, more: up.length - 5 })
         : tr("{n} hole(s) point upward (a dip above horizontal: right for underground up-holes; for surface drilling, re-import with the other dip sign convention): {list}", { n: up.length, list })); }
+      if (suspectHere.length) { // #2896 — said here and in Data QC
+        const byId = new Map(applied.map((r) => [r.hole_id, r])), list = suspectHere.slice(0, 5).map((id) => `${id} (${Math.round(byId.get(id)?.z)} m)`).join(", ");
+        parts.push(zTrust.range
+          ? tr("{n} collar elevation(s) look like a missing value, far from the other collars ({lo}–{hi} m): {list}. They are placed as the file says, marked as suspect, and flagged in Data QC", { n: suspectHere.length, lo: Math.round(zTrust.range[0]), hi: Math.round(zTrust.range[1]), list: list + (suspectHere.length > 5 ? " …" : "") })
+          : tr("{n} collar elevation(s) look like a missing value: {list}. They are placed as the file says, marked as suspect, and flagged in Data QC", { n: suspectHere.length, list }));
+      }
       if (diff.duplicatesInFile.length) parts.push(tr("{duplicatesInFile} duplicate hole_id row(s) WITHIN the file itself (the last row of each hole won: {v})", { duplicatesInFile: diff.duplicatesInFile.length, v: [...new Set(diff.duplicatesInFile)].slice(0, 5).join(", ") }));
       setNotices((p) => [...p, notice("Loaded {size} collars from {fileName}{v}.{reprojectNote}{note}", { size: new Set(rows.map((r) => r.hole_id)).size, fileName, v: parts.length ? ` — ${parts.join("; ")}` : "", reprojectNote, note: azc.note })]);
     } else if (target === "survey") {
