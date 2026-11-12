@@ -53,6 +53,14 @@ export default function DrillPlanColourControls({ sel, updateSelected, collars, 
           {blank ? " " + tr("Holes with no result for this element are hollow rings.") : ""}
         </div>
       )}
+      {fields.length > 0 && ( /* TASKS.csv #2686 — a symbol shape by a collar field, beside the colour */
+        <label style={lab}>{tr("Symbol shape by")}
+          <select value={sel.shapeBy || ""} onChange={(e) => updateSelected({ shapeBy: e.target.value || null })} style={{ ...inp, marginTop: 4 }} title={tr("The field's three commonest values get a square, a triangle and a diamond; every other value keeps the circle.")}>
+            <option value="">{tr("Circles only")}</option>
+            {fields.map((f) => <option key={f.key} value={f.key}>{tr("{field} ({n} values)", { field: f.key, n: f.values.length })}</option>)}
+          </select>
+        </label>
+      )}
     </>
   );
 }

@@ -1173,7 +1173,13 @@ export function capAuditText(a, unitLabel = "") {
 // `metals`: [{ symbol, unit, price, recovery (0-1) }], the base element first. Returns null if any input is
 // missing, so a partial set can never print a number.
 const G_PER_OZT = 31.1034768, G_PER_LB = 453.59237;
-export function pricePerGram(symbol, price) {
+// TASKS.csv #2731 (split from #2357) — the metals sold as an oxide are priced per pound of that oxide (uranium's spot price is per lb U3O8),
+// while the grades are of the element: such a price is turned into one per gram of the element by the element's mass share of the oxide.
+// factor: the element's share by mass (U3O8 0.8480, V2O5 0.5602, WO3 0.7930, from the atomic masses).
+export const TRADED_OXIDE = { U: { oxide: "U3O8", factor: 0.848 }, V: { oxide: "V2O5", factor: 0.5602 }, W: { oxide: "WO3", factor: 0.793 } };
+// oxide (#2731): true when `price` is per lb of the element's traded oxide
+export function pricePerGram(symbol, price, oxide = false) {
+  if (oxide && TRADED_OXIDE[symbol]) return price / G_PER_LB / TRADED_OXIDE[symbol].factor;
   return PRECIOUS_METALS.has(symbol) ? price / G_PER_OZT : price / G_PER_LB;
 }
 function toGt(value, unit) { return elementPpm(value, unit); } // #2487 — g/t of the element (the prices are per unit of the element)
@@ -1183,10 +1189,10 @@ export function metalEquivalent(grades, metals) {
   for (const m of metals) {
     const g = grades[m.symbol];
     if (!(Number.isFinite(g) && Number.isFinite(m.price) && m.price > 0 && Number.isFinite(m.recovery) && m.recovery > 0 && m.recovery <= 1)) return null;
-    value += toGt(g, m.unit) * pricePerGram(m.symbol, m.price) * m.recovery;
+    value += toGt(g, m.unit) * pricePerGram(m.symbol, m.price, m.oxide) * m.recovery; // oxide: #2731
   }
   const base = metals[0];
-  const eqGt = value / (pricePerGram(base.symbol, base.price) * base.recovery);
+  const eqGt = value / (pricePerGram(base.symbol, base.price, base.oxide) * base.recovery);
   return fromElementPpm(eqGt, base.unit);
 }
 // TASKS.csv #1387 (review #1352, Silvertip) — the assay rows with a per-sample metal equivalent as a virtual element `${base}Eq` (in
@@ -1215,8 +1221,8 @@ export function withMetalEquivalent(assays, metals, elementUnits) {
 
 export function metalEquivalentFormula(metals) {
   const b = metals[0];
-  const per = (s) => (PRECIOUS_METALS.has(s) ? "/oz" : "/lb");
-  return `${b.symbol}Eq = ${metals.map((m) => `${m.symbol} x ${m.symbol === b.symbol ? "1" : `(${m.price}${per(m.symbol)} x ${Math.round(m.recovery * 100)}%) / (${b.price}${per(b.symbol)} x ${Math.round(b.recovery * 100)}%)${m.unit !== b.unit ? ` [${m.unit} -> ${b.unit}]` : ""}`}`).join(" + ")}`;
+  const per = (s, oxide) => (oxide && TRADED_OXIDE[s] ? `/lb ${TRADED_OXIDE[s].oxide}` : PRECIOUS_METALS.has(s) ? "/oz" : "/lb"); // oxide: #2731
+  return `${b.symbol}Eq = ${metals.map((m) => `${m.symbol} x ${m.symbol === b.symbol ? "1" : `(${m.price}${per(m.symbol, m.oxide)} x ${Math.round(m.recovery * 100)}%) / (${b.price}${per(b.symbol, b.oxide)} x ${Math.round(b.recovery * 100)}%)${m.unit !== b.unit ? ` [${m.unit} -> ${b.unit}]` : ""}`}`).join(" + ")}`;
 }
 
 // TASKS.csv #841 — the descriptive columns of a surface-sample file (horizon, landform, lab, year, sample type...) are

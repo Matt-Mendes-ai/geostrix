@@ -22,7 +22,7 @@ import PromptModal from "../components/PromptModal.jsx";
 import { minMax, LAYER_META } from "../lib/layers.js";
 import { categoryLegendGroups, assayLegendGroups, voxelLegendGroups, rasterLegendGroups, legendGroupsToItems, LEGEND_CATEGORY_KEYS, mapLayerLegendGroups, boundaryLegendGroups, swatchShape, capLegendGroups, outcropLegendGroup } from "../lib/legendGroups.js"; // TASKS.csv #725; #948; #1633; outcropLegendGroup: #1437
 import { niceScaleNumber } from "../lib/figureScale.js"; // TASKS.csv #311 — shared with the 3D viewport's scale bar
-import { collarTableSlice, continuationTables, collarsWithSurveyAttitude, continuationPageIndex } from "../lib/collarTable.js"; // continuationPageIndex: #2718 // TASKS.csv #1638; collarsWithSurveyAttitude: #2133
+import { collarTableSlice, continuationTables, collarsWithSurveyAttitude, continuationPageIndex, collarTableFieldChoices, defaultCollarTableFields } from "../lib/collarTable.js"; // field columns: #2717; // continuationPageIndex: #2718 // TASKS.csv #1638; collarsWithSurveyAttitude: #2133
 import { fitDrillPlan, filterHoles, allHolesSteep, STEEP_DIP, turnedFrameFit, labelBackdrop } from "../lib/drillPlan.js"; // labelBackdrop: #2738; // TASKS.csv #1639; allHolesSteep: #2473; turnedFrameFit: #2305
 import DrillPlanColourControls from "../components/DrillPlanColourControls.jsx"; // TASKS.csv #2473
 import DrillPlanElement, { drillPlanDrawing } from "../components/DrillPlanElement.jsx"; // TASKS.csv #1639
@@ -702,7 +702,7 @@ export default function LayoutModule() {
       Object.assign(base, freeSpot(elements, base.w, base.h, A4)); // #2135 — it landed at (60, 80) over the views
       Object.assign(base, fitDrillPlan(collars, base.w, base.h, SCALE_PRESETS) || { scale: 10000, centre: { x: 0, y: 0 } });
     }
-    if (type === "table") { base.source = "collars"; base.title = "Drillhole collars"; base.w = 520; base.fontPt = 7; Object.assign(base, placeCollarTable(elements, A4, { w: 520, fontPt: 7, total: collars.length })); /* #1638 fits the sheet; #2135 free space */ base.frameWidth = 1; }
+    if (type === "table") { base.source = "collars"; base.title = "Drillhole collars"; base.w = 520; base.fontPt = 7; Object.assign(base, placeCollarTable(elements, A4, { w: 520, fontPt: 7, total: collars.length })); /* #1638 fits the sheet; #2135 free space */ base.frameWidth = 1; const f = defaultCollarTableFields(collars); if (f.length) base.extraCols = f; /* #2717 — the hole type, when there is one */ }
     // TASKS.csv #2302 (review #2174) — a drill plan ties the page's starter scale bar as a snapshot does (#1320): a '100 m' bar at 1:2,380 stood
     // beside a 1:20,000 plan
     if (type !== "logo") setElements((els) => (type === "drillplan" ? tieStarterFurniture([...els, base], base) : [...els, base]));
@@ -1251,6 +1251,13 @@ export default function LayoutModule() {
                       <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>{tr("Holes containing")}<input type="text" value={sel.holeFilter || ""} placeholder={tr("all")} onChange={(e) => updateSelected({ holeFilter: e.target.value, firstRow: 1 })} style={inp} /></label>
                     </div>
                     <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: -4, marginBottom: 6 }}>{tr("Rows {a}–{b} of {n}.", { a: sl.total ? sl.start + 1 : 0, b: sl.end, n: sl.total })}</div>
+                    {(() => { const choices = collarTableFieldChoices(tableCollars); return choices.length > 0 && ( /* TASKS.csv #2717 — collar fields as extra columns */
+                      <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 8 }}>{tr("Also as columns:")}
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: "2px 10px", marginTop: 2 }}>{choices.map((k) => (
+                          <label key={k} style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }}><input type="checkbox" checked={(sel.extraCols || []).includes(k)} onChange={(e) => updateSelected({ extraCols: e.target.checked ? [...(sel.extraCols || []), k] : (sel.extraCols || []).filter((x) => x !== k) })} />{k}</label>
+                        ))}</div>
+                      </div>
+                    ); })()}
                     {conts.length > 0 && <button onClick={() => addLayoutPages(conts.map((t, i) => ({ name: `${activePage?.name || tr("Collars")} (${i + 2})`, elements: [t], batch: `collars_${sel.id}` })))} style={{ ...pBtn, marginBottom: 8 }}>{tr("Continue on {n} new page(s)", { n: conts.length })}</button>}
                   </>);
                 })()}
@@ -2422,10 +2429,11 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
     if (el.source === "collars") {
       const cs = sortedCollars(ctx?.collars || []);
       const f = (v, d) => (Number.isFinite(Number(v)) && v !== "" && v != null ? Number(v).toFixed(d) : "");
-      columns = [tr("Hole"), tr("Easting"), tr("Northing"), tr("Elev. (m)"), tr("Azimuth (grid)") /* #1771 — GeoStrix keeps grid azimuths */, tr("Dip"), tr("Depth (m)")];
+      const extra = (el.extraCols || []).filter(Boolean); // #2717 — collar fields as extra columns (hole type, programme…), as the file names them
+      columns = [tr("Hole"), tr("Easting"), tr("Northing"), tr("Elev. (m)"), tr("Azimuth (grid)") /* #1771 — GeoStrix keeps grid azimuths */, tr("Dip"), tr("Depth (m)"), ...extra];
       const sl = collarTableSlice(cs, { firstRow: el.firstRow, maxRows: el.maxRows, filter: el.holeFilter }); // #1638
       const star = (v, fromSurvey) => (v !== "" && fromSurvey ? `${v}*` : v); // #1483 — from the first survey station; #1771 each value its own flag
-      rows = sl.rows.map((c) => [String(c.hole_id ?? ""), f(c.x, 0), f(c.y, 0), f(c.z, 1), Math.abs(Number(c.dip)) >= 89.5 ? "—" /* #2615 — a vertical hole has no azimuth ('344*  -90*') */ : Number.isFinite(c.azSurvey) ? `${f(c.azimuth, 0)}†` /* #2133 */ : star(f(c.azimuth, 0), c.azFromSurvey ?? c.orientFromSurvey), star(f(Number.isFinite(c.dip) ? -c.dip : "", 0), c.dipFromSurvey ?? c.orientFromSurvey) /* #1033 — negative = down, as imported */, f(c.length, 1)]);
+      rows = sl.rows.map((c) => [String(c.hole_id ?? ""), f(c.x, 0), f(c.y, 0), f(c.z, 1), Math.abs(Number(c.dip)) >= 89.5 ? "—" /* #2615 — a vertical hole has no azimuth ('344*  -90*') */ : Number.isFinite(c.azSurvey) ? `${f(c.azimuth, 0)}†` /* #2133 */ : star(f(c.azimuth, 0), c.azFromSurvey ?? c.orientFromSurvey), star(f(Number.isFinite(c.dip) ? -c.dip : "", 0), c.dipFromSurvey ?? c.orientFromSurvey) /* #1033 — negative = down, as imported */, f(c.length, 1), ...extra.map((k) => String(c.attrs?.[k] ?? "").trim())]); // extra: #2717
       more = sl.after; head = sl.start > 0 || el.holeFilter ? tr("Rows {a}–{b} of {n}", { a: sl.total ? sl.start + 1 : 0, b: sl.end, n: sl.total }) + (el.holeFilter ? ` (${el.holeFilter})` : "") : null; nextRow = sl.end + 1;
       if (sl.rows.some((c) => c.orientFromSurvey)) surveyNote = tr("* From the shallowest survey station: the collar record has none for that value.");
       // #2133 — a collar azimuth that disagrees with the survey: the collar file's north reference, or a planned azimuth

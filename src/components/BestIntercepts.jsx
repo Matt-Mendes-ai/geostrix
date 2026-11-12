@@ -4,7 +4,7 @@ import { X, Download, Sheet } from "./icons.js";
 import { preferredElement, rememberElement } from "../lib/preferredElement.js"; // TASKS.csv #1678
 import { useLeadCommodity } from "../lib/useLeadCommodity.js"; // #1523 — the project's lead commodity
 import { interceptGradeLength, interceptSampledM, interceptOpenEnds } from "../lib/geochem.js"; // TASKS.csv #2475; interceptOpenEnds: #2608
-import { computeBestIntercepts, makeRangeAverager, domainsForInterval, attachIncluding, metalEquivalent, metalEquivalentFormula, PRECIOUS_METALS, withMetalEquivalent, gradeUnitLabel } from "../lib/geochem.js"; // attachIncluding, metal equivalent: #402
+import { computeBestIntercepts, makeRangeAverager, domainsForInterval, attachIncluding, metalEquivalent, metalEquivalentFormula, PRECIOUS_METALS, TRADED_OXIDE /* #2731 */, withMetalEquivalent, gradeUnitLabel } from "../lib/geochem.js"; // attachIncluding, metal equivalent: #402
 import { excludeQAQC, labAssays } from "../lib/qaqc.js";
 import { desurveyHole } from "../lib/desurvey.js";
 import { interceptLocations } from "../lib/interceptLocation.js"; // TASKS.csv #1047
@@ -142,7 +142,7 @@ export default function BestIntercepts({ assays: assaysIn, assayElements, collar
     return m;
   }, [domainRows]);
   // TASKS.csv #402 — the metal equivalent; #1387: above the results, which can now be cut on it (per sample) instead of on `symbol`
-  const meqMetals = useMemo(() => (meqOn ? [symbol, ...extraSymbols].map((s) => ({ symbol: s, unit: elementUnits[s] || "ppm", price: Number(meqInputs[s]?.price), recovery: Number(meqInputs[s]?.recovery) / 100 })) : []), [meqOn, symbol, extraSymbols, elementUnits, meqInputs]);
+  const meqMetals = useMemo(() => (meqOn ? [symbol, ...extraSymbols].map((s) => ({ symbol: s, unit: elementUnits[s] || "ppm", price: Number(meqInputs[s]?.price), recovery: Number(meqInputs[s]?.recovery) / 100, oxide: !!TRADED_OXIDE[s] && meqInputs[s]?.oxide !== false /* #2731 — per lb of the traded oxide unless unticked */ })) : []), [meqOn, symbol, extraSymbols, elementUnits, meqInputs]);
   const meqReady = meqOn && meqMetals.length > 1 && meqMetals.every((m) => m.price > 0 && m.recovery > 0 && m.recovery <= 1);
   const [cutOnEq, setCutOnEq] = useState(false);
   const onEq = cutOnEq && meqReady;
@@ -290,7 +290,7 @@ export default function BestIntercepts({ assays: assaysIn, assayElements, collar
                 <div style={{ marginTop: 6, marginLeft: 22, display: "flex", flexDirection: "column", gap: 4 }}>
                   {[symbol, ...extraSymbols].map((s) => (
                     <div key={s} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <span style={{ width: 34 }}>{s}</span>{tr("price")}{" "}<input type="number" min="0" step="any" value={meqInputs[s]?.price ?? ""} onChange={(e) => setMeqInputs((p) => ({ ...p, [s]: { ...p[s], price: e.target.value } }))} style={{ ...inp, width: 80 }} aria-label={tr("{s} price", { s })} /> {tr("{v}recovery", { v: PRECIOUS_METALS.has(s) ? "$/oz" : "$/lb" })}{" "}<input type="number" min="1" max="100" step="any" value={meqInputs[s]?.recovery ?? ""} onChange={(e) => setMeqInputs((p) => ({ ...p, [s]: { ...p[s], recovery: e.target.value } }))} style={{ ...inp, width: 60 }} aria-label={tr("{s} recovery %", { s })} /> %
+                      <span style={{ width: 34 }}>{s}</span>{tr("price")}{" "}<input type="number" min="0" step="any" value={meqInputs[s]?.price ?? ""} onChange={(e) => setMeqInputs((p) => ({ ...p, [s]: { ...p[s], price: e.target.value } }))} style={{ ...inp, width: 80 }} aria-label={tr("{s} price", { s })} /> {TRADED_OXIDE[s] ? <label style={{ display: "inline-flex", alignItems: "center", gap: 3 }} title={tr("{oxide} is how {s} is sold: the price is per pound of {oxide}, turned into one per pound of {s} by its share of the oxide ({f}).", { oxide: TRADED_OXIDE[s].oxide, s, f: TRADED_OXIDE[s].factor })}><input type="checkbox" checked={meqInputs[s]?.oxide !== false} onChange={(e) => setMeqInputs((p) => ({ ...p, [s]: { ...p[s], oxide: e.target.checked } }))} />{`$/lb ${TRADED_OXIDE[s].oxide}`}</label> : null}{tr("{v}recovery", { v: TRADED_OXIDE[s] && meqInputs[s]?.oxide !== false ? " " : PRECIOUS_METALS.has(s) ? "$/oz" : "$/lb" })}{/* oxide: #2731 */}{" "}<input type="number" min="1" max="100" step="any" value={meqInputs[s]?.recovery ?? ""} onChange={(e) => setMeqInputs((p) => ({ ...p, [s]: { ...p[s], recovery: e.target.value } }))} style={{ ...inp, width: 60 }} aria-label={tr("{s} recovery %", { s })} /> %
                     </div>
                   ))}
                   <div style={{ color: meqReady ? "var(--color-text-muted)" : "var(--color-danger-icon-strong)" }}>
