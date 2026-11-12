@@ -768,11 +768,12 @@ export function useImportPipeline(ctx) {
       const rows = filledRows.map((raw) => {
         const r = numeric ? normNumericInterval(raw, mapping, customFields) : normInterval(raw, mapping, customFields);
         if (recCalc) r.value = recoveryPct(raw, recCalc, mapping); // #2891
-        if (sib) { const a = allCodesOf(raw, sib); if (a.extra) { r.all_codes = a.all; r.codes = a.codes; codesKept += a.extra; codesRows++; } } // codes: #1650
+        let extra = 0; // #2874 — this row's count of codes beyond the drawn one
+        if (sib) { const a = allCodesOf(raw, sib); if (a.extra) { r.all_codes = a.all; r.codes = a.codes; codesKept += a.extra; codesRows++; extra = a.extra; } } // codes: #1650
         if (altStyle) { r.value = styleCode(r.value); r.alt_style = altStyle; if (Array.isArray(r.codes)) r.codes = r.codes.map(styleCode); } // #1511
         // #2182 — a blank code: the next numbered code if the row has one (Min_Code2), else the row is skipped and counted, not 'Unknown'
         // #2493 — or, when the dialog's "keep blank codes as (no code)" is ticked, kept as that explicit class (the log stays continuous)
-        if (!numeric && isBlankCode(raw[mapping.value])) { blankRows++; const next = Array.isArray(r.codes) ? r.codes.find((c) => !isBlankCode(c)) : null; if (next) { r.value = String(next).trim(); blankTookNext++; } else if (data.keepBlankCodes) { r.value = NO_CODE; blankKept++; } else r.value = null; }
+        if (!numeric && isBlankCode(raw[mapping.value])) { blankRows++; const next = Array.isArray(r.codes) ? r.codes.find((c) => !isBlankCode(c)) : null; if (next) { r.value = String(next).trim(); blankTookNext++; if (extra) { codesKept--; if (extra === 1) codesRows--; } /* #2874 — that code is drawn now, not 'not drawn' */ } else if (data.keepBlankCodes) { r.value = NO_CODE; blankKept++; } else r.value = null; }
         const why = !r.hole_id ? "no hole id" : isNaN(r.from) ? "no from" : numeric && isNaN(r.value) ? "no value" : !numeric && r.value == null ? "no code" : null;
         if (why) { dropped.push({ reason: why, example: why === "no from" ? raw[mapping.from] : why === "no value" ? raw[mapping.value] : null }); return null; }
         return { ...r, _src: fileName };
