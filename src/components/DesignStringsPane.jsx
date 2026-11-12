@@ -21,6 +21,7 @@ import { pBtn, smallSel } from "../lib/sidebarStyles.js";
 import { collarGround, collarsLookUnderground, pitMetalOf, elementOfModel, metalAmountText } from "../lib/pitShell.js"; // #1905; metal: #2441
 import { terrainGroundAt } from "../lib/viewer/geomath.js";
 import { t as tr } from "../lib/i18n.js";
+import CollarLevelsNote from "./CollarLevelsNote.jsx"; // TASKS.csv #2584 — the lowest collar used where collars stand on benches
 import StringManager from "./StringManager.jsx"; // TASKS.csv #1968 — many strings at once
 
 const row = { display: "flex", alignItems: "center", gap: 6, justifyContent: "space-between", marginTop: 4, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" };
@@ -367,6 +368,7 @@ export default function DesignStringsPane({ view, onAdd, onClose, surfaces = [],
 
         <div style={label}>{tr("Draw")}</div>
         <label style={row}>{tr("Clicks land on")}<select value={target} onChange={(e) => setTarget(e.target.value)} style={{ ...smallSel, width: 150 }} aria-label={tr("Where a click lands")}>{groundAt && <option value="ground">{terrain ? tr("the ground (terrain)") : tr("the ground (between the collars)")}</option>}<option value="hit">{tr("what is under the cursor")}</option><option value="plane">{tr("an elevation plane")}</option></select></label>{/* ground: #1905 */}
+        {!terrain && groundAt && target === "ground" && <CollarLevelsNote collars={collars} />}
         {target === "plane" && <label style={row}>{tr("Plane elevation (m)")}<input type="number" step="any" value={planeZ} onChange={(e) => setPlaneZ(e.target.value)} placeholder={tr("last vertex")} style={num} aria-label={tr("Elevation of the drawing plane")} /></label>}
         <div style={{ ...row, justifyContent: "flex-start", gap: 10 }}>
           <label style={{ ...note, display: "flex", alignItems: "center", gap: 3, cursor: "pointer" }} title={tr("Within about 12 pixels of another vertex, a collar, the midpoint of another string's segment or a crossing of two strings, the click takes that point. Shift holds the grid directions; Alt squares off the last segment (parallel or perpendicular to it).")}><input type="checkbox" checked={snap} onChange={(e) => setSnap(e.target.checked)} />{tr("Snap to vertices and collars")}</label>

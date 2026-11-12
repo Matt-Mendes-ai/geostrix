@@ -170,8 +170,35 @@ export function oreDepthBelowCollars(cells, cutoff, collars, survey = []) {
 export const DEEP_ORE_M = 200, DEEP_ORE_UNDERGROUND_M = 100;
 export const undergroundOreVerdict = (d) => !!d && d.median >= (d.underground ? DEEP_ORE_UNDERGROUND_M : DEEP_ORE_M);
 
-export function collarGround(collars) {
+// TASKS.csv #2584 (review #2486, WA lithium pegmatite; Matt's decision 2026-11-11) — in a mined pit the collars stand on benches of
+// different mining stages: holes 10 m apart at RL 219.8 and 234.7, and the surface through all of them (229.5 there) is a ground that
+// never existed; the present floor is at or below the lowest. A collar with another collar within BENCH_PLAN_M in plan that is more
+// than BENCH_RL_M lower is left out of the collar ground, so the lowest collar there is used. A check, not a fact about the ground: on
+// a hillside steeper than about 18 degrees it lowers real ground too, which is why every tool using this ground says so (CollarLevelsNote).
+// -> { kept: [collars], higher: [the collars left out], planM, rlM }
+export const BENCH_PLAN_M = 15, BENCH_RL_M = 5;
+export function collarBenches(collars, { planM = BENCH_PLAN_M, rlM = BENCH_RL_M } = {}) {
   const pts = (collars || []).filter((c) => Number.isFinite(c?.x) && Number.isFinite(c?.y) && Number.isFinite(c?.z));
+  const cells = new Map(), key = (i, j) => `${i},${j}`;
+  pts.forEach((c) => { const k = key(Math.floor(c.x / planM), Math.floor(c.y / planM)); (cells.get(k) || cells.set(k, []).get(k)).push(c); });
+  const kept = [], higher = [];
+  for (const c of pts) {
+    const i = Math.floor(c.x / planM), j = Math.floor(c.y / planM);
+    let lower = false;
+    for (let di = -1; di <= 1 && !lower; di++) for (let dj = -1; dj <= 1 && !lower; dj++) for (const o of cells.get(key(i + di, j + dj)) || []) {
+      if (o.z < c.z - rlM && Math.hypot(o.x - c.x, o.y - c.y) <= planM) { lower = true; break; }
+    }
+    (lower ? higher : kept).push(c);
+  }
+  return { kept, higher, planM, rlM };
+}
+// the collar ground: the four nearest collars, inverse distance squared, over the collars collarBenches keeps (#2584)
+export function collarGround(collars) {
+  return idwGround(collarBenches(collars).kept);
+}
+// the same interpolation over any points (a weathered base, the block model's column tops), with no bench check
+export function idwGround(points) {
+  const pts = (points || []).filter((c) => Number.isFinite(c?.x) && Number.isFinite(c?.y) && Number.isFinite(c?.z));
   if (!pts.length) return null;
   // TASKS.csv #1903 — the four nearest come out of a cell bucket, ring by ring, with the same answer as sorting every collar: on
   // Lawyers (446 collars) a dump grid of 30-40k cells sorted 446 distances per cell and froze the window 3-5 s; the pit and the
@@ -217,7 +244,7 @@ export function modelTopGround(cells) {
     const k = `${Math.round(c.x * 100)}|${Math.round(c.y * 100)}`, t = c.z + c.dz / 2, p = tops.get(k);
     if (!p) tops.set(k, { x: c.x, y: c.y, z: t }); else if (t > p.z) p.z = t;
   }
-  return collarGround([...tops.values()]);
+  return idwGround([...tops.values()]); // #2584: column tops, no bench check
 }
 
 // ---------- the grid ----------
@@ -618,7 +645,7 @@ export function weatheredOf(w) {
   if (!w || !(w.density > 0)) return null;
   if (w.thicknessM > 0) return { density: w.density, depthAt: () => w.thicknessM };
   const pts = (w.points || []).filter((p) => [p.x, p.y, p.depth].every(Number.isFinite)).map((p) => ({ x: p.x, y: p.y, z: p.depth }));
-  const at = pts.length ? collarGround(pts) : null;
+  const at = pts.length ? idwGround(pts) : null; // #2584: depths, not collars
   return at ? { density: w.density, depthAt: at } : null;
 }
 // the whole run, for the worker and the tests. inputs: { cells, unit, price, priceUnit, recovery, miningCost, processingCost, density, slopeDeg, revenueFactor, size }; ground as for buildPitGrid

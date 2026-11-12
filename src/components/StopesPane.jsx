@@ -17,6 +17,7 @@ import { toExportCsv, crsCell } from "../lib/tabular.js";
 import { saveFile } from "../lib/desktop.js";
 import { pBtn, smallSel } from "../lib/sidebarStyles.js";
 import { t as tr } from "../lib/i18n.js";
+import CollarLevelsNote from "./CollarLevelsNote.jsx"; // TASKS.csv #2584 — the lowest collar used where collars stand on benches
 import { stopeRuns, stopeIdsOnLevel, stopeStringIds } from "../lib/stopeRuns.js"; // TASKS.csv #1968
 import NotOfferedGrades from "./NotOfferedGrades.jsx"; // TASKS.csv #2436
 import { stopeGroundSource, groundGrid, flatBodyCheck, drillLevels } from "../lib/stopeGround.js"; // TASKS.csv #2438; drillLevels: #2284
@@ -156,6 +157,7 @@ export default function StopesPane({ onAdd, onRemove, onClose, stopes = [], onSh
         {/* TASKS.csv #2438 — the ground the levels stop under, and an optional crown */}
         {ground.at && field("crown", tr("Crown under the ground (m)"), { placeholder: "0", title: tr("Rock left between the ground and the top of the highest stope. Blank: none; no stope reaches above the ground.") })}
         {!ground.at && <div style={note}>{ground.underground ? tr("The collars look like underground drill positions, so no ground is known: the levels are not checked against the surface. Load a terrain (Maps > Terrain).") : tr("No terrain or collar elevations: the levels are not checked against the ground.")}</div>}
+        {ground.source === "collars" && <CollarLevelsNote collars={collars} />}
         {dipBad && <div style={warn}>{tr("A dip needs both the dip (0–90°) and the dip direction (0–360°).")}</div>}
         {sg && !f.density && <div style={{ ...note, marginTop: 2 }}><button onClick={() => setF((p) => ({ ...p, density: String(sg.mean) }))} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "1px 6px" }}>{tr("Use the logged mean, {v}", { v: sg.mean })}</button></div>}
         {model && <div style={note}>{tr("Columns of {dx} × {dy} m (the model's blocks); widths and skins round to whole columns.", { dx: model.cells[0]?.dx ?? "?", dy: model.cells[0]?.dy ?? "?" })}</div>}

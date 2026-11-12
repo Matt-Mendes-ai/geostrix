@@ -28,6 +28,7 @@ import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no 
 import { trendBasis, trendSearchScales, describeTrend } from "../lib/trend.js"; // TASKS.csv #650
 import { flatSearchTrend, flatSearchProposal } from "../lib/estimationShape.js"; // TASKS.csv #2418
 import { t as tr } from "../lib/i18n.js";
+import CollarLevelsNote from "./CollarLevelsNote.jsx"; // TASKS.csv #2584 — the lowest collar used where collars stand on benches
 import { holeSpacingSummary, zeroBlockAdvice, searchFromSpacingM } from "../lib/holeSpacing.js"; // TASKS.csv #1738; searchFromSpacingM: #2420
 import { topCompositesWithoutBlocks } from "../lib/shellSupport.js"; // TASKS.csv #1735 // TASKS.csv #786
 import { domainLayerChoices } from "../lib/domainLayers.js"; // TASKS.csv #1571
@@ -35,7 +36,7 @@ import { numericSourceChoices, sourceAssays, logPoints, unlogValue } from "../li
 import DomainCaps from "./DomainCaps.jsx"; // TASKS.csv #1571
 import { solidChoices } from "../lib/solidChoices.js"; // TASKS.csv #1578
 import { lazyModal } from "../lib/lazyModal.jsx";
-import { collarsLookUnderground } from "../lib/pitShell.js"; // TASKS.csv #2217
+import { collarsLookUnderground, collarBenches } from "../lib/pitShell.js"; // TASKS.csv #2217; collarBenches: #2584
 import { stampEpsg } from "../lib/provenance.js"; // TASKS.csv #2195
 import UnsampledChoice, { useUnsampled, unsampledResultLine } from "./UnsampledChoice.jsx"; // TASKS.csv #2417 / #2542
 const GradeTonnageModal = lazyModal(() => import("./GradeTonnageModal.jsx")); // TASKS.csv #1577 — from the result, not only from Geophysics
@@ -537,7 +538,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
           est.cells = est.cells.filter((c) => { const g = groundAt(c.x, c.y); return !(Number.isFinite(g) && c.z > g); });
           const cut = before - est.cells.length;
           est.blocksSkipped += cut; est.blocksEstimated = est.cells.length;
-          params.cutAtTerrain = groundSource === "collars" ? `${cut} block(s) whose centre is above the ground interpolated between the collars dropped (no terrain)` : `${cut} block(s) whose centre is above the terrain dropped`; // #1616
+          params.cutAtTerrain = groundSource === "collars" ? `${cut} block(s) whose centre is above the ground interpolated between the collars dropped (no terrain)${((b) => (b.higher.length ? `; ${b.higher.length} collar(s) with another collar within ${b.planM} m in plan over ${b.rlM} m lower left out of that ground, so the lowest collar is used there (benches)` : ""))(collarBenches(collars))}` /* #2584 */ : `${cut} block(s) whose centre is above the terrain dropped`; // #1616
           params.groundFrom = groundSource || "terrain";
           est.cutAboveGround = cut;
         }
@@ -769,6 +770,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
             </label>
           )}
           {underground?.underground && <div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", margin: "2px 0 6px 22px", lineHeight: 1.4 }}>{tr("Off: the collars look like underground collars ({upward} hole(s) drilled upward, {stacked} pair(s) of collars stacked over each other), so they are not a ground surface and no block is cut. Load a terrain to cut at the surface.", { upward: underground.upward, stacked: underground.stacked })}</div>}{/* #2217 */}
+          {groundAt && groundSource === "collars" && !underground?.underground && <CollarLevelsNote collars={collars} style={{ margin: "2px 0 6px 22px" }} />}{/* #2584 */}
           {/* TASKS.csv #517 — a modelled unit volume (or an imported closed solid) as a hard domain boundary */}
           {volumeShells.length > 0 && (
             <label style={fieldLabel} title={tr("Only samples inside this closed solid inform the estimate, and only blocks whose centre is inside it are kept — e.g. Au inside the modelled DACT. Build unit volumes from an implicit model (3D Modelling, after a stack run: Add unit volumes).")}>{tr("Restrict to a modelled volume")}<select value={shellId} onChange={(e) => setShellId(e.target.value)} style={inp} aria-label={tr("Restrict to a modelled volume")}>

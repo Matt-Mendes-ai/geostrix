@@ -1,7 +1,7 @@
 // TASKS.csv #1903 — the collar ground's bucket search gives the sorted answer, in a fraction of the time
 import test from "node:test";
 import assert from "node:assert/strict";
-import { collarGround } from "../src/lib/pitShell.js";
+import { idwGround as collarGround } from "../src/lib/pitShell.js"; // #2584: the interpolation itself; collarGround adds the bench check (test/collarBenches2584)
 import { stringsFromDxf } from "../src/lib/designStrings.js";
 
 function brute(pts) {

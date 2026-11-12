@@ -23,6 +23,7 @@ import { holeTraces } from "../lib/evidenceSources.js";
 import { excludeQAQC } from "../lib/qaqc.js";
 import { valueIn } from "../lib/geochem.js";
 import { t as tr } from "../lib/i18n.js";
+import CollarLevelsNote from "./CollarLevelsNote.jsx"; // TASKS.csv #2584 — the lowest collar used where collars stand on benches
 
 const row = { display: "flex", alignItems: "center", gap: 6, justifyContent: "space-between", marginTop: 4, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" };
 const note = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 };
@@ -363,7 +364,7 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove,
           {res.support && res.oreExtrapolatedShare > 0.5 && <div style={warn}>{tr("Most of this ore is in blocks the estimate classed as extrapolated: the pit rests on grades the drilling does not surround.")}</div>}
           <UndergroundOreNote model={model} cutoff={res.cutoff ?? cutoff} />
           {(res.slopeDeg > 65 || res.maxDepth > 500) && <div style={warn}>{tr("Steeper than 65° overall or deeper than 500 m is beyond most open pits: treat it as a sign the body is an underground question.")}</div>}
-          {res.groundSource === "collars" && <div style={note}>{tr("The ground is interpolated between the collars, not a terrain.")}</div>}
+          {res.groundSource === "collars" && <><div style={note}>{tr("The ground is interpolated between the collars, not a terrain.")}</div><CollarLevelsNote collars={collars} /></>}
           {res.groundSource === "model top" && <div style={note}>{tr("The ground is the top of the block model's columns, interpolated between them, not a terrain.")}</div>}{/* #1850 */}
           {res.oreAboveGroundBlocks > 0 && <div style={warn}>{tr("{t} t in {n} ore-grade block(s) sit wholly above the ground and were left out: the estimate was not clipped to the ground (3D Modelling › Estimation, \"Only blocks below the ground\").", { t: big(res.oreAboveGroundT), n: res.oreAboveGroundBlocks })}</div>}{/* #1616 */}
           {res.touchesBase && <div style={warn}>{tr("The pit reaches the bottom of the block model: it may go deeper if the body does.")}</div>}
