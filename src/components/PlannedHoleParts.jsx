@@ -20,6 +20,7 @@ const PlannedHoleTargeting = lazyModal(() => import("./PlannedHoleTargeting.jsx"
 import CollarPicker from "./CollarPicker.jsx"; // TASKS.csv #2104
 import PlannedHolePattern from "./PlannedHolePattern.jsx"; // TASKS.csv #2449 — a line / grid of holes
 import { plannedHolesFromRows } from "../lib/plannedImport.js"; // TASKS.csv #2651
+import { localDate } from "../lib/localDate.js"; // TASKS.csv #2702
 import { parseTableText } from "../lib/tabular.js"; // TASKS.csv #2651
 // the same one-line wrapper ViewerModule keeps (see its plannedHoleTrace comment): holePlanning.plannedTrace builds every plan's trace
 const plannedHoleTrace = (hole) => plannedTrace(hole);
@@ -87,7 +88,7 @@ export function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint, 
   const [azRef, setAzRef] = useState("grid");
   const [igrfReady, setIgrfReady] = useState(false);
   useEffect(() => { if (azRef === "magnetic") loadIgrf().then(() => setIgrfReady(true)).catch(() => {}); }, [azRef]);
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localDate(); // TASKS.csv #2702 — the local calendar day (the UTC date is tomorrow from 16:00 in BC), for the magnetic declination and the entered-azimuth record
   const azOffset = useMemo(() => { if (azRef === "grid") return { offset: 0 }; if (azRef === "magnetic" && !igrfReady) return null; try { return azimuthToGridOffset(azRef, Number(draft.x), Number(draft.y), epsg, today); } catch { return null; } }, [azRef, igrfReady, draft.x, draft.y, epsg, today]);
   const [fromCollarId, setFromCollarId] = useState("");
   const [target, setTarget] = useState({ x: "", y: "", z: "" });
