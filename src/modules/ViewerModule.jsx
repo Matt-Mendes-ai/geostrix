@@ -6483,9 +6483,14 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     let e = Number(typedSection.e), n = Number(typedSection.n);
     if (typedSection.e === "" || typedSection.n === "" || !Number.isFinite(e) || !Number.isFinite(n)) {
       const ts = tracesRef.current;
-      if (!ts.length) { setNotices((p) => [...p, notice("Enter a centre easting and northing — there are no drillholes to centre the section on.")]); return; }
+      if (!ts.length) { // #1815 — no holes: the centre of what is shown (block models, samples, map layers), as Zoom to fit all frames it
+        let bx = visibleSceneBox(voxelGroupRef.current); if (bx.isEmpty()) bx = visibleSceneBox(sceneRef.current?.getObjectByName("root")); const o = originRef.current; // the shown block models first
+        if (bx.isEmpty()) { setNotices((p) => [...p, notice("Enter a centre easting and northing — there are no drillholes to centre the section on.")]); return; }
+        const c = bx.getCenter(new THREE.Vector3()); e = c.x + o.x; n = o.y - c.z;
+      } else {
       const xs = ts.flatMap((t) => t.wx), ys = ts.flatMap((t) => t.wy);
       e = lineCentre?.x ?? (arrMin(xs) + arrMax(xs)) / 2; n = lineCentre?.y ?? (arrMin(ys) + arrMax(ys)) / 2; // #2366 the median collar
+      }
     }
     const g = sectionFromCentre({ e, n, azimuth: Number(typedSection.azimuth) || 0, length: Number(typedSection.length) || 500 });
     openDefinedSection(g, `Section ${Math.round(e)}E ${Math.round(n)}N az ${g.azimuth.toFixed(0)}°`);

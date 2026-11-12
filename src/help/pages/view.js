@@ -61,7 +61,7 @@ export default [
       ...sectionWindowFields,
     ],
     warnings: [
-      { says: "Enter a centre easting and northing — there are no drillholes to centre the section on.", means: "The centre is blank and there are no holes to take it from.", do: "Type Centre E and Centre N." },
+      { says: "Enter a centre easting and northing — there are no drillholes to centre the section on.", means: "The centre is blank and nothing is shown to take it from (no holes, models, samples or map layers in view).", do: "Type Centre E and Centre N." },
       { says: "{holeId} is vertical, so it has no bearing of its own — the section runs at the typed azimuth, {azimuth}°.", means: "A vertical hole has no direction in plan, so the section uses the azimuth in this pane.", do: "Type the azimuth you want before pressing the scissors." },
       { says: "{holeId} has no desurveyed trace to cut a section through.", means: "The hole has no collar position or survey to build its trace from.", do: "Check the hole's collar and survey rows." },
       { says: "{n} hole(s) lie more than 5 m off the section (offset printed at the end of the trace); points not snapped to a hole sit on the section plane.", means: "Holes within the buffer but off the line are projected onto it; contacts drawn by snapping to them keep the hole's real position.", do: "Narrow the buffer, or tick Keep snaps on the section, when the offsets matter for what you draw." },
