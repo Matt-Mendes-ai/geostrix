@@ -29,7 +29,8 @@ test("#1185 box plots share the histogram's log axis", async () => {
   const src = read("src/components/GradeStatistics.jsx");
   assert.match(src, /logScale=\{logScale\} unit=/);
   const fn = src.slice(src.indexOf("export function boxPlotScale"), src.indexOf("function BoxPlots"));
-  const scale = new Function(`${fn.replace("export ", "")}; return boxPlotScale;`)();
+  const { arrMin, arrMax } = await import("../src/lib/arrayStats.js"); // #2902 — boxPlotScale uses them (no spread)
+  const scale = new Function("arrMin", "arrMax", `${fn.replace("export ", "")}; return boxPlotScale;`)(arrMin, arrMax);
   const stats = [{ min: 1, q1: 10, median: 100, q3: 1000, max: 10000 }];
   const log = scale(stats, true, 0, 400);
   assert.equal(Math.round(log.x(100)), 200, "two decades of four");

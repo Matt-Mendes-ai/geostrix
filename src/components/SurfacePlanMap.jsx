@@ -10,6 +10,7 @@ import { anomalyClasses } from "../lib/anomalyMap.js";
 import { colorForVoxelValue } from "../lib/layers.js";
 import { planExtent, fitTransform, modelLevels, defaultPlanLevel, modelSliceAt, niceScaleBar, modelFootprint, padBox, inBox } from "../lib/surfacePlan.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
+import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #2902 — a model slice can hold 10^5 cells: no spread
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { saveFile } from "../lib/desktop.js";
 import { overlay, backdropProps, sel, panel, header, rowBtn as btn } from "../lib/modalStyles.js";
@@ -97,7 +98,7 @@ export default function SurfacePlanMap({ onClose }) {
     const rows = [];
     if (a) a.classes.forEach((c, k) => rows.push([`${c.label} (${(counts.get(k) || 0).toLocaleString("en-US")})`, c.color]));
     if (counts.get(-1)) rows.push([`no value (${counts.get(-1).toLocaleString("en-US")})`, a?.noDataColor || "#e6e6e6"]);
-    if (slice.length) { const vs = slice.map((c) => c.value); const lo = Math.min(...vs), hi = Math.max(...vs); rows.push([`${model.name} ${fmtV(lo)}`, colorForVoxelValue(model, lo)], [`${model.name} ${fmtV(hi)}`, colorForVoxelValue(model, hi)]); }
+    if (slice.length) { const vs = slice.map((c) => c.value); const lo = arrMin(vs), hi = arrMax(vs); rows.push([`${model.name} ${fmtV(lo)}`, colorForVoxelValue(model, lo)], [`${model.name} ${fmtV(hi)}`, colorForVoxelValue(model, hi)]); }
     ctx.font = "12px sans-serif";
     if (!rows.length) { cv.dataset.mPerPx = String(T.mPerPx); return; }
     const lw = Math.min(W - 40, 44 + Math.max(...rows.map(([t]) => ctx.measureText(t).width))), lh = 18 * rows.length + 14;
@@ -109,7 +110,7 @@ export default function SurfacePlanMap({ onClose }) {
   const legendItems = () => {
     const g = `${symbol} in ${medium || "surface samples"}`, out = [];
     if (a) a.classes.forEach((c) => out.push([`${g}: ${c.label}`, c.color]));
-    if (slice.length) { const vs = slice.map((c) => c.value); const lo = Math.min(...vs), hi = Math.max(...vs); out.push([`${model.name} at ${fmtV(level)} m: ${fmtV(lo)}`, colorForVoxelValue(model, lo)], [`${model.name} at ${fmtV(level)} m: ${fmtV(hi)}`, colorForVoxelValue(model, hi)]); }
+    if (slice.length) { const vs = slice.map((c) => c.value); const lo = arrMin(vs), hi = arrMax(vs); out.push([`${model.name} at ${fmtV(level)} m: ${fmtV(lo)}`, colorForVoxelValue(model, lo)], [`${model.name} at ${fmtV(level)} m: ${fmtV(hi)}`, colorForVoxelValue(model, hi)]); }
     return out;
   };
   const sendToLayout = () => {

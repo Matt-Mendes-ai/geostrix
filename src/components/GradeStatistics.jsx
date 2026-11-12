@@ -423,7 +423,7 @@ export function boxPlotScale(stats, logScale, x0, x1) {
   const all = stats.flatMap((s) => [s.min, s.q1, s.median, s.q3, s.max]);
   const pos = all.filter((v) => v > 0);
   const log = logScale && pos.length > 0;
-  const low = log ? Math.min(...pos) : Math.min(...all), high = Math.max(...all);
+  const low = log ? arrMin(pos) : arrMin(all), high = arrMax(all); // #2902 — a group holds up to every sample (147,659 on the WA iron set): no spread
   const f = log ? (v) => Math.log10(Math.max(v, low)) : (v) => v;
   const span = f(high) - f(low) || 1;
   return { x: (v) => x0 + ((f(v) - f(low)) / span) * (x1 - x0), low, high };
