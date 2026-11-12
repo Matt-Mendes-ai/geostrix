@@ -4,16 +4,17 @@
 // spacing is the median distance from each site to its nearest neighbour. Pure; a grid hash keeps it near-linear on large projects.
 
 // collars [{ x, y }] -> { sites, spacing, buffer } | null (fewer than 3 sites, or no usable spacing)
+const NONE = []; // #2798 — no array per empty cell
 export function drillSiteSpacing(collars, { siteM = 2, minBuffer = 2, maxBuffer = 100 } = {}) {
   const pts = (collars || []).filter((c) => Number.isFinite(c?.x) && Number.isFinite(c?.y));
   if (pts.length < 3) return null;
   // sites: merge collars within siteM (one pass over a siteM grid)
   const g = new Map(), sites = [];
-  const key = (i, j) => `${i},${j}`;
+  const key = (i, j) => i * 67108864 + j; // TASKS.csv #2798 — a number, not a string per cell (0.3 s at 20,000 collars); a collision only adds candidates
   for (const c of pts) {
     const i = Math.floor(c.x / siteM), j = Math.floor(c.y / siteM);
     let hit = null;
-    for (let di = -1; di <= 1 && !hit; di++) for (let dj = -1; dj <= 1 && !hit; dj++) for (const s of g.get(key(i + di, j + dj)) || []) if (Math.hypot(s.x - c.x, s.y - c.y) <= siteM) { hit = s; break; }
+    for (let di = -1; di <= 1 && !hit; di++) for (let dj = -1; dj <= 1 && !hit; dj++) for (const s of g.get(key(i + di, j + dj)) || NONE) if ((s.x - c.x) ** 2 + (s.y - c.y) ** 2 <= siteM * siteM) { hit = s; break; }
     if (hit) continue;
     const s = { x: c.x, y: c.y };
     sites.push(s);
@@ -32,10 +33,13 @@ export function drillSiteSpacing(collars, { siteM = 2, minBuffer = 2, maxBuffer 
   for (const s of sites) {
     const i0 = Math.floor(s.x / cell), j0 = Math.floor(s.y / cell);
     let best = Infinity;
+    const visit = (i, j) => { const list = grid.get(key(i, j)); if (list) for (const o of list) { if (o === s) continue; const d = Math.sqrt((o.x - s.x) ** 2 + (o.y - s.y) ** 2); if (d < best) best = d; } }; // sqrt, not Math.hypot (slow in V8)
     for (let r = 0; r <= span; r++) {
-      for (let di = -r; di <= r; di++) for (let dj = -r; dj <= r; dj++) {
-        if (Math.max(Math.abs(di), Math.abs(dj)) !== r) continue; // the ring only
-        for (const o of grid.get(key(i0 + di, j0 + dj)) || []) { if (o === s) continue; const d = Math.hypot(o.x - s.x, o.y - s.y); if (d < best) best = d; }
+      // the ring only: its perimeter cells, not a scan of the whole square (#2798)
+      if (r === 0) visit(i0, j0);
+      else {
+        for (let d = -r; d <= r; d++) { visit(i0 + d, j0 - r); visit(i0 + d, j0 + r); }
+        for (let d = -r + 1; d <= r - 1; d++) { visit(i0 - r, j0 + d); visit(i0 + r, j0 + d); }
       }
       if (best <= r * cell) break; // nothing in a farther ring can be closer
     }
