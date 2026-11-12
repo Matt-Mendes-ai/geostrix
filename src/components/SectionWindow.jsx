@@ -6,6 +6,7 @@ import { snapTargets, snapClick, moveVertex, deleteVertex, insertVertex, nearest
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { sectionPaper } from "../lib/pageFormats.js"; // TASKS.csv #1143
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
+import { embedFigureFont } from "../lib/svgFontEmbed.js"; // TASKS.csv #2610 — the subset Exo 2 inside the figure
 import { placeLabels, leaderEnd, resolveLabels, labelWidth, shortSurfaceName, pierceLabelIndices } from "../lib/sectionLabels.js"; // TASKS.csv #823; short pierce labels: #2705
 import { groupSectionLegend, sectionAssayLegend, sectionMineralLegend, sectionModelLegend, rampRows, ribbonOrder, ribbonLayers } from "../lib/sectionLegend.js"; // TASKS.csv #1128 — the key goes to Layout, grouped; #1475
 import { LAYER_META } from "../lib/layers.js"; // #1475 — the mineralization group name
@@ -205,11 +206,12 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
     // #1089 — the same figure as the SVG / PNG export (font, size, white ground); #2604 — its print floor for the frame Layout
     // places it in (PLACED_W / textFactor page px), the one atPrintSize laid the labels out for
     const { markup } = exportSvgMarkup(svgEl, { placedW: PLACED_W / (Number(textFactor) > 0 ? Number(textFactor) : 1) });
-    const src = `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(markup)))}`;
     const hScale = geomRef.current.hScale;
-    sendSectionSnapshot({
+    // #2610 — the payload is built now (at the print size); the font goes in before it is sent
+    const send = (p) => embedFigureFont(markup).catch(() => markup).then((m) => sendSectionSnapshot({ ...p, src: `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(m)))}` }));
+    send({
       label: data?.title || "Cross-section",
-      src, naturalW: dims.w, naturalH: dims.h,
+      naturalW: dims.w, naturalH: dims.h,
       sectionTabId: tabId, textFactor: Number(textFactor) > 0 ? Number(textFactor) : 1, replaceElementId: replaceElementId || null, resnapRound: round, // #1485 — so Layout can ask for the text at its print size
       // TASKS.csv — Layout scale-bar assignment for cross-sections: the real-world horizontal span
       // this snapshot represents at its native (naturalW) pixel width, so Layout can derive a scale
@@ -329,12 +331,13 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
   const exportSVG = () => {
     const xml = atPrintSize(() => (svgRef.current ? exportSvgMarkup(svgRef.current, exportOpts()).markup : null)); // #1090; key: #2523
     if (!xml) return;
-    saveFile({ suggestedName: `${baseName}.svg`, filters: [{ name: "SVG", extensions: ["svg"] }], content: xml });
+    embedFigureFont(xml).catch(() => xml).then((content) => saveFile({ suggestedName: `${baseName}.svg`, filters: [{ name: "SVG", extensions: ["svg"] }], content })); // #2610
   };
   const exportPNG = () => {
     const out = atPrintSize(() => { const svg = svgRef.current, d = svgDims(); if (!svg || !d) return null; const m = exportSvgMarkup(svg, exportOpts()), vbH = svg.viewBox?.baseVal?.height || 0; return { xml: m.markup, dims: vbH && m.height > vbH ? { w: d.w, h: d.h * (m.height / vbH) } : d }; }); // #1090; the key band's height: #2523
     if (!out) return;
-    const { xml, dims } = out;
+    embedFigureFont(out.xml).catch(() => out.xml).then((xml) => { // #2610 — the PNG drawn with the figure's own font
+    const { dims } = out;
     const img = new Image();
     const svgBlob = new Blob([xml], { type: "image/svg+xml;charset=utf-8" });
     const url = URL.createObjectURL(svgBlob);
@@ -349,6 +352,7 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
       canvasPngBytes(canvas).then((png) => saveFile({ suggestedName: `${baseName}.png`, filters: [{ name: "PNG", extensions: ["png"] }], content: png })); // #1040
     };
     img.src = url;
+    });
   };
   const exportPDF = () => { // #1143 — the whole figure on one page, on the paper that suits its shape
     const d = svgDims();

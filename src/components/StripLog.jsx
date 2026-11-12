@@ -25,6 +25,7 @@ const TRACK_W = 90;
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { exportSvgMarkup } from "../lib/svgExport.js"; // TASKS.csv #1089 — font, size, no UI chrome
+import { embedFigureFont } from "../lib/svgFontEmbed.js"; // TASKS.csv #2610 — the subset Exo 2 inside the figure
 import { stripLogFurniture, pngScaleFor } from "../lib/figureFurniture.js"; // TASKS.csv #1048
 import { stripLogTextPt } from "../lib/atlas.js"; // TASKS.csv #1480 — the size its labels print at
 const DEPTH_COL_W = 50;
@@ -196,7 +197,8 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
     });
     // TASKS.csv #1641 (review #1497, Lawyers) — a depth range is part of the label: two sends of 21AGBDD007 (whole hole, 100-250 m) were both 'Strip log — 21AGBDD007'
     const rangeText = ranged ? `, ${Number(d0.toFixed(1))}-${Number(d1.toFixed(1))} m` : "";
-    onAddToLayout({ label: `Strip log — ${holeId}${rangeText}` /* project data stays English */, src: `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(markup)))}`, naturalW: fw, naturalH: fh, legendItems, depthHeightAtCaptureM: fh / pxPerMeter /* #1480 — Layout's depth scale */ });
+    const addTo = onAddToLayout;
+    embedFigureFont(markup).catch(() => markup).then((m) => addTo({ label: `Strip log — ${holeId}${rangeText}` /* project data stays English */, src: `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(m)))}` /* #2610 — with the subset Exo 2 */, naturalW: fw, naturalH: fh, legendItems, depthHeightAtCaptureM: fh / pxPerMeter /* #1480 — Layout's depth scale */ }));
     const ptAt = (h) => stripLogTextPt(h, Math.min(700 * (h / fw), 794 - 160)); // Layout: 700 px wide, at most the sheet height less margins (A4 landscape)
     const pt = ptAt(fh), pt1 = ptAt(fh - (d1 - d0) * (pxPerMeter - 1)); // the same log drawn at 1 px/m
     const wide = 700 * (fh / fw) <= 794 - 160; // Layout's 700 px width, not the sheet height, sets its size: many tracks
@@ -214,15 +216,16 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
     const svg = svgRef.current;
     if (!svg) return;
     const xml = exportSvgMarkup(svg, { furniture: furniture() }).markup;
-    saveFile({ suggestedName: `${baseName}.svg`, filters: [{ name: "SVG", extensions: ["svg"] }], content: xml });
+    embedFigureFont(xml).catch(() => xml).then((content) => saveFile({ suggestedName: `${baseName}.svg`, filters: [{ name: "SVG", extensions: ["svg"] }], content })); // #2610
   };
   const exportPNG = () => {
     const svg = svgRef.current;
     const dims = svgDims();
     if (!svg || !dims) return;
-    const { markup: xml, width: fw, height: fh } = exportSvgMarkup(svg, { furniture: furniture() });
+    const { markup: xml0, width: fw, height: fh } = exportSvgMarkup(svg, { furniture: furniture() });
     const { scale, reduced } = pngScaleFor(fw, fh); // #1048 — under the canvas size limit
     setPngNote(reduced ? tr("This log is too tall for a full-resolution PNG: it was saved at {s}× instead of 2× (use SVG for full detail, or lower the vertical scale).", { s: scale.toFixed(2) }) : "");
+    embedFigureFont(xml0).catch(() => xml0).then((xml) => { // #2610
     const img = new Image();
     const blob = new Blob([xml], { type: "image/svg+xml;charset=utf-8" });
     const url = URL.createObjectURL(blob);
@@ -237,6 +240,7 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
       saveFile({ suggestedName: `${baseName}.png`, filters: [{ name: "PNG", extensions: ["png"] }], content: b64, encoding: "base64" });
     };
     img.src = url;
+    });
   };
 
   return (
