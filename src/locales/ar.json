@@ -10362,6 +10362,8 @@
   "Cut-off back to {v}, the one last used for {to}.": "عاد حد القطع إلى {v}، آخر قيمة استُخدمت لـ {to}.",
   "Cut-off reset to the suggestion for {to} ({v}): {to} is not in {from}'s unit.": "أُعيد حد القطع إلى القيمة المقترحة لـ {to} ({v}): {to} ليس بوحدة {from}.",
   "{rule}{pop}, decided {date}. Click to use it as the cutoff.": "{rule}{pop}، تقرر في {date}. انقر لاستخدامه كحد قطع.",
+  "Already a class limit.": "هو بالفعل حد فئة.",
+  "{rule}{pop}, decided {date}. Click to add it as a class limit.": "{rule}{pop}، تقرر في {date}. انقر لإضافته كحد فئة.",
   " Skipped {skipped} row(s): {why}.": " تُخطّي {skipped} صف: {why}.",
   "{name} looks like a downhole table ({cols}: a hole id and down-hole depths, no easting or northing). Outcrop measurements need map coordinates: import this file in the 3D View (drag it onto the view), where downhole structure logs go.": "يبدو {name} جدول ثقوب ({cols}: معرّف ثقب وأعماق على امتداد الثقب، بلا شرق ولا شمال). تحتاج قياسات المكاشف إلى إحداثيات خريطة: استورد هذا الملف في العرض ثلاثي الأبعاد (اسحبه إلى العرض)، حيث تُستورد سجلات البنى من الثقوب.",
   "{n} with no measurement at all": "{n} بلا أي قياس",

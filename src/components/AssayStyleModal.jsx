@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { X, Plus, Trash2, RotateCcw } from "./icons.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
@@ -9,6 +9,8 @@ import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Spac
 import { SHAPES } from "../lib/layerStyle.js"; // TASKS.csv #649 — the same marker shapes as the other point layers
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { gradeText } from "../lib/gradeText.js"; // TASKS.csv #2515
+import { useStore } from "../lib/store.jsx";
+import { drillThresholdOffers } from "../lib/thresholds.js"; // TASKS.csv #2688
 
 // seedBreaks moved to lib/colorRamp.js (TASKS.csv #476) so the 3D view can seed breaks without loading this modal.
 
@@ -58,6 +60,11 @@ export default function AssayStyleModal({ symbol, unit, defaultColor, range, sty
   const [cutoff, setCutoff] = useState("");
   const roundAll = () => commit({ ...local, breaks: roundBreaks(local.breaks) });
   const addCutoff = () => { if (cutoff === "" || !Number.isFinite(Number(cutoff))) return; commit({ ...local, breaks: addClassLimit(local.breaks, Number(cutoff), local.color) }); setCutoff(""); };
+  // TASKS.csv #2688 (#2675 part 1, Matt's decision on #2196 / #2347) — a saved DRILL threshold for this element, in this unit, is
+  // OFFERED as a class limit (never applied): a click splits the class holding it there, seeding the default classes first
+  const { geochemThresholds } = useStore();
+  const offers = useMemo(() => drillThresholdOffers(geochemThresholds, symbol, unit).slice(0, 4), [geochemThresholds, symbol, unit]);
+  const addOffer = (v) => commit({ ...local, breaks: addClassLimit(local.breaks.length ? local.breaks : seedBreaks(range, local.color), v, local.color) });
   const basis = range?.basis;
   const basisText = !basis || !basis.n ? null : basis.kind === "flags" ? tr("Default classes: the 50th, 90th and 97.5th percentiles of the {n} detected values; the {left} reported below detection ('<') are left out.", { n: basis.n.toLocaleString(), left: basis.left.toLocaleString() }) : basis.kind === "floor" ? tr("Default classes: the 50th, 90th and 97.5th percentiles of the {n} values above the floor {floor} {unit}; the {left} at the floor (probably half a detection limit substituted before import) are left out.", { n: basis.n.toLocaleString(), left: basis.left.toLocaleString(), floor: gradeText(basis.floor), unit }) : tr("Default classes: the 50th, 90th and 97.5th percentiles of all {n} values.", { n: basis.n.toLocaleString() });
 
@@ -112,6 +119,17 @@ export default function AssayStyleModal({ symbol, unit, defaultColor, range, sty
               {!local.breaks.length && <button onClick={addBreak} style={smallBtn}><Plus size={12} />{" "}{tr("Add classes")}</button>}
             </div>
             {basisText && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>{basisText}</div>}{/* #2519 */}
+            {offers.length > 0 && (
+              <div style={{ display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap", marginBottom: 6, fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{/* #2688 — offered, never applied */}
+                <span>{tr("Saved threshold:")}</span>
+                {offers.map((o) => {
+                  const has = local.breaks.some((b) => b.max === o.value);
+                  return <button key={o.key} type="button" disabled={has} onClick={() => addOffer(o.value)} style={{ ...smallBtn, padding: "1px 6px", opacity: has ? 0.6 : 1, cursor: has ? "default" : "pointer" }}
+                    title={has ? tr("Already a class limit.") : tr("{rule}{pop}, decided {date}. Click to add it as a class limit.", { rule: o.rule, pop: o.population ? ` (${o.population})` : "", date: o.decided })}>
+                    {o.population ? `${o.population.split(": ").pop()} ` : ""}{gradeText(o.value)} {unit}</button>;
+                })}
+              </div>
+            )}
             {local.breaks.length > 0 && (
               <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6, flexWrap: "wrap" }}>{/* #2519 */}
                 <button type="button" onClick={roundAll} style={smallBtn} title={tr("Round every class limit to two significant figures")}>{tr("Round the limits")}</button>
