@@ -4798,6 +4798,7 @@
   "Remove custom layer \"{name}\"": "Retirer la couche personnalisée « {name} »",
   "Remove the map layer \"{name}\" from the project?": "Retirer la couche cartographique « {name} » du projet ?",
   "Zoom to map layer \"{name}\"": "Zoomer sur la couche cartographique « {name} »",
+  "Zoom to \"{name}\"": "Zoomer sur « {name} »",
   "Remove the section image \"{name}\" from the project?": "Retirer l'image de coupe « {name} » du projet ?",
   "Zoom to section image \"{name}\"": "Zoomer sur l'image de coupe « {name} »",
   "Remove section image \"{name}\"": "Retirer l'image de coupe « {name} »",
