@@ -40,29 +40,37 @@ function intervalsInBox(view, box, rect) {
   return out;
 }
 
-function selectionOverlay(rows, traces) {
-  const byHole = new Map(traces.map((t) => [t.hole_id, t])), segs = [];
+// TASKS.csv #2722 — sheet n's colour in the preview: ten distinct hues in turn, so neighbouring sheets never share one
+const SHEET_COLOURS = ["#e6194b", "#3cb44b", "#4363d8", "#f58231", "#911eb4", "#42d4f4", "#f032e6", "#9a6324", "#808000", "#000075"];
+export const sheetColour = (n) => SHEET_COLOURS[(Math.max(1, n) - 1) % SHEET_COLOURS.length];
+
+// colorOf(row) -> a colour per row (TASKS.csv #2722: the previewed sheets, each in its own); none = the selection's yellow
+function selectionOverlay(rows, traces, colorOf = null) {
+  const byHole = new Map(traces.map((t) => [t.hole_id, t])), segs = [], cols = [];
   rows.forEach((r) => {
     const t = byHole.get(r.hole_id);
     if (!t) return;
     const from = Number(r.from), to = Number(r.to);
     let a = findOnTrace(t.pts, from);
-    for (let i = 1; a && i <= 4; i++) { const b = findOnTrace(t.pts, from + ((to - from) * i) / 4); if (b) { segs.push([a, b]); a = b; } }
+    const col = colorOf ? new THREE.Color(colorOf(r)) : null;
+    for (let i = 1; a && i <= 4; i++) { const b = findOnTrace(t.pts, from + ((to - from) * i) / 4); if (b) { segs.push([a, b]); cols.push(col); a = b; } }
   });
   const geo = new THREE.CylinderGeometry(1, 1, 1, 6, 1, true).translate(0, 0.5, 0);
-  const mesh = new THREE.InstancedMesh(geo, new THREE.MeshBasicMaterial({ color: "#ffd400", transparent: true, opacity: 0.55, depthWrite: false, depthTest: false }), segs.length);
+  const mesh = new THREE.InstancedMesh(geo, new THREE.MeshBasicMaterial({ color: colorOf ? "#ffffff" : "#ffd400", transparent: true, opacity: colorOf ? 0.85 : 0.55, depthWrite: false, depthTest: false }), segs.length);
   const radius = (LAYER_META.litho?.radius || 2.2) * 1.8, up = new THREE.Vector3(0, 1, 0), d = new THREE.Vector3(), q = new THREE.Quaternion(), s = new THREE.Vector3(), p = new THREE.Vector3(), m = new THREE.Matrix4();
   segs.forEach(([a, b], i) => {
     d.set(b.x - a.x, b.y - a.y, b.z - a.z);
     const len = d.length();
     q.setFromUnitVectors(up, len > 1e-6 ? d.divideScalar(len) : up);
     mesh.setMatrixAt(i, m.compose(p.set(a.x, a.y, a.z), q, s.set(radius, Math.max(len, 1e-3), radius)));
+    if (cols[i]) mesh.setColorAt(i, cols[i]);
   });
   mesh.renderOrder = 9;
   mesh.frustumCulled = false;
   // zoomed out a tube is thinner than a pixel, and a voxel model can hide it: a line keeps a selection in sight at any scale
   const lineGeo = new THREE.BufferGeometry().setFromPoints(segs.flatMap(([a, b]) => [new THREE.Vector3(a.x, a.y, a.z), new THREE.Vector3(b.x, b.y, b.z)]));
-  const line = new THREE.LineSegments(lineGeo, new THREE.LineBasicMaterial({ color: "#ffd400", depthTest: false, transparent: true }));
+  if (colorOf) lineGeo.setAttribute("color", new THREE.Float32BufferAttribute(cols.flatMap((c) => [c.r, c.g, c.b, c.r, c.g, c.b]), 3));
+  const line = new THREE.LineSegments(lineGeo, new THREE.LineBasicMaterial({ color: colorOf ? "#ffffff" : "#ffd400", vertexColors: !!colorOf, depthTest: false, transparent: true }));
   line.renderOrder = 10;
   line.frustumCulled = false;
   const group = new THREE.Group();
@@ -208,8 +216,46 @@ export default function ModellingCodesPane({ focus = null, inArea = null, litho,
     });
   };
   const small = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.45 };
+  // TASKS.csv #2722 — the matched sheets drawn in 3D before the codes are written; a change of codes or attitude drops the preview
+  const [sheetPreview, setSheetPreview] = useState(null);
+  useEffect(() => { setSheetPreview(null); }, [numberCodes, sheetAtt, litho]);
+  useEffect(() => {
+    const scene = view?.scene.current;
+    if (!scene || !sheetPreview?.length) return undefined;
+    const overlay = selectionOverlay(sheetPreview, view.traces.current, (q) => sheetColour(q.sheet));
+    overlay.name = "modellingCodesSheetPreview";
+    scene.add(overlay);
+    view.activity.current = Date.now();
+    return () => { scene.remove(overlay); overlay.children.forEach((o) => { o.geometry.dispose(); o.material.dispose(); o.dispose?.(); }); view.activity.current = Date.now(); };
+  }, [sheetPreview, view]);
   const selCode = selected ? effectiveCode(selected, mc, groupOf) : null;
 
+  // TASKS.csv #2625 / #2635 — the sheets matched along the attitude; #2722 — computed apart from the button so the matched sheets can be
+  // drawn in 3D before any code is written. -> { rows, assign, msgs, preview: [{ hole_id, from, to, sheet, code }] }
+  const computeSheets = () => {
+          const rows = inArea ? litho.filter((r) => inArea(r.hole_id)) : litho; // the Model area, as Auto-number (#2533)
+          const plain = { ...mc, assign: {} };
+          const all = codedRuns(rows, plain, groupOf);
+          const keys = new Set(rows.filter((r) => numberCodes.includes(String(r.value))).map(rowKey)); // one pass, as Auto-number
+          const msgs = [], preview = []; let assign = Object.fromEntries(Object.entries(mc.assign || {}).filter(([k]) => !keys.has(k)));
+          for (const base of numberCodes) {
+            const placed = placeRuns(all.filter((run) => run.code === base), positionAt);
+            if (placed.length < 2) { msgs.push(tr("{code}: fewer than two runs could be placed in 3D.", { code: base })); continue; }
+            const fit0 = sheetAtt.mode === "fitted" ? fitSheetAttitude(placed) : null;
+            if (sheetAtt.mode === "fitted" && !fit0) { msgs.push(tr("{code}: the runs do not define a plane (too few, or along one line of holes): type an attitude.", { code: base })); continue; }
+            const lens0 = placed.map((q) => q.run.to - q.run.from).sort((a, b) => a - b), gap0 = Number(sheetAtt.gap) > 0 ? Number(sheetAtt.gap) : lens0[lens0.length >> 1];
+            const fit = fit0 ? refineSheetAttitude(placed, fit0, gap0) : null; // the swarm's own plane, not one plane through every sheet
+            const att = fit || { dip: Number(sheetAtt.dip), dipDirection: Number(sheetAtt.dipDir) };
+            const lens = placed.map((q) => q.run.to - q.run.from).sort((a, b) => a - b), med = lens[lens.length >> 1];
+            const gap = Number(sheetAtt.gap) > 0 ? Number(sheetAtt.gap) : med;
+            const res = correlateSheets(placed, fit ? fit.normal : attitudeNormal(att.dip, att.dipDirection), gap);
+            for (const sh of res.sheets) for (const run of sh.runs) preview.push({ hole_id: run.hole_id, from: run.from, to: run.to, sheet: sh.n, code: base }); // #2722
+            assign = sheetAssign(res.sheets, base, rowKey, assign);
+            msgs.push(tr("{code}: {runs} run(s) in {h} hole(s) matched into {s} sheet(s) along {dip}° → {dd}° ({how}), {g} m gap.", { code: base, runs: placed.length, h: new Set(placed.map((q) => q.run.hole_id)).size, s: res.sheets.length, dip: Math.round(att.dip), dd: Math.round(att.dipDirection), how: fit ? tr("fitted to the runs") : tr("typed"), g: +gap.toFixed(1) })
+              + (res.twice ? " " + tr("{n} time(s) a hole cuts one sheet twice: lower the gap, or the sheets are not parallel here.", { n: res.twice }) : ""));
+          }
+          return { rows, assign, msgs, preview };
+  };
   return (
     <div style={{ fontSize: "var(--font-size-sm)" }}>
       {focus === "correlate" ? <div style={{ ...small, marginBottom: 8 }}>{tr("Hole-to-hole correlation: pick an interval and connect it to the same unit in the next hole, number alternating flows, or match a swarm of sheets between holes. The codes, their order and roles, and closed bodies are in Modelling codes.")}</div> /* TASKS.csv #2054 */ : (
@@ -377,31 +423,19 @@ export default function ModellingCodesPane({ focus = null, inArea = null, litho,
           <label style={{ display: "flex", alignItems: "center", gap: 4 }} title={tr("The largest distance across the sheets between two runs of one sheet. Blank = the median logged run of the code.")}>{tr("Gap (m)")}<input type="number" min={0} step="any" value={sheetAtt.gap} placeholder={tr("auto")} onChange={(e) => setSheetAtt((a) => ({ ...a, gap: e.target.value }))} style={{ ...inputStyle, width: 56 }} aria-label={tr("Gap between sheets (m)")} /></label>
         </div>
         <button disabled={!numberCodes.length || (sheetAtt.mode === "typed" && !(sheetAtt.dip !== "" && sheetAtt.dipDir !== ""))} onClick={() => {
-          const rows = inArea ? litho.filter((r) => inArea(r.hole_id)) : litho; // the Model area, as Auto-number (#2533)
-          const plain = { ...mc, assign: {} };
-          const all = codedRuns(rows, plain, groupOf);
-          const keys = new Set(rows.filter((r) => numberCodes.includes(String(r.value))).map(rowKey)); // one pass, as Auto-number
-          const msgs = []; let assign = Object.fromEntries(Object.entries(mc.assign || {}).filter(([k]) => !keys.has(k)));
-          for (const base of numberCodes) {
-            const placed = placeRuns(all.filter((run) => run.code === base), positionAt);
-            if (placed.length < 2) { msgs.push(tr("{code}: fewer than two runs could be placed in 3D.", { code: base })); continue; }
-            const fit0 = sheetAtt.mode === "fitted" ? fitSheetAttitude(placed) : null;
-            if (sheetAtt.mode === "fitted" && !fit0) { msgs.push(tr("{code}: the runs do not define a plane (too few, or along one line of holes): type an attitude.", { code: base })); continue; }
-            const lens0 = placed.map((q) => q.run.to - q.run.from).sort((a, b) => a - b), gap0 = Number(sheetAtt.gap) > 0 ? Number(sheetAtt.gap) : lens0[lens0.length >> 1];
-            const fit = fit0 ? refineSheetAttitude(placed, fit0, gap0) : null; // the swarm's own plane, not one plane through every sheet
-            const att = fit || { dip: Number(sheetAtt.dip), dipDirection: Number(sheetAtt.dipDir) };
-            const lens = placed.map((q) => q.run.to - q.run.from).sort((a, b) => a - b), med = lens[lens.length >> 1];
-            const gap = Number(sheetAtt.gap) > 0 ? Number(sheetAtt.gap) : med;
-            const res = correlateSheets(placed, fit ? fit.normal : attitudeNormal(att.dip, att.dipDirection), gap);
-            assign = sheetAssign(res.sheets, base, rowKey, assign);
-            msgs.push(tr("{code}: {runs} run(s) in {h} hole(s) matched into {s} sheet(s) along {dip}° → {dd}° ({how}), {g} m gap.", { code: base, runs: placed.length, h: new Set(placed.map((q) => q.run.hole_id)).size, s: res.sheets.length, dip: Math.round(att.dip), dd: Math.round(att.dipDirection), how: fit ? tr("fitted to the runs") : tr("typed"), g: +gap.toFixed(1) })
-              + (res.twice ? " " + tr("{n} time(s) a hole cuts one sheet twice: lower the gap, or the sheets are not parallel here.", { n: res.twice }) : ""));
-          }
+          const { rows, assign, msgs } = computeSheets(); // #2722 — the same matching the preview shows
           const touched = rows.filter((r) => numberCodes.includes(String(r.value)) && mc.assign?.[rowKey(r)]).length;
           if (touched && !window.confirm(tr("{touched} of these intervals already have a code you set. Auto-numbering replaces them. Continue?", { touched }))) return;
           setModellingCodes((p) => { const base = p || mc; return { ...base, assign, codes: inheritNumberedRoles(base, assign, numberCodes) }; });
-          setSheetMsg(msgs.join(" "));
+          setSheetMsg(msgs.join(" ")); setSheetPreview(null);
         }} style={{ ...pBtn, marginTop: 6, opacity: numberCodes.length ? 1 : 0.5 }}>{tr("Correlate {v} into sheets", { v: numberCodes.join(", ") || "…" })}</button>
+        {view && <button aria-pressed={!!sheetPreview} disabled={!numberCodes.length || (sheetAtt.mode === "typed" && !(sheetAtt.dip !== "" && sheetAtt.dipDir !== ""))} onClick={() => {
+          if (sheetPreview) { setSheetPreview(null); return; }
+          const r = computeSheets();
+          setSheetPreview(r.preview); setSheetMsg(r.msgs.join(" "));
+        }} style={{ ...pBtn, marginTop: 4, opacity: numberCodes.length ? 1 : 0.5, background: sheetPreview ? "var(--color-selected-bg)" : undefined }}
+          title={tr("Draws the runs matched into each sheet in its own colour on the holes, without writing any code: a wrong match can be seen, and the gap or the attitude changed, first.")}>{sheetPreview ? tr("Previewing the sheets in 3D (click to stop)") : tr("Preview the sheets in 3D")}</button>}{/* #2722 */}
+        {sheetPreview && sheetPreview.length > 0 && <div style={{ ...small, display: "flex", flexWrap: "wrap", gap: 6, marginTop: 4 }}>{[...new Map(sheetPreview.map((q) => [`${q.code}${q.sheet}`, q])).values()].map((q) => <span key={`${q.code}${q.sheet}`} style={{ display: "inline-flex", alignItems: "center", gap: 3 }}><span style={{ width: 9, height: 9, borderRadius: 2, background: sheetColour(q.sheet) }} />{`${q.code}${q.sheet}`}</span>)}</div>}
         {sheetMsg && <div role="status" style={{ ...small, marginTop: 3 }}>{sheetMsg}</div>}
       </>)}
 
