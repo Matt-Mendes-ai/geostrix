@@ -50,7 +50,20 @@ const isPrecious = (element) => PRECIOUS.has(String(element || "").trim());
 // column names its element, and an element usually reported as an oxide (or, for lithium, as lithium carbonate equivalent) gets those
 // columns too. Reporting conventions only, no deposit assumed; factors are oxide / element mass ratios (IUPAC), LCE = Li2CO3 / 2 Li.
 const REPORTED_AS = { Li: [["Li2O", 2.1527], ["LCE", 5.323]], U: [["U3O8", 1.1792]], Ta: [["Ta2O5", 1.221]], Nb: [["Nb2O5", 1.4305]], V: [["V2O5", 1.7852]], W: [["WO3", 1.2611]] };
+// TASKS.csv #2404 (review #2325, WA uranium) — uranium is quoted in pounds of U3O8: millions of pounds beside the U3O8 tonnes
+const LB_PER_T = 2204.62262;
+const IN_POUNDS = new Set(["U3O8"]);
 export function metalColumns(metal, element) {
+  const cols = metalColumnsT(metal, element);
+  const out = [];
+  for (const c of cols) {
+    out.push(c);
+    const ox = c.args?.el || (/^Metal \(t (.+)\)$/.exec(c.label) || [])[1];
+    if (ox && IN_POUNDS.has(ox) && c.key.startsWith("metal_t")) out.push({ key: `metal_mlb_${ox}`, label: "{el} (Mlb)", args: { el: ox }, factor: (c.factor * LB_PER_T) / 1e6 });
+  }
+  return out;
+}
+function metalColumnsT(metal, element) {
   if (!metal) return [];
   const el = String(element || "").trim(), base = metal.unit === "g" ? 1e-6 : 1;
   const also = (skip) => (REPORTED_AS[el] || []).filter(([ox]) => ox !== skip).map(([ox, f]) => ({ key: `metal_t_${ox}`, label: "{el} (t)", args: { el: ox }, factor: f * base }));

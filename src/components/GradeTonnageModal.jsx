@@ -168,7 +168,7 @@ export default function GradeTonnageModal({ model, epsg, onClose }) {
             <tbody>{benchRows.map((r) => (
               <tr key={r.floorRL}>
                 <td style={td}>{fmt(r.floorRL, 1)}</td><td style={td}>{fmt(r.blocks, 1)}</td><td style={td}>{fmt(r.volumeM3)}</td><td style={td}>{sig(r.meanGrade)}</td>
-                {rho && <td style={td}>{fmt(r.tonnes)}</td>}{rho && mcols.map((c) => <td key={c.key} style={td}>{r.metal == null ? "—" : fmt(r.metal * c.factor, c.factor < 1e-2 && c.key !== "metal_oz" ? 1 : 0)}</td>)}
+                {rho && <td style={td}>{fmt(r.tonnes)}</td>}{rho && mcols.map((c) => <td key={c.key} style={td}>{r.metal == null ? "—" : c.key.startsWith("metal_mlb") ? sig(r.metal * c.factor) /* #2404 — millions of pounds: 3 significant figures */ : fmt(r.metal * c.factor, c.factor < 1e-2 && c.key !== "metal_oz" ? 1 : 0)}</td>)}
                 {hasSupport && <td style={td}>{r.interpolatedShare == null ? "—" : `${Math.round(r.interpolatedShare * 100)} %`}</td>}
               </tr>))}</tbody>
           </table>
@@ -185,7 +185,7 @@ export default function GradeTonnageModal({ model, epsg, onClose }) {
           <tbody>{rows.map((r) => (
             <tr key={r.cutoff}>
               <td style={td}>{sig4(r.cutoff)}</td><td style={td}>{fmt(r.blocks)}</td><td style={td}>{fmt(r.volumeM3)}</td><td style={td}>{sig(r.meanGrade)}</td>
-              {rho && <td style={td}>{fmt(r.tonnes)}</td>}{rho && mcols.map((c) => <td key={c.key} style={td}>{r.metal == null ? "—" : fmt(r.metal * c.factor, c.factor < 1e-2 && c.key !== "metal_oz" ? 1 : 0)}</td>)}
+              {rho && <td style={td}>{fmt(r.tonnes)}</td>}{rho && mcols.map((c) => <td key={c.key} style={td}>{r.metal == null ? "—" : c.key.startsWith("metal_mlb") ? sig(r.metal * c.factor) /* #2404 — millions of pounds: 3 significant figures */ : fmt(r.metal * c.factor, c.factor < 1e-2 && c.key !== "metal_oz" ? 1 : 0)}</td>)}
               {hasSupport && <td style={td}>{r.interpolatedShare == null ? "—" : `${Math.round(r.interpolatedShare * 100)} %`}</td>}
               {beyondKnown && <td style={td}>{r.beyondShare == null ? "—" : `${Math.round(r.beyondShare * 100)} %`}</td>}
               {logKnown && <td style={td}>{r.logShare == null ? "—" : `${Math.round(r.logShare * 100)} %`}</td>}{/* #2721 */}

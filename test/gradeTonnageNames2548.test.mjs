@@ -27,7 +27,7 @@ test("an oxide basis keeps its oxide column first and adds the element (and LCE 
 
 test("other elements: their name, U3O8 / Ta2O5 where usual, nothing invented elsewhere", () => {
   assert.deepEqual(metalColumns(metalOf("%"), "Zn").map((c) => [c.key, c.args?.el, c.factor]), [["metal_t", "Zn", 1]]);
-  assert.deepEqual(metalColumns(metalOf("ppm"), "U").map((c) => c.key), ["metal_t", "metal_t_U3O8"]);
+  assert.deepEqual(metalColumns(metalOf("ppm"), "U").map((c) => c.key), ["metal_t", "metal_t_U3O8", "metal_mlb_U3O8"]); // + Mlb U3O8: #2404
   assert.deepEqual(metalColumns(metalOf("ppm"), "Au").map((c) => c.key), ["metal_kg", "metal_oz"]);
   assert.deepEqual(metalColumns(metalOf("%"), null).map((c) => c.label), ["Metal (t)"], "no element: as before");
 });
