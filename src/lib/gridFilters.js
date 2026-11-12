@@ -170,6 +170,23 @@ export const FILTERS = {
   worms: { label: "Worms (edges at several heights)", unitsOut: () => "m" },
 };
 
+// TASKS.csv #2837 / #2843 (GSC geophysics review) — the unit of a filter's result. RasterModule passed only r.units (a gridded survey's unit), so
+// an imported grid whose unit was typed ('Values are', r.unit) gave products with no unit, and a tilt never said degrees. The parent's unit is
+// now the one rasterUnitOf reads, a unit that does not depend on the parent (tilt: degrees) is always written, and a GRAVITY derivative
+// (mGal or µGal) is given per kilometre, x 1,000, the unit Bouguer derivatives are published in (the per-metre 1VD of a GSC Bouguer grid read
+// ~780 x smaller than the published grid beside it). Magnetic derivatives stay per metre (nT/m, as published). -> { units, scale }
+const PER_KM = new Set(["vd1", "as"]);
+export function filterOutputUnits(kind, parentUnit) {
+  const f = FILTERS[kind];
+  const u = String(parentUnit || "").trim();
+  if (!f) return { units: undefined, scale: 1 };
+  const probe = "\u0000";
+  if (!f.unitsOut(probe).includes(probe)) return { units: f.unitsOut(""), scale: 1 }; // a unit of its own
+  if (!u) return { units: undefined, scale: 1 };
+  if (PER_KM.has(kind) && /^(mgal|µgal|μgal|ugal)$/i.test(u)) return { units: `${u}/km`, scale: 1000 };
+  return { units: f.unitsOut(u), scale: 1 };
+}
+
 // TASKS.csv #1988 — the amplitude-correction inclination of the low-latitude RTP: the one entered (never shallower than the
 // field's own), else the field's own when it is 20 degrees or steeper, else 20 degrees with the field's sign
 export function amplitudeInclination(I, entered = null) {
