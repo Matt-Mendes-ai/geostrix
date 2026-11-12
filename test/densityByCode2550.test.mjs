@@ -32,6 +32,6 @@ test("tonnes, metal and the mean grade weight each block by its own density; a c
 test("the dialog offers Density by over the logged layers and passes densityOf to the table", () => {
   const s = readFileSync(new URL("../src/components/GradeTonnageModal.jsx", import.meta.url), "utf8");
   assert.match(s, /\["weath", "litho", "alt"\]/);
-  assert.match(s, /densityOf: byCode\?\.of \|\| null/);
+  assert.match(s, /densityOf: (byModel\?\.of \|\| )?byCode\?\.of \|\| null/);
   assert.match(s, /nearestCodeLookup\(pts, reachM\)/);
 });
