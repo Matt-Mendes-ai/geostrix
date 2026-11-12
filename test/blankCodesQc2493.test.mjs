@@ -68,7 +68,7 @@ test("#2493 wiring: the dialog's choice, the import's use of it, the left-out re
   // the setter the import calls is one the store really gives (a guarded call to a missing setProject recorded nothing, found live)
   const store = fs.readFileSync(new URL("../src/lib/store.jsx", import.meta.url), "utf8");
   assert.match(store, /const recordImportLeftOut = useCallback\(\(layerKey, file, dropped, total\) => setProject\(\(p\) => withImportLeftOut\(p, layerKey, file, dropped, total\)\), \[\]\);/);
-  assert.match(store, /\n {4}recordImportLeftOut, \/\/ TASKS\.csv #2493\n/);
+  assert.match(store, /\r?\n {4}recordImportLeftOut, \/\/ TASKS\.csv #2493\r?\n/); // CRLF in a Windows checkout
   assert.match(imp, /blankCodeText\(mapping\.value, blankRows, allRows\.length, blankTookNext, blankKept\)/);
   const modal = fs.readFileSync(new URL("../src/components/DataQCModal.jsx", import.meta.url), "utf8");
   assert.match(modal, /terrain, customLayers,/);
