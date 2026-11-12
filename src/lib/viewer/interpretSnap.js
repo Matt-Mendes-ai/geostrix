@@ -59,10 +59,16 @@ export function snapIndexFor(traces, layers, shown, origin, labelOf) {
 // ray: { origin: {x,y,z}, direction: {x,y,z} unit } (scene); tolAt(t) -> the snap distance (scene units) at distance t along the ray.
 // -> { x, y, z (scene), hole_id, md, label, kind } or null. A collar or boundary within reach wins (the one nearest the ray, in pixels);
 // else the nearest point of a trace within reach (kind "trace").
+// TASKS.csv #2972 (WA iron review) — looking (nearly) straight down, every logged contact and trace point of a vertical hole is under its
+// collar on screen, so a click by a collar on the plan tied the line to 'RHRC05610360 at 34 m (Lithology: BNAM)'. In a plan look (the ray
+// within PLAN_COS of vertical) only collars are taken; a contact down the hole is snapped to from an oblique or section view.
+export const PLAN_COS = Math.cos((15 * Math.PI) / 180);
+export const isPlanLook = (ray) => Math.abs(ray?.direction?.y ?? 0) >= PLAN_COS; // scene y is up
 export function snapRay(index, ray, tolAt) {
-  const o = ray.origin, d = ray.direction, a = index.xyz;
+  const o = ray.origin, d = ray.direction, a = index.xyz, plan = isPlanLook(ray);
   let best = null;
   for (let i = 0; i < a.length; i += 3) {
+    if (plan && index.info[i / 3].kind !== "collar") continue; // #2972
     const vx = a[i] - o.x, vy = a[i + 1] - o.y, vz = a[i + 2] - o.z;
     const t = vx * d.x + vy * d.y + vz * d.z;
     if (t <= 0) continue;
@@ -73,6 +79,7 @@ export function snapRay(index, ray, tolAt) {
     if (!best || r < best.r) best = { r, i: i / 3 };
   }
   if (best) { const k = best.i * 3, inf = index.info[best.i]; return { x: a[k], y: a[k + 1], z: a[k + 2], ...inf }; }
+  if (plan) return null; // #2972 — no trace point in a plan look either
   // the nearest point on a trace segment: closest approach of the ray and the segment
   let bt = null;
   for (const tr of index.traces) {

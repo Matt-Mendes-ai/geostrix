@@ -6934,7 +6934,7 @@
   "Snapped to {hole} at {md} m ({label}).": "Ajustado a {hole} a {md} m ({label}).",
   "Snapped to {hole} at {md} m.": "Ajustado a {hole} a {md} m.",
   "Snapped to the collar of {hole}.": "Ajustado al collar de {hole}.",
-  "A click near a collar, a logged boundary of a shown layer or a hole's trace takes that point, and the line records which hole it is tied to": "Un clic cerca de un collar, de un límite registrado de una capa visible o de la traza de un sondaje toma ese punto, y la línea registra a qué sondaje está ligada",
+  "A click near a collar, a logged boundary of a shown layer or a hole's trace takes that point, and the line records which hole it is tied to. Looking straight down (Top view) only collars are taken: every contact of a vertical hole is under its collar there.": "Un clic cerca de un collar, de un límite registrado de una capa visible o de la traza de un sondaje toma ese punto, y la línea registra a qué sondaje está ligada. Mirando en vertical (vista superior) solo se toman collares: allí todos los contactos de un sondaje vertical quedan bajo su collar.",
   "Snap to holes and logged contacts": "Ajustar a sondajes y contactos registrados",
   "{n} point(s), {m} m. Click to add a point; double-click or Finish to end the line.": "{n} punto(s), {m} m. Haga clic para agregar un punto; doble clic o Terminar para cerrar la línea.",
   "A line needs at least two points.": "Una línea necesita al menos dos puntos.",

@@ -6934,7 +6934,7 @@
   "Snapped to {hole} at {md} m ({label}).": "تم الالتقاط إلى {hole} عند {md} م ({label}).",
   "Snapped to {hole} at {md} m.": "تم الالتقاط إلى {hole} عند {md} م.",
   "Snapped to the collar of {hole}.": "تم الالتقاط إلى فوهة {hole}.",
-  "A click near a collar, a logged boundary of a shown layer or a hole's trace takes that point, and the line records which hole it is tied to": "النقر قرب فوهة أو حد مسجل لطبقة ظاهرة أو مسار ثقب يأخذ تلك النقطة، ويسجل الخط الثقب الذي يرتبط به",
+  "A click near a collar, a logged boundary of a shown layer or a hole's trace takes that point, and the line records which hole it is tied to. Looking straight down (Top view) only collars are taken: every contact of a vertical hole is under its collar there.": "النقر قرب فوهة أو حدّ مسجّل لطبقة معروضة أو مسار ثقب يأخذ تلك النقطة، ويسجّل الخط الثقب المرتبط به. عند النظر عمودياً (المنظر العلوي) تؤخذ الفوهات فقط: فكل تماسات الثقب العمودي تقع هناك تحت فوهته.",
   "Snap to holes and logged contacts": "الالتقاط إلى الثقوب والتماسات المسجلة",
   "{n} point(s), {m} m. Click to add a point; double-click or Finish to end the line.": "{n} نقطة، {m} م. انقر لإضافة نقطة؛ انقر مرتين أو إنهاء لإنهاء الخط.",
   "A line needs at least two points.": "يحتاج الخط إلى نقطتين على الأقل.",
