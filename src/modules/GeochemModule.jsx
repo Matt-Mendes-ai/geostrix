@@ -23,6 +23,7 @@ import { useStore, useSetTaskProgress } from "../lib/store.jsx"; // useSetTaskPr
 import { elementColumnStats } from "../lib/assayColumnScan.js"; // TASKS.csv #2164
 const ELEMENT_SCAN_CHUNKED_ROWS = 50000; // #2164 — below this the element columns are counted at once
 import { saveFile, loadSampleFiles } from "../lib/desktop.js"; // loadSampleFiles: TASKS.csv #391
+import { assayImportFindings } from "../lib/assayImportFindings.js"; // TASKS.csv #2498
 import { repeatColumns, columnDetectionLimit, isElementColumn, inferUnit, pickElementColumns, assayExportRows, parseAssayValue, valueIn, readAssayCell, columnPositiveMax, convertUnit, mergeAssayRows, holesWithChangedIntervals, dropHoleAssays, blankDetectionLimit, isBlankAssayCell, oxideOfHeader, fromOxideHeader, oxideUnit, importStoreUnit, oxideBasisUnit, oxideColumnUnit, surfaceAttrColumns, surfaceAttrs, mergeSurfaceSamples, otherMediumTwins } from "../lib/geochem.js"; // otherMediumTwins: #2085
 import { DIAGRAMS, SPIDER_DIAGRAMS, GEOCHEM_METHODS, diagramExportRows, protolithForSample, PROVISIONAL_ALTERATION_BOXES, GEOCHEM_LABELS, reeProfile, loggedCodeAt, isSedimentaryCode, mergeClassRuns, FITTED_PROTOLITH, fitLeastAlteredBox, nameAiUpTrend , censoredOperand, censoredLeftOut, guessProtolith } from "../lib/geochemDiagrams.js"; // fitted: #2028; nameAiUpTrend: #2145
 import { qcRecordFromFileRow, emptySurfaceQc, looksLikeQcTypeColumn, mergeQcRecords } from "../lib/surfaceQaqc.js"; // TASKS.csv #842; looksLikeQcTypeColumn, mergeQcRecords: #1794
@@ -803,6 +804,18 @@ export default function GeochemModule() {
       (() => { if (format !== "wide") return null; const o = overlapSummary(allRows, { hole: mapping.hole_id, from: mapping.from, to: mapping.to }, modal.headers || Object.keys(allRows[0] || {})); if (!overlapWorthSaying(o)) return null;
         return o.col ? tr("{n} of the file's {total} interval(s) overlap another of the same hole, in {holes} hole(s); {pct}% of them have {col} = {value}, which may mark the out-of-date rows: the dialog's row filter can leave them out.", { n: o.n.toLocaleString(), total: o.total.toLocaleString(), holes: o.holes, pct: Math.round(o.share * 100), col: o.col, value: o.value || "(blank)" })
           : tr("{n} of the file's {total} interval(s) overlap another of the same hole, in {holes} hole(s); no column of the file marks them.", { n: o.n.toLocaleString(), total: o.total.toLocaleString(), holes: o.holes }); })(),
+      // TASKS.csv #2498 — what the import met on the way: below-detection cells and their limits, per-cent values over 100, numeric columns
+      // it did not read, sample types that are not drill intervals
+      ...(() => {
+        const f = assayImportFindings({ rows, elements: chosen, unitOf: (s) => existingUnit[s] || importStoreUnit(chosen.find((e) => e.symbol === s) || {}), headers: format === "wide" ? modal.headers || [] : [], used: Object.values(mapping || {}), allRows, at: (r) => `${r[mapping.hole_id]} ${r[mapping.from]}-${r[mapping.to]} m` });
+        const list = (xs, k, fn) => xs.slice(0, k).map(fn).join(", ") + (xs.length > k ? ", …" : "");
+        return [
+          f.below.length ? tr("In all, {n} cell(s) below detection, stored at half the limit and flagged '<': {list}.", { n: f.below.reduce((t, b) => t + b.n, 0).toLocaleString(), list: list(f.below, 8, (b) => (b.limit != null ? `${b.symbol} ${b.n.toLocaleString()} (<${b.limit} ${b.unit})` : `${b.symbol} ${b.n.toLocaleString()}`)) }) : null,
+          f.over100.length ? tr("Values over 100 % (a total or a unit to check in the file): {list}.", { list: list(f.over100, 6, (o) => tr("{symbol} {n} (up to {max} %, {where})", { symbol: o.symbol, n: o.n.toLocaleString(), max: o.max, where: o.where })) }) : null,
+          f.notImported.length ? tr("Not imported (numeric, not an element): {cols}.", { cols: f.notImported.join(", ") }) : null,
+          f.nonDrill.length ? tr("Sample types that are not drill intervals, taken in as rows of their hole: {list}.", { list: f.nonDrill.map(([t, n]) => `${t} ${n.toLocaleString()}`).join(", ") }) : null,
+        ];
+      })(),
       oxideNotes.size ? tr("Oxide columns: {list}. A grade kept as its oxide is read, typed, priced and exported as the oxide; one stored as the element is in element wt%, and the diagrams convert either to oxides.", { list: [...oxideNotes].join(", ") }) : null, // #2487
     ].filter(Boolean).join(" ");
     import("../lib/dataQC.js").then(({ importCheckSummary }) => { const msg = importCheckSummary(rows, collars, store.survey, tr("assay rows")); if (msg) setNotices((p) => [...p, msg]); }).catch(() => {}); // TASKS.csv #1268
