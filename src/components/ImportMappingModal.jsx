@@ -31,6 +31,7 @@ const importCount = (modal) => {
 };
 import { logChannelsFor } from "../lib/downholeLogChannels.js";
 import { numberColumnsLeft } from "../lib/valueGuess.js"; // TASKS.csv #2889
+import { recoveryColumns } from "../lib/recoveryCalc.js"; // TASKS.csv #2891
 
 
 export default function ImportMappingModal({ modal, onChange, onCancel, onCommit, projectEpsg, replaceInfo = null }) { // replaceInfo: #1649
@@ -141,6 +142,11 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
               source actually carries). Carried straight through to the attribute table (which
               already derives its columns from whatever keys a row has) and, for interval layers, the
               hover tooltip shows one named "description" specifically — see ViewerModule.jsx. */}
+          {modal.target === "recovery" && !modal.mapping.value && (() => { const rc = recoveryColumns(modal.headers); if (!rc) return null; const run = rc.drilled || tr("To − From"); return ( /* TASKS.csv #2891 */
+            <label style={{ display: "flex", gap: 6, alignItems: "flex-start", fontSize: "var(--font-size-sm)", color: "var(--color-text)", marginBottom: 12, lineHeight: 1.45 }}>
+              <input type="checkbox" checked={!modal.recoveryCalcOff} onChange={(e) => onChange({ ...modal, recoveryCalcOff: !e.target.checked })} style={{ marginTop: 2 }} />
+              <span>{rc.loss ? tr("No recovery column: compute Recovery % from {loss} and {run}, as (run − loss) / run × 100.", { loss: rc.loss, run }) : tr("No recovery column: compute Recovery % from {rec} and {run}, as recovered / run × 100.", { rec: rc.recovered, run })}</span>
+            </label>); })()}
           <CoordSetsNote modal={modal} project={storeProject} />{/* #2492 */}
           <LogChannelsBox modal={modal} onChange={onChange} sel={sel} />{/* #2160 */}
           <RowFilterBox modal={modal} onChange={onChange} sel={sel} />{/* #2330 */}
@@ -389,7 +395,8 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
             red-border cues above already exist; this just stops the click from being possible at all. */}
         {(() => {
           const logOn = !!logChannelsFor(modal.target, modal.headers, modal.allRows || modal.sampleRows || [], modal.mapping, modal.logChannels); // #2160 — the channels are the values
-          const missingRequired = schema.fields.filter((f) => f.required && !modal.mapping[f.key] && !(logOn && f.key === "value"))
+          const recOn = modal.target === "recovery" && !modal.mapping.value && !modal.recoveryCalcOff && !!recoveryColumns(modal.headers); // #2891 — the value is computed
+          const missingRequired = schema.fields.filter((f) => f.required && !modal.mapping[f.key] && !(logOn && f.key === "value") && !(recOn && f.key === "value"))
             .concat(schema.oneOf && !schema.oneOf.some((keys) => keys.every((k) => modal.mapping[k])) ? [{ key: "oneOf", label: "From + To, or Depth" }] : []); // #605
           return (
             <div style={{ display: "flex", flexDirection: "column", gap: 6, padding: "12px 16px", borderTop: "1px solid var(--color-border)" }}>
