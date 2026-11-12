@@ -19,7 +19,7 @@ test("the empty state matches the pane: no point importer on DC / IP", () => {
 });
 
 test("the 3D View's terrain hint already names Maps > Terrain", () => {
-  const v = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
+  const v = readFileSync(new URL("../src/modules/viewer/SurfacePlacementNotices.jsx", import.meta.url), "utf8"); // moved out of ViewerModule: #2485
   assert.ok(!v.includes("(Geophysics tab) and they are placed on it"));
   assert.ok(v.includes("Load a terrain (Maps > Terrain) to place them on the ground."));
 });

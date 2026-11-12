@@ -118,7 +118,8 @@ const DesignStringsPane = React.lazy(() => import("../components/DesignStringsPa
 const NestedPitsPane = React.lazy(() => import("../components/NestedPitsPane.jsx")); // TASKS.csv #1875
 const StopesPane = React.lazy(() => import("../components/StopesPane.jsx")); // TASKS.csv #1879
 import StopeRunRows from "./viewer/StopeRunRows.jsx"; // TASKS.csv #1968
-import { collarGround, collarsLookUnderground } from "../lib/pitShell.js"; // TASKS.csv #1616 — the estimate's ground without a terrain
+import { collarGround } from "../lib/pitShell.js"; // TASKS.csv #1616 — the estimate's ground without a terrain
+import { useSurfacePlacement } from "./viewer/useSurfacePlacement.js"; import SurfacePlacementNotices from "./viewer/SurfacePlacementNotices.jsx"; // TASKS.csv #2485
 let solidSeq = 0; // TASKS.csv #1887 — distinct ids for solids added within one millisecond
 import { hitLabel } from "../lib/viewer/hitLabel.js"; // TASKS.csv #1891 (moved out, #1084 size cap)
 import { customColour, customLegendGroups, customFields } from "../lib/customColour.js"; // TASKS.csv #1697
@@ -511,10 +512,6 @@ function voxelFitCorners(models, o) {
   });
   return out;
 }
-// TASKS.csv #1618 — two placed surface-sample lists put the same samples at the same heights (a draped copy is new each time)
-const samePlacement = (a, b) => a.length === b.length && a.every((r, i) => r === b[i] || ((r.zDraped || r.zFlat) && (b[i].zDraped || b[i].zFlat) && r.zFlat === b[i].zFlat && r.z === b[i].z && r.x === b[i].x && r.y === b[i].y && r.sample_id === b[i].sample_id));
-// TASKS.csv #1819 — a placed copy (draped or flat) -> the store's sample, so classes computed on every sample find the drawn ones
-const placedSrc = new WeakMap();
 const POINT_PROTO = { sphere: PROTO_SPHERE_10, cube: PROTO_CUBE, disc: PROTO_DISC_FLAT, pillar: PROTO_PILLAR };
 
 
@@ -1061,50 +1058,8 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
       m.geometry.computeBoundingBox(); m.geometry.computeBoundingSphere();
     });
   };
-  // TASKS.csv #606 — a surface sample with no elevation (z null: blank, or an all-zero Z column at import) sits
-  // on the terrain where the DEM covers it; outside the DEM (or with no DEM) it is left out and the panel says
-  // how many. Same array back when every sample has its own z, so loading a DEM does not rebuild the scene then.
-  // TASKS.csv #1618 (review #1497, Lawyers) — a terrain edit that moves no sample (its colour, opacity, visibility) hands back
-  // the SAME array: one rock chip without a z made every terrain change a new array, and this list feeds the scene build, so
-  // the terrain eye froze the window 33 s rebuilding every drillhole (a regression of #435).
-  // TASKS.csv #1818 (review #1646, Kodiak) — with NO terrain a sample without a z is drawn flat at a plan elevation (the map layers'
-  // rule, store.jsx #1438: median collar z, else the samples' own), not dropped: Kodiak's 2,705 soils (no Z column, no terrain
-  // offline) were invisible on every tab. Off a loaded terrain (or over its fill) a sample stays unplaced, as before.
-  const surfaceFlatZ = useMemo(() => {
-    const med = (rows) => { const z = rows.map((r) => r.z).filter(Number.isFinite).sort((x, y) => x - y); return z.length ? z[z.length >> 1] : null; };
-    // #2264: collars drilled from underground put the median 200 m down; the highest collar is the nearest the surface
-    return (collars.length > 1 && collarsLookUnderground(collars, survey).underground ? Math.max(...collars.map((c) => c.z).filter(Number.isFinite)) : null) ?? med(collars) ?? med(surfaceSamples) ?? 0;
-  }, [collars, survey, surfaceSamples]);
-  const placedRef = useRef(null);
-  const placedSurfaceSamples = useMemo(() => {
-    if (surfaceSamples.every((r) => Number.isFinite(r.z))) return surfaceSamples;
-    const b = terrain?.bbox;
-    const next = surfaceSamples.map((r) => {
-      if (Number.isFinite(r.z)) return r;
-      const z = b ? terrainGroundAt(terrain, r.x, r.y) : NaN; // TASKS.csv #927 — over the terrain's fill a sample stays unplaced
-      // TASKS.csv #1806 — outside the terrain's footprint (a terrain from an inversion mesh's top covers the IP box only) a sample
-      // is still drawn flat, as with no terrain; over the terrain's fill (a void of the DEM) it stays unplaced (#927)
-      const inside = !!b && r.x >= b[0] && r.x <= b[2] && r.y >= b[1] && r.y <= b[3];
-      const tin = terrain?.source?.kind === "tin from points"; // #2406 — a TIN's void has no data, not a DEM hole: flat, as outside
-      const out = Number.isFinite(z) ? { ...r, z, zDraped: true } : !b || !inside || tin ? { ...r, z: surfaceFlatZ, zFlat: true, ...(b ? { zOutside: true } : {}) } : null;
-      if (out) placedSrc.set(out, r);
-      return out;
-    }).filter(Boolean);
-    const prev = placedRef.current;
-    if (prev && prev.src === surfaceSamples && samePlacement(prev.out, next)) return prev.out;
-    placedRef.current = { src: surfaceSamples, out: next };
-    return next;
-  }, [surfaceSamples, terrain, surfaceFlatZ]);
-  const surfaceSamplesUnplaced = surfaceSamples.length - placedSurfaceSamples.length;
+  const { surfaceFlatZ, placedSurfaceSamples, placementCounts, surfaceSamplesUnplaced, surfaceDrawnIdx } = useSurfacePlacement({ collars, survey, surfaceSamples, terrain }); // #606 / #1818 / #1806 / #2406 / #1819, moved out: #2485
   const unplacedForCaptureRef = useRef(0); unplacedForCaptureRef.current = surfaceSamplesUnplaced; // TASKS.csv #1864 — read by the Layout capture
-  const surfaceSamplesFlat = useMemo(() => placedSurfaceSamples.reduce((n, r) => n + (r.zFlat ? 1 : 0), 0), [placedSurfaceSamples]);
-  const surfaceSamplesFlatOutside = useMemo(() => placedSurfaceSamples.reduce((n, r) => n + (r.zFlat && r.zOutside ? 1 : 0), 0), [placedSurfaceSamples]); // #1806
-  // #1819 — each drawn sample's index in surfaceSamples (the anomaly classes are per surfaceSamples index)
-  const surfaceDrawnIdx = useMemo(() => {
-    if (placedSurfaceSamples === surfaceSamples) return null;
-    const at = new Map(surfaceSamples.map((r, i) => [r, i]));
-    return placedSurfaceSamples.map((r) => at.get(placedSrc.get(r) || r) ?? -1);
-  }, [surfaceSamples, placedSurfaceSamples]);
   // TASKS.csv #843 — colour by an element's anomaly classes or a pathfinder index (null = by medium, as before);
   // its settings live in layerStyles.surface_anomaly, so they are saved with the view and in themes
   const [surfaceAnomaly, setSurfaceAnomaly] = useState(null);
@@ -7566,21 +7521,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
               <span style={{ flex: 1, minWidth: 0, fontSize: "var(--font-size-base)", color: "var(--color-text)" }}>{tr(surfaceSamples.length === 1 ? "{n} sample" : "{n} samples", { n: surfaceSamples.length })}</span>
               <ArrowUpRight size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => goToModule("geochem"), tr("Import more assays, or edit them, in the Geochem tab"))} />
             </div></div>
-            {surfaceSamplesFlat - surfaceSamplesFlatOutside > 0 && ( // TASKS.csv #1818
-              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", padding: "2px 2px 4px", lineHeight: 1.4 }}>
-                {tr("{n} surface sample(s) have no elevation and there is no terrain: drawn flat at {z} m (the median collar, the highest on an underground project, or the samples' own). Load a terrain (Maps > Terrain) to place them on the ground.", { n: surfaceSamplesFlat - surfaceSamplesFlatOutside, z: Math.round(surfaceFlatZ) })}
-              </div>
-            )}
-            {surfaceSamplesFlatOutside > 0 && ( // TASKS.csv #1806
-              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", padding: "2px 2px 4px", lineHeight: 1.4 }}>
-                {tr("{n} surface sample(s) have no elevation and lie outside the terrain's footprint: drawn flat at {z} m. A terrain that covers them (Maps > Terrain) places them on the ground.", { n: surfaceSamplesFlatOutside, z: Math.round(surfaceFlatZ) })}
-              </div>
-            )}
-            {surfaceSamplesUnplaced > 0 && ( // TASKS.csv #606
-              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", padding: "2px 2px 4px", lineHeight: 1.4 }}>
-                {tr("{n} surface sample(s) have no elevation and lie over a void of the terrain (no data there): not placed.", { n: surfaceSamplesUnplaced }) /* #1818 / #1806 — with no terrain, or outside it, they are drawn flat (above) */}
-              </div>
-            )}
+            <SurfacePlacementNotices counts={placementCounts} z={surfaceFlatZ} />{/* #1818 / #1806 / #606 / #2571 */}
             {anomalyControls}{/* TASKS.csv #843 / #854 */}
             {!surfaceAnomaly && <div style={{ display: "flex", gap: 8, flexWrap: "wrap", padding: "2px 2px 8px" }}>
               {Array.from(new Set(surfaceSamples.map((s) => s.medium))).map((m) => (
@@ -8350,6 +8291,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                 <span style={{ color: "var(--color-text-muted)", flexShrink: 0 }}>{tr("kept a readable size at any zoom")}</span>
               </div>
             )}
+            {surfaceSamples.length > 0 && <SurfacePlacementNotices counts={placementCounts} z={surfaceFlatZ} />}{/* #2485 (1) */}
             {surfaceSamples.length > 0 && anomalyControls}{/* #1603 */}
           </div>
         )}

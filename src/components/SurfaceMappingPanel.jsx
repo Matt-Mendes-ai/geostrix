@@ -45,6 +45,7 @@ import { projectTargetEpsg } from "../lib/projectTarget.js"; // TASKS.csv #2287 
 import { tieOf, fileToLocal, bearingToLocal } from "../lib/localGridTie.js"; // TASKS.csv #2320
 import { mineGridOf } from "../lib/mineGrid.js"; // TASKS.csv #2586
 import { collarsLookUnderground } from "../lib/pitShell.js"; // TASKS.csv #2265
+import { structureGroundCounts } from "../lib/viewer/surfacePlacement.js"; import { terrainGroundAt } from "../lib/viewer/geomath.js"; // TASKS.csv #2485 (2)
 
 // TASKS.csv #2093 / #1826 — the structure import's skipped rows, one reason each (parseStructureRows' skipWhy)
 export function skipReasons(w = {}) {
@@ -494,13 +495,16 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
         + (out.fromQuadrant ? tr(" {n} dip direction(s) taken from the strike and the dip quadrant.", { n: out.fromQuadrant }) : "") // #2083
         + (out.quadrantUnread ? tr(" {n} dip quadrant(s) could not be read (not N, NE, E…), so the strike convention was used there.", { n: out.quadrantUnread }) : "")
         + (out.rhrMismatches ? (out.strikeRule === "lhr" ? tr(" {rhrMismatches} row(s) have a strike and dip direction that aren't 90° apart by the left-hand rule — the dip direction was used; check whether those strikes are right-hand-rule.", { rhrMismatches: out.rhrMismatches }) : tr(" {rhrMismatches} row(s) have a strike and dip direction that aren't 90° apart — the dip direction was used; check whether those strikes are left-hand-rule.", { rhrMismatches: out.rhrMismatches })) : "")
-        + (noZ ? (terrain ? tr(" {noZ} had no elevation and sit on the terrain{v}.", { noZ, v: "" }) : tr(" {noZ} had no elevation: drawn flat until a terrain is loaded (Maps > Terrain), then placed on it.", { noZ })) : "") // #1448 — they were said to 'sit on the terrain' with none loaded
+        + (noZ ? (terrain ? structNoZText(noZ, structureGroundCounts(out.rows, terrain, terrainGroundAt)) : tr(" {noZ} had no elevation: drawn flat until a terrain is loaded (Maps > Terrain), then placed on it.", { noZ })) : "") // #1448 — they were said to 'sit on the terrain' with none loaded
         + (otherTypes.length ? tr(" Type code(s) {codes} are classed as Other: not a fault, breccia, vein, contact, joint, bedding, foliation or cleavage code GeoStrix knows. Pick a class for each on the import card (kept for this project), or rename them in the file.", { codes: otherTypes.slice(0, 8).join(", ") + (otherTypes.length > 8 ? "…" : "") }) : "") // #2082
         + crsNote + northNote,
     });
     setPendingStruct(null);
   };
 
+  // TASKS.csv #2485 (2) — of the measurements with no elevation, how many found the terrain's ground and how many lie outside it or
+  // over its gaps (a TIN's voids, a DEM's no-data), where they are drawn at the terrain's edge or filled level, not on ground
+  const structNoZText = (noZ, g) => (g.off ? tr(" {noZ} had no elevation: {ground} sit on the terrain; {off} lie outside it or over its gaps, where it has no data, and are drawn at its edge or filled level.", { noZ, ground: g.ground, off: g.off }) : tr(" {noZ} had no elevation and sit on the terrain{v}.", { noZ, v: "" }));
   // TASKS.csv #2266 — the pending file's type codes that would be Other (no rule, no class kept for this project), most frequent first
   const unknownCodes = useMemo(() => {
     const col = pendingStruct?.cols?.type;

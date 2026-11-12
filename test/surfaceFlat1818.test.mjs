@@ -7,11 +7,14 @@ import { anomalyClasses } from "../src/lib/anomalyMap.js";
 import { anomalyClassRows } from "../src/lib/tableExports.js";
 
 const v = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
+// TASKS.csv #2485 — the placement and its notices moved out of ViewerModule
+const pl = readFileSync(new URL("../src/lib/viewer/surfacePlacement.js", import.meta.url), "utf8");
+const notes = readFileSync(new URL("../src/modules/viewer/SurfacePlacementNotices.jsx", import.meta.url), "utf8");
 
 test("no terrain: a sample without a z is placed flat at the median collar / sample elevation, and the panel says so", () => {
-  assert.ok(v.includes("?? med(collars) ?? med(surfaceSamples) ?? 0;")); // #2264: the highest collar first on an underground project
-  assert.ok(v.includes(": !b || !inside || tin ? { ...r, z: surfaceFlatZ, zFlat: true, ...(b ? { zOutside: true } : {}) } : null;")); // TASKS.csv #1806 — outside the terrain's footprint: flat too; over a TIN's void too (#2406)
-  assert.ok(v.includes("drawn flat at {z} m (the median collar, the highest on an underground project, or the samples' own)")); // #2264
+  assert.ok(pl.includes("?? zMedian(collars) ?? zMedian(samples) ?? 0;")); // #2264: the highest collar first on an underground project
+  assert.ok(pl.includes("else if (!b) out = { ...r, z: flatZ, zFlat: true };") && pl.includes("else if (!inside) out = { ...r, z: flatZ, zFlat: true, zOutside: true };")); // TASKS.csv #1806 — outside the terrain's footprint: flat too; over a TIN's void too (#2406)
+  assert.ok(notes.includes("drawn flat at {z} m (the median collar, the highest on an underground project, or the samples' own)")); // #2264
 });
 
 test("classes come from every sample and reach the drawn ones through their index", () => {
