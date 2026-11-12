@@ -425,6 +425,7 @@ export function buildPitGrid(cells, { size = null, slopeDeg, sectorSlopes = null
   const z0 = zLow, n = nx * ny * nz, value = new Float64Array(n), oreT = new Float32Array(n), metalU = new Float64Array(n), metalU2 = new Float64Array(n) /* the by-product's metal in the ore (#1917) */, rockT = new Float32Array(n), modelT = new Float32Array(n);
   const oreThin = new Float32Array(n), oreExtrap = new Float32Array(n); // #1354 — ore resting on one hole / classed extrapolated or unsupported
   const oreBeyond = new Float32Array(n); // TASKS.csv #2435 — ore in blocks the estimate flagged above or below every sample informing them (#2417)
+  const oreFromLog = new Float32Array(n); // TASKS.csv #2748 — the ore's metal from a picked log's readings (the estimate's cell.fromLog, #2721)
   const oreNearUns = new Float32Array(n); // TASKS.csv #2596 — ore in blocks whose nearest drilling was never sampled (the estimate's flag)
   const rockV = new Float32Array(n), modelV = new Float32Array(n); // #2437 — volumes: the tonnes of a cell follow the density of each part
   const rockW = new Float32Array(n); // #2597 — the weathered tonnes of each cell
@@ -465,7 +466,7 @@ export function buildPitGrid(cells, { size = null, slopeDeg, sectorSlopes = null
       const barren = v * (fw * (dW || 0) + (1 - fw) * wd), t = v * (fw * (dW || 0) + (1 - fw) * (own ?? (ore ? density : wd))); // #2437
       modelV[q] += v; modelT[q] += t; rockT[q] += t - barren;
       value[q] += barren * miningCost + t * margin; // it was counted as barren: take that back
-      if (ore) { oreT[q] += t; metalU[q] += t * c.value; if (c.by > 0) metalU2[q] += t * c.by; if (oneHoleBlock(c)) oreThin[q] += t; /* #1617 */ if (c.support === "extrapolated" || c.support === "unsupported") oreExtrap[q] += t; if (c.beyond === "above" || c.beyond === "below") oreBeyond[q] += t; /* #2435 */ if (c.nearUnsampled) oreNearUns[q] += t; /* #2596 */ }
+      if (ore) { oreT[q] += t; metalU[q] += t * c.value; if (c.by > 0) metalU2[q] += t * c.by; if (oneHoleBlock(c)) oreThin[q] += t; /* #1617 */ if (c.support === "extrapolated" || c.support === "unsupported") oreExtrap[q] += t; if (c.beyond === "above" || c.beyond === "below") oreBeyond[q] += t; /* #2435 */ if (c.nearUnsampled) oreNearUns[q] += t; if (c.fromLog > 0) oreFromLog[q] += t * c.value * c.fromLog; /* #2748 */ /* #2596 */ }
     }
   });
   // TASKS.csv #2665 (follow-up of #2593, review #2486 WA lithium) — an optional limit: the pit may not reach further than limitM metres in plan
@@ -489,7 +490,7 @@ export function buildPitGrid(cells, { size = null, slopeDeg, sectorSlopes = null
       if (any) limitedCols++;
     }
   }
-  return { limitM: limitM != null && Number.isFinite(limitM) ? limitM : null, limitedCols /* #2665 */, nx, ny, nz, x0, y0, z0, dx, dy, dz, ground, value, oreT, metalU, metalU2, rockT, modelT, oreThin, oreExtrap, oreBeyond, oreNearUns /* #2596 */, rockW /* #2597 */, weatheredDensity: dW, coarsened, topAssumed, oreAboveGroundT, oreAboveGroundBlocks, askedSize, modelCell, modelCellZ, atModelBase: z0 <= modelBase + 1e-6 };
+  return { limitM: limitM != null && Number.isFinite(limitM) ? limitM : null, limitedCols /* #2665 */, nx, ny, nz, x0, y0, z0, dx, dy, dz, ground, value, oreT, metalU, metalU2, rockT, modelT, oreThin, oreExtrap, oreBeyond, oreNearUns /* #2596 */, oreFromLog /* #2748 */, rockW /* #2597 */, weatheredDensity: dW, coarsened, topAssumed, oreAboveGroundT, oreAboveGroundBlocks, askedSize, modelCell, modelCellZ, atModelBase: z0 <= modelBase + 1e-6 };
 }
 
 // ---------- the solve ----------
@@ -583,15 +584,15 @@ export function solvePit(grid, slopeDeg, { onProgress = null, sectorSlopes = nul
 // ---------- what comes out ----------
 // totals inside the pit; metal in the block values' own grade x tonnes (mean grade = metalU / oreT)
 export function pitSummary(grid, mined) {
-  let oreT = 0, rockT = 0, metalU = 0, metalU2 = 0, modelT = 0, money = 0, blocks = 0, thin = 0, extrap = 0, beyond = 0, nearUns = 0, weath = 0;
+  let oreT = 0, rockT = 0, metalU = 0, metalU2 = 0, modelT = 0, money = 0, blocks = 0, thin = 0, extrap = 0, beyond = 0, nearUns = 0, fromLog = 0, weath = 0;
   for (let q = 0; q < mined.length; q++) {
     if (!mined[q]) continue;
     blocks++; oreT += grid.oreT[q]; rockT += grid.rockT[q]; metalU += grid.metalU[q]; metalU2 += grid.metalU2?.[q] || 0; modelT += grid.modelT[q]; money += grid.value[q];
-    thin += grid.oreThin?.[q] || 0; extrap += grid.oreExtrap?.[q] || 0; beyond += grid.oreBeyond?.[q] || 0; nearUns += grid.oreNearUns?.[q] || 0; /* #2596 */ weath += grid.rockW?.[q] || 0;
+    thin += grid.oreThin?.[q] || 0; extrap += grid.oreExtrap?.[q] || 0; beyond += grid.oreBeyond?.[q] || 0; nearUns += grid.oreNearUns?.[q] || 0; /* #2596 */ fromLog += grid.oreFromLog?.[q] || 0; /* #2748 */ weath += grid.rockW?.[q] || 0;
   }
   const wasteT = rockT - oreT;
   return { blocks, oreT, wasteT, rockT, stripRatio: oreT > 0 ? wasteT / oreT : null, meanGrade: oreT > 0 ? metalU / oreT : null, metalU, metalU2, meanGrade2: oreT > 0 ? metalU2 / oreT : null /* #1917 */, money, barrenShare: rockT > 0 ? 1 - modelT / rockT : 0,
-    oreSingleHoleShare: oreT > 0 ? thin / oreT : 0, oreExtrapolatedShare: oreT > 0 ? extrap / oreT : 0, oreBeyondSampleShare: oreT > 0 ? beyond / oreT : 0, oreNearUnsampledShare: oreT > 0 ? nearUns / oreT : 0 /* #2596 */, weatheredT: weath }; // #1354; beyond: #2435; weatheredT: #2597
+    oreSingleHoleShare: oreT > 0 ? thin / oreT : 0, oreExtrapolatedShare: oreT > 0 ? extrap / oreT : 0, oreBeyondSampleShare: oreT > 0 ? beyond / oreT : 0, oreNearUnsampledShare: oreT > 0 ? nearUns / oreT : 0 /* #2596 */, oreFromLogMetalShare: metalU > 0 ? fromLog / metalU : 0 /* #2748 — of the metal, as Grade-tonnage's column */, weatheredT: weath }; // #1354; beyond: #2435; weatheredT: #2597
 }
 
 // The pit as a surface over column centres: the floor of each mined column, the ground elsewhere, drawn only where it touches

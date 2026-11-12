@@ -76,6 +76,18 @@ export function blockModelLattice(model) {
   return { dx, dy, dz, ox, oy, oz };
 }
 // The box grown outward to whole cells of the lattice: block centres then coincide with the lattice's centres.
+// TASKS.csv #2729 (split from #2598) — a block model's own box (its cells' extent), so an estimate matched to it lands on the same blocks,
+// not on its lattice over the data's box. -> { xmin, xmax, ymin, ymax, zmin, zmax } or null
+export function blockModelExtent(model) {
+  const cells = model?.cells;
+  if (!cells?.length) return null;
+  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity, z0 = Infinity, z1 = -Infinity;
+  for (const c of cells) {
+    if (![c.x, c.y, c.z, c.dx, c.dy, c.dz].every(Number.isFinite)) continue;
+    x0 = Math.min(x0, c.x - c.dx / 2); x1 = Math.max(x1, c.x + c.dx / 2); y0 = Math.min(y0, c.y - c.dy / 2); y1 = Math.max(y1, c.y + c.dy / 2); z0 = Math.min(z0, c.z - c.dz / 2); z1 = Math.max(z1, c.z + c.dz / 2);
+  }
+  return x1 > x0 && y1 > y0 && z1 > z0 ? { xmin: x0, xmax: x1, ymin: y0, ymax: y1, zmin: z0, zmax: z1 } : null;
+}
 export function snapBoundsToLattice(b, L) {
   const lo = (v, o, d) => o + Math.floor((v - o) / d + 1e-9) * d, hi = (v, o, d) => o + Math.ceil((v - o) / d - 1e-9) * d;
   return { xmin: lo(b.xmin, L.ox, L.dx), xmax: hi(b.xmax, L.ox, L.dx), ymin: lo(b.ymin, L.oy, L.dy), ymax: hi(b.ymax, L.oy, L.dy), zmin: lo(b.zmin, L.oz, L.dz), zmax: hi(b.zmax, L.oz, L.dz) };
