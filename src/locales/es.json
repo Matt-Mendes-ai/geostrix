@@ -3894,7 +3894,7 @@
   "Click points along {unitPick}'s upper contact… ({drawPoints} so far)": "Haga clic en puntos a lo largo del contacto superior de {unitPick}… ({drawPoints} hasta ahora)",
   "Undo point": "Deshacer punto",
   "Edit the vertices of \"{name}\"": "Editar los vértices de \"{name}\"",
-  "Editing \"{name}\": drag a vertex (the orange points) in the 3D view to move it. Top view works best.": "Editando \"{name}\": arrastre un vértice (los puntos naranjas) en la vista 3D para moverlo. La vista superior funciona mejor.",
+  "Editing \"{name}\": drag a vertex (the orange points) in the 3D view to move it, drag a midpoint (the small yellow points) to add one, Alt+click a vertex to remove it. Top view works best.": "Editando \"{name}\": arrastre un vértice (los puntos naranjas) en la vista 3D para moverlo, arrastre un punto medio (los puntos amarillos pequeños) para agregar uno, Alt+clic en un vértice para quitarlo. La vista superior funciona mejor.",
   "Finish": "Terminar",
   "Clicks within ~12 px of a hole snap to the chosen unit's logged top (any logged boundary for faults / strings), else to the trace; the snapped vertex keeps the hole's exact position and depth (square marker)": "Los clics a ~12 px de un sondaje se ajustan al techo logueado de la unidad elegida (cualquier límite logueado para fallas / líneas), si no a la traza; el vértice ajustado conserva la posición y profundidad exactas del sondaje (marcador cuadrado)",
   "Snap to holes": "Ajustar a sondajes",

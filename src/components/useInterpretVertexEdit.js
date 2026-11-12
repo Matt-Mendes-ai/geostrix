@@ -5,15 +5,17 @@
 //
 // view: { scene, camera, renderer, dragHook, origin, activity } (refs, from ViewerModule); layer / index: the line being edited (null: off);
 // groundAt(x, y): terrain elevation or NaN; snap: { on, ctx() -> { traces, layers, visible } }; onMove(vi, [x, y], tie | null).
+// TASKS.csv #2784 — as the section window's contact editor: a smaller handle at each segment's midpoint, pressed (and dragged, or just
+// clicked) adds a vertex there: onInsert(at, [x, y], tie | null); Alt+click on a vertex removes it: onRemove(vi) (a line keeps two).
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { snapInterpretClick } from "../lib/viewer/interpretSnap.js";
 
 const HANDLE_PX = 12;
 
-export function useInterpretVertexEdit({ view, layer, index, groundAt, snap, onMove }) {
+export function useInterpretVertexEdit({ view, layer, index, groundAt, snap, onMove, onInsert, onRemove }) {
   const part = index != null ? layer?.features?.[index]?.parts?.[0] : null;
-  const live = useRef(null); live.current = { snap, onMove }; // read at drag time: the latest snap switch, traces and store update
+  const live = useRef(null); live.current = { snap, onMove, onInsert, onRemove }; // read at drag time: the latest snap switch, traces and store update
   useEffect(() => {
     const scene = view?.scene?.current, dom = view?.renderer?.current?.domElement;
     if (!part || !scene || !dom || !view.dragHook) return undefined;
@@ -25,38 +27,47 @@ export function useInterpretVertexEdit({ view, layer, index, groundAt, snap, onM
     const handles = new THREE.Points(new THREE.BufferGeometry().setFromPoints(verts.map((v) => toScene(...v))), new THREE.PointsMaterial({ color: 0xd97706, size: 9, sizeAttenuation: false, depthTest: false }));
     handles.renderOrder = 999;
     scene.add(handles);
+    const mids = verts.slice(1).map((v, i) => { const x = (verts[i][0] + v[0]) / 2, y = (verts[i][1] + v[1]) / 2; return [x, y, zAt(x, y)]; }); // #2784
+    const midHandles = new THREE.Points(new THREE.BufferGeometry().setFromPoints(mids.map((v) => toScene(...v))), new THREE.PointsMaterial({ color: 0xfbbf24, size: 6, sizeAttenuation: false, depthTest: false }));
+    midHandles.renderOrder = 999;
+    scene.add(midHandles);
     const preview = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0xd97706, depthTest: false }));
     preview.renderOrder = 999; preview.visible = false;
     scene.add(preview);
     const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), hit = new THREE.Vector3(), plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
     const setRay = (ev) => { const r = dom.getBoundingClientRect(); ndc.set(((ev.clientX - r.left) / r.width) * 2 - 1, -((ev.clientY - r.top) / r.height) * 2 + 1); ray.setFromCamera(ndc, view.camera.current); return r; };
-    const nearest = (ev) => {
+    const nearest = (ev, list = verts) => {
       const r = dom.getBoundingClientRect(), cam = view.camera.current;
       let best = -1, bestD = HANDLE_PX;
-      verts.forEach((v, i) => { const q = toScene(...v).project(cam); if (q.z > 1) return; const d = Math.hypot(((q.x + 1) / 2) * r.width + r.left - ev.clientX, ((1 - q.y) / 2) * r.height + r.top - ev.clientY); if (d < bestD) { bestD = d; best = i; } });
+      list.forEach((v, i) => { const q = toScene(...v).project(cam); if (q.z > 1) return; const d = Math.hypot(((q.x + 1) / 2) * r.width + r.left - ev.clientX, ((1 - q.y) / 2) * r.height + r.top - ev.clientY); if (d < bestD) { bestD = d; best = i; } });
       return best;
     };
     view.dragHook.current = (e) => {
       const vi = nearest(e);
-      if (vi < 0) return false; // not on a vertex: the press orbits as usual
+      if (vi >= 0 && e.altKey) { if (verts.length > 2) live.current.onRemove?.(vi); return true; } // #2784 — Alt+click removes the vertex
+      const mi = vi < 0 && live.current.onInsert ? nearest(e, mids) : -1; // #2784 — a midpoint: a new vertex there
+      if (vi < 0 && mi < 0) return false; // not on a handle: the press orbits as usual
+      const z0 = vi >= 0 ? verts[vi][2] : mids[mi][2];
       const x0 = e.clientX, y0 = e.clientY;
       let last = null;
       const onPtr = (ev) => {
         const r = setRay(ev);
-        plane.constant = -(verts[vi][2] - o().z);
+        plane.constant = -(z0 - o().z);
         if (!ray.ray.intersectPlane(plane, hit)) return;
-        let w = { x: hit.x + o().x, y: o().y - hit.z, z: verts[vi][2] };
+        let w = { x: hit.x + o().x, y: o().y - hit.z, z: z0 };
         const sn = live.current.snap;
         if (sn?.on) w = snapInterpretClick(w, ray.ray, { on: true, ...(sn.ctx?.() || {}), origin: o(), camera: view.camera.current, heightPx: r.height }) || w;
         last = w;
-        const pts = verts.map((v, i) => (i === vi ? toScene(w.x, w.y, v[2]) : toScene(...v)));
+        const pts = vi >= 0 ? verts.map((v, i) => (i === vi ? toScene(w.x, w.y, v[2]) : toScene(...v))) : [...verts.slice(0, mi + 1), [w.x, w.y, z0], ...verts.slice(mi + 1)].map((v) => toScene(...v));
         preview.geometry.dispose(); preview.geometry = new THREE.BufferGeometry().setFromPoints(pts); preview.visible = true;
         if (view.activity) view.activity.current = Date.now();
       };
       const onUp = (ev) => {
         window.removeEventListener("pointermove", onPtr, true); window.removeEventListener("pointerup", onUp, true);
         preview.visible = false;
-        if (last && Math.hypot(ev.clientX - x0, ev.clientY - y0) > 2) live.current.onMove(vi, [last.x, last.y], last.snap || null);
+        const moved = last && Math.hypot(ev.clientX - x0, ev.clientY - y0) > 2;
+        if (vi >= 0) { if (moved) live.current.onMove(vi, [last.x, last.y], last.snap || null); }
+        else live.current.onInsert(mi + 1, moved ? [last.x, last.y] : [mids[mi][0], mids[mi][1]], moved ? last.snap || null : null); // a click: at the midpoint
         if (view.activity) view.activity.current = Date.now();
       };
       window.addEventListener("pointermove", onPtr, true); window.addEventListener("pointerup", onUp, true);
@@ -66,6 +77,7 @@ export function useInterpretVertexEdit({ view, layer, index, groundAt, snap, onM
     return () => {
       view.dragHook.current = null;
       scene.remove(handles); handles.geometry.dispose(); handles.material.dispose();
+      scene.remove(midHandles); midHandles.geometry.dispose(); midHandles.material.dispose();
       scene.remove(preview); preview.geometry.dispose(); preview.material.dispose();
       if (view.activity) view.activity.current = Date.now();
     };

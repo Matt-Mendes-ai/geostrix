@@ -3894,7 +3894,7 @@
   "Click points along {unitPick}'s upper contact… ({drawPoints} so far)": "Clique em pontos ao longo do contato superior de {unitPick}… ({drawPoints} até agora)",
   "Undo point": "Desfazer ponto",
   "Edit the vertices of \"{name}\"": "Editar os vértices de \"{name}\"",
-  "Editing \"{name}\": drag a vertex (the orange points) in the 3D view to move it. Top view works best.": "Editando \"{name}\": arraste um vértice (os pontos laranja) na vista 3D para movê-lo. A vista de topo funciona melhor.",
+  "Editing \"{name}\": drag a vertex (the orange points) in the 3D view to move it, drag a midpoint (the small yellow points) to add one, Alt+click a vertex to remove it. Top view works best.": "A editar \"{name}\": arraste um vértice (os pontos laranja) na vista 3D para o mover, arraste um ponto médio (os pequenos pontos amarelos) para adicionar um, Alt+clique num vértice para o remover. A vista de topo funciona melhor.",
   "Finish": "Terminar",
   "Clicks within ~12 px of a hole snap to the chosen unit's logged top (any logged boundary for faults / strings), else to the trace; the snapped vertex keeps the hole's exact position and depth (square marker)": "Cliques a ~12 px de um furo se ajustam ao topo descrito da unidade escolhida (qualquer limite descrito para falhas / linhas), senão ao traço; o vértice ajustado mantém a posição e a profundidade exatas do furo (marcador quadrado)",
   "Snap to holes": "Ajustar aos furos",
