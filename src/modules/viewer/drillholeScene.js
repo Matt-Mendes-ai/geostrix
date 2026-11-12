@@ -11,7 +11,7 @@ import { errorNotice } from "../../lib/notices.js";
 import { resolveLayerStyle, TUBE_SEGMENTS } from "../../lib/layerStyle.js";
 import { customColour } from "../../lib/customColour.js";
 import { PickStandIn } from "../../lib/viewer/pickStandIn.js";
-import { buildLayerBatches, collarMarkerMaterial } from "../../lib/viewer/layerBatches.js";
+import { buildLayerBatches, collarMarkerMaterial, syncBatchedInstances } from "../../lib/viewer/layerBatches.js";
 import { syncHoleLabels } from "../../lib/viewer/holeLabels.js";
 import { addTraceChunks } from "../../lib/viewer/traceBatch.js"; // #2176 step 3
 import { makeTextSprite } from "../../lib/viewer/textSprite.js";
@@ -82,6 +82,43 @@ export function planGroups(prev, sigs, changedHoles, full) {
     for (const id of changedHoles) if (holes.has(id)) { out.add(k); break; }
   }
   return out;
+}
+
+// TASKS.csv #2373 (review #2325, WA uranium) — the style keys a custom layer's colours alone depend on (opacity is applied in place since
+// #1528): a change of only these repaints the layer's instances (paintCustomLayer) instead of rebuilding its group. 'Colour by' on the
+// 439,780-reading gamma log rebuilt every pick stand-in: 1.6-2.0 s and ~300-550 MB of garbage per click.
+const PAINT_KEYS = new Set(["colourBy", "rampMin", "rampMax", "rampScale", "classes", "color", "opacity"]);
+// two style JSONs (as the build's signature holds them) -> true when they differ in PAINT_KEYS only
+export function onlyPaintChanged(a, b) {
+  const x = JSON.parse(a || "null") || {}, y = JSON.parse(b || "null") || {};
+  for (const k of new Set([...Object.keys(x), ...Object.keys(y)])) if (!PAINT_KEYS.has(k) && JSON.stringify(x[k]) !== JSON.stringify(y[k])) return false;
+  return true;
+}
+const _paint = new THREE.Color();
+// each row's colour as the build gives it (an interval: one colour, its model colour, else customColour; a point: one colour, else
+// customColour), written into the layer's batches: a compact batch's instanceColor directly, anything else through its members
+export function paintCustomLayer(layer, layerStyles) {
+  const g = layer?.group;
+  if (!g) return 0;
+  const stI = resolveLayerStyle(layerStyles[`custom:${layer.id}`], "interval"), stP = resolveLayerStyle(layerStyles[`custom:${layer.id}`], "point");
+  const linear = new Map(); // colour -> [r, g, b] in the working colour space, parsed once
+  const rgbOf = (c) => { let v = linear.get(c); if (!v) { _paint.set(c); v = [_paint.r, _paint.g, _paint.b]; linear.set(c, v); } return v; };
+  const colourOf = (row) => (row.to != null && !isNaN(row.to) ? stI.color || row.modelColor || customColour(layer, layerStyles, row) : stP.color || customColour(layer, layerStyles, row));
+  let n = 0;
+  for (const c of g.children) {
+    const cp = c.userData?.compact;
+    if (!cp) continue;
+    const a = c.instanceColor.array;
+    for (let i = 0; i < cp.rows.length; i++) { const row = cp.rows[i]?.row; if (!row) continue; const v = rgbOf(colourOf(row)); a[i * 3] = v[0]; a[i * 3 + 1] = v[1]; a[i * 3 + 2] = v[2]; n++; }
+    c.instanceColor.needsUpdate = true;
+  }
+  for (const c of g.children) {
+    if (c.userData?.compact) continue;
+    const members = c.userData?.batchMembers || (c.userData?.pickIgnore ? [] : [c]);
+    for (const m of members) { const row = m.userData?.row; if (row && m.material?.color) { m.material.color.set(colourOf(row)); n++; } }
+    if (c.userData?.batchMembers) syncBatchedInstances(c);
+  }
+  return n;
 }
 
 // TASKS.csv #2797 — the last build's origin when the collars' new mean is within `tol` metres of it (and both are finite), else the mean
@@ -288,6 +325,14 @@ export function buildDrillholeScene(ctx) {
   const { full, holeEntries, changedHoles } = plan;
   const sigs = new Map(BUILT_ROW_KEYS.map((k) => [k, [layers[k], JSON.stringify(layerStyles[k] ?? null), effectiveLabel, baseColorForBuild, LAYER_META[k]?.numeric ? JSON.stringify([numericSymbology?.[k] ?? null, numericRange?.[k] ?? null]) : ""]]));
   customLayers.forEach((l) => sigs.set(l.id, [l, l.group, JSON.stringify(layerStyles[`custom:${l.id}`] ?? null)]));
+  // #2373 — a custom layer whose style changed in its colours only is repainted in place, not rebuilt (its holes unchanged)
+  const repaint = [];
+  if (prev && !full) for (const l of customLayers) {
+    const old = prev.sigs.get(l.id), sig = sigs.get(l.id), holes = prev.holeSets.get(l.id);
+    if (!old || old[0] !== l || old[1] !== l.group || old[2] === sig[2] || !holes || !onlyPaintChanged(old[2], sig[2])) continue;
+    if ([...changedHoles].some((id) => holes.has(id))) continue;
+    prev.sigs.set(l.id, sig); repaint.push(l);
+  }
   const rebuild = planGroups(prev, sigs, changedHoles, full);
   const rebuildHoles = full || changedHoles.size > 0;
   if (full) clearGroups(Object.values(groups));
@@ -547,6 +592,7 @@ export function buildDrillholeScene(ctx) {
   });
   if (rebuildHoles) tracesRef.current = [...traceById.values()]; // #2176 — the same list otherwise
   if (rebuildHoles) addTraceChunks(groups.holes, traceHoles); // #2176 step 3
+  for (const l of repaint) paintCustomLayer(l, layerStyles); // #2373
   if (plan.holeEntries) sceneCaches.set(groups, { ox, oy, oz, rebuildSeq, holes: plan.holeEntries, sigs, holeSets }); else sceneCaches.delete(groups);
 
   // Bug fix (user report: imported a real OMF block model — resistivity.omf — into a project that

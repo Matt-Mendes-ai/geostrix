@@ -66,7 +66,9 @@ export const customScaleDefault = (layer, field) => scaleOf(layer, field);
 // the colour of one row of a custom layer as its style says
 const rampT0 = (s, n) => (s.log ? (Math.log10(Math.max(n, s.min)) - Math.log10(s.min)) / (Math.log10(s.max) - Math.log10(s.min)) : (n - s.min) / (s.max - s.min));
 const rampT = (s, n) => { const t = Math.min(1, Math.max(0, rampT0(s, n))); return s.classes ? Math.min(s.classes - 1, Math.floor(t * s.classes)) / (s.classes - 1) : t; }; // classes: #2367
-const rampColour = (s, n) => magColor(rampT(s, n), 0, 1);
+// TASKS.csv #2373 — the ramp has 256 colours (magColor's table): their strings are made once, not one per row
+const RAMP_STR = new Array(256);
+const rampColour = (s, n) => { const i = Math.round(rampT(s, n) * 255); return RAMP_STR[i] || (RAMP_STR[i] = magColor(i / 255, 0, 1)); };
 // the value at fraction t of a scale (a class edge)
 const atT = (s, t) => (s.log ? 10 ** (Math.log10(s.min) + t * (Math.log10(s.max) - Math.log10(s.min))) : s.min + t * (s.max - s.min));
 // TASKS.csv #2476 (review #2325, WA uranium) — the codes of one layer by the curated colour-blind-safe palette (#249), in their sorted order
