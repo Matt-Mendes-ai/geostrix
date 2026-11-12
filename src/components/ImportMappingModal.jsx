@@ -221,6 +221,9 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
                 <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
                   <input type="radio" checked={modal.dipConvention === "pos_down"} onChange={() => onChange({ ...modal, dipConvention: "pos_down" })} />{" "}{tr("Positive = down")}</label>
               </div>
+              {modal.dipGuess && modal.dipConvention === "pos_down" && ( // TASKS.csv #2886 — the file decided it: say why
+                <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 4, lineHeight: 1.4 }}>{tr("Every dip in this file is positive, and steep ({n} row(s)): read as Positive = down, so the holes go into the ground. Choose Negative = down for underground up-holes.", { n: modal.dipGuess.n.toLocaleString() })}</div>
+              )}
             </div>
           )}
 
