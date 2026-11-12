@@ -86,6 +86,9 @@ export default function BasemapView({
     return out;
   }, [collars, project]);
   const [subMode, setSubMode] = useState(mode === "draw" ? "draw" : "pan");
+  // TASKS.csv #2680 (Matt, approved) — the area picker loads no map tiles until asked: opening it makes no network request; the project's
+  // collars and layer outlines (#1629) are enough to draw an area, and 'Show the online map' fetches the tiles for this opening only
+  const [online, setOnline] = useState(mode !== "draw");
   const dragRef = useRef(null);
   const [baseLayerId, setBaseLayerId] = useState(getSavedLayerId());
   const [tracestrackKey, setTracestrackKey] = useState(getSavedTracestrackKey());
@@ -338,7 +341,7 @@ export default function BasemapView({
         onMouseLeave={onMouseUp}
         onWheel={(e) => { e.preventDefault(); changeZoom(e.deltaY < 0 ? 1 : -1); }}
       >
-        {tiles.filter((t) => !failedTiles.current.has(tileUrlFor(effectiveLayerId, zoom, t.x, t.y, tracestrackKey))).map((t) => (
+        {online && tiles.filter((t) => !failedTiles.current.has(tileUrlFor(effectiveLayerId, zoom, t.x, t.y, tracestrackKey))).map((t) => (
           <CachedTile
             key={t.key}
             layerId={effectiveLayerId}
@@ -353,7 +356,13 @@ export default function BasemapView({
             onLoad={() => setTileState((s) => (s.ok ? s : { ...s, ok: 1 }))}
           />
         ))}
-        {tileState.failed >= 3 && !tileState.ok && (
+        {!online && ( /* #2680 */
+          <div style={{ position: "absolute", left: 12, top: 12, right: 60, padding: "8px 10px", background: "rgba(255,255,255,0.92)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", zIndex: 2 }} onMouseDown={(e) => e.stopPropagation()}>
+            <span style={{ flex: 1, minWidth: 200 }}>{tr("No map tiles are loaded until you ask: draw the area over the project's collars and layer outlines, or choose it from the list.")}</span>
+            <button type="button" onClick={() => setOnline(true)} style={{ padding: "3px 10px", fontSize: "var(--font-size-sm)", border: "1px solid var(--color-border)", borderRadius: 4, background: "var(--color-bg)", cursor: "pointer" }}>{tr("Show the online map")}</button>
+          </div>
+        )}
+        {online && tileState.failed >= 3 && !tileState.ok && (
           <div style={{ position: "absolute", left: 12, top: 12, right: 60, padding: "8px 10px", background: "rgba(255,255,255,0.92)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", pointerEvents: "none" }}>
             {tr("The map tiles could not be loaded (offline, or the tile server is blocked). The area can still be drawn here or chosen from the list.")}
           </div>

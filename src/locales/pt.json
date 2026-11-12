@@ -10820,5 +10820,7 @@
   "Kept within {m} m of the block model: {n} columns of the grid beyond it were not mined.": "Mantido dentro de {m} m do modelo de blocos: {n} colunas da grade além não foram lavradas.",
   "Kept within {m} m of the block model; the pit did not need to go beyond it.": "Mantido dentro de {m} m do modelo de blocos; a cava não precisou ir além.",
   "Zoom the plan to \"{name}\"": "Aproximar a planta de \"{name}\"",
-  "The road reaches the ground at {rl} m and ends there; its length is counted to that point.": "A estrada alcança o terreno a {rl} m e termina ali; seu comprimento é contado até esse ponto."
+  "The road reaches the ground at {rl} m and ends there; its length is counted to that point.": "A estrada alcança o terreno a {rl} m e termina ali; seu comprimento é contado até esse ponto.",
+  "No map tiles are loaded until you ask: draw the area over the project's collars and layer outlines, or choose it from the list.": "Nenhuma peça do mapa é carregada até que você peça: desenhe a área sobre as bocas de furo e os contornos das camadas do projeto, ou escolha-a na lista.",
+  "Show the online map": "Mostrar o mapa on-line"
 }

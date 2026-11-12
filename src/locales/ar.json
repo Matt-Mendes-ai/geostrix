@@ -10820,5 +10820,7 @@
   "Kept within {m} m of the block model: {n} columns of the grid beyond it were not mined.": "أُبقي ضمن {m} م من نموذج الكتل: لم تُعدَّن {n} عمودًا من الشبكة خارجه.",
   "Kept within {m} m of the block model; the pit did not need to go beyond it.": "أُبقي ضمن {m} م من نموذج الكتل؛ لم تحتج الحفرة إلى تجاوزه.",
   "Zoom the plan to \"{name}\"": "تكبير المسقط إلى \"{name}\"",
-  "The road reaches the ground at {rl} m and ends there; its length is counted to that point.": "يبلغ الطريق الأرض عند {rl} م وينتهي هناك؛ ويُحتسب طوله حتى تلك النقطة."
+  "The road reaches the ground at {rl} m and ends there; its length is counted to that point.": "يبلغ الطريق الأرض عند {rl} م وينتهي هناك؛ ويُحتسب طوله حتى تلك النقطة.",
+  "No map tiles are loaded until you ask: draw the area over the project's collars and layer outlines, or choose it from the list.": "لا تُحمَّل أي بلاطات للخريطة حتى تطلب ذلك: ارسم المنطقة فوق فوهات المشروع وحدود طبقاته، أو اخترها من القائمة.",
+  "Show the online map": "عرض الخريطة عبر الإنترنت"
 }
