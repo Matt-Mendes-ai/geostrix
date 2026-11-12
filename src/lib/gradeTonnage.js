@@ -54,7 +54,12 @@ const isPrecious = (element) => PRECIOUS.has(String(element || "").trim());
 const REPORTED_AS = { Li: [["Li2O", 2.1527], ["LCE", 5.323]], U: [["U3O8", 1.1792]], Ta: [["Ta2O5", 1.221]], Nb: [["Nb2O5", 1.4305]], V: [["V2O5", 1.7852]], W: [["WO3", 1.2611]] };
 // TASKS.csv #2404 (review #2325, WA uranium) — uranium is quoted in pounds of U3O8: millions of pounds beside the U3O8 tonnes
 const LB_PER_T = 2204.62262;
-const IN_POUNDS = new Set(["U3O8"]);
+// TASKS.csv #1747 (DECISION 2026-11-12, Matt) — and copper, zinc, lead and nickel, quoted in Mlb as well as tonnes (a reporting convention)
+const BASE = new Set(["Cu", "Zn", "Pb", "Ni"]);
+const IN_POUNDS = new Set(["U3O8", ...BASE]);
+const isBase = (element) => BASE.has(String(element || "").trim());
+// a base-metal cut-off in the model's unit -> the same in % (ppm / 10,000), or null when it is not a base metal in ppm
+export const cutoffPct = (v, element, unit) => (isBase(element) && /^ppm$/i.test(String(unit || "").trim()) && Number.isFinite(v) ? v / 1e4 : null);
 export function metalColumns(metal, element) {
   const cols = metalColumnsT(metal, element);
   const out = [];
@@ -87,6 +92,16 @@ export function autoCutoffs(cells, { element = null, unit = null } = {}) {
     if (round.length >= 2) return [0, ...round];
   }
   const q = (p) => v[Math.min(v.length - 1, Math.max(0, Math.round(p * (v.length - 1))))];
+  // TASKS.csv #1747 (DECISION 2026-11-12, Matt; reverses #1577's 'base metals keep percentiles') — a base metal in ppm or %: round grades
+  // in % (a 1-2-5 series), taken from the data's own range (its 25th percentile up to its highest value; no fixed copper grades, #264), at
+  // most the eight highest, in the model's unit; percentiles still when fewer than two are reached
+  const pctScale = u === "ppm" ? 1e4 : u === "%" || u === "pct" || u === "wt%" ? 1 : null;
+  if (isBase(element) && pctScale) {
+    const lo = q(0.25) / pctScale, top = v[v.length - 1] / pctScale, series = [];
+    for (let e = -4; e <= 2; e++) for (const m of [1, 2, 5]) { const g = Number((m * 10 ** e).toPrecision(1)); if (g >= lo && g <= top) series.push(g); }
+    const pick = series.slice(-8);
+    if (pick.length >= 2) return [0, ...pick.map((g) => Number((g * pctScale).toPrecision(6)))];
+  }
   const r2 = (x) => (x === 0 ? 0 : Number(x.toPrecision(2)));
   return [...new Set([0, ...[0.25, 0.5, 0.75, 0.9, 0.95].map((p) => r2(q(p)))])].sort((a, b) => a - b);
 }
@@ -182,9 +197,10 @@ export const EXPLORATION_TARGET_CAUTION = "Any tonnage and grade from this table
 // TASKS.csv #1017 — the grade-tonnage CSV rows (was inline in GradeTonnageModal.jsx). vname: the value column's name;
 // density: t/m3 or null (then no tonnes / metal columns); metal: { unit } when a metal column is wanted
 // columns (#1577): metalColumns(...) to write the metal as kg / troy oz / t instead of metalOf's own unit
-export function gradeTonnageRows(rows, { vname, density = null, metal = null, columns = null }) {
+// pctOf (#1747): a base metal in ppm also gets its cut-off in % (cutoff_pct)
+export function gradeTonnageRows(rows, { vname, density = null, metal = null, columns = null, pctOf = null }) {
   const mcol = (r) => (columns ? Object.fromEntries(columns.map((c) => [c.key, r.metal == null ? "" : Number((r.metal * c.factor).toPrecision(6))])) : { [`metal_${metal.unit}`]: r.metal == null ? "" : Math.round(r.metal) });
-  return rows.map((r) => ({ cutoff: r.cutoff, blocks: r.blocks, volume_m3: Math.round(r.volumeM3), [`mean_${vname}`]: r.meanGrade == null ? "" : Number(r.meanGrade.toPrecision(5)),
+  return rows.map((r) => ({ cutoff: r.cutoff, ...(pctOf ? { cutoff_pct: Number(pctOf(r.cutoff).toPrecision(6)) } : {}), blocks: r.blocks, volume_m3: Math.round(r.volumeM3), [`mean_${vname}`]: r.meanGrade == null ? "" : Number(r.meanGrade.toPrecision(5)),
     ...(density ? { tonnes: Math.round(r.tonnes || 0) } : {}), ...(density && metal ? mcol(r) : {}),
     ...(r.interpolatedShare != null ? { interpolated_pct: Math.round(r.interpolatedShare * 100) } : {}), ...(r.singleHoleShare != null ? { one_hole_pct: Math.round(r.singleHoleShare * 100) } : {}), ...(r.beyondShare != null ? { beyond_samples_metal_pct: Math.round(r.beyondShare * 100) } : {}), ...(r.logShare != null ? { from_log_metal_pct: Math.round(r.logShare * 100) } : {}) })); // #1409; #2417; #2721
 }

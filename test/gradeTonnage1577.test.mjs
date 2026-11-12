@@ -7,7 +7,9 @@ import { autoCutoffs, metalColumns, metalOf, gradeTonnageRows, isGradeTonnageMod
 
 const cells = (vals) => vals.map((value) => ({ value, dx: 10, dy: 10, dz: 10 }));
 
-test("Au in ppm / g/t: 0 and the round grades up to the top value; ppb scaled; base metals keep percentiles", () => {
+// TASKS.csv #1747 (DECISION 2026-11-12, Matt) reversed 'base metals keep percentiles': a base metal now gets round % grades from its own range
+// (test/baseCutoffs1747); Zn here, with values up to 3.1 ppm, still does not get the gold grades
+test("Au in ppm / g/t: 0 and the round grades up to the top value; ppb scaled; base metals do not get the gold grades", () => {
   const v = cells([0.001, 0.005, 0.02, 0.09, 0.4, 0.8, 1.6, 3.1]);
   assert.deepEqual(autoCutoffs(v, { element: "Au", unit: "ppm" }), [0, 0.1, 0.3, 0.5, 1, 2]);
   assert.deepEqual(autoCutoffs(v, { element: "Au", unit: "g/t" }), [0, 0.1, 0.3, 0.5, 1, 2]);
@@ -20,8 +22,9 @@ test("Au in ppm / g/t: 0 and the round grades up to the top value; ppb scaled; b
 
 test("metal columns: kg and troy oz for a precious metal, t for a base metal in ppm or %", () => {
   assert.deepEqual(metalColumns(metalOf("ppm"), "Au").map((c) => c.key), ["metal_kg", "metal_oz"]);
-  assert.deepEqual(metalColumns(metalOf("ppm"), "Cu").map((c) => c.key), ["metal_t"]);
-  assert.deepEqual(metalColumns(metalOf("%"), "Zn").map((c) => [c.key, c.factor]), [["metal_t", 1]]);
+  // TASKS.csv #1747 (DECISION 2026-11-12, Matt) — copper / zinc / lead / nickel also in Mlb beside the tonnes (was ["metal_t"] only)
+  assert.deepEqual(metalColumns(metalOf("ppm"), "Cu").map((c) => c.key), ["metal_t", "metal_mlb_Cu"]);
+  assert.deepEqual(metalColumns(metalOf("%"), "Zn").map((c) => [c.key, c.factor]), [["metal_t", 1], ["metal_mlb_Zn", 2204.62262 / 1e6]]);
   assert.deepEqual(metalColumns(null, "Au"), []);
   // the review's 152,623,885 g = 152,624 kg = 4,906,972 troy oz
   const row = gradeTonnageRows([{ cutoff: 0, blocks: 1, volumeM3: 1, meanGrade: 1, tonnes: 1, metal: 152623885 }], { vname: "Au_ppm", density: 2.4, metal: metalOf("ppm"), columns: metalColumns(metalOf("ppm"), "Au") })[0];
