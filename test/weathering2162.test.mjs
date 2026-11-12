@@ -28,7 +28,7 @@ test("#2162 the layer, its schema and its colours: a ramp from fresh to oxidised
 
 test("#2162 wired into the viewer, strip logs, QC, legends and the domain lists", () => {
   const v = viewerSource();
-  assert.match(v, /buildIntervalTube\("weath"\)/); assert.match(v, /weath: groupByHole\(layers\.weath\)/);
+  assert.match(v, /buildIntervalTube\("weath"\)/); assert.match(v, /weath: byHoleIf\("weath", layers\.weath\)/);
   for (const f of ["src/lib/dataQC.js", "src/lib/domainLayers.js", "src/lib/legendGroups.js", "src/lib/striplogSvg.js", "src/components/StripLog.jsx", "src/components/CompositingModal.jsx", "src/components/GradeStatistics.jsx", "src/components/EvidenceOverlayPane.jsx", "src/components/SectionEditModal.jsx", "src/components/BestIntercepts.jsx"]) {
     assert.match(readFileSync(new URL(`../${f}`, import.meta.url), "utf8"), /"weath"|layers\.weath/, f);
   }

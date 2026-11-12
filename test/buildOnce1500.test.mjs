@@ -30,5 +30,6 @@ test("the assay, geophysics and surface-sample builders also skip a deferred com
   for (const [built, inputs, ref] of [["assayBuiltRef", "assayInputs", "buildAssaySpheresRef"], ["geophysBuiltRef", "geophysInputs", "buildGeophysPtsRef"], ["surfaceBuiltRef", "surfaceInputs", "buildSurfaceSamplesRef"]]) {
     assert.ok(s.includes(`useEffect(() => { if (!buildDefer.skip() && !sameInputs(${built}.current, ${inputs})) ${ref}.current(); }, ${inputs});`), ref);
   }
-  assert.ok(s.includes("buildAssaySpheresRef.current(); buildGeophysPtsRef.current(); buildSurfaceSamplesRef.current();"));
+  // #2176 — the big build runs each of them when the holes changed, or when its own inputs changed since it last ran (this deferred commit)
+  for (const [i, ref] of [[0, "buildAssaySpheresRef"], [1, "buildGeophysPtsRef"], [2, "buildSurfaceSamplesRef"]]) assert.ok(s.includes(`if (rebuildHoles || stale[${i}]) ${ref}.current();`), ref);
 });

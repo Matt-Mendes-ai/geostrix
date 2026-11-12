@@ -41,8 +41,50 @@ export function voxelFitCorners(models, o) {
 }
 export const isIntervalRow = (r) => Number.isFinite(r.from) && Number.isFinite(r.to) && r.to - r.from > 0.5;
 
+// ---------- TASKS.csv #2176 step 2: what a build may keep from the last one ----------
+// What the last build made, per viewer (its layer-groups object, so a remounted scene starts with a full build):
+// { ox, oy, oz, rebuildSeq, holes: Map(hole_id -> entry), sigs: Map(group key -> signature), holeSets: Map(group key -> Set of hole ids) }
+const sceneCaches = new WeakMap();
+const NO_HOLES = new Map();
+// the drillhole layers this build fills from `layers` (custom layers are keyed by their id)
+export const BUILT_ROW_KEYS = ["litho", "alt", "vein", "breccia", "structzone", "weath", "geotech", "recovery", "sg", "litho_gc", "alt_gc", "mnlgy", "magsusc", "structure"];
+// two arrays holding the same objects in the same order (a signature, a hole's survey rows)
+export const sameRefs = (a, b) => a === b || (Array.isArray(a) && Array.isArray(b) && a.length === b.length && a.every((v, i) => v === b[i]));
+
+// Which holes must be desurveyed again. An entry is { collar, hs (its survey rows), method, raw, assumedVertical, pts, look, trace }:
+// kept whole when its collar object, survey rows and method are the same and the origin has not moved; kept without its
+// origin-relative part (pts) when only the origin moved. full: no last build, a new origin, the Refresh button, or a hole id
+// that occurs twice (holeEntries is then null and every hole is desurveyed as before).
+export function planHoles(prev, collars, surveyByHole, method, { ox, oy, oz, rebuildSeq }) {
+  const originSame = !!prev && prev.ox === ox && prev.oy === oy && prev.oz === oz;
+  const holeEntries = new Map(), changedHoles = new Set();
+  for (const c of collars) {
+    if (holeEntries.has(c.hole_id)) return { full: true, holeEntries: null, changedHoles: new Set(collars.map((x) => x.hole_id)) };
+    const hs = surveyByHole.get(c.hole_id) || [];
+    const old = prev?.holes.get(c.hole_id);
+    if (old && old.collar === c && old.method === method && sameRefs(old.hs, hs)) { holeEntries.set(c.hole_id, originSame ? old : { ...old, hs, pts: null, look: null, trace: null }); continue; }
+    holeEntries.set(c.hole_id, { collar: c, hs, method });
+    changedHoles.add(c.hole_id);
+  }
+  if (prev) for (const id of prev.holes.keys()) if (!holeEntries.has(id)) changedHoles.add(id); // a removed hole
+  return { full: !originSame || prev.rebuildSeq !== rebuildSeq, holeEntries, changedHoles };
+}
+
+// Which layer groups are made again: all on a full build; else a group whose signature changed, that is new, or that has
+// rows in a hole desurveyed again (its members stand on that hole's trace).
+export function planGroups(prev, sigs, changedHoles, full) {
+  const out = new Set();
+  for (const [k, sig] of sigs) {
+    if (full || !prev || !sameRefs(prev.sigs.get(k), sig)) { out.add(k); continue; }
+    const holes = prev.holeSets.get(k);
+    if (!holes) { out.add(k); continue; }
+    for (const id of changedHoles) if (holes.has(id)) { out.add(k); break; }
+  }
+  return out;
+}
+
 export function buildDrillholeScene(ctx) {
-  const { applyCategoryVisibility, applyLegendOverrideColors, autoFitInitial, baseColorForBuild, bgColorRef, boundaries, buildAssaySpheresRef, buildDefer, buildGeophysPtsRef, buildSurfaceSamplesRef, collarMaterialRef, collars, customLayers, desurveyMethod, effectiveLabel, fitBox, hasAutoFitRef, holeLabelAnchorsRef, holeLabelModeRef, isRowVisibleForBuild, lastHoleTraceCountRef, lastTracesRef, layerGroupsRef, layerStyles, layers, mapLayers, numericLayerColor, omfObjects, originRef, placedSurfaceSamples, rasters, setDataLoaded, setNotices, setTracesSeq, surfaceStructures, survey, syncImplicitOrigin, terrain, tracesRef, voxelModels } = ctx;
+  const { applyCategoryVisibility, applyLegendOverrideColors, autoFitInitial, baseColorForBuild, bgColorRef, boundaries, buildAssaySpheresRef, buildDefer, buildGeophysPtsRef, buildSurfaceSamplesRef, collarMaterialRef, collars, customLayers, desurveyMethod, effectiveLabel, fitBox, hasAutoFitRef, holeLabelAnchorsRef, holeLabelModeRef, isRowVisibleForBuild, lastHoleTraceCountRef, lastTracesRef, layerGroupsRef, layers, layerStyles, mapLayers, numericLayerColor, numericRange, numericSymbology, omfObjects, originRef, placedSurfaceSamples, pointBuildersStale, rasters, rebuildSeq, setDataLoaded, setNotices, setTracesSeq, surfaceStructures, survey, syncImplicitOrigin, terrain, tracesRef, voxelModels } = ctx;
   const groups = layerGroupsRef.current;
   if (!groups.litho || buildDefer.skip()) return; // #1500 — a restore just scheduled its state: build once, next render
   // TASKS.csv #131 — c.material?.map?.dispose?.() added alongside the existing geometry/material
@@ -56,11 +98,16 @@ export function buildDrillholeScene(ctx) {
   // geometry/material alone would not, and the geometry is a shared prototype anyway).
   // #2170 — old materials are disposed AFTER the new scene has drawn, and only those no new object uses: disposing them first released every
   // shader program, recompiled on the next frame (5 s per commit on a 20,000-hole project)
-  const oldMats = [];
-  Object.values(groups).forEach((g) => { while (g.children.length) { const c = g.children.pop(); if (!c.geometry?.userData?.sharedProto) c.geometry?.dispose?.(); c.material?.map?.dispose?.(); if (c.material) oldMats.push(c.material); c.dispose?.(); } });
-  setTimeout(() => { const live = new Set(); Object.values(groups).forEach((g) => g.traverse((o) => o.material && live.add(o.material))); oldMats.forEach((m) => { if (!live.has(m)) m.dispose?.(); }); }, 1500);
+  // #2176 — clears only the groups this build makes again (all of them on a full build)
+  const clearGroups = (list) => {
+    const oldMats = [];
+    list.forEach((g) => { while (g.children.length) { const c = g.children.pop(); if (!c.geometry?.userData?.sharedProto) c.geometry?.dispose?.(); c.material?.map?.dispose?.(); if (c.material) oldMats.push(c.material); c.dispose?.(); } });
+    setTimeout(() => { const live = new Set(); Object.values(groups).forEach((g) => g.traverse((o) => o.material && live.add(o.material))); oldMats.forEach((m) => { if (!live.has(m)) m.dispose?.(); }); }, 1500);
+  };
   const labelAnchors = []; // #1277 — one per hole, drawn after the loop and again on a label-mode change
   if (!collars.length) {
+    sceneCaches.delete(groups); // #2176 — the next build with holes is a full one
+    clearGroups(Object.values(groups));
     setDataLoaded(false);
     hasAutoFitRef.current = false;
     // No drillhole collars yet, but there may still be a terrain surface or raster drape loaded on
@@ -207,13 +254,6 @@ export function buildDrillholeScene(ctx) {
     });
     return m;
   };
-  const rowsByHole = {
-    litho: groupByHole(layers.litho), alt: groupByHole(layers.alt), vein: groupByHole(layers.vein),
-    geotech: groupByHole(layers.geotech), litho_gc: groupByHole(layers.litho_gc), alt_gc: groupByHole(layers.alt_gc),
-    mnlgy: groupByHole(layers.mnlgy), magsusc: groupByHole(layers.magsusc), structure: groupByHole(layers.structure),
-    recovery: groupByHole(layers.recovery), sg: groupByHole(layers.sg), breccia: groupByHole(layers.breccia), weath: groupByHole(layers.weath), structzone: groupByHole(layers.structzone), // #608, #2162, #604
-  };
-  const customRowsByHoleByLayer = new Map(customLayers.map((l) => [l.id, groupByHole(l.rows)]));
   // TASKS.csv #209 — same quadratic-scan fix as the groupByHole comment above already applied to
   // litho/alt/etc., just never extended to survey: `survey.filter(s => s.hole_id === c.hole_id)`
   // inside the per-collar loop below was still an O(holes × survey rows) full-array scan every
@@ -221,6 +261,33 @@ export function buildDrillholeScene(ctx) {
   // profiling repro, which used straight synthetic holes with none), so this was a live, if
   // smaller, contributor on real datasets — grouped once here instead, same O(rows) shape.
   const surveyByHole = groupByHole(survey.filter((s) => !isNaN(s.depth)));
+
+  // TASKS.csv #2176 step 2 — rebuild only what a commit touched. On a 20,544-hole project a 3,000-row structure commit
+  // desurveyed every hole again (1.9 s) and made 20,000 new trace lines, whose first frame then cost 8 s of WebGL setup.
+  // Each hole's desurvey is kept, keyed on its collar object, its survey rows and the method (planHoles); a layer group is
+  // made again only when its rows, style or the callbacks it reads changed, or a hole it has rows in was desurveyed again
+  // (planGroups); every other group keeps its objects, batches and GPU buffers. A new origin (a collar commit moves the
+  // collars' mean), duplicate hole ids, the Refresh view button (rebuildSeq) and the first build are full builds, as before.
+  const prev = sceneCaches.get(groups);
+  const plan = planHoles(prev, collars, surveyByHole, desurveyMethod, { ox, oy, oz, rebuildSeq });
+  const { full, holeEntries, changedHoles } = plan;
+  const sigs = new Map(BUILT_ROW_KEYS.map((k) => [k, [layers[k], JSON.stringify(layerStyles[k] ?? null), effectiveLabel, baseColorForBuild, LAYER_META[k]?.numeric ? JSON.stringify([numericSymbology?.[k] ?? null, numericRange?.[k] ?? null]) : ""]]));
+  customLayers.forEach((l) => sigs.set(l.id, [l, l.group, JSON.stringify(layerStyles[`custom:${l.id}`] ?? null)]));
+  const rebuild = planGroups(prev, sigs, changedHoles, full);
+  const rebuildHoles = full || changedHoles.size > 0;
+  if (full) clearGroups(Object.values(groups));
+  else clearGroups([...(rebuildHoles ? [groups.holes, groups.hole_labels] : []), ...[...rebuild].map((k) => customLayers.find((l) => l.id === k)?.group || groups[k])].filter(Boolean));
+  const byHoleIf = (k, rows) => (rebuild.has(k) ? groupByHole(rows) : NO_HOLES); // a kept group builds nothing below
+  const rowsByHole = {
+    litho: byHoleIf("litho", layers.litho), alt: byHoleIf("alt", layers.alt), vein: byHoleIf("vein", layers.vein),
+    geotech: byHoleIf("geotech", layers.geotech), litho_gc: byHoleIf("litho_gc", layers.litho_gc), alt_gc: byHoleIf("alt_gc", layers.alt_gc),
+    mnlgy: byHoleIf("mnlgy", layers.mnlgy), magsusc: byHoleIf("magsusc", layers.magsusc), structure: byHoleIf("structure", layers.structure),
+    recovery: byHoleIf("recovery", layers.recovery), sg: byHoleIf("sg", layers.sg), breccia: byHoleIf("breccia", layers.breccia), weath: byHoleIf("weath", layers.weath), structzone: byHoleIf("structzone", layers.structzone), // #608, #2162, #604
+  };
+  const customRowsByHoleByLayer = new Map(customLayers.map((l) => [l.id, byHoleIf(l.id, l.rows)]));
+  // the holes each group has rows in, for the next build's planGroups (a kept group keeps its set)
+  const holeSets = new Map();
+  for (const k of sigs.keys()) holeSets.set(k, rebuild.has(k) ? new Set((rowsByHole[k] || customRowsByHoleByLayer.get(k) || NO_HOLES).keys()) : prev.holeSets.get(k));
 
   // Bug-hunt pass: color/size range for numeric point layers (mnlgy/magsusc) used to be computed
   // per-hole inside buildPointMarkers below, so the same absolute value rendered a different color
@@ -244,15 +311,30 @@ export function buildDrillholeScene(ctx) {
   const traceById = new Map(tracesRef.current.map((t) => [t.hole_id, t])); // #2170: was a filter per hole, O(holes²) (11.8 s at 20,544)
   collars.forEach((c) => {
    try {
-    const hs = surveyByHole.get(c.hole_id) || [];
-    const raw = desurveyHole(c, hs, desurveyMethod); // TASKS.csv #135
+    // #2176 — the hole's kept desurvey, trace and lookup when its collar, survey rows, method and the origin are the same
+    const e = holeEntries?.get(c.hole_id) || { collar: c, hs: surveyByHole.get(c.hole_id) || [], method: desurveyMethod };
+    if (!e.raw) {
+      const hs = e.hs;
+      e.raw = desurveyHole(c, hs, desurveyMethod); // TASKS.csv #135
+      const assumedVertical = holeAttitudeAssumed(c, hs); // #2014 — no survey rows and no collar azimuth / dip: drawn as a vertical stick, dashed, and the tip says so
+      e.assumedVertical = assumedVertical;
+    }
+    const raw = e.raw;
     if (!raw.length) return;
-    const assumedVertical = holeAttitudeAssumed(c, hs); // #2014 — no survey rows and no collar azimuth / dip: drawn as a vertical stick, dashed, and the tip says so
-    const pts = raw.map((p) => ({ md: p.md, x: p.x - ox, y: p.z - oz, z: -(p.y - oy) })), look = traceLookup(pts); // look: #1500 — binary search instead of a scan per interval
+    const assumedVertical = e.assumedVertical;
+    if (!e.pts) {
+      e.pts = raw.map((p) => ({ md: p.md, x: p.x - ox, y: p.z - oz, z: -(p.y - oy) }));
+      e.look = traceLookup(e.pts); // look: #1500 — binary search instead of a scan per interval
+      e.trace = { hole_id: c.hole_id, pts: e.pts, wx: raw.map((p) => p.x), wy: raw.map((p) => p.y), wz: raw.map((p) => p.z) };
+    }
+    const pts = e.pts, look = e.look;
     allTraces.push(pts);
     traceById.delete(c.hole_id);
-    traceById.set(c.hole_id, { hole_id: c.hole_id, pts, wx: raw.map((p) => p.x), wy: raw.map((p) => p.y), wz: raw.map((p) => p.z) });
+    traceById.set(c.hole_id, e.trace);
+    // TASKS.csv #131 — collar (hole) labels, opt-in via holeLabelMode; #1277 — drawn from these anchors by syncHoleLabels
+    labelAnchors.push({ id: c.hole_id, x: pts[0].x, y: pts[0].y, z: pts[0].z, zWorld: c.z, depth: pts.length ? pts[pts.length - 1].md : 0 });
 
+    if (rebuildHoles) { // #2176 — the holes group is kept when no hole was desurveyed again
     if (!collarMaterialRef.current) collarMaterialRef.current = collarMarkerMaterial(new THREE.MeshBasicMaterial({ color: collarColorFor(bgColorRef.current) })); // #378; #2623
     const marker = new THREE.Mesh(PROTO_SPHERE_12, collarMaterialRef.current); // TASKS.csv #312 — shared prototype + scale (was SphereGeometry(3.2, 12, 12))
     marker.scale.setScalar(3.2);
@@ -266,9 +348,7 @@ export function buildDrillholeScene(ctx) {
     if (assumedVertical) traceLine.computeLineDistances();
     traceLine.userData = { holeId: c.hole_id }; // #1533
     groups.holes.add(traceLine);
-
-    // TASKS.csv #131 — collar (hole) labels, opt-in via holeLabelMode; #1277 — drawn from these anchors by syncHoleLabels
-    labelAnchors.push({ id: c.hole_id, x: pts[0].x, y: pts[0].y, z: pts[0].z, zWorld: c.z, depth: pts.length ? pts[pts.length - 1].md : 0 });
+    }
 
     // TASKS.csv #137 — geotech/recovery are both known 0-100 percentages, so rqdColor's fixed
     // ramp fits both; specific gravity has no such fixed domain (real values run ~2-5), so it
@@ -451,7 +531,8 @@ export function buildDrillholeScene(ctx) {
      buildErrors.push(`${c.hole_id}: ${err.message}`);
    }
   });
-  tracesRef.current = [...traceById.values()];
+  if (rebuildHoles) tracesRef.current = [...traceById.values()]; // #2176 — the same list otherwise
+  if (plan.holeEntries) sceneCaches.set(groups, { ox, oy, oz, rebuildSeq, holes: plan.holeEntries, sigs, holeSets }); else sceneCaches.delete(groups);
 
   // Bug fix (user report: imported a real OMF block model — resistivity.omf — into a project that
   // already had drillholes loaded, and it just never appeared, no matter how they panned/zoomed).
@@ -472,10 +553,16 @@ export function buildDrillholeScene(ctx) {
   // same-geometry/same-material families into InstancedMesh batches (see buildLayerBatches). This
   // must run BEFORE the applyCategoryVisibility/applyLegendOverrideColors calls below, since both
   // of those mirror their per-object changes into the batches they find.
-  Object.values(layerGroupsRef.current).forEach((g) => { if (g) buildLayerBatches(g); });
+  // #2176 — only the groups made again (a kept group's members are batched already)
+  if (full) Object.values(layerGroupsRef.current).forEach((g) => { if (g) buildLayerBatches(g); });
+  else [...(rebuildHoles ? [groups.holes] : []), ...[...rebuild].map((k) => customLayers.find((l) => l.id === k)?.group || groups[k])].forEach((g) => { if (g) buildLayerBatches(g); });
   // TASKS.csv #551 — assay spheres, geophysics points and surface samples have their own builders (each clears and
   // batches only its own group): run them on the traces and origin just built
-  buildAssaySpheresRef.current(); buildGeophysPtsRef.current(); buildSurfaceSamplesRef.current();
+  // #2176 — with the same traces and origin, only a builder whose own inputs changed since it last ran (a deferred commit, #1500)
+  const stale = pointBuildersStale?.() || [true, true, true];
+  if (rebuildHoles || stale[0]) buildAssaySpheresRef.current();
+  if (rebuildHoles || stale[1]) buildGeophysPtsRef.current();
+  if (rebuildHoles || stale[2]) buildSurfaceSamplesRef.current();
 
   lastTracesRef.current = allTraces;
   lastHoleTraceCountRef.current = nHoleTraces;
@@ -491,15 +578,17 @@ export function buildDrillholeScene(ctx) {
   // reapplied here, or a category a user had already hidden would incorrectly reappear until they
   // touched the filter again. The companion effect below (keyed on [categoryFilter] alone) handles
   // the common case — toggling a chip with no rebuild involved.
-  holeLabelAnchorsRef.current = labelAnchors; // #1277
-  syncHoleLabels(groups.hole_labels, labelAnchors, holeLabelModeRef.current, makeTextSprite);
+  if (rebuildHoles) { // #2176 — the labels stand on the collars: kept with them (1.5 s for 2,248 labels)
+    holeLabelAnchorsRef.current = labelAnchors; // #1277
+    syncHoleLabels(groups.hole_labels, labelAnchors, holeLabelModeRef.current, makeTextSprite);
+  }
   applyCategoryVisibility();
   // Same reasoning for legendOverride: build-time color now comes from baseColorForBuild (plain
   // default, no override), so a real rebuild's fresh meshes need any currently-active legend color
   // overrides reapplied here too, or they'd flash back to default colors until legendOverride itself
   // next changes.
   applyLegendOverrideColors();
-  setTracesSeq((n) => n + 1); // #888 — explicit-surface picks on holes follow the new traces
+  if (rebuildHoles) setTracesSeq((n) => n + 1); // #888 — explicit-surface picks on holes follow the new traces; #2176 — only when they changed
   // voxelModels here (see the comment above this effect): a mere visibility/opacity/legend toggle
   // must NOT re-trigger this effect's unconditional fitView() call and wipe out the user's pan/zoom.
   // applyCategoryVisibility/applyLegendOverrideColors are deliberately NOT listed either, for the
