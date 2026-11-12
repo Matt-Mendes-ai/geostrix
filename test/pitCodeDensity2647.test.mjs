@@ -63,7 +63,7 @@ test("the panes: Pit shell's table and the saved inputs; Nested pits and Pit des
   assert.match(p, /densityLayer: "", densityByCode: \{\} \/\* #2647 \*\//);
   assert.match(p, /\.\.\.\(f\.densityLayer && typedCodeDensities\(f\.densityByCode\) \? \{ densityLayer: f\.densityLayer, densityByCode: typedCodeDensities\(f\.densityByCode\) \} : \{\}\)/);
   assert.match(p, /coded = modelWithCodeDensity\(clip\(model\), inputs, layers, collars, survey, desurveyMethod\), mIn = coded\.model/);
-  assert.match(p, /const missing = codeDensityBad/);
+  assert.ok(p.includes("const missing = limitBad /* #2665 */ || codeDensityBad /* #2647 */ ||")); // #2665 put its check first
   for (const f of ["NestedPitsPane", "PitDesignPane"]) {
     const s = fs.readFileSync(`src/components/${f}.jsx`, "utf8");
     assert.match(s, /const coded = modelWithCodeDensity\(/, f);

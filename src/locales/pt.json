@@ -10770,5 +10770,10 @@
   "+ add evidence… ({n} found)": "+ adicionar evidência… ({n} encontradas)",
   "Drillholes: {layer} {field} where {by} = {code} along the holes": "Furos: {layer} {field} onde {by} = {code} ao longo dos furos",
   "1 of the {m} holes has no log of this layer: the distance is measured from the logged holes only.": "1 dos {m} furos não tem descrição desta camada: a distância é medida só a partir dos furos descritos.",
-  "{n} of the {m} holes have no log of this layer: the distance is measured from the logged holes only.": "{n} dos {m} furos não têm descrição desta camada: a distância é medida só a partir dos furos descritos."
+  "{n} of the {m} holes have no log of this layer: the distance is measured from the logged holes only.": "{n} dos {m} furos não têm descrição desta camada: a distância é medida só a partir dos furos descritos.",
+  "Keep within (m of the block model)": "Manter dentro de (m do modelo de blocos)",
+  "Optional: the pit may not reach further than this, in plan, from the block model's columns; a block whose slope would need ground beyond it stays in the ground. Blank: no limit, the walls go where the slope takes them and the rock outside the model counts as barren.": "Opcional: a cava não pode ir mais longe que isto, em planta, das colunas do modelo de blocos; um bloco cujo talude precisaria de terreno além fica no terreno. Em branco: sem limite, as paredes vão aonde o talude as leva e a rocha fora do modelo conta como estéril.",
+  "The distance must be 0 or more, or blank.": "A distância deve ser 0 ou mais, ou ficar em branco.",
+  "Kept within {m} m of the block model: {n} columns of the grid beyond it were not mined.": "Mantido dentro de {m} m do modelo de blocos: {n} colunas da grade além não foram lavradas.",
+  "Kept within {m} m of the block model; the pit did not need to go beyond it.": "Mantido dentro de {m} m do modelo de blocos; a cava não precisou ir além."
 }

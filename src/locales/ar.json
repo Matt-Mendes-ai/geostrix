@@ -10770,5 +10770,10 @@
   "+ add evidence… ({n} found)": "+ أضف دليلًا… (عُثر على {n})",
   "Drillholes: {layer} {field} where {by} = {code} along the holes": "ثقوب الحفر: {layer} {field} حيث {by} = {code} على امتداد الثقوب",
   "1 of the {m} holes has no log of this layer: the distance is measured from the logged holes only.": "ثقب واحد من {m} ثقبًا ليس له سجل لهذه الطبقة: تُقاس المسافة من الثقوب المسجلة فقط.",
-  "{n} of the {m} holes have no log of this layer: the distance is measured from the logged holes only.": "{n} من {m} ثقبًا ليس لها سجل لهذه الطبقة: تُقاس المسافة من الثقوب المسجلة فقط."
+  "{n} of the {m} holes have no log of this layer: the distance is measured from the logged holes only.": "{n} من {m} ثقبًا ليس لها سجل لهذه الطبقة: تُقاس المسافة من الثقوب المسجلة فقط.",
+  "Keep within (m of the block model)": "الإبقاء ضمن (م من نموذج الكتل)",
+  "Optional: the pit may not reach further than this, in plan, from the block model's columns; a block whose slope would need ground beyond it stays in the ground. Blank: no limit, the walls go where the slope takes them and the rock outside the model counts as barren.": "اختياري: لا يجوز أن تمتد الحفرة أبعد من هذا، في المسقط، عن أعمدة نموذج الكتل؛ والكتلة التي يحتاج منحدرها أرضًا أبعد من ذلك تبقى في الأرض. فارغ: بلا حد، تمتد الجدران حيث يأخذها المنحدر وتُحتسب الصخور خارج النموذج عقيمة.",
+  "The distance must be 0 or more, or blank.": "يجب أن تكون المسافة 0 أو أكثر، أو فارغة.",
+  "Kept within {m} m of the block model: {n} columns of the grid beyond it were not mined.": "أُبقي ضمن {m} م من نموذج الكتل: لم تُعدَّن {n} عمودًا من الشبكة خارجه.",
+  "Kept within {m} m of the block model; the pit did not need to go beyond it.": "أُبقي ضمن {m} م من نموذج الكتل؛ لم تحتج الحفرة إلى تجاوزه."
 }

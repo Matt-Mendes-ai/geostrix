@@ -33,7 +33,7 @@ const warn = { ...note, color: "var(--color-warn-text-strong)", marginTop: 4 };
 const num = { ...smallSel, width: 84 };
 const big = (v) => new Intl.NumberFormat(undefined, { notation: "compact", maximumSignificantDigits: 3 }).format(v);
 const GRADE_UNITS = ["g/t", "ppm", "ppb", "%"];
-const EMPTY = { price: "", priceUnit: "", recovery: "", miningCost: "", processingCost: "", density: "", wasteDensity: "", slopeDeg: "", revenueFactor: "1", size: "", unit: "", sectorSlopes: {}, byModelId: "", byPrice: "", byPriceUnit: "", byRecovery: "", areaId: "" /* #2120 */, upperDeg: "", upperRL: "" /* #2439 */, weathMode: "", weathThick: "", weathCode: "", weathDensity: "", densityLayer: "", densityByCode: {} /* #2647 */ }; // sectorSlopes: #1881; by*: #1917; weath*: #2597
+const EMPTY = { price: "", priceUnit: "", recovery: "", miningCost: "", processingCost: "", density: "", wasteDensity: "", slopeDeg: "", revenueFactor: "1", size: "", unit: "", sectorSlopes: {}, byModelId: "", byPrice: "", byPriceUnit: "", byRecovery: "", areaId: "" /* #2120 */, upperDeg: "", upperRL: "" /* #2439 */, weathMode: "", weathThick: "", weathCode: "", weathDensity: "", densityLayer: "", densityByCode: {} /* #2647 */, limitM: "" /* #2665 */ }; // sectorSlopes: #1881; by*: #1917; weath*: #2597
 // TASKS.csv #1917 — the by-product's inputs ride in inputs.by; in the form they are flat fields
 // TASKS.csv #2597 — the weathered zone's inputs ride in inputs.weathered ({ density, thicknessM } or { density, freshCode }); flat in the form
 const weathFields = (inp) => ({ weathMode: inp?.weathered?.thicknessM > 0 ? "thick" : inp?.weathered?.freshCode ? "log" : "", weathThick: inp?.weathered?.thicknessM > 0 ? String(inp.weathered.thicknessM) : "", weathCode: inp?.weathered?.freshCode || "", weathDensity: inp?.weathered?.density > 0 ? String(inp.weathered.density) : "" });
@@ -142,6 +142,7 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove,
   // TASKS.csv #2437 (review #2325, WA uranium) — an optional waste density: blank, every rock takes the one density
   const wasteBad = f.wasteDensity !== "" && f.wasteDensity != null && !(Number(f.wasteDensity) > 0);
   // TASKS.csv #2439 — an optional flatter (or steeper) slope above an RL: both numbers, or neither
+  const limitBad = f.limitM !== "" && f.limitM != null && !(Number(f.limitM) >= 0); // #2665
   const upperTyped = f.upperDeg !== "" || f.upperRL !== "", upperBad = upperTyped && !(Number(f.upperDeg) > 0 && Number(f.upperDeg) < 90 && f.upperRL !== "" && Number.isFinite(Number(f.upperRL)));
   // TASKS.csv #2597 (review #2486, WA lithium) — an optional weathered zone: a thickness below the ground, or the base of the Weathering log's
   // fresh-rock code in each hole, interpolated between the holes; its own density for every tonne above it
@@ -150,7 +151,7 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove,
   const weathBase = useMemo(() => (f.weathMode === "log" && f.weathCode ? weatheredBasePoints(weathRows, holeTraces(collars, survey, desurveyMethod), f.weathCode) : null), [f.weathMode, f.weathCode, weathRows, collars, survey, desurveyMethod]);
   const weathBad = !!f.weathMode && (!(Number(f.weathDensity) > 0) || (f.weathMode === "thick" ? !(Number(f.weathThick) > 0) : !weathBase?.points.length));
   const weathInputs = !f.weathMode || weathBad ? null : f.weathMode === "thick" ? { density: Number(f.weathDensity), thicknessM: Number(f.weathThick) } : { density: Number(f.weathDensity), freshCode: f.weathCode };
-  const missing = codeDensityBad /* #2647 */ || wasteBad || weathBad || upperBad || !model || !metal || FIELDS.some((k) => !(value(k) > 0)) || value("slopeDeg") >= 90 || value("recovery") > 100 || !(Number(f.revenueFactor) > 0) || sectorBad || byBad; // revenue factor: #1363; sectorBad: #1881; byBad: #1917
+  const missing = limitBad /* #2665 */ || codeDensityBad /* #2647 */ || wasteBad || weathBad || upperBad || !model || !metal || FIELDS.some((k) => !(value(k) > 0)) || value("slopeDeg") >= 90 || value("recovery") > 100 || !(Number(f.revenueFactor) > 0) || sectorBad || byBad; // revenue factor: #1363; sectorBad: #1881; byBad: #1917
   // #1753 — when every number is typed but one is out of its range, say which
   const outOfRange = (() => {
     if (!model || !metal) return null;
@@ -175,7 +176,7 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove,
     const rf = Number(f.revenueFactor) > 0 ? Number(f.revenueFactor) : 1, size = Number(f.size) > 0 ? Number(f.size) : null;
     // #1881 — the sector slopes that are set, as numbers; none set: no key at all, so an older project's inputs read the same
     const sectors = Object.fromEntries(SECTORS.filter((k) => Number(f.sectorSlopes?.[k]) > 0 && Number(f.sectorSlopes?.[k]) < 90).map((k) => [k, Number(f.sectorSlopes[k])]));
-    const inputs = { unit, element, price: value("price"), priceUnit, recovery: value("recovery"), miningCost: value("miningCost"), processingCost: value("processingCost"), density: value("density"), ...(Number(f.wasteDensity) > 0 ? { wasteDensity: Number(f.wasteDensity) } : {}) /* #2437 */, ...(f.densityLayer && typedCodeDensities(f.densityByCode) ? { densityLayer: f.densityLayer, densityByCode: typedCodeDensities(f.densityByCode) } : {}) /* #2647 */, slopeDeg: value("slopeDeg"), revenueFactor: rf, size, ...(Object.keys(sectors).length ? { sectorSlopes: sectors } : {}), ...(byInputs ? { by: byInputs } : {}), ...(weathInputs ? { weathered: weathInputs } : {}) /* #2597 */, ...(upperTyped && !upperBad ? { upperSlope: { slopeDeg: Number(f.upperDeg), rl: Number(f.upperRL) } } : {}) /* #2439 */ }; // by: #1917
+    const inputs = { unit, element, price: value("price"), priceUnit, recovery: value("recovery"), miningCost: value("miningCost"), processingCost: value("processingCost"), density: value("density"), ...(Number(f.wasteDensity) > 0 ? { wasteDensity: Number(f.wasteDensity) } : {}) /* #2437 */, ...(f.densityLayer && typedCodeDensities(f.densityByCode) ? { densityLayer: f.densityLayer, densityByCode: typedCodeDensities(f.densityByCode) } : {}) /* #2647 */, slopeDeg: value("slopeDeg"), revenueFactor: rf, size, ...(Object.keys(sectors).length ? { sectorSlopes: sectors } : {}), ...(byInputs ? { by: byInputs } : {}), ...(weathInputs ? { weathered: weathInputs } : {}) /* #2597 */, ...(upperTyped && !upperBad ? { upperSlope: { slopeDeg: Number(f.upperDeg), rl: Number(f.upperRL) } } : {}) /* #2439 */, ...(f.limitM !== "" && f.limitM != null && Number(f.limitM) >= 0 ? { limitM: Number(f.limitM) } : {}) /* #2665 */ }; // by: #1917
     setBusy(0); setMsg(null); // the previous result stays until a new one arrives (#1366)
     const t0 = performance.now();
     try {
@@ -291,6 +292,8 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove,
           {field("upperDeg", tr("Upper slope (°)"), { title: tr("Optional: the slope of the walls above the RL beside it (soft cover, weathered rock), from a geotechnical study. Blank: the overall slope everywhere."), placeholder: tr("optional") })}
           {field("upperRL", tr("above RL (m)"), { placeholder: "RL" })}
         </div>
+        {field("limitM", tr("Keep within (m of the block model)"), { placeholder: tr("optional"), title: tr("Optional: the pit may not reach further than this, in plan, from the block model's columns; a block whose slope would need ground beyond it stays in the ground. Blank: no limit, the walls go where the slope takes them and the rock outside the model counts as barren.") })}{/* #2665 */}
+        {limitBad && <div style={warn}>{tr("The distance must be 0 or more, or blank.")}</div>}
         {/* TASKS.csv #1881 — a slope per wall sector: the wall on that side of the pit; blank takes the overall slope */}
         <div style={{ ...note, marginTop: 2 }}><button onClick={() => setShowSectors((v) => !v)} style={linkBtn} aria-expanded={showSectors}>{showSectors ? tr("Hide the slope by wall sector") : tr("Slope by wall sector…")}</button></div>
         {showSectors && (
@@ -374,6 +377,7 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove,
           <UndergroundOreNote model={model} cutoff={res.cutoff ?? cutoff} />
           {(res.slopeDeg > 65 || res.maxDepth > 500) && <div style={warn}>{tr("Steeper than 65° overall or deeper than 500 m is beyond most open pits: treat it as a sign the body is an underground question.")}</div>}
           {res.densityUsed && <div style={note}>{densityUsedText(res.densityUsed)}</div>}{/* #2647 */}
+          {res.limitM != null && <div style={note}>{tr(res.limitedCols ? "Kept within {m} m of the block model: {n} columns of the grid beyond it were not mined." : "Kept within {m} m of the block model; the pit did not need to go beyond it.", { m: res.limitM, n: res.limitedCols })}</div>}{/* #2665 */}
           {res.groundSource === "collars" && <><div style={note}>{tr("The ground is interpolated between the collars, not a terrain.")}</div><CollarLevelsNote collars={collars} /></>}
           {res.groundSource === "model top" && <div style={note}>{tr("The ground is the top of the block model's columns, interpolated between them, not a terrain.")}</div>}{/* #1850 */}
           {res.oreAboveGroundBlocks > 0 && <div style={warn}>{tr("{t} t in {n} ore-grade block(s) sit wholly above the ground and were left out: the estimate was not clipped to the ground (3D Modelling › Estimation, \"Only blocks below the ground\").", { t: big(res.oreAboveGroundT), n: res.oreAboveGroundBlocks })}</div>}{/* #1616 */}
