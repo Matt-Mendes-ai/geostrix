@@ -3,6 +3,7 @@
 // (exactly what the old useCallback closures saw), and mcRef is the hook's live ref (#599).
 import * as THREE from "three";
 import { trendRatioText } from "../../lib/trend.js"; // TASKS.csv #2423
+import { trendBodyReach } from "../../lib/trendBodyReach.js"; // TASKS.csv #2780
 import { buildMeshQuery } from "../../lib/meshQuery.js"; // TASKS.csv #2376
 import { modelGround, boxTallerThanDrilling, groundAtInFrame } from "../../lib/modelGround.js"; // TASKS.csv #2470; groundAtInFrame: #2634
 import { roundVolume, loggedVolumeCheck } from "../../lib/volumeCheck.js"; // TASKS.csv #2530
@@ -1854,6 +1855,16 @@ export function createModellingRuns(ctx, mcRef) {
         // warped space IS an anisotropic one in real space.
         const basis = anisotropy.enabled ? anisotropy.basis : null;
         const scl = anisotropy.enabled ? anisotropy.scales : null;
+        // TASKS.csv #2780 (DECISION 2026-11-12) — under a trend, the runs' automatic reach is the reach ACROSS the layer, times the trend's ratio
+        // along it (at least the hole spacing); said, with the old reach, since a saved body differs from a rebuilt one
+        if (anisotropy.enabled && isCode && autoB.fromRuns && !(searchSetting > 0)) {
+          const tr2780 = trendBodyReach(autoB.radius, scl, autoB.spacing);
+          if (tr2780) {
+            radius = tr2780.alongM;
+            const m1 = (v) => +v.toFixed(1);
+            setNotices((p) => [...p, notice(tr2780.bySpacing ? "\"{label}\": under the trend \"{trend}\" ({ratio}) the automatic search now reaches {along} m along the layer (the {s} m hole spacing, so a node between two holes reaches one) and {across} m across it (by the trend's ratio; the logged runs of {code} alone give {runs} m). Before, the runs' reach was the long axis: {oldAlong} m along and {oldAcross} m across. A body of {code} saved earlier was built with the old reach and differs from one built now." : "\"{label}\": under the trend \"{trend}\" ({ratio}) the automatic search now reaches {across} m across the layer (from the logged runs of {code}) and {along} m along it (that times the trend's ratio). Before, the runs' reach was the long axis: {oldAlong} m along and {oldAcross} m across. A body of {code} saved earlier was built with the old reach and differs from one built now.", { runs: m1(tr2780.runsAcrossM), label, trend: anisotropy.params?.trend || "", ratio: trendRatioText(anisotropy.params), code: altValue, across: m1(tr2780.acrossM), along: m1(tr2780.alongM), s: m1(autoB.spacing || 0), oldAlong: m1(tr2780.oldAlongM), oldAcross: m1(tr2780.oldAcrossM) })]);
+          }
+        }
         const center = anisotropy.enabled
           ? { x: pts.reduce((s, p) => s + p.x, 0) / pts.length, y: pts.reduce((s, p) => s + p.y, 0) / pts.length, z: pts.reduce((s, p) => s + p.z, 0) / pts.length }
           : null;
