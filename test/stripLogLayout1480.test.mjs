@@ -9,7 +9,7 @@ const read = (f) => readFileSync(new URL(`../${f}`, import.meta.url), "utf8");
 test("the strip log window sends the exported figure and its colour-track legend", () => {
   const src = read("src/components/StripLog.jsx");
   assert.match(src, /exportSvgMarkup\(svg, \{ furniture: furniture\(\) \}\);\s*const legendItems = tracks\.filter\(\(t\) => t\.kind === "fill" \|\| t\.kind === "struct"\)/);
-  assert.match(src, /onAddToLayout\(\{ label: `Strip log — \$\{holeId\}\$\{rangeText\}`/);
+  assert.match(src, /const addTo = onAddToLayout;\s*embedFigureFont\(markup\)\.catch\(\(\) => markup\)\.then\(\(m\) => addTo\(\{ label: `Strip log — \$\{holeId\}\$\{rangeText\}`/); // #2610 — after the font goes in
   assert.match(src, /\{onAddToLayout && <button onClick=\{addToLayout\}/);
   assert.match(read("src/modules/ViewerModule.jsx"), /onAddToLayout=\{\(img\) => \{ addLayoutImage\(img\); goToModule\("layout"\); \}\} onAdvice=/);
 });

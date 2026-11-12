@@ -18,6 +18,7 @@ import { LAYER_META, UNIT_NAMES, colorForAlteration, colorForVein, colorForBrecc
 import { arrMax } from "./arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 import { FIGURE_FONT } from "./svgExport.js"; // TASKS.csv #1089
+import { embedFigureFont } from "./svgFontEmbed.js"; // TASKS.csv #2610
 import { valueIn } from "./geochem.js"; // TASKS.csv #1480 — assay tracks, in each element's own unit
 import { isBelowDetection } from "./assayFlags.js"; // TASKS.csv #2605
 import { customCodeColour } from "./customColour.js"; // TASKS.csv #2477
@@ -182,7 +183,8 @@ export async function buildStripLogDataUrl({ holeId, collars, layers, legendOver
   }
   const built = buildStripLogSvgMarkup({ holeId, collars, layers, legendOverride, assays, assaySymbols, elementUnits, lithoPatterns: pats, assayRanges, customTracks }); // legendOverride: #1092; assays: #1480
   if (!built) return null;
-  const { svg, width, height, pxPerMeter } = built;
+  const { width, height, pxPerMeter } = built;
+  const svg = await embedFigureFont(built.svg).catch(() => built.svg); // #2610 — the atlas page's log in the sheet's Exo 2
   const blob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   try {
