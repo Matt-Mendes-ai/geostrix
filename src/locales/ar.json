@@ -4695,6 +4695,8 @@
   "Close the grid settings popover": "إغلاق نافذة إعدادات الشبكة",
   "Add two vertical wall grids to the ground grid, forming a 3D reference box": "إضافة شبكتي جدار رأسيتين إلى الشبكة الأرضية، لتشكيل صندوق مرجعي ثلاثي الأبعاد",
   "Grid size (m)": "حجم الشبكة (م)",
+  "Size and centre the grid from the collars' extent, with a round cell; a size you type turns this off": "يحدد حجم الشبكة ومركزها من امتداد الفوهات بخلية مستديرة؛ والحجم الذي تكتبه يوقف ذلك",
+  "Size from the data ({cell} m cells)": "الحجم من البيانات (خلايا {cell} م)",
   "Divisions": "التقسيمات",
   "Grid colour": "لون الشبكة",
   "Draw the red/green/blue X/Y/Z axis lines at the project origin. Off by default — the corner gizmo already shows orientation, and these sit at an arbitrary point relative to your data.": "رسم خطوط المحاور X/Y/Z الحمراء/الخضراء/الزرقاء عند أصل المشروع. معطّل افتراضيًا — أداة الزاوية تُظهر الاتجاه مسبقًا، وهذه تقع عند نقطة اعتباطية بالنسبة لبياناتك.",

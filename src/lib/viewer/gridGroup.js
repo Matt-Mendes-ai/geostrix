@@ -20,8 +20,25 @@ export function gridPlacement(collars, survey = []) {
   const origin = { x: mean("x"), y: mean("y"), z: mean("z") };
   const top = Math.max(...cs.map((c) => Number(c.z)));
   const lift = cs.length > 1 && collarsLookUnderground(cs, survey).underground ? top - origin.z : 0;
-  return { depth: drillDepthBelowOrigin(cs), lift, origin };
+  return { depth: drillDepthBelowOrigin(cs), lift, origin, auto: autoGridSize(cs) };
 }
+
+// TASKS.csv #2318 (from #2211, review #2174 WA gold: 'a 1,000 m default is twice the 500 x 800 m block') — the grid's size and cell from the
+// collars' extent: the plan box plus 20 %, a round cell (10 ... 5,000 m) giving at most 25 divisions, centred on the box (not the mean
+// collar). -> { size, divisions, cx, cy } or null without two collars apart
+const CELLS = [10, 20, 25, 50, 100, 200, 250, 500, 1000, 2000, 2500, 5000];
+export function autoGridSize(collars) {
+  const cs = (collars || []).filter((c) => Number.isFinite(Number(c?.x)) && Number.isFinite(Number(c?.y)));
+  if (cs.length < 2) return null;
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const c of cs) { const x = Number(c.x), y = Number(c.y); if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+  const span = Math.max(100, Math.max(x1 - x0, y1 - y0) * 1.2);
+  const cell = CELLS.find((c) => span / c <= 25) || CELLS[CELLS.length - 1];
+  const divisions = Math.max(2, Math.ceil(span / cell / 2) * 2); // even: a line through the centre
+  return { size: divisions * cell, divisions, cx: (x0 + x1) / 2, cy: (y0 + y1) / 2 };
+}
+// a grid follows the data while it is set to (sizeAuto) or was never resized from the old fixed default (1,000 m in 20)
+export const isAutoGrid = (config) => config?.sizeAuto === true || (config?.sizeAuto == null && Number(config?.size) === 1000 && Number(config?.divisions) === 20);
 
 // the label positions along each edge, every `stride` cells (about five per edge): pure, for the test
 export function gridTicks(size, divisions) {
@@ -43,12 +60,15 @@ export function gridSnap(origin, cell, lift = 0) {
 export function buildGridGroup(config, placement = null, defaultColor = "#c8ced8") {
   const group = new THREE.Group(); group.name = "gridHelpers";
   if (!config.visible) return group;
-  const size = Math.max(1, config.size) || 1000;
-  const divisions = Math.max(1, Math.round(config.divisions) || 20);
+  const auto = isAutoGrid(config) ? placement?.auto : null; // #2318
+  const size = auto ? auto.size : Math.max(1, config.size) || 1000;
+  const divisions = auto ? auto.divisions : Math.max(1, Math.round(config.divisions) || 20);
   const color = new THREE.Color(config.color || defaultColor); // TASKS.csv #308 — one source of truth for the default
   const depth = Number(placement?.depth) || 0;
   // #2369 — on round coordinates: the plane at a multiple of the cell (from the mean collar, or the highest one underground, #2211)
-  const sn = gridSnap(placement?.origin, size / divisions, Number(placement?.lift) || 0), lift = sn.y;
+  const at = auto && placement?.origin ? { ...placement.origin, x: auto.cx, y: auto.cy } : placement?.origin; // #2318 — centred on the data's box
+  const sn = gridSnap(at, size / divisions, Number(placement?.lift) || 0), lift = sn.y;
+  if (auto && placement?.origin) { sn.dx += auto.cx - placement.origin.x; sn.dz -= auto.cy - placement.origin.y; } // gridSnap measured from the box centre
   group.position.set(sn.dx, 0, sn.dz);
   const mkGrid = () => new THREE.GridHelper(size, divisions, color, color);
   const ground = mkGrid(); ground.position.y = lift;
