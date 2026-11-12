@@ -25,7 +25,7 @@ import { positionFromTraces } from "../../lib/sheetCorrelation.js"; // TASKS.csv
 import { t as tr } from "../../lib/i18n.js";
 import { errorNotice } from "../../lib/notices.js";
 import { tx } from "../../lib/i18nRich.js";
-import { groupOverlaps, groupOfCode } from "../../lib/lithoGroups.js"; // TASKS.csv #1685
+import { groupOverlaps, groupOfCode, caseVariantGroups } from "../../lib/lithoGroups.js"; // TASKS.csv #1685; caseVariantGroups: #2386
 import GradeTonnageLauncher from "../../components/GradeTonnageLauncher.jsx"; // TASKS.csv #1577
 import { useStore } from "../../lib/store.jsx";
 import { numericLayerFields } from "../../lib/evidenceSources.js"; // TASKS.csv #1574 — the numeric fields of a log (intensity 1-3)
@@ -593,6 +593,17 @@ export default function ModellingPanes(props) {
         {lithoGroups.length === 0 && (
           <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("No groups yet.")}</div>
         )}
+        {(() => { // TASKS.csv #2386 — one unit logged in several spellings (case, spaces): offered as one group each, one click
+          const sug = caseVariantGroups(layers.litho || [], lithoGroups);
+          if (!sug.length) return null;
+          const add = (s) => addLithoGroup({ name: s.name, codes: s.codes });
+          return <div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", marginBottom: 8, lineHeight: 1.45, padding: "6px 8px", border: "1px solid var(--color-border)", borderRadius: 6 }}>
+            <div style={{ fontWeight: 600, marginBottom: 4 }}>{tr(sug.length === 1 ? "One code is logged in several spellings that differ only by case or spaces:" : "{n} codes are logged in several spellings that differ only by case or spaces:", { n: sug.length })}</div>
+            {sug.slice(0, 8).map((s) => <div key={s.name} style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}><span style={{ flex: 1, minWidth: 0 }}>{tr("{codes} = {n} intervals", { codes: s.codes.map((c) => `${c} (${s.counts[c].toLocaleString()})`).join(" + "), n: s.total.toLocaleString() })}</span><button type="button" onClick={() => add(s)} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "2px 7px" }}>{tr("Group them")}</button></div>)}
+            {sug.length > 1 && <button type="button" onClick={() => sug.forEach(add)} style={{ ...pBtn, width: "auto", marginBottom: 0, marginTop: 4, padding: "3px 8px" }}>{tr("Group all {n}", { n: sug.length })}</button>}
+            {sug.length > 8 && <span style={{ marginLeft: 6 }}>{tr("({n} more not listed)", { n: sug.length - 8 })}</span>}
+          </div>;
+        })()}
         {groupOverlaps(lithoGroups).map((o) => ( // TASKS.csv #1685 — a saved project with a code in two groups: the tools would disagree
           <div key={o.code} style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 6, lineHeight: 1.4 }}>{tr("{code} is in {n} groups ({groups}): the tools would read different memberships. Click it in the group it belongs to, and it leaves the others.", { code: o.code, n: o.groups.length, groups: o.groups.join(", ") })}</div>
         ))}

@@ -11,6 +11,29 @@ export function groupOverlaps(groups) {
 export function groupOfCode(groups, code, exceptId = null) {
   return (groups || []).find((g) => g.id !== exceptId && (g.codes || []).includes(code)) || null;
 }
+// TASKS.csv #2386 / #2427 (review #2325, WA uranium) — codes that differ only by case or surrounding spaces (Dcb / DCB / DCb, 1,032
+// intervals) went to every tool as separate units. foldKey: the comparison key; caseVariantGroups(rows, groups): each set of 2+
+// spellings of one key, none already in a group -> [{ name (the most logged spelling), codes (most logged first), counts, total }],
+// largest first
+export const foldKey = (v) => String(v ?? "").trim().toUpperCase();
+export function caseVariantGroups(rows, groups = []) {
+  const grouped = new Set((groups || []).flatMap((g) => g.codes || []));
+  const byKey = new Map();
+  for (const r of rows || []) {
+    const raw = r?.value == null ? "" : String(r.value);
+    const k = foldKey(raw);
+    if (!k) continue;
+    const m = byKey.get(k) || byKey.set(k, new Map()).get(k);
+    m.set(raw, (m.get(raw) || 0) + 1);
+  }
+  const out = [];
+  for (const m of byKey.values()) {
+    if (m.size < 2 || [...m.keys()].some((c) => grouped.has(c))) continue;
+    const codes = [...m.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([c]) => c);
+    out.push({ name: codes[0].trim(), codes, counts: Object.fromEntries(m), total: [...m.values()].reduce((s, n) => s + n, 0) });
+  }
+  return out.sort((a, b) => b.total - a.total || a.name.localeCompare(b.name));
+}
 // withGroupCodes(groups, id, codes) -> the groups with `id`'s codes replaced, and those codes removed from every other group
 export function withGroupCodes(groups, id, codes) {
   const mine = new Set(codes || []);

@@ -33,7 +33,7 @@ import { t as tr } from "../lib/i18n.js";
 import CollarLevelsNote from "./CollarLevelsNote.jsx"; // TASKS.csv #2584 — the lowest collar used where collars stand on benches
 import { holeSpacingSummary, zeroBlockAdvice, searchFromSpacingM } from "../lib/holeSpacing.js"; // TASKS.csv #1738; searchFromSpacingM: #2420
 import { topCompositesWithoutBlocks } from "../lib/shellSupport.js"; // TASKS.csv #1735 // TASKS.csv #786
-import { domainLayerChoices } from "../lib/domainLayers.js"; // TASKS.csv #1571
+import { domainLayerChoices, foldDomainRows } from "../lib/domainLayers.js"; // TASKS.csv #1571; foldDomainRows: #2427
 import { numericSourceChoices, sourceAssays, logPoints, unlogValue } from "../lib/numericSources.js"; // TASKS.csv #1741 — a downhole log or a numeric layer field as the source
 import DomainCaps from "./DomainCaps.jsx"; // TASKS.csv #1571
 import { solidChoices } from "../lib/solidChoices.js"; // TASKS.csv #1578
@@ -92,7 +92,8 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
   // TASKS.csv #1571 (review #1497, Lawyers) — every categorical interval layer, custom layers included (Lawyers' Min Domain), is a domain choice
   const domainChoices = useMemo(() => domainLayerChoices(layers, customLayers, (k) => tr(LAYER_META[k].label)), [layers, customLayers]);
   const domainChoice = domainChoices.find((c) => c.key === domainKey) || null;
-  const domainRowsSel = domainChoice ? domainChoice.rows : null;
+  const domainFold = useMemo(() => (domainChoice ? foldDomainRows(domainChoice.rows) : null), [domainChoice]); // #2427 — Dcb = DCB = DCb
+  const domainRowsSel = domainFold ? domainFold.rows : null;
   const [capByDomain, setCapByDomain] = useState(() => (saved && saved.symbol === symbol && saved.domainKey === domainKey ? saved.capByDomain || {} : {})); // TASKS.csv #1571 — { domain value: cap }, blank = the global cap
 
   // TASKS.csv #265 — a collar with no recorded length used to silently contribute 300 m of grid depth
@@ -753,6 +754,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
                     {domainChoices.map((c) => <option key={c.key} value={c.key}>{c.custom ? tr("{name} (custom layer)", { name: c.label }) : c.label}</option>)}
                   </select>
                 </label>
+                {domainFold?.folded.length > 0 && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("Spellings that differ only by case or spaces are one domain here: {list}.", { list: domainFold.folded.map((f) => f.codes.join(" = ")).join("; ") })}</div>}{/* #2427 */}
                 {domainChoice && domainChoice.overlap > 0.05 && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)" }}>{tr("{p}% of this layer's intervals overlap another in the same hole (several types logged over one depth): a composite takes the first interval by depth, so its domain among the overlapping ones is arbitrary. A layer with one value per depth makes a defensible domain.", { p: Math.round(domainChoice.overlap * 100) })}</div>}{/* #1571 */}
               </div>
             )}
