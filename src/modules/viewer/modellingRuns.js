@@ -6,7 +6,8 @@ import { layerStamp } from "../../lib/layerStamp.js"; // TASKS.csv #2388
 import { rowsByHole } from "../../lib/rowsByHole.js"; // TASKS.csv #2906
 import { stackCellCheck, medianStackThickness } from "../../lib/stackResolution.js"; // TASKS.csv #2905; medianStackThickness: #2922
 import { suspectElevationIds } from "../../lib/collarElevationTrust.js"; // TASKS.csv #2918 (the #3004 rule)
-import { trendRatioText } from "../../lib/trend.js"; // TASKS.csv #2423
+import { trendRatioText, trendBasis, trendScales } from "../../lib/trend.js"; // TASKS.csv #2423; basis / scales: #3062
+import { flatSearchTrend } from "../../lib/estimationShape.js"; // TASKS.csv #3062
 import { trendCellM, trendCellText } from "../../lib/trendCell.js"; // TASKS.csv #3010
 import { trendBodyReach } from "../../lib/trendBodyReach.js"; // TASKS.csv #2780
 import { buildMeshQuery } from "../../lib/meshQuery.js"; // TASKS.csv #2376
@@ -26,7 +27,7 @@ import { pythonImplicitModel } from "../../lib/desktop.js";
 import { makeRng, perturbPoints, perturbOrientation, pointsToMeshDistance, spreadSummary, spreadColor, SPREAD_NOT_REPRODUCED } from "../../lib/surfaceSpread.js";
 import { colorForLithology, colorForAlteration, colorForStructure, minMax, roleForLithology, groupMcodeRole } from "../../lib/layers.js";
 import { computeMeshVolume } from "../../lib/volumetrics.js";
-import { MAX_BLOCKS, SUPPORT_COLORS, MAX_BLOCK_BUDGET, gridBlockCount, cellToFit, NUMERIC_CELL_DEFAULT, gradeShellBudgetNote } from "../../lib/estimationMeta.js"; // gradeShellBudgetNote: #2223 // NUMERIC_CELL_DEFAULT: #1416; // budget: #625 // #552 — the estimator itself loads in the run functions
+import { MAX_BLOCKS, SUPPORT_COLORS, MAX_BLOCK_BUDGET, NUMERIC_CELL_DEFAULT, gradeShellBudgetNote } from "../../lib/estimationMeta.js"; // gradeShellBudgetNote: #2223 // NUMERIC_CELL_DEFAULT: #1416; // budget: #625 // #552 — the estimator itself loads in the run functions
 import { compositeDownhole, rawSampleIntervals, capAudit, capAuditText, gradeUnitLabel, resolvedSegments } from "../../lib/geochem.js"; // capAudit: #533; rawSampleIntervals: #571; resolvedSegments: #2634
 import { assayIndicatorInGaps } from "../../lib/assayInGaps.js"; // TASKS.csv #2634
 import { excludeQAQC } from "../../lib/qaqc.js";
@@ -113,6 +114,7 @@ export function createModellingRuns(ctx, mcRef) {
     modelResolution,
     numericCapValue,
     numericCellSize,
+    numericCellHeight, numericFlatReach, // TASKS.csv #3062
     numericMaxBlocks, // TASKS.csv #625
     setNumericBudgetHint, // TASKS.csv #625
     setNumericCellSize, // TASKS.csv #1416
@@ -2315,7 +2317,11 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
   // forever in a background preview tab), which would silently strand a run started right before
   // the user alt-tabs away.
   const runNumericModel = () => {
-    const anisotropy = trendWarp("gradeShell"); // TASKS.csv #650
+    const shellTrend = trendWarp("gradeShell"); // TASKS.csv #650
+    // TASKS.csv #3062 — no trend: a flat search typed in the pane (the search radius across, the vertical reach up and down), as
+    // Estimation's (#2418): a horizontal ellipsoid R x R x reach, run through the same warp a trend uses
+    const flatT = !shellTrend.enabled ? flatSearchTrend(numericSearchRadius, numericFlatReach, tr("flat search")) : null;
+    const anisotropy = flatT ? { enabled: true, flat: true, trend: flatT, basis: trendBasis(flatT), scales: trendScales(flatT), params: { trend: flatT.name, dip: 0, dipAzimuth: 0, pitch: 0, ratios: flatT.ratios } } : shellTrend;
     // TASKS.csv #1741 / #1708 — numericSymbol may name a downhole log or a numeric layer field ("log:magsusc", "custom:<id>:<field>"):
     // its rows stand in for the assays under one element, values as logged
     const numSrc = findNumericSource(numericSymbol, { layers, customLayers });
@@ -2329,7 +2335,7 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
     const unitL = gradeUnitLabel(symbol, unit); // TASKS.csv #2218 — what a person reads: 'Au > 1 g/t shell' (#1680); unit stays the stored one
     // TASKS.csv #2551 (review #2486) — and from the checked holes only (Model area), as Estimation's names say since #2069
     const shellArea = modelArea === "checked" ? checkedHoleCount(collars, visibleHoles) : null;
-    const shellTags = [anisotropy.enabled && trendRatioText(anisotropy.params) ? `trend ${trendRatioText(anisotropy.params)}` : "", shellArea && shellArea.checked < shellArea.all ? `${shellArea.checked} checked holes` : ""].filter(Boolean);
+    const shellTags = [anisotropy.flat ? `flat search ${numericSearchRadius} × ${Number(numericFlatReach)} m` /* #3062 */ : anisotropy.enabled && trendRatioText(anisotropy.params) ? `trend ${trendRatioText(anisotropy.params)}` : "", shellArea && shellArea.checked < shellArea.all ? `${shellArea.checked} checked holes` : ""].filter(Boolean);
     const label = `${symbol} > ${numericCutoff} ${unitL} shell${shellTags.length ? ` (${shellTags.join(", ")})` : ""}`; // #2423 — shells under different trends are told apart
     setNumericBusy(true);
     ownTask(label).set(20); // #2379
@@ -2420,6 +2426,13 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
         const pad = Math.max(0, numericPadding);
         const bounds = { xmin: xr.min - pad, xmax: xr.max + pad, ymin: yr.min - pad, ymax: yr.max + pad, zmin: zr.min - pad, zmax: zr.max + pad };
         let cs = Math.max(0.5, numericCellSize); // let: #1416
+        // TASKS.csv #3062 — the cell height on its own (blank = cubic), as Estimation's; under a structural trend the cell stays the cube in
+        // its frame (#3010). cellOf(c): the grid's cell for a real E x N of c. In a flat search's warp E / N and Z scale apart (dip 0: the
+        // warp stays axis-aligned), so the grid's cell is the typed one in real metres.
+        const cz = !anisotropy.enabled || anisotropy.flat ? (Number(numericCellHeight) > 0 ? Math.max(0.25, Number(numericCellHeight)) : null) : null;
+        const cellOf = (c) => (anisotropy.flat ? { dx: c * gsScl.major, dy: c * gsScl.major, dz: (cz ?? c) * gsScl.minor } : { dx: c, dy: c, dz: anisotropy.enabled ? c : cz ?? c });
+        const blocksOf = (c) => { const g = cellOf(c), n = (a, b, d) => Math.max(1, Math.round((b - a) / Math.max(0.01, d))); return n(bounds.xmin, bounds.xmax, g.dx) * n(bounds.ymin, bounds.ymax, g.dy) * n(bounds.zmin, bounds.zmax, g.dz); }; // gridBlockCount per axis
+        const fitOf = (budget, from) => { let c = Math.max(0.5, from); while (blocksOf(c) > budget && c < 1e5) c = Math.ceil((c * 1.02) * 2) / 2; return c; }; // cellToFit per axis
         let cellRefit = false; // #2063 — the budget chose the cell: a smaller one is not on offer
         let neededAtDefault = null; // #2223 — the blocks the default cell would have needed
         // TASKS.csv #292 — the search radius is never allowed to be unbounded any more. An unlimited
@@ -2443,28 +2456,28 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
         // TASKS.csv #625 — the block budget is the user's (200,000 by default, up to 5 million); checked here, before
         // the worker starts, so an over-budget run says which cell size WOULD fit (the pane offers it as a button)
         const blockBudget = Math.min(MAX_BLOCK_BUDGET, Math.max(MAX_BLOCKS, Number(numericMaxBlocks) || MAX_BLOCKS));
-        let blocksNeeded = gridBlockCount(bounds, cs);
+        let blocksNeeded = blocksOf(cs);
         // TASKS.csv #1416 (review #1352, Silvertip) — the untouched default (10 m) failed on Silvertip's three pads (2,152,305 blocks): as
         // Grade estimation does, it now runs at the cell size that fits the budget and says so; a cell size the user chose still stops here
         if (blocksNeeded > blockBudget && numericCellSize === NUMERIC_CELL_DEFAULT) {
-          const fit = cellToFit(bounds, blockBudget, cs);
+          const fit = fitOf(blockBudget, cs);
           // built here, not inside the updater: that runs later, after cs and blocksNeeded are reassigned below
           const fitNotice = { ...notice("Cell size set to {fit} m: at the default {cs} m this extent needs {n} blocks, over the {budget}-block budget. A finer cell needs a larger block budget in the Grade shell pane.", { fit, cs, n: blocksNeeded.toLocaleString(), budget: blockBudget.toLocaleString() }), level: "info" };
           setNotices((p) => [...p, fitNotice]);
           setNumericCellSize?.(fit);
           neededAtDefault = blocksNeeded; // #2223
-          cs = fit; blocksNeeded = gridBlockCount(bounds, cs); cellRefit = true;
+          cs = fit; blocksNeeded = blocksOf(cs); cellRefit = true;
         }
         if (blocksNeeded > blockBudget) {
-          const fit = cellToFit(bounds, blockBudget, cs);
-          const fitMax = cellToFit(bounds, MAX_BLOCK_BUDGET, cs);
+          const fit = fitOf(blockBudget, cs);
+          const fitMax = fitOf(MAX_BLOCK_BUDGET, cs);
           setNumericBudgetHint?.({ needed: blocksNeeded, budget: blockBudget, cell: cs, fit, fitMax });
           throw new Error(tr("At {cs} m cells this extent needs {blocksNeeded} blocks — over the {blockBudget}-block budget. {fit} m cells fit this budget{v}. Change the cell size or the block budget in the Grade shell pane.", { cs, blocksNeeded: blocksNeeded.toLocaleString(), blockBudget: blockBudget.toLocaleString(), fit, v: blockBudget < MAX_BLOCK_BUDGET ? tr("; with the largest budget ({MAX_BLOCK_BUDGET}) {fitMax} m cells fit", { MAX_BLOCK_BUDGET: MAX_BLOCK_BUDGET.toLocaleString(), fitMax }) : "" }));
         }
         setNumericBudgetHint?.(null);
         const ac = new AbortController(); // TASKS.csv #520 — worker + status-bar progress and Cancel
         const grid = await runEstimation("dense", estPoints, {
-          bounds, cellSize: { dx: cs, dy: cs, dz: cs }, method: numericMethod,
+          bounds, cellSize: cellOf(cs), method: numericMethod, // cellOf: #3062
           searchRadius: searchInGrid, minSamples: 1, maxSamples: 16, // #656
           minHoles: Math.max(1, numericMinHoles), // TASKS.csv #258
           support: true, // TASKS.csv #91/#92 — classify every grid node so the shell can be coloured by it
@@ -2583,7 +2596,8 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
           method: numericMethod, searchRadiusM: effectiveRadius,
           searchRadiusWasUnlimited: !(numericSearchRadius > 0),
           ...(shellEllipsoidM ? { searchEllipsoidM: shellEllipsoidM } : {}), // #656 — semi-axes along the trend's axes
-          cellSizeM: cs, ...(anisotropy.enabled ? { cellAlongTrendM: trendCellM(anisotropy.trend, cs).map((v) => Math.round(v * 10) / 10), cellSizeIs: "the cubic cell in the trend's volume-keeping frame; cellAlongTrendM is its size along the trend's long, intermediate and short axes (#3010)" } : {}), paddingM: pad, closure, cutAtTopography: gsCap.capped ? `${gsGround?.name || "terrain"}: ${gsCap.capped} grid node(s) above or just below the ground capped (#803)` : false,
+          cellSizeM: cs, ...(cz || anisotropy.flat ? { cellM: [cs, cs, cz ?? cs], ...(anisotropy.flat ? { flatSearch: { acrossM: numericSearchRadius, verticalM: Number(numericFlatReach) } } : {}) } : {}), // #3062
+          ...(anisotropy.enabled && !anisotropy.flat ? { cellAlongTrendM: trendCellM(anisotropy.trend, cs).map((v) => Math.round(v * 10) / 10), cellSizeIs: "the cubic cell in the trend's volume-keeping frame; cellAlongTrendM is its size along the trend's long, intermediate and short axes (#3010)" } : {}), paddingM: pad, closure, cutAtTopography: gsCap.capped ? `${gsGround?.name || "terrain"}: ${gsCap.capped} grid node(s) above or just below the ground capped (#803)` : false,
           composited: numericUseComposites, compositeLengthM: numericUseComposites ? numericCompositeLength : null,
           minCoverage: numericUseComposites ? numericMinCoverage : null, // TASKS.csv #262
           capValue: Number.isFinite(numericCapValue) && numericCapValue > 0 ? numericCapValue : null,
@@ -2629,7 +2643,7 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
             // blocks estimated BELOW the cutoff (a cell and a search that average a 2 m sample with its neighbours): 448 of the review's 464
             // were the second kind, all blamed on the first
           else setNotices((p) => [...p, { level: "info", text: [inShell.noData ? tr("\"{label}\" leaves {n} of its {above} composite(s) at/above {cutoff} {unit} outside the shell on blocks that were not estimated: the Min holes rule ({minHoles}) or the search radius removed the blocks around them.", { label, n: inShell.noData, above: inShell.above, cutoff: numericCutoff, unit: unitL, minHoles: mh }) : "",
-              inShell.outside ? tr("\"{label}\": {n} of its {above} composite(s) at/above {cutoff} {unit} sit on blocks estimated below it: the {cell} cells and the search average each sample with its neighbours, so a high sample thinner than a cell is diluted. A smaller cell (or a flatter one across the bedding) keeps more of them.", { label, n: inShell.outside, above: inShell.above, cutoff: numericCutoff, unit: unitL, cell: anisotropy.enabled ? `${trendCellText(trendCellM(anisotropy.trend, cs))} m` : `${cs} m` }) : ""].filter(Boolean).join(" "), }]);
+              inShell.outside ? tr("\"{label}\": {n} of its {above} composite(s) at/above {cutoff} {unit} sit on blocks estimated below it: the {cell} cells and the search average each sample with its neighbours, so a high sample thinner than a cell is diluted. A smaller cell (or a flatter one across the bedding) keeps more of them.", { label, n: inShell.outside, above: inShell.above, cutoff: numericCutoff, unit: unitL, cell: anisotropy.enabled && !anisotropy.flat ? `${trendCellText(trendCellM(anisotropy.trend, cs))} m` : cz ? `${cs} × ${cs} × ${cz} m` : `${cs} m` }) : ""].filter(Boolean).join(" "), }]);
         }
         // TASKS.csv #533 — say what the cap did: samples cut and share of metal removed (on the same QC-excluded raw samples)
         if (Number.isFinite(numericCapValue) && numericCapValue > 0) setNotices((p) => [...p, `"${label}" ${capAuditText(capAudit(srcAssays, symbol, unit, elementUnits, numericCapValue), unitL)}.`]);

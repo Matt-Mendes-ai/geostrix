@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import * as THREE from "three";
 import { makeAssayBatcher } from "../src/lib/viewer/assayBatcher.js";
-import { buildLayerBatches, eachLayerMember } from "../src/lib/viewer/layerBatches.js";
+import { buildLayerBatches, eachLayerMember, batchTag } from "../src/lib/viewer/layerBatches.js";
 import { assayProto, placeAssayMarker } from "../src/lib/viewer/assayShape.js";
 import { traceLookup } from "../src/lib/viewer/modelHelpers.js";
 import { syncAssayElements, shiftMarkers, sameKey } from "../src/lib/viewer/assayKeep.js";
@@ -50,7 +50,7 @@ test("one element, then a second: the first is moved to its new ring offset, not
   assert.deepEqual([built, r.kept], [[], ["Fe", "Si"]]);
 });
 
-test("a changed input rebuilds that element only; a removed one leaves the group; a family under 24 moves too", () => {
+test("a changed input rebuilds that element only; a removed one leaves the group; a family under 24 is rebuilt, not moved", () => {
   const g = new THREE.Group(), kept = new Map();
   syncAssayElements(g, kept, specs({ Fe: [5, 0], Al: [-5, 0] }), builder({ Fe: [5, 0], Al: [-5, 0] }));
   const al = xz(g, "Al");
@@ -58,8 +58,8 @@ test("a changed input rebuilds that element only; a removed one leaves the group
   assert.ok(g.children.some((c) => c.isMesh && !c.isInstancedMesh), "Al drawn as plain meshes");
   built.length = 0;
   syncAssayElements(g, kept, specs({ Fe: [0, 4], Al: [0, -4] }), builder({ Fe: [0, 4], Al: [0, -4] }));
-  assert.deepEqual(built, [], "both moved in place");
-  near(xz(g, "Al"), al.map(([x, z]) => [x + 5, z - 4]), "Al moved");
+  assert.deepEqual(built, ["Al"], "Fe moved in place; Al's plain meshes rebuilt (the pick signature would not see them move)");
+  near(xz(g, "Al"), al.map(([x, z]) => [x + 5, z - 4]), "Al at its new offset");
   keyOf.Fe = ["fe-style-2"]; // Fe's style changed
   built.length = 0;
   syncAssayElements(g, kept, specs({ Fe: [0, 4], Al: [0, -4] }), builder({ Fe: [0, 4], Al: [0, -4] }));
@@ -84,7 +84,10 @@ test("a hidden row keeps its hidden scale when moved; helpers", () => {
   assert.equal(cp.base[12], Math.fround(x0 + 2));
   assert.equal(inst.instanceMatrix.array[3 * 16 + 12], Math.fround(hx + 2));
   assert.equal(inst.instanceMatrix.array[48], 0, "still hidden");
+  assert.equal(cp.moves, 1, "counted, for the pick index's batch tag");
+  assert.match(batchTag(inst), /m1$/, "a moved batch changes its pick tag (#304: the index is rebuilt)");
   assert.equal(shiftMarkers(new THREE.Group(), 1, 1), false, "anything else is rebuilt instead");
+  assert.equal(shiftMarkers(new THREE.Mesh(), 1, 1), false, "a plain mesh too");
   const a = {}; assert.ok(sameKey([a, 1], [a, 1]) && !sameKey([a, 1], [{}, 1]) && !sameKey(null, []));
 });
 

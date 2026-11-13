@@ -1112,6 +1112,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   const [numericSymbol, setNumericSymbol] = useState("");
   const [numericCutoff, setNumericCutoff] = useState(1);
   const [numericCellSize, setNumericCellSize] = useState(NUMERIC_CELL_DEFAULT); // #1416
+  const [numericCellHeight, setNumericCellHeight] = useState(""), [numericFlatReach, setNumericFlatReach] = useState(""); // #3062 — blank: cubic / a sphere
   // TASKS.csv #625 — the grade shell's block budget (a per-computer preference: what this machine can afford), and the
   // hint left by an over-budget run ({ needed, budget, cell, fit, fitMax })
   const [numericMaxBlocks, setNumericMaxBlocksState] = useState(() => { try { return Number(localStorage.getItem("geostrix.gradeShellBlockBudget")) || MAX_BLOCKS; } catch { return MAX_BLOCKS; } });
@@ -1743,36 +1744,13 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
     });
     return list;
   }, []);
-  // TASKS.csv #304 — cached object-level BVH over pickHoverTargets(). See src/lib/pickIndex.js for
-  // the measurement that motivated it and for the correctness contract (it only narrows the CANDIDATE
-  // list; three.js still computes every hit itself, so results are identical, not approximate).
-  //
-  // Cache invalidation is deliberately kept here, next to the code that knows how these groups are
-  // maintained, rather than inside pickIndex.js. pickTargetsSignature() is O(number of GROUPS) — it
-  // never walks the ~12,000 objects — and is recomputed on every single pick, so the index is
-  // rebuilt the moment the target list changes shape. It relies on one property of this file that is
-  // true throughout: pickable objects are REPLACED (groups cleared and rebuilt), never moved in
-  // place. `.visible` flips (visibleHoles / applyCategoryVisibility) and material.color repaints
-  // (applyLegendOverrideColors) are the only in-place mutations, and neither affects geometry or
-  // matrixWorld, so neither can invalidate the index. Object3D.id is a globally monotonic counter,
-  // so a rebuilt group can never reproduce the same (count, first id, last id) triple as the one it
-  // replaced. IF YOU EVER ADD CODE THAT MOVES/RESCALES AN ALREADY-BUILT PICKABLE OBJECT (a vertical
-  // exaggeration slider is the obvious candidate — none exists today), it must also force a rebuild,
-  // or picking will silently go stale.
-  //
-  // REAL BUG CAUGHT HERE DURING #304's OWN VERIFICATION, worth keeping in mind before touching this:
-  // the index is built from each object's matrixWorld, and three.js only recomputes matrixWorld
-  // inside renderer.render(). A pointermove landing in the window between a geometry rebuild and the
-  // next rendered frame (the render loop is idle-throttled to ~120 ms by #201's own comment below,
-  // and stops entirely while the viewer tab is hidden) therefore used to build the whole tree from
-  // freshly-created meshes whose matrixWorld was still identity — every box wrong, the tree silently
-  // returning nothing but the always-included `rest` list, and NOTHING to invalidate it afterwards
-  // because the object list itself had not changed. This reproduced 100% of the time by hovering
-  // immediately after loading the sample project: 57 of 129 picks over known-hit screen positions
-  // returned a drillhole trace Line instead of the interval mesh in front of it. Two defences now:
-  // (1) updateMatrixWorld() immediately before every build, and (2) the sampled world-space
-  // translations in the signature below, which would independently force a rebuild once the real
-  // matrices land.
+  // TASKS.csv #304 — cached object-level BVH over pickHoverTargets() (src/lib/pickIndex.js: it only narrows the CANDIDATES; three.js
+  // computes every hit, so results are identical). pickTargetsSignature() is O(groups), recomputed on every pick, and relies on pickable
+  // objects being REPLACED, never moved (`.visible` and colour repaints do not matter; Object3D ids never repeat). Code that MOVES an
+  // already-built pickable object must change the signature (#3117: a moved compact batch counts its moves in batchTag).
+  // A REAL BUG caught in #304's verification: matrixWorld is only recomputed in render(), so a pick between a rebuild and the next frame
+  // built the tree from identity matrices (57 of 129 picks on the sample hit a trace Line). Hence updateMatrixWorld() before every
+  // build and the sampled world translations in the signature.
   const pickIndexRef = useRef({ sig: null, index: null });
   const pickTargetsSignature = useCallback(() => {
     let s = terrainMeshRef.current ? `t${terrainMeshRef.current.id}` : "t-";
@@ -3512,6 +3490,7 @@ ${describeTrend(t)}` };
     numericCapValue,
     numericCellSize,
     numericMaxBlocks, setNumericBudgetHint, setNumericCellSize, // TASKS.csv #625; setNumericCellSize: #1416
+    numericCellHeight, numericFlatReach, // #3062
     numericCloseShell,
     numericCompositeLength,
     numericCutoff,
@@ -7049,7 +7028,7 @@ ${+a.from.toFixed(2)}–${+a.to.toFixed(2)} m`)); // #1500; #2365 as stored
         {sidebarTab === "modelling" && (<>
         {MODELLING_PANES.has(toolPane) && (
           <Suspense fallback={null}>
-            <ModellingPanes {...{ visibleHoles, setVisibleHoles, /* #2536 */ stackBreaks, setStackBreaks, orientationReachM, setOrientationReachM, /* #1170 */ tracesSeq, /* #888 */ explicitTrend, /* #881 */ camState, sectionImages, setDigitizeImageId, /* #824 */ runMapModel, MapModelPanel, viewDragHookRef, sceneRef, layerGroupsRef, /* #1333 */ cameraRef, rendererRef, explicitOverlayRef, ExplicitSurfacePanel, ModellingCodesPane, PredictivePanel, SurfaceGeologyProjection, TrendsPanel, activeInterceptSet, activeInterceptSetId, addLithoGroup, addStackUnit, addVoxelModel, addWorldMeshSurface, alt_units, alterationBusy, alterationCellSize, alterationSearchRadius, alterationTarget, askPrompt, assayElements, assays, clipToDomainBoundary, clipToTopo, limitToContacts, setLimitToContacts, contactReachM, setContactReachM, collars, desurveyMethod, domains, emptyPaneHint, expandedLithoGroupId, explicitClickRef, explicitPickFor, explicitSnap, explicitSurfaces, faultCandidates, implicitBusy, implicitGroupRef, implicitMeshesRef, implicitSurfaces, implicitTarget, includeSectionContacts, interceptSets, isLithoGroupKey, isMcodeKey, lastActivityRef, layers: unitLayers, unitField, setUnitField, unitFields, /* #2378 */ lithoGroupCrossCuts, lithoGroupKey, lithoGroupRole, lithoGroups, litho_units, mapConstraint, mapLayers, mcConnectFrom, mcGroupOf, mcPickMode, mcSelected, mcodeDefaultRole, miniField, modelDomainId, modelArea, setModelArea, /* #1546 */ modelResolution, modellingCodeList, modellingCodes, moveStackUnit, numericBudgetHint, numericBusy, numericCapValue, numericCellSize, numericCloseShell, numericCompositeLength, numericCutoff, numericIncludeQAQC, numericMaxBlocks, numericMethod, numericVariogram, setNumericVariogram, /* #1015 */ numericMinCoverage, numericMinHoles, numericPadding, numericSearchRadius, numericSymbol, numericUseComposites, orientTypes, orientTypesSel, originRef, paneHeader, projectMapContact, rangeMultiplier, removeImplicitSurface, removeLithoGroup, removeStackUnit, resolveLithoTarget, runAlterationModel, runImplicitModel, runNumericModel, runStackModel, runStructuralModel, runVeinModel, searchEllipsoid, sections, sensBudget, sensN, sensOpen, sensSigmaDeg, sensSigmaPos, setActiveInterceptSetId, setAlterationCellSize, setAlterationSearchRadius, setAlterationTarget, setClipToDomainBoundary, setClipToTopo, setCoreOrientOpen, setExpandedLithoGroupId, setExplicitPickFor, setExplicitSnap, setExplicitSurfaces, setFenceOpen, setGradeEstOpen, setImplicitSurfaces, setImplicitTarget, setIncludeSectionContacts, setMapConstraint, setMcConnectFrom, setMcPickMode, setMcSelected, setModelDomainId, setModelResolution, setModellingCodes, setNotices, setNumericBudgetHint, setNumericCapValue, setNumericCellSize, setNumericCloseShell, setNumericCompositeLength, setNumericCutoff, setNumericIncludeQAQC, setNumericMaxBlocks, setNumericMethod, setNumericMinCoverage, setNumericMinHoles, setNumericPadding, setNumericSearchRadius, setNumericSymbol, setNumericUseComposites, setOrientTypesSel, setRangeMultiplier, setSearchEllipsoid, setSensBudget, setSensN, setSensOpen, setSensSigmaDeg, setSensSigmaPos, setSmoothClusters, setStackAdd, setStackFaults, setStackRelation, setStereonetOpen, setStructuralTarget, setStructuralTrends, setSurfaceDetail, setTadpoleOpen, setThinPicks, setThinWindowM, setTrendPreviewId, setVariogramOpen, setVeinCellSize, setVeinDip, setVeinDipDir, setVeinSearchRadius, setVeinTarget, smoothClusters, stackAdd, stackFaults, stackFaultOffsets, setStackFaultOffsets, /* #1054 */ stackRelation, stackUnits, struct_types, structuralTarget, structuralTrends, structurePicksWithHoleAttitude, structureTypes, surfaceDetail, surfaceStructures, survey, terrain, thinPicks, thinWindowM, toolPane, tracesRef, trendFor, trendPreviewId, updateLithoGroup, veinBusy, veinCellSize, veinDip, veinDipDir, veinSearchRadius, veinTarget, vein_units, worldPointFromHits }} />
+            <ModellingPanes {...{ visibleHoles, setVisibleHoles, /* #2536 */ stackBreaks, setStackBreaks, orientationReachM, setOrientationReachM, /* #1170 */ tracesSeq, /* #888 */ explicitTrend, /* #881 */ camState, sectionImages, setDigitizeImageId, /* #824 */ runMapModel, MapModelPanel, viewDragHookRef, sceneRef, layerGroupsRef, /* #1333 */ cameraRef, rendererRef, explicitOverlayRef, ExplicitSurfacePanel, ModellingCodesPane, PredictivePanel, SurfaceGeologyProjection, TrendsPanel, activeInterceptSet, activeInterceptSetId, addLithoGroup, addStackUnit, addVoxelModel, addWorldMeshSurface, alt_units, alterationBusy, alterationCellSize, alterationSearchRadius, alterationTarget, askPrompt, assayElements, assays, clipToDomainBoundary, clipToTopo, limitToContacts, setLimitToContacts, contactReachM, setContactReachM, collars, desurveyMethod, domains, emptyPaneHint, expandedLithoGroupId, explicitClickRef, explicitPickFor, explicitSnap, explicitSurfaces, faultCandidates, implicitBusy, implicitGroupRef, implicitMeshesRef, implicitSurfaces, implicitTarget, includeSectionContacts, interceptSets, isLithoGroupKey, isMcodeKey, lastActivityRef, layers: unitLayers, unitField, setUnitField, unitFields, /* #2378 */ lithoGroupCrossCuts, lithoGroupKey, lithoGroupRole, lithoGroups, litho_units, mapConstraint, mapLayers, mcConnectFrom, mcGroupOf, mcPickMode, mcSelected, mcodeDefaultRole, miniField, modelDomainId, modelArea, setModelArea, /* #1546 */ modelResolution, modellingCodeList, modellingCodes, moveStackUnit, numericBudgetHint, numericBusy, numericCapValue, numericCellSize, numericCellHeight, setNumericCellHeight, numericFlatReach, setNumericFlatReach, /* #3062 */ numericCloseShell, numericCompositeLength, numericCutoff, numericIncludeQAQC, numericMaxBlocks, numericMethod, numericVariogram, setNumericVariogram, /* #1015 */ numericMinCoverage, numericMinHoles, numericPadding, numericSearchRadius, numericSymbol, numericUseComposites, orientTypes, orientTypesSel, originRef, paneHeader, projectMapContact, rangeMultiplier, removeImplicitSurface, removeLithoGroup, removeStackUnit, resolveLithoTarget, runAlterationModel, runImplicitModel, runNumericModel, runStackModel, runStructuralModel, runVeinModel, searchEllipsoid, sections, sensBudget, sensN, sensOpen, sensSigmaDeg, sensSigmaPos, setActiveInterceptSetId, setAlterationCellSize, setAlterationSearchRadius, setAlterationTarget, setClipToDomainBoundary, setClipToTopo, setCoreOrientOpen, setExpandedLithoGroupId, setExplicitPickFor, setExplicitSnap, setExplicitSurfaces, setFenceOpen, setGradeEstOpen, setImplicitSurfaces, setImplicitTarget, setIncludeSectionContacts, setMapConstraint, setMcConnectFrom, setMcPickMode, setMcSelected, setModelDomainId, setModelResolution, setModellingCodes, setNotices, setNumericBudgetHint, setNumericCapValue, setNumericCellSize, setNumericCloseShell, setNumericCompositeLength, setNumericCutoff, setNumericIncludeQAQC, setNumericMaxBlocks, setNumericMethod, setNumericMinCoverage, setNumericMinHoles, setNumericPadding, setNumericSearchRadius, setNumericSymbol, setNumericUseComposites, setOrientTypesSel, setRangeMultiplier, setSearchEllipsoid, setSensBudget, setSensN, setSensOpen, setSensSigmaDeg, setSensSigmaPos, setSmoothClusters, setStackAdd, setStackFaults, setStackRelation, setStereonetOpen, setStructuralTarget, setStructuralTrends, setSurfaceDetail, setTadpoleOpen, setThinPicks, setThinWindowM, setTrendPreviewId, setVariogramOpen, setVeinCellSize, setVeinDip, setVeinDipDir, setVeinSearchRadius, setVeinTarget, smoothClusters, stackAdd, stackFaults, stackFaultOffsets, setStackFaultOffsets, /* #1054 */ stackRelation, stackUnits, struct_types, structuralTarget, structuralTrends, structurePicksWithHoleAttitude, structureTypes, surfaceDetail, surfaceStructures, survey, terrain, thinPicks, thinWindowM, toolPane, tracesRef, trendFor, trendPreviewId, updateLithoGroup, veinBusy, veinCellSize, veinDip, veinDipDir, veinSearchRadius, veinTarget, vein_units, worldPointFromHits }} />
           </Suspense>
         )}{/* TASKS.csv #693 — loaded on demand */}
         {toolPane && <div className="ge-pane-end" role="separator" />}{/* #458 */}

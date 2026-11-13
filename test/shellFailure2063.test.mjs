@@ -15,5 +15,5 @@ test("the failure carries the facts and the advice that fits the run", () => {
   assert.match(block, /isolated \? tr\("No \{symbol\} shell at \{numericCutoff\} \{unit\}: the grid has no surface to extract\."/);
   assert.match(block, /: mh > 1\n\s+\? tr\("With Min holes \{k\}/);
   assert.match(block, /cellRefit \? tr\("Try a lower cutoff or a larger search radius\."\)/);
-  assert.match(r, /cs = fit; blocksNeeded = gridBlockCount\(bounds, cs\); cellRefit = true;/);
+  assert.match(r, /cs = fit; blocksNeeded = blocksOf\(cs\); cellRefit = true;/);
 });
