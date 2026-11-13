@@ -47,5 +47,5 @@ test("the pane says it in place of 'undrilled' and keeps it with the pit", () =>
   const p = fs.readFileSync("src/components/PitShellPane.jsx", "utf8");
   assert.match(p, /res\.outside\?\.samples > 0/);
   assert.match(p, /drilledOutsideModel: \{ samples: outside\.samples/);
-  assert.match(p, /if \(r\.barrenShare > 0\.02 && element && assays\.length\)/);
+  assert.match(p, /if \(element && assays\.length\) \{/); // #3003 (6): computed with any assays (was only with > 2 % of the pit outside the model)
 });

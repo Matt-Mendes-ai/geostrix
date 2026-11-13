@@ -37,12 +37,18 @@ export function drilledOutsideModel(cells, samples, traces, pit, cutoff) {
   if (frame.nx * frame.ny > 4_000_000) return null;
   const floorAt = ceilingLookup(pitCeiling(pit.positions, pit.indices, frame), frame);
   const out = { samples: 0, metres: 0, holes: new Set(), oreSamples: 0, oreMetres: 0, oreHoles: new Map() };
+  const gap = { oreSamples: 0, oreMetres: 0, oreHoles: new Map() }; // #3003 (6)
   for (const { s, p, m } of pts) {
     const f = floorAt(p.x, p.y);
     if (!fin(f) || p.z < f - 1e-6) continue; // under the pit (or where the pit's mesh does not reach)
-    if (nearModel(p)) continue;
+    if (nearModel(p)) {
+      // TASKS.csv #3003 (6) — near the model but in a cell of its own lattice with no block: a hole of the estimate inside its footprint
+      if (!has.has(key(idx(p.x, c0.x, dx), idx(p.y, c0.y, dy), idx(p.z, c0.z, dz))) && fin(s.value) && fin(cutoff) && s.value >= cutoff) { gap.oreSamples++; gap.oreMetres += m; gap.oreHoles.set(s.hole_id, (gap.oreHoles.get(s.hole_id) || 0) + m); }
+      continue;
+    }
     out.samples++; out.metres += m; out.holes.add(s.hole_id);
     if (fin(s.value) && fin(cutoff) && s.value >= cutoff) { out.oreSamples++; out.oreMetres += m; out.oreHoles.set(s.hole_id, (out.oreHoles.get(s.hole_id) || 0) + m); }
   }
-  return { samples: out.samples, metres: out.metres, holes: out.holes.size, oreSamples: out.oreSamples, oreMetres: out.oreMetres, oreHoles: out.oreHoles.size, holeIds: [...out.oreHoles].sort((a, b) => b[1] - a[1]).map(([h]) => h) };
+  return { samples: out.samples, metres: out.metres, holes: out.holes.size, oreSamples: out.oreSamples, oreMetres: out.oreMetres, oreHoles: out.oreHoles.size, holeIds: [...out.oreHoles].sort((a, b) => b[1] - a[1]).map(([h]) => h),
+    gap: { oreSamples: gap.oreSamples, oreMetres: gap.oreMetres, oreHoles: gap.oreHoles.size, holeIds: [...gap.oreHoles].sort((a, b) => b[1] - a[1]).map(([h]) => h) } }; // gap: #3003 (6)
 }
