@@ -2444,6 +2444,8 @@
   "specific gravity": "gravedad específica",
   "susceptibility": "susceptibilidad",
   "Log units": "Unidades del registro",
+  "Choose the log that holds the {v} readings (Log).": "Elija el registro que contiene las lecturas de {v} (Registro).",
+  "Log that constrains the inversion": "Registro que restringe la inversión",
   "Susceptibility log units": "Unidades del registro de susceptibilidad",
   "Choose…": "Elegir…",
   "The logged SG minus this is the density contrast the inversion models.": "La GE registrada menos esto es el contraste de densidad que modela la inversión.",

@@ -2444,6 +2444,8 @@
   "specific gravity": "الكثافة النوعية",
   "susceptibility": "القابلية المغناطيسية",
   "Log units": "وحدات السجل",
+  "Choose the log that holds the {v} readings (Log).": "اختر التسجيل الذي يحتوي على قراءات {v} (التسجيل).",
+  "Log that constrains the inversion": "التسجيل الذي يقيّد الانعكاس",
   "Susceptibility log units": "وحدات سجل القابلية المغناطيسية",
   "Choose…": "اختر…",
   "The logged SG minus this is the density contrast the inversion models.": "الكثافة النوعية المسجلة ناقص هذه هي تباين الكثافة الذي تنمذجه النمذجة العكسية.",
