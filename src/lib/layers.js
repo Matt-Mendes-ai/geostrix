@@ -78,9 +78,49 @@ function categoricalSafeColor(namespace, key) {
   if (!cache) { cache = new Map(); categoricalColorCache.set(namespace, cache); }
   const k = key === undefined || key === null || key === "" ? "unknown" : String(key).toLowerCase();
   if (cache.has(k)) return cache.get(k);
-  const color = cache.size < CATEGORICAL_SAFE_COLORS.length ? CATEGORICAL_SAFE_COLORS[cache.size] : hashColor(k);
+  const color = cache.size < CATEGORICAL_SAFE_COLORS.length ? CATEGORICAL_SAFE_COLORS[cache.size] : beyondPalette(cache, k);
   cache.set(k, color);
   return color;
+}
+// TASKS.csv #2524 / #2940 (reviews #2486, #2876) — past the 16 palette colours the hashed hues ran together: GR #41c8ab and NS #41c8a6, SC and
+// CAV identical, six violets and seven magentas on an iron strand log; DID_U / DID_M / DID_L had nothing in common with DID. A code past the
+// palette now takes the next slot of a golden-angle hue sequence with a three-step lightness cycle (neighbouring slots differ in hue by about
+// 137 degrees and in lightness), and a sub-divided code (its parent before '_', '-' or a space) whose parent already has a colour takes a
+// lighter or darker shade of that parent's hue. Deterministic in first-seen order, as the palette is.
+const GOLDEN = 137.508, LIGHT_CYCLE = [50, 66, 36];
+export function beyondPalette(cache, k) {
+  const parent = k.split(/[_\-\s]+/)[0];
+  if (parent && parent !== k && cache.has(parent)) {
+    const hsl = hexOrHslToHsl(cache.get(parent));
+    if (hsl) {
+      // the lightness of the parent and of the siblings already shaded: the first step that keeps 6 points from all of them (clamped to 18-86)
+      const used = [hsl.l];
+      for (const [key, c] of cache) if (key !== parent && key.split(/[_\-\s]+/)[0] === parent) { const o = hexOrHslToHsl(c); if (o) used.push(o.l); }
+      const clamp = (v) => Math.max(18, Math.min(86, Math.round(v)));
+      const steps = [18, -16, 30, -28, 9, -8, 40, -38, 24, -22];
+      const l = steps.map((d) => clamp(hsl.l + d)).find((v) => used.every((u) => Math.abs(u - v) >= 6));
+      if (l != null) return `hsl(${Math.round(hsl.h)}, ${Math.round(Math.max(30, hsl.s))}%, ${l}%)`;
+    }
+  }
+  const n = cache.size - CATEGORICAL_SAFE_COLORS.length;
+  const hue = (25 + n * GOLDEN) % 360;
+  return `hsl(${Math.round(hue)}, 58%, ${LIGHT_CYCLE[n % LIGHT_CYCLE.length]}%)`;
+}
+// "#rrggbb" or "hsl(h, s%, l%)" -> { h, s, l } (degrees, per cent) or null
+function hexOrHslToHsl(c) {
+  const m = /^hsl\(\s*([\d.]+)\s*,\s*([\d.]+)%\s*,\s*([\d.]+)%\s*\)$/i.exec(String(c || "").trim());
+  if (m) return { h: +m[1], s: +m[2], l: +m[3] };
+  const x = /^#?([0-9a-f]{6})$/i.exec(String(c || "").trim());
+  if (!x) return null;
+  const r = parseInt(x[1].slice(0, 2), 16) / 255, g = parseInt(x[1].slice(2, 4), 16) / 255, bl = parseInt(x[1].slice(4, 6), 16) / 255;
+  const mx = Math.max(r, g, bl), mn = Math.min(r, g, bl), l = (mx + mn) / 2, d = mx - mn;
+  let h = 0, s = 0;
+  if (d > 0) {
+    s = d / (1 - Math.abs(2 * l - 1));
+    h = mx === r ? ((g - bl) / d) % 6 : mx === g ? (bl - r) / d + 2 : (r - g) / d + 4;
+    h *= 60; if (h < 0) h += 360;
+  }
+  return { h, s: s * 100, l: l * 100 };
 }
 
 // TASKS.csv #249 (colorblind-safety review) — this palette skewed heavily brown/olive/dark-green,
