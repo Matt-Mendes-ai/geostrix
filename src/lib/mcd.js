@@ -178,13 +178,25 @@ export function fastMcd(X, { alpha = 0.75, starts = 50, seed = 1, subsample = 15
 export function mcdAnomalyScores(rows, symbols, opts = {}) {
   const D = symbols.length;
   if (D < 3) throw new Error("Choose at least three elements: the score is taken on their log ratios.");
+  return mcdFromPacked(mcdPack(rows, symbols), (rows || []).length, D, opts);
+}
+// TASKS.csv #3030 (split from #1999) — the score in a Web Worker for 10^5 samples (about 0.1 s per 1,000 on the main thread): the chosen
+// values packed row by row into one Float64Array (NaN for no number), which a worker takes without copying each sample object, and the
+// fit on that array, the same code on either side. -> Float64Array(n * D)
+export function mcdPack(rows, symbols) {
+  const n = (rows || []).length, D = symbols.length, out = new Float64Array(n * D);
+  for (let i = 0; i < n; i++) { const v = rows[i]?.values; for (let j = 0; j < D; j++) { const x = Number(v?.[symbols[j]]); out[i * D + j] = Number.isFinite(x) ? x : NaN; } }
+  return out;
+}
+export function mcdFromPacked(packed, n, D, opts = {}) {
+  if (D < 3) throw new Error("Choose at least three elements: the score is taken on their log ratios.");
   const idx = [], X = [];
-  rows.forEach((r, i) => {
-    const x = symbols.map((s) => Number(r?.values?.[s]));
+  for (let i = 0; i < n; i++) {
+    const x = Array.from(packed.subarray(i * D, i * D + D));
     if (x.every((v) => Number.isFinite(v) && v > 0)) { idx.push(i); X.push(pivotIlr(x)); }
-  });
+  }
   const fit = fastMcd(X, opts);
-  const scores = new Array(rows.length).fill(null), cutoff = Math.sqrt(chi2Quantile(0.975, fit.p));
+  const scores = new Array(n).fill(null), cutoff = Math.sqrt(chi2Quantile(0.975, fit.p));
   let flagged = 0;
   idx.forEach((ri, k) => { const v = Math.sqrt(fit.d2[k]); scores[ri] = v; if (v > cutoff) flagged++; });
   return { scores, cutoff, p: fit.p, used: idx.length, flagged, h: fit.h };
