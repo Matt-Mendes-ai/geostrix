@@ -1,13 +1,18 @@
 // TASKS.csv #637 — the Woodjam sample project's non-table parts read from the shipped files.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import { woodjamAssays, woodjamIpLine, WOODJAM_EPSG, WOODJAM_IP_LINES } from "../src/lib/sampleWoodjam.js";
 import { parseStationFile } from "../src/lib/dcipStations.js";
 
-const dir = "sample_data/woodjam/";
+import { bcSkip, bcText } from "./helpers/bcSample.mjs";
 
-test("#637 assays: every sample, element units from the headers, Cu over-limit filled", () => {
+// TASKS.csv #3134 — Woodjam is no longer in the repository (BC's terms), and the app does not download it (1.94 GB): these run where its
+// files are found (a checkout that has them, or GEOSTRIX_BC_SAMPLES)
+const skip = bcSkip("woodjam");
+const readFileSync = (f) => bcText("woodjam", f);
+const dir = "";
+
+test("#637 assays: every sample, element units from the headers, Cu over-limit filled", { skip }, () => {
   const { rows, elements } = woodjamAssays(readFileSync(dir + "assays.csv", "utf8"));
   assert.equal(rows.length, 3791);
   const unit = Object.fromEntries(elements.map((e) => [e.symbol, e.unit]));
@@ -19,7 +24,7 @@ test("#637 assays: every sample, element units from the headers, Cu over-limit f
   assert.ok(rows.every((r) => r.to > r.from && r.sample_id));
 });
 
-test("#637 IP lines: readings parsed and each line placed from the GPS stations", () => {
+test("#637 IP lines: readings parsed and each line placed from the GPS stations", { skip }, () => {
   const sf = { name: "2357GPS_All.txt", ...parseStationFile(readFileSync(dir + "ip/2357GPS_All.txt", "utf8"), "2357GPS_All.txt") };
   for (const l of WOODJAM_IP_LINES) {
     const e = woodjamIpLine(l, readFileSync(`${dir}ip/${l}.dat`, "utf8"), sf, WOODJAM_EPSG);

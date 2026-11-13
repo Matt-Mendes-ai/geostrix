@@ -8,6 +8,7 @@ import { buildKmz, crc32 } from "../src/lib/kmzZip.js";
 import { readZipEntries } from "../src/lib/shapefile.js";
 import { LAYER_META, categoryColor } from "../src/lib/layers.js";
 import { kmlColor } from "../src/lib/overlayExport.js";
+import { bcSkip, perkFile } from "./helpers/bcSample.mjs"; // TASKS.csv #3134 — the BC samples are not in the repository: real-data checks run where one is found
 
 const toLonLat = (x, y) => [-130 + (x - 500000) / 1e5, 56 + (y - 6200000) / 1e5];
 const png = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
@@ -125,12 +126,10 @@ test("numeric logs: the view's classes, or equal bins when the ramp has more col
   assert.match(kml, /<ScreenOverlay><name>Legend: Lithology<\/name><Icon><href>files\/legend_\d+\.png<\/href><\/Icon><overlayXY x="0" y="1"/);
 });
 
-test("Matt's Perk-Rocky KMZ: PR-Litho_interpV3's polygons carry their category fill (lowercase aabbggrr at the layer's opacity, fill and outline on), clamped to the ground", async () => {
-  const { readFileSync } = await import("node:fs");
+test("Matt's Perk-Rocky KMZ: PR-Litho_interpV3's polygons carry their category fill (lowercase aabbggrr at the layer's opacity, fill and outline on), clamped to the ground", { skip: bcSkip("perk_rocky") }, async () => { // #3134: where the report's layers are found
   const { loadPerkRocky } = await import("../src/lib/samplePerkRocky.js");
-  const dir = new URL("../sample_data/perk_rocky/", import.meta.url);
   const mapLayers = [];
-  await loadPerkRocky(async (n) => new File([readFileSync(new URL(n, dir))], n), { addMapLayer: (l) => mapLayers.push(l), addSurfaceStructureSet: () => {}, addTerrain: () => {} });
+  await loadPerkRocky(async (n) => new File([perkFile(n)], n), { addMapLayer: (l) => mapLayers.push(l), addSurfaceStructureSet: () => {}, addTerrain: () => {} });
   const L = mapLayers.find((l) => l.name === "PR-Litho_interpV3");
   assert.equal(L.geomType, "polygon");
   const dac = L.categories.find((c) => c.value === "Dac");

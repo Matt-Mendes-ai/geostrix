@@ -8,6 +8,7 @@ import { splitSelfCrossing, splitRings, ringCrossesItself } from "../src/lib/rin
 import { polygonsFromRings } from "../src/lib/polygonRings.js";
 import { buildProjectKml } from "../src/lib/projectKmz.js";
 import { featuresToKml, mapLayerFeatures, lonLatTransform } from "../src/lib/overlayExport.js";
+import { bcSkip, perkFile } from "./helpers/bcSample.mjs"; // TASKS.csv #3134 — the BC samples are not in the repository: real-data checks run where one is found
 
 const square = (x0, y0, s) => [[x0, y0], [x0 + s, y0], [x0 + s, y0 + s], [x0, y0 + s]];
 const eight = (x0, y0, s) => [[x0, y0], [x0 + s, y0 + s], [x0 + s, y0], [x0, y0 + s]]; // a bow tie: its two diagonals cross at the centre
@@ -35,11 +36,10 @@ test("a crossing hole becomes two holes of its polygon; a crossing outer ring tw
   assert.equal(outers.length, 2);
 });
 
-test("Perk-Rocky's PR-Litho_interpV3, as both KML writers write it: no ring crosses itself in longitude / latitude", async () => {
+test("Perk-Rocky's PR-Litho_interpV3, as both KML writers write it: no ring crosses itself in longitude / latitude", { skip: bcSkip("perk_rocky") }, async () => { // #3134: where the report's layers are found
   const { loadPerkRocky } = await import("../src/lib/samplePerkRocky.js");
-  const dir = new URL("../sample_data/perk_rocky/", import.meta.url);
   const layers = [];
-  await loadPerkRocky(async (n) => new File([readFileSync(new URL(n, dir))], n), { addMapLayer: (l) => layers.push(l), addSurfaceStructureSet: () => {}, addTerrain: () => {} });
+  await loadPerkRocky(async (n) => new File([perkFile(n)], n), { addMapLayer: (l) => layers.push(l), addSurfaceStructureSet: () => {}, addTerrain: () => {} });
   const L = layers.find((l) => l.name === "PR-Litho_interpV3");
   const toLonLat = await lonLatTransform(26910);
   const rings = (kml) => [...kml.matchAll(/<LinearRing><coordinates>([^<]*)<\/coordinates>/g)].map((m) => m[1].trim().split(/\s+/).map((t) => t.split(",").map(Number)));

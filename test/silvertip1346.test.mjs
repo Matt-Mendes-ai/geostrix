@@ -2,17 +2,20 @@
 // assays and surface samples read as the loader reads them
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import { parseTableText } from "../src/lib/tabular.js";
 import { guessTargetFor, guessMapping, schemaSatisfied } from "../src/lib/layers.js";
 import { silvertipAssays, silvertipSurface, SILVERTIP_SURFACE } from "../src/lib/sampleSilvertip.js";
 import { sampleProjectName } from "../src/lib/sampleProjectName.js";
 
-const dir = new URL("../sample_data/silvertip/", import.meta.url);
-const text = (f) => readFileSync(new URL(f, dir), "utf8");
+import { bcSkip, bcText } from "./helpers/bcSample.mjs";
+
+// TASKS.csv #3134 — Silvertip is no longer in the repository (BC's terms): these run on its files where they are found (a checkout that has
+// them, or GEOSTRIX_BC_SAMPLES pointing at the app's downloaded copy); the loader's assay layout is also read by the WA uranium sample's tests
+const skip = bcSkip("silvertip");
+const text = (f) => bcText("silvertip", f);
 const table = (f) => parseTableText(text(f));
 
-test("each drill table goes to its layer with every required column mapped", () => {
+test("each drill table goes to its layer with every required column mapped", { skip }, () => {
   const expect = { "collars.csv": "collars", "survey.csv": "survey", "litho.csv": "litho", "alt.csv": "alt", "breccia.csv": "breccia", "vein.csv": "vein", "mnlgy.csv": "mnlgy",
     "struct_zones.csv": "structzone", "geotech.csv": "geotech", "recovery.csv": "recovery", "magsusc.csv": "magsusc", "structure.csv": "structure" };
   for (const [f, target] of Object.entries(expect)) {
@@ -22,7 +25,7 @@ test("each drill table goes to its layer with every required column mapped", () 
   }
 });
 
-test("9 holes in UTM zone 9N, surveys for every hole, structures with alpha", () => {
+test("9 holes in UTM zone 9N, surveys for every hole, structures with alpha", { skip }, () => {
   const c = table("collars.csv").rows;
   assert.equal(c.length, 9);
   c.forEach((r) => { assert.ok(r.x > 420000 && r.x < 430000, r.hole_id); assert.ok(r.y > 6630000 && r.y < 6650000, r.hole_id); assert.ok(r.length >= 348 && r.length <= 1323); });
@@ -36,7 +39,7 @@ test("9 holes in UTM zone 9N, surveys for every hole, structures with alpha", ()
   assert.ok(table("magsusc.csv").rows.every((r) => Number.isFinite(r.depth) && Number.isFinite(r.mag_reading)));
 });
 
-test("assays: 1,339 samples, Pb / Zn / Cu in %, a negative code read as below detection", () => {
+test("assays: 1,339 samples, Pb / Zn / Cu in %, a negative code read as below detection", { skip }, () => {
   const { rows, elements } = silvertipAssays(text("assays.csv"));
   assert.equal(rows.length, 1339);
   const unit = Object.fromEntries(elements.map((e) => [e.symbol, e.unit]));
@@ -46,7 +49,7 @@ test("assays: 1,339 samples, Pb / Zn / Cu in %, a negative code read as below de
   assert.ok(rows.some((r) => r.values.Zn > 1), "real zinc grades over 1 %");
 });
 
-test("surface samples: 168 rock, 282 soil, 156 stream sediment, located, with their medium", () => {
+test("surface samples: 168 rock, 282 soil, 156 stream sediment, located, with their medium", { skip }, () => {
   const n = {};
   for (const [f, medium] of SILVERTIP_SURFACE) {
     const { samples } = silvertipSurface(text(f), medium);
