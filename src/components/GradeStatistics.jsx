@@ -244,7 +244,8 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
     const unit = elementUnits[symbol] || "ppm", out = [];
     const bi = interceptCutoffFor(project?.name, symbol, unit);
     if (bi != null) out.push({ key: "bi", value: bi, label: tr("Best intercepts {v}", { v: +bi.toPrecision(4) }), title: tr("The cut-off last set in Best intercepts for {symbol}. Click to add it.", { symbol }) });
-    for (const o of sortedThresholdOffers(drillThresholdOffers(geochemThresholds, symbol, unit)).slice(0, 4)) // the highest four: #3160 out.push({ key: "t:" + o.key, value: o.value, label: `${o.population ? `${o.population.split(": ").pop()} ` : ""}${+Number(o.value).toPrecision(4)}`, title: tr("{rule}{pop}, decided {date}. Click to add it.", { rule: o.rule, pop: o.population ? ` (${o.population})` : "", date: o.decided }) });
+    for (const o of sortedThresholdOffers(drillThresholdOffers(geochemThresholds, symbol, unit)).slice(0, 4)) // the highest four: #3160 (#3299: the push on its own line, not inside the comment)
+      out.push({ key: "t:" + o.key, value: o.value, label: `${o.population ? `${o.population.split(": ").pop()} ` : ""}${+Number(o.value).toPrecision(4)}`, title: tr("{rule}{pop}, decided {date}. Click to add it.", { rule: o.rule, pop: o.population ? ` (${o.population})` : "", date: o.decided }) });
     return out.filter((o, i, a) => a.findIndex((p) => p.value === o.value) === i);
   }, [source, symbol, elementUnits, project?.name, geochemThresholds]);
   const addCutoff = (v) => setCutText([...new Set([...cutoffs, v])].sort((a, b) => a - b).join(", "));
