@@ -11856,5 +11856,7 @@
   "The logs and assay elements shown in the 3D View are offered here: turn one on there (Recovery %, Mag. susc., or an element under Assays) to colour the plan by it. A log read at a depth colours a pierce point by its reading nearest the RL in the slab.": "Aqui são oferecidos os registros e os elementos de análise mostrados na Vista 3D: ative um lá (Recuperação %, Susc. mag. ou um elemento em Análises) para colorir a planta por ele. Um registro lido a uma profundidade colore um ponto de interseção com a leitura mais próxima da cota na faixa.",
   "Nothing was under the click (no terrain, hole or model there), so the point was put on the flat reference level of the view. Load terrain or click on a surface to measure the ground.": "Não havia nada sob o clique (nem terreno, nem furo, nem modelo), então o ponto foi colocado no nível de referência plano da vista. Carregue um terreno ou clique numa superfície para medir o terreno.",
   "{n} point is on the reference level at {z} m (no ground under the click): its elevation is that level's": "{n} ponto está no nível de referência a {z} m (sem terreno sob o clique): sua cota é a desse nível",
-  "{n} points are on the reference level at {z} m (no ground under the click): their elevations are that level's": "{n} pontos estão no nível de referência a {z} m (sem terreno sob o clique): suas cotas são as desse nível"
+  "{n} points are on the reference level at {z} m (no ground under the click): their elevations are that level's": "{n} pontos estão no nível de referência a {z} m (sem terreno sob o clique): suas cotas são as desse nível",
+  " · inside \"{solid}\"": " · dentro de “{solid}”",
+  " · model area: {area}": " · área do modelo: {area}"
 }
