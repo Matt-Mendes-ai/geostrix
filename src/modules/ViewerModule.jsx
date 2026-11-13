@@ -5241,7 +5241,25 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       catch (e) { setNotices((p) => [...p, errorNotice(tr("Couldn't load the sample project: {message}", { message: e.message }))]); }
       return;
     }
+    if (which === "mount_raymond") { // TASKS.csv #3107 — GSC bedrock mapping on a terrain, no drillhole tables: lib/sampleMountRaymond.js
+      try {
+        const { loadMountRaymond, RAYMOND_EPSG, RAYMOND_CRS_NAME } = await import("../lib/sampleMountRaymond.js");
+        if (store.project?.crsSet === false) { store.setEpsg(RAYMOND_EPSG); setNotices((p) => [...p, notice("Project CRS set to {crs} (EPSG:{epsg}), the sample project's coordinate system.", { crs: RAYMOND_CRS_NAME, epsg: RAYMOND_EPSG })]); }
+        const notes = await loadMountRaymond(async (rel) => (await loadSampleFiles("mount_raymond", [rel]))[0], { addMapLayer: store.addMapLayer, addSurfaceStructureSet: store.addSurfaceStructureSet, addTerrain: store.addTerrain }, { projectEpsg: store.project?.crsSet === false ? RAYMOND_EPSG : (store.project?.epsg || RAYMOND_EPSG) });
+        setNotices((p) => [...p, ...notes]);
+      } catch (e) { setNotices((p) => [...p, errorNotice(tr("Couldn't load the sample project: {message}", { message: e.message }))]); }
+      return;
+    }
     const ok = await loadSampleProject(which);
+    if (ok && which !== "wa_uranium" && which.startsWith("wa_")) { // TASKS.csv #3107 — assays, surface samples, downhole logs and a grid: lib/sampleWa.js
+      try {
+        const { loadWaSampleExtras, WA_SAMPLES } = await import("../lib/sampleWa.js");
+        const notes = await loadWaSampleExtras(which, async (rel) => (await loadSampleFiles(WA_SAMPLES[which].dir, [rel]))[0], { setAssays, setAssayElements, setSurfaceSamples: store.setSurfaceSamples, setSurfaceElements: store.setSurfaceElements, addCustomLayer: (l) => setStoreCustomLayers((p) => [...(p || []), l]), addRaster: store.addRaster },
+          { existingElements: assayElements, existingSurfaceElements: surfaceElements, project: importStateRef.current?.project || store.project });
+        setNotices((p) => [...p, ...notes]);
+      } catch (e) { setNotices((p) => [...p, errorNotice(tr("Couldn't load the sample project: {message}", { message: e.message }))]); }
+      return;
+    }
     if (ok && which === "silvertip") { // TASKS.csv #1346 — assays and surface samples
       try {
         const { loadSilvertipExtras } = await import("../lib/sampleSilvertip.js");

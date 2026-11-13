@@ -128,6 +128,26 @@ export function bundledData() {
   const wa = path.join(ROOT, "sample_data", "wa_uranium", "README.md");
   if (existsSync(wa)) out.push({ name: "WA palaeochannel uranium sample (WAMEX company mineral drillhole database, Department of Energy, Mines, Industry Regulation and Safety, Western Australia)", version: "2024", license: "CC-BY-4.0",
     url: "https://catalogue.data.wa.gov.au/dataset/mineral-exploration-drillholes-open-file", text: readFileSync(wa, "utf8").trim() });
+  // TASKS.csv #3107 — listed like the Blake River and WA uranium samples: its README carries the attribution and says what was done
+  { const p = path.join(ROOT, "sample_data", "mount_raymond", "README.md");
+    if (existsSync(p)) out.push({ name: "Mount Raymond mapping sample (Geological Survey of Canada, Canadian Geoscience Map 71, and the Canadian Digital Elevation Model, Natural Resources Canada)", version: "2022", license: "OGL-Canada-2.0",
+      url: "https://open.canada.ca/en/open-government-licence-canada", text: readFileSync(p, "utf8").trim() }); }
+  // TASKS.csv #3107 — listed like the Blake River and WA uranium samples: its README carries the attribution and says what was done
+  { const p = path.join(ROOT, "sample_data", "wa_iron", "README.md");
+    if (existsSync(p)) out.push({ name: "WA bedded iron sample (WAMEX company mineral drillhole database, Department of Energy, Mines, Industry Regulation and Safety, Western Australia; Total Magnetic Intensity Grid of Australia 2019, Geoscience Australia)", version: "2024", license: "CC-BY-4.0",
+      url: "https://catalogue.data.wa.gov.au/dataset/mineral-exploration-drillholes-open-file", text: readFileSync(p, "utf8").trim() }); }
+  // TASKS.csv #3107 — listed like the Blake River and WA uranium samples: its README carries the attribution and says what was done
+  { const p = path.join(ROOT, "sample_data", "wa_lead_zinc", "README.md");
+    if (existsSync(p)) out.push({ name: "WA lead-silver-zinc sample (WAMEX company mineral drillhole database, Department of Energy, Mines, Industry Regulation and Safety, Western Australia)", version: "2024", license: "CC-BY-4.0",
+      url: "https://catalogue.data.wa.gov.au/dataset/mineral-exploration-drillholes-open-file", text: readFileSync(p, "utf8").trim() }); }
+  // TASKS.csv #3107 — listed like the Blake River and WA uranium samples: its README carries the attribution and says what was done
+  { const p = path.join(ROOT, "sample_data", "wa_zinc_copper", "README.md");
+    if (existsSync(p)) out.push({ name: "WA zinc-copper sample (WAMEX company mineral drillhole and surface geochemistry database, Department of Energy, Mines, Industry Regulation and Safety, Western Australia)", version: "2024", license: "CC-BY-4.0",
+      url: "https://catalogue.data.wa.gov.au/dataset/mineral-exploration-drillholes-open-file", text: readFileSync(p, "utf8").trim() }); }
+  // TASKS.csv #3107 — listed like the Blake River and WA uranium samples: its README carries the attribution and says what was done
+  { const p = path.join(ROOT, "sample_data", "wa_gold", "README.md");
+    if (existsSync(p)) out.push({ name: "WA lode gold sample (WAMEX company mineral drillhole database, Department of Energy, Mines, Industry Regulation and Safety, Western Australia)", version: "2024", license: "CC-BY-4.0",
+      url: "https://catalogue.data.wa.gov.au/dataset/mineral-exploration-drillholes-open-file", text: readFileSync(p, "utf8").trim() }); }
   return out;
 }
 
