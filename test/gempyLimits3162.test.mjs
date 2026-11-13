@@ -29,10 +29,10 @@ test("the engine's list-length refusal in words where a run fails; other text un
   assert.equal(plainEngineError("request.faults: List should have at most 6 items after validation, not 9"), "The modelling engine takes at most 6 faults in one model, and this one has 9");
   assert.equal(plainEngineError("Cancelled."), "Cancelled.");
   assert.equal(plainEngineError(undefined), undefined);
-  const m = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8");
+  const m = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8").replace(/\r\n/g, "\n");
   assert.match(m, /errorNotice\(tr\("\{label\} failed: \{error\}", \{ label, error: plainEngineError\(res\.error\) \}\)\)/);
   // kept out of the startup bundle (#3159): desktop.js is eager
-  assert.doesNotMatch(readFileSync(new URL("../src/lib/desktop.js", import.meta.url), "utf8"), /gempyLimits/);
+  assert.doesNotMatch(readFileSync(new URL("../src/lib/desktop.js", import.meta.url), "utf8").replace(/\r\n/g, "\n"), /gempyLimits/);
 });
 
 test("Model from map's contact step: 25 m on a small map, lengthened over the point budget to keep about that many points", async () => {
@@ -43,17 +43,17 @@ test("Model from map's contact step: 25 m on a small map, lengthened over the po
   const big = 15334 * 25; // Mount Raymond's contacts in use (15,334 points at 25 m)
   const s = mapContactStep(big);
   assert.ok(s > 25 && big / s <= MAP_POINT_BUDGET && big / s > MAP_POINT_BUDGET * 0.99, `${s} m`);
-  const m = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8");
+  const m = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8").replace(/\r\n/g, "\n");
   assert.match(m, /const stepM = mapContactStep\(usedM\);/);
   assert.match(m, /for \(const line of c\.lines\) for \(const \[x, y\] of thin\(line, stepM\)\)/);
 });
 
 test("wiring: the stack run checks before solving (not a layer-cake), the map's run says its own routes, a longer stack can be kept", () => {
-  const s = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8");
+  const s = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8").replace(/\r\n/g, "\n");
   assert.match(s, /const overLimit = cakeRun \? null : gempyLimitCheck\(specs\);/);
   assert.ok(s.indexOf("const overLimit") < s.indexOf("setImplicitBusy(true);"), "before the run starts");
   assert.match(s, /runSurfaceStack\(\[\.\.\.faultSpecs, \.\.\.specs\], \{ fromMap: true/);
-  const m = readFileSync(new URL("../src/modules/viewer/useModelling.js", import.meta.url), "utf8");
+  const m = readFileSync(new URL("../src/modules/viewer/useModelling.js", import.meta.url), "utf8").replace(/\r\n/g, "\n");
   assert.doesNotMatch(m, /Stacks are capped at 12 units/);
   assert.doesNotMatch(m, /gempyLimits/, "useModelling is in the startup bundle: no new code there (#3159)");
   for (const l of ["es", "pt", "fr", "ar"]) {
@@ -104,7 +104,7 @@ test("thinning to the budget: Mount Raymond's shape (13 tops, 4,016 points, 262 
 });
 
 test("wiring: a Model from map run thins before the request, with the check points counted, and says so", () => {
-  const s = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8");
+  const s = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8").replace(/\r\n/g, "\n");
   assert.match(s, /const workOpts = \{ blockCells: resolution\[0\] \* resolution\[1\] \* resolution\[2\], evalPts: evalPts\?\.length \|\| 0, relation \};/);
   assert.match(s, /if \(stackOpts\.fromMap && !cakeRun && !stackOpts\.fullDetail\) \{\s*const tw = thinForWork\(specs, workOpts\);/);
   assert.ok(s.indexOf("const evalPts = evalAll.length") < s.indexOf("const tw = thinForWork"), "the check points are known first");
@@ -117,13 +117,13 @@ test("wiring: a Model from map run thins before the request, with the check poin
 });
 
 test("full detail (Model from map): nothing thinned, the run says the points and how many times a default run's work, the 15-minute stop off for it", () => {
-  const s = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8");
+  const s = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8").replace(/\r\n/g, "\n");
   assert.match(s, /fullDetail: !!p\.fullDetail/);
   assert.match(s, /let overWork = stackOpts\.fromMap && !cakeRun && stackOpts\.fullDetail \? gempyWork\(specs, workOpts\) \/ GEMPY_WORK_BUDGET : 0;/);
   assert.match(s, /\.\.\.\(overWork > 1 \? \{ maxMinutes: 0 \} : \{\}\)/);
-  const d = readFileSync(new URL("../src/lib/desktop.js", import.meta.url), "utf8");
+  const d = readFileSync(new URL("../src/lib/desktop.js", import.meta.url), "utf8").replace(/\r\n/g, "\n");
   assert.match(d, /const deadline = opts\.maxMinutes === 0 \? Infinity : Date\.now\(\) \+ 15 \* 60 \* 1000;/);
-  const panel = readFileSync(new URL("../src/components/MapModelPanel.jsx", import.meta.url), "utf8");
+  const panel = readFileSync(new URL("../src/components/MapModelPanel.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
   assert.match(panel, /holeCodes: useHoles && holeCount > 0 \? codeUnit : null, fullDetail \}\)/);
   for (const l of ["es", "pt", "fr", "ar"]) {
     const j = JSON.parse(readFileSync(new URL(`../src/locales/${l}.json`, import.meta.url), "utf8"));
@@ -132,7 +132,7 @@ test("full detail (Model from map): nothing thinned, the run says the points and
 });
 
 test("a drillhole stack over the work budget is asked about before the run (after the layer-cake offer), not thinned", () => {
-  const s = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8");
+  const s = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8").replace(/\r\n/g, "\n");
   const at = s.indexOf("if (!stackOpts.fromMap && !cakeRun) {\n      const x = gempyWork(specs, workOpts) / GEMPY_WORK_BUDGET;");
   assert.ok(at > 0);
   assert.ok(at > s.indexOf("Run the stack as a layer-cake?"), "after the layer-cake offer");
@@ -162,7 +162,7 @@ test("#3215 the time on this computer: learnt from its own GemPy runs (median of
   mem.set("geostrix.gempySecondsPerEval", "not json");
   assert.equal(gempyRate(store).runs, 0, "unreadable: the reference rate");
   assert.equal(gempyRate(null).rate, GEMPY_REF_SECONDS_PER_EVAL, "no storage");
-  const s = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8");
+  const s = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8").replace(/\r\n/g, "\n");
   assert.match(s, /if \(!cakeRun && res\.ok\) recordGempyRate\(baseSolveSeconds, gempyWork\(specs, workOpts\)\);/);
   assert.match(s, /const rt = gempyRate\(\), mins = Math\.max\(1, Math\.round\(\(gempyWork\(specs, workOpts\) \* rt\.rate\) \/ 60\)\);/);
 });
@@ -178,7 +178,7 @@ test("#3215 the engine's peak memory: the largest field's rows squared (measured
   // WA iron's six-strand stack: 22,436 points
   const wa = gempyPeakGB([{ points: pts(22436), orientations: [ori[0]] }], { relation: "onlap" });
   assert.ok(wa > 70 && wa < 80 && wa > GEMPY_RAM_SHARE * 32 && wa > GEMPY_RAM_SHARE * GEMPY_ASSUMED_RAM_GB, `${wa}`);
-  const s = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8");
+  const s = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8").replace(/\r\n/g, "\n");
   assert.match(s, /const gb = gempyPeakGB\(specs, workOpts\);/);
   // Main: over 70 % of this computer's memory (16 GB assumed where unread) it is refused, not asked about; before the question
   assert.match(s, /const info = await problemReportInfo\(\)\.catch\(\(\) => null\), ramGB = info\?\.memoryGB\?\.total > 0 \? info\.memoryGB\.total : null;/);
