@@ -53,7 +53,17 @@ export function emptiestCorner(holes, w, h, kw, kh) {
 
 // A hole's series: its id without the trailing number (21CCDD042 -> 21CCDD; 21AGBDD043B -> 21AGBDD), the year / prospect / type prefix drill programs use.
 // A letter after the number (a re-drill, 21AGBDD043B) stays in its series.
-export const holeSeries = (id) => String(id ?? "").replace(/[-_ ]?\d+[A-Za-z]?$/, "") || String(id ?? "");
+// TASKS.csv #3026 (review #2876, WA iron) — and after a separator too: RHRCMET_0005_A, RHRCMET_0009_A ... were each their own series (125 of
+// them on the plan's key); they are RHRCMET.
+export const holeSeries = (id) => String(id ?? "").replace(/[-_ ]?\d+(?:[-_ ]?[A-Za-z])?$/, "") || String(id ?? "");
+// TASKS.csv #3026 — a key no taller than the frame: the rows that fit (keyLines: its title / note lines; extra: rows listed under it, the
+// shapes), the last one saying how many were left out. key: [{ label, ... }] -> the same, or capped with { label, note: true }
+export function capPlanKey(key, { frameH, rowPx, keyLines = 0, extra = 0, moreLabel = (n) => `+ ${n} more` }) {
+  const fit = Math.floor((frameH - 18) / rowPx) - keyLines - extra;
+  if (key.length <= Math.max(fit, 1)) return key;
+  const keep = Math.max(fit - 1, 1);
+  return [...key.slice(0, keep), { label: moreLabel(key.length - keep), note: true }];
+}
 
 // Labels placed greedily (right, left, above, below the collar), each kept only when it overlaps no label already placed and stays
 // inside the frame. points: [{ id, x, y }] in frame px. -> { placed: [{ id, x, y, anchor }], skipped }

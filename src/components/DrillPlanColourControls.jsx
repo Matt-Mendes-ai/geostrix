@@ -5,18 +5,23 @@ import React, { useMemo } from "react";
 import { t as tr } from "../lib/i18n.js";
 import { collarAttrChoices } from "../lib/holeFilter.js";
 import { drillPlanColourBy, colourByKind } from "../lib/drillPlan.js";
+import { useLeadCommodity } from "../lib/useLeadCommodity.js"; // TASKS.csv #3026 — the grade colourings open on the project's commodity
+import { preferredElement } from "../lib/preferredElement.js";
+import { elementOptionLabel } from "../lib/geochem.js"; // TASKS.csv #3026 — 'Al as Al2O3', as the key's unit reads it (#2914)
 
 const lab = { fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", display: "block", marginBottom: 6 };
 
 export default function DrillPlanColourControls({ sel, updateSelected, collars, assayElements, colouring, inp }) {
   const fields = useMemo(() => collarAttrChoices(collars), [collars]);
   const elements = (assayElements || []).map((e) => e.symbol).filter(Boolean);
+  const lead = useLeadCommodity();
+  const unitOf = Object.fromEntries((assayElements || []).map((e) => [e.symbol, e.unit]));
   const { kind, key } = colourByKind(drillPlanColourBy(sel));
   const set = (by) => updateSelected({ colourBy: by, bySeries: by === "series" });
   const onKind = (k) => {
     if (k === "none" || k === "series") return set(k);
     if (k === "attr") return set(`attr:${fields.some((f) => f.key === key) ? key : fields[0]?.key || ""}`);
-    return set(`${k}:${elements.includes(key) ? key : elements[0] || ""}`);
+    return set(`${k}:${elements.includes(key) ? key : preferredElement(elements, null, lead) || ""}`); // #3026 — not the first alphabetically (Al on an iron ore)
   };
   const isGrade = kind === "max" || kind === "gt" || kind === "bi"; // bi: #2685
   const blank = colouring?.key?.find((k) => k.hollow);
@@ -42,7 +47,7 @@ export default function DrillPlanColourControls({ sel, updateSelected, collars, 
       {isGrade && (
         <label style={lab}>{tr("Element")}
           <select value={key} onChange={(e) => set(`${kind}:${e.target.value}`)} style={{ ...inp, marginTop: 4 }}>
-            {elements.map((s) => <option key={s} value={s}>{s}</option>)}
+            {elements.map((s) => <option key={s} value={s}>{elementOptionLabel(s, unitOf[s])}</option>)}
           </select>
         </label>
       )}
