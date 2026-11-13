@@ -3,7 +3,7 @@
 // dilution), optionally within one logged unit and reported as the element's oxide (offered, stated, never applied by itself: #2721);
 // the holes as graduated circles on a plan; then a 2D estimate of GT and thickness, a contour at a GT cut-off the user types, and
 // area x GT x density = metal, with the same honesty as Estimation. No default cut-off reads as a fact (#264): every cut-off is typed.
-import React, { useEffect, useMemo, useState } from "react"; // useEffect: #2756
+import React, { Suspense, lazy, useEffect, useMemo, useState } from "react"; // useEffect: #2756; Suspense / lazy: #3089
 import { X, Download } from "./icons.js";
 import { t as tr } from "../lib/i18n.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
@@ -21,6 +21,7 @@ import { toCsv, FORMULA_LEAD } from "../lib/tabular.js";
 import { preferredElement, rememberElement } from "../lib/preferredElement.js"; // TASKS.csv #3016 — open on the lead commodity
 import { useLeadCommodity } from "../lib/useLeadCommodity.js";
 import { showGtOnPlan, gtContourLayer } from "../lib/planGt.js"; // TASKS.csv #2755 — the totals on the Maps plan, the contour as a map layer
+const LongSectionGT = lazy(() => import("./LongSectionGT.jsx")); // TASKS.csv #3089 — the long-section view, loaded when chosen
 
 // TASKS.csv #2820 — a kriging standard deviation grid as a PNG, one pixel per node (north up), for an <image> under the plan; sdPixels
 // comes with lib/planKriging.js, loaded on demand
@@ -45,6 +46,7 @@ export default function GradeThicknessModal({ assays, assayElements, collars, su
   const [symbol, setSymbolRaw] = useState(() => preferredElement(symbols, "gradeThickness", lead) || symbols[0] || "");
   const setSymbol = (v) => { setSymbolRaw(v); rememberElement("gradeThickness", v); };
   const unit = (assayElements || []).find((e) => e.symbol === symbol)?.unit || "ppm";
+  const [gtView, setGtView] = useState("plan"); // TASKS.csv #3089 — "plan" | "long" (a long section, for a steep vein or lode)
   const [cutoff, setCutoff] = useState(""); // the intercepts' grade cut-off: typed (#264)
   const [minLength, setMinLength] = useState(0);
   const [dilution, setDilution] = useState(2); // Best intercepts' own default
@@ -78,7 +80,7 @@ export default function GradeThicknessModal({ assays, assayElements, collars, su
     const withEl = new Map();
     for (const a of src) if (Number.isFinite(a.values?.[symbol])) { const m = (Number(a.from) + Number(a.to)) / 2, cur = withEl.get(a.hole_id); if (!cur) withEl.set(a.hole_id, [m, m]); else { cur[0] = Math.min(cur[0], m); cur[1] = Math.max(cur[1], m); } }
     const hit = new Set(hs.map((h) => h.hole_id)), zeros = [];
-    for (const [h, [a, b]] of withEl) if (!hit.has(h)) { const p = positionAt(h, (a + b) / 2); if (p) zeros.push({ hole_id: h, x: p.x, y: p.y, gt: 0, thicknessM: 0 }); }
+    for (const [h, [a, b]] of withEl) if (!hit.has(h)) { const p = positionAt(h, (a + b) / 2); if (p) zeros.push({ hole_id: h, x: p.x, y: p.y, z: p.z, gt: 0, thicknessM: 0 }); } // z: #3089
     return { holes: hs, zeros };
   }, [symbol, unit, cut, f, minLength, dilution, unitCode, lab, layers, assayElements, positionAt]);
 
@@ -145,12 +147,17 @@ export default function GradeThicknessModal({ assays, assayElements, collars, su
   const note = { fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", lineHeight: 1.5 };
   return (
     <div style={overlay} {...backdropProps(onClose)}>
-      <div role="dialog" aria-modal="true" aria-label={tr("Grade × thickness in plan")} onClick={(e) => e.stopPropagation()} style={{ background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, padding: 16, width: 900, maxWidth: "95vw", maxHeight: "94vh", overflow: "auto", display: "flex", flexDirection: "column", gap: 10 }}>
+      <div role="dialog" aria-modal="true" aria-label={gtView === "long" ? tr("Grade × thickness on a long section") : tr("Grade × thickness in plan")} onClick={(e) => e.stopPropagation()} style={{ background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, padding: 16, width: 900, maxWidth: "95vw", maxHeight: "94vh", overflow: "auto", display: "flex", flexDirection: "column", gap: 10 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div style={{ fontSize: "var(--font-size-lg)", fontWeight: 600, color: "var(--color-text)" }}>{tr("Grade × thickness in plan")}</div>
+          <div style={{ fontSize: "var(--font-size-lg)", fontWeight: 600, color: "var(--color-text)" }}>{gtView === "long" ? tr("Grade × thickness on a long section") : tr("Grade × thickness in plan")}</div>
           <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
         </div>
-        <div style={note}>{tr("For a thin, flat body: per hole, the mineralized thickness and grade × thickness (GT) from the intercepts, with the same rules as Best intercepts; then GT and thickness are interpolated in plan and contoured at a GT cut-off you choose. Thickness is in downhole metres (true thickness for vertical holes through flat ore).")}</div>
+        {/* TASKS.csv #3089 — Plan (a thin, flat body) or Long section (a steep vein or lode) */}
+        <label style={{ ...field, flexDirection: "row", alignItems: "center", gap: 8 }}>{tr("View")}<select value={gtView} onChange={(e) => setGtView(e.target.value)} style={{ ...inp, width: "auto" }} aria-label={tr("Grade × thickness view")}>
+          <option value="plan">{tr("Plan (a thin, flat body)")}</option>
+          <option value="long">{tr("Long section (a steep vein or lode)")}</option>
+        </select></label>
+        {gtView === "long" ? <div style={note}>{tr("For a steep vein or lode: per hole, the intercepts' thickness and grade × thickness (GT) by the same rules as Best intercepts, placed at the intercepts' mid-point; projected on a vertical plane along strike and contoured in three panels (thickness, grade, GT), stopping at the drilled extent.")}</div> : <div style={note}>{tr("For a thin, flat body: per hole, the mineralized thickness and grade × thickness (GT) from the intercepts, with the same rules as Best intercepts; then GT and thickness are interpolated in plan and contoured at a GT cut-off you choose. Thickness is in downhole metres (true thickness for vertical holes through flat ore).")}</div>}
         {inArea && <div style={note}>{tr("Samples from the Model area's {n} checked holes (Model settings).", { n: areaHoles })}</div>}{/* #3016 */}
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
           <label style={field}>{tr("Element")}<select value={symbol} onChange={(e) => { setSymbol(e.target.value); setCutoff(""); setGtCut(""); setAsOxide(false); }} style={inp} aria-label={tr("Element")}>{symbols.map((s) => <option key={s} value={s}>{s} ({gradeUnitLabel(s, (assayElements || []).find((e) => e.symbol === s)?.unit)})</option>)}</select></label>
@@ -164,6 +171,7 @@ export default function GradeThicknessModal({ assays, assayElements, collars, su
         {totals && (
           <>
             <div role="status" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("{n} hole(s) with an intercept at {c} {u}; {z} hole(s) assayed for {el} with none (read as 0 in the plan estimate). GT in {gt}.", { n: totals.holes.length, c: cut, u: shownGrade, z: totals.zeros.length, el: symbol, gt: gtLabel })}{ox ? " " + tr("Grades and GT are {oxide}: {el} × {f}, the stoichiometric factor (Calc. element's preset).", { oxide: ox.oxide, el: symbol, f: ox.factor }) : ""}</div>
+            {gtView === "long" ? <Suspense fallback={null}><LongSectionGT holes={totals.holes} zeros={totals.zeros} symbol={ox ? ox.oxide : symbol} shownGrade={shownGrade} gtLabel={gtLabel} cut={cut} field={field} inp={inp} note={note} /></Suspense> : (<>{/* #3089 */}
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
               <div style={{ overflow: "auto", maxHeight: 360, flex: "1 1 330px", border: "1px solid var(--color-border)", borderRadius: 6 }}>
                 <table style={{ borderCollapse: "collapse", width: "100%" }}>
@@ -222,6 +230,7 @@ export default function GradeThicknessModal({ assays, assayElements, collars, su
                 <div style={{ ...note, marginTop: 4 }}><b>{tr("Not a resource estimate.")}</b>{" "}{grid.method === "ok" ? tr("Ordinary kriging of the holes' GT and thickness in plan, each with its own fitted 2D variogram: no declustering, no classification. Between holes the numbers are the model's, not the data's; a node farther than the search radius from every hole is left out, not counted as barren. Holes assayed for the element with no intercept count as 0, so the contour closes against them; undrilled ground is not estimated.") : tr("Inverse-distance interpolation of the holes' GT and thickness in plan: no declustering, no variogram, no classification. Between holes the numbers are the method's, not the data's; a node farther than the search radius from every hole is left out, not counted as barren. Holes assayed for the element with no intercept count as 0, so the contour closes against them; undrilled ground is not estimated.")}</div>
               </div>
             )}
+            </>)}
           </>
         )}
       </div>

@@ -580,7 +580,7 @@ export default function ModellingPanes(props) {
           <FileBarChart2 size={14} />{" "}{tr("Estimate grade into block model…")}</button>
         {/* TASKS.csv #2419 — grade × thickness per hole and its plan estimate: a thin flat body, lighter than a block model */}
         <button onClick={() => setGtOpen(true)} disabled={!assayElements.length} style={{ ...pBtn, opacity: assayElements.length ? 1 : 0.5, marginBottom: 8 }} title={tr("Per hole, thickness and grade × thickness from the intercepts; graduated on a plan, estimated in 2D and contoured at a GT cut-off you choose")}>
-          <FileBarChart2 size={14} />{" "}{tr("Grade × thickness in plan…")}</button>
+          <FileBarChart2 size={14} />{" "}{tr("Grade × thickness, in plan or on a long section…") /* #3089 */}</button>
         {gtOpen && <Suspense fallback={null}><GradeThicknessModal assays={assays} assayElements={assayElements} collars={collars} survey={survey} layers={layers} inArea={modelArea === "checked" ? (id) => visibleHoles?.[id] !== false : null} /* #3016 */ onClose={() => setGtOpen(false)} /></Suspense>}
         {/* TASKS.csv #147 — deliberately sits directly under the estimation button, because it is the
             diagnostic you are supposed to run BEFORE choosing a search radius or an anisotropy ratio,
