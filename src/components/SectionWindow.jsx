@@ -7,7 +7,7 @@ import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Spac
 import { sectionPaper } from "../lib/pageFormats.js"; // TASKS.csv #1143
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { embedFigureFont } from "../lib/svgFontEmbed.js"; // TASKS.csv #2610 — the subset Exo 2 inside the figure
-import { placeLabels, leaderEnd, resolveLabels, labelWidth, shortSurfaceName, pierceLabelIndices } from "../lib/sectionLabels.js"; // TASKS.csv #823; short pierce labels: #2705
+import { placeLabels, leaderEnd, resolveLabels, labelWidth, shortSurfaceName, pierceLabelIndices, collarGapPx, gradeBarMax, collarLabelsCrowded } from "../lib/sectionLabels.js"; // TASKS.csv #823; short pierce labels: #2705
 import { groupSectionLegend, sectionAssayLegend, sectionMineralLegend, sectionModelLegend, rampRows, ribbonOrder, ribbonLayers } from "../lib/sectionLegend.js"; // TASKS.csv #1128 — the key goes to Layout, grouped; #1475
 import { LAYER_META } from "../lib/layers.js"; // #1475 — the mineralization group name
 import { exportSvgMarkup, FIGURE_FONT } from "../lib/svgExport.js"; // TASKS.csv #1089 — font, size, no UI chrome
@@ -663,7 +663,10 @@ function SectionSVG({ printing = false, patterns = null, textFont = SECTION_FONT
   const ribbonOffset = {};
   intervals.forEach((r) => { const k = r.layer || "_"; if (!(k in ribbonOffset)) { const n = Object.keys(ribbonOffset).length; ribbonOffset[k] = n === 0 ? 0 : (n % 2 ? 1 : -1) * (holeWidth + 2) * Math.ceil(n / 2); } }); // spacing follows the width: #1131
   const ribbonReach = Math.max(3, ...Object.values(ribbonOffset).map((o) => Math.abs(o) + 3));
-  const BAR_MAX = 36;
+  // TASKS.csv #3139 (#3022, WA iron) — a grade bar was 36 px at any scale: on holes 25 m apart it ran across several neighbours. It now ends
+  // within half the typical gap between collars (lib/sectionLabels.js gradeBarMax), one length for the section.
+  const collarGap = collarGapPx(holes.map((h) => (h.trace?.length ? sx(along(h.trace[0].x, h.trace[0].y)) : NaN)));
+  const BAR_MAX = gradeBarMax(collarGap, ribbonReach, points.reduce((m, r) => (r.assay ? Math.max(m, (r.assay.idx || 0) + 1) : m), 1)); // n elements: no spread (#3031)
   const assayMax = {};
   points.forEach((r) => { if (r.assay && Number.isFinite(r.assay.value)) assayMax[r.assay.sym] = Math.max(assayMax[r.assay.sym] || 0, r.assay.value); });
   // label the 8 highest values per element in this section, not every sample (unreadable at section scale)
@@ -1096,6 +1099,9 @@ function SectionSVG({ printing = false, patterns = null, textFont = SECTION_FONT
           const p = atEnd ? t[t.length - 1] : t[0];
           items.push({ key: `plan:${ph.name}|${atEnd ? "end" : "collar"}`, text: tr("{name} (planned)", { name: ph.name }), ax: sx(along(p.x, p.y)), ay: sz(p.z), dir: atEnd ? 1 : -1, color: colors.planned });
         });
+        // TASKS.csv #3139 — names wider than the gap between collars stacked six tiers deep and, with no room left above the collars, ran
+        // down into the data: crowded, a collar name stays above its collar and is left out where there is no room (counted, #1536)
+        if (collarLabelsCrowded(collarGap, items.filter((it) => it.dir < 0).map((it) => labelWidth(it.text, fs(9))))) items.forEach((it) => { if (it.dir < 0) it.noFlip = true; });
         const fixed = { ...labels.offsets, ...(labelDrag ? { [labelDrag.key]: { dx: labelDrag.dx, dy: labelDrag.dy } } : {}) };
         const color = Object.fromEntries(items.map((it) => [it.key, it.color]));
         const placed = placeLabels(items, { fontSize: fs(9), bounds: [4, W - 4], yBounds: [2, totalH - 2], fixed, avoid: axisLabelBoxes, dropCrowded: true, fixedYield: printing /* #2761 */ });

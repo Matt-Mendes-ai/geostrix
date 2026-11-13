@@ -39,7 +39,7 @@ test("the strip log draws the three tracks and keys the structure types", () => 
   assert.match(src, /key: "recovery", label: "Rec\.%", title: "Recovery %", rows: recovery, kind: "bar", max: recoveryMax\(recovery\)/);
   assert.match(src, /key: "structure", label: "Struct\.",[^\n]*kind: "struct"/);
   assert.match(src, /k === "magsusc" \? \{ logOk: true, minPos: valueRange\(rows\)\.minPos \}/);
-  assert.match(src, /const lg = t\.logOk && logScale;/);
+  assert.match(src, /const lg = t\.logOk && logOn;/); // #3141: logOn = the box, or its log default for mag susc
   assert.match(src, /t\.kind === "fill" \|\| t\.kind === "struct"/);
   // RQD then Recovery, side by side
   assert.ok(src.indexOf('key: "recovery"') > src.indexOf('key: "geotech"'));
