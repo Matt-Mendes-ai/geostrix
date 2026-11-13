@@ -105,12 +105,28 @@ test("thinning to the budget: Mount Raymond's shape (13 tops, 4,016 points, 262 
 
 test("wiring: a Model from map run thins before the request, with the check points counted, and says so", () => {
   const s = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8");
-  assert.match(s, /if \(stackOpts\.fromMap && !cakeRun\) \{\s*const tw = thinForWork\(specs, \{ blockCells: resolution\[0\] \* resolution\[1\] \* resolution\[2\], evalPts: evalPts\?\.length \|\| 0, relation \}\);/);
+  assert.match(s, /const workOpts = \{ blockCells: resolution\[0\] \* resolution\[1\] \* resolution\[2\], evalPts: evalPts\?\.length \|\| 0, relation \};/);
+  assert.match(s, /if \(stackOpts\.fromMap && !cakeRun && !stackOpts\.fullDetail\) \{\s*const tw = thinForWork\(specs, workOpts\);/);
   assert.ok(s.indexOf("const evalPts = evalAll.length") < s.indexOf("const tw = thinForWork"), "the check points are known first");
   assert.ok(s.indexOf("const tw = thinForWork") < s.indexOf("const sidecarSpecs = specs.map("), "before the request is built");
   assert.ok(s.indexOf("const tw = thinForWork") < s.indexOf("\"Running {label} ("), "the Running notice counts what is sent");
   for (const l of ["es", "pt", "fr", "ar"]) {
     const d = JSON.parse(readFileSync(new URL(`../src/locales/${l}.json`, import.meta.url), "utf8"));
     assert.ok(d["To keep GemPy's run to a few minutes, {p} of the map's {pAll} contact points and {o} of its {oAll} orientations were used, spread evenly (contacts logged in holes are all kept). GemPy's time grows with the data times the points it evaluates: the lithology block ({b} cells), the model check and map points ({e}) and the meshes of {s} surfaces. A lower Resolution (Model settings) or fewer units leaves more of the data in."], l);
+  }
+});
+
+test("full detail (Model from map): nothing thinned, the run says the points and how many times a default run's work, the 15-minute stop off for it", () => {
+  const s = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8");
+  assert.match(s, /fullDetail: !!p\.fullDetail/);
+  assert.match(s, /const overWork = stackOpts\.fromMap && !cakeRun && stackOpts\.fullDetail \? gempyWork\(specs, workOpts\) \/ GEMPY_WORK_BUDGET : 0;/);
+  assert.match(s, /\.\.\.\(overWork > 1 \? \{ maxMinutes: 0 \} : \{\}\)/);
+  const d = readFileSync(new URL("../src/lib/desktop.js", import.meta.url), "utf8");
+  assert.match(d, /const deadline = opts\.maxMinutes === 0 \? Infinity : Date\.now\(\) \+ 15 \* 60 \* 1000;/);
+  const panel = readFileSync(new URL("../src/components/MapModelPanel.jsx", import.meta.url), "utf8");
+  assert.match(panel, /holeCodes: useHoles && holeCount > 0 \? codeUnit : null, fullDetail \}\)/);
+  for (const l of ["es", "pt", "fr", "ar"]) {
+    const j = JSON.parse(readFileSync(new URL(`../src/locales/${l}.json`, import.meta.url), "utf8"));
+    for (const k of ["Full detail: send all the sampled contacts (can take much longer)", "Full detail: GemPy gets all {p} contact points and {o} orientations, about {x} times the work of a default run (which is sized for a few minutes), so this run may take a long time. The 15-minute stop is off for it: Cancel on the status bar stops it."]) assert.ok(j[k], `${l}: ${k}`);
   }
 });
