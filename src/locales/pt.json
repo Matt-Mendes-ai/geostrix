@@ -11285,5 +11285,13 @@
   "Block height (m)": "Altura de bloco (m)",
   "= block size": "= tamanho de bloco",
   "Blocks of {b} m: the shell's own cells.": "Blocos de {b} m: as células do próprio invólucro.",
-  "Three volumes of the same body: its {n} cells in the range hold {c}; the shell drawn between the cell centres holds {s}; the run counts its blocks, so its volume depends on the block size.": "Três volumes do mesmo corpo: suas {n} células no intervalo contêm {c}; o invólucro traçado entre os centros das células contém {s}; a execução conta seus blocos, então seu volume depende do tamanho de bloco."
+  "Three volumes of the same body: its {n} cells in the range hold {c}; the shell drawn between the cell centres holds {s}; the run counts its blocks, so its volume depends on the block size.": "Três volumes do mesmo corpo: suas {n} células no intervalo contêm {c}; o invólucro traçado entre os centros das células contém {s}; a execução conta seus blocos, então seu volume depende do tamanho de bloco.",
+  "Report these grades too ({n})": "Informar também estes teores ({n})",
+  "Report these grades too": "Informar também estes teores",
+  "Each chosen model's grade over the ore of the pit (not priced), joined by block centre: a model on the same grid as the pit's block model.": "O teor de cada modelo escolhido sobre o minério da cava (sem preço), unido pelo centro do bloco: um modelo na mesma grade que o modelo de blocos da cava.",
+  "A cut-off over 100 %: no block can pay at these inputs. Check the price unit and the grade's basis (a price per tonne of the element against a grade stored as its oxide?).": "Um teor de corte acima de 100 %: nenhum bloco pode pagar com estes dados. Verifique a unidade do preço e a base do teor (um preço por tonelada do elemento contra um teor guardado como seu óxido?).",
+  "Other grades of the ore: {list}.": "Outros teores do minério: {list}.",
+  "{m}: not on the same grid (no block matched)": "{m}: não está na mesma grade (nenhum bloco coincidiu)",
+  "{m}: no value in the ore": "{m}: sem valor no minério",
+  "({p} % of the ore has a value)": "({p} % do minério tem um valor)"
 }

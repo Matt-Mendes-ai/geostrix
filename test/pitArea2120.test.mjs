@@ -20,6 +20,6 @@ test("two prospects 3 km apart: the whole model's grid vs the area's", () => {
 test("the pane", () => {
   const p = fs.readFileSync("src/components/PitShellPane.jsx", "utf8");
   assert.match(p, /const areas = useMemo\(\(\) => designStrings\.filter\(\(s\) => s\.closed && s\.vertices\.length > 2 && !s\.stopeRun\)/);
-  assert.match(p, /job\.current = runPitShellAsync\(mIn, runInputs, terrain, \(phases\) => setBusy\(phases\), collars, byIn\);/);
+  assert.match(p, /job\.current = runPitShellAsync\(mIn, runInputs, terrain, \(phases\) => setBusy\(phases\), collars, byIn(, alsoIn)?\);/ /* alsoIn: #2995 */);
   assert.match(p, /pitArea: area\.name/);
 });

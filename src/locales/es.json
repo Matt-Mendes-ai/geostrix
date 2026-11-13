@@ -11285,5 +11285,13 @@
   "Block height (m)": "Altura de bloque (m)",
   "= block size": "= tamaño de bloque",
   "Blocks of {b} m: the shell's own cells.": "Bloques de {b} m: las celdas de la propia envolvente.",
-  "Three volumes of the same body: its {n} cells in the range hold {c}; the shell drawn between the cell centres holds {s}; the run counts its blocks, so its volume depends on the block size.": "Tres volúmenes del mismo cuerpo: sus {n} celdas en el rango contienen {c}; la envolvente trazada entre los centros de celda contiene {s}; la corrida cuenta sus bloques, así que su volumen depende del tamaño de bloque."
+  "Three volumes of the same body: its {n} cells in the range hold {c}; the shell drawn between the cell centres holds {s}; the run counts its blocks, so its volume depends on the block size.": "Tres volúmenes del mismo cuerpo: sus {n} celdas en el rango contienen {c}; la envolvente trazada entre los centros de celda contiene {s}; la corrida cuenta sus bloques, así que su volumen depende del tamaño de bloque.",
+  "Report these grades too ({n})": "Informar también estas leyes ({n})",
+  "Report these grades too": "Informar también estas leyes",
+  "Each chosen model's grade over the ore of the pit (not priced), joined by block centre: a model on the same grid as the pit's block model.": "La ley de cada modelo elegido sobre el mineral del rajo (sin precio), unida por el centro de bloque: un modelo en la misma grilla que el modelo de bloques del rajo.",
+  "A cut-off over 100 %: no block can pay at these inputs. Check the price unit and the grade's basis (a price per tonne of the element against a grade stored as its oxide?).": "Una ley de corte sobre 100 %: ningún bloque puede pagar con estos datos. Revise la unidad del precio y la base de la ley (¿un precio por tonelada del elemento frente a una ley guardada como su óxido?).",
+  "Other grades of the ore: {list}.": "Otras leyes del mineral: {list}.",
+  "{m}: not on the same grid (no block matched)": "{m}: no está en la misma grilla (ningún bloque coincidió)",
+  "{m}: no value in the ore": "{m}: sin valor en el mineral",
+  "({p} % of the ore has a value)": "({p} % del mineral tiene un valor)"
 }

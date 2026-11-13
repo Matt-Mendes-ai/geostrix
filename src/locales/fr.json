@@ -11285,5 +11285,13 @@
   "Block height (m)": "Hauteur de bloc (m)",
   "= block size": "= taille de bloc",
   "Blocks of {b} m: the shell's own cells.": "Blocs de {b} m : les cellules de l'enveloppe elle-même.",
-  "Three volumes of the same body: its {n} cells in the range hold {c}; the shell drawn between the cell centres holds {s}; the run counts its blocks, so its volume depends on the block size.": "Trois volumes du même corps : ses {n} cellules dans la plage contiennent {c} ; l'enveloppe tracée entre les centres des cellules contient {s} ; la passe compte ses blocs, donc son volume dépend de la taille de bloc."
+  "Three volumes of the same body: its {n} cells in the range hold {c}; the shell drawn between the cell centres holds {s}; the run counts its blocks, so its volume depends on the block size.": "Trois volumes du même corps : ses {n} cellules dans la plage contiennent {c} ; l'enveloppe tracée entre les centres des cellules contient {s} ; la passe compte ses blocs, donc son volume dépend de la taille de bloc.",
+  "Report these grades too ({n})": "Rapporter aussi ces teneurs ({n})",
+  "Report these grades too": "Rapporter aussi ces teneurs",
+  "Each chosen model's grade over the ore of the pit (not priced), joined by block centre: a model on the same grid as the pit's block model.": "La teneur de chaque modèle choisi sur le minerai de la fosse (sans prix), jointe par le centre des blocs : un modèle sur la même grille que le modèle de blocs de la fosse.",
+  "A cut-off over 100 %: no block can pay at these inputs. Check the price unit and the grade's basis (a price per tonne of the element against a grade stored as its oxide?).": "Une teneur de coupure au-dessus de 100 % : aucun bloc ne peut payer avec ces données. Vérifiez l'unité du prix et la base de la teneur (un prix par tonne de l'élément face à une teneur enregistrée comme son oxyde ?).",
+  "Other grades of the ore: {list}.": "Autres teneurs du minerai : {list}.",
+  "{m}: not on the same grid (no block matched)": "{m} : pas sur la même grille (aucun bloc ne correspond)",
+  "{m}: no value in the ore": "{m} : aucune valeur dans le minerai",
+  "({p} % of the ore has a value)": "({p} % du minerai a une valeur)"
 }

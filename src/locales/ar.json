@@ -11285,5 +11285,13 @@
   "Block height (m)": "ارتفاع الكتلة (م)",
   "= block size": "= حجم الكتلة",
   "Blocks of {b} m: the shell's own cells.": "كتل {b} م: خلايا الغلاف نفسه.",
-  "Three volumes of the same body: its {n} cells in the range hold {c}; the shell drawn between the cell centres holds {s}; the run counts its blocks, so its volume depends on the block size.": "ثلاثة أحجام للجسم نفسه: خلاياه الـ {n} في المدى تحتوي {c}؛ والغلاف المرسوم بين مراكز الخلايا يحتوي {s}؛ والتشغيل يعدّ كتله، فيتوقف حجمه على حجم الكتلة."
+  "Three volumes of the same body: its {n} cells in the range hold {c}; the shell drawn between the cell centres holds {s}; the run counts its blocks, so its volume depends on the block size.": "ثلاثة أحجام للجسم نفسه: خلاياه الـ {n} في المدى تحتوي {c}؛ والغلاف المرسوم بين مراكز الخلايا يحتوي {s}؛ والتشغيل يعدّ كتله، فيتوقف حجمه على حجم الكتلة.",
+  "Report these grades too ({n})": "الإبلاغ عن هذه المحتويات أيضًا ({n})",
+  "Report these grades too": "الإبلاغ عن هذه المحتويات أيضًا",
+  "Each chosen model's grade over the ore of the pit (not priced), joined by block centre: a model on the same grid as the pit's block model.": "محتوى كل نموذج مختار على خام الحفرة (دون تسعير)، مربوطًا بمركز الكتلة: نموذج على الشبكة نفسها لنموذج كتل الحفرة.",
+  "A cut-off over 100 %: no block can pay at these inputs. Check the price unit and the grade's basis (a price per tonne of the element against a grade stored as its oxide?).": "محتوى حدي فوق 100 %: لا تستطيع أي كتلة أن تدفع بهذه المدخلات. تحقق من وحدة السعر وأساس المحتوى (سعر لكل طن من العنصر مقابل محتوى مُخزَّن كأكسيده؟).",
+  "Other grades of the ore: {list}.": "محتويات أخرى للخام: {list}.",
+  "{m}: not on the same grid (no block matched)": "{m}: ليس على الشبكة نفسها (لم تتطابق أي كتلة)",
+  "{m}: no value in the ore": "{m}: لا قيمة في الخام",
+  "({p} % of the ore has a value)": "({p} % من الخام له قيمة)"
 }
