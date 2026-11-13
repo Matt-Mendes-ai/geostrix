@@ -145,7 +145,10 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
                   <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={asOwnLayer} style={{ color: "var(--color-accent)", cursor: "pointer" }}>{tr("Import it as its own layer")}</span>
                 </div>
               )}
-              {f.key === "value" && modal.valueGuess && modal.mapping.value === modal.valueGuess.col && ( /* TASKS.csv #2889 — a guess, said as one */
+              {f.key === "value" && modal.valueGuess?.numeric && modal.mapping.value === modal.valueGuess.col && ( /* TASKS.csv #3204 — a number column guessed, said as one */
+                <div role="note" style={{ flexBasis: "100%", marginInlineStart: 220, fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)" }}>{tr("No column name matched, so {col} was chosen: the file's only number column left. Check it is the one to draw.", { col: modal.valueGuess.col })}</div>
+              )}
+              {f.key === "value" && modal.valueGuess && !modal.valueGuess.numeric && modal.mapping.value === modal.valueGuess.col && ( /* TASKS.csv #2889 — a guess, said as one */
                 <div role="note" style={{ flexBasis: "100%", marginInlineStart: 220, fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)" }}>{tr("No column name matched, so {col} was chosen: the file's only column of codes ({n} codes). Check it is the one to draw.", { col: modal.valueGuess.col, n: modal.valueGuess.codes })}</div>
               )}
               {/* TASKS.csv #2182 — a coded log's Value column blank on many rows: those rows are skipped, said before the import */}

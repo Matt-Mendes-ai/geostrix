@@ -11798,5 +11798,6 @@
   "Leave out the {stations} station(s) of {n} hole id(s) with no collar in the project ({ids}): they cannot be placed.": "استبعاد {stations} محطة لـ{n} معرّف ثقب بلا فوهة في المشروع ({ids}): لا يمكن وضعها.",
   " {n} hole id(s) in the file have no collar ({ids}): their {stations} station(s) were left out.": " لا فوهة لـ{n} معرّف ثقب في الملف ({ids}): استُبعدت محطاتها البالغة {stations}.",
   " {n} hole id(s) in the file have no collar ({ids}): their {stations} station(s) were kept, and cannot be placed until a collar is loaded.": " لا فوهة لـ{n} معرّف ثقب في الملف ({ids}): أُبقيت محطاتها البالغة {stations}، ولا يمكن وضعها حتى تُحمَّل فوهة.",
-  "{n} survey hole ids have no matching collar ({ids}): their {stations} stations cannot be desurveyed and won't render.": "لا فوهة مطابقة لـ{n} معرّف ثقب في المسح ({ids}): لا يمكن حساب مساراتها البالغة {stations} محطة ولن تُرسم."
+  "{n} survey hole ids have no matching collar ({ids}): their {stations} stations cannot be desurveyed and won't render.": "لا فوهة مطابقة لـ{n} معرّف ثقب في المسح ({ids}): لا يمكن حساب مساراتها البالغة {stations} محطة ولن تُرسم.",
+  "No column name matched, so {col} was chosen: the file's only number column left. Check it is the one to draw.": "لم يطابق أي اسم عمود، فاختير {col}: العمود الرقمي الوحيد المتبقي في الملف. تحقّق من أنه العمود المراد رسمه."
 }

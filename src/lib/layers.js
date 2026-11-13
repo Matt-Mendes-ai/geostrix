@@ -787,7 +787,7 @@ export const TARGET_SCHEMAS = {
   // numbered primary columns (Alt1_Code, Min1_Code / Min_Code1, Vein1_Comp / Vein_Type1, MagSus1, Ave_Reading,
   // BulkDens_Calc, SG_D). Listed FIRST so the primary (1st) column wins over a later one.
   alt: { label: "Alteration", fields: [
-    ...intervalFields(["alt1_code", "alt_code", "alt_assemblage", "alt_rx_min1_type", "alt_min1_type", "alt_min_1_type", "alt1_mineral", "alt_mineral", "alt1_min", "altn1", "alt1_style", "alt2_code", "assemblage", "alteration"]), // alt_rx_min1_type: #1345 (acQuire); alt1_mineral…: #2153 / #2184 (WAMEX)
+    ...intervalFields(["alt1_code", "alt_code", "alt_assemblage", "alt_rx_min1_type", "alt_min1_type", "alt_min_1_type", "alt1_mineral", "alt_mineral", "alt1_min", "altn1", "alt1_style", "alt2_code", "assemblage", "assemb", "alteration"]), // alt_rx_min1_type: #1345 (acQuire); alt1_mineral…: #2153 / #2184 (WAMEX); assemb: #3204 (AL_HIGHT_ASSEMB / AL_LOWT_ASSEMB, the first one)
     // TASKS.csv #1511 — intensity as logged (text: "3", "W", "strong"), as structural zones keep it (#604)
     { key: "intensity", label: "Intensity (optional)", required: false, aliases: ["alt1_intensity", "alt_intensity", "alt1_int", "alt_int", "alteration_intensity", "intensity"] },
   ] },
@@ -806,11 +806,11 @@ export const TARGET_SCHEMAS = {
   mnlgy: { label: "Mineralization", fields: intervalFields(["min1_code", "min_code1", "min_code", "min_mnlgy", "sul_min_1", "sulph_min_1", "mineral"], ["min1_pct", "min_pct1", "min_int_pct", "sul_min_1_pct", "percent", "pct"]) }, // sul_min_1: #1345 (acQuire sulphide log)
   geotech: { label: "Geotech (numeric)", fields: intervalFields(["rqd_pct", "rqd_pct_d", "rqq_pct_d", "rqd", "value"], null, true) }, // #1345: the percent column before REC_RQD_M (metres)
   recovery: { label: "Recovery % (numeric)", fields: intervalFields(["recovery_pct", "recovery", "rec_pct", "rec_pct_d", "core_recovery", "value"], null, true) },
-  sg: { label: "Specific gravity (numeric)", fields: intervalFields(["sg", "sg_d", "bulkdens_calc", "sg_calc", "specific_gravity", "specific_grav", "bulk_density", "density", "reading", "value"], null, true) }, // reading: #2153 (beside Weight_Wet / Weight_Dry)
+  sg: { label: "Specific gravity (numeric)", fields: intervalFields(["sg", "sg_d", "bulkdens_calc", "sg_calc", "calc_sg" /* #3204: CALC-SG */, "specific_gravity", "specific_grav", "bulk_density", "density", "reading", "value"], null, true) }, // reading: #2153 (beside Weight_Wet / Weight_Dry)
   // TASKS.csv #605 — mag sus is often logged as POINT readings (depth + value, an MX-style "Mag Susc" sheet), so a
   // Depth column is an alternative to From / To (oneOf below; the reading is placed at that depth).
   magsusc: { label: "Mag. susceptibility (numeric)", oneOf: [["from", "to"], ["depth"]], fields: [
-    ...intervalFields(["mag_avg_si", "ave_reading", "avg_reading", "mag_reading", "magsus1", "magsus", "mag_si", "mag_sus", "mag_avg", "mag", "value"], null, true) // mag_reading: #1345
+    ...intervalFields(["mag_avg_si", "ave_reading", "avg_reading", "mag_reading", "ms_reading" /* #3204 */, "magsus1", "magsus", "mag_si", "mag_sus", "mag_avg", "mag", "value"], null, true) // mag_reading: #1345
       .map((f) => (f.key === "from" || f.key === "to" ? { ...f, required: false, label: `${f.label} (or Depth below)` } : f)),
     { key: "depth", label: "Depth (point readings, instead of From / To)", required: false, aliases: ["depth", "depth_m", "md", "at"] },
   ] },
@@ -1176,7 +1176,9 @@ export function schemaSatisfied(target, mapping) {
 // Logs with no built-in layer, named for what they hold: ask, as a custom layer. #600 (40958Z): a void / cavity log is not veins (its bare
 // "Type" column hit the vein rule); #1345: a UV fluorescence log is not lithology; #1502 (40958Z): Oxidation, Silicification and
 // OriCore (the core-orientation marks) were all guessed as Lithology from a generic code / description column.
-const CUSTOM_LOG_NAMES = /\b(voids?|cavit(y|ies))\b|fluoresc|silicif|\bori(ented)?[\s_-]*core\b|\boricore\b/i; // oxidation / weathering: their own layer since #2162
+// TASKS.csv #3204 (#3195, Galore Creek) — geotechnical test tables (lock angles, pocket penetrometer, point load, UCS) and an overburden log went to
+// Lithology / Structure planes / Veins / SG by a stray 'LITH' / 'Structure' / 'Test Type' column: a custom layer, asked
+const CUSTOM_LOG_NAMES = /\b(voids?|cavit(y|ies))\b|fluoresc|silicif|\bori(ented)?[\s_-]*core\b|\boricore\b|lock[\s_-]*angles?|penetrometer|point[\s_-]*load|(^|[^a-z])ucs([^a-z]|$)|overburden/i; // oxidation / weathering: their own layer since #2162
 // TASKS.csv #2339 (review #2325, WA uranium) — a hyperspectral (HyLogger TSA) table: mineral / weight pairs and absorption-feature
 // parameters (TSA_S Mineral1, TSA_S Weight1, w2200, d2200, hqd2200, kaol_cryst, FeOx ...). geophysics_1.csv (34 columns, one U3O8_ppm
 // among them) went to the assay import as 5,394 U results, double-counting the lab's. -> the number of spectral columns
@@ -1185,11 +1187,18 @@ export const spectralColumns = (headers) => (headers || []).filter((h) => SPECTR
 // the mineral column of a spectral table: the first Mineral1 (TSA_S before TSA_V by header order)
 export const spectralMineralColumn = (headers) => (headers || []).find((h) => /mineral[\s_]*1$/i.test(String(h).trim())) || "";
 // rows (optional, TASKS.csv #2884): the file's rows, for the zero-length test below
+// #3204 — a type column with the orientation of each pick (alpha and beta, or dip with dip direction / strike): structure planes, whatever else is numeric
+function structurePicks(headers) {
+  const m = guessMapping("structure", headers);
+  return !!(m.value && ((m.alpha && m.beta) || (m.dip && (m.azimuth || m.strike))));
+}
 export function guessTargetFor(headers, name, rows = null) {
   if (CUSTOM_LOG_NAMES.test(String(name || ""))) return "custom";
   // #2884 (review #2876, WA iron) — From equals To on every sampled row and a log channel is named (Density_Best, Gamma_Best ...): point
   // readings, a downhole log, before any name hint ("density.csv" would keep Specific gravity: millions of zero-length intervals)
-  if (rows && zeroLengthRows(headers, rows) === true && looksLikeLogTable(headers, rows)) return "custom";
+  // TASKS.csv #3204 (#3195, Galore Creek) — not a table of oriented structure picks: Point Structures (GEOLFROM = GEOLTO; PTSTR_STR_TYPE, PTSTR_ALPHA,
+  // PTSTR_BETA) has numbers in every row too, and went to Custom layer while the same columns of Fault Structures were read as Structure planes
+  if (rows && zeroLengthRows(headers, rows) === true && looksLikeLogTable(headers, rows) && !structurePicks(headers)) return "custom";
   if (spectralColumns(headers) >= 4) return "custom"; // #2339 — a mineral table from spectra, not Mineralization (ore minerals)
   // TASKS.csv #2317 — regolith boundary events (BOCO, TOFR, ... at one depth per hole, no from / to): a custom point layer of codes, not
   // structure picks without an orientation (where 'Event_Code + Depth' used to land)

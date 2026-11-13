@@ -11798,5 +11798,6 @@
   "Leave out the {stations} station(s) of {n} hole id(s) with no collar in the project ({ids}): they cannot be placed.": "Deixar de fora as {stations} estação(ões) de {n} id(s) de furo sem colar no projeto ({ids}): não podem ser posicionadas.",
   " {n} hole id(s) in the file have no collar ({ids}): their {stations} station(s) were left out.": " {n} id(s) de furo do arquivo não têm colar ({ids}): suas {stations} estação(ões) ficaram de fora.",
   " {n} hole id(s) in the file have no collar ({ids}): their {stations} station(s) were kept, and cannot be placed until a collar is loaded.": " {n} id(s) de furo do arquivo não têm colar ({ids}): suas {stations} estação(ões) foram mantidas e não podem ser posicionadas até que um colar seja carregado.",
-  "{n} survey hole ids have no matching collar ({ids}): their {stations} stations cannot be desurveyed and won't render.": "{n} id(s) de furo do levantamento não têm colar correspondente ({ids}): suas {stations} estações não podem ser calculadas e não serão desenhadas."
+  "{n} survey hole ids have no matching collar ({ids}): their {stations} stations cannot be desurveyed and won't render.": "{n} id(s) de furo do levantamento não têm colar correspondente ({ids}): suas {stations} estações não podem ser calculadas e não serão desenhadas.",
+  "No column name matched, so {col} was chosen: the file's only number column left. Check it is the one to draw.": "Nenhum nome de coluna correspondeu, então {col} foi escolhida: a única coluna numérica que resta no arquivo. Confira se é a que deve ser desenhada."
 }
