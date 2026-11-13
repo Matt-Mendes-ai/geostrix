@@ -140,6 +140,10 @@ export function bundledData() {
   { const p = path.join(ROOT, "sample_data", "wa_lead_zinc", "README.md");
     if (existsSync(p)) out.push({ name: "WA lead-silver-zinc sample (WAMEX company mineral drillhole database, Department of Energy, Mines, Industry Regulation and Safety, Western Australia)", version: "2024", license: "CC-BY-4.0",
       url: "https://catalogue.data.wa.gov.au/dataset/mineral-exploration-drillholes-open-file", text: readFileSync(p, "utf8").trim() }); }
+  // TASKS.csv #3107 — listed like the Blake River and WA uranium samples: its README carries the attribution and says what was done
+  { const p = path.join(ROOT, "sample_data", "wa_zinc_copper", "README.md");
+    if (existsSync(p)) out.push({ name: "WA zinc-copper sample (WAMEX company mineral drillhole and surface geochemistry database, Department of Energy, Mines, Industry Regulation and Safety, Western Australia)", version: "2024", license: "CC-BY-4.0",
+      url: "https://catalogue.data.wa.gov.au/dataset/mineral-exploration-drillholes-open-file", text: readFileSync(p, "utf8").trim() }); }
   return out;
 }
 

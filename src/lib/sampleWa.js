@@ -19,12 +19,15 @@ export const WA_SAMPLES = {
     grid: { file: "tmi_80m.tif", name: "Total magnetic intensity (Geoscience Australia, 80 m)", method: "mag", units: "nT", source: "Geoscience Australia, Total Magnetic Intensity Grid of Australia 2019, seventh edition, 80 m" },
   },
   wa_lead_zinc: { dir: "wa_lead_zinc", epsg: 28352, label: "WA lead-silver-zinc", assays: "assays.csv" },
+  wa_zinc_copper: { dir: "wa_zinc_copper", epsg: 28350, label: "WA zinc-copper", assays: "assays.csv", surface: [["soils.csv", "soil"], ["streams.csv", "stream sediment"]] },
 };
 
 const cellOf = (e, raw) => (e.symbol === LOI ? readLoiCell(raw) : readAssayCell(raw));
-// the element columns of a table, as the assay import dialog would offer them with every default taken
+// the element columns of a table, as the assay import dialog would offer them with every default taken. The tables' own fixed columns are
+// left out first: a surface table's "y" (northing) reads as yttrium by its name, and took the place of the real Y_ppm column.
+const FIXED = new Set(["hole_id", "from", "to", "sample_id", "x", "y", "z", "medium"]);
 function elementsOf(fields, data) {
-  return pickElementColumns(fields, data).map((e) => ({ symbol: e.symbol, header: e.header, unit: importStoreUnit(e), checked: true }));
+  return pickElementColumns(fields.filter((f) => !FIXED.has(f)), data).map((e) => ({ symbol: e.symbol, header: e.header, unit: importStoreUnit(e), checked: true }));
 }
 function valuesOf(r, elements) {
   const values = {}, qualifiers = {};
