@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { drillThresholdOffers } from "../lib/thresholds.js"; // TASKS.csv #2347
 import { X, Download, Sheet } from "./icons.js";
 import { preferredElement, rememberElement } from "../lib/preferredElement.js"; // TASKS.csv #1678
@@ -23,7 +23,7 @@ import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { toExportCsv } from "../lib/tabular.js"; // TASKS.csv #1022 — every exported CSV: all columns, formula cells escaped
 import { interceptRows, optionalInterceptColumns } from "../lib/drillReportExport.js"; // TASKS.csv #1083, #1290
 import { localDate } from "../lib/localDate.js"; // TASKS.csv #2358
-import { cutoffOnElementChange } from "../lib/interceptCutoff.js"; // TASKS.csv #2513
+import { cutoffOnElementChange, rememberInterceptCutoff } from "../lib/interceptCutoff.js"; // TASKS.csv #2513; remember: #3069
 import { interceptTablePlan, interceptCount, columnFormat } from "../lib/interceptTable.js";
 import { BULK_COMMODITIES } from "../lib/preferredElement.js"; // TASKS.csv #2923 — no metal equivalent for a bulk commodity
 import { elementOptionLabel, isLoiHeader } from "../lib/geochem.js"; // TASKS.csv #2923 — 'Si as SiO2' in the price rows; isLoiHeader: #2924 // TASKS.csv #2200 / #2479; columnFormat: #3019
@@ -72,6 +72,8 @@ export default function BestIntercepts({ assays: assaysIn, assayElements, collar
   const suggestCutoff = (sym) => p90Of(sym) ?? cutoff;
   const [suggested, setSuggested] = useState(() => p90Of(symbol)); // #1678 — the tooltip says the opening cutoff is a suggestion too
   const [cutoffNote, setCutoffNote] = useState(null); // TASKS.csv #2513 — what an element change did to the cut-off
+  // TASKS.csv #3069 — a cut-off the user set (not the P90 suggestion) is offered in Grade stats for the same element, this session only
+  useEffect(() => { if (suggested == null || cutoff !== suggested) rememberInterceptCutoff(project?.name, symbol, unit, cutoff); }, [cutoff, suggested, symbol, unit, project?.name]);
   const changeSymbol = (sym) => {
     cutoffBySymbol.current[symbol] = cutoff;
     const r = cutoffOnElementChange({ cutoff, typed: suggested == null || cutoff !== suggested, fromUnit: elementUnits[symbol], toUnit: elementUnits[sym], kept: cutoffBySymbol.current[sym] ?? null, suggestion: suggestCutoff(sym) });

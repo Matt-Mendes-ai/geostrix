@@ -8,3 +8,16 @@ export function cutoffOnElementChange({ cutoff, typed, fromUnit, toUnit, kept = 
   if (typed && (fromUnit || "ppm") === (toUnit || "ppm")) return { cutoff, suggested: false, note: { kind: "kept", value: cutoff } };
   return { cutoff: suggestion, suggested: true, note: typed && suggestion !== cutoff ? { kind: "reset", value: suggestion } : null };
 }
+
+// TASKS.csv #3069 (split from #2912) — Grade stats offers the cut-off last set in Best intercepts for the same element. This session only,
+// by project name, element and unit: never saved, so a cut-off never crosses into another project or unit. A suggestion (the opening P90)
+// is not remembered, only a cut-off the user typed or picked.
+const lastSet = new Map();
+const keyOf = (projectName, symbol, unit) => `${projectName ?? ""}\u0000${symbol}\u0000${unit || "ppm"}`;
+export function rememberInterceptCutoff(projectName, symbol, unit, value) {
+  if (!symbol) return;
+  if (Number.isFinite(value) && value > 0) lastSet.set(keyOf(projectName, symbol, unit), value);
+}
+export function interceptCutoffFor(projectName, symbol, unit) {
+  return lastSet.get(keyOf(projectName, symbol, unit)) ?? null;
+}
