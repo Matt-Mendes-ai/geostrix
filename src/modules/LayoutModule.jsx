@@ -23,7 +23,7 @@ import PromptModal from "../components/PromptModal.jsx";
 import { minMax, LAYER_META } from "../lib/layers.js";
 import { categoryLegendGroups, assayLegendGroups, voxelLegendGroups, rasterLegendGroups, legendGroupsToItems, LEGEND_CATEGORY_KEYS, mapLayerLegendGroups, boundaryLegendGroups, swatchShape, capLegendGroups, outcropLegendGroup } from "../lib/legendGroups.js"; // TASKS.csv #725; #948; #1633; outcropLegendGroup: #1437
 import { niceScaleNumber } from "../lib/figureScale.js"; // TASKS.csv #311 — shared with the 3D viewport's scale bar
-import { collarTableSlice, continuationTables, collarsWithSurveyAttitude, continuationPageIndex, collarTableFieldChoices, defaultCollarTableFields, splitTableRows } from "../lib/collarTable.js"; // splitTableRows: #2770; // field columns: #2717; // continuationPageIndex: #2718 // TASKS.csv #1638; collarsWithSurveyAttitude: #2133
+import { collarTableSlice, continuationTables, collarsWithSurveyAttitude, continuationPageIndex, collarTableFieldChoices, defaultCollarTableFields, splitTableRows, suspectIdsOf, elevationCell, elevationNotes } from "../lib/collarTable.js"; // elevation*: #3023 // splitTableRows: #2770; // field columns: #2717; // continuationPageIndex: #2718 // TASKS.csv #1638; collarsWithSurveyAttitude: #2133
 import { fitDrillPlan, filterHoles, allHolesSteep, STEEP_DIP, turnedFrameFit, labelBackdrop } from "../lib/drillPlan.js"; // labelBackdrop: #2738; // TASKS.csv #1639; allHolesSteep: #2473; turnedFrameFit: #2305
 import DrillPlanColourControls from "../components/DrillPlanColourControls.jsx"; // TASKS.csv #2473
 import DrillPlanElement, { drillPlanDrawing } from "../components/DrillPlanElement.jsx"; // TASKS.csv #1639
@@ -1027,7 +1027,8 @@ export default function LayoutModule() {
   // ACTUAL litho vocabulary in `layers.litho` (a theme only stores which units are hidden, not the
   // full unit list, since that list can grow after the theme was saved) to build the item list.
   // TASKS.csv #1633 — frameHoles (holesInFrame of the bound frame, or null): only the holes the frame shows give categories
-  const legendFromView = (theme, { frameHoles = null, frame = null } = {}) => {
+  // perGroup (TASKS.csv #3021): the codes listed per layer, a number or "all" (the legend's codesPerLayer; 12 by default, as before)
+  const legendFromView = (theme, { frameHoles = null, frame = null, perGroup = 12 } = {}) => {
     // TASKS.csv #2134 — the frame filters the surface samples and the map layers too: none inside drops the group, and the media /
     // classes are those found inside
     const sampleGroup = (() => {
@@ -1065,12 +1066,14 @@ export default function LayoutModule() {
     ];
     // #1633 — a long group keeps its most frequent entries and says how many it left out
     // TASKS.csv #2609 — case-only twins of one colour are one row, and the left-out line is for the sheet's reader (the sidebar explains editing)
-    const items = legendGroupsToItems(capLegendGroups(mergeCaseTwins(groups), 12, (n) => tr("+ {n} more codes, not listed", { n })));
+    // TASKS.csv #3021 (review #2876, WA iron) — the strand key printed 12 of 34 codes ('+ 22 more codes, not listed', the footwall JER among them):
+    // the legend's own 'Codes per layer' (12 / 24 / all); a long key flows into columns to fit the sheet (legendFit, #1480)
+    const items = legendGroupsToItems(capLegendGroups(mergeCaseTwins(groups), perGroup === "all" ? Infinity : Number(perGroup) || 12, (n) => tr("+ {n} more codes, not listed", { n })));
     return { groups, items };
   };
   // TASKS.csv #2471 — auto: the bound viewport was refreshed and the legend's rows were the loaded ones (legendSyncState "reload");
   // each load records the rows and the capture it came from (loadedItems / loadedCapturedAt), so a later refresh can tell
-  const syncLegendFromView = (legendId, { auto = false } = {}) => {
+  const syncLegendFromView = (legendId, { auto = false, perGroup = null } = {}) => { // perGroup: #3021 — a new 'Codes per layer' before it is stored
     const legend = elements.find((el) => el.id === legendId);
     if (!legend) return;
     const say = auto ? () => {} : setSyncNotice;
@@ -1096,7 +1099,7 @@ export default function LayoutModule() {
     const theme = themes.find((t) => t.id === vp.themeId) || (!vp.themeId && vp.viewState ? { ...vp.viewState, name: tr("the current view") } : null);
     if (!theme) { say(tr("This viewport's saved theme could no longer be found (it may have been renamed or deleted) — rebind the viewport to a theme in its own panel, or resave that theme, then sync again.")); return; }
     const frameHoles = holesInFrame(vp, collars); // #1633 — a top-down true-scale frame: what it shows; else the whole view
-    const { groups, items } = legendFromView(theme, { frameHoles, frame: frameTest(vp) }); // frame: #2134
+    const { groups, items } = legendFromView(theme, { frameHoles, frame: frameTest(vp), perGroup: perGroup ?? legend.codesPerLayer ?? 12 }); // frame: #2134; perGroup: #3021
     if (!items.length) { setElements((els) => els.map((el) => el.id === legendId ? { ...el, ...stamp([]) } : el)); setSyncNotice(tr("Nothing that view shows has a legend: no visible category layer, assay classes, block model, surface samples, map layer or boundary.")); return; }
     setElements((els) => els.map((el) => el.id === legendId ? { ...el, ...stamp(items) } : el));
     setSyncNotice(tr(groups.length === 1 ? "Loaded {n} legend group from \"{name}\"." : "Loaded {n} legend groups from \"{name}\".", { n: groups.length, name: theme.name })
@@ -1418,6 +1421,13 @@ export default function LayoutModule() {
                 </label>
                 <button onClick={() => syncLegendFromView(sel.id)} disabled={!sel.boundViewportId} style={{ ...pBtn, opacity: sel.boundViewportId ? 1 : 0.5 }}>
                   <RefreshCw size={12} />{" "}{tr("Load from view / section")}</button>
+                {/* TASKS.csv #3021 — how many codes of each layer a view's legend lists (a section's legend carries its own rows) */}
+                {elements.some((e) => e.id === sel.boundViewportId && e.type !== "image") && (
+                  <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 6, margin: "4px 0 6px" }} title={tr("The commonest codes of each layer are listed; the rest are counted on one line. A long key flows into columns to fit the sheet.")}>{tr("Codes per layer")}
+                    <select value={String(sel.codesPerLayer ?? 12)} onChange={(e) => { const v = e.target.value === "all" ? "all" : Number(e.target.value); updateSelected({ codesPerLayer: v }); syncLegendFromView(sel.id, { perGroup: v }); }} style={{ fontSize: "var(--font-size-base)" }} aria-label={tr("Codes per layer")}>
+                      <option value="12">12</option><option value="24">24</option><option value="all">{tr("all")}</option>
+                    </select></label>
+                )}
                 {legendSyncState(sel, elements.find((el) => el.id === sel.boundViewportId)) === "stale" && ( /* TASKS.csv #2471 */
                   <div role="status" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text-strong)", margin: "4px 0 8px", lineHeight: 1.4 }}>
                     {tr("Out of step with its viewport: the viewport was refreshed after these rows were loaded, and they were edited (or loaded before this check existed), so they were kept. Load from view to update them.")}</div>
@@ -2516,9 +2526,18 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
       columns = [tr("Hole"), tr("Easting"), tr("Northing"), tr("Elev. (m)"), tr("Azimuth (grid)") /* #1771 — GeoStrix keeps grid azimuths */, tr("Dip"), tr("Depth (m)"), ...extra];
       const sl = collarTableSlice(cs, { firstRow: el.firstRow, maxRows: el.maxRows, filter: el.holeFilter }); // #1638
       const star = (v, fromSurvey) => (v !== "" && fromSurvey ? `${v}*` : v); // #1483 — from the first survey station; #1771 each value its own flag
-      rows = sl.rows.map((c) => [String(c.hole_id ?? ""), f(c.x, 0), f(c.y, 0), f(c.z, 1), Math.abs(Number(c.dip)) >= 89.5 ? "—" /* #2615 — a vertical hole has no azimuth ('344*  -90*') */ : Number.isFinite(c.azSurvey) ? `${f(c.azimuth, 0)}†` /* #2133 */ : star(f(c.azimuth, 0), c.azFromSurvey ?? c.orientFromSurvey), star(f(Number.isFinite(c.dip) ? -c.dip : "", 0), c.dipFromSurvey ?? c.orientFromSurvey) /* #1033 — negative = down, as imported */, f(c.length, 1), ...extra.map((k) => String(c.attrs?.[k] ?? "").trim())]); // extra: #2717
+      const suspectZ = suspectIdsOf(ctx?.collars || []); // #3023 — #3004's rule over the whole project's collars
+      rows = sl.rows.map((c) => [String(c.hole_id ?? ""), f(c.x, 0), f(c.y, 0), elevationCell(c, suspectZ) /* #3023: ‡ assumed, § suspect */, Math.abs(Number(c.dip)) >= 89.5 ? "—" /* #2615 — a vertical hole has no azimuth ('344*  -90*') */ : Number.isFinite(c.azSurvey) ? `${f(c.azimuth, 0)}†` /* #2133 */ : star(f(c.azimuth, 0), c.azFromSurvey ?? c.orientFromSurvey), star(f(Number.isFinite(c.dip) ? -c.dip : "", 0), c.dipFromSurvey ?? c.orientFromSurvey) /* #1033 — negative = down, as imported */, f(c.length, 1), ...extra.map((k) => String(c.attrs?.[k] ?? "").trim())]); // extra: #2717
       more = sl.after; head = sl.start > 0 || el.holeFilter ? tr("Rows {a}–{b} of {n}", { a: sl.total ? sl.start + 1 : 0, b: sl.end, n: sl.total }) + (el.holeFilter ? ` (${el.holeFilter})` : "") : null; nextRow = sl.end + 1;
       if (sl.rows.some((c) => c.orientFromSurvey)) surveyNote = tr("* From the shallowest survey station: the collar record has none for that value.");
+      // #3023 — what the elevation marks mean (and which holes carry them)
+      for (const n of elevationNotes(sl.rows, suspectZ)) {
+        const ids = n.ids.slice(0, 6).join(", ") + (n.ids.length > 6 ? ` +${n.ids.length - 6}` : "");
+        const line = n.kind === "assumed"
+          ? tr("‡ Elevation not in the collar file: filled at import ({how}): {ids}.", { how: Object.entries(n.how).map(([k, v]) => `${k === "terrain" ? tr("from the terrain") : k === "median" ? tr("the collars' median") : tr("zero")}${n.ids.length > 1 ? ` ×${v}` : ""}`).join(", "), ids })
+          : tr("§ Elevation in the collar file but probably a missing value (0 m among collars far from 0, or far from every other collar): {ids}.", { ids });
+        surveyNote = (surveyNote ? surveyNote + " " : "") + line;
+      }
       // #2133 — a collar azimuth that disagrees with the survey: the collar file's north reference, or a planned azimuth
       const differs = sl.rows.filter((c) => Number.isFinite(c.azSurvey));
       if (differs.length) surveyNote = (surveyNote ? surveyNote + " " : "") + tr("† The collar record's azimuth, which differs from the hole's shallowest survey station (grid north) by more than 0.5°: {list}. The collar file may use another north reference, or hold the planned azimuth.", { list: differs.slice(0, 6).map((c) => `${c.hole_id} ${f(c.azSurvey, 1)}`).join(", ") + (differs.length > 6 ? ` (+${differs.length - 6})` : "") });
@@ -2533,7 +2552,7 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
     }
     const fs = printPx(el.fontPt || printPt.small), cell = { padding: `${Math.round(fs * 0.25)}px ${Math.round(fs * 0.5)}px`, borderBottom: "1px solid #c9ced4" /* #999 — 0.26 mm on paper like the scale bar; 0.5 px vanished on screen at Fit zoom */, whiteSpace: "nowrap" };
     const tableParts = el.source === "collars" ? splitTableRows(rows, el.split) : [rows]; // #2770
-    const numeric = columns.map((_, j) => rows.length > 0 && rows.every((r) => r[j] === "" || /^[-+≥<>]?[\d.,]+[*†]?$/.test(String(r[j])))); // \*: #1483; †: #2133
+    const numeric = columns.map((_, j) => rows.length > 0 && rows.every((r) => r[j] === "" || /^[-+≥<>]?[\d.,]+[*†‡§]?$/.test(String(r[j])))); // \*: #1483; †: #2133; ‡ §: #3023
     return (
       <div style={{ ...wrap, width: el.w || 520, background: "#fff", border: frameBorder(el), padding: 6, boxSizing: "border-box", fontFamily: FONT, color: "#1a2028" }} onMouseDown={onDown} data-el-id={el.id} {...kb}>
         {el.title && <div style={{ fontSize: printPx((el.fontPt || printPt.small) + 2), fontWeight: 700, marginBottom: 4 }}>{fillText(el.title, ctx)}</div>}

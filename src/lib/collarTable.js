@@ -1,6 +1,7 @@
 // TASKS.csv #1638 (review #1497, Lawyers) — the Layout collar table as an appendix: a first row, a hole filter, continuation
 // pages, and a default length that fits the sheet. It listed rows 1-40 of 446 and said "add a second table", which listed the
 // same 40 (no offset); 40 rows at its default place ran to page px 800 on a 794 px A4 landscape sheet.
+import { elevationTrust, suspectElevationIds } from "./collarElevationTrust.js"; // TASKS.csv #3023 — #3004's shared rule
 import { printPx } from "./theme.js";
 import { collarAttrChoices } from "./holeFilter.js"; // TASKS.csv #2717
 
@@ -90,4 +91,30 @@ export function collarsWithSurveyAttitude(collars, survey) {
   return (collars || []).map((c) => { const s = first.get(c.hole_id); if (!s) return c; const azS = !Number.isFinite(c.azimuth) && Number.isFinite(s.azimuth), dipS = !Number.isFinite(c.dip) && Number.isFinite(s.dip);
     const azDiffers = Number.isFinite(c.azimuth) && Number.isFinite(s.azimuth) && azOff(c.azimuth, s.azimuth) > 0.5 ? s.azimuth : null;
     return azS || dipS || azDiffers != null ? { ...c, azimuth: azS ? s.azimuth : c.azimuth, dip: dipS ? s.dip : c.dip, azFromSurvey: azS, dipFromSurvey: dipS, orientFromSurvey: azS || dipS, ...(azDiffers != null ? { azSurvey: azDiffers } : {}) } : c; });
+}
+
+// TASKS.csv #3023 (review #2876, WA iron) — a collar table printed an elevation the import filled in (RHDMET_0145 '438.8', the project median)
+// as if it were surveyed. #3004's rule (lib/collarElevationTrust.js) marks it: '438.8‡' for an elevation the import assumed (terrain,
+// median or zero), '0.0§' for one in the file that is probably a missing value; one footnote line each, under the table.
+const suspectCache = new WeakMap();
+export function suspectIdsOf(collars) {
+  const list = collars || [];
+  let s = suspectCache.get(list);
+  if (!s) suspectCache.set(list, (s = suspectElevationIds(list)));
+  return s;
+}
+// -> the cell text: the elevation (1 decimal) with its mark, or "" with none
+export function elevationCell(c, suspect) {
+  const z = Number(c?.z);
+  if (c?.z == null || c.z === "" || !Number.isFinite(z)) return "";
+  const t = elevationTrust(c, suspect);
+  return z.toFixed(1) + (t === "assumed" ? "‡" : t === "suspect" ? "§" : "");
+}
+// the footnote lines for the rows shown: [{ mark, kind, ids, how }] (how: the assumed fills by kind, e.g. { median: 2 })
+export function elevationNotes(rows, suspect) {
+  const assumed = rows.filter((c) => elevationTrust(c, suspect) === "assumed"), sus = rows.filter((c) => elevationTrust(c, suspect) === "suspect");
+  const out = [];
+  if (assumed.length) { const how = {}; for (const c of assumed) how[c.zAssumed] = (how[c.zAssumed] || 0) + 1; out.push({ mark: "‡", kind: "assumed", ids: assumed.map((c) => c.hole_id), how }); }
+  if (sus.length) out.push({ mark: "§", kind: "suspect", ids: sus.map((c) => c.hole_id) });
+  return out;
 }
