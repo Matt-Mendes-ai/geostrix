@@ -850,7 +850,6 @@
   "Check the generated surfaces against the relationships declared on them (expand a surface's row to declare one): surfaces that intersect where they shouldn't, a surface on the wrong side of one it is declared below/above, and contact surfaces that fold back over themselves.": "Verificar las superficies generadas contra las relaciones declaradas en ellas (despliegue la fila de una superficie para declarar una): superficies que se intersectan donde no deberían, una superficie del lado equivocado de otra que se declaró debajo/encima, y superficies de contacto que se pliegan sobre sí mismas.",
   "Checking relationships…": "Verificando relaciones…",
   "Check relationships": "Verificar relaciones",
-  "None yet — run one of the tools above. Generated surfaces now save with the project (mesh, type, declared relationships and the parameters that produced them), so a reported volume or tonnage can be reproduced after a restart. Binding a surface to a saved theme is still a follow-up.": "Aún ninguna — corra una de las herramientas de arriba. Las superficies generadas ahora se guardan con el proyecto (malla, tipo, relaciones declaradas y los parámetros que las produjeron), así que un volumen o tonelaje informado se puede reproducir después de reiniciar. Vincular una superficie a un tema guardado sigue pendiente.",
   "Style (colour, opacity)…": "Estilo (color, opacidad)…",
   "Type & relationships": "Tipo y relaciones",
   "Show or hide {name}": "Mostrar u ocultar {name}",
@@ -11672,5 +11671,7 @@
   "Type a string name first": "Escriba primero el nombre de la polilínea",
   "Draw the outline of {name}": "Dibujar el contorno de {name}",
   "Draw the fault {name}": "Dibujar la falla {name}",
-  "Draw the string {name}": "Dibujar la polilínea {name}"
+  "Draw the string {name}": "Dibujar la polilínea {name}",
+  "None yet: build one with Implicit surface, Explicit surface or Grade shell above, or link section outlines into a solid.": "Ninguna todavía: construya una con Superficie implícita, Superficie explícita o Envolvente de ley arriba, o una los contornos de sección en un sólido.",
+  "Generated surfaces save with the project (mesh, type, declared relationships and the parameters that produced them), so a reported volume or tonnage can be reproduced after a restart.": "Las superficies generadas se guardan con el proyecto (malla, tipo, relaciones declaradas y los parámetros que las produjeron), de modo que un volumen o tonelaje informado puede reproducirse tras reiniciar."
 }
