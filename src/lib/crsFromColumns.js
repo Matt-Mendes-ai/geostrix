@@ -6,6 +6,7 @@
 // NAT_Grid_ID = MGA94_Z50, Datum + Zone, COORDSYS = GDA94_51S, LL_Grid_ID = LL_WGS84, or a local grid (MINE, PAN, WALLABY). Every test
 // project asked the CRS question although the file said MGA94_51. One grid name -> EPSG; a name no system matches -> a local grid;
 // rows in several frames (5 MGA94_51 + 3 WALLABY) are said, never averaged.
+import { arrMin, arrMax } from "./arrayStats.js"; // TASKS.csv #3031 — no Math.min / max spread over a population (#371)
 const GRID_NAME_COLS = /^(grid_?name|grid|grid_?id|nat_?grid_?id|mga_?grid_?id|ll_?grid_?id|map_?grid|coord_?sys(tem)?|coordinate_?system|crs_?name|datum|projection|proj|zone|utm_?zone)$/;
 const normCol = (h) => String(h ?? "").trim().toLowerCase().replace(/[\s-]+/g, "_");
 export function epsgFromGridName(text) {
@@ -56,7 +57,7 @@ export function smallGridCoordinates(points) {
   const small = ps.filter((p) => p.x < 100000 || p.x > 900000 || p.y < 0 || p.y > 10000000);
   if (small.length < ps.length / 2) return null;
   const xs = small.map((p) => p.x), ys = small.map((p) => p.y);
-  return { n: small.length, of: ps.length, x: [Math.min(...xs), Math.max(...xs)], y: [Math.min(...ys), Math.max(...ys)] };
+  return { n: small.length, of: ps.length, x: [arrMin(xs), arrMax(xs)], y: [arrMin(ys), arrMax(ys)] }; // arrMin / arrMax: #3031 (every point of a CSV)
 }
 
 // TASKS.csv #2495 (review #2486, WA lithium) — coordinate columns named after a grid FAMILY with no zone (MGA_E / MGA_N, AMG84_East,
