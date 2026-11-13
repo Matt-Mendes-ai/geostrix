@@ -2,7 +2,7 @@
 // undiscounted money out, as a surface in the 3D view with what it holds. Every number is the user's: no default price, cost or
 // density (a default would read as a fact, as #264). Maths in lib/pitShell.js; framing from #836.
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Pickaxe, Eye, EyeOff, Trash2, Pencil } from "./icons.js";
+import { Pickaxe, Eye, EyeOff, Trash2, Pencil, Maximize2 } from "./icons.js"; // Maximize2: #2996
 import { confirmDestructive } from "../lib/confirmDestructive.js"; // #1498
 import { TaskPaneHeader } from "./Ribbon.jsx";
 import { useStore } from "../lib/store.jsx";
@@ -48,7 +48,7 @@ let kept = null; // #1356 — the last result, shown again when the pane or the 
 // surfaces: the project's generated surfaces (the last pit's inputs come back from its saved parameters).
 // onAdd({ name, positions, indices, params, tip, type, closure, color, tag }) puts the pit in the 3D view; onToggle(id) shows/hides a surface;
 // onRemove(id) deletes one (#1498).
-export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove, onClose }) {
+export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove, onClose, onZoomTo = null }) { // onZoomTo: #2996
   const { voxelModels = [], terrain, layers, collars = [], assays = [], assayElements = [], survey = [], desurveyMethod, designStrings = [] } = useStore(); // assays..desurveyMethod: #2593; designStrings: #2120
   // a grade: a unit that counts metal first, then none stated (an import may simply not say); never a resistivity, a variance, an inversion or a category
   const models = useMemo(() => {
@@ -247,6 +247,7 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove,
       if (hideEarlier) surfaces.filter((s) => s.type === "pit_shell" && s.visible && s.id !== editingId).forEach((s) => onToggle?.(s.id)); // #1356 — one pit on view at a time
       if (editingId) { onRemove?.(editingId); setEditingId(null); } // #1498 — the edited pit is replaced by the new run
       const priceLabel = isProduct ? "$/dmt" /* #2986 part 2 */ : (prices.find(([k]) => k === priceUnit) || [])[1] || "";
+      const firstOfModel = !pits.some((p) => p.params?.blockModel === model.name); // #2996
       const pitId = onAdd({
         // #1356 — named by what usually changes between runs, so a list of pits can be told apart
         name: tr("Pit shell: {model} at {price} {unit}{by}, {slope}°{rf}{sec}{cells}", { model: model.name, price: inputs.price, unit: priceLabel, by: byInputs ? tr(" + {el} at {price} {unit}", { el: byLabel, price: byInputs.price, unit: byPriceLabel }) : "", slope: slopeName(inputs.slopeDeg, inputs.sectorSlopes ? null : r.walls), rf: rfText + (inputs.typedCutoff ? ` ≥ ${inputs.typedCutoff} ${gradeUnitText(unit, element)}`.trimEnd() : "") /* #2986 */, sec: inputs.sectorSlopes ? tr(" (by sector)") : "", cells: cellText + (inputs.upperSlope ? tr(", {s}° above {rl} m", { s: inputs.upperSlope.slopeDeg, rl: inputs.upperSlope.rl }) : "") /* #2439 */ + (inputs.wasteDensity ? tr(", waste {w} t/m³", { w: inputs.wasteDensity }) : "") /* #2437 */ + (inputs.weathered ? tr(", weathered {w} t/m³", { w: inputs.weathered.density }) : "") /* #2597 */ }) /* by: #1917; slopeName: #2433 */, positions: r.positions, indices: r.indices, type: "pit_shell", closure: null, color: "#b5651d", tag: "pit",
@@ -260,6 +261,7 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove,
           caution: "conceptual: undiscounted, no ramps, berms, dilution or scheduling; not a Mineral Reserve or Resource", generatedAt: new Date().toISOString() },
       });
       if (pitId) { kept = { ...kept, pitId }; setRes(kept); } // #1613 — the result knows its pit
+      if (pitId && firstOfModel && onZoomTo) setTimeout(() => onZoomTo(pitId), 600); // #2996 — the first pit of a model is put in view once
     } catch (e) {
       setMsg(tr("The pit run failed: {v}", { v: e.message || e }));
     } finally {
@@ -397,6 +399,7 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove,
               <button onClick={() => onToggle?.(s.id)} style={iconBtnStyle} aria-label={s.visible ? tr("Hide {name}", { name: s.name }) : tr("Show {name}", { name: s.name })} title={s.visible ? tr("Hide") : tr("Show")}>{s.visible ? <Eye size={13} /> : <EyeOff size={13} />}</button>
               <span title={s.name} style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: s.visible ? "var(--color-text)" : "var(--color-text-muted)" }}>{String(s.name).replace(/^Pit shell: /, "")}</span>
               {Number.isFinite(s.params?.oreTonnes) && <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)", flexShrink: 0 }}>{`${big(s.params.oreTonnes)} t`}</span>}
+              {onZoomTo && <button onClick={() => onZoomTo(s.id)} style={iconBtnStyle} aria-label={tr("Zoom to {name}", { name: s.name })} title={tr("Zoom to")}><Maximize2 size={13} /></button>}{/* #2996 */}
               <button onClick={() => editPit(s)} style={iconBtnStyle} aria-label={tr("Edit {name}", { name: s.name })} title={tr("Put this pit's inputs in the form; the next run replaces it")}><Pencil size={13} /></button>
               <button onClick={() => removePit(s)} style={iconBtnStyle} aria-label={tr("Remove {name}", { name: s.name })} title={tr("Remove")}><Trash2 size={13} /></button>
             </div>

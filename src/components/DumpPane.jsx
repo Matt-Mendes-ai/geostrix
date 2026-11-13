@@ -25,7 +25,7 @@ const EMPTY = { stringId: "", crestZ: "", repose: "", density: "", swell: "", pi
 let kept = null; // #1356 — the last inputs and result outlive the pane (this session)
 
 // surfaces: the generated surfaces (pit shells for the comparison); onAdd as the pit pane's
-export default function DumpPane({ surfaces = [], onAdd, onToggle, onRemove, onClose }) { // onToggle / onRemove: #2285
+export default function DumpPane({ surfaces = [], onAdd, onToggle, onRemove, onClose, onZoomTo = null }) { // onToggle / onRemove: #2285; onZoomTo: #2996
   const { designStrings = [], terrain, collars = [] } = useStore();
   const footprints = useMemo(() => designStrings.filter((s) => s.closed && s.vertices.length > 2 && !s.stopeRun /* #2601 — not a stope outline */), [designStrings]);
   // TASKS.csv #2444 (review #2325) — the benched designs too: their waste (with the walls stepped out) is what the dump must hold, not the shell's
@@ -116,7 +116,7 @@ export default function DumpPane({ surfaces = [], onAdd, onToggle, onRemove, onC
           <div style={{ ...note, marginTop: 4 }}>{tr("\"{name}\" is in the generated surfaces with these figures. The capacity is the space between the shape and the ground as it is now.", { name: res.name })}</div>
         </div>
       )}
-      <DumpRunList dumps={dumps} editingId={editingId} onToggle={onToggle} onEdit={editDump} onRemove={onRemove ? removeDump : null} />{/* #2285 */}
+      <DumpRunList dumps={dumps} editingId={editingId} onToggle={onToggle} onEdit={editDump} onRemove={onRemove ? removeDump : null} onZoomTo={onZoomTo} />{/* #2285 */}
     </div>
   );
 }

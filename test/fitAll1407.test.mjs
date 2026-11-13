@@ -34,6 +34,6 @@ test("an instanced mesh counts every instance; nothing shown is an empty box", (
 
 test("the view's Zoom to fit all uses it, with the hole traces and models as before", () => {
   const s = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
-  assert.match(s, /const zoomToFitAll = \(\) => \{ const b = visibleSceneBox\(sceneRef\.current\?\.getObjectByName\("root"\)\); \(lastTracesRef\.current \|\| \[\]\)\.forEach/);
+  assert.match(s, /const zoomToFitAll = \(\) => \{ const b = visibleSceneBox\(sceneRef\.current\?\.getObjectByName\("root"\)\); \((shownTraces\(\) \|\| )?lastTracesRef\.current \|\| \[\]\)\.forEach/ /* shownTraces: #2996 — the shown holes when a filter hides some */);
   assert.match(s, /to include everything shown: right-click the view, Zoom to fit all/);
 });
