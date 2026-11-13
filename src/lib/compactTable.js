@@ -19,9 +19,12 @@ export const COMPACT_TABLE_MIN_ROWS = 2000; // below this the plain JSON is smal
 const cache = new WeakMap();
 const NESTED = "values"; // the one nested object worth splitting into columns
 
-function encodeColumn(get, n) {
+// TASKS.csv #3104 — one column, pausing every CHUNK rows (a column of 148,000 distinct sample ids alone was 0.3-1.5 s on a loaded machine)
+const CHUNK = 16384;
+function* encodeColumnSteps(get, n) {
   let numeric = true, any = false;
   for (let i = 0; i < n; i++) {
+    if (i % CHUNK === CHUNK - 1) yield;
     const v = get(i);
     if (v === undefined) continue;
     any = true;
@@ -30,13 +33,14 @@ function encodeColumn(get, n) {
   if (!any) return null;
   if (numeric) {
     const a = new Array(n);
-    for (let i = 0; i < n; i++) { const v = get(i); a[i] = v === undefined ? "" : String(v); }
+    for (let i = 0; i < n; i++) { if (i % CHUNK === CHUNK - 1) yield; const v = get(i); a[i] = v === undefined ? "" : String(v); }
     return { n: a.join(",") };
   }
   // TASKS.csv #2334 — strings keyed by themselves, everything else by its JSON (NaN/Infinity -> "null", as JSON writes them):
   // the same codes as one map of "s"+v / "j"+JSON keys, without building a key string per row
   const dict = [], strIndex = new Map(), index = new Map(), codes = new Array(n);
   for (let i = 0; i < n; i++) {
+    if (i % CHUNK === CHUNK - 1) yield;
     const v = get(i);
     if (v === undefined) { codes[i] = -1; continue; }
     let c;
@@ -53,16 +57,31 @@ function encodeColumn(get, n) {
   return { d: dict, c: codes.join(",") };
 }
 
+// TASKS.csv #3104 — the encoding as steps, one column per step: compactTable runs them at once; compactTableSliced (the autosave) pauses
+// between them, so 146,970 assays are no longer one 1.2 s main-thread task. The same code either way: the same text.
 export function compactTable(rows) {
+  const it = compactSteps(rows);
+  let r = it.next();
+  while (!r.done) r = it.next();
+  return r.value;
+}
+export async function compactTableSliced(rows, pause) {
+  const it = compactSteps(rows);
+  let r = it.next();
+  while (!r.done) { await pause(); r = it.next(); }
+  return r.value;
+}
+function* compactSteps(rows) {
   if (!Array.isArray(rows) || rows.length < COMPACT_TABLE_MIN_ROWS) return rows;
   const hit = cache.get(rows);
   if (hit) return hit;
   const n = rows.length;
   // rows that aren't plain objects (never expected) keep the whole array as it was
-  if (!rows.every((r) => r && typeof r === "object" && !Array.isArray(r))) return rows;
+  for (let i = 0; i < n; i++) { const r = rows[i]; if (!(r && typeof r === "object" && !Array.isArray(r))) return rows; if (i % CHUNK === CHUNK - 1) yield; }
   const keys = new Set(), nestedKeys = new Set();
-  let nestedOk = true;
+  let nestedOk = true, seen = 0;
   for (const r of rows) {
+    if (++seen % CHUNK === 0) yield; // #3104
     for (const k in r) keys.add(k);
     const v = r[NESTED];
     if (v === undefined) continue;
@@ -72,14 +91,16 @@ export function compactTable(rows) {
   const cols = {};
   for (const k of keys) {
     if (k === NESTED && nestedOk) continue;
-    const col = encodeColumn((i) => rows[i][k], n);
+    yield; // #3104
+    const col = yield* encodeColumnSteps((i) => rows[i][k], n);
     if (col) cols[k] = col;
   }
   let nested = null;
   if (nestedOk && keys.has(NESTED)) {
-    nested = { has: encodeColumn((i) => (rows[i][NESTED] === undefined ? undefined : 1), n), cols: {} };
+    nested = { has: yield* encodeColumnSteps((i) => (rows[i][NESTED] === undefined ? undefined : 1), n), cols: {} };
     for (const k of nestedKeys) {
-      const col = encodeColumn((i) => rows[i][NESTED]?.[k], n);
+      yield; // #3104
+      const col = yield* encodeColumnSteps((i) => rows[i][NESTED]?.[k], n);
       if (col) nested.cols[k] = col;
     }
   }
@@ -154,6 +175,11 @@ export function expandTable(stored) {
     }
     rows[i] = r;
   }
+  // TASKS.csv #3118 (review #2876, WA iron) — the stored table IS these rows' encoding: seeded into the cache, so the first autosave after a
+  // restore or an open writes it back instead of encoding 150,455 litho rows and 148,000 assays again (4.0 s on the main thread). Exact by
+  // construction: the rows are decoded from it and are immutable (#721); the text written is the file's own (an older encoder's form
+  // included, which every version reads).
+  cache.set(rows, stored);
   return rows;
 }
 
