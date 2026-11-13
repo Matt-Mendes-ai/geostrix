@@ -11757,5 +11757,10 @@
   "GRS67 and 0.3086 mGal/m (Canadian gravity database)": "GRS67 y 0,3086 mGal/m (base de datos gravimétrica de Canadá)",
   "Public surveys are reduced with their own convention: the Geological Survey of Canada's use GRS67 and 0.3086 mGal/m, which gives anomalies 0.8-0.9 mGal higher than WGS84. Match it before comparing or merging levels.": "Los levantamientos públicos se reducen con su propia convención: los del Servicio Geológico de Canadá usan GRS67 y 0,3086 mGal/m, lo que da anomalías 0,8-0,9 mGal más altas que con WGS84. Iguálela antes de comparar o unir niveles.",
   "the unit, e.g. nT, mGal, mV/V, ohm·m, ppm": "la unidad, p. ej. nT, mGal, mV/V, ohm·m, ppm",
-  "No data at this point": "Sin datos en este punto"
+  "No data at this point": "Sin datos en este punto",
+  "GOCAD TSurf (.ts) — Leapfrog, SKUA-GOCAD and most 3D geology software import it": "GOCAD TSurf (.ts): Leapfrog, SKUA-GOCAD y la mayoría del software de geología 3D lo importan",
+  "TSurf": "TSurf",
+  "filled at import, not in the collar file": "completado al importar, no está en el archivo de collares",
+  "in the collar file, but probably a missing value": "en el archivo de collares, pero probablemente un valor faltante",
+  "collar RL {rl} m: {note}": "cota del collar {rl} m: {note}"
 }

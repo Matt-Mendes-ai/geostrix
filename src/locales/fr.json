@@ -11757,5 +11757,10 @@
   "GRS67 and 0.3086 mGal/m (Canadian gravity database)": "GRS67 et 0,3086 mGal/m (base de données gravimétriques du Canada)",
   "Public surveys are reduced with their own convention: the Geological Survey of Canada's use GRS67 and 0.3086 mGal/m, which gives anomalies 0.8-0.9 mGal higher than WGS84. Match it before comparing or merging levels.": "Les levés publics sont réduits selon leur propre convention : ceux de la Commission géologique du Canada utilisent GRS67 et 0,3086 mGal/m, ce qui donne des anomalies plus élevées de 0,8 à 0,9 mGal qu’avec WGS84. Utilisez la même avant de comparer ou de fusionner des niveaux.",
   "the unit, e.g. nT, mGal, mV/V, ohm·m, ppm": "l’unité, p. ex. nT, mGal, mV/V, ohm·m, ppm",
-  "No data at this point": "Aucune donnée à cet endroit"
+  "No data at this point": "Aucune donnée à cet endroit",
+  "GOCAD TSurf (.ts) — Leapfrog, SKUA-GOCAD and most 3D geology software import it": "GOCAD TSurf (.ts) : Leapfrog, SKUA-GOCAD et la plupart des logiciels de géologie 3D l'importent",
+  "TSurf": "TSurf",
+  "filled at import, not in the collar file": "rempli à l'import, absent du fichier des collets",
+  "in the collar file, but probably a missing value": "dans le fichier des collets, mais probablement une valeur manquante",
+  "collar RL {rl} m: {note}": "cote du collet {rl} m : {note}"
 }

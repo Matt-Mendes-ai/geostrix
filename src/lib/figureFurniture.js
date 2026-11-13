@@ -89,7 +89,8 @@ export function stereonetFurniture(o) {
 // tracks: [{ title, items: [{ label, color }] }] (the codes shown in each colour track), date }
 export function stripLogFurniture(o) {
   const c = o.collar || {}, num = (v, d = 0) => (Number.isFinite(+v) && v !== "" && v != null ? (+v).toFixed(d) : null);
-  const at = [num(c.x, 1) && `E ${num(c.x, 1)}`, num(c.y, 1) && `N ${num(c.y, 1)}`, num(c.z, 1) && `RL ${num(c.z, 1)}`].filter(Boolean).join(", ");
+  // rlNote: TASKS.csv #3131 — what #3004's rule says of the RL ('filled at import, not in the collar file' / 'probably a missing value'), after it
+  const at = [num(c.x, 1) && `E ${num(c.x, 1)}`, num(c.y, 1) && `N ${num(c.y, 1)}`, num(c.z, 1) && `RL ${num(c.z, 1)}${o.rlNote ? ` (${o.rlNote})` : ""}`].filter(Boolean).join(", ");
   const att = num(c.azimuth, 1) != null && num(c.dip, 1) != null ? `azimuth ${num(c.azimuth, 1)}°, dip ${num(c.dip, 1)}° (at the collar)` : null;
   const caption = [
     [at && `Collar ${at}`, att].filter(Boolean).join(" · ") || "Collar position not loaded",
