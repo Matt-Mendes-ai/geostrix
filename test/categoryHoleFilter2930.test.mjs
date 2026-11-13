@@ -14,7 +14,7 @@ test("the category pass ANDs the hole rule (read through a ref, skipped when no 
 });
 
 test("the hole pass re-applies the category filters after it, so its hole-only rule does not undo them", () => {
-  assert.match(v, /syncLayerBatches\(\); \/\/ TASKS\.csv #312\n\s+applyCategoryVisibility\(\);[^\n]*\n\s+\}, \[visibleHoles, syncLayerBatches, applyCategoryVisibility\]\);/);
+  assert.match(v, /syncLayerBatches\(\); \/\/ TASKS\.csv #312\n(\s+redeclutter\(groups\.hole_labels\); \/\/ #3098\n)?\s+applyCategoryVisibility\(\);[^\n]*\n\s+\}, \[visibleHoles, syncLayerBatches, applyCategoryVisibility\]\);/);
 });
 
 test("the hole rule itself, as the category pass applies it", () => {

@@ -50,6 +50,16 @@ const SECTION_FONTS = [
   { label: "Courier New", stack: "'Courier New', Courier, monospace" },
 ];
 
+// TASKS.csv #3054 (#2387, WA uranium) — the Draw button's tip names what is drawn and what is missing: an outline asked to
+// 'Pick a unit first' when its body name was missing, and once named said 'Draw Lignite's upper contact'
+const drawTip = (kind, pick, name, explicit) => {
+  if (!pick) return kind === "outline" ? tr("Type a body name first") : kind === "fault" ? tr("Type a fault name first") : kind === "string" ? tr("Type a string name first") : tr("Pick a unit first");
+  if (kind === "outline") return tr("Draw the outline of {name}", { name });
+  if (kind === "fault") return tr("Draw the fault {name}", { name });
+  if (kind === "string") return tr("Draw the string {name}", { name });
+  return explicit ? tr("Draw a line of {name}", { name }) : tr("Draw {unitPick}'s upper contact", { unitPick: name });
+};
+
 export default function SectionWindow({ tabId = null, initial = null, onPopOut = null, onUnsaved = null }) {
   const [rawData, setData] = useState(null);
   // TASKS.csv #1700 (review #1645, Copley) — which interval layers draw as ribbons beside each hole: every built-in log unless
@@ -96,7 +106,8 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
   // page height itself grows/shrinks with the exaggerated z-range rather than squeezing a fixed box,
   // since faking exaggeration inside a fixed box would just be a different, undisclosed distortion.
   // TASKS.csv #2363 — null until the section first reports its own shape (SectionSVG onAutoVE), then that value; the user's from then on
-  const [vExag, setVExag] = useState(() => { const v = stepVE && Date.now() - stepVE.at < 30000 ? stepVE.ve : null; stepVE = null; return v; }); // #2933 — a step's VE
+  const [handed] = useState(() => { const h = stepVE && Date.now() - stepVE.at < 30000 ? stepVE : null; stepVE = null; return h; }); // #2933 — a step's VE; #3054: and what was being drawn
+  const [vExag, setVExag] = useState(() => handed?.ve ?? null);
   const [showSectionImages, setShowSectionImages] = useState(true); // TASKS.csv #631
   const [showModel, setShowModel] = useState(true); // TASKS.csv #759
   // TASKS.csv #1131 — Matt: "set thickness of drill holes on cross sections and the cross section buffer in the section
@@ -247,10 +258,10 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
   // into 3D surface generation) needs: gatherLithoSurfaceSpec already builds a unit's top surface from
   // litho interval tops, so a drawn contact tagged with the SAME unit name + "this is the upper
   // contact" slots in as an extra interface point for that exact surface, no separate matching step.
-  const [unitPick, setUnitPick] = useState("");
+  const [unitPick, setUnitPick] = useState(() => (handed?.kind && handed.kind !== "contact" ? handed.unit || "" : "")); // #3054 — and the body / fault / string name (a unit may not be on the next section)
   // TASKS.csv #409 — what is being drawn: a unit's upper contact (feeds modelling), a fault, or a free
   // interpretation string. Faults and strings take a typed name.
-  const [kindPick, setKindPick] = useState("contact");
+  const [kindPick, setKindPick] = useState(() => handed?.kind || "contact"); // #3054 — a step keeps 'What to draw'
   const lithoUnits = data?.lithoUnits || [];
   // TASKS.csv #810 — modelling codes and lithology groups as tags too (a stack unit "X (code)" or a group matches them)
   const tagCodes = (data?.unitTags?.codes || []).filter((c) => !lithoUnits.includes(c)), tagGroups = data?.unitTags?.groups || [];
@@ -369,7 +380,7 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
   useEffect(() => { setStepping(false); }, [rawData]);
   useEffect(() => (stepping ? onSectionData(() => setStepping(false)) : undefined), [stepping]); // the step opened in another tab of this window
   useEffect(() => { if (!stepping) return undefined; const t = setTimeout(() => setStepping(false), 5000); return () => clearTimeout(t); }, [stepping]);
-  const stepTo = (msg) => { if (vExag != null) stepVE = { ve: vExag, at: Date.now() }; setStepping(true); sendSectionContacts(msg); }; // stepVE: #2933
+  const stepTo = (msg) => { if (!msg.refresh) stepVE = { ve: vExag, kind: kindPick, unit: unitPick, at: Date.now() }; setStepping(true); sendSectionContacts(msg); }; // stepVE: #2933; kind / unit: #3054
   const toolbarRef = useRef(null), toolbarHeight = useRef(0);
   useLayoutEffect(() => { if (!drawing && toolbarRef.current) toolbarHeight.current = toolbarRef.current.offsetHeight; });
   if (!data) return <div style={{ padding: 20, color: "#55606e", fontFamily: "'Exo 2', system-ui, sans-serif" }}>{tr("Waiting for section data…")}</div>;
@@ -408,7 +419,7 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
               ) : (
                 <input value={unitPick} onChange={(e) => setUnitPick(e.target.value)} placeholder={tr("Unit name (no litho data loaded)")} style={{ ...selectStyle, width: 170 }} />
               )}
-              <button onClick={startDrawing} disabled={!unitPick} style={{ ...btnStyle(false), opacity: unitPick ? 1 : 0.5 }} title={unitPick ? tr("Draw {unitPick}'s upper contact", { unitPick: pickName }) : tr("Pick a unit first")}>
+              <button onClick={startDrawing} disabled={!unitPick} style={{ ...btnStyle(false), opacity: unitPick ? 1 : 0.5 }} title={drawTip(kindPick, unitPick, pickName, pickExplicit)}>
                 <Pencil size={14} /> {kindPick === "contact" && pickExplicit ? tr("Draw a line of {name}", { name: pickName }) /* TASKS.csv #884 */ : kindPick === "contact" ? tr("Draw upper contact") : kindPick === "fault" ? tr("Draw fault") : kindPick === "outline" ? tr("Draw outline") : tr("Draw string")}
               </button>
             </>

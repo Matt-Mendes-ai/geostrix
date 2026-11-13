@@ -11663,5 +11663,11 @@
   "Shaded relief": "Relief ombré",
   "Sun azimuth (°)": "Azimut du soleil (°)",
   "Sun altitude (°)": "Hauteur du soleil (°)",
-  "Relief ×": "Relief ×"
+  "Relief ×": "Relief ×",
+  "Type a body name first": "Saisissez d'abord le nom du corps",
+  "Type a fault name first": "Saisissez d'abord le nom de la faille",
+  "Type a string name first": "Saisissez d'abord le nom de la polyligne",
+  "Draw the outline of {name}": "Dessiner le contour de {name}",
+  "Draw the fault {name}": "Dessiner la faille {name}",
+  "Draw the string {name}": "Dessiner la polyligne {name}"
 }

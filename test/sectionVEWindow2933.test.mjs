@@ -22,6 +22,6 @@ test("the review's section: 1,138 m by about 80 m in a 1084 x 655 window (a 190 
 test("wiring: the auto VE reads the window; a step hands its VE to the next tab; the box is clamped", () => {
   const s = fs.readFileSync(new URL("../src/components/SectionWindow.jsx", import.meta.url), "utf8");
   assert.match(s, /defaultSectionVE\(len, maxZ - minZ, typeof window !== "undefined" \? plotAspect\(window\.innerWidth, window\.innerHeight, document\.querySelector\("\.ge-section-toolbar"\)\?\.offsetHeight\) : null\)/);
-  assert.match(s, /const stepTo = \(msg\) => \{ if \(vExag != null\) stepVE = \{ ve: vExag, at: Date\.now\(\) \};/);
+  assert.match(s, /const stepTo = \(msg\) => \{ if \(!msg\.refresh\) stepVE = \{ ve: vExag, kind: kindPick, unit: unitPick, at: Date\.now\(\) \};/);
   assert.match(s, /setVExag\(Math\.min\(MAX_SECTION_VE, Math\.max\(0\.1, Number\(e\.target\.value\) \|\| 1\)\)\)/);
 });

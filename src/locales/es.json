@@ -11663,5 +11663,11 @@
   "Shaded relief": "Relieve sombreado",
   "Sun azimuth (°)": "Azimut del sol (°)",
   "Sun altitude (°)": "Altura del sol (°)",
-  "Relief ×": "Relieve ×"
+  "Relief ×": "Relieve ×",
+  "Type a body name first": "Escriba primero el nombre del cuerpo",
+  "Type a fault name first": "Escriba primero el nombre de la falla",
+  "Type a string name first": "Escriba primero el nombre de la polilínea",
+  "Draw the outline of {name}": "Dibujar el contorno de {name}",
+  "Draw the fault {name}": "Dibujar la falla {name}",
+  "Draw the string {name}": "Dibujar la polilínea {name}"
 }
