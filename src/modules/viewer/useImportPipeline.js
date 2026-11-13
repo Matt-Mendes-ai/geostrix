@@ -48,7 +48,7 @@ import { fillDownHoleIds, numberedSiblings, allCodesOf, normInterval, applyCusto
 import { unreadableFormatAdvice } from "../../lib/unreadableFormats.js"; // TASKS.csv #603
 import { t as tr } from "../../lib/i18n.js"; // TASKS.csv #786
 import { requestModuleAction, useModuleAction } from "../../lib/menuRequests.js"; // TASKS.csv #917; useModuleAction: #2019
-import { autoExtraFields, companionLayer, surveyMethodFields, columnsLeftOut } from "../../lib/viewer/autoExtras.js"; // TASKS.csv #1501; surveyMethodFields: #2187
+import { autoExtraFields, companionLayer, surveyMethodFields, columnsLeftOut, suscInstrumentFields } from "../../lib/viewer/autoExtras.js"; // suscInstrumentFields: #2668 // TASKS.csv #1501; surveyMethodFields: #2187
 import { surfaceAttrColumns, surfaceAttrs } from "../../lib/geochemColumns.js"; // TASKS.csv #1504 — unmapped collar columns kept as attrs; #3159: geochemColumns, not geochem.js (the whole geochem library in startup)
 import { rasterDrapeElevation, drapeElevationNote, planElevation } from "../../lib/drapeElevation.js"; // TASKS.csv #1505; planElevation: #2294
 import { projectTargetEpsg } from "../../lib/projectTarget.js"; // TASKS.csv #2287 — no reprojection INTO the placeholder CRS
@@ -151,7 +151,7 @@ export function useImportPipeline(ctx) {
       const mapping0 = azColFor(target, headers, data, ll ? ll.mapping : guessMapping(target, headers)); // #426; #2015
       const codeGuess = codeColumnGuess(target, headers, data, mapping0), mapping = codeGuess ? { ...mapping0, value: codeGuess.col } : mapping0; // #2889 — no name matched: the file's one code column, said as a guess
       const perRowEpsgCol = guessColumn(headers, EPSG_COL_ALIASES);
-      setImportModal({ ...(codeGuess ? { valueGuess: codeGuess } : {}), ...azRefFor(target, headers, data), ...(target === "survey" ? { customFields: surveyMethodFields(headers, data) } : {}) /* #2187 */, file, fileName: file.name, headers, rowCount: meta?.logTable ? meta.logTable.n : data.length, sampleRows: data.slice(0, 5), allRows: data, ...(meta?.logTable ? { logTable: meta.logTable } : {}) /* #3038 */, target, mapping, ...(forceTarget ? {} : guardGuess(target, mapping, headers, data, file.name)), ...dipConventionFields(data, dipColOf(target, mapping)) /* #2886 */, perRowEpsgCol, sourceEpsg: ll ? ll.sourceEpsg : meta?.detectedEpsg ? String(meta.detectedEpsg) : "" });
+      setImportModal({ ...(codeGuess ? { valueGuess: codeGuess } : {}), ...azRefFor(target, headers, data), ...(target === "survey" ? { customFields: surveyMethodFields(headers, data) } : target === "magsusc" ? { customFields: suscInstrumentFields(headers, data) } /* #2668 */ : {}) /* #2187 */, file, fileName: file.name, headers, rowCount: meta?.logTable ? meta.logTable.n : data.length, sampleRows: data.slice(0, 5), allRows: data, ...(meta?.logTable ? { logTable: meta.logTable } : {}) /* #3038 */, target, mapping, ...(forceTarget ? {} : guardGuess(target, mapping, headers, data, file.name)), ...dipConventionFields(data, dipColOf(target, mapping)) /* #2886 */, perRowEpsgCol, sourceEpsg: ll ? ll.sourceEpsg : meta?.detectedEpsg ? String(meta.detectedEpsg) : "" });
       if (meta?.note) setNotices((p) => [...p, `${file.name}:${meta.note}`]);
     }, chosenLayer);
   };
@@ -176,7 +176,7 @@ export function useImportPipeline(ctx) {
       try {
         const live = importStateRef.current;
         const chooseProjectEpsg = (src, cur) => adoptCrsIfEmpty(src, file.name) || cur; // #607
-        const { raster, msg } = await (await loadRaster()).buildRasterImport(file, { epsg: projectTargetEpsg(live.project || project), defaultElevation, chooseProjectEpsg });
+        const { raster, msg } = await (await loadRaster()).buildRasterImport(file, { epsg: projectTargetEpsg(live.project || project), defaultElevation, chooseProjectEpsg, tie: tieOf(live.project || project) /* #2743 — a tied mine grid: through its tie, as Maps and Geophysics do (#2587) */ });
         const drape = rasterDrapeElevation({ collars: live.collars || collars, voxelModels: live.voxelModels || [], surfaceSamples: live.surfaceSamples || [], bbox: raster.bbox, rasters: live.rasters || [], fileName: file.name, stations: live.layers?.geophys_pts /* #2868 */ }); // #1505
         addRaster({ ...raster, elevation: drape.z });
         setNotices((p) => [...p, notice("{msg} {v} Set its opacity (or a Source CRS, if it landed in the wrong place) on the Maps tab.", { msg, v: drapeElevationNote(drape) })]);
@@ -1034,7 +1034,7 @@ export function useImportPipeline(ctx) {
       // them: a queued shapefile used to be committed with no Source CRS, so its collars stayed in their own UTM
       // zone's numbers inside a project in another zone (~400 km from the same drop's reprojected map layers).
       // TASKS.csv #2899 — a queued survey gets the same pre-added instrument / method field as one dropped alone (#2187)
-      const modalData = { ...(codeGuess ? { valueGuess: codeGuess } : {}), ...(target === "survey" ? { customFields: surveyMethodFields(headers, data) } : {}), ...azRefFor(target, headers, data), file, fileName: file.name, headers, rowCount: meta?.logTable ? meta.logTable.n : data.length, sampleRows: data.slice(0, 5), allRows: data, ...(meta?.logTable ? { logTable: meta.logTable } : {}) /* #3038 */, target, mapping, ...dipConventionFields(data, dipColOf(target, mapping)) /* #2886 */,
+      const modalData = { ...(codeGuess ? { valueGuess: codeGuess } : {}), ...(target === "survey" ? { customFields: surveyMethodFields(headers, data) } : target === "magsusc" ? { customFields: suscInstrumentFields(headers, data) } /* #2668 */ : {}), ...azRefFor(target, headers, data), file, fileName: file.name, headers, rowCount: meta?.logTable ? meta.logTable.n : data.length, sampleRows: data.slice(0, 5), allRows: data, ...(meta?.logTable ? { logTable: meta.logTable } : {}) /* #3038 */, target, mapping, ...dipConventionFields(data, dipColOf(target, mapping)) /* #2886 */,
         sourceEpsg: queueLl ? queueLl.sourceEpsg : meta?.detectedEpsg ? String(meta.detectedEpsg) : "", perRowEpsgCol: guessColumn(headers, EPSG_COL_ALIASES), ...guarded };
       if (confident) {
         // TASKS.csv #1501 — a log's other columns as extra fields, and a Geotech table's Recovery % as that layer too (collars keep

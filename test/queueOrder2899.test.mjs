@@ -21,5 +21,5 @@ test("collar files first, the biggest of them leading; then surveys; the rest in
 
 test("a queued survey opens with the same pre-added method field as one dropped alone", () => {
   const u = readFileSync(new URL("../src/modules/viewer/useImportPipeline.js", import.meta.url), "utf8");
-  assert.ok(u.includes(`const modalData = { ...(codeGuess ? { valueGuess: codeGuess } : {}), ...(target === "survey" ? { customFields: surveyMethodFields(headers, data) } : {}),`));
+  assert.ok(u.includes(`const modalData = { ...(codeGuess ? { valueGuess: codeGuess } : {}), ...(target === "survey" ? { customFields: surveyMethodFields(headers, data) } : target === "magsusc" ? { customFields: suscInstrumentFields(headers, data) } /* #2668 */ : {}),`));
 });
