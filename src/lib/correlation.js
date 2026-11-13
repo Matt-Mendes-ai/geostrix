@@ -217,3 +217,20 @@ function pearsonPaired(x, y) {
   for (let i = 0; i < x.length; i++) { const a = x[i], b = y[i]; if (a === a && b === b) { const dx = a - mx, dy = b - my; sxy += dx * dy; sxx += dx * dx; syy += dy * dy; } }
   return { r: sxx === 0 || syy === 0 ? null : sxy / Math.sqrt(sxx * syy), n };
 }
+
+// TASKS.csv #3232 — the Correlation table's 'pairs with a value below detection' count read every row for each cell (66 cells x 147,000 rows,
+// about 270 ms on its first render). L: an element's below-detection flags (Uint8Array) -> the rows flagged, listed once per element
+export function belowDetectionRows(L) {
+  const r = [];
+  if (L) for (let i = 0; i < L.length; i++) if (L[i]) r.push(i);
+  return r;
+}
+// the pairs where both values are present and at least one is below detection, read on the flagged rows only (ra / rb from
+// belowDetectionRows of la / lb); a row flagged in both is counted once
+export function belowDetectionPairs(ca, cb, la, ra, rb) {
+  const both = (i) => ca[i] != null && cb[i] != null && Number.isFinite(ca[i]) && Number.isFinite(cb[i]);
+  let k = 0;
+  for (const i of ra) if (both(i)) k++;
+  for (const i of rb) if (!la[i] && both(i)) k++;
+  return k;
+}
