@@ -52,5 +52,8 @@ export function pickOnView(ray, hits, toWorld, collars, origin) {
     const g = collars?.length ? groundOf(collars) : null, gz = g ? g(x, y) : NaN;
     return Number.isFinite(gz) ? { x, y, z: gz, on: null, onRaster: true, onCollarSurface: true } : { x, y, z: r.point.y + origin.z, on: hitLabel(r.object) || "a raster", onRaster: true };
   }
+  // TASKS.csv #2978 (7) — a drawn collar marker hit first: the collar itself (the sphere's surface read 450.6 for a collar at 448.0)
+  const c = s?.object?.userData?.collarMarker ? s.object.userData.collar : null;
+  if (c && [c.x, c.y, c.z].every(Number.isFinite)) return { x: c.x, y: c.y, z: c.z, on: hitLabel(s.object) || "a collar", onCollar: c.hole_id ?? true };
   return pickOnCollarSurface(ray, toWorld(solid), collars, origin);
 }
