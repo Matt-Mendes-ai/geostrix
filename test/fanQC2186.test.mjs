@@ -15,6 +15,6 @@ test("#2186 a fan from one cuddy (no collar attitude, surveys differ) is a pad n
 });
 
 test("#2186 the same attitude in the surveys is still a possible duplicate; no survey at all keeps the old warning", () => {
-  assert.ok(run([collar("A"), collar("B")], [...st("A", 90, 60), ...st("B", 90, 60)]).some((i) => i.severity === "warning" && /same azimuth and dip/.test(i.message)));
+  assert.ok(run([collar("A"), collar("B")], [...st("A", 90, 60), ...st("B", 90, 60)]).some((i) => i.severity === "warning" && /point the same way \(within 3°\)/.test(i.message)));
   assert.ok(run([collar("A"), collar("B")], []).some((i) => i.severity === "warning" && /share essentially the same collar location/.test(i.message)));
 });

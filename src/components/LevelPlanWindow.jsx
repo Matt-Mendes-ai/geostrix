@@ -105,12 +105,13 @@ export default function LevelPlanWindow({ planCtx, zRange, defaultRl, onClose, o
   // newly keyed siblings among kept ones were each placed one by one (React walks past the other new siblings for every placement)
   const buildSeq = useRef(0);
   const dataKey = useMemo(() => (buildSeq.current += 1), [data]);
-  const layerKeys = useMemo(() => [...new Set(data.intervals.map((iv) => iv.layer))], [data]);
+  const pointLogs = data.pointLogs || []; // #1706 — the readings at a depth that fill pierce points (Mag. susc., SWIR points ...)
+  const layerKeys = useMemo(() => [...new Set([...data.intervals.map((iv) => iv.layer), ...pointLogs.map((r) => r.layer)])], [data]);
   const activeLayer = layerKeys.includes(colourBy) ? colourBy : layerKeys.includes("litho") ? "litho" : layerKeys[0] || "";
   // #1404 — the legend is the "Colour holes by" layer (categories, or a numeric layer's colours at their values) plus the
   // structure symbols drawn on the plan; it used to list every layer whichever one filled the pierce points
   const legend = useMemo(() => {
-    const L = data.assayLegends?.[activeLayer] || planLegend(data.intervals, activeLayer, { numeric: activeLayer.startsWith("custom:") ? "auto" : !!LAYER_META[activeLayer]?.numeric }); // #1537 — an assay element: its classes or ramp
+    const L = data.assayLegends?.[activeLayer] || planLegend(data.intervals.some((iv) => iv.layer === activeLayer) ? data.intervals : pointLogs, activeLayer, { numeric: activeLayer.startsWith("custom:") ? "auto" : !!LAYER_META[activeLayer]?.numeric }); // #1537 — an assay element: its classes or ramp
     const structs = (data.legendItems || []).filter(([label]) => /^Structure/.test(label));
     return [...L.items.map(([n, c]) => [L.title ? `${L.title}: ${n}` : n, c]), ...structs];
   }, [data, activeLayer]);
@@ -254,8 +255,8 @@ export default function LevelPlanWindow({ planCtx, zRange, defaultRl, onClose, o
           {leftOut > 0 && <span style={{ ...ctrl, color: "var(--color-warn-text)" }}>{tr("{n} hole(s) with a suspect collar elevation are outside this range (Data QC lists them)", { n: leftOut })}</span>}{/* #3029 */}
           <label style={ctrl} title={tr("Hole runs, logs, assays and structures within this distance above and below the RL are drawn")}>{tr("± slab (m)")}{" "}<input type="number" min={0.1} step="any" value={half} onChange={(e) => setHalf(e.target.value)} style={{ ...inp, width: 56 }} aria-label={tr("Slab half-width")} /></label>
           {layerKeys.length > 0 && (
-            <label style={ctrl} title={tr("The interval layers and assay elements shown in the 3D View are offered here: turn one on there (Recovery %, or an element under Assays) to colour the plan by it")}>{tr("Colour holes by")}<select value={activeLayer} onChange={(e) => setColourBy(e.target.value)} style={{ ...inp, width: "auto" }} aria-label={tr("Colour holes by")}>
-                {layerKeys.map((k) => <option key={k} value={k}>{(data.intervals.find((iv) => iv.layer === k)?.label || k).split(":")[0]}</option>)}
+            <label style={ctrl} title={tr("The logs and assay elements shown in the 3D View are offered here: turn one on there (Recovery %, Mag. susc., or an element under Assays) to colour the plan by it. A log read at a depth colours a pierce point by its reading nearest the RL in the slab.")}>{tr("Colour holes by")}<select value={activeLayer} onChange={(e) => setColourBy(e.target.value)} style={{ ...inp, width: "auto" }} aria-label={tr("Colour holes by")}>
+                {layerKeys.map((k) => <option key={k} value={k}>{((data.intervals.find((iv) => iv.layer === k) || pointLogs.find((r) => r.layer === k))?.label || k).split(":")[0]}</option>)}
               </select>
             </label>
           )}
