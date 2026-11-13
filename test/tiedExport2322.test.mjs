@@ -96,6 +96,32 @@ test("the exports that write through the tie: catchments GPX / GeoTIFF, the surv
   assert.match(e, /const tx = await import\("\.\.\/lib\/tiedExport\.js"\); const ex = await tx\.exportCrs\(project\); if \(!ex\) return;/);
   assert.match(e, /gridToGeoTIFF\(\{ \.\.\.tx\.gridBandsToWorld\(\{ \.\.\.grid, bands: \[\{ values: score \}\] \}, ex\.tie\), epsg: ex\.epsg \}\)/);
   assert.doesNotMatch(e, /^import .*tiedExport/m);
+  // the 3D View's exports (ViewerModule, in the startup bundle: the helper loaded inside each handler) and the drillhole tables
+  const v = read("modules/ViewerModule.jsx");
+  assert.doesNotMatch(v, /^import .*tiedExport/m);
+  assert.match(v, /rigRows\(ex\?\.tie \? tx\.rowsToWorld\(plannedHoles, ex\.tie, \{ points: \["target"\] \}\) : plannedHoles, epsg, today, plannedHoleTrace\)/);
+  assert.match(v, /buildShapefileZip\(\{ features: tx\.featuresToWorld\(features, ex\?\.tie\), geomType, epsg,/);
+  assert.match(v, /buildGeoPackage\(\[\{ name: tableName, features: tx\.featuresToWorld\(features, ex\?\.tie\), geomType, epsg \}\]\)/);
+  assert.match(v, /const toLonLat = tx\.lonLatThrough\(ex\.tie, await ox\.lonLatTransform\(epsg\)\);/);
+  const d = read("modules/viewer/drillholeExport.js");
+  assert.match(d, /const tx = await import\("\.\.\/\.\.\/lib\/tiedExport\.js"\), ex = await tx\.exportCrs\(project\); if \(!ex\) return; const epsg = ex\.epsg;/);
+  assert.match(d, /collars: W\(collars\), survey: W\(survey\)/);
   // the helper is not in the startup bundle (#3159): only these lazy modules import it
   assert.doesNotMatch(read("App.jsx"), /tiedExport/);
+});
+
+test("rows, features and lon / lat through the tie: collars and planned holes (target too), survey azimuths, shapefile parts", async () => {
+  const { rowsToWorld, featuresToWorld, lonLatThrough, tieOf } = await import("../src/lib/tiedExport.js");
+  const [hole] = rowsToWorld([{ hole_id: "P1", x: 10000, y: 5000, z: 400, azimuth: 102, dip: -60, target: { x: 10000, y: 5000, z: 200 } }], tie, { points: ["target"] });
+  assert.deepEqual([hole.x, hole.y, hole.z, hole.azimuth, hole.dip, hole.target.x, hole.target.y, hole.target.z], [400000, 6800000, 400, 90, -60, 400000, 6800000, 200]);
+  const [sv] = rowsToWorld([{ hole_id: "P1", depth: 50, azimuth: 12, dip: -55 }], tie);
+  assert.deepEqual(sv, { hole_id: "P1", depth: 50, azimuth: 0, dip: -55 }, "a survey row: only its azimuth turns");
+  assert.equal(rowsToWorld([{ x: 1 }], null)[0].x, 1);
+  const [pt, ln] = featuresToWorld([{ geometry: [[10000, 5000, 7]], attributes: { a: 1 } }, { parts: [[[10000, 5000], [10100, 5000]]], attributes: {} }], tie);
+  assert.deepEqual(pt.geometry[0], [400000, 6800000, 7]); assert.deepEqual(pt.attributes, { a: 1 });
+  assert.ok(Math.abs(ln.parts[0][1][0] - (400000 + 100 * Math.cos((12 * Math.PI) / 180))) < 1e-6);
+  const ll = lonLatThrough(tie, (X, Y) => [X / 1000, Y / 1000]);
+  assert.deepEqual(ll(10000, 5000), [400, 6800]);
+  assert.equal(lonLatThrough(tie, null), null);
+  assert.equal(tieOf(tiedProject), tie); assert.equal(tieOf({ crsSet: true, epsg: 1 }), null);
 });
