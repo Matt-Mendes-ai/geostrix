@@ -30,7 +30,7 @@ export function gradeEndsFromSamples(rows, valueOf, { qLow = 0.5, qHigh = 0.95, 
   const mv = (mapped || []).filter((v) => Number.isFinite(v) && v > 0).sort((a, b) => a - b);
   const mappedHigh = mv.length >= 10 ? quantileSorted(mv, 0.9) : null;
   const high = mappedHigh != null && mappedHigh > assayHigh ? mappedHigh : assayHigh;
-  return high > low ? { low, high, log: true, n: s.length, q: [Math.round(qLow * 100), Math.round(qHigh * 100)], highFrom: high === assayHigh ? "assays" : "mapped", m: mv.length } : null;
+  return high > low ? { low, high, log: rampIsLog(low, high) /* #2975 */, n: s.length, q: [Math.round(qLow * 100), Math.round(qHigh * 100)], highFrom: high === assayHigh ? "assays" : "mapped", m: mv.length } : null;
 }
 
 // TASKS.csv #2448 — the share of the scored cells at the top score (to 1e-6): over a third means the 1 = point sits under most of the data
@@ -42,6 +42,10 @@ export function topScoreShare(score) {
   return { share: at / n, at, n, top };
 }
 
+// TASKS.csv #2975 (review #2876, WA iron) — a log ramp only where the ends span a factor of LOG_SPAN or more (a trace metal's P50 -> P95):
+// on a per cent major element (35.4 -> 64.9 % Fe) a log ramp was nearly the linear one, bent the wrong way, and said 'lognormal'
+export const LOG_SPAN = 5;
+export const rampIsLog = (low, high) => low > 0 && high >= LOG_SPAN * low;
 export function defaultEvidenceEnds(kind, values) {
   if (!RESETTABLE_KINDS.has(kind)) return null;
   const finite = Float64Array.from((values || []).filter(Number.isFinite));
@@ -49,5 +53,5 @@ export function defaultEvidenceEnds(kind, values) {
   finite.sort();
   if (kind === "distance" || kind === "solid") return { low: 0, high: quantileSorted(finite, 0.5), log: false };
   const low = quantileSorted(finite, 0.1), high = quantileSorted(finite, 0.9);
-  return { low, high, log: (kind === "grade" || kind === "pxrf") && low > 0 && high > low };
+  return { low, high, log: (kind === "grade" || kind === "pxrf") && rampIsLog(low, high) }; // rampIsLog: #2975
 }
