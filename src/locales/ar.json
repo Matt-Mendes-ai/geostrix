@@ -894,6 +894,8 @@
   "Export {n} planned hole to CSV": "تصدير {n} ثقب مخطط إلى CSV",
   "Export {n} planned holes to CSV": "تصدير {n} ثقوب مخططة إلى CSV",
   "Minimum curvature": "الانحناء الأدنى",
+  "Desurvey method changed: the stations moved by up to {m} ({hole}). {moved} hole(s) moved more than 10 cm and were redrawn; {kept} kept their drawing (the tools use the new method's positions).": "تغيّرت طريقة حساب المسار: تحركت المحطات حتى {m} ({hole}). {moved} ثقب/ثقوب تحركت أكثر من 10 سم وأُعيد رسمها؛ {kept} احتفظت برسمها (تستخدم الأدوات مواقع الطريقة الجديدة).",
+  "Desurvey method changed: the stations moved by up to {m} ({hole}), under 10 cm in every hole, so the drawing is kept; the tools use the new method's positions.": "تغيّرت طريقة حساب المسار: تحركت المحطات حتى {m} ({hole})، أقل من 10 سم في كل ثقب، فاحتُفظ بالرسم؛ تستخدم الأدوات مواقع الطريقة الجديدة.",
   "Circular-arc between stations. Industry standard and this app's default — matches Leapfrog/Micromine/Datamine.": "قوس دائري بين المحطات. معيار الصناعة والافتراضي في هذا التطبيق — يطابق Leapfrog وMicromine وDatamine.",
   "Balanced tangential": "المماسي المتوازن",
   "Half the interval along the upper station's direction, half along the lower's. Minimum curvature without the ratio factor.": "نصف الفترة باتجاه المحطة العليا ونصفها باتجاه السفلى. الانحناء الأدنى دون عامل النسبة.",

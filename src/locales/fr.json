@@ -894,6 +894,8 @@
   "Export {n} planned hole to CSV": "Exporter {n} sondage planifié en CSV",
   "Export {n} planned holes to CSV": "Exporter {n} sondages planifiés en CSV",
   "Minimum curvature": "Courbure minimale",
+  "Desurvey method changed: the stations moved by up to {m} ({hole}). {moved} hole(s) moved more than 10 cm and were redrawn; {kept} kept their drawing (the tools use the new method's positions).": "Méthode de déviation modifiée : les stations ont bougé jusqu'à {m} ({hole}). {moved} sondage(s) ont bougé de plus de 10 cm et ont été redessinés ; {kept} gardent leur tracé (les outils utilisent les positions de la nouvelle méthode).",
+  "Desurvey method changed: the stations moved by up to {m} ({hole}), under 10 cm in every hole, so the drawing is kept; the tools use the new method's positions.": "Méthode de déviation modifiée : les stations ont bougé jusqu'à {m} ({hole}), moins de 10 cm dans chaque sondage, donc le tracé est conservé ; les outils utilisent les positions de la nouvelle méthode.",
   "Circular-arc between stations. Industry standard and this app's default — matches Leapfrog/Micromine/Datamine.": "Arc de cercle entre stations. Norme de l'industrie et valeur par défaut de cette application — comme Leapfrog/Micromine/Datamine.",
   "Balanced tangential": "Tangentielle équilibrée",
   "Half the interval along the upper station's direction, half along the lower's. Minimum curvature without the ratio factor.": "La moitié de l'intervalle selon la direction de la station supérieure, la moitié selon celle de l'inférieure. Courbure minimale sans le facteur de rapport.",
