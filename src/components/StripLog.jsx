@@ -27,6 +27,7 @@ const TRACK_W = 90;
 // #3141 — label every tick, or every other one when their text would not fit the track (P 0 / 0.01 / … / 0.04 ran together)
 const tickStride = (ticks) => (ticks.reduce((w, t) => w + String(t).length * 4.8 + 4, 0) > TRACK_W - 8 ? 2 : 1);
 const headerSize = (label) => Math.max(7, Math.min(10.5, (TRACK_W - 8) / (String(label).length * 0.62)));
+
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { exportSvgMarkup } from "../lib/svgExport.js"; // TASKS.csv #1089 — font, size, no UI chrome
@@ -37,6 +38,8 @@ import { stripLogTextPt } from "../lib/atlas.js"; // TASKS.csv #1480 — the siz
 import { assayAxis } from "../lib/striplogSvg.js"; // TASKS.csv #3141 — the Atlas's linear / log axis rule (#3024)
 import { suspectIdsOf } from "../lib/collarTable.js"; // TASKS.csv #3131 — #3004's rule, cached per collar list (the Layout collar table's)
 import { elevationTrust } from "../lib/collarElevationTrust.js";
+import { headerLines, sigText } from "../lib/stripHeader.js"; // TASKS.csv #2481
+// TASKS.csv #2481 — a value at n significant figures without exponent notation ('7460', not '7.46e+3'), for the printed axes
 const DEPTH_COL_W = 50;
 const PAD_TOP = 40;
 
@@ -347,7 +350,7 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
               const x0 = DEPTH_COL_W + ti * TRACK_W;
               return (
                 <g key={t.key}>
-                  <text x={x0 + TRACK_W / 2} y={PAD_TOP - 14} fontSize={headerSize(t.label)} fontWeight="600" textAnchor="middle" fill="#1a2028">{t.label}{t.title ? <title>{t.title}</title> : null}</text>{/* #3141 — sized to its track (a 14-letter custom name ran under the next header) */}
+                  {(() => { const hl = headerLines(t.label, TRACK_W - 8), hs = headerSize(hl.reduce((p, l) => (l.length > p.length ? l : p))) /* the longer line sets the size */; return <text x={x0 + TRACK_W / 2} y={PAD_TOP - 14 - (hl.length - 1) * (hs + 1)} fontSize={hs} fontWeight="600" textAnchor="middle" fill="#1a2028">{hl.map((l, k) => <tspan key={k} x={x0 + TRACK_W / 2} dy={k ? hs + 1 : 0}>{l}</tspan>)}<title>{t.title || t.label}</title></text>; })() /* two lines: #2481 */}{/* #3141 — sized to its track (a 14-letter custom name ran under the next header) */}
                   <rect x={x0} y={sy(d0)} width={TRACK_W - 6} height={sy(d1) - sy(d0)} fill="none" stroke="#dde1e6" />
                   {t.kind === "fill" && (() => { // #1254 — rows on the same depths side by side, with their percent where the log gives one
                     const { rows, lanes } = t.key === "mnlgy" ? fillLanes(t.rows) : { rows: t.rows, lanes: 1 };
@@ -375,10 +378,10 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
                   {t.kind === "bar" && t.rows.map((r, i) => {
                     const lg = t.logOk && logOn; // #1400; logOn: #3141
                     const w = (t.lo != null ? Math.max(0, Math.min(1, (Number(r.value) - t.lo) / (t.max - t.lo || 1))) : lg ? logFrac(Number(r.value), t.minPos, t.max) : t.max > 0 ? Math.max(0, Math.min(1, (Number(r.value) || 0) / t.max)) : 0) * (TRACK_W - 8); // t.lo: #1698
-                    return <rect key={i} x={x0 + 2} y={sy(r.from)} width={w} height={Math.max(0.5, sy(r.to) - sy(r.from))} fill={(t.colorOf && t.colorOf(r)) || "#4a9be0"} opacity="0.75"><title>{`${r.from}-${r.to} m: ${Number(r.value).toPrecision(3)}`}</title></rect>;
+                    return <rect key={i} x={x0 + 2} y={sy(r.from)} width={w} height={Math.max(0.5, sy(r.to) - sy(r.from))} fill={(t.colorOf && t.colorOf(r)) || "#4a9be0"} opacity="0.75"><title>{`${r.from}-${r.to} m: ${sigText(Number(r.value), 3)}`}</title></rect>;
                   })}
                   {t.kind === "bar" && t.scaleLabel && t.max > 0 && ( // #323 — each bar track's own full-scale value
-                    <text x={x0 + TRACK_W / 2} y={sy(d1) + 14} fontSize="8" textAnchor="middle" fill="#65717e">{t.lo != null ? `${t.lo.toPrecision(4)}–${t.max.toPrecision(4)}` : t.logOk && logOn && t.minPos > 0 ? tr("log {minPos}–{max}", { minPos: t.minPos.toPrecision(2), max: t.max.toPrecision(3) }) : `0–${t.max.toPrecision(3)}`}</text>
+                    <text x={x0 + TRACK_W / 2} y={sy(d1) + 14} fontSize="8" textAnchor="middle" fill="#65717e">{t.lo != null ? `${sigText(t.lo, 4)}–${sigText(t.max, 4)}` : t.logOk && logOn && t.minPos > 0 ? tr("log {minPos}–{max}", { minPos: sigText(t.minPos, 2), max: sigText(t.max, 3) }) : `0–${sigText(t.max, 3)}`}</text>
                   )}
                   {t.kind === "struct" && t.rows.map((s, i) => { // #1400
                     const cx = x0 + (TRACK_W - 6) / 2, y = sy(s.depth), tk = alphaTick(s.alpha, (TRACK_W - 6) / 2 - 4), c = t.colorFn(s.value);
@@ -402,11 +405,11 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
                     return <circle key={i} cx={x0 + 2 + Math.max(0, Math.min(1, v / pxrfRange[t.sym])) * (TRACK_W - 8)} cy={sy(r.from)} r="2" fill="#6b4fa0" opacity="0.9"><title>{`${r.from} m: ${v} ${elementUnits[t.sym] || "ppm"} (pXRF)`}</title></circle>;
                   })}
                   {t.kind === "pxrfdots" && t.sym && pxrfRange[t.sym] > 0 && (
-                    <text x={x0 + TRACK_W / 2} y={sy(d1) + 14} fontSize="8" textAnchor="middle" fill="#65717e">{`pXRF 0–${pxrfRange[t.sym].toPrecision(3)}`}</text>
+                    <text x={x0 + TRACK_W / 2} y={sy(d1) + 14} fontSize="8" textAnchor="middle" fill="#65717e">{`pXRF 0–${sigText(pxrfRange[t.sym], 3)}`}</text>
                   )}
                   {t.kind === "assaybar" && t.sym && assayRange[t.sym]?.max > 0 && (() => { const ax = axisOf(t.sym); return ax.ticks // #3141 — a linear axis: its round ticks under the track
                     ? ax.ticks.map((tk, k) => (k % tickStride(ax.ticks) === 0 || k === ax.ticks.length - 1) && <text key={`t${tk}`} x={x0 + 2 + (tk / ax.max) * (TRACK_W - 8)} y={sy(d1) + 12} fontSize="8" textAnchor={k === 0 ? "start" : k === ax.ticks.length - 1 ? "end" : "middle"} fill="#65717e">{tk}</text>) /* the end ticks inside the track: "80" and the next track's "0" read "800" */
-                    : <text x={x0 + TRACK_W / 2} y={sy(d1) + 14} fontSize="8" textAnchor="middle" fill="#65717e">{!ax.linear ? tr("log {minPos}–{max}", { minPos: assayRange[t.sym].minPos.toPrecision(2), max: assayRange[t.sym].max.toPrecision(3) }) : `0–${assayRange[t.sym].max.toPrecision(3)}`}</text>; })()}
+                    : <text x={x0 + TRACK_W / 2} y={sy(d1) + 14} fontSize="8" textAnchor="middle" fill="#65717e">{!ax.linear ? tr("log {minPos}–{max}", { minPos: sigText(assayRange[t.sym].minPos, 2), max: sigText(assayRange[t.sym].max, 3) }) : `0–${sigText(assayRange[t.sym].max, 3)}`}</text>; })()}
                 </g>
               );
             })}

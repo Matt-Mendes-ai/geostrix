@@ -40,7 +40,9 @@ test("built-in tracks only for a hole with rows; headers sized to their track", 
     assert.match(s, new RegExp(`\\.\\.\\.\\(${v}\\.length \\? \\[\\{ key: "${k}"`), k);
   }
   assert.match(s, /\.\.\.\(structs\.length \? \[\{ key: "structure"/);
-  assert.match(s, /fontSize=\{headerSize\(t\.label\)\}/);
+  // #2481 — a name too long even at 7 px goes on two lines (lib/stripHeader.js headerLines); the longer line sets the size
+  assert.match(s, /hs = headerSize\(hl\.reduce\(/);
+  assert.match(s, /fontSize=\{hs\}/);
   const headerSize = (label) => Math.max(7, Math.min(10.5, (90 - 8) / (String(label).length * 0.62)));
   assert.equal(headerSize("Litho"), 10.5);
   assert.ok(headerSize("…2023_DH_SWIR_Halo") * "…2023_DH_SWIR_Halo".length * 0.62 <= 82 + 1e-9, "a 14-letter name fits its 90 px track");
