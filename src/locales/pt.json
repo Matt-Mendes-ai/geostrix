@@ -11872,5 +11872,7 @@
   " Azimuths left as they are: the project has no mine grid to read them on (set one up under Maps > Project CRS).": " Azimutes deixados como estão: o projeto não tem uma grade de mina para lê-los (configure uma em Mapas > SRC do projeto).",
   " {fixed} azimuth(s) turned from the mine grid's north to the project grid ({deg}°).": " {fixed} azimute(s) girados do norte da grade de mina para a grade do projeto ({deg}°).",
   "{n} grid azimuth(s) turned from the mine grid's north to the project grid ({deg}°).": "{n} azimute(s) de grade girados do norte da grade de mina para a grade do projeto ({deg}°).",
-  "These pages were just generated. Change the selection to make others.": "Estas páginas acabaram de ser geradas. Altere a seleção para criar outras."
+  "These pages were just generated. Change the selection to make others.": "Estas páginas acabaram de ser geradas. Altere a seleção para criar outras.",
+  "Label the parts in the 3D view": "Rotular as partes na vista 3D",
+  "Per-hole values: all {n} hole(s) are already in the project at these coordinates. Importing joins the file's other columns ({cols}) onto those holes, on the hole id; no new hole is added.": "Valores por furo: todos os {n} furo(s) já estão no projeto nestas coordenadas. A importação une as outras colunas do arquivo ({cols}) a esses furos pelo ID do furo; nenhum furo novo é adicionado."
 }

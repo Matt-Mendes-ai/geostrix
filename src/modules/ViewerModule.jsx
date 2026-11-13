@@ -2141,6 +2141,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
       // own comment): the status-bar readout wants the nearest hit of any kind, the tooltip wants
       // the nearest hit belonging to a visible layer group. Previously these were two full
       // intersectObjects passes over overlapping object lists on every single pointermove.
+      raycasterRef.current.params.Line.threshold = Math.max(0.5, 4 * (metresPerPixel(camera, camState.current?.radius, mount.clientHeight) || 1)); // #2673 — a line within ~4 px is hit (was 1 m)
       const hoverHits = pickHits(raycasterRef.current);
       const worldPt = worldPointFromHits(raycasterRef.current, hoverHits);
       if (worldPt) setCursor(worldPt.plane ? { ...worldPt, z: null } : worldPt); // #2526 — over open ground Z is '—': no ground was hit
@@ -2150,6 +2151,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
       // hit-tested and gave the wrong tooltip. Only visible groups' children count here (as rendered).
       const layerHit = firstVisibleLayerHit(hoverHits);
       if (layerHit && layerHit.object.userData?.tip) setTooltip({ x: e.clientX, y: e.clientY, text: tipWithMeaning(layerHit.object, layerGroupsRef.current, codeDictRef.current) }); // + the code's meaning: #2816
+      else if (hoverHits[0]?.object.userData?.boundaryTip && hoverHits[0].object.visible !== false && hoverHits[0].object.parent?.visible !== false) setTooltip({ x: e.clientX, y: e.clientY, text: hoverHits[0].object.userData.boundaryTip }); // #2673 — a boundary part's name
       else setTooltip(null);
     };
     // Max radius raised again (500km -> 4,000km) alongside the far-plane bump above, so there's no

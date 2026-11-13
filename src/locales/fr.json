@@ -11872,5 +11872,7 @@
   " Azimuths left as they are: the project has no mine grid to read them on (set one up under Maps > Project CRS).": " Azimuts laissés tels quels : le projet n'a pas de grille de mine où les lire (configurez-en une dans Cartes > SCR du projet).",
   " {fixed} azimuth(s) turned from the mine grid's north to the project grid ({deg}°).": " {fixed} azimut(s) tournés du nord de la grille de mine vers la grille du projet ({deg}°).",
   "{n} grid azimuth(s) turned from the mine grid's north to the project grid ({deg}°).": "{n} azimut(s) de grille tournés du nord de la grille de mine vers la grille du projet ({deg}°).",
-  "These pages were just generated. Change the selection to make others.": "Ces pages viennent d'être générées. Changez la sélection pour en créer d'autres."
+  "These pages were just generated. Change the selection to make others.": "Ces pages viennent d'être générées. Changez la sélection pour en créer d'autres.",
+  "Label the parts in the 3D view": "Étiqueter les parties dans la vue 3D",
+  "Per-hole values: all {n} hole(s) are already in the project at these coordinates. Importing joins the file's other columns ({cols}) onto those holes, on the hole id; no new hole is added.": "Valeurs par sondage : les {n} sondage(s) sont déjà dans le projet à ces coordonnées. L’import joint les autres colonnes du fichier ({cols}) à ces sondages, par leur identifiant ; aucun nouveau sondage n’est ajouté."
 }

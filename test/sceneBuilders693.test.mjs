@@ -14,8 +14,12 @@ test("#693 syncBoundaries: world -> scene, closed flags, drape on terrain, remov
   syncBoundaries(group, cache, [{ id: "b1", polylines: [sq, sq], closedFlags: [true, false], elevation: 1050 }], { origin, terrain });
   const g = cache.b1;
   assert.equal(group.children.length, 1);
-  assert.equal(g.children[0].type, "LineLoop");
+  // #2673: a closed part is a Line that repeats its first vertex (a LineLoop's closing segment is never raycast in three.js r160)
+  assert.equal(g.children[0].type, "Line");
+  assert.equal(g.children[0].geometry.attributes.position.count, 4);
+  assert.deepEqual([...g.children[0].geometry.attributes.position.array.slice(9, 12)], [...g.children[0].geometry.attributes.position.array.slice(0, 3)]);
   assert.equal(g.children[1].type, "Line");
+  assert.equal(g.children[1].geometry.attributes.position.count, 3); // an open string is not closed
   const p = g.children[0].geometry.attributes.position.array;
   assert.deepEqual([...p.slice(3, 6)], [100, 50, -0]); // x - ox, z - oz, -(y - oy)
   syncBoundaries(group, cache, [{ id: "b1", polylines: [sq], drapeMode: "terrain" }], { origin, terrain });

@@ -11872,5 +11872,7 @@
   " Azimuths left as they are: the project has no mine grid to read them on (set one up under Maps > Project CRS).": " تُركت السموت كما هي: لا شبكة منجم في المشروع لقراءتها عليها (أعدّ واحدة في الخرائط > نظام إحداثيات المشروع).",
   " {fixed} azimuth(s) turned from the mine grid's north to the project grid ({deg}°).": " دُوِّر {fixed} سمت من شمال شبكة المنجم إلى شبكة المشروع ({deg}°).",
   "{n} grid azimuth(s) turned from the mine grid's north to the project grid ({deg}°).": "دُوِّر {n} سمت شبكي من شمال شبكة المنجم إلى شبكة المشروع ({deg}°).",
-  "These pages were just generated. Change the selection to make others.": "أُنشئت هذه الصفحات للتو. غيّر التحديد لإنشاء صفحات أخرى."
+  "These pages were just generated. Change the selection to make others.": "أُنشئت هذه الصفحات للتو. غيّر التحديد لإنشاء صفحات أخرى.",
+  "Label the parts in the 3D view": "تسمية الأجزاء في العرض ثلاثي الأبعاد",
+  "Per-hole values: all {n} hole(s) are already in the project at these coordinates. Importing joins the file's other columns ({cols}) onto those holes, on the hole id; no new hole is added.": "قيم لكل ثقب: جميع الثقوب الـ {n} موجودة في المشروع بهذه الإحداثيات. يضم الاستيراد أعمدة الملف الأخرى ({cols}) إلى تلك الثقوب حسب معرّف الثقب؛ لا يُضاف ثقب جديد."
 }
