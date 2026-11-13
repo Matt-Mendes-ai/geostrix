@@ -11,7 +11,8 @@ import { valueIn } from "../lib/geochem.js";
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #2902 — no Math.min / max(...spread) over a population (#371)
 import { THRESHOLD_METHODS, MIN_N_BREAKS, MIN_N_ROBUST, candidateThresholds, groupOptions, groupKeyFn, populations, normalQuantile, hasMixedSources, intervalLength, DRILL_DOMAINS, drillDomainKeyFn } from "../lib/thresholds.js"; import { thresholdUnreachable, usableDefaultMethod, LOG_RULES, thresholdScale } from "../lib/thresholds.js"; import { linTicks } from "./GeochemPlot.jsx"; // LOG_RULES, thresholdScale, linTicks: #3070 // drill: TASKS.csv #2196
 import { formatLimit, fileCensoring } from "../lib/qaqc.js"; // fileCensoring: #3083 (censoringFloor / reportedStep / zeroResults through it) // TASKS.csv #1520; formatLimit: #2503; reportedStep / zeroResults: #2913
-import { attributeDomainOptions, attributeDomainLabel } from "../lib/customDomains.js"; // #2504
+import { attributeDomainOptions, attributeDomainLabel, customDomainOptions } from "../lib/customDomains.js"; // #2504; customDomainOptions: #3108
+import { LAYER_META } from "../lib/layers.js"; // TASKS.csv #3108 — the built-in logs' names for their extra fields
 import { useStore } from "../lib/store.jsx"; // #2504 — the collars
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
@@ -34,7 +35,7 @@ export default function ThresholdToolkit({ surfaceSamples = [], surfaceElements 
   // TASKS.csv #2196 (Matt's decision 2026-11-09) — drill assays as a second source: length-weighted, populations by a logged domain at
   // each interval's middle (Lithology / Alteration / Weathering), saved apart from the surface threshold of the same element
   const drillAssays = useMemo(() => assays.filter((a) => intervalLength(a) != null), [assays]);
-  const { collars = [] } = useStore(); // #2504
+  const { collars = [], customLayers = [] } = useStore(); // #2504; customLayers: #3108
   const [source, setSource] = useState(() => (surfaceElements.length ? "surface" : "drill"));
   const drill = source === "drill";
   const elements = drill ? assayElements : surfaceElements, data = drill ? drillAssays : surfaceSamples;
@@ -44,7 +45,9 @@ export default function ThresholdToolkit({ surfaceSamples = [], surfaceElements 
   const isMine = (r) => r.symbol === symbol && (r.source === "drill") === drill; // #2196
   const saved = geochemThresholds.find(isMine) || null;
   // TASKS.csv #2504 — the sample type and the collar's categorical fields as drill populations (RC / core / aircore), beside the logs
-  const attrDomains = useMemo(() => (drill ? attributeDomainOptions(drillAssays, collars) : []), [drill, drillAssays, collars]);
+  // TASKS.csv #3108 (split from #2915) — and the custom layers' code fields (and the built-in logs' extra ones), as Grade stats and Compositing
+  // offer them: a field of more than 30 codes as its 12 commonest and the rest as 'other'
+  const attrDomains = useMemo(() => (drill ? [...attributeDomainOptions(drillAssays, collars), ...customDomainOptions(customLayers, { layers: projectLayers, labelOf: (k) => tr(LAYER_META[k]?.label || k) }, { groupTop: 12 })] : []), [drill, drillAssays, collars, customLayers, projectLayers]);
   const domainLayers = useMemo(() => (attrDomains.length ? { ...projectLayers, ...Object.fromEntries(attrDomains.map((d) => [d.key, d.rows])) } : projectLayers), [attrDomains, projectLayers]);
   const gOpts = useMemo(() => (drill ? [...DRILL_DOMAINS.filter((d) => d.value === "none" || projectLayers?.[d.value]?.length).map((d) => ({ ...d, kind: "builtin" })), ...attrDomains.map((d) => ({ value: d.key, label: d.label, kind: "attribute", d }))] : groupOptions(surfaceSamples, mapLayers)), [drill, surfaceSamples, mapLayers, projectLayers, attrDomains]);
   const mixedSources = useMemo(() => !drill && hasMixedSources(surfaceSamples), [drill, surfaceSamples]); // TASKS.csv #932
