@@ -11762,5 +11762,16 @@
   "TSurf": "TSurf",
   "filled at import, not in the collar file": "rempli à l'import, absent du fichier des collets",
   "in the collar file, but probably a missing value": "dans le fichier des collets, mais probablement une valeur manquante",
-  "collar RL {rl} m: {note}": "cote du collet {rl} m : {note}"
+  "collar RL {rl} m: {note}": "cote du collet {rl} m : {note}",
+  "Limits from the set:": "Limites de l'ensemble :",
+  "The other elements estimated with this one, on the same blocks. A block counts only when it meets every limit you type; a block with no value of a limited element is left out.": "Les autres éléments estimés avec celui-ci, sur les mêmes blocs. Un bloc ne compte que s'il respecte chaque limite saisie ; un bloc sans valeur d'un élément limité est laissé de côté.",
+  "Limit on {el}": "Limite de {el}",
+  "Limit value of {el}": "Valeur limite de {el}",
+  "{n} of {all} block(s) meet the limits; {f} fail them.": "{n} bloc(s) sur {all} respectent les limites ; {f} ne les respectent pas.",
+  "{k} block(s) with no {el} value are left out (its estimate did not reach them).": "{k} bloc(s) sans valeur de {el} sont laissés de côté (son estimation ne les a pas atteints).",
+  "{el}'s mean over the blocks counted at this cutoff, weighted as the mean grade is": "Moyenne de {el} sur les blocs comptés à cette teneur de coupure, pondérée comme la teneur moyenne",
+  "Mean {el} ({unit})": "{el} moyen ({unit})",
+  "Mean {el}": "{el} moyen",
+  "{el} has a value in {p} % of this volume": "{el} a une valeur dans {p} % de ce volume",
+  "* the element has no value in part of that volume (its own estimate did not reach every block); the mean is over the blocks it has.": "* l'élément n'a pas de valeur dans une partie de ce volume (sa propre estimation n'a pas atteint tous les blocs) ; la moyenne porte sur les blocs qui en ont une."
 }

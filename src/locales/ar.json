@@ -11762,5 +11762,16 @@
   "TSurf": "TSurf",
   "filled at import, not in the collar file": "مُلئ عند الاستيراد، ليس في ملف الفوهات",
   "in the collar file, but probably a missing value": "في ملف الفوهات، لكنه على الأرجح قيمة مفقودة",
-  "collar RL {rl} m: {note}": "منسوب الفوهة {rl} م: {note}"
+  "collar RL {rl} m: {note}": "منسوب الفوهة {rl} م: {note}",
+  "Limits from the set:": "حدود المجموعة:",
+  "The other elements estimated with this one, on the same blocks. A block counts only when it meets every limit you type; a block with no value of a limited element is left out.": "العناصر الأخرى المقدّرة مع هذا العنصر، على الكتل نفسها. لا تُحتسب الكتلة إلا إذا استوفت كل حدّ تكتبه؛ وتُستبعد الكتلة التي لا قيمة فيها لعنصر عليه حدّ.",
+  "Limit on {el}": "حدّ {el}",
+  "Limit value of {el}": "قيمة حدّ {el}",
+  "{n} of {all} block(s) meet the limits; {f} fail them.": "{n} من {all} كتلة تستوفي الحدود؛ و{f} لا تستوفيها.",
+  "{k} block(s) with no {el} value are left out (its estimate did not reach them).": "تُستبعد {k} كتلة لا قيمة فيها لـ{el} (لم يصل إليها تقديره).",
+  "{el}'s mean over the blocks counted at this cutoff, weighted as the mean grade is": "متوسط {el} في الكتل المحتسبة عند حدّ القطع هذا، مرجّحًا كما يُرجَّح متوسط المحتوى",
+  "Mean {el} ({unit})": "متوسط {el} ({unit})",
+  "Mean {el}": "متوسط {el}",
+  "{el} has a value in {p} % of this volume": "لـ{el} قيمة في {p} % من هذا الحجم",
+  "* the element has no value in part of that volume (its own estimate did not reach every block); the mean is over the blocks it has.": "* لا قيمة للعنصر في جزء من ذلك الحجم (لم يصل تقديره إلى كل الكتل)؛ والمتوسط محسوب على الكتل التي لها قيمة."
 }

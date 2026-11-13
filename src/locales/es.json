@@ -11762,5 +11762,16 @@
   "TSurf": "TSurf",
   "filled at import, not in the collar file": "completado al importar, no está en el archivo de collares",
   "in the collar file, but probably a missing value": "en el archivo de collares, pero probablemente un valor faltante",
-  "collar RL {rl} m: {note}": "cota del collar {rl} m: {note}"
+  "collar RL {rl} m: {note}": "cota del collar {rl} m: {note}",
+  "Limits from the set:": "Límites del conjunto:",
+  "The other elements estimated with this one, on the same blocks. A block counts only when it meets every limit you type; a block with no value of a limited element is left out.": "Los otros elementos estimados junto con este, en los mismos bloques. Un bloque cuenta solo si cumple todos los límites que escriba; un bloque sin valor de un elemento limitado se deja fuera.",
+  "Limit on {el}": "Límite de {el}",
+  "Limit value of {el}": "Valor límite de {el}",
+  "{n} of {all} block(s) meet the limits; {f} fail them.": "{n} de {all} bloque(s) cumplen los límites; {f} no los cumplen.",
+  "{k} block(s) with no {el} value are left out (its estimate did not reach them).": "{k} bloque(s) sin valor de {el} quedan fuera (su estimación no los alcanzó).",
+  "{el}'s mean over the blocks counted at this cutoff, weighted as the mean grade is": "Media de {el} en los bloques contados con esta ley de corte, ponderada como la ley media",
+  "Mean {el} ({unit})": "{el} medio ({unit})",
+  "Mean {el}": "{el} medio",
+  "{el} has a value in {p} % of this volume": "{el} tiene valor en el {p} % de este volumen",
+  "* the element has no value in part of that volume (its own estimate did not reach every block); the mean is over the blocks it has.": "* el elemento no tiene valor en parte de ese volumen (su propia estimación no alcanzó todos los bloques); la media es sobre los bloques que lo tienen."
 }
