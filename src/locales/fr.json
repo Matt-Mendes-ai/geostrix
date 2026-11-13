@@ -3977,7 +3977,6 @@
   "Not set yet. Choose the CRS your collar coordinates are in.": "Pas encore défini. Choisissez le SCR de vos coordonnées de collets.",
   "GeoStrix places every file, terrain and online map with this CRS. A collar CSV doesn't say which CRS it is in, and the numbers alone can't tell one UTM zone from the next.": "GeoStrix place chaque fichier, terrain et carte en ligne avec ce SCR. Un CSV de collets n'indique pas son SCR, et les nombres seuls ne permettent pas de distinguer une zone UTM de la suivante.",
   "Where is the project? (latitude, longitude — roughly is enough)": "Où est le projet ? (latitude, longitude — approximatif suffit)",
-  "e.g. 52.2, -121.3 or 23.5 S 46.6 W": "p. ex. 52.2, -121.3 ou 23.5 S 46.6 W",
   "Project latitude and longitude": "Latitude et longitude du projet",
   "Type latitude then longitude in decimal degrees (south and west negative, or add S / W).": "Saisissez la latitude puis la longitude en degrés décimaux (sud et ouest négatifs, ou ajoutez S / W).",
   "Suggested CRSs": "SCR suggérés",
@@ -11825,5 +11824,9 @@
   "A model estimated with other elements in one run (a set) is exported with their values as extra columns on the same blocks: CSV columns, VTK and OMF arrays": "Un modèle estimé avec d'autres éléments dans un même calcul (un ensemble) est exporté avec leurs valeurs en colonnes supplémentaires sur les mêmes blocs : colonnes du CSV, tableaux VTK et OMF",
   "Exports carry the other elements of a model's set": "Les exports incluent les autres éléments de l'ensemble du modèle",
   "Building the plan… {pct}%": "Construction du plan… {pct} %",
-  "Building the plan…": "Construction du plan…"
+  "Building the plan…": "Construction du plan…",
+  "e.g. 12.5, -45.5 or 12.5 N 45.5 W": "p. ex. 12.5, -45.5 ou 12.5 N 45.5 W",
+  "{fileName}: {cols} read as dates (stored as year-month-day); each also has a year field, to filter and colour the holes by.": "{fileName} : {cols} lues comme des dates (enregistrées en année-mois-jour) ; chacune a aussi un champ d'année, pour filtrer et colorer les sondages.",
+  "{fileName}: {cols} kept as written: every date there could be day/month or month/day.": "{fileName} : {cols} conservées telles qu'écrites : chaque date pourrait être jour/mois ou mois/jour.",
+  "{fileName}: no unit for {cols}: the column name gives none and none was typed, so the values are as logged with no unit.": "{fileName} : pas d'unité pour {cols} : le nom de la colonne n'en donne aucune et aucune n'a été saisie, les valeurs restent donc telles que relevées, sans unité."
 }

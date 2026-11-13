@@ -3977,7 +3977,6 @@
   "Not set yet. Choose the CRS your collar coordinates are in.": "لم يُضبط بعد. اختر نظام الإحداثيات الذي فيه إحداثيات فوهاتك.",
   "GeoStrix places every file, terrain and online map with this CRS. A collar CSV doesn't say which CRS it is in, and the numbers alone can't tell one UTM zone from the next.": "يضع GeoStrix كل ملف وتضاريس وخريطة إنترنت بهذا النظام. ملف CSV للفوهات لا يذكر نظام إحداثياته، والأرقام وحدها لا تميز منطقة UTM عن التالية.",
   "Where is the project? (latitude, longitude — roughly is enough)": "أين المشروع؟ (خط العرض، خط الطول — يكفي التقريب)",
-  "e.g. 52.2, -121.3 or 23.5 S 46.6 W": "مثل 52.2، ‎-121.3 أو 23.5 S 46.6 W",
   "Project latitude and longitude": "خط عرض وطول المشروع",
   "Type latitude then longitude in decimal degrees (south and west negative, or add S / W).": "اكتب خط العرض ثم خط الطول بالدرجات العشرية (الجنوب والغرب سالبان، أو أضف S / W).",
   "Suggested CRSs": "أنظمة الإحداثيات المقترحة",
@@ -11825,5 +11824,9 @@
   "A model estimated with other elements in one run (a set) is exported with their values as extra columns on the same blocks: CSV columns, VTK and OMF arrays": "يُصدَّر النموذج المقدَّر مع عناصر أخرى في تشغيل واحد (مجموعة) مع قيمها أعمدةً إضافية على الكتل نفسها: أعمدة CSV ومصفوفات VTK وOMF",
   "Exports carry the other elements of a model's set": "تتضمّن عمليات التصدير العناصر الأخرى في مجموعة النموذج",
   "Building the plan… {pct}%": "جارٍ بناء المخطط… {pct}%",
-  "Building the plan…": "جارٍ بناء المخطط…"
+  "Building the plan…": "جارٍ بناء المخطط…",
+  "e.g. 12.5, -45.5 or 12.5 N 45.5 W": "مثل 12.5، ‎-45.5 أو 12.5 N 45.5 W",
+  "{fileName}: {cols} read as dates (stored as year-month-day); each also has a year field, to filter and colour the holes by.": "{fileName}: قُرئت {cols} تواريخَ (محفوظة بصيغة سنة-شهر-يوم)؛ ولكلٍّ منها حقل للسنة أيضًا، لتصفية الثقوب وتلوينها.",
+  "{fileName}: {cols} kept as written: every date there could be day/month or month/day.": "{fileName}: أُبقيت {cols} كما كُتبت: كل تاريخ فيها قد يكون يوم/شهر أو شهر/يوم.",
+  "{fileName}: no unit for {cols}: the column name gives none and none was typed, so the values are as logged with no unit.": "{fileName}: لا وحدة لـ{cols}: اسم العمود لا يذكر وحدة ولم تُكتب وحدة، فتبقى القيم كما سُجّلت بلا وحدة."
 }
