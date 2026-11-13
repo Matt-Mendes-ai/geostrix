@@ -9,7 +9,7 @@ test("#1181 Fit frames the holes, the full extent stays on the menu", () => {
   // #2092 — on the Surface Geology tab the Fit button frames everything shown; elsewhere the holes, as before
   assert.match(viewer, /<button onClick=\{fitButton\}/);
   assert.match(viewer, /const fitButton = \(\) => \(mode === "surface" \? zoomToFitAll\(\) : zoomToHoles\(\)\);/);
-  assert.match(viewer, /zoomToHoles = \(\) => autoFitInitial\(lastTracesRef\.current, lastHoleTraceCountRef\.current\)/);
+  assert.match(viewer, /zoomToHoles = \(\) => (\{ const s = shownTraces\(\); if \(s\) fitView\(s\); else )?autoFitInitial\(lastTracesRef\.current, lastHoleTraceCountRef\.current\)/ /* shownTraces: #2996 */);
   assert.equal(viewer.split('label={tr("Zoom to fit all")}').length - 1, 2);
 });
 test("#1287 one writer of viewerUiState", () => {

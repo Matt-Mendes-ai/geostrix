@@ -5,7 +5,7 @@
 import React, { useMemo, useRef, useState } from "react";
 import { metalAmountText, elementOfModel, gradeWithElement } from "../lib/pitShell.js"; // TASKS.csv #2434
 import { shellWallCompare } from "../lib/pitWalls.js"; // TASKS.csv #2433
-import { Layers3, Eye, EyeOff, Trash2, Download } from "./icons.js";
+import { Layers3, Eye, EyeOff, Trash2, Download, Maximize2 } from "./icons.js"; // Maximize2: #2996
 import { confirmDestructive } from "../lib/confirmDestructive.js"; // #1498
 import { TaskPaneHeader } from "./Ribbon.jsx";
 import { useStore } from "../lib/store.jsx";
@@ -35,7 +35,7 @@ let kept = null; // #1356 — the last result (with its strings, for export) out
 
 // surfaces: the project's generated surfaces (pit shells in, designs out); worldPositionsOf(id) -> Float64Array of E, N, Z for a
 // surface's mesh; onAdd / onToggle / onRemove as the pit pane's
-export default function PitDesignPane({ surfaces = [], worldPositionsOf, onAdd, onToggle, onRemove, onClose }) {
+export default function PitDesignPane({ surfaces = [], worldPositionsOf, onAdd, onToggle, onRemove, onClose, onZoomTo = null }) { // onZoomTo: #2996
   const { voxelModels = [], terrain, collars = [], project, designStrings = [], layers, survey = [], desurveyMethod } = useStore(); // layers..desurveyMethod: #2647
   const areas = useMemo(() => designStrings.filter((s) => s.closed && s.vertices.length > 2 && !s.stopeRun /* #2601 */), [designStrings]); // #1916 — design areas
   const [areaId, setAreaId] = useState("");
@@ -229,6 +229,7 @@ export default function PitDesignPane({ surfaces = [], worldPositionsOf, onAdd, 
               <button onClick={() => onToggle?.(s.id)} style={iconBtnStyle} aria-label={s.visible ? tr("Hide {name}", { name: s.name }) : tr("Show {name}", { name: s.name })} title={s.visible ? tr("Hide") : tr("Show")}>{s.visible ? <Eye size={13} /> : <EyeOff size={13} />}</button>
               <span title={s.name} style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: s.visible ? "var(--color-text)" : "var(--color-text-muted)" }}>{String(s.name).replace(/^Pit design: /, "")}</span>
               {Number.isFinite(s.params?.oreTonnes) && <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)", flexShrink: 0 }}>{`${big(s.params.oreTonnes)} t`}</span>}
+              {onZoomTo && <button onClick={() => onZoomTo(s.id)} style={iconBtnStyle} aria-label={tr("Zoom to {name}", { name: s.name })} title={tr("Zoom to")}><Maximize2 size={13} /></button>}{/* #2996 */}
               <button onClick={() => removeDesign(s)} style={iconBtnStyle} aria-label={tr("Remove {name}", { name: s.name })} title={tr("Remove")}><Trash2 size={13} /></button>
             </div>
           ))}

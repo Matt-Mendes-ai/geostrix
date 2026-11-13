@@ -15,7 +15,7 @@ test("#2285 the pane lists its dumps; Edit puts the run's inputs back and the ne
   assert.match(p, /crestZ: val\(p\.crestZ\), repose: val\(p\.reposeDeg\), density: val\(p\.density\), swell: val\(p\.swell\)/);
   assert.match(p, /if \(editingId\) \{ onRemove\?\.\(editingId\); setEditingId\(null\); \}/);
   assert.match(p, /confirmDestructive\(tr\("Remove the dump/);
-  assert.match(p, /<DumpRunList dumps=\{dumps\} editingId=\{editingId\} onToggle=\{onToggle\} onEdit=\{editDump\} onRemove=\{onRemove \? removeDump : null\} \/>/);
+  assert.match(p, /<DumpRunList dumps=\{dumps\} editingId=\{editingId\} onToggle=\{onToggle\} onEdit=\{editDump\} onRemove=\{onRemove \? removeDump : null\}( onZoomTo=\{onZoomTo\})? \/>/ /* onZoomTo: #2996 */);
   // the params the Edit reads are the ones a run writes
   assert.match(p, /params: \{ tool: "dump \/ stockpile from a footprint[^}]*footprint: footprint\.name, crestZ: v\("crestZ"\), reposeDeg: v\("repose"\), density: v\("density"\), swell: v\("swell"\)/);
 });
