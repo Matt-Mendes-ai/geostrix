@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { createCorrelationClient, CORRELATION_WORKER_FROM } from "../lib/correlationClient.js"; // TASKS.csv #3032
+import { createCorrelationClient, CORRELATION_WORKER_FROM, buildColumns } from "../lib/correlationClient.js"; // TASKS.csv #3032; buildColumns: #3125
 import { useLeadCommodity } from "../lib/useLeadCommodity.js"; // TASKS.csv #2351
 import { X, Download } from "./icons.js";
 import { valueIn, elementOptionLabel } from "../lib/geochem.js"; // elementOptionLabel: #2914
@@ -107,13 +107,17 @@ export default function CorrelationMatrix({ assays: assaysIn, assayElements: ass
   const matrixKey = `${method}|${symbols.join(",")}`;
   useEffect(() => {
     if (!big || symbols.length < 2) { setProgress(null); return undefined; }
-    ensureCols();
-    if (!clientRef.current) clientRef.current = createCorrelationClient();
+    // TASKS.csv #3125 — the columns in slices (lib buildColumns), not ensureCols' one blocking pass, then the worker
+    let stopped = false, req = null;
     setProgress({ done: 0, total: (symbols.length * (symbols.length + 1)) / 2 });
-    const req = clientRef.current.compute({ epoch: caches, cols: caches.cols, symbols, method, cache: caches.pairs, onProgress: setProgress });
-    req.promise.then((m) => { setAsyncMatrix({ caches, key: matrixKey, m }); setProgress(null); }, () => setProgress(null));
-    return () => req.cancel();
-  }, [big, matrixKey, caches]); // ensureCols reads symbols / caches / assays
+    buildColumns({ rows: assays, symbols, cols: caches.cols, lt: caches.lt, valueOf: (a, s) => valueIn(a, s, "ppm", elementUnits), ltOf: isBelowDetection, detectedOnly, cancelled: () => stopped }).then((done) => {
+      if (!done || stopped) return;
+      if (!clientRef.current) clientRef.current = createCorrelationClient();
+      req = clientRef.current.compute({ epoch: caches, cols: caches.cols, symbols, method, cache: caches.pairs, onProgress: setProgress });
+      req.promise.then((m) => { setAsyncMatrix({ caches, key: matrixKey, m }); setProgress(null); }, () => setProgress(null));
+    }, () => setProgress(null));
+    return () => { stopped = true; req?.cancel(); };
+  }, [big, matrixKey, caches]); // buildColumns reads symbols / caches / assays / detectedOnly (caches follow assays, units and detectedOnly)
   const matrix = big ? (asyncMatrix && asyncMatrix.caches === caches && asyncMatrix.key === matrixKey ? asyncMatrix.m : null) : syncMatrix;
   // while a new answer is on its way, the cells the last one holds (same rows and method) are shown; the others read '…'
   const shown = matrix || (asyncMatrix && asyncMatrix.caches === caches && asyncMatrix.key.split("|")[0] === method ? asyncMatrix.m : null);
