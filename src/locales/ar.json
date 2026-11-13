@@ -11429,5 +11429,6 @@
   "{n} sample(s) at or above the cut-off ({m} m in {h} hole(s){list}) lie inside the pit in cells of the model's footprint the estimate left empty: they are mined as waste here.": "تقع {n} عينة (عينات) عند المحتوى الحدي أو فوقه ({m} م في {h} ثقب (ثقوب){list}) داخل الحفرة في خلايا من نطاق النموذج تركها التقدير فارغة: تُستخرج هنا كنفايات.",
   ", density by {layer} ({n} codes)": "، الكثافة حسب {layer} ({n} رمزًا)",
   "Internal dilution": "التخفيف الداخلي",
-  "No skin dilution: the skin is under half a column. The dilution above is internal only: the blocks under the cut-off inside the outlines.": "لا تخفيف للحافة: الحافة أقل من نصف عمود. التخفيف أعلاه داخلي فقط: الكتل دون المحتوى الحدي داخل الحدود."
+  "No skin dilution: the skin is under half a column. The dilution above is internal only: the blocks under the cut-off inside the outlines.": "لا تخفيف للحافة: الحافة أقل من نصف عمود. التخفيف أعلاه داخلي فقط: الكتل دون المحتوى الحدي داخل الحدود.",
+  "Min. spacing: a quarter of the drilled holes' site spacing ({s} m). Type your own.": "الحد الأدنى للتباعد: ربع تباعد مواقع الثقوب المحفورة ({s} م). اكتب قيمتك."
 }

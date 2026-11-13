@@ -11429,5 +11429,6 @@
   "{n} sample(s) at or above the cut-off ({m} m in {h} hole(s){list}) lie inside the pit in cells of the model's footprint the estimate left empty: they are mined as waste here.": "{n} échantillon(s) à la teneur de coupure ou plus ({m} m dans {h} sondage(s){list}) se trouvent dans la fosse, dans des cellules de l'emprise du modèle que l'estimation a laissées vides : ils sont extraits ici comme stérile.",
   ", density by {layer} ({n} codes)": ", densité par {layer} ({n} codes)",
   "Internal dilution": "Dilution interne",
-  "No skin dilution: the skin is under half a column. The dilution above is internal only: the blocks under the cut-off inside the outlines.": "Pas de dilution de bordure : la bordure fait moins d'une demi-colonne. La dilution ci-dessus est seulement interne : les blocs sous la teneur de coupure à l'intérieur des contours."
+  "No skin dilution: the skin is under half a column. The dilution above is internal only: the blocks under the cut-off inside the outlines.": "Pas de dilution de bordure : la bordure fait moins d'une demi-colonne. La dilution ci-dessus est seulement interne : les blocs sous la teneur de coupure à l'intérieur des contours.",
+  "Min. spacing: a quarter of the drilled holes' site spacing ({s} m). Type your own.": "Espacement min. : un quart de l'espacement entre sites des sondages forés ({s} m). Saisissez le vôtre."
 }
