@@ -1984,27 +1984,11 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
     // run before this one on initial mount) re-run now that sceneRef.current is actually populated.
     setSceneReady((v) => v + 1);
 
-    // TASKS.csv #308 (2) — lighting was AmbientLight 0.9 + one DirectionalLight 0.6 fixed at world
-    // (200, 400, 200). Two problems, both visible on the loaded sample project. (a) The darkest a
-    // surface could get was 0.9/(0.9+0.6) = 60% of the brightest — a 1.67:1 shading range across a
-    // whole cylinder, which is why interval tubes read as flat coloured strips and generated surfaces
-    // as flat-shaded blobs. (b) The light was fixed in WORLD space while the camera orbits, so orbiting
-    // to the far side put it behind the geometry and the scene collapsed to pure ambient — the same
-    // model looked shaded from one azimuth and flat from the opposite one.
-    // Rebalanced to 0.45/0.85 (total illumination essentially unchanged at 1.30 vs 1.50, so nothing
-    // goes dark, but the shading range roughly triples to ~2.9:1) and turned into a HEADLIGHT: dl's
-    // position is copied from the camera on every camera move inside updateCamera() below. Cost is one
-    // Vector3 copy per camera move — not per frame, and not per rendered object — so this is free at
-    // the scale that matters here; measured render cost is unchanged (see this row's notes).
-    // Deliberately NOT adding shadow maps or an ambient-occlusion pass: those are the usual answers to
-    // "make the 3D look better" and both are a real per-frame cost on this project's target hardware.
-    // TASKS.csv #376 — x PI. three r160 uses physical light units by default (renderer._useLegacyLights is
-    // false, so lights get scaleFactor 1) while Lambert divides by PI, so 0.45 + 0.85 (tuned above in
-    // legacy terms) lit a surface at most (0.45+0.85)/PI = 0.41 of its colour in linear light: the #306/#319
-    // grade classes rendered far darker than designed (pale L* ~39-62 against a target of 88.9, the high
-    // class near-black) and unlit MeshBasic drapes/collars looked much brighter than the tubes beside them.
-    // 0.35 + 0.65 (x PI) keeps #308's ~2.9:1 shading range and tops out at exactly 1.0 — a surface facing
-    // the headlight shows its designed colour, nothing clips. Same uniforms, zero extra cost.
+    // TASKS.csv #308 (2) — lighting was ambient 0.9 + one directional 0.6 fixed in world space: a 1.67:1 shading range (tubes read
+    // as flat strips) that collapsed to pure ambient from the far side. Now ~2.9:1 and a HEADLIGHT (dl follows the camera in
+    // updateCamera(): one Vector3 copy per camera move). No shadow maps or AO: a per-frame cost on the target hardware.
+    // TASKS.csv #376 — x PI: three r160's physical light units with Lambert's 1/PI lit a surface at most 0.41 of its colour (grade
+    // classes far darker than designed). 0.35 + 0.65 (x PI) keeps #308's range and tops out at exactly 1.0: nothing clips.
     scene.add(new THREE.AmbientLight(0xffffff, 0.35 * Math.PI));
     const dl = new THREE.DirectionalLight(0xffffff, 0.65 * Math.PI); dl.position.set(200, 400, 200); scene.add(dl);
     headlightRef.current = dl;
@@ -3653,7 +3637,7 @@ ${describeTrend(t)}` };
           params: {
             tool: "imported solid", sourceFile: file.name, format: solid.format, ...(layered ? { layer: part.layer } : {}),
             detail: solid.note, vertices: nVerts, triangles: nTris,
-            crsAssumed: project?.epsg ? `assumed already in EPSG:${project.epsg}` : "assumed already in the project CRS",
+            crsAssumed: project?.crsSet === false ? "assumed on the project's local grid (CRS not set)" /* #2232 */ : project?.epsg ? `assumed already in EPSG:${project.epsg}` : "assumed already in the project CRS",
             importedAt: new Date().toISOString(),
           },
         };
@@ -7157,7 +7141,7 @@ ${+a.from.toFixed(2)}–${+a.to.toFixed(2)} m`)); // #1500; #2365 as stored
           title={tr("Check the generated surfaces against the relationships declared on them (expand a surface's row to declare one): surfaces that intersect where they shouldn't, a surface on the wrong side of one it is declared below/above, and contact surfaces that fold back over themselves.")}
         ><ShieldAlert size={14} /> {topologyBusy ? tr("Checking relationships…") : tr("Check relationships")}</button>
         {implicitSurfaces.length === 0 && (
-          <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 10, lineHeight: 1.4 }}>{tr("None yet — run one of the tools above. Generated surfaces now save with the project (mesh, type, declared relationships and the parameters that produced them), so a reported volume or tonnage can be reproduced after a restart. Binding a surface to a saved theme is still a follow-up.")}</div>
+          <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 10, lineHeight: 1.4 }} title={tr("Generated surfaces save with the project (mesh, type, declared relationships and the parameters that produced them), so a reported volume or tonnage can be reproduced after a restart.")}>{tr("None yet: build one with Implicit surface, Explicit surface or Grade shell above, or link section outlines into a solid.")}{/* #1694 — an instruction, not changelog notes */}</div>
         )}
         <StopeRunRows stopes={stopeSurfaces} onShow={showSurfaces} onOpen={() => { goToModule("minedesign"); setToolPane("stopes"); }} />{/* #1968 — one row per stope run */}
         {implicitSurfaces.filter((s) => s.type !== "stope").map((s) => {

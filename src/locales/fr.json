@@ -847,7 +847,6 @@
   "Check the generated surfaces against the relationships declared on them (expand a surface's row to declare one): surfaces that intersect where they shouldn't, a surface on the wrong side of one it is declared below/above, and contact surfaces that fold back over themselves.": "Vérifier les surfaces générées par rapport aux relations déclarées sur elles (développez la ligne d'une surface pour en déclarer une) : surfaces qui se coupent là où elles ne devraient pas, surface du mauvais côté d'une autre sous/sur laquelle elle est déclarée, et surfaces de contact qui se replient sur elles-mêmes.",
   "Checking relationships…": "Vérification des relations…",
   "Check relationships": "Vérifier les relations",
-  "None yet — run one of the tools above. Generated surfaces now save with the project (mesh, type, declared relationships and the parameters that produced them), so a reported volume or tonnage can be reproduced after a restart. Binding a surface to a saved theme is still a follow-up.": "Aucune pour l'instant — exécutez l'un des outils ci-dessus. Les surfaces générées sont désormais enregistrées avec le projet (maillage, type, relations déclarées et paramètres qui les ont produites), donc un volume ou un tonnage déclaré peut être reproduit après un redémarrage. Lier une surface à un thème enregistré reste à faire.",
   "Style (colour, opacity)…": "Style (couleur, opacité)…",
   "Type & relationships": "Type et relations",
   "Show or hide {name}": "Afficher ou masquer {name}",
@@ -11669,5 +11668,7 @@
   "Type a string name first": "Saisissez d'abord le nom de la polyligne",
   "Draw the outline of {name}": "Dessiner le contour de {name}",
   "Draw the fault {name}": "Dessiner la faille {name}",
-  "Draw the string {name}": "Dessiner la polyligne {name}"
+  "Draw the string {name}": "Dessiner la polyligne {name}",
+  "None yet: build one with Implicit surface, Explicit surface or Grade shell above, or link section outlines into a solid.": "Aucune pour l'instant : créez-en une avec Surface implicite, Surface explicite ou Enveloppe de teneur ci-dessus, ou reliez des contours de coupe en un solide.",
+  "Generated surfaces save with the project (mesh, type, declared relationships and the parameters that produced them), so a reported volume or tonnage can be reproduced after a restart.": "Les surfaces générées sont enregistrées avec le projet (maillage, type, relations déclarées et paramètres qui les ont produites), afin qu'un volume ou un tonnage rapporté puisse être reproduit après un redémarrage."
 }

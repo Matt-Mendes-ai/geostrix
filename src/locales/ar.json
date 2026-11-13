@@ -847,7 +847,6 @@
   "Check the generated surfaces against the relationships declared on them (expand a surface's row to declare one): surfaces that intersect where they shouldn't, a surface on the wrong side of one it is declared below/above, and contact surfaces that fold back over themselves.": "فحص الأسطح المُنشأة مقابل العلاقات المعلنة عليها (وسّع صف السطح لإعلان علاقة): أسطح تتقاطع حيث لا ينبغي، وسطح على الجانب الخطأ من سطح أُعلن أنه تحته أو فوقه، وأسطح تماس تنطوي على نفسها.",
   "Checking relationships…": "جارٍ فحص العلاقات…",
   "Check relationships": "فحص العلاقات",
-  "None yet — run one of the tools above. Generated surfaces now save with the project (mesh, type, declared relationships and the parameters that produced them), so a reported volume or tonnage can be reproduced after a restart. Binding a surface to a saved theme is still a follow-up.": "لا شيء بعد — شغّل إحدى الأدوات أعلاه. تُحفظ الأسطح المُنشأة الآن مع المشروع (الشبكة والنوع والعلاقات المعلنة والمعاملات التي أنتجتها)، فيمكن إعادة إنتاج الحجم أو الحمولة المبلغ عنهما بعد إعادة التشغيل. ربط سطح بسمة محفوظة ما زال قيد التنفيذ.",
   "Style (colour, opacity)…": "النمط (اللون، العتامة)…",
   "Type & relationships": "النوع والعلاقات",
   "Show or hide {name}": "إظهار {name} أو إخفاؤه",
@@ -11669,5 +11668,7 @@
   "Type a string name first": "اكتب اسم الخط المتعدد أولًا",
   "Draw the outline of {name}": "ارسم حدود {name}",
   "Draw the fault {name}": "ارسم الصدع {name}",
-  "Draw the string {name}": "ارسم الخط المتعدد {name}"
+  "Draw the string {name}": "ارسم الخط المتعدد {name}",
+  "None yet: build one with Implicit surface, Explicit surface or Grade shell above, or link section outlines into a solid.": "لا شيء بعد: أنشئ سطحًا باستخدام «سطح ضمني» أو «سطح صريح» أو «غلاف المحتوى» أعلاه، أو اربط حدود المقاطع في مجسم.",
+  "Generated surfaces save with the project (mesh, type, declared relationships and the parameters that produced them), so a reported volume or tonnage can be reproduced after a restart.": "تُحفظ الأسطح المولّدة مع المشروع (الشبكة والنوع والعلاقات المعلنة والمعاملات التي أنتجتها)، بحيث يمكن إعادة إنتاج الحجم أو الحمولة المبلّغ عنهما بعد إعادة التشغيل."
 }

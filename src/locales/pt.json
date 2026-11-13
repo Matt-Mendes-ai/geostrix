@@ -847,7 +847,6 @@
   "Check the generated surfaces against the relationships declared on them (expand a surface's row to declare one): surfaces that intersect where they shouldn't, a surface on the wrong side of one it is declared below/above, and contact surfaces that fold back over themselves.": "Verificar as superfícies geradas contra as relações declaradas nelas (expanda a linha de uma superfície para declarar uma): superfícies que se cruzam onde não deveriam, uma superfície do lado errado de outra declarada abaixo/acima, e superfícies de contato que se dobram sobre si mesmas.",
   "Checking relationships…": "Verificando relações…",
   "Check relationships": "Verificar relações",
-  "None yet — run one of the tools above. Generated surfaces now save with the project (mesh, type, declared relationships and the parameters that produced them), so a reported volume or tonnage can be reproduced after a restart. Binding a surface to a saved theme is still a follow-up.": "Nenhuma ainda — rode uma das ferramentas acima. As superfícies geradas agora são salvas com o projeto (malha, tipo, relações declaradas e os parâmetros que as produziram), então um volume ou tonelagem informado pode ser reproduzido depois de reiniciar. Vincular uma superfície a um tema salvo ainda está pendente.",
   "Style (colour, opacity)…": "Estilo (cor, opacidade)…",
   "Type & relationships": "Tipo e relações",
   "Show or hide {name}": "Mostrar ou ocultar {name}",
@@ -11669,5 +11668,7 @@
   "Type a string name first": "Digite primeiro o nome da polilinha",
   "Draw the outline of {name}": "Desenhar o contorno de {name}",
   "Draw the fault {name}": "Desenhar a falha {name}",
-  "Draw the string {name}": "Desenhar a polilinha {name}"
+  "Draw the string {name}": "Desenhar a polilinha {name}",
+  "None yet: build one with Implicit surface, Explicit surface or Grade shell above, or link section outlines into a solid.": "Nenhuma ainda: construa uma com Superfície implícita, Superfície explícita ou Envoltória de teor acima, ou ligue contornos de seção em um sólido.",
+  "Generated surfaces save with the project (mesh, type, declared relationships and the parameters that produced them), so a reported volume or tonnage can be reproduced after a restart.": "As superfícies geradas são salvas com o projeto (malha, tipo, relações declaradas e os parâmetros que as produziram), para que um volume ou tonelagem informado possa ser reproduzido após reiniciar."
 }
