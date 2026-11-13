@@ -171,7 +171,12 @@ export function createModellingRuns(ctx, mcRef) {
   const runSurfaceStack = async (rawSpecs, stackOpts = {}) => {
     // TASKS.csv #650 — the trend chosen for geology models; #679 — structural surfaces have their own slot
     const trendTool = stackOpts.trendTool || "implicit";
-    const anisotropy = trendWarp(trendTool);
+    // TASKS.csv #2905 — a layer-cake stack (lib/layerCake.js): elevation grids built here instead of the GemPy solve; the same clipping,
+    // contact fit, model check, volumes and sections follow. It works in plan (E / N) and takes no trend.
+    const cakeRun = stackOpts.engine === "layercake";
+    const tw = trendWarp(trendTool), anisotropy = cakeRun ? { enabled: false } : tw;
+    if (cakeRun && tw.enabled) setNotices((p) => [...p, notice("The layer-cake builds each top as an elevation grid in plan, so the geology trend is not used for it.")]);
+    if (cakeRun && stackOpts.pinchFor) rawSpecs = rawSpecs.map((sp) => (stackOpts.pinchFor.get(sp.meshName)?.length ? { ...sp, points: [...sp.points, ...stackOpts.pinchFor.get(sp.meshName)] } : sp)); // #1030
     const trendWord = trendTool === "structural" ? "structural trend" : "geology trend";
     const relation = stackOpts.relation === "onlap" ? "onlap" : "erode";
     const traces = tracesRef.current;
@@ -204,7 +209,7 @@ export function createModellingRuns(ctx, mcRef) {
         setNotices((p) => [...p, notice("\"{label}\": dropped {parts} with a missing/invalid x, y, z, dip, or azimuth value before sending to the sidecar — check the source CSV for blank or non-numeric cells in those columns.", { label: spec.label, parts: parts.join(" and ") })]);
       }
       if (!points.length) { setNotices((p) => [...p, notice("\"{label}\": no usable points left after removing invalid ones — skipped.", { label: spec.label })]); return; }
-      if (!orientations.length) { setNotices((p) => [...p, notice("\"{label}\": no usable orientations left after removing invalid ones — skipped.", { label: spec.label })]); return; }
+      if (!orientations.length && !cakeRun) { setNotices((p) => [...p, notice("\"{label}\": no usable orientations left after removing invalid ones — skipped.", { label: spec.label })]); return; } // #2905: a layer-cake needs none
       specs.push({ ...spec, points, orientations });
     });
     if (!specs.length) { setNotices((p) => [...p, notice("Nothing left to model after removing invalid points/orientations — see notices above for which columns to check.")]); return; }
@@ -327,7 +332,15 @@ export function createModellingRuns(ctx, mcRef) {
       const cm = blockCellsM(extent, resolution).map((v) => Math.round(v * 10) / 10), lvl = surfaceDetail || 4;
       setNotices((p) => [...p, notice(anisotropy.enabled ? "Model box {bx} x {by} x {bz} (in the structural trend's frame): the lithology block is {nx} x {ny} x {nz} cells of {dx} x {dy} x {dz} (model check fallback, volumes, Add as block model); the surface mesh cells are about {m} ({level})." : "Model box {bx} x {by} x {bz} m: the lithology block is {nx} x {ny} x {nz} cells of {dx} x {dy} x {dz} m (model check fallback, volumes, Add as block model); the surface mesh cells are about {m} m ({level}).", { bx: Math.round(extent[1] - extent[0]), by: Math.round(extent[3] - extent[2]), bz: Math.round(extent[5] - extent[4]), nx: resolution[0], ny: resolution[1], nz: resolution[2], dx: cm[0], dy: cm[1], dz: cm[2], m: Math.round(octreeCellM(extent, lvl)), level: lvl >= 6 ? tr("Very fine") : lvl === 5 ? tr("Fine") : tr("Standard") })]);
       // TASKS.csv #2905 — units thinner than the vertical cell: said before a solve that cannot place them apart
-      const thin = specs.length > 1 ? stackCellCheck(specs, cm[2]) : null;
+      const thin = specs.length > 1 && !cakeRun ? stackCellCheck(specs, cm[2]) : null;
+      const flat = thin && stackOpts.offerCake ? (await import("../../lib/layerCake.js")).stackIsFlat(specs) : null;
+      if (flat?.flat) {
+        setImplicitBusy(false);
+        if (window.confirm(tr("The tops are near-flat (the steepest dips {d}°) and the units about {t} m thick, thinner than the model's vertical cell of {dz} m, which one GemPy field cannot place apart. A layer-cake builds each top as an elevation grid and each lower top from the thickness under the one above, so they stay in order, in seconds. Run the stack as a layer-cake? (Cancel runs GemPy.)", { d: flat.steepest.toFixed(1), t: Math.round(thin.thick * 10) / 10, dz: cm[2] }))) {
+          return runSurfaceStack(rawSpecs, { ...stackOpts, engine: "layercake", offerCake: false });
+        }
+        setImplicitBusy(true);
+      }
       if (thin) setNotices((p) => [...p, notice("Warning: the units are about {t} m thick (the median drop from one top to the next in a hole), thinner than the model's vertical cell of {dz} m. One field cannot place them apart, so the surfaces may fold back or come out of order. For a flat-lying pile, an Explicit surface per unit from its logged tops follows the picks exactly (3D Modelling > Explicit surface); a smaller vertical cell (Model settings) costs a much longer solve.", { t: thin.thick.toFixed(1), dz: thin.dz })]);
     }
     setNotices((p) => [...p, notice(specs.length > 1 ? "Running {label} ({totalPoints} points, {totalOrientations} orientations across {specs} surfaces){v2}…" : "Running {label} ({totalPoints} points, {totalOrientations} orientations across {specs} surface){v2}…", { label, totalPoints, totalOrientations, specs: specs.length, v2: anisotropy.enabled ? tr(", with the {trendWord} \"{v}\"", { trendWord, v: anisotropy.params?.trend || tr("unnamed") }) : "" })]);
@@ -356,7 +369,7 @@ export function createModellingRuns(ctx, mcRef) {
     const evalRows = [];
     traces.forEach((t) => {
       if (modelArea === "checked" && visibleHoles?.[t.hole_id] === false) return; // TASKS.csv #2535 — the model check scores the Model area's holes
-      (unitLitho || importStateRef.current.layers?.litho || []).forEach((r) => { // #2378 — the unit as the tools read it
+      (rowsByHole(unitLitho || importStateRef.current.layers?.litho || []).get(t.hole_id) || []).forEach((r) => { // #2378 — the unit as the tools read it; #2905 — the hole's rows (a scan of 150,455 per hole)
         if (r.hole_id !== t.hole_id || !Number.isFinite(r.from) || !Number.isFinite(r.to) || r.to <= r.from) return;
         const p = findOnTrace(t.pts, (r.from + r.to) / 2);
         if (!p) return;
@@ -390,7 +403,12 @@ export function createModellingRuns(ctx, mcRef) {
     const secApi = secGrids.flatMap(({ grid }) => grid.nodes.map((n) => { const a = { x: n.x - o0.x, y: n.y - o0.y, z: n.z - o0.z }; return anisotropy.enabled ? anisoWarpPoint(a, anisoCenter, anisoBasis, anisoScl) : a; }));
     const evalAll = [...evalRows.map((q) => [q.x, q.y, q.z]), ...mapApi.map((q) => [q.x, q.y, q.z]), ...secApi.map((q) => [q.x, q.y, q.z])];
     const evalPts = evalAll.length && evalAll.length <= 200000 ? evalAll : null;
-    const res = await pythonImplicitModel(
+    const res = cakeRun ? await (async () => { // #2905
+      await new Promise((r) => setTimeout(r, 30)); // the progress line paints first
+      const { layerCake } = await import("../../lib/layerCake.js");
+      const r = layerCake(specs.filter((sp) => !sp.fault), extent, resolution, { evalPts });
+      return r.error ? { ok: false, error: r.error } : { ok: true, surfaces: r.surfaces, block: r.block, evaluated: r.evaluated, cake: r };
+    })() : await pythonImplicitModel(
       extent,
       sidecarSpecs.filter((s) => !s.fault).map((s) => ({ name: s.meshName, points: s.points, orientations: s.orientations, ...(s.package != null ? { package: s.package } : {}) })),
       // TASKS.csv #271 (relation) / #274 (rangeMultiplier — omitted when 0/Auto, see desktop.js)
@@ -420,6 +438,12 @@ export function createModellingRuns(ctx, mcRef) {
     setTaskProgress?.({ label, pct: 100 });
     setTimeout(() => setTaskProgress?.((cur) => (cur && cur.label === label ? null : cur)), 1000);
 
+    const cakeNotice = () => { // #2905 — said after the model check: right after the solve the next six notices pushed it out of view
+      const rp = res.cake.report, g = res.cake.grid;
+      const th = rp.units.filter((u) => u.thickness).map((u) => tr("{unit} {m} m in {n} holes{z}", { unit: u.unit, m: u.thickness.median.toFixed(1), n: u.thickness.holes, z: u.thickness.zeroHoles ? tr(" (absent in {k})", { k: u.thickness.zeroHoles }) : "" })).join(", ");
+      const cut = rp.clamped.map((c) => tr("{unit} at {pct}% of the grid", { unit: c.unit, pct: Math.max(1, Math.round((100 * c.nodes) / c.of)) })).join(", ");
+      return notice("Layer-cake: each package's first top gridded through its picks ({nx} x {ny} nodes of {cell} m), each lower top the one above minus the unit's thickness. Median thickness: {th}.{cut}", { nx: g.nx, ny: g.ny, cell: Math.round(g.cell * 10) / 10, th: th || "—", cut: cut ? tr(" Held under the top above (an unconformity cutting the units under it, or picks above it): {list}.", { list: cut }) : "" });
+    };
     const byName = Object.fromEntries((res.surfaces || []).map((s) => [s.name, s]));
     const newMeshes = [];
     const missing = [];
@@ -432,6 +456,7 @@ export function createModellingRuns(ctx, mcRef) {
     const reachNotes = []; // TASKS.csv #1335
     const folds = []; // TASKS.csv #2058 — contact surfaces of this run that fold back over themselves
     const orderSurfs = []; // TASKS.csv #2376 — the stack's surfaces as drawn, youngest first, for the order check below
+    const groundMemo = new Map(); // #2905 — the ground at a vertex's E / N, once per run
     const runId = `gempy_${Date.now()}`; // TASKS.csv #1101 — the surfaces of one run (a stack) share it, for "Model inputs"
     specs.forEach((spec, specIndex) => {
       let surf = byName[spec.meshName];
@@ -475,7 +500,8 @@ export function createModellingRuns(ctx, mcRef) {
         const above = (v) => {
           const wx = v.x + o.x, wy = -v.z + o.y;
           if (wx < txmin || wx > txmax || wy < tymin || wy > tymax) return false;
-          const ground = clipGround.at(wx, wy); // TASKS.csv #927 — nothing clipped against the fill; #2470 — or the collar surface
+          const gk = `${wx}|${wy}`; let ground = groundMemo.get(gk); if (ground === undefined) groundMemo.set(gk, (ground = clipGround.at(wx, wy))); // #2905 — a stack's surfaces share their vertices' E / N
+          // TASKS.csv #927 — nothing clipped against the fill; #2470 — or the collar surface
           return Number.isFinite(ground) && v.y + o.z > ground;
         };
         const c = clipMesh(sceneVerts, faces, above);
@@ -509,12 +535,12 @@ export function createModellingRuns(ctx, mcRef) {
       // actual parameters in it. These are exactly the settings that change the shape of the surface
       // being exported, including #274's effective potential-field range as GemPy itself reported it.
       const params = {
-        tool: specs.length > 1 ? "stratigraphic stack (GemPy)" : "implicit surface (GemPy)",
+        tool: cakeRun ? "stratigraphic stack (layer-cake)" /* #2905 */ : specs.length > 1 ? "stratigraphic stack (GemPy)" : "implicit surface (GemPy)",
         surface: spec.meshName, sourcePoints: spec.points.length, orientations: spec.orientations.length,
         relation, resolution, blockCellM: blockCellsM(extent, resolution).map((v) => Math.round(v * 10) / 10), // #2624 — per axis, from the box's shape
         ...(unitField ? { unitsFrom: unitField } : {}), // #2378 — the Lithology field the units were read from
         lithoStamp: layerStamp(layers.litho), // #2388 — the log it read: the surface is marked 'source changed' when the log is replaced or edited
-        surfaceDetail: res.surfaceDetail ?? 4, // #766 — GemPy's octree level for the mesh (4 = its floor)
+        surfaceDetail: cakeRun ? null : res.surfaceDetail ?? 4, ...(res.cake ? { cakeGridCellM: Math.round(res.cake.grid.cell * 10) / 10 } : {}), // #766; #2905 — GemPy's octree level for the mesh (4 = its floor)
         gempyRange: res.rangeUsed ?? null, gempyRangeDefault: res.rangeDefault ?? null, engineDtype: res.precision ?? "float64", // engineDtype: #767 (an older engine solved in float64)
         gempyRangeMultiplier: rangeMultiplier || null, gempyCO: res.cO ?? null,
         anisotropy: anisotropy.enabled ? anisotropy.params : null,
@@ -685,6 +711,7 @@ export function createModellingRuns(ctx, mcRef) {
         const volT = ((extent[1] - extent[0]) * (extent[3] - extent[2]) * (extent[5] - extent[4])) / warpDet;
         setNotices((p) => [...p, notice(volT >= volNT ? "With a trend the model box is about {a}, larger than the {b} the same data get without one (the same padding rules), so a unit's volume cannot be compared between the two runs." : "With a trend the model box is about {a}, smaller than the {b} the same data get without one (the same padding rules), so a unit's volume cannot be compared between the two runs.", { a: fmtVol(volT), b: fmtVol(volNT) })]);
       }
+      if (res.cake) setNotices((p) => [...p, cakeNotice()]); // #2905
       if (chk.total > 0) setNotices((p) => [...p, notice("Model check{v}: the model puts {v2} of {v3} logged metres of the modelled units in the unit they were logged as. By unit: {perUnit}.{v4}{v5} Unit volumes inside the model box ({v6}) are bounded by that box and are not resource figures.{v8}{v7}", { v8: clipGround ? (clipGround.kind === "terrain" ? tr(" They and the lithology block are cut at the terrain ({cells} cells above the ground left out).", { cells: airCut.toLocaleString() }) : tr(" They and the lithology block are cut at the collar surface ({cells} cells above it left out).", { cells: airCut.toLocaleString() })) : "" /* #2470 */, v: exact ? tr(" (each interval's midpoint evaluated exactly)") : tr(" (read from the {modelResolution}³ block)", { modelResolution }), v2: pct(chk.matched, chk.total), v3: Math.round(chk.total), perUnit, v4: worst ? tr(" Least reproduced holes: {worst}.", { worst }) : "", v5: chk.outside ? tr(" {v} m fell outside the model extent.", { v: Math.round(chk.outside) }) : "", v6: vols.length ? vols.map((v) => `${v.name} ${fmtVol(v.volume)}`).join(", ") : baseRun ? tr("none: {unit} lies above its base and nothing caps it without a terrain", { unit: specs[0].meshName }) : tr("none"), v7: anisotropy.enabled ? tr(" With the {trendWord} \"{v}\" the model is solved in a stretched frame: the check and volumes account for it, and \"Add as block model\" gets the model resampled onto a real-space grid.", { trendWord, v: anisotropy.params?.trend || tr("unnamed") }) : "" })]);
       { const bn = baselineNotice(chk); if (bn) setNotices((p) => [...p, bn]); } // #1687 — what a trivial model would score
       // TASKS.csv #758 — the predicted geological map, and how it compares with the mapped geology
@@ -1370,8 +1397,10 @@ export function createModellingRuns(ctx, mcRef) {
   // non-crossing assumption this tool exists to enforce, so they're excluded from this tool by scope
   // (model them with the Structural tool instead, which has no such constraint) rather than trying to
   // half-support fault-cuts-through-stack modelling as a first pass — noted as a real follow-up (#52).
-  const runStackModel = async (unitNames) => {
+  const runStackModel = async (unitNames, { method = "gempy" } = {}) => {
     if (!unitNames || unitNames.length < 2) return;
+    const cake = method === "layercake"; // TASKS.csv #2905
+    if (cake && stackFaults.length) { setNotices((p) => [...p, notice("The layer-cake does not take faults yet: a fault would offset every grid it crosses. Remove the faults from the stack, or run it with GemPy.")]); return; }
     const traces = tracesRef.current;
     if (!traces.length) { setNotices((p) => [...p, noCollarsNotice(tr("the stratigraphic stack"), layers, assays)]); return; }
 
@@ -1442,11 +1471,14 @@ export function createModellingRuns(ctx, mcRef) {
     }
     // TASKS.csv #1030 — a unit absent between its neighbours in a hole: in an erosional stack the contact between them is
     // also the missing unit's top, so it pinches out there; a conformable stack (one shared field) cannot do that
+    let pinchFor = null; // #2905 — for a layer-cake taken up from the offer: its tops pinch out
     if (!breakAt.size && specs.length >= 3) {
       const po = pinchOutPoints(specs, layers.litho || []);
       if (po.absent.length) {
         const list = po.absent.map((a) => tr("{unit} absent in {n} hole(s)", { unit: a.unit, n: a.holes })).join(", ");
-        if (stackRelation === "erode") {
+        pinchFor = new Map(po.add.map((pts, k) => [specs[k].meshName, pts]));
+        if (stackRelation === "erode" || cake) {
+          pinchFor = null;
           po.add.forEach((pts, k) => { if (pts.length) specs[k].points.push(...pts); });
           setNotices((p) => [...p, notice("Pinch-outs: {list}. Where a younger unit lies directly on an older one with these missing, that contact was also given to their tops, so they thin to nothing there.", { list })]);
         } else setNotices((p) => [...p, notice("{list}, between their neighbours. A conformable stack is one shared field: every unit keeps a thickness everywhere, so these cannot pinch out and are modelled where the logs have none. Choose Erode to let them pinch out.", { list })]);
@@ -1503,7 +1535,7 @@ export function createModellingRuns(ctx, mcRef) {
         }
       }
     }
-    await runSurfaceStack([...faultSpecs, ...specs], { relation: breakAt.size ? "erode" : stackRelation, packages }); // TASKS.csv #271; #1309
+    await runSurfaceStack([...faultSpecs, ...specs], { relation: breakAt.size ? "erode" : stackRelation, packages, ...(cake ? { engine: "layercake" } : { offerCake: !faultSpecs.length, pinchFor }) }); // TASKS.csv #271; #1309; #2905
     if (faultWarnings.length) setNotices((p) => [...p, ...faultWarnings]);
   };
 

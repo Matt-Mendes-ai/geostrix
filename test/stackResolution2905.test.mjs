@@ -26,7 +26,7 @@ test("unresolved only when the units are thinner than the vertical cell", () => 
 
 test("wiring: the warning before the solve, and the order check on the Model area's holes", () => {
   const r = fs.readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8");
-  assert.match(r, /const thin = specs\.length > 1 \? stackCellCheck\(specs, cm\[2\]\) : null;/);
+  assert.match(r, /const thin = specs\.length > 1 && !cakeRun \? stackCellCheck\(specs, cm\[2\]\) : null;/);
   assert.match(r, /const holes = traces\.filter\(\(t\) => t\.pts\?\.length && \(modelArea !== "checked" \|\| visibleHoles\?\.\[t\.hole_id\] !== false\)\)/);
   for (const l of ["es", "pt", "fr", "ar"]) assert.ok(Object.keys(JSON.parse(fs.readFileSync(new URL(`../src/locales/${l}.json`, import.meta.url), "utf8"))).some((k) => k.startsWith("Warning: the units are about {t} m thick")), l);
 });

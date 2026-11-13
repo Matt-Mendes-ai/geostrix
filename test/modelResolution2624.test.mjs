@@ -41,7 +41,7 @@ test("the runs send the shaped counts and say the box, the block cells and the m
   assert.doesNotMatch(s, /\[modelResolution, modelResolution, modelResolution\]/);
   assert.equal((s.match(/\{ resolution: resolution, relation/g) || []).length, 2); // the model and its sensitivity realisations
   assert.match(s, /the lithology block is \{nx\} x \{ny\} x \{nz\} cells of \{dx\} x \{dy\} x \{dz\} m/);
-  assert.ok(s.indexOf("the lithology block is {nx}") < s.indexOf("const res = await pythonImplicitModel("));
+  assert.ok(s.indexOf("the lithology block is {nx}") < s.indexOf("await pythonImplicitModel(") /* #2905: the layer-cake branch comes first in the same statement */);
   assert.match(s, /blockCellM: blockCellsM\(extent, resolution\)/);
   assert.equal(Math.round(octreeCellM([0, 13000, 0, 13000, 0, 150], 4)), 813); // the mesh cell the notice states (Standard)
   const p = readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8");

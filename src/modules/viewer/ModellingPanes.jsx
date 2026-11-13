@@ -270,6 +270,10 @@ export default function ModellingPanes(props) {
   // TASKS.csv #1543 — each fault candidate's Fisher k in 'Add a fault...' (random picks said before anyone picks them); stereonet.js
   // (38 kB) loads only when the Strat. stack pane opens with candidates
   const [faultK, setFaultK] = useState({});
+  // TASKS.csv #2905 — the Strat. stack's method: GemPy (one implicit field) or a layer-cake (elevation grids kept in order, lib/layerCake.js).
+  // A personal choice kept on this computer (localStorage), as the panels' other preferences.
+  const [stackMethod, setStackMethodState] = useState(() => { try { return localStorage.getItem("geostrix.stackMethod") === "layercake" ? "layercake" : "gempy"; } catch { return "gempy"; } });
+  const setStackMethod = (m) => { setStackMethodState(m); try { localStorage.setItem("geostrix.stackMethod", m); } catch { /* private window */ } };
   useEffect(() => {
     if (toolPane !== "stack" || !faultCandidates.length) return undefined;
     let live = true;
@@ -901,8 +905,19 @@ export default function ModellingPanes(props) {
           );
         })}
         {stackFaults.length > 0 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 3, lineHeight: 1.4 }}>{tr("Each fault runs through the whole model box: GemPy here cannot end a fault where its picks stop. By default a fault offsets every unit and no other fault.")}</div>}
-        {/* TASKS.csv #271 — GemPy's own StructuralGroup semantics, exposed instead of hardcoded. */}
-        {stackBreaks.some((b) => stackUnits.slice(0, -1).includes(b)) ? (
+        {/* TASKS.csv #2905 — the method: GemPy, or a layer-cake for a flat-lying pile (Matt's decision 2026-11-12) */}
+        <label style={{ display: "block", fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", marginTop: 6 }}>{tr("Method")}
+          <select value={stackMethod} onChange={(e) => setStackMethod(e.target.value)} aria-label={tr("Stack method")} style={{ display: "block", width: "100%", marginTop: 2, fontSize: "var(--font-size-sm)" }}>
+            <option value="gempy">{tr("GemPy (implicit) — folded or steep ground")}</option>
+            <option value="layercake">{tr("Layer-cake (flat-lying) — tops as elevation grids, kept in order")}</option>
+          </select>
+        </label>
+        {stackMethod === "layercake" ? (
+          <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", margin: "4px 0 6px", lineHeight: 1.45 }}>
+            {tr("Layer-cake: the first top is an elevation grid through its picks, and each lower top is the one above minus the unit's thickness in the holes (zero where the unit is absent), so tops never cross or fold back. For a flat-lying pile, in seconds. An unconformity starts a new layer-cake that cuts the units under it. Faults are not taken yet.")}
+            {stackFaults.length > 0 && <div style={{ color: "var(--color-danger-icon-strong)", marginTop: 3 }}>{tr("Remove the faults from the stack to run it as a layer-cake.")}</div>}
+          </div>
+        ) : stackBreaks.some((b) => stackUnits.slice(0, -1).includes(b)) ? (
           <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", margin: "6px 0", lineHeight: 1.45 }}>{tr("Packages: units between unconformities share one field and stay parallel, and each package truncates the ones below. Units missing inside a package cannot pinch out. A surface flattens beyond its own contacts, so compare the predicted map with your map.")}</div>
         ) : (<>
         <label style={{ display: "block", fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", marginTop: 6 }} title={tr("Erode: each younger unit truncates everything below it (an erosional unconformity), and a unit missing between its neighbours in a hole pinches out there. Conformable: every unit is a level of one shared field, so the surfaces stay parallel, never cross and never meet: a unit keeps a thickness everywhere and cannot pinch out.")}>{tr("Unit relationship")}<select value={stackRelation} onChange={(e) => setStackRelation(e.target.value)} style={{ ...smallSel, width: "100%", marginTop: 3 }}>
@@ -917,7 +932,7 @@ export default function ModellingPanes(props) {
         </div>
         </>)}
         <button
-          onClick={() => runStackModel(stackUnits)}
+          onClick={() => runStackModel(stackUnits, { method: stackMethod })}
           disabled={stackUnits.length < 2 || implicitBusy}
           title={gempyTitle(!collars.length ? tr("No holes with collars yet: import collars first.") : stackUnits.length < 2 ? tr("Choose at least two units for the stack first.") : null)}
           style={{ ...pBtn, marginTop: 4, opacity: stackUnits.length >= 2 && !implicitBusy ? 1 : 0.5, cursor: stackUnits.length >= 2 && !implicitBusy ? "pointer" : "default" }}
