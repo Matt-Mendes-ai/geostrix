@@ -99,7 +99,9 @@ export function sourceAssays(choice, { layers, customLayers } = {}, { pointSuppo
     const v = num(r[field]);
     if (!Number.isFinite(v) || r.hole_id == null) { skipped++; continue; }
     const from = num(r.from), to = num(r.to);
-    if (Number.isFinite(from) && Number.isFinite(to) && to > from) { assays.push({ hole_id: r.hole_id, from, to, values: { [symbol]: v }, source: "log" }); continue; }
+    // w (TASKS.csv #2951): a binned log's bin carries its count of readings (downholeLogChannels: n), so a mean over bins can weigh each by it
+    const w = choice.binM && field === "value" && Number.isFinite(num(r.n)) && num(r.n) > 0 ? num(r.n) : undefined;
+    if (Number.isFinite(from) && Number.isFinite(to) && to > from) { assays.push({ hole_id: r.hole_id, from, to, values: { [symbol]: v }, source: "log", ...(w ? { w } : {}) }); continue; }
     const d = Number.isFinite(from) && from === to ? from : num(r.depth);
     if (!Number.isFinite(d)) { skipped++; continue; }
     pointRows.push({ hole_id: r.hole_id, depth: d, v });
