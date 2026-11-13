@@ -5255,6 +5255,15 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       return;
     }
     const ok = await loadSampleProject(which);
+    if (ok && which !== "wa_uranium" && which.startsWith("wa_")) { // TASKS.csv #3107 — assays, surface samples, downhole logs and a grid: lib/sampleWa.js
+      try {
+        const { loadWaSampleExtras, WA_SAMPLES } = await import("../lib/sampleWa.js");
+        const notes = await loadWaSampleExtras(which, async (rel) => (await loadSampleFiles(WA_SAMPLES[which].dir, [rel]))[0], { setAssays, setAssayElements, setSurfaceSamples: store.setSurfaceSamples, setSurfaceElements: store.setSurfaceElements, addCustomLayer: (l) => setStoreCustomLayers((p) => [...(p || []), l]), addRaster: store.addRaster },
+          { existingElements: assayElements, existingSurfaceElements: surfaceElements, project: importStateRef.current?.project || store.project });
+        setNotices((p) => [...p, ...notes]);
+      } catch (e) { setNotices((p) => [...p, errorNotice(tr("Couldn't load the sample project: {message}", { message: e.message }))]); }
+      return;
+    }
     if (ok && which === "silvertip") { // TASKS.csv #1346 — assays and surface samples
       try {
         const { loadSilvertipExtras } = await import("../lib/sampleSilvertip.js");

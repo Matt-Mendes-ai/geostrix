@@ -1147,6 +1147,12 @@ export function useImportPipeline(ctx) {
       files: ["collars.csv", "survey.csv", "litho.csv", "alt.csv", "weath.csv"], // weath.csv: TASKS.csv #2342 — the oxidation state as Weathering
       notice: "Loading the Western Australian palaeochannel-uranium sample project — 430 aircore and diamond drillholes from 2009-2010 with their lithology and alteration logs, multi-element assays and a downhole gamma / eU3O8 log, from the State's open-file WAMEX drillhole database (report A87304, CC BY 4.0). Nothing in it is synthesized (sample_data/wa_uranium/README.md).",
     },
+    // TASKS.csv #3107 — its assays and other parts are loaded by the caller (lib/sampleWa.js)
+    wa_iron: {
+      dir: "wa_iron", epsg: 28350, crs: "GDA94 / MGA zone 50",
+      files: ["collars.csv", "survey.csv", "litho.csv"],
+      notice: "WA bedded iron (WAMEX report A119232): 147 shallow holes from 2018 on one block of a flat-lying iron deposit under cover, with strand logs, XRF assays, downhole density, gamma and magnetic-susceptibility logs, and Geoscience Australia's magnetic grid over it — nothing synthesized.",
+    },
   };
   const loadSampleProject = async (which = "harry") => {
     if (sampleLoading || importActiveRef.current) return false;

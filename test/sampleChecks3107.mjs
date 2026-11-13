@@ -60,9 +60,9 @@ export function checkOffered(id, { licence, who, name, inFootnote }) {
   assert.equal(sampleProjectName(id, "Untitled project"), name);
   assert.ok(sampleFootnote().includes(inFootnote), `${id}: not in the samples' footnote`);
   const readme = read(id, "README.md").toString("utf8");
-  assert.match(readme, /nothing is synthesized/i);
+  assert.match(readme, /nothing is\s+synthesized/i);
   assert.match(readme, /## Licence and attribution/);
-  assert.match(readme, /does not endorse GeoStrix/);
+  assert.match(readme, /does not endorse\s+GeoStrix/);
   assert.ok(!/\b(Pty|Ltd|Limited|Inc\.|Corp|NL)\b/.test(readme), `${id}: a company name in the README`);
   assert.ok(bundledData().some((d) => d.license === licence && who.test(d.name) && d.text === readme.trim()), `${id}: not in Help > Third-party licences`);
   assert.ok(fs.readFileSync(new URL("../build/installer-notice.txt", import.meta.url), "utf8").includes(`(sample_data/${id})`), `${id}: not in the installer notice`);
