@@ -4302,6 +4302,8 @@
   "Automatic (logarithmic)": "Automática (logarítmica)",
   "Automatic (linear)": "Automática (linear)",
   "Logarithmic": "Logarítmica",
+  "{k} of {n} pairs drawn (one in every {s}, and the extremes); the statistics use all of them.": "{k} de {n} pares desenhados (um a cada {s}, e os extremos); as estatísticas usam todos.",
+  "A model of {cells} cells takes about {gb} GB of memory while it is open. A UBC mesh, OMF volume or block-model CSV with more cells is merged into bigger blocks on import, and the import message says by how much.": "Um modelo de {cells} células ocupa cerca de {gb} GB de memória enquanto está aberto. Uma malha UBC, um volume OMF ou um CSV de modelo de blocos com mais células é mesclado em blocos maiores na importação, e a mensagem de importação diz quanto.",
   "{n} reading(s) are above 100 %, which a percentage cannot be: check them (Data QC lists them). They are drawn as logged.": "{n} leitura(s) estão acima de 100 %, o que uma porcentagem não pode: verifique-as (o Controle de dados as lista). São desenhadas como registradas.",
   "Vertical scale (px/m)": "Escala vertical (px/m)",
   "log {minPos}–{max}": "log {minPos}–{max}",
