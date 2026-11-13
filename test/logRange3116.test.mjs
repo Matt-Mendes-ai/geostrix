@@ -58,16 +58,16 @@ test("an imported log: the despike on its layer, said in its label, applied in s
 });
 
 test("stored with the project; the pane, the hole-value grid and the store's mirror wired", () => {
-  const s = readFileSync(new URL("../src/lib/store.jsx", import.meta.url), "utf8");
+  const s = readFileSync(new URL("../src/lib/store.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
   assert.match(s, /const setLogValidRange = useCallback\(\(key, entry\) => setProject\(\(p\) => \{ const next = \{ \.\.\.\(p\.logValidRange \|\| \{\}\) \};/);
   assert.match(s, /setDrillRates \/\* #2581 \*\/, setLogValidRange \/\* #3116 \*\//);
-  const p = readFileSync(new URL("../src/components/DownholeLogsPane.jsx", import.meta.url), "utf8");
+  const p = readFileSync(new URL("../src/components/DownholeLogsPane.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
   assert.match(p, /numericSourceChoices\(\{ layers, customLayers, models: false, logValidRange \}\)/);
   assert.match(p, /\{builtinKey && <ValidRangeField range=\{logValidRange\?\.\[builtinKey\]\?\.range\}/);
   assert.match(p, /\{builtinKey && <DespikeField value=\{logValidRange\?\.\[builtinKey\]\?\.despikeM\}/);
   assert.match(p, /\{logLayer && <DespikeField value=\{logLayer\.despikeM\}/);
   assert.doesNotMatch(p, /useState\(/, "#2394 — kept state only");
-  assert.match(readFileSync(new URL("../src/lib/viewerDirty.js", import.meta.url), "utf8"), /const STORE_WINS = \["unit", "validRange", "despikeM"\];/);
+  assert.match(readFileSync(new URL("../src/lib/viewerDirty.js", import.meta.url), "utf8").replace(/\r\n/g, "\n"), /const STORE_WINS = \["unit", "validRange", "despikeM"\];/);
   const src = holeValueSources({ layers, customLayers: [], logValidRange: { magsusc: { range: [0, 5000] } } }).find((x) => x.kind === "log");
   assert.equal(src.label, "Mag. susc. (range 0–5,000)"); assert.deepEqual(src.choice.validRange, [0, 5000]);
 });

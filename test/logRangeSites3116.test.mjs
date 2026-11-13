@@ -5,7 +5,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const read = (p) => readFileSync(new URL(`../src/${p}`, import.meta.url), "utf8");
+const read = (p) => readFileSync(new URL(`../src/${p}`, import.meta.url), "utf8").replace(/\r\n/g, "\n");
 
 test("each reader passes the project's log ranges", () => {
   const est = read("components/GradeEstimationModal.jsx");
