@@ -9,7 +9,7 @@ import { useLeadCommodity } from "../lib/useLeadCommodity.js"; // #1523 — Au o
 import { X, Download } from "./icons.js";
 import { valueIn } from "../lib/geochem.js";
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #2902 — no Math.min / max(...spread) over a population (#371)
-import { THRESHOLD_METHODS, MIN_N_BREAKS, MIN_N_ROBUST, candidateThresholds, groupOptions, groupKeyFn, populations, normalQuantile, hasMixedSources, intervalLength, DRILL_DOMAINS, drillDomainKeyFn } from "../lib/thresholds.js"; import { thresholdUnreachable, usableDefaultMethod, LOG_RULES, thresholdScale } from "../lib/thresholds.js"; import { linTicks } from "./GeochemPlot.jsx"; // LOG_RULES, thresholdScale, linTicks: #3070 // drill: TASKS.csv #2196
+import { THRESHOLD_METHODS, MIN_N_BREAKS, MIN_N_ROBUST, candidateThresholds, groupOptions, groupKeyFn, populations, normalQuantile, hasMixedSources, intervalLength, DRILL_DOMAINS, drillDomainKeyFn } from "../lib/thresholds.js"; import { thresholdUnreachable, usableDefaultMethod, LOG_RULES, thresholdScale, ARITH_RULES, isLowRule } from "../lib/thresholds.js"; import { linTicks } from "./GeochemPlot.jsx"; // ARITH_RULES / isLowRule: #3173; // LOG_RULES, thresholdScale, linTicks: #3070 // drill: TASKS.csv #2196
 import { formatLimit, fileCensoring } from "../lib/qaqc.js"; // fileCensoring: #3083 (censoringFloor / reportedStep / zeroResults through it) // TASKS.csv #1520; formatLimit: #2503; reportedStep / zeroResults: #2913
 import { attributeDomainOptions, attributeDomainLabel, customDomainOptions } from "../lib/customDomains.js"; // #2504; customDomainOptions: #3108
 import { LAYER_META } from "../lib/layers.js"; // TASKS.csv #3108 — the built-in logs' names for their extra fields
@@ -84,11 +84,12 @@ export default function ThresholdToolkit({ surfaceSamples = [], surfaceElements 
   const [logChoice, setLogChoice] = useState(null);
   const scaleKey = `${source}|${symbol}`;
   const logOn = logChoice?.key === scaleKey ? logChoice.on : autoScale === "log" || (!!saved && LOG_RULES.has(saved.method));
-  const shownMethods = logOn ? THRESHOLD_METHODS : THRESHOLD_METHODS.filter((m) => !LOG_RULES.has(m.id));
+  // #3173 — the log rules on log axes, the rules on the values (mean ± 2 SD, the arithmetic break) on arithmetic ones; the percentiles on both
+  const shownMethods = logOn ? THRESHOLD_METHODS.filter((m) => !ARITH_RULES.has(m.id)) : THRESHOLD_METHODS.filter((m) => !LOG_RULES.has(m.id));
   // TASKS.csv #2507 — with no saved rule, open on a rule every population can reach, or on none (a rule above every sample is no threshold)
   useEffect(() => { if (!saved && pops.length) setMethod((m) => usableDefaultMethod(pops, m || (logOn ? "median2mad" : null), unit)); }, [pops, symbol]); // saved / unit / logOn follow symbol and pops
-  useEffect(() => { if (!logOn && LOG_RULES.has(method)) setMethod(null); }, [logOn, method]); // #3070 — no hidden rule stays chosen
-  const unreachableIn = (id) => pops.filter((p) => thresholdUnreachable(p.cand.values[id], p.summary, unit));
+  useEffect(() => { if ((!logOn && LOG_RULES.has(method)) || (logOn && ARITH_RULES.has(method))) setMethod(null); }, [logOn, method]); // #3070 / #3173 — no hidden rule stays chosen
+  const unreachableIn = (id) => pops.filter((p) => thresholdUnreachable(p.cand.values[id], p.summary, unit, isLowRule(id))); // low: #3173
   const chosenUnusable = method ? unreachableIn(method).length > 0 : true;
   const unusableRules = shownMethods.filter((m) => unreachableIn(m.id).length > 0);
   const groupLabel = (k) => (k === "All" ? (drill ? tr("All assays") : tr("All samples")) : k);
@@ -103,6 +104,7 @@ export default function ThresholdToolkit({ surfaceSamples = [], surfaceElements 
       censoredPct: Object.fromEntries(pops.map((p) => [p.key, Math.round(p.summary.censoredPct * 10) / 10])),
       ...(pops.some((p) => p.zero) ? { reportedZero: Object.fromEntries(pops.map((p) => [p.key, p.zero])) } : {}), // #931
       decided: localDate(), // #2358 — the local calendar's date, not UTC
+      ...(isLowRule(method) ? { direction: "below" } : {}), // #3173 — a depletion: the anomaly maps flag the low side, the cut-off offers skip it
       ...(drill ? { source: "drill", weighting: "length" } : {}), // #2196 — kept apart from the surface rule; project text stays English
     };
     setGeochemThresholds((prev) => [...(prev || []).filter((r) => !isMine(r)), rec]);
@@ -165,7 +167,7 @@ export default function ThresholdToolkit({ surfaceSamples = [], surfaceElements 
                           <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 2, background: METHOD_COLOURS[m.id], marginRight: 4 }} />{tr(m.label)}
                         </th>
                       ))}
-                      <th style={th} title={tr("Samples at or above the chosen threshold")}>{tr("Above")}</th>
+                      <th style={th} title={isLowRule(method) ? tr("Samples at or below the chosen threshold") : tr("Samples at or above the chosen threshold")}>{isLowRule(method) ? tr("Below") : tr("Above")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -174,8 +176,8 @@ export default function ThresholdToolkit({ surfaceSamples = [], surfaceElements 
                         <td style={{ ...td, textAlign: "start" }}>{groupLabel(p.key)}</td>
                         <td style={td}>{p.summary.n}</td>
                         <td style={{ ...td, color: p.summary.censoredPct > 30 || p.zero ? "var(--color-warn-text)" : undefined }} title={p.zero ? tr("{n} more reported as 0 by the source (below detection or not analysed: the layer does not say), not in n or these statistics", { n: p.zero }) : undefined}>{p.zero ? tr("{pct} (+{n} at 0)", { pct: Math.round(p.summary.censoredPct), n: p.zero }) : Math.round(p.summary.censoredPct)}</td>
-                        {shownMethods.map((m) => { const off = thresholdUnreachable(p.cand.values[m.id], p.summary, unit); /* #2507 */ return <td key={m.id} title={off ? tr("Above every sample of this population (its highest is {max} {unit}): no anomaly by this rule", { max: fmt(p.summary.max), unit }) : undefined} style={{ ...td, fontWeight: method === m.id ? 600 : 400, background: method === m.id ? "var(--color-selected-bg)" : undefined, color: off ? "var(--color-text-disabled)" : undefined, textDecoration: off ? "line-through" : undefined }}>{fmt(p.cand.values[m.id])}</td>; })}
-                        <td style={td}>{p.cand.values[method] == null ? "—" : p.values.filter((v) => v >= p.cand.values[method]).length}</td>
+                        {shownMethods.map((m) => { const off = thresholdUnreachable(p.cand.values[m.id], p.summary, unit, !!m.low); /* #2507 */ return <td key={m.id} title={off ? tr("Above every sample of this population (its highest is {max} {unit}): no anomaly by this rule", { max: fmt(p.summary.max), unit }) : undefined} style={{ ...td, fontWeight: method === m.id ? 600 : 400, background: method === m.id ? "var(--color-selected-bg)" : undefined, color: off ? "var(--color-text-disabled)" : undefined, textDecoration: off ? "line-through" : undefined }}>{fmt(p.cand.values[m.id])}</td>; })}
+                        <td style={td}>{p.cand.values[method] == null ? "—" : p.values.filter((v) => (isLowRule(method) ? v <= p.cand.values[method] : v >= p.cand.values[method])).length}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -183,7 +185,7 @@ export default function ThresholdToolkit({ surfaceSamples = [], surfaceElements 
               </div>
               <div style={note}>{tr("Values in {unit}. Click a column to choose its rule, a row to plot that population. Robust rules need at least {a} samples; the probability-plot break needs {b} and is suggested only where the plot really bends.", { unit, a: MIN_N_ROBUST, b: MIN_N_BREAKS })}</div>
               <label style={{ ...note, display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}><input type="checkbox" checked={logOn} onChange={(e) => setLogChoice({ key: scaleKey, on: e.target.checked })} />{tr("Log scale and the log rules")}</label>{/* #3070 */}
-              {!logOn && <div style={note}>{autoScale === "linear" ? tr("{symbol} reads as a major element here: per cent of the rock, not skewed like a trace element. The plots are arithmetic and the log rules (Mean + 2 SD, Median + 2 MAD, Tukey, the probability-plot break) are not offered: they assume a log-normal population. A major is usually read by its cut-offs (Grade stats, Above cut-off).", { symbol }) : tr("Arithmetic scale: the log rules are not offered.")}</div>}
+              {!logOn && <div style={note}>{autoScale === "linear" ? tr("{symbol} reads as a major element here: per cent of the rock, not skewed like a trace element. The plots are arithmetic, and the rules are worked on the values themselves (mean ± 2 SD, the probability-plot break); the log rules, which assume a log-normal population, are behind the tick. A major is often read by its cut-offs too (Grade stats, Above cut-off).", { symbol }) /* #3173 */ : tr("Arithmetic scale: the log rules are not offered.")}</div>}
               {unusableRules.length > 0 && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("Struck through: {rules} land above every sample of their population (or over 100 %): such a rule finds no anomaly here, often a sign of two populations. The probability plot's break and the Populations selector separate them; these rules cannot be saved.", { rules: unusableRules.map((m) => tr(m.label)).join(", ") })}</div>}{/* #2507 */}
               {view && view.zero > 0 && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("{zero} {symbol} result(s) in \"{pop}\" were reported as 0 by the source (below detection or not analysed: the layer does not say). They are left out of n and of every threshold here; if they are below detection, the thresholds read high.", { zero: view.zero, symbol, pop: groupLabel(view.key) })}</div>}
               {floor && <div style={note}>{tr("{pct} % of the {el} values sit on {floor} {unit}, probably half the detection limit {dl} substituted before import: counted as <DL.", { pct: Math.round(floor.share * 100), el: symbol, floor: formatLimit(floor.floor), unit, dl: formatLimit(floor.dl) })}</div>}{/* #1520 */}
