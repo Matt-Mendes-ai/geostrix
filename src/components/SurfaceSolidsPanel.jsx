@@ -5,7 +5,6 @@
 import React, { useMemo, useState } from "react";
 import { Box, X as XIcon } from "./icons.js";
 import { t as tr } from "../lib/i18n.js";
-import { defectList } from "../lib/viewer/solidDefects.js"; // TASKS.csv #2801
 import { surfacesToBlock, suggestCellSize, solidThickness, cellAcross } from "../lib/surfaceSolids.js"; // solidThickness, cellAcross: #2762
 import { isMeshClosed } from "../lib/meshQuery.js";
 import { validateSolid } from "../lib/meshValidate.js"; // TASKS.csv #860
@@ -36,7 +35,7 @@ export default function SurfaceSolidsPanel({ surfaces, explicitDefs = [], worldM
     const v = closed && s.type !== "unit_volume" ? validateSolid(m.positions, m.indices) : null;
     const broken = v && (v.selfIntersectingPairs > 0 || v.nonManifoldEdges > 0 || v.windingConflicts > 0) ? v : null;
     // TASKS.csv #2633 — the defects the edge counts cannot see, said beside the solid (not blocking: see meshValidate.js)
-    const defects = v && !broken ? defectList(v) : []; // #2801 — the shared wording (lib/viewer/solidDefects.js), 'weld' for repeated vertices
+    const defects = v && !broken ? [v.nonManifoldVertices && tr(v.nonManifoldVertices === 1 ? "{n} vertex where two parts touch at a point (a bow-tie)" : "{n} vertices where two parts touch at a point (bow-ties)", { n: v.nonManifoldVertices }), v.degenerateTriangles && tr("{n} triangle(s) with no area", { n: v.degenerateTriangles }), v.isolatedVertices && tr("{n} vertex(es) no triangle uses", { n: v.isolatedVertices }), v.coincidentVertices && tr("{n} vertex(es) repeated at the same place", { n: v.coincidentVertices })].filter(Boolean) : [];
     if (broken) closed = false;
     let xmin = Infinity, xmax = -Infinity, ymin = Infinity, ymax = -Infinity;
     for (let i = 0; i < m.positions.length; i += 3) { const x = m.positions[i], y = m.positions[i + 1]; if (x < xmin) xmin = x; if (x > xmax) xmax = x; if (y < ymin) ymin = y; if (y > ymax) ymax = y; }

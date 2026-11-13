@@ -64,8 +64,6 @@ import EmptyViewerBody from "./viewer/EmptyViewerBody.jsx"; // TASKS.csv #1448
 import { featureCountText } from "../lib/featureCount.js"; // #1448 — "77 polygons", translated
 import { buildGridGroup, gridPlacement } from "../lib/viewer/gridGroup.js"; // #1405; moved out, placed and labelled: #2211
 import { paramRows } from "../lib/paramRows.js"; // #1378
-import { shellTagText, modelTip } from "../lib/viewer/runTags.js"; // TASKS.csv #2783
-import { defectSentence, sumDefects } from "../lib/viewer/solidDefects.js"; // TASKS.csv #2801
 import { visibleSceneBox } from "../lib/viewer/fitAll.js"; // #1407
 import { tx } from "../lib/i18nRich.js"; // TASKS.csv #786 // TASKS.csv #786 — "tr": this file uses t as a local name
 import { iconAction, activateOnKey } from "../lib/a11y.js"; // TASKS.csv #296 — keyboard-reachable icon-only controls
@@ -1150,17 +1148,6 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
     if (!mesh?.geometry) return null;
     return computeMeshVolume(mesh.geometry);
   }, [expandedSurfaceId, implicitSurfaces]);
-  // TASKS.csv #2801 — an expanded surface's defects the edge counts miss (meshDefects, #2633; repeated vertices are why an unwelded solid reads
-  // as open), worked out on expanding it, up to 500,000 triangles (meshValidate.js on demand)
-  const [expandedDefects, setExpandedDefects] = useState(null);
-  useEffect(() => {
-    setExpandedDefects(null);
-    const g = expandedSurfaceVolume && implicitMeshesRef.current[expandedSurfaceId]?.geometry;
-    if (!g?.attributes?.position || (g.index ? g.index.count : g.attributes.position.count) > 1.5e6) return undefined;
-    let on = true;
-    import("../lib/meshValidate.js").then(({ meshDefects }) => { const pos = g.attributes.position.array; if (on) setExpandedDefects(meshDefects(pos, g.index ? g.index.array : Uint32Array.from({ length: pos.length / 3 }, (_, i) => i))); });
-    return () => { on = false; };
-  }, [expandedSurfaceVolume, expandedSurfaceId]);
   // TASKS.csv #89 — domains: named partitions of the modelling space, each an AND of fault-side
   // constraints ({id, name, constraints: [{faultId, side}]}). Not persisted yet, same as
   // implicitSurfaces themselves. TASKS.csv #52 — both now persist: surface ids are stable across a
@@ -3563,7 +3550,7 @@ ${describeTrend(t)}` };
         ? ` Extent: E ${bounds.min.x.toFixed(0)}–${bounds.max.x.toFixed(0)}, N ${bounds.min.y.toFixed(0)}–${bounds.max.y.toFixed(0)}, Z ${bounds.min.z.toFixed(0)}–${bounds.max.z.toFixed(0)}.`
         : "";
       const layerNote = layered ? tr(" One surface per {v} ({v2}).", { v: solid.format === "DXF" ? "layer" : "object", v2: solid.parts.map((p) => p.layer).join(", ") }) : "";
-      setNotices((p) => [...p, appendNotice(notice("Imported \"{name}\" as a solid: {vertexCount} vertices / {triangleCount} triangles ({format}, {note}).{layerNote} It appears under Generated surfaces with the same show/hide, remove and query controls.{bb} Coordinates are used AS-IS — a DXF/OBJ carries no CRS, so GeoStrix does not reproject it; if it lands away from your holes, the file is in a different CRS.", { name: file.name, vertexCount: solid.vertexCount.toLocaleString(), triangleCount: solid.triangleCount.toLocaleString(), format: solid.format, note: solid.note, layerNote, bb }), defectSentence(sumDefects(solid.parts)) ? ` ${defectSentence(sumDefects(solid.parts))}` : "")]); // defects: #2801
+      setNotices((p) => [...p, notice("Imported \"{name}\" as a solid: {vertexCount} vertices / {triangleCount} triangles ({format}, {note}).{layerNote} It appears under Generated surfaces with the same show/hide, remove and query controls.{bb} Coordinates are used AS-IS — a DXF/OBJ carries no CRS, so GeoStrix does not reproject it; if it lands away from your holes, the file is in a different CRS.", { name: file.name, vertexCount: solid.vertexCount.toLocaleString(), triangleCount: solid.triangleCount.toLocaleString(), format: solid.format, note: solid.note, layerNote, bb })]);
       fitBox(box);
     } catch (e) {
       clearProgress();
@@ -5333,19 +5320,18 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
 
   // TASKS.csv #1025 (review #1016) — map layers, boundaries / claims, surface samples: Shapefile / GeoPackage / DXF
   // through the writers above, KML (WGS84) and CSV; the features come from lib/overlayExport.js (on demand)
-  const exportVectorKML = async (label, built, kmlOpts = {}, geojson = false) => { // geojson: #2759, RFC 7946 (lib/geojsonExport.js)
+  const exportVectorKML = async (label, built, kmlOpts = {}) => {
     if (!built.features.length) { setNotices((p) => [...p, notice("Nothing to export for \"{label}\" — no rows with usable/desurveyed coordinates.", { label })]); return; }
     try {
       const epsg = await ensureExportCrs(project); if (!epsg) return; // #1021
       const ox = await import("../lib/overlayExport.js");
       const toLonLat = await ox.lonLatTransform(epsg);
       if (!toLonLat) throw new Error(tr("EPSG:{epsg} cannot be converted to latitude / longitude.", { epsg }));
-      const ext = geojson ? "geojson" : "kml", content = geojson ? (await import("../lib/geojsonExport.js")).featuresToGeoJson(built, { toLonLat, ...kmlOpts }).text : ox.featuresToKml(built, { name: label, toLonLat, ...kmlOpts });
-      const res = await saveFile({ quiet: true, suggestedName: `${label.replace(/[^a-z0-9_-]+/gi, "_").toLowerCase()}.${ext}`, filters: [{ name: geojson ? "GeoJSON" : "KML", extensions: [ext] }], content });
+      const res = await saveFile({ quiet: true, suggestedName: `${label.replace(/[^a-z0-9_-]+/gi, "_").toLowerCase()}.kml`, filters: [{ name: "KML", extensions: ["kml"] }], content: ox.featuresToKml(built, { name: label, toLonLat, ...kmlOpts }) });
       if (!res?.ok) { if (res?.error) throw new Error(res.error); return; }
-      setNotices((p) => [...p, geojson ? notice("Exported {features} feature(s) from \"{label}\" as GeoJSON (WGS84 longitude / latitude).", { features: built.features.length, label }) : notice("Exported {features} feature(s) from \"{label}\" as KML (WGS84 latitude / longitude).", { features: built.features.length, label })]);
+      setNotices((p) => [...p, notice("Exported {features} feature(s) from \"{label}\" as KML (WGS84 latitude / longitude).", { features: built.features.length, label })]);
     } catch (err) {
-      setNotices((p) => [...p, errorNotice(geojson ? tr("GeoJSON export failed: {message}", { message: err.message }) : tr("KML export failed: {message}", { message: err.message }))]);
+      setNotices((p) => [...p, errorNotice(tr("KML export failed: {message}", { message: err.message }))]);
     }
   };
   // the row-menu entries; build() -> Promise<{ features, geomType }>, csvRows() optional
@@ -5354,7 +5340,6 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     { label: tr("Export GeoPackage (.gpkg)…"), onClick: async () => exportVectorGeoPackage(null, null, label, await build()) },
     { label: tr("Export DXF (.dxf)…"), onClick: async () => exportVectorDXF(null, null, label, (await import("../lib/overlayExport.js")).explodeParts(await build())) },
     { label: tr("Export KML (Google Earth)…"), onClick: async () => exportVectorKML(label, await build(), typeof kml === "function" ? await kml() : kml) },
-    { label: tr("Export GeoJSON (WGS 84)…"), onClick: async () => exportVectorKML(label, await build(), typeof kml === "function" ? await kml() : kml, true) },
     csvRows && { label: tr("Export CSV…"), onClick: async () => { const rows = await csvRows(); if (rows.length) saveFile({ quiet: "success", suggestedName: `${label.replace(/[^a-z0-9_-]+/gi, "_").toLowerCase()}.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: await toExportCsv(rows), encoding: "text" }); } },
   ].filter(Boolean);
   const overlayLib = () => import("../lib/overlayExport.js");
@@ -6570,7 +6555,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                   {v.visible !== false ? <Eye size={14} /> : <EyeOff size={14} />}
                 </div>
                 <Box size={14} style={{ color: "var(--color-text-secondary)", flexShrink: 0 }} />
-                <span title={modelTip(v.name, v.params) /* #2783 — and what bounded its run */} /* #1417 — three "Zn estimate (..." rows looked identical */ style={{ flex: 1, minWidth: 0, fontSize: "var(--font-size-base)", color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{v.name}</span>
+                <span title={v.name} /* #1417 — three "Zn estimate (..." rows looked identical */ style={{ flex: 1, minWidth: 0, fontSize: "var(--font-size-base)", color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{v.name}</span>
                 <input
                   type="range" min={0.1} max={1} step={0.05} value={v.opacity ?? 1}
                   onChange={(e) => updateVoxelModel(v.id, { opacity: Number(e.target.value) })}
@@ -7128,7 +7113,6 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                       {expandedSurfaceVolume.componentCount > 1 && (
                         <div style={{ fontSize: "var(--font-size-xs)", color: "#a5691f", marginBottom: 6, lineHeight: 1.45 }}>{expandedSurfaceVolume.watertight ? tx("This shell is {bodies} totalling {vol} m³, not one continuous body.", { bodies: <strong>{tr("{n} separate bodies", { n: expandedSurfaceVolume.componentCount })}</strong>, vol: expandedSurfaceVolume.volumeM3.toLocaleString(undefined, { maximumFractionDigits: 0 }) }) : tr("This shell is {n} separate pieces, not one continuous body.", { n: expandedSurfaceVolume.componentCount }) /* #2219 */}</div>
                       )}
-                      {defectSentence(expandedDefects) && <div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 6, lineHeight: 1.4 }}>{defectSentence(expandedDefects)}</div>}{/* #2801 */}
                       {!expandedSurfaceVolume.watertight && (
                         <div style={{ fontSize: "var(--font-size-xs)", color: "#a5691f", marginBottom: 6, lineHeight: 1.4 }}>{tr("{v} That can mean several things: it's a single draped contact or fault sheet rather than a solid; it was clipped against a modelling domain; or the shell reaches the edge of the estimated region (the shell is only closed there when \"Close shell artificially\" is ticked). So no enclosed volume is given.", { v: tr(expandedSurfaceVolume.openEdgeCount === 1 ? "This surface isn't a closed solid ({n} open edge)." : "This surface isn't a closed solid ({n} open edges).", { n: expandedSurfaceVolume.openEdgeCount }) })}</div>
                       )}
@@ -7162,7 +7146,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                               unlimited: s.params.searchRadiusWasUnlimited ? tr(" (unlimited, capped at the grid diagonal)") : "", cell: s.params.cellSizeM, pad: s.params.paddingM,
                               samples: s.params.composited ? tr("{n} m composites", { n: s.params.compositeLengthM }) : tr("raw intervals"), cap: s.params.capValue == null ? tr("none") : s.params.capValue,
                               minHoles: s.params.minHoles, qc: s.params.includeQAQC ? tr("included") : tr("excluded"), closure: s.params.closure, points: s.params.samplePoints,
-                              cells: s.params.cellsEstimated.toLocaleString(), single: s.params.singleHoleCells ? tr(" ({n} from a single hole)", { n: s.params.singleHoleCells.toLocaleString() }) : "" })}{s.params.anisotropy && trendRatioText(s.params.anisotropy) ? tr(" · trend \"{name}\" {ratios}{ell}", { name: s.params.anisotropy.trend || "", ratios: trendRatioText(s.params.anisotropy), ell: s.params.searchEllipsoidM ? tr(", ellipsoid {e} m", { e: s.params.searchEllipsoidM.join(" × ") }) : "" }) : ""}{/* #2423 */}{shellTagText(s.params) /* #2783 */}</>
+                              cells: s.params.cellsEstimated.toLocaleString(), single: s.params.singleHoleCells ? tr(" ({n} from a single hole)", { n: s.params.singleHoleCells.toLocaleString() }) : "" })}{s.params.anisotropy && trendRatioText(s.params.anisotropy) ? tr(" · trend \"{name}\" {ratios}{ell}", { name: s.params.anisotropy.trend || "", ratios: trendRatioText(s.params.anisotropy), ell: s.params.searchEllipsoidM ? tr(", ellipsoid {e} m", { e: s.params.searchEllipsoidM.join(" × ") }) : "" }) : ""}{/* #2423 */}</>
                           ) : (
                             <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "1px 8px" }}>
                               {paramRows(s.params).map(({ key: k, label, text }) => ( /* #1378 */

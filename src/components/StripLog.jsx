@@ -1,6 +1,6 @@
 import { fillLanes } from "../lib/stripLanes.js"; // TASKS.csv #1254
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { lithoPatternMap, loadPatternTiles, patternDefs, patternFill, FGDC_PATTERNS, patternForUnit, codeDescriptions } from "../lib/lithoPatterns.js"; // TASKS.csv #1995; codeDescriptions: #2215
+import { lithoPatternMap, loadPatternTiles, patternDefs, patternFill, FGDC_PATTERNS, patternForUnit } from "../lib/lithoPatterns.js"; // TASKS.csv #1995
 import { X, Download } from "./icons.js";
 import { LAYER_META, UNIT_NAMES, colorForAlteration, colorForVein, colorForBreccia, colorForStructZone, colorForStructure, colorForWeathering } from "../lib/layers.js"; // weathering: #2162
 import { logFrac, valueRange, recoveryMax, alphaTick, holeStructures } from "../lib/stripTracks.js"; // TASKS.csv #1400
@@ -63,7 +63,6 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
   const setPatterns = (on) => { setPatternsOn(on); try { localStorage.setItem("geostrix.stripLog.patterns", on ? "1" : "0"); } catch { /* private window */ } };
   const lithoName = (v) => (labelFor ? labelFor("litho", v) : UNIT_NAMES[v] || v);
   const patternByCode = useMemo(() => lithoPatternMap(layers.litho || [], lithoName, patternOverride), [layers.litho, patternOverride, labelFor]); // lithoName reads labelFor
-  const litDesc = useMemo(() => codeDescriptions(layers.litho || []), [layers.litho]); // #2215 — for the pattern list's 'Automatic' choice
   const [tiles, setTiles] = useState({});
   useEffect(() => {
     if (!patternsOn) return undefined;
@@ -313,7 +312,7 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
             <summary style={{ cursor: "pointer" }}>{tr("Lithology patterns (FGDC): which pattern each code gets")}</summary>
             <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "3px 8px", alignItems: "center", margin: "6px 0" }}>
               {[...new Set(litho.map((r) => r.value))].map((v) => {
-                const auto = patternForUnit(v, lithoName(v), litDesc.get(v)); // #2215 — the code's description, not the first note logged with it
+                const auto = patternForUnit(v, lithoName(v), (layers.litho || []).find((r) => r.value === v && r.description)?.description);
                 const o = patternOverride?.[v]?.pattern;
                 return (
                   <React.Fragment key={v}>

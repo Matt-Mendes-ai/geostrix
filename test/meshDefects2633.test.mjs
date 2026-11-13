@@ -47,7 +47,7 @@ test("an unwelded cube (every face its own 4 vertices) reads as open edges, and 
 
 test("the Solid blocks panel says them beside the solid, without blocking it", () => {
   const p = readFileSync(new URL("../src/components/SurfaceSolidsPanel.jsx", import.meta.url), "utf8");
-  assert.match(p, /const defects = v && !broken \? defectList\(v\) : \[\];/); // #2801: the shared wording (lib/viewer/solidDefects.js)
+  assert.match(p, /const defects = v && !broken \? \[v\.nonManifoldVertices && tr\(/);
   assert.match(p, /solids\.filter\(\(it\) => it\.defects\?\.length\)\.map\(/);
   const m = readFileSync(new URL("../src/lib/meshValidate.js", import.meta.url), "utf8");
   assert.match(m, /export const isValidSolid = \(v\) => v\.openEdges === 0 && v\.nonManifoldEdges === 0 && v\.windingConflicts === 0 && v\.selfIntersectingPairs === 0;/, "the verdict is unchanged");
