@@ -12,6 +12,7 @@ import { smallSel } from "../lib/sidebarStyles.js";
 import { t as tr } from "../lib/i18n.js";
 import { useKeptState, scopeOf } from "../lib/keptState.js"; // TASKS.csv #2394 — the choices survive the pane closing (per project)
 import { useStore } from "../lib/store.jsx";
+import { logHoleChoices, holesForChoice, filterLogData } from "../lib/logHoleFilter.js"; // TASKS.csv #3132
 import { useLeadCommodity } from "../lib/useLeadCommodity.js"; // TASKS.csv #2967 — the opening element: the project's lead commodity (#2908)
 import { useDeferredMemo, DEFER_ROWS } from "../lib/useDeferredMemo.js"; // TASKS.csv #2948
 import { logUnitChoices } from "../lib/logUnits.js"; // TASKS.csv #2952
@@ -171,7 +172,16 @@ export default function DownholeLogsPane({ layers, customLayers = [], assays = [
   const keptScope = scopeOf(useStore().getProjectToken());
   const [sourceKey, setSourceKey] = useKeptState(keptScope, "dhlogs.source", "");
   const source = sources.find((s) => s.key === sourceKey) || sources[0] || null;
-  const data = useMemo(() => (source ? sourceAssays(source, { layers, customLayers }) : null), [source, layers, customLayers]);
+  const dataAll = useMemo(() => (source ? sourceAssays(source, { layers, customLayers }) : null), [source, layers, customLayers]);
+  // TASKS.csv #3132 — the readings kept to the holes checked in the 3D View or to the collars inside an area (lib/logHoleFilter.js); everything
+  // below (classes, box plots, pairings) reads `data`, the kept readings
+  const { collars = [], boundaries = [], viewerUiState } = useStore();
+  const holeCtx = useMemo(() => ({ collars, boundaries, visibleHoles: viewerUiState?.visibleHoles || null }), [collars, boundaries, viewerUiState?.visibleHoles]);
+  const holeChoices = useMemo(() => logHoleChoices(holeCtx), [holeCtx]);
+  const [holeKey, setHoleKey] = useKeptState(keptScope, "dhlogs.holes", "all");
+  const holeChoice = holeChoices.find((c) => c.key === holeKey) || holeChoices[0];
+  const keptHoles = useMemo(() => holesForChoice(holeChoice.key, holeCtx), [holeChoice.key, holeCtx]);
+  const data = useMemo(() => filterLogData(dataAll, keptHoles), [dataAll, keptHoles]);
   const { setCustomLayers } = useStore(); // #2952 — the log's unit, typed in the pane
   const logLayer = source?.layerId != null && source.field === "value" ? customLayers.find((c) => c.id === source.layerId) : null;
   const layerNotes = source?.layerId != null ? String(customLayers.find((c) => c.id === source.layerId)?.notes || "").trim() : ""; // TASKS.csv #2775
@@ -253,6 +263,13 @@ export default function DownholeLogsPane({ layers, customLayers = [], assays = [
             <select value={source?.key || ""} onChange={(e) => setSourceKey(e.target.value)} style={{ ...smallSel, maxWidth: 190 }} aria-label={tr("Downhole log")}>
               {sources.map((s) => <option key={s.key} value={s.key}>{s.label} ({s.n.toLocaleString()})</option>)}
             </select></label>
+          {holeChoices.length > 1 && ( /* TASKS.csv #3132 */
+            <label style={row}>{tr("Holes")}
+              <select value={holeChoice.key} onChange={(e) => setHoleKey(e.target.value)} style={{ ...smallSel, maxWidth: 190 }} aria-label={tr("Holes to read")}>
+                {holeChoices.map((c) => <option key={c.key} value={c.key}>{c.kind === "all" ? tr("All holes") : c.kind === "checked" ? tr("Holes checked in the 3D View") : tr("Collars inside \"{name}\"", { name: c.name })}</option>)}
+              </select></label>
+          )}
+          {data?.holeFilter && <div style={note}>{tr("Readings kept: {r} of {t} (holes chosen: {h}; with readings: {k}).", { r: data.holeFilter.readings.toLocaleString(), t: data.holeFilter.of.toLocaleString(), h: data.holeFilter.holes.toLocaleString(), k: data.holeFilter.holesWithReadings.toLocaleString() })}</div>}
           {data && <div style={note}>{tr(source?.binM === "assay" ? "{n} assay-interval bins, in {u}{v}." /* #3039 */ : source?.binM ? "{n} bins of {b} m, in {u}{v}." : unitOf(source?.unit) ? "{n} readings, in {u}{v}." : "{n} readings, values as logged{v}.", { n: data.assays.length.toLocaleString(), b: source?.binM, u: unitOf(source?.unit) || tr("the layer's own units"), v: data.pointRows ? tr("; {p} depth-only readings are given {s} m of core each", { p: data.pointRows.toLocaleString(), s: data.pointSupport }) : "" })}</div>}
           {logLayer && <LogUnitField layer={logLayer} onSet={(u) => setCustomLayers((p) => p.map((c) => (c.id === logLayer.id ? { ...c, unit: u || undefined } : c)))} />}{/* #2952 */}
           {logLayer && <ValidRangeField layer={logLayer} onSet={(r) => setCustomLayers((p) => p.map((c) => (c.id === logLayer.id ? { ...c, validRange: r } : c)))} />}{/* #2953 */}
