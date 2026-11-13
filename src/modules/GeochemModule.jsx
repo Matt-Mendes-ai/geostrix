@@ -20,7 +20,7 @@ import { Upload, Download, FlaskConical, Beaker, Scale, Grid3x3, ShieldCheck, Te
 const McdAnomalyPanel = React.lazy(() => import("../components/McdAnomalyPanel.jsx")); // TASKS.csv #1999 — a lazy chunk: opened rarely
 import { noticeText, noticeLevel, errorNotice, notice } from "../lib/notices.js"; // TASKS.csv #729
 import { addCalculatedElement, CALC_PRESETS, presetUnitsFor, oxideTotalPreset } from "../lib/calcElement.js"; // TASKS.csv #401; presetUnitsFor: #2619; oxideTotalPreset: #2914
-import { majorOxides, MIN_MAJORS } from "../lib/oxideTotals.js"; // TASKS.csv #2914 — the 'Oxide total' preset sums QAQC > Totals' majors
+import { majorOxides, MIN_MAJORS, anhydrousRows, sourceRow } from "../lib/oxideTotals.js"; // anhydrousRows / sourceRow: #2942 // TASKS.csv #2914 — the 'Oxide total' preset sums QAQC > Totals' majors
 import { useStore, useSetTaskProgress } from "../lib/store.jsx"; // useSetTaskProgress: #2164
 import { elementColumnStats } from "../lib/assayColumnScan.js"; // TASKS.csv #2164
 const ELEMENT_SCAN_CHUNKED_ROWS = 50000; // #2164 — below this the element columns are counted at once
@@ -290,7 +290,11 @@ export default function GeochemModule() {
   // 3D view and moved whenever the lithology filter changed the ranks.
   const lithOverride = viewerUiState?.legendOverride?.litho;
   const lithColors = useMemo(() => Object.fromEntries(lithCounts.map(([k]) => [k, k === NOT_LOGGED ? "#b8bec7" : lithOverride?.[k]?.color || colorForLithology(k)])), [lithCounts, lithOverride]);
-  const plotted = useMemo(() => keptMemo([sourceRows, sampleLith], `plot|${lithFilter ? [...lithFilter].sort().join("\u0001") : "*"}`, () => (lithFilter ? sourceRows.filter((a) => lithFilter.has(sampleLith.get(a) ?? NOT_LOGGED)) : sourceRows)), [sourceRows, lithFilter, sampleLith]); // sourceRows: #1673; kept: #3120
+  // TASKS.csv #2942 — the majors recalculated to 100 % volatile-free (an option, with at least MIN_MAJORS of them); samples missing one are left out
+  const anhMajors = useMemo(() => majorOxides(assayElements), [assayElements]);
+  const [anhydrous, setAnhydrous] = useKeptState(keptScope, "geochem.anhydrous", false);
+  const anhydrousOn = !!anhydrous && anhMajors.length >= MIN_MAJORS;
+  const plotted = useMemo(() => keptMemo([sourceRows, sampleLith], `plot|${lithFilter ? [...lithFilter].sort().join("\u0001") : "*"}|${anhydrousOn ? anhMajors.map((m) => m.symbol).join(",") : ""}`, () => { const rows = lithFilter ? sourceRows.filter((a) => lithFilter.has(sampleLith.get(a) ?? NOT_LOGGED)) : sourceRows; return anhydrousOn ? anhydrousRows(rows, anhMajors) : rows; }), [sourceRows, lithFilter, sampleLith, anhydrousOn, anhMajors]); // sourceRows: #1673; kept: #3120; anhydrous: #2942
   // TASKS.csv #2353 — n, Spearman, the median Y / X and the length-weighted ratio, over X >= the typed value
   // TASKS.csv #2909 (WA iron review) — the statistics line of the samples the plot draws: it read every sample ('n 147,659 · Spearman -0.96') under a
   // lithology filter showing 26,253 (three ore strands), the question the filter is for
@@ -302,7 +306,7 @@ export default function GeochemModule() {
     return [
       `${sm.hole_id}  ${num(sm.from)}–${num(sm.to)} m`,
       `Sample ID: ${sm.sample_id || "— (none in the assay file)"}`,
-      `Lithology (logged): ${hasLithLog ? sampleLith.get(sm) ?? "not logged here" : "no lithology log loaded"}`,
+      `Lithology (logged): ${hasLithLog ? sampleLith.get(sourceRow(sm)) ?? "not logged here" : "no lithology log loaded"}`, // sourceRow: #2942
     ];
   };
   // TASKS.csv #619 (#618 click review) — the element colour range was recomputed over ALL assays for EVERY point
@@ -324,7 +328,7 @@ export default function GeochemModule() {
   const colorBy = useMemo(() => { const fn = (sample) => {
     if (colorMode === "uniform") return "#4a9be0";
     if (colorMode === "hole") return holeColors[sample.hole_id] || "#55606e";
-    if (colorMode === "lithology") return lithColors[sampleLith.get(sample) ?? NOT_LOGGED] || "#b8bec7";
+    if (colorMode === "lithology") return lithColors[sampleLith.get(sourceRow(sample)) ?? NOT_LOGGED] || "#b8bec7"; // sourceRow: #2942
     if (colorMode === "element" && colorEl) {
       const v = valueIn(sample, colorEl, colorUnit, elementUnits);
       if (v == null || !colorRange) return "#eef1f4";
@@ -1217,7 +1221,7 @@ export default function GeochemModule() {
       : [];
     const keyTitle = colorMode === "hole" ? "Hole" : colorMode === "lithology" ? "Lithology" : colorMode === "element" ? `${colorEl} (${colorRange?.log ? "log" : "linear"} scale)` : "";
     const pdx = partialDigestionFor(assayElements, diagram.requires); // #1518 — the warning travels with the exported figure
-    return geochemFurniture({ title: diagram.label, caption: (carbonateNote ? `${carbonateNote} ` : "") + (volcanicNote ? `${volcanicNote} ` : "") /* #2911 */ + (pdx.length ? `${diagram.caption} ${tr("Partial digestion: {list}. A four-acid or aqua-regia digestion does not fully dissolve zircon and other resistant minerals, so Zr and Hf (and partly Nb, Ta, Y and the REE) read low and the fields shift. Immobile-element diagrams and classifiers need a total (fusion / lithium-borate) digestion.", { list: pdx.map(([s, m]) => `${s} ${m}`).join(", ") })}` : diagram.caption), plotted: n, total: assays.length, spider: !!diagram.spider, hidden: lithFilter ? assays.length - plotted.length : null, keyTitle, keyItems, date: new Date().toISOString().slice(0, 10), censored: censoredCount }); // #1017 — in lib, tested; censored: #2018
+    return geochemFurniture({ title: diagram.label, caption: (carbonateNote ? `${carbonateNote} ` : "") + (volcanicNote ? `${volcanicNote} ` : "") /* #2911 */ + (anhydrousOn ? `${tr("Major oxides recalculated to 100 % volatile-free.")} ` : "") /* #2942 */ + (pdx.length ? `${diagram.caption} ${tr("Partial digestion: {list}. A four-acid or aqua-regia digestion does not fully dissolve zircon and other resistant minerals, so Zr and Hf (and partly Nb, Ta, Y and the REE) read low and the fields shift. Immobile-element diagrams and classifiers need a total (fusion / lithium-borate) digestion.", { list: pdx.map(([s, m]) => `${s} ${m}`).join(", ") })}` : diagram.caption), plotted: n, total: assays.length, spider: !!diagram.spider, hidden: lithFilter ? assays.length - plotted.length : null, keyTitle, keyItems, date: new Date().toISOString().slice(0, 10), censored: censoredCount }); // #1017 — in lib, tested; censored: #2018
   };
   const exportPlotSVG = () => {
     const svg = svgRef.current;
@@ -1446,6 +1450,9 @@ export default function GeochemModule() {
               ))}
             </>
           )}
+          {anhMajors.length >= MIN_MAJORS && !(ALL_DIAGRAMS[diagramId]?.spider) && ( /* TASKS.csv #2942 — volatile-free majors */
+            <label style={{ display: "flex", gap: 4, alignItems: "center", fontSize: 11.5, color: "#55606e" }} title={tr("Each sample's major oxides are scaled to sum to 100 % (the loss on ignition left out), as classification diagrams such as TAS are drawn. Samples missing a major oxide are left out. Ratios do not change.")}><input type="checkbox" checked={anhydrousOn} onChange={(e) => setAnhydrous(e.target.checked)} />{tr("Majors to 100 % volatile-free")}</label>
+          )}
           {hasPxrf && ( /* TASKS.csv #1673 — which rows the plot uses */
             <div style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 11.5, color: "#55606e" }} title={tr("Portable XRF readings are screening numbers (zero-length points, 'not detected' zeros, a bad reading at 36,096 ppm Rb): plotted apart from the lab assays unless you choose both.")}>{tr("Samples:")}<select aria-label={tr("Samples plotted")} value={plotSource} onChange={(e) => setPlotSource(e.target.value)} style={{ ...selectStyle, padding: "5px 8px" }}>
               <option value="lab">{tr("Lab assays")}</option><option value="pxrf">{tr("pXRF readings (screening)")}</option><option value="both">{tr("Lab + pXRF")}</option>
@@ -1566,7 +1573,7 @@ export default function GeochemModule() {
             <div style={{ fontSize: "var(--font-size-xs)", color: "#65717e", marginTop: 8 }}>
               {((o) => o.v + o.v2 + (ratioLeftOut.total ? " " + tr("{n} sample(s) left out: a ratio with a below-detection operand is not a point ({list}).", { n: ratioLeftOut.total.toLocaleString(), list: Object.entries(ratioLeftOut.bySymbol).sort((x, y) => y[1] - x[1]).map(([k, n]) => tr("{el} below detection in {n}", { el: k, n: n.toLocaleString() })).join(", ") }) : "") /* #2501 */ + (censoredCount ? " " + tr(censoredCount === 1 ? "1 of them holds a below-detection value ('<'), plotted at half the detection limit or at the value the source file stored." : "{n} of them hold a below-detection value ('<'), plotted at half the detection limit or at the value the source file stored.", { n: censoredCount.toLocaleString() }) : "") /* #2018 — only when there are some */)({ v: diagram.spider
                 ? tr("{n} of {assays} samples have at least one plottable element.", { n: plottedCount, assays: sourceRows.length })
-                : tr("{n} of {assays} samples plotted.", { n: plottedCount, assays: sourceRows.length }) + (plottedCount === 0 && sourceRows.length && plotted.length /* #2925 (4) — not when the lithology filter hid them all: it says so */ && diagramId === "xy" && xyAxes?.[0] && xyAxes?.[1] ? " " + xyEmptyReason(xyAxes, sourceRows, elementUnits) /* #2359 — why the frame is empty */ : "") + (plottedCount === 0 && sourceRows.length && !missingForDiagram.length && diagram.requires.length ? " " + ((absent) => (absent.length ? tr("None of these samples has {list}.", { list: absent.join(", ") }) : tr("No sample has {requires} all together (they may come from different files, e.g. a lab assay and a pXRF reading).", { requires: diagram.requires.join(", ") })))(diagram.requires.filter((sym) => !sourceRows.some((r) => Number.isFinite(r.values?.[sym])))) : ""), /* plottedCount: #1519; the reason for none: #1679 (Copley TAS: Si only in the pXRF, Na only in the lab assays) */ v2: (lithFilter ? tr(" {v} hidden by the lithology filter.", { v: sourceRows.length - plotted.length }) : "") + (hasPxrf && plotSource !== "both" ? " " + (plotSource === "pxrf" ? tr("{k} lab assay(s) left out: pXRF readings only.", { k: (assays.length - sourceAll.length).toLocaleString() }) : tr("{k} pXRF reading(s) left out: lab assays only.", { k: (assays.length - sourceAll.length).toLocaleString() })) : "") + (qcInSource && !plotQc ? " " + tr("{k} QC insert(s) (standards, blanks, duplicates) left out.", { k: qcInSource.toLocaleString() }) : "") /* #2027 */ })}</div>
+                : tr("{n} of {assays} samples plotted.", { n: plottedCount, assays: sourceRows.length }) + (plottedCount === 0 && sourceRows.length && plotted.length /* #2925 (4) — not when the lithology filter hid them all: it says so */ && diagramId === "xy" && xyAxes?.[0] && xyAxes?.[1] ? " " + xyEmptyReason(xyAxes, sourceRows, elementUnits) /* #2359 — why the frame is empty */ : "") + (plottedCount === 0 && sourceRows.length && !missingForDiagram.length && diagram.requires.length ? " " + ((absent) => (absent.length ? tr("None of these samples has {list}.", { list: absent.join(", ") }) : tr("No sample has {requires} all together (they may come from different files, e.g. a lab assay and a pXRF reading).", { requires: diagram.requires.join(", ") })))(diagram.requires.filter((sym) => !sourceRows.some((r) => Number.isFinite(r.values?.[sym])))) : ""), /* plottedCount: #1519; the reason for none: #1679 (Copley TAS: Si only in the pXRF, Na only in the lab assays) */ v2: (lithFilter ? tr(" {v} hidden by the lithology filter.", { v: sourceRows.length - plotted.length - (plotted.leftOut || 0) }) : "") + (plotted.leftOut ? " " + tr("{k} sample(s) without every major oxide left out of the volatile-free recalculation.", { k: plotted.leftOut.toLocaleString() }) : "") /* #2942 */ + (hasPxrf && plotSource !== "both" ? " " + (plotSource === "pxrf" ? tr("{k} lab assay(s) left out: pXRF readings only.", { k: (assays.length - sourceAll.length).toLocaleString() }) : tr("{k} pXRF reading(s) left out: lab assays only.", { k: (assays.length - sourceAll.length).toLocaleString() })) : "") + (qcInSource && !plotQc ? " " + tr("{k} QC insert(s) (standards, blanks, duplicates) left out.", { k: qcInSource.toLocaleString() }) : "") /* #2027 */ })}</div>
           </div>
         )}
       </div>
