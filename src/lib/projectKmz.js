@@ -133,7 +133,9 @@ class KmlWriter {
     const fixed = splitRings(ll);
     if (fixed.length !== ll.length) this.ringsSplit += fixed.length - ll.length;
     const ring = (r) => { const c = r[0][0] === r[r.length - 1][0] && r[0][1] === r[r.length - 1][1] ? r : [...r, r[0]]; this.coords += c.length; return `<LinearRing><coordinates>${c.map(([lon, lat]) => `${lon.toFixed(7)},${lat.toFixed(7)}`).join(" ")}</coordinates></LinearRing>`; };
-    return polygonsFromRings(fixed).map(([outer, ...holes]) => `<Polygon><tessellate>1</tessellate><altitudeMode>clampToGround</altitudeMode><outerBoundaryIs>${ring(outer)}</outerBoundaryIs>${holes.map((h) => `<innerBoundaryIs>${ring(h)}</innerBoundaryIs>`).join("")}</Polygon>`).join("");
+    // TASKS.csv #3161 — a feature of several polygons (And: 3 parts, or a ring split by #3126) was written as bare <Polygon>s side by side in
+    // one Placemark, which KML does not allow: Google Earth drew the first and dropped the rest. They go in a MultiGeometry, as featuresToKml does.
+    return this.multi(polygonsFromRings(fixed).map(([outer, ...holes]) => `<Polygon><tessellate>1</tessellate><altitudeMode>clampToGround</altitudeMode><outerBoundaryIs>${ring(outer)}</outerBoundaryIs>${holes.map((h) => `<innerBoundaryIs>${ring(h)}</innerBoundaryIs>`).join("")}</Polygon>`));
   }
   multi(geoms) { return geoms.length === 1 ? geoms[0] : `<MultiGeometry>${geoms.join("")}</MultiGeometry>`; }
 }
