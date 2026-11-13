@@ -52,7 +52,7 @@ test("wiring: the plan draws the merged paths, and its tooltips are made on hove
   assert.match(s, /ctx: data\.holes\.map\(\(h\) => ctxCache\(h\.hole_id, h\.context, path\)\)\.join\(" "\)/);
   assert.match(s, /\{dw\.ivPaths\.map\(\(\[c, d\]\) => <path key=\{c\} d=\{d\}/);
   assert.match(s, /hoverTitle\(e\.target, `\$\{iv\.hole_id\} \$\{iv\.from\}–\$\{iv\.to\} m — \$\{iv\.label\}`\)/);
-  assert.match(s, /data-pc=\{k\}/);
+  assert.match(s, /it = dw\.pierce\[dw\.findPc\(q\.x, q\.y, 6\)\]/); // #3191 — found by position (the circles became paths)
   assert.doesNotMatch(s, /<title>\{`\$\{iv\.hole_id\}/, "no <title> per interval");
   assert.doesNotMatch(s, /<title>\{\[tr\("\{hole_id\} pierces/, "no <title> per pierce point");
 });
