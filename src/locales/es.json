@@ -11805,5 +11805,6 @@
   "{n} vertex(es) repeated at the same place: weld them (to 1 mm) and the seams they open close": "{n} vértice(s) repetido(s) en el mismo lugar: suéldelos (a 1 mm) y las costuras que abren se cierran",
   "Checked as a solid: {list}. Its volume and the inside test can be off there.": "Revisado como sólido: {list}. Su volumen y la prueba de interior pueden fallar allí.",
   "{n} chosen, all hidden (the eye)": "{n} elegido(s), todos ocultos (el ojo)",
-  "Filter holes… ({examples})": "Filtrar sondajes… ({examples})"
+  "Filter holes… ({examples})": "Filtrar sondajes… ({examples})",
+  "Off to start with above {n} pierce points: hover a pierce point for its hole id": "Desactivado al inicio con más de {n} puntos de perforación: pase el cursor sobre un punto para ver su sondaje"
 }

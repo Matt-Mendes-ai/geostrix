@@ -11805,5 +11805,6 @@
   "{n} vertex(es) repeated at the same place: weld them (to 1 mm) and the seams they open close": "{n} رأس/رؤوس مكررة في المكان نفسه: ادمجها (ضمن 1 مم) فتنغلق الدروز التي تفتحها",
   "Checked as a solid: {list}. Its volume and the inside test can be off there.": "فُحص كمجسّم: {list}. قد يختل حجمه واختبار الداخل هناك.",
   "{n} chosen, all hidden (the eye)": "{n} مختار، جميعها مخفية (العين)",
-  "Filter holes… ({examples})": "تصفية الثقوب… ({examples})"
+  "Filter holes… ({examples})": "تصفية الثقوب… ({examples})",
+  "Off to start with above {n} pierce points: hover a pierce point for its hole id": "معطّل في البداية فوق {n} نقطة اختراق: مرّر المؤشر فوق نقطة لترى معرّف ثقبها"
 }
