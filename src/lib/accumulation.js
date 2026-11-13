@@ -33,6 +33,13 @@ export function holeTotals(intercepts, positionAt = null) {
   return out.sort((a, b) => b.gt - a.gt);
 }
 
+// TASKS.csv #3218 (review #3195, Galore Creek) — 'Total per hole' with 'Show as %' printed ppm under per-cent headings ('Cu (%) 14,810.997'):
+// the totals in the unit the headings say, through the same display conversion as the intercept rows (toDisplay: stored -> shown, e.g.
+// ppm -> % is v / 10,000). Thickness and counts are not grades and are unchanged. -> rows of the same shape
+export function holeTotalsDisplay(totals, toDisplay = (v) => v) {
+  return (totals || []).map((h) => ({ ...h, gt: toDisplay(h.gt), meanGrade: h.meanGrade == null ? null : toDisplay(h.meanGrade) }));
+}
+
 // assays restricted to the metres inside one logged unit: rows clipped to the unit's intervals of their hole (the grade is the row's)
 // unitRows: [{ hole_id, from, to, value }] of a layer; code: the unit
 export function clipAssaysToUnit(assays, unitRows, code) {
