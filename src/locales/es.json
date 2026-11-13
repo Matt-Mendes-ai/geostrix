@@ -3956,7 +3956,7 @@
   "Not set yet. Choose the CRS your collar coordinates are in.": "Aún no definido. Elija el SRC en que están las coordenadas de sus collares.",
   "GeoStrix places every file, terrain and online map with this CRS. A collar CSV doesn't say which CRS it is in, and the numbers alone can't tell one UTM zone from the next.": "GeoStrix ubica cada archivo, terreno y mapa en línea con este SRC. Un CSV de collares no dice en qué SRC está, y los números solos no distinguen una zona UTM de la siguiente.",
   "Where is the project? (latitude, longitude — roughly is enough)": "¿Dónde está el proyecto? (latitud, longitud — aproximado basta)",
-  "e.g. 52.2, -121.3 or 23.5 S 46.6 W": "p. ej. 52.2, -121.3 o 23.5 S 46.6 W",
+  "e.g. 12.5, -45.5 or 12.5 N 45.5 W": "p. ej. 12.5, -45.5 o 12.5 N 45.5 W",
   "Project latitude and longitude": "Latitud y longitud del proyecto",
   "Type latitude then longitude in decimal degrees (south and west negative, or add S / W).": "Escriba latitud y luego longitud en grados decimales (sur y oeste negativos, o agregue S / W).",
   "Suggested CRSs": "SRC sugeridos",
@@ -11783,5 +11783,8 @@
   "* the element has no value in part of that volume (its own estimate did not reach every block); the mean is over the blocks it has.": "* el elemento no tiene valor en parte de ese volumen (su propia estimación no alcanzó todos los bloques); la media es sobre los bloques que lo tienen.",
   "Checking {n} holes… ({k} of {m})": "Revisando {n} sondajes… ({k} de {m})",
   "A model estimated with other elements in one run (a set) is exported with their values as extra columns on the same blocks: CSV columns, VTK and OMF arrays": "Un modelo estimado junto con otros elementos en una corrida (un conjunto) se exporta con sus valores como columnas adicionales en los mismos bloques: columnas del CSV, arreglos de VTK y OMF",
-  "Exports carry the other elements of a model's set": "Las exportaciones incluyen los otros elementos del conjunto del modelo"
+  "Exports carry the other elements of a model's set": "Las exportaciones incluyen los otros elementos del conjunto del modelo",
+  "{fileName}: {cols} read as dates (stored as year-month-day); each also has a year field, to filter and colour the holes by.": "{fileName}: {cols} leídas como fechas (guardadas como año-mes-día); cada una tiene además un campo de año, para filtrar y colorear los sondajes.",
+  "{fileName}: {cols} kept as written: every date there could be day/month or month/day.": "{fileName}: {cols} se conservan tal como están escritas: cada fecha podría ser día/mes o mes/día.",
+  "{fileName}: no unit for {cols}: the column name gives none and none was typed, so the values are as logged with no unit.": "{fileName}: sin unidad para {cols}: el nombre de la columna no indica ninguna y no se escribió ninguna, así que los valores quedan tal como se registraron, sin unidad."
 }

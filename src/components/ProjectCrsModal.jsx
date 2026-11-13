@@ -92,7 +92,7 @@ export default function ProjectCrsModal({ reason, points, suggested = null, noLo
 
           <div>
             <div style={label}>{tr("Where is the project? (latitude, longitude — roughly is enough)")}</div>
-            <input value={where} onChange={(e) => setWhere(e.target.value)} placeholder={tr("e.g. 52.2, -121.3 or 23.5 S 46.6 W")} aria-label={tr("Project latitude and longitude")} style={inp} />
+            <input value={where} onChange={(e) => setWhere(e.target.value)} placeholder={tr("e.g. 12.5, -45.5 or 12.5 N 45.5 W")} /* TASKS.csv #3076 — one point both ways (it was a place in BC, then another in Brazil) */ aria-label={tr("Project latitude and longitude")} style={inp} />
             {where && !at && <div style={{ ...note, marginTop: 4 }}>{tr("Type latitude then longitude in decimal degrees (south and west negative, or add S / W).")}</div>}
             {candidates.length > 0 && (
               <div role="listbox" aria-label={tr("Suggested CRSs")} style={{ marginTop: 6, border: "1px solid var(--color-border)", borderRadius: 5 }}>
