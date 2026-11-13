@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { drillThresholdOffers } from "../lib/thresholds.js"; // TASKS.csv #2347
+import { drillThresholdOffers, sortedThresholdOffers } from "../lib/thresholds.js"; // TASKS.csv #2347; sorted: #3160
 import { X, Download, Sheet } from "./icons.js";
 import { preferredElement, rememberElement } from "../lib/preferredElement.js"; // TASKS.csv #1678
 import { useLeadCommodity } from "../lib/useLeadCommodity.js"; // #1523 — the project's lead commodity
@@ -200,6 +200,10 @@ export default function BestIntercepts({ assays: assaysIn, assayElements, collar
   const gradeDecimals = useMemo(() => { let hi = 0; for (const r of results) { const v = Math.abs(dg(r.avgGrade)); if (v > hi) hi = v; } return hi > 0 ? Math.max(0, Math.min(4, 3 - Math.floor(Math.log10(hi)))) : 2; }, [results, pct]);
   const gradeCol = (v) => (Number.isFinite(v) ? v.toFixed(gradeDecimals) : "");
   const { scrollRef, onScroll, startIndex, endIndex, topPad, bottomPad } = useVirtualRows(results.length, RESULT_ROW_H, { containerHeight: 380 });
+  // TASKS.csv #3160 (#2925 (9), review #2876) — 'Total per hole' took 2.3 s on its first click: every hole's row was drawn (and summed again
+  // on each render). The totals are kept with the results and the rows windowed as the intercepts' are
+  const holeRows = useMemo(() => (perHole && results.length ? holeTotals(results) : []), [perHole, results]);
+  const hv = useVirtualRows(holeRows.length, RESULT_ROW_H, { containerHeight: 380 });
 
   // TASKS.csv #911 — the results as a table on the active Layout page (a copy: send again after changing the settings)
   const toLayout = () => {
@@ -287,9 +291,15 @@ export default function BestIntercepts({ assays: assaysIn, assayElements, collar
             <label style={fieldLabel}>{tr("Cutoff ({unit})", { unit: unitL })}<input type="number" step="any" value={cutoff} onChange={(e) => { setCutoff(Number(e.target.value) || 0); setSuggested(null); setCutoffNote(null); }} style={inp} title={suggested != null && cutoff === suggested ? tr("Suggested: this element's 90th percentile. Set the cutoff you report at.") : undefined} />
             </label>
             {cutoffNote && <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 }}>{/* TASKS.csv #2513 */}{cutoffNote.kind === "kept" ? tr("Cut-off {v} kept from {from} (the same unit).", { v: cutoffNote.value, from: cutoffNote.from }) : cutoffNote.kind === "restored" ? tr("Cut-off back to {v}, the one last used for {to}.", { v: cutoffNote.value, to: cutoffNote.to }) : tr("Cut-off reset to the suggestion for {to} ({v}): {to} is not in {from}'s unit.", { v: cutoffNote.value, to: cutoffNote.to, from: cutoffNote.from })}</div>}
-            {(() => { const offers = drillThresholdOffers(geochemThresholds, symbol, unit).slice(0, 4); return offers.length ? <div style={{ display: "flex", flexWrap: "wrap", gap: 4, fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", alignItems: "center" }}>{/* #2347 — offered, never applied */}
+            {(() => { const offers = sortedThresholdOffers(drillThresholdOffers(geochemThresholds, symbol, unit)); return offers.length ? <div style={{ display: "flex", flexWrap: "wrap", gap: 4, fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", alignItems: "center" }}>{/* #2347 — offered, never applied */}
               <span>{tr("Saved threshold:")}</span>
-              {offers.map((o) => <button key={o.key} type="button" onClick={() => { setCutoff(o.value); setSuggested(null); }} style={{ ...inp, width: "auto", cursor: "pointer", padding: "1px 6px" }} title={tr("{rule}{pop}, decided {date}. Click to use it as the cutoff.", { rule: o.rule, pop: o.population ? ` (${o.population})` : "", date: o.decided })}>{o.population ? `${o.population.split(": ").pop()} ` : ""}{+Number(o.value).toPrecision(4)}</button>)}
+              {/* TASKS.csv #3160 (#2925 (1), review #2876) — the four largest populations of 24 (all waste on an iron ore) were the only buttons: every
+                  population is offered, highest first, as buttons up to four and as a menu past that */}
+              {offers.length > 4 && <select value="" onChange={(e) => { const o = offers.find((x) => x.key === e.target.value); if (o) { setCutoff(o.value); setSuggested(null); } }} aria-label={tr("Saved threshold")} style={{ ...inp, width: "auto", padding: "1px 4px" }}>
+                <option value="">{tr("{n} populations, highest first…", { n: offers.length })}</option>
+                {offers.map((o) => <option key={o.key} value={o.key}>{`${o.population ? `${o.population.split(": ").pop()} ` : ""}${+Number(o.value).toPrecision(4)}`}</option>)}
+              </select>}
+              {offers.length <= 4 && offers.map((o) => <button key={o.key} type="button" onClick={() => { setCutoff(o.value); setSuggested(null); }} style={{ ...inp, width: "auto", cursor: "pointer", padding: "1px 6px" }} title={tr("{rule}{pop}, decided {date}. Click to use it as the cutoff.", { rule: o.rule, pop: o.population ? ` (${o.population})` : "", date: o.decided })}>{o.population ? `${o.population.split(": ").pop()} ` : ""}{+Number(o.value).toPrecision(4)}</button>)}
             </div> : null; })()}
             <label style={fieldLabel} title={tr("How much below-cutoff ('waste') core between two above-cutoff samples is still folded into one intercept, diluting its grade, rather than splitting the intercept in two.")}>{tr("Max internal dilution (m)")}<input type="number" step="any" min="0" value={maxInternalDilution} onChange={(e) => setMaxInternalDilution(Math.max(0, Number(e.target.value) || 0))} style={inp} />
             </label>
@@ -361,6 +371,8 @@ export default function BestIntercepts({ assays: assaysIn, assayElements, collar
                 </label>
                 <label style={{ ...fieldLabel, flexDirection: "row", alignItems: "center", gap: 4 }} title={tr("Dip of the mineralized structure, degrees below horizontal.")}>{tr("dip")}<input type="number" step="any" min="0" max="90" value={twDipText} onChange={(e) => setTwDipText(e.target.value)} style={{ ...inp, width: 55 }} aria-label={tr("Structure dip")} />
                 </label>
+                {/* TASKS.csv #3160 (#2925 (7), review #2876) — flat bedding (a bedded iron ore, a palaeochannel) in one click: dip 0, the direction irrelevant */}
+                <button type="button" onClick={() => { setTwDipDirText("0"); setTwDipText("0"); }} style={{ ...inp, width: "auto", cursor: "pointer", padding: "1px 6px" }} title={tr("A horizontal structure (flat bedding): the true width of a vertical hole is its downhole length.")}>{tr("flat (0 / 0)")}</button>
               </>
             )}
             {!collars?.length && <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{tr("Import collars to enable.")}</span>}
@@ -380,11 +392,11 @@ export default function BestIntercepts({ assays: assaysIn, assayElements, collar
 
           {results.length > 0 && (() => { const c = interceptCount(results); return <div role="status" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{/* TASKS.csv #2200 — how many, with the filters above */}{c.n === 1 ? tr("1 intercept, in 1 hole") : c.holes === 1 ? tr("{n} intercepts, in 1 hole", { n: c.n.toLocaleString() }) : tr("{n} intercepts, in {holes} holes", { n: c.n.toLocaleString(), holes: c.holes.toLocaleString() })}</div>; })()}
           {results.length > 0 && <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", cursor: "pointer" }} title={tr("Each hole's intercepts summed: their downhole thickness and grade × thickness over the sampled metres. Graduated on a plan and estimated in 2D: 3D Modelling › Estimation › Grade × thickness in plan.")}><input type="checkbox" checked={perHole} onChange={(e) => setPerHole(e.target.checked)} />{tr("Total per hole")}</label>}{/* #2419 */}
-          {perHole && results.length > 0 && (() => { const hs = holeTotals(results); return (
-            <div style={{ overflow: "auto", maxHeight: 380, minHeight: 120, flexShrink: 0 }}>
+          {perHole && results.length > 0 && (() => { const hs = holeRows; return (
+            <div ref={hv.scrollRef} onScroll={hv.onScroll} style={{ overflow: "auto", maxHeight: 380, minHeight: 120, flexShrink: 0 }}>{/* windowed: #3160 */}
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "var(--font-size-base)" }}>
                 <thead><tr style={{ position: "sticky", top: 0, background: "var(--color-bg)" }}>{[tr("Hole"), tr("Intercepts"), tr("Thickness (m)"), tr("Grade × thickness ({unit} × m)", { unit: dispUnit }), `${gradeSym} (${dispUnit})`].map((h) => <th key={h} style={th}>{h}</th>)}</tr></thead>
-                <tbody>{hs.map((h) => <tr key={h.hole_id}><td style={td}>{h.hole_id}</td><td style={td}>{h.intercepts}</td><td style={td}>{h.thicknessM.toFixed(2)}</td><td style={td}>{h.gt.toLocaleString(undefined, { maximumFractionDigits: 3 })}</td><td style={td}>{h.meanGrade == null ? "—" : h.meanGrade.toLocaleString(undefined, { maximumFractionDigits: 3 })}</td></tr>)}</tbody>
+                <tbody>{hv.topPad > 0 && <tr style={{ height: hv.topPad }}><td colSpan={5} style={{ padding: 0, border: "none" }} /></tr>}{hs.slice(hv.startIndex, hv.endIndex).map((h) => <tr key={h.hole_id} style={{ height: RESULT_ROW_H, boxSizing: "border-box" }}><td style={td}>{h.hole_id}</td><td style={td}>{h.intercepts}</td><td style={td}>{h.thicknessM.toFixed(2)}</td><td style={td}>{h.gt.toLocaleString(undefined, { maximumFractionDigits: 3 })}</td><td style={td}>{h.meanGrade == null ? "—" : h.meanGrade.toLocaleString(undefined, { maximumFractionDigits: 3 })}</td></tr>)}{hv.bottomPad > 0 && <tr style={{ height: hv.bottomPad }}><td colSpan={5} style={{ padding: 0, border: "none" }} /></tr>}</tbody>
               </table>
             </div>); })()}
           {perHole && results.length > 0 ? null : symbols.length === 0 ? (

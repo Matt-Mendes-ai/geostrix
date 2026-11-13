@@ -321,6 +321,8 @@ export function usableDefaultMethod(pops, preferred, unit) {
 // TASKS.csv #2347 (Matt's decision, split from #2196) — a saved DRILL threshold is offered to the drill tools, never applied: the rule, its
 // population and the date it was decided, in the tool's unit (a record saved in another unit is not offered). A surface record never is.
 // records: store.geochemThresholds -> [{ key, value, rule, population, decided }]
+// TASKS.csv #3160 (#2925 (1)) — the offers highest first (the ore populations of a bulk commodity, the anomalous ones of a trace element)
+export const sortedThresholdOffers = (offers) => [...(offers || [])].sort((a, b) => b.value - a.value);
 export function drillThresholdOffers(records, symbol, unit) {
   const r = (records || []).find((x) => x?.source === "drill" && x.symbol === symbol);
   if (!r || (unit && r.unit && r.unit !== unit)) return [];

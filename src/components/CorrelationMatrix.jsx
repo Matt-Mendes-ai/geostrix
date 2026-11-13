@@ -39,6 +39,7 @@ function cellColor(r) {
 
 // TASKS.csv #1799 (review #1646, Kodiak) — surfaceSamples / surfaceElements: a soil program's Cu-Au-Mo-As correlation. The source
 // switch is Grade stats' (#228); surface samples are one value each, with their QC already split off at import (Surface QAQC).
+const COUNT_ROWS = 20000, MEDIAN_ROWS = 2000; // TASKS.csv #3174 — the rows the default ticks are ranked on
 export default function CorrelationMatrix({ assays: assaysIn, assayElements: assayElementsIn, surfaceSamples = [], surfaceElements = [], onClose }) {
   useEscapeKey(onClose); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
@@ -63,11 +64,14 @@ export default function CorrelationMatrix({ assays: assaysIn, assayElements: ass
   // of tiny cells; the checklist below lets the user swap in whichever subset they actually care about.
   // TASKS.csv #2351 — the lead commodity and the best-covered elements first (counted on the rows shown), the fixed suite only breaking ties
   const lead = useLeadCommodity();
-  const countsOf = (rows, syms) => { const c = {}; for (const s of syms) c[s] = 0; for (const r of rows || []) for (const s of syms) if (r?.values?.[s] != null && r.values[s] !== "") c[s]++; return c; };
+  // TASKS.csv #3174 (split from #3032) — on open, the coverage count read every row for every element (about 1 s at 147,000 samples x 27
+  // elements under load) and the bulk tie-break medians 5,000 rows each: both only rank the elements ticked first, so they read an evenly
+  // spread sample (COUNT_ROWS, MEDIAN_ROWS), every row of a smaller table
+  const countsOf = (rows, syms) => { const c = {}; for (const s of syms) c[s] = 0; const n = (rows || []).length, step = Math.max(1, Math.floor(n / COUNT_ROWS)); for (let i = 0; i < n; i += step) { const v = rows[i]?.values; if (!v) continue; for (const s of syms) if (v[s] != null && v[s] !== "") c[s]++; } return c; };
   // TASKS.csv #2908 — a bulk commodity's project (Fe, Mn, Al) ticks the majors after the lead: ties broken by the median grade (ppm of the
   // element), read from at most 5,000 evenly spread rows so a 150,000-sample table pays little for it
   const mediansOf = (rows, syms, units) => {
-    const step = Math.max(1, Math.floor((rows || []).length / 5000)), out = {};
+    const step = Math.max(1, Math.floor((rows || []).length / MEDIAN_ROWS)), out = {}; // #3174: was 5,000
     for (const s of syms) {
       const v = [];
       for (let i = 0; i < (rows || []).length; i += step) { const x = valueIn(rows[i], s, "ppm", units); if (x != null && Number.isFinite(x)) v.push(x); }
