@@ -11332,5 +11332,17 @@
   "no density, so no tonnes": "nenhuma densidade, então sem toneladas",
   "{pct}% of the estimated metal ({k} of {n} blocks) lies below the deepest sample of every hole within {r} m: carried down past the drilling, within the {h} m Vertical reach.": "{pct}% do metal estimado ({k} de {n} blocos) está abaixo da amostra mais profunda de cada furo a menos de {r} m: levado para baixo além da sondagem, dentro do alcance vertical de {h} m.",
   "Kriged before {n} block(s) were removed (above the ground, outside the area or outside the solid), so more were kriged than are kept.": "Krigados antes de remover {n} bloco(s) (acima do terreno, fora da área ou fora do sólido), então foram krigados mais do que os mantidos.",
-  "Cutoff {v}: the 90th percentile of the {n} {symbol} values, proposed when {symbol} was chosen. Type your own.": "Teor de corte {v}: o percentil 90 dos {n} valores de {symbol}, proposto ao escolher {symbol}. Digite o seu."
+  "Cutoff {v}: the 90th percentile of the {n} {symbol} values, proposed when {symbol} was chosen. Type your own.": "Teor de corte {v}: o percentil 90 dos {n} valores de {symbol}, proposto ao escolher {symbol}. Digite o seu.",
+  "Overturned bedding": "Acamamento invertido",
+  "Bedding, approximate orientation": "Acamamento, orientação aproximada",
+  "Joint": "Junta",
+  "Foliation (origin not specified)": "Foliação (origem não especificada)",
+  "Metamorphic or tectonic foliation": "Foliação metamórfica ou tectônica",
+  "Fault (small, minor)": "Falha (pequena, menor)",
+  "Vein or dike": "Veio ou dique",
+  "Lineation": "Lineação",
+  "Minor fold hinge": "Charneira de dobra menor",
+  "FGDC {n}: {name}": "FGDC {n}: {name}",
+  "Symbol for {type}": "Símbolo para {type}",
+  "The USGS (FGDC) symbol for {type}: each reading takes its inclined, vertical or horizontal form by its own dip. Kept with the project.": "O símbolo USGS (FGDC) para {type}: cada leitura usa a forma inclinada, vertical ou horizontal pelo seu próprio mergulho. Salvo com o projeto."
 }

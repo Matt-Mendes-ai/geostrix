@@ -11332,5 +11332,17 @@
   "no density, so no tonnes": "لا كثافة، فلا أطنان",
   "{pct}% of the estimated metal ({k} of {n} blocks) lies below the deepest sample of every hole within {r} m: carried down past the drilling, within the {h} m Vertical reach.": "{pct}% من المعدن المقدَّر ({k} من {n} كتلة) يقع تحت أعمق عينة لكل ثقب ضمن {r} م: محمول إلى الأسفل بعد الحفر، ضمن المدى الرأسي البالغ {h} م.",
   "Kriged before {n} block(s) were removed (above the ground, outside the area or outside the solid), so more were kriged than are kept.": "كُرِّجت قبل إزالة {n} كتلة (فوق الأرض أو خارج المنطقة أو خارج المجسم)، لذا كُرِّج أكثر مما حُفظ.",
-  "Cutoff {v}: the 90th percentile of the {n} {symbol} values, proposed when {symbol} was chosen. Type your own.": "حد القطع {v}: المئين التسعون لقيم {symbol} البالغة {n}، مقترح عند اختيار {symbol}. اكتب قيمتك."
+  "Cutoff {v}: the 90th percentile of the {n} {symbol} values, proposed when {symbol} was chosen. Type your own.": "حد القطع {v}: المئين التسعون لقيم {symbol} البالغة {n}، مقترح عند اختيار {symbol}. اكتب قيمتك.",
+  "Overturned bedding": "تطبق مقلوب",
+  "Bedding, approximate orientation": "تطبق، اتجاه تقريبي",
+  "Joint": "فاصل",
+  "Foliation (origin not specified)": "تورّق (أصل غير محدد)",
+  "Metamorphic or tectonic foliation": "تورّق متحوّل أو تكتوني",
+  "Fault (small, minor)": "صدع (صغير، ثانوي)",
+  "Vein or dike": "عرق أو قاطع",
+  "Lineation": "تخطّط",
+  "Minor fold hinge": "مفصل طية ثانوية",
+  "FGDC {n}: {name}": "FGDC {n}: {name}",
+  "Symbol for {type}": "رمز {type}",
+  "The USGS (FGDC) symbol for {type}: each reading takes its inclined, vertical or horizontal form by its own dip. Kept with the project.": "رمز USGS (FGDC) لـ{type}: تأخذ كل قراءة شكلها المائل أو الرأسي أو الأفقي حسب ميلها. يُحفظ مع المشروع."
 }

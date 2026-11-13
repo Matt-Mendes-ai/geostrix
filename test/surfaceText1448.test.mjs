@@ -10,7 +10,7 @@ const read = (p) => readFileSync(new URL(p, import.meta.url), "utf8").replace(/\
 test("counts and classes go through the plural and translation helpers", () => {
   const m = read("../src/components/SurfaceMappingPanel.jsx");
   assert.ok(m.includes("{featureCountText(l.features.length, l.geomType)") && !m.includes("{l.features.length} {l.geomType}"));
-  assert.ok(m.includes("{tr(STRUCTURE_CLASS_LABELS[cls])"));
+  assert.ok(/tr\(STRUCTURE_CLASS_LABELS\[(cls|r\.cls)\]/.test(m)); // r.cls: the per-type symbol lines of #3066 name a type with no words by its class
   assert.ok(read("../src/components/SurfaceGeologyProjection.jsx").includes("{tr(STRUCTURE_CLASS_LABELS[k])"));
   for (const l of ["es", "pt", "fr", "ar"]) {
     const j = JSON.parse(read(`../src/locales/${l}.json`));

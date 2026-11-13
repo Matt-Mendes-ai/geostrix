@@ -25,6 +25,7 @@ import {
 import { downholeTableColumns, structureCodeColumn } from "../lib/downholeTableGuess.js"; // TASKS.csv #1722
 import { uniqueLayerName } from "../lib/interpretation.js"; // TASKS.csv #2573
 import { defaultDiscSize, discSizeMax } from "../lib/outcropDiscSize.js"; // TASKS.csv #2412
+import { SYMBOLS, FAMILIES, familyFor, projectSymbolChoices, symbolSvg, typeKey } from "../lib/structureSymbols.js"; // TASKS.csv #3066
 
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
@@ -80,6 +81,10 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
   const [pendingStruct, setPendingStruct] = useState(null); // { name, rows, headers, cols }
   // TASKS.csv #2970 — a map unit named like a logged code takes the logs' colour (at import, and whenever 'Colour by' returns to the field)
   const logSpell = useMemo(() => loggedCodeSpellings(layers.litho), [layers.litho]);
+  // TASKS.csv #3066 — the USGS (FGDC) symbol per structure type: the project's choices (kept on the sets, set.symbolByType), else the default
+  // from the type's words; a change applies to every set that has the type
+  const symbolChoices = useMemo(() => projectSymbolChoices(surfaceStructures), [surfaceStructures]);
+  const setTypeSymbol = (key, family) => { for (const set of surfaceStructures) if ((set.rows || []).some((r) => typeKey(r.type || r.cls) === key)) updateSurfaceStructureSet(set.id, { symbolByType: { ...(set.symbolByType || {}), [key]: family } }); };
   const logColourOf = (u) => categoryColor(viewerUiState?.legendOverride?.litho?.[u], LAYER_META.litho, u);
   const logCats = (layer, cats) => withLogColours(cats, logSpell, logColourOf, { byCount: !!(layer.subcropFromCollars || layer.subcropOutlines) });
   const [subDepth, setSubDepth] = useState(""); // TASKS.csv #2956 — blank: the first unit under the cover; a number: the unit that far down each hole
@@ -851,8 +856,9 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
       )}
       {msgBox(structMsg)}
       {surfaceStructures.map((s) => {
-        const counts = {};
-        s.rows.forEach((r) => { counts[r.cls] = (counts[r.cls] || 0) + 1; });
+        // #3066 — one line per structure type (the file's own type words; a row with none goes under its class)
+        const types = new Map();
+        s.rows.forEach((r) => { const k = typeKey(r.type || r.cls); const e = types.get(k) || { name: String(r.type || "").trim() || tr(STRUCTURE_CLASS_LABELS[r.cls] || r.cls), type: r.type || r.cls, cls: r.cls, n: 0 }; e.n++; types.set(k, e); });
         return (
           <div key={s.id} style={card}>
             <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
@@ -866,13 +872,16 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
               </select>
               <Trash2 aria-label={tr("Remove structure set \"{name}\"", { name: s.name })} title={tr("Remove structure set \"{name}\"", { name: s.name })} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(tr("Remove \"{name}\"?", { name: s.name }))) { removeSurfaceStructureSet(s.id); setStructMsg(null); /* #2573 — its import notice goes with it */ } }} />
             </div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: "3px 10px", marginTop: 7 }}>
-              {Object.entries(counts).map(([cls, n]) => (
-                <span key={cls} style={{ display: "flex", alignItems: "center", gap: 4, color: "var(--color-text-secondary)", fontSize: "var(--font-size-sm)" }}>
-                  <span style={{ width: 9, height: 9, borderRadius: "50%", background: STRUCTURE_CLASS_COLORS[cls], border: "1px solid var(--color-border)" }} />
-                  {tr(STRUCTURE_CLASS_LABELS[cls]) /* #1448 */} {n}
-                </span>
-              ))}
+            <div style={{ display: "flex", flexDirection: "column", gap: 3, marginTop: 7 }}>{/* #3066 — the symbol of each type, and the choice of it */}
+              {[...types].map(([k, t]) => { const fam = familyFor(t.type, t.cls, symbolChoices), sym = SYMBOLS[FAMILIES[fam].inclined]; return (
+                <div key={k} style={{ display: "flex", alignItems: "center", gap: 6, color: "var(--color-text-secondary)", fontSize: "var(--font-size-sm)" }}>
+                  <span title={tr("FGDC {n}: {name}", { n: sym.fgdc, name: sym.name })} style={{ display: "flex", flexShrink: 0, background: "#fff", borderRadius: 3 }} dangerouslySetInnerHTML={{ __html: symbolSvg(sym, { px: 22, color: STRUCTURE_CLASS_COLORS[t.cls] || "#333" }) }} />
+                  <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.name} {t.n}</span>
+                  <select value={fam} onChange={(e) => setTypeSymbol(k, e.target.value)} aria-label={tr("Symbol for {type}", { type: t.name })} title={tr("The USGS (FGDC) symbol for {type}: each reading takes its inclined, vertical or horizontal form by its own dip. Kept with the project.", { type: t.name })} style={{ ...select, flex: "none", maxWidth: 150 }}>
+                    {Object.entries(FAMILIES).map(([id, f]) => <option key={id} value={id}>{tr(f.label)}</option>)}
+                  </select>
+                </div>
+              ); })}
             </div>
             <div style={row}>
               <span style={lbl}>{tr("Disc size")}</span>

@@ -11332,5 +11332,17 @@
   "no density, so no tonnes": "ninguna densidad, así que sin toneladas",
   "{pct}% of the estimated metal ({k} of {n} blocks) lies below the deepest sample of every hole within {r} m: carried down past the drilling, within the {h} m Vertical reach.": "El {pct} % del metal estimado ({k} de {n} bloques) está por debajo de la muestra más profunda de cada sondaje a menos de {r} m: llevado hacia abajo más allá de la perforación, dentro del alcance vertical de {h} m.",
   "Kriged before {n} block(s) were removed (above the ground, outside the area or outside the solid), so more were kriged than are kept.": "Krigeados antes de quitar {n} bloque(s) (sobre el terreno, fuera del área o fuera del sólido), así que se krigearon más de los que se conservan.",
-  "Cutoff {v}: the 90th percentile of the {n} {symbol} values, proposed when {symbol} was chosen. Type your own.": "Ley de corte {v}: el percentil 90 de los {n} valores de {symbol}, propuesto al elegir {symbol}. Escriba la suya."
+  "Cutoff {v}: the 90th percentile of the {n} {symbol} values, proposed when {symbol} was chosen. Type your own.": "Ley de corte {v}: el percentil 90 de los {n} valores de {symbol}, propuesto al elegir {symbol}. Escriba la suya.",
+  "Overturned bedding": "Estratificación invertida",
+  "Bedding, approximate orientation": "Estratificación, orientación aproximada",
+  "Joint": "Diaclasa",
+  "Foliation (origin not specified)": "Foliación (origen no especificado)",
+  "Metamorphic or tectonic foliation": "Foliación metamórfica o tectónica",
+  "Fault (small, minor)": "Falla (pequeña, menor)",
+  "Vein or dike": "Veta o dique",
+  "Lineation": "Lineación",
+  "Minor fold hinge": "Charnela de pliegue menor",
+  "FGDC {n}: {name}": "FGDC {n}: {name}",
+  "Symbol for {type}": "Símbolo para {type}",
+  "The USGS (FGDC) symbol for {type}: each reading takes its inclined, vertical or horizontal form by its own dip. Kept with the project.": "El símbolo USGS (FGDC) para {type}: cada lectura toma su forma inclinada, vertical u horizontal según su propio buzamiento. Se guarda con el proyecto."
 }
