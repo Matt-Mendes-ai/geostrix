@@ -4,6 +4,7 @@
 import * as THREE from "three";
 import { layerStamp } from "../../lib/layerStamp.js"; // TASKS.csv #2388
 import { rowsByHole } from "../../lib/rowsByHole.js"; // TASKS.csv #2906
+import { interbeds, planeDipDeg } from "../../lib/pileTops.js"; // TASKS.csv #2927
 import { stackCellCheck, medianStackThickness } from "../../lib/stackResolution.js"; // TASKS.csv #2905; medianStackThickness: #2922
 import { suspectElevationIds } from "../../lib/collarElevationTrust.js"; // TASKS.csv #2918 (the #3004 rule)
 import { trendRatioText } from "../../lib/trend.js"; // TASKS.csv #2423
@@ -235,7 +236,7 @@ export function createModellingRuns(ctx, mcRef) {
         `${r.label}:`,
         r.duplicates ? tr(" {duplicates} pick(s) repeated at the same spot ({duplicateExamples}{v}) — GemPy honours every copy, which only slows and stiffens the solve;", { duplicates: r.duplicates, duplicateExamples: r.duplicateExamples.join(", "), v: r.duplicates > 3 ? "…" : "" }) : "",
         r.close ? tr(" {n} pair(s) of picks less than 0.5 m apart down the hole ({examples}{v}) — separate structures close together (veinlets of one interval) or a near-repeat; GemPy honours each, which stiffens the solve;", { n: r.close, examples: r.closeExamples.join(", "), v: r.close > 3 ? "…" : "" }) : "", // #2048
-        r.conflicts ? tr(" {conflicts} pair(s) of picks almost on top of each other but far apart in elevation ({conflictExamples}{v}) — the surface has to stand near-vertical there to honour both: usually a mis-picked or mislabelled contact, the unit repeated by a fold or fault, or stacked sheets of an intrusion (model those as veins / dykes);", { conflicts: r.conflicts, conflictExamples: r.conflictExamples.join("; "), v: r.conflicts > 3 ? "…" : "" }) : "",
+        r.conflicts ? tr(" {conflicts} pair(s) of picks almost on top of each other but far apart in elevation ({conflictExamples}{v}) — the surface has to stand near-vertical there to honour both: usually interbeds of neighbouring units in a flat pile (one surface through each hole's first top: the Strat. stack's Layer-cake method, or the Explicit surface's 'Add the logged tops'), a mis-picked or mislabelled contact, the unit repeated by a fold or fault, or stacked sheets of an intrusion (model those as veins / dykes);" /* interbeds first: #2927 */, { conflicts: r.conflicts, conflictExamples: r.conflictExamples.join("; "), v: r.conflicts > 3 ? "…" : "" }) : "",
         r.orientations && r.estimated ? tr(" the dip estimated from the contacts themselves (no structure pick was used) differs by more than 45° from the plane through the contacts near it ({orientationExamples}): one plane fitted to all of the contacts does not match them there (a fold, a change of dip, or two populations of contacts). It is not a pick to fix; a structural trend from the tops of a unit (Model settings) or real structure picks give the surface a better guide;", { orientationExamples: r.orientationExamples.join(", ") }) /* #2539 */
           : r.orientations ? tr(" {orientations} of {orientationsTotal} orientation(s) differ by more than 45° from the plane through the contacts around them ({orientationExamples}{v}) — GemPy bends the surface between the two;", { orientations: r.orientations, orientationsTotal: r.orientationsTotal, orientationExamples: r.orientationExamples.join(", "), v: r.orientations > 3 ? "…" : "" }) : "",
       ].join("")).join(" ").replace(/;(?=\s|$)/g, ".") }));
@@ -505,7 +506,7 @@ export function createModellingRuns(ctx, mcRef) {
         const c = clipMesh(sceneVerts, faces, (v) => reach.isOutside(sceneToApi(v)));
         sceneVerts = c.verts; faces = c.faces;
         if (!faces.length) { missing.push(`${spec.label} (no part of it lies near its own contacts)`); return; }
-        reachNotes.push(tr("{label}: {m} m past its {n} contact point(s)", { label: spec.label, m: Math.round(reach.margin), n: spec.points.length }));
+        reachNotes.push(tr("{label}: {m} m past the outline of its {n} contact point(s), measured in their best-fit plane", { label: spec.label, m: Math.round(reach.margin), n: spec.points.length })); // #3045: the rule applied (lib/contactReach.js), not a distance from each contact
       }
       // TASKS.csv #358 — the model extent's top is the highest control point plus padding, and GemPy
       // extrapolates up to it, so dipping contacts used to stand up into the air above the ground (in 3D,
@@ -528,6 +529,13 @@ export function createModellingRuns(ctx, mcRef) {
         topoClipped = c.removed + c.split;
         if (!faces.length) { missing.push(`${spec.label} (lies entirely above the terrain surface)`); return; }
       }
+      // TASKS.csv #3045 — the clips above keep every input vertex: only those a kept triangle uses go into the mesh (its vertex count, the
+      // exports, the checks below)
+      if (sceneVerts.length && faces.length) {
+        const remap = new Int32Array(sceneVerts.length).fill(-1), kept = [];
+        faces = faces.map((f) => f.map((k) => { if (remap[k] < 0) { remap[k] = kept.length; kept.push(sceneVerts[k]); } return remap[k]; }));
+        sceneVerts = kept;
+      }
       // TASKS.csv #1171 — how far the mesh as drawn passes from the contact points it was fitted through. Not when it was clipped to a
       // domain, whose outside contacts it no longer reaches on purpose.
       const fit = clipDomain ? null : contactFit(spec.points.map((p) => apiToScene([p.x, p.y, p.z])).map((q) => [q.x, q.y, q.z]), sceneVerts.map((v) => [v.x, v.y, v.z]), faces);
@@ -538,7 +546,7 @@ export function createModellingRuns(ctx, mcRef) {
       geo.computeVertexNormals();
       const mat = new THREE.MeshLambertMaterial({ color: spec.color, side: THREE.DoubleSide, transparent: true, opacity: 0.75 });
       const mesh = new THREE.Mesh(geo, mat);
-      mesh.userData = { tip: `${spec.label}\n${surf.vertices.length} vertices${clipDomain ? ` (clipped to "${clipDomain.name}")` : ""}${topoClipped ? " (cut at topography)" : ""}` };
+      mesh.userData = { tip: `${spec.label}\n${sceneVerts.length} vertices${clipDomain ? ` (clipped to "${clipDomain.name}")` : ""}${topoClipped ? " (cut at topography)" : ""}` };
       implicitGroupRef.current?.add(mesh);
       const id = `impl_${Date.now()}_${spec.meshName}`;
       implicitMeshesRef.current[id] = mesh;
@@ -587,14 +595,14 @@ export function createModellingRuns(ctx, mcRef) {
         runId, inputs: captureInputs(spec, sidecarSpecs[specIndex], originRef.current),
         ...(res.faultOffsets ? { faultOffsets: res.faultOffsets } : {}), // #1054 — which units each fault offset in this run
       };
-      setImplicitSurfaces((p) => [...p, { id, name: spec.label, visible: true, vertexCount: surf.vertices.length, faceCount: faces.length, type: spec.type || "other", relationships: [], params }]);
+      setImplicitSurfaces((p) => [...p, { id, name: spec.label, visible: true, vertexCount: sceneVerts.length /* #3045: the kept vertices */, faceCount: faces.length, type: spec.type || "other", relationships: [], params }]);
       // TASKS.csv #2058 (review #2013) — the same one-elevation-per-location check as Check relationships, said by the run itself: an
       // implicit 'Top of VANSS' folded back at 1 of 16 locations and only Check relationships reported it
       if (FOLD_CONTACT_TYPES.has(spec.type)) {
         const pos = new Float32Array(sceneVerts.length * 3);
         sceneVerts.forEach((v, i) => { pos[i * 3] = v.x; pos[i * 3 + 1] = v.y; pos[i * 3 + 2] = v.z; });
         const inv = inversionCheck({ positions: pos, indices: Uint32Array.from(faces.flat()) }, { up: "y" });
-        if (inv.sampled && inv.fraction > 0.05) folds.push(tr("\"{name}\" folds back over itself at {folded} of {sampled} sampled locations (a contact surface should have one elevation per location): an interpolation artefact, a real overturned fold, or a unit that is not one layer (a steep intrusive or repeated sheets, better modelled as a closed body in Modelling codes).", { name: spec.label, folded: inv.folded, sampled: inv.sampled }));
+        if (inv.sampled && inv.fraction > 0.05) folds.push(tr("\"{name}\" folds back over itself at {folded} of {sampled} sampled locations (a contact surface should have one elevation per location): an interpolation artefact, a real overturned fold, interbeds of neighbouring units in a flat pile (model each hole's first top: the Strat. stack's Layer-cake method, or the Explicit surface's 'Add the logged tops'), or a unit that is not one layer (a steep intrusive or repeated sheets, better modelled as a closed body in Modelling codes).", { name: spec.label, folded: inv.folded, sampled: inv.sampled }));
       }
     });
     if (folds.length) setNotices((p) => [...p, notice("{list} Check relationships lists it again with the other checks.", { list: folds.join(" ") })]); // #2058
@@ -1165,7 +1173,17 @@ export function createModellingRuns(ctx, mcRef) {
       if (multi.length) setNotices((p) => [...p, notice("{unitName}: {n} hole(s) give more than one top of this one surface ({list}), so it is forced through all of them. A repeated unit is several surfaces: split it with Modelling codes (Auto-number or Connect) or an intercept set.", { unitName, n: multi.length, list: multi.slice(0, 6).map(([h, k]) => `${h} ${k}`).join(", ") + (multi.length > 6 ? ", …" : "") })]);
       // TASKS.csv #2234 (review #2174, WA gold) — a unit repeated in most of its holes (a steep monzonite: 57 holes, 75 near-vertical pick pairs) is
       // not a layer: one 'top of' surface folds back over itself; the closed-body and vein tools model it as a body
-      if (per.size >= 4 && multi.length / per.size >= 0.25) setNotices((p) => [...p, notice("{unitName} repeats in {p} % of the holes that log it: it behaves like a steep body or a set of sheets, not one layer. A closed body (Modelling codes › Closed body) or Veins / dykes models it as a body.", { unitName, p: Math.round((100 * multi.length) / per.size) })]); }
+      // TASKS.csv #2927 (review #2876, WA iron) — on a near-flat pile whose repeats are split by the same neighbours (SONAM / ONAM / SONAM, 2 m
+      // interbeds), they are interbeds, not a steep body: said so, with the route that takes one top per hole
+      if (per.size >= 4 && multi.length / per.size >= 0.25) {
+        const first = new Map(); points.forEach((p) => { if (p.hole_id != null && !(first.get(p.hole_id)?.z >= p.z)) first.set(p.hole_id, p); });
+        const dip = planeDipDeg([...first.values()]);
+        const unitVals = isMcode ? mcodeLogged : codes, byH = rowsByHole(layers.litho || []);
+        const ib = Number.isFinite(dip) && dip <= 15 && unitVals ? interbeds(multi.map(([h]) => h), (h) => byH.get(h), (v) => unitVals.has(v)) : [];
+        const split = ib.filter((q) => q.holes >= 0.5 * ib.of).slice(0, 3);
+        if (split.length) setNotices((p) => [...p, notice("{unitName} repeats in {p} % of the holes that log it, interbedded with {list} (in {n} of those {m} holes), and its first tops lie near flat (dipping {d}°): thin beds of its neighbours in a flat pile, not a steep body. One surface through each hole's first top is what the Strat. stack's Layer-cake method and the Explicit surface's 'Add the logged tops' build.", { unitName, p: Math.round((100 * multi.length) / per.size), list: split.map((q) => q.code).join(", "), n: split[0].holes, m: ib.of, d: dip.toFixed(1) })]);
+        else setNotices((p) => [...p, notice("{unitName} repeats in {p} % of the holes that log it: it behaves like a steep body or a set of sheets, not one layer. A closed body (Modelling codes › Closed body) or Veins / dykes models it as a body.", { unitName, p: Math.round((100 * multi.length) / per.size) })]);
+      } }
     // #1367 — said inside a stack too: it changes which picks the surface follows
     if (belowRoleSkipped) setNotices((p) => [...p, notice("{unitName}: {n} interval start(s) right under a fault, breccia, vein, dyke, no-recovery or casing interval were not used as tops (roles in Modelling codes).", { unitName, n: belowRoleSkipped })]);
     // #1684 — the contact under overburden is the base of overburden, an erosional surface: not this unit's top on its own
@@ -1363,7 +1381,7 @@ export function createModellingRuns(ctx, mcRef) {
       if (!silent && nearPicks.total) setNotices((p) => [...p, notice("No structure pick within {reachM} m of the \"{unitName}\" contacts: its dip was estimated from the contact points (~{dip}°/~{azimuth}°).", { reachM, unitName, dip: Math.round(est.dip), azimuth: Math.round(est.azimuth) })]);
       // TASKS.csv #2233 (review #2174) — picks loaded but no type chosen under Contact orientations is not "no structure picks found"
       else if (!silent && !picksAtStart && (layers.structure || []).some((r) => r.dip != null && r.azimuth != null)) { const loaded = (layers.structure || []).filter((r) => r.dip != null && r.azimuth != null); setNotices((p) => [...p, notice("No structure type is chosen as a contact orientation ({n} oriented pick(s) of {t} type(s) are loaded): the dip of \"{unitName}\" was estimated from its contact points (~{dip}°/~{azimuth}°). Tick a type under Model settings > Contact orientations to use the picks.", { n: loaded.length, t: new Set(loaded.map((r) => String(r.value))).size, unitName, dip: est.dip.toFixed(0), azimuth: est.azimuth.toFixed(0) })]); }
-      else if (!silent) setNotices((p) => [...p, notice("No structure picks found — estimated a single dip/azimuth (~{dip}°/~{azimuth}°) from the shape of the \"{unitName}\" contact points. Import a structure CSV for a more accurate result.", { dip: est.dip.toFixed(0), azimuth: est.azimuth.toFixed(0), unitName })]);
+      else if (!silent) setNotices((p) => [...p, notice("No structure picks found — estimated a single dip/azimuth (~{dip}°/~{azimuth}°) from the shape of the \"{unitName}\" contact points: the orientation comes from the contacts alone.", /* #2928 (6): no 'import a structure CSV' on a project with none */ { dip: est.dip.toFixed(0), azimuth: est.azimuth.toFixed(0), unitName })]);
     }
     // TASKS.csv #241 — the surface's type now comes from the source litho unit's own role
     // (roleForLithology, src/lib/layers.js) instead of always being hardcoded "stratigraphic_contact",
@@ -1542,7 +1560,7 @@ export function createModellingRuns(ctx, mcRef) {
         const list = ord.conflicts.slice(0, 4).map((q) => tr("{older} is logged above {younger} in {against} of {of} holes that have both", { older: specs[q.older].meshName, younger: specs[q.younger].meshName, against: q.against, of: q.of })).join("; ");
         const holesOrder = ord.order.map((k) => specs[k].meshName).join(", ");
         if (!window.confirm(tr("The stack's order does not match the holes: {list}. Down the holes the order is {order} (youngest first). Run in the order given anyway?", { list, order: holesOrder }))) {
-          setNotices((p) => [...p, notice("Stack run cancelled before solving: the holes give the order {order} (youngest first). Reorder the units with the arrows and run again.", { order: holesOrder })]);
+          setNotices((p) => [...p, notice("Stack run cancelled before solving: the holes give the order {order} (youngest first). 'Use the order from the holes' over the stack's units puts them in it; then run again.", { order: holesOrder }) /* #2926 */]);
           return;
         }
         setNotices((p) => [...p, notice("Run in the order given, although the holes give {order} (youngest first): {list}.", { order: holesOrder, list })]);
@@ -1619,7 +1637,11 @@ export function createModellingRuns(ctx, mcRef) {
     }
     // TASKS.csv #1718 — the drillholes' logged contacts: the same tops as a map contact between those two units, at the contact's
     // depth on the hole's trace; an intercept excluded in the Boundary intercepts table stays out
-    let holeN = 0, holeHoles = 0, holeGaps = 0, holeNoTrace = 0, holeExcluded = 0;
+    let holeN = 0, holeHoles = 0, holeGaps = 0, holeNoTrace = 0, holeExcluded = 0, holeOutside = 0;
+    // TASKS.csv #3045 (#2973's leftover) — only the holes collared inside the map's area: a 2 km map took the logged contacts of a 21 km field,
+    // and the model box with them
+    const [mbx0, mby0, mbx1, mby1] = p.layer?.bbox || [];
+    const mapHoles = Number.isFinite(mbx0) ? new Set((collars || []).filter((c) => Number(c.x) >= mbx0 && Number(c.x) <= mbx1 && Number(c.y) >= mby0 && Number(c.y) <= mby1).map((c) => c.hole_id)) : null;
     if (p.holeCodes && Object.values(p.holeCodes).some(Boolean)) {
       const { holeContacts } = await import("../../lib/holeMapContacts.js");
       const hc = holeContacts(layers.litho || [], p.holeCodes, (u) => rank.has(u));
@@ -1627,6 +1649,7 @@ export function createModellingRuns(ctx, mcRef) {
       const used = new Set();
       for (const c of hc.contacts) {
         if (excludedIntercepts.includes(interceptId("litho", c.row))) { holeExcluded++; continue; }
+        if (mapHoles && !mapHoles.has(c.hole_id)) { holeOutside++; continue; } // #3045
         const t = traceOfHole(traces, c.hole_id);
         const q = t?.pts?.length ? findOnTrace(t.pts, c.depth) : null;
         if (!q) { holeNoTrace++; continue; }
@@ -1685,6 +1708,7 @@ export function createModellingRuns(ctx, mcRef) {
       + (holeN ? tr(" {h} of the contact points are logged contacts in {k} drillhole(s).", { h: holeN, k: holeHoles }) : p.holeCodes ? tr(" No logged contact between two units of the order was found in the drillholes.") : "") // #1718
       + (holeGaps ? tr(" {g} logged contact(s) left out: over {m} m unlogged or not used between the two units.", { g: holeGaps, m: 10 }) : "")
       + (holeExcluded ? tr(" {g} logged contact(s) excluded in the Boundary intercepts table.", { g: holeExcluded }) : "")
+      + (holeOutside ? tr(" {g} logged contact(s) in holes collared outside the map's area were left out: the model stands on the map.", { g: holeOutside }) : "") /* #3045 */
       + (holeNoTrace ? tr(" {g} logged contact(s) on holes with no trace were skipped.", { g: holeNoTrace }) : "")
       + (offTerrain ? tr(" {k} contact point(s) beyond the terrain were skipped.", { k: offTerrain }) : "") + (onPlan ? tr(" {k} contact point(s) and measurement(s) where the terrain has no data were placed at the map layer's elevation (RL {z}); the surfaces are cut there at that elevation too.", { k: onPlan, z: Math.round(planZ) }) : "") /* #2410 */ + (unused ? tr(" {k} contact(s) involve units outside the order.", { k: unused }) : ""))]); // appendNotice: #821
     await runSurfaceStack([...faultSpecs, ...specs], { relation: breaks.size ? "erode" : p.relation || stackRelation, aboveUnit: order[0], packages: new Set(specs.map((s) => s.package)).size, ...(planZ != null ? { groundFallbackZ: planZ } : {}) }); // #2410 // #1309

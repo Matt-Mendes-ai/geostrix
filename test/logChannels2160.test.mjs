@@ -60,7 +60,7 @@ test("binning is proposed only above the budget (the WA iron log: 2.58 M reading
 test("the dialog box and the commit are wired", () => {
   assert.match(readFileSync(new URL("../src/components/ImportMappingModal.jsx", import.meta.url), "utf8"), /<LogChannelsBox modal=\{modal\} onChange=\{onChange\} sel=\{sel\} \/>/);
   const u = readFileSync(new URL("../src/modules/viewer/useImportPipeline.js", import.meta.url), "utf8");
-  assert.match(u, /const out = logChannelRows\(allRows, mapping, col, binM, nd\?\.values \|\| null\);/ /* nd: the no-data codes left out, #2332 */);
+  assert.match(u, /const out = logChannelRows\(src, mapping, col, binM, nd\?\.values \|\| null\);/ /* nd: the no-data codes left out, #2332 */);
   assert.match(u, /const binNote = out\.binned \? `Binned on import to \$\{binM\} m: mean of/); // #2329: the note is joined with the interval-middle one
 });
 

@@ -316,28 +316,42 @@ export function idwGround(points) {
   for (const c of pts) { if (c.x < x0) x0 = c.x; if (c.x > x1) x1 = c.x; if (c.y < y0) y0 = c.y; if (c.y > y1) y1 = c.y; }
   const cell = Math.max(1, Math.sqrt(Math.max(1, (x1 - x0) * (y1 - y0)) / pts.length)); // about one collar per cell
   const nx = Math.max(1, Math.floor((x1 - x0) / cell) + 1), ny = Math.max(1, Math.floor((y1 - y0) / cell) + 1);
-  const buckets = new Map();
+  // TASKS.csv #2945 — the same four nearest and the same weights, without allocating per query: flat bucket arrays (counting sort), typed
+  // best-four arrays, squared distances (the stop test and the weights use the square). A GemPy result's surface cut and block cut ask it
+  // once per bisection step and per column (0.1 s of the landing stall on 268 holes; 300,000 queries on 6,000 collars: 2.4 s before).
+  const n = pts.length, X = new Float64Array(n), Y = new Float64Array(n), Z = new Float64Array(n);
+  pts.forEach((c, k) => { X[k] = c.x; Y[k] = c.y; Z[k] = c.z; });
   const ci = (x) => Math.min(nx - 1, Math.max(0, Math.floor((x - x0) / cell))), cj = (y) => Math.min(ny - 1, Math.max(0, Math.floor((y - y0) / cell)));
-  pts.forEach((c, k) => { const q = cj(c.y) * nx + ci(c.x); (buckets.get(q) || buckets.set(q, []).get(q)).push(k); });
+  const start = new Int32Array(nx * ny + 1), order = new Int32Array(n), cellOf = new Int32Array(n);
+  for (let k = 0; k < n; k++) { cellOf[k] = cj(Y[k]) * nx + ci(X[k]); start[cellOf[k] + 1]++; }
+  for (let q = 0; q < nx * ny; q++) start[q + 1] += start[q];
+  const fill = start.slice(0, nx * ny);
+  for (let k = 0; k < n; k++) order[fill[cellOf[k]]++] = k;
+  const bd = new Float64Array(4), bz = new Float64Array(4); // squared distance and z of the four best, ascending
   return (x, y) => {
-    const i0 = ci(x), j0 = cj(y), best = []; // up to four [distance, z], ascending
-    const take = (k) => {
-      const c = pts[k], d = Math.hypot(c.x - x, c.y - y);
-      if (best.length === 4 && d >= best[3][0]) return;
-      let at = best.length; while (at > 0 && best[at - 1][0] > d) at--;
-      best.splice(at, 0, [d, c.z]); if (best.length > 4) best.pop();
+    const i0 = ci(x), j0 = cj(y);
+    let cnt = 0;
+    const scan = (i, j) => {
+      if (i < 0 || j < 0 || i >= nx || j >= ny) return;
+      const q = j * nx + i;
+      for (let m = start[q]; m < start[q + 1]; m++) {
+        const k = order[m], dx = X[k] - x, dy = Y[k] - y, d2 = dx * dx + dy * dy;
+        if (cnt === 4 && d2 >= bd[3]) continue;
+        let at = cnt < 4 ? cnt++ : 3;
+        while (at > 0 && bd[at - 1] > d2) { bd[at] = bd[at - 1]; bz[at] = bz[at - 1]; at--; }
+        bd[at] = d2; bz[at] = Z[k];
+      }
     };
-    const scan = (i, j) => { if (i < 0 || j < 0 || i >= nx || j >= ny) return; const b = buckets.get(j * nx + i); if (b) for (const k of b) take(k); };
     for (let r = 0; ; r++) {
       // a collar in ring r is at least (r - 1) cells away: once the fourth best is nearer than that, no later ring can beat it
-      if (best.length === 4 && best[3][0] <= (r - 1) * cell) break;
+      if (cnt === 4 && r >= 1 && bd[3] <= ((r - 1) * cell) ** 2) break;
       if (i0 - r < 0 && j0 - r < 0 && i0 + r >= nx && j0 + r >= ny) break; // the grid is exhausted
       if (r === 0) scan(i0, j0);
       else { for (let i = i0 - r; i <= i0 + r; i++) { scan(i, j0 - r); scan(i, j0 + r); } for (let j = j0 - r + 1; j <= j0 + r - 1; j++) { scan(i0 - r, j); scan(i0 + r, j); } }
     }
-    if (best[0][0] < 1e-6) return best[0][1];
+    if (bd[0] < 1e-12) return bz[0];
     let w = 0, s = 0;
-    for (const [d, z] of best) { const k = 1 / (d * d); w += k; s += k * z; }
+    for (let m = 0; m < cnt; m++) { const k = 1 / bd[m]; w += k; s += k * bz[m]; }
     return s / w;
   };
 }

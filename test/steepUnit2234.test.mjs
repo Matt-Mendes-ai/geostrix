@@ -7,11 +7,13 @@ import { readFileSync } from "node:fs";
 
 test("a unit repeated in a quarter or more of its holes is said to behave like a body", () => {
   const r = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8");
-  assert.match(r, /if \(per\.size >= 4 && multi\.length \/ per\.size >= 0\.25\) setNotices\(\(p\) => \[\.\.\.p, notice\("\{unitName\} repeats in \{p\} % of the holes that log it: it behaves like a steep body or a set of sheets, not one layer\./);
+  // #2927: on a near-flat pile split by the same neighbours it is said as interbeds instead; otherwise the body wording stands
+  assert.match(r, /if \(per\.size >= 4 && multi\.length \/ per\.size >= 0\.25\) \{/);
+  assert.match(r, /else setNotices\(\(p\) => \[\.\.\.p, notice\("\{unitName\} repeats in \{p\} % of the holes that log it: it behaves like a steep body or a set of sheets, not one layer\./);
 });
 
 test("the fold-back check names the other readings", () => {
   const t = readFileSync(new URL("../src/lib/topology.js", import.meta.url), "utf8");
   assert.doesNotMatch(t, /usually an interpolation artefact rather than a real overturned fold/);
-  assert.match(t, /an interpolation artefact, a real overturned fold, or a unit that is not one layer/);
+  assert.match(t, /an interpolation artefact, a real overturned fold, interbeds of neighbouring units in a flat pile \(.*\), or a unit that is not one layer/); // interbeds: #2927
 });

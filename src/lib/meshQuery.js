@@ -75,24 +75,41 @@ export function buildMeshQuery(positions, indices) {
   const triIndices = new Uint32Array(triCount);
   for (let t = 0; t < triCount; t++) triIndices[t] = t;
 
+  // TASKS.csv #2945 (review #2876 modelA-2) — the build was most of the 0.7-2 s stall when a GemPy result lands (the fold-back check builds
+  // one per surface): every node rescanned its triangles' vertices for its box (log n full passes) and sorted its whole slice for the median.
+  // Now a node's box is the union of its children's (leaves read their own <= 8 triangles), the split axis is the longest extent of the
+  // node's centroids, and the median comes from a quickselect (O(n) per level). The queries are exact whatever the split, so they answer
+  // the same; 320,000 triangles build in a fraction of the time.
+  const select = (key, lo, hi, k) => { // triIndices[lo..hi) partitioned so position k holds the k-th smallest key (Hoare, median-of-three)
+    let l = lo, r = hi - 1;
+    while (r > l) {
+      const m = (l + r) >> 1, a = key[triIndices[l]], b = key[triIndices[m]], c = key[triIndices[r]];
+      const pivot = a < b ? (b < c ? b : a < c ? c : a) : (a < c ? a : b < c ? c : b);
+      let i = l, j = r;
+      while (i <= j) {
+        while (key[triIndices[i]] < pivot) i++;
+        while (key[triIndices[j]] > pivot) j--;
+        if (i <= j) { const t = triIndices[i]; triIndices[i] = triIndices[j]; triIndices[j] = t; i++; j--; }
+      }
+      if (k <= j) r = j; else if (k >= i) l = i; else return;
+    }
+  };
   const build = (from, to, depth) => {
-    const box = boxOf(positions, indices, triIndices, from, to);
-    const node = { ...box, from, to, left: null, right: null };
     const n = to - from;
-    if (n <= LEAF_SIZE || depth > 40) return node;
-    // Split on the longest axis of the node's own bounding box, at the median centroid. Median (not
-    // midpoint) keeps the tree balanced on the very non-uniform triangle distributions marching cubes
-    // produces, where a midpoint split routinely puts everything on one side.
-    const ex = box.maxx - box.minx, ey = box.maxy - box.miny, ez = box.maxz - box.minz;
+    if (n <= LEAF_SIZE || depth > 40) return { ...boxOf(positions, indices, triIndices, from, to), from, to, left: null, right: null };
+    let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity, z0 = Infinity, z1 = -Infinity;
+    for (let k = from; k < to; k++) {
+      const t = triIndices[k], x = cx[t], y = cy[t], z = cz[t];
+      if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; if (z < z0) z0 = z; if (z > z1) z1 = z;
+    }
+    const ex = x1 - x0, ey = y1 - y0, ez = z1 - z0;
+    if (!(ex > 0 || ey > 0 || ez > 0)) return { ...boxOf(positions, indices, triIndices, from, to), from, to, left: null, right: null }; // all centroids coincident: a leaf
     const axis = ex >= ey && ex >= ez ? cx : ey >= ez ? cy : cz;
-    const slice = Array.prototype.slice.call(triIndices, from, to);
-    slice.sort((p, q) => axis[p] - axis[q]);
-    for (let k = 0; k < slice.length; k++) triIndices[from + k] = slice[k];
     const mid = from + (n >> 1);
-    if (mid === from || mid === to) return node; // all centroids coincident — keep as a leaf
-    node.left = build(from, mid, depth + 1);
-    node.right = build(mid, to, depth + 1);
-    return node;
+    select(axis, from, to, mid);
+    const left = build(from, mid, depth + 1), right = build(mid, to, depth + 1);
+    return { minx: Math.min(left.minx, right.minx), miny: Math.min(left.miny, right.miny), minz: Math.min(left.minz, right.minz),
+      maxx: Math.max(left.maxx, right.maxx), maxy: Math.max(left.maxy, right.maxy), maxz: Math.max(left.maxz, right.maxz), from, to, left, right };
   };
 
   const root = build(0, triCount, 0);

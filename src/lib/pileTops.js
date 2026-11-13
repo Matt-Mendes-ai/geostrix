@@ -129,3 +129,60 @@ export function orderAgainst(positions, upperAt, { tolM = 0.05 } = {}) {
   }
   return { compared, above, worstM, worstAt };
 }
+
+// TASKS.csv #2926 (review #2876, WA iron) — the order the holes give, for any list of units: the stack's own check (#2382) found it and then
+// said 'Reorder the units with the arrows'. rows: [{ hole_id, from, value }] (Lithology rows, or coded runs as { value: code }); codesOf:
+// unit -> the logged values that are that unit. -> { order: units youngest first (ties and units the holes do not place: as given),
+// conflicts: stackOrderFromHoles' pairs the given order has the other way up, placed: how many units the holes log }
+export function orderFromHoles(rows, units, codesOf = (u) => [u]) {
+  const kOf = new Map();
+  (units || []).forEach((u, i) => { for (const c of codesOf(u) || []) if (!kOf.has(c)) kOf.set(c, i); });
+  const { above, conflicts, order } = stackOrderFromHoles(rows, kOf, (units || []).length);
+  const placed = above.filter((row, a) => row.some((v, b) => v + above[b][a] > 0)).length;
+  return { order: order.map((k) => units[k]), conflicts, placed };
+}
+
+// the moves (unit, -1 = one step up) that turn `from` into `to`, one neighbour swap at a time (a list's up / down arrows)
+export function movesToOrder(from, to) {
+  const cur = [...from], moves = [];
+  to.forEach((u, i) => { let j = cur.indexOf(u); while (j > i) { moves.push([u, -1]); [cur[j - 1], cur[j]] = [cur[j], cur[j - 1]]; j--; } });
+  return moves;
+}
+
+// TASKS.csv #2927 (review #2876, WA bedded iron) — a unit that comes back down its holes was always described as a steep body, intrusive sheets
+// or a vein ('SONAM repeats in 26 % of the holes … Veins / dykes models it'), where on a flat banded pile the repeats are 2 m interbeds of its
+// stack neighbours (SONAM / ONAM / SONAM). For the holes that repeat the unit: which logged units lie between its first and last run.
+// rowsOf(hole) -> that hole's Lithology rows; isUnit(value) -> the row is the unit. -> [{ code, holes }] most holes first, and `of` (the holes)
+export function interbeds(holes, rowsOf, isUnit) {
+  const count = new Map();
+  let of = 0;
+  for (const h of holes || []) {
+    const rows = (rowsOf(h) || []).filter((r) => Number.isFinite(Number(r.from))).sort((a, b) => Number(a.from) - Number(b.from));
+    const first = rows.findIndex((r) => isUnit(r.value));
+    let last = -1;
+    for (let i = rows.length - 1; i >= 0; i--) if (isUnit(rows[i].value)) { last = i; break; }
+    if (first < 0 || last <= first) continue;
+    of++;
+    const seen = new Set();
+    for (let i = first + 1; i < last; i++) { const v = rows[i].value; if (!isUnit(v) && v != null && v !== "") seen.add(String(v)); }
+    for (const v of seen) count.set(v, (count.get(v) || 0) + 1);
+  }
+  const list = [...count].map(([code, n]) => ({ code, holes: n })).sort((a, b) => b.holes - a.holes || (a.code < b.code ? -1 : 1));
+  list.of = of;
+  return list;
+}
+
+// the dip of the least-squares plane z = a + b x + c y through points { x, y, z } (degrees), NaN with fewer than 3 or in a line
+export function planeDipDeg(points) {
+  const P = (points || []).filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y) && Number.isFinite(p.z));
+  if (P.length < 3) return NaN;
+  let mx = 0, my = 0, mz = 0;
+  for (const p of P) { mx += p.x; my += p.y; mz += p.z; }
+  mx /= P.length; my /= P.length; mz /= P.length;
+  let sxx = 0, sxy = 0, syy = 0, sxz = 0, syz = 0;
+  for (const p of P) { const x = p.x - mx, y = p.y - my, z = p.z - mz; sxx += x * x; sxy += x * y; syy += y * y; sxz += x * z; syz += y * z; }
+  const det = sxx * syy - sxy * sxy;
+  if (!(Math.abs(det) > 1e-9 * (sxx * syy || 1))) return NaN;
+  const b = (sxz * syy - syz * sxy) / det, c = (syz * sxx - sxz * sxy) / det;
+  return (Math.atan(Math.hypot(b, c)) * 180) / Math.PI;
+}

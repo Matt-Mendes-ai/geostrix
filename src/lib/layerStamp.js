@@ -8,7 +8,14 @@ function mix(h, s) {
   h ^= 0x1f; return Math.imul(h, FNV_PRIME); // a separator, so "a|bc" and "ab|c" differ
 }
 
+// TASKS.csv #2945 — one stamp per log array: a GemPy result's landing stamped the 150,455-row log up to three times (40 ms each). The app
+// replaces a log's array when it changes (the lithoNow memo already keys on it), so the array is the cache key.
+const cache = new WeakMap();
 export function layerStamp(rows) {
+  if (rows && typeof rows === "object") { const hit = cache.get(rows); if (hit !== undefined) return hit; const v = stampOf(rows); cache.set(rows, v); return v; }
+  return stampOf(rows);
+}
+function stampOf(rows) {
   let h = FNV_OFFSET, n = 0;
   for (const r of rows || []) {
     if (!r) continue;

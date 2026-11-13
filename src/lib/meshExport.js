@@ -290,6 +290,30 @@ export function exportSurfaceOBJ(name, geometry, origin, provenance = null, extr
   return bytes ? surfaceTextBytes(c) : joinChunks(c);
 }
 
+// TASKS.csv #2928 (7) (review #2876) — GOCAD TSurf (.ts): GeoStrix read GOCAD (#1992) but wrote a surface only as OBJ, DXF, glTF, VTK or
+// OMF. The ASCII TSurf as gocad.js reads it: a HEADER with the name, the coordinate system block (z up: ZPOSITIVE Elevation), one TFACE of
+// VRTX (1-based) and TRGL lines, END; the provenance as '#' comment lines, which GOCAD readers skip. Built in chunks, as OBJ (#1072).
+function tsChunks(name, geometry, origin, provenance, extra) {
+  const { vertices: V, indices: I } = sceneVertsToWorldFlat(geometry, origin);
+  const head = [`# ${name} — exported from GeoStrix`];
+  provenanceLines(name, provenance, extra).forEach((l) => head.push(`# ${l}`));
+  head.push("GOCAD TSurf 1", "HEADER {", `name:${String(name).replace(/[\r\n}]/g, " ")}`, "}",
+    "GOCAD_ORIGINAL_COORDINATE_SYSTEM", "NAME Default", 'AXIS_NAME "X" "Y" "Z"', 'AXIS_UNIT "m" "m" "m"', "ZPOSITIVE Elevation", "END_ORIGINAL_COORDINATE_SYSTEM", "TFACE");
+  const out = [head.join("\n")];
+  let buf = [];
+  const flush = () => { if (buf.length) { out.push(buf.join("\n")); buf = []; } };
+  for (let i = 0; i < V.length; i += 3) { buf.push(`VRTX ${i / 3 + 1} ${V[i].toFixed(4)} ${V[i + 1].toFixed(4)} ${V[i + 2].toFixed(4)}`); if (buf.length >= CHUNK) flush(); }
+  flush();
+  for (let t = 0; t + 2 < I.length; t += 3) { buf.push(`TRGL ${I[t] + 1} ${I[t + 1] + 1} ${I[t + 2] + 1}`); if (buf.length >= CHUNK) flush(); }
+  flush();
+  out.push("END");
+  return { chunks: out, sep: "\n" };
+}
+export function exportSurfaceTS(name, geometry, origin, provenance = null, extra = {}, { bytes = false } = {}) {
+  const c = tsChunks(name, geometry, origin, provenance, extra);
+  return bytes ? surfaceTextBytes(c) : joinChunks(c);
+}
+
 // DXF (ASCII, R12-compatible subset) — one 3DFACE entity per triangle, the standard way to hand a
 // triangulated surface to AutoCAD-family and most mining packages (Vulcan/Surpac both read 3DFACE
 // meshes). Minimal: the R12 HEADER ($ACADVER AC1009, as dxf.js's string writer: TASKS.csv #1114 — the file said

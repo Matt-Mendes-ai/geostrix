@@ -48,7 +48,7 @@ test("the 3D View writes its CSVs through the lazily loaded writer; the import h
   const h = readFileSync(resolve(ROOT, "src/lib/viewer/importHelpers.js"), "utf8");
   assert.match(h, /const tabular = \(\) => import\("\.\.\/tabular\.js"\);/);
   assert.doesNotMatch(h, /from "\.\.\/tabular\.js"/);
-  assert.match(h, /tabular\(\)\.then\(\(m\) => m\.parseTableFile\(file\)\)/);
+  assert.match(h, /tabular\(\)\.then\(async \(m\) => \{[\s\S]*?return m\.parseTableFile\(file, spec \? \{ logRead: spec \} : undefined\);/);
   const t = readFileSync(resolve(ROOT, "src/lib/tabular.js"), "utf8");
   assert.match(t, /export \{ crsCell \} from "\.\/crsCell\.js";/);
 });

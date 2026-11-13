@@ -34,6 +34,25 @@ export function caseVariantGroups(rows, groups = []) {
   }
   return out.sort((a, b) => b.total - a.total || a.name.localeCompare(b.name));
 }
+// TASKS.csv #2928 (2) (review #2876, WA iron) — sub-divided codes of one unit (DID_U / DID_M / DID_L beside DID; CLA_U / CLA_M / CLA_L;
+// MNG_U / MNG_L) were not proposed as a group (#2386 folds spellings only). A part suffix after '_' or '-' (U / M / L, UPPER / MIDDLE / LOWER,
+// UP / MID / LOW / LO, A-D, 1-99): the parts of one base, with the base itself when it is logged, as one proposal when there are 2 or more
+// codes and none is in a group yet. A proposal only: the parts may be units of their own. -> [{ name (the base), codes, counts, total }]
+const PART = /^(.+?)[_-](U|M|L|UP|UPPER|MID|MIDDLE|LOW|LO|LOWER|[A-D]|[0-9]{1,2})$/i;
+export function subdivisionGroups(rows, groups = []) {
+  const grouped = new Set((groups || []).flatMap((g) => g.codes || []));
+  const counts = new Map();
+  for (const r of rows || []) { const v = r?.value == null ? "" : String(r.value).trim(); if (v) counts.set(v, (counts.get(v) || 0) + 1); }
+  const byBase = new Map();
+  for (const v of counts.keys()) { const m = PART.exec(v); if (m) (byBase.get(m[1]) || byBase.set(m[1], new Set()).get(m[1])).add(v); }
+  const out = [];
+  for (const [base, parts] of byBase) {
+    const codes = [...(counts.has(base) ? [base] : []), ...[...parts].sort()];
+    if (codes.length < 2 || codes.some((c) => grouped.has(c))) continue;
+    out.push({ name: base, codes, counts: Object.fromEntries(codes.map((c) => [c, counts.get(c)])), total: codes.reduce((s, c) => s + counts.get(c), 0) });
+  }
+  return out.sort((a, b) => b.total - a.total || a.name.localeCompare(b.name));
+}
 // withGroupCodes(groups, id, codes) -> the groups with `id`'s codes replaced, and those codes removed from every other group
 export function withGroupCodes(groups, id, codes) {
   const mine = new Set(codes || []);
