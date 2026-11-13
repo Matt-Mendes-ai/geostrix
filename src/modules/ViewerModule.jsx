@@ -8153,13 +8153,11 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           uses (tracesRef), so no number here can drift from what is on screen. Packaged only while the
           modal is open — pulling ~100k vertices out of every surface's BufferGeometry on every render
           would be pure waste the other 99% of the time. */}
-      {/* TASKS.csv #139 — fence/panel diagram. Fed tracesRef (the same desurveyed traces the 3D scene
-          draws, in real-world coordinates) rather than re-desurveying: one source of truth, and it
-          keeps this out of desurvey.js entirely. */}
+      {/* TASKS.csv #139 — fence diagram, fed the traces the 3D scene draws (world coordinates), not desurveyed again */}
       {fenceOpen && (
         <FenceDiagramModal
           traces={tracesRef.current.map((t) => ({ hole_id: t.hole_id, md: t.pts.map((p) => p.md), wx: t.wx, wy: t.wy, wz: t.wz }))}
-          litho={layers.litho || []} labelFor={effectiveLabel} patternOverride={legendOverride.litho} sections={sections} // #1995; sections: #1552
+          litho={layers.litho || []} labelFor={effectiveLabel} patternOverride={legendOverride.litho} sections={sections} areaIds={modelArea === "checked" ? checkedHoleIds : null} // #1995; #1552; #3016
           onClose={() => setFenceOpen(false)}
         />
       )}
@@ -8169,15 +8167,13 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             const g = implicitMeshesRef.current[s.id]?.geometry;
             return { id: s.id, name: surfaceLabels.get(s.id) ?? s.name, positions: g?.attributes?.position?.array || null, indices: g?.index?.array || null };
           }).filter((s) => s.positions && s.indices)}
-          traces={tracesRef.current}
+          traces={modelArea === "checked" ? tracesRef.current.filter((t) => checkedHoleIds.has(t.hole_id)) : tracesRef.current} inArea={modelArea === "checked"} // #3016
           sceneToWorld={(p) => { const o = originRef.current; return { x: p.x + o.x, y: o.y - p.z, z: p.y + o.z }; }}
           worldToScene={(p) => { const o = originRef.current; return { x: p.x - o.x, y: p.z - o.z, z: -(p.y - o.y) }; }}
           onClose={() => setSurfaceQueryOpen(false)}
         />
       )}
-      {/* TASKS.csv #93 — version compare. Meshes are handed over BY REFERENCE out of the live scene
-          (same pattern as SurfaceQueryModal above): the dialog never copies a mesh, and it only walks
-          them when the user presses "Compare geometry". */}
+      {/* TASKS.csv #93 — version compare: meshes by reference, walked only on "Compare geometry" */}
       {compareVersionsFor && (
         <SurfaceCompareModal
           surfaces={implicitSurfaces}

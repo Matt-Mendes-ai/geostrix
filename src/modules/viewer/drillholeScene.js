@@ -8,7 +8,7 @@ import { t as tr } from "../../lib/i18n.js";
 import { LAYER_META, minMax } from "../../lib/layers.js";
 import { arrMin, arrMax } from "../../lib/arrayStats.js";
 import { desurveyHole, holeAttitudeAssumed } from "../../lib/desurvey.js";
-import { errorNotice } from "../../lib/notices.js";
+import { errorNotice, notice } from "../../lib/notices.js"; // notice: #2937
 import { resolveLayerStyle, TUBE_SEGMENTS } from "../../lib/layerStyle.js";
 import { customColour } from "../../lib/customColour.js";
 import { PickStandIn } from "../../lib/viewer/pickStandIn.js";
@@ -57,19 +57,40 @@ export const sameRefs = (a, b) => a === b || (Array.isArray(a) && Array.isArray(
 // kept whole when its collar object, survey rows and method are the same and the origin has not moved; kept without its
 // origin-relative part (pts) when only the origin moved. full: no last build, a new origin, the Refresh button, or a hole id
 // that occurs twice (holeEntries is then null and every hole is desurveyed as before).
-export function planHoles(prev, collars, surveyByHole, method, { ox, oy, oz, rebuildSeq }) {
+// TASKS.csv #2937 (WA iron review) — a desurvey method switch rebuilt every layer of 6,390 holes (2.1-2.8 s, +390 MB over four switches)
+// although on holes within 5 degrees of vertical the four methods put every station within millimetres. With `desurvey` given, a hole whose
+// collar and survey rows are the same and only the method changed is desurveyed again here and compared: within QUIET_SHIFT_M at every
+// station (10 cm) it takes the new trace (tools read the method chosen) but is not 'changed', so its drawing and the layer groups on it are kept;
+// otherwise it is redrawn as before. -> also `shift`: { max (m), hole, moved, kept } for the notice, or null when no method changed.
+export const QUIET_SHIFT_M = 0.1; // 10 cm: invisible beside the 1.6 m radius the intervals are drawn at (WA iron's largest shift: 8.6 cm)
+export function maxStationShift(a, b) {
+  if (!a || !b || a.length !== b.length) return Infinity;
+  let m = 0;
+  for (let i = 0; i < a.length; i++) { const d = Math.hypot(a[i].x - b[i].x, a[i].y - b[i].y, a[i].z - b[i].z); if (!(d <= m)) m = d; }
+  return m;
+}
+export function planHoles(prev, collars, surveyByHole, method, { ox, oy, oz, rebuildSeq }, desurvey = null) {
   const originSame = !!prev && prev.ox === ox && prev.oy === oy && prev.oz === oz;
   const holeEntries = new Map(), changedHoles = new Set();
+  let shift = null;
   for (const c of collars) {
-    if (holeEntries.has(c.hole_id)) return { full: true, holeEntries: null, changedHoles: new Set(collars.map((x) => x.hole_id)) };
+    if (holeEntries.has(c.hole_id)) return { full: true, holeEntries: null, changedHoles: new Set(collars.map((x) => x.hole_id)), shift: null };
     const hs = surveyByHole.get(c.hole_id) || [];
     const old = prev?.holes.get(c.hole_id);
     if (old && old.collar === c && old.method === method && sameRefs(old.hs, hs)) { holeEntries.set(c.hole_id, originSame ? old : { ...old, hs, pts: null, look: null, trace: null }); continue; }
+    if (desurvey && originSame && old?.raw && old.collar === c && sameRefs(old.hs, hs)) { // #2937 — only the method changed
+      const raw = desurvey(c, hs, method), d = maxStationShift(old.raw, raw);
+      shift = shift || { max: 0, hole: null, moved: 0, kept: 0 };
+      if (d > shift.max) { shift.max = d; shift.hole = c.hole_id; }
+      if (d <= QUIET_SHIFT_M) { holeEntries.set(c.hole_id, { ...old, hs, method, raw, pts: null, look: null, trace: null }); shift.kept++; continue; }
+      holeEntries.set(c.hole_id, { collar: c, hs, method, raw, assumedVertical: old.assumedVertical });
+      shift.moved++; changedHoles.add(c.hole_id); continue;
+    }
     holeEntries.set(c.hole_id, { collar: c, hs, method });
     changedHoles.add(c.hole_id);
   }
   if (prev) for (const id of prev.holes.keys()) if (!holeEntries.has(id)) changedHoles.add(id); // a removed hole
-  return { full: !originSame || prev.rebuildSeq !== rebuildSeq, holeEntries, changedHoles };
+  return { full: !originSame || prev.rebuildSeq !== rebuildSeq, holeEntries, changedHoles, shift };
 }
 
 // Which layer groups are made again: all on a full build; else a group whose signature changed, that is new, or that has
@@ -322,7 +343,7 @@ export function buildDrillholeScene(ctx) {
   // (planGroups); every other group keeps its objects, batches and GPU buffers. A new origin (a collar commit moves the
   // collars' mean), duplicate hole ids, the Refresh view button (rebuildSeq) and the first build are full builds, as before.
   const prev = sceneCaches.get(groups);
-  const plan = planHoles(prev, collars, surveyByHole, desurveyMethod, { ox, oy, oz, rebuildSeq });
+  const plan = planHoles(prev, collars, surveyByHole, desurveyMethod, { ox, oy, oz, rebuildSeq }, desurveyHole); // desurveyHole: #2937
   const { full, holeEntries, changedHoles } = plan;
   const sigs = new Map(BUILT_ROW_KEYS.map((k) => [k, [layers[k], JSON.stringify(layerStyles[k] ?? null), effectiveLabel, baseColorForBuild, LAYER_META[k]?.numeric ? JSON.stringify([numericSymbology?.[k] ?? null, numericRange?.[k] ?? null]) : ""]]));
   customLayers.forEach((l) => sigs.set(l.id, [l, l.group, JSON.stringify(layerStyles[`custom:${l.id}`] ?? null)]));
@@ -595,7 +616,7 @@ export function buildDrillholeScene(ctx) {
      buildErrors.push(`${c.hole_id}: ${err.message}`);
    }
   });
-  if (rebuildHoles) tracesRef.current = [...traceById.values()]; // #2176 — the same list otherwise
+  if (rebuildHoles || plan.shift?.kept) tracesRef.current = [...traceById.values()]; // #2176 — the same list otherwise; #2937 — the new method's traces
   if (rebuildHoles) addTraceChunks(groups.holes, traceHoles); // #2176 step 3
   for (const l of repaint) paintCustomLayer(l, layerStyles); // #2373
   if (plan.holeEntries) sceneCaches.set(groups, { ox, oy, oz, rebuildSeq, holes: plan.holeEntries, sigs, holeSets }); else sceneCaches.delete(groups);
@@ -632,6 +653,11 @@ export function buildDrillholeScene(ctx) {
 
   lastTracesRef.current = allTraces;
   lastHoleTraceCountRef.current = nHoleTraces;
+  // TASKS.csv #2937 — what a method switch moved, said (the review: 'no line saying what a desurvey change moved')
+  if (plan.shift && !plan.full) {
+    const sh = plan.shift, m = sh.max < 0.01 ? `${(sh.max * 1000).toFixed(1)} mm` : `${sh.max.toFixed(sh.max < 1 ? 3 : 2)} m`;
+    setNotices((p) => [...p, notice(sh.moved ? "Desurvey method changed: the stations moved by up to {m} ({hole}). {moved} hole(s) moved more than 10 cm and were redrawn; {kept} kept their drawing (the tools use the new method's positions)." : "Desurvey method changed: the stations moved by up to {m} ({hole}), under 10 cm in every hole, so the drawing is kept; the tools use the new method's positions.", { m, hole: sh.hole || "—", moved: sh.moved, kept: sh.kept })]);
+  }
   if (buildErrors.length) setNotices((p) => [...p, errorNotice(tr("{buildErrors} row(s) failed to render (skipped, rest of the model is unaffected): {v}{v2}", { buildErrors: buildErrors.length, v: buildErrors.slice(0, 3).join(" · "), v2: buildErrors.length > 3 ? "…" : "" }))]);
   if (allTraces.length) {
     if (!hasAutoFitRef.current) { autoFitInitial(allTraces, nHoleTraces); hasAutoFitRef.current = true; }
