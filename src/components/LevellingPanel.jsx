@@ -6,7 +6,8 @@ import { preferredElement } from "../lib/preferredElement.js"; // TASKS.csv #152
 import { useLeadCommodity } from "../lib/useLeadCommodity.js"; // #1523 — Au on an Au-Ag project
 import { X } from "./icons.js";
 import { useStore } from "../lib/store.jsx";
-import { surveysOf, fitLevelling, levellingPreview, writeLevelled, levelledSymbol, MIN_TIES, MIN_STAT } from "../lib/levelling.js";
+import { surveysOf, fitLevelling, levellingPreview, writeLevelled, levelledSymbol, MIN_TIES, MIN_STAT, tieScatter } from "../lib/levelling.js"; // tieScatter: #2981
+import TieScatterPlot from "./TieScatterPlot.jsx"; // TASKS.csv #2981
 import { PROJECT_SOURCE } from "../lib/thresholds.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
@@ -91,6 +92,7 @@ export default function LevellingPanel({ onClose }) {
                   ? tr("{n} sites were sampled by both surveys. The median ratio is x{f}; most pairs fall between x{lo} and x{hi}. A wide range means the ties disagree: check them before relying on the level.", { n: fit.ties.n, f: num(fit.ties.factor), lo: num(fit.ties.low), hi: num(fit.ties.high) })
                   : tr("{n} sites were sampled by both surveys within this distance; tie levelling needs at least {min}. A larger distance finds more pairs, but sites further apart can differ for real.", { n: fit.ties?.n || 0, min: MIN_TIES })}
               </div>
+              {fit.ties?.ok && <TieScatterPlot data={tieScatter(fit, symbol)} reference={reference} survey={survey} unit={unit} />}{/* TASKS.csv #2981 */}
               {canHuber && ( /* TASKS.csv #2000 — regression levelling on the same ties */
                 <label style={{ ...note, display: "flex", gap: 6, alignItems: "flex-start", cursor: "pointer" }}>
                   <input type="checkbox" checked={method === "huber"} onChange={(e) => setMethodPick(e.target.checked ? "huber" : null)} />

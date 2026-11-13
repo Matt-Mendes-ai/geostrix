@@ -131,6 +131,27 @@ export function fitLevelling(samples, { symbol, medium, column = "source", refer
   return { nReference: refV.length, nSurvey: surV.length, ties, stats: { ok: statOk, need: MIN_STAT, knots: statOk ? quantileKnots(refV, surV) : null }, medianReference: refV.length ? median(refV) : null, medianSurvey: surV.length ? median(surV) : null };
 }
 
+// TASKS.csv #2981 (split from #2000) — the tie scatter Main & Champion (2022) read before trusting a level: log10 survey (x) against log10
+// reference (y) at each tie site, with the 1:1 line, the median-ratio line (y = x + log10 factor) and the Huber line (y = a + b x); a tie
+// the Huber fit weighs down (|residual| > k sigma) is marked. -> { points: [{ x, y, down }], lo, hi, median, huber } or null (no ties)
+export function tieScatter(fit, symbol, { k = 1.345 } = {}) {
+  const pairs = fit?.ties?.pairs || [];
+  if (!pairs.length) return null;
+  const h = fit.ties.huber, c = h && h.sigma > 0 ? k * h.sigma : Infinity;
+  const points = [];
+  for (const p of pairs) {
+    const x = Math.log10(measured(p.b, symbol)), y = Math.log10(measured(p.a, symbol));
+    if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+    points.push({ x, y, down: !!h && Math.abs(y - (h.a + h.b * x)) > c });
+  }
+  if (!points.length) return null;
+  let lo = Infinity, hi = -Infinity;
+  for (const q of points) { lo = Math.min(lo, q.x, q.y); hi = Math.max(hi, q.x, q.y); }
+  if (!(hi > lo)) { lo -= 0.5; hi += 0.5; }
+  const pad = (hi - lo) * 0.05;
+  return { points, lo: lo - pad, hi: hi + pad, median: fit.ties.factor > 0 ? Math.log10(fit.ties.factor) : null, huber: h ? { a: h.a, b: h.b } : null };
+}
+
 // fit + method ("ties" | "huber" | "quantile") -> value => levelled value
 export function leveller(fit, method) {
   if (method === "ties") { if (!fit.ties?.ok) return null; const f = fit.ties.factor; return (v) => v * f; }

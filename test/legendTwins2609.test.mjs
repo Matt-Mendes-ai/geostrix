@@ -21,7 +21,7 @@ test("different colours, headings, notes and ramps are left alone", () => {
 
 test("wired into the Layout legend, and the 'more' line is for the reader", () => {
   const m = readFileSync(new URL("../src/modules/LayoutModule.jsx", import.meta.url), "utf8");
-  assert.match(m, /legendGroupsToItems\(capLegendGroups\(mergeCaseTwins\(groups\), (12|perGroup === \"all\" \? Infinity : Number\(perGroup\) \|\| 12),/); // #3021: the legend's codesPerLayer, 12 by default
+  assert.match(m, /legendGroupsToItems\(capLegendGroups\((?:applyCodeOrder\()?mergeCaseTwins\(groups\)(?:, orders\) \/\* #3130 \*\/)?, (12|perGroup === \"all\" \? Infinity : Number\(perGroup\) \|\| 12),/); // #3021: the legend's codesPerLayer, 12 by default
   assert.match(m, /tr\("\+ \{n\} more codes, not listed", \{ n \}\)/);
   assert.doesNotMatch(m, /edit the legend to add them/);
 });
