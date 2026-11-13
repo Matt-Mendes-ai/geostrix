@@ -20,3 +20,22 @@ export function unreadableFormatAdvice(name) {
   const a = ADVICE.find((x) => x.re.test(String(name || "")));
   return a ? tr("{name} is {what} that GeoStrix cannot read: {how}.", { name, what: a.what, how: a.how }) : null;
 }
+
+// TASKS.csv #2847 (GSC review B14) — a Geosoft .gdb given to Geophysics > Point survey's Import CSV / Import survey .xyz buttons was read as a
+// text table ('263 row(s), 1 column(s)' of binary garbage) and only the drops named it. Any binary file (a NUL byte in the first kB; a UTF-16
+// text file, which has NULs too, starts with its byte-order mark) is stopped before the column picker.
+export function looksBinary(bytes) {
+  const b = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes || []);
+  if (b.length >= 2 && ((b[0] === 0xff && b[1] === 0xfe) || (b[0] === 0xfe && b[1] === 0xff))) return false;
+  const n = Math.min(b.length, 1024);
+  for (let i = 0; i < n; i++) if (b[i] === 0) return true;
+  return false;
+}
+// file -> one sentence when it cannot be a text table (a closed format named by its extension, or binary bytes), else null
+export async function textTableRefusal(file) {
+  const advice = unreadableFormatAdvice(file?.name);
+  if (advice) return advice;
+  let head;
+  try { head = new Uint8Array(await file.slice(0, 1024).arrayBuffer()); } catch { return null; }
+  return looksBinary(head) ? tr("\"{name}\" is a binary file, not a text table: Point survey reads CSV and Geosoft .xyz (text) files.", { name: file.name }) : null;
+}

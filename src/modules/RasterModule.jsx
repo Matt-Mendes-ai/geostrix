@@ -82,8 +82,8 @@ function SpectrumPanel({ spectrum, onSplit }) {
       </svg>
       <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", lineHeight: 1.45, marginTop: 4 }}>
         {!fit ? tr("The spectrum does not fall with wavenumber: no depth can be read from it.")
-          : fit.shallow ? tr("Deep sources ~{deep} m (red), shallow sources ~{shallow} m (blue), below the sensor. Subtract the survey's sensor height for depth below ground; these are ensemble averages, not depths of single bodies.", { deep: Math.round(fit.deep.h), shallow: Math.round(fit.shallow.h) })
-          : tr("One straight segment: sources ~{deep} m below the sensor (red). Subtract the survey's sensor height for depth below ground.", { deep: Math.round(fit.deep.h) })}
+          : fit.shallow ? tr("Deep sources ~{deep} m (red), shallow sources ~{shallow} m (blue), below the observation level: the ground for ground stations, the sensor for an airborne survey (subtract its height for depth below ground). These are ensemble averages, not depths of single bodies.", { /* #2870 */ deep: Math.round(fit.deep.h), shallow: Math.round(fit.shallow.h) })
+          : tr("One straight segment: sources ~{deep} m below the observation level (red): the ground for ground stations, the sensor for an airborne survey (subtract its height for depth below ground).", { /* #2870 */ deep: Math.round(fit.deep.h) })}
       </div>
       {fit?.shallow && (
         <div style={{ display: "flex", gap: 6, marginTop: 6 }}>

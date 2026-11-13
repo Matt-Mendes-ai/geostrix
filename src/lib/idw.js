@@ -160,8 +160,20 @@ export function idwColourFields(stretch) {
     colourStops: VIRIDIS_ANCHORS.map((c, i) => ({ value: lo + (i / n) * (hi - lo), color: hex(c) })) };
 }
 
+// TASKS.csv #2872 (GSC review B24) — the IDW nodes started at the westernmost / northernmost station + half a cell (608,037.33 E at 100 m) and the
+// far edge was rounded, so a few stations at the south and east edges lay outside the nodes. Cell edges for nodes on multiples of the cell
+// (as published grids are: 609,300 E), rounded outward so every station is within half a cell of a node. bounds: the stations' extent.
+export function snappedGridExtent({ xmin, ymin, xmax, ymax }, cell) {
+  const lo = (v) => Math.floor(v / cell + 1e-9) * cell - cell / 2, hi = (v) => Math.ceil(v / cell - 1e-9) * cell + cell / 2;
+  return { xmin: lo(xmin), ymin: lo(ymin), xmax: hi(xmax), ymax: hi(ymax) };
+}
+
 export function idwGridToRasterInput(points, { xmin, ymin, xmax, ymax, cellSize, power, name, stretch = "p2-98", maxDistance = Infinity }) {
   const { gridW, gridH, values } = idwGrid(points, { xmin, ymin, xmax, ymax, cellSize, power, maxDistance });
+  return gridValuesToRasterInput(values, gridW, gridH, { xmin, ymax, cellSize, name, stretch });
+}
+// TASKS.csv #2846 — the raster of any gridded survey (IDW, minimum curvature, the spline): node centres at xmin + (i + 0.5) cell, row 0 north
+export function gridValuesToRasterInput(values, gridW, gridH, { xmin, ymax, cellSize, name, stretch = "p2-98" }) {
   let min = Infinity, max = -Infinity;
   for (let i = 0; i < values.length; i++) { const v = values[i]; if (Number.isFinite(v)) { if (v < min) min = v; if (v > max) max = v; } }
   const hasRange = Number.isFinite(min) && Number.isFinite(max) && max > min;
@@ -236,3 +248,6 @@ export function suggestBlankingDistance(points, sample = 400) {
   const spacing = d[Math.floor(d.length / 2)];
   return { spacing, distance: (byLine ? 1.5 : 2) * spacing, basis: byLine ? "line spacing" : "station spacing" };
 }
+// TASKS.csv #2872 — the equivalent-source grid's region (first and last node, [xmin, xmax, ymin, ymax]) on multiples of the cell, rounded outward:
+// verde's grid_coordinates fitted the typed spacing into the stations' own extent and stretched it (100 m became 100.021 m, 250 m 249.557 m)
+export const snappedNodeRegion = ({ xmin, ymin, xmax, ymax }, cell) => [Math.floor(xmin / cell + 1e-9) * cell, Math.ceil(xmax / cell - 1e-9) * cell, Math.floor(ymin / cell + 1e-9) * cell, Math.ceil(ymax / cell - 1e-9) * cell];

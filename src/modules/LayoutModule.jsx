@@ -55,6 +55,7 @@ import { projectCredits } from "../lib/credits.js"; // TASKS.csv #949
 import { groupSectionLegend } from "../lib/sectionLegend.js"; // TASKS.csv #1127 / #1128
 import { firstLegendGroups, rankLegendGroups, legendGroupCount } from "../lib/legendGroups.js"; // rank / count: #1482 // TASKS.csv #1224
 import { numericLayerLegendGroups } from "../lib/legendGroups.js"; // TASKS.csv #1482 — the RQD / recovery / SG / mag susc ramps
+import { geophysLegendGroups } from "../lib/legendGroups.js"; // TASKS.csv #2878
 import { frameTest, samplesInFrame, mapLayersInFrame } from "../lib/legendFrame.js"; // TASKS.csv #2134
 import { LAYOUT_FONTS, LAYOUT_FONT_TYPES, LAYOUT_DEFAULT_FONT, layoutFontStack, pageFont, withPageFont } from "../lib/layoutFonts.js"; // TASKS.csv #2144
 import { legendFit, legendRowH, legendLabelW, legendBoxSize } from "../lib/legendFit.js"; // TASKS.csv #2134; row rules and box: #2869
@@ -145,6 +146,7 @@ export default function LayoutModule() {
     terrain, rasters, // TASKS.csv #949 — {credits}
     viewerUiState, // TASKS.csv #1092 — legendOverride for the Atlas strip logs
     customLayers = [], // TASKS.csv #2472 — the custom layers' legend groups
+    geophysSurveys, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, // TASKS.csv #2878 — the survey points' ramps
     viewportBatchDone, setViewportBatchDone, // TASKS.csv #1644 — an atlas's maps centred on their holes
     requestViewportBatch, printSrcs, setPrintSrcs, // TASKS.csv #2303 — the export's 300 dpi print pass
   } = useStore();
@@ -1083,6 +1085,8 @@ export default function LayoutModule() {
       // TASKS.csv #1482 — the numeric logs the view colours its holes by (RQD, recovery, SG, mag susc), as the 3D legend shows them
       ...(() => { const sym = theme.numericSymbology || viewerUiState?.numericSymbology || {}, clips = numericClips(layers); return numericLayerLegendGroups({ layers: frameLayers, layerVisible, colorOf: numericLayerColorFn(sym, clips), symbology: sym, clips }); })(), // frameLayers: #2134 (the clips stay the whole project's, as the 3D view colours)
       // TASKS.csv #948 — the Surface Geology map: surface samples as the 3D view colours them, map layers, boundaries
+      // TASKS.csv #2878 — the point surveys the view draws, one ramp per survey, as the 3D legend shows them
+      ...geophysLegendGroups({ rows: layers?.geophys_pts, visible: layerVisible.geophys_pts !== false, surveys: geophysSurveys, stops: geophysPtsStops, colorMode: geophysPtsColorMode, min: geophysPtsMin, max: geophysPtsMax, label: tr("Geophysics points") }),
       ...(sampleGroup ? [sampleGroup] : []), ...(outcropLegendGroup({ surfaceStructures }) ? [outcropLegendGroup({ surfaceStructures })] : []) /* #1437 */, ...mapLayerLegendGroups(shownMapLayers), ...boundaryLegendGroups(boundaries),
     ];
     // #1633 — a long group keeps its most frequent entries and says how many it left out

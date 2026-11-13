@@ -41,7 +41,7 @@ export default function RasterColourControls({ raster: r, onUpdate, inputStyle }
       {/* TASKS.csv #1858 (review #1646) — what the values are: a chargeability slice read '1.00 - 8.00' with no mV/V */}
       <div style={row}>
         <span style={lbl}>{tr("Values are")}</span>
-        <input type="text" value={unitText ?? unit} placeholder={tr("the unit, e.g. nT, mV/V, ohm·m, ppm")} aria-label={tr("Unit of the values of \"{name}\"", { name: r.name })}
+        <input type="text" value={unitText ?? unit} placeholder={tr("the unit, e.g. nT, mGal, mV/V, ohm·m, ppm")} /* mGal: #2870 */ aria-label={tr("Unit of the values of \"{name}\"", { name: r.name })}
           onChange={(e) => setUnitText(e.target.value)} onBlur={() => { if (unitText != null && unitText.trim() !== unit) onUpdate(r.id, { unit: unitText.trim() }); setUnitText(null); }} onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
           style={{ ...inputStyle, minWidth: 0, flex: 1 }} />
       </div>

@@ -32,7 +32,7 @@ export default function IdentifyPanel({ result, onShow, onClose, onZoom, onStrip
                 </tbody>
               </table>
             )}
-            <div style={{ ...small, marginTop: 6 }}>{tr("At this point: {e} E, {n} N, elevation {z} m", { e: Math.round(it.world.e).toLocaleString(), n: Math.round(it.world.n).toLocaleString(), z: Math.round(it.world.z).toLocaleString() })}</div>
+            <div style={{ ...small, marginTop: 6 }}>{tr("At this point: {e} E, {n} N, elevation {z} m", { e: Math.round(it.world.e).toLocaleString(), n: Math.round(it.world.n).toLocaleString(), z: (Math.round(it.world.z) || 0).toLocaleString() /* #2871 — never '-0 m' */ })}</div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
               <button type="button" style={act} onClick={() => onZoom(it.point)}>{tr("Zoom here")}</button>
               {it.hole && <button type="button" style={act} onClick={() => onStripLog(it.hole)}>{tr("Strip log")}</button>}

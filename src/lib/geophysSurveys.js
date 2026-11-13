@@ -57,6 +57,8 @@ export const methodIsInvertible = (m) => m === "mag" || m === "grav";
 // matched whole, so "ip" never fires on "dip" and "k" never on "kelvin"; null when nothing fits (the select stays
 // "Method…"). The order matters: a specific product before its family.
 const WORD_RULES = [
+  // TASKS.csv #2867 — observed (absolute) gravity is no anomaly: 980,912-980,963 mGal was labelled 'Gravity (Bouguer)' from "gravity" in OBSERVED_GRAVITY
+  [/^(obs|observed|absolute|abs|adj|adjusted)(g|grav|gravity)$|^(gobs|adjg|absg|obsg)$/, null],
   // TASKS.csv #1586 (review #1497, Lawyers) — GEM walk-VLF writes ip_21p4 / op_21p4 (in-phase / quadrature at 21.4 kHz): matched
   // as one word before the IP-chargeability rule can see "ip"; GEM walk-mag writes rawmag / cormag (and this app's _dc channel)
   [/^(ip|inph|inphase)\d+p\d+$/, "vlf_inphase"], [/^(op|quad)\d+p\d+$/, "vlf_quad"],
