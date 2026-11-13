@@ -115,6 +115,7 @@
   "Inversion": "Inversão",
   "Lab certificates": "Certificados de lab.",
   "Legend": "Legenda",
+  "Computing the correlations: {done} of {total} pairs…": "Calculando as correlações: {done} de {total} pares…",
   "Drawing {n} samples…": "Desenhando {n} amostras…",
   "{label}: the {kept} commonest of {n} codes, the rest as \"other\"": "{label}: os {kept} códigos mais comuns de {n}, o restante como \"other\"",
   "{symbol} as {oxide}": "{symbol} como {oxide}",

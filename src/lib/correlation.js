@@ -77,7 +77,8 @@ export function correlate(xs, ys, method) {
 // rows stay the same) holds each element's prepared column and each pair, so ticking one more element computes its row only.
 // On Lawyers (83,670 rows, 13 elements) every cell re-sorted both columns: 13.4 s per tick.
 // cols: symbol -> array of numbers, null for missing.
-export function correlationMatrix(cols, symbols, method, cache = new Map()) {
+// onPair(done, total): after each cell of the upper triangle (TASKS.csv #3032 — the worker's progress)
+export function correlationMatrix(cols, symbols, method, cache = new Map(), onPair = null) {
   let scratch = null; // #2904 — the gapped Spearman's buffers, made on the first such pair
   const prep = (s) => {
     const key = `prep|${method}|${s}`;
@@ -133,11 +134,14 @@ export function correlationMatrix(cols, symbols, method, cache = new Map()) {
   };
   const m = {};
   symbols.forEach((a) => { m[a] = {}; });
+  const total = (symbols.length * (symbols.length + 1)) / 2;
+  let done = 0;
   symbols.forEach((a, i) => {
     for (let j = i; j < symbols.length; j++) {
       const b = symbols[j];
       const c = cell(a, b);
       m[a][b] = c; m[b][a] = c;
+      if (onPair) onPair(++done, total);
     }
   });
   return m;
