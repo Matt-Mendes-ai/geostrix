@@ -179,7 +179,7 @@ import { ViewToolbar, SurfaceRibbon, ContextItem, HoleRowList, OrphanHoles, Laye
 import { plannedTrace } from "../lib/plannedTrace.js"; // TASKS.csv #119 - shared, Node-verified target math; plannedTrace: #524; #3159: plannedTrace.js, not holePlanning.js (the targeting solvers)
 import { extractMapContacts, orientationAt, projectContactRibbon, thinLine, densifyLine } from "../lib/mapLayers.js"; // TASKS.csv #316-#318
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
-import { noticeText, noticeLevel, errorNotice, notice, appendNotice } from "../lib/notices.js"; // TASKS.csv #390
+import { noticeText, noticeLevel, errorNotice, infoNotice, notice, appendNotice } from "../lib/notices.js"; // TASKS.csv #390
 import { makeSurveyColorer } from "../lib/geophysSurveys.js"; // TASKS.csv #451
 import { searchEllipsoidBasis, searchEllipsoidDistSq, voxelCellShown, sampleTerrainElevation, terrainGroundAt } from "../lib/viewer/geomath.js"; // TASKS.csv #445
 import { assaySizeFor, assayPassesCutoff } from "../lib/viewer/assaySize.js"; // #1533 — moved out
@@ -3567,6 +3567,7 @@ ${describeTrend(t)}` };
       const layerNote = layered ? tr(" One surface per {v} ({v2}).", { v: solid.format === "DXF" ? "layer" : "object", v2: solid.parts.map((p) => p.layer).join(", ") }) : "";
       setNotices((p) => [...p, notice("Imported \"{name}\" as a solid: {vertexCount} vertices / {triangleCount} triangles ({format}, {note}).{layerNote} It appears under Generated surfaces with the same show/hide, remove and query controls.{bb} Coordinates are used AS-IS — a DXF/OBJ carries no CRS, so GeoStrix does not reproject it; if it lands away from your holes, the file is in a different CRS.", { name: file.name, vertexCount: solid.vertexCount.toLocaleString(), triangleCount: solid.triangleCount.toLocaleString(), format: solid.format, note: solid.note, layerNote, bb })]);
       fitBox(box);
+      import("../lib/solidCheckNote.js").then(({ solidCheckNote }) => { const t = solidCheckNote(solid.parts, (k) => (layered ? `${label} — ${solid.parts[k].layer}` : label)); if (t) setNotices((p) => [...p, infoNotice(t)]); }).catch(() => {}); // #2801 — on demand
     } catch (e) {
       clearProgress();
       setNotices((p) => [...p, errorNotice(tr("{name}: couldn't import as a solid ({v}).", { name: file.name, v: e.message || e }))]); // #739
@@ -5351,18 +5352,19 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
 
   // TASKS.csv #1025 (review #1016) — map layers, boundaries / claims, surface samples: Shapefile / GeoPackage / DXF
   // through the writers above, KML (WGS84) and CSV; the features come from lib/overlayExport.js (on demand)
-  const exportVectorKML = async (label, built, kmlOpts = {}) => {
+  const exportVectorKML = async (label, built, kmlOpts = {}, fmt = "kml") => { // fmt "geojson": #2759
     if (!built.features.length) { setNotices((p) => [...p, notice("Nothing to export for \"{label}\" — no rows with usable/desurveyed coordinates.", { label })]); return; }
     try {
       const tx = await import("../lib/tiedExport.js"), ex = await tx.exportCrs(project); if (!ex) return; const epsg = ex.epsg; // #1021; #2322 — a tied local grid: through its tie
       const ox = await import("../lib/overlayExport.js");
       const toLonLat = tx.lonLatThrough(ex.tie, await ox.lonLatTransform(epsg));
       if (!toLonLat) throw new Error(tr("EPSG:{epsg} cannot be converted to latitude / longitude.", { epsg }));
-      const res = await saveFile({ quiet: true, suggestedName: `${label.replace(/[^a-z0-9_-]+/gi, "_").toLowerCase()}.kml`, filters: [{ name: "KML", extensions: ["kml"] }], content: ox.featuresToKml(built, { name: label, toLonLat, ...kmlOpts }) });
+      const gj = fmt === "geojson", ext = gj ? "geojson" : "kml";
+      const res = await saveFile({ quiet: true, suggestedName: `${label.replace(/[^a-z0-9_-]+/gi, "_").toLowerCase()}.${ext}`, filters: [{ name: gj ? "GeoJSON" : "KML", extensions: [ext] }], content: gj ? ox.featuresToGeoJson(built, { name: label, toLonLat }) : ox.featuresToKml(built, { name: label, toLonLat, ...kmlOpts }) });
       if (!res?.ok) { if (res?.error) throw new Error(res.error); return; }
-      setNotices((p) => [...p, notice("Exported {features} feature(s) from \"{label}\" as KML (WGS84 latitude / longitude).", { features: built.features.length, label })]);
+      setNotices((p) => [...p, gj ? notice("Exported {features} feature(s) from \"{label}\" as GeoJSON (WGS84 longitude / latitude).", { features: built.features.length, label }) : notice("Exported {features} feature(s) from \"{label}\" as KML (WGS84 latitude / longitude).", { features: built.features.length, label })]);
     } catch (err) {
-      setNotices((p) => [...p, errorNotice(tr("KML export failed: {message}", { message: err.message }))]);
+      setNotices((p) => [...p, errorNotice(fmt === "geojson" ? tr("GeoJSON export failed: {message}", { message: err.message }) : tr("KML export failed: {message}", { message: err.message }))]);
     }
   };
   // the row-menu entries; build() -> Promise<{ features, geomType }>, csvRows() optional
@@ -5371,6 +5373,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     { label: tr("Export GeoPackage (.gpkg)…"), onClick: async () => exportVectorGeoPackage(null, null, label, await build()) },
     { label: tr("Export DXF (.dxf)…"), onClick: async () => exportVectorDXF(null, null, label, (await import("../lib/overlayExport.js")).explodeParts(await build())) },
     { label: tr("Export KML (Google Earth)…"), onClick: async () => exportVectorKML(label, await build(), typeof kml === "function" ? await kml() : kml) },
+    { label: tr("Export GeoJSON (WGS 84)…"), onClick: async () => exportVectorKML(label, await build(), {}, "geojson") }, // #2759
     csvRows && { label: tr("Export CSV…"), onClick: async () => { const rows = await csvRows(); if (rows.length) saveFile({ quiet: "success", suggestedName: `${label.replace(/[^a-z0-9_-]+/gi, "_").toLowerCase()}.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: await toExportCsv(rows), encoding: "text" }); } },
   ].filter(Boolean);
   const overlayLib = () => import("../lib/overlayExport.js");

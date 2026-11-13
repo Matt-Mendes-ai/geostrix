@@ -11804,5 +11804,20 @@
   " Read the shapefile \"{layer}\" from inside {zip}.": " Lido o shapefile “{layer}” de dentro de {zip}.",
   "Not read from it: {files}. Unzip it and import those on their own.": "Não lido dele: {files}. Descompacte-o e importe esses arquivos separadamente.",
   "Add a strip log image to each page (the logs that hole has: lithology, alteration, veins, RQD …)": "Adicionar uma imagem de perfil de furo a cada página (os perfis que esse furo tem: litologia, alteração, veios, RQD …)",
-  "{n} of the {pts} point(s) fell on the reference plane (nothing under the cursor): their elevation is the scene's reference level, not the ground, so Δelev and the 3D lengths there are not the ground's. Load a terrain to measure on it.": "{n} dos {pts} ponto(s) caíram no plano de referência (nada sob o cursor): sua elevação é o nível de referência da cena, não o terreno, então o Δelev e os comprimentos 3D ali não são os do terreno. Carregue um terreno para medir sobre ele."
+  "{n} of the {pts} point(s) fell on the reference plane (nothing under the cursor): their elevation is the scene's reference level, not the ground, so Δelev and the 3D lengths there are not the ground's. Load a terrain to measure on it.": "{n} dos {pts} ponto(s) caíram no plano de referência (nada sob o cursor): sua elevação é o nível de referência da cena, não o terreno, então o Δelev e os comprimentos 3D ali não são os do terreno. Carregue um terreno para medir sobre ele.",
+  "open: {n} edge(s) on the border (a surface, not a closed solid)": "aberto: {n} aresta(s) na borda (uma superfície, não um sólido fechado)",
+  "{n} edge(s) shared by more than two triangles": "{n} aresta(s) compartilhada(s) por mais de dois triângulos",
+  "{n} edge(s) whose triangles face opposite ways": "{n} aresta(s) cujos triângulos apontam em sentidos opostos",
+  "{n} pair(s) of triangles crossing each other": "{n} par(es) de triângulos que se cruzam",
+  "{n} vertex(es) where two parts touch at a point (bow-ties)": "{n} vértice(s) onde duas partes se tocam num ponto (gravatas-borboleta)",
+  "{n} vertex(es) repeated at the same place (weld them in the program that made the file)": "{n} vértice(s) repetido(s) no mesmo lugar (solde-os no programa que criou o arquivo)",
+  "{name}: {list}.": "{name}: {list}.",
+  "Checked as solids: {n} closed, without bow-ties, zero-area triangles or repeated vertices.": "Verificado como sólido: {n} fechado(s), sem gravatas-borboleta, triângulos sem área ou vértices repetidos.",
+  "Checked as solids: {lines} Volumes and the inside test can be off where a solid is open or broken.": "Verificado como sólido: {lines} Os volumes e o teste de interior podem falhar onde um sólido está aberto ou quebrado.",
+  "{n} part(s) are clean closed solids.": "{n} parte(s) são sólidos fechados sem defeitos.",
+  "Not checked (over {max} triangles): {names}.": "Não verificado (mais de {max} triângulos): {names}.",
+  "GeoJSON export failed: {message}": "A exportação GeoJSON falhou: {message}",
+  "Export GeoJSON (WGS 84)…": "Exportar GeoJSON (WGS 84)…",
+  "Exported {features} feature(s) from \"{label}\" as GeoJSON (WGS84 longitude / latitude).": "Exportada(s) {features} feição(ões) de “{label}” como GeoJSON (longitude / latitude WGS84).",
+  "Latitude, longitude (WGS 84) of the cursor": "Latitude, longitude (WGS 84) do cursor"
 }

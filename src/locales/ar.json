@@ -11804,5 +11804,20 @@
   " Read the shapefile \"{layer}\" from inside {zip}.": " قُرئ ملف الأشكال \"{layer}\" من داخل {zip}.",
   "Not read from it: {files}. Unzip it and import those on their own.": "لم يُقرأ منه: {files}. فك ضغطه واستورد تلك الملفات كلًا على حدة.",
   "Add a strip log image to each page (the logs that hole has: lithology, alteration, veins, RQD …)": "إضافة صورة سجل الثقب إلى كل صفحة (السجلات الموجودة لذلك الثقب: الصخارية، التحول، العروق، RQD …)",
-  "{n} of the {pts} point(s) fell on the reference plane (nothing under the cursor): their elevation is the scene's reference level, not the ground, so Δelev and the 3D lengths there are not the ground's. Load a terrain to measure on it.": "وقعت {n} من {pts} نقطة على المستوى المرجعي (لا شيء تحت المؤشر): ارتفاعها هو المستوى المرجعي للمشهد لا سطح الأرض، لذا فإن Δelev والأطوال ثلاثية الأبعاد هناك ليست للأرض. حمّل تضاريس للقياس عليها."
+  "{n} of the {pts} point(s) fell on the reference plane (nothing under the cursor): their elevation is the scene's reference level, not the ground, so Δelev and the 3D lengths there are not the ground's. Load a terrain to measure on it.": "وقعت {n} من {pts} نقطة على المستوى المرجعي (لا شيء تحت المؤشر): ارتفاعها هو المستوى المرجعي للمشهد لا سطح الأرض، لذا فإن Δelev والأطوال ثلاثية الأبعاد هناك ليست للأرض. حمّل تضاريس للقياس عليها.",
+  "open: {n} edge(s) on the border (a surface, not a closed solid)": "مفتوح: {n} حافة على الحدود (سطح، لا جسم مغلق)",
+  "{n} edge(s) shared by more than two triangles": "{n} حافة مشتركة بين أكثر من مثلثين",
+  "{n} edge(s) whose triangles face opposite ways": "{n} حافة تتجه مثلثاتها في اتجاهين متعاكسين",
+  "{n} pair(s) of triangles crossing each other": "{n} زوج من المثلثات المتقاطعة",
+  "{n} vertex(es) where two parts touch at a point (bow-ties)": "{n} رأس يتلامس فيه جزآن عند نقطة (ربطات فراشة)",
+  "{n} vertex(es) repeated at the same place (weld them in the program that made the file)": "{n} رأس مكرر في الموضع نفسه (ادمجها في البرنامج الذي أنشأ الملف)",
+  "{name}: {list}.": "{name}: {list}.",
+  "Checked as solids: {n} closed, without bow-ties, zero-area triangles or repeated vertices.": "فُحص كأجسام: {n} مغلق، بلا ربطات فراشة أو مثلثات معدومة المساحة أو رؤوس مكررة.",
+  "Checked as solids: {lines} Volumes and the inside test can be off where a solid is open or broken.": "فُحص كأجسام: {lines} قد تكون الأحجام واختبار الداخل غير دقيقة حيث يكون الجسم مفتوحًا أو تالفًا.",
+  "{n} part(s) are clean closed solids.": "{n} جزء أجسام مغلقة سليمة.",
+  "Not checked (over {max} triangles): {names}.": "لم يُفحص (أكثر من {max} مثلث): {names}.",
+  "GeoJSON export failed: {message}": "فشل تصدير GeoJSON: {message}",
+  "Export GeoJSON (WGS 84)…": "تصدير GeoJSON (WGS 84)…",
+  "Exported {features} feature(s) from \"{label}\" as GeoJSON (WGS84 longitude / latitude).": "صُدِّرت {features} معلم من \"{label}\" بصيغة GeoJSON (خطوط الطول / العرض WGS84).",
+  "Latitude, longitude (WGS 84) of the cursor": "خط العرض، خط الطول (WGS 84) للمؤشر"
 }
