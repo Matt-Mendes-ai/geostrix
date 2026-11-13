@@ -22,11 +22,21 @@ import { assayColorFor } from "./legendGroups.js";
 import { layerCategoryValue, STRUCTURE_CLASS_COLORS, STRUCTURE_CLASS_LABELS } from "./mapLayers.js";
 import { mapLayerFeatures, boundaryFeatures, surfaceStructureRows, kmlColor } from "./overlayExport.js";
 import { polygonsFromRings } from "./polygonRings.js";
+import { plannedTrace } from "./holePlanning.js"; // #3068 — planned holes as the 3D View draws them
+import { computeLine } from "./designLines.js"; // TASKS.csv #3087 — Mine Design's lines (start + segments -> vertices)
 import { splitRings } from "./ringSplit.js"; // TASKS.csv #3126 — a ring crossing itself as written, split into simple loops (Perk-Rocky's And unit)
 
 export const MAX_CLASSES = 16; // a numeric log with more colours than this is grouped into equal bins
 const BINS = 12;
 export const DOT_ICON = "files/dot.png", STRIKE_ICON = "files/strike.png";
+// TASKS.csv #3087 — the parts of a project the export dialog offers, in the KMZ's order (labels are English keys for tr())
+export const KMZ_PARTS = [
+  { key: "drillholes", label: "Drillholes: collars, traces, logs, assays and planned holes" },
+  { key: "surface", label: "Surface: samples, structures, map layers and boundaries" },
+  { key: "sections", label: "Sections" },
+  { key: "design", label: "Mine design: design lines and strings" },
+  { key: "rasters", label: "Rasters and grids" },
+];
 const esc = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const num = (v) => (typeof v === "number" ? v : v == null || v === "" ? NaN : Number(v));
 const fin = Number.isFinite;
@@ -154,6 +164,8 @@ export function buildProjectKml(ctx, opts) {
   };
 
   // ---------- drillholes ----------
+  // TASKS.csv #3087 — the parts the export dialog ticked (opts.include, a Set of KMZ_PARTS keys); all of them when not given
+  const inc = (k) => !opts.include || opts.include.has(k);
   const surveyBy = byHole(ctx.survey);
   const traces = new Map();
   for (const c of ctx.collars || []) {
@@ -245,6 +257,7 @@ export function buildProjectKml(ctx, opts) {
     writeLog(meta.label, rows, (r) => String(r.value ?? ""), { classOf: (v) => v, classes }, { visible: !!layerVisible[key], hiddenClasses: hiddenIn(key) });
   };
 
+  if (inc("drillholes")) {
   w.open("Drillholes", { open: true });
   if (traces.size) {
     counts.holes = traces.size;
@@ -310,19 +323,22 @@ export function buildProjectKml(ctx, opts) {
     const st = w.style({ color: "#d9480f", width: 2.5, label: 0.7 });
     w.open("Planned holes");
     for (const p of planned) {
-      const pts = desurveyHole({ hole_id: p.name, x: num(p.x), y: num(p.y), z: num(p.z), azimuth: num(p.azimuth), dip: num(p.dip), length: num(p.length) }, [], ctx.desurveyMethod);
+      // holePlanning.plannedTrace: a planned hole's dip is stored NEGATIVE downward (the user's convention, unlike a collar's), and its lift /
+      // drift curve it — the one trace builder the 3D View and the other exports use (passing the dip to desurveyHole drew it upward)
+      const pts = plannedTrace({ ...p, x: num(p.x), y: num(p.y), z: num(p.z), azimuth: num(p.azimuth), dip: num(p.dip), length: num(p.length) });
       if (pts.length >= 2) w.placemark(p.name || "planned", st, w.line3d(pts), { data: { azimuth: num(p.azimuth), dip: num(p.dip), length: num(p.length), notes: p.notes || "" } });
     }
     w.close();
   }
   w.close(); // Drillholes
+  }
 
   // ---------- surface ----------
   const samples = (ctx.surfaceSamples || []).filter((s) => fin(num(s.x)) && fin(num(s.y)));
   const sets = (ctx.surfaceStructures || []).filter((s) => (s.rows || []).length);
   const maps = (ctx.mapLayers || []).filter((l) => (l.features || []).length);
   const bounds = (ctx.boundaries || []).filter((b) => (b.polylines || []).some((p) => p?.length >= 2));
-  if (samples.length || sets.length || maps.length || bounds.length) {
+  if (inc("surface") && (samples.length || sets.length || maps.length || bounds.length)) {
     w.open("Surface", { open: true });
     if (samples.length) {
       counts.layers++;
@@ -420,7 +436,7 @@ export function buildProjectKml(ctx, opts) {
 
   // ---------- sections ----------
   const secs = (ctx.sections || []).filter((s) => [s.ax, s.ay, s.bx, s.by].every((v) => fin(num(v))));
-  if (secs.length) {
+  if (inc("sections") && secs.length) {
     w.open("Sections");
     const lineSt = w.style({ color: "#2b6cb0", width: 2.5, label: 0.7 });
     for (const s of secs) {
@@ -435,9 +451,40 @@ export function buildProjectKml(ctx, opts) {
     w.close();
   }
 
+  // ---------- mine design (TASKS.csv #3087) ----------
+  // design lines (drifts, ramps: a start and segments, computeLine) and design strings (free 3D polylines / polygons), at their elevations
+  const lines = (ctx.designLines || []).filter((l) => fin(num(l?.start?.x)) && fin(num(l?.start?.y)) && (l.segments || []).length);
+  const strings = (ctx.designStrings || []).filter((s) => (s.vertices || []).length >= 2);
+  if (inc("design") && (lines.length || strings.length)) {
+    w.open("Mine design");
+    if (lines.length) {
+      w.open("Design lines");
+      for (const l of lines) {
+        const c = computeLine(l);
+        if (c.vertices.length < 2) continue;
+        counts.layers++;
+        w.placemark(l.name || "Design line", w.style({ color: l.color || "#e67e22", width: 3 }), w.line3d(c.vertices.map(([x, y, z]) => ({ x, y, z }))), { visible: l.visible !== false, data: { length_m: Math.round(c.length * 10) / 10, steepest_grade_pct: Math.round(c.steepest * 10) / 10 } });
+      }
+      w.close();
+    }
+    if (strings.length) {
+      w.open("Design strings");
+      for (const s of strings) {
+        const v = s.vertices.filter((p) => fin(num(p[0])) && fin(num(p[1]))).map(([x, y, z]) => ({ x: num(x), y: num(y), z: fin(num(z)) ? num(z) : NaN }));
+        if (v.length < 2) continue;
+        counts.layers++;
+        const pts = s.closed ? [...v, v[0]] : v;
+        const sid = w.style({ color: s.color || "#2b6cb0", width: 2 });
+        w.placemark(s.name || "Design string", sid, pts.every((p) => fin(p.z)) ? w.line3d(pts) : w.lineGround(pts.map((p) => [p.x, p.y])), { visible: s.visible !== false });
+      }
+      w.close();
+    }
+    w.close();
+  }
+
   // ---------- rasters and grids ----------
   const rasters = (ctx.rasters || []).filter((r) => Array.isArray(r.bbox) && r.bbox.every((v) => fin(num(v))) && (r.dataUrl || r.grid));
-  if (rasters.length && opts.rasterImage) {
+  if (inc("rasters") && rasters.length && opts.rasterImage) {
     w.open("Rasters and grids");
     rasters.forEach((r, i) => {
       const img = opts.rasterImage(r);

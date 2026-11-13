@@ -67,7 +67,7 @@ export function legendCanvasPng(group) {
 }
 
 // store: the useStore() value. -> { ok, filePath?, counts?, cancelled? }
-export async function exportProjectKmz(store, { confirm = (m) => window.confirm(m) } = {}) {
+export async function exportProjectKmz(store, { confirm = (m) => window.confirm(m), include = null } = {}) { // include: TASKS.csv #3087 — the parts ticked
   const project = store.project || {};
   // where the coordinates are on Earth: a local grid through its tie, else the project CRS (asked for when never chosen)
   const tie = tieOf(project);
@@ -92,6 +92,7 @@ export async function exportProjectKmz(store, { confirm = (m) => window.confirm(
     collars: store.collars, survey: store.survey, desurveyMethod: store.desurveyMethod, layers: store.layers, customLayers: store.customLayers,
     assays: store.assays, assayElements: store.assayElements, surfaceSamples: store.surfaceSamples, surfaceStructures: store.surfaceStructures,
     mapLayers: store.mapLayers, boundaries: store.boundaries, plannedHoles: store.plannedHoles, sections: store.sections, rasters: store.rasters,
+    designLines: store.designLines, designStrings: store.designStrings, // #3087
     layerGroups: store.layerGroups, ui,
   };
   const est = estimateProjectKmz(ctx);
@@ -114,7 +115,7 @@ export async function exportProjectKmz(store, { confirm = (m) => window.confirm(
   };
   // the structures' USGS symbols (true strike from the project CRS; on a local grid, the grid bearing)
   const icons = (store.surfaceStructures || []).length ? await structureIconSet(store.surfaceStructures, { px: 64, epsg: tie ? null : ctx.epsg }) : { files: [], iconOf: () => null };
-  const out = buildProjectKml(ctx, { toLonLat, altOf, legendPng: legendCanvasPng, rasterImage, crsLabel, structureIconOf: (row, set) => icons.iconOf(row, set) });
+  const out = buildProjectKml(ctx, { toLonLat, altOf, legendPng: legendCanvasPng, rasterImage, crsLabel, structureIconOf: (row, set) => icons.iconOf(row, set), include });
   const kmz = await buildKmz([
     { name: "doc.kml", data: new TextEncoder().encode(out.kml), deflate: true },
     { name: DOT_ICON, data: dotPng() },
