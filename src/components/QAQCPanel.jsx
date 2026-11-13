@@ -150,6 +150,13 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
                 {dlSuggestion.basis === "lt" ? (limitLooksConverted(dlSuggestion.limit) ? tr("Use <{limit} (the '<' results, converted at import)", { limit: formatLimit(dlSuggestion.limit) }) : tr("Use the lab's <{limit}", { limit: formatLimit(dlSuggestion.limit) })) : dlSuggestion.basis === "floor" ? tr("Use {limit}: twice the {floor} floor that {pct} % of the results sit on (half the limit substituted before import)", { limit: formatLimit(dlSuggestion.limit), floor: formatLimit(dlSuggestion.floor), pct: Math.round(dlSuggestion.share * 100) }) : tr("Use the lowest value {limit}", { limit: formatLimit(dlSuggestion.limit) })}
               </button>
             )}
+            {(dlSuggestion.basis === "step" || dlSuggestion.basis === "low") && ( /* TASKS.csv #2913 */
+              <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4, maxWidth: 420, alignSelf: "flex-end" }}>
+                {dlSuggestion.basis === "step"
+                  ? tr("{symbol} is reported to {step} {unit}, with {n} results of 0 below it: that is the reporting step, and the file states no detection limit. None is suggested.", { symbol, step: formatLimit(dlSuggestion.step), unit: unitL, n: dlSuggestion.zeros.toLocaleString() })
+                  : tr("The lowest {symbol} result, {min} {unit}, is far above the {step} the values are reported to: a low sample, not a detection limit. None is suggested.", { symbol, min: formatLimit(dlSuggestion.min), unit: unitL, step: formatLimit(dlSuggestion.step) })}
+              </div>
+            )}
             {methodLimits.length > 1 && new Set(methodLimits.map((m) => m.limit)).size > 1 && ( /* TASKS.csv #2732 */
               <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", lineHeight: 1.4, maxWidth: 520 }}>
                 {tr("{symbol} was joined from {n} method columns whose detection limits differ: {list}. One limit for all of them judges some samples against another method's.", { symbol, n: methodLimits.length, list: methodLimits.map((m) => `${m.method ?? tr("main column")} (${m.n.toLocaleString()}): ${m.limit == null ? "—" : formatLimit(m.limit)}`).join("; ") })}

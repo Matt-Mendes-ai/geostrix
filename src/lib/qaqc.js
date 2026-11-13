@@ -328,13 +328,41 @@ export function duplicateKind(row) {
 // TASKS.csv #1520 (review #1497, Lawyers) — a censoring floor: half-detection-limit values already substituted in the source file sit
 // on one repeated minimum (Au 0.0005 ppm: 20 % of the soils, 17 % of the drill assays, Au-ICP21's limit 0.001 halved). When the
 // smallest positive value holds at least minShare of them it is that floor: { floor, n, share, dl: 2 x floor }, else null.
-export function censoringFloor(values, { minShare = 0.05 } = {}) {
-  let min = Infinity, nPos = 0;
-  for (const v of values || []) if (typeof v === "number" && v > 0) { nPos++; if (v < min) min = v; }
+// TASKS.csv #2913 (review #2876, WA iron) — not when the column also holds zeros below that minimum: then the minimum is the step the
+// results are reported to (0.01 % XRF: 0, 0.01, 0.02 ...), not half a limit. zeros: results stored as 0 or flagged nd, beyond `values`.
+export function censoringFloor(values, { minShare = 0.05, zeros = 0 } = {}) {
+  let min = Infinity, nPos = 0, z = zeros;
+  for (const v of values || []) if (typeof v === "number") { if (v > 0) { nPos++; if (v < min) min = v; } else if (v === 0) z++; }
   if (!nPos || !Number.isFinite(min)) return null;
+  if (zerosBelowStep(z, nPos)) return null; // #2913
   let n = 0;
   for (const v of values) if (typeof v === "number" && Math.abs(v - min) <= min * 1e-9) n++;
   return n >= 20 && n / nPos >= minShare ? { floor: min, n, share: n / nPos, dl: Math.round(min * 2 * 1e9) / 1e9 } : null;
+}
+// #2913 — enough zeros that the lowest positive value reads as the reporting step: at least 20, and 5 % of the results
+const zerosBelowStep = (zeros, nPos) => zeros >= 20 && zeros / (zeros + nPos) >= 0.05;
+// The step the results are reported to, when zeros sit below it: { step (the smallest positive value), zeros } or null
+export function reportedStep(values, { zeros = 0 } = {}) {
+  let min = Infinity, nPos = 0, z = zeros;
+  for (const v of values || []) if (typeof v === "number") { if (v > 0) { nPos++; if (v < min) min = v; } else if (v === 0) z++; }
+  return nPos && zerosBelowStep(z, nPos) ? { step: Number(min.toPrecision(6)), zeros: z } : null;
+}
+// The resolution of a column: the smallest gap between its distinct positive values (at least 20 of them), or null
+export function reportingResolution(values) {
+  const set = new Set();
+  for (const v of values || []) if (typeof v === "number" && v > 0) set.add(Number(v.toPrecision(9)));
+  if (set.size < 20) return null;
+  const d = [...set].sort((a, b) => a - b);
+  let gap = Infinity;
+  for (let i = 1; i < d.length; i++) { const g = d[i] - d[i - 1]; if (g > 0 && g < gap) gap = g; }
+  return Number.isFinite(gap) ? Number(gap.toPrecision(3)) : null;
+}
+// rows reporting `symbol` as 0: a 0 value, or the nd flag the import sets on a zero result (its value stored as null).
+// flaggedOnly: the nd rows alone, for a caller whose value list already holds the 0 values
+export function zeroResults(rows, symbol, { flaggedOnly = false } = {}) {
+  let n = 0;
+  for (const a of rows || []) if ((!flaggedOnly && a?.values?.[symbol] === 0) || (a?.values?.[symbol] == null && a?.nd?.includes?.(symbol))) n++;
+  return n;
 }
 // TASKS.csv #2732 (split from #2354) — an element joined from several lab method columns (#2328: U from U_102, else U_100, U_101 …) has
 // one detection limit per method, and one limit for all judged some samples against another method's. The samples grouped by the
@@ -353,18 +381,24 @@ export function methodDetectionLimits(assays, symbol) {
   return [...groups].map(([method, rows]) => { const s = suggestDetectionLimit(rows, symbol); return { method, n: rows.length, limit: s.limit ?? null, basis: s.basis ?? null }; }).sort((a, b) => b.n - a.n);
 }
 export function suggestDetectionLimit(assays, symbol) {
-  const counts = new Map();
+  const counts = new Map(), plain = [];
   let minPos = Infinity;
   for (const a of assays || []) {
     const v = a?.values?.[symbol];
     if (typeof v !== "number" || !(v > 0)) continue;
     if (a.qualifiers?.[symbol] === "<") { const dl = Math.round(v * 2 * 1e9) / 1e9; counts.set(dl, (counts.get(dl) || 0) + 1); }
-    else if (v < minPos) minPos = v;
+    else { plain.push(v); if (v < minPos) minPos = v; }
   }
   if (counts.size) { let best = null, n = -1; counts.forEach((c, x) => { if (c > n || (c === n && x < best)) { best = x; n = c; } }); return { limit: best, basis: "lt", n }; }
+  // TASKS.csv #2913 — zeros below the lowest value: it is the reporting step, and the file says nothing of a limit
+  const zeros = zeroResults(assays, symbol), st = reportedStep(plain, { zeros });
+  if (st) return { limit: null, basis: "step", step: st.step, zeros: st.zeros };
   // #1520 — no '<' results, but a floor holding a share of the values: half the limit was substituted before import
   const fl = censoringFloor((assays || []).map((a) => a?.values?.[symbol]));
   if (fl) return { limit: fl.dl, basis: "floor", floor: fl.floor, n: fl.n, share: fl.share };
+  // #2913 — a lowest value many reporting steps above zero (Fe 0.97 % reported to 0.01) is a poor sample, not a limit
+  const res = reportingResolution(plain);
+  if (res && minPos > 20 * res) return { limit: null, basis: "low", min: Number(minPos.toPrecision(6)), step: res };
   // TASKS.csv #2354 — six significant figures: a pXRF-converted 0.016349000000000002 was offered as it was stored
   return Number.isFinite(minPos) ? { limit: Number(minPos.toPrecision(6)), basis: "min" } : { limit: null, basis: null };
 }

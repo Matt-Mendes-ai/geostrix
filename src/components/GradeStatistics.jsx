@@ -37,6 +37,7 @@ import { labelMargin, fitLabel } from "../lib/fitLabel.js"; // TASKS.csv #2714
 import { numericSourceChoices } from "../lib/numericSources.js"; // TASKS.csv #2672
 import { logClasses, logClassRank, NO_READING } from "../lib/logClasses.js"; // TASKS.csv #2672
 import { overlapMeans, aboveCutoffRows, parseCutoffs, defaultCutoffs } from "../lib/cutoffTable.js"; // TASKS.csv #2912
+import { censoringFloor, zeroResults } from "../lib/qaqc.js"; // TASKS.csv #2913 — Thresholds' censoring rule
 
 // Sample statistics (n-1 denominator for variance/stdev, the standard convention for a sample rather
 // than a full population — grade data is always a sample of the deposit, never the whole thing).
@@ -173,6 +174,10 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
   // TASKS.csv #267 — weighting only applies to drillhole assays (surface samples have no interval
   // length), and only when every row in the group actually has a usable length.
   const weightingActive = source === "assays" && lengthWeighted && rows.length > 0 && rows.every((r) => r.weight > 0);
+  // TASKS.csv #2913 (review #2876) — one '<DL' count across tools: a value on the #1520 censoring floor (half the limit substituted in the
+  // file) is below detection here too, as in Thresholds; zeros below the minimum make it the reporting step instead, in both
+  const ltFloor = useMemo(() => censoringFloor(rows.filter((r) => !r.lt).map((r) => r.value), { zeros: zeroResults(source === "surface" ? surfaceSamples : statsAssays, symbol, { flaggedOnly: true }) }), [rows, source, surfaceSamples, statsAssays, symbol]);
+  const isLt = (r) => r.lt || (ltFloor != null && Math.abs(r.value - ltFloor.floor) <= ltFloor.floor * 1e-9);
   // TASKS.csv #2508 (review #2486) — 'Hole + lithology' on 2,248 holes: 5,938 groups, a table row and a box plot each, froze the window 1.6-3.8 s.
   // The table, the box plots and the probability plot show the first SHOWN_MAX groups (the largest, or the first holes by id); the CSV has all
   const groups = useMemo(() => {
@@ -183,10 +188,10 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
       byDomain.get(key).push(r);
     });
     return Array.from(byDomain.entries())
-      .map(([key, rs]) => ({ key, stats: computeStats(rs.map((r) => r.value), weightingActive ? rs.map((r) => r.weight) : null), ltN: rs.reduce((k, r) => k + (r.lt ? 1 : 0), 0) })) // ltN: #2505
+      .map(([key, rs]) => ({ key, stats: computeStats(rs.map((r) => r.value), weightingActive ? rs.map((r) => r.weight) : null), ltN: rs.reduce((k, r) => k + (isLt(r) ? 1 : 0), 0) })) // ltN: #2505; isLt: #2913
       .filter((g) => g.stats)
       .sort(byHole ? (a, b) => String(a.key).localeCompare(String(b.key), undefined, { numeric: true }) : covLog ? (a, b) => logClassRank(a.key) - logClassRank(b.key) /* #2672 — low to high */ : (a, b) => b.stats.n - a.stats.n); // #2029 — holes in id order
-  }, [rows, weightingActive, byHole, covLog]); // covLog: #2672
+  }, [rows, weightingActive, byHole, covLog, ltFloor]); // covLog: #2672; ltFloor: #2913
 
   const shownGroups = useMemo(() => groups.slice(0, SHOWN_MAX), [groups]); // #2508
   const allValues = useMemo(() => rows.map((r) => r.value), [rows]); // #2912 — memoized: a new array each render re-ran overallStats every render
