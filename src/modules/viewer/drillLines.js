@@ -6,7 +6,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { median } from "../../lib/arrayStats.js";
 import { t as tr } from "../../lib/i18n.js";
 
-// collars [{ x, y }] -> { azimuth (0-180), spacing (m between fences), alongM (extent along them), centre: { x, y } } or null
+// collars [{ x, y }] -> { azimuth (0-180), spacing (m between fences), alongM (extent along them), centre: { x, y }, lines, lengthM } or null
+// TASKS.csv #3276 (Galore review) — 70 holes drilled all round the compass read 'drill lines 35°, 571 m apart', and By coordinates opened a
+// 17.5 km section (the whole 29 km property) with 2 holes in it. lines: at least 45 % of the neighbour bearings agree within 15° (random
+// layouts of 20-80 holes: median 24 %, 95th percentile 36 %; fences 56-100 %); lengthM: the run of collars around the centre along the
+// azimuth, cut where the gap to the next is far wider than the holes' own spacing.
 export function drillLineGeometry(collars) {
   const pts = (collars || []).filter((c) => Number.isFinite(c?.x) && Number.isFinite(c?.y));
   if (pts.length < 6) return null;
@@ -59,7 +63,23 @@ export function drillLineGeometry(collars) {
   const gaps = steps.filter((s) => s > cut);
   const spacing = gaps.length ? median(gaps) : null;
   const alongM = Math.max(...along) - Math.min(...along);
-  return { azimuth, spacing: spacing ? Math.round(spacing) : null, alongM, centre };
+  const share = near.length / bearings.length, lines = share >= 0.45, nn = median(nnDist);
+  return { azimuth, spacing: lines && spacing ? Math.round(spacing) : null, alongM, centre, lines, share, lengthM: centreRun(pts, centre, ux, uy, nn) };
+}
+
+// the reach along (ux, uy) of the collars near the line through the centre, as one run from the collar nearest the centre: a gap over
+// five times the collars' usual spacing (at least 250 m) ends it; a band of 2.5 spacings (at least 100 m) either side of the line
+function centreRun(pts, centre, ux, uy, nn) {
+  const band = Math.max(2.5 * nn, 100), gap = Math.max(5 * nn, 250);
+  let along = [];
+  for (const p of pts) { const dx = p.x - centre.x, dy = p.y - centre.y; if (Math.abs(dx * uy - dy * ux) <= band) along.push(dx * ux + dy * uy); }
+  if (along.length < 3) along = pts.map((p) => (p.x - centre.x) * ux + (p.y - centre.y) * uy);
+  along.sort((a, b) => a - b);
+  let k = 0; for (let i = 1; i < along.length; i++) if (Math.abs(along[i]) < Math.abs(along[k])) k = i;
+  let lo = k, hi = k;
+  while (lo > 0 && along[lo] - along[lo - 1] <= gap) lo--;
+  while (hi < along.length - 1 && along[hi + 1] - along[hi] <= gap) hi++;
+  return along[hi] - along[lo];
 }
 
 const roundTo = (v, step) => Math.max(step, Math.round(v / step) * step);
@@ -75,13 +95,13 @@ export function useDrillLineDefaults(collars) {
     if (!geo) return;
     if (!touched.current.az) setAz(geo.azimuth);
     if (!touched.current.w && geo.spacing) setW(roundTo(geo.spacing, 10));
-    if (!touched.current.typed) setTyped((s) => ({ ...s, azimuth: geo.azimuth, length: roundTo(geo.alongM * 1.1, 100) }));
+    if (!touched.current.typed) setTyped((s) => ({ ...s, azimuth: geo.azimuth, length: roundTo(Math.max(geo.lengthM * 1.1, 200), 100) })); // #3276
   }, [geo]);
   return {
     sliceSeriesAzimuth, setSliceSeriesAzimuth: (v) => { touched.current.az = true; setAz(v); },
     sliceSeriesWidth, setSliceSeriesWidth: (v) => { touched.current.w = true; setW(v); },
     typedSection, setTypedSection: (v) => { touched.current.typed = true; setTyped(v); },
     lineCentre: geo?.centre || null,
-    lineNote: geo ? (geo.spacing ? tr("Azimuth and width from the drill lines ({az}°, {s} m apart).", { az: geo.azimuth, s: geo.spacing }) : tr("Azimuth from the drill lines ({az}°).", { az: geo.azimuth })) : "",
+    lineNote: geo && !geo.lines ? tr("No drill lines found: the holes are not in lines. Azimuth from the commonest bearing between neighbouring collars ({az}°).", { az: geo.azimuth }) /* #3276 */ : geo ? (geo.spacing ? tr("Azimuth and width from the drill lines ({az}°, {s} m apart).", { az: geo.azimuth, s: geo.spacing }) : tr("Azimuth from the drill lines ({az}°).", { az: geo.azimuth })) : "",
   };
 }

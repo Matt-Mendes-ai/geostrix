@@ -11917,5 +11917,6 @@
   " · {n} holes in the slab": " · {n} sondajes en la franja",
   " · no hole in the slab: move it or turn it": " · ningún sondaje en la franja: muévala o gírela",
   "Fit to window": "Ajustar a la ventana",
-  "Scale the section to fit the window, both ways, at its VE (off: full width, scroll for detail)": "Escalar la sección para que quepa en la ventana, en ambos sentidos, con su exageración vertical (desactivado: ancho completo, desplace para ver detalles)"
+  "Scale the section to fit the window, both ways, at its VE (off: full width, scroll for detail)": "Escalar la sección para que quepa en la ventana, en ambos sentidos, con su exageración vertical (desactivado: ancho completo, desplace para ver detalles)",
+  "No drill lines found: the holes are not in lines. Azimuth from the commonest bearing between neighbouring collars ({az}°).": "No se encontraron líneas de perforación: los sondajes no están en líneas. Azimut según el rumbo más común entre collares vecinos ({az}°)."
 }

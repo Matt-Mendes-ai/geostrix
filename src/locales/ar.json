@@ -11917,5 +11917,6 @@
   " · {n} holes in the slab": " · {n} ثقوب في الشريحة",
   " · no hole in the slab: move it or turn it": " · لا ثقب في الشريحة: حرّكها أو أدرها",
   "Fit to window": "ملاءمة النافذة",
-  "Scale the section to fit the window, both ways, at its VE (off: full width, scroll for detail)": "تحجيم المقطع ليلائم النافذة في الاتجاهين بمبالغته الرأسية (عند الإيقاف: العرض الكامل، مع التمرير للتفاصيل)"
+  "Scale the section to fit the window, both ways, at its VE (off: full width, scroll for detail)": "تحجيم المقطع ليلائم النافذة في الاتجاهين بمبالغته الرأسية (عند الإيقاف: العرض الكامل، مع التمرير للتفاصيل)",
+  "No drill lines found: the holes are not in lines. Azimuth from the commonest bearing between neighbouring collars ({az}°).": "لم يُعثر على خطوط حفر: الثقوب ليست على خطوط. السمت من الاتجاه الأكثر شيوعًا بين الفوهات المتجاورة ({az}°)."
 }

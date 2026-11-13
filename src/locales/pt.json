@@ -11917,5 +11917,6 @@
   " · {n} holes in the slab": " · {n} furos na faixa",
   " · no hole in the slab: move it or turn it": " · nenhum furo na faixa: mova-a ou gire-a",
   "Fit to window": "Ajustar à janela",
-  "Scale the section to fit the window, both ways, at its VE (off: full width, scroll for detail)": "Escalar a seção para caber na janela, nos dois sentidos, com seu exagero vertical (desligado: largura total, role para ver detalhes)"
+  "Scale the section to fit the window, both ways, at its VE (off: full width, scroll for detail)": "Escalar a seção para caber na janela, nos dois sentidos, com seu exagero vertical (desligado: largura total, role para ver detalhes)",
+  "No drill lines found: the holes are not in lines. Azimuth from the commonest bearing between neighbouring collars ({az}°).": "Nenhuma linha de sondagem encontrada: os furos não estão em linhas. Azimute pelo rumo mais comum entre colares vizinhos ({az}°)."
 }
