@@ -23,6 +23,14 @@ import time
 import traceback
 import uuid
 
+# TASKS.csv #3124 (Matt's decision 2026-11-12, "keep warm a few minutes"; measured in #2955: a 1,701-station equivalent-source grid spent 19-24 s
+# importing Harmonica / Verde and 3-4 s fitting) — the gridding jobs (kind "pfields": equivalent sources, Euler, spline, gravity reductions)
+# keep their process after the job: it waits up to WARM_IDLE_S for the next gridding job, then exits and hands its memory back. Inversions and
+# the other kinds keep #321's one process per job, and starting one retires an idle warm worker first.
+WARM_KINDS = {"pfields"}
+WARM_IDLE_S = float(os.environ.get("GEOSTRIX_WARM_IDLE_S", "180"))
+WARM_MARGIN_S = min(15.0, WARM_IDLE_S / 3)  # the parent reuses a warm worker only while it is clearly still waiting
+
 
 def total_ram_bytes():
     try:
@@ -78,7 +86,7 @@ def _watch_parent():
             os._exit(0)
 
 
-def _child(kind, req, q, cap):
+def _child(kind, req, q, cap, inbox=None, idle_s=0.0):
     threading.Thread(target=_watch_parent, daemon=True).start()
     # Leave headroom for the UI and the renderer: numba defaults to every LOGICAL core (8 on a 4-core
     # hyper-threaded laptop), which starves them. Physical cores minus one (approximated as logical/2 - 1,
@@ -87,6 +95,22 @@ def _child(kind, req, q, cap):
     n = max(2, logical // 2 - 1) if logical >= 4 else 1
     os.environ.setdefault("NUMBA_NUM_THREADS", str(n))
     os.environ.setdefault("OMP_NUM_THREADS", str(n))
+    warm = False
+    while True:
+        _run_once(kind, req, q, cap, warm)
+        if inbox is None:
+            return
+        # #3124 — a warm worker: the next gridding job, or exit after WARM_IDLE_S idle (None: retire now)
+        try:
+            req = inbox.get(timeout=idle_s)
+        except queue.Empty:
+            return
+        if req is None:
+            return
+        warm = True
+
+
+def _run_once(kind, req, q, cap, warm=False):
     try:
         if kind == "potential":
             from app.geophys.potential import run_job
@@ -100,6 +124,8 @@ def _child(kind, req, q, cap):
         elif kind == "pfields":  # TASKS.csv #1985 — Harmonica: Euler deconvolution, equivalent sources
             from app.geophys.pfields import run_job as run_pfields
             out = run_pfields(req, lambda ev: q.put(("progress", ev)))
+            if isinstance(out, dict):
+                out = {**out, "warmEngine": warm}  # #3124 — the engine was still loaded from a recent run
         elif kind == "em1d":  # TASKS.csv #1986 — 1D inversion of loop-loop FDEM soundings
             from app.geophys.em1d import run_job as run_em1d
             out = run_em1d(req, lambda ev: q.put(("progress", ev)))
@@ -124,6 +150,7 @@ class JobManager:
     def __init__(self):
         self._lock = threading.Lock()
         self._job = None
+        self._warm = None  # #3124 — { kind, proc, queue, inbox, idleSince } of a gridding worker waiting for its next job
 
     def busy(self):
         j = self._job
@@ -138,16 +165,41 @@ class JobManager:
         with self._lock:
             if self.busy():
                 return None
-            ctx = mp.get_context("spawn")
-            q = ctx.Queue()
-            cap = sensitivity_cap_bytes()
-            proc = ctx.Process(target=_child, args=(kind, req, q, cap), daemon=True)
+            w = self._warm
+            if w and w["kind"] == kind and w["proc"].is_alive() and w["idleSince"] is not None and time.time() - w["idleSince"] < WARM_IDLE_S - WARM_MARGIN_S:
+                proc, q = w["proc"], w["queue"]  # #3124 — the engine is still loaded: hand it the job
+                w["idleSince"] = None
+                w["inbox"].put(req)
+            else:
+                self._retire_warm()  # an inversion, another kind, or an expired worker: its memory back first
+                ctx = mp.get_context("spawn")
+                q = ctx.Queue()
+                cap = sensitivity_cap_bytes()
+                inbox = ctx.Queue() if kind in WARM_KINDS else None
+                proc = ctx.Process(target=_child, args=(kind, req, q, cap, inbox, WARM_IDLE_S), daemon=True)
+                proc.start()
+                if inbox is not None:
+                    self._warm = {"kind": kind, "proc": proc, "queue": q, "inbox": inbox, "idleSince": None}
             job = {"id": uuid.uuid4().hex[:12], "kind": kind, "state": "running", "startedAt": time.time(),
                    "progress": {"stage": "starting"}, "history": [], "result": None, "error": None, "proc": proc, "queue": q}
             self._job = job
-            proc.start()
             threading.Thread(target=self._drain, args=(job,), daemon=True).start()
             return job["id"]
+
+    def _retire_warm(self):
+        w, self._warm = self._warm, None
+        if not w:
+            return
+        p = w["proc"]
+        if p.is_alive():
+            try:
+                w["inbox"].put(None)
+                p.join(2)
+            except Exception:
+                pass
+            if p.is_alive():
+                p.terminate()
+                p.join(5)
 
     def _drain(self, job):
         q, proc = job["queue"], job["proc"]
@@ -169,6 +221,9 @@ class JobManager:
                 continue
             self._apply(job, msg)
             if job["state"] != "running":
+                w = self._warm
+                if w and w["proc"] is proc and job["state"] in ("done", "failed"):
+                    w["idleSince"] = time.time()  # #3124 — waiting for the next gridding job
                 return
 
     def _apply(self, job, msg):
@@ -205,6 +260,8 @@ class JobManager:
         if j["state"] == "running":
             j["state"] = "cancelled"
             p = j["proc"]
+            if self._warm and self._warm["proc"] is p:
+                self._warm = None  # #3124 — a cancelled warm worker is not reused
             p.terminate()
             p.join(5)
             if p.is_alive():

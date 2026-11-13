@@ -23,6 +23,7 @@ Two operations, run as a sidecar job in its own process (jobs.py), so their impo
 Grids come in and go out as base64 float32, row 0 NORTH, NaN = no data (the app's raster.grid layout).
 """
 import base64
+import sys
 import time
 import warnings
 import numpy as np
@@ -86,8 +87,10 @@ def _vertical_derivative(g):
 # on a busy machine for 1,701 stations, the fit itself 3-4 s. The load is said as such before it starts, and timed; the stages after it carry
 # their own times in the result (timings), which the pane prints.
 def _engine(progress, label="the gridding engine (Harmonica, Verde)"):
+    if "harmonica" in sys.modules and "verde" in sys.modules:
+        return 0.0  # #3124 — a warm worker: still loaded from a run in the last few minutes
     t0 = time.perf_counter()
-    progress({"stage": "loading", "message": f"Loading {label}: each run starts it afresh, the longest step of a small survey…"})
+    progress({"stage": "loading", "message": f"Loading {label}, the longest step of a small survey; it stays loaded for about 3 minutes after a run…"})
     import harmonica  # noqa: F401
     import verde  # noqa: F401
     return time.perf_counter() - t0
@@ -102,7 +105,7 @@ def euler(req, progress):
     obs = float(req.get("observation_elevation") or 0.0)
     max_unc = float(req.get("max_depth_uncertainty", 0.15))
     max_depth_windows = float(req.get("max_depth_windows", 2.0))
-    progress({"stage": "derivatives", "message": f"Derivatives (Harmonica; engine loaded in {load_s:.0f} s)…"})
+    progress({"stage": "derivatives", "message": f"Derivatives (Harmonica; {'engine already loaded' if load_s == 0 else f'engine loaded in {load_s:.0f} s'})…"})
     g, bad = _filled(da)
     ny, nx = g.shape
     dz = _vertical_derivative(g)
@@ -172,7 +175,7 @@ def eqs(req, progress):
     mean = float(np.mean(v))
     damping = req.get("damping")
     depth = req.get("depth")
-    progress({"stage": "fitting", "message": f"Fitting equivalent sources to {x.size:,} readings (engine loaded in {load_s:.0f} s)…"})
+    progress({"stage": "fitting", "message": f"Fitting equivalent sources to {x.size:,} readings ({'engine already loaded' if load_s == 0 else f'engine loaded in {load_s:.0f} s'})…"})
     t_fit = time.perf_counter()
     depth_m = float(depth) if depth not in (None, "") else 1.2 * spacing
     kw = dict(damping=float(damping) if damping not in (None, "") else None, block_size=spacing, depth=depth_m)
