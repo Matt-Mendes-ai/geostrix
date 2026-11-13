@@ -3,7 +3,7 @@
 // mV/V on a linear ramp while 95 % of the cells sat at or below 7.3: the model was purple and the IP high a teal smudge. Values beyond
 // the clip take the end colours, and the legend says so ('≤ 0.9', '≥ 9.4'). model.stretch === "minmax" (the Range boxes typed, or
 // chosen in the colour editor) keeps model.min / max as before. Cached per cells array: computed once per model.
-import { maskAirCells } from "./voxel.js";
+import { maskAirCells } from "./voxelAir.js"; // TASKS.csv #3159: not voxel.js, which put the UBC / block-model parsers in startup
 
 const cache = new WeakMap();
 export const STRETCH_LO = 0.02, STRETCH_HI = 0.98;

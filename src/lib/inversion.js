@@ -1,31 +1,15 @@
 // TASKS.csv #321 — renderer-side helpers for SimPEG potential-field modelling. Pure (no React, no
 // three.js), Node-verified. The physics runs in the sidecar (python-sidecar/app/geophys/potential.py);
 // this file prepares honest inputs for it and turns its output into a GeoStrix voxel model.
-import { reprojectXY, isMetricProjectedEpsg } from "./reproject.js";
+import { isMetricProjectedEpsg } from "./reproject.js";
 import { robustAnomalyMax } from "./surveyClean.js"; // TASKS.csv #1583
 import { hexToRgb, rgbToHex, rgbToLab, labToRgb } from "./colorRamp.js";
-import { bytesToB64, b64ToBytes } from "./base64.js"; // TASKS.csv #1114
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 import { terrainNodeIsFill, terrainGroundAt } from "./viewer/geomath.js"; // TASKS.csv #927; terrainGroundAt: #1114
 
 // ---------- grid convergence ----------
-// SimPEG's x/y axes are the project grid's easting/northing, so the inducing field's declination has to
-// be measured from GRID north, not true north (GIS review, #321). In UTM the two differ by the grid
-// convergence — about 1-2.5 degrees across BC's zone 9. Computed numerically from the project's own
-// projection: step 1 km due true-north from the survey centre and measure the bearing of that step in grid
-// coordinates. That bearing is where true north points, clockwise from grid north; a declination (clockwise
-// from true north) is therefore that much larger measured from grid north.
-export function trueNorthBearingInGridDeg(x, y, epsg) {
-  const ll = reprojectXY(x, y, epsg, 4326);
-  if (!ll) return null;
-  const n = reprojectXY(ll.x, ll.y + 0.009, 4326, epsg); // ~1 km north
-  if (!n) return null;
-  return (Math.atan2(n.x - x, n.y - y) * 180) / Math.PI;
-}
-export function gridDeclination(trueDeclinationDeg, x, y, epsg) {
-  const b = trueNorthBearingInGridDeg(x, y, epsg);
-  return b == null ? null : { grid: trueDeclinationDeg + b, convergence: b };
-}
+// trueNorthBearingInGridDeg / gridDeclination: in gridConvergence.js since TASKS.csv #3159, re-exported here.
+export { trueNorthBearingInGridDeg, gridDeclination } from "./gridConvergence.js";
 
 // ---------- terrain ----------
 // Bilinear terrain elevation, same convention as ViewerModule's sampleTerrainElevation (row 0 = north
@@ -230,10 +214,9 @@ export function resultToVoxelModel(result, meta) {
   return { name: `${property} — ${style} inversion of ${meta.surveyName}`, cells, source: "simpeg", property, method: result.method, style };
 }
 
-// Base64 <-> Float32Array for compact project-file storage of model values (database review, #321):
-// ~4 bytes per cell instead of a ~70-byte JSON object per cell.
-export const f32ToB64 = (arr) => bytesToB64(new Uint8Array(new Float32Array(arr).buffer));
-export const b64ToF32 = (b64) => new Float32Array(b64ToBytes(b64).buffer); // base64.js: #1114
+// Base64 <-> Float32Array for compact project-file storage of model values (database review, #321): f32ToB64 / b64ToF32,
+// in base64.js since TASKS.csv #3159 (the startup code needs them), re-exported here.
+export { f32ToB64, b64ToF32 } from "./base64.js";
 
 // ---------- colour ramps for recovered models (visual-design review, #321) ----------
 // Interpolated in CIE Lab, 17 stops, because the voxel renderer lerps between stops in sRGB: dense stops

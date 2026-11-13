@@ -13,3 +13,10 @@ export function b64ToBytes(b64) {
   for (let i = 0; i < s.length; i++) bytes[i] = s.charCodeAt(i);
   return bytes;
 }
+
+// Base64 <-> Float32Array for compact project-file storage of model values (database review, #321):
+// ~4 bytes per cell instead of a ~70-byte JSON object per cell.
+// TASKS.csv #3159 — moved verbatim from inversion.js (which re-exports them): the store's project fields need them at startup,
+// and importing them from inversion.js put the inversion helpers in the startup bundle.
+export const f32ToB64 = (arr) => bytesToB64(new Uint8Array(new Float32Array(arr).buffer));
+export const b64ToF32 = (b64) => new Float32Array(b64ToBytes(b64).buffer);

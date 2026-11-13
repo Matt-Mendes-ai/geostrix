@@ -1,5 +1,6 @@
 import { getCol } from "./layers.js";
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
+import { NODATA_MAX, COARSEN_NODATA_SENTINEL } from "./voxelAir.js"; // TASKS.csv #3159
 
 // TASKS.csv #27/#28 — voxel / block model import + shared rendering data prep.
 //
@@ -39,10 +40,7 @@ import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the inter
 // visual inspection of overall structure — re-import a coarser mesh from the source tool for full
 // original detail.
 export const MAX_CELLS = 100000; // guards the 3D view from an accidental multi-million-cell import hanging the renderer
-// UBC-GIF codes use various no-data sentinels (-99999, -1e30…). TASKS.csv #480: this was -1e10, which let the most
-// common one, -99999, through as real data; no physical property GeoStrix models reaches -99999.
-const NODATA_MAX = -99999;
-const COARSEN_NODATA_SENTINEL = -1e30; // below NODATA_MAX, so a coarse cell with zero contributing fine cells reads as no-data too
+// UBC-GIF no-data sentinels (TASKS.csv #480): NODATA_MAX and COARSEN_NODATA_SENTINEL are in voxelAir.js (TASKS.csv #3159), with maskAirCells.
 
 export function parseUBCMesh(text) {
   const lines = text.split(/\r?\n/).map((l) => l.trim()).filter((l) => l.length && !l.startsWith("!"));
@@ -377,32 +375,8 @@ export function cellValueRange(cells) {
   return { min, max };
 }
 
-// TASKS.csv #481 — "air" in a conductivity model. SimPEG and UBC-GIF write the cells above the topography as
-// a tiny conductivity (1e-8 S/m), not as a no-data code: a real ZTEM inversion (Woodjam, 330x348x63) had
-// half of its displayed cells at exactly 1e-8, drawn as real rock and averaged into the near-surface cells
-// (#482: its OMF copy uses Float32's smallest normal number, 1.18e-38, instead — the rule catches both)
-// when the mesh was reduced for the 3D view. When the SMALLEST value is <= 1e-8 and at least `minShare` of
-// the cells hold exactly it, those cells are marked no-data (in place). Returns { count, value } (count 0 =
-// nothing changed). A model that genuinely contains many cells of one tiny value is rare; the import
-// message states what was done either way.
-// TASKS.csv #1659 (review #1646, Kodiak) — a DCIP3D chargeability model marks air as -1 (81,460 of Kodiak's 380,250 cells): it was drawn
-// as a slab of rock over the model and averaged into the near-surface blocks. A NEGATIVE minimum is air too when it fills at least
-// minShare of the cells and no other value is negative (a model that really holds negatives, e.g. a susceptibility, is left alone).
-export function maskAirCells(values, minShare = 0.05) {
-  let min = Infinity, negatives = 0;
-  for (let i = 0; i < values.length; i++) { const v = values[i]; if (Number.isFinite(v) && v > NODATA_MAX) { if (v < min) min = v; if (v < 0) negatives++; } }
-  const tinyAir = min > 0 && min <= 1e-8;
-  let flagAir = false;
-  // #1831 — or nearly all of them: a model reduced for the view before #1659 averaged the air into mixed blocks (Kodiak's saved
-  // chargeability: 19,824 cells at -1 and 439 between -0.75 and 0), and those few must not keep the flag from being seen
-  if (min < 0) { let atMin = 0; for (let i = 0; i < values.length; i++) if (values[i] === min) atMin++; flagAir = atMin === negatives || atMin >= 0.9 * negatives; }
-  if (!tinyAir && !flagAir) return { count: 0, value: null };
-  let count = 0;
-  for (let i = 0; i < values.length; i++) if (values[i] === min) count++;
-  if (count < minShare * values.length) return { count: 0, value: null };
-  for (let i = 0; i < values.length; i++) if (values[i] === min) values[i] = COARSEN_NODATA_SENTINEL;
-  return { count, value: min };
-}
+// TASKS.csv #481 / #1659 — maskAirCells ("air" cells as no-data) is in voxelAir.js (TASKS.csv #3159), re-exported here.
+export { maskAirCells } from "./voxelAir.js";
 
 // TASKS.csv #1095 — what block-averaging did, kept on the model as params.coarsenedFrom (blockModelExport.coarsenedText
 // prints it). values: the fine values before averaging; `valid` excludes no-data.

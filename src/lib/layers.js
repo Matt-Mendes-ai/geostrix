@@ -7,7 +7,7 @@ import { looksLikeLogTable, zeroLengthRows } from "./downholeLogChannels.js"; //
 import { looksLikeEventTable } from "./downholeEvents.js"; // TASKS.csv #2317
 import { guessStructureColumns } from "./mapLayers.js"; // TASKS.csv #426
 import { gridCoordinateColumns, gridElevation } from "./gridColumns.js"; // TASKS.csv #2151, moved: #2564
-import { isElementColumn } from "./geochem.js"; // TASKS.csv #2150
+import { isElementColumn } from "./geochemColumns.js"; // TASKS.csv #2150; #3159: geochemColumns, not geochem.js (the whole geochem library in startup)
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 
 // Bug found during the UBC-mesh-coarsening perf fix (real repro: a 432,000-value array crashed with

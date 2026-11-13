@@ -27,3 +27,6 @@ export function sampleTypeClass(t) {
   return null; // unrecognised label -> fall back to the other rules
 }
 export const knownHoleIds = () => registeredHoles;
+// TASKS.csv #1673 — a pXRF reading, not a lab grade (qaqc.js's notes). TASKS.csv #3159: moved here from qaqc.js, which the 3D view's
+// import of it had put in the startup bundle; qaqc.js re-exports it.
+export const isPxrfRow = (a) => a?.source === "pXRF";

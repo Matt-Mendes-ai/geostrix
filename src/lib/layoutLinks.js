@@ -2,7 +2,7 @@
 // viewport showing another's footprint. Pure functions, out of LayoutModule.jsx so they can be tested (review #918).
 import { niceScaleNumber } from "./figureScale.js";
 import { obliqueCapture, capturedSize } from "./layoutGeometry.js";
-import { pxPerMetre } from "./drillPlan.js"; // TASKS.csv #1639
+import { pxPerMetre } from "./pagePxScale.js"; // TASKS.csv #1639; #3159: not drillPlan.js, which put the drill-plan drawing code in startup
 
 const SCALE_BAR_PX = 180; // LayoutModule's default bar length (px) for a fresh bar
 

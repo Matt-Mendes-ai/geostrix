@@ -6,7 +6,7 @@
 import { modelAirValue } from "./surfacePlan.js";
 import { t as tr } from "./i18n.js";
 import { median } from "./arrayStats.js";
-import { collarsLookUnderground } from "./pitShell.js"; // TASKS.csv #2269
+import { collarsLookUnderground } from "./collarGround.js"; // TASKS.csv #2269; #3159: not pitShell.js, which put the pit solver in startup
 import { farFromCollars, farNote, boxesOverlap } from "./landingCheck.js"; // TASKS.csv #2590 / #2125
 
 const medianOf = (zs) => { const z = zs.filter(Number.isFinite); return z.length ? median(z) : null; }; // #1114 — the shared median

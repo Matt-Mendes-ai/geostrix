@@ -24,8 +24,8 @@ test("the price units name the products and the element; other commodities keep 
   assert.match(metalAmountText(1000, "t", "Li", (v) => Math.round(v).toLocaleString("en-US")), /^1,000 t Li \(35,878 t SC6, 5,324 t LCE, 2,153 t Li2O\)$/);
 });
 
-test("the oxide factors are the import's (geochem.js OXIDE_HEADERS)", () => {
-  const g = readFileSync(new URL("../src/lib/geochem.js", import.meta.url), "utf8");
+test("the oxide factors are the import's (geochem OXIDE_HEADERS)", () => {
+  const g = readFileSync(new URL("../src/lib/geochemColumns.js", import.meta.url), "utf8"); // TASKS.csv #3159 — OXIDE_HEADERS moved there from geochem.js
   for (const [el, list] of Object.entries(SOLD_AS)) for (const [p, f] of list) {
     if (p === "SC6" || p === "LCE") continue;
     assert.match(g, new RegExp(`${p}: \\["${el}", ${String(f).replace(".", "\\.")}\\]`), `${p} ${f}`);

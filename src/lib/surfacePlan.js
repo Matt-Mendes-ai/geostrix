@@ -2,7 +2,7 @@
 // element's saved threshold (lib/anomalyMap.js, as the 3D view does), over a level slice of a block model (the IP chargeability at
 // an elevation), drawn on a canvas that goes to Layout as an image with its real-world width (so a scale bar binds to it) and its
 // legend. Soils carry no elevation as a rule, so a plan is how a geochemist reads them. These are the pure parts.
-import { maskAirCells } from "./voxel.js";
+import { maskAirCells } from "./voxelAir.js"; // TASKS.csv #3159: not voxel.js, which put the UBC / block-model parsers in startup
 
 // The air value of a model saved before air was masked at import (#481 / #1659: Kodiak's chargeability keeps -1 above the ground),
 // by the import's own rule, on a copy (the model is not changed), or null

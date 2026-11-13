@@ -8,7 +8,7 @@
 import { desurveyHole, holeAttitudeAssumed } from "./desurvey.js"; // holeAttitudeAssumed: #2097
 import { drilledCollars } from "./collarStatus.js"; // #2097
 import { voxelCellSupported } from "./viewer/geomath.js";
-import { plannedTrace } from "./holePlanning.js";
+import { plannedTrace } from "./plannedTrace.js"; // TASKS.csv #3159: not holePlanning.js, which put the targeting solvers in startup
 import { sortedShownValues } from "./voxelStretch.js"; // TASKS.csv #1832
 
 // what a check depends on: everything about a planned hole except its name and notes

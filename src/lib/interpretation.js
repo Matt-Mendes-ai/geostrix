@@ -240,5 +240,5 @@ export function removeUnitPolygon(layer, index) {
   return withUnitBbox({ ...layer, features: layer.features.filter((_, i) => i !== index) });
 }
 
-// Two clicks at the same spot within `ms` (a double-click) end a line: the second click is not a vertex
-export const isRepeatClick = (prev, next, { ms = 400, m = 2 } = {}) => !!prev && !!next && next.at - prev.at < ms && Math.hypot(next.x - prev.x, next.y - prev.y) <= m;
+// Two clicks at the same spot within `ms` (a double-click) end a line: the second click is not a vertex (TASKS.csv #3159: in repeatClick.js)
+export { isRepeatClick } from "./repeatClick.js";

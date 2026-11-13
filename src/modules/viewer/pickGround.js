@@ -2,7 +2,7 @@
 // origin, RL 249 there) in a perspective view, and only the Elev was then put on the collar surface. On a hilltop at RL 330 the collar landed
 // 39-45 m from the click. Here the click ray is followed to the collar surface itself (the same surface the Elev comes from): marched from
 // the camera to the first place it goes under that surface, then bisected there. A fixed-point walk would bounce on a step in the surface.
-import { collarGround } from "../../lib/pitShell.js";
+import { collarGround } from "../../lib/collarGround.js"; // TASKS.csv #3159: not pitShell.js, which put the pit solver in startup
 import { hitLabel } from "../../lib/viewer/hitLabel.js"; // #2447
 
 const cache = new WeakMap();
