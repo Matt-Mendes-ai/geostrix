@@ -15,7 +15,7 @@ test("#1161 voxelCellShown applies the cutoff band and the support", () => {
 });
 
 test("#1161 the sections and the level plan filter with the same function as the 3D view", () => {
-  const src = ["../src/modules/ViewerModule.jsx", "../src/modules/viewer/ViewerParts.jsx"].map((f) => fs.readFileSync(new URL(f, import.meta.url), "utf8")).join("\n"); // both drawing files (#1084)
+  const src = ["../src/modules/ViewerModule.jsx", "../src/modules/viewer/ViewerParts.jsx", "../src/modules/viewer/levelPlanBuild.js" /* #3137 */].map((f) => fs.readFileSync(new URL(f, import.meta.url), "utf8")).join("\n"); // the drawing files (#1084)
   assert.equal((src.match(/voxelCellShown\(model, c\)/g) || []).length, 3, "3D view, section, level plan");
   assert.ok(!/cells\.forEach\(\(c\) => \{\s*if \(!voxelCellSupported\(model, c\)\) return;/.test(src), "no bare support-only filter is left in a drawing path");
 });
