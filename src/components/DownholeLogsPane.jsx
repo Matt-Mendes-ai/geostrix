@@ -6,7 +6,7 @@ import { Activity } from "./icons.js";
 import { numericSourceChoices, sourceAssays } from "../lib/numericSources.js";
 import { domainLayerChoices, foldDomainRows } from "../lib/domainLayers.js"; // foldDomainRows: TASKS.csv #2790
 import { LAYER_META } from "../lib/layers.js";
-import { groupLogByCode, rankLogGroups, codeTable, ratioComparable, logVsAssay, logVsModel, NOT_LOGGED, strideSample, logScaleSuits, allAboveZero, countAtOrBelowZero, sig3 } from "../lib/downholeLogs.js"; // logVsModel: #1595; strideSample: #2331; logScaleSuits...: #2558; groupLogByCode / rankLogGroups: #2948
+import { groupLogByCode, rankLogGroups, codeTable, ratioComparable, assayIndex, logVsAssayIndexed, logVsModel, NOT_LOGGED, strideSample, SCATTER_MAX, logScaleSuits, allAboveZero, countAtOrBelowZero, sig3 } from "../lib/downholeLogs.js"; // logVsModel: #1595; strideSample: #2331; logScaleSuits...: #2558; groupLogByCode / rankLogGroups: #2948
 import { BoxPlots } from "./GradeStatistics.jsx";
 import { smallSel } from "../lib/sidebarStyles.js";
 import { t as tr } from "../lib/i18n.js";
@@ -20,17 +20,34 @@ import { implausibleReadings } from "../lib/logUnits.js"; // TASKS.csv #2953
 const note = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.45 };
 const row = { display: "flex", alignItems: "center", gap: 6, justifyContent: "space-between", fontSize: "var(--font-size-sm)", marginBottom: 6 };
 
-function Scatter({ pairs, xLabel, yLabel, logX, logY, fit = null }) { // fit: TASKS.csv #2954 — the log = a + b x element line, drawn on linear axes
+// xs / ys (TASKS.csv #3078): the pairs as two typed columns (the log against an element), read in place; pairs: [[x, y]] (against a model)
+function Scatter({ pairs = null, xs = null, ys = null, xLabel, yLabel, logX, logY, fit = null }) { // fit: TASKS.csv #2954 — the log = a + b x element line, drawn on linear axes
   const w = 300, h = 220, pl = 44, pb = 30, pr = 8, pt = 8;
   const fx = logX ? (v) => Math.log10(v) : (v) => v, fy = logY ? (v) => Math.log10(v) : (v) => v;
   // TASKS.csv #2948 — the points, their box and the drawn subset are kept while the pairs and axes stay (0.4 s at 480,000 pairs, paid again on
   // every change of the pane, the ranking included)
   const { pts, drawn, x0, x1, y0, y1 } = useMemo(() => {
+    if (xs) { // #3078 — the points kept by the axes as indices, and only the drawn ones (every n-th and the four extremes, as strideSample) made
+      const keep = new Int32Array(xs.length);
+      let m = 0, a0 = Infinity, a1 = -Infinity, b0 = Infinity, b1 = -Infinity, ia0 = 0, ia1 = 0, ib0 = 0, ib1 = 0;
+      for (let i = 0; i < xs.length; i++) {
+        const x = xs[i], y = ys[i];
+        if ((logX && !(x > 0)) || (logY && !(y > 0))) continue;
+        const X = fx(x), Y = fy(y);
+        if (X < a0) { a0 = X; ia0 = m; } if (X > a1) { a1 = X; ia1 = m; } if (Y < b0) { b0 = Y; ib0 = m; } if (Y > b1) { b1 = Y; ib1 = m; }
+        keep[m++] = i;
+      }
+      const step = m > SCATTER_MAX ? Math.ceil(m / SCATTER_MAX) : 1, chosen = new Set();
+      for (let j = 0; j < m; j += step) chosen.add(j);
+      if (step > 1) [ia0, ia1, ib0, ib1].forEach((j) => chosen.add(j));
+      const points = [...chosen].sort((a, b) => a - b).map((j) => [fx(xs[keep[j]]), fy(ys[keep[j]])]);
+      return { pts: { length: m }, drawn: { points, step }, x0: a0, x1: a1, y0: b0, y1: b1 };
+    }
     const p = pairs.filter(([x, y]) => (!logX || x > 0) && (!logY || y > 0)).map(([x, y]) => [fx(x), fy(y)]);
     let a0 = Infinity, a1 = -Infinity, b0 = Infinity, b1 = -Infinity;
     for (const [x, y] of p) { if (x < a0) a0 = x; if (x > a1) a1 = x; if (y < b0) b0 = y; if (y > b1) b1 = y; }
     return { pts: p, drawn: strideSample(p), x0: a0, x1: a1, y0: b0, y1: b1 }; // #2331 — a few thousand drawn, the axes and statistics from every pair
-  }, [pairs, logX, logY]);
+  }, [pairs, xs, ys, logX, logY]);
   if (pts.length < 3) return <div style={note}>{tr("Too few readings above zero for a log-scale plot.")}</div>;
   const sx = (x) => pl + ((x - x0) / ((x1 - x0) || 1)) * (w - pl - pr), sy = (y) => h - pb - ((y - y0) / ((y1 - y0) || 1)) * (h - pb - pt);
   const lab = (v, log) => (log ? 10 ** v : v).toLocaleString(undefined, { maximumSignificantDigits: log ? 2 : 3 }); // #2558 — 0.000457, not 0
@@ -204,8 +221,12 @@ export default function DownholeLogsPane({ layers, customLayers = [], assays = [
   const elementUnits = useMemo(() => Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])), [assayElements]);
   // TASKS.csv #2954 — pair each reading, or the log's mean over each assay sample (one pair per sample: four bins of one sample are not four pairs)
   const [pairOn, setPairOn] = useKeptState(keptScope, "dhlogs.pairOn", "reading");
-  const { value: vs, pending: vsPending } = useDeferredMemo(() => (data && el ? logVsAssay(data.assays, data.symbol, assays, el, elementUnits, { perSample: pairOn === "sample" }) : null), [data, assays, el, elementUnits, pairOn], heavy); // #2948
-  const vsLogX = useMemo(() => !!vs && allAboveZero(vs.pairs.map((p) => p[0])), [vs]), vsLogY = useMemo(() => !!vs && allAboveZero(vs.pairs.map((p) => p[1])), [vs]); // #2948 — once per pairing, not per render
+  // TASKS.csv #3078 — which assay interval holds each reading is found once per (log, assay table); an element or Pair on change reads only
+  // the values through it (logVsAssay is the two together)
+  const { value: vsIndex, pending: idxPending } = useDeferredMemo(() => (data ? assayIndex(data.assays, data.symbol, assays) : null), [data, assays], heavy);
+  const { value: vs, pending: vsOwnPending } = useDeferredMemo(() => (vsIndex && el ? logVsAssayIndexed(vsIndex, el, elementUnits, { perSample: pairOn === "sample" }) : null), [vsIndex, el, elementUnits, pairOn], heavy); // #2948
+  const vsPending = idxPending || vsOwnPending;
+  const vsLogX = useMemo(() => !!vs && allAboveZero(vs.xs), [vs]), vsLogY = useMemo(() => !!vs && allAboveZero(vs.ys), [vs]); // #3078 — the typed columns // #2948 — once per pairing, not per render
   const unitOf = (u) => (u === "as logged" ? "" : u);
   const implausible = useMemo(() => implausibleReadings(logValues, unitOf(source?.unit || "")), [logValues, source]); // #2953 — after unitOf (declared above: a render-time TDZ otherwise)
   // TASKS.csv #1595 — against a block model evaluated onto the holes (Block models > Evaluate onto drillholes)
@@ -275,8 +296,8 @@ export default function DownholeLogsPane({ layers, customLayers = [], assays = [
                 </select></label>{/* #2954 */}
               {vsPending ? working(tr("Pairing {n} readings with the {el} assays…", { n: nRows.toLocaleString(), el })) : vs && vs.n >= 3 ? (
                 <>
-                  {logScale && !vsLogX && <div style={note}>{tr("The scatter keeps a linear axis for the log: {n} of its readings are zero or negative.", { n: vs.pairs.filter((p) => !(p[0] > 0)).length.toLocaleString() })}</div>}{/* #2953 */}
-                  <Scatter pairs={vs.pairs} xLabel={`${source.label}${unitOf(source.unit) && !source.label.includes(`(${unitOf(source.unit)})`) ? ` (${unitOf(source.unit)})` : ""}`} yLabel={`${el} (${vs.unit})`} logX={logScale && vsLogX} logY={logScale && vsLogY} fit={vs.fit} />
+                  {logScale && !vsLogX && <div style={note}>{tr("The scatter keeps a linear axis for the log: {n} of its readings are zero or negative.", { n: vs.xs.reduce((k, x) => k + (x > 0 ? 0 : 1), 0).toLocaleString() })}</div>}{/* #2953 */}
+                  <Scatter xs={vs.xs} ys={vs.ys} xLabel={`${source.label}${unitOf(source.unit) && !source.label.includes(`(${unitOf(source.unit)})`) ? ` (${unitOf(source.unit)})` : ""}`} yLabel={`${el} (${vs.unit})`} logX={logScale && vsLogX} logY={logScale && vsLogY} fit={vs.fit} />
                   <div style={note}>{vs.perSample ? (logScale
                     ? tr("{n} assay samples, each paired with the log's mean over the readings inside it. Spearman rank correlation {r}; Pearson on log10 values {rLog} ({k} pairs above zero).", { n: vs.n.toLocaleString(), r: Number.isFinite(vs.r) ? vs.r.toFixed(2) : "—", rLog: Number.isFinite(vs.rLog) ? vs.rLog.toFixed(2) : "—", k: (vs.nLog ?? 0).toLocaleString() })
                     : tr("{n} assay samples, each paired with the log's mean over the readings inside it. Spearman rank correlation {r}; Pearson {rLin}.", { n: vs.n.toLocaleString(), r: Number.isFinite(vs.r) ? vs.r.toFixed(2) : "—", rLin: Number.isFinite(vs.rLin) ? vs.rLin.toFixed(2) : "—" }))

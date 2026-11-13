@@ -44,7 +44,7 @@ test("the ratio is said only for one quantity against itself (an equivalent grad
 test("the pane: Pair on, the line drawn and said, the ratio only when comparable", () => {
   const p = readFileSync(new URL("../src/components/DownholeLogsPane.jsx", import.meta.url), "utf8");
   assert.match(p, /useKeptState\(keptScope, "dhlogs\.pairOn", "reading"\)/);
-  assert.match(p, /logVsAssay\(data\.assays, data\.symbol, assays, el, elementUnits, \{ perSample: pairOn === "sample" \}\)/);
+  assert.match(p, /logVsAssayIndexed\(vsIndex, el, elementUnits, \{ perSample: pairOn === "sample" \}\)/); // #3078
   assert.match(p, /Number\.isFinite\(vs\.medianRatio\) && ratioComparable\(`\$\{source\.label\} \$\{source\.unit \|\| ""\}`, el\)/);
   assert.match(p, /tr\("Least-squares line: \{log\} = \{a\} \+ \{b\} × \{el\} \(\{n\} pairs\)\."/);
   assert.match(p, /fit=\{vs\.fit\}/);
