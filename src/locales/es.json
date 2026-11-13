@@ -11480,5 +11480,7 @@
   "{n} collar(s) left out of the ground between the collars, their elevation not being ground (assumed at import, or suspect: 0 m among collars far from 0, or a stray): {list}.": "{n} collar(es) quedaron fuera del terreno entre los collares, porque su cota no es terreno (asumida al importar, o sospechosa: 0 m entre collares lejos de 0, o aislada): {list}.",
   "Left out: {list}.": "Quedaron fuera: {list}.",
   "Zoom to {name}": "Acercar a {name}",
-  "This block model was estimated from the checked holes by an earlier version, which counted every unchecked hole as drilling with no sample: some of these flags may be wrong. Estimate it again to refresh them.": "Este modelo de bloques se estimó a partir de los sondajes marcados con una versión anterior, que contaba cada sondaje no marcado como perforación sin muestra: algunas de estas marcas pueden ser erróneas. Estímelo de nuevo para actualizarlas."
+  "This block model was estimated from the checked holes by an earlier version, which counted every unchecked hole as drilling with no sample: some of these flags may be wrong. Estimate it again to refresh them.": "Este modelo de bloques se estimó a partir de los sondajes marcados con una versión anterior, que contaba cada sondaje no marcado como perforación sin muestra: algunas de estas marcas pueden ser erróneas. Estímelo de nuevo para actualizarlas.",
+  "Line thickness": "Grosor de línea",
+  "The width of the symbols' lines, as a multiple of the USGS standard's line weight; in the 3D view, the Google Earth icons, the legends and the Layout": "El ancho de las líneas de los símbolos, como múltiplo del grosor de línea del estándar USGS; en la vista 3D, los íconos de Google Earth, las leyendas y el Layout"
 }

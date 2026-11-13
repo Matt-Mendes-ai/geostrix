@@ -11480,5 +11480,7 @@
   "{n} collar(s) left out of the ground between the collars, their elevation not being ground (assumed at import, or suspect: 0 m among collars far from 0, or a stray): {list}.": "استُبعدت {n} فوهة (فوهات) من الأرض بين الفوهات لأن منسوبها ليس أرضًا (مفترض عند الاستيراد، أو مشكوك فيه: 0 م بين فوهات بعيدة عن 0، أو شاذ): {list}.",
   "Left out: {list}.": "المستبعدة: {list}.",
   "Zoom to {name}": "تكبير إلى {name}",
-  "This block model was estimated from the checked holes by an earlier version, which counted every unchecked hole as drilling with no sample: some of these flags may be wrong. Estimate it again to refresh them.": "قُدِّر نموذج الكتل هذا من ثقوب الحفر المحددة بإصدار سابق كان يعدّ كل ثقب غير محدد حفرًا بلا عينة: قد يكون بعض هذه العلامات خاطئًا. قدِّره مرة أخرى لتحديثها."
+  "This block model was estimated from the checked holes by an earlier version, which counted every unchecked hole as drilling with no sample: some of these flags may be wrong. Estimate it again to refresh them.": "قُدِّر نموذج الكتل هذا من ثقوب الحفر المحددة بإصدار سابق كان يعدّ كل ثقب غير محدد حفرًا بلا عينة: قد يكون بعض هذه العلامات خاطئًا. قدِّره مرة أخرى لتحديثها.",
+  "Line thickness": "سماكة الخط",
+  "The width of the symbols' lines, as a multiple of the USGS standard's line weight; in the 3D view, the Google Earth icons, the legends and the Layout": "عرض خطوط الرموز، كمضاعف لسماكة الخط في معيار USGS؛ في العرض ثلاثي الأبعاد وأيقونات Google Earth ووسائل الإيضاح والتخطيط"
 }
