@@ -11,6 +11,7 @@ import { rlOffsetOf, rlToElevation } from "./localGridDatum.js";
 import { rasterLegendGroups } from "./legendGroups.js";
 import { b64ToBytes } from "./base64.js";
 import { rgbaToPng, strikeSymbolPng } from "./strikeIcon.js";
+import { structureIconSet } from "./structureKmzIcons.js"; // #3068 part 2 — the icon set the outcrop KMZ uses too
 import { saveFile, safeFileName, EXPORT_RESULT_EVENT } from "./desktop.js";
 
 export const KMZ_WARN_BYTES = 150 * 1024 * 1024; // above this the export asks first
@@ -70,7 +71,7 @@ export async function exportProjectKmz(store, { confirm = (m) => window.confirm(
   const project = store.project || {};
   // where the coordinates are on Earth: a local grid through its tie, else the project CRS (asked for when never chosen)
   const tie = tieOf(project);
-  let toLonLat, crsLabel;
+  let toLonLat, crsLabel, epsgUsed = null; // epsgUsed: the CRS the export resolved (it may have just been chosen)
   if (tie) {
     const tf = await lonLatTransform(tie.epsg);
     if (!tf) return { ok: false, error: tr("The local grid's tie has no coordinate system.") };
@@ -79,6 +80,7 @@ export async function exportProjectKmz(store, { confirm = (m) => window.confirm(
   } else {
     const epsg = await ensureExportCrs(project);
     if (!epsg) return { ok: false, cancelled: true };
+    epsgUsed = epsg;
     toLonLat = await lonLatTransform(epsg);
     crsLabel = `EPSG:${epsg}`;
   }
@@ -86,7 +88,7 @@ export async function exportProjectKmz(store, { confirm = (m) => window.confirm(
   const altOf = rl == null ? (z) => z : (z) => rlToElevation(z, rl);
   const ui = store.viewerUiState || {};
   const ctx = {
-    projectName: project.name || "GeoStrix project", epsg: tie ? null : project.epsg,
+    projectName: project.name || "GeoStrix project", epsg: tie ? null : epsgUsed,
     collars: store.collars, survey: store.survey, desurveyMethod: store.desurveyMethod, layers: store.layers, customLayers: store.customLayers,
     assays: store.assays, assayElements: store.assayElements, surfaceSamples: store.surfaceSamples, surfaceStructures: store.surfaceStructures,
     mapLayers: store.mapLayers, boundaries: store.boundaries, plannedHoles: store.plannedHoles, sections: store.sections, rasters: store.rasters,
@@ -110,12 +112,15 @@ export async function exportProjectKmz(store, { confirm = (m) => window.confirm(
     const lg = r.legendImage?.dataUrl ? null : rasterLegendGroups([{ ...r, visible: true }])[0];
     return { ...img, legend: lg && (lg.items?.length || lg.ramp) ? lg : null };
   };
-  const out = buildProjectKml(ctx, { toLonLat, altOf, legendPng: legendCanvasPng, rasterImage, crsLabel });
+  // the structures' USGS symbols (true strike from the project CRS; on a local grid, the grid bearing)
+  const icons = (store.surfaceStructures || []).length ? await structureIconSet(store.surfaceStructures, { px: 64, epsg: tie ? null : ctx.epsg }) : { files: [], iconOf: () => null };
+  const out = buildProjectKml(ctx, { toLonLat, altOf, legendPng: legendCanvasPng, rasterImage, crsLabel, structureIconOf: (row, set) => icons.iconOf(row, set) });
   const kmz = await buildKmz([
     { name: "doc.kml", data: new TextEncoder().encode(out.kml), deflate: true },
     { name: DOT_ICON, data: dotPng() },
     ...(out.kml.includes(STRIKE_ICON) ? [{ name: STRIKE_ICON, data: strikeSymbolPng(64) }] : []), // #3068 part 2 — only for a reading with no USGS symbol
     ...out.files,
+    ...icons.files.filter((f) => out.kml.includes(f.name)),
   ]);
   const res = await saveFile({ quiet: true, suggestedName: `${safeFileName(ctx.projectName, "project")}.kmz`, filters: [{ name: "KMZ (Google Earth)", extensions: ["kmz"] }], content: kmz });
   if (res?.ok) {
