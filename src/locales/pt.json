@@ -11752,7 +11752,7 @@
   " Derivatives of an IDW grid show the station pattern (a bull's-eye at each station): grid with minimum curvature for derivatives.": " As derivadas de uma grade IDW mostram o padrão das estações (um olho de boi em cada estação): para derivadas, gere a grade por curvatura mínima.",
   "The nodes are {dx} × {dy} m apart, not the {cell} m asked for.": "Os nós estão a {dx} × {dy} m entre si, não aos {cell} m pedidos.",
   "Not imported from this drop: {names}. Dropped here, this tab reads CSV, GeoTIFF, GXF, .grd, XYZ, PLY / DXF, EDI (MT soundings) and LAS / LAZ lidar; a UBC mesh and model go through Block models.": "Não importado deste arraste: {names}. Soltos aqui, esta aba lê CSV, GeoTIFF, GXF, .grd, XYZ, PLY / DXF, EDI (sondagens MT) e lidar LAS / LAZ; uma malha e um modelo UBC vão por Modelos de blocos.",
-  "Only .csv, .xlsx, .zip (shapefile), .shp, .gpkg, .kml/.kmz, .las logs, GeoTIFF / .gxf / .grd grids and .dxf / .obj files can be dropped in directly.": "Só arquivos .csv, .xlsx, .zip (shapefile), .shp, .gpkg, .kml/.kmz, perfis .las, grades GeoTIFF / .gxf / .grd e arquivos .dxf / .obj podem ser soltos diretamente.",
+  "Not imported from this drop: {names}. Dropped here, the 3D View reads .csv, .xlsx, .zip (shapefile), .shp, .gpkg, .kml / .kmz, .las logs, GeoTIFF / .gxf / .grd grids and .dxf / .obj files; point surveys (.xyz) open on the Geophysics tab.": "Não importado deste arraste: {names}. Soltos aqui, a Vista 3D lê .csv, .xlsx, .zip (shapefile), .shp, .gpkg, .kml / .kmz, perfis .las, grades GeoTIFF / .gxf / .grd e arquivos .dxf / .obj; levantamentos de pontos (.xyz) abrem na aba Geofísica.",
   "No hole column: if these are survey stations (X, Y and a measurement), import them under Geophysics > Point survey.": "Sem coluna de furo: se forem estações de levantamento (X, Y e uma medida), importe-as em Geofísica > Levantamento pontual.",
   "Import as survey stations": "Importar como estações de levantamento",
   "\"{name}\" is a binary file, not a text table: Point survey reads CSV and Geosoft .xyz (text) files.": "“{name}” é um arquivo binário, não uma tabela de texto: Levantamento pontual lê arquivos CSV e .xyz do Geosoft (texto).",
@@ -11823,5 +11823,10 @@
   "{cols}: values a thousandfold apart from \"{header}\" read in the same unit: one of them is not in the unit its name says. Check before ticking.": "{cols}: valores mil vezes diferentes de \"{header}\" lidos na mesma unidade: uma das colunas não está na unidade que o nome diz. Verifique antes de marcar.",
   "Custom layer: {name}": "Camada personalizada: {name}",
   "To less than From (a reversed interval)": "Até menor que De (um intervalo invertido)",
-  "{n} of the {total} interval(s) overlap another of the same hole, in {holes} hole(s): Data QC lists them.": "{n} dos {total} intervalo(s) se sobrepõem a outro do mesmo furo, em {holes} furo(s): o Controle de dados os lista."
+  "{n} of the {total} interval(s) overlap another of the same hole, in {holes} hole(s): Data QC lists them.": "{n} dos {total} intervalo(s) se sobrepõem a outro do mesmo furo, em {holes} furo(s): o Controle de dados os lista.",
+  "{names}: XYZ point files are read on the Geophysics tab, which opens them now.": "{names}: arquivos de pontos XYZ são lidos na aba Geofísica, que os abre agora.",
+  "The file's {col} column names both gyro and magnetic tools, which read different norths: choose the north these azimuths are in.": "A coluna {col} do arquivo cita ferramentas giroscópicas e magnéticas, que leem nortes diferentes: escolha o norte em que estão estes azimutes.",
+  "{col} marks {n} row(s) as superseded or rejected: they are left out too.": "{col} marca {n} linha(s) como substituídas ou rejeitadas: também ficam de fora.",
+  "{col} marks {n} row(s) as not current: they are left out too.": "{col} marca {n} linha(s) como não vigentes: também ficam de fora.",
+  "{col} was also kept only where it is {values}.": "{col} também foi mantido só onde é {values}."
 }

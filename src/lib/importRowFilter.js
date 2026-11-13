@@ -90,11 +90,19 @@ export function applyRowFilter(rows, filter) {
   if (!(rows || []).some((r) => r && filter.col in r)) return { rows, dropped: 0 }; // `in`: the column reader's rows have getters, not own keys
   const keep = new Set(filter.keep.map(norm));
   const kept = (rows || []).filter((r) => keep.has(norm(r?.[filter.col])));
+  if (filter.also) { const b = applyRowFilter(kept, filter.also); return { rows: b.rows, dropped: (rows || []).length - b.rows.length }; } // #3207 follow-up
   return { rows: kept, dropped: (rows || []).length - kept.length };
 }
 
 // the filter an import gets when the user has not set one: the flag column's preset, or none (the dialog's box and the commit both ask this)
-export const defaultRowFilter = (headers, rows, { qc = true } = {}) => { const cols = rowFilterColumns(headers, rows); return (qc ? qcRowFilter(cols) : null) || flagRowFilter(cols) || runRowFilter(cols); }; // run: #2898; qc: #3207
+// TASKS.csv #3207 follow-up — a QC sample-type column AND a reject / supersede flag (Galore Creek's SG table: 'SG Sample Type' and 'Rejected?'): both
+// apply, the flag carried as `also` (the dialog says both; a filter the user picks in the box is one column, as before)
+export const defaultRowFilter = (headers, rows, { qc = true } = {}) => {
+  const cols = rowFilterColumns(headers, rows);
+  const q = qc ? qcRowFilter(cols) : null, fl = flagRowFilter(cols);
+  if (q && fl && fl.col !== q.col) return { ...q, also: fl };
+  return q || fl || runRowFilter(cols);
+}; // run: #2898; qc: #3207
 
 // TASKS.csv #2391 (split from #2330, review #2325) — the intervals of an import that overlap another of the same hole, and the column that
 // probably explains them: one of a few values (a flag, version or priority) that the overlapping rows carry far more often than the rest.

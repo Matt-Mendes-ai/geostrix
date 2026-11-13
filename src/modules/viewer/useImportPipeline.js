@@ -282,7 +282,7 @@ export function useImportPipeline(ctx) {
     const ov = layerOverlap(target, mapping, rows, fileName);
     return ov ? { target: "custom", mapping: guessMapping("custom", headers), guessNote: ov } : { target, mapping };
   };
-  const azRefFor = (target, headers, rows) => { const d = AZ_TARGETS.has(target) ? detectAzimuthRef(headers, rows) : null; return d?.ref ? { azimuthRef: d.ref, azimuthRefFrom: d.col, ...(d.also ? { azimuthRefAlso: d.also } : {}) } : {}; }; // also: #2154
+  const azRefFor = (target, headers, rows) => { const d = AZ_TARGETS.has(target) ? detectAzimuthRef(headers, rows) : null; if (d?.tools && !d.ref) return { azimuthToolsCol: d.col }; /* #3209 */ return d?.ref ? { azimuthRef: d.ref, azimuthRefFrom: d.col, ...(d.also ? { azimuthRefAlso: d.also } : {}) } : {}; }; // also: #2154
   // TASKS.csv #2015 — a survey sheet's corrected azimuth column (grid when filled, else true north) is the one read
   const azColFor = (target, headers, rows, mapping) => { if (target === "structure" && mapping?.value) return { ...mapping, value: fullestTypeColumn(headers, rows, mapping.value) }; /* #2188 — the fullest of several *_StrucType columns */ if (target !== "survey" && target !== "collars") return mapping; /* collars: #2154 (Azimuth_MAG beside Azimuth_TRUE) */ const d = detectAzimuthRef(headers, rows); return d?.azimuthCol ? { ...mapping, azimuth: d.azimuthCol } : mapping; };
   // TASKS.csv #2341 — the file's columns this import did not read, named in the notice ("Add one under Extra fields to keep it")
@@ -304,7 +304,8 @@ export function useImportPipeline(ctx) {
       const o = overlapSummary(allRows, { hole: mapping.hole_id, from: mapping.from, to: mapping.to }, Object.keys(allRows?.[0] || {}));
       if (overlapWorthSaying(o) && o.col) setNotices((p) => [...p, notice("{fileName}: {n} of {total} interval(s) overlap another of the same hole, in {holes} hole(s); {pct}% of them have {col} = {value}, which may mark the out-of-date rows: the import's row filter can leave them out.", { fileName, n: o.n.toLocaleString(), total: o.total.toLocaleString(), holes: o.holes, pct: Math.round(o.share * 100), col: o.col, value: o.value || "(blank)" })]);
     }
-    if (rowsFiltered) setNotices((p) => [...p, notice("{fileName}: {n} row(s) left out by the row filter ({col} kept only where it is {values}).", { fileName, n: rowsFiltered.toLocaleString(), col: rowFilter.col, values: rowFilter.keep.map((v) => v || "(blank)").join(", ") })]);
+    if (rowsFiltered) setNotices((p) => [...p, appendNotice(notice("{fileName}: {n} row(s) left out by the row filter ({col} kept only where it is {values}).", { fileName, n: rowsFiltered.toLocaleString(), col: rowFilter.col, values: rowFilter.keep.map((v) => v || "(blank)").join(", ") }),
+      rowFilter.also ? " " + tr("{col} was also kept only where it is {values}.", { col: rowFilter.also.col, values: rowFilter.also.keep.map((v) => v || "(blank)").join(", ") }) : "")]); // also: #3207 follow-up
     // TASKS.csv #2159 — the mapped columns' no-data codes (-999, -999.25, -9999, -99999), read as missing by num(): counted and said once
     {
       const cols = [...new Set(Object.values(mapping || {}).filter(Boolean))], hits = new Map();
@@ -1162,10 +1163,17 @@ export function useImportPipeline(ctx) {
       goToModule("maps"); requestModuleAction("maps-lidar", { file: grouped.files.find((f) => f.name === lidarNames[0]) }); // Maps > Terrain reads it
       advised.push(notice(lidarNames.length > 1 ? "{names}: lidar point clouds, read in Maps > Terrain one at a time. The first is open there; drop the others there after it." : "{names}: a lidar point cloud, opened in Maps > Terrain.", { names: lidarNames.slice(0, 4).join(", ") + (lidarNames.length > 4 ? " …" : "") }));
     }
+    // TASKS.csv #3212 (#3195, Galore Creek) — an .xyz point file (an IP line, a survey's points) was refused with a list of formats that named
+    // neither the file nor where .xyz goes; the Geophysics tab reads it (a column picker). Handed to that tab's drop import, as lidar goes to Maps.
+    const xyzFiles = grouped.files.filter((f) => /\.xyz$/i.test(f.name));
+    if (xyzFiles.length) {
+      goToModule("geophysics"); requestModuleAction("geophysics-drop", { files: xyzFiles });
+      advised.push(notice("{names}: XYZ point files are read on the Geophysics tab, which opens them now.", { names: xyzFiles.slice(0, 4).map((f) => f.name).join(", ") + (xyzFiles.length > 4 ? " …" : "") }));
+    }
     if (advised.length) setNotices((p) => [...p, ...advised]);
-    const skipped = grouped.files.length - files.length - direct.length - advised.length - voFiles.length - voSide.size /* #2632 */ - (mshCount - mshAdvice.length) /* #1991: the Leapfrog meshes went to the solid import */ - Math.max(0, vsNames.length - 1) /* #1992 */ - Math.max(0, ediNames.length - 1) /* #1989: one notice for all of them */ - Math.max(0, lidarNames.length - 1) /* #1994 */ + grouped.unmatched.length;
+    const skipped = grouped.files.length - files.length - direct.length - advised.length - voFiles.length - voSide.size /* #2632 */ - (mshCount - mshAdvice.length) /* #1991: the Leapfrog meshes went to the solid import */ - Math.max(0, vsNames.length - 1) /* #1992 */ - Math.max(0, ediNames.length - 1) /* #1989: one notice for all of them */ - Math.max(0, lidarNames.length - 1) /* #1994 */ - Math.max(0, xyzFiles.length - 1) /* #3212 */ + grouped.unmatched.length;
     if (!files.length) {
-      if (!direct.length && !advised.length && !mshCount && !voFiles.length) setNotices((p) => [...p, notice("Only .csv, .xlsx, .zip (shapefile), .shp, .gpkg, .kml/.kmz, .las logs, GeoTIFF / .gxf / .grd grids and .dxf / .obj files can be dropped in directly.")]);
+      if (!direct.length && !advised.length && !mshCount && !voFiles.length) setNotices((p) => [...p, notice("Not imported from this drop: {names}. Dropped here, the 3D View reads .csv, .xlsx, .zip (shapefile), .shp, .gpkg, .kml / .kmz, .las logs, GeoTIFF / .gxf / .grd grids and .dxf / .obj files; point surveys (.xyz) open on the Geophysics tab.", { names: grouped.files.slice(0, 4).map((f) => f.name).join(", ") + (grouped.files.length > 4 ? " …" : "") })]); // #3212 — the file named; an info, not a red notice left on screen
       else if (skipped) setNotices((p) => [...p, notice("{skipped} unrecognized file(s) skipped.", { skipped })]);
       return;
     }

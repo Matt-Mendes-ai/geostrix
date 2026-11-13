@@ -44,6 +44,11 @@ export default function RowFilterBox({ modal, onChange, sel, qc = null }) { // q
           ? tr("{col} marks {n} row(s) as superseded (out of date): they are left out. Tick their value to keep them.", { col: preset.col, n: preset.drop.toLocaleString() })
           : tr("{col} marks {n} row(s) as not current: they are left out. Tick their value to keep them.", { col: preset.col, n: preset.drop.toLocaleString() })}</div>
       )}
+      {preset?.also && f === preset && ( /* TASKS.csv #3207 follow-up — a second preset column, applied too */
+        <div style={{ ...note, marginTop: 4, color: "var(--color-warn-text)" }}>{preset.also.flag === "superseded"
+          ? tr("{col} marks {n} row(s) as superseded or rejected: they are left out too.", { col: preset.also.col, n: preset.also.drop.toLocaleString() })
+          : tr("{col} marks {n} row(s) as not current: they are left out too.", { col: preset.also.col, n: preset.also.drop.toLocaleString() })}</div>
+      )}
       {f && <div style={{ ...note, marginTop: 4 }}>{tr("{k} of {n} rows will be imported.", { k: kept.toLocaleString(), n: rows.length.toLocaleString() })}</div>}
     </div>
   );

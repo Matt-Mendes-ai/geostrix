@@ -11752,7 +11752,7 @@
   " Derivatives of an IDW grid show the station pattern (a bull's-eye at each station): grid with minimum curvature for derivatives.": " Les dérivées d’une grille IDW montrent le motif des stations (une cible à chaque station) : pour les dérivées, maillez par courbure minimale.",
   "The nodes are {dx} × {dy} m apart, not the {cell} m asked for.": "Les nœuds sont espacés de {dx} × {dy} m, et non des {cell} m demandés.",
   "Not imported from this drop: {names}. Dropped here, this tab reads CSV, GeoTIFF, GXF, .grd, XYZ, PLY / DXF, EDI (MT soundings) and LAS / LAZ lidar; a UBC mesh and model go through Block models.": "Non importé de ce dépôt : {names}. Déposés ici, cet onglet lit CSV, GeoTIFF, GXF, .grd, XYZ, PLY / DXF, EDI (sondages MT) et lidar LAS / LAZ ; un maillage et un modèle UBC passent par Modèles de blocs.",
-  "Only .csv, .xlsx, .zip (shapefile), .shp, .gpkg, .kml/.kmz, .las logs, GeoTIFF / .gxf / .grd grids and .dxf / .obj files can be dropped in directly.": "Seuls les fichiers .csv, .xlsx, .zip (shapefile), .shp, .gpkg, .kml/.kmz, les journaux .las, les grilles GeoTIFF / .gxf / .grd et les fichiers .dxf / .obj peuvent être déposés directement.",
+  "Not imported from this drop: {names}. Dropped here, the 3D View reads .csv, .xlsx, .zip (shapefile), .shp, .gpkg, .kml / .kmz, .las logs, GeoTIFF / .gxf / .grd grids and .dxf / .obj files; point surveys (.xyz) open on the Geophysics tab.": "Non importé de ce dépôt : {names}. Déposés ici, la vue 3D lit .csv, .xlsx, .zip (shapefile), .shp, .gpkg, .kml / .kmz, les diagraphies .las, les grilles GeoTIFF / .gxf / .grd et les fichiers .dxf / .obj ; les levés de points (.xyz) s'ouvrent dans l'onglet Géophysique.",
   "No hole column: if these are survey stations (X, Y and a measurement), import them under Geophysics > Point survey.": "Pas de colonne de sondage : s’il s’agit de stations de levé (X, Y et une mesure), importez-les sous Géophysique > Levé ponctuel.",
   "Import as survey stations": "Importer comme stations de levé",
   "\"{name}\" is a binary file, not a text table: Point survey reads CSV and Geosoft .xyz (text) files.": "« {name} » est un fichier binaire, pas un tableau texte : Levé ponctuel lit les fichiers CSV et .xyz de Geosoft (texte).",
@@ -11823,5 +11823,10 @@
   "{cols}: values a thousandfold apart from \"{header}\" read in the same unit: one of them is not in the unit its name says. Check before ticking.": "{cols} : des valeurs mille fois éloignées de « {header} » lues dans la même unité : l'une des colonnes n'est pas dans l'unité que dit son nom. Vérifiez avant de cocher.",
   "Custom layer: {name}": "Couche personnalisée : {name}",
   "To less than From (a reversed interval)": "À inférieur à De (un intervalle inversé)",
-  "{n} of the {total} interval(s) overlap another of the same hole, in {holes} hole(s): Data QC lists them.": "{n} des {total} intervalle(s) chevauchent un autre du même sondage, dans {holes} sondage(s) : le CQ des données les liste."
+  "{n} of the {total} interval(s) overlap another of the same hole, in {holes} hole(s): Data QC lists them.": "{n} des {total} intervalle(s) chevauchent un autre du même sondage, dans {holes} sondage(s) : le CQ des données les liste.",
+  "{names}: XYZ point files are read on the Geophysics tab, which opens them now.": "{names} : les fichiers de points XYZ se lisent dans l'onglet Géophysique, qui les ouvre maintenant.",
+  "The file's {col} column names both gyro and magnetic tools, which read different norths: choose the north these azimuths are in.": "La colonne {col} du fichier nomme des outils gyroscopiques et magnétiques, qui lisent des nords différents : choisissez le nord de ces azimuts.",
+  "{col} marks {n} row(s) as superseded or rejected: they are left out too.": "{col} marque {n} ligne(s) comme remplacées ou rejetées : elles sont aussi laissées de côté.",
+  "{col} marks {n} row(s) as not current: they are left out too.": "{col} marque {n} ligne(s) comme non actuelles : elles sont aussi laissées de côté.",
+  "{col} was also kept only where it is {values}.": "{col} a aussi été gardé seulement là où il vaut {values}."
 }

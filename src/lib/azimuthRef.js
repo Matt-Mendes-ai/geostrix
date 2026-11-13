@@ -54,7 +54,11 @@ const MN_COLS = /^(azimuth|azi|az)[\s_-]*(mag|magnetic|mn)$|^(mag|magnetic)[\s_-
 // #2154 — WAMEX's AZIMUTHGRIDNAME: the grid the azimuths are measured in (MGA94_51, AMG84_51, LOCAL); a north word is read as such
 const GRID_NAME_COLS = /^(azimuth|azi|az)[\s_-]*grid[\s_-]*name$/i;
 const TN_COLS = /^(azimuth|azi|az)[\s_-]*(corrected[\s_-]*)?(tn|true)$|^true[\s_-]*(azimuth|azi|az)$/i;
-const INSTRUMENT_COLS = /^(instrument|survey[\s_-]*(tool|instrument|method|type)|tool|method)$/i;
+// TASKS.csv #3209 (#3195, Galore Creek) — 'SURVTYPE' (CHAMPGYRO on 593 stations) was not read as the instrument, so a dropped folder's gyro survey
+// went in as grid north unasked: surv / survey type, method, tool, instrument
+const INSTRUMENT_COLS = /^(instrument|surv(ey)?[\s_-]*(tool|instrument|method|type|inst)|tool|method)$/i;
+// #3209 — magnetic downhole tools by name (a gyro word wins: 'Reflex Gyro' is a gyro)
+const MAGNETIC_TOOL = /reflex|ez[\s_-]*(shot|trac)|multi[\s_-]*shot|single[\s_-]*shot|compass|eastman|tropari|devi[\s_-]*shot|magnetic/;
 function correctedColumns(headers, rows) {
   const hs = headers || [];
   const filled = (c) => { let n = 0, all = 0; for (const r of rows || []) { all++; const v = r?.[c]; if (v != null && String(v).trim() !== "" && Number.isFinite(Number(v))) n++; } return { n, all }; };
@@ -77,8 +81,12 @@ function correctedColumns(headers, rows) {
   const inst = hs.find((h) => INSTRUMENT_COLS.test(String(h).trim()));
   if (inst) {
     const kinds = new Set();
-    for (const r of rows || []) { const s = String(r?.[inst] ?? "").trim().toLowerCase(); if (s) kinds.add(/gyro/.test(s) ? "gyro" : "other"); }
+    for (const r of rows || []) { const s = String(r?.[inst] ?? "").trim().toLowerCase(); if (s) kinds.add(/gyro/.test(s) ? "gyro" : MAGNETIC_TOOL.test(s) ? "magnetic" : "other"); }
     if (kinds.size === 1 && kinds.has("gyro")) return { ref: "true", col: inst, mixed: false, hint: true };
+    // #3209 — magnetic tools only: a hint of magnetic north (the dialog opens with it, and asks the date); gyro and magnetic tools in one file: the
+    // dialog asks which north, and says why
+    if (kinds.size === 1 && kinds.has("magnetic")) return { ref: "magnetic", col: inst, mixed: false, hint: true };
+    if (kinds.has("gyro") && kinds.has("magnetic")) return { ref: null, col: inst, mixed: true, hint: true, tools: true };
   }
   return null;
 }
