@@ -370,8 +370,10 @@ export default function LayoutModule() {
         const el = elements.find((e) => e.id === img.replaceElementId);
         const aspect = img.naturalW && img.naturalH ? img.naturalW / img.naturalH : el.aspect;
         const world = img.worldWidthAtCaptureM ?? el.worldWidthAtCaptureM, denom = sectionScaleDenom(el);
-        const w = denom && world ? Math.round(sectionWidthForScale({ worldWidthAtCaptureM: world }, denom)) : el.w;
-        const upd = { ...el, src: img.src, naturalW: img.naturalW, naturalH: img.naturalH, aspect, w, h: Math.round(w / aspect), textFactor: img.textFactor || 1, legendItems: img.legendItems || el.legendItems, worldWidthAtCaptureM: world };
+        // TASKS.csv #3022 (review #2876) — not rounded to whole pixels: the scale is read back from the width, and a rounded width turned a
+        // picked 1 : 5,000 into '1 : 5,002 along the section'
+        const w = denom && world ? sectionWidthForScale({ worldWidthAtCaptureM: world }, denom) : el.w;
+        const upd = { ...el, src: img.src, naturalW: img.naturalW, naturalH: img.naturalH, aspect, w, h: w / aspect, textFactor: img.textFactor || 1, legendItems: img.legendItems || el.legendItems, worldWidthAtCaptureM: world };
         next.set(el.id, upd);
         const pt = sectionTextPt(upd), round = Number(img.resnapRound) || 0;
         if (pt != null && Math.abs(pt - 7) > 0.7 && round < 3 && upd.sectionTabId) { sendSectionResnap({ tabId: upd.sectionTabId, elementId: upd.id, textFactor: +((upd.textFactor * 7) / pt).toFixed(3), round: round + 1 }); again++; }
@@ -2479,7 +2481,7 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
     const px = Math.max(2, Math.round((el.meters || 100) * (el.pxPerMeter || DEFAULT_PX_PER_METER))); // #920 — no 20 px floor: the bar is as long as its label says
     return (
       <div style={wrap} onMouseDown={onDown} data-el-id={el.id} {...kb}>
-        <svg width={px + 4} height={el.viewPlane ? 44 : 34} style={{ overflow: "visible" }}>
+        <svg width={px + 4} height={el.viewPlane || el.horizontalVe > 1 ? 44 : 34} style={{ overflow: "visible" }}>
           <rect x="2" y="4" width={px / 2} height="10" fill="#1a2028" />
           <rect x={2 + px / 2} y="4" width={px / 2} height="10" fill="#fbfbf8" stroke="#1a2028" />
           <rect x="2" y="4" width={px} height="10" fill="none" stroke="#1a2028" />
@@ -2487,6 +2489,7 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
           <text x={px + 2} y="28" fontSize={printPx(printPt.small)} textAnchor="end" fill="#1a2028" fontFamily={FONT}>{scaleBarLabel(el.meters || 100) /* #2140 — '5 km', not '5000 m' */}</text>
           {scaleBarMidLabel(el.meters || 100, px) && <text x={2 + px / 2} y="28" fontSize={printPx(printPt.small)} textAnchor="middle" fill="#1a2028" fontFamily={FONT}>{scaleBarMidLabel(el.meters || 100, px)}</text>}{/* #2140 — the half-way tick */}
           {el.viewPlane && <text x="2" y="40" fontSize={printPx(printPt.small)} fill="#1a2028" fontFamily={FONT}>{tr("in the view plane (oblique view)")}</text>}
+          {el.horizontalVe > 1 && <text x="2" y="40" fontSize={printPx(printPt.small)} fill="#1a2028" fontFamily={FONT}>{tr("horizontal scale ({ve}x vertical exaggeration)", { ve: el.horizontalVe })}</text>}{/* #3022 */}
         </svg>
       </div>
     );
