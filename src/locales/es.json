@@ -11911,5 +11911,9 @@
   "Azimuth {v}° · looking {look} · {v2}{v3} · elevation in m": "Azimut {v}° · mirando hacia {look} · {v2}{v3} · elevación en m",
   "No value here: {n} pierce point (hollow ring)": "Sin valor aquí: {n} punto de perforación (anillo hueco)",
   "No value here: {n} pierce points (hollow ring)": "Sin valor aquí: {n} puntos de perforación (anillo hueco)",
-  "Default classes: round limits on a log scale between the median ({p50}) and the 97.5th percentile ({p975}): {limits} {unit}.": "Clases por defecto: límites redondos en escala logarítmica entre la mediana ({p50}) y el percentil 97,5 ({p975}): {limits} {unit}."
+  "Default classes: round limits on a log scale between the median ({p50}) and the 97.5th percentile ({p975}): {limits} {unit}.": "Clases por defecto: límites redondos en escala logarítmica entre la mediana ({p50}) y el percentil 97,5 ({p975}): {limits} {unit}.",
+  " · centred on {e} E, {n} N": " · centrado en {e} E, {n} N",
+  " · {n} hole in the slab": " · {n} sondaje en la franja",
+  " · {n} holes in the slab": " · {n} sondajes en la franja",
+  " · no hole in the slab: move it or turn it": " · ningún sondaje en la franja: muévala o gírela"
 }

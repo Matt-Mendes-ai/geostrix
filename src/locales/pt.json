@@ -11911,5 +11911,9 @@
   "Azimuth {v}° · looking {look} · {v2}{v3} · elevation in m": "Azimute {v}° · olhando para {look} · {v2}{v3} · elevação em m",
   "No value here: {n} pierce point (hollow ring)": "Sem valor aqui: {n} ponto de interseção (anel vazado)",
   "No value here: {n} pierce points (hollow ring)": "Sem valor aqui: {n} pontos de interseção (anel vazado)",
-  "Default classes: round limits on a log scale between the median ({p50}) and the 97.5th percentile ({p975}): {limits} {unit}.": "Classes padrão: limites redondos em escala logarítmica entre a mediana ({p50}) e o percentil 97,5 ({p975}): {limits} {unit}."
+  "Default classes: round limits on a log scale between the median ({p50}) and the 97.5th percentile ({p975}): {limits} {unit}.": "Classes padrão: limites redondos em escala logarítmica entre a mediana ({p50}) e o percentil 97,5 ({p975}): {limits} {unit}.",
+  " · centred on {e} E, {n} N": " · centrado em {e} E, {n} N",
+  " · {n} hole in the slab": " · {n} furo na faixa",
+  " · {n} holes in the slab": " · {n} furos na faixa",
+  " · no hole in the slab: move it or turn it": " · nenhum furo na faixa: mova-a ou gire-a"
 }

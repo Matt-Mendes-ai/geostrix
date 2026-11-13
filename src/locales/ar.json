@@ -11911,5 +11911,9 @@
   "Azimuth {v}° · looking {look} · {v2}{v3} · elevation in m": "السمت {v}° · النظر نحو {look} · {v2}{v3} · الارتفاع بالمتر",
   "No value here: {n} pierce point (hollow ring)": "لا قيمة هنا: {n} نقطة اختراق (حلقة مجوفة)",
   "No value here: {n} pierce points (hollow ring)": "لا قيمة هنا: {n} نقاط اختراق (حلقة مجوفة)",
-  "Default classes: round limits on a log scale between the median ({p50}) and the 97.5th percentile ({p975}): {limits} {unit}.": "الفئات الافتراضية: حدود مدوّرة على مقياس لوغاريتمي بين الوسيط ({p50}) والمئين 97.5 ({p975}): {limits} {unit}."
+  "Default classes: round limits on a log scale between the median ({p50}) and the 97.5th percentile ({p975}): {limits} {unit}.": "الفئات الافتراضية: حدود مدوّرة على مقياس لوغاريتمي بين الوسيط ({p50}) والمئين 97.5 ({p975}): {limits} {unit}.",
+  " · centred on {e} E, {n} N": " · مركزه عند {e} شرقًا، {n} شمالًا",
+  " · {n} hole in the slab": " · {n} ثقب في الشريحة",
+  " · {n} holes in the slab": " · {n} ثقوب في الشريحة",
+  " · no hole in the slab: move it or turn it": " · لا ثقب في الشريحة: حرّكها أو أدرها"
 }
