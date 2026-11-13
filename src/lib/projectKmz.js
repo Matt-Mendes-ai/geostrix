@@ -22,8 +22,6 @@ import { assayColorFor } from "./legendGroups.js";
 import { layerCategoryValue, STRUCTURE_CLASS_COLORS, STRUCTURE_CLASS_LABELS } from "./mapLayers.js";
 import { mapLayerFeatures, boundaryFeatures, surfaceStructureRows, kmlColor } from "./overlayExport.js";
 import { polygonsFromRings } from "./polygonRings.js";
-import { projectSymbolChoices, symbolForReading } from "./structureSymbols.js"; // #3068 part 2 — #3066's USGS (FGDC) symbols
-import { symbolPng, symbolIconPath } from "./structureSymbolPng.js";
 
 export const MAX_CLASSES = 16; // a numeric log with more colours than this is grouped into equal bins
 const BINS = 12;
@@ -340,32 +338,31 @@ export function buildProjectKml(ctx, opts) {
       w.close();
     }
     if (sets.length) {
-      // #3068 part 2 — each reading drawn with its USGS (FGDC) symbol (#3066: the project's choice per structure type), as the outcrop KMZ
-      // (SurfaceMappingPanel exportStructSet) draws it: one white PNG per symbol used, tinted by the class colour and turned to the strike
-      const choices = projectSymbolChoices(ctx.surfaceStructures);
-      const symbols = new Map();
+      // #3068 part 2 — each reading drawn with its USGS (FGDC) symbol, from the icon set the outcrop KMZ uses too (lib/structureKmzIcons.js,
+      // side 3's #3066 / #3091: the project's symbol per type, the set's line thickness, the true right-hand-rule strike): opts.structureIconOf
+      // (row, set) -> { href, heading } | null, its PNGs added to the zip by the caller. A reading with no icon gets the plain strike symbol.
+      const iconOf = opts.structureIconOf || (() => null);
       w.open("Structures");
       for (const set of sets) {
         counts.layers++;
         w.open(set.name || "Structures", { visible: set.visible !== false });
         const rows = surfaceStructureRows(set, ctx.epsg);
+        const raw = (set.rows || []).filter((r) => Number.isFinite(r.x) && Number.isFinite(r.y)); // the stored rows, in the same order (surfaceStructureRows' own filter)
         const used = new Set();
-        for (const r of rows) {
+        rows.forEach((r, ri) => {
           const cls = STRUCTURE_CLASS_COLORS[r.cls] ? r.cls : "other";
           used.add(cls);
           const color = STRUCTURE_CLASS_COLORS[cls];
           const strike = fin(num(r.strike_rhr_true)) ? num(r.strike_rhr_true) : fin(num(r.strike_rhr_grid)) ? num(r.strike_rhr_grid) : null;
-          const sym = symbolForReading({ type: r.type, cls: r.cls, dip: r.dip === "" ? NaN : Number(r.dip) }, choices).symbol;
-          const href = sym ? symbolIconPath(sym) : STRIKE_ICON;
-          if (sym) symbols.set(href, sym);
-          const inline = strike != null ? `<Style><IconStyle><color>${kmlColor(color)}</color><scale>0.9</scale><heading>${Math.round(strike * 10) / 10}</heading><Icon><href>${href}</href></Icon></IconStyle><LabelStyle><scale>0.6</scale></LabelStyle></Style>` : "";
+          const icon = iconOf(raw[ri], set);
+          const href = icon ? icon.href : STRIKE_ICON, heading = icon ? icon.heading : strike;
+          const inline = icon || strike != null ? `<Style><IconStyle><color>${kmlColor(color)}</color><scale>0.9</scale><heading>${Math.round(heading * 10) / 10}</heading><Icon><href>${href}</href></Icon></IconStyle><LabelStyle><scale>0.6</scale></LabelStyle></Style>` : "";
           w.placemark(fin(num(r.dip)) ? String(Math.round(num(r.dip))) : "", w.style({ color, iconScale: 0.5 }), w.pointGround(num(r.x), num(r.y)), { inline, data: { class: r.cls, type: r.type, dip: r.dip, dipdir_true: r.dipdir_true, strike_rhr_true: r.strike_rhr_true, station: r.station, comment: r.comment } });
-        }
+        });
         legend({ label: set.name || "Structures", items: [...used].map((c) => [STRUCTURE_CLASS_LABELS[c] || c, STRUCTURE_CLASS_COLORS[c]]) }, set.visible !== false);
         w.close();
       }
       w.close();
-      for (const [path, sym] of symbols) files.push({ name: path, data: symbolPng(sym, 64) });
     }
     if (maps.length) {
       w.open("Map layers");

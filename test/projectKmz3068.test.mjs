@@ -102,7 +102,7 @@ test("styles: the 3D View's category colours, map-layer fill and opacity, consec
   assert.match(styleOf("Kqm"), /<PolyStyle><color>800000ff<\/color><fill>1<\/fill><outline>1<\/outline><\/PolyStyle>/, "fill colour at the layer's opacity (0.5 -> 0x80), the flags written");
   assert.match(placemark(kml, "Kqm"), /<tessellate>1<\/tessellate>/, "map layers on the ground");
   assert.match(kml, /<GroundOverlay><name>Mag RTP<\/name><color>b3ffffff<\/color><Icon><href>files\/raster_0.png<\/href><\/Icon><gx:LatLonQuad>/, "the raster at its opacity");
-  assert.match(kml, /<heading>45<\/heading><Icon><href>files\/fgdc_[0-9a-z_]+\.png<\/href>/i, "a structure's USGS symbol turned to its strike (dip direction 135 -> strike 45)");
+  assert.match(kml, /<heading>45<\/heading><Icon><href>files\/strike\.png<\/href>/, "with no icon set given: the plain strike symbol turned to its strike (dip direction 135 -> strike 45)");
   assert.match(placemark(kml, "DH0"), /<LabelStyle>|styleUrl/, "collars");
   const collarStyle = styleOf("DH0");
   assert.match(collarStyle, /<LabelStyle><scale>0.7<\/scale>/, "labelled as the view labels its holes");
@@ -145,24 +145,27 @@ test("Matt's Perk-Rocky KMZ: PR-Litho_interpV3's polygons carry their category f
   assert.match(kml.slice(i), /^<Folder><name>Dac<\/name>\n<Placemark><name>Dac<\/name><styleUrl>#s\d+<\/styleUrl>.*?<Polygon><tessellate>1<\/tessellate><altitudeMode>clampToGround<\/altitudeMode><outerBoundaryIs>/);
 });
 
-test("part 2: structures carry #3066's USGS symbols, one PNG per symbol used, the project's choice per type followed", async () => {
-  const { symbolForReading, projectSymbolChoices } = await import("../src/lib/structureSymbols.js");
-  const { symbolIconPath, symbolPng } = await import("../src/lib/structureSymbolPng.js");
+test("part 2: structures carry the shared USGS icon set (structureKmzIcons, as the outcrop KMZ): its href and true-strike heading per reading", async () => {
+  const { structureIconSet } = await import("../src/lib/structureKmzIcons.js");
   const p = project();
   p.surfaceStructures = [{ id: 1, name: "Outcrop", visible: true, symbolByType: {}, rows: [
     { x: 500010, y: 6200010, dip: 60, dipDir: 135, cls: "bedding", type: "bedding" },
     { x: 500020, y: 6200010, dip: 80, dipDir: 90, cls: "fault", type: "fault" },
     { x: 500030, y: 6200010, dip: 30, dipDir: 200, cls: "bedding", type: "bedding" },
+    { x: 500040, y: 6200010, cls: "other", type: "note" }, // no attitude: no icon, no heading
   ] }];
-  const { kml, files } = buildProjectKml(p, opts);
-  const expect = new Set(p.surfaceStructures[0].rows.map((r) => symbolIconPath(symbolForReading(r, projectSymbolChoices(p.surfaceStructures)).symbol)));
-  const symFiles = files.filter((f) => /^files\/fgdc_/.test(f.name));
-  assert.deepEqual(new Set(symFiles.map((f) => f.name)), expect, "one PNG per symbol used");
-  for (const f of symFiles) assert.deepEqual([...f.data.slice(0, 8)], [137, 80, 78, 71, 13, 10, 26, 10], "a PNG");
-  const bed = symbolForReading(p.surfaceStructures[0].rows[0], {}).symbol;
-  assert.deepEqual([...symFiles.find((f) => f.name === symbolIconPath(bed)).data], [...symbolPng(bed, 64)]);
-  assert.doesNotMatch(kml, /files\/strike\.png/, "the plain strike icon only for a reading with no symbol");
-  for (const href of expect) assert.ok(kml.includes(`<Icon><href>${href}</href></Icon>`));
+  const icons = await structureIconSet(p.surfaceStructures, { px: 64, epsg: null });
+  const { kml, files } = buildProjectKml(p, { ...opts, structureIconOf: (row, set) => icons.iconOf(row, set) });
+  for (const r of p.surfaceStructures[0].rows.slice(0, 3)) {
+    const ic = icons.iconOf(r, p.surfaceStructures[0]);
+    assert.ok(kml.includes(`<heading>${Math.round(ic.heading * 10) / 10}</heading><Icon><href>${ic.href}</href></Icon>`), ic.href);
+  }
+  assert.ok(icons.files.length >= 2 && icons.files.every((f) => /^files\/sym_/.test(f.name)));
+  assert.ok(!files.some((f) => /^files\/(sym|fgdc)_/.test(f.name)), "the caller adds the icon set's PNGs, not the KML builder");
+  assert.doesNotMatch(kml, /files\/strike\.png/, "the plain strike icon only for a reading with an attitude and no icon");
+  const src = readFileSync(new URL("../src/lib/projectKmzExport.js", import.meta.url), "utf8");
+  assert.match(src, /await structureIconSet\(store\.surfaceStructures, \{ px: 64, epsg: tie \? null : ctx\.epsg \}\)/);
+  assert.match(src, /\.\.\.icons\.files\.filter\(\(f\) => out\.kml\.includes\(f\.name\)\)/);
 });
 
 test("a value raster's colour ramp (no swatch rows) still gets its legend", () => {
