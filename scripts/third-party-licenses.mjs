@@ -152,6 +152,10 @@ export function bundledData() {
   { const p = path.join(ROOT, "sample_data", "fi_lapland", "README.md");
     if (existsSync(p)) out.push({ name: "Central Lapland sample (Rock geochemical data of Finland and Bedrock of Finland 1:1 000 000, Geological Survey of Finland)", version: "2026-11", license: "CC-BY-4.0",
       url: "https://www.gtk.fi/en/open-licence/", text: readFileSync(p, "utf8").trim() }); }
+  // TASKS.csv #3107 — listed like the Blake River and WA uranium samples: its README carries the attribution and says what was done
+  { const p = path.join(ROOT, "sample_data", "qc_rouyn_noranda", "README.md");
+    if (existsSync(p)) out.push({ name: "Rouyn-Noranda sample (SIGEOM, Ministère des Ressources naturelles et des Forêts, Gouvernement du Québec; Canadian Digital Elevation Model, Natural Resources Canada)", version: "2026-11", license: "CC-BY-4.0",
+      url: "https://www.donneesquebec.ca/licence/#cc-by", text: readFileSync(p, "utf8").trim() }); }
   return out;
 }
 

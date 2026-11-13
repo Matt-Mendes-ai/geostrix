@@ -24,6 +24,16 @@ export const REGIONAL_SAMPLES = {
     surface: [["rocks.csv", "rock"]],
     loaded: "Loaded the Central Lapland sample (Geological Survey of Finland; no drillholes): the 1:1 000 000 bedrock units and faults of a 100 km window of the greenstone belt, and 121 whole-rock samples with their major oxides and trace elements. Open Geochem for the rock diagrams. See sample_data/fi_lapland/README.md for the sources and the licence.",
   },
+  // Rouyn-Noranda (Quebec's SIGEOM, CC BY 4.0, with a federal CDEM terrain): the regional geology, outcrop structural measurements and
+  // 280 historical diamond drillholes of a 7 km block. queue: its collars.csv and survey.csv go through the import queue.
+  qc_rouyn_noranda: {
+    dir: "qc_rouyn_noranda", epsg: 26917, crs: "NAD83 / UTM zone 17N", label: "Rouyn-Noranda", queue: true,
+    terrain: { file: "terrain_cdem_30m.tif", name: "Terrain (Canadian Digital Elevation Model, 30 m)", source: "Canadian Digital Elevation Model, Natural Resources Canada (bundled with the sample)", pixel: 30, gridMax: 330 },
+    layers: [{ zip: "geology.zip", field: "UNIT", visible: true, name: "Geology (SIGEOM)" }],
+    // SIGEOM records a plane as strike / dip by the right-hand rule, from true north (its documentation says so)
+    structures: { file: "structures.csv", name: "Structural measurements (SIGEOM)", north: "true", columns: { x: "easting", y: "northing", dip: "dip", strike: "strike", type: "type", station: "station" } },
+    loaded: "Loaded the Rouyn-Noranda sample (Quebec's SIGEOM, Abitibi): {layers} geology layer(s), {n} outcrop structural measurement(s) and a terrain, with 280 historical diamond drillholes as traces (collar, direction and depth; SIGEOM holds no assays for them). It lies inside the Blake River gravity sample, in the same coordinate system. See sample_data/qc_rouyn_noranda/README.md for the sources and the licence.",
+  },
 };
 export const isRegionalSample = (which) => Object.prototype.hasOwnProperty.call(REGIONAL_SAMPLES, which);
 
