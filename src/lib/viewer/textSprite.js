@@ -57,20 +57,22 @@ export function atlasLayout(widths, h, { width = ATLAS_W, maxH = ATLAS_MAX_H, ga
   if (widths.length) pages.push(y + h);
   return { cells, pageHeights: pages };
 }
-export function makeTextSprites(texts, { color = "#1a2028", bg = "rgba(255,255,255,0.85)" } = {}) {
+const PAD_X = 10, LABEL_H = 32 + 6 * 2; // font 32, padding 10 / 6
+let probeCtx = null;
+const labelWidths = (texts) => { probeCtx ||= document.createElement("canvas").getContext("2d"); probeCtx.font = LABEL_FONT; return texts.map((t) => Math.ceil(probeCtx.measureText(t).width) + PAD_X * 2); };
+const labelSprite = () => {
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ depthTest: false, transparent: true, sizeAttenuation: false }));
+  sprite.center.set(0.5, -0.35); // #379
+  sprite.renderOrder = 999;
+  return sprite;
+};
+// into: sprites already made (fillTextSprites) to draw these texts on, instead of new ones
+export function makeTextSprites(texts, { color = "#1a2028", bg = "rgba(255,255,255,0.85)" } = {}, into = null) {
   if (!texts.length) return [];
-  const fontSize = 32, padX = 10, padY = 6, h = fontSize + padY * 2;
-  const probe = document.createElement("canvas").getContext("2d");
-  const sprites = texts.map(() => {
-    const material = new THREE.SpriteMaterial({ depthTest: false, transparent: true, sizeAttenuation: false });
-    const sprite = new THREE.Sprite(material);
-    sprite.center.set(0.5, -0.35); // #379
-    sprite.renderOrder = 999;
-    return sprite;
-  });
+  const padX = PAD_X, h = LABEL_H;
+  const sprites = into || texts.map(labelSprite);
   const draw = (first) => {
-    probe.font = LABEL_FONT;
-    const widths = texts.map((t) => Math.ceil(probe.measureText(t).width) + padX * 2);
+    const widths = labelWidths(texts);
     const { cells, pageHeights } = atlasLayout(widths, h);
     const newPages = pageHeights.map((ph) => { const c = document.createElement("canvas"); c.width = ATLAS_W; c.height = ph; const ctx = c.getContext("2d"); ctx.font = LABEL_FONT; ctx.textBaseline = "middle"; return { canvas: c, ctx, texture: null }; });
     cells.forEach((cell, i) => {
@@ -88,6 +90,7 @@ export function makeTextSprites(texts, { color = "#1a2028", bg = "rgba(255,255,2
       t.needsUpdate = true;
       const old = m.map; m.map = t; m.needsUpdate = true; old?.dispose?.();
       m.userData.labelAspect = cell.w / h;
+      m.visible = true; // #3098 — a lazy sprite is drawn from here on
     });
   };
   draw(true);
@@ -96,6 +99,30 @@ export function makeTextSprites(texts, { color = "#1a2028", bg = "rgba(255,255,2
   return sprites;
 }
 makeTextSprite.many = makeTextSprites; // #2795 — the syncs that pass makeTextSprite take the batch form when it is there
+
+// TASKS.csv #3098 (#2937, WA iron) — 'Hole labels' on 6,390 holes took 1.7 s, most of it drawing and uploading ~17 atlas pages
+// for labels the declutter then hid (at Fit it shows a few hundred). The hole labels are made lazily: each sprite is measured
+// (its labelAspect, for the declutter and fitScreenLabels) but has no texture and its material is not drawn; fillTextSprites
+// draws the ones the declutter shows (or a Layout capture needs) into atlas pages of their own, as makeTextSprites does.
+export function makeLazyTextSprites(texts) {
+  const widths = labelWidths(texts);
+  return texts.map((text, i) => {
+    const sp = labelSprite();
+    sp.material.visible = false;
+    sp.material.userData.labelAspect = widths[i] / LABEL_H;
+    sp.material.userData.labelText = text; // on the material: the syncs replace a sprite's userData with its tip
+    return sp;
+  });
+}
+// sprites: lazy ones; those already drawn are skipped. -> how many were drawn
+export function fillTextSprites(sprites) {
+  const todo = sprites.filter((sp) => sp.material?.userData?.labelText != null && !sp.material.map);
+  if (!todo.length) return 0;
+  makeTextSprites(todo.map((sp) => sp.material.userData.labelText), {}, todo);
+  return todo.length;
+}
+makeTextSprite.lazy = makeLazyTextSprites;
+makeTextSprite.fill = fillTextSprites;
 
 export function fitScreenLabels(group, camera, viewportH) {
   if (!group || !viewportH) return;

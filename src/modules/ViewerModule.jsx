@@ -190,13 +190,14 @@ import { LABEL_PX, makeTextSprite, fitScreenLabels, fitContourLabels } from "../
 import { restrictLayersToHoles } from "../lib/modelArea.js"; // TASKS.csv #1546
 import { gradeText } from "../lib/gradeText.js"; // #2515
 import { pickOnView } from "./viewer/pickGround.js"; // #2574; #2447
-import { syncHoleLabels, declutterHoleLabels, withEveryLabel, syncTextLabels, sampleLabelItems } from "../lib/viewer/holeLabels.js"; // withEveryLabel: TASKS.csv #1770; syncTextLabels / sampleLabelText: #1443
+import { syncHoleLabels, declutterHoleLabels, withEveryLabel, syncTextLabels, sampleLabelItems, redeclutter } from "../lib/viewer/holeLabels.js"; // withEveryLabel: #1770; syncTextLabels: #1443
 import { PickStandIn, PICK_ONLY_LAYER } from "../lib/viewer/pickStandIn.js"; // TASKS.csv #1500
 import { syncBatchedInstances, buildLayerBatches, eachLayerMember, eachPickTarget, batchTag } from "../lib/viewer/layerBatches.js"; // moved out (size cap, #1084)
 import { PROTO_SPHERE_8, POINT_PROTO } from "../lib/viewer/protos.js"; // TASKS.csv #2176
 import { assayShapeFor, assayProto, placeAssayMarker } from "../lib/viewer/assayShape.js"; // TASKS.csv #2932
 import { assayRange } from "../lib/viewer/assayRanges.js"; // TASKS.csv #3055
 import { makeAssayBatcher } from "../lib/viewer/assayBatcher.js"; // TASKS.csv #3055
+import { syncAssayElements } from "../lib/viewer/assayKeep.js"; // TASKS.csv #3117
 import { buildDrillholeScene, collarColorFor, voxelFitCorners, isIntervalRow } from "./viewer/drillholeScene.js"; // TASKS.csv #2176
 import { viewNdc } from "../lib/viewer/clickPoint.js"; // TASKS.csv #2803
 import { hideTraceHoles } from "../lib/viewer/traceBatch.js"; // TASKS.csv #2176
@@ -2833,7 +2834,7 @@ ${describeTrend(t)}` };
       worldHeightAtTarget, themeName: theme?.name, cameraAzimuthDeg, ve: renderCamera === orthoCamera ? 1 : veOf(camera.userData.ve) /* #2628 */, trueScale: !!req.trueScale, targetWorld, planView, fixedScale: orthoHalfH != null && req.fixedScale > 0 ? req.fixedScale : null, zoomScale, // zoomScale: #1486
       // TASKS.csv #948 — a "current view" capture has no theme to read its legend from: the view's own settings (the same
       // bundle a theme saves), kept on the viewport so Layout's "Load from view" works for it
-      viewState: theme ? null : (req.viewState || liveViewBeforeRender), // #1644 — an atlas page keeps its template's
+      viewState: theme ? null : (req.exitView || req.viewState || liveViewBeforeRender), // #1644 — an atlas page keeps its template's; exitView: #3138
       samplesUnplaced: unplacedForCaptureRef.current, // TASKS.csv #1864 — surface samples over a void of the terrain: in no frame
     }), (err) => resolveViewportRender({ requestId: req.requestId, error: err.message }));
     // Hopping back to "layout" now happens in store.jsx's own result-effect (right after it applies
@@ -2873,12 +2874,8 @@ ${describeTrend(t)}` };
     // request was queued) is an error.
     const theme = req.themeId ? themes.find((t) => t.id === req.themeId) : null;
     if (req.themeId && !theme) { resolveViewportRender({ requestId: req.requestId, error: "Theme not found (it may have been deleted)." }); return; }
-    // TASKS.csv #202 fix — snapshot whatever the user actually had live (layers/filters/camera)
-    // BEFORE temporarily swapping in the requested theme, so it can be restored once the capture
-    // below is done rather than left showing the theme's config after the fact. For a themeless
-    // "current view" request this snapshot IS what gets captured (applyTheme below is skipped
-    // entirely), and restoring it afterward is still correct — it's a no-op restore of the exact
-    // state that's already live.
+    // TASKS.csv #202 — the live view (layers, filters, camera) BEFORE the theme is swapped in, restored after the capture. For a
+    // themeless "current view" request it IS what is captured, and restoring it is a no-op.
     const liveViewBeforeRender = liveViewBundleFromStoreRef.current();
     if (theme) applyTheme(theme); else if (req.viewState) applyTheme(req.viewState); // #1644 — the template viewport's own view (camera)
     if (req.batch) setTaskProgress?.({ label: req.batch.label ? tr("{v}: {i} of {n}", { v: req.batch.label, i: req.batch.index, n: req.batch.total }) /* #2804 — the batch's own task */ : tr("Centring each atlas page's map on its hole: {i} of {n}", { i: req.batch.index, n: req.batch.total }), pct: Math.round((100 * (req.batch.index - 1)) / req.batch.total), onCancel: cancelViewportBatch });
@@ -2897,15 +2894,14 @@ ${describeTrend(t)}` };
     // have nothing to do with.
   }, [viewportRenderRequest, viewportPendingRequest, themes, applyTheme, doCaptureViewportRender, resolveViewportRender, goToModule, visible]);
 
-  // TASKS.csv #198 (part 3) — the interactive session's two exit paths. Both restore/resolve exactly
-  // like the non-interactive path; "cancel" just resolves with an error instead of a captured image,
-  // which store.jsx's existing result-effect already treats as "leave the viewport element alone,
-  // just hop back to Layout" (see its `res.error` branch) — no new store-side handling needed.
+  // TASKS.csv #198 (part 3) — the interactive session's exits, restoring as the timed path does; "cancel" resolves an error,
+  // which store.jsx's result-effect treats as "leave the viewport alone, hop back to Layout".
   const doExitInteractiveViewport = useCallback(() => {
     if (!interactiveViewportSession) return;
     const { req, liveViewBeforeRender } = interactiveViewportSession;
     setInteractiveViewportSession(null);
-    doCaptureViewportRender(req, liveViewBeforeRender);
+    // TASKS.csv #3138 — a current-view viewport keeps the view set here (it kept the one from before), marked adjusted
+    doCaptureViewportRender(req.themeId ? req : { ...req, exitView: { ...liveViewBundleFromStoreRef.current(), adjusted: true } }, liveViewBeforeRender);
   }, [interactiveViewportSession, doCaptureViewportRender]);
   const doCancelInteractiveViewport = useCallback(() => {
     if (!interactiveViewportSession) return;
@@ -4207,48 +4203,50 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   const clearGroup = (g) => { if (!g) return; while (g.children.length) { const c = g.children.pop(); if (!c.geometry?.userData?.sharedProto) c.geometry?.dispose?.(); c.material?.map?.dispose?.(); c.material?.dispose?.(); c.dispose?.(); } };
   const assayInputs = [assays, assayDisplayElements, assayStyle, assayElements, assayVisible, collars, assaySource]; // assaySource: #1695
   const assayBuiltRef = useRef(null);
+  const assayKeptRef = useRef(new Map()); // #3117 — each element's markers, kept while its inputs are the same
   const buildAssaySpheres = () => {
     const g = layerGroupsRef.current.assay;
     if (!g) return;
     assayBuiltRef.current = assayInputs;
-    clearGroup(g);
-    if (!assayVisible || !assayDisplayElements.length || !collars.length) return;
+    if (!assayVisible || !assayDisplayElements.length || !collars.length) { clearGroup(g); assayKeptRef.current.clear(); return; }
     const elementUnits = Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit]));
-    const byHole = new Map();
-    assays.forEach((a) => { if (!a.hole_id || isMarkedQcRow(a) || !assayRowShown(a)) return; let arr = byHole.get(a.hole_id); if (!arr) byHole.set(a.hole_id, (arr = [])); arr.push(a); }); // #601 — a standard's grade is not the rock's; assayRowShown: #1695
+    let byHole = null; // #3117 — only when an element is built
+    const holesOf = () => { if (!byHole) { byHole = new Map(); assays.forEach((a) => { if (!a.hole_id || isMarkedQcRow(a) || !assayRowShown(a)) return; let arr = byHole.get(a.hole_id); if (!arr) byHole.set(a.hole_id, (arr = [])); arr.push(a); }); } return byHole; }; // #601 — a standard's grade is not the rock's; assayRowShown: #1695
     // one size range PER element across all holes (Au in g/t and Cu in % share no scale); p50/p90 for #306's quantile sizes
     const ranges = Object.fromEntries(assayDisplayElements.map((sym) => [sym, assayRange(assays, sym, assaySource, assayRowShown)])); // #1695 the shown source; #3055 kept per samples array
     const drawnAssays = assayDisplayElements.reduce((s, sym) => s + ranges[sym].n, 0); // #2932 — along the hole above 40,000
-    const traceOf = new Map(tracesRef.current.map((t) => [t.hole_id, t.pts]));
-    const n = assayDisplayElements.length;
-    const errors = [], batcher = makeAssayBatcher(); // #3055
-    collars.forEach((c) => {
-      const pts = traceOf.get(c.hole_id);
-      if (!pts?.length) return; // a hole without a trace: before the lookup (#1981)
-      const look = traceLookup(pts); // look: #1500
-      try {
-        // each selected element: its own hue and a small radial offset around the trace, so Au / Cu / Zn at one
-        // depth stay separately visible (one element: no offset)
-        assayDisplayElements.forEach((sym, idx) => {
-          const style = assayStyle[sym];
-          const angle = (2 * Math.PI * idx) / n;
-          // TASKS.csv #1696 — apart by the largest radius (3.8 x the bigger size multiplier), so Au is not inside Cu's spheres
-          const ring = n > 1 ? (3.9 * Math.max(...assayDisplayElements.map((x) => assayStyle[x]?.sizeMult ?? 1))) / Math.sin(Math.PI / n) : 0; // neighbours 2 x 3.9 m apart
-          const offX = n > 1 ? Math.cos(angle) * ring : 0, offZ = n > 1 ? Math.sin(angle) * ring : 0;
-          (byHole.get(c.hole_id) || []).forEach((a) => {
+    const traces = tracesRef.current, looks = new Map();
+    const traceOf = new Map(traces.map((t) => [t.hole_id, t.pts]));
+    const n = assayDisplayElements.length, errors = [];
+    // each element: its own hue and a small radial offset around the trace, so Au / Cu / Zn at one depth stay apart (one element: none).
+    // TASKS.csv #1696 — apart by the largest radius (3.8 x the bigger size multiplier), so Au is not inside Cu's spheres; neighbours 2 x 3.9 m apart
+    const ring = n > 1 ? (3.9 * Math.max(...assayDisplayElements.map((x) => assayStyle[x]?.sizeMult ?? 1))) / Math.sin(Math.PI / n) : 0;
+    const specs = assayDisplayElements.map((sym, idx) => ({ sym, idx, offX: n > 1 ? Math.cos((2 * Math.PI * idx) / n) * ring : 0, offZ: n > 1 ? Math.sin((2 * Math.PI * idx) / n) * ring : 0,
+      key: [assays, assaySource, assayStyle[sym], idx, assayShapeFor(assayStyle[sym], drawnAssays), ranges[sym], collars, traces, elementUnits[sym]] })); // #3117 — what the element's markers depend on, besides the offset
+    syncAssayElements(g, assayKeptRef.current, specs, (sym, into) => {
+      const { idx, offX, offZ } = specs.find((x) => x.sym === sym), style = assayStyle[sym], batcher = makeAssayBatcher(); // #3055
+      collars.forEach((c) => {
+        const rows = holesOf().get(c.hole_id), pts = rows && traceOf.get(c.hole_id);
+        if (!pts?.length) return; // a hole without a trace: before the lookup (#1981)
+        try {
+          if (!looks.has(c.hole_id)) looks.set(c.hole_id, traceLookup(pts)); // #1500; one per hole for all the elements built
+          const look = looks.get(c.hole_id);
+          rows.forEach((a) => {
             const v = a.values[sym];
             if (v == null || !assayPassesCutoff(v, style)) return;
             // #312 — shared prototype + scale; #649 — the element's shape and opacity; #1695 — a pXRF reading is a cube
             const px = isPxrfRow(a), op = style?.opacity ?? 1, shape = assayShapeFor(style, drawnAssays, px);
             batcher.add(assayProto(shape), { color: assayColorFor(v, idx, style), transparent: op < 1, opacity: op, side: shape === "disc" ? THREE.DoubleSide : THREE.FrontSide }, // #3055 — no object per sample
               (t) => placeAssayMarker(t, shape, look.at, a, assaySizeFor(v, ranges[sym], style), offX, offZ), // #306 size
-              () => lazyTip({ row: a, holeId: c.hole_id }, () => `${c.hole_id}\n${sym}: ${gradeText(v)} ${elementUnits[sym] || ""}${px ? " (pXRF)" : ""}\n${+a.from.toFixed(2)}–${+a.to.toFixed(2)} m`)); // #1500; #2365 as stored
+              () => lazyTip({ row: a, holeId: c.hole_id }, () => `${c.hole_id}
+${sym}: ${gradeText(v)} ${elementUnits[sym] || ""}${px ? " (pXRF)" : ""}
+${+a.from.toFixed(2)}–${+a.to.toFixed(2)} m`)); // #1500; #2365 as stored
           });
-        });
-      } catch (err) { errors.push(`${c.hole_id}: ${err.message}`); }
+        } catch (err) { errors.push(`${c.hole_id}: ${err.message}`); }
+      });
+      batcher.finish(into);
+      buildLayerBatches(into); // the families under 24 markers, this element's only
     });
-    batcher.finish(g);
-    buildLayerBatches(g); // the families under 24 markers
     if (errors.length) setNotices((pv) => [...pv, errorNotice(tr("{errors} hole(s) failed to draw assay markers: {v}", { errors: errors.length, v: errors.slice(0, 3).join(" · ") }))]);
   };
   const buildAssaySpheresRef = useRef(buildAssaySpheres);
@@ -4869,33 +4867,12 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         }
       }
       const geometry = new THREE.BoxGeometry(1, 1, 1);
-      // IMPORTANT: do NOT set vertexColors:true here. That flag is for a geometry's own per-VERTEX
-      // "color" attribute (BoxGeometry has none), and three.js's InstancedMesh per-INSTANCE color
-      // (mesh.setColorAt/instanceColor) is applied automatically via its own USE_INSTANCING_COLOR
-      // shader path regardless of this flag. Turning vertexColors on anyway made every voxel/block
-      // model render 100% solid black (root-caused by reading three.js's own color_vertex shader
-      // chunk): with USE_COLOR defined, the vertex shader declares an `attribute vec3 color` that
-      // this geometry never binds a buffer for, WebGL defaults an unbound attribute to (0,0,0), and
-      // `vColor *= color` zeroed the color out BEFORE it was multiplied by the correct instanceColor
-      // — so the JS-side color data (verified correct via a live instanceColor.array dump) never
-      // reached the screen. Confirmed live: forcing vertexColors:false while leaving instanceColor
-      // set turned the fragment from rgb(0,0,0) into the correct rgb(91,62,91)-family color.
-      // TASKS.csv #201 — bug fix: "voxel has a bug that it will only display the selected opacity
-      // from certain angles." Root cause: a transparent material with the default depthWrite:true
-      // still writes into the depth buffer, and three.js does NOT depth-sort individual instances
-      // within one InstancedMesh draw call — so whichever voxel happens to rasterize first (an order
-      // that shifts with camera angle) occludes the ones behind it in the depth test, making them
-      // vanish outright instead of blending, rather than a uniform semi-transparent appearance from
-      // every angle. depthWrite:false (only while actually transparent — an opaque model at
-      // opacity>=1 keeps depthWrite:true, unchanged, so it still occludes other opaque geometry
-      // correctly) removes that per-angle culling: every instance now blends over whatever was
-      // already drawn behind it instead of fighting the depth buffer. FOLLOW-UP (TASKS.csv #201
-      // again) — depthWrite:false alone still doesn't give correct back-to-front BLEND order (three.js
-      // draws instances in fixed array order, not camera-distance order), which a real user on a real
-      // large model reported as still visibly wrong ("blocks displayed depending on the angle of
-      // view"). True per-frame instance sorting is now done in the mount effect's animate() loop
-      // (see resortTransparentVoxels/mesh.userData.transparentCells there) — throttled and gated so
-      // it only ever runs for a model actually at opacity<1, never for the opaque default.
+      // IMPORTANT: do NOT set vertexColors:true. It is for a geometry's own per-vertex 'color' attribute (BoxGeometry has none); the
+      // InstancedMesh per-instance colour works without it. With it on, the shader multiplied by an unbound attribute (0,0,0): every
+      // voxel / block model rendered solid black (root-caused in three.js's color_vertex chunk, confirmed live).
+      // TASKS.csv #201 — a transparent model keeps depthWrite:false, or whichever instance rasterizes first hides the ones behind it
+      // (it changed with the camera angle); an opaque one keeps depthWrite:true. Blend order is fixed per frame by
+      // resortTransparentVoxels in animate() (mesh.userData.transparentCells), only for a model at opacity < 1.
       const material = new THREE.MeshLambertMaterial({ transparent: opacity < 1, opacity, depthWrite: opacity >= 1 });
       const mesh = new THREE.InstancedMesh(geometry, material, cells.length);
       // TASKS.csv #209 — perf fix, profiled not guessed. Real repro: an OMF-style model with its own
@@ -5160,7 +5137,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   // (and only when) a legend color/label override is added/edited/removed.
   useEffect(() => { applyLegendOverrideColors(); }, [applyLegendOverrideColors]);
 
-  const holesHiddenRef = useRef(false); // #1500 — no hole hidden now or at the last pass: every member is already visible
+  const holesHiddenRef = useRef(false); // #1500 — none hidden now or last pass
   useEffect(() => {
     const groups = layerGroupsRef.current;
     const anyHidden = Object.values(visibleHoles).some((v) => v === false);
@@ -5175,6 +5152,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       });
     });
     syncLayerBatches(); // TASKS.csv #312
+    redeclutter(groups.hole_labels); // #3098
     applyCategoryVisibility(); // #2930 — the category filters again, on top of the holes (it ANDs both)
   }, [visibleHoles, syncLayerBatches, applyCategoryVisibility]);
 
