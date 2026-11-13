@@ -11713,5 +11713,14 @@
   "None yet: build one with Implicit surface, Explicit surface or Grade shell above, or link section outlines into a solid.": "Aucune pour l'instant : créez-en une avec Surface implicite, Surface explicite ou Enveloppe de teneur ci-dessus, ou reliez des contours de coupe en un solide.",
   "Generated surfaces save with the project (mesh, type, declared relationships and the parameters that produced them), so a reported volume or tonnage can be reproduced after a restart.": "Les surfaces générées sont enregistrées avec le projet (maillage, type, relations déclarées et paramètres qui les ont produites), afin qu'un volume ou un tonnage rapporté puisse être reproduit après un redémarrage.",
   "Under the trend \"{name}\" the cell is a cube in its frame (see below); clear the trend to set a cell height.": "Avec la tendance « {name} », la cellule est un cube dans son repère (voir ci-dessous) ; retirez la tendance pour fixer une hauteur de cellule.",
-  "A flat search: {r} m across and {v} m up and down from each cell.": "Une recherche plane : {r} m de large et {v} m au-dessus et au-dessous de chaque cellule."
+  "A flat search: {r} m across and {v} m up and down from each cell.": "Une recherche plane : {r} m de large et {v} m au-dessus et au-dessous de chaque cellule.",
+  "Estimates other elements in the same run, on the same blocks, with the same search and domain rule, and adds them with this one as a set of block models. Each is composited on its own. The top cut and a typed variogram apply to {symbol} only; the unsampled metres of each other element are read as you last chose for it here, else left out.": "Estime d'autres éléments dans le même calcul, sur les mêmes blocs, avec la même recherche et la même règle de domaines, et les ajoute avec celui-ci comme un ensemble de modèles de blocs. Chacun est composité séparément. La coupe supérieure et un variogramme saisi ne s'appliquent qu'à {symbol} ; les mètres non échantillonnés de chaque autre élément sont lus comme vous l'avez choisi la dernière fois ici, sinon laissés de côté.",
+  "Also estimate: {list}": "Estimer aussi : {list}",
+  "Also estimate other elements…": "Estimer aussi d'autres éléments…",
+  "Up to {n} elements in one run.": "Jusqu'à {n} éléments par calcul.",
+  "Also estimated on the same grid (added with {symbol} as a set):": "Aussi estimés sur la même grille (ajoutés avec {symbol} comme un ensemble) :",
+  "{el}: {blocks} blocks from {n} composites, mean {mean} {unit}": "{el} : {blocks} blocs à partir de {n} composites, moyenne {mean} {unit}",
+  "{el}: no samples to estimate from; not added.": "{el} : aucun échantillon pour l'estimer ; non ajouté.",
+  "Add the set ({n} block models)": "Ajouter l'ensemble ({n} modèles de blocs)",
+  "Running {el}… {v}": "Calcul de {el}… {v}"
 }

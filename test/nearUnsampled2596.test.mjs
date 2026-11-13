@@ -73,5 +73,6 @@ test("#2596: Pit shell counts the ore in those blocks, the solve unchanged; the 
   assert.match(pane, /oreNearUnsampledShare: \+\(r\.oreNearUnsampledShare \|\| 0\)\.toFixed\(3\)/);
   const est = fs.readFileSync("src/components/GradeEstimationModal.jsx", "utf8");
   assert.match(est, /\.\.\.\(unsPts\.length \? \{ unsampledPoints: unsPts \} : \{\}\)/);
-  assert.match(est, /sampledByHole\(resolvedSegments\(runAssays, symbol, unit, elementUnits\)\)/, "barren-filled metres count as sampled");
+  assert.match(est, /sampledByHole\(resolvedSegments\(rows, el, u, elementUnits\)\)/, "barren-filled metres count as sampled");
+  assert.match(est, /const unsPts = unsampledPointsFor\(runAssays, symbol, unit\)/); // #3014 — per element (a set's members get their own): the primary from the filled assays
 });
