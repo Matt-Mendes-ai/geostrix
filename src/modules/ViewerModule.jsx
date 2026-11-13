@@ -6447,18 +6447,18 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       {/* TASKS.csv #458 — Targeting ribbon */}
       {mode === "minedesign" && (
         <Ribbon show={visible && !bare} label="Mine design tools">
-          <RibbonGroup label="Open pit">
+          <RibbonGroup label="Open pit">{/* #3003 (5), Matt: Simple shows the open-pit flow — Pit shell, Pit design, Dump */}
             <RibbonButton icon={Pickaxe} label="Pit shell" tone="model" title="The pit that makes the most money at your prices and costs, from a block model" {...paneProps("pit")} />
             <RibbonButton advanced icon={Layers} label="Nested pits" tone="model" title="The shell at a series of revenue factors, valued at the entered price, with a schedule and an NPV per shell" {...paneProps("nested")} />{/* TASKS.csv #1875 */}
-            <RibbonButton advanced icon={Layers3} label="Pit design" tone="model" title="Benches, berms and faces on a pit shell: crest and toe strings and a bench-by-bench table" {...paneProps("pitdesign")} />{/* TASKS.csv #1874 */}
-            <RibbonButton advanced icon={Mountain} label="Dump / stockpile" tone="model" title="A footprint string, a crest and an angle of repose: the dump's shape on the ground and what it holds, against a pit's waste" {...paneProps("dump")} />{/* TASKS.csv #1880 */}
+            <RibbonButton icon={Layers3} label="Pit design" tone="model" title="Benches, berms and faces on a pit shell: crest and toe strings and a bench-by-bench table" {...paneProps("pitdesign")} />{/* TASKS.csv #1874 */}
+            <RibbonButton icon={Mountain} label="Dump / stockpile" tone="model" title="A footprint string, a crest and an angle of repose: the dump's shape on the ground and what it holds, against a pit's waste" {...paneProps("dump")} />{/* TASKS.csv #1880 */}
           </RibbonGroup>
-          <RibbonGroup label="Underground">
-            <RibbonButton icon={Spline} label="Drifts and ramps" tone="model" title="Draw drifts, tunnels, ramps and declines at set grades, with curves of a chosen radius" {...paneProps("lines")} />
+          <RibbonGroup advanced label="Underground">{/* #3003 (5): Advanced / Show all */}
+            <RibbonButton advanced icon={Spline} label="Drifts and ramps" tone="model" title="Draw drifts, tunnels, ramps and declines at set grades, with curves of a chosen radius" {...paneProps("lines")} />
             <RibbonButton advanced icon={Layers3} label="Stope outlines" tone="model" title="A block model at a cut-off, level by level: stope outlines and solids no thinner than a mining width, with a dilution skin" {...paneProps("stopes")} />{/* TASKS.csv #1879 */}
           </RibbonGroup>
-          <RibbonGroup label="CAD">{/* TASKS.csv #1876 / #1877 */}
-            <RibbonButton icon={PenTool} label="Strings" tone="model" title="Free polylines and polygons in 3D: draw, type, offset, join and split them; extrude or loft closed ones into solids; DXF in and out" {...paneProps("strings")} />
+          <RibbonGroup advanced label="CAD">{/* TASKS.csv #1876 / #1877; advanced: #3003 (5) */}
+            <RibbonButton advanced icon={PenTool} label="Strings" tone="model" title="Free polylines and polygons in 3D: draw, type, offset, join and split them; extrude or loft closed ones into solids; DXF in and out" {...paneProps("strings")} />
           </RibbonGroup>
         </Ribbon>
       )}

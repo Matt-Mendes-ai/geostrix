@@ -9,7 +9,8 @@ test("10th / 90th percentiles, ignoring empty cells; a distance runs 0 to the me
   const e = defaultEvidenceEnds("element", v);
   assert.ok(e.low > 10 && e.low < 11.5 && e.high > 89.5 && e.high < 90.5, JSON.stringify(e));
   assert.equal(e.log, false);
-  assert.equal(defaultEvidenceEnds("grade", [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]).log, true);
+  assert.equal(defaultEvidenceEnds("grade", Array.from({ length: 100 }, (_, i) => i + 1)).log, true); // P10 10.9 -> P90 90.1: over a factor of 5 (#2975)
+  assert.equal(defaultEvidenceEnds("grade", [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]).log, false, "#2975: P10 1.9 -> P90 9.1 is under a factor of 5");
   assert.deepEqual(defaultEvidenceEnds("distance", [0, 10, 20, 30, 40]), { low: 0, high: 20, log: false });
   for (const k of ["drilled", "pick", "zone"]) assert.equal(defaultEvidenceEnds(k, [1, 2, 3]), null);
   assert.equal(defaultEvidenceEnds("element", [NaN, NaN]), null);

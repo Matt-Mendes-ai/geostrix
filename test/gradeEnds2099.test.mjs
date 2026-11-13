@@ -19,7 +19,7 @@ test("length-weighted percentiles of the samples", () => {
 
 test("the pane uses them for a grade card, keeps them through a re-grid, and says where the ends came from", () => {
   assert.match(p, /const ge = src\.kind === "grade" \? gradeEnds\(src\.ref\) : null;/);
-  assert.match(p, /if \(ge\) \{ low = ge\.low; high = ge\.high; log = true; endsFrom = \{ kind: "assays", q: ge\.q, n: ge\.n, highFrom: ge\.highFrom, m: ge\.m \}; \}/ /* highFrom / m: #2448 */);
+  assert.match(p, /if \(ge\) \{ low = ge\.low; high = ge\.high; log = ge\.log \/\* #2975: only over a factor of 5 \*\/; endsFrom = \{ kind: "assays", q: ge\.q, n: ge\.n, highFrom: ge\.highFrom, m: ge\.m \}; \}/ /* highFrom / m: #2448 */);
   assert.match(p, /const ends = next\.endsEdited \? null : ge \|\| defaultEvidenceEnds\(next\.kind, v\);/);
   assert.match(p, /\{l\.endsFrom && !l\.endsEdited && <div/);
 });

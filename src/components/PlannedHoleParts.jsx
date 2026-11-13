@@ -9,7 +9,7 @@ import { colors } from "../lib/theme.js";
 import { lazyModal } from "../lib/lazyModal.jsx";
 import { solveOrientationToTarget, plannedTrace, solveCollarForTarget, isShallowDip, SHALLOW_DIP_DEG, nearestCollarsToTarget } from "../lib/holePlanning.js"; // nearestCollarsToTarget: #2250; // solveCollarForTarget / shallow: TASKS.csv #1835
 import { azimuthToGridOffset, loadIgrf, wrap360 } from "../lib/azimuthRef.js"; // TASKS.csv #1729
-import { planGeometryKey, drilledTraceIndex, isTargetModel, targetBandIndex, planChecks, COLLAR_ZONE_M } from "../lib/plannedHoleChecks.js"; // TASKS.csv #1039; COLLAR_ZONE_M: #1454
+import { planGeometryKey, drilledTraceIndex, isTargetModel, targetBandIndex, planChecks, COLLAR_ZONE_M, minSpacingFrom /* #2976 */ } from "../lib/plannedHoleChecks.js"; // TASKS.csv #1039; COLLAR_ZONE_M: #1454
 import { piercePoints as surfacePierces } from "../lib/piercePoints.js"; // TASKS.csv #1009
 import { drilledDefaults } from "../lib/plannedDefaults.js"; // TASKS.csv #2450
 import { costByType, collarHoleTypes } from "../lib/drillProgram.js"; // TASKS.csv #2581
@@ -22,6 +22,7 @@ import PlannedHolePattern from "./PlannedHolePattern.jsx"; // TASKS.csv #2449 �
 import { plannedHolesFromRows } from "../lib/plannedImport.js"; // TASKS.csv #2651
 import { localDate } from "../lib/localDate.js"; // TASKS.csv #2702
 import { parseTableText } from "../lib/tabular.js"; // TASKS.csv #2651
+import { drilledSiteSpacing } from "../lib/evidenceSources.js"; // TASKS.csv #2976 — the minimum spacing starts from the drilling
 // the same one-line wrapper ViewerModule keeps (see its plannedHoleTrace comment): holePlanning.plannedTrace builds every plan's trace
 const plannedHoleTrace = (hole) => plannedTrace(hole);
 
@@ -315,7 +316,14 @@ const cellsVersions = new WeakMap();
 let cellsVersionSeq = 0;
 function cellsVersion(cells) { if (!cells) return 0; let v = cellsVersions.get(cells); if (!v) { v = ++cellsVersionSeq; cellsVersions.set(cells, v); } return v; }
 export function PlannedHoleChecks({ plannedHoles, collars, survey, voxelModels, desurveyMethod, surfaces = [], onExportPierces }) { // #135; surfaces: #1009
-  const [minSpacing, setMinSpacing] = useState(25);
+  // TASKS.csv #2976 (review #2876, WA iron) — the minimum started at a fixed 25 m: on a 23 m pattern most infill holes read 'within the
+  // minimum'. It starts at a quarter of the drilled holes' site spacing (a twin or a collar on the same pad, not an infill hole), said
+  // under the field; blank where the drilling gives none. A typed value is kept while the pane is open.
+  const siteSpacing = useMemo(() => drilledSiteSpacing(collars), [collars]);
+  const autoMin = minSpacingFrom(siteSpacing);
+  const [typedMin, setTypedMin] = useState(null); // null: from the drilling
+  const minField = typedMin != null ? typedMin : autoMin ?? "";
+  const minSpacing = Number(minField) > 0 ? Number(minField) : 0;
   // TASKS.csv #1009 — where each planned hole crosses the visible modelled surfaces (downhole depth, vertical depth, angle)
   // TASKS.csv #1039 — keyed on the holes' geometry, not the array: typing a name or a note re-ran every check (1-8 s per
   // character on a large project). The drilled traces and each narrowed model's in-band blocks are indexed once.
@@ -345,9 +353,10 @@ export function PlannedHoleChecks({ plannedHoles, collars, survey, voxelModels, 
     <div style={{ marginTop: 10, padding: "9px 10px", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6 }}>
       <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)", fontWeight: 600, marginBottom: 6 }}>{tr("Planned hole checks")}</div>
       <div style={{ display: "flex", gap: 4, marginBottom: 7 }}>
-        <NumField label={tr("Min. spacing (m)")} value={minSpacing} onChange={(v) => setMinSpacing(v === "" ? 0 : Math.max(0, v))} />
+        <NumField label={tr("Min. spacing (m)")} value={minField} placeholder={tr("none")} onChange={(v) => setTypedMin(v === "" ? "" : Math.max(0, v))} />
         {!typed && <NumField label={tr("Cost ($/m)")} value={rates[""] ?? ""} placeholder={tr("enter your rate")} onChange={(v) => setRate("", v)} />}
       </div>
+      {typedMin == null && autoMin != null && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: -3, marginBottom: 7, lineHeight: 1.4 }}>{tr("Min. spacing: a quarter of the drilled holes' site spacing ({s} m). Type your own.", { s: Math.round(siteSpacing).toLocaleString() })}</div>}{/* #2976 */}
       {typed && <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 7 }}>{byType.rows.map((r) => <div key={r.type} style={{ flex: "1 1 30%" }}><NumField label={tr("{type} ($/m)", { type: r.type || tr("(no type)") })} value={rates[r.type] ?? ""} placeholder={tr("enter your rate")} onChange={(v) => setRate(r.type, v)} /></div>)}</div>}{/* #2581 */}
       <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 7 }}>
         {tr("{plannedHoles} {v}, {totalM} m total{v2}", { plannedHoles: plannedHoles.length, v: tr(plannedHoles.length === 1 ? "hole" : "holes"), totalM: totalM.toLocaleString(), v2: totalCost != null ? tr(" — est. ${totalCost} at ${rate}/m", { totalCost: totalCost.toLocaleString(undefined, { maximumFractionDigits: 0 }), rate }) : "" })}
@@ -358,7 +367,7 @@ export function PlannedHoleChecks({ plannedHoles, collars, survey, voxelModels, 
       )}
       {drilled.proposed?.length > 0 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 7, lineHeight: 1.4 }}>{tr("{n} collar(s) whose status is proposed are not counted as drilled holes: {list}.", { n: drilled.proposed.length, list: drilled.proposed.slice(0, 6).join(", ") + (drilled.proposed.length > 6 ? ` (+${drilled.proposed.length - 6})` : "") })}</div>}{/* #2097 */}
       {results.map(({ hole, nearestReal, samePad = [], targetHits }) => {
-        const tooClose = nearestReal && nearestReal.distance < minSpacing;
+        const tooClose = minSpacing > 0 && nearestReal && nearestReal.distance < minSpacing; // none: no flag (#2976)
         return (
           <div key={hole.id} style={{ padding: "6px 8px", marginBottom: 5, borderRadius: 5, background: tooClose ? "var(--color-danger-bg-soft)" : "var(--color-bg-subtle)", border: `1px solid ${tooClose ? "var(--color-danger-fg)" : "var(--color-border)"}`, fontSize: "var(--font-size-sm)" }}>
             <div style={{ color: "var(--color-text)", marginBottom: 2 }}>{hole.name || tr("Planned hole")}</div>
