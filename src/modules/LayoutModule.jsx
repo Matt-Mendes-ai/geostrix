@@ -1840,7 +1840,7 @@ export default function LayoutModule() {
             <Lock key={`lock_${el.id}`} size={11} aria-hidden="true" style={{ position: "absolute", left: el.x - 13, top: el.y - 13, color: "var(--color-text-muted)", pointerEvents: "none", zIndex: 4 }} />
           ))}
           {withLiveScaleBars(elements).map((el) => (
-            <LayoutElement key={el.id} el={el} selected={selected === el.id} multiSelected={multiSelected.size > 1 && multiSelected.has(el.id)} onDown={(e) => { e.stopPropagation(); onDown(e, el); }} onSelect={(id) => { if (selected !== id) { setSelected(id); setMultiSelected(new Set()); } }} onResizeStart={onResizeStart} ctx={textCtx} />
+            <LayoutElement key={el.id} el={el} selected={selected === el.id} multiSelected={multiSelected.size > 1 && multiSelected.has(el.id)} onDown={(e) => { e.stopPropagation(); onDown(e, el); }} onSelect={(id) => { if (selected !== id) { setSelected(id); setMultiSelected(new Set()); } }} onResizeStart={onResizeStart} ctx={textCtx} onTextEdit={(id, text) => setElements((els) => els.map((x) => (x.id === id ? { ...x, text } : x)))} /* #2944 */ />
           ))}
           {guides.map((g, i) => ( /* TASKS.csv #910 */
             <div key={`guide${i}`} style={g.axis === "x"
@@ -2345,7 +2345,19 @@ function textContextFor(els, project, page, index, count, collars = null, credit
 }
 const fillText = (text, ctx) => fillPlaceholders(text, ctx, PLACEHOLDER); // #2139 — an empty fill takes its separator with it
 
-function LayoutElement({ el, selected, multiSelected, onDown, print = false, onResizeStart, ctx = null, onSelect = null }) {
+function LayoutElement({ el, selected, multiSelected, onDown, print = false, onResizeStart, ctx = null, onSelect = null, onTextEdit = null }) {
+  // TASKS.csv #2944 (split from #2144) — a double-click on a title or text box edits its text in place (the raw text, placeholders and all);
+  // Enter (a title) or Ctrl+Enter (a text), or leaving the box, keeps it; Escape leaves it as it was. The sidebar field stays the other way in.
+  const [editing, setEditing] = useState(false);
+  const canEdit = !print && !el.locked && !!onTextEdit && (el.type === "title" || el.type === "text");
+  const startEdit = canEdit ? (e) => { e.stopPropagation(); setEditing(true); } : undefined;
+  const inPlace = (style, multi) => {
+    const done = (keep, value) => { setEditing(false); if (keep && value !== (el.text ?? "")) onTextEdit(el.id, value); };
+    const props = { autoFocus: true, defaultValue: el.text ?? "", "aria-label": tr("Edit the text"), onMouseDown: (e) => e.stopPropagation(), onBlur: (e) => { if (!e.target.dataset.done) done(true, e.target.value); }, // a key already closed it: the blur on removal is not a second edit
+      onKeyDown: (e) => { e.stopPropagation(); if (e.key === "Escape") { e.preventDefault(); e.target.dataset.done = "1"; done(false); } else if (e.key === "Enter" && (!multi || e.ctrlKey || e.metaKey)) { e.preventDefault(); e.target.dataset.done = "1"; done(true, e.target.value); } },
+      style: { ...style, width: "100%", boxSizing: "border-box", border: "1px solid var(--color-info)", background: "#fff", padding: 0, margin: 0, outline: "none", resize: "none", font: "inherit", fontSize: style.fontSize, fontWeight: style.fontWeight, fontStyle: style.fontStyle } };
+    return multi ? <textarea {...props} rows={Math.max(2, String(el.text ?? "").split("\n").length)} /> : <input {...props} />;
+  };
   // TASKS.csv #965 — reachable from the keyboard: Tab focuses an element and selects it, so the mm fields, arrow nudges
   // and Delete work without a mouse (the print copy gets none of this)
   const kb = onSelect && !print ? { tabIndex: 0, onFocus: (e) => { if (e.target === e.currentTarget && e.currentTarget.matches?.(":focus-visible")) onSelect(el.id); }, /* keyboard focus only: a click also focuses, and must not undo a Ctrl+click multi-selection */ "aria-label": tr("{type} element", { type: el.type }) } : {};
@@ -2365,8 +2377,9 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
   if (el.type === "title") {
     const b = frameBorder(el);
     return (
-      <div style={{ ...wrap, width: el.w, border: b, padding: b !== "none" ? 8 : 0, boxSizing: "border-box" }} onMouseDown={onDown} data-el-id={el.id} {...kb}>
-        <div style={{ fontSize: el.fontSize ?? 26, fontWeight: (el.bold ?? true) ? 700 : 400, fontStyle: el.italic ? "italic" : "normal", textAlign: el.align || "left", color: el.color || INK, fontFamily: FONT }}>{fillText(el.text, ctx)}</div>
+      <div style={{ ...wrap, width: el.w, border: b, padding: b !== "none" ? 8 : 0, boxSizing: "border-box" }} onMouseDown={onDown} onDoubleClick={startEdit} data-el-id={el.id} {...kb}>
+        {editing ? inPlace({ fontSize: el.fontSize ?? 26, fontWeight: (el.bold ?? true) ? 700 : 400, fontStyle: el.italic ? "italic" : "normal", textAlign: el.align || "left", color: el.color || INK, fontFamily: FONT }, false) /* #2944 */
+          : <div style={{ fontSize: el.fontSize ?? 26, fontWeight: (el.bold ?? true) ? 700 : 400, fontStyle: el.italic ? "italic" : "normal", textAlign: el.align || "left", color: el.color || INK, fontFamily: FONT }}>{fillText(el.text, ctx)}</div>}
         {handles}
       </div>
     );
@@ -2374,8 +2387,9 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
   if (el.type === "text") {
     const b = frameBorder(el);
     return (
-      <div style={{ ...wrap, width: el.w, border: b, padding: b !== "none" ? 8 : 0, boxSizing: "border-box" }} onMouseDown={onDown} data-el-id={el.id} {...kb}>
-        <div style={{ fontSize: el.fontSize ?? printPx(printPt.body), fontWeight: el.bold ? 700 : 400, fontStyle: el.italic ? "italic" : "normal", textAlign: el.align || "left", color: el.color || INK, whiteSpace: "pre-wrap" /* #1868 */ }}>{fillText(el.text, ctx)}</div>
+      <div style={{ ...wrap, width: el.w, border: b, padding: b !== "none" ? 8 : 0, boxSizing: "border-box" }} onMouseDown={onDown} onDoubleClick={startEdit} data-el-id={el.id} {...kb}>
+        {editing ? inPlace({ fontSize: el.fontSize ?? printPx(printPt.body), fontWeight: el.bold ? 700 : 400, fontStyle: el.italic ? "italic" : "normal", textAlign: el.align || "left", color: el.color || INK }, true) /* #2944 */
+          : <div style={{ fontSize: el.fontSize ?? printPx(printPt.body), fontWeight: el.bold ? 700 : 400, fontStyle: el.italic ? "italic" : "normal", textAlign: el.align || "left", color: el.color || INK, whiteSpace: "pre-wrap" /* #1868 */ }}>{fillText(el.text, ctx)}</div>}
         {handles}
       </div>
     );
