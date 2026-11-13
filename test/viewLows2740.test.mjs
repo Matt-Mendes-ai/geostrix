@@ -22,10 +22,10 @@ test("#2740 the sent group moves together, as little as needed, onto the target 
   assert.ok(sent.x + sent.w <= page.w && sent.y + sent.h <= page.h, JSON.stringify(sent));
 });
 
-test("#2807 Measure names the points on the reference plane", () => {
+test("#2807 Measure names the points on the reference plane (side 6's planeNote; test/measurePlane2807)", () => {
   const src = fs.readFileSync(new URL("../src/components/MeasureResults.jsx", import.meta.url), "utf8");
-  assert.match(src, /pts\.some\(\(p\) => p\?\.plane\) && <span/);
-  assert.match(src, /fell on the reference plane \(nothing under the cursor\)/);
+  assert.match(src, /const planeNote = onPlane\.length > 0 &&/);
+  assert.ok(!/fell on the reference plane/.test(src), "one note, not two (#2807 was done twice and merged once)");
   // the point carries the flag from the raycast (#2526)
   assert.match(fs.readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8"), /plane: true \}; \/\/ plane: #2526/);
 });
