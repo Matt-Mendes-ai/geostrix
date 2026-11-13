@@ -27,8 +27,20 @@ export function stylingTracker() {
 // of new objects after every open, and the undo watcher, which compares by reference, counted that as an edit)
 // TASKS.csv #2160 — and a layer's unit, its bin and its notes (a downhole log binned on import says so in the saved project too)
 const KEEP = ["unit", "binM", "notes"];
+// TASKS.csv #2952 / #2953 — a log layer's unit and valid range are set in Geophysics > Downhole logs on the STORE's copy; the 3D View's own copy
+// never hears of them, so its next write here put its old unit back and dropped the range. For a layer the store already has, the store's
+// value of these wins; a layer new to the store takes the 3D View's (the import's unit).
+const STORE_WINS = ["unit", "validRange"];
+const ALL_KEPT = [...new Set([...KEEP, ...STORE_WINS])];
 export function mirrorCustomLayers(prev, local) {
-  const next = local.map((l) => { const o = { id: l.id, name: l.name, rows: l.rows }; for (const k of KEEP) if (l[k] != null) o[k] = l[k]; return o; });
   const p = prev || [];
-  return p.length === next.length && next.every((l, i) => p[i] && p[i].id === l.id && p[i].name === l.name && p[i].rows === l.rows && KEEP.every((k) => p[i][k] === l[k])) ? prev : next;
+  const byId = new Map(p.map((x) => [x?.id, x]));
+  const next = local.map((l) => {
+    const o = { id: l.id, name: l.name, rows: l.rows };
+    for (const k of KEEP) if (l[k] != null) o[k] = l[k];
+    const old = byId.get(l.id);
+    if (old) for (const k of STORE_WINS) { if (old[k] != null) o[k] = old[k]; else delete o[k]; }
+    return o;
+  });
+  return p.length === next.length && next.every((l, i) => p[i] && p[i].id === l.id && p[i].name === l.name && p[i].rows === l.rows && ALL_KEPT.every((k) => p[i][k] === l[k])) ? prev : next;
 }

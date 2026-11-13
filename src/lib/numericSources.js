@@ -90,14 +90,22 @@ function medianPointSpacing(rows) {
 // keeps its from / to; a depth-only reading is given `pointSupport` m of core centred on its depth (or the readings' own median
 // spacing when that is shorter), so the estimation can length-weight it like any other sample instead of dropping it as zero-length.
 export function sourceAssays(choice, { layers, customLayers } = {}, { pointSupport = POINT_SUPPORT_M } = {}) {
-  const rows = choice.layerKey ? layers?.[choice.layerKey] || [] : (customLayers || []).find((c) => c.id === choice.layerId)?.rows || [];
+  const layer = choice.layerKey ? null : (customLayers || []).find((c) => c.id === choice.layerId);
+  const rows = choice.layerKey ? layers?.[choice.layerKey] || [] : layer?.rows || [];
   const symbol = choice.symbol, field = choice.field || "value";
+  // TASKS.csv #2953 (review #2876, WA iron: one bin of -821,754.9 flattened the susceptibility box plot) — the log layer's valid range
+  // (customLayers[].validRange [lo, hi], either end blank), set in Downhole logs: readings outside it are left out here, so Downhole logs,
+  // Estimation and Grade shell all read the same readings, and counted (outOfRange)
+  const vr = field === "value" && Array.isArray(layer?.validRange) ? layer.validRange.map(num) : null;
+  const outside = vr ? (v) => (Number.isFinite(vr[0]) && v < vr[0]) || (Number.isFinite(vr[1]) && v > vr[1]) : null;
+  let outOfRange = 0;
   const pointRows = [];
   const assays = [];
   let skipped = 0;
   for (const r of rows) {
     const v = num(r[field]);
     if (!Number.isFinite(v) || r.hole_id == null) { skipped++; continue; }
+    if (outside && outside(v)) { outOfRange++; continue; } // #2953
     const from = num(r.from), to = num(r.to);
     // w (TASKS.csv #2951): a binned log's bin carries its count of readings (downholeLogChannels: n), so a mean over bins can weigh each by it
     const w = choice.binM && field === "value" && Number.isFinite(num(r.n)) && num(r.n) > 0 ? num(r.n) : undefined;
@@ -112,7 +120,7 @@ export function sourceAssays(choice, { layers, customLayers } = {}, { pointSuppo
     if (Number.isFinite(sp) && sp < support) support = Math.max(0.1, sp);
     for (const p of pointRows) assays.push({ hole_id: p.hole_id, from: p.depth - support / 2, to: p.depth + support / 2, values: { [symbol]: p.v }, source: "log" });
   }
-  return { assays, assayElements: [{ symbol, unit: choice.unit }], symbol, unit: choice.unit, pointRows: pointRows.length, pointSupport: pointRows.length ? support : null, skipped };
+  return { assays, assayElements: [{ symbol, unit: choice.unit }], symbol, unit: choice.unit, pointRows: pointRows.length, pointSupport: pointRows.length ? support : null, skipped, ...(vr ? { outOfRange, validRange: vr } : {}) };
 }
 
 // log10 of the sample values, for an estimate that is a geometric mean per block (susceptibility varies over decades, so an
