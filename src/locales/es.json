@@ -11346,5 +11346,6 @@
   "Symbol for {type}": "Símbolo para {type}",
   "The USGS (FGDC) symbol for {type}: each reading takes its inclined, vertical or horizontal form by its own dip. Kept with the project.": "El símbolo USGS (FGDC) para {type}: cada lectura toma su forma inclinada, vertical u horizontal según su propio buzamiento. Se guarda con el proyecto.",
   "Symbol size": "Tamaño del símbolo",
-  "The length of the symbol's strike line on the ground (the 5.0 mm of the USGS standard); its other parts scale with it": "La longitud de la línea de rumbo del símbolo sobre el terreno (los 5,0 mm del estándar USGS); sus demás partes escalan con ella"
+  "The length of the symbol's strike line on the ground (the 5.0 mm of the USGS standard); its other parts scale with it": "La longitud de la línea de rumbo del símbolo sobre el terreno (los 5,0 mm del estándar USGS); sus demás partes escalan con ella",
+  "This block model was estimated from the checked holes by an earlier version, which counted every unchecked hole as drilling with no sample: some of these flags may be wrong. Estimate it again to refresh them.": "Este modelo de bloques se estimó a partir de los sondajes marcados con una versión anterior, que contaba cada sondaje no marcado como perforación sin muestra: algunas de estas marcas pueden ser erróneas. Estímelo de nuevo para actualizarlas."
 }

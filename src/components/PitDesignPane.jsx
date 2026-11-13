@@ -2,6 +2,7 @@
 // the pit a report shows: bench floors on round RLs, faces and catch benches up to the ground, crest / toe strings (DXF, CSV)
 // and a bench-by-bench table. Geometry in lib/pitDesign.js, off the UI thread (pitDesignClient.js). Every number is the user's
 // (#264): no bench, berm or face angle is assumed.
+import { nearUnsampledMayBeStale } from "../lib/unsampledFlags.js"; // TASKS.csv #3065
 import React, { useMemo, useRef, useState } from "react";
 import { metalAmountText, elementOfModel, gradeWithElement } from "../lib/pitShell.js"; // TASKS.csv #2434
 import { shellWallCompare } from "../lib/pitWalls.js"; // TASKS.csv #2433
@@ -277,7 +278,7 @@ export default function PitDesignPane({ surfaces = [], worldPositionsOf, onAdd, 
           {(() => { // TASKS.csv #2735 — as the Pit shell (#2596): the design's ore in blocks whose nearest drilling was never sampled
             const p = res.totals?.oreNearUnsampledShare || 0;
             if (!(p > 0) || !(model?.params?.nearUnsampledFlagged || model?.cells?.some((c) => c.nearUnsampled))) return null;
-            return <div style={p > 0.2 ? warn : note}>{p > 0.2 ? tr("{p} % of this ore is in blocks whose nearest drilling was never sampled: the estimate carried sampled grade across unsampled core, which is unknown, not ore. Drilled metres with no sample can be estimated as barren: 3D Modelling › Estimation, \"Unsampled metres inside a sampled hole\".", { p: Math.round(p * 100) }) : tr("{p} % of the ore is in blocks whose nearest drilling was never sampled.", { p: Math.round(p * 100) })}</div>;
+            return <><div style={p > 0.2 ? warn : note}>{p > 0.2 ? tr("{p} % of this ore is in blocks whose nearest drilling was never sampled: the estimate carried sampled grade across unsampled core, which is unknown, not ore. Drilled metres with no sample can be estimated as barren: 3D Modelling › Estimation, \"Unsampled metres inside a sampled hole\".", { p: Math.round(p * 100) }) : tr("{p} % of the ore is in blocks whose nearest drilling was never sampled.", { p: Math.round(p * 100) })}</div>{nearUnsampledMayBeStale(model?.params) && <div style={note}>{tr("This block model was estimated from the checked holes by an earlier version, which counted every unchecked hole as drilling with no sample: some of these flags may be wrong. Estimate it again to refresh them.")}</div>}</>; // #3065
           })()}
           {(() => { // TASKS.csv #2645 — as the Pit shell (#2435): the design's ore in blocks beyond every sample informing them
             const p = res.totals?.oreBeyondSampleShare || 0;

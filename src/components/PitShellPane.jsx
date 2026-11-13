@@ -1,6 +1,7 @@
 // TASKS.csv #1341 — the Mine Design tab's pit shell: a block model and your own economics in, the pit that makes the most
 // undiscounted money out, as a surface in the 3D view with what it holds. Every number is the user's: no default price, cost or
 // density (a default would read as a fact, as #264). Maths in lib/pitShell.js; framing from #836.
+import { nearUnsampledMayBeStale } from "../lib/unsampledFlags.js"; // TASKS.csv #3065
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Pickaxe, Eye, EyeOff, Trash2, Pencil } from "./icons.js";
 import { confirmDestructive } from "../lib/confirmDestructive.js"; // #1498
@@ -216,8 +217,9 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove,
       }
       const beyondFlagged = !!model.params?.beyondFlagged || model.cells.some((c) => c.beyond); // #2435 — the estimate flagged blocks beyond its samples (#2417)
       const nearUnsFlagged = !!model.params?.nearUnsampledFlagged || model.cells.some((c) => c.nearUnsampled); // #2596 — and blocks whose nearest drilling was never sampled
+      const nearUnsStale = nearUnsFlagged && nearUnsampledMayBeStale(model.params); // #3065 — flags from an estimate made before #3006
       const logFilled = Number(model.params?.unsampledLogFilledM) > 0 ? { log: model.params.unsampledLog, factor: model.params.unsampledLogFactor } : null; // #2748 — as Grade-tonnage's logKnown (#2721)
-      kept = { ...r, densityUsed: coded.used ? { layer: inputs.densityLayer, used: coded.used, untyped: coded.untyped || null /* #2993 */ } : null /* #2647 */, unit, seconds, hasTerrain: !!terrain, model: model.name, slopeDeg: inputs.slopeDeg, sectorSlopes: inputs.sectorSlopes || null, upperSlope: inputs.upperSlope || null /* #2985 */, support, beyondFlagged, nearUnsFlagged /* #2596 */, logFilled /* #2748 */, byUnit, byLabel, byElement, element /* #2594 */, outside /* #2593 */, weathered: inputs.weathered || null /* #2597 */ }; // byUnit / byLabel: #1917; beyondFlagged: #2435
+      kept = { ...r, densityUsed: coded.used ? { layer: inputs.densityLayer, used: coded.used, untyped: coded.untyped || null /* #2993 */ } : null /* #2647 */, unit, seconds, hasTerrain: !!terrain, model: model.name, slopeDeg: inputs.slopeDeg, sectorSlopes: inputs.sectorSlopes || null, upperSlope: inputs.upperSlope || null /* #2985 */, support, beyondFlagged, nearUnsFlagged, nearUnsStale /* #3065 */ /* #2596 */, logFilled /* #2748 */, byUnit, byLabel, byElement, element /* #2594 */, outside /* #2593 */, weathered: inputs.weathered || null /* #2597 */ }; // byUnit / byLabel: #1917; beyondFlagged: #2435
       setRes(kept);
       const contained = r.metalU * r.metalFactor;
       if (hideEarlier) surfaces.filter((s) => s.type === "pit_shell" && s.visible && s.id !== editingId).forEach((s) => onToggle?.(s.id)); // #1356 — one pit on view at a time
@@ -374,6 +376,7 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove,
           {res.beyondFlagged && beyondP > 0 && !unsampledOre && <div style={note}>{tr("{p} % of the ore is in blocks above or below every sample that informs them.", { p: Math.round(beyondP * 100) })}</div>}
           {res.logFilled && logP > 0 && <div style={logP > 0.2 ? warn : note}>{tr("About {p} % of the metal in this pit comes from the readings of the log \"{log}\" × {f} that filled the unsampled metres, not from assays.", { p: Math.round(logP * 100), log: res.logFilled.log || "?", f: res.logFilled.factor ?? "?" })}</div>}{/* #2748 */}
           {res.nearUnsFlagged && nearUnsP > 0 && <div style={nearUnsOre ? warn : note}>{nearUnsOre ? tr("{p} % of this ore is in blocks whose nearest drilling was never sampled: the estimate carried sampled grade across unsampled core, which is unknown, not ore. Drilled metres with no sample can be estimated as barren: 3D Modelling › Estimation, \"Unsampled metres inside a sampled hole\".", { p: Math.round(nearUnsP * 100) }) : tr("{p} % of the ore is in blocks whose nearest drilling was never sampled.", { p: Math.round(nearUnsP * 100) })}</div>}{/* #2596 */}
+          {res.nearUnsFlagged && nearUnsP > 0 && res.nearUnsStale && <div style={note}>{tr("This block model was estimated from the checked holes by an earlier version, which counted every unchecked hole as drilling with no sample: some of these flags may be wrong. Estimate it again to refresh them.")}</div>}{/* #3065 */}
           {line(tr("Walls stand at"), `${res.walls.flattest.toFixed(0)}–${res.walls.steepest.toFixed(0)}°`)}
           {/* TASKS.csv #1608 — what the drawn pit's block steps make, beside the arc pattern's figure; the separate parts; the depth in blocks */}
           {res.parts?.drawnWalls && line(tr("Walls as drawn (block steps)"), `${res.parts.drawnWalls.flattest.toFixed(0)}–${res.parts.drawnWalls.steepest.toFixed(0)}°`)}
