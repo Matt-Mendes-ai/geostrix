@@ -114,10 +114,14 @@ export function idwGrid(points, { xmin, ymin, xmax, ymax, cellSize, power = 2, m
 // ramp and saturates the tails; "equalise" spreads colours by rank (each colour covers the same share of
 // cells — best for seeing texture, but colour no longer scales with value); "linear" is the old min-max.
 export function makeStretch(values, mode = "p2-98") {
-  const v = [];
-  for (let i = 0; i < values.length; i++) if (Number.isFinite(values[i])) v.push(values[i]);
-  if (!v.length) return { t: () => 0, lo: null, hi: null, mode };
-  v.sort((a, b) => a - b);
+  // TASKS.csv #3033 — the finite values in a Float64Array and its own numeric sort: the same order and percentiles, without a comparator call
+  // per pair (a filtered 500 x 420 grid's colours spent ~0.9 s here, on the UI thread, after the FFT and the picture had moved to a worker)
+  let n = 0;
+  for (let i = 0; i < values.length; i++) if (Number.isFinite(values[i])) n++;
+  if (!n) return { t: () => 0, lo: null, hi: null, mode };
+  const v = new Float64Array(n);
+  for (let i = 0, k = 0; i < values.length; i++) if (Number.isFinite(values[i])) v[k++] = values[i];
+  v.sort();
   const q = (p) => percentileSorted(v, p); // #740 — the shared rule
   if (mode === "equalise") {
     return { mode, lo: v[0], hi: v[v.length - 1], t: (x) => {

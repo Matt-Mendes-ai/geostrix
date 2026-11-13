@@ -45,5 +45,6 @@ test("wired: runFilter takes the typed unit and scales the values before the ras
   assert.match(m, /if \(ou\.scale !== 1\) for \(let i = 0; i < out\.values\.length; i\+\+\) out\.values\[i\] \*= ou\.scale;/);
   assert.match(m, /units: ou\.units \/\* #2557, #2837 \*\//);
   assert.doesNotMatch(m, /units: r\.units \? FILTERS/);
-  assert.ok(m.indexOf("const ou = filterOutputUnits") < m.indexOf("const nr = rasterFromGrid({ name: `${r.name} — ${label}${suffix}`"));
+  const made = m.indexOf("const nr = await rasterFromGridAsync({ name: `${r.name} — ${label}${suffix}`"); // #3033 — the picture made in the worker
+  assert.ok(made > 0 && m.indexOf("const ou = filterOutputUnits") < made);
 });
