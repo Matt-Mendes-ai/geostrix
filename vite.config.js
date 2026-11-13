@@ -71,7 +71,9 @@ function cspPlugin() {
 export default defineConfig({
   plugins: [react(), cspPlugin(), { name: "geostrix-pdfjs-assets", config: copyPdfjsAssets }, { name: "geostrix-third-party-licenses", config: () => { try { writeThirdPartyLicenses(); } catch (e) { console.warn(`third-party licences not written: ${e.message}`); } } }],
   base: "./",
-  server: { port: 5173, strictPort: true },
+  // TASKS.csv #3090 — the dev server watched the whole repo, so the side sessions' worktrees (.claude/worktrees: their builds' dist/index.html)
+  // reloaded the dev window again and again while it loaded. Only the app's own sources are watched now; nothing the app imports lives in these.
+  server: { port: 5173, strictPort: true, watch: { ignored: ["**/.claude/**", "**/dist/**", "**/release/**", "**/python-sidecar/**", "**/sample_data/**", "**/docs/**", "**/test/**", "**/TASKS.csv*", "**/*.log"] } },
   build: {
     outDir: "dist",
     emptyOutDir: true,
