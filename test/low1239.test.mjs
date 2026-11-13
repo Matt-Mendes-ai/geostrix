@@ -43,5 +43,5 @@ test("#1297 one focus ring; #1293 Export PDF and Report give up their labels fir
   assert.match(css, /button:focus-visible, select:focus-visible, input:focus-visible/);
   assert.match(css, /\.ge-toolbar-snug \.ge-tool-label-first \{ display: none; \}/);
   const app = readFileSync("src/App.jsx", "utf8");
-  assert.equal(app.split("ge-tool-label-first").length - 1, 2);
+  assert.equal(app.split("ge-tool-label-first").length - 1, 3); // #3068 — the KMZ export beside Export PDF gives up its label with them
 });
