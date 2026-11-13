@@ -56,6 +56,6 @@ test("wiring: Grade stats and Compositing group, and say so; X-Y and Grade stats
     assert.match(s, /\{ groupTop: 12 \}/, f);
     assert.match(s, /d\.attribute \|\| d\.grouped \? attributeDomainLabel\(d, tr\) : d\.label/, f);
   }
-  assert.match(rd("../src/modules/GeochemModule.jsx"), /numericSourceChoices\(\{ layers: store\.layers, customLayers: store\.customLayers, builtinFields:/);
-  assert.match(rd("../src/components/GradeStatistics.jsx"), /numericSourceChoices\(\{ layers: storeLayers, customLayers, models: false, builtinFields:/);
+  assert.match(rd("../src/modules/GeochemModule.jsx"), /numericSourceChoices\(\{ layers: store\.layers, customLayers: store\.customLayers, logValidRange: store\.project\?\.logValidRange \/\* #3116 \*\/, builtinFields:/);
+  assert.match(rd("../src/components/GradeStatistics.jsx"), /numericSourceChoices\(\{ layers: storeLayers, customLayers, models: false, logValidRange: storeProject\?\.logValidRange \/\* #3116 \*\/, builtinFields:/);
 });

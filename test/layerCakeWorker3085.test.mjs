@@ -23,7 +23,7 @@ test("the client gives the cake the function gives, with progress after each top
 
 test("wiring: the run uses the worker client; the held pre-solve notices are said after the question, then the model box", () => {
   const s = fs.readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8");
-  assert.match(s, /const r = await runLayerCake\(specs\.filter\(\(sp\) => !sp\.fault\), extent, resolution, \{ evalPts, onProgress: \(done, total\) => setTaskProgress/);
+  assert.match(s, /const r = await runLayerCake\(specs\.filter\(\(sp\) => !sp\.fault\), extent, resolution, \{ evalPts, faults: specs\.filter\(\(sp\) => sp\.fault\), onProgress: \(done, total\) => setTaskProgress/); // faults: #3086
   assert.match(s, /held\.push\(notice\(onlyEstimate \? "Pick check before solving/);
   assert.match(s, /if \(thinSpecs\.length\) held\.push\(notice\("Too few contacts/);
   const offer = s.indexOf("return runSurfaceStack(rawSpecs, { ...stackOpts, engine: \"layercake\", offerCake: false });");

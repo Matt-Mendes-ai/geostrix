@@ -19,7 +19,7 @@ import { MapPin as GMapPin, Triangle as GTriangle, Shapes as GShapes, BarChart3 
 import { Upload, Download, FlaskConical, Beaker, Scale, Grid3x3, ShieldCheck, TerminalSquare, Sigma, FileCheck, X, AlertTriangle, Globe, Database, Radar } from "../components/icons.js"; // Radar: #1999
 const McdAnomalyPanel = React.lazy(() => import("../components/McdAnomalyPanel.jsx")); // TASKS.csv #1999 — a lazy chunk: opened rarely
 import { noticeText, noticeLevel, errorNotice, notice } from "../lib/notices.js"; // TASKS.csv #729
-import { addCalculatedElement, CALC_PRESETS, presetUnitsFor, oxideTotalPreset } from "../lib/calcElement.js"; // TASKS.csv #401; presetUnitsFor: #2619; oxideTotalPreset: #2914
+import { addCalculatedElement, CALC_PRESETS, presetUnitsFor, oxideTotalPreset, mixedUnitReads } from "../lib/calcElement.js"; // mixedUnitReads: #3219 // TASKS.csv #401; presetUnitsFor: #2619; oxideTotalPreset: #2914
 import { majorOxides, MIN_MAJORS, anhydrousRows, sourceRow } from "../lib/oxideTotals.js"; // anhydrousRows / sourceRow: #2942 // TASKS.csv #2914 — the 'Oxide total' preset sums QAQC > Totals' majors
 import { useStore, useSetTaskProgress } from "../lib/store.jsx"; // useSetTaskProgress: #2164
 import { elementColumnStats } from "../lib/assayColumnScan.js"; // TASKS.csv #2164
@@ -32,6 +32,7 @@ import { qcRecordFromFileRow, emptySurfaceQc, looksLikeQcTypeColumn, mergeQcReco
 import { mapInChunks } from "../lib/mapInChunks.js"; // TASKS.csv #583
 import { detectLongAssay, pivotLongAssays, longAssayNote } from "../lib/longAssays.js"; // TASKS.csv #623
 import { isSurfaceSampleTable, surfaceXYColumns } from "../lib/viewer/importHelpers.js"; // TASKS.csv #975; surfaceXYColumns: #2564
+import { seedFromProject, projectImportChoices, importChoicesOf, conversionsOver100 } from "../lib/assayReimport.js"; // TASKS.csv #3217
 import { assayFileSummary, removeAssayFile, removeAssayElement, carbonateShare, VOLCANIC_DIAGRAMS, LOI, isLoiHeader, readLoiCell, projectKeepsOxide, unitBasis, oxideAliases } from "../lib/geochem.js"; // oxideAliases: #2914; // LOI: #2734; // TASKS.csv #624; carbonateShare: #1392
 import { confirmDestructive } from "../lib/confirmDestructive.js"; // TASKS.csv #624
 import ElementBasisSelect from "../components/ElementBasisSelect.jsx"; // TASKS.csv #2627
@@ -71,6 +72,8 @@ import { useSidebarWidth } from "../lib/useSidebarWidth.js";
 import EmptyState, { emptyStateSecondaryBtn } from "../components/EmptyState.jsx"; // TASKS.csv #309
 
 const ALL_DIAGRAMS = { ...DIAGRAMS, ...SPIDER_DIAGRAMS };
+// TASKS.csv #3219 — a calculated element's range in significant figures ('range 0.00-0.00' hid a ratio of 0.125)
+const sigFig = (v) => (!Number.isFinite(v) ? "—" : v === 0 ? "0" : Math.abs(v) >= 1000 ? Math.round(v).toLocaleString() : String(+v.toPrecision(3)));
 const SPIDER_MIN = 4; // TASKS.csv #2030 — the fewest elements a normalized pattern can show a slope or an anomaly with
 // TASKS.csv #1678 — the X-Y scatter: its axes are chosen on the tab, so it is built there (lib/geochemXY.js); this stands in until they are
 const XY_ENTRY = { id: "xy", label: "X–Y scatter (choose the axes)", requires: [], xLabel: "", yLabel: "", xRange: [0, 1], yRange: [0, 1], project: () => null };
@@ -229,7 +232,7 @@ export default function GeochemModule() {
   // TASKS.csv #2957 — the units the project already stores an element in (surface samples first, then drill assays): a new file's oxide column takes that basis
   const projectUnits = useMemo(() => ({ ...Object.fromEntries(assayElements.filter((e) => !e.calculated).map((e) => [e.symbol, e.unit])), ...Object.fromEntries(surfaceElements.filter((e) => !e.calculated).map((e) => [e.symbol, e.unit])) }), [assayElements, surfaceElements]);
   // TASKS.csv #1678 — the X-Y scatter's axes: elements, then the numeric downhole logs and custom-layer fields (read at each sample's depth)
-  const xyChoices = useMemo(() => numericSourceChoices({ layers: store.layers, customLayers: store.customLayers, builtinFields: { labelOf: (k) => tr(LAYER_META[k]?.label || k) } /* #2915 */ }), [store.layers, store.customLayers]);
+  const xyChoices = useMemo(() => numericSourceChoices({ layers: store.layers, customLayers: store.customLayers, logValidRange: store.project?.logValidRange /* #3116 */, builtinFields: { labelOf: (k) => tr(LAYER_META[k]?.label || k) } /* #2915 */ }), [store.layers, store.customLayers, store.project?.logValidRange]);
   // TASKS.csv #2719 — with pXRF and lab results, an element measured by only one of them offered an empty axis in the other source:
   // the X / Y lists mark (and grey out) the elements with no value in the samples shown
   const xyEmptyElements = useMemo(() => (diagramId === "xy" && hasPxrf ? elementsWithoutValues(sourceRows, assayElements.map((e) => e.symbol)) : new Set()), [diagramId, hasPxrf, sourceRows, assayElements]);
@@ -457,7 +460,7 @@ export default function GeochemModule() {
       const methods = methodCol ? Array.from(new Set(data.map((r) => r[methodCol]).filter(Boolean))) : [];
       const analytes = Array.from(new Set(data.map((r) => r[analyteCol]).filter(Boolean)));
       const elements = analytes.filter(isElementColumn).map((sym) => ({ symbol: sym, header: sym, unit: inferUnit(sym, sym), checked: true }));
-      setAssayModal({ file, fileName: file.name, format: "long", isPxrf, headers, sampleRows: data.slice(0, 5), allRows: data, mapping: { hole_id: holeCol, from: fromCol, to: toCol, analyte: analyteCol, value: valueCol, method: methodCol }, qc: qcColumns(headers), methods, selectedMethod: methods[0] || null, elements, ...preset });
+      setAssayModal({ file, fileName: file.name, format: "long", isPxrf, headers, sampleRows: data.slice(0, 5), allRows: data, mapping: { hole_id: holeCol, from: fromCol, to: toCol, analyte: analyteCol, value: valueCol, method: methodCol }, qc: qcColumns(headers), methods, selectedMethod: methods[0] || null, elements, ...projectImportChoices(assayElements, elements.map((e) => e.symbol)) /* #3217 */, ...preset });
     } else {
       // TASKS.csv #210 — a single lab export can carry more than one column for the same element
       // (e.g. this session's real pXRF sample data has "Ag_XRF_Corrected_ppm_D", "Ag_pXRF_ppm", AND
@@ -473,8 +476,11 @@ export default function GeochemModule() {
       // TASKS.csv #2164 — a big table's element columns are counted in one chunked pass (status-bar progress) before the dialog opens: one
       // pass per column on the main thread froze the window (0.85 s on 590,000 rows x 30 elements)
       const openWide = (stats) => {
-        const elements = pickElementColumns(headers, data, stats).map((e) => ({ ...e, mainHeader: e.header, checked: e.n > 0 })); // #1389 — a column with no value in any row stays unticked
-        setAssayModal({ file, fileName: file.name, format: "wide", isPxrf, headers, sampleRows: data.slice(0, 5), allRows: data, mapping: { hole_id: holeCol, from: fromCol, to: toCol }, qc: qcColumns(headers), methods: [], selectedMethod: null, elements, ...preset });
+        const picked = pickElementColumns(headers, data, stats).map((e) => ({ ...e, mainHeader: e.header, checked: e.n > 0 })); // #1389 — a column with no value in any row stays unticked
+        // TASKS.csv #3217 — headers the project already holds open with last time's column, unit and choices (a re-import multiplied seven
+        // elements set to ppm by hand by 10,000), and the columns added by hand then are offered again
+        const { elements } = seedFromProject(picked, assayElements, headers);
+        setAssayModal({ file, fileName: file.name, format: "wide", isPxrf, headers, sampleRows: data.slice(0, 5), allRows: data, mapping: { hole_id: holeCol, from: fromCol, to: toCol }, qc: qcColumns(headers), methods: [], selectedMethod: null, elements, ...projectImportChoices(assayElements, elements.map((e) => e.symbol)), ...preset });
       };
       if (data.length < ELEMENT_SCAN_CHUNKED_ROWS) { openWide(null); return; }
       const scanLabel = tr("Checking the element columns of {name}…", { name: file.name });
@@ -579,7 +585,7 @@ export default function GeochemModule() {
   const commitAssayImport = async (modalIn) => {
     if (modalIn.busy) return; // #583 — one import at a time (the row build below yields to the UI)
     // TASKS.csv #2391 — the row filter (#2330) on the assay path too: the user's, else a Superseded / Current flag column's preset
-    const rowFilter = modalIn.rowFilter !== undefined ? modalIn.rowFilter : defaultRowFilter(modalIn.headers || Object.keys(modalIn.allRows?.[0] || {}), modalIn.allRows);
+    const rowFilter = modalIn.rowFilter !== undefined ? modalIn.rowFilter : defaultRowFilter(modalIn.headers || Object.keys(modalIn.allRows?.[0] || {}), modalIn.allRows, { qc: false /* #3207 — assays keep their QC samples for QAQC */ });
     const filtered = applyRowFilter(modalIn.allRows || [], rowFilter), modal = filtered.dropped ? { ...modalIn, allRows: filtered.rows } : modalIn;
     if (filtered.dropped) setNotices((p) => [...p, notice("{fileName}: {n} row(s) left out by the row filter ({col} kept only where it is {values}).", { fileName: modal.fileName || "", n: filtered.dropped.toLocaleString(), col: rowFilter.col, values: rowFilter.keep.map((v) => v || "(blank)").join(", ") })]);
     const { format, allRows, mapping, selectedMethod, elements } = modal;
@@ -597,6 +603,13 @@ export default function GeochemModule() {
     const existingUnit = Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit]));
     const chosenBySymbol = new Map(chosen.map((e) => [e.symbol, e]));
     const converted = chosen.filter((e) => existingUnit[e.symbol] && existingUnit[e.symbol] !== importStoreUnit(e)); // #2487: the stored unit
+    // TASKS.csv #3217 — a conversion that would put readings over 100 % is refused, not applied and then reported: the column is not in the
+    // unit the dialog says (ppm under a _pct name), and converting it would damage the project's earlier, correct values. The dialog stays open.
+    const badConv = format === "wide" ? conversionsOver100(allRows, converted) : [];
+    if (badConv.length) {
+      setNotices((p) => [...p, errorNotice(tr("Not imported: converting {list} to the project's unit would put readings over 100 %, so these columns are probably not in the unit the dialog says. Set their unit in the dialog (the project has them in {units}) and import again.", { list: badConv.map((b) => tr("{header} ({n} value(s), up to {max} {unit})", { header: b.header, n: b.n.toLocaleString(), max: b.max.toLocaleString(), unit: b.unit })).join(", "), units: [...new Set(badConv.map((b) => existingUnit[b.symbol]))].join(", ") }))]);
+      return;
+    }
     // TASKS.csv #333 — negative lab/database codes resolved at import (see readAssayCell).
     const negativeMode = modal.negativeMode || "bdl";
     let negBdl = 0, negMissing = 0, negOver = 0;
@@ -805,7 +818,7 @@ export default function GeochemModule() {
     const { merged: mergedCount, repeatedInFile } = mergeRes;
     setAssays((prev) => (prev === assays ? mergeRes.rows : mergeAssayRows(replaceHoles.length ? dropHoleAssays(prev, replaceHoles) : prev, rows).rows));
     // Existing elements keep their unit (#334); only new symbols add an entry.
-    setAssayElements((prev) => { const merged = new Map(prev.map((e) => [e.symbol, e])); chosen.forEach((e) => { if (merged.has(e.symbol) && e.methods) { const m = merged.get(e.symbol); merged.set(e.symbol, { ...m, methods: [...new Set([...(m.methods || []), ...e.methods])] }); } /* #1518 */ if (!merged.has(e.symbol)) merged.set(e.symbol, oxideOfHeader(e.header) ? { ...e, unit: importStoreUnit(e) } : e); }); return Array.from(merged.values()); }); // #403: oxide-sourced elements are stored in % (#2157: or the ppm / ppb the header says; #2487: or as the oxide, "% Li2O")
+    setAssayElements((prev) => { const merged = new Map(prev.map((e) => [e.symbol, e])); chosen.forEach((e) => { if (merged.has(e.symbol) && e.methods) { const m = merged.get(e.symbol); merged.set(e.symbol, { ...m, methods: [...new Set([...(m.methods || []), ...e.methods])] }); } /* #1518 */ if (!merged.has(e.symbol)) merged.set(e.symbol, oxideOfHeader(e.header) ? { ...e, unit: importStoreUnit(e) } : e); }); const last = importChoicesOf(modal); chosen.forEach((e) => { const m = merged.get(e.symbol); if (m) merged.set(e.symbol, { ...m, lastImport: last }); }); /* #3217 — the next import of these opens with them */ return Array.from(merged.values()); }); // #403: oxide-sourced elements are stored in % (#2157: or the ppm / ppb the header says; #2487: or as the oxide, "% Li2O")
     if (!colorElement && chosen.length) setColorElement((chosen.find((e) => e.symbol === "Au") || chosen[0]).symbol);
     const more = (list, k) => list.slice(0, k).map((h) => h.hole_id).join(", ") + (list.length > k ? ", …" : "");
     const extra = [
@@ -920,7 +933,8 @@ export default function GeochemModule() {
         // numeric column per element, over-limit column paired, descriptive columns skipped. The old
         // first-match dedupe took "au_cert_num" (a certificate number) as Au and "v_datum" as vanadium in an
         // MX soil export (ARIS 42648Z).
-        const elements = pickElementColumns(headers.filter((h) => !mappedCols.has(h)), data).map((e) => ({ ...e, mainHeader: e.header, checked: e.n > 0, ...projectKeepsOxide(e, projectUnits) })); // #1389 — a column with no value in any row stays unticked; projectKeepsOxide: #2957
+        // #3217 (surface follow-up) — headers the project already holds open with last time's column and unit, hand-added columns offered again
+        const elements = seedFromProject(pickElementColumns(headers.filter((h) => !mappedCols.has(h)), data).map((e) => ({ ...e, mainHeader: e.header, checked: e.n > 0, ...projectKeepsOxide(e, projectUnits) })), surfaceElements, headers).elements; // #1389 — a column with no value in any row stays unticked; projectKeepsOxide: #2957
         // TASKS.csv #600 — a CRS tag column (srid_source / epsg...) with one recognised code pre-fills the Source CRS.
         const crsCol = headers.find((h) => /^(srid(_source)?|source_srid|epsg(_srid)?|source_epsg|crs_epsg)$/i.test(h.trim()));
         const codes = crsCol ? [...new Set(data.map((r) => Number(r[crsCol])).filter((v) => Number.isInteger(v) && v > 0))] : [];
@@ -951,7 +965,7 @@ export default function GeochemModule() {
   const openPublicImport = ({ headers, rows, entry, notes, checked }) => {
     const mapping = { x: "longitude", y: "latitude", z: rows.some((r) => String(r.elevation ?? "").trim() !== "") ? "elevation" : null, sample_id: "sample_id", medium: "medium" };
     const mapped = new Set(["longitude", "latitude", "elevation", "sample_id", "medium"]);
-    const elements = pickElementColumns(headers.filter((h) => !mapped.has(h)), rows).map((e) => ({ ...e, mainHeader: e.header, checked: e.n > 0, ...projectKeepsOxide(e, projectUnits) })); // #1389 — a column with no value in any row stays unticked; #2957
+    const elements = seedFromProject(pickElementColumns(headers.filter((h) => !mapped.has(h)), rows).map((e) => ({ ...e, mainHeader: e.header, checked: e.n > 0, ...projectKeepsOxide(e, projectUnits) })), surfaceElements, headers).elements; // #1389 — a column with no value in any row stays unticked; #2957; seeded: #3217
     // a survey's other analyses of an element (Cu by AAS and by ICP-MS) are not sample attributes: only the chosen column is read
     const attrExclude = headers.filter((h) => !mapped.has(h) && isElementColumn(h));
     setPublicOpen(false);
@@ -980,6 +994,12 @@ export default function GeochemModule() {
     // below detection, <= -99 as not assayed), and an element already in the project keeps its unit.
     const existingUnit = Object.fromEntries(surfaceElements.map((e) => [e.symbol, e.unit]));
     const converted = chosen.filter((e) => existingUnit[e.symbol] && existingUnit[e.symbol] !== e.unit);
+    // TASKS.csv #3217 (surface follow-up) — a conversion that would put readings over 100 % is refused before anything is written; the dialog stays open
+    const badConv = conversionsOver100(allRows, converted);
+    if (badConv.length) {
+      setNotices((p) => [...p, errorNotice(tr("Not imported: converting {list} to the project's unit would put readings over 100 %, so these columns are probably not in the unit the dialog says. Set their unit in the dialog (the project has them in {units}) and import again.", { list: badConv.map((b) => tr("{header} ({n} value(s), up to {max} {unit})", { header: b.header, n: b.n.toLocaleString(), max: b.max.toLocaleString(), unit: b.unit })).join(", "), units: [...new Set(badConv.map((b) => existingUnit[b.symbol]))].join(", ") }))]);
+      return;
+    }
     let negBdl = 0, negMissing = 0;
     const overLimitFilled = new Map(); // #600 — as in commitAssayImport
     const svDlCache = new Map(); // #2158 — each column's detection limit, for '<LOD' / BDL and the -1 / -9 codes
@@ -1360,6 +1380,9 @@ export default function GeochemModule() {
                 {/* TASKS.csv #1749 (review #1645, Copley) — a metal-equivalent (CuEq, AuEq) is a grade, not an index: with a grade unit its estimate can be priced in the pit shell */}
                 <label style={{ display: "flex", alignItems: "center", gap: 6 }}>{tr("Unit")}<select value={calc.unit || "index"} onChange={(e) => setCalc((c) => ({ ...c, unit: e.target.value }))} style={{ fontSize: "var(--font-size-sm)" }} aria-label={tr("Unit of the calculated element")} title={tr("An index has no unit. A metal-equivalent (CuEq, AuEq) takes the grade unit its formula gives, % or g/t, so an estimate of it can be priced in the pit shell.")}>{[...new Set(["index", "%", "g/t", "ppm", "ppb", ...((calc.source === "surface" ? surfaceElements : assayElements).map((e) => e.unit).filter((u) => u && unitBasis(u).oxide)) /* #3160 — the oxide units the project stores */, ...(calc.unit ? [calc.unit] : [])])].map((u) => <option key={u} value={u}>{u === "index" ? tr("index (no unit)") : u}</option>)}</select></label>
                 <textarea value={calc.expr} onChange={(e) => setCalc((c) => ({ ...c, expr: e.target.value }))} rows={3} placeholder={tr("Formula over element symbols, e.g. 100*Zn/(Zn+Pb)")} aria-label={tr("Calculated element formula")} style={{ fontSize: "var(--font-size-sm)", fontFamily: "monospace" }} />
+                {!presetUnitsFor(calc.preset, calc.expr) && mixedUnitReads(calc.expr, calc.source === "surface" ? surfaceElements : assayElements) && ( /* TASKS.csv #3219 — a ratio of elements stored in different units */
+                  <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)" }}><input type="checkbox" checked={!!calc.readPpm} onChange={(e) => setCalc((c) => ({ ...c, readPpm: e.target.checked }))} />{tr("Read these elements in ppm: the formula divides elements stored in different units ({list})", { list: Object.keys(mixedUnitReads(calc.expr, calc.source === "surface" ? surfaceElements : assayElements)).map((sym) => `${sym} ${((calc.source === "surface" ? surfaceElements : assayElements).find((e) => e.symbol === sym) || {}).unit || ""}`).join(", ") })}</label>
+                )}
                 {aliasNames.length > 0 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 }}>{tr("Oxide names work too, in % through the import's factors: {list}.", { list: aliasNames.slice(0, 12).join(", ") + (aliasNames.length > 12 ? " …" : "") })}</div>}{/* #2914 */}
                 <div style={{ color: "var(--color-text-muted)" }}>{tr("Elements are read in their stored units ({v}{v2}). Rows missing any element in the formula get no value.", { v: calcEls.slice(0, 6).map((e) => `${e.symbol} ${e.unit}`).join(", "), v2: calcEls.length > 6 ? ", …" : "" })}</div>
                 {calc.msg && (calc.msg.preset && calc.preset && !presetUnitsFor(calc.preset, calc.expr) /* #2619 — the preset's promise no longer holds */
@@ -1369,17 +1392,17 @@ export default function GeochemModule() {
                   <button style={{ ...genBtn, flex: 1 }} onClick={() => {
                     try {
                       if (onSurface) { // #1799 — stored on the surface samples like an imported element: plan map, thresholds, grade stats take it
-                        const r = addCalculatedElement(surfaceSamples, surfaceElements, calc.name, calc.expr, calc.unit || "index", { readUnits: presetUnitsFor(calc.preset, calc.expr) }); // #2500; presetUnitsFor: #2619
+                        const r = addCalculatedElement(surfaceSamples, surfaceElements, calc.name, calc.expr, calc.unit || "index", { readUnits: presetUnitsFor(calc.preset, calc.expr) || (calc.readPpm ? mixedUnitReads(calc.expr, surfaceElements) : null) /* #3219 */ }); // #2500; presetUnitsFor: #2619
                         setSurfaceSamples(r.assays);
                         setSurfaceElements((prev) => [...prev, r.element]);
-                        setNotices((p) => [...p, notice("Added calculated element {symbol} = {expr} on {computed} surface sample(s) (range {min}–{max}){v}. The plan map, thresholds, grade stats and correlation can use it. It is not recalculated if the samples are re-imported.", { symbol: r.element.symbol, expr: r.element.calculated.expr, computed: r.computed.toLocaleString(), min: r.min.toFixed(2), max: r.max.toFixed(2), v: (r.skipped ? tr("; {skipped} sample(s) missing an element in the formula have no value", { skipped: r.skipped.toLocaleString() }) : "") + (r.leftBdl ? tr("; {n} left out: a ratio with a below-detection operand is not a value", { n: r.leftBdl.toLocaleString() }) : "") + (r.flaggedLt ? tr("; {n} flagged below detection ('<'): every element in the formula was", { n: r.flaggedLt.toLocaleString() }) : "") /* #2505 */ + (r.divZero ? tr("; {n} divided by zero, so no value", { n: r.divZero.toLocaleString() }) : "") /* #3160 */ })]);
+                        setNotices((p) => [...p, notice("Added calculated element {symbol} = {expr} on {computed} surface sample(s) (range {min}–{max}){v}. The plan map, thresholds, grade stats and correlation can use it. It is not recalculated if the samples are re-imported.", { symbol: r.element.symbol, expr: r.element.calculated.expr, computed: r.computed.toLocaleString(), min: sigFig(r.min), max: sigFig(r.max) /* #3219 — 0.125, not 0.00 */, v: (r.skipped ? tr("; {skipped} sample(s) missing an element in the formula have no value", { skipped: r.skipped.toLocaleString() }) : "") + (r.leftBdl ? tr("; {n} left out: a ratio with a below-detection operand is not a value", { n: r.leftBdl.toLocaleString() }) : "") + (r.flaggedLt ? tr("; {n} flagged below detection ('<'): every element in the formula was", { n: r.flaggedLt.toLocaleString() }) : "") /* #2505 */ + (r.divZero ? tr("; {n} divided by zero, so no value", { n: r.divZero.toLocaleString() }) : "") /* #3160 */ + (r.mixedUnits ? tr("; divided as stored, though {list} are in different units: tick 'Read these elements in ppm' to compare like with like", { list: r.mixedUnits.map((c) => `${c.sym} (${c.unit})`).join(", ") }) : "") /* #3219 */ })]);
                         setCalc(null);
                         return;
                       }
-                      const r = addCalculatedElement(assays, assayElements, calc.name, calc.expr, calc.unit || "index", { readUnits: presetUnitsFor(calc.preset, calc.expr) }); // unit: #1749; readUnits: #2500, #2619 (a preset's formula as given)
+                      const r = addCalculatedElement(assays, assayElements, calc.name, calc.expr, calc.unit || "index", { readUnits: presetUnitsFor(calc.preset, calc.expr) || (calc.readPpm ? mixedUnitReads(calc.expr, assayElements) : null) /* #3219 */ }); // unit: #1749; readUnits: #2500, #2619 (a preset's formula as given)
                       setAssays(r.assays);
                       setAssayElements((prev) => [...prev, r.element]);
-                      setNotices((p) => [...p, notice(collars.length ? "Added calculated element {symbol} = {expr} on {computed} assay interval(s) (range {min}–{max}){v}. It can now be shown downhole, in 3D and on sections like any element. It is not recalculated if assays are re-imported." : "Added calculated element {symbol} = {expr} on {computed} assay interval(s) (range {min}–{max}){v}. Every Geochem tool can use it now; it is drawn downhole once collars are loaded. It is not recalculated if assays are re-imported.", /* #1800 */ { symbol: r.element.symbol, expr: r.element.calculated.expr, computed: r.computed.toLocaleString(), min: r.min.toFixed(2), max: r.max.toFixed(2), v: (r.skipped ? tr("; {skipped} interval(s) missing an element in the formula have no value", { skipped: r.skipped.toLocaleString() }) : "") + (r.leftBdl ? tr("; {n} left out: a ratio with a below-detection operand is not a value", { n: r.leftBdl.toLocaleString() }) : "") + (r.flaggedLt ? tr("; {n} flagged below detection ('<'): every element in the formula was", { n: r.flaggedLt.toLocaleString() }) : "") /* #2505 */ + (r.divZero ? tr("; {n} divided by zero, so no value", { n: r.divZero.toLocaleString() }) : "") /* #3160 */ })]);
+                      setNotices((p) => [...p, notice(collars.length ? "Added calculated element {symbol} = {expr} on {computed} assay interval(s) (range {min}–{max}){v}. It can now be shown downhole, in 3D and on sections like any element. It is not recalculated if assays are re-imported." : "Added calculated element {symbol} = {expr} on {computed} assay interval(s) (range {min}–{max}){v}. Every Geochem tool can use it now; it is drawn downhole once collars are loaded. It is not recalculated if assays are re-imported.", /* #1800 */ { symbol: r.element.symbol, expr: r.element.calculated.expr, computed: r.computed.toLocaleString(), min: sigFig(r.min), max: sigFig(r.max) /* #3219 — 0.125, not 0.00 */, v: (r.skipped ? tr("; {skipped} interval(s) missing an element in the formula have no value", { skipped: r.skipped.toLocaleString() }) : "") + (r.leftBdl ? tr("; {n} left out: a ratio with a below-detection operand is not a value", { n: r.leftBdl.toLocaleString() }) : "") + (r.flaggedLt ? tr("; {n} flagged below detection ('<'): every element in the formula was", { n: r.flaggedLt.toLocaleString() }) : "") /* #2505 */ + (r.divZero ? tr("; {n} divided by zero, so no value", { n: r.divZero.toLocaleString() }) : "") /* #3160 */ + (r.mixedUnits ? tr("; divided as stored, though {list} are in different units: tick 'Read these elements in ppm' to compare like with like", { list: r.mixedUnits.map((c) => `${c.sym} (${c.unit})`).join(", ") }) : "") /* #3219 */ })]);
                       setCalc(null);
                     } catch (err) { setCalc((c) => ({ ...c, msg: { ok: false, text: err.message } })); }
                   }}>{tr("Add")}</button>
@@ -1435,7 +1458,7 @@ export default function GeochemModule() {
               {/* TASKS.csv #2353 — a 1:1 line and the numbers a log-against-assay check reads */}
               <label style={{ display: "flex", gap: 4, alignItems: "center", fontSize: 11.5, color: "#55606e" }}><input type="checkbox" checked={!!xyOne} onChange={(e) => setXyOne(e.target.checked)} />{tr("1:1 line")}</label>
               <label style={{ display: "flex", gap: 4, alignItems: "center", fontSize: 11.5, color: "#55606e" }}>{tr("Statistics where X ≥")}<input type="number" step="any" value={xyMin} onChange={(e) => setXyMin(e.target.value)} aria-label={tr("Statistics where X is at least")} style={{ ...selectStyle, width: 80, padding: "4px 6px" }} /></label>
-              {xyStat && <span style={{ fontSize: 11.5, color: "#2a3444" }} role="status">{tr("n {n} · Spearman {r} · median Y / X {m} · length-weighted Y / X {w}", { n: xyStat.n.toLocaleString(), r: Number.isFinite(xyStat.r) ? xyStat.r.toFixed(2) : "—", m: Number.isFinite(xyStat.medianRatio) ? xyStat.medianRatio.toPrecision(3) : "—", w: Number.isFinite(xyStat.weightedRatio) ? xyStat.weightedRatio.toPrecision(3) : "—" })}</span>}
+              {xyStat && <span style={{ fontSize: 11.5, color: "#2a3444" }} role="status">{tr("n {n} · Spearman {r} · median Y / X {m} · length-weighted Y / X {w}", { n: xyStat.n.toLocaleString(), r: Number.isFinite(xyStat.r) ? xyStat.r.toFixed(2) : "—", m: Number.isFinite(xyStat.medianRatio) ? xyStat.medianRatio.toPrecision(3) : "—", w: Number.isFinite(xyStat.weightedRatio) ? xyStat.weightedRatio.toPrecision(3) : "—" })}{xyStat.inPpm ? ` ${tr("(ratios in ppm / ppm: the two axes are stored in different units)")}` : "" /* #3219 */}</span>}
             </>
           )}
           {diagramId === "ternary" && ( /* TASKS.csv #3051 — the three corners and their factors */

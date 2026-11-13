@@ -110,3 +110,33 @@ export function thinForWork(specs, opts) {
   const count = (list) => ({ points: list.filter((s) => !s.fault).reduce((n, s) => n + s.points.length, 0), orientations: new Set(list.filter((s) => !s.fault).flatMap((s) => s.orientations.map(oriKey))).size });
   return { specs: out, before: count(specs), after: count(out), work, workAfter: gempyWork(out, opts) };
 }
+
+// TASKS.csv #3215 (Main: show the run's time on this computer as well as the multiple) — seconds per evaluation, learnt per computer: each
+// GemPy run over 30 s (shorter ones are mostly the engine's start-up) records its solve time / its work; the median of the last five is
+// this computer's rate. Until one is timed, the rate measured above (a busy desktop), said as such. localStorage: a per-computer figure,
+// not project data.
+export const GEMPY_REF_SECONDS_PER_EVAL = 2.1e-6;
+const RATE_KEY = "geostrix.gempySecondsPerEval";
+export function recordGempyRate(seconds, work, store = globalThis.localStorage) {
+  if (!(seconds > 30 && work > 0) || !store) return;
+  try {
+    const l = JSON.parse(store.getItem(RATE_KEY) || "[]");
+    store.setItem(RATE_KEY, JSON.stringify([...(Array.isArray(l) ? l : []), seconds / work].slice(-5)));
+  } catch { /* storage full or blocked: the estimate keeps the reference rate */ }
+}
+// -> { rate (s per evaluation), runs: how many runs on this computer it is from (0: the reference rate) }
+export function gempyRate(store = globalThis.localStorage) {
+  try {
+    const l = (JSON.parse(store?.getItem(RATE_KEY) || "[]") || []).filter((v) => Number.isFinite(v) && v > 0).sort((a, b) => a - b);
+    if (l.length) return { rate: l[l.length >> 1], runs: l.length };
+  } catch { /* unreadable: the reference rate */ }
+  return { rate: GEMPY_REF_SECONDS_PER_EVAL, runs: 0 };
+}
+
+// TASKS.csv #3215 — the engine's peak memory: the interpolation's matrix grows with the square of a field's data rows. Measured: 4,802 rows
+// (Mount Raymond at the point budget, one onlap field) peaked at 3.7 GB with the engine's ~0.3 GB baseline, so about 0.15 GB per
+// (1,000 rows)^2; 16,120 rows passed 13.5 GB without finishing (this gives 38 GB). GemPy solves one field at a time: the largest counts.
+export const GEMPY_GB_PER_MROWS2 = 0.15, GEMPY_BASE_GB = 0.3;
+// Main (2026-11-13): a run whose engine would need over 70 % of this computer's memory is refused, not asked about; 16 GB where it cannot be read
+export const GEMPY_RAM_SHARE = 0.7, GEMPY_ASSUMED_RAM_GB = 16;
+export const gempyPeakGB = (specs, { relation = "erode" } = {}) => GEMPY_BASE_GB + GEMPY_GB_PER_MROWS2 * Math.max(0, ...fieldsOf(specs, relation).map((f) => (fieldRows(f) / 1000) ** 2));

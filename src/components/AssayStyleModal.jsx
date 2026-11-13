@@ -123,7 +123,7 @@ export default function AssayStyleModal({ symbol, unit, defaultColor, range, sty
               <span style={{ ...rowLabel, marginBottom: 0 }} title={tr("Recategorize: instead of one flat colour, split this element into grade classes, each with its own colour — like a graduated/categorized legend.")}>{tr("Grade classes (recategorize)")}</span>
               {!local.breaks.length && <button onClick={addBreak} style={smallBtn}><Plus size={12} />{" "}{tr("Add classes")}</button>}
             </div>
-            {(major || basisText) && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>{major ? tr("Default classes: round steps of the data, as for a major component (a median of {p50} {unit}): {limits}.", { p50: +range.p50.toFixed(2), unit, limits: major.join(" / ") }) : basisText}</div>}{/* #2519; #2935 */}
+            {(major || basisText) && !local.breaks.some((b) => b.seeded === false) /* #2941 — not once a class was edited (rounded, a limit added) */ && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>{major ? tr("Default classes: round steps of the data, as for a major component (a median of {p50} {unit}): {limits}.", { p50: +range.p50.toFixed(2), unit, limits: major.join(" / ") }) : basisText}</div>}{/* #2519; #2935 */}
             {offers.length > 0 && (
               <div style={{ display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap", marginBottom: 6, fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{/* #2688 — offered, never applied */}
                 <span>{tr("Saved threshold:")}</span>

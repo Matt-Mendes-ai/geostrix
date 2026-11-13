@@ -22,10 +22,14 @@ export default function OxideTotalsTab({ assays, majors, setAssays, sel, tabBtn 
   const restore = () => { const r = setTotalExclusion(assays, [], false); setAssays(r.assays); setMsg(tr("{n} sample(s) included again.", { n: r.changed })); };
   const W = 520, H = 110;
   const where = (a) => `${a.hole_id} ${a.from}-${a.to} m${a.sample_id ? ` (${a.sample_id})` : ""}`;
+  // TASKS.csv #3225 (review #3195, Galore Creek) — nine oxides without silica summed to a 'median 38.30 %' beside 'a sound sample totals about
+  // 100 less its LOI': without SiO2 or Al2O3 (each usually over 5 %) the sums are partial, said so, and given no tolerance
+  const missingBig = [["Si", "SiO2"], ["Al", "Al2O3"]].filter(([sym]) => !majors.some((m) => m.symbol === sym)).map(([, ox]) => ox);
+  const partial = missingBig.length > 0;
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
       <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.5 }}>
-        {tr("Sum of the major oxides ({list}) per sample, from the stored values with the import's factors, total iron as {fe}. LOI and the minor oxides are not in it: a sound sample totals about 100 less its LOI.", { list: majors.map((m) => m.oxide).join(", "), fe: majors.find((m) => m.symbol === "Fe")?.oxide || "Fe2O3" })}
+        {partial ? tr("{missing} not analysed: these are partial sums of {list}, not totals, and cannot be checked against 100 less the LOI.", { missing: missingBig.join(" and "), list: majors.map((m) => m.oxide).join(", ") }) /* #3225 */ : tr("Sum of the major oxides ({list}) per sample, from the stored values with the import's factors, total iron as {fe}. LOI and the minor oxides are not in it: a sound sample totals about 100 less its LOI.", { list: majors.map((m) => m.oxide).join(", "), fe: majors.find((m) => m.symbol === "Fe")?.oxide || "Fe2O3" })}
       </div>
       <div style={{ fontSize: "var(--font-size-sm)" }}>
         {res.n ? tr("{n} sample(s) with every major: median {median} %, 90 % of them between {p5} and {p95} %, range {min} to {max} %.", { n: res.n.toLocaleString(), median: fmt(res.median), p5: fmt(res.p5), p95: fmt(res.p95), min: fmt(res.min), max: fmt(res.max) }) : tr("No sample holds every major oxide.")}
@@ -40,11 +44,11 @@ export default function OxideTotalsTab({ assays, majors, setAssays, sel, tabBtn 
           <text x={W} y={H + 14} fontSize="10" fill="#65717e" textAnchor="end">{hist.lo + hist.bins.length * hist.w} %</text>
         </svg>
       )}
-      <div style={{ display: "flex", gap: 10, alignItems: "flex-end", flexWrap: "wrap" }}>
+      {!partial && <div style={{ display: "flex", gap: 10, alignItems: "flex-end", flexWrap: "wrap" }}>{/* no tolerance on a partial sum: #3225 */}
         <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("Total below (%)")}<input type="number" step="any" value={lo} onChange={(e) => setLo(e.target.value)} placeholder={tr("none")} style={{ ...sel, display: "block", marginTop: 4, width: 90 }} /></label>
         <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("Total above (%)")}<input type="number" step="any" value={hi} onChange={(e) => setHi(e.target.value)} placeholder={tr("none")} style={{ ...sel, display: "block", marginTop: 4, width: 90 }} /></label>
         <span style={{ fontSize: "var(--font-size-sm)" }}>{lo === "" && hi === "" ? tr("Type a tolerance to list the samples outside it.") : tr("{n} sample(s) outside the tolerance.", { n: out.length.toLocaleString() })}</span>
-      </div>
+      </div>}
       {over.length > 0 && <div role="status" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)" }}>{tr("{n} oxide value(s) over 100 % (impossible as wt%): {list}.", { n: over.length, list: over.slice(0, 5).map((o) => `${where(o.a)} ${o.oxide} ${fmt(o.value)} %`).join("; ") + (over.length > 5 ? " …" : "") })}</div>}
       {out.length > 0 && (
         <div style={{ maxHeight: 180, overflowY: "auto", border: "1px solid var(--color-border)", borderRadius: 4 }}>

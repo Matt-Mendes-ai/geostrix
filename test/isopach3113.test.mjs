@@ -62,7 +62,7 @@ test("the next top down from the holes' order: the closest under, the mirror of 
 });
 
 test("wiring: the pane's button, the raster, the keys", () => {
-  const p = readFileSync(new URL("../src/components/ExplicitSurfacePanel.jsx", import.meta.url), "utf8");
+  const p = readFileSync(new URL("../src/components/ExplicitSurfacePanel.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
   assert.match(p, /const pileBase = useMemo\(/);
   assert.match(p, /isopachBetween\(/);
   assert.match(p, /addRaster\(\{/);

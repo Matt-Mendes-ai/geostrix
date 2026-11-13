@@ -605,8 +605,13 @@ function SectionSVG({ printing = false, patterns = null, textFont = SECTION_FONT
   const ux = dx / len, uy = dy / len;
   const along = (x, y) => (x - ax) * ux + (y - ay) * uy;
 
-  let maxL = len, minZ = Infinity, maxZ = -Infinity;
+  let minL = 0, maxL = len, minZ = Infinity, maxZ = -Infinity;
   holes.forEach((h) => h.trace.forEach((p) => { minZ = Math.min(minZ, p.z); maxZ = Math.max(maxZ, p.z); }));
+  // TASKS.csv #2979 (#2483, WA uranium) — a hole inside an end cap but past A or B (NND5033, 90 m past B) was clipped by the frame while
+  // its name floated beyond the axes. The distance axis now spans the holes' in-buffer runs too (before A: negative, past B: over the
+  // line's length), and the corner coordinates are the frame's ends; a section with every hole between A and B is drawn as before.
+  holes.forEach((h) => { for (const p of h.trace) { if (h.runs && !h.runs.some(([m0, m1]) => p.md >= m0 && p.md <= m1)) continue; const l = (p.x - ax) * ux + (p.y - ay) * uy; if (l < minL) minL = l; if (l > maxL) maxL = l; } });
+  { const m = 0.02 * (maxL - minL); if (minL < 0) minL -= m; if (maxL > len) maxL += m; } // a widened end off the frame line
   contacts.forEach((c) => c.points.forEach((p) => { minZ = Math.min(minZ, p.z); maxZ = Math.max(maxZ, p.z); }));
   // TASKS.csv #112 — elevation profile from SRTM. Fold the topographic profile into the same
   // min/max-elevation pass everything else uses, so the ground surface is never clipped off the top
@@ -639,7 +644,7 @@ function SectionSVG({ printing = false, patterns = null, textFont = SECTION_FONT
   // looked like before #15 — H was a constant, so the vertical scale silently varied per section
   // depending on its elevation range, with no way to tell how exaggerated a given view already was).
   // The page's rendered height now follows from vScale rather than the other way around.
-  const hScale = (W - 2 * PAD) / maxL;
+  const hScale = (W - 2 * PAD) / (maxL - minL);
   const vScale = hScale * (vExag || 1);
   const H = Math.max(200, Math.round((maxZ - minZ) * vScale) + 2 * PAD);
   // TASKS.csv #1396 — a depth tick, EOH or offset label is drawn only for a point inside the plot frame: #1205 clipped the
@@ -649,7 +654,7 @@ function SectionSVG({ printing = false, patterns = null, textFont = SECTION_FONT
   // since nothing here needs to re-render when it changes.
   if (geomRef) geomRef.current = { hScale, ve: vExag }; // ve: #2363, the VE drawn
 
-  const sx = (l) => PAD + l * hScale;
+  const sx = (l) => PAD + (l - minL) * hScale; // minL: #2979
   const sz = (z) => H - PAD - (z - minZ) * vScale;
   const totalH = H; // TASKS.csv #1128 — no key inside the section any more (#1043 drew one): it goes to Layout
   // TASKS.csv #2142 (review #2013, Woodjam) — the title sits above the subtitle lines, which grow with the ribbon list: with four or more lines
@@ -658,7 +663,7 @@ function SectionSVG({ printing = false, patterns = null, textFont = SECTION_FONT
   // Inverse of sx/sz — converts a click back to (l, z), then to world (x, y) via the section line's
   // own origin/direction, so a drawn contact point is stored as real-world coordinates, not a
   // screen-relative fraction (see store.jsx's `sections` comment).
-  const invSx = (screenX) => (screenX - PAD) / hScale;
+  const invSx = (screenX) => minL + (screenX - PAD) / hScale;
   const invSz = (screenY) => minZ + (H - PAD - screenY) / vScale;
 
   const traceByHole = Object.fromEntries(holes.map((h) => [h.hole_id, h.trace]));
@@ -697,7 +702,7 @@ function SectionSVG({ printing = false, patterns = null, textFont = SECTION_FONT
         strings: contacts.map((c) => ({ id: c.id, points: c.points, closed: c.kind === "outline" })), skip: dragRef.current ? { id: dragRef.current.id, i: dragRef.current.i } : null }); // strings: #876
       if (s) return projectSnaps ? onSectionPlane(s, { ax, ay, ux, uy }) : s;
     }
-    const l = Math.max(0, Math.min(maxL, invSx(local.x)));
+    const l = Math.max(minL, Math.min(maxL, invSx(local.x)));
     const z = invSz(local.y);
     return { l, z, x: ax + l * ux, y: ay + l * uy };
   };
@@ -810,14 +815,14 @@ function SectionSVG({ printing = false, patterns = null, textFont = SECTION_FONT
           <text x={PAD - 8} y={sz(z) + fs(3)} fill="#65717e" fontSize={fs(10)} textAnchor="end">{z.toFixed(0)}</text>
         </g>
       ))}
-      {niceTicks(0, maxL, 8).filter((l) => l >= 0 && l <= maxL).map((l, i) => (
+      {niceTicks(minL, maxL, 8).filter((l) => l >= minL && l <= maxL).map((l, i) => (
         <g key={`d${i}`}>
           <line x1={sx(l)} y1={H - PAD} x2={sx(l)} y2={H - PAD + 4} stroke="#65717e" strokeWidth="0.8" />
           <text x={sx(l)} y={H - PAD + 4 + fs(10)} fill="#65717e" fontSize={fs(10)} textAnchor="middle">{l.toFixed(0)}</text>
         </g>
       ))}
-      <text x={PAD} y={H - PAD + 4 + fs(26)} fill="#55606e" fontSize={fs(10)} textAnchor="start">{`${Math.round(ax).toLocaleString()} E  ${Math.round(ay).toLocaleString()} N`}</text>
-      <text x={W - PAD} y={H - PAD + 4 + fs(26)} fill="#55606e" fontSize={fs(10)} textAnchor="end">{`${Math.round(bx).toLocaleString()} E  ${Math.round(by).toLocaleString()} N`}</text>
+      <text x={PAD} y={H - PAD + 4 + fs(26)} fill="#55606e" fontSize={fs(10)} textAnchor="start">{`${Math.round(ax + minL * ux).toLocaleString()} E  ${Math.round(ay + minL * uy).toLocaleString()} N`}</text>{/* the frame's ends (#2979) */}
+      <text x={W - PAD} y={H - PAD + 4 + fs(26)} fill="#55606e" fontSize={fs(10)} textAnchor="end">{`${Math.round(ax + maxL * ux).toLocaleString()} E  ${Math.round(ay + maxL * uy).toLocaleString()} N`}</text>
       <text x={PAD} y={titleY} fill="#1a2028" fontSize={fs(12)} fontWeight="600">{title || tr("Cross-section")}</text>
       <text x={PAD} y={PAD - fs(8) - (subtitleLines.length - 1) * fs(12)} fill="#55606e" fontSize={fs(10)}>{subtitleLines.map((l, i) => <tspan key={i} x={PAD} dy={i ? fs(12) : 0}>{l}</tspan>)}</text>
 
@@ -836,7 +841,7 @@ function SectionSVG({ printing = false, patterns = null, textFont = SECTION_FONT
       {elevationProfile && elevationProfile.length > 1 && (
         <g>
           <polygon
-            points={`${sx(0)},${H - PAD} ${elevationProfile.map((p) => `${sx(p.d)},${sz(p.z)}`).join(" ")} ${sx(maxL)},${H - PAD}`}
+            points={`${sx(elevationProfile[0].d)},${H - PAD} ${elevationProfile.map((p) => `${sx(p.d)},${sz(p.z)}`).join(" ")} ${sx(elevationProfile[elevationProfile.length - 1].d)},${H - PAD}`}
             fill="#e8dfc8" fillOpacity="0.55" stroke="none"
           />
           <polyline

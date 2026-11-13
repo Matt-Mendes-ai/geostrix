@@ -196,6 +196,7 @@ import { assayShapeFor, assayProto, placeAssayMarker } from "../lib/viewer/assay
 import { assayRange } from "../lib/viewer/assayRanges.js"; // TASKS.csv #3055
 import { makeAssayBatcher } from "../lib/viewer/assayBatcher.js"; // TASKS.csv #3055
 import { syncAssayElements, setAssayLod, assayLodTick } from "../lib/viewer/assayKeep.js"; // TASKS.csv #3117; LOD: #3144
+import { logLodTick } from "./viewer/logLod.js"; // TASKS.csv #2802
 import { sampleRuns, runSize, typicalSampleM } from "../lib/viewer/assayLod.js"; // TASKS.csv #3144
 import { buildDrillholeScene, collarColorFor, voxelFitCorners, isIntervalRow } from "./viewer/drillholeScene.js"; // TASKS.csv #2176
 import { viewNdc } from "../lib/viewer/clickPoint.js"; // TASKS.csv #2803
@@ -439,18 +440,8 @@ const RELATION_TYPES = [
 
 // TASKS.csv #445 — search ellipsoid / anisotropy / clustering / terrain maths moved to src/lib/viewer/geomath.js
 
-// TASKS.csv #155 — "3D Modelling" is now its own top-level module (a peer of "3D View" in App.jsx's
-// module bar) rather than a sub-tab nested inside the Viewer. Both are still this SAME component
-// underneath — the 3D scene/camera/rendering machinery, and every piece of modelling state
-// (implicitSurfaces, domains, search ellipsoid, etc.), all live here and would be a large, risky
-// undertaking to duplicate into a truly separate component. `mode` just picks which sidebar content
-// renders: "view" (collars/survey/layers/rasters — the former "Home" tab) or "modelling" (domains/
-// surfaces/implicit-modelling tools — the former "Modelling" tab). App.jsx renders one or the other
-// depending on which top-level tab is active, never both at once.
-// TASKS.csv #225 — `visible` defaults to `true` deliberately: every existing call site (App.jsx, before
-// this row's own fix lands there) doesn't pass it at all, so every behavior below is a pure no-op until
-// App.jsx actually starts rendering ViewerModule as a single persistent instance and passing `false`
-// while another tab is shown. See this row's own TASKS.csv notes for the staged rollout this follows.
+// TASKS.csv #155 — "3D Modelling" and "3D View" are this one component; `mode` picks the sidebar ("view" or "modelling").
+// TASKS.csv #225 — `visible` (default true): false while another tab is shown, ViewerModule being one persistent instance.
 // TASKS.csv #696 — true when two versions of a voxel model draw the same instances: every field the same object /
 // value except the display-only ones, and the same side of opaque / transparent (the transparent path keeps a
 // per-cell list for the depth sort and a different depthWrite).
@@ -2254,6 +2245,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
         { const hl = layerGroupsRef.current?.hole_labels; if (hl?.visible && hl.children.length) { fitScreenLabels(hl, camera, mount.clientHeight); declutterHoleLabels(hl, camera, mount.clientWidth, mount.clientHeight); } }
         for (const name of ["outcrop_labels", "sample_labels"]) { const lg = layerGroupsRef.current?.[name]; if (lg?.visible && lg.children.length) { fitScreenLabels(lg, camera, mount.clientHeight); declutterHoleLabels(lg, camera, mount.clientWidth, mount.clientHeight); } } // #1443
         { const ag = layerGroupsRef.current?.assay; if (ag?.visible && ag.children.length) assayLodTick(ag, assayKeptRef.current, metresPerPixel(camera, camState.current?.radius, mount.clientHeight)); } // #3144
+        for (const k in layerGroupsRef.current) { const g = layerGroupsRef.current[k]; if (g?.visible && g.userData.logLod) logLodTick(g, metresPerPixel(camera, camState.current?.radius, mount.clientHeight), tracesRef.current, visibleHolesRef.current); } // #2802
         { // TASKS.csv #1597 — surface-sample symbols are sized for the zoom they were built at: once the camera has settled (400 ms) a
           // factor of two away from it, they are rebuilt at the new size (never per frame, never mid-orbit)
           // TASKS.csv #2849 — and the survey points, where their floor matters (a regional survey; a 2 km grid keeps its 1.4-4.2 m symbols)
@@ -2453,23 +2445,9 @@ ${describeTrend(t)}` };
   }, [requestViewportRender]);
 
   // ---------- TASKS.csv #45: saved "themes" (named view configurations) ----------
-  // Bundles everything already tracked in viewerUiState (layer visibility/filters/legend/grid/etc.)
-  // plus the camera (camState isn't part of viewerUiState — that mirror only covers *display*
-  // preferences, not "where the camera happens to be pointed", which a theme also needs to capture).
-  // TASKS.csv #202 — factored out of captureCurrentTheme so the SAME "everything a theme captures"
-  // bundle can also be used to snapshot the user's own live view before a Layout Viewport render
-  // temporarily applies a DIFFERENT theme, and restore it afterward (see the viewportRenderRequestSeq
-  // effect below) — without that restore, opening/refreshing a themed Viewport on the Layout page
-  // silently overwrote whatever layers/filters/camera angle the user actually had live in the 3D
-  // View tab with that viewport's theme, which is exactly the "3d view... reload[s] layers that were
-  // turned off... when switching to another module and then switching back to 3d view" bug report —
-  // reproduced and confirmed via Playwright before this fix (see TASKS.csv notes).
-  // TASKS.csv #52 (b) — a theme can now reference generated surfaces, so re-applying it brings the
-  // right surfaces back on screen instead of leaving whatever was last toggled. Read through a REF, not
-  // from `implicitSurfaces` directly, deliberately: adding it to this callback's dependency array would
-  // change currentViewBundle's identity every time a surface is generated, hidden or renamed, and the
-  // #198/#202 comments below record what that class of dependency ripple already cost this file once.
-  // A ref has stable identity and is exactly as current at call time.
+  // viewerUiState plus the camera. #202 — the same bundle snapshots the live view before a Layout Viewport render applies another theme,
+  // and restores it after (the "3d view reloads layers that were turned off" bug). #52 (b) — a theme names generated surfaces, read through
+  // a ref so currentViewBundle keeps its identity when surfaces change (#198 / #202).
   const implicitSurfacesRef = useRef([]);
   useEffect(() => { implicitSurfacesRef.current = implicitSurfaces; }, [implicitSurfaces]);
   // {id: visible} plus the names, so a theme whose surface has since been deleted can say WHICH one is
@@ -3276,13 +3254,19 @@ ${describeTrend(t)}` };
   // TASKS.csv #517 — each modelled unit as a CLOSED shell (the outer faces of its cells, closed at the model box — exact volume at the model cell size):
   // listed with the model surfaces, exportable as DXF / OBJ, cut on sections and plans, measured by the volume
   // readout, and usable to restrict a grade estimate ("inside modelled DACT").
-  const addUnitVolumes = () => {
+  const addUnitVolumes = async () => {
     const lb = lastLithBlock; if (!lb) return;
+    const { isOpenUnit, openUnitText } = await import("../lib/viewer/openUnitVolume.js"); // #3112, on use
     { const n = unitCellCount(lb); if (n > BIG_UNIT_BLOCKS && !window.confirm(tr("The last model has {n} unit blocks: building their closed volumes takes a few seconds and makes large meshes. Build them anyway?", { n: n.toLocaleString() }))) return; } // #891
     const o = originRef.current, stamp = Date.now(), added = [], lines = [];
     const ust = blockUnitStats(lb.block); // TASKS.csv #877
+    // #3112 — the run's lowest unit with no base (openBelow, #2917) is everything to the box floor: built only when asked, and named so
+    const ob = lb.openBelow, openLabel = lb.block.labels.find((l) => l != null && isOpenUnit(ob, l)), whereTr = openLabel == null ? "" : ob.floorRL != null ? tr("below {top}, to the box floor at RL {rl}", { top: ob.top, rl: ob.floorRL }) : tr("below {top}, to the box floor", { top: ob.top });
+    const withOpen = openLabel != null && window.confirm(tr("{unit} has no modelled base: its solid would be everything {where}, not the unit's own body. Build it too?", { unit: openLabel, where: whereTr }));
     lb.block.labels.forEach((label, k) => {
       if (label == null) return;
+      const ot = openLabel != null && label === openLabel ? openUnitText(ob, label, lb.title, lb.when) : null;
+      if (ot && !withOpen) return;
       // the block is in the model's API frame; lb.origin is the world origin it was built with
       const s = unitShell(lb.block, label, lb.origin);
       if (!s) return;
@@ -3296,19 +3280,20 @@ ${describeTrend(t)}` };
       const mesh = new THREE.Mesh(geo, mat);
       const vol = meshVolume(w, s.indices);
       const nTris = s.indices.length / 3, nVerts = w.length / 3;
-      mesh.userData = { tip: `${label} — unit volume (${lb.title})\n${(vol / 1e6).toFixed(2)} Mm³ inside the model box, ${nTris} triangles` };
+      mesh.userData = { tip: `${ot ? ot.tip : `${label} — unit volume (${lb.title})`}\n${(vol / 1e6).toFixed(2)} Mm³ inside the model box, ${nTris} triangles` };
       implicitGroupRef.current?.add(mesh);
       const id = `impl_${stamp}_unitvol_${k}`;
       implicitMeshesRef.current[id] = mesh;
       added.push({
-        id, name: `${label} volume (${lb.title.replace(/^stack /, "")}, ${lb.when})`, visible: true, vertexCount: nVerts, faceCount: nTris,
+        id, name: ot ? ot.name : `${label} volume (${lb.title.replace(/^stack /, "")}, ${lb.when})`, visible: true, vertexCount: nVerts, faceCount: nTris,
         type: "unit_volume", relationships: [], closure: "closed",
-        params: { tool: "unit volume from the implicit model's lithology block", unit: label, model: lb.title, builtAt: lb.builtAtIso || lb.when, ...(lb.source ? { sourceKey: lb.source.key, sourceIds: lb.source.ids, sourceRecipe: lb.source.recipe } : {}), /* builtAtIso / source: #878 */ cells: s.cells, cellVolumeM3: +s.cellVolume.toFixed(3), cellsVolumeM3: Math.round(s.blockVolume), shellVolumeM3: Math.round(vol),
+        params: { tool: "unit volume from the implicit model's lithology block", unit: label, model: lb.title, ...(ot ? { openBelow: ot.where } : {}), builtAt: lb.builtAtIso || lb.when, ...(lb.source ? { sourceKey: lb.source.key, sourceIds: lb.source.ids, sourceRecipe: lb.source.recipe } : {}), /* builtAtIso / source: #878 */ cells: s.cells, cellVolumeM3: +s.cellVolume.toFixed(3), cellsVolumeM3: Math.round(s.blockVolume), shellVolumeM3: Math.round(vol),
           ...(ust.units[label] ? { volumeBandM3: Math.round(ust.units[label].bandM3), blockSizeM: ust.blockM.map((v) => +v.toFixed(2)), cutByBox: ust.units[label].box } : {}), /* TASKS.csv #877 */ note: lb.block.resampledFromTrend ? tr("Built from the trend model resampled onto a real-space grid, so the shell follows that grid's steps; the exact unit volume is the one in the Model check message. Cut at the model box: a unit that continues beyond it is closed there.") : tr("Cut at the model box: a unit that continues beyond it is closed there.") },
       });
-      lines.push(tr("{label} {v} Mm³", { label, v: (vol / 1e6).toFixed(2) }));
+      lines.push(ot ? tr("{label} {v} Mm³ ({where})", { label, v: (vol / 1e6).toFixed(2), where: whereTr }) : tr("{label} {v} Mm³", { label, v: (vol / 1e6).toFixed(2) }));
     });
-    if (!added.length) { setNotices((p) => [...p, notice("The last model has no modelled unit cells inside its box — no volumes to build.")]); return; }
+    if (openLabel != null && !withOpen) setNotices((p) => [...p, notice("{unit} was left out: no base is modelled, so its solid would be everything {where}. Model the surface under it to close it, or choose to build it the next time.", { unit: openLabel, where: whereTr })]);
+    if (!added.length) { if (openLabel == null || withOpen) setNotices((p) => [...p, notice("The last model has no modelled unit cells inside its box — no volumes to build.")]); return; }
     setImplicitSurfaces((p) => [...p, ...added]);
     setNotices((p) => [...p, notice("Added {added} closed unit volume(s) from {title}: {lines} (inside the model box — a unit that continues beyond it is closed at the box). They are listed with the model surfaces: export, sections, the volume readout and \"Restrict to a modelled volume\" in Grade estimation work on them.", { added: added.length, title: lb.title, lines: lines.join(", ") })]);
   };
@@ -4531,25 +4516,9 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   }, [implicitSurfaces, surfaceLabels]);
 
   // ---------- TASKS.csv #52 (d) — CROSS-CUTTING: truncate a surface against a dyke, split it on a fault ----------
-  //
-  // The gap this closes: the stratigraphic stack tool (#61) EXCLUDES veins and dykes by design — a
-  // stack is a set of ordered iso-surfaces of one shared scalar field, which is exactly what makes it
-  // non-crossing, and a cross-cutting body breaks that premise. #144 then modelled veins/dykes properly
-  // but with no relationship to the stratigraphy: a dyke and the contacts it cuts were two independent
-  // meshes that merely overlapped on screen, with the contact still drawn straight through the dyke.
-  //
-  // So cross-cutting is applied AFTER the fact, as a geometric operation on the finished meshes, rather
-  // than by teaching the stack about veins (which would cost the property that makes the stack
-  // trustworthy). That is also the order the geology happened in. The maths is src/lib/crosscut.js,
-  // hand-verified in bare Node against planted ground truth before any of this existed — including the
-  // two cases that must NOT report a truncation (a dyke that stops short of the contact) and the one
-  // that must report two bodies (a dyke that fully severs it). See TASKS.csv #52 for the numbers.
-  //
-  // WHICH OPERATION RUNS IS DECIDED BY THE CUTTER'S GEOMETRY, not by a mode switch: a closed body (a
-  // vein/dyke SOLID, a grade shell, an imported wireframe) has an inside, so the host is truncated
-  // against it; an open surface (a fault plane, a draped contact) has no inside, so the host is split
-  // into the two fault blocks instead. Meshes are handed over in SCENE space (up = +Y), the same frame
-  // #90's checker uses, so no coordinate conversion happens for what is a purely geometric question.
+  // A stack (#61) leaves veins and dykes out by design, so cross-cutting is applied after the fact to the finished meshes (src/lib/crosscut.js,
+  // checked against planted cases: TASKS.csv #52). The cutter's geometry decides: a closed body truncates the host, an open surface splits it
+  // into two fault blocks. Meshes in SCENE space (up = +Y), as #90's checker.
   const [crossCutBusy, setCrossCutBusy] = useState(false);
   const runCrossCut = useCallback((hostId, cutterId) => {
     const host = implicitSurfaces.find((s) => s.id === hostId);
@@ -5498,10 +5467,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     const { x: mx, y: my } = viewNdc(e, rect, mcDownRef.current); // #2803 — the press's own point
     const raycaster = new THREE.Raycaster();
     raycaster.setFromCamera(new THREE.Vector2(mx, my), cameraRef.current);
-    // Same broadened "nearest real feature" raycast the status-bar cursor uses (see raycastWorldPoint's
-    // comment) — a distance/elevation-change measurement across a voxel model or drillhole should read
-    // the model's real surface, not always the flat terrain-only fallback.
-    const world = raycastWorldPoint(raycaster);
+    const world = raycastWorldPoint(raycaster); // the status bar's nearest-feature raycast; plane: true off everything (#2807)
     if (!world) return;
     setMeasurePts((pts) => [...pts, world]);
   }, [measureMode, raycastWorldPoint]);
@@ -5754,10 +5720,11 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       if (!showCustomLayers) return;
       if (scope.showCustomLayers == null && customVisible[layer.id] === false) return;
       const st = layerStyles[`custom:${layer.id}`], stI = resolveLayerStyle(st, "interval"), stP = resolveLayerStyle(st, "point"); // #1539 — the 3D view's colours
+      const nm = String(layer.name).replace(/: /g, " – "); // #2979 — 'Gamma: Raw_cps' was cut to 'Gamma' at the label's first ': ' (ribbons, keys, the level plan)
       layer.rows.filter((r) => holeIds.has(r.hole_id)).forEach((row) => {
         const iv = row.to != null && !isNaN(row.to), color = (iv ? stI.color || row.modelColor : stP.color) || customColour(layer, layerStyles, row);
-        if (iv) intervals.push({ hole_id: row.hole_id, from: row.from, to: row.to, color, label: `${layer.name}: ${row.value}`, layer: `custom:${layer.id}` });
-        else if (row.depth != null && !isNaN(row.depth)) points.push({ hole_id: row.hole_id, md: row.depth, color, label: `${layer.name}: ${row.value}`, layer: `custom:${layer.id}` });
+        if (iv) intervals.push({ hole_id: row.hole_id, from: row.from, to: row.to, color, label: `${nm}: ${row.value}`, layer: `custom:${layer.id}` });
+        else if (row.depth != null && !isNaN(row.depth)) points.push({ hole_id: row.hole_id, md: row.depth, color, label: `${nm}: ${row.value}`, layer: `custom:${layer.id}` });
       });
     });
 
@@ -6126,27 +6093,9 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     if (g.vertical) setNotices((p) => [...p, notice("{holeId} is vertical, so it has no bearing of its own — the section runs at the typed azimuth, {azimuth}°.", { holeId, azimuth: g.azimuth.toFixed(0) })]);
   }, [typedSection.azimuth, sectionCorridor, reopenSection, upsertSection, sections]);
 
-  // TASKS.csv — "slice series" / fence-section generator. User request, verbatim: "I wanna be able to
-  // slice the voxel in equal parts on a specified azi and width." Generates a whole series of parallel
-  // section lines, all running at the given azimuth, spaced exactly `width` meters apart so together
-  // they tile the model's extent into equal-width slabs with no gaps or overlaps — each slice's corridor
-  // (buffer half-width) is exactly width/2, matching the tiling spacing. Rather than immediately popping
-  // open N separate windows (chaotic for anything more than 2-3 slices), each generated line is added to
-  // the existing saved-sections list (store.sections, the same list #98's drawn-contact persistence and
-  // the "Cross-sections" sidebar section already use) under a descriptive name, so the user can browse
-  // and open each one individually via the existing reopenSection flow whenever they're ready to look at
-  // it — voxel geophysics slices included automatically, same as any other section (see
-  // buildSectionPayload's voxelSlices).
-  //
-  // Math: azimuth is a compass bearing (0=north/+Y, 90=east/+X), matching the SAME convention
-  // buildSectionPayload's own `azimuth` return already uses (atan2(dx,dy)) — so a line running AT that
-  // azimuth has unit direction dir=(sin(az), cos(az)), and the perpendicular "stepping" direction the
-  // slices are spaced along is perp=(cos(az), -sin(az)) (a 90-degree rotation). Since dir/perp form an
-  // orthonormal 2D basis through the world origin, any point decomposes exactly as p = s*dir + t*perp
-  // where s=p.dir (distance along the section direction) and t=p.perp (perpendicular offset) — the
-  // standard orthonormal change-of-basis identity, not an approximation — which is what's used both to
-  // find the extent to cover (projecting every source point to get its [s,t] range) and to reconstruct
-  // each slice's own line endpoints from a chosen s-range and t-offset.
+  // TASKS.csv — "slice series": "I wanna be able to slice the voxel in equal parts on a specified azi and width." Parallel lines at the
+  // azimuth, `width` m apart (each corridor width/2, so the slabs tile the extent), added to the saved sections rather than opened. Points
+  // project to s = p·dir, t = p·perp with dir = (sin az, cos az), perp = (cos az, -sin az): the extent to cover and each line's ends.
   const generateSliceSeries = useCallback(() => {
     const az = toRad(((sliceSeriesAzimuth % 360) + 360) % 360);
     const width = Math.max(1, sliceSeriesWidth);
@@ -6388,12 +6337,12 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
 
         {/* TASKS.csv #131 — hole labels (a fixed set of contents, see holeLabelMode), once there are holes; #2823 — the collar markers' switch */}
         {collars.length > 0 && (
-          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10, flexWrap: "wrap" /* #2941 */ }}>
             <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", flexShrink: 0 }}>{tr("Hole labels")}</span>
             <select aria-label={tr("Hole labels")}
               value={holeLabelMode}
               onChange={(e) => setHoleLabelMode(e.target.value)}
-              style={{ flex: 1, minWidth: 0, background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 6px", color: "var(--color-text)", fontSize: "var(--font-size-sm)" }}
+              style={{ flex: "1 0 auto", minWidth: 0, /* #2941 — not narrower than 'Hole ID + total depth'; the Collars tick wraps */ background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 6px", color: "var(--color-text)", fontSize: "var(--font-size-sm)" }}
             >
               <option value="none">{tr("Off")}</option>
               <option value="hole_id">{tr("Hole ID")}</option>
@@ -6676,7 +6625,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "7px 10px 4px" }}>
               <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setAssayVisible((v) => !v)} title={assayVisible ? tr("Hide all assay elements") : tr("Show assay elements")} style={{ cursor: "pointer", color: assayVisible ? "var(--color-accent)" : "var(--color-text-disabled)" }}>{assayVisible ? <Eye size={14} /> : <EyeOff size={14} />}</div>
               <div style={{ flex: 1, fontSize: "var(--font-size-sm)", color: "var(--color-text-caption)" }}>
-                {assayDisplayElements.length === 0 ? tr("No elements selected") : tr(assayDisplayElements.length > 1 ? "{n} elements shown" : "{n} element shown", { n: assayDisplayElements.length })}
+                {assayDisplayElements.length === 0 ? tr("No elements selected") : !assayVisible ? tr("{n} chosen, all hidden (the eye)", { n: assayDisplayElements.length }) /* #2941 */ : tr(assayDisplayElements.length > 1 ? "{n} elements shown" : "{n} element shown", { n: assayDisplayElements.length })}
               </div>
               {assayDisplayElements.length > 0 && (
                 <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setAssayDisplayElements([])} style={{ cursor: "pointer", color: "var(--color-text-secondary)", fontSize: "var(--font-size-sm)" }}>{tr("Clear")}</span>
@@ -6695,7 +6644,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             {/* User request: several elements at once, each toggled by its chip; the swatch is its marker colour (the chips are the legend);
                 the gear opens the style editor (colour, size, classes, cutoff). #2785: a filter past 20 elements */}
             {assayElements.length > CHIP_FILTER_MIN && <input type="search" value={chipQ} onChange={(e) => setChipQ(e.target.value)} placeholder={tr("Filter elements")} aria-label={tr("Filter elements")} style={{ margin: "0 10px 6px", width: "calc(100% - 20px)", fontSize: "var(--font-size-sm)", padding: "3px 6px" }} />}
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 5, padding: "0 10px 6px" }}>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 5, padding: "0 10px 6px", opacity: assayVisible ? 1 : 0.45 /* #2941 — greyed while the eye hides them */ }}>
               {filterAssayChips(orderAssayChips(assayElements, assayDisplayElements, assayChipCounts), chipQ, assayDisplayElements).map((e) => { /* #2374 — shown first, then most values */
                 const idx = assayDisplayElements.indexOf(e.symbol);
                 const on = idx !== -1;

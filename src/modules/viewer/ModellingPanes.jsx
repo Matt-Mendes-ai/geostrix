@@ -303,8 +303,8 @@ export default function ModellingPanes(props) {
   const tracedHoles = useMemo(() => new Set((tracesRef?.current || []).filter((t) => t?.pts?.length >= 2).map((t) => t.hole_id)).size, [tracesSeq]); // #2053
   // TASKS.csv #1574 (review #1497, Lawyers) — the alteration halo from the Alteration log OR a categorical custom layer, and only
   // the intervals whose numeric field is at or above a value (Silicification intensity >= 2)
-  const { customLayers: customLayersAll = [], layers: storeLayers = {}, geochemThresholds = [] /* #2689 */ } = useStore();
-  const numericSources = useMemo(() => numericSourceChoices({ layers, customLayers: customLayersAll }), [layers, customLayersAll]); // TASKS.csv #1741
+  const { customLayers: customLayersAll = [], layers: storeLayers = {}, geochemThresholds = [] /* #2689 */, project: storeProject /* #3116 */ } = useStore();
+  const numericSources = useMemo(() => numericSourceChoices({ layers, customLayers: customLayersAll, logValidRange: storeProject?.logValidRange /* #3116 */ }), [layers, customLayersAll, storeProject?.logValidRange]); // TASKS.csv #1741
   const [altSource, setAltSource] = useState({ layer: "alt", field: "", min: "" });
   const altCustomLayers = useMemo(() => customLayersAll.filter((c) => (c.rows || []).some((r) => r.value != null && r.value !== "" && !Number.isFinite(Number(r.value)))), [customLayersAll]);
   // TASKS.csv #2540 (2) (review #2486, WA lithium) — the halo opened on an empty 'Alteration' layer: start on the first layer that has codes
@@ -960,8 +960,7 @@ export default function ModellingPanes(props) {
         </label>
         {stackMethod === "layercake" ? (
           <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", margin: "4px 0 6px", lineHeight: 1.45 }}>
-            {tr("Layer-cake: the first top is an elevation grid through its picks, and each lower top is the one above minus the unit's thickness in the holes (zero where the unit is absent), so tops never cross or fold back. For a flat-lying pile, in seconds. An unconformity starts a new layer-cake that cuts the units under it. Faults are not taken yet.")}
-            {stackFaults.length > 0 && <div style={{ color: "var(--color-danger-icon-strong)", marginTop: 3 }}>{tr("Remove the faults from the stack to run it as a layer-cake.")}</div>}
+            {tr("Layer-cake: the first top is an elevation grid through its picks, and each lower top is the one above minus the unit's thickness in the holes (zero where the unit is absent), so tops never cross or fold back. For a flat-lying pile, in seconds. An unconformity starts a new layer-cake that cuts the units under it. A fault in the stack splits it into fault blocks, each a layer-cake of its own, so the tops step at the fault (each fault a plane through its picks, along its measured dip).")}
           </div>
         ) : stackBreaks.some((b) => stackUnits.slice(0, -1).includes(b)) ? (
           <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", margin: "6px 0", lineHeight: 1.45 }}>{tr("Packages: units between unconformities share one field and stay parallel, and each package truncates the ones below. Units missing inside a package cannot pinch out. A surface flattens beyond its own contacts, so compare the predicted map with your map.")}</div>
@@ -1166,7 +1165,7 @@ export default function ModellingPanes(props) {
                     // across a switch. The cap is cleared; the cutoff is proposed as the new element's P90 of lab assays (pXRF left out).
                     const next = e.target.value;
                     setNumericSymbol(next); setNumericCapValue(NaN); if (!findNumericSource(next, { layers, customLayers: customLayersAll })) rememberElement("gradeShell", next); // #2552
-                    const ns = findNumericSource(next, { layers, customLayers: customLayersAll }); // #1741
+                    const ns = findNumericSource(next, { layers, customLayers: customLayersAll, logValidRange: storeProject?.logValidRange }); // #1741; logValidRange: #3116 — the cutoff proposed from the filtered readings
                     // #2060 (review #2013, Woodjam) — and without the QC inserts unless the pane includes them: Cu proposed 4470 ppm (a CRM's value), the drill samples' P90 is 4120
                     const rowsFor = ns ? sourceAssays(ns, { layers, customLayers: customLayersAll }).assays : (numericIncludeQAQC ? (assays || []).filter((a) => a.source !== "pXRF") : excludeQAQC(assays || []));
                     const v = rowsFor.map((a) => a.values?.[ns ? ns.symbol : next]).filter((x) => Number.isFinite(x) && x > 0).sort((x, y) => x - y);
