@@ -34,7 +34,10 @@ test("the suggestion on a converted file is flagged as converted, on an oxide-ba
 test("Thresholds: flagged '<' values are below detection; the floor guess runs only on the unflagged ones", () => {
   const src = readFileSync(new URL("../src/components/ThresholdToolkit.jsx", import.meta.url), "utf8");
   assert.match(src, /const flaggedLt = \(s\) => !!s\.bdl\?\.includes\(symbol\) \|\| s\.qualifiers\?\.\[symbol\] === "<";/);
-  assert.match(src, /(censoringFloor\(data\.filter\(\(s\) => !flaggedLt\(s\)\)|const vals = data\.filter\(\(s\) => !flaggedLt\(s\)\)\.map\(\(s\) => valueIn\(s, symbol, unit, units\)\)[^;]*; return \{ floor: censoringFloor\(vals)/); // #2913: the same values, with the zeros
+  // #3083 — the floor guess moved to qaqc fileCensoring (shared with Grade stats): the same unflagged values, with the zeros (#2913)
+  assert.match(src, /fileCensoring\(data, symbol, unit, units\)/);
+  const q = readFileSync(new URL("../src/lib/qaqc.js", import.meta.url), "utf8");
+  assert.match(q, /if \(s\?\.bdl\?\.includes\?\.\(symbol\) \|\| s\?\.qualifiers\?\.\[symbol\] === "<"\) continue; vals\.push\(valueIn\(s, symbol, unit, units\)\);/);
   assert.match(src, /censoredOf: \(s\) => flaggedLt\(s\) \|\|/);
   assert.match(src, /floor: formatLimit\(floor\.floor\), unit, dl: formatLimit\(floor\.dl\)/);
   // the WA case: every floor value carries the '<' flag, so no floor is left to guess about

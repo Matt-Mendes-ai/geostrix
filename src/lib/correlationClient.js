@@ -49,3 +49,25 @@ export function createCorrelationClient({ makeWorker } = {}) {
     terminate() { worker?.terminate?.(); worker = null; pending.clear(); },
   };
 }
+
+// TASKS.csv #3125 (split from #3032) — on open, the element columns themselves (valueIn on every row, and the below-detection flags) blocked
+// the window about 1 s at 147,000 samples x 12 elements before the worker had anything to do. Above CORRELATION_WORKER_FROM rows they are
+// built in slices of about `budget` ms (blocks of `chunk` rows, the clock read between blocks) with a pause between slices, so the window
+// keeps drawing; a pause per block of rows instead made 108 timer pauses and tripled the build under load. A column is stored only once it
+// is complete, and a cancelled build (the dialog closed, the rows or the elements changed) stops at the next pause. -> true when all built.
+// rows: the assays; cols / lt: the caller's caches (symbol -> array / Uint8Array), filled in place; valueOf(row, symbol), ltOf(row, symbol)
+export async function buildColumns({ rows, symbols, cols, lt, valueOf, ltOf, detectedOnly = false, chunk = 4096, budget = 12, now = () => performance.now(), pause = () => new Promise((r) => setTimeout(r, 0)), cancelled = () => false }) {
+  const n = (rows || []).length;
+  let sliceStart = now();
+  for (const s of symbols) {
+    if (cols[s] && lt[s]) continue;
+    const L = new Uint8Array(n), C = new Array(n);
+    for (let i0 = 0; i0 < n; i0 += chunk) {
+      const i1 = Math.min(n, i0 + chunk);
+      for (let i = i0; i < i1; i++) { const r = rows[i]; L[i] = ltOf(r, s) ? 1 : 0; C[i] = detectedOnly && L[i] ? null : valueOf(r, s); }
+      if (now() - sliceStart >= budget) { await pause(); if (cancelled()) return false; sliceStart = now(); }
+    }
+    lt[s] = L; cols[s] = C;
+  }
+  return !cancelled();
+}
