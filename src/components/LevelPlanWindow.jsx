@@ -119,7 +119,8 @@ export default function LevelPlanWindow({ planCtx, zRange, defaultRl, onClose, o
   const legend = useMemo(() => {
     const L = data.assayLegends?.[activeLayer] || planLegend(data.intervals.some((iv) => iv.layer === activeLayer) ? data.intervals : pointLogs, activeLayer, { numeric: activeLayer.startsWith("custom:") ? "auto" : !!LAYER_META[activeLayer]?.numeric }); // #1537 — an assay element: its classes or ramp
     const structs = (data.legendItems || []).filter(([label]) => /^Structure/.test(label));
-    return [...L.items.map(([n, c]) => [L.title ? `${L.title}: ${n}` : n, c]), ...structs];
+    let none = 0; for (const h of data.holes) for (const pc of h.pierce) if (!(pc.logs || []).some((l) => l.layer === activeLayer)) none++; // #3261
+    return [...L.items.map(([n, c]) => [L.title ? `${L.title}: ${n}` : n, c]), ...(none && L.items.length ? [[tr(none === 1 ? "No value here: {n} pierce point (hollow ring)" : "No value here: {n} pierce points (hollow ring)", { n: none }), "#ffffff", { ring: true }]] : []), ...structs];
   }, [data, activeLayer]);
 
   // a fixed frame for the whole project (from every hole's full trace), so moving the RL doesn't rescale the plan
@@ -183,8 +184,11 @@ export default function LevelPlanWindow({ planCtx, zRange, defaultRl, onClose, o
       ctx: data.holes.map((h) => ctxCache(h.hole_id, h.context, path)).join(" "), collars: dotsPath(data.holes.map((h) => h.collar), X, Y),
       slab: mergedPath(data.holes.flatMap((h) => h.polylines), X, Y), pierce: data.holes.flatMap((h) => h.pierce.map((pc) => ({ h, pc }))) };
     // TASKS.csv #3191 — pierce points and slab dots as one stroked path per colour (an outline under each), found on hover by position
-    const dm = drawMemo.current, pcs = dm.pierce.map(({ pc }) => ({ x: pc.x, y: pc.y, color: (pc.logs || []).find((l) => l.layer === activeLayer)?.color || "#ffffff" }));
-    Object.assign(dm, { pcAll: dotsPath(pcs.map((q) => [q.x, q.y]), X, Y), pcFill: dotsByColour(pcs, X, Y), findPc: pointFinder(pcs, X, Y),
+    // TASKS.csv #3261 (Galore review) — a pierce point with no value of the chosen layer at the RL (a hole with no assay or log there) was filled
+    // white beside a near-white lowest class: it is a smaller hollow grey ring now (pcNone), and the key counts it
+    const dm = drawMemo.current, pcs = dm.pierce.map(({ pc }) => ({ x: pc.x, y: pc.y, color: (pc.logs || []).find((l) => l.layer === activeLayer)?.color || null }));
+    const valued = pcs.filter((q) => q.color), none = pcs.filter((q) => !q.color).map((q) => [q.x, q.y]);
+    Object.assign(dm, { pcAll: dotsPath(valued.map((q) => [q.x, q.y]), X, Y), pcFill: dotsByColour(valued, X, Y), pcNone: dotsPath(none, X, Y), findPc: pointFinder(pcs, X, Y),
       ptAll: dotsPath(data.points.map((q) => [q.x, q.y]), X, Y), ptFill: dotsByColour(data.points, X, Y), findPt: pointFinder(data.points, X, Y) });
   }
   const dw = drawMemo.current;
@@ -316,6 +320,7 @@ export default function LevelPlanWindow({ planCtx, zRange, defaultRl, onClose, o
           <g onMouseMove={(e) => { const q = svgXY(e), it = dw.pierce[dw.findPc(q.x, q.y, 6)]; if (!it) return; const { h, pc } = it; hoverTitle(e.target, [tr("{hole_id} pierces {rl} m at {md} m", { hole_id: h.hole_id, rl, md: pc.md.toFixed(1) }), ...(pc.logs || []).filter((l) => !l.layer?.startsWith("assay:")).map((l) => l.label), ...(pc.assays || [])].join("\n")); }}>
             {/* filled with the chosen log's colour at the RL (white: not logged there) */}
             {/* #3191 — r 4.6 with a 1.6 dark edge, as the circles were: an outline path 10.8 wide, then each colour 7.6 wide */}
+            {dw.pcNone && <><path d={dw.pcNone} stroke="#8a94a3" strokeWidth={9} strokeLinecap="round" fill="none" /><path d={dw.pcNone} stroke="#ffffff" strokeWidth={6.2} strokeLinecap="round" fill="none" /></>}{/* #3261 — no value here */}
             {dw.pcAll && <path d={dw.pcAll} stroke="#1a2028" strokeWidth={10.8} strokeLinecap="round" fill="none" />}
             {dw.pcFill.map(([c, d]) => <path key={c} d={d} stroke={c} strokeWidth={7.6} strokeLinecap="round" fill="none" />)}
           </g>
@@ -344,7 +349,7 @@ export default function LevelPlanWindow({ planCtx, zRange, defaultRl, onClose, o
         </div>
         {legend.length > 0 && (
           <div style={{ display: "flex", flexWrap: "wrap", gap: "3px 12px", marginTop: 6, fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", maxWidth: W }}>
-            {legend.slice(0, 40).map(([label, color]) => <span key={label + color} style={{ display: "flex", alignItems: "center", gap: 4 }}><span style={{ width: 10, height: 10, background: color, borderRadius: 2, border: "1px solid var(--color-border)" }} />{label}</span>)}
+            {legend.slice(0, 40).map(([label, color, o]) => <span key={label + color} style={{ display: "flex", alignItems: "center", gap: 4 }}><span style={{ width: 10, height: 10, background: color, borderRadius: o?.ring ? 5 : 2, border: o?.ring ? "1.5px solid #8a94a3" : "1px solid var(--color-border)", boxSizing: "border-box" }} />{label}</span>)}{/* ring: #3261 */}
             {legend.length > 40 && <span>{tr("+ {v} more", { v: legend.length - 40 })}</span>}
           </div>
         )}

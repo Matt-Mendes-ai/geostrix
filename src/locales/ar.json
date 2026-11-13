@@ -11982,5 +11982,7 @@
   "{fileName}: nothing was added: no interval has a per-cent value in the ticked columns.": "{fileName}: لم يُضَف شيء: لا توجد فترة لها قيمة مئوية في الأعمدة المحدَّدة.",
   "{fileName}: {n} layer(s) of visual per cent (one per mineral column) imported: {list}. The first is shown; the others are in the Layers list.": "{fileName}: استُوردت {n} طبقة من النسبة المئوية البصرية (طبقة لكل عمود معدن): {list}. تُعرض الأولى؛ والبقية في قائمة الطبقات.",
   "{n} value(s) below 0 or over 100 % were left out.": "استُبعدت {n} قيمة أقل من 0 أو أعلى من 100 %.",
-  "{cols}: values a thousandfold apart from \"{header}\" read in the same unit: one of them is not in the unit its name says. Check before ticking.": "{cols}: قيم تبعد ألف ضعف عن \"{header}\" مقروءة بالوحدة نفسها: أحد العمودين ليس بالوحدة التي يذكرها اسمه. تحقّق قبل التحديد."
+  "{cols}: values a thousandfold apart from \"{header}\" read in the same unit: one of them is not in the unit its name says. Check before ticking.": "{cols}: قيم تبعد ألف ضعف عن \"{header}\" مقروءة بالوحدة نفسها: أحد العمودين ليس بالوحدة التي يذكرها اسمه. تحقّق قبل التحديد.",
+  "No value here: {n} pierce point (hollow ring)": "لا قيمة هنا: {n} نقطة اختراق (حلقة مجوفة)",
+  "No value here: {n} pierce points (hollow ring)": "لا قيمة هنا: {n} نقاط اختراق (حلقة مجوفة)"
 }
