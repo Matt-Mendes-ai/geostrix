@@ -82,13 +82,15 @@ export default function SurfaceSolidsPanel({ surfaces, explicitDefs = [], worldM
     return { extent, cell: suggestCellSize(extent) };
   }, [used, tops]);
   const [cellIn, setCellIn] = useState("");
+  const [cellZIn, setCellZIn] = useState(""); // TASKS.csv #2922 (Matt's decision, (b)) — an optional block height, as Undrilled zones (#2966)
   const [baseIn, setBaseIn] = useState("");
   const [cutGround, setCutGround] = useState(!!terrain);
   const [extend, setExtend] = useState(true); // TASKS.csv #1138 — continue each contact to the box, so units end where contacts meet
   const cell = Number(cellIn) > 0 ? Number(cellIn) : auto?.cell;
+  const cellZ = Number(cellZIn) > 0 ? Number(cellZIn) : null, cz = cellZ || cell; // blank: cubes, as before
   const base = baseIn !== "" && Number.isFinite(Number(baseIn)) ? Number(baseIn) : auto?.extent[4];
-  const box = auto && [auto.extent[0], auto.extent[1], auto.extent[2], auto.extent[3], Math.min(base, auto.extent[5] - (cell || 1)), auto.extent[5] + (cell || 0)];
-  const nCells = box && cell ? Math.round((box[1] - box[0]) / cell) * Math.round((box[3] - box[2]) / cell) * Math.round((box[5] - box[4]) / cell) : 0;
+  const box = auto && [auto.extent[0], auto.extent[1], auto.extent[2], auto.extent[3], Math.min(base, auto.extent[5] - (cz || 1)), auto.extent[5] + (cz || 0)];
+  const nCells = box && cell ? Math.round((box[1] - box[0]) / cell) * Math.round((box[3] - box[2]) / cell) * Math.round((box[5] - box[4]) / cz) : 0;
   // TASKS.csv #2762 — the thinnest closed solid in use, and the block size that puts three blocks across it (offered, not imposed: the box can be large)
   const thinnest = useMemo(() => { let best = null; for (const it of solids) { const t = solidThickness(it.mesh.positions, it.mesh.indices); if (t > 0 && (!best || t < best.t)) best = { name: it.name, t }; } return best; }, [solids]);
   const thinCell = thinnest && cell && cell > thinnest.t / 3 ? cellAcross(thinnest.t) : null;
@@ -100,7 +102,7 @@ export default function SurfaceSolidsPanel({ surfaces, explicitDefs = [], worldM
       const toApi = (it) => { const p = it.mesh.positions, q = new Float64Array(p.length); for (let i = 0; i < p.length; i += 3) { q[i] = p[i] - o.x; q[i + 1] = p[i + 1] - o.y; q[i + 2] = p[i + 2] - o.z; } return { name: it.name, unit: it.unit, role: roleOf(it) === "base" ? "base" : "top", positions: q, indices: it.mesh.indices }; };
       const extent = [box[0] - o.x, box[1] - o.x, box[2] - o.y, box[3] - o.y, box[4] - o.z, box[5] - o.z];
       const ground = cutGround && terrain ? (x, y) => { const g = sampleGround(x + o.x, y + o.y); return Number.isFinite(g) ? g - o.z : NaN; } : null;
-      const r = surfacesToBlock({ tops: tops.map(toApi), solids: solids.map(toApi), extent, cell, ground, extend });
+      const r = surfacesToBlock({ tops: tops.map(toApi), solids: solids.map(toApi), extent, cell, cellZ, ground, extend }); // cellZ: #2922
       // a surface's own colour, unless an earlier unit already has it (imported solids all share one default): then
       // null, and the pane colours the unit by its name like a logged code. #830 / #832: one entry per unit (several
       // contacts can bound one), and the layers of one unit (Basalt A, Basalt B) may share a colour
@@ -114,7 +116,7 @@ export default function SurfaceSolidsPanel({ surfaces, explicitDefs = [], worldM
       }
       const title = tr("solids from {n} surface(s)", { n: tops.length + solids.length });
       // TASKS.csv #878 — an ISO time for the record, and what it was built from (to flag its volumes when a source changes)
-      const recipe = { roles: Object.fromEntries(used.map((it) => [it.id, roleOf(it)])), cell, base, cutGround: !!(cutGround && terrain), extend };
+      const recipe = { roles: Object.fromEntries(used.map((it) => [it.id, roleOf(it)])), cell, ...(cellZ ? { cellZ } : {}) /* #2922: absent, the key as before */, base, cutGround: !!(cutGround && terrain), extend };
       const sourceIds = used.map((it) => it.id);
       onBuilt({ block: r.block, units, origin: { ...o }, when: new Date().toLocaleTimeString(), builtAtIso: new Date().toISOString(), title, matchedPct: null, fromSurfaces: true,
         source: { recipe, ids: sourceIds, key: blockSourceKey(recipe, sourceIds, surfaces) } },
@@ -149,6 +151,10 @@ export default function SurfaceSolidsPanel({ surfaces, explicitDefs = [], worldM
         <div style={row}>
           <span style={{ width: 90, flexShrink: 0, color: "var(--color-text-secondary)" }}>{tr("Block size (m)")}</span>
           <input type="number" min="0" value={cellIn} placeholder={String(auto.cell)} onChange={(e) => setCellIn(e.target.value)} style={{ ...numInput, width: 80, flex: "none" }} aria-label={tr("Block size (m)")} />
+        </div>
+        <div style={row} title={tr("Optional: a block height of its own (flat blocks for a flat, thin unit). Blank: cubes of the block size.")}>{/* #2922 */}
+          <span style={{ width: 90, flexShrink: 0, color: "var(--color-text-secondary)" }}>{tr("Block height (m)")}</span>
+          <input type="number" min="0" step="any" value={cellZIn} placeholder={tr("= block size")} onChange={(e) => setCellZIn(e.target.value)} style={{ ...numInput, width: 80, flex: "none" }} aria-label={tr("Block height (m)")} />
         </div>
         {thinCell && <div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 6, lineHeight: 1.4 }}>{thinnest.t < cell ? tr("The thinnest closed solid, \"{name}\", is about {t} m thick, thinner than one {c} m block.", { name: thinnest.name, t: +thinnest.t.toPrecision(2), c: cell }) : tr("The thinnest closed solid, \"{name}\", is about {t} m thick: at {c} m blocks it is {k} block(s) across.", { name: thinnest.name, t: +thinnest.t.toPrecision(2), c: cell, k: Math.floor(thinnest.t / cell) })}{" "}{thinCells <= 2_000_000 ? <>{tr("{c2} m gives three across it (about {n} blocks).", { c2: thinCell, n: thinCells.toLocaleString() })}{" "}<button type="button" onClick={() => setCellIn(String(thinCell))} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "2px 7px" }}>{tr("Use {v} m", { v: thinCell })}</button></> : tr("{c2} m would give three across it, but this box would then hold about {n} blocks, over the 2,000,000 limit.", { c2: thinCell, n: thinCells.toLocaleString() })}</div>}{/* #2762 — offered only within the 2,000,000-block limit */}
         <div style={row} title={tr("Where the lowest unit stops: it has no surface below it.")}>

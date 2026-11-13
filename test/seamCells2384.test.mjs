@@ -21,7 +21,10 @@ test("#2384: a cubic cell past the thickest run gives way to a cell height from 
 });
 
 test("#2384: not when the cubic cell keeps within the runs, the runs are unknown or the plan cell would pass four spacings", () => {
-  assert.equal(seamCells(10, autoB, cellsAt, 150000), null, "the cube is thinner than the thickest run: as before");
+  // #2922 (Matt, 2026-11-12): also past twice the median run (3.5 m -> 7 m); within it, the cube as before
+  assert.equal(seamCells(6.9, autoB, cellsAt, 150000), null, "the cube within twice the median run and the thickest run: as before");
+  assert.equal(seamCells(10, autoB, cellsAt, 150000).why, "median", "10 m: thinner than the thickest run (13 m) but past twice the median");
+  assert.equal(seamCells(44.9, autoB, cellsAt, 150000).why, "max");
   assert.equal(seamCells(44.9, { ...autoB, fromRuns: false }, cellsAt, 150000), null);
   assert.equal(seamCells(44.9, { ...autoB, spacing: null }, cellsAt, 150000), null);
   assert.equal(seamCells(44.9, { ...autoB, spacing: 20 }, cellsAt, 150000), null, "plan cells over 80 m on holes 20 m apart: the cubic rule and its warning stand");
