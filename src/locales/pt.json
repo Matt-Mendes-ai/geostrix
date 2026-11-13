@@ -11804,5 +11804,20 @@
   "Not imported: converting {list} to the project's unit would put readings over 100 %, so these columns are probably not in the unit the dialog says. Set their unit in the dialog (the project has them in {units}) and import again.": "Não importado: converter {list} para a unidade do projeto daria leituras acima de 100 %, então estas colunas provavelmente não estão na unidade que o diálogo indica. Defina a unidade delas no diálogo (o projeto as tem em {units}) e importe de novo.",
   "{header} ({n} value(s), up to {max} {unit})": "{header} ({n} valor(es), até {max} {unit})",
   "Converting {list} would put readings over 100 %: set their unit to the one the column is in, or Import will refuse them.": "Converter {list} daria leituras acima de 100 %: defina a unidade delas como a da coluna, ou Importar as recusará.",
-  "As last time in this project: {list}. Change any of them in the list below.": "Como da última vez neste projeto: {list}. Altere qualquer um deles na lista abaixo."
+  "As last time in this project: {list}. Change any of them in the list below.": "Como da última vez neste projeto: {list}. Altere qualquer um deles na lista abaixo.",
+  "Per-mineral layers": "Camadas por mineral",
+  "These columns are a visual per cent of each interval, one per mineral. Each ticked column becomes its own numeric layer of intervals, in % (visual), named after the column; an interval with no value of that mineral is simply not in its layer. Untick all to import the Value column above instead.": "Estas colunas são uma porcentagem visual de cada intervalo, uma por mineral. Cada coluna marcada vira sua própria camada numérica de intervalos, em % (visual), com o nome da coluna; um intervalo sem valor desse mineral simplesmente não está na camada dele. Desmarque todas para importar a coluna Valor acima.",
+  "Import {col} as a layer": "Importar {col} como camada",
+  "{n} interval(s), up to {max} %": "{n} intervalo(s), até {max} %",
+  "with {style}": "com {style}",
+  "Left out, with no value in any row: {cols}.": "Deixadas de fora, sem valor em nenhuma linha: {cols}.",
+  "Total sulphides (optional)": "Sulfetos totais (opcional)",
+  "Tick the columns that are sulphides to add a layer of their total per interval (a blank column counts as none logged). Nothing is assumed: which minerals count is your choice.": "Marque as colunas que são sulfetos para adicionar uma camada com o total delas por intervalo (uma coluna vazia conta como nada registrado). Nada é presumido: quais minerais contam é escolha sua.",
+  "Count {col} as a sulphide": "Contar {col} como sulfeto",
+  "Tick at least two columns for a total.": "Marque pelo menos duas colunas para um total.",
+  "Adds the layer \"{name}\".": "Adiciona a camada \"{name}\".",
+  "total of {cols}": "total de {cols}",
+  "{fileName}: nothing was added: no interval has a per-cent value in the ticked columns.": "{fileName}: nada foi adicionado: nenhum intervalo tem um valor em porcentagem nas colunas marcadas.",
+  "{fileName}: {n} layer(s) of visual per cent (one per mineral column) imported: {list}. The first is shown; the others are in the Layers list.": "{fileName}: {n} camada(s) de porcentagem visual (uma por coluna de mineral) importada(s): {list}. A primeira é mostrada; as outras estão na lista de Camadas.",
+  "{n} value(s) below 0 or over 100 % were left out.": "{n} valor(es) abaixo de 0 ou acima de 100 % foram deixados de fora."
 }

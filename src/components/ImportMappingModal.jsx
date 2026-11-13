@@ -18,6 +18,8 @@ import { customFromPrevious } from "../lib/viewer/customMapping.js"; // TASKS.cs
 import { tieOf } from "../lib/localGridTie.js"; // TASKS.csv #2491
 import CoordSetsNote from "./CoordSetsNote.jsx"; // TASKS.csv #2492 — two coordinate sets, X / Y / Z from different sets, mine-grid numbers
 import LogChannelsBox from "./LogChannelsBox.jsx"; // TASKS.csv #2160 — one numeric layer per log channel
+import MineralPercentBox from "./MineralPercentBox.jsx"; // TASKS.csv #3205 — one numeric layer per mineral column
+import { mineralPlan } from "../lib/perMineralColumns.js"; // TASKS.csv #3205
 import RowFilterBox from "./RowFilterBox.jsx"; // TASKS.csv #2330 — only rows where a column is some values (a Superseded flag pre-set)
 import { surveyIdsWithoutCollar, idList } from "../lib/surveyCollarCheck.js"; // TASKS.csv #3202
 import { looksLikeStationTable } from "../lib/geophysColumns.js"; // TASKS.csv #2848
@@ -175,6 +177,7 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
             </label>); })()}
           <CoordSetsNote modal={modal} project={storeProject} />{/* #2492 */}
           <LogChannelsBox modal={modal} onChange={onChange} sel={sel} />{/* #2160 */}
+          {!logChannelsFor(modal.target, modal.headers, modal.allRows || modal.sampleRows || [], modal.mapping, modal.logChannels) && <MineralPercentBox modal={modal} onChange={onChange} />}{/* #3205 */}
           <RowFilterBox modal={modal} onChange={onChange} sel={sel} />{/* #2330 */}
           {uncollared && ( /* TASKS.csv #3202 */
             <label style={{ display: "flex", gap: 6, alignItems: "flex-start", fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", margin: "0 0 12px", lineHeight: 1.4, cursor: "pointer" }}>
@@ -430,7 +433,8 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
         {(() => {
           const logOn = !!logChannelsFor(modal.target, modal.headers, modal.allRows || modal.sampleRows || [], modal.mapping, modal.logChannels); // #2160 — the channels are the values
           const recOn = modal.target === "recovery" && !modal.mapping.value && !modal.recoveryCalcOff && !!recoveryColumns(modal.headers); // #2891 — the value is computed
-          const missingRequired = schema.fields.filter((f) => f.required && !modal.mapping[f.key] && !(logOn && f.key === "value") && !(recOn && f.key === "value"))
+          const minOn = !logOn && !!mineralPlan(modal.target, modal.headers, modal.allRows || modal.sampleRows || [], modal.mapping || {}, modal); // #3205 — the minerals are the values
+          const missingRequired = schema.fields.filter((f) => f.required && !modal.mapping[f.key] && !(logOn && f.key === "value") && !(recOn && f.key === "value") && !(minOn && f.key === "value"))
             .concat(schema.oneOf && !schema.oneOf.some((keys) => keys.every((k) => modal.mapping[k])) ? [{ key: "oneOf", label: "From + To, or Depth" }] : []); // #605
           // TASKS.csv #2895 (review #2876, WA iron) — magnetic azimuths with no survey date: Import was enabled, the dialog closed and nothing
           // was imported (the commit refuses it), so the mapping had to be redone from a fresh drop. The button waits for the date instead.

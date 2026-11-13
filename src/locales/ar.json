@@ -11804,5 +11804,20 @@
   "Not imported: converting {list} to the project's unit would put readings over 100 %, so these columns are probably not in the unit the dialog says. Set their unit in the dialog (the project has them in {units}) and import again.": "لم يُستورد: تحويل {list} إلى وحدة المشروع سيجعل القراءات تتجاوز 100 %، لذا فهذه الأعمدة على الأرجح ليست بالوحدة التي يذكرها مربع الحوار. اضبط وحدتها في مربع الحوار (المشروع يحفظها بوحدة {units}) ثم استورد من جديد.",
   "{header} ({n} value(s), up to {max} {unit})": "{header} ({n} قيمة، حتى {max} {unit})",
   "Converting {list} would put readings over 100 %: set their unit to the one the column is in, or Import will refuse them.": "تحويل {list} سيجعل القراءات تتجاوز 100 %: اضبط وحدتها على وحدة العمود الفعلية، وإلا فسيرفضها الاستيراد.",
-  "As last time in this project: {list}. Change any of them in the list below.": "كما في المرة السابقة في هذا المشروع: {list}. غيّر أيًّا منها في القائمة أدناه."
+  "As last time in this project: {list}. Change any of them in the list below.": "كما في المرة السابقة في هذا المشروع: {list}. غيّر أيًّا منها في القائمة أدناه.",
+  "Per-mineral layers": "طبقات لكل معدن",
+  "These columns are a visual per cent of each interval, one per mineral. Each ticked column becomes its own numeric layer of intervals, in % (visual), named after the column; an interval with no value of that mineral is simply not in its layer. Untick all to import the Value column above instead.": "هذه الأعمدة نسبة مئوية مقدّرة بالعين لكل فترة، عمود لكل معدن. يصبح كل عمود محدَّد طبقة رقمية خاصة به من الفترات، بوحدة % (بصري)، باسم العمود؛ والفترة التي لا قيمة فيها لذلك المعدن ليست في طبقته ببساطة. ألغِ تحديد الكل لاستيراد عمود القيمة أعلاه بدلًا من ذلك.",
+  "Import {col} as a layer": "استيراد {col} كطبقة",
+  "{n} interval(s), up to {max} %": "{n} فترة، حتى {max} %",
+  "with {style}": "مع {style}",
+  "Left out, with no value in any row: {cols}.": "مستبعدة، لا قيمة لها في أي صف: {cols}.",
+  "Total sulphides (optional)": "مجموع الكبريتيدات (اختياري)",
+  "Tick the columns that are sulphides to add a layer of their total per interval (a blank column counts as none logged). Nothing is assumed: which minerals count is your choice.": "حدّد الأعمدة التي هي كبريتيدات لإضافة طبقة بمجموعها لكل فترة (العمود الفارغ يُحسب كأن لا شيء مسجَّل). لا يُفترض شيء: اختيار المعادن التي تُحسب يعود إليك.",
+  "Count {col} as a sulphide": "احتساب {col} ككبريتيد",
+  "Tick at least two columns for a total.": "حدّد عمودين على الأقل للحصول على مجموع.",
+  "Adds the layer \"{name}\".": "يضيف الطبقة \"{name}\".",
+  "total of {cols}": "مجموع {cols}",
+  "{fileName}: nothing was added: no interval has a per-cent value in the ticked columns.": "{fileName}: لم يُضَف شيء: لا توجد فترة لها قيمة مئوية في الأعمدة المحدَّدة.",
+  "{fileName}: {n} layer(s) of visual per cent (one per mineral column) imported: {list}. The first is shown; the others are in the Layers list.": "{fileName}: استُوردت {n} طبقة من النسبة المئوية البصرية (طبقة لكل عمود معدن): {list}. تُعرض الأولى؛ والبقية في قائمة الطبقات.",
+  "{n} value(s) below 0 or over 100 % were left out.": "استُبعدت {n} قيمة أقل من 0 أو أعلى من 100 %."
 }

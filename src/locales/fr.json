@@ -11804,5 +11804,20 @@
   "Not imported: converting {list} to the project's unit would put readings over 100 %, so these columns are probably not in the unit the dialog says. Set their unit in the dialog (the project has them in {units}) and import again.": "Non importé : convertir {list} dans l'unité du projet donnerait des lectures au-dessus de 100 %, donc ces colonnes ne sont probablement pas dans l'unité indiquée par la boîte de dialogue. Réglez leur unité dans la boîte de dialogue (le projet les a en {units}) et importez de nouveau.",
   "{header} ({n} value(s), up to {max} {unit})": "{header} ({n} valeur(s), jusqu'à {max} {unit})",
   "Converting {list} would put readings over 100 %: set their unit to the one the column is in, or Import will refuse them.": "Convertir {list} donnerait des lectures au-dessus de 100 % : réglez leur unité sur celle de la colonne, sinon Importer les refusera.",
-  "As last time in this project: {list}. Change any of them in the list below.": "Comme la dernière fois dans ce projet : {list}. Modifiez-en un dans la liste ci-dessous."
+  "As last time in this project: {list}. Change any of them in the list below.": "Comme la dernière fois dans ce projet : {list}. Modifiez-en un dans la liste ci-dessous.",
+  "Per-mineral layers": "Couches par minéral",
+  "These columns are a visual per cent of each interval, one per mineral. Each ticked column becomes its own numeric layer of intervals, in % (visual), named after the column; an interval with no value of that mineral is simply not in its layer. Untick all to import the Value column above instead.": "Ces colonnes sont un pourcentage visuel de chaque intervalle, une par minéral. Chaque colonne cochée devient sa propre couche numérique d'intervalles, en % (visuel), nommée d'après la colonne ; un intervalle sans valeur de ce minéral n'est simplement pas dans sa couche. Décochez tout pour importer plutôt la colonne Valeur ci-dessus.",
+  "Import {col} as a layer": "Importer {col} comme couche",
+  "{n} interval(s), up to {max} %": "{n} intervalle(s), jusqu'à {max} %",
+  "with {style}": "avec {style}",
+  "Left out, with no value in any row: {cols}.": "Laissées de côté, sans valeur dans aucune ligne : {cols}.",
+  "Total sulphides (optional)": "Sulfures totaux (facultatif)",
+  "Tick the columns that are sulphides to add a layer of their total per interval (a blank column counts as none logged). Nothing is assumed: which minerals count is your choice.": "Cochez les colonnes qui sont des sulfures pour ajouter une couche de leur total par intervalle (une colonne vide compte comme rien de noté). Rien n'est supposé : le choix des minéraux qui comptent vous appartient.",
+  "Count {col} as a sulphide": "Compter {col} comme sulfure",
+  "Tick at least two columns for a total.": "Cochez au moins deux colonnes pour un total.",
+  "Adds the layer \"{name}\".": "Ajoute la couche « {name} ».",
+  "total of {cols}": "total de {cols}",
+  "{fileName}: nothing was added: no interval has a per-cent value in the ticked columns.": "{fileName} : rien n'a été ajouté : aucun intervalle n'a de valeur en pourcentage dans les colonnes cochées.",
+  "{fileName}: {n} layer(s) of visual per cent (one per mineral column) imported: {list}. The first is shown; the others are in the Layers list.": "{fileName} : {n} couche(s) de pourcentage visuel (une par colonne de minéral) importée(s) : {list}. La première est affichée ; les autres sont dans la liste des couches.",
+  "{n} value(s) below 0 or over 100 % were left out.": "{n} valeur(s) sous 0 ou au-dessus de 100 % ont été laissées de côté."
 }
