@@ -54,11 +54,11 @@ test("binning gives the same rows as before (per hole, by bin, mean / min / max 
 
 test("the menu shows each bin's rows and memory; the commit picks the same bin as the dialog", () => {
   const box = readFileSync(new URL("../src/components/LogChannelsBox.jsx", import.meta.url), "utf8");
-  assert.match(box, /const est = useMemo\(\(\) => \(shown \? logBinEstimate\(rows, modal\.mapping\) : null\), \[shown, rows, modal\.mapping\]\);/);
-  assert.match(box, /effectiveLogBin\(modal, rows\.length, ticked\.length, est\)/);
+  assert.match(box, /const est = useMemo\(\(\) => \(shown \? logBinEstimate\(src, modal\.mapping\) : null\), \[shown, src, modal\.mapping\]\);/);
+  assert.match(box, /effectiveLogBin\(modal, readings, ticked\.length, est\)/);
   assert.match(box, /LOG_BINS\.map\(\(b\) =>/);
   const u = readFileSync(new URL("../src/modules/viewer/useImportPipeline.js", import.meta.url), "utf8");
-  assert.match(u, /defaultLogBin\(allRows\.length, chans\.length, needsBinning\(allRows\.length, chans\.length\) \? logBinEstimate\(allRows, mapping\) : null\)/);
+  assert.match(u, /defaultLogBin\(readings, chans\.length, needsBinning\(readings, chans\.length\) \? logBinEstimate\(src, mapping\) : null\)/);
   for (const l of ["es", "pt", "fr", "ar"]) {
     const d = JSON.parse(readFileSync(new URL(`../src/locales/${l}.json`, import.meta.url), "utf8"));
     for (const k of ["{b} m bins: about {n} rows per channel, {mb} MB in all", "Every reading (no bins): {n} rows per channel, about {mb} MB in all"]) assert.ok(d[k], `${l}: ${k}`);

@@ -7,6 +7,7 @@
 import Papa from "papaparse";
 import { requestTableSubset as requestTableSubsetEv } from "./tableSubsetRequest.js"; // TASKS.csv #2177
 import { makeCompositor } from "./compositeOnRead.js"; // TASKS.csv #2345
+import { makeLogReader } from "./logOnRead.js"; // TASKS.csv #3038
 import { normalizeCommaDecimals } from "./numberLocale.js";
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 
@@ -152,34 +153,38 @@ export function spaceTableToTabs(text) {
 // keep (TASKS.csv #2177): the header names to read; every other column is never held (a table over the memory budget, its columns chosen)
 // holes (TASKS.csv #2321): { col, ids } — only the rows whose `col` (trimmed) is one of `ids` are kept, applied as each row is read
 // composite (TASKS.csv #2345): { hole, from, to, lengthM } — the kept rows composited to that length as they are read (never all held)
-export function parseTableText(text, { comments = "#", columnar = false, keep = null, holes = null, composite = null } = {}) {
+// logRead (TASKS.csv #3038): { hole, depth | from + to, channels, sampleN } — a downhole log read into typed columns (logOnRead.js) as it is
+// read: the rows returned are its first sampleN rows, and `logTable` holds every reading
+export function parseTableText(text, { comments = "#", columnar = false, keep = null, holes = null, composite = null, logRead = null } = {}) {
   ({ text } = stripLeadingComments(text, comments)); // #720
   const spaced = spaceTableToTabs(text); // #2017
   if (spaced != null) text = spaced;
   let preamble = 0, banner = false;
   ({ text, skipped: preamble, banner } = skipPreamble(text)); // #1666; banner: #1665
   // TASKS.csv #611 — a big table can be held as COLUMNS (see parseTableColumns); null = not eligible, read as rows
-  if (columnar && !composite && text.length >= COLUMNAR_MIN_CHARS) { const c = parseTableColumns(text, { comments: false, keep, holes }); if (c) return c; }
+  if (columnar && !composite && !logRead && text.length >= COLUMNAR_MIN_CHARS) { const c = parseTableColumns(text, { comments: false, keep, holes }); if (c) return c; }
   // #600 (performance) — Papa asks once per CELL; the answer depends only on the header, so cache it per header.
   const typed = new Map();
   const idLike = ID_LIKE_VALUE_IN.test(text) ? idLikeColumns(text) : null; // #1071 — only scanned when such a value exists
   const dynamicTyping = (field) => { let v = typed.get(field); if (v === undefined) { v = !isIdentifierHeader(field) && !idLike?.has(field); typed.set(field, v); } return v; };
   let res, droppedByHole = 0;
   const hf = holes?.col && holes.ids ? { col: holes.col, ids: new Set([...holes.ids].map((v) => String(v).trim())) } : null; // #2321
-  let composited = null;
-  if (keep?.length || hf || composite) { // #2177 — row by row, each row cut to the kept columns at once, so the dropped ones never accumulate; #2321 — other holes' rows too
+  let composited = null, logTable = null;
+  if (keep?.length || hf || composite || logRead) { // #2177 — row by row, each row cut to the kept columns at once, so the dropped ones never accumulate; #2321 — other holes' rows too
     const want = keep?.length ? new Set([...keep, ...(composite ? [composite.hole, composite.from, composite.to] : [])]) : null, data = [], errors = []; // #2345 — the composite's own columns are always read
     const comp = composite ? makeCompositor(composite) : null; // #2345 — each kept row goes into its hole's bins instead of the row list
+    const lr = logRead ? makeLogReader(logRead) : null; // #3038 — each row into the log's typed columns
     let fields = null, kept = null;
     const meta = Papa.parse(text, { header: true, dynamicTyping, skipEmptyLines: true, comments: false, step: (r) => {
       if (!kept) { fields = r.meta.fields || []; kept = want ? fields.filter((f) => want.has(f)) : fields; }
       if (r.errors?.length) errors.push(...r.errors);
       if (hf && !hf.ids.has(String(r.data[hf.col] ?? "").trim())) { droppedByHole++; return; }
       const o = {}; for (const f of kept) o[f] = r.data[f];
-      if (comp) comp.add(o); else data.push(o);
+      if (lr) lr.add(o); else if (comp) comp.add(o); else data.push(o);
     } }).meta;
     let out = data;
-    if (comp) { const f = comp.finish(); out = f.rows; composited = f.stats; } // #2345 — never push(...rows): 150,000 composites overflowed the stack
+    if (comp) { const f = comp.finish(); out = f.rows; composited = f.stats; }
+    if (lr) { const f = lr.finish(); out = f.sample; logTable = f.table; } // #3038 // #2345 — never push(...rows): 150,000 composites overflowed the stack
     res = { data: out, errors, meta: { ...meta, fields: kept || (meta.fields || []).filter((f) => !want || want.has(f)) } };
     void fields;
   } else res = Papa.parse(text, { header: true, dynamicTyping, skipEmptyLines: true, comments: false });
@@ -190,7 +195,7 @@ export function parseTableText(text, { comments = "#", columnar = false, keep = 
   const { rows, note } = commaFree ? { rows: res.data, note: "" } : normalizeCommaDecimals(res.data);
   const pre = banner ? tr("The first row was a banner of group names over the field names: the second row is used as the header.") : preamble ? tr("Skipped {n} line(s) of notes above the header row.", { n: preamble }) : ""; // #1666; #1665
   const sp = spaced != null ? tr("Read as a space-separated table ({n} columns).", { n: (res.meta.fields || []).length }) : ""; // #2017
-  return { rows, headers: res.meta.fields || [], note: [note, pre, sp].filter(Boolean).join(" "), errors: res.errors || [], ...(hf ? { droppedByHole } : {}), ...(composited ? { composited } : {}) };
+  return { rows, headers: res.meta.fields || [], note: [note, pre, sp].filter(Boolean).join(" "), errors: res.errors || [], ...(hf ? { droppedByHole } : {}), ...(composited ? { composited } : {}), ...(logTable ? { logTable } : {}) };
 }
 
 // TASKS.csv #611 — large assay exports held as columns. parseTableText's rows are one object per row, and a 60 MB
@@ -367,7 +372,7 @@ export async function confirmTableSize(file, { budget = TABLE_MEMORY_BUDGET, con
 // space-separated test (#2017, then every line re-joined), the id-like column scan (#1071, its first 2,000 lines as before); comma
 // decimals are looked for in every part. -> parseTableText's { rows, headers, note, errors, droppedByHole?, composited? } + { encoding, parts }
 const ENCODING_PROBE = 16 << 20, FIRST_PART_MIN = 256 << 10;
-export async function parseTableChunks(chunks, { comments = "#", keep = null, holes = null, composite = null } = {}) {
+export async function parseTableChunks(chunks, { comments = "#", keep = null, holes = null, composite = null, logRead = null } = {}) { // logRead: #3038
   const it = chunks[Symbol.asyncIterator] ? chunks[Symbol.asyncIterator]() : chunks[Symbol.iterator]();
   const headBufs = []; let headLen = 0, done = false;
   while (headLen < ENCODING_PROBE) { const r = await it.next(); if (r.done) { done = true; break; } headBufs.push(r.value); headLen += r.value.length; }
@@ -377,6 +382,7 @@ export async function parseTableChunks(chunks, { comments = "#", keep = null, ho
   const want = keep?.length ? new Set([...keep, ...(composite ? [composite.hole, composite.from, composite.to] : [])]) : null;
   const hf = holes?.col && holes.ids ? { col: holes.col, ids: new Set([...holes.ids].map((v) => String(v).trim())) } : null;
   const comp = composite ? makeCompositor(composite) : null;
+  const lr = logRead ? makeLogReader(logRead) : null; // #3038
   const data = [], errors = [];
   let kept = null, droppedByHole = 0, headerLine = null, newline = "\n", delimiter, spaced = false, preamble = 0, banner = false, typedBy = null, commaSeen = false, parts = 0;
   const step = (r) => {
@@ -384,7 +390,7 @@ export async function parseTableChunks(chunks, { comments = "#", keep = null, ho
     if (r.errors?.length) errors.push(...r.errors);
     if (hf && !hf.ids.has(String(r.data[hf.col] ?? "").trim())) { droppedByHole++; return; }
     const o = {}; for (const f of kept) o[f] = r.data[f];
-    if (comp) comp.add(o); else data.push(o);
+    if (lr) lr.add(o); else if (comp) comp.add(o); else data.push(o);
   };
   const parsePart = (text) => {
     parts++;
@@ -425,15 +431,16 @@ export async function parseTableChunks(chunks, { comments = "#", keep = null, ho
   while (!done) { const r = await it.next(); if (r.done) break; feed(dec.decode(r.value, { stream: true }), false); }
   feed(dec.decode(), true);
   let rows = data;
-  let composited = null;
+  let composited = null, logTable = null;
   if (comp) { const f = comp.finish(); rows = f.rows; composited = f.stats; }
+  if (lr) { const f = lr.finish(); rows = f.sample; logTable = f.table; } // #3038
   let cnote = "";
   if (delimiter !== "," || commaSeen) ({ rows, note: cnote } = normalizeCommaDecimals(rows)); // #600 — only where a comma decimal can exist
   const pre = banner ? tr("The first row was a banner of group names over the field names: the second row is used as the header.") : preamble ? tr("Skipped {n} line(s) of notes above the header row.", { n: preamble }) : "";
   const headers = kept || [];
   const sp = spaced ? tr("Read as a space-separated table ({n} columns).", { n: headers.length }) : "";
   const enc = encoding !== "utf-8" ? tr("Its first {mb} MB were not UTF-8, so the whole file was read as Windows-1252.", { mb: Math.round(Math.min(headLen, ENCODING_PROBE) / 1048576) }) : "";
-  return { rows, headers, note: [cnote, pre, sp, enc].filter(Boolean).join(" "), errors, encoding, parts, ...(hf ? { droppedByHole } : {}), ...(composited ? { composited } : {}) };
+  return { rows, headers, note: [cnote, pre, sp, enc].filter(Boolean).join(" "), errors, encoding, parts, ...(hf ? { droppedByHole } : {}), ...(composited ? { composited } : {}), ...(logTable ? { logTable } : {}) };
 }
 function concatBytes(bufs, n) {
   const out = new Uint8Array(n); let o = 0;

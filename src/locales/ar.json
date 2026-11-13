@@ -10428,6 +10428,7 @@
   "Read the {k} column(s)": "اقرأ الأعمدة الـ{k}",
   "Only {k} chosen column(s) were read, to fit in memory: {list}.": "قُرئت {k} عمود مختار فقط لتتسع الذاكرة: {list}.",
   "Downhole log channels": "قنوات التسجيل البئري",
+  "{fileName}: read again in full for this import: it was read for its log channels only.": "{fileName}: أُعيدت قراءته كاملًا لهذا الاستيراد: كان قد قُرئ لقنوات السجل فقط.",
   "Each ticked channel becomes its own numeric layer, named after the column. Untick all to import only the value column above as one layer.": "تصبح كل قناة محدَّدة طبقة رقمية خاصة بها باسم العمود. ألغِ تحديد الكل لاستيراد عمود القيمة أعلاه وحده كطبقة واحدة.",
   "Import channel {c}": "استيراد القناة {c}",
   "{n} readings × {k} channel(s) is more than GeoStrix keeps reading by reading on this computer: they are averaged to a bin (mean, with the bin's minimum and maximum kept), stated in the notice and the layer. The file stays the source.": "{n} قراءة × {k} قناة أكثر مما يحفظه GeoStrix قراءةً قراءة على هذا الحاسوب: تُحسب متوسطاتها لكل فاصل (المتوسط مع الحد الأدنى والأعلى للفاصل)، ويُذكر ذلك في الإشعار وفي الطبقة. يبقى الملف هو المصدر.",

@@ -25,7 +25,7 @@ import { applyRowFilter, defaultRowFilter } from "../lib/importRowFilter.js"; //
 const blankPct = (n, total) => { const p = (100 * n) / total; return p > 0 && p < 1 ? (p < 0.1 ? "< 0.1" : p.toFixed(1)) : String(Math.round(p)); };
 const countCache = new WeakMap();
 const importCount = (modal) => {
-  const rows = modal.allRows; if (!rows?.length) return modal.rowCount;
+  const rows = modal.allRows; if (!rows?.length || modal.logTable) return modal.rowCount; // logTable: #3038 — the rows are its first 5,000
   let c = countCache.get(rows); if (!c) countCache.set(rows, (c = new Map()));
   const k = modal.rowFilter === undefined ? "preset" : JSON.stringify(modal.rowFilter);
   if (!c.has(k)) { const f = modal.rowFilter !== undefined ? modal.rowFilter : defaultRowFilter(modal.headers, rows); c.set(k, f ? applyRowFilter(rows, f).rows.length : modal.rowCount); }

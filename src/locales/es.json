@@ -10428,6 +10428,7 @@
   "Read the {k} column(s)": "Leer las {k} columna(s)",
   "Only {k} chosen column(s) were read, to fit in memory: {list}.": "Solo se leyeron {k} columna(s) elegidas, para caber en memoria: {list}.",
   "Downhole log channels": "Canales del registro de pozo",
+  "{fileName}: read again in full for this import: it was read for its log channels only.": "{fileName}: leído de nuevo completo para esta importación: se había leído solo por sus canales de registro.",
   "Each ticked channel becomes its own numeric layer, named after the column. Untick all to import only the value column above as one layer.": "Cada canal marcado se vuelve su propia capa numérica, con el nombre de la columna. Desmarque todos para importar solo la columna de valor de arriba como una capa.",
   "Import channel {c}": "Importar el canal {c}",
   "{n} readings × {k} channel(s) is more than GeoStrix keeps reading by reading on this computer: they are averaged to a bin (mean, with the bin's minimum and maximum kept), stated in the notice and the layer. The file stays the source.": "{n} lecturas × {k} canal(es) es más de lo que GeoStrix guarda lectura por lectura en este computador: se promedian por intervalo (media, conservando el mínimo y el máximo del intervalo), indicado en el aviso y en la capa. El archivo sigue siendo la fuente.",
