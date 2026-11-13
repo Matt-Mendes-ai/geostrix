@@ -8,7 +8,10 @@ import { Crosshair, Move, Undo2, Trash2, X as XIcon, Pencil } from "./icons.js";
 import { t as tr } from "../lib/i18n.js";
 import { LOO_MAX_POINTS, explicitPoints, sectionLinesOf } from "../lib/explicitSurface.js"; // sectionLinesOf: #1691
 import { fitExplicitSurfaceAsync } from "../lib/explicitSurfaceClient.js"; // TASKS.csv #865
-import { upperNeighbour, meshHeightLookup, clampUnder, orderAgainst } from "../lib/pileTops.js"; // TASKS.csv #2921
+import { upperNeighbour, lowerNeighbour, meshHeightLookup, clampUnder, orderAgainst } from "../lib/pileTops.js"; // TASKS.csv #2921; lowerNeighbour: #3113
+import { isopachBetween } from "../lib/isopach.js"; // TASKS.csv #3113
+import { rasterColourFields } from "../lib/rasterColour.js"; // TASKS.csv #3113
+import { f32ToB64 } from "../lib/base64.js"; // TASKS.csv #3113
 import { tinSurface } from "../lib/tinSurface.js"; // TASKS.csv #1958
 import { findOnTraceWorld, traceDirWorld } from "../lib/viewer/modelHelpers.js";
 import { terrainGroundAt } from "../lib/viewer/geomath.js";
@@ -188,6 +191,12 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
     if (!def || !seedInfo?.pile || seedInfo.base || contactOf(def) !== "upper" || def.boundedBy || def.tin) return null;
     const cands = defs.filter((d) => d.id !== def.id && contactOf(d) === "upper" && d.surfaceId && !d.boundedBy).map((d) => ({ unit: unitOf(d), id: d.id, name: d.name, surfaceId: d.surfaceId }));
     return upperNeighbour(seedInfo.pile, seedUnit, cands);
+  }, [def, seedInfo, defs, seedUnit]);
+  // TASKS.csv #3113 — the next explicit top DOWN in the pile (the holes' order), for the thickness map from this top to it
+  const pileBase = useMemo(() => {
+    if (!def?.surfaceId || !seedInfo?.pile || contactOf(def) !== "upper" || def.boundedBy) return null;
+    const cands = defs.filter((d) => d.id !== def.id && contactOf(d) === "upper" && d.surfaceId && !d.boundedBy).map((d) => ({ unit: unitOf(d), id: d.id, name: d.name, surfaceId: d.surfaceId }));
+    return lowerNeighbour(seedInfo.pile, seedUnit, cands);
   }, [def, seedInfo, defs, seedUnit]);
   const absentNew = (seedInfo?.absent || []).filter((t) => !pickedHoles.has(t.hole_id));
   const seedAbsent = () => {
@@ -870,6 +879,36 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
     });
     setThickNote({ text: parts.join(" "), crossing });
   };
+  // TASKS.csv #3113 — the thickness (isopach) map from this top down to the next top under it: a raster (Maps > GeoTIFF / GXF, the 3D View)
+  // and the volume, over the overlap and inside both tops' inputs' hulls (#977: where neither is extrapolated)
+  const [isoNote, setIsoNote] = useState(null);
+  const { addRaster } = useStore();
+  const isopachMap = () => {
+    if (!def || !pileBase) return;
+    const worldOf = (sid) => { // the scene mesh back to world E, N, Z (upsertMesh's mapping), with the fit's hull
+      const g = sid && sc.meshes.current[sid]?.geometry;
+      if (!g?.attributes?.position || !g.index) return null;
+      const a = g.attributes.position.array, o = sc.origin.current, q = new Float64Array(a.length);
+      for (let i = 0; i < a.length; i += 3) { q[i] = a[i] + o.x; q[i + 1] = o.y - a[i + 2]; q[i + 2] = a[i + 1] + o.z; }
+      return { positions: q, indices: g.index.array, hull: (surfaces || []).find((x) => x.id === sid)?.params?.supportHull || null };
+    };
+    const up = worldOf(def.surfaceId), lo = worldOf(pileBase.surfaceId);
+    if (!up || !lo) { setIsoNote({ warn: true, text: tr("Build \"{upper}\" and \"{lower}\" first.", { upper: def.name, lower: pileBase.name }) }); return; }
+    const r = isopachBetween(up, lo);
+    if (!r) { setIsoNote({ warn: true, text: tr("\"{upper}\" and \"{lower}\" do not overlap anywhere in plan.", { upper: def.name, lower: pileBase.name }) }); return; }
+    const cellM = Math.round(r.cellM * 10) / 10, m3 = (v) => Math.round(v).toLocaleString();
+    const colour = rasterColourFields(r.grid.values, r.grid.nx, r.grid.ny, { palette: "viridis", stretch: "p2-98", invert: false });
+    const z = elevationOf(def);
+    addRaster({
+      name: `Thickness ${def.name} to ${pileBase.name} ${cellM} m`, bbox: r.bbox, ...colour, ...(Number.isFinite(z) ? { elevation: z } : {}),
+      grid: { nx: r.grid.nx, ny: r.grid.ny, x0: r.grid.x0, yTop: r.grid.yTop, dx: r.grid.dx, dy: r.grid.dy, values: f32ToB64(r.grid.values), valid: r.cells },
+      provenance: { tool: "Isopach between two explicit tops (the vertical distance from the upper top down to the next top under it, per map cell; negative where they cross)", upper: def.name, lower: pileBase.name, cellM, cells: r.cells, negativeCells: r.negativeCells, volumeM3: Math.round(r.volumeM3), ...(r.supported ? { supportedVolumeM3: Math.round(r.supported.volumeM3) } : {}) },
+    });
+    setIsoNote({ warn: r.negativeCells > 0, text: tr("Thickness from \"{upper}\" down to \"{lower}\": {min} to {max} m, mean {mean} m, over {n} cells of {c} m; {v} m³ over the area both cover. It is in Maps > GeoTIFF / GXF and the 3D View.", { upper: def.name, lower: pileBase.name, min: r.min.toFixed(1), max: r.max.toFixed(1), mean: r.mean.toFixed(1), n: r.cells.toLocaleString(), c: cellM, v: m3(r.volumeM3) })
+      + (r.supported ? ` ${tr("Inside both tops' inputs (where neither is extrapolated): {v} m³ over {n} cells.", { v: m3(r.supported.volumeM3), n: r.supported.cells.toLocaleString() })}` : "")
+      + (r.negativeCells ? ` ${tr("In {n} cells the lower top is above the upper one (they cross): the map keeps the negative thickness, the volume counts them as 0.", { n: r.negativeCells.toLocaleString() })}` : "")
+      + (r.coarsened ? ` ${tr("The cell was enlarged to {c} m to keep the map under {max} cells.", { c: cellM, max: (1000000).toLocaleString() })}` : "") });
+  };
   // TASKS.csv #880 — the inputs as CSV (this surface or all of them), with a header line saying what the file is
   const [exportNote, setExportNote] = useState(null);
   // TASKS.csv #875 — interpretation strings from a DXF (Micromine / Vulcan / a contractor): open 3D strings become hard
@@ -982,6 +1021,13 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
             <input type="checkbox" checked={!!def.keepOrder} onChange={(e) => update({ keepOrder: e.target.checked })} style={{ marginTop: 2 }} />
             <span>{tr("Keep under {upper}", { upper: pileTop.name })}</span>
           </label>
+        )}
+        {pileBase && ( // TASKS.csv #3113 — the thickness map down to the next explicit top under this one
+          <div style={{ marginBottom: 6 }}>
+            <button onClick={isopachMap} title={tr("The vertical distance from this top down to \"{lower}\" (the next top under it in the holes' order) in every map cell both surfaces cover, as a map in Maps > GeoTIFF / GXF and the 3D View, with the volume.", { lower: pileBase.name })}
+              style={{ ...pBtn, width: "auto", display: "inline-flex", marginBottom: 0, padding: "2px 6px" }}>{tr("Thickness map down to {lower}", { lower: pileBase.name })}</button>
+            {isoNote && <div role="status" style={{ fontSize: "var(--font-size-sm)", lineHeight: 1.4, marginTop: 3, color: isoNote.warn ? "var(--color-warn-text)" : "var(--color-text-secondary)" }}>{isoNote.text}</div>}
+          </div>
         )}
         {seedNote && <div role="status" style={{ fontSize: "var(--font-size-sm)", lineHeight: 1.4, marginBottom: 6, color: "var(--color-text-secondary)" }}>{seedNote}</div>}
         {dupHoles.size > 0 && ( // TASKS.csv #866 — a contact crosses a hole once unless folded or faulted
