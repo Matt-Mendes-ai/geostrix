@@ -85,11 +85,15 @@ function selectionOverlay(rows, traces, colorOf = null) {
 export default function ModellingCodesPane({ focus = null, inArea = null, litho, modellingCodes, setModellingCodes, groupOf, defaultRole, pickMode, setPickMode, selected, setSelected, connectFrom, setConnectFrom, askPrompt, pBtn, unitBody, setUnitBody, inputStyle, view, onBuildBody, assayElements = [] /* #2634 */, positionAt = null /* #2625 */ }) {
   const mc = modellingCodes || { codes: [], assign: {}, ties: [] };
   const codes = useMemo(() => codesInUse(litho, mc, groupOf, defaultRole), [litho, mc, groupOf, defaultRole]);
+  // TASKS.csv #3148 — the coded runs depend on the per-interval overrides only (not on the codes' order, roles or colours), so a reorder
+  // ('Use the order from the holes', the arrows) no longer re-derives them from 150,000 rows; the counts and the order from the holes share them
+  const assignOnly = mc.assign;
+  const runsAll = useMemo(() => codedRuns(litho, { assign: assignOnly }, groupOf), [litho, assignOnly, groupOf]);
   const counts = useMemo(() => {
     const m = new Map();
-    codedRuns(litho, mc, groupOf).forEach((run) => m.set(run.code, (m.get(run.code) || 0) + 1));
+    runsAll.forEach((run) => m.set(run.code, (m.get(run.code) || 0) + 1));
     return m;
-  }, [litho, mc, groupOf]);
+  }, [runsAll]);
   const loggedCodes = useMemo(() => [...new Set((litho || []).map((r) => String(r.value ?? "").trim()).filter(Boolean))].sort(), [litho]);
   const [numberCodes, setNumberCodes] = useState([]);
   const overrides = Object.keys(mc.assign || {}).length;
@@ -200,7 +204,7 @@ export default function ModellingCodesPane({ focus = null, inArea = null, litho,
   const [holesNote, setHolesNote] = useState(null);
   const applyHolesOrder = () => {
     const names = codes.map((c) => c.name);
-    const runs = codedRuns(litho, mc, groupOf).map((r) => ({ hole_id: r.hole_id, from: r.from, value: r.code }));
+    const runs = runsAll.map((r) => ({ hole_id: r.hole_id, from: r.from, value: r.code })); // #3148
     const r = orderFromHoles(runs, names);
     if (!r.placed) { setHolesNote(tr("The holes do not place any of these codes against another (too few holes log two of them).")); return; }
     setModellingCodes((p) => {
