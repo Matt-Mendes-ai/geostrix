@@ -21,6 +21,11 @@ export const WA_SAMPLES = {
   wa_lead_zinc: { dir: "wa_lead_zinc", epsg: 28352, label: "WA lead-silver-zinc", assays: "assays.csv" },
   wa_zinc_copper: { dir: "wa_zinc_copper", epsg: 28350, label: "WA zinc-copper", assays: "assays.csv", surface: [["soils.csv", "soil"], ["streams.csv", "stream sediment"]] },
   wa_gold: { dir: "wa_gold", epsg: 28351, label: "WA lode gold", assays: "assays.csv" },
+  // Century (Geological Survey of Queensland, CC BY 4.0): the same parts as a WA sample, from Queensland's database
+  qld_century: {
+    dir: "qld_century", epsg: 7854, label: "Century", assays: "assays.csv", surface: [["soils.csv", "soil"]],
+    grid: { file: "tmi_80m.tif", name: "Total magnetic intensity (Geoscience Australia, 80 m)", method: "mag", units: "nT", source: "Geoscience Australia, Total Magnetic Intensity Grid of Australia 2019, seventh edition, 80 m" },
+  },
 };
 
 const cellOf = (e, raw) => (e.symbol === LOI ? readLoiCell(raw) : readAssayCell(raw));

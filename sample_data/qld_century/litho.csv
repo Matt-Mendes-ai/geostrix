@@ -1,0 +1,826 @@
+hole_id,from,to,lithology,qualifier,description
+DD92LH328,0,79,SLST,,Hanging wall dolomitic siltstone - siltstone - shale - (minor tuff) sequence (Pmh4)
+DD92LH328,79,83.15,SLST,,Mineralisation - Zone 1.1 (siltstone and dolomitic siltstone)
+DD92LH328,83.15,83.92,BLSH,SUL,Mineralisation - Zone 1.2 (sulphidic black shale - Zn-Pb-Ag)
+DD92LH328,83.92,88.6,SLST,,Mineralisation - Zone 1.1 (siltstone and dolomitic siltstone)
+DD92LH328,88.6,89.8,SLST,,"Mineralisation - Zone 1  (siltstone, dolomitic siltstone and sulphidic black shale (Zn-Pb-Ag)"
+DD92LH328,89.8,92.8,SLST,,Mineralisation - Zone 1.1 (siltstone and dolomitic siltstone)
+DD92LH328,92.8,93.76,BLSH,,Mineralisation - Zone 1.2 (sulphidicblack shale - Zn-Pb-Ag)
+DD92LH328,93.76,96.18,SLST,,Mineralisation - Zone 1.1 (siltstone anddolomitic siltstone)
+DD92LH328,96.18,96.88,BLSH,,Mineralisation - Zone 1.2 (sulphidicblack shale - Zn-Pb-Ag)
+DD92LH328,96.88,97.76,SLST,,Mineralisation - Zone 1.1 (siltstone anddolomitic siltstone)
+DD92LH328,97.76,98.58,BLSH,,Mineralisation - Zone 1.2 (sulphidicblack shale - Zn-Pb-Ag)
+DD92LH328,98.58,99.35,SLST,,Mineralisation - Zone 1.1 (siltstone anddolomitic siltstone)
+DD92LH328,99.35,99.75,BLSH,,Mineralisation - Zone 1.2 (sulphidicblack shale - Zn-Pb-Ag)
+DD92LH328,99.75,100.1,SLST,,"Mineralisation - Zone 1  (siltstone,dolomitic siltstone and sulphidic blackshale (Zn-Pb-Ag)"
+DD92LH328,100.1,103.7,BLSH,SUL,Mineralisation - Zone 2  (sulphidic black shale - Zn-Pb-Ag)
+DD92LH328,103.7,105.63,SLST,,Mineralisation - Zone 3.1 (thinly interbanded dolomitic siltstone/grey siltstone & black shale - Zn)
+DD92LH328,105.63,108.65,SLST,,"Mineralisation - Zone 3.2 (banded dolomitic siltstone, banding wavy to stylolitic)"
+DD92LH328,108.65,111.85,BLSH,SUL,"Mineralisation - Zone 4.1 (thin banded sulphidic black shale - Zn, minor Pb-Ag)"
+DD92LH328,111.85,112.87,MDST,,"Mineralisation - Zone 4.2 (massive, barren black mudstone/silty dark grey mudstone in west)"
+DD92LH328,112.87,113.5,BLSH,SUL,Mineralisation - Zone 4.3 (thin banded sulphidic black shale - Zn)
+DD92LH328,113.5,113.6,SLST,,"Mineralisation - Zone 4.4 (banded dolomitic siltstone, banding wavy to stylolitic)"
+DD92LH328,113.6,116.31,BLSH,SUL,Mineralisation - Zone 4.5 (thin banded sulphidic black shale - Zn) - sphalerite > pyrite
+DD92LH328,116.31,119.45,BLSH,SUL,Mineralisation - Zone 4.6 (sulphidic black shale - Zn) - sphalerite < pyrite
+DD92LH328,119.45,147.7,SLST,,Upper footwall shale - siltstone sequence (Pmh4)
+DD92LH329,0,97.94,LMST,,"Cambrian limestone, dolomite and marl"
+DD92LH329,97.94,106.9,SDST,,"Hanging wall sandstone sequence (Pmh5), Relict PreCambrian  weathering profile"
+DD92LH329,106.9,176.75,SLST,,Hanging wall dolomitic siltstone - siltstone - shale - (minor tuff) sequence (Pmh4)
+DD92LH329,176.75,177.06,BX,,Calcareous breccia
+DD92LH329,177.06,211.55,SLST,,Hanging wall dolomitic siltstone -siltstone - shale - (minor tuff) sequence(Pmh4)
+DD92LH329,211.55,216.7,SLST,,"Mineralisation - Zone 1  (siltstone,dolomitic siltstone and sulphidic blackshale (Zn-Pb-Ag)"
+DD92LH329,216.7,217.57,BLSH,,Mineralisation - Zone 1.2 (sulphidicblack shale - Zn-Pb-Ag)
+DD92LH329,217.57,224.09,SLST,,Mineralisation - Zone 1.1 (siltstone anddolomitic siltstone)
+DD92LH329,224.09,224.4,BLSH,,Mineralisation - Zone 1.2 (sulphidicblack shale - Zn-Pb-Ag)
+DD92LH329,224.4,227.82,SLST,,Mineralisation - Zone 1.1 (siltstone anddolomitic siltstone)
+DD92LH329,227.82,228.7,BLSH,SUL,Mineralisation - Zone 1.2 (sulphidic black shale - Zn-Pb-Ag)
+DD92LH329,228.7,231.02,SLST,,Mineralisation - Zone 1.1 (siltstone and dolomitic siltstone)
+DD92LH329,231.02,232.06,BLSH,SUL,Mineralisation - Zone 1.2 (sulphidic black shale - Zn-Pb-Ag)
+DD92LH329,232.06,233.04,SLST,,"Mineralisation - Zone 1  (siltstone, dolomitic siltstone and sulphidic black shale (Zn-Pb-Ag)"
+DD92LH329,233.04,233.6,BLSH,SUL,Mineralisation - Zone 1.2 (sulphidic black shale - Zn-Pb-Ag)
+DD92LH329,233.6,234.6,SLST,,"Mineralisation - Zone 1  (siltstone, dolomitic siltstone and sulphidic black shale (Zn-Pb-Ag)"
+DD92LH329,234.6,235.06,BLSH,SUL,Mineralisation - Zone 1.2 (sulphidic black shale - Zn-Pb-Ag)
+DD92LH329,235.06,235.5,SLST,,"Mineralisation - Zone 1  (siltstone, dolomitic siltstone and sulphidic black shale (Zn-Pb-Ag)"
+DD92LH329,235.5,240,BLSH,SUL,Mineralisation - Zone 2  (sulphidic black shale - Zn-Pb-Ag)
+DD92LH329,240,243,SLST,,Mineralisation - Zone 3.1 (thinly interbanded dolomitic siltstone/grey siltstone & black shale - Zn)
+DD92LH329,243,246.52,SLST,,"Mineralisation - Zone 3.2 (banded dolomitic siltstone, banding wavy to stylolitic)"
+DD92LH329,246.52,250.74,BLSH,SUL,"Mineralisation - Zone 4.1 (thin banded sulphidic black shale - Zn, minor Pb-Ag)"
+DD92LH329,250.74,252.63,MDST,,"Mineralisation - Zone 4.2 (massive, barren black mudstone/silty dark grey mudstone in west)"
+DD92LH329,252.63,255.03,BLSH,SUL,Mineralisation - Zone 4.3 (thin banded sulphidic black shale - Zn)
+DD92LH329,255.03,255.6,SLST,,"Mineralisation - Zone 4.4 (banded dolomitic siltstone, banding wavy to stylolitic)"
+DD92LH329,255.6,258.06,BLSH,SUL,Mineralisation - Zone 4.5 (thin banded sulphidic black shale - Zn) - sphalerite > pyrite
+DD92LH329,258.06,262.45,BLSH,SUL,Mineralisation - Zone 4.6 (sulphidic black shale - Zn) - sphalerite < pyrite
+DD92LH329,262.45,330,SLST,,Upper footwall shale - siltstone sequence (Pmh4)
+DD92LH330,0,74.88,LMST,,"Cambrian limestone, dolomite and marl"
+DD92LH330,74.88,90.73,SDST,,"Hanging wall sandstone sequence, (Pmh5), Relict PreCambrian, weathering profile"
+DD92LH330,90.73,137.7,SDST,,Hanging wall sandstone sequence (Pmh5)
+DD92LH330,137.7,240.65,SLST,,Hanging wall dolomitic siltstone - siltstone - shale - (minor tuff) sequence (Pmh4)
+DD92LH330,240.65,244.12,ROCK,SH,"Rock sheared or disrupted by faulting, fault gouge (assignment of stratigraphic unit not possible). Shear of fault zone"
+DD92LH330,244.12,244.42,SLST,,Mineralisation - Zone 1.1 (siltstone and dolomitic siltstone)
+DD92LH330,244.42,244.88,BLSH,SUL,Mineralisation - Zone 1.2 (sulphidic black shale - Zn-Pb-Ag)
+DD92LH330,244.88,247.09,SLST,,"Mineralisation - Zone 1  (siltstone, dolomitic siltstone and sulphidic black shale (Zn-Pb-Ag)"
+DD92LH330,247.09,247.39,BLSH,SUL,Mineralisation - Zone 1.2 (sulphidic black shale - Zn-Pb-Ag)
+DD92LH330,247.39,251.73,SLST,,"Mineralisation - Zone 1  (siltstone, dolomitic siltstone and sulphidic black shale (Zn-Pb-Ag)"
+DD92LH330,251.73,252.02,BLSH,SUL,Mineralisation - Zone 1.2 (sulphidic black shale - Zn-Pb-Ag)
+DD92LH330,252.02,254.86,SLST,,"Mineralisation - Zone 1  (siltstone, dolomitic siltstone and sulphidic black shale (Zn-Pb-Ag)"
+DD92LH330,254.86,255.75,BLSH,SUL,Mineralisation - Zone 1.2 (sulphidic black shale - Zn-Pb-Ag)
+DD92LH330,255.75,258.16,SLST,,"Mineralisation - Zone 1  (siltstone, dolomitic siltstone and sulphidic black shale (Zn-Pb-Ag)"
+DD92LH330,258.16,259,BLSH,SUL,Mineralisation - Zone 1.2 (sulphidic black shale - Zn-Pb-Ag)
+DD92LH330,259,259.86,SLST,,"Mineralisation - Zone 1  (siltstone, dolomitic siltstone and sulphidic black shale (Zn-Pb-Ag)"
+DD92LH330,259.86,260.42,BLSH,SUL,Mineralisation - Zone 1.2 (sulphidic black shale - Zn-Pb-Ag)
+DD92LH330,260.42,260.98,SLST,,"Mineralisation - Zone 1  (siltstone, dolomitic siltstone and sulphidic black shale (Zn-Pb-Ag)"
+DD92LH330,260.98,261.4,BLSH,SUL,Mineralisation - Zone 1.2 (sulphidic black shale - Zn-Pb-Ag)
+DD92LH330,261.4,261.94,SLST,,"Mineralisation - Zone 1  (siltstone, dolomitic siltstone and sulphidic black shale (Zn-Pb-Ag)"
+DD92LH330,261.94,265.4,BLSH,SUL,Mineralisation - Zone 2  (sulphidic black shale - Zn-Pb-Ag)
+DD92LH330,265.4,265.9,SLST,,Mineralisation - Zone 3.1 (thinly interbanded dolomitic siltstone/grey siltstone & black shale - Zn)
+DD92LH330,265.9,267,ROCK,SH,Stratiform mineralisation - position in  Shear or fault zone sequence not defined. Shear or fault zone
+DD92LH330,267,268.55,SLST,,Mineralisation - Zone 3.1 (thinly interbanded dolomitic siltstone/grey siltstone & black shale - Zn)
+DD92LH330,268.55,271.93,SLST,,"Mineralisation - Zone 3.2 (banded dolomitic siltstone, banding wavy to stylolitic)"
+DD92LH330,271.93,275.73,BLSH,SUL,"Mineralisation - Zone 4.1 (thin banded sulphidic black shale - Zn, minor Pb-Ag)"
+DD92LH330,275.73,277.45,MDST,,"Mineralisation - Zone 4.2 (massive, barren black mudstone/silty dark grey mudstone in west)"
+DD92LH330,277.45,279.7,BLSH,SUL,Mineralisation - Zone 4.3 (thin banded sulphidic black shale - Zn)
+DD92LH330,279.7,280.25,SLST,,"Mineralisation - Zone 4.4 (banded dolomitic siltstone, banding wavy to stylolitic)"
+DD92LH330,280.25,280.86,BLSH,SUL,Mineralisation - Zone 4.5 (thin banded sulphidic black shale - Zn) - sphalerite > pyrite
+DD92LH330,280.86,286.18,BLSH,SUL,Mineralisation - Zone 4.6 (sulphidic black shale - Zn) - sphalerite < pyrite
+DD92LH330,286.18,322,SLST,,Upper footwall shale - siltstone sequence (Pmh4)
+DD92LH331,0,118.88,LMST,,"Cambrian limestone, dolomite and marl"
+DD92LH331,118.88,188.54,SLST,,Hanging wall dolomitic siltstone - siltstone - shale - (minor tuff) sequence (Pmh4)
+DD92LH331,188.54,189.4,BLSH,CALC,Calcareous breccia
+DD92LH331,189.4,217.2,SLST,,Hanging wall dolomitic siltstone - siltstone - shale - (minor tuff) sequence (Pmh4)
+DD92LH331,217.2,219.1,ROCK,SH,"Rock sheared or disrupted by faulting, fault gouge (assignment of stratigraphic unit not possible), shear or fault zone"
+DD92LH331,219.1,220.85,SLST,,Hanging wall dolomitic siltstone -siltstone - shale - (minor tuff) sequence
+DD92LH331,220.85,226.65,SLST,,Mineralisation - Zone 1.1 (siltstone and dolomitic siltstone)
+DD92LH331,226.65,227.38,BLSH,SUL,Mineralisation - Zone 1.2 (sulphidic black shale - Zn-Pb-Ag)
+DD92LH331,227.38,232.37,SLST,,Mineralisation - Zone 1.1 (siltstone and dolomitic siltstone)
+DD92LH331,232.37,236.87,SLST,,"Mineralisation - Zone 1  (siltstone, dolomitic siltstone and sulphidic black shale (Zn-Pb-Ag)"
+DD92LH331,236.87,237.75,BLSH,SUL,Mineralisation - Zone 1.2 (sulphidic black shale - Zn-Pb-Ag)
+DD92LH331,237.75,239.8,SLST,,"Mineralisation - Zone 1  (siltstone, dolomitic siltstone and sulphidic black shale (Zn-Pb-Ag)"
+DD92LH331,239.8,240.95,BLSH,SUL,Mineralisation - Zone 1.2 (sulphidic black shale - Zn-Pb-Ag)
+DD92LH331,240.95,241.66,SLST,,"Mineralisation - Zone 1  (siltstone, dolomitic siltstone and sulphidic black shale (Zn-Pb-Ag)"
+DD92LH331,241.66,242.15,BLSH,SUL,Mineralisation - Zone 1.2 (sulphidic black shale - Zn-Pb-Ag)
+DD92LH331,242.15,242.94,SLST,,"Mineralisation - Zone 1  (siltstone, dolomitic siltstone and sulphidic black shale (Zn-Pb-Ag)"
+DD92LH331,242.94,243.4,BLSH,SUL,Mineralisation - Zone 1.2 (sulphidic black shale - Zn-Pb-Ag)
+DD92LH331,243.4,243.9,SLST,,"Mineralisation - Zone 1  (siltstone, dolomitic siltstone and sulphidic black shale (Zn-Pb-Ag)"
+DD92LH331,243.9,247.14,BLSH,SUL,Mineralisation - Zone 2  (sulphidic black shale - Zn-Pb-Ag)
+DD92LH331,247.14,249.62,SLST,,Mineralisation - Zone 3.1 (thinly interbanded dolomitic siltstone/grey siltstone & black shale - Zn)
+DD92LH331,249.62,253.69,SLST,,"Mineralisation - Zone 3.2 (banded dolomitic siltstone, banding wavy to stylolitic)"
+DD92LH331,253.69,257.6,BLSH,SUL,"Mineralisation - Zone 4.1 (thin banded sulphidic black shale - Zn, minor Pb-Ag)"
+DD92LH331,257.6,259.4,MDST,,"Mineralisation - Zone 4.2 (massive, barren black mudstone/silty dark grey mudstone in west)"
+DD92LH331,259.4,261.85,BLSH,SUL,Mineralisation - Zone 4.3 (thin banded sulphidic black shale - Zn)
+DD92LH331,261.85,262.45,SLST,,"Mineralisation - Zone 4.4 (banded dolomitic siltstone, banding wavy to stylolitic)"
+DD92LH331,262.45,264.86,BLSH,SUL,Mineralisation - Zone 4.5 (thin banded sulphidic black shale - Zn) - sphalerite > pyrite
+DD92LH331,264.86,268.68,BLSH,SUL,Mineralisation - Zone 4.6 (sulphidic black shale - Zn) - sphalerite < pyrite
+DD92LH331,268.68,306,SLST,,Upper footwall shale - siltstone sequence (Pmh4)
+DD92LH332,0,134.9,LMST,,"Cambrian limestone, dolomite and marl"
+DD92LH332,134.9,165.8,SLST,,"Hanging wall dolomitic siltstone - siltstone - shale - (minor tuff) sequence (Pmh4), Relict PreCambrian weathering profile"
+DD92LH332,165.8,194.42,SLST,,Hanging wall dolomitic siltstone - siltstone - shale - (minor tuff) sequence (Pmh4)
+DD92LH332,194.42,196.62,BX,,Calcareous breccia
+DD92LH332,196.92,235.2,SLST,,Hanging wall dolomitic siltstone -siltstone - shale - (minor tuff) sequence
+DD92LH332,235.2,236.9,BX,,Calcareous breccia
+DD92LH332,236.9,237.5,SLST,,Hanging wall dolomitic siltstone -siltstone - shale - (minor tuff) sequence
+DD92LH332,237.5,238.45,SLST,,Mineralisation - Zone 1.1 (siltstone and dolomitic siltstone)
+DD92LH332,238.45,238.83,BLSH,SUL,Mineralisation - Zone 1.2 (sulphidic black shale - Zn-Pb-Ag)
+DD92LH332,238.83,239.2,SLST,,Mineralisation - Zone 1.1 (siltstone and dolomitic siltstone)
+DD92LH332,239.2,239.5,BLSH,SUL,Mineralisation - Zone 1.2 (sulphidic black shale - Zn-Pb-Ag)
+DD92LH332,239.5,241.3,SLST,,"Mineralisation - Zone 1  (siltstone, dolomitic siltstone and sulphidic black shale (Zn-Pb-Ag)"
+DD92LH332,241.3,241.56,BLSH,SUL,Mineralisation - Zone 1.2 (sulphidic black shale - Zn-Pb-Ag)
+DD92LH332,241.56,242.55,SLST,,Mineralisation - Zone 1.1 (siltstone and dolomitic siltstone)
+DD92LH332,242.55,243.85,BLSH,SUL,Mineralisation - Zone 1.2 (sulphidic black shale - Zn-Pb-Ag)
+DD92LH332,243.85,244.27,SLST,,"Mineralisation - Zone 1  (siltstone, dolomitic siltstone and sulphidic black shale (Zn-Pb-Ag)"
+DD92LH332,244.27,245.15,BLSH,SUL,Mineralisation - Zone 1.2 (sulphidic black shale - Zn-Pb-Ag)
+DD92LH332,245.15,245.5,ROCK,SH,"Rock sheared or disrupted by faulting, fault gouge (assignment of stratigraphic unit not possible), shear of fault zone"
+DD92LH332,245.5,247.35,SLST,,Mineralisation - Zone 1.1 (siltstone and dolomitic siltstone)
+DD92LH332,247.35,248.4,BX,CALC,Calcareous breccia
+DD92LH332,248.4,249.7,ROCK,SH,"Rock sheared or disrupted by faulting, fault gouge (assignment of stratigraphic unit not possible), pandoras fault - sheared or fractured rock marking fault position"
+DD92LH332,249.7,256,SLST,,Upper footwall shale - siltstone sequence (Pmh4)
+DD92LH332,256,257.03,BX,CALC,Calcareous breccia
+DD92LH332,257.03,294,SLST,,Upper footwall shale - siltstone sequence (Pmh4)
+DD92LH333,0,158.1,LMST,,"Cambrian limestone, dolomite and marl"
+DD92LH333,158.1,158.9,ROCK,SH,"Rock sheared or disrupted by faulting, fault gouge (assignment of stratigraphic unit not possible), Page Creek Fault Zone - sheared or fractured rock marking fault position"
+DD92LH333,158.9,166.9,SLST,,"Upper footwall shale - siltstone sequence (Pmh4), Relict PreCambrian weathering profile"
+DD92LH333,166.9,168.5,ROCK,SH,"Rock sheared or disrupted by faulting,  fault gouge (assignment of stratigraphic unit not possible), Shear or fault zone"
+DD92LH333,168.5,170.2,SLST,,"Upper footwall shale - siltstone sequence (Pmh4), Relict PreCambrian weathering profile"
+DD92LH333,170.2,170.87,ROCK,SH,"Rock sheared or disrupted by faulting, fault gouge (assignment of stratigraphic unit not possible), shear of rault zone"
+DD92LH333,170.87,182.9,BX,CALC,Calcareous breccia
+DD92LH333,182.9,184.32,ROCK,SH,"Rock sheared or disrupted by faulting, fault gouge (assignment of stratigraphic unit not possible), shear of fault zone"
+DD92LH333,184.32,195.24,SLST,,Upper footwall shale - siltstone sequence (Pmh4)
+DD92LH333,195.24,195.6,ROCK,SH,"Rock sheared or disrupted by faulting, fault gouge (assignment of stratigraphic unit not possible), shear or fault zone"
+DD92LH333,195.6,228.7,SHLE,,Lower footwall shale sequence (Pmh4)
+DD92LH334,0,121.24,LMST,,"Cambrian limestone, dolomite and marl"
+DD92LH334,121.24,155,SLST,,"Hanging wall dolomitic siltstone - siltstone - shale - (minor tuff) sequence,  Relict PreCambrian weathering profile (Pmh4)"
+DD92LH334,155,158.83,SLST,,Hanging wall dolomitic siltstone -siltstone - shale - (minor tuff) sequence (Pmh4)
+DD92LH334,158.83,160.96,ROCK,SH,"Rock sheared or disrupted by faulting, fault gouge (assignment of stratigraphic unit not possible), shear of fault zone"
+DD92LH334,160.96,163.08,BX,CALC,Calcareous breccia
+DD92LH334,163.08,170.88,SLST,,Hanging wall dolomitic siltstone -siltstone - shale - (minor tuff) sequence (Pmh4)
+DD92LH334,170.88,174.85,BX,CALC,Calcareous breccia
+DD92LH334,174.85,205.03,SLST,,Hanging wall dolomitic siltstone -siltstone - shale - (minor tuff) sequence (Pmh4)
+DD92LH334,205.03,205.32,BLSH,SUL,Mineralisation - Zone 1.2 (sulphidic black shale - Zn-Pb-Ag)
+DD92LH334,205.32,205.7,SLST,,Mineralisation - Zone 1.1 (siltstone and dolomitic siltstone)
+DD92LH334,205.7,206.04,BLSH,SUL,Mineralisation - Zone 1.2 (sulphidic black shale - Zn-Pb-Ag)
+DD92LH334,206.04,206.25,SLST,,Mineralisation - Zone 1.1 (siltstone and dolomitic siltstone)
+DD92LH334,206.25,206.36,ROCK,,"Stratiform mineralisation - position in sequence not defined, shear of fault zone"
+DD92LH334,206.36,208.4,BLSH,SUL,Mineralisation - Zone 2  (sulphidic black shale - Zn-Pb-Ag)
+DD92LH334,208.4,211.6,SLST,,Mineralisation - Zone 3.1 (thinly interbanded dolomitic siltstone/grey siltstone & black shale - Zn)
+DD92LH334,211.6,215.46,SLST,,"Mineralisation - Zone 3.2 (banded dolomitic siltstone, banding wavy to stylolitic)"
+DD92LH334,215.46,219,BLSH,SUL,"Mineralisation - Zone 4.1 (thin banded sulphidic black shale - Zn, minor Pb-Ag)"
+DD92LH334,219,220.8,MDST,,"Mineralisation - Zone 4.2 (massive, barren black mudstone/silty dark grey mudstone in west)"
+DD92LH334,220.8,223.35,BLSH,SUL,Mineralisation - Zone 4.3 (thin banded sulphidic black shale - Zn)
+DD92LH334,223.35,223.87,SLST,,"Mineralisation - Zone 4.4 (banded dolomitic siltstone, banding wavy to stylolitic)"
+DD92LH334,223.87,226.7,BLSH,SUL,Mineralisation - Zone 4.5 (thinly banded sulphidic black shale - Zn) - sphalerite > pyrite
+DD92LH334,226.7,231.7,BLSH,SUL,Mineralisation - Zone 4.6 (sulphidic black shale - Zn) - sphalerite < pyrite
+DD92LH334,231.7,268.32,SLST,,Upper footwall shale - siltstone sequence (Pmh4)
+DD92LH334,268.32,284.43,LMST,,"Cambrian limestone, dolomite and marl"
+DD92LH334,284.43,386,BLSH,CAR,Lower footwall sequence - black carbonaceous shale (Pmh4)
+DD92LH334,386,391.7,BLSH,CAR,"Lower footwall sequence - black carbonaceous shale (Pmh4), Carbonate veining"
+DD92LH334,391.7,488.5,BLSH,CAR,"Lower footwall sequence - black carbonaceous shale (Pmh4) with frequent grey, silty laminae"
+DD92LH335,0,129.3,LMST,,"Cambrian limestone, dolomite and marl"
+DD92LH335,129.3,152.9,SLST,,"Upper footwall shale - siltstone sequence (Pmh4) , Relict PreCambrian weathering profile"
+DD92LH335,152.9,195.4,SLST,,Upper footwall shale - siltstone sequence (Pmh4)
+DD92LH335,195.4,195.6,BX,CALC,Calcareous breccia
+DD92LH335,195.6,197.4,ROCK,SH,"Rock sheared or disrupted by faulting, fault gouge (assignment of stratigraphic unit not possible), Shear or fault zone"
+DD92LH335,197.4,226,BLSH,CAR,Lower footwall sequence - black carbonaceous shale (Pmh4)
+DD92LH336,0,157.28,LMST,,"Cambrian limestone, dolomite and marl"
+DD92LH336,157.28,159.38,SLST,,"Mineralisation - Zone 1.1 (siltstone and dolomitic siltstone), Relict PreCambrian weathering profile"
+DD92LH336,159.38,160.15,BLSH,SUL,"Mineralisation - Zone 1.2 (sulphidic black shale - Zn-Pb-Ag), Relict PreCambrian weathering profile"
+DD92LH336,160.15,162.75,SLST,,"Mineralisation - Zone 1  (siltstone, dolomitic siltstone and sulphidic black  shale (Zn-Pb-Ag), Relict PreCambrian weathering profile"
+DD92LH336,162.75,163.15,BLSH,SUL,"Mineralisation - Zone 1.2 (sulphidic  black shale - Zn-Pb-Ag), Relict PreCambrian weathering profile"
+DD92LH336,163.15,165.18,SLST,,"Mineralisation - Zone 1.1 (siltstone and dolomitic siltstone), Relict PreCambrian weathering profile"
+DD92LH336,165.18,166.8,BLSH,SUL,"Mineralisation - Zone 1.2 (sulphidic black shale - Zn-Pb-Ag), Relict PreCambrian weathering profile"
+DD92LH336,166.8,168.5,SLST,,"Mineralisation - Zone 1.1 (sittstone and dolomitic siltstone), Relict PreCambrian weathering profile"
+DD92LH336,168.5,169,BLSH,SUL,"Mineralisation - Zone 1.2 (sulphidic black shale - Zn-Pb-Ag), Relict PreCambrian weathering profile"
+DD92LH336,169,170.3,SLST,,"Mineralisation - Zone 1  (siltstone, dolomitic siltstone and sulphidic black shale (Zn-Pb-Ag), Relict PreCambrian weathering profile"
+DD92LH336,170.3,172.5,BLSH,SUL,"Mineralisation - Zone 1.2 (sulphidic black shale - Zn-Pb-Ag), Relict PreCambrian weathering profile"
+DD92LH336,172.5,173.45,SLST,,"Mineralisation - Zone 1  (siltstone, dolomitic siltstone and sulphidic black shale (Zn-Pb-Ag), Relict PreCambrian weathering profile"
+DD92LH336,173.45,180.15,BLSH,SUL,"Mineralisation - Zone 2  (sulphidic black shale - Zn-Pb-Ag), Relict PreCambrian weathering profile"
+DD92LH336,180.15,185.34,SLST,,"Mineralisation - Zone 3.1 (thinly interbanded dolomitic siltstone/grey siltstone & black shale - Zn), Relict PreCambrian weathering profile"
+DD92LH336,185.34,189.93,SLST,,"Mineralisation - Zone 3.2 (banded dolomitic siltstone, banding wavy to stylolitic), Relict PreCambrian weathering profile"
+DD92LH336,189.93,194.52,BLSH,SUL,"Mineralisation - Zone 4.1 (thin banded sulphidic black shale - Zn, minor Pb-Ag), Relict PreCambrian weathering profile"
+DD92LH336,194.52,198.54,MDST,,"Mineralisation - Zone 4.2 (massive, barren black mudstone/silty dark grey mudstone in west)"
+DD92LH336,198.54,204.2,BLSH,SUL,Mineralisation - Zone 4.3 (thin banded sulphidic black shale - Zn)
+DD92LH336,204.2,205,SLST,,"Mineralisation - Zone 4.4 (banded dolomitic siltstone, banding wavy to stylolitic)"
+DD92LH336,205,209.86,BLSH,SUL,Mineralisation - Zone 4.5 (thin banded sulphidic black shale - Zn) - sphalerite > pyrite
+DD92LH336,209.86,213.46,BLSH,SUL,Mineralisation - Zone 4.6 (sulphidic black shale - Zn) - sphalerite < pyrite
+DD92LH336,213.46,222.08,SLST,,Upper footwall shale - siltstone sequence (Pmh4)
+DD92LH336,222.08,222.8,BX,CALC,Calcareous breccia
+DD92LH336,222.8,236.65,SLST,,Upper footwall shale - siltstone sequence (Pmh4)
+DD92LH336,236.65,245.2,BX,CALC,Calcareous breccia
+DD92LH336,245.2,272,SLST,,Upper footwall shale - siltstone sequence (Pmh4)
+DD92LH336,272,274,BX,CALC,Calcareous breccia
+DD92LH337,0,108,LMST,,"Cambrian limestone, dolomite and marl"
+DD92LH337,108,124.5,SLST,,"Hanging wall dolomitic siltstone - siltstone - shale - (minor tuff) sequence (Pmh4), Relict PreCambrian weathering profile"
+DD92LH337,124.5,135.71,SLST,,Hanging wall dolomitic siltstone -siltstone - shale - (minor tuff) sequence (Pmh4)
+DD92LH337,135.71,141.3,BX,CALC,Calcareous breccia
+DD92LH337,141.3,144.5,SLST,,Hanging wall dolomitic siltstone -siltstone - shale - (minor tuff) sequence (Pmh4)
+DD92LH337,144.5,160.6,BX,CALC,Calcareous breccia
+DD92LH337,160.6,162.84,SLST,,Hanging wall dolomitic siltstone -siltstone - shale - (minor tuff) sequence (Pmh4)
+DD92LH337,162.84,178.53,BX,CALC,Calcareous breccia
+DD92LH337,178.53,209.7,SLST,,Hanging wall dolomitic siltstone -siltstone - shale - (minor tuff) sequence (Pmh4)
+DD92LH337,209.7,211.1,ROCK,SH,"Rock sheared or disrupted by faulting, fault gouge (assignment of stratigraphic unit not possible), breccia zone"
+DD92LH337,211.1,211.7,BLSH,SUL,Mineralisation - Zone 1.2 (sulphidic black shale - Zn-Pb-Ag)
+DD92LH337,211.7,213.45,SLST,,Mineralisation - Zone 1.1 (siltstone and dolomitic siltstone)
+DD92LH337,213.45,213.75,BLSH,SUL,Mineralisation - Zone 1.2 (sulphidic black shale - Zn-Pb-Ag)
+DD92LH337,213.75,217.6,SLST,,"Mineralisation - Zone 1  (siltstone, dolomitic siltstone and sulphidic black shale (Zn-Pb-Ag)"
+DD92LH337,217.6,218.07,BLSH,SUL,Mineralisation - Zone 1.2 (sulphidic black shale - Zn-Pb-Ag)
+DD92LH337,218.07,219.15,SLST,,Mineralisation - Zone 1.1 (siltstone and dolomitic siltstone)
+DD92LH337,219.15,221.96,SLST,,"Mineralisation - Zone 1  (siltstone, dolomitic siltstone and sulphidic black shale (Zn-Pb-Ag)"
+DD92LH337,221.96,222.73,BLSH,SUL,Mineralisation - Zone 1.2 (sulphidic black shale - Zn-Pb-Ag)
+DD92LH337,222.73,224.35,SLST,,Mineralisation - Zone 1.1 (siltstone and dolomitic siltstone)
+DD92LH337,224.35,224.93,BLSH,SUL,Mineralisation - Zone 1.2 (sulphidic black shale - Zn-Pb-Ag)
+DD92LH337,224.93,225.7,SLST,,Mineralisation - Zone 1.1 (siltstone and dolomitic siltstone)
+DD92LH337,225.7,226.17,BLSH,SUL,Mineralisation - Zone 1.2 (sulphidic black shale - Zn-Pb-Ag)
+DD92LH337,226.17,227.35,SLST,,Mineralisation - Zone 1.1 (siltstone and dolomitic siltstone)
+DD92LH337,227.35,227.76,BLSH,SUL,Mineralisation - Zone 1.2 (sulphidic black shale - Zn-Pb-Ag)
+DD92LH337,227.76,228.13,SLST,,"Mineralisation - Zone 1  (siltstone, dolomitic siltstone and suiphidic black shale (Zn-Pb-Ag)"
+DD92LH337,228.13,232.58,BLSH,SUL,Mineralisation - Zone 2  (sulphidic black shale - Zn-Pb-Ag)
+DD92LH337,232.58,235.3,SLST,,Mineralisation - Zone 3.1 (thinly interbanded dolomitic siltstone/grey siltstone & black shale - Zn)
+DD92LH337,235.3,239.38,SLST,,"Mineralisation - Zone 3.2 (banded dolomitic siltstone, banding wavy to stylolitic)"
+DD92LH337,239.38,243.7,BLSH,SUL,"Mineralisation - Zone 4.1 (thin banded sulphidic black shale - Zn, minor Pb-Ag)"
+DD92LH337,243.7,245.7,MDST,,"Mineralisation - Zone 4.2 (massive, barren black mudstone/silty dark grey mudstone in west)"
+DD92LH337,245.7,248.17,BLSH,SUL,Mineralisation - Zone 4.3 (thin banded sulphidic black shale - Zn)
+DD92LH337,248.17,248.66,SLST,,"Mineralisation - Zone 4.4 (banded dolomitic siltstone, banding wavy to stylolitic)"
+DD92LH337,248.66,250.82,BLSH,SUL,Mineralisation - Zone 4.5 (thin banded suiphidic black shale - Zn) - sphalerite > pyrite
+DD92LH337,250.82,255.12,BLSH,SUL,Mineralisation - Zone 4.6 (sulphidic black shale - Zn) - sphalerite < pyrite
+DD92LH337,255.12,293.8,SLST,,Upper footwall shale - siltstone sequence (Pmh4)
+DD92LH337,293.8,294,BX,CALC,Calcareous breccia
+DD92LH337,294,295.06,BLSH,CAR,"Lower footwall sequence - black carbonaceous shale (Pmh4), shear or fault zone"
+DD92LH337,295.06,302.58,BX,CALC,Calcareous breccia
+DD92LH337,302.58,433.26,BLSH,CAR,"Lower footwall sequence - black carbonaceous shale (Pmh4), shear or fault zone"
+DD92LH337,433.26,439.5,BX,,"Breccia/discordant mineralisation, visibly high grade base metal (zinc) mineralisation"
+DD92LH337,439.5,452.6,BLSH,CAR,"Lower footwall sequence - black carbonaceous shale (Pmh4), shear or fault zone"
+DD92LH337,452.6,486,BLSH,CAR,"Lower footwall sequence - black carbonaceous shale (Pmh4) with frequent grey, silty laminae"
+DD92LH338,0,97.75,LMST,,"Cambrian limestone, dolomite and marl"
+DD92LH338,97.75,99.3,BLSH,SUL,"Mineralisation - Zone 2  (sulphidic black shale - Zn-Pb-Ag), Relict PreCambrian weathering profile"
+DD92LH338,99.3,104.45,SLST,,"Mineralisation - Zone 3.1 thinly interbanded dolomitic siltstone/grey siltstone & black shale - Zn), Relict PreCambrian weathering profile"
+DD92LH338,104.45,110.62,SLST,,"Mineralisation - Zone 3.2 (banded dolomitic siltstone, banding wavy to stylolitic), Relict PreCambrian weathering profile"
+DD92LH338,110.62,118,BLSH,SUL,"Mineralisation - Zone 4.1 (thin banded sulphidic black shale - Zn, minor Pb-Ag), Relict PreCambrian weathering profile"
+DD92LH338,118,121.8,MDST,,"Mineralisation - Zone 4.2 (massive, barren black mudstone/silty dark grey mudstone in west), Relict PreCambrian weathering profile"
+DD92LH338,121.8,126.15,BLSH,SUL,"Mineralisation - Zone 4.3 (thin banded sulphidic black shale - Zn), Relict PreCambrian weathering profile"
+DD92LH338,126.15,127.08,SLST,,"Mineralisation - Zone 4.4 (banded dolomitic siltstone, banding wavy to stylolitic), Relict PreCambrian weathering profile"
+DD92LH338,127.08,128.5,BLSH,SUL,Mineralisation - Zone 4.5 (thin banded sulphidic black shale - Zn) - sphalerite > pyrite. Relict PreCambrian weathering profile
+DD92LH338,128.5,135.03,BLSH,SUL,Mineralisation - Zone 4.5 (thin banded sulphidic black shale - Zn) - sphalerite > pyrite
+DD92LH338,135.03,145.09,BLSH,SUL,Mineralisation - Zone 4.6 (sulphidic black shale - Zn) - sphalerite < pyrite
+DD92LH338,145.09,165.9,SLST,,Upper footwall shale - siltstone sequence (Pmh4)
+DD92LH339,0,95.05,LMST,,"Cambrian limestone, dolomite and marl"
+DD92LH339,95.05,123.13,SLST,,"Hanging wall dolomitic siltstone - siltstone - shale - (minor tuff) sequence (Pmh4), Relict PreCambrian weathering profile"
+DD92LH339,123.13,213.65,SLST,,Hanging wall dolomitic siltstone -siltstone - shale - (minor tuff) sequence (Pmh4)
+DD92LH339,213.65,215.94,SLST,,Mineralisation - Zone 1.1 (siltstone and dolomitic siltstone)
+DD92LH339,215.94,216.73,BLSH,SUL,Mineralisation - Zone 1.2 (sulphidic black shale - Zn-Pb-Ag)
+DD92LH339,216.73,217.75,SLST,,"Mineralisation - Zone 1  (siltstone, dolomitic siltstone and sulphidic black shale (Zn-Pb-Ag)"
+DD92LH339,217.75,218.1,BLSH,SUL,Mineralisation - Zone 1.2 (sulphidic black shale - Zn-Pb-Ag)
+DD92LH339,218.1,221.7,SLST,,Mineralisation - Zone 1.1 (siltstone and dolomitic siltstone)
+DD92LH339,221.7,225.36,SLST,,"Mineralisation - Zone 1  (siltstone, dolomitic siltstone and sulphidic black shale (Zn-Pb-Ag)"
+DD92LH339,225.36,226.35,BLSH,SUL,Mineralisation - Zone 1.2 (sulphidic black shale - Zn-Pb-Ag)
+DD92LH339,226.35,227.3,SLST,,Mineralisation - Zone 1.1 (siltstone and dolomitic siltstone)
+DD92LH339,227.3,228.35,SLST,,"Mineralisation - Zone 1  (siltstone, dolomitic siltstone and sulphidic black shale (Zn-Pb-Ag)"
+DD92LH339,228.35,229,BLSH,SUL,Mineralisation - Zone 1.2 (sulphidic black shale - Zn-Pb-Ag)
+DD92LH339,229,229.46,SLST,,"Mineralisation - Zone 1  (siltstone, dolomitic siltstone and sulphidic black shale (Zn-Pb-Ag)"
+DD92LH339,229.46,232.92,BLSH,SUL,Mineralisation - Zone 2  (sulphidic black shale - Zn-Pb-Ag)
+DD92LH339,232.92,233.53,SLST,,Mineralisation - Zone 3.1 (thinly interbanded dolomitic siltstone/grey siltstone & black shale - Zn)
+DD92LH339,233.53,233.68,ROCK,SZ,"Stratiform mineralisation - position in sequence not defined, shear of fault zone"
+DD92LH339,233.68,234.82,BLSH,SUL,"Mineralisation - Zone 2  (sulphidic black shale - Zn-Pb-Ag), shear or fault zone"
+DD92LH339,234.82,235.22,SLST,,"Mineralisation - Zone 1  (siltstone, dolomitic siltstone and sulphidic black shale (Zn-Pb-Ag), shear or fault zone"
+DD92LH339,235.22,238.7,BLSH,SUL,Mineralisation - Zone 2  (sulphidic black shale - Zn-Pb-Ag)
+DD92LH339,238.7,241.82,SLST,,Mineralisation - Zone 3.1 (thinly interbanded dolomitic siltstone/grey siltstone & black shale - Zn)
+DD92LH339,241.82,246.26,SLST,,"Mineralisation - Zone 3.2 (banded dolomitic siltstone, banding wavy to stylolitic)"
+DD92LH339,246.26,250.45,BLSH,SUL,"Mineralisation - Zone 4.1 (thin banded sulphidic black shale - Zn, minor Pb-Ag)"
+DD92LH339,250.45,252.6,MDST,,"Mineralisation - Zone 4.2 (massive, barren black mudstone/silty dark grey mudstone in west)"
+DD92LH339,252.6,256.56,BLSH,SUL,Mineralisation - Zone 4.3 (thin banded sulphidic black shale - Zn)
+DD92LH339,256.56,257.35,SLST,,"Mineralisation - Zone 4.4 (banded dolomitic siltstone, banding wavy to stylolitic)"
+DD92LH339,257.35,259.65,BLSH,SUL,Mineralisation - Zone 4.5 (thin banded sulphidic black shale - Zn) - sphalerite > pyrite
+DD92LH339,259.65,263.97,BLSH,SUL,Mineralisation - Zone 4.6 (sulphidic black shale - Zn) - sphalerite < pyrite
+DD92LH339,263.97,287.37,SLST,,Upper footwall shale - siltstone sequence (Pmh4)
+DD92LH339,287.37,311.6,BLSH,CAR,"Lower footwall sequence - black carbonaceous shale (Pmh4), discordant vein carbonate - siderite - base metal mineralisation"
+DD92LH339,311.6,312.85,BX,CALC,Calcareous breccia
+DD92LH339,312.85,315.45,BLSH,CAR,"Lower footwall sequence - black carbonaceous shale (Pmh4), shear or fault zone"
+DD92LH339,315.45,316.7,BX,CALC,Calcareous breccia
+DD92LH339,316.7,318.75,BLSH,CAR,"Lower footwall sequence - black carbonaceous shale (Pmh4), shear or fault zone"
+DD92LH339,318.75,320.7,SHLE,,"Lower footwall shale sequence (Pmh4), shear of fault zone"
+DD92LH339,320.7,321.05,BLSH,CAR,Lower footwall sequence - black carbonaceous shale (Pmh4)
+DD92LH339,321.05,321.5,BX,CALC,Calcareous breccia
+DD92LH339,321.5,326.3,BLSH,CAR,Lower footwall sequence - black carbonaceous shale (Pmh4)
+DD92LH339,326.3,326.65,BX,CALC,Calcareous breccia
+DD92LH339,326.65,327.2,BLSH,CAR,Lower footwall sequence - black carbonaceous shale (Pmh4)
+DD92LH339,327.2,327.75,BX,CALC,Calcareous breccia
+DD92LH339,327.75,334.45,BLSH,CAR,Lower footwall sequence - black carbonaceous shale (Pmh4)
+DD92LH339,334.45,334.7,BX,CALC,Calcareous breccia
+DD92LH339,334.7,352.15,BLSH,CAR,Lower footwall sequence - black carbonaceous shale (Pmh4)
+DD92LH339,352.15,392.45,BLSH,CAR,"Lower footwall sequence - black carbonaceous shale (Pmh4), carbonate veining"
+DD92LH339,392.45,401.3,BLSH,CAR,"Lower footwall sequence - black carbonaceous shale (Pmh4), shear or fault zone"
+DD92LH339,401.3,422,BLSH,CAR,"Lower footwall sequence - black carbonaceous shale (Pmh4), discordant vein carbonate - siderite - base metal mineralisation"
+DD92LH339,422,422.65,BLSH,CAR,"Lower footwall sequence - black carbonaceous shale (Pmh4), shear or fault zone"
+DD92LH339,422.65,436.75,BLSH,CAR,"Lower footwall sequence - black carbonaceous shale (Pmh4), carbonate veining"
+DD92LH339,436.75,437.85,BX,,"Breccia/discordant mineralisation, visibly high grade base metal (zinc) mineralisation"
+DD92LH339,437.85,440.6,BLSH,CAR,"Lower footwall sequence - black carbonaceous shale (Pmh4), carbonate veining"
+DD92LH339,440.6,443,BX,,"Breccia/discordant mineralisation, visibly high grade base metal (zinc) mineralisation"
+DD92LH339,443,451.55,BLSH,CAR,"Lower footwall sequence - black carbonaceous shale (Pmh4), carbonate veining"
+DD92LH339,451.55,454.6,BX,,"Breccia/discordant mineralisation, visibly high grade base metal (zinc) mineralisation"
+DD92LH339,454.6,489.3,BLSH,CAR,Lower footwall sequence - black carbonaceous shale (Pmh4)
+DD92LH339,489.3,489.7,BLSH,CAR,"Lower footwall sequence - black carbonaceous shale (Pmh4), shear or fault zone"
+DD92LH339,489.7,510.9,BLSH,CAR,"Lower footwall sequence - black carbonaceous shale (Pmh4) with frequent grey, silty laminae"
+DD92LH339,510.9,531.65,ROCK,,Lawn Hill Formation - transition from Pmh4 to Pmh3
+DD92LH339,531.65,533.9,ROCK,,"Lawn Hill Formation - transition from Pmh4 to Pmh3, Breccia zone"
+DD92LH339,533.9,546,SLST,,"Lawn Hill Formation - Pmh3 interlayered olive sandstone and siltstone, Green coloured facies (lower Lawn Hill Fm units)"
+DD92LH340,0,140.16,LMST,,"Cambrian limestone, dolomite and marl"
+DD92LH340,140.16,145,SLST,,"Mineralisation - Zone 1.1 (siltstone and dolomitic siltstone), Relict PreCambrian weathering profile"
+DD92LH340,145,145.76,BLSH,SUL,"Mineralisation - Zone 1.2 (sulphidic black shale - Zn-Pb-Ag), Relict PreCambrian weathering profile"
+DD92LH340,145.76,147.25,SLST,,"Mineralisation - Zone 1  (siltstone, dolomitic siltstone and sulphidic black shale (Zn-Pb-Ag), Relict PreCambrian weathering profile"
+DD92LH340,147.25,149.96,SLST,,"Mineralisation - Zone 1.1 (siltstone and dolomitic siltstone), Relict PreCambrian weathering profile"
+DD92LH340,149.96,150.27,BLSH,SUL,"Mineralisation - Zone 1.2 (sulphidic black shale - Zn-Pb-Ag), Relict PreCambrian weathering profile"
+DD92LH340,150.27,154.78,SLST,,"Mineralisation - Zone 1.1 (siltstone and dolomitic siltstone), Relict PreCambrian weathering profile"
+DD92LH340,154.78,156.6,SLST,,"Mineralisation - Zone 1  (siltstone, dolomitic siltstone and sulphidic black shale (Zn-Pb-Ag), Relict PreCambrian weathering profile"
+DD92LH340,156.6,157.18,BLSH,SUL,"Mineralisation - Zone 1.2 (sulphidic black shale - Zn-Pb-Ag), Relict PreCambrian weathering profile"
+DD92LH340,157.18,158.12,SLST,,"Mineralisation - Zone 1  (siltstone, dolomitic siltstone and sulphidic black shale (Zn-Pb-Ag), Relict PreCambrian weathering profile"
+DD92LH340,158.12,158.6,BLSH,SUL,"Mineralisation - Zone 1.2 (sulphidic black shale - Zn-Pb-Ag), Relict PreCambrian weathering profile"
+DD92LH340,158.6,159.35,SLST,,"Mineralisation - Zone 1  (siltstone, dolomitic siltstone and sulphidic black shale (Zn-Pb-Ag), Relict PreCambrian weathering profile"
+DD92LH340,159.35,163.78,BLSH,SUL,"Mineralisation - Zone 2  (sulphidic black shale - Zn-Pb-Ag), Relict PreCambrian weathering profile"
+DD92LH340,163.78,166.34,SLST,,"Mineralisation - Zone 3.1 (thinly interbanded dolomitic siltstone/grey siltstone & black shale - Zn), Relict PreCambrian weathering profile"
+DD92LH340,166.34,168.7,SLST,,"Mineralisation - Zone 3.2 (banded dolomitic siltstone, banding wavy to stylolitic)"
+DD92LH340,168.7,172,BLSH,SUL,"Mineralisation - Zone 4.1 (thin banded sulphidic black shale - Zn, minor Pb-Ag)"
+DD92LH340,172,173.75,MDST,,"Mineralisation - Zone 4.2 (massive, barren black mudstone/silty dark grey mudstone in west)"
+DD92LH340,173.75,175.74,BLSH,SUL,Mineralisation - Zone 4.3 (thin banded sulphidic black shale - Zn)
+DD92LH340,175.74,176.15,SLST,,"Mineralisation - Zone 4.4 (banded dolomitic siltstone, banding wavy to stylolitic)"
+DD92LH340,176.15,178.27,BLSH,SUL,Mineralisation - Zone 4.5 (thin banded sulphidic black shale - Zn) - sphalerite > pyrite
+DD92LH340,178.27,181.6,BLSH,SUL,Mineralisation - Zone 4.6 (sulphidic black shale - Zn) - sphalerite < pyrite
+DD92LH340,181.6,258,SLST,,Upper footwall shale - siltstone sequence (Pmh4)
+DD92LH341,0,93.5,LMST,,"Cambrian limestone, dolomite and marl"
+DD92LH341,93.5,116.15,SLST,,"Hanging wall dolomitic siltstone - siltstone- shale - (minor tuff) sequence )Pmh4), Relict PreCambrian weathering profile"
+DD92LH341,116.15,216.6,SLST,,Hanging wall dolomitic siltstone - siltstone- shale - (minor tuff) sequence )Pmh4)
+DD92LH341,216.6,230.75,LMST,,"Cambrian limestone, dolomite and marl, Breccia zone"
+DD92LH341,230.75,231.8,BLSH,SUL,Mineralisation - Zone 1.2 (sulphidic black shale - Zn-Pb-Ag)
+DD92LH341,231.8,233.1,SLST,,Mineralisation - Zone 1.1 (siltstone and dolomitic siltstone)
+DD92LH341,233.1,234.12,BLSH,SUL,Mineralisation - Zone 1.2 (sulphidic black shale - Zn-Pb-Ag)
+DD92LH341,234.12,234.75,SLST,,"Mineralisation - Zone 1  (siltstone, dolomitic siltstone and sulphidic black shale (Zn-Pb-Ag)"
+DD92LH341,234.75,235.2,BLSH,SUL,Mineralisation - Zone 1.2 (sulphidic black shale - Zn-Pb-Ag)
+DD92LH341,235.2,236.74,SLST,,"Mineralisation - Zone 1  (siltstone, dolomitic siltstone and sulphidic black shale (Zn-Pb-Ag)"
+DD92LH341,236.74,237.08,BLSH,SUL,Mineralisation - Zone 1.2 (sulphidic black shale - Zn-Pb-Ag)
+DD92LH341,237.08,237.5,SLST,,Mineralisation - Zone 1.1 (siltstone and dolomitic siltstone)
+DD92LH341,237.5,240.97,BLSH,SUL,Mineralisation - Zone 2  (sulphidic black shale - Zn-Pb-Ag)
+DD92LH341,240.97,244.02,SLST,,Mineralisation - Zone 3.1 (thinly interbanded dolomitic siltstone/grey siltstone & black shale - Zn)
+DD92LH341,244.02,245.38,ROCK,SH,"Rock sheared or disrupted by faulting, fault gouge (assignment of stratigraphic unit not possible), shear or fault zone"
+DD92LH341,245.38,248.7,BLSH,SUL,"Mineralisation - Zone 4.1 (thin banded sulphidic black shale - Zn, minor Pb-Ag)"
+DD92LH341,248.7,250.45,MDST,,"Mineralisation - Zone 4.2 (massive, barren black mudstone/silty dark grey mudstone in west)"
+DD92LH341,250.45,252.6,BLSH,SUL,Mineralisation - Zone 4.3 (thin banded sulphidic black shale - Zn)
+DD92LH341,252.6,253.35,SLST,,"Mineralisation - Zone 4.4 (banded dolomitic siltstone, banding wavy to stylolitic)"
+DD92LH341,253.35,255.7,BLSH,SUL,Mineralisation - Zone 4.5 (thin banded sulphidic black shale - Zn) - sphalerite > pyrite
+DD92LH341,255.7,258.74,BLSH,SUL,Mineralisation - Zone 4.6 (sulphidic black shale - Zn) - sphalerite < pyrite
+DD92LH341,258.74,271.3,SLST,,Upper footwall shale - siltstone sequence (Pmh4)
+DD92LH341,271.3,273.2,BX,CALC,"Calcareous breccia, shear or fault zone"
+DD92LH341,273.2,401.13,BLSH,CAR,"Lower footwall sequence - black carbonaceous shale (Pmh4), shear or fault zone"
+DD92LH341,401.13,422.2,BLSH,CAR,"Lower footwall sequence - black carbonaceous shale (Pmh4), discordant vein carbonate - siderite - base metal mineralisation"
+DD92LH341,422.2,483,BLSH,CAR,"Lower footwall sequence - black carbonaceous shale (Pmh4) with frequent grey, silty laminae"
+DD92LH342,0,136,LMST,,"Cambrian limestone, dolomite and marl"
+DD92LH342,136,151.17,SLST,,"Hanging wall dolomitic siltstone - siltstone - shale - (minor tuff) sequence (Pmh4), Relict PreCambrian weathering profile"
+DD92LH342,151.17,161.3,SLST,,Hanging wall dolomitic siltstone - siltstone - shale - (minor tuff) sequence (Pmh4)
+DD92LH342,161.3,164.43,SLST,,Mineralisation - Zone 1.1 (siltstone and dolomitic siltstone)
+DD92LH342,164.43,165.01,BLSH,SUL,Mineralisation - Zone 1.2 (sulphidicblack shale - Zn-Pb-Ag)
+DD92LH342,165.01,170.25,SLST,,"Mineralisation - Zone 1  (siltstone,dolomitic siltstone and sulphidic blackshale (Zn-Pb-Ag)"
+DD92LH342,170.25,170.8,BLSH,SUL,Mineralisation - Zone 1.2 (sulphidicblack shale - Zn-Pb-Ag)
+DD92LH342,170.8,172.87,SLST,,Mineralisation - Zone 1.1 (siltstone anddolomitic siltstone)
+DD92LH342,172.87,173.57,BLSH,SUL,Mineralisation - Zone 1.2 (sulphidicblack shale - Zn-Pb-Ag)
+DD92LH342,173.57,175.32,SLST,,"Mineralisation - Zone 1  (siltstone,dolomitic siltstone and sulphidic blackshale (Zn-Pb-Ag)"
+DD92LH342,175.32,175.8,BLSH,SUL,Mineralisation - Zone 1.2 (sulphidicblack shale - Zn-Pb-Ag)
+DD92LH342,175.8,178.9,SLST,,"Mineralisation - Zone 1  (siltstone,dolomitic siltstone and sulphidic blackshale (Zn-Pb-Ag)"
+DD92LH342,178.9,183.4,BLSH,SUL,Mineralisation - Zone 2  (sulphidicblack shale - Zn-Pb-Ag)
+DD92LH342,183.4,186.19,SLST,,Mineralisation - Zone 3.1 (thinlyinterbanded dolomitic siltstone/greysiltstone & black shale - Zn)
+DD92LH342,186.19,188.18,SLST,,"Mineralisation - Zone 3.2 (bandeddolomitic siltstone, banding wavy tostylolitic)"
+DD92LH342,188.18,192.1,BLSH,SUL,"Mineralisation - Zone 4.1 (thin bandedsulphidic black shale - Zn, minor Pb-Ag)"
+DD92LH342,192.1,193.88,MDST,,"Mineralisation - Zone 4.2 (massive,barren black mudstone/silty dark greymudstone in west)"
+DD92LH342,193.88,196.1,BLSH,SUL,Mineralisation - Zone 4.3 (thin bandedsulphidic black shale - Zn)
+DD92LH342,196.1,196.65,SLST,,"Mineralisation - Zone 4.4 (bandeddolomitic siltstone, banding wavy tostylolitic)"
+DD92LH342,196.65,199.5,BLSH,SUL,Mineralisation - Zone 4.5 (thin banded sulphidic black shale - Zn) - sphalerite > pyrite
+DD92LH342,199.5,203.69,BLSH,SUL,Mineralisation - Zone 4.6 (sulphidic black shale - Zn) - sphalerite < pyrite
+DD92LH342,203.69,252.28,SLST,,Upper footwall shale - siltstone sequence (Pmh4)
+DD92LH342,252.28,269.1,BLSH,CAR,"Lower footwall sequence - black carbonaceous shale (Pmh4), shear or fault zone"
+DD92LH342,269.1,298.45,BLSH,CAR,"Lower footwall sequence - black carbonaceous shale (Pmh4), discordant vein carbonate - siderite - base metal mineralisation"
+DD92LH342,298.45,334,BLSH,CAR,"Lower footwall sequence - black carbonaceous shale (Pmh4), shear or fault zone"
+DD92LH343,0,150.15,LMST,,"Cambrian limestone, dolomite and marl"
+DD92LH343,150.15,165.04,SLST,,"Upper footwall shale - siltstone sequence (Pmh4), Relict PreCambrian weathering profile"
+DD92LH343,165.04,183.2,SLST,,Upper footwall shale - siltstone sequence (Pmh4)
+DD92LH343,183.2,186.76,BX,CALC,Calcareous breccia
+DD92LH343,186.76,197.5,SLST,,Upper footwall shale - siltstone sequence (Pmh4)
+DD92LH343,197.5,197.75,BX,CALC,Calcareous breccia
+DD92LH343,197.75,252.12,SLST,,Upper footwall shale - siltstone sequence (Pmh4)
+DD92LH343,252.12,253.9,BX,CALC,Calcareous breccia
+DD92LH343,253.9,289,BLSH,CAR,"Lower footwall sequence - black carbonaceous shale (Pmh4), shear or fault zone"
+DD92LH344,0,82.7,LMST,,"Cambrian limestone, dolomite and marl"
+DD92LH344,82.7,125.94,SLST,,"Hanging wall dolomitic siltstone - siltstone - shale - (minor tuff) sequence (Pmh4), Relict PreCambrian weathering profile"
+DD92LH344,125.94,128.6,LMST,,"Cambrian limestone, dolomite and marl"
+DD92LH344,128.6,140.7,SLST,,"Hanging wall dolomitic siltstone - siltstone - shale - (minor tuff) sequence (Pmh4), Relict PreCambrian weathering profile"
+DD92LH344,140.7,146.05,SLST,,"Mineralisation - Zone 1.1 (siltstone and dolomitic siltstone), Relict PreCambrian weathering profile"
+DD92LH344,146.05,146.45,BLSH,SUL,"Mineralisation - Zone 1.2 (sulphidic black shale - Zn-Pb-Ag), Relict PreCambrian weathering profile"
+DD92LH344,146.45,151.4,SLST,,"Mineralisation - Zone 1.1 (siltstone and dolomitic siltstone), Relict PreCambrian weathering profile"
+DD92LH344,151.4,151.9,BLSH,SUL,"Mineralisation - Zone 1.2 (sulphidic black shale - Zn-Pb-Ag), Relict PreCambrian weathering profile"
+DD92LH344,151.9,155,SLST,,"Mineralisation - Zone 1.1 (siltstone and dolomitic siltstone), Relict PreCambrian weathering profile"
+DD92LH344,155,155.83,BLSH,SUL,Mineralisation - Zone 1.2 (sulphidic black shale - Zn-Pb-Ag)
+DD92LH344,155.83,157.78,SLST,,Mineralisation - Zone 1.1 (siltstone and dolomitic siltstone)
+DD92LH344,157.78,158.38,BLSH,SUL,Mineralisation - Zone 1.2 (sulphidic black shale - Zn-Pb-Ag)
+DD92LH344,158.38,159.78,SLST,,Mineralisation - Zone 1.1 (siltstone and dolomitic siltstone)
+DD92LH344,159.78,160.5,BLSH,SUL,Mineralisation - Zone 1.2 (sulphidic black shale - Zn-Pb-Ag)
+DD92LH344,160.5,161.5,SLST,,Mineralisation - Zone 1.1 (siltstone and dolomitic siltstone)
+DD92LH344,161.5,161.78,BLSH,SUL,Mineralisation - Zone 1.2 (sulphidic black shale - Zn-Pb-Ag)
+DD92LH344,161.78,162.12,SLST,,"Mineralisation - Zone 1  (siltstone, dolomitic siltstone and sulphidic black shale (Zn-Pb-Ag)"
+DD92LH344,162.12,166.25,BLSH,SUL,Mineralisation - Zone 2  (sulphidic black shale - Zn-Pb-Ag)
+DD92LH344,166.25,169.08,SLST,,Mineralisation - Zone 3.1 (thinly interbanded dolomitic siltstone/grey siltstone & black shale - Zn)
+DD92LH344,169.08,172.57,SLST,,"Mineralisation - Zone 3.2 (banded dolomitic siltstone, banding wavy to stylolitic)"
+DD92LH344,172.57,175.93,BLSH,SUL,"Mineralisation - Zone 4.1 (thin banded sulphidic black shale - Zn, minor Pb-Ag)"
+DD92LH344,175.93,177.46,MDST,,"Mineralisation - Zone 4.2 (massive, barren black mudstone/silty dark grey mudstone in west)"
+DD92LH344,177.46,179.7,BLSH,SUL,Mineralisation - Zone 4.3 (thin banded sulphidic black shale - Zn)
+DD92LH344,179.7,180.04,SLST,,"Mineralisation - Zone 4.4 (banded dolomitic siltstone, banding wavy to stylolitic)"
+DD92LH344,180.04,182.31,BLSH,SUL,Mineralisation - Zone 4.5 (thin banded sulphidic black shale - Zn) - sphalerite > pyrite
+DD92LH344,182.31,186.4,BLSH,SUL,Mineralisation - Zone 4.6 (sulphidic black shale - Zn) - sphalerite < pyrite
+DD92LH344,186.4,214.6,SLST,,Upper footwall shale - siltstone sequence (Pmh4)
+DD92LH344,214.6,216.53,BX,CALC,Calcareous breccia
+DD92LH344,216.53,249.45,SLST,,Upper footwall shale - siltstone sequence (Pmh4)
+DD92LH345,0,48,LMST,,"Cambrian limestone, dolomite and marl"
+DD92LH345,48,50.26,ROCK,,"Hanging wall sandstone sequence (Pmh5), Relict PreCambrian weathering profile"
+DD92LH345,50.26,53.52,LMST,,"Cambrian limestone, dolomite and marl"
+DD92LH345,53.52,64.51,SDST,,Hanging wall sandstone sequence (Pmh5)
+DD92LH345,64.51,82.94,LMST,,"Cambrian limestone, dolomite and marl"
+DD92LH345,82.94,84.39,SDST,,Hanging wall sandstone sequence (Pmh5)
+DD92LH345,84.39,125.3,LMST,,"Cambrian limestone, dolomite and marl"
+DD92LH345,125.3,126.5,ROCK,,No core recovery
+DD92LH345,126.5,129.2,SLST,,"Hanging wall dolomitic siltstone - siltstone - shale - (minor tuff) sequence (Pmh4), Relict PreCambrian weathering profile"
+DD92LH345,129.2,130.9,ROCK,,No core recovery
+DD92LH345,130.9,136.1,SLST,,"Hanging wall dolomitic siltstone - siltstone - shale - (minor tuff) sequence (Pmh4), Relict PreCambrian weathering profile"
+DD92LH345,136.1,137.3,ROCK,,No core recovery
+DD92LH345,137.3,157.74,SLST,,"Hanging wall dolomitic siltstone - siltstone - shale - (minor tuff) sequence (Pmh4), Relict PreCambrian weathering profile"
+DD92LH345,157.74,174.81,SLST,,Hanging wall dolomitic siltstone - siltstone - shale - (minor tuff) sequence (Pmh4)
+DD92LH345,174.81,175.27,BX,CALC,Calcareous breccia
+DD92LH345,175.27,200.94,SLST,,Hanging wall dolomitic siltstone - siltstone - shale - (minor tuff) sequence (Pmh4)
+DD92LH345,200.94,201.28,BX,CALC,Calcareous breccia
+DD92LH345,201.28,360.7,SLST,,Hanging wall dolomitic siltstone - siltstone - shale - (minor tuff) sequence (Pmh4)
+DD92LH345,360.7,370.63,BLSH,CAR,"Lower footwall sequence - black carbonaceous shale (Pmh4), shear or fault zone"
+DD92LH345,370.63,371.8,BX,CALC,Calcareous breccia
+DD92LH345,371.8,377.7,BLSH,CAR,Lower footwall sequence - black carbonaceous shale (Pmh4)
+DD92LH345,377.7,436.4,SLST,,"Lawn Hill Formation - Pmh3 interlayered olive sandstone and siltstone, quartz veining"
+DD92LH345,436.4,452.8,SLST,,Lawn Hill Formation - Pmh3 interlayered olive sandstone and siltstone
+DD92LH346,0,149.2,LMST,,"Cambrian limestone, dolomite and marl"
+DD92LH346,149.2,151.57,BX,CALC,Calcareous breccia
+DD92LH346,151.57,201,SLST,,Upper footwall shale - siltstone sequence (Pmh4)
+DD92LH346,201,201.7,BX,CALC,Calcareous breccia
+DD92LH346,201.7,204.5,LMST,,"Cambrian limestone, dolomite and marl. Shear or fault zone"
+DD92LH346,204.5,205.15,SDST,,"Hanging wall sandstone sequence (Pmh5), Relict PreCambrian weathering profile"
+DD92LH346,205.15,205.38,BX,CALC,Calcareous breccia
+DD92LH346,205.38,284.65,SHLE,,Lower footwall shale sequence (Pmh4)
+DD92LH346,284.65,284.8,BX,CALC,Calcareous breccia
+DD92LH346,284.8,322,SHLE,,Lower footwall shale sequence (Pmh4)
+DD92LH346,322,322.4,ROCK,,No core recovery
+DD92LH346,322.4,340.3,SHLE,,Lower footwall shale sequence (Pmh4)
+DD92LH346,340.3,351.5,BLSH,CAR,Lower footwall sequence - black carbonaceous shale (Pmh4)
+DD92LH347,0,24,LMST,,"Cambrian limestone, dolomite and marl"
+DD92LH347,24,46.5,SDST,,"Hanging wall sandstone sequence (Pmh5), Relict PreCambrian weathering profile"
+DD92LH347,46.5,141.75,SDST,,Hanging wall sandstone sequence (Pmh5)
+DD92LH347,141.75,204.16,SLST,,Hanging wall dolomitic siltstone - siltstone - shale - (minor tuff) sequence (Pmh4)
+DD92LH347,204.16,204.36,BX,CALC,Calcareous breccia
+DD92LH347,204.36,234.17,SLST,,Hanging wall dolomitic siltstone -siltstone - shale - (minor tuff) sequence (Pmh4)
+DD92LH347,234.17,236.09,SLST,,"Mineralisation - Zone 1  (siltstone,dolomitic siltstone and sulphidic blackshale (Zn-Pb-Ag)"
+DD92LH347,236.09,236.37,BLSH,SUL,Mineralisation - Zone 1.2 (sulphidicblack shale - Zn-Pb-Ag)
+DD92LH347,236.37,240.15,SLST,,Mineralisation - Zone 1.1 (siltstone anddolomitic siltstone)
+DD92LH347,240.15,240.6,BLSH,SUL,Mineralisation - Zone 1.2 (sulphidicblack shale - Zn-Pb-Ag)
+DD92LH347,240.6,242.67,SLST,,"Mineralisation - Zone 1  (siltstone,dolomitic siltstone and sulphidic blackshale (Zn-Pb-Ag)"
+DD92LH347,242.67,246.52,SLST,,Mineralisation - Zone 1.1 (siltstone anddolomitic siltstone)
+DD92LH347,246.52,247.05,SLST,,"Mineralisation - Zone 1  (siltstone,dolomitic siltstone and sulphidic blackshale (Zn-Pb-Ag)"
+DD92LH347,247.05,249.92,SLST,,Mineralisation - Zone 1.1 (siltstone anddolomitic siltstone)
+DD92LH347,249.92,250.8,BLSH,SUL,Mineralisation - Zone 1.2 (sulphidicblack shale - Zn-Pb-Ag)
+DD92LH347,250.8,252.88,SLST,,Mineralisation - Zone 1.1 (siltstone anddolomitic siltstone)
+DD92LH347,252.88,253.73,BLSH,SUL,Mineralisation - Zone 1.2 (sulphidicblack shale - Zn-Pb-Ag)
+DD92LH347,253.73,254.42,SLST,,Mineralisation - Zone 1.1 (siltstone anddolomitic siltstone)
+DD92LH347,254.42,254.98,BLSH,SUL,Mineralisation - Zone 1.2 (sulphidicblack shale - Zn-Pb-Ag)
+DD92LH347,254.98,255.5,SLST,,"Mineralisation - Zone 1  (siltstone,dolomitic siltstone and sulphidic blackshale (Zn-Pb-Ag)"
+DD92LH347,255.5,255.95,BLSH,SUL,Mineralisation - Zone 1.2 (sulphidicblack shale - Zn-Pb-Ag)
+DD92LH347,255.95,256.27,SLST,,Mineralisation - Zone 1.1 (siltstone anddolomitic siltstone)
+DD92LH347,256.27,260.3,BLSH,SUL,Mineralisation - Zone 2  (sulphidicblack shale - Zn-Pb-Ag)
+DD92LH347,260.3,263.39,SLST,,Mineralisation - Zone 3.1 (thinly interbanded dolomitic siltstone/grey siltstone & black shale - Zn)
+DD92LH347,263.39,265.92,SLST,,"Mineralisation - Zone 3.2 (banded dolomitic siltstone, banding wavy to stylolitic)"
+DD92LH347,265.92,269.9,BLSH,SUL,"Mineralisation - Zone 4.1 (thin banded sulphidic black shale - Zn, minor Pb-Ag)"
+DD92LH347,269.9,271.69,MDST,,"Mineralisation - Zone 4.2 (massive, barren black mudstone/silty dark grey mudstone in west)"
+DD92LH347,271.69,274.3,BLSH,SUL,Mineralisation - Zone 4.3 (thin banded sulphidic black shale - Zn)
+DD92LH347,274.3,274.85,SLST,,"Mineralisation - Zone 4.4 (banded dolomitic siltstone, banding wavy to stylolitic)"
+DD92LH347,274.85,277.32,BLSH,SUL,Mineralisation - Zone 4.5 (thin banded sulphidic black shale - Zn) - sphalerite > pyrite
+DD92LH347,277.32,281.75,BLSH,SUL,Mineralisation - Zone 4.6 (sulphidic black shale - Zn) - sphalerite < pyrite
+DD92LH347,281.75,302.9,SLST,,Upper footwall shale - siltstone sequence (Pmh4)
+DD92LH348,0,18,LMST,,"Cambrian limestone, dolomite and marl"
+DD92LH348,18,134,SDST,,Hanging wall sandstone sequence (Pmh5)
+DD92LH348,134,192.5,SLST,,Hanging wall dolomitic siltstone - siltstone - shale - (minor tuff) sequence (Pmh4)
+DD92LH348,192.5,193.05,BX,CALC,Calcareous breccia
+DD92LH348,193.05,194.8,ROCK,,No core recovery
+DD92LH348,194.8,221.85,SLST,,Hanging wall dolomitic siltstone -siltstone - shale - (minor tuff) sequence (Pmh4)
+DD92LH348,221.85,223.25,SLST,,Mineralisation - Zone 1.1 (siltstone anddolomitic siltstone)
+DD92LH348,223.25,224.25,SLST,,"Mineralisation - Zone 1  (siltstone,dolomitic siltstone and sulphidic blackshale (Zn-Pb-Ag)"
+DD92LH348,224.25,227.92,SLST,,Mineralisation - Zone 1.1 (siltstone anddolomitic siltstone)
+DD92LH348,227.92,228.7,BLSH,SUL,Mineralisation - Zone 1.2 (sulphidicblack shale - Zn-Pb-Ag)
+DD92LH348,228.7,230.43,SLST,,Mineralisation - Zone 1.1 (siltstone anddolomitic siltstone)
+DD92LH348,230.43,230.65,BLSH,SUL,Mineralisation - Zone 1.2 (sulphidicblack shale - Zn-Pb-Ag)
+DD92LH348,230.65,234.73,SLST,,Mineralisation - Zone 1.1 (siltstone anddolomitic siltstone)
+DD92LH348,234.73,235,BLSH,SUL,Mineralisation - Zone 1.2 (sulphidicblack shale - Zn-Pb-Ag)
+DD92LH348,235,238,SLST,,Mineralisation - Zone 1.1 (siltstone anddolomitic siltstone)
+DD92LH348,238,238.9,BLSH,SUL,Mineralisation - Zone 1.2 (sulphidicblack shale - Zn-Pb-Ag)
+DD92LH348,238.9,240.65,SLST,,Mineralisation - Zone 1.1 (siltstone anddolomitic siltstone)
+DD92LH348,240.65,241.85,BLSH,SUL,Mineralisation - Zone 1.2 (sulphidicblack shale - Zn-Pb-Ag)
+DD92LH348,241.85,243.15,SLST,,Mineralisation - Zone 1.1 (siltstone anddolomitic siltstone)
+DD92LH348,243.15,244,SLST,,"Mineralisation - Zone 1  (siltstone,dolomitic siltstone and sulphidic blackshale (Zn-Pb-Ag)"
+DD92LH348,244,244.8,SLST,,Mineralisation - Zone 1.1 (siltstone anddolomitic siltstone)
+DD92LH348,244.8,245.35,BLSH,SUL,Mineralisation - Zone 1.2 (sulphidicblack shale - Zn-Pb-Ag)
+DD92LH348,245.35,245.7,SLST,,Mineralisation - Zone 1.1 (siltstone anddolomitic siltstone)
+DD92LH348,245.7,249.9,BLSH,SUL,Mineralisation - Zone 2  (sulphidicblack shale - Zn-Pb-Ag)
+DD92LH348,249.9,252.77,SLST,,Mineralisation - Zone 3.1 (thinly interbanded dolomitic siltstone/grey siltstone & black shale - Zn)
+DD92LH348,252.77,255.91,SLST,,"Mineralisation - Zone 3.2 (banded dolomitic siltstone, banding wavy to stylolitic)"
+DD92LH348,255.91,259.65,BLSH,SUL,"Mineralisation - Zone 4.1 (thin banded sulphidic black shale - Zn, minor Pb-Ag)"
+DD92LH348,259.65,261.11,MDST,,"Mineralisation - Zone 4.2 (massive, barren black mudstone/silty dark grey mudstone in west)"
+DD92LH348,261.11,263.5,BLSH,SUL,Mineralisation - Zone 4.3 (thin banded sulphidic black shale - Zn)
+DD92LH348,263.5,264.08,SLST,,"Mineralisation - Zone 4.4 (banded dolomitic siltstone, banding wavy to stylolitic)"
+DD92LH348,264.08,266.46,BLSH,SUL,Mineralisation - Zone 4.5 (thin banded sulphidic black shale - Zn) - sphalerite > pyrite
+DD92LH348,266.46,270.77,BLSH,SUL,Mineralisation - Zone 4.6 (sulphidic black shale - Zn) - sphalerite < pyrite
+DD92LH348,270.77,306.3,SLST,,Upper footwall shale - siltstone sequence (Pmh4)
+DD92LH349,0,58.65,LMST,,"Cambrian limestone, dolomite and marl"
+DD92LH349,58.65,68.22,SDST,,Hanging wall sandstone sequence (Pmh5)
+DD92LH349,68.22,71.6,LMST,,"Cambrian limestone, dolomite and marl"
+DD92LH349,71.6,74.25,SDST,,Hanging wall sandstone sequence (Pmh5)
+DD92LH349,74.25,79.11,LMST,,"Cambrian limestone, dolomite and marl"
+DD92LH349,79.11,81.96,SLST,,Hanging wall dolomitic siltstone -siltstone - shale - (minor tuff) sequence (Pmh4)
+DD92LH349,81.96,85.08,LMST,,"Cambrian limestone, dolomite and marl"
+DD92LH349,85.08,116.66,SLST,,Hanging wall sandstone - siltstone shale sequence (base of Pmh5 sandstone sequence)
+DD92LH349,116.66,176.3,SLST,,Hanging wall dolomitic siltstone -siltstone - shale - (minor tuff) sequence (Pmh4)
+DD92LH349,176.3,178,SLST,,Hanging wall dolomitic siltstone - siltstone - shale - (minor tuff) sequence (Pmh4)
+DD92LH349,178,178.37,BX,CALC,Calcareous breccia
+DD92LH349,178.37,179.87,SLST,,"Mineralisation - Zone 1  (siltstone, dolomitic siltstone and sulphidic black shale (Zn-Pb-Ag)"
+DD92LH349,179.87,183.48,SLST,,Mineralisation - Zone 1.1 (siltstone and dolomitic siltstone)
+DD92LH349,183.48,184.36,BLSH,SUL,Mineralisation - Zone 1.2 (sulphidic black shale - Zn-Pb-Ag)
+DD92LH349,184.36,186.7,SLST,,Mineralisation - Zone 1.1 (siltstone and dolomitic siltstone)
+DD92LH349,186.7,187.4,BLSH,SUL,Mineralisation - Zone 1.2 (sulphidic black shale - Zn-Pb-Ag)
+DD92LH349,187.4,188.32,SLST,,Mineralisation - Zone 1.1 (siltstone and dolomitic siltstone)
+DD92LH349,188.32,188.98,BLSH,SUL,Mineralisation - Zone 1.2 (sulphidic black shale - Zn-Pb-Ag)
+DD92LH349,188.98,190.22,SLST,,"Mineralisation - Zone 1  (siltstone, dolomitic siltstone and sulphidic black shale (Zn-Pb-Ag)"
+DD92LH349,190.22,190.7,BLSH,SUL,Mineralisation - Zone 1.2 (sulphidic black shale - Zn-Pb-Ag)
+DD92LH349,190.7,191.17,SLST,,"Mineralisation - Zone 1  (siltstone, dolomitic siltstone and sulphidic black shale (Zn-Pb-Ag)"
+DD92LH349,191.17,195.3,BLSH,SUL,Mineralisation - Zone 2  (sulphidic black shale - Zn-Pb-Ag)
+DD92LH349,195.3,198.02,SLST,,Mineralisation - Zone 3.1 (thinly interbanded dolomitic siltstone/grey siltstone & black shale - Zn)
+DD92LH349,198.02,201.7,SLST,,"Mineralisation - Zone 3.2 (banded dolomitic siltstone, banding wavy to stylolitic)"
+DD92LH349,201.7,204.86,BLSH,SUL,"Mineralisation - Zone 4.1 (thin banded sulphidic black shale - Zn, minor Pb-Ag)"
+DD92LH349,204.86,206.7,MDST,,"Mineralisation - Zone 4.2 (massive, barren black mudstone/silty dark grey mudstone in west)"
+DD92LH349,206.7,208.32,BLSH,SUL,Mineralisation - Zone 4.3 (thin banded sulphidic black shale - Zn)
+DD92LH349,208.32,208.87,SLST,,"Mineralisation - Zone 4.4 (banded dolomitic siltstone, banding wavy to stylolitic)"
+DD92LH349,208.87,213.09,BLSH,SUL,Mineralisation - Zone 4.5 (thin banded sulphidic black shale - Zn) - sphalerite > pyrite
+DD92LH349,213.09,216.88,BLSH,SUL,Mineralisation - Zone 4.6 (sulphidic black shale - Zn) - sphalerite < pyrite
+DD92LH349,216.88,222.2,SLST,,Upper footwall shale - siltstone sequence (Pmh4)
+DD92LH349,222.2,223.57,SLST,,"Upper footwall shale - siltstone sequence (Pmh4), shear or fault zone"
+DD92LH349,223.57,276.6,SLST,,Upper footwall shale - siltstone sequence (Pmh4)
+DD92LH350,0,30.24,SLST,,"Hanging wall dolomitic siltstone - siltstone - shale - (minor tuff) sequence (Pmh4), Weathered (recent)"
+DD92LH350,30.24,95,LMST,,"Cambrian limestone, dolomite and marl"
+DD92LH350,95,122.3,SLST,,Hanging wall dolomitic siltstone - siltstone - shale - (minor tuff) sequence (Pmh4)
+DD92LH350,122.3,123.2,SLST,,Mineralisation - Zone 1.1 (siltstone and dolomitic siltstone)
+DD92LH350,123.2,123.91,BLSH,SUL,Mineralisation - Zone 1.2 (sulphidic black shale - Zn-Pb-Ag)
+DD92LH350,123.91,127.3,SLST,,Mineralisation - Zone 1.1 (siltstone anddolomitic siltstone)
+DD92LH350,127.3,128.2,BLSH,SUL,Mineralisation - Zone 1.2 (sulphidicblack shale - Zn-Pb-Ag)
+DD92LH350,128.2,130.2,SLST,,"Mineralisation - Zone 1  (siltstone,dolomitic siltstone and sulphidic blackshale (Zn-Pb-Ag)"
+DD92LH350,130.2,133.67,SLST,,Mineralisation - Zone 1.1 (siltstone anddolomitic siltstone)
+DD92LH350,133.67,135.96,SLST,,"Mineralisation - Zone 1  (siltstone,dolomitic siltstone and sulphidic blackshale (Zn-Pb-Ag)"
+DD92LH350,135.96,137.55,SLST,,Mineralisation - Zone 1.1 (siltstone anddolomitic siltstone)
+DD92LH350,137.55,138.4,BLSH,SUL,Mineralisation - Zone 1.2 (sulphidicblack shale - Zn-Pb-Ag)
+DD92LH350,138.4,140.9,SLST,,Mineralisation - Zone 1.1 (siltstone anddolomitic siltstone)
+DD92LH350,140.9,141.65,BLSH,SUL,Mineralisation - Zone 1.2 (sulphidicblack shale - Zn-Pb-Ag)
+DD92LH350,141.65,144,SLST,,"Mineralisation - Zone 1  (siltstone,dolomitic siltstone and sulphidic blackshale (Zn-Pb-Ag)"
+DD92LH350,144,144.6,BLSH,SUL,Mineralisation - Zone 1.2 (sulphidicblack shale - Zn-Pb-Ag)
+DD92LH350,144.6,144.73,SLST,,Mineralisation - Zone 1.1 (sittstone anddolomitic sittstone)
+DD92LH350,144.73,150.03,BLSH,SUL,Mineralisation - Zone 2  (sulphidicblack shale - Zn-Pb-Ag)
+DD92LH350,150.03,153.6,SLST,,Mineralisation - Zone 3.1 (thinlyinterbanded dolomitic sittstone/greysiltstone & black shale - Zn)
+DD92LH350,153.6,156.45,SLST,,"Mineralisation - Zone 3.2 (bandeddolomitic siltstone, banding wavy tostylolitic)"
+DD92LH350,156.45,160.35,BLSH,SUL,"Mineralisation - Zone 4.1 (thin bandedsulphidic black shale - Zn, minor Pb-Ag)"
+DD92LH350,160.35,161.08,MDST,,"Mineralisation - Zone 4.2 (massive,barren black mudstone/silty dark greymudstone in west)"
+DD92LH350,161.08,163.65,BLSH,SUL,Mineralisation - Zone 4.3 (thin bandedsulphidic black shale - Zn)
+DD92LH350,163.65,164.3,SLST,,"Mineralisation - Zone 4.4 (banded dolomitic siltstone, banding wavy to stylolitic)"
+DD92LH350,164.3,168.85,BLSH,SUL,Mineralisation - Zone 4.5 (thin banded sulphidic black shale - Zn) - sphalerite > pyrite
+DD92LH350,168.85,172.88,BLSH,SUL,Mineralisation - Zone 4.6 (sulphidic black shale - Zn) - sphalerite < pyrite
+DD92LH350,172.88,192.55,SLST,,Upper footwall shale - siltstone sequence (Pmh4)
+DD92LH350,192.55,194.19,BX,CALC,Calcareous breccia
+DD92LH350,194.19,202.03,SLST,,"Upper footwall shale - siltstone sequence (Pmh4),  Shear or fault zone"
+DD92LH350,202.03,204,BX,CALC,Calcareous breccia
+DD92LH350,204,205.25,SLST,,Upper footwall shale - siltstone sequence (Pmh4)
+DD92LH350,205.25,213.25,BX,CALC,Calcareous breccia
+DD92LH350,213.25,213.75,BLSH,CAR,Lower footwall sequence - black carbonaceous shale (Pmh4)
+DD92LH350,213.75,214.43,BX,CALC,Calcareous breccia
+DD92LH350,214.43,216.55,LMST,,"Cambrian limestone, dolomite and marl"
+DD92LH350,216.55,217.95,BX,CALC,Calcareous breccia
+DD92LH350,217.95,223.85,SLST,,Upper footwall shale - siltstone sequence (Pmh4)
+DD92LH350,223.85,234.8,BX,CALC,Calcareous breccia
+DD92LH350,234.8,236.08,SHLE,,"Lower footwall shale sequence (Pmh4), Weathered (recent)"
+DD92LH350,236.08,237.19,BLSH,CAR,Lower footwall sequence - black carbonaceous shale (Pmh4)
+DD92LH350,237.19,239.18,BX,CALC,Calcareous breccia
+DD92LH350,239.18,251.9,BLSH,CAR,Lower footwall sequence - black carbonaceous shale (Pmh4)
+DD92LH351,0,122.67,LMST,,"Cambrian limestone, dolomite and marl"
+DD92LH351,122.67,129.36,SLST,,"Hanging wall dolomitic siltstone - siltstone - shale - (minor tuff) sequence (Pmh4), Relict PreCambrian weathering profile"
+DD92LH351,129.36,131,BX,CALC,Calcareous breccia
+DD92LH351,131,132.1,SLST,,"Hanging wall dolomitic siltstone - siltstone - shale - (minor tuff) sequence (Pmh4), Relict PreCambrian weathering profile"
+DD92LH351,132.1,134.1,BX,CALC,Calcareous breccia
+DD92LH351,134.1,135,SLST,,"Hanging wall dolomitic siltstone - siltstone - shale - (minor tuff) sequence (Pmh4), Relict PreCambrian weathering profile"
+DD92LH351,135,135.84,ROCK,SH,"Rock sheared or disrupted by faulting, fault gouge (assignment of stratigraphic unit not possible)"
+DD92LH351,135.84,136.05,BLSH,SUL,"Mineralisation - Zone 1.2 (sulphidic black shale - Zn-Pb-Ag), Relict PreCambrian weathering profile"
+DD92LH351,136.05,136.48,SLST,,"Mineralisation - Zone 1.1 (siltstone and dolomitic siltstone), Relict PreCambrian weathering profile"
+DD92LH351,136.48,136.7,BLSH,SUL,"Mineralisation - Zone 1.2 (sulphidic black shale - Zn-Pb-Ag), Relict PreCambrian weathering profile"
+DD92LH351,136.7,137.17,SLST,,"Mineralisation - Zone 1.1 (siltstone and dolomitic siltstone), Relict PreCambrian weathering profile"
+DD92LH351,137.17,137.44,BLSH,SUL,"Mineralisation - Zone 1.2 (sulphidic black shale - Zn-Pb-Ag), Relict PreCambrian weathering profile"
+DD92LH351,137.44,140.77,SLST,,"Mineralisation - Zone 1  (siltstone, dolomitic siltstone and sulphidic black shale (Zn-Pb-Ag), Relict PreCambrian weathering profile"
+DD92LH351,140.77,140.93,BLSH,SUL,"Mineralisation - Zone 1.2 (sulphidic black shale - Zn-Pb-Ag), Relict PreCambrian weathering profile"
+DD92LH351,140.93,141.48,SLST,,"Mineralisation - Zone 1  (siltstone, dolomitic siltstone and sulphidic black shale (Zn-Pb-Ag), Relict PreCambrian weathering profile"
+DD92LH351,141.48,141.97,BLSH,SUL,"Mineralisation - Zone 1.2 (sulphidic black shale - Zn-Pb-Ag), Relict PreCambrian weathering profile"
+DD92LH351,141.97,145.19,SLST,,"Mineralisation - Zone 1.1 (siltstone and dolomitic siltstone), Relict PreCambrian weathering profile"
+DD92LH351,145.19,145.83,BLSH,SUL,"Mineralisation - Zone 1.2 (sulphidic black shale - Zn-Pb-Ag), Relict PreCambrian weathering profile"
+DD92LH351,145.83,148.92,SLST,,"Mineralisation - Zone 1.1 (siltstone and dolomitic siltstone), Relict PreCambrian weathering profile"
+DD92LH351,148.92,149.7,BLSH,SUL,"Mineralisation - Zone 1.2 (sulphidic black shale - Zn-Pb-Ag), Relict PreCambrian weathering profile"
+DD92LH351,149.7,150.51,SLST,,"Mineralisation - Zone 1.1 (siltstone and dolomitic siltstone), Relict PreCambrian weathering profile"
+DD92LH351,150.51,151.01,BLSH,SUL,"Mineralisation - Zone 1.2 (sulphidic black shale - Zn-Pb-Ag), Relict PreCambrian weathering profile"
+DD92LH351,151.01,151.91,SLST,,"Mineralisation - Zone 1.1 (siltstone and dolomitic siltstone), Relict PreCambrian weathering profile"
+DD92LH351,151.91,156.6,BLSH,SUL,"Mineralisation - Zone 2  (sulphidic black shale - Zn-Pb-Ag), Relict PreCambrian weathering profile"
+DD92LH351,156.6,159.09,SLST,,Mineralisation - Zone 3.1 (thinly interbanded dolomitic siltstone/grey siltstone & black shale - Zn)
+DD92LH351,159.09,161.91,SLST,,"Mineralisation - Zone 3.2 (banded dolomitic siltstone, banding wavy to stylolitic)"
+DD92LH351,161.91,165.3,BLSH,SUL,"Mineralisation - Zone 4.1 (thin banded sulphidic black shale - Zn, minor Pb-Ag)"
+DD92LH351,165.3,166.2,MDST,,"Mineralisation - Zone 4.2 (massive, barren black mudstone/silty dark grey mudstone in west)"
+DD92LH351,166.2,168.35,BLSH,SUL,Mineralisation - Zone 4.3 (thin banded sulphidic black shale - Zn)
+DD92LH351,168.35,168.8,SLST,,"Mineralisation - Zone 4.4 (banded dolomitic siltstone, banding wavy to stylolitic)"
+DD92LH351,168.8,172.9,BLSH,SUL,Mineralisation - Zone 4.5 (thin banded sulphidic black shale - Zn) - sphalerite > pyrite
+DD92LH351,172.9,174.91,BLSH,SUL,Mineralisation - Zone 4.6 (sulphidic black shale - Zn) - sphalerite < pyrite
+DD92LH351,174.91,237.6,SLST,,Upper footwall shale - siltstone sequence (Pmh4)
+DD92LH352,0,248,LMST,,"Cambrian limestone, dolomite and marl"
+DD92LH352,248,270,SLST,,"Upper footwall shale - siltstone sequence (Pmh4), Relict PreCambrian weathering profile"
+DD92LH352,270,330.6,SLST,,Upper footwall shale - siltstone sequence (Pmh4)
+DD92LH352,330.6,333.6,BLSH,CAR,Lower footwall sequence - black carbonaceous shale (Pmh4)
+DD92LH352,333.6,333.85,BX,CALC,Calcareous breccia
+DD92LH352,333.85,363,BLSH,CAR,Lower footwall sequence - black carbonaceous shale (Pmh4)
+DD92LH353,0,146.4,LMST,,"Cambrian limestone, dolomite and marl"
+DD92LH353,146.4,147.7,SLST,,"Hanging wall dolomitic siltstone - siltstone - shale - (minor tuff) sequence (Pmh4), Relict PreCambrian weathering profile"
+DD92LH353,147.7,148.4,BX,CALC,"Calcareous breccia, Relict PreCambrian weathering profile"
+DD92LH353,148.4,150.1,SLST,,"Hanging wall dolomitic siltstone - siltstone - shale - (minor tuff) sequence (Pmh4), Relict PreCambrian weathering profile"
+DD92LH353,150.1,151.5,SLST,,"Mineralisation - Zone 1  (siltstone, dolomitic siltstone and sulphidic black shale (Zn-Pb-Ag), Relict PreCambrian weathering profile"
+DD92LH353,151.5,153.3,ROCK,,"No core recovery, shear or fault zone"
+DD92LH353,153.3,154,SLST,,"Mineralisation - Zone 1.1 (siltstone and dolomitic siltstone), Relict PreCambrian weathering profile"
+DD92LH353,154,155.3,SLST,,"Mineralisation - Zone 1  (siltstone, dolomitic siltstone and sulphidic black shale (Zn-Pb-Ag), Relict PreCambrian weathering profile"
+DD92LH353,155.3,157.2,SLST,,"Mineralisation - Zone 1.1 (siltstone and dolomitic siltstone), Relict PreCambrian weathering profile"
+DD92LH353,157.2,159,ROCK,,"No core recovery, shear or fault zone"
+DD92LH353,159,159.7,SLST,,"Mineralisation - Zone 1  (siltstone, dolomitic siltstone and sulphidic black shale (Zn-Pb-Ag), Relict PreCambrian weathering profile"
+DD92LH353,159.7,161,ROCK,,"No core recovery, shear or fault zone"
+DD92LH353,161,163,SLST,,"Mineralisation - Zone 1  (siltstone, dolomitic siltstone and sulphidic black shale (Zn-Pb-Ag), Relict PreCambrian weathering profile"
+DD92LH353,163,165.7,SLST,,"Mineralisation - Zone 1  (siltstone, dolomitic siltstone and sulphidic black shale (Zn-Pb-Ag), Relict PreCambrian weathering profile"
+DD92LH353,165.7,166,ROCK,SH,"Rock sheared or disrupted by faulting, fault gouge (assignment of stratigraphic unit not possible), Relict PreCambrian weathering profile"
+DD92LH353,166,167.8,ROCK,,"No core recovery, shear or fault zone"
+DD92LH353,167.8,168,ROCK,SH,"Rock sheared or disrupted by faulting, fault gouge (assignment of stratigraphic unit not possible), Relict PreCambrian weathering profile"
+DD92LH353,168,168.7,BLSH,SUL,"Mineralisation - Zone 4 (sulphidic black shale - position in Unit uncertain), visibly high grade base metal (zinc) mineralisation"
+DD92LH353,168.7,169.4,BLSH,SUL,"Mineralisation - Zone 4 (sulphidic black shale - position in Unit uncertain), Relict PreCambrian weathering profile"
+DD92LH353,169.4,169.7,ROCK,,"No core recovery, Relict PreCambrian weathering profile"
+DD92LH353,169.7,170,ROCK,SH,"Rock sheared or disrupted by faulting, fault gouge (assignment of stratigraphic unit not possible), Relict PreCambrian weathering profile"
+DD92LH353,170,179.8,SLST,,"Upper footwall shale - siltstone sequence (Pmh4), Relict PreCambrian weathering profile"
+DD92LH353,179.8,237.7,SLST,,Upper footwall shale - siltstone sequence (Pmh4)
+DD92LH354,0,161.3,LMST,,"Cambrian limestone, dolomite and marl. Weathered (recent)"
+DD92LH354,161.3,174.75,SHLE,,"Upper footwall shale - siitstone sequence (Pmh4), Relict PreCambrian weathering profile"
+DD92LH354,174.75,175.55,ROCK,SH,"Rock sheared or disrupted by faulting, fault gouge (assignment of stratigraphic unit not possible). Relict PreCambrian weathering profile"
+DD92LH354,175.55,180.25,BLSH,CAR,Lower footwall sequence - black carbonaceous shale (Pmh4). Relict PreCambrian weathering profile
+DD92LH354,180.25,181.18,BLSH,CAR,Lower footwall sequence - black carbonaceous shale (Pmh4). Carbonate veining
+DD92LH354,181.18,186.9,BLSH,CAR,"Lower footwall sequence - black carbonaceous shale (Pmh4), Discordant vein carbonate - siderite - base metal mineralisation"
+DD92LH354,186.9,192.57,BLSH,CAR,"Lower footwall sequence - black carbonaceous shale (Pmh4), Carbonate veining"
+DD92LH354,192.57,194.98,BX,,Breccia/discordant mineralisation. Visibly high grade base metal (zinc) mineralisation
+DD92LH354,194.98,198.7,BLSH,CAR,"Lower footwall sequence - black carbonaceous shale (Pmh4), Carbonate veining"
+DD92LH354,198.7,202,BX,,Breccia/discordant mineralisation. Visibly high grade base metal (zinc) mineralisation
+DD92LH354,202,221.3,BLSH,CAR,Lower footwall sequence - black carbonaceous shale (Pmh4)
+DD92LH354,221.3,227.2,BLSH,CAR,"Lower footwall sequence - black carbonaceous shale (Pmh4) with frequent grey, silty laminae"
+DD92LH354,227.2,239.6,BX,,Breccia/discordant mineralisation. Discordant vein carbonate -siderite - base metal mineralisation
+DD92LH354,239.6,263.85,BLSH,CAR,"Lower footwall sequence - black carbonaceous shale (Pmh4) with frequent grey, silty laminae"
+DD92LH354,263.85,271,BLSH,CAR,"Lower footwall sequence - black carbonaceous shale (Pmh4) with frequent grey, silty laminae. Quartz veining"
+DD92LH354,271,302.5,BLSH,CAR,"Lower footwall sequence - black carbonaceous shale (Pmh4) with frequent grey, silty laminae"
+DD92LH354,302.5,307.95,BLSH,CAR,"Lower footwall sequence - black carbonaceous shale (Pmh4) with frequent grey, silty laminae. Visibly high grade base metal (zinc) mineralisation"
+DD92LH354,307.95,395.85,BLSH,CAR,"Lower footwall sequence - black carbonaceous shale (Pmh4) with frequent grey, silty laminae"
+DD92LH354,395.85,396.07,BX,CALC,Calcareous breccia
+DD92LH354,396.07,438,BLSH,CAR,"Lower footwall sequence - black carbonaceous shale (Pmh4) with frequent grey, silty laminae"
+DD92LH356,0,61.4,LMST,,"Cambrian limestone, dolomite and marl"
+DD92LH356,61.4,62.1,ROCK,,No core recovery
+DD92LH356,62.1,89,LMST,,"Cambrian limestone, dolomite and marl"
+DD92LH356,89,90.1,ROCK,,No core recovery
+DD92LH356,90.1,93.2,LMST,,"Cambrian limestone, dolomite and marl"
+DD92LH356,93.2,93.4,ROCK,,No core recovery
+DD92LH356,93.4,109.8,LMST,,"Cambrian limestone, dolomite and marl"
+DD92LH356,109.8,110,ROCK,,No core recovery
+DD92LH356,110,156.3,LMST,,"Cambrian limestone, dolomite and marl"
+DD92LH356,156.3,157.3,ROCK,,No core recovery
+DD92LH356,157.3,166,LMST,,"Cambrian limestone, dolomite and marl"
+DD92LH356,166,188.3,ROCK,SZ,"No core recovery, Shear or fault zone"
+DD92LH356,188.3,195,LMST,,"Cambrian limestone, dolomite and marl"
+DD92LH356,195,198.1,ROCK,SZ,"No core recovery, Shear or fault zone"
+DD92LH356,198.1,198.8,LMST,,"Cambrian limestone, dolomite and marl"
+DD92LH356,198.8,199.3,ROCK,,No core recovery
+DD92LH356,199.3,205.4,LMST,,"Cambrian limestone, dolomite and marl"
+DD92LH356,205.4,210.3,ROCK,,No core recovery
+DD92LH356,210.3,211.5,BLSH,CAR,Lower footwall sequence - black carbonaceous shale (Pmh4). Weathered (recent)
+DD92LH356,211.5,213.5,BLSH,CAR,Lower footwall sequence - black carbonaceous shale (Pmh4). Breccia zone
+DD92LH356,213.5,244.8,BLSH,CAR,Lower footwall sequence - black carbonaceous shale (Pmh4)
+DD92LH356,244.8,246.75,BLSH,CAR,Lower footwall sequence - black carbonaceous shale (Pmh4). Shear or fault zone
+DD92LH356,246.75,248.45,BLSH,CAR,Lower footwall sequence - black carbonaceous shale (Pmh4)
+DD92LH356,248.45,253.4,BLSH,CAR,Lower footwall sequence - black carbonaceous shale (Pmh4). Discordant vein carbonate - siderite - base metal mineralisation
+DD92LH356,253.4,326.8,BLSH,CAR,Lower footwall sequence - black carbonaceous shale (Pmh4)
+DD92LH356,326.8,328.2,BLSH,CAR,Lower footwall sequence - black carbonaceous shale (Pmh4). Shear or fault zone
+DD92LH356,328.2,369,BLSH,CAR,Lower footwall sequence - black carbonaceous shale (Pmh4)
+DD92LH356,369,370.3,BLSH,CAR,Lower footwall sequence - black carbonaceous shale (Pmh4). Shear or fault zone
+DD92LH356,370.3,390.1,BLSH,CAR,"Lower footwall sequence - black carbonaceous shale (Pmh4) with frequent grey, silty laminae"
+DD92LH359,0,47.25,LMST,,"Cambrian limestone, dolomite and marl"
+DD92LH359,47.25,49,ROCK,,No core recovery
+DD92LH359,49.9,51,ROCK,,No core recovery
+DD92LH359,51,53.5,LMST,,"Cambrian limestone, dolomite and marl"
+DD92LH359,53.5,53.8,ROCK,,No core recovery
+DD92LH359,53.8,58.3,LMST,,"Cambrian limestone, dolomite and marl"
+DD92LH359,58.3,58.8,ROCK,,No core recovery
+DD92LH359,58.8,62.5,LMST,,"Cambrian limestone, dolomite and marl"
+DD92LH359,62.5,62.7,ROCK,SZ,No core recovery. Shear or fault zone
+DD92LH359,62.7,102,LMST,,"Cambrian limestone, dolomite and marl"
+DD92LH359,102,103.2,ROCK,SZ,No core recovery. Shear or fault zone
+DD92LH359,103.2,117.75,LMST,,"Cambrian limestone, dolomite and marl"
+DD92LH359,117.75,121.15,BX,CALC,Calcareous breccia
+DD92LH359,121.15,181.15,LMST,,"Cambrian limestone, dolomite and marl"
+DD92LH359,181.15,183.45,BX,CALC,Calcareous breccia
+DD92LH359,183.45,227.5,LMST,,"Cambrian limestone, dolomite and marl"
+DD92LH359,227.5,230.8,BX,CALC,Calcareous breccia
+DD92LH359,230.8,238.4,LMST,,"Cambrian limestone, dolomite and marl"
+DD92LH359,238.4,245.35,ROCK,,No core recovery
+DD92LH359,245.35,262.3,LMST,,"Cambrian limestone, dolomite and marl"
+DD92LH359,262.3,315,ROCK,,No core recovery
+DD92LH359,315,318,BX,CALC,Calcareous breccia
+DD92LH359,318,322.7,LMST,,"Cambrian limestone, dolomite and marl"
+DD92LH359,322.7,325,LMST,,"Cambrian limestone, dolomite and marl. Weathered (recent)"
+DD92LH359,325,327,BLSH,CAR,Lower footwall sequence - black carbonaceous shale (Pmh4). Weathered (recent)
+DD92LH359,327,327.6,BLSH,CAR,Lower footwall sequence - black carbonaceous shale (Pmh4). Weathered (recent)
+DD92LH359,327.6,347.9,BLSH,CAR,Lower footwall sequence - black carbonaceous shale (Pmh4). Relict PreCambrian weathering profile
+DD92LH359,347.9,350.3,BX,CALC,Calcareous breccia
+DD92LH359,350.3,353.35,BLSH,CAR,Lower footwall sequence - black carbonaceous shale (Pmh4)
+DD92LH359,353.35,354.05,BX,CALC,Calcareous breccia
+DD92LH359,354.05,357.7,BLSH,CAR,"Lower footwall sequence - black carbonaceous shale (Pmh4) with frequent grey, silty laminae"
+DD92LH359,357.7,358.1,BX,CALC,Calcareous breccia
+DD92LH359,358.1,378,ROCK,,Lawn Hill Formation - transition from Pmh4 to Pmh3
+DD92LH363,0,321.05,LMST,,"Cambrian limestone, dolomite and marl"
+DD92LH363,321.55,332.35,LMST,,"Cambrian limestone, dolomite and marl"
+DD92LH363,332.35,345.95,BLSH,CAR,Lower footwall sequence - black carbonaceous shale (Pmh4)
+DD92LH363,345.95,365.95,LMST,,"Cambrian limestone, dolomite and marl"
+DD92LH363,365.95,390.09,BLSH,CAR,"Lower footwall sequence - black carbonaceous shale (Pmh4) with frequent grey, silty laminae"
+DD92LH363,390.09,405.6,LMST,,"Cambrian limestone, dolomite and marl"
+DD92LH363,405.6,412.5,BLSH,CAR,Lower footwall sequence - black carbonaceous shale (Pmh4)
+DD92LH363,412.5,413.35,BX,CALC,Calcareous breccia
+DD92LH363,413.35,440.9,ROCK,,Lawn Hill Formation - Pmh3 and Pmh2 - undifferentiated
+DD92LH367,0,247,LMST,,"Cambrian limestone, dolomite and marl"
+DD92LH367,247,276,BLSH,CAR,"Lower footwall sequence - black carbonaceous shale (Pmh4) with frequent grey, silty laminae. Relict PreCambrian weathering profile"
+DD92LH367,276,297.5,BLSH,CAR,"Lower footwall sequence - black carbonaceous shale (Pmh4) with frequent grey, silty laminae"
+DD92LH367,297.5,378.4,BLSH,CAR,Lower footwall sequence - black carbonaceous shale (Pmh4)
+DD92LH367,378.4,387,SLST,,Lawn Hill Formation - Pmh2 banded grey and black siltstones
+DD92LH368,0,29,LMST,,"Cambrian limestone, dolomite and marl"
+DD92LH368,29,31.85,BX,CALC,Calcareous breccia
+DD92LH368,31.85,33.8,LMST,,"Cambrian limestone, dolomite and marl"
+DD92LH368,33.8,34.55,BX,CALC,Calcareous breccia
+DD92LH368,34.55,57.8,LMST,,"Cambrian limestone, dolomite and marl"
+DD92LH368,57.8,58,BX,CALC,Calcareous breccia
+DD92LH368,58,59.85,LMST,,"Cambrian limestone, dolomite and marl"
+DD92LH368,59.85,60.15,BX,CALC,Calcareous breccia
+DD92LH368,60.15,61.3,LMST,,"Cambrian limestone, dolomite and marl"
+DD92LH368,61.3,62.35,LMST,,"Cambrian limestone, dolomite and marl. Weathered (recent)"
+DD92LH368,62.35,64.7,LMST,,"Cambrian limestone, dolomite and marl"
+DD92LH368,64.7,65.85,BX,CALC,Calcareous breccia
+DD92LH368,65.85,68.6,LMST,,"Cambrian limestone, dolomite and marl"
+DD92LH368,68.6,82.9,BX,CALC,Calcareous breccia
+DD92LH368,82.9,98.4,LMST,,"Cambrian limestone, dolomite and marl"
+DD92LH368,98.4,107.75,LMST,,"Cambrian limestone, dolomite and marl. Weathered (recent)"
+DD92LH368,107.75,108.9,BX,CALC,Calcareous breccia
+DD92LH368,108.9,150.35,LMST,,"Cambrian limestone, dolomite and marl"
+DD92LH368,150.35,160.3,BX,CALC,Calcareous breccia. Weathered (recent)
+DD92LH368,160.3,160.8,ROCK,,No core recovery
+DD92LH368,160.8,161,BLSH,CAR,Lower footwall sequence - black carbonaceous shale (Pmh4). Shear or fault zone
+DD92LH368,161,161.95,LMST,,"Cambrian limestone, dolomite and marl. Weathered (recent)"
+DD92LH368,161.95,167.9,BX,CALC,Calcareous breccia
+DD92LH368,167.9,170.6,LMST,,"Cambrian limestone, dolomite and marl. Weathered (recent)"
+DD92LH368,170.6,171.5,BX,CALC,Calcareous breccia
+DD92LH368,171.5,172.8,LMST,,"Cambrian limestone, dolomite and marl. Weathered (recent)"
+DD92LH368,172.8,174.55,BX,CALC,Calcareous breccia. Weathered (recent)
+DD92LH368,174.55,175.15,LMST,,"Cambrian limestone, dolomite and marl. Weathered (recent)"
+DD92LH368,175.15,176.6,BX,CALC,Calcareous breccia. Weathered (recent)
+DD92LH368,176.6,178,LMST,,"Cambrian limestone, dolomite and marl. Weathered (recent)"
+DD92LH368,178,182.2,BX,CALC,Calcareous breccia. Weathered (recent)
+DD92LH368,182.2,183,BLSH,CAR,Lower footwall sequence - black carbonaceous shale (Pmh4). Carbonate veining
+DD92LH368,183,185,BLSH,CAR,Lower footwall sequence - black carbonaceous shale (Pmh4)
+DD92LH368,185,191.45,BX,,Breccia/discordant mineralisation. Visibly high grade base metal (zinc) mineralisation
+DD92LH368,191.45,192,BLSH,CAR,Lower footwall sequence - black carbonaceous shale (Pmh4)
+DD92LH368,192,198.9,BLSH,CAR,Lower footwall sequence - black carbonaceous shale (Pmh4). Discordant vein carbonate - siderite - base metal mineralisation
+DD92LH368,198.9,212.2,BLSH,CAR,"Lower footwall sequence - black carbonaceous shale (Pmh4) with frequent grey, silty laminae"
+DD92LH368,212.2,214.8,BLSH,CAR,"Lower footwall sequence - black carbonaceous shale (Pmh4) with frequent grey, silty laminae. Carbonate veining"
+DD92LH368,214.8,215.35,BLSH,CAR,"Lower footwall sequence - black carbonaceous shale (Pmh4) with frequent grey, silty laminae"
+DD92LH368,215.35,226,BLSH,CAR,"Lower footwall sequence - black carbonaceous shale (Pmh4) with frequent grey, silty laminae. Carbonate veining"
+DD92LH368,226,230,BX,CVN,Breccia/discordant mineralisation. Discordant vein carbonate -siderite - base metal mineralisation
+DD92LH368,230,237.3,BLSH,CAR,"Lower footwall sequence - black carbonaceous shale (Pmh4) with frequent grey, silty laminae. Carbonate veining"
+DD92LH368,237.3,240.7,BX,CVN,Breccia/discordant mineralisation. Discordant vein carbonate -siderite - base metal mineralisation
+DD92LH368,240.7,241.25,BLSH,CAR,"Lower footwall sequence - black carbonaceous shale (Pmh4) with frequent grey, silty laminae. Shear or fault zone"
+DD92LH368,241.25,244.15,BX,CVN,Breccia/discordant mineralisation. Discordant vein carbonate -siderite - base metal mineralisation
+DD92LH368,244.15,275,BLSH,CAR,"Lower footwall sequence - black carbonaceous shale (Pmh4) with frequent grey, silty laminae"
+DD92LH373,0,155.83,LMST,,"Cambrian limestone, dolomite and marl"
+DD92LH373,155.83,165.75,BLSH,CAR,"Lower footwall sequence - black carbonaceous shale (Pmh4) with frequent grey, silty laminae. Relict PreCambrian weathering profile"
+DD92LH373,165.75,236.05,BLSH,CAR,"Lower footwall sequence - black carbonaceous shale (Pmh4) with frequent grey, silty laminae"
+DD92LH373,236.05,243.2,BX,,Breccia/discordant mineralisation
+DD92LH373,243.2,319,BLSH,CAR,"Lower footwall sequence - black carbonaceous shale (Pmh4) with frequent grey, silty laminae"
+DD92LH373,319,325.3,BLSH,CAR,"Lower footwall sequence - black carbonaceous shale (Pmh4) with frequent grey, silty laminae. Visibly high grade base metal (zinc) mineralisation"
+DD92LH373,325.3,362.15,BLSH,CAR,Lower footwall sequence - black carbonaceous shale (Pmh4)
+DD92LH373,362.15,368.07,ROCK,SH,"Rock sheared or disrupted by faulting, fault gouge (assignment of stratigraphic unit not possible)"
+DD92LH373,368.07,415,SLST,,Lawn Hill Formation - Pmh2 banded grey and black siltstones
+DD92LH375,0,21,BLSH,CAR,"Lower footwall sequence - black carbonaceous shale (Pmh4) with frequent grey, silty laminae. Weathered (recent)"
+DD92LH375,21,179.74,BLSH,CAR,"Lower footwall sequence - black carbonaceous shale (Pmh4) with frequent grey, silty laminae"
+DD92LH375,179.74,180.85,BLSH,CAR,"Lower footwall sequence - black carbonaceous shale (Pmh4) with frequent grey, silty laminae. Shear or fault zone"
+DD92LH375,180.85,199,BLSH,CAR,Lower footwall sequence - black carbonaceous shale (Pmh4)

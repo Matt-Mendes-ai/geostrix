@@ -5241,6 +5241,18 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       catch (e) { setNotices((p) => [...p, errorNotice(tr("Couldn't load the sample project: {message}", { message: e.message }))]); }
       return;
     }
+    if (which.startsWith("fi_") || which.startsWith("qc_")) { // TASKS.csv #3107 — the regional samples (map layers, surface samples, a terrain): lib/sampleRegional.js
+      try {
+        const { loadRegionalSample, REGIONAL_SAMPLES } = await import("../lib/sampleRegional.js");
+        const S = REGIONAL_SAMPLES[which], unset = store.project?.crsSet === false;
+        if (unset && !S.queue) { store.setEpsg(S.epsg); setNotices((p) => [...p, notice("Project CRS set to {crs} (EPSG:{epsg}), the sample project's coordinate system.", { crs: S.crs, epsg: S.epsg })]); }
+        if (S.queue) await loadSampleProject(which); // its collars and surveys, through the normal import queue (which sets the CRS)
+        const notes = await loadRegionalSample(which, async (rel) => (await loadSampleFiles(S.dir, [rel]))[0], { addMapLayer: store.addMapLayer, addTerrain: store.addTerrain, addSurfaceStructureSet: store.addSurfaceStructureSet, setSurfaceSamples: store.setSurfaceSamples, setSurfaceElements: store.setSurfaceElements },
+          { projectEpsg: unset ? S.epsg : (store.project?.epsg || S.epsg), existingSurfaceElements: surfaceElements });
+        setNotices((p) => [...p, ...notes]);
+      } catch (e) { setNotices((p) => [...p, errorNotice(tr("Couldn't load the sample project: {message}", { message: e.message }))]); }
+      return;
+    }
     if (which === "mount_raymond") { // TASKS.csv #3107 — GSC bedrock mapping on a terrain, no drillhole tables: lib/sampleMountRaymond.js
       try {
         const { loadMountRaymond, RAYMOND_EPSG, RAYMOND_CRS_NAME } = await import("../lib/sampleMountRaymond.js");
@@ -5251,7 +5263,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       return;
     }
     const ok = await loadSampleProject(which);
-    if (ok && which !== "wa_uranium" && which.startsWith("wa_")) { // TASKS.csv #3107 — assays, surface samples, downhole logs and a grid: lib/sampleWa.js
+    if (ok && which !== "wa_uranium" && (which.startsWith("wa_") || which.startsWith("qld_"))) { // TASKS.csv #3107 — assays, surface samples, downhole logs and a grid: lib/sampleWa.js
       try {
         const { loadWaSampleExtras, WA_SAMPLES } = await import("../lib/sampleWa.js");
         const notes = await loadWaSampleExtras(which, async (rel) => (await loadSampleFiles(WA_SAMPLES[which].dir, [rel]))[0], { setAssays, setAssayElements, setSurfaceSamples: store.setSurfaceSamples, setSurfaceElements: store.setSurfaceElements, addCustomLayer: (l) => setStoreCustomLayers((p) => [...(p || []), l]), addRaster: store.addRaster },
