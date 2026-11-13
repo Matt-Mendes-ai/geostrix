@@ -61,7 +61,7 @@ import { poolLayoutImages, expandLayoutImages } from "./layoutImagePool.js"; // 
 // v25 (TASKS.csv #2334) stores a custom layer's rows as exact columns (compactTable.js) from 2,000 rows, as assays are.
 // v24 (TASKS.csv #1963) adds dbImports: what each database import pulled (profile name, schema, table) and the dialog's choices, so
 // "Reload from database" can pull the tables again. No host, login or password: those stay on the computer (#1081, #621).
-export const PROJECT_VERSION = 28; // #2493: project.importLeftOut (the rows each import left out of a built-in layer). Was 27; // #2163: codeDictionary. Was 26; // #2691 / #2661: project.localGrid.rlOffset / northDeg. Was 25; // #2334: custom layers of 2,000+ rows as exact columns. Was 24; // #1963: dbImports. Was 23; // #1876: designStrings. Was 22 // #1631: layout image pool. Was 21 // #1342: designLines. Was 20 // #1081: no dbConnections (per computer now). Was 19 // #1073: surface samples may be stored as exact columns. Was 18 // #1003: evidenceOverlay. Was 17 // #842: surfaceQc. Was 16 // #841: geochemThresholds. Was 15 // #811: explicitSurfaces. Was 14 // #796: big terrain grids as elevationsF32. Was 13 // #660: every voxel model may be compacted (compactCells.keys). Was 12 // #650: structuralTrends. Was 11 // #630: sectionImages. Was 10 // #555: assays and big interval layers may be stored as exact columns ({ __compactTable })
+export const PROJECT_VERSION = 29; // #3257: voxel models' optional cell keys as columns (has / nul bitsets, bool columns). Was 28; // #2493: project.importLeftOut (the rows each import left out of a built-in layer). Was 27; // #2163: codeDictionary. Was 26; // #2691 / #2661: project.localGrid.rlOffset / northDeg. Was 25; // #2334: custom layers of 2,000+ rows as exact columns. Was 24; // #1963: dbImports. Was 23; // #1876: designStrings. Was 22 // #1631: layout image pool. Was 21 // #1342: designLines. Was 20 // #1081: no dbConnections (per computer now). Was 19 // #1073: surface samples may be stored as exact columns. Was 18 // #1003: evidenceOverlay. Was 17 // #842: surfaceQc. Was 16 // #841: geochemThresholds. Was 15 // #811: explicitSurfaces. Was 14 // #796: big terrain grids as elevationsF32. Was 13 // #660: every voxel model may be compacted (compactCells.keys). Was 12 // #650: structuralTrends. Was 11 // #630: sectionImages. Was 10 // #555: assays and big interval layers may be stored as exact columns ({ __compactTable })
 
 export const EMPTY_LAYERS = { litho: [], alt: [], vein: [], geotech: [], mnlgy: [], magsusc: [], structure: [], litho_gc: [], alt_gc: [], geophys_pts: [] };
 
@@ -90,20 +90,36 @@ const COMPACT_KEYS = ["x", "y", "z", "dx", "dy", "dz", "value", "support"];
 const f64ToB64 = (arr) => bytesToB64(new Uint8Array(new Float64Array(arr).buffer));
 const b64ToF64 = (b64) => new Float64Array(b64ToBytes(b64).buffer); // base64.js: #1114
 const compactCache = new WeakMap();
+// TASKS.csv #3257 (Galore Creek review; a regression of #660) — the keys of EVERY cell, not the first one's: an estimate's optional fields
+// (#2417 'beyond' on the blocks above / below their samples, #2596 nearUnsampled, #2721 fromLog, #1617 holeShare, #709 kv, #3014 domain)
+// are set on some cells only, so the model was refused and written raw: three 40,770-cell models made a 37 MB file. A key some cells lack
+// gets a presence bitset (`has`), a null value a null bitset (`nul`), a boolean a 0 / 1 column (`bool`); a key whose values are of
+// different kinds (a number in one cell, text in another) still leaves the model raw. Models whose cells share their keys are written
+// exactly as before.
 function cellColumns(cells) {
-  const keys = cells.length ? Object.keys(cells[0]) : null;
-  if (!keys || !keys.length) return null;
-  const kind = {};
-  for (const k of keys) kind[k] = typeof cells[0][k] === "number" ? "n" : typeof cells[0][k] === "string" ? "s" : null;
-  if (keys.some((k) => !kind[k])) return null;
-  for (let i = 1; i < cells.length; i++) {
-    const c = cells[i];
-    let n = 0;
-    for (const k in c) { n++; if (kind[k] === undefined || (kind[k] === "n" ? typeof c[k] !== "number" : typeof c[k] !== "string")) return null; }
-    if (n !== keys.length) return null;
+  if (!cells.length) return null;
+  const keys = [], kind = {}, count = {}, nulls = {};
+  for (const c of cells) {
+    for (const k in c) {
+      const v = c[k];
+      if (v === undefined) continue; // JSON drops it: absent
+      if (!(k in count)) { keys.push(k); count[k] = 0; nulls[k] = 0; kind[k] = null; }
+      count[k]++;
+      if (v === null) { nulls[k]++; continue; }
+      const t = typeof v === "number" ? "n" : typeof v === "string" ? "s" : typeof v === "boolean" ? "b" : null;
+      if (!t || (kind[k] && kind[k] !== t)) return null;
+      kind[k] = t;
+    }
   }
-  return { keys, kind };
+  if (!keys.length) return null;
+  for (const k of keys) if (!kind[k]) kind[k] = "n"; // only nulls: a column of nulls
+  const optional = {}, nullable = {};
+  for (const k of keys) { optional[k] = count[k] < cells.length; nullable[k] = nulls[k] > 0; }
+  return { keys, kind, optional, nullable };
 }
+// a bitset (bit i of byte i >> 3) as base64, and back
+const bitsToB64 = (n, on) => { const b = new Uint8Array((n + 7) >> 3); for (let i = 0; i < n; i++) if (on(i)) b[i >> 3] |= 1 << (i & 7); return bytesToB64(b); };
+const bitOf = (bytes, i) => (bytes[i >> 3] >> (i & 7)) & 1;
 export function compactVoxelModels(list) {
   return (list || []).map((m) => {
     if (!Array.isArray(m.cells) || !m.cells.length) return m;
@@ -114,10 +130,21 @@ export function compactVoxelModels(list) {
       if (!shape) { compactCache.set(m, m); return m; }
       const cols = {};
       shape.keys.forEach((k) => {
+        // #3257 — where the key is: absent cells (`has`) and null values (`nul`) as bitsets; their slot in the column holds 0
+        const marks = { ...(shape.optional[k] ? { has: bitsToB64(cells.length, (i) => cells[i][k] !== undefined) } : {}), ...(shape.nullable[k] ? { nul: bitsToB64(cells.length, (i) => cells[i][k] === null) } : {}) };
+        const at0 = (cell) => (cell[k] === undefined || cell[k] === null ? undefined : cell[k]);
         if (shape.kind[k] === "s") {
           const dict = [], at = new Map();
-          const idx = cells.map((cell) => { let v = at.get(cell[k]); if (v === undefined) { v = dict.length; dict.push(cell[k]); at.set(cell[k], v); } return v; });
-          cols[k] = { dict, b64: f32ToB64(idx) };
+          const idx = cells.map((cell) => { const x = at0(cell); if (x === undefined) return 0; let v = at.get(x); if (v === undefined) { v = dict.length; dict.push(x); at.set(x, v); } return v; });
+          cols[k] = { dict, b64: f32ToB64(idx), ...marks };
+          return;
+        }
+        if (shape.kind[k] === "b") { cols[k] = { bool: true, base: 0, b64: f32ToB64(cells.map((cell) => (at0(cell) ? 1 : 0))), ...marks }; return; } // #3257
+        // #3257 — a number every cell has, the same in every cell (an estimate's dx / dy / dz): its one value, no column
+        if (!marks.has && !marks.nul && k !== "value" && cells.every((cell) => cell[k] === cells[0][k])) { cols[k] = { base: cells[0][k], same: true }; return; }
+        if (marks.has || marks.nul) { // #3257 — a number some cells lack (holeShare, fromLog, kv ...): absent / null as 0 under the marks
+          const base = 0;
+          cols[k] = k === "value" ? { base, f64: true, b64: f64ToB64(cells.map((cell) => at0(cell) ?? 0)), ...marks } : { base, b64: f32ToB64(cells.map((cell) => at0(cell) ?? 0)), ...marks };
           return;
         }
         // Coordinates as offsets from the first cell: Float32 would lose ~0.5 m at UTM northings (~6.2e6).
@@ -140,13 +167,21 @@ export function expandVoxelModels(list) {
     const { compactCells, ...rest } = m;
     const keys = compactCells.keys || COMPACT_KEYS;
     const get = {};
+    const has = {}, nul = {}; // #3257
     keys.forEach((k) => {
-      const c = compactCells.cols[k]; const arr = c.f64 ? b64ToF64(c.b64) : b64ToF32(c.b64);
-      get[k] = c.dict ? (i) => c.dict[arr[i]] : (i) => arr[i] + c.base;
+      const c = compactCells.cols[k];
+      if (c.same) { get[k] = () => c.base; return; } // #3257 — one value for every cell
+      const arr = c.f64 ? b64ToF64(c.b64) : b64ToF32(c.b64);
+      get[k] = c.dict ? (i) => c.dict[arr[i]] : c.bool ? (i) => arr[i] === 1 : (i) => arr[i] + c.base;
+      if (c.has) has[k] = b64ToBytes(c.has);
+      if (c.nul) nul[k] = b64ToBytes(c.nul);
     });
     const cells = Array.from({ length: compactCells.n }, (_, i) => {
       const cell = {};
-      keys.forEach((k) => { cell[k] = get[k](i); });
+      keys.forEach((k) => {
+        if (has[k] && !bitOf(has[k], i)) return; // #3257 — this cell had no such key
+        cell[k] = nul[k] && bitOf(nul[k], i) ? null : get[k](i);
+      });
       return cell;
     });
     return { ...rest, cells };
