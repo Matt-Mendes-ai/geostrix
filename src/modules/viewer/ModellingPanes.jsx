@@ -30,7 +30,7 @@ import { errorNotice } from "../../lib/notices.js";
 import { tx } from "../../lib/i18nRich.js";
 import { betaReferenceCounts } from "../../lib/coreOrientation.js"; // TASKS.csv #2055
 import { holeClusters, onlyTheseHoles } from "../../lib/holeClusters.js"; // TASKS.csv #2056
-import { groupOverlaps, groupOfCode, caseVariantGroups } from "../../lib/lithoGroups.js"; // TASKS.csv #1685; caseVariantGroups: #2386
+import { groupOverlaps, groupOfCode, caseVariantGroups, subdivisionGroups } from "../../lib/lithoGroups.js"; // TASKS.csv #1685; caseVariantGroups: #2386; subdivisionGroups: #2928
 import GradeTonnageLauncher from "../../components/GradeTonnageLauncher.jsx"; // TASKS.csv #1577
 import { useStore } from "../../lib/store.jsx";
 import { numericLayerFields } from "../../lib/evidenceSources.js"; // TASKS.csv #1574 — the numeric fields of a log (intensity 1-3)
@@ -405,7 +405,7 @@ export default function ModellingPanes(props) {
         {areaClusters && areaClusters.clusters.length > 1 && (<div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginTop: 6, lineHeight: 1.4 }}>{/* #2056 */}
           {tr("The {n} logged holes in the model area lie in {k} clusters more than {g} m apart: one model spans the gaps between them, and its box, cells and unit volumes cover them. Model one cluster at a time:", { n: loggedInArea.length, k: areaClusters.clusters.length, g: Math.round(areaClusters.gapM).toLocaleString() })}
           <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 4 }}>{areaClusters.clusters.slice(0, 6).map((c) => (
-            <button key={c.ids[0]} type="button" title={c.ids.join(", ")} onClick={() => { setVisibleHoles(onlyTheseHoles(collars, c.ids)); setModelArea("checked"); }} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "2px 7px" }}>{tr(c.n === 1 ? "Only {first} (1 hole)" : "Only {first}… ({n} holes)", { first: c.ids[0], n: c.n })}</button>))}</div>
+            <button key={c.ids[0]} type="button" title={c.ids.join(", ")} onClick={() => { setVisibleHoles(onlyTheseHoles(collars, c.ids)); setModelArea("checked"); }} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "2px 7px" }}>{tr(c.n === 1 ? "Around E {e}, N {nn} ({first})" : "Around E {e}, N {nn}: {n} holes over {s} km", { first: c.ids[0], n: c.n, e: Math.round(c.cx / 100) * 100, nn: Math.round(c.cy / 100) * 100, s: Math.max(0.1, c.spanM / 1000).toFixed(1) }) /* #2928 (3): a place, not one hole id */}</button>))}</div>
         </div>)}
         {/* TASKS.csv #2378 (review #2325, WA uranium) — rock code and stratigraphic unit logged on the same intervals: which one the tools model */}
         {(unitFields || []).length > 0 && setUnitField && (
@@ -650,6 +650,17 @@ export default function ModellingPanes(props) {
             {sug.slice(0, 8).map((s) => <div key={s.name} style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}><span style={{ flex: 1, minWidth: 0 }}>{tr("{codes} = {n} intervals", { codes: s.codes.map((c) => `${c} (${s.counts[c].toLocaleString()})`).join(" + "), n: s.total.toLocaleString() })}</span><button type="button" onClick={() => add(s)} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "2px 7px" }}>{tr("Group them")}</button></div>)}
             {sug.length > 1 && <button type="button" onClick={() => sug.forEach(add)} style={{ ...pBtn, width: "auto", marginBottom: 0, marginTop: 4, padding: "3px 8px" }}>{tr("Group all {n}", { n: sug.length })}</button>}
             {sug.length > 8 && <span style={{ marginLeft: 6 }}>{tr("({n} more not listed)", { n: sug.length - 8 })}</span>}
+          </div>;
+        })()}
+        {(() => { // TASKS.csv #2928 (2) — sub-divided codes of one unit (DID_U / DID_M / DID_L beside DID): offered as one group each, one click
+          const sug = subdivisionGroups(layers.litho || [], lithoGroups);
+          if (!sug.length) return null;
+          const add = (s) => addLithoGroup({ name: s.name, codes: s.codes });
+          return <div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", marginBottom: 8, lineHeight: 1.45, padding: "6px 8px", border: "1px solid var(--color-border)", borderRadius: 6 }}>
+            <div style={{ fontWeight: 600, marginBottom: 4 }}>{tr(sug.length === 1 ? "One unit is logged in sub-divided parts (a part suffix such as _U, _M, _L):" : "{n} units are logged in sub-divided parts (a part suffix such as _U, _M, _L):", { n: sug.length })}</div>
+            {sug.slice(0, 8).map((s) => <div key={s.name} style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}><span style={{ flex: 1, minWidth: 0 }}>{tr("{codes} = {n} intervals", { codes: s.codes.map((c) => `${c} (${s.counts[c].toLocaleString()})`).join(" + "), n: s.total.toLocaleString() })}</span>
+              <button type="button" onClick={() => add(s)} title={tr("Model the parts as one unit, \"{name}\". Leave them apart when the parts are units of their own.", { name: s.name })} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "2px 7px" }}>{tr("Group as {name}", { name: s.name })}</button></div>)}
+            {sug.length > 8 && <span>{tr("({n} more not listed)", { n: sug.length - 8 })}</span>}
           </div>;
         })()}
         {groupOverlaps(lithoGroups).map((o) => ( // TASKS.csv #1685 — a saved project with a code in two groups: the tools would disagree
