@@ -17,6 +17,8 @@ import { syncHoleLabels } from "../../lib/viewer/holeLabels.js";
 import { addTraceChunks } from "../../lib/viewer/traceBatch.js"; // #2176 step 3
 import { makeTextSprite } from "../../lib/viewer/textSprite.js";
 import { lazyTip } from "../../lib/viewer/lazyTip.js";
+import { projectSymbolChoices, symbolForReading } from "../../lib/structureSymbols.js"; // TASKS.csv #3067
+import { symbolProto3d, symbolInk } from "../../lib/viewer/structureSymbol3d.js";
 import { traceLookup } from "../../lib/viewer/modelHelpers.js";
 import { PROTO_CYLINDER, PROTO_SPHERE_8, PROTO_SPHERE_12, PROTO_CIRCLE_24, PROTO_PRISM_4, PROTO_SQUARE, PIN_AXIS, dipPinDir, INTERVAL_PROTO, UP_Y, DIR_TMP, POINT_PROTO } from "../../lib/viewer/protos.js";
 
@@ -345,8 +347,10 @@ export function buildDrillholeScene(ctx) {
   const prev = sceneCaches.get(groups);
   const plan = planHoles(prev, collars, surveyByHole, desurveyMethod, { ox, oy, oz, rebuildSeq }, desurveyHole); // desurveyHole: #2937
   const { full, holeEntries, changedHoles } = plan;
+  const symChoices = projectSymbolChoices(surfaceStructures); // #3067 — the per-type USGS symbol choices (Surface Geology, #3066)
   const sigs = new Map(BUILT_ROW_KEYS.map((k) => [k, [layers[k], JSON.stringify(layerStyles[k] ?? null), effectiveLabel, baseColorForBuild, LAYER_META[k]?.numeric ? JSON.stringify([numericSymbology?.[k] ?? null, numericRange?.[k] ?? null]) : ""]]));
   customLayers.forEach((l) => sigs.set(l.id, [l, l.group, JSON.stringify(layerStyles[`custom:${l.id}`] ?? null)]));
+  sigs.get("structure").push(JSON.stringify(symChoices)); // #3067 — a symbol choice redraws the discs
   // #2373 — a custom layer whose style changed in its colours only is repainted in place, not rebuilt (its holes unchanged)
   const repaint = [];
   if (prev && !full) for (const l of customLayers) {
@@ -580,6 +584,15 @@ export function buildDrillholeScene(ctx) {
       pin.position.set(p.x, p.y, p.z);
       pin.userData = disc.userData;
       groups.structure.add(pin);
+      // TASKS.csv #3067 — the type's USGS symbol inside the disc, in its plane (lib/viewer/structureSymbol3d.js): the disc's own transform on a
+      // shared symbol geometry, so they batch. Ink that reads on the disc's colour; `symbol` keeps the legend overrides from repainting it.
+      const { symbol } = symbolForReading({ type: s.value, dip }, symChoices);
+      if (symbol) {
+        const sym = new THREE.Mesh(symbolProto3d(symbol), new THREE.MeshBasicMaterial({ color: symbolInk(color), side: THREE.DoubleSide }));
+        sym.position.copy(disc.position); sym.rotation.copy(disc.rotation); sym.scale.copy(disc.scale);
+        sym.userData = { ...disc.userData, symbol: symbol.fgdc };
+        groups.structure.add(sym);
+      }
     });
 
     customLayers.forEach((layer) => {

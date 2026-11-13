@@ -1360,11 +1360,8 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   const effectiveColor = useCallback((layerKey, value) => {
     return categoryColor(legendOverride[layerKey]?.[value], LAYER_META[layerKey], value); // #1289
   }, [legendOverride]);
-  // TASKS.csv #227 (continuation) — used ONLY inside the big geometry-rebuild effect's build loops,
-  // instead of effectiveColor, for the same reason isRowVisibleForBuild exists: a mesh's baked-at-build
-  // color should be the layer's plain default, NOT legendOverride-aware, so a legendOverride edit never
-  // needs to rebuild geometry — the post-hoc applyLegendOverrideColors pass below (which DOES call the
-  // real effectiveColor) repaints matching meshes' material.color directly instead.
+  // TASKS.csv #227 — the build bakes the layer's plain colour (not legendOverride), so an override edit never rebuilds geometry:
+  // applyLegendOverrideColors below repaints the meshes instead.
   const baseColorForBuild = useCallback((layerKey, value) => LAYER_META[layerKey].colorFn(value), []);
   // TASKS.csv #431 — the label callback is keyed on the LABEL overrides only. legendOverride also holds
   // colours, so depending on it directly made every legend COLOUR edit (and anything else that replaced
@@ -1451,7 +1448,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
       if (!g) return;
       const single = layerStyles[key]?.color; // TASKS.csv #635 — a one-colour layer style wins over category colours
       eachLayerMember(g, (child) => { // #1540
-        if (child.userData?.catValue === undefined || !child.material?.color) return;
+        if (child.userData?.catValue === undefined || !child.material?.color || child.userData.symbol) return; // symbol: #3067's ink
         child.material.color.set(single || effectiveColor(key, child.userData.catValue));
       });
     });
