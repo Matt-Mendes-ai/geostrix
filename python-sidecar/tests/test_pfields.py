@@ -59,10 +59,10 @@ def check_eqs():
     events = []
     out = eqs(req, events.append)
     ms = (time.perf_counter() - t) * 1000
-    # TASKS.csv #2955 — the engine load is said first and timed, the fit and the grid timed, all in the result
-    assert events[0]["stage"] == "loading" and events[0]["message"].startswith("Loading the gridding engine"), events[0]
-    assert "engine loaded in" in events[1]["message"] and events[1]["stage"] == "fitting"
-    assert set(out["timings"]) == {"load", "fit", "grid"} and all(v >= 0 for v in out["timings"].values()), out["timings"]
+    # TASKS.csv #2955 — the fit and the grid timed in the result; #3124 — this process has Harmonica loaded already (the checks above), as a warm
+    # worker does: no loading stage, load 0, and the fit says so (the cold path, a fresh process: tests/test_warm_jobs.py)
+    assert events[0]["stage"] == "fitting" and "engine already loaded" in events[0]["message"], events[0]
+    assert set(out["timings"]) == {"load", "fit", "grid"} and out["timings"]["load"] == 0.0 and all(v >= 0 for v in out["timings"].values()), out["timings"]
     vals = np.frombuffer(base64.b64decode(out["values"]), dtype="<f4").reshape(out["ny"], out["nx"])  # row 0 north
     e = out["x0"] + out["dx"] * np.arange(out["nx"])
     nn = out["yTop"] - out["dy"] * np.arange(out["ny"])
