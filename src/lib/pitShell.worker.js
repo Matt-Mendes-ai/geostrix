@@ -10,7 +10,8 @@ self.onmessage = (e) => {
     for (let i = 0; i < cells.length; i++) cells[i] = { x: c.x[i], y: c.y[i], z: c.z[i], dx: c.dx[i], dy: c.dy[i], dz: c.dz[i], value: c.value[i], coverage: c.coverage[i], nHoles: c.nHoles[i], holeShare: c.holeShare ? c.holeShare[i] : NaN /* #1617 */, support: SUP[c.support[i]], beyond: c.beyond?.[i] === 1 ? "above" : c.beyond?.[i] === 2 ? "below" : undefined /* #2435 */, nearUnsampled: c.nearUnsampled?.[i] === 1 /* #2596 */, fromLog: c.fromLog?.[i] || 0 /* #2748 */, ...(c.density?.[i] > 0 ? { density: c.density[i] } : {}) /* #2647 */ }; // nHoles / support: #1354
     const b = e.data.byColumns, byCells = b ? Array.from(b.value, (v, i) => ({ x: b.x[i], y: b.y[i], z: b.z[i], value: v })) : null; // #1917
     const alsoCells = (e.data.alsoColumns || []).map((a) => ({ label: a.label, unit: a.unit, element: a.element, cells: Array.from(a.columns.value, (v, i) => ({ x: a.columns.x[i], y: a.columns.y[i], z: a.columns.z[i], value: v })) })); // #2995
-    const r = runPitShell({ ...inputs, cells, byCells, alsoCells }, { groundAt: terrain ? (x, y) => terrainGroundAt(terrain, x, y) : null, collars, onProgress: (phases) => self.postMessage({ phases }) }); // collars: #1353
+    const penaltyCells = (e.data.penaltyColumns || []).map((p) => ({ cells: Array.from(p.value, (v, i) => ({ x: p.x[i], y: p.y[i], z: p.z[i], value: v })) })); // #2986 part 2
+    const r = runPitShell({ ...inputs, cells, byCells, alsoCells, penaltyCells }, { groundAt: terrain ? (x, y) => terrainGroundAt(terrain, x, y) : null, collars, onProgress: (phases) => self.postMessage({ phases }) }); // collars: #1353
     self.postMessage({ result: r }, r.positions ? [r.positions.buffer, r.indices.buffer] : []);
   } catch (err) {
     self.postMessage({ failed: String(err?.message || err) });
