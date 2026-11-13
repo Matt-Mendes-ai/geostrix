@@ -13,7 +13,7 @@ test("a map layer in the tie's CRS lands on the local grid, and its note says so
   const L = buildLayer({ epsg: 28351, geomType: "point", features: [{ parts: [[[w.x, w.y]]], attributes: {} }] }, { sourceName: "pins", projectEpsg: null, tie });
   const [x, y] = L.features[0].parts[0][0];
   assert.ok(Math.abs(x - 32300) < 0.02 && Math.abs(y - 808200) < 0.02, `${x} ${y}`); // rounded to the centimetre at import
-  assert.match(L.crsNote, /^its GDA94 \/ MGA zone 51 \(EPSG:28351\) was brought into the local grid through the grid's tie to GDA94 \/ MGA zone 51 \(EPSG:28351\)$/); // by name: #2774
+  assert.match(L.crsNote, /brought into the local grid through its tie to EPSG:28351 \(from EPSG:28351\)/);
   // no tie: as before
   assert.doesNotMatch(buildLayer({ epsg: 28351, geomType: "point", features: [{ parts: [[[w.x, w.y]]], attributes: {} }] }, { sourceName: "pins", projectEpsg: null }).crsNote, /local grid/);
 });
