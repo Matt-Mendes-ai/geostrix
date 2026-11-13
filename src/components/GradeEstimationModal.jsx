@@ -1127,7 +1127,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
             </div>
           )}
 
-          {gtOpen && result && <GradeTonnageModal model={{ name: resultName(), source: `estimate-${result.params?.method || method}`, cells: result.cells, params: result.params }} epsg={stampEpsg(project)} onClose={() => setGtOpen(false)} />}{/* #1577 */}
+          {gtOpen && result && <GradeTonnageModal model={{ name: resultName(), source: `estimate-${result.params?.method || method}`, cells: result.cells, params: result.params }} setModels={result.params?.set ? (result.members || []).filter((m) => m.cells.length).map((m) => ({ name: `${m.element} estimate`, cells: m.cells, params: m.params })) : null /* #3014 part b — the set before it is added */} epsg={stampEpsg(project)} onClose={() => setGtOpen(false)} />}{/* #1577 */}
           {/* TASKS.csv #269 — the closing paragraph now names every assumption the estimate actually
               makes, not just the missing-kriging one. */}
           <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", borderRadius: 6, padding: "8px 9px", lineHeight: 1.5 }}>

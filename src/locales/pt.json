@@ -11722,5 +11722,16 @@
   "{el}: {blocks} blocks from {n} composites, mean {mean} {unit}": "{el}: {blocks} blocos a partir de {n} compostas, média {mean} {unit}",
   "{el}: no samples to estimate from; not added.": "{el}: não há amostras para estimar; não é adicionado.",
   "Add the set ({n} block models)": "Adicionar o conjunto ({n} modelos de blocos)",
-  "Running {el}… {v}": "Rodando {el}… {v}"
+  "Running {el}… {v}": "Rodando {el}… {v}",
+  "Limits from the set:": "Limites do conjunto:",
+  "The other elements estimated with this one, on the same blocks. A block counts only when it meets every limit you type; a block with no value of a limited element is left out.": "Os outros elementos estimados junto com este, nos mesmos blocos. Um bloco conta só quando atende a todos os limites digitados; um bloco sem valor de um elemento limitado fica de fora.",
+  "Limit on {el}": "Limite de {el}",
+  "Limit value of {el}": "Valor-limite de {el}",
+  "{n} of {all} block(s) meet the limits; {f} fail them.": "{n} de {all} bloco(s) atendem aos limites; {f} não atendem.",
+  "{k} block(s) with no {el} value are left out (its estimate did not reach them).": "{k} bloco(s) sem valor de {el} ficam de fora (sua estimativa não os alcançou).",
+  "{el}'s mean over the blocks counted at this cutoff, weighted as the mean grade is": "Média de {el} nos blocos contados neste teor de corte, ponderada como o teor médio",
+  "Mean {el} ({unit})": "{el} médio ({unit})",
+  "Mean {el}": "{el} médio",
+  "{el} has a value in {p} % of this volume": "{el} tem valor em {p} % deste volume",
+  "* the element has no value in part of that volume (its own estimate did not reach every block); the mean is over the blocks it has.": "* o elemento não tem valor em parte desse volume (sua própria estimativa não alcançou todos os blocos); a média é sobre os blocos que o têm."
 }
