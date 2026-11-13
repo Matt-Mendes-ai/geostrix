@@ -43,7 +43,7 @@ test("qaqcBlankRows: the method and its own limit in the export; unchanged witho
 
 test("wiring: the Blanks tab offers the per-method judging only when the methods' limits differ", () => {
   const s = readFileSync(new URL("../src/components/QAQCPanel.jsx", import.meta.url), "utf8");
-  assert.match(s, /const methodsDiffer = methodLimits\.length > 1 && new Set\(methodLimits\.map\(\(m\) => m\.limit\)\)\.size > 1;/);
+  assert.match(s, /const methodsDiffer = methodLimitsRead\.length > 1 && \(new Set\(methodLimitsRead\.map\(\(m\) => m\.limit\)\)\.size > 1 \|\| !!typedByMethod\);/ /* #2881: the read limits, or some typed */);
   assert.match(s, /blankRows\(assays, symbol, elementUnits, blankLimit, undefined, \{ methodLimits: blankByMethod \}\)/);
   assert.match(s, /\{methodsDiffer && \( \/\* TASKS\.csv #2772 \*\//);
   assert.match(s, /tr\("Judge each blank against its own method's limit: \{mult\} × \{list\}"/);

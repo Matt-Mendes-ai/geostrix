@@ -67,7 +67,7 @@ test("wired: QAQC's Totals tab with six majors, the diagrams leave excluded samp
   assert.match(q, /tab === "totals" \? 0 :/, "Export does not export the duplicates from the Totals tab");
   assert.match(q, /<OxideTotalsTab assays=\{assays\} majors=\{majors\} setAssays=\{setAssays \|\| null\}/);
   const g = readFileSync(new URL("../src/modules/GeochemModule.jsx", import.meta.url), "utf8");
-  assert.match(g, /const assaysKept = useMemo\(\(\) => \(assays\.some\(\(a\) => a\.excluded === "total"\)/);
+  assert.match(g, /const assaysKept = useMemo\(\(\) => (keptMemo\(\[assays\], "kept", \(\) => )?\(assays\.some\(\(a\) => a\.excluded === "total"\)/ /* keptMemo: #3120 */);
   for (const l of ["es", "pt", "fr", "ar"]) {
     const d = JSON.parse(readFileSync(new URL(`../src/locales/${l}.json`, import.meta.url), "utf8"));
     for (const k of ["Totals", "Exclude {n} sample(s) from plots and statistics", "{n} oxide value(s) over 100 % (impossible as wt%): {list}."]) assert.ok(d[k], `${l}: ${k}`);

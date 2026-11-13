@@ -15,7 +15,7 @@ test("the rule the module uses: a certificate's standard / blank / duplicate is 
 
 test("plots, classification, plot-data export and the footer all leave them out; the tick brings them back to the plots", () => {
   const g = read("src/modules/GeochemModule.jsx");
-  assert.match(g, /const sourceRows = useMemo\(\(\) => \(plotQc \|\| !qcInSource \? sourceAll : sourceAll\.filter\(\(a\) => classifyQAQCRow\(a\) === "regular"\)\)/);
+  assert.match(g, /const sourceRows = useMemo\(\(\) => (keptMemo\(\[sourceAll\], `rows\|\$\{plotQc\}\|\$\{qcInSource\}`, \(\) => )?\(plotQc \|\| !qcInSource \? sourceAll : sourceAll\.filter\(\(a\) => classifyQAQCRow\(a\) === "regular"\)\)/ /* keptMemo: #3120 */);
   assert.match(g, /const labRows = labAll\.filter\(\(a\) => classifyQAQCRow\(a\) === "regular"\), qcLeft = labAll\.length - labRows\.length;/);
   assert.match(g, /were left out of the classification: they are not rock samples\./);
   assert.match(g, /const rows = diagramExportRows\(plotted, diagram, elementUnits\);/);

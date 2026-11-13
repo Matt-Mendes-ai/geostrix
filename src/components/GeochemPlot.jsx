@@ -5,6 +5,7 @@ import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no 
 import { drawPoints, packPoints, renderPointsImage } from "../lib/geochemPointsImage.js"; // TASKS.csv #1519
 import { fontSizes } from "../lib/theme.js"; // TASKS.csv #385 — SVG font-size attributes on the type scale
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
+import { keptMemo } from "../lib/keptMemo.js"; // TASKS.csv #3120 — the projection kept across tab visits
 
 const W = 620, H = 560, PAD = 60;
 // TASKS.csv #1519 (review #1497, Lawyers) — a large plot's points drawn once on a canvas and placed in the SVG as one image: 83,670
@@ -47,11 +48,12 @@ export default function GeochemPlot({ diagramId, samples, elementUnits, colorBy,
 
   const projected = useMemo(() => {
     if (!diagram || diagram.spider) return [];
-    return samples.map((s) => {
+    // #3120 — the same samples and diagram on a return to the Geochem tab: the projection is not done again (the units are part of the key)
+    return keptMemo([samples, diagram], `proj|${JSON.stringify(elementUnits || {})}`, () => samples.map((s) => {
       const p = diagram.project(s, elementUnits);
       if (!p) return null;
       return { ...p, sample: s };
-    }).filter(Boolean);
+    }).filter(Boolean));
   }, [diagram, samples, elementUnits]);
 
   if (!diagram) return null;
