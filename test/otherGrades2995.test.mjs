@@ -39,7 +39,7 @@ test("#2995 the unit once: '% SiO2' is not followed by 'Si'; others unchanged", 
 test("#2995 the pane: the list, the run, the result line, the saved grades, the cut-off over 100 %", () => {
   const p = fs.readFileSync(new URL("../src/components/PitShellPane.jsx", import.meta.url), "utf8");
   assert.ok(p.includes("Report these grades too"));
-  assert.ok(p.includes("runPitShellAsync(mIn, runInputs, terrain, (phases) => setBusy(phases), collars, byIn, alsoIn)"));
+  assert.ok(p.includes("runPitShellAsync(mIn, runInputs, terrain, (phases) => setBusy(phases), collars, byIn, alsoIn") /* penModels: #2986 part 2 */);
   assert.ok(p.includes("Other grades of the ore: {list}."));
   assert.ok(p.includes("const alsoLabel = (m) => (valueUnit(m) ? elementOfModel(m) || m.name : m.property || m.name);"), "a model without a stated unit reads by its property, not a bare element ('6 Si', found live)");
   assert.ok(p.includes("a.unit ? gradeWithElement(a.meanGrade, a.unit, a.element) : `${a.label} ${Number(a.meanGrade.toPrecision(3))}`"));
@@ -47,5 +47,5 @@ test("#2995 the pane: the list, the run, the result line, the saved grades, the 
   assert.ok(p.includes("A cut-off over 100 %: no block can pay at these inputs."));
   assert.ok(!p.includes('${element ? ` ${element}` : ""}'), "every unit through unitWithElement");
   const w = fs.readFileSync(new URL("../src/lib/pitShell.worker.js", import.meta.url), "utf8");
-  assert.ok(w.includes("runPitShell({ ...inputs, cells, byCells, alsoCells }"));
+  assert.ok(w.includes("runPitShell({ ...inputs, cells, byCells, alsoCells")); // penaltyCells after it: #2986 part 2
 });
