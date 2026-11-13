@@ -18,6 +18,7 @@ import { lazyModal } from "../lib/lazyModal.jsx"; // TASKS.csv #301
 import * as THREE from "three";
 import { setVerticalExaggeration, veOf } from "./viewer/verticalExaggeration.js"; // TASKS.csv #2628
 import ViewVeSelect from "./viewer/ViewVeSelect.jsx"; // TASKS.csv #2934
+import { useVeSuggestion } from "./viewer/useVeSuggestion.js"; // TASKS.csv #3063
 import { piercePoints as surfacePierces, piercePointRows } from "../lib/piercePoints.js"; // TASKS.csv #1009
 import { Info, Upload, Scissors, AlertTriangle, RotateCcw, RefreshCw, Eye, EyeOff, Trash2, Maximize2, Pencil, X, Layers3, ChevronUp, ChevronDown, ShieldAlert, GitFork, Map as MapIcon, Mountain, Image, FileBarChart2, Settings2, Box, Waypoints, Triangle, MapPin, ArrowUpRight, Shapes, Ruler, Beaker, Compass, Activity, GitCompare, Check } from "../components/icons.js"; // TASKS.csv #445 step 4 — memoised lucide icons // GitCompare/Check: TASKS.csv #93
 const AssayStyleModal = lazyModal(() => import("../components/AssayStyleModal.jsx")); // TASKS.csv #476
@@ -83,11 +84,7 @@ const DatabaseConnectModal = lazyModal(() => import("../components/DatabaseConne
 const SectionEditModal = lazyModal(() => import("../components/SectionEditModal.jsx")); // TASKS.csv #476
 const LayerInspector = lazyModal(() => import("../components/LayerInspector.jsx"));  // TASKS.csv #301
 const DataQCModal = lazyModal(() => import("../components/DataQCModal.jsx"));  // TASKS.csv #301
-// TASKS.csv #224 (software-design-specialist audit finding: sql.js's 658KB wasm was the single
-// strongest lazy-loading candidate) — SQLWorkspaceModal statically imports sqlWorkspace.js, which
-// statically imports sql.js, so a plain top-level import here pulled that wasm in on every app launch
-// regardless of whether SQL workspace is ever opened. React.lazy defers the whole chain until the
-// modal is actually rendered (see the Suspense wrapper at its render site below).
+// TASKS.csv #224 — lazy: SQLWorkspaceModal pulls in sql.js and its 658 KB wasm, loaded only when the modal renders
 const SQLWorkspaceModal = React.lazy(() => import("../components/SQLWorkspaceModal.jsx"));
 const SectionGeorefModal = React.lazy(() => import("../components/SectionGeorefModal.jsx")); // TASKS.csv #630
 const LayerStyleModal = React.lazy(() => import("../components/LayerStyleModal.jsx")); // TASKS.csv #635
@@ -840,6 +837,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   // effect (rebuild-all, raster drape, terrain, boundaries) to re-run against current state.
   const [rebuildSeq, setRebuildSeq] = useState(0);
   const [tracesSeq, setTracesSeq] = useState(0); // TASKS.csv #888 — bumped once the hole traces are rebuilt (a survey / collar / desurvey change)
+  useVeSuggestion({ tracesRef, tracesSeq, ve: veOf(figureOverlay.ve), projectKey: collars.length ? `${project?.name || ""}|${collars.length}` : null, setNotices }); // TASKS.csv #3063
   const holeColouredRef = useRef(false); // TASKS.csv #1504 — skip the pass while nothing is or was coloured
 
   // Persistent locator mini-map (TASKS.csv, user request) — an OpenStreetMap orientation aid docked in
