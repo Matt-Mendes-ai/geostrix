@@ -22,6 +22,7 @@ import { assayColorFor } from "./legendGroups.js";
 import { layerCategoryValue, STRUCTURE_CLASS_COLORS, STRUCTURE_CLASS_LABELS } from "./mapLayers.js";
 import { mapLayerFeatures, boundaryFeatures, surfaceStructureRows, kmlColor } from "./overlayExport.js";
 import { polygonsFromRings } from "./polygonRings.js";
+import { splitRings } from "./ringSplit.js"; // TASKS.csv #3126 — a ring crossing itself as written, split into simple loops (Perk-Rocky's And unit)
 
 export const MAX_CLASSES = 16; // a numeric log with more colours than this is grouped into equal bins
 const BINS = 12;
@@ -82,6 +83,7 @@ class KmlWriter {
     this.parts = [];
     this.placemarks = 0;
     this.coords = 0;
+    this.ringsSplit = 0;
   }
   ll(x, y) { const [lon, lat] = this.toLonLat(x, y); return `${lon.toFixed(7)},${lat.toFixed(7)}`; }
   lla(x, y, z) { this.coords++; return fin(z) ? `${this.ll(x, y)},${this.altOf(z).toFixed(2)}` : this.ll(x, y); }
@@ -112,9 +114,14 @@ class KmlWriter {
   lineGround(xy) { return `<LineString><tessellate>1</tessellate><coordinates>${xy.map(([x, y]) => { this.coords++; return this.ll(x, y); }).join(" ")}</coordinates></LineString>`; }
   point3d(x, y, z) { return `<Point><altitudeMode>absolute</altitudeMode><coordinates>${this.lla(x, y, z)}</coordinates></Point>`; }
   pointGround(x, y) { this.coords++; return `<Point><coordinates>${this.ll(x, y)}</coordinates></Point>`; }
+  // the rings in longitude / latitude as written (7 decimals), each split where it crosses itself, THEN grouped into polygons: Google Earth leaves an
+  // invalid polygon unfilled (Perk-Rocky's And unit: one hole a centimetre-wide figure-eight once reprojected and rounded)
   polygonGround(rings) {
-    const ring = (r) => { const c = r[0][0] === r[r.length - 1][0] && r[0][1] === r[r.length - 1][1] ? r : [...r, r[0]]; return `<LinearRing><coordinates>${c.map(([x, y]) => { this.coords++; return this.ll(x, y); }).join(" ")}</coordinates></LinearRing>`; };
-    return polygonsFromRings(rings).map(([outer, ...holes]) => `<Polygon><tessellate>1</tessellate><altitudeMode>clampToGround</altitudeMode><outerBoundaryIs>${ring(outer)}</outerBoundaryIs>${holes.map((h) => `<innerBoundaryIs>${ring(h)}</innerBoundaryIs>`).join("")}</Polygon>`).join("");
+    const ll = (rings || []).filter((r) => r?.length >= 3).map((r) => r.map(([x, y]) => { const [lon, lat] = this.toLonLat(x, y); return [Number(lon.toFixed(7)), Number(lat.toFixed(7))]; }));
+    const fixed = splitRings(ll);
+    if (fixed.length !== ll.length) this.ringsSplit += fixed.length - ll.length;
+    const ring = (r) => { const c = r[0][0] === r[r.length - 1][0] && r[0][1] === r[r.length - 1][1] ? r : [...r, r[0]]; this.coords += c.length; return `<LinearRing><coordinates>${c.map(([lon, lat]) => `${lon.toFixed(7)},${lat.toFixed(7)}`).join(" ")}</coordinates></LinearRing>`; };
+    return polygonsFromRings(fixed).map(([outer, ...holes]) => `<Polygon><tessellate>1</tessellate><altitudeMode>clampToGround</altitudeMode><outerBoundaryIs>${ring(outer)}</outerBoundaryIs>${holes.map((h) => `<innerBoundaryIs>${ring(h)}</innerBoundaryIs>`).join("")}</Polygon>`).join("");
   }
   multi(geoms) { return geoms.length === 1 ? geoms[0] : `<MultiGeometry>${geoms.join("")}</MultiGeometry>`; }
 }
@@ -453,6 +460,7 @@ export function buildProjectKml(ctx, opts) {
   const desc = `Exported from GeoStrix${opts.crsLabel ? ` (project CRS ${opts.crsLabel})` : ""}. Drillholes are drawn at their elevations, below the ground: untick Terrain in Google Earth's Layers to see them.`;
   const kml = `<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2">\n<Document><name>${esc(ctx.projectName || "GeoStrix project")}</name><open>1</open><description>${esc(desc)}</description>\n${styles}\n${w.parts.join("\n")}\n</Document>\n</kml>\n`;
   counts.placemarks = w.placemarks;
+  counts.ringsSplit = w.ringsSplit; // rings that crossed themselves as written, split into this many more loops
   counts.coordinates = w.coords;
   return { kml, files, counts };
 }

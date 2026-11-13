@@ -5,6 +5,7 @@
 // KML writer (reprojected to WGS84 longitude / latitude) and CSV rows. Loaded on demand (ViewerModule /
 // SurfaceMappingPanel), like the writers.
 import { polygonsFromRings } from "./polygonRings.js";
+import { splitRings } from "./ringSplit.js"; // TASKS.csv #3126 — a polygon ring crossing itself as written, split into simple loops (Google Earth leaves it unfilled)
 import { getProj4Def, pointTransform } from "./reproject.js";
 import { azimuthToGridOffset, wrap360 } from "./azimuthRef.js";
 
@@ -156,8 +157,11 @@ export function featuresToKml({ features, geomType }, { name = "GeoStrix export"
       const one = (p) => `<LineString><tessellate>1</tessellate><coordinates>${coords(p)}</coordinates></LineString>`;
       geom = parts.length === 1 ? one(parts[0]) : `<MultiGeometry>${parts.map(one).join("")}</MultiGeometry>`;
     } else {
-      const polys = polygonsFromRings(f.parts?.length ? f.parts : [f.geometry]).map((rs) => rs.map((r) => (r[0][0] === r[r.length - 1][0] && r[0][1] === r[r.length - 1][1] ? r : [...r, r[0]])));
-      const one = ([outer, ...holes]) => `<Polygon><tessellate>1</tessellate><outerBoundaryIs><LinearRing><coordinates>${coords(outer)}</coordinates></LinearRing></outerBoundaryIs>${holes.map((h) => `<innerBoundaryIs><LinearRing><coordinates>${coords(h)}</coordinates></LinearRing></innerBoundaryIs>`).join("")}</Polygon>`;
+      // the rings as written (longitude / latitude at 8 decimals, z kept), each split where it crosses itself, then grouped into polygons
+      const llRings = (f.parts?.length ? f.parts : [f.geometry]).filter((r) => r?.length >= 3).map((r) => r.map(([x, y, z]) => { const [lon, lat] = toLonLat(x, y); return [r8(lon), r8(lat), z]; }));
+      const polys = polygonsFromRings(splitRings(llRings)).map((rs) => rs.map((r) => (r[0][0] === r[r.length - 1][0] && r[0][1] === r[r.length - 1][1] ? r : [...r, r[0]])));
+      const llc = (ring) => ring.map(([lon, lat, z]) => (Number.isFinite(z) ? `${lon},${lat},${Math.round(z * 100) / 100}` : `${lon},${lat}`)).join(" ");
+      const one = ([outer, ...holes]) => `<Polygon><tessellate>1</tessellate><outerBoundaryIs><LinearRing><coordinates>${llc(outer)}</coordinates></LinearRing></outerBoundaryIs>${holes.map((h) => `<innerBoundaryIs><LinearRing><coordinates>${llc(h)}</coordinates></LinearRing></innerBoundaryIs>`).join("")}</Polygon>`;
       geom = polys.length === 1 ? one(polys[0]) : `<MultiGeometry>${polys.map(one).join("")}</MultiGeometry>`;
     }
     const heading = headingOf ? headingOf(f) : null;
