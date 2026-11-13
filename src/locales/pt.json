@@ -3057,6 +3057,8 @@
   "; {clampedCount} negative grade(s) clamped to zero": "; {clampedCount} teor(es) negativo(s) levado(s) a zero",
   "Raw assays: {duplicatesSkipped} exact duplicate row(s) left out; {overlappingRows} overlapping row(s) resolved into segments at the mean of the overlapping results.": "Análises brutas: {duplicatesSkipped} linha(s) duplicada(s) exata(s) deixada(s) de fora; {overlappingRows} linha(s) sobreposta(s) resolvida(s) em segmentos pela média dos resultados sobrepostos.",
   "{blocksEstimated} block(s) estimated, {blocksSkipped} left un-estimated (no sample within search radius / below min-samples / below min distinct holes).": "{blocksEstimated} bloco(s) estimado(s), {blocksSkipped} sem estimativa (sem amostra dentro do raio de busca / abaixo do mín. de amostras / abaixo do mín. de furos distintos).",
+  "{e} of the {b} blocks a drillhole passes through were estimated.": "Foram estimados {e} dos {b} blocos atravessados por um furo.",
+  "{k} of the {h} holes have no estimated block anywhere along them ({list}): Min distinct holes ({m}) or the search left them out.": "{k} dos {h} furos não têm nenhum bloco estimado ao longo deles ({list}): o mínimo de furos distintos ({m}) ou a busca os deixou de fora.",
   "Kriged with a {model} variogram{v}: nugget {v2}, sill {v3}, range {v4} m{v5}{v6}.": "Krigado com um variograma {model}{v}: pepita {v2}, patamar {v3}, alcance {v4} m{v5}{v6}.",
   " fitted to these composites": " ajustado a estes compostos",
   " as entered": " como foi informado",

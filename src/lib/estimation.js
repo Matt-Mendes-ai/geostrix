@@ -167,7 +167,7 @@ export function estimateBlockModel(samplePoints, opts) {
   // TASKS.csv #709 — kriging needs a variogram (resolveVariogram), in the same frame the search works in
   const tw0 = method === "ok" ? withTrend(samplePoints, opts) : null;
   const variogram = method === "ok" ? resolveVariogram(tw0.pts, opts.variogram, cellSize) : null;
-  const estOpts = { method, searchRadius, minSamples, maxSamples, minHoles, maxPerHole, lengthWeight, restrictToDomain, noCodeAsDomain, variogram, supportRef: opts.supportRef, materialHoles: !!opts.materialHoles }; // supportRef: #1411; materialHoles: #1573
+  const estOpts = { method, searchRadius, minSamples, maxSamples, minHoles, maxPerHole, lengthWeight, restrictToDomain, noCodeAsDomain, variogram, supportRef: opts.supportRef, materialHoles: !!opts.materialHoles, nearHoleM: Math.max(dx, dy, dz) }; // supportRef: #1411; materialHoles: #1573; nearHoleM: #3255
   // TASKS.csv #91/#92 — support classification is opt-in and OFF by default: it widens the neighbour
   // search and adds per-cell work, so it must never be paid for by a caller that didn't ask. `bracketTol`
   // is half a cell, so bracketing has to be real at the scale the block model is drawn at.
@@ -221,6 +221,16 @@ export function estimateBlockModel(samplePoints, opts) {
   } : null;
   const domainNames = [], domainIdx = new Map(); // #3014
   const domainCodeOf = (d) => { if (d == null) return -1; let k = domainIdx.get(d); if (k === undefined) { k = domainNames.length; domainNames.push(d); domainIdx.set(d, k); } return k; };
+  // TASKS.csv #3255 — the blocks a drillhole passes through (a composite inside, real positions) and the holes along them: counted estimated or
+  // left empty, so a run that leaves the best-informed blocks empty says so
+  const pierced = new Map(); // block index -> Set(hole_id)
+  for (const p of samplePoints) {
+    const ix = Math.floor((p.x - bounds.xmin) / dx), iy = Math.floor((p.y - bounds.ymin) / dy), iz = Math.floor((p.z - bounds.zmin) / dz);
+    if (ix < 0 || iy < 0 || iz < 0 || ix >= nx || iy >= ny || iz >= nz) continue;
+    const k = ix + nx * (iy + ny * iz);
+    let h = pierced.get(k); if (!h) pierced.set(k, (h = new Set())); h.add(p.hole_id);
+  }
+  const piercedDone = new Set();
   let blocksSkipped = 0;
   let noCodeBlocks = 0; // TASKS.csv #2541 — left out because the nearest composite has no domain code
   let singleHoleCells = 0; // TASKS.csv #258 — surfaced in the run summary
@@ -247,6 +257,7 @@ export function estimateBlockModel(samplePoints, opts) {
           supportCounts[r.support.cls]++;
           if (r.support.cls === SUPPORT_EXTRAPOLATED && r.support.dataBracketed) supportCounts.searchLimited++;
         }
+        if (pierced.has(rowBase + ix)) piercedDone.add(rowBase + ix); // #3255
         const by = beyondOf(r, cz); // #2417
         if (by === 1) beyondCounts.above++; else if (by === 2) beyondCounts.below++;
         const nu = nearUnsampledOf(r, cx, cy, cz); // #2596
@@ -283,7 +294,11 @@ export function estimateBlockModel(samplePoints, opts) {
   }
   // #661 — trimmed to the blocks actually estimated (slice copies, so the spare capacity is freed with the originals)
   const columns = asColumns ? Object.fromEntries([["n", n], ["dx", dx], ["dy", dy], ["dz", dz], ...Object.entries(col).map(([k, a]) => [k, a.slice(0, n)]), ...(col.domainCode ? [["domainNames", domainNames]] : [])]) : null; // domainNames: #3014
-  return { ...(asColumns ? { columns } : { cells }), ...(unsIdx ? { nearUnsampledBlocks } : {}) /* #2596 */, blocksEstimated: asColumns ? n : cells.length, blocksSkipped, noCodeBlocks, singleHoleCells, dominatedCells, grid: { nx, ny, nz }, blocksInReach: mask ? reachInfo.reach : totalBlocks, supportCounts: wantSupport ? supportCounts : null, beyondCounts /* #2417 */, mlsCounts: method === "mls1" ? mlsCounts : null, ...(method === "ok" ? { okCounts, variogram } : {}) };
+  // #3255 — { blocks, estimated, holes, holesEmpty: [hole ids with no estimated block along them] }
+  const holeHit = new Map();
+  for (const [k, hs] of pierced) for (const h of hs) holeHit.set(h, (holeHit.get(h) || false) || piercedDone.has(k));
+  const piercedBlocks = { blocks: pierced.size, estimated: piercedDone.size, holes: holeHit.size, holesEmpty: [...holeHit].filter(([, v]) => !v).map(([h]) => h) };
+  return { ...(asColumns ? { columns } : { cells }), ...(unsIdx ? { nearUnsampledBlocks } : {}) /* #2596 */, piercedBlocks /* #3255 */, blocksEstimated: asColumns ? n : cells.length, blocksSkipped, noCodeBlocks, singleHoleCells, dominatedCells, grid: { nx, ny, nz }, blocksInReach: mask ? reachInfo.reach : totalBlocks, supportCounts: wantSupport ? supportCounts : null, beyondCounts /* #2417 */, mlsCounts: method === "mls1" ? mlsCounts : null, ...(method === "ok" ? { okCounts, variogram } : {}) };
 }
 
 // TASKS.csv #142 — the grid sizing + per-cell NN/IDW math shared by estimateBlockModel (sparse cell
@@ -393,6 +408,15 @@ export function retallyKeptCells(cells, { method, supportCounts, dropUnsupported
 // down 21AGBDD040, and the block became 13.3 g/t on one hole's say-so. Material = at least 1 - DOMINANT_SHARE (5 %) of the
 // inverse-distance weight (length x 1 / d^power), the estimator's own weighting.
 export const MATERIAL_SHARE = 1 - DOMINANT_SHARE;
+// TASKS.csv #3255 — does #1573's 5 % share rule apply to this block? Only with Min distinct holes 2+ and the rule ticked, and only for a block whose
+// nearest used composite is farther than nearHoleM (the block's largest side; in the search's frame under a trend) from its centre
+export function useMaterialRule(minHoles, wantMaterial, nearHoleM, used) {
+  if (!(minHoles > 1 && wantMaterial)) return false;
+  if (!(nearHoleM > 0) || !used?.length) return true;
+  let d2 = Infinity;
+  for (const u of used) if (u.d2 < d2) d2 = u.d2;
+  return d2 > nearHoleM * nearHoleM;
+}
 export function materialHoles(used, power = 2) {
   const w = new Map(); let total = 0;
   for (const s of used) { const wi = (s.len ?? 1) / Math.pow(Math.max(s.d2, EXACT_D2), (power ?? 2) / 2); w.set(s.hole_id, (w.get(s.hole_id) || 0) + wi); total += wi; }
@@ -563,7 +587,10 @@ function makeCellEstimator(samplePoints, opts = {}) {
     // TASKS.csv #258 — minimum DISTINCT drillholes. minSamples counts sample points, and a single hole
     // composited at 2 m supplies ~25 of them inside a 50 m radius, so it can never express "at least
     // two holes must see this block" — the first sanity constraint any resource practitioner applies.
-    const holes = minHoles > 1 && wantMaterial ? materialHoles(used, power ?? 2) : new Set(used.map((s) => s.hole_id)); // #1573 — a hole with under 5 % of the weight is not a second hole
+    // #1573 — a hole with under 5 % of the weight is not a second hole; TASKS.csv #3255 (Galore Creek review) — but not for a block within about a
+    // cell of its nearest composite: with holes ~200 m apart no second hole carries 5 % there, so the blocks the holes pass through were left
+    // empty (41 of 321) while blocks far out were kept. Such a block counts every hole in reach, and #1617's share flags it one-hole.
+    const holes = useMaterialRule(minHoles, wantMaterial, opts.nearHoleM, used) ? materialHoles(used, power ?? 2) : new Set(used.map((s) => s.hole_id));
     if (holes.size < minHoles) return null;
 
     let value, mlsMode = null, okRes = null;
@@ -796,7 +823,7 @@ export function makeSupportClassifier(samplePoints, opts = {}) {
       if (candidates.length < minSamples) return none;
     }
     const used = selectUsed(candidates, maxSamples, minHoles, maxPerHole); // #642 — the estimator's own selection
-    const holes = minHoles > 1 && wantMaterial ? materialHoles(used, 2) : new Set(used.map((s) => s.hole_id)); // #1573 — the estimator's rule, so the support class describes the same estimate
+    const holes = useMaterialRule(minHoles, wantMaterial, opts.nearHoleM, used) ? materialHoles(used, 2) : new Set(used.map((s) => s.hole_id)); // #1573 / #3255 — the estimator's rule, so the support class describes the same estimate
     if (holes.size < minHoles) return none;
     return supportFrom(candidates, used, holes, cx, cy, cz, bracketTol, bracketMax, searchRadius);
   };
@@ -1141,7 +1168,7 @@ export function estimateDenseGrid(samplePoints, opts) {
   const twK = method === "ok" ? withTrend(samplePoints, opts) : null; // #709 — kriging works on grade shells too
   const variogram = method === "ok" ? resolveVariogram(twK.pts, opts.variogram, cellSize) : null;
   if (variogram) out.variogram = variogram;
-  const estOpts = { method, searchRadius, minSamples, maxSamples, minHoles, maxPerHole, lengthWeight, restrictToDomain, noCodeAsDomain, variogram, supportRef: opts.supportRef, materialHoles: !!opts.materialHoles }; // supportRef: #1411; materialHoles: #1573
+  const estOpts = { method, searchRadius, minSamples, maxSamples, minHoles, maxPerHole, lengthWeight, restrictToDomain, noCodeAsDomain, variogram, supportRef: opts.supportRef, materialHoles: !!opts.materialHoles, nearHoleM: Math.max(dx, dy, dz) }; // supportRef: #1411; materialHoles: #1573; nearHoleM: #3255
   // TASKS.csv #91/#92 — opt-in per-node data-support classification, OFF by default so no existing
   // caller pays for it. When on, the grid carries two extra parallel arrays on the same
   // [ix + nx * (iy + ny * iz)] indexing as `values`, so a mesh extracted from this grid can be coloured

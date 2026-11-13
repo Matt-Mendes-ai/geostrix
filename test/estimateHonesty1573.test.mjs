@@ -22,11 +22,12 @@ test("material holes: a hole with under 5 % of the inverse-distance weight is no
 });
 
 test("min distinct holes 2 with the material rule: a far token is no second hole; a material one estimates the block", () => {
-  // hole A: composites down a vertical hole at x = 0; hole B: one composite 150 m east; the block at 20 m east of A
+  // hole A: composites down a vertical hole at x = 0; hole B: one composite 150 m east; the block at 40 m east of A, more than a cell (20 m) from
+  // its nearest composite, where the rule applies (#3255: not within a cell, see the next test)
   const A = Array.from({ length: 10 }, (_, i) => ({ x: 0, y: 0, z: -2 * i, value: 10, hole_id: "A", len: 2 }));
   const far = [{ x: 150, y: 0, z: -10, value: 0, hole_id: "B", len: 2 }];
-  const nearB = [{ x: 40, y: 0, z: -10, value: 0, hole_id: "B", len: 2 }];
-  const opts = { bounds: { xmin: 10, xmax: 30, ymin: -10, ymax: 10, zmin: -20, zmax: 0 }, cellSize: { dx: 20, dy: 20, dz: 20 }, method: "idw2", searchRadius: 200, minSamples: 1, maxSamples: 16, minHoles: 2, materialHoles: true };
+  const nearB = [{ x: 70, y: 0, z: -10, value: 0, hole_id: "B", len: 2 }];
+  const opts = { bounds: { xmin: 30, xmax: 50, ymin: -10, ymax: 10, zmin: -20, zmax: 0 }, cellSize: { dx: 20, dy: 20, dz: 20 }, method: "idw2", searchRadius: 200, minSamples: 1, maxSamples: 16, minHoles: 2, materialHoles: true };
   const withFar = estimateBlockModel([...A, ...far], opts);
   assert.equal(withFar.blocksEstimated, 0, "the 150 m token is not a second hole");
   const withNear = estimateBlockModel([...A, ...nearB], opts);
@@ -38,6 +39,25 @@ test("min distinct holes 2 with the material rule: a far token is no second hole
   assert.equal(off.blocksEstimated, 1, "the library's default keeps the old rule (#642 / #676)");
 });
 
+test("#3255 a block within a cell of its nearest composite (the block a hole passes through) is estimated, flagged one-hole", () => {
+  const A = Array.from({ length: 10 }, (_, i) => ({ x: 0, y: 0, z: -2 * i, value: 10, hole_id: "A", len: 2 }));
+  const far = [{ x: 150, y: 0, z: -10, value: 0, hole_id: "B", len: 2 }];
+  // the block from x 10 to 30: its centre 20 m from hole A, a cell (20 m) away; and the block A passes through (x -10 to 10)
+  const opts = { cellSize: { dx: 20, dy: 20, dz: 20 }, method: "idw2", searchRadius: 200, minSamples: 1, maxSamples: 16, minHoles: 2, materialHoles: true };
+  const beside = estimateBlockModel([...A, ...far], { ...opts, bounds: { xmin: 10, xmax: 30, ymin: -10, ymax: 10, zmin: -20, zmax: 0 } });
+  assert.equal(beside.blocksEstimated, 1, "the far token counts here: the block sits a cell from hole A");
+  assert.ok(beside.cells[0].holeShare >= 0.95, "and the dominant-hole share (#1617) says it rests on hole A");
+  const through = estimateBlockModel([...A, ...far], { ...opts, bounds: { xmin: -10, xmax: 10, ymin: -10, ymax: 10, zmin: -20, zmax: 0 } });
+  assert.equal(through.blocksEstimated, 1);
+  assert.deepEqual(through.piercedBlocks, { blocks: 1, estimated: 1, holes: 1, holesEmpty: [] });
+  // two holes 200 m apart, 20 m cells between them along a line: before, only blocks far from both counted 'two holes'; now every pierced block is kept
+  const two = [...A, ...Array.from({ length: 10 }, (_, i) => ({ x: 200, y: 0, z: -2 * i, value: 2, hole_id: "C", len: 2 }))];
+  const line = estimateBlockModel(two, { ...opts, bounds: { xmin: -10, xmax: 210, ymin: -10, ymax: 10, zmin: -20, zmax: 0 } });
+  assert.equal(line.piercedBlocks.blocks, 2);
+  assert.equal(line.piercedBlocks.estimated, 2, "both blocks the holes pass through");
+  assert.deepEqual(line.piercedBlocks.holesEmpty, []);
+});
+
 test("the modal: support split first, a P99 cap by default over CV 150 %, the Add button's interpolated share", () => {
   const m = readFileSync(new URL("../src/components/GradeEstimationModal.jsx", import.meta.url), "utf8");
   assert.match(m, /None of these \{n\} blocks lies between holes: every one is extrapolated from the nearest holes\./);
@@ -47,6 +67,6 @@ test("the modal: support split first, a P99 cap by default over CV 150 %, the Ad
   assert.match(m, /capClearedFor\.current = Number\.isFinite\(v\) && v > 0 \? null : symbol;/);
   assert.match(m, /Add as block model \(\{pct\}% interpolated\)/);
   const e = readFileSync(new URL("../src/lib/estimation.js", import.meta.url), "utf8");
-  assert.equal((e.match(/minHoles > 1 && wantMaterial \? materialHoles\(used, /g) || []).length, 2, "the estimator and the support classifier share the rule");
+  assert.equal((e.match(/useMaterialRule\(minHoles, wantMaterial, opts\.nearHoleM, used\) \? materialHoles\(used, /g) || []).length, 2, "the estimator and the support classifier share the rule (#3255: with the near-hole exception)");
   assert.match(m, /const \[materialHoles, setMaterialHoles\] = useState\(\(\) => keep\("materialHoles", true\)\);/); // on by default in the dialog (#1580: or as last left)
 });

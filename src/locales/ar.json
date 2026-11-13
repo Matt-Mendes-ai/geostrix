@@ -3057,6 +3057,8 @@
   "; {clampedCount} negative grade(s) clamped to zero": "؛ {clampedCount} محتوى سالب قُيّد إلى الصفر",
   "Raw assays: {duplicatesSkipped} exact duplicate row(s) left out; {overlappingRows} overlapping row(s) resolved into segments at the mean of the overlapping results.": "التحاليل الخام: استُبعد {duplicatesSkipped} صف مكرر تمامًا؛ وحُل {overlappingRows} صف متداخل إلى مقاطع بمتوسط النتائج المتداخلة.",
   "{blocksEstimated} block(s) estimated, {blocksSkipped} left un-estimated (no sample within search radius / below min-samples / below min distinct holes).": "قُدّرت {blocksEstimated} كتلة، وتُركت {blocksSkipped} دون تقدير (لا عينة ضمن نصف قطر البحث / دون أدنى العينات / دون أدنى الثقوب المختلفة).",
+  "{e} of the {b} blocks a drillhole passes through were estimated.": "قُدّرت {e} من {b} كتلة يمر بها ثقب حفر.",
+  "{k} of the {h} holes have no estimated block anywhere along them ({list}): Min distinct holes ({m}) or the search left them out.": "{k} من {h} ثقباً ليس على امتدادها أي كتلة مقدّرة ({list}): استبعدها الحد الأدنى للثقوب المختلفة ({m}) أو البحث.",
   "Kriged with a {model} variogram{v}: nugget {v2}, sill {v3}, range {v4} m{v5}{v6}.": "كريغينغ بفاريوغرام {model}{v}: الأثر الكتلي {v2}، العتبة {v3}، المدى {v4} م{v5}{v6}.",
   " fitted to these composites": " مطابق لهذه العينات المركّبة",
   " as entered": " كما أُدخل",
