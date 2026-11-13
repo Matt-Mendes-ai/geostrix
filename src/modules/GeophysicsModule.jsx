@@ -11,6 +11,7 @@ import SourceCrsField from "../components/SourceCrsField.jsx"; // TASKS.csv #488
 import Papa from "papaparse";
 import { zeroMeansMissing } from "../lib/missingElevation.js"; // TASKS.csv #1436
 import { suspectElevationIds, elevationTrust } from "../lib/collarElevationTrust.js"; // TASKS.csv #2987 (the shared rule, #3004)
+import { logReadingCounts } from "../lib/inversionLogSources.js"; // TASKS.csv #2950
 import { mainClusters } from "../lib/dataClusters.js"; // TASKS.csv #1461
 import { fetchAreaBox, modelGapKm } from "../lib/dataExtent.js"; // #1461; modelGapKm: #1427
 import { Radio, Upload, Trash2, ArrowRight, Eye, EyeOff, Loader2, Mountain, Triangle, Box, MapPin, Waypoints, Plus, Palette, Download, Flag, Globe, ArrowDownToLine, PackageOpen, Scale, Crosshair } from "../components/icons.js"; // Crosshair: #2657
@@ -2835,7 +2836,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
             if (voxelModels.length) parts.push(tr("{n} block model(s)", { n: voxelModels.length })); // TASKS.csv #1176
             if (dcipLines.length) parts.push(tr("{n} DC/IP line(s)", { n: dcipLines.length }));
             // TASKS.csv #1425 — a drill-only project has downhole geophysics: say so, and where it is used
-            const ms = (layers.magsusc || []).length, sg = (layers.sg || []).length;
+            const { ms, sg } = logReadingCounts({ layers, customLayers }); // #2950 — and the custom log layers named for the property
             if (!parts.length) return ms || sg ? tr("No surface geophysics yet; {ms} mag-susc and {sg} SG readings in the drillholes — see Downhole logs, or 3D Modelling > Estimation / Grade shell to grid them", { ms: ms.toLocaleString(), sg: sg.toLocaleString() }) : tr("No geophysics data yet");
             const joined = parts.length > 1 ? tr("{list} and {last}", { list: parts.slice(0, -1).join(", "), last: parts[parts.length - 1] }) : parts[0];
             return tr("{items} loaded", { items: joined });

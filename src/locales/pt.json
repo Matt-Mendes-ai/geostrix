@@ -2457,6 +2457,8 @@
   "specific gravity": "densidade relativa",
   "susceptibility": "suscetibilidade",
   "Log units": "Unidades do perfil",
+  "Choose the log that holds the {v} readings (Log).": "Escolha o perfil que contém as leituras de {v} (Log).",
+  "Log that constrains the inversion": "Perfil que restringe a inversão",
   "Susceptibility log units": "Unidades do perfil de suscetibilidade",
   "Choose…": "Escolher…",
   "The logged SG minus this is the density contrast the inversion models.": "A densidade registrada menos isto é o contraste de densidade que a inversão modela.",

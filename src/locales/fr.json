@@ -2457,6 +2457,8 @@
   "specific gravity": "densité relative",
   "susceptibility": "susceptibilité",
   "Log units": "Unités du journal",
+  "Choose the log that holds the {v} readings (Log).": "Choisissez la diagraphie qui contient les lectures de {v} (Log).",
+  "Log that constrains the inversion": "Diagraphie qui contraint l'inversion",
   "Susceptibility log units": "Unités du journal de susceptibilité",
   "Choose…": "Choisir…",
   "The logged SG minus this is the density contrast the inversion models.": "La densité relative journalisée moins celle-ci est le contraste de densité que modélise l'inversion.",
