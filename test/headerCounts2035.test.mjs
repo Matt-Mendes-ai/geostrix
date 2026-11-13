@@ -6,7 +6,7 @@ import { readFileSync } from "node:fs";
 const g = readFileSync(new URL("../src/modules/GeochemModule.jsx", import.meta.url), "utf8");
 
 test("the counts: regular intervals, QC rows, assayed and calculated elements", () => {
-  assert.match(g, /let qc = 0; for \(const a of assays\) if \(classifyQAQCRow\(a\) !== "regular"\) qc\+\+; const calc = assayElements\.filter\(\(e\) => e\.calculated\)\.length; return \{ n: assays\.length - qc, qc, e: assayElements\.length - calc, calc \};/);
+  assert.match(g, /(let qc = 0; for \(const a of assays\) if \(classifyQAQCRow\(a\) !== "regular"\) qc\+\+;|const qc = keptMemo\(\[assays\], "qcCount", \(\) => \{ let k = 0; for \(const a of assays\) if \(classifyQAQCRow\(a\) !== "regular"\) k\+\+; return k; \}\);) const calc = assayElements\.filter\(\(e\) => e\.calculated\)\.length; return \{ n: assays\.length - qc, qc, e: assayElements\.length - calc, calc \};/ /* keptMemo: #3120 */);
   assert.match(g, /headCounts\.qc \|\| headCounts\.calc \? headerCounts\(headCounts\) :/);
 });
 
