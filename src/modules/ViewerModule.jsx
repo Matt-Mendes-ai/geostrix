@@ -198,7 +198,8 @@ import { PROTO_SPHERE_8, POINT_PROTO } from "../lib/viewer/protos.js"; // TASKS.
 import { assayShapeFor, assayProto, placeAssayMarker } from "../lib/viewer/assayShape.js"; // TASKS.csv #2932
 import { assayRange } from "../lib/viewer/assayRanges.js"; // TASKS.csv #3055
 import { makeAssayBatcher } from "../lib/viewer/assayBatcher.js"; // TASKS.csv #3055
-import { syncAssayElements } from "../lib/viewer/assayKeep.js"; // TASKS.csv #3117
+import { syncAssayElements, setAssayLod, assayLodTick } from "../lib/viewer/assayKeep.js"; // TASKS.csv #3117; LOD: #3144
+import { sampleRuns, runSize, typicalSampleM } from "../lib/viewer/assayLod.js"; // TASKS.csv #3144
 import { buildDrillholeScene, collarColorFor, voxelFitCorners, isIntervalRow } from "./viewer/drillholeScene.js"; // TASKS.csv #2176
 import { viewNdc } from "../lib/viewer/clickPoint.js"; // TASKS.csv #2803
 import { hideTraceHoles } from "../lib/viewer/traceBatch.js"; // TASKS.csv #2176
@@ -782,13 +783,8 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
 
   const [gridConfig, setGridConfig] = useState({ ...DEFAULT_GRID });
   const gridGroupRef = useRef(null);
-  // TASKS.csv #311 — the three saturated world-origin axis lines (mkAxis in the mount effect below)
-  // are the single most debug-view-looking element in a screenshot, and they sit at the PROJECT
-  // ORIGIN, which is an arbitrary place relative to the data (it can land straight through a hole
-  // cluster). They are not vestigial — #189 matched the AxisGizmo's arrow colours to them on purpose
-  // so the gizmo and the scene never disagree — so this makes them a toggle (grouped with the grid in
-  // the same popover, the same kind of reference-furniture decision) defaulting OFF rather than
-  // deleting them. The colour-agreement rationale still holds whenever they are switched back on.
+  // TASKS.csv #311 — the world-origin axis lines (mkAxis below): the most debug-looking thing in a screenshot, at an arbitrary place in the
+  // data, so a toggle (with the grid) defaulting off. Kept because #189 matched the AxisGizmo's colours to them.
   const axisLinesRef = useRef([]);
   // TASKS.csv #311 — figure overlay config; see DEFAULT_FIGURE_OVERLAY for the default-on reasoning.
   const [figureOverlay, setFigureOverlay] = useState({ ...DEFAULT_FIGURE_OVERLAY });
@@ -2200,31 +2196,12 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
     // bug #207 fixed for window-blur, for this specific likely trigger instead.
     dom.addEventListener("pointercancel", onPointerUp);
 
-    // Perf — idle-throttled render loop (see lastActivityRef comment above). requestAnimationFrame
-    // itself always keeps ticking (so the throttle check below runs every ~16ms and idle→active
-    // transitions are picked up immediately), but the actual expensive renderer.render() call is
-    // skipped on ticks that land inside the idle cap's interval once the view has been still for
-    // IDLE_AFTER_MS. This is a pure throttle, not a dirty-flag skip: it never depends on anything
-    // "knowing" the scene changed, so there's no risk of a stale frame — worst case, an off-screen
-    // change (an import finishing, a filter changing) takes up to one idle interval (~120ms) to
-    // reach the screen instead of ~16ms, which is imperceptible for anything that isn't itself an
-    // animation. Deliberately NOT gating tooltip/hover raycasting or camera math on this — those stay
-    // exactly as responsive as before; only the GPU draw call is throttled.
-    // TASKS.csv #201 follow-up — user report (real screenshot): "opacity of voxels is not working
-    // the way it should, it doesn't make the voxels opaque, the blocks will be displayed depending
-    // on the angle of view." This is the exact residual limitation #201's own fix comment already
-    // named and deliberately deferred: depthWrite:false (that fix) stops instances from wrongly
-    // OCCLUDING each other, but three.js still draws an InstancedMesh's instances in fixed array
-    // order, not back-to-front by camera distance — so with alpha blending, which voxel visually
-    // "wins" where two overlap depends on which happened to draw last, and since screen-space overlap
-    // changes as the camera orbits, so does the blend result. #201 dismissed this as "a subtle
-    // blending-order nuance" — a real user, on a real large model, reports it's not subtle in
-    // practice. Fixed here with actual back-to-front instance re-sorting, gated and throttled so it
-    // costs nothing for the common case: only meshes an opaque model NEVER gets this treatment at
-    // all (mesh.userData.transparentCells is only populated for opacity<1 models — see the voxel-
-    // build effect), and even a transparent model is only re-sorted at most every
-    // VOXEL_SORT_INTERVAL_MS AND only when the camera has actually moved since the last sort (a
-    // static view re-sorts once, not on every idle-throttled tick).
+    // Perf — idle-throttled render loop (lastActivityRef above): rAF keeps ticking, but renderer.render() is skipped inside the idle cap's
+    // interval once the view has been still for IDLE_AFTER_MS. A pure throttle, not a dirty flag: an off-screen change reaches the screen
+    // within one idle interval (~120 ms). Hover raycasting and camera math are not throttled.
+    // TASKS.csv #201 follow-up ("the blocks will be displayed depending on the angle of view") — an InstancedMesh draws its instances in
+    // array order, so a transparent model's blend changed with the camera: its cells (mesh.userData.transparentCells, opacity < 1 only)
+    // are re-sorted back to front, at most every VOXEL_SORT_INTERVAL_MS and only after the camera moved.
     const VOXEL_SORT_INTERVAL_MS = 150;
     let lastVoxelSortAt = 0;
     const lastVoxelSortCamPos = new THREE.Vector3(NaN, NaN, NaN);
@@ -2277,6 +2254,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
         resortTransparentVoxels(now);
         { const hl = layerGroupsRef.current?.hole_labels; if (hl?.visible && hl.children.length) { fitScreenLabels(hl, camera, mount.clientHeight); declutterHoleLabels(hl, camera, mount.clientWidth, mount.clientHeight); } }
         for (const name of ["outcrop_labels", "sample_labels"]) { const lg = layerGroupsRef.current?.[name]; if (lg?.visible && lg.children.length) { fitScreenLabels(lg, camera, mount.clientHeight); declutterHoleLabels(lg, camera, mount.clientWidth, mount.clientHeight); } } // #1443
+        { const ag = layerGroupsRef.current?.assay; if (ag?.visible && ag.children.length) assayLodTick(ag, assayKeptRef.current, metresPerPixel(camera, camState.current?.radius, mount.clientHeight)); } // #3144
         { // TASKS.csv #1597 — surface-sample symbols are sized for the zoom they were built at: once the camera has settled (400 ms) a
           // factor of two away from it, they are rebuilt at the new size (never per frame, never mid-orbit)
           // TASKS.csv #2849 — and the survey points, where their floor matters (a regional survey; a 2 km grid keeps its 1.4-4.2 m symbols)
@@ -4164,7 +4142,24 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     // TASKS.csv #1696 — apart by the largest radius (3.8 x the bigger size multiplier), so Au is not inside Cu's spheres; neighbours 2 x 3.9 m apart
     const ring = n > 1 ? (3.9 * Math.max(...assayDisplayElements.map((x) => assayStyle[x]?.sizeMult ?? 1))) / Math.sin(Math.PI / n) : 0;
     const specs = assayDisplayElements.map((sym, idx) => ({ sym, idx, offX: n > 1 ? Math.cos((2 * Math.PI * idx) / n) * ring : 0, offZ: n > 1 ? Math.sin((2 * Math.PI * idx) / n) * ring : 0,
-      key: [assays, assaySource, assayStyle[sym], idx, assayShapeFor(assayStyle[sym], drawnAssays), ranges[sym], collars, traces, elementUnits[sym]] })); // #3117 — what the element's markers depend on, besides the offset
+      key: [assays, assaySource, assayStyle[sym], idx, assayShapeFor(assayStyle[sym], drawnAssays), ranges[sym], collars, traces, elementUnits[sym]], buildCoarse: assayShapeFor(assayStyle[sym], drawnAssays) === "trace" ? coarseOf : null })); // #3117; coarseOf: #3144 — what the element's markers depend on, besides the offset
+    // TASKS.csv #3144 — the level of detail: a hole's consecutive same-colour samples as one marker
+    function coarseOf(sym, into, offX, offZ) {
+      const { idx } = specs.find((x) => x.sym === sym), style = assayStyle[sym], batcher = makeAssayBatcher({ minBatch: 1 }), op = style?.opacity ?? 1, u = elementUnits[sym] || "";
+      collars.forEach((c) => {
+        const rows = holesOf().get(c.hole_id), pts = rows && traceOf.get(c.hole_id);
+        if (!pts?.length) return;
+        if (!looks.has(c.hole_id)) looks.set(c.hole_id, traceLookup(pts));
+        const look = looks.get(c.hole_id);
+        for (const run of sampleRuns(rows, sym, (v) => (assayPassesCutoff(v, style) ? assayColorFor(v, idx, style) : null), isPxrfRow)) {
+          const shape = assayShapeFor(style, drawnAssays, run.px);
+          batcher.add(assayProto(shape), { color: run.color, transparent: op < 1, opacity: op }, (t) => placeAssayMarker(t, shape, look.at, run, runSize(run, (r) => assaySizeFor(r.values[sym], ranges[sym], style)), offX, offZ),
+            () => lazyTip({ row: run.rows[0], holeId: c.hole_id }, () => `${c.hole_id}\n${run.rows.length > 1 ? tr("{sym}: {lo}–{hi} {unit} over {from}–{to} m ({n} samples)", { sym, lo: gradeText(run.lo), hi: gradeText(run.hi), unit: u, from: +run.from.toFixed(2), to: +run.to.toFixed(2), n: run.rows.length }) : `${sym}: ${gradeText(run.lo)} ${u}\n${+run.from.toFixed(2)}–${+run.to.toFixed(2)} m`}`));
+        }
+      });
+      batcher.finish(into);
+    }
+    assayKeptRef.current.lodSampleM = typicalSampleM(assays); // #3144
     syncAssayElements(g, assayKeptRef.current, specs, (sym, into) => {
       const { idx, offX, offZ } = specs.find((x) => x.sym === sym), style = assayStyle[sym], batcher = makeAssayBatcher(); // #3055
       collars.forEach((c) => {
@@ -4180,15 +4175,14 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             const px = isPxrfRow(a), op = style?.opacity ?? 1, shape = assayShapeFor(style, drawnAssays, px);
             batcher.add(assayProto(shape), { color: assayColorFor(v, idx, style), transparent: op < 1, opacity: op, side: shape === "disc" ? THREE.DoubleSide : THREE.FrontSide }, // #3055 — no object per sample
               (t) => placeAssayMarker(t, shape, look.at, a, assaySizeFor(v, ranges[sym], style), offX, offZ), // #306 size
-              () => lazyTip({ row: a, holeId: c.hole_id }, () => `${c.hole_id}
-${sym}: ${gradeText(v)} ${elementUnits[sym] || ""}${px ? " (pXRF)" : ""}
-${+a.from.toFixed(2)}–${+a.to.toFixed(2)} m`)); // #1500; #2365 as stored
+              () => lazyTip({ row: a, holeId: c.hole_id }, () => `${c.hole_id}\n${sym}: ${gradeText(v)} ${elementUnits[sym] || ""}${px ? " (pXRF)" : ""}\n${+a.from.toFixed(2)}–${+a.to.toFixed(2)} m`)); // #1500; #2365 as stored
           });
         } catch (err) { errors.push(`${c.hole_id}: ${err.message}`); }
       });
       batcher.finish(into);
       buildLayerBatches(into); // the families under 24 markers, this element's only
     });
+    setAssayLod(g, assayKeptRef.current, g.userData.lodOn); // #3144 — new elements too
     if (errors.length) setNotices((pv) => [...pv, errorNotice(tr("{errors} hole(s) failed to draw assay markers: {v}", { errors: errors.length, v: errors.slice(0, 3).join(" · ") }))]);
   };
   const buildAssaySpheresRef = useRef(buildAssaySpheres);

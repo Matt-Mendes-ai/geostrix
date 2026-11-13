@@ -11756,5 +11756,6 @@
   "{el}: {blocks} blocks from {n} composites, mean {mean} {unit}": "{el}: {blocks} bloques a partir de {n} compósitos, media {mean} {unit}",
   "{el}: no samples to estimate from; not added.": "{el}: no hay muestras para estimar; no se agrega.",
   "Add the set ({n} block models)": "Agregar el conjunto ({n} modelos de bloques)",
-  "Running {el}… {v}": "Corriendo {el}… {v}"
+  "Running {el}… {v}": "Corriendo {el}… {v}",
+  "{sym}: {lo}–{hi} {unit} over {from}–{to} m ({n} samples)": "{sym}: {lo}–{hi} {unit} en {from}–{to} m ({n} muestras)"
 }
