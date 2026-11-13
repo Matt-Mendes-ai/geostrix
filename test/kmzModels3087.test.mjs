@@ -132,11 +132,7 @@ test("in the project KMZ: a 3D models folder (surfaces, block models with their 
 });
 
 test("the dialog: a part added later starts ticked (the unticked parts are remembered); the old list form is read against the parts it knew", async () => {
-  const src = readFileSync(new URL("../src/components/ProjectKmzDialog.jsx", import.meta.url), "utf8").replace(/
-/g, "
-"); // a CRLF checkout: the cut below looks for "
-}
-"
+  const src = readFileSync(new URL("../src/components/ProjectKmzDialog.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n"); // a CRLF checkout: the cut below looks for LF line ends
   assert.match(src, /models: any\(store\.generatedSurfaces\) \|\| any\(store\.voxelModels\) \|\| !!store\.terrain/);
   assert.match(src, /sections: any\(store\.sections\) \|\| any\(store\.sectionImages\)/);
   assert.match(src, /localStorage\.setItem\(PREF, JSON\.stringify\(\{ off: /);
