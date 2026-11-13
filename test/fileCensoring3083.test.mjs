@@ -7,6 +7,7 @@ import { readFileSync } from "node:fs";
 import { fileCensoring, censoringFloor } from "../src/lib/qaqc.js";
 import { harryAssays } from "../src/lib/sampleHarry.js";
 import { resolvedSegments, valueIn } from "../src/lib/geochem.js";
+import { bcSkip, bcText } from "./helpers/bcSample.mjs"; // TASKS.csv #3134 — Harry is no longer in the repository
 
 test("the floor is found on the rows' results, '<' rows left out, the flagged zeros counted", () => {
   const rows = [
@@ -26,8 +27,8 @@ test("the floor is found on the rows' results, '<' rows left out, the flagged ze
   assert.equal(rz.floor, null); assert.equal(rz.step.step, 0.005);
 });
 
-test("Harry's Au: one floor for both tools; the counts differ only by the resolved segments", () => {
-  const assays = harryAssays(readFileSync(new URL("../sample_data/harry_property/assay_wide.csv", import.meta.url), "utf8")).rows;
+test("Harry's Au: one floor for both tools; the counts differ only by the resolved segments", { skip: bcSkip("harry_property") }, () => {
+  const assays = harryAssays(bcText("harry_property", "assay_wide.csv")).rows;
   const U = { Au: "ppm" };
   const { floor } = fileCensoring(assays, "Au", "ppm", U);
   assert.equal(floor.floor, 0.005);
