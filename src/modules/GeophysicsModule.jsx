@@ -685,6 +685,12 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
   const lidarInput = useRef(null);
   // only the instance showing the Terrain pane (the Maps tab's) answers: the Geophysics tab may be mounted too
   useModuleAction(["open-lidar"], (_a, p) => { if (forcePane === "terrain" && p?.file) openLidar(p.file); });
+  // TASKS.csv #3287 — the Maps ribbon's 'Geology (Macrostrat)' button: the Web layers pane's 'Macrostrat geology…' item, the same steps
+  const openMacrostrat = async () => {
+    if (project?.crsSet === false) { if (!(await ensureProjectCrs(project, tr("Web map layers are downloaded for the place your coordinates point to, so the project needs its coordinate system first.")))) return; }
+    setWebLayerDefaultBbox(await defaultSrtmBboxLonLat()); setMacrostratOpen(true);
+  };
+  useModuleAction(["open-macrostrat"], () => { if (forcePane === "web") openMacrostrat(); });
   const openLidar = async (file) => {
     if (!file) return;
     setTerrainError(null);
@@ -2631,10 +2637,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         }} style={pBtn}>
           <Globe size={14} />{" "}{tr("Add web layer (WMS / WFS)…")}</button>
         {/* TASKS.csv #2005 — Macrostrat's world geologic map (CC BY 4.0) for the project area, and the units at its centre */}
-        <button onClick={async () => {
-          if (project?.crsSet === false) { if (!(await ensureProjectCrs(project, tr("Web map layers are downloaded for the place your coordinates point to, so the project needs its coordinate system first.")))) return; }
-          setWebLayerDefaultBbox(await defaultSrtmBboxLonLat()); setMacrostratOpen(true);
-        }} style={pBtn} title={tr("Macrostrat's compilation of geologic maps (CC BY 4.0) for the project area, and the map units at its centre with their original maps")}>
+        <button onClick={openMacrostrat /* #3287 — shared with the Maps ribbon's button */} style={pBtn} title={tr("Macrostrat's compilation of geologic maps (CC BY 4.0) for the project area, and the map units at its centre with their original maps")}>
           <Globe size={14} />{" "}{tr("Macrostrat geology…")}</button>
         {macrostratOpen && <React.Suspense fallback={null}><MacrostratModal onClose={() => setMacrostratOpen(false)} addRaster={addRaster} addMapLayer={addMapLayer} /* #2012 */ projectEpsg={project?.epsg} bboxLonLat={webLayerDefaultBbox} /></React.Suspense>}
 
