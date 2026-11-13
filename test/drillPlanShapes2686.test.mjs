@@ -37,7 +37,7 @@ test("the shapes' paths", () => {
 test("wired: the drawing, the key and the sidebar select", () => {
   const d = readFileSync(new URL("../src/components/DrillPlanElement.jsx", import.meta.url), "utf8");
   assert.match(d, /const shapes = drillPlanShapes\(collars, el\.shapeBy, g\.holes\.map\(\(hh\) => hh\.id\)\);/);
-  assert.match(d, /path = symbolPath\(d\.shapes\.shapeOf\(hh\.id\), hh\.ax, hh\.ay, s\.rMm \* MM\)/);
+  assert.match(d, /path = symbolPath\(d\.shapes\.shapeOf\(hh\.id\), hh\.ax, hh\.ay, (s\.rMm \* MM|r)\)/ /* r: #3017, the radius capped by the holes' spacing */);
   assert.match(d, /\{d\.shapeKey\.map\(/);
   const c = readFileSync(new URL("../src/components/DrillPlanColourControls.jsx", import.meta.url), "utf8");
   assert.match(c, /onChange=\{\(e\) => updateSelected\(\{ shapeBy: e\.target\.value \|\| null \}\)\}/);

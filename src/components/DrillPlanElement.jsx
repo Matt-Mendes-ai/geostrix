@@ -10,6 +10,7 @@ import { printPx, printPt } from "../lib/theme.js";
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #2686 — the shape key's circle row
 
 import { layoutFontStack } from "../lib/layoutFonts.js"; // TASKS.csv #2144
+import { collarSpacing } from "../lib/planDots.js"; // TASKS.csv #3017 — the Maps plan's rule (#2989)
 const INK = "#1a2028";
 // TASKS.csv #2611 — the categorical palette without its yellow (#F0E442 with a white outline vanished on the white map)
 const ON_WHITE = CATEGORICAL_SAFE_COLORS.filter((c) => String(c).toUpperCase() !== "#F0E442");
@@ -78,6 +79,14 @@ export default function DrillPlanElement({ el, collars, gridCaption = "", assays
   const grid = useMemo(() => drillPlanGrid(el), [el]);
   const line = 0.3 * MM, { colouring, keyBox } = d; // keyBox: placed in drillPlanDrawing (#2611)
   const styles = useMemo(() => new Map(d.holes.map((hh) => [hh.id, d.colouring.styleOf(hh.id, hh.series)])), [d]);
+  // TASKS.csv #3017 (review #2876, WA iron) — at 1:100,000 holes 25 m apart are 0.9 px apart: each collar's white outline painted over the one
+  // before and the drilled blocks printed as pale blotches. Maps' rule (lib/planDots.js, #2989): a symbol no wider than 0.8 of the holes'
+  // spacing on the sheet (at least 0.75 px), its outline only when they are 6 px apart or more, and a no-value ring left unfilled when dense
+  const dense = useMemo(() => {
+    const gap = collarSpacing(d.holes.filter((hh) => hh.inside).map((hh) => ({ x: hh.ax, y: hh.ay })));
+    return { halo: !(gap < 6), cap: gap > 0 ? Math.max(0.75, 0.4 * gap) : Infinity };
+  }, [d]);
+  const rOf = (s) => Math.min(s.rMm * MM, dense.cap);
   return (
     <svg width={d.w} height={d.h} style={{ display: "block", background: "#ffffff" }} aria-label="drill plan">
       <defs><clipPath id={`dp_${el.id}`}><rect x="0" y="0" width={d.w} height={d.h} /></clipPath></defs>
@@ -94,11 +103,11 @@ export default function DrillPlanElement({ el, collars, gridCaption = "", assays
         })()}
         {d.holes.map((hh) => <line key={`t${hh.id}`} x1={hh.ax} y1={hh.ay} x2={hh.bx} y2={hh.by} stroke={styles.get(hh.id).hollow ? INK : styles.get(hh.id).colour} strokeWidth={line} strokeLinecap="round" />)}
         {/* #2473 — a hole with no value is a hollow ring; higher grade classes are drawn last, on top */}
-        {d.holes.filter((hh) => hh.inside).sort((a, b) => styles.get(a.id).rMm - styles.get(b.id).rMm).map((hh) => { const s = styles.get(hh.id), path = symbolPath(d.shapes.shapeOf(hh.id), hh.ax, hh.ay, s.rMm * MM); /* #2686 */ return path
-          ? <path key={`c${hh.id}`} d={path} fill={s.hollow ? "#ffffff" : s.colour} stroke={s.hollow ? s.colour : "#ffffff"} strokeWidth={s.hollow ? 0.9 : 0.6} />
+        {d.holes.filter((hh) => hh.inside).sort((a, b) => styles.get(a.id).rMm - styles.get(b.id).rMm).map((hh) => { const s = styles.get(hh.id), r = rOf(s), path = symbolPath(d.shapes.shapeOf(hh.id), hh.ax, hh.ay, r); /* #2686; r: #3017 */ const hollowFill = dense.halo ? "#ffffff" : "none"; return path
+          ? <path key={`c${hh.id}`} d={path} fill={s.hollow ? hollowFill : s.colour} stroke={s.hollow ? s.colour : dense.halo ? "#ffffff" : "none"} strokeWidth={s.hollow ? 0.9 : 0.6} />
           : s.hollow
-          ? <circle key={`c${hh.id}`} cx={hh.ax} cy={hh.ay} r={s.rMm * MM} fill="#ffffff" stroke={s.colour} strokeWidth={0.9} />
-          : <circle key={`c${hh.id}`} cx={hh.ax} cy={hh.ay} r={s.rMm * MM} fill={s.colour} stroke="#ffffff" strokeWidth={0.6} />; })}
+          ? <circle key={`c${hh.id}`} cx={hh.ax} cy={hh.ay} r={r} fill={hollowFill} stroke={s.colour} strokeWidth={0.9} />
+          : <circle key={`c${hh.id}`} cx={hh.ax} cy={hh.ay} r={r} fill={s.colour} stroke={dense.halo ? "#ffffff" : "none"} strokeWidth={0.6} />; })}
         {d.labels.placed.map((l) => { const b = labelBackdrop(l.id, l.x, l.y, d.fontPx, l.anchor); return <g key={`l${l.id}`}><rect x={b.x} y={b.y} width={b.w} height={b.h} fill="#ffffff" fillOpacity="0.85" /><text x={l.x} y={l.y} textAnchor={l.anchor} fontSize={d.fontPx} fill={INK} fontFamily={FONT}>{l.id}</text></g>; })}{/* #2738 — boxed, not haloed */}
       </g>
       {keyBox && (
