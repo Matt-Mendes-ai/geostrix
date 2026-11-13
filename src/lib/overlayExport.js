@@ -174,6 +174,35 @@ export function featuresToKml({ features, geomType }, { name = "GeoStrix export"
   return `<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2">\n  <Document>\n    <name>${esc(name)}</name>\n${styleXml.join("\n")}\n${placemarks.join("\n")}\n  </Document>\n</kml>\n`;
 }
 
+// TASKS.csv #2759 (split from #2130) — map layers and boundaries left as KML (Google Earth) for WGS 84 only; a GIS wants GeoJSON. RFC 7946: a
+// FeatureCollection in WGS 84 longitude / latitude (8 decimals; the elevation as a third coordinate when known), the attributes as properties,
+// lines as LineString / MultiLineString, polygons as Polygon / MultiPolygon with the same ring split and grouping as the KML (outer rings
+// counter-clockwise, holes clockwise, the right-hand rule).
+export function featuresToGeoJson({ features, geomType }, { toLonLat, name = "GeoStrix export" } = {}) {
+  if (!toLonLat) throw new Error("featuresToGeoJson needs a coordinate transform to WGS84");
+  const pt = ([x, y, z]) => { const [lon, lat] = toLonLat(x, y); return Number.isFinite(z) ? [r8(lon), r8(lat), Math.round(z * 100) / 100] : [r8(lon), r8(lat)]; };
+  const area2 = (r) => { let a = 0; for (let i = 0; i < r.length - 1; i++) a += r[i][0] * r[i + 1][1] - r[i + 1][0] * r[i][1]; return a; };
+  const orient = (r, ccw) => ((area2(r) > 0) === ccw ? r : r.slice().reverse());
+  const out = [];
+  for (const f of features || []) {
+    let geometry = null;
+    if (geomType === "point") geometry = { type: "Point", coordinates: pt(f.geometry[0]) };
+    else if (geomType === "polyline") {
+      const parts = (f.parts?.length ? f.parts : [f.geometry]).filter((p) => p?.length >= 2).map((p) => p.map(pt));
+      geometry = parts.length === 1 ? { type: "LineString", coordinates: parts[0] } : parts.length ? { type: "MultiLineString", coordinates: parts } : null;
+    } else {
+      const llRings = (f.parts?.length ? f.parts : [f.geometry]).filter((r) => r?.length >= 3).map((r) => r.map(pt));
+      const polys = polygonsFromRings(splitRings(llRings)).map((rs) => rs.map((r) => (r[0][0] === r[r.length - 1][0] && r[0][1] === r[r.length - 1][1] ? r : [...r, r[0]])).map((r, i) => orient(r, i === 0)));
+      geometry = polys.length === 1 ? { type: "Polygon", coordinates: polys[0] } : polys.length ? { type: "MultiPolygon", coordinates: polys } : null;
+    }
+    if (!geometry) continue;
+    const properties = {};
+    for (const [k, v] of Object.entries(f.attributes || {})) if (v !== "" && v != null) properties[k] = v;
+    out.push({ type: "Feature", properties, geometry });
+  }
+  return JSON.stringify({ type: "FeatureCollection", name, features: out });
+}
+
 // a map layer's category colour for a feature (its style field), else the layer colour
 export function mapLayerColorOf(layer) {
   const byValue = new Map((layer.categories || []).map((c) => [String(c.value), c.color]));
