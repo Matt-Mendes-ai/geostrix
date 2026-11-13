@@ -36,7 +36,7 @@ test("oxideTotals: the sum with LOI beside the oxide sum", () => {
   const r = oxideTotals([a(6), a(-0.5), a(null)], majors);
   assert.equal(r.n, 3);
   assert.equal(r.median, 93);
-  assert.deepEqual(r.loi, { n: 2, median: 99, p5: 92.5, p95: 99 });
+  assert.deepEqual(r.loi, { n: 2, median: 99, p5: 92.5, p95: 99, over60: 0 }); // over60: #2924
   assert.equal(oxideTotals([a(null)], majors).loi, null);
 });
 
@@ -44,7 +44,7 @@ test("wiring: the LOI cell reader in the import and the totals line", () => {
   const g = readFileSync(new URL("../src/modules/GeochemModule.jsx", import.meta.url), "utf8");
   assert.match(g, /const c = sym === LOI \? readLoiCell\(raw, posMaxOf\(header\)\)/);
   const t = readFileSync(new URL("../src/components/OxideTotalsTab.jsx", import.meta.url), "utf8");
-  assert.match(t, /\{res\.loi \? " " \+ tr\("With their LOI \(\{n\} sample\(s\)\): median \{median\} %, 90 % of them between \{p5\} and \{p95\} %\."/);
+  assert.match(t, /\{res\.loi(\?\.n)? \? " " \+ tr\("With their LOI \(\{n\} sample\(s\)\): median \{median\} %, 90 % of them between \{p5\} and \{p95\} %\."/);
 });
 
 test("#2887 — the WA iron file's -10 is no data; its real negatives stay negative; the assay questions leave LOI out", () => {

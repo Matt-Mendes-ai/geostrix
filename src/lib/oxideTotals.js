@@ -8,6 +8,7 @@ import { convertUnit, unitBasis } from "./geochem.js";
 // the major oxides and the element each is computed from; total iron as Fe2O3 unless the element is stored as FeO
 export const MAJOR_OXIDES = [["Si", "SiO2"], ["Ti", "TiO2"], ["Al", "Al2O3"], ["Fe", "Fe2O3"], ["Mn", "MnO"], ["Mg", "MgO"], ["Ca", "CaO"], ["Na", "Na2O"], ["K", "K2O"], ["P", "P2O5"]];
 export const MIN_MAJORS = 6;
+export const LOI_HIGH = 60; // #2924 — % : above this an LOI is not a loss on ignition (an empty or failed sample)
 
 // -> [{ symbol, oxide, unit }] for the majors the project holds in a convertible unit
 export function majorOxides(assayElements) {
@@ -52,7 +53,10 @@ export function oxideTotals(assays, majors) {
   // TASKS.csv #2734 — the samples that carry LOI (the import's 'LOI' field, wt%): the major oxides plus LOI, which a sound analysis brings to about 100
   const withLoi = totals.map((t) => { const l = Number(t.a?.values?.LOI); return t.a?.values?.LOI != null && Number.isFinite(l) ? t.total + l : null; }).filter((v) => v != null).sort((x, y) => x - y);
   const ql = (p) => (withLoi.length ? withLoi[Math.min(withLoi.length - 1, Math.max(0, Math.round(p * (withLoi.length - 1))))] : null);
-  const loi = withLoi.length ? { n: withLoi.length, median: ql(0.5), p5: ql(0.05), p95: ql(0.95) } : null;
+  // TASKS.csv #2924 (review #2876) — an LOI over 60 % is no rock's loss on ignition (LOItotal 100 % on an empty sample, Fe 0): counted
+  let over60 = 0;
+  for (const a of assays || []) { const l = Number(a?.values?.LOI); if (a?.values?.LOI != null && Number.isFinite(l) && l > LOI_HIGH) over60++; }
+  const loi = withLoi.length || over60 ? { n: withLoi.length, median: ql(0.5), p5: ql(0.05), p95: ql(0.95), over60 } : null;
   return { n: totals.length, incomplete, totals, median: q(0.5), p5: q(0.05), p95: q(0.95), min: sorted[0] ?? null, max: sorted[sorted.length - 1] ?? null, over100, loi };
 }
 
