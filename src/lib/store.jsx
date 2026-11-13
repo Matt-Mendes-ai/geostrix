@@ -405,6 +405,8 @@ export function StoreProvider({ children }) {
   }, []);
   const updateRaster = useCallback((id, patch) => setRasters((p) => p.map((r) => r.id === id ? { ...r, ...patch } : r)), []);
   const removeRaster = useCallback((id) => setRasters((p) => p.filter((r) => r.id !== id)), []);
+  // TASKS.csv #2853 — a raster moved one place in the list (the Maps plan draws them in this order, the last on top)
+  const moveRaster = useCallback((id, step) => setRasters((p) => { const i = p.findIndex((r) => r.id === id), j = i + step; if (i < 0 || j < 0 || j >= p.length) return p; const q = [...p]; [q[i], q[j]] = [q[j], q[i]]; return q; }), []);
 
   // ---- Boundary polylines (Geosoft .ply import, src/lib/geosoft.js) — same list-of-objects shape as
   // `rasters` above, since boundaries are the same kind of thing (an imported overlay with visibility/
@@ -1766,7 +1768,7 @@ export function StoreProvider({ children }) {
     pendingLayoutImages, addLayoutImage, consumeLayoutImage,
     requestedModule, moduleRequestSeq, goToModule,
     themes, addTheme, updateTheme, renameTheme, deleteTheme,
-    rasters, addRaster, updateRaster, removeRaster,
+    rasters, addRaster, updateRaster, removeRaster, moveRaster /* #2853 */,
     boundaries, addBoundary, updateBoundary, removeBoundary,
     mapLayers, addMapLayer, updateMapLayer, removeMapLayer, // TASKS.csv #316
     sectionImages, addSectionImage, updateSectionImage, removeSectionImage, // TASKS.csv #630

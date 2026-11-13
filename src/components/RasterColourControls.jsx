@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { RASTER_RAMPS, DEFAULT_RASTER_STYLE, rasterColourFields, rasterRange, decadesSpanned, signedGridHint, LOG_NONPOSITIVE_MAX, rangeValueText, floorShare, FLOOR_SHARE_MIN } from "../lib/rasterColour.js"; // rangeValueText: #2866; floorShare: #2851 // signedGridHint: #2555
+import { RASTER_RAMPS, DEFAULT_RASTER_STYLE, rasterColourFields, rasterRange, decadesSpanned, signedGridHint, LOG_NONPOSITIVE_MAX, rangeValueText, floorShare, FLOOR_SHARE_MIN, SHADE_DEFAULT } from "../lib/rasterColour.js"; // SHADE_DEFAULT: #2863; // rangeValueText: #2866; floorShare: #2851 // signedGridHint: #2555
 import { b64ToF32 } from "../lib/inversion.js";
 import { PALETTES, paletteShortName } from "../lib/layers.js"; // paletteShortName: #1859
 import { t as tr } from "../lib/i18n.js";
@@ -99,6 +99,13 @@ export default function RasterColourControls({ raster: r, onUpdate, inputStyle }
           ))}
         </div>
       )}
+      {/* TASKS.csv #2863 — shaded relief: the grid sun-shaded over its colours (structure in a magnetic or 1VD grid) */}
+      <div style={row}>
+        <label style={{ display: "flex", alignItems: "center", gap: 5, cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }}><input type="checkbox" checked={!!style.shade} onChange={(e) => apply({ shade: e.target.checked ? { ...SHADE_DEFAULT } : null })} />{tr("Shaded relief")}</label>
+        {style.shade && [["azimuthDeg", tr("Sun azimuth (°)")], ["altitudeDeg", tr("Sun altitude (°)")], ["exaggeration", tr("Relief ×")]].map(([k, lab]) => (
+          <input key={`${k}${style.shade[k]}`} type="number" step="any" defaultValue={style.shade[k]} aria-label={lab} title={lab} placeholder={lab} onBlur={(e) => { const v = Number(e.target.value); if (e.target.value !== "" && Number.isFinite(v) && v !== style.shade[k] && (k !== "exaggeration" || v > 0)) apply({ shade: { ...style.shade, [k]: v } }); }} onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }} style={{ ...inputStyle, minWidth: 0, width: 54 }} />
+        ))}
+      </div>
       {stops.length > 1 && (
         <div style={{ marginTop: 6 }}>
           <div aria-hidden="true" style={{ height: 8, borderRadius: 2, background: `linear-gradient(to right, ${stops.map((s) => s.color).join(", ")})` }} />

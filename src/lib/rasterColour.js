@@ -4,6 +4,7 @@
 import { makeStretch } from "./idw.js";
 import { PALETTES } from "./layers.js";
 import { hexToRgb } from "./colorRamp.js";
+import { hillshadeValues } from "./hillshade.js"; // TASKS.csv #2863
 
 export const RASTER_RAMPS = ["viridis", "rainbow", "geosoft", "spectrum", "resistivity", "diverging", "grayscale"];
 // #1857 — how many decades the positive values span between their 2nd and 98th percentiles (the log stretch is suggested past one: a factor of ten)
@@ -67,8 +68,27 @@ export function rasterStops(style, lo, hi, log = false) {
   return anchors.map((_, i) => ({ value: log && lo > 0 && hi > lo ? lo * (hi / lo) ** (i / n) : lo + (i / n) * (hi - lo), color: hex(anchors[style.invert ? n - i : i]) }));
 }
 // -> the raster fields a style sets, to pass to updateRaster
+// TASKS.csv #2863 (review GSC geophysics) — shaded relief on a value grid (hillshade was for the terrain only): the grid's own hillshade, its
+// vertical scale set so the 2-98 % range rises a tenth of the grid's longer side (in cells; any unit reads), times shade.exaggeration,
+// multiplied into the colours (0.35 + 0.65 x the light). No-data cells stay transparent. shade: { azimuthDeg, altitudeDeg, exaggeration }
+export const SHADE_DEFAULT = { azimuthDeg: 315, altitudeDeg: 45, exaggeration: 1 };
+export function shadeRGBA(rgba, values, nx, ny, shade) {
+  const { lo, hi } = makeStretch(values, "p2-98");
+  if (!(hi > lo)) return rgba;
+  const filled = Float32Array.from(values, (v) => (Number.isFinite(v) ? v : lo)); // a hole does not cast a cliff
+  const z = ((0.1 * Math.max(nx, ny)) / (hi - lo)) * (Number(shade.exaggeration) > 0 ? Number(shade.exaggeration) : 1);
+  const light = hillshadeValues(filled, nx, ny, 1, 1, { azimuthDeg: Number.isFinite(Number(shade.azimuthDeg)) ? Number(shade.azimuthDeg) : SHADE_DEFAULT.azimuthDeg, altitudeDeg: Number.isFinite(Number(shade.altitudeDeg)) ? Number(shade.altitudeDeg) : SHADE_DEFAULT.altitudeDeg, zFactor: z });
+  const out = new Uint8ClampedArray(rgba);
+  for (let k = 0; k < nx * ny; k++) {
+    if (!out[k * 4 + 3]) continue;
+    const f = 0.35 + 0.65 * (Number.isFinite(light[k]) ? light[k] : 1);
+    out[k * 4] *= f; out[k * 4 + 1] *= f; out[k * 4 + 2] *= f;
+  }
+  return out;
+}
 export function rasterColourFields(values, nx, ny, style) {
-  const { rgba, lo, hi, log } = rasterRGBA(values, style);
+  const { rgba: rgba0, lo, hi, log } = rasterRGBA(values, style);
+  const rgba = style?.shade ? shadeRGBA(rgba0, values, nx, ny, style.shade) : rgba0; // #2863
   const canvas = document.createElement("canvas");
   canvas.width = nx; canvas.height = ny;
   const ctx = canvas.getContext("2d");

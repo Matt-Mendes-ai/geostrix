@@ -11451,5 +11451,12 @@
   "{p}% of the cells equal the minimum, {v}: a floor value (no response), not a low reading. ‘Histogram equalized’ spreads the colours over the rest.": "{p}% das células são iguais ao mínimo, {v}: um valor de piso (sem resposta), não uma leitura baixa. «Histograma equalizado» distribui as cores no restante.",
   "{names}: a world file, .prj or Geosoft .xml on its own places nothing: select or drop it together with its raster (same name).": "{names}: um arquivo de georreferência, .prj ou .xml do Geosoft sozinho não posiciona nada: selecione-o ou solte-o junto com o seu raster (mesmo nome).",
   " The world file \"{w}\" was not used: the TIFF's own georeferencing placed it ({m} m from where the world file would).": " O arquivo de georreferência \"{w}\" não foi usado: a georreferência do próprio TIFF o posicionou (a {m} m de onde o arquivo o colocaria).",
-  " The world file \"{w}\" agrees with the TIFF's own georeferencing, which was used.": " O arquivo de georreferência \"{w}\" coincide com a georreferência do próprio TIFF, que foi a usada."
+  " The world file \"{w}\" agrees with the TIFF's own georeferencing, which was used.": " O arquivo de georreferência \"{w}\" coincide com a georreferência do próprio TIFF, que foi a usada.",
+  "The Maps plan draws these in order, the last on top; the arrows on a card move it.": "A planta de Mapas os desenha nesta ordem, o último por cima; as setas de um cartão o movem.",
+  "Move \"{name}\" up the list (drawn under the next on the plan)": "Subir \"{name}\" na lista (desenhado abaixo do seguinte na planta)",
+  "Move \"{name}\" down the list (drawn over the one before on the plan)": "Descer \"{name}\" na lista (desenhado acima do anterior na planta)",
+  "Shaded relief": "Relevo sombreado",
+  "Sun azimuth (°)": "Azimute do sol (°)",
+  "Sun altitude (°)": "Altura do sol (°)",
+  "Relief ×": "Relevo ×"
 }

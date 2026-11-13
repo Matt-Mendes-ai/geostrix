@@ -11451,5 +11451,12 @@
   "{p}% of the cells equal the minimum, {v}: a floor value (no response), not a low reading. ‘Histogram equalized’ spreads the colours over the rest.": "{p}% من الخلايا تساوي الحد الأدنى {v}: قيمة أرضية (لا استجابة)، لا قراءة منخفضة. «مدرج تكراري معادل» يوزع الألوان على الباقي.",
   "{names}: a world file, .prj or Geosoft .xml on its own places nothing: select or drop it together with its raster (same name).": "{names}: ملف العالم أو ‎.prj أو ‎.xml من Geosoft وحده لا يضع شيئًا: اختره أو أفلته مع النقطية الخاصة به (الاسم نفسه).",
   " The world file \"{w}\" was not used: the TIFF's own georeferencing placed it ({m} m from where the world file would).": " لم يُستخدم ملف العالم \"{w}\": وضعه الإسناد الجغرافي الخاص بملف TIFF (على بعد {m} م مما كان سيضعه الملف).",
-  " The world file \"{w}\" agrees with the TIFF's own georeferencing, which was used.": " يتطابق ملف العالم \"{w}\" مع الإسناد الجغرافي الخاص بملف TIFF، وهو المستخدم."
+  " The world file \"{w}\" agrees with the TIFF's own georeferencing, which was used.": " يتطابق ملف العالم \"{w}\" مع الإسناد الجغرافي الخاص بملف TIFF، وهو المستخدم.",
+  "The Maps plan draws these in order, the last on top; the arrows on a card move it.": "ترسمها خريطة المسقط بهذا الترتيب، الأخير في الأعلى؛ الأسهم على البطاقة تنقلها.",
+  "Move \"{name}\" up the list (drawn under the next on the plan)": "رفع \"{name}\" في القائمة (يُرسم تحت التالي على المسقط)",
+  "Move \"{name}\" down the list (drawn over the one before on the plan)": "إنزال \"{name}\" في القائمة (يُرسم فوق السابق على المسقط)",
+  "Shaded relief": "تظليل التضاريس",
+  "Sun azimuth (°)": "سمت الشمس (°)",
+  "Sun altitude (°)": "ارتفاع الشمس (°)",
+  "Relief ×": "التضاريس ×"
 }
