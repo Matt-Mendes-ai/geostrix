@@ -11915,5 +11915,7 @@
   " · centred on {e} E, {n} N": " · centrado em {e} E, {n} N",
   " · {n} hole in the slab": " · {n} furo na faixa",
   " · {n} holes in the slab": " · {n} furos na faixa",
-  " · no hole in the slab: move it or turn it": " · nenhum furo na faixa: mova-a ou gire-a"
+  " · no hole in the slab: move it or turn it": " · nenhum furo na faixa: mova-a ou gire-a",
+  "Fit to window": "Ajustar à janela",
+  "Scale the section to fit the window, both ways, at its VE (off: full width, scroll for detail)": "Escalar a seção para caber na janela, nos dois sentidos, com seu exagero vertical (desligado: largura total, role para ver detalhes)"
 }

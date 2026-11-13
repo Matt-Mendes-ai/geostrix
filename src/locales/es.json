@@ -11915,5 +11915,7 @@
   " · centred on {e} E, {n} N": " · centrado en {e} E, {n} N",
   " · {n} hole in the slab": " · {n} sondaje en la franja",
   " · {n} holes in the slab": " · {n} sondajes en la franja",
-  " · no hole in the slab: move it or turn it": " · ningún sondaje en la franja: muévala o gírela"
+  " · no hole in the slab: move it or turn it": " · ningún sondaje en la franja: muévala o gírela",
+  "Fit to window": "Ajustar a la ventana",
+  "Scale the section to fit the window, both ways, at its VE (off: full width, scroll for detail)": "Escalar la sección para que quepa en la ventana, en ambos sentidos, con su exageración vertical (desactivado: ancho completo, desplace para ver detalles)"
 }
