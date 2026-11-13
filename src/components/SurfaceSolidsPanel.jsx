@@ -60,6 +60,7 @@ export default function SurfaceSolidsPanel({ surfaces, explicitDefs = [], worldM
     return older ? { ...it, older, defaultRole: "none" } : it;
   }), [surfaces, worldMesh, explicitDefs]);
   const [roles, setRoles] = useState({});
+  const [result, setResult] = useState(null); // TASKS.csv #3151 — the last build's result lines
   const roleOf = (it) => roles[it.id] ?? (it.steep ? "none" : it.defaultRole);
   const { used, tops, solids } = useMemo(() => {
     const role = (it) => roles[it.id] ?? (it.steep ? "none" : it.defaultRole);
@@ -118,9 +119,11 @@ export default function SurfaceSolidsPanel({ surfaces, explicitDefs = [], worldM
       // TASKS.csv #878 — an ISO time for the record, and what it was built from (to flag its volumes when a source changes)
       const recipe = { roles: Object.fromEntries(used.map((it) => [it.id, roleOf(it)])), cell, ...(cellZ ? { cellZ } : {}) /* #2922: absent, the key as before */, base, cutGround: !!(cutGround && terrain), extend };
       const sourceIds = used.map((it) => it.id);
-      onBuilt({ block: r.block, units, origin: { ...o }, when: new Date().toLocaleTimeString(), builtAtIso: new Date().toISOString(), title, matchedPct: null, fromSurfaces: true,
+      // TASKS.csv #3151 (#2928 (4)) — the panel stays open with the result in it (volumes, crossing columns): it closed, and the result was only
+      // in the message list
+      setResult(onBuilt({ block: r.block, units, origin: { ...o }, when: new Date().toLocaleTimeString(), builtAtIso: new Date().toISOString(), title, matchedPct: null, fromSurfaces: true,
         source: { recipe, ids: sourceIds, key: blockSourceKey(recipe, sourceIds, surfaces) } },
-        { counts: r.counts, notExtended: r.notExtended, coverage: r.coverage, cellVolume: r.cellVolume, resolution: r.block.resolution, inverted: r.inverted, extended: extend }); // inverted: #860; extended: #1138
+        { counts: r.counts, notExtended: r.notExtended, coverage: r.coverage, cellVolume: r.cellVolume, resolution: r.block.resolution, inverted: r.inverted, extended: extend }) || null); // inverted: #860; extended: #1138
     } catch (e) { onError(e); }
   };
 
@@ -166,6 +169,7 @@ export default function SurfaceSolidsPanel({ surfaces, explicitDefs = [], worldM
         <div style={{ fontSize: "var(--font-size-xs)", color: nCells > 300_000 ? "var(--color-warn-text)" : "var(--color-text-muted)", marginBottom: 6 }}>{nCells > 2_000_000 ? tr("{n} blocks: over the 2,000,000 limit — use a larger block size.", { n: nCells.toLocaleString() }) : nCells > 300_000 ? tr("{n} blocks in the box: building them is quick, but adding them afterwards as a block model or as unit volumes is slow and memory-hungry at this size. A larger block size keeps it light.", { n: nCells.toLocaleString() }) /* #891 */ : tr("{n} blocks in the box.", { n: nCells.toLocaleString() })}</div>
       </>)}
       <button onClick={build} disabled={!used.length || !cell || nCells > 2_000_000} style={{ ...pBtn, marginBottom: 0, opacity: used.length && nCells <= 2_000_000 ? 1 : 0.5 }}><Box size={14} />{" "}{tr("Build the blocks")}</button>
+      {result?.length > 0 && <div role="status" style={{ marginTop: 8, padding: "6px 8px", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-xs)", lineHeight: 1.45, color: "var(--color-text)" }}>{result.map((t, i) => <div key={i} style={{ marginTop: i ? 4 : 0 }}>{t}</div>)}</div>}{/* #3151 */}
     </div>
   );
 }

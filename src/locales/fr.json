@@ -11700,5 +11700,7 @@
   "Generated surfaces save with the project (mesh, type, declared relationships and the parameters that produced them), so a reported volume or tonnage can be reproduced after a restart.": "Les surfaces générées sont enregistrées avec le projet (maillage, type, relations déclarées et paramètres qui les ont produites), afin qu'un volume ou un tonnage rapporté puisse être reproduit après un redémarrage.",
   "Under the trend \"{name}\" the cell is a cube in its frame (see below); clear the trend to set a cell height.": "Avec la tendance « {name} », la cellule est un cube dans son repère (voir ci-dessous) ; retirez la tendance pour fixer une hauteur de cellule.",
   "A flat search: {r} m across and {v} m up and down from each cell.": "Une recherche plane : {r} m de large et {v} m au-dessus et au-dessous de chaque cellule.",
-  "{sym}: {lo}–{hi} {unit} over {from}–{to} m ({n} samples)": "{sym} : {lo}–{hi} {unit} sur {from}–{to} m ({n} échantillons)"
+  "{sym}: {lo}–{hi} {unit} over {from}–{to} m ({n} samples)": "{sym} : {lo}–{hi} {unit} sur {from}–{to} m ({n} échantillons)",
+  "GOCAD TSurf (.ts) — Leapfrog, SKUA-GOCAD and most 3D geology software import it": "GOCAD TSurf (.ts) : Leapfrog, SKUA-GOCAD et la plupart des logiciels de géologie 3D l'importent",
+  "TSurf": "TSurf"
 }

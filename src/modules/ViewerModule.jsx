@@ -2548,26 +2548,10 @@ ${describeTrend(t)}` };
     };
   }, [viewerUiState, surfaceVisibilityBundle]);
 
-  // TASKS.csv #198 — root-cause fix for the Layout Viewport render round-trip silently never
-  // completing (no capture, no error, no hop back to Layout — permanently stuck showing the applied
-  // theme on the 3D View tab). The viewport-render effect below used to list liveViewBundleFromStore
-  // directly in its dependency array, but that callback's own identity depends on `viewerUiState`
-  // (see its definition above) — and viewerUiState is EXACTLY what the "push local state up to the
-  // store" effect (a few lines up) updates every time applyTheme() changes layerVisible/etc, which
-  // this same effect calls as its very first action. So: effect runs -> applyTheme() changes local
-  // state -> the push-effect fires -> setViewerUiState() -> liveViewBundleFromStore's identity
-  // changes -> THIS effect's dependency array changed -> React tears down the just-scheduled 400ms
-  // capture timer via the cleanup function before it ever fires, then re-runs the effect body, which
-  // now short-circuits on the lastHandledRequestId guard (correctly avoiding re-applying the theme a
-  // second time) but returns without scheduling a REPLACEMENT timer either — permanently stranding
-  // the request with no timer, no capture, no error, nothing. Confirmed via instrumented Playwright-
-  // style testing: patched toDataURL and setTimeout(…,400) to log calls, triggered a brand-new
-  // Layout Viewport bind, and confirmed BOTH fired zero times, with the module stuck on the 3D View
-  // tab indefinitely. Fix: read the live-view snapshot through a ref that's updated in its own
-  // separate, harmless effect, instead of depending on the reactive binding directly — the render
-  // effect below now depends on liveViewBundleFromStoreRef (a stable ref object, never a new
-  // identity) instead of liveViewBundleFromStore itself, so the theme-apply side effect's ripple
-  // through viewerUiState no longer retriggers (and kills) this effect.
+  // TASKS.csv #198 — the Layout Viewport round trip never completed (no capture, no error, stuck on the 3D View): the render effect below
+  // depended on liveViewBundleFromStore, whose identity follows viewerUiState, which the theme it applies changes. The re-run cancelled
+  // the 400 ms capture timer and, guarded by lastHandledRequestId, scheduled none (confirmed by logging toDataURL / setTimeout: zero
+  // calls). The effect reads the live view through this ref instead, a stable object.
   const liveViewBundleFromStoreRef = useRef(liveViewBundleFromStore);
   useEffect(() => { liveViewBundleFromStoreRef.current = liveViewBundleFromStore; }, [liveViewBundleFromStore]);
 
@@ -3263,8 +3247,7 @@ ${describeTrend(t)}` };
     } catch (e) { setNotices((p) => [...p, e]); }
   };
   const surfaceSolidsBuilt = (lb, sum) => {
-    setLastLithBlock(lb);
-    setSurfaceSolidsOpen(false);
+    setLastLithBlock(lb); // #3151 — the panel stays open and shows what this returns
     // TASKS.csv #877 — each volume with the most a block count can be off by, and where the box (not geology) cuts it
     const bs = blockUnitStats(lb.block), zb = Math.round(bs.baseZ + (lb.origin?.z || 0));
     const units = Object.entries(sum.counts).map(([u, n]) => {
@@ -3272,12 +3255,14 @@ ${describeTrend(t)}` };
       return tr("{unit} {v} ± {b} Mm³", { unit: u, v: ((n * sum.cellVolume) / 1e6).toFixed(2), b: ((q?.bandM3 || 0) / 1e6).toFixed(2) })
         + (q?.box.includes("base") ? ` ${tr("(to the box base at {z} m)", { z: zb })}` : "") + (q?.box.includes("sides") ? ` ${tr("(cut at the box sides)")}` : "");
     }).join(", ") + (Object.keys(sum.counts).length ? ` — ${tr("± is the most a count of {b} m blocks can be off by (half a block at every contact)", { b: bs.blockM.map((v) => +v.toFixed(1)).join(" × ") })}` : "");
-    if (sum.notExtended?.length) setNotices((p) => [...p, notice("Not extended: {names}. A contact under 5% of the box stays as drawn; others reach at most three times their own radius.", { names: sum.notExtended.join(", ") })]); // #1194
+    const out = [], say = (n) => { out.push(n.text); setNotices((p) => [...p, n]); };
+    if (sum.notExtended?.length) say(notice("Not extended: {names}. A contact under 5% of the box stays as drawn; others reach at most three times their own radius.", { names: sum.notExtended.join(", ") })); // #1194
     const partial = Object.entries(sum.coverage).filter(([, f]) => f < 0.999).map(([u, f]) => tr("{unit} covers {pct}% of the box", { unit: u, pct: Math.round(100 * f) }));
-    setNotices((p) => [...p, notice("Built {n} blocks ({nx} × {ny} × {nz}) from the surfaces: {units}. Use \"Add unit volumes (closed)\" or \"Add as block model\" in the Last model box above the surface list.{v}", { n: sum.resolution.reduce((a, b) => a * b, 1).toLocaleString(), nx: sum.resolution[0], ny: sum.resolution[1], nz: sum.resolution[2], units: units || tr("no unit cells"), v: (partial.length ? (sum.extended /* #1138 */ ? tr(" Contacts were extended past their own edges until they meet ({list} as drawn).", { list: partial.join("; ") }) : tr(" Beyond a top's footprint the unit above it continues down: {list}.", { list: partial.join("; ") })) : "")
+    say(notice("Built {n} blocks ({nx} × {ny} × {nz}) from the surfaces: {units}. Use \"Add unit volumes (closed)\" or \"Add as block model\" in the Last model box above the surface list.{v}", { n: sum.resolution.reduce((a, b) => a * b, 1).toLocaleString(), nx: sum.resolution[0], ny: sum.resolution[1], nz: sum.resolution[2], units: units || tr("no unit cells"), v: (partial.length ? (sum.extended /* #1138 */ ? tr(" Contacts were extended past their own edges until they meet ({list} as drawn).", { list: partial.join("; ") }) : tr(" Beyond a top's footprint the unit above it continues down: {list}.", { list: partial.join("; ") })) : "")
       + (sum.inverted?.baseAboveTop ? tr(" In {n} of {m} columns a unit's base lies above its own top (negative thickness): the blocks there follow the rules but not the geology.", { n: sum.inverted.baseAboveTop, m: sum.inverted.columns }) : "") // #860
-      + (sum.inverted?.crossingTops ? tr(" In {n} of {m} columns the tops cross (a lower unit's top above a higher one's): check the stack order and the surfaces there.", { n: sum.inverted.crossingTops, m: sum.inverted.columns }) : "") })]);
-    { const xn = extrapolationNotice(implicitSurfaces.filter((s) => lb.source?.ids?.includes(s.id))); if (xn) setNotices((p) => [...p, xn]); } // #1840
+      + (sum.inverted?.crossingTops ? tr(" In {n} of {m} columns the tops cross (a lower unit's top above a higher one's): check the stack order and the surfaces there.", { n: sum.inverted.crossingTops, m: sum.inverted.columns }) : "") }));
+    { const xn = extrapolationNotice(implicitSurfaces.filter((s) => lb.source?.ids?.includes(s.id))); if (xn) say(xn); } // #1840
+    return out;
   };
   // TASKS.csv #891 — the cheap step (coding the blocks) is guarded at 2 M cells; what follows is not cheap: a block model
   // holds one object per unit cell (~210 bytes each: 1.64 M cells took +340 MB in the #855 review) and unit volumes build
@@ -3998,7 +3983,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     }
     try {
       let res = null; // #1042 — "Exported" only when the file was written; Cancel says nothing
-      const { exportSurfaceOBJ, exportSurfaceDXF, exportSurfaceGLTF, sceneVertsToWorld, sceneVertsToWorldFlat, worldBoxOf, provenanceLines } = await import("../lib/meshExport.js"); // #600 startup budget
+      const { exportSurfaceOBJ, exportSurfaceTS /* #3149 */, exportSurfaceDXF, exportSurfaceGLTF, sceneVertsToWorld, sceneVertsToWorldFlat, worldBoxOf, provenanceLines } = await import("../lib/meshExport.js"); // #600 startup budget
       extra.appVersion = APP_VERSION; // #1053
       extra.worldBox = worldBoxOf(sceneVertsToWorldFlat(mesh.geometry, originRef.current).vertices); // #1053 — in the file's own coordinates
       // TASKS.csv #1103 — an explicit surface's extrapolated margin is marked in DXF (own layer), VTK and OMF (per-face "supported")
@@ -4016,6 +4001,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       } else if (format === "obj") {
         const content = exportSurfaceOBJ(surf.name, mesh.geometry, originRef.current, prov, extra, { bytes: true }); // #1072 — UTF-8 bytes, not one huge string
         res = await saveFile({ quiet: true, suggestedName: `${baseName}.obj`, filters: [{ name: "Wavefront OBJ", extensions: ["obj"] }], content });
+      } else if (format === "ts") { // TASKS.csv #3149 (#2928 (7)) — GOCAD TSurf, side 5's writer
+        res = await saveFile({ quiet: true, suggestedName: `${baseName}.ts`, filters: [{ name: "GOCAD TSurf", extensions: ["ts"] }], content: exportSurfaceTS(surf.name, mesh.geometry, originRef.current, prov, extra, { bytes: true }) });
       } else if (format === "dxf") {
         const w = hull ? sceneVertsToWorld(mesh.geometry, originRef.current) : null;
         const content = exportSurfaceDXF(surf.name, mesh.geometry, originRef.current, prov, extra, { bytes: true, supported: w ? supportedOf(w.vertices, w.indices) : null }); // #1072; supported: #1103
@@ -4040,7 +4027,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         res = await saveFile({ quiet: true, suggestedName: `${baseName}.omf`, filters: [{ name: "Open Mining Format", extensions: ["omf"] }], content: bytes /* #1040 bytes */ });
       }
       if (!res?.ok) { if (res?.error) throw new Error(res.error); return; }
-      setNotices((p) => [...p, notice("Exported \"{name}\" as {format} (real-world coordinates).", { name: surf.name, format: format.toUpperCase() })]);
+      setNotices((p) => [...p, notice("Exported \"{name}\" as {format} (real-world coordinates).", { name: surf.name, format: format === "ts" ? "GOCAD TSurf" : format.toUpperCase() })]);
     } catch (err) {
       setNotices((p) => [...p, errorNotice(tr("Export failed for \"{name}\": {message}", { name: surf.name, message: err.message }))]);
     }
@@ -7405,6 +7392,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                     <button onClick={() => exportImplicitSurface(s.id, "glb")} style={{ ...pBtn, width: "auto", flex: 1, marginBottom: 0, padding: "5px 6px", fontSize: "var(--font-size-sm)" }} title={tr("glTF Binary — modern standard, keeps normals, good for Blender/web viewers")}>{tr("glTF")}</button>
                     <button onClick={() => exportImplicitSurface(s.id, "vtk")} style={{ ...pBtn, width: "auto", flex: 1, marginBottom: 0, padding: "5px 6px", fontSize: "var(--font-size-sm)" }} title={tr("VTK (legacy) — opens in ParaView and PyVista")}>{tr("VTK")}</button>
                     <button onClick={() => exportImplicitSurface(s.id, "omf")} style={{ ...pBtn, width: "auto", flex: 1, marginBottom: 0, padding: "5px 6px", fontSize: "var(--font-size-sm)" }} title={tr("Open Mining Format v1 — Leapfrog, Datamine, Vulcan, Micromine and Geosoft read it")}>{tr("OMF")}</button>
+                    <button onClick={() => exportImplicitSurface(s.id, "ts")} style={{ ...pBtn, width: "auto", flex: 1, marginBottom: 0, padding: "5px 6px", fontSize: "var(--font-size-sm)" }} title={tr("GOCAD TSurf (.ts) — Leapfrog, SKUA-GOCAD and most 3D geology software import it")}>{tr("TSurf")}</button>{/* #3149 */}
                   </div>
                   {s.params?.inputs && ( /* TASKS.csv #1101 */
                     <button onClick={() => exportImplicitSurface(s.id, "inputs")} style={{ ...pBtn, marginTop: 4, marginBottom: 0, padding: "5px 6px", fontSize: "var(--font-size-sm)" }} title={tr("The interface points and orientations this GemPy run used, for every surface of the run, as GemPy's surface_points.csv and orientations.csv (world coordinates, with nuggets), to check or rebuild the model in GemPy or Leapfrog")}>{tr("Model inputs (GemPy CSV)")}</button>
