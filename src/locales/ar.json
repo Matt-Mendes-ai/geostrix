@@ -11359,5 +11359,17 @@
   "Other grades of the ore: {list}.": "محتويات أخرى للخام: {list}.",
   "{m}: not on the same grid (no block matched)": "{m}: ليس على الشبكة نفسها (لم تتطابق أي كتلة)",
   "{m}: no value in the ore": "{m}: لا قيمة في الخام",
-  "({p} % of the ore has a value)": "({p} % من الخام له قيمة)"
+  "({p} % of the ore has a value)": "({p} % من الخام له قيمة)",
+  "Overturned bedding": "تطبق مقلوب",
+  "Bedding, approximate orientation": "تطبق، اتجاه تقريبي",
+  "Joint": "فاصل",
+  "Foliation (origin not specified)": "تورّق (أصل غير محدد)",
+  "Metamorphic or tectonic foliation": "تورّق متحوّل أو تكتوني",
+  "Fault (small, minor)": "صدع (صغير، ثانوي)",
+  "Vein or dike": "عرق أو قاطع",
+  "Lineation": "تخطّط",
+  "Minor fold hinge": "مفصل طية ثانوية",
+  "FGDC {n}: {name}": "FGDC {n}: {name}",
+  "Symbol for {type}": "رمز {type}",
+  "The USGS (FGDC) symbol for {type}: each reading takes its inclined, vertical or horizontal form by its own dip. Kept with the project.": "رمز USGS (FGDC) لـ{type}: تأخذ كل قراءة شكلها المائل أو الرأسي أو الأفقي حسب ميلها. يُحفظ مع المشروع."
 }

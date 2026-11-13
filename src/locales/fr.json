@@ -11359,5 +11359,17 @@
   "Other grades of the ore: {list}.": "Autres teneurs du minerai : {list}.",
   "{m}: not on the same grid (no block matched)": "{m} : pas sur la même grille (aucun bloc ne correspond)",
   "{m}: no value in the ore": "{m} : aucune valeur dans le minerai",
-  "({p} % of the ore has a value)": "({p} % du minerai a une valeur)"
+  "({p} % of the ore has a value)": "({p} % du minerai a une valeur)",
+  "Overturned bedding": "Stratification renversée",
+  "Bedding, approximate orientation": "Stratification, orientation approximative",
+  "Joint": "Diaclase",
+  "Foliation (origin not specified)": "Foliation (origine non précisée)",
+  "Metamorphic or tectonic foliation": "Foliation métamorphique ou tectonique",
+  "Fault (small, minor)": "Faille (petite, mineure)",
+  "Vein or dike": "Veine ou dyke",
+  "Lineation": "Linéation",
+  "Minor fold hinge": "Charnière de pli mineur",
+  "FGDC {n}: {name}": "FGDC {n} : {name}",
+  "Symbol for {type}": "Symbole pour {type}",
+  "The USGS (FGDC) symbol for {type}: each reading takes its inclined, vertical or horizontal form by its own dip. Kept with the project.": "Le symbole USGS (FGDC) pour {type} : chaque mesure prend sa forme inclinée, verticale ou horizontale selon son propre pendage. Gardé avec le projet."
 }
