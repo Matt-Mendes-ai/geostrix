@@ -28,7 +28,7 @@ export default function GenerateAtlasModal({ onClose, templateElements, collars,
   const hasPlanMap = templateElements.some((el) => el.type === "viewport" && utmGridReady(el));
   const [centreMaps, setCentreMaps] = useState(true);
   const [lithoPatterns, setLithoPatterns] = useState(true); // TASKS.csv #1995
-  const [assaySymbols, setAssaySymbols] = useState(["", "", ""]); // TASKS.csv #1480 — up to three assay tracks
+  const [assaySymbols, setAssaySymbols] = useState(["", "", "", "", ""]); // TASKS.csv #1480 — up to three assay tracks; five since #3024 (Fe, SiO2, Al2O3, P, LOI)
   // TASKS.csv #2477 — up to two custom-layer tracks (a stratigraphic unit, a gamma log), as the strip-log window's '+ track' offers them
   const customChoices = useMemo(() => customLayers.filter((l) => (l.rows || []).some((r) => r.value != null && r.value !== "" && Number.isFinite(Number(r.from)))).map((l) => ({ id: String(l.id), layer: l, numeric: isNumericLayer(l.rows) })), [customLayers]);
   const [customSel, setCustomSel] = useState(["", ""]);
@@ -163,7 +163,7 @@ export default function GenerateAtlasModal({ onClose, templateElements, collars,
           {mode === "hole" && includeStripLog && assayElements.length > 0 && ( /* TASKS.csv #1480 — assay tracks on the strip log */
             <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", flexWrap: "wrap" }}>
               <span>{tr("Assay tracks")}</span>
-              {[0, 1, 2].map((k) => (
+              {[0, 1, 2, 3, 4].map((k) => (
                 <select key={k} value={assaySymbols[k]} aria-label={tr("Assay track {n}", { n: k + 1 })} onChange={(e) => setAssaySymbols((p) => p.map((s, j) => (j === k ? e.target.value : s)))} style={{ ...sel, flex: 1, minWidth: 80 }}>
                   <option value="">{tr("none")}</option>
                   {assayElements.map((e) => <option key={e.symbol} value={e.symbol}>{e.unit ? `${e.symbol} (${e.unit})` : e.symbol}</option>)}

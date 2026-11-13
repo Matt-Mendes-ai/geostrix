@@ -115,6 +115,7 @@
   "Inversion": "Inversión",
   "Lab certificates": "Certificados de lab.",
   "Legend": "Leyenda",
+  "same axis on all pages": "mismo eje en todas las páginas",
   "horizontal scale ({ve}x vertical exaggeration)": "escala horizontal (exageración vertical {ve}x)",
   "Codes per layer": "Códigos por capa",
   "The commonest codes of each layer are listed; the rest are counted on one line. A long key flows into columns to fit the sheet.": "Se listan los códigos más comunes de cada capa; el resto se cuenta en una línea. Una leyenda larga se reparte en columnas para caber en la hoja.",
