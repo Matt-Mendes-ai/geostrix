@@ -62,28 +62,43 @@ export function groupLogByCode(rows, symbol, domainRows) {
     const hit = codeAt(r.hole_id, (Number(r.from) + Number(r.to)) / 2);
     const code = hit ? String(hit.value ?? "") : NOT_LOGGED;
     let g = groups.get(code);
-    if (!g) groups.set(code, (g = { vals: [], sum: 0 }));
+    if (!g) groups.set(code, (g = { vals: [], sum: 0, wSum: 0, wvSum: 0 }));
     g.vals.push(v);
     g.sum += v;
+    if (r.w > 0) { g.wSum += r.w; g.wvSum += r.w * v; } // #2951 — a bin's count of readings
   }
   const out = new Map();
-  for (const [code, g] of groups) out.set(code, { sorted: Float64Array.from(g.vals).sort(), sum: g.sum });
+  for (const [code, g] of groups) out.set(code, { sorted: Float64Array.from(g.vals).sort(), sum: g.sum, ...(g.wSum > 0 ? { wSum: g.wSum, wvSum: g.wvSum } : {}) });
   return out;
 }
 // -> [{ key, stats, n, value, nAbove? }] sorted by value, highest first
 export function rankLogGroups(grouped, { minN = 3, stat = "median", above = null } = {}) {
   const out = [];
   const thr = Number(above);
-  for (const [key, { sorted: s, sum }] of grouped || []) {
+  for (const [key, { sorted: s, sum, wSum, wvSum }] of grouped || []) {
     if (!s.length || s.length < minN) continue;
     const stats = { n: s.length, min: s[0], q1: quantileSorted(s, 0.25), median: quantileSorted(s, 0.5), q3: quantileSorted(s, 0.75), max: s[s.length - 1] };
     let value = stats.median, nAbove;
-    if (stat === "mean") value = sum / s.length;
+    if (stat === "mean") value = wSum > 0 ? wvSum / wSum : sum / s.length; // #2951 — a binned log's bins weighed by their readings
     else if (stat === "p90") value = quantileSorted(s, 0.9);
     else if (stat === "above" && Number.isFinite(thr)) { nAbove = countAbove(s, thr); value = (100 * nAbove) / s.length; }
     out.push({ key, stats, n: stats.n, value, ...(nAbove != null ? { nAbove } : {}) });
   }
   return out.sort((a, b) => b.value - a.value || String(a.key).localeCompare(String(b.key)));
+}
+
+// TASKS.csv #2951 (review #2876, WA iron) — density by strand was a sentence of the top 8 codes, and six were codes of 4 to 214 bins (MNG_U, 9
+// bins, first) while TNAM (29,035), HNAM, SONAM, BNAM, CLA and ALU were never printed. Every code's figures for a table: n, the mean (a binned
+// log's bins weighed by their count of readings: ONAM's mean of bin means read 3.096 against 3.133 for the readings), median, P10, P90 (of
+// the bins), and readings (the readings behind the bins, when known). -> [{ key, n, readings, mean, median, p10, p90, weighted }]
+export function codeTable(grouped) {
+  const out = [];
+  for (const [key, { sorted: s, sum, wSum, wvSum }] of grouped || []) {
+    if (!s.length) continue;
+    const weighted = wSum > 0;
+    out.push({ key, n: s.length, readings: weighted ? wSum : s.length, mean: weighted ? wvSum / wSum : sum / s.length, median: quantileSorted(s, 0.5), p10: quantileSorted(s, 0.1), p90: quantileSorted(s, 0.9), weighted });
+  }
+  return out;
 }
 
 // the log against an assay element: each reading paired with the assay interval of its hole that holds its midpoint

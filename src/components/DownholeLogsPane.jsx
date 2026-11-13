@@ -6,7 +6,7 @@ import { Activity } from "./icons.js";
 import { numericSourceChoices, sourceAssays } from "../lib/numericSources.js";
 import { domainLayerChoices, foldDomainRows } from "../lib/domainLayers.js"; // foldDomainRows: TASKS.csv #2790
 import { LAYER_META } from "../lib/layers.js";
-import { groupLogByCode, rankLogGroups, logVsAssay, logVsModel, NOT_LOGGED, strideSample, logScaleSuits, allAboveZero, countAtOrBelowZero, sig3 } from "../lib/downholeLogs.js"; // logVsModel: #1595; strideSample: #2331; logScaleSuits...: #2558; groupLogByCode / rankLogGroups: #2948
+import { groupLogByCode, rankLogGroups, codeTable, logVsAssay, logVsModel, NOT_LOGGED, strideSample, logScaleSuits, allAboveZero, countAtOrBelowZero, sig3 } from "../lib/downholeLogs.js"; // logVsModel: #1595; strideSample: #2331; logScaleSuits...: #2558; groupLogByCode / rankLogGroups: #2948
 import { BoxPlots } from "./GradeStatistics.jsx";
 import { smallSel } from "../lib/sidebarStyles.js";
 import { t as tr } from "../lib/i18n.js";
@@ -45,6 +45,51 @@ function Scatter({ pairs, xLabel, yLabel, logX, logY }) {
     </svg>
     {drawn.step > 1 && <div style={note}>{tr("{k} of {n} pairs drawn (every {s}th, and the extremes); the statistics use all of them.", { k: drawn.points.length.toLocaleString(), n: pts.length.toLocaleString(), s: drawn.step })}</div>}
     </>
+  );
+}
+
+// TASKS.csv #2951 (review #2876, WA iron) — every code's figures, not the top 8 of a sentence where codes of 9 bins led and the strands that
+// carry the tonnage were never printed: n, mean (a binned log's bins weighed by their readings), median, P10, P90, sortable by any column,
+// the codes under the minimum count greyed and listed last, and a Copy (tab-separated, with the unit, for a spreadsheet)
+const fig = (v) => (Number.isFinite(v) ? String(Number(v.toPrecision(4))) : "");
+function CodeTable({ rows, order, minCount, unit, binned, keptScope }) {
+  const [sortBy, setSortBy] = useKeptState(keptScope, "dhlogs.tableSort", "rank"); // #2394 — every choice of the pane kept per project
+  const rank = new Map(order.map((k, i) => [k, i]));
+  const sorted = [...rows].sort((a, b) => {
+    const ra = a.n < minCount, rb = b.n < minCount;
+    if (ra !== rb) return ra ? 1 : -1;
+    if (sortBy === "rank") return (rank.get(a.key) ?? 1e9) - (rank.get(b.key) ?? 1e9);
+    if (sortBy === "key") return String(a.key).localeCompare(String(b.key), undefined, { numeric: true });
+    return (b[sortBy] ?? -Infinity) - (a[sortBy] ?? -Infinity);
+  });
+  const u = unit ? ` (${unit})` : "";
+  const cols = [["key", tr("Code")], ["n", binned ? tr("Bins") : tr("Readings")], ["mean", tr("Mean")], ["median", tr("Median")], ["p10", "P10"], ["p90", "P90"]];
+  const copy = async (e) => {
+    const b = e.currentTarget; // the button says "Copied" for two seconds (a flash, not a choice: no state)
+    const head = ["Code", binned ? "Bins" : "Readings", ...(binned ? ["Readings"] : []), `Mean${u}`, `Median${u}`, `P10${u}`, `P90${u}`].join("\t"); // export text: English (CLAUDE.md)
+    const body = sorted.map((r) => [r.key === NOT_LOGGED ? NOT_LOGGED : String(r.key ?? "").trim() === "" ? "(blank)" : String(r.key), r.n, ...(binned ? [r.readings] : []), fig(r.mean), fig(r.median), fig(r.p10), fig(r.p90)].join("\t"));
+    try { await navigator.clipboard.writeText([head, ...body].join("\n")); b.textContent = tr("Copied"); setTimeout(() => { b.textContent = tr("Copy table"); }, 2000); } catch { /* no clipboard */ }
+  };
+  const th = { textAlign: "right", fontWeight: 600, padding: "2px 4px", cursor: "pointer", whiteSpace: "nowrap", position: "sticky", top: 0, background: "var(--color-bg)" };
+  return (
+    <div>
+      <div style={{ maxHeight: 240, overflow: "auto", border: "1px solid var(--color-border)", borderRadius: 4 }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "var(--font-size-xs)" }} aria-label={tr("Figures per code")}>
+          <thead><tr>{cols.map(([k, label]) => <th key={k} style={{ ...th, textAlign: k === "key" ? "left" : "right" }} onClick={() => setSortBy(sortBy === k ? "rank" : k)} aria-sort={sortBy === k ? "descending" : "none"} title={tr("Sort by this column (again: back to the box plot's order)")}>{label}{sortBy === k ? " ▾" : ""}</th>)}</tr></thead>
+          <tbody>{sorted.map((r) => (
+            <tr key={String(r.key)} style={{ color: r.n < minCount ? "var(--color-text-muted)" : "inherit", opacity: r.n < minCount ? 0.7 : 1 }}>
+              <td style={{ padding: "1px 4px" }} title={codeLabel(r.key)}>{codeLabel(r.key, 18)}</td>
+              <td style={{ padding: "1px 4px", textAlign: "right" }} title={binned ? tr("{n} readings", { n: r.readings.toLocaleString() }) : undefined}>{r.n.toLocaleString()}</td>
+              {["mean", "median", "p10", "p90"].map((k) => <td key={k} style={{ padding: "1px 4px", textAlign: "right" }}>{fig(r[k])}</td>)}
+            </tr>
+          ))}</tbody>
+        </table>
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
+        <button type="button" onClick={copy} style={{ ...smallSel, cursor: "pointer" }}>{tr("Copy table")}</button>
+        {unit && <span style={note}>{tr("Values in {u}.", { u: unit })}</span>}
+      </div>
+    </div>
   );
 }
 
@@ -88,6 +133,12 @@ export default function DownholeLogsPane({ layers, customLayers = [], assays = [
   const { value: grouped, pending: groupPending } = useDeferredMemo(() => (data && domainFold ? groupLogByCode(data.assays, data.symbol, domainFold.rows) : null), [data, domainFold], heavy);
   const groups = useMemo(() => (grouped ? rankLogGroups(grouped, { stat: rankStat, above: Number(rankAbove) }) : []), [grouped, rankStat, rankAbove]);
   const nOfCode = useMemo(() => new Map(groups.map((g) => [g.key, g.n])), [groups]);
+  // TASKS.csv #2951 — codes under the minimum count go last (box plot, sentence, table): nine bins no longer outrank 29,000
+  const [minCountText, setMinCountText] = useKeptState(keptScope, "dhlogs.minCount", "30");
+  const minCount = Math.max(1, Math.round(Number(minCountText)) || 1);
+  const ranked = useMemo(() => { const common = groups.filter((g) => g.n >= minCount), rare = groups.filter((g) => g.n < minCount); return { common, rare, all: [...common, ...rare] }; }, [groups, minCount]);
+  const table = useMemo(() => (grouped ? codeTable(grouped) : []), [grouped]);
+  const tableWeighted = table.some((r) => r.weighted);
   const symbols = assayElements.map((e) => e.symbol);
   const [element, setElement] = useKeptState(keptScope, "dhlogs.element", "");
   const el = symbols.includes(element) ? element : symbols[0] || "";
@@ -127,7 +178,7 @@ export default function DownholeLogsPane({ layers, customLayers = [], assays = [
           {logHidden > 0 && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("{k} of {n} readings are zero or negative and are not shown on the log scale.", { k: logHidden.toLocaleString(), n: logValues.filter(Number.isFinite).length.toLocaleString() })}</div>}
           {groupPending ? working(tr("Grouping {n} readings by {layer}…", { n: nRows.toLocaleString(), layer: domain?.label || "" })) : groups.length > 0 ? (
             <>
-              <BoxPlots fit groups={groups} domainLabel={(k) => `${codeLabel(k, 16)} (${nOfCode.get(k)?.toLocaleString()})`} /* #2401 */ logScale={logScale} unit={unitOf(source.unit)} />
+              <BoxPlots fit groups={ranked.all} /* #2951: common codes first */ domainLabel={(k) => `${codeLabel(k, 16)} (${nOfCode.get(k)?.toLocaleString()})`} /* #2401 */ logScale={logScale} unit={unitOf(source.unit)} />
               <label style={{ ...row, justifyContent: "flex-start", gap: 6 }}>{tr("Rank codes by")}
                 <select value={rankStat} onChange={(e) => setRankStat(e.target.value)} style={smallSel} aria-label={tr("Rank codes by")}>
                   <option value="median">{tr("Median")}</option><option value="mean">{tr("Mean")}</option><option value="p90">P90</option><option value="above">{tr("Share above a value")}</option>
@@ -135,8 +186,14 @@ export default function DownholeLogsPane({ layers, customLayers = [], assays = [
                 {rankStat === "above" && <input type="number" step="any" value={rankAbove} onChange={(e) => setRankAbove(e.target.value)} aria-label={tr("Value the share is counted above")} style={{ ...smallSel, width: 70 }} />}
               </label>{/* #2393 */}
               <div style={note}>{rankStat === "above"
-                ? tr("Share of readings above {v} per code, highest first: {list}.", { v: rankAbove, list: groups.slice(0, 8).map((g) => `${g.key === NOT_LOGGED ? tr("(not logged)") : g.key} ${Math.round(g.value)}% (${(g.nAbove ?? 0).toLocaleString()} of ${g.n.toLocaleString()})`).join(" · ") })
-                : tr(rankStat === "mean" ? "Mean per code, highest first: {list}." : rankStat === "p90" ? "P90 per code, highest first: {list}." : "Median per code, highest first: {list}.", { list: groups.slice(0, 8).map((g) => `${codeLabel(g.key)} ${Number(g.value.toPrecision(3))}`).join(" · ") /* #2401 */ })}</div>
+                ? tr("Share of readings above {v} per code, highest first: {list}.", { v: rankAbove, list: (ranked.common.length ? ranked.common : groups).slice(0, 8).map((g) => `${g.key === NOT_LOGGED ? tr("(not logged)") : g.key} ${Math.round(g.value)}% (${(g.nAbove ?? 0).toLocaleString()} of ${g.n.toLocaleString()})`).join(" · ") })
+                : tr(rankStat === "mean" ? "Mean per code, highest first: {list}." : rankStat === "p90" ? "P90 per code, highest first: {list}." : "Median per code, highest first: {list}.", { list: (ranked.common.length ? ranked.common : groups).slice(0, 8).map((g) => `${codeLabel(g.key)} ${Number(g.value.toPrecision(3))}`).join(" · ") /* #2401; #2951: codes under the minimum count left out */ })}</div>
+              <label style={{ ...row, justifyContent: "flex-start", gap: 6 }}>{tr("Minimum count")}
+                <input type="number" min={1} step={1} value={minCountText} onChange={(e) => setMinCountText(e.target.value)} style={{ ...smallSel, width: 70 }} aria-label={tr("Minimum count of a code")} />
+              </label>
+              {table.some((r) => r.n < minCount) && <div style={note}>{tr(source?.binM ? "{k} code(s) with fewer than {n} bins are greyed and listed last." : "{k} code(s) with fewer than {n} readings are greyed and listed last.", { k: table.filter((r) => r.n < minCount).length, n: minCount.toLocaleString() })}</div>}{/* counted in the table: it lists every code, the box plot only those of 3 or more */}
+              <CodeTable rows={table} order={ranked.all.map((g) => g.key)} minCount={minCount} unit={unitOf(source.unit)} binned={!!source?.binM} keptScope={keptScope} />
+              {tableWeighted && <div style={note}>{tr("Means weigh each bin by its number of readings; the median and percentiles are of the bins.")}</div>}
             </>
           ) : domain && <div style={note}>{tr("No code of {layer} has three or more readings of this log.", { layer: domain.label })}</div>}
           {symbols.length > 0 && (
