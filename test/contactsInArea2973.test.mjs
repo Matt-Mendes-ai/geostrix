@@ -14,5 +14,5 @@ test("contacts split by their hole's collar inside the map layer's box; a hole w
 test("the pane says it beside the field-wide count", () => {
   const p = readFileSync(new URL("../src/components/MapModelPanel.jsx", import.meta.url), "utf8");
   assert.match(p, /contactsInArea\(holePreview\.contacts, storeCollars, layer\.bbox\)/);
-  assert.match(p, /tr\("\{k\} of them in \{hh\} hole\(s\) collared inside the map's area; \{o\} in holes outside it \(the run uses them all\)\."/);
+  assert.match(p, /tr\("\{k\} of them in \{hh\} hole\(s\) collared inside the map's area; \{o\} in holes outside it, which the run leaves out\."/); // #3045: the run leaves them out now
 });

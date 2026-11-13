@@ -506,7 +506,7 @@ export function createModellingRuns(ctx, mcRef) {
         const c = clipMesh(sceneVerts, faces, (v) => reach.isOutside(sceneToApi(v)));
         sceneVerts = c.verts; faces = c.faces;
         if (!faces.length) { missing.push(`${spec.label} (no part of it lies near its own contacts)`); return; }
-        reachNotes.push(tr("{label}: {m} m past its {n} contact point(s)", { label: spec.label, m: Math.round(reach.margin), n: spec.points.length }));
+        reachNotes.push(tr("{label}: {m} m past the outline of its {n} contact point(s), measured in their best-fit plane", { label: spec.label, m: Math.round(reach.margin), n: spec.points.length })); // #3045: the rule applied (lib/contactReach.js), not a distance from each contact
       }
       // TASKS.csv #358 — the model extent's top is the highest control point plus padding, and GemPy
       // extrapolates up to it, so dipping contacts used to stand up into the air above the ground (in 3D,
@@ -529,6 +529,13 @@ export function createModellingRuns(ctx, mcRef) {
         topoClipped = c.removed + c.split;
         if (!faces.length) { missing.push(`${spec.label} (lies entirely above the terrain surface)`); return; }
       }
+      // TASKS.csv #3045 — the clips above keep every input vertex: only those a kept triangle uses go into the mesh (its vertex count, the
+      // exports, the checks below)
+      if (sceneVerts.length && faces.length) {
+        const remap = new Int32Array(sceneVerts.length).fill(-1), kept = [];
+        faces = faces.map((f) => f.map((k) => { if (remap[k] < 0) { remap[k] = kept.length; kept.push(sceneVerts[k]); } return remap[k]; }));
+        sceneVerts = kept;
+      }
       // TASKS.csv #1171 — how far the mesh as drawn passes from the contact points it was fitted through. Not when it was clipped to a
       // domain, whose outside contacts it no longer reaches on purpose.
       const fit = clipDomain ? null : contactFit(spec.points.map((p) => apiToScene([p.x, p.y, p.z])).map((q) => [q.x, q.y, q.z]), sceneVerts.map((v) => [v.x, v.y, v.z]), faces);
@@ -539,7 +546,7 @@ export function createModellingRuns(ctx, mcRef) {
       geo.computeVertexNormals();
       const mat = new THREE.MeshLambertMaterial({ color: spec.color, side: THREE.DoubleSide, transparent: true, opacity: 0.75 });
       const mesh = new THREE.Mesh(geo, mat);
-      mesh.userData = { tip: `${spec.label}\n${surf.vertices.length} vertices${clipDomain ? ` (clipped to "${clipDomain.name}")` : ""}${topoClipped ? " (cut at topography)" : ""}` };
+      mesh.userData = { tip: `${spec.label}\n${sceneVerts.length} vertices${clipDomain ? ` (clipped to "${clipDomain.name}")` : ""}${topoClipped ? " (cut at topography)" : ""}` };
       implicitGroupRef.current?.add(mesh);
       const id = `impl_${Date.now()}_${spec.meshName}`;
       implicitMeshesRef.current[id] = mesh;
@@ -588,7 +595,7 @@ export function createModellingRuns(ctx, mcRef) {
         runId, inputs: captureInputs(spec, sidecarSpecs[specIndex], originRef.current),
         ...(res.faultOffsets ? { faultOffsets: res.faultOffsets } : {}), // #1054 — which units each fault offset in this run
       };
-      setImplicitSurfaces((p) => [...p, { id, name: spec.label, visible: true, vertexCount: surf.vertices.length, faceCount: faces.length, type: spec.type || "other", relationships: [], params }]);
+      setImplicitSurfaces((p) => [...p, { id, name: spec.label, visible: true, vertexCount: sceneVerts.length /* #3045: the kept vertices */, faceCount: faces.length, type: spec.type || "other", relationships: [], params }]);
       // TASKS.csv #2058 (review #2013) — the same one-elevation-per-location check as Check relationships, said by the run itself: an
       // implicit 'Top of VANSS' folded back at 1 of 16 locations and only Check relationships reported it
       if (FOLD_CONTACT_TYPES.has(spec.type)) {
@@ -1630,7 +1637,11 @@ export function createModellingRuns(ctx, mcRef) {
     }
     // TASKS.csv #1718 — the drillholes' logged contacts: the same tops as a map contact between those two units, at the contact's
     // depth on the hole's trace; an intercept excluded in the Boundary intercepts table stays out
-    let holeN = 0, holeHoles = 0, holeGaps = 0, holeNoTrace = 0, holeExcluded = 0;
+    let holeN = 0, holeHoles = 0, holeGaps = 0, holeNoTrace = 0, holeExcluded = 0, holeOutside = 0;
+    // TASKS.csv #3045 (#2973's leftover) — only the holes collared inside the map's area: a 2 km map took the logged contacts of a 21 km field,
+    // and the model box with them
+    const [mbx0, mby0, mbx1, mby1] = p.layer?.bbox || [];
+    const mapHoles = Number.isFinite(mbx0) ? new Set((collars || []).filter((c) => Number(c.x) >= mbx0 && Number(c.x) <= mbx1 && Number(c.y) >= mby0 && Number(c.y) <= mby1).map((c) => c.hole_id)) : null;
     if (p.holeCodes && Object.values(p.holeCodes).some(Boolean)) {
       const { holeContacts } = await import("../../lib/holeMapContacts.js");
       const hc = holeContacts(layers.litho || [], p.holeCodes, (u) => rank.has(u));
@@ -1638,6 +1649,7 @@ export function createModellingRuns(ctx, mcRef) {
       const used = new Set();
       for (const c of hc.contacts) {
         if (excludedIntercepts.includes(interceptId("litho", c.row))) { holeExcluded++; continue; }
+        if (mapHoles && !mapHoles.has(c.hole_id)) { holeOutside++; continue; } // #3045
         const t = traceOfHole(traces, c.hole_id);
         const q = t?.pts?.length ? findOnTrace(t.pts, c.depth) : null;
         if (!q) { holeNoTrace++; continue; }
@@ -1696,6 +1708,7 @@ export function createModellingRuns(ctx, mcRef) {
       + (holeN ? tr(" {h} of the contact points are logged contacts in {k} drillhole(s).", { h: holeN, k: holeHoles }) : p.holeCodes ? tr(" No logged contact between two units of the order was found in the drillholes.") : "") // #1718
       + (holeGaps ? tr(" {g} logged contact(s) left out: over {m} m unlogged or not used between the two units.", { g: holeGaps, m: 10 }) : "")
       + (holeExcluded ? tr(" {g} logged contact(s) excluded in the Boundary intercepts table.", { g: holeExcluded }) : "")
+      + (holeOutside ? tr(" {g} logged contact(s) in holes collared outside the map's area were left out: the model stands on the map.", { g: holeOutside }) : "") /* #3045 */
       + (holeNoTrace ? tr(" {g} logged contact(s) on holes with no trace were skipped.", { g: holeNoTrace }) : "")
       + (offTerrain ? tr(" {k} contact point(s) beyond the terrain were skipped.", { k: offTerrain }) : "") + (onPlan ? tr(" {k} contact point(s) and measurement(s) where the terrain has no data were placed at the map layer's elevation (RL {z}); the surfaces are cut there at that elevation too.", { k: onPlan, z: Math.round(planZ) }) : "") /* #2410 */ + (unused ? tr(" {k} contact(s) involve units outside the order.", { k: unused }) : ""))]); // appendNotice: #821
     await runSurfaceStack([...faultSpecs, ...specs], { relation: breaks.size ? "erode" : p.relation || stackRelation, aboveUnit: order[0], packages: new Set(specs.map((s) => s.package)).size, ...(planZ != null ? { groundFallbackZ: planZ } : {}) }); // #2410 // #1309
