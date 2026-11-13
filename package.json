@@ -71,13 +71,16 @@
         "from": "sample_data",
         "to": "sample_data",
         "filter": [
-          "*.csv",
-          "README.md",
-          "synthetic_flat_grid/**/*",
-          "blake_river/**/*",
-          "wa_uranium/**/*",
-          "perk_rocky/terrain_copernicus_glo30.tif"
+          "**/*",
+          "!harry_property{,/**/*}",
+          "!woodjam{,/**/*}",
+          "!silvertip{,/**/*}",
+          "!perk_rocky{,/**/*}"
         ]
+      },
+      {
+        "from": "sample_data/perk_rocky/terrain_copernicus_glo30.tif",
+        "to": "sample_data/perk_rocky/terrain_copernicus_glo30.tif"
       },
       {
         "from": "addons",
