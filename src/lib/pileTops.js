@@ -5,7 +5,7 @@
 //  - pileFromRuns / pileRelation: which of two units the holes put above the other, and in how many of the holes logging both;
 //  - absentTops: where a unit is missing from a hole that passes from a younger unit straight into an older one, its top is that
 //    contact (zero thickness there), for 'Add the logged tops' to offer as picks;
-//  - upperNeighbour: the next top up among the pane's other explicit tops;
+//  - upperNeighbour / lowerNeighbour (#3113): the next top up or down among the pane's other explicit tops;
 //  - meshHeightLookup / clampUnder / orderAgainst: hold a surface at or under that top, or count where it lies above it.
 // Pure: no React, no three.js.
 import { stackOrderFromHoles } from "./stackOrderFromHoles.js";
@@ -67,6 +67,36 @@ export function upperNeighbour(pile, unit, candidates, opts = {}) {
   let best = 0;
   for (let i = 1; i < ups.length; i++) if (under[i] > under[best] || (under[i] === under[best] && ups[i].rel.agree > ups[best].rel.agree)) best = i;
   return ups[best];
+}
+
+// TASKS.csv #3113 — the mirror: the next top DOWN among the candidates (the holes put `unit` above it), the closest one (the most other
+// candidates under it); null when none is decided under `unit`
+export function lowerNeighbour(pile, unit, candidates, opts = {}) {
+  const downs = [];
+  for (const c of candidates || []) {
+    if (!c || c.unit === unit) continue;
+    const rel = pileRelation(pile, unit, c.unit, opts);
+    if (rel.order === 1) downs.push({ ...c, rel });
+  }
+  if (!downs.length) return null;
+  const over = downs.map((c) => downs.reduce((k, d) => k + (d !== c && pileRelation(pile, c.unit, d.unit, opts).order === 1 ? 1 : 0), 0));
+  let best = 0;
+  for (let i = 1; i < downs.length; i++) if (over[i] > over[best] || (over[i] === over[best] && downs[i].rel.agree > downs[best].rel.agree)) best = i;
+  return downs[best];
+}
+
+// TASKS.csv #3115 — the tops down the pile from `first` (a candidate): each next one the closest under the last by the holes' order,
+// among the candidates not yet taken. pileOf(unit) -> the pile for that unit (topsOfUnit(unit).pile). -> [first, ...] (at most `max`)
+export function pileBelow(first, candidates, pileOf, { max = 40 } = {}) {
+  const out = [], seen = new Set();
+  let cur = first;
+  while (cur && !seen.has(cur.id) && out.length < max) {
+    seen.add(cur.id); out.push(cur);
+    const pile = pileOf(cur.unit);
+    if (!pile) break;
+    cur = lowerNeighbour(pile, cur.unit, (candidates || []).filter((c) => !seen.has(c.id)));
+  }
+  return out;
 }
 
 // The elevation of a triangle mesh (positions: x, y map, z elevation triples) at a map point: the highest crossing, NaN off it. A

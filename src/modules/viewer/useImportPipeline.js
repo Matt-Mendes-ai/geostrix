@@ -23,7 +23,7 @@ import { fitSimilarity, parseControlPoints, transformImportRows } from "../../li
 import { tieOf, fileToLocal, bearingToLocal } from "../../lib/localGridTie.js"; // TASKS.csv #2288
 import { localGridAzimuthOffset } from "../../lib/localGridNorth.js"; // TASKS.csv #2491
 import { untiedNorthOf, trueToUntiedGrid } from "../../lib/localGridDatum.js"; // TASKS.csv #2661
-import { mineGridOf } from "../../lib/mineGrid.js"; // TASKS.csv #2586
+import { mineGridOf, isMineSource, mineSourceOf, collarsOnMineGrid } from "../../lib/mineGrid.js"; // TASKS.csv #2586; the mine-grid Source CRS: #2811
 import { dipConventionFields, upwardHoles } from "../../lib/dipSign.js"; // TASKS.csv #2886
 import { codeColumnGuess } from "../../lib/valueGuess.js"; // TASKS.csv #2889
 import { codeOverlap, otherCodeSystem } from "../../lib/codeOverlap.js"; // TASKS.csv #2893
@@ -39,15 +39,16 @@ import { collarAlwaysKept, firstPerHole } from "../../lib/collarAttrs.js"; // TA
 import { surveyMethodKey, surveyMethodByHole, foldCaseVariants } from "../../lib/surveyMethod.js"; // TASKS.csv #2494
 import { fullestTypeColumn } from "../../lib/downholeTableGuess.js"; // TASKS.csv #2188
 import { holeTypeColumn, normalizeHoleType } from "../../lib/holeType.js"; // TASKS.csv #2161
+import { dateColumnReader, withDateFields } from "../../lib/dateColumns.js"; // TASKS.csv #3075
 import { eventNotes } from "../../lib/downholeEvents.js"; // TASKS.csv #2317
 import { applyRowFilter, defaultRowFilter, overlapSummary, overlapWorthSaying } from "../../lib/importRowFilter.js"; // TASKS.csv #2330; overlap: #2391
 import { isNullSentinel, LAYER_META, TARGET_SCHEMAS, guessColumn, guessColumnExact, guessMapping, guessTargetFor, schemaSatisfied, num, replaceRowsByHole, keepDerivedPicks, isDerivedPick, replaceNote, EPSG_COL_ALIASES, diffCollarImport, mergeCollar, minMax, pickRankedCollarRows } from "../../lib/layers.js";
-import { alterationStyleFromName, styledAltValue, isBlankCode, NO_CODE, blankCodeText } from "../../lib/viewer/importHelpers.js"; // TASKS.csv #1511; isBlankCode: #2182
+import { alterationStyleFromName, styledAltValue, isBlankCode, NO_CODE, blankCodeText, skipBlankValue, mineralListValue } from "../../lib/viewer/importHelpers.js"; // TASKS.csv #1511; isBlankCode: #2182; skipBlankValue: #2021
 import { fillDownHoleIds, numberedSiblings, allCodesOf, normInterval, applyCustomFields, normNumericInterval, normStructure, skippedRowsText, strikeStats, loadRaster, looksLikeAssay, isSurfaceSampleTable, looksLikeSurfaceSamples /* #2268 */, parseVectorFile, groupShapefileParts, orderImportFiles } from "../../lib/viewer/importHelpers.js"; // groupShapefileParts / orderImportFiles: #600
 import { unreadableFormatAdvice } from "../../lib/unreadableFormats.js"; // TASKS.csv #603
 import { t as tr } from "../../lib/i18n.js"; // TASKS.csv #786
 import { requestModuleAction, useModuleAction } from "../../lib/menuRequests.js"; // TASKS.csv #917; useModuleAction: #2019
-import { autoExtraFields, companionLayer, surveyMethodFields, columnsLeftOut } from "../../lib/viewer/autoExtras.js"; // TASKS.csv #1501; surveyMethodFields: #2187
+import { autoExtraFields, companionLayer, surveyMethodFields, columnsLeftOut, suscInstrumentFields } from "../../lib/viewer/autoExtras.js"; // suscInstrumentFields: #2668 // TASKS.csv #1501; surveyMethodFields: #2187
 import { surfaceAttrColumns, surfaceAttrs } from "../../lib/geochemColumns.js"; // TASKS.csv #1504 — unmapped collar columns kept as attrs; #3159: geochemColumns, not geochem.js (the whole geochem library in startup)
 import { rasterDrapeElevation, drapeElevationNote, planElevation } from "../../lib/drapeElevation.js"; // TASKS.csv #1505; planElevation: #2294
 import { projectTargetEpsg } from "../../lib/projectTarget.js"; // TASKS.csv #2287 — no reprojection INTO the placeholder CRS
@@ -127,6 +128,7 @@ export function useImportPipeline(ctx) {
   const isMapGeometry = (meta) => meta?.vector && meta.vector.geomType && meta.vector.geomType !== "point";
   // TASKS.csv #2019 — files dropped on the Maps tab that need this import (points, tables, layer pickers), with what Maps already did
   useModuleAction(["import-dropped-files"], (_a, p) => {
+    dropOriginRef.current = p?.origin || null; // TASKS.csv #2660 — Cancel goes back where the drop was made
     const extra = [...(p?.notes || []), ...(p?.others?.length ? [notice("{names}: not a file the map or this import reads.", { names: p.others.slice(0, 4).join(", ") + (p.others.length > 4 ? "…" : "") })] : [])];
     if (extra.length) setNotices((q) => [...q, ...extra]);
     if (p?.files?.length) handleDrop({ preventDefault() {}, dataTransfer: { files: p.files } });
@@ -149,7 +151,7 @@ export function useImportPipeline(ctx) {
       const mapping0 = azColFor(target, headers, data, ll ? ll.mapping : guessMapping(target, headers)); // #426; #2015
       const codeGuess = codeColumnGuess(target, headers, data, mapping0), mapping = codeGuess ? { ...mapping0, value: codeGuess.col } : mapping0; // #2889 — no name matched: the file's one code column, said as a guess
       const perRowEpsgCol = guessColumn(headers, EPSG_COL_ALIASES);
-      setImportModal({ ...(codeGuess ? { valueGuess: codeGuess } : {}), ...azRefFor(target, headers, data), ...(target === "survey" ? { customFields: surveyMethodFields(headers, data) } : {}) /* #2187 */, file, fileName: file.name, headers, rowCount: meta?.logTable ? meta.logTable.n : data.length, sampleRows: data.slice(0, 5), allRows: data, ...(meta?.logTable ? { logTable: meta.logTable } : {}) /* #3038 */, target, mapping, ...(forceTarget ? {} : guardGuess(target, mapping, headers, data, file.name)), ...dipConventionFields(data, dipColOf(target, mapping)) /* #2886 */, perRowEpsgCol, sourceEpsg: ll ? ll.sourceEpsg : meta?.detectedEpsg ? String(meta.detectedEpsg) : "" });
+      setImportModal({ ...(codeGuess ? { valueGuess: codeGuess } : {}), ...azRefFor(target, headers, data), ...(target === "survey" ? { customFields: surveyMethodFields(headers, data) } : target === "magsusc" ? { customFields: suscInstrumentFields(headers, data) } /* #2668 */ : {}) /* #2187 */, file, fileName: file.name, headers, rowCount: meta?.logTable ? meta.logTable.n : data.length, sampleRows: data.slice(0, 5), allRows: data, ...(meta?.logTable ? { logTable: meta.logTable } : {}) /* #3038 */, target, mapping, ...(forceTarget ? {} : guardGuess(target, mapping, headers, data, file.name)), ...dipConventionFields(data, dipColOf(target, mapping)) /* #2886 */, perRowEpsgCol, sourceEpsg: ll ? ll.sourceEpsg : meta?.detectedEpsg ? String(meta.detectedEpsg) : "" });
       if (meta?.note) setNotices((p) => [...p, `${file.name}:${meta.note}`]);
     }, chosenLayer);
   };
@@ -174,7 +176,7 @@ export function useImportPipeline(ctx) {
       try {
         const live = importStateRef.current;
         const chooseProjectEpsg = (src, cur) => adoptCrsIfEmpty(src, file.name) || cur; // #607
-        const { raster, msg } = await (await loadRaster()).buildRasterImport(file, { epsg: projectTargetEpsg(live.project || project), defaultElevation, chooseProjectEpsg });
+        const { raster, msg } = await (await loadRaster()).buildRasterImport(file, { epsg: projectTargetEpsg(live.project || project), defaultElevation, chooseProjectEpsg, tie: tieOf(live.project || project) /* #2743 — a tied mine grid: through its tie, as Maps and Geophysics do (#2587) */ });
         const drape = rasterDrapeElevation({ collars: live.collars || collars, voxelModels: live.voxelModels || [], surfaceSamples: live.surfaceSamples || [], bbox: raster.bbox, rasters: live.rasters || [], fileName: file.name, stations: live.layers?.geophys_pts /* #2868 */ }); // #1505
         addRaster({ ...raster, elevation: drape.z });
         setNotices((p) => [...p, notice("{msg} {v} Set its opacity (or a Source CRS, if it landed in the wrong place) on the Maps tab.", { msg, v: drapeElevationNote(drape) })]);
@@ -263,10 +265,13 @@ export function useImportPipeline(ctx) {
     const src = [...bySrc.entries()].sort((a, b) => b[1] - a[1])[0][0];
     return { target, n, src, holes: hit.size };
   };
-  // the dialog's pre-set: such a guess becomes a custom layer, and the dialog says why (#1649)
+  // the dialog's pre-set: such a guess is never committed unseen, and the dialog says what it replaces (#1649). TASKS.csv #2021 — it stays the
+  // recognized layer (a corrected log re-imported under another name became a custom layer of an all-blank column), with the note and Custom
+  // layer one choice away; the value never preselects a column that is blank on every row
   const guardGuess = (target, mapping, headers, rows, fileName) => {
     const ov = layerOverlap(target, mapping, rows, fileName);
-    return ov ? { target: "custom", mapping: guessMapping("custom", headers), guessNote: ov } : { target, mapping };
+    const m = skipBlankValue(mapping, headers, rows);
+    return ov ? { target, mapping: m, guessNote: ov } : { target, mapping: m };
   };
   const azRefFor = (target, headers, rows) => { const d = AZ_TARGETS.has(target) ? detectAzimuthRef(headers, rows) : null; return d?.ref ? { azimuthRef: d.ref, azimuthRefFrom: d.col, ...(d.also ? { azimuthRefAlso: d.also } : {}) } : {}; }; // also: #2154
   // TASKS.csv #2015 — a survey sheet's corrected azimuth column (grid when filled, else true north) is the one read
@@ -303,7 +308,7 @@ export function useImportPipeline(ctx) {
       // TASKS.csv #2179 (review #2174, WA mine grid) — with no project CRS chosen, true / magnetic north (and another CRS's grid north)
       // were converted with the PLACEHOLDER's grid convergence (EPSG:3156, British Columbia) for a Western Australian mine grid
       const crsUnset = (importStateRef.current.project || project)?.crsSet === false;
-      const converting = (azimuthRef && azimuthRef !== "grid") || (azimuthGridEpsg && target !== "collars");
+      const converting = (azimuthRef && azimuthRef !== "grid") || (azimuthGridEpsg && !isMineSource(azimuthGridEpsg) /* #2811 — the mine grid is handled by applyGridOf */ && target !== "collars");
       if (crsUnset && converting && rows.some((r) => Number.isFinite(r.azimuth))) {
         // TASKS.csv #2491 — a local grid tied to a CRS (#2288) knows its north: true / magnetic -> the tie CRS's grid -> the local grid
         const live = importStateRef.current.project || project, tie = tieOf(live);
@@ -356,6 +361,17 @@ export function useImportPipeline(ctx) {
     // hole's collar (project CRS) is taken back into that CRS and the bearing is rebuilt in the project grid.
     function applyGridOf(rows, locate) {
       const projEpsg = (importStateRef.current.project || project)?.epsg;
+      // TASKS.csv #2811 — 'Grid of' the local mine grid: a grid bearing is turned by the grid's rotation (as Surface Geology's structures, #2684); on
+      // a project with no CRS its numbers are the project's own grid, nothing to turn; with no mine grid set up, left as they are and said
+      if (target !== "collars" && isMineSource(azimuthGridEpsg)) {
+        const ms = mineSourceOf(importStateRef.current.project || project);
+        if (ms?.kind === "none") return { rows, note: tr(" Azimuths left as they are: the project has no mine grid to read them on (set one up under Maps > Project CRS).") };
+        const rot = ms?.kind === "tie" ? Number(ms.mg?.tie?.rotationDeg) || 0 : 0;
+        if (!rot) return { rows, note: "" };
+        let fixed = 0;
+        const out = rows.map((r) => { if (!Number.isFinite(r.azimuth)) return r; fixed++; return { ...r, azimuth: wrap360(r.azimuth - rot) }; });
+        return { rows: out, note: fixed ? tr(" {fixed} azimuth(s) turned from the mine grid's north to the project grid ({deg}°).", { fixed, deg: (-rot).toFixed(2) }) : "" };
+      }
       if (target === "collars" || !azimuthGridEpsg || !projEpsg || Number(azimuthGridEpsg) === Number(projEpsg)) return { rows, note: "" };
       const fwd = pointTransform(azimuthGridEpsg, projEpsg), inv = pointTransform(projEpsg, azimuthGridEpsg);
       if (!fwd || !inv) return { rows, note: tr(" Azimuths left as they are: EPSG:{azimuthGridEpsg} isn't a CRS GeoStrix can convert.", { azimuthGridEpsg }) };
@@ -418,6 +434,11 @@ export function useImportPipeline(ctx) {
       // TASKS.csv #2161 — the drilling method normalized ("hole type": RC, Diamond (DD), RC + diamond tail, Aircore (AC), RAB...) beside the file's own column
       const htCol = holeTypeColumn(allRows.length ? Object.keys(allRows[0]) : []);
       const withHoleType = (a, r) => { const ht = htCol ? normalizeHoleType(r[htCol]) : null; return ht ? { attrs: { ...(a.attrs || {}), "hole type": ht } } : a; };
+      // TASKS.csv #3075 (#2900 (8)) — a column of dates (ENDDATE '14-Nov-18') stored as ISO dates, with its year as a field of its own to filter and colour
+      // by; numeric dates whose day and month cannot be told apart are kept as written, and said
+      const dateReaders = new Map(), ambiguousDates = [];
+      for (const c of attrCols) { const rd = dateColumnReader(ranked.rows.map((r) => r[c])); if (rd?.ambiguous) ambiguousDates.push(c); else if (rd) dateReaders.set(String(c).replace(/\s+/g, " ").trim(), rd); }
+      const withDates = (a) => (dateReaders.size && a.attrs ? { attrs: withDateFields(a.attrs, dateReaders) } : a);
       let rows = ranked.rows.map((r) => applyCustomFields({
         // TASKS.csv #337 — num(): a blank cell is missing (NaN), not 0 (a blank RL used to put the collar at sea level).
         hole_id: String(r[mapping.hole_id] ?? "").trim(), x: num(r[mapping.x]), y: num(r[mapping.y]), z: num(r[mapping.z]),
@@ -427,7 +448,7 @@ export function useImportPipeline(ctx) {
         // Per-row source EPSG (TASKS.csv #205), carried alongside the row only long enough to drive
         // the reprojection pass below — stripped before the collar is stored.
         _rowEpsg: perRowEpsgCol ? String(r[perRowEpsgCol] ?? "").trim() : "",
-        ...withHoleType(surfaceAttrs(r, attrCols), r), // #1504; hole type: #2161
+        ...withHoleType(withDates(surfaceAttrs(r, attrCols)), r), // #1504; hole type: #2161; dates: #3075
       }, r, customFields));
       // TASKS.csv #337 — a collar without all three coordinates can't be placed; skip it and say which,
       // instead of the old behaviour of keeping it at z = 0.
@@ -436,6 +457,8 @@ export function useImportPipeline(ctx) {
       rows = rows.filter((r) => r.hole_id && Number.isFinite(r.x) && Number.isFinite(r.y));
       const repeats = ranked.rankColumn ? { dropped: 0, holes: [] } : firstPerHole(rows); // TASKS.csv #2172 — a repeated hole id: the first row kept, counted
       if (repeats.dropped) rows = repeats.rows;
+      if (dateReaders.size) setNotices((p) => [...p, tr("{fileName}: {cols} read as dates (stored as year-month-day); each also has a year field, to filter and colour the holes by.", { fileName, cols: [...dateReaders.keys()].join(", ") })]); // #3075
+      if (ambiguousDates.length) setNotices((p) => [...p, tr("{fileName}: {cols} kept as written: every date there could be day/month or month/day.", { fileName, cols: ambiguousDates.join(", ") })]); // #3075
       if (noCoords.length) setNotices((p) => [...p, notice("{fileName}: {noCoords} collar(s) skipped — missing or non-numeric X or Y ({v}{v2}). Fix them in the file and re-import.", { fileName, noCoords: noCoords.length, v: noCoords.slice(0, 8).join(", "), v2: noCoords.length > 8 ? ", …" : "" })]);
       // TASKS.csv #120 — on-the-fly reprojection for general vector layers. Collars are the primary
       // absolute-world-coordinate import in this app (every other layer is hole-relative and inherits
@@ -453,16 +476,23 @@ export function useImportPipeline(ctx) {
       // #607 — the file's one declared CRS (Source CRS, or a per-row EPSG column with a single value) may become
       // the project CRS when nothing is loaded yet
       const rowCodes = [...new Set(rows.map((r) => r._rowEpsg).filter(Boolean))];
-      const declaredEpsg = rowCodes.length === 1 && (!sourceEpsg || Number(sourceEpsg) === Number(rowCodes[0])) ? rowCodes[0] : (!rowCodes.length ? sourceEpsg : null);
+      // TASKS.csv #2811 — Source CRS 'Local mine grid (no CRS)': not a CRS to adopt or reproject from; the rows go through the mine grid below
+      const mineSrc = isMineSource(sourceEpsg), srcEpsg = mineSrc ? "" : sourceEpsg;
+      const declaredEpsg = rowCodes.length === 1 && (!srcEpsg || Number(srcEpsg) === Number(rowCodes[0])) ? rowCodes[0] : (!rowCodes.length ? srcEpsg : null);
       if (declaredEpsg) adoptCrsIfEmpty(declaredEpsg, fileName);
       const liveProject = importStateRef.current.project || project; // stale-closure fix, see liveCollars below
       // TASKS.csv #2288 — a local-grid project (#2180): rows that declare a CRS go INTO the grid through its tie; with no tie they stay as
       // they are (never 'reprojected' into the placeholder EPSG), and the notice says which
       const gridTie = liveProject?.crsSet === false && liveProject?.localGrid ? tieOf(liveProject) : null;
-      if (liveProject?.crsSet === false && liveProject?.localGrid && (perRowEpsgCol || sourceEpsg)) {
+      // #2811 — rows read on the mine grid (no per-row EPSG of their own): through its tie into the project CRS, a grid azimuth turned by the
+      // grid's rotation; a project with no CRS keeps the numbers (they are its own grid); no mine grid set up: kept, and said
+      let mineNote = "";
+      if (mineSrc) mineNote = collarsOnMineGrid(rows, liveProject, { gridAzimuths: !azimuthRef || azimuthRef === "grid" }).note; // lib/mineGrid.js
+      if (liveProject?.crsSet === false && liveProject?.localGrid && (perRowEpsgCol || srcEpsg)) {
         let moved = 0, kept = 0, failed = 0;
         rows.forEach((r) => {
-          const fromEpsg = Number(r._rowEpsg || sourceEpsg) || null;
+          if (mineSrc && !r._rowEpsg) return; // #2811 — read on the mine grid above
+          const fromEpsg = Number(r._rowEpsg || srcEpsg) || null;
           if (!fromEpsg) { kept++; return; }
           if (!gridTie) { kept++; return; }
           const p = fileToLocal(gridTie, r.x, r.y, fromEpsg);
@@ -473,10 +503,11 @@ export function useImportPipeline(ctx) {
         reprojectNote = gridTie
           ? " " + tr("On import: {moved} row(s) brought into the local grid through its tie to EPSG:{tie}{v}.", { moved, tie: gridTie.epsg, v: failed ? tr("; {failed} could not be placed and kept their numbers", { failed }) : "" })
           : " " + tr("The file declares a coordinate system, but this project is on a local mine grid with no tie to one: the {kept} row(s) keep their numbers. Tie the grid to a CRS in Maps > Project CRS to bring such files in.", { kept });
-      } else if (liveProject?.epsg && (perRowEpsgCol || (sourceEpsg && Number(sourceEpsg) !== Number(liveProject.epsg)))) {
+      } else if (liveProject?.epsg && (perRowEpsgCol || (srcEpsg && Number(srcEpsg) !== Number(liveProject.epsg)))) {
         const toEpsg = liveProject.epsg;
         const groups = new Map(); // fromEpsg key ("" = fall back to global sourceEpsg) -> rows in that group
         rows.forEach((r) => {
+          if (mineSrc && !r._rowEpsg) return; // #2811 — read on the mine grid above
           const key = r._rowEpsg || "";
           if (!groups.has(key)) groups.set(key, []);
           groups.get(key).push(r);
@@ -487,7 +518,7 @@ export function useImportPipeline(ctx) {
         // difference (true / magnetic azimuths are converted from the project-CRS location further down).
         const gridAz = !azimuthRef || azimuthRef === "grid";
         for (const [rowEpsgKey, groupRows] of groups) {
-          const fromEpsg = rowEpsgKey || sourceEpsg;
+          const fromEpsg = rowEpsgKey || srcEpsg;
           if (!fromEpsg || Number(fromEpsg) === Number(toEpsg)) { unreprojectedCount += groupRows.length; continue; }
           let groupFailed = 0;
           const T = gridAz ? pointTransform(fromEpsg, toEpsg) : null;
@@ -593,6 +624,7 @@ export function useImportPipeline(ctx) {
           : tr("{n} collar elevation(s) look like a missing value: {list}. They are placed as the file says, marked as suspect, and flagged in Data QC", { n: suspectHere.length, list }));
       }
       if (diff.duplicatesInFile.length) parts.push(tr("{duplicatesInFile} duplicate hole_id row(s) WITHIN the file itself (the last row of each hole won: {v})", { duplicatesInFile: diff.duplicatesInFile.length, v: [...new Set(diff.duplicatesInFile)].slice(0, 5).join(", ") }));
+      if (mineNote) reprojectNote += mineNote; // #2811
       setNotices((p) => [...p, notice("Loaded {size} collars from {fileName}{v}.{reprojectNote}{note}", { size: new Set(rows.map((r) => r.hole_id)).size, fileName, v: parts.length ? ` — ${parts.join("; ")}` : "", reprojectNote, note: azc.note })]);
     } else if (target === "survey") {
       const svDropped = []; // #1070
@@ -700,7 +732,7 @@ export function useImportPipeline(ctx) {
       const src = data.logTable || allRows, readings = logReadings(src); // #3038 — every reading of a log read into typed columns
       const binM = data.logBinM !== undefined ? data.logBinM : defaultLogBin(readings, chans.length, needsBinning(readings, chans.length) ? logBinEstimate(src, mapping) : null); // #2885 — the bin that fits, as the dialog shows
       const base = String(fileName).replace(/\.(csv|txt|las|xlsx?)$/i, "");
-      const made = [];
+      const made = [], noUnit = []; // noUnit: #3076
       chans.forEach((col, k) => {
         const nd = data.logKeepNoData ? null : channelNoData(src, col, unitFromHeader(col)); // #2332 — no-data codes left out unless kept
         const rg = logRange(data.logRanges?.[col]); // #3041 — the range typed for the channel
@@ -711,7 +743,9 @@ export function useImportPipeline(ctx) {
         const group = new THREE.Group(); group.name = id;
         layerGroupsRef.current[id] = group;
         sceneRef.current.getObjectByName("root").add(group);
-        const name = `${base}: ${col}`;
+        // TASKS.csv #3076 (#2900 (10)) — 'downhole_logs: Density_Best' named no unit: the unit read or typed is in the name; a channel with none is said
+        const name = `${base}: ${col}${unit && !String(col).toLowerCase().includes(unit.toLowerCase()) ? ` (${unit})` : ""}`;
+        if (!unit) noUnit.push(col);
         const rowsOut = out.rows; for (const r of rowsOut) r._src = fileName; // #2885 — stamped in place, not a second copy of every row
         // TASKS.csv #2329 — a From / To log: each reading placed at its interval's middle, said in the layer's notes (project text: English)
         const mid = !mapping.depth && mapping.from && mapping.to ? `Each reading placed at the middle of its ${mapping.from}-${mapping.to} interval.` : "";
@@ -721,6 +755,7 @@ export function useImportPipeline(ctx) {
         setCustomVisible((p) => ({ ...p, [id]: k === 0 }));
         made.push(`${col}${unit ? ` (${unit})` : ""}: ${out.rows.length.toLocaleString()}${out.skipped ? ` (${out.skipped} without a number)` : ""}${out.dropped ? ` (${out.dropped.toLocaleString()} no-data value(s) left out: ${noDataText(nd)})` : ""}${out.outside ? ` (${out.outside.toLocaleString()} ${rangeText(rg)} left out)` : ""}`); // dropped: #2332; outside: #3041
       });
+      if (noUnit.length) setNotices((p) => [...p, tr("{fileName}: no unit for {cols}: the column name gives none and none was typed, so the values are as logged with no unit.", { fileName, cols: noUnit.join(", ") })]); // #3076
       setNotices((p) => [...p, tr("{fileName}: {n} downhole log channel(s) imported as numeric layers{v}: {list}. The first is shown; the others are in the Layers list.", { fileName, n: made.length, v: binM === "assay" ? tr(", averaged over the assay sample intervals (mean, with min and max)") /* #3039 */ : binM ? tr(", averaged to {b} m bins (mean, with min and max)", { b: binM }) : tr(", every reading kept"), list: made.join("; ") })]);
     } else if (target === "custom") {
       // TASKS.csv #2338 (review #2325, WA uranium) — the custom route kept rows with a blank value (155 of geology_current.csv) and rows
@@ -774,6 +809,7 @@ export function useImportPipeline(ctx) {
         let extra = 0; // #2874 — this row's count of codes beyond the drawn one
         if (sib) { const a = allCodesOf(raw, sib); if (a.extra) { r.all_codes = a.all; r.codes = a.codes; codesKept += a.extra; codesRows++; extra = a.extra; } } // codes: #1650
         if (altStyle) { r.value = styleCode(r.value); r.alt_style = altStyle; if (Array.isArray(r.codes)) r.codes = r.codes.map(styleCode); } // #1511
+        if (target === "mnlgy" && !numeric) { const l = mineralListValue(r.value); if (l !== r.value) { r.as_logged = r.value; r.value = l; } } // #2022 — 'Py; Cpy' and 'Cpy; Py' are one class
         // #2182 — a blank code: the next numbered code if the row has one (Min_Code2), else the row is skipped and counted, not 'Unknown'
         // #2493 — or, when the dialog's "keep blank codes as (no code)" is ticked, kept as that explicit class (the log stays continuous)
         if (!numeric && isBlankCode(raw[mapping.value])) { blankRows++; const next = Array.isArray(r.codes) ? r.codes.find((c) => !isBlankCode(c)) : null; if (next) { r.value = String(next).trim(); blankTookNext++; if (extra) { codesKept--; if (extra === 1) codesRows--; } /* #2874 — that code is drawn now, not 'not drawn' */ } else if (data.keepBlankCodes) { r.value = NO_CODE; blankKept++; } else r.value = null; }
@@ -876,7 +912,7 @@ export function useImportPipeline(ctx) {
       if (gridOn) {
         try { grid = fitSimilarity(parseControlPoints(importModal.localGridText)); }
         catch (e) { setNotices((p) => [...p, errorNotice(tr("{fileName}: local grid — {message} Nothing was imported.", { fileName: importModal.fileName, message: e.message }))]); return; } // #739
-        if (importModal.sourceEpsg && Number(importModal.sourceEpsg) !== Number(project?.epsg)) {
+        if (importModal.sourceEpsg && !isMineSource(importModal.sourceEpsg) /* #2811 — the mine grid is no CRS; the transform maps from it */ && Number(importModal.sourceEpsg) !== Number(project?.epsg)) {
           setNotices((p) => [...p, notice("{fileName}: a local-grid transform gives project coordinates directly — clear Source CRS (it is set to EPSG:{sourceEpsg}). Nothing was imported.", { fileName: importModal.fileName, sourceEpsg: importModal.sourceEpsg })]);
           return;
         }
@@ -942,6 +978,15 @@ export function useImportPipeline(ctx) {
     setNotices((p) => [...p, surface ? notice("{name} looks like a table of surface samples (coordinates, no from / to, no hole ID), so it opened in Geochem's surface-sample import, where you choose the elements. Not samples? Cancel there and use + Add CSV layer in the 3D View's sidebar to import it as a layer of your own.", { name: files[0].name }) /* #2268 */ : notice("{name} is assay data: it is open in the Geochem assay import, which asks which columns are elements. Not assays? Cancel there and use + Add CSV layer in the 3D View's sidebar to import it as a layer of your own.", { name: files[0].name }), // the way out: #2185
       ...(files.length > 1 ? [notice("{n} more assay file(s) follow in the Geochem import, one after another: {list}.", { n: files.length - 1, list: files.slice(1).map((f) => f.name).join(", ") })] : [])]);
   };
+  // TASKS.csv #2660 (#2591 (3)) — a table dropped on the Maps plan opens this dialog on the 3D View; Cancel left the user there. Cancel on the last
+  // file of a drop made elsewhere goes back to that tab; a commit stays here (the data is drawn here)
+  const dropOriginRef = useRef(null);
+  const cancelImport = () => {
+    setImportModal(null);
+    const back = !importQueueRef.current.length ? dropOriginRef.current : null;
+    processImportQueue();
+    if (back) { dropOriginRef.current = null; goToModule(back); }
+  };
   const processImportQueue = useCallback(() => {
     const file = importQueueRef.current.shift();
     if (!file) { importActiveRef.current = false; batchRowsRef.current = null; setTaskProgress?.(null); importQueueTotalRef.current = 0; handOverAssays(); return; } // #1350
@@ -989,7 +1034,7 @@ export function useImportPipeline(ctx) {
       // them: a queued shapefile used to be committed with no Source CRS, so its collars stayed in their own UTM
       // zone's numbers inside a project in another zone (~400 km from the same drop's reprojected map layers).
       // TASKS.csv #2899 — a queued survey gets the same pre-added instrument / method field as one dropped alone (#2187)
-      const modalData = { ...(codeGuess ? { valueGuess: codeGuess } : {}), ...(target === "survey" ? { customFields: surveyMethodFields(headers, data) } : {}), ...azRefFor(target, headers, data), file, fileName: file.name, headers, rowCount: meta?.logTable ? meta.logTable.n : data.length, sampleRows: data.slice(0, 5), allRows: data, ...(meta?.logTable ? { logTable: meta.logTable } : {}) /* #3038 */, target, mapping, ...dipConventionFields(data, dipColOf(target, mapping)) /* #2886 */,
+      const modalData = { ...(codeGuess ? { valueGuess: codeGuess } : {}), ...(target === "survey" ? { customFields: surveyMethodFields(headers, data) } : target === "magsusc" ? { customFields: suscInstrumentFields(headers, data) } /* #2668 */ : {}), ...azRefFor(target, headers, data), file, fileName: file.name, headers, rowCount: meta?.logTable ? meta.logTable.n : data.length, sampleRows: data.slice(0, 5), allRows: data, ...(meta?.logTable ? { logTable: meta.logTable } : {}) /* #3038 */, target, mapping, ...dipConventionFields(data, dipColOf(target, mapping)) /* #2886 */,
         sourceEpsg: queueLl ? queueLl.sourceEpsg : meta?.detectedEpsg ? String(meta.detectedEpsg) : "", perRowEpsgCol: guessColumn(headers, EPSG_COL_ALIASES), ...guarded };
       if (confident) {
         // TASKS.csv #1501 — a log's other columns as extra fields, and a Geotech table's Recovery % as that layer too (collars keep
@@ -1277,5 +1322,5 @@ export function useImportPipeline(ctx) {
     setNotices((p) => [...p, notice("Reloaded from the database: {lines}", { lines: lines.join(" · ") })]);
   };
 
-  return { commitImport, handleDrop, importBrowserFile, importOverlap, layerPicker, loadSampleProject, openImportFromRows, openImportModal, processImportQueue, sampleLoading, setLayerPicker, reloadDbImports };
+  return { cancelImport /* #2660 */, commitImport, handleDrop, importBrowserFile, importOverlap, layerPicker, loadSampleProject, openImportFromRows, openImportModal, processImportQueue, sampleLoading, setLayerPicker, reloadDbImports };
 }

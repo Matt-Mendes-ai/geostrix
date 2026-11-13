@@ -38,6 +38,27 @@ export function sampleOxides(a, majors) {
   return { total: missing.length ? null : total, oxides, missing, over100 };
 }
 
+// TASKS.csv #2942 (split from #2734) — the classification diagrams (TAS above all) are drawn on oxides recalculated to 100 % volatile-free:
+// each sample's majors scaled by 100 / their sum (the LOI, not a major, is what is left out). A sample missing a major cannot be recalculated
+// and is left out (counted), not drawn as analysed beside the recalculated ones. Ratios (Winchester, the box plot indices) are unchanged.
+// Each row is a copy whose `source` (not enumerable) is the row it came from, for lookups by row. -> rows, with .leftOut (not enumerable)
+export function anhydrousRows(rows, majors) {
+  const out = [];
+  let left = 0;
+  for (const a of rows || []) {
+    const s = sampleOxides(a, majors);
+    if (!(s.total > 0)) { left++; continue; }
+    const f = 100 / s.total, values = { ...a.values };
+    for (const m of majors) values[m.symbol] = Number(a.values[m.symbol]) * f;
+    const row = { ...a, values };
+    Object.defineProperty(row, "source", { value: a });
+    out.push(row);
+  }
+  Object.defineProperty(out, "leftOut", { value: left });
+  return out;
+}
+export const sourceRow = (r) => r?.source || r; // #2942 — the row a recalculated copy came from
+
 // every sample: the complete sums, their spread, the samples with an oxide over 100 %. -> { n, incomplete, totals: [{ a, total }], median, p5, p95, over100: [{ a, oxide, value }] }
 export function oxideTotals(assays, majors) {
   const totals = [], over100 = [];

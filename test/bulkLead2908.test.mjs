@@ -40,6 +40,6 @@ test("X-Y's partner for Fe is the element that follows it most closely (SiO2 on 
 test("wiring: Correlation passes medians for a bulk lead only, read from at most 5,000 rows, in the rows' own units", () => {
   const c = readFileSync(new URL("../src/components/CorrelationMatrix.jsx", import.meta.url), "utf8");
   assert.match(c, /\.\.\.\(BULK_COMMODITIES\.has\(lead\) \? \{ medians: mediansOf\(rows, syms, units\) \} : \{\}\)/);
-  assert.match(c, /const step = Math\.max\(1, Math\.floor\(\(rows \|\| \[\]\)\.length \/ 5000\)\)/);
+  assert.match(c, /const step = Math\.max\(1, Math\.floor\(\(rows \|\| \[\]\)\.length \/ (5000|MEDIAN_ROWS)\)\)/); // #3174: MEDIAN_ROWS (2,000)
   assert.match(c, /Object\.fromEntries\(nextEls\.map\(\(e\) => \[e\.symbol, e\.unit\]\)\)/);
 });

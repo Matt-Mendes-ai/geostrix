@@ -140,5 +140,5 @@ test("the picker offers the answer only where it is passed, and every importer o
   const raster = read("lib/raster.js");
   assert.match(raster, /mineImageToProject\(\{ xmin: parsed\.bbox\[0\]/);
   assert.match(raster, /mineGridToProject\(src, mineTie, targetEpsg, gridMax, clip\)/);
-  assert.doesNotMatch(read("components/ImportMappingModal.jsx"), /mineGrid=/); // the 3D View's: side session 6's follow-up
+  assert.equal((read("components/ImportMappingModal.jsx").match(/mineGrid=/g) || []).length, 2); // the 3D View's: the collars' Source CRS and 'Grid of' (#2811, side session 6's follow-up)
 });

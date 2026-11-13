@@ -34,9 +34,9 @@ test("a custom-layer field axis and an element axis make a scatter fitted to the
 
 test("the tab offers it and passes it to the plot", () => {
   const g = readFileSync(new URL("../src/modules/GeochemModule.jsx", import.meta.url), "utf8");
-  assert.match(g, /\{\[\.\.\.Object\.values\(ALL_DIAGRAMS\), XY_ENTRY\]\.map\(/);
-  assert.match(g, /const diagram = diagramId === "xy" \? xyDiag \|\| XY_ENTRY : ALL_DIAGRAMS\[diagramId\];/);
-  assert.match(g, /diagramOverride=\{diagramId === "xy" \? diagram : null\}/);
+  assert.match(g, /\{\[\.\.\.Object\.values\(ALL_DIAGRAMS\), XY_ENTRY(, TERNARY_ENTRY \/\* #3051 \*\/)?\]\.map\(/); // #3051: and the chosen-corner ternary
+  assert.match(g, /const diagram = diagramId === "xy" \? xyDiag \|\| XY_ENTRY : (diagramId === "ternary" \? ternDiag \|\| TERNARY_ENTRY \/\* #3051 \*\/ : )?ALL_DIAGRAMS\[diagramId\];/); // #3051: the ternary between
+  assert.match(g, /diagramOverride=\{diagramId === "xy" (\|\| diagramId === "ternary" \/\* #3051 \*\/ )?\? diagram : null\}/); // #3051: the ternary too
 });
 
 test("tick labels: decades as 1e+3, other large values as numbers", () => {

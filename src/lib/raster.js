@@ -15,9 +15,8 @@
 // geographic (lon/lat) DEM source not lining up with a projected project EPSG isn't just "in the
 // wrong place", it silently builds a real terrain mesh many orders of magnitude away from the rest of
 // the scene, so that path DOES reproject automatically when it can.
-import { inflateCapped, MB } from "./inflate.js"; // TASKS.csv #1347
-import { decodeGrd } from "./grdFormats.js"; // TASKS.csv #1347
 import { unreadableFormatAdvice } from "./unreadableFormats.js"; // TASKS.csv #2847
+import { GRID_MAX, makeValueGrid, gxfRows, grdRows, rowsPicture } from "./rasterRows.js"; // TASKS.csv #3142 — the .gxf / .grd readers, shared with the import worker
 import GeoTIFF, { fromArrayBuffer } from "geotiff"; // GeoTIFF.fromSource: #1351
 import { writeGeoTiff } from "./geotiffWrite.js"; // TASKS.csv #1038 — geotiff.js header, one loop for the pixels
 import { f32ToB64, b64ToF32 } from "./inversion.js"; // TASKS.csv #326 — compact grid values
@@ -27,7 +26,7 @@ import { fillNoData, noDataNote } from "./demFill.js"; // TASKS.csv #421
 import { VIRIDIS_ANCHORS } from "./layers.js"; // TASKS.csv #740
 import { makeStretch } from "./idw.js"; // TASKS.csv #708 — the same 2-98 % stretch as IDW grids
 import { rasterStops, DEFAULT_RASTER_STYLE } from "./rasterColour.js"; // TASKS.csv #1236
-import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
+import { t as tr, currentLanguage, currentDictionary } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language; the worker's: #3142
 import { b64ToBytes } from "./base64.js"; // TASKS.csv #1114
 import { gridPicture } from "./gridPicture.js"; // TASKS.csv #3033 — the picture of a value grid, shared with the filter worker
 import { borderKeyColour, colourFraction, hexRgb } from "./rasterKey.js"; // TASKS.csv #1623
@@ -65,38 +64,11 @@ export const reducedImportNote = (w, h, keepDetail) => (Math.max(w, h) <= (keepD
   : tr(" Reduced from {w} × {h} px to 2048 px on its long side. Tick Keep full detail and import it again to keep up to 4096 px.", { w, h }));
 const imageDataUrl = (canvas) => { const u = canvas.toDataURL("image/webp", 0.92); return u.startsWith("data:image/webp") ? u : canvas.toDataURL("image/png"); };
 
-// TASKS.csv #326 — single-band grids keep their VALUES (not just the colour-mapped picture), so they can
-// feed an inversion as survey points and the potential-field filters (#373). Stored node-based, row 0 =
-// north: value (i, j) sits at x0 + i*dx, yTop - j*dy. Block-averaged down to at most GRID_MAX nodes on the
-// longest side (every autosave writes the project file; a full-resolution airborne grid would add tens of
-// MB to each one). No-data nodes are NaN.
-export const GRID_MAX = 512;
+// TASKS.csv #326 / #3142 — the kept value grid (GRID_MAX, makeValueGrid) lives in rasterRows.js now, with the .gxf / .grd readers, so the
+// raster-import worker can run it; re-exported here for every caller that imports it from raster.js
+export { GRID_MAX, makeValueGrid } from "./rasterRows.js";
 // TASKS.csv #1242 — "10.7 m" for a grid whose cells are 10.7 x 18.3 m
 export const gridCellText = (g) => (Math.abs(g.dx - g.dy) <= 0.005 * Math.max(g.dx, g.dy) ? `${+g.dx.toFixed(2)} m` : `${+g.dx.toFixed(2)} × ${+g.dy.toFixed(2)} m`);
-export function makeValueGrid(values, nx, ny, x0, yTop, dx, dy, isNoData) {
-  const f = Math.max(1, Math.ceil(Math.max(nx, ny) / GRID_MAX));
-  const gx = Math.ceil(nx / f), gy = Math.ceil(ny / f);
-  const out = new Float32Array(gx * gy);
-  // TASKS.csv #2831 — averaged, each block's highest and lowest value are kept beside its mean, and the range of the values averaged
-  const mx = f > 1 ? new Float32Array(gx * gy) : null, mn = f > 1 ? new Float32Array(gx * gy) : null;
-  let lo = Infinity, hi = -Infinity;
-  for (let j = 0; j < gy; j++) for (let i = 0; i < gx; i++) {
-    let s = 0, n = 0, bmx = -Infinity, bmn = Infinity;
-    for (let b = 0; b < f; b++) for (let a = 0; a < f; a++) {
-      const ii = i * f + a, jj = j * f + b;
-      if (ii >= nx || jj >= ny) continue;
-      const v = values[jj * nx + ii];
-      if (!isNoData(v)) { s += v; n++; if (v > bmx) bmx = v; if (v < bmn) bmn = v; }
-    }
-    out[j * gx + i] = n ? s / n : NaN;
-    if (mx) { mx[j * gx + i] = n ? bmx : NaN; mn[j * gx + i] = n ? bmn : NaN; }
-    if (n) { if (bmx > hi) hi = bmx; if (bmn < lo) lo = bmn; }
-  }
-  // a block's centre: the mean of the node positions it averages
-  const cx = (i) => x0 + dx * (i * f + (Math.min(f, nx - i * f) - 1) / 2);
-  const cy = (j) => yTop - dy * (j * f + (Math.min(f, ny - j * f) - 1) / 2);
-  return { nx: gx, ny: gy, x0: cx(0), yTop: cy(0), dx: dx * f, dy: dy * f, values: out, averagedBy: f, sourceSize: [nx, ny], ...(mx ? { maxValues: mx, minValues: mn, sourceRange: Number.isFinite(lo) ? [lo, hi] : null } : {}) }; // #2831
-}
 
 
 // TASKS.csv #382 — default single-band ramp for draped grids. The previous blue -> teal -> yellow -> red
@@ -765,180 +737,55 @@ export async function parseDEM(file, targetEpsg) {
 // raster drape (addRaster), same as parseGeoTIFF above — GXF grids in practice are almost always
 // geophysical value grids (mag/gravity/radiometrics), not elevation, so there's no DEM path for it.
 export async function parseGXF(file) {
-  const text = await file.text();
-  const lines = text.split(/\r\n|\r|\n/);
-
-  const header = {}; // KEYWORD -> array of value lines
-  let gridStart = -1;
-  let curKey = null;
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    const trimmed = line.trim();
-    if (trimmed.startsWith("#")) {
-      const key = trimmed.slice(1).trim().toUpperCase();
-      if (key === "GRID") { gridStart = i + 1; break; }
-      curKey = key;
-      header[curKey] = [];
-    } else if (curKey && trimmed !== "") {
-      header[curKey].push(trimmed);
-    }
-  }
-  if (gridStart < 0) throw new Error(tr("Not a readable GXF file — no #GRID section found."));
-
-  const num = (key, fallback) => {
-    const v = header[key]?.[0] !== undefined ? parseFloat(header[key][0]) : NaN;
-    return Number.isFinite(v) ? v : fallback;
-  };
-  const ncols = num("POINTS", NaN), nrows = num("ROWS", NaN);
-  if (!Number.isFinite(ncols) || !Number.isFinite(nrows) || ncols < 2 || nrows < 2) {
-    throw new Error(tr("This GXF file is missing #POINTS/#ROWS (grid dimensions) or they're invalid."));
-  }
-  const dx = num("PTSEPARATION", 1), dy = num("RWSEPARATION", dx);
-  const x0 = num("XORIGIN", 0), y0 = num("YORIGIN", 0);
-  const rotation = num("ROTATION", 0);
-  const sense = num("SENSE", 1);
-  const dummy = num("DUMMY", 1e32); // GXF's own documented default nodata sentinel when #DUMMY is absent
-
-  // A rotated grid can't be represented as the axis-aligned bbox+image rectangle the rest of the app's
-  // raster drape model assumes (same assumption parseGeoTIFF's bbox makes) — rather than silently
-  // draping it in the wrong place, surface this as an explicit limitation.
-  if (Math.abs(rotation) > 0.01) {
-    throw new Error(tr("This GXF grid has a #ROTATION of {rotation}° — rotated grids aren't supported yet (the raster drape only handles axis-aligned grids). Re-export it unrotated if your software supports that, or open it in GIS software first to reproject/re-grid to north-up.", { rotation }));
-  }
-
-  const total = ncols * nrows;
-  const values = new Float64Array(total);
-  let filled = 0;
-  let gridCharCount = 0, gridDigitCount = 0; // see the shortfall diagnostic below
-  for (let i = gridStart; i < lines.length && filled < total; i++) {
-    const trimmed = lines[i].trim();
-    if (!trimmed || trimmed.startsWith("#")) continue;
-    gridCharCount += trimmed.length;
-    for (let c = 0; c < trimmed.length; c++) { const ch = trimmed.charCodeAt(c); if (ch >= 48 && ch <= 57) gridDigitCount++; }
-    const toks = trimmed.split(/\s+/);
-    for (const t of toks) {
-      if (filled >= total) break;
-      const v = parseFloat(t);
-      values[filled++] = Number.isFinite(v) ? v : dummy;
-    }
-  }
-  if (filled < total) {
-    // A shortfall this parser can't explain by truncation alone (see #164's UBC streaming work for a
-    // genuinely truncated-file case) shows a telltale sign: plain-ASCII GXF grids are >20% digit
-    // characters by nature (numbers, decimal points, minus signs, whitespace); a #GRID section with
-    // almost no digit characters at all despite a substantial byte count isn't a short/truncated read
-    // — it's data this parser can't interpret as text in the first place. Confirmed against a real
-    // Geosoft export (CRN_VPMg_MagSusc_700.gxf) whose #GRID section is dense printable-ASCII with ZERO
-    // digit characters — almost certainly a proprietary/undocumented Geosoft "compressed" GXF grid
-    // encoding this from-scratch parser was never built against (there's no public spec for it, and
-    // guessing at the bit-packing risked silently corrupting real geophysics data, so this wasn't
-    // reverse-engineered blindly this pass — see TASKS.csv #166).
-    // Calibrated against a real plain-text GXF grid (space-separated signed decimals are comfortably
-    // 60-90% digit characters) vs. the real compressed sample below (~12%) — 0.3 cleanly separates them
-    // with margin on both sides.
-    const digitRatio = gridCharCount > 0 ? gridDigitCount / gridCharCount : 0;
-    if (gridCharCount > 1000 && digitRatio < 0.3) {
-      throw new Error(
-        tr("This GXF's #GRID section doesn't look like plain-text numbers (only {v}% digit characters across {gridCharCount} characters read) — it's very likely using a proprietary/compressed Geosoft grid encoding this reader doesn't support, not a truncated file. If your workflow already exported this same grid as a GeoTIFF (.tif), import that instead — it carries the same data and is fully supported. Otherwise, re-export from Oasis montaj as an uncompressed/plain-text .gxf if that option is available.", { v: (digitRatio * 100).toFixed(1), gridCharCount: gridCharCount.toLocaleString() })
-      );
-    }
-    throw new Error(tr("This GXF's #GRID section has fewer values ({filled}) than #POINTS×#ROWS ({total}) declares — the file may be truncated.", { filled, total }));
-  }
-
-  // SENSE controls how the flat value list maps onto rows/columns. GXF's most common cases: 1 = each
-  // row read west->east, rows ordered south->north (the default almost every export uses); -1 = same
-  // row order but each row mirrored east->west. The rarer transpose variants (±2) aren't handled —
-  // falls back to SENSE=1 layout with a note in the returned message rather than misinterpreting the
-  // data silently, since there's no public real-world sample of those variants to verify against.
-  const mirrored = sense === -1;
-  const senseNote = (sense !== 1 && sense !== -1) ? ` Note: #SENSE ${sense} (a transpose variant) isn't specifically handled — the grid was read as if SENSE were 1, so double-check its orientation looks right.` : "";
-
-  return rasterFromRows({ name: file.name, values, ncols, nrows, x0, y0, dx, dy, isDummy: (v) => v === dummy || !Number.isFinite(v), mirrored, withGrid: sense === 1 || sense === -1, note: senseNote || null });
+  return rasterFromRows(gxfRows(await file.text(), file.name)); // TASKS.csv #3142 — the reader is rasterRows.js gxfRows (unchanged)
 }
 
 // TASKS.csv #1347 — Geosoft (Oasis montaj; compressed or not) and Surfer 6 / 7 binary grids (lib/grdFormats.js), as a raster drape
 // with its values, like a GXF. A rotated grid is refused as the GXF reader refuses one.
 export async function parseGRD(file) {
-  const bytes = new Uint8Array(await file.arrayBuffer());
-  const g = await decodeGrd(bytes, (u8) => inflateCapped(u8, "deflate", 512 * MB, file.name)); // zlib streams, with a ceiling (#351)
-  if (Math.abs(g.rotation || 0) > 0.01) throw new Error(tr("This {kind} grid is rotated by {rotation}° — rotated grids aren't supported yet (the raster drape only handles axis-aligned grids). Re-export it unrotated, or as a GeoTIFF.", { kind: g.kind, rotation: g.rotation }));
-  if (!(g.ncols >= 2 && g.nrows >= 2)) throw new Error(tr("This grid has fewer than 2 x 2 nodes."));
-  const out = rasterFromRows({ name: file.name, values: g.values, ncols: g.ncols, nrows: g.nrows, x0: g.x0, y0: g.y0, dx: g.dx, dy: g.dy, isDummy: (v) => !Number.isFinite(v) });
-  out.note = " " + tr("Read as a {kind} grid ({type}{v}), {nx} × {ny} nodes at {dx} m.", { kind: g.kind, type: g.elementType, v: g.compressed ? tr(", compressed") : "", nx: g.ncols, ny: g.nrows, dx: +g.dx.toPrecision(4) });
-  return out;
+  return rasterFromRows(await grdRows(new Uint8Array(await file.arrayBuffer()), file.name)); // TASKS.csv #3142 — rasterRows.js grdRows (unchanged)
 }
 
-// TASKS.csv #1347 — the drape image, the stretch and the value grid of a grid whose rows run south -> north (each west -> east, or
-// east -> west when `mirrored`), shared by the GXF reader and the Geosoft / Surfer .grd reader. -> parseGeoTIFF's shape
-// TASKS.csv #2828 (GSC geophysics review, 2026-11-12) — a grid of NODES (GXF, Geosoft / Surfer .grd: x0, y0 is the first node, the last one sits (n - 1)
-// cells on) as the PIXEL-AREA extent the drape spans: half a cell beyond the end nodes on every side, so each of the picture's
-// ncols x nrows pixels is centred on its node. The node extent used to be handed over as it was, so the picture was drawn one cell
-// narrower and lower than the grid and its edges sat half a cell inside (200 m on a 400 m compilation grid): the error #560 removed
-// for PixelIsPoint GeoTIFFs. The kept values (makeValueGrid, node-based) were never off.
-export function nodeGridAreaBbox(x0, y0, dx, dy, ncols, nrows) {
-  const ax = Math.abs(dx), ay = Math.abs(dy);
-  return [x0 - ax / 2, y0 - ay / 2, x0 + dx * (ncols - 1) + ax / 2, y0 + dy * (nrows - 1) + ay / 2];
+// TASKS.csv #3142 (the import half of #3033) — parseGXF / parseGRD with the reading, the colours and the PNG in rasterImport.worker.js, so a big
+// grid does not freeze the window (a 2000 x 2000 .grd: 2.1 s). The same result. If the worker cannot run or fails (no worker, no
+// OffscreenCanvas, a file the reader refuses), the file is read here as before, which also gives the user the reader's own message.
+// kind: "gxf" | "grd"; makeWorker: tests
+let gridImportSeq = 0;
+export async function parseGridFileOffThread(file, kind, { makeWorker = null } = {}) {
+  const inline = () => (kind === "gxf" ? parseGXF(file) : parseGRD(file));
+  let w;
+  try {
+    w = makeWorker ? makeWorker() : new Worker(new URL("./rasterImport.worker.js", import.meta.url), { type: "module" });
+  } catch { return inline(); }
+  let buf;
+  try { buf = await file.arrayBuffer(); } catch { w.terminate(); return inline(); }
+  return new Promise((resolve) => {
+    const id = ++gridImportSeq;
+    w.onmessage = (e) => {
+      if (e.data?.id !== id) return;
+      w.terminate();
+      if (e.data.failed) { resolve(inline()); return; }
+      const { record, dataUrl, rgba, outW, outH } = e.data.res;
+      resolve({ ...record, dataUrl, pixels: { width: outW, height: outH, data: rgba } }); // rasterFromRows' shape
+    };
+    w.onerror = (e) => { e?.preventDefault?.(); w.terminate(); resolve(inline()); };
+    w.postMessage({ id, kind, name: file.name, buf, lang: { code: currentLanguage(), dict: currentDictionary() } }, [buf]);
+  });
 }
 
-function rasterFromRows({ name, values, ncols, nrows, x0, y0, dx, dy, isDummy, mirrored = false, withGrid = true, note = null }) {
-  const total = ncols * nrows;
-  const scale = Math.min(1, MAX_TEXTURE_SIZE / Math.max(ncols, nrows));
-  const outW = Math.max(1, Math.round(ncols * scale)), outH = Math.max(1, Math.round(nrows * scale));
+export { nodeGridAreaBbox } from "./rasterRows.js"; // TASKS.csv #2828 / #3142 — moved with the readers
 
-  let min = Infinity, max = -Infinity;
-  const valid = [];
-  for (let i = 0; i < total; i++) { const v = values[i]; if (!isDummy(v)) { if (v < min) min = v; if (v > max) max = v; valid.push(v); } }
-  const hasRange = Number.isFinite(min) && Number.isFinite(max) && max > min;
-  const gxfStretch = makeStretch(valid, "p2-98"); // #708 — as single-band GeoTIFFs and IDW grids
-
+// TASKS.csv #1347 / #3142 — a .gxf / .grd's rows as the drape: rasterRows.js rowsPicture (the stretch, the colours, the kept values), the
+// picture drawn on a canvas here. The raster-import worker (rasterImport.worker.js) does the same with an OffscreenCanvas.
+function rasterFromRows(rows) {
+  const { record, rgba, outW, outH } = rowsPicture(rows);
   const canvas = document.createElement("canvas");
   canvas.width = outW; canvas.height = outH;
   const ctx = canvas.getContext("2d");
   const imgData = ctx.createImageData(outW, outH);
-
-  // gxfRow 0 = south edge per SENSE=1 convention; canvas row 0 must be the north edge (top of image),
-  // same top-down convention parseGeoTIFF/parseDEM already produce — so canvas row = (nrows-1-gxfRow),
-  // then downsampled by nearest-neighbor onto the (possibly smaller) output grid.
-  for (let oy = 0; oy < outH; oy++) {
-    const gxfRow = Math.min(nrows - 1, Math.floor(((outH - 1 - oy) / Math.max(1, outH - 1)) * (nrows - 1)));
-    for (let ox = 0; ox < outW; ox++) {
-      let col = Math.min(ncols - 1, Math.floor((ox / Math.max(1, outW - 1)) * (ncols - 1)));
-      if (mirrored) col = ncols - 1 - col;
-      const v = values[gxfRow * ncols + col];
-      const idx = (oy * outW + ox) * 4;
-      const isDum = isDummy(v);
-      if (isDum) { imgData.data[idx + 3] = 0; continue; }
-      const t = hasRange ? gxfStretch.t(v) : 0.5; // #708
-      const [cr, cg, cb] = rampColor(t);
-      imgData.data[idx] = cr; imgData.data[idx + 1] = cg; imgData.data[idx + 2] = cb; imgData.data[idx + 3] = 255;
-    }
-  }
+  imgData.data.set(rgba);
   ctx.putImageData(imgData, 0, 0);
-
-  const bbox = nodeGridAreaBbox(x0, y0, dx, dy, ncols, nrows);
-  // #326 — the values, north row first (GXF SENSE=1 lists rows south->north, each west->east)
-  let grid = null;
-  if (withGrid) {
-    const northFirst = new Float64Array(total);
-    for (let r = 0; r < nrows; r++) for (let c = 0; c < ncols; c++) {
-      const src = values[r * ncols + (mirrored ? ncols - 1 - c : c)];
-      northFirst[(nrows - 1 - r) * ncols + c] = src;
-    }
-    grid = makeValueGrid(northFirst, ncols, nrows, x0, y0 + dy * (nrows - 1), dx, dy, isDummy);
-  }
-  return {
-    grid, // #326
-    name,
-    bbox,
-    width: ncols,
-    height: nrows,
-    dataUrl: canvas.toDataURL("image/png"),
-    stretch: { mode: gxfStretch.mode, lo: gxfStretch.lo, hi: gxfStretch.hi }, // #708
-    bandCount: 1,
-    epsgTag: null, // GXF headers don't carry a standard CRS tag the way GeoTIFF's GeoKeys do
-    note,
-    pixels: { width: outW, height: outH, data: imgData.data }, // TASKS.csv #287 — see parseGeoTIFF's note
-  };
+  return { ...record, dataUrl: canvas.toDataURL("image/png"), pixels: { width: outW, height: outH, data: imgData.data } }; // pixels: TASKS.csv #287 — see parseGeoTIFF's note
 }
 
 // TASKS.csv — split the Raster import UI out of the Geophysics module into its own module (user
@@ -988,7 +835,7 @@ export const notDegrees = (epsg, bbox) => isGeographicCrs(epsg) && Array.isArray
 export async function buildRasterImport(file, { epsg, defaultElevation, sourceEpsg, chooseProjectEpsg, bandFn = null, samples = null, name = null, keepDetail = false, worldFile = null, tie = null, collarZ = null, mineSource = null, sideCrs = null } = {}) { // samples: #807; keepDetail: #838; worldFile: #1855; tie: #2587; collarZ: #2129; sideCrs: #2830
   const isGxf = /\.gxf$/i.test(file.name), isGrd = /\.grd$/i.test(file.name); // isGrd: #1347
   const maxSide = keepDetail ? FULL_DETAIL_SIZE : MAX_TEXTURE_SIZE;
-  const parsed = isGxf ? await parseGXF(file) : isGrd ? await parseGRD(file) : await parseGeoTIFF(file, { bandFn, samples, maxSide, worldFile }); // bandFn: #783; samples: #807
+  const parsed = isGxf || isGrd ? await parseGridFileOffThread(file, isGxf ? "gxf" : "grd") : await parseGeoTIFF(file, { bandFn, samples, maxSide, worldFile }); // bandFn: #783; samples: #807; off the UI thread: #3142
   if (name) parsed.name = name;
   let bbox = parsed.bbox;
   let dataUrl = parsed.dataUrl;

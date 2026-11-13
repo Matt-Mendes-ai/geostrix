@@ -157,3 +157,23 @@ export function mineRowsToProject(rows, project) {
   const out = T ? rows.map((r) => { const [x, y] = T(r.x, r.y); return Number.isFinite(x) && Number.isFinite(y) ? { ...r, x, y } : r; }) : rows;
   return { rows: out, note: mineSourceSentence(s, project?.epsg) };
 }
+
+// TASKS.csv #2811 — collars read on the mine grid (the 3D View import's Source CRS 'Local mine grid (no CRS)'): each row with no per-row EPSG of its
+// own (_rowEpsg, which still wins row by row) goes through the grid's tie into the project CRS, and a grid azimuth is turned by the grid's rotation
+// (counter-clockwise from the grid's x to the world's, so a bearing loses it), as Surface Geology's structures are (#2684). A project with no CRS
+// keeps the numbers (they are its own grid); with no mine grid set up they are kept and the note says so. Rows are changed in place.
+// -> { moved, turned, note } (note: a sentence with a leading space)
+export function collarsOnMineGrid(rows, project, { gridAzimuths = true } = {}) {
+  const ms = mineSourceOf(project), T = mineChoiceToProject(ms, project?.epsg);
+  const rot = ms?.kind === "tie" ? Number(ms.mg?.tie?.rotationDeg) || 0 : 0;
+  let moved = 0, turned = 0;
+  if (T) for (const r of rows || []) {
+    if (r._rowEpsg) continue;
+    const [x, y] = T(r.x, r.y);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+    r.x = x; r.y = y; moved++;
+    if (rot && gridAzimuths && Number.isFinite(r.azimuth)) { r.azimuth = (((r.azimuth - rot) % 360) + 360) % 360; turned++; }
+  }
+  const note = mineSourceSentence(ms, project?.epsg) + (turned ? " " + tr("{n} grid azimuth(s) turned from the mine grid's north to the project grid ({deg}°).", { n: turned, deg: (-rot).toFixed(2) }) : "");
+  return { moved, turned, note };
+}

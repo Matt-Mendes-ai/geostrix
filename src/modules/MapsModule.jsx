@@ -67,7 +67,7 @@ export default function MapsModule() {
       }
       if (toViewer.length) { // points (collars, samples), tables and layer pickers: the 3D view's import asks what they are
         goToModule?.("viewer");
-        requestModuleAction("import-dropped-files", { files: [...files, ...toViewer], notes, others }); // the rasters of the same drop too: the 3D view imports them
+        requestModuleAction("import-dropped-files", { files: [...files, ...toViewer], notes, others, origin: "maps" /* #2660 */ }); // the rasters of the same drop too: the 3D view imports them
         return;
       }
       setPane("raster");

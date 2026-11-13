@@ -29,7 +29,16 @@ export function isElementColumn(header) {
   if (ox) return ox.symbol;
   const cleaned = String(header).replace(/\(.*?\)/g, " "); // drop parenthetical units, e.g. "Au (ppm)"
   const first = cleaned.split(/[\s_-]+/)[0].trim();
-  return ELEMENT_SYMBOLS.find((s) => s.toLowerCase() === first.toLowerCase()) || numberedElement(first) || gluedUnitElement(first) || false;
+  return ELEMENT_SYMBOLS.find((s) => s.toLowerCase() === first.toLowerCase()) || numberedElement(first) || gluedUnitElement(first) || unitOnlyElement(header) || false;
+}
+// TASKS.csv #3129 (Central Lapland: GTK's whole-rock C_pct was dropped) — carbon and nitrogen are elements only with their unit right after the
+// symbol: C_pct, C-ppm, "C (%)", N_ppm, CPCT. A bare C or N column (a code, a class) stays an ordinary column, and so does a qualified
+// carbon (C_org_pct, C_graphitic_pct: another analyte than total carbon) or one whose unit comes later (C_LECO_pct: map it by hand)
+export const UNIT_ONLY_SYMBOLS = ["C", "N"];
+const UNIT_RIGHT_AFTER = /^\s*([CN])\s*(?:[\s_-]+(ppm|ppb|pct|pc|wt%|wt_?pct|%|gpt|g\/t)|\(\s*(ppm|ppb|pct|%|wt\s*%|g\/t)\s*\))\s*$/i;
+function unitOnlyElement(header) {
+  const m = UNIT_RIGHT_AFTER.exec(String(header));
+  return m ? m[1].toUpperCase() : false;
 }
 // TASKS.csv #2157 (WA drillhole review) — the unit glued to the symbol: AUPPB, AUPPM, PTPPB, CUPCT, NIPC (336 / 226 / 147 WAMEX files)
 const GLUED_UNIT = /^([A-Za-z]{1,2})(ppb|ppm|pct|pc|gpt)$/i;
@@ -37,7 +46,7 @@ function gluedUnitElement(token) {
   const m = GLUED_UNIT.exec(token);
   if (!m) return false;
   const sym = m[1].length === 1 ? m[1].toUpperCase() : m[1][0].toUpperCase() + m[1][1].toLowerCase();
-  return ELEMENT_SYMBOLS.includes(sym) ? sym : false;
+  return ELEMENT_SYMBOLS.includes(sym) || UNIT_ONLY_SYMBOLS.includes(sym) ? sym : false; // #3129 — CPCT, NPPM: the unit is there
 }
 // TASKS.csv #2150 follow-up (WA review: WAMEX gold_small) — a numbered repeat of a two-letter symbol: Au1, Ag2, AuRp1, AuDup1, AU1.
 // The symbol keeps its own case (Co2 = cobalt) or is all capitals; CO2 / CO3 and SN1 are not cobalt or tin, and the

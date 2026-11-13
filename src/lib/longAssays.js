@@ -1,4 +1,5 @@
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
+import { isLoiHeader, oxideOfHeader, isAllNinesCode } from "./geochem.js"; // TASKS.csv #2943; isAllNinesCode: the long-format -999 (after #3196)
 // TASKS.csv #623 — LONG-format assay exports: one row per sample per element (analyte + value + units, often a
 // method / analysis_code and a flag), as a database query gives them. Matt's Treaty Creek export (SELECT … FROM
 // analysis_geochem JOIN …, 62,518 rows: hole_id, from, to, sample_id, analysis_code, samp_type, analyte, units,
@@ -53,6 +54,11 @@ const toUnit = (v, from, to) => {
 const isRerun = (m) => /re-?run|repeat|(^|[_\-\s])rr($|[_\-\s])|re-?assay/i.test(String(m || ""));
 const isOverFlag = (f) => /^(udl|over|ovr|>|gt|above)$/i.test(String(f || "").trim());
 const isUnderFlag = (f) => /^(ldl|bdl|udl_low|<|lt|below|nd)$/i.test(String(f || "").trim());
+// TASKS.csv #2943 (split from #2734, which read LOI in wide files) — a loss-on-ignition analyte (LOI, LOI1000, 'LOI 1000', LOI_TOTAL) is kept as
+// its own column (LOI_pct, LOI1000_pct) in weight per cent, so the wide import takes it as the LOI field (several: the total, then LOI1000, then
+// plain LOI is the main one) instead of skipping it as "not an element"
+const oxideSymbol = (a) => { const t = String(a ?? "").replace(/\(.*?\)/g, " ").trim(); return oxideOfHeader(t) ? t.replace(/[\s-]+/g, "_").replace(/_?(pct|%|wt%?)$/i, "") : null; };
+const loiSymbol = (a) => { const t = String(a ?? "").replace(/\(.*?\)/g, " ").trim(); return isLoiHeader(t) ? t.replace(/[\s-]+/g, "_").replace(/_?(pct|%|wt)$/i, "").toUpperCase() : null; };
 
 export function pivotLongAssays(rows, headers, unitOfSymbol = () => "ppm", symbolOf = (a) => a) {
   const c = detectLongAssay(headers);
@@ -60,9 +66,11 @@ export function pivotLongAssays(rows, headers, unitOfSymbol = () => "ppm", symbo
   const extra = headers.filter((h) => ![c.analyte, c.value, c.units, c.method, c.flag].includes(h));
   const samples = new Map(); // interval key -> { base, results: Map(symbol -> [results]) }
   const unitVotes = new Map(); // symbol -> Map(unit -> n)
-  const report = { rows: rows.length, unknownAnalyte: 0, overReplaced: 0, overKept: 0, reruns: 0, conflicts: 0, belowDetection: 0, methods: new Map(), units: new Map() };
+  const report = { rows: rows.length, unknownAnalyte: 0, overReplaced: 0, overKept: 0, reruns: 0, conflicts: 0, belowDetection: 0, noData: 0, methods: new Map(), units: new Map() };
   for (const r of rows) {
-    const sym = symbolOf(String(r[c.analyte] ?? "").trim());
+    // #2943 — an oxide analyte (SiO2, Fe2O3T) keeps its oxide name: the column became Si_pct, and SiO2 55 % was then read as 55 % silicon. As
+    // SiO2_pct the wide import converts it to the element (or keeps the oxide) as for a wide file
+    const sym = loiSymbol(r[c.analyte]) || oxideSymbol(r[c.analyte]) || symbolOf(String(r[c.analyte] ?? "").trim()); // LOI: #2943
     if (!sym) { report.unknownAnalyte++; continue; }
     const key = `${r[c.hole]}|${r[c.from]}|${r[c.to]}|${c.sample ? r[c.sample] ?? "" : ""}`;
     let s = samples.get(key);
@@ -76,6 +84,8 @@ export function pivotLongAssays(rows, headers, unitOfSymbol = () => "ppm", symbo
     let num = typeof raw === "number" ? raw : parseFloat(String(raw ?? "").replace(/^[<>]\s*/, ""));
     const text = String(raw ?? "").trim();
     let qual = isOverFlag(flag) || text.startsWith(">") ? ">" : isUnderFlag(flag) || text.startsWith("<") ? "<" : null;
+    // an all-nines value (-99, -999, -9999) is a no-data sentinel, not '<999' (#3196's rule on this route): kept aside, never chosen over a result
+    if (Number.isFinite(num) && isAllNinesCode(num)) { if (!s.results.has(sym)) s.results.set(sym, []); s.results.get(sym).push({ num: NaN, sentinel: num, qual: null, unit, method, rerun: isRerun(method) }); continue; }
     if (Number.isFinite(num) && num < 0) { num = Math.abs(num); qual = "<"; } // the database's below-detection sign
     if (!s.results.has(sym)) s.results.set(sym, []);
     s.results.get(sym).push({ num, qual, unit, method, rerun: isRerun(method) });
@@ -89,9 +99,11 @@ export function pivotLongAssays(rows, headers, unitOfSymbol = () => "ppm", symbo
     const row = { ...base };
     for (const [sym, list] of results) {
       symbols.add(sym);
-      const colUnit = unitFor.get(sym) || unitOfSymbol(sym);
+      const colUnit = unitFor.get(sym) || (/^LOI/.test(sym) ? "%" : unitOfSymbol(sym)); // #2943 — LOI is a weight per cent
       const usable = list.filter((x) => Number.isFinite(x.num));
-      if (!usable.length) continue;
+      // only no-data codes for this element: the code is written through, so the wide import reads it as not assayed (said in its dialog; a re-import
+      // clears an earlier value), as it does for a wide file
+      if (!usable.length) { const sn = list.find((x) => x.sentinel != null); if (sn) { row[`${sym}_${colUnit === "%" ? "pct" : colUnit}`] = String(sn.sentinel); report.noData++; report.units.set(sym, colUnit); symbols.add(sym); } continue; }
       const originals = usable.filter((x) => !x.rerun);
       report.reruns += usable.length - originals.length;
       const pool = originals.length ? originals : usable;
@@ -108,7 +120,8 @@ export function pivotLongAssays(rows, headers, unitOfSymbol = () => "ppm", symbo
     }
     out.push(row);
   }
-  const elementHeaders = [...symbols].map((sym) => `${sym}_${(report.units.get(sym) || unitOfSymbol(sym)) === "%" ? "pct" : report.units.get(sym) || unitOfSymbol(sym)}`);
+  const unitOf = (sym) => report.units.get(sym) || (/^LOI/.test(sym) ? "%" : unitOfSymbol(sym)); // #2943
+  const elementHeaders = [...symbols].map((sym) => `${sym}_${unitOf(sym) === "%" ? "pct" : unitOf(sym)}`);
   return { headers: [...extra, ...elementHeaders], rows: out, columns: c, report: { ...report, samples: out.length } };
 }
 
@@ -122,6 +135,7 @@ export function longAssayNote(rep) {
     rep.overKept ? tr("{overKept} over-range result(s) with no re-assay kept as '>limit'.", { overKept: rep.overKept }) : null,
     rep.reruns ? tr("{reruns} lab re-run(s) not used (the original result is kept; re-runs are a QC check).", { reruns: rep.reruns }) : null,
     rep.conflicts ? tr("{conflicts} sample(s) with two different methods for one element: the first in the file is used.", { conflicts: rep.conflicts }) : null,
+    rep.noData ? tr("{n} result(s) are no-data codes (-99 / -999 / -9999): read as not assayed.", { n: rep.noData }) : null,
     rep.unknownAnalyte ? tr("{unknownAnalyte} row(s) with an analyte that is not an element were skipped.", { unknownAnalyte: rep.unknownAnalyte }) : null,
   ].filter(Boolean).join(" ");
 }

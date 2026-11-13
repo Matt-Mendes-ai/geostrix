@@ -5,6 +5,7 @@
 import { valueIn } from "./geochem.js";
 import { sourceAssays } from "./numericSources.js";
 import { correlate } from "./correlation.js"; // TASKS.csv #2353
+import { ternaryXY } from "./geochemDiagrams.js"; // TASKS.csv #3051
 
 // intervals [{ hole_id, from, to, values: { [symbol]: v } }] -> (sample) => the value at the sample's mid-depth, or null
 export function depthLookup(intervals, symbol) {
@@ -81,6 +82,27 @@ export function xyDiagram(xAxis, yAxis, samples, units, opts = {}) {
     xLabel: xAxis.label, yLabel: yAxis.label, logX: fx.log, logY: fy.log, xRange: fx.range, yRange: fy.range,
     ...(opts.oneToOne ? (() => { const lo = Math.max(fx.range[0], fy.range[0]), hi = Math.min(fx.range[1], fy.range[1]); return hi > lo ? { tieLines: [{ from: [lo, lo], to: [hi, hi], label: "1:1" }] } : {}; })() : {}),
     project: (s, u) => { const x = xAxis.value(s, u), y = yAxis.value(s, u); return Number.isFinite(x) && Number.isFinite(y) && (!fx.log || x > 0) && (!fy.log || y > 0) ? { x, y } : null; },
+  };
+}
+
+// TASKS.csv #3051 (#2911's second ask) — a ternary of three corners the user chooses, beside the X-Y scatter: assay elements (each in its own
+// stored unit, said in the corner) or a downhole log / custom field, each times a factor (Ti/100, Y×3 as Pearce & Cann scale theirs), a
+// sample's three values as shares of their sum. A sample without all three, or with a negative one, is not plotted. axes: axisOf's three
+export const TERNARY_LABEL = "Ternary (choose the corners)";
+export const TERNARY_CAPTION = "Any three corners: assay elements in their own units, or a downhole log / custom-layer field averaged over each sample's interval, each times its factor; each sample is placed by its three values' shares of their sum.";
+export function ternaryDiagram(axes, factors = [1, 1, 1]) {
+  if (!axes || axes.length !== 3 || axes.some((a) => !a)) return null;
+  const k = [0, 1, 2].map((i) => { const f = Number(factors?.[i]); return Number.isFinite(f) && f > 0 ? f : 1; });
+  const name = (a, f) => (f === 1 ? a.label : f < 1 ? `${a.label}/${+(1 / f).toPrecision(3)}` : `${a.label}×${+f.toPrecision(3)}`);
+  return {
+    id: "ternary", label: TERNARY_LABEL, caption: TERNARY_CAPTION, requires: [], ternary: true, noFields: true,
+    corners: axes.map((a, i) => name(a, k[i])),
+    project: (s, u) => {
+      const v = axes.map((a, i) => { const x = a.value(s, u); return Number.isFinite(x) && x >= 0 ? x * k[i] : NaN; });
+      if (v.some((x) => Number.isNaN(x))) return null;
+      const t = v[0] + v[1] + v[2];
+      return t > 0 ? ternaryXY(v[0] / t, v[1] / t, v[2] / t) : null;
+    },
   };
 }
 

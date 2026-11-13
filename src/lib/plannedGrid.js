@@ -14,6 +14,20 @@ export function defaultPlannedExtent(collars, { pad = 0.25, minPad = 200 } = {})
   return { xmin: r(xmin - p), ymin: r(ymin - p), xmax: r(xmax + p), ymax: r(ymax + p) };
 }
 
+// TASKS.csv #2969 (review #2876, WA iron) — the planned grid opened on 100 x 25 m over the collars' box: on a 21.6 x 17.4 km field that is
+// about 151,000 stations against the 20,000 cap ('capped at 20,000; widen the spacings'). With the spacings still at their defaults, both are
+// scaled by the smallest round factor (2, 4, 5, 10, 20...) that keeps the grid within the cap, lines four times the station spacing as before.
+// A spacing the user typed is kept. extent: { xmin, ymin, xmax, ymax } | null; p: the panel's { line, station, dir }. -> { line, station } | {}
+const ROUND_FACTORS = [1, 2, 4, 5, 10, 20, 40, 50, 100, 200, 400, 500, 1000];
+export function fitPlannedSpacing(extent, p, cap = 20000) {
+  if (!extent || Number(p?.line) !== DEFAULT_PLANNED.line || Number(p?.station) !== DEFAULT_PLANNED.station) return {};
+  const ns = p?.dir !== "EW", across = ns ? extent.xmax - extent.xmin : extent.ymax - extent.ymin, along = ns ? extent.ymax - extent.ymin : extent.xmax - extent.xmin;
+  if (!(across > 0 && along > 0)) return {};
+  const count = (k) => (Math.floor(across / (DEFAULT_PLANNED.line * k)) + 1) * (Math.floor(along / (DEFAULT_PLANNED.station * k)) + 1);
+  const k = ROUND_FACTORS.find((f) => count(f) <= cap) ?? ROUND_FACTORS[ROUND_FACTORS.length - 1];
+  return k === 1 ? {} : { line: DEFAULT_PLANNED.line * k, station: DEFAULT_PLANNED.station * k };
+}
+
 // -> { rows: [{ x, y, z, value: 0, _src, line }], stats: { lines, perLine, n, capped, lineSpacing, stationSpacing, dir, height } }
 // groundAt(x, y) gives the ground elevation (NaN when unknown); z = ground + the sensor height. Lines run N-S ("NS") or E-W ("EW").
 export function generatePlannedStations(opts = {}, groundAt = () => NaN, { cap = 20000, src = "Planned grid" } = {}) {

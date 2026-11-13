@@ -45,5 +45,5 @@ test("#2274 — Interpret: a shear zone type with a dip; no survey wording on th
 test("#2275 — a tied local grid seeds the CRS list from its tie", () => {
   const c = src("../src/components/CrsPicker.jsx");
   assert.match(c, /const tie = !crsSet \? store\?\.project\?\.localGrid\?\.tie : null;/);
-  assert.match(c, /return \[Number\(tie\.epsg\), \.\.\.\(c \? crsCandidatesAt\(c\.lon, c\.lat\)\.map\(\(x\) => x\.code\) : \[\]\)\];/);
+  assert.match(c, /return \[Number\(tie\.epsg\), \.\.\.\(world\.length \? crsCodesForCollars\(world, tie\.epsg\) : \[\]\)\];/); // #2969 — the zones the collars reach (crsForCollars.js), not only their centre's
 });

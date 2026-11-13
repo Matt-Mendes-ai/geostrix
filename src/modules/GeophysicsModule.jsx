@@ -1,5 +1,6 @@
 import React, { Suspense, useEffect, useMemo, useRef, useState } from "react"; // Suspense: TASKS.csv #1425
 import { ensureProjectCrs, ensureExportCrs } from "../lib/projectCrsRequest.js"; // TASKS.csv #615; export: #1021
+import { exportCrs, terrainToWorld, tiedExportNote } from "../lib/tiedExport.js"; // TASKS.csv #2322 — a tied local grid's exports through its tie
 import { useModuleAction, requestModuleAction } from "../lib/menuRequests.js"; // TASKS.csv #565; requestModuleAction: #1152
 import { askAdoptCrs, projectEpsgChooser, medianLonLat } from "../lib/adoptCrs.js"; // TASKS.csv #607; medianLonLat: #2833
 import { gemHeaderEpsg, KEEP_CHOICES, suggestKeepEvery, everyNth, batchSurveyName, pairGpsFile } from "../lib/xyzBatch.js"; // TASKS.csv #1329
@@ -773,12 +774,14 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
   // actual writer (geotiff package's own writeArrayBuffer, not hand-rolled).
   const exportTerrainGeoTIFF = async () => {
     if (!terrain) return;
-    const epsg = await ensureExportCrs(project); if (!epsg) return; // #1021
+    const ex = await exportCrs(project); if (!ex) return; // #1021; #2322 — a tied local grid: resampled through its tie
+    const epsg = ex.epsg;
     try {
-      const bytes = new Uint8Array(terrainToGeoTIFFArrayBuffer(terrain, epsg)); // #1040 — bytes over IPC
+      const bytes = new Uint8Array(terrainToGeoTIFFArrayBuffer(terrainToWorld(terrain, ex.tie), epsg)); // #1040 — bytes over IPC
       const masked = terrainToGeoTIFFArrayBuffer.lastMasked || 0; // #1020
       const res = await saveFile({ suggestedName: `${safeFileName(terrain.name.replace(/\.(tif|tiff)$/i, ""), "terrain")}.tif`, filters: [{ name: "GeoTIFF", extensions: ["tif"] }], content: bytes });
-      if (res?.ok && masked) setTerrainError({ info: true, text: tr("{n} terrain nodes had no data (filled for display only) and are written as no-data (-9999).", { n: masked.toLocaleString() }) });
+      if (res?.ok && masked) setTerrainError({ info: true, text: tr("{n} terrain nodes had no data (filled for display only) and are written as no-data (-9999).", { n: masked.toLocaleString() }) + tiedExportNote(ex.tie) });
+      else if (res?.ok && ex.tie) setTerrainError({ info: true, text: tiedExportNote(ex.tie).trim() });
     } catch (err) {
       setTerrainError({ info: false, text: tr("Couldn't export terrain: {message}", { message: err.message }) });
     }
@@ -2575,6 +2578,11 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
               {polylinesBox(b.polylines) && <Crosshair role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Zoom the plan to \"{name}\"", { name: b.name })} title={tr("Zoom the plan to \"{name}\"", { name: b.name })} onClick={() => requestPlanZoom(polylinesBox(b.polylines))} />}{/* TASKS.csv #2657 */}
               <Trash2 aria-label={tr("Remove boundary \"{name}\"", { name: b.name })} title={tr("Remove boundary \"{name}\"", { name: b.name })} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(tr("Remove \"{name}\"?", { name: b.name }))) removeBoundary(b.id); }} />
             </div>
+            {b.partNames?.some(Boolean) && ( /* TASKS.csv #2673 — the parts' names as labels in the 3D view (hovering a part names it anyway) */
+              <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 5, cursor: "pointer", color: "var(--color-text-caption)", fontSize: "var(--font-size-sm)" }}>
+                <input type="checkbox" checked={!!b.partLabels} onChange={(e) => updateBoundary(b.id, { partLabels: e.target.checked })} />{tr("Label the parts in the 3D view")}
+              </label>
+            )}
             {b.partNames?.some(Boolean) && ( /* TASKS.csv #1767 — the parts' own names, from the file */
               <div style={{ marginTop: 5, color: "var(--color-text-caption)", fontSize: "var(--font-size-sm)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={[...new Set(b.partNames.filter(Boolean))].join(", ")}>{tr("Parts: {names}", { names: [...new Set(b.partNames.filter(Boolean))].join(", ") })}</div>
             )}
@@ -2746,6 +2754,8 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
             <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setVoxelCellBudget(null)} style={{ cursor: "pointer", color: "var(--color-text-secondary)", fontSize: "var(--font-size-sm)", marginLeft: "auto" }}>{tr("Reset to default")}</span>
           )}
         </div>
+        {/* TASKS.csv #2969 — what the number costs and what it does, where it is set (the pane said only 'cells (default 100,000)') */}
+        <div style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)", lineHeight: 1.45, marginBottom: 12 }}>{tr("A model of {cells} cells takes about {gb} GB of memory while it is open. A UBC mesh, OMF volume or block-model CSV with more cells is merged into bigger blocks on import, and the import message says by how much.", { cells: clampCellBudget(voxelCellBudget ?? MAX_CELLS).toLocaleString(), gb: (clampCellBudget(voxelCellBudget ?? MAX_CELLS) * 0.4e-6).toFixed(2) })}</div>
 
         </>)}
         {geoPane === "omf" && (<>
@@ -3008,19 +3018,19 @@ function VoxelModelRow({ withSet = false /* #3014 part c */, others = null, mode
     : model.source === "kriging-variance" ? tr("Kriging variance") : model.source === "geoml" ? "geoML" : "CSV"; // #1418 — kriging variance / geoML were "CSV"
   const p = model.params;
   const paramsTitle = p && p.tool === "Grade estimation"
-    ? `${p.tool}: ${p.element}, ${p.method}, ${p.cellSizeM} m cells, search ${p.searchRadiusM} m${p.searchRadiusWasUnlimited ? " (unlimited, capped at grid diagonal)" : ""}, ${p.minSamples}-${p.maxSamples} samples, min ${p.minHoles} holes, ${p.composited ? `${p.compositeLengthM} m composites (min coverage ${Math.round((p.minCoverage || 0) * 100)}%)` : "raw intervals"}, cap ${p.capValue ?? "none"}, QAQC ${p.includeQAQC ? "included" : "excluded"}${p.domain ? `, domain ${p.domain}${p.restrictToDomain ? " (restricted)" : ""}` : ""}, desurvey ${p.desurveyMethod}, ${p.samplePoints} sample points, ${p.generatedAt}${p.value ? `. Values: ${p.value}` : ""}. Not a Mineral Resource estimate.`
+    ? `${p.tool}: ${p.element}, ${p.method}, ${p.cellSizeM} m cells, search ${p.searchRadiusM} m${p.searchRadiusWasUnlimited ? " (unlimited, capped at grid diagonal)" : ""}, ${p.minSamples}-${p.maxSamples} samples, min ${p.minHoles} holes, ${p.composited ? `${p.compositeLengthM} m composites (min coverage ${Math.round((p.minCoverage || 0) * 100)}%)` : "raw intervals"}, cap ${p.capValue ?? "none"}, QAQC ${p.includeQAQC ? "included" : "excluded"}${p.domain ? `, domain ${p.domain}${p.restrictToDomain ? " (restricted)" : ""}` : ""}${p.searchTrend?.name ? `, trend "${p.searchTrend.name}"${p.searchTrend.ellipsoidM ? ` (ellipsoid ${p.searchTrend.ellipsoidM.map((v) => +Number(v).toFixed(2)).join(" : ")})` : ""}` : ""}${p.gridFrom ? `, grid: ${p.gridFrom}` : ""}, desurvey ${p.desurveyMethod}, ${p.samplePoints} sample points, ${p.generatedAt}${p.value ? `. Values: ${p.value}` : ""}. Not a Mineral Resource estimate.`
     : undefined;
   return (
     <div data-voxel-id={model.id} /* #1417 — the 3D View's link scrolls here */ style={{ marginTop: 10, padding: "9px 10px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-base)" }}>
       {promptEl}
       <div style={{ color: "var(--color-text)", overflowWrap: "anywhere", lineHeight: 1.3, marginBottom: 3 }}>{model.name}</div>{/* #1178: seven icons squeezed it to one letter */}
       <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-        <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => onUpdate(model.id, { visible: model.visible === false })} style={{ cursor: "pointer", color: model.visible !== false ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }}>
+        <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => onUpdate(model.id, { visible: model.visible === false })} aria-label={tr("Show or hide {name}", { name: model.name })} aria-pressed={model.visible !== false} title={tr("Show or hide {name}", { name: model.name })} /* #2969 */ style={{ cursor: "pointer", color: model.visible !== false ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }}>
           {model.visible !== false ? <Eye size={14} /> : <EyeOff size={14} />}
         </div>
         <div style={{ flex: 1 }} />
         <span title={paramsTitle} style={{ color: "var(--color-text-muted)", flexShrink: 0, cursor: paramsTitle ? "help" : undefined }}>{sourceLabel} · {model.cells.length.toLocaleString()}</span>
-        <Palette role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: legendOpen ? "var(--color-info)" : "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => setLegendOpen((v) => !v)} title={tr("Edit colour legend / range / classification")} />
+        <Palette role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: legendOpen ? "var(--color-info)" : "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => setLegendOpen((v) => !v)} title={tr("Edit colour legend / range / classification")} aria-label={tr("Edit colour legend / range / classification")} aria-expanded={legendOpen} /* #2969 */ />
         {/* TASKS.csv #323 — the model's value along every drillhole, as a downhole layer (strip log, 3D, CSV) */}
         {onEvaluate && <ArrowDownToLine role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Evaluate block model \"{name}\" onto the drillholes", { name: model.name })} title={tr("Evaluate onto drillholes — the model's value in every cell each hole passes through, as a downhole layer to compare with the logs in the strip log")} onClick={() => onEvaluate(model)} />}
         {/* TASKS.csv #328 — UBC mesh/model, .obs data, GeoTIFF depth slices and provenance.txt in one zip */}
@@ -3100,7 +3110,9 @@ function VoxelLegendEditor({ model, onUpdate }) {
   const [palette, setPalette] = useState(() => (model.palette && PALETTES[model.palette] ? model.palette : (model.stops || []).length ? "__own" : "viridis")); // #382 — was the isoluminant blue-red
   const stops = model.stops || [];
   const shown = useMemo(() => readableValues([...stops.map((s) => s.value), model.max]), [stops, model.max]); // #1422 — the stops (and the max) as read
-  const rangeShown = useMemo(() => readableValues([model.min, model.max]), [model.min, model.max]); // #1790
+  // #1790; TASKS.csv #2969 — at layers.js rangeText's precision (the units of the larger end, #2402), as the Stretch beside it reads: the
+  // boxes said 53000 / 53200 beside '2–98 % of the points (52,986 to 53,168)'
+  const rangeShown = useMemo(() => { const m = Math.max(Math.abs(model.min), Math.abs(model.max)); return readableValues([model.min, model.max], Math.max(3, m >= 1 ? Math.floor(Math.log10(m)) + 1 : 3)); }, [model.min, model.max]);
 
   const setStops = (next, extra = {}) => onUpdate(model.id, { stops: next, ...extra });
 

@@ -115,16 +115,18 @@ export function addCalculatedElement(assays, assayElements, name, expr, unit = "
   // 21,881 rows where both were numbers in 9,172. A formula without division keeps '<' when every operand is '<'; a ratio with a '<'
   // operand gets no value (counted as leftBdl), as the diagrams leave such a ratio out (#2501)
   const ops = operandsOf(expr, symbols, used), isRatio = /\//.test(String(expr)); // used: #2914
-  let computed = 0, skipped = 0, leftBdl = 0, flaggedLt = 0, min = Infinity, max = -Infinity;
+  // TASKS.csv #3160 (#2925 (8), review #2876) — a division by zero (every operand present, no finite result) was counted with the rows
+  // missing an element: it is counted apart (divZero)
+  let computed = 0, skipped = 0, leftBdl = 0, flaggedLt = 0, divZero = 0, min = Infinity, max = -Infinity;
   const out = (assays || []).map((a) => {
     const lts = ops.filter((s) => isBelowDetection(a, s)).length;
     if (isRatio && lts) { leftBdl++; return a; }
     const v = fn(a.values || {});
-    if (!Number.isFinite(v)) { skipped++; return a; }
+    if (!Number.isFinite(v)) { if (isRatio && ops.length && ops.every((s) => Number.isFinite(Number(a.values?.[s])) && a.values?.[s] !== null && a.values?.[s] !== "")) divZero++; else skipped++; return a; }
     computed++; if (v < min) min = v; if (v > max) max = v;
     if (ops.length && lts === ops.length) { flaggedLt++; return { ...a, values: { ...(a.values || {}), [n]: v }, ...(Array.isArray(a.bdl) ? { bdl: [...a.bdl, n] } : { qualifiers: { ...(a.qualifiers || {}), [n]: "<" } }) }; } // a surface sample: its bdl list
     return { ...a, values: { ...(a.values || {}), [n]: v } };
   });
   if (!computed) throw new Error(tr("The formula gave no value on any assay row — check that every element in it has results."));
-  return { assays: out, element: { symbol: n, unit, calculated: { expr: String(expr).trim(), ...(readUnits ? { readUnits } : {}) } }, computed, skipped, min, max, converted: conv, leftBdl, flaggedLt };
+  return { assays: out, element: { symbol: n, unit, calculated: { expr: String(expr).trim(), ...(readUnits ? { readUnits } : {}) } }, computed, skipped, min, max, converted: conv, leftBdl, flaggedLt, divZero };
 }

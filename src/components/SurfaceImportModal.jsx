@@ -7,7 +7,7 @@
 import { useStore } from "../lib/store.jsx"; // TASKS.csv #615
 import React, { useMemo, useRef, useState } from "react"; // useRef: #1670; useMemo: #2728
 import { X } from "./icons.js";
-import { inferUnit, ELEMENT_SYMBOLS, surfaceAttrLeftOut, SURFACE_ATTR_MAX_DISTINCT, oxideOfHeader, keepsOxide } from "../lib/geochem.js"; // left out: #2728; basis: #2627
+import { inferUnit, ELEMENT_SYMBOLS, UNIT_ONLY_SYMBOLS, surfaceAttrLeftOut, SURFACE_ATTR_MAX_DISTINCT, oxideOfHeader, keepsOxide } from "../lib/geochem.js"; // left out: #2728; basis: #2627
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay } from "../lib/modalStyles.js";
@@ -177,7 +177,7 @@ export default function SurfaceImportModal({ modal, onChange, onCancel, onCommit
               placeholder={tr("Symbol (e.g. Cu)")} style={{ ...sel, width: 100, fontSize: "var(--font-size-sm)" }}
             />
             <datalist id="geostrix-element-symbols-surface">
-              {ELEMENT_SYMBOLS.map((s) => <option key={s} value={s} />)}
+              {[...ELEMENT_SYMBOLS, ...UNIT_ONLY_SYMBOLS /* #3129 — C, N by hand */].map((s) => <option key={s} value={s} />)}
             </datalist>
             <select value={addHeader} onChange={(ev) => setAddHeader(ev.target.value)} style={{ ...sel, flex: 1, minWidth: 0, fontSize: "var(--font-size-sm)" }}>
               <option value="">{tr("— pick the source column —")}</option>

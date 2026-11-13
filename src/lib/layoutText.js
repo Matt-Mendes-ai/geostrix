@@ -40,5 +40,7 @@ export function pageConvergence(els, project, collars) {
   if (!up) return null;
   return (Math.atan2(up.x - x, up.y - y) * 180) / Math.PI;
 }
-// 1.2° E / 0.4° W, as the north diagram prints it
-export const formatConvergence = (a) => (Number.isFinite(a) ? `${Math.abs(a).toFixed(1)}° ${a >= 0 ? "E" : "W"}` : "");
+// 'TN 1.2° E of GN' / 'TN 0.4° W of GN', as the north diagram says it. TASKS.csv #3028 (1) — a bare '1.1° E' after 'convergence' read with
+// no subject (and by the usual sign convention the convergence there is -1.14: grid north west of true north); the abbreviations the
+// diagram draws (TN, GN) name both norths
+export const formatConvergence = (a) => (Number.isFinite(a) ? `TN ${Math.abs(a).toFixed(1)}° ${a >= 0 ? "E" : "W"} of GN` : "");

@@ -179,7 +179,7 @@ import { ViewToolbar, SurfaceRibbon, ContextItem, HoleRowList, OrphanHoles, Laye
 import { plannedTrace } from "../lib/plannedTrace.js"; // TASKS.csv #119 - shared, Node-verified target math; plannedTrace: #524; #3159: plannedTrace.js, not holePlanning.js (the targeting solvers)
 import { extractMapContacts, orientationAt, projectContactRibbon, thinLine, densifyLine } from "../lib/mapLayers.js"; // TASKS.csv #316-#318
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
-import { noticeText, noticeLevel, errorNotice, notice, appendNotice } from "../lib/notices.js"; // TASKS.csv #390
+import { noticeText, noticeLevel, errorNotice, infoNotice, notice, appendNotice } from "../lib/notices.js"; // TASKS.csv #390
 import { makeSurveyColorer } from "../lib/geophysSurveys.js"; // TASKS.csv #451
 import { searchEllipsoidBasis, searchEllipsoidDistSq, voxelCellShown, sampleTerrainElevation, terrainGroundAt } from "../lib/viewer/geomath.js"; // TASKS.csv #445
 import { assaySizeFor, assayPassesCutoff } from "../lib/viewer/assaySize.js"; // #1533 — moved out
@@ -188,8 +188,7 @@ import { LABEL_PX, makeTextSprite, fitScreenLabels, fitContourLabels } from "../
 import { restrictLayersToHoles } from "../lib/modelArea.js"; // TASKS.csv #1546
 import { gradeText } from "../lib/gradeText.js"; // #2515
 import { pickOnView } from "./viewer/pickGround.js"; // #2574; #2447
-import { syncHoleLabels, declutterHoleLabels, withEveryLabel, syncTextLabels, sampleLabelItems, redeclutter } from "../lib/viewer/holeLabels.js";
-import { symbolBuildKey } from "../lib/viewer/structureSymbol3d.js"; // TASKS.csv #3091 // withEveryLabel: #1770; syncTextLabels: #1443
+import { syncHoleLabels, declutterHoleLabels, withEveryLabel, syncTextLabels, sampleLabelItems, redeclutter } from "../lib/viewer/holeLabels.js"; // withEveryLabel: #1770; syncTextLabels: #1443
 import { PickStandIn, PICK_ONLY_LAYER } from "../lib/viewer/pickStandIn.js"; // TASKS.csv #1500
 import { syncBatchedInstances, buildLayerBatches, eachLayerMember, eachPickTarget, batchTag } from "../lib/viewer/layerBatches.js"; // moved out (size cap, #1084)
 import { PROTO_SPHERE_8, POINT_PROTO } from "../lib/viewer/protos.js"; // TASKS.csv #2176
@@ -911,7 +910,6 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   // #1825 — the map layers anchor the view only when nothing before them in anchorBbox's order does: adding or removing one then rebuilt
   // every object and refitted the camera on Kodiak (2,762 samples) for nothing
   const mapAnchorUsed = !(terrain?.bbox || rasters?.[0]?.bbox || (boundaries || []).some((b) => b.polylines?.some((pl) => pl?.length)) || (omfObjects || []).some((o) => o.vertices?.length) || layers.geophys_pts?.length || placedSurfaceSamples.length);
-  const symbolKey = useMemo(() => symbolBuildKey(surfaceStructures), [surfaceStructures]); // #3067 / #3091 — a symbol choice or thickness redraws the discs
   const mapAnchorKey = useMemo(() => (mapAnchorUsed ? JSON.stringify([(mapLayers || []).map((l) => l.bbox), (surfaceStructures || []).map((st) => st.rows?.length || 0)]) : ""), [mapAnchorUsed, mapLayers, surfaceStructures]);
   // TASKS.csv #435 — same idea for terrain, raster drapes, boundaries and OMF objects: the geometry rebuild
   // reads them ONLY for its no-collar camera anchor, so it depends on this extent signature instead of the
@@ -1436,7 +1434,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
       if (!g) return;
       const single = layerStyles[key]?.color; // TASKS.csv #635 — a one-colour layer style wins over category colours
       eachLayerMember(g, (child) => { // #1540
-        if (child.userData?.catValue === undefined || !child.material?.color || child.userData.symbol) return; // symbol: #3067's ink
+        if (child.userData?.catValue === undefined || !child.material?.color) return;
         child.material.color.set(single || effectiveColor(key, child.userData.catValue));
       });
     });
@@ -2134,6 +2132,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
       // own comment): the status-bar readout wants the nearest hit of any kind, the tooltip wants
       // the nearest hit belonging to a visible layer group. Previously these were two full
       // intersectObjects passes over overlapping object lists on every single pointermove.
+      raycasterRef.current.params.Line.threshold = Math.max(0.5, 4 * (metresPerPixel(camera, camState.current?.radius, mount.clientHeight) || 1)); // #2673 — a line within ~4 px is hit (was 1 m)
       const hoverHits = pickHits(raycasterRef.current);
       const worldPt = worldPointFromHits(raycasterRef.current, hoverHits);
       if (worldPt) setCursor(worldPt.plane ? { ...worldPt, z: null } : worldPt); // #2526 — over open ground Z is '—': no ground was hit
@@ -2143,6 +2142,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
       // hit-tested and gave the wrong tooltip. Only visible groups' children count here (as rendered).
       const layerHit = firstVisibleLayerHit(hoverHits);
       if (layerHit && layerHit.object.userData?.tip) setTooltip({ x: e.clientX, y: e.clientY, text: tipWithMeaning(layerHit.object, layerGroupsRef.current, codeDictRef.current) }); // + the code's meaning: #2816
+      else if (hoverHits[0]?.object.userData?.boundaryTip && hoverHits[0].object.visible !== false && hoverHits[0].object.parent?.visible !== false) setTooltip({ x: e.clientX, y: e.clientY, text: hoverHits[0].object.userData.boundaryTip }); // #2673 — a boundary part's name
       else setTooltip(null);
     };
     // Max radius raised again (500km -> 4,000km) alongside the far-plane bump above, so there's no
@@ -3552,6 +3552,7 @@ ${describeTrend(t)}` };
       const layerNote = layered ? tr(" One surface per {v} ({v2}).", { v: solid.format === "DXF" ? "layer" : "object", v2: solid.parts.map((p) => p.layer).join(", ") }) : "";
       setNotices((p) => [...p, notice("Imported \"{name}\" as a solid: {vertexCount} vertices / {triangleCount} triangles ({format}, {note}).{layerNote} It appears under Generated surfaces with the same show/hide, remove and query controls.{bb} Coordinates are used AS-IS — a DXF/OBJ carries no CRS, so GeoStrix does not reproject it; if it lands away from your holes, the file is in a different CRS.", { name: file.name, vertexCount: solid.vertexCount.toLocaleString(), triangleCount: solid.triangleCount.toLocaleString(), format: solid.format, note: solid.note, layerNote, bb })]);
       fitBox(box);
+      import("../lib/solidCheckNote.js").then(({ solidCheckNote }) => { const t = solidCheckNote(solid.parts, (k) => (layered ? `${label} — ${solid.parts[k].layer}` : label)); if (t) setNotices((p) => [...p, infoNotice(t)]); }).catch(() => {}); // #2801 — on demand
     } catch (e) {
       clearProgress();
       setNotices((p) => [...p, errorNotice(tr("{name}: couldn't import as a solid ({v}).", { name: file.name, v: e.message || e }))]); // #739
@@ -4045,8 +4046,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     // TASKS.csv #1021 — lat / lon and true / magnetic azimuths need the real CRS; #2254 — a CSV on a project with no CRS is written in its own
     // grid (E / N / RL, grid azimuth, dip, length, target, toe), lat / lon and true / magnetic left blank; KML / GPX still ask
     const local = project?.crsSet === false && format === "csv";
-    const epsg = local ? null : await ensureExportCrs(project); if (!local && !epsg) return;
-    const rows = rigRows(plannedHoles, epsg, today, plannedHoleTrace);
+    const tx = local ? null : await import("../lib/tiedExport.js"), ex = tx ? await tx.exportCrs(project) : null; if (!local && !ex) return; // #2322 — a tied local grid: through its tie
+    const epsg = ex?.epsg ?? null, rows = rigRows(ex?.tie ? tx.rowsToWorld(plannedHoles, ex.tie, { points: ["target"] }) : plannedHoles, epsg, today, plannedHoleTrace);
     const base = `${(project.name || "project").replace(/[^\w\- ]/g, "")}_planned_holes`;
     const noLatLon = rows.filter((r) => r.lat === "").length;
     const noMag = rows.filter((r) => r.azimuth_magnetic === "").length;
@@ -4261,7 +4262,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   useEffect(() => {
     // TASKS.csv #2176 step 1 — the drillhole scene build, moved unchanged into viewer/drillholeScene.js (#1084 size cap)
     buildDrillholeScene({ applyCategoryVisibility, applyLegendOverrideColors, autoFitInitial, baseColorForBuild, bgColorRef, boundaries, buildAssaySpheresRef, buildDefer, buildGeophysPtsRef, buildSurfaceSamplesRef, collarMaterialRef, collarSize, collars, customLayers, desurveyMethod, effectiveLabel, fitBox, hasAutoFitRef, holeLabelAnchorsRef, holeLabelModeRef, isRowVisibleForBuild, lastHoleTraceCountRef, lastTracesRef, layerGroupsRef, layers, layerStyles, mapLayers, numericLayerColor, numericRange, numericSymbology, omfObjects, originRef, placedSurfaceSamples, rasters, rebuildSeq, setDataLoaded, setNotices, setTracesSeq, surfaceStructures, survey, syncImplicitOrigin, terrain, tracesRef, voxelModels, pointBuildersStale: () => [!sameInputs(assayBuiltRef.current, assayInputs), !sameInputs(geophysBuiltRef.current, geophysInputs), !sameInputs(surfaceBuiltRef.current, surfaceInputs)] /* #2176 */ });
-  }, [collars, survey, survey.length ? desurveyMethod : "" /* #135 — switching method must rebuild every trace; #1528 — with no survey every method gives the same straight holes */, noHoles ? layers : layersForBuild /* #1582 */, customLayers, numericRange, isRowVisibleForBuild, baseColorForBuild, effectiveLabel, numericLayerColor, fitView, layerStylesBuildKey /* #635; #1528 — not the in-place opacities */, noHoles && anchorSourcesKey /* #435 — extents only, NOT terrain/rasters/boundaries/omfObjects themselves */, noHoles && mapAnchorKey /* #316 — extents only, NOT mapLayers: a colour edit must not rebuild every drillhole */, noHoles && voxelGeomSignature /* #1569 — with holes, only the fit box below */, fitBox, rebuildSeq, noHoles && placedSurfaceSamples /* #606 — and the no-drillhole camera anchor */, symbolKey /* #3091 */]); // #551: assay / geophysics-legend / surface-visibility inputs moved to their own builders
+  }, [collars, survey, survey.length ? desurveyMethod : "" /* #135 — switching method must rebuild every trace; #1528 — with no survey every method gives the same straight holes */, noHoles ? layers : layersForBuild /* #1582 */, customLayers, numericRange, isRowVisibleForBuild, baseColorForBuild, effectiveLabel, numericLayerColor, fitView, layerStylesBuildKey /* #635; #1528 — not the in-place opacities */, noHoles && anchorSourcesKey /* #435 — extents only, NOT terrain/rasters/boundaries/omfObjects themselves */, noHoles && mapAnchorKey /* #316 — extents only, NOT mapLayers: a colour edit must not rebuild every drillhole */, noHoles && voxelGeomSignature /* #1569 — with holes, only the fit box below */, fitBox, rebuildSeq, noHoles && placedSurfaceSamples /* #606 — and the no-drillhole camera anchor */]); // #551: assay / geophysics-legend / surface-visibility inputs moved to their own builders
   // TASKS.csv #1569 (review #1497, Lawyers) — with drillholes, a block model only widens the fit box (the origin and the first
   // fit come from the holes): adding one re-derives that box here instead of rebuilding every drillhole and custom layer
   // (25-26 s per 'Add as block model' on Lawyers). Without holes the build above still runs, since the models anchor it.
@@ -5055,7 +5056,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
 
   // ---------- generic import pipeline ----------
   // TASKS.csv #445 step 3 — the import pipeline (viewer/useImportPipeline.js), called where its code sat: same hook order
-  const { commitImport, handleDrop, importBrowserFile, importOverlap /* #1649 */, layerPicker, loadSampleProject, openImportFromRows, openImportModal, processImportQueue, sampleLoading, setLayerPicker, reloadDbImports /* #1963 */ } = useImportPipeline({
+  const { cancelImport /* #2660 */, commitImport, handleDrop, importBrowserFile, importOverlap /* #1649 */, layerPicker, loadSampleProject, openImportFromRows, openImportModal, processImportQueue, sampleLoading, setLayerPicker, reloadDbImports /* #1963 */ } = useImportPipeline({
     connectDb: store.connectDb, dbConnections: store.dbConnections, dbImports: store.dbImports, setDbImports: store.setDbImports, // TASKS.csv #1963
     addBoundary,
     addRaster,
@@ -5283,8 +5284,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     if (!features.length) { setNotices((p) => [...p, notice("Nothing to export for \"{label}\" — no rows with usable/desurveyed coordinates.", { label })]); return; }
     try {
       const { buildShapefileZip } = await import("../lib/shapefile.js"); // #552 — on demand
-      const epsg = project?.crsSet === false ? null : await ensureExportCrs(project); if (!epsg && project?.crsSet !== false) return; // #1021; #2295: no CRS = no .prj
-      const zipBytes = buildShapefileZip({ features, geomType, epsg, baseName: label, keepFieldCase: !!built, flat: !!built?.flat }); // #1025; #1246 — a map layer keeps its field names
+      const tx = await import("../lib/tiedExport.js"), ex = project?.crsSet === false && !tx.tieOf(project) ? null : await tx.exportCrs(project); if (!ex && project?.crsSet !== false) return; const epsg = ex?.epsg ?? null; // #1021; #2295: no CRS = no .prj; #2322: a tied grid through its tie
+      const zipBytes = buildShapefileZip({ features: tx.featuresToWorld(features, ex?.tie), geomType, epsg, baseName: label, keepFieldCase: !!built, flat: !!built?.flat }); // #1025; #1246 — a map layer keeps its field names
       const res = await saveFile({ quiet: true, // TASKS.csv #576 — awaited: success only when it was written
         suggestedName: `${label.replace(/[^a-z0-9_-]+/gi, "_").toLowerCase()}.zip`,
         filters: [{ name: "Shapefile (zipped)", extensions: ["zip"] }],
@@ -5304,8 +5305,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     if (!features.length) { setNotices((p) => [...p, notice("Nothing to export for \"{label}\" — no rows with usable/desurveyed coordinates.", { label })]); return; }
     try {
       const tableName = label.replace(/[^a-zA-Z0-9_]+/g, "_") || "layer";
-      const epsg = project?.crsSet === false ? null : await ensureExportCrs(project); if (!epsg && project?.crsSet !== false) return; // #1021; #2295: srs -1
-      const gpkgBytes = await (await loadGpkg()).buildGeoPackage([{ name: tableName, features, geomType, epsg }]); // #439 lazy
+      const tx = await import("../lib/tiedExport.js"), ex = project?.crsSet === false && !tx.tieOf(project) ? null : await tx.exportCrs(project); if (!ex && project?.crsSet !== false) return; const epsg = ex?.epsg ?? null; // #1021; #2295: srs -1; #2322: a tied grid through its tie
+      const gpkgBytes = await (await loadGpkg()).buildGeoPackage([{ name: tableName, features: tx.featuresToWorld(features, ex?.tie), geomType, epsg }]); // #439 lazy
       const res = await saveFile({ quiet: true, // TASKS.csv #576 — awaited: success only when it was written
         suggestedName: `${label.replace(/[^a-z0-9_-]+/gi, "_").toLowerCase()}.gpkg`,
         filters: [{ name: "GeoPackage", extensions: ["gpkg"] }],
@@ -5320,18 +5321,19 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
 
   // TASKS.csv #1025 (review #1016) — map layers, boundaries / claims, surface samples: Shapefile / GeoPackage / DXF
   // through the writers above, KML (WGS84) and CSV; the features come from lib/overlayExport.js (on demand)
-  const exportVectorKML = async (label, built, kmlOpts = {}) => {
+  const exportVectorKML = async (label, built, kmlOpts = {}, fmt = "kml") => { // fmt "geojson": #2759
     if (!built.features.length) { setNotices((p) => [...p, notice("Nothing to export for \"{label}\" — no rows with usable/desurveyed coordinates.", { label })]); return; }
     try {
-      const epsg = await ensureExportCrs(project); if (!epsg) return; // #1021
+      const tx = await import("../lib/tiedExport.js"), ex = await tx.exportCrs(project); if (!ex) return; const epsg = ex.epsg; // #1021; #2322 — a tied local grid: through its tie
       const ox = await import("../lib/overlayExport.js");
-      const toLonLat = await ox.lonLatTransform(epsg);
+      const toLonLat = tx.lonLatThrough(ex.tie, await ox.lonLatTransform(epsg));
       if (!toLonLat) throw new Error(tr("EPSG:{epsg} cannot be converted to latitude / longitude.", { epsg }));
-      const res = await saveFile({ quiet: true, suggestedName: `${label.replace(/[^a-z0-9_-]+/gi, "_").toLowerCase()}.kml`, filters: [{ name: "KML", extensions: ["kml"] }], content: ox.featuresToKml(built, { name: label, toLonLat, ...kmlOpts }) });
+      const gj = fmt === "geojson", ext = gj ? "geojson" : "kml";
+      const res = await saveFile({ quiet: true, suggestedName: `${label.replace(/[^a-z0-9_-]+/gi, "_").toLowerCase()}.${ext}`, filters: [{ name: gj ? "GeoJSON" : "KML", extensions: [ext] }], content: gj ? ox.featuresToGeoJson(built, { name: label, toLonLat }) : ox.featuresToKml(built, { name: label, toLonLat, ...kmlOpts }) });
       if (!res?.ok) { if (res?.error) throw new Error(res.error); return; }
-      setNotices((p) => [...p, notice("Exported {features} feature(s) from \"{label}\" as KML (WGS84 latitude / longitude).", { features: built.features.length, label })]);
+      setNotices((p) => [...p, gj ? notice("Exported {features} feature(s) from \"{label}\" as GeoJSON (WGS84 longitude / latitude).", { features: built.features.length, label }) : notice("Exported {features} feature(s) from \"{label}\" as KML (WGS84 latitude / longitude).", { features: built.features.length, label })]);
     } catch (err) {
-      setNotices((p) => [...p, errorNotice(tr("KML export failed: {message}", { message: err.message }))]);
+      setNotices((p) => [...p, errorNotice(fmt === "geojson" ? tr("GeoJSON export failed: {message}", { message: err.message }) : tr("KML export failed: {message}", { message: err.message }))]);
     }
   };
   // the row-menu entries; build() -> Promise<{ features, geomType }>, csvRows() optional
@@ -5340,6 +5342,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     { label: tr("Export GeoPackage (.gpkg)…"), onClick: async () => exportVectorGeoPackage(null, null, label, await build()) },
     { label: tr("Export DXF (.dxf)…"), onClick: async () => exportVectorDXF(null, null, label, (await import("../lib/overlayExport.js")).explodeParts(await build())) },
     { label: tr("Export KML (Google Earth)…"), onClick: async () => exportVectorKML(label, await build(), typeof kml === "function" ? await kml() : kml) },
+    { label: tr("Export GeoJSON (WGS 84)…"), onClick: async () => exportVectorKML(label, await build(), {}, "geojson") }, // #2759
     csvRows && { label: tr("Export CSV…"), onClick: async () => { const rows = await csvRows(); if (rows.length) saveFile({ quiet: "success", suggestedName: `${label.replace(/[^a-z0-9_-]+/gi, "_").toLowerCase()}.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: await toExportCsv(rows), encoding: "text" }); } },
   ].filter(Boolean);
   const overlayLib = () => import("../lib/overlayExport.js");
@@ -7146,7 +7149,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                               unlimited: s.params.searchRadiusWasUnlimited ? tr(" (unlimited, capped at the grid diagonal)") : "", cell: s.params.cellSizeM, pad: s.params.paddingM,
                               samples: s.params.composited ? tr("{n} m composites", { n: s.params.compositeLengthM }) : tr("raw intervals"), cap: s.params.capValue == null ? tr("none") : s.params.capValue,
                               minHoles: s.params.minHoles, qc: s.params.includeQAQC ? tr("included") : tr("excluded"), closure: s.params.closure, points: s.params.samplePoints,
-                              cells: s.params.cellsEstimated.toLocaleString(), single: s.params.singleHoleCells ? tr(" ({n} from a single hole)", { n: s.params.singleHoleCells.toLocaleString() }) : "" })}{s.params.anisotropy && trendRatioText(s.params.anisotropy) ? tr(" · trend \"{name}\" {ratios}{ell}", { name: s.params.anisotropy.trend || "", ratios: trendRatioText(s.params.anisotropy), ell: s.params.searchEllipsoidM ? tr(", ellipsoid {e} m", { e: s.params.searchEllipsoidM.join(" × ") }) : "" }) : ""}{/* #2423 */}</>
+                              cells: s.params.cellsEstimated.toLocaleString(), single: s.params.singleHoleCells ? tr(" ({n} from a single hole)", { n: s.params.singleHoleCells.toLocaleString() }) : "" })}{s.params.anisotropy && trendRatioText(s.params.anisotropy) ? tr(" · trend \"{name}\" {ratios}{ell}", { name: s.params.anisotropy.trend || "", ratios: trendRatioText(s.params.anisotropy), ell: s.params.searchEllipsoidM ? tr(", ellipsoid {e} m", { e: s.params.searchEllipsoidM.join(" × ") }) : "" }) : ""}{/* #2423 */}{s.params.domain ? tr(" · inside \"{solid}\"", { solid: s.params.domain }) : ""}{s.params.modelArea ? tr(" · model area: {area}", { area: s.params.modelArea }) : ""}{/* #2783 — the restricting solid and the Model area the params record */}</>
                           ) : (
                             <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "1px 8px" }}>
                               {paramRows(s.params).map(({ key: k, label, text }) => ( /* #1378 */
@@ -7793,7 +7796,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           onCancel={() => { setLayerPicker(null); processImportQueue(); }}
         />
       )}
-      {importModal && <ImportMappingModal modal={importModal} replaceInfo={importOverlap(importModal)} onChange={setImportModal} onCancel={() => { setImportModal(null); processImportQueue(); }} onCommit={commitImport} projectEpsg={project?.epsg} />}
+      {importModal && <ImportMappingModal modal={importModal} replaceInfo={importOverlap(importModal)} onChange={setImportModal} onCancel={cancelImport /* #2660 */} onCommit={commitImport} projectEpsg={project?.epsg} />}
       {dbModalOpen && <DatabaseConnectModal onCancel={() => setDbModalOpen(false)} onResults={openImportFromRows} />}
       {sectionEditOpen && (() => {
         const ids = Array.from(selectedSectionIds);

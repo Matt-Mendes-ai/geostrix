@@ -13,17 +13,28 @@ export { localDate } from "./localDate.js";
 // declination of the most recent program. A full date (yyyy-mm-dd, or dd/mm/yyyy with a 4-digit year) is used as it is; a bare year
 // as its 1 July. -> { date: "yyyy-mm-dd", field } or null
 const DATE_FIELD = /(^|_|\b)(start_?date|date_?start|drill_?date|date_?drilled|drilled|collar_?date|date|year|drill_?year)($|_|\b)/i;
+// TASKS.csv #3028 (2) (review #2876, WA iron) — every collar carried only an ENDDATE ('14-Nov-18') and the declination was dated today: an end
+// date is now taken when no collar has a start or drilling date (a hole is finished days after it is started: the same declination)
+const END_FIELD = /(^|_|\b)(end_?date|date_?end|finish_?date|date_?finished|completion_?date|date_?completed)($|_|\b)/i;
 export function collarDrillDate(collars) {
-  let best = null;
+  let best = null, end = null;
   for (const c of collars || []) {
     for (const [k, raw] of Object.entries(c?.attrs || {})) {
-      if (!DATE_FIELD.test(k) || /end|finish|complete|survey_?type|log/i.test(k)) continue;
+      if (/survey_?type|log/i.test(k)) continue;
+      if (/end|finish|complete/i.test(k)) {
+        if (!END_FIELD.test(k)) continue;
+        const d = parseDrillDate(raw);
+        if (d && (!end || d > end.date)) end = { date: d, field: k };
+        continue;
+      }
+      if (!DATE_FIELD.test(k)) continue;
       const d = parseDrillDate(raw);
       if (d && (!best || d > best.date)) best = { date: d, field: k };
     }
   }
-  return best;
+  return best || end;
 }
+const MONTHS = { jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6, jul: 7, aug: 8, sep: 9, sept: 9, oct: 10, nov: 11, dec: 12 };
 export function parseDrillDate(raw) {
   const s = String(raw ?? "").trim();
   let m = /^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/.exec(s);
@@ -32,6 +43,13 @@ export function parseDrillDate(raw) {
   if (m && ok(+m[1], +m[2], +m[3])) return iso(+m[1], +m[2], +m[3]);
   m = /^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})\b/.exec(s); // day first (the usual outside North America); a month over 12 swaps them
   if (m) { let d = +m[1], mo = +m[2]; if (mo > 12 && d <= 12) [d, mo] = [mo, d]; if (ok(+m[3], mo, d)) return iso(+m[3], mo, d); }
+  // #3028 (2) — '14-Nov-18' / '14 Nov 2018' (dd-Mon-yy, the WAMEX form): a two-digit year is 20yy up to next year, else 19yy
+  m = /^(\d{1,2})[-/. ]([A-Za-z]{3,4})[a-z]*[-/. ,]+(\d{2}|\d{4})\b/.exec(s);
+  if (m && MONTHS[m[2].toLowerCase()]) {
+    let y = +m[3];
+    if (m[3].length === 2) y += y <= (new Date().getFullYear() % 100) + 1 ? 2000 : 1900;
+    if (ok(y, MONTHS[m[2].toLowerCase()], +m[1])) return iso(y, MONTHS[m[2].toLowerCase()], +m[1]);
+  }
   m = /^(\d{4})(\.0+)?$/.exec(s);
   if (m && ok(+m[1], 7, 1)) return iso(+m[1], 7, 1);
   return null;

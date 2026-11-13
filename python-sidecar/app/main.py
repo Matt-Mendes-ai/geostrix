@@ -732,7 +732,9 @@ class SurfaceInput(BaseModel):
 
 class ImplicitModelRequest(BaseModel):
     extent: List[float] = Field(..., min_length=6, max_length=6, description="[xmin,xmax,ymin,ymax,zmin,zmax]")
-    surfaces: List[SurfaceInput] = Field(..., min_length=1, max_length=12)
+    # TASKS.csv #3162 — 16 units (was 12; Mount Raymond's map has 13 in order). An erosional stack is one solve per unit, so its time grows
+    # with the count (12 units, 1,426 points: 967 s onlap, 1,981 s erode on a busy CPU). Keep equal to src/lib/gempyLimits.js.
+    surfaces: List[SurfaceInput] = Field(..., min_length=1, max_length=16)
     resolution: List[int] = Field(default=[40, 40, 40], min_length=3, max_length=3)
     relation: Literal["erode", "onlap"] = "erode"
     # TASKS.csv #360 — fault surfaces that OFFSET the stack, solved in the same model: each is its own GemPy

@@ -7,6 +7,7 @@ import { elementsWithValues } from "./presentElements.js"; // TASKS.csv #1679
 import { changedKeys } from "./undoLabels.js"; // TASKS.csv #1087
 import { capturedFrameFields } from "./layoutGeometry.js"; // TASKS.csv #906 / #961
 import { tieStarterFurniture, sendElementWithFurniture } from "./layoutLinks.js"; // TASKS.csv #1320, #1634
+import { pagePx, pageFormatOf } from "./pageFormats.js"; // TASKS.csv #2740 — already in startup (desktop.js)
 import { setKnownHoleIds } from "./qaqcCore.js"; // TASKS.csv #400; qaqcCore: #1345
 import { compactLayers } from "./compactRows.js"; // TASKS.csv #374
 import { readDbProfiles, writeDbProfiles, mergeDbProfiles, profilesFromFile } from "./dbProfiles.js"; // TASKS.csv #1081
@@ -43,6 +44,14 @@ export function heldBigLayerGone(held, now) {
   const live = new Set((now || []).map((l) => l?.features));
   return held.some((l) => l?.features && !live.has(l.features) && vertexCount(l.features) >= BIG_VERTICES);
 }
+// TASKS.csv #2873 (split from #2814) — the same for rasters and block models: a raster or model the held value has and the project no longer
+// has (by id) was held until the view was shown. Any such removal releases (rare, and a removed raster / model is usually a big one: a grid's
+// values, a model's cells); edits that keep the id do not.
+export function heldItemGone(held, now) {
+  if (!held?.length || held === now) return false;
+  const live = new Set((now || []).map((x) => x?.id));
+  return held.some((x) => x?.id != null && !live.has(x.id));
+}
 export function FreezeStore({ frozen, children }) {
   const live = useContext(StoreContext);
   // the value is captured once, in the render where `frozen` turns true ("storing information from previous
@@ -52,7 +61,7 @@ export function FreezeStore({ frozen, children }) {
   // TASKS.csv #2814 — while frozen, a big map layer the held value still has but the project no longer has (removed in another tab) was
   // kept in memory until the view was shown again (measured: all 20,000 features of a 1 M-vertex layer). The hold then takes the live value:
   // one render of the hidden subtree, which drops the layer from its scene too; every other write still skips it.
-  else if (frozen && hold.value !== live && heldBigLayerGone(hold.value?.mapLayers, live?.mapLayers)) setHold({ frozen, value: live });
+  else if (frozen && hold.value !== live && (heldBigLayerGone(hold.value?.mapLayers, live?.mapLayers) || heldItemGone(hold.value?.rasters, live?.rasters) || heldItemGone(hold.value?.voxelModels, live?.voxelModels))) setHold({ frozen, value: live }); // rasters, models: #2873
   return <StoreContext.Provider value={frozen ? (hold.frozen ? hold.value : live) : live}>{children}</StoreContext.Provider>;
 }
 
@@ -1596,6 +1605,25 @@ export function StoreProvider({ children }) {
     }
   }, extraDirtyFields);
 
+  // The burst under way becomes one undo step: when the quiet period ends, or (undoCheckpoint) before a discrete action.
+  // TASKS.csv #3184 (from #3028 (9)) — four Layout inserts and a duplicate made half a second apart were one burst, so one
+  // Ctrl+Z took back all five. An insert / duplicate / paste now calls undoCheckpoint first, so each is its own step; a drag
+  // still coalesces into one.
+  const commitUndoBurst = useLatestCallback(() => {
+    if (undoDebounceTimer.current) { clearTimeout(undoDebounceTimer.current); undoDebounceTimer.current = null; }
+    if (!undoBeforeBurst.current) return;
+    undoPast.current.push(undoBeforeBurst.current); undoPastAt.current.push(undoBurstAt.current);
+    if (undoPast.current.length > UNDO_MAX) { undoPast.current.shift(); undoPastAt.current.shift(); }
+    undoBeforeBurst.current = null;
+    undoFuture.current = [];
+    // TASKS.csv #2806 — at most KEEP_REMOVED big map layers no longer in the project stay in the history (lib/undoMapLayerCap.js)
+    const capped = capRemovedMapLayers(undoPast.current, [undoPrevSnapshot.current?.mapLayers]);
+    if (capped.dropped) { undoPast.current = capped.steps; sayUndoCap(capped.names); }
+    capTables([undoPrevSnapshot.current]); // #2894
+    setUndoCount(undoPast.current.length);
+    setRedoCount(0);
+  });
+
   useLayoutEffect(() => {
     if (undoApplying.current) { undoPrevSnapshot.current = undoSnapshot(); setActiveTabDirty(true); return; }
     const current = undoSnapshot();
@@ -1613,18 +1641,7 @@ export function StoreProvider({ children }) {
     if (!undoBeforeBurst.current) { undoBeforeBurst.current = undoPrevSnapshot.current; undoBurstAt.current = Date.now(); }
     undoPrevSnapshot.current = current;
     if (undoDebounceTimer.current) clearTimeout(undoDebounceTimer.current);
-    undoDebounceTimer.current = setTimeout(() => {
-      undoPast.current.push(undoBeforeBurst.current); undoPastAt.current.push(undoBurstAt.current);
-      if (undoPast.current.length > UNDO_MAX) { undoPast.current.shift(); undoPastAt.current.shift(); }
-      undoBeforeBurst.current = null;
-      undoFuture.current = [];
-      // TASKS.csv #2806 — at most KEEP_REMOVED big map layers no longer in the project stay in the history (lib/undoMapLayerCap.js)
-      const capped = capRemovedMapLayers(undoPast.current, [undoPrevSnapshot.current?.mapLayers]);
-      if (capped.dropped) { undoPast.current = capped.steps; sayUndoCap(capped.names); }
-      capTables([undoPrevSnapshot.current]); // #2894
-      setUndoCount(undoPast.current.length);
-      setRedoCount(0);
-    }, UNDO_DEBOUNCE_MS);
+    undoDebounceTimer.current = setTimeout(commitUndoBurst, UNDO_DEBOUNCE_MS);
   }, UNDO_KEYS.map((k) => live[k])); // #448 (always the same length); #463: layoutPages
 
   const applySnapshot = useCallback((snap) => {
@@ -1697,7 +1714,7 @@ export function StoreProvider({ children }) {
   const sendLayoutElement = useLatestCallback((elementId, toPageId, move = false) => setLayoutPages((pages) => {
     const src = pages.find((p) => p.id === activeLayoutPageId), dst = pages.find((p) => p.id === toPageId);
     if (!src || !dst || toPageId === activeLayoutPageId) return pages;
-    const r = sendElementWithFurniture(src.elements || [], dst.elements || [], elementId, move);
+    const r = sendElementWithFurniture(src.elements || [], dst.elements || [], elementId, move, undefined, pagePx(pageFormatOf(dst))); // page: #2740 — kept on the target's paper
     if (!r) return pages;
     return pages.map((p) => (p.id === toPageId ? { ...p, elements: r.to } : p.id === activeLayoutPageId ? { ...p, elements: r.from } : p));
   }));
@@ -1810,7 +1827,7 @@ export function StoreProvider({ children }) {
     workspaceTabs, activeTabId, activeTabDirty, switchToTab, newWorkspaceTab, closeWorkspaceTab,
     checkAutosave, restoreAutosave, discardAutosave, recoveryStashed, // #465
     getProjectToken, isSameProject, addVoxelModelToTab, // #466
-    undo, redo, canUndo: undoCount > 0, canRedo: redoCount > 0,
+    undo, redo, canUndo: undoCount > 0, canRedo: redoCount > 0, undoCheckpoint: commitUndoBurst, // #3184
   };
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
 }
