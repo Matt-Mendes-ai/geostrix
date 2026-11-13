@@ -85,6 +85,7 @@ export function createModellingRuns(ctx, mcRef) {
     assays,
     unitLitho, unitField, // TASKS.csv #2378 — the Lithology rows with the unit from the chosen field (all holes), and that field
     customLayers, // TASKS.csv #1739 — a vein's logged angle to core axis may sit on a custom interval layer
+    logValidRange, // TASKS.csv #3116 — the built-in logs' range / despike (useModelling adds it)
     clipToDomainBoundary,
     clipToTopo,
     limitToContacts, // TASKS.csv #1335
@@ -2431,7 +2432,7 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
     const anisotropy = flatT ? { enabled: true, flat: true, trend: flatT, basis: trendBasis(flatT), scales: trendScales(flatT), params: { trend: flatT.name, dip: 0, dipAzimuth: 0, pitch: 0, ratios: flatT.ratios } } : shellTrend;
     // TASKS.csv #1741 / #1708 — numericSymbol may name a downhole log or a numeric layer field ("log:magsusc", "custom:<id>:<field>"):
     // its rows stand in for the assays under one element, values as logged
-    const numSrc = findNumericSource(numericSymbol, { layers, customLayers });
+    const numSrc = findNumericSource(numericSymbol, { layers, customLayers, logValidRange }); // logValidRange: #3116
     const srcData = numSrc ? sourceAssays(numSrc, { layers, customLayers }) : null;
     const symbol = numSrc ? numSrc.symbol : (numericSymbol || assayElements[0]?.symbol);
     if (!symbol) { setNotices((p) => [...p, notice("No assay elements loaded — import assays before running the numeric model.")]); return; }
@@ -2468,7 +2469,7 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
         let unsFill = null, unsParams = null;
         if (!numSrc) {
           const { resolveUnsampled } = await import("../../components/UnsampledChoice.jsx");
-          const u = resolveUnsampled("gradeShell", { assays: srcAssays, collars: inArea ? restrictRowsToHoles(collars, visibleHoles) : collars /* #3006 — the holes the run uses */, symbol, unit, elementUnits, logCtx: { layers, customLayers } }); // logCtx: a picked log, #2721
+          const u = resolveUnsampled("gradeShell", { assays: srcAssays, collars: inArea ? restrictRowsToHoles(collars, visibleHoles) : collars /* #3006 — the holes the run uses */, symbol, unit, elementUnits, logCtx: { layers, customLayers, logValidRange } }); // logCtx: a picked log, #2721
           if (!u.ready) throw new Error(tr("Choose how the unsampled metres inside the sampled holes are read (and, for barren, type their value) before running."));
           unsFill = u.apply(srcAssays); unsParams = u.params(unsFill);
           if (unsFill.filledM > 0 && u.mode === "log") setNotices((q) => [...q, notice("Unsampled metres read from the log \"{log}\" × {f} ({lu} to {u}, the factor you gave): {m} m in {n} hole(s) filled from its readings; {r} m had no reading and stay not known.", { log: unsParams.unsampledLog, f: unsParams.unsampledLogFactor, lu: unsParams.unsampledLogUnit, u: unsParams.unsampledUnit, m: unsParams.unsampledLogFilledM.toLocaleString(), n: unsParams.unsampledHolesFilled, r: unsParams.unsampledLogNoReadingM.toLocaleString() })]); // #2721

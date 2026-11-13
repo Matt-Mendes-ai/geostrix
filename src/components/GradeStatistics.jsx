@@ -140,12 +140,12 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
   const qaqcExcludedCount = useMemo(() => assays.length - excludeQAQC(assays).length, [assays]);
   const statsAssays = useMemo(() => (includeQAQC ? assays : excludeQAQC(assays)), [assays, includeQAQC]);
 
-  const { customLayers = [], collars: storeCollars = [], layers: storeLayers = {} } = useStore(); // layers: #2349 // #1678; collars: #2504
+  const { customLayers = [], collars: storeCollars = [], layers: storeLayers = {}, project: storeProject } = useStore(); // project: #3116 // layers: #2349 // #1678; collars: #2504
   const customDomains = useMemo(() => (source === "assays" ? [...attributeDomainOptions(assays, storeCollars), ...customDomainOptions(customLayers, { layers: storeLayers, labelOf: (k) => tr(LAYER_META[k]?.label || k) }, { groupTop: 12 } /* #2915 */) /* the built-in logs' extra fields: #2349 */] : []), [customLayers, source, assays, storeCollars, storeLayers]); // #2504 — sample type, collar fields
   const domainOptions = useMemo(() => (source === "assays" ? DOMAIN_LAYER_KEYS.filter((k) => (layers[k] || []).length > 0 && isCategoricalLayer(layers[k])) : []), [source, layers]); // #1515 — categories only
   const customDomain = customDomains.find((d) => d.key === domainKey) || null;
   // TASKS.csv #2672 — a numeric downhole log (mag susc, SG, gamma…) as the grouping: the samples by the log's quartiles
-  const logChoices = useMemo(() => (source === "assays" ? numericSourceChoices({ layers: storeLayers, customLayers, models: false, builtinFields: { labelOf: (k) => tr(LAYER_META[k]?.label || k) } /* #2915 */ }) : []), [source, storeLayers, customLayers]);
+  const logChoices = useMemo(() => (source === "assays" ? numericSourceChoices({ layers: storeLayers, customLayers, models: false, logValidRange: storeProject?.logValidRange /* #3116 */, builtinFields: { labelOf: (k) => tr(LAYER_META[k]?.label || k) } /* #2915 */ }) : []), [source, storeLayers, customLayers, storeProject?.logValidRange]);
   const covLog = domainKey.startsWith?.("numlog:") ? logChoices.find((c) => `numlog:${c.key}` === domainKey) || null : null;
   // TASKS.csv #2029 (review #2013, Geochem) — group by hole (and hole + lithology): a per-hole mean needed the SQL workspace
   const byHole = domainKey === HOLE_KEY || domainKey === HOLE_LITHO_KEY;

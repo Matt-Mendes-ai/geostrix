@@ -34,6 +34,6 @@ test("the pane: the log follows the data, counts what it hides, and leaves the e
   const p = readFileSync(new URL("../src/components/DownholeLogsPane.jsx", import.meta.url), "utf8");
   assert.match(p, /const scale = logScaleFor\(source, logValues, source \? scaleBy\?\.\[source\.key\] : null\), logScale = scale\.log;/); // #2967 — per log, Automatic kept; #2245's rule is logScaleFor's (a linear built-in source stays linear)
   assert.match(p, /tr\("\{k\} of \{n\} readings are zero or negative and are not shown on the log scale\."/);
-  assert.match(p, /numericSourceChoices\(\{ layers, customLayers, models: false \}\)\.filter\(\(s\) => s\.layerId == null \|\| !modelIds\.has\(s\.layerId\)\)/);
+  assert.match(p, /numericSourceChoices\(\{ layers, customLayers, models: false, logValidRange \}\)\.filter\(\(s\) => s\.layerId == null \|\| !modelIds\.has\(s\.layerId\)\)/);
   assert.match(p, /a: sig3\(vm\.medianLog\), b: sig3\(vm\.medianModel\)/);
 });
