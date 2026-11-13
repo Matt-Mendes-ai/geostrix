@@ -13,6 +13,7 @@ import { t as tr } from "../lib/i18n.js";
 import { useKeptState, scopeOf } from "../lib/keptState.js"; // TASKS.csv #2394 — the choices survive the pane closing (per project)
 import { useStore } from "../lib/store.jsx";
 import { useDeferredMemo, DEFER_ROWS } from "../lib/useDeferredMemo.js"; // TASKS.csv #2948
+import { logUnitChoices } from "../lib/logUnits.js"; // TASKS.csv #2952
 
 const note = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.45 };
 const row = { display: "flex", alignItems: "center", gap: 6, justifyContent: "space-between", fontSize: "var(--font-size-sm)", marginBottom: 6 };
@@ -93,6 +94,22 @@ function CodeTable({ rows, order, minCount, unit, binned, keptScope }) {
   );
 }
 
+// TASKS.csv #2952 (review #2876, WA iron) — a log layer's unit could not be stated anywhere: Density_Best, Gamma_Best and Suscep_Best stayed "in
+// the layer's own units" here, on the axes and in the 3D legend. Typed here (the usual ones offered for the kind of log its name says), it is
+// the layer's unit (customLayers[].unit), which every label already follows (#2396). Uncontrolled: set on Enter or leaving the box.
+function LogUnitField({ layer, onSet }) {
+  const choices = logUnitChoices(layer?.name);
+  const listId = `logunits-${layer?.id}`;
+  const commit = (e) => { const v = e.currentTarget.value.trim(); if (v !== String(layer?.unit || "")) onSet(v); };
+  return (
+    <label style={{ ...row, justifyContent: "flex-start", gap: 6 }}>{tr("Unit")}
+      <input key={`${layer?.id}:${layer?.unit || ""}`} defaultValue={layer?.unit || ""} list={listId} placeholder={tr("not stated")} onBlur={commit} onKeyDown={(e) => { if (e.key === "Enter") commit(e); }}
+        style={{ ...smallSel, width: 90 }} aria-label={tr("Unit of this log")} title={tr("The unit the readings are in: every label, axis and the 3D legend show it.")} />
+      <datalist id={listId}>{choices.map((u) => <option key={u} value={u} />)}</datalist>
+    </label>
+  );
+}
+
 // TASKS.csv #2401 (review #2325, WA uranium) — a blank code was an unlabelled group ('E3 78.4 ·  37.2 · QB 34.3'), and long code names were cut
 // at the left of the box plot ('gnesium_Clays', ':not logged)'): '(blank)' for an empty code, '(not logged)' as before, and a long name
 // shortened at its end (max characters) so its start stays readable
@@ -110,6 +127,8 @@ export default function DownholeLogsPane({ layers, customLayers = [], assays = [
   const [sourceKey, setSourceKey] = useKeptState(keptScope, "dhlogs.source", "");
   const source = sources.find((s) => s.key === sourceKey) || sources[0] || null;
   const data = useMemo(() => (source ? sourceAssays(source, { layers, customLayers }) : null), [source, layers, customLayers]);
+  const { setCustomLayers } = useStore(); // #2952 — the log's unit, typed in the pane
+  const logLayer = source?.layerId != null && source.field === "value" ? customLayers.find((c) => c.id === source.layerId) : null;
   const layerNotes = source?.layerId != null ? String(customLayers.find((c) => c.id === source.layerId)?.notes || "").trim() : ""; // TASKS.csv #2775
   const domains = useMemo(() => domainLayerChoices(layers, customLayers, (k) => tr(LAYER_META[k]?.label || k)), [layers, customLayers]);
   const [domainKey, setDomainKey] = useKeptState(keptScope, "dhlogs.domain", "");
@@ -166,6 +185,7 @@ export default function DownholeLogsPane({ layers, customLayers = [], assays = [
               {sources.map((s) => <option key={s.key} value={s.key}>{s.label} ({s.n.toLocaleString()})</option>)}
             </select></label>
           {data && <div style={note}>{tr(source?.binM ? "{n} bins of {b} m, in {u}{v}." : unitOf(source?.unit) ? "{n} readings, in {u}{v}." : "{n} readings, values as logged{v}.", { n: data.assays.length.toLocaleString(), b: source?.binM, u: unitOf(source?.unit) || tr("the layer's own units"), v: data.pointRows ? tr("; {p} depth-only readings are given {s} m of core each", { p: data.pointRows.toLocaleString(), s: data.pointSupport }) : "" })}</div>}
+          {logLayer && <LogUnitField layer={logLayer} onSet={(u) => setCustomLayers((p) => p.map((c) => (c.id === logLayer.id ? { ...c, unit: u || undefined } : c)))} />}{/* #2952 */}
           {layerNotes && <div style={{ ...note, color: "var(--color-text-muted)", whiteSpace: "pre-wrap" }}>{tr("Layer notes: {v}", { v: layerNotes })}</div>}{/* TASKS.csv #2775 — the import's notes (what was left out, where readings sit), as the 3D View's row shows them (#2432); English project text */}
           {overPct > 0 && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("{n} reading(s) are above 100 %, which a percentage cannot be: check them (Data QC lists them). They are drawn as logged.", { n: overPct.toLocaleString() })}</div>}{/* #2245 */}
           <label style={row}>{tr("By code of")}
