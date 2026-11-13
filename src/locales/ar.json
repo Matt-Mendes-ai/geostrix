@@ -11780,5 +11780,6 @@
   "Mean {el} ({unit})": "متوسط {el} ({unit})",
   "Mean {el}": "متوسط {el}",
   "{el} has a value in {p} % of this volume": "لـ{el} قيمة في {p} % من هذا الحجم",
-  "* the element has no value in part of that volume (its own estimate did not reach every block); the mean is over the blocks it has.": "* لا قيمة للعنصر في جزء من ذلك الحجم (لم يصل تقديره إلى كل الكتل)؛ والمتوسط محسوب على الكتل التي لها قيمة."
+  "* the element has no value in part of that volume (its own estimate did not reach every block); the mean is over the blocks it has.": "* لا قيمة للعنصر في جزء من ذلك الحجم (لم يصل تقديره إلى كل الكتل)؛ والمتوسط محسوب على الكتل التي لها قيمة.",
+  "Checking {n} holes… ({k} of {m})": "جارٍ فحص {n} ثقب… ({k} من {m})"
 }

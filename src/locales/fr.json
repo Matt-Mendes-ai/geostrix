@@ -11780,5 +11780,6 @@
   "Mean {el} ({unit})": "{el} moyen ({unit})",
   "Mean {el}": "{el} moyen",
   "{el} has a value in {p} % of this volume": "{el} a une valeur dans {p} % de ce volume",
-  "* the element has no value in part of that volume (its own estimate did not reach every block); the mean is over the blocks it has.": "* l'élément n'a pas de valeur dans une partie de ce volume (sa propre estimation n'a pas atteint tous les blocs) ; la moyenne porte sur les blocs qui en ont une."
+  "* the element has no value in part of that volume (its own estimate did not reach every block); the mean is over the blocks it has.": "* l'élément n'a pas de valeur dans une partie de ce volume (sa propre estimation n'a pas atteint tous les blocs) ; la moyenne porte sur les blocs qui en ont une.",
+  "Checking {n} holes… ({k} of {m})": "Vérification de {n} sondages… ({k} sur {m})"
 }

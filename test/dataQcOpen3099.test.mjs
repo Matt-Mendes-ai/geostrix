@@ -7,9 +7,9 @@ import fs from "node:fs";
 test("the dialog starts with no result, says it is checking, and runs the check after its first paint", () => {
   const s = fs.readFileSync(new URL("../src/components/DataQCModal.jsx", import.meta.url), "utf8");
   assert.match(s, /const \[ran, setResult\] = useState\(null\);/);
-  assert.match(s, /const f = requestAnimationFrame\(\(\) => \{ t = setTimeout\(\(\) => setResult\(runQC\(\)\), 0\); \}\);/);
+  assert.match(s, /const f = requestAnimationFrame\(\(\) => check\(\)\);/); // #3136: the sliced run, still after the first paint
   assert.match(s, /const result = ran \|\| NOT_YET;/);
   assert.match(s, /const NOT_YET = \{ issues: \[\], byCategory: new Map\(\), summary: \{\} \};/);
-  assert.match(s, /\{!ran && <div role="status"[^>]*>\{tr\("Checking \{n\} holes…", \{ n: \(collars \|\| \[\]\)\.length \}\)\}<\/div>\}/);
+  assert.match(s, /\{\(!ran \|\| progress\) && <div role="status"[^>]*>\{progress\?\.step \? tr\("Checking \{n\} holes… \(\{k\} of \{m\}\)"[^}]*\}\) : tr\("Checking \{n\} holes…", \{ n: \(collars \|\| \[\]\)\.length \}\)\}<\/div>\}/); // #3136: with the progress
   assert.doesNotMatch(s, /useState\(runQC\)/, "no longer computed before the first paint");
 });

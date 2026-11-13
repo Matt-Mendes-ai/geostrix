@@ -96,25 +96,29 @@ function validateCollars(collars, survey = []) { // survey: #2186
 }
 
 // ---- Survey / trajectory ----
-function validateSurveyAndTrajectory(collars, survey, { doglegWarn = 3, doglegError = 10 } = {}) {
+function* validateSurveyAndTrajectorySteps(collars, survey, { doglegWarn = 3, doglegError = 10 } = {}) { // TASKS.csv #3136 — pauses (yield) for the sliced run
   const issues = [];
+  let tick = 0;
   const collarIds = new Set(collars.map((c) => c.hole_id));
   const byHole = new Map();
-  survey.forEach((s) => {
+  for (const s of survey) {
+    if (++tick % ROW_STEP === 0) yield;
     if (!byHole.has(s.hole_id)) byHole.set(s.hole_id, []);
     byHole.get(s.hole_id).push(s);
-  });
+  }
   const orphanStations = new Map(); // TASKS.csv #1275 — one error per hole: 40 gyro stations gave 40 identical lines that buried the rest
-  survey.forEach((s) => {
+  for (const s of survey) {
+    if (++tick % ROW_STEP === 0) yield;
     if (!collarIds.has(s.hole_id)) orphanStations.set(s.hole_id, (orphanStations.get(s.hole_id) || 0) + 1);
     if (!Number.isFinite(s.depth) || s.depth < 0) pushIssue(issues, "error", "Survey", s.hole_id, tr("Survey station has an invalid depth ({depth}).", { depth: s.depth }));
     if (Number.isFinite(s.azimuth) && (s.azimuth < 0 || s.azimuth >= 360)) pushIssue(issues, "warning", "Survey", s.hole_id, tr("Survey azimuth {azimuth}° is outside 0–360° @ {depth}m.", { azimuth: s.azimuth, depth: s.depth }));
     if (Number.isFinite(s.dip) && (s.dip < -90 || s.dip > 90)) pushIssue(issues, "warning", "Survey", s.hole_id, tr("Survey dip {dip}° is outside -90–90° @ {depth}m.", { dip: s.dip, depth: s.depth }));
-  });
+  }
   orphanStations.forEach((n, id) => pushIssue(issues, "error", "Survey", id, tr("{n} survey stations for hole \"{hole_id}\", which has no matching collar: this hole cannot be desurveyed and won't render.{v}", { n, hole_id: id, v: didYouMean(collarIds, id) })));
   const lengthOf = new Map(collars.map((c) => [c.hole_id, Number(c.length)]));
   const collarOnly = []; // TASKS.csv #2335 — holes surveyed at the collar only (see below)
-  byHole.forEach((stations, holeId) => {
+  for (const [holeId, stations] of byHole) {
+    if (++tick % HOLE_STEP === 0) yield;
     const sorted = [...stations].sort((a, b) => a.depth - b.depth);
     // TASKS.csv #714 — a survey that stops well above the end of the hole: desurvey carries the last attitude on to
     // EOH (#338), and the trace, sections, exports and estimation samples below it all use that guess with no flag
@@ -157,7 +161,7 @@ function validateSurveyAndTrajectory(collars, survey, { doglegWarn = 3, doglegEr
         pushIssue(issues, dls > doglegError ? "error" : "warning", "Survey", holeId, tr("Dogleg {dl}° over {dMD} m between {depth} m and {depth2} m ({dls}°/30 m{v}, over {v2}°/30 m) — check for a typo or a bad shot, or a real deflection (wedge).", { dl: dl.toFixed(1), dMD: dMD.toFixed(1), depth: a.depth, depth2: b.depth, dls: dls.toFixed(1), v: dMD < 10 ? tr(", rated over 10 m") : "", v2: dls > doglegError ? doglegError : doglegWarn }));
       }
     }
-  });
+  }
   if (collarOnly.length) { // #2335 — one note for every hole with a collar station only
     const d = collarOnly.map((h) => h.eoh), steep = collarOnly.filter((h) => h.steep).length;
     pushIssue(issues, "info", "Survey", null, tr("{n} hole(s), {v} of them vertical, have a survey station at the collar only ({d1}-{d2} m deep): each is drawn straight at that attitude. Their path below the collar is not measured; a downhole survey would show any deviation.", { n: collarOnly.length, v: steep, d1: Math.round(arrMin(d)), d2: Math.round(arrMax(d)) }));
@@ -190,18 +194,20 @@ function validateSurveyAndTrajectory(collars, survey, { doglegWarn = 3, doglegEr
   // stored negative dip draws the hole upward. Right for an underground up-hole; for surface drilling it
   // almost always means the file's sign convention was picked wrongly on import.
   const collarById = new Map(collars.map((c) => [c.hole_id, c]));
+  yield;
   const upward = new Set();
   byHole.forEach((stations, holeId) => { if (stations.some((s) => Number.isFinite(s.dip) && s.dip < 0)) upward.add(holeId); });
   traceable.forEach((c) => { if (c.dip < 0) upward.add(c.hole_id); });
   upward.forEach((holeId) => pushIssue(issues, "warning", "Survey", holeId, tr("Points upward (a dip above horizontal). Correct for an underground up-hole; for surface drilling, re-import the survey/collars with the other dip sign convention.")));
   // TASKS.csv #339 — a survey deeper than the collar's end-of-hole depth: one of the two is wrong.
-  byHole.forEach((stations, holeId) => {
+  for (const [holeId, stations] of byHole) {
+    if (++tick % HOLE_STEP === 0) yield;
     const c = collarById.get(holeId);
     const maxDepth = arrMax(stations.map((s) => s.depth).filter(Number.isFinite));
     if (c && Number.isFinite(c.length) && c.length > 0 && maxDepth > c.length + 0.5) {
       pushIssue(issues, "warning", "Survey", holeId, tr("Survey goes to {maxDepth} m but the collar's end-of-hole depth is {c} m — one of them is wrong.", { maxDepth, c: c.length }));
     }
-  });
+  }
   return issues;
 }
 
@@ -275,12 +281,14 @@ export function importCheckSummary(rows, collars, survey, label = "rows", range 
 // TASKS.csv #1531 (review #1497, Lawyers) — range: { min, max } of a plausible value for the layer (RQD 0-110 %, recovery 0-110 %, SG
 // 1-6): a value outside it is reported with its hole and depth. 20 RQD values up to 295 %, recoveries up to 20,000 % (138 m keyed as
 // the recovery of a 1.5 m run) and an SG of -7.27 passed, then drove the numeric legends and classes.
-function validateIntervalLayer(rows, layerLabel, collarIds, holeLengths, { gaps = true, range = null } = {}) {
+function* validateIntervalLayerSteps(rows, layerLabel, collarIds, holeLengths, { gaps = true, range = null } = {}) { // #3136
   const issues = [];
+  let tick = 0;
   const orphans = new Map(); // TASKS.csv #1663 — rows of holes with no collar, counted per hole
   let multiValued = 0; // #1532
   const byHole = new Map();
-  rows.forEach((r) => {
+  for (const r of rows) {
+    if (++tick % ROW_STEP === 0) yield;
     if (!byHole.has(r.hole_id)) byHole.set(r.hole_id, []);
     byHole.get(r.hole_id).push(r);
     if (!collarIds.has(r.hole_id)) orphans.set(r.hole_id, (orphans.get(r.hole_id) || 0) + 1); // #1663 — once per hole, as #1275 did for survey
@@ -308,8 +316,9 @@ function validateIntervalLayer(rows, layerLabel, collarIds, holeLengths, { gaps 
     if (range && typeof r.value === "number" && Number.isFinite(r.value) && (r.value < range.min || r.value > range.max)) pushIssue(issues, "warning", layerLabel, r.hole_id, tr("Value {v} at {from}–{to}m is outside the plausible {min}–{max} range for {layer} — a keying or unit error?", { v: r.value, from: r.from, to: r.to, min: range.min, max: range.max, layer: layerLabel })); // #1531
     // #1395 — a 0 (0 % RQD, 0 % recovery) is a measurement, not a missing value: only blank, NaN or "Unknown" counts
     if (r.value == null || r.value === "" || (typeof r.value === "number" && !Number.isFinite(r.value)) || r.value === "Unknown") pushIssue(issues, "info", layerLabel, r.hole_id, tr("Interval at {v}–{v2}m has no code/value.", { v: Number.isFinite(r.from) ? r.from : "?", v2: Number.isFinite(r.to) ? r.to : "?" }));
-  });
-  byHole.forEach((intervals, holeId) => {
+  }
+  for (const [holeId, intervals] of byHole) {
+    if (++tick % HOLE_STEP === 0) yield;
     const sorted = [...intervals].filter((r) => Number.isFinite(r.from) && Number.isFinite(r.to)).sort((a, b) => a.from - b.from);
     // Bug-hunt pass: only comparing each interval to its immediate predecessor (sorted by `from`)
     // missed an interval fully NESTED inside an earlier, longer one when it didn't overlap its own
@@ -341,7 +350,7 @@ function validateIntervalLayer(rows, layerLabel, collarIds, holeLengths, { gaps 
       if (seen.has(key)) pushIssue(issues, "warning", layerLabel, holeId, tr("Duplicate interval {from}–{to}m ({value}) — likely imported twice.", { from: r.from, to: r.to, value: r.value }));
       seen.add(key);
     });
-  });
+  }
   if (multiValued) pushIssue(issues, "info", layerLabel, null, tr("{n} interval(s) repeat another's exact from–to with a different value: a log that records several values per run (e.g. vein types). Not counted as overlaps.", { n: multiValued }));
   orphans.forEach((n, id) => pushIssue(issues, "error", layerLabel, id, n === 1 ? tr("Interval references hole \"{hole_id}\", which has no matching collar.{v}", { hole_id: id, v: didYouMean(collarIds, id) }) : tr("{n} intervals reference hole \"{hole_id}\", which has no matching collar.{v}", { n, hole_id: id, v: didYouMean(collarIds, id) })));
   return issues;
@@ -370,24 +379,27 @@ function validatePointLayer(rows, layerLabel, collarIds, holeLengths) {
 // shape of checks as validateIntervalLayer (hole existence, from/to sanity, overlaps, duplicates) plus
 // per-element numeric sanity on `values`, since an assay row's payload (multiple element results) has
 // no equivalent in the single-`value` interval layers above.
-function validateAssays(assays, collarIds, holeLengths) {
+function* validateAssaysSteps(assays, collarIds, holeLengths) { // #3136
   const issues = [];
+  let tick = 0;
   const orphans = new Map(); // TASKS.csv #1663 — rows of holes with no collar, counted per hole
   const byHole = new Map();
   // TASKS.csv #261 — over-range (">x") assays are lab placeholders awaiting a re-assay, not results.
   // parseAssayValue now preserves them AT the detection ceiling (it used to fabricate 1.5x the
   // ceiling), and the importer records the qualifier, so this is where the user finally gets told.
   const overRange = new Map(); // symbol -> count
-  assays.forEach((a) => {
+  for (const a of assays) {
+    if (++tick % ROW_STEP === 0) yield;
     const q = a.qualifiers;
-    if (!q) return;
+    if (!q) continue;
     Object.keys(q).forEach((sym) => { if (q[sym] === ">") overRange.set(sym, (overRange.get(sym) || 0) + 1); });
-  });
+  }
   overRange.forEach((count, sym) => {
     pushIssue(issues, "warning", "Assays", null, tr(count === 1 ? "{count} {sym} assay value is over-range (reported by the lab as \">x\"). It is a placeholder that needs a re-assay before any estimation — GeoStrix uses it at exactly the detection ceiling x, which understates the true grade, and no cap or estimate built on it is defensible." : "{count} {sym} assay values are over-range (reported by the lab as \">x\"). These are placeholders that need a re-assay before any estimation — GeoStrix uses them at exactly the detection ceiling x, which understates the true grade, and no cap or estimate built on them is defensible.", { count, sym }));
   });
-  assays.forEach((a) => {
-    if (isMarkedQcRow(a)) return; // #601 — QC samples sit on a drill sample's interval or at a zero-length insertion point by design
+  for (const a of assays) {
+    if (++tick % ROW_STEP === 0) yield;
+    if (isMarkedQcRow(a)) continue; // #601 — QC samples sit on a drill sample's interval or at a zero-length insertion point by design
     // TASKS.csv #1695 (review #1645, Copley) — a pXRF reading on core is a zero-length point beside the lab intervals by design: 556
     // 'zero-length' and 551 'overlapping' warnings were all pXRF. They keep the per-row checks but are not intervals to overlap.
     const pxrf = a.source === "pXRF";
@@ -420,9 +432,10 @@ function validateAssays(assays, collarIds, holeLengths) {
         else if (Number.isFinite(v) && v < 0) pushIssue(issues, "warning", "Assays", a.hole_id, tr("{sym} value {v} at {from}–{to}m is negative — assay results shouldn't be below zero.", { sym, v, from: a.from, to: a.to }));
       });
     }
-  });
+  }
   { const px = assays.filter((a) => a.source === "pXRF" && !isMarkedQcRow(a)).length; if (px) pushIssue(issues, "info", "Assays", tr("all holes"), tr("{n} pXRF reading(s) are screening points on core, not assay intervals: the zero-length and overlap checks leave them out.", { n: px })); } // #1695
-  byHole.forEach((intervals, holeId) => {
+  for (const [holeId, intervals] of byHole) {
+    if (++tick % HOLE_STEP === 0) yield;
     const sorted = [...intervals].filter((a) => Number.isFinite(a.from) && Number.isFinite(a.to)).sort((a, b) => a.from - b.from);
     let maxEnd = -Infinity, maxEndOwner = null;
     for (let i = 0; i < sorted.length; i++) {
@@ -444,7 +457,7 @@ function validateAssays(assays, collarIds, holeLengths) {
         else pushIssue(issues, "warning", "Assays", holeId, tr("Duplicate assay interval {from}–{to}m — likely imported twice.", { from: a.from, to: a.to }));
       } else seen.set(key, a);
     });
-  });
+  }
   orphans.forEach((n, id) => pushIssue(issues, "error", "Assays", id, n === 1 ? tr("Assay interval references hole \"{hole_id}\", which has no matching collar.{v}", { hole_id: id, v: didYouMean(collarIds, id) }) : tr("{n} assay intervals reference hole \"{hole_id}\", which has no matching collar.{v}", { n, hole_id: id, v: didYouMean(collarIds, id) })));
   return issues;
 }
@@ -563,7 +576,27 @@ function validateCollarsVsTerrain(collars, terrain, threshold) {
   return issues;
 }
 
-export function runDataQC({ project, collars, survey, layers, boundaries, assays, terrain = null, terrainThreshold = 15, doglegWarn = 3, doglegError = 10, customLayers = [] }) { // customLayers: #2493
+// TASKS.csv #3136 (the rest of #3099, WA iron) — the check ran in one 1.1-2.4 s main-thread block: validateAssays (~0.9 s), the survey
+// checks (~0.8 s) and the litho interval checks (~0.3 s) were most of it. The three are generators that pause every ROW_STEP rows and
+// every HOLE_STEP holes; runDataQC drains them at once (the same result, synchronously), and runDataQCSliced runs them a slice at a time.
+const ROW_STEP = 4000, HOLE_STEP = 250;
+const drain = (g) => { let r = g.next(); while (!r.done) r = g.next(); return r.value; };
+// the interval layers checked, in order: [layer key, label, options]
+const INTERVAL_CHECKS = [
+  ["litho", "Lithology"],
+  ["alt", "Alteration"],
+  ["vein", "Vein", { gaps: false }],
+  ["breccia", "Breccia", { gaps: false }], // #608
+  ["weath", "Weathering", { gaps: false }], // #2162: logged over the profile only
+  ["structzone", "Structural zones", { gaps: false }], // #604: zones are logged where they occur
+  ["geotech", "Geotech", { range: PLAUSIBLE_RANGE.geotech }], // range: #1531
+  ["recovery", "Recovery %", { range: PLAUSIBLE_RANGE.recovery }],
+  ["sg", "Specific gravity", { gaps: false, range: PLAUSIBLE_RANGE.sg }],
+  ["litho_gc", "Litho (geochem-derived)"],
+  ["alt_gc", "Alteration (geochem-derived)"],
+];
+
+export function* runDataQCSteps({ project, collars, survey, layers, boundaries, assays, terrain = null, terrainThreshold = 15, doglegWarn = 3, doglegError = 10, customLayers = [] }) { // customLayers: #2493
   const collarIds = new Set(collars.map((c) => c.hole_id));
   // TASKS.csv #339 — end of hole = the DEEPER of the collar length and the last survey station. Letting the
   // survey win outright flagged every interval below the last shot (surveys usually stop short of EOH) as
@@ -571,33 +604,30 @@ export function runDataQC({ project, collars, survey, layers, boundaries, assays
   // #2167 — only for a hole with a collar and a length above 0 m (checkableHoleLengths)
   const holeLengths = new Map([...checkableHoleLengths(collars, survey)].map(([id, l]) => [id, l.length]));
 
-  const issues = [
-    ...validateProject(project),
-    ...validateCollars(collars, survey), // survey: #2186
-    ...validateCollarsVsTerrain(collars, terrain, terrainThreshold), // #558
-    ...validateSurveyAndTrajectory(collars, survey, { doglegWarn, doglegError }), // #545
-    ...validateIntervalLayer(layers.litho || [], "Lithology", collarIds, holeLengths),
-    ...validateIntervalLayer(layers.alt || [], "Alteration", collarIds, holeLengths),
-    ...validateIntervalLayer(layers.vein || [], "Vein", collarIds, holeLengths, { gaps: false }),
-    ...validateIntervalLayer(layers.breccia || [], "Breccia", collarIds, holeLengths, { gaps: false }), // #608
-    ...validateIntervalLayer(layers.weath || [], "Weathering", collarIds, holeLengths, { gaps: false }), // #2162: logged over the profile only
-    ...validateIntervalLayer(layers.structzone || [], "Structural zones", collarIds, holeLengths, { gaps: false }), // #604: zones are logged where they occur
-    ...validateIntervalLayer(layers.geotech || [], "Geotech", collarIds, holeLengths, { range: PLAUSIBLE_RANGE.geotech }), // range: #1531
-    ...validateIntervalLayer(layers.recovery || [], "Recovery %", collarIds, holeLengths, { range: PLAUSIBLE_RANGE.recovery }),
-    ...validateIntervalLayer(layers.sg || [], "Specific gravity", collarIds, holeLengths, { gaps: false, range: PLAUSIBLE_RANGE.sg }),
-    ...validateIntervalLayer(layers.litho_gc || [], "Litho (geochem-derived)", collarIds, holeLengths),
-    ...validateIntervalLayer(layers.alt_gc || [], "Alteration (geochem-derived)", collarIds, holeLengths),
-    ...validateAssays(assays || [], collarIds, holeLengths),
+  const step = (k) => ({ step: k, of: 5 }); // #3136 — the progress the sliced run reports: collars, survey, logs, assays, the rest
+  const parts = [];
+  parts.push(validateProject(project), validateCollars(collars, survey), validateCollarsVsTerrain(collars, terrain, terrainThreshold)); yield step(1);
+  parts.push(yield* validateSurveyAndTrajectorySteps(collars, survey, { doglegWarn, doglegError })); yield step(2); // #545
+  for (const [k, label, opt] of INTERVAL_CHECKS) { parts.push(yield* validateIntervalLayerSteps(layers[k] || [], label, collarIds, holeLengths, opt)); } yield step(3);
+  parts.push(yield* validateAssaysSteps(assays || [], collarIds, holeLengths)); yield step(4);
+  const tail1 = [
     ...validatePointLayer(layers.mnlgy || [], "Mineralization", collarIds, holeLengths),
     ...validatePointLayer(layers.magsusc || [], "Mag. susceptibility", collarIds, holeLengths),
     ...validatePointLayer(layers.structure || [], "Structure", collarIds, holeLengths),
     ...validateBoundaryTopology(boundaries || []),
+  ];
+  yield;
+  const tail2 = [
     // #1109 — calculator picks solved with a hole direction the survey no longer gives
     ...staleCalculatorPicks(collars, survey, layers.structure).map(({ pick, angle, now }) => ({ severity: "warning", category: tr("Core orientation calculator"), holeId: pick.hole_id,
       message: tr("The structure pick at {depth} m was calibrated with the hole at azimuth {az0}°, dip {dip0}°; the survey now gives {az1}°, {dip1}° ({angle}° apart), so its dip / dip direction is stale: re-enter it in the core orientation calculator.", { depth: Number(pick.depth).toFixed(1), az0: pick.hole_az_used.toFixed(1), dip0: pick.hole_dip_used.toFixed(1), az1: now.azimuth.toFixed(1), dip1: now.dip.toFixed(1), angle: angle.toFixed(1) }) })),
+  ];
+  yield;
+  const tail3 = [
     // TASKS.csv #2493 — holes missing from a layer most holes have, logs ending short of the hole, rows the imports left out (infos)
     ...coverageInfos({ collars, layers, assays: assays || [], lengths: checkableHoleLengths(collars, survey), project, customLayers }).map((i) => ({ severity: "info", ...i })),
   ];
+  const issues = [...parts.flat(), ...tail1, ...tail2, ...tail3];
 
   const summary = { error: 0, warning: 0, info: 0 };
   issues.forEach((i) => { summary[i.severity] = (summary[i.severity] || 0) + 1; });
@@ -607,6 +637,26 @@ export function runDataQC({ project, collars, survey, layers, boundaries, assays
     byCategory.get(i.category).push(i);
   });
   return { issues, summary, byCategory };
+}
+
+// the whole check at once (what it always was)
+export function runDataQC(args) { return drain(runDataQCSteps(args)); }
+// TASKS.csv #3136 — the same check a slice at a time (sliceMs of work, then the window paints and takes input), so the dialog stays
+// responsive; onProgress({ step, of }) after each stage; cancelled() -> true stops it (the promise then resolves null).
+export function runDataQCSliced(args, { sliceMs = 12, onProgress = null, cancelled = () => false } = {}) {
+  const g = runDataQCSteps(args);
+  return new Promise((resolve, reject) => {
+    const slice = () => {
+      if (cancelled()) { resolve(null); return; }
+      try {
+        const end = performance.now() + sliceMs;
+        let r;
+        do { r = g.next(); if (r.value && !r.done) onProgress?.(r.value); } while (!r.done && performance.now() < end);
+        if (r.done) resolve(r.value); else setTimeout(slice, 0);
+      } catch (e) { reject(e); }
+    };
+    setTimeout(slice, 0);
+  });
 }
 
 export { clampSeverityIcon as severityIcon };

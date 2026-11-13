@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { X, ShieldAlert, AlertTriangle, Info, RefreshCw, Download } from "./icons.js";
 import { useStore } from "../lib/store.jsx";
-import { runDataQC, collarTerrainOffsets, qcIssueRows } from "../lib/dataQC.js"; // qcIssueRows: #1111
+import { runDataQCSliced, collarTerrainOffsets, qcIssueRows } from "../lib/dataQC.js"; // qcIssueRows: #1111; Sliced: #3136
 import { saveFile } from "../lib/desktop.js";
 import { toExportCsv } from "../lib/tabular.js";
 import { stampLines, withStamp, stampEpsg } from "../lib/provenance.js";
@@ -47,11 +47,21 @@ export default function DataQCModal({ onCancel }) {
   const warnDeg = Number(doglegWarn) > 0 ? Number(doglegWarn) : 3;
   const qcArgs = () => ({ project, collars, survey, layers, boundaries, assays, terrain, customLayers, terrainThreshold: Number(terrainThreshold) > 0 ? Number(terrainThreshold) : 15, doglegWarn: warnDeg, doglegError: Math.max(10, warnDeg) });
   const ranWith = useRef(null); // TASKS.csv #1269 — the thresholds of the run on screen: the export's stamp must describe its issues, not the boxes
-  const runQC = () => { ranWith.current = { warnDeg, terrainThreshold: Number(terrainThreshold) > 0 ? Number(terrainThreshold) : 15 }; return runDataQC(qcArgs()); };
+  // TASKS.csv #3136 — the check runs a slice at a time (lib/dataQC.js runDataQCSliced): the window keeps painting and taking input, the
+  // status line says how far it is, and a newer run (Re-run, a snap to the terrain, closing the dialog) supersedes the one under way
+  const runGen = useRef(0);
+  const [progress, setProgress] = useState(null); // { step, of } while a run is under way
+  const check = () => {
+    const gen = ++runGen.current, thresholds = { warnDeg, terrainThreshold: Number(terrainThreshold) > 0 ? Number(terrainThreshold) : 15 };
+    setProgress({ step: 0, of: 5 });
+    runDataQCSliced(qcArgs(), { onProgress: (p) => { if (runGen.current === gen) setProgress(p); }, cancelled: () => runGen.current !== gen })
+      .then((r) => { if (r && runGen.current === gen) { ranWith.current = thresholds; setResult(r); setProgress(null); } }, (e) => { if (runGen.current === gen) { setProgress(null); console.error(e); } });
+  };
+  useEffect(() => () => { runGen.current++; }, []); // closed: the run under way stops
   // TASKS.csv #3099 (#2937, WA iron) — the check took 1.4 s (148,000 assays, 150,455 intervals) before the dialog appeared. It opens at once
   // with 'Checking …' and runs just after it is painted (a worker would first copy all those rows across, about as long as the check).
   const [ran, setResult] = useState(null);
-  useEffect(() => { let t; const f = requestAnimationFrame(() => { t = setTimeout(() => setResult(runQC()), 0); }); return () => { cancelAnimationFrame(f); clearTimeout(t); }; }, []); // after a frame: painted first
+  useEffect(() => { const f = requestAnimationFrame(() => check()); return () => cancelAnimationFrame(f); }, []); // after a frame: painted first
   const result = ran || NOT_YET;
   const terrainOff = useMemo(() => (terrain ? collarTerrainOffsets(collars, terrain).filter((o) => Math.abs(o.dz) > (Number(terrainThreshold) > 0 ? Number(terrainThreshold) : 15)) : []), [collars, terrain, terrainThreshold]);
   const snapToTerrain = () => {
@@ -62,7 +72,7 @@ export default function DataQCModal({ onCancel }) {
     rerunAfterSnap.current = true; // re-run once the new collars are in (an immediate re-run saw the old ones)
   };
   const rerunAfterSnap = useRef(false);
-  useEffect(() => { if (rerunAfterSnap.current) { rerunAfterSnap.current = false; setResult(runQC()); } }, [collars]);
+  useEffect(() => { if (rerunAfterSnap.current) { rerunAfterSnap.current = false; check(); } }, [collars]);
   const [filter, setFilter] = useState(new Set(["error", "warning", "info"]));
   const [categoryFilter, setCategoryFilter] = useState("all");
 
@@ -97,7 +107,7 @@ export default function DataQCModal({ onCancel }) {
         <div style={{ padding: "16px 16px 0", flexShrink: 0 }}>
           <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 12, lineHeight: 1.5 }}>{tr("Checks collar coordinates, survey trajectories, assay results, and every logged interval/point layer for the kinds of problems that quietly distort a modelled surface — before you get as far as modelling. Doesn't fix anything automatically; re-import or hand-correct the source data and re-run.")}</div>
 
-          {!ran && <div role="status" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 10 }}>{tr("Checking {n} holes…", { n: (collars || []).length })}</div>}{/* #3099 */}
+          {(!ran || progress) && <div role="status" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 10 }}>{progress?.step ? tr("Checking {n} holes… ({k} of {m})", { n: (collars || []).length, k: progress.step, m: progress.of }) : tr("Checking {n} holes…", { n: (collars || []).length })}</div>}{/* #3099; progress: #3136 */}
           <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
             {(["error", "warning", "info"]).map((sev) => {
               const meta = SEVERITY_META[sev];
@@ -156,7 +166,7 @@ export default function DataQCModal({ onCancel }) {
           )}
           <button onClick={exportIssues} disabled={!result.issues.length} style={{ ...rerunBtn, marginRight: 8, opacity: result.issues.length ? 1 : 0.5 }} title={tr("Save every issue (severity, category, hole, message) as a CSV, with the project, CRS, desurvey method and thresholds in its header")}>
             <Download size={14} />{" "}{tr("Export CSV")}</button>
-          <button onClick={() => setResult(runQC())} style={rerunBtn}>
+          <button onClick={check} disabled={!!progress} style={{ ...rerunBtn, opacity: progress ? 0.5 : 1 }}>
             <RefreshCw size={14} />{" "}{tr("Re-run")}</button>
         </div>
       </div>
