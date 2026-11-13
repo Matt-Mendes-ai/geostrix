@@ -6,8 +6,12 @@ import { seedBreaks, labLightness } from "../src/lib/colorRamp.js";
 
 test("Copley Cu: four classes, ore grade (> P97.5) on its own and darkest", () => {
   const b = seedBreaks({ min: 0.1, max: 19400, p50: 5.1, p90: 59.2, p975: 911.1 }, "#c0392b");
-  assert.deepEqual(b.map((x) => [x.label, x.max]), [["Low", 5.1], ["Medium", 59.2], ["High", 911.1], ["Very high", 19400]]);
-  assert.ok(labLightness(b[3].color) < labLightness(b[2].color));
+  // #3260 — P50 5.1 and P97.5 911 are over a decade apart: round log limits between them (the percentile classes below stand for a tighter spread)
+  assert.deepEqual(b.map((x) => x.max), [10, 30, 100, 300, 19400]);
+  assert.ok(labLightness(b[4].color) < labLightness(b[3].color), "the top class darkest");
+  const tight = seedBreaks({ min: 0.1, max: 400, p50: 30, p90: 80, p975: 120 }, "#c0392b"); // P97.5 / P50 = 4
+  assert.deepEqual(tight.map((x) => [x.label, x.max]), [["Low", 30], ["Medium", 80], ["High", 120], ["Very high", 400]]);
+  assert.ok(labLightness(tight[3].color) < labLightness(tight[2].color));
 });
 
 test("without a usable P97.5 the three classes stay as before", () => {

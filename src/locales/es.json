@@ -11910,5 +11910,6 @@
   "Off to start with above {n} pierce points: hover a pierce point for its hole id": "Desactivado al inicio con más de {n} puntos de perforación: pase el cursor sobre un punto para ver su sondaje",
   "Azimuth {v}° · looking {look} · {v2}{v3} · elevation in m": "Azimut {v}° · mirando hacia {look} · {v2}{v3} · elevación en m",
   "No value here: {n} pierce point (hollow ring)": "Sin valor aquí: {n} punto de perforación (anillo hueco)",
-  "No value here: {n} pierce points (hollow ring)": "Sin valor aquí: {n} puntos de perforación (anillo hueco)"
+  "No value here: {n} pierce points (hollow ring)": "Sin valor aquí: {n} puntos de perforación (anillo hueco)",
+  "Default classes: round limits on a log scale between the median ({p50}) and the 97.5th percentile ({p975}): {limits} {unit}.": "Clases por defecto: límites redondos en escala logarítmica entre la mediana ({p50}) y el percentil 97,5 ({p975}): {limits} {unit}."
 }

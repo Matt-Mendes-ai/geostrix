@@ -11910,5 +11910,6 @@
   "Off to start with above {n} pierce points: hover a pierce point for its hole id": "Desligado no início acima de {n} pontos de interseção: passe o cursor sobre um ponto para ver o furo",
   "Azimuth {v}° · looking {look} · {v2}{v3} · elevation in m": "Azimute {v}° · olhando para {look} · {v2}{v3} · elevação em m",
   "No value here: {n} pierce point (hollow ring)": "Sem valor aqui: {n} ponto de interseção (anel vazado)",
-  "No value here: {n} pierce points (hollow ring)": "Sem valor aqui: {n} pontos de interseção (anel vazado)"
+  "No value here: {n} pierce points (hollow ring)": "Sem valor aqui: {n} pontos de interseção (anel vazado)",
+  "Default classes: round limits on a log scale between the median ({p50}) and the 97.5th percentile ({p975}): {limits} {unit}.": "Classes padrão: limites redondos em escala logarítmica entre a mediana ({p50}) e o percentil 97,5 ({p975}): {limits} {unit}."
 }

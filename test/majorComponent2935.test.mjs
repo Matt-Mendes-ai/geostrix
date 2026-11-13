@@ -24,7 +24,7 @@ test("trace elements keep the percentile classes: ppm, or a % element with a low
   assert.equal(isMajorComponent({ min: 0, max: 12, p50: 0.8, unit: "%" }), false);
   assert.equal(isMajorComponent({ ...fe, unit: undefined }), false, "no unit known: as before");
   const cu = seedBreaks({ min: 0, max: 5000, p50: 50, p90: 400, p975: 1200, unit: "ppm" }, "#4a9be0");
-  assert.deepEqual(cu.map((x) => x.max), [50, 400, 1200, 5000]);
+  assert.deepEqual(cu.map((x) => x.max), [100, 300, 1000, 5000]); // #3260 — P50 50 / P97.5 1,200 span over a decade: round log limits, not round equal steps
 });
 
 test("wiring: the range carries the unit; Reset seeds; the chip's 'customized' ignores seeded classes; the dialog says round steps", () => {
