@@ -117,10 +117,13 @@ export function sameMapLayer(mapLayers, layer) {
 // TASKS.csv #2019 — what a drop on the Maps tab's map does with each file: rasters to the raster import, GIS vector files read here
 // (lines / polygons become Map layers; points, tables and multi-layer files go to the 3D view's import, which has the mapping dialog
 // and the layer picker), drillhole tables to the 3D view, anything else named.
+// TASKS.csv #2857 — a world file, .prj or Geosoft .xml with the name of a raster dropped with it goes with the raster (it was listed as
+// 'use Boundaries, Terrain or Web layers above')
 export function mapsDropRoutes(names) {
   const out = { raster: [], vector: [], table: [], other: [] };
+  const stem = (n) => String(n).replace(/\.[^.]+$/, "").toLowerCase(), rasterStems = new Set((names || []).filter((n) => /\.(tiff?|gxf|grd)$/i.test(n)).map(stem));
   for (const n of names || []) {
-    if (/\.(tiff?|gxf|grd)$/i.test(n)) out.raster.push(n);
+    if (/\.(tiff?|gxf|grd)$/i.test(n) || (/\.(tfw|tifw|tiffw|wld|prj|xml)$/i.test(n) && rasterStems.has(stem(n)))) out.raster.push(n);
     else if (/\.(shp|zip|gpkg|kml|kmz)$/i.test(n)) out.vector.push(n);
     else if (/\.(csv|xlsx|las|dxf)$/i.test(n)) out.table.push(n);
     else out.other.push(n);

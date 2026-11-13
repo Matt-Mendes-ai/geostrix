@@ -11445,5 +11445,11 @@
   "Opened on RTP: taken as magnetics from its name. Choose another filter above if it is not.": "Ouvert sur RTP : considéré comme magnétique d'après son nom. Choisissez un autre filtre ci-dessus si ce n'est pas le cas.",
   "{name} contours ({levels}{unit})": "Contours de {name} ({levels}{unit})",
   "\"{name}\" is already imported over the same area. Import it again?": "« {name} » est déjà importé sur la même zone. L'importer à nouveau ?",
-  "\"{name}\" was not imported again.": "« {name} » n'a pas été importé à nouveau."
+  "\"{name}\" was not imported again.": "« {name} » n'a pas été importé à nouveau.",
+  "The values span {n} decades: on this stretch most of the grid sits in the lowest colours.": "Les valeurs couvrent {n} décades : avec cet étirement, la plus grande partie de la grille reste dans les couleurs les plus basses.",
+  "Use a log scale": "Utiliser une échelle logarithmique",
+  "{p}% of the cells equal the minimum, {v}: a floor value (no response), not a low reading. ‘Histogram equalized’ spreads the colours over the rest.": "{p} % des cellules valent le minimum, {v} : une valeur plancher (pas de réponse), pas une lecture basse. « Histogramme égalisé » répartit les couleurs sur le reste.",
+  "{names}: a world file, .prj or Geosoft .xml on its own places nothing: select or drop it together with its raster (same name).": "{names} : un fichier de calage, un .prj ou un .xml Geosoft seul ne place rien : sélectionnez-le ou déposez-le avec son raster (même nom).",
+  " The world file \"{w}\" was not used: the TIFF's own georeferencing placed it ({m} m from where the world file would).": " Le fichier de calage « {w} » n'a pas été utilisé : le géoréférencement propre du TIFF l'a placé (à {m} m de là où le fichier l'aurait mis).",
+  " The world file \"{w}\" agrees with the TIFF's own georeferencing, which was used.": " Le fichier de calage « {w} » concorde avec le géoréférencement propre du TIFF, qui a été utilisé."
 }

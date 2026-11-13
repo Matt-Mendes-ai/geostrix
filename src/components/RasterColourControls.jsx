@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { RASTER_RAMPS, DEFAULT_RASTER_STYLE, rasterColourFields, rasterRange, decadesSpanned, signedGridHint, LOG_NONPOSITIVE_MAX, rangeValueText } from "../lib/rasterColour.js"; // rangeValueText: #2866 // signedGridHint: #2555
+import { RASTER_RAMPS, DEFAULT_RASTER_STYLE, rasterColourFields, rasterRange, decadesSpanned, signedGridHint, LOG_NONPOSITIVE_MAX, rangeValueText, floorShare, FLOOR_SHARE_MIN } from "../lib/rasterColour.js"; // rangeValueText: #2866; floorShare: #2851 // signedGridHint: #2555
 import { b64ToF32 } from "../lib/inversion.js";
 import { PALETTES, paletteShortName } from "../lib/layers.js"; // paletteShortName: #1859
 import { t as tr } from "../lib/i18n.js";
@@ -32,6 +32,7 @@ export default function RasterColourControls({ raster: r, onUpdate, inputStyle }
   };
   const stops = r.colourStops || [];
   const decades = useMemo(() => decadesSpanned(values), [values]); // #1857
+  const floor = useMemo(() => floorShare(values), [values]); // #2851 — a floor value
   const signed = useMemo(() => signedGridHint(values), [values]); // #2555 — a grid with values at or below zero: no log suggestion; a diverging ramp offered
   const unit = rasterUnitOf(r); // #1858
   const [unitText, setUnitText] = useState(null);
@@ -76,6 +77,13 @@ export default function RasterColourControls({ raster: r, onUpdate, inputStyle }
           <option value="custom">{tr("Typed range")}</option>
         </select>
       </div>
+      {decades > 1 && style.stretch !== "log" && (
+        <div style={{ ...row, color: "var(--color-text-caption)", fontSize: "var(--font-size-xs)" }}>{/* #2851 — the suggestion the Stretch list makes, one click away */}
+          <span>{tr("The values span {n} decades: on this stretch most of the grid sits in the lowest colours.", { n: decades.toFixed(1) })}</span>
+          <button type="button" style={{ ...inputStyle, cursor: "pointer", flexShrink: 0 }} onClick={() => apply({ stretch: "log" })}>{tr("Use a log scale")}</button>
+        </div>
+      )}
+      {floor && floor.share >= FLOOR_SHARE_MIN && <div style={{ marginTop: 4, fontSize: "var(--font-size-xs)", color: "var(--color-text-caption)", lineHeight: 1.35 }}>{tr("{p}% of the cells equal the minimum, {v}: a floor value (no response), not a low reading. ‘Histogram equalized’ spreads the colours over the rest.", { p: Math.round(floor.share * 100), v: rangeValueText(floor.min) })}</div>}{/* #2851 */}
       {signed.straddles && !(style.palette === "diverging" && style.stretch === "custom" && style.min === -style.max) && (
         <div style={{ ...row, color: "var(--color-text-caption)", fontSize: "var(--font-size-xs)" }}>{/* #2555 */}
           <span>{tr("The values run both sides of zero: a diverging ramp centred on zero shows highs and lows alike.")}</span>

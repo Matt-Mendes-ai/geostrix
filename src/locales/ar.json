@@ -11445,5 +11445,11 @@
   "Opened on RTP: taken as magnetics from its name. Choose another filter above if it is not.": "فُتح على RTP: اعتُبر مغناطيسيًا من اسمه. اختر مرشحًا آخر أعلاه إن لم يكن كذلك.",
   "{name} contours ({levels}{unit})": "خطوط كنتور {name} ({levels}{unit})",
   "\"{name}\" is already imported over the same area. Import it again?": "\"{name}\" مستورد بالفعل فوق المنطقة نفسها. هل تريد استيراده مرة أخرى؟",
-  "\"{name}\" was not imported again.": "لم يُستورد \"{name}\" مرة أخرى."
+  "\"{name}\" was not imported again.": "لم يُستورد \"{name}\" مرة أخرى.",
+  "The values span {n} decades: on this stretch most of the grid sits in the lowest colours.": "تمتد القيم على {n} عقود: بهذا التمديد يقع معظم الشبكة في أدنى الألوان.",
+  "Use a log scale": "استخدام مقياس لوغاريتمي",
+  "{p}% of the cells equal the minimum, {v}: a floor value (no response), not a low reading. ‘Histogram equalized’ spreads the colours over the rest.": "{p}% من الخلايا تساوي الحد الأدنى {v}: قيمة أرضية (لا استجابة)، لا قراءة منخفضة. «مدرج تكراري معادل» يوزع الألوان على الباقي.",
+  "{names}: a world file, .prj or Geosoft .xml on its own places nothing: select or drop it together with its raster (same name).": "{names}: ملف العالم أو ‎.prj أو ‎.xml من Geosoft وحده لا يضع شيئًا: اختره أو أفلته مع النقطية الخاصة به (الاسم نفسه).",
+  " The world file \"{w}\" was not used: the TIFF's own georeferencing placed it ({m} m from where the world file would).": " لم يُستخدم ملف العالم \"{w}\": وضعه الإسناد الجغرافي الخاص بملف TIFF (على بعد {m} م مما كان سيضعه الملف).",
+  " The world file \"{w}\" agrees with the TIFF's own georeferencing, which was used.": " يتطابق ملف العالم \"{w}\" مع الإسناد الجغرافي الخاص بملف TIFF، وهو المستخدم."
 }

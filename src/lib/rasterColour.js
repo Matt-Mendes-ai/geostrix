@@ -81,3 +81,15 @@ export function rasterColourFields(values, nx, ny, style) {
 // TASKS.csv #2866 (review GSC geophysics) — a range value at 4 significant figures: Number(v.toPrecision(4)).toLocaleString() then cut it to
 // 3 decimals (0.000478 read '0', 0.000574 '0.001'; the import notice and the Layout legend gave 0.000478)
 export const rangeValueText = (v) => (v == null || !Number.isFinite(v) ? "—" : v === 0 ? "0" : v.toLocaleString(undefined, { maximumSignificantDigits: 4 }));
+
+// TASKS.csv #2851 (review GSC geophysics) — the share of the valid cells exactly at the grid's minimum (tau: 44.8 % at 46, the instrument's
+// floor): when large, that colour is 'no response', not a low reading. -> { share, min, n } or null
+export const FLOOR_SHARE_MIN = 0.2;
+export function floorShare(values) {
+  let min = Infinity, n = 0;
+  for (const v of values || []) if (Number.isFinite(v)) { n++; if (v < min) min = v; }
+  if (!n) return null;
+  let at = 0;
+  for (const v of values) if (v === min) at++;
+  return { share: at / n, min, n };
+}
