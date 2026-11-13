@@ -11966,5 +11966,21 @@
   "{n} chosen, all hidden (the eye)": "{n} مختار، جميعها مخفية (العين)",
   "Filter holes… ({examples})": "تصفية الثقوب… ({examples})",
   "Off to start with above {n} pierce points: hover a pierce point for its hole id": "معطّل في البداية فوق {n} نقطة اختراق: مرّر المؤشر فوق نقطة لترى معرّف ثقبها",
-  "Azimuth {v}° · looking {look} · {v2}{v3} · elevation in m": "السمت {v}° · النظر نحو {look} · {v2}{v3} · الارتفاع بالمتر"
+  "Azimuth {v}° · looking {look} · {v2}{v3} · elevation in m": "السمت {v}° · النظر نحو {look} · {v2}{v3} · الارتفاع بالمتر",
+  "Per-mineral layers": "طبقات لكل معدن",
+  "These columns are a visual per cent of each interval, one per mineral. Each ticked column becomes its own numeric layer of intervals, in % (visual), named after the column; an interval with no value of that mineral is simply not in its layer. Untick all to import the Value column above instead.": "هذه الأعمدة نسبة مئوية مقدّرة بالعين لكل فترة، عمود لكل معدن. يصبح كل عمود محدَّد طبقة رقمية خاصة به من الفترات، بوحدة % (بصري)، باسم العمود؛ والفترة التي لا قيمة فيها لذلك المعدن ليست في طبقته ببساطة. ألغِ تحديد الكل لاستيراد عمود القيمة أعلاه بدلًا من ذلك.",
+  "Import {col} as a layer": "استيراد {col} كطبقة",
+  "{n} interval(s), up to {max} %": "{n} فترة، حتى {max} %",
+  "with {style}": "مع {style}",
+  "Left out, with no value in any row: {cols}.": "مستبعدة، لا قيمة لها في أي صف: {cols}.",
+  "Total sulphides (optional)": "مجموع الكبريتيدات (اختياري)",
+  "Tick the columns that are sulphides to add a layer of their total per interval (a blank column counts as none logged). Nothing is assumed: which minerals count is your choice.": "حدّد الأعمدة التي هي كبريتيدات لإضافة طبقة بمجموعها لكل فترة (العمود الفارغ يُحسب كأن لا شيء مسجَّل). لا يُفترض شيء: اختيار المعادن التي تُحسب يعود إليك.",
+  "Count {col} as a sulphide": "احتساب {col} ككبريتيد",
+  "Tick at least two columns for a total.": "حدّد عمودين على الأقل للحصول على مجموع.",
+  "Adds the layer \"{name}\".": "يضيف الطبقة \"{name}\".",
+  "total of {cols}": "مجموع {cols}",
+  "{fileName}: nothing was added: no interval has a per-cent value in the ticked columns.": "{fileName}: لم يُضَف شيء: لا توجد فترة لها قيمة مئوية في الأعمدة المحدَّدة.",
+  "{fileName}: {n} layer(s) of visual per cent (one per mineral column) imported: {list}. The first is shown; the others are in the Layers list.": "{fileName}: استُوردت {n} طبقة من النسبة المئوية البصرية (طبقة لكل عمود معدن): {list}. تُعرض الأولى؛ والبقية في قائمة الطبقات.",
+  "{n} value(s) below 0 or over 100 % were left out.": "استُبعدت {n} قيمة أقل من 0 أو أعلى من 100 %.",
+  "{cols}: values a thousandfold apart from \"{header}\" read in the same unit: one of them is not in the unit its name says. Check before ticking.": "{cols}: قيم تبعد ألف ضعف عن \"{header}\" مقروءة بالوحدة نفسها: أحد العمودين ليس بالوحدة التي يذكرها اسمه. تحقّق قبل التحديد."
 }

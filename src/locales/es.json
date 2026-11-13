@@ -11966,5 +11966,21 @@
   "{n} chosen, all hidden (the eye)": "{n} elegido(s), todos ocultos (el ojo)",
   "Filter holes… ({examples})": "Filtrar sondajes… ({examples})",
   "Off to start with above {n} pierce points: hover a pierce point for its hole id": "Desactivado al inicio con más de {n} puntos de perforación: pase el cursor sobre un punto para ver su sondaje",
-  "Azimuth {v}° · looking {look} · {v2}{v3} · elevation in m": "Azimut {v}° · mirando hacia {look} · {v2}{v3} · elevación en m"
+  "Azimuth {v}° · looking {look} · {v2}{v3} · elevation in m": "Azimut {v}° · mirando hacia {look} · {v2}{v3} · elevación en m",
+  "Per-mineral layers": "Capas por mineral",
+  "These columns are a visual per cent of each interval, one per mineral. Each ticked column becomes its own numeric layer of intervals, in % (visual), named after the column; an interval with no value of that mineral is simply not in its layer. Untick all to import the Value column above instead.": "Estas columnas son un porcentaje visual de cada intervalo, una por mineral. Cada columna marcada se convierte en su propia capa numérica de intervalos, en % (visual), con el nombre de la columna; un intervalo sin valor de ese mineral simplemente no está en su capa. Desmarque todas para importar en su lugar la columna Valor de arriba.",
+  "Import {col} as a layer": "Importar {col} como capa",
+  "{n} interval(s), up to {max} %": "{n} intervalo(s), hasta {max} %",
+  "with {style}": "con {style}",
+  "Left out, with no value in any row: {cols}.": "Omitidas, sin valor en ninguna fila: {cols}.",
+  "Total sulphides (optional)": "Sulfuros totales (opcional)",
+  "Tick the columns that are sulphides to add a layer of their total per interval (a blank column counts as none logged). Nothing is assumed: which minerals count is your choice.": "Marque las columnas que son sulfuros para agregar una capa con su total por intervalo (una columna vacía cuenta como nada registrado). No se supone nada: usted elige qué minerales cuentan.",
+  "Count {col} as a sulphide": "Contar {col} como sulfuro",
+  "Tick at least two columns for a total.": "Marque al menos dos columnas para un total.",
+  "Adds the layer \"{name}\".": "Agrega la capa \"{name}\".",
+  "total of {cols}": "total de {cols}",
+  "{fileName}: nothing was added: no interval has a per-cent value in the ticked columns.": "{fileName}: no se agregó nada: ningún intervalo tiene un valor en porcentaje en las columnas marcadas.",
+  "{fileName}: {n} layer(s) of visual per cent (one per mineral column) imported: {list}. The first is shown; the others are in the Layers list.": "{fileName}: se importaron {n} capa(s) de porcentaje visual (una por columna de mineral): {list}. Se muestra la primera; las demás están en la lista de Capas.",
+  "{n} value(s) below 0 or over 100 % were left out.": "Se omitieron {n} valor(es) por debajo de 0 o por encima del 100 %.",
+  "{cols}: values a thousandfold apart from \"{header}\" read in the same unit: one of them is not in the unit its name says. Check before ticking.": "{cols}: valores mil veces distintos de \"{header}\" leídos en la misma unidad: una de las columnas no está en la unidad que dice su nombre. Revíselo antes de marcar."
 }

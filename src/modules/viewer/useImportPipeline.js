@@ -60,6 +60,11 @@ const AZ_TARGETS = new Set(["collars", "survey", "structure"]); // TASKS.csv #16
 // TASKS.csv #2886 — the dip column whose signs decide the pre-selected convention (collars and surveys)
 const dipColOf = (target, mapping) => (target === "collars" || target === "survey" ? mapping?.dip || null : null);
 
+// TASKS.csv #3205 — the per-mineral layers' rules (lib/perMineralColumns.js), loaded on demand before a commit that may need them (a Mineralization
+// or Custom interval table): kept here, not in the import's data, which a database import saves as its choices
+let perMineralLib = null;
+const loadPerMineral = async (target) => { if (!perMineralLib && (target === "mnlgy" || target === "custom")) { try { perMineralLib = await import("../../lib/perMineralColumns.js"); } catch { /* offline chunk: the import goes on without the per-mineral layers */ } } };
+
 export function useImportPipeline(ctx) {
   const { addVoxelModel, fillCodeDictionary, recordImportLeftOut, assays: storeAssays } = useStore(); // assays: #3039 // #2632; fillCodeDictionary: #2163; recordImportLeftOut: #2493
   const {
@@ -399,7 +404,9 @@ export function useImportPipeline(ctx) {
     const logChans = logChannelsFor(target, Object.keys(allRows[0] || {}), allRows, mapping, data.logChannels); // #2160 — the channels are the values
     // TASKS.csv #2891 — Recovery % with no Value column: computed from core loss (or recovered length) and the drilled run, unless declined
     const recCalc = target === "recovery" && !mapping.value && !data.recoveryCalcOff ? recoveryColumns(Object.keys(allRows[0] || {})) : null;
-    const missing = schema.fields.filter((f) => f.required && !mapping[f.key] && !(logChans && f.key === "value") && !(recCalc && f.key === "value"));
+    // TASKS.csv #3205 — a log in visual per cent per mineral: one layer per ticked mineral column (and the opt-in sulphide total); no Value needed
+    const minPlan = !logChans && perMineralLib ? perMineralLib.mineralPlan(target, data.headers || Object.keys(allRows[0] || {}), allRows, mapping, data) : null;
+    const missing = schema.fields.filter((f) => f.required && !mapping[f.key] && !(logChans && f.key === "value") && !(recCalc && f.key === "value") && !(minPlan && f.key === "value"));
     if (missing.length) { setNotices((p) => [...p, notice("{fileName}: map required field(s) — {v}", { fileName, v: missing.map((f) => f.label).join(", ") })]); return false; }
     // TASKS.csv #1963 — a table pulled from a database: its record (profile, schema, table, these choices) for "Reload from database"
     if (dbSource?.profile && setDbImports) { const rec = dbImportRecord(data, dbSource, target); if (rec) setDbImports((prev) => upsertDbImport(prev, rec)); }
@@ -734,6 +741,22 @@ export function useImportPipeline(ctx) {
       { const holes = new Set(rows.map((r) => r.hole_id)), saved = (importStateRef.current.layers?.structure || []).filter((r) => isDerivedPick(r) && holes.has(r.hole_id)).length; if (saved) setNotices((p) => [...p, tr("{saved} pick(s) from the Core orientation calculator were kept in these holes.", { saved })]); } // #1234
       setLayerVisible((p) => ({ ...p, structure: true }));
       setNotices((p) => [...p, appendNotice(notice("Loaded {rows} structure points from {fileName}.", { rows: rows.length, fileName }), skippedRowsText(stDropped, allRows.length))]); // #1070
+    } else if (minPlan) {
+      // TASKS.csv #3205 (Matt's decision 2026-11-13) — one numeric interval custom layer per mineral column, in % (visual), named after the
+      // column; an interval with no value of a mineral is not in its layer (not a 'blank code'); its style column rides along as text
+      const { layers: mLayers, made, outside } = perMineralLib.perMineralLayers(allRows, mapping, minPlan, fileName, (cols) => tr("total of {cols}", { cols: cols.join(" + ") }));
+      mLayers.forEach((l, k) => {
+        const id = `custom_${Date.now()}_${k}`;
+        const group = new THREE.Group(); group.name = id;
+        layerGroupsRef.current[id] = group;
+        sceneRef.current.getObjectByName("root").add(group);
+        setCustomLayers((p) => [...p, { id, name: l.name, rows: l.rows, group, unit: perMineralLib.UNIT, notes: l.notes }]);
+        setCustomVisible((p) => ({ ...p, [id]: k === 0 }));
+      });
+      if (!made.length) setNotices((p) => [...p, errorNotice(tr("{fileName}: nothing was added: no interval has a per-cent value in the ticked columns.", { fileName }))]);
+      else setNotices((p) => [...p, tr("{fileName}: {n} layer(s) of visual per cent (one per mineral column) imported: {list}. The first is shown; the others are in the Layers list.", { fileName, n: made.length, list: made.join(", ") })
+        + (minPlan.blank.length ? " " + tr("Left out, with no value in any row: {cols}.", { cols: minPlan.blank.join(", ") }) : "")
+        + (outside ? " " + tr("{n} value(s) below 0 or over 100 % were left out.", { n: outside.toLocaleString() }) : "")]);
     } else if (logChans) {
       // TASKS.csv #2160 (Matt's decision 2026-11-09) — a downhole log: one numeric layer per ticked channel, the unit from the column
       // name; binned (mean, min, max per bin) when chosen, which the dialog proposes when the readings would not fit
@@ -898,6 +921,7 @@ export function useImportPipeline(ctx) {
   };
   const commitImportOnce = async () => {
     await askCrsForCollars(importModal); // #615
+    await loadPerMineral(importModal.target); // #3205
     if (importModal.azimuthRef === "magnetic") { try { await loadIgrf(); } catch { /* offline chunk load failed: the conversion reports the holes it couldn't convert */ } } // #552
     // TASKS.csv #412 — feet and local mine grid are applied to the raw rows before the normal import.
     let modalData = importModal;
@@ -1297,6 +1321,7 @@ export function useImportPipeline(ctx) {
   // committed through the same dialog choices; assay tables go back through Geochem's commit. Says what each table gave.
   const reloadDbImports = async () => {
     const recs = dbImports || [];
+    for (const rec of recs) await loadPerMineral(rec.target); // #3205 — a per-mineral import reloads as one
     if (!recs.length) { setNotices((p) => [...p, notice("Nothing to reload: no layer of this project was imported from a database yet (Browser panel > a database table, or Database on the ribbon).")]); return; }
     if (!connectDb) return;
     const lines = [];

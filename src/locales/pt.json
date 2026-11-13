@@ -11966,5 +11966,21 @@
   "{n} chosen, all hidden (the eye)": "{n} escolhido(s), todos ocultos (o olho)",
   "Filter holes… ({examples})": "Filtrar furos… ({examples})",
   "Off to start with above {n} pierce points: hover a pierce point for its hole id": "Desligado no início acima de {n} pontos de interseção: passe o cursor sobre um ponto para ver o furo",
-  "Azimuth {v}° · looking {look} · {v2}{v3} · elevation in m": "Azimute {v}° · olhando para {look} · {v2}{v3} · elevação em m"
+  "Azimuth {v}° · looking {look} · {v2}{v3} · elevation in m": "Azimute {v}° · olhando para {look} · {v2}{v3} · elevação em m",
+  "Per-mineral layers": "Camadas por mineral",
+  "These columns are a visual per cent of each interval, one per mineral. Each ticked column becomes its own numeric layer of intervals, in % (visual), named after the column; an interval with no value of that mineral is simply not in its layer. Untick all to import the Value column above instead.": "Estas colunas são uma porcentagem visual de cada intervalo, uma por mineral. Cada coluna marcada vira sua própria camada numérica de intervalos, em % (visual), com o nome da coluna; um intervalo sem valor desse mineral simplesmente não está na camada dele. Desmarque todas para importar a coluna Valor acima.",
+  "Import {col} as a layer": "Importar {col} como camada",
+  "{n} interval(s), up to {max} %": "{n} intervalo(s), até {max} %",
+  "with {style}": "com {style}",
+  "Left out, with no value in any row: {cols}.": "Deixadas de fora, sem valor em nenhuma linha: {cols}.",
+  "Total sulphides (optional)": "Sulfetos totais (opcional)",
+  "Tick the columns that are sulphides to add a layer of their total per interval (a blank column counts as none logged). Nothing is assumed: which minerals count is your choice.": "Marque as colunas que são sulfetos para adicionar uma camada com o total delas por intervalo (uma coluna vazia conta como nada registrado). Nada é presumido: quais minerais contam é escolha sua.",
+  "Count {col} as a sulphide": "Contar {col} como sulfeto",
+  "Tick at least two columns for a total.": "Marque pelo menos duas colunas para um total.",
+  "Adds the layer \"{name}\".": "Adiciona a camada \"{name}\".",
+  "total of {cols}": "total de {cols}",
+  "{fileName}: nothing was added: no interval has a per-cent value in the ticked columns.": "{fileName}: nada foi adicionado: nenhum intervalo tem um valor em porcentagem nas colunas marcadas.",
+  "{fileName}: {n} layer(s) of visual per cent (one per mineral column) imported: {list}. The first is shown; the others are in the Layers list.": "{fileName}: {n} camada(s) de porcentagem visual (uma por coluna de mineral) importada(s): {list}. A primeira é mostrada; as outras estão na lista de Camadas.",
+  "{n} value(s) below 0 or over 100 % were left out.": "{n} valor(es) abaixo de 0 ou acima de 100 % foram deixados de fora.",
+  "{cols}: values a thousandfold apart from \"{header}\" read in the same unit: one of them is not in the unit its name says. Check before ticking.": "{cols}: valores mil vezes diferentes de \"{header}\" lidos na mesma unidade: uma das colunas não está na unidade que o nome diz. Verifique antes de marcar."
 }

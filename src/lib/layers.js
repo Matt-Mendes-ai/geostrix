@@ -234,7 +234,10 @@ const ROLE_PATTERNS = [
 // NPRC 'shotcrete' / 'cement!' / 'core not present', NLST 'tray thrown out') were all 'stratigraphic', so 36 % of a unit's run starts sat
 // under them as false tops. Read from the notes, never from a code prefix (V*, B*, N* mean other things on other deposits).
 const NOTE_RULES = [
-  [/\b(lost core|core loss|no (core )?recovery|tricone|pre-?collar|casing|shotcrete|cement|not present|thrown out)\b/, "no recovery"], // shotcrete…: #2227
+  // shotcrete…: #2227. TASKS.csv #3254 (#3195, Galore Creek modelling) — not the bare word 'cement': a breccia's notes describe its cement ('silica
+  // cement', 'cemented by tourmaline'), and code B (145 intervals) was read as no recovery and ignored by the modelling tools. Cement is no
+  // recovery when the note is only that ('cement!', the WA log's), or a cement plug / grout in the hole.
+  [/\b(lost core|core loss|no (core )?recovery|tricone|pre-?collar|casing|shotcrete|not present|thrown out|cement(ed)? (plug|grout)|grout(ed)?)\b|^\W*(cement|concrete)\W*$/, "no recovery"],
   [/\b(fault breccia|fault gouge|flt (breccia|bx|gouge)|gouge)\b/, "fault"], // Woodjam UTB 'fault breccia', UTG 'flt gouge'
   [/\b(shear( zone)?|sz|fault zone)\b/, "fault"], // #2227 — a shear zone cuts the pile like a fault (BSZ 'carbonate veins within the shear')
   [/\b(dykes?|dikes?)\b/, "dyke"],
