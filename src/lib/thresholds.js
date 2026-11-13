@@ -28,6 +28,7 @@ import { isLabMetaField, fieldLabel } from "./labMetaFields.js"; // TASKS.csv #1
 import { pointInRings } from "./mapLayers.js";
 import { quantileSorted, median, sortedWeighted } from "./arrayStats.js"; // TASKS.csv #1114; sortedWeighted: #2910
 import { codeIndex, codeAt, NO_CODE } from "./sampleLithology.js"; // TASKS.csv #2510
+import { histogramWantsLog, convertUnit } from "./geochem.js"; // TASKS.csv #3070 — Grade stats' scale rule (#2912)
 
 const LN10 = Math.log(10);
 const log10 = (v) => Math.log(v) / LN10;
@@ -141,6 +142,28 @@ export const THRESHOLD_METHODS = [
   { id: "tukey", label: "Tukey upper fence (log)", ref: "Tukey 1977", assumption: "Robust: Q3 + 1.5 × IQR of log values." },
   { id: "probbreak", label: "Probability-plot break", ref: "Sinclair 1976", assumption: "Suggested bend between two populations; check it on the plot." },
 ];
+// TASKS.csv #3070 (split from #2912, review #2876 WA iron) — the rules worked out on log10 values. On Fe of an iron ore (20-65 %) Thresholds
+// drew 'log10 Fe' and offered Mean + 2 SD (log) = 87 %: a percentage-scale major is not log-normal, and these rules assume it is.
+export const LOG_RULES = new Set(["mean2sd", "median2mad", "tukey", "probbreak"]);
+// The scale an element is read on: "linear" for a major element (median at least 1 % in its unit) whose values Grade stats reads on
+// arithmetic axes (histogramWantsLog: not skewed, or a quarter or more of the way up a wide range); "log" for everything else, so a trace
+// element keeps the log rules whatever its range. pops: populations() output (positive values only); unit: the element's stored unit.
+export function thresholdScale(pops, unit) {
+  let n = 0;
+  for (const p of pops || []) n += p.summary?.sorted?.length || 0;
+  if (!n) return "log";
+  const all = new Float64Array(n);
+  let k = 0, sum = 0;
+  for (const p of pops) for (const v of p.summary?.sorted || []) { all[k++] = v; sum += v; }
+  all.sort();
+  const med = n % 2 ? all[(n - 1) / 2] : (all[n / 2 - 1] + all[n / 2]) / 2;
+  const medPct = convertUnit(med, unit || "ppm", "%");
+  if (!(medPct >= 1)) return "log";
+  const mean = sum / n;
+  let ss = 0; for (let i = 0; i < n; i++) ss += (all[i] - mean) ** 2;
+  const cv = n > 1 && mean > 0 ? (100 * Math.sqrt(ss / (n - 1))) / mean : 0;
+  return histogramWantsLog({ sorted: all, cv }) ? "log" : "linear";
+}
 export const MIN_N_BREAKS = 30; // the two-segment fits need enough points on each side to mean anything
 export const MIN_N_ROBUST = 10;
 
