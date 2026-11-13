@@ -121,6 +121,8 @@
   "Inversion": "النمذجة العكسية",
   "Lab certificates": "شهادات المختبر",
   "Legend": "مفتاح الرموز",
+  "This frame keeps the view you set in 'Enter & adjust view': Refresh, Fit and a scale change use it.": "يحتفظ هذا الإطار بالمنظر الذي ضبطته في 'الدخول وضبط المنظر': يستخدمه التحديث والملاءمة وتغيير المقياس.",
+  "Use the live 3D View again": "استخدم المنظر ثلاثي الأبعاد الحالي مجددًا",
   "Left out of the mass balance: {list} (loss on ignition is a property of the sample, not an element).": "مستبعد من موازنة الكتلة: {list} (الفقد بالحرق خاصية للعينة، لا عنصر).",
   "{n} sample(s) hold an LOI over 60 %: no rock loses that much on ignition, so these are probably empty or failed samples.": "{n} عينة لديها فقد بالحرق يتجاوز 60 %: لا تفقد أي صخرة هذا القدر بالحرق، فهي على الأرجح عينات فارغة أو فاشلة.",
   "{symbol} is sold per tonne at a price for a reference grade, with penalties for the other elements, not as a sum of payable metals: no metal equivalent is offered.": "يُباع {symbol} بالطن بسعر لمحتوى مرجعي، مع غرامات على العناصر الأخرى، لا كمجموع معادن مدفوعة: لا يُعرض مكافئ فلزي.",
