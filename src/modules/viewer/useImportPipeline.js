@@ -703,7 +703,7 @@ export function useImportPipeline(ctx) {
         const nd = data.logKeepNoData ? null : channelNoData(allRows, col, unitFromHeader(col)); // #2332 — no-data codes left out unless kept
         const out = logChannelRows(allRows, mapping, col, binM, nd?.values || null);
         if (!out.rows.length) return;
-        const unit = unitFromHeader(col);
+        const unit = String(data.logUnits?.[col] ?? unitFromHeader(col)).trim(); // TASKS.csv #2952 — the unit typed beside the channel in the import (side 2, agreed with Main)
         const id = `custom_${Date.now()}_${k}`;
         const group = new THREE.Group(); group.name = id;
         layerGroupsRef.current[id] = group;
