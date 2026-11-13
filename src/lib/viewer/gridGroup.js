@@ -8,7 +8,7 @@
 // northing and RL labels in the project's own metres (local numbers, no CRS claim).
 import * as THREE from "three";
 import { gridWallHeight, drillDepthBelowOrigin } from "./gridDepth.js";
-import { collarsLookUnderground } from "../pitShell.js";
+import { collarsLookUnderground } from "../collarGround.js"; // TASKS.csv #3159: not pitShell.js, which put the pit solver in startup
 import { makeTextSprite } from "./textSprite.js";
 
 // -> { depth (m below the origin the drilling reaches), lift (m the plane sits above the origin), origin { x, y, z } (the mean collar, the

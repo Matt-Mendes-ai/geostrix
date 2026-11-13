@@ -98,10 +98,8 @@ export function claimsFromVector(result, baseName, max = 300) {
   });
 }
 
-// TASKS.csv #1466 (review #1352, Silvertip) — a boundary that can stand for an area: at least one ring of three points or more that is not
-// flagged open. Contours, streams, survey lines and roads are open lines: the terrain / imagery area lists and Select by location skip them.
-// A contour layer (contourLevels) is never an area, even where a level closes on itself.
-export const isAreaBoundary = (b) => !(b?.contourLevels || []).length && (b?.polylines || []).some((l, i) => (l?.length || 0) >= 3 && b.closedFlags?.[i] !== false);
+// TASKS.csv #1466 — isAreaBoundary (a boundary that can stand for an area): in areaBoundary.js since TASKS.csv #3159, re-exported here.
+export { isAreaBoundary } from "./areaBoundary.js";
 
 // TASKS.csv #2684 — the CRS part of vectorToBoundaryPolylines, shared with the DXF / PLY routes when a Source CRS is chosen. src: the file's
 // own EPSG (null when it states none); prjWkt: its .prj text; box: its [xmin, ymin, xmax, ymax] (or a function giving it), for the mine-grid

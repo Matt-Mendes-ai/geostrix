@@ -15,7 +15,7 @@ import { buildAdaptiveTerrain } from "../terrainMesh.js"; // TASKS.csv #796
 import { keyedCanvas } from "../rasterKey.js"; // TASKS.csv #1623
 import { contourLabelSpots, indexLevels } from "../contourLabels.js"; // TASKS.csv #1466 / #1622
 import { makeTextSprite } from "./textSprite.js"; // TASKS.csv #1466 / #1622
-import { collarGround } from "../pitShell.js"; // TASKS.csv #2447
+import { collarGround } from "../collarGround.js"; // TASKS.csv #2447; #3159: not pitShell.js, which put the pit solver in startup
 import { DRAW_ORDER } from "./drawOrder.js"; // TASKS.csv #2776
 
 // TASKS.csv #2447 / #2576 (reviews #2325 / #2486) — a raster drawn on the collar surface (drapeMode "collars", a project with no terrain): a

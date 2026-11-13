@@ -8,9 +8,9 @@ import { lineScaleOf } from "./structureSymbols.js"; // TASKS.csv #3091
 import { LAYER_META, CATEGORICAL_SAFE_COLORS, colorForMedium } from "./layers.js";
 import { STRUCTURE_CLASS_COLORS, STRUCTURE_CLASS_LABELS } from "./mapLayers.js"; // TASKS.csv #1437
 import { legendScale } from "./legendScale.js";
-import { gradeUnitLabel } from "./geochem.js"; // TASKS.csv #2218
+import { gradeUnitLabel } from "./geochemColumns.js"; // TASKS.csv #2218; #3159: geochemColumns, not geochem.js (the whole geochem library in startup)
 import { rasterUnitOf } from "./rasterMethod.js"; // TASKS.csv #2747
-import { idwColourFields } from "./idw.js"; // TASKS.csv #2845
+import { idwColourFields } from "./idwColour.js"; // TASKS.csv #2845; #3159: not idw.js, which put the IDW gridding in startup
 import { makeSurveyColorer } from "./geophysSurveys.js"; // TASKS.csv #2878
 
 // the per-element identity hues of assay markers (moved from ViewerModule; TASKS.csv #306)

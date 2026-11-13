@@ -12,7 +12,7 @@ import FenceOptions from "./viewer/FenceOptions.jsx";
 import { surfaceOptionLabels } from "../lib/viewer/surfaceLabels.js";
 import React, { useRef, useEffect, useState, useCallback, useMemo, Suspense } from "react";
 import { useModuleAction, requestModuleAction } from "../lib/menuRequests.js"; // TASKS.csv #565; requestModuleAction: #1417
-import { isPxrfRow } from "../lib/qaqc.js"; // TASKS.csv #1695
+import { isPxrfRow } from "../lib/qaqcCore.js"; // TASKS.csv #1695; #3159: qaqcCore, not qaqc.js (the QAQC charts' code, not needed at startup)
 import { describeDbImport } from "../lib/dbImports.js"; // TASKS.csv #1963
 import { metresPerPixel, minSymbolRadiusM, needsSymbolRebuild, GEOPHYS_MIN_PX } from "../lib/viewer/symbolScale.js"; // TASKS.csv #1597; GEOPHYS_MIN_PX: #2849
 import { lazyModal } from "../lib/lazyModal.jsx"; // TASKS.csv #301
@@ -102,7 +102,7 @@ const DownholeStructurePlot = lazyModal(() => import("../components/DownholeStru
 const LevelPlanWindow = lazyModal(() => import("../components/LevelPlanWindow.jsx")); // TASKS.csv #525
 const SurfaceQueryModal = lazyModal(() => import("../components/SurfaceQueryModal.jsx")); // TASKS.csv #146  // TASKS.csv #301
 const SurfaceCompareModal = lazyModal(() => import("../components/SurfaceCompareModal.jsx")); // TASKS.csv #93  // TASKS.csv #301
-import { buildLineages, candidatePredecessors } from "../lib/surfaceVersions.js"; // TASKS.csv #93
+import { buildLineages, candidatePredecessors } from "../lib/surfaceLineage.js"; // TASKS.csv #93; #3159: not surfaceVersions.js (the compare dialog's diffs)
 import { crsCell } from "../lib/crsCell.js"; // TASKS.csv #1053; #1493 — papaparse off the startup path
 // TASKS.csv #1493 — the CSV writer (papaparse) loads when an export is made; every caller is async
 const toExportCsv = async (rows, opts) => (await import("../lib/tabular.js")).toExportCsv(rows, opts);
@@ -120,7 +120,7 @@ const DesignStringsPane = React.lazy(() => import("../components/DesignStringsPa
 const NestedPitsPane = React.lazy(() => import("../components/NestedPitsPane.jsx")); // TASKS.csv #1875
 const StopesPane = React.lazy(() => import("../components/StopesPane.jsx")); // TASKS.csv #1879
 import StopeRunRows from "./viewer/StopeRunRows.jsx"; // TASKS.csv #1968
-import { collarGround } from "../lib/pitShell.js"; // TASKS.csv #1616 — the estimate's ground without a terrain
+import { collarGround } from "../lib/collarGround.js"; // TASKS.csv #1616 — the estimate's ground without a terrain; #3159: not pitShell.js, which put the pit solver in startup
 import { useSurfacePlacement } from "./viewer/useSurfacePlacement.js"; import SurfacePlacementNotices from "./viewer/SurfacePlacementNotices.jsx"; // TASKS.csv #2485
 let solidSeq = 0; // TASKS.csv #1887 — distinct ids for solids added within one millisecond
 import { hitLabel } from "../lib/viewer/hitLabel.js"; // TASKS.csv #1891 (moved out, #1084 size cap)
@@ -132,7 +132,7 @@ import { corridorRuns, mdInRuns } from "../lib/sectionCorridor.js"; // TASKS.csv
 import { slabRuns, piercePoints, tracePolylines, pointAtMd, voxelPlanRects, meshPlanCut, planAssayLayers, groupByHole } from "../lib/levelPlan.js"; // TASKS.csv #525; #1537; groupByHole: #2210
 import { sliceReadoutText } from "../lib/sliceReadout.js";
 import { buildVectorFeatures as buildVectorFeaturesOf } from "../lib/viewer/vectorFeatures.js"; // TASKS.csv #1083
-import { isRepeatClick } from "../lib/interpretation.js"; // TASKS.csv #1152
+import { isRepeatClick } from "../lib/repeatClick.js"; // TASKS.csv #1152; #3159: not interpretation.js, which put the interpretation layers' code in startup
 import { syncInterpretPreview, hoverFirstCorner } from "../lib/viewer/interpretDraw.js"; // TASKS.csv #1152; hover: #2682
 import { tipWithMeaning } from "../lib/viewer/codeMeaning.js"; // TASKS.csv #2816
 import { localDate } from "../lib/localDate.js"; // TASKS.csv #2703
@@ -149,7 +149,6 @@ import { numericClips, rampRange } from "../lib/numericClip.js"; // #1699
 import { unitShell, meshVolume, blockUnitStats } from "../lib/unitVolumes.js"; // TASKS.csv #517; blockUnitStats: #877
 const ModellingCodesPane = React.lazy(() => import("../components/ModellingCodesPane.jsx")); // TASKS.csv #599 — modelling view only, so loaded on demand (#476 budget)
 import { resolveLayerStyle, cleanLayerStyle } from "../lib/layerStyle.js"; // TASKS.csv #635
-import { lithoPatternMap, withSectionPatterns } from "../lib/lithoPatterns.js"; // #1995
 import { assayClassRange } from "../lib/assayClasses.js"; // TASKS.csv #2519
 import { LAYER_META, colorForLithology, rqdColor, magColor, distinctValues, minMax, colorForVoxelValue, makeVoxelColorResolverRGB, roleForLithology, groupMcodeRole, isCrossCuttingRole, colorForMedium, veinSourceUnits } from "../lib/layers.js";
 import { computeMeshVolume } from "../lib/volumetrics.js";
@@ -169,16 +168,16 @@ const MODELLING_PANES = new Set(["mapmodel", "settings", "gradeEst", "explicit",
 // TASKS.csv #793 — a model's rectilinear grid (or null) depends only on its cell list: built once per list
 const voxelGridCache = new WeakMap();
 const voxelGridOf = (model) => { let G = voxelGridCache.get(model.cells); if (G === undefined) { G = rectilinearGrid(model.cells); voxelGridCache.set(model.cells, G); } return G; };
-import { PRECIOUS_METALS } from "../lib/geochem.js";
+import { PRECIOUS_METALS } from "../lib/geochemColumns.js"; // TASKS.csv #3159: geochemColumns, not geochem.js (the whole geochem library in startup)
 import ClosureNote from "./viewer/ClosureNote.jsx"; // TASKS.csv #1689
-import SurfaceTonnage from "./viewer/SurfaceTonnage.jsx"; // TASKS.csv #1690
+const SurfaceTonnage = lazyModal(() => import("./viewer/SurfaceTonnage.jsx")); // TASKS.csv #1690; #3159: lazy (shown only for an expanded closed surface), it brought gradeTonnage.js into startup
 import RasterLegend from "../components/RasterLegend.jsx"; // TASKS.csv #2011
 // TASKS.csv #1136 — off the startup chunk: the Targeting tab's planned-hole parts, the measure readout and the numeric
 // symbology editor load the first time they are shown (PlannedHoleTargeting, #119, now loads from PlannedHoleParts)
 const plannedPart = (name) => lazyModal(() => import("../components/PlannedHoleParts.jsx").then((m) => ({ default: m[name] })));
 const PlannedHoleAddForm = plannedPart("PlannedHoleAddForm"), PlannedHoleRow = plannedPart("PlannedHoleRow"), PlannedHoleChecks = plannedPart("PlannedHoleChecks");
 import { ViewToolbar, SurfaceRibbon, ContextItem, HoleRowList, OrphanHoles, LayerRow, LayerQuickPanel, distToSegment, VoxelRangeRow, miniBtn, iconBtn, miniField, typedSectionInput } from "./viewer/ViewerParts.jsx"; // TASKS.csv #1084 — moved out at the size cap
-import { plannedTrace } from "../lib/holePlanning.js"; // TASKS.csv #119 - shared, Node-verified target math; plannedTrace: #524
+import { plannedTrace } from "../lib/plannedTrace.js"; // TASKS.csv #119 - shared, Node-verified target math; plannedTrace: #524; #3159: plannedTrace.js, not holePlanning.js (the targeting solvers)
 import { extractMapContacts, orientationAt, projectContactRibbon, thinLine, densifyLine } from "../lib/mapLayers.js"; // TASKS.csv #316-#318
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 import { noticeText, noticeLevel, errorNotice, notice, appendNotice } from "../lib/notices.js"; // TASKS.csv #390
@@ -213,7 +212,7 @@ import { wheelZoom } from "./viewer/wheelZoom.js"; // #2368
 import { useDrillLineDefaults } from "./viewer/drillLines.js"; // #2366
 import { pBtn, smallSel } from "../lib/sidebarStyles.js"; // TASKS.csv #704 // TASKS.csv #445 step 2
 import { isMarkedQcRow } from "../lib/qaqcCore.js"; // TASKS.csv #601; qaqcCore: #1345
-import { isAreaBoundary } from "../lib/boundaryImport.js"; // TASKS.csv #1466
+import { isAreaBoundary } from "../lib/areaBoundary.js"; // TASKS.csv #1466; #3159: not boundaryImport.js (the vector / CRS import code)
 import { loadGpkg, groupShapefileParts, codeList } from "../lib/viewer/importHelpers.js"; // TASKS.csv #445 step 3; groupShapefileParts #600; codeList #1650
 import { useImportPipeline } from "./viewer/useImportPipeline.js"; // TASKS.csv #445 step 3
 import { version as APP_VERSION } from "../../package.json"; // TASKS.csv #1034 — the drillhole tables' stamp
@@ -5795,7 +5794,9 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   };
 
   // TASKS.csv #1276 — the main process refuses a new section window past what this computer can hold
-  const openSectionOrSay = (payload) => openSectionWindow(withSectionPatterns(payload, lithoPatternMap(layers.litho, (v) => effectiveLabel("litho", v), legendOverride.litho))).then((r) => { if (r?.refused) setNotices((p) => [...p, notice("{max} sections are open, the most this computer can hold comfortably. Close one to open this section: it stays in the Sections list.", { max: r.max })]); return r; });
+  // TASKS.csv #1995 — the litho patterns go with the payload. TASKS.csv #3159: lithoPatterns.js loads with the first section opened
+  // (on use, like sectionDigitise.js #903), not at startup; this already returned a promise
+  const openSectionOrSay = async (payload) => { const { lithoPatternMap, withSectionPatterns } = await import("../lib/lithoPatterns.js"); return openSectionWindow(withSectionPatterns(payload, lithoPatternMap(layers.litho, (v) => effectiveLabel("litho", v), legendOverride.litho))).then((r) => { if (r?.refused) setNotices((p) => [...p, notice("{max} sections are open, the most this computer can hold comfortably. Close one to open this section: it stays in the Sections list.", { max: r.max })]); return r; }); };
   const buildSectionPayload = (a, b, corridor, scope = {}, secId = null) => {
     const azimuth = (Math.atan2(b.x - a.x, b.y - a.y) * 180 / Math.PI + 360) % 360;
     const holesInBand = tracesRef.current.filter((t) => visibleHoles[t.hole_id] !== false && t.wx.some((wx, i) => distToSegment(wx, t.wy[i], a.x, a.y, b.x, b.y) <= corridor));

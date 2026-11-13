@@ -4,8 +4,8 @@
 // symbol or label. Pure functions; the drawing is components/DrillPlanElement.jsx.
 
 import { collarsMatching } from "./holeFilter.js"; // TASKS.csv #2141
-export const PAGE_PX_PER_PAPER_M = 96 / 0.0254; // the Layout sheet is 96 px per inch
-export const pxPerMetre = (scale) => PAGE_PX_PER_PAPER_M / Math.max(1, Number(scale) || 1);
+import { PAGE_PX_PER_PAPER_M, pxPerMetre } from "./pagePxScale.js";
+export { PAGE_PX_PER_PAPER_M, pxPerMetre } from "./pagePxScale.js"; // TASKS.csv #3159 — moved there for the startup code
 
 // The hole in plan, straight from the collar's azimuth, dip and length (a survey bends it little at plan scale). Dip may be
 // stored positive or negative downwards; 90 (or none) is vertical, a point.

@@ -29,8 +29,8 @@ export const DEFAULT_QAQC_PATTERNS = {
 
 // TASKS.csv #400 / #601 — the sample-type rules and the registered collar ids live in qaqcCore.js, which the store and the 3D view
 // load at startup; the rest of this file (control charts, duplicates, exclusion) loads with the panels that use it (#1345: 18 kB).
-import { sampleTypeClass, knownHoleIds } from "./qaqcCore.js";
-export { setKnownHoleIds, isMarkedQcRow, sampleTypeClass } from "./qaqcCore.js";
+import { sampleTypeClass, knownHoleIds, isPxrfRow } from "./qaqcCore.js";
+export { setKnownHoleIds, isMarkedQcRow, sampleTypeClass, isPxrfRow } from "./qaqcCore.js"; // isPxrfRow: #3159
 
 // Order matters: blank and duplicate markers are checked before standard, since they're the more
 // specific/unambiguous signals — a hole_id can't simultaneously BE a blank and a standard, but
@@ -66,7 +66,7 @@ export function controlLimits(values) {
 // TASKS.csv #1673 / #1674 (review #1645, Copley) — pXRF readings are not lab grades: they were averaged into Grade stats, intercepts,
 // correlations and classifications beside the lab assays (Copley: Spearman Cu-Mo 0.56 lab-only, 0.38 mixed; Pearson Rb-Sr 1.00 from one
 // bad reading). They are kept out of every grade tool, whatever its QC toggle says; the dialogs say how many were left out.
-export const isPxrfRow = (a) => a?.source === "pXRF";
+// TASKS.csv #3159 — isPxrfRow itself is in qaqcCore.js (the 3D view needs it at startup), re-exported above.
 // TASKS.csv #1579 — the same input array gives the same output array (default patterns), so the statistics cached per assay list
 // (geochem.js segmentSummary) are found again when a dialog reopens; the callers read these lists, never change them
 const labCache = new WeakMap(), regularCache = new WeakMap();

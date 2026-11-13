@@ -8,7 +8,8 @@
 // the simpler, more robust of the two methods anyway for a first pass — no matrix solve, no risk of the
 // numerical instability RBF can hit with clustered points, "good enough" quality for a quick-look grid
 // of geophysics/geochem point data, which is exactly what this is for.
-import { magColorRGB, VIRIDIS_ANCHORS } from "./layers.js";
+import { magColorRGB } from "./layers.js";
+import { idwColourFields } from "./idwColour.js"; // TASKS.csv #3159 — moved there, re-exported below
 import { percentileSorted } from "./arrayStats.js"; // TASKS.csv #740
 import { f32ToB64 } from "./inversion.js"; // TASKS.csv #538 — the float grid kept on the raster
 
@@ -147,18 +148,8 @@ export function makeStretch(values, mode = "p2-98") {
 // TASKS.csv #538 — maxDistance blanks cells farther than that from every point (NaN = transparent) instead of
 // extrapolating across gaps and notches; the float values are kept as `grid` (the rasterFromGrid shape, node
 // centres x0 / yTop), so a gridded survey can go through the #373 filters and #326 grid-to-points.
-// TASKS.csv #2845 (GSC review B12) — the colour fields the Maps card's bar and the Layout legend read (rasterColourFields' shape), for a
-// grid drawn in viridis (magColorRGB) over a stretch's lo / hi. The IDW raster kept only gridMin / gridMax / stretch, so it had no colour bar
-// and no legend row until its Ramp or Stretch was touched. Also read by rasterLegendGroups for an IDW grid saved before this.
-// -> { colourStyle, colourRange, colourStops } or {} with no range
-export function idwColourFields(stretch) {
-  const lo = stretch?.lo, hi = stretch?.hi;
-  if (!(Number.isFinite(lo) && Number.isFinite(hi) && hi > lo)) return {};
-  const n = VIRIDIS_ANCHORS.length - 1, hex = (c) => `#${c.map((v) => v.toString(16).padStart(2, "0")).join("")}`;
-  const mode = ["p2-98", "linear", "equalise", "log"].includes(stretch.mode) ? stretch.mode : "p2-98";
-  return { colourStyle: { palette: "viridis", stretch: mode, invert: false }, colourRange: [lo, hi],
-    colourStops: VIRIDIS_ANCHORS.map((c, i) => ({ value: lo + (i / n) * (hi - lo), color: hex(c) })) };
-}
+// TASKS.csv #2845 — the colour fields of an IDW grid: idwColourFields, in idwColour.js since TASKS.csv #3159 (re-exported here).
+export { idwColourFields } from "./idwColour.js";
 
 // TASKS.csv #2872 (GSC review B24) — the IDW nodes started at the westernmost / northernmost station + half a cell (608,037.33 E at 100 m) and the
 // far edge was rounded, so a few stations at the south and east edges lay outside the nodes. Cell edges for nodes on multiples of the cell

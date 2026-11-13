@@ -1,6 +1,6 @@
 // TASKS.csv #2485 — the surface samples' placement (moved out of ViewerModule.jsx). See lib/viewer/surfacePlacement.js.
 import { useMemo, useRef } from "react";
-import { collarsLookUnderground } from "../../lib/pitShell.js";
+import { collarsLookUnderground } from "../../lib/collarGround.js"; // TASKS.csv #3159: not pitShell.js, which put the pit solver in startup
 import { terrainGroundAt } from "../../lib/viewer/geomath.js";
 import { surfaceFlatElevation, placeSurfaceSamples, samePlacement, surfacePlacementCounts } from "../../lib/viewer/surfacePlacement.js";
 

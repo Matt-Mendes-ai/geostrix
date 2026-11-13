@@ -2,7 +2,7 @@
 // GeoPackage / raster loaders), moved unchanged from the top of ViewerModule.jsx with their comments; used by
 // modules/viewer/useImportPipeline.js and ViewerModule.jsx.
 import { guessEpsgFromPrjWkt } from "../reproject.js";
-import { isElementColumn, parseAssayValue } from "../geochem.js"; // TASKS.csv #600; parseAssayValue: #2185
+import { isElementColumn, parseAssayValue } from "../geochemColumns.js"; // TASKS.csv #600; parseAssayValue: #2185; #3159: geochemColumns, not geochem.js (the whole geochem library in startup)
 // TASKS.csv #552 — the KML / xlsx / shapefile readers load on first use (they were ~20 kB of startup JavaScript)
 const loadKml = () => import("../kml.js");
 const loadLas = () => import("../las.js"); // TASKS.csv #492 — on demand

@@ -4,7 +4,7 @@
 // (x / y as offsets from the first point — Float32 alone would lose ~0.5 m at UTM northings), text fields
 // dictionary-encoded (a survey name or line number repeats thousands of times). Missing values survive
 // (null / absent stays null / absent). Float32 keeps ~7 significant digits: 56,123.46 nT, 1,234.567 m.
-import { f32ToB64, b64ToF32 } from "./inversion.js";
+import { f32ToB64, b64ToF32 } from "./base64.js"; // TASKS.csv #3159: not inversion.js, which put the inversion helpers in startup
 
 export const COMPACT_MIN_ROWS = 2000; // below this the plain JSON is small and easier to read
 const NUMERIC = ["x", "y", "z", "value", "zAgl", "fid"];

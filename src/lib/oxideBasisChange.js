@@ -3,7 +3,7 @@
 // Li2O wt%), so a change converts every stored number of that element (each row's values and its per-method values, #2629) by the ratio of
 // the two oxide factors, and the unit with it; the base unit (% / ppm / ppb) is kept. Works for the drill assays and the surface samples
 // (rows with `values` / `methodValues`). Pure: the store applies the result as one undoable step.
-import { unitBasis, oxideBasisUnit, oxidesOfElement } from "./geochem.js";
+import { unitBasis, oxideBasisUnit, oxidesOfElement } from "./geochemColumns.js"; // TASKS.csv #3159: geochemColumns, not geochem.js (the whole geochem library in startup)
 
 const BASES = new Set(["%", "ppm", "ppb"]);
 

@@ -11,7 +11,7 @@
 //                  "view"  — saved for convenience; changing it is not an edit (camera, legend styling...)
 //   save(v)        optional: compact form written to the file / autosave
 //   load(data)     optional: read the value from a payload (default: data[key] || empty())
-import { f32ToB64, b64ToF32 } from "./inversion.js";
+import { f32ToB64, b64ToF32 } from "./base64.js"; // TASKS.csv #3159: not inversion.js, which put the inversion helpers in startup
 import { bytesToB64, b64ToBytes } from "./base64.js"; // TASKS.csv #1114
 
 // TASKS.csv #796 — a High / Very high detail terrain (up to 1025 x 1025 nodes) as JSON numbers is ~10 MB of text;

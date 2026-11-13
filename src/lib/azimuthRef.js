@@ -19,7 +19,7 @@ import { reprojectXY } from "./reproject.js";
 let igrf = null;
 export const setIgrfModule = (mod) => { igrf = mod; };
 export const loadIgrf = () => (igrf ? Promise.resolve(igrf) : import("./igrf.js").then((m) => (igrf = m)));
-import { trueNorthBearingInGridDeg } from "./inversion.js";
+import { trueNorthBearingInGridDeg } from "./gridConvergence.js"; // TASKS.csv #3159: not inversion.js, which put the inversion helpers in startup
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 
 export const AZIMUTH_REFS = {

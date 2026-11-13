@@ -9,7 +9,7 @@
 import { LAYER_META } from "../layers.js";
 import { findOnTraceWorld } from "./modelHelpers.js";
 import { structureGisAttributes } from "../structureAttrs.js"; // TASKS.csv #1067
-import { trueNorthBearingInGridDeg } from "../inversion.js"; // TASKS.csv #577
+import { trueNorthBearingInGridDeg } from "../gridConvergence.js"; // TASKS.csv #577; #3159: not inversion.js, which put the inversion helpers in startup
 
 // a row's own fields, without the app's internal "_" bookkeeping
 export function stripInternalFields(r) { return Object.fromEntries(Object.entries(r).filter(([k]) => !k.startsWith("_"))); }

@@ -34,11 +34,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { notice, appendNotice } from "./notices.js"; // TASKS.csv #1119 — the sculpt messages in the interface language
 import { t as tr } from "./i18n.js";
 import * as THREE from "three";
-import {
-  computeVertexNormals, buildBrush, brushNormal, applyBrush, trianglesUnderBrush,
-  expandForNormals, updatePatchNormals, countFlippedTriangles, signedVolume, volumeDelta,
-  captureUndo, restoreUndo,
-} from "./sculpt.js";
+
+// TASKS.csv #3159 — sculpt.js (the brush maths) loads when sculpt mode starts, not at startup: this hook runs in every 3D view,
+// but sculpt.js is only called once a brush is placed, and a brush is only placed by a click on the surface after `begin` (the
+// click waits for the module if it is still loading). Every other call below has a placed brush or an applied edit, so the module is there.
+let sculptLib = null;
+const loadSculpt = () => (sculptLib ? Promise.resolve(sculptLib) : import("./sculpt.js").then((m) => (sculptLib = m)));
 
 const DEFAULT_RADIUS = 25; // metres — a sensible starting brush for a drillhole-scale contact
 const MAX_HISTORY = 30;
@@ -146,7 +147,7 @@ export function useSculpt({ surfaces, meshesRef, groupRef, mountRef, cameraRef, 
     geo.attributes.position.needsUpdate = true;
     const nrm = geo.attributes.normal;
     if (nrm && patch) {
-      updatePatchNormals(geo.attributes.position.array, geo.index.array, patch, nrm.array);
+      sculptLib.updatePatchNormals(geo.attributes.position.array, geo.index.array, patch, nrm.array);
       nrm.needsUpdate = true;
     } else {
       geo.computeVertexNormals();
@@ -180,6 +181,7 @@ export function useSculpt({ surfaces, meshesRef, groupRef, mountRef, cameraRef, 
   const applyPreview = useCallback((a, off, ax) => {
     const mesh = meshesRef.current[a.surfaceId];
     if (!mesh?.geometry) return null;
+    const { applyBrush, volumeDelta, countFlippedTriangles } = sculptLib; // #3159 — loaded: a brush is placed
     const pos = mesh.geometry.attributes.position.array;
     const dir = ax === "vertical" ? { x: 0, y: 1, z: 0 } : a.normal;
     applyBrush(a.base, a.brush, dir, off, pos);
@@ -197,6 +199,7 @@ export function useSculpt({ surfaces, meshesRef, groupRef, mountRef, cameraRef, 
     const mesh = meshesRef.current[surfaceId];
     const geo = mesh?.geometry;
     if (!geo?.index) { notify(notice("This surface has no indexed geometry, so it can't be sculpted.")); return; }
+    const { buildBrush, computeVertexNormals, trianglesUnderBrush, expandForNormals, brushNormal, signedVolume } = sculptLib; // #3159 — loaded by handleViewClick
     const t0 = performance.now();
     const pos = geo.attributes.position.array;
     const idx = geo.index.array;
@@ -251,7 +254,9 @@ export function useSculpt({ surfaces, meshesRef, groupRef, mountRef, cameraRef, 
     if (!hits.length) { notify(notice("That click didn't land on the surface being sculpted. Aim at the surface itself (it is drawn translucent — the nearest point on it under the cursor is what gets picked).")); return; }
     if (anchorRef.current) revertPreview();
     clearMarker();
-    placeAnchor(targetId, { x: hits[0].point.x, y: hits[0].point.y, z: hits[0].point.z }, radius);
+    const center = { x: hits[0].point.x, y: hits[0].point.y, z: hits[0].point.z };
+    if (sculptLib) placeAnchor(targetId, center, radius);
+    else loadSculpt().then(() => placeAnchor(targetId, center, radius), (err) => notify(err)); // #3159 — the first click while sculpt.js still loads; a failure shows as an error (#739)
   }, [targetId, meshesRef, mountRef, cameraRef, radius, notify, revertPreview, clearMarker, placeAnchor]);
 
   // ---- UI setters that re-evaluate the preview ---------------------------------------------------
@@ -303,6 +308,7 @@ export function useSculpt({ surfaces, meshesRef, groupRef, mountRef, cameraRef, 
     const mesh = meshesRef.current[a.surfaceId];
     const geo = mesh?.geometry;
     if (!geo) return;
+    const { captureUndo, signedVolume, countFlippedTriangles } = sculptLib; // #3159 — loaded: a brush is placed
     const t0 = performance.now();
     const pos = geo.attributes.position.array;
     const idx = geo.index.array;
@@ -389,6 +395,7 @@ export function useSculpt({ surfaces, meshesRef, groupRef, mountRef, cameraRef, 
     historyRef.current[surfaceId] = stack.slice(0, -1);
     setHistoryDepth(historyRef.current[surfaceId].length);
     const pos = geo.attributes.position.array;
+    const { restoreUndo, signedVolume } = sculptLib; // #3159 — loaded: an edit was applied
     restoreUndo(pos, record);
     geo.computeVertexNormals(); // full recompute: an undo is rare and correctness beats 3 ms here
     geo.attributes.position.needsUpdate = true;
@@ -414,6 +421,7 @@ export function useSculpt({ surfaces, meshesRef, groupRef, mountRef, cameraRef, 
 
   const begin = useCallback((id) => {
     if (anchorRef.current) cancelAnchor();
+    loadSculpt().catch(() => {}); // #3159 — start loading the brush maths; a failure is reported by the click that needs it
     setTargetId(id);
     setHistoryDepth((historyRef.current[id] || []).length);
     notify(notice("Sculpt mode: click on the surface in the 3D view to place the brush, then set the radius and offset. Nothing changes until you press Apply."));

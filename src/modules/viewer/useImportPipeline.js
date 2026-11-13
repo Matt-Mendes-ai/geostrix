@@ -48,7 +48,7 @@ import { unreadableFormatAdvice } from "../../lib/unreadableFormats.js"; // TASK
 import { t as tr } from "../../lib/i18n.js"; // TASKS.csv #786
 import { requestModuleAction, useModuleAction } from "../../lib/menuRequests.js"; // TASKS.csv #917; useModuleAction: #2019
 import { autoExtraFields, companionLayer, surveyMethodFields, columnsLeftOut } from "../../lib/viewer/autoExtras.js"; // TASKS.csv #1501; surveyMethodFields: #2187
-import { surfaceAttrColumns, surfaceAttrs } from "../../lib/geochem.js"; // TASKS.csv #1504 — unmapped collar columns kept as attrs
+import { surfaceAttrColumns, surfaceAttrs } from "../../lib/geochemColumns.js"; // TASKS.csv #1504 — unmapped collar columns kept as attrs; #3159: geochemColumns, not geochem.js (the whole geochem library in startup)
 import { rasterDrapeElevation, drapeElevationNote, planElevation } from "../../lib/drapeElevation.js"; // TASKS.csv #1505; planElevation: #2294
 import { projectTargetEpsg } from "../../lib/projectTarget.js"; // TASKS.csv #2287 — no reprojection INTO the placeholder CRS
 import { looksLikeUbcMesh } from "../../lib/leapfrogMsh.js"; // TASKS.csv #1991
