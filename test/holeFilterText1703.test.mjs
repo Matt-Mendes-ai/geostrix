@@ -33,8 +33,8 @@ test("a field=value term keeps its exact meaning (no fallback), and collarsMatch
 
 test("the 3D View's list and bar use it", () => {
   const v = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
-  assert.match(v, /const tickedShown = \(collars, f\) => holesForFilter\(collars, f\)\.holes;/);
+  assert.match(v, /const tickedShown = \(collars, f\) => (holesWithoutField\(collars, f\) \?\? )?holesForFilter\(collars, f\)\.holes;/); // #3074
   const b = readFileSync(new URL("../src/modules/viewer/HoleFilterBar.jsx", import.meta.url), "utf8");
-  assert.match(b, /const found = holesForFilter\(collars, filter\);/);
+  assert.match(b, /found = (none \? \{ holes: none, byField: false \} : )?holesForFilter\(collars, filter\);/); // #3074
   assert.match(b, /\{found\.byField && <div role="status"/);
 });
