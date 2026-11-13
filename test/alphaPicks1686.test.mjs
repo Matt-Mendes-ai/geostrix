@@ -36,5 +36,5 @@ test("merged after the structure picks; nothing to add keeps the same array", ()
 });
 test("the Stereonet / Downhole plot source takes them", () => {
   const v = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
-  assert.ok(v.includes("withAlphaOnlyPicks(layers.structure, layers.structzone, customLayers)"));
+  assert.ok(v.includes("withAlphaOnlyPicks(layers.structure, layers.structzone, customLayers, { veins: layers.vein, orient: () => layerPicks.picks })"), "#3266: oriented when they have a beta, and the Veins layer");
 });
