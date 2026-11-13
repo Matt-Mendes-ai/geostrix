@@ -9,7 +9,7 @@ const small = [-120.5, 50.6, -120.46, 50.624]; // ~2.8 x 2.7 km: 10 m pixels at 
 const large = [-121, 50, -119, 51]; // ~142 x 111 km: every level differs
 
 test("a small area: High and Very high add nothing for Sentinel-2, but do for NAIP's 0.6 m", () => {
-  assert.deepEqual([...levelsAddingNothing(small)], ["high", "veryhigh"]);
+  assert.deepEqual([...levelsAddingNothing(small)], ["high", "veryhigh", "full"]); // full: #3251
   assert.equal(planLatestFetch(small, "standard").gridW, planLatestFetch(small, "veryhigh").gridW);
   assert.deepEqual([...levelsAddingNothing(small, 0.6)], []);
 });

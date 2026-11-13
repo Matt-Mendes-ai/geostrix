@@ -7,7 +7,7 @@ import { getBaseLayer } from "../src/lib/baseLayers.js";
 
 test("#837 three levels, each keeping a longer side than the last", () => {
   const g = Object.values(SAT_LEVELS).map((l) => l.gridMax);
-  assert.deepEqual(g, [1024, 2048, 3072]);
+  assert.deepEqual(g, [1024, 2048, 3072, 4096]); // 4096: #3251 'Full'
   assert.equal(NATIVE_M, 10);
 });
 
