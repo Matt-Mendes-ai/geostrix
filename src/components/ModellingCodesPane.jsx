@@ -11,6 +11,7 @@ import { gradeUnitLabel } from "../lib/geochem.js"; // TASKS.csv #2634
 import { placeRuns, fitSheetAttitude, refineSheetAttitude, attitudeNormal, correlateSheets, sheetAssign } from "../lib/sheetCorrelation.js"; // TASKS.csv #2625 / #2635
 import { Crosshair, Waypoints, X, RotateCcw, Layers3, Square } from "./icons.js";
 import { CODE_ROLES, codesInUse, autoNumber, inheritNumberedRoles, effectiveCode, rowKey, codedRuns } from "../lib/modellingCodes.js";
+import { orderFromHoles } from "../lib/pileTops.js"; // TASKS.csv #2926
 import { colorForLithology, LAYER_META } from "../lib/layers.js";
 import { findOnTrace } from "../lib/viewer/modelHelpers.js";
 import { combineSelection, intervalTouchesBox, holesOf, rowsBetween, codeRowsAs, holesWithRepeats, rowsOfCode, replaceCodeWith, uncodeRows, holeCounts } from "../lib/intervalBox.js"; // TASKS.csv #1333, #1337
@@ -194,6 +195,21 @@ export default function ModellingCodesPane({ focus = null, inArea = null, litho,
     if (i < 0) list.push({ name, ...patch }); else list[i] = { ...list[i], ...patch };
     return { ...(p || mc), codes: list };
   });
+  // TASKS.csv #2926 (review #2876, WA iron) — 34 codes listed alphabetically under 'youngest at the top': the order the holes give, one click
+  // away (the codes they do not place keep theirs, after the placed ones). Computed when asked: a pass over the whole log.
+  const [holesNote, setHolesNote] = useState(null);
+  const applyHolesOrder = () => {
+    const names = codes.map((c) => c.name);
+    const runs = codedRuns(litho, mc, groupOf).map((r) => ({ hole_id: r.hole_id, from: r.from, value: r.code }));
+    const r = orderFromHoles(runs, names);
+    if (!r.placed) { setHolesNote(tr("The holes do not place any of these codes against another (too few holes log two of them).")); return; }
+    setModellingCodes((p) => {
+      const list = [...(p?.codes || [])];
+      r.order.forEach((n, k) => { const at = list.findIndex((c) => c.name === n); if (at < 0) list.push({ name: n, order: k + 1 }); else list[at] = { ...list[at], order: k + 1 }; });
+      return { ...(p || mc), codes: list };
+    });
+    setHolesNote(r.conflicts.length ? tr("Put in the order the holes give, youngest first ({n} pair(s) were the other way up).", { n: r.conflicts.length }) : tr("Already in the order the holes give."));
+  };
   const moveCode = (name, dir) => { // pile order: place every listed code, then swap two neighbours
     const names = codes.map((c) => c.name);
     const i = names.indexOf(name), j = i + dir;
@@ -372,6 +388,10 @@ export default function ModellingCodesPane({ focus = null, inArea = null, litho,
       {focus !== "correlate" && (<>{/* #2054 */}
       <div className="ge-section-label" style={{ marginTop: 12 }}>{tr("Codes (youngest at the top)")}</div>
       <div style={small}>{tr("Order sets which unit is younger where two meet; a code you haven't placed keeps the order of the stack you run.")}</div>
+      {codes.length > 1 && <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginTop: 4 }}>{/* #2926 */}
+        <button type="button" onClick={applyHolesOrder} title={tr("Down each hole the unit that starts higher is the younger; counted over the holes that log both, pair by pair (the Strat. stack's own check).")} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "2px 7px" }}>{tr("Use the order from the holes")}</button>
+        {holesNote && <span role="status" style={small}>{holesNote}</span>}
+      </div>}
       <div style={small}>{tr("Roles are suggested from each code's name and, when the import kept a notes column, from what its intervals say (dyke, lost core, monzonite ...). A code nothing recognises is assumed stratigraphic: check the roles before modelling.")}</div>{/* #2046 */}
       {codes.map((c, i) => (
         <div key={c.name} style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 4 }}>

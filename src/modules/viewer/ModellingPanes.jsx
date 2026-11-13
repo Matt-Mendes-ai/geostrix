@@ -14,7 +14,7 @@ import { withChangeLog } from "../../lib/explicitLog.js"; // TASKS.csv #878
 import { activateOnKey, iconAction } from "../../lib/a11y.js";
 import { colorForLithology, isCrossCuttingRole, roleForLithology, groupMemberRole, groupNameHint } from "../../lib/layers.js"; // group roles: #2052
 import { codedRuns, topsForCode, codeInfo, overburdenBases } from "../../lib/modellingCodes.js"; // TASKS.csv #871; #1684
-import { pileFromRuns, absentTops } from "../../lib/pileTops.js"; // TASKS.csv #2921
+import { pileFromRuns, absentTops, orderFromHoles, movesToOrder } from "../../lib/pileTops.js"; // TASKS.csv #2921; orderFromHoles / movesToOrder: #2926
 import { pBtn, smallSel } from "../../lib/sidebarStyles.js";
 import { sceneVertsToWorldFlat } from "../../lib/meshFlat.js";
 import { octreeCellM } from "../../lib/viewer/contactFit.js"; // TASKS.csv #1171
@@ -345,6 +345,21 @@ export default function ModellingPanes(props) {
     const absent = pile.kOf.has(unit) ? absentTops(runs, unit, pile).tops : [];
     return { tops: tops.map((r) => ({ hole_id: r.hole_id, md: r.from, above: r.above?.code ?? null, below: r.code })), skipped, holes, absent, pile };
   }, [areaRuns, areaPile, modellingCodes, lithoGroups]); // mcodeDefaultRole is rebuilt every render from lithoGroups
+  // TASKS.csv #2926 (review #2876, WA iron) — the stack's order against the holes, as the units are added (the run's own check, #2382, came
+  // after Run and said 'Reorder the units with the arrows'): each unit's logged values, as runStackModel reads them. Only while the pane is open.
+  const stackHoles = useMemo(() => {
+    if (toolPane !== "stack" || stackUnits.length < 2) return null;
+    const mcodeVals = (name) => { const v = new Set(); for (const r of areaRuns()) if (r.code === name) for (const row of r.rows) v.add(row.value); return [...v]; };
+    const codesOf = (u) => (isLithoGroupKey(u) ? resolveLithoTarget(u)?.codes || [] : isMcodeKey(u) ? mcodeVals(u.slice(6)) : [u]);
+    const r = orderFromHoles(layers.litho || [], stackUnits, codesOf);
+    return r.conflicts.length ? r : null;
+  }, [toolPane, stackUnits, layers.litho, areaRuns, lithoGroups]); // resolveLithoTarget is rebuilt every render from lithoGroups
+  // the 'Add a unit' list in the order the holes give (youngest first), not by interval count
+  const unitRank = useMemo(() => {
+    if (toolPane !== "stack") return null;
+    const r = orderFromHoles(layers.litho || [], litho_units);
+    return new Map(r.order.map((u, i) => [u, i]));
+  }, [toolPane, layers.litho, litho_units]);
   // TASKS.csv #2056 (review #2013, Woodjam) — the logged holes the model area feeds, and their clusters in plan (a gap over 5 x the hole spacing)
   const loggedInArea = useMemo(() => { const logged = new Set((layers.litho || []).map((r) => r.hole_id)); return (collars || []).filter((c) => (!logged.size || logged.has(c.hole_id)) && (modelArea !== "checked" || visibleHoles?.[c.hole_id] !== false)); }, [layers.litho, collars, modelArea, visibleHoles]);
   const areaClusters = useMemo(() => holeClusters(loggedInArea), [loggedInArea]);
@@ -819,7 +834,7 @@ export default function ModellingPanes(props) {
                 so they're unselectable rather than trusting the user to read the warning first. */}
             {/* TASKS.csv #1541 — a code whose group is already in the stack, or a group with a member already in it, is not offered: the
                 same unit twice ('Intermediate volcanics' after two of its members) */}
-            {litho_units.filter((u) => !mcodeRole.has(u) && !stackUnits.includes(u) && !isCrossCuttingRole(rawRole(u)) && rawRole(u) !== "no recovery" && !lithoGroups.some((g) => stackUnits.includes(lithoGroupKey(g)) && (g.codes || []).includes(u))).map((u) => { // no recovery: #1369; #2532: the role set in Modelling codes, the code offered there once
+            {(unitRank ? [...litho_units].sort((a, b) => (unitRank.get(a) ?? 1e9) - (unitRank.get(b) ?? 1e9)) : litho_units).filter((u) => !mcodeRole.has(u) && !stackUnits.includes(u) && !isCrossCuttingRole(rawRole(u)) && rawRole(u) !== "no recovery" && !lithoGroups.some((g) => stackUnits.includes(lithoGroupKey(g)) && (g.codes || []).includes(u))).map((u) => { // no recovery: #1369; #2532: the role set in Modelling codes, the code offered there once
               const role = rawRole(u);
               return <option key={u} value={u}>{u}{role === "overburden" ? tr(" (overburden)") : ""}</option>;
             })}
@@ -843,6 +858,13 @@ export default function ModellingPanes(props) {
         </div>
         {stackUnits.length === 0 && (
           <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("No units added yet.")}</div>
+        )}
+        {stackHoles && ( // TASKS.csv #2926 — checked as the units are added; the holes' order one click away
+          <div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 8, lineHeight: 1.4 }}>
+            {tr("The holes give the order {order} (youngest first): {list}.", { order: stackHoles.order.map((u) => (isLithoGroupKey(u) ? resolveLithoTarget(u)?.name || u : isMcodeKey(u) ? u.slice(6) : u)).join(", "),
+              list: stackHoles.conflicts.slice(0, 3).map((q) => tr("{older} is logged above {younger} in {against} of {of} holes that have both", { older: stackUnits[q.older].replace(/^mcode:/, ""), younger: stackUnits[q.younger].replace(/^mcode:/, ""), against: q.against, of: q.of })).join("; ") })}{" "}
+            <button type="button" onClick={() => movesToOrder(stackUnits, stackHoles.order).forEach(([u, d]) => moveStackUnit(u, d))} style={{ ...pBtn, width: "auto", display: "inline-flex", marginBottom: 0, padding: "2px 7px" }}>{tr("Use the order from the holes")}</button>
+          </div>
         )}
         {stackUnits.map((u, i) => {
           // TASKS.csv #176 — a `group:` entry shows the group's name and gets a badge only when every

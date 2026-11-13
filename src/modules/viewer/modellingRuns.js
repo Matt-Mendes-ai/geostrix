@@ -4,6 +4,7 @@
 import * as THREE from "three";
 import { layerStamp } from "../../lib/layerStamp.js"; // TASKS.csv #2388
 import { rowsByHole } from "../../lib/rowsByHole.js"; // TASKS.csv #2906
+import { interbeds, planeDipDeg } from "../../lib/pileTops.js"; // TASKS.csv #2927
 import { stackCellCheck, medianStackThickness } from "../../lib/stackResolution.js"; // TASKS.csv #2905; medianStackThickness: #2922
 import { suspectElevationIds } from "../../lib/collarElevationTrust.js"; // TASKS.csv #2918 (the #3004 rule)
 import { trendRatioText } from "../../lib/trend.js"; // TASKS.csv #2423
@@ -235,7 +236,7 @@ export function createModellingRuns(ctx, mcRef) {
         `${r.label}:`,
         r.duplicates ? tr(" {duplicates} pick(s) repeated at the same spot ({duplicateExamples}{v}) — GemPy honours every copy, which only slows and stiffens the solve;", { duplicates: r.duplicates, duplicateExamples: r.duplicateExamples.join(", "), v: r.duplicates > 3 ? "…" : "" }) : "",
         r.close ? tr(" {n} pair(s) of picks less than 0.5 m apart down the hole ({examples}{v}) — separate structures close together (veinlets of one interval) or a near-repeat; GemPy honours each, which stiffens the solve;", { n: r.close, examples: r.closeExamples.join(", "), v: r.close > 3 ? "…" : "" }) : "", // #2048
-        r.conflicts ? tr(" {conflicts} pair(s) of picks almost on top of each other but far apart in elevation ({conflictExamples}{v}) — the surface has to stand near-vertical there to honour both: usually a mis-picked or mislabelled contact, the unit repeated by a fold or fault, or stacked sheets of an intrusion (model those as veins / dykes);", { conflicts: r.conflicts, conflictExamples: r.conflictExamples.join("; "), v: r.conflicts > 3 ? "…" : "" }) : "",
+        r.conflicts ? tr(" {conflicts} pair(s) of picks almost on top of each other but far apart in elevation ({conflictExamples}{v}) — the surface has to stand near-vertical there to honour both: usually interbeds of neighbouring units in a flat pile (one surface through each hole's first top: the Strat. stack's Layer-cake method, or the Explicit surface's 'Add the logged tops'), a mis-picked or mislabelled contact, the unit repeated by a fold or fault, or stacked sheets of an intrusion (model those as veins / dykes);" /* interbeds first: #2927 */, { conflicts: r.conflicts, conflictExamples: r.conflictExamples.join("; "), v: r.conflicts > 3 ? "…" : "" }) : "",
         r.orientations && r.estimated ? tr(" the dip estimated from the contacts themselves (no structure pick was used) differs by more than 45° from the plane through the contacts near it ({orientationExamples}): one plane fitted to all of the contacts does not match them there (a fold, a change of dip, or two populations of contacts). It is not a pick to fix; a structural trend from the tops of a unit (Model settings) or real structure picks give the surface a better guide;", { orientationExamples: r.orientationExamples.join(", ") }) /* #2539 */
           : r.orientations ? tr(" {orientations} of {orientationsTotal} orientation(s) differ by more than 45° from the plane through the contacts around them ({orientationExamples}{v}) — GemPy bends the surface between the two;", { orientations: r.orientations, orientationsTotal: r.orientationsTotal, orientationExamples: r.orientationExamples.join(", "), v: r.orientations > 3 ? "…" : "" }) : "",
       ].join("")).join(" ").replace(/;(?=\s|$)/g, ".") }));
@@ -594,7 +595,7 @@ export function createModellingRuns(ctx, mcRef) {
         const pos = new Float32Array(sceneVerts.length * 3);
         sceneVerts.forEach((v, i) => { pos[i * 3] = v.x; pos[i * 3 + 1] = v.y; pos[i * 3 + 2] = v.z; });
         const inv = inversionCheck({ positions: pos, indices: Uint32Array.from(faces.flat()) }, { up: "y" });
-        if (inv.sampled && inv.fraction > 0.05) folds.push(tr("\"{name}\" folds back over itself at {folded} of {sampled} sampled locations (a contact surface should have one elevation per location): an interpolation artefact, a real overturned fold, or a unit that is not one layer (a steep intrusive or repeated sheets, better modelled as a closed body in Modelling codes).", { name: spec.label, folded: inv.folded, sampled: inv.sampled }));
+        if (inv.sampled && inv.fraction > 0.05) folds.push(tr("\"{name}\" folds back over itself at {folded} of {sampled} sampled locations (a contact surface should have one elevation per location): an interpolation artefact, a real overturned fold, interbeds of neighbouring units in a flat pile (model each hole's first top: the Strat. stack's Layer-cake method, or the Explicit surface's 'Add the logged tops'), or a unit that is not one layer (a steep intrusive or repeated sheets, better modelled as a closed body in Modelling codes).", { name: spec.label, folded: inv.folded, sampled: inv.sampled }));
       }
     });
     if (folds.length) setNotices((p) => [...p, notice("{list} Check relationships lists it again with the other checks.", { list: folds.join(" ") })]); // #2058
@@ -1165,7 +1166,17 @@ export function createModellingRuns(ctx, mcRef) {
       if (multi.length) setNotices((p) => [...p, notice("{unitName}: {n} hole(s) give more than one top of this one surface ({list}), so it is forced through all of them. A repeated unit is several surfaces: split it with Modelling codes (Auto-number or Connect) or an intercept set.", { unitName, n: multi.length, list: multi.slice(0, 6).map(([h, k]) => `${h} ${k}`).join(", ") + (multi.length > 6 ? ", …" : "") })]);
       // TASKS.csv #2234 (review #2174, WA gold) — a unit repeated in most of its holes (a steep monzonite: 57 holes, 75 near-vertical pick pairs) is
       // not a layer: one 'top of' surface folds back over itself; the closed-body and vein tools model it as a body
-      if (per.size >= 4 && multi.length / per.size >= 0.25) setNotices((p) => [...p, notice("{unitName} repeats in {p} % of the holes that log it: it behaves like a steep body or a set of sheets, not one layer. A closed body (Modelling codes › Closed body) or Veins / dykes models it as a body.", { unitName, p: Math.round((100 * multi.length) / per.size) })]); }
+      // TASKS.csv #2927 (review #2876, WA iron) — on a near-flat pile whose repeats are split by the same neighbours (SONAM / ONAM / SONAM, 2 m
+      // interbeds), they are interbeds, not a steep body: said so, with the route that takes one top per hole
+      if (per.size >= 4 && multi.length / per.size >= 0.25) {
+        const first = new Map(); points.forEach((p) => { if (p.hole_id != null && !(first.get(p.hole_id)?.z >= p.z)) first.set(p.hole_id, p); });
+        const dip = planeDipDeg([...first.values()]);
+        const unitVals = isMcode ? mcodeLogged : codes, byH = rowsByHole(layers.litho || []);
+        const ib = Number.isFinite(dip) && dip <= 15 && unitVals ? interbeds(multi.map(([h]) => h), (h) => byH.get(h), (v) => unitVals.has(v)) : [];
+        const split = ib.filter((q) => q.holes >= 0.5 * ib.of).slice(0, 3);
+        if (split.length) setNotices((p) => [...p, notice("{unitName} repeats in {p} % of the holes that log it, interbedded with {list} (in {n} of those {m} holes), and its first tops lie near flat (dipping {d}°): thin beds of its neighbours in a flat pile, not a steep body. One surface through each hole's first top is what the Strat. stack's Layer-cake method and the Explicit surface's 'Add the logged tops' build.", { unitName, p: Math.round((100 * multi.length) / per.size), list: split.map((q) => q.code).join(", "), n: split[0].holes, m: ib.of, d: dip.toFixed(1) })]);
+        else setNotices((p) => [...p, notice("{unitName} repeats in {p} % of the holes that log it: it behaves like a steep body or a set of sheets, not one layer. A closed body (Modelling codes › Closed body) or Veins / dykes models it as a body.", { unitName, p: Math.round((100 * multi.length) / per.size) })]);
+      } }
     // #1367 — said inside a stack too: it changes which picks the surface follows
     if (belowRoleSkipped) setNotices((p) => [...p, notice("{unitName}: {n} interval start(s) right under a fault, breccia, vein, dyke, no-recovery or casing interval were not used as tops (roles in Modelling codes).", { unitName, n: belowRoleSkipped })]);
     // #1684 — the contact under overburden is the base of overburden, an erosional surface: not this unit's top on its own
@@ -1542,7 +1553,7 @@ export function createModellingRuns(ctx, mcRef) {
         const list = ord.conflicts.slice(0, 4).map((q) => tr("{older} is logged above {younger} in {against} of {of} holes that have both", { older: specs[q.older].meshName, younger: specs[q.younger].meshName, against: q.against, of: q.of })).join("; ");
         const holesOrder = ord.order.map((k) => specs[k].meshName).join(", ");
         if (!window.confirm(tr("The stack's order does not match the holes: {list}. Down the holes the order is {order} (youngest first). Run in the order given anyway?", { list, order: holesOrder }))) {
-          setNotices((p) => [...p, notice("Stack run cancelled before solving: the holes give the order {order} (youngest first). Reorder the units with the arrows and run again.", { order: holesOrder })]);
+          setNotices((p) => [...p, notice("Stack run cancelled before solving: the holes give the order {order} (youngest first). 'Use the order from the holes' over the stack's units puts them in it; then run again.", { order: holesOrder }) /* #2926 */]);
           return;
         }
         setNotices((p) => [...p, notice("Run in the order given, although the holes give {order} (youngest first): {list}.", { order: holesOrder, list })]);
