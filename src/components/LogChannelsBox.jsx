@@ -28,7 +28,7 @@ export default function LogChannelsBox({ modal, onChange, sel }) {
       <div style={note}>{tr("Each ticked channel becomes its own numeric layer, named after the column. Untick all to import only the value column above as one layer.")}</div>
       {noData.length > 0 && ( // #2332
         <div style={{ ...note, color: "var(--color-warn-text)", marginTop: 4 }}>
-          {noData.map(({ col, nd }) => <div key={col}>{tr("{col}: {n} value(s) look like no-data codes ({codes}): a null sentinel, a negative value in a channel that cannot be negative, a reading far below the channel's others, or one more than 1,000 times its 99th percentile.", { col, n: nd.n.toLocaleString(), codes: noDataText(nd) })}{/* the reasons: #2890 */}</div>)}
+          {noData.map(({ col, nd }) => <div key={col}>{tr("{col}: {n} value(s) look like no-data codes ({codes}): a null sentinel, a negative value in a channel that cannot be negative, a reading far below the channel's others, one more than 1,000 times its 99th percentile, or one value repeated reading after reading at the channel's extreme.", { col, n: nd.n.toLocaleString(), codes: noDataText(nd) })}{/* the reasons: #2890; the repeated value: #3042 */}</div>)}
           <label style={{ display: "flex", gap: 5, alignItems: "center", marginTop: 3, color: "var(--color-text)" }}><input type="checkbox" checked={!modal.logKeepNoData} onChange={(e) => set({ logKeepNoData: !e.target.checked })} />{tr("Leave them out (said in the notice and the layer notes)")}</label>
         </div>
       )}

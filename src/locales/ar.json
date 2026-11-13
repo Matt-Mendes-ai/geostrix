@@ -10420,7 +10420,7 @@
   "Import surface samples or drill assays first": "استورد العينات السطحية أو تحاليل الثقوب أولًا",
   "Anomaly thresholds for soil and stream-sediment samples, and length-weighted for drill assays, judged within populations": "عتبات الشذوذ لعينات التربة ورواسب المجاري، ومرجّحة بالطول لتحاليل الثقوب، تُقيَّم داخل كل مجتمع",
   "Each reading is placed at the middle of its From–To interval ({from} to {to}): a log at short steps, not intervals of a rock unit.": "توضع كل قراءة في منتصف فاصلها من–إلى ({from} إلى {to}): تسجيل بخطوات قصيرة، لا فواصل وحدة صخرية.",
-  "{col}: {n} value(s) look like no-data codes ({codes}): a null sentinel, a negative value in a channel that cannot be negative, a reading far below the channel's others, or one more than 1,000 times its 99th percentile.": "{col}: {n} قيمة تبدو رموزًا لغياب البيانات ({codes}): قيمة دالة على الغياب، أو قيمة سالبة في قناة لا يمكن أن تكون سالبة، أو قراءة أدنى كثيرًا من بقية قراءات القناة، أو قراءة تتجاوز 1000 ضعف المئين 99 لها.",
+  "{col}: {n} value(s) look like no-data codes ({codes}): a null sentinel, a negative value in a channel that cannot be negative, a reading far below the channel's others, one more than 1,000 times its 99th percentile, or one value repeated reading after reading at the channel's extreme.": "{col}: {n} قيمة تبدو رموزًا لغياب البيانات ({codes}): قيمة دالة على الغياب، أو قيمة سالبة في قناة لا يمكن أن تكون سالبة، أو قراءة أدنى كثيرًا من بقية قراءات القناة، أو قراءة تتجاوز 1000 ضعف المئين 99 لها، أو قيمة واحدة مكررة قراءة بعد قراءة عند طرف القناة.",
   "Leave them out (said in the notice and the layer notes)": "استبعدها (يُذكر ذلك في الإشعار وملاحظات الطبقة)",
   "Rows": "الصفوف",
   "Row filter column": "عمود مرشح الصفوف",

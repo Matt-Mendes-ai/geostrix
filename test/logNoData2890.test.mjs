@@ -12,7 +12,7 @@ const sus = [];
 const row = (s, d, g) => ({ Suscep_Best: s, Density_Best: d, Gamma_Best: g, v: s });
 for (let i = 0; i < 3000; i++) sus.push(row(70 + (i % 300), 2 + (i % 7) * 0.1, 40 + (i % 50)));
 for (const v of [-0.5, -3, -40]) sus.push(row(v, 2.4, 50));
-for (let i = 0; i < 12; i++) sus.push(row(-821754.9, -1.47, 54938));
+for (let i = 0; i < 12; i++) sus.push(row(-821754.9, -1.47, 54938 - 731 * i)); // real highs vary (#3042 questions one value written again and again)
 for (let i = 0; i < 20; i++) sus.push(row(-999, -999, 60));
 
 test("a reading far below the channel's body is a no-data code; small negatives are readings", () => {
@@ -38,7 +38,7 @@ test("real highs far above the body are kept (#2332's uranium gamma beside a med
 
 test("the dialog names the reasons", () => {
   const box = readFileSync(new URL("../src/components/LogChannelsBox.jsx", import.meta.url), "utf8");
-  const k = "{col}: {n} value(s) look like no-data codes ({codes}): a null sentinel, a negative value in a channel that cannot be negative, a reading far below the channel's others, or one more than 1,000 times its 99th percentile.";
+  const k = "{col}: {n} value(s) look like no-data codes ({codes}): a null sentinel, a negative value in a channel that cannot be negative, a reading far below the channel's others, one more than 1,000 times its 99th percentile, or one value repeated reading after reading at the channel's extreme.";
   assert.ok(box.includes(`tr("${k}"`));
   for (const l of ["es", "pt", "fr", "ar"]) assert.ok(JSON.parse(readFileSync(new URL(`../src/locales/${l}.json`, import.meta.url), "utf8"))[k], l);
 });
