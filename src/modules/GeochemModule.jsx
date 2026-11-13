@@ -225,7 +225,7 @@ export default function GeochemModule() {
   // TASKS.csv #2957 — the units the project already stores an element in (surface samples first, then drill assays): a new file's oxide column takes that basis
   const projectUnits = useMemo(() => ({ ...Object.fromEntries(assayElements.filter((e) => !e.calculated).map((e) => [e.symbol, e.unit])), ...Object.fromEntries(surfaceElements.filter((e) => !e.calculated).map((e) => [e.symbol, e.unit])) }), [assayElements, surfaceElements]);
   // TASKS.csv #1678 — the X-Y scatter's axes: elements, then the numeric downhole logs and custom-layer fields (read at each sample's depth)
-  const xyChoices = useMemo(() => numericSourceChoices({ layers: store.layers, customLayers: store.customLayers, builtinFields: { labelOf: (k) => tr(LAYER_META[k]?.label || k) } /* #2915 */ }), [store.layers, store.customLayers]);
+  const xyChoices = useMemo(() => numericSourceChoices({ layers: store.layers, customLayers: store.customLayers, logValidRange: store.project?.logValidRange /* #3116 */, builtinFields: { labelOf: (k) => tr(LAYER_META[k]?.label || k) } /* #2915 */ }), [store.layers, store.customLayers, store.project?.logValidRange]);
   // TASKS.csv #2719 — with pXRF and lab results, an element measured by only one of them offered an empty axis in the other source:
   // the X / Y lists mark (and grey out) the elements with no value in the samples shown
   const xyEmptyElements = useMemo(() => (diagramId === "xy" && hasPxrf ? elementsWithoutValues(sourceRows, assayElements.map((e) => e.symbol)) : new Set()), [diagramId, hasPxrf, sourceRows, assayElements]);

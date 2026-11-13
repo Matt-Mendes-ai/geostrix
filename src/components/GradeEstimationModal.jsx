@@ -68,8 +68,8 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
   // wavelength, a chalcopyrite %) is estimated like a grade: its rows become assay-shaped intervals under one "element"
   const saved = useRef(lastEstimateSettings.get(estimateSettingsKey(project)) || null).current; // #1580
   const keep = (k, d, ok = () => true) => (saved && saved[k] !== undefined && ok(saved[k]) ? saved[k] : d);
-  const [sourceKey, setSourceKey] = useState(() => keep("sourceKey", "assay", (k) => k === "assay" || numericSourceChoices({ layers, customLayers, models: false }).some((x) => x.key === k)));
-  const numericSources = useMemo(() => numericSourceChoices({ layers, customLayers, models: false /* #2397 — not a model of a model */ }), [layers, customLayers]);
+  const [sourceKey, setSourceKey] = useState(() => keep("sourceKey", "assay", (k) => k === "assay" || numericSourceChoices({ layers, customLayers, models: false, logValidRange: project?.logValidRange }).some((x) => x.key === k))); // logValidRange: #3116
+  const numericSources = useMemo(() => numericSourceChoices({ layers, customLayers, models: false /* #2397 — not a model of a model */, logValidRange: project?.logValidRange /* #3116 */ }), [layers, customLayers, project?.logValidRange]);
   const source = useMemo(() => numericSources.find((s) => s.key === sourceKey) || null, [numericSources, sourceKey]);
   const sourceData = useMemo(() => (source ? sourceAssays(source, { layers, customLayers }) : null), [source, layers, customLayers]);
   const assaysIn = sourceData ? sourceData.assays : assaysProp, assayElements = sourceData ? sourceData.assayElements : assayElementsProp;

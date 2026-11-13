@@ -14,6 +14,7 @@ import { errorNotice, notice } from "../../lib/notices.js";
 import { boundaryIntercepts } from "../../lib/viewer/boundaryIntercepts.js"; // TASKS.csv #2931
 import { t as tr } from "../../lib/i18n.js"; // TASKS.csv #786
 import { faultLikeName } from "../../lib/layers.js"; // TASKS.csv #1549
+import { useStore } from "../../lib/store.jsx"; // TASKS.csv #3116 — the built-in logs' range / despike, for the grade shell run
 
 const createRunsCache = { fn: null }; // TASKS.csv #697 — modellingRuns.js once loaded
 
@@ -32,7 +33,8 @@ export function useModelling(ctx) {
   // TASKS.csv #697 — the run functions live in ./modellingRuns.js and load on the first run. Each wrapper is stable and
   // hands the run the context of the render it was clicked in (ctxRef is refreshed every render).
   const ctxRef = useRef(ctx);
-  ctxRef.current = ctx;
+  const logValidRange = useStore().project?.logValidRange; // #3116
+  ctxRef.current = { ...ctx, logValidRange };
   const lazyRun = useCallback((name) => async (...args) => {
     let create;
     try {
