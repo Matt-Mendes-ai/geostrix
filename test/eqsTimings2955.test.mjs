@@ -10,7 +10,7 @@ test("the sidecar says the engine load first and returns the stage timings; the 
   const py = readFileSync(new URL("../python-sidecar/app/geophys/pfields.py", import.meta.url), "utf8");
   assert.match(py, /def _engine\(progress, label="the gridding engine \(Harmonica, Verde\)"\):/);
   assert.match(py, /progress\(\{"stage": "loading", "message": f"Loading \{label\}: each run starts it afresh/);
-  assert.match(py, /def eqs\(req, progress\):\n    load_s = _engine\(progress\)/);
+  assert.match(py, /def eqs\(req, progress\):\r?\n    load_s = _engine\(progress\)/);
   assert.match(py, /"timings": \{"load": round\(load_s, 1\), "fit": round\(fit_s, 1\), "grid": round\(time\.perf_counter\(\) - t_grid, 1\)\}/);
   const box = readFileSync(new URL("../src/components/EqsGridBox.jsx", import.meta.url), "utf8");
   assert.match(box, /d\.timings \? " " \+ tr\("Of the time, loading the engine took \{a\} s \(each run starts it afresh\), the fit \{b\} s and the grid \{c\} s\."/);
