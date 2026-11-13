@@ -197,6 +197,8 @@ import { PickStandIn, PICK_ONLY_LAYER } from "../lib/viewer/pickStandIn.js"; // 
 import { syncBatchedInstances, buildLayerBatches, eachLayerMember, eachPickTarget, batchTag } from "../lib/viewer/layerBatches.js"; // moved out (size cap, #1084)
 import { PROTO_SPHERE_8, POINT_PROTO } from "../lib/viewer/protos.js"; // TASKS.csv #2176
 import { assayShapeFor, assayProto, placeAssayMarker } from "../lib/viewer/assayShape.js"; // TASKS.csv #2932
+import { assayRange } from "../lib/viewer/assayRanges.js"; // TASKS.csv #3055
+import { makeAssayBatcher } from "../lib/viewer/assayBatcher.js"; // TASKS.csv #3055
 import { buildDrillholeScene, collarColorFor, voxelFitCorners, isIntervalRow } from "./viewer/drillholeScene.js"; // TASKS.csv #2176
 import { viewNdc } from "../lib/viewer/clickPoint.js"; // TASKS.csv #2803
 import { hideTraceHoles } from "../lib/viewer/traceBatch.js"; // TASKS.csv #2176
@@ -4220,17 +4222,11 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     const byHole = new Map();
     assays.forEach((a) => { if (!a.hole_id || isMarkedQcRow(a) || !assayRowShown(a)) return; let arr = byHole.get(a.hole_id); if (!arr) byHole.set(a.hole_id, (arr = [])); arr.push(a); }); // #601 — a standard's grade is not the rock's; assayRowShown: #1695
     // one size range PER element across all holes (Au in g/t and Cu in % share no scale); p50/p90 for #306's quantile sizes
-    const ranges = {};
-    assayDisplayElements.forEach((sym) => {
-      const vals = assays.filter((a) => a.values[sym] != null && assayRowShown(a)).map((a) => a.values[sym]); // #1695: sizes from the shown source
-      const finite = vals.filter(Number.isFinite).sort((x, y) => x - y);
-      const q = (pp) => (finite.length ? finite[Math.min(finite.length - 1, Math.floor(pp * (finite.length - 1)))] : undefined);
-      ranges[sym] = { ...minMax(vals), p50: q(0.5), p90: q(0.9), n: finite.length };
-    });
+    const ranges = Object.fromEntries(assayDisplayElements.map((sym) => [sym, assayRange(assays, sym, assaySource, assayRowShown)])); // #1695 the shown source; #3055 kept per samples array
     const drawnAssays = assayDisplayElements.reduce((s, sym) => s + ranges[sym].n, 0); // #2932 — along the hole above 40,000
     const traceOf = new Map(tracesRef.current.map((t) => [t.hole_id, t.pts]));
     const n = assayDisplayElements.length;
-    const errors = [];
+    const errors = [], batcher = makeAssayBatcher(); // #3055
     collars.forEach((c) => {
       const pts = traceOf.get(c.hole_id);
       if (!pts?.length) return; // a hole without a trace: before the lookup (#1981)
@@ -4249,15 +4245,15 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             if (v == null || !assayPassesCutoff(v, style)) return;
             // #312 — shared prototype + scale; #649 — the element's shape and opacity; #1695 — a pXRF reading is a cube
             const px = isPxrfRow(a), op = style?.opacity ?? 1, shape = assayShapeFor(style, drawnAssays, px);
-            const mesh = new PickStandIn(assayProto(shape), { color: assayColorFor(v, idx, style), transparent: op < 1, opacity: op, side: shape === "disc" ? THREE.DoubleSide : THREE.FrontSide }); // #1500
-            if (!placeAssayMarker(mesh, shape, look.at, a, assaySizeFor(v, ranges[sym], style), offX, offZ)) return; // #306 size
-            mesh.userData = lazyTip({ row: a, holeId: c.hole_id }, () => `${c.hole_id}\n${sym}: ${gradeText(v)} ${elementUnits[sym] || ""}${px ? " (pXRF)" : ""}\n${+a.from.toFixed(2)}–${+a.to.toFixed(2)} m`); // #1500; #2365 as stored
-            g.add(mesh);
+            batcher.add(assayProto(shape), { color: assayColorFor(v, idx, style), transparent: op < 1, opacity: op, side: shape === "disc" ? THREE.DoubleSide : THREE.FrontSide }, // #3055 — no object per sample
+              (t) => placeAssayMarker(t, shape, look.at, a, assaySizeFor(v, ranges[sym], style), offX, offZ), // #306 size
+              () => lazyTip({ row: a, holeId: c.hole_id }, () => `${c.hole_id}\n${sym}: ${gradeText(v)} ${elementUnits[sym] || ""}${px ? " (pXRF)" : ""}\n${+a.from.toFixed(2)}–${+a.to.toFixed(2)} m`)); // #1500; #2365 as stored
           });
         });
       } catch (err) { errors.push(`${c.hole_id}: ${err.message}`); }
     });
-    buildLayerBatches(g);
+    batcher.finish(g);
+    buildLayerBatches(g); // the families under 24 markers
     if (errors.length) setNotices((pv) => [...pv, errorNotice(tr("{errors} hole(s) failed to draw assay markers: {v}", { errors: errors.length, v: errors.slice(0, 3).join(" · ") }))]);
   };
   const buildAssaySpheresRef = useRef(buildAssaySpheres);

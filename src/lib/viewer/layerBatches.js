@@ -210,6 +210,23 @@ export function buildLayerBatches(group) {
   if (dropped.size) group.children = group.children.filter((c) => !dropped.has(c));
   if (promote.size) { group.children = group.children.map((c) => { const real = promote.get(c); if (!real) return c; real.parent = group; c.parent = null; return real; }); group.updateMatrixWorld(true); } // #1500
 }
+// TASKS.csv #3055 — a compact batch made straight from arrays, with no stand-in per row (the assay markers: 148,000 samples on WA iron made
+// as many stand-ins, then grouped and copied into these same arrays). The steps buildLayerBatches takes for a stand-in family (#1643).
+// base: Float32Array, 16 per row (each row's matrix); rows: the userData per row; col: Float32Array, 3 per row (linear RGB, as THREE.Color)
+export function addCompactBatch(group, geometry, { transparent = false, opacity = 1, side = THREE.FrontSide } = {}, base, rows, col) {
+  const material = new THREE.MeshLambertMaterial({ transparent, opacity, side });
+  material.color.setHex(0xffffff);
+  if (material.transparent && material.opacity < 1) material.depthWrite = false; // as buildLayerBatches (#2776)
+  const inst = new THREE.InstancedMesh(geometry, material, rows.length);
+  inst.userData.pickIgnore = true;
+  group.updateWorldMatrix(true, false);
+  group.matrixAutoUpdate = false; // #695
+  inst.instanceColor = new THREE.InstancedBufferAttribute(col, 3);
+  inst.userData.compact = { rows, base, hidden: new Uint8Array(rows.length), side, transparent, opacity, view: (i) => new InstanceView(inst, i) };
+  group.add(inst);
+  syncCompact(inst);
+  return inst;
+}
 // TASKS.csv #1540 — every pickable member of a layer group: the unbatched children and each batch's members
 export function eachLayerMember(g, fn) {
   for (const c of g.children) {

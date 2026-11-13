@@ -114,7 +114,7 @@ test("wiring: the stack run builds a layer-cake in place of the GemPy solve, ref
   const fs = await import("node:fs");
   const r = fs.readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8");
   assert.match(r, /const cakeRun = stackOpts\.engine === "layercake";/);
-  assert.match(r, /const r = layerCake\(specs\.filter\(\(sp\) => !sp\.fault\), extent, resolution, \{ evalPts \}\);/);
+  assert.match(r, /const r = await runLayerCake\(specs\.filter\(\(sp\) => !sp\.fault\), extent, resolution, \{ evalPts, onProgress:/); // #3085 — in a worker
   assert.match(r, /return r\.error \? \{ ok: false, error: r\.error \} : \{ ok: true, surfaces: r\.surfaces, block: r\.block, evaluated: r\.evaluated, cake: r \};/);
   assert.match(r, /if \(cake && stackFaults\.length\) \{ setNotices/);
   assert.match(r, /if \(flat\?\.flat\) \{/);

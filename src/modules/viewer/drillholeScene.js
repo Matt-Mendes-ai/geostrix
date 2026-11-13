@@ -95,6 +95,39 @@ export function planHoles(prev, collars, surveyByHole, method, { ox, oy, oz, reb
   return { full: !originSame || prev.rebuildSeq !== rebuildSeq, holeEntries, changedHoles, shift };
 }
 
+// TASKS.csv #3097 (the rest of #2937) — a desurvey switch that moves a few holes (WA iron, to Tangential: 2 of 6,390 holes, 15 cm) rebuilt
+// every layer group those holes have rows in: all 150,455 litho intervals, 4 s. Such a group is patched instead: the moved holes' rows are
+// retired from its compact batches (a zero matrix, never drawn or hit; the row's userData replaced, so no pass reads it) and their plain
+// members removed, and only those holes' rows are built again, batched as a small new family. A group holding anything else (a batch of
+// real meshes, a member without a hole id) or with a quarter of its rows retired over the switches is rebuilt whole, as before.
+export const PATCH_MAX_HOLES = 20, PATCH_MAX_RETIRED = 0.25, PATCH_MAX_TIMES = 16; // times: each patch adds a small batch (a draw call)
+export const RETIRED_ROW = Object.freeze({ retired: true });
+export function retireHoles(g, holes) {
+  let total = 0, now = 0;
+  for (const c of g.children) {
+    const cp = c.userData?.compact;
+    if (cp) { total += cp.rows.length; for (const r of cp.rows) if (r !== RETIRED_ROW && holes.has(r?.holeId)) now++; continue; }
+    if (c.userData?.batchMembers || c.userData?.holeId == null) return false;
+    total++; if (holes.has(c.userData.holeId)) now++;
+  }
+  if (!total || (g.userData.retired || 0) + now > PATCH_MAX_RETIRED * total || (g.userData.patches || 0) >= PATCH_MAX_TIMES) return false;
+  g.children = g.children.filter((c) => {
+    const cp = c.userData?.compact;
+    if (cp) {
+      let hit = false;
+      for (let i = 0; i < cp.rows.length; i++) if (cp.rows[i] !== RETIRED_ROW && holes.has(cp.rows[i]?.holeId)) { cp.rows[i] = RETIRED_ROW; cp.base.fill(0, i * 16, i * 16 + 16); cp.hidden[i] = 1; hit = true; }
+      if (hit) syncBatchedInstances(c);
+      return true;
+    }
+    if (!holes.has(c.userData.holeId)) return true;
+    if (!c.geometry?.userData?.sharedProto) c.geometry?.dispose?.();
+    c.material?.dispose?.(); c.parent = null;
+    return false;
+  });
+  g.userData.retired = (g.userData.retired || 0) + now; g.userData.patches = (g.userData.patches || 0) + 1;
+  return true;
+}
+
 // Which layer groups are made again: all on a full build; else a group whose signature changed, that is new, or that has
 // rows in a hole desurveyed again (its members stand on that hole's trace).
 export function planGroups(prev, sigs, changedHoles, full) {
@@ -172,7 +205,7 @@ export function buildDrillholeScene(ctx) {
   // #2176 — clears only the groups this build makes again (all of them on a full build)
   const clearGroups = (list) => {
     const oldMats = [];
-    list.forEach((g) => { while (g.children.length) { const c = g.children.pop(); if (!c.geometry?.userData?.sharedProto) c.geometry?.dispose?.(); c.material?.map?.dispose?.(); if (c.material) oldMats.push(c.material); c.dispose?.(); } });
+    list.forEach((g) => { g.userData.retired = 0; g.userData.patches = 0; /* #3097 */ while (g.children.length) { const c = g.children.pop(); if (!c.geometry?.userData?.sharedProto) c.geometry?.dispose?.(); c.material?.map?.dispose?.(); if (c.material) oldMats.push(c.material); c.dispose?.(); } });
     setTimeout(() => { const live = new Set(); Object.values(groups).forEach((g) => g.traverse((o) => o.material && live.add(o.material))); oldMats.forEach((m) => { if (!live.has(m)) m.dispose?.(); }); }, 1500);
   };
   const labelAnchors = []; // #1277 — one per hole, drawn after the loop and again on a label-mode change
@@ -360,10 +393,15 @@ export function buildDrillholeScene(ctx) {
     prev.sigs.set(l.id, sig); repaint.push(l);
   }
   const rebuild = planGroups(prev, sigs, changedHoles, full);
+  const groupOf = (k) => customLayers.find((l) => l.id === k)?.group || groups[k];
+  const patched = new Set(); // #3097 — only the moved holes of these groups are built again
+  if (!full && plan.shift && plan.shift.moved === changedHoles.size && changedHoles.size <= PATCH_MAX_HOLES) {
+    for (const k of rebuild) { const g = groupOf(k); if (g && sameRefs(prev.sigs.get(k), sigs.get(k)) && retireHoles(g, changedHoles)) patched.add(k); }
+  }
   const rebuildHoles = full || changedHoles.size > 0;
   if (full) clearGroups(Object.values(groups));
-  else clearGroups([...(rebuildHoles ? [groups.holes, groups.hole_labels] : []), ...[...rebuild].map((k) => customLayers.find((l) => l.id === k)?.group || groups[k])].filter(Boolean));
-  const byHoleIf = (k, rows) => (rebuild.has(k) ? groupByHole(rows) : NO_HOLES); // a kept group builds nothing below
+  else clearGroups([...(rebuildHoles ? [groups.holes, groups.hole_labels] : []), ...[...rebuild].filter((k) => !patched.has(k)).map(groupOf)].filter(Boolean)); // patched: #3097
+  const byHoleIf = (k, rows) => (!rebuild.has(k) ? NO_HOLES : patched.has(k) ? groupByHole((rows || []).filter((r) => changedHoles.has(r.hole_id))) : groupByHole(rows)); // a kept group builds nothing below; a patched one its moved holes
   const rowsByHole = {
     litho: byHoleIf("litho", layers.litho), alt: byHoleIf("alt", layers.alt), vein: byHoleIf("vein", layers.vein),
     geotech: byHoleIf("geotech", layers.geotech), litho_gc: byHoleIf("litho_gc", layers.litho_gc), alt_gc: byHoleIf("alt_gc", layers.alt_gc),
@@ -373,7 +411,7 @@ export function buildDrillholeScene(ctx) {
   const customRowsByHoleByLayer = new Map(customLayers.map((l) => [l.id, byHoleIf(l.id, l.rows)]));
   // the holes each group has rows in, for the next build's planGroups (a kept group keeps its set)
   const holeSets = new Map();
-  for (const k of sigs.keys()) holeSets.set(k, rebuild.has(k) ? new Set((rowsByHole[k] || customRowsByHoleByLayer.get(k) || NO_HOLES).keys()) : prev.holeSets.get(k));
+  for (const k of sigs.keys()) holeSets.set(k, rebuild.has(k) && !patched.has(k) ? new Set((rowsByHole[k] || customRowsByHoleByLayer.get(k) || NO_HOLES).keys()) : prev.holeSets.get(k));
 
   // Bug-hunt pass: color/size range for numeric point layers (mnlgy/magsusc) used to be computed
   // per-hole inside buildPointMarkers below, so the same absolute value rendered a different color

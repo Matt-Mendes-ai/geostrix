@@ -123,7 +123,8 @@ export function fieldThrough(obs) {
 // specs: the stack's units youngest first [{ meshName, points: [{ x, y, z, hole_id? }], package? }]; extent [xmin, xmax, ymin, ymax, zmin,
 // zmax]; resolution [nx, ny, nz] (the block's). -> { surfaces, block, evaluated, grid, report: { units: [{ unit, thickness: { holes,
 // median, zeroHoles } | null, packageTop }], clamped: [{ unit, nodes }] } } | { error }
-export function layerCake(specs, extent, resolution, { maxNodes = 128, evalPts = null } = {}) {
+// onProgress(done, total) (#3085): after each top's field, and once more after the block (total = units + 1)
+export function layerCake(specs, extent, resolution, { maxNodes = 128, evalPts = null, onProgress = null } = {}) {
   const n = specs.length;
   if (!n) return { error: "no units" };
   const tops = specs.map((s) => topsByHole(s.points));
@@ -152,13 +153,14 @@ export function layerCake(specs, extent, resolution, { maxNodes = 128, evalPts =
     if (k > 0 && pkgOf[k] !== pkgOf[k - 1]) first = k;
     // a package's first top starts a cake; under an unconformity that top IS the unconformity, so the next top starts the cake too
     const startsCake = k === first || (first > 0 && k === first + 1);
-    if (startsCake) { fields[k] = { top: fieldThrough(tops[k].all.map((p) => ({ x: p.x, y: p.y, v: p.z }))) }; report.units.push({ unit: specs[k].meshName, thickness: null, packageTop: true }); continue; }
+    if (startsCake) { fields[k] = { top: fieldThrough(tops[k].all.map((p) => ({ x: p.x, y: p.y, v: p.z }))) }; report.units.push({ unit: specs[k].meshName, thickness: null, packageTop: true }); onProgress?.(k + 1, n + 1); continue; }
     // the thickness of the unit between top k - 1 and top k at each pick of top k: the drop from the MODELLED top above there, so top k passes
     // through its picks; 0 where the two coincide (a unit absent, #1030's pinch-out points); never negative
     const P = tops[k].all, above = topsAt(P.map((p) => p.x), P.map((p) => p.y), k - 1)[k - 1];
     const obs = P.map((p, i) => ({ x: p.x, y: p.y, v: Math.max(0, above[i] - p.z) }));
     const zero = obs.filter((o) => o.v < 1e-6).length;
     fields[k] = { thick: fieldThrough(obs) };
+    onProgress?.(k + 1, n + 1); // #3085
     report.units.push({ unit: specs[k - 1].meshName, below: specs[k].meshName, thickness: { holes: obs.length, median: median(obs.filter((o) => o.v >= 1e-6).map((o) => o.v)) || 0, zeroHoles: zero } }); // the median where present
   }
   // the grid: the meshes and the block (the clamp counted per top, as nodes held under the one above)
@@ -194,6 +196,7 @@ export function layerCake(specs, extent, resolution, { maxNodes = 128, evalPts =
     const T = topsAt(ux, uy);
     evaluated = evalPts.map(([, , z], q) => { const i = at[q]; let id = 1; for (let k = 0; k < n && T[k][i] > z; k++) id++; return id; });
   }
+  onProgress?.(n + 1, n + 1); // #3085
   return { surfaces, block, evaluated, grid: g, report };
 }
 
