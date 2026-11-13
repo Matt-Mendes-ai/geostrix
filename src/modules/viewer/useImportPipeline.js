@@ -65,6 +65,13 @@ const dipColOf = (target, mapping) => (target === "collars" || target === "surve
 let perMineralLib = null;
 const loadPerMineral = async (target) => { if (!perMineralLib && (target === "mnlgy" || target === "custom")) { try { perMineralLib = await import("../../lib/perMineralColumns.js"); } catch { /* offline chunk: the import goes on without the per-mineral layers */ } } };
 
+// TASKS.csv #3211 — a custom interval layer's overlaps, counted for every one (the interval import says them only with a column that may explain them)
+function customOverlapText(rows) {
+  if (!rows.length || !rows.some((r) => Number.isFinite(r.from) && Number.isFinite(r.to))) return "";
+  const o = overlapSummary(rows, { hole: "hole_id", from: "from", to: "to" }, []);
+  return o.n ? " " + tr("{n} of the {total} interval(s) overlap another of the same hole, in {holes} hole(s): Data QC lists them.", { n: o.n.toLocaleString(), total: o.total.toLocaleString(), holes: o.holes }) : "";
+}
+
 export function useImportPipeline(ctx) {
   const { addVoxelModel, fillCodeDictionary, recordImportLeftOut, assays: storeAssays } = useStore(); // assays: #3039 // #2632; fillCodeDictionary: #2163; recordImportLeftOut: #2493
   const {
@@ -800,6 +807,8 @@ export function useImportPipeline(ctx) {
         if (!row.hole_id) { cDropped.push({ reason: "no hole id" }); continue; }
         if (isBlankCode(row.value)) { cDropped.push({ reason: "no code" }); continue; }
         if (!Number.isFinite(row.depth) && !(Number.isFinite(row.from) && Number.isFinite(row.to))) { cDropped.push({ reason: "no interval", example: row.hole_id }); continue; }
+        // TASKS.csv #3211 (#3195, Galore Creek) — a reversed interval (To above From in depth) was kept without a word: left out and named
+        if (Number.isFinite(row.from) && Number.isFinite(row.to) && row.to < row.from) { cDropped.push({ reason: "reversed", example: `${row.hole_id} ${row.from}-${row.to}` }); continue; }
         rows.push(row);
       }
       const layerName = String(data.customName || "").trim() || (mapping.value ? `${String(fileName).replace(/\.csv$/i, "")}: ${mapping.value}` : String(fileName).replace(/\.csv$/i, "")); // #2338
@@ -816,7 +825,7 @@ export function useImportPipeline(ctx) {
       setCustomVisible((p) => ({ ...p, [id]: true }));
       setNotices((p) => [...p, evNotes
         ? notice("Added \"{fileName}\" as a layer of depth picks ({rows} rows, {codes}): drawn on the traces, and offered as picks in the Explicit surface tool (one per hole) for a surface such as the base of oxidation.", { fileName, rows: rows.length, codes: [...new Set(rows.map((r) => String(r.value ?? "").trim()).filter(Boolean))].slice(0, 8).join(", ") })
-        : appendNotice(notice("Added \"{name}\" as a custom layer ({rows} rows).", { name: layerName, rows: rows.length }), skippedRowsText(cDropped, allRows.length))]); // #2338
+        : appendNotice(notice("Added \"{name}\" as a custom layer ({rows} rows).", { name: layerName, rows: rows.length }), skippedRowsText(cDropped, allRows.length) + customOverlapText(rows))]); // #2338; overlaps: #3211
       }
     } else {
       // _src (source filename) is stamped on every row here — TASKS.csv #63: lets the layer inspector

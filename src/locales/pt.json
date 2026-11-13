@@ -11820,5 +11820,8 @@
   "{fileName}: nothing was added: no interval has a per-cent value in the ticked columns.": "{fileName}: nada foi adicionado: nenhum intervalo tem um valor em porcentagem nas colunas marcadas.",
   "{fileName}: {n} layer(s) of visual per cent (one per mineral column) imported: {list}. The first is shown; the others are in the Layers list.": "{fileName}: {n} camada(s) de porcentagem visual (uma por coluna de mineral) importada(s): {list}. A primeira é mostrada; as outras estão na lista de Camadas.",
   "{n} value(s) below 0 or over 100 % were left out.": "{n} valor(es) abaixo de 0 ou acima de 100 % foram deixados de fora.",
-  "{cols}: values a thousandfold apart from \"{header}\" read in the same unit: one of them is not in the unit its name says. Check before ticking.": "{cols}: valores mil vezes diferentes de \"{header}\" lidos na mesma unidade: uma das colunas não está na unidade que o nome diz. Verifique antes de marcar."
+  "{cols}: values a thousandfold apart from \"{header}\" read in the same unit: one of them is not in the unit its name says. Check before ticking.": "{cols}: valores mil vezes diferentes de \"{header}\" lidos na mesma unidade: uma das colunas não está na unidade que o nome diz. Verifique antes de marcar.",
+  "Custom layer: {name}": "Camada personalizada: {name}",
+  "To less than From (a reversed interval)": "Até menor que De (um intervalo invertido)",
+  "{n} of the {total} interval(s) overlap another of the same hole, in {holes} hole(s): Data QC lists them.": "{n} dos {total} intervalo(s) se sobrepõem a outro do mesmo furo, em {holes} furo(s): o Controle de dados os lista."
 }

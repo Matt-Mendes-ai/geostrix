@@ -11820,5 +11820,8 @@
   "{fileName}: nothing was added: no interval has a per-cent value in the ticked columns.": "{fileName}: no se agregó nada: ningún intervalo tiene un valor en porcentaje en las columnas marcadas.",
   "{fileName}: {n} layer(s) of visual per cent (one per mineral column) imported: {list}. The first is shown; the others are in the Layers list.": "{fileName}: se importaron {n} capa(s) de porcentaje visual (una por columna de mineral): {list}. Se muestra la primera; las demás están en la lista de Capas.",
   "{n} value(s) below 0 or over 100 % were left out.": "Se omitieron {n} valor(es) por debajo de 0 o por encima del 100 %.",
-  "{cols}: values a thousandfold apart from \"{header}\" read in the same unit: one of them is not in the unit its name says. Check before ticking.": "{cols}: valores mil veces distintos de \"{header}\" leídos en la misma unidad: una de las columnas no está en la unidad que dice su nombre. Revíselo antes de marcar."
+  "{cols}: values a thousandfold apart from \"{header}\" read in the same unit: one of them is not in the unit its name says. Check before ticking.": "{cols}: valores mil veces distintos de \"{header}\" leídos en la misma unidad: una de las columnas no está en la unidad que dice su nombre. Revíselo antes de marcar.",
+  "Custom layer: {name}": "Capa personalizada: {name}",
+  "To less than From (a reversed interval)": "Hasta menor que Desde (un intervalo invertido)",
+  "{n} of the {total} interval(s) overlap another of the same hole, in {holes} hole(s): Data QC lists them.": "{n} de los {total} intervalo(s) se superponen con otro del mismo sondaje, en {holes} sondaje(s): Control de datos los lista."
 }
