@@ -405,10 +405,13 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
   useEffect(() => () => { lastEstimateSettings.set(settingsKey, remember.current); }, [settingsKey]);
   // TASKS.csv #520 — the estimate runs in a worker: the window keeps repainting, shows progress and can be cancelled
   const [progress, setProgress] = useState(null); // 0..1 while running
+  const runStartedAt = useRef(0); // TASKS.csv #3256 — the time left, from the run's own progress
+  // after 5 % and 3 s, a straight-line estimate from the share done so far (an estimate, said as one)
+  const timeLeft = (p) => { const el = (performance.now() - runStartedAt.current) / 1000; if (!(p >= 0.05 && p < 1 && el >= 3)) return ""; const left = (el * (1 - p)) / p; return left < 60 ? tr(" (about {s} s left)", { s: Math.max(5, Math.round(left / 5) * 5) }) : tr(" (about {m} min left)", { m: Math.round(left / 60) }); };
   const abortRef = useRef(null);
   const cancelRun = () => abortRef.current?.abort();
   const run = () => {
-    setError(""); setResult(null); setProgress(0);
+    setError(""); setResult(null); setProgress(0); runStartedAt.current = performance.now(); // #3256
     if (!collars.length) { setError(tr("No collars loaded — nothing to estimate from.")); return; }
     // TASKS.csv #676 — with fewer samples than holes, no block can ever reach the hole rule (it just reported 0 blocks)
     if (maxSamples < minHoles) { setError(tr("Max samples per block ({maxSamples}) is below Min distinct holes ({minHoles}), so no block could ever be estimated. Raise Max samples or lower Min holes.", { maxSamples, minHoles })); return; }
@@ -992,7 +995,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
           )}
 
           <button onClick={run} disabled={!bounds || overLimit || reachPending || running || !symbol || !uns.ready /* #2417 */} style={{ ...btn(true), alignSelf: "flex-start", padding: "8px 16px", display: "flex", alignItems: "center", gap: 6, opacity: (!bounds || overLimit || !symbol || !uns.ready) ? 0.5 : 1 }}>
-            <Play size={14} /> {running ? (stage ? tr("Running {el}… {v}", { el: stage, v: progress != null ? Math.round(progress * 100) + "%" : "" }) /* #3014 */ : tr("Running… {v}", { v: progress != null ? Math.round(progress * 100) + "%" : "" })) : tr("Run estimation")}
+            <Play size={14} /> {running ? (stage ? tr("Running {el}… {v}", { el: stage, v: progress != null ? Math.round(progress * 100) + "%" + timeLeft(progress) : "" }) /* #3014 */ : tr("Running… {v}", { v: progress != null ? Math.round(progress * 100) + "%" + timeLeft(progress) : "" })) : tr("Run estimation")}
           </button>
           {running && <button type="button" onClick={cancelRun} style={{ ...btn(false), alignSelf: "flex-start", padding: "6px 14px" }}>{tr("Cancel")}</button>}
 
