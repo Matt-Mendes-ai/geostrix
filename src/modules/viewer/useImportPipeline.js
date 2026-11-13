@@ -40,6 +40,7 @@ import { surveyMethodKey, surveyMethodByHole, foldCaseVariants } from "../../lib
 import { fullestTypeColumn } from "../../lib/downholeTableGuess.js"; // TASKS.csv #2188
 import { holeTypeColumn, normalizeHoleType } from "../../lib/holeType.js"; // TASKS.csv #2161
 import { dateColumnReader, withDateFields } from "../../lib/dateColumns.js"; // TASKS.csv #3075
+import { surveyIdsWithoutCollar, idList } from "../../lib/surveyCollarCheck.js"; // TASKS.csv #3202
 import { eventNotes } from "../../lib/downholeEvents.js"; // TASKS.csv #2317
 import { applyRowFilter, defaultRowFilter, overlapSummary, overlapWorthSaying } from "../../lib/importRowFilter.js"; // TASKS.csv #2330; overlap: #2391
 import { isNullSentinel, LAYER_META, TARGET_SCHEMAS, guessColumn, guessColumnExact, guessMapping, guessTargetFor, schemaSatisfied, num, replaceRowsByHole, keepDerivedPicks, isDerivedPick, replaceNote, EPSG_COL_ALIASES, diffCollarImport, mergeCollar, minMax, pickRankedCollarRows } from "../../lib/layers.js";
@@ -624,10 +625,18 @@ export function useImportPipeline(ctx) {
       setNotices((p) => [...p, notice("Loaded {size} collars from {fileName}{v}.{reprojectNote}{note}", { size: new Set(rows.map((r) => r.hole_id)).size, fileName, v: parts.length ? ` — ${parts.join("; ")}` : "", reprojectNote, note: azc.note })]);
     } else if (target === "survey") {
       const svDropped = []; // #1070
-      const all = allRows.map((r) => applyCustomFields({ hole_id: String(r[mapping.hole_id] ?? "").trim(), depth: num(r[mapping.depth]), azimuth: num(r[mapping.azimuth]), dip: flipDip(num(r[mapping.dip])), _src: fileName }, r, customFields)).filter((r, k) => {
+      let all = allRows.map((r) => applyCustomFields({ hole_id: String(r[mapping.hole_id] ?? "").trim(), depth: num(r[mapping.depth]), azimuth: num(r[mapping.azimuth]), dip: flipDip(num(r[mapping.dip])), _src: fileName }, r, customFields)).filter((r, k) => {
         if (r.hole_id && !isNaN(r.depth)) return true;
         svDropped.push({ reason: !r.hole_id ? "no hole id" : "no depth", example: allRows[k][mapping.depth] }); return false;
       });
+      // TASKS.csv #3202 — ids with no collar (test pits, hand pits): left out unless the dialog's tick was cleared, and said either way; the counts
+      // below (survey method, holes without a survey) are then over the holes that exist. With no collar loaded at all nothing is left out.
+      const noCollar = surveyIdsWithoutCollar(all, importStateRef.current.collars);
+      let noCollarNote = "";
+      if (noCollar) {
+        if (data.dropUncollared !== false) { const gone = new Set(noCollar.ids); all = all.filter((r) => !gone.has(r.hole_id)); noCollarNote = tr(" {n} hole id(s) in the file have no collar ({ids}): their {stations} station(s) were left out.", { n: noCollar.ids.length, ids: idList(noCollar.ids), stations: noCollar.stations }); }
+        else noCollarNote = tr(" {n} hole id(s) in the file have no collar ({ids}): their {stations} station(s) were kept, and cannot be placed until a collar is loaded.", { n: noCollar.ids.length, ids: idList(noCollar.ids), stations: noCollar.stations });
+      }
       // TASKS.csv #337/#339 — a station with a blank or non-numeric azimuth/dip used to be kept and turned
       // every coordinate below it into NaN (or, blank = 0, into a horizontal hole). Skip and report it.
       const bad = all.filter((r) => !Number.isFinite(r.azimuth) || !Number.isFinite(r.dip));
@@ -665,7 +674,7 @@ export function useImportPipeline(ctx) {
       setNotices((p) => [...p, tr("Loaded {rows} survey stations from {fileName}.", { rows: rows.length, fileName }) + leftOutText(data, allRows, [data.azimuthRefFrom, ...(data.azimuthRefAlso || []).map((a) => a.col)]) /* #2341 */
         + replaceNote(replaced, "survey")
         + (bad.length ? tr(" Skipped {bad} station(s) with a missing or non-numeric azimuth/dip ({v}).", { bad: bad.length, v: [...new Set(bad.map((r) => `${r.hole_id}@${r.depth}`))].slice(0, 5).join(", ") }) : "")
-        + skippedRowsText(svDropped, allRows.length) + azs.note
+        + skippedRowsText(svDropped, allRows.length) + noCollarNote /* #3202 */ + azs.note
         + (data.azimuthRefFrom && mapping.azimuth === data.azimuthRefFrom ? tr(" Azimuths read from the {col} column ({north}).", { col: mapping.azimuth, north: azNorth(azimuthRef, azs) }) : "") // #2015; magnetic: #2154
         + (data.azimuthRefFrom && mapping.azimuth !== data.azimuthRefFrom && azimuthRef ? tr(" North reference from the {col} column ({north}).", { col: data.azimuthRefFrom, north: azNorth(azimuthRef, azs) }) : "") // #2154 (AZIMUTHGRIDNAME)
         + svExtraNote

@@ -11794,5 +11794,9 @@
   "{n} result(s) are no-data codes (-99 / -999 / -9999): read as not assayed.": "{n} نتيجة هي رموز لا بيانات (-99 / -999 / -9999): تُقرأ على أنها غير محلَّلة.",
   " Azimuths left as they are: the project has no mine grid to read them on (set one up under Maps > Project CRS).": " تُركت السموت كما هي: لا شبكة منجم في المشروع لقراءتها عليها (أعدّ واحدة في الخرائط > نظام إحداثيات المشروع).",
   " {fixed} azimuth(s) turned from the mine grid's north to the project grid ({deg}°).": " دُوِّر {fixed} سمت من شمال شبكة المنجم إلى شبكة المشروع ({deg}°).",
-  "{n} grid azimuth(s) turned from the mine grid's north to the project grid ({deg}°).": "دُوِّر {n} سمت شبكي من شمال شبكة المنجم إلى شبكة المشروع ({deg}°)."
+  "{n} grid azimuth(s) turned from the mine grid's north to the project grid ({deg}°).": "دُوِّر {n} سمت شبكي من شمال شبكة المنجم إلى شبكة المشروع ({deg}°).",
+  "Leave out the {stations} station(s) of {n} hole id(s) with no collar in the project ({ids}): they cannot be placed.": "استبعاد {stations} محطة لـ{n} معرّف ثقب بلا فوهة في المشروع ({ids}): لا يمكن وضعها.",
+  " {n} hole id(s) in the file have no collar ({ids}): their {stations} station(s) were left out.": " لا فوهة لـ{n} معرّف ثقب في الملف ({ids}): استُبعدت محطاتها البالغة {stations}.",
+  " {n} hole id(s) in the file have no collar ({ids}): their {stations} station(s) were kept, and cannot be placed until a collar is loaded.": " لا فوهة لـ{n} معرّف ثقب في الملف ({ids}): أُبقيت محطاتها البالغة {stations}، ولا يمكن وضعها حتى تُحمَّل فوهة.",
+  "{n} survey hole ids have no matching collar ({ids}): their {stations} stations cannot be desurveyed and won't render.": "لا فوهة مطابقة لـ{n} معرّف ثقب في المسح ({ids}): لا يمكن حساب مساراتها البالغة {stations} محطة ولن تُرسم."
 }

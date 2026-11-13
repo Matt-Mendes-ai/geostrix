@@ -11794,5 +11794,9 @@
   "{n} result(s) are no-data codes (-99 / -999 / -9999): read as not assayed.": "{n} resultado(s) são códigos sem dado (-99 / -999 / -9999): lidos como não analisados.",
   " Azimuths left as they are: the project has no mine grid to read them on (set one up under Maps > Project CRS).": " Azimutes deixados como estão: o projeto não tem uma grade de mina para lê-los (configure uma em Mapas > SRC do projeto).",
   " {fixed} azimuth(s) turned from the mine grid's north to the project grid ({deg}°).": " {fixed} azimute(s) girados do norte da grade de mina para a grade do projeto ({deg}°).",
-  "{n} grid azimuth(s) turned from the mine grid's north to the project grid ({deg}°).": "{n} azimute(s) de grade girados do norte da grade de mina para a grade do projeto ({deg}°)."
+  "{n} grid azimuth(s) turned from the mine grid's north to the project grid ({deg}°).": "{n} azimute(s) de grade girados do norte da grade de mina para a grade do projeto ({deg}°).",
+  "Leave out the {stations} station(s) of {n} hole id(s) with no collar in the project ({ids}): they cannot be placed.": "Deixar de fora as {stations} estação(ões) de {n} id(s) de furo sem colar no projeto ({ids}): não podem ser posicionadas.",
+  " {n} hole id(s) in the file have no collar ({ids}): their {stations} station(s) were left out.": " {n} id(s) de furo do arquivo não têm colar ({ids}): suas {stations} estação(ões) ficaram de fora.",
+  " {n} hole id(s) in the file have no collar ({ids}): their {stations} station(s) were kept, and cannot be placed until a collar is loaded.": " {n} id(s) de furo do arquivo não têm colar ({ids}): suas {stations} estação(ões) foram mantidas e não podem ser posicionadas até que um colar seja carregado.",
+  "{n} survey hole ids have no matching collar ({ids}): their {stations} stations cannot be desurveyed and won't render.": "{n} id(s) de furo do levantamento não têm colar correspondente ({ids}): suas {stations} estações não podem ser calculadas e não serão desenhadas."
 }

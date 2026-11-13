@@ -11794,5 +11794,9 @@
   "{n} result(s) are no-data codes (-99 / -999 / -9999): read as not assayed.": "{n} resultado(s) son códigos sin dato (-99 / -999 / -9999): se leen como no ensayados.",
   " Azimuths left as they are: the project has no mine grid to read them on (set one up under Maps > Project CRS).": " Azimuts dejados tal como están: el proyecto no tiene una grilla de mina en la cual leerlos (configure una en Mapas > SRC del proyecto).",
   " {fixed} azimuth(s) turned from the mine grid's north to the project grid ({deg}°).": " {fixed} azimut(s) girados del norte de la grilla de mina a la grilla del proyecto ({deg}°).",
-  "{n} grid azimuth(s) turned from the mine grid's north to the project grid ({deg}°).": "{n} azimut(s) de grilla girados del norte de la grilla de mina a la grilla del proyecto ({deg}°)."
+  "{n} grid azimuth(s) turned from the mine grid's north to the project grid ({deg}°).": "{n} azimut(s) de grilla girados del norte de la grilla de mina a la grilla del proyecto ({deg}°).",
+  "Leave out the {stations} station(s) of {n} hole id(s) with no collar in the project ({ids}): they cannot be placed.": "Dejar fuera las {stations} estación(es) de {n} id(s) de sondaje sin collar en el proyecto ({ids}): no se pueden ubicar.",
+  " {n} hole id(s) in the file have no collar ({ids}): their {stations} station(s) were left out.": " {n} id(s) de sondaje del archivo no tienen collar ({ids}): sus {stations} estación(es) se dejaron fuera.",
+  " {n} hole id(s) in the file have no collar ({ids}): their {stations} station(s) were kept, and cannot be placed until a collar is loaded.": " {n} id(s) de sondaje del archivo no tienen collar ({ids}): sus {stations} estación(es) se conservaron y no se pueden ubicar hasta cargar un collar.",
+  "{n} survey hole ids have no matching collar ({ids}): their {stations} stations cannot be desurveyed and won't render.": "{n} id(s) de sondaje del survey no tienen collar correspondiente ({ids}): sus {stations} estaciones no se pueden calcular y no se dibujarán."
 }

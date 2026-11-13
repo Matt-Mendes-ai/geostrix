@@ -11794,5 +11794,9 @@
   "{n} result(s) are no-data codes (-99 / -999 / -9999): read as not assayed.": "{n} résultat(s) sont des codes sans donnée (-99 / -999 / -9999) : lus comme non analysés.",
   " Azimuths left as they are: the project has no mine grid to read them on (set one up under Maps > Project CRS).": " Azimuts laissés tels quels : le projet n'a pas de grille de mine où les lire (configurez-en une dans Cartes > SCR du projet).",
   " {fixed} azimuth(s) turned from the mine grid's north to the project grid ({deg}°).": " {fixed} azimut(s) tournés du nord de la grille de mine vers la grille du projet ({deg}°).",
-  "{n} grid azimuth(s) turned from the mine grid's north to the project grid ({deg}°).": "{n} azimut(s) de grille tournés du nord de la grille de mine vers la grille du projet ({deg}°)."
+  "{n} grid azimuth(s) turned from the mine grid's north to the project grid ({deg}°).": "{n} azimut(s) de grille tournés du nord de la grille de mine vers la grille du projet ({deg}°).",
+  "Leave out the {stations} station(s) of {n} hole id(s) with no collar in the project ({ids}): they cannot be placed.": "Laisser de côté les {stations} station(s) de {n} identifiant(s) de sondage sans collet dans le projet ({ids}) : elles ne peuvent pas être placées.",
+  " {n} hole id(s) in the file have no collar ({ids}): their {stations} station(s) were left out.": " {n} identifiant(s) de sondage du fichier n'ont pas de collet ({ids}) : leurs {stations} station(s) ont été laissées de côté.",
+  " {n} hole id(s) in the file have no collar ({ids}): their {stations} station(s) were kept, and cannot be placed until a collar is loaded.": " {n} identifiant(s) de sondage du fichier n'ont pas de collet ({ids}) : leurs {stations} station(s) ont été gardées et ne pourront être placées qu'une fois un collet chargé.",
+  "{n} survey hole ids have no matching collar ({ids}): their {stations} stations cannot be desurveyed and won't render.": "{n} identifiant(s) de sondage du levé n'ont pas de collet correspondant ({ids}) : leurs {stations} stations ne peuvent pas être calculées et ne seront pas affichées."
 }
