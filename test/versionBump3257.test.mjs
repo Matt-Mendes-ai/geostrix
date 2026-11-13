@@ -40,3 +40,19 @@ test("an older GeoStrix (no presence bitsets) reading a v29 model sees null for 
   const idx = Array.from(new Float32Array(Uint8Array.from(Buffer.from(col.b64, "base64")).buffer));
   assert.deepEqual(idx.map((i) => col.dict[i]), ["above", null, "below"], "the old expand (dict[index]) gives null for the cell without it");
 });
+
+test("an older GeoStrix reading a v29 model sees NaN (missing) for an absent number, never 0: the value included", async () => {
+  const { compactVoxelModels, expandVoxelModels } = await import("../src/lib/projectFields.js");
+  const cells = [{ x: 1, value: 1.5, fromLog: 0.25 }, { x: 2 }, { x: 3, value: 0.7, fromLog: null }];
+  const [c] = compactVoxelModels([{ id: "m", cells }]);
+  const f64 = (b64) => Array.from(new Float64Array(Uint8Array.from(Buffer.from(b64, "base64")).buffer));
+  const f32 = (b64) => Array.from(new Float32Array(Uint8Array.from(Buffer.from(b64, "base64")).buffer));
+  const v = c.compactCells.cols.value, fl = c.compactCells.cols.fromLog;
+  assert.ok(v.has && v.f64); assert.ok(fl.has && fl.nul);
+  // the old expand: arr[i] + base, no bitsets
+  const oldValue = f64(v.b64).map((x) => x + v.base), oldFromLog = f32(fl.b64).map((x) => x + fl.base);
+  assert.equal(oldValue[0], 1.5); assert.ok(Number.isNaN(oldValue[1]), "the cell with no value reads NaN, not 0"); assert.equal(oldValue[2], 0.7);
+  assert.equal(oldFromLog[0], 0.25); assert.ok(Number.isNaN(oldFromLog[1]) && Number.isNaN(oldFromLog[2]), "absent and null read NaN");
+  // this version: the bitsets, exactly
+  assert.deepEqual(expandVoxelModels([JSON.parse(JSON.stringify(c))])[0].cells, cells);
+});

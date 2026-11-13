@@ -143,9 +143,10 @@ export function compactVoxelModels(list) {
         if (shape.kind[k] === "b") { cols[k] = { bool: true, base: 0, b64: f32ToB64(cells.map((cell) => (at0(cell) ? 1 : 0))), ...marks }; return; } // #3257
         // #3257 — a number every cell has, the same in every cell (an estimate's dx / dy / dz): its one value, no column
         if (!marks.has && !marks.nul && k !== "value" && cells.every((cell) => cell[k] === cells[0][k])) { cols[k] = { base: cells[0][k], same: true }; return; }
-        if (marks.has || marks.nul) { // #3257 — a number some cells lack (holeShare, fromLog, kv ...): absent / null as 0 under the marks
+        if (marks.has || marks.nul) { // #3257 — a number some cells lack (holeShare, fromLog, kv ... a block's value): absent / null as NaN under the
+          // marks, so an older GeoStrix (no bitsets) reads a missing number, not 0 (a block with no estimate is not 0 % Cu)
           const base = 0;
-          cols[k] = k === "value" ? { base, f64: true, b64: f64ToB64(cells.map((cell) => at0(cell) ?? 0)), ...marks } : { base, b64: f32ToB64(cells.map((cell) => at0(cell) ?? 0)), ...marks };
+          cols[k] = k === "value" ? { base, f64: true, b64: f64ToB64(cells.map((cell) => at0(cell) ?? NaN)), ...marks } : { base, b64: f32ToB64(cells.map((cell) => at0(cell) ?? NaN)), ...marks };
           return;
         }
         // Coordinates as offsets from the first cell: Float32 would lose ~0.5 m at UTM northings (~6.2e6).
