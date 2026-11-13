@@ -350,7 +350,7 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
               const x0 = DEPTH_COL_W + ti * TRACK_W;
               return (
                 <g key={t.key}>
-                  {(() => { const hl = headerLines(t.label, TRACK_W - 8), hs = Math.min(...hl.map(headerSize)); return <text x={x0 + TRACK_W / 2} y={PAD_TOP - 14 - (hl.length - 1) * (hs + 1)} fontSize={hs} fontWeight="600" textAnchor="middle" fill="#1a2028">{hl.map((l, k) => <tspan key={k} x={x0 + TRACK_W / 2} dy={k ? hs + 1 : 0}>{l}</tspan>)}<title>{t.title || t.label}</title></text>; })() /* two lines: #2481 */}{/* #3141 — sized to its track (a 14-letter custom name ran under the next header) */}
+                  {(() => { const hl = headerLines(t.label, TRACK_W - 8), hs = headerSize(hl.reduce((p, l) => (l.length > p.length ? l : p))) /* the longer line sets the size */; return <text x={x0 + TRACK_W / 2} y={PAD_TOP - 14 - (hl.length - 1) * (hs + 1)} fontSize={hs} fontWeight="600" textAnchor="middle" fill="#1a2028">{hl.map((l, k) => <tspan key={k} x={x0 + TRACK_W / 2} dy={k ? hs + 1 : 0}>{l}</tspan>)}<title>{t.title || t.label}</title></text>; })() /* two lines: #2481 */}{/* #3141 — sized to its track (a 14-letter custom name ran under the next header) */}
                   <rect x={x0} y={sy(d0)} width={TRACK_W - 6} height={sy(d1) - sy(d0)} fill="none" stroke="#dde1e6" />
                   {t.kind === "fill" && (() => { // #1254 — rows on the same depths side by side, with their percent where the log gives one
                     const { rows, lanes } = t.key === "mnlgy" ? fillLanes(t.rows) : { rows: t.rows, lanes: 1 };

@@ -37,3 +37,15 @@ test("#2142 the section's title sits inside its SVG: the viewBox grows upward by
   const fs1 = (n) => n, t1 = PAD - fs1(22);
   assert.equal(Math.max(0, Math.ceil(fs1(12) + 4 - t1)), 0, "at the default scale nothing changes");
 });
+
+test("#2481 the printed (atlas) strip log: a long track name on two lines, and its log axis without exponents", async () => {
+  const { buildStripLogSvgMarkup } = await import("../src/lib/striplogSvg.js");
+  const collars = [{ hole_id: "U1", x: 0, y: 0, z: 100, azimuth: 0, dip: 90, length: 40 }];
+  const assays = [0, 10, 20, 30].map((f, i) => ({ hole_id: "U1", from: f, to: f + 10, values: { Gamma_eU3O8_cased: [11, 140, 2300, 7464][i] } }));
+  const { svg } = buildStripLogSvgMarkup({ holeId: "U1", collars, layers: {}, assays, assaySymbols: ["Gamma_eU3O8_cased"], elementUnits: { Gamma_eU3O8_cased: "ppm" } });
+  assert.ok(!/\d\.?\d*e[+-]\d/.test(svg.replace(/<defs>[\s\S]*?<\/defs>/g, "").replace(/<style>[\s\S]*?<\/style>/g, "")), "no exponent notation printed");
+  assert.match(svg, /log 11–7500/);
+  const head = svg.match(/<text [^>]*font-weight="600"[^>]*>(<tspan[\s\S]*?)<title>/);
+  assert.ok(head, "the long header is drawn as tspans");
+  assert.equal((head[1].match(/<tspan /g) || []).length, 2);
+});
