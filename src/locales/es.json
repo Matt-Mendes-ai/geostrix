@@ -128,6 +128,8 @@
   "Inversion": "Inversión",
   "Lab certificates": "Certificados de lab.",
   "Legend": "Leyenda",
+  "Not analysed in these samples, left off the axis: {list}": "No analizados en estas muestras, fuera del eje: {list}",
+  "{missing} not analysed: these are partial sums of {list}, not totals, and cannot be checked against 100 less the LOI.": "{missing} no analizado: estas son sumas parciales de {list}, no totales, y no pueden compararse con 100 menos la PPC.",
   "Not a duplicate measurement: no RPD verdict": "No es una medición duplicada: sin veredicto de RPD",
   "{m} reads {r} times {symbol} on the median sample: a different measurement (a partial or soluble digest, say), not a bias between two methods of one. It is not offered in place of {symbol}; Calc. element can take its ratio to {symbol}.": "{m} da {r} veces {symbol} en la muestra mediana: una medición distinta (una digestión parcial o soluble, por ejemplo), no un sesgo entre dos métodos de la misma. No se ofrece en lugar de {symbol}; Elemento calculado puede tomar su razón a {symbol}.",
   "Use {limit}: the file states no limit. {pct} % of the results sit on {floor}, the lowest value, and the next value is {next}, more than twice it: the limit is read as that next value.": "Usar {limit}: el archivo no indica límite. El {pct} % de los resultados está en {floor}, el valor más bajo, y el siguiente valor es {next}, más del doble: el límite se lee como ese siguiente valor.",

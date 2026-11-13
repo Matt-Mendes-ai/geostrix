@@ -128,6 +128,8 @@
   "Inversion": "النمذجة العكسية",
   "Lab certificates": "شهادات المختبر",
   "Legend": "مفتاح الرموز",
+  "Not analysed in these samples, left off the axis: {list}": "غير محللة في هذه العينات، أُزيلت من المحور: {list}",
+  "{missing} not analysed: these are partial sums of {list}, not totals, and cannot be checked against 100 less the LOI.": "{missing} غير محلل: هذه مجاميع جزئية لـ {list}، لا مجاميع كاملة، ولا يمكن مقارنتها بـ 100 ناقص الفقد بالحرق.",
   "Not a duplicate measurement: no RPD verdict": "ليس قياساً مكرراً: لا حكم على RPD",
   "{m} reads {r} times {symbol} on the median sample: a different measurement (a partial or soluble digest, say), not a bias between two methods of one. It is not offered in place of {symbol}; Calc. element can take its ratio to {symbol}.": "يقرأ {m} قدر {r} مرة من {symbol} في العينة الوسيطة: قياس مختلف (هضم جزئي أو ذائب مثلاً)، لا انحياز بين طريقتين لقياس واحد. لا يُعرض بدلاً من {symbol}؛ ويمكن للعنصر المحسوب أخذ نسبته إلى {symbol}.",
   "Use {limit}: the file states no limit. {pct} % of the results sit on {floor}, the lowest value, and the next value is {next}, more than twice it: the limit is read as that next value.": "استخدم {limit}: لا يذكر الملف حداً. {pct} % من النتائج عند {floor}، أدنى قيمة، والقيمة التالية {next}، أكثر من ضعفها: يُقرأ الحد على أنه تلك القيمة التالية.",
