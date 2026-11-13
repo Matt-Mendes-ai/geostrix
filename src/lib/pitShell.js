@@ -136,9 +136,30 @@ export const PRICE_UNITS = { g: [["oz", "$/oz"], ["g", "$/g"]], t: [["lb", "$/lb
 // TASKS.csv #2986 — typedCutoff: a cut-off typed by the user (a product specification: iron ore is what meets 55 or 58 % Fe), which replaces
 // the break-even one: a block at or above it is ore, one below it waste, whatever it would pay. It stays the same at every revenue factor
 // (Nested pits). e.cutoffTyped says it is in force; e.breakEven keeps the break-even at these inputs.
-export function pitEconomics({ unit, element = null, price, priceUnit, recovery, processingCost, revenueFactor = 1, by = null, typedCutoff = null }) {
+// TASKS.csv #2986 part 2 (Matt's decision, 2026-11-12) — priceBasis "product": a commodity sold as a product at a grade (iron ore, any
+// element), not as contained metal. price: $ per dry tonne of product at refGrade (both typed); adjPerUnit: an optional premium or discount
+// per 1 unit of grade away from the reference (blank 0); recovery is the MASS YIELD (% of the ore that becomes product); typedCutoff is the
+// SPECIFICATION grade (required: a block below it is waste); penalties: [{ limit, perUnit }] in the order of the blocks' c.pen values (each
+// line's own block model, joined by centre): $ per dmt per 1 unit over the limit. A block at or above the spec earns, per tonne of ore,
+// yield x (price + adj x (grade - ref) - the penalties), times the revenue factor. No default price, spec or limit (#264): all typed.
+export const productRevenue = (grade, pen, e) => {
+  const P = e.product;
+  let v = P.price + P.adj * (grade - P.ref);
+  (e.penalties || []).forEach((l, k) => { const x = pen?.[k]; if (Number.isFinite(x) && x > l.limit) v -= l.perUnit * (x - l.limit); });
+  return P.f * v;
+};
+export function pitEconomics({ unit, element = null, price, priceUnit, recovery, processingCost, revenueFactor = 1, by = null, typedCutoff = null, priceBasis = "metal", refGrade = null, adjPerUnit = null, penalties = null }) {
   const m = pitMetalOf(unit, element); // #1748
   if (!m) return null;
+  if (priceBasis === "product") { // #2986 part 2
+    const p = Number(price), ref = Number(refGrade), spec = Number(typedCutoff), y = Number(recovery), adj = Number(adjPerUnit) || 0;
+    if (!(p > 0 && ref > 0 && spec > 0 && y > 0 && y <= 100)) return null;
+    const f = (y / 100) * revenueFactor;
+    const lines = (penalties || []).map((l) => ({ limit: Number(l.limit), perUnit: Number(l.perUnit) })).map((l) => (Number.isFinite(l.limit) && l.limit >= 0 && Number.isFinite(l.perUnit) && l.perUnit >= 0 ? l : { limit: Infinity, perUnit: 0 }));
+    // break-even (no penalty): f (p + adj (g - ref)) = processing; with no premium the revenue does not follow the grade, so there is none
+    const breakEven = adj > 0 ? ref + (processingCost / f - p) / adj : null;
+    return { product: { price: p, ref, adj, f, yieldPct: y }, penalties: lines, cutoff: spec, cutoffTyped: true, breakEven, priceBasis: "product", metalUnit: m.unit, metalFactor: m.factor, revenuePerGrade: (f * p) / ref /* a stand-in (revenue per unit of grade at the reference): not used for the ore decision */ };
+  }
   const perBase = m.unit === "g" ? (priceUnit === "oz" ? price / G_PER_OZ : price) : price / (PRICED_MASS_T[priceUnit] || 1); // $ per t of metal; lbU3O8 / kgU: #2434
   const revenuePerGrade = m.factor * (recovery / 100) * perBase * revenueFactor;
   if (!(revenuePerGrade > 0)) return null;
@@ -153,12 +174,12 @@ export function pitEconomics({ unit, element = null, price, priceUnit, recovery,
 
 // a block's money per tonne: processed if that pays more than sending it to the dump (both pay for mining)
 export const marginPerTonne = (grade, e, miningCost, processingCost) => {
-  const rev = grade * e.revenuePerGrade;
+  const rev = e.product ? productRevenue(grade, null, e) : grade * e.revenuePerGrade; // product: #2986 part 2
   if (e.cutoffTyped) return grade >= e.cutoff ? rev - processingCost - miningCost : -miningCost; // #2986 — the typed cut-off decides
   return rev > processingCost ? rev - processingCost - miningCost : -miningCost;
 };
 // TASKS.csv #1917 — a block's revenue per tonne summed over the metals (c.by: its by-product grade, from joinByProduct), and its margin
-export const cellRevenue = (c, e) => c.value * e.revenuePerGrade + (e.by && c.by > 0 ? c.by * e.by.revenuePerGrade : 0);
+export const cellRevenue = (c, e) => (e.product ? productRevenue(c.value, c.pen, e) /* #2986 part 2 */ : c.value * e.revenuePerGrade + (e.by && c.by > 0 ? c.by * e.by.revenuePerGrade : 0));
 export const cellMargin = (c, e, miningCost, processingCost) => { const rev = cellRevenue(c, e); if (e.cutoffTyped) return c.value >= e.cutoff ? rev - processingCost - miningCost : -miningCost; /* #2986 — on the main grade */ return rev > processingCost ? rev - processingCost - miningCost : -miningCost; };
 // the by-product model's grades joined to the main model's blocks by block centre (to the centimetre): the same grid, so the same
 // centres. A block without a match keeps no by-product grade; no match at all means another grid. -> { cells, matched }
@@ -174,11 +195,11 @@ export function joinByProduct(cells, byCells) {
 // TASKS.csv #2995 (review #2876, WA iron) — other grades of the same blocks ('Report these grades too': SiO2, Al2O3, P beside the Fe of the
 // ore), joined by block centre as the by-product is. also: [{ label, unit, cells: [{ x, y, z, value }] }] -> { cells (each with .also: a
 // value or NaN per entry), matched: [count per entry] }
-export function joinAlso(cells, also) {
+export function joinAlso(cells, also, field = "also") { // field "pen": the penalty lines' grades (#2986 part 2)
   const key = (c) => `${Math.round(c.x * 100)}|${Math.round(c.y * 100)}|${Math.round(c.z * 100)}`;
   const maps = (also || []).map((a) => { const m = new Map(); for (const b of a.cells || []) if (Number.isFinite(b.value)) m.set(key(b), b.value); return m; });
   const matched = maps.map(() => 0);
-  const out = cells.map((c) => { const k = key(c), vals = maps.map((m, i) => { const v = m.get(k); if (v == null) return NaN; matched[i]++; return v; }); return { ...c, also: vals }; });
+  const out = cells.map((c) => { const k = key(c), vals = maps.map((m, i) => { const v = m.get(k); if (v == null) return NaN; matched[i]++; return v; }); return { ...c, [field]: vals }; });
   return { cells: out, matched };
 }
 
@@ -766,6 +787,9 @@ export function runPitShell(inputs, { groundAt = null, collars = null, onProgres
   // TASKS.csv #1917 — the by-product's grades joined to the blocks; another grid matches no block and is refused
   let cells = inputs.cells, byMatched = null;
   if (inputs.by) { const j = joinByProduct(cells, inputs.byCells); if (!j.matched) return { failed: "by-grid" }; cells = j.cells; byMatched = j.matched / cells.length; }
+  // #2986 part 2 — the penalty lines' grades on the blocks (each line's own model, joined by centre)
+  let penMatched = null;
+  if (inputs.priceBasis === "product" && inputs.penaltyCells?.length) { const j = joinAlso(cells, inputs.penaltyCells, "pen"); cells = j.cells; penMatched = j.matched.map((n) => (cells.length ? n / cells.length : 0)); }
   // #2995 — other grades of the same blocks (not priced: reported only)
   let alsoInfo = null;
   if (inputs.alsoCells?.length) { const j = joinAlso(cells, inputs.alsoCells); cells = j.cells; alsoInfo = inputs.alsoCells.map((a, k) => ({ label: a.label, unit: a.unit || "", element: a.element || null, matchedShare: cells.length ? j.matched[k] / cells.length : 0 })); }
@@ -784,7 +808,7 @@ export function runPitShell(inputs, { groundAt = null, collars = null, onProgres
   // #1917 — the by-product's figures: its metal, mean grade over the ore, its share of the revenue, and how many blocks carried it
   const by = economics.by ? (() => { const r1 = summary.metalU * economics.revenuePerGrade, r2 = summary.metalU2 * economics.by.revenuePerGrade; return { metalU: summary.metalU2, meanGrade: summary.meanGrade2, metalUnit: economics.by.metalUnit, metalFactor: economics.by.metalFactor, cutoff: economics.by.cutoff, revenueShare: r1 + r2 > 0 ? r2 / (r1 + r2) : 0, matchedShare: byMatched }; })() : null;
   const alsoGrades = alsoInfo ? alsoInfo.map((a, k) => ({ ...a, meanGrade: summary.also[k]?.meanGrade ?? null, oreShare: summary.also[k]?.oreShare ?? 0 })) : null; // #2995
-  return { ...summary, alsoGrades, ...pitSurface(grid, solve.mined), by, parts: pitParts(grid, solve.mined) /* #1608 */, limitM: grid.limitM, limitedCols: grid.limitedCols /* #2665 */, oreAboveGroundT: grid.oreAboveGroundT, oreAboveGroundBlocks: grid.oreAboveGroundBlocks /* #1616 */, askedSize: grid.askedSize, modelCellM: grid.modelCell, modelCellZM: grid.modelCellZ /* #2110 */ /* #1610 */, cutoff: economics.cutoff, cutoffTyped: !!economics.cutoffTyped, breakEven: economics.breakEven ?? null /* #2986 */, metalUnit: economics.metalUnit, metalFactor: economics.metalFactor, cell: [grid.dx, grid.dy, grid.dz], grid: [grid.nx, grid.ny, grid.nz], walls: wallAngles(grid.dx, grid.dy, grid.dz, inputs.slopeDeg, null, inputs.sectorSlopes) /* levels: #2985 */, upperWalls: inputs.upperSlope?.slopeDeg > 0 && inputs.upperSlope.slopeDeg < 90 ? wallAngles(grid.dx, grid.dy, grid.dz, inputs.upperSlope.slopeDeg) : null /* #2985 */, groundSource, nodes: solve.nodes, arcs: solve.arcs, topAssumed: grid.topAssumed / (grid.nx * grid.ny), coarsened: grid.coarsened };
+  return { ...summary, alsoGrades, penaltyMatched: penMatched /* #2986 part 2 */, productT: economics.product ? summary.oreT * economics.product.yieldPct / 100 : null, ...pitSurface(grid, solve.mined), by, parts: pitParts(grid, solve.mined) /* #1608 */, limitM: grid.limitM, limitedCols: grid.limitedCols /* #2665 */, oreAboveGroundT: grid.oreAboveGroundT, oreAboveGroundBlocks: grid.oreAboveGroundBlocks /* #1616 */, askedSize: grid.askedSize, modelCellM: grid.modelCell, modelCellZM: grid.modelCellZ /* #2110 */ /* #1610 */, cutoff: economics.cutoff, cutoffTyped: !!economics.cutoffTyped, breakEven: economics.breakEven ?? null /* #2986 */, metalUnit: economics.metalUnit, metalFactor: economics.metalFactor, cell: [grid.dx, grid.dy, grid.dz], grid: [grid.nx, grid.ny, grid.nz], walls: wallAngles(grid.dx, grid.dy, grid.dz, inputs.slopeDeg, null, inputs.sectorSlopes) /* levels: #2985 */, upperWalls: inputs.upperSlope?.slopeDeg > 0 && inputs.upperSlope.slopeDeg < 90 ? wallAngles(grid.dx, grid.dy, grid.dz, inputs.upperSlope.slopeDeg) : null /* #2985 */, groundSource, nodes: solve.nodes, arcs: solve.arcs, topAssumed: grid.topAssumed / (grid.nx * grid.ny), coarsened: grid.coarsened };
 }
 
 // TASKS.csv #1875 — what a shell is worth at the ENTERED price (#1609 valued a revenue-factor shell at the scaled price): the
@@ -807,6 +831,7 @@ export function runPitSeries(inputs, rfs, { groundAt = null, collars = null, rat
   if (base.byFailed) return { failed: "by-units" }; // #1917
   let cells = inputs.cells;
   if (inputs.by) { const j = joinByProduct(cells, inputs.byCells); if (!j.matched) return { failed: "by-grid" }; cells = j.cells; } // #1917
+  if (inputs.priceBasis === "product" && inputs.penaltyCells?.length) cells = joinAlso(cells, inputs.penaltyCells, "pen").cells; // #2986 part 2
   const list = [...new Set(rfs.filter((r) => Number.isFinite(r) && r > 0))].sort((a, b) => a - b);
   if (!list.length) return { failed: "factors" };
   if (!groundAt && collars?.length) { const ug = collarsLookUnderground(collars); if (ug.underground) return { failed: "underground", underground: ug }; } // #2276

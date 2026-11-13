@@ -10,7 +10,7 @@ export function byColumnsOf(model) {
   return out;
 }
 
-export function runPitShellAsync(model, inputs, terrain, onProgress, collars = null, byModel = null, alsoModels = []) { // collars: #1353 — the ground when there is no terrain; byModel: #1917; alsoModels: #2995 [{ model, label, unit, element }]
+export function runPitShellAsync(model, inputs, terrain, onProgress, collars = null, byModel = null, alsoModels = [], penaltyModels = []) { // penaltyModels: #2986 part 2 [model, ...] in the order of inputs.penalties // collars: #1353 — the ground when there is no terrain; byModel: #1917; alsoModels: #2995 [{ model, label, unit, element }]
   const cells = (model.cells || []).filter((c) => voxelCellSupported(model, c)), n = cells.length;
   const col = () => new Float64Array(n), columns = { x: col(), y: col(), z: col(), dx: col(), dy: col(), dz: col(), value: col(), coverage: col(), nHoles: new Uint16Array(n), holeShare: new Float32Array(n).fill(NaN) /* #1617 */, support: new Uint8Array(n), beyond: new Uint8Array(n) /* #2435 */, nearUnsampled: new Uint8Array(n) /* #2596 */, fromLog: new Float32Array(n) /* #2748 */, density: new Float32Array(n).fill(NaN) /* #2647 — a block's code density */ };
   const SUP = { interpolated: 1, extrapolated: 2, unsupported: 3 }; // #1354
@@ -33,7 +33,8 @@ export function runPitShellAsync(model, inputs, terrain, onProgress, collars = n
     const cl = !t && collars ? collars.filter((c) => [c.x, c.y, c.z].every(Number.isFinite)).map((c) => ({ x: c.x, y: c.y, z: c.z })) : null;
     const by = byModel ? byColumnsOf(byModel) : null; // #1917
     const also = (alsoModels || []).map((a) => ({ label: a.label, unit: a.unit || "", element: a.element || null, columns: byColumnsOf(a.model) })); // #2995
-    worker.postMessage({ inputs, columns, byColumns: by, alsoColumns: also, terrain: t, collars: cl }, [...Object.values(columns).map((a) => a.buffer), ...(by ? Object.values(by).map((a) => a.buffer) : []), ...also.flatMap((a) => Object.values(a.columns).map((x) => x.buffer))]);
+    const pens = (penaltyModels || []).map((m) => byColumnsOf(m)); // #2986 part 2
+    worker.postMessage({ inputs, columns, byColumns: by, alsoColumns: also, penaltyColumns: pens, terrain: t, collars: cl }, [...Object.values(columns).map((a) => a.buffer), ...(by ? Object.values(by).map((a) => a.buffer) : []), ...also.flatMap((a) => Object.values(a.columns).map((x) => x.buffer)), ...pens.flatMap((p) => Object.values(p).map((x) => x.buffer))]);
   });
   return { promise, cancel: () => { worker?.terminate(); settle?.({ cancelled: true }); } };
 }
