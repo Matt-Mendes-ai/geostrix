@@ -35,10 +35,21 @@ export function loggedDescriptions(rows) {
 
 // A description the file gives for the code without ambiguity: the only one logged, or the most used one when it is used on more
 // than one row and not tied. Free-text notes that differ on every row (each used once) give none: they describe intervals, not the code.
-export function fileDescriptionOf(info) {
+// TASKS.csv #3206 (#3195, Galore Creek) — opts.freeText: the file's description column is the geologist's note on each interval (938 of 1,114
+// filled, all different), not a code legend. A code then takes a meaning only when the same text repeats on most of its described rows; a code
+// logged once (OVB = 'Sonic hole; OVB intersected.', V3 = a 30-word note) takes none.
+export function fileDescriptionOf(info, { freeText = false } = {}) {
   if (!info?.top) return null;
+  if (freeText) return info.topN >= 2 && info.topN * 2 >= info.described && !info.tie ? info.top : null;
   if (info.variants === 1) return info.top;
   return info.topN >= 2 && !info.tie ? info.top : null;
+}
+// #3206 — a description column that is free text: at least 20 described rows (enough to judge), more than half of their texts different
+export function descriptionsAreFreeText(rows) {
+  let described = 0;
+  const distinct = new Set();
+  for (const r of rows || []) { const d = String(r?.description ?? "").trim().replace(/\s+/g, " "); if (d) { described++; distinct.add(d); } }
+  return described >= 20 && distinct.size * 2 > described;
 }
 
 // The layer's dictionary with an entry added for each code that has none yet and an unambiguous description in rows.
@@ -46,9 +57,10 @@ export function fileDescriptionOf(info) {
 export function fillFromRows(dict, rows) {
   const base = dict && typeof dict === "object" ? dict : {};
   const add = {};
+  const freeText = descriptionsAreFreeText(rows); // #3206
   for (const [k, info] of loggedDescriptions(rows)) {
     if (base[k]) continue;
-    const desc = fileDescriptionOf(info);
+    const desc = fileDescriptionOf(info, { freeText });
     if (desc) add[k] = { code: info.code, desc, source: "file" };
   }
   const added = Object.keys(add).length;

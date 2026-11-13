@@ -129,7 +129,11 @@ function* validateSurveyAndTrajectorySteps(collars, survey, { doglegWarn = 3, do
     if (Number.isFinite(s.azimuth) && (s.azimuth < 0 || s.azimuth >= 360)) pushIssue(issues, "warning", "Survey", s.hole_id, tr("Survey azimuth {azimuth}° is outside 0–360° @ {depth}m.", { azimuth: s.azimuth, depth: s.depth }));
     if (Number.isFinite(s.dip) && (s.dip < -90 || s.dip > 90)) pushIssue(issues, "warning", "Survey", s.hole_id, tr("Survey dip {dip}° is outside -90–90° @ {depth}m.", { dip: s.dip, depth: s.depth }));
   }
-  orphanStations.forEach((n, id) => pushIssue(issues, "error", "Survey", id, tr("{n} survey stations for hole \"{hole_id}\", which has no matching collar: this hole cannot be desurveyed and won't render.{v}", { n, hole_id: id, v: didYouMean(collarIds, id) })));
+  // TASKS.csv #3202 — many ids with no collar (a file's 91 test pits) are one line naming them, not 91 errors; a few keep their own lines (and their 'did you mean')
+  if (orphanStations.size > 3) {
+    const ids = [...orphanStations.keys()], total = [...orphanStations.values()].reduce((a, b) => a + b, 0);
+    pushIssue(issues, "error", "Survey", ids[0], tr("{n} survey hole ids have no matching collar ({ids}): their {stations} stations cannot be desurveyed and won't render.", { n: ids.length, ids: ids.slice(0, 8).join(", ") + (ids.length > 8 ? ", …" : ""), stations: total }));
+  } else orphanStations.forEach((n, id) => pushIssue(issues, "error", "Survey", id, tr("{n} survey stations for hole \"{hole_id}\", which has no matching collar: this hole cannot be desurveyed and won't render.{v}", { n, hole_id: id, v: didYouMean(collarIds, id) })));
   const lengthOf = new Map(collars.map((c) => [c.hole_id, Number(c.length)]));
   const collarOnly = []; // TASKS.csv #2335 — holes surveyed at the collar only (see below)
   for (const [holeId, stations] of byHole) {

@@ -38,7 +38,7 @@ test("an overlap with no column that explains it: counted, no column named", () 
 
 test("the assay dialog shows the filter and the assay commit applies it and says the overlaps; the interval import says them too", () => {
   const d = readFileSync(new URL("../src/components/AssayImportModal.jsx", import.meta.url), "utf8");
-  assert.match(d, /<RowFilterBox modal=\{modal\} onChange=\{onChange\} sel=\{sel\} \/>/);
+  assert.match(d, /<RowFilterBox modal=\{modal\} onChange=\{onChange\} sel=\{sel\}( qc=\{false[^}]*\})? \/>/); // qc={false}: #3207 (QC samples kept for QAQC)
   const g = readFileSync(new URL("../src/modules/GeochemModule.jsx", import.meta.url), "utf8");
   assert.match(g, /const filtered = applyRowFilter\(modalIn\.allRows \|\| \[\], rowFilter\), modal = filtered\.dropped \? \{ \.\.\.modalIn, allRows: filtered\.rows \} : modalIn;/);
   assert.match(g, /overlapSummary\(allRows, \{ hole: mapping\.hole_id, from: mapping\.from, to: mapping\.to \}/);
