@@ -132,11 +132,11 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
   const statsAssays = useMemo(() => (includeQAQC ? assays : excludeQAQC(assays)), [assays, includeQAQC]);
 
   const { customLayers = [], collars: storeCollars = [], layers: storeLayers = {} } = useStore(); // layers: #2349 // #1678; collars: #2504
-  const customDomains = useMemo(() => (source === "assays" ? [...attributeDomainOptions(assays, storeCollars), ...customDomainOptions(customLayers, { layers: storeLayers, labelOf: (k) => tr(LAYER_META[k]?.label || k) }) /* the built-in logs' extra fields: #2349 */] : []), [customLayers, source, assays, storeCollars, storeLayers]); // #2504 — sample type, collar fields
+  const customDomains = useMemo(() => (source === "assays" ? [...attributeDomainOptions(assays, storeCollars), ...customDomainOptions(customLayers, { layers: storeLayers, labelOf: (k) => tr(LAYER_META[k]?.label || k) }, { groupTop: 12 } /* #2915 */) /* the built-in logs' extra fields: #2349 */] : []), [customLayers, source, assays, storeCollars, storeLayers]); // #2504 — sample type, collar fields
   const domainOptions = useMemo(() => (source === "assays" ? DOMAIN_LAYER_KEYS.filter((k) => (layers[k] || []).length > 0 && isCategoricalLayer(layers[k])) : []), [source, layers]); // #1515 — categories only
   const customDomain = customDomains.find((d) => d.key === domainKey) || null;
   // TASKS.csv #2672 — a numeric downhole log (mag susc, SG, gamma…) as the grouping: the samples by the log's quartiles
-  const logChoices = useMemo(() => (source === "assays" ? numericSourceChoices({ layers: storeLayers, customLayers, models: false }) : []), [source, storeLayers, customLayers]);
+  const logChoices = useMemo(() => (source === "assays" ? numericSourceChoices({ layers: storeLayers, customLayers, models: false, builtinFields: { labelOf: (k) => tr(LAYER_META[k]?.label || k) } /* #2915 */ }) : []), [source, storeLayers, customLayers]);
   const covLog = domainKey.startsWith?.("numlog:") ? logChoices.find((c) => `numlog:${c.key}` === domainKey) || null : null;
   // TASKS.csv #2029 (review #2013, Geochem) — group by hole (and hole + lithology): a per-hole mean needed the SQL workspace
   const byHole = domainKey === HOLE_KEY || domainKey === HOLE_LITHO_KEY;
@@ -320,7 +320,7 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
                   <option value={HOLE_KEY}>{tr("Hole")}</option>{/* #2029 */}
                   {(layers.litho || []).length > 0 && <option value={HOLE_LITHO_KEY}>{tr("Hole + lithology")}</option>}
                   {domainOptions.map((k) => <option key={k} value={k}>{LAYER_META[k].label}</option>)}
-                  {customDomains.map((d) => <option key={d.key} value={d.key}>{d.attribute ? attributeDomainLabel(d, tr) : d.label}</option>)}{/* #1678; attributes: #2504 */}
+                  {customDomains.map((d) => <option key={d.key} value={d.key}>{d.attribute || d.grouped ? attributeDomainLabel(d, tr) : d.label}</option>)}{/* #1678; attributes: #2504 */}
                   {logChoices.length > 0 && <optgroup label={tr("A downhole log, by its quartiles")}>{logChoices.map((c) => <option key={c.key} value={`numlog:${c.key}`}>{c.unit && c.unit !== "as logged" && !String(c.label).includes(`(${c.unit})`) ? `${c.label} (${c.unit})` : c.label}</option>)}</optgroup>}{/* #2672 */}
                 </select>
               </label>

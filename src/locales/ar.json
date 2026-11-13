@@ -114,6 +114,7 @@
   "Inversion": "النمذجة العكسية",
   "Lab certificates": "شهادات المختبر",
   "Legend": "مفتاح الرموز",
+  "{label}: the {kept} commonest of {n} codes, the rest as \"other\"": "{label}: الرموز الـ{kept} الأكثر شيوعًا من {n}، والباقي بوصفه \"other\"",
   "{symbol} as {oxide}": "{symbol} بصيغة {oxide}",
   "Oxide names work too, in % through the import's factors: {list}.": "تعمل أسماء الأكاسيد أيضًا، بالنسبة المئوية عبر معاملات الاستيراد: {list}.",
   "Fe2O3 from Fe (x 1.4297)": "Fe2O3 من Fe (× 1.4297)",

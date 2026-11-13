@@ -8,7 +8,7 @@ import { useKeptState, scopeOf } from "../lib/keptState.js"; // TASKS.csv #1284
 import { useModuleAction } from "../lib/menuRequests.js"; // TASKS.csv #565
 import { joinBySampleId } from "../lib/surfaceJoin.js"; // TASKS.csv #1670
 import { parseTableOrWorkbook, isXlsxName } from "../lib/xlsx.js"; // TASKS.csv #444 shared reader; #605 .xlsx
-import { num, guessColumn, TARGET_SCHEMAS, colorForLithology, CATEGORICAL_SAFE_COLORS, hashColor, colorForVoxelValue } from "../lib/layers.js"; // colours: #1091
+import { num, guessColumn, TARGET_SCHEMAS, colorForLithology, CATEGORICAL_SAFE_COLORS, hashColor, colorForVoxelValue, LAYER_META } from "../lib/layers.js"; // colours: #1091; LAYER_META: #2915
 import { gradeStops } from "../lib/inversion.js"; // TASKS.csv #1091 — the grade ramp block models use (#702) // TASKS.csv #508; guessColumn #600 — blank / "NA" -> NaN, never 0
 import { didYouMean } from "../lib/holeIds.js"; // TASKS.csv #541
 import { reprojectXY, crsName } from "../lib/reproject.js"; // TASKS.csv #600 — surface samples into the project CRS
@@ -223,7 +223,7 @@ export default function GeochemModule() {
   // TASKS.csv #2957 — the units the project already stores an element in (surface samples first, then drill assays): a new file's oxide column takes that basis
   const projectUnits = useMemo(() => ({ ...Object.fromEntries(assayElements.filter((e) => !e.calculated).map((e) => [e.symbol, e.unit])), ...Object.fromEntries(surfaceElements.filter((e) => !e.calculated).map((e) => [e.symbol, e.unit])) }), [assayElements, surfaceElements]);
   // TASKS.csv #1678 — the X-Y scatter's axes: elements, then the numeric downhole logs and custom-layer fields (read at each sample's depth)
-  const xyChoices = useMemo(() => numericSourceChoices({ layers: store.layers, customLayers: store.customLayers }), [store.layers, store.customLayers]);
+  const xyChoices = useMemo(() => numericSourceChoices({ layers: store.layers, customLayers: store.customLayers, builtinFields: { labelOf: (k) => tr(LAYER_META[k]?.label || k) } /* #2915 */ }), [store.layers, store.customLayers]);
   // TASKS.csv #2719 — with pXRF and lab results, an element measured by only one of them offered an empty axis in the other source:
   // the X / Y lists mark (and grey out) the elements with no value in the samples shown
   const xyEmptyElements = useMemo(() => (diagramId === "xy" && hasPxrf ? elementsWithoutValues(sourceRows, assayElements.map((e) => e.symbol)) : new Set()), [diagramId, hasPxrf, sourceRows, assayElements]);
