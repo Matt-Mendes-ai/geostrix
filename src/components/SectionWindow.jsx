@@ -1,4 +1,5 @@
 import React, { useEffect, useId, useMemo, useState, useRef, useLayoutEffect } from "react";
+import { bearingText, sectionLookText } from "../lib/layoutLinks.js"; // TASKS.csv #2308 — the side the section is seen from
 import { Camera, Pencil, Check, Undo2, X, Save, Download, FileText, Crosshair } from "./icons.js";
 import { onSectionData, sendSectionSnapshot, sendSectionContacts, saveFile, savePDF, canvasPngBytes, onSectionResnap } from "../lib/desktop.js"; // onSectionResnap: TASKS.csv #1485
 import { solveOrientationToTarget } from "../lib/holePlanning.js"; // TASKS.csv #395
@@ -224,7 +225,7 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
     // #2610 — the payload is built now (at the print size); the font goes in before it is sent
     const send = (p) => embedFigureFont(markup).catch(() => markup).then((m) => sendSectionSnapshot({ ...p, src: `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(m)))}` }));
     send({
-      label: data?.title || "Cross-section",
+      label: `${data?.title || "Cross-section"}${data?.section ? ` · ${sectionLookText(Number(data.section.azimuth ?? ((Math.atan2(data.section.bx - data.section.ax, data.section.by - data.section.ay) * 180) / Math.PI + 360) % 360))}` : ""}`, // #2308 — page text, English
       naturalW: dims.w, naturalH: dims.h,
       sectionTabId: tabId, textFactor: Number(textFactor) > 0 ? Number(textFactor) : 1, replaceElementId: replaceElementId || null, resnapRound: round, // #1485 — so Layout can ask for the text at its print size
       // TASKS.csv — Layout scale-bar assignment for cross-sections: the real-world horizontal span
@@ -630,7 +631,8 @@ function SectionSVG({ printing = false, patterns = null, textFont = SECTION_FONT
   autoVERef.current = autoVE;
   const vExag = vExagIn ?? autoVE ?? 1;
   // TASKS.csv #1256 — at a large text size the subtitle ran past the frame and the PNG cut the sentence
-  const subtitleLines = wrapText(tr("Azimuth {v}° · {v2}{v3} · elevation in m", { v: Number(section.azimuth ?? (Math.atan2(dx, dy) * 180 / Math.PI + 360) % 360).toFixed(0), v2: vExag && vExag !== 1 ? tr("{vExag}x vertical exaggeration", { vExag }) : tr("no vertical exaggeration"), v3: section.corridor ? tr(" · data within ±{corridor} m of the line (dashed = trace projected from further away)", { corridor: section.corridor }) : "" }), Math.floor((W - 2 * PAD) / (0.56 * fs(10))));
+  const azDeg = Number(section.azimuth ?? (Math.atan2(dx, dy) * 180 / Math.PI + 360) % 360); // #2308 — and the side it is seen from: the start is on the left, so the reader faces the azimuth - 90°
+  const subtitleLines = wrapText(tr("Azimuth {v}° · looking {look} · {v2}{v3} · elevation in m", { v: azDeg.toFixed(0), look: bearingText(azDeg - 90), v2: vExag && vExag !== 1 ? tr("{vExag}x vertical exaggeration", { vExag }) : tr("no vertical exaggeration"), v3: section.corridor ? tr(" · data within ±{corridor} m of the line (dashed = trace projected from further away)", { corridor: section.corridor }) : "" }), Math.floor((W - 2 * PAD) / (0.56 * fs(10))));
   // TASKS.csv #1637 — which ribbon is which: 5-6 parallel ribbons per hole had no key on the section itself
   { const rib = ribbonOrder(intervals); if (rib.length > 1) subtitleLines.push(...wrapText(tr("Ribbons on each hole, left to right: {list}", { list: rib.join(" · ") }), Math.floor((W - 2 * PAD) / (0.56 * fs(10))))); }
   if (!isFinite(minZ)) { minZ = 0; maxZ = 100; }

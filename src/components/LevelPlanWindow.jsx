@@ -12,7 +12,7 @@ import { planLegend } from "../lib/levelPlanLegend.js"; // TASKS.csv #1404
 import { resolveLabels, clusterLabelPoints, groupLabelText, labelWidth } from "../lib/sectionLabels.js"; // TASKS.csv #1404 — the sections' label declutter (#1144); clusters: #2212
 import { LAYER_META } from "../lib/layers.js";
 import { usePrompt } from "./usePrompt.jsx"; // TASKS.csv #1779
-import { mergedPath, pathsByColour, dotsPath, segmentFinder, f1 } from "../lib/levelPlanDraw.js"; // f1: #3137 // TASKS.csv #2982
+import { mergedPath, pathsByColour, dotsPath, segmentFinder, f1, dotsByColour, pointFinder } from "../lib/levelPlanDraw.js"; // dots: #3191 // f1: #3137 // TASKS.csv #2982
 import { planBuild, runSliced } from "../modules/viewer/levelPlanBuild.js"; // TASKS.csv #3137 — the build, a slice at a time (loads with this window)
 import { hoverTitle } from "../lib/svgLazyTitle.js"; // TASKS.csv #2982 — titles made on hover, as the section window (#2210)
 
@@ -182,6 +182,10 @@ export default function LevelPlanWindow({ planCtx, zRange, defaultRl, onClose, o
     drawMemo.current = { data, frame, layer: activeLayer, ivs, ivPaths: pathsByColour(ivs, X, Y), findIv: segmentFinder(ivs, X, Y),
       ctx: data.holes.map((h) => ctxCache(h.hole_id, h.context, path)).join(" "), collars: dotsPath(data.holes.map((h) => h.collar), X, Y),
       slab: mergedPath(data.holes.flatMap((h) => h.polylines), X, Y), pierce: data.holes.flatMap((h) => h.pierce.map((pc) => ({ h, pc }))) };
+    // TASKS.csv #3191 — pierce points and slab dots as one stroked path per colour (an outline under each), found on hover by position
+    const dm = drawMemo.current, pcs = dm.pierce.map(({ pc }) => ({ x: pc.x, y: pc.y, color: (pc.logs || []).find((l) => l.layer === activeLayer)?.color || "#ffffff" }));
+    Object.assign(dm, { pcAll: dotsPath(pcs.map((q) => [q.x, q.y]), X, Y), pcFill: dotsByColour(pcs, X, Y), findPc: pointFinder(pcs, X, Y),
+      ptAll: dotsPath(data.points.map((q) => [q.x, q.y]), X, Y), ptFill: dotsByColour(data.points, X, Y), findPt: pointFinder(data.points, X, Y) });
   }
   const dw = drawMemo.current;
   const svgXY = (e) => { const el = svgRef.current, p = el.createSVGPoint(); p.x = e.clientX; p.y = e.clientY; return p.matrixTransform(el.getScreenCTM().inverse()); };
@@ -296,8 +300,9 @@ export default function LevelPlanWindow({ planCtx, zRange, defaultRl, onClose, o
             {dw.ivPaths.map(([c, d]) => <path key={c} d={d} stroke={c} strokeWidth={5} fill="none" strokeLinecap="butt" />)}
           </g>
           {/* assays / mineralisation dots */}
-          <g onMouseOver={(e) => { const p = data.points[Number(e.target?.dataset?.pt)]; if (p) hoverTitle(e.target, `${p.hole_id} @ ${p.md.toFixed(1)} m — ${p.label}`); }}>
-            {data.points.map((p, i) => <circle key={`p${i}`} data-pt={i} cx={X(p.x)} cy={Y(p.y)} r={2.6} fill={p.color} stroke="#ffffff" strokeWidth={0.6} />)}
+          <g onMouseMove={(e) => { const q = svgXY(e), p = data.points[dw.findPt(q.x, q.y, 4)]; if (p) hoverTitle(e.target, `${p.hole_id} @ ${p.md.toFixed(1)} m — ${p.label}`); }}>{/* #3191: r 2.6 dots, a white 0.6 edge */}
+            {dw.ptAll && <path d={dw.ptAll} stroke="#ffffff" strokeWidth={5.8} strokeLinecap="round" fill="none" />}
+            {dw.ptFill.map(([c, d]) => <path key={c} d={d} stroke={c} strokeWidth={4.6} strokeLinecap="round" fill="none" />)}
           </g>
           {/* structures: strike-dip symbols (oriented) or a small cross (unoriented) */}
           {data.structures.map((st, i) => {
@@ -308,9 +313,11 @@ export default function LevelPlanWindow({ planCtx, zRange, defaultRl, onClose, o
           {/* planned holes */}
           {data.planned.map((p) => <g key={`pl${p.name}`}><path d={path(p.context)} stroke={colors.planned} strokeWidth={1} strokeDasharray="4 3" fill="none" opacity={0.6} />{p.lines.map((l, i) => <path key={i} d={path(l)} stroke={colors.planned} strokeWidth={2.4} strokeDasharray="5 3" fill="none" />)}{p.pierce.map((pc, i) => <g key={`pp${i}`}><rect x={X(pc.x) - 4} y={Y(pc.y) - 4} width={8} height={8} fill="#ffffff" stroke={colors.planned} strokeWidth={1.6} /><title>{tr("Planned {name}: pierces {rl} m at {md} m", { name: p.name, rl, md: pc.md.toFixed(1) })}</title></g>)}{labels && p.pierce[0] && <text x={X(p.pierce[0].x) + 6} y={Y(p.pierce[0].y) + 3} fontSize="10" fill={colors.planned}>{p.name}</text>}</g>)}
           {/* pierce points */}
-          <g onMouseOver={(e) => { const it = dw.pierce[Number(e.target?.dataset?.pc)]; if (!it) return; const { h, pc } = it; hoverTitle(e.target, [tr("{hole_id} pierces {rl} m at {md} m", { hole_id: h.hole_id, rl, md: pc.md.toFixed(1) }), ...(pc.logs || []).filter((l) => !l.layer?.startsWith("assay:")).map((l) => l.label), ...(pc.assays || [])].join("\n")); }}>
+          <g onMouseMove={(e) => { const q = svgXY(e), it = dw.pierce[dw.findPc(q.x, q.y, 6)]; if (!it) return; const { h, pc } = it; hoverTitle(e.target, [tr("{hole_id} pierces {rl} m at {md} m", { hole_id: h.hole_id, rl, md: pc.md.toFixed(1) }), ...(pc.logs || []).filter((l) => !l.layer?.startsWith("assay:")).map((l) => l.label), ...(pc.assays || [])].join("\n")); }}>
             {/* filled with the chosen log's colour at the RL (white: not logged there) */}
-            {dw.pierce.map(({ h, pc }, k) => <circle key={`pc${h.hole_id}_${k}`} data-pc={k} cx={X(pc.x)} cy={Y(pc.y)} r={4.6} fill={(pc.logs || []).find((l) => l.layer === activeLayer)?.color || "#ffffff"} stroke="#1a2028" strokeWidth={1.6} />)}
+            {/* #3191 — r 4.6 with a 1.6 dark edge, as the circles were: an outline path 10.8 wide, then each colour 7.6 wide */}
+            {dw.pcAll && <path d={dw.pcAll} stroke="#1a2028" strokeWidth={10.8} strokeLinecap="round" fill="none" />}
+            {dw.pcFill.map(([c, d]) => <path key={c} d={d} stroke={c} strokeWidth={7.6} strokeLinecap="round" fill="none" />)}
           </g>
           {/* #1404 — hole ids through the sections' declutter (#1144): a fan's collars no longer print over each other */}
           {idLabels && idLabels.placed.map((l) => <g key={`hl${l.key}`}>{l.leaderFrom && <line x1={l.leaderFrom.x} y1={l.leaderFrom.y} x2={l.x} y2={l.y - 4} stroke="#7a8494" strokeWidth={0.6} />}<text x={l.x} y={l.y} fontSize="10.5" textAnchor={l.anchor} fill="#1a2028" stroke="#ffffff" strokeWidth={2.5} paintOrder="stroke">{l.text}{l.ids.length > 1 && <title>{l.ids.join(", ")}</title>}</text></g>)}{/* #2212 */}

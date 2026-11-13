@@ -11965,5 +11965,6 @@
   "{unit} was left out: no base is modelled, so its solid would be everything {where}. Model the surface under it to close it, or choose to build it the next time.": "{unit} a été laissée de côté : aucune base n’est modélisée, son solide serait donc tout ce qui est {where}. Modélisez la surface en dessous pour le fermer, ou choisissez de le construire la prochaine fois.",
   "{n} chosen, all hidden (the eye)": "{n} choisi(s), tous masqués (l’œil)",
   "Filter holes… ({examples})": "Filtrer les sondages… ({examples})",
-  "Off to start with above {n} pierce points: hover a pierce point for its hole id": "Désactivé au départ au-delà de {n} points de percée : survolez un point pour voir son sondage"
+  "Off to start with above {n} pierce points: hover a pierce point for its hole id": "Désactivé au départ au-delà de {n} points de percée : survolez un point pour voir son sondage",
+  "Azimuth {v}° · looking {look} · {v2}{v3} · elevation in m": "Azimut {v}° · vue vers {look} · {v2}{v3} · élévation en m"
 }

@@ -506,10 +506,7 @@ export function VoxelRangeRow({ model, onUpdate, compact = false, onShell = null
   const useLog = !!model.logScale && model.min > 0 && model.max > model.min;
   const toS = (v) => (useLog ? Math.log10(Math.max(model.min, v)) : v), fromS = (s) => (useLog ? 10 ** s : s);
   const sMin = toS(model.min), sMax = toS(model.max), sStep = (sMax - sMin) / 200 || 0.01;
-  // TASKS.csv #3227 (#2969, WA iron) — a slider step landed on 3.34475 while the box beside it (VoxelRangeNumber, 4 significant figures) read
-  // 3.345 and the 3D view applied 3.34475: the slider's value is taken at the box's precision, so the limit drawn is the one shown
-  // (the slider's ends stay the model's own min / max, so rounding never hides the end cells)
-  const fromSlider = (raw) => (raw >= sMax - sStep / 2 ? model.max : raw <= sMin + sStep / 2 ? model.min : Number(Number(fromS(raw)).toPrecision(4)));
+  const fromSlider = (raw) => (raw >= sMax - sStep / 2 ? model.max : raw <= sMin + sStep / 2 ? model.min : Number(Number(fromS(raw)).toPrecision(4))); // #3227 — at the box's 4 figures; the ends exact
   const debounceRef = useRef(null);
   const push = (patch) => {
     if (debounceRef.current) clearTimeout(debounceRef.current);

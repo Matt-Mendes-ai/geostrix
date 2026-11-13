@@ -11965,5 +11965,6 @@
   "{unit} was left out: no base is modelled, so its solid would be everything {where}. Model the surface under it to close it, or choose to build it the next time.": "تُركت {unit} جانبًا: لا قاعدة منمذجة، فسيكون مجسّمها كل ما هو {where}. نمذج السطح الذي تحتها لإغلاقه، أو اختر بناءه في المرة القادمة.",
   "{n} chosen, all hidden (the eye)": "{n} مختار، جميعها مخفية (العين)",
   "Filter holes… ({examples})": "تصفية الثقوب… ({examples})",
-  "Off to start with above {n} pierce points: hover a pierce point for its hole id": "معطّل في البداية فوق {n} نقطة اختراق: مرّر المؤشر فوق نقطة لترى معرّف ثقبها"
+  "Off to start with above {n} pierce points: hover a pierce point for its hole id": "معطّل في البداية فوق {n} نقطة اختراق: مرّر المؤشر فوق نقطة لترى معرّف ثقبها",
+  "Azimuth {v}° · looking {look} · {v2}{v3} · elevation in m": "السمت {v}° · النظر نحو {look} · {v2}{v3} · الارتفاع بالمتر"
 }
