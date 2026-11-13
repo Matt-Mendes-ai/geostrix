@@ -5267,7 +5267,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       return;
     }
     const ok = await loadSampleProject(which);
-    if (ok && which !== "wa_uranium" && which.startsWith("wa_")) { // TASKS.csv #3107 — assays, surface samples, downhole logs and a grid: lib/sampleWa.js
+    if (ok && which !== "wa_uranium" && (which.startsWith("wa_") || which.startsWith("qld_"))) { // TASKS.csv #3107 — assays, surface samples, downhole logs and a grid: lib/sampleWa.js
       try {
         const { loadWaSampleExtras, WA_SAMPLES } = await import("../lib/sampleWa.js");
         const notes = await loadWaSampleExtras(which, async (rel) => (await loadSampleFiles(WA_SAMPLES[which].dir, [rel]))[0], { setAssays, setAssayElements, setSurfaceSamples: store.setSurfaceSamples, setSurfaceElements: store.setSurfaceElements, addCustomLayer: (l) => setStoreCustomLayers((p) => [...(p || []), l]), addRaster: store.addRaster },

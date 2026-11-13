@@ -1177,6 +1177,12 @@ export function useImportPipeline(ctx) {
       files: ["collars.csv", "survey.csv"],
       notice: "Rouyn-Noranda (Quebec's SIGEOM, CC BY 4.0): the geology, 299 structural measurements and 280 historical drillhole traces of a 7 km block of the Abitibi, on a terrain, inside the Blake River gravity sample — nothing synthesized.",
     },
+    // TASKS.csv #3107 — its assays and other parts are loaded by the caller (lib/sampleWa.js)
+    qld_century: {
+      dir: "qld_century", epsg: 7854, crs: "GDA2020 / MGA zone 54",
+      files: ["collars.csv", "survey.csv", "litho.csv"],
+      notice: "Century (Geological Survey of Queensland, CC BY 4.0): 37 holes from 1992 on a shale-hosted zinc-lead-silver deposit, with lithology and assays, 730 soil samples and Geoscience Australia's magnetic grid — nothing synthesized.",
+    },
   };
   const loadSampleProject = async (which = "harry") => {
     if (sampleLoading || importActiveRef.current) return false;

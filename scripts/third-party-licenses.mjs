@@ -156,6 +156,10 @@ export function bundledData() {
   { const p = path.join(ROOT, "sample_data", "qc_rouyn_noranda", "README.md");
     if (existsSync(p)) out.push({ name: "Rouyn-Noranda sample (SIGEOM, Ministère des Ressources naturelles et des Forêts, Gouvernement du Québec; Canadian Digital Elevation Model, Natural Resources Canada)", version: "2026-11", license: "CC-BY-4.0",
       url: "https://www.donneesquebec.ca/licence/#cc-by", text: readFileSync(p, "utf8").trim() }); }
+  // TASKS.csv #3107 — listed like the Blake River and WA uranium samples: its README carries the attribution and says what was done
+  { const p = path.join(ROOT, "sample_data", "qld_century", "README.md");
+    if (existsSync(p)) out.push({ name: "Century zinc-lead-silver sample (Whole of Queensland Geochemistry databases, Geological Survey of Queensland, State of Queensland; Total Magnetic Intensity Grid of Australia 2019, Geoscience Australia)", version: "2024", license: "CC-BY-4.0",
+      url: "https://geoscience.data.qld.gov.au/dataset/whole-of-queensland-geochemistry-databases", text: readFileSync(p, "utf8").trim() }); }
   return out;
 }
 
