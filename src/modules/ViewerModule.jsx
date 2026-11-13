@@ -124,7 +124,7 @@ import { collarGround } from "../lib/collarGround.js"; // TASKS.csv #1616 — th
 import { useSurfacePlacement } from "./viewer/useSurfacePlacement.js"; import SurfacePlacementNotices from "./viewer/SurfacePlacementNotices.jsx"; // TASKS.csv #2485
 let solidSeq = 0; // TASKS.csv #1887 — distinct ids for solids added within one millisecond
 import { hitLabel } from "../lib/viewer/hitLabel.js"; // TASKS.csv #1891 (moved out, #1084 size cap)
-import { customColour, customLegendGroups, customFields } from "../lib/customColour.js"; // TASKS.csv #1697
+import { customColour, customLegendGroups, customFields, sectionCustomLegendItems /* #2669 */ } from "../lib/customColour.js"; // TASKS.csv #1697
 const DumpPane = React.lazy(() => import("../components/DumpPane.jsx")); // TASKS.csv #1880
 const InterpretPane = React.lazy(() => import("../components/InterpretPane.jsx")); // TASKS.csv #1152
 const UndrilledZonesPane = React.lazy(() => import("../components/UndrilledZonesPane.jsx")); // TASKS.csv #1139 // TASKS.csv #851 — Targeting: fuzzy overlay / weights of evidence
@@ -224,6 +224,7 @@ import CollarSizeControl from "./viewer/CollarSizeControl.jsx"; // #2823 — Mat
 import { useBuildDefer } from "../lib/viewer/buildDefer.js"; // #1500
 import { lazyTip } from "../lib/viewer/lazyTip.js"; // #1500
 import MiddleName from "../components/MiddleName.jsx"; // #2852
+import { partChoices, boundaryPart } from "../lib/boundaryParts.js"; // TASKS.csv #3234
 const IdentifyPanel = React.lazy(() => import("../components/IdentifyPanel.jsx"));
 const UnitPolygonPane = React.lazy(() => import("../components/UnitPolygonPane.jsx")); // TASKS.csv #1439
 const SurfaceElementBasis = React.lazy(() => import("./viewer/SurfaceElementBasis.jsx")); // TASKS.csv #2627 / #2641
@@ -5223,8 +5224,9 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   // task's own notes tie to the separate, also-Planned DuckDB-WASM SQL panel (#50) instead of
   // duplicating a one-off mini-parser here.
   const [selectByLocationBoundaryId, setSelectByLocationBoundaryId] = useState("");
+  const [selectByLocationPart, setSelectByLocationPart] = useState(""); // TASKS.csv #3234 — one named part ("" = every part)
   const selectByLocation = (mode) => {
-    const boundary = boundaries.find((b) => b.id === selectByLocationBoundaryId);
+    const boundary = boundaryPart(boundaries.find((b) => b.id === selectByLocationBoundaryId), selectByLocationPart); // #3234
     if (!boundary) return;
     const inside = new Set(collars.filter((c) => pointInBoundary(c.x, c.y, boundary.polylines)).map((c) => c.hole_id));
     if (mode === "isolate") {
@@ -5946,6 +5948,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       legendItems.push([r.label, r.color]);
     });
     legendItems.sort((a, b) => a[0].localeCompare(b[0]));
+    // TASKS.csv #2669 — the custom layers drawn on the section (a strat-unit ribbon, a gamma log): their classes, or their ramp
+    legendItems.push(...sectionCustomLegendItems(customLayers, new Set([...intervals, ...points].map((r) => String(r.layer || "")).filter((k) => k.startsWith("custom:")).map((k) => k.slice(7))), layerStyles));
 
     // TASKS.csv #357 — model surfaces and imported solids ON the section. Every visible implicit/solid mesh
     // is cut by the vertical section plane (per-triangle sign test, once per section): the geologist can
@@ -6413,10 +6417,15 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           <div style={{ marginTop: 10, marginBottom: 4 }}>
             <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginBottom: 4, display: "flex", alignItems: "center", gap: 4 }}>
               <MapPin size={12} />{" "}{tr("Select by location")}</div>
-            <select value={selectByLocationBoundaryId} onChange={(e) => setSelectByLocationBoundaryId(e.target.value)} style={{ width: "100%", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)", marginBottom: 5 }}>
+            <select value={selectByLocationBoundaryId} onChange={(e) => { setSelectByLocationBoundaryId(e.target.value); setSelectByLocationPart(""); /* #3234 */ }} style={{ width: "100%", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)", marginBottom: 5 }}>
               <option value="">{tr("— pick a boundary/claim —")}</option>
               {boundaries.filter(isAreaBoundary).map((b) => <option key={b.id} value={b.id}>{b.name}{b.kind === "claim" ? tr(" (claim)") : ""}</option>)}{/* #1466 — not contours / open lines */}
             </select>
+            {(() => { const parts = partChoices(boundaries.find((b) => b.id === selectByLocationBoundaryId)); return parts.length > 0 && ( /* TASKS.csv #3234 */
+              <select value={selectByLocationPart} onChange={(e) => setSelectByLocationPart(e.target.value)} aria-label={tr("Part of the boundary")} style={{ width: "100%", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-sm)", marginBottom: 6 }}>
+                <option value="">{tr("Every part")}</option>
+                {parts.map((n) => <option key={n} value={n}>{n}</option>)}
+              </select>); })()}
             <div style={{ display: "flex", gap: 6 }}>
               <button onClick={() => selectByLocation("isolate")} disabled={!selectByLocationBoundaryId} style={{ ...pBtn, flex: 1, marginBottom: 0, opacity: selectByLocationBoundaryId ? 1 : 0.5, cursor: selectByLocationBoundaryId ? "pointer" : "not-allowed" }} title={tr("Show only collars inside this boundary, hide every other hole")}>{tr("Isolate inside")}</button>
               <button onClick={() => selectByLocation("hide")} disabled={!selectByLocationBoundaryId} style={{ ...pBtn, flex: 1, marginBottom: 0, opacity: selectByLocationBoundaryId ? 1 : 0.5, cursor: selectByLocationBoundaryId ? "pointer" : "not-allowed" }} title={tr("Hide collars inside this boundary, leave every other hole as-is")}>{tr("Hide inside")}</button>

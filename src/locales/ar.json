@@ -11886,5 +11886,10 @@
   "A model of {cells} cells takes about {gb} GB of memory while it is open. A UBC mesh, OMF volume or block-model CSV with more cells is merged into bigger blocks on import, and the import message says by how much.": "يشغل نموذج من {cells} خلية نحو {gb} غيغابايت من الذاكرة ما دام مفتوحًا. تُدمج شبكة UBC أو حجم OMF أو ملف CSV لنموذج كتلي يحوي خلايا أكثر في كتل أكبر عند الاستيراد، وتذكر رسالة الاستيراد مقدار ذلك.",
   "Label the parts in the 3D view": "تسمية الأجزاء في العرض ثلاثي الأبعاد",
   "Per-hole values: all {n} hole(s) are already in the project at these coordinates. Importing joins the file's other columns ({cols}) onto those holes, on the hole id; no new hole is added.": "قيم لكل ثقب: جميع الثقوب الـ {n} موجودة في المشروع بهذه الإحداثيات. يضم الاستيراد أعمدة الملف الأخرى ({cols}) إلى تلك الثقوب حسب معرّف الثقب؛ لا يُضاف ثقب جديد.",
-  "The log's own rows say {said} ({field}): {unit}.": "تقول صفوف السجل نفسها {said} ({field}): {unit}."
+  "The log's own rows say {said} ({field}): {unit}.": "تقول صفوف السجل نفسها {said} ({field}): {unit}.",
+  "Label the parts (3D view and Maps plan)": "تسمية الأجزاء (العرض ثلاثي الأبعاد ومخطط الخرائط)",
+  "Part of the boundary": "جزء من الحدود",
+  "Every part": "كل الأجزاء",
+  " Kept 1 in {n} of the file's {seen} readings.": " احتُفظ بقراءة واحدة من كل {n} من قراءات الملف البالغة {seen}.",
+  "Every reading is one point in the 3D view, and hundreds of thousands make it slow and the project file large. Thinning keeps the map of the survey, but a short anomaly between kept readings can be lost.": "كل قراءة نقطة في العرض ثلاثي الأبعاد، ومئات الآلاف منها تبطئه وتكبّر ملف المشروع. التخفيف يحافظ على خريطة المسح، لكن قد تضيع شاذة قصيرة بين القراءات المحفوظة."
 }

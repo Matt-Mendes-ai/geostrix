@@ -11886,5 +11886,10 @@
   "A model of {cells} cells takes about {gb} GB of memory while it is open. A UBC mesh, OMF volume or block-model CSV with more cells is merged into bigger blocks on import, and the import message says by how much.": "Un modelo de {cells} celdas ocupa unos {gb} GB de memoria mientras está abierto. Una malla UBC, un volumen OMF o un CSV de modelo de bloques con más celdas se fusiona en bloques más grandes al importarlo, y el mensaje de importación indica cuánto.",
   "Label the parts in the 3D view": "Rotular las partes en la vista 3D",
   "Per-hole values: all {n} hole(s) are already in the project at these coordinates. Importing joins the file's other columns ({cols}) onto those holes, on the hole id; no new hole is added.": "Valores por sondaje: los {n} sondaje(s) ya están en el proyecto en estas coordenadas. Al importar, las demás columnas del archivo ({cols}) se unen a esos sondajes por su ID; no se agrega ningún sondaje nuevo.",
-  "The log's own rows say {said} ({field}): {unit}.": "Las propias filas del registro dicen {said} ({field}): {unit}."
+  "The log's own rows say {said} ({field}): {unit}.": "Las propias filas del registro dicen {said} ({field}): {unit}.",
+  "Label the parts (3D view and Maps plan)": "Rotular las partes (vista 3D y plano de Mapas)",
+  "Part of the boundary": "Parte del límite",
+  "Every part": "Todas las partes",
+  " Kept 1 in {n} of the file's {seen} readings.": " Se conservó 1 de cada {n} de las {seen} lecturas del archivo.",
+  "Every reading is one point in the 3D view, and hundreds of thousands make it slow and the project file large. Thinning keeps the map of the survey, but a short anomaly between kept readings can be lost.": "Cada lectura es un punto en la vista 3D, y cientos de miles la hacen lenta y agrandan el archivo del proyecto. Reducirlas conserva el mapa del levantamiento, pero una anomalía corta entre lecturas conservadas puede perderse."
 }
