@@ -44,6 +44,14 @@ export function heldBigLayerGone(held, now) {
   const live = new Set((now || []).map((l) => l?.features));
   return held.some((l) => l?.features && !live.has(l.features) && vertexCount(l.features) >= BIG_VERTICES);
 }
+// TASKS.csv #2873 (split from #2814) — the same for rasters and block models: a raster or model the held value has and the project no longer
+// has (by id) was held until the view was shown. Any such removal releases (rare, and a removed raster / model is usually a big one: a grid's
+// values, a model's cells); edits that keep the id do not.
+export function heldItemGone(held, now) {
+  if (!held?.length || held === now) return false;
+  const live = new Set((now || []).map((x) => x?.id));
+  return held.some((x) => x?.id != null && !live.has(x.id));
+}
 export function FreezeStore({ frozen, children }) {
   const live = useContext(StoreContext);
   // the value is captured once, in the render where `frozen` turns true ("storing information from previous
@@ -53,7 +61,7 @@ export function FreezeStore({ frozen, children }) {
   // TASKS.csv #2814 — while frozen, a big map layer the held value still has but the project no longer has (removed in another tab) was
   // kept in memory until the view was shown again (measured: all 20,000 features of a 1 M-vertex layer). The hold then takes the live value:
   // one render of the hidden subtree, which drops the layer from its scene too; every other write still skips it.
-  else if (frozen && hold.value !== live && heldBigLayerGone(hold.value?.mapLayers, live?.mapLayers)) setHold({ frozen, value: live });
+  else if (frozen && hold.value !== live && (heldBigLayerGone(hold.value?.mapLayers, live?.mapLayers) || heldItemGone(hold.value?.rasters, live?.rasters) || heldItemGone(hold.value?.voxelModels, live?.voxelModels))) setHold({ frozen, value: live }); // rasters, models: #2873
   return <StoreContext.Provider value={frozen ? (hold.frozen ? hold.value : live) : live}>{children}</StoreContext.Provider>;
 }
 
