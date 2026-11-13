@@ -188,6 +188,8 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
   // #3083 — on the file's results, not on the resolved segments (an average of a '<' row and a result fell below the floor and hid it)
   const ltFloor = useMemo(() => (source === "surface" ? fileCensoring(surfaceSamples, symbol, surfaceElementUnits[symbol] || "ppm", surfaceElementUnits) : fileCensoring(statsAssays, symbol, elementUnits[symbol] || "ppm", elementUnits)).floor, [source, surfaceSamples, statsAssays, symbol, elementUnits, surfaceElementUnits]);
   const isLt = (r) => r.lt || (ltFloor != null && Math.abs(r.value - ltFloor.floor) <= ltFloor.floor * 1e-9);
+  // TASKS.csv #3243 (split from #3222) — no result flagged '<': the count is a guess from the floor, and the column says so
+  const floorOnly = useMemo(() => ltFloor != null && !rows.some((r) => r.lt), [ltFloor, rows]);
   // TASKS.csv #2508 (review #2486) — 'Hole + lithology' on 2,248 holes: 5,938 groups, a table row and a box plot each, froze the window 1.6-3.8 s.
   // The table, the box plots and the probability plot show the first SHOWN_MAX groups (the largest, or the first holes by id); the CSV has all
   // TASKS.csv #2910 — one values array and one weights array for the whole panel: the statistics, the percentiles, the break and the points
@@ -244,8 +246,9 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
     const unit = elementUnits[symbol] || "ppm", out = [];
     const bi = interceptCutoffFor(project?.name, symbol, unit);
     if (bi != null) out.push({ key: "bi", value: bi, label: tr("Best intercepts {v}", { v: +bi.toPrecision(4) }), title: tr("The cut-off last set in Best intercepts for {symbol}. Click to add it.", { symbol }) });
-    for (const o of sortedThresholdOffers(drillThresholdOffers(geochemThresholds, symbol, unit)).slice(0, 4)) // the highest four: #3160 (#3299: the push on its own line, not inside the comment)
-      out.push({ key: "t:" + o.key, value: o.value, label: `${o.population ? `${o.population.split(": ").pop()} ` : ""}${+Number(o.value).toPrecision(4)}`, title: tr("{rule}{pop}, decided {date}. Click to add it.", { rule: o.rule, pop: o.population ? ` (${o.population})` : "", date: o.decided }) });
+    // the highest four: #3160. A trailing comment here once swallowed the push, so the loop's body was the return: undefined with no saved
+    // threshold (Grade stats closed on cutOffers.length), the first offer never added with one
+    for (const o of sortedThresholdOffers(drillThresholdOffers(geochemThresholds, symbol, unit)).slice(0, 4)) out.push({ key: "t:" + o.key, value: o.value, label: `${o.population ? `${o.population.split(": ").pop()} ` : ""}${+Number(o.value).toPrecision(4)}`, title: tr("{rule}{pop}, decided {date}. Click to add it.", { rule: o.rule, pop: o.population ? ` (${o.population})` : "", date: o.decided }) });
     return out.filter((o, i, a) => a.findIndex((p) => p.value === o.value) === i);
   }, [source, symbol, elementUnits, project?.name, geochemThresholds]);
   const addCutoff = (v) => setCutText([...new Set([...cutoffs, v])].sort((a, b) => a - b).join(", "));
@@ -409,7 +412,7 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
                 <table style={{ borderCollapse: "collapse", fontSize: "var(--font-size-sm)", width: "100%" }}>
                   <thead>
                     <tr>
-                      <th style={th}>{tr("Domain")}</th><th style={th}>n</th><th style={th} title={tr("Share of values reported below the detection limit (stored at half the limit)")}>{tr("<DL %")}</th><th style={th}>{tr("Mean")}</th><th style={th}>{tr("Median")}</th>
+                      <th style={th}>{tr("Domain")}</th><th style={th}>n</th><th style={th} title={floorOnly ? tr("No result in the file is flagged '<': this is the share on the column's lowest value, read as half a substituted limit (a guess from the data)") : tr("Share of values reported below the detection limit (stored at half the limit)")}>{floorOnly ? tr("On the floor %") : tr("<DL %")}</th>{/* #3243 */}<th style={th}>{tr("Mean")}</th><th style={th}>{tr("Median")}</th>
                       <th style={th}>{tr("Stdev")}</th><th style={th}>{tr("CV%")}</th><th style={th}>{tr("Min")}</th><th style={th}>Q1</th><th style={th}>Q3</th><th style={th}>{tr("Max")}</th>
                     </tr>
                   </thead>

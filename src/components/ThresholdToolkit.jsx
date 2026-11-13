@@ -70,6 +70,7 @@ export default function ThresholdToolkit({ surfaceSamples = [], surfaceElements 
   const flaggedLt = (s) => !!s.bdl?.includes(symbol) || s.qualifiers?.[symbol] === "<";
   // #2913 — with the zeros the file holds: zeros below the minimum make it the reporting step, not half a limit (no floor, no <DL)
   const { floor, step } = useMemo(() => fileCensoring(data, symbol, unit, units), [data, symbol, unit, units]); // #3083 — the one rule Grade stats uses too (flaggedLt's test)
+  const floorOnly = useMemo(() => floor != null && !data.some(flaggedLt), [floor, data, symbol]); // TASKS.csv #3243 (flaggedLt reads symbol) — no result flagged '<': the count is the floor guess
   const keyOfNow = () => (drill ? drillDomainKeyFn(groupBy, domainLayers) /* #2504: + attribute domains */ : groupKeyFn(groupBy, mapLayers, surfaceSamples)); // samples: #1796 — split by medium; drill: #2196
   const pops = useMemo(() => {
     const keyOf = keyOfNow();
@@ -161,7 +162,7 @@ export default function ThresholdToolkit({ surfaceSamples = [], surfaceElements 
                 <table style={{ borderCollapse: "collapse", fontSize: "var(--font-size-sm)", width: "100%" }}>
                   <thead>
                     <tr>
-                      <th style={{ ...th, textAlign: "start" }}>{tr("Population")}</th><th style={th}>n</th><th style={th} title={tr("Share of values reported below the detection limit (stored at half the limit)")}>{tr("<DL %")}</th>
+                      <th style={{ ...th, textAlign: "start" }}>{tr("Population")}</th><th style={th}>n</th><th style={th} title={floorOnly ? tr("No result in the file is flagged '<': this is the share on the column's lowest value, read as half a substituted limit (a guess from the data)") : tr("Share of values reported below the detection limit (stored at half the limit)")}>{floorOnly ? tr("On the floor %") : tr("<DL %")}</th>{/* #3243 */}
                       {shownMethods.map((m) => (
                         <th key={m.id} style={{ ...th, cursor: "pointer", background: method === m.id ? "var(--color-selected-bg)" : undefined }} title={`${tr(m.label)}${m.ref ? ` (${m.ref})` : ""}: ${tr(m.assumption)}`} onClick={() => setMethod(m.id)}>
                           <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 2, background: METHOD_COLOURS[m.id], marginRight: 4 }} />{tr(m.label)}
