@@ -1,5 +1,6 @@
 import React, { Suspense, useEffect, useMemo, useRef, useState } from "react"; // Suspense: TASKS.csv #1425
 import { ensureProjectCrs, ensureExportCrs } from "../lib/projectCrsRequest.js"; // TASKS.csv #615; export: #1021
+import { exportCrs, terrainToWorld, tiedExportNote } from "../lib/tiedExport.js"; // TASKS.csv #2322 — a tied local grid's exports through its tie
 import { useModuleAction, requestModuleAction } from "../lib/menuRequests.js"; // TASKS.csv #565; requestModuleAction: #1152
 import { askAdoptCrs, projectEpsgChooser, medianLonLat } from "../lib/adoptCrs.js"; // TASKS.csv #607; medianLonLat: #2833
 import { gemHeaderEpsg, KEEP_CHOICES, suggestKeepEvery, everyNth, batchSurveyName, pairGpsFile } from "../lib/xyzBatch.js"; // TASKS.csv #1329
@@ -773,12 +774,14 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
   // actual writer (geotiff package's own writeArrayBuffer, not hand-rolled).
   const exportTerrainGeoTIFF = async () => {
     if (!terrain) return;
-    const epsg = await ensureExportCrs(project); if (!epsg) return; // #1021
+    const ex = await exportCrs(project); if (!ex) return; // #1021; #2322 — a tied local grid: resampled through its tie
+    const epsg = ex.epsg;
     try {
-      const bytes = new Uint8Array(terrainToGeoTIFFArrayBuffer(terrain, epsg)); // #1040 — bytes over IPC
+      const bytes = new Uint8Array(terrainToGeoTIFFArrayBuffer(terrainToWorld(terrain, ex.tie), epsg)); // #1040 — bytes over IPC
       const masked = terrainToGeoTIFFArrayBuffer.lastMasked || 0; // #1020
       const res = await saveFile({ suggestedName: `${safeFileName(terrain.name.replace(/\.(tif|tiff)$/i, ""), "terrain")}.tif`, filters: [{ name: "GeoTIFF", extensions: ["tif"] }], content: bytes });
-      if (res?.ok && masked) setTerrainError({ info: true, text: tr("{n} terrain nodes had no data (filled for display only) and are written as no-data (-9999).", { n: masked.toLocaleString() }) });
+      if (res?.ok && masked) setTerrainError({ info: true, text: tr("{n} terrain nodes had no data (filled for display only) and are written as no-data (-9999).", { n: masked.toLocaleString() }) + tiedExportNote(ex.tie) });
+      else if (res?.ok && ex.tie) setTerrainError({ info: true, text: tiedExportNote(ex.tie).trim() });
     } catch (err) {
       setTerrainError({ info: false, text: tr("Couldn't export terrain: {message}", { message: err.message }) });
     }

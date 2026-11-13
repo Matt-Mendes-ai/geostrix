@@ -38,7 +38,7 @@ import { collarSubcrop, subcropLayer, roleWithCodes, subcropLeftOut, holeStartCo
 import { outlineLayer, defaultReach, medianSpacing } from "../lib/subcropOutlines.js"; // TASKS.csv #2956
 import { loggedCodeSpellings, withLogColours } from "../lib/logColours.js"; // TASKS.csv #2970
 import { categoryColor, LAYER_META } from "../lib/layers.js"; // TASKS.csv #1719 — the logs' own colours
-import { ensureExportCrs } from "../lib/projectCrsRequest.js"; // TASKS.csv #1021
+import { exportCrs, structureSetToWorld, atLocal } from "../lib/tiedExport.js"; // TASKS.csv #2322 — a tied local grid's exports through its tie
 import { toExportCsv } from "../lib/tabular.js";
 import { checkGpkgSize } from "../lib/gpkgSize.js"; // TASKS.csv #1716
 import { readGeoPackageNear, GPKG_IN_PLACE_BYTES } from "../lib/gpkgInPlace.js"; // TASKS.csv #1716
@@ -100,10 +100,14 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
       // TASKS.csv #2267 (review #2174) — the CSV needs no CRS: on a project with none it is written in the project's own grid, the true-north
       // columns left blank; KML and GeoPackage still ask
       const local = project?.crsSet === false && fmt === "csv";
-      const epsg = local ? null : await ensureExportCrs(project); if (!local && !epsg) return;
+      // TASKS.csv #2322 — on a tied local grid the KMZ / GeoPackage are written in the tie's CRS: the readings through the tie, their dip
+      // directions turned by its rotation, the terrain read back at the grid point (s and zAt below are in the tie's CRS from here)
+      const ex = local ? null : await exportCrs(project); if (!local && !ex) return;
+      const epsg = ex ? ex.epsg : null, tie = ex?.tie || null;
       const ox = await import("../lib/overlayExport.js");
       const { sampleTerrainElevation } = await import("../lib/viewer/geomath.js");
-      const zAt = terrain ? (x, y) => sampleTerrainElevation(terrain, x, y) : null; // #1206
+      const zAt = atLocal(tie, terrain ? (x, y) => sampleTerrainElevation(terrain, x, y) : null); // #1206
+      s = structureSetToWorld(s, tie);
       const base = (s.name || "structures").replace(/\.[^.]+$/, "").replace(/[^a-z0-9_-]+/gi, "_").toLowerCase() || "structures";
       let res;
       if (fmt === "csv") res = await saveFile({ quiet: "success", suggestedName: `${base}.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: toExportCsv(ox.surfaceStructureRows(s, epsg, zAt)), encoding: "text" });
