@@ -188,8 +188,7 @@ import { LABEL_PX, makeTextSprite, fitScreenLabels, fitContourLabels } from "../
 import { restrictLayersToHoles } from "../lib/modelArea.js"; // TASKS.csv #1546
 import { gradeText } from "../lib/gradeText.js"; // #2515
 import { pickOnView } from "./viewer/pickGround.js"; // #2574; #2447
-import { syncHoleLabels, declutterHoleLabels, withEveryLabel, syncTextLabels, sampleLabelItems, redeclutter } from "../lib/viewer/holeLabels.js";
-import { symbolBuildKey } from "../lib/viewer/structureSymbol3d.js"; // TASKS.csv #3091 // withEveryLabel: #1770; syncTextLabels: #1443
+import { syncHoleLabels, declutterHoleLabels, withEveryLabel, syncTextLabels, sampleLabelItems, redeclutter } from "../lib/viewer/holeLabels.js"; // withEveryLabel: #1770; syncTextLabels: #1443
 import { PickStandIn, PICK_ONLY_LAYER } from "../lib/viewer/pickStandIn.js"; // TASKS.csv #1500
 import { syncBatchedInstances, buildLayerBatches, eachLayerMember, eachPickTarget, batchTag } from "../lib/viewer/layerBatches.js"; // moved out (size cap, #1084)
 import { PROTO_SPHERE_8, POINT_PROTO } from "../lib/viewer/protos.js"; // TASKS.csv #2176
@@ -920,7 +919,6 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   // #1825 — the map layers anchor the view only when nothing before them in anchorBbox's order does: adding or removing one then rebuilt
   // every object and refitted the camera on Kodiak (2,762 samples) for nothing
   const mapAnchorUsed = !(terrain?.bbox || rasters?.[0]?.bbox || (boundaries || []).some((b) => b.polylines?.some((pl) => pl?.length)) || (omfObjects || []).some((o) => o.vertices?.length) || layers.geophys_pts?.length || placedSurfaceSamples.length);
-  const symbolKey = useMemo(() => symbolBuildKey(surfaceStructures), [surfaceStructures]); // #3067 / #3091 — a symbol choice or thickness redraws the discs
   const mapAnchorKey = useMemo(() => (mapAnchorUsed ? JSON.stringify([(mapLayers || []).map((l) => l.bbox), (surfaceStructures || []).map((st) => st.rows?.length || 0)]) : ""), [mapAnchorUsed, mapLayers, surfaceStructures]);
   // TASKS.csv #435 — same idea for terrain, raster drapes, boundaries and OMF objects: the geometry rebuild
   // reads them ONLY for its no-collar camera anchor, so it depends on this extent signature instead of the
@@ -1445,7 +1443,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
       if (!g) return;
       const single = layerStyles[key]?.color; // TASKS.csv #635 — a one-colour layer style wins over category colours
       eachLayerMember(g, (child) => { // #1540
-        if (child.userData?.catValue === undefined || !child.material?.color || child.userData.symbol) return; // symbol: #3067's ink
+        if (child.userData?.catValue === undefined || !child.material?.color) return;
         child.material.color.set(single || effectiveColor(key, child.userData.catValue));
       });
     });
@@ -4276,7 +4274,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   useEffect(() => {
     // TASKS.csv #2176 step 1 — the drillhole scene build, moved unchanged into viewer/drillholeScene.js (#1084 size cap)
     buildDrillholeScene({ applyCategoryVisibility, applyLegendOverrideColors, autoFitInitial, baseColorForBuild, bgColorRef, boundaries, buildAssaySpheresRef, buildDefer, buildGeophysPtsRef, buildSurfaceSamplesRef, collarMaterialRef, collarSize, collars, customLayers, desurveyMethod, effectiveLabel, fitBox, hasAutoFitRef, holeLabelAnchorsRef, holeLabelModeRef, isRowVisibleForBuild, lastHoleTraceCountRef, lastTracesRef, layerGroupsRef, layers, layerStyles, mapLayers, numericLayerColor, numericRange, numericSymbology, omfObjects, originRef, placedSurfaceSamples, rasters, rebuildSeq, setDataLoaded, setNotices, setTracesSeq, surfaceStructures, survey, syncImplicitOrigin, terrain, tracesRef, voxelModels, pointBuildersStale: () => [!sameInputs(assayBuiltRef.current, assayInputs), !sameInputs(geophysBuiltRef.current, geophysInputs), !sameInputs(surfaceBuiltRef.current, surfaceInputs)] /* #2176 */ });
-  }, [collars, survey, survey.length ? desurveyMethod : "" /* #135 — switching method must rebuild every trace; #1528 — with no survey every method gives the same straight holes */, noHoles ? layers : layersForBuild /* #1582 */, customLayers, numericRange, isRowVisibleForBuild, baseColorForBuild, effectiveLabel, numericLayerColor, fitView, layerStylesBuildKey /* #635; #1528 — not the in-place opacities */, noHoles && anchorSourcesKey /* #435 — extents only, NOT terrain/rasters/boundaries/omfObjects themselves */, noHoles && mapAnchorKey /* #316 — extents only, NOT mapLayers: a colour edit must not rebuild every drillhole */, noHoles && voxelGeomSignature /* #1569 — with holes, only the fit box below */, fitBox, rebuildSeq, noHoles && placedSurfaceSamples /* #606 — and the no-drillhole camera anchor */, symbolKey /* #3091 */]); // #551: assay / geophysics-legend / surface-visibility inputs moved to their own builders
+  }, [collars, survey, survey.length ? desurveyMethod : "" /* #135 — switching method must rebuild every trace; #1528 — with no survey every method gives the same straight holes */, noHoles ? layers : layersForBuild /* #1582 */, customLayers, numericRange, isRowVisibleForBuild, baseColorForBuild, effectiveLabel, numericLayerColor, fitView, layerStylesBuildKey /* #635; #1528 — not the in-place opacities */, noHoles && anchorSourcesKey /* #435 — extents only, NOT terrain/rasters/boundaries/omfObjects themselves */, noHoles && mapAnchorKey /* #316 — extents only, NOT mapLayers: a colour edit must not rebuild every drillhole */, noHoles && voxelGeomSignature /* #1569 — with holes, only the fit box below */, fitBox, rebuildSeq, noHoles && placedSurfaceSamples /* #606 — and the no-drillhole camera anchor */]); // #551: assay / geophysics-legend / surface-visibility inputs moved to their own builders
   // TASKS.csv #1569 (review #1497, Lawyers) — with drillholes, a block model only widens the fit box (the origin and the first
   // fit come from the holes): adding one re-derives that box here instead of rebuilding every drillhole and custom layer
   // (25-26 s per 'Add as block model' on Lawyers). Without holes the build above still runs, since the models anchor it.

@@ -18,5 +18,5 @@ test("the placed list is reused when no sample moved", () => {
 });
 
 test("the main build still depends only on the placed list, not the terrain", () => {
-  assert.match(src, /placedSurfaceSamples \/\* #606 — and the no-drillhole camera anchor \*\/, symbolKey \/\* #3091 \*\/\]\);/); // #3091: the discs' symbol key, not the terrain
+  assert.match(src, /placedSurfaceSamples \/\* #606 — and the no-drillhole camera anchor \*\/\]\);/); // not the terrain (#3193 removed #3091's disc symbol key)
 });
