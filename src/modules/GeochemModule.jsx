@@ -562,7 +562,7 @@ export default function GeochemModule() {
   const commitAssayImport = async (modalIn) => {
     if (modalIn.busy) return; // #583 — one import at a time (the row build below yields to the UI)
     // TASKS.csv #2391 — the row filter (#2330) on the assay path too: the user's, else a Superseded / Current flag column's preset
-    const rowFilter = modalIn.rowFilter !== undefined ? modalIn.rowFilter : defaultRowFilter(modalIn.headers || Object.keys(modalIn.allRows?.[0] || {}), modalIn.allRows);
+    const rowFilter = modalIn.rowFilter !== undefined ? modalIn.rowFilter : defaultRowFilter(modalIn.headers || Object.keys(modalIn.allRows?.[0] || {}), modalIn.allRows, { qc: false /* #3207 — assays keep their QC samples for QAQC */ });
     const filtered = applyRowFilter(modalIn.allRows || [], rowFilter), modal = filtered.dropped ? { ...modalIn, allRows: filtered.rows } : modalIn;
     if (filtered.dropped) setNotices((p) => [...p, notice("{fileName}: {n} row(s) left out by the row filter ({col} kept only where it is {values}).", { fileName: modal.fileName || "", n: filtered.dropped.toLocaleString(), col: rowFilter.col, values: rowFilter.keep.map((v) => v || "(blank)").join(", ") })]);
     const { format, allRows, mapping, selectedMethod, elements } = modal;

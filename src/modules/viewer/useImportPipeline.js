@@ -285,7 +285,7 @@ export function useImportPipeline(ctx) {
     // became the custom layer's name, each row's source (_src) and every notice: the bare file name from here on
     const fileName = String(shownName ?? "").replace(/ \(\d+ more queued\)$/, "");
     // TASKS.csv #2330 — the row filter: the user's, else a Superseded / Current flag column's preset (also on a drop committed unseen)
-    const rowFilter = data.rowFilter !== undefined ? data.rowFilter : defaultRowFilter(Object.keys(allRowsIn?.[0] || {}).length ? Object.keys(allRowsIn[0]) : (data.headers || []), allRowsIn);
+    const rowFilter = data.rowFilter !== undefined ? data.rowFilter : defaultRowFilter(Object.keys(allRowsIn?.[0] || {}).length ? Object.keys(allRowsIn[0]) : (data.headers || []), allRowsIn, { qc: target !== "assays" }); // qc: #3207
     const { rows: allRows, dropped: rowsFiltered } = applyRowFilter(allRowsIn, rowFilter);
     // TASKS.csv #2391 — an interval table whose rows overlap within a hole: say how many, and the column that probably marks the out-of-date ones
     if (mapping?.hole_id && mapping?.from && mapping?.to && target !== "assays") {
@@ -900,7 +900,7 @@ export function useImportPipeline(ctx) {
     // columns, its channels, metres, no grid or shift, no row filter. Anything else reads the file again as rows, as before.
     if (modalData.logTable) {
       const chans = logChannelsFor(modalData.target, modalData.headers, modalData.allRows, modalData.mapping, modalData.logChannels);
-      const rf = modalData.rowFilter !== undefined ? modalData.rowFilter : defaultRowFilter(modalData.headers, modalData.allRows);
+      const rf = modalData.rowFilter !== undefined ? modalData.rowFilter : defaultRowFilter(modalData.headers, modalData.allRows, { qc: modalData.target !== "assays" }); // qc: #3207
       const plain = (modalData.units || "m") === "m" && !(modalData.target === "collars" && modalData.localGridOn) && !Number(modalData.zShift);
       if (!(chans && plain && !rf?.col && logTableFits(modalData.logTable, modalData.mapping, chans))) {
         setNotices((p) => [...p, notice("{fileName}: read again in full for this import: it was read for its log channels only.", { fileName: modalData.fileName })]);

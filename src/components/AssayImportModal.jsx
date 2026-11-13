@@ -157,7 +157,7 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
             </div>
           )}
 
-          {modal.format === "wide" && <div style={{ marginTop: 12 }}><RowFilterBox modal={modal} onChange={onChange} sel={sel} /></div>}{/* TASKS.csv #2391 */}
+          {modal.format === "wide" && <div style={{ marginTop: 12 }}><RowFilterBox modal={modal} onChange={onChange} sel={sel} qc={false /* #3207 — QC samples are kept for QAQC */} /></div>}{/* TASKS.csv #2391 */}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 16, marginBottom: 8 }}>
             <div style={{ ...label, marginBottom: 0 }}>{tr("Elements ({checkedCount} of {elements})", { checkedCount, elements: modal.elements.length })}</div>
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>

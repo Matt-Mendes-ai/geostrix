@@ -31,8 +31,8 @@ const countCache = new WeakMap();
 const importCount = (modal) => {
   const rows = modal.allRows; if (!rows?.length || modal.logTable) return modal.rowCount; // logTable: #3038 — the rows are its first 5,000
   let c = countCache.get(rows); if (!c) countCache.set(rows, (c = new Map()));
-  const k = modal.rowFilter === undefined ? "preset" : JSON.stringify(modal.rowFilter);
-  if (!c.has(k)) { const f = modal.rowFilter !== undefined ? modal.rowFilter : defaultRowFilter(modal.headers, rows); c.set(k, f ? applyRowFilter(rows, f).rows.length : modal.rowCount); }
+  const k = modal.rowFilter === undefined ? `preset:${modal.target === "assays" ? "noqc" : "qc"}` : JSON.stringify(modal.rowFilter);
+  if (!c.has(k)) { const f = modal.rowFilter !== undefined ? modal.rowFilter : defaultRowFilter(modal.headers, rows, { qc: modal.target !== "assays" }); c.set(k, f ? applyRowFilter(rows, f).rows.length : modal.rowCount); } // qc: #3207
   return c.get(k);
 };
 import { logChannelsFor } from "../lib/downholeLogChannels.js";
