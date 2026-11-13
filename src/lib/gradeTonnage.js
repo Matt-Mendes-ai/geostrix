@@ -168,7 +168,9 @@ export function blocksInsideSolid(cells, positions, indices, { mode = "centre", 
 // TASKS.csv #1957 (Vulcan review) — the same sums bench by bench at one cutoff: bench height and datum typed by the user (floors at
 // datum + k x benchH); a block spanning two benches splits by its vertical overlap. -> [{ floorRL, blocks, volumeM3, meanGrade,
 // tonnes, metal, interpolatedShare }] from the top bench down; a bench with nothing at the cutoff is not listed.
-export function gradeTonnageByBench(cells, { cutoff, benchH, datum = 0, density = null, unit = null, interpolatedOnly = false } = {}) {
+// TASKS.csv #2637 — densityOf(cell), as gradeTonnageTable takes it (a density per block by a logged code or a density model): each bench's
+// tonnes and metal summed block by block and its mean grade tonnage-weighted; a block with no density counts in the volume, not the tonnes
+export function gradeTonnageByBench(cells, { cutoff, benchH, datum = 0, density = null, unit = null, interpolatedOnly = false, densityOf = null } = {}) {
   const m = metalOf(unit), rho = Number(density) > 0 ? Number(density) : null, h = Number(benchH);
   if (!(h > 0)) return [];
   const hasSupport = cells.some((c) => typeof c.support === "string");
@@ -181,11 +183,16 @@ export function gradeTonnageByBench(cells, { cutoff, benchH, datum = 0, density 
       const lo = datum + k * h, hi = lo + h, overlap = Math.min(zhi, hi) - Math.max(zlo, lo);
       if (!(overlap > 1e-9)) continue;
       const share = Math.min(1, overlap / c.dz), v = vol * share;
-      let b = benches.get(k); if (!b) benches.set(k, (b = { floorRL: lo, blocks: 0, vol: 0, gv: 0, vi: 0 }));
+      let b = benches.get(k); if (!b) benches.set(k, (b = { floorRL: lo, blocks: 0, vol: 0, gv: 0, vi: 0, t: 0, gt: 0 }));
       b.blocks += share; b.vol += v; b.gv += v * c.value; if (c.support === "interpolated") b.vi += v;
+      if (densityOf) { const r = densityOf(c); if (r > 0) { b.t += v * r; b.gt += v * r * c.value; } } // #2637
     }
   }
   return [...benches.values()].sort((a, b) => b.floorRL - a.floorRL).map((b) => {
+    if (densityOf) { // #2637
+      const tonnes = b.t > 0 ? b.t : null, meanGrade = b.t > 0 ? b.gt / b.t : b.vol > 0 ? b.gv / b.vol : null;
+      return { floorRL: b.floorRL, blocks: +b.blocks.toFixed(2), volumeM3: b.vol, meanGrade, tonnes, metal: m && tonnes != null ? b.gt * m.factor : null, interpolatedShare: hasSupport && b.vol > 0 ? b.vi / b.vol : null };
+    }
     const meanGrade = b.vol > 0 ? b.gv / b.vol : null, tonnes = rho && b.vol > 0 ? b.vol * rho : null;
     return { floorRL: b.floorRL, blocks: +b.blocks.toFixed(2), volumeM3: b.vol, meanGrade, tonnes, metal: m && tonnes != null && meanGrade != null ? tonnes * meanGrade * m.factor : null, interpolatedShare: hasSupport && b.vol > 0 ? b.vi / b.vol : null };
   });
