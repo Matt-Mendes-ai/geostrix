@@ -3,7 +3,12 @@
 import { CATEGORICAL_SAFE_COLORS } from "./layers.js";
 import { readsAsMineGrid, mineToProject, partsBox, isMineSource, mineChoiceToProject } from "./mineGrid.js"; // TASKS.csv #2586; isMineSource, mineChoiceToProject: #2684
 import { fileToLocal } from "./localGridTie.js"; // TASKS.csv #2320
-import { reprojectXY, getProj4DefSync, prjRefusal, datumNote } from "./reproject.js";
+import { reprojectXY, getProj4DefSync, prjRefusal, datumNote, crsName } from "./reproject.js"; // crsName: #2774
+// TASKS.csv #2774 (split from #2467) — a map layer's CRS said as Boundaries / Claims say it: the CRS by name with its code, what was done, and the
+// datum caveat when a shift was applied ('its NAD27 / UTM zone 10N (EPSG:26710) was reprojected to the project's NAD83 / UTM zone 10N (EPSG:26910);
+// NAD27: …'), not bare codes. English: kept with the layer in the project file.
+const crsLabel = (c) => { const n = crsName(Number(c)); return n ? `${n} (EPSG:${c})` : `EPSG:${c}`; };
+const withDatum = (note, code) => { const d = datumNote(code); return d ? `${note}; ${String(d).replace(/\.\s*$/, "")}` : note; };
 import { autoCategories, applyQmlToCategories, guessStyleField, normalizeMapLayer } from "./mapLayers.js";
 import { graduatedStyle, isIdField } from "./mapGraduated.js"; // TASKS.csv #1600
 
@@ -55,22 +60,21 @@ export function buildLayer(parsed, { sourceName, projectEpsg, qml, sourceOverrid
       : mineSource.kind === "local" ? `read as the project's local grid${grid} (the Source CRS set): its numbers kept` : "no mine grid in the project to read it on: kept its own numbers";
   } else if (tie && src && (Number(src) === Number(tie.epsg) || getProj4DefSync(src))) { // #2320
     transform = (x, y) => { const r = fileToLocal(tie, x, y, src); return r ? [r.x, r.y] : [x, y]; };
-    crsNote = `brought into the local grid through its tie to EPSG:${tie.epsg} (from EPSG:${src})`;
+    crsNote = `its ${crsLabel(src)} was brought into the local grid through the grid's tie to ${crsLabel(tie.epsg)}`; // #2774
   } else if (src && dst && src !== dst && getProj4DefSync(src) && getProj4DefSync(dst)) {
     transform = (x, y) => { const r = reprojectXY(x, y, src, dst); return r ? [r.x, r.y] : [x, y]; };
-    const datum = datumNote(src); // #1244 — NAD27 and the like: how good the shift is
-    crsNote = `reprojected EPSG:${src} → EPSG:${dst}${datum ? ` ⚠ ${datum}` : ""}`;
+    crsNote = withDatum(`its ${crsLabel(src)} was reprojected to the project's ${crsLabel(dst)}`, src); // #1244 — NAD27 and the like: how good the shift is; by name: #2774
   } else if (src && dst && src !== dst) {
-    crsNote = `source EPSG:${src} could not be reprojected — assumed to already match EPSG:${dst}`;
+    crsNote = `its ${crsLabel(src)} could not be reprojected — assumed to already match the project's ${crsLabel(dst)}`; // #2774
   } else if (!src) {
     const refused = prjRefusal(parsed.prjWkt); // #1243
     const box = mineGrid ? partsBox((parsed.features || []).flatMap((f) => (f.parts?.length ? f.parts : [f.geometry || []]))) : null;
     if (!refused && box && readsAsMineGrid(box, mineGrid, collars, dst)) { // #2586
       transform = mineToProject(mineGrid, dst);
       crsNote = `no CRS in file; its coordinates lie on the project's mine grid${mineGrid.name ? ` (${mineGrid.name})` : ""} where the collars are — read on that grid, into EPSG:${dst} through its tie`;
-    } else crsNote = refused ? `its .prj (${refused}) matches no CRS GeoStrix knows — assumed EPSG:${dst ?? "?"}; set the Source CRS if that is wrong` : `no CRS in file — assumed EPSG:${dst ?? "?"}`;
+    } else crsNote = refused ? `its .prj (${refused}) matches no CRS GeoStrix knows — assumed ${dst ? `the project's ${crsLabel(dst)}` : "EPSG:?"}; set the Source CRS if that is wrong` : `no CRS in file — assumed ${dst ? `the project's ${crsLabel(dst)}` : "EPSG:?"}`; // by name: #2774
   } else {
-    crsNote = `EPSG:${src}`;
+    crsNote = `in ${crsLabel(src)}${dst && Number(src) === dst ? ", the project's coordinate system" : ""}`; // #2774 — it said a bare 'EPSG:28351'
   }
   let clipped = null;
   if (clipTo && (parsed.features || []).length) {

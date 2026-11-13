@@ -42,8 +42,9 @@ test("#1247 KML: one layer per kind, a placemark's rings stay one polygon, field
 });
 test("#1244 a NAD27 layer says how good its shift is; a NAD83 one has nothing to add", () => {
   const parsed = (epsg) => ({ epsg, geomType: "point", features: [{ parts: [[[500000, 5800000]]], attributes: {} }] });
-  assert.match(buildLayer(parsed(26710), { sourceName: "n", projectEpsg: 26910 }).crsNote, /reprojected EPSG:26710 → EPSG:26910 ⚠ NAD27/);
-  assert.equal(buildLayer(parsed(26909), { sourceName: "n", projectEpsg: 26910 }).crsNote, "reprojected EPSG:26909 → EPSG:26910");
+  // #2774 — by name, the caveat after a semicolon (was 'reprojected EPSG:26710 → EPSG:26910 ⚠ NAD27…')
+  assert.match(buildLayer(parsed(26710), { sourceName: "n", projectEpsg: 26910 }).crsNote, /^its NAD27 \/ UTM zone 10N[^(]* \(EPSG:26710\) was reprojected to the project's NAD83 \/ UTM zone 10N \(EPSG:26910\); NAD27/);
+  assert.equal(buildLayer(parsed(26909), { sourceName: "n", projectEpsg: 26910 }).crsNote, "its NAD83 / UTM zone 9N (EPSG:26909) was reprojected to the project's NAD83 / UTM zone 10N (EPSG:26910)");
 });
 test("#1200 Top is north up; #1221 the button says what it does; #1258, #1220 wrap", () => {
   const v = readFileSync("src/modules/ViewerModule.jsx", "utf8");
