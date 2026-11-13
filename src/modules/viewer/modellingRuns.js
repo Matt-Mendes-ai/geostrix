@@ -4,7 +4,7 @@
 import * as THREE from "three";
 import { layerStamp } from "../../lib/layerStamp.js"; // TASKS.csv #2388
 import { rowsByHole } from "../../lib/rowsByHole.js"; // TASKS.csv #2906
-import { stackCellCheck } from "../../lib/stackResolution.js"; // TASKS.csv #2905
+import { stackCellCheck, medianStackThickness } from "../../lib/stackResolution.js"; // TASKS.csv #2905; medianStackThickness: #2922
 import { suspectElevationIds } from "../../lib/collarElevationTrust.js"; // TASKS.csv #2918 (the #3004 rule)
 import { trendRatioText } from "../../lib/trend.js"; // TASKS.csv #2423
 import { trendCellM, trendCellText } from "../../lib/trendCell.js"; // TASKS.csv #3010
@@ -216,28 +216,29 @@ export function createModellingRuns(ctx, mcRef) {
     // TASKS.csv #2918 (review #2876, WA iron) — two collars at elevation 0 on a 440 m plateau made the whole-field box 1,063 m tall (cells
     // of 212 m) and their contacts sat 440 m under the rest. Holes whose collar elevation is suspect (#3004's rule: 0 m on raised ground,
     // or a stray far from every other collar) are left out of the run, contacts and drilled column, and named before the solve.
+    const held = []; // TASKS.csv #3085 — the pre-solve notices, said after the layer-cake question (taken, the run restarts and would say them twice)
     const suspectZ = suspectElevationIds(collars || []);
-    if (suspectZ.size) {
+    if (suspectZ.size) { // #2918's notices are held too (#3085), so a taken layer-cake offer says them once
       let dropped = 0;
       specs.forEach((s) => { const n = s.points.length; s.points = s.points.filter((p) => !(p.hole_id != null && suspectZ.has(p.hole_id))); dropped += n - s.points.length; });
       const zOf = new Map((collars || []).map((c) => [c.hole_id, c.z]));
-      setNotices((p) => [...p, notice("Left out of this run: {n} hole(s) whose collar elevation looks like a missing value ({list}), with {k} contact(s) on them. Their contacts would sit at that elevation and stretch the model box; fix the collar RL and re-import the collars to use them.", { n: suspectZ.size, list: [...suspectZ].slice(0, 5).map((id) => `${id} (${Math.round(zOf.get(id))} m)`).join(", ") + (suspectZ.size > 5 ? " …" : ""), k: dropped })]);
-      for (let k = specs.length - 1; k >= 0; k--) if (!specs[k].points.length) { setNotices((p) => [...p, notice("\"{label}\": no usable points left after removing invalid ones — skipped.", { label: specs[k].label })]); specs.splice(k, 1); }
+      held.push(notice("Left out of this run: {n} hole(s) whose collar elevation looks like a missing value ({list}), with {k} contact(s) on them. Their contacts would sit at that elevation and stretch the model box; fix the collar RL and re-import the collars to use them.", { n: suspectZ.size, list: [...suspectZ].slice(0, 5).map((id) => `${id} (${Math.round(zOf.get(id))} m)`).join(", ") + (suspectZ.size > 5 ? " …" : ""), k: dropped }));
+      for (let k = specs.length - 1; k >= 0; k--) if (!specs[k].points.length) { held.push(notice("\"{label}\": no usable points left after removing invalid ones — skipped.", { label: specs[k].label })); specs.splice(k, 1); }
     }
-    if (!specs.length) { setNotices((p) => [...p, notice("Nothing left to model after removing invalid points/orientations — see notices above for which columns to check.")]); return; }
+    if (!specs.length) { setNotices((p) => [...p, ...held, notice("Nothing left to model after removing invalid points/orientations — see notices above for which columns to check.")]); return; } // ...held: #2918's, said before it
     // TASKS.csv #762 — the picks themselves, before the solve (GemPy's condition number was measured blind to most of this)
     // TASKS.csv #2539 (review #2486) — an orientation the run estimated itself (no structure pick) is not a pick to 'fix or exclude': worded apart
     const pickIssues = specs.map((sp) => { const r = pickReport(sp, { origin: originRef.current }); return r && { ...r, estimated: !!sp.orientationEstimated }; }).filter(Boolean);
     if (pickIssues.length) {
       const onlyEstimate = pickIssues.every((r) => r.estimated && !r.duplicates && !r.close && !r.conflicts);
-      setNotices((p) => [...p, notice(onlyEstimate ? "Pick check before solving — {v} The run goes ahead as it is." : "Pick check before solving — {v} The run goes ahead as it is: fix or exclude these in the Boundary intercepts table if they are wrong.", { v: pickIssues.map((r) => [
+      held.push(notice(onlyEstimate ? "Pick check before solving — {v} The run goes ahead as it is." : "Pick check before solving — {v} The run goes ahead as it is: fix or exclude these in the Boundary intercepts table if they are wrong.", { v: pickIssues.map((r) => [
         `${r.label}:`,
         r.duplicates ? tr(" {duplicates} pick(s) repeated at the same spot ({duplicateExamples}{v}) — GemPy honours every copy, which only slows and stiffens the solve;", { duplicates: r.duplicates, duplicateExamples: r.duplicateExamples.join(", "), v: r.duplicates > 3 ? "…" : "" }) : "",
         r.close ? tr(" {n} pair(s) of picks less than 0.5 m apart down the hole ({examples}{v}) — separate structures close together (veinlets of one interval) or a near-repeat; GemPy honours each, which stiffens the solve;", { n: r.close, examples: r.closeExamples.join(", "), v: r.close > 3 ? "…" : "" }) : "", // #2048
         r.conflicts ? tr(" {conflicts} pair(s) of picks almost on top of each other but far apart in elevation ({conflictExamples}{v}) — the surface has to stand near-vertical there to honour both: usually a mis-picked or mislabelled contact, the unit repeated by a fold or fault, or stacked sheets of an intrusion (model those as veins / dykes);", { conflicts: r.conflicts, conflictExamples: r.conflictExamples.join("; "), v: r.conflicts > 3 ? "…" : "" }) : "",
         r.orientations && r.estimated ? tr(" the dip estimated from the contacts themselves (no structure pick was used) differs by more than 45° from the plane through the contacts near it ({orientationExamples}): one plane fitted to all of the contacts does not match them there (a fold, a change of dip, or two populations of contacts). It is not a pick to fix; a structural trend from the tops of a unit (Model settings) or real structure picks give the surface a better guide;", { orientationExamples: r.orientationExamples.join(", ") }) /* #2539 */
           : r.orientations ? tr(" {orientations} of {orientationsTotal} orientation(s) differ by more than 45° from the plane through the contacts around them ({orientationExamples}{v}) — GemPy bends the surface between the two;", { orientations: r.orientations, orientationsTotal: r.orientationsTotal, orientationExamples: r.orientationExamples.join(", "), v: r.orientations > 3 ? "…" : "" }) : "",
-      ].join("")).join(" ").replace(/;(?=\s|$)/g, ".") })]);
+      ].join("")).join(" ").replace(/;(?=\s|$)/g, ".") }));
     }
     const clipDomain = clipToDomainBoundary ? domains.find((d) => d.id === modelDomainId) : null;
     const clipTerrain = clipToTopo ? terrainForClipRef.current : null; // #358
@@ -329,12 +330,12 @@ export function createModellingRuns(ctx, mcRef) {
     };
     const sidecarSpecs = specs.map((s) => smoothForSidecar(warpForSidecar(s), true));
     if (smoothReports.length) {
-      setNotices((p) => [...p, notice("Smooth clustered contacts (Model settings): {v}. A smoothed point is fitted loosely, so a tight cluster of picks no longer bends the surface; it also loses detail if the cluster was accurate (a drill fan).", { v: smoothReports.map((r) => (r.skipped ? tr("{label}: not applied ({skipped})", { label: r.label, skipped: r.skipped }) : tr("{label}: {smoothed} of {total} contact points smoothed", { label: r.label, smoothed: r.smoothed, total: r.total }))).join("; ") })]);
+      held.push(notice("Smooth clustered contacts (Model settings): {v}. A smoothed point is fitted loosely, so a tight cluster of picks no longer bends the surface; it also loses detail if the cluster was accurate (a drill fan).", { v: smoothReports.map((r) => (r.skipped ? tr("{label}: not applied ({skipped})", { label: r.label, skipped: r.skipped }) : tr("{label}: {smoothed} of {total} contact points smoothed", { label: r.label, smoothed: r.smoothed, total: r.total }))).join("; ") }));
     }
 
     // TASKS.csv #1189 — it still runs: the geologist may want the plane; it just must not pass for a modelled contact
     const thinSpecs = specs.filter((s) => !s.fault && tooFewContacts(s.points));
-    if (thinSpecs.length) setNotices((p) => [...p, notice("Too few contacts to shape a surface: {list}. Fewer than three, or all in a line, so its shape comes from the structure picks alone.", { list: thinSpecs.map((s) => tr("{label} ({n})", { label: s.label, n: s.points.length })).join(", ") })]);
+    if (thinSpecs.length) held.push(notice("Too few contacts to shape a surface: {list}. Fewer than three, or all in a line, so its shape comes from the structure picks alone.", { list: thinSpecs.map((s) => tr("{label} ({n})", { label: s.label, n: s.points.length })).join(", ") }));
     const label = specs.length === 1 ? specs[0].label : `Stratigraphic stack (${specs.map((s) => s.meshName).join(", ")})`;
     const totalPoints = specs.reduce((s, x) => s + x.points.length, 0);
     const totalOrientations = specs.reduce((s, x) => s + x.orientations.length, 0);
@@ -342,7 +343,6 @@ export function createModellingRuns(ctx, mcRef) {
     setImplicitBusy(true);
     { // #2624 — the box, the block's three cell sizes and the mesh cell, said before the solve
       const cm = blockCellsM(extent, resolution).map((v) => Math.round(v * 10) / 10), lvl = surfaceDetail || 4;
-      setNotices((p) => [...p, notice(anisotropy.enabled ? "Model box {bx} x {by} x {bz} (in the structural trend's frame): the lithology block is {nx} x {ny} x {nz} cells of {dx} x {dy} x {dz} (model check fallback, volumes, Add as block model); the surface mesh cells are about {m} ({level})." : "Model box {bx} x {by} x {bz} m: the lithology block is {nx} x {ny} x {nz} cells of {dx} x {dy} x {dz} m (model check fallback, volumes, Add as block model); the surface mesh cells are about {m} m ({level}).", { bx: Math.round(extent[1] - extent[0]), by: Math.round(extent[3] - extent[2]), bz: Math.round(extent[5] - extent[4]), nx: resolution[0], ny: resolution[1], nz: resolution[2], dx: cm[0], dy: cm[1], dz: cm[2], m: Math.round(octreeCellM(extent, lvl)), level: lvl >= 6 ? tr("Very fine") : lvl === 5 ? tr("Fine") : tr("Standard") })]);
       // TASKS.csv #2905 — units thinner than the vertical cell: said before a solve that cannot place them apart
       const thin = specs.length > 1 && !cakeRun ? stackCellCheck(specs, cm[2]) : null;
       const flat = thin && stackOpts.offerCake ? (await import("../../lib/layerCake.js")).stackIsFlat(specs) : null;
@@ -353,6 +353,12 @@ export function createModellingRuns(ctx, mcRef) {
         }
         setImplicitBusy(true);
       }
+      if (held.length) setNotices((p) => [...p, ...held]); // #3085
+      setNotices((p) => [...p, notice(anisotropy.enabled ? "Model box {bx} x {by} x {bz} (in the structural trend's frame): the lithology block is {nx} x {ny} x {nz} cells of {dx} x {dy} x {dz} (model check fallback, volumes, Add as block model); the surface mesh cells are about {m} ({level})." : "Model box {bx} x {by} x {bz} m: the lithology block is {nx} x {ny} x {nz} cells of {dx} x {dy} x {dz} m (model check fallback, volumes, Add as block model); the surface mesh cells are about {m} m ({level}).", { bx: Math.round(extent[1] - extent[0]), by: Math.round(extent[3] - extent[2]), bz: Math.round(extent[5] - extent[4]), nx: resolution[0], ny: resolution[1], nz: resolution[2], dx: cm[0], dy: cm[1], dz: cm[2], m: Math.round(octreeCellM(extent, lvl)), level: lvl >= 6 ? tr("Very fine") : lvl === 5 ? tr("Fine") : tr("Standard") })]);
+      // TASKS.csv #2922 (Matt's decision 2026-11-12: (a) keep #2624's cubic cells) — the vertical cell against the units' thickness, said before
+      // every stack run, not only when the units are thinner than it
+      const unitT = specs.length > 1 && !cakeRun && !thin ? medianStackThickness(specs) : null;
+      if (unitT > 0) setNotices((p) => [...p, notice("The vertical cell is {dz} m against the units' median thickness of {t} m (the median drop from one top to the next in a hole): about {n} cells across a unit.", { dz: cm[2], t: Math.round(unitT * 10) / 10, n: (unitT / cm[2]).toFixed(1) })]);
       if (thin) setNotices((p) => [...p, notice("Warning: the units are about {t} m thick (the median drop from one top to the next in a hole), thinner than the model's vertical cell of {dz} m. One field cannot place them apart, so the surfaces may fold back or come out of order. For a flat-lying pile, an Explicit surface per unit from its logged tops follows the picks exactly (3D Modelling > Explicit surface); a smaller vertical cell (Model settings) costs a much longer solve.", { t: thin.thick.toFixed(1), dz: thin.dz })]);
     }
     setNotices((p) => [...p, notice(specs.length > 1 ? "Running {label} ({totalPoints} points, {totalOrientations} orientations across {specs} surfaces){v2}…" : "Running {label} ({totalPoints} points, {totalOrientations} orientations across {specs} surface){v2}…", { label, totalPoints, totalOrientations, specs: specs.length, v2: anisotropy.enabled ? tr(", with the {trendWord} \"{v}\"", { trendWord, v: anisotropy.params?.trend || tr("unnamed") }) : "" })]);
@@ -416,10 +422,10 @@ export function createModellingRuns(ctx, mcRef) {
     const secApi = secGrids.flatMap(({ grid }) => grid.nodes.map((n) => { const a = { x: n.x - o0.x, y: n.y - o0.y, z: n.z - o0.z }; return anisotropy.enabled ? anisoWarpPoint(a, anisoCenter, anisoBasis, anisoScl) : a; }));
     const evalAll = [...evalRows.map((q) => [q.x, q.y, q.z]), ...mapApi.map((q) => [q.x, q.y, q.z]), ...secApi.map((q) => [q.x, q.y, q.z])];
     const evalPts = evalAll.length && evalAll.length <= 200000 ? evalAll : null;
-    const res = cakeRun ? await (async () => { // #2905
-      await new Promise((r) => setTimeout(r, 30)); // the progress line paints first
-      const { layerCake } = await import("../../lib/layerCake.js");
-      const r = layerCake(specs.filter((sp) => !sp.fault), extent, resolution, { evalPts });
+    const res = cakeRun ? await (async () => { // #2905; #3085 — in a worker, its progress on the status bar (one grid per top)
+      clearInterval(rampTimer);
+      const { runLayerCake } = await import("../../lib/layerCakeClient.js");
+      const r = await runLayerCake(specs.filter((sp) => !sp.fault), extent, resolution, { evalPts, onProgress: (done, total) => setTaskProgress?.({ label, pct: Math.round(8 + (90 * done) / total) }) });
       return r.error ? { ok: false, error: r.error } : { ok: true, surfaces: r.surfaces, block: r.block, evaluated: r.evaluated, cake: r };
     })() : await pythonImplicitModel(
       extent,
@@ -1963,7 +1969,7 @@ export function createModellingRuns(ctx, mcRef) {
         if (radius < 1.5 * cell) { radiusRaisedFrom = radius; radius = 1.5 * cell; } // #1683 — a search under a cell and a half finds nothing at most nodes
         // TASKS.csv #2047 — say it before the run, not after two minutes: the coarsened cell is thicker than any logged run of the code
         const past = isCode && !seam ? bodyCellPastRuns(cell, autoB, coarsened) : null;
-        if (seam) { const km = (a) => +((a.max - a.min) / 1000).toFixed(1); setNotices((p) => [...p, notice("\"{label}\": {code} is logged in thin runs (median {med} m, {max} m at most) over {w} × {h} km, so one cubic cell would be {cube} m, thicker than any run. The grid uses {dx} × {dx} × {dz} m cells instead: the height from the logged runs, the plan from the {s} m hole spacing. Between holes the search is still a sphere. To flatten it along the layer: Model settings › Structural trends › New trend; in 'Set the plane from…' pick 'Tops of a logged unit (best-fit plane)' › {code}; then under 'Used by' choose that trend for 'Geology models (implicit surfaces, stacks)' (the GemPy implicit and stack runs follow it too). A seam may fit better as paired hangingwall / footwall surfaces: Veins / dykes.", { label, code: altValue, /* #2749: the steps named */ med: +autoB.medianRunM.toFixed(1), max: +autoB.maxRunM.toFixed(1), w: km(xr), h: km(yr), cube: +cubicWouldBe.toFixed(1), dx: seam.dxy, dz: seam.dz, s: Math.round(autoB.spacing) })]); } // #2384 — said before the run
+        if (seam) { const km = (a) => +((a.max - a.min) / 1000).toFixed(1); setNotices((p) => [...p, notice(seam.why === "median" ? "\"{label}\": {code} is logged in thin runs (median {med} m, {max} m at most) over {w} × {h} km, so one cubic cell would be {cube} m, thicker than the median run. The grid uses {dx} × {dx} × {dz} m cells instead: the height from the logged runs, the plan from the {s} m hole spacing. Between holes the search is still a sphere. To flatten it along the layer: Model settings › Structural trends › New trend; in 'Set the plane from…' pick 'Tops of a logged unit (best-fit plane)' › {code}; then under 'Used by' choose that trend for 'Geology models (implicit surfaces, stacks)' (the GemPy implicit and stack runs follow it too). A seam may fit better as paired hangingwall / footwall surfaces: Veins / dykes." : "\"{label}\": {code} is logged in thin runs (median {med} m, {max} m at most) over {w} × {h} km, so one cubic cell would be {cube} m, thicker than any run. The grid uses {dx} × {dx} × {dz} m cells instead: the height from the logged runs, the plan from the {s} m hole spacing. Between holes the search is still a sphere. To flatten it along the layer: Model settings › Structural trends › New trend; in 'Set the plane from…' pick 'Tops of a logged unit (best-fit plane)' › {code}; then under 'Used by' choose that trend for 'Geology models (implicit surfaces, stacks)' (the GemPy implicit and stack runs follow it too). A seam may fit better as paired hangingwall / footwall surfaces: Veins / dykes.", { label, code: altValue, /* #2749: the steps named */ med: +autoB.medianRunM.toFixed(1), max: +autoB.maxRunM.toFixed(1), w: km(xr), h: km(yr), cube: +cubicWouldBe.toFixed(1), dx: seam.dxy, dz: seam.dz, s: Math.round(autoB.spacing) })]); } // #2384 — said before the run
         if (past) {
           const km = (a) => +((a.max - a.min) / 1000).toFixed(1);
           const msg = tr("\"{label}\": to stay under the grid limit the {cs} m cells would be coarsened to {cell} m, larger than the thickest logged run of {code} ({max} m). A body cannot be thinner than a cell, so it cannot follow the logged runs: after a long run it will most likely not appear, or appear where {code} was not logged. The {code} runs span {w} × {h} km: model a smaller area first (Model settings › Model area with the holes of one cluster checked, a domain, or an intercept set).", { label, cs: +cs.toFixed(1), cell: cellZ !== cell ? cellText : +cell.toFixed(1) /* #2384 */, code: altValue, max: +past.maxRunM.toFixed(1), w: km(xr), h: km(yr) });

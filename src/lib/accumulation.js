@@ -8,23 +8,27 @@ import { CALC_PRESETS } from "./calcElement.js";
 import { metalOf } from "./gradeTonnage.js";
 
 // intercepts: computeBestIntercepts rows; positionAt(hole_id, md) -> { x, y, z } (world: east, north, elevation) | null
-// -> [{ hole_id, thicknessM, sampledM, gt, meanGrade, intercepts, from, to, x, y, topRL, baseRL }], best GT first
+// -> [{ hole_id, thicknessM, sampledM, gt, meanGrade, intercepts, from, to, x, y, z, dir, topRL, baseRL }], best GT first. z: the intercepts'
+// mid-point elevation (length-weighted, with x and y: the pierce point of a long section, #3089); dir: the hole's unit direction from the
+// first intercept's top to the last one's base (null when they share a place), for a true thickness across a plane
 export function holeTotals(intercepts, positionAt = null) {
   const by = new Map();
   for (const r of intercepts || []) {
-    const h = by.get(r.hole_id) || { hole_id: r.hole_id, thicknessM: 0, sampledM: 0, gt: 0, intercepts: 0, from: Infinity, to: -Infinity, sx: 0, sy: 0, sw: 0 };
+    const h = by.get(r.hole_id) || { hole_id: r.hole_id, thicknessM: 0, sampledM: 0, gt: 0, intercepts: 0, from: Infinity, to: -Infinity, sx: 0, sy: 0, sz: 0, sw: 0 };
     const len = Number(r.length) || 0, s = interceptSampledM(r);
     h.thicknessM += len; h.sampledM += s; h.gt += interceptGradeLength(r); h.intercepts++;
     h.from = Math.min(h.from, r.from); h.to = Math.max(h.to, r.to);
     const p = positionAt ? positionAt(r.hole_id, (r.from + r.to) / 2) : null;
-    if (p && Number.isFinite(p.x) && Number.isFinite(p.y)) { h.sx += p.x * len; h.sy += p.y * len; h.sw += len; }
+    if (p && Number.isFinite(p.x) && Number.isFinite(p.y)) { h.sx += p.x * len; h.sy += p.y * len; h.sz += (Number.isFinite(p.z) ? p.z : 0) * len; h.sw += len; }
     by.set(r.hole_id, h);
   }
   const out = [];
   for (const h of by.values()) {
     const top = positionAt ? positionAt(h.hole_id, h.from) : null, base = positionAt ? positionAt(h.hole_id, h.to) : null;
+    const d = top && base ? [base.x - top.x, base.y - top.y, base.z - top.z] : null, dl = d ? Math.hypot(...d) : 0;
     out.push({ hole_id: h.hole_id, thicknessM: h.thicknessM, sampledM: h.sampledM, gt: h.gt, meanGrade: h.sampledM > 0 ? h.gt / h.sampledM : null, intercepts: h.intercepts,
-      from: h.from, to: h.to, x: h.sw > 0 ? h.sx / h.sw : null, y: h.sw > 0 ? h.sy / h.sw : null, topRL: top ? top.z : null, baseRL: base ? base.z : null });
+      from: h.from, to: h.to, x: h.sw > 0 ? h.sx / h.sw : null, y: h.sw > 0 ? h.sy / h.sw : null, z: h.sw > 0 ? h.sz / h.sw : null, dir: dl > 1e-9 ? { x: d[0] / dl, y: d[1] / dl, z: d[2] / dl } : null, // #3089
+      topRL: top ? top.z : null, baseRL: base ? base.z : null });
   }
   return out.sort((a, b) => b.gt - a.gt);
 }

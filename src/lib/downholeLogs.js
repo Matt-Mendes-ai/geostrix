@@ -105,10 +105,14 @@ export function codeTable(grouped) {
 // -> { pairs: [[log, assay]], n, r (Spearman), rLog (Pearson of log10 values), unit, medianRatio, weightedRatio }
 // TASKS.csv #2353 — and the ratios a disequilibrium check reads: the median of log / assay, and sum(log x reading length) / sum(assay x reading
 // length), over the pairs with an assay above 0 (a correlation says the two move together, not by how much the log under-reads)
-export function logVsAssay(rows, symbol, assays, element, elementUnits = {}) {
+// TASKS.csv #2954 (review #2876, WA iron) — perSample: one pair per assay interval, the log's length-weighted mean over the readings inside it,
+// instead of a pair per reading (four 0.5 m bins per 2 m sample counted as four independent pairs: 471,063 'pairs' of about 121,000 samples).
+// fit: the least-squares line of the log on the element (log = a + b x element: the density-from-iron relation a tonnage needs), with its n.
+export function logVsAssay(rows, symbol, assays, element, elementUnits = {}, { perSample = false } = {}) {
   const assayAt = intervalLookup(assays, (a) => a.source !== "pXRF" && Number.isFinite(a.from) && Number.isFinite(a.to)); // #2948 — a binary search, not find
   const unit = elementUnits[element] || "ppm";
   const pairs = [], lens = [];
+  const bySample = perSample ? new Map() : null;
   for (const r of rows) {
     const v = r.values?.[symbol];
     if (!Number.isFinite(v)) continue;
@@ -116,18 +120,42 @@ export function logVsAssay(rows, symbol, assays, element, elementUnits = {}) {
     if (!hit) continue;
     const g = valueIn(hit, element, unit, elementUnits);
     if (g == null || !Number.isFinite(g)) continue;
+    const len = Number.isFinite(r.to - r.from) && r.to > r.from ? r.to - r.from : 1;
+    if (bySample) { const e = bySample.get(hit); if (e) { e.sv += v * len; e.sl += len; } else bySample.set(hit, { sv: v * len, sl: len, g }); continue; }
     pairs.push([v, g]);
-    lens.push(Number.isFinite(r.to - r.from) && r.to > r.from ? r.to - r.from : 1);
+    lens.push(len);
   }
+  if (bySample) for (const [a, e] of bySample) { pairs.push([e.sv / e.sl, e.g]); lens.push(Number(a.to) - Number(a.from) > 0 ? Number(a.to) - Number(a.from) : e.sl); }
   const ratioList = [];
   let sl = 0, sa = 0;
   pairs.forEach(([l, a], i) => { if (a > 0) { ratioList.push(l / a); sl += l * lens[i]; sa += a * lens[i]; } });
   const ratios = Float64Array.from(ratioList).sort(); // #2948 — the typed array's own numeric sort
   const rt = { medianRatio: ratios.length ? ratios[ratios.length >> 1] : NaN, weightedRatio: sa > 0 ? sl / sa : NaN };
-  if (pairs.length < 3) return { pairs, n: pairs.length, r: NaN, rLog: NaN, unit, ...rt };
+  if (pairs.length < 3) return { pairs, n: pairs.length, r: NaN, rLog: NaN, unit, ...rt, ...(perSample ? { perSample: true } : {}) };
   const xs = pairs.map((p) => p[0]), ys = pairs.map((p) => p[1]);
   const cl = correlate(xs, ys, "log"); // #2558 — and how many pairs the log10 Pearson could use, and the plain Pearson
-  return { pairs, n: pairs.length, r: correlate(xs, ys, "spearman").r, rLog: cl.r, nLog: cl.n, rLin: correlate(xs, ys, "pearson").r, unit, ...rt };
+  return { pairs, n: pairs.length, r: correlate(xs, ys, "spearman").r, rLog: cl.r, nLog: cl.n, rLin: correlate(xs, ys, "pearson").r, unit, ...rt, fit: fitLine(ys, xs), ...(perSample ? { perSample: true } : {}) }; // fit: #2954 — the log on the element
+}
+
+// TASKS.csv #2954 — ordinary least squares y = a + b x -> { a, b, n } (null when x does not vary)
+export function fitLine(xs, ys) {
+  const n = Math.min(xs.length, ys.length);
+  if (n < 3) return null;
+  let mx = 0, my = 0;
+  for (let i = 0; i < n; i++) { mx += xs[i]; my += ys[i]; }
+  mx /= n; my /= n;
+  let sxy = 0, sxx = 0;
+  for (let i = 0; i < n; i++) { const dx = xs[i] - mx; sxy += dx * (ys[i] - my); sxx += dx * dx; }
+  if (!(sxx > 0)) return null;
+  const b = sxy / sxx;
+  return { a: my - b * mx, b, n };
+}
+// TASKS.csv #2954 — the log / assay ratio (#2353) reads a disequilibrium only when the log and the element are one quantity: an equivalent
+// grade from a gamma log (eU, eU3O8, eTh, eK) against the assayed element. A density in g/cc over Fe in % is not a quantity.
+const EQUIVALENT = [[/\beu3o8\b|\beu\b|eu3o8|\beu_|equivalent\s*u/i, /^(u|u3o8)$/i], [/\beth\b|eth_|\bethppm|equivalent\s*th/i, /^(th|tho2)$/i], [/\bek\b|ek_|ek%|equivalent\s*k/i, /^(k|k2o)$/i]];
+export function ratioComparable(logLabel, element) {
+  const s = String(logLabel || ""), el = String(element || "").trim();
+  return EQUIVALENT.some(([logRe, elRe]) => logRe.test(s) && elRe.test(el));
 }
 
 // TASKS.csv #1595 (review #1497, Lawyers) — a log against a block model evaluated onto the holes ('On holes: <model>', GeophysicsModule

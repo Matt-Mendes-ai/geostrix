@@ -18,7 +18,8 @@ test("lazyTip: built once on first read, assignable, the other fields kept as ow
 
 test("the build: intervals, point logs, custom layers and assay markers use lazyTip with their hole id; vectors only for a bent interval", () => {
   const s = viewerSource().replace(/\r\n/g, "\n");
-  assert.equal((s.match(/mesh\.userData = lazyTip\(\{ row(: a)?, holeId: c\.hole_id/g) || []).length, 5);
+  assert.equal((s.match(/mesh\.userData = lazyTip\(\{ row(: a)?, holeId: c\.hole_id/g) || []).length, 4);
+  assert.match(s, /\(\) => lazyTip\(\{ row: a, holeId: c\.hole_id \}/, "#3055 — the assay marker's lazy tip, made only for a row that is drawn (lib/viewer/assayBatcher.js)");
   assert.ok(!/mesh\.userData = \{ row, tip: `\$\{c\.hole_id\}/.test(s), "no eager per-row drillhole tooltip left");
   assert.match(s, /mesh_\.quaternion\.setFromUnitVectors\(UP_Y, DIR_TMP\.set\(dx \/ len, dy \/ len, dz \/ len\)\);/);
   const bent = s.indexOf("const curve = new THREE.CatmullRomCurve3(vecs);"), vecs = s.lastIndexOf("const vecs = [new THREE.Vector3(p1.x", bent);

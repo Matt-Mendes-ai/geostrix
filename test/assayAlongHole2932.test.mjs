@@ -46,8 +46,8 @@ test("along the hole: a cylinder from `from` to `to`, as thick as the sphere, tu
 test("wiring: the 3D view counts the samples to draw and places each marker through the lib; the dialog offers Automatic and Along the hole", () => {
   const v = fs.readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
   assert.match(v, /shape = assayShapeFor\(style, drawnAssays, px\)/);
-  assert.match(v, /new PickStandIn\(assayProto\(shape\),/);
-  assert.match(v, /if \(!placeAssayMarker\(mesh, shape, look\.at, a, assaySizeFor\(v, ranges\[sym\], style\), offX, offZ\)\) return;/);
+  assert.match(v, /batcher\.add\(assayProto\(shape\),/); // #3055 — written straight into the batch
+  assert.match(v, /\(t\) => placeAssayMarker\(t, shape, look\.at, a, assaySizeFor\(v, ranges\[sym\], style\), offX, offZ\)/);
   const d = fs.readFileSync(new URL("../src/components/AssayStyleModal.jsx", import.meta.url), "utf8");
   assert.match(d, /shape: style\?\.shape \|\| "auto"/);
   assert.match(d, /shape: next\.shape === "auto" \? null : next\.shape/);

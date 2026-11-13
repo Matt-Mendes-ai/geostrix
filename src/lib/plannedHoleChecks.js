@@ -104,6 +104,8 @@ export function targetBandIndex(model) {
 // collars are metres apart by design. Drilled collars within PAD_M of the planned collar are reported as the same pad, and the
 // first COLLAR_ZONE_M of the planned hole are then left out of the nearest-hole search; the depth where it comes closest is said.
 export const PAD_M = 10, COLLAR_ZONE_M = 50;
+// TASKS.csv #2976 — the checks' default minimum spacing: a quarter of the drilled holes' site spacing, to 0.1 m (none without one)
+export const minSpacingFrom = (siteM) => (siteM > 0 ? Math.round((siteM / 4) * 10) / 10 : null);
 // -> [{ hole, nearestReal: { hole_id, distance, md } | null, samePad: [hole_id], targetHits: [{ modelId, modelName, metres }] }]
 export function planChecks(plannedHoles, drilled, targets, traceOf = plannedTrace) {
   return (plannedHoles || []).map((hole) => {

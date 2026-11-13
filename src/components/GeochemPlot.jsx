@@ -34,7 +34,9 @@ function PointsImage({ ordered, colorBy }) {
     renderPointsImage(packPoints(ordered, colorBy), { W, H }).then((blob) => { if (!live) return; url = URL.createObjectURL(blob); setHref(url); toDataUrl(blob); }).catch(() => { if (live) onMain(); });
     return () => { live = false; if (url) URL.revokeObjectURL(url); };
   }, [ordered, colorBy]);
-  return href ? <image href={href} x="0" y="0" width={W} height={H} preserveAspectRatio="none" pointerEvents="none" /> : null;
+  // TASKS.csv #2910 (review #2876) — 147,000 points take about 3 s to draw: the frame said '147659 of 147891 samples plotted' over an empty
+  // plot. Until the picture is in, the plot says it is drawing
+  return href ? <image href={href} x="0" y="0" width={W} height={H} preserveAspectRatio="none" pointerEvents="none" /> : <text x={W / 2} y={H / 2} textAnchor="middle" fontSize={fontSizes.base} style={{ fill: "var(--color-text-muted)" }} data-drawing="1">{tr("Drawing {n} samples…", { n: ordered.length.toLocaleString() })}</text>;
 }
 
 // describe(sample) -> lines for the hover tooltip (hole, depth, sample id, lithology: TASKS.csv #619)

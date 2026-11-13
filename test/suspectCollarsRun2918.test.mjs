@@ -18,5 +18,9 @@ test("runSurfaceStack leaves them out of the contacts, the drilled column, the e
   assert.match(r, /\.map\(\(p\) => \(\{ \.\.\.p, hole: t\.hole_id \}\)\)\)\.filter\(\(p\) => !suspectZ\.has\(p\.hole\) \/\* #2918 \*\/\) : allApiPts;/);
   assert.match(r, /const allApiPts = traces\.filter\(\(t\) => !suspectZ\.has\(t\.hole_id\) \/\* #2918 \*\/\)/);
   assert.match(r, /if \(suspectZ\.has\(t\.hole_id\)\) return; \/\/ TASKS\.csv #2918/);
+  // held with #3085's pre-solve notices: a taken layer-cake offer restarts the run, and it said them twice
+  assert.match(r, /held\.push\(notice\("Left out of this run:/);
+  assert.match(r, /if \(!specs\.length\) \{ setNotices\(\(p\) => \[\.\.\.p, \.\.\.held, notice\("Nothing left to model/, "an empty run still says why");
+  assert.ok(r.indexOf("const held = [];") < r.indexOf("const suspectZ = suspectElevationIds"));
   for (const l of ["es", "pt", "fr", "ar"]) assert.ok(JSON.parse(readFileSync(new URL(`../src/locales/${l}.json`, import.meta.url), "utf8"))["Left out of this run: {n} hole(s) whose collar elevation looks like a missing value ({list}), with {k} contact(s) on them. Their contacts would sit at that elevation and stretch the model box; fix the collar RL and re-import the collars to use them."], l);
 });

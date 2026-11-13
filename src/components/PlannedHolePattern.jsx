@@ -19,7 +19,7 @@ const Field = ({ label, value, onChange, type = "number", placeholder }) => (
 export default function PlannedHolePattern({ start, orient, ground, groundLabel, onAdd, btn }) {
   const { plannedHoles = [] } = useStore();
   const [open, setOpen] = useState(false);
-  const [p, setP] = useState({ bearing: "", spacing: "", count: "", lines: "", lineSpacing: "", prefix: "PLAN-" });
+  const [p, setP] = useState({ bearing: "", spacing: "", count: "", lines: "", lineSpacing: "", prefix: "PLAN-", type: "" /* #2978 (3) */ });
   const [done, setDone] = useState(null);
   const set = (k) => (v) => { setP((q) => ({ ...q, [k]: v })); setDone(null); };
   const num = (v) => (v === "" || v == null ? NaN : Number(v));
@@ -33,7 +33,7 @@ export default function PlannedHolePattern({ start, orient, ground, groundLabel,
   const ready = !pat.error && placed.length > 0 && !noZ && !!orient;
   const add = () => {
     if (!ready) return;
-    placed.forEach((h) => onAdd({ name: h.name, x: h.x, y: h.y, z: h.z, azimuth: orient.azimuth, dip: orient.dip, length: orient.length, zSource: h.zSource, notes: `pattern: line ${h.line}, hole ${h.station}` }));
+    placed.forEach((h) => onAdd({ name: h.name, x: h.x, y: h.y, z: h.z, azimuth: orient.azimuth, dip: orient.dip, length: orient.length, zSource: h.zSource, notes: `pattern: line ${h.line}, hole ${h.station}`, ...(p.type.trim() ? { type: p.type.trim() } : {}) /* #2978 (3) */ }));
     setDone(tr("{n} planned hole(s) added: {first} to {last}.", { n: placed.length, first: placed[0].name, last: placed[placed.length - 1].name }));
   };
   if (!open) return <button type="button" onClick={() => setOpen(true)} style={{ ...btn, width: "100%", marginTop: 5 }} aria-expanded={false}>{tr("Line / grid of holes…")}</button>;
@@ -53,6 +53,7 @@ export default function PlannedHolePattern({ start, orient, ground, groundLabel,
         <Field label={tr("Lines")} value={p.lines} onChange={set("lines")} placeholder="1" />
         <Field label={tr("Line spacing m")} value={p.lineSpacing} onChange={set("lineSpacing")} />
         <Field label={tr("Name prefix")} value={p.prefix} onChange={set("prefix")} type="text" />
+        <Field label={tr("Hole type")} value={p.type} onChange={set("type")} type="text" placeholder={tr("e.g. RC")} />{/* #2978 (3) — every hole of the pattern */}
       </div>
       {pat.error === "too-many" && <div style={{ ...small, color: "var(--color-warn-text)" }}>{tr("At most {n} holes in one pattern.", { n: MAX_PATTERN_HOLES })}</div>}
       {!pat.error && placed.length > 0 && <div style={small}>{tr("{n} hole(s), {first} to {last}; Elev from {src}.", { n: placed.length, first: placed[0].name, last: placed[placed.length - 1].name, src: ground ? (noZ || placed.some((h) => h.zSource !== groundLabel) ? tr("the ground where it is known, else the Elev above") : groundLabel === "the terrain under the hole" ? tr("the terrain") : tr("the ground interpolated between the nearest collars")) : tr("the Elev above") })}</div>}

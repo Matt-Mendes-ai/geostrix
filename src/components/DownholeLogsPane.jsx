@@ -6,7 +6,7 @@ import { Activity } from "./icons.js";
 import { numericSourceChoices, sourceAssays } from "../lib/numericSources.js";
 import { domainLayerChoices, foldDomainRows } from "../lib/domainLayers.js"; // foldDomainRows: TASKS.csv #2790
 import { LAYER_META } from "../lib/layers.js";
-import { groupLogByCode, rankLogGroups, codeTable, logVsAssay, logVsModel, NOT_LOGGED, strideSample, logScaleSuits, allAboveZero, countAtOrBelowZero, sig3 } from "../lib/downholeLogs.js"; // logVsModel: #1595; strideSample: #2331; logScaleSuits...: #2558; groupLogByCode / rankLogGroups: #2948
+import { groupLogByCode, rankLogGroups, codeTable, ratioComparable, logVsAssay, logVsModel, NOT_LOGGED, strideSample, logScaleSuits, allAboveZero, countAtOrBelowZero, sig3 } from "../lib/downholeLogs.js"; // logVsModel: #1595; strideSample: #2331; logScaleSuits...: #2558; groupLogByCode / rankLogGroups: #2948
 import { BoxPlots } from "./GradeStatistics.jsx";
 import { smallSel } from "../lib/sidebarStyles.js";
 import { t as tr } from "../lib/i18n.js";
@@ -20,7 +20,7 @@ import { implausibleReadings } from "../lib/logUnits.js"; // TASKS.csv #2953
 const note = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.45 };
 const row = { display: "flex", alignItems: "center", gap: 6, justifyContent: "space-between", fontSize: "var(--font-size-sm)", marginBottom: 6 };
 
-function Scatter({ pairs, xLabel, yLabel, logX, logY }) {
+function Scatter({ pairs, xLabel, yLabel, logX, logY, fit = null }) { // fit: TASKS.csv #2954 — the log = a + b x element line, drawn on linear axes
   const w = 300, h = 220, pl = 44, pb = 30, pr = 8, pt = 8;
   const fx = logX ? (v) => Math.log10(v) : (v) => v, fy = logY ? (v) => Math.log10(v) : (v) => v;
   // TASKS.csv #2948 — the points, their box and the drawn subset are kept while the pairs and axes stay (0.4 s at 480,000 pairs, paid again on
@@ -39,6 +39,10 @@ function Scatter({ pairs, xLabel, yLabel, logX, logY }) {
     <svg viewBox={`0 0 ${w} ${h}`} width="100%" role="img" aria-label={tr("{y} against {x}", { x: xLabel, y: yLabel })} style={{ display: "block", background: "#fff", border: "1px solid var(--color-border)", borderRadius: 6 }}>
       <line x1={pl} y1={pt} x2={pl} y2={h - pb} stroke="#94a1b0" /><line x1={pl} y1={h - pb} x2={w - pr} y2={h - pb} stroke="#94a1b0" />
       {drawn.points.map(([x, y], i) => <circle key={i} cx={sx(x)} cy={sy(y)} r="2" fill="#2f6db5" fillOpacity="0.55" />)}
+      {fit && !logX && !logY && (() => { // #2954 — x = a + b y across the plotted element range, cut to the plotted log range
+        const ends = [y0, y1].map((y) => [fit.a + fit.b * y, y]).map(([x, y]) => (x < x0 && fit.b ? [x0, (x0 - fit.a) / fit.b] : x > x1 && fit.b ? [x1, (x1 - fit.a) / fit.b] : [x, y]));
+        return <line x1={sx(ends[0][0])} y1={sy(ends[0][1])} x2={sx(ends[1][0])} y2={sy(ends[1][1])} stroke="#c0392b" strokeWidth="1.5" />;
+      })()}
       <text x={pl} y={h - pb + 12} fontSize="8" fill="#55606e">{lab(x0, logX)}</text>
       <text x={w - pr} y={h - pb + 12} fontSize="8" fill="#55606e" textAnchor="end">{lab(x1, logX)}</text>
       <text x={(pl + w - pr) / 2} y={h - 4} fontSize="9" fill="#55606e" textAnchor="middle">{xLabel}{logX ? ` (${tr("log scale")})` : ""}</text>
@@ -198,7 +202,9 @@ export default function DownholeLogsPane({ layers, customLayers = [], assays = [
   const [element, setElement] = useKeptState(keptScope, "dhlogs.element", "");
   const el = symbols.includes(element) ? element : symbols[0] || "";
   const elementUnits = useMemo(() => Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])), [assayElements]);
-  const { value: vs, pending: vsPending } = useDeferredMemo(() => (data && el ? logVsAssay(data.assays, data.symbol, assays, el, elementUnits) : null), [data, assays, el, elementUnits], heavy); // #2948
+  // TASKS.csv #2954 — pair each reading, or the log's mean over each assay sample (one pair per sample: four bins of one sample are not four pairs)
+  const [pairOn, setPairOn] = useKeptState(keptScope, "dhlogs.pairOn", "reading");
+  const { value: vs, pending: vsPending } = useDeferredMemo(() => (data && el ? logVsAssay(data.assays, data.symbol, assays, el, elementUnits, { perSample: pairOn === "sample" }) : null), [data, assays, el, elementUnits, pairOn], heavy); // #2948
   const vsLogX = useMemo(() => !!vs && allAboveZero(vs.pairs.map((p) => p[0])), [vs]), vsLogY = useMemo(() => !!vs && allAboveZero(vs.pairs.map((p) => p[1])), [vs]); // #2948 — once per pairing, not per render
   const unitOf = (u) => (u === "as logged" ? "" : u);
   const implausible = useMemo(() => implausibleReadings(logValues, unitOf(source?.unit || "")), [logValues, source]); // #2953 — after unitOf (declared above: a render-time TDZ otherwise)
@@ -263,13 +269,21 @@ export default function DownholeLogsPane({ layers, customLayers = [], assays = [
                 <select value={el} onChange={(e) => setElement(e.target.value)} style={{ ...smallSel, maxWidth: 190 }} aria-label={tr("Assay element to compare")}>
                   {symbols.map((s) => <option key={s} value={s}>{s} ({elementUnits[s] || "ppm"})</option>)}
                 </select></label>
+              <label style={row}>{tr("Pair on")}
+                <select value={pairOn} onChange={(e) => setPairOn(e.target.value)} style={{ ...smallSel, maxWidth: 190 }} aria-label={tr("Pair the log with the assays on")}>
+                  <option value="reading">{tr("Each reading")}</option><option value="sample">{tr("The log's mean over each sample")}</option>
+                </select></label>{/* #2954 */}
               {vsPending ? working(tr("Pairing {n} readings with the {el} assays…", { n: nRows.toLocaleString(), el })) : vs && vs.n >= 3 ? (
                 <>
                   {logScale && !vsLogX && <div style={note}>{tr("The scatter keeps a linear axis for the log: {n} of its readings are zero or negative.", { n: vs.pairs.filter((p) => !(p[0] > 0)).length.toLocaleString() })}</div>}{/* #2953 */}
-                  <Scatter pairs={vs.pairs} xLabel={`${source.label}${unitOf(source.unit) && !source.label.includes(`(${unitOf(source.unit)})`) ? ` (${unitOf(source.unit)})` : ""}`} yLabel={`${el} (${vs.unit})`} logX={logScale && vsLogX} logY={logScale && vsLogY} />
-                  <div style={note}>{logScale
+                  <Scatter pairs={vs.pairs} xLabel={`${source.label}${unitOf(source.unit) && !source.label.includes(`(${unitOf(source.unit)})`) ? ` (${unitOf(source.unit)})` : ""}`} yLabel={`${el} (${vs.unit})`} logX={logScale && vsLogX} logY={logScale && vsLogY} fit={vs.fit} />
+                  <div style={note}>{vs.perSample ? (logScale
+                    ? tr("{n} assay samples, each paired with the log's mean over the readings inside it. Spearman rank correlation {r}; Pearson on log10 values {rLog} ({k} pairs above zero).", { n: vs.n.toLocaleString(), r: Number.isFinite(vs.r) ? vs.r.toFixed(2) : "—", rLog: Number.isFinite(vs.rLog) ? vs.rLog.toFixed(2) : "—", k: (vs.nLog ?? 0).toLocaleString() })
+                    : tr("{n} assay samples, each paired with the log's mean over the readings inside it. Spearman rank correlation {r}; Pearson {rLin}.", { n: vs.n.toLocaleString(), r: Number.isFinite(vs.r) ? vs.r.toFixed(2) : "—", rLin: Number.isFinite(vs.rLin) ? vs.rLin.toFixed(2) : "—" }))
+                    : logScale
                     ? tr("{n} readings inside an assay interval of the same hole. Spearman rank correlation {r}; Pearson on log10 values {rLog} ({k} pairs above zero).", { n: vs.n.toLocaleString(), r: Number.isFinite(vs.r) ? vs.r.toFixed(2) : "—", rLog: Number.isFinite(vs.rLog) ? vs.rLog.toFixed(2) : "—", k: (vs.nLog ?? 0).toLocaleString() })
-                    : tr("{n} readings inside an assay interval of the same hole. Spearman rank correlation {r}; Pearson {rLin}.", { n: vs.n.toLocaleString(), r: Number.isFinite(vs.r) ? vs.r.toFixed(2) : "—", rLin: Number.isFinite(vs.rLin) ? vs.rLin.toFixed(2) : "—" })}{Number.isFinite(vs.medianRatio) ? " " + tr("Log / assay: median {m}, length-weighted {w} (in the units shown; a gamma log against its assays reads the disequilibrium here).", { m: vs.medianRatio.toPrecision(3), w: Number.isFinite(vs.weightedRatio) ? vs.weightedRatio.toPrecision(3) : "—" }) : ""}</div>{/* ratios: #2353 */}
+                    : tr("{n} readings inside an assay interval of the same hole. Spearman rank correlation {r}; Pearson {rLin}.", { n: vs.n.toLocaleString(), r: Number.isFinite(vs.r) ? vs.r.toFixed(2) : "—", rLin: Number.isFinite(vs.rLin) ? vs.rLin.toFixed(2) : "—" })}{Number.isFinite(vs.medianRatio) && ratioComparable(`${source.label} ${source.unit || ""}`, el) /* #2954 — only one quantity against itself (eU3O8 against U3O8) */ ? " " + tr("Log / assay: median {m}, length-weighted {w} (in the units shown; a gamma log against its assays reads the disequilibrium here).", { m: vs.medianRatio.toPrecision(3), w: Number.isFinite(vs.weightedRatio) ? vs.weightedRatio.toPrecision(3) : "—" }) : ""}</div>{/* ratios: #2353 */}
+                  {vs.fit && <div style={note}>{tr("Least-squares line: {log} = {a} + {b} × {el} ({n} pairs).", { log: source.label, a: sig3(vs.fit.a), b: sig3(vs.fit.b), el, n: vs.fit.n.toLocaleString() })}</div>}{/* #2954 */}
                 </>
               ) : <div style={note}>{tr("Fewer than three readings fall inside an assay interval of the same hole.")}</div>}
             </>

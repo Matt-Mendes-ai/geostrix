@@ -7,7 +7,7 @@ import { holePattern, nextPatternNumber, MAX_PATTERN_HOLES } from "../src/lib/pl
 test("a line: five holes 100 m apart on bearing 120 (the review's infill line)", () => {
   const r = holePattern({ x: 575659.4, y: 6681871.3, bearingDeg: 120, spacing: 100, count: 5 });
   assert.equal(r.error, null);
-  assert.deepEqual(r.holes.map((h) => h.name), ["PLAN-1", "PLAN-2", "PLAN-3", "PLAN-4", "PLAN-5"]);
+  assert.deepEqual(r.holes.map((h) => h.name), ["PLAN-01", "PLAN-02", "PLAN-03", "PLAN-04", "PLAN-05"]); // at least 2 digits: #2978 (3)
   const last = r.holes[4];
   // 400 m along 120°: +346.41 E, -200 N
   assert.ok(Math.abs(last.x - (575659.4 + 400 * Math.sin((120 * Math.PI) / 180))) < 0.01 && Math.abs(last.y - (6681871.3 - 200)) < 0.01, JSON.stringify(last));
