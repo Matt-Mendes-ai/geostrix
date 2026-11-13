@@ -42,7 +42,7 @@ test("each mineral's rows, the style riding along, and no 'blank code' for the i
   const odd = mineralRows([{ HOLE_ID: "A", FROM: "0", TO: "1", X_pct: "120" }, { HOLE_ID: "A", FROM: "1", TO: "2", X_pct: "-1" }, { HOLE_ID: "A", FROM: "", TO: "3", X_pct: "1" }], m, "X_pct");
   assert.deepEqual([odd.rows.length, odd.outside], [0, 2], "outside 0-100 left out and counted; a blank From is no interval");
   assert.equal(mineralLayerName("Mineralization", "MN_CPY_pct"), "Mineralization: MN_CPY_pct", "the unit is the layer's, not in the name");
-  assert.equal(UNIT, "% (visual)");
+  assert.equal(UNIT, "% visual", "the legend brackets it: (% visual)");
 });
 
 test("the opt-in sulphide total: the ticked columns summed, named for what it sums", () => {

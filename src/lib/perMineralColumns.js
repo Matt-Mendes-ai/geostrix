@@ -91,8 +91,8 @@ export function sumRows(allRows, mapping, cols) {
   return { rows, none, outside };
 }
 
-export const UNIT = "% (visual)";
-// layer names (project text, English): the column is the name, no abbreviation table assumed; the unit, % (visual), is the layer's own, which
+export const UNIT = "% visual"; // the legend writes it in brackets: "(% visual)"
+// layer names (project text, English): the column is the name, no abbreviation table assumed; the unit, % visual, is the layer's own, which
 // the legend and labels add (in the name too it read "MN_CPY_pct (% visual) (% (visual))")
 export const mineralLayerName = (base, col) => `${base}: ${col}`;
 export const sumLayerName = (base, cols) => `${base}: total of ${cols.join(" + ")}`;
