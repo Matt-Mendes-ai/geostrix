@@ -20,7 +20,7 @@ test("wiring: the estimate records the holes; the Pit shell, Pit design and Nest
   assert.match(src("GradeEstimationModal.jsx"), /nearUnsampledHoles: NEAR_UNSAMPLED_HOLES,/);
   const shell = src("PitShellPane.jsx");
   assert.match(shell, /const nearUnsStale = nearUnsFlagged && nearUnsampledMayBeStale\(model\.params\);/);
-  assert.match(shell, /nearUnsFlagged, nearUnsStale \/\* #3065 \*\//);
+  assert.match(shell, /nearUnsFlagged(?: \/\* #2596 \*\/)?, nearUnsStale \/\* #3065 \*\//); // #2596's comment may sit beside its field (merge with #2986)
   assert.match(shell, /res\.nearUnsFlagged && nearUnsP > 0 && res\.nearUnsStale && <div style=\{note\}>\{tr\("This block model was estimated from the checked holes/);
   for (const f of ["PitDesignPane.jsx", "NestedPitsPane.jsx"]) assert.match(src(f), /\{nearUnsampledMayBeStale\(model\?\.params\) && <div style=\{note\}>\{tr\("This block model was estimated from the checked holes/, f);
 });
