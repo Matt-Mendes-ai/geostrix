@@ -48,6 +48,7 @@ const ProjectCrsModal = React.lazy(() => import("./components/ProjectCrsModal.js
 const TableColumnsModal = React.lazy(() => import("./components/TableColumnsModal.jsx")); // TASKS.csv #2177
 const DegreesProjectBanner = React.lazy(() => import("./components/DegreesProjectBanner.jsx")); // TASKS.csv #1148
 const ProjectReportModal = React.lazy(() => import("./components/ProjectReportModal.jsx"));
+const ProjectKmzDialog = React.lazy(() => import("./components/ProjectKmzDialog.jsx")); // TASKS.csv #3087
 
 // TASKS.csv — Raster split out as its own tab (user request), between Geophysics and Layout so it
 // sits near the other data-import modules rather than at the end.
@@ -340,10 +341,14 @@ export default function App() {
   // TASKS.csv #3068 — the whole project as one KMZ for Google Earth (lib/projectKmzExport.js, loaded on demand); it reads the store as it is
   // when chosen, so it keeps a ref rather than re-subscribing the menu bridge on every edit
   const storeRef = useRef(store); storeRef.current = store;
-  const doExportKmz = useCallback(async () => {
+  // TASKS.csv #3087 — the dialog first (which parts of the project), then the export
+  const [kmzOpen, setKmzOpen] = useState(false);
+  const doExportKmz = useCallback(() => setKmzOpen(true), []);
+  const runKmzExport = useCallback(async (include) => {
+    setKmzOpen(false);
     try {
       const m = await import("./lib/projectKmzExport.js");
-      await m.exportProjectKmz(storeRef.current);
+      await m.exportProjectKmz(storeRef.current, { include });
     } catch (err) {
       try { window.dispatchEvent(new CustomEvent(EXPORT_RESULT_EVENT, { detail: { ok: false, name: "KMZ", error: String(err?.message || err) } })); } catch { /* no window */ }
     }
@@ -634,6 +639,7 @@ export default function App() {
       {helpAt && <Suspense fallback={null}><HelpPane key={helpAt.n} initialId={helpAt.id} onClose={() => setHelpAt(null)} /></Suspense>}{/* #1966 */}
       {shortcutsTab && <Suspense fallback={null}><ShortcutsModal initialTab={shortcutsTab} pyStatus={pyStatus} onClose={() => setShortcutsTab(null)} /></Suspense>}
       {showUpdatePrompt && <Suspense fallback={null}><UpdatePrompt updater={upd} onLater={() => setUpdateLater((s) => new Set(s).add(`${upd.version || ""}|${updateStage}`))} /></Suspense>}{/* TASKS.csv #915 */}
+      {kmzOpen && <Suspense fallback={null}><ProjectKmzDialog store={store} onExport={runKmzExport} onClose={() => setKmzOpen(false)} /></Suspense>}{/* TASKS.csv #3087 */}
       {reportOpen && (
         <Suspense fallback={null}>
           <ProjectReportModal store={store} onClose={() => setReportOpen(false)} />

@@ -33,7 +33,7 @@ function project() {
       categories: [{ value: "Kqm", label: "Quartz monzonite", color: "#ff0000", visible: true }, { value: "Tv", label: "Volcanics", color: "#00ff00", visible: false }],
       features: [{ parts: [[[500000, 6200000], [500100, 6200000], [500100, 6200100]]], attributes: { unit: "Kqm" } }, { parts: [[[500200, 6200000], [500300, 6200000], [500300, 6200100]]], attributes: { unit: "Tv" } }] }],
     boundaries: [{ name: "Claim", color: "#0000ff", polylines: [[{ x: 499900, y: 6199900 }, { x: 500500, y: 6199900 }, { x: 500500, y: 6200500 }]], visible: true }],
-    plannedHoles: [{ name: "P1", x: 500050, y: 6200050, z: 805, azimuth: 0, dip: 70, length: 200 }],
+    plannedHoles: [{ name: "P1", x: 500050, y: 6200050, z: 805, azimuth: 0, dip: -70, length: 200 }], // dip: the user convention, negative downward (holePlanning.js)
     sections: [{ id: 1, name: "L100", ax: 500000, ay: 6200000, bx: 500400, by: 6200000, contacts: [{ unit: "QFP/ANDS", color: "#aa00aa", points: [{ x: 500000, y: 6200000, z: 780 }, { x: 500300, y: 6200000, z: 760 }] }] }],
     rasters: [{ id: 3, name: "Mag RTP", bbox: [499000, 6199000, 501000, 6201000], dataUrl: "data:image/png;base64,iVBORw0KGgo=", opacity: 0.7, visible: false, colourStops: [{ value: 0, color: "#0000ff" }, { value: 1, color: "#ff0000" }], colourRange: [-100, 300] }],
     layerGroups: [{ id: "lgroup_1", name: "Geology logs", keys: ["litho", "alt"] }],
@@ -204,4 +204,45 @@ test("wired: File > Export Project as KMZ… and the toolbar button, translated"
   const main = readFileSync(new URL("../electron/main.js", import.meta.url), "utf8");
   assert.match(main, /\{ label: L\("Export Project as KMZ…"\), click: \(\) => sendMenuWithGesture\("export-kmz"\) \}/);
   assert.equal((main.match(/"Export Project as KMZ…": "/g) || []).length, 4, "es, pt, fr, ar");
+});
+
+test("planned holes go down: their dip is stored negative downward (the user's convention), drawn through plannedTrace as the 3D View draws them", () => {
+  const { kml } = buildProjectKml(project(), opts);
+  const i = kml.indexOf("<Placemark><name>P1</name>");
+  const coords = /<coordinates>([^<]*)<\/coordinates>/.exec(kml.slice(i))[1].trim().split(/\s+/).map((t) => t.split(",").map(Number));
+  assert.ok(coords.length >= 2);
+  assert.equal(coords[0][2], 805, "at the collar");
+  assert.ok(coords[coords.length - 1][2] < coords[0][2] - 150, `the end is below the collar (${coords[coords.length - 1][2]})`); // 200 m at -70: ~188 m down
+});
+
+test("#3087 — mine design lines (start + segments) and strings at their elevations; the dialog's parts leave the others out", async () => {
+  const { KMZ_PARTS } = await import("../src/lib/projectKmz.js");
+  const p = project();
+  p.designLines = [{ id: "d1", name: "Decline 1", color: "#ff8800", visible: true, start: { x: 500100, y: 6200100, z: 790 }, azimuth: 90, segments: [{ type: "straight", length: 100, grade: -12 }, { type: "curve", radius: 25, turn: "right", angle: 90, grade: -12 }] },
+    { id: "d2", name: "Not placed", start: { x: null, y: null }, segments: [{ type: "straight", length: 50 }] }];
+  p.designStrings = [{ id: "s1", name: "Pit shell", color: "#00aa00", closed: true, visible: false, vertices: [[500000, 6200000, 780], [500100, 6200000, 780], [500100, 6200100, 770]] }];
+  const { kml } = buildProjectKml(p, opts);
+  const tree = folderTree(kml);
+  assert.ok(tree.map((f) => f.name).includes("Mine design"));
+  const md = tree.find((f) => f.name === "Mine design");
+  assert.deepEqual(md.kids.map((f) => f.name), ["Design lines", "Design strings"]);
+  const dl = placemark(kml, "Decline 1");
+  assert.match(dl, /<altitudeMode>absolute<\/altitudeMode>/);
+  const zs = /<coordinates>([^<]*)<\/coordinates>/.exec(dl)[1].trim().split(/\s+/).map((t) => Number(t.split(",")[2]));
+  assert.equal(zs[0], 790);
+  assert.ok(zs[zs.length - 1] < 790 - 15, "a -12 % decline goes down");
+  assert.doesNotMatch(kml, /Not placed/, "a line with no start is not written");
+  const ps = placemark(kml, "Pit shell");
+  assert.match(ps, /<visibility>0<\/visibility>/);
+  const pc = /<coordinates>([^<]*)<\/coordinates>/.exec(ps)[1].trim().split(/\s+/);
+  assert.equal(pc[0], pc[pc.length - 1], "a closed string comes back to its start");
+  // only the parts ticked
+  const only = buildProjectKml(p, { ...opts, include: new Set(["design", "sections"]) }).kml;
+  assert.deepEqual(folderTree(only).map((f) => f.name), ["Sections", "Mine design"]);
+  assert.deepEqual(KMZ_PARTS.map((k) => k.key), ["drillholes", "surface", "sections", "design", "rasters"]);
+  const app = readFileSync(new URL("../src/App.jsx", import.meta.url), "utf8");
+  assert.match(app, /const doExportKmz = useCallback\(\(\) => setKmzOpen\(true\), \[\]\);/);
+  assert.match(app, /m\.exportProjectKmz\(storeRef\.current, \{ include \}\)/);
+  const dlg = readFileSync(new URL("../src/components/ProjectKmzDialog.jsx", import.meta.url), "utf8");
+  assert.match(dlg, /disabled=\{!present\[p\.key\]\}/, "a part with nothing in the project is greyed");
 });

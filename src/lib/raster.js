@@ -28,6 +28,7 @@ import { makeStretch } from "./idw.js"; // TASKS.csv #708 — the same 2-98 % st
 import { rasterStops, DEFAULT_RASTER_STYLE } from "./rasterColour.js"; // TASKS.csv #1236
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 import { b64ToBytes } from "./base64.js"; // TASKS.csv #1114
+import { gridPicture } from "./gridPicture.js"; // TASKS.csv #3033 — the picture of a value grid, shared with the filter worker
 import { borderKeyColour, colourFraction, hexRgb } from "./rasterKey.js"; // TASKS.csv #1623
 import { tieReaches, tieImageToLocal, tieGridToLocal, mineReaches, mineImageToProject, mineGridToProject, mineBoxOf } from "./rasterTie.js"; // TASKS.csv #2587 / #2322; mine*: #2684
 import { isMineSource, mineSourceSentence } from "./mineGrid.js"; // TASKS.csv #2684
@@ -1237,28 +1238,21 @@ export function gridToSurveyRows(raster, maxPoints = 20000) {
 // coloured between the 2nd and 98th percentiles (derivatives have long tails that would otherwise wash
 // the ramp out) plus the grid itself, so it can be filtered again or used as survey points.
 // averagedBy / sourceSize (#1095): carried from the grid a filter read, so a filtered raster still says it was averaged
-export function rasterFromGrid({ name, values, nx, ny, x0, yTop, dx, dy, elevation, extra = {}, averagedBy = 1, sourceSize = null }) {
-  const finite = [];
-  for (let i = 0; i < values.length; i++) if (Number.isFinite(values[i])) finite.push(values[i]);
-  if (!finite.length) throw new Error(tr("The filter produced no values."));
-  finite.sort((a, b) => a - b);
-  const lo = percentileSorted(finite, 0.02), hi = percentileSorted(finite, 0.98); // #740 — makeStretch's rule (was floor)
+export function rasterFromGrid(p) {
+  const pic = gridPicture(p.values, p.nx, p.ny); // #3033 — shared with the filter worker (gridFilterClient rasterFromGridAsync)
+  if (!pic.valid) throw new Error(tr("The filter produced no values."));
   const canvas = document.createElement("canvas");
-  canvas.width = nx; canvas.height = ny;
-  const ctx = canvas.getContext("2d");
-  const img = ctx.createImageData(nx, ny);
-  for (let k = 0; k < nx * ny; k++) {
-    const v = values[k];
-    if (!Number.isFinite(v)) { img.data[k * 4 + 3] = 0; continue; }
-    const t = hi > lo ? Math.min(1, Math.max(0, (v - lo) / (hi - lo))) : 0.5;
-    const [r, g, b] = rampColor(t);
-    img.data[k * 4] = r; img.data[k * 4 + 1] = g; img.data[k * 4 + 2] = b; img.data[k * 4 + 3] = 255;
-  }
-  ctx.putImageData(img, 0, 0);
+  canvas.width = p.nx; canvas.height = p.ny;
+  canvas.getContext("2d").putImageData(new ImageData(pic.rgba, p.nx, p.ny), 0, 0);
+  return rasterRecord(p, pic, canvas.toDataURL("image/png"));
+}
+// the raster record from a grid's picture (gridPicture's lo / hi / valid / valuesB64) and its PNG data URL
+export function rasterRecord({ name, nx, ny, x0, yTop, dx, dy, elevation, extra = {}, averagedBy = 1, sourceSize = null }, pic, dataUrl) {
+  const { lo, hi } = pic;
   const bbox = [x0 - dx / 2, yTop - dy * (ny - 1) - dy / 2, x0 + dx * (nx - 1) + dx / 2, yTop + dy / 2];
   return {
-    name, bbox, dataUrl: canvas.toDataURL("image/png"), elevation,
-    grid: { nx, ny, x0, yTop, dx, dy, values: f32ToB64(Float32Array.from(values)), valid: finite.length, averagedBy, sourceSize: sourceSize || [nx, ny] },
+    name, bbox, dataUrl, elevation,
+    grid: { nx, ny, x0, yTop, dx, dy, values: pic.valuesB64, valid: pic.valid, averagedBy, sourceSize: sourceSize || [nx, ny] },
     colourRange: [lo, hi], colourStops: rasterStops(DEFAULT_RASTER_STYLE, lo, hi), ...extra,
   };
 }
