@@ -602,10 +602,10 @@ export default function GeochemModule() {
       const e = chosenBySymbol.get(sym);
       // TASKS.csv #403 — an oxide column (SiO2, Fe2O3T...) is stored as element wt%; #2487 — or kept as the oxide ("% Li2O"), as chosen
       const ox = oxideOf(header);
-      if (!e) return { v: ox ? fromOxideHeader(c.value, header) : c.value, q: c.qualifier };
+      if (!e) return { v: ox ? fromOxideHeader(c.value, header) : c.value, q: c.qualifier, kind: c.kind };
       const to = existingUnit[sym] || importStoreUnit(e);
       if (ox && c.value != null) oxideNotes.add(to === oxideBasisUnit(oxideUnit(header), ox.oxide) ? `${ox.oxide} kept as ${ox.oxide}` : `${ox.oxide} → ${ox.symbol} (÷${ox.factor})`);
-      return { v: convertUnit(c.value, ox ? oxideBasisUnit(oxideColumnUnit(e, header), ox.oxide) : e.unit, to), q: c.qualifier }; // oxideUnit: #2157; the dialog's unit: #2490
+      return { v: convertUnit(c.value, ox ? oxideBasisUnit(oxideColumnUnit(e, header), ox.oxide) : e.unit, to), q: c.qualifier, kind: c.kind }; // oxideUnit: #2157; the dialog's unit: #2490; kind: #3196
     };
     // TASKS.csv #400 — keep a QC-type and a sample-id column when the file has them (acQuire / MX exports
     // mark standards / blanks / duplicates there, under the real hole_id). Auto-detected by header name.
@@ -671,9 +671,10 @@ export default function GeochemModule() {
         const valueSources = {}; // #542 — element -> the ore-grade column a value came from
         const methodValues = {}; // #2629 — element -> { method column: value } for the element's other method columns on this row
         const anyResult = blankMode === "bdl" && chosen.some((e) => !isBlankAssayCell(r[e.header])); // #502
+        const cleared = []; // #3196 — elements this row says have no value (a no-data code, 'NA'): a re-import clears the earlier value
         chosen.forEach((e) => {
           const cell = r[e.header]; // #583 — read once (a columnar row's value is a getter)
-          let { v, q } = zeroAsBdl(cell, e.symbol, e.header) || read(cell, e.symbol, e.header); // #1677
+          let { v, q, kind } = zeroAsBdl(cell, e.symbol, e.header) || read(cell, e.symbol, e.header); // #1677; kind: #3196
           // #600 / #542 — a sample at the main column's cap takes its ore-grade re-assay (converted to the main
           // column's unit) when the file has one; only while the element still reads the auto-picked column
           const ol = e.overLimit && e.header === e.mainHeader ? e.overLimit : null;
@@ -715,7 +716,7 @@ export default function GeochemModule() {
           if (v != null) {
             values[e.symbol] = v;
             if (q) quals[e.symbol] = q;
-          }
+          } else if (kind === "neg_missing" || kind === "na_text") cleared.push(e.symbol); // #3196
         });
         // srcFile: #624; #2791 — a row's own file (mapping.src_file: the lab certificates' QC rows, each from its certificate) before the import's
         const srcFile = (mapping.src_file && String(r[mapping.src_file] ?? "").trim()) || modal.fileName;
@@ -723,6 +724,7 @@ export default function GeochemModule() {
         if (Object.keys(quals).length) out.qualifiers = quals;
         if (Object.keys(valueSources).length) out.valueSources = valueSources; // #542 — which method each over-limit value is
         if (Object.keys(methodValues).length) out.methodValues = methodValues; // #2629
+        if (cleared.length) out.cleared = cleared; // #3196 — read by mergeAssayRows, not stored
         return tagQC(out, r);
       });
       setAssayModal((m) => (m ? { ...m, busy: false } : m));
