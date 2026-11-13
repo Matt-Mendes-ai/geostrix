@@ -5,7 +5,7 @@
 // surface-sample elevation; else 0. The source is returned so the import notice can name it.
 import { modelAirValue } from "./surfacePlan.js";
 import { t as tr } from "./i18n.js";
-import { median } from "./arrayStats.js";
+import { median, arrMax /* #3031 */ } from "./arrayStats.js";
 import { collarsLookUnderground } from "./pitShell.js"; // TASKS.csv #2269
 import { farFromCollars, farNote, boxesOverlap } from "./landingCheck.js"; // TASKS.csv #2590 / #2125
 
@@ -42,7 +42,7 @@ export function defaultDrapeElevation({ collars = [], voxelModels = [], surfaceS
 // underground (the nearest the surface the data knows), else the map-layer rule above. -> { z, source }
 export function planElevation({ collars = [], survey = [], voxelModels = [], surfaceSamples = [], bbox = null } = {}) {
   const zs = (collars || []).map((c) => c?.z).filter(Number.isFinite);
-  if (zs.length > 1 && collarsLookUnderground(collars, survey).underground) return { z: Math.max(...zs), source: "highest-collar" };
+  if (zs.length > 1 && collarsLookUnderground(collars, survey).underground) return { z: arrMax(zs), source: "highest-collar" }; // arrMax: #3031 (every collar)
   return defaultDrapeElevation({ collars, voxelModels, surfaceSamples, bbox });
 }
 export function planElevationText(d) {
@@ -86,7 +86,7 @@ export function rasterDrapeElevation({ collars = [], voxelModels = [], surfaceSa
   else if (base.source === "collars") {
     const under = (collars || []).filter((c) => Number.isFinite(c.z) && inBox(c, bbox));
     const zs = (under.length ? under : collars.filter((c) => Number.isFinite(c.z))).map((c) => c.z);
-    const top = Math.max(...zs);
+    const top = arrMax(zs); // #3031
     out = { z: top + ABOVE_COLLARS_M, source: "collars", above: ABOVE_COLLARS_M, topCollarZ: top, ...(under.length ? {} : { noneUnder: true }) }; // noneUnder: #2125 — no collar under it
   } else out = { ...base };
   // stacked above a raster already at that level — TASKS.csv #2590: only one whose footprint overlaps this one (a picture 6,240 km away

@@ -9,6 +9,7 @@ import { requestTableSubset as requestTableSubsetEv } from "./tableSubsetRequest
 import { makeCompositor } from "./compositeOnRead.js"; // TASKS.csv #2345
 import { normalizeCommaDecimals } from "./numberLocale.js";
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
+import { arrMax } from "./arrayStats.js"; // TASKS.csv #3031
 
 // Bytes -> text. UTF-8 first (BOM stripped); if that produced replacement characters, the file was not
 // UTF-8 — almost always an Excel export on Windows (Windows-1252: degree signs, accented names).
@@ -521,7 +522,7 @@ export function toExportCsv(rows, opts = {}) {
   if (!Array.isArray(rows)) return Papa.unparse(rows, { escapeFormulae: FORMULA_LEAD, ...opts });
   // rows that are plain lists (a sectioned report: project report, surface compare) carry their own header lines; keying
   // them by index wrote a "0,1,2,..." header row (#1083 found it, from #1022)
-  if (rows.length && rows.every(Array.isArray)) { const w = Math.max(...rows.map((r) => r.length)); return Papa.unparse(rows.map((r) => Array.from({ length: w }, (_, i) => r[i] ?? "")), { escapeFormulae: FORMULA_LEAD, ...opts }); }
+  if (rows.length && rows.every(Array.isArray)) { const w = arrMax(rows.map((r) => r.length)); /* #3031 — every row of a sheet */ return Papa.unparse(rows.map((r) => Array.from({ length: w }, (_, i) => r[i] ?? "")), { escapeFormulae: FORMULA_LEAD, ...opts }); }
   const fields = [], seen = new Set();
   for (const r of rows) for (const k of Object.keys(r || {})) if (!seen.has(k)) { seen.add(k); fields.push(k); }
   return Papa.unparse({ fields, data: rows.map((r) => fields.map((k) => r?.[k] ?? "")) }, { escapeFormulae: FORMULA_LEAD, ...opts });
