@@ -34,6 +34,7 @@ export function binReadings(rows, binM, numeric) {
 
 const fmt = (v) => (typeof v === "number" ? String(+v.toPrecision(4)) : String(v ?? "—"));
 
+// the tip: the bin's value with the layer's unit when it has one (Main, #2802), the readings it stands for, its depths
 export function buildCoarse(group, L, traces, visibleHoles) {
   const st = resolveLayerStyle(L.layerStyles?.[`custom:${L.layer.id}`], "point");
   const markerM = 2 * 2.4 * st.size; // the full set's sphere: radius 2.4 x size (drillholeScene)
@@ -52,7 +53,7 @@ export function buildCoarse(group, L, traces, visibleHoles) {
       const mesh = new PickStandIn(POINT_PROTO[st.shape], { color: st.color || customColour(L.layer, L.layerStyles, { value: b.value }), transparent: st.opacity < 1, opacity: st.opacity, side: st.shape === "disc" ? THREE.DoubleSide : THREE.FrontSide });
       mesh.scale.setScalar(2.4 * st.size);
       mesh.position.set(p.x, p.y, p.z);
-      mesh.userData = lazyTip({ row: b.row, holeId: hole }, () => `${hole}\n${L.layer.name}: ${fmt(b.value)} (${numeric ? "mean" : "most"} of ${b.n} readings)\n${+b.from.toFixed(2)}–${+b.to.toFixed(2)} m`);
+      mesh.userData = lazyTip({ row: b.row, holeId: hole }, () => `${hole}\n${L.layer.name}: ${fmt(b.value)}${numeric && L.layer.unit ? ` ${L.layer.unit}` : ""} (${numeric ? "mean" : "most"} of ${b.n} readings)\n${+b.from.toFixed(2)}–${+b.to.toFixed(2)} m`);
       tmp.add(mesh);
     }
   }

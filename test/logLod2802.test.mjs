@@ -75,3 +75,15 @@ test("wiring: drillholeScene drops it before a rebuild, patch or repaint and pri
   assert.ok(!/^import [^\n]*logLodBuild/m.test(v) && !/^import [^\n]*logLodBuild/m.test(d), "the builder is not a startup import");
   assert.match(v, /if \(g\?\.visible && g\.userData\.logLod\) logLodTick\(g, metresPerPixel\(camera, camState\.current\?\.radius, mount\.clientHeight\), tracesRef\.current, visibleHolesRef\.current\);/);
 });
+
+test("a coarse marker's tip gives the bin's mean with the layer's unit, and the readings it stands for", async () => {
+  const { buildCoarse } = await import("../src/modules/viewer/logLodBuild.js");
+  const { layer, traces } = data(20);
+  layer.unit = "ppm";
+  const g = new THREE.Group();
+  primeLogLod(g, layer, {});
+  buildCoarse(g, g.userData.logLod, traces, {});
+  const c = g.userData.logLod.coarse.find((x) => x.userData?.compact);
+  const tip = c.userData.compact.rows[0].tip;
+  assert.match(tip, /^H\d+\nGamma eU3O8 \(ppm\): [\d.]+ ppm \(mean of \d+ readings\)\n[\d.]+–[\d.]+ m$/);
+});
