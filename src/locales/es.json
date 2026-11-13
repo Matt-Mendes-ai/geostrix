@@ -11864,5 +11864,6 @@
   "{n} result(s) are no-data codes (-99 / -999 / -9999): read as not assayed.": "{n} resultado(s) son códigos sin dato (-99 / -999 / -9999): se leen como no ensayados.",
   " Azimuths left as they are: the project has no mine grid to read them on (set one up under Maps > Project CRS).": " Azimuts dejados tal como están: el proyecto no tiene una grilla de mina en la cual leerlos (configure una en Mapas > SRC del proyecto).",
   " {fixed} azimuth(s) turned from the mine grid's north to the project grid ({deg}°).": " {fixed} azimut(s) girados del norte de la grilla de mina a la grilla del proyecto ({deg}°).",
-  "{n} grid azimuth(s) turned from the mine grid's north to the project grid ({deg}°).": "{n} azimut(s) de grilla girados del norte de la grilla de mina a la grilla del proyecto ({deg}°)."
+  "{n} grid azimuth(s) turned from the mine grid's north to the project grid ({deg}°).": "{n} azimut(s) de grilla girados del norte de la grilla de mina a la grilla del proyecto ({deg}°).",
+  "These pages were just generated. Change the selection to make others.": "Estas páginas se acaban de generar. Cambie la selección para crear otras."
 }

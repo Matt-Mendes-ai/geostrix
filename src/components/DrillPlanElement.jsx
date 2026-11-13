@@ -74,6 +74,16 @@ export function drillPlanDrawing(el, collars, assays = null, assayElements = nul
   return { ...g, colouring, shapes, shapeKey, fontPx, labels, labelled: toLabel.length, keyBox };
 }
 
+// TASKS.csv #3182 (#3028 (8), review #2876) — the grid caption and the first northing label touched the frame ('...(EPSG:28350' looked cut): a
+// northing label whose text would rise past the top edge sits below its line, an easting label that would run off the right edge ends at
+// its line, and the caption keeps GRID_INSET px from the corner. t: drillPlanGrid's { px, label }; axis "x" (eastings) or "y" (northings)
+export const GRID_INSET = 6;
+export function gridLabelPlace(t, axis, fontPx, w, h) {
+  const width = String(t.label).length * fontPx * 0.55;
+  if (axis === "y") return { x: GRID_INSET, y: t.px - 2 - fontPx < GRID_INSET ? Math.min(h - GRID_INSET, t.px + fontPx + 1) : t.px - 2, anchor: "start" };
+  return t.px + 2 + width > w - GRID_INSET ? { x: t.px - 2, y: fontPx + GRID_INSET - 2, anchor: "end" } : { x: t.px + 2, y: fontPx + GRID_INSET - 2, anchor: "start" };
+}
+
 // gridCaption (#2301): what the grid's numbers are ('local mine grid', the CRS name), from the page
 export default function DrillPlanElement({ el, collars, gridCaption = "", assays = null, assayElements = null }) {
   const FONT = layoutFontStack(el?.fontFamily); // TASKS.csv #2144 — the element's typeface (none: Exo 2)
@@ -98,9 +108,9 @@ export default function DrillPlanElement({ el, collars, gridCaption = "", assays
           const gf = Math.max(6, d.fontPx - 1), cap = gridCaption ? `Grid ${grid.spacing.toLocaleString("en-US")} m, ${gridCaption}` : `Grid ${grid.spacing.toLocaleString("en-US")} m`;
           const boxed = (key, text, x, y, anchor = "start") => { const b = labelBackdrop(text, x, y, gf, anchor); return <g key={key}><rect x={b.x} y={b.y} width={b.w} height={b.h} fill="#ffffff" fillOpacity="0.85" /><text x={x} y={y} textAnchor={anchor}>{text}</text></g>; };
           return <g fontSize={gf} fill="#55606e" fontFamily={FONT}>
-            {grid.xs.filter((t) => !(keyBox && keyBox.y < d.fontPx + 2 && t.px + 2 < keyBox.x + keyBox.w && t.px + 2 + t.label.length * d.fontPx * 0.5 > keyBox.x)).map((t) => boxed(`lx${t.px}`, t.label, t.px + 2, gf + 1))}
-            {grid.ys.filter((t) => !(keyBox && keyBox.x < 2 + t.label.length * d.fontPx * 0.5 && t.px - d.fontPx < keyBox.y + keyBox.h && t.px > keyBox.y)).map((t) => boxed(`ly${t.px}`, t.label, 2, t.px - 2))}{/* #2611 — not under the key */}
-            {boxed("cap", cap, d.w - 4, d.h - 4, "end")}
+            {grid.xs.filter((t) => !(keyBox && keyBox.y < d.fontPx + 2 && t.px + 2 < keyBox.x + keyBox.w && t.px + 2 + t.label.length * d.fontPx * 0.5 > keyBox.x)).map((t) => { const p = gridLabelPlace(t, "x", gf, d.w, d.h); return boxed(`lx${t.px}`, t.label, p.x, p.y, p.anchor); })}
+            {grid.ys.filter((t) => !(keyBox && keyBox.x < 2 + t.label.length * d.fontPx * 0.5 && t.px - d.fontPx < keyBox.y + keyBox.h && t.px > keyBox.y)).map((t) => { const p = gridLabelPlace(t, "y", gf, d.w, d.h); return boxed(`ly${t.px}`, t.label, p.x, p.y, p.anchor); })}{/* #2611 — not under the key; #3182 — inside the frame */}
+            {boxed("cap", cap, d.w - GRID_INSET, d.h - GRID_INSET, "end")}
           </g>;
         })()}
         {d.holes.map((hh) => <line key={`t${hh.id}`} x1={hh.ax} y1={hh.ay} x2={hh.bx} y2={hh.by} stroke={styles.get(hh.id).hollow ? INK : styles.get(hh.id).colour} strokeWidth={line} strokeLinecap="round" />)}

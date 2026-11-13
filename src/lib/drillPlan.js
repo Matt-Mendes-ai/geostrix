@@ -29,8 +29,11 @@ export function fitDrillPlan(collars, w, h, presets = [500, 1000, 2000, 2500, 50
   if (!cs.length) return null;
   let xmin = Infinity, ymin = Infinity, xmax = -Infinity, ymax = -Infinity;
   for (const c of cs) { const p = holePlan(c); for (const [x, y] of [[p.x0, p.y0], [p.x1, p.y1]]) { if (x < xmin) xmin = x; if (x > xmax) xmax = x; if (y < ymin) ymin = y; if (y > ymax) ymax = y; } }
-  const spanX = Math.max(1, xmax - xmin), spanY = Math.max(1, ymax - ymin), m = 0.88; // 6 % margin each side
-  const need = Math.max(spanX / (w * m), spanY / (h * m)) * PAGE_PX_PER_PAPER_M; // the 1:N that just fits
+  const spanX = Math.max(1, xmax - xmin), spanY = Math.max(1, ymax - ymin);
+  // TASKS.csv #3181 (#3028 (6), review #2876) — the margin each side is 6 % of the frame or 5 mm (about two label heights), whichever is less:
+  // 6 % of a 201 x 127 mm frame (12 mm a side) sent a field that 1:150,000 holds with 9 % to spare to 1:200,000
+  const marginPx = (5 * PAGE_PX_PER_PAPER_M) / 1000, avail = (side) => side - 2 * Math.min(0.06 * side, marginPx);
+  const need = Math.max(spanX / avail(w), spanY / avail(h)) * PAGE_PX_PER_PAPER_M; // the 1:N that just fits
   const scale = presets.find((s) => s >= need) || Math.ceil(need / 1000) * 1000;
   return { scale, centre: { x: (xmin + xmax) / 2, y: (ymin + ymax) / 2 } };
 }
