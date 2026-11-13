@@ -10418,7 +10418,7 @@
   "The block height on its own, for a flat, thin body: a seam, a palaeochannel, a laterite. Blank = the same as the cell size (cubic).": "ارتفاع الكتلة وحده، لجسم مسطح ورقيق: طبقة، قناة قديمة، لاتيريت. فارغ = مثل حجم الخلية (مكعب).",
   "The search is flat: {r} m across and {v} m up and down (typed in this dialog), there is": "البحث مسطح: {r} م أفقيًا و{v} م صعودًا ونزولًا (مُدخل في هذا الحوار)، ولا يوجد",
   "The structural trend \"{name}\" shapes the search; clear it in 3D Modelling → Model settings to type a flat search here.": "يحدد الاتجاه البنيوي \"{name}\" شكل البحث؛ أزله في النمذجة ثلاثية الأبعاد ← إعدادات النموذج لإدخال بحث مسطح هنا.",
-  "These holes look flat-lying at the drilling's scale: {v}% of {n} holes are within 5° of vertical, and the sampled interval (median {span} m) is a small part of the {sp} m hole spacing. A flat search fits that: {r} m across and {h} m up and down, on {c} × {c} × {ch} m cells.": "تبدو هذه الثقوب أفقية على مقياس الحفر: {v}% من {n} ثقبًا ضمن 5° من الرأسي، والمقطع المأخوذ منه العينات (الوسيط {span} م) جزء صغير من تباعد الثقوب البالغ {sp} م. يناسب ذلك بحث مسطح: {r} م أفقيًا و{h} م صعودًا ونزولًا، على خلايا {c} × {c} × {ch} م.",
+  "These holes look flat-lying at the drilling's scale: {v}% of {n} holes are within 5° of vertical, drilled over {d} m of depth across {w} m (the holes {sp} m apart, sampled over a median {span} m). A flat search fits that: {r} m across and {h} m up and down, on {c} × {c} × {ch} m cells.": "تبدو هذه الثقوب شبه أفقية بمقياس الحفر: {v}% من {n} ثقب ضمن 5° من الرأسي، محفورة على عمق {d} م عبر {w} م (الثقوب متباعدة {sp} م، مأخوذة العينات على وسيط {span} م). يناسب ذلك بحث مسطح: {r} م أفقياً و{h} م أعلى وأسفل، على خلايا {c} × {c} × {ch} م.",
   "Use it": "استخدمه",
   "Vertical reach (m)": "المدى الرأسي (م)",
   "cubic": "مكعب",
@@ -11326,5 +11326,14 @@
   "Block height (m)": "ارتفاع الكتلة (م)",
   "= block size": "= حجم الكتلة",
   "Blocks of {b} m: the shell's own cells.": "كتل {b} م: خلايا الغلاف نفسه.",
-  "Three volumes of the same body: its {n} cells in the range hold {c}; the shell drawn between the cell centres holds {s}; the run counts its blocks, so its volume depends on the block size.": "ثلاثة أحجام للجسم نفسه: خلاياه الـ {n} في المدى تحتوي {c}؛ والغلاف المرسوم بين مراكز الخلايا يحتوي {s}؛ والتشغيل يعدّ كتله، فيتوقف حجمه على حجم الكتلة."
+  "Three volumes of the same body: its {n} cells in the range hold {c}; the shell drawn between the cell centres holds {s}; the run counts its blocks, so its volume depends on the block size.": "ثلاثة أحجام للجسم نفسه: خلاياه الـ {n} في المدى تحتوي {c}؛ والغلاف المرسوم بين مراكز الخلايا يحتوي {s}؛ والتشغيل يعدّ كتله، فيتوقف حجمه على حجم الكتلة.",
+  " (the median hole spacing, {s} m, out to a third of the drilling's width)": " (التباعد الوسيط بين الثقوب، {s} م، حتى ثلث عرض الحفر)",
+  "These holes are near-vertical, so 'All pairs' mixes the pairs down each hole (a sample length apart) with the pairs between holes (a hole spacing apart): a weak fit here does not say the grade has no spatial structure. Compute Downhole pairs (the nugget and the short range), then Between holes or In the plane (the range along the bedding), apart.": "هذه الثقوب شبه رأسية، لذا تخلط «كل الأزواج» الأزواج على طول كل ثقب (بطول عينة) مع الأزواج بين الثقوب (بتباعد الثقوب): الملاءمة الضعيفة هنا لا تعني أن المحتوى بلا بنية مكانية. احسب أزواج «على طول الثقب» (الأثر النقطي والمدى القصير)، ثم «بين الثقوب» أو «في المستوى» (المدى على امتداد التطبق)، كلاً على حدة.",
+  "the block model \"{name}\" (same blocks)": "نموذج الكتل «{name}» (الكتل نفسها)",
+  "Density from the block model \"{name}\" on the same blocks: {k} block(s) take its value (a mean of {m} t/m³), {f} take {d} (no block of it there, or a value outside {lo}-{hi} t/m³).": "الكثافة من نموذج الكتل «{name}» على الكتل نفسها: {k} كتلة تأخذ قيمته (بمتوسط {m} طن/م³)، و{f} تأخذ {d} (لا كتلة منه هناك، أو قيمة خارج {lo}-{hi} طن/م³).",
+  "the Density field ({rho} t/m³)": "حقل الكثافة ({rho} طن/م³)",
+  "no density, so no tonnes": "لا كثافة، فلا أطنان",
+  "{pct}% of the estimated metal ({k} of {n} blocks) lies below the deepest sample of every hole within {r} m: carried down past the drilling, within the {h} m Vertical reach.": "{pct}% من المعدن المقدَّر ({k} من {n} كتلة) يقع تحت أعمق عينة لكل ثقب ضمن {r} م: محمول إلى الأسفل بعد الحفر، ضمن المدى الرأسي البالغ {h} م.",
+  "Kriged before {n} block(s) were removed (above the ground, outside the area or outside the solid), so more were kriged than are kept.": "كُرِّجت قبل إزالة {n} كتلة (فوق الأرض أو خارج المنطقة أو خارج المجسم)، لذا كُرِّج أكثر مما حُفظ.",
+  "Cutoff {v}: the 90th percentile of the {n} {symbol} values, proposed when {symbol} was chosen. Type your own.": "حد القطع {v}: المئين التسعون لقيم {symbol} البالغة {n}، مقترح عند اختيار {symbol}. اكتب قيمتك."
 }

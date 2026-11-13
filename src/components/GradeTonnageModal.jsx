@@ -19,6 +19,8 @@ import { isMeshClosed } from "../lib/meshQuery.js"; // TASKS.csv #2061
 import { version as APP_VERSION } from "../../package.json";
 import { gradeUnitLabel } from "../lib/geochem.js"; // TASKS.csv #2218
 import { nearestCodeLookup, densityByCode, intervalCodePoints, codesByMetres } from "../lib/densityByCode.js"; // TASKS.csv #2550; codesByMetres: #3013
+import { blockModelLattice } from "../lib/estimationMeta.js"; // TASKS.csv #3012
+import { sameLattice, densityFromModel, DENSITY_RANGE } from "../lib/densityFromModel.js"; // TASKS.csv #3012
 import { desurveyHole } from "../lib/desurvey.js"; // TASKS.csv #2550 — the code intervals placed in 3D
 
 const fmt = (v, d = 0) => (v == null || !Number.isFinite(v) ? "—" : v.toLocaleString(undefined, { maximumFractionDigits: d }));
@@ -34,7 +36,7 @@ export default function GradeTonnageModal({ model, epsg, onClose }) {
   const unitL = element && unit ? gradeUnitLabel(element, unit) : unit; // TASKS.csv #2218 — the label (g/t for gold in ppm); unit stays for the sums and the CSV — kg and troy oz for a precious metal, t otherwise
   const [cutoffText, setCutoffText] = useState(() => autoCutoffs(model.cells, { element, unit }).join(", "));
   const [density, setDensity] = useState("");
-  const { layers, generatedSurfaces = [], collars = [], survey = [], desurveyMethod } = useStore(); // collars / survey: #2550
+  const { layers, generatedSurfaces = [], collars = [], survey = [], desurveyMethod, voxelModels = [] } = useStore(); // collars / survey: #2550; voxelModels: #3012
   // TASKS.csv #1949 (Vulcan review) — the table inside a chosen closed solid, by block centre or by the share of each block inside
   // TASKS.csv #2061 (review #2013, Woodjam) — any watertight solid, as the Estimation dialog's 'Restrict to a modelled volume' takes: only Mine
   // Design solids carry closure 'closed', so an artificially closed grade shell (1.97 Mm³, watertight) was 'no closed solid in the project'
@@ -71,7 +73,7 @@ export default function GradeTonnageModal({ model, epsg, onClose }) {
   const cellMax = useMemo(() => model.cells.reduce((m, c) => Math.max(m, c.dx || 0, c.dy || 0, c.dz || 0), 0), [model.cells]);
   const reachM = Math.max(50, 3 * cellMax);
   const codeOf = useMemo(() => {
-    if (!densityLayer) return null;
+    if (!densityLayer || densityLayer.startsWith("model:")) return null; // a block model's density: #3012
     const byHole = new Map(collars.map((c) => [c.hole_id, c])), surveyBy = new Map();
     for (const s of survey || []) { if (!surveyBy.has(s.hole_id)) surveyBy.set(s.hole_id, []); surveyBy.get(s.hole_id).push(s); }
     const traces = new Map(), pts = [], step = Math.max(2, cellMax / 2 || 2);
@@ -86,6 +88,15 @@ export default function GradeTonnageModal({ model, epsg, onClose }) {
     return nearestCodeLookup(pts, reachM);
   }, [densityLayer, layers, collars, survey, desurveyMethod, cellMax, reachM]);
   const byCode = useMemo(() => (codeOf ? densityByCode(codeOf, codeDensity, rho) : null), [codeOf, codeDensity, rho]);
+  // TASKS.csv #3012 (WA iron review) — the density from a block model on the same blocks (Estimation's 'Match <model>' puts a density estimate
+  // there): each block takes its value when it lies in DENSITY_RANGE (t/m³), else the Density field; the review's tonnage could only use one
+  // typed density though the project had a density log estimated onto the same blocks
+  const latticeOf = useMemo(() => blockModelLattice(model), [model]);
+  const densityModels = useMemo(() => (latticeOf ? voxelModels.filter((m) => m !== model && m.id !== model.id && m.cells?.length && sameLattice(blockModelLattice(m), latticeOf)) : []), [voxelModels, model, latticeOf]);
+  const densityModel = densityLayer.startsWith("model:") ? densityModels.find((m) => `model:${m.id}` === densityLayer) || null : null;
+  const byModel = useMemo(() => (densityModel ? densityFromModel(densityModel.cells, latticeOf, rho) : null), [densityModel, latticeOf, rho]);
+  const tonnesOn = !!rho || !!byModel; // #3012 — a density model gives tonnes with no single density typed
+  const modelUse = useMemo(() => { if (!byModel) return null; let k = 0, sum = 0, f = 0; for (const c of cellsUsed) { if (byModel.has(c)) { k++; sum += byModel.of(c); } else f++; } return { k, f, mean: k ? sum / k : null }; }, [byModel, cellsUsed]); // #3012
   const blockCodes = useMemo(() => { if (!codeOf) return new Map(); const m = new Map(); for (const c of cellsUsed) { const code = codeOf(c); if (code != null) m.set(code, (m.get(code) || 0) + 1); } return m; }, [codeOf, cellsUsed]); // #3013
   const layerCodesOrdered = useMemo(() => [...[...blockCodes].sort((a, b) => b[1] - a[1]).map(([c]) => c), ...layerCodesAll.filter((c) => !blockCodes.has(c))], [blockCodes, layerCodesAll]);
   const layerCodes = allCodes ? layerCodesOrdered : layerCodesOrdered.slice(0, 30);
@@ -97,7 +108,7 @@ export default function GradeTonnageModal({ model, epsg, onClose }) {
     for (const c of cellsUsed) { const code = codeOf(c), k = code != null && Number(codeDensity[code]) > 0 ? code : null; m.set(k, (m.get(k) || 0) + 1); }
     return [...m.entries()].sort((x, y) => y[1] - x[1]).map(([code, n]) => ({ code, n, rho: code == null ? rho : Number(codeDensity[code]) }));
   }, [codeOf, cellsUsed, codeDensity, rho]);
-  const rows = useMemo(() => gradeTonnageTable(cellsUsed, { cutoffs, density: rho, unit, interpolatedOnly: interpOnly, beyondKnown, logKnown, densityOf: byCode?.of || null }), [cellsUsed, cutoffs, rho, unit, interpOnly, beyondKnown, logKnown, byCode]);
+  const rows = useMemo(() => gradeTonnageTable(cellsUsed, { cutoffs, density: rho, unit, interpolatedOnly: interpOnly, beyondKnown, logKnown, densityOf: byModel?.of || byCode?.of || null }), [cellsUsed, cutoffs, rho, unit, interpOnly, beyondKnown, logKnown, byCode, byModel]);
   const benchCut = cutoffs.includes(Number(benchCutoff)) ? Number(benchCutoff) : cutoffs[0];
   const benchRows = useMemo(() => (byBench && Number(benchH) > 0 && benchCut != null ? gradeTonnageByBench(cellsUsed, { cutoff: benchCut, benchH: Number(benchH), datum: Number(benchDatum) || 0, density: rho, unit, interpolatedOnly: interpOnly }) : []), [byBench, benchH, benchDatum, benchCut, cellsUsed, rho, unit, interpOnly]); // #1957
   const shown = rows.find((r) => r.blocks > 0) || null, lowSupport = shown?.interpolatedShare != null && shown.interpolatedShare < 0.5;
@@ -105,18 +116,19 @@ export default function GradeTonnageModal({ model, epsg, onClose }) {
 
   // the curve: tonnes (or volume without a density) and mean grade against the cutoff
   const W = 460, H = 200, L = 52, R = 52, T = 12, B = 30;
-  const xs = rows.map((r) => r.cutoff), qty = rows.map((r) => (rho ? r.tonnes : r.volumeM3) || 0), gr = rows.map((r) => r.meanGrade || 0);
+  const xs = rows.map((r) => r.cutoff), qty = rows.map((r) => (tonnesOn ? r.tonnes : r.volumeM3) || 0), gr = rows.map((r) => r.meanGrade || 0);
   const x0 = Math.min(...xs, 0), xm = Math.max(...xs), x1 = xm > x0 ? xm : x0 + 1, q1 = Math.max(...qty, 1), g1 = Math.max(...gr, 1e-9);
   const sx = (v) => L + ((v - x0) / (x1 - x0 || 1)) * (W - L - R), sq = (v) => T + (1 - v / q1) * (H - T - B), sg = (v) => T + (1 - v / g1) * (H - T - B);
 
   const exportCsv = () => {
     const vname = valueColumnName(model);
-    const out = gradeTonnageRows(rows, { vname, density: rho, metal, columns: mcols, pctOf: cutoffPct(1, element, unit) != null ? (v) => cutoffPct(v, element, unit) : null }); // #1017 — rows in lib, tested; columns: #1577
+    const out = gradeTonnageRows(rows, { vname, density: tonnesOn ? (rho || "from the density model") : null /* #3012: the tonnes column with a density model */, metal, columns: mcols, pctOf: cutoffPct(1, element, unit) != null ? (v) => cutoffPct(v, element, unit) : null }); // #1017 — rows in lib, tested; columns: #1577
     const stamp = stampLines({ tool: "Grade-tonnage table", version: APP_VERSION, epsg, params: [
       `Block model: ${model.name} (${model.cells.length} blocks, source ${model.source || "import"}) | value ${vname}${unit ? ` in ${unit}` : " (no unit stated)"}`,
       ...(solid ? [`Inside the solid: ${solid.name}${solid.closure === "artificial" ? " (closed artificially at the search radius: its volume is an assumption)" : ""} | ${insideMode === "share" ? `each block counted by the share of it inside (2 x 2 x 2 sample points): ${inside.inside} wholly inside, ${inside.partial} partly, ${inside.outside} outside` : `blocks counted whole by their centre: ${inside.inside} inside, ${inside.outside} outside`}`] : []), // #1949
       ...(byBench && benchRows.length ? [`By bench: ${benchH} m benches from a datum of ${Number(benchDatum) || 0} m, at the ${benchCut} ${unit || ""} cutoff; a block spanning two benches is split by its vertical overlap`] : []), // #1957
-      `Density: ${rho ? (fromSg ? `${rho} t/m3, length-weighted mean of ${sgLayer.n} Specific gravity rows, ${sgLayer.min}-${sgLayer.max}${sgLayer.left ? `, ${sgLayer.left} outside 1-8 left out` : ""} (one value for every block)` : `${rho} t/m3, entered by the user (one value for every block)`) : "not entered: volumes only"}${merged ? " | merged blocks counted at their COVERAGE share" : ""}`,
+      ...(byModel ? [`Density by block: the block model "${densityModel.name}" on the same blocks, its value where it is ${DENSITY_RANGE[0]}-${DENSITY_RANGE[1]} t/m3 (${byModel.stats().taken} of the model's blocks), else the Density below`] : []), // #3012
+      `Density: ${rho ? (fromSg ? `${rho} t/m3, length-weighted mean of ${sgLayer.n} Specific gravity rows, ${sgLayer.min}-${sgLayer.max}${sgLayer.left ? `, ${sgLayer.left} outside 1-8 left out` : ""} (one value for every block)` : `${rho} t/m3, entered by the user (${byModel ? "the blocks the density model does not cover" : "one value for every block"})`) : byModel ? "no default entered: a block the density model does not cover has no tonnes" /* #3012 */ : "not entered: volumes only"}${merged ? " | merged blocks counted at their COVERAGE share" : ""}`,
       "Mean grade: volume-weighted over the blocks at or above the cutoff",
       ...(hasSupport ? [interpOnly ? "Blocks: only those the estimate classed interpolated" : "Blocks: every estimated block; interpolated_pct / one_hole_pct give the volume share by support"] : []), // #1409
       ...(logKnown ? [`from_log_metal_pct: about the share of the metal from the readings of the log "${model.params.unsampledLog}" x ${model.params.unsampledLogFactor} that filled the unsampled metres (picked by the user)`] : []), // #2721
@@ -142,8 +154,8 @@ export default function GradeTonnageModal({ model, epsg, onClose }) {
             <input value={cutoffText} onChange={(e) => setCutoffText(e.target.value)} style={{ ...inp, flex: 1 }} aria-label={tr("Cutoffs, separated by commas")} /></label>
           <label style={{ display: "flex", alignItems: "center", gap: 6 }}>{tr("Density (t/m³)")}
             <input type="number" min={0} step={0.01} value={density} placeholder={tr("required for tonnes")} onChange={(e) => { setDensity(e.target.value); setFromSg(false); }} style={{ ...inp, width: 120 }} /></label>
-          {codeLayers.length > 0 && <label style={{ display: "flex", alignItems: "center", gap: 6 }} title={tr("A density per code of a logged layer: each block takes the nearest logged interval within {r} m; the Density field is the default for the rest", { r: Math.round(reachM) })}>{tr("Density by")}{/* #2550 */}
-            <select value={densityLayer} onChange={(e) => setDensityLayer(e.target.value)} style={inp} aria-label={tr("Density by")}><option value="">{tr("one value")}</option>{codeLayers.map((k) => <option key={k} value={k}>{k === "weath" ? tr("Weathering") : k === "litho" ? tr("Lithology") : tr("Alteration")}</option>)}</select></label>}
+          {(codeLayers.length > 0 || densityModels.length > 0) && <label style={{ display: "flex", alignItems: "center", gap: 6 }} title={tr("A density per code of a logged layer: each block takes the nearest logged interval within {r} m; the Density field is the default for the rest", { r: Math.round(reachM) })}>{tr("Density by")}{/* #2550 */}
+            <select value={densityLayer} onChange={(e) => setDensityLayer(e.target.value)} style={inp} aria-label={tr("Density by")}><option value="">{tr("one value")}</option>{codeLayers.map((k) => <option key={k} value={k}>{k === "weath" ? tr("Weathering") : k === "litho" ? tr("Lithology") : tr("Alteration")}</option>)}{densityModels.map((m) => <option key={m.id} value={`model:${m.id}`}>{tr("the block model \"{name}\" (same blocks)", { name: m.name })}</option>)/* #3012 */}</select></label>}
           {sgLayer && <button type="button" style={{ ...inp, cursor: "pointer" }} title={tr("The length-weighted mean of the Specific gravity layer: {n} rows, {min} to {max}. One value for every block.", { n: sgLayer.n, min: sgLayer.min, max: sgLayer.max })} onClick={() => { setDensity(String(sgLayer.mean)); setFromSg(true); }}>{tr("Use the SG layer's mean ({v})", { v: sgLayer.mean })}</button>}
         </div>
         {densityLayer && layerCodes.length > 0 && (
@@ -171,13 +183,13 @@ export default function GradeTonnageModal({ model, epsg, onClose }) {
           <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: 10 }}>
             <thead><tr>
               <th style={th}>{tr("Bench floor (m)")}</th><th style={th}>{tr("Blocks")}</th><th style={th}>{tr("Volume (m³)")}</th><th style={th}>{unitL ? tr("Mean grade ({unit})", { unit: unitL }) : tr("Mean grade")}</th>
-              {rho && <th style={th}>{tr("Tonnes")}</th>}{rho && mcols.map((c) => <th key={c.key} style={th}>{tr(c.label, c.args)}</th>)}
+              {tonnesOn && <th style={th}>{tr("Tonnes")}</th>}{tonnesOn && mcols.map((c) => <th key={c.key} style={th}>{tr(c.label, c.args)}</th>)}
               {hasSupport && <th style={th}>{tr("Interpolated")}</th>}
             </tr></thead>
             <tbody>{benchRows.map((r) => (
               <tr key={r.floorRL}>
                 <td style={td}>{fmt(r.floorRL, 1)}</td><td style={td}>{fmt(r.blocks, 1)}</td><td style={td}>{fmt(r.volumeM3)}</td><td style={td}>{sig(r.meanGrade)}</td>
-                {rho && <td style={td}>{fmt(r.tonnes)}</td>}{rho && mcols.map((c) => <td key={c.key} style={td}>{r.metal == null ? "—" : c.key.startsWith("metal_mlb") ? sig(r.metal * c.factor) /* #2404 — millions of pounds: 3 significant figures */ : fmt(r.metal * c.factor, c.factor < 1e-2 && c.key !== "metal_oz" ? 1 : 0)}</td>)}
+                {tonnesOn && <td style={td}>{fmt(r.tonnes)}</td>}{tonnesOn && mcols.map((c) => <td key={c.key} style={td}>{r.metal == null ? "—" : c.key.startsWith("metal_mlb") ? sig(r.metal * c.factor) /* #2404 — millions of pounds: 3 significant figures */ : fmt(r.metal * c.factor, c.factor < 1e-2 && c.key !== "metal_oz" ? 1 : 0)}</td>)}
                 {hasSupport && <td style={td}>{r.interpolatedShare == null ? "—" : `${Math.round(r.interpolatedShare * 100)} %`}</td>}
               </tr>))}</tbody>
           </table>
@@ -186,7 +198,7 @@ export default function GradeTonnageModal({ model, epsg, onClose }) {
         <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: 10 }}>
           <thead><tr>
             <th style={th}>{unitL ? tr("Cutoff ({unit})", { unit: unitL }) : tr("Cutoff")}</th><th style={th}>{tr("Blocks")}</th><th style={th}>{tr("Volume (m³)")}</th><th style={th}>{unitL ? tr("Mean grade ({unit})", { unit: unitL }) : tr("Mean grade")}</th>
-            {rho && <th style={th}>{tr("Tonnes")}</th>}{rho && mcols.map((c) => <th key={c.key} style={th}>{tr(c.label, c.args)}</th>)}
+            {tonnesOn && <th style={th}>{tr("Tonnes")}</th>}{tonnesOn && mcols.map((c) => <th key={c.key} style={th}>{tr(c.label, c.args)}</th>)}
             {hasSupport && <th style={th} title={tr("Share of the volume in blocks the estimate classed interpolated (between holes, from at least two)")}>{tr("Interpolated")}</th>}
             {beyondKnown && <th style={th} title={tr("Share of the metal in blocks lying wholly above or below every sample that informs them: grade carried up or down the holes into metres their samples do not reach")}>{tr("Beyond the samples")}</th>}
             {logKnown && <th style={th} title={tr("About the share of the metal from the readings of the log that filled the unsampled metres: neither a sample nor a typed barren value")}>{tr("From the log")}</th>}{/* #2721 */}
@@ -194,12 +206,13 @@ export default function GradeTonnageModal({ model, epsg, onClose }) {
           <tbody>{rows.map((r) => (
             <tr key={r.cutoff}>
               <td style={td}>{sig4(r.cutoff)}{cutoffPct(r.cutoff, element, unit) != null ? ` (${sig4(cutoffPct(r.cutoff, element, unit))} %)` : ""}</td>{/* #1747 — a base metal in ppm: its cut-off in % too */}<td style={td}>{fmt(r.blocks)}</td><td style={td}>{fmt(r.volumeM3)}</td><td style={td}>{sig(r.meanGrade)}</td>
-              {rho && <td style={td}>{fmt(r.tonnes)}</td>}{rho && mcols.map((c) => <td key={c.key} style={td}>{r.metal == null ? "—" : c.key.startsWith("metal_mlb") ? sig(r.metal * c.factor) /* #2404 — millions of pounds: 3 significant figures */ : fmt(r.metal * c.factor, c.factor < 1e-2 && c.key !== "metal_oz" ? 1 : 0)}</td>)}
+              {tonnesOn && <td style={td}>{fmt(r.tonnes)}</td>}{tonnesOn && mcols.map((c) => <td key={c.key} style={td}>{r.metal == null ? "—" : c.key.startsWith("metal_mlb") ? sig(r.metal * c.factor) /* #2404 — millions of pounds: 3 significant figures */ : fmt(r.metal * c.factor, c.factor < 1e-2 && c.key !== "metal_oz" ? 1 : 0)}</td>)}
               {hasSupport && <td style={td}>{r.interpolatedShare == null ? "—" : `${Math.round(r.interpolatedShare * 100)} %`}</td>}
               {beyondKnown && <td style={td}>{r.beyondShare == null ? "—" : `${Math.round(r.beyondShare * 100)} %`}</td>}
               {logKnown && <td style={td}>{r.logShare == null ? "—" : `${Math.round(r.logShare * 100)} %`}</td>}{/* #2721 */}
             </tr>))}</tbody>
         </table>
+        {modelUse && <div style={{ fontSize: "var(--font-size-sm)", color: modelUse.f && !rho ? "var(--color-warn-text)" : "var(--color-text-secondary)", marginBottom: 6, lineHeight: 1.5 }}>{/* #3012 */}{tr("Density from the block model \"{name}\" on the same blocks: {k} block(s) take its value (a mean of {m} t/m³), {f} take {d} (no block of it there, or a value outside {lo}-{hi} t/m³).", { name: densityModel.name, k: modelUse.k.toLocaleString(), m: modelUse.mean == null ? "—" : modelUse.mean.toFixed(2), f: modelUse.f.toLocaleString(), d: rho ? tr("the Density field ({rho} t/m³)", { rho }) : tr("no density, so no tonnes"), lo: DENSITY_RANGE[0], hi: DENSITY_RANGE[1] })}</div>}
         {untypedCodes.length > 0 && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", marginBottom: 6, lineHeight: 1.5 }}>{/* #3013 */}{(() => { const list = untypedCodes.slice(0, 12).map(([c, n]) => tr("{code} ({n} blocks)", { code: c, n: n.toLocaleString() })).join(", ") + (untypedCodes.length > 12 ? ", …" : ""); return rho ? tr("No density typed for {list}: their blocks take the default ({rho} t/m³).", { list, rho }) : tr("No density typed for {list}: with no default density typed, their blocks have a volume but no tonnes.", { list }); })()}</div>}
         {densityUse && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 6, lineHeight: 1.5 }}>{/* #2550 */}{tr("Density by {layer}, the nearest logged interval within {r} m: {list}.", { layer: densityLayer === "weath" ? tr("Weathering") : densityLayer === "litho" ? tr("Lithology") : tr("Alteration"), r: Math.round(reachM), list: densityUse.map((d) => tr("{code} {rho} t/m³ ({n} blocks)", { code: d.code ?? tr("the default"), rho: d.rho ?? "—", n: d.n })).join("; ") })}{byBench ? " " + tr("The bench table uses the one density above.") : ""}{!rho ? " " + tr("Enter the default density to show the tonnes.") : ""}</div>}
         {beyondKnown && shown?.beyondShare > 0.1 && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", marginBottom: 6, lineHeight: 1.5 }}>{tr("{p} % of the metal at the {c} cutoff is in blocks above or below every sample that informs them: the estimate carried grade up or down the holes past their samples (unsampled core reads as not known unless the estimate filled it).", { p: Math.round(shown.beyondShare * 100), c: sig(shown.cutoff) })}</div>}
@@ -216,7 +229,7 @@ export default function GradeTonnageModal({ model, epsg, onClose }) {
             <text x={L} y={H - 10} fontSize="10" fill="#55606e">{sig(x0)}</text>
             <text x={W - R} y={H - 10} fontSize="10" textAnchor="end" fill="#55606e">{sig(x1)}</text>
             <text x={(L + W - R) / 2} y={H - 4} fontSize="10" textAnchor="middle" fill="#55606e">{tr("cutoff ({unit})", { unit: unitL || "?" })}</text>
-            <text x={L + 6} y={T + 10} fontSize="10" fill="#2f6fe0">{rho ? tr("tonnes") : tr("volume (m³)")}</text>
+            <text x={L + 6} y={T + 10} fontSize="10" fill="#2f6fe0">{tonnesOn ? tr("tonnes") : tr("volume (m³)")}</text>
             <text x={W - R - 6} y={T + 10} fontSize="10" textAnchor="end" fill="#c0392b">{tr("mean grade")}</text>
           </svg>
         )}
