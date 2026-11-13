@@ -304,7 +304,7 @@ export default function DesignStringsPane({ view, onAdd, onClose, surfaces = [],
     const taken = new Set((surfaces || []).map((s) => s.name)); let name = name0; for (let k = 2; taken.has(name); k++) name = `${name0} (${k})`; // #1942
     // #1904 — the tonnes are the solid's own volume at the density; the blocks (counted whole by their centre) give the grade only
     const tonnage = model && density > 0 ? solidTonnage(r.positions, r.indices, cellsWithAlso() /* #3084 */, density) : null;
-    const tonnes = density > 0 ? r.volume * density : null, blockM = model?.cells?.[0]?.dx;
+    const c0 = model?.cells?.[0], tonnes = density > 0 ? r.volume * density : null, blockM = c0 ? [c0.dx, c0.dy, c0.dz].map((v) => Math.round(v * 10) / 10).join(" × ") : null; // E x N x height: #3003 (2), was the plan size alone
     onAdd?.({ name, positions: r.positions, indices: r.indices, volumeM3: r.volume, type: "design_solid", closure: "closed", color: "#5c7cfa", tag: "string",
       tip: tr("Solid from design strings ({how}): a drawn shape, not a modelled one", { how }),
       params: { tool: `solid from design strings (${how})`, strings: how === "extrude" ? [string.name] : solid.loft.map((id) => designStrings.find((s) => s.id === id)?.name), volumeM3: Math.round(r.volume), ...(tonnes != null ? { density, tonnes: Math.round(tonnes) } : {}), ...(tonnage ? { blockModel: model.name, blockSizeM: blockM, blocksInside: tonnage.blocks, blockTonnes: Math.round(tonnage.tonnes), meanGrade: tonnage.meanGrade == null ? null : +tonnage.meanGrade.toPrecision(4), gradeUnit: valueUnit(model) || null, gradeFrom: "blocks whose centre lies inside, counted whole" } : {}), warnings: r.warnings || [], generatedAt: new Date().toISOString() } });

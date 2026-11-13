@@ -191,7 +191,7 @@ export default function StopesPane({ onAdd, onRemove, onClose, stopes = [], onSh
           {line(tr("Grade (diluted)"), g(res.totals.grade))}
           {line(tr("Ore above cut-off"), `${big(res.totals.oreTonnes)} t`)}
           {line(tr("Grade above cut-off"), g(res.totals.oreGrade))}
-          {res.totals.dilutionPct != null && line(tr("Dilution"), `${res.totals.dilutionPct.toFixed(0)} %`)}
+          {res.totals.dilutionPct != null && line(!(Number(res.inputs.skin) > 0) || res.skinCols === 0 ? tr("Internal dilution") : tr("Dilution"), `${res.totals.dilutionPct.toFixed(0)} %`)}{/* #3003 (3) — with no skin it is the blocks under the cut-off inside the outlines */}
           {line(tr("Outlined in"), `${res.seconds} s`)}
           {res.pit && <div style={note}>{tr("Below {pit}: {n} column-level(s) at the cut-off lie inside the pit or its {p} m pillar and were left out.", { pit: res.pitName, n: res.pit.shut, p: res.pit.pillar })}</div>}{/* #1964 */}
           {res.ground && res.ground.shut > 0 && <div style={note}>{tr("{n} column-level(s) at the cut-off reach above the ground less the {c} m crown ({src}) and were left out.", { n: res.ground.shut, c: res.ground.crown, src: res.groundSource === "terrain" ? tr("the terrain") : tr("interpolated between the collars") })}</div>}{/* #2438 */}
@@ -200,7 +200,7 @@ export default function StopesPane({ onAdd, onRemove, onClose, stopes = [], onSh
           {res.dip && <div style={note}>{tr("Along a dip of {d}° towards {a}°: each stope leans with the vein; the {w} m width and {s} m skin across it are {wg} m and {sg} m on the ground.", { d: res.dip.dipDeg, a: res.dip.dipDirDeg, w: res.inputs.minWidth || 0, s: res.inputs.skin || 0, wg: +res.dip.widthOnGroundM.toFixed(1), sg: +res.dip.skinOnGroundM.toFixed(1) })}</div>}{/* #1953 */}
           {/* #1885 — the width and skin as applied; #1886 — a level interval below the block height slices the same block */}
           <div style={note}>{tr("Width {w} m → {n} column(s) ({m} m); skin {s} m → {k} column(s) ({t} m).", { w: res.inputs.minWidth || 0, n: res.widthCols, m: +effWidthM.toFixed(1), s: res.inputs.skin || 0, k: res.skinCols, t: +effSkinM.toFixed(1) })}</div>
-          {Number(res.inputs.skin) > 0 && res.skinCols === 0 && <div style={warn}>{tr("No dilution counted: the skin is under half a column.")}</div>}
+          {Number(res.inputs.skin) > 0 && res.skinCols === 0 && <div style={warn}>{tr("No skin dilution: the skin is under half a column. The dilution above is internal only: the blocks under the cut-off inside the outlines.")}{/* #3003 (3) — one statement */}</div>}
           {res.blockH > 0 && Number(res.inputs.levelH) < res.blockH - 1e-9 && <div style={warn}>{tr("Levels under {h} m are slices of the same block: the per-level figures repeat.", { h: res.blockH })}</div>}
           {res.totals.stopes === 0 && res.pit && res.oreColumns > 0 && res.oreColumns === res.pit.shut ? <div style={warn}>{tr("Every column at the cut-off lies inside the pit or its pillar.")}</div> : res.totals.stopes === 0 && (res.oreColumns === 0
             ? <div style={warn}>{tr("No column reaches the cut-off on any level.")}</div>

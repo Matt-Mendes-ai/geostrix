@@ -11425,5 +11425,9 @@
   "Building the design grid: cancel": "Construindo a grade do projeto: cancelar",
   "Meshing the design and counting its tonnes: cancel": "Gerando a malha do projeto e contando suas toneladas: cancelar",
   ", above {rl} m {b} m berms at {a}°": ", acima de {rl} m bermas de {b} m a {a}°",
-  "Inter-ramp angle above {rl} m": "Ângulo inter-rampa acima de {rl} m"
+  "Inter-ramp angle above {rl} m": "Ângulo inter-rampa acima de {rl} m",
+  "{n} sample(s) at or above the cut-off ({m} m in {h} hole(s){list}) lie inside the pit in cells of the model's footprint the estimate left empty: they are mined as waste here.": "{n} amostra(s) iguais ou acima do teor de corte ({m} m em {h} furo(s){list}) estão dentro da cava em células da área do modelo que a estimativa deixou vazias: aqui são lavradas como estéril.",
+  ", density by {layer} ({n} codes)": ", densidade por {layer} ({n} códigos)",
+  "Internal dilution": "Diluição interna",
+  "No skin dilution: the skin is under half a column. The dilution above is internal only: the blocks under the cut-off inside the outlines.": "Sem diluição de borda: a borda é menor que meia coluna. A diluição acima é só interna: os blocos abaixo do teor de corte dentro dos contornos."
 }

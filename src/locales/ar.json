@@ -11425,5 +11425,9 @@
   "Building the design grid: cancel": "بناء شبكة التصميم: إلغاء",
   "Meshing the design and counting its tonnes: cancel": "تشبيك التصميم وحساب أطنانه: إلغاء",
   ", above {rl} m {b} m berms at {a}°": "، فوق {rl} م مصاطب {b} م بزاوية {a}°",
-  "Inter-ramp angle above {rl} m": "زاوية ما بين المنحدرات فوق {rl} م"
+  "Inter-ramp angle above {rl} m": "زاوية ما بين المنحدرات فوق {rl} م",
+  "{n} sample(s) at or above the cut-off ({m} m in {h} hole(s){list}) lie inside the pit in cells of the model's footprint the estimate left empty: they are mined as waste here.": "تقع {n} عينة (عينات) عند المحتوى الحدي أو فوقه ({m} م في {h} ثقب (ثقوب){list}) داخل الحفرة في خلايا من نطاق النموذج تركها التقدير فارغة: تُستخرج هنا كنفايات.",
+  ", density by {layer} ({n} codes)": "، الكثافة حسب {layer} ({n} رمزًا)",
+  "Internal dilution": "التخفيف الداخلي",
+  "No skin dilution: the skin is under half a column. The dilution above is internal only: the blocks under the cut-off inside the outlines.": "لا تخفيف للحافة: الحافة أقل من نصف عمود. التخفيف أعلاه داخلي فقط: الكتل دون المحتوى الحدي داخل الحدود."
 }
