@@ -1,4 +1,5 @@
 {
+  "Left out of this run: {n} hole(s) whose collar elevation looks like a missing value ({list}), with {k} contact(s) on them. Their contacts would sit at that elevation and stretch the model box; fix the collar RL and re-import the collars to use them.": "استُبعدت من هذا التشغيل: {n} ثقب يبدو ارتفاع فوهته قيمة مفقودة ({list})، مع {k} تماس عليها. كانت تماساتها ستقع عند ذلك الارتفاع وتمدد صندوق النموذج؛ صحّح ارتفاع الفوهة وأعد استيراد الفوهات لاستخدامها.",
   "3D View": "العرض ثلاثي الأبعاد",
   "3D Modelling": "النمذجة ثلاثية الأبعاد",
   "Geochem": "الجيوكيمياء",

@@ -1,4 +1,5 @@
 {
+  "Left out of this run: {n} hole(s) whose collar elevation looks like a missing value ({list}), with {k} contact(s) on them. Their contacts would sit at that elevation and stretch the model box; fix the collar RL and re-import the collars to use them.": "Laissés hors de ce calcul : {n} sondage(s) dont l'altitude du collet ressemble à une valeur manquante ({list}), avec {k} contact(s). Leurs contacts seraient à cette altitude et étireraient la boîte du modèle ; corrigez l'altitude du collet et réimportez les collets pour les utiliser.",
   "3D View": "Vue 3D",
   "3D Modelling": "Modélisation 3D",
   "Geochem": "Géochimie",

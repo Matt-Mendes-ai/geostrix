@@ -1,4 +1,5 @@
 {
+  "Left out of this run: {n} hole(s) whose collar elevation looks like a missing value ({list}), with {k} contact(s) on them. Their contacts would sit at that elevation and stretch the model box; fix the collar RL and re-import the collars to use them.": "Deixados de fora desta execução: {n} furo(s) cuja cota de colar parece um valor em falta ({list}), com {k} contato(s) neles. Os seus contatos ficariam nessa cota e esticariam a caixa do modelo; corrija a cota do colar e reimporte os colares para usá-los.",
   "3D View": "Visualização 3D",
   "3D Modelling": "Modelagem 3D",
   "Geochem": "Geoquímica",

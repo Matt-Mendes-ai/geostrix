@@ -5,6 +5,7 @@ import * as THREE from "three";
 import { layerStamp } from "../../lib/layerStamp.js"; // TASKS.csv #2388
 import { rowsByHole } from "../../lib/rowsByHole.js"; // TASKS.csv #2906
 import { stackCellCheck } from "../../lib/stackResolution.js"; // TASKS.csv #2905
+import { suspectElevationIds } from "../../lib/collarElevationTrust.js"; // TASKS.csv #2918 (the #3004 rule)
 import { trendRatioText } from "../../lib/trend.js"; // TASKS.csv #2423
 import { trendCellM, trendCellText } from "../../lib/trendCell.js"; // TASKS.csv #3010
 import { trendBodyReach } from "../../lib/trendBodyReach.js"; // TASKS.csv #2780
@@ -212,6 +213,17 @@ export function createModellingRuns(ctx, mcRef) {
       if (!orientations.length && !cakeRun) { setNotices((p) => [...p, notice("\"{label}\": no usable orientations left after removing invalid ones — skipped.", { label: spec.label })]); return; } // #2905: a layer-cake needs none
       specs.push({ ...spec, points, orientations });
     });
+    // TASKS.csv #2918 (review #2876, WA iron) — two collars at elevation 0 on a 440 m plateau made the whole-field box 1,063 m tall (cells
+    // of 212 m) and their contacts sat 440 m under the rest. Holes whose collar elevation is suspect (#3004's rule: 0 m on raised ground,
+    // or a stray far from every other collar) are left out of the run, contacts and drilled column, and named before the solve.
+    const suspectZ = suspectElevationIds(collars || []);
+    if (suspectZ.size) {
+      let dropped = 0;
+      specs.forEach((s) => { const n = s.points.length; s.points = s.points.filter((p) => !(p.hole_id != null && suspectZ.has(p.hole_id))); dropped += n - s.points.length; });
+      const zOf = new Map((collars || []).map((c) => [c.hole_id, c.z]));
+      setNotices((p) => [...p, notice("Left out of this run: {n} hole(s) whose collar elevation looks like a missing value ({list}), with {k} contact(s) on them. Their contacts would sit at that elevation and stretch the model box; fix the collar RL and re-import the collars to use them.", { n: suspectZ.size, list: [...suspectZ].slice(0, 5).map((id) => `${id} (${Math.round(zOf.get(id))} m)`).join(", ") + (suspectZ.size > 5 ? " …" : ""), k: dropped })]);
+      for (let k = specs.length - 1; k >= 0; k--) if (!specs[k].points.length) { setNotices((p) => [...p, notice("\"{label}\": no usable points left after removing invalid ones — skipped.", { label: specs[k].label })]); specs.splice(k, 1); }
+    }
     if (!specs.length) { setNotices((p) => [...p, notice("Nothing left to model after removing invalid points/orientations — see notices above for which columns to check.")]); return; }
     // TASKS.csv #762 — the picks themselves, before the solve (GemPy's condition number was measured blind to most of this)
     // TASKS.csv #2539 (review #2486) — an orientation the run estimated itself (no structure pick) is not a pick to 'fix or exclude': worded apart
@@ -241,7 +253,7 @@ export function createModellingRuns(ctx, mcRef) {
     // cover the whole property, with ~15% padding on each side. Computed in API (east/north/up)
     // space to match the points/orientations above. #1335 — unless the surfaces stop near their own contacts: then only
     // their own points count, and the same grid gives cells that much finer.
-    const allApiPts = traces.flatMap((t) => t.pts).map(sceneToApi);
+    const allApiPts = traces.filter((t) => !suspectZ.has(t.hole_id) /* #2918 */).flatMap((t) => t.pts).map(sceneToApi);
 
     // TASKS.csv #86 — when anisotropy is enabled, EVERY api-space coordinate that crosses the sidecar
     // boundary (extent corners, interface points, orientation positions+directions) gets warped by the
@@ -279,7 +291,7 @@ export function createModellingRuns(ctx, mcRef) {
     // traces, as before. #2528 — the column of the traces inside this box only (the project's whole column made 1,183 m of box for 20 m holes)
     // #2616 — the column of the Model area's holes only, each trace cut at the hole's logged end (a survey can run past it)
     const lenOf = new Map((collars || []).map((c) => [c.hole_id, Number(c.length)]));
-    const colPts = reachLib?.clipTrace ? traces.filter((t) => modelArea !== "checked" || !(visibleHoles && visibleHoles[t.hole_id] === false)).flatMap((t) => reachLib.clipTrace(t.pts.map(sceneToApi), lenOf.get(t.hole_id)).map((p) => ({ ...p, hole: t.hole_id }))) : allApiPts;
+    const colPts = reachLib?.clipTrace ? traces.filter((t) => modelArea !== "checked" || !(visibleHoles && visibleHoles[t.hole_id] === false)).flatMap((t) => reachLib.clipTrace(t.pts.map(sceneToApi), lenOf.get(t.hole_id)).map((p) => ({ ...p, hole: t.hole_id }))).filter((p) => !suspectZ.has(p.hole) /* #2918 */) : allApiPts;
     const colHit = reachLib?.drilledColumn ? reachLib.drilledColumn(colPts, { xmin, xmax, ymin, ymax }) : null;
     const colR = colHit || zr, vPad = !anisotropy.enabled && reachLib?.verticalPad ? reachLib.verticalPad(zr.max - zr.min, colR.max - colR.min, MODEL_EXTENT_PAD_M) : null;
     const [zmin, zmax] = vPad != null ? [Math.min(zr.min, colR.min) - vPad, Math.max(zr.max, colR.max) + vPad] : pad(zr.min, zr.max);
@@ -369,6 +381,7 @@ export function createModellingRuns(ctx, mcRef) {
     const evalRows = [];
     traces.forEach((t) => {
       if (modelArea === "checked" && visibleHoles?.[t.hole_id] === false) return; // TASKS.csv #2535 — the model check scores the Model area's holes
+      if (suspectZ.has(t.hole_id)) return; // TASKS.csv #2918 — nor a hole whose collar elevation is suspect
       (rowsByHole(unitLitho || importStateRef.current.layers?.litho || []).get(t.hole_id) || []).forEach((r) => { // #2378 — the unit as the tools read it; #2905 — the hole's rows (a scan of 150,455 per hole)
         if (r.hole_id !== t.hole_id || !Number.isFinite(r.from) || !Number.isFinite(r.to) || r.to <= r.from) return;
         const p = findOnTrace(t.pts, (r.from + r.to) / 2);
