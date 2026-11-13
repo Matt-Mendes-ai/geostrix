@@ -4,7 +4,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const rd = (p) => readFileSync(new URL(`../src/${p}`, import.meta.url), "utf8");
+const rd = (p) => readFileSync(new URL(`../src/${p}`, import.meta.url), "utf8").replace(/\r\n/g, "\n"); // CRLF checkout
 
 test("the Maps ribbon: a strata icon in Map layers, not Advanced-only, asking the Web layers pane for the dialog", () => {
   const m = rd("modules/MapsModule.jsx");
