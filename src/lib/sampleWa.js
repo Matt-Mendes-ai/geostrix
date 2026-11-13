@@ -20,6 +20,7 @@ export const WA_SAMPLES = {
   },
   wa_lead_zinc: { dir: "wa_lead_zinc", epsg: 28352, label: "WA lead-silver-zinc", assays: "assays.csv" },
   wa_zinc_copper: { dir: "wa_zinc_copper", epsg: 28350, label: "WA zinc-copper", assays: "assays.csv", surface: [["soils.csv", "soil"], ["streams.csv", "stream sediment"]] },
+  wa_gold: { dir: "wa_gold", epsg: 28351, label: "WA lode gold", assays: "assays.csv" },
 };
 
 const cellOf = (e, raw) => (e.symbol === LOI ? readLoiCell(raw) : readAssayCell(raw));

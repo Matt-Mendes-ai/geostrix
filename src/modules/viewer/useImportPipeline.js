@@ -1165,6 +1165,12 @@ export function useImportPipeline(ctx) {
       files: ["collars.csv", "survey.csv", "litho.csv", "weath.csv", "alt.csv", "mnlgy.csv"],
       notice: "WA zinc-copper (WAMEX report A77713): 32 holes from 2007 on sulphide prospects in felsic volcanic rocks of the east Pilbara, with logs and assays, and 157 soil and 46 stream-sediment samples — nothing synthesized.",
     },
+    // TASKS.csv #3107 — its assays and other parts are loaded by the caller (lib/sampleWa.js)
+    wa_gold: {
+      dir: "wa_gold", epsg: 28351, crs: "GDA94 / MGA zone 51",
+      files: ["collars.csv", "survey.csv", "litho.csv", "weath.csv", "alt.csv", "vein.csv", "structure.csv"],
+      notice: "WA lode gold (WAMEX report A122506): 66 inclined holes from 2018-2019 on a gold prospect east of Kalgoorlie, with lithology, alteration, veining, oriented structures and 14,664 gold assays — nothing synthesized.",
+    },
   };
   const loadSampleProject = async (which = "harry") => {
     if (sampleLoading || importActiveRef.current) return false;
