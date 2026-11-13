@@ -30,6 +30,7 @@
   "Surface: samples, structures, map layers and boundaries": "Superficie: muestras, estructuras, capas de mapa y límites",
   "Mine design: design lines and strings": "Diseño minero: líneas y polilíneas de diseño",
   "3D models: generated surfaces, block models and terrain": "Modelos 3D: superficies generadas, modelos de bloques y terreno",
+  "Written in EPSG:{epsg} through the local grid's tie (rotation {rot}°): grids and pictures were resampled onto that CRS's north.": "Escrito en EPSG:{epsg} a través del amarre de la grilla local (rotación {rot}°): las grillas y las imágenes se remuestrearon al norte de ese SRC.",
   "The model \"{name}\" has {n} triangles, more than a KMZ model can take, and is left out.": "El modelo «{name}» tiene {n} triángulos, más de los que admite un modelo KMZ, y se deja fuera.",
   "The model \"{name}\" could not be placed on the map and is left out.": "El modelo «{name}» no se pudo ubicar en el mapa y se deja fuera.",
   "The section image \"{name}\" has no picture and is left out.": "La imagen de sección «{name}» no tiene imagen y se deja fuera.",

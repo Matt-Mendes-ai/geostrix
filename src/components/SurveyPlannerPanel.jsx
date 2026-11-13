@@ -10,7 +10,7 @@ import { soilGrid, streamSites, numberSamples, planGpx, planKml, planCsvRows, pl
 import { routeTerrainAsync } from "../lib/hydrologyClient.js";
 import { pointTransform, crsName } from "../lib/reproject.js";
 import { loadIgrf, gridBearingAsTrueMagnetic, bearingPhrase } from "../lib/azimuthRef.js"; // TASKS.csv #1024
-import { ensureExportCrs } from "../lib/projectCrsRequest.js"; // TASKS.csv #1021
+import { exportCrs, exportXY, bearingToWorld } from "../lib/tiedExport.js"; // TASKS.csv #1021; a tied local grid: #2322
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { saveFile } from "../lib/desktop.js";
@@ -81,10 +81,15 @@ export default function SurveyPlannerPanel({ onClose }) {
   // TASKS.csv #1024 — the line bearing as grid, true and magnetic at the area's centre (a crew on a compass walking the
   // grid bearing drifted 250-300 m per km at Harry / Woodjam); in the title (KML / GPX name, field sheet heading) and CSV
   const centre = area ? [area.ring.reduce((s, p) => s + p[0], 0) / area.ring.length, area.ring.reduce((s, p) => s + p[1], 0) / area.ring.length] : null;
-  const bearingFor = (epsg) => (mode === "soil" && centre && epsg && igrfReady ? gridBearingAsTrueMagnetic(grid.azimuth, centre[0], centre[1], epsg, surveyDate) : null);
+  // tie (#2322): on a tied local grid the bearing is turned to the tie CRS's grid and taken at the centre's place in it
+  const bearingFor = (epsg, tie = null) => {
+    if (!(mode === "soil" && centre && epsg && igrfReady)) return null;
+    const c = exportXY(tie)(centre[0], centre[1]);
+    return gridBearingAsTrueMagnetic(bearingToWorld(tie, grid.azimuth), c[0], c[1], epsg, surveyDate);
+  };
   const shownEpsg = project?.crsSet !== false && project?.epsg ? Number(project.epsg) : null;
   const bearing = bearingFor(shownEpsg);
-  const titleFor = (b) => (mode === "soil" ? `Soil grid: ${grid.lineSpacing} x ${grid.stationSpacing} m, lines at ${bearingPhrase(b, grid.azimuth)}` : title);
+  const titleFor = (b, tie = null) => (mode === "soil" ? `Soil grid: ${grid.lineSpacing} x ${grid.stationSpacing} m, lines at ${bearingPhrase(b, bearingToWorld(tie, grid.azimuth))}` : title);
   const title = mode === "soil" ? `Soil grid: ${grid.lineSpacing} x ${grid.stationSpacing} m, lines at ${grid.azimuth}° grid` : `Stream sites: order ${streams.orders.join(", ")}, ${streams.minAreaKm2}-${streams.maxAreaKm2} km²`;
 
   const draw = () => {
@@ -98,11 +103,11 @@ export default function SurveyPlannerPanel({ onClose }) {
   // TASKS.csv #1021 — the coordinate system is asked for if it was never chosen (the GPS files and the CSV's lat / lon
   // used the placeholder), and raw x / y are never written as latitude / longitude
   const save = async (ext, build, kind) => {
-    const epsg = await ensureExportCrs(project); if (!epsg) return;
-    const T = pointTransform(epsg, 4326);
+    const ex = await exportCrs(project); if (!ex) return; // #2322 — a tied local grid: through its tie
+    const { epsg, tie } = ex, T = pointTransform(epsg, 4326), P = exportXY(tie);
     if (!T) { setMsg(tr("EPSG:{epsg} could not be converted to latitude / longitude, so no GPS file was written.", { epsg })); return; }
-    const b = bearingFor(epsg); // #1024 — with the CRS just chosen, if it was asked for
-    saveFile({ suggestedName: `survey_plan.${ext}`, filters: [{ name: kind, extensions: [ext] }], content: build((x, y) => T(x, y), epsg, titleFor(b), b) });
+    const b = bearingFor(epsg, tie); // #1024 — with the CRS just chosen, if it was asked for
+    saveFile({ suggestedName: `survey_plan.${ext}`, filters: [{ name: kind, extensions: [ext] }], content: build((x, y) => T(...P(x, y)), epsg, titleFor(b, tie), b) });
   };
 
   return (

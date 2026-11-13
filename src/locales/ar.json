@@ -30,6 +30,7 @@
   "Surface: samples, structures, map layers and boundaries": "السطح: العينات والبنى وطبقات الخريطة والحدود",
   "Mine design: design lines and strings": "تصميم المنجم: خطوط التصميم وسلاسله",
   "3D models: generated surfaces, block models and terrain": "نماذج ثلاثية الأبعاد: الأسطح المولّدة ونماذج الكتل والتضاريس",
+  "Written in EPSG:{epsg} through the local grid's tie (rotation {rot}°): grids and pictures were resampled onto that CRS's north.": "كُتب بنظام EPSG:{epsg} عبر ربط الشبكة المحلية (دوران {rot}°): أُعيد أخذ عينات الشبكات والصور على شمال ذلك النظام الإحداثي.",
   "The model \"{name}\" has {n} triangles, more than a KMZ model can take, and is left out.": "يحتوي النموذج \"{name}\" على {n} مثلثًا، وهو أكثر مما يتسع له نموذج KMZ، لذا استُبعد.",
   "The model \"{name}\" could not be placed on the map and is left out.": "تعذّر وضع النموذج \"{name}\" على الخريطة، لذا استُبعد.",
   "The section image \"{name}\" has no picture and is left out.": "صورة المقطع \"{name}\" بلا صورة، لذا استُبعدت.",

@@ -26,7 +26,6 @@ import { valueIn } from "../lib/geochem.js";
 import { excludeQAQC, isPxrfRow } from "../lib/qaqc.js"; // isPxrfRow: TASKS.csv #1723
 import { f32ToB64 } from "../lib/inversion.js";
 import { gridToGeoTIFF, saveGeoTIFF } from "../lib/gridExport.js";
-import { ensureExportCrs } from "../lib/projectCrsRequest.js"; // TASKS.csv #1021
 import { fontSizes } from "../lib/theme.js";
 import { pBtn as sidebarBtn, smallSel } from "../lib/sidebarStyles.js"; // TASKS.csv #997
 import { t as tr } from "../lib/i18n.js";
@@ -514,7 +513,7 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
     const full = text + (which === "posterior" && result.circular ? " " + tr("Circular: the same samples are evidence and occurrences, so the weights will flatter the evidence.") : "") /* #1836 */ + (which === "posterior" || which === "posteriorSd" ? " " + tr("Its colours run from 0 (pale) to {top}, the highest value (dark red).", { top: +top.toPrecision(3) }) : " " + tr("Its colours run from 0 (pale) to 1 (dark red).")) + (earlier.length ? " " + tr(earlier.length === 1 ? "The earlier score map is hidden." : "The {n} earlier score maps are hidden.", { n: earlier.length }) : ""); // #1731
     setMsg(full); setCover(cv.rasters.length + cv.models.length ? { ...cv, forMsg: full } : null);
   };
-  const toTif = async (which) => { const epsg = await ensureExportCrs(project); if (!epsg) return; /* #1021 */ const score = which === "posterior" ? result.wofe.post.prob : result.fuzzy; saveGeoTIFF(`${which === "posterior" ? "wofe_posterior" : "fuzzy_overlay"}.tif`, gridToGeoTIFF({ ...grid, bands: [{ values: score }], epsg })); };
+  const toTif = async (which) => { const tx = await import("../lib/tiedExport.js"); const ex = await tx.exportCrs(project); if (!ex) return; /* #1021; #2322 — a tied local grid: resampled through its tie */ const score = which === "posterior" ? result.wofe.post.prob : result.fuzzy; saveGeoTIFF(`${which === "posterior" ? "wofe_posterior" : "fuzzy_overlay"}.tif`, gridToGeoTIFF({ ...tx.gridBandsToWorld({ ...grid, bands: [{ values: score }] }, ex.tie), epsg: ex.epsg })); };
 
   return (
     <>
