@@ -18,6 +18,7 @@ export const WA_SAMPLES = {
     logs: { file: "logs.csv", channels: [["density", "Density (g/cm3)", "g/cm3"], ["gamma", "Natural gamma", ""], ["susceptibility", "Magnetic susceptibility", ""]] },
     grid: { file: "tmi_80m.tif", name: "Total magnetic intensity (Geoscience Australia, 80 m)", method: "mag", units: "nT", source: "Geoscience Australia, Total Magnetic Intensity Grid of Australia 2019, seventh edition, 80 m" },
   },
+  wa_lead_zinc: { dir: "wa_lead_zinc", epsg: 28352, label: "WA lead-silver-zinc", assays: "assays.csv" },
 };
 
 const cellOf = (e, raw) => (e.symbol === LOI ? readLoiCell(raw) : readAssayCell(raw));

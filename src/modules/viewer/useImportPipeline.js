@@ -1153,6 +1153,12 @@ export function useImportPipeline(ctx) {
       files: ["collars.csv", "survey.csv", "litho.csv"],
       notice: "WA bedded iron (WAMEX report A119232): 147 shallow holes from 2018 on one block of a flat-lying iron deposit under cover, with strand logs, XRF assays, downhole density, gamma and magnetic-susceptibility logs, and Geoscience Australia's magnetic grid over it — nothing synthesized.",
     },
+    // TASKS.csv #3107 — its assays and other parts are loaded by the caller (lib/sampleWa.js)
+    wa_lead_zinc: {
+      dir: "wa_lead_zinc", epsg: 28352, crs: "GDA94 / MGA zone 52",
+      files: ["collars.csv", "survey.csv", "litho.csv", "weath.csv", "sg.csv"],
+      notice: "WA lead-silver-zinc (WAMEX report A91581): 99 shallow holes from 2010 on a carbonate-hosted deposit in the east Kimberley, with lithology, weathering, assays and specific gravity — nothing synthesized.",
+    },
   };
   const loadSampleProject = async (which = "harry") => {
     if (sampleLoading || importActiveRef.current) return false;

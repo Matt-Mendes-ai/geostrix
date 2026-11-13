@@ -11475,5 +11475,8 @@
   "{name} downhole logs: {list} — along the holes in the 3D View, in Geophysics > Downhole logs and among the modelling tools' numeric sources.": "تسجيلات الآبار من {name}: {list}؛ على طول الثقوب في العرض ثلاثي الأبعاد، وفي الجيوفيزياء > تسجيلات الآبار، وضمن المصادر الرقمية لأدوات النمذجة.",
   "The {name} downhole logs could not be loaded: {message}": "تعذّر تحميل تسجيلات الآبار من {name}: {message}",
   "{name} grid: {grid} — in Maps, and in Geophysics for filters and an inversion against the holes.": "شبكة {name}: {grid}؛ في الخرائط، وفي الجيوفيزياء للمرشّحات ولعكسٍ يُقارَن بالثقوب.",
-  "The {name} grid could not be loaded: {message}": "تعذّر تحميل شبكة {name}: {message}"
+  "The {name} grid could not be loaded: {message}": "تعذّر تحميل شبكة {name}: {message}",
+  "Sample: WA lead-silver-zinc (99 holes)": "مثال: رصاص-فضة-زنك من أستراليا الغربية (99 ثقباً)",
+  "Load the bundled Western Australian lead-silver-zinc sample — 99 reverse-circulation and diamond drillholes (2010) on a shallow carbonate-hosted deposit in the east Kimberley, with lithology and weathering logs, assays and specific gravity, from the State's open-file WAMEX drillhole database (report A91581)": "تحميل مثال الرصاص-الفضة-الزنك المرفق من أستراليا الغربية: 99 ثقب حفر بالدوران العكسي والماسي (2010) في راسب ضحل تستضيفه صخور كربوناتية شرق كيمبرلي، مع سجلات الليثولوجيا والتجوية والتحاليل والثقل النوعي، من قاعدة بيانات WAMEX المفتوحة للولاية (التقرير A91581)",
+  "WA lead-silver-zinc (WAMEX report A91581): 99 shallow holes from 2010 on a carbonate-hosted deposit in the east Kimberley, with lithology, weathering, assays and specific gravity — nothing synthesized.": "رصاص-فضة-زنك من أستراليا الغربية (تقرير WAMEX رقم A91581): 99 ثقباً ضحلاً من عام 2010 في راسب تستضيفه صخور كربوناتية شرق كيمبرلي، مع الليثولوجيا والتجوية والتحاليل والثقل النوعي؛ لا شيء مُصطنع."
 }
