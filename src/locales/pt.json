@@ -114,6 +114,7 @@
   "Inversion": "Inversão",
   "Lab certificates": "Certificados de lab.",
   "Legend": "Legenda",
+  "{label}: the {kept} commonest of {n} codes, the rest as \"other\"": "{label}: os {kept} códigos mais comuns de {n}, o restante como \"other\"",
   "{symbol} as {oxide}": "{symbol} como {oxide}",
   "Oxide names work too, in % through the import's factors: {list}.": "Os nomes dos óxidos também funcionam, em % pelos fatores da importação: {list}.",
   "Fe2O3 from Fe (x 1.4297)": "Fe2O3 a partir de Fe (x 1.4297)",

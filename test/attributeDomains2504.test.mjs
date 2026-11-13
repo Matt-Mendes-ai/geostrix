@@ -88,8 +88,8 @@ test("the SQL collars table carries the collar fields: drill type can be joined"
 test("the three tools offer them", () => {
   for (const f of ["GradeStatistics", "CompositingModal"]) {
     const s = readFileSync(new URL(`../src/components/${f}.jsx`, import.meta.url), "utf8");
-    assert.match(s, /\[\.\.\.attributeDomainOptions\(assays, storeCollars\), \.\.\.customDomainOptions\(customLayers(, \{ layers: storeLayers, labelOf: [^}]*\})?\)/, f); // the built-in extras: #2349
-    assert.match(s, /d\.attribute \? attributeDomainLabel\(d, tr\) : d\.label/, f);
+    assert.match(s, /\[\.\.\.attributeDomainOptions\(assays, storeCollars\), \.\.\.customDomainOptions\(customLayers(, \{ layers: storeLayers, labelOf: [^}]*\})?(, \{ groupTop: 12 \} \/\* #2915 \*\/)?\)/, f); // the built-in extras: #2349; groupTop: #2915
+    assert.match(s, /d\.attribute( \|\| d\.grouped)? \? attributeDomainLabel\(d, tr\) : d\.label/, f); // d.grouped: #2915
   }
   const t = readFileSync(new URL("../src/components/ThresholdToolkit.jsx", import.meta.url), "utf8");
   assert.match(t, /attributeDomainOptions\(drillAssays, collars\)/);

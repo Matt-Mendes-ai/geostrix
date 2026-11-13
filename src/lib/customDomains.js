@@ -8,7 +8,13 @@ const fin = (v) => v !== null && v !== "" && Number.isFinite(Number(v));
 // Dcb 665 / DCB 363 / DCb 4 ... and was dropped as over 30), and each code is spelled as most often; `builtin` ({ layers, labelOf }) adds
 // the built-in logs' extra fields (Lithology's Strat, Oxidation, Lith2 were never offered): their 'value' is already a domain
 const BUILTIN_KEYS = ["litho", "alt", "vein", "breccia", "weath", "structzone"];
-export function customDomainOptions(customLayers, builtin = null) {
+// TASKS.csv #2915 (review #2876, WA iron) — a field of more than 30 codes was dropped without a word ('Material type (dominant)', 42 codes,
+// absent from Grade stats and Compositing). With { groupTop: 12 } it is offered as its 12 commonest codes (by logged length) and the rest as
+// OTHER_CODES, flagged grouped: { kept, of } so the list can say so. Still a code field: codes repeat (no more distinct values than half the
+// filled rows) and are not mostly numbers. Up to GROUP_MAX distinct codes; past that it is free text.
+export const OTHER_CODES = "other";
+const GROUP_MAX = 500;
+export function customDomainOptions(customLayers, builtin = null, { groupTop = 0 } = {}) {
   const out = [];
   const extra = builtin?.layers ? BUILTIN_KEYS.filter((k) => (builtin.layers[k] || []).length).map((k) => ({ id: `layer-${k}`, name: builtin.labelOf ? builtin.labelOf(k) : k, rows: builtin.layers[k], skip: "value" })) : [];
   for (const L of [...(customLayers || []), ...extra]) {
@@ -20,11 +26,16 @@ export function customDomainOptions(customLayers, builtin = null) {
       let filled = 0, numeric = 0;
       const distinct = new Set();
       const spell = new Map(); // upper-cased code -> Map(spelling -> count)
-      for (const r of rows) { const v = r[f]; if (v == null || v === "") continue; filled++; if (fin(v)) numeric++; const t = String(v).trim(), k = t.toUpperCase(); distinct.add(k); const m = spell.get(k) || new Map(); m.set(t, (m.get(t) || 0) + 1); spell.set(k, m); if (distinct.size > 30) break; }
+      const cap = groupTop > 0 ? GROUP_MAX : 30; // #2915 — count past 30 only when the caller groups
+      const len = new Map(); // upper-cased code -> logged length (#2915: the commonest codes by core, not by row count)
+      for (const r of rows) { const v = r[f]; if (v == null || v === "") continue; filled++; if (fin(v)) numeric++; const t = String(v).trim(), k = t.toUpperCase(); distinct.add(k); const m = spell.get(k) || new Map(); m.set(t, (m.get(t) || 0) + 1); spell.set(k, m); len.set(k, (len.get(k) || 0) + (Number(r.to) - Number(r.from))); if (distinct.size > cap) break; }
       const canon = new Map([...spell].map(([k, m]) => [k, [...m].sort((x, y) => y[1] - x[1] || (x[0] < y[0] ? -1 : 1))[0][0]]));
       const canonOf = (t) => canon.get(t.toUpperCase()) || t;
-      if (filled < 0.5 * rows.length || distinct.size < 2 || distinct.size > 30 || distinct.size > 0.5 * filled || numeric > 0.5 * filled) continue; // codes repeat; free text does not
-      out.push({ key: `custom:${L.id ?? L.name}:${f}`, label: `${L.name || "Custom layer"} · ${f}`, rows: rows.map((r) => ({ hole_id: r.hole_id, from: Number(r.from), to: Number(r.to), value: r[f] == null || r[f] === "" ? null : canonOf(String(r[f]).trim()) })).filter((r) => r.value != null) });
+      if (filled < 0.5 * rows.length || distinct.size < 2 || distinct.size > cap || distinct.size > 0.5 * filled || numeric > 0.5 * filled) continue; // codes repeat; free text does not
+      const grouped = distinct.size > 30;
+      const top = grouped ? new Set([...len].sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1)).slice(0, groupTop).map(([k]) => k)) : null;
+      const codeOf = (t) => (grouped && !top.has(t.toUpperCase()) ? OTHER_CODES : canonOf(t));
+      out.push({ key: `custom:${L.id ?? L.name}:${f}${grouped ? `:top${groupTop}` : ""}`, label: `${L.name || "Custom layer"} · ${f}`, ...(grouped ? { grouped: { kept: groupTop, of: distinct.size } } : {}), rows: rows.map((r) => ({ hole_id: r.hole_id, from: Number(r.from), to: Number(r.to), value: r[f] == null || r[f] === "" ? null : codeOf(String(r[f]).trim()) })).filter((r) => r.value != null) });
     }
   }
   return out;
@@ -92,6 +103,7 @@ export function attributeDomainOptions(assays, collars) {
 }
 // the option label in the reader's language (the stored label stays English for exports): "Sample type", "Collar · hole type"
 export function attributeDomainLabel(d, tr) {
+  if (d?.grouped) return tr("{label}: the {kept} commonest of {n} codes, the rest as \"other\"", { label: d.label, kept: d.grouped.kept, n: d.grouped.of }); // #2915
   if (d?.key === "attr:sample_type") return tr("Sample type");
   if (String(d?.key || "").startsWith("collar:")) return tr("Collar · {field}", { field: d.key.slice(7) });
   return d?.label;

@@ -68,7 +68,7 @@ export default function CompositingModal({ assays: assaysIn, assayElements, laye
   const compAssays = useMemo(() => (includeQAQC ? assays : excludeQAQC(assays)), [assays, includeQAQC]);
 
   const { customLayers = [], collars: storeCollars = [], layers: storeLayers = {} } = useStore(); // layers: #2349 // #1678 — custom-layer categories as domains; collars: #2504
-  const customDomains = useMemo(() => [...attributeDomainOptions(assays, storeCollars), ...customDomainOptions(customLayers, { layers: storeLayers, labelOf: (k) => tr(LAYER_META[k]?.label || k) }) /* the built-in logs' extra fields: #2349 */], [customLayers, assays, storeCollars, storeLayers]); // #2504 — sample type, collar fields
+  const customDomains = useMemo(() => [...attributeDomainOptions(assays, storeCollars), ...customDomainOptions(customLayers, { layers: storeLayers, labelOf: (k) => tr(LAYER_META[k]?.label || k) }, { groupTop: 12 } /* #2915 */) /* the built-in logs' extra fields: #2349 */], [customLayers, assays, storeCollars, storeLayers]); // #2504 — sample type, collar fields
   const domainOptions = useMemo(() => DOMAIN_LAYER_KEYS.filter((k) => (layers[k] || []).length > 0 && isCategoricalLayer(layers[k])), [layers]); // #1515 — categories only (RQD% broke composites at every change)
   const customDomain = customDomains.find((d) => d.key === domainKey) || null;
   const domainRows = domainKey ? (customDomain ? customDomain.rows : layers[domainKey]) : null;
@@ -152,7 +152,7 @@ export default function CompositingModal({ assays: assaysIn, assayElements, laye
             <label style={fieldLabel} title={tr("Honour a domain layer's boundaries — a composite will never straddle a change in this layer's value, even if that makes it shorter than the target length.")}>{tr("Honour domain")}<select value={domainKey} onChange={(e) => setDomainKey(e.target.value)} style={inp}>
                 <option value="">{tr("— none —")}</option>
                 {domainOptions.map((k) => <option key={k} value={k}>{LAYER_META[k].label}</option>)}
-                {customDomains.map((d) => <option key={d.key} value={d.key}>{d.attribute ? attributeDomainLabel(d, tr) : d.label}</option>)}{/* #1678; attributes: #2504 */}
+                {customDomains.map((d) => <option key={d.key} value={d.key}>{d.attribute || d.grouped ? attributeDomainLabel(d, tr) : d.label}</option>)}{/* #1678; attributes: #2504 */}
               </select>
             </label>
             <label style={fieldLabel} title={tr("Cap any single raw sample's grade at this value before it's folded into a composite average — applied per-sample, before compositing, matching standard practice.")}>{tr("High-grade cap ({unit})", { unit: unitL })}<input type="number" step="any" min="0" placeholder={tr("none")} value={capValue} onChange={(e) => setCapValue(e.target.value)} style={inp} />
