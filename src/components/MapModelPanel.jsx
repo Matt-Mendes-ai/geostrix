@@ -83,6 +83,7 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
     setOrder((p) => (r === "stratigraphic" ? (p.includes(u) ? p : [...p, u]) : p.filter((x) => x !== u)));
   };
   const [relation, setRelation] = useState("onlap");
+  const [fullDetail, setFullDetail] = useState(false); // TASKS.csv #3162 follow-up — skip the work budget for one run (#3198)
   const [showWhy, setShowWhy] = useState(false);
   const unitInfo = new Map((suggestion?.units || []).map((u) => [u.unit, u]));
   const leftOut = Object.keys(roles).filter((u) => roles[u] !== "stratigraphic");
@@ -263,12 +264,15 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
           </div>}
         </div>
       )}
+      <label style={{ ...row, cursor: "pointer", fontSize: "var(--font-size-xs)", lineHeight: 1.4, alignItems: "flex-start" }} title={tr("A large map is thinned to keep GemPy's run to a few minutes, and the run says what it kept. Ticked, every sampled contact point and orientation goes to GemPy: the run can take many times longer (it says how much more work before it starts), and the 15-minute stop is off, so Cancel on the status bar is the way to stop it.")}>
+        <input type="checkbox" checked={fullDetail} onChange={(e) => setFullDetail(e.target.checked)} style={{ marginTop: 2 }} />{tr("Full detail: send all the sampled contacts (can take much longer)")}
+      </label>{/* TASKS.csv #3162 follow-up */}
       {groundCount && (groundCount.pointsOnGround < groundCount.points || groundCount.measurementsOnGround < groundCount.measurements) && ( /* TASKS.csv #2959 */
         <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 4, lineHeight: 1.4 }}>
           {tr("Terrain under the inputs: {a} of {n} contact point(s) and {b} of {m} measurement(s). The rest will be placed at the map layer's elevation{z} and the surfaces cut there; a terrain over the whole map (Maps > Terrain) puts them on the ground.", { a: groundCount.pointsOnGround, n: groundCount.points, b: groundCount.measurementsOnGround, m: groundCount.measurements, z: Number.isFinite(Number(layer?.elevation)) ? tr(" (RL {z})", { z: Math.round(Number(layer.elevation)) }) : "" })}
         </div>
       )}
-      <button onClick={() => onRun({ layer, field: unitField, order, breaks, bedding, planes, faults: faults.filter((f) => f.on).map((f) => ({ name: f.name, line: f.line, dip: f.dip, dipDir: f.dipDir })), relation, leftOut, holeCodes: useHoles && holeCount > 0 ? codeUnit : null })}
+      <button onClick={() => onRun({ layer, field: unitField, order, breaks, bedding, planes, faults: faults.filter((f) => f.on).map((f) => ({ name: f.name, line: f.line, dip: f.dip, dipDir: f.dipDir })), relation, leftOut, holeCodes: useHoles && holeCount > 0 ? codeUnit : null, fullDetail })}
         disabled={busy || !groundAt || order.length < 2 || noOrient} style={{ ...pBtn, justifyContent: "center", opacity: busy || !groundAt || order.length < 2 || noOrient ? 0.5 : 1 }}>
         {busy ? tr("Running…") : tr("Build the model (GemPy)")}
       </button>
