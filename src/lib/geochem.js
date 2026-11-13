@@ -808,6 +808,20 @@ function resolveAssaySegments(rows, symbol, unit, elementUnits, stats) {
     if (v != null && v < 0 && symbol !== LOI /* #2887 — a negative LOI is a measured gain on ignition, read at import (readLoiCell) */) { if (stats) stats.negativeValues++; return null; }
     return v;
   });
+  // TASKS.csv #3059 — the usual hole: no two rows overlap at all, so each row longer than EPS is its own segment (the breakpoint walk below gives
+  // exactly these: one active row per span, no conflict). It was a third of a cold Estimation P99 on 147,000 samples.
+  let disjoint = true;
+  for (let k = 1; k < sorted.length && disjoint; k++) if (sorted[k].from < sorted[k - 1].to) disjoint = false; // strictly: a near-touch splits differently in the walk
+  if (disjoint) {
+    const out = [];
+    for (let k = 0; k < sorted.length; k++) {
+      const r = sorted[k];
+      if (r.to - r.from <= EPS) continue;
+      const v = vals[k], q = v != null ? r.qualifiers?.[symbol] : undefined;
+      out.push({ from: r.from, to: r.to, value: v, lt: v != null && q === "<", gt: q === ">", conflict: false });
+    }
+    return out;
+  }
   const bps = Array.from(new Set(sorted.flatMap((r) => [r.from, r.to]))).sort((a, b) => a - b);
   const segs = [];
   const overlapping = new Set();
@@ -1183,7 +1197,29 @@ export function compositeDownhole(assays, symbol, unit, elementUnits, opts = {})
 // the cap audit, compositing and estimation (Harry: 3,740 raw Au rows, 3,648 resolved samples). -> [{ hole_id, from, to, value }]
 // #1579 — cached per assay list (the same array: a new import or filter is a new array) and element: the cap buttons, the audit, its
 // warning and the dialog's automatic P99 read the same segments. Frozen: callers read them.
-const segmentCache = new WeakMap(); // assays -> Map("symbol|unit|native unit" -> { segs, byValue, total })
+const segmentCache = new WeakMap(); // assays -> Map("symbol|unit|native unit" -> { segs, sv, sl, total })
+// TASKS.csv #3059 — the rows grouped by hole, exact duplicates dropped: the same for every element, so done once per assay list
+const holeGroupCache = new WeakMap();
+function holeGroups(list) {
+  let byHole = holeGroupCache.get(list);
+  if (byHole) return byHole;
+  byHole = new Map();
+  // duplicateCheck's rule (a row at the same hole, from and to with the same values as an earlier one is dropped), matched per hole on the
+  // numeric depths instead of a 'hole|from|to' string per row; the values' JSON only where two rows share their depths
+  const seenByHole = new Map(), json = new Map(), jsonOf = (r) => { let j = json.get(r); if (j === undefined) json.set(r, (j = JSON.stringify(r.values ?? null))); return j; }; // never written on the row
+  for (const a of list) {
+    if (a.from == null || a.to == null || a.to <= a.from || a.hole_id == null) continue;
+    let arr = byHole.get(a.hole_id), seen = seenByHole.get(a.hole_id);
+    if (!arr) { byHole.set(a.hole_id, (arr = [])); seenByHole.set(a.hole_id, (seen = new Map())); }
+    const at = seen.get(a.from);
+    if (at === undefined) { seen.set(a.from, [a]); arr.push(a); continue; }
+    const same = at.filter((r) => r.to === a.to);
+    if (same.length) { const j = JSON.stringify(a.values ?? null); if (same.some((r) => jsonOf(r) === j)) continue; }
+    at.push(a); arr.push(a);
+  }
+  holeGroupCache.set(list, byHole);
+  return byHole;
+}
 function segmentSummary(assays, symbol, unit, elementUnits) {
   const list = assays || [];
   let m = segmentCache.get(list);
@@ -1191,18 +1227,23 @@ function segmentSummary(assays, symbol, unit, elementUnits) {
   const key = `${symbol}|${unit}|${elementUnits?.[symbol] || "ppm"}`;
   let hit = m.get(key);
   if (hit) return hit;
-  const byHole = new Map(), isDuplicate = duplicateCheck();
-  list.forEach((a) => {
-    if (a.from == null || a.to == null || a.to <= a.from || a.hole_id == null) return;
-    if (isDuplicate(a)) return;
-    let arr = byHole.get(a.hole_id);
-    if (!arr) byHole.set(a.hole_id, (arr = []));
-    arr.push(a);
-  });
   const segs = [];
-  byHole.forEach((rows, hole_id) => resolveAssaySegments(rows, symbol, unit, elementUnits, null).forEach((s) => { if (s.value != null && s.to > s.from) segs.push(Object.freeze({ hole_id, from: s.from, to: s.to, value: s.value, lt: !!s.lt })); })); // lt: #2505
-  const byValue = segs.map((s) => ({ value: s.value, len: s.to - s.from })).sort((a, b) => a.value - b.value);
-  hit = { segs: Object.freeze(segs), byValue, total: byValue.reduce((t, x) => t + x.len, 0) };
+  holeGroups(list).forEach((rows, hole_id) => { for (const s of resolveAssaySegments(rows, symbol, unit, elementUnits, null)) if (s.value != null && s.to > s.from) segs.push(Object.freeze({ hole_id, from: s.from, to: s.to, value: s.value, lt: !!s.lt })); }); // lt: #2505
+  // #3059 — the values and lengths in value order as two typed arrays: the values by the native numeric sort (no comparator over 147,000
+  // objects), each length put in the block of its value (a binary search; the order inside a block of equal values does not change a
+  // percentile or a cap audit, which read sums)
+  const n = segs.length, sv = new Float64Array(n), sl = new Float64Array(n), used = new Uint32Array(n);
+  for (let i = 0; i < n; i++) sv[i] = segs[i].value;
+  sv.sort();
+  let total = 0;
+  for (let i = 0; i < n; i++) {
+    const s = segs[i], x = s.value;
+    let lo = 0, hi = n;
+    while (lo < hi) { const mid = (lo + hi) >>> 1; if (sv[mid] < x) lo = mid + 1; else hi = mid; }
+    const len = s.to - s.from;
+    sl[lo + used[lo]++] = len; total += len;
+  }
+  hit = { segs: Object.freeze(segs), sv, sl, total };
   m.set(key, hit);
   return hit;
 }
@@ -1210,15 +1251,16 @@ export function resolvedSegments(assays, symbol, unit, elementUnits) {
   return segmentSummary(assays, symbol, unit, elementUnits).segs;
 }
 export function capAudit(assays, symbol, unit, elementUnits, capValue) {
-  const segs = segmentSummary(assays, symbol, unit, elementUnits).byValue;
+  const { sv, sl } = segmentSummary(assays, symbol, unit, elementUnits); // #3059
   let metalBefore = 0, metalAfter = 0, nCapped = 0, lenCapped = 0;
-  for (const s of segs) {
-    metalBefore += s.value * s.len;
-    const capped = capValue != null && s.value > capValue;
-    if (capped) { nCapped++; lenCapped += s.len; }
-    metalAfter += (capped ? capValue : s.value) * s.len;
+  for (let i = 0; i < sv.length; i++) {
+    const value = sv[i], len = sl[i];
+    metalBefore += value * len;
+    const capped = capValue != null && value > capValue;
+    if (capped) { nCapped++; lenCapped += len; }
+    metalAfter += (capped ? capValue : value) * len;
   }
-  const nSamples = segs.length;
+  const nSamples = sv.length;
   return {
     capValue: capValue ?? null, nSamples, nCapped, lenCapped,
     pctCapped: nSamples ? (100 * nCapped) / nSamples : 0,
@@ -1228,12 +1270,12 @@ export function capAudit(assays, symbol, unit, elementUnits, capValue) {
 // the grade below which p% of the sampled LENGTH lies (a 10 m sample counts ten times a 1 m one) — what "cap at the
 // 97.5th percentile" means for unequal sample lengths. null when nothing is assayed.
 export function lengthWeightedPercentile(assays, symbol, unit, elementUnits, p) {
-  const { byValue: segs, total } = segmentSummary(assays, symbol, unit, elementUnits);
+  const { sv, sl, total } = segmentSummary(assays, symbol, unit, elementUnits); // #3059
   if (!total) return null;
   const target = (p / 100) * total;
   let acc = 0;
-  for (const s of segs) { acc += s.len; if (acc >= target - 1e-9) return s.value; }
-  return segs[segs.length - 1].value;
+  for (let i = 0; i < sv.length; i++) { acc += sl[i]; if (acc >= target - 1e-9) return sv[i]; }
+  return sv[sv.length - 1];
 }
 export function capAuditText(a, unitLabel = "") {
   if (!a || a.capValue == null) return "";
