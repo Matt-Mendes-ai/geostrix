@@ -11421,5 +11421,9 @@
   "Left out: {list}.": "Laissés hors : {list}.",
   "Zoom to {name}": "Zoomer sur {name}",
   "Other grades of those blocks: {list}.": "Autres teneurs de ces blocs : {list}.",
-  "Each chosen model's grade over each stope's tonnes (joined by block centre: a model on the same grid as this one).": "La teneur de chaque modèle choisi sur les tonnes de chaque chantier (jointe par le centre des blocs : un modèle sur la même grille que celui-ci)."
+  "Each chosen model's grade over each stope's tonnes (joined by block centre: a model on the same grid as this one).": "La teneur de chaque modèle choisi sur les tonnes de chaque chantier (jointe par le centre des blocs : un modèle sur la même grille que celui-ci).",
+  "Building the design grid: cancel": "Construction de la grille de conception : annuler",
+  "Meshing the design and counting its tonnes: cancel": "Maillage de la conception et calcul de ses tonnes : annuler",
+  ", above {rl} m {b} m berms at {a}°": ", au-dessus de {rl} m risbermes de {b} m à {a}°",
+  "Inter-ramp angle above {rl} m": "Angle inter-rampes au-dessus de {rl} m"
 }

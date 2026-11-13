@@ -35,6 +35,9 @@ let kept = null; // #1356 — the last result (with its strings, for export) out
 
 // surfaces: the project's generated surfaces (pit shells in, designs out); worldPositionsOf(id) -> Float64Array of E, N, Z for a
 // surface's mesh; onAdd / onToggle / onRemove as the pit pane's
+// TASKS.csv #3002 — the upper benches' inter-ramp angle (#2730): their bench height over the face run at their batter plus their berm
+const upperInterRamp = (inp) => (Math.atan(inp.benchH / (inp.benchH / Math.tan((inp.upper.batterDeg * Math.PI) / 180) + inp.upper.berm)) * 180) / Math.PI;
+
 export default function PitDesignPane({ surfaces = [], worldPositionsOf, onAdd, onToggle, onRemove, onClose, onZoomTo = null }) { // onZoomTo: #2996
   const { voxelModels = [], terrain, collars = [], project, designStrings = [], layers, survey = [], desurveyMethod } = useStore(); // layers..desurveyMethod: #2647
   const areas = useMemo(() => designStrings.filter((s) => s.closed && s.vertices.length > 2 && !s.stopeRun /* #2601 */), [designStrings]); // #1916 — design areas
@@ -101,7 +104,7 @@ export default function PitDesignPane({ surfaces = [], worldPositionsOf, onAdd, 
     const t0 = performance.now();
     try {
       const coded = modelWithCodeDensity(model, pit.params?.inputs, layers, collars, survey, desurveyMethod); // #2647 — weighed as the shell was
-      job.current = runPitDesignAsync(positions, coded.model, opts, terrain, collars, (p) => setBusy(p && p.k ? p : true) /* #2286 */, byIn ? byModel : null, alsoPairs.map(({ m }) => m) /* #3084 */); // byModel: #1917
+      job.current = runPitDesignAsync(positions, coded.model, opts, terrain, collars, (p) => setBusy(p && (p.k || p.stage) ? p : true) /* #2286; stage: #3002 */, byIn ? byModel : null, alsoPairs.map(({ m }) => m) /* #3084 */); // byModel: #1917
       const r = await job.current.promise;
       if (r.cancelled) { setMsg(tr("Cancelled: nothing was added.")); return; }
       if (r.failed === "area-empty") { setMsg(tr("No column of the shell lies inside \"{name}\": move or enlarge the area, or pick another.", { name: area?.name || "?" })); return; } // #1916
@@ -111,11 +114,11 @@ export default function PitDesignPane({ surfaces = [], worldPositionsOf, onAdd, 
       if (r.benches.length === 1 && !r.daylights && r.faceRun < r.cell) { setMsg(tr("One bench only: a face run of {r} m is narrower than the {c} m design grid, so the walls could not be drawn. Use a flatter face, a taller bench or a berm.", { r: r.faceRun.toFixed(2), c: r.cell.toFixed(1) })); return; } // #1902
       const seconds = Math.round((performance.now() - t0) / 100) / 10;
       if (hideEarlier) designs.filter((s) => s.visible).forEach((s) => onToggle?.(s.id));
-      const name = tr("Pit design: {pit}, {h} m benches, {b} m berms, {a}°{sec}{ramp}", { pit: String(pit.name).replace(/^Pit shell: /, ""), h: inputs.benchH, b: inputs.berm, a: inputs.batterDeg, sec: sectorsIn ? tr(" (by sector)") : "", ramp: rampIn ? tr(", {w} m ramp at {g} %", { w: rampIn.widthM, g: rampIn.gradientPct }) : "" }); // sec: #1952; ramp: #1948
+      const name = tr("Pit design: {pit}, {h} m benches, {b} m berms, {a}°{sec}{ramp}", { pit: String(pit.name).replace(/^Pit shell: /, ""), h: inputs.benchH, b: inputs.berm, a: inputs.batterDeg, sec: (sectorsIn ? tr(" (by sector)") : "") + (upperIn ? tr(", above {rl} m {b} m berms at {a}°", { rl: upperIn.rl, b: upperIn.berm, a: upperIn.batterDeg }) : "") /* #3002 — the upper benches named */, ramp: rampIn ? tr(", {w} m ramp at {g} %", { w: rampIn.widthM, g: rampIn.gradientPct }) : "" }); // sec: #1952; ramp: #1948
       const designId = onAdd({
         name, positions: r.positions, indices: r.indices, type: "pit_design", closure: null, color: "#d9a441", tag: "pitdesign",
         tip: tr("Benched pit design: benches, berms and faces on a conceptual shell; not a mine plan, a Reserve or a Resource"),
-        params: { tool: "benched pit design (bottom-up dilation on a grid)", pit: pit.name, pitId: pit.id, blockModel: model?.name || null, gradeUnit: unit, inputs, interRampDeg: +r.interRampDeg.toFixed(1), shellSlopeDeg: Number.isFinite(shellSlope) ? shellSlope : null,
+        params: { tool: "benched pit design (bottom-up dilation on a grid)", pit: pit.name, pitId: pit.id, blockModel: model?.name || null, gradeUnit: unit, inputs, interRampDeg: +r.interRampDeg.toFixed(1), ...(inputs.upper ? { upperInterRampDeg: +upperInterRamp(inputs).toFixed(1) } : {}) /* #3002 */, shellSlopeDeg: Number.isFinite(shellSlope) ? shellSlope : null,
           benches: benchTableRows(r.benches, unit, alsoLabels /* #3084 */), ...(alsoLabels.length ? { otherGrades: alsoLabels.map((l, k) => ({ label: l, meanGrade: r.totals.alsoGrades?.[k]?.meanGrade == null ? null : +r.totals.alsoGrades[k].meanGrade.toPrecision(4), oreShareWithValue: +(r.totals.alsoGrades?.[k]?.oreShare ?? 0).toFixed(3) })) } : {}) /* #3084 */, floorRL: r.floorRL, crestRL: r.crestRL, oreTonnes: Math.round(r.totals.oreT), wasteTonnes: Math.round(r.totals.wasteT), stripRatio: r.totals.stripRatio == null ? null : +r.totals.stripRatio.toFixed(2),
           meanGrade: r.totals.meanGrade == null ? null : +r.totals.meanGrade.toPrecision(4), designCellM: +r.cell.toFixed(2), coarsened: r.coarsened, groundFrom: r.groundSource, strings: r.strings.length,
           sectorsUsed: r.sectorsUsed || null /* #1952 */, ramp: r.ramp ? { ...r.ramp, rockT: Math.round(r.ramp.rockT) } : null /* #1948 */,
@@ -221,7 +224,7 @@ export default function PitDesignPane({ surfaces = [], worldPositionsOf, onAdd, 
         {designs.some((s) => s.visible) && <label style={{ ...row, justifyContent: "flex-start" }}><input type="checkbox" checked={hideEarlier} onChange={(e) => setHideEarlier(e.target.checked)} />{tr("Hide the earlier designs")}</label>}
         {!busy
           ? <button onClick={run} disabled={missing} style={{ ...pBtn, marginTop: 8, opacity: missing ? 0.5 : 1 }}><Layers3 size={14} /> {tr("Design the benches")}</button>
-          : <button onClick={cancel} style={{ ...pBtn, marginTop: 8 }}>{busy && busy.k ? (busy.n ? tr("Designing bench {k} of about {n}: cancel", { k: busy.k, n: Math.max(busy.n, busy.k) }) : tr("Designing bench {k}: cancel", { k: busy.k })) : tr("Designing: cancel")}</button>}{/* #2286 */}
+          : <button onClick={cancel} style={{ ...pBtn, marginTop: 8 }}>{busy && busy.stage === "grid" ? tr("Building the design grid: cancel") : busy && busy.stage === "mesh" ? tr("Meshing the design and counting its tonnes: cancel") /* #3002 */ : busy && busy.k ? (busy.n ? tr("Designing bench {k} of about {n}: cancel", { k: busy.k, n: Math.max(busy.n, busy.k) }) : tr("Designing bench {k}: cancel", { k: busy.k })) : tr("Designing: cancel")}</button>}{/* #2286 */}
         {missing && !busy && <div style={note}>{tr("Enter the bench height, berm width and face angle: none has a default, because they are the design.")}</div>}
       </>)}
       {designs.length > 0 && (
@@ -244,6 +247,7 @@ export default function PitDesignPane({ surfaces = [], worldPositionsOf, onAdd, 
         <div style={{ marginTop: 8, padding: "7px 8px", border: "1px solid var(--color-border)", borderRadius: 6, background: "var(--color-bg-subtle)" }}>
           {line(tr("Benches"), tr("{n} ({lo} to {hi} m)", { n: res.benches.length, lo: Math.round(res.floorRL), hi: Math.round(Number.isFinite(res.groundTopRL) ? Math.min(res.crestRL, res.groundTopRL) : res.crestRL) }))}{/* #2440 — to the ground the pit meets */}
           {line(tr("Inter-ramp angle"), `${res.interRampDeg.toFixed(1)}°`)}
+          {res.inputs?.upper && line(tr("Inter-ramp angle above {rl} m", { rl: res.inputs.upper.rl }), `${upperInterRamp(res.inputs).toFixed(1)}°`)}{/* #3002 — the upper benches' own */}
           {/* #1952; TASKS.csv #2117 (review #2013, Woodjam) — each wall's own inter-ramp angle (a 55° / 8 m N wall is 33.7°, not the 46.0° above), and the
               walls flatter than the slope the shell was solved at */}
           {res.sectorsUsed && (() => {

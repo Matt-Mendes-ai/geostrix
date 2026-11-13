@@ -19,7 +19,7 @@ self.onmessage = (e) => {
     const shell = shellFloors(shellPositions, groundAt);
     if (!shell) { self.postMessage({ failed: "no-floors" }); return; }
     let last = 0;
-    const r = benchedPit(shell, { ...opts, groundAt, cells, weathered: weatheredOf(opts.weathered) /* #2671 */, onBench: (k, n) => { const t = Date.now(); if (t - last > 150) { last = t; self.postMessage({ phases: { k, n } }); } } }); // #2286 — the bench on the busy button
+    const r = benchedPit(shell, { ...opts, groundAt, cells, weathered: weatheredOf(opts.weathered) /* #2671 */, onPhase: (stage) => self.postMessage({ phases: { stage } }) /* #3002 */, onBench: (k, n) => { const t = Date.now(); if (t - last > 150) { last = t; self.postMessage({ phases: { k, n } }); } } }); // #2286 — the bench on the busy button
     if (!r) { self.postMessage({ failed: "no-design" }); return; }
     if (r.failed) { self.postMessage({ failed: r.failed }); return; } // #1916: "area-empty"
     r.groundSource = terrain ? "terrain" : collars ? "collars" : "model top";

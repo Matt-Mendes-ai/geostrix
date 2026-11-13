@@ -101,7 +101,10 @@ export const toeRL = (z, benchH, datum = 0) => datum + Math.round((z - datum) / 
 // blocks ({ x, y, z, dx, dy, dz, value, coverage }), cutoff and density from the shell's run; benchH, berm, batterDeg, datum.
 // -> { positions, indices, strings: [{ bench, rl, kind: "toe" | "crest", lines: [[[x, y, z], ...]] }], benches: [{ rl, rockT, oreT, wasteT,
 //      metalU, meanGrade }], totals, interRampDeg, faceRun, reach, cell, nCells, coarsened, daylights, crestRL, floorRL }
-export function benchedPit(shell, { groundAt = null, cells = [], cutoff = Infinity, density = 1, wasteDensity = null, benchH, berm, batterDeg, datum = 0, maxCells = MAX_DESIGN_CELLS, largestOnly = false, areaPoly = null, sectors = null, ramp = null, onBench = null, weathered = null, upper = null /* #2730 */ } = {}) { // weathered: #2671 — { depthAt(x, y), density } (pitShell.js weatheredOf) // onBench(k, about): #2286
+export function benchedPit(shell, { groundAt = null, cells = [], cutoff = Infinity, density = 1, wasteDensity = null, benchH, berm, batterDeg, datum = 0, maxCells = MAX_DESIGN_CELLS, largestOnly = false, areaPoly = null, sectors = null, ramp = null, onBench = null, weathered = null, upper = null /* #2730 */, onPhase = null /* #3002 */ } = {}) {
+  // TASKS.csv #3002 (review #2876, WA iron) — the bench count covered 4-6 s of a 30-60 s design: the grid set-up before bench 1 and the mesh and
+  // tonnes after the last were most of it, under a bare 'Designing'. onPhase('grid' | 'mesh') names them.
+  onPhase?.("grid"); // weathered: #2671 — { depthAt(x, y), density } (pitShell.js weatheredOf) // onBench(k, about): #2286
   // TASKS.csv #1916 — a design AREA (areaPoly): a closed polygon [[x, y], ...] in world metres (a design string); only the shell's columns
   // whose centre lies inside it are designed, so one prospect of a district-wide shell gets the whole grid
   let columnsInArea = null;
@@ -298,6 +301,7 @@ export function benchedPit(shell, { groundAt = null, cells = [], cutoff = Infini
     benches.push({ rl, rockT: 0, rockV: 0, oreV: 0, oreT: 0, wasteT: 0, metalU: 0, meanGrade: null, alsoM: [], alsoT: [] }); // rockV / oreV: #2437; alsoM / alsoT: #3084
     T = T2;
   }
+  onPhase?.("mesh"); // #3002
   const crestRL = benches.length ? benches[benches.length - 1].rl + benchH : floorRL;
   // #1948 — the road's rock: what the design takes out under the road cells, and the strings
   let rampRockT = 0;
