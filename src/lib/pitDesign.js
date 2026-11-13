@@ -101,7 +101,10 @@ export const toeRL = (z, benchH, datum = 0) => datum + Math.round((z - datum) / 
 // blocks ({ x, y, z, dx, dy, dz, value, coverage }), cutoff and density from the shell's run; benchH, berm, batterDeg, datum.
 // -> { positions, indices, strings: [{ bench, rl, kind: "toe" | "crest", lines: [[[x, y, z], ...]] }], benches: [{ rl, rockT, oreT, wasteT,
 //      metalU, meanGrade }], totals, interRampDeg, faceRun, reach, cell, nCells, coarsened, daylights, crestRL, floorRL }
-export function benchedPit(shell, { groundAt = null, cells = [], cutoff = Infinity, density = 1, wasteDensity = null, benchH, berm, batterDeg, datum = 0, maxCells = MAX_DESIGN_CELLS, largestOnly = false, areaPoly = null, sectors = null, ramp = null, onBench = null, weathered = null, upper = null /* #2730 */ } = {}) { // weathered: #2671 — { depthAt(x, y), density } (pitShell.js weatheredOf) // onBench(k, about): #2286
+export function benchedPit(shell, { groundAt = null, cells = [], cutoff = Infinity, density = 1, wasteDensity = null, benchH, berm, batterDeg, datum = 0, maxCells = MAX_DESIGN_CELLS, largestOnly = false, areaPoly = null, sectors = null, ramp = null, onBench = null, weathered = null, upper = null /* #2730 */, onPhase = null /* #3002 */ } = {}) {
+  // TASKS.csv #3002 (review #2876, WA iron) — the bench count covered 4-6 s of a 30-60 s design: the grid set-up before bench 1 and the mesh and
+  // tonnes after the last were most of it, under a bare 'Designing'. onPhase('grid' | 'mesh') names them.
+  onPhase?.("grid"); // weathered: #2671 — { depthAt(x, y), density } (pitShell.js weatheredOf) // onBench(k, about): #2286
   // TASKS.csv #1916 — a design AREA (areaPoly): a closed polygon [[x, y], ...] in world metres (a design string); only the shell's columns
   // whose centre lies inside it are designed, so one prospect of a district-wide shell gets the whole grid
   let columnsInArea = null;
@@ -295,9 +298,10 @@ export function benchedPit(shell, { groundAt = null, cells = [], cutoff = Infini
       if (z[c] < g[c] - 1e-6) { T2[c] = 1; if (!T[c] && z[c] === rl) newFloor++; } else daylights = true;
     }
     if (!newFloor) break;
-    benches.push({ rl, rockT: 0, rockV: 0, oreV: 0, oreT: 0, wasteT: 0, metalU: 0, meanGrade: null }); // rockV / oreV: #2437
+    benches.push({ rl, rockT: 0, rockV: 0, oreV: 0, oreT: 0, wasteT: 0, metalU: 0, meanGrade: null, alsoM: [], alsoT: [] }); // rockV / oreV: #2437; alsoM / alsoT: #3084
     T = T2;
   }
+  onPhase?.("mesh"); // #3002
   const crestRL = benches.length ? benches[benches.length - 1].rl + benchH : floorRL;
   // #1948 — the road's rock: what the design takes out under the road cells, and the strings
   let rampRockT = 0;
@@ -367,6 +371,7 @@ export function benchedPit(shell, { groundAt = null, cells = [], cutoff = Infini
         const rho = bl.density > 0 ? bl.density : density; // TASKS.csv #2647 — the block's code density
         const vw = wBase ? ox * oy * wPart(c, Math.max(zlo, z[c], b.rl), Math.max(zlo, z[c], b.rl) + oz) * cover : 0; // #2671 — the part above the weathered base
         b.oreV += v; b.oreM = (b.oreM || 0) + (v - vw) * rho + vw * dW; b.metalU += ((v - vw) * rho + vw * dW) * bl.value;
+        if (bl.also) for (let k = 0; k < bl.also.length; k++) { const g = bl.also[k]; if (Number.isFinite(g)) { const m = (v - vw) * rho + vw * dW; b.alsoM[k] = (b.alsoM[k] || 0) + m * g; b.alsoT[k] = (b.alsoT[k] || 0) + m; } } // #3084 — the shell's other grades (#2995), over the ore that has one
         if (vw > 0) b.oreWV = (b.oreWV || 0) + vw;
         if (bl.beyond === "above" || bl.beyond === "below") b.beyondV = (b.beyondV || 0) + v; // #2645 — ore beyond every sample informing it (#2435)
         if (bl.nearUnsampled) b.nearUnsV = (b.nearUnsV || 0) + v; // #2735 — ore whose nearest drilling was never sampled (#2596)
@@ -383,10 +388,15 @@ export function benchedPit(shell, { groundAt = null, cells = [], cutoff = Infini
     b.wasteT = (b.rockV - oreV - wasteW) * wd + wasteW * (dW || 0); b.rockT = b.oreT + b.wasteT;
     b.weatheredT = dW ? ((b.oreWV || 0) * scale + wasteW) * dW : 0; delete b.rockWV; delete b.oreWV;
     b.meanGrade = b.oreT > 0 ? b.metalU / b.oreT : null; delete b.rockV; delete b.oreV;
+    b.alsoM = b.alsoM.map((m) => (m || 0) * scale); b.alsoT = b.alsoT.map((t) => (t || 0) * scale); // #3084
+    b.alsoGrades = b.alsoT.map((t, k) => (t > 0 ? b.alsoM[k] / t : null));
   });
   const totals = benches.reduce((a, b) => ({ rockT: a.rockT + b.rockT, oreT: a.oreT + b.oreT, wasteT: a.wasteT + b.wasteT, metalU: a.metalU + b.metalU }), { rockT: 0, oreT: 0, wasteT: 0, metalU: 0 });
   totals.stripRatio = totals.oreT > 0 ? totals.wasteT / totals.oreT : null;
   totals.meanGrade = totals.oreT > 0 ? totals.metalU / totals.oreT : null;
+  // #3084 — the other grades over all the benches' ore that has one, and that ore's share of the ore
+  const nAlso = Math.max(0, ...benches.map((b) => b.alsoT.length));
+  totals.alsoGrades = Array.from({ length: nAlso }, (_, k) => { let m = 0, t = 0; for (const b of benches) { m += b.alsoM[k] || 0; t += b.alsoT[k] || 0; } return { meanGrade: t > 0 ? m / t : null, oreShare: totals.oreT > 0 ? t / totals.oreT : 0 }; });
   totals.oreBeyondSampleShare = totals.oreT > 0 ? beyondT / totals.oreT : 0; // #2645
   totals.oreNearUnsampledShare = totals.oreT > 0 ? nearUnsT / totals.oreT : 0; // #2735
   totals.weatheredT = benches.reduce((s, b) => s + (b.weatheredT || 0), 0); totals.weatheredDensity = dW; // #2671
@@ -403,4 +413,5 @@ export function benchStringRows(strings) {
   return out;
 }
 export const benchStringFeatures = (strings) => strings.flatMap((s) => s.lines.map((line) => ({ attributes: { name: s.kind === "ramp_centre" ? `RAMP_CL_${s.bench}` : s.kind === "ramp_edge" ? `RAMP_EDGE_${s.bench}` : `BENCH_${Math.round(s.rl)}_${s.kind.toUpperCase()}`, kind: s.kind, rl: s.rl }, geometry: line }))); // ramp layers: #1948
-export const benchTableRows = (benches, unit) => benches.map((b, i) => ({ bench: i + 1, floor_rl: b.rl, rock_t: Math.round(b.rockT), ore_t: Math.round(b.oreT), waste_t: Math.round(b.wasteT), [`mean_grade_${String(unit || "").replace("%", "pct")}`]: b.meanGrade == null ? "" : +b.meanGrade.toPrecision(4), strip_ratio: b.oreT > 0 ? +(b.wasteT / b.oreT).toFixed(2) : "" }));
+// alsoLabels: #3084 — a column per other grade of the shell ('mean_SiO2 (%)'), after the main one
+export const benchTableRows = (benches, unit, alsoLabels = []) => benches.map((b, i) => ({ bench: i + 1, floor_rl: b.rl, rock_t: Math.round(b.rockT), ore_t: Math.round(b.oreT), waste_t: Math.round(b.wasteT), ...Object.fromEntries((alsoLabels || []).map((l, k) => [`mean_${l}`, b.alsoGrades?.[k] == null ? "" : +b.alsoGrades[k].toPrecision(4)])), [`mean_grade_${String(unit || "").replace("%", "pct")}`]: b.meanGrade == null ? "" : +b.meanGrade.toPrecision(4), strip_ratio: b.oreT > 0 ? +(b.wasteT / b.oreT).toFixed(2) : "" }));

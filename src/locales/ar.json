@@ -11491,5 +11491,11 @@
   "Zoom to {name}": "تكبير إلى {name}",
   "This block model was estimated from the checked holes by an earlier version, which counted every unchecked hole as drilling with no sample: some of these flags may be wrong. Estimate it again to refresh them.": "قُدِّر نموذج الكتل هذا من ثقوب الحفر المحددة بإصدار سابق كان يعدّ كل ثقب غير محدد حفرًا بلا عينة: قد يكون بعض هذه العلامات خاطئًا. قدِّره مرة أخرى لتحديثها.",
   "Line thickness": "سماكة الخط",
-  "The width of the symbols' lines, as a multiple of the USGS standard's line weight; in the 3D view, the Google Earth icons, the legends and the Layout": "عرض خطوط الرموز، كمضاعف لسماكة الخط في معيار USGS؛ في العرض ثلاثي الأبعاد وأيقونات Google Earth ووسائل الإيضاح والتخطيط"
+  "The width of the symbols' lines, as a multiple of the USGS standard's line weight; in the 3D view, the Google Earth icons, the legends and the Layout": "عرض خطوط الرموز، كمضاعف لسماكة الخط في معيار USGS؛ في العرض ثلاثي الأبعاد وأيقونات Google Earth ووسائل الإيضاح والتخطيط",
+  "Other grades of those blocks: {list}.": "محتويات أخرى لتلك الكتل: {list}.",
+  "Each chosen model's grade over each stope's tonnes (joined by block centre: a model on the same grid as this one).": "محتوى كل نموذج مختار على أطنان كل حجرة تعدين (مربوطًا بمركز الكتلة: نموذج على الشبكة نفسها لهذا النموذج).",
+  "Building the design grid: cancel": "بناء شبكة التصميم: إلغاء",
+  "Meshing the design and counting its tonnes: cancel": "تشبيك التصميم وحساب أطنانه: إلغاء",
+  ", above {rl} m {b} m berms at {a}°": "، فوق {rl} م مصاطب {b} م بزاوية {a}°",
+  "Inter-ramp angle above {rl} m": "زاوية ما بين المنحدرات فوق {rl} م"
 }

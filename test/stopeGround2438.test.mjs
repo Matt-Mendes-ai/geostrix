@@ -57,7 +57,7 @@ test("the pane: the dip of the body, the crown, the ground to the worker, the no
   const p = fs.readFileSync("src/components/StopesPane.jsx", "utf8");
   assert.ok(p.includes('tr("Dip of the body (°)")') && !p.includes('tr("Vein dip (°)")'));
   assert.match(p, /field\("crown", tr\("Crown under the ground \(m\)"\)/);
-  assert.match(p, /\(level, levels\) => setBusy\(\{ level, levels \}\), groundIn\)/);
+  assert.match(p, /\(level, levels\) => setBusy\(\{ level, levels \}\), groundIn(, alsoChosen \/\* #3084 \*\/)?\)/);
   assert.match(p, /flat\?\.flat && <div style=\{warn\}>/);
   assert.match(fs.readFileSync("src/lib/stopeOutlines.worker.js", "utf8"), /const groundAt = ground \? ceilingLookup\(ground\.values, ground\.frame\) : null;/);
 });
