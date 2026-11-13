@@ -11,6 +11,9 @@ import { useStore } from "../lib/store.jsx"; // TASKS.csv #1644
 import { utmGridReady } from "../lib/layoutGeometry.js"; // TASKS.csv #1644
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
+import { useVirtualRows } from "../lib/useVirtualRows.js"; // TASKS.csv #3180 — the hole list's rows drawn as they scroll into view
+
+const ITEM_ROW_H = 24; // TASKS.csv #3180 — one hole / section row (fixed: the windowing needs it)
 
 // TASKS.csv #130 — QGIS-Atlas-style batch page generation from the CURRENTLY ACTIVE page as a
 // template: every text/title element's {{token}} placeholders get filled in per hole/section, and one
@@ -48,6 +51,11 @@ export default function GenerateAtlasModal({ onClose, templateElements, collars,
   const attrChoices = useMemo(() => collarAttrChoices(collars), [collars]);
   const shownHoles = useMemo(() => (holeFilter.trim() ? collarsMatching(tracedCollars, holeFilter).map((c) => c.hole_id) : holeIds), [tracedCollars, holeFilter, holeIds]);
   const items = mode === "hole" ? shownHoles : sections;
+  // TASKS.csv #3180 (#3028 (4), review #2876) — 6,390 checkboxes stalled the dialog's opening 1.1 s: only the rows in view are drawn
+  const { scrollRef, onScroll, startIndex, endIndex, topPad, bottomPad } = useVirtualRows(items.length, ITEM_ROW_H, { containerHeight: 180 });
+  // TASKS.csv #3180 — after a run 'Generate' stayed live with the same selection (a second click made every page again): it waits for a
+  // change of selection, and Close sits by the result
+  const [ranOn, setRanOn] = useState(null);
   const itemKey = (item) => (mode === "hole" ? item : item.id);
   const itemLabel = (item) => (mode === "hole" ? item : item.name);
 
@@ -107,6 +115,7 @@ export default function GenerateAtlasModal({ onClose, templateElements, collars,
       const room = (narrowedPages ? ` ${tr("To make room for the strip log, the template's elements beside it were narrowed on {n} page(s); a map keeps its scale and shows less ground.", { n: narrowedPages })}` : "")
         + (coveredPages ? ` ${tr("On {n} page(s) the strip log still covers part of the template: move it, or leave a free column at the side of the template.", { n: coveredPages })}` : "");
       if (pages.length) { try { localStorage.setItem("geostrix.atlasMsPerPage", String(Math.round((performance.now() - runStart) / pages.length))); } catch { /* no storage: no estimate next time */ } } // #2607
+      setRanOn(selectedIds); // #3180
       setResult({ ok: !failed.length, text: tr("Generated {n} page(s).", { n: pages.length }) + smallText + room + (failed.length ? ` ${tr("The strip log could not be drawn for {n} hole(s), added without it: {holes}.", { n: failed.length, holes: failed.slice(0, 8).join(", ") + (failed.length > 8 ? "…" : "") })}` : "") });
     } catch (err) {
       setResult({ ok: false, text: err.message });
@@ -184,21 +193,23 @@ export default function GenerateAtlasModal({ onClose, templateElements, collars,
               {attrChoices.length > 0 && <select value="" onChange={(e) => e.target.value && setHoleFilter(e.target.value)} aria-label={tr("By a collar field")} style={{ ...sel, flex: "none", width: "auto" }}>
                 <option value="">{tr("By a collar field…")}</option>{attrChoices.flatMap((ch) => ch.values.map((v) => <option key={`${ch.key}=${v}`} value={pickTerm(ch.key, v) /* #2960 — the typed filter splits on spaces */}>{`${ch.key} = ${v}`}</option>))}</select>}
             </div>}
-            <div style={{ maxHeight: 180, overflowY: "auto", border: "1px solid #2a323c", borderRadius: 6, padding: 6 }}>
+            <div ref={scrollRef} onScroll={onScroll} style={{ maxHeight: 180, overflowY: "auto", border: "1px solid #2a323c", borderRadius: 6, padding: 6 }}>{/* windowed: #3180 */}
               {items.length === 0 && <div style={{ fontSize: "var(--font-size-sm)", opacity: 0.6, padding: 6 }}>{/* #1873 — say why a mode is empty and what fills it (a geophysics-only project has neither) */}{mode === "hole" ? (holeFilter.trim() && holeIds.length ? tr("No hole matches the filter.") : collars.length ? tr("No collar has a depth, so no hole has a trace to make a page from.") : tr("No holes have collars, so there is no page per hole: import collars, or use one page per section.")) : tr("No sections drawn yet: draw one with Draw section in the 3D View, then make one page per section here.")}</div>}
-              {items.map((it) => {
+              {topPad > 0 && <div style={{ height: topPad }} />}
+              {items.slice(startIndex, endIndex).map((it) => {
                 const key = itemKey(it);
                 return (
-                  <label key={key} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", padding: "3px 4px", cursor: "pointer" }}>
+                  <label key={key} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", padding: "0 4px", height: ITEM_ROW_H, boxSizing: "border-box", whiteSpace: "nowrap", overflow: "hidden", cursor: "pointer" }}>
                     <input type="checkbox" checked={selectedIds.has(key)} onChange={() => toggle(key)} />
                     {itemLabel(it)}
                   </label>
                 );
               })}
+              {bottomPad > 0 && <div style={{ height: bottomPad }} />}
             </div>
           </div>
-          {result && <div style={{ fontSize: "var(--font-size-base)", color: result.ok ? "#2f8f5b" : "var(--color-danger-solid)" }}>{result.text}</div>}
-          <button onClick={generate} disabled={busy || !selectedCount} style={{ ...btn(true), display: "flex", alignItems: "center", justifyContent: "center", gap: 6, opacity: busy || !selectedCount ? 0.6 : 1 }}>
+          {result && <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}><div style={{ flex: 1, fontSize: "var(--font-size-base)", color: result.ok ? "#2f8f5b" : "var(--color-danger-solid)" }}>{result.text}</div>{ranOn && <button onClick={onClose} style={{ ...btn(false), flex: "none" }}>{tr("Close")}</button>}</div>}{/* Close: #3180 */}
+          <button onClick={generate} disabled={busy || !selectedCount || ranOn === selectedIds /* #3180 — the same selection was just generated */} title={ranOn === selectedIds ? tr("These pages were just generated. Change the selection to make others.") : undefined} style={{ ...btn(true), display: "flex", alignItems: "center", justifyContent: "center", gap: 6, opacity: busy || !selectedCount || ranOn === selectedIds ? 0.6 : 1 }}>
             {busy ? <Loader2 size={14} className="spin" /> : <LayoutGrid size={14} />}
             {busy ? (progress ? tr("Generating {done}/{total}…", { done: progress.done, total: progress.total }) : tr("Generating…")) : tr(selectedCount === 1 ? "Generate {selectedCount} page" : "Generate {selectedCount} pages", { selectedCount })}
           </button>
