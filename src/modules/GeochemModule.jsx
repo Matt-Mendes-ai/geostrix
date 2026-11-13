@@ -36,7 +36,7 @@ import { seedFromProject, projectImportChoices, importChoicesOf, conversionsOver
 import { assayFileSummary, removeAssayFile, removeAssayElement, carbonateShare, VOLCANIC_DIAGRAMS, LOI, isLoiHeader, readLoiCell, projectKeepsOxide, unitBasis, oxideAliases } from "../lib/geochem.js"; // oxideAliases: #2914; // LOI: #2734; // TASKS.csv #624; carbonateShare: #1392
 import { confirmDestructive } from "../lib/confirmDestructive.js"; // TASKS.csv #624
 import ElementBasisSelect from "../components/ElementBasisSelect.jsx"; // TASKS.csv #2627
-import GeochemPlot from "../components/GeochemPlot.jsx";
+import GeochemPlot, { onAxes } from "../components/GeochemPlot.jsx"; // onAxes: #3231
 import { lithologyBySample, lithologyCounts, NOT_LOGGED } from "../lib/sampleLithology.js"; // TASKS.csv #619
 import AssayImportModal from "../components/AssayImportModal.jsx";
 import { dbImportRecord, upsertDbImport } from "../lib/dbImports.js"; // TASKS.csv #1963
@@ -356,7 +356,7 @@ export default function GeochemModule() {
   const unitsKey = useMemo(() => JSON.stringify(elementUnits), [elementUnits]); // #3120 — the units as part of a kept result's key
   const censoredCount = useMemo(() => (diagram.ratio ? 0 : keptMemo([plotted, diagram], `cens|${diagramId}|${xyKeyX}|${xyKeyY}`, () => censoredSamples(plotted, diagram.spider ? diagram.order : diagramId === "xy" ? [xyKeyX, xyKeyY].filter((k) => String(k).startsWith("el:")).map((k) => k.slice(3)) : diagramId === "ternary" ? ternKeysNow.filter((k) => String(k).startsWith("el:")).map((k) => k.slice(3)) /* #3051 */ : diagram.requires))), [plotted, diagram, diagramId, xyKeyX, xyKeyY]); // ratio: #2501, none plotted; xy (requires []): #2505
   const ratioLeftOut = useMemo(() => censoredLeftOut(diagram, plotted, elementUnits), [diagram, plotted, elementUnits]); // #2501
-  const plottedCount = useMemo(() => keptMemo([plotted, diagram], `count|${unitsKey}`, () => (diagram.spider ? plotted.filter((a) => reeProfile(a, elementUnits, diagram.order, diagram.norm).some((p) => p.value != null)).length : plotted.filter((a) => diagram.project(a, elementUnits)).length)), [diagram, plotted, elementUnits, unitsKey]); // kept: #3120
+  const plottedCount = useMemo(() => keptMemo([plotted, diagram], `count|${unitsKey}`, () => (diagram.spider ? plotted.filter((a) => reeProfile(a, elementUnits, diagram.order, diagram.norm).some((p) => p.value != null)).length : plotted.filter((a) => { const p = diagram.project(a, elementUnits); return p && onAxes(diagram, p); }).length)), [diagram, plotted, elementUnits, unitsKey]); // kept: #3120; onAxes: #3231 — drawn, not only projected
   const availableSymbols = new Set(assayElements.map((e) => e.symbol));
   const missingForDiagram = diagram.requires.filter((s) => !availableSymbols.has(s));
 
