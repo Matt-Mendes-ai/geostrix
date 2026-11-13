@@ -1,7 +1,7 @@
 // TASKS.csv #2330 (review #2325, WA uranium) — the import dialog's optional row filter: "only rows where <column> is <values>", with each
 // value's count, pre-set when a Superseded / Current flag column marks rows as out of date (lib/importRowFilter.js)
 import React, { useMemo } from "react";
-import { rowFilterColumns, defaultRowFilter } from "../lib/importRowFilter.js";
+import { rowFilterColumns, defaultRowFilter, applyRowFilter } from "../lib/importRowFilter.js"; // applyRowFilter: #3207 follow-up
 import { t as tr } from "../lib/i18n.js";
 
 const note = { fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", lineHeight: 1.45 };
@@ -14,7 +14,8 @@ export default function RowFilterBox({ modal, onChange, sel, qc = null }) { // q
   const f = modal.rowFilter !== undefined ? modal.rowFilter : preset; // undefined: the preset; null: every row
   const col = f ? cols.find((c) => c.col === f.col) : null;
   const set = (rowFilter) => onChange({ ...modal, rowFilter });
-  const kept = col ? col.values.filter(([v]) => f.keep.includes(v)).reduce((n, [, c]) => n + c, 0) : rows.length;
+  // the second preset column (#3207 follow-up) needs the rows themselves: counted with the import's own filter
+  const kept = f?.also ? applyRowFilter(rows, f).rows.length : col ? col.values.filter(([v]) => f.keep.includes(v)).reduce((n, [, c]) => n + c, 0) : rows.length;
   return (
     <div style={{ marginBottom: 14, border: "1px solid var(--color-border)", borderRadius: 6, padding: "8px 10px" }}>
       <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", fontSize: "var(--font-size-base)" }}>
