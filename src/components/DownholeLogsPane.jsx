@@ -202,6 +202,21 @@ export default function DownholeLogsPane({ layers, customLayers = [], assays = [
   const keptHoles = useMemo(() => holesForChoice(holeChoice.key, holeCtx), [holeChoice.key, holeCtx]);
   const data = useMemo(() => filterLogData(dataAll, keptHoles), [dataAll, keptHoles]);
   const { setCustomLayers } = useStore(); // #2952 — the log's unit, typed in the pane
+  // TASKS.csv #2968 — 'Composite to the assay intervals': the log (its range and despike applied, every hole) averaged over each assay sample
+  // and added as a numeric layer (lib/logComposite.js, loaded on the click); what it made is said under the button, kept per project
+  const [compositeMsg, setCompositeMsg] = useKeptState(keptScope, "dhlogs.compositeMsg", null); // { key: the log's, text }
+  const composite = async () => {
+    if (!source || !dataAll) return;
+    const key = source.key, say = (text) => setCompositeMsg({ key, text });
+    let lib;
+    try { lib = await import("../lib/logComposite.js"); } catch (err) { say(tr("The compositing could not be loaded: {v}", { v: err?.message || err })); return; }
+    const res = lib.compositeLogToAssays(dataAll, assays);
+    if (!res.rows.length) { say(tr("No assay sample has enough of this log's readings in it: no layer was made.")); return; }
+    const name = lib.compositeLayerName(source.symbol, customLayers);
+    const unit = source.unit && source.unit !== "as logged" ? source.unit : undefined;
+    setCustomLayers((p) => [...p, { id: `custom_${Date.now()}`, name, rows: res.rows, ...(unit ? { unit } : {}), binM: "assay", notes: lib.compositeNotes(source.label, res, { despikeM: dataAll.despikeM, outOfRange: dataAll.outOfRange }) }]);
+    say(tr("Added the layer \"{name}\". Assay samples: {s}; readings in them: {r}. Left out: {t} sample(s) under half covered by readings, {u} reading(s) in no sample. Estimation, Grade shell, Geochem X-Y and Statistics can read it.", { name, s: res.samples.toLocaleString(), r: res.readings.toLocaleString(), t: res.thin.toLocaleString(), u: res.unsampled.toLocaleString() }));
+  };
   const logLayer = source?.layerId != null && source.field === "value" ? customLayers.find((c) => c.id === source.layerId) : null;
   const builtinKey = source?.layerKey && source.field === "value" && source.key === `log:${source.layerKey}` ? source.layerKey : null; // #3116 — a built-in log (not one of its extra fields)
   const layerNotes = source?.layerId != null ? String(customLayers.find((c) => c.id === source.layerId)?.notes || "").trim() : ""; // TASKS.csv #2775
@@ -300,6 +315,12 @@ export default function DownholeLogsPane({ layers, customLayers = [], assays = [
           {data?.outOfRange > 0 && <div style={note}>{tr("{k} reading(s) outside the valid range ({lo} to {hi}) are left out here and in Estimation and Grade shell.", { k: data.outOfRange.toLocaleString(), lo: Number.isFinite(data.validRange[0]) ? data.validRange[0] : "…", hi: Number.isFinite(data.validRange[1]) ? data.validRange[1] : "…" })}</div>}
           {implausible && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr(implausible.rule === "density" ? "{n} reading(s) are outside {lo} to {hi} {u}, denser or lighter than any rock: check them, or set a valid range." : "{n} reading(s) are below 0, which a reading in {u} cannot be: check them, or set a valid range.", { n: implausible.n.toLocaleString(), lo: implausible.lo, hi: implausible.hi, u: implausible.unit })}</div>}
           {layerNotes && <div style={{ ...note, color: "var(--color-text-muted)", whiteSpace: "pre-wrap" }}>{tr("Layer notes: {v}", { v: layerNotes })}</div>}{/* TASKS.csv #2775 — the import's notes (what was left out, where readings sit), as the 3D View's row shows them (#2432); English project text */}
+          {assays.length > 0 && source && ( /* TASKS.csv #2968 */
+            <div style={{ ...note, display: "flex", flexDirection: "column", gap: 4, alignItems: "flex-start" }}>
+              <button type="button" onClick={composite} style={{ ...smallSel, cursor: "pointer" }} title={tr("Average this log over each assay sample of its hole (length-weighted, after its valid range and despike, every hole) and add the result as a numeric layer, beside the grades sample by sample")}>{tr("Composite to the assay intervals")}</button>
+              {compositeMsg?.key === source.key && <div role="status">{compositeMsg.text}</div>}
+            </div>
+          )}
           {overPct > 0 && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("{n} reading(s) are above 100 %, which a percentage cannot be: check them (Data QC lists them). They are drawn as logged.", { n: overPct.toLocaleString() })}</div>}{/* #2245 */}
           <label style={row}>{tr("By code of")}
             <select value={domain?.key || ""} onChange={(e) => setDomainKey(e.target.value)} style={{ ...smallSel, maxWidth: 190 }} aria-label={tr("Group readings by")} disabled={!domains.length}>
