@@ -1636,7 +1636,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
       }
     }
     return groups;
-  }, [rasters, sampleLegendGroup, mapLayers, boundaries, layerStyles, figureOverlay.enabled, layerVisible, layers, categoryFilter, visibleHoles, effectiveLabel, effectiveColor, assayVisible, assayDisplayElements, assayStyle, assays, assayElements, voxelModels, geophysSurveys, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, numericLayerColor, isRowVisible, collars, customLayers, customVisible, holeScheme, holeColourBy]); // the last two: #1398; collars: #1813; holeScheme: #1504
+  }, [rasters, sampleLegendGroup, mapLayers, boundaries, layerStyles, figureOverlay.enabled, layerVisible, layers, categoryFilter, visibleHoles, effectiveLabel, effectiveColor, assayVisible, assayDisplayElements, assayStyle, assays, assayElements, voxelModels, geophysSurveys, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, numericLayerColor, isRowVisible, collars, customLayers, customVisible, holeScheme, holeColourBy, surfaceStructures]); // #1398; collars: #1813; holeScheme: #1504; surfaceStructures: #3092
 
   // TASKS.csv #453 — the 3D slice's planes over the drilled extent: vertical (azimuth, position) or horizontal (an elevation); thickness 0 = a half-space
   const sliceExtent = useMemo(() => {
@@ -7678,11 +7678,9 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             never covered by a title card describing an empty project. Pointer-transparent throughout
             (see the component) so hover picking and orbit drags are untouched, and it is DOM rather
             than WebGL, so it adds no draw calls and nothing to the render loop (#312).
-            NOT captured by snapshotToLayout / doCaptureViewportRender, and that is deliberate: both
-            read pixels back from renderer.domElement.toDataURL(), which sees only the WebGL canvas,
-            so a Layout page built from a snapshot gets the bare view and Layout's own legend/scale/
-            north-arrow elements — no duplicated, half-scaled second legend baked into the image. */}
-        {(!!collars.length || !!surfaceSamples.length || !!(mapLayers || []).length) && ( // #848 — a soil / stream program with no drilling gets its legend and scale too; #948 — and a map with no samples
+            NOT in snapshotToLayout / doCaptureViewportRender (deliberately: they read only the WebGL canvas, so a Layout page
+            gets the bare view and Layout's own legend, scale and north arrow, not a second legend baked in). */}
+        {(!!collars.length || !!surfaceSamples.length || !!(mapLayers || []).length || !!(surfaceStructures || []).length) && ( // #848 soils / streams, no drilling; #948 a map; #3093 outcrop structures
           <ViewportFigureOverlay
             config={figureOverlay}
             title={overlayTitle}
