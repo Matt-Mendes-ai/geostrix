@@ -114,6 +114,7 @@
   "Inversion": "Inversión",
   "Lab certificates": "Certificados de lab.",
   "Legend": "Leyenda",
+  "Drawing {n} samples…": "Dibujando {n} muestras…",
   "{label}: the {kept} commonest of {n} codes, the rest as \"other\"": "{label}: los {kept} códigos más comunes de {n}, el resto como \"other\"",
   "{symbol} as {oxide}": "{symbol} como {oxide}",
   "Oxide names work too, in % through the import's factors: {list}.": "También sirven los nombres de óxidos, en % con los factores de la importación: {list}.",

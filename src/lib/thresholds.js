@@ -26,7 +26,7 @@
 // Robust z-score of a sample within its group: (log10 x - median) / (1.4826 MAD), both of the group's log10 values.
 import { isLabMetaField, fieldLabel } from "./labMetaFields.js"; // TASKS.csv #1828
 import { pointInRings } from "./mapLayers.js";
-import { quantileSorted, median } from "./arrayStats.js"; // TASKS.csv #1114
+import { quantileSorted, median, sortedWeighted } from "./arrayStats.js"; // TASKS.csv #1114; sortedWeighted: #2910
 import { codeIndex, codeAt, NO_CODE } from "./sampleLithology.js"; // TASKS.csv #2510
 
 const LN10 = Math.log(10);
@@ -112,18 +112,18 @@ export function populationSummary(values, censored = 0, weights = null) {
 
 // #2196 — the same summary, every statistic length-weighted (the log SD with the reliability-weights correction W - sum(w^2) / W)
 function weightedSummary(values, censored, weights) {
-  const pairs = [];
-  for (let i = 0; i < values.length; i++) { const v = values[i], w = weights[i]; if (Number.isFinite(v) && v > 0 && Number.isFinite(w) && w > 0) pairs.push([v, w]); }
-  if (!pairs.length) return null;
-  pairs.sort((a, b) => a[0] - b[0]);
-  const s = pairs.map((p) => p[0]), w = pairs.map((p) => p[1]), L = s.map(log10);
+  // #2910 — the shared native sort (a stable sort by value, as the pairs' sort was); the positive values are its tail
+  const sw = sortedWeighted(values, weights);
+  let first = 0; while (first < sw.n && !(sw.v[first] > 0)) first++;
+  if (first >= sw.n) return null;
+  const s = Array.from(sw.v.subarray(first)), w = Array.from(sw.w.subarray(first)), L = s.map(log10);
   let W = 0, W2 = 0, sum = 0; for (let i = 0; i < L.length; i++) { W += w[i]; W2 += w[i] * w[i]; sum += w[i] * L[i]; }
   const meanL = sum / W;
   let ss = 0; for (let i = 0; i < L.length; i++) ss += w[i] * (L[i] - meanL) ** 2;
   const denom = W - W2 / W, sdL = L.length > 1 && denom > 0 ? Math.sqrt(ss / denom) : 0;
   const medL = weightedQuantileSorted(L, w, 0.5);
-  const dev = L.map((x, i) => [Math.abs(x - medL), w[i]]).sort((a, b) => a[0] - b[0]);
-  const madL = 1.4826 * weightedQuantileSorted(dev.map((d) => d[0]), dev.map((d) => d[1]), 0.5);
+  const dv = sortedWeighted(L.map((x) => Math.abs(x - medL)), w); // #2910
+  const madL = 1.4826 * weightedQuantileSorted(dv.v, dv.w, 0.5);
   return {
     n: s.length, censored, censoredPct: s.length ? (100 * censored) / s.length : 0, weighted: true, totalWeight: W,
     min: s[0], max: s[s.length - 1], median: weightedQuantileSorted(s, w, 0.5),
