@@ -3958,7 +3958,6 @@
   "Not set yet. Choose the CRS your collar coordinates are in.": "Ainda não definido. Escolha o SRC em que estão as coordenadas das suas bocas.",
   "GeoStrix places every file, terrain and online map with this CRS. A collar CSV doesn't say which CRS it is in, and the numbers alone can't tell one UTM zone from the next.": "O GeoStrix posiciona todo arquivo, terreno e mapa online com este SRC. Um CSV de bocas não diz em qual SRC está, e os números sozinhos não distinguem uma zona UTM da seguinte.",
   "Where is the project? (latitude, longitude — roughly is enough)": "Onde fica o projeto? (latitude, longitude — aproximado basta)",
-  "e.g. 52.2, -121.3 or 23.5 S 46.6 W": "p. ex. 52.2, -121.3 ou 23.5 S 46.6 W",
   "Project latitude and longitude": "Latitude e longitude do projeto",
   "Type latitude then longitude in decimal degrees (south and west negative, or add S / W).": "Digite latitude e depois longitude em graus decimais (sul e oeste negativos, ou acrescente S / W).",
   "Suggested CRSs": "SRC sugeridos",
