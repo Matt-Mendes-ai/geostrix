@@ -94,7 +94,7 @@ export async function closeSectionWindows() {
 }
 
 export async function openSectionWindow(payload) {
-  if (d) return d.openSectionWindow((await import("./sectionPack.js")).packSectionPayload(payload)); // #2343 — the bulk as columns / typed arrays
+  if (d) return d.openSectionWindow(payload);
   // browser fallback: new tab won't share memory; we stash in sessionStorage keyed by id. Reuses the
   // caller-supplied id (matching its store.sections entry) when given one, so contacts drawn in the new
   // tab relay back to the right saved section — see the CONTACTS_CHANNEL bit below.
@@ -227,7 +227,7 @@ export async function getSectionData() {
 }
 // TASKS.csv #1303 — the sections a window holds as tabs
 export async function closeSectionTab(id) { return d?.closeSectionTab ? d.closeSectionTab(id) : null; }
-export async function popOutSectionTab(payload) { return d?.popOutSectionTab ? d.popOutSectionTab((await import("./sectionPack.js")).packSectionPayload(payload)) : null; } // #2343
+export async function popOutSectionTab(payload) { return d?.popOutSectionTab ? d.popOutSectionTab(payload) : null; }
 export function setSectionTabUnsaved(id, unsaved, text) { d?.setSectionTabUnsaved?.(id, unsaved, text); } // #1323
 export function onSectionData(cb) {
   if (d) return d.onSectionData(cb);

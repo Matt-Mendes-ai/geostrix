@@ -1,6 +1,5 @@
 import React, { useEffect, useId, useMemo, useState, useRef, useLayoutEffect } from "react";
 import { Camera, Pencil, Check, Undo2, X, Save, Download, FileText, Crosshair } from "./icons.js";
-import { unpackSectionPayload } from "../lib/sectionPack.js"; // TASKS.csv #2343 — a pushed payload's packed bulk
 import { onSectionData, sendSectionSnapshot, sendSectionContacts, saveFile, savePDF, canvasPngBytes, onSectionResnap } from "../lib/desktop.js"; // onSectionResnap: TASKS.csv #1485
 import { solveOrientationToTarget } from "../lib/holePlanning.js"; // TASKS.csv #395
 import { snapTargets, snapClick, moveVertex, deleteVertex, insertVertex, nearestSegment, setTieVertex, copyGhostString, onSectionPlane, contactsKey, sectionHasUnsaved } from "../lib/sectionDigitise.js"; // TASKS.csv #519; copyGhostString: #1059
@@ -164,7 +163,7 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
   useEffect(() => {
     const takeLabels = (d) => { if (!d) return; setLabels(d.labels ? { mode: "collar", leaders: "auto", ...d.labels, offsets: d.labels.offsets || {} } : { mode: "collar", leaders: "auto", offsets: {} }); }; // #823 — a section without saved labels starts from the defaults
     // TASKS.csv #876 — a quiet refresh (an explicit surface was rebuilt) updates the drawing but keeps what is being drawn
-    const off = onSectionData((d0) => { if (!tabId || d0.id !== tabId) return; const d = unpackSectionPayload(d0); /* #2343 */ /* #1303 — other tabs share this window */ if (d.refreshOnly) { setData((prev) => ({ ...d, contacts: prev?.contacts })); const r = document.documentElement.dataset; r.sectionRefreshes = String((Number(r.sectionRefreshes) || 0) + 1); return; } setData(d); if (!unsavedRef.current) { setContacts(d.contacts || []); setSavedKey(contactsKey(d.contacts)); } /* #1323 — reopening the section must not wipe lines not saved yet */ takeLabels(d); });
+    const off = onSectionData((d) => { if (!tabId || d.id !== tabId) return; /* #1303 — other tabs share this window */ if (d.refreshOnly) { setData((prev) => ({ ...d, contacts: prev?.contacts })); const r = document.documentElement.dataset; r.sectionRefreshes = String((Number(r.sectionRefreshes) || 0) + 1); return; } setData(d); if (!unsavedRef.current) { setContacts(d.contacts || []); setSavedKey(contactsKey(d.contacts)); } /* #1323 — reopening the section must not wipe lines not saved yet */ takeLabels(d); });
     if (initial) { setData(initial); setContacts(initial.contacts || []); setSavedKey(initial.savedContactsKey ?? contactsKey(initial.contacts)); takeLabels(initial); } // #1303 — from the tab host; savedContactsKey: #1323, a popped-out section keeps its unsaved state
     const params = new URLSearchParams(window.location.hash.split("?")[1] || "");
     const id = params.get("id");
