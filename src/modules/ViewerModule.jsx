@@ -4061,8 +4061,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     // TASKS.csv #1021 — lat / lon and true / magnetic azimuths need the real CRS; #2254 — a CSV on a project with no CRS is written in its own
     // grid (E / N / RL, grid azimuth, dip, length, target, toe), lat / lon and true / magnetic left blank; KML / GPX still ask
     const local = project?.crsSet === false && format === "csv";
-    const epsg = local ? null : await ensureExportCrs(project); if (!local && !epsg) return;
-    const rows = rigRows(plannedHoles, epsg, today, plannedHoleTrace);
+    const tx = local ? null : await import("../lib/tiedExport.js"), ex = tx ? await tx.exportCrs(project) : null; if (!local && !ex) return; // #2322 — a tied local grid: through its tie
+    const epsg = ex?.epsg ?? null, rows = rigRows(ex?.tie ? tx.rowsToWorld(plannedHoles, ex.tie, { points: ["target"] }) : plannedHoles, epsg, today, plannedHoleTrace);
     const base = `${(project.name || "project").replace(/[^\w\- ]/g, "")}_planned_holes`;
     const noLatLon = rows.filter((r) => r.lat === "").length;
     const noMag = rows.filter((r) => r.azimuth_magnetic === "").length;
@@ -5315,8 +5315,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     if (!features.length) { setNotices((p) => [...p, notice("Nothing to export for \"{label}\" — no rows with usable/desurveyed coordinates.", { label })]); return; }
     try {
       const { buildShapefileZip } = await import("../lib/shapefile.js"); // #552 — on demand
-      const epsg = project?.crsSet === false ? null : await ensureExportCrs(project); if (!epsg && project?.crsSet !== false) return; // #1021; #2295: no CRS = no .prj
-      const zipBytes = buildShapefileZip({ features, geomType, epsg, baseName: label, keepFieldCase: !!built, flat: !!built?.flat }); // #1025; #1246 — a map layer keeps its field names
+      const tx = await import("../lib/tiedExport.js"), ex = project?.crsSet === false && !tx.tieOf(project) ? null : await tx.exportCrs(project); if (!ex && project?.crsSet !== false) return; const epsg = ex?.epsg ?? null; // #1021; #2295: no CRS = no .prj; #2322: a tied grid through its tie
+      const zipBytes = buildShapefileZip({ features: tx.featuresToWorld(features, ex?.tie), geomType, epsg, baseName: label, keepFieldCase: !!built, flat: !!built?.flat }); // #1025; #1246 — a map layer keeps its field names
       const res = await saveFile({ quiet: true, // TASKS.csv #576 — awaited: success only when it was written
         suggestedName: `${label.replace(/[^a-z0-9_-]+/gi, "_").toLowerCase()}.zip`,
         filters: [{ name: "Shapefile (zipped)", extensions: ["zip"] }],
@@ -5336,8 +5336,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     if (!features.length) { setNotices((p) => [...p, notice("Nothing to export for \"{label}\" — no rows with usable/desurveyed coordinates.", { label })]); return; }
     try {
       const tableName = label.replace(/[^a-zA-Z0-9_]+/g, "_") || "layer";
-      const epsg = project?.crsSet === false ? null : await ensureExportCrs(project); if (!epsg && project?.crsSet !== false) return; // #1021; #2295: srs -1
-      const gpkgBytes = await (await loadGpkg()).buildGeoPackage([{ name: tableName, features, geomType, epsg }]); // #439 lazy
+      const tx = await import("../lib/tiedExport.js"), ex = project?.crsSet === false && !tx.tieOf(project) ? null : await tx.exportCrs(project); if (!ex && project?.crsSet !== false) return; const epsg = ex?.epsg ?? null; // #1021; #2295: srs -1; #2322: a tied grid through its tie
+      const gpkgBytes = await (await loadGpkg()).buildGeoPackage([{ name: tableName, features: tx.featuresToWorld(features, ex?.tie), geomType, epsg }]); // #439 lazy
       const res = await saveFile({ quiet: true, // TASKS.csv #576 — awaited: success only when it was written
         suggestedName: `${label.replace(/[^a-z0-9_-]+/gi, "_").toLowerCase()}.gpkg`,
         filters: [{ name: "GeoPackage", extensions: ["gpkg"] }],
@@ -5355,9 +5355,9 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   const exportVectorKML = async (label, built, kmlOpts = {}) => {
     if (!built.features.length) { setNotices((p) => [...p, notice("Nothing to export for \"{label}\" — no rows with usable/desurveyed coordinates.", { label })]); return; }
     try {
-      const epsg = await ensureExportCrs(project); if (!epsg) return; // #1021
+      const tx = await import("../lib/tiedExport.js"), ex = await tx.exportCrs(project); if (!ex) return; const epsg = ex.epsg; // #1021; #2322 — a tied local grid: through its tie
       const ox = await import("../lib/overlayExport.js");
-      const toLonLat = await ox.lonLatTransform(epsg);
+      const toLonLat = tx.lonLatThrough(ex.tie, await ox.lonLatTransform(epsg));
       if (!toLonLat) throw new Error(tr("EPSG:{epsg} cannot be converted to latitude / longitude.", { epsg }));
       const res = await saveFile({ quiet: true, suggestedName: `${label.replace(/[^a-z0-9_-]+/gi, "_").toLowerCase()}.kml`, filters: [{ name: "KML", extensions: ["kml"] }], content: ox.featuresToKml(built, { name: label, toLonLat, ...kmlOpts }) });
       if (!res?.ok) { if (res?.error) throw new Error(res.error); return; }

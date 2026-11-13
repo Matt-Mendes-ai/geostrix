@@ -12,8 +12,9 @@ test("#2295 a shapefile with no CRS: no .prj, a READ_ME that says why", () => {
 });
 test("#2295 wiring: Shapefile and GeoPackage skip the CRS question on a no-CRS project; KML does not", () => {
   const v = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
-  assert.equal((v.match(/const epsg = project\?\.crsSet === false \? null : await ensureExportCrs\(project\); if \(!epsg && project\?\.crsSet !== false\) return;/g) || []).length, 2);
+  // #2322 — the same rule through tiedExport.js: a no-CRS project with no tie skips the question (no .prj); a TIED one goes through its tie
+  assert.equal((v.match(/ex = project\?\.crsSet === false && !tx\.tieOf\(project\) \? null : await tx\.exportCrs\(project\); if \(!ex && project\?\.crsSet !== false\) return; const epsg = ex\?\.epsg \?\? null;/g) || []).length, 2);
   const kml = v.slice(v.indexOf("const exportVectorKML = async"), v.indexOf("const exportVectorKML = async") + 600);
-  assert.match(kml, /const epsg = await ensureExportCrs\(project\); if \(!epsg\) return;/);
+  assert.match(kml, /ex = await tx\.exportCrs\(project\); if \(!ex\) return; const epsg = ex\.epsg;/); // KML still asks (exportCrs is ensureExportCrs without a tie)
   assert.match(readFileSync(new URL("../src/lib/gpkg.js", import.meta.url), "utf8"), /const srsId = Number\.isFinite\(epsg\) && epsg > 0 \? epsg : -1;/);
 });

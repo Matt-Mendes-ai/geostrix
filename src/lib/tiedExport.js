@@ -92,6 +92,31 @@ export function structureSetToWorld(set, tie) {
     return { ...r, x, y, ...(Number.isFinite(dd) ? { dipDir: Math.round(bearingToWorld(tie, dd) * 1e6) / 1e6 } : {}) };
   }) };
 }
+// rows with x / y (collars, planned holes, survey stations) in the tie CRS: positions through the tie, the named bearing fields (azimuth…)
+// turned by its rotation, and the named nested points ({ x, y } fields: a planned hole's target) through the tie too; a row with no x / y
+// keeps them (a survey row), and anything else is unchanged. Unchanged without a tie.
+export function rowsToWorld(rows, tie, { bearings = ["azimuth"], points = [] } = {}) {
+  if (!tie) return rows;
+  const P = exportXY(tie), n = (v) => (typeof v === "number" ? v : v == null || v === "" ? NaN : Number(v));
+  const move = (o) => { const x = n(o?.x), y = n(o?.y); if (!Number.isFinite(x) || !Number.isFinite(y)) return o; const [X, Y] = P(x, y); return { ...o, x: X, y: Y }; };
+  return (rows || []).map((r) => {
+    const out = move(r) === r ? { ...r } : move(r);
+    for (const k of bearings) { const b = n(r[k]); if (Number.isFinite(b)) out[k] = Math.round(bearingToWorld(tie, b) * 1e6) / 1e6; }
+    for (const k of points) if (r[k] && typeof r[k] === "object") out[k] = move(r[k]);
+    return out;
+  });
+}
+// shapefile / GeoPackage / KML features ({ geometry: [[x, y, z]...] } or { parts: [[[x, y, z]...]...] }) with their coordinates through the
+// tie; the attributes are kept as they are (a bearing stored as an attribute stays on the local grid's north). Unchanged without a tie.
+export function featuresToWorld(features, tie) {
+  if (!tie) return features;
+  const P = exportXY(tie);
+  const pt = (c) => { if (!Array.isArray(c) || !Number.isFinite(c[0]) || !Number.isFinite(c[1])) return c; const [X, Y] = P(c[0], c[1]); return c.length > 2 ? [X, Y, ...c.slice(2)] : [X, Y]; };
+  return (features || []).map((f) => ({ ...f, ...(Array.isArray(f.geometry) ? { geometry: f.geometry.map(pt) } : {}), ...(Array.isArray(f.parts) ? { parts: f.parts.map((p) => (Array.isArray(p) ? p.map(pt) : p)) } : {}) }));
+}
+// a (x, y) -> [lon, lat] of the export CRS taking LOCAL grid points (through the tie first); null stays null; unchanged without a tie
+export const lonLatThrough = (tie, toLonLat) => (tie && toLonLat ? (x, y) => toLonLat(...exportXY(tie)(x, y)) : toLonLat);
+export { tieOf } from "./localGridTie.js"; // for the callers that load this module on demand
 // f(x, y) of the LOCAL grid (a terrain lookup) asked at a point in the tie CRS (unchanged without a tie)
 export const atLocal = (tie, f) => (tie && f ? (X, Y) => { const l = worldToLocal(tie, X, Y); return f(l.x, l.y); } : f);
 // the sentence an export adds on a tied grid
