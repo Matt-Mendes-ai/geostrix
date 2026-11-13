@@ -20,7 +20,16 @@ export function planGeometryKey(plannedHoles) {
 // points and bounding box for points farther away than the grid search reaches
 // TASKS.csv #2097 — collars marked proposed are left out (proposed: their ids); a hole with no survey and no azimuth / dip is in, as the
 // assumed vertical hole #2014 draws (assumed: their ids), so the checks can say so
+// TASKS.csv #2977 — kept per collars array for its survey, method and cell: opening Planned holes desurveyed the 6,390 holes each time
+const indexMemo = new WeakMap();
 export function drilledTraceIndex(collars, survey, desurveyMethod, cell = 25) {
+  const kept = Array.isArray(collars) ? indexMemo.get(collars) : null;
+  if (kept && kept.survey === survey && kept.method === desurveyMethod && kept.cell === cell) return kept.out;
+  const out = drilledTraceIndexOf(collars, survey, desurveyMethod, cell);
+  if (Array.isArray(collars)) indexMemo.set(collars, { survey, method: desurveyMethod, cell, out });
+  return out;
+}
+function drilledTraceIndexOf(collars, survey, desurveyMethod, cell) {
   const byHole = new Map();
   for (const s of survey || []) if (!isNaN(s.depth)) (byHole.get(s.hole_id) || byHole.set(s.hole_id, []).get(s.hole_id)).push(s);
   const grid = new Map(), holes = [], assumed = new Set();
@@ -107,10 +116,24 @@ export const PAD_M = 10, COLLAR_ZONE_M = 50;
 // TASKS.csv #2976 — the checks' default minimum spacing: a quarter of the drilled holes' site spacing, to 0.1 m (none without one)
 export const minSpacingFrom = (siteM) => (siteM > 0 ? Math.round((siteM / 4) * 10) / 10 : null);
 // -> [{ hole, nearestReal: { hole_id, distance, md } | null, samePad: [hole_id], targetHits: [{ modelId, modelName, metres }] }]
+// TASKS.csv #2977 — the nearest-hole part (the search of every drilled trace) kept per drilled index and planned-hole geometry: 1.4-2.1 s to
+// open Planned holes with 19 planned holes, and again for every hole when one was added
+const nearMemo = new WeakMap();
+const holeGeomKey = (hole) => { const { name: _n, notes: _o, id: _i, ...g } = hole || {}; return JSON.stringify(g); };
 export function planChecks(plannedHoles, drilled, targets, traceOf = plannedTrace) {
+  let near = drilled && typeof drilled === "object" ? nearMemo.get(drilled) : null;
+  if (drilled && typeof drilled === "object" && !near) { near = new Map(); nearMemo.set(drilled, near); }
   return (plannedHoles || []).map((hole) => {
     const pts = traceOf(hole); // dense (~3 m) desurveyed points
     if (!pts.length) return { hole, nearestReal: null, samePad: [], targetHits: [] };
+    const gk = traceOf === plannedTrace && near ? holeGeomKey(hole) : null, hit = gk != null ? near.get(gk) : null;
+    const { nearestReal, samePad } = hit || nearestOf(pts, drilled);
+    if (gk != null && !hit) near.set(gk, { nearestReal, samePad });
+    const targetHits = targetHitsOf(pts, targets);
+    return { hole, nearestReal, samePad, targetHits };
+  });
+}
+function nearestOf(pts, drilled) {
     let nearestReal = null;
     const c0 = pts[0], samePad = (drilled?.holes || []).filter((h) => h.pts[0] && Math.hypot(h.pts[0].x - c0.x, h.pts[0].y - c0.y, h.pts[0].z - c0.z) <= PAD_M).map((h) => h.hole_id);
     const skipMd = samePad.length ? COLLAR_ZONE_M : -Infinity;
@@ -119,7 +142,10 @@ export function planChecks(plannedHoles, drilled, targets, traceOf = plannedTrac
     const spread = new Map(); let counted = 0;
     if (drilled?.n) for (const p of pts) { if ((p.md ?? 0) < skipMd) continue; counted++; const { best, hole: h } = nearestDrilled(drilled, p); if (h != null) { const r = spread.get(h) || { lo: Infinity, hi: -Infinity, n: 0 }; r.lo = Math.min(r.lo, best); r.hi = Math.max(r.hi, best); r.n++; spread.set(h, r); } if (h != null && (!nearestReal || best < nearestReal.distance)) nearestReal = { hole_id: h, distance: best, md: p.md ?? 0, assumed: !!drilled.assumed?.has(h) }; } // assumed: #2097
     if (nearestReal) { const r = spread.get(nearestReal.hole_id); nearestReal.steady = !!r && r.n >= 0.8 * counted && r.hi - r.lo < 1; }
-    const targetHits = (targets || []).map((t) => {
+    return { nearestReal, samePad };
+}
+function targetHitsOf(pts, targets) {
+    return (targets || []).map((t) => {
       let metres = 0;
       for (let i = 1; i < pts.length; i++) {
         const mid = { x: (pts[i].x + pts[i - 1].x) / 2, y: (pts[i].y + pts[i - 1].y) / 2, z: (pts[i].z + pts[i - 1].z) / 2 };
@@ -127,6 +153,4 @@ export function planChecks(plannedHoles, drilled, targets, traceOf = plannedTrac
       }
       return { modelId: t.modelId, modelName: t.modelName, band: t.band, metres };
     }).filter((h) => h.metres > 0);
-    return { hole, nearestReal, samePad, targetHits };
-  });
 }
