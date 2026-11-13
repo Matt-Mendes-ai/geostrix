@@ -382,7 +382,15 @@ function SpiderPlot({ diagram, samples, elementUnits, colorBy, svgRef, describe 
 }
 
 // ---------- helpers ----------
-function linTicks(min, max, n) { const step = (max - min) / n; return Array.from({ length: n + 1 }, (_, i) => min + i * step); }
+// TASKS.csv #2925 (5) (review #2876) — Fe 0-72.62 was ticked '12.1, 24.21, 36.31 …' (six equal parts): round steps (1, 2, 2.5, 5 x 10^k) inside
+// the range, about n of them
+export function linTicks(min, max, n) {
+  if (!Number.isFinite(min) || !Number.isFinite(max) || !(max > min)) return [min];
+  const raw = (max - min) / n, p = 10 ** Math.floor(Math.log10(raw)), step = [1, 2, 2.5, 5, 10].map((m) => m * p).find((s) => s >= raw);
+  const out = [];
+  for (let t = Math.ceil(min / step - 1e-9) * step; t <= max + step * 1e-9; t += step) out.push(+t.toPrecision(12));
+  return out;
+}
 // TASKS.csv #1672 (review #1645, Copley) — a bound of 0 (pXRF 'not detected' zeros on a log axis) made log10 -Infinity and this loop never
 // ended: the renderer ran out of memory and the window went black. No ticks for a bound a log axis cannot have.
 function logTicks(min, max) {

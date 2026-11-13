@@ -460,7 +460,12 @@ export default function LayoutModule() {
     if (targetElementId !== "new") {
       setElements((els) => els.map((el) => el.id === targetElementId ? { ...el, themeId, refreshing: true } : el));
     }
-    requestViewportRender(themeId, targetElementId, trueScale, false, { dpi: PAGE_DPI, ...opts }); // #2303 — 200 dpi on the page
+    // TASKS.csv #3138 (#3018 part a; side 6 stores the camera set in 'Enter & adjust view' as viewState.adjusted) — a themeless viewport whose
+    // view was adjusted keeps it: Refresh, Fit and a scale change capture that camera, not the live 3D View (ViewerModule applies req.viewState
+    // and puts the live view back, the #1644 path)
+    const target = targetElementId !== "new" && !themeId ? elements.find((el) => el.id === targetElementId) : null;
+    const keptView = target?.viewState?.adjusted && !opts.viewState && !opts.liveView ? { viewState: target.viewState } : {}; // liveView: #3145 — back to the live 3D View
+    requestViewportRender(themeId, targetElementId, trueScale, false, { dpi: PAGE_DPI, ...keptView, ...opts }); // #2303 — 200 dpi on the page
     setThemePickerFor(null);
     goToModule("viewer");
   };
@@ -1484,6 +1489,7 @@ export default function LayoutModule() {
                 legendReloaded={elements.some((el) => el.type === "legend" && el.boundViewportId === sel.id && el.autoReloaded && el.loadedCapturedAt === sel.capturedAt)} /* #2471 */
                 sel={sel} themes={themes} updateSelected={updateSelected} syncNotice={syncNotice}
                 onRefresh={() => startViewportRender(sel.themeId, sel.id, sel.trueScale, { fixedScale: sel.fixedScale, elementW: sel.w, elementH: sel.h })}
+                onLiveView={() => { updateSelected({ viewState: { ...(sel.viewState || {}), adjusted: false } }); startViewportRender(sel.themeId, sel.id, sel.trueScale, { fixedScale: sel.fixedScale, elementW: sel.w, elementH: sel.h, liveView: true }); }} /* #3145 */
                 onRebind={(themeId) => startViewportRender(themeId, sel.id, sel.trueScale, { fixedScale: sel.fixedScale, elementW: sel.w, elementH: sel.h })}
                 onEnter={() => startInteractiveViewportEdit(sel.themeId, sel.id, sel.trueScale, { fixedScale: sel.fixedScale, elementW: sel.w, elementH: sel.h })}
                 onFit={() => fitViewport(sel)} hasHoles={(collars || []).length > 0} /* #1866 — the button's label */
@@ -2068,7 +2074,7 @@ function SectionScaleControls({ sel, pageW, pageH, updateSelected, onResize = nu
   );
 }
 
-function ViewportControls({ steepHoles = false, legendReloaded = false, sel, themes, updateSelected, onRefresh, onRebind, onEnter, onFit, onRescale, onSyncScaleBar, onSyncNorth, syncNotice, others = [], allViewports = [], hasHoles = true, crsUnset = false }) {
+function ViewportControls({ steepHoles = false, legendReloaded = false, sel, themes, updateSelected, onRefresh, onLiveView = null, onRebind, onEnter, onFit, onRescale, onSyncScaleBar, onSyncNorth, syncNotice, others = [], allViewports = [], hasHoles = true, crsUnset = false }) {
   // TASKS.csv #907 — the scale picker: a preset, "custom" (a typed 1:N), or free (whatever the 3D view frames)
   const [customScale, setCustomScale] = useState(false);
   const scaleChoice = customScale || (sel.fixedScale > 0 && !SCALE_PRESETS.includes(sel.fixedScale)) ? "custom" : sel.fixedScale > 0 ? String(sel.fixedScale) : "";
@@ -2129,6 +2135,12 @@ function ViewportControls({ steepHoles = false, legendReloaded = false, sel, the
           banner for the other half of this flow. */}
       <button onClick={onEnter} disabled={sel.refreshing} title={tr("Switch to the 3D View tab and interactively orbit/pan/zoom this viewport's camera, then bring the new angle back here")} style={{ ...pBtn, opacity: sel.refreshing ? 0.6 : 1 }}>
         <LogIn size={14} />{" "}{tr("Enter & adjust view…")}</button>
+      {/* TASKS.csv #3145 — a view set here is kept by Refresh, Fit and a scale change; this goes back to the live 3D View */}
+      {!sel.themeId && sel.viewState?.adjusted && onLiveView && (
+        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: -4, marginBottom: 6, lineHeight: 1.4 }}>{tr("This frame keeps the view you set in 'Enter & adjust view': Refresh, Fit and a scale change use it.")}{" "}
+          <button style={{ ...smallBtn, marginTop: 4 }} onClick={onLiveView} disabled={sel.refreshing}>{tr("Use the live 3D View again")}</button>
+        </div>
+      )}
       {sel.fixedScale > 0 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: -4, marginBottom: 6, lineHeight: 1.4 }}>{tr("This frame has a fixed scale (1:{s}): in the 3D view only where you centre it is used, not the zoom. Set Scale to \"free (as framed)\" to use the zoom.", { s: Number(sel.fixedScale).toLocaleString() })}</div>}{/* TASKS.csv #1486 */}
       {/* TASKS.csv #1486 — what the zoom in 'Enter & adjust view' framed, when it was far from the fixed scale: one click uses it */}
       {sel.fixedScale > 0 && sel.adjustZoomScale > 0 && Math.abs(sel.adjustZoomScale / sel.fixedScale - 1) > 0.05 && (() => { const z = roundScale(sel.adjustZoomScale); return (
@@ -2585,7 +2597,7 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
             <thead><tr>{columns.map((h, j) => <th key={j} style={{ ...cell, textAlign: numeric[j] ? "right" : "left", fontWeight: 600, borderBottom: "1px solid #1a2028" }}>{h}</th>)}</tr></thead>
             <tbody>
               {part.map((r, i) => <tr key={i}>{r.map((v, j) => <td key={j} style={{ ...cell, textAlign: numeric[j] ? "right" : "left" }}>{v}</td>)}</tr>)}
-              {!rows.length && pi === 0 && <tr><td colSpan={Math.max(1, columns.length)} style={{ ...cell, color: "#777" }}>{el.source === "collars" ? (el.holeFilter ? tr("No hole id contains \"{f}\".", { f: el.holeFilter }) : (() => { const k = holesWithoutCollars(ctx?.collars, ctx?.assays, ctx?.layers); return k ? tr("No collars: {n} hole(s) have assays or logs but no collar coordinates.", { n: k.toLocaleString() }) : tr("No collars in the project yet."); })() /* #1869 */) : el.source === "samples" ? (el.symbol ? tr("No sample has a {s} value{v}.", { s: el.symbol, v: el.threshold != null ? tr(" at or above {t}", { t: el.threshold }) : "" }) : tr("Pick an element for the table.")) : tr("No rows.")}</td></tr>}
+              {!rows.length && pi === 0 && <tr><td colSpan={Math.max(1, columns.length)} style={{ ...cell, color: "#777" }}>{el.source === "collars" ? (el.holeFilter ? (String(el.holeFilter).includes("=") ? tr("No hole has {f} in its collar fields.", { f: el.holeFilter }) /* #3027 */ : tr("No hole id contains \"{f}\".", { f: el.holeFilter })) : (() => { const k = holesWithoutCollars(ctx?.collars, ctx?.assays, ctx?.layers); return k ? tr("No collars: {n} hole(s) have assays or logs but no collar coordinates.", { n: k.toLocaleString() }) : tr("No collars in the project yet."); })() /* #1869 */) : el.source === "samples" ? (el.symbol ? tr("No sample has a {s} value{v}.", { s: el.symbol, v: el.threshold != null ? tr(" at or above {t}", { t: el.threshold }) : "" }) : tr("Pick an element for the table.")) : tr("No rows.")}</td></tr>}
               {more > 0 && pi === tableParts.length - 1 && el.source === "samples" && <tr><td colSpan={columns.length} style={{ ...cell, color: "#555", fontStyle: "italic" }}>{tr("… and {n} more sample(s)", { n: more.toLocaleString() })}</td></tr>}{/* #1869 */}
               {more > 0 && pi === tableParts.length - 1 && el.source !== "samples" && <tr><td colSpan={columns.length} style={{ ...cell, color: "#555", fontStyle: "italic" }}>{print ? (ctx?.continuedOn?.(el, nextRow) ? tr("Continued on page {p}", { p: ctx.continuedOn(el, nextRow) }) /* #2718 — its continuation is in this export */ : tr("… {n} more hole(s), from row {r}", { n: more, r: nextRow })) /* #2480 — the editing hint is for the screen, not the paper */ : tr("… and {n} more hole(s), from row {r}: a table with that First row, or Continue on new pages", { n: more, r: nextRow })}</td></tr>}
             </tbody>

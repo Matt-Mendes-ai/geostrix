@@ -93,6 +93,7 @@ export function blockModelRows(model, names = "datamine") {
     if (Number.isFinite(c.nearestSampleM)) row.NEAREST_M = +c.nearestSampleM.toFixed(2);
     if (Number.isFinite(c.inc)) row.INC_DEG = +c.inc.toFixed(1); // #1044
     if (Number.isFinite(c.dec)) row.DEC_GRID_DEG = +c.dec.toFixed(1);
+    if (c.domain != null) row.DOMAIN = c.domain; // TASKS.csv #3014 — a hard-boundary estimate: the domain each block took
     return row;
   });
 }
@@ -115,8 +116,8 @@ export function* blockModelCsvChunks(model, names = "datamine", chunk = 50000) {
   const cells = model.cells || [];
   if (!cells.length) return;
   const valueName = valueColumnName(model);
-  const OPT = ["N_SAMPLES", "N_HOLES", "SUPPORT", "SUPPORT_CODE", "SUPPORT_INDEX", "COVERAGE", "VOLUME_M3", "KV", "NEAREST_M", "INC_DEG", "DEC_GRID_DEG", "HOLE_SHARE"]; // KV / NEAREST_M: #1049; INC / DEC: #1044; HOLE_SHARE: #1617
-  const has = (c) => [c.nSamples != null, c.nHoles != null, c.support != null, typeof c.support === "string" && SUPPORT_CODES[c.support] != null, Number.isFinite(c.supportIndex), Number.isFinite(c.coverage), Number.isFinite(c.coverage) || !!sectionTrueSize(model, c) /* #1093 */, Number.isFinite(c.kv), Number.isFinite(c.nearestSampleM), Number.isFinite(c.inc), Number.isFinite(c.dec), Number.isFinite(c.holeShare)];
+  const OPT = ["N_SAMPLES", "N_HOLES", "SUPPORT", "SUPPORT_CODE", "SUPPORT_INDEX", "COVERAGE", "VOLUME_M3", "KV", "NEAREST_M", "INC_DEG", "DEC_GRID_DEG", "HOLE_SHARE", "DOMAIN"]; // KV / NEAREST_M: #1049; INC / DEC: #1044; HOLE_SHARE: #1617
+  const has = (c) => [c.nSamples != null, c.nHoles != null, c.support != null, typeof c.support === "string" && SUPPORT_CODES[c.support] != null, Number.isFinite(c.supportIndex), Number.isFinite(c.coverage), Number.isFinite(c.coverage) || !!sectionTrueSize(model, c) /* #1093 */, Number.isFinite(c.kv), Number.isFinite(c.nearestSampleM), Number.isFinite(c.inc), Number.isFinite(c.dec), Number.isFinite(c.holeShare), c.domain != null]; // DOMAIN: #3014
   // the columns in the order toExportCsv's union of row keys gives: the base seven, then each optional one where it first appears
   const fields = [...(BLOCK_COLUMN_NAMES[names] || BLOCK_COLUMN_NAMES.datamine), valueName], seen = new Set();
   for (let i = 0; i < cells.length && seen.size < OPT.length; i++) has(cells[i]).forEach((h, k) => { if (h && !seen.has(k)) { seen.add(k); fields.push(OPT[k]); } });
@@ -142,6 +143,7 @@ export function* blockModelCsvChunks(model, names = "datamine", chunk = 50000) {
     if (Number.isFinite(c.nearestSampleM)) row[col.NEAREST_M] = String(+c.nearestSampleM.toFixed(2));
     if (Number.isFinite(c.inc)) row[col.INC_DEG] = String(+c.inc.toFixed(1));
     if (Number.isFinite(c.dec)) row[col.DEC_GRID_DEG] = String(+c.dec.toFixed(1));
+    if (c.domain != null) row[col.DOMAIN] = csvCell(c.domain); // #3014
     lines.push(row.join(","));
     if (lines.length >= chunk) { yield lines.join("\r\n"); lines = []; }
   }

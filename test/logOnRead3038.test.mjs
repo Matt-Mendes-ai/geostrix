@@ -78,7 +78,7 @@ test("wiring: the drop sniffs a big file; the dialog and the commit read the tab
   const p = readFileSync(new URL("../src/modules/viewer/useImportPipeline.js", import.meta.url), "utf8");
   assert.match(p, /if \(!\(chans && plain && !rf\?\.col && logTableFits\(modalData\.logTable, modalData\.mapping, chans\)\)\) \{/);
   assert.match(p, /const src = data\.logTable \|\| allRows, readings = logReadings\(src\);/);
-  assert.match(p, /const out = logChannelRows\(src, mapping, col, binM, nd\?\.values \|\| null\);/);
+  assert.match(p, /const out = logChannelRows\(src, mapping, col, binM, nd\?\.values \|\| null, rg, /);
   const b = readFileSync(new URL("../src/components/LogChannelsBox.jsx", import.meta.url), "utf8");
   assert.match(b, /const src = modal\.logTable \|\| rows, readings = logReadings\(src\);/);
   const w = readFileSync(new URL("../src/lib/tabular.worker.js", import.meta.url), "utf8");

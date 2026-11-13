@@ -3,12 +3,14 @@
 // same 40 (no offset); 40 rows at its default place ran to page px 800 on a 794 px A4 landscape sheet.
 import { elevationTrust, suspectElevationIds } from "./collarElevationTrust.js"; // TASKS.csv #3023 — #3004's shared rule
 import { printPx } from "./theme.js";
-import { collarAttrChoices } from "./holeFilter.js"; // TASKS.csv #2717
+import { collarAttrChoices, collarsWithPick } from "./holeFilter.js"; // TASKS.csv #2717; collarsWithPick: #3027
 
 // sorted: the collars in table order. firstRow is 1-based; filter keeps holes whose id contains it (any case).
 export function collarTableSlice(sorted, { firstRow = 1, maxRows = 40, filter = "" } = {}) {
   const f = String(filter || "").trim().toLowerCase();
-  const list = f ? (sorted || []).filter((c) => String(c.hole_id ?? "").toLowerCase().includes(f)) : sorted || [];
+  // TASKS.csv #3027 (review #2876, WA iron) — 'DrillholeType=DD' or 'hole type=Diamond (DD)' listed 0 holes (ids only): a filter with '=' is a
+  // collar-field pick taken whole (holeFilter collarsWithPick, as the Atlas and the grade card read it: case and '_' for a space ignored)
+  const list = !f ? sorted || [] : f.includes("=") ? collarsWithPick(sorted || [], String(filter).trim()) : (sorted || []).filter((c) => String(c.hole_id ?? "").toLowerCase().includes(f));
   const lim = Math.max(1, Math.round(Number(maxRows) || 40));
   const start = Math.max(0, Math.min(list.length, Math.round(Number(firstRow) || 1) - 1));
   const rows = list.slice(start, start + lim);

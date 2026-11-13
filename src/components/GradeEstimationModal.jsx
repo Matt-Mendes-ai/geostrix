@@ -14,6 +14,7 @@ import { excludeQAQC, labAssays } from "../lib/qaqc.js"; // TASKS.csv #266
 import { samplePointsFromIntervals, MAX_BLOCKS, ESTIMATION_METHODS, SUPPORT_COLORS, summarizeSupport, supportInReach, supportBeyondReach, retallyKeptCells } from "../lib/estimation.js"; // retallyKeptCells: #2106
 import { BLOCK_MODEL_BUDGETS, MAX_BLOCK_MODEL_BUDGET, blockModelBudgetNote, cellToFit, blockModelLattice, snapBoundsToLattice, overlapBox, blockModelExtent /* #2729 */ } from "../lib/estimationMeta.js"; // TASKS.csv #626; block-model budgets: #661
 import { runEstimation } from "../lib/estimationClient.js"; // TASKS.csv #520 — off the UI thread
+import { setChoices, setOthers, newSetId, setRecord, memberName, domainNameSuffix, trimLike, memberSummary, MAX_SET_ELEMENTS, MEMBER_OWN_KEYS } from "../lib/estimateSet.js"; // TASKS.csv #3014 — several elements in one run
 import { makeReachClient } from "../lib/blockReachClient.js"; // TASKS.csv #1416; in a worker: #1579
 import { preferredElement, rememberElement } from "../lib/preferredElement.js"; // TASKS.csv #2552
 import { useLeadCommodity } from "../lib/useLeadCommodity.js"; // TASKS.csv #2552
@@ -43,7 +44,7 @@ import { solidChoices } from "../lib/solidChoices.js"; // TASKS.csv #1578
 import { lazyModal } from "../lib/lazyModal.jsx";
 import { collarsLookUnderground, collarBenches } from "../lib/pitShell.js"; // TASKS.csv #2217; collarBenches: #2584
 import { stampEpsg } from "../lib/provenance.js"; // TASKS.csv #2195
-import UnsampledChoice, { useUnsampled, unsampledResultLine } from "./UnsampledChoice.jsx"; // TASKS.csv #2417 / #2542
+import UnsampledChoice, { useUnsampled, unsampledResultLine, resolveUnsampled } from "./UnsampledChoice.jsx"; // resolveUnsampled: #3014 // TASKS.csv #2417 / #2542
 const GradeTonnageModal = lazyModal(() => import("./GradeTonnageModal.jsx")); // TASKS.csv #1577 — from the result, not only from Geophysics
 
 // TASKS.csv #117 — grade estimation into block models (not just display). Micromine-specialist AND
@@ -82,6 +83,10 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
   const [symbol, setSymbolRaw] = useState(() => keep("symbol", preferredElement(symbols, "estimate", lead) || symbols[0] || "Au", (v) => sourceKey !== "assay" || symbols.includes(v)));
   const setSymbol = (v) => { setSymbolRaw(v); if (sourceKey === "assay") rememberElement("estimate", v); };
   const unit = elementUnits[symbol] || "ppm";
+  // TASKS.csv #3014 — other elements estimated in the same run, on the same grid, search and domain rule, added as a set (assays only)
+  const [setPicked, setSetPicked] = useState(() => keep("setOthers", [], Array.isArray));
+  const others = useMemo(() => (sourceKey === "assay" ? setOthers(setPicked, symbols, symbol) : []), [setPicked, symbols, symbol, sourceKey]);
+  const [stage, setStage] = useState(null); // the element being run, while a set runs
 
   const [useComposites, setUseComposites] = useState(() => keep("useComposites", true));
   const [compositeLength, setCompositeLength] = useState(() => keep("compositeLength", 2));
@@ -395,7 +400,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
 
   // #1580 — what to restore next time: kept current every render, stored when the dialog closes
   const remember = useRef(null);
-  remember.current = { sourceKey, logValues, symbol, useComposites, compositeLength, minCoverage, domainKey, noCodeAsDomain, capByDomain, padding, cellSize, cellHeight, flatReach, gridMode, originE, originN, originZ, method, vgModel, vgNugget, vgSill, vgRange, searchRadius, minSamples, minHoles, materialHoles, maxSamples, maxPerHole, capValue, capAuto, includeQAQC, restrictToDomain, classifySupport, shellId, belowGround };
+  remember.current = { sourceKey, logValues, symbol, useComposites, compositeLength, minCoverage, domainKey, noCodeAsDomain, capByDomain, padding, cellSize, cellHeight, flatReach, gridMode, originE, originN, originZ, method, vgModel, vgNugget, vgSill, vgRange, searchRadius, minSamples, minHoles, materialHoles, maxSamples, maxPerHole, capValue, capAuto, includeQAQC, restrictToDomain, classifySupport, shellId, belowGround, setOthers: setPicked /* #3014 */ };
   const settingsKey = estimateSettingsKey(project);
   useEffect(() => () => { lastEstimateSettings.set(settingsKey, remember.current); }, [settingsKey]);
   // TASKS.csv #520 — the estimate runs in a worker: the window keeps repainting, shows progress and can be cancelled
@@ -486,8 +491,8 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
         await new Promise((r) => setTimeout(r, 0)); // #3060
         // TASKS.csv #2596 (review #2486, WA lithium) — every hole's drilled metres with no sample of this element (barren-filled metres count
         // as sampled: #2417), so each block can be flagged when such a metre is nearer to it than its nearest sample
-        const unsPts = (() => {
-          const sampled = sampledByHole(resolvedSegments(runAssays, symbol, unit, elementUnits));
+        const unsampledPointsFor = (rows, el, u) => { // #3014 — per element: a set's members get their own
+          const sampled = sampledByHole(resolvedSegments(rows, el, u, elementUnits));
           const byHole = new Map(); for (const sv of survey) { if (!byHole.has(sv.hole_id)) byHole.set(sv.hole_id, []); byHole.get(sv.hole_id).push(sv); }
           // #3008 — the traces desurveyed when the dialog opened are reused; only the holes it skipped (no assay) are desurveyed here
           const known = traceBounds?.traceOf;
@@ -495,9 +500,11 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
           const pad = Math.min(searchRadius > 0 ? searchRadius : gridDiagonal, 1000);
           const step = Math.max(1, Math.min(useComposites ? compositeLength : 2, Math.min(cell3.dx, cell3.dy, cell3.dz) / 2));
           return unsampledDrillPoints(traces, sampled, step, { xmin: bounds.xmin - pad, xmax: bounds.xmax + pad, ymin: bounds.ymin - pad, ymax: bounds.ymax + pad, zmin: bounds.zmin - pad, zmax: bounds.zmax + pad });
-        })();
+        };
+        const unsPts = unsampledPointsFor(runAssays, symbol, unit);
         await new Promise((r) => setTimeout(r, 0)); // #3060
-        const est = await runEstimation("block", estPts, {
+        // #3014 — the grid, search and domain rule, shared by a set's members
+        const baseOpts = {
           bounds, cellSize: cell3, maxBlocks: blockBudget, // #626; cell3 / bounds: the matched lattice (#724)
           method, searchRadius: searchRadius > 0 ? searchRadius : gridDiagonal, minSamples, maxSamples, maxPerHole, // maxPerHole: #709
           minHoles,                                              // TASKS.csv #258
@@ -505,18 +512,23 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
           restrictToDomain: restrictToDomain && !!domainKey, noCodeAsDomain: restrictToDomain && !!domainKey && noCodeAsDomain /* #2541 */,     // TASKS.csv #260
           support: classifySupport,                              // TASKS.csv #91/#92
           ...(supportRef > 0 ? { supportRef } : {}),             // #1411
-          ...(method === "ok" ? { variogram: { model: vgModel, ...(vgNugget !== "" && vgSill !== "" && vgRange !== "" ? { nugget: Number(vgNugget), sill: Number(vgSill), range: Number(vgRange) } : {}) } } : {}), // #709
           ...(trend ? { trend: { basis: trendBasis(trend), scales: trendSearchScales(trend) } } : {}), // TASKS.csv #650 — ellipsoidal search
+        };
+        const share = others.length ? 1 / (1 + others.length) : 1; // #3014 — the primary's part of the progress bar
+        setStage(others.length ? symbol : null);
+        const est = await runEstimation("block", estPts, {
+          ...baseOpts,
+          ...(method === "ok" ? { variogram: { model: vgModel, ...(vgNugget !== "" && vgSill !== "" && vgRange !== "" ? { nugget: Number(vgNugget), sill: Number(vgSill), range: Number(vgRange) } : {}) } } : {}), // #709
           ...(unsPts.length ? { unsampledPoints: unsPts } : {}), // #2596
           ...(logFills.length ? { logShare: true } : {}), // #2721
-        }, { onProgress: (f) => setProgress(method === "nn" ? f : 0.8 * f), signal: ac.signal });
+        }, { onProgress: (f) => setProgress(share * (method === "nn" ? f : 0.8 * f)), signal: ac.signal });
         // TASKS.csv #1051 — a nearest-neighbour model over the same grid, search, domains and trend (one sample per block,
         // so it is cheap): its mean over the same blocks is the declustered mean the estimate is checked against
         const nnEst = method === "nn" ? est : await runEstimation("block", estPts, {
           bounds, cellSize: cell3, maxBlocks: blockBudget, method: "nn", searchRadius: searchRadius > 0 ? searchRadius : gridDiagonal,
           minSamples: 1, maxSamples: 1, minHoles: 1, restrictToDomain: restrictToDomain && !!domainKey, noCodeAsDomain: restrictToDomain && !!domainKey && noCodeAsDomain /* #2541 */,
           ...(trend ? { trend: { basis: trendBasis(trend), scales: trendSearchScales(trend) } } : {}),
-        }, { onProgress: (f) => setProgress(0.8 + 0.2 * f), signal: ac.signal, checkOnly: true /* #3060 — only joined against the estimate: kept as columns */ });
+        }, { onProgress: (f) => setProgress(share * (0.8 + 0.2 * f)), signal: ac.signal, checkOnly: true /* #3060 — only joined against the estimate: kept as columns */ });
         if (logInfo) { for (const c of est.cells) c.value = unlogValue(c.value); if (nnEst !== est) { const v = nnEst.checkColumns.value; for (let i = 0; i < v.length; i++) v[i] = unlogValue(v[i]); } } // #1741 — back to data units
         // TASKS.csv #404 — the parameters are captured AT RUN TIME (the form can be edited before
         // "Add to project"), and travel with the block model into the project file.
@@ -598,12 +610,48 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
         await new Promise((r) => setTimeout(r, 0)); estimateCheck(est.cells, nnCheck, points);
         await new Promise((r) => setTimeout(r, 0)); swath(est.cells, nnCheck, points, "x");
         await new Promise((r) => setTimeout(r, 0)); 
-        setResult({ ...est, params, nnCells: nnCheck /* #3060 */, checkPoints: points, samplePointCount: points.length, noCodeComposites: domainKey ? points.filter((p) => p.domain == null).length : 0 /* #2541 */, droppedCount: dropped, clampedCount: clamped, beyondTraceCount: beyondTrace, rawStats, intervalCount: intervals.length });
+        // TASKS.csv #3014 — the set's other elements: the same grid (bounds, cell size and budget: the same lattice), search, trend and domain
+        // rule. Each is composited on its own (a sample missing the element is left out for it), takes the unsampled-metres choice saved for it
+        // here (else left out), has no top cut (a cap belongs to its element), and kriging fits its own variogram; then the primary's trims.
+        const members = [];
+        const inArea = areaString ? ((pts) => (x, y) => pointInPolygon(x, y, pts))(areaString.vertices.map((q) => ({ x: q[0], y: q[1] }))) : null;
+        for (let k = 0; k < others.length; k++) {
+          const el = others[k], u = elementUnits[el] || "ppm";
+          setStage(el);
+          await new Promise((r) => setTimeout(r, 0));
+          const unsM = resolveUnsampled("estimate", { assays: srcAssays, collars: runCollars, symbol: el, unit: u, elementUnits, logCtx: { layers, customLayers } });
+          const fm = unsM.apply(srcAssays), rows = fm.assays;
+          const iv = useComposites ? compositeDownhole(rows, el, u, elementUnits, { length: compositeLength, minCoverage, capValue: null, domainRows: domainRowsSel }) : rawSampleIntervals(rows, el, u, elementUnits, { capValue: null }).intervals;
+          let mp = samplePointsFromIntervals(iv, collars, survey, desurveyHole, desurveyMethod).points;
+          if (inShell) mp = mp.filter((q) => inShell(q));
+          if (!mp.length) { members.push({ ...memberSummary(el, u, [], 0), cells: [] }); continue; }
+          const mUns = unsampledPointsFor(rows, el, u);
+          let me;
+          try {
+            me = await runEstimation("block", mp, { ...baseOpts, ...(method === "ok" ? { variogram: { model: vgModel } } : {}), ...(mUns.length ? { unsampledPoints: mUns } : {}) }, { onProgress: (f) => setProgress(share * (1 + k + f)), signal: ac.signal });
+          } catch (err) { if (err.cancelled) throw err; throw new Error(`${el}: ${err.message}`); }
+          const t = trimLike(me.cells, { inShell, inArea, groundAt: groundAt && cutAtGround ? groundAt : null });
+          let supportCounts = me.supportCounts, dominated = me.dominatedCells;
+          if (t.dropped) { const rt = retallyKeptCells(t.cells, { method, supportCounts, dropUnsupported: !!inShell }); if (rt.supportCounts) supportCounts = rt.supportCounts; dominated = rt.dominatedCells; }
+          const mParams = { ...params };
+          for (const key of MEMBER_OWN_KEYS) delete mParams[key];
+          Object.assign(mParams, {
+            element: el, unit: u, capValue: null, capUnit: null, samplePoints: mp.length, ...unsM.params(fm), unsampledDrillPoints: mUns.length,
+            ...(me.variogram ? { variogram: { ...me.variogram, frame: params.variogram?.frame }, krigingBlocks: me.okCounts } : {}), ...(me.mlsCounts ? { mlsBlocks: me.mlsCounts } : {}),
+            ...(dominated ? { effectivelyOneHoleBlocks: dominated } : {}),
+            ...(t.dropped ? { trimmedLikeThePrimary: `${t.dropped} block(s) dropped by the primary's limits (the restricting solid, the area string, the ground)` } : {}),
+          });
+          members.push({ ...memberSummary(el, u, t.cells, mp.length), cells: t.cells, params: mParams, supportCounts });
+        }
+        setStage(null);
+        const withBlocks = members.filter((m) => m.cells.length);
+        if (withBlocks.length) { const set = setRecord(newSetId(), symbol, withBlocks.map((m) => m.element)); params.set = set; for (const m of withBlocks) m.params.set = set; }
+        setResult({ ...est, params, members, nnCells: nnCheck /* #3060 */, checkPoints: points, samplePointCount: points.length, noCodeComposites: domainKey ? points.filter((p) => p.domain == null).length : 0 /* #2541 */, droppedCount: dropped, clampedCount: clamped, beyondTraceCount: beyondTrace, rawStats, intervalCount: intervals.length });
         setAdded(false); setAddedSupport(false); setAddedKv(false); // a fresh run invalidates every "Added ✓" state
       } catch (e) {
         setError(e.cancelled ? tr("Estimation cancelled.") : (e.message || tr("Estimation failed.")));
       }
-      abortRef.current = null; setProgress(null);
+      abortRef.current = null; setProgress(null); setStage(null);
       setRunning(false);
     }, 40);
   };
@@ -623,7 +671,8 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
     const tr3 = trendRatioText(p.searchTrend || p.anisotropy), a = tr3 ? `, ${tr3}` : ""; // #2423 — estimates under different trends get different names
     // TASKS.csv #2069 (review #2013, Woodjam) — a restricted estimate and the whole-grid one had the same name; so did one from the checked holes
     const chk = /^holes checked in the Holes list \((\d+) of/.exec(p.samplesFrom || ""), w = p.restrictedToVolumeName ? `, in ${p.restrictedToVolumeName}` : "", h = chk ? `, ${chk[1]} checked holes` : "";
-    return modelName.trim() || (p.element ? `${p.element} estimate (${p.method}, ${c}m${r}${a}${w}${h})` : `${symbol} estimate (${method}, ${cellLabel}m${r}${a})`);
+    const dn = domainNameSuffix(p); // #3014 — a hard-boundary estimate says so: ", by Lithology"
+    return modelName.trim() || (p.element ? `${p.element} estimate (${p.method}, ${c}m${r}${a}${w}${h}${dn})` : `${symbol} estimate (${method}, ${cellLabel}m${r}${a})`);
   };
   const addSupportModel = () => {
     if (!result || !result.cells.length) return;
@@ -644,14 +693,19 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
     onAddModel({ name: `${base} — kriging variance (data layout, not a grade error)`, source: "kriging-variance", cells, params: { ...result.params, value: `kriging variance (${unit} squared): how well the samples' layout constrains the block under the variogram` } });
     setAddedKv(true);
   };
+  // TASKS.csv #702 — the shared grade ramp (lib/inversion.js gradeStops), the one a geoML estimate gets too
+  const rampOf = (cells) => {
+    let gMin = Infinity, gMax = -Infinity;
+    for (const c of cells) { if (Number.isFinite(c.value)) { if (c.value < gMin) gMin = c.value; if (c.value > gMax) gMax = c.value; } }
+    return gMin <= gMax ? { min: gMin, max: gMax, colorMode: "continuous", stops: gradeStops(gMin, gMax) } : {};
+  };
   const addToProject = () => {
     if (!result || !result.cells.length) return;
     const name = resultName(); // #1737
-    // TASKS.csv #702 — the shared grade ramp (lib/inversion.js gradeStops), the one a geoML estimate gets too
-    let gMin = Infinity, gMax = -Infinity;
-    for (const c of result.cells) { if (Number.isFinite(c.value)) { if (c.value < gMin) gMin = c.value; if (c.value > gMax) gMax = c.value; } }
-    const ramp = gMin <= gMax ? { min: gMin, max: gMax, colorMode: "continuous", stops: gradeStops(gMin, gMax) } : {};
-    onAddModel({ name, source: `estimate-${method}`, cells: result.cells, ...ramp, params: result.params }); // params: TASKS.csv #404
+    const set = result.params?.set; // #3014 — the set's models are added together, each named for its element and the set
+    const p0 = result.params?.element || symbol, typed = !!modelName.trim();
+    onAddModel({ name: set ? memberName(name, p0, p0, set, typed) : name, source: `estimate-${method}`, cells: result.cells, ...rampOf(result.cells), params: result.params }); // params: TASKS.csv #404
+    if (set) for (const m of result.members || []) if (m.cells.length) onAddModel({ name: memberName(name, p0, m.element, set, typed), source: `estimate-${method}`, cells: m.cells, ...rampOf(m.cells), params: m.params });
     setAdded(true);
   };
 
@@ -682,6 +736,21 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
                 {symbols.map((s) => <option key={s} value={s}>{s} ({gradeUnitLabel(s, elementUnits[s] || "ppm")})</option>)}{/* #2429 — g/t for gold, as the cap field */}
               </select>
             </label>
+            {/* TASKS.csv #3014 — other elements estimated in the same run and added with it as a set */}
+            {sourceKey === "assay" && setChoices(symbols, symbol).length > 0 && (
+              <details style={{ fontSize: "var(--font-size-sm)", paddingBottom: 6 }} open={others.length > 0}>
+                <summary style={{ cursor: "pointer" }} title={tr("Estimates other elements in the same run, on the same blocks, with the same search and domain rule, and adds them with this one as a set of block models. Each is composited on its own. The top cut and a typed variogram apply to {symbol} only; the unsampled metres of each other element are read as you last chose for it here, else left out.", { symbol })}>{others.length ? tr("Also estimate: {list}", { list: others.join(", ") }) : tr("Also estimate other elements…")}</summary>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 10px", marginTop: 4, maxWidth: 520 }}>
+                  {setChoices(symbols, symbol).map((s) => {
+                    const on = others.includes(s), full = !on && others.length >= MAX_SET_ELEMENTS - 1;
+                    return <label key={s} style={{ display: "inline-flex", alignItems: "center", gap: 4, color: full ? "var(--color-text-muted)" : undefined }}>
+                      <input type="checkbox" checked={on} disabled={full} onChange={(e) => { const want = new Set(setPicked); if (e.target.checked) want.add(s); else want.delete(s); setSetPicked([...want]); setResult(null); }} />{s}
+                    </label>;
+                  })}
+                </div>
+                {others.length >= MAX_SET_ELEMENTS - 1 && <div style={{ color: "var(--color-text-muted)", marginTop: 2 }}>{tr("Up to {n} elements in one run.", { n: MAX_SET_ELEMENTS })}</div>}
+              </details>
+            )}
             <label style={fieldLabel}>{tr("Method")}{/* TASKS.csv #87 — the method list comes from estimation.js's own table so the dropdown
                   and the estimator can never disagree about what a method id means. */}
               <select value={method} onChange={(e) => setMethod(e.target.value)} style={inp} title={tr(ESTIMATION_METHODS.find((m) => m.id === method)?.blurb || "")}>
@@ -920,7 +989,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
           )}
 
           <button onClick={run} disabled={!bounds || overLimit || reachPending || running || !symbol || !uns.ready /* #2417 */} style={{ ...btn(true), alignSelf: "flex-start", padding: "8px 16px", display: "flex", alignItems: "center", gap: 6, opacity: (!bounds || overLimit || !symbol || !uns.ready) ? 0.5 : 1 }}>
-            <Play size={14} /> {running ? tr("Running… {v}", { v: progress != null ? Math.round(progress * 100) + "%" : "" }) : tr("Run estimation")}
+            <Play size={14} /> {running ? (stage ? tr("Running {el}… {v}", { el: stage, v: progress != null ? Math.round(progress * 100) + "%" : "" }) /* #3014 */ : tr("Running… {v}", { v: progress != null ? Math.round(progress * 100) + "%" : "" })) : tr("Run estimation")}
           </button>
           {running && <button type="button" onClick={cancelRun} style={{ ...btn(false), alignSelf: "flex-start", padding: "6px 14px" }}>{tr("Cancel")}</button>}
 
@@ -1022,12 +1091,19 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
                   <div style={{ marginTop: 5, color: "var(--color-text-muted)" }}>{tr("Only blocks whose informing composites bracket them on all three axes, from at least two holes, count as interpolated. Everything else with a value is being carried outward from the data rather than between it — a real number, but not an interpolation.")}</div>
                 </div>
               )}
+              {/* TASKS.csv #3014 — the set's other elements, on the same blocks */}
+              {result.members?.length > 0 && (
+                <div style={{ marginTop: 4, color: "var(--color-text-secondary)", lineHeight: 1.5 }}>
+                  <div style={{ fontWeight: 600 }}>{tr("Also estimated on the same grid (added with {symbol} as a set):", { symbol: result.params?.element || symbol })}</div>
+                  {result.members.map((m) => <div key={m.element} style={{ color: m.blocks ? undefined : "var(--color-warn-text)" }}>{m.blocks ? tr("{el}: {blocks} blocks from {n} composites, mean {mean} {unit}", { el: m.element, blocks: m.blocks.toLocaleString(), n: m.composites.toLocaleString(), mean: m.mean != null ? +m.mean.toPrecision(3) : "—", unit: gradeUnitLabel(m.element, m.unit) }) : tr("{el}: no samples to estimate from; not added.", { el: m.element })}</div>)}
+                </div>
+              )}
               {result.blocksEstimated > 0 && result.nnCells && <EstimateCheck cells={result.cells} nnCells={result.nnCells} points={result.checkPoints} unit={gradeUnitLabel(symbol, unit) /* #2218: display only */} symbol={symbol} method={result.params.method} epsg={stampEpsg(project)} composited={result.params.composited !== false} />}
               {result.blocksEstimated > 0 && (
                 <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 4 }}>
                   <input placeholder={modelName.trim() ? "" : resultName() /* #1737 — the name the result will get, not the form's current settings */} value={modelName} onChange={(e) => { setModelName(e.target.value); setAdded(false); setAddedSupport(false); }} style={{ ...inp, flex: 1, width: "auto" }} />
                   <button type="button" onClick={() => setGtOpen(true)} style={{ ...btn(false), padding: "7px 12px", width: "auto" }} title={tr("Tonnage and mean grade above a series of cutoffs, for this result (an exploration target, not a Mineral Resource)")}>{tr("Grade-tonnage…")}</button>{/* #1577 */}
-                  <button onClick={addToProject} style={{ ...btn(true), padding: "7px 12px" }}>{added ? tr("Added ✓") : result.supportCounts ? tr("Add as block model ({pct}% interpolated)", { pct: Math.round((100 * result.supportCounts.interpolated) / Math.max(1, result.blocksEstimated)) }) : tr("Add as block model")}</button>{/* pct: TASKS.csv #1573 */}
+                  <button onClick={addToProject} style={{ ...btn(true), padding: "7px 12px" }}>{added ? tr("Added ✓") : result.params?.set ? tr("Add the set ({n} block models)", { n: result.params.set.elements.length }) /* #3014 */ : result.supportCounts ? tr("Add as block model ({pct}% interpolated)", { pct: Math.round((100 * result.supportCounts.interpolated) / Math.max(1, result.blocksEstimated)) }) : tr("Add as block model")}</button>{/* pct: TASKS.csv #1573 */}
                 </div>
               )}
               {/* TASKS.csv #92 — the index as its own block model. This IS the "where is this model

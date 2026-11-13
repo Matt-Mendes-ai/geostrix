@@ -14,6 +14,24 @@
 
 export const labelWidth = (text, fontSize) => Math.ceil(String(text).length * fontSize * 0.58) + 4;
 
+// TASKS.csv #3139 (#3022, WA iron review) — close-spaced holes (41 holes 25 m apart): the typical gap (px) between neighbouring collars
+// along the section, the 25th percentile of the gaps over 1 px (a fan from one pad has none; a few far-apart holes do not set it). null: one hole.
+export function collarGapPx(xs) {
+  const s = xs.filter(Number.isFinite).sort((a, b) => a - b), gaps = [];
+  for (let i = 1; i < s.length; i++) if (s[i] - s[i - 1] > 1) gaps.push(s[i] - s[i - 1]);
+  if (!gaps.length) return null;
+  gaps.sort((a, b) => a - b);
+  return gaps[Math.floor(gaps.length * 0.25)];
+}
+// The longest grade bar (px): the bars of n elements, beyond the ribbons (reach px from the trace, then 5 px, 8 px between elements), end
+// within half that gap, so a bar does not cross into the next hole; one length for the whole section, so the bars stay comparable.
+export function gradeBarMax(gap, reach, n, { max = 36, min = 4 } = {}) {
+  if (!(gap > 0)) return max;
+  return Math.max(min, Math.min(max, Math.floor((gap / 2 - reach - 5) / Math.max(1, n) - 8)));
+}
+// Hole names wider than the gap between collars: they would stack in tiers, and with no room above the collars, run down into the data.
+export const collarLabelsCrowded = (gap, widths) => gap > 0 && widths.length > 1 && [...widths].sort((a, b) => a - b)[Math.floor(widths.length / 2)] > gap;
+
 const overlaps = (a, b, gap) => a.x - a.w / 2 < b.x + b.w / 2 + gap && b.x - b.w / 2 < a.x + a.w / 2 + gap && a.y - a.h < b.y + gap && b.y - b.h < a.y + gap; // x: centre, y: baseline
 
 // TASKS.csv #1536 (review #1497, Lawyers) — dropCrowded: a label with nowhere free is left out instead of overprinting its
@@ -47,7 +65,7 @@ export function placeLabels(items, { fontSize = 9, bounds = null, yBounds = null
     // #1144 — away from the anchor first; only with nothing free that way, the other side of it (a collar right under the
     // title band, a hole ending on the distance axis)
     const start = { x: n.x, y: it.ay + (-it.dir > 0 ? base + fontSize : -base) };
-    for (const [from, dir] of [[n, it.dir], [start, -it.dir]]) {
+    for (const [from, dir] of (it.noFlip ? [[n, it.dir]] : [[n, it.dir], [start, -it.dir]])) { // noFlip: #3139 — never the other side of the anchor
       if (best) break;
       for (let tier = 0; tier <= maxTiers && !(best && best.cost <= tier * (h + gap)); tier++) {
         for (const s of [0, -1, 1, -2, 2, -3, 3]) {

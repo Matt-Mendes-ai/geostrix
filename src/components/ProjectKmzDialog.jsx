@@ -9,6 +9,13 @@ import { KMZ_PARTS } from "../lib/projectKmz.js";
 import { t as tr } from "../lib/i18n.js";
 
 const PREF = "geostrix.kmzParts";
+// TASKS.csv #3087 part 2 — the parts left UNticked are what is remembered ({ off: [...] }), so a part added later starts ticked. The first
+// version kept the ticked ones as a plain list: read against the parts it knew.
+const FIRST_PARTS = ["drillholes", "surface", "sections", "design", "rasters"];
+export function pickedFromPref(saved, keys) {
+  const off = Array.isArray(saved) ? FIRST_PARTS.filter((k) => !saved.includes(k)) : Array.isArray(saved?.off) ? saved.off : [];
+  return new Set(keys.filter((k) => !off.includes(k)));
+}
 const panel = { width: "min(480px, 92vw)", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "hidden" };
 const header = { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid var(--color-border)" };
 const note = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.45 };
@@ -19,8 +26,9 @@ export function kmzPartsPresent(store) {
   return {
     drillholes: any(store.collars) || any(store.plannedHoles),
     surface: any(store.surfaceSamples) || any(store.surfaceStructures) || any(store.mapLayers) || any(store.boundaries),
-    sections: any(store.sections),
+    sections: any(store.sections) || any(store.sectionImages), // #3087 part 2 — the section images too
     design: any(store.designLines) || any(store.designStrings),
+    models: any(store.generatedSurfaces) || any(store.voxelModels) || !!store.terrain, // #3087 part 2
     rasters: any(store.rasters),
   };
 }
@@ -32,12 +40,12 @@ export default function ProjectKmzDialog({ store, onExport, onClose }) {
   const [picked, setPicked] = useState(() => {
     let saved = null;
     try { saved = JSON.parse(localStorage.getItem(PREF) || "null"); } catch { /* private window */ }
-    return new Set(Array.isArray(saved) ? saved.filter((k) => KMZ_PARTS.some((p) => p.key === k)) : KMZ_PARTS.map((p) => p.key));
+    return pickedFromPref(saved, KMZ_PARTS.map((p) => p.key));
   });
   const toggle = (k) => setPicked((s) => { const n = new Set(s); if (n.has(k)) n.delete(k); else n.add(k); return n; });
   const chosen = KMZ_PARTS.filter((p) => picked.has(p.key) && present[p.key]);
   const go = () => {
-    try { localStorage.setItem(PREF, JSON.stringify([...picked])); } catch { /* private window */ }
+    try { localStorage.setItem(PREF, JSON.stringify({ off: KMZ_PARTS.map((p) => p.key).filter((k) => !picked.has(k)) })); } catch { /* private window */ }
     onExport(new Set(chosen.map((p) => p.key)));
   };
   return (

@@ -48,6 +48,12 @@ test("Perk-Rocky's PR-Litho_interpV3, as both KML writers write it: no ring cros
   assert.ok(pr.length > 100);
   assert.deepEqual(pr.filter(ringCrossesItself).length, 0, "project KMZ");
   assert.ok(counts.ringsSplit >= 1, "And's hole was split");
+  // #3161 — a feature of several polygons (And: 3 parts) is one MultiGeometry; bare <Polygon>s side by side were drawn first-only
+  for (const m of kml.matchAll(/<Placemark>([\s\S]*?)<\/Placemark>/g)) {
+    if ((m[1].match(/<Polygon>/g) || []).length > 1) assert.ok(m[1].includes("<MultiGeometry>"), "several polygons in one Placemark need a MultiGeometry");
+  }
+  const andPm = [...kml.matchAll(/<Placemark><name>And<\/name>([\s\S]*?)<\/Placemark>/g)].map((m) => m[1]);
+  assert.ok(andPm.some((b) => (b.match(/<Polygon>/g) || []).length >= 3 && b.includes("<MultiGeometry>")), "And's three parts in one MultiGeometry");
   const one = featuresToKml(mapLayerFeatures(L), { toLonLat });
   assert.equal(rings(one).filter(ringCrossesItself).length, 0, "the per-layer KML");
 });

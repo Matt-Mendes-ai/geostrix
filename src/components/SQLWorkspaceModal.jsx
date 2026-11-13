@@ -104,7 +104,7 @@ export default function SQLWorkspaceModal({ collars, survey, layers, assays, ass
             <textarea
               value={sql}
               onChange={(e) => setSql(e.target.value)}
-              placeholder={tr("SELECT * FROM assays WHERE Au > 1;")}
+              placeholder={state.status === "ready" ? defaultQueryFor(state.tables, leadFor(assays, assayElements)) : tr("SELECT * FROM assays WHERE Au > 1;") /* #2925 (6) — the lead's query, not Au on an iron project */}
               spellCheck={false}
               style={{ width: "100%", height: 100, fontFamily: "monospace", fontSize: "var(--font-size-base)", padding: 10, border: "1px solid var(--color-border)", borderRadius: 6, resize: "vertical", color: "var(--color-text)" }}
             />
