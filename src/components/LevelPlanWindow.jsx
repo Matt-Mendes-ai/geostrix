@@ -40,13 +40,25 @@ function toWorldF(frame, e, root) {
   return [frame.x0 + (q.x - frame.X(frame.x0)) / frame.s, frame.y0 + (frame.Y(frame.y0) - q.y) / frame.s];
 }
 
-export default function LevelPlanWindow({ build, zRange, defaultRl, onClose, onSaveBoundary, onAddToLayout }) {
+// leftOut (#3029): holes whose collar elevation is suspect (#3004), left out of the RL range; said beside the slider
+// TASKS.csv #3064 — the plan before the first build: nothing in it
+const emptyPlan = ({ rl, half }) => ({ rl: Number(rl), half: Number(half), holes: [], intervals: [], assayLegends: {}, points: [], structures: [], voxelSlices: [], surfaceCuts: [], planned: [], legendItems: [] });
+
+export default function LevelPlanWindow({ build, zRange, defaultRl, onClose, onSaveBoundary, onAddToLayout, leftOut = 0 }) {
   const [askPrompt, promptEl] = usePrompt(); // TASKS.csv #1779 — window.prompt throws in Electron
   useEscapeKey(onClose);
   useFocusTrap();
   // TASKS.csv #2929 (WA iron review) — opened on the RL most holes cross, worked out before the first render: #2518 mounted the plan at
   // defaultRl and moved it in an effect, so a 6,036-point plan was committed twice (81-114 s frozen there)
-  const [rl, setRl] = useState(() => { const r0 = Math.round(defaultRl); try { const b = busiestRl(build(r0, 12.5).holes); return b ?? r0; } catch { return r0; } });
+  // TASKS.csv #3064 — and that pick (a full build) now runs after the window is painted, which says 'Building the plan…' meanwhile: the open
+  // blocked 2.4-2.8 s with nothing on screen. The first render is an empty plan, never a full one at defaultRl, so #2929 still holds.
+  const [ready, setReady] = useState(false);
+  const [rl, setRl] = useState(() => Math.round(defaultRl));
+  useEffect(() => {
+    let t;
+    const f = requestAnimationFrame(() => { t = setTimeout(() => { const r0 = Math.round(defaultRl); let b = r0; try { b = busiestRl(build(r0, 12.5).holes) ?? r0; } catch { /* r0 */ } setRl(b); setApplied({ rl: b, half: 12.5 }); setReady(true); }, 0); });
+    return () => { cancelAnimationFrame(f); clearTimeout(t); };
+  }, []);
   const [half, setHalf] = useState(12.5);
   const [colourBy, setColourBy] = useState("");
   const [labels, setLabels] = useState(true);
@@ -65,8 +77,8 @@ export default function LevelPlanWindow({ build, zRange, defaultRl, onClose, onS
   // TASKS.csv #2518 — the RL and slab apply 150 ms after the last change: a slider drag through 10 levels built and decluttered 10 plans
   // (3.5 s of stalls on 2,248 holes); now the plan follows when the slider stops
   const [applied, setApplied] = useState(() => ({ rl, half }));
-  useEffect(() => { const t = setTimeout(() => setApplied({ rl, half }), 150); return () => clearTimeout(t); }, [rl, half]);
-  const data = useMemo(() => buildRef.current(Number(applied.rl), Math.max(0.1, Number(applied.half) || 0)), [applied, rev]);
+  useEffect(() => { const t = setTimeout(() => setApplied((p) => (p.rl === rl && p.half === half ? p : { rl, half })), 150); return () => clearTimeout(t); }, [rl, half]); // #3064 — the same RL is not built again (each open built it twice)
+  const data = useMemo(() => (ready ? buildRef.current(Number(applied.rl), Math.max(0.1, Number(applied.half) || 0)) : emptyPlan(applied)), [applied, rev, ready]);
   // #2518 — open on the RL most holes cross (not the middle of the range): now the initial RL above (#2929)
   // TASKS.csv #2929 — each build's layers in one group keyed by the build: an RL change replaces the group in one placement, where thousands of
   // newly keyed siblings among kept ones were each placed one by one (React walks past the other new siblings for every placement)
@@ -122,6 +134,15 @@ export default function LevelPlanWindow({ build, zRange, defaultRl, onClose, onS
   const ctxCache = useMemo(() => pathCache(), [frame]); // TASKS.csv #2210 — the whole-hole traces' path strings, per frame
   const labelMemo = useRef({ data: null, frame: null, on: null, v: null }); // #2518 — the declutter ran on every render (each hover)
   const drawMemo = useRef({}); // #2982 — the merged paths, per plan, frame and chosen log
+  // #3064 — the empty plan has no frame, so this shell is what paints while the first plan is built (it showed nothing)
+  if (!ready) return (
+    <div role="dialog" aria-modal="true" aria-label={tr("Level plan")} style={{ position: "fixed", inset: 0, background: "rgba(20,24,30,0.35)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, padding: 14, minWidth: 320, color: "var(--color-text)" }}>
+        <div style={{ fontWeight: 600, fontSize: "var(--font-size-lg)", marginBottom: 8 }}>{tr("Level plan")}</div>
+        <div role="status" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>{tr("Building the plan at the RL most holes cross…")}</div>
+      </div>
+    </div>
+  );
   if (!frame) return null;
   const { X, Y, s } = frame;
   const path = (line) => line.map(([x, y], i) => `${i ? "L" : "M"}${X(x).toFixed(1)},${Y(y).toFixed(1)}`).join(" ");
@@ -209,6 +230,7 @@ export default function LevelPlanWindow({ build, zRange, defaultRl, onClose, onS
           <div style={{ fontWeight: 600, fontSize: "var(--font-size-lg)", color: "var(--color-text)" }}>{tr("Level plan")}</div>
           <label style={ctrl}>{tr("RL (m)")}{" "}<input type="number" value={rl} onChange={(e) => setRl(e.target.value)} style={inp} aria-label={tr("Plan elevation (RL)")} /></label>
           <input type="range" min={Math.floor(zRange[0])} max={Math.ceil(zRange[1])} step={1} value={rl} onChange={(e) => setRl(e.target.value)} style={{ width: 160 }} aria-label={tr("Plan elevation slider")} />
+          {leftOut > 0 && <span style={{ ...ctrl, color: "var(--color-warn-text)" }}>{tr("{n} hole(s) with a suspect collar elevation are outside this range (Data QC lists them)", { n: leftOut })}</span>}{/* #3029 */}
           <label style={ctrl} title={tr("Hole runs, logs, assays and structures within this distance above and below the RL are drawn")}>{tr("± slab (m)")}{" "}<input type="number" min={0.1} step="any" value={half} onChange={(e) => setHalf(e.target.value)} style={{ ...inp, width: 56 }} aria-label={tr("Slab half-width")} /></label>
           {layerKeys.length > 0 && (
             <label style={ctrl} title={tr("The interval layers and assay elements shown in the 3D View are offered here: turn one on there (Recovery %, or an element under Assays) to colour the plan by it")}>{tr("Colour holes by")}<select value={activeLayer} onChange={(e) => setColourBy(e.target.value)} style={{ ...inp, width: "auto" }} aria-label={tr("Colour holes by")}>

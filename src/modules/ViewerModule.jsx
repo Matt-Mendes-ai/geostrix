@@ -6,6 +6,7 @@ import { levelPlanZRange, mainTraces } from "../lib/viewer/levelPlanRange.js"; /
 import { sampleUserData, mappedOfSample } from "../lib/viewer/sampleTip.js"; // TASKS.csv #1821; #1500
 import HoleFilterBar from "./viewer/HoleFilterBar.jsx";
 import { holesForFilter } from "../lib/holeFilter.js"; // #1504; #1703
+import { holesWithoutField } from "../lib/viewer/holeFieldPicks.js"; // #3074
 import { holeColourScheme, applyHoleColours, holeColourLegendGroup } from "../lib/viewer/holeColours.js"; // #1504
 import FenceOptions from "./viewer/FenceOptions.jsx";
 import { surfaceOptionLabels } from "../lib/viewer/surfaceLabels.js";
@@ -18,6 +19,7 @@ import { lazyModal } from "../lib/lazyModal.jsx"; // TASKS.csv #301
 import * as THREE from "three";
 import { setVerticalExaggeration, veOf } from "./viewer/verticalExaggeration.js"; // TASKS.csv #2628
 import ViewVeSelect from "./viewer/ViewVeSelect.jsx"; // TASKS.csv #2934
+import { useVeSuggestion } from "./viewer/useVeSuggestion.js"; // TASKS.csv #3063
 import { piercePoints as surfacePierces, piercePointRows } from "../lib/piercePoints.js"; // TASKS.csv #1009
 import { Info, Upload, Scissors, AlertTriangle, RotateCcw, RefreshCw, Eye, EyeOff, Trash2, Maximize2, Pencil, X, Layers3, ChevronUp, ChevronDown, ShieldAlert, GitFork, Map as MapIcon, Mountain, Image, FileBarChart2, Settings2, Box, Waypoints, Triangle, MapPin, ArrowUpRight, Shapes, Ruler, Beaker, Compass, Activity, GitCompare, Check } from "../components/icons.js"; // TASKS.csv #445 step 4 — memoised lucide icons // GitCompare/Check: TASKS.csv #93
 const AssayStyleModal = lazyModal(() => import("../components/AssayStyleModal.jsx")); // TASKS.csv #476
@@ -83,11 +85,7 @@ const DatabaseConnectModal = lazyModal(() => import("../components/DatabaseConne
 const SectionEditModal = lazyModal(() => import("../components/SectionEditModal.jsx")); // TASKS.csv #476
 const LayerInspector = lazyModal(() => import("../components/LayerInspector.jsx"));  // TASKS.csv #301
 const DataQCModal = lazyModal(() => import("../components/DataQCModal.jsx"));  // TASKS.csv #301
-// TASKS.csv #224 (software-design-specialist audit finding: sql.js's 658KB wasm was the single
-// strongest lazy-loading candidate) — SQLWorkspaceModal statically imports sqlWorkspace.js, which
-// statically imports sql.js, so a plain top-level import here pulled that wasm in on every app launch
-// regardless of whether SQL workspace is ever opened. React.lazy defers the whole chain until the
-// modal is actually rendered (see the Suspense wrapper at its render site below).
+// TASKS.csv #224 — lazy: SQLWorkspaceModal pulls in sql.js and its 658 KB wasm, loaded only when the modal renders
 const SQLWorkspaceModal = React.lazy(() => import("../components/SQLWorkspaceModal.jsx"));
 const SectionGeorefModal = React.lazy(() => import("../components/SectionGeorefModal.jsx")); // TASKS.csv #630
 const LayerStyleModal = React.lazy(() => import("../components/LayerStyleModal.jsx")); // TASKS.csv #635
@@ -274,7 +272,7 @@ const CATEGORY_LAYER_KEYS = LEGEND_CATEGORY_KEYS; // TASKS.csv #725 — one list
 const CAPTURE_LONG_PX = 3000;
 // TASKS.csv #906 — outW x outH (CSS px): the size the capture is drawn at, when it is not the canvas's own (a Layout
 // frame's aspect); the renderer goes back to cssW x cssH afterwards.
-const tickedShown = (collars, f) => holesForFilter(collars, f).holes; // #1504 — by id parts, or field=value; #1703 — else text in a collar field
+const tickedShown = (collars, f) => holesWithoutField(collars, f) ?? holesForFilter(collars, f).holes; // holesWithoutField: #3074 // #1504 — by id parts, or field=value; #1703 — else text in a collar field
 function captureHiRes(renderer, cssW, cssH, draw, outW = cssW, outH = cssH, longPx = CAPTURE_LONG_PX) {
   const gl = renderer.getContext();
   const maxRb = gl.getParameter(gl.MAX_RENDERBUFFER_SIZE) || 4096;
@@ -840,6 +838,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   // effect (rebuild-all, raster drape, terrain, boundaries) to re-run against current state.
   const [rebuildSeq, setRebuildSeq] = useState(0);
   const [tracesSeq, setTracesSeq] = useState(0); // TASKS.csv #888 — bumped once the hole traces are rebuilt (a survey / collar / desurvey change)
+  useVeSuggestion({ tracesRef, tracesSeq, ve: veOf(figureOverlay.ve), projectKey: collars.length ? `${project?.name || ""}|${collars.length}` : null, setNotices }); // TASKS.csv #3063
   const holeColouredRef = useRef(false); // TASKS.csv #1504 — skip the pass while nothing is or was coloured
 
   // Persistent locator mini-map (TASKS.csv, user request) — an OpenStreetMap orientation aid docked in
@@ -1365,10 +1364,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   // TASKS.csv #227 — the build bakes the layer's plain colour (not legendOverride), so an override edit never rebuilds geometry:
   // applyLegendOverrideColors below repaints the meshes instead.
   const baseColorForBuild = useCallback((layerKey, value) => LAYER_META[layerKey].colorFn(value), []);
-  // TASKS.csv #431 — the label callback is keyed on the LABEL overrides only. legendOverride also holds
-  // colours, so depending on it directly made every legend COLOUR edit (and anything else that replaced
-  // legendOverride) re-run the full geometry rebuild, whose tooltips bake labels in. A label edit still
-  // rebuilds (tooltips need the new text); a colour edit is repainted by applyLegendOverrideColors.
+  // TASKS.csv #431 — keyed on the LABEL overrides only: a legend colour edit is repainted (applyLegendOverrideColors), not rebuilt
   const labelOverrideSig = useMemo(() => JSON.stringify(Object.entries(legendOverride || {}).map(([k, m]) => [k, Object.entries(m || {}).filter(([, o]) => o?.label).map(([v, o]) => [v, o.label])]).filter(([, e]) => e.length)), [legendOverride]);
   const labelOverrides = useMemo(() => Object.fromEntries(JSON.parse(labelOverrideSig).map(([k, e]) => [k, Object.fromEntries(e)])), [labelOverrideSig]);
   const effectiveLabel = useCallback((layerKey, value) => {
@@ -1642,19 +1638,19 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
 
   // TASKS.csv #453 — the 3D slice's planes over the drilled extent: vertical (azimuth, position) or horizontal (an elevation); thickness 0 = a half-space
   const sliceExtent = useMemo(() => {
-    const ts = mainTraces(tracesRef.current, (t) => t.wz?.[0]); // #2936 / #3004 — not a suspect collar's (world z)
+    const ts = mainTraces(tracesRef.current, (t) => t.wz?.[0]); // #2936 / #3004 — no suspect collar
     const pts = ts.flatMap((t) => t.pts || []);
     if (pts.length) {
       let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity, z0 = Infinity, z1 = -Infinity;
       for (const p of pts) { if (p.x < x0) x0 = p.x; if (p.x > x1) x1 = p.x; if (p.y < y0) y0 = p.y; if (p.y > y1) y1 = p.y; if (p.z < z0) z0 = p.z; if (p.z > z1) z1 = p.z; }
-      return { x0, x1, y0, y1, z0, z1 };
+      return { x0, x1, y0, y1, z0, z1, leftOut: tracesRef.current.length - ts.length }; // #3029
     }
     // #1804 — no hole traces: the data's own box (block models, samples, rasters), as the build recorded it
     const box = (lastTracesRef.current || []).flat();
     if (box.length) return { x0: Math.min(...box.map((p) => p.x)), x1: Math.max(...box.map((p) => p.x)), y0: Math.min(...box.map((p) => p.y)), y1: Math.max(...box.map((p) => p.y)), z0: Math.min(...box.map((p) => p.z)), z1: Math.max(...box.map((p) => p.z)) };
     return null;
   }, [slice3d.on, collars, survey, rebuildSeq]);
-  const sliceReadout = useMemo(() => sliceReadoutText(slice3d, sliceExtent, originRef.current.z), [slice3d, sliceExtent]); // #1974
+  const sliceReadout = useMemo(() => sliceReadoutText(slice3d, sliceExtent, originRef.current.z) + (sliceExtent?.leftOut ? tr(" · {n} hole(s) with a suspect collar elevation outside the range", { n: sliceExtent.leftOut }) : ""), [slice3d, sliceExtent]); // #1974; #3029
   useEffect(() => {
     lastActivityRef.current = Date.now(); // #441 — redraw now
     if (!slice3d.on || !sliceExtent) { slicePlanesRef.current = []; return; }
@@ -2432,8 +2428,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
     return fitBox(box, 1.3, 40);
   }, [fitBox]);
   const fitView = useCallback((traces) => { const box = new THREE.Box3(); traces.forEach((pts) => pts.forEach((p) => box.expandByPoint(new THREE.Vector3(p.x, p.y, p.z)))); fitBox(box); }, [fitBox]);
-  // TASKS.csv #1319 — Matt: "have the project open at a zoom level to include all holes". The one-time opening view frames the holes; models count only in a
-  // project with no holes. It replaces #313's clamp to the densest drilling, which left holes off screen; on a large property a tube can be a hairline at this zoom.
+  // TASKS.csv #1319 — Matt: "have the project open at a zoom level to include all holes" (models only in a project with no holes; was #313's clamp)
   const autoFitInitial = useCallback((traces, nHoles) => { fitView(nHoles ? traces.slice(0, nHoles) : traces); }, [fitView]);
   const zoomToLayer = useCallback((key) => {
     const group = layerGroupsRef.current[key];
@@ -8155,7 +8150,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         return (
           <LevelPlanWindow
             build={buildPlanPayload}
-            zRange={[z0, z1]}
+            zRange={[z0, z1]} leftOut={tracesRef.current.length - mainTraces(tracesRef.current, (t) => t.wz?.[0]).length} // #3029
             defaultRl={(z0 + z1) / 2}
             onClose={() => { planCacheRef.current = null; setLevelPlanOpen(false); }} /* #2982 — the plan's cache goes with it */
             onSaveBoundary={(pts, rl, name) => addBoundary({ name, polylines: [pts.map(([x, y]) => ({ x, y }))], elevation: rl, drapeMode: "flat" })}

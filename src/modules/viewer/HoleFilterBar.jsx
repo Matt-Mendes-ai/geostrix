@@ -2,14 +2,16 @@
 import { t as tr } from "../../lib/i18n.js";
 import { holesForFilter, collarAttrChoices, visibilityPatch } from "../../lib/holeFilter.js"; // collars / attrs: #1504; collar-field text: #1703
 import { useMemo } from "react";
+import { holeFieldPicks, holesWithoutField, noValuePick } from "../../lib/viewer/holeFieldPicks.js"; // TASKS.csv #3074
 
 const btn = { flex: 1, minWidth: 0, padding: "3px 4px", fontSize: "var(--font-size-xs)", background: "var(--color-bg)", color: "var(--color-text-secondary)", border: "1px solid var(--color-border)", borderRadius: 4, cursor: "pointer" };
 
 export default function HoleFilterBar({ collars, filter, setFilter, visibleHoles, setVisibleHoles, colourBy = "", setColourBy = null }) { // colourBy: #1504
   const ids = collars.map((c) => c.hole_id);
-  const found = holesForFilter(collars, filter); // #1504 — "drill_type=RC" picks by a collar field; #1703 — or text in one
+  const none = holesWithoutField(collars, filter), found = none ? { holes: none, byField: false } : holesForFilter(collars, filter); // #1504; none: #3074 — "drill_type=RC" picks by a collar field; #1703 — or text in one
   const shown = found.holes.map((c) => c.hole_id);
   const choices = useMemo(() => collarAttrChoices(collars), [collars]);
+  const picks = useMemo(() => holeFieldPicks(collars, choices), [collars, choices]); // #3074 — one field per split, with its (no value)
   const ticked = ids.filter((id) => visibleHoles[id] !== false).length;
   const apply = (mode) => setVisibleHoles((p) => visibilityPatch(p, ids, shown, mode));
   return (
@@ -20,7 +22,7 @@ export default function HoleFilterBar({ collars, filter, setFilter, visibleHoles
         <select value="" aria-label={tr("Filter holes by a collar field")} onChange={(e) => { if (e.target.value) setFilter(e.target.value); }}
           style={{ width: "100%", boxSizing: "border-box", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, padding: "3px 6px", fontSize: "var(--font-size-sm)", color: "var(--color-text)", marginBottom: 4 }}>
           <option value="">{tr("By a collar field…")}</option>
-          {choices.map((ch) => <optgroup key={ch.key} label={ch.key}>{ch.values.map((v) => <option key={v} value={`${ch.key.replace(/\s+/g, "_")}=${v.replace(/\s+/g, "_")}`}>{/* key too: #2488 ("hole type=…" split into two terms) */}{`${ch.key} = ${v}`}</option>)}</optgroup>)}
+          {picks.map((ch) => <optgroup key={ch.key} label={ch.also.length ? tr("{field} (also {others})", { field: ch.key, others: ch.also.join(", ") }) : ch.key}>{ch.values.map((v) => <option key={v} value={`${ch.key.replace(/\s+/g, "_")}=${v.replace(/\s+/g, "_")}`}>{/* key too: #2488 ("hole type=…" split into two terms) */}{`${ch.key} = ${v}`}</option>)}{ch.missing > 0 && <option value={noValuePick(ch.key)}>{tr("{field} = (no value): {n} hole(s)", { field: ch.key, n: ch.missing })}</option>}</optgroup>)}
         </select>
       )}
       {choices.length > 0 && setColourBy && ( /* TASKS.csv #1504 — colour the collars and traces by a collar field; the legend lists the values */

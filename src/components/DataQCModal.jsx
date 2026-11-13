@@ -32,6 +32,8 @@ const SEVERITY_META = {
   info: { icon: Info, color: "#6fa8dc", label: "Info", plural: "Infos" },
 };
 
+const NOT_YET = { issues: [], byCategory: new Map(), summary: {} }; // #3099 — before the check has run
+
 export default function DataQCModal({ onCancel }) {
   useEscapeKey(onCancel); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
@@ -46,7 +48,11 @@ export default function DataQCModal({ onCancel }) {
   const qcArgs = () => ({ project, collars, survey, layers, boundaries, assays, terrain, customLayers, terrainThreshold: Number(terrainThreshold) > 0 ? Number(terrainThreshold) : 15, doglegWarn: warnDeg, doglegError: Math.max(10, warnDeg) });
   const ranWith = useRef(null); // TASKS.csv #1269 — the thresholds of the run on screen: the export's stamp must describe its issues, not the boxes
   const runQC = () => { ranWith.current = { warnDeg, terrainThreshold: Number(terrainThreshold) > 0 ? Number(terrainThreshold) : 15 }; return runDataQC(qcArgs()); };
-  const [result, setResult] = useState(runQC);
+  // TASKS.csv #3099 (#2937, WA iron) — the check took 1.4 s (148,000 assays, 150,455 intervals) before the dialog appeared. It opens at once
+  // with 'Checking …' and runs just after it is painted (a worker would first copy all those rows across, about as long as the check).
+  const [ran, setResult] = useState(null);
+  useEffect(() => { let t; const f = requestAnimationFrame(() => { t = setTimeout(() => setResult(runQC()), 0); }); return () => { cancelAnimationFrame(f); clearTimeout(t); }; }, []); // after a frame: painted first
+  const result = ran || NOT_YET;
   const terrainOff = useMemo(() => (terrain ? collarTerrainOffsets(collars, terrain).filter((o) => Math.abs(o.dz) > (Number(terrainThreshold) > 0 ? Number(terrainThreshold) : 15)) : []), [collars, terrain, terrainThreshold]);
   const snapToTerrain = () => {
     if (!terrainOff.length) return;
@@ -91,6 +97,7 @@ export default function DataQCModal({ onCancel }) {
         <div style={{ padding: "16px 16px 0", flexShrink: 0 }}>
           <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 12, lineHeight: 1.5 }}>{tr("Checks collar coordinates, survey trajectories, assay results, and every logged interval/point layer for the kinds of problems that quietly distort a modelled surface — before you get as far as modelling. Doesn't fix anything automatically; re-import or hand-correct the source data and re-run.")}</div>
 
+          {!ran && <div role="status" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 10 }}>{tr("Checking {n} holes…", { n: (collars || []).length })}</div>}{/* #3099 */}
           <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
             {(["error", "warning", "info"]).map((sev) => {
               const meta = SEVERITY_META[sev];

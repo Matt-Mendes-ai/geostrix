@@ -87,9 +87,9 @@ test("busiestRl: the RL most holes cross, the middle of the busiest run", () => 
 
 test("the window: RL and slab debounced, the plan's RL in the title, the busiest RL at opening, the labels cached", () => {
   const s = readFileSync(new URL("../src/components/LevelPlanWindow.jsx", import.meta.url), "utf8");
-  assert.match(s, /setTimeout\(\(\) => setApplied\(\{ rl, half \}\), 150\)/);
-  assert.match(s, /buildRef\.current\(Number\(applied\.rl\), Math\.max\(0\.1, Number\(applied\.half\) \|\| 0\)\), \[applied, rev\]/);
-  assert.match(s, /const b = busiestRl\(build\(r0, 12\.5\)\.holes\); return b \?\? r0;/); // #2929 — in the initial state, not an effect after the first commit
+  assert.match(s, /setTimeout\(\(\) => setApplied\(\(p\) => \(p\.rl === rl && p\.half === half \? p : \{ rl, half \}\)\), 150\)/); // #3064 — the same RL not built again
+  assert.match(s, /buildRef\.current\(Number\(applied\.rl\), Math\.max\(0\.1, Number\(applied\.half\) \|\| 0\)\) : emptyPlan\(applied\)\), \[applied, rev, ready\]/);
+  assert.match(s, /b = busiestRl\(build\(r0, 12\.5\)\.holes\) \?\? r0;/); // #2929 / #3064 — before any full plan is committed (the first render is an empty plan)
   assert.match(s, /labelMemo\.current\.data === data && labelMemo\.current\.frame === frame/);
   assert.match(s, /\{ rl: data\.rl, half: data\.half \}/);
 });
