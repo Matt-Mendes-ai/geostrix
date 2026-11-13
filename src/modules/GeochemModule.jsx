@@ -914,7 +914,8 @@ export default function GeochemModule() {
         // numeric column per element, over-limit column paired, descriptive columns skipped. The old
         // first-match dedupe took "au_cert_num" (a certificate number) as Au and "v_datum" as vanadium in an
         // MX soil export (ARIS 42648Z).
-        const elements = pickElementColumns(headers.filter((h) => !mappedCols.has(h)), data).map((e) => ({ ...e, mainHeader: e.header, checked: e.n > 0, ...projectKeepsOxide(e, projectUnits) })); // #1389 — a column with no value in any row stays unticked; projectKeepsOxide: #2957
+        // #3217 (surface follow-up) — headers the project already holds open with last time's column and unit, hand-added columns offered again
+        const elements = seedFromProject(pickElementColumns(headers.filter((h) => !mappedCols.has(h)), data).map((e) => ({ ...e, mainHeader: e.header, checked: e.n > 0, ...projectKeepsOxide(e, projectUnits) })), surfaceElements, headers).elements; // #1389 — a column with no value in any row stays unticked; projectKeepsOxide: #2957
         // TASKS.csv #600 — a CRS tag column (srid_source / epsg...) with one recognised code pre-fills the Source CRS.
         const crsCol = headers.find((h) => /^(srid(_source)?|source_srid|epsg(_srid)?|source_epsg|crs_epsg)$/i.test(h.trim()));
         const codes = crsCol ? [...new Set(data.map((r) => Number(r[crsCol])).filter((v) => Number.isInteger(v) && v > 0))] : [];
@@ -945,7 +946,7 @@ export default function GeochemModule() {
   const openPublicImport = ({ headers, rows, entry, notes, checked }) => {
     const mapping = { x: "longitude", y: "latitude", z: rows.some((r) => String(r.elevation ?? "").trim() !== "") ? "elevation" : null, sample_id: "sample_id", medium: "medium" };
     const mapped = new Set(["longitude", "latitude", "elevation", "sample_id", "medium"]);
-    const elements = pickElementColumns(headers.filter((h) => !mapped.has(h)), rows).map((e) => ({ ...e, mainHeader: e.header, checked: e.n > 0, ...projectKeepsOxide(e, projectUnits) })); // #1389 — a column with no value in any row stays unticked; #2957
+    const elements = seedFromProject(pickElementColumns(headers.filter((h) => !mapped.has(h)), rows).map((e) => ({ ...e, mainHeader: e.header, checked: e.n > 0, ...projectKeepsOxide(e, projectUnits) })), surfaceElements, headers).elements; // #1389 — a column with no value in any row stays unticked; #2957; seeded: #3217
     // a survey's other analyses of an element (Cu by AAS and by ICP-MS) are not sample attributes: only the chosen column is read
     const attrExclude = headers.filter((h) => !mapped.has(h) && isElementColumn(h));
     setPublicOpen(false);
@@ -974,6 +975,12 @@ export default function GeochemModule() {
     // below detection, <= -99 as not assayed), and an element already in the project keeps its unit.
     const existingUnit = Object.fromEntries(surfaceElements.map((e) => [e.symbol, e.unit]));
     const converted = chosen.filter((e) => existingUnit[e.symbol] && existingUnit[e.symbol] !== e.unit);
+    // TASKS.csv #3217 (surface follow-up) — a conversion that would put readings over 100 % is refused before anything is written; the dialog stays open
+    const badConv = conversionsOver100(allRows, converted);
+    if (badConv.length) {
+      setNotices((p) => [...p, errorNotice(tr("Not imported: converting {list} to the project's unit would put readings over 100 %, so these columns are probably not in the unit the dialog says. Set their unit in the dialog (the project has them in {units}) and import again.", { list: badConv.map((b) => tr("{header} ({n} value(s), up to {max} {unit})", { header: b.header, n: b.n.toLocaleString(), max: b.max.toLocaleString(), unit: b.unit })).join(", "), units: [...new Set(badConv.map((b) => existingUnit[b.symbol]))].join(", ") }))]);
+      return;
+    }
     let negBdl = 0, negMissing = 0;
     const overLimitFilled = new Map(); // #600 — as in commitAssayImport
     const svDlCache = new Map(); // #2158 — each column's detection limit, for '<LOD' / BDL and the -1 / -9 codes
