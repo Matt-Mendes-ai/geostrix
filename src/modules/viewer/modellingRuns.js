@@ -553,7 +553,16 @@ export function createModellingRuns(ctx, mcRef) {
       const id = `impl_${Date.now()}_${spec.meshName}`;
       implicitMeshesRef.current[id] = mesh;
       newMeshes.push(mesh);
-      if (specs.length > 1) orderSurfs.push({ label: spec.label, package: spec.package, verts: sceneVerts, faces }); // #2376
+      // TASKS.csv #3119 — the mesh's positions and its query (lib/meshQuery.js), built once for the fold check and the order check below
+      // (each built its own: 12 builds after a six-unit stack)
+      let meshQ = null;
+      const meshQuery = () => {
+        if (meshQ) return meshQ;
+        const pos = new Float32Array(sceneVerts.length * 3), idx = Uint32Array.from(faces.flat());
+        sceneVerts.forEach((v, i) => { pos[i * 3] = v.x; pos[i * 3 + 1] = v.y; pos[i * 3 + 2] = v.z; });
+        return (meshQ = { positions: pos, indices: idx, query: buildMeshQuery(pos, idx) });
+      };
+      if (specs.length > 1) orderSurfs.push({ label: spec.label, package: spec.package, verts: sceneVerts, faces, meshQuery }); // #2376; meshQuery: #3119
       if (stackOpts.ensemble && specs.length === 1) ensembleBase = { spec, mesh, id, sceneVerts, faces };
       // TASKS.csv #83 — `type` starts from each tool's own guess (see guessSurfaceType/the inline
       // guesses at each spec's construction site above); `relationships` starts empty — declared
@@ -601,9 +610,7 @@ export function createModellingRuns(ctx, mcRef) {
       // TASKS.csv #2058 (review #2013) — the same one-elevation-per-location check as Check relationships, said by the run itself: an
       // implicit 'Top of VANSS' folded back at 1 of 16 locations and only Check relationships reported it
       if (FOLD_CONTACT_TYPES.has(spec.type)) {
-        const pos = new Float32Array(sceneVerts.length * 3);
-        sceneVerts.forEach((v, i) => { pos[i * 3] = v.x; pos[i * 3 + 1] = v.y; pos[i * 3 + 2] = v.z; });
-        const inv = inversionCheck({ positions: pos, indices: Uint32Array.from(faces.flat()) }, { up: "y" });
+        const inv = inversionCheck(meshQuery(), { up: "y" }); // #3119 — the query shared with the order check
         if (inv.sampled && inv.fraction > 0.05) folds.push(tr("\"{name}\" folds back over itself at {folded} of {sampled} sampled locations (a contact surface should have one elevation per location): an interpolation artefact, a real overturned fold, interbeds of neighbouring units in a flat pile (model each hole's first top: the Strat. stack's Layer-cake method, or the Explicit surface's 'Add the logged tops'), or a unit that is not one layer (a steep intrusive or repeated sheets, better modelled as a closed body in Modelling codes).", { name: spec.label, folded: inv.folded, sampled: inv.sampled }));
       }
     });
@@ -620,9 +627,8 @@ export function createModellingRuns(ctx, mcRef) {
     if (orderSurfs.length > 1) {
       let yLo = Infinity, yHi = -Infinity;
       const surfaces = orderSurfs.map((o) => {
-        const pos = new Float32Array(o.verts.length * 3);
-        o.verts.forEach((v, i) => { pos[i * 3] = v.x; pos[i * 3 + 1] = v.y; pos[i * 3 + 2] = v.z; if (v.y < yLo) yLo = v.y; if (v.y > yHi) yHi = v.y; });
-        return { label: o.label, package: o.package, q: buildMeshQuery(pos, Uint32Array.from(o.faces.flat())) };
+        for (const v of o.verts) { if (v.y < yLo) yLo = v.y; if (v.y > yHi) yHi = v.y; }
+        return { label: o.label, package: o.package, q: o.meshQuery().query }; // #3119 — the fold check's query, or built here once
       });
       const holes = traces.filter((t) => t.pts?.length && (modelArea !== "checked" || visibleHoles?.[t.hole_id] !== false)).map((t) => ({ x: t.pts[0].x, z: t.pts[0].z })); // the Model area's holes: #2905 (293 counted on a 228-hole area)
       const ord = stackOrderAtHoles(surfaces, holes, { yLo: yLo - 10, yHi: yHi + 10 });
@@ -690,8 +696,12 @@ export function createModellingRuns(ctx, mcRef) {
         const groundOf = clipGround.at; // #2470 — the terrain, or the collar surface
         const real = (q) => ({ x: q.x + o.x, y: q.y + o.y, z: q.z + o.z });
         const unwarp = anisotropy.enabled ? ((u) => (q) => real(anisoWarpPoint(q, anisoCenter, anisoBasis, u)))(invScales(anisoScl)) : real;
-        lbBlock = capBlockAtGround(lbBlock, groundOf, real).block;
-        const vc = capBlockAtGround(res.block, groundOf, unwarp);
+        // TASKS.csv #3119 — with no trend the two are the same block in the same frame: cut once (each cut asked the ground at every
+        // column: 9,216 lookups twice on WA iron)
+        const same = lbBlock === res.block && unwarp === real;
+        const lc = capBlockAtGround(lbBlock, groundOf, real);
+        lbBlock = lc.block;
+        const vc = same ? lc : capBlockAtGround(res.block, groundOf, unwarp);
         volBlock = vc.block; airCut = vc.cut;
       }
       // TASKS.csv #817 — the ground above the youngest modelled top. It was labelled after specs[0], which is a FAULT whenever
