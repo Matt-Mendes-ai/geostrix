@@ -50,7 +50,7 @@ import { terrainGrid, unitRaster, mapAgreement } from "../../lib/predictedMap.js
 import { sectionGrid, pickSections, packUnits, sectionZRange } from "../../lib/modelSection.js"; // TASKS.csv #759
 import { smoothClusteredSpec } from "../../lib/contactSmoothing.js"; // TASKS.csv #761
 import { pickReport } from "../../lib/pickDiagnostics.js"; // TASKS.csv #762
-import { gempyLimitCheck, mapContactStep, MAP_CONTACT_STEP_M, plainEngineError, thinForWork, gempyWork, GEMPY_WORK_BUDGET } from "../../lib/gempyLimits.js"; // TASKS.csv #3162
+import { gempyLimitCheck, mapContactStep, MAP_CONTACT_STEP_M, plainEngineError, thinForWork, gempyWork, GEMPY_WORK_BUDGET, gempyRate, recordGempyRate, gempyPeakGB, GEMPY_MEMORY_WARN_GB } from "../../lib/gempyLimits.js"; // TASKS.csv #3162
 import { findOnTraceWorld, findOnTrace, traceOfHole /* #2931 */, interceptId, SOFT_NUGGET, MODEL_EXTENT_PAD_M, guessSurfaceType, pointInDomain } from "../../lib/viewer/modelHelpers.js";
 import { t as tr } from "../../lib/i18n.js"; // TASKS.csv #786
 import { capFieldAtGround, meanInsideShell } from "../../lib/groundCap.js"; // TASKS.csv #803
@@ -380,7 +380,7 @@ export function createModellingRuns(ctx, mcRef) {
     // (13 tops, 4,016 points, 262 orientations) passed 15 minutes; 410 / 88 took 350 s on a busy CPU.
     const workOpts = { blockCells: resolution[0] * resolution[1] * resolution[2], evalPts: evalPts?.length || 0, relation };
     // the "full detail" choice (Model from map): nothing thinned, and the run says how much more work that is than a default run
-    const overWork = stackOpts.fromMap && !cakeRun && stackOpts.fullDetail ? gempyWork(specs, workOpts) / GEMPY_WORK_BUDGET : 0;
+    let overWork = stackOpts.fromMap && !cakeRun && stackOpts.fullDetail ? gempyWork(specs, workOpts) / GEMPY_WORK_BUDGET : 0;
     if (overWork > 1) {
       const n = (k) => specs.filter((x) => !x.fault).reduce((t, x) => t + x[k].length, 0);
       held.push(notice("Full detail: GemPy gets all {p} contact points and {o} orientations, about {x} times the work of a default run (which is sized for a few minutes), so this run may take a long time. The 15-minute stop is off for it: Cancel on the status bar stops it.", { p: n("points").toLocaleString(), o: new Set(specs.filter((x) => !x.fault).flatMap((x) => x.orientations.map((q) => `${q.x},${q.y},${q.z},${q.dip},${q.azimuth}`))).size.toLocaleString(), x: overWork < 10 ? overWork.toFixed(1) : Math.round(overWork) }));
@@ -436,6 +436,25 @@ export function createModellingRuns(ctx, mcRef) {
       if (unitT > 0) setNotices((p) => [...p, notice("The vertical cell is {dz} m against the units' median thickness of {t} m (the median drop from one top to the next in a hole): about {n} cells across a unit.", { dz: cm[2], t: Math.round(unitT * 10) / 10, n: (unitT / cm[2]).toFixed(1) })]);
       if (thin) setNotices((p) => [...p, notice("Warning: the units are about {t} m thick (the median drop from one top to the next in a hole), thinner than the model's vertical cell of {dz} m. One field cannot place them apart, so the surfaces may fold back or come out of order. For a flat-lying pile, an Explicit surface per unit from its logged tops follows the picks exactly (3D Modelling > Explicit surface); a smaller vertical cell (Model settings) costs a much longer solve.", { t: thin.thick.toFixed(1), dz: thin.dz })]);
     }
+    // TASKS.csv #3198 follow-up — a drillhole stack or surface over GemPy's work budget (lib/gempyLimits.js) is asked about before it runs: its
+    // picks are logged contacts, not thinned silently as a map's sampled lines are. After the layer-cake offer above, which is quicker still.
+    if (!stackOpts.fromMap && !cakeRun) {
+      const x = gempyWork(specs, workOpts) / GEMPY_WORK_BUDGET;
+      if (x > 1) {
+        const solid = specs.filter((q) => !q.fault);
+        const rt = gempyRate(), mins = Math.max(1, Math.round((gempyWork(specs, workOpts) * rt.rate) / 60)); // #3215 — the time on this computer
+        const how = rt.runs ? tr("by this computer's last {n} GemPy run(s)", { n: rt.runs }) : tr("at the rate measured on a busy desktop (no GemPy run timed on this computer yet)");
+        const gb = gempyPeakGB(specs, workOpts); // #3215 — a drillhole stack has no point budget: its memory is said too
+        const warn = gb > GEMPY_MEMORY_WARN_GB ? tr(", more than a 16 GB computer can give it: the run may fail or stall the computer") : "";
+        const words = { g: gb < 10 ? gb.toFixed(1) : Math.round(gb), warn, m: mins.toLocaleString(), how, x: x < 10 ? x.toFixed(1) : Math.round(x), p: solid.reduce((t, q) => t + q.points.length, 0).toLocaleString(), o: new Set(solid.flatMap((q) => q.orientations.map((r) => `${r.x},${r.y},${r.z},${r.dip},${r.azimuth}`))).size.toLocaleString(), s: solid.length, b: workOpts.blockCells.toLocaleString() };
+        if (!window.confirm(tr("This GemPy run is about {x} times the work of a run sized for a few minutes ({p} contact points, {o} orientations, {s} surfaces, a block of {b} cells): about {m} minutes {how}, and about {g} GB of memory{warn}. The 15-minute stop is off for it: Cancel on the status bar stops it. Fewer units, a smaller Model area or a lower Resolution (Model settings) shorten it. Run it?", words))) {
+          setImplicitBusy(false);
+          setNotices((p) => [...p, notice("Not run: about {x} times the work of a run sized for a few minutes ({p} contact points, {o} orientations, {s} surfaces, a block of {b} cells). Fewer units, a smaller Model area or a lower Resolution (Model settings) shorten it.", words)]);
+          return;
+        }
+        overWork = x;
+      }
+    }
     setNotices((p) => [...p, notice(specs.length > 1 ? "Running {label} ({totalPoints} points, {totalOrientations} orientations across {specs} surfaces){v2}…" : "Running {label} ({totalPoints} points, {totalOrientations} orientations across {specs} surface){v2}…", { label, totalPoints, totalOrientations, specs: specs.length, v2: anisotropy.enabled ? tr(", with the {trendWord} \"{v}\"", { trendWord, v: anisotropy.params?.trend || tr("unnamed") }) : "" })]);
     // The sidecar call is one opaque round-trip with no real progress ticks to report, so this is a
     // "fake but honest" ramp: creeps toward 90% while waiting (never claiming completion it hasn't
@@ -473,6 +492,7 @@ export function createModellingRuns(ctx, mcRef) {
     );
     clearInterval(rampTimer);
     const baseSolveSeconds = (performance.now() - solveStartedAt) / 1000;
+    if (!cakeRun && res.ok) recordGempyRate(baseSolveSeconds, gempyWork(specs, workOpts)); // #3215 — this computer's rate, for the next estimate
     setImplicitBusy(false);
     modelAbortControllerRef.current = null;
     if (!res.ok) {

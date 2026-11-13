@@ -119,7 +119,7 @@ test("wiring: a Model from map run thins before the request, with the check poin
 test("full detail (Model from map): nothing thinned, the run says the points and how many times a default run's work, the 15-minute stop off for it", () => {
   const s = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8");
   assert.match(s, /fullDetail: !!p\.fullDetail/);
-  assert.match(s, /const overWork = stackOpts\.fromMap && !cakeRun && stackOpts\.fullDetail \? gempyWork\(specs, workOpts\) \/ GEMPY_WORK_BUDGET : 0;/);
+  assert.match(s, /let overWork = stackOpts\.fromMap && !cakeRun && stackOpts\.fullDetail \? gempyWork\(specs, workOpts\) \/ GEMPY_WORK_BUDGET : 0;/);
   assert.match(s, /\.\.\.\(overWork > 1 \? \{ maxMinutes: 0 \} : \{\}\)/);
   const d = readFileSync(new URL("../src/lib/desktop.js", import.meta.url), "utf8");
   assert.match(d, /const deadline = opts\.maxMinutes === 0 \? Infinity : Date\.now\(\) \+ 15 \* 60 \* 1000;/);
@@ -129,4 +129,56 @@ test("full detail (Model from map): nothing thinned, the run says the points and
     const j = JSON.parse(readFileSync(new URL(`../src/locales/${l}.json`, import.meta.url), "utf8"));
     for (const k of ["Full detail: send all the sampled contacts (can take much longer)", "Full detail: GemPy gets all {p} contact points and {o} orientations, about {x} times the work of a default run (which is sized for a few minutes), so this run may take a long time. The 15-minute stop is off for it: Cancel on the status bar stops it."]) assert.ok(j[k], `${l}: ${k}`);
   }
+});
+
+test("a drillhole stack over the work budget is asked about before the run (after the layer-cake offer), not thinned", () => {
+  const s = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8");
+  const at = s.indexOf("if (!stackOpts.fromMap && !cakeRun) {\n      const x = gempyWork(specs, workOpts) / GEMPY_WORK_BUDGET;");
+  assert.ok(at > 0);
+  assert.ok(at > s.indexOf("Run the stack as a layer-cake?"), "after the layer-cake offer");
+  assert.ok(at < s.indexOf("\"Running {label} ("), "before the run starts");
+  const block = s.slice(at, at + 2200);
+  assert.match(block, /if \(!window\.confirm\(tr\("This GemPy run is about \{x\} times the work/);
+  assert.match(block, /setImplicitBusy\(false\);\s*setNotices\(\(p\) => \[\.\.\.p, notice\("Not run: about \{x\} times the work/);
+  assert.match(block, /overWork = x;/);
+  assert.doesNotMatch(block, /thinForWork/, "logged picks are not thinned");
+  for (const l of ["es", "pt", "fr", "ar"]) {
+    const j = JSON.parse(readFileSync(new URL(`../src/locales/${l}.json`, import.meta.url), "utf8"));
+    for (const k of ["This GemPy run is about {x} times the work of a run sized for a few minutes ({p} contact points, {o} orientations, {s} surfaces, a block of {b} cells): about {m} minutes {how}, and about {g} GB of memory{warn}. The 15-minute stop is off for it: Cancel on the status bar stops it. Fewer units, a smaller Model area or a lower Resolution (Model settings) shorten it. Run it?", ", more than a 16 GB computer can give it: the run may fail or stall the computer", "by this computer's last {n} GemPy run(s)", "at the rate measured on a busy desktop (no GemPy run timed on this computer yet)",
+      "Not run: about {x} times the work of a run sized for a few minutes ({p} contact points, {o} orientations, {s} surfaces, a block of {b} cells). Fewer units, a smaller Model area or a lower Resolution (Model settings) shorten it."]) assert.ok(j[k], `${l}: ${k}`);
+  }
+});
+
+test("#3215 the time on this computer: learnt from its own GemPy runs (median of the last five over 30 s), else the measured reference rate", async () => {
+  const { gempyRate, recordGempyRate, GEMPY_REF_SECONDS_PER_EVAL } = await import("../src/lib/gempyLimits.js");
+  const mem = new Map(), store = { getItem: (k) => (mem.has(k) ? mem.get(k) : null), setItem: (k, v) => mem.set(k, String(v)) };
+  assert.deepEqual(gempyRate(store), { rate: GEMPY_REF_SECONDS_PER_EVAL, runs: 0 });
+  recordGempyRate(12, 1e6, store); // a short run: mostly the engine starting, not recorded
+  assert.equal(gempyRate(store).runs, 0);
+  [[400, 100e6], [600, 100e6], [500, 100e6], [9000, 100e6], [300, 100e6], [450, 100e6]].forEach(([s, w]) => recordGempyRate(s, w, store));
+  const r = gempyRate(store);
+  assert.equal(r.runs, 5, "the last five");
+  assert.equal(r.rate, 5e-6, "the median: one slow run (another program busy) does not set it");
+  mem.set("geostrix.gempySecondsPerEval", "not json");
+  assert.equal(gempyRate(store).runs, 0, "unreadable: the reference rate");
+  assert.equal(gempyRate(null).rate, GEMPY_REF_SECONDS_PER_EVAL, "no storage");
+  const s = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8");
+  assert.match(s, /if \(!cakeRun && res\.ok\) recordGempyRate\(baseSolveSeconds, gempyWork\(specs, workOpts\)\);/);
+  assert.match(s, /const rt = gempyRate\(\), mins = Math\.max\(1, Math\.round\(\(gempyWork\(specs, workOpts\) \* rt\.rate\) \/ 60\)\);/);
+});
+
+test("#3215 the engine's peak memory: the largest field's rows squared (measured 3.7 GB at 4,802 rows), said in the question, warned over 8 GB", async () => {
+  const { gempyPeakGB, GEMPY_MEMORY_WARN_GB } = await import("../src/lib/gempyLimits.js");
+  const pts = (n) => Array.from({ length: n }, (_, i) => ({ x: i, y: 0, z: 0 }));
+  const ori = Array.from({ length: 262 }, (_, i) => ({ x: i, y: 1, z: 0, dip: 10, azimuth: 0 }));
+  const mr = [{ points: pts(2000), orientations: ori }, { points: pts(2016), orientations: ori }];
+  assert.ok(Math.abs(gempyPeakGB(mr, { relation: "onlap" }) - 3.76) < 0.1, "Mount Raymond at the budget");
+  // erode: one field per surface, so the largest one counts
+  assert.ok(gempyPeakGB(mr, { relation: "erode" }) < 1.5);
+  // WA iron's six-strand stack: 22,436 points
+  const wa = gempyPeakGB([{ points: pts(22436), orientations: [ori[0]] }], { relation: "onlap" });
+  assert.ok(wa > 70 && wa < 80 && wa > GEMPY_MEMORY_WARN_GB, `${wa}`);
+  const s = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8");
+  assert.match(s, /const gb = gempyPeakGB\(specs, workOpts\);/);
+  assert.match(s, /const warn = gb > GEMPY_MEMORY_WARN_GB \? tr\(", more than a 16 GB computer can give it: the run may fail or stall the computer"\) : "";/);
 });
