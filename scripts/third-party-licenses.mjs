@@ -148,6 +148,10 @@ export function bundledData() {
   { const p = path.join(ROOT, "sample_data", "wa_gold", "README.md");
     if (existsSync(p)) out.push({ name: "WA lode gold sample (WAMEX company mineral drillhole database, Department of Energy, Mines, Industry Regulation and Safety, Western Australia)", version: "2024", license: "CC-BY-4.0",
       url: "https://catalogue.data.wa.gov.au/dataset/mineral-exploration-drillholes-open-file", text: readFileSync(p, "utf8").trim() }); }
+  // TASKS.csv #3107 — listed like the Blake River and WA uranium samples: its README carries the attribution and says what was done
+  { const p = path.join(ROOT, "sample_data", "fi_lapland", "README.md");
+    if (existsSync(p)) out.push({ name: "Central Lapland sample (Rock geochemical data of Finland and Bedrock of Finland 1:1 000 000, Geological Survey of Finland)", version: "2026-11", license: "CC-BY-4.0",
+      url: "https://www.gtk.fi/en/open-licence/", text: readFileSync(p, "utf8").trim() }); }
   return out;
 }
 
