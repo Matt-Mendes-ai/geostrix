@@ -1,7 +1,7 @@
 import { QC_COLUMN_KEYS } from "../lib/assayQcColumns.js"; // TASKS.csv #1184
 import React, { useEffect, useMemo, useState } from "react";
 import { X } from "./icons.js";
-import { isElementColumn, inferUnit, ELEMENT_SYMBOLS, unitAssumed, repeatColumns, numberedRepeatCandidates, oxideOfHeader, keepsOxide, importStoreUnit, oxidesOver100, LOI } from "../lib/geochem.js"; // LOI: #2887; // importStoreUnit, oxidesOver100: #2490 // numberedRepeatCandidates: #2350 // repeatColumns: #2194; oxide basis: #2487
+import { isElementColumn, inferUnit, ELEMENT_SYMBOLS, UNIT_ONLY_SYMBOLS, unitAssumed, repeatColumns, numberedRepeatCandidates, oxideOfHeader, keepsOxide, importStoreUnit, oxidesOver100, LOI } from "../lib/geochem.js"; // LOI: #2887; // importStoreUnit, oxidesOver100: #2490 // numberedRepeatCandidates: #2350 // repeatColumns: #2194; oxide basis: #2487
 import { scanAssayColumns, negativeSummary, zeroCount, blankCount } from "../lib/assayColumnScan.js"; // TASKS.csv #2164
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
@@ -241,7 +241,7 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
                 placeholder={tr("Symbol (e.g. Cu)")} style={{ ...sel, width: 100, fontSize: "var(--font-size-sm)" }}
               />
               <datalist id="geostrix-element-symbols">
-                {ELEMENT_SYMBOLS.map((s) => <option key={s} value={s} />)}
+                {[...ELEMENT_SYMBOLS, ...UNIT_ONLY_SYMBOLS /* #3129 — C, N by hand */].map((s) => <option key={s} value={s} />)}
               </datalist>
               <select value={addHeader} onChange={(ev) => setAddHeader(ev.target.value)} style={{ ...sel, flex: 1, minWidth: 0, fontSize: "var(--font-size-sm)" }}>
                 <option value="">{tr("— pick the source column —")}</option>
