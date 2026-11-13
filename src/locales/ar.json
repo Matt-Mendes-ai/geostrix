@@ -11419,5 +11419,7 @@
   "{n} row(s) with a blank Elev took the ground interpolated between the nearest collars (no terrain).": "أخذ {n} صف (صفوف) بمنسوب فارغ الأرض المستوفاة بين أقرب الفوهات (دون تضاريس).",
   "{n} collar(s) left out of the ground between the collars, their elevation not being ground (assumed at import, or suspect: 0 m among collars far from 0, or a stray): {list}.": "استُبعدت {n} فوهة (فوهات) من الأرض بين الفوهات لأن منسوبها ليس أرضًا (مفترض عند الاستيراد، أو مشكوك فيه: 0 م بين فوهات بعيدة عن 0، أو شاذ): {list}.",
   "Left out: {list}.": "المستبعدة: {list}.",
-  "Zoom to {name}": "تكبير إلى {name}"
+  "Zoom to {name}": "تكبير إلى {name}",
+  "Other grades of those blocks: {list}.": "محتويات أخرى لتلك الكتل: {list}.",
+  "Each chosen model's grade over each stope's tonnes (joined by block centre: a model on the same grid as this one).": "محتوى كل نموذج مختار على أطنان كل حجرة تعدين (مربوطًا بمركز الكتلة: نموذج على الشبكة نفسها لهذا النموذج)."
 }

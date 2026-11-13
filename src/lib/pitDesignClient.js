@@ -4,7 +4,7 @@
 import { voxelCellSupported } from "./viewer/geomath.js";
 import { byColumnsOf } from "./pitShellClient.js"; // #1917
 
-export function runPitDesignAsync(shellPositions, model, opts, terrain, collars, onProgress = null, byModel = null) { // byModel: #1917
+export function runPitDesignAsync(shellPositions, model, opts, terrain, collars, onProgress = null, byModel = null, alsoModels = []) { // byModel: #1917; alsoModels: #3084 [model, ...]
   const cells = model ? (model.cells || []).filter((c) => voxelCellSupported(model, c)) : [], n = cells.length;
   const col = () => new Float64Array(n), columns = { x: col(), y: col(), z: col(), dx: col(), dy: col(), dz: col(), value: col(), coverage: col(), beyond: new Uint8Array(n) /* #2645 — 1 above, 2 below every sample */, density: new Float32Array(n).fill(NaN) /* #2647 */, nearUnsampled: new Uint8Array(n) /* #2735 */ };
   cells.forEach((c, i) => { columns.x[i] = c.x; columns.y[i] = c.y; columns.z[i] = c.z; columns.dx[i] = c.dx; columns.dy[i] = c.dy; columns.dz[i] = c.dz; columns.value[i] = c.value; columns.coverage[i] = Number.isFinite(c.coverage) ? c.coverage : NaN; columns.beyond[i] = c.beyond === "above" ? 1 : c.beyond === "below" ? 2 : 0; if (c.density > 0) columns.density[i] = c.density; if (c.nearUnsampled) columns.nearUnsampled[i] = 1; /* #2735 */ });
@@ -22,7 +22,8 @@ export function runPitDesignAsync(shellPositions, model, opts, terrain, collars,
     const cl = !t && collars ? collars.filter((c) => [c.x, c.y, c.z].every(Number.isFinite)).map((c) => ({ x: c.x, y: c.y, z: c.z })) : null;
     const sp = Float64Array.from(shellPositions);
     const by = byModel ? byColumnsOf(byModel) : null; // #1917
-    worker.postMessage({ shellPositions: sp, terrain: t, collars: cl && cl.length ? cl : null, columns, byColumns: by, opts }, [sp.buffer, ...Object.values(columns).map((a) => a.buffer), ...(by ? Object.values(by).map((a) => a.buffer) : [])]);
+    const also = (alsoModels || []).map((m) => byColumnsOf(m)); // #3084
+    worker.postMessage({ shellPositions: sp, terrain: t, collars: cl && cl.length ? cl : null, columns, byColumns: by, alsoColumns: also, opts }, [sp.buffer, ...also.flatMap((a) => Object.values(a).map((x) => x.buffer)), ...Object.values(columns).map((a) => a.buffer), ...(by ? Object.values(by).map((a) => a.buffer) : [])]);
   });
   return { promise, cancel: () => { worker?.terminate(); settle?.({ cancelled: true }); } };
 }

@@ -47,6 +47,10 @@ export default function StopesPane({ onAdd, onRemove, onClose, stopes = [], onSh
   const job = useRef(null);
   useEffect(() => () => job.current?.cancel(), []); // a closed pane stops its run
   const model = models.find((m) => (m.id ?? m.name) === f.modelId) || null;
+  // TASKS.csv #3084 — other grades of the same blocks (SiO2, Al2O3, P beside Fe) over each stope's tonnes, as Pit shell's (#2995)
+  const alsoCandidates = voxelModels.filter((m) => m !== model);
+  const [alsoIds, setAlsoIds] = useState([]);
+  const alsoChosen = alsoCandidates.filter((m) => alsoIds.includes(m.id ?? m.name));
   const pits = useMemo(() => surfaces.filter((s) => s.type === "pit_shell" || s.type === "pit_design"), [surfaces]); // #1964
   const pit = pits.find((s) => s.id === f.pitId) || null;
   const unit = model ? valueUnit(model) || "" : "";
@@ -88,7 +92,7 @@ export default function StopesPane({ onAdd, onRemove, onClose, stopes = [], onSh
     let r;
     setBusy({ level: 0, levels: 0 }); setMsg(null);
     try {
-      job.current = runStopeOutlinesAsync(model, { cutoff: cutV, levelH: v("levelH"), zMin: v("zMin"), zMax: v("zMax"), minWidth: v("minWidth") || 0, minLength: v("minLength") || 0, skin: v("skin") || 0, density: v("density"), dipDeg: dipTyped ? v("dip") : null, dipDirDeg: dipTyped ? v("dipDir") : null /* #1953 */, pillar: pit ? v("pillar") || 0 : 0 /* #1964 */, crown: v("crown") || 0 /* #2438 */ }, ceilingAt, (level, levels) => setBusy({ level, levels }), groundIn);
+      job.current = runStopeOutlinesAsync(model, { cutoff: cutV, levelH: v("levelH"), zMin: v("zMin"), zMax: v("zMax"), minWidth: v("minWidth") || 0, minLength: v("minLength") || 0, skin: v("skin") || 0, density: v("density"), dipDeg: dipTyped ? v("dip") : null, dipDirDeg: dipTyped ? v("dipDir") : null /* #1953 */, pillar: pit ? v("pillar") || 0 : 0 /* #1964 */, crown: v("crown") || 0 /* #2438 */ }, ceilingAt, (level, levels) => setBusy({ level, levels }), groundIn, alsoChosen /* #3084 */);
       r = await job.current.promise;
     } catch (e) { kept = null; setRes(null); setMsg(tr("The outlines failed: {error}", { error: e?.message || String(e) })); return; } // #1884 — never a silent stale result
     finally { job.current = null; setBusy(null); }
@@ -100,7 +104,7 @@ export default function StopesPane({ onAdd, onRemove, onClose, stopes = [], onSh
     if (addedIds.length && onRemove) addedIds.forEach((id) => onRemove(id));
     const oldStrings = kept?.addedStringIds || []; // #1922 — and its outline strings
     if (oldStrings.length) { const gone = new Set(oldStrings); setDesignStrings((L) => L.filter((s) => !gone.has(s.id))); }
-    kept = { ...r, inputs: { ...f, ...(pctIn ? { cutoff: String(cutV), cutIn: "" } : {}) /* #2111 */ }, model: model.name, pitName: pit ? String(pit.name) : null /* #1964 */, unit, element /* #2594 */, groundSource: groundIn ? ground.source : null /* #2438 */, seconds: Math.round((performance.now() - t0) / 100) / 10, addedIds: [], runId: `stoperun_${Date.now()}` }; // runId: #1968 — its solids and strings are managed together
+    kept = { ...r, alsoLabels: alsoChosen.map((m) => m.property || m.name) /* #3084 */, inputs: { ...f, ...(pctIn ? { cutoff: String(cutV), cutIn: "" } : {}) /* #2111 */ }, model: model.name, pitName: pit ? String(pit.name) : null /* #1964 */, unit, element /* #2594 */, groundSource: groundIn ? ground.source : null /* #2438 */, seconds: Math.round((performance.now() - t0) / 100) / 10, addedIds: [], runId: `stoperun_${Date.now()}` }; // runId: #1968 — its solids and strings are managed together
     setRes(kept); setAdded({ solids: false, strings: false }); setMsg(null);
   };
   // #1885 — what the typed width and skin became on this model's columns
@@ -129,7 +133,7 @@ export default function StopesPane({ onAdd, onRemove, onClose, stopes = [], onSh
     if (kept === res) { kept = { ...res, addedStringIds: strings.map((s) => s.id) }; setRes(kept); } // #1922
     setAdded((a) => ({ ...a, strings: true })); setMsg(tr("{n} outline(s) added as design strings (Strings tool).", { n: strings.length }));
   };
-  const exportCsv = () => saveFile({ suggestedName: "stope_outlines.csv", filters: [{ name: "CSV", extensions: ["csv"] }], content: toExportCsv(stopeRows(res, res.unit).map((r) => ({ ...r, block_model: res.model, element: res.element || "" /* #2594 */, cutoff: res.inputs.cutoff, crs: crsCell(project) }))) });
+  const exportCsv = () => saveFile({ suggestedName: "stope_outlines.csv", filters: [{ name: "CSV", extensions: ["csv"] }], content: toExportCsv(stopeRows(res, res.unit, res.alsoLabels || []).map((r) => ({ ...r, block_model: res.model, element: res.element || "" /* #2594 */, cutoff: res.inputs.cutoff, crs: crsCell(project) }))) });
   const line = (label, val) => <div style={row}><span>{label}</span><b>{val}</b></div>;
   const field = (k, label, extra = {}) => <label style={row}>{label}<input type="number" min={0} step="any" value={f[k]} onChange={set(k)} style={num} {...extra} /></label>;
   const g = (x) => (x == null ? "—" : gradeWithElement(x, res.unit, res.element)); // #2594
@@ -143,6 +147,10 @@ export default function StopesPane({ onAdd, onRemove, onClose, stopes = [], onSh
       <NotOfferedGrades voxelModels={voxelModels} />{/* TASKS.csv #2436 */}
       {models.length > 0 && (<>
         <label style={row}>{tr("Block model")}<select value={f.modelId} onChange={set("modelId")} style={{ ...smallSel, width: 0, flex: 1, minWidth: 0 }} aria-label={tr("Block model of the stopes")}>{models.map((m) => <option key={m.id ?? m.name} value={m.id ?? m.name}>{m.name}</option>)}</select></label>
+        {model && alsoCandidates.length > 0 && <details style={{ marginTop: 4 }}><summary style={{ cursor: "pointer", color: "var(--color-text-secondary)", fontSize: "var(--font-size-sm)" }}>{alsoChosen.length ? tr("Report these grades too ({n})", { n: alsoChosen.length }) : tr("Report these grades too")}</summary>
+          <div style={{ display: "flex", flexDirection: "column", gap: 2, marginTop: 3, fontSize: "var(--font-size-sm)" }} title={tr("Each chosen model's grade over each stope's tonnes (joined by block centre: a model on the same grid as this one).")}>
+            {alsoCandidates.map((m) => { const id = m.id ?? m.name; return <label key={id} style={{ display: "flex", gap: 5, alignItems: "center", cursor: "pointer" }}><input type="checkbox" checked={alsoIds.includes(id)} onChange={(e) => setAlsoIds((p) => (e.target.checked ? [...p, id] : p.filter((x) => x !== id)))} />{m.name}{m.property ? ` (${m.property})` : ""}</label>; })}
+          </div></details>}{/* #3084 */}
         {pctOk
           ? <label style={row}>{tr("Cut-off ({unit})", { unit: element })}<span style={{ display: "flex", gap: 4 }}><input type="number" min={0} step="any" value={f.cutoff} onChange={set("cutoff")} style={num} aria-label={tr("Cut-off")} /><select value={cutUnit.key} onChange={set("cutIn")} style={{ ...smallSel, width: 92 }} aria-label={tr("Unit of the cut-off")}>{cutUnits.map((u) => <option key={u.key} value={u.key}>{u.label}</option>)}</select>{/* #2666 */}</span></label>
           : field("cutoff", unit ? tr("Cut-off ({unit})", { unit: element ? `${gradeUnitText(unit, element)} ${element}` : unit }) : tr("Cut-off"))}{/* #2111 — % for a ppm Cu model; g/t for a ppm Au one */}
@@ -200,8 +208,8 @@ export default function StopesPane({ onAdd, onRemove, onClose, stopes = [], onSh
           {res.unbuilt > 0 && <div style={warn}>{tr("{n} outline(s) could not be made into a solid (kept as outlines; the tonnes count).", { n: res.unbuilt })}</div>}
           <div style={{ marginTop: 6, maxHeight: 200, overflow: "auto", border: "1px solid var(--color-border)", borderRadius: 4 }}>
             <table style={{ borderCollapse: "collapse", width: "100%", fontSize: "var(--font-size-xs)" }}>
-              <thead><tr style={{ position: "sticky", top: 0, background: "var(--color-bg)" }}>{[tr("Level"), tr("Stopes"), tr("t"), tr("Grade"), tr("Ore t")].map((h) => <th key={h} style={{ textAlign: "right", padding: "2px 4px", borderBottom: "1px solid var(--color-border)", fontWeight: 600 }}>{h}</th>)}</tr></thead>
-              <tbody>{[...res.levels].reverse().map((l) => <tr key={l.rl}><td style={cellStyle}>{Math.round(l.rl)}</td><td style={cellStyle}>{l.stopes.length}</td><td style={cellStyle}>{l.tonnes ? big(l.tonnes) : "—"}</td><td style={cellStyle}>{l.grade == null ? "—" : Number(l.grade.toPrecision(3))}</td><td style={cellStyle}>{l.oreTonnes ? big(l.oreTonnes) : "—"}</td></tr>)}</tbody>
+              <thead><tr style={{ position: "sticky", top: 0, background: "var(--color-bg)" }}>{[tr("Level"), tr("Stopes"), tr("t"), tr("Grade"), ...(res.alsoLabels || []) /* #3084 */, tr("Ore t")].map((h) => <th key={h} style={{ textAlign: "right", padding: "2px 4px", borderBottom: "1px solid var(--color-border)", fontWeight: 600 }}>{h}</th>)}</tr></thead>
+              <tbody>{[...res.levels].reverse().map((l) => <tr key={l.rl}><td style={cellStyle}>{Math.round(l.rl)}</td><td style={cellStyle}>{l.stopes.length}</td><td style={cellStyle}>{l.tonnes ? big(l.tonnes) : "—"}</td><td style={cellStyle}>{l.grade == null ? "—" : Number(l.grade.toPrecision(3))}</td>{(res.alsoLabels || []).map((lab, k) => <td key={lab} style={cellStyle}>{l.alsoGrades?.[k] == null ? "—" : Number(l.alsoGrades[k].toPrecision(3))}</td>)}<td style={cellStyle}>{l.oreTonnes ? big(l.oreTonnes) : "—"}</td></tr>)}</tbody>
             </table>
           </div>
           {res.levels.some((l) => l.stopes.some((s) => s.holesFilled)) && <div style={note}>{tr("Holes inside a patch were filled into the stope.")}</div>}

@@ -18,7 +18,7 @@ import { toExportCsv, crsCell } from "../lib/tabular.js";
 import { saveFile } from "../lib/desktop.js";
 import { iconAction } from "../lib/a11y.js";
 import { pBtn, smallSel } from "../lib/sidebarStyles.js";
-import { collarGround, collarsLookUnderground, pitMetalOf, elementOfModel, metalAmountText, gradeWithElement /* #2111 */ } from "../lib/pitShell.js"; // #1905; metal: #2441
+import { collarGround, collarsLookUnderground, pitMetalOf, elementOfModel, metalAmountText, gradeWithElement /* #2111 */, joinAlso /* #3084 */ } from "../lib/pitShell.js"; // #1905; metal: #2441
 import { terrainGroundAt } from "../lib/viewer/geomath.js";
 import { t as tr } from "../lib/i18n.js";
 import CollarLevelsNote from "./CollarLevelsNote.jsx"; // TASKS.csv #2584 — the lowest collar used where collars stand on benches
@@ -286,18 +286,24 @@ export default function DesignStringsPane({ view, onAdd, onClose, surfaces = [],
   // ---------- solids ----------
   const model = models.find((m) => (m.id ?? m.name) === solid.modelId) || null;
   const density = num0(solid.density);
+  // TASKS.csv #3084 — other grades of the blocks inside the solid (SiO2, Al2O3, P beside Fe), joined by centre as Pit shell's (#2995)
+  const [alsoIds, setAlsoIds] = useState([]);
+  const alsoCandidates = (voxelModels || []).filter((m) => m !== model);
+  const alsoChosen = alsoCandidates.filter((m) => alsoIds.includes(m.id ?? m.name));
+  const cellsWithAlso = () => (alsoChosen.length ? joinAlso(model.cells, alsoChosen.map((m) => ({ cells: m.cells }))).cells : model.cells);
   // TASKS.csv #2441 / #2599 (reviews #2325, #2486) — the grade is the blocks', which may fill only part of the solid ('0.25 % from 375 block(s)' for a
   // 1M m3 solid they fill 37.5 % of): say what share they fill and the metal they hold, in the pit panes' words
   const solidCoverText = (tonnage, tonnes) => {
     if (!tonnage || !(tonnes > 0)) return "";
     const share = tonnage.tonnes / tonnes, unit = valueUnit(model), element = elementOfModel(model), m = unit ? pitMetalOf(unit, element) : null;
     const metal = m && tonnage.metalU > 0 ? " " + tr("Contained in those blocks: {m}.", { m: metalAmountText(tonnage.metalU * m.factor, m.unit, element, big) }) : "";
-    return (share < 0.95 ? " " + tr("The blocks fill {p} % of the solid ({bt} t of {t} t): the grade is theirs, the rest has no estimate.", { p: Math.round(share * 100), bt: big(tonnage.tonnes), t: big(tonnes) }) : "") + metal;
+    const others = alsoChosen.length ? " " + tr("Other grades of those blocks: {list}.", { list: alsoChosen.map((am, k) => `${am.property || am.name} ${tonnage.alsoGrades?.[k] == null ? "—" : Number(tonnage.alsoGrades[k].toPrecision(3))}`).join("; ") }) : ""; // #3084
+    return (share < 0.95 ? " " + tr("The blocks fill {p} % of the solid ({bt} t of {t} t): the grade is theirs, the rest has no estimate.", { p: Math.round(share * 100), bt: big(tonnage.tonnes), t: big(tonnes) }) : "") + metal + others;
   };
   const finishSolid = (name0, r, how, prefix = "") => {
     const taken = new Set((surfaces || []).map((s) => s.name)); let name = name0; for (let k = 2; taken.has(name); k++) name = `${name0} (${k})`; // #1942
     // #1904 — the tonnes are the solid's own volume at the density; the blocks (counted whole by their centre) give the grade only
-    const tonnage = model && density > 0 ? solidTonnage(r.positions, r.indices, model.cells, density) : null;
+    const tonnage = model && density > 0 ? solidTonnage(r.positions, r.indices, cellsWithAlso() /* #3084 */, density) : null;
     const tonnes = density > 0 ? r.volume * density : null, blockM = model?.cells?.[0]?.dx;
     onAdd?.({ name, positions: r.positions, indices: r.indices, volumeM3: r.volume, type: "design_solid", closure: "closed", color: "#5c7cfa", tag: "string",
       tip: tr("Solid from design strings ({how}): a drawn shape, not a modelled one", { how }),
@@ -449,6 +455,8 @@ export default function DesignStringsPane({ view, onAdd, onClose, surfaces = [],
       {closedStrings.length > 0 && (<>
         <div style={label}>{tr("Solids from strings")}</div>
         <label style={row}>{tr("Block model")}<select value={solid.modelId} onChange={(e) => setSolid((s) => ({ ...s, modelId: e.target.value }))} style={{ ...smallSel, width: 0, flex: 1, minWidth: 0 }} aria-label={tr("Block model counted inside the solid")}><option value="">{tr("— none —")}</option>{models.map((m) => <option key={m.id ?? m.name} value={m.id ?? m.name}>{m.name}</option>)}</select></label>
+        {model && alsoCandidates.length > 0 && <details style={{ marginTop: 2 }}><summary style={{ cursor: "pointer", color: "var(--color-text-secondary)", fontSize: "var(--font-size-sm)" }}>{alsoChosen.length ? tr("Report these grades too ({n})", { n: alsoChosen.length }) : tr("Report these grades too")}</summary>
+          <div style={{ display: "flex", flexDirection: "column", gap: 2, marginTop: 3, fontSize: "var(--font-size-sm)" }}>{alsoCandidates.map((m) => { const id = m.id ?? m.name; return <label key={id} style={{ display: "flex", gap: 5, alignItems: "center", cursor: "pointer" }}><input type="checkbox" checked={alsoIds.includes(id)} onChange={(e) => setAlsoIds((p) => (e.target.checked ? [...p, id] : p.filter((x) => x !== id)))} />{m.name}{m.property ? ` (${m.property})` : ""}</label>; })}</div></details>}{/* #3084 */}
         <label style={row}>{tr("Density (t/m³)")}<input type="number" min={0} step="any" value={solid.density} onChange={(e) => setSolid((s) => ({ ...s, density: e.target.value }))} style={num} aria-label={tr("Density of the rock in the solid")} /></label>
         {string?.closed && string.vertices.length > 2 && (
           <div style={{ ...row, flexWrap: "wrap", gap: 3 }}>

@@ -11419,5 +11419,7 @@
   "{n} row(s) with a blank Elev took the ground interpolated between the nearest collars (no terrain).": "{n} linha(s) com a cota em branco tomaram o terreno interpolado entre as bocas de furo mais próximas (sem terreno).",
   "{n} collar(s) left out of the ground between the collars, their elevation not being ground (assumed at import, or suspect: 0 m among collars far from 0, or a stray): {list}.": "{n} boca(s) de furo ficaram fora do terreno entre as bocas, pois sua cota não é terreno (assumida na importação, ou suspeita: 0 m entre bocas longe de 0, ou isolada): {list}.",
   "Left out: {list}.": "Ficaram fora: {list}.",
-  "Zoom to {name}": "Aproximar de {name}"
+  "Zoom to {name}": "Aproximar de {name}",
+  "Other grades of those blocks: {list}.": "Outros teores desses blocos: {list}.",
+  "Each chosen model's grade over each stope's tonnes (joined by block centre: a model on the same grid as this one).": "O teor de cada modelo escolhido sobre as toneladas de cada realce (unido pelo centro do bloco: um modelo na mesma grade que este)."
 }

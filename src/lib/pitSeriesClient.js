@@ -2,7 +2,7 @@
 import { voxelCellSupported } from "./viewer/geomath.js";
 import { byColumnsOf } from "./pitShellClient.js"; // #1917
 
-export function runPitSeriesAsync(model, inputs, rfs, { rate = null, discountPct = null, terrain = null, collars = null, byModel = null, penaltyModels = [], onProgress = null } = {}) { // byModel: #1917; penaltyModels: #2986 part 2
+export function runPitSeriesAsync(model, inputs, rfs, { rate = null, discountPct = null, terrain = null, collars = null, byModel = null, penaltyModels = [], alsoModels = [], onProgress = null } = {}) { // alsoModels: #3084 // byModel: #1917; penaltyModels: #2986 part 2
   const cells = (model.cells || []).filter((c) => voxelCellSupported(model, c)), n = cells.length;
   const col = () => new Float64Array(n), columns = { x: col(), y: col(), z: col(), dx: col(), dy: col(), dz: col(), value: col(), coverage: col(), nHoles: new Uint16Array(n), holeShare: new Float32Array(n).fill(NaN) /* #1617 */, support: new Uint8Array(n), beyond: new Uint8Array(n) /* #2435 */, nearUnsampled: new Uint8Array(n) /* #2596 */, fromLog: new Float32Array(n) /* #2748 */, density: new Float32Array(n).fill(NaN) /* #2647 */ };
   const SUP = { interpolated: 1, extrapolated: 2, unsupported: 3 };
@@ -24,7 +24,8 @@ export function runPitSeriesAsync(model, inputs, rfs, { rate = null, discountPct
     const cl = !t && collars ? collars.filter((c) => [c.x, c.y, c.z].every(Number.isFinite)).map((c) => ({ x: c.x, y: c.y, z: c.z })) : null;
     const by = byModel ? byColumnsOf(byModel) : null; // #1917
     const pens = (penaltyModels || []).map((m) => byColumnsOf(m)); // #2986 part 2
-    worker.postMessage({ inputs, rfs, rate, discountPct, columns, byColumns: by, penaltyColumns: pens, terrain: t, collars: cl }, [...Object.values(columns).map((a) => a.buffer), ...(by ? Object.values(by).map((a) => a.buffer) : []), ...pens.flatMap((p) => Object.values(p).map((x) => x.buffer))]);
+    const also = (alsoModels || []).map((m) => byColumnsOf(m)); // #3084
+    worker.postMessage({ inputs, rfs, rate, discountPct, columns, byColumns: by, penaltyColumns: pens, alsoColumns: also, terrain: t, collars: cl }, [...Object.values(columns).map((a) => a.buffer), ...(by ? Object.values(by).map((a) => a.buffer) : []), ...pens.flatMap((p) => Object.values(p).map((x) => x.buffer)), ...also.flatMap((p) => Object.values(p).map((x) => x.buffer))]);
   });
   return { promise, cancel: () => { worker?.terminate(); settle?.({ cancelled: true }); } };
 }

@@ -11419,5 +11419,7 @@
   "{n} row(s) with a blank Elev took the ground interpolated between the nearest collars (no terrain).": "{n} fila(s) con la cota en blanco tomaron el terreno interpolado entre los collares más cercanos (sin terreno).",
   "{n} collar(s) left out of the ground between the collars, their elevation not being ground (assumed at import, or suspect: 0 m among collars far from 0, or a stray): {list}.": "{n} collar(es) quedaron fuera del terreno entre los collares, porque su cota no es terreno (asumida al importar, o sospechosa: 0 m entre collares lejos de 0, o aislada): {list}.",
   "Left out: {list}.": "Quedaron fuera: {list}.",
-  "Zoom to {name}": "Acercar a {name}"
+  "Zoom to {name}": "Acercar a {name}",
+  "Other grades of those blocks: {list}.": "Otras leyes de esos bloques: {list}.",
+  "Each chosen model's grade over each stope's tonnes (joined by block centre: a model on the same grid as this one).": "La ley de cada modelo elegido sobre las toneladas de cada caserón (unida por el centro de bloque: un modelo en la misma grilla que este)."
 }
