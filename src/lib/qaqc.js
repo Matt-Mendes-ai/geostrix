@@ -298,6 +298,12 @@ export function methodPairs(assays, symbol, patterns = DEFAULT_QAQC_PATTERNS) {
   return [...by.values()].map((g) => ({ ...g, n: g.pairs.length, medianRpd: med(g.pairs.map((p) => p.rpd)), medianRatio: med(g.pairs.filter((p) => p.v1 > 0).map((p) => p.v2 / p.v1)) })).sort((x, y) => y.n - x.n);
 }
 
+// TASKS.csv #3220 (review #3195, Galore Creek) — Method pairs read two partial (soluble) copper assays as other methods of total copper: a
+// 'bias' of 0.133, RPD 153 %, and 'Use Cu_AA17_pct instead' over total copper. A method column whose median ratio to the element is under
+// 0.5 or over 2 is a different measurement (a partial digest, a soluble leach), not a bias: no RPD verdict and no swap. g: methodPairs' group
+export const DIFFERENT_MEASUREMENT = [0.5, 2];
+export const isDifferentMeasurement = (g) => g?.medianRatio != null && Number.isFinite(g.medianRatio) && (g.medianRatio < DIFFERENT_MEASUREMENT[0] || g.medianRatio > DIFFERENT_MEASUREMENT[1]);
+
 // share of the counted pairs (not below the limit) within their RPD limit. `limits` is one number for every pair (the
 // old behaviour) or a per-kind table (TASKS.csv #534: DUP_RPD_LIMITS), with a per-kind breakdown.
 export function duplicateSummary(pairs, limits = 20) {
@@ -337,7 +343,11 @@ export function censoringFloor(values, { minShare = 0.05, zeros = 0 } = {}) {
   if (zerosBelowStep(z, nPos)) return null; // #2913
   let n = 0;
   for (const v of values) if (typeof v === "number" && Math.abs(v - min) <= min * 1e-9) n++;
-  return n >= 20 && n / nPos >= minShare ? { floor: min, n, share: n / nPos, dl: Math.round(min * 2 * 1e9) / 1e9 } : null;
+  if (!(n >= 20 && n / nPos >= minShare)) return null;
+  // TASKS.csv #3222 — the next distinct value above the floor (the gap tells a substituted half-limit from a lowest reported value)
+  let next = Infinity;
+  for (const v of values) if (typeof v === "number" && v > min * (1 + 1e-9) && v < next) next = v;
+  return { floor: min, n, share: n / nPos, dl: Math.round(min * 2 * 1e9) / 1e9, next: Number.isFinite(next) ? next : null };
 }
 // TASKS.csv #3083 (split from #2913) — Harry's Au read 44 % <DL in Thresholds and 41 % in Grade stats. Grade stats looked for the floor
 // among its resolved segments, where 12 averages of a '<' row and an overlapping result (0.00375 ppm) sat below the 231 results at
@@ -406,7 +416,9 @@ export function suggestDetectionLimit(assays, symbol) {
   if (st) return { limit: null, basis: "step", step: st.step, zeros: st.zeros };
   // #1520 — no '<' results, but a floor holding a share of the values: half the limit was substituted before import
   const fl = censoringFloor((assays || []).map((a) => a?.values?.[symbol]));
-  if (fl) return { limit: fl.dl, basis: "floor", floor: fl.floor, n: fl.n, share: fl.share };
+  // TASKS.csv #3222 (review #3195, Galore Creek) — Pt was given 'Use 0.002: twice the 0.001 floor' as a fact while the next value was 0.005:
+  // the limit is read from the data, and when the next value is more than twice the floor the limit is read as that next value
+  if (fl) return { limit: fl.next != null && fl.next > 2 * fl.floor * (1 + 1e-9) ? fl.next : fl.dl, basis: "floor", floor: fl.floor, n: fl.n, share: fl.share, next: fl.next, gap: fl.next != null && fl.next > 2 * fl.floor * (1 + 1e-9) };
   // #2913 — a lowest value many reporting steps above zero (Fe 0.97 % reported to 0.01) is a poor sample, not a limit
   const res = reportingResolution(plain);
   if (res && minPos > 20 * res) return { limit: null, basis: "low", min: Number(minPos.toPrecision(6)), step: res };
