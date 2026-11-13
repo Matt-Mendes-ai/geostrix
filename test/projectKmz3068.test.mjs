@@ -239,7 +239,7 @@ test("#3087 — mine design lines (start + segments) and strings at their elevat
   // only the parts ticked
   const only = buildProjectKml(p, { ...opts, include: new Set(["design", "sections"]) }).kml;
   assert.deepEqual(folderTree(only).map((f) => f.name), ["Sections", "Mine design"]);
-  assert.deepEqual(KMZ_PARTS.map((k) => k.key), ["drillholes", "surface", "sections", "design", "rasters"]);
+  assert.deepEqual(KMZ_PARTS.map((k) => k.key), ["drillholes", "surface", "sections", "design", "models", "rasters"]); // models: #3087 part 2, in the KMZ's folder order
   const app = readFileSync(new URL("../src/App.jsx", import.meta.url), "utf8");
   assert.match(app, /const doExportKmz = useCallback\(\(\) => setKmzOpen\(true\), \[\]\);/);
   assert.match(app, /m\.exportProjectKmz\(storeRef\.current, \{ include \}\)/);
