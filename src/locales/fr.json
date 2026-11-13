@@ -11819,5 +11819,6 @@
   "total of {cols}": "total de {cols}",
   "{fileName}: nothing was added: no interval has a per-cent value in the ticked columns.": "{fileName} : rien n'a été ajouté : aucun intervalle n'a de valeur en pourcentage dans les colonnes cochées.",
   "{fileName}: {n} layer(s) of visual per cent (one per mineral column) imported: {list}. The first is shown; the others are in the Layers list.": "{fileName} : {n} couche(s) de pourcentage visuel (une par colonne de minéral) importée(s) : {list}. La première est affichée ; les autres sont dans la liste des couches.",
-  "{n} value(s) below 0 or over 100 % were left out.": "{n} valeur(s) sous 0 ou au-dessus de 100 % ont été laissées de côté."
+  "{n} value(s) below 0 or over 100 % were left out.": "{n} valeur(s) sous 0 ou au-dessus de 100 % ont été laissées de côté.",
+  "{cols}: values a thousandfold apart from \"{header}\" read in the same unit: one of them is not in the unit its name says. Check before ticking.": "{cols} : des valeurs mille fois éloignées de « {header} » lues dans la même unité : l'une des colonnes n'est pas dans l'unité que dit son nom. Vérifiez avant de cocher."
 }
