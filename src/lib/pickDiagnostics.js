@@ -5,17 +5,44 @@
 // at 3,000. It misses the faults that bend surfaces, so these look at the data instead. Pure: points / orientations
 // in metres (x east, y north, z up), each point may carry hole_id.
 
+// TASKS.csv #3119 (from #3085, WA iron) — the pairs of points within r of each other in plan, in the order a loop over every pair meets
+// them (i ascending, then j > i ascending), from a cell bucket instead of that loop: a stack of six units with 5,000 picks each made both
+// checks below compare 12.5 million pairs per unit, about 0.5 s of the run's main thread before the solve. The callers apply their
+// own exact tests to these candidates, so the answers are the same.
+function pairsWithin(points, r) {
+  const n = points.length, out = [];
+  if (n < 2) return out;
+  const cell = Math.max(r, 1e-6), r2 = r * r * (1 + 1e-9) + 1e-12, cells = new Map(), ci = new Float64Array(n), cj = new Float64Array(n);
+  for (let k = 0; k < n; k++) {
+    const p = points[k];
+    ci[k] = Math.floor(p.x / cell); cj[k] = Math.floor(p.y / cell);
+    const key = `${ci[k]},${cj[k]}`;
+    (cells.get(key) || cells.set(key, []).get(key)).push(k); // ascending k within each cell
+  }
+  const near = [];
+  for (let i = 0; i < n; i++) {
+    near.length = 0;
+    const p = points[i];
+    for (let di = -1; di <= 1; di++) for (let dj = -1; dj <= 1; dj++) {
+      const l = cells.get(`${ci[i] + di},${cj[i] + dj}`);
+      if (!l) continue;
+      for (const j of l) { if (j <= i) continue; const dx = p.x - points[j].x, dy = p.y - points[j].y; if (dx * dx + dy * dy <= r2) near.push(j); }
+    }
+    if (near.length > 1) near.sort((a, b) => a - b);
+    for (const j of near) out.push(i, j);
+  }
+  return out;
+}
+
 // Picks of one surface repeated at (almost) the same place: GemPy honours every copy, which only slows and stiffens
 // the solve. Returns [[i, j], ...] (each later copy paired with the first).
 export function duplicatePicks(points, tol = 0.5) {
-  const out = [], t2 = tol * tol, used = new Set();
-  for (let i = 0; i < points.length; i++) {
-    if (used.has(i)) continue;
-    for (let j = i + 1; j < points.length; j++) {
-      if (used.has(j)) continue;
-      const dx = points[i].x - points[j].x, dy = points[i].y - points[j].y, dz = points[i].z - points[j].z;
-      if (dx * dx + dy * dy + dz * dz <= t2) { out.push([i, j]); used.add(j); }
-    }
+  const out = [], t2 = tol * tol, used = new Set(), pr = pairsWithin(points, tol); // #3119: the candidates, in the loop's order
+  for (let m = 0; m < pr.length; m += 2) {
+    const i = pr[m], j = pr[m + 1];
+    if (used.has(i) || used.has(j)) continue;
+    const dx = points[i].x - points[j].x, dy = points[i].y - points[j].y, dz = points[i].z - points[j].z;
+    if (dx * dx + dy * dy + dz * dz <= t2) { out.push([i, j]); used.add(j); }
   }
   return out;
 }
@@ -24,12 +51,11 @@ export function duplicatePicks(points, tol = 0.5) {
 // to vertical there (15 m over 5 m is 72 degrees) - usually a mis-picked or mislabelled contact, or the unit repeated
 // by a fold or fault. Returns [{i, j, h, dz}].
 export function conflictingPicks(points, { h = 5, dz = 15 } = {}) {
-  const out = [];
-  for (let i = 0; i < points.length; i++) {
-    for (let j = i + 1; j < points.length; j++) {
-      const dh = Math.hypot(points[i].x - points[j].x, points[i].y - points[j].y), dv = Math.abs(points[i].z - points[j].z);
-      if (dh <= h && dv > dz) out.push({ i, j, h: dh, dz: dv });
-    }
+  const out = [], pr = pairsWithin(points, h); // #3119: the candidates, in the loop's order
+  for (let m = 0; m < pr.length; m += 2) {
+    const i = pr[m], j = pr[m + 1];
+    const dh = Math.hypot(points[i].x - points[j].x, points[i].y - points[j].y), dv = Math.abs(points[i].z - points[j].z);
+    if (dh <= h && dv > dz) out.push({ i, j, h: dh, dz: dv });
   }
   return out.sort((a, b) => b.dz - a.dz);
 }
