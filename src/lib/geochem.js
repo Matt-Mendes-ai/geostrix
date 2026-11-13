@@ -245,7 +245,8 @@ export function readLoiCell(raw, posMax = 0) {
 // TASKS.csv #3196 (#3195, Galore Creek) — an all-nines code (-99, -999, -9999) is the usual no-data sentinel of a company export, never an upper limit:
 // -999 in Mo / Ce / La / Ni (maxima 947, 650, 690, 767) was read as 999 ppm over the limit (Mo mean 11.7 -> 31.7). A lab's upper limit is a round
 // number (-10 for Au "> 10", -10000 for Cu), so only those can be over-limit codes; the all-nines ones are no-data (isNoDataCode)
-export const isOverLimitCode = (value, colMax) => value < 0 && value !== -1 && value !== -9 && colMax > 0 && -value >= colMax && -value <= 2 * colMax && !ALL_NINES.test(String(-value));
+export const isAllNinesCode = (value) => value < 0 && ALL_NINES.test(String(-value)); // -99, -999, -9999: a no-data sentinel (#3196; long format too)
+export const isOverLimitCode = (value, colMax) => value < 0 && value !== -1 && value !== -9 && colMax > 0 && -value >= colMax && -value <= 2 * colMax && !isAllNinesCode(value);
 export function columnPositiveMax(rows, header) {
   let max = 0;
   for (let i = 0; i < (rows || []).length; i++) { const v = parseAssayValue(rows[i][header]); if (v != null && v > max) max = v; }

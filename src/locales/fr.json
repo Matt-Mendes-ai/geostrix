@@ -11790,5 +11790,6 @@
   "These columns are read in per cent, but their values run far past 100 %, which no weight per cent can: {list}. They look like ppm. Pick the unit for each in the list below, or:": "Ces colonnes sont lues en pour cent, mais leurs valeurs dépassent largement 100 %, ce qu'aucun pourcentage massique ne peut : {list}. Elles ressemblent à des ppm. Choisissez l'unité de chacune dans la liste ci-dessous, ou :",
   "{header} (median {median} %, up to {max} %)": "{header} (médiane {median} %, jusqu'à {max} %)",
   "Read these {n} as ppm": "Lire ces {n} en ppm",
-  "Read {header} as ppm": "Lire {header} en ppm"
+  "Read {header} as ppm": "Lire {header} en ppm",
+  "{n} result(s) are no-data codes (-99 / -999 / -9999): read as not assayed.": "{n} résultat(s) sont des codes sans donnée (-99 / -999 / -9999) : lus comme non analysés."
 }
