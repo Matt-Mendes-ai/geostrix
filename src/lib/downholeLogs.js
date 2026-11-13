@@ -4,8 +4,35 @@
 // rank correlation. The log rows come in assay-shaped from numericSources.js sourceAssays(). Pure.
 import { quantileSorted } from "./arrayStats.js";
 import { correlate } from "./correlation.js";
-import { domainOfInterval } from "./domainLayers.js";
 import { valueIn } from "./geochem.js";
+
+// TASKS.csv #2948 (review #2876, WA iron: 484,531 bins, 4 to 8 s per choice) — each reading was matched to its code, its assay interval and
+// its model cell with Array.find over the hole's intervals. intervalLookup(items, ok) -> (hole, depth) => the item holding the depth: a binary
+// search when the hole's intervals do not overlap (a log, a strand, an assay table), else the first by depth that holds it, as find gave.
+// The same answer either way; items failing `ok`, or without to > from, can never hold a depth and are left out.
+function intervalLookup(items, ok = () => true) {
+  const byHole = new Map();
+  for (const it of items || []) { if (!ok(it) || !(Number(it.to) > Number(it.from))) continue; (byHole.get(it.hole_id) || byHole.set(it.hole_id, []).get(it.hole_id)).push(it); }
+  const holes = new Map();
+  byHole.forEach((list, h) => {
+    list.sort((a, b) => a.from - b.from);
+    const n = list.length, from = new Float64Array(n), to = new Float64Array(n);
+    let apart = true;
+    for (let i = 0; i < n; i++) { from[i] = Number(list[i].from); to[i] = Number(list[i].to); if (i && to[i - 1] > from[i]) apart = false; }
+    holes.set(h, { list, from, to, apart });
+  });
+  return (hole, m) => {
+    const e = holes.get(hole);
+    if (!e) return null;
+    const { list, from, to } = e;
+    if (!e.apart) { for (let i = 0; i < list.length; i++) if (m >= from[i] && m < to[i]) return list[i]; return null; }
+    let lo = 0, hi = list.length - 1, k = -1;
+    while (lo <= hi) { const mid = (lo + hi) >> 1; if (from[mid] <= m) { k = mid; lo = mid + 1; } else hi = mid - 1; }
+    return k >= 0 && m < to[k] ? list[k] : null;
+  };
+}
+// the number of values above thr in an ascending array
+function countAbove(s, thr) { let lo = 0, hi = s.length; while (lo < hi) { const mid = (lo + hi) >> 1; if (s[mid] <= thr) lo = mid + 1; else hi = mid; } return s.length - lo; }
 
 export function boxStats(values) {
   const s = values.filter(Number.isFinite).sort((a, b) => a - b);
@@ -19,24 +46,41 @@ export const NOT_LOGGED = "(not logged)";
 // TASKS.csv #2393 (review #2325, WA uranium) — a skewed log ranked by its median hides the host: lignite (38 % of the assayed uranium) was
 // 9th of 19 by median gamma and shale (no reading over 100 ppm) 2nd. stat: "median" (default, for symmetric logs: SG, RQD), "mean", "p90",
 // or "above" (the share of readings above `above`); each group gets `value` (and `nAbove`), and the groups are sorted by it.
-export function logByCode(rows, symbol, domainRows, { minN = 3, stat = "median", above = null } = {}) {
-  const codeOf = domainOfInterval(domainRows);
+export function logByCode(rows, symbol, domainRows, opts = {}) {
+  return rankLogGroups(groupLogByCode(rows, symbol, domainRows), opts);
+}
+// TASKS.csv #2948 — the grouping is the slow half (every reading looked up in the code layer) and does not depend on the ranking: done once
+// per (log, code layer) and kept by the pane, each code's readings sorted once (a Float64Array) with their sum in reading order, so a change of
+// Rank codes by (median, mean, P90, share above) reads the kept arrays. The code at a reading is the code layer's interval holding its midpoint
+// (the first by depth when they overlap), as domainOfInterval gives. -> Map(code -> { sorted, sum })
+export function groupLogByCode(rows, symbol, domainRows) {
+  const codeAt = intervalLookup(domainRows);
   const groups = new Map();
-  for (const r of rows) {
+  for (const r of rows || []) {
     const v = r.values?.[symbol];
     if (!Number.isFinite(v)) continue;
-    const code = codeOf(r) ?? NOT_LOGGED;
-    (groups.get(code) || groups.set(code, []).get(code)).push(v);
+    const hit = codeAt(r.hole_id, (Number(r.from) + Number(r.to)) / 2);
+    const code = hit ? String(hit.value ?? "") : NOT_LOGGED;
+    let g = groups.get(code);
+    if (!g) groups.set(code, (g = { vals: [], sum: 0 }));
+    g.vals.push(v);
+    g.sum += v;
   }
+  const out = new Map();
+  for (const [code, g] of groups) out.set(code, { sorted: Float64Array.from(g.vals).sort(), sum: g.sum });
+  return out;
+}
+// -> [{ key, stats, n, value, nAbove? }] sorted by value, highest first
+export function rankLogGroups(grouped, { minN = 3, stat = "median", above = null } = {}) {
   const out = [];
   const thr = Number(above);
-  for (const [key, vals] of groups) {
-    const stats = boxStats(vals);
-    if (!stats || stats.n < minN) continue;
+  for (const [key, { sorted: s, sum }] of grouped || []) {
+    if (!s.length || s.length < minN) continue;
+    const stats = { n: s.length, min: s[0], q1: quantileSorted(s, 0.25), median: quantileSorted(s, 0.5), q3: quantileSorted(s, 0.75), max: s[s.length - 1] };
     let value = stats.median, nAbove;
-    if (stat === "mean") value = vals.reduce((s, v) => s + v, 0) / vals.length;
-    else if (stat === "p90") value = quantileSorted([...vals].sort((a, b) => a - b), 0.9);
-    else if (stat === "above" && Number.isFinite(thr)) { nAbove = vals.filter((v) => v > thr).length; value = (100 * nAbove) / vals.length; }
+    if (stat === "mean") value = sum / s.length;
+    else if (stat === "p90") value = quantileSorted(s, 0.9);
+    else if (stat === "above" && Number.isFinite(thr)) { nAbove = countAbove(s, thr); value = (100 * nAbove) / s.length; }
     out.push({ key, stats, n: stats.n, value, ...(nAbove != null ? { nAbove } : {}) });
   }
   return out.sort((a, b) => b.value - a.value || String(a.key).localeCompare(String(b.key)));
@@ -47,27 +91,23 @@ export function logByCode(rows, symbol, domainRows, { minN = 3, stat = "median",
 // TASKS.csv #2353 — and the ratios a disequilibrium check reads: the median of log / assay, and sum(log x reading length) / sum(assay x reading
 // length), over the pairs with an assay above 0 (a correlation says the two move together, not by how much the log under-reads)
 export function logVsAssay(rows, symbol, assays, element, elementUnits = {}) {
-  const byHole = new Map();
-  for (const a of assays || []) { if (a.source === "pXRF" || !Number.isFinite(a.from) || !Number.isFinite(a.to)) continue; (byHole.get(a.hole_id) || byHole.set(a.hole_id, []).get(a.hole_id)).push(a); }
-  byHole.forEach((l) => l.sort((x, y) => x.from - y.from));
+  const assayAt = intervalLookup(assays, (a) => a.source !== "pXRF" && Number.isFinite(a.from) && Number.isFinite(a.to)); // #2948 — a binary search, not find
   const unit = elementUnits[element] || "ppm";
   const pairs = [], lens = [];
   for (const r of rows) {
     const v = r.values?.[symbol];
-    const list = byHole.get(r.hole_id);
-    if (!Number.isFinite(v) || !list) continue;
-    const mid = (r.from + r.to) / 2;
-    const hit = list.find((a) => mid >= a.from && mid < a.to);
+    if (!Number.isFinite(v)) continue;
+    const hit = assayAt(r.hole_id, (r.from + r.to) / 2);
     if (!hit) continue;
     const g = valueIn(hit, element, unit, elementUnits);
     if (g == null || !Number.isFinite(g)) continue;
     pairs.push([v, g]);
     lens.push(Number.isFinite(r.to - r.from) && r.to > r.from ? r.to - r.from : 1);
   }
-  const ratios = [];
+  const ratioList = [];
   let sl = 0, sa = 0;
-  pairs.forEach(([l, a], i) => { if (a > 0) { ratios.push(l / a); sl += l * lens[i]; sa += a * lens[i]; } });
-  ratios.sort((x, y) => x - y);
+  pairs.forEach(([l, a], i) => { if (a > 0) { ratioList.push(l / a); sl += l * lens[i]; sa += a * lens[i]; } });
+  const ratios = Float64Array.from(ratioList).sort(); // #2948 — the typed array's own numeric sort
   const rt = { medianRatio: ratios.length ? ratios[ratios.length >> 1] : NaN, weightedRatio: sa > 0 ? sl / sa : NaN };
   if (pairs.length < 3) return { pairs, n: pairs.length, r: NaN, rLog: NaN, unit, ...rt };
   const xs = pairs.map((p) => p[0]), ys = pairs.map((p) => p[1]);
@@ -80,17 +120,15 @@ export function logVsAssay(rows, symbol, assays, element, elementUnits = {}) {
 // the MVI amplitude against the 23,575 mag-susc readings (Spearman 0.04 over 1,486 pairs). Spearman is unaffected by the units (a log in
 // x10^-3 SI against a model in SI); the medians are each in their own unit. -> { pairs, n, r, rLog, medianLog, medianModel }
 export function logVsModel(rows, symbol, modelRows) {
-  const byHole = new Map();
-  for (const m of modelRows || []) { if (!Number.isFinite(m.from) || !Number.isFinite(m.to) || !Number.isFinite(Number(m.value))) continue; (byHole.get(m.hole_id) || byHole.set(m.hole_id, []).get(m.hole_id)).push(m); }
-  byHole.forEach((l) => l.sort((x, y) => x.from - y.from));
+  const cellAt = intervalLookup(modelRows, (m) => Number.isFinite(m.from) && Number.isFinite(m.to) && Number.isFinite(Number(m.value))); // #2948
   const pairs = [];
   for (const r of rows || []) {
-    const v = r.values?.[symbol], list = byHole.get(r.hole_id);
-    if (!Number.isFinite(v) || !list) continue;
-    const mid = (r.from + r.to) / 2, hit = list.find((m) => mid >= m.from && mid < m.to);
+    const v = r.values?.[symbol];
+    if (!Number.isFinite(v)) continue;
+    const hit = cellAt(r.hole_id, (r.from + r.to) / 2);
     if (hit) pairs.push([v, Number(hit.value)]);
   }
-  const med = (a) => { if (!a.length) return NaN; const s2 = [...a].sort((x, y) => x - y), k = Math.floor(s2.length / 2); return s2.length % 2 ? s2[k] : (s2[k - 1] + s2[k]) / 2; };
+  const med = (a) => { if (!a.length) return NaN; const s2 = Float64Array.from(a).sort(), k = Math.floor(s2.length / 2); return s2.length % 2 ? s2[k] : (s2[k - 1] + s2[k]) / 2; };
   if (pairs.length < 3) return { pairs, n: pairs.length, r: NaN, rLog: NaN, medianLog: NaN, medianModel: NaN };
   const xs = pairs.map((p) => p[0]), ys = pairs.map((p) => p[1]);
   const cl = correlate(xs, ys, "log"); // #2558

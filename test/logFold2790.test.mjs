@@ -25,6 +25,6 @@ test("folded, the variants are one code with every reading", () => {
 test("the pane folds the chosen code layer and says which spellings it joined", () => {
   const src = readFileSync(new URL("../src/components/DownholeLogsPane.jsx", import.meta.url), "utf8");
   assert.match(src, /const domainFold = useMemo\(\(\) => \(domain \? foldDomainRows\(domain\.rows\) : null\), \[domain\]\);/);
-  assert.match(src, /logByCode\(data\.assays, data\.symbol, domainFold\.rows,/);
+  assert.match(src, /groupLogByCode\(data\.assays, data\.symbol, domainFold\.rows\)/); // #2948 — grouped once per (log, code layer), then ranked
   assert.match(src, /tr\("Spellings that differ only by case or spaces are one domain here: \{list\}\.", \{ list: domainFold\.folded\.map/);
 });
