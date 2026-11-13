@@ -11727,5 +11727,6 @@
   "{el}: {blocks} blocks from {n} composites, mean {mean} {unit}": "{el}: {blocks} كتلة من {n} عينة مركّبة، المتوسط {mean} {unit}",
   "{el}: no samples to estimate from; not added.": "{el}: لا عينات للتقدير منها؛ لم يُضف.",
   "Add the set ({n} block models)": "إضافة المجموعة ({n} نماذج كتل)",
-  "Running {el}… {v}": "جارٍ تشغيل {el}… {v}"
+  "Running {el}… {v}": "جارٍ تشغيل {el}… {v}",
+  "{sym}: {lo}–{hi} {unit} over {from}–{to} m ({n} samples)": "{sym}: {lo}–{hi} {unit} على {from}–{to} م ({n} عينات)"
 }

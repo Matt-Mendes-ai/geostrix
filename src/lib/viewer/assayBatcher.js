@@ -9,7 +9,7 @@ import { PickStandIn, colorFrom } from "./pickStandIn.js";
 
 export const BATCH_MIN = 24; // layerBatches' BATCH_MIN_MEMBERS: below it a family is drawn as plain meshes
 
-export function makeAssayBatcher() {
+export function makeAssayBatcher({ minBatch = BATCH_MIN } = {}) { // minBatch: #3144 — the coarse set batches every family
   const fams = new Map();
   const t = { position: new THREE.Vector3(), quaternion: new THREE.Quaternion(), scale: new THREE.Vector3(1, 1, 1) };
   const m = new THREE.Matrix4();
@@ -37,7 +37,7 @@ export function makeAssayBatcher() {
       for (const f of fams.values()) {
         const count = f.rows.length;
         n += count;
-        if (count >= BATCH_MIN) { addCompactBatch(group, f.geometry, f, Float32Array.from(f.base), f.rows, Float32Array.from(f.col)); continue; }
+        if (count >= minBatch) { addCompactBatch(group, f.geometry, f, Float32Array.from(f.base), f.rows, Float32Array.from(f.col)); continue; }
         for (let i = 0; i < count; i++) {
           const s = new PickStandIn(f.geometry, { color: f.colors[i], transparent: f.transparent, opacity: f.opacity, side: f.side });
           m.fromArray(f.base, i * 16).decompose(s.position, s.quaternion, s.scale);

@@ -11727,5 +11727,6 @@
   "{el}: {blocks} blocks from {n} composites, mean {mean} {unit}": "{el} : {blocks} blocs à partir de {n} composites, moyenne {mean} {unit}",
   "{el}: no samples to estimate from; not added.": "{el} : aucun échantillon pour l'estimer ; non ajouté.",
   "Add the set ({n} block models)": "Ajouter l'ensemble ({n} modèles de blocs)",
-  "Running {el}… {v}": "Calcul de {el}… {v}"
+  "Running {el}… {v}": "Calcul de {el}… {v}",
+  "{sym}: {lo}–{hi} {unit} over {from}–{to} m ({n} samples)": "{sym} : {lo}–{hi} {unit} sur {from}–{to} m ({n} échantillons)"
 }
