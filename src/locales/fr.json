@@ -11932,5 +11932,13 @@
   "Part of the boundary": "Partie de la limite",
   "Every part": "Toutes les parties",
   " Kept 1 in {n} of the file's {seen} readings.": " 1 lecture sur {n} conservée parmi les {seen} du fichier.",
-  "Every reading is one point in the 3D view, and hundreds of thousands make it slow and the project file large. Thinning keeps the map of the survey, but a short anomaly between kept readings can be lost.": "Chaque lecture est un point dans la vue 3D, et des centaines de milliers la ralentissent et alourdissent le fichier du projet. Les réduire garde la carte du levé, mais une anomalie courte entre deux lectures conservées peut être perdue."
+  "Every reading is one point in the 3D view, and hundreds of thousands make it slow and the project file large. Thinning keeps the map of the survey, but a short anomaly between kept readings can be lost.": "Chaque lecture est un point dans la vue 3D, et des centaines de milliers la ralentissent et alourdissent le fichier du projet. Les réduire garde la carte du levé, mais une anomalie courte entre deux lectures conservées peut être perdue.",
+  "below {top}, to the box floor at RL {rl}": "sous {top}, jusqu’au plancher de la boîte à la cote {rl}",
+  "below {top}, to the box floor": "sous {top}, jusqu’au plancher de la boîte",
+  "{unit} has no modelled base: its solid would be everything {where}, not the unit's own body. Build it too?": "{unit} n’a pas de base modélisée : son solide serait tout ce qui est {where}, pas le corps propre de l’unité. Le construire aussi ?",
+  "{label} {v} Mm³ ({where})": "{label} {v} Mm³ ({where})",
+  "{unit} was left out: no base is modelled, so its solid would be everything {where}. Model the surface under it to close it, or choose to build it the next time.": "{unit} a été laissée de côté : aucune base n’est modélisée, son solide serait donc tout ce qui est {where}. Modélisez la surface en dessous pour le fermer, ou choisissez de le construire la prochaine fois.",
+  "{n} chosen, all hidden (the eye)": "{n} choisi(s), tous masqués (l’œil)",
+  "Filter holes… ({examples})": "Filtrer les sondages… ({examples})",
+  "Off to start with above {n} pierce points: hover a pierce point for its hole id": "Désactivé au départ au-delà de {n} points de percée : survolez un point pour voir son sondage"
 }

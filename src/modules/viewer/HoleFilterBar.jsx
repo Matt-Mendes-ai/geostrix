@@ -16,7 +16,7 @@ export default function HoleFilterBar({ collars, filter, setFilter, visibleHoles
   const apply = (mode) => setVisibleHoles((p) => visibilityPatch(p, ids, shown, mode));
   return (
     <div style={{ marginBottom: 6 }}>
-      <input placeholder={tr("Filter holes… (PS-26, GS-21)")} aria-label={tr("Filter holes")} value={filter} onChange={(e) => setFilter(e.target.value)}
+      <input placeholder={ids.length >= 2 ? tr("Filter holes… ({examples})", { examples: `${ids[0]}, ${ids[1]}` }) /* #2941 — this project's own ids */ : tr("Filter holes…")} aria-label={tr("Filter holes")} value={filter} onChange={(e) => setFilter(e.target.value)}
         style={{ width: "100%", boxSizing: "border-box", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, padding: "4px 6px", fontSize: "var(--font-size-sm)", color: "var(--color-text)", marginBottom: 4 }} />
       {choices.length > 0 && ( /* TASKS.csv #1504 — pick holes by a field of the collar file (year, drill type, prospect...) */
         <select value="" aria-label={tr("Filter holes by a collar field")} onChange={(e) => { if (e.target.value) setFilter(e.target.value); }}

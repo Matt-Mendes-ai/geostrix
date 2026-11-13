@@ -11932,5 +11932,13 @@
   "Part of the boundary": "Parte do limite",
   "Every part": "Todas as partes",
   " Kept 1 in {n} of the file's {seen} readings.": " Mantida 1 a cada {n} das {seen} leituras do arquivo.",
-  "Every reading is one point in the 3D view, and hundreds of thousands make it slow and the project file large. Thinning keeps the map of the survey, but a short anomaly between kept readings can be lost.": "Cada leitura é um ponto na vista 3D, e centenas de milhares a deixam lenta e aumentam o arquivo do projeto. Reduzi-las mantém o mapa do levantamento, mas uma anomalia curta entre leituras mantidas pode se perder."
+  "Every reading is one point in the 3D view, and hundreds of thousands make it slow and the project file large. Thinning keeps the map of the survey, but a short anomaly between kept readings can be lost.": "Cada leitura é um ponto na vista 3D, e centenas de milhares a deixam lenta e aumentam o arquivo do projeto. Reduzi-las mantém o mapa do levantamento, mas uma anomalia curta entre leituras mantidas pode se perder.",
+  "below {top}, to the box floor at RL {rl}": "abaixo de {top}, até o piso da caixa na cota {rl}",
+  "below {top}, to the box floor": "abaixo de {top}, até o piso da caixa",
+  "{unit} has no modelled base: its solid would be everything {where}, not the unit's own body. Build it too?": "{unit} não tem base modelada: seu sólido seria tudo o que está {where}, não o corpo da própria unidade. Construí-lo também?",
+  "{label} {v} Mm³ ({where})": "{label} {v} Mm³ ({where})",
+  "{unit} was left out: no base is modelled, so its solid would be everything {where}. Model the surface under it to close it, or choose to build it the next time.": "{unit} ficou de fora: nenhuma base está modelada, então seu sólido seria tudo o que está {where}. Modele a superfície abaixo dela para fechá-lo, ou escolha construí-lo da próxima vez.",
+  "{n} chosen, all hidden (the eye)": "{n} escolhido(s), todos ocultos (o olho)",
+  "Filter holes… ({examples})": "Filtrar furos… ({examples})",
+  "Off to start with above {n} pierce points: hover a pierce point for its hole id": "Desligado no início acima de {n} pontos de interseção: passe o cursor sobre um ponto para ver o furo"
 }

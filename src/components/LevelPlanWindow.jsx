@@ -9,7 +9,7 @@ import { exportSvgMarkup } from "../lib/svgExport.js"; // TASKS.csv #1048 — th
 import { levelPlanFurniture } from "../lib/figureFurniture.js"; // TASKS.csv #1017
 import { saveFile } from "../lib/desktop.js"; // TASKS.csv #1114 — the native save dialog, as every other export (#444)
 import { planLegend } from "../lib/levelPlanLegend.js"; // TASKS.csv #1404
-import { resolveLabels, clusterLabelPoints, groupLabelText } from "../lib/sectionLabels.js"; // TASKS.csv #1404 — the sections' label declutter (#1144); clusters: #2212
+import { resolveLabels, clusterLabelPoints, groupLabelText, labelWidth } from "../lib/sectionLabels.js"; // TASKS.csv #1404 — the sections' label declutter (#1144); clusters: #2212
 import { LAYER_META } from "../lib/layers.js";
 import { usePrompt } from "./usePrompt.jsx"; // TASKS.csv #1779
 import { mergedPath, pathsByColour, dotsPath, segmentFinder, f1 } from "../lib/levelPlanDraw.js"; // f1: #3137 // TASKS.csv #2982
@@ -30,6 +30,10 @@ import { hoverTitle } from "../lib/svgLazyTitle.js"; // TASKS.csv #2982 — titl
 // level development string), visible in 3D and reusable like any boundary. Export PNG / Add to Layout keep the scale.
 
 const W = 760, H = 560, PAD = 34;
+// TASKS.csv #2372 (review #2325, WA uranium) — on a drilling grid (414 pierce points) the ids became a ring of labels with leaders up to a third
+// of the plan long, some over the easting axis. Above LABELS_AUTO_MAX pierce points the ids start off (hover names a point; the tick turns
+// them on), a label moves at most LABEL_RINGS rows from its point, and the axis labels are obstacles.
+const LABELS_AUTO_MAX = 100, LABEL_RINGS = 3;
 const niceStep = (span, n = 6) => { const raw = span / n, p = 10 ** Math.floor(Math.log10(raw || 1)), f = raw / p; return (f < 1.5 ? 1 : f < 3.5 ? 2 : f < 7.5 ? 5 : 10) * p; };
 
 // screen -> E / N for a frame (the SVG's own transform, so it holds when the plan is scaled to fit the window)
@@ -70,7 +74,7 @@ export default function LevelPlanWindow({ planCtx, zRange, defaultRl, onClose, o
   }, []);
   const [half, setHalf] = useState(12.5);
   const [colourBy, setColourBy] = useState("");
-  const [labels, setLabels] = useState(true);
+  const [labelsPick, setLabels] = useState(null); // #2372 — null: the default for this plan's pierce points
   const [fitSlab, setFitSlab] = useState(false); // frame on the holes in the slab instead of the whole project
   const [view, setView] = useState(null); // zoom / pan window { x0, x1, y0, y1 } in E / N; null = the fitted frame
   const dragRef = useRef(null);
@@ -105,6 +109,8 @@ export default function LevelPlanWindow({ planCtx, zRange, defaultRl, onClose, o
   // newly keyed siblings among kept ones were each placed one by one (React walks past the other new siblings for every placement)
   const buildSeq = useRef(0);
   const dataKey = useMemo(() => (buildSeq.current += 1), [data]);
+  const nPierce = useMemo(() => data.holes.reduce((n, h) => n + h.pierce.length, 0), [data]);
+  const labels = labelsPick ?? nPierce <= LABELS_AUTO_MAX; // #2372
   const pointLogs = data.pointLogs || []; // #1706 — the readings at a depth that fill pierce points (Mag. susc., SWIR points ...)
   const layerKeys = useMemo(() => [...new Set([...data.intervals.map((iv) => iv.layer), ...pointLogs.map((r) => r.layer)])], [data]);
   const activeLayer = layerKeys.includes(colourBy) ? colourBy : layerKeys.includes("litho") ? "litho" : layerKeys[0] || "";
@@ -185,12 +191,19 @@ export default function LevelPlanWindow({ planCtx, zRange, defaultRl, onClose, o
     const groups = clusterLabelPoints(data.holes.flatMap((h) => h.pierce.map((pc, i) => ({ key: `${h.hole_id}_${i}`, id: h.hole_id, x: X(pc.x), y: Y(pc.y) }))), 8);
     const placed = resolveLabels(
       groups.map((g) => ({ key: g.key, text: groupLabelText(g.ids), ids: g.ids, size: 10.5, prio: 2, optional: true, cands: [{ x: g.x + 6, y: g.y - 5, anchor: "start" }, { x: g.x + 6, y: g.y + 13, anchor: "start" }, { x: g.x - 6, y: g.y - 5, anchor: "end" }, { x: g.x - 6, y: g.y + 13, anchor: "end" }] })),
-      data.holes.flatMap((h) => h.pierce.map((pc) => ({ x: X(pc.x), y: Y(pc.y) + 5, w: 11, h: 11 }))),
-      { bounds: [2, W - 2], yBounds: [20, H - 2] },
+      [...data.holes.flatMap((h) => h.pierce.map((pc) => ({ x: X(pc.x), y: Y(pc.y) + 5, w: 11, h: 11 }))), ...axisBoxes()], // axis labels: #2372
+      { bounds: [2, W - 2], yBounds: [20, H - 2], rings: LABEL_RINGS },
     );
     return { placed, hidden: groups.length - placed.length, grouped: groups.reduce((n, g) => n + (g.ids.length > 1 ? g.ids.length - 1 : 0), 0) };
   })() }).v;
 
+  // #2372 — the grid's E / N labels as obstacles (the same ticks as drawn below)
+  function axisBoxes() {
+    const st = niceStep(Math.max(frame.x1 - frame.x0, frame.y1 - frame.y0)), out = [];
+    for (let x = Math.ceil(frame.x0 / st) * st; x <= frame.x1; x += st) { const w = labelWidth(`${Math.round(x)}E`, 10); out.push({ x: X(x), y: H - 6, w, h: 10 }); }
+    for (let y = Math.ceil(frame.y0 / st) * st; y <= frame.y1; y += st) { const w = labelWidth(`${Math.round(y)}N`, 10); out.push({ x: 4 + w / 2, y: Y(y) - 3, w, h: 10 }); }
+    return out;
+  }
   const toWorld = (e) => toWorldF(frame, e, svgRef.current);
   const onClick = (e) => { if (drawing && !dragRef.current?.moved) { const q = toWorld(e); setPts((p) => [...p, q]); } };
   // drag = pan (also while drawing: a click without movement adds a point)
@@ -260,12 +273,12 @@ export default function LevelPlanWindow({ planCtx, zRange, defaultRl, onClose, o
               </select>
             </label>
           )}
-          <label style={ctrl}><input type="checkbox" checked={labels} onChange={(e) => setLabels(e.target.checked)} />{" "}{tr("Hole ids")}</label>
+          <label style={ctrl} title={tr("Off to start with above {n} pierce points: hover a pierce point for its hole id", { n: LABELS_AUTO_MAX })}><input type="checkbox" checked={labels} onChange={(e) => setLabels(e.target.checked)} />{" "}{tr("Hole ids")}</label>
           <label style={ctrl} title={tr("Frame the holes that are in the slab (zoomed in) instead of the whole project (a fixed frame as the RL moves)")}><input type="checkbox" checked={fitSlab} onChange={(e) => setFitSlab(e.target.checked)} />{" "}{tr("Fit to slab")}</label>
           <div style={{ flex: 1 }} />
           <button onClick={onClose} title={tr("Close")} aria-label={tr("Close")} style={{ background: "none", border: "none", cursor: "pointer", color: "inherit" }}><XIcon size={18} /></button>
         </div>
-        <svg ref={svgRef} width={W} height={H} viewBox={`0 0 ${W} ${H}`} fontFamily="'Segoe UI', system-ui, Arial, sans-serif" role="img" aria-label={tr("Level plan at {rl} m", { rl })} onClick={onClick} onMouseDown={onDown} onMouseMove={onMove} onMouseUp={onUp} onDoubleClick={() => !drawing && setView(null)} style={{ display: "block", background: "#ffffff", border: "1px solid var(--color-border)", borderRadius: 6, cursor: drawing ? "crosshair" : "grab", maxWidth: "100%", height: "auto" }}>
+        <svg ref={svgRef} width={W} height={H} viewBox={`0 0 ${W} ${H}`} fontFamily="'Segoe UI', system-ui, Arial, sans-serif" role="img" aria-label={tr("Level plan at {rl} m", { rl })} onClick={onClick} onMouseDown={onDown} onMouseMove={onMove} onMouseUp={onUp} onDoubleClick={() => !drawing && setView(null)} style={{ display: "block", background: "#ffffff", border: "1px solid var(--color-border)", borderRadius: 6, cursor: drawing ? "crosshair" : "grab", maxWidth: "100%", height: "auto", width: `min(calc(96vw - 30px), calc((94vh - 170px) * ${W / H}))` /* #2372 — the plan fills the window */ }}>
           {/* grid */}
           {gx.map((x) => <g key={`gx${x}`}><line x1={X(x)} y1={PAD / 2} x2={X(x)} y2={H - PAD / 2} stroke="#eceef2" /><text x={X(x)} y={H - 6} fontSize="10" fill="#7a8494" textAnchor="middle">{Math.round(x)}E</text></g>)}
           {gy.map((y) => <g key={`gy${y}`}><line x1={PAD / 2} y1={Y(y)} x2={W - PAD / 2} y2={Y(y)} stroke="#eceef2" /><text x={4} y={Y(y) - 3} fontSize="10" fill="#7a8494">{Math.round(y)}N</text></g>)}
