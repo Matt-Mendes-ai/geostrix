@@ -5,9 +5,9 @@ import { readFileSync } from "node:fs";
 const read = (f) => readFileSync(f, "utf8");
 test("#1224 a new legend is built from the view, by the same builder the sync uses", () => {
   const s = read("src/modules/LayoutModule.jsx");
-  assert.match(s, /const \{ items \} = legendFromView\(viewerUiState \|\| \{\}, \{ frameHoles:/); // #1633 — and the frame's holes
-  assert.match(s, /const \{ groups, items \} = legendFromView\(theme, \{ frameHoles, frame: frameTest\(vp\)(, perGroup: perGroup \?\? legend\.codesPerLayer \?\? 12)? \}\);/); // perGroup: #3021
-  assert.equal(s.split("legendGroupsToItems(capLegendGroups(mergeCaseTwins(groups),").length - 1, 1); // #1633 — capped; #2609: case twins merged first
+  assert.match(s, /const \{ (groups: newGroups, )?items \} = legendFromView\(viewerUiState \|\| \{\}, \{ frameHoles:/); // #1633 — and the frame's holes
+  assert.match(s, /const \{ groups, items \} = legendFromView\(theme, \{ frameHoles, frame: frameTest\(vp\)(, perGroup: perGroup \?\? legend\.codesPerLayer \?\? 12)?(, orders: projectCodeOrders\(layoutPages, activeLayoutPageId, elements, legendId\) \/\* #3130 \*\/)? \}\);/); // perGroup: #3021
+  assert.equal(s.split("legendGroupsToItems(capLegendGroups(applyCodeOrder(mergeCaseTwins(groups), orders)").length - 1, 1); // #1633 — capped; #2609: case twins merged first; #3130: then the project's code order
   assert.match(s, /ranked = rankLegendGroups\(items\), kept = firstLegendGroups\(ranked\)[\s\S]{0,400}: \[\["Item", "#55606e"\]\]/);
 });
 test("#1225 fault-like types and the rest are separate groups", () => {

@@ -11,7 +11,8 @@ import GenerateAtlasModal from "../components/GenerateAtlasModal.jsx";
 import { HOLE_TOKENS, SECTION_TOKENS } from "../lib/atlas.js"; // TASKS.csv #1777 — listed with the page's placeholders
 import { scaleBarLabel, scaleBarMidLabel } from "../lib/scaleBarLabel.js"; // TASKS.csv #2140
 import { offSheetPages, rectSidesPast, elementCaption, elementKind } from "../lib/layoutEdges.js"; // elementKind: #3028
-import { DEFAULT_LAYOUT_ELEMENTS } from "../lib/projectFields.js"; // TASKS.csv #3028 (5) // TASKS.csv #2482 / #2309; named elements: #2700
+import { DEFAULT_LAYOUT_ELEMENTS } from "../lib/projectFields.js"; // TASKS.csv #3028 (5)
+import { groupOrdersFromItems, applyCodeOrder, projectCodeOrders } from "../lib/legendCodeOrder.js"; // TASKS.csv #3130 — a code order set once // TASKS.csv #2482 / #2309; named elements: #2700
 import { fillPlaceholders, northName, pageConvergence, formatConvergence } from "../lib/layoutText.js";
 import { samplesTableRows, holesWithoutCollars } from "../lib/samplesTable.js"; // TASKS.csv #1869 // TASKS.csv #2139; north / convergence: #2712
 import { mergeCaseTwins } from "../lib/legendCaseTwins.js"; // TASKS.csv #2609
@@ -750,9 +751,10 @@ export default function LayoutModule() {
     if (type === "legend") {
       // TASKS.csv #1224 — what the 3D view shows now, bound to the page's viewport if there is just one: a stock row on a printed figure says nothing true
       const only = elements.filter((el) => el.type === "viewport");
-      const { items } = legendFromView(viewerUiState || {}, { frameHoles: only.length === 1 ? holesInFrame(only[0], collars) : null, frame: only.length === 1 ? frameTest(only[0]) : null }); // #1633; frame: #2134
+      const { groups: newGroups, items } = legendFromView(viewerUiState || {}, { frameHoles: only.length === 1 ? holesInFrame(only[0], collars) : null, frame: only.length === 1 ? frameTest(only[0]) : null, orders: projectCodeOrders(layoutPages, activeLayoutPageId, elements, null) /* #3130 */ }); // #1633; frame: #2134
       // the whole view can run off the page: Load from view brings the rest. #1482 — samples and grades first, and a line says what was left out
       const ranked = rankLegendGroups(items), kept = firstLegendGroups(ranked), left = legendGroupCount(ranked) - legendGroupCount(kept);
+      if (newGroups.length) base.loadedGroups = newGroups.map((g) => g.label); // #3130 — its arrows record the order it is given
       base.items = items.length ? (left > 0 ? [...kept, [tr("+ {n} more group(s): Load from view adds them", { n: left }), null, { heading: true }]] : kept) : [["Item", "#55606e"]];
       const viewports = elements.filter((el) => el.type === "viewport");
       if (viewports.length === 1) Object.assign(base, { boundViewportId: viewports[0].id, loadedItems: base.items, loadedCapturedAt: viewports[0].capturedAt || null }); // stamp: #2471
@@ -887,6 +889,9 @@ export default function LayoutModule() {
   };
 
   const updateSelected = (patch) => setElements((els) => els.map((el) => el.id === selected ? { ...el, ...patch } : el));
+  // TASKS.csv #3130 — a legend loaded from a view (it knows its groups) records the order its rows were moved into, for every legend of
+  // the project to take on its next 'Load from view'; a hand-made legend records nothing
+  const keptOrder = (legend, items) => (legend?.loadedGroups?.length ? { codeOrder: { ...(legend.codeOrder || {}), ...groupOrdersFromItems(items, legend.loadedGroups.length === 1 ? legend.loadedGroups[0] : null) } } : {});
   // Deleting a viewport/section also drops any scale bar bound to it (an orphaned bar with no view to
   // describe would just be confusing) and un-binds any legend that was reading lithologies from it
   // (the legend itself stays — just reverts to a plain manually-editable one). Generalized to a set of
@@ -1059,7 +1064,7 @@ export default function LayoutModule() {
   // full unit list, since that list can grow after the theme was saved) to build the item list.
   // TASKS.csv #1633 — frameHoles (holesInFrame of the bound frame, or null): only the holes the frame shows give categories
   // perGroup (TASKS.csv #3021): the codes listed per layer, a number or "all" (the legend's codesPerLayer; 12 by default, as before)
-  const legendFromView = (theme, { frameHoles = null, frame = null, perGroup = 12 } = {}) => {
+  const legendFromView = (theme, { frameHoles = null, frame = null, perGroup = 12, orders = null } = {}) => { // orders: #3130
     // TASKS.csv #2134 — the frame filters the surface samples and the map layers too: none inside drops the group, and the media /
     // classes are those found inside
     const sampleGroup = (() => {
@@ -1101,7 +1106,7 @@ export default function LayoutModule() {
     // TASKS.csv #2609 — case-only twins of one colour are one row, and the left-out line is for the sheet's reader (the sidebar explains editing)
     // TASKS.csv #3021 (review #2876, WA iron) — the strand key printed 12 of 34 codes ('+ 22 more codes, not listed', the footwall JER among them):
     // the legend's own 'Codes per layer' (12 / 24 / all); a long key flows into columns to fit the sheet (legendFit, #1480)
-    const items = legendGroupsToItems(capLegendGroups(mergeCaseTwins(groups), perGroup === "all" ? Infinity : Number(perGroup) || 12, (n) => tr("+ {n} more codes, not listed", { n })));
+    const items = legendGroupsToItems(capLegendGroups(applyCodeOrder(mergeCaseTwins(groups), orders) /* #3130 */, perGroup === "all" ? Infinity : Number(perGroup) || 12, (n) => tr("+ {n} more codes, not listed", { n })));
     return { groups, items };
   };
   // TASKS.csv #2471 — auto: the bound viewport was refreshed and the legend's rows were the loaded ones (legendSyncState "reload");
@@ -1132,9 +1137,9 @@ export default function LayoutModule() {
     const theme = themes.find((t) => t.id === vp.themeId) || (!vp.themeId && vp.viewState ? { ...vp.viewState, name: tr("the current view") } : null);
     if (!theme) { say(tr("This viewport's saved theme could no longer be found (it may have been renamed or deleted) — rebind the viewport to a theme in its own panel, or resave that theme, then sync again.")); return; }
     const frameHoles = holesInFrame(vp, collars); // #1633 — a top-down true-scale frame: what it shows; else the whole view
-    const { groups, items } = legendFromView(theme, { frameHoles, frame: frameTest(vp), perGroup: perGroup ?? legend.codesPerLayer ?? 12 }); // frame: #2134; perGroup: #3021
+    const { groups, items } = legendFromView(theme, { frameHoles, frame: frameTest(vp), perGroup: perGroup ?? legend.codesPerLayer ?? 12, orders: projectCodeOrders(layoutPages, activeLayoutPageId, elements, legendId) /* #3130 */ }); // frame: #2134; perGroup: #3021
     if (!items.length) { setElements((els) => els.map((el) => el.id === legendId ? { ...el, ...stamp([]) } : el)); setSyncNotice(tr("Nothing that view shows has a legend: no visible category layer, assay classes, block model, surface samples, map layer or boundary.")); return; }
-    setElements((els) => els.map((el) => el.id === legendId ? { ...el, ...stamp(items) } : el));
+    setElements((els) => els.map((el) => el.id === legendId ? { ...el, ...stamp(items), loadedGroups: groups.map((g) => g.label) /* #3130 */ } : el));
     setSyncNotice(tr(groups.length === 1 ? "Loaded {n} legend group from \"{name}\"." : "Loaded {n} legend groups from \"{name}\".", { n: groups.length, name: theme.name })
       + (frameHoles ? tr(" Categories from the {h} of {all} holes inside the frame.", { h: frameHoles.size, all: collars.length }) : "")
       + (() => { // #2134 — the collars with no survey or attitude are drawn as assumed vertical holes (#2014): say how many of those counted
@@ -1479,9 +1484,9 @@ export default function LayoutModule() {
                       updateSelected({ items });
                     }} style={{ ...inp, marginBottom: 0, flex: 1 }} />
                     <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
-                      <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => { if (i === 0) return; const items = sel.items.slice(); [items[i - 1], items[i]] = [items[i], items[i - 1]]; updateSelected({ items }); }}
+                      <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => { if (i === 0) return; const items = sel.items.slice(); [items[i - 1], items[i]] = [items[i], items[i - 1]]; updateSelected({ items, ...keptOrder(sel, items) }); }}
                         style={{ cursor: i === 0 ? "default" : "pointer", color: i === 0 ? "var(--color-border-light)" : "var(--color-text-secondary)", fontSize: "var(--font-size-xs)", lineHeight: 1 }} title={tr("Move up")}>▲</div>
-                      <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => { if (i === sel.items.length - 1) return; const items = sel.items.slice(); [items[i + 1], items[i]] = [items[i], items[i + 1]]; updateSelected({ items }); }}
+                      <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => { if (i === sel.items.length - 1) return; const items = sel.items.slice(); [items[i + 1], items[i]] = [items[i], items[i + 1]]; updateSelected({ items, ...keptOrder(sel, items) }); }}
                         style={{ cursor: i === sel.items.length - 1 ? "default" : "pointer", color: i === sel.items.length - 1 ? "var(--color-border-light)" : "var(--color-text-secondary)", fontSize: "var(--font-size-xs)", lineHeight: 1 }} title={tr("Move down")}>▼</div>
                     </div>
                     <Trash2 aria-label={tr("Remove this item")} title={tr("Remove this item")} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: sel.items.length > 1 ? "pointer" : "default", color: sel.items.length > 1 ? "var(--color-text-secondary)" : "var(--color-border-light)", flexShrink: 0 }}
