@@ -42,7 +42,7 @@ export default function GridContourControls({ raster, inputStyle }) {
       closed.push(pl.length > 3 && Math.hypot(a.x - b.x, a.y - b.y) < 1e-6);
       lineLevels.push(level);
     }));
-    addBoundary({ name: tr("{name} contours ({levels} {unit})", { name: raster.name, levels: res.map((l) => l.level).join(", "), unit }), polylines: lines, closedFlags: closed, contourLevels: lineLevels, sourceRaster: raster.id, color: "#d62f2f", /* #1622: the plan view's figure lists them under their grid */ drapeMode: terrain ? "terrain" : "flat", elevation: raster.elevation });
+    addBoundary({ name: tr("{name} contours ({levels}{unit})", { name: raster.name, levels: res.map((l) => l.level).join(", "), unit: unit ? ` ${unit}` : "" }) /* #2865 — no space before ')' with no unit */, polylines: lines, closedFlags: closed, contourLevels: lineLevels, sourceRaster: raster.id, color: "#d62f2f", /* #1622: the plan view's figure lists them under their grid */ drapeMode: terrain ? "terrain" : "flat", elevation: raster.elevation });
     setMsg(tr("Added {n} contour line(s) at {levels} {unit} to Maps > Boundaries{d}.", { n: lines.length, levels: res.map((l) => l.level).join(", "), unit, d: terrain ? tr(", draped on the terrain") : "" }) + (text.trim() && missed ? " " + missed : "")); // missed: #2831 (typed levels only)
   };
   return (

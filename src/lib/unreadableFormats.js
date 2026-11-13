@@ -10,6 +10,8 @@ const ADVICE = [
   // TASKS.csv #1345 — 108 of these in the ARIS Sample Data folder (2004-2005 reports): the Excel 97-2003 binary format
   // TASKS.csv #1667 (review #1646, Kodiak) — dropped on the Geophysics tab, these did nothing at all
   { re: /\.(vtk|vtu|vtr|vts)$/i, what: "a VTK model", how: "import the same model as a UBC mesh + model, or as its XYZ / block-model CSV, under Geophysics > Block models (contractors deliver both)" },
+  // TASKS.csv #2854 (review GSC geophysics) — an ECW got a different, unfitting message on each drop route (or none)
+  { re: /\.(ecw|sid|jp2|j2k)$/i, what: "a wavelet-compressed image (ECW, MrSID or JPEG 2000) that needs a licensed or optional decoder", how: "convert it to a GeoTIFF first (QGIS: Raster > Conversion > Translate, or gdal_translate in.ecw out.tif where GDAL has the driver), then import that in Maps > GeoTIFF / GXF" },
   { re: /\.xls$/i, what: "an Excel 97-2003 workbook (.xls)", how: "open it in Excel or LibreOffice and save it as .xlsx (or each sheet as CSV), then drop that" },
 ];
 
