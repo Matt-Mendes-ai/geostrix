@@ -26,6 +26,7 @@ test("Grade stats keeps the element across a data-source switch when the other s
 import { leadCommodity, MINERALIZED_PPM } from "../src/lib/preferredElement.js";
 import { silvertipAssays } from "../src/lib/sampleSilvertip.js";
 import { valueIn } from "../src/lib/geochem.js";
+import { bcSkip, bcText } from "./helpers/bcSample.mjs"; // TASKS.csv #3134 — the BC samples are not in the repository: real-data checks run where one is found
 
 test("leadCommodity: the commodity most often at a mineralized grade; preferredElement takes it first", () => {
   const ppm = (s, sym) => s.values[sym];
@@ -39,8 +40,8 @@ test("leadCommodity: the commodity most often at a mineralized grade; preferredE
   assert.ok(MINERALIZED_PPM.Au === 0.1 && MINERALIZED_PPM.Cu === 1000);
 });
 
-test("the bundled Silvertip assays lead with a base or precious metal of the CRD, not Cu", () => {
-  const { rows, elements } = silvertipAssays(readFileSync(new URL("../sample_data/silvertip/assays.csv", import.meta.url), "utf8"));
+test("the Silvertip assays lead with a base or precious metal of the CRD, not Cu", { skip: bcSkip("silvertip") }, () => {
+  const { rows, elements } = silvertipAssays(bcText("silvertip", "assays.csv"));
   const units = Object.fromEntries(elements.map((e) => [e.symbol, e.unit]));
   assert.ok(["Zn", "Pb", "Ag"].includes(leadCommodity(rows, (s, sym) => valueIn(s, sym, "ppm", units))));
 });

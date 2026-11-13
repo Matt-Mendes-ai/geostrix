@@ -206,11 +206,10 @@ test("#504 makeRangeAverager gives avgGradeInRange's numbers for many windows (o
   assert.equal(avg("H1", 4, 6, "Au", "ppm"), null); // a gap: no grade, not zero
 });
 
-test("#503 protolith-aware box plot: Harry basalt is mostly least altered, not 'epidote-albite'", async () => {
-  const { readFileSync } = await import("node:fs");
+test("#503 protolith-aware box plot: Harry basalt is mostly least altered, not 'epidote-albite'", { skip: bcSkip("harry_property") }, async () => {
   const Papa = (await import("papaparse")).default;
   const G = { ...(await import("../src/lib/geochem.js")), ...(await import("../src/lib/geochemDiagrams.js")) };
-  const read = (f) => Papa.parse(readFileSync(new URL(`../sample_data/harry_property/${f}`, import.meta.url), "utf8"), { header: true, skipEmptyLines: true }).data;
+  const read = (f) => Papa.parse(bcText("harry_property", f), { header: true, skipEmptyLines: true }).data;
   const rows = read("assay_wide.csv");
   const els = Object.keys(rows[0]).filter((h) => !["hole_id", "from", "to"].includes(h));
   const units = {}; els.forEach((h) => { const [s, u] = h.split("_"); units[s] = u === "pct" ? "%" : "ppm"; });
@@ -224,6 +223,10 @@ test("#503 protolith-aware box plot: Harry basalt is mostly least altered, not '
   console.log("Harry basalt (BSL):", bsl);
   assert.ok(n >= 100, `basalt samples ${n}`);
   assert.ok((bsl["LA-BAS"] || 0) / n > 0.6, `least altered share ${(bsl["LA-BAS"] || 0)}/${n}`);
+});
+
+test("#503 protolith-aware box plot: the boxes per protolith", async () => {
+  const G = { ...(await import("../src/lib/geochem.js")), ...(await import("../src/lib/geochemDiagrams.js")) };
   // unit rules
   assert.equal(G.classifyAlterationBox(40, 70, "basalt"), "LA-BAS");
   assert.equal(G.classifyAlterationBox(40, 70, "rhyolite"), "CARB"); // same point is right of the rhyolite box
@@ -313,6 +316,7 @@ test("compositeDownhole skips windows with no assayed material, even at minCover
 
 // TASKS.csv #718 — a bare Cr / Mn / P header is ppm (multi-acid ICP reports them in ppm), even with values under 100
 import { unitAssumed, pickElementColumns, inferUnit } from "../src/lib/geochem.js";
+import { bcSkip, bcText } from "./helpers/bcSample.mjs"; // TASKS.csv #3134 — the BC samples are not in the repository: real-data checks run where one is found
 test("#718 bare Cr / Mn / P headers default to ppm; S / Ti / Fe stay %; oxides and stated units are not 'assumed'", () => {
   const rows = [12, 45, 80, 33].map((v) => ({ hole_id: "A", from: "0", to: "1", Cr: String(v), Mn: "50", P: "90", S: "0.4", Ti: "0.3", Fe: "3.1" }));
   const by = Object.fromEntries(pickElementColumns(["hole_id", "from", "to", "Cr", "Mn", "P", "S", "Ti", "Fe"], rows).map((e) => [e.symbol, e.unit]));
