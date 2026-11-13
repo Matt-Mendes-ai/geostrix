@@ -29,7 +29,7 @@ import {
 import { subscribeInversionJob, startInversionJob, cancelInversionJob } from "../lib/inversionJobs.js";
 import { orientationAt } from "../lib/mapLayers.js";
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
-import { constraintSamples, SUSC_UNITS, suscUnitHint, PHYSICAL_MAX_SI, EXTREME_X } from "../lib/drillholeConstraints.js"; // TASKS.csv #323; suscUnitHint: #1435; EXTREME_X: #1713
+import { constraintSamples, SUSC_UNITS, suscUnitHint, PHYSICAL_MAX_SI, EXTREME_X, suscUnitFromRows } from "../lib/drillholeConstraints.js"; // suscUnitFromRows: #2668 // TASKS.csv #323; suscUnitHint: #1435; EXTREME_X: #1713
 import { categoricalModels, modelUnits, unitMedians, modelBody } from "../lib/geologyForward.js"; // TASKS.csv #760
 import { t as tr } from "../lib/i18n.js";
 import { downholeLikeness } from "../lib/downholeLikeness.js"; // TASKS.csv #1709 // TASKS.csv #786
@@ -199,6 +199,9 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
   const dhRows = useMemo(() => (dhSource ? dhSource.rows() : []), [dhSource]);
   const logCounts = useMemo(() => logReadingCounts({ layers, customLayers }), [layers, customLayers]); // #2950 — the empty state counts the custom logs too
   const suscHint = useMemo(() => (method === "mag" ? suscUnitHint(dhRows.map((r) => r.value)) : null), [method, dhRows]); // #1435
+  // TASKS.csv #2668 — the unit the log's own rows name (an instrument column kept at import: KT-10 reads in x10^-3 SI), set while none is chosen
+  const suscSaid = useMemo(() => (method === "mag" ? suscUnitFromRows(dhRows) : null), [method, dhRows]);
+  useEffect(() => { if (dh.on && !dh.units && suscSaid) setDh((p) => (p.units ? p : { ...p, units: suscSaid.unit })); }, [dh.on, dh.units, suscSaid]);
   const dhConstraintPoints = () => {
     if (!dhRows.length && dhSources.length) return { problem: tr("Choose the log that holds the {v} readings (Log).", { v: method === "grav" ? tr("specific gravity") : tr("susceptibility") }) }; // #2950
     if (!dhRows.length) return { problem: tr("Drillhole constraints need a {v} log layer — import one, or untick the constraints.", { v: method === "grav" ? tr("Specific gravity") : tr("Mag. susceptibility") }) };
@@ -687,6 +690,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
                       </select>
                     </div>
                   )}
+                  {method === "mag" && suscSaid && <div style={{ ...small, marginTop: 2 }}>{tr("The log's own rows say {said} ({field}): {unit}.", { said: suscSaid.said, field: suscSaid.field, unit: SUSC_UNITS[suscSaid.unit].label })}</div>}{/* #2668 */}
                   {method === "mag" && suscHint && ( // #1435 — what the readings say about their unit, and a log no rock could have
                     <div style={{ ...small, marginTop: 2 }}>
                       {tr("The log reads {lo} to {hi}, median {med}: most likely {unit}.", { lo: +suscHint.min.toPrecision(3), hi: +suscHint.max.toPrecision(3), med: +suscHint.median.toPrecision(3), unit: SUSC_UNITS[suscHint.likely].label })}
