@@ -5,7 +5,7 @@ import { oncePerWindow } from "./lib/oncePerWindow.js"; // TASKS.csv #1163
 import { requestModuleAction } from "./lib/menuRequests.js"; // TASKS.csv #565
 import { onProjectCrsRequest, requestProjectCrs } from "./lib/projectCrsRequest.js"; // TASKS.csv #615
 import { onTableSubsetRequest } from "./lib/tableSubsetRequest.js"; // TASKS.csv #2177
-import { FileDown, Box, FlaskConical, Radio, Layout, Save, FolderOpen, FilePlus2, RotateCcw, X, Undo2, Redo2, Plus, Layers3, Target, FileBarChart2, Map as MapIcon, Compass, Pickaxe } from "./components/icons.js"; // Compass: #820
+import { FileDown, Box, FlaskConical, Radio, Layout, Save, FolderOpen, FilePlus2, RotateCcw, X, Undo2, Redo2, Plus, Layers3, Target, FileBarChart2, Map as MapIcon, Compass, Pickaxe, Globe } from "./components/icons.js"; // Compass: #820; Globe: #3068
 import { crsName, getProj4DefSync, loadEpsgRegistry, onEpsgRegistry, isMetricProjectedEpsg } from "./lib/reproject.js"; // TASKS.csv #485; #834 registry; #1148
 import { useStore, useCursorValue, useTaskProgressValue, FreezeStore } from "./lib/store.jsx";
 import ErrorBoundary from "./components/ErrorBoundary.jsx"; // TASKS.csv #442
@@ -325,6 +325,17 @@ export default function App() {
     setActive("layout");
     requestLayoutPrint(); // TASKS.csv #908 — LayoutModule renders every page at its paper size and exports them
   }, [requestLayoutPrint]);
+  // TASKS.csv #3068 — the whole project as one KMZ for Google Earth (lib/projectKmzExport.js, loaded on demand); it reads the store as it is
+  // when chosen, so it keeps a ref rather than re-subscribing the menu bridge on every edit
+  const storeRef = useRef(store); storeRef.current = store;
+  const doExportKmz = useCallback(async () => {
+    try {
+      const m = await import("./lib/projectKmzExport.js");
+      await m.exportProjectKmz(storeRef.current);
+    } catch (err) {
+      try { window.dispatchEvent(new CustomEvent(EXPORT_RESULT_EVENT, { detail: { ok: false, name: "KMZ", error: String(err?.message || err) } })); } catch { /* no window */ }
+    }
+  }, []);
 
   // A "Snapshot to Layout" click in the cross-section pop-out window can't touch this window's
   // React store directly (separate Electron renderer process) — it comes back over IPC instead.
@@ -373,6 +384,7 @@ export default function App() {
     const off = onMenu((action) => {
       if (action.startsWith("module-")) { const m = action.replace("module-", ""); setActive(TAB_ALIAS[m] || m); if (m === "predictive") requestModuleAction("open-geoml"); }
       else if (action === "export-pdf") doExportPdf();
+      else if (action === "export-kmz") doExportKmz(); // TASKS.csv #3068
       else if (action === "set-epsg") { setActive("maps"); requestModuleAction("maps-crs"); } // #485 / #749 — the CRS lives in the Maps tab
       // TASKS.csv #565 — these used to do nothing (import-*) or only switch tab (cross-section)
       else if (action === "cross-section") { setActive("viewer"); requestModuleAction("draw-section"); }
@@ -396,7 +408,7 @@ export default function App() {
       else if (action === "redo") redoSay();
     });
     return off;
-  }, [doNew, doOpen, doSave, doExportPdf, undoSay, redoSay, requestSampleProject]);
+  }, [doNew, doOpen, doSave, doExportPdf, doExportKmz, undoSay, redoSay, requestSampleProject]);
 
   // TASKS.csv #31 — Ctrl/Cmd+Z / Ctrl/Cmd+Shift+Z (also Ctrl+Y for redo, a common Windows habit).
   // Deliberately a plain window keydown listener rather than an Electron menu accelerator (see the
@@ -543,6 +555,7 @@ export default function App() {
         <button className="ge-tool-btn" onClick={redoSay} disabled={!canRedo} title={tr("Redo (Ctrl/Cmd+Shift+Z)")} aria-label={tr("Redo")} style={{ opacity: canRedo ? 1 : 0.4 }}><Redo2 size={14} /></button>
         <div className="ge-tool-sep" />
         <button className="ge-tool-btn" onClick={doExportPdf} title={tr("Exports the Layout page (switches to it first if needed)")} aria-label={tr("Export PDF")}><FileDown size={14} /> <span className="ge-tool-label-opt ge-tool-label-first">{tr("Export PDF")}</span></button>
+        <button className="ge-tool-btn" onClick={doExportKmz} title={tr("Export the whole project as one KMZ for Google Earth: every layer with a map position, in folders, with its colours and classes")} aria-label={tr("Export project as KMZ")}><Globe size={14} /> <span className="ge-tool-label-opt ge-tool-label-first">{tr("KMZ")}</span></button>{/* TASKS.csv #3068 */}
         <button className="ge-tool-btn" onClick={() => setReportOpen(true)} title={tr("Consolidated drillhole/assay project summary (CSV)")} aria-label={tr("Project report")}><FileBarChart2 size={14} /> <span className="ge-tool-label-opt ge-tool-label-first">{tr("Report")}</span></button>
       </div>
 
