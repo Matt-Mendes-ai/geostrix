@@ -62,23 +62,24 @@ export function groupLogByCode(rows, symbol, domainRows) {
     const hit = codeAt(r.hole_id, (Number(r.from) + Number(r.to)) / 2);
     const code = hit ? String(hit.value ?? "") : NOT_LOGGED;
     let g = groups.get(code);
-    if (!g) groups.set(code, (g = { vals: [], sum: 0 }));
+    if (!g) groups.set(code, (g = { vals: [], sum: 0, wSum: 0, wvSum: 0 }));
     g.vals.push(v);
     g.sum += v;
+    if (r.w > 0) { g.wSum += r.w; g.wvSum += r.w * v; } // #2951 — a bin's count of readings
   }
   const out = new Map();
-  for (const [code, g] of groups) out.set(code, { sorted: Float64Array.from(g.vals).sort(), sum: g.sum });
+  for (const [code, g] of groups) out.set(code, { sorted: Float64Array.from(g.vals).sort(), sum: g.sum, ...(g.wSum > 0 ? { wSum: g.wSum, wvSum: g.wvSum } : {}) });
   return out;
 }
 // -> [{ key, stats, n, value, nAbove? }] sorted by value, highest first
 export function rankLogGroups(grouped, { minN = 3, stat = "median", above = null } = {}) {
   const out = [];
   const thr = Number(above);
-  for (const [key, { sorted: s, sum }] of grouped || []) {
+  for (const [key, { sorted: s, sum, wSum, wvSum }] of grouped || []) {
     if (!s.length || s.length < minN) continue;
     const stats = { n: s.length, min: s[0], q1: quantileSorted(s, 0.25), median: quantileSorted(s, 0.5), q3: quantileSorted(s, 0.75), max: s[s.length - 1] };
     let value = stats.median, nAbove;
-    if (stat === "mean") value = sum / s.length;
+    if (stat === "mean") value = wSum > 0 ? wvSum / wSum : sum / s.length; // #2951 — a binned log's bins weighed by their readings
     else if (stat === "p90") value = quantileSorted(s, 0.9);
     else if (stat === "above" && Number.isFinite(thr)) { nAbove = countAbove(s, thr); value = (100 * nAbove) / s.length; }
     out.push({ key, stats, n: stats.n, value, ...(nAbove != null ? { nAbove } : {}) });
@@ -86,33 +87,97 @@ export function rankLogGroups(grouped, { minN = 3, stat = "median", above = null
   return out.sort((a, b) => b.value - a.value || String(a.key).localeCompare(String(b.key)));
 }
 
+// TASKS.csv #2951 (review #2876, WA iron) — density by strand was a sentence of the top 8 codes, and six were codes of 4 to 214 bins (MNG_U, 9
+// bins, first) while TNAM (29,035), HNAM, SONAM, BNAM, CLA and ALU were never printed. Every code's figures for a table: n, the mean (a binned
+// log's bins weighed by their count of readings: ONAM's mean of bin means read 3.096 against 3.133 for the readings), median, P10, P90 (of
+// the bins), and readings (the readings behind the bins, when known). -> [{ key, n, readings, mean, median, p10, p90, weighted }]
+export function codeTable(grouped) {
+  const out = [];
+  for (const [key, { sorted: s, sum, wSum, wvSum }] of grouped || []) {
+    if (!s.length) continue;
+    const weighted = wSum > 0;
+    out.push({ key, n: s.length, readings: weighted ? wSum : s.length, mean: weighted ? wvSum / wSum : sum / s.length, median: quantileSorted(s, 0.5), p10: quantileSorted(s, 0.1), p90: quantileSorted(s, 0.9), weighted });
+  }
+  return out;
+}
+
 // the log against an assay element: each reading paired with the assay interval of its hole that holds its midpoint
 // -> { pairs: [[log, assay]], n, r (Spearman), rLog (Pearson of log10 values), unit, medianRatio, weightedRatio }
 // TASKS.csv #2353 — and the ratios a disequilibrium check reads: the median of log / assay, and sum(log x reading length) / sum(assay x reading
 // length), over the pairs with an assay above 0 (a correlation says the two move together, not by how much the log under-reads)
-export function logVsAssay(rows, symbol, assays, element, elementUnits = {}) {
+// TASKS.csv #2954 (review #2876, WA iron) — perSample: one pair per assay interval, the log's length-weighted mean over the readings inside it,
+// instead of a pair per reading (four 0.5 m bins per 2 m sample counted as four independent pairs: 471,063 'pairs' of about 121,000 samples).
+// fit: the least-squares line of the log on the element (log = a + b x element: the density-from-iron relation a tonnage needs), with its n.
+// TASKS.csv #3078 (follow-up of #2948: an element change at 480,000 readings still took ~1.3 s) — which assay interval holds each reading
+// does not depend on the element: assayIndex() finds them once per (log, assay table), and logVsAssayIndexed() reads only the element's
+// values through it. logVsAssay() is the two together (the same pairs, in the same order).
+// -> { hits: Array(rows.length) of the assay row holding the reading's midpoint (null: none, or no reading), count }
+export function assayIndex(rows, symbol, assays) {
   const assayAt = intervalLookup(assays, (a) => a.source !== "pXRF" && Number.isFinite(a.from) && Number.isFinite(a.to)); // #2948 — a binary search, not find
-  const unit = elementUnits[element] || "ppm";
-  const pairs = [], lens = [];
-  for (const r of rows) {
-    const v = r.values?.[symbol];
-    if (!Number.isFinite(v)) continue;
+  const hits = new Array((rows || []).length).fill(null);
+  let count = 0;
+  (rows || []).forEach((r, i) => {
+    if (!Number.isFinite(r.values?.[symbol])) return;
     const hit = assayAt(r.hole_id, (r.from + r.to) / 2);
+    if (hit) { hits[i] = hit; count++; }
+  });
+  return { hits, count, rows, symbol };
+}
+export function logVsAssay(rows, symbol, assays, element, elementUnits = {}, opts = {}) {
+  return logVsAssayIndexed(assayIndex(rows, symbol, assays), element, elementUnits, opts);
+}
+export function logVsAssayIndexed(index, element, elementUnits = {}, { perSample = false } = {}) {
+  // #3078 — the pairs in two typed columns (xs: the log, ys: the element), not 480,000 two-element arrays: their allocation and collection were
+  // a third of an element change. .pairs is still there ([[log, element]]), built on first use and kept.
+  const { rows, symbol, hits } = index;
+  const unit = elementUnits[element] || "ppm";
+  let xs = new Float64Array(index.count), ys = new Float64Array(index.count), lens = new Float64Array(index.count);
+  let n = 0;
+  const bySample = perSample ? new Map() : null;
+  for (let i = 0; i < rows.length; i++) {
+    const hit = hits[i];
     if (!hit) continue;
+    const r = rows[i], v = r.values[symbol];
     const g = valueIn(hit, element, unit, elementUnits);
     if (g == null || !Number.isFinite(g)) continue;
-    pairs.push([v, g]);
-    lens.push(Number.isFinite(r.to - r.from) && r.to > r.from ? r.to - r.from : 1);
+    const len = Number.isFinite(r.to - r.from) && r.to > r.from ? r.to - r.from : 1;
+    if (bySample) { const e = bySample.get(hit); if (e) { e.sv += v * len; e.sl += len; } else bySample.set(hit, { sv: v * len, sl: len, g }); continue; }
+    xs[n] = v; ys[n] = g; lens[n] = len; n++;
   }
-  const ratioList = [];
-  let sl = 0, sa = 0;
-  pairs.forEach(([l, a], i) => { if (a > 0) { ratioList.push(l / a); sl += l * lens[i]; sa += a * lens[i]; } });
-  const ratios = Float64Array.from(ratioList).sort(); // #2948 — the typed array's own numeric sort
-  const rt = { medianRatio: ratios.length ? ratios[ratios.length >> 1] : NaN, weightedRatio: sa > 0 ? sl / sa : NaN };
-  if (pairs.length < 3) return { pairs, n: pairs.length, r: NaN, rLog: NaN, unit, ...rt };
-  const xs = pairs.map((p) => p[0]), ys = pairs.map((p) => p[1]);
+  if (bySample) for (const [a, e] of bySample) { xs[n] = e.sv / e.sl; ys[n] = e.g; lens[n] = Number(a.to) - Number(a.from) > 0 ? Number(a.to) - Number(a.from) : e.sl; n++; }
+  xs = xs.subarray(0, n); ys = ys.subarray(0, n); lens = lens.subarray(0, n);
+  const ratios = new Float64Array(n);
+  let k = 0, sl = 0, sa = 0;
+  for (let i = 0; i < n; i++) { const a = ys[i]; if (a > 0) { ratios[k++] = xs[i] / a; sl += xs[i] * lens[i]; sa += a * lens[i]; } }
+  const sortedRatios = ratios.subarray(0, k).sort(); // #2948 — the typed array's own numeric sort
+  const rt = { medianRatio: k ? sortedRatios[k >> 1] : NaN, weightedRatio: sa > 0 ? sl / sa : NaN };
+  const out = { xs, ys, n, unit, ...rt, ...(perSample ? { perSample: true } : {}) };
+  let pairs = null;
+  Object.defineProperty(out, "pairs", { enumerable: true, get() { if (!pairs) { pairs = new Array(n); for (let i = 0; i < n; i++) pairs[i] = [xs[i], ys[i]]; } return pairs; } });
+  if (n < 3) return Object.assign(out, { r: NaN, rLog: NaN });
   const cl = correlate(xs, ys, "log"); // #2558 — and how many pairs the log10 Pearson could use, and the plain Pearson
-  return { pairs, n: pairs.length, r: correlate(xs, ys, "spearman").r, rLog: cl.r, nLog: cl.n, rLin: correlate(xs, ys, "pearson").r, unit, ...rt };
+  return Object.assign(out, { r: correlate(xs, ys, "spearman").r, rLog: cl.r, nLog: cl.n, rLin: correlate(xs, ys, "pearson").r, fit: fitLine(ys, xs) }); // fit: #2954 — the log on the element
+}
+
+// TASKS.csv #2954 — ordinary least squares y = a + b x -> { a, b, n } (null when x does not vary)
+export function fitLine(xs, ys) {
+  const n = Math.min(xs.length, ys.length);
+  if (n < 3) return null;
+  let mx = 0, my = 0;
+  for (let i = 0; i < n; i++) { mx += xs[i]; my += ys[i]; }
+  mx /= n; my /= n;
+  let sxy = 0, sxx = 0;
+  for (let i = 0; i < n; i++) { const dx = xs[i] - mx; sxy += dx * (ys[i] - my); sxx += dx * dx; }
+  if (!(sxx > 0)) return null;
+  const b = sxy / sxx;
+  return { a: my - b * mx, b, n };
+}
+// TASKS.csv #2954 — the log / assay ratio (#2353) reads a disequilibrium only when the log and the element are one quantity: an equivalent
+// grade from a gamma log (eU, eU3O8, eTh, eK) against the assayed element. A density in g/cc over Fe in % is not a quantity.
+const EQUIVALENT = [[/\beu3o8\b|\beu\b|eu3o8|\beu_|equivalent\s*u/i, /^(u|u3o8)$/i], [/\beth\b|eth_|\bethppm|equivalent\s*th/i, /^(th|tho2)$/i], [/\bek\b|ek_|ek%|equivalent\s*k/i, /^(k|k2o)$/i]];
+export function ratioComparable(logLabel, element) {
+  const s = String(logLabel || ""), el = String(element || "").trim();
+  return EQUIVALENT.some(([logRe, elRe]) => logRe.test(s) && elRe.test(el));
 }
 
 // TASKS.csv #1595 (review #1497, Lawyers) — a log against a block model evaluated onto the holes ('On holes: <model>', GeophysicsModule

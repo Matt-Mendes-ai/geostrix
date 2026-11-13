@@ -47,7 +47,7 @@ import CoveringLayers from "./CoveringLayers.jsx"; // TASKS.csv #1823
 import { graduatedStyle, graduatedCategories, parseBreaks, isNumericField } from "../lib/mapGraduated.js"; // TASKS.csv #1600
 import { projectTargetEpsg } from "../lib/projectTarget.js"; // TASKS.csv #2287 — no reprojection INTO the placeholder CRS
 import { tieOf, fileToLocal, bearingToLocal } from "../lib/localGridTie.js"; // TASKS.csv #2320
-import { strikeSymbolPng, STRIKE_ICON_PATH } from "../lib/strikeIcon.js"; // TASKS.csv #2681
+import { structureIconSet, lineScaleOf } from "../lib/structureKmzIcons.js"; // TASKS.csv #3066 / #3068 — the USGS symbols replace #2681's strike icon (shared with the project KMZ)
 import { mineGridOf, mineSourceOf, isMineSource, mineChoiceToProject, mineSourceSentence } from "../lib/mineGrid.js"; // TASKS.csv #2586; the mine-grid Source CRS: #2684
 import { collarsLookUnderground } from "../lib/pitShell.js"; // TASKS.csv #2265
 import { structureGroundCounts, surfaceFlatElevation } from "../lib/viewer/surfacePlacement.js"; import { terrainGroundAt } from "../lib/viewer/geomath.js"; // TASKS.csv #2485 (2); surfaceFlatElevation: #2753
@@ -110,10 +110,13 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
       else if (fmt === "kml") {
         const toLonLat = await ox.lonLatTransform(epsg);
         if (!toLonLat) throw new Error(tr("EPSG:{epsg} cannot be converted to latitude / longitude.", { epsg }));
-        const kml = ox.featuresToKml(ox.surfaceStructureFeatures(s, epsg, zAt), { name: s.name, toLonLat, nameOf: (f) => (f.attributes.dip !== "" ? `${Math.round(f.attributes.dip)}°` : ""), colorOf: (f) => STRUCTURE_CLASS_COLORS[f.attributes.cls] || "#555555", headingOf: (f) => (f.attributes.strike_rhr_true !== "" ? f.attributes.strike_rhr_true : null), iconHref: STRIKE_ICON_PATH /* #2681 */ });
+        // TASKS.csv #3066 — each reading's USGS (FGDC) symbol, one PNG per symbol used, turned by its strike like #2681's icon
+        const feats = ox.surfaceStructureFeatures(s, epsg, zAt), rowsOut = (s.rows || []).filter((r) => Number.isFinite(r.x) && Number.isFinite(r.y)); // the features' rows, in order
+        const icons = await structureIconSet([s], { epsg }), iconAt = new Map(feats.features.map((f, i) => [f, icons.iconOf(rowsOut[i], s)]));
+        const kml = ox.featuresToKml(feats, { name: s.name, toLonLat, nameOf: (f) => (f.attributes.dip !== "" ? `${Math.round(f.attributes.dip)}°` : ""), colorOf: (f) => STRUCTURE_CLASS_COLORS[f.attributes.cls] || "#555555", headingOf: (f) => iconAt.get(f)?.heading ?? (f.attributes.strike_rhr_true !== "" ? f.attributes.strike_rhr_true : null), iconOf: (f) => iconAt.get(f)?.href ?? null /* #3066 */ });
         // TASKS.csv #2681 — a .kmz: the KML and the strike-symbol icon it points at, so Google Earth turns a dip symbol, not its pushpin
         const { buildZip } = await import("../lib/shapefile.js");
-        const kmz = buildZip([{ name: "doc.kml", data: new TextEncoder().encode(kml) }, { name: STRIKE_ICON_PATH, data: strikeSymbolPng(64) }]);
+        const kmz = buildZip([{ name: "doc.kml", data: new TextEncoder().encode(kml) }, ...icons.files]);
         res = await saveFile({ quiet: "success", suggestedName: `${base}.kmz`, filters: [{ name: "KMZ", extensions: ["kmz"] }], content: kmz });
       } else {
         const bytes = await (await import("../lib/gpkg.js")).buildGeoPackage([{ name: base, ...ox.surfaceStructureFeatures(s, epsg, zAt), epsg }]);
@@ -875,7 +878,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
             <div style={{ display: "flex", flexDirection: "column", gap: 3, marginTop: 7 }}>{/* #3066 — the symbol of each type, and the choice of it */}
               {[...types].map(([k, t]) => { const fam = familyFor(t.type, t.cls, symbolChoices), sym = SYMBOLS[FAMILIES[fam].inclined]; return (
                 <div key={k} style={{ display: "flex", alignItems: "center", gap: 6, color: "var(--color-text-secondary)", fontSize: "var(--font-size-sm)" }}>
-                  <span title={tr("FGDC {n}: {name}", { n: sym.fgdc, name: sym.name })} style={{ display: "flex", flexShrink: 0, background: "#fff", borderRadius: 3 }} dangerouslySetInnerHTML={{ __html: symbolSvg(sym, { px: 22, color: STRUCTURE_CLASS_COLORS[t.cls] || "#333" }) }} />
+                  <span title={tr("FGDC {n}: {name}", { n: sym.fgdc, name: sym.name })} style={{ display: "flex", flexShrink: 0, background: "#fff", borderRadius: 3 }} dangerouslySetInnerHTML={{ __html: symbolSvg(sym, { px: 22, color: STRUCTURE_CLASS_COLORS[t.cls] || "#333", lineScale: lineScaleOf(s) /* #3091 */ }) }} />
                   <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.name} {t.n}</span>
                   <select value={fam} onChange={(e) => setTypeSymbol(k, e.target.value)} aria-label={tr("Symbol for {type}", { type: t.name })} title={tr("The USGS (FGDC) symbol for {type}: each reading takes its inclined, vertical or horizontal form by its own dip. Kept with the project.", { type: t.name })} style={{ ...select, flex: "none", maxWidth: 150 }}>
                     {Object.entries(FAMILIES).map(([id, f]) => <option key={id} value={id}>{tr(f.label)}</option>)}
@@ -884,9 +887,14 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
               ); })}
             </div>
             <div style={row}>
-              <span style={lbl}>{tr("Disc size")}</span>
+              <span style={lbl} title={tr("The length of the symbol's strike line on the ground (the 5.0 mm of the USGS standard); its other parts scale with it")}>{tr("Symbol size")}</span>{/* #3066: discs are for drillhole structures */}
               <input type="range" min={5} max={discSizeMax(s.rows, s.size) /* #2412 — grows with the set's extent */} step={5} value={s.size ?? 25} onChange={(e) => updateSurfaceStructureSet(s.id, { size: Number(e.target.value) })} style={{ flex: 1 }} />
               <span style={{ color: "var(--color-text-muted)", width: 40, textAlign: "right" }}>{s.size ?? 25} m</span>
+            </div>
+            <div style={row}>{/* TASKS.csv #3091 — Matt: "the option to adjust the thickness of lines of symbols"; saved with the set like the size */}
+              <span style={lbl} title={tr("The width of the symbols' lines, as a multiple of the USGS standard's line weight; in the 3D view, the Google Earth icons, the legends and the Layout")}>{tr("Line thickness")}</span>
+              <input type="range" min={0.25} max={6} step={0.25} value={lineScaleOf(s)} onChange={(e) => updateSurfaceStructureSet(s.id, { lineScale: Number(e.target.value) })} aria-label={tr("Line thickness")} style={{ flex: 1 }} />
+              <span style={{ color: "var(--color-text-muted)", width: 40, textAlign: "right" }}>{`× ${lineScaleOf(s)}`}</span>
             </div>
             <label style={{ ...row, cursor: terrain ? "pointer" : "default", opacity: terrain ? 1 : 0.45 }}>
               <input type="checkbox" checked={s.snapToTerrain !== false} disabled={!terrain} onChange={(e) => updateSurfaceStructureSet(s.id, { snapToTerrain: e.target.checked })} />

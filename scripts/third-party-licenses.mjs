@@ -123,6 +123,47 @@ export function bundledData() {
   const br = path.join(ROOT, "sample_data", "blake_river", "README.md");
   if (existsSync(br)) out.push({ name: "Blake River gravity sample (Geological Survey of Canada, Natural Resources Canada)", version: "2026-11", license: "OGL-Canada-2.0",
     url: "https://open.canada.ca/en/open-government-licence-canada", text: readFileSync(br, "utf8").trim() });
+  // TASKS.csv #3106 — the WA palaeochannel uranium sample (WA DEMIRS, CC BY 4.0) carried its attribution only in its README: CC BY 4.0
+  // asks for it where users see the work, so it is listed here like the Blake River sample (#2829)
+  const wa = path.join(ROOT, "sample_data", "wa_uranium", "README.md");
+  if (existsSync(wa)) out.push({ name: "WA palaeochannel uranium sample (WAMEX company mineral drillhole database, Department of Energy, Mines, Industry Regulation and Safety, Western Australia)", version: "2024", license: "CC-BY-4.0",
+    url: "https://catalogue.data.wa.gov.au/dataset/mineral-exploration-drillholes-open-file", text: readFileSync(wa, "utf8").trim() });
+  // TASKS.csv #3107 — listed like the Blake River and WA uranium samples: its README carries the attribution and says what was done
+  { const p = path.join(ROOT, "sample_data", "mount_raymond", "README.md");
+    if (existsSync(p)) out.push({ name: "Mount Raymond mapping sample (Geological Survey of Canada, Canadian Geoscience Map 71, and the Canadian Digital Elevation Model, Natural Resources Canada)", version: "2022", license: "OGL-Canada-2.0",
+      url: "https://open.canada.ca/en/open-government-licence-canada", text: readFileSync(p, "utf8").trim() }); }
+  // TASKS.csv #3107 — listed like the Blake River and WA uranium samples: its README carries the attribution and says what was done
+  { const p = path.join(ROOT, "sample_data", "wa_iron", "README.md");
+    if (existsSync(p)) out.push({ name: "WA bedded iron sample (WAMEX company mineral drillhole database, Department of Energy, Mines, Industry Regulation and Safety, Western Australia; Total Magnetic Intensity Grid of Australia 2019, Geoscience Australia)", version: "2024", license: "CC-BY-4.0",
+      url: "https://catalogue.data.wa.gov.au/dataset/mineral-exploration-drillholes-open-file", text: readFileSync(p, "utf8").trim() }); }
+  // TASKS.csv #3107 — listed like the Blake River and WA uranium samples: its README carries the attribution and says what was done
+  { const p = path.join(ROOT, "sample_data", "wa_lead_zinc", "README.md");
+    if (existsSync(p)) out.push({ name: "WA lead-silver-zinc sample (WAMEX company mineral drillhole database, Department of Energy, Mines, Industry Regulation and Safety, Western Australia)", version: "2024", license: "CC-BY-4.0",
+      url: "https://catalogue.data.wa.gov.au/dataset/mineral-exploration-drillholes-open-file", text: readFileSync(p, "utf8").trim() }); }
+  // TASKS.csv #3107 — listed like the Blake River and WA uranium samples: its README carries the attribution and says what was done
+  { const p = path.join(ROOT, "sample_data", "wa_zinc_copper", "README.md");
+    if (existsSync(p)) out.push({ name: "WA zinc-copper sample (WAMEX company mineral drillhole and surface geochemistry database, Department of Energy, Mines, Industry Regulation and Safety, Western Australia)", version: "2024", license: "CC-BY-4.0",
+      url: "https://catalogue.data.wa.gov.au/dataset/mineral-exploration-drillholes-open-file", text: readFileSync(p, "utf8").trim() }); }
+  // TASKS.csv #3107 — listed like the Blake River and WA uranium samples: its README carries the attribution and says what was done
+  { const p = path.join(ROOT, "sample_data", "wa_gold", "README.md");
+    if (existsSync(p)) out.push({ name: "WA lode gold sample (WAMEX company mineral drillhole database, Department of Energy, Mines, Industry Regulation and Safety, Western Australia)", version: "2024", license: "CC-BY-4.0",
+      url: "https://catalogue.data.wa.gov.au/dataset/mineral-exploration-drillholes-open-file", text: readFileSync(p, "utf8").trim() }); }
+  // TASKS.csv #3107 — listed like the Blake River and WA uranium samples: its README carries the attribution and says what was done
+  { const p = path.join(ROOT, "sample_data", "fi_lapland", "README.md");
+    if (existsSync(p)) out.push({ name: "Central Lapland sample (Rock geochemical data of Finland and Bedrock of Finland 1:1 000 000, Geological Survey of Finland)", version: "2026-11", license: "CC-BY-4.0",
+      url: "https://www.gtk.fi/en/open-licence/", text: readFileSync(p, "utf8").trim() }); }
+  // TASKS.csv #3107 — listed like the Blake River and WA uranium samples: its README carries the attribution and says what was done
+  { const p = path.join(ROOT, "sample_data", "qc_rouyn_noranda", "README.md");
+    if (existsSync(p)) out.push({ name: "Rouyn-Noranda sample (SIGEOM, Ministère des Ressources naturelles et des Forêts, Gouvernement du Québec; Canadian Digital Elevation Model, Natural Resources Canada)", version: "2026-11", license: "CC-BY-4.0",
+      url: "https://www.donneesquebec.ca/licence/#cc-by", text: readFileSync(p, "utf8").trim() }); }
+  // TASKS.csv #3107 — listed like the Blake River and WA uranium samples: its README carries the attribution and says what was done
+  { const p = path.join(ROOT, "sample_data", "qld_century", "README.md");
+    if (existsSync(p)) out.push({ name: "Century zinc-lead-silver sample (Whole of Queensland Geochemistry databases, Geological Survey of Queensland, State of Queensland; Total Magnetic Intensity Grid of Australia 2019, Geoscience Australia)", version: "2024", license: "CC-BY-4.0",
+      url: "https://geoscience.data.qld.gov.au/dataset/whole-of-queensland-geochemistry-databases", text: readFileSync(p, "utf8").trim() }); }
+  // TASKS.csv #3100 — Perk-Rocky's terrain (Copernicus DEM) is still shipped; the report's mapping layers are not (BC's terms: downloaded on request)
+  if (existsSync(path.join(ROOT, "sample_data", "perk_rocky", "terrain_copernicus_glo30.tif"))) out.push({ name: "Perk-Rocky sample terrain (Copernicus DEM GLO-30)", version: "2026-11", license: "Copernicus DEM licence",
+    url: "https://spacedata.copernicus.eu/collections/copernicus-digital-elevation-model",
+    text: "Produced using Copernicus WorldDEM-30 © DLR e.V. 2010-2014 and © Airbus Defence and Space GmbH 2014-2018 provided under COPERNICUS by the European Union and ESA; all rights reserved. Read from the Copernicus DEM GLO-30 on AWS Open Data and resampled to a 30 m grid in NAD83 / UTM zone 10N (sample_data/perk_rocky/terrain_copernicus_glo30.tif)." });
   return out;
 }
 

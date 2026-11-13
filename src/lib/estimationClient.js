@@ -1,4 +1,4 @@
-import { cellsFromColumns } from "./estimationCells.js"; // TASKS.csv #661
+import { cellsFromColumnsSliced, checkColumns } from "./estimationCells.js"; // TASKS.csv #661; sliced / checkColumns: #3060
 import { packPoints } from "./pointColumns.js"; // TASKS.csv #3008 — the points as columns, not 147,000 cloned objects
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 // TASKS.csv #520 — UI-thread side of estimation.worker.js. runEstimation("block" | "dense", points, opts,
@@ -6,15 +6,21 @@ import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the inter
 // Aborting the signal terminates the worker and rejects with an error whose .cancelled is true. If a worker
 // can't be started at all, the estimator runs on this thread instead (slower to feel, same result).
 // #661 — a block model comes back as typed columns; the rest of the app reads cell objects, built here once
-const withCells = (r) => { if (!r?.columns) return r; const { columns, ...rest } = r; return { ...rest, cells: cellsFromColumns(columns) }; };
-export function runEstimation(kind, points, opts, { onProgress, signal } = {}) {
+// TASKS.csv #3060 — built in slices (the window paints between them); `checkOnly`: no cells at all, only { checkColumns } (the lattice and
+// values), for a model that is only joined against another (the Estimation dialog's nearest-neighbour check)
+const withCells = async (r, { checkOnly = false, signal = null } = {}) => {
+  if (!r?.columns) return r;
+  const { columns, ...rest } = r;
+  return checkOnly ? { ...rest, checkColumns: checkColumns(columns) } : { ...rest, cells: await cellsFromColumnsSliced(columns, { signal }) };
+};
+export function runEstimation(kind, points, opts, { onProgress, signal, checkOnly = false } = {}) {
   return new Promise((resolve, reject) => {
     const cancelledError = () => Object.assign(new Error("Cancelled."), { cancelled: true });
     if (signal?.aborted) { reject(cancelledError()); return; }
     const inline = () => import("./estimation.js").then((m) => {
       if (signal?.aborted) throw cancelledError();
       const fn = kind === "dense" ? m.estimateDenseGrid : m.estimateBlockModel;
-      return fn(points, { ...opts, onProgress });
+      return checkOnly && kind !== "dense" ? withCells(fn(points, { ...opts, onProgress, columns: true }), { checkOnly }) : fn(points, { ...opts, onProgress }); // #3060
     }).then(resolve, reject);
     let worker;
     try {
@@ -31,7 +37,10 @@ export function runEstimation(kind, points, opts, { onProgress, signal } = {}) {
       heard = true;
       const d = e.data || {};
       if (d.type === "progress") onProgress?.(d.fraction);
-      else if (d.type === "done") finish(resolve, withCells(d.result));
+      else if (d.type === "done") { // #3060 — the worker is done with; the cells are built in slices, cancellable
+        worker.terminate();
+        withCells(d.result, { checkOnly, signal }).then((v) => finish(resolve, v), (err) => finish(reject, err));
+      }
       else if (d.type === "error") finish(reject, new Error(d.message));
     };
     worker.onerror = (e) => {

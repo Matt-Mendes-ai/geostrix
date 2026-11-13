@@ -5,6 +5,7 @@
 // KML writer (reprojected to WGS84 longitude / latitude) and CSV rows. Loaded on demand (ViewerModule /
 // SurfaceMappingPanel), like the writers.
 import { polygonsFromRings } from "./polygonRings.js";
+import { splitRings } from "./ringSplit.js"; // TASKS.csv #3126 — a polygon ring crossing itself as written, split into simple loops (Google Earth leaves it unfilled)
 import { getProj4Def, pointTransform } from "./reproject.js";
 import { azimuthToGridOffset, wrap360 } from "./azimuthRef.js";
 
@@ -120,7 +121,7 @@ export function kmlColor(hex, alpha = 1) {
   const m = /^#?([0-9a-f]{6})$/i.exec(String(hex || ""));
   const h = m ? m[1] : "e2a63c";
   const a = Math.round(Math.max(0, Math.min(1, alpha)) * 255).toString(16).padStart(2, "0");
-  return `${a}${h.slice(4, 6)}${h.slice(2, 4)}${h.slice(0, 2)}`;
+  return `${a}${h.slice(4, 6)}${h.slice(2, 4)}${h.slice(0, 2)}`.toLowerCase(); // TASKS.csv #3068 follow-up — lowercase, as Google's KML reference writes colours ("#E69F00" gave "99009FE6")
 }
 export async function lonLatTransform(epsg) {
   const e = Number(epsg);
@@ -131,8 +132,9 @@ export async function lonLatTransform(epsg) {
 }
 // { features, geomType } in project coordinates -> KML text. opts: { name, toLonLat, colorOf(f) -> "#rrggbb", nameOf(f),
 // headingOf(f) (point icon rotation: a strike symbol), lineColor, fillAlpha, iconHref (TASKS.csv #2681: the points' icon, e.g. the strike
-// symbol packed beside the KML in a .kmz, lib/strikeIcon.js; without it Google Earth draws its pushpin) }
-export function featuresToKml({ features, geomType }, { name = "GeoStrix export", toLonLat, colorOf = () => "#e2a63c", nameOf = () => "", headingOf = null, fillAlpha = 0.35, iconHref = null } = {}) {
+// symbol packed beside the KML in a .kmz, lib/strikeIcon.js; without it Google Earth draws its pushpin); iconOf(f) (TASKS.csv #3066: each
+// point its own icon, e.g. its USGS structure symbol; falls back to iconHref) }
+export function featuresToKml({ features, geomType }, { name = "GeoStrix export", toLonLat, colorOf = () => "#e2a63c", nameOf = () => "", headingOf = null, fillAlpha = 0.35, iconHref = null, iconOf = null } = {}) {
   const icon = iconHref ? `<Icon><href>${esc(iconHref)}</href></Icon>` : ""; // #2681
   if (!toLonLat) throw new Error("featuresToKml needs a coordinate transform to WGS84");
   const ll = ([x, y, z]) => { const [lon, lat] = toLonLat(x, y); return Number.isFinite(z) ? `${r8(lon)},${r8(lat)},${Math.round(z * 100) / 100}` : `${r8(lon)},${r8(lat)}`; }; // no altitude when none is known: #2090
@@ -155,13 +157,17 @@ export function featuresToKml({ features, geomType }, { name = "GeoStrix export"
       const one = (p) => `<LineString><tessellate>1</tessellate><coordinates>${coords(p)}</coordinates></LineString>`;
       geom = parts.length === 1 ? one(parts[0]) : `<MultiGeometry>${parts.map(one).join("")}</MultiGeometry>`;
     } else {
-      const polys = polygonsFromRings(f.parts?.length ? f.parts : [f.geometry]).map((rs) => rs.map((r) => (r[0][0] === r[r.length - 1][0] && r[0][1] === r[r.length - 1][1] ? r : [...r, r[0]])));
-      const one = ([outer, ...holes]) => `<Polygon><tessellate>1</tessellate><outerBoundaryIs><LinearRing><coordinates>${coords(outer)}</coordinates></LinearRing></outerBoundaryIs>${holes.map((h) => `<innerBoundaryIs><LinearRing><coordinates>${coords(h)}</coordinates></LinearRing></innerBoundaryIs>`).join("")}</Polygon>`;
+      // the rings as written (longitude / latitude at 8 decimals, z kept), each split where it crosses itself, then grouped into polygons
+      const llRings = (f.parts?.length ? f.parts : [f.geometry]).filter((r) => r?.length >= 3).map((r) => r.map(([x, y, z]) => { const [lon, lat] = toLonLat(x, y); return [r8(lon), r8(lat), z]; }));
+      const polys = polygonsFromRings(splitRings(llRings)).map((rs) => rs.map((r) => (r[0][0] === r[r.length - 1][0] && r[0][1] === r[r.length - 1][1] ? r : [...r, r[0]])));
+      const llc = (ring) => ring.map(([lon, lat, z]) => (Number.isFinite(z) ? `${lon},${lat},${Math.round(z * 100) / 100}` : `${lon},${lat}`)).join(" ");
+      const one = ([outer, ...holes]) => `<Polygon><tessellate>1</tessellate><outerBoundaryIs><LinearRing><coordinates>${llc(outer)}</coordinates></LinearRing></outerBoundaryIs>${holes.map((h) => `<innerBoundaryIs><LinearRing><coordinates>${llc(h)}</coordinates></LinearRing></innerBoundaryIs>`).join("")}</Polygon>`;
       geom = polys.length === 1 ? one(polys[0]) : `<MultiGeometry>${polys.map(one).join("")}</MultiGeometry>`;
     }
     const heading = headingOf ? headingOf(f) : null;
     // #2681 — an inline IconStyle replaces the shared one: it carries the colour and the icon too, not the heading alone
-    const inline = Number.isFinite(heading) ? `<Style><IconStyle>${iconHref ? `<color>${kmlColor(colorOf(f))}</color>` : ""}<heading>${Math.round(heading * 10) / 10}</heading>${icon}</IconStyle></Style>` : "";
+    const own = iconOf ? iconOf(f) : null, fIcon = own ? `<Icon><href>${esc(own)}</href></Icon>` : icon; // #3066 — a symbol per point
+    const inline = Number.isFinite(heading) ? `<Style><IconStyle>${iconHref || own ? `<color>${kmlColor(colorOf(f))}</color>` : ""}<heading>${Math.round(heading * 10) / 10}</heading>${fIcon}</IconStyle></Style>` : "";
     return `    <Placemark><name>${esc(nameOf(f))}</name><styleUrl>#${styleFor(colorOf(f))}</styleUrl>${inline}${data(f.attributes)}${geom}</Placemark>`;
   });
   const styleXml = [...styles].map(([hex, id]) => `    <Style id="${id}"><LineStyle><color>${kmlColor(hex)}</color><width>2</width></LineStyle><PolyStyle><color>${kmlColor(hex, fillAlpha)}</color></PolyStyle><IconStyle><color>${kmlColor(hex)}</color>${icon}</IconStyle></Style>`);

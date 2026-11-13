@@ -99,10 +99,10 @@ test("styles: the 3D View's category colours, map-layer fill and opacity, consec
   assert.equal((placemark(kml, "QFP").match(/<LineString>/g) || []).length, 6);
   assert.match(placemark(kml, "QFP"), /<altitudeMode>absolute<\/altitudeMode>/);
   assert.match(placemark(kml, "DH1"), /,801\.00</, "the collar at its elevation");
-  assert.match(styleOf("Kqm"), /<PolyStyle><color>800000ff<\/color><\/PolyStyle>/, "fill colour at the layer's opacity (0.5 -> 0x80)");
+  assert.match(styleOf("Kqm"), /<PolyStyle><color>800000ff<\/color><fill>1<\/fill><outline>1<\/outline><\/PolyStyle>/, "fill colour at the layer's opacity (0.5 -> 0x80), the flags written");
   assert.match(placemark(kml, "Kqm"), /<tessellate>1<\/tessellate>/, "map layers on the ground");
   assert.match(kml, /<GroundOverlay><name>Mag RTP<\/name><color>b3ffffff<\/color><Icon><href>files\/raster_0.png<\/href><\/Icon><gx:LatLonQuad>/, "the raster at its opacity");
-  assert.match(kml, /<heading>45<\/heading><Icon><href>files\/strike.png<\/href>/, "a structure's strike symbol (dip direction 135 -> strike 45)");
+  assert.match(kml, /<heading>45<\/heading><Icon><href>files\/strike\.png<\/href>/, "with no icon set given: the plain strike symbol turned to its strike (dip direction 135 -> strike 45)");
   assert.match(placemark(kml, "DH0"), /<LabelStyle>|styleUrl/, "collars");
   const collarStyle = styleOf("DH0");
   assert.match(collarStyle, /<LabelStyle><scale>0.7<\/scale>/, "labelled as the view labels its holes");
@@ -123,6 +123,49 @@ test("numeric logs: the view's classes, or equal bins when the ramp has more col
   assert.deepEqual(lg.items.map(([, c]) => c), ["#ffff00", "#ff0000"]);
   assert.ok(legends.some((g) => g.label === "Lithology") && legends.some((g) => g.label === "Geology · unit") && legends.some((g) => g.label === "Mag RTP"));
   assert.match(kml, /<ScreenOverlay><name>Legend: Lithology<\/name><Icon><href>files\/legend_\d+\.png<\/href><\/Icon><overlayXY x="0" y="1"/);
+});
+
+test("Matt's Perk-Rocky KMZ: PR-Litho_interpV3's polygons carry their category fill (lowercase aabbggrr at the layer's opacity, fill and outline on), clamped to the ground", async () => {
+  const { readFileSync } = await import("node:fs");
+  const { loadPerkRocky } = await import("../src/lib/samplePerkRocky.js");
+  const dir = new URL("../sample_data/perk_rocky/", import.meta.url);
+  const mapLayers = [];
+  await loadPerkRocky(async (n) => new File([readFileSync(new URL(n, dir))], n), { addMapLayer: (l) => mapLayers.push(l), addSurfaceStructureSet: () => {}, addTerrain: () => {} });
+  const L = mapLayers.find((l) => l.name === "PR-Litho_interpV3");
+  assert.equal(L.geomType, "polygon");
+  const dac = L.categories.find((c) => c.value === "Dac");
+  const { kml } = buildProjectKml({ projectName: "Perk-Rocky", mapLayers: [L] }, opts);
+  const i = kml.indexOf("<Folder><name>Dac</name>");
+  const sid = /<styleUrl>#(s\d+)<\/styleUrl>/.exec(kml.slice(i))[1];
+  const style = new RegExp(`<Style id="${sid}">.*?</Style>`).exec(kml)[0];
+  const alpha = Math.round(L.opacity * 255).toString(16).padStart(2, "0");
+  const h = dac.color.slice(1).toLowerCase();
+  assert.match(style, new RegExp(`<PolyStyle><color>${alpha}${h.slice(4, 6)}${h.slice(2, 4)}${h.slice(0, 2)}</color><fill>1</fill><outline>1</outline></PolyStyle>`), `${dac.color} at ${L.opacity}`);
+  assert.doesNotMatch(kml, /<color>[0-9a-f]*[A-F][0-9A-Fa-f]*<\/color>/, "no uppercase hex anywhere");
+  assert.match(kml.slice(i), /^<Folder><name>Dac<\/name>\n<Placemark><name>Dac<\/name><styleUrl>#s\d+<\/styleUrl>.*?<Polygon><tessellate>1<\/tessellate><altitudeMode>clampToGround<\/altitudeMode><outerBoundaryIs>/);
+});
+
+test("part 2: structures carry the shared USGS icon set (structureKmzIcons, as the outcrop KMZ): its href and true-strike heading per reading", async () => {
+  const { structureIconSet } = await import("../src/lib/structureKmzIcons.js");
+  const p = project();
+  p.surfaceStructures = [{ id: 1, name: "Outcrop", visible: true, symbolByType: {}, rows: [
+    { x: 500010, y: 6200010, dip: 60, dipDir: 135, cls: "bedding", type: "bedding" },
+    { x: 500020, y: 6200010, dip: 80, dipDir: 90, cls: "fault", type: "fault" },
+    { x: 500030, y: 6200010, dip: 30, dipDir: 200, cls: "bedding", type: "bedding" },
+    { x: 500040, y: 6200010, cls: "other", type: "note" }, // no attitude: no icon, no heading
+  ] }];
+  const icons = await structureIconSet(p.surfaceStructures, { px: 64, epsg: null });
+  const { kml, files } = buildProjectKml(p, { ...opts, structureIconOf: (row, set) => icons.iconOf(row, set) });
+  for (const r of p.surfaceStructures[0].rows.slice(0, 3)) {
+    const ic = icons.iconOf(r, p.surfaceStructures[0]);
+    assert.ok(kml.includes(`<heading>${Math.round(ic.heading * 10) / 10}</heading><Icon><href>${ic.href}</href></Icon>`), ic.href);
+  }
+  assert.ok(icons.files.length >= 2 && icons.files.every((f) => /^files\/sym_/.test(f.name)));
+  assert.ok(!files.some((f) => /^files\/(sym|fgdc)_/.test(f.name)), "the caller adds the icon set's PNGs, not the KML builder");
+  assert.doesNotMatch(kml, /files\/strike\.png/, "the plain strike icon only for a reading with an attitude and no icon");
+  const src = readFileSync(new URL("../src/lib/projectKmzExport.js", import.meta.url), "utf8");
+  assert.match(src, /await structureIconSet\(store\.surfaceStructures, \{ px: 64, epsg: tie \? null : ctx\.epsg \}\)/);
+  assert.match(src, /\.\.\.icons\.files\.filter\(\(f\) => out\.kml\.includes\(f\.name\)\)/);
 });
 
 test("a value raster's colour ramp (no swatch rows) still gets its legend", () => {

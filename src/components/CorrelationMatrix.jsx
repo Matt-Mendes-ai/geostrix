@@ -1,7 +1,8 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { createCorrelationClient, CORRELATION_WORKER_FROM } from "../lib/correlationClient.js"; // TASKS.csv #3032
 import { useLeadCommodity } from "../lib/useLeadCommodity.js"; // TASKS.csv #2351
 import { X, Download } from "./icons.js";
-import { valueIn } from "../lib/geochem.js";
+import { valueIn, elementOptionLabel } from "../lib/geochem.js"; // elementOptionLabel: #2914
 import { saveFile } from "../lib/desktop.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
@@ -87,13 +88,35 @@ export default function CorrelationMatrix({ assays: assaysIn, assayElements: ass
   // pairs): 'detected pairs only' leaves a below-detection value out of every pair, and each cell says how many of its pairs hold one
   const [detectedOnly, setDetectedOnly] = useState(false);
   const caches = useMemo(() => ({ cols: {}, lt: {}, pairs: new Map() }), [assays, elementUnits, detectedOnly]);
-  const matrix = useMemo(() => {
-    symbols.forEach((s) => {
-      if (!caches.lt[s]) caches.lt[s] = Uint8Array.from(assays, (a) => (isBelowDetection(a, s) ? 1 : 0));
-      if (!caches.cols[s]) caches.cols[s] = assays.map((a, i) => (detectedOnly && caches.lt[s][i] ? null : valueIn(a, s, "ppm", elementUnits)));
-    });
+  const ensureCols = () => symbols.forEach((s) => {
+    if (!caches.lt[s]) caches.lt[s] = Uint8Array.from(assays, (a) => (isBelowDetection(a, s) ? 1 : 0));
+    if (!caches.cols[s]) caches.cols[s] = assays.map((a, i) => (detectedOnly && caches.lt[s][i] ? null : valueIn(a, s, "ppm", elementUnits)));
+  });
+  // TASKS.csv #3032 (split from #2904) — above CORRELATION_WORKER_FROM rows the matrix is computed in a worker (27 elements on 147,891 samples
+  // froze the window about 2 s): the table keeps the last answer, says how far the new one is, and the export waits for it
+  const big = assays.length > CORRELATION_WORKER_FROM;
+  const syncMatrix = useMemo(() => {
+    if (big) return null;
+    ensureCols();
     return correlationMatrix(caches.cols, symbols, method, caches.pairs);
-  }, [symbols, caches, method, detectedOnly]);
+  }, [symbols, caches, method, detectedOnly, big]); // ensureCols reads symbols / caches / assays
+  const clientRef = useRef(null);
+  useEffect(() => () => clientRef.current?.terminate(), []);
+  const [asyncMatrix, setAsyncMatrix] = useState(null); // { caches, key, m }
+  const [progress, setProgress] = useState(null); // { done, total } while the worker computes
+  const matrixKey = `${method}|${symbols.join(",")}`;
+  useEffect(() => {
+    if (!big || symbols.length < 2) { setProgress(null); return undefined; }
+    ensureCols();
+    if (!clientRef.current) clientRef.current = createCorrelationClient();
+    setProgress({ done: 0, total: (symbols.length * (symbols.length + 1)) / 2 });
+    const req = clientRef.current.compute({ epoch: caches, cols: caches.cols, symbols, method, cache: caches.pairs, onProgress: setProgress });
+    req.promise.then((m) => { setAsyncMatrix({ caches, key: matrixKey, m }); setProgress(null); }, () => setProgress(null));
+    return () => req.cancel();
+  }, [big, matrixKey, caches]); // ensureCols reads symbols / caches / assays
+  const matrix = big ? (asyncMatrix && asyncMatrix.caches === caches && asyncMatrix.key === matrixKey ? asyncMatrix.m : null) : syncMatrix;
+  // while a new answer is on its way, the cells the last one holds (same rows and method) are shown; the others read '…'
+  const shown = matrix || (asyncMatrix && asyncMatrix.caches === caches && asyncMatrix.key.split("|")[0] === method ? asyncMatrix.m : null);
   // pairs where both values are present and at least one is below detection (0 when detected pairs only)
   const ltPairs = (a, b) => {
     const key = `ltpair|${a < b ? a : b}|${a < b ? b : a}`;
@@ -153,7 +176,7 @@ export default function CorrelationMatrix({ assays: assaysIn, assayElements: ass
               {allSymbols.map((s) => (
                 <label key={s} style={{ display: "flex", alignItems: "center", gap: 4, padding: "3px 8px", borderRadius: 5, background: selected.has(s) ? "var(--color-success-bg)" : "var(--color-bg-subtle)", border: `1px solid ${selected.has(s) ? "var(--color-success-border)" : "var(--color-border)"}`, fontSize: "var(--font-size-base)", color: selected.has(s) ? "var(--color-success-text)" : "var(--color-text-secondary)", cursor: "pointer" }}>
                   <input type="checkbox" checked={selected.has(s)} onChange={() => toggle(s)} style={{ display: "none" }} />
-                  {s}{calcSyms.has(s) && <span title={tr("Calculated from other elements: not a measurement. It correlates with the elements it is made from by construction.")} style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{tr("calc.")}</span>}{/* #2036 */}
+                  {elementOptionLabel(s, elementUnits[s]) /* #2914 */}{calcSyms.has(s) && <span title={tr("Calculated from other elements: not a measurement. It correlates with the elements it is made from by construction.")} style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{tr("calc.")}</span>}{/* #2036 */}
                 </label>
               ))}
             </div>
@@ -175,7 +198,9 @@ export default function CorrelationMatrix({ assays: assaysIn, assayElements: ass
                     <tr key={a}>
                       <th style={rowHead}>{a}</th>
                       {symbols.map((b) => {
-                        const { r, n } = matrix[a][b];
+                        const cellV = shown?.[a]?.[b];
+                        if (!cellV) return <td key={b} style={{ padding: "4px 6px", textAlign: "center", color: "var(--color-text-muted)" }}>…</td>; // #3032 — not computed yet
+                        const { r, n } = cellV;
                         const thin = n < MIN_PAIRS;
                         return (
                           <td key={b} title={tr("{a} vs {b}: r = {v} (n = {n} pairs{v2})", { a, b, v: r == null ? "n/a" : r.toFixed(3), n, v2: (thin ? tr(", too few to trust") : "") + (a !== b && ltPairs(a, b) ? tr(", {k} of them with a below-detection value", { k: ltPairs(a, b).toLocaleString() }) : "") /* #2505 */ })} style={{ ...cell, background: thin ? cellColor(null) : cellColor(r), color: thin ? "var(--color-text-faint)" : cell.color }}>
@@ -190,7 +215,8 @@ export default function CorrelationMatrix({ assays: assaysIn, assayElements: ass
             </div>
           )}
 
-          <button onClick={exportCSV} disabled={symbols.length < 2} style={{ ...btn(true), alignSelf: "flex-start", padding: "7px 14px", display: "flex", alignItems: "center", gap: 6, opacity: symbols.length < 2 ? 0.5 : 1 }}>
+          {progress && <div role="status" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("Computing the correlations: {done} of {total} pairs…", { done: progress.done, total: progress.total })}</div>}{/* #3032 */}
+          <button onClick={exportCSV} disabled={symbols.length < 2 || !matrix} style={{ ...btn(true), alignSelf: "flex-start", padding: "7px 14px", display: "flex", alignItems: "center", gap: 6, opacity: symbols.length < 2 || !matrix ? 0.5 : 1 }}>
             <Download size={14} />{" "}{tr("Export matrix (CSV)")}</button>
         </div>
 

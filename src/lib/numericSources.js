@@ -21,7 +21,10 @@ const num = (v) => { const n = typeof v === "number" ? v : v === "" || v == null
 
 // -> [{ key, label, symbol, unit, n, logScale, field, layerKey | layerId }]: the built-in numeric logs, then every numeric field
 // of every custom layer (its value column when that is numeric, then the extra numeric columns), by layer name
-export function numericSourceChoices({ layers, customLayers, models = true } = {}) { // models: #2397 — false leaves out layers evaluated from a model
+// TASKS.csv #2915 (review #2876, WA iron) — builtinFields ({ labelOf }) adds the numeric extra fields of the built-in interval logs
+// (Lithology's Met_CLA_pct: a clay % on every strand interval was offered nowhere but SQL), keyed log:<layer>:<field>
+const BUILTIN_FIELD_LOGS = ["litho", "alt", "vein", "breccia", "weath", "structzone", "geotech", "mnlgy"];
+export function numericSourceChoices({ layers, customLayers, models = true, builtinFields = null } = {}) { // models: #2397 — false leaves out layers evaluated from a model
   const out = [];
   for (const [k, m] of Object.entries(LOG_SOURCES)) {
     const n = (layers?.[k] || []).filter((r) => Number.isFinite(num(r.value))).length;
@@ -29,6 +32,18 @@ export function numericSourceChoices({ layers, customLayers, models = true } = {
     // unit is SI only when the readings can be SI (lib/drillholeConstraints.js suscUnitHint); otherwise 'as logged'
     const unit = k === "magsusc" && suscUnitHint((layers?.[k] || []).map((r) => r.value))?.likely !== "si" ? CUSTOM_UNIT : m.unit;
     if (n >= MIN_ROWS) out.push({ key: `log:${k}`, label: m.label, symbol: m.label, unit, n, logScale: m.logScale, field: "value", layerKey: k });
+  }
+  const extraFields = []; // #2915 — listed last, so the X-Y default axis and the older lists keep their order
+  if (builtinFields) for (const k of BUILTIN_FIELD_LOGS) {
+    const rows = layers?.[k] || [];
+    if (!rows.length) continue;
+    const name = builtinFields.labelOf ? builtinFields.labelOf(k) : k;
+    for (const f of numericLayerFields(rows, { min: MIN_ROWS }).filter((x) => !["from", "to", "value", "depth", "hole_id"].includes(x))) {
+      const n = rows.filter((r) => Number.isFinite(num(r[f]))).length;
+      if (n < MIN_ROWS) continue;
+      const label = `${name} › ${f}`;
+      extraFields.push({ key: `log:${k}:${f}`, label, symbol: label, unit: CUSTOM_UNIT, n, logScale: false, field: f, layerKey: k });
+    }
   }
   // TASKS.csv #2397 / #2421 (review #2325, WA uranium) — Downhole logs opened on "Drilling method › Casing depth (27)" (first by name) against
   // a 49,684-reading gamma log; a binned log's per-bin count ("› n") was offered as a log, and a model evaluated on the holes ("On holes:
@@ -51,10 +66,11 @@ export function numericSourceChoices({ layers, customLayers, models = true } = {
   }
   custom.sort((a, b) => a._log - b._log || b.n - a.n || a._name.localeCompare(b._name));
   for (const ch of custom) { delete ch._log; delete ch._name; out.push(ch); }
+  out.push(...extraFields);
   return out;
 }
 
-export function findNumericSource(key, ctx) {
+export function findNumericSource(key, ctx) { // ctx may carry builtinFields (#2915) for a log:<layer>:<field> key
   if (typeof key !== "string" || !(key.startsWith("log:") || key.startsWith("custom:"))) return null;
   return numericSourceChoices(ctx).find((s) => s.key === key) || null;
 }
@@ -74,16 +90,26 @@ function medianPointSpacing(rows) {
 // keeps its from / to; a depth-only reading is given `pointSupport` m of core centred on its depth (or the readings' own median
 // spacing when that is shorter), so the estimation can length-weight it like any other sample instead of dropping it as zero-length.
 export function sourceAssays(choice, { layers, customLayers } = {}, { pointSupport = POINT_SUPPORT_M } = {}) {
-  const rows = choice.layerKey ? layers?.[choice.layerKey] || [] : (customLayers || []).find((c) => c.id === choice.layerId)?.rows || [];
+  const layer = choice.layerKey ? null : (customLayers || []).find((c) => c.id === choice.layerId);
+  const rows = choice.layerKey ? layers?.[choice.layerKey] || [] : layer?.rows || [];
   const symbol = choice.symbol, field = choice.field || "value";
+  // TASKS.csv #2953 (review #2876, WA iron: one bin of -821,754.9 flattened the susceptibility box plot) — the log layer's valid range
+  // (customLayers[].validRange [lo, hi], either end blank), set in Downhole logs: readings outside it are left out here, so Downhole logs,
+  // Estimation and Grade shell all read the same readings, and counted (outOfRange)
+  const vr = field === "value" && Array.isArray(layer?.validRange) ? layer.validRange.map(num) : null;
+  const outside = vr ? (v) => (Number.isFinite(vr[0]) && v < vr[0]) || (Number.isFinite(vr[1]) && v > vr[1]) : null;
+  let outOfRange = 0;
   const pointRows = [];
   const assays = [];
   let skipped = 0;
   for (const r of rows) {
     const v = num(r[field]);
     if (!Number.isFinite(v) || r.hole_id == null) { skipped++; continue; }
+    if (outside && outside(v)) { outOfRange++; continue; } // #2953
     const from = num(r.from), to = num(r.to);
-    if (Number.isFinite(from) && Number.isFinite(to) && to > from) { assays.push({ hole_id: r.hole_id, from, to, values: { [symbol]: v }, source: "log" }); continue; }
+    // w (TASKS.csv #2951): a binned log's bin carries its count of readings (downholeLogChannels: n), so a mean over bins can weigh each by it
+    const w = choice.binM && field === "value" && Number.isFinite(num(r.n)) && num(r.n) > 0 ? num(r.n) : undefined;
+    if (Number.isFinite(from) && Number.isFinite(to) && to > from) { assays.push({ hole_id: r.hole_id, from, to, values: { [symbol]: v }, source: "log", ...(w ? { w } : {}) }); continue; }
     const d = Number.isFinite(from) && from === to ? from : num(r.depth);
     if (!Number.isFinite(d)) { skipped++; continue; }
     pointRows.push({ hole_id: r.hole_id, depth: d, v });
@@ -94,7 +120,7 @@ export function sourceAssays(choice, { layers, customLayers } = {}, { pointSuppo
     if (Number.isFinite(sp) && sp < support) support = Math.max(0.1, sp);
     for (const p of pointRows) assays.push({ hole_id: p.hole_id, from: p.depth - support / 2, to: p.depth + support / 2, values: { [symbol]: p.v }, source: "log" });
   }
-  return { assays, assayElements: [{ symbol, unit: choice.unit }], symbol, unit: choice.unit, pointRows: pointRows.length, pointSupport: pointRows.length ? support : null, skipped };
+  return { assays, assayElements: [{ symbol, unit: choice.unit }], symbol, unit: choice.unit, pointRows: pointRows.length, pointSupport: pointRows.length ? support : null, skipped, ...(vr ? { outOfRange, validRange: vr } : {}) };
 }
 
 // log10 of the sample values, for an estimate that is a geometric mean per block (susceptibility varies over decades, so an

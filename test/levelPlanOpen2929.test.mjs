@@ -8,7 +8,7 @@ import fs from "node:fs";
 const s = fs.readFileSync(new URL("../src/components/LevelPlanWindow.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
 
 test("opens on the busiest RL from the first render; no effect moves it after", () => {
-  assert.match(s, /const \[rl, setRl\] = useState\(\(\) => \{ const r0 = Math\.round\(defaultRl\); try \{ const b = busiestRl\(build\(r0, 12\.5\)\.holes\); return b \?\? r0; \} catch \{ return r0; \} \}\);/);
+  assert.match(s, /try \{ b = busiestRl\(build\(r0, 12\.5\)\.holes\) \?\? r0; \} catch \{ \/\* r0 \*\/ \} setRl\(b\); setApplied\(\{ rl: b, half: 12\.5 \}\); setReady\(true\);/); // #3064 — after the first paint, the first render an empty plan
   assert.ok(!/openedAt/.test(s), "the post-mount move is gone");
 });
 

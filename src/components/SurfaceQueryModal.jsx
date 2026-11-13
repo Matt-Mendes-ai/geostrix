@@ -48,7 +48,9 @@ import { buildVoxelLookup, sampleModelOnHoles, holesInBlockModel } from "../lib/
 // metres (see meshExport.js's header on why the scene<->world map is a rigid motion), so every distance
 // printed here is already a real-world metre. Only the point-query input/output is converted to world
 // coordinates, because that is what a user reads off a map.
-export default function SurfaceQueryModal({ surfaces = [], traces = [], sceneToWorld, worldToScene, onClose }) {
+// TASKS.csv #3016 (WA iron review) — inArea: the traces are the Model area's checked holes (Model settings); the sweep says so. It swept 6,390
+// holes against a shell built from 228 (5.1 s to open).
+export default function SurfaceQueryModal({ surfaces = [], traces = [], sceneToWorld, worldToScene, inArea = false, onClose }) {
   useEscapeKey(onClose); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
 
@@ -204,6 +206,7 @@ export default function SurfaceQueryModal({ surfaces = [], traces = [], sceneToW
               <>
                 <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", margin: "8px 0 6px" }}>
                   {tr("{holes} {v} · {piercing} pierce this surface{v2}", { holes: totals.holes, v: tr(totals.holes === 1 ? "hole" : "holes"), piercing: totals.piercing, v2: mesh.closed ? tr(" · {inside} m total inside", { inside: totals.inside.toFixed(1) }) : "" })}
+                  {inArea && <span>{" "}{tr("(the Model area's checked holes, Model settings)")}</span>}{/* #3016 */}
                   {totals.piercing === 0 && totals.holes > 0 && (
                     <span style={{ color: "#8a6d1f" }}>{" "}{tr("— no hole intersects this surface at all, which is usually worth a second look at the modelling inputs.")}</span>
                   )}

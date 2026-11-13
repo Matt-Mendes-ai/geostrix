@@ -3,6 +3,7 @@
 import React, { useMemo } from "react";
 import { logChannelColumns, defaultLogChannels, effectiveLogBin, logBoxPatch, needsBinning, looksLikeLogTable, channelNoData, noDataText, rawLogMB, logBinEstimate, LOG_BINS } from "../lib/downholeLogChannels.js"; // no-data: TASKS.csv #2332; effectiveLogBin / logBoxPatch: #2333; logBinEstimate / LOG_BINS: #2885
 import { t as tr } from "../lib/i18n.js";
+import { logUnitChoices } from "../lib/logUnits.js"; // TASKS.csv #2952
 
 const note = { fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", lineHeight: 1.45 };
 
@@ -28,7 +29,7 @@ export default function LogChannelsBox({ modal, onChange, sel }) {
       <div style={note}>{tr("Each ticked channel becomes its own numeric layer, named after the column. Untick all to import only the value column above as one layer.")}</div>
       {noData.length > 0 && ( // #2332
         <div style={{ ...note, color: "var(--color-warn-text)", marginTop: 4 }}>
-          {noData.map(({ col, nd }) => <div key={col}>{tr("{col}: {n} value(s) look like no-data codes ({codes}): a null sentinel, a negative value in a channel that cannot be negative, a reading far below the channel's others, or one more than 1,000 times its 99th percentile.", { col, n: nd.n.toLocaleString(), codes: noDataText(nd) })}{/* the reasons: #2890 */}</div>)}
+          {noData.map(({ col, nd }) => <div key={col}>{tr("{col}: {n} value(s) look like no-data codes ({codes}): a null sentinel, a negative value in a channel that cannot be negative, a reading far below the channel's others, one more than 1,000 times its 99th percentile, or one value repeated reading after reading at the channel's extreme.", { col, n: nd.n.toLocaleString(), codes: noDataText(nd) })}{/* the reasons: #2890; the repeated value: #3042 */}</div>)}
           <label style={{ display: "flex", gap: 5, alignItems: "center", marginTop: 3, color: "var(--color-text)" }}><input type="checkbox" checked={!modal.logKeepNoData} onChange={(e) => set({ logKeepNoData: !e.target.checked })} />{tr("Leave them out (said in the notice and the layer notes)")}</label>
         </div>
       )}
@@ -37,7 +38,16 @@ export default function LogChannelsBox({ modal, onChange, sel }) {
         {channels.map((c) => (
           <label key={c.col} style={{ fontSize: "var(--font-size-sm)", display: "flex", gap: 5, alignItems: "center" }}>
             <input type="checkbox" checked={ticked.includes(c.col)} onChange={() => toggle(c.col)} aria-label={tr("Import channel {c}", { c: c.col })} />
-            {c.col}{c.unit ? <span style={{ color: "var(--color-text-muted)" }}>{` (${c.unit})`}</span> : null}
+            {c.col}
+            {/* TASKS.csv #2952 — the channel's unit: read from the column name when it says one, else typed (the usual ones for its kind offered);
+                the layer keeps it, and every label and the 3D legend follow it */}
+            {ticked.includes(c.col) ? (
+              <>
+                <input value={modal.logUnits?.[c.col] ?? c.unit ?? ""} onChange={(e) => set({ logUnits: { ...(modal.logUnits || {}), [c.col]: e.target.value } })} list={`chunits-${c.col}`} placeholder={tr("unit")}
+                  style={{ ...sel, width: 70, padding: "1px 4px" }} aria-label={tr("Unit of {c}", { c: c.col })} />
+                <datalist id={`chunits-${c.col}`}>{logUnitChoices(c.col).map((u) => <option key={u} value={u} />)}</datalist>
+              </>
+            ) : c.unit ? <span style={{ color: "var(--color-text-muted)" }}>{` (${c.unit})`}</span> : null}
           </label>
         ))}
       </div>

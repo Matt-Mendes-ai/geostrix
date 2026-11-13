@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react"; // useRef: #3016
 import { X, Download } from "./icons.js";
 import { colorForLithology, colorForAlteration, colorForVein, colorForWeathering } from "../lib/layers.js";
 import { customCodeColour } from "../lib/customColour.js"; // TASKS.csv #1745 — a custom layer's codes in its own colours
@@ -55,7 +55,9 @@ import { numericTrackSources, numericTrackRows, trackFraction } from "../lib/fen
 // matching up repeated units (fault repetition, interbedding) is a judgement this tool has no business
 // making silently, so it draws the one defensible band and leaves the rest to the geologist. They are
 // off by default for that reason.
-export default function FenceDiagramModal({ traces = [], litho = [], labelFor = null, patternOverride = null, sections = [], onClose }) { // labelFor, patternOverride: #1995; sections: #1552
+// TASKS.csv #3016 (WA iron review) — areaIds: the Model area's checked holes (a Set) or null. The fence opens on them (a 12 km fence of 594 of
+// 6,390 holes opened on a 228-hole Model area); every hole stays in the list. It opens at the exaggeration it proposes (suggestFenceVe).
+export default function FenceDiagramModal({ traces = [], litho = [], labelFor = null, patternOverride = null, sections = [], areaIds = null, onClose }) { // labelFor, patternOverride: #1995; sections: #1552
   useEscapeKey(onClose); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
 
@@ -67,13 +69,14 @@ export default function FenceDiagramModal({ traces = [], litho = [], labelFor = 
   // holes near a line fitted through them; never on every hole in the district
   const usableSections = useMemo(() => (sections || []).filter((s) => lineFromSection(s)), [sections]);
   const [initial] = useState(() => {
-    const many = (traces || []).filter((t) => t?.wx?.length > 1).length > FENCE_MANY;
+    const pool = areaIds?.size ? (traces || []).filter((t) => areaIds.has(t.hole_id)) : traces || []; // #3016
+    const many = pool.filter((t) => t?.wx?.length > 1).length > FENCE_MANY;
     const last = usableSections[usableSections.length - 1];
     if (many && last) {
-      const ids = holesInCorridor(traces, lineFromSection(last), Number(last.corridor) || 100);
+      const ids = holesInCorridor(pool, lineFromSection(last), Number(last.corridor) || 100);
       if (ids.length >= 2) return { ids, trimmed: 0, sectionId: last.id };
     }
-    return initialFenceSelection(traces, 100);
+    return initialFenceSelection(pool, 100);
   });
   const [selected, setSelected] = useState(() => new Set(initial.ids));
   const [azMode, setAzMode] = useState(initial.sectionId ? "section" : "fit"); // "fit" | "manual" | "section" (#1552)
@@ -87,7 +90,8 @@ export default function FenceDiagramModal({ traces = [], litho = [], labelFor = 
   };
   const sectionLine = useMemo(() => (azMode === "section" ? lineFromSection(usableSections.find((x) => x.id === sectionId)) : null), [azMode, sectionId, usableSections]);
   const [manualAz, setManualAz] = useState("90");
-  const [ve, setVe] = useState(1); // vertical exaggeration
+  const [ve, setVeState] = useState(1); // vertical exaggeration
+  const veChosen = useRef(false), setVe = (v) => { veChosen.current = true; setVeState(v); }; // #3016 — until the user picks one, the proposed one
   const [showBands, setShowBands] = useState(false);
   const [offsetLimit, setOffsetLimit] = useState(100); // metres; beyond this a hole is flagged
   const [colWidth, setColWidth] = useState(9); // px half-width of each lithology column
@@ -128,6 +132,7 @@ export default function FenceDiagramModal({ traces = [], litho = [], labelFor = 
     const az = azMode === "manual" ? Number(manualAz) : null;
     return buildFencePanel(chosen, Number.isFinite(az) ? { azimuth: az } : {});
   }, [chosen, azMode, manualAz, sectionLine]);
+  useEffect(() => { if (!veChosen.current && panel) setVeState(Math.max(1, suggestFenceVe(panel.sRange, panel.zRange))); }, [panel]); // #3016 — the proposed exaggeration, until one is picked
 
   const track = useMemo(() => (trackSrc && panel ? numericTrackRows(trackSrc, panel.holes.map((h) => h.hole_id), assays, { log: trackLog }) : null), [trackSrc, panel, assays, trackLog]);
   const TRACK_PX = 26; // the track's full width, px
@@ -400,6 +405,7 @@ export default function FenceDiagramModal({ traces = [], litho = [], labelFor = 
               <label style={rowLabel}>{tr("Azimuth (°)")}<input value={manualAz} onChange={(e) => setManualAz(e.target.value)} style={sel} />
               </label>
             )}
+            {areaIds?.size > 0 && <div style={{ fontSize: 10.5, color: "#55606e", lineHeight: 1.4 }}>{tr("Opened on the Model area's {n} checked holes (Model settings); the others are in the list below.", { n: areaIds.size })}</div>}{/* #3016 */}
             <label style={rowLabel} title={tr("1x is true scale — a 60° hole is drawn at 60° and you can measure a dip off the page. Any other value is labelled on the diagram itself.")}>{tr("Vertical scale")}<select value={ve} onChange={(e) => setVe(Number(e.target.value))} style={sel}>
                 {FENCE_VE.map((v) => <option key={v} value={v}>{v === 1 ? tr("1× (true scale)") : `${v}× exaggerated`}</option>)}{/* #2426 — up to 50× for a shallow flat deposit */}
               </select>

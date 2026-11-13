@@ -1,4 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef, Suspense } from "react";
+import { sampleStatus } from "./lib/desktop.js"; // TASKS.csv #3100
+import { BC_SAMPLE_INFO } from "./lib/bcSamples.js"; // TASKS.csv #3100
+import { markSampleDownloaded } from "./lib/sampleCards.js"; // TASKS.csv #3100
 import { openHelp, onHelpOpen } from "./lib/help.js"; // TASKS.csv #1966
 import { t as tr, LANGUAGES, currentLanguage, setLanguage } from "./lib/i18n.js"; // TASKS.csv #786 — "tr": t is a common local name here
 import { oncePerWindow } from "./lib/oncePerWindow.js"; // TASKS.csv #1163
@@ -40,6 +43,7 @@ const ShortcutsModal = React.lazy(() => import("./components/ShortcutsModal.jsx"
 const HelpPane = React.lazy(() => import("./components/HelpPane.jsx")); // TASKS.csv #1966 — offline help, loaded on first use
 const ReportProblemModal = React.lazy(() => import("./components/ReportProblemModal.jsx")); // TASKS.csv #598
 const LicensesModal = React.lazy(() => import("./components/LicensesModal.jsx")); // TASKS.csv #639
+const SampleDownloadModal = React.lazy(() => import("./components/SampleDownloadModal.jsx")); // TASKS.csv #3100
 const ProjectCrsModal = React.lazy(() => import("./components/ProjectCrsModal.jsx")); // TASKS.csv #615
 const TableColumnsModal = React.lazy(() => import("./components/TableColumnsModal.jsx")); // TASKS.csv #2177
 const DegreesProjectBanner = React.lazy(() => import("./components/DegreesProjectBanner.jsx")); // TASKS.csv #1148
@@ -103,6 +107,14 @@ export default function App() {
   const undoSay = useCallback(() => say(undoMessage("undo", undo())), [undo]);
   const redoSay = useCallback(() => say(undoMessage("redo", redo())), [redo]);
   const [active, setActive] = useState("viewer");
+  // TASKS.csv #3100 — a BC sample not shipped and not downloaded yet: the download dialog (from the File menu here, from the empty 3D View's
+  // card through lib/desktop.js loadSampleFiles' "geostrix-sample-missing" event)
+  const [sampleAsk, setSampleAsk] = useState(null);
+  useEffect(() => { const h = (e) => { if (BC_SAMPLE_INFO[e.detail?.id]) setSampleAsk(e.detail.id); }; window.addEventListener("geostrix-sample-missing", h); return () => window.removeEventListener("geostrix-sample-missing", h); }, []);
+  const openSample = async (which) => {
+    if (BC_SAMPLE_INFO[which] && (await sampleStatus())[which] === "missing") { setSampleAsk(which); return; }
+    requestSampleProject(which); setActive(which === "perk" || which === "mount_raymond" ? "surface" : "viewer"); // mount_raymond: #3107
+  };
   const [geo3d, setGeo3d] = useState(false); // TASKS.csv #1979 — Geophysics shows the 3D View's viewport beside its sidebar
   const viewerShown = !!VIEWER_MODES[active] || (active === "geophysics" && geo3d);
   const activeRef = useRef(active); activeRef.current = active; // #565 — the menu bridge is subscribed once
@@ -403,7 +415,7 @@ export default function App() {
       else if (action === "about") setShortcutsTab("about");
       else if (action === "report-problem") openReportProblem(); // #598
       else if (action === "licenses") setLicensesOpen(true); // #639
-      else if (typeof action === "string" && action.startsWith("sample:")) { const which = action.slice(7); requestSampleProject(which); setActive(which === "perk" ? "surface" : "viewer"); } // #1120
+      else if (typeof action === "string" && action.startsWith("sample:")) { const which = action.slice(7); openSample(which); } // #1120; a BC sample not on this computer asks to download it first: #3100
       else if (action === "undo") undoSay();
       else if (action === "redo") redoSay();
     });
@@ -617,6 +629,7 @@ export default function App() {
       {subsetRequest && <Suspense fallback={null}><TableColumnsModal name={subsetRequest.name} preview={subsetRequest.preview} budget={subsetRequest.budget} onDone={(v) => { subsetRequest.resolve(v); setSubsetRequest(null); }} /></Suspense>}
       {crsRequest && <Suspense fallback={null}><ProjectCrsModal reason={crsRequest.reason} points={crsRequest.points} suggested={crsRequest.suggested} noLocalGrid={!!crsRequest.noLocalGrid} family={crsRequest.family || null} onDone={finishCrsRequest} /></Suspense>}
       {licensesOpen && <Suspense fallback={null}><LicensesModal onClose={() => setLicensesOpen(false)} /></Suspense>}
+      {sampleAsk && <Suspense fallback={null}><SampleDownloadModal id={sampleAsk} onClose={() => setSampleAsk(null)} onReady={(which) => { setSampleAsk(null); markSampleDownloaded(which); requestSampleProject(which); setActive(which === "perk" ? "surface" : "viewer"); }} /></Suspense>}{/* #3100 */}
       {reportProblem && <Suspense fallback={null}><ReportProblemModal screenshot={reportProblem.screenshot} crashed={reportProblem.crashed} onClose={() => setReportProblem(null)} /></Suspense>}
       {helpAt && <Suspense fallback={null}><HelpPane key={helpAt.n} initialId={helpAt.id} onClose={() => setHelpAt(null)} /></Suspense>}{/* #1966 */}
       {shortcutsTab && <Suspense fallback={null}><ShortcutsModal initialTab={shortcutsTab} pyStatus={pyStatus} onClose={() => setShortcutsTab(null)} /></Suspense>}

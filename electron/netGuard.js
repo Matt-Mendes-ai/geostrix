@@ -75,8 +75,9 @@ function pinnedLookup(addrs) {
 // the same headers (a Range keeps applying), never re-sending the body.
 // allowHost (TASKS.csv #960): optional (URL) => boolean, checked on EVERY hop — a feature limited to a list of servers
 // (public geochemistry, imagery) used to check only the first URL, and a redirect from a listed server went anywhere.
-async function guardedFetch(urlString, { timeoutMs = 60000, maxBytes = 64 * 1024 * 1024, maxRedirects = 5, fetchImpl = null, lookup, init = null, allowHost = null, blocked = addressBlocked } = {}) {
-  const signal = AbortSignal.timeout(timeoutMs);
+// onProgress(received, total|null), signal (TASKS.csv #3100): a long download's progress, and the user's Cancel
+async function guardedFetch(urlString, { timeoutMs = 60000, maxBytes = 64 * 1024 * 1024, maxRedirects = 5, fetchImpl = null, lookup, init = null, allowHost = null, blocked = addressBlocked, onProgress = null, signal: userSignal = null } = {}) {
+  const signal = userSignal ? AbortSignal.any([AbortSignal.timeout(timeoutMs), userSignal]) : AbortSignal.timeout(timeoutMs);
   let url = urlString;
   const agents = []; // #1264 — one per hop: each is pinned to that hop's checked addresses
   try {
@@ -110,6 +111,7 @@ async function guardedFetch(urlString, { timeoutMs = 60000, maxBytes = 64 * 1024
           const { done, value } = await reader.read();
           if (done) break;
           total += value.byteLength;
+          if (onProgress) onProgress(total, Number.isFinite(declared) ? declared : null); // #3100
           if (total > maxBytes) { try { await reader.cancel(); } catch { /* ignore */ } return { ok: false, status: res.status, message: `Response exceeded the ${(maxBytes / 1048576).toFixed(0)} MB limit.` }; }
           chunks.push(Buffer.from(value));
         }
@@ -118,6 +120,7 @@ async function guardedFetch(urlString, { timeoutMs = 60000, maxBytes = 64 * 1024
     }
     return { ok: false, status: 0, message: `Too many redirects (more than ${maxRedirects}).` };
   } catch (err) {
+    if (userSignal?.aborted) return { ok: false, status: 0, cancelled: true, message: "Cancelled." }; // #3100
     if (err.name === "TimeoutError" || err.name === "AbortError") return { ok: false, status: 0, message: `Timed out after ${Math.round(timeoutMs / 1000)} s.` };
     return { ok: false, status: 0, message: `Network error: ${err.message}` };
   } finally {

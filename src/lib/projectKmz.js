@@ -22,6 +22,7 @@ import { assayColorFor } from "./legendGroups.js";
 import { layerCategoryValue, STRUCTURE_CLASS_COLORS, STRUCTURE_CLASS_LABELS } from "./mapLayers.js";
 import { mapLayerFeatures, boundaryFeatures, surfaceStructureRows, kmlColor } from "./overlayExport.js";
 import { polygonsFromRings } from "./polygonRings.js";
+import { splitRings } from "./ringSplit.js"; // TASKS.csv #3126 — a ring crossing itself as written, split into simple loops (Perk-Rocky's And unit)
 
 export const MAX_CLASSES = 16; // a numeric log with more colours than this is grouped into equal bins
 const BINS = 12;
@@ -82,6 +83,7 @@ class KmlWriter {
     this.parts = [];
     this.placemarks = 0;
     this.coords = 0;
+    this.ringsSplit = 0;
   }
   ll(x, y) { const [lon, lat] = this.toLonLat(x, y); return `${lon.toFixed(7)},${lat.toFixed(7)}`; }
   lla(x, y, z) { this.coords++; return fin(z) ? `${this.ll(x, y)},${this.altOf(z).toFixed(2)}` : this.ll(x, y); }
@@ -91,7 +93,9 @@ class KmlWriter {
     let s = this.styles.get(key);
     if (!s) {
       const id = `s${this.styles.size}`;
-      const poly = fill == null ? "" : `<PolyStyle><color>${kmlColor(fill, fillAlpha)}</color>${outline ? "" : "<outline>0</outline>"}</PolyStyle>`;
+      // TASKS.csv #3068 follow-up (Matt, Perk-Rocky in Google Earth Pro: "Polygons are being exported with no colour") — the fill and outline
+      // flags written out rather than left to the viewer's defaults
+      const poly = fill == null ? "" : `<PolyStyle><color>${kmlColor(fill, fillAlpha)}</color><fill>1</fill><outline>${outline ? 1 : 0}</outline></PolyStyle>`;
       const xml = `<Style id="${id}"><IconStyle><color>${kmlColor(color, alpha)}</color><scale>${iconScale}</scale><Icon><href>${icon}</href></Icon></IconStyle><LabelStyle><scale>${label}</scale></LabelStyle><LineStyle><color>${kmlColor(color, alpha)}</color><width>${width}</width></LineStyle>${poly}</Style>`;
       s = { id, xml };
       this.styles.set(key, s);
@@ -110,9 +114,14 @@ class KmlWriter {
   lineGround(xy) { return `<LineString><tessellate>1</tessellate><coordinates>${xy.map(([x, y]) => { this.coords++; return this.ll(x, y); }).join(" ")}</coordinates></LineString>`; }
   point3d(x, y, z) { return `<Point><altitudeMode>absolute</altitudeMode><coordinates>${this.lla(x, y, z)}</coordinates></Point>`; }
   pointGround(x, y) { this.coords++; return `<Point><coordinates>${this.ll(x, y)}</coordinates></Point>`; }
+  // the rings in longitude / latitude as written (7 decimals), each split where it crosses itself, THEN grouped into polygons: Google Earth leaves an
+  // invalid polygon unfilled (Perk-Rocky's And unit: one hole a centimetre-wide figure-eight once reprojected and rounded)
   polygonGround(rings) {
-    const ring = (r) => { const c = r[0][0] === r[r.length - 1][0] && r[0][1] === r[r.length - 1][1] ? r : [...r, r[0]]; return `<LinearRing><coordinates>${c.map(([x, y]) => { this.coords++; return this.ll(x, y); }).join(" ")}</coordinates></LinearRing>`; };
-    return polygonsFromRings(rings).map(([outer, ...holes]) => `<Polygon><tessellate>1</tessellate><outerBoundaryIs>${ring(outer)}</outerBoundaryIs>${holes.map((h) => `<innerBoundaryIs>${ring(h)}</innerBoundaryIs>`).join("")}</Polygon>`).join("");
+    const ll = (rings || []).filter((r) => r?.length >= 3).map((r) => r.map(([x, y]) => { const [lon, lat] = this.toLonLat(x, y); return [Number(lon.toFixed(7)), Number(lat.toFixed(7))]; }));
+    const fixed = splitRings(ll);
+    if (fixed.length !== ll.length) this.ringsSplit += fixed.length - ll.length;
+    const ring = (r) => { const c = r[0][0] === r[r.length - 1][0] && r[0][1] === r[r.length - 1][1] ? r : [...r, r[0]]; this.coords += c.length; return `<LinearRing><coordinates>${c.map(([lon, lat]) => `${lon.toFixed(7)},${lat.toFixed(7)}`).join(" ")}</coordinates></LinearRing>`; };
+    return polygonsFromRings(fixed).map(([outer, ...holes]) => `<Polygon><tessellate>1</tessellate><altitudeMode>clampToGround</altitudeMode><outerBoundaryIs>${ring(outer)}</outerBoundaryIs>${holes.map((h) => `<innerBoundaryIs>${ring(h)}</innerBoundaryIs>`).join("")}</Polygon>`).join("");
   }
   multi(geoms) { return geoms.length === 1 ? geoms[0] : `<MultiGeometry>${geoms.join("")}</MultiGeometry>`; }
 }
@@ -336,20 +345,27 @@ export function buildProjectKml(ctx, opts) {
       w.close();
     }
     if (sets.length) {
+      // #3068 part 2 — each reading drawn with its USGS (FGDC) symbol, from the icon set the outcrop KMZ uses too (lib/structureKmzIcons.js,
+      // side 3's #3066 / #3091: the project's symbol per type, the set's line thickness, the true right-hand-rule strike): opts.structureIconOf
+      // (row, set) -> { href, heading } | null, its PNGs added to the zip by the caller. A reading with no icon gets the plain strike symbol.
+      const iconOf = opts.structureIconOf || (() => null);
       w.open("Structures");
       for (const set of sets) {
         counts.layers++;
         w.open(set.name || "Structures", { visible: set.visible !== false });
         const rows = surfaceStructureRows(set, ctx.epsg);
+        const raw = (set.rows || []).filter((r) => Number.isFinite(r.x) && Number.isFinite(r.y)); // the stored rows, in the same order (surfaceStructureRows' own filter)
         const used = new Set();
-        for (const r of rows) {
+        rows.forEach((r, ri) => {
           const cls = STRUCTURE_CLASS_COLORS[r.cls] ? r.cls : "other";
           used.add(cls);
           const color = STRUCTURE_CLASS_COLORS[cls];
           const strike = fin(num(r.strike_rhr_true)) ? num(r.strike_rhr_true) : fin(num(r.strike_rhr_grid)) ? num(r.strike_rhr_grid) : null;
-          const inline = strike != null ? `<Style><IconStyle><color>${kmlColor(color)}</color><scale>0.9</scale><heading>${Math.round(strike * 10) / 10}</heading><Icon><href>${STRIKE_ICON}</href></Icon></IconStyle><LabelStyle><scale>0.6</scale></LabelStyle></Style>` : "";
+          const icon = iconOf(raw[ri], set);
+          const href = icon ? icon.href : STRIKE_ICON, heading = icon ? icon.heading : strike;
+          const inline = icon || strike != null ? `<Style><IconStyle><color>${kmlColor(color)}</color><scale>0.9</scale><heading>${Math.round(heading * 10) / 10}</heading><Icon><href>${href}</href></Icon></IconStyle><LabelStyle><scale>0.6</scale></LabelStyle></Style>` : "";
           w.placemark(fin(num(r.dip)) ? String(Math.round(num(r.dip))) : "", w.style({ color, iconScale: 0.5 }), w.pointGround(num(r.x), num(r.y)), { inline, data: { class: r.cls, type: r.type, dip: r.dip, dipdir_true: r.dipdir_true, strike_rhr_true: r.strike_rhr_true, station: r.station, comment: r.comment } });
-        }
+        });
         legend({ label: set.name || "Structures", items: [...used].map((c) => [STRUCTURE_CLASS_LABELS[c] || c, STRUCTURE_CLASS_COLORS[c]]) }, set.visible !== false);
         w.close();
       }
@@ -444,6 +460,7 @@ export function buildProjectKml(ctx, opts) {
   const desc = `Exported from GeoStrix${opts.crsLabel ? ` (project CRS ${opts.crsLabel})` : ""}. Drillholes are drawn at their elevations, below the ground: untick Terrain in Google Earth's Layers to see them.`;
   const kml = `<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2">\n<Document><name>${esc(ctx.projectName || "GeoStrix project")}</name><open>1</open><description>${esc(desc)}</description>\n${styles}\n${w.parts.join("\n")}\n</Document>\n</kml>\n`;
   counts.placemarks = w.placemarks;
+  counts.ringsSplit = w.ringsSplit; // rings that crossed themselves as written, split into this many more loops
   counts.coordinates = w.coords;
   return { kml, files, counts };
 }

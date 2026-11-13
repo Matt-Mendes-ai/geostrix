@@ -42,8 +42,10 @@ test("outcrop dip labels: only the sets that ask, visible ones, sitting with the
   ];
   const items = outcropLabelItems(sets, { origin: { x: 0, y: 0, z: 900 }, terrain: null });
   assert.equal(items.length, 2);
-  assert.deepEqual([items[0].text, items[0].x, items[0].z], ["45", 100, -200]);
-  assert.ok(items[0].y > 100 && items[0].y < 120, String(items[0].y)); // 1000 - 900 + the disc's lift + a bit above it
+  // #3066: at the symbol's label anchor (FGDC 6.2: 0.6 mm along strike, 1.9 mm down dip; 20 m symbol = 4 m a mm): 45 -> 090 puts it 7.6 m
+  // east and 2.4 m north of the point
+  assert.equal(items[0].text, "45"); assert.ok(Math.abs(items[0].x - 107.6) < 1e-6 && Math.abs(items[0].z + 202.4) < 1e-6, JSON.stringify(items[0]));
+  assert.ok(items[0].y > 100 && items[0].y < 120, String(items[0].y)); // 1000 - 900 + a little above the ground
   assert.equal(items[1].y > 0 && items[1].y < 30, true); // no elevation and no terrain: the origin's z
   assert.match(items[1].tip, /^outcrops\nfault: 80° → 180°$/);
 });

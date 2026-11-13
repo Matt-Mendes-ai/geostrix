@@ -23,7 +23,7 @@ import PromptModal from "../components/PromptModal.jsx";
 import { minMax, LAYER_META } from "../lib/layers.js";
 import { categoryLegendGroups, assayLegendGroups, voxelLegendGroups, rasterLegendGroups, legendGroupsToItems, LEGEND_CATEGORY_KEYS, mapLayerLegendGroups, boundaryLegendGroups, swatchShape, capLegendGroups, outcropLegendGroup } from "../lib/legendGroups.js"; // TASKS.csv #725; #948; #1633; outcropLegendGroup: #1437
 import { niceScaleNumber } from "../lib/figureScale.js"; // TASKS.csv #311 — shared with the 3D viewport's scale bar
-import { collarTableSlice, continuationTables, collarsWithSurveyAttitude, continuationPageIndex, collarTableFieldChoices, defaultCollarTableFields, splitTableRows } from "../lib/collarTable.js"; // splitTableRows: #2770; // field columns: #2717; // continuationPageIndex: #2718 // TASKS.csv #1638; collarsWithSurveyAttitude: #2133
+import { collarTableSlice, continuationTables, collarsWithSurveyAttitude, continuationPageIndex, collarTableFieldChoices, defaultCollarTableFields, splitTableRows, suspectIdsOf, elevationCell, elevationNotes } from "../lib/collarTable.js"; // elevation*: #3023 // splitTableRows: #2770; // field columns: #2717; // continuationPageIndex: #2718 // TASKS.csv #1638; collarsWithSurveyAttitude: #2133
 import { fitDrillPlan, filterHoles, allHolesSteep, STEEP_DIP, turnedFrameFit, labelBackdrop } from "../lib/drillPlan.js"; // labelBackdrop: #2738; // TASKS.csv #1639; allHolesSteep: #2473; turnedFrameFit: #2305
 import DrillPlanColourControls from "../components/DrillPlanColourControls.jsx"; // TASKS.csv #2473
 import DrillPlanElement, { drillPlanDrawing } from "../components/DrillPlanElement.jsx"; // TASKS.csv #1639
@@ -370,8 +370,10 @@ export default function LayoutModule() {
         const el = elements.find((e) => e.id === img.replaceElementId);
         const aspect = img.naturalW && img.naturalH ? img.naturalW / img.naturalH : el.aspect;
         const world = img.worldWidthAtCaptureM ?? el.worldWidthAtCaptureM, denom = sectionScaleDenom(el);
-        const w = denom && world ? Math.round(sectionWidthForScale({ worldWidthAtCaptureM: world }, denom)) : el.w;
-        const upd = { ...el, src: img.src, naturalW: img.naturalW, naturalH: img.naturalH, aspect, w, h: Math.round(w / aspect), textFactor: img.textFactor || 1, legendItems: img.legendItems || el.legendItems, worldWidthAtCaptureM: world };
+        // TASKS.csv #3022 (review #2876) — not rounded to whole pixels: the scale is read back from the width, and a rounded width turned a
+        // picked 1 : 5,000 into '1 : 5,002 along the section'
+        const w = denom && world ? sectionWidthForScale({ worldWidthAtCaptureM: world }, denom) : el.w;
+        const upd = { ...el, src: img.src, naturalW: img.naturalW, naturalH: img.naturalH, aspect, w, h: w / aspect, textFactor: img.textFactor || 1, legendItems: img.legendItems || el.legendItems, worldWidthAtCaptureM: world };
         next.set(el.id, upd);
         const pt = sectionTextPt(upd), round = Number(img.resnapRound) || 0;
         if (pt != null && Math.abs(pt - 7) > 0.7 && round < 3 && upd.sectionTabId) { sendSectionResnap({ tabId: upd.sectionTabId, elementId: upd.id, textFactor: +((upd.textFactor * 7) / pt).toFixed(3), round: round + 1 }); again++; }
@@ -538,7 +540,11 @@ export default function LayoutModule() {
   // the way the viewport's last capture looked (its azimuth), centred on that data, then a refresh at that scale and
   // centre. The check is in plan: for an oblique view the vertical extent is not a map distance, so it is approximate
   // there and exact for a top-down view.
-  const fitViewport = async (sel) => {
+  // TASKS.csv #3018 (review #2876, WA iron) — Fit rotates the holes by the LAST capture's camera azimuth, but the capture it starts is taken with
+  // the current camera: after a turn to Top the first press said '1:500,000, they run the other way' and the second '1:250,000'. Fit now
+  // records the azimuth it used (fitAzimuth, fitFrom: the capture it follows); when the capture comes back at another azimuth, the effect
+  // below fits once more with that one, so a single press gives the answer two presses gave. pass: 2 on that second fit.
+  const fitViewport = async (sel, { pass = 1 } = {}) => {
     const pts = [];
     // TASKS.csv #2304 (review #2174) — the points of the holes drawn as assumed verticals (no survey, no azimuth / dip) kept apart too, so
     // the note blames them only when they do widen the frame (on the WA project they sit inside the fans)
@@ -579,9 +585,19 @@ export default function LayoutModule() {
     // 1:500,000 with the 10 drilled holes as specks, and nothing said why. (A notice would be cleared by the refresh re-selecting the frame.)
     const nHoles = (collars || []).filter((c) => Number.isFinite(c.x) && Number.isFinite(c.y)).length;
     const assumed = (collars || []).filter((c) => Number.isFinite(c.x) && Number.isFinite(c.y) && assumedIds.has(c.hole_id)).length;
-    updateSelected({ fixedScale: scale, trueScale: true, fitInfo: nHoles ? { scale, holes: nHoles, assumed, ...(assumed && scaleDrilled < scale ? { drilledScale: scaleDrilled } : {}), ...(turnedScale < scale ? { turnedScale } : {}) } : null }); // drilledScale: #2304; turnedScale: #2737
+    const patch = { fixedScale: scale, trueScale: true, fitInfo: nHoles ? { scale, holes: nHoles, assumed, ...(assumed && scaleDrilled < scale ? { drilledScale: scaleDrilled } : {}), ...(turnedScale < scale ? { turnedScale } : {}) } : null, fitAzimuth: sel.cameraAzimuthDeg || 0, fitFrom: sel.capturedAt || 0, fitPass: pass }; // drilledScale: #2304; turnedScale: #2737; fit*: #3018
+    setElements((els) => els.map((el) => (el.id === sel.id ? { ...el, ...patch } : el))); // by id: a second fit may run while another element is selected (#3018)
     startViewportRender(sel.themeId, sel.id, true, { fixedScale: scale, elementW: sel.w, elementH: sel.h, centreWorld });
   };
+  // #3018 — a fitted capture came back: at the azimuth Fit assumed, the fit stands; at another one (the camera was turned since the last
+  // capture), fit once more with the azimuth the capture was taken at. Once only: the flags are cleared either way.
+  useEffect(() => {
+    const due = elements.filter((el) => el.type === "viewport" && el.fitAzimuth != null && (el.capturedAt || 0) !== el.fitFrom);
+    if (!due.length) return;
+    const turn = (a, b) => { const d = Math.abs(((((a || 0) - (b || 0)) % 360) + 540) % 360 - 180); return d; };
+    setElements((els) => els.map((el) => (due.some((d) => d.id === el.id) ? { ...el, fitAzimuth: undefined, fitFrom: undefined, fitPass: undefined } : el)));
+    for (const el of due) if ((el.fitPass || 1) < 2 && turn(el.cameraAzimuthDeg, el.fitAzimuth) > 0.5) fitViewport({ ...el, fitAzimuth: undefined }, { pass: 2 });
+  }, [elements]); // fitViewport reads the project data of this render
   // TASKS.csv #906 — a resize handle was pressed (see Handles / the resize branch of the drag effect above)
   const onResizeStart = (e, el, handle) => {
     setSelected(el.id);
@@ -1027,7 +1043,8 @@ export default function LayoutModule() {
   // ACTUAL litho vocabulary in `layers.litho` (a theme only stores which units are hidden, not the
   // full unit list, since that list can grow after the theme was saved) to build the item list.
   // TASKS.csv #1633 — frameHoles (holesInFrame of the bound frame, or null): only the holes the frame shows give categories
-  const legendFromView = (theme, { frameHoles = null, frame = null } = {}) => {
+  // perGroup (TASKS.csv #3021): the codes listed per layer, a number or "all" (the legend's codesPerLayer; 12 by default, as before)
+  const legendFromView = (theme, { frameHoles = null, frame = null, perGroup = 12 } = {}) => {
     // TASKS.csv #2134 — the frame filters the surface samples and the map layers too: none inside drops the group, and the media /
     // classes are those found inside
     const sampleGroup = (() => {
@@ -1065,12 +1082,14 @@ export default function LayoutModule() {
     ];
     // #1633 — a long group keeps its most frequent entries and says how many it left out
     // TASKS.csv #2609 — case-only twins of one colour are one row, and the left-out line is for the sheet's reader (the sidebar explains editing)
-    const items = legendGroupsToItems(capLegendGroups(mergeCaseTwins(groups), 12, (n) => tr("+ {n} more codes, not listed", { n })));
+    // TASKS.csv #3021 (review #2876, WA iron) — the strand key printed 12 of 34 codes ('+ 22 more codes, not listed', the footwall JER among them):
+    // the legend's own 'Codes per layer' (12 / 24 / all); a long key flows into columns to fit the sheet (legendFit, #1480)
+    const items = legendGroupsToItems(capLegendGroups(mergeCaseTwins(groups), perGroup === "all" ? Infinity : Number(perGroup) || 12, (n) => tr("+ {n} more codes, not listed", { n })));
     return { groups, items };
   };
   // TASKS.csv #2471 — auto: the bound viewport was refreshed and the legend's rows were the loaded ones (legendSyncState "reload");
   // each load records the rows and the capture it came from (loadedItems / loadedCapturedAt), so a later refresh can tell
-  const syncLegendFromView = (legendId, { auto = false } = {}) => {
+  const syncLegendFromView = (legendId, { auto = false, perGroup = null } = {}) => { // perGroup: #3021 — a new 'Codes per layer' before it is stored
     const legend = elements.find((el) => el.id === legendId);
     if (!legend) return;
     const say = auto ? () => {} : setSyncNotice;
@@ -1096,7 +1115,7 @@ export default function LayoutModule() {
     const theme = themes.find((t) => t.id === vp.themeId) || (!vp.themeId && vp.viewState ? { ...vp.viewState, name: tr("the current view") } : null);
     if (!theme) { say(tr("This viewport's saved theme could no longer be found (it may have been renamed or deleted) — rebind the viewport to a theme in its own panel, or resave that theme, then sync again.")); return; }
     const frameHoles = holesInFrame(vp, collars); // #1633 — a top-down true-scale frame: what it shows; else the whole view
-    const { groups, items } = legendFromView(theme, { frameHoles, frame: frameTest(vp) }); // frame: #2134
+    const { groups, items } = legendFromView(theme, { frameHoles, frame: frameTest(vp), perGroup: perGroup ?? legend.codesPerLayer ?? 12 }); // frame: #2134; perGroup: #3021
     if (!items.length) { setElements((els) => els.map((el) => el.id === legendId ? { ...el, ...stamp([]) } : el)); setSyncNotice(tr("Nothing that view shows has a legend: no visible category layer, assay classes, block model, surface samples, map layer or boundary.")); return; }
     setElements((els) => els.map((el) => el.id === legendId ? { ...el, ...stamp(items) } : el));
     setSyncNotice(tr(groups.length === 1 ? "Loaded {n} legend group from \"{name}\"." : "Loaded {n} legend groups from \"{name}\".", { n: groups.length, name: theme.name })
@@ -1418,6 +1437,13 @@ export default function LayoutModule() {
                 </label>
                 <button onClick={() => syncLegendFromView(sel.id)} disabled={!sel.boundViewportId} style={{ ...pBtn, opacity: sel.boundViewportId ? 1 : 0.5 }}>
                   <RefreshCw size={12} />{" "}{tr("Load from view / section")}</button>
+                {/* TASKS.csv #3021 — how many codes of each layer a view's legend lists (a section's legend carries its own rows) */}
+                {elements.some((e) => e.id === sel.boundViewportId && e.type !== "image") && (
+                  <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 6, margin: "4px 0 6px" }} title={tr("The commonest codes of each layer are listed; the rest are counted on one line. A long key flows into columns to fit the sheet.")}>{tr("Codes per layer")}
+                    <select value={String(sel.codesPerLayer ?? 12)} onChange={(e) => { const v = e.target.value === "all" ? "all" : Number(e.target.value); updateSelected({ codesPerLayer: v }); syncLegendFromView(sel.id, { perGroup: v }); }} style={{ fontSize: "var(--font-size-base)" }} aria-label={tr("Codes per layer")}>
+                      <option value="12">12</option><option value="24">24</option><option value="all">{tr("all")}</option>
+                    </select></label>
+                )}
                 {legendSyncState(sel, elements.find((el) => el.id === sel.boundViewportId)) === "stale" && ( /* TASKS.csv #2471 */
                   <div role="status" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text-strong)", margin: "4px 0 8px", lineHeight: 1.4 }}>
                     {tr("Out of step with its viewport: the viewport was refreshed after these rows were loaded, and they were edited (or loaded before this check existed), so they were kept. Load from view to update them.")}</div>
@@ -2455,7 +2481,7 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
     const px = Math.max(2, Math.round((el.meters || 100) * (el.pxPerMeter || DEFAULT_PX_PER_METER))); // #920 — no 20 px floor: the bar is as long as its label says
     return (
       <div style={wrap} onMouseDown={onDown} data-el-id={el.id} {...kb}>
-        <svg width={px + 4} height={el.viewPlane ? 44 : 34} style={{ overflow: "visible" }}>
+        <svg width={px + 4} height={el.viewPlane || el.horizontalVe > 1 ? 44 : 34} style={{ overflow: "visible" }}>
           <rect x="2" y="4" width={px / 2} height="10" fill="#1a2028" />
           <rect x={2 + px / 2} y="4" width={px / 2} height="10" fill="#fbfbf8" stroke="#1a2028" />
           <rect x="2" y="4" width={px} height="10" fill="none" stroke="#1a2028" />
@@ -2463,6 +2489,7 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
           <text x={px + 2} y="28" fontSize={printPx(printPt.small)} textAnchor="end" fill="#1a2028" fontFamily={FONT}>{scaleBarLabel(el.meters || 100) /* #2140 — '5 km', not '5000 m' */}</text>
           {scaleBarMidLabel(el.meters || 100, px) && <text x={2 + px / 2} y="28" fontSize={printPx(printPt.small)} textAnchor="middle" fill="#1a2028" fontFamily={FONT}>{scaleBarMidLabel(el.meters || 100, px)}</text>}{/* #2140 — the half-way tick */}
           {el.viewPlane && <text x="2" y="40" fontSize={printPx(printPt.small)} fill="#1a2028" fontFamily={FONT}>{tr("in the view plane (oblique view)")}</text>}
+          {el.horizontalVe > 1 && <text x="2" y="40" fontSize={printPx(printPt.small)} fill="#1a2028" fontFamily={FONT}>{tr("horizontal scale ({ve}x vertical exaggeration)", { ve: el.horizontalVe })}</text>}{/* #3022 */}
         </svg>
       </div>
     );
@@ -2498,7 +2525,7 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
         </div>
       ) : (
         <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3, breakInside: "avoid" /* #1480 — a row is never split between columns */ }}>
-          <span style={{ width: 20, display: "inline-flex", justifyContent: "center", flexShrink: 0 }}>{opt?.pattern != null ? <PatternSwatch code={opt.pattern} color={color} size={14} style={{ ...swatchShape(opt?.kind, 14), display: "inline-block", border: "1px solid #999" }} /> /* #1995 — the FGDC pattern the section / strip log draws */ : <span style={{ ...swatchShape(opt?.kind, 14), background: color, opacity: opt?.opacity ?? 1 /* #1122 — the map layer's drape opacity */, display: "inline-block", border: opt?.kind === "line" ? "none" : "1px solid #999" }} />}</span>{/* #948 — square / line / dot */}
+          <span style={{ width: 20, display: "inline-flex", justifyContent: "center", flexShrink: 0 }}>{opt?.svg ? <span style={{ display: "inline-flex" }} dangerouslySetInnerHTML={{ __html: opt.svg }} /> /* #3066 — a USGS structure symbol */ : opt?.pattern != null ? <PatternSwatch code={opt.pattern} color={color} size={14} style={{ ...swatchShape(opt?.kind, 14), display: "inline-block", border: "1px solid #999" }} /> /* #1995 — the FGDC pattern the section / strip log draws */ : <span style={{ ...swatchShape(opt?.kind, 14), background: color, opacity: opt?.opacity ?? 1 /* #1122 — the map layer's drape opacity */, display: "inline-block", border: opt?.kind === "line" ? "none" : "1px solid #999" }} />}</span>{/* #948 — square / line / dot */}
           <span style={{ fontSize: printPx(printPt.small), color: INK }}>{name}</span>
         </div>
       ))}
@@ -2516,9 +2543,18 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
       columns = [tr("Hole"), tr("Easting"), tr("Northing"), tr("Elev. (m)"), tr("Azimuth (grid)") /* #1771 — GeoStrix keeps grid azimuths */, tr("Dip"), tr("Depth (m)"), ...extra];
       const sl = collarTableSlice(cs, { firstRow: el.firstRow, maxRows: el.maxRows, filter: el.holeFilter }); // #1638
       const star = (v, fromSurvey) => (v !== "" && fromSurvey ? `${v}*` : v); // #1483 — from the first survey station; #1771 each value its own flag
-      rows = sl.rows.map((c) => [String(c.hole_id ?? ""), f(c.x, 0), f(c.y, 0), f(c.z, 1), Math.abs(Number(c.dip)) >= 89.5 ? "—" /* #2615 — a vertical hole has no azimuth ('344*  -90*') */ : Number.isFinite(c.azSurvey) ? `${f(c.azimuth, 0)}†` /* #2133 */ : star(f(c.azimuth, 0), c.azFromSurvey ?? c.orientFromSurvey), star(f(Number.isFinite(c.dip) ? -c.dip : "", 0), c.dipFromSurvey ?? c.orientFromSurvey) /* #1033 — negative = down, as imported */, f(c.length, 1), ...extra.map((k) => String(c.attrs?.[k] ?? "").trim())]); // extra: #2717
+      const suspectZ = suspectIdsOf(ctx?.collars || []); // #3023 — #3004's rule over the whole project's collars
+      rows = sl.rows.map((c) => [String(c.hole_id ?? ""), f(c.x, 0), f(c.y, 0), elevationCell(c, suspectZ) /* #3023: ‡ assumed, § suspect */, Math.abs(Number(c.dip)) >= 89.5 ? "—" /* #2615 — a vertical hole has no azimuth ('344*  -90*') */ : Number.isFinite(c.azSurvey) ? `${f(c.azimuth, 0)}†` /* #2133 */ : star(f(c.azimuth, 0), c.azFromSurvey ?? c.orientFromSurvey), star(f(Number.isFinite(c.dip) ? -c.dip : "", 0), c.dipFromSurvey ?? c.orientFromSurvey) /* #1033 — negative = down, as imported */, f(c.length, 1), ...extra.map((k) => String(c.attrs?.[k] ?? "").trim())]); // extra: #2717
       more = sl.after; head = sl.start > 0 || el.holeFilter ? tr("Rows {a}–{b} of {n}", { a: sl.total ? sl.start + 1 : 0, b: sl.end, n: sl.total }) + (el.holeFilter ? ` (${el.holeFilter})` : "") : null; nextRow = sl.end + 1;
       if (sl.rows.some((c) => c.orientFromSurvey)) surveyNote = tr("* From the shallowest survey station: the collar record has none for that value.");
+      // #3023 — what the elevation marks mean (and which holes carry them)
+      for (const n of elevationNotes(sl.rows, suspectZ)) {
+        const ids = n.ids.slice(0, 6).join(", ") + (n.ids.length > 6 ? ` +${n.ids.length - 6}` : "");
+        const line = n.kind === "assumed"
+          ? tr("‡ Elevation not in the collar file: filled at import ({how}): {ids}.", { how: Object.entries(n.how).map(([k, v]) => `${k === "terrain" ? tr("from the terrain") : k === "median" ? tr("the collars' median") : tr("zero")}${n.ids.length > 1 ? ` ×${v}` : ""}`).join(", "), ids })
+          : tr("§ Elevation in the collar file but probably a missing value (0 m among collars far from 0, or far from every other collar): {ids}.", { ids });
+        surveyNote = (surveyNote ? surveyNote + " " : "") + line;
+      }
       // #2133 — a collar azimuth that disagrees with the survey: the collar file's north reference, or a planned azimuth
       const differs = sl.rows.filter((c) => Number.isFinite(c.azSurvey));
       if (differs.length) surveyNote = (surveyNote ? surveyNote + " " : "") + tr("† The collar record's azimuth, which differs from the hole's shallowest survey station (grid north) by more than 0.5°: {list}. The collar file may use another north reference, or hold the planned azimuth.", { list: differs.slice(0, 6).map((c) => `${c.hole_id} ${f(c.azSurvey, 1)}`).join(", ") + (differs.length > 6 ? ` (+${differs.length - 6})` : "") });
@@ -2533,7 +2569,7 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
     }
     const fs = printPx(el.fontPt || printPt.small), cell = { padding: `${Math.round(fs * 0.25)}px ${Math.round(fs * 0.5)}px`, borderBottom: "1px solid #c9ced4" /* #999 — 0.26 mm on paper like the scale bar; 0.5 px vanished on screen at Fit zoom */, whiteSpace: "nowrap" };
     const tableParts = el.source === "collars" ? splitTableRows(rows, el.split) : [rows]; // #2770
-    const numeric = columns.map((_, j) => rows.length > 0 && rows.every((r) => r[j] === "" || /^[-+≥<>]?[\d.,]+[*†]?$/.test(String(r[j])))); // \*: #1483; †: #2133
+    const numeric = columns.map((_, j) => rows.length > 0 && rows.every((r) => r[j] === "" || /^[-+≥<>]?[\d.,]+[*†‡§]?$/.test(String(r[j])))); // \*: #1483; †: #2133; ‡ §: #3023
     return (
       <div style={{ ...wrap, width: el.w || 520, background: "#fff", border: frameBorder(el), padding: 6, boxSizing: "border-box", fontFamily: FONT, color: "#1a2028" }} onMouseDown={onDown} data-el-id={el.id} {...kb}>
         {el.title && <div style={{ fontSize: printPx((el.fontPt || printPt.small) + 2), fontWeight: 700, marginBottom: 4 }}>{fillText(el.title, ctx)}</div>}

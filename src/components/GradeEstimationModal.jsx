@@ -8,6 +8,8 @@ import { X, Play } from "./icons.js";
 import { compositeDownhole, rawSampleIntervals, PRECIOUS_METALS, capAudit, lengthWeightedPercentile, gradeUnitLabel, resolvedSegments } from "../lib/geochem.js"; // gradeUnitLabel: #2218; // rawSampleIntervals: #571; lengthWeightedPercentile: #1573
 import CapAuditHint from "./CapAuditHint.jsx"; // TASKS.csv #533
 import EstimateCheck from "./EstimateCheck.jsx"; // TASKS.csv #1051
+import { NEAR_UNSAMPLED_HOLES } from "../lib/unsampledFlags.js"; // TASKS.csv #3065
+import { estimateCheck, swath } from "../lib/estimateCheck.js"; // TASKS.csv #3060 — worked out during the run
 import { excludeQAQC, labAssays } from "../lib/qaqc.js"; // TASKS.csv #266
 import { samplePointsFromIntervals, MAX_BLOCKS, ESTIMATION_METHODS, SUPPORT_COLORS, summarizeSupport, supportInReach, supportBeyondReach, retallyKeptCells } from "../lib/estimation.js"; // retallyKeptCells: #2106
 import { BLOCK_MODEL_BUDGETS, MAX_BLOCK_MODEL_BUDGET, blockModelBudgetNote, cellToFit, blockModelLattice, snapBoundsToLattice, overlapBox, blockModelExtent /* #2729 */ } from "../lib/estimationMeta.js"; // TASKS.csv #626; block-model budgets: #661
@@ -436,6 +438,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
           intervals = raw.intervals;
           rawStats = raw.stats;
         }
+        await new Promise((r) => setTimeout(r, 0)); // TASKS.csv #3060 — compositing, placing the points and the unsampled metres were one ~1 s task: the window paints between them
         let { points, dropped, clamped, beyondTrace } = samplePointsFromIntervals(intervals, collars, survey, desurveyHole, desurveyMethod); // #135
         // TASKS.csv #2721 — each composite's share of its metres filled from the picked log (its value is partly the log's)
         const logFills = uns.mode === "log" ? (filled.fills || []).filter((f) => f.unsampledFill === "log") : [];
@@ -480,6 +483,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
           if (nn.length) supportRef = Math.max(2 * nn[nn.length >> 1], 2 * Math.max(cell3.dx, cell3.dy, cell3.dz));
         }
         const ac = new AbortController(); abortRef.current = ac;
+        await new Promise((r) => setTimeout(r, 0)); // #3060
         // TASKS.csv #2596 (review #2486, WA lithium) — every hole's drilled metres with no sample of this element (barren-filled metres count
         // as sampled: #2417), so each block can be flagged when such a metre is nearer to it than its nearest sample
         const unsPts = (() => {
@@ -492,6 +496,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
           const step = Math.max(1, Math.min(useComposites ? compositeLength : 2, Math.min(cell3.dx, cell3.dy, cell3.dz) / 2));
           return unsampledDrillPoints(traces, sampled, step, { xmin: bounds.xmin - pad, xmax: bounds.xmax + pad, ymin: bounds.ymin - pad, ymax: bounds.ymax + pad, zmin: bounds.zmin - pad, zmax: bounds.zmax + pad });
         })();
+        await new Promise((r) => setTimeout(r, 0)); // #3060
         const est = await runEstimation("block", estPts, {
           bounds, cellSize: cell3, maxBlocks: blockBudget, // #626; cell3 / bounds: the matched lattice (#724)
           method, searchRadius: searchRadius > 0 ? searchRadius : gridDiagonal, minSamples, maxSamples, maxPerHole, // maxPerHole: #709
@@ -511,8 +516,8 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
           bounds, cellSize: cell3, maxBlocks: blockBudget, method: "nn", searchRadius: searchRadius > 0 ? searchRadius : gridDiagonal,
           minSamples: 1, maxSamples: 1, minHoles: 1, restrictToDomain: restrictToDomain && !!domainKey, noCodeAsDomain: restrictToDomain && !!domainKey && noCodeAsDomain /* #2541 */,
           ...(trend ? { trend: { basis: trendBasis(trend), scales: trendSearchScales(trend) } } : {}),
-        }, { onProgress: (f) => setProgress(0.8 + 0.2 * f), signal: ac.signal });
-        if (logInfo) for (const g of nnEst === est ? [est] : [est, nnEst]) for (const c of g.cells) c.value = unlogValue(c.value); // #1741 — back to data units
+        }, { onProgress: (f) => setProgress(0.8 + 0.2 * f), signal: ac.signal, checkOnly: true /* #3060 — only joined against the estimate: kept as columns */ });
+        if (logInfo) { for (const c of est.cells) c.value = unlogValue(c.value); if (nnEst !== est) { const v = nnEst.checkColumns.value; for (let i = 0; i < v.length; i++) v[i] = unlogValue(v[i]); } } // #1741 — back to data units
         // TASKS.csv #404 — the parameters are captured AT RUN TIME (the form can be edited before
         // "Add to project"), and travel with the block model into the project file.
         let outsideArea = 0; // #1570 — set below when a design-string area drops blocks; params read it, so it is declared first
@@ -531,6 +536,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
           desurveyMethod: desurveyMethod || "minimum curvature", samplePoints: points.length, generatedAt: new Date().toISOString(),
           ...uns.params(filled), beyondFlagged: true, // #2417 / #2542 — the unsampled metres' reading; each block flagged above / below its samples
           nearUnsampledFlagged: true, unsampledDrillPoints: unsPts.length, // #2596 — each block flagged when unsampled drilling is nearer than its nearest sample
+          nearUnsampledHoles: NEAR_UNSAMPLED_HOLES, // #3065 — the test took the run's holes (#3006): a model without this, from the checked holes, may carry stale flags
           ...(source ? { source: `${source.label} (${sourceData.assays.length} readings, values as logged)`, valueTransform: logInfo ? `log10 (each block a geometric mean; ${logInfo.belowFloor} value(s) at or below zero floored at ${logInfo.floor})` : "none", ...(sourceData.pointRows ? { pointSupportM: sourceData.pointSupport } : {}) } : {}), // #1741
         };
         if (est.mlsCounts) params.mlsBlocks = est.mlsCounts; // #516 — how the linear trend was fitted
@@ -559,6 +565,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
           est.blocksSkipped += outsideArea; est.blocksEstimated = est.cells.length;
           est.cutOutsideArea = outsideArea;
         }
+        await new Promise((r) => setTimeout(r, 0)); // TASKS.csv #3060 — the ground cut (a terrain lookup per block) is a task of its own
         if (groundAt && cutAtGround) { // cutAtGround: #2217
           const before = est.cells.length;
           est.cells = est.cells.filter((c) => { const g = groundAt(c.x, c.y); return !(Number.isFinite(g) && c.z > g); });
@@ -585,7 +592,13 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
         if (logFills.length) { let all = 0, lg = 0; for (const c of est.cells) { const m = Math.max(0, c.value) * c.dx * c.dy * c.dz; all += m; lg += m * (c.fromLog || 0); } est.fromLogShare = all > 0 ? lg / all : 0; } // #2721
         await new Promise((r) => setTimeout(r, 0)); // #2547
         est.belowDrilling = belowDrilling(est.cells, points, Number(searchRadius) || 0); // TASKS.csv #2546
-        setResult({ ...est, params, nnCells: method === "nn" ? est.cells : nnEst.cells, checkPoints: points, samplePointCount: points.length, noCodeComposites: domainKey ? points.filter((p) => p.domain == null).length : 0 /* #2541 */, droppedCount: dropped, clampedCount: clamped, beyondTraceCount: beyondTrace, rawStats, intervalCount: intervals.length });
+        // TASKS.csv #3060 — the check against the NN model and the first swath (Easting) worked out here, a task each, so the result's first
+        // render reads them (lib/estimateCheck.js keeps them) instead of joining every block inside it
+        const nnCheck = method === "nn" ? est.cells : nnEst.checkColumns;
+        await new Promise((r) => setTimeout(r, 0)); estimateCheck(est.cells, nnCheck, points);
+        await new Promise((r) => setTimeout(r, 0)); swath(est.cells, nnCheck, points, "x");
+        await new Promise((r) => setTimeout(r, 0)); 
+        setResult({ ...est, params, nnCells: nnCheck /* #3060 */, checkPoints: points, samplePointCount: points.length, noCodeComposites: domainKey ? points.filter((p) => p.domain == null).length : 0 /* #2541 */, droppedCount: dropped, clampedCount: clamped, beyondTraceCount: beyondTrace, rawStats, intervalCount: intervals.length });
         setAdded(false); setAddedSupport(false); setAddedKv(false); // a fresh run invalidates every "Added ✓" state
       } catch (e) {
         setError(e.cancelled ? tr("Estimation cancelled.") : (e.message || tr("Estimation failed.")));

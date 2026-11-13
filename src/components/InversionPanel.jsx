@@ -39,6 +39,7 @@ import { defaultPlannedExtent, generatePlannedStations, DEFAULT_PLANNED } from "
 import { replaceSurveyPoints, SURVEY_METHODS as SM } from "../lib/geophysSurveys.js"; // TASKS.csv #1710 — the predicted anomaly as a survey
 import { requestModuleAction } from "../lib/menuRequests.js"; // TASKS.csv #1429
 import { coreCellHint } from "../lib/coreCellHint.js"; // TASKS.csv #1590
+import { inversionLogSources, defaultLogSource, logReadingCounts } from "../lib/inversionLogSources.js"; // TASKS.csv #2950
 
 const METHODS = {
   mag: { label: "Magnetics (TMI)", unit: "nT", confirm: "These values are the total magnetic field in nT as measured (not RTP, not a derivative): either the anomaly, with the IGRF / regional field removed in processing, or the raw total field over an area small enough that its regional field is a plane, which Remove base level > Best-fit plane takes out. For the raw total field over a larger area, Remove base level > Subtract the IGRF field takes the computed IGRF-14 out first.", property: "susceptibility (SI)", contrastLabel: "Susceptibility (SI)" },
@@ -48,7 +49,7 @@ const METHODS = {
 const num = (v) => (v === "" || v == null ? NaN : Number(v));
 
 export default function InversionPanel({ pBtn, numInput, inPane = false, resultSlot = null }) { // inPane: TASKS.csv #458
-  const { layers, terrain: projectTerrain /* #2638 — the run may use its own ground, below */, project, surfaceStructures, getProjectToken, addVoxelModelToTab, collars, survey: drillSurvey, desurveyMethod, geophysSurveys, voxelModels, addTerrain, goToModule } = useStore(); // goToModule: #1429 // addTerrain: #1589
+  const { layers, customLayers /* #2950 */, terrain: projectTerrain /* #2638 — the run may use its own ground, below */, project, surfaceStructures, getProjectToken, addVoxelModelToTab, collars, survey: drillSurvey, desurveyMethod, geophysSurveys, voxelModels, addTerrain, goToModule } = useStore(); // goToModule: #1429 // addTerrain: #1589
   const keptScope = scopeOf(getProjectToken()); // TASKS.csv #1284 — survives a tab switch
   const setTaskProgress = useSetTaskProgress();
   // TASKS.csv #364 — every imported point file lands in the one geophys_pts layer, so a mag survey and a
@@ -190,10 +191,16 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
   const thinSuggestion = useMemo(() => (rows.length > MAX_STATIONS ? suggestThinSpacing(xs, ys) : null), [rows]);
 
   // TASKS.csv #323 — the log layer that constrains this method, and its samples in model units
-  const dhLayer = method === "grav" ? "sg" : "magsusc";
-  const dhRows = layers[dhLayer] || [];
+  // TASKS.csv #2950 — any numeric log can be it: the built-in layer, or a custom log layer (the downhole-log import's channels), chosen in 'Log'
+  const dhSources = useMemo(() => (method ? inversionLogSources({ layers, customLayers }, method) : []), [layers, customLayers, method]);
+  const dhPick = dh[`source_${method}`]; // kept per method: a susceptibility log is no choice for gravity
+  const dhSource = dhSources.find((s) => s.key === dhPick) || (dhPick ? null : defaultLogSource(dhSources));
+  const dhLayer = dhSource?.key || (method === "grav" ? "sg" : "magsusc");
+  const dhRows = useMemo(() => (dhSource ? dhSource.rows() : []), [dhSource]);
+  const logCounts = useMemo(() => logReadingCounts({ layers, customLayers }), [layers, customLayers]); // #2950 — the empty state counts the custom logs too
   const suscHint = useMemo(() => (method === "mag" ? suscUnitHint(dhRows.map((r) => r.value)) : null), [method, dhRows]); // #1435
   const dhConstraintPoints = () => {
+    if (!dhRows.length && dhSources.length) return { problem: tr("Choose the log that holds the {v} readings (Log).", { v: method === "grav" ? tr("specific gravity") : tr("susceptibility") }) }; // #2950
     if (!dhRows.length) return { problem: tr("Drillhole constraints need a {v} log layer — import one, or untick the constraints.", { v: method === "grav" ? tr("Specific gravity") : tr("Mag. susceptibility") }) };
     if (method === "mag" && !SUSC_UNITS[dh.units]) return { problem: tr("Say what units the susceptibility log is in.") };
     if (method === "grav" && !(num(dh.background) >= 1 && num(dh.background) <= 5)) return { problem: tr("Enter the background density (g/cc) the density contrast is measured from — usually the one used for the Bouguer correction.") };
@@ -508,7 +515,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
             <div>{tr("No survey loaded. With a magnetic or gravity survey (Geophysics › Point survey: x, y, z and the measured value per station) you can:")}</div>
             <ul style={{ margin: "4px 0 4px 16px", padding: 0 }}>
               <li>{tr("invert it into a susceptibility or density model;")}</li>
-              <li>{tr("constrain that inversion with the {ms} mag-susc and {sg} SG log readings in the drillholes;", { ms: ((layers.magsusc || []).length).toLocaleString(), sg: ((layers.sg || []).length).toLocaleString() })}</li>
+              <li>{tr("constrain that inversion with the {ms} mag-susc and {sg} SG log readings in the drillholes;", { ms: logCounts.ms.toLocaleString(), sg: logCounts.sg.toLocaleString() })}</li>
               <li>{tr("test a body or a geology block model against it.")}</li>
             </ul>
             <div>{tr("To design that survey first, tick \"Forward model on a planned grid\" below: a block model given the log medians, or a plate, predicts the anomaly over the grid you would walk.")}</div>
@@ -663,6 +670,14 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
                 {/* TASKS.csv #323 — drillhole logs as constraints */}
                 <label style={{ ...row, cursor: "pointer" }} title={tr("Where a drillhole passes through a model cell, hold that cell close to what the hole logged. Cells no hole touches are inverted exactly as before.")}>
                   <input type="checkbox" checked={dh.on} onChange={(e) => setDh((p) => ({ ...p, on: e.target.checked }))} />{tr("Constrain with drillhole {v} logs ({dhRows} rows)", { v: method === "grav" ? tr("specific gravity") : tr("susceptibility"), dhRows: dhRows.length.toLocaleString() })}</label>
+                {dh.on && dhSources.length > 0 && ( /* TASKS.csv #2950 — which log: the built-in layer or a custom log layer */
+                  <div style={row}><span style={lbl}>{tr("Log")}</span>
+                    <select value={dhSource?.key || ""} onChange={(e) => setDh((p) => ({ ...p, [`source_${method}`]: e.target.value }))} style={{ ...inp, width: "auto", maxWidth: 220 }} aria-label={tr("Log that constrains the inversion")}>
+                      {!dhSource && <option value="">{tr("Choose…")}</option>}
+                      {dhSources.map((s) => <option key={s.key} value={s.key}>{s.builtIn ? tr(s.label) : s.label} ({s.n.toLocaleString()})</option>)}
+                    </select>
+                  </div>
+                )}
                 {dh.on && <>
                   {method === "mag" && (
                     <div style={row}><span style={lbl}>{tr("Log units")}</span>

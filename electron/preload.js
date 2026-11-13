@@ -63,6 +63,12 @@ contextBridge.exposeInMainWorld("desktop", {
   tabSiblingShapefile: (file) => { const filePath = webUtils.getPathForFile(file); return filePath ? ipcRenderer.invoke("tab-sibling-shapefile", { filePath }) : Promise.resolve({ ok: false, error: "no path" }); }, // TASKS.csv #1349
   gpkgRead: (file, opts) => { const filePath = webUtils.getPathForFile(file); return filePath ? ipcRenderer.invoke("gpkg-read", { filePath, ...opts }) : Promise.resolve({ ok: false, error: "no path" }); },
   sampleDataPath: () => ipcRenderer.invoke("sample-data-path"),
+  // TASKS.csv #3100 — the BC samples (not shipped): where each is, and the download on request
+  sampleStatusAtStart: (() => { try { return ipcRenderer.sendSync("sample-status-sync"); } catch (_) { return {}; } })(),
+  sampleStatus: () => ipcRenderer.invoke("sample-status"),
+  sampleDownload: (id) => ipcRenderer.invoke("sample-download", id),
+  sampleDownloadCancel: () => ipcRenderer.invoke("sample-download-cancel"),
+  onSampleDownloadProgress: (cb) => { const h = (_e, d) => cb(d); ipcRenderer.on("sample-download-progress", h); return () => ipcRenderer.removeListener("sample-download-progress", h); },
   autosaveWrite: (payload) => ipcRenderer.invoke("autosave-write", payload),
   autosaveWriteParts: (payload) => ipcRenderer.invoke("autosave-write-parts", payload), // TASKS.csv #1975
   autosaveRead: () => ipcRenderer.invoke("autosave-read"),

@@ -3,7 +3,7 @@
 GeoStrix is a desktop application that runs on your own machine. It has no accounts, no sign-in, and
 no analytics or telemetry of any kind.
 
-This policy describes the application's behaviour as of version 0.1.112. It is published here so that
+This policy describes the application's behaviour as of version 0.1.113. It is published here so that
 anyone can check what the application does with their data before installing it.
 
 ## What is collected
@@ -46,6 +46,7 @@ GeoStrix only makes network requests as a direct result of features you use:
 | You click *Install predictive modelling…* (3D Modelling tab → geoML models) | `github.com`, then `release-assets.githubusercontent.com` | Download the optional predictive-modelling add-on (its checksum is verified before it is installed) |
 | You connect to a database | The host **you** enter | Query your own PostgreSQL or MySQL / MariaDB database |
 | You fetch Macrostrat geology (Maps → Web layers), or the map units at the project centre | `tiles.macrostrat.org`, `macrostrat.org` | Fetch the geology map tiles for the project area and the units and map sources at one point (data CC BY 4.0) |
+| You open a BC sample project that is not on your computer yet (Harry, Perk-Rocky, Silvertip), after confirming the download | `apps.nrs.gov.bc.ca`, `cmscontent.nrs.gov.bc.ca` | Download that sample's public data from the Province of British Columbia (the assessment report's data package, or the BC Geological Survey's drillhole database for Harry) and convert it on your computer; BC's terms do not let GeoStrix include it in the installer |
 | You add a WMS / WMTS / WFS layer | The server **you** enter, or the one you pick under *Common services* (`openmaps.gov.bc.ca`, `services.ga.gov.au`) | Fetch the layer you requested |
 
 These requests necessarily reveal your IP address to the operator of the service being contacted
@@ -58,7 +59,7 @@ is tied to your Tracestrack account. (Database and WMS / WFS servers receive the
 GeoStrix's built-in spell checker is turned off, so no spelling dictionary is ever downloaded.
 
 If you never use basemaps, terrain, satellite imagery, public geochemistry, Macrostrat geology, updates, the add-on download,
-databases or WMS layers, GeoStrix makes no network connections at all.
+the BC sample downloads, databases or WMS layers, GeoStrix makes no network connections at all.
 
 ## The Python sidecar
 

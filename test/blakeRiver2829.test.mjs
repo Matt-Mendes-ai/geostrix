@@ -85,7 +85,7 @@ test("the loader sets the CRS on an empty project, adds the survey with its meth
 
 test("the sample is offered on both empty views, named on its tab, and the README carries the licence and what was done", () => {
   for (const mode of ["viewer", "surface"]) assert.ok(sampleCardsFor(mode).some((c) => c.id === "blake"), mode);
-  assert.equal(sampleCardsFor("viewer").length, 6);
+  assert.ok(sampleCardsFor("viewer").length >= 6); // more samples were added after it (#3107)
   assert.match(sampleFootnote(), /Blake River gravity/);
   assert.equal(sampleProjectName("blake", "Untitled project"), "Blake River gravity (sample)");
   assert.equal(sampleProjectName("blake", "My project"), "My project");

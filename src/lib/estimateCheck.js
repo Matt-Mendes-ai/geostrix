@@ -10,29 +10,36 @@ const blockKey = (c) => `${Math.round(c.x * 1000)},${Math.round(c.y * 1000)},${M
 // times, each with 190,000 string keys), keyed by the lattice index from the first block (both models share the lattice); a model whose
 // blocks are not on one lattice falls back to the mm string key
 const joinCache = new WeakMap();
+// TASKS.csv #3060 — the NN model may come as columns ({ n, dx, dy, dz, x, y, z, value }, lib/estimationCells.js checkColumns) instead of
+// cell objects: read through one view either way
+const nnView = (nn) => (Array.isArray(nn)
+  ? { n: nn.length, x: (q) => nn[q].x, y: (q) => nn[q].y, z: (q) => nn[q].z, v: (q) => nn[q].value, first: nn[0] }
+  : { n: nn.n, x: (q) => nn.x[q], y: (q) => nn.y[q], z: (q) => nn.z[q], v: (q) => nn.value[q], first: nn.n ? { x: nn.x[0], y: nn.y[0], z: nn.z[0], dx: nn.dx, dy: nn.dy, dz: nn.dz } : null });
 function joined(cells, nnCells) {
   let byNn = joinCache.get(cells);
   if (byNn?.nn === nnCells) return byNn.pairs;
-  const o = cells.find((c) => Number.isFinite(c.value)) || nnCells[0];
+  const nv = nnView(nnCells);
+  const o = cells.find((c) => Number.isFinite(c.value)) || nv.first;
   const ok = o && [o.dx, o.dy, o.dz].every((v) => v > 0);
-  const idx = (c) => {
-    const i = Math.round((c.x - o.x) / o.dx), j = Math.round((c.y - o.y) / o.dy), k = Math.round((c.z - o.z) / o.dz);
-    if (Math.abs(c.x - o.x - i * o.dx) > 1e-3 || Math.abs(c.y - o.y - j * o.dy) > 1e-3 || Math.abs(c.z - o.z - k * o.dz) > 1e-3 || Math.abs(i) > 99999 || Math.abs(j) > 99999 || Math.abs(k) > 99999) return null;
+  const idxAt = (x, y, z) => {
+    const i = Math.round((x - o.x) / o.dx), j = Math.round((y - o.y) / o.dy), k = Math.round((z - o.z) / o.dz);
+    if (Math.abs(x - o.x - i * o.dx) > 1e-3 || Math.abs(y - o.y - j * o.dy) > 1e-3 || Math.abs(z - o.z - k * o.dz) > 1e-3 || Math.abs(i) > 99999 || Math.abs(j) > 99999 || Math.abs(k) > 99999) return null;
     return ((k + 100000) * 200001 + (j + 100000)) * 200001 + (i + 100000); // z, then y, then x: the estimator's own loop order (#3008)
   };
+  const idx = (c) => idxAt(c.x, c.y, c.z);
   // TASKS.csv #3008 (WA iron review) — both models come from the same z / y / x loop (the NN pass is a second run over the same grid), so
   // their blocks are already in ascending lattice order: a merge in one pass, no Map of 627,000 keys (1.0 s on the main thread after a
   // whole-field run). Any block off the lattice, or out of order, falls back to the Map join below.
   if (ok) {
-    const keysOf = (arr) => { const out = new Float64Array(arr.length); let last = -Infinity; for (let q = 0; q < arr.length; q++) { const c = arr[q]; if (!Number.isFinite(c.value)) { out[q] = NaN; continue; } const k = idx(c); if (k == null || k <= last) return null; out[q] = last = k; } return out; };
-    const ka = keysOf(cells), kb = ka && keysOf(nnCells);
+    const keysOf = (n, x, y, z, v) => { const out = new Float64Array(n); let last = -Infinity; for (let q = 0; q < n; q++) { if (!Number.isFinite(v(q))) { out[q] = NaN; continue; } const k = idxAt(x(q), y(q), z(q)); if (k == null || k <= last) return null; out[q] = last = k; } return out; };
+    const ka = keysOf(cells.length, (q) => cells[q].x, (q) => cells[q].y, (q) => cells[q].z, (q) => cells[q].value), kb = ka && keysOf(nv.n, nv.x, nv.y, nv.z, nv.v);
     if (ka && kb) {
       const pairs = [];
       let b = 0;
       for (let a = 0; a < cells.length; a++) {
         const k = ka[a]; if (k !== k) continue; // NaN: no value
-        while (b < nnCells.length && !(kb[b] >= k)) b++; // NaN entries are skipped too
-        if (b < nnCells.length && kb[b] === k) pairs.push([cells[a], nnCells[b].value]);
+        while (b < nv.n && !(kb[b] >= k)) b++; // NaN entries are skipped too
+        if (b < nv.n && kb[b] === k) pairs.push([cells[a], nv.v(b)]);
       }
       joinCache.set(cells, { nn: nnCells, pairs });
       return pairs;
@@ -40,8 +47,8 @@ function joined(cells, nnCells) {
   }
   const nnBy = new Map();
   let lattice = ok;
-  if (lattice) for (const c of nnCells) { if (!Number.isFinite(c.value)) continue; const k = idx(c); if (k == null) { lattice = false; break; } nnBy.set(k, c.value); }
-  if (!lattice) { nnBy.clear(); for (const c of nnCells) if (Number.isFinite(c.value)) nnBy.set(blockKey(c), c.value); }
+  if (lattice) for (let q = 0; q < nv.n; q++) { const v = nv.v(q); if (!Number.isFinite(v)) continue; const k = idxAt(nv.x(q), nv.y(q), nv.z(q)); if (k == null) { lattice = false; break; } nnBy.set(k, v); }
+  if (!lattice) { nnBy.clear(); for (let q = 0; q < nv.n; q++) { const v = nv.v(q); if (Number.isFinite(v)) nnBy.set(blockKey({ x: nv.x(q), y: nv.y(q), z: nv.z(q) }), v); } }
   const pairs = [];
   for (const c of cells) { if (!Number.isFinite(c.value)) continue; const v = nnBy.get(lattice ? idx(c) : blockKey(c)); if (v !== undefined) pairs.push([c, v]); }
   joinCache.set(cells, { nn: nnCells, pairs });
@@ -57,7 +64,16 @@ export function compositeMean(points) {
 
 // -> { composites: { mean, n }, nn: { mean, n }, estimate: { mean, n }, departPct, nnVsCompositesPct } — the block
 // means are plain means (every block of one model has the same volume), over the blocks both models filled
+// TASKS.csv #3060 — the check and the default swaths, kept per (estimate, NN model, points): the Estimation run works them out between
+// yields after the worker answers, so the result's first render (EstimateCheck's useMemo) reads them instead of joining 627,000 blocks
+// inside one 1.2 s render
+const resultCache = new WeakMap();
+const cachedFor = (cells, nnCells, points) => { let c = resultCache.get(cells); if (!c || c.nn !== nnCells || c.points !== points) resultCache.set(cells, c = { nn: nnCells, points, check: null, swaths: new Map() }); return c; };
 export function estimateCheck(cells, nnCells, points) {
+  const c = cachedFor(cells, nnCells, points);
+  return c.check || (c.check = checkOf(cells, nnCells, points));
+}
+function checkOf(cells, nnCells, points) {
   let n = 0, se = 0, sn = 0;
   for (const [c, v] of joined(cells, nnCells)) { n++; se += c.value; sn += v; } // #2547 — the shared join
   const est = n ? se / n : null, nn = n ? sn / n : null, comp = compositeMean(points);
@@ -73,6 +89,10 @@ export function estimateCheck(cells, nnCells, points) {
 // to whole blocks), each with the length-weighted composite mean and the NN and estimate block means over the blocks
 // both models filled. -> [{ from, to, mid, composite, compositeN, nn, estimate, blocks }]
 export function swath(cells, nnCells, points, axis, { width = null, slices = 12 } = {}) {
+  if (width == null && slices === 12) { const c = cachedFor(cells, nnCells, points); if (!c.swaths.has(axis)) c.swaths.set(axis, swathOf(cells, nnCells, points, axis, { width, slices })); return c.swaths.get(axis); } // #3060
+  return swathOf(cells, nnCells, points, axis, { width, slices });
+}
+function swathOf(cells, nnCells, points, axis, { width = null, slices = 12 } = {}) {
   const both = joined(cells, nnCells); // #2547 — the shared join
   if (!both.length) return [];
   const d = axis === "x" ? "dx" : axis === "y" ? "dy" : "dz", cell = both[0][0][d] || 1;

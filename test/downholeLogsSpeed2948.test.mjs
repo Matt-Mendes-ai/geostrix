@@ -123,11 +123,11 @@ test("the pane keeps the grouping per (log, code layer), defers the heavy passes
   const src = readFileSync(new URL("../src/components/DownholeLogsPane.jsx", import.meta.url), "utf8");
   assert.match(src, /useDeferredMemo\(\(\) => \(data && domainFold \? groupLogByCode\(data\.assays, data\.symbol, domainFold\.rows\) : null\), \[data, domainFold\], heavy\)/);
   assert.match(src, /rankLogGroups\(grouped, \{ stat: rankStat, above: Number\(rankAbove\) \}\) : \[\]\), \[grouped, rankStat, rankAbove\]\)/);
-  assert.match(src, /useDeferredMemo\(\(\) => \(data && el \? logVsAssay\(/);
+  assert.match(src, /useDeferredMemo\(\(\) => \(vsIndex && el \? logVsAssayIndexed\(/); // #3078 — from the index kept per (log, assay table)
   assert.match(src, /useDeferredMemo\(\(\) => \(data && modelLayer \? logVsModel\(/);
   assert.match(src, /tr\("Grouping \{n\} readings by \{layer\}…"/);
   assert.match(src, /tr\("Pairing \{n\} readings with the \{el\} assays…"/);
-  assert.match(src, /\}, \[pairs, logX, logY\]\);/, "the scatter's points are kept while its pairs and axes stay");
+  assert.match(src, /\}, \[pairs, (xs, ys, )?logX, logY\]\);/, "the scatter's points are kept while its pairs and axes stay"); // xs, ys: #3078
   assert.doesNotMatch(src, /allAboveZero\(vs\.pairs\.map\(\(p\) => p\[0\]\)\)\} /, "not recomputed in the render");
   const hook = readFileSync(new URL("../src/lib/useDeferredMemo.js", import.meta.url), "utf8");
   assert.match(hook, /setTimeout\(\(\) => setDone\(\{ token, value: compute\(\) \}\), 30\)/);

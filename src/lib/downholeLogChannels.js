@@ -102,12 +102,13 @@ const NON_NEGATIVE_NAME = /densit|\bdens\b|\bsg\b|gamma|\bgrs?\b|\bngam|calip|\b
 // susceptibility log's -821,754.9 (a saturated tool, median 133) was 'not 1,000 times the 99th percentile' and stayed in. Only the low
 // side: real highs far above the body are kept (the WA uranium gamma reaches 54,938 cps beside a median near 100, #2332).
 const LOW_FENCE_IQR = 50, FENCE_MIN_VALUES = 20;
+const REPEAT_RUN = 8; // #3042 — readings in a row with one value at an extreme (0.8 m of a 0.1 m log)
 export function channelNoData(rows, col, unit = "") {
   const vals = [];
   for (const r of rows || []) { const v = r?.[col]; if (isNum(v)) vals.push(toNum(v)); }
   if (!vals.length) return null;
   // #2890 — the quartiles of the readings that are not null sentinels, from at most 20,000 of them spread through the file
-  let lowFence = -Infinity;
+  let lowFence = -Infinity, lowTail = -Infinity, highTail = Infinity;
   {
     const body = [], stepB = Math.max(1, Math.floor(vals.length / 20000));
     for (let i = 0; i < vals.length; i += stepB) if (!SENTINELS.has(vals[i])) body.push(vals[i]);
@@ -115,6 +116,7 @@ export function channelNoData(rows, col, unit = "") {
       body.sort((a, b) => a - b);
       const q = (p) => body[Math.floor(p * (body.length - 1))], iqr = q(0.75) - q(0.25);
       if (iqr > 0) lowFence = Math.min(0, q(0.5) - LOW_FENCE_IQR * iqr);
+      lowTail = q(0.001); highTail = q(0.999); // #3042
     }
   }
   // the 99th percentile of the positive readings, from at most 20,000 of them spread through the file
@@ -124,6 +126,19 @@ export function channelNoData(rows, col, unit = "") {
   const p99 = sample.length ? sample[Math.min(sample.length - 1, Math.floor(0.99 * (sample.length - 1)))] : null;
   const noNeg = NON_NEGATIVE_UNITS.has(unit) || NON_NEGATIVE_NAME.test(spaced(col)), codes = new Map(); // the name: #2890
   for (const v of vals) if (SENTINELS.has(v) || (noNeg && v < 0) || v < lowFence || (p99 > 0 && Math.abs(v) > 1000 * p99)) codes.set(v, (codes.get(v) || 0) + 1); // lowFence: #2890
+  // TASKS.csv #3042 (from #2890, WA iron) — a saturated tool writes one value again and again: -821,754.9 on 12 readings in a row. The same
+  // value on REPEAT_RUN or more consecutive readings at the channel's own extreme (beyond its 0.1th / 99.9th percentile; 0 never) is a code
+  // even inside the fences above.
+  if (Number.isFinite(lowTail) || Number.isFinite(highTail)) {
+    let prev = null, run = 0;
+    const flush = () => { if (run >= REPEAT_RUN && prev !== 0 && (prev <= lowTail || prev >= highTail) && !codes.has(prev)) codes.set(prev, vals.filter((x) => x === prev).length); };
+    for (const r of rows || []) {
+      const raw = r?.[col], v = isNum(raw) ? toNum(raw) : null;
+      if (v !== null && v === prev) { run++; continue; }
+      flush(); prev = v; run = v === null ? 0 : 1;
+    }
+    flush();
+  }
   if (!codes.size) return null;
   let n = 0; for (const c of codes.values()) n += c;
   return { n, codes: [...codes].sort((a, b) => b[1] - a[1]), values: new Set(codes.keys()) };

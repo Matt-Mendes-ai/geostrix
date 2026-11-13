@@ -10,6 +10,8 @@ import { guessGeophysColumns, rowsToGeophysPoints } from "../lib/geophysColumns.
 import SourceCrsField from "../components/SourceCrsField.jsx"; // TASKS.csv #488
 import Papa from "papaparse";
 import { zeroMeansMissing } from "../lib/missingElevation.js"; // TASKS.csv #1436
+import { suspectElevationIds, elevationTrust } from "../lib/collarElevationTrust.js"; // TASKS.csv #2987 (the shared rule, #3004)
+import { logReadingCounts } from "../lib/inversionLogSources.js"; // TASKS.csv #2950
 import { mainClusters } from "../lib/dataClusters.js"; // TASKS.csv #1461
 import { fetchAreaBox, modelGapKm } from "../lib/dataExtent.js"; // #1461; modelGapKm: #1427
 import { Radio, Upload, Trash2, ArrowRight, Eye, EyeOff, Loader2, Mountain, Triangle, Box, MapPin, Waypoints, Plus, Palette, Download, Flag, Globe, ArrowDownToLine, PackageOpen, Scale, Crosshair } from "../components/icons.js"; // Crosshair: #2657
@@ -533,15 +535,21 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
   const pointsTerrainInput = useRef(null);
   // TASKS.csv #1599 — the triangulation, the replace check and the report, shared by a points / contours file and the project's own samples and collars
   // misfitAt / benchNote (TASKS.csv #2589): the points the surface is measured against, and what was done where collars stack
-  const finishPointsTerrain = async ({ points, lines, what, name, sourceFile, reprojected, misfitAt = null, benchNote = "" }) => {
+  const finishPointsTerrain = async ({ points, lines, what, name, sourceFile, reprojected, misfitAt = null, benchNote = "", leftOutNote = "", spacingFit = false }) => {
     const { terrainFromPointsAsync } = await import("../lib/terrainFromPoints.js");
-    const t = await terrainFromPointsAsync({ points, lines }, { gridMax: terrainDetail }); // #986 — in a worker
+    const t = await terrainFromPointsAsync({ points, lines }, { gridMax: terrainDetail, spacingFit }); // #986 — in a worker; spacingFit: #3036
     if (!confirmReplaceTerrain(terrain, name)) return; // #2554 — the shared question
     const replaced = replacedTerrainNote(terrain);
     const built = { name, bbox: t.bbox, gridW: t.gridW, gridH: t.gridH, elevations: t.elevations, noDataMask: t.noDataMask || null, source: { kind: "tin from points", file: sourceFile, points: t.stats.points, nodeM: t.stats.cellM } };
     addTerrain(built);
     let msg = replaced + tr("Built \"{name}\" from {what}: a triangulated surface of {tri} triangles sampled on a {gridW}×{gridH} grid (nodes ~{cell} m apart).", { name, what, tri: t.stats.triangles.toLocaleString(), gridW: t.gridW, gridH: t.gridH, cell: t.stats.cellM.toFixed(1) });
     if (reprojected) msg += " " + tr("The coordinates read as longitude / latitude and were reprojected from WGS 84 to the project's EPSG:{epsg}.", { epsg: project.epsg });
+    // TASKS.csv #3036 — the node spacing follows the points' spacing, within the Terrain detail and the finest grid
+    if (t.stats.gridFromSpacing) msg += " " + tr("The grid follows the points' spacing (median {s} m to the nearest neighbour): {n} nodes along the long side rather than the {d} of the Terrain detail.", { s: t.stats.spacingM.toFixed(0), n: t.stats.nodes.toLocaleString(), d: terrainDetail.toLocaleString() });
+    if (t.stats.spacingM > 0 && t.stats.cellM > 1.5 * t.stats.spacingM) msg += " " + tr("The points are closer together (median {s} m) than the finest grid over their whole extent can show (nodes ~{cell} m apart): a terrain over a smaller area, or a DEM, gives finer ground.", { s: t.stats.spacingM.toFixed(0), cell: t.stats.cellM.toFixed(0) });
+    // TASKS.csv #3034 — the nodes beside points on the edge of their area
+    if (t.stats.pointNodes) msg += " " + tr("{n} node(s) beside points at the edge of their area (outside every triangle) take the nearby points' elevations, so every point has ground.", { n: t.stats.pointNodes.toLocaleString() });
+    if (leftOutNote) msg += " " + leftOutNote; // #2987
     if (t.stats.densifyCapped) msg += " " + tr("The contour lines were given a vertex every {m} m rather than every half node spacing ({h} m), to keep the triangulation to about four points per grid node.", { m: t.stats.densifyStepM.toFixed(1), h: t.stats.halfCellM.toFixed(1) }); // #986
     if (t.stats.longDropped) msg += " " + tr("{n} triangle(s) with an edge over {m} m were left out, so no ground is invented across gaps in the data.", { n: t.stats.longDropped, m: Math.round(t.stats.maxEdgeM) });
     if (lines.length && t.stats.flatPct >= 5) msg += " " + tr("{pct}% of the triangles are flat (all three corners on one contour): terraces on hilltops and valley floors, where contours alone do not say how the ground continues.", { pct: t.stats.flatPct.toFixed(0) });
@@ -557,9 +565,16 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
   // TASKS.csv #1599 — a terrain from the elevations already in the project (offline): Lawyers' 4,520 lidar-elevated samples and 446 collars
   const projectZPoints = useMemo(() => {
     const pick = (rows) => (rows || []).filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y) && Number.isFinite(p.z)).map((p) => ({ x: p.x, y: p.y, z: p.z, ...(p.hole_id != null ? { hole_id: p.hole_id } : {}) })); // hole_id: #2589
-    const s = pick(surfaceSamples), c = pick(collars), zeroMissing = zeroMeansMissing([...s, ...c].map((p) => p.z));
+    // TASKS.csv #2987 (review #2876, WA iron) — collars whose elevation the import filled (13 at the median 438.8 m) were taken as surveyed
+    // ground and read as pit benches beside their surveyed twins; two at 0 m were dropped without a word. Only collars whose elevation is
+    // measured are used (the shared rule, collarElevationTrust.js #3004: 'assumed' and 'suspect' are left out, and named)
+    const suspect = suspectElevationIds(collars);
+    const trustOf = (c) => elevationTrust(c, suspect);
+    const measured = (collars || []).filter((c) => trustOf(c) === "measured");
+    const collarsOut = (collars || []).filter((c) => c && Number.isFinite(c.x) && Number.isFinite(c.y) && trustOf(c) !== "measured").map((c) => ({ hole_id: c.hole_id, why: trustOf(c) }));
+    const s = pick(surfaceSamples), c = pick(measured), zeroMissing = zeroMeansMissing([...s, ...c].map((p) => p.z));
     const keep = (p) => !(zeroMissing && p.z === 0);
-    return { points: [...s, ...c].filter(keep), samples: s.filter(keep).length, collars: c.filter(keep).length, samplePts: s.filter(keep), collarPts: c.filter(keep) }; // samplePts / collarPts: #2589
+    return { points: [...s, ...c].filter(keep), samples: s.filter(keep).length, collars: c.filter(keep).length, samplePts: s.filter(keep), collarPts: c.filter(keep), collarsOut }; // samplePts / collarPts: #2589; collarsOut: #2987
   }, [surfaceSamples, collars]);
   // TASKS.csv #2465 (review #2325, WA uranium) — the two NRCan sources were offered on a Western Australian project: off where the collars
   // are plainly outside Canada (its bounding box, with a degree to spare)
@@ -567,6 +582,13 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
   // TASKS.csv #2589 — collars stacked at one spot at different RLs (pit benches of different dates): which ground the terrain takes
   const benches = useMemo(() => collarBenches(projectZPoints.collarPts), [projectZPoints]);
   const [benchMode, setBenchMode] = useState("all");
+  // TASKS.csv #2987 — which collars the terrain leaves out, and why (named, the first few)
+  const collarsOutNote = (out) => {
+    if (!out?.length) return "";
+    const nA = out.filter((o) => o.why === "assumed").length, nS = out.length - nA;
+    const ids = out.slice(0, 6).map((o) => o.hole_id).join(", ") + (out.length > 6 ? ", …" : "");
+    return tr("{n} collar(s) are left out: {a} with an elevation the import filled in, {s} with one that looks like a missing value ({ids}).", { n: out.length.toLocaleString(), a: nA.toLocaleString(), s: nS.toLocaleString(), ids });
+  };
   const terrainFromProject = async () => {
     setTerrainError(null);
     setTerrainBusy(true);
@@ -582,7 +604,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       // RL 102-351 under a surface near 400): ask, and name it for what it is
       const ug = collarsLookUnderground(collars, survey);
       if (ug.underground && !window.confirm(tr("The collars look like underground collars ({upward} hole(s) drilled upward, {stacked} pair(s) of collars stacked over each other): a surface through them runs through the mine levels, not the ground.", { upward: ug.upward, stacked: ug.stacked }) + "\n\n" + tr("OK — build it anyway, named 'Surface through the collars'.") + "\n" + tr("Cancel — don't build it (import a DEM or fetch SRTM for the real ground)."))) return;
-      await finishPointsTerrain({ points, lines: [], what: tr("{s} surface sample(s) and {c} collar(s) of this project", { s: samples, c: nc }), name: ug.underground ? "Surface through the collars" : "Terrain from samples and collars", sourceFile: "project surface samples and collars", reprojected: false, misfitAt: picked.points, benchNote }); // name: #2263; misfitAt, benchNote: #2589
+      await finishPointsTerrain({ points, lines: [], what: tr("{s} surface sample(s) and {c} collar(s) of this project", { s: samples, c: nc }), name: ug.underground ? "Surface through the collars" : "Terrain from samples and collars", sourceFile: "project surface samples and collars", reprojected: false, misfitAt: picked.points, benchNote, leftOutNote: collarsOutNote(projectZPoints.collarsOut), spacingFit: true }); // name: #2263; misfitAt, benchNote: #2589; leftOutNote: #2987; spacingFit: #3036
     } catch (err) {
       setTerrainError({ info: false, text: err.message });
     } finally {
@@ -2277,6 +2299,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
             <Triangle size={14} /> {tr("Terrain from this project's samples and collars ({n})", { n: projectZPoints.points.length.toLocaleString() })}
           </button>
         )}{/* TASKS.csv #1599 */}
+        {projectZPoints.collarsOut.length > 0 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 4, lineHeight: 1.4 }}>{collarsOutNote(projectZPoints.collarsOut)}</div>}{/* TASKS.csv #2987 */}
         {projectZPoints.points.length >= 3 && benches.n > 0 && ( /* TASKS.csv #2589 */
           <label style={{ display: "block", marginTop: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.4 }}>
             {tr("Where collars stack ({n} collars share a spot with one {dz} m or more higher or lower, up to {max} m)", { n: benches.n.toLocaleString(), dz: BENCH_DZ_M, max: benches.maxDz.toFixed(1) })}
@@ -2813,7 +2836,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
             if (voxelModels.length) parts.push(tr("{n} block model(s)", { n: voxelModels.length })); // TASKS.csv #1176
             if (dcipLines.length) parts.push(tr("{n} DC/IP line(s)", { n: dcipLines.length }));
             // TASKS.csv #1425 — a drill-only project has downhole geophysics: say so, and where it is used
-            const ms = (layers.magsusc || []).length, sg = (layers.sg || []).length;
+            const { ms, sg } = logReadingCounts({ layers, customLayers }); // #2950 — and the custom log layers named for the property
             if (!parts.length) return ms || sg ? tr("No surface geophysics yet; {ms} mag-susc and {sg} SG readings in the drillholes — see Downhole logs, or 3D Modelling > Estimation / Grade shell to grid them", { ms: ms.toLocaleString(), sg: sg.toLocaleString() }) : tr("No geophysics data yet");
             const joined = parts.length > 1 ? tr("{list} and {last}", { list: parts.slice(0, -1).join(", "), last: parts[parts.length - 1] }) : parts[0];
             return tr("{items} loaded", { items: joined });

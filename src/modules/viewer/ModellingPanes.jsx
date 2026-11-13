@@ -14,6 +14,7 @@ import { withChangeLog } from "../../lib/explicitLog.js"; // TASKS.csv #878
 import { activateOnKey, iconAction } from "../../lib/a11y.js";
 import { colorForLithology, isCrossCuttingRole, roleForLithology, groupMemberRole, groupNameHint } from "../../lib/layers.js"; // group roles: #2052
 import { codedRuns, topsForCode, codeInfo, overburdenBases } from "../../lib/modellingCodes.js"; // TASKS.csv #871; #1684
+import { pileFromRuns, absentTops } from "../../lib/pileTops.js"; // TASKS.csv #2921
 import { pBtn, smallSel } from "../../lib/sidebarStyles.js";
 import { sceneVertsToWorldFlat } from "../../lib/meshFlat.js";
 import { octreeCellM } from "../../lib/viewer/contactFit.js"; // TASKS.csv #1171
@@ -325,17 +326,25 @@ export default function ModellingPanes(props) {
   const altVocabFields = useMemo(() => intensityVocabFields(altSourceRows, { min: 3 }), [altSourceRows]); // #2230
   const altVocab = altVocabFields.find((v) => v.field === altSource.field) || null;
   const mcodesView = useMemo(() => ({ scene: sceneRef, groups: layerGroupsRef, camera: cameraRef, renderer: rendererRef, traces: tracesRef, activity: lastActivityRef, dragHook: viewDragHookRef }), [sceneRef, layerGroupsRef, cameraRef, rendererRef, tracesRef, lastActivityRef, viewDragHookRef]);
+  // TASKS.csv #2535 — the Explicit surface seeds from the Model area's holes (it seeded 206 picks across the property, then fed a 30-hole run)
+  // Both built on first use only (the Explicit surface pane), once per change of the logs, the codes or the Model area.
+  const areaRuns = useMemo(() => { let v = null; return () => v || (v = codedRuns(modelArea === "checked" ? (layers.litho || []).filter((r) => visibleHoles?.[r.hole_id] !== false) : layers.litho || [], modellingCodes, mcGroupOf)); },
+    [layers.litho, modellingCodes, lithoGroups, modelArea, visibleHoles]); // mcGroupOf is rebuilt every render from lithoGroups
+  // TASKS.csv #2921 — the pile's order from the holes (stratigraphic codes only), for the explicit tops of one pile
+  const areaPile = useMemo(() => { let v = null; return () => v || (v = pileFromRuns(areaRuns(), (c) => !["intrusion", "cross-cutting", "overburden", "ignore"].includes(codeInfo(modellingCodes, c, mcodeDefaultRole).role))); },
+    [areaRuns, modellingCodes, lithoGroups]); // mcodeDefaultRole is rebuilt every render from lithoGroups
   const topsOfUnit = useCallback((unit) => {
-    // TASKS.csv #2535 — the Explicit surface seeds from the Model area's holes (it seeded 206 picks across the property, then fed a 30-hole run)
-    const runs = codedRuns(modelArea === "checked" ? (layers.litho || []).filter((r) => visibleHoles?.[r.hole_id] !== false) : layers.litho || [], modellingCodes, mcGroupOf);
+    const runs = areaRuns(), pile = areaPile();
     const holes = [...new Set(runs.filter((r) => r.code === unit).map((r) => r.hole_id))];
     if (codeInfo(modellingCodes, unit, mcodeDefaultRole).role === "overburden") { // TASKS.csv #1684 — an overburden unit seeds its BASE
       const { bases, skipped } = overburdenBases(runs, modellingCodes, mcodeDefaultRole, unit);
       return { base: true, tops: bases.map((b) => ({ hole_id: b.hole_id, md: b.md, above: b.above, below: b.below })), skipped: { holeStart: 0, gap: 0, belowRole: 0, olderAbove: 0, holeEnd: skipped.holeEnd }, holes };
     }
     const { tops, skipped } = topsForCode(runs, unit, modellingCodes, mcodeDefaultRole);
-    return { tops: tops.map((r) => ({ hole_id: r.hole_id, md: r.from, above: r.above?.code ?? null, below: r.code })), skipped, holes };
-  }, [layers.litho, modellingCodes, lithoGroups, modelArea, visibleHoles]); // mcGroupOf / mcodeDefaultRole are rebuilt every render from lithoGroups
+    // TASKS.csv #2921 — where the unit is missing from a hole that passes from a unit above it into one under it: its top at zero thickness
+    const absent = pile.kOf.has(unit) ? absentTops(runs, unit, pile).tops : [];
+    return { tops: tops.map((r) => ({ hole_id: r.hole_id, md: r.from, above: r.above?.code ?? null, below: r.code })), skipped, holes, absent, pile };
+  }, [areaRuns, areaPile, modellingCodes, lithoGroups]); // mcodeDefaultRole is rebuilt every render from lithoGroups
   // TASKS.csv #2056 (review #2013, Woodjam) — the logged holes the model area feeds, and their clusters in plan (a gap over 5 x the hole spacing)
   const loggedInArea = useMemo(() => { const logged = new Set((layers.litho || []).map((r) => r.hole_id)); return (collars || []).filter((c) => (!logged.size || logged.has(c.hole_id)) && (modelArea !== "checked" || visibleHoles?.[c.hole_id] !== false)); }, [layers.litho, collars, modelArea, visibleHoles]);
   const areaClusters = useMemo(() => holeClusters(loggedInArea), [loggedInArea]);
@@ -571,8 +580,8 @@ export default function ModellingPanes(props) {
           <FileBarChart2 size={14} />{" "}{tr("Estimate grade into block model…")}</button>
         {/* TASKS.csv #2419 — grade × thickness per hole and its plan estimate: a thin flat body, lighter than a block model */}
         <button onClick={() => setGtOpen(true)} disabled={!assayElements.length} style={{ ...pBtn, opacity: assayElements.length ? 1 : 0.5, marginBottom: 8 }} title={tr("Per hole, thickness and grade × thickness from the intercepts; graduated on a plan, estimated in 2D and contoured at a GT cut-off you choose")}>
-          <FileBarChart2 size={14} />{" "}{tr("Grade × thickness in plan…")}</button>
-        {gtOpen && <Suspense fallback={null}><GradeThicknessModal assays={assays} assayElements={assayElements} collars={collars} survey={survey} layers={layers} onClose={() => setGtOpen(false)} /></Suspense>}
+          <FileBarChart2 size={14} />{" "}{tr("Grade × thickness, in plan or on a long section…") /* #3089 */}</button>
+        {gtOpen && <Suspense fallback={null}><GradeThicknessModal assays={assays} assayElements={assayElements} collars={collars} survey={survey} layers={layers} inArea={modelArea === "checked" ? (id) => visibleHoles?.[id] !== false : null} /* #3016 */ onClose={() => setGtOpen(false)} /></Suspense>}
         {/* TASKS.csv #147 — deliberately sits directly under the estimation button, because it is the
             diagnostic you are supposed to run BEFORE choosing a search radius or an anisotropy ratio,
             not a separate curiosity. It does NOT feed the estimator (GeoStrix still does not krige) —

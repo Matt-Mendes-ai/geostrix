@@ -8,6 +8,7 @@ import { Crosshair, Move, Undo2, Trash2, X as XIcon, Pencil } from "./icons.js";
 import { t as tr } from "../lib/i18n.js";
 import { LOO_MAX_POINTS, explicitPoints, sectionLinesOf } from "../lib/explicitSurface.js"; // sectionLinesOf: #1691
 import { fitExplicitSurfaceAsync } from "../lib/explicitSurfaceClient.js"; // TASKS.csv #865
+import { upperNeighbour, meshHeightLookup, clampUnder, orderAgainst } from "../lib/pileTops.js"; // TASKS.csv #2921
 import { tinSurface } from "../lib/tinSurface.js"; // TASKS.csv #1958
 import { findOnTraceWorld, traceDirWorld } from "../lib/viewer/modelHelpers.js";
 import { terrainGroundAt } from "../lib/viewer/geomath.js";
@@ -181,6 +182,22 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
   const seedUnit = def ? unitOf(def) || def.name : "";
   const seedInfo = useMemo(() => (def && topsOfUnit && seedUnit ? topsOfUnit(seedUnit) : null), [def, seedUnit, topsOfUnit]);
   const pickedHoles = useMemo(() => new Set((def?.picks || []).filter((p) => p.hole_id).map((p) => p.hole_id)), [def?.picks]);
+  // TASKS.csv #2921 — the next explicit top up in the pile, by the order the holes give (each top was fitted alone and crossed its
+  // neighbours under 19-85 of 215 holes on the WA iron block); a top's lower contact, a fault block or a TIN is left as it is
+  const pileTop = useMemo(() => {
+    if (!def || !seedInfo?.pile || seedInfo.base || contactOf(def) !== "upper" || def.boundedBy || def.tin) return null;
+    const cands = defs.filter((d) => d.id !== def.id && contactOf(d) === "upper" && d.surfaceId && !d.boundedBy).map((d) => ({ unit: unitOf(d), id: d.id, name: d.name, surfaceId: d.surfaceId }));
+    return upperNeighbour(seedInfo.pile, seedUnit, cands);
+  }, [def, seedInfo, defs, seedUnit]);
+  const absentNew = (seedInfo?.absent || []).filter((t) => !pickedHoles.has(t.hole_id));
+  const seedAbsent = () => {
+    if (!def || !absentNew.length) return;
+    const stamp = Date.now();
+    const r = seedPicksFromTops(def.picks, absentNew, (hole, md) => { const t = sc.traces.current.find((tc) => tc.hole_id === hole); return t ? findOnTraceWorld(t, md) : null; }, (i) => `pk_${stamp}_z${i}`);
+    if (r.picks.length) update({ picks: [...(def.picks || []), ...r.picks.map((pk) => ({ ...pk, absent: true }))] });
+    setSeedNote(tr("Added {n} zero-thickness pick(s): holes that pass from a unit above {unit} straight into one under it, at that contact.", { n: r.picks.length, unit: seedUnit })
+      + (r.noTrace ? ` ${tr("{n} hole(s) are not drawn (no survey or collar).", { n: r.noTrace })}` : ""));
+  };
   const [seedNote, setSeedNote] = useState(null);
   // TASKS.csv #2317 — a layer of depth picks by code (regolith events: BOCO, TOFR, ...): one pick per hole at that code's depth
   const { customLayers: storeCustomLayers } = useStore();
@@ -226,7 +243,7 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
       { ...live, id, name: tr("{name} (kept {at})", { name: def.name, at: at.slice(0, 16).replace("T", " ") }), type: "explicit_surface_kept", relationships: [], params: { ...p, keptAt: at, keptFrom: def.name, picksWhenKept: (def.picks || []).length }, supersedes: live.supersedes, accepted: false }]);
     setKeptNote(tr("Kept this build as a version in the surface list; this surface now supersedes it."));
   };
-  const pickLabel = (p) => `${p.hole_id ? tr("{hole} at {md} m ({how})", { hole: p.hole_id, md: Number(p.md).toFixed(1), how: p.above ? `${p.above} | ${p.below}` : p.src === "event" ? tr("depth pick {code}", { code: p.event }) /* #2317 */ : p.src === "boundary" ? tr("logged contact") : tr("on the trace") }) : p.onModel ? tr("3D point on {model} ({prop} {v})", { model: p.onModel.model, prop: p.onModel.property || tr("value"), v: p.onModel.value }) : tr("3D point")} · ${Math.round(p.z)} m`; // onModel: #1840
+  const pickLabel = (p) => `${p.hole_id ? tr("{hole} at {md} m ({how})", { hole: p.hole_id, md: Number(p.md).toFixed(1), how: p.absent ? tr("{above} | {below}, {unit} not logged", { above: p.above, below: p.below, unit: seedUnit }) /* #2921 */ : p.above ? `${p.above} | ${p.below}` : p.src === "event" ? tr("depth pick {code}", { code: p.event }) /* #2317 */ : p.src === "boundary" ? tr("logged contact") : tr("on the trace") }) : p.onModel ? tr("3D point on {model} ({prop} {v})", { model: p.onModel.model, prop: p.onModel.property || tr("value"), v: p.onModel.value }) : tr("3D point")} · ${Math.round(p.z)} m`; // onModel: #1840
   const keepShallowest = () => { const best = new Map(); for (const p of def.picks) if (p.hole_id && (!best.has(p.hole_id) || p.md < best.get(p.hole_id).md)) best.set(p.hole_id, p); update({ picks: def.picks.filter((p) => !p.hole_id || best.get(p.hole_id) === p) }); };
   // TASKS.csv #817 — mapped contacts (draped on the terrain) and their dip guides as further hard lines
   const polys = useMemo(() => (mapLayers || []).filter((l) => l.geomType === "polygon"), [mapLayers]);
@@ -683,7 +700,10 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
   useEffect(() => {
     if (!def || !ep) return undefined;
     const faultMesh = def.boundedBy ? sc.meshes.current[def.boundedBy.surfaceId] : null;
-    const key = inputKey(def, ep, hasTerrain, def.boundedBy ? faultMesh?.geometry?.uuid || "missing" : null, trend);
+    // TASKS.csv #2921 — the next top up: kept under it (its mesh then is an input), or only checked against it
+    const upperMesh = pileTop ? sc.meshes.current[pileTop.surfaceId] : null;
+    const key = inputKey(def, ep, hasTerrain, def.boundedBy ? faultMesh?.geometry?.uuid || "missing" : null, trend)
+      + (upperMesh ? `|${pileTop.surfaceId}${def.keepOrder ? `:${upperMesh.geometry?.uuid}:${upperMesh.geometry?.attributes?.position?.version ?? 0}` : ""}` : "");
     wantKey.current = key;
     // #828 — the key the MESH was built from (an Undo brings back an older def.builtKey together with the older inputs, so
     // comparing with def.builtKey alone would leave the newer mesh on screen); def.builtKey for a mesh opened from a file
@@ -725,7 +745,7 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
           setStatus({ ok: true, built: true, text: tr("Triangulated {n} point(s) as they are into {t} triangle(s), in {ms} ms: no fit, no smoothing, nothing beyond the points.", { n: tin.stats.points, t: tin.stats.triangles, ms: Math.round(performance.now() - t0) }) + (tin.stats.longDropped ? ` ${tr("{k} triangle(s) with an edge over {m} m (ten times the median) were left out: they would have bridged a gap nobody measured.", { k: tin.stats.longDropped, m: Math.round(tin.stats.maxEdgeM) })}` : "") + (tin.stats.given > tin.stats.points ? ` ${tr("{d} point(s) shared a plan position with another and were dropped.", { d: tin.stats.given - tin.stats.points })}` : "") });
           return;
         }
-        const res = await fitExplicitSurfaceAsync(ep.points, { margin: def.margin, marginBasis: def.boundedBy ? "long" : "short" /* #1013 */, resolution: def.resolution || 80, frame, trend }, def.cutAtTerrain && hasTerrain ? terrain : null, trimReq); // trend: #881
+        const res = await fitExplicitSurfaceAsync(ep.points, { margin: def.margin, marginBasis: def.boundedBy ? "long" : "short" /* #1013 */, resolution: def.resolution || 80, frame, trend, extent: def.extent === "hull" ? "hull" : "box" /* #2921 */ }, def.cutAtTerrain && hasTerrain ? terrain : null, trimReq); // trend: #881
         clearTimeout(slow);
         if (!res || wantKey.current !== key) return; // the inputs changed while it was building: a newer build is on its way
         // TASKS.csv #861 — Matt: each fault block gets its own surface, trimmed at the fault (nothing invented: the picks of
@@ -748,6 +768,30 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
             trimNote += ` ${tr("{n} input(s) lie on the other side of the fault and were left out of this block's surface ({list}): move them to the other block's surface, or check the fault.", { n: off.length, list: names.slice(0, 5).join(", ") + (names.length > 5 ? ", …" : "") })}`;
           }
         }
+        // TASKS.csv #2921 — the order against the next top up, from the holes: held at or under it (zero thickness where it is lower), or checked
+        let orderNote = "";
+        if (upperMesh) {
+          const wm = worldMesh(upperMesh, sc.origin.current), upperAt = meshHeightLookup(wm.positions, wm.indices);
+          const words = { upper: pileTop.name, u: pileTop.unit, x: seedUnit, k: pileTop.rel.agree, n: pileTop.rel.of };
+          const onHoles = (ep.points || []).filter((p) => p.hole);
+          const own = orderAgainst(Float64Array.from(onHoles.flatMap((p) => [p.x, p.y, p.z])), upperAt);
+          // the holes named (the worst first), and the advice by whether the upper top already has its zero-thickness picks
+          const ownHoles = onHoles.map((p) => ({ h: p.hole, d: p.z - upperAt(p.x, p.y) })).filter((q) => q.d > 0.05).sort((p, q) => q.d - p.d).map((q) => q.h);
+          const holes = [...new Set(ownHoles)].slice(0, 4).join(", ") + (new Set(ownHoles).size > 4 ? ", …" : "");
+          const upperHasZero = defs.find((d) => d.id === pileTop.id)?.picks?.some((p) => p.absent);
+          const ownNote = !own.above ? "" : ` ${upperHasZero
+            ? tr("{a} of this surface's own hole picks lie above \"{upper}\" (worst {d} m; {holes}): in those holes {x} is logged above {u}, or under a unit the holes do not place in the pile. Check them.", { ...words, a: own.above, d: own.worstM.toFixed(1), holes })
+            : tr("{a} of this surface's own hole picks lie above \"{upper}\" (worst {d} m; {holes}), where that surface passes under a logged top of {x}: add the zero-thickness picks to \"{upper}\", or check those holes.", { ...words, a: own.above, d: own.worstM.toFixed(1), holes })}`;
+          if (def.keepOrder) {
+            const c = clampUnder(res.positions, upperAt);
+            orderNote = (c.moved ? tr("Kept at or under \"{upper}\" (the holes put {u} above {x} in {k} of {n} holes that log both): {m} of {c} vertices lowered onto it, by up to {d} m.", { ...words, m: c.moved, c: c.compared, d: c.maxM.toFixed(1) })
+              : tr("At or under \"{upper}\" everywhere both exist (the holes put {u} above {x} in {k} of {n} holes that log both).", words)) + ownNote;
+          } else {
+            const o = orderAgainst(res.positions, upperAt);
+            orderNote = o.above ? tr("Out of order: the holes put {u} above {x} in {k} of {n} holes that log both, but this surface lies above \"{upper}\" at {a} of {c} places where both exist (worst {d} m, near E {e}, N {nn}). Tick \"Keep under {upper}\" to hold it there.", { ...words, a: o.above, c: o.compared, d: o.worstM.toFixed(1), e: Math.round(o.worstAt.x), nn: Math.round(o.worstAt.y) }) + ownNote
+              : o.compared ? tr("In order: nowhere above \"{upper}\", which the holes put above {x} in {k} of {n} holes that log both.", words) : "";
+          }
+        }
         const ms = Math.round(performance.now() - t0);
         const sculpted = (def.surfaceId && surfaces.find((s) => s.id === def.surfaceId)?.editCount) || 0; // TASKS.csv #879
         const surfaceId = upsertMesh(sc, def, res, { trendName: trend?.name, picks: ep.picks, lines: ep.lines, sections: ep.sections, spacing: ep.spacing, mapLines: ep.mapLines, guideLines: ep.guideLines, key,
@@ -758,6 +802,15 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
         // #828 — the mesh remembers its key (userData.builtKey); the def is only written when it had no mesh id yet (a
         // surface from before #828), so building is never an Undo step of its own that would hide the real edit
         if (surfaceId !== def.surfaceId) setDefs((p) => p.map((d) => (d.id === def.id ? { ...d, surfaceId } : d)));
+        // TASKS.csv #2921 — 'Check relationships' said 'Nothing to check': the order from the holes goes on the surface as a relationship
+        // of its own (derived, replaced on every build; mayTouch: a missing unit's top lies on the next one, so only the side is checked)
+        sc.setSurfaces((p) => p.map((s) => {
+          if (s.id !== surfaceId) return s;
+          const mine = (s.relationships || []).filter((r) => !r.derived);
+          const want = pileTop ? [{ relation: "below", targetId: pileTop.surfaceId, derived: "holes", mayTouch: true }] : [];
+          const had = (s.relationships || []).filter((r) => r.derived);
+          return had.length === want.length && had.every((r, i) => r.targetId === want[i].targetId) ? s : { ...s, relationships: [...mine, ...want] };
+        }));
         // TASKS.csv #857 / #870 — what tells a geologist something: leave-one-out and how much is extrapolated (the old
         // "largest misfit 0.000 mm" was the solver's round-off at the inputs, always ~0 by construction)
         const q = res.quality, w = q.looWorst;
@@ -774,11 +827,13 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
           + (ep.extraTolM > 0 ? ` ${tr("To keep the build fast, the map lines were simplified to within {t} m (ends and corners kept).", { t: ep.extraTolM })}` : "") // TASKS.csv #869
           + (res.trend ? ` ${tr("Follows the trend {name}: {r} times smoother along {az}° than across.", { name: trend?.name || "", r: res.trend.ratio.toFixed(1), az: Math.round(res.trend.azimuthDeg) })}` : "") // #881
           + (sculpted ? ` ${tr("{n} manual sculpt(s) of the previous surface were discarded by this rebuild.", { n: sculpted })}` : "") // #879
+          + (res.extent === "hull" ? ` ${tr("Stops {m} m past the inputs' outline.", { m: Math.round(res.margin) })}` : "") // #2921
+          + (orderNote ? ` ${orderNote}` : "") // #2921
           + (trimNote ? ` ${trimNote}` : "") + (res.warnings.length ? ` ${res.warnings.join(" ")}` : "") });
       } catch (e) { clearTimeout(slow); if (wantKey.current === key) setStatus({ ok: false, text: (e.message || String(e)) + stale }); }
     }, 250);
     return () => clearTimeout(timer.current);
-  }, [def, ep, hasTerrain, surfaces, trend]); // terrain and the scene refs are read at build time; surfaces: a fault it is trimmed at may rebuild (#861); trend: #881
+  }, [def, ep, hasTerrain, surfaces, trend, pileTop, seedUnit]); // terrain and the scene refs are read at build time; surfaces: a fault it is trimmed at may rebuild (#861); trend: #881; pileTop: #2921
 
   // TASKS.csv #830 / #831 / #832 — the unit this surface bounds, upper or lower contact, and the unit's layers
   const [unitNote, setUnitNote] = useState(null);
@@ -871,7 +926,7 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
   const unitOpen = !!def && (unitCount > 1 || !!def.layer || contactOf(def) === "lower" || (!!def.unit && def.unit !== def.name));
   const digOpen = !!def && (!!(def.lines || []).length || digDrawing);
   const mapOpen = !!def?.mapContacts?.length;
-  const settingsOpen = !!def && (def.margin != null || (!!def.shape && def.shape !== "auto") || (!!def.resolution && def.resolution !== 80));
+  const settingsOpen = !!def && (def.margin != null || def.extent === "hull" /* #2921 */ || (!!def.shape && def.shape !== "auto") || (!!def.resolution && def.resolution !== 80));
   const dxfStrings = def ? (def.lines || []).filter((l) => l.pts?.length >= 2 && l.imageId === "dxf").length : 0; // #2057, as the build line counts them (#1959)
   const lineHint = def ? tr("To draw this surface on a section: 3D View > Draw section, then in the section window pick \"{name}\" under Explicit surfaces, draw the line and press Save contacts. The surface passes exactly through every such line.", { name: def.name }) : ""; // TASKS.csv #884
   const row = { display: "flex", alignItems: "center", gap: 6, marginBottom: 6 };
@@ -900,6 +955,7 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
             {tr("{a} of {b} holes that log {unit} have a pick on this surface.", { a: seedInfo.holes.filter((h) => pickedHoles.has(h)).length, b: seedInfo.holes.length, unit: seedUnit })}{" "}
             {seedInfo.base && seedInfo.tops.some((t) => !pickedHoles.has(t.hole_id)) && <button onClick={seedTops} title={tr("One pick per hole where {unit} ends on a logged unit — the base of overburden, the contact every hole shares — the same points the implicit tool uses for \"Base of {unit}\". Check them, then move or delete the outliers.", { unit: seedUnit })} style={{ ...pBtn, width: "auto", display: "inline-flex", marginBottom: 0, padding: "2px 6px" }}>{tr("Add the logged base of {unit}", { unit: seedUnit })}</button>}{/* #1684 */}
             {!seedInfo.base && contactOf(def) !== "lower" && seedInfo.tops.some((t) => !pickedHoles.has(t.hole_id)) && <button onClick={seedTops} title={tr("One pick per hole where {unit} starts below a younger unit (not at a hole start, under casing or overburden, or below a gap) — the same tops the implicit tool uses. Check them, then move or delete the outliers.", { unit: seedUnit })} style={{ ...pBtn, width: "auto", display: "inline-flex", marginBottom: 0, padding: "2px 6px" }}>{tr("Add the logged tops of {unit}", { unit: seedUnit })}</button>}
+            {!seedInfo.base && contactOf(def) !== "lower" && absentNew.length > 0 && <button onClick={seedAbsent} title={tr("Holes that do not log {unit} but pass from a unit the holes put above it straight into one under it: {unit} has no thickness there, so its top is that contact. Without these picks the surface knows nothing there and can pass above or below the neighbouring tops.", { unit: seedUnit })} style={{ ...pBtn, width: "auto", display: "inline-flex", marginBottom: 0, padding: "2px 6px", marginLeft: 4 }}>{tr("Add {n} zero-thickness pick(s) where {unit} is missing", { n: absentNew.length, unit: seedUnit })}</button>}{/* #2921 */}
           </div>
         )}
         {eventOpts.length > 0 && eventOpt && ( // TASKS.csv #2317 — depth picks (regolith events) as this surface's picks
@@ -920,6 +976,12 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
             <button onClick={keepVersion} disabled={!def.surfaceId || !sc.meshes.current[def.surfaceId]} title={tr("Copy the surface as it is now into the surface list as a frozen version (it does not rebuild); this surface is marked as superseding it.")} style={{ ...pBtn, width: "auto", display: "inline-flex", marginTop: 4, marginBottom: 0, padding: "2px 6px" }}>{tr("Keep this build as a version")}</button>
             {keptNote && <div role="status" style={{ marginTop: 3 }}>{keptNote}</div>}
           </details>
+        )}
+        {pileTop && ( // TASKS.csv #2921 — the order from the holes, against the next explicit top up
+          <label style={{ display: "flex", alignItems: "flex-start", gap: 6, fontSize: "var(--font-size-sm)", lineHeight: 1.4, marginBottom: 6, cursor: "pointer" }} title={tr("The holes put {u} above {x} in {k} of {n} holes that log both. On: wherever this surface would rise above \"{upper}\" it is lowered onto it (no thickness of {x} there). Off: it is only checked against it after each build.", { u: pileTop.unit, x: seedUnit, k: pileTop.rel.agree, n: pileTop.rel.of, upper: pileTop.name })}>
+            <input type="checkbox" checked={!!def.keepOrder} onChange={(e) => update({ keepOrder: e.target.checked })} style={{ marginTop: 2 }} />
+            <span>{tr("Keep under {upper}", { upper: pileTop.name })}</span>
+          </label>
         )}
         {seedNote && <div role="status" style={{ fontSize: "var(--font-size-sm)", lineHeight: 1.4, marginBottom: 6, color: "var(--color-text-secondary)" }}>{seedNote}</div>}
         {dupHoles.size > 0 && ( // TASKS.csv #866 — a contact crosses a hole once unless folded or faulted
@@ -1158,6 +1220,9 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
           <span style={{ width: 120, flexShrink: 0 }}>{tr("Extend beyond picks")}</span>
           <input type="number" min={0} step={10} value={def.margin ?? ""} placeholder={tr("auto")} onChange={(e) => update({ margin: e.target.value === "" ? null : Math.max(0, Number(e.target.value)) })} style={{ ...numInput, width: 64 }} aria-label={tr("Extend beyond picks")} /><span>m</span>
         </div>
+        <label style={{ ...row, cursor: "pointer" }} title={tr("Off: a rectangle over the inputs' extent plus the margin. On: the mesh is cut at the outline of the inputs plus the margin, so less of it is extrapolated.")}>{/* #2921 */}
+          <input type="checkbox" checked={def.extent === "hull"} onChange={(e) => update({ extent: e.target.checked ? "hull" : "box" })} />{tr("Stop at the inputs' outline (plus the margin)")}
+        </label>
         <div style={row} title={tr("Automatic: lines drawn on sections decide (an overall dip under 45° on the sections gives elevation over the map); otherwise the best-fit plane of the points (steeper than 30°: over that plane)")}>
           <span style={{ width: 120, flexShrink: 0 }}>{tr("Shape")}</span>
           <select value={def.shape || "legacy"} onChange={(e) => update({ shape: e.target.value })} style={{ ...smallSel, flex: 1, minWidth: 0 }} aria-label={tr("Shape")}>

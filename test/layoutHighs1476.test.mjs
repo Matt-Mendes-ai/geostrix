@@ -18,7 +18,7 @@ test("#1478: the strip log fills the page height inside the margins, on the empt
 
 test("#1476 / #1477: Fit the holes uses the desurveyed traces; Sync north adds the frame's rotation", () => {
   const s = fs.readFileSync("src/modules/LayoutModule.jsx", "utf8");
-  const fit = s.slice(s.indexOf("const fitViewport = async (sel) => {"), s.indexOf("const onResizeStart"));
+  const fit = s.slice(s.indexOf("const fitViewport = async (sel, { pass = 1 } = {}) => {") /* #3018 */, s.indexOf("const onResizeStart"));
   assert.match(fit, /holeTraces\(collars, survey, project\?\.desurveyMethod\)/);
   // #1632 — the formula moved to layoutLinks.northRotationOf (Sync and the live arrow share it)
   assert.match(s, /const deg = northRotationOf\(sel\);/);

@@ -56,8 +56,13 @@ def check_eqs():
     req = {"x": x.tolist(), "y": y.tolist(), "z": z.tolist(), "value": v.tolist(), "cell": 50.0, "elevation": 150.0,
            "region": [500100.0, 501900.0, 6000100.0, 6001900.0], "blank": 150.0}
     t = time.perf_counter()
-    out = eqs(req, lambda ev: None)
+    events = []
+    out = eqs(req, events.append)
     ms = (time.perf_counter() - t) * 1000
+    # TASKS.csv #2955 — the fit and the grid timed in the result; #3124 — this process has Harmonica loaded already (the checks above), as a warm
+    # worker does: no loading stage, load 0, and the fit says so (the cold path, a fresh process: tests/test_warm_jobs.py)
+    assert events[0]["stage"] == "fitting" and "engine already loaded" in events[0]["message"], events[0]
+    assert set(out["timings"]) == {"load", "fit", "grid"} and out["timings"]["load"] == 0.0 and all(v >= 0 for v in out["timings"].values()), out["timings"]
     vals = np.frombuffer(base64.b64decode(out["values"]), dtype="<f4").reshape(out["ny"], out["nx"])  # row 0 north
     e = out["x0"] + out["dx"] * np.arange(out["nx"])
     nn = out["yTop"] - out["dy"] * np.arange(out["ny"])

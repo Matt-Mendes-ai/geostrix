@@ -83,7 +83,8 @@ else {
   else {
     console.log("SMOKE OK: the packaged app renders.");
     // #1344 — a bundled sample file reads through the same guard a user's click goes through
-    const sample = await evaluate(page.webSocketDebuggerUrl, `(async () => { const p = await window.desktop.sampleDataPath(); if (!p.ok) return "no sample folder: " + p.error; const sep = p.path.includes("\\\\") ? "\\\\" : "/"; const r = await window.desktop.fsReadFile(p.path + sep + "harry_property" + sep + "collars.csv"); return r.ok ? "ok " + (r.data?.length || r.data?.byteLength || 0) : r.error; })()`).catch((e) => String(e));
+    // #3100 — the BC ARIS samples (Harry, Woodjam, Silvertip, Perk-Rocky) are no longer shipped: WA uranium (CC BY 4.0) is
+    const sample = await evaluate(page.webSocketDebuggerUrl, `(async () => { const p = await window.desktop.sampleDataPath(); if (!p.ok) return "no sample folder: " + p.error; const sep = p.path.includes("\\\\") ? "\\\\" : "/"; const r = await window.desktop.fsReadFile(p.path + sep + "wa_uranium" + sep + "collars.csv"); return r.ok ? "ok " + (r.data?.length || r.data?.byteLength || 0) : r.error; })()`).catch((e) => String(e));
     console.log("sample:", sample);
     const samplesOk = /^ok [1-9]/.test(String(sample));
     if (samplesOk) console.log("SMOKE OK: the bundled samples read from inside a protected folder.");

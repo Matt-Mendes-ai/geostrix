@@ -23,6 +23,8 @@ Two operations, run as a sidecar job in its own process (jobs.py), so their impo
 Grids come in and go out as base64 float32, row 0 NORTH, NaN = no data (the app's raster.grid layout).
 """
 import base64
+import sys
+import time
 import warnings
 import numpy as np
 
@@ -80,7 +82,22 @@ def _vertical_derivative(g):
     return hm.derivative_upward(p)[py:py + ny, px:px + nx]
 
 
+# TASKS.csv #2955 (review #2876: 1,701 stations gridded in 72-172 s with only "Working..." for the first 40) — every job runs in a fresh
+# process (jobs.py, #321: cancel hands all its memory back), so Harmonica and Verde are imported for each run: 19-24 s of the 24-29 s measured
+# on a busy machine for 1,701 stations, the fit itself 3-4 s. The load is said as such before it starts, and timed; the stages after it carry
+# their own times in the result (timings), which the pane prints.
+def _engine(progress, label="the gridding engine (Harmonica, Verde)"):
+    if "harmonica" in sys.modules and "verde" in sys.modules:
+        return 0.0  # #3124 — a warm worker: still loaded from a run in the last few minutes
+    t0 = time.perf_counter()
+    progress({"stage": "loading", "message": f"Loading {label}, the longest step of a small survey; it stays loaded for about 3 minutes after a run…"})
+    import harmonica  # noqa: F401
+    import verde  # noqa: F401
+    return time.perf_counter() - t0
+
+
 def euler(req, progress):
+    load_s = _engine(progress)
     import harmonica as hm
     da, easting, northing = _grid(req)
     si = float(req.get("structural_index", 1))
@@ -88,7 +105,7 @@ def euler(req, progress):
     obs = float(req.get("observation_elevation") or 0.0)
     max_unc = float(req.get("max_depth_uncertainty", 0.15))
     max_depth_windows = float(req.get("max_depth_windows", 2.0))
-    progress({"stage": "derivatives", "message": "Derivatives (Harmonica)…"})
+    progress({"stage": "derivatives", "message": f"Derivatives (Harmonica; {'engine already loaded' if load_s == 0 else f'engine loaded in {load_s:.0f} s'})…"})
     g, bad = _filled(da)
     ny, nx = g.shape
     dz = _vertical_derivative(g)
@@ -136,6 +153,7 @@ def euler(req, progress):
 
 
 def eqs(req, progress):
+    load_s = _engine(progress)  # #2955
     import harmonica as hm
     import verde as vd
     x = np.asarray(req["x"], float)
@@ -157,7 +175,8 @@ def eqs(req, progress):
     mean = float(np.mean(v))
     damping = req.get("damping")
     depth = req.get("depth")
-    progress({"stage": "fitting", "message": f"Fitting equivalent sources to {x.size:,} readings…"})
+    progress({"stage": "fitting", "message": f"Fitting equivalent sources to {x.size:,} readings ({'engine already loaded' if load_s == 0 else f'engine loaded in {load_s:.0f} s'})…"})
+    t_fit = time.perf_counter()
     depth_m = float(depth) if depth not in (None, "") else 1.2 * spacing
     kw = dict(damping=float(damping) if damping not in (None, "") else None, block_size=spacing, depth=depth_m)
     gb = x.size > 5000
@@ -179,7 +198,9 @@ def eqs(req, progress):
             raise ValueError(f"The readings could not be split into windows for the gradient-boosted fit (window {win / 1000:.1f} km over a "
                              f"{(x.max() - x.min()) / 1000:.1f} x {(y.max() - y.min()) / 1000:.1f} km survey): try a larger cell.") from None
         raise
-    progress({"stage": "predicting", "message": "Predicting on the grid…"})
+    fit_s = time.perf_counter() - t_fit
+    progress({"stage": "predicting", "message": f"Predicting on the grid (fitted in {fit_s:.0f} s)…"})
+    t_grid = time.perf_counter()
     e, n = vd.grid_coordinates(region, spacing=spacing)
     if draped:
         from scipy.interpolate import LinearNDInterpolator, NearestNDInterpolator
@@ -212,7 +233,8 @@ def eqs(req, progress):
             "dy": float(n[1, 0] - n[0, 0]) if rows > 1 else spacing, "values": _b64(pred[::-1]), "elevation": elev, "draped": draped, "readings": int(x.size),
             "gradient_boosted": gb, "rms_misfit": float(np.sqrt(np.mean(resid ** 2))), "data_std": float(np.std(bv)), "blocks": int(bv.size),
             "within_block_rms": within, "depth": depth_m, "window": win, "grid_rms": grid_rms, "grid_max": grid_max, "grid_n": grid_n,
-            "surface": [float(np.min(u)), float(np.max(u))] if draped else None}
+            "surface": [float(np.min(u)), float(np.max(u))] if draped else None,
+            "timings": {"load": round(load_s, 1), "fit": round(fit_s, 1), "grid": round(time.perf_counter() - t_grid, 1)}}  # #2955
 
 
 # ---- TASKS.csv #1985 — gravity reductions (Boule normal gravity, Harmonica Bouguer / topography) ----------------------------------
@@ -283,6 +305,7 @@ SPLINE_DAMPINGS = (1e-8, 1e-6, 1e-4, 1e-2, 1.0)
 
 
 def spline(req, progress):
+    _engine(progress, "the gridding engine (Verde)")  # #2955
     import verde as vd
     x = np.asarray(req["x"], float); y = np.asarray(req["y"], float); v = np.asarray(req["value"], float)
     ok = np.isfinite(x) & np.isfinite(y) & np.isfinite(v)

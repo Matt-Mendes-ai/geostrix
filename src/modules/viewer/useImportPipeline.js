@@ -29,7 +29,7 @@ import { codeColumnGuess } from "../../lib/valueGuess.js"; // TASKS.csv #2889
 import { codeOverlap, otherCodeSystem } from "../../lib/codeOverlap.js"; // TASKS.csv #2893
 import { recoveryColumns, recoveryPct } from "../../lib/recoveryCalc.js"; // TASKS.csv #2891
 import { logChannelsFor, defaultLogBin, logChannelRows, unitFromHeader, channelNoData, noDataText, logBinEstimate, needsBinning } from "../../lib/downholeLogChannels.js"; // TASKS.csv #2160; no-data: #2332; logBinEstimate: #2885
-import { loadSampleFiles, readSiblingFiles } from "../../lib/desktop.js";
+import { loadSampleFiles, readSiblingFiles, sampleStatus } from "../../lib/desktop.js"; // sampleStatus: TASKS.csv #3100
 const isXlsxName = (name) => /\.xlsx$/i.test(String(name || "")); // TASKS.csv #605 (same test as xlsx.js; the reader itself loads on demand, #552)
 import { buildLayer, sameMapLayer } from "../../lib/mapLayerBuild.js"; // TASKS.csv #609; sameMapLayer: #2019
 import { askAdoptCrs } from "../../lib/adoptCrs.js"; // TASKS.csv #607
@@ -703,7 +703,7 @@ export function useImportPipeline(ctx) {
         const nd = data.logKeepNoData ? null : channelNoData(allRows, col, unitFromHeader(col)); // #2332 — no-data codes left out unless kept
         const out = logChannelRows(allRows, mapping, col, binM, nd?.values || null);
         if (!out.rows.length) return;
-        const unit = unitFromHeader(col);
+        const unit = String(data.logUnits?.[col] ?? unitFromHeader(col)).trim(); // TASKS.csv #2952 — the unit typed beside the channel in the import (side 2, agreed with Main)
         const id = `custom_${Date.now()}_${k}`;
         const group = new THREE.Group(); group.name = id;
         layerGroupsRef.current[id] = group;
@@ -1129,6 +1129,9 @@ export function useImportPipeline(ctx) {
       dir: "harry_property", epsg: 3156, crs: "NAD83(CSRS) / UTM zone 9N",
       files: ["collars.csv", "litho.csv", "alt.csv", "vein.csv", "mnlgy.csv", "geotech.csv", "magsusc.csv", "structure.csv"],
       notice: "Loading the Harry property sample project — 37 real drillholes from BC's public ARIS database (report #37584), with the interval layers synthesized around the real assay anomalies. See sample_data/harry_property/README.md for exactly what's real vs. synthetic. Their assays (assay_wide.csv) are loaded into the Geochem tab too.",
+      // TASKS.csv #3100 — a copy downloaded from the BCGS drillhole database has the real tables only (the synthesized layers cannot be made again)
+      optional: ["alt.csv", "vein.csv", "mnlgy.csv", "geotech.csv", "magsusc.csv", "structure.csv"],
+      noticeDownloaded: "Loading the Harry property sample project — 37 real drillholes of BC assessment report #37584, downloaded from the BC Geological Survey's drillhole database: collars, lithology and assays (into the Geochem tab too). The interval layers synthesized in GeoStrix's own copy are not part of a download.",
     },
     woodjam: {
       dir: "woodjam", epsg: 26910, crs: "NAD83 / UTM zone 10N",
@@ -1147,13 +1150,50 @@ export function useImportPipeline(ctx) {
       files: ["collars.csv", "survey.csv", "litho.csv", "alt.csv", "weath.csv"], // weath.csv: TASKS.csv #2342 — the oxidation state as Weathering
       notice: "Loading the Western Australian palaeochannel-uranium sample project — 430 aircore and diamond drillholes from 2009-2010 with their lithology and alteration logs, multi-element assays and a downhole gamma / eU3O8 log, from the State's open-file WAMEX drillhole database (report A87304, CC BY 4.0). Nothing in it is synthesized (sample_data/wa_uranium/README.md).",
     },
+    // TASKS.csv #3107 — its assays and other parts are loaded by the caller (lib/sampleWa.js)
+    wa_iron: {
+      dir: "wa_iron", epsg: 28350, crs: "GDA94 / MGA zone 50",
+      files: ["collars.csv", "survey.csv", "litho.csv"],
+      notice: "WA bedded iron (WAMEX report A119232): 147 shallow holes from 2018 on one block of a flat-lying iron deposit under cover, with strand logs, XRF assays, downhole density, gamma and magnetic-susceptibility logs, and Geoscience Australia's magnetic grid over it — nothing synthesized.",
+    },
+    // TASKS.csv #3107 — its assays and other parts are loaded by the caller (lib/sampleWa.js)
+    wa_lead_zinc: {
+      dir: "wa_lead_zinc", epsg: 28352, crs: "GDA94 / MGA zone 52",
+      files: ["collars.csv", "survey.csv", "litho.csv", "weath.csv", "sg.csv"],
+      notice: "WA lead-silver-zinc (WAMEX report A91581): 99 shallow holes from 2010 on a carbonate-hosted deposit in the east Kimberley, with lithology, weathering, assays and specific gravity — nothing synthesized.",
+    },
+    // TASKS.csv #3107 — its assays and other parts are loaded by the caller (lib/sampleWa.js)
+    wa_zinc_copper: {
+      dir: "wa_zinc_copper", epsg: 28350, crs: "GDA94 / MGA zone 50",
+      files: ["collars.csv", "survey.csv", "litho.csv", "weath.csv", "alt.csv", "mnlgy.csv"],
+      notice: "WA zinc-copper (WAMEX report A77713): 32 holes from 2007 on sulphide prospects in felsic volcanic rocks of the east Pilbara, with logs and assays, and 157 soil and 46 stream-sediment samples — nothing synthesized.",
+    },
+    // TASKS.csv #3107 — its assays and other parts are loaded by the caller (lib/sampleWa.js)
+    wa_gold: {
+      dir: "wa_gold", epsg: 28351, crs: "GDA94 / MGA zone 51",
+      files: ["collars.csv", "survey.csv", "litho.csv", "weath.csv", "alt.csv", "vein.csv", "structure.csv"],
+      notice: "WA lode gold (WAMEX report A122506): 66 inclined holes from 2018-2019 on a gold prospect east of Kalgoorlie, with lithology, alteration, veining, oriented structures and 14,664 gold assays — nothing synthesized.",
+    },
+    // TASKS.csv #3107 — its geology, measurements and terrain are loaded by the caller (lib/sampleRegional.js)
+    qc_rouyn_noranda: {
+      dir: "qc_rouyn_noranda", epsg: 26917, crs: "NAD83 / UTM zone 17N",
+      files: ["collars.csv", "survey.csv"],
+      notice: "Rouyn-Noranda (Quebec's SIGEOM, CC BY 4.0): the geology, 299 structural measurements and 280 historical drillhole traces of a 7 km block of the Abitibi, on a terrain, inside the Blake River gravity sample — nothing synthesized.",
+    },
+    // TASKS.csv #3107 — its assays and other parts are loaded by the caller (lib/sampleWa.js)
+    qld_century: {
+      dir: "qld_century", epsg: 7854, crs: "GDA2020 / MGA zone 54",
+      files: ["collars.csv", "survey.csv", "litho.csv"],
+      notice: "Century (Geological Survey of Queensland, CC BY 4.0): 37 holes from 1992 on a shale-hosted zinc-lead-silver deposit, with lithology and assays, 730 soil samples and Geoscience Australia's magnetic grid — nothing synthesized.",
+    },
   };
   const loadSampleProject = async (which = "harry") => {
     if (sampleLoading || importActiveRef.current) return false;
     const S = SAMPLES[which] || SAMPLES.harry;
     setSampleLoading(true);
     try {
-      const files = await loadSampleFiles(S.dir, S.files);
+      const files = await loadSampleFiles(S.dir, S.files, { optional: S.optional || [] }); // optional: #3100
+      const downloaded = S.noticeDownloaded && (await sampleStatus())[which] === "downloaded"; // #3100
       // TASKS.csv #617 — the sample's CRS is known: set it when the project's CRS was never chosen, instead of
       // stopping on #615's "which CRS are these collars in?" dialog
       const live = importStateRef.current;
@@ -1164,7 +1204,7 @@ export function useImportPipeline(ctx) {
       } else if (live.project?.epsg && Number(live.project.epsg) !== S.epsg) {
         setNotices((p) => [...p, notice("The sample project's coordinates are EPSG:{epsg} ({crs}), but this project is EPSG:{epsg2}: the holes will not line up with anything else in it. Load the sample into a new project.", { epsg: S.epsg, crs: S.crs, epsg2: live.project.epsg })]);
       }
-      setNotices((p) => [...p, notice(S.notice)]); // #786 — the two SAMPLES notices are in the dictionaries
+      setNotices((p) => [...p, notice(downloaded ? S.noticeDownloaded : S.notice)]); // #786 — the two SAMPLES notices are in the dictionaries; downloaded: #3100
       importActiveRef.current = true;
       batchRowsRef.current = new WeakSet(); // #605
       importQueueTotalRef.current = files.length;

@@ -1,6 +1,6 @@
 {
   "name": "geostrix",
-  "version": "0.1.112",
+  "version": "0.1.113",
   "description": "Mineral exploration workspace: drillholes, geochemistry, geophysics and 3D modelling",
   "author": "Matt Mendes",
   "license": "MIT",
@@ -69,7 +69,18 @@
       },
       {
         "from": "sample_data",
-        "to": "sample_data"
+        "to": "sample_data",
+        "filter": [
+          "**/*",
+          "!harry_property{,/**/*}",
+          "!woodjam{,/**/*}",
+          "!silvertip{,/**/*}",
+          "!perk_rocky{,/**/*}"
+        ]
+      },
+      {
+        "from": "sample_data/perk_rocky/terrain_copernicus_glo30.tif",
+        "to": "sample_data/perk_rocky/terrain_copernicus_glo30.tif"
       },
       {
         "from": "addons",

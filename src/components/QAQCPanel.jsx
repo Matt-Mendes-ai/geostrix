@@ -23,7 +23,7 @@ const TABS = ["standards", "blanks", "duplicates"];
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 import { fontSizes } from "../lib/theme.js"; // TASKS.csv #385 — SVG font-size attributes on the type scale
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
-import { gradeUnitLabel } from "../lib/geochem.js"; // TASKS.csv #2192 — g/t for a precious metal stored in ppm (#1680)
+import { gradeUnitLabel, elementOptionLabel } from "../lib/geochem.js"; // elementOptionLabel: #2914 — // TASKS.csv #2192 — g/t for a precious metal stored in ppm (#1680)
 import { toExportCsv } from "../lib/tabular.js"; // TASKS.csv #1022 — every exported CSV: all columns, formula cells escaped
 import { qaqcStandardRows, qaqcBlankRows, qaqcDuplicateRows } from "../lib/analysisExports.js"; // TASKS.csv #1083
 import { pxrfVsLab, sampleTypesSeen } from "../lib/pxrfVsLab.js"; // TASKS.csv #1675
@@ -139,7 +139,7 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
         <div style={{ padding: 16, overflow: "auto", display: "flex", flexDirection: "column", gap: 12 }}>
           <div style={{ display: "flex", gap: 10, alignItems: "flex-end", flexWrap: "wrap" }}>
             <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("Element")}<select value={symbol} onChange={(e) => setSymbol(e.target.value)} style={{ ...sel, display: "block", marginTop: 4 }}>
-                {assayElements.map((e) => <option key={e.symbol} value={e.symbol}>{e.symbol}</option>)}
+                {assayElements.map((e) => <option key={e.symbol} value={e.symbol}>{elementOptionLabel(e.symbol, e.unit) /* #2914 */}</option>)}
               </select>
             </label>
             {/* TASKS.csv #534 — the element's detection limit, saved with the project */}

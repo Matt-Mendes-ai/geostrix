@@ -29,7 +29,7 @@ test("the picker offers fields with 2 to 30 values", () => {
   assert.deepEqual(ch.find((c) => c.key === "zone").values, ["AGB", "CC", "DR-PX"]);
   const bar = readFileSync(new URL("../src/modules/viewer/HoleFilterBar.jsx", import.meta.url), "utf8");
   // #1703 — through holesForFilter: collarsMatching first, then text in a collar field when no hole id matched
-  assert.match(bar, /const found = holesForFilter\(collars, filter\);/);
+  assert.match(bar, /found = (none \? \{ holes: none, byField: false \} : )?holesForFilter\(collars, filter\);/); // #3074 — a '(no value)' pick first
   assert.match(bar, /const shown = found\.holes\.map\(\(c\) => c\.hole_id\);/);
-  assert.match(readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8"), /const tickedShown = \(collars, f\) => holesForFilter\(collars, f\)\.holes;/);
+  assert.match(readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8"), /const tickedShown = \(collars, f\) => (holesWithoutField\(collars, f\) \?\? )?holesForFilter\(collars, f\)\.holes;/);
 });
