@@ -1,6 +1,7 @@
 import { QC_COLUMN_KEYS } from "../lib/assayQcColumns.js"; // TASKS.csv #1184
 import React, { useEffect, useMemo, useState } from "react";
 import { X } from "./icons.js";
+import { percentColumnsReadingPpm } from "../lib/percentAsPpm.js"; // TASKS.csv #3197
 import { isElementColumn, inferUnit, ELEMENT_SYMBOLS, UNIT_ONLY_SYMBOLS, unitAssumed, repeatColumns, numberedRepeatCandidates, oxideOfHeader, keepsOxide, importStoreUnit, oxidesOver100, LOI } from "../lib/geochem.js"; // LOI: #2887; // importStoreUnit, oxidesOver100: #2490 // numberedRepeatCandidates: #2350 // repeatColumns: #2194; oxide basis: #2487
 import { scanAssayColumns, negativeSummary, zeroCount, blankCount } from "../lib/assayColumnScan.js"; // TASKS.csv #2164
 import { useEscapeKey } from "../lib/useEscapeKey.js";
@@ -46,6 +47,8 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
   // TASKS.csv #334 — elements already in the project under a different unit get converted on import.
   // #2490 — against the unit the import will actually store (an oxide column's own basis), not the box's raw text
   const unitClashes = modal.elements.filter((e) => e.checked && existingUnits[e.symbol] && existingUnits[e.symbol] !== importStoreUnit(e));
+  // TASKS.csv #3197 — per-cent columns whose values run far past 100 (median over 100: ppm under a _pct name), said here, where the unit menu is
+  const pctAsPpm = useMemo(() => (modal.format === "wide" ? percentColumnsReadingPpm(modal.allRows || [], modal.elements.filter((e) => e.checked)) : []), [modal.format, modal.allRows, modal.elements]);
   const over100 = useMemo(() => (modal.format === "wide" ? oxidesOver100(modal.allRows || [], modal.elements.filter((e) => e.checked), modal.mapping || {}) : []), [modal.format, modal.allRows, modal.elements, modal.mapping]); // #2490
   // TASKS.csv #210 — manual "add a column the auto-detector missed" control, wide format only (long
   // format's elements come from distinct analyte VALUES in one column, not headers — a different,
@@ -63,6 +66,7 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
   const numbered = useMemo(() => (modal.format === "long" ? [] : numberedRepeatCandidates(modal.headers || [], modal.allRows || [], modal.elements.filter((e) => e.checked))), [modal.format, modal.headers, modal.allRows, checkedKey]);
   const toggleEl = (sym) => onChange({ ...modal, elements: modal.elements.map((e) => e.symbol === sym ? { ...e, checked: !e.checked } : e) });
   const setUnit = (sym, unit) => onChange({ ...modal, elements: modal.elements.map((e) => e.symbol === sym ? { ...e, unit, unitChosen: true } : e) }); // unitChosen: #718
+  const setUnits = (syms, unit) => onChange({ ...modal, elements: modal.elements.map((e) => syms.includes(e.symbol) ? { ...e, unit, unitChosen: true } : e) }); // #3197
   const setKeepOxide = (sym, keep) => onChange({ ...modal, elements: modal.elements.map((e) => e.symbol === sym ? { ...e, keepOxide: keep } : e) }); // #2487
   const setAllOxide = (keep) => onChange({ ...modal, elements: modal.elements.map((e) => (oxideOfHeader(e.header) ? { ...e, keepOxide: keep } : e)) }); // #2888 — every oxide column at once
   // TASKS.csv #2487 — the oxide columns and the basis each will be stored in, said before the commit
@@ -166,6 +170,13 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
           {modal.elements.filter((e) => e.unitFromValues && !e.unitChosen && e.header === e.mainHeader).map((e) => (
             <div key={`ppb${e.symbol}`} role="status" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", margin: "4px 0" }}>{tr("{symbol}: \"{header}\" does not say its unit, and its values (median {median}, up to {max}) read as ppb, not ppm: ppb is chosen. Check it against the lab certificate.", { symbol: e.symbol, header: e.header, median: +e.unitFromValues.median.toFixed(2), max: e.unitFromValues.max.toLocaleString() })}</div>
           ))}
+          {/* TASKS.csv #3197 — a per-cent column holding ppm: said while the unit menu is in reach, ppm offered, nothing converted until chosen */}
+          {pctAsPpm.length > 0 && (
+            <div role="status" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", margin: "4px 0", lineHeight: 1.45 }}>
+              {tr("These columns are read in per cent, but their values run far past 100 %, which no weight per cent can: {list}. They look like ppm. Pick the unit for each in the list below, or:", { list: pctAsPpm.map((o) => tr("{header} (median {median} %, up to {max} %)", { header: o.header, median: Math.round(o.median).toLocaleString(), max: Math.round(o.max).toLocaleString() })).join(", ") })}{" "}
+              <button type="button" onClick={() => setUnits(pctAsPpm.map((o) => o.symbol), "ppm")} style={{ ...sel, cursor: "pointer", padding: "1px 8px" }}>{pctAsPpm.length > 1 ? tr("Read these {n} as ppm", { n: pctAsPpm.length }) : tr("Read {header} as ppm", { header: pctAsPpm[0].header })}</button>
+            </div>
+          )}
           {over100.length > 0 && <div role="note" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", margin: "4px 0", lineHeight: 1.45 }}>{over100.map((o) => tr("{header} has {n} value(s) over 100 % (impossible as wt%): {hole} {from}-{to} m = {value}. Check those samples; the column stays in per cent.", { header: o.header, n: o.n, hole: o.example.hole ?? "?", from: o.example.from ?? "?", to: o.example.to ?? "?", value: o.example.value })).join(" ")}</div>}{/* TASKS.csv #2490 */}
           {oxideEls.length > 0 && ( /* TASKS.csv #2487 */
             <div role="note" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", margin: "4px 0", lineHeight: 1.45 }}>

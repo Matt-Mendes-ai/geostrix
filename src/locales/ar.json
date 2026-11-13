@@ -11786,5 +11786,9 @@
   "Exports carry the other elements of a model's set": "تتضمّن عمليات التصدير العناصر الأخرى في مجموعة النموذج",
   "{fileName}: {cols} read as dates (stored as year-month-day); each also has a year field, to filter and colour the holes by.": "{fileName}: قُرئت {cols} تواريخَ (محفوظة بصيغة سنة-شهر-يوم)؛ ولكلٍّ منها حقل للسنة أيضًا، لتصفية الثقوب وتلوينها.",
   "{fileName}: {cols} kept as written: every date there could be day/month or month/day.": "{fileName}: أُبقيت {cols} كما كُتبت: كل تاريخ فيها قد يكون يوم/شهر أو شهر/يوم.",
-  "{fileName}: no unit for {cols}: the column name gives none and none was typed, so the values are as logged with no unit.": "{fileName}: لا وحدة لـ{cols}: اسم العمود لا يذكر وحدة ولم تُكتب وحدة، فتبقى القيم كما سُجّلت بلا وحدة."
+  "{fileName}: no unit for {cols}: the column name gives none and none was typed, so the values are as logged with no unit.": "{fileName}: لا وحدة لـ{cols}: اسم العمود لا يذكر وحدة ولم تُكتب وحدة، فتبقى القيم كما سُجّلت بلا وحدة.",
+  "These columns are read in per cent, but their values run far past 100 %, which no weight per cent can: {list}. They look like ppm. Pick the unit for each in the list below, or:": "تُقرأ هذه الأعمدة بالنسبة المئوية، لكن قيمها تتجاوز 100 % بكثير، وهو ما لا يمكن لأي نسبة وزنية: {list}. تبدو بوحدة ppm. اختر وحدة كل عمود في القائمة أدناه، أو:",
+  "{header} (median {median} %, up to {max} %)": "{header} (الوسيط {median} %، حتى {max} %)",
+  "Read these {n} as ppm": "قراءة هذه الـ{n} بوحدة ppm",
+  "Read {header} as ppm": "قراءة {header} بوحدة ppm"
 }

@@ -11786,5 +11786,9 @@
   "Exports carry the other elements of a model's set": "As exportações incluem os outros elementos do conjunto do modelo",
   "{fileName}: {cols} read as dates (stored as year-month-day); each also has a year field, to filter and colour the holes by.": "{fileName}: {cols} lidas como datas (salvas como ano-mês-dia); cada uma tem também um campo de ano, para filtrar e colorir os furos.",
   "{fileName}: {cols} kept as written: every date there could be day/month or month/day.": "{fileName}: {cols} mantidas como escritas: cada data pode ser dia/mês ou mês/dia.",
-  "{fileName}: no unit for {cols}: the column name gives none and none was typed, so the values are as logged with no unit.": "{fileName}: sem unidade para {cols}: o nome da coluna não indica nenhuma e nenhuma foi digitada, então os valores ficam como registrados, sem unidade."
+  "{fileName}: no unit for {cols}: the column name gives none and none was typed, so the values are as logged with no unit.": "{fileName}: sem unidade para {cols}: o nome da coluna não indica nenhuma e nenhuma foi digitada, então os valores ficam como registrados, sem unidade.",
+  "These columns are read in per cent, but their values run far past 100 %, which no weight per cent can: {list}. They look like ppm. Pick the unit for each in the list below, or:": "Estas colunas são lidas em porcentagem, mas seus valores passam muito de 100 %, o que nenhuma porcentagem em peso pode: {list}. Parecem ppm. Escolha a unidade de cada uma na lista abaixo, ou:",
+  "{header} (median {median} %, up to {max} %)": "{header} (mediana {median} %, até {max} %)",
+  "Read these {n} as ppm": "Ler estas {n} em ppm",
+  "Read {header} as ppm": "Ler {header} em ppm"
 }
