@@ -452,6 +452,34 @@ export function convertUnit(v, fromUnit, toUnit) {
   return fromElementPpm(elementPpm(v, fromUnit), toUnit); // #2487 — an oxide basis ("% Li2O") converts through the element
 }
 
+// TASKS.csv #2914 (review #2876, WA iron) — an element answers to its oxide's name too: 'SiO2 + Al2O3' failed with 'Unknown name "SiO2"' and
+// SQL had no SiO2 column. Each element stored in % (or as one of its oxides) gets every oxide of the element as an alias, read in
+// the stored base (per cent) through the import's own factors: Si stored as '% SiO2' -> SiO2 = the stored value; Fe stored
+// as element % -> Fe2O3 = Fe x 1.4297 and FeO = Fe x 1.2865. A name already taken by an element is left to that element.
+// -> [{ name, symbol, factor, unit }]: alias value = stored value x factor
+export function oxideAliases(assayElements) {
+  const taken = new Set((assayElements || []).map((e) => String(e?.symbol ?? "").toLowerCase()));
+  const out = [];
+  for (const e of assayElements || []) {
+    if (!e?.symbol || e.calculated) continue;
+    const u = String(e.unit || "ppm"), b = unitBasis(u);
+    if (b.oxide ? b.symbol !== e.symbol : u !== "%") continue; // per cent or an oxide basis: a ppm trace element is not given CuO, PbO, ZnO ...
+    for (const { oxide } of oxidesOfElement(e.symbol)) {
+      if (taken.has(oxide.toLowerCase())) continue;
+      const unit = oxideBasisUnit(b.base, oxide), f = convertUnit(1, u, unit);
+      if (!(f > 0) || !Number.isFinite(f)) continue;
+      taken.add(oxide.toLowerCase());
+      out.push({ name: oxide, symbol: e.symbol, factor: Number(f.toPrecision(12)), unit });
+    }
+  }
+  return out;
+}
+// #2914 — an element's name in a picker: 'Si as SiO2' when it is stored as the oxide (its values are SiO2 %), else the symbol
+export function elementOptionLabel(symbol, unit) {
+  const b = unitBasis(unit);
+  return b.oxide && b.symbol === symbol ? tr("{symbol} as {oxide}", { symbol, oxide: b.oxide }) : symbol;
+}
+
 // TASKS.csv #336 — re-importing assays used to append a second copy of every row (a daily camp re-drop
 // doubled every intercept metre). An incoming row for the same hole + from + to now MERGES into the
 // existing row: its element values overwrite the same elements, and elements it doesn't carry are kept

@@ -2,7 +2,7 @@ import React, { useMemo, useState } from "react";
 import { isBelowDetection } from "../lib/assayFlags.js"; // TASKS.csv #2505
 import { useVirtualRows } from "../lib/useVirtualRows.js"; // TASKS.csv #1186, #1278
 import { X, Download } from "./icons.js";
-import { valueIn } from "../lib/geochem.js";
+import { valueIn, elementOptionLabel } from "../lib/geochem.js"; // elementOptionLabel: #2914
 import { saveFile } from "../lib/desktop.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
@@ -185,7 +185,7 @@ export default function IsoconTool({ assays: assaysIn, assayElements, onClose })
                 </select>
                 {flt.layer2 && <select value={flt.code2} onChange={(e) => setFlt((f) => ({ ...f, code2: e.target.value }))} style={sel} aria-label={tr("Second code")}><option value="">{tr("— any code —")}</option>{codes2.map((v) => <option key={v} value={v}>{v}</option>)}</select>}</>}
               <select value={flt.sym} onChange={(e) => setFlt((f) => ({ ...f, sym: e.target.value }))} style={sel} aria-label={tr("Element")} title={tr("An element or index whose value must lie in the range")}>
-                <option value="">{tr("— any element —")}</option>{symbols.map((s) => <option key={s} value={s}>{s}</option>)}
+                <option value="">{tr("— any element —")}</option>{symbols.map((s) => <option key={s} value={s}>{elementOptionLabel(s, elementUnits[s]) /* #2914 */}</option>)}
               </select>
               {flt.sym && <><input type="number" step="any" placeholder={tr("min")} value={flt.min} onChange={(e) => setFlt((f) => ({ ...f, min: e.target.value }))} style={{ ...sel, width: 80 }} aria-label={tr("Minimum")} /><input type="number" step="any" placeholder={tr("max")} value={flt.max} onChange={(e) => setFlt((f) => ({ ...f, max: e.target.value }))} style={{ ...sel, width: 80 }} aria-label={tr("Maximum")} /><span style={{ color: "var(--color-text-muted)" }}>{elementUnits[flt.sym] || "ppm"}</span></>}
               <input placeholder={tr("Holes (PS-26, GS-21)")} value={flt.holes} onChange={(e) => setFlt((f) => ({ ...f, holes: e.target.value }))} style={{ ...sel, width: 140 }} aria-label={tr("Holes")} />

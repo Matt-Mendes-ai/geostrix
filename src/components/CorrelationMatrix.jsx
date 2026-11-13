@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { useLeadCommodity } from "../lib/useLeadCommodity.js"; // TASKS.csv #2351
 import { X, Download } from "./icons.js";
-import { valueIn } from "../lib/geochem.js";
+import { valueIn, elementOptionLabel } from "../lib/geochem.js"; // elementOptionLabel: #2914
 import { saveFile } from "../lib/desktop.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
@@ -153,7 +153,7 @@ export default function CorrelationMatrix({ assays: assaysIn, assayElements: ass
               {allSymbols.map((s) => (
                 <label key={s} style={{ display: "flex", alignItems: "center", gap: 4, padding: "3px 8px", borderRadius: 5, background: selected.has(s) ? "var(--color-success-bg)" : "var(--color-bg-subtle)", border: `1px solid ${selected.has(s) ? "var(--color-success-border)" : "var(--color-border)"}`, fontSize: "var(--font-size-base)", color: selected.has(s) ? "var(--color-success-text)" : "var(--color-text-secondary)", cursor: "pointer" }}>
                   <input type="checkbox" checked={selected.has(s)} onChange={() => toggle(s)} style={{ display: "none" }} />
-                  {s}{calcSyms.has(s) && <span title={tr("Calculated from other elements: not a measurement. It correlates with the elements it is made from by construction.")} style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{tr("calc.")}</span>}{/* #2036 */}
+                  {elementOptionLabel(s, elementUnits[s]) /* #2914 */}{calcSyms.has(s) && <span title={tr("Calculated from other elements: not a measurement. It correlates with the elements it is made from by construction.")} style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{tr("calc.")}</span>}{/* #2036 */}
                 </label>
               ))}
             </div>
