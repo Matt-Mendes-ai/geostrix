@@ -91,6 +91,11 @@ test("the exports that write through the tie: catchments GPX / GeoTIFF, the surv
   const m = read("components/SurfaceMappingPanel.jsx");
   assert.match(m, /s = structureSetToWorld\(s, tie\);/);
   assert.match(m, /const zAt = atLocal\(tie, terrain \?/);
+  // the Targeting evidence overlay's GeoTIFF (the other owners' sites load the helper inside the handler, Main's rule for #3159)
+  const e = read("components/EvidenceOverlayPane.jsx");
+  assert.match(e, /const tx = await import\("\.\.\/lib\/tiedExport\.js"\); const ex = await tx\.exportCrs\(project\); if \(!ex\) return;/);
+  assert.match(e, /gridToGeoTIFF\(\{ \.\.\.tx\.gridBandsToWorld\(\{ \.\.\.grid, bands: \[\{ values: score \}\] \}, ex\.tie\), epsg: ex\.epsg \}\)/);
+  assert.doesNotMatch(e, /^import .*tiedExport/m);
   // the helper is not in the startup bundle (#3159): only these lazy modules import it
   assert.doesNotMatch(read("App.jsx"), /tiedExport/);
 });
