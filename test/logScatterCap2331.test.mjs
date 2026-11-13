@@ -18,7 +18,7 @@ test("a small set is drawn whole; a large one is strided with its extremes", () 
 
 test("the pane draws the sample and says so", () => {
   const p = readFileSync(new URL("../src/components/DownholeLogsPane.jsx", import.meta.url), "utf8");
-  assert.match(p, /const drawn = strideSample\(pts\);/);
+  assert.match(p, /drawn: strideSample\(p\)/); // #2948 — kept in a memo with the points
   assert.match(p, /\{drawn\.points\.map\(\(\[x, y\], i\) => <circle/);
   assert.doesNotMatch(p, /\{pts\.map\(\(\[x, y\], i\) => <circle/);
   assert.match(p, /pairs drawn \(every \{s\}th, and the extremes\); the statistics use all of them\./);

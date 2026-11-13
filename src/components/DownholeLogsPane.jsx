@@ -6,12 +6,13 @@ import { Activity } from "./icons.js";
 import { numericSourceChoices, sourceAssays } from "../lib/numericSources.js";
 import { domainLayerChoices, foldDomainRows } from "../lib/domainLayers.js"; // foldDomainRows: TASKS.csv #2790
 import { LAYER_META } from "../lib/layers.js";
-import { logByCode, logVsAssay, logVsModel, NOT_LOGGED, strideSample, logScaleSuits, allAboveZero, countAtOrBelowZero, sig3 } from "../lib/downholeLogs.js"; // logVsModel: #1595; strideSample: #2331; logScaleSuits...: #2558
+import { groupLogByCode, rankLogGroups, logVsAssay, logVsModel, NOT_LOGGED, strideSample, logScaleSuits, allAboveZero, countAtOrBelowZero, sig3 } from "../lib/downholeLogs.js"; // logVsModel: #1595; strideSample: #2331; logScaleSuits...: #2558; groupLogByCode / rankLogGroups: #2948
 import { BoxPlots } from "./GradeStatistics.jsx";
 import { smallSel } from "../lib/sidebarStyles.js";
 import { t as tr } from "../lib/i18n.js";
 import { useKeptState, scopeOf } from "../lib/keptState.js"; // TASKS.csv #2394 — the choices survive the pane closing (per project)
 import { useStore } from "../lib/store.jsx";
+import { useDeferredMemo, DEFER_ROWS } from "../lib/useDeferredMemo.js"; // TASKS.csv #2948
 
 const note = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.45 };
 const row = { display: "flex", alignItems: "center", gap: 6, justifyContent: "space-between", fontSize: "var(--font-size-sm)", marginBottom: 6 };
@@ -19,13 +20,17 @@ const row = { display: "flex", alignItems: "center", gap: 6, justifyContent: "sp
 function Scatter({ pairs, xLabel, yLabel, logX, logY }) {
   const w = 300, h = 220, pl = 44, pb = 30, pr = 8, pt = 8;
   const fx = logX ? (v) => Math.log10(v) : (v) => v, fy = logY ? (v) => Math.log10(v) : (v) => v;
-  const pts = pairs.filter(([x, y]) => (!logX || x > 0) && (!logY || y > 0)).map(([x, y]) => [fx(x), fy(y)]);
+  // TASKS.csv #2948 — the points, their box and the drawn subset are kept while the pairs and axes stay (0.4 s at 480,000 pairs, paid again on
+  // every change of the pane, the ranking included)
+  const { pts, drawn, x0, x1, y0, y1 } = useMemo(() => {
+    const p = pairs.filter(([x, y]) => (!logX || x > 0) && (!logY || y > 0)).map(([x, y]) => [fx(x), fy(y)]);
+    let a0 = Infinity, a1 = -Infinity, b0 = Infinity, b1 = -Infinity;
+    for (const [x, y] of p) { if (x < a0) a0 = x; if (x > a1) a1 = x; if (y < b0) b0 = y; if (y > b1) b1 = y; }
+    return { pts: p, drawn: strideSample(p), x0: a0, x1: a1, y0: b0, y1: b1 }; // #2331 — a few thousand drawn, the axes and statistics from every pair
+  }, [pairs, logX, logY]);
   if (pts.length < 3) return <div style={note}>{tr("Too few readings above zero for a log-scale plot.")}</div>;
-  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
-  for (const [x, y] of pts) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
   const sx = (x) => pl + ((x - x0) / ((x1 - x0) || 1)) * (w - pl - pr), sy = (y) => h - pb - ((y - y0) / ((y1 - y0) || 1)) * (h - pb - pt);
   const lab = (v, log) => (log ? 10 ** v : v).toLocaleString(undefined, { maximumSignificantDigits: log ? 2 : 3 }); // #2558 — 0.000457, not 0
-  const drawn = strideSample(pts); // #2331 — a few thousand drawn, the axes and statistics from every pair
   return (
     <>
     <svg viewBox={`0 0 ${w} ${h}`} width="100%" role="img" aria-label={tr("{y} against {x}", { x: xLabel, y: yLabel })} style={{ display: "block", background: "#fff", border: "1px solid var(--color-border)", borderRadius: 6 }}>
@@ -77,18 +82,26 @@ export default function DownholeLogsPane({ layers, customLayers = [], assays = [
   const [rankAbove, setRankAbove] = useKeptState(keptScope, "dhlogs.rankAbove", "100");
   // TASKS.csv #2790 — spellings that differ only by case or spaces are one code (foldDomainRows, as Estimation #2427 and Isocon #2787 do)
   const domainFold = useMemo(() => (domain ? foldDomainRows(domain.rows) : null), [domain]);
-  const groups = useMemo(() => (data && domainFold ? logByCode(data.assays, data.symbol, domainFold.rows, { stat: rankStat, above: Number(rankAbove) }) : []), [data, domainFold, rankStat, rankAbove]);
+  // TASKS.csv #2948 — grouped once per (log, code layer); a ranking change only re-reads the kept, sorted arrays (2.1 s at 484,531 bins before)
+  // and on a big log the grouping and the pairings run just after the next paint, the pane saying what it is doing meanwhile
+  const nRows = data?.assays.length || 0, heavy = nRows > DEFER_ROWS;
+  const { value: grouped, pending: groupPending } = useDeferredMemo(() => (data && domainFold ? groupLogByCode(data.assays, data.symbol, domainFold.rows) : null), [data, domainFold], heavy);
+  const groups = useMemo(() => (grouped ? rankLogGroups(grouped, { stat: rankStat, above: Number(rankAbove) }) : []), [grouped, rankStat, rankAbove]);
+  const nOfCode = useMemo(() => new Map(groups.map((g) => [g.key, g.n])), [groups]);
   const symbols = assayElements.map((e) => e.symbol);
   const [element, setElement] = useKeptState(keptScope, "dhlogs.element", "");
   const el = symbols.includes(element) ? element : symbols[0] || "";
   const elementUnits = useMemo(() => Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])), [assayElements]);
-  const vs = useMemo(() => (data && el ? logVsAssay(data.assays, data.symbol, assays, el, elementUnits) : null), [data, assays, el, elementUnits]);
+  const { value: vs, pending: vsPending } = useDeferredMemo(() => (data && el ? logVsAssay(data.assays, data.symbol, assays, el, elementUnits) : null), [data, assays, el, elementUnits], heavy); // #2948
+  const vsLogX = useMemo(() => !!vs && allAboveZero(vs.pairs.map((p) => p[0])), [vs]), vsLogY = useMemo(() => !!vs && allAboveZero(vs.pairs.map((p) => p[1])), [vs]); // #2948 — once per pairing, not per render
   const unitOf = (u) => (u === "as logged" ? "" : u);
   // TASKS.csv #1595 — against a block model evaluated onto the holes (Block models > Evaluate onto drillholes)
   const onHoles = useMemo(() => customLayers.filter((l) => (l.rows || []).some((r) => r.modelled && (r.numeric || (typeof r.value === "number" && Number.isFinite(r.value))))) /* rows from Evaluate (the store's copy keeps only id / name / rows). #2240: and drops 'numeric', so a modelled row with a number counts (categorical evaluations carry text) */, [customLayers]);
   const [modelLayerId, setModelLayerId] = useKeptState(keptScope, "dhlogs.model", "");
   const modelLayer = onHoles.find((l) => String(l.id) === modelLayerId) || onHoles[0] || null;
-  const vm = useMemo(() => (data && modelLayer ? logVsModel(data.assays, data.symbol, modelLayer.rows) : null), [data, modelLayer]);
+  const { value: vm, pending: vmPending } = useDeferredMemo(() => (data && modelLayer ? logVsModel(data.assays, data.symbol, modelLayer.rows) : null), [data, modelLayer], heavy); // #2948
+  const vmLogX = useMemo(() => !!vm && allAboveZero(vm.pairs.map((p) => p[0])), [vm]), vmLogY = useMemo(() => !!vm && allAboveZero(vm.pairs.map((p) => p[1])), [vm]);
+  const working = (text) => <div style={note} role="status">{text}</div>;
   return (
     <>
       <TaskPaneHeader title={tr("Downhole logs")} helpId="downhole-logs" icon={Activity} tone="analyse" onClose={onClose} />
@@ -112,9 +125,9 @@ export default function DownholeLogsPane({ layers, customLayers = [], assays = [
           {domainFold?.folded.length > 0 && <div style={note}>{tr("Spellings that differ only by case or spaces are one domain here: {list}.", { list: domainFold.folded.map((f) => f.codes.join(" = ")).join("; ") })}</div>}{/* #2790 */}
           <label style={{ ...row, justifyContent: "flex-start" }}><input type="checkbox" checked={logScale} onChange={(e) => setLogChoice(e.target.checked ? "on" : "off")} />{tr("Log scale")}</label>
           {logHidden > 0 && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("{k} of {n} readings are zero or negative and are not shown on the log scale.", { k: logHidden.toLocaleString(), n: logValues.filter(Number.isFinite).length.toLocaleString() })}</div>}
-          {groups.length > 0 ? (
+          {groupPending ? working(tr("Grouping {n} readings by {layer}…", { n: nRows.toLocaleString(), layer: domain?.label || "" })) : groups.length > 0 ? (
             <>
-              <BoxPlots fit groups={groups} domainLabel={(k) => `${codeLabel(k, 16)} (${groups.find((g) => g.key === k)?.n.toLocaleString()})`} /* #2401 */ logScale={logScale} unit={unitOf(source.unit)} />
+              <BoxPlots fit groups={groups} domainLabel={(k) => `${codeLabel(k, 16)} (${nOfCode.get(k)?.toLocaleString()})`} /* #2401 */ logScale={logScale} unit={unitOf(source.unit)} />
               <label style={{ ...row, justifyContent: "flex-start", gap: 6 }}>{tr("Rank codes by")}
                 <select value={rankStat} onChange={(e) => setRankStat(e.target.value)} style={smallSel} aria-label={tr("Rank codes by")}>
                   <option value="median">{tr("Median")}</option><option value="mean">{tr("Mean")}</option><option value="p90">P90</option><option value="above">{tr("Share above a value")}</option>
@@ -132,9 +145,9 @@ export default function DownholeLogsPane({ layers, customLayers = [], assays = [
                 <select value={el} onChange={(e) => setElement(e.target.value)} style={{ ...smallSel, maxWidth: 190 }} aria-label={tr("Assay element to compare")}>
                   {symbols.map((s) => <option key={s} value={s}>{s} ({elementUnits[s] || "ppm"})</option>)}
                 </select></label>
-              {vs && vs.n >= 3 ? (
+              {vsPending ? working(tr("Pairing {n} readings with the {el} assays…", { n: nRows.toLocaleString(), el })) : vs && vs.n >= 3 ? (
                 <>
-                  <Scatter pairs={vs.pairs} xLabel={`${source.label}${unitOf(source.unit) && !source.label.includes(`(${unitOf(source.unit)})`) ? ` (${unitOf(source.unit)})` : ""}`} yLabel={`${el} (${vs.unit})`} logX={logScale && allAboveZero(vs.pairs.map((p) => p[0]))} logY={logScale && allAboveZero(vs.pairs.map((p) => p[1]))} />
+                  <Scatter pairs={vs.pairs} xLabel={`${source.label}${unitOf(source.unit) && !source.label.includes(`(${unitOf(source.unit)})`) ? ` (${unitOf(source.unit)})` : ""}`} yLabel={`${el} (${vs.unit})`} logX={logScale && vsLogX} logY={logScale && vsLogY} />
                   <div style={note}>{logScale
                     ? tr("{n} readings inside an assay interval of the same hole. Spearman rank correlation {r}; Pearson on log10 values {rLog} ({k} pairs above zero).", { n: vs.n.toLocaleString(), r: Number.isFinite(vs.r) ? vs.r.toFixed(2) : "—", rLog: Number.isFinite(vs.rLog) ? vs.rLog.toFixed(2) : "—", k: (vs.nLog ?? 0).toLocaleString() })
                     : tr("{n} readings inside an assay interval of the same hole. Spearman rank correlation {r}; Pearson {rLin}.", { n: vs.n.toLocaleString(), r: Number.isFinite(vs.r) ? vs.r.toFixed(2) : "—", rLin: Number.isFinite(vs.rLin) ? vs.rLin.toFixed(2) : "—" })}{Number.isFinite(vs.medianRatio) ? " " + tr("Log / assay: median {m}, length-weighted {w} (in the units shown; a gamma log against its assays reads the disequilibrium here).", { m: vs.medianRatio.toPrecision(3), w: Number.isFinite(vs.weightedRatio) ? vs.weightedRatio.toPrecision(3) : "—" }) : ""}</div>{/* ratios: #2353 */}
@@ -148,9 +161,9 @@ export default function DownholeLogsPane({ layers, customLayers = [], assays = [
                 <select value={modelLayer ? String(modelLayer.id) : ""} onChange={(e) => setModelLayerId(e.target.value)} style={{ ...smallSel, maxWidth: 190 }} aria-label={tr("Block model evaluated onto the holes")}>
                   {onHoles.map((l) => <option key={l.id} value={String(l.id)}>{l.name}</option>)}
                 </select></label>
-              {vm && vm.n >= 3 ? (
+              {vmPending ? working(tr("Pairing {n} readings with the model…", { n: nRows.toLocaleString() })) : vm && vm.n >= 3 ? (
                 <>
-                  <Scatter pairs={vm.pairs} xLabel={`${source.label}${unitOf(source.unit) && !source.label.includes(`(${unitOf(source.unit)})`) ? ` (${unitOf(source.unit)})` : ""}`} yLabel={modelLayer.unit ? `${tr("Model")} (${modelLayer.unit})` : tr("Model")} logX={logScale && allAboveZero(vm.pairs.map((p) => p[0]))} logY={logScale && allAboveZero(vm.pairs.map((p) => p[1]))} />
+                  <Scatter pairs={vm.pairs} xLabel={`${source.label}${unitOf(source.unit) && !source.label.includes(`(${unitOf(source.unit)})`) ? ` (${unitOf(source.unit)})` : ""}`} yLabel={modelLayer.unit ? `${tr("Model")} (${modelLayer.unit})` : tr("Model")} logX={logScale && vmLogX} logY={logScale && vmLogY} />
                   <div style={note}>{logScale
                     ? tr("{n} readings inside a model cell the same hole crosses. Spearman rank correlation {r} (the same in any units); Pearson on log10 values {rLog} ({k} pairs above zero). Median of the log {a}, of the model {b}, each in its own unit.", { n: vm.n.toLocaleString(), r: Number.isFinite(vm.r) ? vm.r.toFixed(2) : "—", rLog: Number.isFinite(vm.rLog) ? vm.rLog.toFixed(2) : "—", k: (vm.nLog ?? 0).toLocaleString(), a: sig3(vm.medianLog), b: sig3(vm.medianModel) })
                     : tr("{n} readings inside a model cell the same hole crosses. Spearman rank correlation {r} (the same in any units); Pearson {rLin}. Median of the log {a}, of the model {b}, each in its own unit.", { n: vm.n.toLocaleString(), r: Number.isFinite(vm.r) ? vm.r.toFixed(2) : "—", rLin: Number.isFinite(vm.rLin) ? vm.rLin.toFixed(2) : "—", a: sig3(vm.medianLog), b: sig3(vm.medianModel) })}</div>
