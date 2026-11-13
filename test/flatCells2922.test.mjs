@@ -1,7 +1,8 @@
 // TASKS.csv #2922 (review #2876, WA bedded iron; Matt's DECISION 2026-11-12) — cells in the 3D Modelling tools on a bedded deposit:
 // (a) the GemPy block keeps #2624's cubic cells, and the vertical cell is said against the units' thickness before every stack run;
 // (b) Solid blocks from surfaces takes an optional typed block height, as Undrilled zones (#2966);
-// (c) the closed body takes flat cells when its cube passes twice the median logged run (#2384's trigger widened).
+// (c) the closed body takes flat cells when its cube is larger than the median logged run (#2384's trigger widened; Matt's second decision
+// the same day: twice the median, decided first, missed the review's TNAM case).
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -9,18 +10,17 @@ import { seamCells } from "../src/lib/viewer/geomath.js";
 import { surfacesToBlock } from "../src/lib/surfaceSolids.js";
 import { medianStackThickness } from "../src/lib/stackResolution.js";
 
-test("(c) the cube past twice the median logged run takes flat cells; within it the cube stands", () => {
+test("(c) the cube larger than the median logged run takes flat cells: the review's TNAM case; within it the cube stands", () => {
   // runs of 4 m median (18 m at most) on holes 25 m apart, as WA iron's TNAM
   const autoB = { cell: 2, medianRunM: 4, maxRunM: 18, spacing: 25, fromRuns: true };
   const cellsAt = (c, cz) => Math.round(1000 / c) * Math.round(1300 / c) * Math.round(200 / cz);
-  const s = seamCells(9, autoB, cellsAt, 1.5e6);
-  assert.ok(s, "a 9 m cube: past twice the 4 m median, though within the 18 m thickest run");
+  const s = seamCells(6.8, autoB, cellsAt, 1.5e6);
+  assert.ok(s, "TNAM's 6.8 m cube: past its 4 m median run, though within the 18 m thickest run");
   assert.equal(s.why, "median");
   assert.equal(s.dz, 2, "half the median run: a run two cells thick");
   assert.ok(s.dxy >= 12.5, `plan ${s.dxy} m from half the 25 m spacing`);
-  assert.equal(seamCells(8, autoB, cellsAt, 1.5e6), null, "exactly twice the median run is not past it: the cube stands");
-  // the review's own TNAM cube (6.8 m) is under twice its 4 m median, so the decided rule leaves it cubic (said in the row's note)
-  assert.equal(seamCells(6.8, autoB, cellsAt, 1.5e6), null);
+  assert.equal(seamCells(4, autoB, cellsAt, 1.5e6), null, "exactly the median run is not past it: the cube stands");
+  assert.equal(seamCells(3, autoB, cellsAt, 1.5e6), null);
   assert.equal(seamCells(20, autoB, cellsAt, 1.5e6).why, "max", "past the thickest run: #2384's own case");
 });
 
@@ -47,6 +47,6 @@ test("(a) the stack's vertical cell said against the units' thickness before eve
   for (const l of ["es", "pt", "fr", "ar"]) {
     const d = JSON.parse(readFileSync(new URL(`../src/locales/${l}.json`, import.meta.url), "utf8"));
     assert.ok(d["The vertical cell is {dz} m against the units' median thickness of {t} m (the median drop from one top to the next in a hole): about {n} cells across a unit."], l);
-    assert.ok(Object.keys(d).some((k) => k.includes("so one cubic cell would be {cube} m, more than twice the median run.")), l);
+    assert.ok(Object.keys(d).some((k) => k.includes("so one cubic cell would be {cube} m, thicker than the median run.")), l);
   }
 });

@@ -382,11 +382,12 @@ export function terrainGroundAt(terrain, x, y) {
 // hole spacing (half of it, at least dz), grown in plan only until the grid is under the limit. Only when the cubic cell would pass the
 // thickest run (#2047's case) and the runs are known; null when the plan cell would have to pass four hole spacings (then the cubic rule
 // and its warning stand). cellsAt(dxy, dz) counts the grid. -> { dxy, dz, coarsened, why: "max" | "median" }
-// TASKS.csv #2922 (Matt's decision 2026-11-12, (c)) — also when the cube passes twice the MEDIAN run: on the WA iron block TNAM's 18 m
-// thickest run kept a 6.8 m cube on 4 m median runs, and the body broke into 68 lenses.
+// TASKS.csv #2922 (Matt's decisions 2026-11-12, (c)) — also when the cube is larger than the MEDIAN run (a typical run thinner than one
+// cell): on the WA iron block TNAM's 18 m thickest run kept a 6.8 m cube on 4 m median runs, and the body broke into 68 lenses. (Twice the
+// median, decided first, missed that case: 6.8 m < 8 m.)
 export function seamCells(cubicCell, autoB, cellsAt, limit) {
   if (!autoB?.fromRuns || !(autoB.maxRunM > 0)) return null;
-  const why = cubicCell > autoB.maxRunM ? "max" : autoB.medianRunM > 0 && cubicCell > 2 * autoB.medianRunM ? "median" : null;
+  const why = cubicCell > autoB.maxRunM ? "max" : autoB.medianRunM > 0 && cubicCell > autoB.medianRunM ? "median" : null;
   if (!why) return null;
   const dz = Math.max(0.5, autoB.cell), sp = autoB.spacing > 0 ? autoB.spacing : null;
   if (!sp) return null;
