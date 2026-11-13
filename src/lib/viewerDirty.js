@@ -30,7 +30,7 @@ const KEEP = ["unit", "binM", "notes"];
 // TASKS.csv #2952 / #2953 — a log layer's unit and valid range are set in Geophysics > Downhole logs on the STORE's copy; the 3D View's own copy
 // never hears of them, so its next write here put its old unit back and dropped the range. For a layer the store already has, the store's
 // value of these wins; a layer new to the store takes the 3D View's (the import's unit).
-const STORE_WINS = ["unit", "validRange"];
+const STORE_WINS = ["unit", "validRange", "despikeM"]; // despikeM: #3116, set in Downhole logs as the range is
 const ALL_KEPT = [...new Set([...KEEP, ...STORE_WINS])];
 export function mirrorCustomLayers(prev, local) {
   const p = prev || [];

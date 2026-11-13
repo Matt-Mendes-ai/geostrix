@@ -17,9 +17,10 @@ const num = (v) => (typeof v === "number" ? v : v === "" || v == null ? NaN : Nu
 // CODED logs themselves (a strand, a lithology, a custom coded layer), for the thickness, depth and RL maps a bedded deposit is drawn
 // with. labelOf(key): a built-in layer's name.
 const BUILT_IN_CODED = ["litho", "alt", "vein", "breccia", "weath", "structzone"];
-export function holeValueSources({ assayElements = [], layers = {}, customLayers = [], labelOf = (k) => k } = {}) {
+// logValidRange: TASKS.csv #3116 — the built-in logs' range / despike (project.logValidRange), carried by the choice; `label` says so
+export function holeValueSources({ assayElements = [], layers = {}, customLayers = [], labelOf = (k) => k, logValidRange = null } = {}) {
   const out = (assayElements || []).map((e) => ({ id: `a:${e.symbol}`, symbol: e.symbol, unit: e.unit || "", kind: "assay" }));
-  for (const c of numericSourceChoices({ layers, customLayers, models: false })) out.push({ id: c.key, symbol: c.symbol, unit: c.unit || "", kind: "log", choice: c });
+  for (const c of numericSourceChoices({ layers, customLayers, models: false, logValidRange })) out.push({ id: c.key, symbol: c.symbol, label: c.label, unit: c.unit || "", kind: "log", choice: c });
   for (const k of BUILT_IN_CODED) {
     const rows = layers?.[k] || [];
     if (!rows.length) continue;
