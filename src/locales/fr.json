@@ -11504,5 +11504,11 @@
   "Building the design grid: cancel": "Construction de la grille de conception : annuler",
   "Meshing the design and counting its tonnes: cancel": "Maillage de la conception et calcul de ses tonnes : annuler",
   ", above {rl} m {b} m berms at {a}°": ", au-dessus de {rl} m risbermes de {b} m à {a}°",
-  "Inter-ramp angle above {rl} m": "Angle inter-rampes au-dessus de {rl} m"
+  "Inter-ramp angle above {rl} m": "Angle inter-rampes au-dessus de {rl} m",
+  "Type a body name first": "Saisissez d'abord le nom du corps",
+  "Type a fault name first": "Saisissez d'abord le nom de la faille",
+  "Type a string name first": "Saisissez d'abord le nom de la polyligne",
+  "Draw the outline of {name}": "Dessiner le contour de {name}",
+  "Draw the fault {name}": "Dessiner la faille {name}",
+  "Draw the string {name}": "Dessiner la polyligne {name}"
 }

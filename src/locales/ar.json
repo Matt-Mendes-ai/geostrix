@@ -11504,5 +11504,11 @@
   "Building the design grid: cancel": "بناء شبكة التصميم: إلغاء",
   "Meshing the design and counting its tonnes: cancel": "تشبيك التصميم وحساب أطنانه: إلغاء",
   ", above {rl} m {b} m berms at {a}°": "، فوق {rl} م مصاطب {b} م بزاوية {a}°",
-  "Inter-ramp angle above {rl} m": "زاوية ما بين المنحدرات فوق {rl} م"
+  "Inter-ramp angle above {rl} m": "زاوية ما بين المنحدرات فوق {rl} م",
+  "Type a body name first": "اكتب اسم الجسم أولًا",
+  "Type a fault name first": "اكتب اسم الصدع أولًا",
+  "Type a string name first": "اكتب اسم الخط المتعدد أولًا",
+  "Draw the outline of {name}": "ارسم حدود {name}",
+  "Draw the fault {name}": "ارسم الصدع {name}",
+  "Draw the string {name}": "ارسم الخط المتعدد {name}"
 }

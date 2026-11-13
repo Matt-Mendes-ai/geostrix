@@ -17,7 +17,7 @@ test("length / (10 x height), rounded, between 1x and 20x", () => {
 
 test("SectionWindow starts from null, takes the section's own value once, and the subtitle reads the VE drawn", () => {
   const s = readFileSync(new URL("../src/components/SectionWindow.jsx", import.meta.url), "utf8");
-  assert.match(s, /const \[vExag, setVExag\] = useState\(\(\) => \{ const v = stepVE && Date\.now\(\) - stepVE\.at < 30000 \? stepVE\.ve : null; stepVE = null; return v; \}\);/); // null unless a step carries the user's VE (#2933)
+  assert.match(s, /const \[handed\] = useState\(\(\) => \{ const h = stepVE && Date\.now\(\) - stepVE\.at < 30000 \? stepVE : null; stepVE = null; return h; \}\);[^\n]*\n\s*const \[vExag, setVExag\] = useState\(\(\) => handed\?\.ve \?\? null\);/); // null unless a step carries the user's VE (#2933; #3054: the hand-over object)
   assert.match(s, /onAutoVE=\{\(v\) => setVExag\(\(cur\) => cur \?\? v\)\}/); // never over the user's value
   const fn = s.slice(s.indexOf("function SectionSVG("));
   const def = fn.indexOf("const vExag = vExagIn ?? autoVE ?? 1;");
