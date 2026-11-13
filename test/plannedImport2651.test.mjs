@@ -39,7 +39,7 @@ test("GeoStrix's own rig-sheet export comes back: grid azimuth, target, lift / d
 
 test("the form's Import CSV button adds through onAdd and asks about positive dips", () => {
   const p = fs.readFileSync("src/components/PlannedHoleParts.jsx", "utf8");
-  assert.match(p, /holes\.forEach\(\(h\) => onAdd\(\{ \.\.\.h, zSource: `imported from \$\{file\.name\}` \}\)\);/);
+  assert.match(p, /holes\.forEach\(\(h\) => \{ const \{ zFromGround, \.\.\.rest \} = h; onAdd\(\{ \.\.\.rest, zSource: zFromGround \? `\$\{groundWords\} \(Elev blank in \$\{file\.name\}\)` : `imported from \$\{file\.name\}` \}\); \}\);/ /* the ground for a blank Elev: #2963 */);
   assert.match(p, /if \(r\.allDipsPositive && window\.confirm\(tr\("Every dip in \{f\} is positive\./);
   assert.match(p, /accept=".csv,.txt,.tsv"/);
 });

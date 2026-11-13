@@ -41,7 +41,7 @@ test("the column tops and the weathered base keep the plain interpolation; every
   for (const f of ["PitShellPane", "PitDesignPane", "NestedPitsPane", "DumpPane", "DesignLinesPane", "DesignStringsPane", "UndrilledZonesPane", "StopesPane", "PlannedHoleParts", "GradeEstimationModal"]) {
     assert.match(fs.readFileSync(`src/components/${f}.jsx`, "utf8"), /<CollarLevelsNote collars=\{collars\}/, f);
   }
-  const n = fs.readFileSync("src/components/CollarLevelsNote.jsx", "utf8");
+  const n = fs.readFileSync("src/lib/collarLevelsText.js", "utf8"); // the note's text, moved out of CollarLevelsNote.jsx (#2962)
   assert.match(n, /n === 1\s*\? tr\("1 collar has another collar within \{plan\} m/);
   assert.match(fs.readFileSync("src/components/GradeEstimationModal.jsx", "utf8"), /so the lowest collar is used there \(benches\)/);
 });

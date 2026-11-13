@@ -101,20 +101,23 @@ export function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint, 
     if (!file) return;
     try {
       const { rows, headers } = parseTableText(await file.text());
-      let r = plannedHolesFromRows(rows, headers);
+      // #2963 — a blank elevation takes the ground the form offers (the terrain, else the trusted collars' ground: #2962); not from underground collars
+      const groundForZ = ground && !underground ? ground : null;
+      let r = plannedHolesFromRows(rows, headers, { groundAt: groundForZ });
       // TASKS.csv #2963 — no azimuth or dip column (a vertical program is a list of E, N and depth): the form's Az / Dip for every row, asked
       // first, never assumed. The form's azimuth goes to grid as the form's own (a true / magnetic one needs its offset, else only a vertical dip)
       if (r.noOrientation && r.missing.join(",") === "azimuth,dip") {
         const d = Number(draft.dip), az = Number.isFinite(Number(draft.azimuth)) ? (azOffset ? wrap360(Number(draft.azimuth) + azOffset.offset) : Math.abs(Math.abs(d) - 90) < 1e-9 ? 0 : NaN) : NaN;
-        if (Number.isFinite(az) && Number.isFinite(d) && window.confirm(tr("{f} has no azimuth or dip column. Add every hole at the form's Az {a}° / Dip {d}°?", { f: file.name, a: Math.round(az * 10) / 10, d }))) r = plannedHolesFromRows(rows, headers, { fallback: { azimuth: az, dip: d } });
+        if (Number.isFinite(az) && Number.isFinite(d) && window.confirm(tr("{f} has no azimuth or dip column. Add every hole at the form's Az {a}° / Dip {d}°?", { f: file.name, a: Math.round(az * 10) / 10, d }))) r = plannedHolesFromRows(rows, headers, { fallback: { azimuth: az, dip: d }, groundAt: groundForZ });
       }
       if (r.missing.length) { setImportMsg({ warn: true, text: r.onlyNonGridAzimuth && r.missing.join(",") === "azimuth" ? tr("{f} has {col} but no grid azimuth column (azimuth, azimuth_grid, az): a true or magnetic bearing is not converted on import. Nothing was added.", { f: file.name, col: r.onlyNonGridAzimuth }) : tr("{f} lacks the column(s) {cols} (E / N / Elev, azimuth, dip, length are needed). Nothing was added.", { f: file.name, cols: r.missing.join(", ") }) }); return; }
       let holes = r.holes;
       // GeoStrix keeps a downward hole's dip negative; a sheet whose every dip is positive may count down as positive: asked, never assumed
       if (r.allDipsPositive && window.confirm(tr("Every dip in {f} is positive. GeoStrix reads a positive dip as an upward hole. Are these downward holes written with positive dips (flip them to negative)?", { f: file.name }))) holes = holes.map((h) => ({ ...h, dip: -h.dip }));
-      holes.forEach((h) => onAdd({ ...h, zSource: `imported from ${file.name}` }));
+      const groundWords = groundAt ? "the terrain under the hole" : "the ground interpolated between the nearest collars (no terrain)"; // the pattern's words
+      holes.forEach((h) => { const { zFromGround, ...rest } = h; onAdd({ ...rest, zSource: zFromGround ? `${groundWords} (Elev blank in ${file.name})` : `imported from ${file.name}` }); });
       const sk = r.skipped.length ? " " + tr("{n} row(s) skipped (lines {list}): a missing or bad value.", { n: r.skipped.length, list: r.skipped.slice(0, 6).map((s) => `${s.row} (${s.why})`).join(", ") + (r.skipped.length > 6 ? ", …" : "") }) : "";
-      const how = (r.usedFallback ? " " + tr("Every hole takes the form's Az {a}° / Dip {d}° (the file has no azimuth or dip column).", { a: Math.round(holes[0]?.azimuth * 10) / 10, d: holes[0]?.dip }) : "") + (r.verticalBlankAz ? " " + tr("{n} vertical row(s) with a blank azimuth read as azimuth 0.", { n: r.verticalBlankAz }) : ""); // #2963
+      const how = (r.usedFallback ? " " + tr("Every hole takes the form's Az {a}° / Dip {d}° (the file has no azimuth or dip column).", { a: Math.round(holes[0]?.azimuth * 10) / 10, d: holes[0]?.dip }) : "") + (r.verticalBlankAz ? " " + tr("{n} vertical row(s) with a blank azimuth read as azimuth 0.", { n: r.verticalBlankAz }) : "") + (r.zFromGround ? " " + (groundAt ? tr("{n} row(s) with a blank Elev took the terrain under the hole.", { n: r.zFromGround }) : tr("{n} row(s) with a blank Elev took the ground interpolated between the nearest collars (no terrain).", { n: r.zFromGround })) : ""); // #2963
       setImportMsg({ warn: !holes.length || r.skipped.length > 0, text: tr("Added {n} planned hole(s) from {f}.", { n: holes.length, f: file.name }) + how + sk });
     } catch (e) { setImportMsg({ warn: true, text: tr("Could not read {f}: {error}", { f: file.name, error: e?.message || String(e) }) }); }
   };

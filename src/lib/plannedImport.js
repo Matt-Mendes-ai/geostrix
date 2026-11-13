@@ -29,27 +29,32 @@ const num = (v) => { if (v == null || v === "") return NaN; const n = typeof v =
 // a vertical hole's azimuth blank (#2454): a dip of -90 / 90 with a blank azimuth was skipped ('lines 2 (azimuth)'), and a sheet with no
 // azimuth or dip column added nothing. Now a vertical row's blank azimuth reads 0 (verticalBlankAz counts them); a dip column with no
 // azimuth column imports when every hole is vertical; with neither column, `fallback` ({ azimuth, dip }: the form's, asked first by the
-// pane, never assumed) is used for every row (usedFallback). A blank elevation is still skipped (TASKS.csv #3004 sets which ground to trust).
+// pane, never assumed) is used for every row (usedFallback). A blank elevation (or no elevation column) takes groundAt(x, y) when the pane
+// gives one (the terrain, else the ground between the trusted collars: #3004 / #2962), as 'Line / grid of holes' does; without one it is
+// skipped as before. zFromGround counts the rows that took it; each such hole carries zFromGround: true.
 const isVertical = (d) => Math.abs(Math.abs(d) - 90) < 1e-9;
-export function plannedHolesFromRows(rows, headers, { fallback = null } = {}) {
+export function plannedHolesFromRows(rows, headers, { fallback = null, groundAt = null } = {}) {
   const cols = plannedColumns(headers);
   const fb = fallback && Number.isFinite(Number(fallback.azimuth)) && Number.isFinite(Number(fallback.dip)) && Math.abs(Number(fallback.dip)) <= 90 ? { azimuth: Number(fallback.azimuth), dip: Number(fallback.dip) } : null;
   const noOrientation = !cols.azimuth && !cols.dip;
   // a dip column and no azimuth column: fine when every row with a dip is vertical
   const dips = cols.dip && !cols.azimuth ? (rows || []).map((r) => num(r[cols.dip])).filter(Number.isFinite) : [];
   const allVertical = dips.length > 0 && dips.every(isVertical);
-  const missing = ["x", "y", "z", "azimuth", "dip", "length"].filter((k) => !cols[k] && !(noOrientation && fb && (k === "azimuth" || k === "dip")) && !(k === "azimuth" && allVertical));
+  const missing = ["x", "y", "z", "azimuth", "dip", "length"].filter((k) => !cols[k] && !(noOrientation && fb && (k === "azimuth" || k === "dip")) && !(k === "azimuth" && allVertical) && !(k === "z" && groundAt));
   // the rig sheet's true or magnetic azimuth alone is not the grid bearing a planned hole keeps
   const onlyNonGridAzimuth = !cols.azimuth ? (headers || []).find((h) => /^azimuth_(true|magnetic)$/i.test(norm(h))) || null : null;
   if (missing.length) return { holes: [], skipped: [], cols, missing, allDipsPositive: false, onlyNonGridAzimuth, verticalBlankAz: 0, usedFallback: false, noOrientation };
   const usedFallback = noOrientation && !!fb;
   const holes = [], skipped = [];
-  let verticalBlankAz = 0;
+  let verticalBlankAz = 0, zFromGround = 0;
   (rows || []).forEach((r, i) => {
     const h = { x: num(r[cols.x]), y: num(r[cols.y]), z: num(r[cols.z]), azimuth: usedFallback ? fb.azimuth : cols.azimuth ? num(r[cols.azimuth]) : NaN, dip: usedFallback ? fb.dip : num(r[cols.dip]), length: num(r[cols.length]) };
+    let fromGround = false;
     if (!usedFallback && !Number.isFinite(h.azimuth) && Number.isFinite(h.dip) && isVertical(h.dip)) { h.azimuth = 0; verticalBlankAz++; } // #2963
+    if (!Number.isFinite(h.z) && groundAt && Number.isFinite(h.x) && Number.isFinite(h.y)) { const g = Number(groundAt(h.x, h.y)); if (Number.isFinite(g)) { h.z = Math.round(g * 10) / 10; fromGround = true; } } // #2963 blank Elev
     const bad = Object.entries(h).filter(([k, v]) => !Number.isFinite(v) || (k === "length" && !(v > 0)) || (k === "dip" && Math.abs(v) > 90)).map(([k]) => k);
     if (bad.length) { skipped.push({ row: i + 2, why: bad.join(", ") }); return; } // +2: the header is line 1
+    if (fromGround) { h.zFromGround = true; zFromGround++; } // after the check: the flag is not a value
     h.azimuth = ((h.azimuth % 360) + 360) % 360;
     const name = cols.name ? String(r[cols.name] ?? "").trim() : "";
     if (name) h.name = name;
@@ -60,5 +65,5 @@ export function plannedHolesFromRows(rows, headers, { fallback = null } = {}) {
     for (const k of ["lift", "drift"]) if (cols[k] && Number.isFinite(num(r[cols[k]])) && num(r[cols[k]]) !== 0) h[k] = num(r[cols[k]]);
     holes.push(h);
   });
-  return { holes, skipped, cols, missing, allDipsPositive: holes.length > 0 && holes.every((h) => h.dip > 0), onlyNonGridAzimuth, verticalBlankAz, usedFallback, noOrientation };
+  return { holes, skipped, cols, missing, allDipsPositive: holes.length > 0 && holes.every((h) => h.dip > 0), onlyNonGridAzimuth, verticalBlankAz, usedFallback, noOrientation, zFromGround };
 }

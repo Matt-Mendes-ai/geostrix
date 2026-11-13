@@ -4,6 +4,7 @@
 // It is an early screen ("does this sit shallow enough for a pit at these prices?"), not a mine plan: no discounting, no
 // ramps or berms, one density, one slope, rock outside the block model taken as barren. Pure: runs in a worker.
 import { metalOf } from "./gradeTonnage.js";
+import { suspectElevationIds } from "./collarElevationTrust.js"; // TASKS.csv #2962 — the shared rule (#3004)
 
 const G_PER_OZ = 31.1034768, LB_PER_T = 2204.62262;
 // TASKS.csv #1617 (review #1497, Lawyers) — a block the estimate itself called single-hole (one hole carrying at least this share of
@@ -227,7 +228,11 @@ function lookUnderground(collars, survey) {
   const up = new Set();
   for (const c of collars || []) if (Number.isFinite(c?.dip) && c.dip < 0) up.add(c.hole_id);
   for (const s of survey || []) if (Number.isFinite(s?.dip) && s.dip < 0) up.add(s.hole_id);
-  const pts = (collars || []).filter((c) => Number.isFinite(c?.x) && Number.isFinite(c?.y) && Number.isFinite(c?.z));
+  // TASKS.csv #2962 — a collar whose elevation is not ground by the shared rule (#3004: suspect, or assumed at import from the median or as
+  // 0) is no evidence of collars stacked on mine levels: a 0 m twin 2.5 m from a surveyed collar made a small surface project 'underground'
+  // (and the Elev offer, the pit and the solver then refused the ground)
+  const suspect = suspectOf(collars);
+  const pts = (collars || []).filter((c) => Number.isFinite(c?.x) && Number.isFinite(c?.y) && Number.isFinite(c?.z) && !c.zSuspect && !(c.hole_id != null && suspect.has(c.hole_id)) && !(c.zAssumed && c.zAssumed !== "terrain"));
   const cells = new Map(), key = (i, j) => i * 67108864 + j;
   let stacked = 0;
   for (const c of pts) {
@@ -266,8 +271,23 @@ export const undergroundOreVerdict = (d) => !!d && d.median >= (d.underground ? 
 // a hillside steeper than about 18 degrees it lowers real ground too, which is why every tool using this ground says so (CollarLevelsNote).
 // -> { kept: [collars], higher: [the collars left out], planM, rlM }
 export const BENCH_PLAN_M = 15, BENCH_RL_M = 5;
+// TASKS.csv #2962 (review #2876, WA iron) — two collars recorded at 0 m on a 433 m plateau (and three bores given the import's median
+// elevation beside surveyed twins) pulled the ground between the collars down to 0.1-9 m, and the rule below kept the bad collars (the
+// lowest) and left out the surveyed ones beside them, as 'a pit or benches?'. An elevation that is not ground is left out first, by the
+// shared rule (lib/collarElevationTrust.js, #3004): suspect (0 m among collars far from 0, or a stray), or assumed at import from the
+// median or as 0 (one taken from a terrain is ground, and stays). When nothing would be left, the collars are used as before.
+// -> also untrusted: [{ hole_id, z, why: "suspect" | "assumed" }]
+const suspectMemo = new WeakMap();
+const suspectOf = (collars) => { if (!Array.isArray(collars)) return new Set(); if (!suspectMemo.has(collars)) suspectMemo.set(collars, suspectElevationIds(collars)); return suspectMemo.get(collars); };
 export function collarBenches(collars, { planM = BENCH_PLAN_M, rlM = BENCH_RL_M } = {}) {
-  const pts = (collars || []).filter((c) => Number.isFinite(c?.x) && Number.isFinite(c?.y) && Number.isFinite(c?.z));
+  const all = (collars || []).filter((c) => Number.isFinite(c?.x) && Number.isFinite(c?.y) && Number.isFinite(c?.z));
+  const suspect = suspectOf(collars), untrusted = [], trusted = [];
+  for (const c of all) {
+    const why = c.zSuspect || (c.hole_id != null && suspect.has(c.hole_id)) ? "suspect" : c.zAssumed && c.zAssumed !== "terrain" ? "assumed" : null;
+    if (why) untrusted.push({ hole_id: c.hole_id, z: c.z, why }); else trusted.push(c);
+  }
+  const pts = trusted.length ? trusted : all;
+  if (!trusted.length) untrusted.length = 0;
   const cells = new Map(), key = (i, j) => `${i},${j}`;
   pts.forEach((c) => { const k = key(Math.floor(c.x / planM), Math.floor(c.y / planM)); (cells.get(k) || cells.set(k, []).get(k)).push(c); });
   const kept = [], higher = [];
@@ -279,7 +299,7 @@ export function collarBenches(collars, { planM = BENCH_PLAN_M, rlM = BENCH_RL_M 
     }
     (lower ? higher : kept).push(c);
   }
-  return { kept, higher, planM, rlM };
+  return { kept, higher, untrusted, planM, rlM }; // untrusted: #2962
 }
 // the collar ground: the four nearest collars, inverse distance squared, over the collars collarBenches keeps (#2584)
 export function collarGround(collars) {
