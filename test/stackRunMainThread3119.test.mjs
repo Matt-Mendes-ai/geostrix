@@ -101,7 +101,7 @@ test("the exports agree with the loops pair for pair", async () => {
 });
 
 test("wiring: one mesh query per surface for the fold and order checks; the block cut once with no trend", () => {
-  const s = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8");
+  const s = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8").replace(/\r\n/g, "\n");
   assert.match(s, /const inv = inversionCheck\(meshQuery\(\), \{ up: "y" \}\);/);
   assert.match(s, /q: o\.meshQuery\(\)\.query/);
   assert.equal((s.match(/buildMeshQuery\(/g) || []).length, 1, "built in one place");

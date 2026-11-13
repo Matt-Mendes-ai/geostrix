@@ -76,7 +76,7 @@ test("a block with too few picks of a top takes it from all the picks, and says 
 
 test("wiring: the faults go to the cake (client, worker, the stack run); the pane no longer asks to remove them", async () => {
   const fs = await import("node:fs");
-  const read = (f) => fs.readFileSync(new URL(f, import.meta.url), "utf8");
+  const read = (f) => fs.readFileSync(new URL(f, import.meta.url), "utf8").replace(/\r\n/g, "\n");
   assert.match(read("../src/lib/layerCakeClient.js"), /worker\.postMessage\(\{ id, specs: slim, extent, resolution, evalPts, faults: slimFaults \}\);/);
   assert.match(read("../src/lib/layerCake.worker.js"), /layerCake\(specs, extent, resolution, \{ evalPts, faults, onProgress:/);
   assert.match(read("../src/modules/viewer/modellingRuns.js"), /faults: specs\.filter\(\(sp\) => sp\.fault\)/);

@@ -21,7 +21,7 @@ test("the tops down the pile, closest first, each top once; a gap in the explici
 });
 
 test("wiring: the button on a top with kept tops under it, one top at a time through the pane's own build, then back", () => {
-  const p = readFileSync(new URL("../src/components/ExplicitSurfacePanel.jsx", import.meta.url), "utf8");
+  const p = readFileSync(new URL("../src/components/ExplicitSurfacePanel.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
   assert.match(p, /return pileBelowOf\(pileBase, cands, \(u\) => topsOfUnit\(u\)\?\.pile\);/);
   assert.match(p, /const keptBelow = pileBelow\.filter\(\(t\) => defs\.find\(\(d\) => d\.id === t\.id\)\?\.keepOrder\);/);
   // the step waits for the mesh built from the key the pane wants now (the pane's own build), or a refusal said after the step began
@@ -36,7 +36,7 @@ test("wiring: the button on a top with kept tops under it, one top at a time thr
 });
 
 test("the status line is the selected surface's own (opening a current top no longer shows the last build's text)", () => {
-  const p = readFileSync(new URL("../src/components/ExplicitSurfacePanel.jsx", import.meta.url), "utf8");
+  const p = readFileSync(new URL("../src/components/ExplicitSurfacePanel.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
   assert.match(p, /if \(status !== statusSeen\.current\) \{ statusSeen\.current = status; if \(status && def\?\.id\) statusOf\.current\.set\(def\.id, status\); \}/);
   assert.match(p, /const shownStatus = def \? statusOf\.current\.get\(def\.id\) \?\? null : null;/);
   assert.match(p, /\{shownStatus && <div role="status"[^\n]*\{shownStatus\.text\}<\/div>\}/);
