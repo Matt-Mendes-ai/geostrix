@@ -160,6 +160,10 @@ export function bundledData() {
   { const p = path.join(ROOT, "sample_data", "qld_century", "README.md");
     if (existsSync(p)) out.push({ name: "Century zinc-lead-silver sample (Whole of Queensland Geochemistry databases, Geological Survey of Queensland, State of Queensland; Total Magnetic Intensity Grid of Australia 2019, Geoscience Australia)", version: "2024", license: "CC-BY-4.0",
       url: "https://geoscience.data.qld.gov.au/dataset/whole-of-queensland-geochemistry-databases", text: readFileSync(p, "utf8").trim() }); }
+  // TASKS.csv #3100 — Perk-Rocky's terrain (Copernicus DEM) is still shipped; the report's mapping layers are not (BC's terms: downloaded on request)
+  if (existsSync(path.join(ROOT, "sample_data", "perk_rocky", "terrain_copernicus_glo30.tif"))) out.push({ name: "Perk-Rocky sample terrain (Copernicus DEM GLO-30)", version: "2026-11", license: "Copernicus DEM licence",
+    url: "https://spacedata.copernicus.eu/collections/copernicus-digital-elevation-model",
+    text: "Produced using Copernicus WorldDEM-30 © DLR e.V. 2010-2014 and © Airbus Defence and Space GmbH 2014-2018 provided under COPERNICUS by the European Union and ESA; all rights reserved. Read from the Copernicus DEM GLO-30 on AWS Open Data and resampled to a 30 m grid in NAD83 / UTM zone 10N (sample_data/perk_rocky/terrain_copernicus_glo30.tif)." });
   return out;
 }
 

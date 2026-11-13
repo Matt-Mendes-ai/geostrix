@@ -29,7 +29,7 @@ import { codeColumnGuess } from "../../lib/valueGuess.js"; // TASKS.csv #2889
 import { codeOverlap, otherCodeSystem } from "../../lib/codeOverlap.js"; // TASKS.csv #2893
 import { recoveryColumns, recoveryPct } from "../../lib/recoveryCalc.js"; // TASKS.csv #2891
 import { logChannelsFor, defaultLogBin, logChannelRows, unitFromHeader, channelNoData, noDataText, logBinEstimate, needsBinning } from "../../lib/downholeLogChannels.js"; // TASKS.csv #2160; no-data: #2332; logBinEstimate: #2885
-import { loadSampleFiles, readSiblingFiles } from "../../lib/desktop.js";
+import { loadSampleFiles, readSiblingFiles, sampleStatus } from "../../lib/desktop.js"; // sampleStatus: TASKS.csv #3100
 const isXlsxName = (name) => /\.xlsx$/i.test(String(name || "")); // TASKS.csv #605 (same test as xlsx.js; the reader itself loads on demand, #552)
 import { buildLayer, sameMapLayer } from "../../lib/mapLayerBuild.js"; // TASKS.csv #609; sameMapLayer: #2019
 import { askAdoptCrs } from "../../lib/adoptCrs.js"; // TASKS.csv #607
@@ -1129,6 +1129,9 @@ export function useImportPipeline(ctx) {
       dir: "harry_property", epsg: 3156, crs: "NAD83(CSRS) / UTM zone 9N",
       files: ["collars.csv", "litho.csv", "alt.csv", "vein.csv", "mnlgy.csv", "geotech.csv", "magsusc.csv", "structure.csv"],
       notice: "Loading the Harry property sample project — 37 real drillholes from BC's public ARIS database (report #37584), with the interval layers synthesized around the real assay anomalies. See sample_data/harry_property/README.md for exactly what's real vs. synthetic. Their assays (assay_wide.csv) are loaded into the Geochem tab too.",
+      // TASKS.csv #3100 — a copy downloaded from the BCGS drillhole database has the real tables only (the synthesized layers cannot be made again)
+      optional: ["alt.csv", "vein.csv", "mnlgy.csv", "geotech.csv", "magsusc.csv", "structure.csv"],
+      noticeDownloaded: "Loading the Harry property sample project — 37 real drillholes of BC assessment report #37584, downloaded from the BC Geological Survey's drillhole database: collars, lithology and assays (into the Geochem tab too). The interval layers synthesized in GeoStrix's own copy are not part of a download.",
     },
     woodjam: {
       dir: "woodjam", epsg: 26910, crs: "NAD83 / UTM zone 10N",
@@ -1189,7 +1192,8 @@ export function useImportPipeline(ctx) {
     const S = SAMPLES[which] || SAMPLES.harry;
     setSampleLoading(true);
     try {
-      const files = await loadSampleFiles(S.dir, S.files);
+      const files = await loadSampleFiles(S.dir, S.files, { optional: S.optional || [] }); // optional: #3100
+      const downloaded = S.noticeDownloaded && (await sampleStatus())[which] === "downloaded"; // #3100
       // TASKS.csv #617 — the sample's CRS is known: set it when the project's CRS was never chosen, instead of
       // stopping on #615's "which CRS are these collars in?" dialog
       const live = importStateRef.current;
@@ -1200,7 +1204,7 @@ export function useImportPipeline(ctx) {
       } else if (live.project?.epsg && Number(live.project.epsg) !== S.epsg) {
         setNotices((p) => [...p, notice("The sample project's coordinates are EPSG:{epsg} ({crs}), but this project is EPSG:{epsg2}: the holes will not line up with anything else in it. Load the sample into a new project.", { epsg: S.epsg, crs: S.crs, epsg2: live.project.epsg })]);
       }
-      setNotices((p) => [...p, notice(S.notice)]); // #786 — the two SAMPLES notices are in the dictionaries
+      setNotices((p) => [...p, notice(downloaded ? S.noticeDownloaded : S.notice)]); // #786 — the two SAMPLES notices are in the dictionaries; downloaded: #3100
       importActiveRef.current = true;
       batchRowsRef.current = new WeakSet(); // #605
       importQueueTotalRef.current = files.length;

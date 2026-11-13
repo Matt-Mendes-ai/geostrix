@@ -10,6 +10,10 @@ import { writeArrayBuffer } from "geotiff";
 import proj4 from "proj4";
 import { fetchCopernicusTerrain } from "../../src/lib/copernicusDem.js";
 import { parseMapInfoTab } from "../../src/lib/mapinfoTab.js";
+import { createRequire } from "node:module";
+// TASKS.csv #3100 — the layer list and the copy are electron/sampleSources.js's (the app repeats them on a downloaded copy: the installer
+// no longer ships the report's files, BC's terms; the Copernicus terrain below is shipped)
+const { PERK_LAYERS, convertPerk } = createRequire(import.meta.url)("../../electron/sampleSources.js");
 
 const src = process.argv[2];
 if (!src) { console.error("usage: node scripts/samples/build-perk-rocky.mjs <42317Z folder>"); process.exit(1); }
@@ -17,10 +21,10 @@ const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..")
 const out = path.join(repo, "sample_data", "perk_rocky");
 fs.mkdirSync(out, { recursive: true });
 
-export const LAYERS = ["PR-Litho_interpV3", "PR-Str_interp", "PR_Master_StLines_Sept03_2024", "PR_Master_StrPoint_Oct17_2024", "PR_Master_LithOut_Oct17_2024", "PR-Alt_interpV2"];
+export const LAYERS = PERK_LAYERS;
+convertPerk((rel) => fs.readFileSync(path.join(src, rel)), (name, data) => fs.writeFileSync(path.join(out, name), data));
 let box = [Infinity, Infinity, -Infinity, -Infinity];
 for (const base of LAYERS) {
-  for (const ext of ["TAB", "MAP", "ID", "DAT"]) fs.copyFileSync(path.join(src, "Mapping", `${base}.${ext}`), path.join(out, `${base}.${ext}`));
   const rd = (ext) => new Uint8Array(fs.readFileSync(path.join(out, `${base}.${ext}`)));
   const { layers } = parseMapInfoTab({ tab: rd("TAB"), map: rd("MAP"), id: rd("ID"), dat: rd("DAT"), name: base });
   for (const l of layers) for (const f of l.features) for (const part of f.parts) for (const [x, y] of part) box = [Math.min(box[0], x), Math.min(box[1], y), Math.max(box[2], x), Math.max(box[3], y)];

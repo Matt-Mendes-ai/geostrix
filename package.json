@@ -69,7 +69,18 @@
       },
       {
         "from": "sample_data",
-        "to": "sample_data"
+        "to": "sample_data",
+        "filter": [
+          "**/*",
+          "!harry_property{,/**/*}",
+          "!woodjam{,/**/*}",
+          "!silvertip{,/**/*}",
+          "!perk_rocky{,/**/*}"
+        ]
+      },
+      {
+        "from": "sample_data/perk_rocky/terrain_copernicus_glo30.tif",
+        "to": "sample_data/perk_rocky/terrain_copernicus_glo30.tif"
       },
       {
         "from": "addons",

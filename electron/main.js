@@ -13,6 +13,7 @@ const fs = require("fs");
 const dns = require("dns");
 const { spawn } = require("child_process");
 const { guardedFetch, validTileIndex } = require("./netGuard.js"); // TASKS.csv #350
+const sampleSources = require("./sampleSources.js"); // TASKS.csv #3100 — the BC samples, downloaded on request
 // TASKS.csv #1983 — a Windows zone the bundled ICU cannot map (British Columbia's) left every time an hour behind: Node's TZ here,
 // and Chromium's override on each window below
 const { zoneOverride, applyToWebContents } = require("./timeZoneFix.js");
@@ -1426,17 +1427,77 @@ ipcMain.handle("tab-sibling-shapefile", async (_e, { filePath }) => {
 // individual files through the existing fs-read-file handler above — deliberately no separate
 // "read the whole sample project" handler, so the sample load walks the exact same
 // fsReadFile -> base64ToFile -> parseVectorFile path as the Browser panel's own file-click import.
-ipcMain.handle("sample-data-path", async () => {
+function bundledSampleDir() {
   // #1344 — the CI smoke test runs a package's app.asar with the plain Electron binary (not "packaged"): its samples sit beside the asar
   const appPath = app.getAppPath();
-  const candidates = app.isPackaged
+  // TASKS.csv #3100 — GEOSTRIX_SAMPLE_DATA_DIR (unpackaged runs only): a folder standing in for an installer's sample_data, so a test run
+  // sees the BC samples missing and goes through the download
+  const forced = !app.isPackaged && process.env.GEOSTRIX_SAMPLE_DATA_DIR;
+  const candidates = forced ? [forced] : app.isPackaged
     ? [path.join(process.resourcesPath || "", "sample_data")]
     : [path.join(__dirname, "..", "sample_data"), ...(/\.asar$/i.test(appPath) ? [path.join(path.dirname(appPath), "sample_data")] : [])];
   for (const dir of candidates) {
-    try { if (fs.existsSync(dir)) { sampleRoots.add(dirKey(dir)); try { sampleRoots.add(dirKey(fs.realpathSync(dir))); } catch (_) {} return { ok: true, path: dir }; } } catch (_) {} // #746
+    try { if (fs.existsSync(dir)) { sampleRoots.add(dirKey(dir)); try { sampleRoots.add(dirKey(fs.realpathSync(dir))); } catch (_) {} return dir; } } catch (_) {} // #746
   }
-  return { ok: false, error: "The bundled sample data folder wasn't found in this install." };
+  return null;
+}
+// TASKS.csv #3100 — the BC samples downloaded on request (not shipped: BC's terms) live in <userData>/sample_data; readable like the bundled ones
+function userSampleDir() {
+  const dir = path.join(app.getPath("userData"), "sample_data");
+  sampleRoots.add(dirKey(dir));
+  return dir;
+}
+ipcMain.handle("sample-data-path", async () => {
+  const dir = bundledSampleDir(), userPath = userSampleDir();
+  if (dir) return { ok: true, path: dir, userPath };
+  return { ok: false, error: "The bundled sample data folder wasn't found in this install.", userPath };
 });
+// TASKS.csv #3100 — each BC sample: "bundled" (a dev run, or a build that still has it), "downloaded" or "missing"
+function sampleStatus() {
+  const b = bundledSampleDir(), u = userSampleDir(), out = {};
+  for (const [id, dir] of Object.entries(sampleSources.BC_SAMPLES)) out[id] = sampleSources.sampleState(dir, b, u);
+  return out;
+}
+ipcMain.handle("sample-status", async () => sampleStatus());
+ipcMain.on("sample-status-sync", (e) => { try { e.returnValue = sampleStatus(); } catch (_) { e.returnValue = {}; } });
+// download (the Province's public servers only, every hop: SAMPLE_HOSTS), then convert in a worker; progress as "sample-download-progress"
+let sampleJob = null; // { id, ctrl, worker }
+ipcMain.handle("sample-download", async (e, id) => {
+  const src = sampleSources.SAMPLE_DOWNLOADS[id];
+  if (!src) return { ok: false, error: "This sample cannot be downloaded." };
+  if (sampleJob) return { ok: false, error: "A sample is already downloading." };
+  const send = (d) => { try { e.sender.send("sample-download-progress", { id, ...d }); } catch (_) { /* window gone */ } };
+  const ctrl = new AbortController(), job = (sampleJob = { id, ctrl, worker: null });
+  const userRoot = userSampleDir(), zipPath = path.join(userRoot, "_downloads", `${id}.zip`);
+  try {
+    let last = 0;
+    const res = await guardedFetch(src.url, { timeoutMs: 30 * 60 * 1000, maxBytes: 200 * 1024 * 1024, signal: ctrl.signal, allowHost: (h) => h.protocol === "https:" && sampleSources.SAMPLE_HOSTS.has(h.hostname),
+      onProgress: (received, total) => { const now = Date.now(); if (now - last > 200) { last = now; send({ phase: "download", received, total: total || src.bytes }); } } });
+    if (res.cancelled) return { ok: false, cancelled: true };
+    if (!res.ok) return { ok: false, offline: /^Network error|Timed out/.test(res.message || ""), error: res.message || `The server answered ${res.status}.` };
+    fs.mkdirSync(path.dirname(zipPath), { recursive: true });
+    fs.writeFileSync(zipPath, res.buffer);
+    send({ phase: "convert" });
+    const { Worker } = require("worker_threads");
+    const r = await new Promise((resolve) => {
+      const w = new Worker(path.join(__dirname, "sampleWorker.js"), { workerData: { id, zipPath, userRoot, tmpDir: path.join(userRoot, "_downloads") } });
+      job.worker = w;
+      w.once("message", resolve);
+      w.once("error", (err) => resolve({ ok: false, workerFailed: true, error: err.message }));
+      w.once("exit", (code) => resolve(ctrl.signal.aborted ? { ok: false, cancelled: true } : { ok: false, error: `The conversion stopped (${code}).` }));
+    });
+    // a worker that could not start (its script or a module inside the app's .asar): the same conversion here, the window waits for it
+    const done = r.workerFailed && !ctrl.signal.aborted ? (() => { try { return { ok: true, ...sampleSources.convertDownload(id, fs.readFileSync(zipPath), userRoot, path.join(userRoot, "_downloads")) }; } catch (err2) { return { ok: false, error: err2.message }; } })() : r;
+    if (done.ok) buildMenu(); // the File menu's sample entries
+    return done;
+  } catch (err) {
+    return { ok: false, error: err?.message || String(err) };
+  } finally {
+    sampleJob = null;
+    try { fs.rmSync(zipPath, { force: true }); } catch (_) { /* gone */ }
+  }
+});
+ipcMain.handle("sample-download-cancel", async () => { if (!sampleJob) return false; sampleJob.ctrl.abort(); sampleJob.worker?.terminate(); return true; });
 
 // Drive roots (Windows: C:\, D:\, ... ; macOS/Linux: just / — the Browser panel's tree root(s)).
 ipcMain.handle("fs-list-drives", async () => {
@@ -1474,11 +1535,13 @@ function buildMenu() {
         { label: L("New Project"), accelerator: "CmdOrCtrl+N", click: () => mainWindow?.webContents.send("menu", "new-project") },
         { label: L("Open Project…"), accelerator: "CmdOrCtrl+O", click: () => mainWindow?.webContents.send("menu", "open-project") },
         // TASKS.csv #1120 — the bundled samples were reachable only from an empty project's 3D View card
-        { label: L("Open Sample Project"), submenu: [
-          { label: L("Harry property (37 drillholes, assays)"), click: () => mainWindow?.webContents.send("menu", "sample:harry") },
-          { label: L("Woodjam (19 drillholes, IP lines, ZTEM)"), click: () => mainWindow?.webContents.send("menu", "sample:woodjam") },
-          { label: L("Perk-Rocky (geological mapping, no drillholes)"), click: () => mainWindow?.webContents.send("menu", "sample:perk") },
-          { label: L("Silvertip (9 deep drillholes, soils, streams)"), click: () => mainWindow?.webContents.send("menu", "sample:silvertip") }, // TASKS.csv #1346
+        // TASKS.csv #3100 — the BC samples are not shipped: one not on this computer opens with "…" (it asks to download it first);
+        // Woodjam is listed only where it is bundled (a dev run): its ARIS package is 1.94 GB
+        { label: L("Open Sample Project"), submenu: ((st) => [
+          { label: L("Harry property (37 drillholes, assays)") + (st.harry === "missing" ? "…" : ""), click: () => mainWindow?.webContents.send("menu", "sample:harry") },
+          ...(st.woodjam === "missing" ? [] : [{ label: L("Woodjam (19 drillholes, IP lines, ZTEM)"), click: () => mainWindow?.webContents.send("menu", "sample:woodjam") }]),
+          { label: L("Perk-Rocky (geological mapping, no drillholes)") + (st.perk === "missing" ? "…" : ""), click: () => mainWindow?.webContents.send("menu", "sample:perk") },
+          { label: L("Silvertip (9 deep drillholes, soils, streams)") + (st.silvertip === "missing" ? "…" : ""), click: () => mainWindow?.webContents.send("menu", "sample:silvertip") }, // TASKS.csv #1346
           { label: L("WA palaeochannel uranium (430 drillholes, gamma log)"), click: () => mainWindow?.webContents.send("menu", "sample:wa_uranium") }, // TASKS.csv #2168
           { label: L("Blake River gravity (7,810 stations, no drillholes)"), click: () => mainWindow?.webContents.send("menu", "sample:blake") }, // TASKS.csv #2829
           { label: L("Mount Raymond (geological mapping, Yukon, no drillholes)"), click: () => mainWindow?.webContents.send("menu", "sample:mount_raymond") }, // TASKS.csv #3107
@@ -1489,7 +1552,7 @@ function buildMenu() {
           { label: L("Central Lapland, Finland (bedrock map, rock geochemistry, no drillholes)"), click: () => mainWindow?.webContents.send("menu", "sample:fi_lapland") }, // TASKS.csv #3107
           { label: L("Rouyn-Noranda, Quebec (geology, structures, 280 drillhole traces)"), click: () => mainWindow?.webContents.send("menu", "sample:qc_rouyn_noranda") }, // TASKS.csv #3107
           { label: L("Century zinc-lead-silver, Queensland (37 drillholes, soils, magnetics)"), click: () => mainWindow?.webContents.send("menu", "sample:qld_century") }, // TASKS.csv #3107
-        ] },
+        ])((() => { try { return sampleStatus(); } catch (_) { return {}; } })()) },
         { label: L("Save Project"), accelerator: "CmdOrCtrl+S", click: () => mainWindow?.webContents.send("menu", "save-project") }, // #553 — to its own file
         { label: L("Save Project As…"), accelerator: "CmdOrCtrl+Shift+S", click: () => mainWindow?.webContents.send("menu", "save-project-as") },
         { type: "separator" },
