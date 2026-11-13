@@ -207,6 +207,11 @@ const REGISTRY = new Map(); // code -> { def, name }
   // Europe
   reg(4258, geog(GRS80_ZERO), "ETRS89 (longitude / latitude)");
   for (let z = 28; z <= 37; z++) reg(25800 + z, utm(z, false, GRS80_ZERO), `ETRS89 / UTM zone ${z}N`);
+  // TASKS.csv #3128 — the Nordic national grids are UTM on ETRS89 frames (EPSG v12.029 / PROJ 9.8.1, the same definitions as
+  // epsgRegistry.json): Finland's TM35FIN is UTM zone 35 extended over the whole country, Sweden's SWEREF99 TM is UTM zone 33. Listed here
+  // so they work before the full registry loads (a Finnish .prj or a sample opened at startup found no 3067).
+  reg(3067, utm(35, false, GRS80_ZERO), "EUREF-FIN / TM35FIN(E,N)");
+  reg(3006, utm(33, false, GRS80_ZERO), "SWEREF99 TM");
   // New Zealand
   reg(2193, `+proj=tmerc +lat_0=0 +lon_0=173 +k=0.9996 +x_0=1600000 +y_0=10000000 ${GRS80_ZERO} +units=m +no_defs`, "NZGD2000 / New Zealand Transverse Mercator 2000");
 }
@@ -482,6 +487,10 @@ function guessEpsgFromPrjName(wkt) {
   if (w.includes("CANADA_ATLAS_LAMBERT") && w.includes("CSRS")) return 3979; // #415
   if (w.includes("MERCATOR_AUXILIARY_SPHERE") || w.includes("PSEUDO-MERCATOR") || w.includes("PSEUDO_MERCATOR") || w.includes("WEB_MERCATOR")) return 3857; // #415
   if (w.includes("NEW_ZEALAND_TRANSVERSE_MERCATOR") || w.includes("NZGD_2000_NEW_ZEALAND_TRANSVERSE") || w.includes("NZTM")) return 2193;
+  // TASKS.csv #3128 — Finland's and Sweden's national grids as ESRI / QGIS name them ("ETRS89_TM35FIN_E_N", "ETRS_1989_TM35FIN_E_N",
+  // "SWEREF99_TM"), with no EPSG code in the file; the parameters are still checked against the definition (prjParamsMismatch)
+  if (/TM35FIN/.test(w)) return 3067;
+  if (/SWEREF_?99[_ ]TM\b/.test(w)) return 3006;
   // Geographic-only (GEOGCS with no PROJCS) — the datum name alone decides.
   if (!w.includes("PROJCS")) {
     // #489 — national frames before WGS 84 (their WKT may carry a TOWGS84[...] clause)
