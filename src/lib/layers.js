@@ -962,6 +962,7 @@ export function replaceNote(res, what) {
 export { gridCoordinateColumns } from "./gridColumns.js";
 // TASKS.csv #2152 — columns that name a hole's attribute, never its id; and columns that are not the hole's measured length / azimuth / dip
 const HOLE_ID_VETO = /(length|depth|_len$|_m$|azi|dip|elev|type|status|parent|purpose|path|diam)/;
+const NOT_HOLE_LENGTH = /(depth|dep)_(of|to)_|(^|_)(best|peak|top|base|bottom|intercept|basement|bedrock|regolith|oxide|fresh|transition)(_|$)/; // #2659
 const NOT_MEASURED = /(comment|cmnts?|nominal|planned|plan_|design|target|(^|_)ref(_|$)|precollar|pre_collar|boco|tofr|water)/;
 export function guessMapping(target, headers) {
   const schema = TARGET_SCHEMAS[target];
@@ -980,6 +981,9 @@ export function guessMapping(target, headers) {
   // #2152 — a planned, nominal, design or comment column, or the depth of a regolith boundary (pre-collar, BOCO, TOFR, water), is not the
   // hole's measured length, azimuth or dip ("depth" inside Precollar_Depth won the length; Nominal_Azimuth, Azimuth_Ref the azimuth)
   if (target === "collars" || target === "survey") for (const k of ["length", "azimuth", "dip", "depth"]) reguess(k, NOT_MEASURED);
+  // TASKS.csv #2659 — the depth OF something (Depth_of_best_m, Depth_to_basement, Top_Depth) is not the hole's length: a per-hole table's
+  // best-intercept depth became 'Hole length'
+  if (target === "collars") reguess("length", NOT_HOLE_LENGTH);
   // TASKS.csv #2149 — the point-data Depth took FromDepth by substring ("depth" inside it) next to From = FromDepth: an interval table's
   // from / to column is never also its point depth
   if (mapping.depth && (mapping.depth === mapping.from || mapping.depth === mapping.to)) mapping.depth = "";
