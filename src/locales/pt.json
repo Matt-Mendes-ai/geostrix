@@ -11713,5 +11713,14 @@
   "None yet: build one with Implicit surface, Explicit surface or Grade shell above, or link section outlines into a solid.": "Nenhuma ainda: construa uma com Superfície implícita, Superfície explícita ou Envoltória de teor acima, ou ligue contornos de seção em um sólido.",
   "Generated surfaces save with the project (mesh, type, declared relationships and the parameters that produced them), so a reported volume or tonnage can be reproduced after a restart.": "As superfícies geradas são salvas com o projeto (malha, tipo, relações declaradas e os parâmetros que as produziram), para que um volume ou tonelagem informado possa ser reproduzido após reiniciar.",
   "Under the trend \"{name}\" the cell is a cube in its frame (see below); clear the trend to set a cell height.": "Com a tendência \"{name}\" a célula é um cubo no seu referencial (ver abaixo); remova a tendência para definir uma altura de célula.",
-  "A flat search: {r} m across and {v} m up and down from each cell.": "Uma busca plana: {r} m de largura e {v} m acima e abaixo de cada célula."
+  "A flat search: {r} m across and {v} m up and down from each cell.": "Uma busca plana: {r} m de largura e {v} m acima e abaixo de cada célula.",
+  "Estimates other elements in the same run, on the same blocks, with the same search and domain rule, and adds them with this one as a set of block models. Each is composited on its own. The top cut and a typed variogram apply to {symbol} only; the unsampled metres of each other element are read as you last chose for it here, else left out.": "Estima outros elementos na mesma rodada, nos mesmos blocos, com a mesma busca e a mesma regra de domínios, e os adiciona junto com este como um conjunto de modelos de blocos. Cada um é compositado separadamente. O corte superior e um variograma digitado valem só para {symbol}; os metros não amostrados de cada outro elemento são lidos como você escolheu da última vez aqui, ou deixados de fora.",
+  "Also estimate: {list}": "Estimar também: {list}",
+  "Also estimate other elements…": "Estimar também outros elementos…",
+  "Up to {n} elements in one run.": "Até {n} elementos em uma rodada.",
+  "Also estimated on the same grid (added with {symbol} as a set):": "Também estimados na mesma grade (adicionados com {symbol} como um conjunto):",
+  "{el}: {blocks} blocks from {n} composites, mean {mean} {unit}": "{el}: {blocks} blocos a partir de {n} compostas, média {mean} {unit}",
+  "{el}: no samples to estimate from; not added.": "{el}: não há amostras para estimar; não é adicionado.",
+  "Add the set ({n} block models)": "Adicionar o conjunto ({n} modelos de blocos)",
+  "Running {el}… {v}": "Rodando {el}… {v}"
 }
