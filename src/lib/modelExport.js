@@ -210,6 +210,7 @@ export async function buildModelExportZip(model, epsg) {
   if (!ve.error) {
     files.push({ name: `${base}.omf`, data: await writeOMF({ name: model.name, description: `GeoStrix block model, EPSG:${epsg}${p0.coarsenedFrom ? `. ${coarsenedText(p0.coarsenedFrom)}` : ""}`, /* #1095 */ elements: [ve.element] }) });
     notes.push("OMF (.omf): the same grid as one OMF v1 VolumeElement (value" + (ve.element.data.length > 1 ? " and support" : "") + " per cell; empty cells NaN) — opens in Leapfrog, Datamine, Vulcan, Micromine and Geosoft.");
+    if (model.exportExtraNote) notes.push(`OMF data of the set's other elements: ${model.exportExtraNote}. The UBC model and the depth slices carry this model's own value only.`); // TASKS.csv #3014 part c
   }
   const slices = adaptive ? null : depthSliceTiffs(cells, t, epsg);
   if (!slices) { /* #324: explained in the cells note */ } else if (slices.error) warnings.push(`No depth slices: ${slices.error}`);

@@ -11781,5 +11781,7 @@
   "Mean {el}": "{el} medio",
   "{el} has a value in {p} % of this volume": "{el} tiene valor en el {p} % de este volumen",
   "* the element has no value in part of that volume (its own estimate did not reach every block); the mean is over the blocks it has.": "* el elemento no tiene valor en parte de ese volumen (su propia estimación no alcanzó todos los bloques); la media es sobre los bloques que lo tienen.",
-  "Checking {n} holes… ({k} of {m})": "Revisando {n} sondajes… ({k} de {m})"
+  "Checking {n} holes… ({k} of {m})": "Revisando {n} sondajes… ({k} de {m})",
+  "A model estimated with other elements in one run (a set) is exported with their values as extra columns on the same blocks: CSV columns, VTK and OMF arrays": "Un modelo estimado junto con otros elementos en una corrida (un conjunto) se exporta con sus valores como columnas adicionales en los mismos bloques: columnas del CSV, arreglos de VTK y OMF",
+  "Exports carry the other elements of a model's set": "Las exportaciones incluyen los otros elementos del conjunto del modelo"
 }

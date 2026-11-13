@@ -43,7 +43,7 @@ const scalarName = (s) => String(s || "value").replace(/[^A-Za-z0-9_]+/g, "_").s
 export function blockModelToVtk(model, note = "") {
   const cells = model.cells || [];
   const field = scalarName(valueColumnName(model)); // #1050 — "Au_ppm", as the CSV and OMF name it (was "value")
-  const extra = numericCellFields(cells); // #1050 — COVERAGE, KV, N_SAMPLES ... as further CELL_DATA arrays
+  const extra = numericCellFields(cells, model.exportExtra); // #1050; exportExtra: the set's other elements, #3014 part c — COVERAGE, KV, N_SAMPLES ... as further CELL_DATA arrays
   const scalars = (n, at) => extra.flatMap(({ name, get }) => { const a = new Float32Array(n).fill(NaN); at((c, i) => { const v = get(c); if (v != null) a[i] = v; }); return [`SCALARS ${scalarName(name)} float 1\nLOOKUP_TABLE default\n`, f32be(a), "\n"]; });
   const head = (dataset) => `# vtk DataFile Version 3.0\n${stampTitle(model.name, note)}\nBINARY\nDATASET ${dataset}\n`;
   // TASKS.csv #1093 — a DC/IP line's cells as the true rotated cells: one HEXAHEDRON (VTK type 12) each, ds along the line,

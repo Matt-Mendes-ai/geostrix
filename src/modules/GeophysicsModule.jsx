@@ -17,6 +17,7 @@ import { fetchAreaBox, modelGapKm } from "../lib/dataExtent.js"; // #1461; model
 import { Radio, Upload, Trash2, ArrowRight, Eye, EyeOff, Loader2, Mountain, Triangle, Box, MapPin, Waypoints, Plus, Palette, Download, Flag, Globe, ArrowDownToLine, PackageOpen, Scale, Crosshair } from "../components/icons.js"; // Crosshair: #2657
 import { requestPlanZoom, polylinesBox } from "../lib/planZoom.js"; // TASKS.csv #2657 // Scale: #1052
 import { lazyModal } from "../lib/lazyModal.jsx";
+import { withSetColumns } from "../lib/estimateSet.js"; // TASKS.csv #3014 part c — a set member exported with its siblings' columns
 import { sampleModelOnHoles } from "../lib/voxelSample.js"; // TASKS.csv #323
 import { logStops, SEQUENTIAL_ANCHORS, b64ToF32 } from "../lib/inversion.js"; // TASKS.csv #481; b64ToF32: #2846
 import { SURVEY_METHODS, unitsForMethod, robustRange, SURVEY_METHOD_GROUPS, guessSurveyMethodFrom, diurnalApplies /* #1586 */, Z_MEANINGS, surveyKey, surveyStats, aglToElevation, replaceSurveyPoints, surveyExportRows } from "../lib/geophysSurveys.js"; // surveyExportRows: #1094 // TASKS.csv #451; replaceSurveyPoints #600
@@ -187,7 +188,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
   const exportModelPackage = async (model) => {
     const epsg = await ensureExportCrs(project); if (!epsg) return; // #1021
     const { buildModelExportZip } = await import("../lib/modelExport.js");
-    const r = await buildModelExportZip(model, epsg);
+    const r = await buildModelExportZip(bmWithSet ? withSetColumns(model, voxelModels) : model, epsg); // #3014 part c — the OMF carries the set's arrays
     if (r.error) { setVoxelError({ text: tr("Could not export \"{name}\": {error}", { name: model.name, error: r.error }) }); return; }
     const res = await saveFile({ quiet: "success", suggestedName: `${r.base}_export.zip`, filters: [{ name: "Zip", extensions: ["zip"] }], content: r.zip /* #1040 bytes */ });
     if (res?.ok) setVoxelError({ info: true, text: tr("Exported \"{name}\": {files} files ({n} depth slices).{v}", { name: model.name, files: r.files.length, n: r.files.filter((f) => f.endsWith(".tif")).length, v: r.warnings.length ? " " + r.warnings.join(" ") : "" }) });
@@ -241,6 +242,9 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
   // TASKS.csv #1061 — where the provenance notes go: "auto" (beside for Micromine names), "inline" (# lines) or "beside" (.zip)
   const [bmStamp, setBmStampState] = useState(() => { try { return localStorage.getItem("geostrix.blockCsvStamp") || "auto"; } catch { return "auto"; } });
   const setBmStamp = (v) => { setBmStampState(v); try { localStorage.setItem("geostrix.blockCsvStamp", v); } catch { /* private window */ } };
+  // TASKS.csv #3014 part c — exports of a set member carry the set's other elements as columns (CSV) / arrays (VTK, OMF); off by default, so a CSV keeps its shape
+  const [bmWithSet, setBmWithSetState] = useState(() => { try { return localStorage.getItem("geostrix.blockExportWithSet") === "1"; } catch { return false; } });
+  const setBmWithSet = (v) => { setBmWithSetState(v); try { localStorage.setItem("geostrix.blockExportWithSet", v ? "1" : "0"); } catch { /* private window */ } };
   // TASKS.csv #814 — which online elevation model the terrain fetch reads (a per-computer preference, like the detail)
   const [terrainSource, setTerrainSourceState] = useState(() => { try { return localStorage.getItem("geostrix.terrainSource") || "aws"; } catch { return "aws"; } });
   const setTerrainSource = (v) => { setTerrainSourceState(v); try { localStorage.setItem("geostrix.terrainSource", v); } catch { /* private window */ } };
@@ -2857,8 +2861,13 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
             </select>
           </label>
         )}
+        {voxelModels.some((m) => m.params?.set) && (
+          <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }} title={tr("A model estimated with other elements in one run (a set) is exported with their values as extra columns on the same blocks: CSV columns, VTK and OMF arrays")}>{/* #3014 part c */}
+            <input type="checkbox" checked={bmWithSet} onChange={(e) => setBmWithSet(e.target.checked)} />{tr("Exports carry the other elements of a model's set")}
+          </label>
+        )}
         {voxelModels.map((v) => (
-          <VoxelModelRow key={v.id} epsg={stampEpsg(project)} /* #1052 */ others={voxelModels} /* #1808 */ model={v} onUpdate={updateVoxelModel} onRemove={removeVoxelModel} onEvaluate={evaluateOnHoles} onExportPackage={exportModelPackage} onShell={(m, opts = {}) => { goToModule("viewer"); requestModuleAction("voxel-shell", { id: m.id, model: m, largestOnly: !!opts.largestOnly }); }} /* #1780; largestOnly: #1840 */ onTerrain={terrainFromModelTop} /* #1806 */ getEpsg={() => ensureExportCrs(project)} /* #1021 */ csvNames={bmNames} stampChoice={bmStamp} />
+          <VoxelModelRow key={v.id} withSet={bmWithSet} /* #3014 part c */ epsg={stampEpsg(project)} /* #1052 */ others={voxelModels} /* #1808 */ model={v} onUpdate={updateVoxelModel} onRemove={removeVoxelModel} onEvaluate={evaluateOnHoles} onExportPackage={exportModelPackage} onShell={(m, opts = {}) => { goToModule("viewer"); requestModuleAction("voxel-shell", { id: m.id, model: m, largestOnly: !!opts.largestOnly }); }} /* #1780; largestOnly: #1840 */ onTerrain={terrainFromModelTop} /* #1806 */ getEpsg={() => ensureExportCrs(project)} /* #1021 */ csvNames={bmNames} stampChoice={bmStamp} />
         ))}
 
         <div style={{ marginTop: 16, fontSize: "var(--font-size-base)", color: "var(--color-text-caption)", lineHeight: 1.6 }}>
@@ -2974,7 +2983,7 @@ function useOpenLegendRequest(model, open) {
     return () => window.removeEventListener(OPEN_LEGEND_EVENT, on);
   }, [model.id]);
 }
-function VoxelModelRow({ others = null, model, onUpdate, onRemove, onEvaluate, onExportPackage, getEpsg, csvNames = "datamine", stampChoice = "auto", epsg = null, onShell = null, onTerrain = null }) {
+function VoxelModelRow({ withSet = false /* #3014 part c */, others = null, model, onUpdate, onRemove, onEvaluate, onExportPackage, getEpsg, csvNames = "datamine", stampChoice = "auto", epsg = null, onShell = null, onTerrain = null }) {
   const [askPrompt, promptEl] = usePrompt(); // TASKS.csv #1779 — window.prompt throws in Electron
   const [gtOpen, setGtOpen] = useState(false); // TASKS.csv #1052
   const [displayOpacity, setDisplayOpacity] = useState(model.opacity ?? 0.85);
@@ -3020,8 +3029,8 @@ function VoxelModelRow({ others = null, model, onUpdate, onRemove, onEvaluate, o
         {/* #1201 — a tonnage of conductivity is not a resource figure: not offered on a physical-property model */}
         {offersGradeTonnage(model, { categorical, geophysProperty: (p) => VOXEL_PROPERTIES.includes(p) }) /* #1577, #1592 — lib/gradeTonnage.js */ && <Scale role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Grade-tonnage table for \"{name}\"", { name: model.name })} title={tr("Grade-tonnage table for \"{name}\"", { name: model.name })} onClick={() => setGtOpen(true)} />}
         {/* TASKS.csv #411 — block model out for estimation/mine-planning software */}
-        <Download role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Export block model \"{name}\" as CSV", { name: model.name })} title={csvNames === "micromine" ? tr("Export as block-model CSV (EAST, NORTH, RL, _EAST, _NORTH, _RL, value: Micromine names)") : tr("Export as block-model CSV (XC, YC, ZC, XINC, YINC, ZINC, value)")} onClick={async () => { const e = await getEpsg(); if (e) exportBlockModelCSV(model, e, csvNames, stampChoice); }} />
-        <Box role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Export block model \"{name}\" as VTK", { name: model.name })} title={tr("Export as VTK for ParaView / PyVista (empty blocks are NaN)")} onClick={async () => { const e = await getEpsg(); if (e) exportBlockModelVTK(model, e); }} />{/* TASKS.csv #798 */}
+        <Download role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Export block model \"{name}\" as CSV", { name: model.name })} title={csvNames === "micromine" ? tr("Export as block-model CSV (EAST, NORTH, RL, _EAST, _NORTH, _RL, value: Micromine names)") : tr("Export as block-model CSV (XC, YC, ZC, XINC, YINC, ZINC, value)")} onClick={async () => { const e = await getEpsg(); if (e) exportBlockModelCSV(withSet ? withSetColumns(model, others) : model, e, csvNames, stampChoice); }} />
+        <Box role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Export block model \"{name}\" as VTK", { name: model.name })} title={tr("Export as VTK for ParaView / PyVista (empty blocks are NaN)")} onClick={async () => { const e = await getEpsg(); if (e) exportBlockModelVTK(withSet ? withSetColumns(model, others) : model, e); }} />{/* TASKS.csv #798 */}
         <Trash2 aria-label={tr("Remove block model \"{name}\"", { name: model.name })} title={tr("Remove block model \"{name}\"", { name: model.name })} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(tr("Remove \"{name}\"?", { name: model.name }))) onRemove(model.id); }} />
       </div>
       {/* TASKS.csv #711 — an OMF / UBC volume names no property or unit, so the legend, inspector and exports could only

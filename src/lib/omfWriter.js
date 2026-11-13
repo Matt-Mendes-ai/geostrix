@@ -116,7 +116,7 @@ export function volumeElementFromModel(model) {
     if (Number.isFinite(c.supportIndex)) { sIndex[idx] = c.supportIndex; hasIndex = true; }
   }
   // TASKS.csv #1050 — the other per-block fields (support and its index are written above, under their existing names)
-  const extra = numericCellFields(model.cells).filter((f) => !/^SUPPORT/.test(f.name)).map(({ name, get }) => {
+  const extra = numericCellFields(model.cells, model.exportExtra /* #3014 part c */).filter((f) => !/^SUPPORT/.test(f.name)).map(({ name, get }) => {
     const a = new Float64Array(n).fill(NaN);
     for (const c of model.cells) { const iu = t.x.index.get(k(c.x)), iv = t.y.index.get(k(c.y)), iw = t.z.index.get(k(c.z)); const v = get(c); if (iu != null && iv != null && iw != null && v != null) a[(iu * t.ny + iv) * t.nz + iw] = v; }
     return { name: name.toLowerCase(), values: a };
