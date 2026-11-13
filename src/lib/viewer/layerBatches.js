@@ -236,10 +236,10 @@ export function eachLayerMember(g, fn) {
 }
 // ViewerModule's pickTargetsSignature, per child of a layer group (TASKS.csv #1540, moved here for its size cap with #1643): a batch's
 // members are no longer children, so each batch is tagged by its members' count, first / last id and sampled world translations
-// (O(batches), never O(members)); a compact batch by its id and size (it is rebuilt, never moved); anything else adds nothing
+// (O(batches), never O(members)); a compact batch by its id and size, and its moves (#3117); anything else adds nothing
 export function batchTag(c) {
   const cp = c.userData?.compact;
-  if (cp) return `#c${c.id}:${cp.rows.length}`;
+  if (cp) return `#c${c.id}:${cp.rows.length}${cp.moves ? `m${cp.moves}` : ""}`; // moves: #3117 — kept assay markers moved to a new ring offset
   const bm = c.userData?.batchMembers;
   if (!bm || !bm.length) return "";
   const a = bm[0].matrixWorld.elements, b = bm[bm.length - 1].matrixWorld.elements;

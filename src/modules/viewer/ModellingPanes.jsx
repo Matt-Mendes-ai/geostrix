@@ -119,6 +119,7 @@ export default function ModellingPanes(props) {
     numericBusy,
     numericCapValue,
     numericCellSize,
+    numericCellHeight, setNumericCellHeight, numericFlatReach, setNumericFlatReach, // TASKS.csv #3062
     numericCloseShell,
     numericCompositeLength,
     numericCutoff,
@@ -1191,7 +1192,7 @@ export default function ModellingPanes(props) {
                 </div>) : null; })()}
               {numSrc && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>{numSrc.logScale ? tr("{label}: {n} readings, values as logged. Interpolated as log10 values (a geometric mean between readings); the cutoff is in the same units as the readings.", { label: numSrc.label, n: numSrc.n.toLocaleString() }) : tr("{label}: {n} readings, values as logged; the cutoff is in the same units.", { label: numSrc.label, n: numSrc.n.toLocaleString() })}</div>}{/* #1741 */}
               <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
-                <label style={{ ...miniField }} title={tr("Interpolation grid cell size (cubic). Smaller = smoother shell but more cells, within the block budget below.")}>{tr("Cell (m)")}<input type="number" min="0.5" step="any" value={numericCellSize} onChange={(e) => { setNumericCellSize(Math.max(0.5, Number(e.target.value) || 10)); setNumericBudgetHint(null); }} style={{ ...smallSel, width: "100%" }} />
+                <label style={{ ...miniField }} title={tr("Interpolation grid cell size (cubic). Smaller = smoother shell but more cells, within the block budget below.")}>{numericCellHeight > 0 && !trendFor("gradeShell") ? tr("Cell E × N (m)") : tr("Cell (m)")}<input type="number" min="0.5" step="any" value={numericCellSize} onChange={(e) => { setNumericCellSize(Math.max(0.5, Number(e.target.value) || 10)); setNumericBudgetHint(null); }} style={{ ...smallSel, width: "100%" }} />
                 </label>
                 {/* TASKS.csv #292 — "0 = unlimited" actively invited the pathological setting: an
                     unbounded search made every sample a candidate for every cell (measured: 81 s of
@@ -1203,6 +1204,19 @@ export default function ModellingPanes(props) {
                 <label style={{ ...miniField }} title={tr("Extends the grid past the outermost sample so the shell can close beyond the last hole")}>{tr("Pad (m)")}<input type="number" min="0" step="any" value={numericPadding} onChange={(e) => setNumericPadding(Math.max(0, Number(e.target.value) || 0))} style={{ ...smallSel, width: "100%" }} />
                 </label>
               </div>
+              {(() => { /* TASKS.csv #3062 — a flat, thin body (a seam, a palaeochannel, a laterite): the cell height on its own and a flat search, as Estimation's (#2418); a structural trend shapes both instead */
+                const gt = trendFor("gradeShell"), reach = Number(numericFlatReach), flat = !gt && reach > 0 && numericSearchRadius > 0 && reach < numericSearchRadius;
+                return <>
+                  <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+                    <label style={{ ...miniField }} title={gt ? tr("Under the trend \"{name}\" the cell is a cube in its frame (see below); clear the trend to set a cell height.", { name: gt.name }) : tr("The block height on its own, for a flat, thin body: a seam, a palaeochannel, a laterite. Blank = the same as the cell size (cubic).")}>{tr("Cell height (m)")}<input type="number" min="0.25" step="any" value={gt ? "" : numericCellHeight} disabled={!!gt} placeholder={gt ? tr("trend") : tr("cubic")} onChange={(e) => { const v = Number(e.target.value); setNumericCellHeight(e.target.value === "" || !(v > 0) ? "" : Math.max(0.25, v)); setNumericBudgetHint(null); }} style={{ ...smallSel, width: "100%" }} aria-label={tr("Cell height (m)")} />
+                    </label>
+                    <label style={{ ...miniField }} title={gt ? tr("The structural trend \"{name}\" shapes the search; clear it in 3D Modelling → Model settings to type a flat search here.", { name: gt.name }) : tr("Flatten the search: the reach up and down from a block, with the search radius across. Blank = a sphere of the search radius.")}>{tr("Vertical reach (m)")}<input type="number" min="0" step="any" value={gt ? "" : numericFlatReach} disabled={!!gt} placeholder={gt ? tr("trend") : tr("sphere")} onChange={(e) => { const v = Number(e.target.value); setNumericFlatReach(e.target.value === "" || !(v > 0) ? "" : v); setNumericBudgetHint(null); }} style={{ ...smallSel, width: "100%" }} aria-label={tr("Vertical reach (m)")} />
+                    </label>
+                  </div>
+                  {!gt && reach > 0 && !flat && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 6 }}>{numericSearchRadius > 0 ? tr("Less than the search radius, or it is a sphere.") : tr("A flat search needs a search radius.")}</div>}
+                  {flat && <div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>{tr("A flat search: {r} m across and {v} m up and down from each cell.", { r: numericSearchRadius, v: reach })}</div>}
+                </>;
+              })()}
               {(() => { /* TASKS.csv #2676 / #2551 — the trend chosen for grade shells reshapes this search: say so, as Estimation does */
                 const gt = trendFor("gradeShell"); if (!gt) return null;
                 const [, v, v2] = searchEllipsoidAxes(gt, numericSearchRadius > 0 ? numericSearchRadius : 100);

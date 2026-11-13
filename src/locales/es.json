@@ -11697,5 +11697,7 @@
   "Draw the fault {name}": "Dibujar la falla {name}",
   "Draw the string {name}": "Dibujar la polilínea {name}",
   "None yet: build one with Implicit surface, Explicit surface or Grade shell above, or link section outlines into a solid.": "Ninguna todavía: construya una con Superficie implícita, Superficie explícita o Envolvente de ley arriba, o una los contornos de sección en un sólido.",
-  "Generated surfaces save with the project (mesh, type, declared relationships and the parameters that produced them), so a reported volume or tonnage can be reproduced after a restart.": "Las superficies generadas se guardan con el proyecto (malla, tipo, relaciones declaradas y los parámetros que las produjeron), de modo que un volumen o tonelaje informado puede reproducirse tras reiniciar."
+  "Generated surfaces save with the project (mesh, type, declared relationships and the parameters that produced them), so a reported volume or tonnage can be reproduced after a restart.": "Las superficies generadas se guardan con el proyecto (malla, tipo, relaciones declaradas y los parámetros que las produjeron), de modo que un volumen o tonelaje informado puede reproducirse tras reiniciar.",
+  "Under the trend \"{name}\" the cell is a cube in its frame (see below); clear the trend to set a cell height.": "Con la tendencia \"{name}\" la celda es un cubo en su marco (ver abajo); quite la tendencia para fijar una altura de celda.",
+  "A flat search: {r} m across and {v} m up and down from each cell.": "Una búsqueda plana: {r} m de ancho y {v} m arriba y abajo de cada celda."
 }

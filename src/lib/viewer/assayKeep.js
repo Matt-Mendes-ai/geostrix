@@ -9,16 +9,18 @@ const disposeChild = (c) => { if (!c.geometry?.userData?.sharedProto) c.geometry
 // the same refs, in order (a style object, the samples array, the traces...)
 export const sameKey = (a, b) => !!a && !!b && a.length === b.length && a.every((x, i) => x === b[i]);
 
-// one kept child moved by (dx, dz) in scene x / z. -> false when it cannot be moved in place (the element is rebuilt instead)
+// one kept child moved by (dx, dz) in scene x / z. -> false when it cannot be moved in place (the element is rebuilt instead). The pick index
+// (#304) assumes a pickable object is rebuilt, never moved: a moved compact batch counts its moves, which batchTag reads, so the index is
+// rebuilt; a plain mesh (a family under 24) is not moved but rebuilt with its element, as the group signature samples only two children.
 export function shiftMarkers(c, dx, dz) {
   const cp = c.userData?.compact;
   if (cp) { // a compact batch (#1643 / #3055): its base matrices and the drawn ones (a hidden row keeps its translation)
     const a = c.instanceMatrix.array;
     for (let o = 0; o < cp.base.length; o += 16) { cp.base[o + 12] += dx; cp.base[o + 14] += dz; a[o + 12] += dx; a[o + 14] += dz; }
     c.instanceMatrix.needsUpdate = true; c.boundingBox = null; c.boundingSphere = null;
+    cp.moves = (cp.moves || 0) + 1;
     return true;
   }
-  if (c.isMesh && !c.isInstancedMesh) { c.position.x += dx; c.position.z += dz; c.updateMatrix(); c.updateMatrixWorld(); return true; } // a family under 24 (#1500)
   return false;
 }
 
