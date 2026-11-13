@@ -3,6 +3,7 @@
 // categorical layers (minus hidden categories / holes, with the user's label and colour overrides), assay grade
 // classes, and block models (classes as swatches, continuous models as a ramp from lib/legendScale.js).
 // Pure: callers pass their state (live viewer state, or a saved theme).
+import { SYMBOLS, FAMILIES, familyFor, projectSymbolChoices, symbolSvg, typeKey } from "./structureSymbols.js"; // TASKS.csv #3066
 import { LAYER_META, CATEGORICAL_SAFE_COLORS, colorForMedium } from "./layers.js";
 import { STRUCTURE_CLASS_COLORS, STRUCTURE_CLASS_LABELS } from "./mapLayers.js"; // TASKS.csv #1437
 import { legendScale } from "./legendScale.js";
@@ -161,13 +162,19 @@ export function boundaryLegendGroups(boundaries) {
 // anomaly map's group (anomalyLegendGroup) when it colours them
 // TASKS.csv #1437 (review #1352, Silvertip) — the outcrop structure sets had no legend entry: one row per class drawn (the disc
 // colours of sceneBuilders), in the class order, over the visible sets
+// TASKS.csv #3066 — one row per structure TYPE (the data's own words), with its USGS (FGDC) symbol (opt.svg, the inclined form) in the class
+// colour, in the class order; a type with no words is its class
 export function outcropLegendGroup({ surfaceStructures = [], visible = true } = {}) {
   if (!visible) return null;
-  const counts = new Map();
-  for (const s of surfaceStructures || []) { if (s?.visible === false) continue; for (const r of s.rows || []) { const c = r.cls || "other"; counts.set(c, (counts.get(c) || 0) + 1); } }
-  if (!counts.size) return null;
+  const choices = projectSymbolChoices(surfaceStructures), types = new Map();
+  for (const s of surfaceStructures || []) { if (s?.visible === false) continue; for (const r of s.rows || []) { const cls = r.cls || "other", k = typeKey(r.type || cls); if (!types.has(k)) types.set(k, { label: String(r.type || "").trim() || STRUCTURE_CLASS_LABELS[cls] || cls, type: r.type || cls, cls }); } }
+  if (!types.size) return null;
   const order = Object.keys(STRUCTURE_CLASS_COLORS);
-  const items = [...counts.keys()].sort((a, b) => order.indexOf(a) - order.indexOf(b)).map((c) => [STRUCTURE_CLASS_LABELS[c] || c, STRUCTURE_CLASS_COLORS[c] || STRUCTURE_CLASS_COLORS.other, { kind: "point" }]);
+  const rank = (c) => { const i = order.indexOf(c); return i < 0 ? order.length : i; }; // a class the colours do not know goes last
+  const items = [...types.values()].sort((a, b) => rank(a.cls) - rank(b.cls) || a.label.localeCompare(b.label)).map((t) => {
+    const color = STRUCTURE_CLASS_COLORS[t.cls] || STRUCTURE_CLASS_COLORS.other, sym = SYMBOLS[FAMILIES[familyFor(t.type, t.cls, choices)].inclined];
+    return [t.label, color, { kind: "point", svg: symbolSvg(sym, { px: 18, color }), fgdc: sym.fgdc }];
+  });
   return { key: "outcrop_structures", label: "Outcrop structures", items };
 }
 
@@ -309,7 +316,7 @@ export function allocateLegendRows(groups, max) {
     return g.items.slice(0, n);
   };
   const multi = gs.filter((_, i) => quota[i] > 0).length > 1, rows = [];
-  gs.forEach((g, i) => pick(g, quota[i]).forEach(([label, color, opt], k) => rows.push({ label, color, kind: opt?.kind, opacity: opt?.opacity, group: g.label, head: (multi || g.alwaysHead) && k === 0,
+  gs.forEach((g, i) => pick(g, quota[i]).forEach(([label, color, opt], k) => rows.push({ label, color, kind: opt?.kind, opacity: opt?.opacity, svg: opt?.svg /* #3066 */, group: g.label, head: (multi || g.alwaysHead) && k === 0,
     ...(k === 0 && g.grade && quota[i] < g.items.length ? { classesShown: [quota[i], g.items.length] } : {}) }))); // #2039 — a cut grade group says so
   return { rows, shown: rows.length, total: gs.reduce((n, g) => n + g.items.length, 0) };
 }

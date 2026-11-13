@@ -35,6 +35,8 @@ test("the typed form, the notice, the disc cross and Identify", () => {
   assert.match(p, /\(Number\.isFinite\(n\(typing\.dipDir\)\) \|\| n\(typing\.dip\) === 0\)/);
   assert.match(p, /out\.horizontal \? tr\(" \{n\} horizontal reading\(s\)/);
   assert.match(p, /skipReasons\(out\.skipWhy, out\.skipNames\)/);
-  assert.match(readFileSync(new URL("../src/lib/viewer/sceneBuilders.js", import.meta.url), "utf8"), /if \(r\.horizontal \|\| r\.dip === 0\) \{ \/\/ TASKS\.csv #2958/);
+  // TASKS.csv #3066 — the disc (and its cross) is gone: a horizontal reading takes its family's FGDC horizontal symbol (6.1: a cross in a circle)
+  assert.match(readFileSync(new URL("../src/lib/structureSymbols.js", import.meta.url), "utf8"), /if \(horizontal \|\| d === 0\) return "horizontal";/);
+  assert.match(readFileSync(new URL("../src/lib/structureSymbols.js", import.meta.url), "utf8"), /attitudeOf\(row\?\.dip, !!row\?\.horizontal\)/);
   assert.match(readFileSync(new URL("../src/lib/viewer/identify.js", import.meta.url), "utf8"), /r\.horizontal \? tr\("none \(horizontal\)"\)/);
 });

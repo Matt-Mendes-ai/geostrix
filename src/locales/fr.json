@@ -11344,5 +11344,7 @@
   "Minor fold hinge": "Charnière de pli mineur",
   "FGDC {n}: {name}": "FGDC {n} : {name}",
   "Symbol for {type}": "Symbole pour {type}",
-  "The USGS (FGDC) symbol for {type}: each reading takes its inclined, vertical or horizontal form by its own dip. Kept with the project.": "Le symbole USGS (FGDC) pour {type} : chaque mesure prend sa forme inclinée, verticale ou horizontale selon son propre pendage. Gardé avec le projet."
+  "The USGS (FGDC) symbol for {type}: each reading takes its inclined, vertical or horizontal form by its own dip. Kept with the project.": "Le symbole USGS (FGDC) pour {type} : chaque mesure prend sa forme inclinée, verticale ou horizontale selon son propre pendage. Gardé avec le projet.",
+  "Symbol size": "Taille du symbole",
+  "The length of the symbol's strike line on the ground (the 5.0 mm of the USGS standard); its other parts scale with it": "La longueur de la ligne de direction du symbole au sol (les 5,0 mm de la norme USGS) ; ses autres parties suivent cette échelle"
 }

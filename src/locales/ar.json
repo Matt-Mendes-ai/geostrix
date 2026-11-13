@@ -11344,5 +11344,7 @@
   "Minor fold hinge": "مفصل طية ثانوية",
   "FGDC {n}: {name}": "FGDC {n}: {name}",
   "Symbol for {type}": "رمز {type}",
-  "The USGS (FGDC) symbol for {type}: each reading takes its inclined, vertical or horizontal form by its own dip. Kept with the project.": "رمز USGS (FGDC) لـ{type}: تأخذ كل قراءة شكلها المائل أو الرأسي أو الأفقي حسب ميلها. يُحفظ مع المشروع."
+  "The USGS (FGDC) symbol for {type}: each reading takes its inclined, vertical or horizontal form by its own dip. Kept with the project.": "رمز USGS (FGDC) لـ{type}: تأخذ كل قراءة شكلها المائل أو الرأسي أو الأفقي حسب ميلها. يُحفظ مع المشروع.",
+  "Symbol size": "حجم الرمز",
+  "The length of the symbol's strike line on the ground (the 5.0 mm of the USGS standard); its other parts scale with it": "طول خط مضرب الرمز على الأرض (الـ 5.0 مم في معيار USGS)؛ تتدرج أجزاؤه الأخرى معه"
 }

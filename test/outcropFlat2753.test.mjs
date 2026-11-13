@@ -30,16 +30,17 @@ test("with its own z: snapped on the ground when snapToTerrain, kept off it and 
 });
 
 test("the discs and their dip labels are placed by the same rule", () => {
-  const rows = [{ x: 20, y: 80, dip: 0, dipDir: 0, cls: "bedding" }, { x: 150, y: 50, dip: 0, dipDir: 0, cls: "bedding" }, { x: 50, y: 50, dip: 0, dipDir: 0, cls: "bedding" }];
+  // dip 30, not 0: since #3066 a horizontal symbol carries no number (FGDC 6.1), so a dip-0 row has no label to place
+  const rows = [{ x: 20, y: 80, dip: 30, dipDir: 0, cls: "bedding" }, { x: 150, y: 50, dip: 30, dipDir: 0, cls: "bedding" }, { x: 50, y: 50, dip: 30, dipDir: 0, cls: "bedding" }];
   const s = { id: "s", rows, size: 10, labels: "dip" };
   const origin = { x: 0, y: 0, z: 0 }, group = new THREE.Group(), cache = {};
   syncSurfaceStructures(group, cache, [s], { origin, terrain, flatZ });
   const inst = cache.s.children.find((c) => c.isInstancedMesh), m = new THREE.Matrix4(), p = new THREE.Vector3();
   const ys = rows.map((_, i) => { inst.getMatrixAt(i, m); p.setFromMatrixPosition(m); return p.y; });
-  const lift = 0.5; // dip 0: size * 0.5 * sin(0) + 0.5
-  assert.deepEqual(ys.map((y) => +(y - lift).toFixed(6)), [502, 312, 312]);
+  const lift = 0.3 + 10 * 0.004; // #3066: the flat symbol (and its pick disc) just above the ground
+  assert.deepEqual(ys.map((y) => +(y - lift).toFixed(3)), [502, 312, 312]); // Float32 matrices
   const labels = outcropLabelItems([s], { origin, terrain, flatZ });
-  assert.deepEqual(labels.map((l) => +(l.y - lift - 10 * 0.35).toFixed(6)), [502, 312, 312]);
+  assert.deepEqual(labels.map((l) => +(l.y - 0.3 - 10 * 0.1).toFixed(6)), [502, 312, 312]);
 });
 
 test("wiring: ViewerModule passes the samples' flat elevation and rebuilds when it changes", () => {

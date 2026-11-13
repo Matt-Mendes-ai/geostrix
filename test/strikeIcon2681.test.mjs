@@ -47,8 +47,9 @@ test("the KML points at the icon in the shared style and in each heading's own s
 
 test("Surface Geology's outcrop export writes the .kmz", () => {
   const src = readFileSync(new URL("../src/components/SurfaceMappingPanel.jsx", import.meta.url), "utf8");
-  assert.match(src, /iconHref: STRIKE_ICON_PATH \/\* #2681 \*\//);
-  assert.match(src, /buildZip\(\[\{ name: "doc\.kml", data: new TextEncoder\(\)\.encode\(kml\) \}, \{ name: STRIKE_ICON_PATH, data: strikeSymbolPng\(64\) \}\]\)/);
+  // TASKS.csv #3066 — the single strike icon is replaced by each reading's USGS (FGDC) symbol, one PNG per symbol used
+  assert.match(src, /iconOf: \(f\) => symbolIconPath\(symOf\(f\)\) \/\* #3066 \*\//);
+  assert.match(src, /buildZip\(\[\{ name: "doc\.kml", data: new TextEncoder\(\)\.encode\(kml\) \}, \.\.\.\[\.\.\.used\]\.map\(\(\[path, sym\]\) => \(\{ name: path, data: symbolPng\(sym, 64\) \}\)\)\]\)/);
   assert.match(src, /suggestedName: `\$\{base\}\.kmz`, filters: \[\{ name: "KMZ", extensions: \["kmz"\] \}\]/);
   assert.match(src, /tr\("KMZ \(Google Earth, with strike symbols\)"\)/);
 });

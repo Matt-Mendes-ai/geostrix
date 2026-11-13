@@ -47,7 +47,8 @@ import CoveringLayers from "./CoveringLayers.jsx"; // TASKS.csv #1823
 import { graduatedStyle, graduatedCategories, parseBreaks, isNumericField } from "../lib/mapGraduated.js"; // TASKS.csv #1600
 import { projectTargetEpsg } from "../lib/projectTarget.js"; // TASKS.csv #2287 — no reprojection INTO the placeholder CRS
 import { tieOf, fileToLocal, bearingToLocal } from "../lib/localGridTie.js"; // TASKS.csv #2320
-import { strikeSymbolPng, STRIKE_ICON_PATH } from "../lib/strikeIcon.js"; // TASKS.csv #2681
+import { symbolPng, symbolIconPath } from "../lib/structureSymbolPng.js"; // TASKS.csv #3066 — the USGS symbols replace #2681's strike icon
+import { symbolForReading } from "../lib/structureSymbols.js"; // TASKS.csv #3066
 import { mineGridOf, mineSourceOf, isMineSource, mineChoiceToProject, mineSourceSentence } from "../lib/mineGrid.js"; // TASKS.csv #2586; the mine-grid Source CRS: #2684
 import { collarsLookUnderground } from "../lib/pitShell.js"; // TASKS.csv #2265
 import { structureGroundCounts, surfaceFlatElevation } from "../lib/viewer/surfacePlacement.js"; import { terrainGroundAt } from "../lib/viewer/geomath.js"; // TASKS.csv #2485 (2); surfaceFlatElevation: #2753
@@ -110,10 +111,14 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
       else if (fmt === "kml") {
         const toLonLat = await ox.lonLatTransform(epsg);
         if (!toLonLat) throw new Error(tr("EPSG:{epsg} cannot be converted to latitude / longitude.", { epsg }));
-        const kml = ox.featuresToKml(ox.surfaceStructureFeatures(s, epsg, zAt), { name: s.name, toLonLat, nameOf: (f) => (f.attributes.dip !== "" ? `${Math.round(f.attributes.dip)}°` : ""), colorOf: (f) => STRUCTURE_CLASS_COLORS[f.attributes.cls] || "#555555", headingOf: (f) => (f.attributes.strike_rhr_true !== "" ? f.attributes.strike_rhr_true : null), iconHref: STRIKE_ICON_PATH /* #2681 */ });
+        // TASKS.csv #3066 — each reading's USGS (FGDC) symbol, one PNG per symbol used, turned by its strike like #2681's icon
+        const symOf = (f) => symbolForReading({ type: f.attributes.type, cls: f.attributes.cls, dip: f.attributes.dip === "" ? NaN : Number(f.attributes.dip) }, symbolChoices).symbol;
+        const feats = ox.surfaceStructureFeatures(s, epsg, zAt), used = new Map();
+        for (const f of feats.features) { const sym = symOf(f); used.set(symbolIconPath(sym), sym); }
+        const kml = ox.featuresToKml(feats, { name: s.name, toLonLat, nameOf: (f) => (f.attributes.dip !== "" ? `${Math.round(f.attributes.dip)}°` : ""), colorOf: (f) => STRUCTURE_CLASS_COLORS[f.attributes.cls] || "#555555", headingOf: (f) => (f.attributes.strike_rhr_true !== "" ? f.attributes.strike_rhr_true : null), iconOf: (f) => symbolIconPath(symOf(f)) /* #3066 */ });
         // TASKS.csv #2681 — a .kmz: the KML and the strike-symbol icon it points at, so Google Earth turns a dip symbol, not its pushpin
         const { buildZip } = await import("../lib/shapefile.js");
-        const kmz = buildZip([{ name: "doc.kml", data: new TextEncoder().encode(kml) }, { name: STRIKE_ICON_PATH, data: strikeSymbolPng(64) }]);
+        const kmz = buildZip([{ name: "doc.kml", data: new TextEncoder().encode(kml) }, ...[...used].map(([path, sym]) => ({ name: path, data: symbolPng(sym, 64) }))]);
         res = await saveFile({ quiet: "success", suggestedName: `${base}.kmz`, filters: [{ name: "KMZ", extensions: ["kmz"] }], content: kmz });
       } else {
         const bytes = await (await import("../lib/gpkg.js")).buildGeoPackage([{ name: base, ...ox.surfaceStructureFeatures(s, epsg, zAt), epsg }]);
@@ -884,7 +889,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
               ); })}
             </div>
             <div style={row}>
-              <span style={lbl}>{tr("Disc size")}</span>
+              <span style={lbl} title={tr("The length of the symbol's strike line on the ground (the 5.0 mm of the USGS standard); its other parts scale with it")}>{tr("Symbol size")}</span>{/* #3066: discs are for drillhole structures */}
               <input type="range" min={5} max={discSizeMax(s.rows, s.size) /* #2412 — grows with the set's extent */} step={5} value={s.size ?? 25} onChange={(e) => updateSurfaceStructureSet(s.id, { size: Number(e.target.value) })} style={{ flex: 1 }} />
               <span style={{ color: "var(--color-text-muted)", width: 40, textAlign: "right" }}>{s.size ?? 25} m</span>
             </div>
