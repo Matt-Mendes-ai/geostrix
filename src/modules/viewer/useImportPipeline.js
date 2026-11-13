@@ -28,7 +28,7 @@ import { dipConventionFields, upwardHoles } from "../../lib/dipSign.js"; // TASK
 import { codeColumnGuess } from "../../lib/valueGuess.js"; // TASKS.csv #2889
 import { codeOverlap, otherCodeSystem } from "../../lib/codeOverlap.js"; // TASKS.csv #2893
 import { recoveryColumns, recoveryPct } from "../../lib/recoveryCalc.js"; // TASKS.csv #2891
-import { logChannelsFor, defaultLogBin, logChannelRows, unitFromHeader, channelNoData, noDataText, logBinEstimate, needsBinning, logReadings } from "../../lib/downholeLogChannels.js"; // logReadings: #3038
+import { logChannelsFor, defaultLogBin, logChannelRows, unitFromHeader, channelNoData, noDataText, logBinEstimate, needsBinning, logReadings, logRange, rangeText, assayIntervals } from "../../lib/downholeLogChannels.js"; // logRange: #3041; assayIntervals: #3039 // logReadings: #3038
 import { logTableFits } from "../../lib/logOnRead.js"; // TASKS.csv #3038 // TASKS.csv #2160; no-data: #2332; logBinEstimate: #2885
 import { loadSampleFiles, readSiblingFiles } from "../../lib/desktop.js";
 const isXlsxName = (name) => /\.xlsx$/i.test(String(name || "")); // TASKS.csv #605 (same test as xlsx.js; the reader itself loads on demand, #552)
@@ -59,7 +59,7 @@ const AZ_TARGETS = new Set(["collars", "survey", "structure"]); // TASKS.csv #16
 const dipColOf = (target, mapping) => (target === "collars" || target === "survey" ? mapping?.dip || null : null);
 
 export function useImportPipeline(ctx) {
-  const { addVoxelModel, fillCodeDictionary, recordImportLeftOut } = useStore(); // #2632; fillCodeDictionary: #2163; recordImportLeftOut: #2493
+  const { addVoxelModel, fillCodeDictionary, recordImportLeftOut, assays: storeAssays } = useStore(); // assays: #3039 // #2632; fillCodeDictionary: #2163; recordImportLeftOut: #2493
   const {
     addBoundary,
     addRaster,
@@ -703,7 +703,8 @@ export function useImportPipeline(ctx) {
       const made = [];
       chans.forEach((col, k) => {
         const nd = data.logKeepNoData ? null : channelNoData(src, col, unitFromHeader(col)); // #2332 — no-data codes left out unless kept
-        const out = logChannelRows(src, mapping, col, binM, nd?.values || null);
+        const rg = logRange(data.logRanges?.[col]); // #3041 — the range typed for the channel
+        const out = logChannelRows(src, mapping, col, binM, nd?.values || null, rg, binM === "assay" ? assayIntervals(storeAssays) : null); // assay: #3039
         if (!out.rows.length) return;
         const unit = String(data.logUnits?.[col] ?? unitFromHeader(col)).trim(); // TASKS.csv #2952 — the unit typed beside the channel in the import (side 2, agreed with Main)
         const id = `custom_${Date.now()}_${k}`;
@@ -714,13 +715,13 @@ export function useImportPipeline(ctx) {
         const rowsOut = out.rows; for (const r of rowsOut) r._src = fileName; // #2885 — stamped in place, not a second copy of every row
         // TASKS.csv #2329 — a From / To log: each reading placed at its interval's middle, said in the layer's notes (project text: English)
         const mid = !mapping.depth && mapping.from && mapping.to ? `Each reading placed at the middle of its ${mapping.from}-${mapping.to} interval.` : "";
-        const binNote = out.binned ? `Binned on import to ${binM} m: mean of ${out.readings} reading(s), with each bin's min and max (fields min, max, n). Source: ${fileName}.` : "";
-        const ndNote = nd && out.dropped ? `Left out on import as no-data codes: ${out.dropped} value(s) (${noDataText(nd)}).` : ""; // #2332
+        const binNote = !out.binned ? "" : binM === "assay" ? `Binned on import to the assay sample intervals: mean of ${out.readings} reading(s) per sample, with its min and max (fields min, max, n); ${out.unsampled || 0} reading(s) in no sample were left out. Source: ${fileName}.` /* #3039 */ : `Binned on import to ${binM} m: mean of ${out.readings} reading(s), with each bin's min and max (fields min, max, n). Source: ${fileName}.`;
+        const ndNote = (nd && out.dropped ? `Left out on import as no-data codes: ${out.dropped} value(s) (${noDataText(nd)}).` : "") + (out.outside ? `${nd && out.dropped ? " " : ""}Left out on import by the typed range: ${out.outside} value(s) ${rangeText(rg)}.` : ""); // #2332; range: #3041
         setCustomLayers((p) => [...p, { id, name, rows: rowsOut, group, unit: unit || undefined, ...(out.binned ? { binM } : {}), ...(binNote || mid || ndNote ? { notes: [binNote, mid, ndNote].filter(Boolean).join(" ") } : {}) }]);
         setCustomVisible((p) => ({ ...p, [id]: k === 0 }));
-        made.push(`${col}${unit ? ` (${unit})` : ""}: ${out.rows.length.toLocaleString()}${out.skipped ? ` (${out.skipped} without a number)` : ""}${out.dropped ? ` (${out.dropped.toLocaleString()} no-data value(s) left out: ${noDataText(nd)})` : ""}`); // dropped: #2332
+        made.push(`${col}${unit ? ` (${unit})` : ""}: ${out.rows.length.toLocaleString()}${out.skipped ? ` (${out.skipped} without a number)` : ""}${out.dropped ? ` (${out.dropped.toLocaleString()} no-data value(s) left out: ${noDataText(nd)})` : ""}${out.outside ? ` (${out.outside.toLocaleString()} ${rangeText(rg)} left out)` : ""}`); // dropped: #2332; outside: #3041
       });
-      setNotices((p) => [...p, tr("{fileName}: {n} downhole log channel(s) imported as numeric layers{v}: {list}. The first is shown; the others are in the Layers list.", { fileName, n: made.length, v: binM ? tr(", averaged to {b} m bins (mean, with min and max)", { b: binM }) : tr(", every reading kept"), list: made.join("; ") })]);
+      setNotices((p) => [...p, tr("{fileName}: {n} downhole log channel(s) imported as numeric layers{v}: {list}. The first is shown; the others are in the Layers list.", { fileName, n: made.length, v: binM === "assay" ? tr(", averaged over the assay sample intervals (mean, with min and max)") /* #3039 */ : binM ? tr(", averaged to {b} m bins (mean, with min and max)", { b: binM }) : tr(", every reading kept"), list: made.join("; ") })]);
     } else if (target === "custom") {
       // TASKS.csv #2338 (review #2325, WA uranium) — the custom route kept rows with a blank value (155 of geology_current.csv) and rows
       // with no interval and no depth (all 424 of a gamma calibration table: From only), said "Added ... (424 rows)" and drew nothing.

@@ -1,7 +1,8 @@
 // TASKS.csv #2160 (Matt's decision 2026-11-09) — in the import dialog, for a point-depth custom layer: the log channels to import, one
 // numeric layer each, units read from the column names; and, when the readings would not fit the memory budget, the bin to average them to.
 import React, { useMemo } from "react";
-import { logChannelColumns, defaultLogChannels, effectiveLogBin, logBoxPatch, needsBinning, looksLikeLogTable, channelNoData, noDataText, rawLogMB, logBinEstimate, LOG_BINS, logReadings } from "../lib/downholeLogChannels.js"; // logReadings: #3038 // no-data: TASKS.csv #2332; effectiveLogBin / logBoxPatch: #2333; logBinEstimate / LOG_BINS: #2885
+import { logChannelColumns, defaultLogChannels, effectiveLogBin, logBoxPatch, needsBinning, looksLikeLogTable, channelNoData, noDataText, rawLogMB, logBinEstimate, LOG_BINS, logReadings, assayIntervals, logHoles, assayBinRows } from "../lib/downholeLogChannels.js"; // logReadings: #3038; assay bins: #3039
+import { useStore } from "../lib/store.jsx"; // TASKS.csv #3039 — the project's assay samples // no-data: TASKS.csv #2332; effectiveLogBin / logBoxPatch: #2333; logBinEstimate / LOG_BINS: #2885
 import { t as tr } from "../lib/i18n.js";
 import { logUnitChoices } from "../lib/logUnits.js"; // TASKS.csv #2952
 
@@ -21,6 +22,9 @@ export default function LogChannelsBox({ modal, onChange, sel }) {
   const noData = useMemo(() => ticked.map((col) => { const ch = channels.find((c) => c.col === col); const nd = channelNoData(src, col, ch?.unit || ""); return nd ? { col, nd } : null; }).filter(Boolean), [ticked.join("\u0001"), src, channels]);
   // TASKS.csv #2885 — the rows each bin leaves (one pass over the readings), for the menu and the bin that fits
   const est = useMemo(() => (shown ? logBinEstimate(src, modal.mapping) : null), [shown, src, modal.mapping]);
+  // TASKS.csv #3039 — 'the assay intervals' as a bin, when the project has assay samples in the log's holes: their count for the menu
+  const { assays } = useStore();
+  const assayRows = useMemo(() => { if (!shown) return 0; const iv = assayIntervals(assays); return iv ? assayBinRows(iv, logHoles(src, modal.mapping)) : 0; }, [shown, assays, src, modal.mapping]);
   if (!shown) return null;
   const binM = effectiveLogBin(modal, readings, ticked.length, est); // #2333 — follows the ticked channels until the bin menu is used; est: #2885
   const over = needsBinning(readings, ticked.length);
@@ -49,6 +53,13 @@ export default function LogChannelsBox({ modal, onChange, sel }) {
                 <input value={modal.logUnits?.[c.col] ?? c.unit ?? ""} onChange={(e) => set({ logUnits: { ...(modal.logUnits || {}), [c.col]: e.target.value } })} list={`chunits-${c.col}`} placeholder={tr("unit")}
                   style={{ ...sel, width: 70, padding: "1px 4px" }} aria-label={tr("Unit of {c}", { c: c.col })} />
                 <datalist id={`chunits-${c.col}`}>{logUnitChoices(c.col).map((u) => <option key={u} value={u} />)}</datalist>
+                {/* TASKS.csv #3041 — the channel's valid range, typed: readings outside it are left out and counted (none is preset) */}
+                {["min", "max"].map((k) => (
+                  <input key={k} type="number" step="any" value={modal.logRanges?.[c.col]?.[k] ?? ""} placeholder={k === "min" ? tr("min") : tr("max")}
+                    title={tr("The channel's valid range, if you know it: readings below the minimum or above the maximum are left out and counted (a density over 5 g/cc, a gamma of 80,000 cps). Blank: no limit.")}
+                    onChange={(e) => set({ logRanges: { ...(modal.logRanges || {}), [c.col]: { ...(modal.logRanges?.[c.col] || {}), [k]: e.target.value } } })}
+                    style={{ ...sel, width: 62, padding: "1px 4px" }} aria-label={k === "min" ? tr("Lowest valid reading of {c}", { c: c.col }) : tr("Highest valid reading of {c}", { c: c.col })} />
+                ))}
               </>
             ) : c.unit ? <span style={{ color: "var(--color-text-muted)" }}>{` (${c.unit})`}</span> : null}
           </label>
@@ -61,8 +72,9 @@ export default function LogChannelsBox({ modal, onChange, sel }) {
             : over ? tr("{n} readings × {k} channel(s) is more than GeoStrix keeps reading by reading on this computer, and every reading is chosen: about {mb} MB of memory, and the import may be slow or run out of memory. A bin averages them.", { n: readings.toLocaleString(), k: ticked.length, mb: rawLogMB(readings, ticked.length).toLocaleString() })
             : binM ? tr("Readings averaged to a bin (mean, with its minimum and maximum).")
             : tr("Every reading is kept (about {mb} MB of memory). A bin averages them (mean, with its minimum and maximum).", { mb: rawLogMB(readings, ticked.length).toLocaleString() })}</div>{/* the MB: TASKS.csv #2430 */}
-          <select value={binM ?? ""} onChange={(e) => set({ logBinM: e.target.value === "" ? null : Number(e.target.value) })} style={{ ...sel, marginTop: 4 }} aria-label={tr("Log bin")}>
+          <select value={binM ?? ""} onChange={(e) => set({ logBinM: e.target.value === "" ? null : e.target.value === "assay" ? "assay" : Number(e.target.value) })} style={{ ...sel, marginTop: 4 }} aria-label={tr("Log bin")}>
             {LOG_BINS.map((b) => { const n = est?.bins.find((x) => x.binM === b)?.rows ?? 0; return <option key={b} value={String(b)}>{tr("{b} m bins: about {n} rows per channel, {mb} MB in all", { b: b.toLocaleString(), n: n.toLocaleString(), mb: rawLogMB(n, ticked.length).toLocaleString() })}</option>; })}{/* #2885 — the rows and memory each choice leaves */}
+            {assayRows > 0 && <option value="assay">{tr("The assay intervals: at most {n} rows per channel (the samples in these holes), {mb} MB in all", { n: assayRows.toLocaleString(), mb: rawLogMB(assayRows, ticked.length).toLocaleString() })}</option>}{/* #3039 */}
             <option value="">{tr("Every reading (no bins): {n} rows per channel, about {mb} MB in all", { n: readings.toLocaleString(), mb: rawLogMB(readings, ticked.length).toLocaleString() })}</option>
           </select>
         </div>

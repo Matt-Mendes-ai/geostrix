@@ -325,7 +325,11 @@ function parseInWorker(buf, opts) {
 // on top of the file buffer and its UTF-16 text, so that table needed some 4-5 GB before anything was drawn. Before parsing, the
 // rows x columns are estimated from the first 1 MB and a table needing more than TABLE_MEMORY_BUDGET is not opened unasked.
 export const TABLE_MEMORY_BUDGET = 2e9;
-export async function estimateTableMemory(file) {
+// TASKS.csv #3040 (from #2885) — a table read as ROW OBJECTS costs far more than as columns: the 121 MB WA iron log (2.58 M rows x 9 columns)
+// took about 1.05 GB of heap to reach its dialog, i.e. about 28 bytes a cell and 32 a row on top of the text, where the columnar figure
+// (9 x 1.5 a cell) said 0.68 GB. rowObjects picks that rate.
+export const ROW_CELL_BYTES = 28, ROW_BASE_BYTES = 32;
+export async function estimateTableMemory(file, { rowObjects = false } = {}) {
   const head = await file.slice(0, 1 << 20).text();
   const lines = head.split(/\r?\n/);
   if (file.size > head.length && lines.length > 1) lines.pop(); // a cut last line
@@ -335,12 +339,15 @@ export async function estimateTableMemory(file) {
   const dataLines = Math.max(1, lines.length - 1);
   const used = lines.reduce((n, l) => n + l.length + 1, 0);
   const rows = Math.round(Math.max(0, file.size - (header.length + 1)) / Math.max(1, (used - header.length - 1) / dataLines));
-  return { rows, cols, bytes: rows * cols * 9 * 1.5 + file.size * 3 };
+  return { rows, cols, bytes: (rowObjects ? rows * cols * ROW_CELL_BYTES + rows * ROW_BASE_BYTES : rows * cols * 9 * 1.5) + file.size * 3 };
 }
+// #3040 — the most heap a byte of file can take as row objects (narrow numeric rows: a 6-byte cell such as '1.23,' held as 28 + a share of
+// the row's 32): a file under budget / MAX_ROW_RATIO can never reach the budget
+export const MAX_ROW_RATIO = 16;
 // TASKS.csv #2177 (Matt's decision 2026-11-09) — over the budget, the columns are chosen BEFORE the full read, so every kept value stays
 // exact: the estimate per column count, and the header names from the first 1 MB. -> { rows, cols, headers, fixed, perColumn }
-export async function tableColumnsPreview(file) {
-  const e = await estimateTableMemory(file);
+export async function tableColumnsPreview(file, { rowObjects = false } = {}) { // rowObjects: #3040
+  const e = await estimateTableMemory(file, { rowObjects });
   const head = await file.slice(0, 1 << 16).text();
   const first = (head.split(/\r?\n/)[0] || "").replace(/^\uFEFF/, "");
   const delim = [",", "\t", ";", "|"].reduce((a, d) => (first.split(d).length > first.split(a).length ? d : a), ",");
@@ -349,17 +356,18 @@ export async function tableColumnsPreview(file) {
   // header's 64 KB held 153 rows of a 62-column table, live)
   const body = file.size > head.length ? await file.slice(0, 1 << 20).text() : head;
   const sample = body.split(/\r?\n/).slice(1, -1).filter((l) => l.trim()).slice(0, 5000).map((l) => l.split(delim).map((v) => v.trim().replace(/^"(.*)"$/, "$1")));
-  return { ...e, headers, sample, fixed: file.size * 3, perColumn: e.rows * 9 * 1.5 };
+  return { ...e, headers, sample, fixed: file.size * 3 + (rowObjects ? e.rows * ROW_BASE_BYTES : 0), perColumn: e.rows * (rowObjects ? ROW_CELL_BYTES : 9 * 1.5) };
 }
 export { subsetBytes } from "./tableSubsetRequest.js"; // #2177
 const requestTableSubset = (file, preview) => requestTableSubsetEv(file, preview, TABLE_MEMORY_BUDGET);
 // -> true to go on (whole table), { keep: [header...] } (only those columns), or false. confirm: injectable (tests); with no window (Node)
 // the table is read.
-export async function confirmTableSize(file, { budget = TABLE_MEMORY_BUDGET, confirm = typeof window !== "undefined" ? (m) => window.confirm(m) : null, choose = requestTableSubset } = {}) {
-  if (!confirm || !(file?.size > budget / 12)) return true; // a file under budget / 12 can never reach the budget
-  const e = await estimateTableMemory(file);
+// rowObjects (#3040): the table will be held as row objects (every reader but the columnar one and a log read into columns, #3038)
+export async function confirmTableSize(file, { budget = TABLE_MEMORY_BUDGET, confirm = typeof window !== "undefined" ? (m) => window.confirm(m) : null, choose = requestTableSubset, rowObjects = false } = {}) {
+  if (!confirm || !(file?.size > budget / (rowObjects ? MAX_ROW_RATIO : 12))) return true; // a file under that can never reach the budget
+  const e = await estimateTableMemory(file, { rowObjects });
   if (e.bytes <= budget) return true;
-  const chosen = choose ? await choose(file, await tableColumnsPreview(file)) : null; // #2177
+  const chosen = choose ? await choose(file, await tableColumnsPreview(file, { rowObjects })) : null; // #2177; rowObjects: #3040
   if (chosen != null) return chosen;
   return confirm(tr("{name} is a very large table: about {rows} rows × {cols} columns. Opening it needs roughly {gb} GB of memory, which can close GeoStrix on this computer.", { name: file.name, rows: e.rows.toLocaleString(), cols: e.cols, gb: (e.bytes / 1e9).toFixed(1) })
     + "\n\n" + tr("OK — open it anyway.") + "\n" + tr("Cancel — don't open it (split the file, or keep only the rows and columns you need, and open the parts)."));
@@ -475,7 +483,7 @@ export async function parseTableFile(file, opts) {
   const inParts = file?.size > TEXT_MAX_BYTES;
   if (inParts && typeof Worker === "undefined") throw tooLargeForOneRead(file.size);
   if (!(opts?.sizeChecked)) {
-    const ok = await confirmTableSize(file);
+    const ok = await confirmTableSize(file, { rowObjects: !opts?.columnar && !opts?.logRead }); // rowObjects: #3040
     if (!ok) throw new Error(tr("not opened: it needs more memory than this computer can safely give it"));
     if (ok.keep?.length) opts = { ...(opts || {}), keep: ok.keep }; // #2177 — only the chosen columns are read
     if (ok.holes?.col && ok.holes.ids?.length) opts = { ...(opts || {}), holes: { col: ok.holes.col, ids: [...ok.holes.ids], label: ok.holes.label || "" } }; // #2321 — only those holes' rows
