@@ -3084,6 +3084,8 @@
   "; {clampedCount} negative grade(s) clamped to zero": "; {clampedCount} teneur(s) négative(s) ramenée(s) à zéro",
   "Raw assays: {duplicatesSkipped} exact duplicate row(s) left out; {overlappingRows} overlapping row(s) resolved into segments at the mean of the overlapping results.": "Analyses brutes : {duplicatesSkipped} ligne(s) en double exact exclue(s) ; {overlappingRows} ligne(s) chevauchante(s) résolue(s) en segments à la moyenne des résultats chevauchants.",
   "{blocksEstimated} block(s) estimated, {blocksSkipped} left un-estimated (no sample within search radius / below min-samples / below min distinct holes).": "{blocksEstimated} bloc(s) estimé(s), {blocksSkipped} non estimé(s) (aucun échantillon dans le rayon de recherche / sous le min d'échantillons / sous le min de sondages distincts).",
+  "{e} of the {b} blocks a drillhole passes through were estimated.": "{e} des {b} blocs traversés par un sondage ont été estimés.",
+  "{k} of the {h} holes have no estimated block anywhere along them ({list}): Min distinct holes ({m}) or the search left them out.": "{k} des {h} sondages n'ont aucun bloc estimé le long de leur tracé ({list}) : le minimum de sondages distincts ({m}) ou la recherche les a écartés.",
   "Kriged with a {model} variogram{v}: nugget {v2}, sill {v3}, range {v4} m{v5}{v6}.": "Krigé avec un variogramme {model}{v} : pépite {v2}, palier {v3}, portée {v4} m{v5}{v6}.",
   " fitted to these composites": " ajusté à ces composites",
   " as entered": " tel que saisi",
