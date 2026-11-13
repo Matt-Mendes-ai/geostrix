@@ -7,4 +7,5 @@ test("vite's dev watcher ignores .claude, dist and release", () => {
   const s = fs.readFileSync("vite.config.js", "utf8");
   for (const g of ["**/.claude/**", "**/dist/**", "**/release/**"]) assert.ok(s.includes(`"${g}"`), g);
   assert.match(s, /server: \{ port: 5173, strictPort: true, watch: \{ ignored: \[/);
+  assert.match(s, /optimizeDeps: \{ entries: \["index\.html"\] \}/); // the dependency scan crawled every .html in the worktrees too
 });

@@ -73,6 +73,9 @@ export default defineConfig({
   base: "./",
   // TASKS.csv #3090 — the dev server watched the whole repo, so the side sessions' worktrees (.claude/worktrees: their builds' dist/index.html)
   // reloaded the dev window again and again while it loaded. Only the app's own sources are watched now; nothing the app imports lives in these.
+  // TASKS.csv #3090 — the dependency pre-bundle's scan crawled every .html under the root, the worktrees' dist and release folders too,
+  // and the dev window waited on it for minutes at the splash: the app has one page.
+  optimizeDeps: { entries: ["index.html"] },
   server: { port: 5173, strictPort: true, watch: { ignored: ["**/.claude/**", "**/dist/**", "**/release/**", "**/python-sidecar/**", "**/sample_data/**", "**/docs/**", "**/test/**", "**/TASKS.csv*", "**/*.log"] } },
   build: {
     outDir: "dist",
