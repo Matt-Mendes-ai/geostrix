@@ -50,7 +50,7 @@ import { terrainGrid, unitRaster, mapAgreement } from "../../lib/predictedMap.js
 import { sectionGrid, pickSections, packUnits, sectionZRange } from "../../lib/modelSection.js"; // TASKS.csv #759
 import { smoothClusteredSpec } from "../../lib/contactSmoothing.js"; // TASKS.csv #761
 import { pickReport } from "../../lib/pickDiagnostics.js"; // TASKS.csv #762
-import { gempyLimitCheck, mapContactStep, MAP_CONTACT_STEP_M, plainEngineError } from "../../lib/gempyLimits.js"; // TASKS.csv #3162
+import { gempyLimitCheck, mapContactStep, MAP_CONTACT_STEP_M, plainEngineError, thinForWork } from "../../lib/gempyLimits.js"; // TASKS.csv #3162
 import { findOnTraceWorld, findOnTrace, traceOfHole /* #2931 */, interceptId, SOFT_NUGGET, MODEL_EXTENT_PAD_M, guessSurfaceType, pointInDomain } from "../../lib/viewer/modelHelpers.js";
 import { t as tr } from "../../lib/i18n.js"; // TASKS.csv #786
 import { capFieldAtGround, meanInsideShell } from "../../lib/groundCap.js"; // TASKS.csv #803
@@ -334,6 +334,58 @@ export function createModellingRuns(ctx, mcRef) {
           }),
         }
       : s);
+    // TASKS.csv #756 — every logged litho interval's midpoint, in the frame the model is solved in (warped with a trend),
+    // evaluated EXACTLY by GemPy in the same solve: the model check and the modelled-unit layer read these, not the
+    // block cell a midpoint falls in (one cell is 50-110 m on a real extent at 36^3)
+    const evalRows = [];
+    traces.forEach((t) => {
+      if (modelArea === "checked" && visibleHoles?.[t.hole_id] === false) return; // TASKS.csv #2535 — the model check scores the Model area's holes
+      if (suspectZ.has(t.hole_id)) return; // TASKS.csv #2918 — nor a hole whose collar elevation is suspect
+      (rowsByHole(unitLitho || importStateRef.current.layers?.litho || []).get(t.hole_id) || []).forEach((r) => { // #2378 — the unit as the tools read it; #2905 — the hole's rows (a scan of 150,455 per hole)
+        if (r.hole_id !== t.hole_id || !Number.isFinite(r.from) || !Number.isFinite(r.to) || r.to <= r.from) return;
+        const p = findOnTrace(t.pts, (r.from + r.to) / 2);
+        if (!p) return;
+        const api0 = sceneToApi(p);
+        const api = anisotropy.enabled ? anisoWarpPoint(api0, anisoCenter, anisoBasis, anisoScl) : api0;
+        evalRows.push({ row: r, hole_id: t.hole_id, x: api.x, y: api.y, z: api.z });
+      });
+    });
+    // TASKS.csv #758 — the predicted geological map: terrain nodes over the data's own padded footprint (real space),
+    // evaluated in the same solve, in the frame the model is solved in
+    const mapTerrain = terrainForClipRef.current;
+    const o0 = originRef.current;
+    const rxMap = minMax(extentApiPts.map((q) => q.x)), ryMap = minMax(extentApiPts.map((q) => q.y));
+    const [mx0, mx1] = pad(rxMap.min, rxMap.max), [my0, my1] = pad(ryMap.min, ryMap.max);
+    const mapGrid = mapTerrain ? terrainGrid(mapTerrain, [mx0 + o0.x, my0 + o0.y, mx1 + o0.x, my1 + o0.y], { maxPts: 20000, minSpacing: 25 }) : null;
+    const mapApi = mapGrid ? mapGrid.nodes.map((n) => { const a = { x: n.x - o0.x, y: n.y - o0.y, z: n.z - o0.z }; return anisotropy.enabled ? anisoWarpPoint(a, anisoCenter, anisoBasis, anisoScl) : a; }) : [];
+    // TASKS.csv #759 — the most recent saved cross-sections, a vertical grid each over the depths of the holes near the
+    // line (nodes above the ground left out), evaluated in the same solve so the section window can draw the model
+    // behind the holes
+    const rzSec = minMax(extentApiPts.map((q) => q.z));
+    const [sz0, sz1] = pad(rzSec.min, rzSec.max);
+    const groundAt = mapTerrain ? (x, y) => terrainGroundAt(mapTerrain, x, y) : null; // TASKS.csv #927
+    const secPick = pickSections(sections);
+    const tracePts = secPick.sections.length ? traces.flatMap((t) => t.wx.map((x, i) => ({ x, y: t.wy[i], z: t.wz[i] }))) : [];
+    const secGrids = secPick.sections.map((sc) => {
+      const A = { x: sc.ax, y: sc.ay }, B = { x: sc.bx, y: sc.by };
+      const [zl, zh] = sectionZRange(tracePts, A, B, Number(sc.corridor) || 100, sz0 + o0.z, sz1 + o0.z);
+      return { sc, grid: sectionGrid(A, B, zl, zh, { maxPts: secPick.perSection, minSpacing: 2, groundAt }) };
+    })
+      .filter((g) => g.grid?.nodes.length);
+    const secApi = secGrids.flatMap(({ grid }) => grid.nodes.map((n) => { const a = { x: n.x - o0.x, y: n.y - o0.y, z: n.z - o0.z }; return anisotropy.enabled ? anisoWarpPoint(a, anisoCenter, anisoBasis, anisoScl) : a; }));
+    const evalAll = [...evalRows.map((q) => [q.x, q.y, q.z]), ...mapApi.map((q) => [q.x, q.y, q.z]), ...secApi.map((q) => [q.x, q.y, q.z])];
+    const evalPts = evalAll.length && evalAll.length <= 200000 ? evalAll : null;
+    // TASKS.csv #3162 follow-up — Model from map over GemPy's work budget (lib/gempyLimits.js: its time is the data rows times the block,
+    // check and mesh points it evaluates): the map's contact points and orientations thinned evenly, said before the run. Mount Raymond
+    // (13 tops, 4,016 points, 262 orientations) passed 15 minutes; 410 / 88 took 350 s on a busy CPU.
+    if (stackOpts.fromMap && !cakeRun) {
+      const tw = thinForWork(specs, { blockCells: resolution[0] * resolution[1] * resolution[2], evalPts: evalPts?.length || 0, relation });
+      if (tw) {
+        tw.specs.forEach((s, i) => { specs[i] = s; });
+        held.push(notice("To keep GemPy's run to a few minutes, {p} of the map's {pAll} contact points and {o} of its {oAll} orientations were used, spread evenly (contacts logged in holes are all kept). GemPy's time grows with the data times the points it evaluates: the lithology block ({b} cells), the model check and map points ({e}) and the meshes of {s} surfaces. A lower Resolution (Model settings) or fewer units leaves more of the data in.",
+          { p: tw.after.points.toLocaleString(), pAll: tw.before.points.toLocaleString(), o: tw.after.orientations.toLocaleString(), oAll: tw.before.orientations.toLocaleString(), b: (resolution[0] * resolution[1] * resolution[2]).toLocaleString(), e: (evalPts?.length || 0).toLocaleString(), s: specs.filter((x) => !x.fault).length }));
+      }
+    }
     // TASKS.csv #761 — Model settings "Smooth clustered contacts": a per-point nugget on the contacts that sit in a cluster
     // (KDE over each surface's points in the solve frame, lib/contactSmoothing.js); faults are left exact. The sensitivity
     // realisations get the same treatment so they vary around the same model.
@@ -397,47 +449,6 @@ export function createModellingRuns(ctx, mcRef) {
     }, 500);
     const solveStartedAt = performance.now(); // TASKS.csv #52 (a) — the measured per-run cost that budgets the sensitivity ensemble
     const projectToken = getProjectToken(); // #466
-    // TASKS.csv #756 — every logged litho interval's midpoint, in the frame the model is solved in (warped with a trend),
-    // evaluated EXACTLY by GemPy in the same solve: the model check and the modelled-unit layer read these, not the
-    // block cell a midpoint falls in (one cell is 50-110 m on a real extent at 36^3)
-    const evalRows = [];
-    traces.forEach((t) => {
-      if (modelArea === "checked" && visibleHoles?.[t.hole_id] === false) return; // TASKS.csv #2535 — the model check scores the Model area's holes
-      if (suspectZ.has(t.hole_id)) return; // TASKS.csv #2918 — nor a hole whose collar elevation is suspect
-      (rowsByHole(unitLitho || importStateRef.current.layers?.litho || []).get(t.hole_id) || []).forEach((r) => { // #2378 — the unit as the tools read it; #2905 — the hole's rows (a scan of 150,455 per hole)
-        if (r.hole_id !== t.hole_id || !Number.isFinite(r.from) || !Number.isFinite(r.to) || r.to <= r.from) return;
-        const p = findOnTrace(t.pts, (r.from + r.to) / 2);
-        if (!p) return;
-        const api0 = sceneToApi(p);
-        const api = anisotropy.enabled ? anisoWarpPoint(api0, anisoCenter, anisoBasis, anisoScl) : api0;
-        evalRows.push({ row: r, hole_id: t.hole_id, x: api.x, y: api.y, z: api.z });
-      });
-    });
-    // TASKS.csv #758 — the predicted geological map: terrain nodes over the data's own padded footprint (real space),
-    // evaluated in the same solve, in the frame the model is solved in
-    const mapTerrain = terrainForClipRef.current;
-    const o0 = originRef.current;
-    const rxMap = minMax(extentApiPts.map((q) => q.x)), ryMap = minMax(extentApiPts.map((q) => q.y));
-    const [mx0, mx1] = pad(rxMap.min, rxMap.max), [my0, my1] = pad(ryMap.min, ryMap.max);
-    const mapGrid = mapTerrain ? terrainGrid(mapTerrain, [mx0 + o0.x, my0 + o0.y, mx1 + o0.x, my1 + o0.y], { maxPts: 20000, minSpacing: 25 }) : null;
-    const mapApi = mapGrid ? mapGrid.nodes.map((n) => { const a = { x: n.x - o0.x, y: n.y - o0.y, z: n.z - o0.z }; return anisotropy.enabled ? anisoWarpPoint(a, anisoCenter, anisoBasis, anisoScl) : a; }) : [];
-    // TASKS.csv #759 — the most recent saved cross-sections, a vertical grid each over the depths of the holes near the
-    // line (nodes above the ground left out), evaluated in the same solve so the section window can draw the model
-    // behind the holes
-    const rzSec = minMax(extentApiPts.map((q) => q.z));
-    const [sz0, sz1] = pad(rzSec.min, rzSec.max);
-    const groundAt = mapTerrain ? (x, y) => terrainGroundAt(mapTerrain, x, y) : null; // TASKS.csv #927
-    const secPick = pickSections(sections);
-    const tracePts = secPick.sections.length ? traces.flatMap((t) => t.wx.map((x, i) => ({ x, y: t.wy[i], z: t.wz[i] }))) : [];
-    const secGrids = secPick.sections.map((sc) => {
-      const A = { x: sc.ax, y: sc.ay }, B = { x: sc.bx, y: sc.by };
-      const [zl, zh] = sectionZRange(tracePts, A, B, Number(sc.corridor) || 100, sz0 + o0.z, sz1 + o0.z);
-      return { sc, grid: sectionGrid(A, B, zl, zh, { maxPts: secPick.perSection, minSpacing: 2, groundAt }) };
-    })
-      .filter((g) => g.grid?.nodes.length);
-    const secApi = secGrids.flatMap(({ grid }) => grid.nodes.map((n) => { const a = { x: n.x - o0.x, y: n.y - o0.y, z: n.z - o0.z }; return anisotropy.enabled ? anisoWarpPoint(a, anisoCenter, anisoBasis, anisoScl) : a; }));
-    const evalAll = [...evalRows.map((q) => [q.x, q.y, q.z]), ...mapApi.map((q) => [q.x, q.y, q.z]), ...secApi.map((q) => [q.x, q.y, q.z])];
-    const evalPts = evalAll.length && evalAll.length <= 200000 ? evalAll : null;
     const res = cakeRun ? await (async () => { // #2905; #3085 — in a worker, its progress on the status bar (one grid per top)
       clearInterval(rampTimer);
       const { runLayerCake } = await import("../../lib/layerCakeClient.js");
