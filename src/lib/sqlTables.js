@@ -6,6 +6,7 @@
 // loop between them, so the window paints and the modal can say how far it is ("assays: 40,000 of 83,670 rows"); a
 // transaction spanning those turns is fine on the one in-memory connection.
 import { surfaceSampleColumns } from "./sqlSurfaceTable.js"; // TASKS.csv #1799
+import { oxideAliases } from "./geochem.js"; // TASKS.csv #2914 — the oxide names as columns
 
 export const CHUNK_ROWS = 4000;
 const yieldToUI = () => new Promise((r) => setTimeout(r, 0));
@@ -60,7 +61,12 @@ async function createAssaysTable(db, assays, assayElements, onProgress) {
   // Li = 0.0023226645607841317, the column's minimum, with nothing to tell them from an assay. WHERE Li_q IS NULL keeps the measured values.
   const qualSyms = qualifiedSymbols(assays, symbols);
   const cols = ["hole_id TEXT", "\"from\" REAL", "\"to\" REAL", "source TEXT", ...sampleCols.map((c) => `${c} TEXT`), ...symbols.map((s) => `"${String(s).replace(/"/g, '""')}" REAL`), ...qualSyms.map((s) => `"${String(s).replace(/"/g, '""')}_q" TEXT`)];
-  db.run(`CREATE TABLE assays (${cols.join(", ")});`);
+  // TASKS.csv #2914 (review #2876) — the oxide names as columns ('no such column: SiO2'): VIRTUAL generated columns, computed when read, so
+  // they cost no memory and the INSERT below fills the stored columns only. A name another column already has is skipped.
+  const used = new Set(cols.map((c) => c.replace(/^"?([^" ]+)"?.*$/, "$1").replace(/""/g, '"').toLowerCase()));
+  const gen = oxideAliases(assayElements).filter((a) => symbols.includes(a.symbol) && !used.has(a.name.toLowerCase()))
+    .map((a) => `"${a.name}" REAL GENERATED ALWAYS AS ("${String(a.symbol).replace(/"/g, '""')}" * ${a.factor}) VIRTUAL`);
+  db.run(`CREATE TABLE assays (${[...cols, ...gen].join(", ")});`);
   await fillTable(db, "assays", `INSERT INTO assays VALUES (${cols.map(() => "?").join(",")})`, assays,
     (a) => [a.hole_id, a.from, a.to, a.source ?? null, ...sampleCols.map((c) => (a[c] != null && a[c] !== "" ? String(a[c]) : null)), ...symbols.map((s) => (a.values?.[s] != null ? a.values[s] : null)), ...qualSyms.map((s) => (a.qualifiers?.[s] === "<" || a.qualifiers?.[s] === ">" ? a.qualifiers[s] : null))], onProgress);
 }
@@ -194,8 +200,8 @@ export async function buildTables(db, { collars, survey, layers, assays, assayEl
   const tables = [];
   const tableNames = db.exec("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name;");
   (tableNames[0]?.values || []).forEach(([name]) => {
-    const info = db.exec(`PRAGMA table_info("${name}");`);
-    const columns = (info[0]?.values || []).map(([, colName]) => colName);
+    const info = db.exec(`PRAGMA table_xinfo("${name}");`); // #2914 — xinfo lists the generated oxide columns too (hidden 2 / 3)
+    const columns = (info[0]?.values || []).filter((r) => r[6] !== 1).map((r) => r[1]);
     tables.push({ name, columns });
   });
   return tables;

@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { isBelowDetection } from "../lib/assayFlags.js"; // TASKS.csv #2505
 import { X, Download } from "./icons.js";
-import { valueIn, resolvedSegments, histogramWantsLog, gradeUnitLabel } from "../lib/geochem.js"; // gradeUnitLabel: #1680 // resolvedSegments: #1099; histogramWantsLog: #1524
+import { valueIn, resolvedSegments, histogramWantsLog, gradeUnitLabel, elementOptionLabel } from "../lib/geochem.js"; // elementOptionLabel: #2914 // gradeUnitLabel: #1680 // resolvedSegments: #1099; histogramWantsLog: #1524
 import { useStore } from "../lib/store.jsx";
 import { stampLines, withStamp, ASSAY_READING_RULES, stampEpsg } from "../lib/provenance.js"; // TASKS.csv #1099
 import { version as APP_VERSION } from "../../package.json";
@@ -310,7 +310,7 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
           )}
           <div style={{ display: "flex", gap: 10, alignItems: "flex-end", flexWrap: "wrap" }}>
             <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("Element")}<select value={symbol} onChange={(e) => setSymbol(e.target.value)} style={{ ...sel, display: "block", marginTop: 4 }}>
-                {activeElements.map((e) => <option key={e.symbol} value={e.symbol}>{e.symbol}</option>)}
+                {activeElements.map((e) => <option key={e.symbol} value={e.symbol}>{elementOptionLabel(e.symbol, e.unit) /* #2914 */}</option>)}
               </select>
             </label>
             {source === "assays" && symbol && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 4, lineHeight: 1.4 }}>{tr("n counts the samples with a {symbol} result, each metre once; a sample takes the domain code it overlaps most.", { symbol })}</div>}{/* TASKS.csv #2752 */}
@@ -412,7 +412,7 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
                   <label style={{ display: "flex", alignItems: "center", gap: 5 }}>{tr("Cut-offs")}<input type="text" value={cutText} onChange={(e) => setCutText(e.target.value)} placeholder={cutDefaults.join(", ")} style={{ ...sel, width: 140 }} aria-label={tr("Cut-offs")} /></label>
                   <label style={{ display: "flex", alignItems: "center", gap: 5 }}>{tr("Also show")}<select value="" onChange={(e) => { const v = e.target.value; if (v) setAlsoSyms((a) => (a.includes(v) ? a : [...a, v])); }} style={sel} aria-label={tr("Also show")}>
                       <option value="">{tr("add an element…")}</option>
-                      {activeElements.filter((e) => e.symbol !== symbol && !alsoShown.includes(e.symbol)).map((e) => <option key={e.symbol} value={e.symbol}>{e.symbol}</option>)}
+                      {activeElements.filter((e) => e.symbol !== symbol && !alsoShown.includes(e.symbol)).map((e) => <option key={e.symbol} value={e.symbol}>{elementOptionLabel(e.symbol, e.unit)}</option>)}
                     </select></label>
                   {alsoShown.map((x) => <button key={x} type="button" onClick={() => setAlsoSyms((a) => a.filter((y) => y !== x))} style={{ ...sel, cursor: "pointer", padding: "2px 8px" }} title={tr("Remove {symbol} from the table", { symbol: x })}>{x} ×</button>)}
                 </div>

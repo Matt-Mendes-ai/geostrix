@@ -9,7 +9,7 @@
 // no value (NaN is never stored), so an index is never computed from a partial analysis.
 import { compileCalc } from "./calcExpr.js";
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
-import { convertUnit, unitBasis } from "./geochem.js"; // TASKS.csv #2500; unitBasis: #2487
+import { convertUnit, unitBasis, oxideAliases } from "./geochem.js"; // TASKS.csv #2500; unitBasis: #2487; oxideAliases: #2914
 import { isBelowDetection } from "./assayFlags.js"; // TASKS.csv #2505
 
 // TASKS.csv #2500 (review #2486, WA lithium) — each preset says the unit it reads every element in (`units`), and the calculation
@@ -46,7 +46,32 @@ export const CALC_PRESETS = [
   { name: "SnO2", label: "SnO2 from Sn (x 1.2696)", expr: "Sn*1.2696", needs: ["Sn"], unitNote: "Stoichiometric factor from the molar masses; the result is the oxide in the unit shown", units: { Sn: "ppm" }, unit: "ppm" },
   { name: "Cs2O", label: "Cs2O from Cs (x 1.0602)", expr: "Cs*1.0602", needs: ["Cs"], unitNote: "Stoichiometric factor from the molar masses; the result is the oxide in the unit shown", units: { Cs: "ppm" }, unit: "ppm" },
   { name: "Rb2O", label: "Rb2O from Rb (x 1.0936)", expr: "Rb*1.0936", needs: ["Rb"], unitNote: "Stoichiometric factor from the molar masses; the result is the oxide in the unit shown", units: { Rb: "ppm" }, unit: "ppm" },
+  // TASKS.csv #2914 (review #2876, WA iron) — the oxides an iron-ore closure is written in (the import's own factors), and iron on a
+  // volatile-free basis. 'Oxide total' is built from the project's majors (oxideTotalPreset), not listed here.
+  { name: "Fe2O3", label: "Fe2O3 from Fe (x 1.4297)", expr: "Fe*1.4297", needs: ["Fe"], unitNote: "Stoichiometric factor from the molar masses; the result is the oxide in the unit shown", units: { Fe: "%" }, unit: "%" },
+  { name: "MnO", label: "MnO from Mn (x 1.2912)", expr: "Mn*1.2912", needs: ["Mn"], unitNote: "Stoichiometric factor from the molar masses; the result is the oxide in the unit shown", units: { Mn: "%" }, unit: "%" },
+  { name: "P2O5", label: "P2O5 from P (x 2.2914)", expr: "P*2.2914", needs: ["P"], unitNote: "Stoichiometric factor from the molar masses; the result is the oxide in the unit shown", units: { P: "%" }, unit: "%" },
+  { name: "SO3", label: "SO3 from S (x 2.4971)", expr: "S*2.4971", needs: ["S"], unitNote: "Stoichiometric factor from the molar masses; the result is the oxide in the unit shown", units: { S: "%" }, unit: "%" },
+  { name: "CalcFe", label: "Calcined Fe: Fe x 100 / (100 - LOI)", expr: "Fe*100/(100-LOI)", needs: ["Fe", "LOI"], unitNote: "Fe and LOI in %: the iron grade once the volatiles are driven off", units: { Fe: "%", LOI: "%" }, unit: "%" },
 ];
+
+// TASKS.csv #2914 — 'Oxide total': the sum of the major oxides the project holds (QAQC > Totals' list and factors, through the oxide aliases),
+// plus LOI when there is one. null with fewer than MIN_MAJORS majors or a major not stored in %.
+export function oxideTotalPreset(assayElements, { majors, minMajors = 6 } = {}) {
+  const aliases = new Map(oxideAliases(assayElements).map((a) => [a.name, a]));
+  const names = [];
+  for (const m of majors || []) {
+    const e = (assayElements || []).find((x) => x.symbol === m.symbol);
+    if (unitBasis(e?.unit).base !== "%") return null; // a sum of mixed units is not a total
+    const al = aliases.get(m.oxide);
+    if (!al) return null;
+    names.push(m.oxide);
+  }
+  if (names.length < minMajors) return null;
+  const loi = (assayElements || []).find((e) => e.symbol === "LOI" && String(e.unit || "") === "%");
+  const terms = [...names, ...(loi ? ["LOI"] : [])];
+  return { name: "OxTotal", label: loi ? "Oxide total with LOI" : "Oxide total (no LOI loaded)", expr: terms.join("+"), needs: [...(majors || []).map((m) => m.symbol), ...(loi ? ["LOI"] : [])], unitNote: "The major oxides QAQC > Totals sums, in %, read through the oxide names", unit: "%" };
+}
 
 // #2500 — the units a preset reads, against the stored ones: [{ sym, from, to, factor }] for the ones that differ; throws when a stored unit
 // cannot be converted (an index, counts, a missing unit)
@@ -67,10 +92,11 @@ const bare = (s) => String(s ?? "").replace(/\s+/g, "");
 export function presetUnitsFor(preset, expr) {
   return preset?.units && bare(expr) === bare(preset.expr) ? preset.units : null;
 }
-// the element symbols a formula reads (whole identifiers only: "Cu" in "Cu/Au", not in "CuAu")
-export function operandsOf(expr, symbols) {
+// the element symbols a formula reads (whole identifiers only: "Cu" in "Cu/Au", not in "CuAu"); #2914 — an oxide alias reads its element
+export function operandsOf(expr, symbols, aliases = []) {
   const ids = new Set(String(expr ?? "").match(/[A-Za-z_][A-Za-z0-9_]*/g) || []);
-  return (symbols || []).filter((s) => ids.has(s));
+  const via = new Set(aliases.filter((a) => ids.has(a.name)).map((a) => a.symbol));
+  return (symbols || []).filter((s) => ids.has(s) || via.has(s));
 }
 // Returns { assays, element, computed, skipped, min, max, leftBdl, flaggedLt } or throws with a readable message.
 // #2500 — readUnits ({ K: "%", Rb: "ppm" }, a preset's): the elements are converted to those units before the formula reads them.
@@ -79,13 +105,16 @@ export function addCalculatedElement(assays, assayElements, name, expr, unit = "
   if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(n)) throw new Error(tr("Name must start with a letter and use only letters, digits and _."));
   if ((assayElements || []).some((e) => e.symbol === n)) throw new Error(tr("\"{n}\" already exists — pick another name.", { n }));
   const symbols = (assayElements || []).map((e) => e.symbol);
-  const fn0 = compileCalc(expr, symbols); // throws on bad syntax / unknown names
+  // #2914 — oxide names as aliases (SiO2, Fe2O3 ...), read from the STORED value before any preset conversion; only the ones the formula uses
+  const ids = new Set(String(expr ?? "").match(/[A-Za-z_][A-Za-z0-9_]*/g) || []);
+  const allAliases = oxideAliases(assayElements), used = allAliases.filter((a) => ids.has(a.name));
+  const fn0 = compileCalc(expr, [...symbols, ...allAliases.map((a) => a.name)]); // throws on bad syntax / unknown names
   const conv = presetConversions(assayElements, readUnits); // #2500
-  const fn = conv.length ? (vals) => { const w = { ...vals }; for (const c of conv) if (w[c.sym] != null) w[c.sym] = w[c.sym] * c.factor; return fn0(w); } : fn0;
+  const fn = conv.length || used.length ? (vals) => { const w = { ...vals }; for (const a of used) w[a.name] = w[a.symbol] != null ? w[a.symbol] * a.factor : null; for (const c of conv) if (w[c.sym] != null) w[c.sym] = w[c.sym] * c.factor; return fn0(w); } : fn0;
   // TASKS.csv #2505 (review #2486) — a below-detection operand: Li2O = Li x 2.1527 on a '<' Li stored no flag, Nb/Ta was computed on
   // 21,881 rows where both were numbers in 9,172. A formula without division keeps '<' when every operand is '<'; a ratio with a '<'
   // operand gets no value (counted as leftBdl), as the diagrams leave such a ratio out (#2501)
-  const ops = operandsOf(expr, symbols), isRatio = /\//.test(String(expr));
+  const ops = operandsOf(expr, symbols, used), isRatio = /\//.test(String(expr)); // used: #2914
   let computed = 0, skipped = 0, leftBdl = 0, flaggedLt = 0, min = Infinity, max = -Infinity;
   const out = (assays || []).map((a) => {
     const lts = ops.filter((s) => isBelowDetection(a, s)).length;
