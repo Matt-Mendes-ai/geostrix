@@ -652,6 +652,9 @@ function SectionSVG({ printing = false, patterns = null, textFont = SECTION_FONT
   const sx = (l) => PAD + l * hScale;
   const sz = (z) => H - PAD - (z - minZ) * vScale;
   const totalH = H; // TASKS.csv #1128 — no key inside the section any more (#1043 drew one): it goes to Layout
+  // TASKS.csv #2142 (review #2013, Woodjam) — the title sits above the subtitle lines, which grow with the ribbon list: with four or more lines
+  // (or at a large text size) its top was above the frame and a Layout snapshot cut it in half. The drawing grows upward by what it needs.
+  const titleY = PAD - fs(22) - (subtitleLines.length - 1) * fs(12), topExtra = Math.max(0, Math.ceil(fs(12) + 4 - titleY));
   // Inverse of sx/sz — converts a click back to (l, z), then to world (x, y) via the section line's
   // own origin/direction, so a drawn contact point is stored as real-world coordinates, not a
   // screen-relative fraction (see store.jsx's `sections` comment).
@@ -749,7 +752,7 @@ function SectionSVG({ printing = false, patterns = null, textFont = SECTION_FONT
     { x: fs(16), y: H / 2 + fs(60), w: fs(13), h: fs(120) }, // #1700 — the rotated "Elevation (m)" title: a grade label was drawn over it
   ];
   return (
-    <svg ref={svgRef} fontFamily={textFont} viewBox={`0 0 ${W} ${totalH}`} width="100%" style={{ background: "#ffffff", borderRadius: 8, cursor: drawing ? "crosshair" : "default" }} onClick={handleClick} onMouseMove={handleMove} onMouseUp={handleUp} onMouseLeave={handleUp}>
+    <svg ref={svgRef} fontFamily={textFont} viewBox={`0 ${-topExtra} ${W} ${totalH + topExtra}`} /* topExtra: #2142 */ width="100%" style={{ background: "#ffffff", borderRadius: 8, cursor: drawing ? "crosshair" : "default" }} onClick={handleClick} onMouseMove={handleMove} onMouseUp={handleUp} onMouseLeave={handleUp}>
       {/* TASKS.csv #1129 — "texts on the cross section are getting written on top or behind features": every label has a white halo, so it reads over ribbons, structures and contacts */}
       <style>{`text { paint-order: stroke; stroke: #ffffff; stroke-width: ${(2.6 * textScale).toFixed(1)}px; stroke-linejoin: round; }`}</style>
       <defs>
@@ -815,7 +818,7 @@ function SectionSVG({ printing = false, patterns = null, textFont = SECTION_FONT
       ))}
       <text x={PAD} y={H - PAD + 4 + fs(26)} fill="#55606e" fontSize={fs(10)} textAnchor="start">{`${Math.round(ax).toLocaleString()} E  ${Math.round(ay).toLocaleString()} N`}</text>
       <text x={W - PAD} y={H - PAD + 4 + fs(26)} fill="#55606e" fontSize={fs(10)} textAnchor="end">{`${Math.round(bx).toLocaleString()} E  ${Math.round(by).toLocaleString()} N`}</text>
-      <text x={PAD} y={PAD - fs(22) - (subtitleLines.length - 1) * fs(12)} fill="#1a2028" fontSize={fs(12)} fontWeight="600">{title || tr("Cross-section")}</text>
+      <text x={PAD} y={titleY} fill="#1a2028" fontSize={fs(12)} fontWeight="600">{title || tr("Cross-section")}</text>
       <text x={PAD} y={PAD - fs(8) - (subtitleLines.length - 1) * fs(12)} fill="#55606e" fontSize={fs(10)}>{subtitleLines.map((l, i) => <tspan key={i} x={PAD} dy={i ? fs(12) : 0}>{l}</tspan>)}</text>
 
       {/* TASKS.csv #112 — topographic ground-surface profile sampled from the loaded SRTM/DEM terrain
