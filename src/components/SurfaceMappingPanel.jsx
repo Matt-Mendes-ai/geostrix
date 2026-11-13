@@ -47,7 +47,7 @@ import CoveringLayers from "./CoveringLayers.jsx"; // TASKS.csv #1823
 import { graduatedStyle, graduatedCategories, parseBreaks, isNumericField } from "../lib/mapGraduated.js"; // TASKS.csv #1600
 import { projectTargetEpsg } from "../lib/projectTarget.js"; // TASKS.csv #2287 — no reprojection INTO the placeholder CRS
 import { tieOf, fileToLocal, bearingToLocal } from "../lib/localGridTie.js"; // TASKS.csv #2320
-import { structureIconSet } from "../lib/structureKmzIcons.js"; // TASKS.csv #3066 / #3068 — the USGS symbols replace #2681's strike icon (shared with the project KMZ)
+import { structureIconSet, lineScaleOf } from "../lib/structureKmzIcons.js"; // TASKS.csv #3066 / #3068 — the USGS symbols replace #2681's strike icon (shared with the project KMZ)
 import { mineGridOf, mineSourceOf, isMineSource, mineChoiceToProject, mineSourceSentence } from "../lib/mineGrid.js"; // TASKS.csv #2586; the mine-grid Source CRS: #2684
 import { collarsLookUnderground } from "../lib/pitShell.js"; // TASKS.csv #2265
 import { structureGroundCounts, surfaceFlatElevation } from "../lib/viewer/surfacePlacement.js"; import { terrainGroundAt } from "../lib/viewer/geomath.js"; // TASKS.csv #2485 (2); surfaceFlatElevation: #2753
@@ -878,7 +878,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
             <div style={{ display: "flex", flexDirection: "column", gap: 3, marginTop: 7 }}>{/* #3066 — the symbol of each type, and the choice of it */}
               {[...types].map(([k, t]) => { const fam = familyFor(t.type, t.cls, symbolChoices), sym = SYMBOLS[FAMILIES[fam].inclined]; return (
                 <div key={k} style={{ display: "flex", alignItems: "center", gap: 6, color: "var(--color-text-secondary)", fontSize: "var(--font-size-sm)" }}>
-                  <span title={tr("FGDC {n}: {name}", { n: sym.fgdc, name: sym.name })} style={{ display: "flex", flexShrink: 0, background: "#fff", borderRadius: 3 }} dangerouslySetInnerHTML={{ __html: symbolSvg(sym, { px: 22, color: STRUCTURE_CLASS_COLORS[t.cls] || "#333" }) }} />
+                  <span title={tr("FGDC {n}: {name}", { n: sym.fgdc, name: sym.name })} style={{ display: "flex", flexShrink: 0, background: "#fff", borderRadius: 3 }} dangerouslySetInnerHTML={{ __html: symbolSvg(sym, { px: 22, color: STRUCTURE_CLASS_COLORS[t.cls] || "#333", lineScale: lineScaleOf(s) /* #3091 */ }) }} />
                   <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.name} {t.n}</span>
                   <select value={fam} onChange={(e) => setTypeSymbol(k, e.target.value)} aria-label={tr("Symbol for {type}", { type: t.name })} title={tr("The USGS (FGDC) symbol for {type}: each reading takes its inclined, vertical or horizontal form by its own dip. Kept with the project.", { type: t.name })} style={{ ...select, flex: "none", maxWidth: 150 }}>
                     {Object.entries(FAMILIES).map(([id, f]) => <option key={id} value={id}>{tr(f.label)}</option>)}
@@ -890,6 +890,11 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
               <span style={lbl} title={tr("The length of the symbol's strike line on the ground (the 5.0 mm of the USGS standard); its other parts scale with it")}>{tr("Symbol size")}</span>{/* #3066: discs are for drillhole structures */}
               <input type="range" min={5} max={discSizeMax(s.rows, s.size) /* #2412 — grows with the set's extent */} step={5} value={s.size ?? 25} onChange={(e) => updateSurfaceStructureSet(s.id, { size: Number(e.target.value) })} style={{ flex: 1 }} />
               <span style={{ color: "var(--color-text-muted)", width: 40, textAlign: "right" }}>{s.size ?? 25} m</span>
+            </div>
+            <div style={row}>{/* TASKS.csv #3091 — Matt: "the option to adjust the thickness of lines of symbols"; saved with the set like the size */}
+              <span style={lbl} title={tr("The width of the symbols' lines, as a multiple of the USGS standard's line weight; in the 3D view, the Google Earth icons, the legends and the Layout")}>{tr("Line thickness")}</span>
+              <input type="range" min={0.25} max={6} step={0.25} value={lineScaleOf(s)} onChange={(e) => updateSurfaceStructureSet(s.id, { lineScale: Number(e.target.value) })} aria-label={tr("Line thickness")} style={{ flex: 1 }} />
+              <span style={{ color: "var(--color-text-muted)", width: 40, textAlign: "right" }}>{`× ${lineScaleOf(s)}`}</span>
             </div>
             <label style={{ ...row, cursor: terrain ? "pointer" : "default", opacity: terrain ? 1 : 0.45 }}>
               <input type="checkbox" checked={s.snapToTerrain !== false} disabled={!terrain} onChange={(e) => updateSurfaceStructureSet(s.id, { snapToTerrain: e.target.checked })} />
