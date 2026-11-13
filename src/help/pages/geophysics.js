@@ -190,7 +190,7 @@ export default [
     howto: {
       sample: "Harry",
       steps: [
-        "Open the Harry sample. In Geophysics > Point survey, Import CSV… and pick geophys_mag_survey.csv from the sample_data/harry_property folder of the GeoStrix installation (a synthetic ground magnetic survey). Its card should read Magnetics (TMI).",
+        "Open the Harry sample. In Geophysics > Point survey, Import CSV… and pick geophys_mag_survey.csv from the sample_data/harry_property folder of GeoStrix's source code (a synthetic ground magnetic survey; the installer does not include the BC samples, and a downloaded Harry has only its real tables). Its card should read Magnetics (TMI).",
         "Maps > Terrain > Fetch terrain for this area (needs an internet connection): an inversion needs a terrain.",
         "Geophysics > Inversion. The sample's values are the raw total field, so set Remove base level to Best-fit plane (regional tilt) before trusting the confirmation box.",
         "Station heights: choose Sensor is a fixed height above terrain and enter the magnetometer's height above the ground. Enter a survey date (the sample is synthetic) and press Compute from IGRF-14 for the survey date.",
@@ -284,7 +284,7 @@ export default [
       sample: "Harry",
       steps: [
         "Open the Harry sample.",
-        "Geophysics > Point survey > Import CSV… and pick geophys_mag_survey.csv in the sample_data/harry_property folder of the GeoStrix installation (synthetic, built over the real holes).",
+        "Geophysics > Point survey > Import CSV… and pick geophys_mag_survey.csv in the sample_data/harry_property folder of GeoStrix's source code (synthetic, built over the real holes; the installer does not include the BC samples).",
         "Read the import message (columns used), then check the survey card: Method Magnetics (TMI), units nT, z is elevation.",
         "Press View in 3D to see the points with the drillholes.",
         "Back in Point survey, open Grid to raster (IDW)…, set the cell to a fraction of the line spacing, keep the suggested Blank > distance and press Generate raster.",
@@ -363,7 +363,7 @@ export default [
       steps: [
         "Open the Woodjam sample. Its ZTEM inversion has 330 × 348 × 63 cells, so it is shown merged to the default budget.",
         "Geophysics > Cell budget. Raise the number to what this computer can hold, at about 0.4 GB per million cells.",
-        "Geophysics > OMF > Import OMF (.omf)… and pick ztem_inversion_2023.omf in the sample_data/woodjam folder of the GeoStrix installation.",
+        "Geophysics > OMF > Import OMF (.omf)… and pick ztem_inversion_2023.omf in the sample_data/woodjam folder of GeoStrix's source code (the installer does not include the BC samples).",
         "Answer the memory question if it appears, then read how much the model was merged this time.",
         "Compare the two copies in the 3D View, remove the one you do not need in Voxel / block models, and press Reset to default.",
       ],
@@ -399,7 +399,7 @@ export default [
       sample: "Woodjam",
       steps: [
         "Open the Woodjam sample. It already holds the ZTEM model from this file, so the import below adds a second copy.",
-        "Geophysics > OMF > Import OMF (.omf)… and pick ztem_inversion_2023.omf in the sample_data/woodjam folder of the GeoStrix installation.",
+        "Geophysics > OMF > Import OMF (.omf)… and pick ztem_inversion_2023.omf in the sample_data/woodjam folder of GeoStrix's source code (the installer does not include the BC samples).",
         "Read the message: the block model imported, how much it was merged, and the air cells. This import shows the file's first value attribute; the message names the others.",
         "Under the message, pick Woodjam_ZTEM_m_05_03 (the iteration the sample shows) and press Add as a block model.",
         "Open Voxel / block models and check Values are and the range on the new card.",

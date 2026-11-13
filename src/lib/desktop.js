@@ -367,17 +367,34 @@ export async function readSiblingFiles(filePath, names) {
 // existing fs-read-file bridge. Browser preview: Vite serves the repo root statically in dev, so the
 // same files are reachable at /sample_data/... — which keeps this feature testable in a plain
 // `vite` session exactly like the rest of the app's browser-fallback branches.
-export async function loadSampleFiles(subdir, names) {
+// TASKS.csv #3100 — the BC samples are not shipped (BC's terms): a file not in the installer's sample_data is read from the copy downloaded
+// into <userData>/sample_data; a BC sample on neither asks to download it (SampleDownloadModal, on the "geostrix-sample-missing" event) and
+// this load stops with a plain message. opts.optional: names a downloaded copy may not have (Harry's synthesized layers) are skipped.
+const BC_SAMPLE_OF_DIR = { harry_property: "harry", woodjam: "woodjam", perk_rocky: "perk", silvertip: "silvertip" };
+// TASKS.csv #3100 — the BC samples' state at start ({ harry: "bundled" | "downloaded" | "missing", … }; {} in a browser preview: all served)
+export const sampleStatusAtStart = () => (d?.sampleStatusAtStart ? { ...d.sampleStatusAtStart } : {});
+export const sampleStatus = async () => (d?.sampleStatus ? d.sampleStatus() : {});
+export const sampleDownload = (id) => (d?.sampleDownload ? d.sampleDownload(id) : Promise.resolve({ ok: false, error: tr("Downloading a sample needs the desktop app.") }));
+export const sampleDownloadCancel = () => d?.sampleDownloadCancel?.();
+export const onSampleDownloadProgress = (cb) => (d?.onSampleDownloadProgress ? d.onSampleDownloadProgress(cb) : () => {});
+export async function loadSampleFiles(subdir, names, { optional = [] } = {}) {
   const rel = (n) => `${subdir ? subdir + "/" : ""}${n}`;
   if (d && d.sampleDataPath) {
     const res = await d.sampleDataPath();
-    if (!res.ok) throw new Error(res.error || tr("Sample data folder not found."));
-    const sep = res.path.includes("\\") ? "\\" : "/";
+    const roots = [res.ok ? res.path : null, res.userPath].filter(Boolean);
+    if (!roots.length) throw new Error(res.error || tr("Sample data folder not found."));
     const files = [];
     for (const n of names) {
-      const r = await d.fsReadFile(`${res.path}${sep}${rel(n).split("/").join(sep)}`);
-      if (!r.ok) throw new Error(`${n}: ${r.error || tr("couldn't be read")}`);
-      files.push(readResultToFile(r, n)); // #346
+      let r = null;
+      for (const root of roots) { const sep = root.includes("\\") ? "\\" : "/"; r = await d.fsReadFile(`${root}${sep}${rel(n).split("/").join(sep)}`); if (r.ok) break; }
+      if (r?.ok) { files.push(readResultToFile(r, n)); continue; } // #346
+      if (optional.includes(n)) continue;
+      const id = BC_SAMPLE_OF_DIR[subdir];
+      if (id) {
+        const status = d.sampleStatus ? await d.sampleStatus() : {};
+        if (status[id] === "missing") { try { window.dispatchEvent(new CustomEvent("geostrix-sample-missing", { detail: { id } })); } catch (_) { /* no window */ } throw Object.assign(new Error(tr("This sample is not included in the installer: it is downloaded from BC's public servers first.")), { notBundled: true }); }
+      }
+      throw new Error(`${n}: ${r?.error || tr("couldn't be read")}`);
     }
     return files;
   }
