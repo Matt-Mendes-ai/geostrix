@@ -11705,5 +11705,6 @@
   "TSurf": "TSurf",
   "filled at import, not in the collar file": "completado al importar, no está en el archivo de collares",
   "in the collar file, but probably a missing value": "en el archivo de collares, pero probablemente un valor faltante",
-  "collar RL {rl} m: {note}": "cota del collar {rl} m: {note}"
+  "collar RL {rl} m: {note}": "cota del collar {rl} m: {note}",
+  "Checking {n} holes… ({k} of {m})": "Revisando {n} sondajes… ({k} de {m})"
 }

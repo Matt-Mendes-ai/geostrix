@@ -11705,5 +11705,6 @@
   "TSurf": "TSurf",
   "filled at import, not in the collar file": "مُلئ عند الاستيراد، ليس في ملف الفوهات",
   "in the collar file, but probably a missing value": "في ملف الفوهات، لكنه على الأرجح قيمة مفقودة",
-  "collar RL {rl} m: {note}": "منسوب الفوهة {rl} م: {note}"
+  "collar RL {rl} m: {note}": "منسوب الفوهة {rl} م: {note}",
+  "Checking {n} holes… ({k} of {m})": "جارٍ فحص {n} ثقب… ({k} من {m})"
 }
