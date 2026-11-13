@@ -74,11 +74,10 @@ let sidecarStarting = null; // one start at a time (the port check is asynchrono
 // and a file: origin plus the default-on grantFileProtocolExtraPrivileges fuse let any script in the window
 // fetch() any local file (verified: C:\Windows\win.ini and the hosts file read from the renderer), bypassing
 // #346's fs-read-file allow-list and size cap. CSP 'self' is now app://geostrix, and an app:// page cannot
-// fetch file: URLs (verified in the packaged build). localStorage moves origin with it: readFileOriginStorage +
-// loadMainWindow carried it over once. TASKS.csv #612 (Matt, 2026-10-22) — the grantFileProtocolExtraPrivileges fuse
-// is now OFF (package.json build.electronFuses): installs have been on app:// since 0.1.4x. With it off the hidden
-// file:// reader below sees an empty localStorage, so a copy updated straight from a pre-#562 version starts with
-// default settings (base map, saved queries, panel sizes) - the migration still runs once and records nothing.
+// fetch file: URLs (verified in the packaged build). localStorage moved origin with it: a one-time migration carried
+// it over. TASKS.csv #612 (Matt, 2026-10-22) — the grantFileProtocolExtraPrivileges fuse is now OFF (package.json
+// build.electronFuses): installs have been on app:// since 0.1.4x, so a copy updated straight from a pre-#562 version
+// starts with default settings (base map, saved queries, panel sizes). #3165 removed the migration (loadMainWindow).
 const APP_SCHEME = "app", APP_HOST = "geostrix";
 const DIST_DIR = path.normalize(path.join(__dirname, "../dist"));
 protocol.registerSchemesAsPrivileged([{ scheme: APP_SCHEME, privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true, codeCache: true } }]);
@@ -90,13 +89,11 @@ function isAppUrl(url) {
   } catch { return false; }
 }
 const MIME = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".mjs": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".json": "application/json", ".wasm": "application/wasm", ".svg": "image/svg+xml", ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".gif": "image/gif", ".ico": "image/x-icon", ".webp": "image/webp", ".woff": "font/woff", ".woff2": "font/woff2", ".ttf": "font/ttf", ".map": "application/json", ".txt": "text/plain; charset=utf-8" };
-const MIGRATE_PAGE = "/__storage-migrate.html";
 function registerAppProtocol() {
   protocol.handle(APP_SCHEME, async (req) => {
     try {
       const u = new URL(req.url);
       if (u.host !== APP_HOST) return new Response("Not found", { status: 404 });
-      if (u.pathname === MIGRATE_PAGE) return new Response("<!doctype html><title>GeoStrix</title>", { headers: { "content-type": "text/html; charset=utf-8" } });
       const rel = decodeURIComponent(u.pathname === "/" ? "/index.html" : u.pathname);
       const file = path.normalize(path.join(DIST_DIR, rel));
       if (!file.toLowerCase().startsWith(DIST_DIR.toLowerCase() + path.sep)) return new Response("Forbidden", { status: 403 }); // no ../ out of dist
@@ -107,26 +104,6 @@ function registerAppProtocol() {
     }
   });
 }
-// Reads what the app kept in localStorage under its OLD file:// origin (base map, Tracestrack key, saved SQL
-// queries, Browser favorites, panel sizes, the no-desktop autosave fallback) from a hidden blank file:// page.
-// Once only: a flag file in userData records it. Returns the entries, or null.
-async function readFileOriginStorage() {
-  const flag = path.join(app.getPath("userData"), "storage-origin-migrated.json");
-  if (fs.existsSync(flag)) return null;
-  const blank = path.join(app.getPath("userData"), "storage-migrate-blank.html");
-  let entries = [];
-  const w = new BrowserWindow({ show: false, webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false } });
-  try {
-    fs.writeFileSync(blank, "<!doctype html><title>.</title>");
-    await w.loadURL(require("url").pathToFileURL(blank).href);
-    entries = JSON.parse(await w.webContents.executeJavaScript("JSON.stringify(Object.entries(localStorage))"));
-  } catch { entries = []; } finally {
-    w.destroy();
-    try { fs.unlinkSync(blank); } catch { /* best effort */ }
-  }
-  return { flag, entries: Array.isArray(entries) ? entries : [] };
-}
-
 function isTrustedSender(e) {
   const frame = e && e.senderFrame;
   return !!frame && isAppUrl(frame.url);
@@ -393,20 +370,11 @@ function resolveUrl(hashRoute) {
   if (isDev) return `http://localhost:5173/#${hashRoute}`;
   return `${APP_SCHEME}://${APP_HOST}/index.html#${hashRoute}`; // #562
 }
-// #562 — the old file:// localStorage written into the app:// origin BEFORE the app boots (keys the new origin
-// already has are left alone), then the flag file so it happens once.
+// TASKS.csv #3165 — the one-time #562 file:// -> app:// localStorage migration is gone. Since #612 turned the
+// grantFileProtocolExtraPrivileges fuse off, its hidden file:// reader always saw an empty store, so it moved nothing;
+// it only cost every new user a hidden window and an extra page load on first launch, and on a busy machine it hung
+// there (executeJavaScript with no timeout). The window loads the app straight away.
 async function loadMainWindow(win) {
-  // read while this window exists: the hidden reader closing as the ONLY window used to trip window-all-closed
-  // and quit the app at startup
-  let m = null;
-  if (!isDev) { try { m = await readFileOriginStorage(); } catch { m = null; } }
-  if (m && !win.isDestroyed()) {
-    try {
-      await win.loadURL(`${APP_SCHEME}://${APP_HOST}${MIGRATE_PAGE}`);
-      if (m.entries.length) await win.webContents.executeJavaScript(`(() => { const e = ${JSON.stringify(m.entries)}; let n = 0; for (const [k, v] of e) if (localStorage.getItem(k) === null) { localStorage.setItem(k, v); n++; } return n; })()`);
-      fs.writeFileSync(m.flag, JSON.stringify({ migratedAt: new Date().toISOString(), keys: m.entries.map(([k]) => k) }));
-    } catch (err) { console.error("[storage migration]", err); }
-  }
   if (!win.isDestroyed()) return win.loadURL(resolveUrl("/")).catch((err) => console.error("[load]", err));
 }
 
@@ -437,7 +405,7 @@ function createMainWindow() {
       spellcheck: false,
     },
   });
-  loadMainWindow(mainWindow); // #562 — app:// (and the one-time localStorage move)
+  loadMainWindow(mainWindow); // #562 — app://
   // TASKS.csv #310 — external links (the repository / licence links on the About tab, and the
   // existing "get a Tracestrack key" link in LayerPicker) must open in the user's OWN browser, not
   // in a chromeless second Electron window. Electron's default for an unhandled window.open /
