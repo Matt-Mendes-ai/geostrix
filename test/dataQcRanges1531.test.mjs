@@ -36,7 +36,7 @@ test("#1532 a fan from one pad is a pad (info); identical collar and orientation
     collar("M1", 500, 500, 0, -90), collar("M2", 500.1, 500, 0, -90)];
   const out = runDataQC({ ...base, collars, layers: {} }).issues.filter((i) => i.category === "Collars");
   assert.ok(out.some((i) => i.severity === "info" && /F1, F2, F3/.test(i.message) && /drill pad/.test(i.message)));
-  assert.ok(out.some((i) => i.severity === "warning" && /M1, M2/.test(i.message) && /same azimuth and dip/.test(i.message)));
+  assert.ok(out.some((i) => i.severity === "warning" && /M1, M2/.test(i.message) && /point the same way \(within 3°\)/.test(i.message)));
   assert.ok(!out.some((i) => i.severity === "warning" && /F1/.test(i.message)));
 });
 

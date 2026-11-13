@@ -16,7 +16,7 @@ test("the elements shown in 3D open the log, in their order", () => {
 });
 
 test("custom layers: a text layer as a colour column, a numeric field as a bar, added and removed from the header", () => {
-  assert.match(src, /const \{ customLayers: allCustom = \[\] \} = useStore\(\);/);
+  assert.match(src, /const \{ customLayers: allCustom = \[\], codeDictionary \} = useStore\(\);/);
   assert.match(src, /if \(!numFields\.includes\("value"\)\) out\.push\(\{ key: `\$\{l\.id\}:value`, layer: l, field: "value", numeric: false/);
   assert.match(src, /kind: "bar", max, minPos, lo, logOk: lo == null && pos\.length > 0 && max \/ minPos >= 10, scaleLabel: true/);
   assert.match(src, /const lo = minPos > 0 && max \/ minPos < 2 && max > minPos \? minPos : null;/); // a narrow band over its own range
