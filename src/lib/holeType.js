@@ -25,6 +25,8 @@ export function normalizeHoleType(raw) {
   if (/^(AU|AUG|AUGER|AUGR|HANDAUGER)$/.test(t)) return "Auger";
   if (/^(PERC|PERCUSSION|RP|ROTARY|RB|ROTARYPERCUSSION)$/.test(t)) return "Percussion / rotary";
   if (/^(SONIC)$/.test(t)) return "Sonic";
+  // TASKS.csv #3073 (#2900, WA review) — Drill Code 'DualRotary' became the class 'DUALROTARY': dual-rotary (dual-wall pipe) drilling, its own method
+  if (/^(DUALROTARY|DUALROT|DUALWALLROTARY|DUALTUBE|DUALTUBEROTARY)$/.test(t)) return "Dual rotary";
   if (/^(NR|NOTRECORDED|UNKNOWN|UNK|DRILLHOLE|N\/A|NA)$/.test(t)) return "Not stated";
   return s; // a method this table does not know: kept as written
 }

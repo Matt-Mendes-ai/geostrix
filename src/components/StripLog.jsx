@@ -12,6 +12,7 @@ import { overlay, backdropProps } from "../lib/modalStyles.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { useStore } from "../lib/store.jsx"; // TASKS.csv #1698 — the custom layers
 import { customColour } from "../lib/customColour.js"; // #1698 — the 3D view's colour of a custom code
+import { codeMeaning } from "../lib/viewer/codeMeaning.js"; // TASKS.csv #2821 — a code's meaning in this project (#2816's rule)
 import { numericLayerFields } from "../lib/evidenceSources.js"; // #1698 — the numeric fields of a custom layer
 
 // TASKS.csv #133 — "Downhole strip logs (single-hole 1D graphic log: litho/alt/vein/assay columns
@@ -36,7 +37,6 @@ import { stripLogTextPt } from "../lib/atlas.js"; // TASKS.csv #1480 — the siz
 import { assayAxis } from "../lib/striplogSvg.js"; // TASKS.csv #3141 — the Atlas's linear / log axis rule (#3024)
 import { suspectIdsOf } from "../lib/collarTable.js"; // TASKS.csv #3131 — #3004's rule, cached per collar list (the Layout collar table's)
 import { elevationTrust } from "../lib/collarElevationTrust.js";
-import { codeMeaning } from "../lib/viewer/codeMeaning.js"; // TASKS.csv #2821
 const DEPTH_COL_W = 50;
 const PAD_TOP = 40;
 
@@ -88,9 +88,11 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
   const structs = useMemo(() => holeStructures(layers.structure, holeId), [layers.structure, holeId]); // #1400
   // TASKS.csv #1698 — custom layers as tracks on request ("+ track"): a text layer as a colour column (the 3D view's colours of its
   // codes), a numeric field (a SWIR wavelength, a chalcopyrite %) as a bar; a depth-only row is drawn 0.5 m tall at its depth
-  const { customLayers: allCustom = [], codeDictionary } = useStore(); // codeDictionary: #2821
-  // TASKS.csv #2821 — a logged code's meaning from the project's code dictionary (#2163), as Identify and the hover tip give it (#2816)
-  const meaningOf = (key, v, shown = "") => codeMeaning(codeDictionary, key, v, shown);
+  const { customLayers: allCustom = [], codeDictionary } = useStore();
+  // TASKS.csv #2821 (split from #2816) — what a logged code means in this project's code dictionary, beside the code: in each interval's
+  // hover, the lithology pattern list and the figure's key. A track's key is its layer's (litho, alt, vein ...); null when the dictionary
+  // has nothing for the code, says no more than the code, or the shown name already says it (codeMeaning)
+  const meaningOf = (t, v, shown = "") => (codeDictionary ? codeMeaning(codeDictionary, t.key, v, shown) : null);
   const customChoices = useMemo(() => {
     const out = [];
     for (const l of allCustom) {
@@ -200,8 +202,9 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
   const furniture = () => stripLogFurniture({ holeId, collar, fromDepth: d0, maxDepth: d1, rlNote /* #3131 */, pxPerMeter, date: localDate() /* the local day, not UTC's (#2703's rule) */,
     tracks: tracks.filter((t) => t.kind === "fill" || t.kind === "struct").map((t) => { // struct: #1400
       const seen = [...new Set(t.rows.map((r) => r.value).filter((v) => v != null && v !== ""))];
-      const withMeaning = (v, label) => { const m = meaningOf(t.key, v, label); return m ? `${label} — ${m}` : label; }; // #2821
-      return { title: t.title || t.label, items: seen.map((v) => ({ label: withMeaning(v, t.nameFn ? `${v} ${t.nameFn(v) !== v ? `(${t.nameFn(v)})` : ""}`.trim() : String(v)), color: t.colorFn(v), ...(t.key === "litho" && patternOf(v) ? { pattern: patternFill(patternOf(v), t.colorFn(v)) } : {}) })) }; // pattern: #1995
+      const named = (v) => (t.nameFn ? `${v} ${t.nameFn(v) !== v ? `(${t.nameFn(v)})` : ""}`.trim() : String(v));
+      const withMeaning = (v) => { const n = named(v), m = meaningOf(t, v, n); return m ? `${n} — ${m}` : n; }; // #2821
+      return { title: t.title || t.label, items: seen.map((v) => ({ label: withMeaning(v), color: t.colorFn(v), ...(t.key === "litho" && patternOf(v) ? { pattern: patternFill(patternOf(v), t.colorFn(v)) } : {}) })) }; // pattern: #1995
     }) });
   // TASKS.csv #1480 (review #1352) — the strip log to Layout, as the section window, level plan and Best intercepts do: the same
   // figure as the SVG export (the chosen assay tracks, the depth axis and its metres, the collar caption and the colour-track
@@ -313,7 +316,7 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
                 const o = patternOverride?.[v]?.pattern;
                 return (
                   <React.Fragment key={v}>
-                    <span title={lithoName(v)}>{v}</span>
+                    <span title={lithoName(v)}>{v}{(() => { const m = meaningOf({ key: "litho" }, v, lithoName(v)); return m ? <span style={{ color: "var(--color-text-muted)" }}>{` ${m}`}</span> : null; })()}</span>{/* #2821 */}
                     <select value={o === undefined || o === null ? "auto" : String(o)} aria-label={tr("Pattern for {code}", { code: v })} disabled={!onPatternChange} onChange={(e) => onPatternChange?.(v, e.target.value === "auto" ? null : e.target.value)} style={selStyle}>
                       <option value="auto">{auto ? tr("Automatic: {v}", { v: `${auto} ${tr(FGDC_PATTERNS[auto])}` }) : tr("Automatic: none")}</option>
                       <option value="">{tr("None (colour only)")}</option>
@@ -352,7 +355,10 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
                     return rows.map((r, i) => (
                       <g key={i}>
                         <rect x={x0 + (r.lane || 0) * w} y={sy(r.from)} width={w} height={Math.max(0.5, sy(r.to) - sy(r.from))} fill={t.colorFn(r.value)} stroke={lanes > 1 ? "#fff" : undefined} strokeWidth={lanes > 1 ? 0.5 : undefined}>
-                          {(() => { const shown = t.nameFn ? t.nameFn(r.value) : r.value, m = meaningOf(t.key, r.value, `${r.value} ${shown}`); return <title>{`${r.value}${shown !== r.value ? ` (${shown})` : ""}${m ? ` — ${m}` : ""}${Number.isFinite(r.extra) && lanes > 1 ? ` ${r.extra} %` : ""}, ${r.from}–${r.to} m`}</title>; })() /* every block: #2821 (was lanes > 1 only) */}
+                          {(() => { // #2821 — every interval names its code (and its meaning); a lane's percent as before (#1254)
+                            const n = t.nameFn ? t.nameFn(r.value) : r.value, m = meaningOf(t, r.value, String(n)), name = String(n) !== String(r.value) ? ` (${n})` : "";
+                            return (lanes > 1 || m) ? <title>{`${r.value}${name}${m ? ` — ${m}` : ""}${Number.isFinite(r.extra) ? ` ${r.extra} %` : ""}, ${r.from}–${r.to} m`}</title> : null;
+                          })()}
                         </rect>
                         {t.key === "litho" && patternOf(r.value) && <rect x={x0} y={sy(r.from)} width={w} height={Math.max(0.5, sy(r.to) - sy(r.from))} fill={patternFill(patternOf(r.value), t.colorFn(r.value))} style={{ pointerEvents: "none" }} />}{/* #1995 — white lines on a dark colour */}
                         {(sy(r.to) - sy(r.from)) > 12 && (

@@ -62,3 +62,55 @@ test("wiring: the stack run checks before solving (not a layer-cake), the map's 
       " The map's contacts were sampled every {s} m, not every {s0} m, to keep about {n} points: GemPy's memory grows with the square of the points ({n0} at {s0} m)."]) assert.ok(d[k], `${l}: ${k}`);
   }
 });
+
+// TASKS.csv #3162 follow-up — GemPy's time: the work model and Model from map's thinning to the budget
+test("the work model: rows x (block + check points + the meshes' edges), by GemPy's fields", async () => {
+  const { gempyWork, GEMPY_EDGE_EVALS_PER_SURFACE: D } = await import("../src/lib/gempyLimits.js");
+  const ori = [{ x: 0, y: 0, z: 0, dip: 10, azimuth: 90 }, { x: 5, y: 0, z: 0, dip: 12, azimuth: 90 }];
+  const pts = (n) => Array.from({ length: n }, (_, i) => ({ x: i, y: 0, z: 0 }));
+  const specs = [{ points: pts(10), orientations: ori }, { points: pts(20), orientations: ori }];
+  // onlap: one field, a shared orientation once (main.py's dedupe): (30 + 3 x 2) x (1000 + 100 + 2D)
+  assert.equal(gempyWork(specs, { blockCells: 1000, evalPts: 100, relation: "onlap" }), 36 * (1100 + 2 * D));
+  // erode: a field per surface, each with its own copy of the measurements
+  assert.equal(gempyWork(specs, { blockCells: 1000, evalPts: 100, relation: "erode" }), (16 + 26) * (1100 + D));
+  // packages: by package; a fault is a field of its own
+  assert.equal(gempyWork([{ ...specs[0], package: 0 }, { ...specs[1], package: 0 }, { points: pts(4), orientations: [ori[0]], fault: true }], { blockCells: 1000, relation: "erode" }), 36 * (1000 + 2 * D) + 7 * (1000 + D));
+});
+
+test("thinning to the budget: Mount Raymond's shape (13 tops, 4,016 points, 262 shared orientations, its block and check points)", async () => {
+  const { thinForWork, gempyWork, GEMPY_WORK_BUDGET } = await import("../src/lib/gempyLimits.js");
+  let seed = 7; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  const ori = Array.from({ length: 262 }, () => ({ x: rnd() * 24000, y: rnd() * 30000, z: 500, dip: 30, azimuth: 270 }));
+  const sizes = [44, 269, 313, 4, 229, 232, 226, 729, 232, 679, 213, 523, 323];
+  const specs = sizes.map((n, k) => ({ meshName: `U${k}`, points: Array.from({ length: n }, (_, i) => ({ x: i * 25, y: k * 100, z: 500 })), orientations: ori }));
+  specs[7].points.push({ x: 1, y: 2, z: 3, hole_id: "H1" }); // a logged contact
+  const opts = { blockCells: 96 * 96 * 5, evalPts: 19812, relation: "onlap" };
+  assert.ok(gempyWork(specs, opts) > 8 * GEMPY_WORK_BUDGET, "about 2,600 s at the measured rate");
+  const t = thinForWork(specs, opts);
+  assert.ok(t.workAfter <= GEMPY_WORK_BUDGET * 1.03, `${t.workAfter}`);
+  assert.equal(t.before.points, 4017); assert.equal(t.before.orientations, 262);
+  // the measured 350 s run had 410 points and 88 orientations: about that
+  assert.ok(t.after.points > 250 && t.after.points < 450, `${t.after.points}`);
+  assert.ok(t.after.orientations > 70 && t.after.orientations < 110, `${t.after.orientations}`);
+  assert.ok(t.specs.every((s) => s.orientations === t.specs[0].orientations), "one shared set: the onlap field still takes it once");
+  assert.ok(t.specs[7].points.some((q) => q.hole_id === "H1"), "a logged contact is kept");
+  assert.ok(t.specs.every((s, i) => s.points.length >= Math.min(3, sizes[i])), "every top keeps 3 points");
+  assert.ok(t.specs[3].points.length >= 3, "a 4-point top keeps at least 3");
+  // erode: every surface's own field takes the measurements: they are thinned harder, the points keep most of the budget
+  const e = thinForWork(specs, { ...opts, relation: "erode" });
+  assert.ok(e.workAfter <= GEMPY_WORK_BUDGET * 1.03 && e.after.points > 600 && e.after.orientations < 40, JSON.stringify(e.after));
+  // a small map is left alone
+  assert.equal(thinForWork(specs.slice(0, 3).map((s) => ({ ...s, points: s.points.slice(0, 100), orientations: ori.slice(0, 30) })), opts), null);
+});
+
+test("wiring: a Model from map run thins before the request, with the check points counted, and says so", () => {
+  const s = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8");
+  assert.match(s, /if \(stackOpts\.fromMap && !cakeRun\) \{\s*const tw = thinForWork\(specs, \{ blockCells: resolution\[0\] \* resolution\[1\] \* resolution\[2\], evalPts: evalPts\?\.length \|\| 0, relation \}\);/);
+  assert.ok(s.indexOf("const evalPts = evalAll.length") < s.indexOf("const tw = thinForWork"), "the check points are known first");
+  assert.ok(s.indexOf("const tw = thinForWork") < s.indexOf("const sidecarSpecs = specs.map("), "before the request is built");
+  assert.ok(s.indexOf("const tw = thinForWork") < s.indexOf("\"Running {label} ("), "the Running notice counts what is sent");
+  for (const l of ["es", "pt", "fr", "ar"]) {
+    const d = JSON.parse(readFileSync(new URL(`../src/locales/${l}.json`, import.meta.url), "utf8"));
+    assert.ok(d["To keep GemPy's run to a few minutes, {p} of the map's {pAll} contact points and {o} of its {oAll} orientations were used, spread evenly (contacts logged in holes are all kept). GemPy's time grows with the data times the points it evaluates: the lithology block ({b} cells), the model check and map points ({e}) and the meshes of {s} surfaces. A lower Resolution (Model settings) or fewer units leaves more of the data in."], l);
+  }
+});

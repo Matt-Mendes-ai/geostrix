@@ -21,6 +21,18 @@ import { surveyAzimuthDipAt } from "./desurvey.js"; // TASKS.csv #1109
 import { surveyMethodByHole } from "./surveyMethod.js"; // TASKS.csv #2494
 import { coverageInfos } from "./dataQcCoverage.js"; // TASKS.csv #2493
 import { suspectElevationIds } from "./collarElevationTrust.js"; // TASKS.csv #3004 / #2896
+
+// TASKS.csv #2939 — a hole's direction as a unit vector (E, N, up) from its azimuth and dip below the horizontal (up: an uphole), and the
+// angle between two such directions in degrees
+export const SAME_DIRECTION_DEG = 3; // the reviewer's 'about 3 degrees'; a pad's fan holes differ by more
+export function holeDirection(azimuth, dipDown, up = false) {
+  const a = (azimuth * Math.PI) / 180, d = (dipDown * Math.PI) / 180, h = Math.cos(d);
+  return [h * Math.sin(a), h * Math.cos(a), up ? Math.sin(d) : -Math.sin(d)];
+}
+export function angleBetween(u, v) {
+  const c = u[0] * v[0] + u[1] * v[1] + u[2] * v[2];
+  return (Math.acos(Math.max(-1, Math.min(1, c))) * 180) / Math.PI;
+}
 export { didYouMean };
 
 const clampSeverityIcon = { error: "🔴", warning: "🟡", info: "🔵" };
@@ -73,20 +85,23 @@ function validateCollars(collars, survey = []) { // survey: #2186
   // fan was a 'duplicate' warning (50 on the WA project): the first survey station's attitude is used when the collar has none
   const firstStation = new Map();
   for (const s of survey || []) { if (!Number.isFinite(s.depth) || !Number.isFinite(s.azimuth) || !Number.isFinite(s.dip)) continue; const f = firstStation.get(s.hole_id); if (!f || s.depth < f.depth) firstStation.set(s.hole_id, s); }
+  // TASKS.csv #2939 (review #2876, WA iron) — the attitude as a direction (E, N, down), compared by the angle between two holes: the rounded
+  // azimuth | dip key called a vertical RC hole (-90 / 0) and its diamond twin (-89 / 279.5) a fan, though both point straight down (the
+  // azimuth of a near-vertical hole says almost nothing). 24 twin pairs were 'a drill pad (fan)'.
   const orient = (id) => {
     const c = byId.get(id) || {};
-    if (Number.isFinite(c.azimuth) && Number.isFinite(c.dip)) return `${Math.round(c.azimuth)}|${Math.round(Math.abs(c.dip))}`;
+    if (Number.isFinite(c.azimuth) && Number.isFinite(c.dip)) return holeDirection(c.azimuth, Math.abs(c.dip), false);
     const s = firstStation.get(id);
-    return s ? `${Math.round(s.azimuth)}|${Math.round(Math.abs(s.dip))}${s.dip < 0 ? "u" : ""}` : null; // an uphole beside a downhole of one |dip| is not the same hole
+    return s ? holeDirection(s.azimuth, Math.abs(s.dip), s.dip < 0) : null; // an uphole beside a downhole of one |dip| is not the same hole
   };
   seenCoords.forEach((ids, key) => {
     const unique = Array.from(new Set(ids));
     const canTell = unique.length > 1 && unique.every((id) => orient(id) != null); // without azimuth / dip a fan cannot be told: the old warning below
     if (canTell) {
-      const groups = new Map();
-      unique.forEach((id) => { const o = orient(id); if (!groups.has(o)) groups.set(o, []); groups.get(o).push(id); });
-      const same = [...groups.values()].filter((g) => g.length > 1);
-      same.forEach((g) => pushIssue(issues, "warning", "Collars", null, tr("{n} holes ({ids}) share the same collar (within 1m) AND the same azimuth and dip — a duplicate import, a re-drill, or a coordinate entry error.", { n: g.length, ids: g.join(", ") })));
+      const groups = []; // [{ dir, ids }]: a hole joins the first group whose first hole points within SAME_DIRECTION_DEG of it
+      unique.forEach((id) => { const d = orient(id), g = groups.find((x) => angleBetween(x.dir, d) <= SAME_DIRECTION_DEG); if (g) g.ids.push(id); else groups.push({ dir: d, ids: [id] }); });
+      const same = groups.map((g) => g.ids).filter((g) => g.length > 1);
+      same.forEach((g) => pushIssue(issues, "warning", "Collars", null, tr("{n} holes ({ids}) share the same collar (within 1m) AND point the same way (within 3°) — a twin or re-drill, a duplicate import, or a coordinate entry error.", { n: g.length, ids: g.join(", ") })));
       if (same.flat().length < unique.length) pushIssue(issues, "info", "Collars", null, tr("{n} holes ({ids}) start within 1m of each other with different azimuths or dips: a drill pad (fan), not a duplicate.", { n: unique.length, ids: unique.join(", ") }));
       return;
     }

@@ -1,4 +1,5 @@
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
+import { isLoiHeader, oxideOfHeader } from "./geochem.js"; // TASKS.csv #2943
 // TASKS.csv #623 — LONG-format assay exports: one row per sample per element (analyte + value + units, often a
 // method / analysis_code and a flag), as a database query gives them. Matt's Treaty Creek export (SELECT … FROM
 // analysis_geochem JOIN …, 62,518 rows: hole_id, from, to, sample_id, analysis_code, samp_type, analyte, units,
@@ -53,6 +54,11 @@ const toUnit = (v, from, to) => {
 const isRerun = (m) => /re-?run|repeat|(^|[_\-\s])rr($|[_\-\s])|re-?assay/i.test(String(m || ""));
 const isOverFlag = (f) => /^(udl|over|ovr|>|gt|above)$/i.test(String(f || "").trim());
 const isUnderFlag = (f) => /^(ldl|bdl|udl_low|<|lt|below|nd)$/i.test(String(f || "").trim());
+// TASKS.csv #2943 (split from #2734, which read LOI in wide files) — a loss-on-ignition analyte (LOI, LOI1000, 'LOI 1000', LOI_TOTAL) is kept as
+// its own column (LOI_pct, LOI1000_pct) in weight per cent, so the wide import takes it as the LOI field (several: the total, then LOI1000, then
+// plain LOI is the main one) instead of skipping it as "not an element"
+const oxideSymbol = (a) => { const t = String(a ?? "").replace(/\(.*?\)/g, " ").trim(); return oxideOfHeader(t) ? t.replace(/[\s-]+/g, "_").replace(/_?(pct|%|wt%?)$/i, "") : null; };
+const loiSymbol = (a) => { const t = String(a ?? "").replace(/\(.*?\)/g, " ").trim(); return isLoiHeader(t) ? t.replace(/[\s-]+/g, "_").replace(/_?(pct|%|wt)$/i, "").toUpperCase() : null; };
 
 export function pivotLongAssays(rows, headers, unitOfSymbol = () => "ppm", symbolOf = (a) => a) {
   const c = detectLongAssay(headers);
@@ -62,7 +68,9 @@ export function pivotLongAssays(rows, headers, unitOfSymbol = () => "ppm", symbo
   const unitVotes = new Map(); // symbol -> Map(unit -> n)
   const report = { rows: rows.length, unknownAnalyte: 0, overReplaced: 0, overKept: 0, reruns: 0, conflicts: 0, belowDetection: 0, methods: new Map(), units: new Map() };
   for (const r of rows) {
-    const sym = symbolOf(String(r[c.analyte] ?? "").trim());
+    // #2943 — an oxide analyte (SiO2, Fe2O3T) keeps its oxide name: the column became Si_pct, and SiO2 55 % was then read as 55 % silicon. As
+    // SiO2_pct the wide import converts it to the element (or keeps the oxide) as for a wide file
+    const sym = loiSymbol(r[c.analyte]) || oxideSymbol(r[c.analyte]) || symbolOf(String(r[c.analyte] ?? "").trim()); // LOI: #2943
     if (!sym) { report.unknownAnalyte++; continue; }
     const key = `${r[c.hole]}|${r[c.from]}|${r[c.to]}|${c.sample ? r[c.sample] ?? "" : ""}`;
     let s = samples.get(key);
@@ -89,7 +97,7 @@ export function pivotLongAssays(rows, headers, unitOfSymbol = () => "ppm", symbo
     const row = { ...base };
     for (const [sym, list] of results) {
       symbols.add(sym);
-      const colUnit = unitFor.get(sym) || unitOfSymbol(sym);
+      const colUnit = unitFor.get(sym) || (/^LOI/.test(sym) ? "%" : unitOfSymbol(sym)); // #2943 — LOI is a weight per cent
       const usable = list.filter((x) => Number.isFinite(x.num));
       if (!usable.length) continue;
       const originals = usable.filter((x) => !x.rerun);
@@ -108,7 +116,8 @@ export function pivotLongAssays(rows, headers, unitOfSymbol = () => "ppm", symbo
     }
     out.push(row);
   }
-  const elementHeaders = [...symbols].map((sym) => `${sym}_${(report.units.get(sym) || unitOfSymbol(sym)) === "%" ? "pct" : report.units.get(sym) || unitOfSymbol(sym)}`);
+  const unitOf = (sym) => report.units.get(sym) || (/^LOI/.test(sym) ? "%" : unitOfSymbol(sym)); // #2943
+  const elementHeaders = [...symbols].map((sym) => `${sym}_${unitOf(sym) === "%" ? "pct" : unitOf(sym)}`);
   return { headers: [...extra, ...elementHeaders], rows: out, columns: c, report: { ...report, samples: out.length } };
 }
 

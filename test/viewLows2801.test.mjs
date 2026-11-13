@@ -1,5 +1,5 @@
-// TASKS.csv #2801 (an imported solid's checks said), #2759 (GeoJSON export), #2774 (a map layer's CRS by name), #2821 (a strip-log code's
-// meaning), #2808 (latitude / longitude in the status bar)
+// TASKS.csv #2801 (an imported solid's checks said), #2759 (GeoJSON export), #2774 (a map layer's CRS by name), #2808 (latitude / longitude in
+// the status bar). #2821 was side 6's (599cb3aa): its own test.
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -41,13 +41,6 @@ test("#2774 a map layer names its CRS (and the project's)", () => {
   const parsed = (epsg) => ({ epsg, geomType: "point", features: [{ parts: [[[500000, 5800000]]], attributes: {} }] });
   assert.equal(buildLayer(parsed(26909), { sourceName: "n", projectEpsg: 26910 }).crsNote, "reprojected NAD83 / UTM zone 9N (EPSG:26909) → NAD83 / UTM zone 10N (EPSG:26910)");
   assert.equal(buildLayer(parsed(26910), { sourceName: "n", projectEpsg: 26910 }).crsNote, "in NAD83 / UTM zone 10N (EPSG:26910), the project's coordinate system");
-});
-
-test("#2821 the strip log gives a code's meaning from the project's dictionary", () => {
-  const s = read("../src/components/StripLog.jsx");
-  assert.match(s, /const meaningOf = \(key, v, shown = ""\) => codeMeaning\(codeDictionary, key, v, shown\);/);
-  assert.match(s, /\$\{m \? ` — \$\{m\}` : ""\}/);
-  assert.match(s, /const withMeaning = \(v, label\) =>/);
 });
 
 test("#2808 the status bar gives latitude / longitude where the project has a real CRS", () => {

@@ -9,6 +9,8 @@ import { gradeText } from "../gradeText.js"; // TASKS.csv #2515
 import { rasterUnitOf } from "../rasterMethod.js"; // TASKS.csv #2747
 import { blockExtremesAt } from "../gridMeans.js"; // TASKS.csv #2879
 import { codeMeaning } from "./codeMeaning.js"; // TASKS.csv #2816
+import { leadCommodity, BULK_COMMODITIES } from "../preferredElement.js"; // TASKS.csv #2938
+import { valueIn } from "../geochem.js"; // #2938 — each value in ppm, as useLeadCommodity reads them
 
 const num = (v, d = 2) => (Number.isFinite(v) ? v.toLocaleString(undefined, { maximumFractionDigits: d }) : String(v ?? ""));
 const metres = (v) => `${num(v, 2)} m`;
@@ -145,7 +147,7 @@ function describe(hit, ctx) {
     // the lab wrote it (twice the stored half-limit), a '>' as its ceiling. It listed the first 16 in the lab file's column order: Cs never showed
     if (row?.values) {
       const shownSym = tipLines[1]?.includes(":") ? tipLines[1].slice(0, tipLines[1].indexOf(":")).trim() : null;
-      for (const sym of orderedElements(row.values, shownSym ? [shownSym] : [])) fields.push([sym, assayValueText(row, sym, ctx.units?.[sym])]);
+      for (const sym of orderedElements(row.values, [...(shownSym ? [shownSym] : []), ...(ctx.leadFirst?.() || [])])) fields.push([sym, assayValueText(row, sym, ctx.units?.[sym])]); // lead: #2938
     }
     if (row) fields.push(...attributeFields(row));
     else for (const line of tipLines.slice(hole ? 2 : 1)) fields.push(["", line]);
@@ -236,6 +238,7 @@ export function identifyAt(r, clientX, clientY) {
     rayDirection: rc.ray.direction,
     units: r.units,
     meaningOf: (o, v, shown) => (r.codeDictionary ? codeMeaning(r.codeDictionary, groups.get(o.parent), v, shown) : null), // #2816
+    leadFirst: () => leadFirst(r.assays, r.units), // #2938
     isHole: (id) => r.tracesRef.current.some((t) => t.hole_id === id),
     traceOf: (id) => r.tracesRef.current.find((t) => t.hole_id === id)?.pts,
     layerOf: (o) => { const k = groups.get(o.parent); return k == null ? null : r.layerLabel(k); },
@@ -246,6 +249,24 @@ export function identifyAt(r, clientX, clientY) {
     kindOf: (o) => { for (let n = o.parent; n; n = n.parent) { const k = kinds.find(([g]) => g === n); if (k) return k[1]; } return null; },
     tolerance: (h) => (6 * 2 * h.distance * Math.tan(((camera.fov || 45) * Math.PI) / 360)) / rect.height, // 6 screen pixels at the hit, in metres
   });
+}
+
+// TASKS.csv #2938 (review #2876, WA iron) — an assay's elements came in sampleTip's fixed metal order (Cu, Au, Ag, Zn, Pb ...), so on an
+// iron-ore sample Identify listed eight trace metals before Si, Al, P and LOI. The project's lead commodity from its own analyses
+// (#2908's leadCommodity) now comes first, and with an iron, manganese or bauxite lead the major elements that make or spoil that grade
+// follow it, before the metals. Worked out on the first click, from at most ~5,000 rows (every k-th), and kept per assay table.
+const MAJORS = ["Fe", "Mn", "Al", "Si", "P", "LOI", "S", "Ti", "Ca", "Mg", "K", "Na"];
+const leadCache = new WeakMap();
+export function leadFirst(assays, units = {}) {
+  if (!Array.isArray(assays) || !assays.length) return [];
+  let out = leadCache.get(assays);
+  if (out) return out;
+  const k = Math.max(1, Math.ceil(assays.length / 5000)), rows = k === 1 ? assays : assays.filter((_, i) => i % k === 0);
+  const f = {}, per = (sym) => (f[sym] ??= valueIn({ values: { [sym]: 1 } }, sym, "ppm", units || {}) ?? 1); // a unit is a factor: once per element
+  const lead = leadCommodity(rows, (s, sym) => { const v = s.values[sym]; return v == null ? null : Number(v) * per(sym); });
+  out = !lead ? [] : BULK_COMMODITIES.has(lead) ? [lead, ...MAJORS.filter((s) => s !== lead)] : [lead];
+  leadCache.set(assays, out);
+  return out;
 }
 
 export const identifyText = (it) => [it.layer, it.title, ...it.fields.map(([k, v]) => (k ? `${k}: ${v}` : v)), `${num(it.world.e, 1)} E, ${num(it.world.n, 1)} N, ${num(it.world.z, 1)} m`].join("\n");
