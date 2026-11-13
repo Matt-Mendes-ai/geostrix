@@ -10,7 +10,8 @@ import { hasComputerTemplates } from "../lib/desktop.js"; // TASKS.csv #1487
 import GenerateAtlasModal from "../components/GenerateAtlasModal.jsx";
 import { HOLE_TOKENS, SECTION_TOKENS } from "../lib/atlas.js"; // TASKS.csv #1777 — listed with the page's placeholders
 import { scaleBarLabel, scaleBarMidLabel } from "../lib/scaleBarLabel.js"; // TASKS.csv #2140
-import { offSheetPages, rectSidesPast, elementCaption } from "../lib/layoutEdges.js"; // TASKS.csv #2482 / #2309; named elements: #2700
+import { offSheetPages, rectSidesPast, elementCaption, elementKind } from "../lib/layoutEdges.js"; // elementKind: #3028
+import { DEFAULT_LAYOUT_ELEMENTS } from "../lib/projectFields.js"; // TASKS.csv #3028 (5) // TASKS.csv #2482 / #2309; named elements: #2700
 import { fillPlaceholders, northName, pageConvergence, formatConvergence } from "../lib/layoutText.js";
 import { samplesTableRows, holesWithoutCollars } from "../lib/samplesTable.js"; // TASKS.csv #1869 // TASKS.csv #2139; north / convergence: #2712
 import { mergeCaseTwins } from "../lib/legendCaseTwins.js"; // TASKS.csv #2609
@@ -109,7 +110,10 @@ function sortedCollars(collars) {
 let layoutClipboard = null;
 
 // TASKS.csv #2700 — an element kind as the ribbon names it (the export's 'past the edge' confirm)
-const ELEMENT_KIND_NAMES = { text: "Text", rect: "Rectangle", north: "North arrow", scale: "Scale bar", legend: "Legend", viewport: "Viewport", image: "Image", table: "Collar table", titleblock: "Title block", drillplan: "Drill plan", logo: "Logo", arrow: "Arrow", callout: "Callout" };
+// TASKS.csv #3028 (5) — a new page's starter (the project's title, a north arrow, a scale bar) placed for its paper: north and scale keep the
+// A4-landscape starter's distance from the right and bottom edges (1123 x 794 px: x 1000, y 720)
+const starterFor = (format) => { const { w, h } = pagePx(format); return DEFAULT_LAYOUT_ELEMENTS.map((el) => (el.id === "north" ? { ...el, x: w - 123 } : el.id === "scale" ? { ...el, y: h - 74 } : el)); };
+const ELEMENT_KIND_NAMES = { text: "Text", rect: "Rectangle", north: "North arrow", scale: "Scale bar", legend: "Legend", viewport: "Viewport", image: "Image", table: "Collar table", statictable: "Table" /* #3028 (3) */, titleblock: "Title block", drillplan: "Drill plan", logo: "Logo", arrow: "Arrow", callout: "Callout" };
 
 export default function LayoutModule() {
   const {
@@ -206,7 +210,7 @@ export default function LayoutModule() {
     const namePast = (it) => tr("{what} past the {sides}", { what: it.caption ? `${kindName(it.type)} "${it.caption}"` : kindName(it.type), sides: it.sides.map(sideName).join(" / ") });
     if (pg) {
       const r = pg.getBoundingClientRect();
-      const offEls = [...pg.querySelectorAll("[data-el-id]")].map((e) => { const el = elements.find((x) => x.id === e.getAttribute("data-el-id")); return { type: el?.type, caption: elementCaption(el), sides: rectSidesPast([e, ...e.querySelectorAll("text")].map((n) => n.getBoundingClientRect()), r) }; }).filter((it) => it.sides.length);
+      const offEls = [...pg.querySelectorAll("[data-el-id]")].map((e) => { const el = elements.find((x) => x.id === e.getAttribute("data-el-id")); return { type: elementKind(el) /* #3028 (3) */, caption: elementCaption(el), sides: rectSidesPast([e, ...e.querySelectorAll("text")].map((n) => n.getBoundingClientRect()), r) }; }).filter((it) => it.sides.length);
       if (offEls.length) past.push(tr("on this page: {list}", { list: offEls.map(namePast).join(", ") }));
     }
     if (layoutPrintRequest.kind !== "png") for (const o of offSheetPages(layoutPages, activeLayoutPageId, (pp) => pagePx(pageFormatOf(pp)))) past.push(tr("on {page}: {list}", { page: o.name, list: o.items.map(namePast).join(", ") }));
@@ -1713,7 +1717,12 @@ export default function LayoutModule() {
             );
           })}
           <button
-            onClick={() => addLayoutPage()}
+            onClick={() => { // TASKS.csv #3028 (5) — the current page's paper (an A3 project's second page was A4 landscape), its starter laid out for it
+              const fmt = activePage?.format;
+              if (!fmt) { addLayoutPage(); return; }
+              const [id] = addLayoutPages([{ name: `Page ${layoutPages.length + 1}`, elements: starterFor(fmt) }]);
+              if (id) setLayoutPageFormat(id, fmt);
+            }}
             title={tr("Add page")}
             style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 22, height: 22, marginBottom: 2, background: "transparent", border: "1px solid transparent", borderRadius: 5, color: "var(--color-text-muted)", cursor: "pointer" }}
           >

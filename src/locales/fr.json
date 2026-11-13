@@ -127,6 +127,8 @@
   "Inversion": "Inversion",
   "Lab certificates": "Certificats de labo",
   "Legend": "Légende",
+  "Table": "Tableau",
+  "+ {n} more, not listed": "+ {n} de plus, non listés",
   "{n} of these results are reported as 0 (below detection or not analysed: the file does not say). They are in n and in the statistics, at 0.": "{n} de ces résultats sont déclarés à 0 (sous la limite de détection ou non analysés : le fichier ne le dit pas). Ils sont dans n et dans les statistiques, à 0.",
   "{pct} ({n} at 0)": "{pct} ({n} à 0)",
   "Log scale and the log rules": "Échelle logarithmique et règles logarithmiques",

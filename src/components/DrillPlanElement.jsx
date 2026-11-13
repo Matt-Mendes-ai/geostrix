@@ -2,7 +2,7 @@
 // trace (0.3 mm), a collar symbol (1.6 mm), labels that do not overlap, and, when coloured (by series, a collar field or a grade:
 // #2473), a key. North is up.
 import React, { useMemo } from "react";
-import { drillPlanGeometry, placeLabels, drillPlanGrid, drillPlanColouring, colourByKind, emptiestCorner, labelBackdrop, drillPlanShapes, symbolPath, bestInterceptGT, p90Cutoff } from "../lib/drillPlan.js"; // best intercept: #2685; // shapes: #2686; // labelBackdrop: #2738; // drillPlanGrid: #2301; colouring: #2473
+import { drillPlanGeometry, placeLabels, drillPlanGrid, drillPlanColouring, colourByKind, emptiestCorner, labelBackdrop, drillPlanShapes, symbolPath, bestInterceptGT, p90Cutoff, capPlanKey } from "../lib/drillPlan.js"; // capPlanKey: #3026 // best intercept: #2685; // shapes: #2686; // labelBackdrop: #2738; // drillPlanGrid: #2301; colouring: #2473
 import { resolvedSegments, gradeUnitLabel, computeBestIntercepts } from "../lib/geochem.js"; // TASKS.csv #2473; computeBestIntercepts: #2685
 import { excludeQAQC } from "../lib/qaqc.js"; // TASKS.csv #2685 — QC inserts are not intercepts
 import { CATEGORICAL_SAFE_COLORS } from "../lib/layers.js";
@@ -49,10 +49,12 @@ export function drillPlanGradeInput(el, assays, assayElements) {
 
 export function drillPlanDrawing(el, collars, assays = null, assayElements = null) {
   const g = drillPlanGeometry(el, collars);
-  const colouring = drillPlanColouring(el, g.holes, collars, { ...drillPlanGradeInput(el, assays, assayElements), palette: ON_WHITE, ink: INK });
+  const colouring0 = drillPlanColouring(el, g.holes, collars, { ...drillPlanGradeInput(el, assays, assayElements), palette: ON_WHITE, ink: INK });
   const shapes = drillPlanShapes(collars, el.shapeBy, g.holes.map((hh) => hh.id)); // #2686 — a symbol shape by a collar field
   const shapeKey = shapes.key.map((k) => ({ ...k, label: `${el.shapeBy}: ${k.shape === "circle" ? (k.label === "not recorded" ? tr("not recorded") : tr("other / not recorded")) : k.label}` }));
   const fontPx = printPx(el.fontPt || printPt.caption);
+  // TASKS.csv #3026 — a key of 125 series ran 1,672 px down an 800 px frame: it lists the rows the frame holds and says how many it left out
+  const colouring = { ...colouring0, key: capPlanKey(colouring0.key, { frameH: g.h, rowPx: fontPx + 4, keyLines: [colouring0.title, colouring0.note].filter(Boolean).length, extra: shapeKey.length, moreLabel: (n) => tr("+ {n} more, not listed", { n }) }) };
   const f = String(el.labelFilter || "").trim().toLowerCase();
   const toLabel = el.labels === "none" ? [] : g.holes.filter((hh) => hh.inside && (!f || hh.id.toLowerCase().includes(f))).map((hh) => ({ id: hh.id, x: hh.ax, y: hh.ay }));
   // the key's box (top left), which no hole label may run under (#2473)
@@ -116,7 +118,7 @@ export default function DrillPlanElement({ el, collars, gridCaption = "", assays
           {keyBox.lines.map((t, i) => <text key={`kt${i}`} x="8" y={8 + i * keyBox.row + d.fontPx - 1} fontSize={i ? d.fontPx - 1 : d.fontPx} fontWeight={i ? 400 : 600} fill={i ? "#55606e" : INK} fontFamily={FONT}>{t}</text>)}
           {colouring.key.map((k, i) => (
             <g key={`k${i}`} transform={`translate(8,${8 + (keyBox.lines.length + i) * keyBox.row})`}>
-              {k.hollow ? <circle cx="4" cy={d.fontPx / 2 - 1} r={k.rMm * MM} fill="#ffffff" stroke={k.colour} strokeWidth={0.9} /> : <circle cx="4" cy={d.fontPx / 2 - 1} r={k.rMm * MM} fill={k.colour} />}
+              {k.note ? null /* #3026 — the '+ n more' line */ : k.hollow ? <circle cx="4" cy={d.fontPx / 2 - 1} r={k.rMm * MM} fill="#ffffff" stroke={k.colour} strokeWidth={0.9} /> : <circle cx="4" cy={d.fontPx / 2 - 1} r={k.rMm * MM} fill={k.colour} />}
               <text x="14" y={d.fontPx - 1} fontSize={d.fontPx} fill={INK} fontFamily={FONT}>{k.label}</text>
             </g>
           ))}
