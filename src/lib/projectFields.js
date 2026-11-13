@@ -135,7 +135,8 @@ export function compactVoxelModels(list) {
         const at0 = (cell) => (cell[k] === undefined || cell[k] === null ? undefined : cell[k]);
         if (shape.kind[k] === "s") {
           const dict = [], at = new Map();
-          const idx = cells.map((cell) => { const x = at0(cell); if (x === undefined) return 0; let v = at.get(x); if (v === undefined) { v = dict.length; dict.push(x); at.set(x, v); } return v; });
+          // an absent or null cell points at a null entry: an older GeoStrix (no `has` / `nul`) then reads null, not the first word ('above')
+          const idx = cells.map((cell) => { const x = at0(cell); const key = x === undefined ? null : x; let v = at.get(key); if (v === undefined) { v = dict.length; dict.push(key); at.set(key, v); } return v; });
           cols[k] = { dict, b64: f32ToB64(idx), ...marks };
           return;
         }
