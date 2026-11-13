@@ -4145,6 +4145,8 @@
   "Save contacts": "Salvar contatos",
   "Sent ✓": "Enviado ✓",
   "Snapshot to Layout": "Captura para Prancha",
+  "Put this view on the Layout page, north up at its scale, with a legend of its layers": "Levar esta vista à Prancha, com o norte para cima e na sua escala, com uma legenda das suas camadas",
+  "A view of the Maps tab, drawn as it was when sent: to change it, send it again from Maps. It is north up; resizing it changes its scale.": "Uma vista da aba Mapas, desenhada como estava ao ser enviada: para mudá-la, envie-a de novo a partir de Mapas. O norte fica para cima; redimensioná-la muda a sua escala.",
   "{name}: the modelled units on this section, behind the logged holes, {source}. Grey: above the youngest modelled top (younger rock, or air where no terrain clips it).": "{name}: as unidades modeladas nesta seção, atrás dos furos descritos, {source}. Cinza: acima do topo modelado mais jovem (rocha mais jovem, ou ar onde nenhum terreno recorta).",
   "Modelled units": "Unidades modeladas",
   "Georeferenced section image(s) on this line, drawn behind the holes and contacts: {v}": "Imagem(ns) de seção georreferenciada(s) nesta linha, desenhada(s) atrás dos furos e contatos: {v}",

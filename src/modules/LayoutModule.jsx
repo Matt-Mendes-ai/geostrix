@@ -399,7 +399,7 @@ export default function LayoutModule() {
       // ViewerModule's buildSectionPayload): the exact {label,color} pairs actually drawn in this
       // section, so a legend bound to this image (see syncLegendFromView below) can match it
       // without needing a live theme, which a flattened snapshot doesn't have.
-      return { id: img.id, type: "image", label: img.label || "Snapshot", src: img.src, aspect, x: spot.x, y: spot.y, w, h, worldWidthAtCaptureM: img.worldWidthAtCaptureM ?? null, verticalExaggeration: img.verticalExaggeration ?? null /* #944 */, sectionAzimuth: Number.isFinite(img.sectionAzimuth) ? img.sectionAzimuth : null /* #1489 */, depthHeightAtCaptureM: img.depthHeightAtCaptureM ?? null /* #1480 */, planMap: !!img.planMap /* #1864 */, naturalW: img.naturalW, naturalH: img.naturalH, legendItems: img.legendItems || null, sectionTabId: img.sectionTabId || null, textFactor: img.textFactor || 1 /* #1485 */, ...(img.keyDrawn ? { keyDrawn: true } : {}) /* #2739 — the image draws its own key */ };
+      return { id: img.id, type: "image", label: img.label || "Snapshot", src: img.src, aspect, x: spot.x, y: spot.y, w, h, worldWidthAtCaptureM: img.worldWidthAtCaptureM ?? null, verticalExaggeration: img.verticalExaggeration ?? null /* #944 */, sectionAzimuth: Number.isFinite(img.sectionAzimuth) ? img.sectionAzimuth : null /* #1489 */, depthHeightAtCaptureM: img.depthHeightAtCaptureM ?? null /* #1480 */, planMap: !!img.planMap /* #1864 */, ...(img.planView && img.targetWorld && img.worldHeightAtTarget ? { mapsView: !!img.mapsView, planView: true, trueScale: true, targetWorld: img.targetWorld, worldHeightAtTarget: img.worldHeightAtTarget, cameraAzimuthDeg: 0, utmGrid: !!img.utmGrid } : {}) /* #3194 — a Maps snapshot: north up at a known scale, for the coordinate grid */, naturalW: img.naturalW, naturalH: img.naturalH, legendItems: img.legendItems || null, sectionTabId: img.sectionTabId || null, textFactor: img.textFactor || 1 /* #1485 */, ...(img.keyDrawn ? { keyDrawn: true } : {}) /* #2739 — the image draws its own key */ };
     });
     // TASKS.csv #1128 — a cross-section snapshot comes with its legend as a Layout element (movable, editable, bound to
     // the snapshot so "Sync" refreshes it), right of the image when it fits on the sheet, else below it
@@ -1529,6 +1529,11 @@ export default function LayoutModule() {
                 <SectionScaleControls sel={sel} pageW={A4.w} pageH={A4.h} updateSelected={updateSelected} onResize={(next) => setElements((els) => followResize(els, sel.id, next))} />
                 <button onClick={() => syncScaleBarForElement(sel, sel.worldWidthAtCaptureM, sel.w)} style={{ ...pBtn, marginTop: 4 }}>
                   <Ruler size={12} />{" "}{sel.planMap ? tr("Assign scale bar to this map") : tr("Assign scale bar to this section")}</button>
+                {sel.planView && ( /* TASKS.csv #3194 — a Maps snapshot is north up at a known scale: the viewports' labelled grid */
+                  <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", margin: "6px 0" }}>
+                    <input type="checkbox" disabled={!utmGridReady(sel)} checked={!!sel.utmGrid && utmGridReady(sel)} onChange={(e) => updateSelected({ utmGrid: e.target.checked })} />{tr("Coordinate grid (labelled)")}
+                  </label>
+                )}
                 {syncNotice && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-accent-dark)", margin: "4px 0 8px", lineHeight: 1.4 }}>{syncNotice}</div>}
               </>
             )}
@@ -2069,7 +2074,7 @@ function SectionScaleControls({ sel, pageW, pageH, updateSelected, onResize = nu
         );
       })()}
       {tooBig && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 4, lineHeight: 1.4 }}>{tr("At this scale the section is larger than the page: choose a smaller scale (a larger number), a larger page, or the other orientation.")}</div>}
-      <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.45 }}>{sel.planMap ? tr("A plan map from Geochem, drawn as it was when sent: to change it, make a new one from Geochem > Plan map. Resizing it changes its scale.") : tr("A cross-section snapshot is a drawing of the section as it was when taken, so it has no theme, refresh or 3D camera to adjust. To change what it shows, take a new snapshot from the cross-section window. The scale is horizontal, along the section; resizing the snapshot changes it.")}</div>
+      <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.45 }}>{sel.mapsView ? tr("A view of the Maps tab, drawn as it was when sent: to change it, send it again from Maps. It is north up; resizing it changes its scale.") /* #3194 */ : sel.planMap ? tr("A plan map from Geochem, drawn as it was when sent: to change it, make a new one from Geochem > Plan map. Resizing it changes its scale.") : tr("A cross-section snapshot is a drawing of the section as it was when taken, so it has no theme, refresh or 3D camera to adjust. To change what it shows, take a new snapshot from the cross-section window. The scale is horizontal, along the section; resizing the snapshot changes it.")}</div>
     </div>
   );
 }
@@ -2394,6 +2399,7 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
     return (
       <div style={{ ...wrap, width: el.w || 200, height: el.h || 120 }} onMouseDown={onDown} data-el-id={el.id} {...kb}>
         <img src={el.src} alt={el.label || "snapshot"} style={{ width: "100%", height: "100%", objectFit: "contain", display: "block", background: "#fff" }} draggable={false} />
+        {el.utmGrid && utmGridReady(el) && <div style={{ position: "absolute", inset: 0 }}><UtmGridOverlay el={el} crs={ctx?.crs || ""} /></div>}{/* TASKS.csv #3194 — a Maps snapshot's grid, as a viewport's */}
         {handles}
       </div>
     );

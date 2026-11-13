@@ -4145,6 +4145,8 @@
   "Save contacts": "Enregistrer les contacts",
   "Sent ✓": "Envoyé ✓",
   "Snapshot to Layout": "Instantané vers la mise en page",
+  "Put this view on the Layout page, north up at its scale, with a legend of its layers": "Mettre cette vue dans la Mise en page, nord en haut et à son échelle, avec une légende de ses couches",
+  "A view of the Maps tab, drawn as it was when sent: to change it, send it again from Maps. It is north up; resizing it changes its scale.": "Une vue de l'onglet Cartes, dessinée telle qu'elle était à l'envoi : pour la modifier, envoyez-la de nouveau depuis Cartes. Le nord est en haut ; la redimensionner change son échelle.",
   "{name}: the modelled units on this section, behind the logged holes, {source}. Grey: above the youngest modelled top (younger rock, or air where no terrain clips it).": "{name} : les unités modélisées sur cette coupe, derrière les sondages journalisés, {source}. Gris : au-dessus du toit modélisé le plus jeune (roche plus jeune, ou air là où aucun terrain ne le coupe).",
   "Modelled units": "Unités modélisées",
   "Georeferenced section image(s) on this line, drawn behind the holes and contacts: {v}": "Image(s) de coupe géoréférencée(s) sur cette ligne, dessinée(s) derrière les sondages et contacts : {v}",

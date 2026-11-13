@@ -4145,6 +4145,8 @@
   "Save contacts": "حفظ التماسات",
   "Sent ✓": "أُرسل ✓",
   "Snapshot to Layout": "لقطة إلى التخطيط",
+  "Put this view on the Layout page, north up at its scale, with a legend of its layers": "ضع هذا العرض على صفحة التخطيط، والشمال إلى الأعلى وبمقياسه، مع وسيلة إيضاح لطبقاته",
+  "A view of the Maps tab, drawn as it was when sent: to change it, send it again from Maps. It is north up; resizing it changes its scale.": "عرض من تبويب الخرائط، مرسوم كما كان عند إرساله: لتغييره أرسله مرة أخرى من الخرائط. الشمال إلى الأعلى؛ وتغيير حجمه يغيّر مقياسه.",
   "{name}: the modelled units on this section, behind the logged holes, {source}. Grey: above the youngest modelled top (younger rock, or air where no terrain clips it).": "{name}: الوحدات المنمذجة على هذا المقطع خلف الثقوب المسجلة، {source}. الرمادي: فوق أحدث قمة منمذجة (صخر أحدث، أو هواء حيث لا تقصه تضاريس).",
   "Modelled units": "الوحدات المنمذجة",
   "Georeferenced section image(s) on this line, drawn behind the holes and contacts: {v}": "صورة (صور) مقطع مرجعة جغرافيًا على هذا الخط، مرسومة خلف الثقوب والتماسات: {v}",
