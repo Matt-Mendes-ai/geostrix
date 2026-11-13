@@ -136,7 +136,8 @@ export function addCalculatedElement(assays, assayElements, name, expr, unit = "
     const lts = ops.filter((s) => isBelowDetection(a, s)).length;
     if (isRatio && lts) { leftBdl++; return a; }
     const v = fn(a.values || {});
-    if (!Number.isFinite(v)) { if (isRatio && ops.length && ops.every((s) => Number.isFinite(Number(a.values?.[s])) && a.values?.[s] !== null && a.values?.[s] !== "")) divZero++; else skipped++; return a; }
+    // #3226 (2) — any formula, not only a ratio: log10(Cu-460) on Cu under 460 was counted with the rows missing an element
+    if (!Number.isFinite(v)) { if (ops.length && ops.every((s) => Number.isFinite(Number(a.values?.[s])) && a.values?.[s] !== null && a.values?.[s] !== "")) divZero++; else skipped++; return a; }
     computed++; if (v < min) min = v; if (v > max) max = v;
     if (ops.length && lts === ops.length) { flaggedLt++; return { ...a, values: { ...(a.values || {}), [n]: v }, ...(Array.isArray(a.bdl) ? { bdl: [...a.bdl, n] } : { qualifiers: { ...(a.qualifiers || {}), [n]: "<" } }) }; } // a surface sample: its bdl list
     return { ...a, values: { ...(a.values || {}), [n]: v } };

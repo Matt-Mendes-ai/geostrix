@@ -128,6 +128,7 @@
   "Inversion": "Inversión",
   "Lab certificates": "Certificados de lab.",
   "Legend": "Leyenda",
+  "; {n} could not be computed from their values (a division by zero, the log or root of a negative number), so no value": "; {n} no pudieron calcularse con sus valores (una división por cero, el logaritmo o la raíz de un número negativo), así que sin valor",
   "Mean + 2 SD (values)": "Media + 2 DE (valores)",
   "Probability-plot break (values)": "Quiebre del gráfico de probabilidad (valores)",
   "Mean − 2 SD (depletion)": "Media − 2 DE (empobrecimiento)",
