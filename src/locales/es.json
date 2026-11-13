@@ -11702,5 +11702,8 @@
   "A flat search: {r} m across and {v} m up and down from each cell.": "Una búsqueda plana: {r} m de ancho y {v} m arriba y abajo de cada celda.",
   "{sym}: {lo}–{hi} {unit} over {from}–{to} m ({n} samples)": "{sym}: {lo}–{hi} {unit} en {from}–{to} m ({n} muestras)",
   "GOCAD TSurf (.ts) — Leapfrog, SKUA-GOCAD and most 3D geology software import it": "GOCAD TSurf (.ts): Leapfrog, SKUA-GOCAD y la mayoría del software de geología 3D lo importan",
-  "TSurf": "TSurf"
+  "TSurf": "TSurf",
+  "filled at import, not in the collar file": "completado al importar, no está en el archivo de collares",
+  "in the collar file, but probably a missing value": "en el archivo de collares, pero probablemente un valor faltante",
+  "collar RL {rl} m: {note}": "cota del collar {rl} m: {note}"
 }

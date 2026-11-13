@@ -11702,5 +11702,8 @@
   "A flat search: {r} m across and {v} m up and down from each cell.": "بحث مسطح: {r} م عرضًا و{v} م أعلى وأسفل كل خلية.",
   "{sym}: {lo}–{hi} {unit} over {from}–{to} m ({n} samples)": "{sym}: {lo}–{hi} {unit} على {from}–{to} م ({n} عينات)",
   "GOCAD TSurf (.ts) — Leapfrog, SKUA-GOCAD and most 3D geology software import it": "GOCAD TSurf (.ts) — يستورده Leapfrog وSKUA-GOCAD ومعظم برامج الجيولوجيا ثلاثية الأبعاد",
-  "TSurf": "TSurf"
+  "TSurf": "TSurf",
+  "filled at import, not in the collar file": "مُلئ عند الاستيراد، ليس في ملف الفوهات",
+  "in the collar file, but probably a missing value": "في ملف الفوهات، لكنه على الأرجح قيمة مفقودة",
+  "collar RL {rl} m: {note}": "منسوب الفوهة {rl} م: {note}"
 }

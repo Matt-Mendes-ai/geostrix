@@ -34,6 +34,8 @@ import { localDate } from "../lib/localDate.js";
 import { stripLogFurniture, pngScaleFor } from "../lib/figureFurniture.js"; // TASKS.csv #1048
 import { stripLogTextPt } from "../lib/atlas.js"; // TASKS.csv #1480 — the size its labels print at
 import { assayAxis } from "../lib/striplogSvg.js"; // TASKS.csv #3141 — the Atlas's linear / log axis rule (#3024)
+import { suspectIdsOf } from "../lib/collarTable.js"; // TASKS.csv #3131 — #3004's rule, cached per collar list (the Layout collar table's)
+import { elevationTrust } from "../lib/collarElevationTrust.js";
 const DEPTH_COL_W = 50;
 const PAD_TOP = 40;
 
@@ -120,6 +122,9 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
   const pxrfRange = useMemo(() => Object.fromEntries(shownSymbols.map((sym) => { const vals = pxrfAssays.map((a) => valueIn(a, sym, elementUnits[sym] || "ppm", elementUnits)).filter((v) => v != null && Number.isFinite(v)); return [sym, vals.length ? arrMax(vals) : 0]; })), [pxrfAssays, shownSymbols.join("|"), elementUnits]);
 
   const collar = collars.find((c) => c.hole_id === holeId);
+  // TASKS.csv #3131 (#3023) — an RL the import filled in, or one in the file that is probably a missing value, is said so (as the collar table marks it)
+  const rlTrust = collar ? elevationTrust(collar, suspectIdsOf(collars)) : "measured";
+  const rlNote = rlTrust === "assumed" ? tr("filled at import, not in the collar file") : rlTrust === "suspect" ? tr("in the collar file, but probably a missing value") : "";
   const maxDepth = Math.max(
     collar?.length || 0,
     arrMax(litho.map((r) => r.to)), arrMax(alt.map((r) => r.to)), arrMax(vein.map((r) => r.to)), arrMax(geotech.map((r) => r.to)), arrMax(recovery.map((r) => r.to)), arrMax(structs.map((s) => s.depth)), arrMax(breccia.map((r) => r.to)), arrMax(weath.map((r) => r.to)), arrMax(structzone.map((r) => r.to)), arrMax(mnlgy.map((r) => r.to)),
@@ -189,7 +194,7 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
   };
   // TASKS.csv #1048 — hole, collar, attitude, depth, scale and a key of the codes in each colour track, drawn into the file
   const [pngNote, setPngNote] = useState("");
-  const furniture = () => stripLogFurniture({ holeId, collar, fromDepth: d0, maxDepth: d1, pxPerMeter, date: localDate() /* the local day, not UTC's (#2703's rule) */,
+  const furniture = () => stripLogFurniture({ holeId, collar, fromDepth: d0, maxDepth: d1, rlNote /* #3131 */, pxPerMeter, date: localDate() /* the local day, not UTC's (#2703's rule) */,
     tracks: tracks.filter((t) => t.kind === "fill" || t.kind === "struct").map((t) => { // struct: #1400
       const seen = [...new Set(t.rows.map((r) => r.value).filter((v) => v != null && v !== ""))];
       return { title: t.title || t.label, items: seen.map((v) => ({ label: t.nameFn ? `${v} ${t.nameFn(v) !== v ? `(${t.nameFn(v)})` : ""}`.trim() : String(v), color: t.colorFn(v), ...(t.key === "litho" && patternOf(v) ? { pattern: patternFill(patternOf(v), t.colorFn(v)) } : {}) })) }; // pattern: #1995
@@ -261,7 +266,7 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
         <div style={header}>
           <div>
             <div style={{ fontSize: 15, color: "#8a6a1f", fontWeight: 600 }}>{tr("Strip log — {holeId}", { holeId })}</div>
-            <div style={{ fontSize: 11, color: "#65717e", marginTop: 2 }}>{tr("{maxDepth} m total depth", { maxDepth: +maxDepth.toFixed(1) })}</div>
+            <div style={{ fontSize: 11, color: "#65717e", marginTop: 2 }}>{tr("{maxDepth} m total depth", { maxDepth: +maxDepth.toFixed(1) })}{rlNote && <span style={{ color: "#8a6a1f" }}>{" · "}{tr("collar RL {rl} m: {note}", { rl: Number(collar.z).toFixed(1), note: rlNote })}</span>}</div>{/* #3131 */}
           </div>
           <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "#55606e" }} onClick={onClose} />
         </div>
