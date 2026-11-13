@@ -7,6 +7,7 @@ import { elementsWithValues } from "./presentElements.js"; // TASKS.csv #1679
 import { changedKeys } from "./undoLabels.js"; // TASKS.csv #1087
 import { capturedFrameFields } from "./layoutGeometry.js"; // TASKS.csv #906 / #961
 import { tieStarterFurniture, sendElementWithFurniture } from "./layoutLinks.js"; // TASKS.csv #1320, #1634
+import { pagePx, pageFormatOf } from "./pageFormats.js"; // TASKS.csv #2740 — already in startup (desktop.js)
 import { setKnownHoleIds } from "./qaqcCore.js"; // TASKS.csv #400; qaqcCore: #1345
 import { compactLayers } from "./compactRows.js"; // TASKS.csv #374
 import { readDbProfiles, writeDbProfiles, mergeDbProfiles, profilesFromFile } from "./dbProfiles.js"; // TASKS.csv #1081
@@ -1705,7 +1706,7 @@ export function StoreProvider({ children }) {
   const sendLayoutElement = useLatestCallback((elementId, toPageId, move = false) => setLayoutPages((pages) => {
     const src = pages.find((p) => p.id === activeLayoutPageId), dst = pages.find((p) => p.id === toPageId);
     if (!src || !dst || toPageId === activeLayoutPageId) return pages;
-    const r = sendElementWithFurniture(src.elements || [], dst.elements || [], elementId, move);
+    const r = sendElementWithFurniture(src.elements || [], dst.elements || [], elementId, move, undefined, pagePx(pageFormatOf(dst))); // page: #2740 — kept on the target's paper
     if (!r) return pages;
     return pages.map((p) => (p.id === toPageId ? { ...p, elements: r.to } : p.id === activeLayoutPageId ? { ...p, elements: r.from } : p));
   }));

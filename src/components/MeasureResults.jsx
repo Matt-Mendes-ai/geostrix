@@ -95,6 +95,9 @@ function MeasureCard({ mode, pts, onClear, onSwitchMode }) {
         <span><b style={{ color: "var(--color-text)" }}>{tr("Total in 3D:")}</b> {fmtLen(total3d)}</span>
         {pts.length > 2 && <span><b style={{ color: "var(--color-text)" }}>{tr("Straight-line (3D):")}</b> {fmtLen(straight.dist3d)}</span>}
         <span><b style={{ color: "var(--color-text)" }}>{tr("Last segment (3D):")}</b> {tr("{v} @ {azimuth}° grid, {h} in plan (Δelev {v2}{vert} m)", { v: fmtLen(last.dist3d), azimuth: last.azimuth.toFixed(1), h: fmtLen(last.horiz), v2: last.vert >= 0 ? "+" : "", vert: last.vert.toFixed(1) }) /* #1471 — the bearing is grid north (atan2 of easting / northing), not true */}</span>
+        {/* TASKS.csv #2807 — a click over open ground (no terrain, hole, model or raster under it) lands on the scene's reference plane (#2526): its
+            elevation is that level, so a Δelev of 0 there is not flat ground */}
+        {pts.some((p) => p?.plane) && <span style={{ color: "var(--color-warn-text)" }}>{tr("{n} of the {pts} point(s) fell on the reference plane (nothing under the cursor): their elevation is the scene's reference level, not the ground, so Δelev and the 3D lengths there are not the ground's. Load a terrain to measure on it.", { n: pts.filter((p) => p?.plane).length, pts: pts.length })}</span>}
         <span style={{ color: "var(--color-text-muted)" }}>{tr("{pts} pt(s)", { pts: pts.length })}</span>
         <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={onClear} style={clearBtn}><X size={12} />{" "}{tr("Clear")}</span>
       </div>

@@ -107,11 +107,8 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
             {Object.entries(TARGET_SCHEMAS).map(([k, v]) => <option key={k} value={k}>{tr(v.label)}</option>)}
           </select>
           {/* TASKS.csv #1649 — a guess that would have replaced another file's log, and what the current choice replaces */}
-          {modal.guessNote && modal.target === "custom" && (
-            <div role="note" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", margin: "-10px 0 12px", lineHeight: 1.4 }}>
-              {tr("Set to Custom layer: it looked like {layer}, but {layer} already holds {n} row(s) from {src} for {holes} of this file's holes, and importing there would replace them.", { layer: tr(LAYER_META[modal.guessNote.target]?.label || modal.guessNote.target), n: modal.guessNote.n, src: modal.guessNote.src || tr("an earlier import"), holes: modal.guessNote.holes })}
-            </div>
-          )}
+          {/* TASKS.csv #1649 / #2021 — a guessed layer that would replace another file's rows stays the guess: the replace alert below says what it
+              replaces (Ctrl+Z undoes it), and Custom layer is one choice away */}
           {/* TASKS.csv #2338 — a custom layer's name: two columns of one file were two layers both called after the file */}
           {modal.target === "custom" && (
             <label style={{ display: "flex", alignItems: "center", gap: 8, margin: "-6px 0 12px", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("Layer name")}

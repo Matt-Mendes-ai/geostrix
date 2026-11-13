@@ -11800,5 +11800,9 @@
   "A model estimated with other elements in one run (a set) is exported with their values as extra columns on the same blocks: CSV columns, VTK and OMF arrays": "Un modelo estimado junto con otros elementos en una corrida (un conjunto) se exporta con sus valores como columnas adicionales en los mismos bloques: columnas del CSV, arreglos de VTK y OMF",
   "Exports carry the other elements of a model's set": "Las exportaciones incluyen los otros elementos del conjunto del modelo",
   "Building the plan… {pct}%": "Construyendo el plano… {pct}%",
-  "Building the plan…": "Construyendo el plano…"
+  "Building the plan…": "Construyendo el plano…",
+  " Read the shapefile \"{layer}\" from inside {zip}.": " Se leyó el shapefile «{layer}» dentro de {zip}.",
+  "Not read from it: {files}. Unzip it and import those on their own.": "No se leyó de él: {files}. Descomprímalo e importe esos archivos por separado.",
+  "Add a strip log image to each page (the logs that hole has: lithology, alteration, veins, RQD …)": "Agregar una imagen de registro de sondaje a cada página (los registros que tiene ese sondaje: litología, alteración, vetas, RQD …)",
+  "{n} of the {pts} point(s) fell on the reference plane (nothing under the cursor): their elevation is the scene's reference level, not the ground, so Δelev and the 3D lengths there are not the ground's. Load a terrain to measure on it.": "{n} de los {pts} punto(s) cayeron en el plano de referencia (nada bajo el cursor): su elevación es el nivel de referencia de la escena, no el terreno, así que el Δelev y las longitudes 3D allí no son las del terreno. Cargue un terreno para medir sobre él."
 }
