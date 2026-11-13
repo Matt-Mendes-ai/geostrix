@@ -18,6 +18,8 @@ import { holeTotals, clipAssaysToUnit, planSpacing, planGrid, planSummary, conto
 import { saveFile } from "../lib/desktop.js";
 import { gridPanels } from "../lib/flatPanels.js"; // TASKS.csv #2650 — the plan grid cut into panels
 import { toCsv, FORMULA_LEAD } from "../lib/tabular.js";
+import { preferredElement, rememberElement } from "../lib/preferredElement.js"; // TASKS.csv #3016 — open on the lead commodity
+import { useLeadCommodity } from "../lib/useLeadCommodity.js";
 import { showGtOnPlan, gtContourLayer } from "../lib/planGt.js"; // TASKS.csv #2755 — the totals on the Maps plan, the contour as a map layer
 
 // TASKS.csv #2820 — a kriging standard deviation grid as a PNG, one pixel per node (north up), for an <image> under the plan; sdPixels
@@ -32,12 +34,16 @@ function sdImageUrl(sdPixels, sd, nx, ny, max) {
   } catch { return null; }
 }
 
-export default function GradeThicknessModal({ assays, assayElements, collars, survey, layers, onClose }) {
+// TASKS.csv #3016 (WA iron review) — inArea(hole_id): the Model area's checked holes (Model settings), as Estimation and the Variogram read
+// them; null = every hole. It took 4,800 holes of the whole field with a 4.2 s stall on a 228-hole Model area, and opened on Al, not Fe.
+export default function GradeThicknessModal({ assays, assayElements, collars, survey, layers, inArea = null, onClose }) {
   useEscapeKey(onClose);
   useFocusTrap();
   const { desurveyMethod, addMapLayer } = useStore(); // addMapLayer: #2755
   const symbols = (assayElements || []).map((e) => e.symbol);
-  const [symbol, setSymbol] = useState(symbols[0] || "");
+  const lead = useLeadCommodity(); // #3016
+  const [symbol, setSymbolRaw] = useState(() => preferredElement(symbols, "gradeThickness", lead) || symbols[0] || "");
+  const setSymbol = (v) => { setSymbolRaw(v); rememberElement("gradeThickness", v); };
   const unit = (assayElements || []).find((e) => e.symbol === symbol)?.unit || "ppm";
   const [cutoff, setCutoff] = useState(""); // the intercepts' grade cut-off: typed (#264)
   const [minLength, setMinLength] = useState(0);
@@ -49,7 +55,8 @@ export default function GradeThicknessModal({ assays, assayElements, collars, su
   const gradeLabel = gradeUnitLabel(symbol, unit), shownGrade = ox ? `${gradeLabel} ${ox.oxide}` : gradeLabel, gtLabel = gtUnitLabel(gradeLabel, ox?.oxide);
   const codes = useMemo(() => [...new Set((layers?.litho || []).map((r) => String(r.value ?? "")).filter(Boolean))].sort(), [layers]);
 
-  const lab = useMemo(() => excludeQAQC(assays || []), [assays]);
+  const lab = useMemo(() => { const a = excludeQAQC(assays || []); return inArea ? a.filter((r) => inArea(r.hole_id)) : a; }, [assays, inArea]); // #3016
+  const areaHoles = useMemo(() => (inArea ? new Set(lab.map((r) => r.hole_id)).size : 0), [lab, inArea]);
   const positionAt = useMemo(() => {
     const byHole = new Map(); for (const s of survey || []) (byHole.get(s.hole_id) || byHole.set(s.hole_id, []).get(s.hole_id)).push(s);
     const cache = new Map(), col = new Map((collars || []).map((c) => [c.hole_id, c]));
@@ -144,6 +151,7 @@ export default function GradeThicknessModal({ assays, assayElements, collars, su
           <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
         </div>
         <div style={note}>{tr("For a thin, flat body: per hole, the mineralized thickness and grade × thickness (GT) from the intercepts, with the same rules as Best intercepts; then GT and thickness are interpolated in plan and contoured at a GT cut-off you choose. Thickness is in downhole metres (true thickness for vertical holes through flat ore).")}</div>
+        {inArea && <div style={note}>{tr("Samples from the Model area's {n} checked holes (Model settings).", { n: areaHoles })}</div>}{/* #3016 */}
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
           <label style={field}>{tr("Element")}<select value={symbol} onChange={(e) => { setSymbol(e.target.value); setCutoff(""); setGtCut(""); setAsOxide(false); }} style={inp} aria-label={tr("Element")}>{symbols.map((s) => <option key={s} value={s}>{s} ({gradeUnitLabel(s, (assayElements || []).find((e) => e.symbol === s)?.unit)})</option>)}</select></label>
           {offer && <label style={{ ...field, flexDirection: "row", alignItems: "center", gap: 5 }}><input type="checkbox" checked={asOxide} onChange={(e) => { setAsOxide(e.target.checked); setCutoff(""); setGtCut(""); }} />{tr("Report as {oxide} (× {f})", { oxide: offer.oxide, f: offer.factor })}</label>}
