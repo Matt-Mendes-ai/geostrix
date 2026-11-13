@@ -199,6 +199,7 @@ import { assayShapeFor, assayProto, placeAssayMarker } from "../lib/viewer/assay
 import { assayRange } from "../lib/viewer/assayRanges.js"; // TASKS.csv #3055
 import { makeAssayBatcher } from "../lib/viewer/assayBatcher.js"; // TASKS.csv #3055
 import { syncAssayElements, setAssayLod, assayLodTick } from "../lib/viewer/assayKeep.js"; // TASKS.csv #3117; LOD: #3144
+import { logLodTick } from "./viewer/logLod.js"; // TASKS.csv #2802
 import { sampleRuns, runSize, typicalSampleM } from "../lib/viewer/assayLod.js"; // TASKS.csv #3144
 import { buildDrillholeScene, collarColorFor, voxelFitCorners, isIntervalRow } from "./viewer/drillholeScene.js"; // TASKS.csv #2176
 import { viewNdc } from "../lib/viewer/clickPoint.js"; // TASKS.csv #2803
@@ -2256,6 +2257,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
         { const hl = layerGroupsRef.current?.hole_labels; if (hl?.visible && hl.children.length) { fitScreenLabels(hl, camera, mount.clientHeight); declutterHoleLabels(hl, camera, mount.clientWidth, mount.clientHeight); } }
         for (const name of ["outcrop_labels", "sample_labels"]) { const lg = layerGroupsRef.current?.[name]; if (lg?.visible && lg.children.length) { fitScreenLabels(lg, camera, mount.clientHeight); declutterHoleLabels(lg, camera, mount.clientWidth, mount.clientHeight); } } // #1443
         { const ag = layerGroupsRef.current?.assay; if (ag?.visible && ag.children.length) assayLodTick(ag, assayKeptRef.current, metresPerPixel(camera, camState.current?.radius, mount.clientHeight)); } // #3144
+        for (const k in layerGroupsRef.current) { const g = layerGroupsRef.current[k]; if (g?.visible && g.userData.logLod) logLodTick(g, metresPerPixel(camera, camState.current?.radius, mount.clientHeight), tracesRef.current, visibleHolesRef.current); } // #2802
         { // TASKS.csv #1597 — surface-sample symbols are sized for the zoom they were built at: once the camera has settled (400 ms) a
           // factor of two away from it, they are rebuilt at the new size (never per frame, never mid-orbit)
           // TASKS.csv #2849 — and the survey points, where their floor matters (a regional survey; a 2 km grid keeps its 1.4-4.2 m symbols)
