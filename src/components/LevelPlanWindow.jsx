@@ -12,7 +12,8 @@ import { planLegend } from "../lib/levelPlanLegend.js"; // TASKS.csv #1404
 import { resolveLabels, clusterLabelPoints, groupLabelText } from "../lib/sectionLabels.js"; // TASKS.csv #1404 — the sections' label declutter (#1144); clusters: #2212
 import { LAYER_META } from "../lib/layers.js";
 import { usePrompt } from "./usePrompt.jsx"; // TASKS.csv #1779
-import { mergedPath, pathsByColour, dotsPath, segmentFinder } from "../lib/levelPlanDraw.js"; // TASKS.csv #2982
+import { mergedPath, pathsByColour, dotsPath, segmentFinder, f1 } from "../lib/levelPlanDraw.js"; // f1: #3137 // TASKS.csv #2982
+import { planBuild, runSliced } from "../modules/viewer/levelPlanBuild.js"; // TASKS.csv #3137 — the build, a slice at a time (loads with this window)
 import { hoverTitle } from "../lib/svgLazyTitle.js"; // TASKS.csv #2982 — titles made on hover, as the section window (#2210)
 
 // TASKS.csv #525 — the LEVEL PLAN window: a horizontal section at an RL, at true scale with E / N axes, a scale bar
@@ -44,7 +45,7 @@ function toWorldF(frame, e, root) {
 // TASKS.csv #3064 — the plan before the first build: nothing in it
 const emptyPlan = ({ rl, half }) => ({ rl: Number(rl), half: Number(half), holes: [], intervals: [], assayLegends: {}, points: [], structures: [], voxelSlices: [], surfaceCuts: [], planned: [], legendItems: [] });
 
-export default function LevelPlanWindow({ build, zRange, defaultRl, onClose, onSaveBoundary, onAddToLayout, leftOut = 0 }) {
+export default function LevelPlanWindow({ planCtx, zRange, defaultRl, onClose, onSaveBoundary, onAddToLayout, leftOut = 0 }) {
   const [askPrompt, promptEl] = usePrompt(); // TASKS.csv #1779 — window.prompt throws in Electron
   useEscapeKey(onClose);
   useFocusTrap();
@@ -52,12 +53,20 @@ export default function LevelPlanWindow({ build, zRange, defaultRl, onClose, onS
   // defaultRl and moved it in an effect, so a 6,036-point plan was committed twice (81-114 s frozen there)
   // TASKS.csv #3064 — and that pick (a full build) now runs after the window is painted, which says 'Building the plan…' meanwhile: the open
   // blocked 2.4-2.8 s with nothing on screen. The first render is an empty plan, never a full one at defaultRl, so #2929 still holds.
+  // TASKS.csv #3137 — the pick reads the holes only (busiestRl needs each trace's z: 0.9 s as a full build on WA iron), a slice at a time
   const [ready, setReady] = useState(false);
   const [rl, setRl] = useState(() => Math.round(defaultRl));
+  const ctxRef = useRef(planCtx); ctxRef.current = planCtx;
+  const statusRef = useRef(null); // #3137 — the build's progress, written into this element (not a re-render of the plan per slice)
+  const say = (f) => { if (statusRef.current) statusRef.current.textContent = tr("Building the plan… {pct}%", { pct: Math.round(100 * f) }); };
   useEffect(() => {
-    let t;
-    const f = requestAnimationFrame(() => { t = setTimeout(() => { const r0 = Math.round(defaultRl); let b = r0; try { b = busiestRl(build(r0, 12.5).holes) ?? r0; } catch { /* r0 */ } setRl(b); setApplied({ rl: b, half: 12.5 }); setReady(true); }, 0); });
-    return () => { cancelAnimationFrame(f); clearTimeout(t); };
+    let alive = true;
+    const f = requestAnimationFrame(() => {
+      const r0 = Math.round(defaultRl);
+      runSliced(planBuild(ctxRef.current(), r0, 12.5, { holesOnly: true }), { cancelled: () => !alive })
+        .then((pl) => { if (!alive) return; const b = (pl && busiestRl(pl.holes)) ?? r0; setRl(b); setApplied({ rl: b, half: 12.5 }); setReady(true); }, () => { if (alive) setReady(true); });
+    });
+    return () => { alive = false; cancelAnimationFrame(f); };
   }, []);
   const [half, setHalf] = useState(12.5);
   const [colourBy, setColourBy] = useState("");
@@ -72,13 +81,25 @@ export default function LevelPlanWindow({ build, zRange, defaultRl, onClose, onS
   const svgRef = useRef(null);
 
   // recomputed when the RL / slab change (not on every render of the 3D view behind it); "Refresh" picks up layer edits
-  const buildRef = useRef(build); buildRef.current = build;
   const [rev, setRev] = useState(0);
   // TASKS.csv #2518 — the RL and slab apply 150 ms after the last change: a slider drag through 10 levels built and decluttered 10 plans
   // (3.5 s of stalls on 2,248 holes); now the plan follows when the slider stops
   const [applied, setApplied] = useState(() => ({ rl, half }));
   useEffect(() => { const t = setTimeout(() => setApplied((p) => (p.rl === rl && p.half === half ? p : { rl, half })), 150); return () => clearTimeout(t); }, [rl, half]); // #3064 — the same RL is not built again (each open built it twice)
-  const data = useMemo(() => (ready ? buildRef.current(Number(applied.rl), Math.max(0.1, Number(applied.half) || 0)) : emptyPlan(applied)), [applied, rev, ready]);
+  // TASKS.csv #3137 — built a slice at a time (the window paints and takes input meanwhile); a newer RL, slab or Refresh cancels the build under
+  // way, and the plan on screen stays until the new one is ready
+  const [plan, setPlan] = useState(null), [building, setBuilding] = useState(false);
+  const buildGen = useRef(0);
+  useEffect(() => {
+    if (!ready) return;
+    const gen = ++buildGen.current;
+    setBuilding(true); say(0);
+    runSliced(planBuild(ctxRef.current(), Number(applied.rl), Math.max(0.1, Number(applied.half) || 0)), { onProgress: (f) => { if (buildGen.current === gen) say(f); }, cancelled: () => buildGen.current !== gen })
+      .then((d) => { if (d && buildGen.current === gen) { setPlan(d); setBuilding(false); } }, (e) => { if (buildGen.current === gen) { setBuilding(false); console.error(e); } });
+  }, [applied, rev, ready]); // say writes a ref
+  useEffect(() => () => { buildGen.current++; }, []); // closed: the build under way stops
+  const empty = useMemo(() => emptyPlan(applied), [applied]);
+  const data = plan || empty;
   // #2518 — open on the RL most holes cross (not the middle of the range): now the initial RL above (#2929)
   // TASKS.csv #2929 — each build's layers in one group keyed by the build: an RL change replaces the group in one placement, where thousands of
   // newly keyed siblings among kept ones were each placed one by one (React walks past the other new siblings for every placement)
@@ -135,17 +156,17 @@ export default function LevelPlanWindow({ build, zRange, defaultRl, onClose, onS
   const labelMemo = useRef({ data: null, frame: null, on: null, v: null }); // #2518 — the declutter ran on every render (each hover)
   const drawMemo = useRef({}); // #2982 — the merged paths, per plan, frame and chosen log
   // #3064 — the empty plan has no frame, so this shell is what paints while the first plan is built (it showed nothing)
-  if (!ready) return (
+  if (!ready || !plan) return (
     <div role="dialog" aria-modal="true" aria-label={tr("Level plan")} style={{ position: "fixed", inset: 0, background: "rgba(20,24,30,0.35)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={onClose}>
       <div onClick={(e) => e.stopPropagation()} style={{ background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, padding: 14, minWidth: 320, color: "var(--color-text)" }}>
         <div style={{ fontWeight: 600, fontSize: "var(--font-size-lg)", marginBottom: 8 }}>{tr("Level plan")}</div>
-        <div role="status" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>{tr("Building the plan at the RL most holes cross…")}</div>
+        <div role="status" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>{tr("Building the plan at the RL most holes cross…")} <span ref={statusRef} /></div>
       </div>
     </div>
   );
   if (!frame) return null;
   const { X, Y, s } = frame;
-  const path = (line) => line.map(([x, y], i) => `${i ? "L" : "M"}${X(x).toFixed(1)},${Y(y).toFixed(1)}`).join(" ");
+  const path = (line) => line.map(([x, y], i) => `${i ? "L" : "M"}${f1(X(x))},${f1(Y(y))}`).join(" "); // f1: #3137 — not toFixed (the context lines of 6,390 holes)
   // TASKS.csv #2982 (WA iron review) — 189,332 SVG elements at 6,390 holes (a path and a <title> per interval, a <g>, circle and <title> per
   // pierce point, a path and a circle per hole): the open blocked 5-6 s, an RL step 4.2-4.5 s. The traces, collars and in-slab parts are one
   // path each, the intervals one path per colour (lib/levelPlanDraw.js), and every tooltip is made when it is hovered.
@@ -296,6 +317,7 @@ export default function LevelPlanWindow({ build, zRange, defaultRl, onClose, onS
             ? <button style={btn} onClick={() => { setDrawing(true); setPts([]); setNote(tr("Click points on the plan; Save outline when done.")); }}><Pencil size={14} />{" "}{tr("Draw outline")}</button>
             : <><button style={btn} onClick={saveOutline}><Check size={14} />{" "}{tr("Save outline")}</button><button style={btn} onClick={() => { setDrawing(false); setPts([]); setNote(null); }}>{tr("Cancel")}</button></>}
           <button style={btn} onClick={() => setRev((r) => r + 1)} title={tr("Rebuild from the current layers, filters and models")}>{tr("Refresh")}</button>
+          {building && <span role="status" ref={statusRef} style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>{tr("Building the plan…")}</span>}{/* #3137 */}
           <button style={btn} onClick={() => exportPng(false)}><Download size={14} />{" "}{tr("PNG")}</button>
           <button style={btn} onClick={() => exportPng(true)}>{tr("Add to Layout")}</button>
         </div>

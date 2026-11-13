@@ -129,7 +129,6 @@ const DumpPane = React.lazy(() => import("../components/DumpPane.jsx")); // TASK
 const InterpretPane = React.lazy(() => import("../components/InterpretPane.jsx")); // TASKS.csv #1152
 const UndrilledZonesPane = React.lazy(() => import("../components/UndrilledZonesPane.jsx")); // TASKS.csv #1139 // TASKS.csv #851 — Targeting: fuzzy overlay / weights of evidence
 import { corridorRuns, mdInRuns } from "../lib/sectionCorridor.js"; // TASKS.csv #499
-import { slabRuns, piercePoints, tracePolylines, pointAtMd, voxelPlanRects, meshPlanCut, planAssayLayers, groupByHole } from "../lib/levelPlan.js"; // TASKS.csv #525; #1537; groupByHole: #2210
 import { sliceReadoutText } from "../lib/sliceReadout.js";
 import { buildVectorFeatures as buildVectorFeaturesOf } from "../lib/viewer/vectorFeatures.js"; // TASKS.csv #1083
 import { isRepeatClick } from "../lib/repeatClick.js"; // TASKS.csv #1152; #3159: not interpretation.js, which put the interpretation layers' code in startup
@@ -5996,101 +5995,13 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     return { azimuth, holes, intervals, points, planes, elevationProfile, legendItems, assayLegend, voxelSlices, surfaceTraces, plannedHoles: plannedOnSection, modelBackdrop, scatter, scatterCounts: scatter.counts };
   };
 
-  // TASKS.csv #525 — a LEVEL PLAN: everything cut by the horizontal plane z = rl, keeping what lies in the slab
-  // rl ± half (hole runs, their logs, assays, structures), plus pierce points, block-model cells at the RL, model
-  // surfaces / solids cut by the plane and planned holes. Same layer colours / filters / legend as a section
-  // (layerPrimitivesFor). Geometry is in lib/levelPlan.js; coordinates are E / N.
+  // TASKS.csv #525 — a LEVEL PLAN: what the plane z = rl cuts and the slab rl ± half holds (hole runs, logs, assays, structures, pierce points,
+  // block-model cells, model surfaces, planned holes), as a section draws them (layerPrimitivesFor). #3137 — built a slice at a time in
+  // modules/viewer/levelPlanBuild.js, which loads with the window; this is what it reads.
   const planCacheRef = useRef(null);
-  const buildPlanPayload = (rl, half) => {
-    const zmin = rl - half, zmax = rl + half;
-    const holes = [];
-    // TASKS.csv #2982 — what the RL does not change, kept until the view re-renders (a new layerPrimitivesFor = new layers, filters or
-    // colours): each RL step re-made 108,000 trace points and every layer's primitives (WA iron)
-    let pc = planCacheRef.current;
-    if (!pc || pc.fn !== layerPrimitivesFor || pc.traces !== tracesRef.current || pc.vh !== visibleHoles) {
-      const all = new Set(tracesRef.current.filter((t) => visibleHoles[t.hole_id] !== false).map((t) => t.hole_id)), prims = layerPrimitivesFor(all, {}); // SG: scaled over the shown holes
-      pc = planCacheRef.current = { fn: layerPrimitivesFor, traces: tracesRef.current, vh: visibleHoles, base: new Map(), prims, ivBy: groupByHole(prims.intervals), ptBy: groupByHole(prims.points.filter((pt) => pt.assay)) };
-    }
-    for (const t of tracesRef.current) {
-      if (visibleHoles[t.hole_id] === false) continue; // #1533
-      let b = pc.base.get(t.hole_id);
-      if (!b) {
-        const tr0 = t.pts.map((p, i) => ({ md: p.md, x: t.wx[i], y: t.wy[i], z: t.wz[i] })), k = Math.max(1, Math.floor(tr0.length / 200)); // context: thinned to ~200 points
-        pc.base.set(t.hole_id, (b = { trace: tr0, context: tr0.filter((_, i) => i % k === 0 || i === tr0.length - 1).map((p) => [p.x, p.y]) }));
-      }
-      const { trace, context } = b;
-      if (!trace.length) continue;
-      const runs = slabRuns(trace, zmin, zmax);
-      holes.push({ hole_id: t.hole_id, trace, runs, polylines: tracePolylines(trace, runs), pierce: piercePoints(trace, rl), collar: [trace[0].x, trace[0].y], context });
-    }
-    const inSlab = holes.filter((h) => h.runs.length);
-    const holeIds = new Set(inSlab.map((h) => h.hole_id));
-    const intervals = pc.prims.intervals.filter((iv) => holeIds.has(iv.hole_id)), points = pc.prims.points.filter((pt) => holeIds.has(pt.hole_id)); // #2982
-    const byId = new Map(holes.map((h) => [h.hole_id, h]));
-    const clip = (h, from, to) => h.runs.map(([r0, r1]) => [Math.max(from, r0), Math.min(to, r1)]).filter(([f, t]) => t - f > 1e-6);
-    const planIntervals = [];
-    intervals.forEach((iv) => {
-      const h = byId.get(iv.hole_id); if (!h) return;
-      const parts = clip(h, iv.from, iv.to);
-      if (parts.length) planIntervals.push({ hole_id: iv.hole_id, layer: iv.layer, color: iv.color, label: iv.label, from: iv.from, to: iv.to, lines: tracePolylines(h.trace, parts) });
-    });
-    const planPoints = [];
-    points.forEach((pt) => {
-      const h = byId.get(pt.hole_id); if (!h) return;
-      const md = pt.assay ? (pt.assay.from + pt.assay.to) / 2 : pt.md;
-      if (!h.runs.some(([a, b]) => md >= a - 1e-9 && md <= b + 1e-9)) return;
-      const q = pointAtMd(h.trace, md);
-      planPoints.push({ hole_id: pt.hole_id, md, x: q.x, y: q.y, color: pt.color, label: pt.label, assay: pt.assay || null });
-    });
-    // what each pierce point sits in: the interval of every logged layer at that depth, and the assays there
-    // #2210 — rows grouped by hole (a filter per pierce point was ~200 ms on WA gold)
-    const { ivBy, ptBy } = pc; // #2982
-    holes.forEach((h) => h.pierce.forEach((pc) => {
-      pc.logs = (ivBy.get(h.hole_id) || []).filter((iv) => pc.md >= iv.from && pc.md <= iv.to).map((iv) => ({ label: iv.label, color: iv.color, layer: iv.layer }));
-      pc.assays = (ptBy.get(h.hole_id) || []).filter((pt) => pc.md >= pt.assay.from && pc.md <= pt.assay.to).map((pt) => pt.label);
-    }));
-    const structures = [];
-    if (layerVisible.structure) {
-      (layers.structure || []).forEach((sp) => {
-        const h = byId.get(sp.hole_id);
-        if (!h || !isRowVisible("structure", sp) || !h.runs.some(([a, b]) => sp.depth >= a && sp.depth <= b)) return;
-        const q = pointAtMd(h.trace, Number(sp.depth));
-        const oriented = Number.isFinite(Number(sp.dip)) && Number.isFinite(Number(sp.azimuth)) && sp.dip !== null && sp.azimuth !== null;
-        structures.push({ hole_id: sp.hole_id, depth: sp.depth, x: q.x, y: q.y, dip: oriented ? Number(sp.dip) : null, dipDir: oriented ? Number(sp.azimuth) : null, color: effectiveColor("structure", sp.value), label: `Structure: ${effectiveLabel("structure", sp.value)}` });
-      });
-    }
-    const voxelSlices = [];
-    (voxelModels || []).forEach((model) => {
-      if (!model.cells?.length || model.visible === false) return;
-      const rects = voxelPlanRects(model.cells.filter((c) => voxelCellShown(model, c)), rl).map((r) => ({ x0: r.x0, y0: r.y0, x1: r.x1, y1: r.y1, color: colorForVoxelValue(model, r.value) }));
-      if (rects.length) voxelSlices.push({ id: model.id, name: model.name, rects });
-    });
-    const surfaceCuts = [];
-    {
-      const o = originRef.current;
-      const nameOf = Object.fromEntries((implicitSurfaces || []).map((sf) => [sf.id, sf.name]));
-      Object.entries(implicitMeshesRef.current || {}).forEach(([id, mesh]) => {
-        if (!mesh?.visible || !mesh.geometry?.attributes?.position) return;
-        const pos = mesh.geometry.attributes.position.array, n = pos.length / 3;
-        const tris = mesh.geometry.index ? mesh.geometry.index.array : Uint32Array.from({ length: n }, (_, i) => i);
-        // scene -> world: E = x + ox, N = oy - z, Z = y + oz (as the section cut)
-        const segs = meshPlanCut(n, tris, (i) => ({ x: pos[i * 3] + o.x, y: o.y - pos[i * 3 + 2], z: pos[i * 3 + 1] + o.z }), rl);
-        if (segs.length) surfaceCuts.push({ id, name: nameOf[id] || String(mesh.userData?.tip || id).split("\n")[0], color: `#${(mesh.material?.color?.getHex?.() ?? 0xc8a24a).toString(16).padStart(6, "0")}`, segs });
-      });
-    }
-    const planned = [];
-    (plannedHoles || []).forEach((ph) => {
-      const tr = plannedHoleTrace(ph);
-      if (!tr?.length) return;
-      const runs = slabRuns(tr, zmin, zmax), pierce = piercePoints(tr, rl);
-      planned.push({ name: ph.name || ph.id, collar: [tr[0].x, tr[0].y], lines: tracePolylines(tr, runs), pierce, context: tr.map((p) => [p.x, p.y]) });
-    });
-    const legendSeen = new Set(), legendItems = [];
-    [...planIntervals, ...structures].forEach((r) => { const key = `${r.label}|${r.color}`; if (!legendSeen.has(key) && !/^(Geotech|Recovery|Specific gravity)/.test(r.label)) { legendSeen.add(key); legendItems.push([r.label, r.color]); } });
-    legendItems.sort((a, b) => a[0].localeCompare(b[0]));
-    const pa = planAssayLayers(points, holes, assayLegendGroups({ assays, assayElements, assayVisible: true, assayDisplayElements, assayStyle }), (sym) => assays.map((a) => a.values[sym]).filter((v) => v != null)); // #1537
-    return { rl, half, holes, intervals: [...planIntervals, ...pa.intervals], assayLegends: pa.legends, points: planPoints, structures, voxelSlices, surfaceCuts, planned, legendItems };
-  };
+  const planCtx = () => ({ traces: tracesRef.current, visibleHoles, layerPrimitivesFor, cache: planCacheRef, layerVisible, layers, isRowVisible, effectiveColor, effectiveLabel,
+    voxelModels, voxelCellShown, colorForVoxelValue, origin: originRef.current, implicitSurfaces, implicitMeshes: implicitMeshesRef.current, plannedHoles, plannedHoleTrace,
+    assayLegend: () => assayLegendGroups({ assays, assayElements, assayVisible: true, assayDisplayElements, assayStyle }), projectValues: (sym) => assays.map((a) => a.values[sym]).filter((v) => v != null) }); // #1537
 
   // TASKS.csv — cross-section contact drawing. Every launched section is auto-registered in
   // store.sections (id/name/geometry, no contacts yet) the moment it opens, so the pop-out window
@@ -8060,7 +7971,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         const [z0, z1] = zr;
         return (
           <LevelPlanWindow
-            build={buildPlanPayload}
+            planCtx={planCtx} /* #3137 */
             zRange={[z0, z1]} leftOut={tracesRef.current.length - mainTraces(tracesRef.current, (t) => t.wz?.[0]).length} // #3029
             defaultRl={(z0 + z1) / 2}
             onClose={() => { planCacheRef.current = null; setLevelPlanOpen(false); }} /* #2982 — the plan's cache goes with it */

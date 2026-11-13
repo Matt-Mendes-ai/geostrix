@@ -7,7 +7,8 @@
 //   dotsPath     the collars as zero-length round-capped strokes in one <path> (stroke-width = the dot's diameter)
 //   segmentFinder  what used to be each interval's <title>: the interval nearest a point on screen, from a grid of its segments
 // X, Y: world E / N -> SVG units (the plan frame's).
-const f1 = (v) => v.toFixed(1);
+// TASKS.csv #3137 — one decimal without toFixed (4x faster; ~0.3 s of the WA iron plan's paths); the same text but '-0.0' -> '0.0'
+export const f1 = (v) => { const r = Math.round(v * 10), a = r < 0 ? -r : r; return (r < 0 ? "-" : "") + (a - (a % 10)) / 10 + "." + (a % 10); };
 
 export function linePath(line, X, Y) {
   let d = "";

@@ -59,9 +59,10 @@ test("wiring: the plan draws the merged paths, and its tooltips are made on hove
 
 test("wiring: an RL step reuses the trace points, the layer primitives and their grouping until the 3D view re-renders", () => {
   const v = fs.readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
-  assert.match(v, /if \(!pc \|\| pc\.fn !== layerPrimitivesFor \|\| pc\.traces !== tracesRef\.current \|\| pc\.vh !== visibleHoles\) \{/);
-  assert.match(v, /const intervals = pc\.prims\.intervals\.filter\(\(iv\) => holeIds\.has\(iv\.hole_id\)\), points = pc\.prims\.points\.filter\(\(pt\) => holeIds\.has\(pt\.hole_id\)\);/);
-  assert.match(v, /const \{ ivBy, ptBy \} = pc;/);
-  assert.match(v, /let b = pc\.base\.get\(t\.hole_id\);/);
+  const b = fs.readFileSync(new URL("../src/modules/viewer/levelPlanBuild.js", import.meta.url), "utf8"); // #3137 — the build moved here
+  assert.match(b, /if \(!pc \|\| pc\.fn !== ctx\.layerPrimitivesFor \|\| pc\.traces !== ctx\.traces \|\| pc\.vh !== ctx\.visibleHoles\) \{/);
+  assert.match(b, /const intervals = pc\.prims\.intervals\.filter\(\(iv\) => holeIds\.has\(iv\.hole_id\)\), points = pc\.prims\.points\.filter\(\(pt\) => holeIds\.has\(pt\.hole_id\)\);/);
+  assert.match(b, /const \{ ivBy, ptBy \} = pc;/);
+  assert.match(b, /let b = pc\.base\.get\(t\.hole_id\);/);
   assert.match(v, /onClose=\{\(\) => \{ planCacheRef\.current = null; setLevelPlanOpen\(false\); \}\}/, "the cache goes when the plan closes");
 });
