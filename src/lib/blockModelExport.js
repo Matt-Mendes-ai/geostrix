@@ -61,8 +61,10 @@ export function sectionHeaderLine(model) {
   return `2D section of DC/IP line ${s.line || ""}: each block is a cell of the 2D inversion, true size (along the line) x ${s.widthM} m (across) x dz, on a line at azimuth ${s.azimuthDeg} deg (grid). XINC / YINC are the axis-aligned box around that rotated cell, so on an oblique line the boxes overlap their neighbours and hold more than the cell's volume: take volumes from VOLUME_M3 (the true cell), and the exact geometry from the DC/IP section CSV (distance, x, y, z, ds, dz).`;
 }
 
-export function numericCellFields(cells) {
-  return CELL_FIELDS.filter(([, get]) => (cells || []).some((c) => get(c) != null)).map(([name, get]) => ({ name, get }));
+// extra (TASKS.csv #3014 part c): [{ name, get }] value columns of the model's set (model.exportExtra), written first, where some cell has one
+export function numericCellFields(cells, extra = []) {
+  const own = CELL_FIELDS.filter(([, get]) => (cells || []).some((c) => get(c) != null)).map(([name, get]) => ({ name, get }));
+  return [...(extra || []).filter((e) => (cells || []).some((c) => e.get(c) != null)), ...own];
 }
 
 // TASKS.csv #979 — the centroid and size column names: Datamine's (also read by Vulcan, Surpac and Leapfrog) or
@@ -76,6 +78,7 @@ export function blockModelRows(model, names = "datamine") {
   const [X, Y, Z, DX, DY, DZ] = BLOCK_COLUMN_NAMES[names] || BLOCK_COLUMN_NAMES.datamine;
   return (model.cells || []).map((c) => {
     const row = { [X]: +c.x.toFixed(3), [Y]: +c.y.toFixed(3), [Z]: +c.z.toFixed(3), [DX]: +Number(c.dx).toFixed(4), [DY]: +Number(c.dy).toFixed(4), [DZ]: +Number(c.dz).toFixed(4), /* #978 — sizes saved as Float32 read back as 3.3329999446868896 */ [valueName]: c.value };
+    for (const e of model.exportExtra || []) row[e.name] = e.get(c); // #3014 part c — the set's other elements beside the value (null: no estimate there)
     if (c.nSamples != null) row.N_SAMPLES = c.nSamples;
     if (c.nHoles != null) row.N_HOLES = c.nHoles;
     if (Number.isFinite(c.holeShare)) row.HOLE_SHARE = +c.holeShare.toFixed(3); // #1617
@@ -119,7 +122,8 @@ export function* blockModelCsvChunks(model, names = "datamine", chunk = 50000) {
   const OPT = ["N_SAMPLES", "N_HOLES", "SUPPORT", "SUPPORT_CODE", "SUPPORT_INDEX", "COVERAGE", "VOLUME_M3", "KV", "NEAREST_M", "INC_DEG", "DEC_GRID_DEG", "HOLE_SHARE", "DOMAIN"]; // KV / NEAREST_M: #1049; INC / DEC: #1044; HOLE_SHARE: #1617
   const has = (c) => [c.nSamples != null, c.nHoles != null, c.support != null, typeof c.support === "string" && SUPPORT_CODES[c.support] != null, Number.isFinite(c.supportIndex), Number.isFinite(c.coverage), Number.isFinite(c.coverage) || !!sectionTrueSize(model, c) /* #1093 */, Number.isFinite(c.kv), Number.isFinite(c.nearestSampleM), Number.isFinite(c.inc), Number.isFinite(c.dec), Number.isFinite(c.holeShare), c.domain != null]; // DOMAIN: #3014
   // the columns in the order toExportCsv's union of row keys gives: the base seven, then each optional one where it first appears
-  const fields = [...(BLOCK_COLUMN_NAMES[names] || BLOCK_COLUMN_NAMES.datamine), valueName], seen = new Set();
+  const extra = model.exportExtra || []; // #3014 part c — the set's other elements, right after the value
+  const fields = [...(BLOCK_COLUMN_NAMES[names] || BLOCK_COLUMN_NAMES.datamine), valueName, ...extra.map((e) => e.name)], seen = new Set();
   for (let i = 0; i < cells.length && seen.size < OPT.length; i++) has(cells[i]).forEach((h, k) => { if (h && !seen.has(k)) { seen.add(k); fields.push(OPT[k]); } });
   const col = Object.fromEntries(OPT.map((k) => [k, fields.indexOf(k)]));
   const width = fields.length;
@@ -131,6 +135,7 @@ export function* blockModelCsvChunks(model, names = "datamine", chunk = 50000) {
     row[0] = String(+c.x.toFixed(3)); row[1] = String(+c.y.toFixed(3)); row[2] = String(+c.z.toFixed(3));
     row[3] = String(+Number(c.dx).toFixed(4)); row[4] = String(+Number(c.dy).toFixed(4)); row[5] = String(+Number(c.dz).toFixed(4));
     row[6] = csvCell(c.value);
+    for (let k = 0; k < extra.length; k++) row[7 + k] = csvCell(extra[k].get(c)); // #3014 part c
     if (c.nSamples != null) row[col.N_SAMPLES] = csvCell(c.nSamples);
     if (c.nHoles != null) row[col.N_HOLES] = csvCell(c.nHoles);
     if (Number.isFinite(c.holeShare)) row[col.HOLE_SHARE] = String(+c.holeShare.toFixed(3)); // #1617
@@ -178,6 +183,7 @@ export function blockModelParamLines(model) {
   const lines = [`Block model: ${model.name} (${(model.cells || []).length} blocks, source ${model.source || "import"})`];
   if (model.section) lines.push(sectionHeaderLine(model)); // #1093
   if (p.coarsenedFrom) lines.push(coarsenedText(p.coarsenedFrom)); // #1095
+  if (model.exportExtraNote) lines.push(model.exportExtraNote); // #3014 part c — the set's columns
   if (derivedValue(model)) lines.push(`Values: ${valueColumnName(model)}${valueUnit(model) ? ` in ${valueUnit(model)}` : " (no unit)"}`); // #1026
   else if (p.unit) lines.push(`Values: ${valueColumnName(model)} in ${p.unit}${p.capValue != null ? `; cap ${p.capValue} ${p.capUnit || p.unit}` : ""}`); // #529
   if ((model.cells || []).some((c) => Number.isFinite(c.coverage))) lines.push("COVERAGE: the share of each block filled by the imported model's own blocks (blocks were merged on import to fit the cell budget); VOLUME_M3 = COVERAGE x the block size. Take volume and tonnage from VOLUME_M3, not from the block size."); // #943
