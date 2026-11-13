@@ -14,8 +14,13 @@ export function isProposedCollar(c) {
 }
 
 // the collars that are drilled holes (everything but those marked proposed) and how many were left out
+// TASKS.csv #2977 — kept per store collars array (read-only to every caller), so the traces cached on it below are found again
+const drilledMemo = new WeakMap();
 export function drilledCollars(collars) {
+  if (Array.isArray(collars) && drilledMemo.has(collars)) return drilledMemo.get(collars);
   const out = [], left = [];
   for (const c of collars || []) (isProposedCollar(c) ? left : out).push(c);
-  return { collars: out, proposed: left.map((c) => c.hole_id) };
+  const r = { collars: out, proposed: left.map((c) => c.hole_id) };
+  if (Array.isArray(collars)) drilledMemo.set(collars, r);
+  return r;
 }

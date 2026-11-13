@@ -153,7 +153,17 @@ export function scoreRasterPlacement(terrain, collars, survey, traces, voxelMode
   return { drapeMode: "flat", kind: "flat" };
 }
 
+// TASKS.csv #2977 — kept per collars array for its survey and method (callers only read the Map): the Evidence overlay's remount, Planned
+// holes and Pit shell desurveyed every hole again each time (1-2 s at 6,390 holes)
+const tracesMemo = new WeakMap();
 export function holeTraces(collars, survey, method) {
+  const kept = Array.isArray(collars) ? tracesMemo.get(collars) : null;
+  if (kept && kept.survey === survey && kept.method === method) return kept.out;
+  const out = holeTracesOf(collars, survey, method);
+  if (Array.isArray(collars)) tracesMemo.set(collars, { survey, method, out });
+  return out;
+}
+function holeTracesOf(collars, survey, method) {
   const by = new Map(), out = new Map();
   (survey || []).forEach((s) => { (by.get(s.hole_id) || by.set(s.hole_id, []).get(s.hole_id)).push(s); });
   for (const c of collars || []) {
