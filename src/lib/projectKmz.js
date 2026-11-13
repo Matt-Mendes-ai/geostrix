@@ -22,6 +22,8 @@ import { assayColorFor } from "./legendGroups.js";
 import { layerCategoryValue, STRUCTURE_CLASS_COLORS, STRUCTURE_CLASS_LABELS } from "./mapLayers.js";
 import { mapLayerFeatures, boundaryFeatures, surfaceStructureRows, kmlColor } from "./overlayExport.js";
 import { polygonsFromRings } from "./polygonRings.js";
+import { projectSymbolChoices, symbolForReading } from "./structureSymbols.js"; // #3068 part 2 — #3066's USGS (FGDC) symbols
+import { symbolPng, symbolIconPath } from "./structureSymbolPng.js";
 
 export const MAX_CLASSES = 16; // a numeric log with more colours than this is grouped into equal bins
 const BINS = 12;
@@ -91,7 +93,9 @@ class KmlWriter {
     let s = this.styles.get(key);
     if (!s) {
       const id = `s${this.styles.size}`;
-      const poly = fill == null ? "" : `<PolyStyle><color>${kmlColor(fill, fillAlpha)}</color>${outline ? "" : "<outline>0</outline>"}</PolyStyle>`;
+      // TASKS.csv #3068 follow-up (Matt, Perk-Rocky in Google Earth Pro: "Polygons are being exported with no colour") — the fill and outline
+      // flags written out rather than left to the viewer's defaults
+      const poly = fill == null ? "" : `<PolyStyle><color>${kmlColor(fill, fillAlpha)}</color><fill>1</fill><outline>${outline ? 1 : 0}</outline></PolyStyle>`;
       const xml = `<Style id="${id}"><IconStyle><color>${kmlColor(color, alpha)}</color><scale>${iconScale}</scale><Icon><href>${icon}</href></Icon></IconStyle><LabelStyle><scale>${label}</scale></LabelStyle><LineStyle><color>${kmlColor(color, alpha)}</color><width>${width}</width></LineStyle>${poly}</Style>`;
       s = { id, xml };
       this.styles.set(key, s);
@@ -112,7 +116,7 @@ class KmlWriter {
   pointGround(x, y) { this.coords++; return `<Point><coordinates>${this.ll(x, y)}</coordinates></Point>`; }
   polygonGround(rings) {
     const ring = (r) => { const c = r[0][0] === r[r.length - 1][0] && r[0][1] === r[r.length - 1][1] ? r : [...r, r[0]]; return `<LinearRing><coordinates>${c.map(([x, y]) => { this.coords++; return this.ll(x, y); }).join(" ")}</coordinates></LinearRing>`; };
-    return polygonsFromRings(rings).map(([outer, ...holes]) => `<Polygon><tessellate>1</tessellate><outerBoundaryIs>${ring(outer)}</outerBoundaryIs>${holes.map((h) => `<innerBoundaryIs>${ring(h)}</innerBoundaryIs>`).join("")}</Polygon>`).join("");
+    return polygonsFromRings(rings).map(([outer, ...holes]) => `<Polygon><tessellate>1</tessellate><altitudeMode>clampToGround</altitudeMode><outerBoundaryIs>${ring(outer)}</outerBoundaryIs>${holes.map((h) => `<innerBoundaryIs>${ring(h)}</innerBoundaryIs>`).join("")}</Polygon>`).join("");
   }
   multi(geoms) { return geoms.length === 1 ? geoms[0] : `<MultiGeometry>${geoms.join("")}</MultiGeometry>`; }
 }
@@ -336,6 +340,10 @@ export function buildProjectKml(ctx, opts) {
       w.close();
     }
     if (sets.length) {
+      // #3068 part 2 — each reading drawn with its USGS (FGDC) symbol (#3066: the project's choice per structure type), as the outcrop KMZ
+      // (SurfaceMappingPanel exportStructSet) draws it: one white PNG per symbol used, tinted by the class colour and turned to the strike
+      const choices = projectSymbolChoices(ctx.surfaceStructures);
+      const symbols = new Map();
       w.open("Structures");
       for (const set of sets) {
         counts.layers++;
@@ -347,13 +355,17 @@ export function buildProjectKml(ctx, opts) {
           used.add(cls);
           const color = STRUCTURE_CLASS_COLORS[cls];
           const strike = fin(num(r.strike_rhr_true)) ? num(r.strike_rhr_true) : fin(num(r.strike_rhr_grid)) ? num(r.strike_rhr_grid) : null;
-          const inline = strike != null ? `<Style><IconStyle><color>${kmlColor(color)}</color><scale>0.9</scale><heading>${Math.round(strike * 10) / 10}</heading><Icon><href>${STRIKE_ICON}</href></Icon></IconStyle><LabelStyle><scale>0.6</scale></LabelStyle></Style>` : "";
+          const sym = symbolForReading({ type: r.type, cls: r.cls, dip: r.dip === "" ? NaN : Number(r.dip) }, choices).symbol;
+          const href = sym ? symbolIconPath(sym) : STRIKE_ICON;
+          if (sym) symbols.set(href, sym);
+          const inline = strike != null ? `<Style><IconStyle><color>${kmlColor(color)}</color><scale>0.9</scale><heading>${Math.round(strike * 10) / 10}</heading><Icon><href>${href}</href></Icon></IconStyle><LabelStyle><scale>0.6</scale></LabelStyle></Style>` : "";
           w.placemark(fin(num(r.dip)) ? String(Math.round(num(r.dip))) : "", w.style({ color, iconScale: 0.5 }), w.pointGround(num(r.x), num(r.y)), { inline, data: { class: r.cls, type: r.type, dip: r.dip, dipdir_true: r.dipdir_true, strike_rhr_true: r.strike_rhr_true, station: r.station, comment: r.comment } });
         }
         legend({ label: set.name || "Structures", items: [...used].map((c) => [STRUCTURE_CLASS_LABELS[c] || c, STRUCTURE_CLASS_COLORS[c]]) }, set.visible !== false);
         w.close();
       }
       w.close();
+      for (const [path, sym] of symbols) files.push({ name: path, data: symbolPng(sym, 64) });
     }
     if (maps.length) {
       w.open("Map layers");

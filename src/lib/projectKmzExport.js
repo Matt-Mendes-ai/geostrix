@@ -114,7 +114,7 @@ export async function exportProjectKmz(store, { confirm = (m) => window.confirm(
   const kmz = await buildKmz([
     { name: "doc.kml", data: new TextEncoder().encode(out.kml), deflate: true },
     { name: DOT_ICON, data: dotPng() },
-    { name: STRIKE_ICON, data: strikeSymbolPng(64) },
+    ...(out.kml.includes(STRIKE_ICON) ? [{ name: STRIKE_ICON, data: strikeSymbolPng(64) }] : []), // #3068 part 2 — only for a reading with no USGS symbol
     ...out.files,
   ]);
   const res = await saveFile({ quiet: true, suggestedName: `${safeFileName(ctx.projectName, "project")}.kmz`, filters: [{ name: "KMZ (Google Earth)", extensions: ["kmz"] }], content: kmz });

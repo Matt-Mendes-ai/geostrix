@@ -120,7 +120,7 @@ export function kmlColor(hex, alpha = 1) {
   const m = /^#?([0-9a-f]{6})$/i.exec(String(hex || ""));
   const h = m ? m[1] : "e2a63c";
   const a = Math.round(Math.max(0, Math.min(1, alpha)) * 255).toString(16).padStart(2, "0");
-  return `${a}${h.slice(4, 6)}${h.slice(2, 4)}${h.slice(0, 2)}`;
+  return `${a}${h.slice(4, 6)}${h.slice(2, 4)}${h.slice(0, 2)}`.toLowerCase(); // TASKS.csv #3068 follow-up — lowercase, as Google's KML reference writes colours ("#E69F00" gave "99009FE6")
 }
 export async function lonLatTransform(epsg) {
   const e = Number(epsg);
