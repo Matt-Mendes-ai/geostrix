@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import Papa from "papaparse";
 import { suscUnitHint, SUSC_UNITS, PHYSICAL_MAX_SI } from "../src/lib/drillholeConstraints.js";
+import { bcSkip, bcText } from "./helpers/bcSample.mjs"; // TASKS.csv #3134 — the BC samples are not in the repository: real-data checks run where one is found
 
 test("the likely unit from the readings", () => {
   assert.equal(suscUnitHint([0, 0.0001, 0.0003, 0.002, 0.9]).likely, "si");
@@ -15,8 +16,8 @@ test("the likely unit from the readings", () => {
   assert.deepEqual(Object.keys(SUSC_UNITS).sort(), ["e3", "e5", "si"]);
 });
 
-test("Silvertip's bundled log points to x10^-3 SI, and SI would pass the physical ceiling", () => {
-  const rows = Papa.parse(readFileSync(new URL("../sample_data/silvertip/magsusc.csv", import.meta.url), "utf8"), { header: true, skipEmptyLines: true }).data;
+test("Silvertip's log points to x10^-3 SI, and SI would pass the physical ceiling", { skip: bcSkip("silvertip") }, () => {
+  const rows = Papa.parse(bcText("silvertip", "magsusc.csv"), { header: true, skipEmptyLines: true }).data;
   const col = "mag_reading";
   const h = suscUnitHint(rows.map((r) => r[col]));
   assert.equal(h.likely, "e3", JSON.stringify(h));

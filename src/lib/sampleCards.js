@@ -1,7 +1,7 @@
 // TASKS.csv #1120 / #1346 — the bundled samples offered on the empty 3D View (moved out of ViewerModule.jsx, which has a size cap,
 // #1084). The one that suits the tab comes first: the empty card's filled button.
 import { t as tr } from "./i18n.js";
-import { sampleStatusAtStart } from "./desktop.js"; // TASKS.csv #3100
+import { sampleStatusAtStart, sampleStatus } from "./desktop.js"; // TASKS.csv #3100; sampleStatus: #3133
 import { BC_SAMPLE_INFO } from "./bcSamples.js"; // TASKS.csv #3100
 
 // TASKS.csv #3100 — the BC samples are not shipped (BC's terms): each is "bundled" (a dev run), "downloaded" or "missing" ({} in a browser
@@ -10,6 +10,18 @@ let status = null;
 const statusNow = () => status || (status = sampleStatusAtStart());
 export function markSampleDownloaded(id) { statusNow()[id] = "downloaded"; }
 const missing = (id) => statusNow()[id] === "missing";
+
+// TASKS.csv #3133 — a BC sample not on this computer, chosen on the empty 3D View's card: the download dialog first (App.jsx answers the
+// 'geostrix-sample-missing' event and loads the sample once it is downloaded), before the tab is renamed or anything is read; it used to rename
+// the tab and show an error notice behind the dialog. -> true when it asked (the caller stops there). The status is read now, not at start.
+export async function askSampleDownload(which, statusOf = sampleStatus, dispatch = (id) => window.dispatchEvent(new CustomEvent("geostrix-sample-missing", { detail: { id } }))) {
+  if (!BC_SAMPLE_INFO[which]) return false;
+  let st = {};
+  try { st = (await statusOf()) || {}; } catch { st = {}; }
+  if (st[which] !== "missing") return false;
+  dispatch(which);
+  return true;
+}
 
 export function sampleCardsFor(mode) {
   const cards = [

@@ -5,7 +5,7 @@
 // surface-sample elevation; else 0. The source is returned so the import notice can name it.
 import { modelAirValue } from "./surfacePlan.js";
 import { t as tr } from "./i18n.js";
-import { median } from "./arrayStats.js";
+import { median, arrMax /* #3031 */ } from "./arrayStats.js";
 import { collarsLookUnderground } from "./collarGround.js"; // TASKS.csv #2269; #3159: not pitShell.js, which put the pit solver in startup
 import { farFromCollars, farNote, boxesOverlap } from "./landingCheck.js"; // TASKS.csv #2590 / #2125
 
@@ -42,7 +42,7 @@ export function defaultDrapeElevation({ collars = [], voxelModels = [], surfaceS
 // underground (the nearest the surface the data knows), else the map-layer rule above. -> { z, source }
 export function planElevation({ collars = [], survey = [], voxelModels = [], surfaceSamples = [], bbox = null } = {}) {
   const zs = (collars || []).map((c) => c?.z).filter(Number.isFinite);
-  if (zs.length > 1 && collarsLookUnderground(collars, survey).underground) return { z: Math.max(...zs), source: "highest-collar" };
+  if (zs.length > 1 && collarsLookUnderground(collars, survey).underground) return { z: arrMax(zs), source: "highest-collar" }; // arrMax: #3031 (every collar)
   return defaultDrapeElevation({ collars, voxelModels, surfaceSamples, bbox });
 }
 export function planElevationText(d) {
@@ -69,15 +69,24 @@ export function depthFromName(name) {
   return Number.isFinite(d) && d > 0 ? d : null;
 }
 const inBox = (c, b) => !b || (Number.isFinite(c.x) && Number.isFinite(c.y) && c.x >= b[0] && c.x <= b[2] && c.y >= b[1] && c.y <= b[3]);
-export function rasterDrapeElevation({ collars = [], voxelModels = [], surfaceSamples = [], bbox = null, rasters = [], fileName = null } = {}) {
-  const base = defaultDrapeElevation({ collars, voxelModels, surfaceSamples, bbox });
+// TASKS.csv #2868 (review GSC geophysics) — with nothing else giving a ground level, the survey stations' median elevation (those under the
+// raster when there are any): a published Bouguer grid went to 0 m beside its own stations' IDW grid at 270 m (#2239's rule for the IDW grid)
+export function stationsElevation(stations, bbox = null) {
+  const pts = (stations || []).filter((r) => Number.isFinite(r?.z) && Number.isFinite(r?.x) && Number.isFinite(r?.y));
+  if (!pts.length) return null;
+  const under = bbox ? pts.filter((r) => inBox(r, bbox)) : [];
+  return { z: median((under.length ? under : pts).map((r) => r.z)), source: "stations", n: (under.length ? under : pts).length };
+}
+export function rasterDrapeElevation({ collars = [], voxelModels = [], surfaceSamples = [], bbox = null, rasters = [], fileName = null, stations = [] } = {}) {
+  let base = defaultDrapeElevation({ collars, voxelModels, surfaceSamples, bbox });
+  if (base.source === "none") base = stationsElevation(stations, bbox) || base; // #2868
   const depth = depthFromName(fileName);
   let out;
   if (depth != null && base.source !== "none") out = { z: base.z - depth, source: "depth", depth, groundZ: base.z, groundSource: base.source };
   else if (base.source === "collars") {
     const under = (collars || []).filter((c) => Number.isFinite(c.z) && inBox(c, bbox));
     const zs = (under.length ? under : collars.filter((c) => Number.isFinite(c.z))).map((c) => c.z);
-    const top = Math.max(...zs);
+    const top = arrMax(zs); // #3031
     out = { z: top + ABOVE_COLLARS_M, source: "collars", above: ABOVE_COLLARS_M, topCollarZ: top, ...(under.length ? {} : { noneUnder: true }) }; // noneUnder: #2125 — no collar under it
   } else out = { ...base };
   // stacked above a raster already at that level — TASKS.csv #2590: only one whose footprint overlaps this one (a picture 6,240 km away
@@ -107,5 +116,6 @@ export function drapeElevationNote(d) {
   if (d.source === "collars") return tr("Placed flat at {z} m, the median collar elevation; change Elev. on its card.", { z }) + stacked;
   if (d.source === "model") return tr("Placed flat at {z} m, the top of the block model \"{model}\" there; change Elev. on its card.", { z, model: d.model }) + stacked;
   if (d.source === "samples") return tr("Placed flat at {z} m, the median surface-sample elevation; change Elev. on its card.", { z }) + stacked;
-  return tr("Placed flat at 0 m: nothing in the project gives a ground level yet; change Elev. on its card.");
+  if (d.source === "stations") return tr("Placed flat at {z} m, the median elevation of the survey stations; change Elev. on its card.", { z }) + stacked; // #2868
+  return tr("Placed flat at {z} m: nothing in the project gives a ground level yet; change Elev. on its card.", { z }) + stacked; // #2859 — its z (5 m, 10 m for the next ones) and why
 }

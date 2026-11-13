@@ -175,6 +175,7 @@ function describe(hit, ctx) {
     const unit = rasterUnitOf(rs); // #2747 — the value's unit, where the raster says it
     if (v != null) fields.push([tr("Value"), rasterValueText(rs.grid, world.e, world.n, v, unit)]); // block means said: #2879
     else if (!rs.grid) fields.push([tr("Values"), tr("Picture only: colours, no values")]); // #2747 — a picture (no value grid), said
+    else fields.push([tr("Value"), tr("No data at this point")]); // TASKS.csv #2871 — a blank cell said nothing about its value
     if (rs.params?.tool) fields.push([tr("Made with"), rs.params.tool]);
     fields.push([tr("Drape"), rs.drapeMode === "terrain" ? tr("On the terrain") : rs.drapeMode === "collars" ? tr("On the ground between the collars") /* #2447 */ : tr("Flat at {z} m", { z: num(rs.elevation ?? 0, 1) })]);
     return { ...base, backdrop: true, layer: tr("Rasters"), title: rs.name, fields };

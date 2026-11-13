@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { zeroMeansMissing } from "../src/lib/missingElevation.js";
 import { silvertipSurface } from "../src/lib/sampleSilvertip.js";
+import { bcSkip, bcText } from "./helpers/bcSample.mjs"; // TASKS.csv #3134 — the BC samples are not in the repository: real-data checks run where one is found
 
 test("0 among elevations of 1,000+ m is missing; on a coast it is real; all-zero is missing (#606)", () => {
   assert.equal(zeroMeansMissing([1400, 0, 1520, null, 1610]), true);
@@ -13,8 +14,8 @@ test("0 among elevations of 1,000+ m is missing; on a coast it is real; all-zero
   assert.equal(zeroMeansMissing([]), false);
 });
 
-test("Silvertip's three surface files: the 57 zero elevations are the only ones caught", () => {
-  const all = ["rocks", "soils", "streams"].flatMap((f) => silvertipSurface(readFileSync(`sample_data/silvertip/${f}.csv`, "utf8"), f).samples);
+test("Silvertip's three surface files: the 57 zero elevations are the only ones caught", { skip: bcSkip("silvertip") }, () => {
+  const all = ["rocks", "soils", "streams"].flatMap((f) => silvertipSurface(bcText("silvertip", `${f}.csv`), f).samples);
   const zeros = all.filter((s) => s.z === 0).length;
   assert.equal(zeros, 57);
   assert.equal(zeroMeansMissing(all.map((s) => s.z)), true);

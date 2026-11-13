@@ -41,3 +41,14 @@ export function otherMeasurementColumns(headers, rows, cols) {
 }
 // channels picked in the column picker -> [{ col, method }] (method null when the name says nothing)
 export const channelMethods = (channels) => (channels || []).map((col) => ({ col, method: guessSurveyMethod(col) }));
+// TASKS.csv #2840 (GSC review B7, Matagami / Blake River stations) — with the channel boxes shown, the column chosen under Value was ignored:
+// only the ticked channels were imported, so observed gravity (ADJG), whose name says no method, could not be brought in at all. The Value
+// select's choice now joins the channels, ticked.
+export function withValueChannel(channels, pick, col) {
+  if (!Array.isArray(channels) || !col) return { channels, channelPick: pick };
+  const p = pick || [];
+  return { channels: channels.includes(col) ? channels : [...channels, col], channelPick: p.includes(col) ? p : [...p, col] };
+}
+// the ticked channels, in the list's order -> [{ col, method }]: every ticked column, a radiometric one or not (#2840: an added column
+// was dropped from a radiometric file's list)
+export const tickedChannels = (channels, pick) => channelMethods((channels || []).filter((c) => (pick || []).includes(c)));

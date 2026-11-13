@@ -5,7 +5,8 @@ import fs from "node:fs";
 import { contactLikeTypes, guideTypeCounts, downholeDipGuides } from "../src/lib/explicitDownhole.js";
 
 test("#1037 Woodjam's structure codes: CONT and BED are the contact-like ones; FRAC / FLT / VEIN / FOL are not", () => {
-  const types = fs.readFileSync(new URL("../sample_data/woodjam/structure.csv", import.meta.url), "utf8").split(/\r?\n/).slice(1).map((l) => l.split(",")[2]).filter(Boolean);
+  // TASKS.csv #3134 — the codes Woodjam's structure log uses (the sample is no longer in the repository), each a few times, in no order
+  const types = ["FRAC", "CONT", "VEIN", "BED", "FLT", "FOL", "FRAC", "VEIN", "CONT", "SHR", "FRAC", "BED", "JNT", "FLT"];
   assert.deepEqual(contactLikeTypes(types), ["BED", "CONT"]);
   assert.deepEqual(contactLikeTypes(["Contact", "bedding", "S0", "lith contact", "fault contact", "Vein", "Shear"]).sort(), ["Contact", "S0", "bedding", "lith contact"].sort());
   assert.deepEqual(contactLikeTypes(["FRAC", "FLT"]), []);

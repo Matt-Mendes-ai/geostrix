@@ -28,7 +28,8 @@ import { dipConventionFields, upwardHoles } from "../../lib/dipSign.js"; // TASK
 import { codeColumnGuess } from "../../lib/valueGuess.js"; // TASKS.csv #2889
 import { codeOverlap, otherCodeSystem } from "../../lib/codeOverlap.js"; // TASKS.csv #2893
 import { recoveryColumns, recoveryPct } from "../../lib/recoveryCalc.js"; // TASKS.csv #2891
-import { logChannelsFor, defaultLogBin, logChannelRows, unitFromHeader, channelNoData, noDataText, logBinEstimate, needsBinning } from "../../lib/downholeLogChannels.js"; // TASKS.csv #2160; no-data: #2332; logBinEstimate: #2885
+import { logChannelsFor, defaultLogBin, logChannelRows, unitFromHeader, channelNoData, noDataText, logBinEstimate, needsBinning, logReadings, logRange, rangeText, assayIntervals } from "../../lib/downholeLogChannels.js"; // logRange: #3041; assayIntervals: #3039 // logReadings: #3038
+import { logTableFits } from "../../lib/logOnRead.js"; // TASKS.csv #3038 // TASKS.csv #2160; no-data: #2332; logBinEstimate: #2885
 import { loadSampleFiles, readSiblingFiles, sampleStatus } from "../../lib/desktop.js"; // sampleStatus: TASKS.csv #3100
 const isXlsxName = (name) => /\.xlsx$/i.test(String(name || "")); // TASKS.csv #605 (same test as xlsx.js; the reader itself loads on demand, #552)
 import { buildLayer, sameMapLayer } from "../../lib/mapLayerBuild.js"; // TASKS.csv #609; sameMapLayer: #2019
@@ -58,7 +59,7 @@ const AZ_TARGETS = new Set(["collars", "survey", "structure"]); // TASKS.csv #16
 const dipColOf = (target, mapping) => (target === "collars" || target === "survey" ? mapping?.dip || null : null);
 
 export function useImportPipeline(ctx) {
-  const { addVoxelModel, fillCodeDictionary, recordImportLeftOut } = useStore(); // #2632; fillCodeDictionary: #2163; recordImportLeftOut: #2493
+  const { addVoxelModel, fillCodeDictionary, recordImportLeftOut, assays: storeAssays } = useStore(); // assays: #3039 // #2632; fillCodeDictionary: #2163; recordImportLeftOut: #2493
   const {
     addBoundary,
     addRaster,
@@ -148,7 +149,7 @@ export function useImportPipeline(ctx) {
       const mapping0 = azColFor(target, headers, data, ll ? ll.mapping : guessMapping(target, headers)); // #426; #2015
       const codeGuess = codeColumnGuess(target, headers, data, mapping0), mapping = codeGuess ? { ...mapping0, value: codeGuess.col } : mapping0; // #2889 — no name matched: the file's one code column, said as a guess
       const perRowEpsgCol = guessColumn(headers, EPSG_COL_ALIASES);
-      setImportModal({ ...(codeGuess ? { valueGuess: codeGuess } : {}), ...azRefFor(target, headers, data), ...(target === "survey" ? { customFields: surveyMethodFields(headers, data) } : {}) /* #2187 */, file, fileName: file.name, headers, rowCount: data.length, sampleRows: data.slice(0, 5), allRows: data, target, mapping, ...(forceTarget ? {} : guardGuess(target, mapping, headers, data, file.name)), ...dipConventionFields(data, dipColOf(target, mapping)) /* #2886 */, perRowEpsgCol, sourceEpsg: ll ? ll.sourceEpsg : meta?.detectedEpsg ? String(meta.detectedEpsg) : "" });
+      setImportModal({ ...(codeGuess ? { valueGuess: codeGuess } : {}), ...azRefFor(target, headers, data), ...(target === "survey" ? { customFields: surveyMethodFields(headers, data) } : {}) /* #2187 */, file, fileName: file.name, headers, rowCount: meta?.logTable ? meta.logTable.n : data.length, sampleRows: data.slice(0, 5), allRows: data, ...(meta?.logTable ? { logTable: meta.logTable } : {}) /* #3038 */, target, mapping, ...(forceTarget ? {} : guardGuess(target, mapping, headers, data, file.name)), ...dipConventionFields(data, dipColOf(target, mapping)) /* #2886 */, perRowEpsgCol, sourceEpsg: ll ? ll.sourceEpsg : meta?.detectedEpsg ? String(meta.detectedEpsg) : "" });
       if (meta?.note) setNotices((p) => [...p, `${file.name}:${meta.note}`]);
     }, chosenLayer);
   };
@@ -174,7 +175,7 @@ export function useImportPipeline(ctx) {
         const live = importStateRef.current;
         const chooseProjectEpsg = (src, cur) => adoptCrsIfEmpty(src, file.name) || cur; // #607
         const { raster, msg } = await (await loadRaster()).buildRasterImport(file, { epsg: projectTargetEpsg(live.project || project), defaultElevation, chooseProjectEpsg });
-        const drape = rasterDrapeElevation({ collars: live.collars || collars, voxelModels: live.voxelModels || [], surfaceSamples: live.surfaceSamples || [], bbox: raster.bbox, rasters: live.rasters || [], fileName: file.name }); // #1505
+        const drape = rasterDrapeElevation({ collars: live.collars || collars, voxelModels: live.voxelModels || [], surfaceSamples: live.surfaceSamples || [], bbox: raster.bbox, rasters: live.rasters || [], fileName: file.name, stations: live.layers?.geophys_pts /* #2868 */ }); // #1505
         addRaster({ ...raster, elevation: drape.z });
         setNotices((p) => [...p, notice("{msg} {v} Set its opacity (or a Source CRS, if it landed in the wrong place) on the Maps tab.", { msg, v: drapeElevationNote(drape) })]);
       } catch (err) { setNotices((p) => [...p, errorNotice(`${file.name}: ${err.message}`)]); } // #739
@@ -696,12 +697,14 @@ export function useImportPipeline(ctx) {
       // TASKS.csv #2160 (Matt's decision 2026-11-09) — a downhole log: one numeric layer per ticked channel, the unit from the column
       // name; binned (mean, min, max per bin) when chosen, which the dialog proposes when the readings would not fit
       const chans = logChans;
-      const binM = data.logBinM !== undefined ? data.logBinM : defaultLogBin(allRows.length, chans.length, needsBinning(allRows.length, chans.length) ? logBinEstimate(allRows, mapping) : null); // #2885 — the bin that fits, as the dialog shows
+      const src = data.logTable || allRows, readings = logReadings(src); // #3038 — every reading of a log read into typed columns
+      const binM = data.logBinM !== undefined ? data.logBinM : defaultLogBin(readings, chans.length, needsBinning(readings, chans.length) ? logBinEstimate(src, mapping) : null); // #2885 — the bin that fits, as the dialog shows
       const base = String(fileName).replace(/\.(csv|txt|las|xlsx?)$/i, "");
       const made = [];
       chans.forEach((col, k) => {
-        const nd = data.logKeepNoData ? null : channelNoData(allRows, col, unitFromHeader(col)); // #2332 — no-data codes left out unless kept
-        const out = logChannelRows(allRows, mapping, col, binM, nd?.values || null);
+        const nd = data.logKeepNoData ? null : channelNoData(src, col, unitFromHeader(col)); // #2332 — no-data codes left out unless kept
+        const rg = logRange(data.logRanges?.[col]); // #3041 — the range typed for the channel
+        const out = logChannelRows(src, mapping, col, binM, nd?.values || null, rg, binM === "assay" ? assayIntervals(storeAssays) : null); // assay: #3039
         if (!out.rows.length) return;
         const unit = String(data.logUnits?.[col] ?? unitFromHeader(col)).trim(); // TASKS.csv #2952 — the unit typed beside the channel in the import (side 2, agreed with Main)
         const id = `custom_${Date.now()}_${k}`;
@@ -712,13 +715,13 @@ export function useImportPipeline(ctx) {
         const rowsOut = out.rows; for (const r of rowsOut) r._src = fileName; // #2885 — stamped in place, not a second copy of every row
         // TASKS.csv #2329 — a From / To log: each reading placed at its interval's middle, said in the layer's notes (project text: English)
         const mid = !mapping.depth && mapping.from && mapping.to ? `Each reading placed at the middle of its ${mapping.from}-${mapping.to} interval.` : "";
-        const binNote = out.binned ? `Binned on import to ${binM} m: mean of ${out.readings} reading(s), with each bin's min and max (fields min, max, n). Source: ${fileName}.` : "";
-        const ndNote = nd && out.dropped ? `Left out on import as no-data codes: ${out.dropped} value(s) (${noDataText(nd)}).` : ""; // #2332
+        const binNote = !out.binned ? "" : binM === "assay" ? `Binned on import to the assay sample intervals: mean of ${out.readings} reading(s) per sample, with its min and max (fields min, max, n); ${out.unsampled || 0} reading(s) in no sample were left out. Source: ${fileName}.` /* #3039 */ : `Binned on import to ${binM} m: mean of ${out.readings} reading(s), with each bin's min and max (fields min, max, n). Source: ${fileName}.`;
+        const ndNote = (nd && out.dropped ? `Left out on import as no-data codes: ${out.dropped} value(s) (${noDataText(nd)}).` : "") + (out.outside ? `${nd && out.dropped ? " " : ""}Left out on import by the typed range: ${out.outside} value(s) ${rangeText(rg)}.` : ""); // #2332; range: #3041
         setCustomLayers((p) => [...p, { id, name, rows: rowsOut, group, unit: unit || undefined, ...(out.binned ? { binM } : {}), ...(binNote || mid || ndNote ? { notes: [binNote, mid, ndNote].filter(Boolean).join(" ") } : {}) }]);
         setCustomVisible((p) => ({ ...p, [id]: k === 0 }));
-        made.push(`${col}${unit ? ` (${unit})` : ""}: ${out.rows.length.toLocaleString()}${out.skipped ? ` (${out.skipped} without a number)` : ""}${out.dropped ? ` (${out.dropped.toLocaleString()} no-data value(s) left out: ${noDataText(nd)})` : ""}`); // dropped: #2332
+        made.push(`${col}${unit ? ` (${unit})` : ""}: ${out.rows.length.toLocaleString()}${out.skipped ? ` (${out.skipped} without a number)` : ""}${out.dropped ? ` (${out.dropped.toLocaleString()} no-data value(s) left out: ${noDataText(nd)})` : ""}${out.outside ? ` (${out.outside.toLocaleString()} ${rangeText(rg)} left out)` : ""}`); // dropped: #2332; outside: #3041
       });
-      setNotices((p) => [...p, tr("{fileName}: {n} downhole log channel(s) imported as numeric layers{v}: {list}. The first is shown; the others are in the Layers list.", { fileName, n: made.length, v: binM ? tr(", averaged to {b} m bins (mean, with min and max)", { b: binM }) : tr(", every reading kept"), list: made.join("; ") })]);
+      setNotices((p) => [...p, tr("{fileName}: {n} downhole log channel(s) imported as numeric layers{v}: {list}. The first is shown; the others are in the Layers list.", { fileName, n: made.length, v: binM === "assay" ? tr(", averaged over the assay sample intervals (mean, with min and max)") /* #3039 */ : binM ? tr(", averaged to {b} m bins (mean, with min and max)", { b: binM }) : tr(", every reading kept"), list: made.join("; ") })]);
     } else if (target === "custom") {
       // TASKS.csv #2338 (review #2325, WA uranium) — the custom route kept rows with a blank value (155 of geology_current.csv) and rows
       // with no interval and no depth (all 424 of a gamma calibration table: From only), said "Added ... (424 rows)" and drew nothing.
@@ -853,6 +856,19 @@ export function useImportPipeline(ctx) {
     if (importModal.azimuthRef === "magnetic") { try { await loadIgrf(); } catch { /* offline chunk load failed: the conversion reports the holes it couldn't convert */ } } // #552
     // TASKS.csv #412 — feet and local mine grid are applied to the raw rows before the normal import.
     let modalData = importModal;
+    // TASKS.csv #3038 — a big log read into typed columns stands for this import only as the log it was read as: the same hole and depth
+    // columns, its channels, metres, no grid or shift, no row filter. Anything else reads the file again as rows, as before.
+    if (modalData.logTable) {
+      const chans = logChannelsFor(modalData.target, modalData.headers, modalData.allRows, modalData.mapping, modalData.logChannels);
+      const rf = modalData.rowFilter !== undefined ? modalData.rowFilter : defaultRowFilter(modalData.headers, modalData.allRows);
+      const plain = (modalData.units || "m") === "m" && !(modalData.target === "collars" && modalData.localGridOn) && !Number(modalData.zShift);
+      if (!(chans && plain && !rf?.col && logTableFits(modalData.logTable, modalData.mapping, chans))) {
+        setNotices((p) => [...p, notice("{fileName}: read again in full for this import: it was read for its log channels only.", { fileName: modalData.fileName })]);
+        const { parseTableFile } = await import("../../lib/tabular.js");
+        const t = await parseTableFile(modalData.file);
+        modalData = { ...modalData, allRows: t.rows, rowCount: t.rows.length, logTable: undefined };
+      }
+    }
     const units = importModal.units || "m";
     const gridOn = importModal.target === "collars" && importModal.localGridOn;
     if (units === "ft" || gridOn || Number(importModal.zShift)) {
@@ -973,7 +989,7 @@ export function useImportPipeline(ctx) {
       // them: a queued shapefile used to be committed with no Source CRS, so its collars stayed in their own UTM
       // zone's numbers inside a project in another zone (~400 km from the same drop's reprojected map layers).
       // TASKS.csv #2899 — a queued survey gets the same pre-added instrument / method field as one dropped alone (#2187)
-      const modalData = { ...(codeGuess ? { valueGuess: codeGuess } : {}), ...(target === "survey" ? { customFields: surveyMethodFields(headers, data) } : {}), ...azRefFor(target, headers, data), file, fileName: file.name, headers, rowCount: data.length, sampleRows: data.slice(0, 5), allRows: data, target, mapping, ...dipConventionFields(data, dipColOf(target, mapping)) /* #2886 */,
+      const modalData = { ...(codeGuess ? { valueGuess: codeGuess } : {}), ...(target === "survey" ? { customFields: surveyMethodFields(headers, data) } : {}), ...azRefFor(target, headers, data), file, fileName: file.name, headers, rowCount: meta?.logTable ? meta.logTable.n : data.length, sampleRows: data.slice(0, 5), allRows: data, ...(meta?.logTable ? { logTable: meta.logTable } : {}) /* #3038 */, target, mapping, ...dipConventionFields(data, dipColOf(target, mapping)) /* #2886 */,
         sourceEpsg: queueLl ? queueLl.sourceEpsg : meta?.detectedEpsg ? String(meta.detectedEpsg) : "", perRowEpsgCol: guessColumn(headers, EPSG_COL_ALIASES), ...guarded };
       if (confident) {
         // TASKS.csv #1501 — a log's other columns as extra fields, and a Geotech table's Recovery % as that layer too (collars keep
@@ -1076,7 +1092,7 @@ export function useImportPipeline(ctx) {
     if (advised.length) setNotices((p) => [...p, ...advised]);
     const skipped = grouped.files.length - files.length - direct.length - advised.length - voFiles.length - voSide.size /* #2632 */ - (mshCount - mshAdvice.length) /* #1991: the Leapfrog meshes went to the solid import */ - Math.max(0, vsNames.length - 1) /* #1992 */ - Math.max(0, ediNames.length - 1) /* #1989: one notice for all of them */ - Math.max(0, lidarNames.length - 1) /* #1994 */ + grouped.unmatched.length;
     if (!files.length) {
-      if (!direct.length && !advised.length && !mshCount && !voFiles.length) setNotices((p) => [...p, notice("Only .csv, .xlsx, .zip (shapefile), .shp, .gpkg, .kml/.kmz, .las logs, GeoTIFF / .gxf grids and .dxf / .obj files can be dropped in directly.")]);
+      if (!direct.length && !advised.length && !mshCount && !voFiles.length) setNotices((p) => [...p, notice("Only .csv, .xlsx, .zip (shapefile), .shp, .gpkg, .kml/.kmz, .las logs, GeoTIFF / .gxf / .grd grids and .dxf / .obj files can be dropped in directly.")]);
       else if (skipped) setNotices((p) => [...p, notice("{skipped} unrecognized file(s) skipped.", { skipped })]);
       return;
     }

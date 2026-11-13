@@ -10,7 +10,7 @@ import { tieStarterFurniture, sendElementWithFurniture } from "./layoutLinks.js"
 import { setKnownHoleIds } from "./qaqcCore.js"; // TASKS.csv #400; qaqcCore: #1345
 import { compactLayers } from "./compactRows.js"; // TASKS.csv #374
 import { readDbProfiles, writeDbProfiles, mergeDbProfiles, profilesFromFile } from "./dbProfiles.js"; // TASKS.csv #1081
-import { FIELD_KEYS, FIELDS, UNDO_KEYS, DIRTY_KEYS, PROJECT_VERSION, EMPTY_LAYERS, DEFAULT_LAYOUT_ELEMENTS, compactVoxelModels, emptyFields, fieldsFromPayload, payloadFromFields, projectParts, joinParts, cachedJson /* #1975 */, extraDirtyValues, projectHasContent } from "./projectFields.js"; // TASKS.csv #448
+import { FIELD_KEYS, FIELDS, UNDO_KEYS, DIRTY_KEYS, PROJECT_VERSION, EMPTY_LAYERS, DEFAULT_LAYOUT_ELEMENTS, compactVoxelModels, emptyFields, fieldsFromPayload, payloadFromFields, projectPartsSliced /* #3104 (projectParts before) */, joinParts, cachedJson /* #1975 */, extraDirtyValues, projectHasContent } from "./projectFields.js"; // TASKS.csv #448
 import { datumPatch } from "./localGridDatum.js"; // TASKS.csv #2691 / #2661
 import { fillFromRows, setEntry } from "./codeDictionary.js"; // TASKS.csv #2163
 import { changeElementBasis, rebaseRows, rebaseThresholds } from "./oxideBasisChange.js"; // TASKS.csv #2627
@@ -405,6 +405,8 @@ export function StoreProvider({ children }) {
   }, []);
   const updateRaster = useCallback((id, patch) => setRasters((p) => p.map((r) => r.id === id ? { ...r, ...patch } : r)), []);
   const removeRaster = useCallback((id) => setRasters((p) => p.filter((r) => r.id !== id)), []);
+  // TASKS.csv #2853 — a raster moved one place in the list (the Maps plan draws them in this order, the last on top)
+  const moveRaster = useCallback((id, step) => setRasters((p) => { const i = p.findIndex((r) => r.id === id), j = i + step; if (i < 0 || j < 0 || j >= p.length) return p; const q = [...p]; [q[i], q[j]] = [q[j], q[i]]; return q; }), []);
 
   // ---- Boundary polylines (Geosoft .ply import, src/lib/geosoft.js) — same list-of-objects shape as
   // `rasters` above, since boundaries are the same kind of thing (an imported overlay with visibility/
@@ -1383,6 +1385,7 @@ export function StoreProvider({ children }) {
   const lastAutosaveSigRef = useRef(null);
   const autosaveSentRef = useRef(new Map()); // #1975 — the parts the main process holds (key -> the JSON text sent)
   const autosaveBgRef = useRef(null); // #1975 — { key: [payload, name, ...], text } of the background tabs last written
+  const autosaveBuildingRef = useRef(false); // TASKS.csv #3104 — a write is being built a piece at a time: the next tick waits
   useEffect(() => {
     const AUTOSAVE_INTERVAL_MS = 60000; // frequent enough to matter after a crash, infrequent enough not to be a perf/disk concern for a JSON payload this size
     const id = setInterval(() => {
@@ -1390,6 +1393,7 @@ export function StoreProvider({ children }) {
       // the banner does not block work, and skipping every tick meant hours of NEW work had no crash copy.
       // As soon as there is new unsaved work, the recovered project moves into its own tab(s) — marked
       // unsaved, so the normal autosave below carries it too — and saving resumes. Nothing is lost either way.
+      if (autosaveBuildingRef.current) return; // #3104 — the last write is still being built
       if (autosaveHoldRef.current) {
         const t = autosaveTabsRef.current;
         const held = heldAutosaveRef.current;
@@ -1422,16 +1426,20 @@ export function StoreProvider({ children }) {
       const bgText = bgLast && bgLast.key.length === bgKey.length && bgLast.key.every((v, i) => v === bgKey[i]) ? bgLast.text
         : `[${background.map((t) => `{"name":${JSON.stringify(t.name)},"payload":${cachedJson(t.payload, (pl) => ({ ...pl, layers: compactLayers(pl.layers), voxelModels: compactVoxelModels(pl.voxelModels) }))}}`).join(",")}]`;
       autosaveBgRef.current = { key: bgKey, text: bgText };
-      const parts = projectParts(payload, { activeDirty: activeWorth });
-      parts.push(["backgroundTabs", bgText], ["autosavedAt", String(Date.now())]);
-      // only the parts whose text changed cross to the main process, which keeps the rest and writes the file (#1975)
-      const sent = autosaveSentRef.current, changed = {};
-      for (const [k, j] of parts) if (sent.get(k) !== j) changed[k] = j;
-      autosaveWriteParts({ order: parts.map((p) => p[0]), changed, reset: sent.size === 0 }).then((r) => {
-        if (r?.ok) { autosaveSentRef.current = new Map(parts); return; }
-        if (r?.unsupported) { autosaveWrite(joinParts(parts)); return; } // the browser build: one write, as before
-        autosaveSentRef.current = new Map(); lastAutosaveSigRef.current = null; // a part was missing or the write failed: everything next tick
-      });
+      // TASKS.csv #3104 — built a piece at a time (projectPartsSliced: the same text as projectParts), not in one main-thread task; the payload
+      // is the snapshot taken above, so a change meanwhile is simply the next tick's
+      autosaveBuildingRef.current = true;
+      projectPartsSliced(payload, { activeDirty: activeWorth }).then((parts) => {
+        parts.push(["backgroundTabs", bgText], ["autosavedAt", String(Date.now())]);
+        // only the parts whose text changed cross to the main process, which keeps the rest and writes the file (#1975)
+        const sent = autosaveSentRef.current, changed = {};
+        for (const [k, j] of parts) if (sent.get(k) !== j) changed[k] = j;
+        return autosaveWriteParts({ order: parts.map((p) => p[0]), changed, reset: sent.size === 0 }).then((r) => {
+          if (r?.ok) { autosaveSentRef.current = new Map(parts); return; }
+          if (r?.unsupported) { autosaveWrite(joinParts(parts)); return; } // the browser build: one write, as before
+          autosaveSentRef.current = new Map(); lastAutosaveSigRef.current = null; // a part was missing or the write failed: everything next tick
+        });
+      }).catch(() => { autosaveSentRef.current = new Map(); lastAutosaveSigRef.current = null; }).finally(() => { autosaveBuildingRef.current = false; });
     }, AUTOSAVE_INTERVAL_MS);
     return () => clearInterval(id);
   }, []);
@@ -1766,7 +1774,7 @@ export function StoreProvider({ children }) {
     pendingLayoutImages, addLayoutImage, consumeLayoutImage,
     requestedModule, moduleRequestSeq, goToModule,
     themes, addTheme, updateTheme, renameTheme, deleteTheme,
-    rasters, addRaster, updateRaster, removeRaster,
+    rasters, addRaster, updateRaster, removeRaster, moveRaster /* #2853 */,
     boundaries, addBoundary, updateBoundary, removeBoundary,
     mapLayers, addMapLayer, updateMapLayer, removeMapLayer, // TASKS.csv #316
     sectionImages, addSectionImage, updateSectionImage, removeSectionImage, // TASKS.csv #630

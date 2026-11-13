@@ -87,6 +87,7 @@ import SampleGridPanel from "../components/SampleGridPanel.jsx"; // TASKS.csv #1
 import { methodColumnFor, methodsIn, partialDigestionFor } from "../lib/digestion.js"; // TASKS.csv #1518
 import { axisOf, xyDiagram, xyStats, elementsWithoutValues } from "../lib/geochemXY.js"; // TASKS.csv #1678; xyStats: #2353; elementsWithoutValues: #2719
 import { numericSourceChoices } from "../lib/numericSources.js"; // TASKS.csv #1678
+import { keptMemo } from "../lib/keptMemo.js"; // TASKS.csv #3120 — the derived samples kept across tab visits
 import { requestProjectCrs } from "../lib/projectCrsRequest.js"; // TASKS.csv #1445
 import { tieOf, fileToLocal } from "../lib/localGridTie.js"; // TASKS.csv #2320
 import { isMineSource, mineSourceOf, mineSourceToProject, mineSourceSentence } from "../lib/mineGrid.js"; // TASKS.csv #2684 — 'Local mine grid' as the samples' Source CRS
@@ -144,17 +145,18 @@ export default function GeochemModule() {
   // a word (2,095 points, 556 of them screening readings): the plots take one source, lab by default, pXRF or both on request
   const [plotSource, setPlotSource] = useKeptState(keptScope, "geochem.plotSource", "lab");
   const hasPxrf = useMemo(() => assays.some(isPxrfRow), [assays]);
-  const assaysKept = useMemo(() => (assays.some((a) => a.excluded === "total") ? assays.filter((a) => a.excluded !== "total") : assays), [assays]); // #2506 — excluded in QAQC > Totals
-  const sourceAll = useMemo(() => (!hasPxrf || plotSource === "both" ? assaysKept : assaysKept.filter((a) => (plotSource === "pxrf" ? isPxrfRow(a) : !isPxrfRow(a)))), [assaysKept, hasPxrf, plotSource]);
+  // TASKS.csv #3120 — keptMemo: the same arrays on a return to the tab (each useMemo below then hits too); a tab switch unmounts the module
+  const assaysKept = useMemo(() => keptMemo([assays], "kept", () => (assays.some((a) => a.excluded === "total") ? assays.filter((a) => a.excluded !== "total") : assays)), [assays]); // #2506 — excluded in QAQC > Totals
+  const sourceAll = useMemo(() => keptMemo([assaysKept], `src|${plotSource}|${hasPxrf}`, () => (!hasPxrf || plotSource === "both" ? assaysKept : assaysKept.filter((a) => (plotSource === "pxrf" ? isPxrfRow(a) : !isPxrfRow(a))))), [assaysKept, hasPxrf, plotSource]);
   // TASKS.csv #2027 (review #2013, Woodjam) — QC inserts (standards, blanks, duplicates) are not rocks: 109 CRM pulps and 56 blanks sat
   // among the drill samples on every diagram ('1964 of 1964 samples plotted'). Left out by default, as Grade stats / Best intercepts /
   // Compositing do (#219), with a tick to plot them.
   const [plotQc, setPlotQc] = useKeptState(keptScope, "geochem.plotQc", false);
   // TASKS.csv #2035 (review #2013, Woodjam) — the header counted 214 zero-length QC inserts as intervals and a calculated CuEq as an element:
   // '1,750 intervals + 214 QC samples · 49 elements + 1 calculated'
-  const headCounts = useMemo(() => { let qc = 0; for (const a of assays) if (classifyQAQCRow(a) !== "regular") qc++; const calc = assayElements.filter((e) => e.calculated).length; return { n: assays.length - qc, qc, e: assayElements.length - calc, calc }; }, [assays, assayElements]);
-  const qcInSource = useMemo(() => sourceAll.filter((a) => classifyQAQCRow(a) !== "regular").length, [sourceAll]);
-  const sourceRows = useMemo(() => (plotQc || !qcInSource ? sourceAll : sourceAll.filter((a) => classifyQAQCRow(a) === "regular")), [sourceAll, plotQc, qcInSource]);
+  const headCounts = useMemo(() => { const qc = keptMemo([assays], "qcCount", () => { let k = 0; for (const a of assays) if (classifyQAQCRow(a) !== "regular") k++; return k; }); const calc = assayElements.filter((e) => e.calculated).length; return { n: assays.length - qc, qc, e: assayElements.length - calc, calc }; }, [assays, assayElements]);
+  const qcInSource = useMemo(() => keptMemo([sourceAll], "qcIn", () => sourceAll.filter((a) => classifyQAQCRow(a) !== "regular").length), [sourceAll]);
+  const sourceRows = useMemo(() => keptMemo([sourceAll], `rows|${plotQc}|${qcInSource}`, () => (plotQc || !qcInSource ? sourceAll : sourceAll.filter((a) => classifyQAQCRow(a) === "regular"))), [sourceAll, plotQc, qcInSource]);
   const [lithMenuOpen, setLithMenuOpen] = useState(false);
   const [colorElement, setColorElement] = useKeptState(keptScope, "geochem.colorElement", null);
   // TASKS.csv #1091 — the element to colour by: the one chosen, else Au, else the first. colorElement is set only when an
@@ -234,12 +236,12 @@ export default function GeochemModule() {
   const xyLead = useMemo(() => leadFor(assays, assayElements), [assays, assayElements]);
   // TASKS.csv #2741 — Y is the element that follows X most closely in the samples shown (|r| of the logs), not the fixed suite's next;
   // calculated elements are left out (a CuEq follows its Cu by construction)
-  const xyPair = useMemo(() => {
+  const xyPair = useMemo(() => keptMemo([sourceRows, assayElements], `pair|${xyLead}`, () => { // #3120
     const two = correlationDefaults(assayElements.map((e) => e.symbol), 2, { lead: xyLead });
     if (!two[0]) return two;
     const partner = bestPartner(sourceRows, two[0], assayElements.filter((e) => !e.calculated).map((e) => e.symbol));
     return [two[0], partner || two[1]].filter(Boolean);
-  }, [assayElements, xyLead, sourceRows]);
+  }), [assayElements, xyLead, sourceRows]);
   const xyKeyX = xyX || (xyPair[0] ? `el:${xyPair[0]}` : ""), xyKeyY = xyY || (xyPair[1] ? `el:${xyPair[1]}` : xyChoices[0]?.key || (xyPair[0] ? `el:${xyPair[0]}` : ""));
   const xyAxes = useMemo(() => {
     if (diagramId !== "xy") return null;
@@ -256,30 +258,30 @@ export default function GeochemModule() {
   // TASKS.csv #2030 (review #2013) — a spider of two elements (La, Ce from a four-acid digestion) drew 247 two-point 'patterns' and counted
   // 1964 'plottable' samples: below SPIDER_MIN of its elements in the samples shown, the diagram says so instead of drawing
   const spiderPresent = useMemo(() => { const d = ALL_DIAGRAMS[diagramId]; return d?.spider ? d.order.filter((sym) => sourceRows.some((r) => Number.isFinite(r.values?.[sym]))) : null; }, [diagramId, sourceRows]);
-  const xyDiag = useMemo(() => (xyAxes ? xyDiagram(xyAxes[0], xyAxes[1], sourceRows, elementUnits, { oneToOne: !!xyOne }) : null), [xyAxes, sourceRows, elementUnits, xyOne]);
+  const xyDiag = useMemo(() => (xyAxes ? keptMemo([sourceRows, assayElements, store.layers, store.customLayers], `fit|${xyKeyX}|${xyKeyY}|${!!xyOne}`, () => xyDiagram(xyAxes[0], xyAxes[1], sourceRows, elementUnits, { oneToOne: !!xyOne })) : null), [xyAxes, sourceRows, elementUnits, xyOne]); // kept: #3120
   // TASKS.csv #1091 (review #1016, software artist) — holes from the colour-blind-safe categorical palette, in name order
   // (golden-angle HSL at one lightness put neighbouring hues at the same lightness, not dichromat-safe)
-  const holeColors = useMemo(() => {
+  const holeColors = useMemo(() => keptMemo([assays], "holeColors", () => { // kept: #3120 (6,390 ids sorted with a numeric collation: 0.13 s a visit)
     const holes = Array.from(new Set(assays.map((a) => a.hole_id))).sort((a, b) => String(a).localeCompare(String(b), undefined, { numeric: true }));
     const map = {};
     holes.forEach((h, i) => { map[h] = i < CATEGORICAL_SAFE_COLORS.length ? CATEGORICAL_SAFE_COLORS[i] : hashColor(String(h)); });
     return map;
-  }, [assays]);
+  }), [assays]);
 
   // TASKS.csv #619 — each sample's logged lithology (largest overlap with the 3D View's lithology log)
-  const sampleLith = useMemo(() => lithologyBySample(assays, layers?.litho), [assays, layers?.litho]);
-  const lithCounts = useMemo(() => lithologyCounts(sampleLith), [sampleLith]);
+  const sampleLith = useMemo(() => keptMemo([assays, layers?.litho], "lith", () => lithologyBySample(assays, layers?.litho)), [assays, layers?.litho]); // kept: #3120
+  const lithCounts = useMemo(() => keptMemo([sampleLith], "counts", () => lithologyCounts(sampleLith)), [sampleLith]);
   const hasLithLog = (layers?.litho || []).length > 0;
   // TASKS.csv #1091 — a code is the colour it is everywhere else (3D view, strip log, section, Layout legend): the
   // lithology palette plus the user's legend edits. It was hsl by rank in this plot's counts, so it differed from the
   // 3D view and moved whenever the lithology filter changed the ranks.
   const lithOverride = viewerUiState?.legendOverride?.litho;
   const lithColors = useMemo(() => Object.fromEntries(lithCounts.map(([k]) => [k, k === NOT_LOGGED ? "#b8bec7" : lithOverride?.[k]?.color || colorForLithology(k)])), [lithCounts, lithOverride]);
-  const plotted = useMemo(() => (lithFilter ? sourceRows.filter((a) => lithFilter.has(sampleLith.get(a) ?? NOT_LOGGED)) : sourceRows), [sourceRows, lithFilter, sampleLith]); // sourceRows: #1673
+  const plotted = useMemo(() => keptMemo([sourceRows, sampleLith], `plot|${lithFilter ? [...lithFilter].sort().join("\u0001") : "*"}`, () => (lithFilter ? sourceRows.filter((a) => lithFilter.has(sampleLith.get(a) ?? NOT_LOGGED)) : sourceRows)), [sourceRows, lithFilter, sampleLith]); // sourceRows: #1673; kept: #3120
   // TASKS.csv #2353 — n, Spearman, the median Y / X and the length-weighted ratio, over X >= the typed value
   // TASKS.csv #2909 (WA iron review) — the statistics line of the samples the plot draws: it read every sample ('n 147,659 · Spearman -0.96') under a
   // lithology filter showing 26,253 (three ore strands), the question the filter is for
-  const xyStat = useMemo(() => (xyAxes && xyAxes[0] && xyAxes[1] ? xyStats(xyAxes[0], xyAxes[1], plotted, elementUnits, { xMin: xyMin !== "" && Number.isFinite(Number(xyMin)) ? Number(xyMin) : null }) : null), [xyAxes, plotted, elementUnits, xyMin]);
+  const xyStat = useMemo(() => (xyAxes && xyAxes[0] && xyAxes[1] ? keptMemo([plotted, assayElements, store.layers, store.customLayers], `stat|${xyKeyX}|${xyKeyY}|${xyMin}`, () => xyStats(xyAxes[0], xyAxes[1], plotted, elementUnits, { xMin: xyMin !== "" && Number.isFinite(Number(xyMin)) ? Number(xyMin) : null })) : null), [xyAxes, plotted, elementUnits, xyMin]); // kept: #3120
   // TASKS.csv #1519 — the holes plotted, for the on-screen key of 'by hole' (only worked out in that mode: 83,670 samples on Lawyers)
   const plottedHoles = useMemo(() => (colorMode === "hole" ? [...new Set(plotted.map((a) => a.hole_id))] : []), [colorMode, plotted]);
   const describeSample = (sm) => {
@@ -331,9 +333,10 @@ export default function GeochemModule() {
   // #1519 — how many samples the diagram can place: computed once per diagram / sample set, not on every render (it projected
   // all 83,670 samples again in the caption and the export furniture)
   // TASKS.csv #2018 — the half-detection sentence counts the plotted samples that hold a '<' value for the diagram's elements
-  const censoredCount = useMemo(() => (diagram.ratio ? 0 : censoredSamples(plotted, diagram.spider ? diagram.order : diagramId === "xy" ? [xyKeyX, xyKeyY].filter((k) => String(k).startsWith("el:")).map((k) => k.slice(3)) : diagram.requires)), [plotted, diagram, diagramId, xyKeyX, xyKeyY]); // ratio: #2501, none plotted; xy (requires []): #2505
+  const unitsKey = useMemo(() => JSON.stringify(elementUnits), [elementUnits]); // #3120 — the units as part of a kept result's key
+  const censoredCount = useMemo(() => (diagram.ratio ? 0 : keptMemo([plotted, diagram], `cens|${diagramId}|${xyKeyX}|${xyKeyY}`, () => censoredSamples(plotted, diagram.spider ? diagram.order : diagramId === "xy" ? [xyKeyX, xyKeyY].filter((k) => String(k).startsWith("el:")).map((k) => k.slice(3)) : diagram.requires))), [plotted, diagram, diagramId, xyKeyX, xyKeyY]); // ratio: #2501, none plotted; xy (requires []): #2505
   const ratioLeftOut = useMemo(() => censoredLeftOut(diagram, plotted, elementUnits), [diagram, plotted, elementUnits]); // #2501
-  const plottedCount = useMemo(() => (diagram.spider ? plotted.filter((a) => reeProfile(a, elementUnits, diagram.order, diagram.norm).some((p) => p.value != null)).length : plotted.filter((a) => diagram.project(a, elementUnits)).length), [diagram, plotted, elementUnits]);
+  const plottedCount = useMemo(() => keptMemo([plotted, diagram], `count|${unitsKey}`, () => (diagram.spider ? plotted.filter((a) => reeProfile(a, elementUnits, diagram.order, diagram.norm).some((p) => p.value != null)).length : plotted.filter((a) => diagram.project(a, elementUnits)).length)), [diagram, plotted, elementUnits, unitsKey]); // kept: #3120
   const availableSymbols = new Set(assayElements.map((e) => e.symbol));
   const missingForDiagram = diagram.requires.filter((s) => !availableSymbols.has(s));
 
@@ -1536,7 +1539,7 @@ export default function GeochemModule() {
             <div style={{ fontSize: "var(--font-size-xs)", color: "#65717e", marginTop: 8 }}>
               {((o) => o.v + o.v2 + (ratioLeftOut.total ? " " + tr("{n} sample(s) left out: a ratio with a below-detection operand is not a point ({list}).", { n: ratioLeftOut.total.toLocaleString(), list: Object.entries(ratioLeftOut.bySymbol).sort((x, y) => y[1] - x[1]).map(([k, n]) => tr("{el} below detection in {n}", { el: k, n: n.toLocaleString() })).join(", ") }) : "") /* #2501 */ + (censoredCount ? " " + tr(censoredCount === 1 ? "1 of them holds a below-detection value ('<'), plotted at half the detection limit or at the value the source file stored." : "{n} of them hold a below-detection value ('<'), plotted at half the detection limit or at the value the source file stored.", { n: censoredCount.toLocaleString() }) : "") /* #2018 — only when there are some */)({ v: diagram.spider
                 ? tr("{n} of {assays} samples have at least one plottable element.", { n: plottedCount, assays: sourceRows.length })
-                : tr("{n} of {assays} samples plotted.", { n: plottedCount, assays: sourceRows.length }) + (plottedCount === 0 && sourceRows.length && diagramId === "xy" && xyAxes?.[0] && xyAxes?.[1] ? " " + xyEmptyReason(xyAxes, sourceRows, elementUnits) /* #2359 — why the frame is empty */ : "") + (plottedCount === 0 && sourceRows.length && !missingForDiagram.length && diagram.requires.length ? " " + ((absent) => (absent.length ? tr("None of these samples has {list}.", { list: absent.join(", ") }) : tr("No sample has {requires} all together (they may come from different files, e.g. a lab assay and a pXRF reading).", { requires: diagram.requires.join(", ") })))(diagram.requires.filter((sym) => !sourceRows.some((r) => Number.isFinite(r.values?.[sym])))) : ""), /* plottedCount: #1519; the reason for none: #1679 (Copley TAS: Si only in the pXRF, Na only in the lab assays) */ v2: (lithFilter ? tr(" {v} hidden by the lithology filter.", { v: sourceRows.length - plotted.length }) : "") + (hasPxrf && plotSource !== "both" ? " " + (plotSource === "pxrf" ? tr("{k} lab assay(s) left out: pXRF readings only.", { k: (assays.length - sourceAll.length).toLocaleString() }) : tr("{k} pXRF reading(s) left out: lab assays only.", { k: (assays.length - sourceAll.length).toLocaleString() })) : "") + (qcInSource && !plotQc ? " " + tr("{k} QC insert(s) (standards, blanks, duplicates) left out.", { k: qcInSource.toLocaleString() }) : "") /* #2027 */ })}</div>
+                : tr("{n} of {assays} samples plotted.", { n: plottedCount, assays: sourceRows.length }) + (plottedCount === 0 && sourceRows.length && plotted.length /* #2925 (4) — not when the lithology filter hid them all: it says so */ && diagramId === "xy" && xyAxes?.[0] && xyAxes?.[1] ? " " + xyEmptyReason(xyAxes, sourceRows, elementUnits) /* #2359 — why the frame is empty */ : "") + (plottedCount === 0 && sourceRows.length && !missingForDiagram.length && diagram.requires.length ? " " + ((absent) => (absent.length ? tr("None of these samples has {list}.", { list: absent.join(", ") }) : tr("No sample has {requires} all together (they may come from different files, e.g. a lab assay and a pXRF reading).", { requires: diagram.requires.join(", ") })))(diagram.requires.filter((sym) => !sourceRows.some((r) => Number.isFinite(r.values?.[sym])))) : ""), /* plottedCount: #1519; the reason for none: #1679 (Copley TAS: Si only in the pXRF, Na only in the lab assays) */ v2: (lithFilter ? tr(" {v} hidden by the lithology filter.", { v: sourceRows.length - plotted.length }) : "") + (hasPxrf && plotSource !== "both" ? " " + (plotSource === "pxrf" ? tr("{k} lab assay(s) left out: pXRF readings only.", { k: (assays.length - sourceAll.length).toLocaleString() }) : tr("{k} pXRF reading(s) left out: lab assays only.", { k: (assays.length - sourceAll.length).toLocaleString() })) : "") + (qcInSource && !plotQc ? " " + tr("{k} QC insert(s) (standards, blanks, duplicates) left out.", { k: qcInSource.toLocaleString() }) : "") /* #2027 */ })}</div>
           </div>
         )}
       </div>

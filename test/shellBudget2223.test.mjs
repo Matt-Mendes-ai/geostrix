@@ -25,7 +25,7 @@ test("no advice without a refit, or when most of the box is reachable; none of t
 
 test("the run remembers the default cell's blocks before the refit and says the advice after the result", () => {
   const s = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8");
-  assert.match(s, /neededAtDefault = blocksNeeded; \/\/ #2223\s+cs = fit; blocksNeeded = gridBlockCount\(bounds, cs\); cellRefit = true;/);
+  assert.match(s, /neededAtDefault = blocksNeeded; \/\/ #2223\s+cs = fit; blocksNeeded = blocksOf\(cs\); cellRefit = true;/);
   assert.match(s, /shellBudgetAdvice\(\{ refit: cellRefit, neededAtDefault, estimated: grid\.estimated, skipped: grid\.skipped, budget: blockBudget \}\)/);
   for (const l of ["es", "pt", "fr", "ar"]) {
     const d = JSON.parse(readFileSync(new URL(`../src/locales/${l}.json`, import.meta.url), "utf8"));

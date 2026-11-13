@@ -22,6 +22,10 @@ import { numericLayerFields } from "../lib/evidenceSources.js"; // #1698 — the
 // own grade axis. Pure SVG, one long scrollable page — pxPerMeter controls how tall it renders (a deep
 // hole logged at high resolution needs to scroll, not squeeze onto one screen).
 const TRACK_W = 90;
+// TASKS.csv #3141 — a track header's size: 10.5 px, smaller for a long name so it stays inside its track (0.62 em a bold letter)
+// #3141 — label every tick, or every other one when their text would not fit the track (P 0 / 0.01 / … / 0.04 ran together)
+const tickStride = (ticks) => (ticks.reduce((w, t) => w + String(t).length * 4.8 + 4, 0) > TRACK_W - 8 ? 2 : 1);
+const headerSize = (label) => Math.max(7, Math.min(10.5, (TRACK_W - 8) / (String(label).length * 0.62)));
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { exportSvgMarkup } from "../lib/svgExport.js"; // TASKS.csv #1089 — font, size, no UI chrome
@@ -29,6 +33,9 @@ import { embedFigureFont } from "../lib/svgFontEmbed.js"; // TASKS.csv #2610 —
 import { localDate } from "../lib/localDate.js";
 import { stripLogFurniture, pngScaleFor } from "../lib/figureFurniture.js"; // TASKS.csv #1048
 import { stripLogTextPt } from "../lib/atlas.js"; // TASKS.csv #1480 — the size its labels print at
+import { assayAxis } from "../lib/striplogSvg.js"; // TASKS.csv #3141 — the Atlas's linear / log axis rule (#3024)
+import { suspectIdsOf } from "../lib/collarTable.js"; // TASKS.csv #3131 — #3004's rule, cached per collar list (the Layout collar table's)
+import { elevationTrust } from "../lib/collarElevationTrust.js";
 const DEPTH_COL_W = 50;
 const PAD_TOP = 40;
 
@@ -44,8 +51,11 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
   const [assaySymbol, setAssaySymbol] = useState(shownFirst[0] || symbols[0] || "");
   // TASKS.csv #402 — up to two more element tracks, and a log scale (default): one 30 g/t sample on a
   // linear bar scaled to the hole maximum used to flatten every other sample to nothing.
-  const [extraSymbols, setExtraSymbols] = useState(shownFirst.slice(1, 3)); // #1698 — the other elements on in 3D
-  const [logScale, setLogScale] = useState(true);
+  const [extraSymbols, setExtraSymbols] = useState(shownFirst.slice(1, 5)); // #1698 — the other elements on in 3D; #3141: up to four more
+  // TASKS.csv #3141 (#3024, WA iron) — null: each element's own axis (linear with ticks under two decades, as the Atlas's assayAxis; log over
+  // that); the box forces one or the other. A log axis for Fe 14-59 % gave a bar no one could read 55 % off.
+  const [logScale, setLogScale] = useState(null);
+  const logOn = logScale ?? true; // the mag susc track keeps its log default (#1400)
   // TASKS.csv #1480 — a depth range: a 1,300 m hole cannot print readably on one page, an interval of it can
   // TASKS.csv #1995 — FGDC lithology patterns over the litho colours: the choice is remembered on this computer
   const [patternsOn, setPatternsOn] = useState(() => { try { return localStorage.getItem("geostrix.stripLog.patterns") !== "0"; } catch { return true; } });
@@ -62,7 +72,7 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
   const patternOf = (v) => (patternsOn && tiles[patternByCode[v]] ? patternByCode[v] : null);
   const [rangeFrom, setRangeFrom] = useState("");
   const [rangeTo, setRangeTo] = useState("");
-  const shownSymbols = [assaySymbol, ...extraSymbols].filter(Boolean).filter((s, i, a) => a.indexOf(s) === i).slice(0, 3);
+  const shownSymbols = [assaySymbol, ...extraSymbols].filter(Boolean).filter((s, i, a) => a.indexOf(s) === i).slice(0, 5); // #3141 — five, as the Atlas (#3024)
   const elementUnits = useMemo(() => Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])), [assayElements]);
 
   const litho = useMemo(() => (layers.litho || []).filter((r) => r.hole_id === holeId).sort((a, b) => a.from - b.from), [layers.litho, holeId]);
@@ -112,6 +122,9 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
   const pxrfRange = useMemo(() => Object.fromEntries(shownSymbols.map((sym) => { const vals = pxrfAssays.map((a) => valueIn(a, sym, elementUnits[sym] || "ppm", elementUnits)).filter((v) => v != null && Number.isFinite(v)); return [sym, vals.length ? arrMax(vals) : 0]; })), [pxrfAssays, shownSymbols.join("|"), elementUnits]);
 
   const collar = collars.find((c) => c.hole_id === holeId);
+  // TASKS.csv #3131 (#3023) — an RL the import filled in, or one in the file that is probably a missing value, is said so (as the collar table marks it)
+  const rlTrust = collar ? elevationTrust(collar, suspectIdsOf(collars)) : "measured";
+  const rlNote = rlTrust === "assumed" ? tr("filled at import, not in the collar file") : rlTrust === "suspect" ? tr("in the collar file, but probably a missing value") : "";
   const maxDepth = Math.max(
     collar?.length || 0,
     arrMax(litho.map((r) => r.to)), arrMax(alt.map((r) => r.to)), arrMax(vein.map((r) => r.to)), arrMax(geotech.map((r) => r.to)), arrMax(recovery.map((r) => r.to)), arrMax(structs.map((s) => s.depth)), arrMax(breccia.map((r) => r.to)), arrMax(weath.map((r) => r.to)), arrMax(structzone.map((r) => r.to)), arrMax(mnlgy.map((r) => r.to)),
@@ -124,10 +137,12 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
     const pos = vals.filter((v) => v > 0);
     return [sym, { max: vals.length ? arrMax(vals) : 0, minPos: pos.length ? arrMin(pos) : 0 }];
   })), [holeAssays, shownSymbols.join("|"), elementUnits]);
+  const axisOf = (sym) => { const r = assayRange[sym]; const a = r ? assayAxis(r.minPos, r.max) : { linear: false }; return logScale === true ? { linear: false } : logScale === false && !a.linear ? { linear: true, max: r?.max || 0, ticks: null } : a; }; // #3141
   const barFrac = (sym, v) => {
     const r = assayRange[sym];
     if (!r || !(r.max > 0) || v == null) return 0;
-    if (!logScale) return Math.max(0, Math.min(1, v / r.max));
+    const ax = axisOf(sym);
+    if (ax.linear) return Math.max(0, Math.min(1, v / (ax.max || r.max)));
     if (!(v > 0)) return 0;
     const lo = Math.log10(r.minPos), hi = Math.log10(r.max);
     return hi > lo ? Math.max(0.03, Math.min(1, (Math.log10(v) - lo) / (hi - lo))) : 1; // 3% floor so the lowest value is still visible
@@ -149,18 +164,19 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
     // TASKS.csv #323 — logged susceptibility / SG and a numeric model evaluated onto the hole, side by side
     ...[["magsusc", "Mag. susc."], ["sg", "SG"]].map(([k, label]) => { const rows = (layers[k] || []).filter((r) => r.hole_id === holeId && Number.isFinite(Number(r.value))).map((r) => (Number.isFinite(r.depth) && !Number.isFinite(r.to) ? { ...r, from: r.depth - 0.25, to: r.depth + 0.25 } : r)).sort((a, b) => a.from - b.from); return { key: `log_${k}`, label, title: `${label} as logged`, rows, kind: "bar", max: rows.reduce((m, r) => Math.max(m, Number(r.value)), 0), scaleLabel: true, ...(k === "magsusc" ? { logOk: true, minPos: valueRange(rows).minPos } : {}) }; }).filter((t) => t.rows.length), // logOk: #1400 — mag susc follows the Log scale box
     ...modelledLayers.filter((ml) => ml.rows?.[0]?.numeric).map((ml) => { const rows = (ml.rows || []).filter((r) => r.hole_id === holeId).sort((a, b) => a.from - b.from); return { key: `modelledN_${ml.id}`, label: "Model", title: `${ml.name}${ml.unit ? ` (${ml.unit})` : ""}`, rows, kind: "bar", max: rows.reduce((m, r) => Math.max(m, r.value), 0), scaleLabel: true, colorOf: (r) => r.modelColor }; }).filter((t) => t.rows.length),
-    { key: "alt", label: "Alt.", rows: alt, kind: "fill", colorFn: (v) => fill("alt", colorForAlteration, v), nameFn: labelFor ? (v) => labelFor("alt", v) : null },
-    { key: "vein", label: "Vein", rows: vein, kind: "tick", colorFn: (v) => fill("vein", colorForVein, v), nameFn: nameOf("vein") }, // #1289 — renamed categories on every track
-    ...((layers.weath || []).length ? [{ key: "weath", label: "Wx", title: "Weathering", rows: weath, kind: "fill", colorFn: (v) => fill("weath", colorForWeathering, v), nameFn: nameOf("weath") }] : []), // #2162
-    ...((layers.breccia || []).length ? [{ key: "breccia", label: "Bx", title: "Breccia", rows: breccia, kind: "fill", colorFn: (v) => fill("breccia", colorForBreccia, v), nameFn: nameOf("breccia") }] : []), // #608 — only in projects with breccia logs
-    ...((layers.structzone || []).length ? [{ key: "structzone", label: "SZ", title: "Structural zones", rows: structzone, kind: "fill", colorFn: (v) => fill("structzone", colorForStructZone, v), nameFn: nameOf("structzone") }] : []), // #604
+    // TASKS.csv #3141 — a built-in track only when this hole has rows (an iron hole drew empty Alt. / Vein / Rec.% columns on every log)
+    ...(alt.length ? [{ key: "alt", label: "Alt.", rows: alt, kind: "fill", colorFn: (v) => fill("alt", colorForAlteration, v), nameFn: labelFor ? (v) => labelFor("alt", v) : null }] : []),
+    ...(vein.length ? [{ key: "vein", label: "Vein", rows: vein, kind: "tick", colorFn: (v) => fill("vein", colorForVein, v), nameFn: nameOf("vein") }] : []), // #1289 — renamed categories on every track
+    ...(weath.length ? [{ key: "weath", label: "Wx", title: "Weathering", rows: weath, kind: "fill", colorFn: (v) => fill("weath", colorForWeathering, v), nameFn: nameOf("weath") }] : []), // #2162
+    ...(breccia.length ? [{ key: "breccia", label: "Bx", title: "Breccia", rows: breccia, kind: "fill", colorFn: (v) => fill("breccia", colorForBreccia, v), nameFn: nameOf("breccia") }] : []), // #608 — only in projects with breccia logs
+    ...(structzone.length ? [{ key: "structzone", label: "SZ", title: "Structural zones", rows: structzone, kind: "fill", colorFn: (v) => fill("structzone", colorForStructZone, v), nameFn: nameOf("structzone") }] : []), // #604
     // TASKS.csv #684 — the mineralisation log: an interval row is a block over its depths (Woodjam: up to 69 m), a
     // point-style row (from = to) a thin line at its depth
     ...(mnlgy.length ? [{ key: "mnlgy", label: "Min.", title: "Mineralization", rows: mnlgy, kind: "fill", colorFn: (v) => fill("mnlgy", LAYER_META.mnlgy.colorFn, v), nameFn: nameOf("mnlgy") }] : []),
-    ...((layers.structure || []).length ? [{ key: "structure", label: "Struct.", title: "Structure picks: each a tick at its alpha to the core axis (horizontal = 90°), a short mark at the edge without one", rows: structs, kind: "struct", colorFn: (v) => fill("structure", colorForStructure, v), nameFn: nameOf("structure") }] : []), // #1400
+    ...(structs.length ? [{ key: "structure", label: "Struct.", title: "Structure picks: each a tick at its alpha to the core axis (horizontal = 90°), a short mark at the edge without one", rows: structs, kind: "struct", colorFn: (v) => fill("structure", colorForStructure, v), nameFn: nameOf("structure") }] : []), // #1400
     ...(geotech.length ? [{ key: "geotech", label: "RQD%", rows: geotech, kind: "bar", max: 100 }] : []), // #1698 — only when the hole has RQD rows
     ...customTrackDefs, // #1698
-    ...((layers.recovery || []).length ? [{ key: "recovery", label: "Rec.%", title: "Recovery %", rows: recovery, kind: "bar", max: recoveryMax(recovery), scaleLabel: true, colorOf: () => "#5aa469" }] : []), // #1400 — beside RQD, over 100 % kept
+    ...(recovery.length ? [{ key: "recovery", label: "Rec.%", title: "Recovery %", rows: recovery, kind: "bar", max: recoveryMax(recovery), scaleLabel: true, colorOf: () => "#5aa469" }] : []), // #1400 — beside RQD, over 100 % kept
     ...(shownSymbols.length ? shownSymbols : [""]).map((sym) => ({ key: `assay_${sym}`, sym, label: sym ? `${sym} (${elementUnits[sym] || "ppm"})` : "Assay", rows: holeAssays, kind: "assaybar" })),
     ...shownSymbols.filter((sym) => pxrfRange[sym] > 0).map((sym) => ({ key: `pxrf_${sym}`, sym, label: `${sym} pXRF`, rows: pxrfAssays, kind: "pxrfdots" })), // #1695
   ];
@@ -178,7 +194,7 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
   };
   // TASKS.csv #1048 — hole, collar, attitude, depth, scale and a key of the codes in each colour track, drawn into the file
   const [pngNote, setPngNote] = useState("");
-  const furniture = () => stripLogFurniture({ holeId, collar, fromDepth: d0, maxDepth: d1, pxPerMeter, date: localDate() /* the local day, not UTC's (#2703's rule) */,
+  const furniture = () => stripLogFurniture({ holeId, collar, fromDepth: d0, maxDepth: d1, rlNote /* #3131 */, pxPerMeter, date: localDate() /* the local day, not UTC's (#2703's rule) */,
     tracks: tracks.filter((t) => t.kind === "fill" || t.kind === "struct").map((t) => { // struct: #1400
       const seen = [...new Set(t.rows.map((r) => r.value).filter((v) => v != null && v !== ""))];
       return { title: t.title || t.label, items: seen.map((v) => ({ label: t.nameFn ? `${v} ${t.nameFn(v) !== v ? `(${t.nameFn(v)})` : ""}`.trim() : String(v), color: t.colorFn(v), ...(t.key === "litho" && patternOf(v) ? { pattern: patternFill(patternOf(v), t.colorFn(v)) } : {}) })) }; // pattern: #1995
@@ -250,7 +266,7 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
         <div style={header}>
           <div>
             <div style={{ fontSize: 15, color: "#8a6a1f", fontWeight: 600 }}>{tr("Strip log — {holeId}", { holeId })}</div>
-            <div style={{ fontSize: 11, color: "#65717e", marginTop: 2 }}>{tr("{maxDepth} m total depth", { maxDepth: +maxDepth.toFixed(1) })}</div>
+            <div style={{ fontSize: 11, color: "#65717e", marginTop: 2 }}>{tr("{maxDepth} m total depth", { maxDepth: +maxDepth.toFixed(1) })}{rlNote && <span style={{ color: "#8a6a1f" }}>{" · "}{tr("collar RL {rl} m: {note}", { rl: Number(collar.z).toFixed(1), note: rlNote })}</span>}</div>{/* #3131 */}
           </div>
           <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "#55606e" }} onClick={onClose} />
         </div>
@@ -261,7 +277,7 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
               {symbols.map((s) => <option key={s} value={s}>{s} ({elementUnits[s] || "ppm"})</option>)}
             </select>
           </label>
-          {[0, 1].map((k) => (
+          {[0, 1, 2, 3].map((k) => (k <= extraSymbols.length) && ( /* #3141 — up to four more, one empty select at a time */
             <select key={k} value={extraSymbols[k] || ""} onChange={(e) => setExtraSymbols((p) => { const n = [...p]; n[k] = e.target.value; return n.filter(Boolean); })} style={selStyle} aria-label={tr("Additional assay track {v}", { v: k + 1 })}>
               <option value="">{tr("+ element")}</option>
               {symbols.filter((s) => s !== assaySymbol).map((s) => <option key={s} value={s}>{s}</option>)}
@@ -273,7 +289,7 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
           </select>}
           {customTracks.map((k) => { const c = customChoices.find((x) => x.key === k); return c ? <span key={k} style={{ fontSize: 11, color: "#55606e", display: "inline-flex", alignItems: "center", gap: 3, border: "1px solid #d9dce1", borderRadius: 4, padding: "2px 6px" }}>{c.label}<X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Remove track {v}", { v: c.label })} size={11} style={{ cursor: "pointer" }} onClick={() => setCustomTracks((p) => p.filter((x) => x !== k))} /></span> : null; })}
           <label style={{ fontSize: 11, color: "#55606e", display: "flex", alignItems: "center", gap: 5 }} title={tr("Log scale spreads trace-element grades and mag susc (a few high values no longer flatten the rest). Linear is proportional to the value.")}>
-            <input type="checkbox" checked={logScale} onChange={(e) => setLogScale(e.target.checked)} />{" "}{tr("Log scale")}</label>
+            <input type="checkbox" checked={logScale ?? shownSymbols.some((s) => !axisOf(s).linear)} onChange={(e) => setLogScale(e.target.checked)} />{" "}{tr("Log scale")}</label>
           <label style={{ fontSize: 11, color: "#55606e", display: "flex", alignItems: "center", gap: 4 }} title={tr("Draw only these depths (blank: the whole hole); the exports and Add to Layout follow")}>{tr("Depth (m)")}<input type="number" min="0" step="any" value={rangeFrom} placeholder="0" onChange={(e) => setRangeFrom(e.target.value)} style={{ ...selStyle, width: 64 }} aria-label={tr("Depth range from (m)")} />–<input type="number" min="0" step="any" value={rangeTo} placeholder={String(+maxDepth.toFixed(1))} onChange={(e) => setRangeTo(e.target.value)} style={{ ...selStyle, width: 64 }} aria-label={tr("Depth range to (m)")} /></label>
           {litho.length > 0 && <label style={{ fontSize: 11, color: "#55606e", display: "flex", alignItems: "center", gap: 5 }} title={tr("FGDC lithology patterns over the lithology colours, as on printed logs")}>
             <input type="checkbox" checked={patternsOn} onChange={(e) => setPatterns(e.target.checked)} />{" "}{tr("Patterns")}</label>}{/* TASKS.csv #1995 */}
@@ -324,7 +340,7 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
               const x0 = DEPTH_COL_W + ti * TRACK_W;
               return (
                 <g key={t.key}>
-                  <text x={x0 + TRACK_W / 2} y={PAD_TOP - 14} fontSize="10.5" fontWeight="600" textAnchor="middle" fill="#1a2028">{t.label}{t.title ? <title>{t.title}</title> : null}</text>
+                  <text x={x0 + TRACK_W / 2} y={PAD_TOP - 14} fontSize={headerSize(t.label)} fontWeight="600" textAnchor="middle" fill="#1a2028">{t.label}{t.title ? <title>{t.title}</title> : null}</text>{/* #3141 — sized to its track (a 14-letter custom name ran under the next header) */}
                   <rect x={x0} y={sy(d0)} width={TRACK_W - 6} height={sy(d1) - sy(d0)} fill="none" stroke="#dde1e6" />
                   {t.kind === "fill" && (() => { // #1254 — rows on the same depths side by side, with their percent where the log gives one
                     const { rows, lanes } = t.key === "mnlgy" ? fillLanes(t.rows) : { rows: t.rows, lanes: 1 };
@@ -347,12 +363,12 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
                     <rect key={i} x={x0} y={sy(r.from)} width={TRACK_W - 6} height={Math.max(1.5, sy(r.to) - sy(r.from))} fill={t.colorFn(r.value)} opacity="0.85" />
                   ))}
                   {t.kind === "bar" && t.rows.map((r, i) => {
-                    const lg = t.logOk && logScale; // #1400
+                    const lg = t.logOk && logOn; // #1400; logOn: #3141
                     const w = (t.lo != null ? Math.max(0, Math.min(1, (Number(r.value) - t.lo) / (t.max - t.lo || 1))) : lg ? logFrac(Number(r.value), t.minPos, t.max) : t.max > 0 ? Math.max(0, Math.min(1, (Number(r.value) || 0) / t.max)) : 0) * (TRACK_W - 8); // t.lo: #1698
                     return <rect key={i} x={x0 + 2} y={sy(r.from)} width={w} height={Math.max(0.5, sy(r.to) - sy(r.from))} fill={(t.colorOf && t.colorOf(r)) || "#4a9be0"} opacity="0.75"><title>{`${r.from}-${r.to} m: ${Number(r.value).toPrecision(3)}`}</title></rect>;
                   })}
                   {t.kind === "bar" && t.scaleLabel && t.max > 0 && ( // #323 — each bar track's own full-scale value
-                    <text x={x0 + TRACK_W / 2} y={sy(d1) + 14} fontSize="8" textAnchor="middle" fill="#65717e">{t.lo != null ? `${t.lo.toPrecision(4)}–${t.max.toPrecision(4)}` : t.logOk && logScale && t.minPos > 0 ? tr("log {minPos}–{max}", { minPos: t.minPos.toPrecision(2), max: t.max.toPrecision(3) }) : `0–${t.max.toPrecision(3)}`}</text>
+                    <text x={x0 + TRACK_W / 2} y={sy(d1) + 14} fontSize="8" textAnchor="middle" fill="#65717e">{t.lo != null ? `${t.lo.toPrecision(4)}–${t.max.toPrecision(4)}` : t.logOk && logOn && t.minPos > 0 ? tr("log {minPos}–{max}", { minPos: t.minPos.toPrecision(2), max: t.max.toPrecision(3) }) : `0–${t.max.toPrecision(3)}`}</text>
                   )}
                   {t.kind === "struct" && t.rows.map((s, i) => { // #1400
                     const cx = x0 + (TRACK_W - 6) / 2, y = sy(s.depth), tk = alphaTick(s.alpha, (TRACK_W - 6) / 2 - 4), c = t.colorFn(s.value);
@@ -362,6 +378,7 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
                       ? <line key={i} x1={cx - tk.dx} y1={y - tk.dy} x2={cx + tk.dx} y2={y + tk.dy} stroke={c} strokeWidth="1.6" strokeLinecap="round"><title>{tip}</title></line>
                       : <line key={i} x1={x0} y1={y} x2={x0 + 10} y2={y} stroke={c} strokeWidth="2"><title>{tip}</title></line>;
                   })}
+                  {t.kind === "assaybar" && t.sym && axisOf(t.sym).ticks?.map((tk) => <line key={`g${tk}`} x1={x0 + 2 + (tk / axisOf(t.sym).max) * (TRACK_W - 8)} y1={sy(d0)} x2={x0 + 2 + (tk / axisOf(t.sym).max) * (TRACK_W - 8)} y2={sy(d1)} stroke="#eef0f3" strokeWidth="1" />)}{/* #3141 — the linear axis's gridlines, under the bars */}
                   {t.kind === "assaybar" && t.sym && t.rows.map((r, i) => {
                     const v = valueIn(r, t.sym, elementUnits[t.sym] || "ppm", elementUnits);
                     if (v == null) return null;
@@ -377,9 +394,9 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
                   {t.kind === "pxrfdots" && t.sym && pxrfRange[t.sym] > 0 && (
                     <text x={x0 + TRACK_W / 2} y={sy(d1) + 14} fontSize="8" textAnchor="middle" fill="#65717e">{`pXRF 0–${pxrfRange[t.sym].toPrecision(3)}`}</text>
                   )}
-                  {t.kind === "assaybar" && t.sym && assayRange[t.sym]?.max > 0 && (
-                    <text x={x0 + TRACK_W / 2} y={sy(d1) + 14} fontSize="8" textAnchor="middle" fill="#65717e">{logScale ? tr("log {minPos}–{max}", { minPos: assayRange[t.sym].minPos.toPrecision(2), max: assayRange[t.sym].max.toPrecision(3) }) : `0–${assayRange[t.sym].max.toPrecision(3)}`}</text>
-                  )}
+                  {t.kind === "assaybar" && t.sym && assayRange[t.sym]?.max > 0 && (() => { const ax = axisOf(t.sym); return ax.ticks // #3141 — a linear axis: its round ticks under the track
+                    ? ax.ticks.map((tk, k) => (k % tickStride(ax.ticks) === 0 || k === ax.ticks.length - 1) && <text key={`t${tk}`} x={x0 + 2 + (tk / ax.max) * (TRACK_W - 8)} y={sy(d1) + 12} fontSize="8" textAnchor={k === 0 ? "start" : k === ax.ticks.length - 1 ? "end" : "middle"} fill="#65717e">{tk}</text>) /* the end ticks inside the track: "80" and the next track's "0" read "800" */
+                    : <text x={x0 + TRACK_W / 2} y={sy(d1) + 14} fontSize="8" textAnchor="middle" fill="#65717e">{!ax.linear ? tr("log {minPos}–{max}", { minPos: assayRange[t.sym].minPos.toPrecision(2), max: assayRange[t.sym].max.toPrecision(3) }) : `0–${assayRange[t.sym].max.toPrecision(3)}`}</text>; })()}
                 </g>
               );
             })}

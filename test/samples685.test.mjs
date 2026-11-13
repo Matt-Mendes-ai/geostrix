@@ -4,7 +4,8 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 
-const roots = ["sample_data", "sample_data/harry_property", "sample_data/woodjam", "sample_data/silvertip", "sample_data/wa_uranium"]; // wa_uranium: TASKS.csv #2168
+// TASKS.csv #3134 — every sample folder in the repository (the BC ones left it; the open ones of #3107 and any later are checked too)
+const roots = ["sample_data", ...fs.readdirSync("sample_data", { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => `sample_data/${d.name}`)];
 test("no interval in a shipped sample runs backwards (from > to)", () => {
   let files = 0;
   for (const root of roots) {

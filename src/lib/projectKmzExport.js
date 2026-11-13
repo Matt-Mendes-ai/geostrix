@@ -67,7 +67,7 @@ export function legendCanvasPng(group) {
 }
 
 // store: the useStore() value. -> { ok, filePath?, counts?, cancelled? }
-export async function exportProjectKmz(store, { confirm = (m) => window.confirm(m) } = {}) {
+export async function exportProjectKmz(store, { confirm = (m) => window.confirm(m), include = null } = {}) { // include: TASKS.csv #3087 — the parts ticked
   const project = store.project || {};
   // where the coordinates are on Earth: a local grid through its tie, else the project CRS (asked for when never chosen)
   const tie = tieOf(project);
@@ -92,6 +92,8 @@ export async function exportProjectKmz(store, { confirm = (m) => window.confirm(
     collars: store.collars, survey: store.survey, desurveyMethod: store.desurveyMethod, layers: store.layers, customLayers: store.customLayers,
     assays: store.assays, assayElements: store.assayElements, surfaceSamples: store.surfaceSamples, surfaceStructures: store.surfaceStructures,
     mapLayers: store.mapLayers, boundaries: store.boundaries, plannedHoles: store.plannedHoles, sections: store.sections, rasters: store.rasters,
+    designLines: store.designLines, designStrings: store.designStrings, // #3087
+    generatedSurfaces: store.generatedSurfaces, voxelModels: store.voxelModels, terrain: store.terrain, sectionImages: store.sectionImages, // #3087 part 2
     layerGroups: store.layerGroups, ui,
   };
   const est = estimateProjectKmz(ctx);
@@ -114,7 +116,7 @@ export async function exportProjectKmz(store, { confirm = (m) => window.confirm(
   };
   // the structures' USGS symbols (true strike from the project CRS; on a local grid, the grid bearing)
   const icons = (store.surfaceStructures || []).length ? await structureIconSet(store.surfaceStructures, { px: 64, epsg: tie ? null : ctx.epsg }) : { files: [], iconOf: () => null };
-  const out = buildProjectKml(ctx, { toLonLat, altOf, legendPng: legendCanvasPng, rasterImage, crsLabel, structureIconOf: (row, set) => icons.iconOf(row, set) });
+  const out = buildProjectKml(ctx, { toLonLat, altOf, legendPng: legendCanvasPng, rasterImage, crsLabel, structureIconOf: (row, set) => icons.iconOf(row, set), include, imageBytes: dataUrlBytes });
   const kmz = await buildKmz([
     { name: "doc.kml", data: new TextEncoder().encode(out.kml), deflate: true },
     { name: DOT_ICON, data: dotPng() },
@@ -126,7 +128,13 @@ export async function exportProjectKmz(store, { confirm = (m) => window.confirm(
   if (res?.ok) {
     const c = out.counts;
     const file = String(res.filePath || "").split(/[\\/]/).pop() || `${ctx.projectName}.kmz`;
-    const left = c.skipped.map((s) => (s.kind === "assays" ? tr("{n} assay element(s) the 3D View neither shows nor classes are left out.", { n: s.n }) : tr("The raster \"{name}\" has no image and is left out.", { name: s.name })));
+    // TASKS.csv #3087 part 2 — the models left out, and how many went in
+    const skipText = (s) => (s.kind === "assays" ? tr("{n} assay element(s) the 3D View neither shows nor classes are left out.", { n: s.n })
+      : s.kind === "model" ? tr("The model \"{name}\" has {n} triangles, more than a KMZ model can take, and is left out.", { name: s.name, n: s.n.toLocaleString() })
+        : s.kind === "model-place" ? tr("The model \"{name}\" could not be placed on the map and is left out.", { name: s.name })
+          : s.kind === "image" ? tr("The section image \"{name}\" has no picture and is left out.", { name: s.name })
+            : tr("The raster \"{name}\" has no image and is left out.", { name: s.name }));
+    const left = [...(c.models ? [c.models === 1 ? tr("1 3D model.") : tr("{n} 3D models.", { n: c.models.toLocaleString() })] : []), ...c.skipped.map(skipText)];
     const message = [tr("Saved {file} ({mb} MB): {h} drillholes, {l} layers, {r} rasters, {g} legends.", { file, mb: (kmz.length / 1048576).toFixed(1), h: c.holes.toLocaleString(), l: c.layers.toLocaleString(), r: c.rasters.toLocaleString(), g: c.legends.toLocaleString() }), ...left].join(" ");
     try { window.dispatchEvent(new CustomEvent(EXPORT_RESULT_EVENT, { detail: { ok: true, filePath: res.filePath || null, message } })); } catch { /* no window */ }
   } else if (res?.error) {

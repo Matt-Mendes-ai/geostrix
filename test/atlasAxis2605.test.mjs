@@ -20,7 +20,7 @@ test("one axis for all pages: the barren hole's bars are short against the rich 
   const own = barWidths(buildStripLogSvgMarkup({ holeId: "B", collars, layers: {}, assays, assaySymbols: ["Li2O"], elementUnits: eu }).svg);
   const svg = buildStripLogSvgMarkup({ holeId: "B", collars, layers: {}, assays, assaySymbols: ["Li2O"], elementUnits: eu, assayRanges: { Li2O: range } }).svg;
   const w = barWidths(svg);
-  assert.equal(Math.max(...own), 80, "on its own axis the barren hole's top bar is full width");
+  assert.ok(Math.max(...own) > 60, "on its own axis the barren hole's top bar fills most of the track"); // #3024: its own range spans under two decades: linear from 0 (was full width on log)
   assert.ok(Math.max(...w) < 10, String(w));
   assert.match(svg, /all pages/);
 });

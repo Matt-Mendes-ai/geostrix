@@ -11,7 +11,8 @@ test("the Maps map takes dropped files and hands the rasters to the raster impor
   assert.equal((m.match(/\{\.\.\.mapDrop\}/g) || []).length, 2, "both the plan view and the empty card");
   assert.match(m, /setPane\("raster"\);\s*requestModuleAction\("import-raster-files", \{ files, others, notes \}\);/);
   const r = fs.readFileSync("src/modules/RasterModule.jsx", "utf8");
-  assert.match(r, /useModuleAction\(\["import-raster-files"\], \(_a, p\) => \{\s*\(p\?\.files \|\| \[\]\)\.forEach\(\(f\) => importRaster\(f\)\);/);
-  // the same extensions as the sidebar's own drop
-  assert.match(r, /\/\\.\(tiff\?\|gxf\|grd\)\$\/i\.test\(f\.name\)/);
+  assert.match(r, /useModuleAction\(\["import-raster-files"\], \(_a, p\) => \{\s*importRasterFiles\(p\?\.files \|\| \[\]/); // #2857 — with their side files
+  // the same pairing as the sidebar's own drop (#2857: lib/rasterSideFiles.js holds the extensions)
+  assert.match(r, /importRasterFiles\(Array\.from\(e\.dataTransfer\.files \|\| \[\]\)\)/);
+  assert.match(fs.readFileSync("src/lib/rasterSideFiles.js", "utf8"), /\/\\.\(tiff\?\|gxf\|grd\)\$\/i\.test\(f\.name\)/);
 });

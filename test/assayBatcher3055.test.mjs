@@ -74,5 +74,5 @@ test("wiring: buildAssaySpheres writes through the batcher and the cached ranges
   const v = fs.readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
   assert.match(v, /const ranges = Object\.fromEntries\(assayDisplayElements\.map\(\(sym\) => \[sym, assayRange\(assays, sym, assaySource, assayRowShown\)\]\)\);/);
   assert.match(v, /batcher\.add\(assayProto\(shape\), \{ color: assayColorFor\(v, idx, style\)/);
-  assert.match(v, /batcher\.finish\(g\);\r?\n\s*buildLayerBatches\(g\);/);
+  assert.match(v, /batcher\.finish\(into\);\r?\n\s*buildLayerBatches\(into\);/);
 });

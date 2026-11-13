@@ -24,13 +24,14 @@ export async function cellsFromColumnsSliced(cols, { slice = 40000, signal = nul
   return cells;
 }
 function fillCells(cells, cols, from, to) {
-  const { dx, dy, dz, x, y, z, value, nSamples, nHoles, support, supportIndex, nearestSampleM, kv, holeShare, beyond, nearUnsampled, fromLog } = cols; // beyond: #2417; nearUnsampled: #2596; fromLog: #2721 // kv: #709 kriging variance; holeShare: #1617
+  const { dx, dy, dz, x, y, z, value, nSamples, nHoles, support, supportIndex, nearestSampleM, kv, holeShare, beyond, nearUnsampled, fromLog, domainCode, domainNames } = cols; // domainCode / domainNames: #3014 // beyond: #2417; nearUnsampled: #2596; fromLog: #2721 // kv: #709 kriging variance; holeShare: #1617
   for (let i = from; i < to; i++) {
     const c = { x: x[i], y: y[i], z: z[i], dx, dy, dz, value: value[i], nSamples: nSamples[i], nHoles: nHoles[i] };
     if (kv && Number.isFinite(kv[i])) c.kv = kv[i];
     if (beyond && beyond[i]) c.beyond = beyond[i] === 1 ? "above" : "below"; // #2417 — above / below every sample informing it
     if (nearUnsampled && nearUnsampled[i]) c.nearUnsampled = true; // #2596 — its nearest drilled metre has no sample
     if (fromLog && fromLog[i] > 0) c.fromLog = fromLog[i]; // #2721 — the share of its value from a picked log's readings
+    if (domainCode) c.domain = domainCode[i] >= 0 ? domainNames[domainCode[i]] : null; // #3014 — a hard-boundary estimate: the domain the block took
     if (holeShare && Number.isFinite(holeShare[i])) c.holeShare = holeShare[i]; // #1617 — the dominant hole's share of the weight
     if (support && support[i] !== 255) { c.support = SUPPORT_BY_CODE[support[i]]; c.supportIndex = supportIndex[i]; c.nearestSampleM = nearestSampleM[i]; }
     cells[i] = c;
@@ -41,4 +42,4 @@ function fillCells(cells, cols, from, to) {
 export const checkColumns = (cols) => ({ n: cols.n, dx: cols.dx, dy: cols.dy, dz: cols.dz, x: cols.x, y: cols.y, z: cols.z, value: cols.value });
 
 // the buffers to transfer from the worker
-export const columnBuffers = (cols) => [cols.x, cols.y, cols.z, cols.value, cols.nSamples, cols.nHoles, cols.support, cols.supportIndex, cols.nearestSampleM, cols.kv, cols.holeShare, cols.beyond, cols.nearUnsampled, cols.fromLog].filter(Boolean).map((a) => a.buffer);
+export const columnBuffers = (cols) => [cols.x, cols.y, cols.z, cols.value, cols.nSamples, cols.nHoles, cols.support, cols.supportIndex, cols.nearestSampleM, cols.kv, cols.holeShare, cols.beyond, cols.nearUnsampled, cols.fromLog, cols.domainCode].filter(Boolean).map((a) => a.buffer);

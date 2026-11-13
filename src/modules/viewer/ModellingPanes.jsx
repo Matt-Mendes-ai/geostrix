@@ -14,7 +14,7 @@ import { withChangeLog } from "../../lib/explicitLog.js"; // TASKS.csv #878
 import { activateOnKey, iconAction } from "../../lib/a11y.js";
 import { colorForLithology, isCrossCuttingRole, roleForLithology, groupMemberRole, groupNameHint } from "../../lib/layers.js"; // group roles: #2052
 import { codedRuns, topsForCode, codeInfo, overburdenBases } from "../../lib/modellingCodes.js"; // TASKS.csv #871; #1684
-import { pileFromRuns, absentTops } from "../../lib/pileTops.js"; // TASKS.csv #2921
+import { pileFromRuns, absentTops, orderFromHoles, movesToOrder } from "../../lib/pileTops.js"; // TASKS.csv #2921; orderFromHoles / movesToOrder: #2926
 import { pBtn, smallSel } from "../../lib/sidebarStyles.js";
 import { sceneVertsToWorldFlat } from "../../lib/meshFlat.js";
 import { octreeCellM } from "../../lib/viewer/contactFit.js"; // TASKS.csv #1171
@@ -30,7 +30,7 @@ import { errorNotice } from "../../lib/notices.js";
 import { tx } from "../../lib/i18nRich.js";
 import { betaReferenceCounts } from "../../lib/coreOrientation.js"; // TASKS.csv #2055
 import { holeClusters, onlyTheseHoles } from "../../lib/holeClusters.js"; // TASKS.csv #2056
-import { groupOverlaps, groupOfCode, caseVariantGroups } from "../../lib/lithoGroups.js"; // TASKS.csv #1685; caseVariantGroups: #2386
+import { groupOverlaps, groupOfCode, caseVariantGroups, subdivisionGroups } from "../../lib/lithoGroups.js"; // TASKS.csv #1685; caseVariantGroups: #2386; subdivisionGroups: #2928
 import GradeTonnageLauncher from "../../components/GradeTonnageLauncher.jsx"; // TASKS.csv #1577
 import { useStore } from "../../lib/store.jsx";
 import { numericLayerFields } from "../../lib/evidenceSources.js"; // TASKS.csv #1574 — the numeric fields of a log (intensity 1-3)
@@ -119,6 +119,7 @@ export default function ModellingPanes(props) {
     numericBusy,
     numericCapValue,
     numericCellSize,
+    numericCellHeight, setNumericCellHeight, numericFlatReach, setNumericFlatReach, // TASKS.csv #3062
     numericCloseShell,
     numericCompositeLength,
     numericCutoff,
@@ -314,8 +315,11 @@ export default function ModellingPanes(props) {
     if (first) setAltSource({ layer: first, field: "", min: "" });
   }, [altEmpty, altSource.layer, storeLayers.vein, storeLayers.litho, storeLayers.weath, altCustomLayers]);
   // TASKS.csv #2050 — the Vein log too: a vein SET (stockwork) is modelled as an envelope of where it occurs, floored on its density
-  const altSourceRows = useMemo(() => (altSource.layer === "alt" ? storeLayers.alt || [] : altSource.layer === "vein" ? storeLayers.vein || [] : altSource.layer === "litho" ? storeLayers.litho || [] : altSource.layer === "weath" ? storeLayers.weath || [] /* #2529 */ : altCustomLayers.find((c) => `custom:${c.id}` === altSource.layer)?.rows || []), [altSource.layer, storeLayers.alt, storeLayers.vein, storeLayers.litho, storeLayers.weath, altCustomLayers]);
-  const altSourceCodes = useMemo(() => (altSource.layer === "alt" ? alt_units.filter((u) => !isNotLogged(u)) : [...new Set(altSourceRows.map((r) => String(r.value ?? "")).filter((v) => v && !isNotLogged(v)))].sort()), [altSource.layer, alt_units, altSourceRows]);
+  // TASKS.csv #2945 — the chosen custom layer's rows only: a model run adds a custom layer ('modelled unit'), which re-ran the two passes below
+  // over the 150,455-row log when the source was Lithology (about 60 ms of the stall when a GemPy result lands)
+  const altCustomRows = useMemo(() => (altSource.layer.startsWith("custom:") ? altCustomLayers.find((c) => `custom:${c.id}` === altSource.layer)?.rows || [] : null), [altSource.layer, altCustomLayers]);
+  const altSourceRows = useMemo(() => (altSource.layer === "alt" ? storeLayers.alt || [] : altSource.layer === "vein" ? storeLayers.vein || [] : altSource.layer === "litho" ? storeLayers.litho || [] : altSource.layer === "weath" ? storeLayers.weath || [] /* #2529 */ : altCustomRows || []), [altSource.layer, storeLayers.alt, storeLayers.vein, storeLayers.litho, storeLayers.weath, altCustomRows]);
+  const altSourceCodes = useMemo(() => { if (altSource.layer === "alt") return alt_units.filter((u) => !isNotLogged(u)); const vals = new Set(); for (const r of altSourceRows) vals.add(String(r.value ?? "")); return [...vals].filter((v) => v && !isNotLogged(v)).sort(); }, [altSource.layer, alt_units, altSourceRows]); // #2945: 'not logged' tested once per code, not per row
   // TASKS.csv #1421 (review #1352, Silvertip) — a code logged only as zero-length points (POT) cannot make a halo: it failed with
   // 'indicator never crosses 0.5'. The logged metres per code, so those are shown disabled and say why.
   const altLoggedM = useMemo(() => { const m = new Map(); for (const r of altSourceRows) { const k = String(r.value ?? ""), len = Number(r.to) - Number(r.from); if (k && len > 0) m.set(k, (m.get(k) || 0) + len); } return m; }, [altSourceRows]);
@@ -345,6 +349,21 @@ export default function ModellingPanes(props) {
     const absent = pile.kOf.has(unit) ? absentTops(runs, unit, pile).tops : [];
     return { tops: tops.map((r) => ({ hole_id: r.hole_id, md: r.from, above: r.above?.code ?? null, below: r.code })), skipped, holes, absent, pile };
   }, [areaRuns, areaPile, modellingCodes, lithoGroups]); // mcodeDefaultRole is rebuilt every render from lithoGroups
+  // TASKS.csv #2926 (review #2876, WA iron) — the stack's order against the holes, as the units are added (the run's own check, #2382, came
+  // after Run and said 'Reorder the units with the arrows'): each unit's logged values, as runStackModel reads them. Only while the pane is open.
+  const stackHoles = useMemo(() => {
+    if (toolPane !== "stack" || stackUnits.length < 2) return null;
+    const mcodeVals = (name) => { const v = new Set(); for (const r of areaRuns()) if (r.code === name) for (const row of r.rows) v.add(row.value); return [...v]; };
+    const codesOf = (u) => (isLithoGroupKey(u) ? resolveLithoTarget(u)?.codes || [] : isMcodeKey(u) ? mcodeVals(u.slice(6)) : [u]);
+    const r = orderFromHoles(layers.litho || [], stackUnits, codesOf);
+    return r.conflicts.length ? r : null;
+  }, [toolPane, stackUnits, layers.litho, areaRuns, lithoGroups]); // resolveLithoTarget is rebuilt every render from lithoGroups
+  // the 'Add a unit' list in the order the holes give (youngest first), not by interval count
+  const unitRank = useMemo(() => {
+    if (toolPane !== "stack") return null;
+    const r = orderFromHoles(layers.litho || [], litho_units);
+    return new Map(r.order.map((u, i) => [u, i]));
+  }, [toolPane, layers.litho, litho_units]);
   // TASKS.csv #2056 (review #2013, Woodjam) — the logged holes the model area feeds, and their clusters in plan (a gap over 5 x the hole spacing)
   const loggedInArea = useMemo(() => { const logged = new Set((layers.litho || []).map((r) => r.hole_id)); return (collars || []).filter((c) => (!logged.size || logged.has(c.hole_id)) && (modelArea !== "checked" || visibleHoles?.[c.hole_id] !== false)); }, [layers.litho, collars, modelArea, visibleHoles]);
   const areaClusters = useMemo(() => holeClusters(loggedInArea), [loggedInArea]);
@@ -390,7 +409,7 @@ export default function ModellingPanes(props) {
         {areaClusters && areaClusters.clusters.length > 1 && (<div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginTop: 6, lineHeight: 1.4 }}>{/* #2056 */}
           {tr("The {n} logged holes in the model area lie in {k} clusters more than {g} m apart: one model spans the gaps between them, and its box, cells and unit volumes cover them. Model one cluster at a time:", { n: loggedInArea.length, k: areaClusters.clusters.length, g: Math.round(areaClusters.gapM).toLocaleString() })}
           <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 4 }}>{areaClusters.clusters.slice(0, 6).map((c) => (
-            <button key={c.ids[0]} type="button" title={c.ids.join(", ")} onClick={() => { setVisibleHoles(onlyTheseHoles(collars, c.ids)); setModelArea("checked"); }} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "2px 7px" }}>{tr(c.n === 1 ? "Only {first} (1 hole)" : "Only {first}… ({n} holes)", { first: c.ids[0], n: c.n })}</button>))}</div>
+            <button key={c.ids[0]} type="button" title={c.ids.join(", ")} onClick={() => { setVisibleHoles(onlyTheseHoles(collars, c.ids)); setModelArea("checked"); }} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "2px 7px" }}>{tr(c.n === 1 ? "Around E {e}, N {nn} ({first})" : "Around E {e}, N {nn}: {n} holes over {s} km", { first: c.ids[0], n: c.n, e: Math.round(c.cx / 100) * 100, nn: Math.round(c.cy / 100) * 100, s: Math.max(0.1, c.spanM / 1000).toFixed(1) }) /* #2928 (3): a place, not one hole id */}</button>))}</div>
         </div>)}
         {/* TASKS.csv #2378 (review #2325, WA uranium) — rock code and stratigraphic unit logged on the same intervals: which one the tools model */}
         {(unitFields || []).length > 0 && setUnitField && (
@@ -637,6 +656,17 @@ export default function ModellingPanes(props) {
             {sug.length > 8 && <span style={{ marginLeft: 6 }}>{tr("({n} more not listed)", { n: sug.length - 8 })}</span>}
           </div>;
         })()}
+        {(() => { // TASKS.csv #2928 (2) — sub-divided codes of one unit (DID_U / DID_M / DID_L beside DID): offered as one group each, one click
+          const sug = subdivisionGroups(layers.litho || [], lithoGroups);
+          if (!sug.length) return null;
+          const add = (s) => addLithoGroup({ name: s.name, codes: s.codes });
+          return <div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", marginBottom: 8, lineHeight: 1.45, padding: "6px 8px", border: "1px solid var(--color-border)", borderRadius: 6 }}>
+            <div style={{ fontWeight: 600, marginBottom: 4 }}>{tr(sug.length === 1 ? "One unit is logged in sub-divided parts (a part suffix such as _U, _M, _L):" : "{n} units are logged in sub-divided parts (a part suffix such as _U, _M, _L):", { n: sug.length })}</div>
+            {sug.slice(0, 8).map((s) => <div key={s.name} style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}><span style={{ flex: 1, minWidth: 0 }}>{tr("{codes} = {n} intervals", { codes: s.codes.map((c) => `${c} (${s.counts[c].toLocaleString()})`).join(" + "), n: s.total.toLocaleString() })}</span>
+              <button type="button" onClick={() => add(s)} title={tr("Model the parts as one unit, \"{name}\". Leave them apart when the parts are units of their own.", { name: s.name })} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "2px 7px" }}>{tr("Group as {name}", { name: s.name })}</button></div>)}
+            {sug.length > 8 && <span>{tr("({n} more not listed)", { n: sug.length - 8 })}</span>}
+          </div>;
+        })()}
         {groupOverlaps(lithoGroups).map((o) => ( // TASKS.csv #1685 — a saved project with a code in two groups: the tools would disagree
           <div key={o.code} style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 6, lineHeight: 1.4 }}>{tr("{code} is in {n} groups ({groups}): the tools would read different memberships. Click it in the group it belongs to, and it leaves the others.", { code: o.code, n: o.groups.length, groups: o.groups.join(", ") })}</div>
         ))}
@@ -819,7 +849,7 @@ export default function ModellingPanes(props) {
                 so they're unselectable rather than trusting the user to read the warning first. */}
             {/* TASKS.csv #1541 — a code whose group is already in the stack, or a group with a member already in it, is not offered: the
                 same unit twice ('Intermediate volcanics' after two of its members) */}
-            {litho_units.filter((u) => !mcodeRole.has(u) && !stackUnits.includes(u) && !isCrossCuttingRole(rawRole(u)) && rawRole(u) !== "no recovery" && !lithoGroups.some((g) => stackUnits.includes(lithoGroupKey(g)) && (g.codes || []).includes(u))).map((u) => { // no recovery: #1369; #2532: the role set in Modelling codes, the code offered there once
+            {(unitRank ? [...litho_units].sort((a, b) => (unitRank.get(a) ?? 1e9) - (unitRank.get(b) ?? 1e9)) : litho_units).filter((u) => !mcodeRole.has(u) && !stackUnits.includes(u) && !isCrossCuttingRole(rawRole(u)) && rawRole(u) !== "no recovery" && !lithoGroups.some((g) => stackUnits.includes(lithoGroupKey(g)) && (g.codes || []).includes(u))).map((u) => { // no recovery: #1369; #2532: the role set in Modelling codes, the code offered there once
               const role = rawRole(u);
               return <option key={u} value={u}>{u}{role === "overburden" ? tr(" (overburden)") : ""}</option>;
             })}
@@ -843,6 +873,13 @@ export default function ModellingPanes(props) {
         </div>
         {stackUnits.length === 0 && (
           <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("No units added yet.")}</div>
+        )}
+        {stackHoles && ( // TASKS.csv #2926 — checked as the units are added; the holes' order one click away
+          <div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 8, lineHeight: 1.4 }}>
+            {tr("The holes give the order {order} (youngest first): {list}.", { order: stackHoles.order.map((u) => (isLithoGroupKey(u) ? resolveLithoTarget(u)?.name || u : isMcodeKey(u) ? u.slice(6) : u)).join(", "),
+              list: stackHoles.conflicts.slice(0, 3).map((q) => tr("{older} is logged above {younger} in {against} of {of} holes that have both", { older: stackUnits[q.older].replace(/^mcode:/, ""), younger: stackUnits[q.younger].replace(/^mcode:/, ""), against: q.against, of: q.of })).join("; ") })}{" "}
+            <button type="button" onClick={() => movesToOrder(stackUnits, stackHoles.order).forEach(([u, d]) => moveStackUnit(u, d))} style={{ ...pBtn, width: "auto", display: "inline-flex", marginBottom: 0, padding: "2px 7px" }}>{tr("Use the order from the holes")}</button>
+          </div>
         )}
         {stackUnits.map((u, i) => {
           // TASKS.csv #176 — a `group:` entry shows the group's name and gets a badge only when every
@@ -1155,7 +1192,7 @@ export default function ModellingPanes(props) {
                 </div>) : null; })()}
               {numSrc && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>{numSrc.logScale ? tr("{label}: {n} readings, values as logged. Interpolated as log10 values (a geometric mean between readings); the cutoff is in the same units as the readings.", { label: numSrc.label, n: numSrc.n.toLocaleString() }) : tr("{label}: {n} readings, values as logged; the cutoff is in the same units.", { label: numSrc.label, n: numSrc.n.toLocaleString() })}</div>}{/* #1741 */}
               <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
-                <label style={{ ...miniField }} title={tr("Interpolation grid cell size (cubic). Smaller = smoother shell but more cells, within the block budget below.")}>{tr("Cell (m)")}<input type="number" min="0.5" step="any" value={numericCellSize} onChange={(e) => { setNumericCellSize(Math.max(0.5, Number(e.target.value) || 10)); setNumericBudgetHint(null); }} style={{ ...smallSel, width: "100%" }} />
+                <label style={{ ...miniField }} title={tr("Interpolation grid cell size (cubic). Smaller = smoother shell but more cells, within the block budget below.")}>{numericCellHeight > 0 && !trendFor("gradeShell") ? tr("Cell E × N (m)") : tr("Cell (m)")}<input type="number" min="0.5" step="any" value={numericCellSize} onChange={(e) => { setNumericCellSize(Math.max(0.5, Number(e.target.value) || 10)); setNumericBudgetHint(null); }} style={{ ...smallSel, width: "100%" }} />
                 </label>
                 {/* TASKS.csv #292 — "0 = unlimited" actively invited the pathological setting: an
                     unbounded search made every sample a candidate for every cell (measured: 81 s of
@@ -1167,6 +1204,19 @@ export default function ModellingPanes(props) {
                 <label style={{ ...miniField }} title={tr("Extends the grid past the outermost sample so the shell can close beyond the last hole")}>{tr("Pad (m)")}<input type="number" min="0" step="any" value={numericPadding} onChange={(e) => setNumericPadding(Math.max(0, Number(e.target.value) || 0))} style={{ ...smallSel, width: "100%" }} />
                 </label>
               </div>
+              {(() => { /* TASKS.csv #3062 — a flat, thin body (a seam, a palaeochannel, a laterite): the cell height on its own and a flat search, as Estimation's (#2418); a structural trend shapes both instead */
+                const gt = trendFor("gradeShell"), reach = Number(numericFlatReach), flat = !gt && reach > 0 && numericSearchRadius > 0 && reach < numericSearchRadius;
+                return <>
+                  <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+                    <label style={{ ...miniField }} title={gt ? tr("Under the trend \"{name}\" the cell is a cube in its frame (see below); clear the trend to set a cell height.", { name: gt.name }) : tr("The block height on its own, for a flat, thin body: a seam, a palaeochannel, a laterite. Blank = the same as the cell size (cubic).")}>{tr("Cell height (m)")}<input type="number" min="0.25" step="any" value={gt ? "" : numericCellHeight} disabled={!!gt} placeholder={gt ? tr("trend") : tr("cubic")} onChange={(e) => { const v = Number(e.target.value); setNumericCellHeight(e.target.value === "" || !(v > 0) ? "" : Math.max(0.25, v)); setNumericBudgetHint(null); }} style={{ ...smallSel, width: "100%" }} aria-label={tr("Cell height (m)")} />
+                    </label>
+                    <label style={{ ...miniField }} title={gt ? tr("The structural trend \"{name}\" shapes the search; clear it in 3D Modelling → Model settings to type a flat search here.", { name: gt.name }) : tr("Flatten the search: the reach up and down from a block, with the search radius across. Blank = a sphere of the search radius.")}>{tr("Vertical reach (m)")}<input type="number" min="0" step="any" value={gt ? "" : numericFlatReach} disabled={!!gt} placeholder={gt ? tr("trend") : tr("sphere")} onChange={(e) => { const v = Number(e.target.value); setNumericFlatReach(e.target.value === "" || !(v > 0) ? "" : v); setNumericBudgetHint(null); }} style={{ ...smallSel, width: "100%" }} aria-label={tr("Vertical reach (m)")} />
+                    </label>
+                  </div>
+                  {!gt && reach > 0 && !flat && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 6 }}>{numericSearchRadius > 0 ? tr("Less than the search radius, or it is a sphere.") : tr("A flat search needs a search radius.")}</div>}
+                  {flat && <div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>{tr("A flat search: {r} m across and {v} m up and down from each cell.", { r: numericSearchRadius, v: reach })}</div>}
+                </>;
+              })()}
               {(() => { /* TASKS.csv #2676 / #2551 — the trend chosen for grade shells reshapes this search: say so, as Estimation does */
                 const gt = trendFor("gradeShell"); if (!gt) return null;
                 const [, v, v2] = searchEllipsoidAxes(gt, numericSearchRadius > 0 ? numericSearchRadius : 100);

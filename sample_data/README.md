@@ -30,14 +30,17 @@ All column headers match the aliases GeoStrix's import mapper already looks for,
 should auto-map on import without needing to hand-pick columns — but the mapping dialog will still
 show up in case you want to double check.
 
-## `harry_property/` — real drillhole data (37 holes)
+## The BC samples (Harry, Perk-Rocky, Silvertip, Woodjam) are not here
 
-A second, more realistic dataset: 37 real holes from the **Harry property** (Golden Triangle, BC),
-extracted from BC's public ARIS assessment-report drillhole database — real collars, real logged
-lithology, real multi-element assays, with only the layer types that database doesn't contain
-(alteration, veins, geotech, mineralization points, mag susc, structure) synthesized around the
-real anomalous intervals. See `harry_property/README.md` for exactly what's real vs. synthesized
-and why. Same import order pattern, minus `survey.csv` (not present for this property — the app's
-straight-hole fallback handles it from collar azimuth/dip). It also includes two synthetic
-Geophysics-module test files (`geophys_mag_survey.csv`, `geophys_resistivity.tif`) sized to this
-property's real footprint — see that folder's README for details.
+GeoStrix's samples from BC's public assessment reports are no longer in this repository or the installer: BC's
+copyright terms do not let GeoStrix redistribute assessment-report data. Harry (report 37584), Perk-Rocky (42317) and
+Silvertip (42807) are downloaded from the Province's public servers the first time they are opened in the app, after it
+says where from and how big, and are converted on the computer with the same code that built them
+(`electron/sampleSources.js`). Woodjam (41597) is not offered: its data package is 1.94 GB. `perk_rocky/` keeps only
+its Copernicus terrain, which GeoStrix may share.
+
+## `synthetic_geophysics/` — simulated geophysics
+
+Two simulated Geophysics test files (`geophys_mag_survey.csv`, `geophys_resistivity.tif`) laid over the Harry
+property's footprint (EPSG:3156). They used to sit in `harry_property/`; they are GeoStrix's own and stay. See that
+folder's README.

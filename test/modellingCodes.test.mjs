@@ -3,6 +3,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { rowKey, effectiveCode, codedRuns, topsForCode, autoNumber, connectIntervals, codesInUse, withPileOrder, EMPTY_MODELLING_CODES } from "../src/lib/modellingCodes.js";
+import { bcSkip, bcText } from "./helpers/bcSample.mjs"; // TASKS.csv #3134 — the BC samples are not in the repository: real-data checks run where one is found
 
 const r = (hole_id, from, to, value) => ({ hole_id, from, to, value });
 // one hole: casing, then dacite / andesite alternating three times, an intrusion, more dacite
@@ -57,8 +58,8 @@ test("#599 auto-number alternations per hole, then connect a flow across holes (
   assert.deepEqual(inUse.slice(0, 2), ["AND1", "DAC2"]); // placed codes first, in pile order
 });
 
-test("#599 on the real Harry log: DACT tops under casing / intrusions / hole starts are no longer contacts", () => {
-  const lines = readFileSync(new URL("../sample_data/harry_property/litho.csv", import.meta.url), "utf8").trim().split(/\r?\n/).slice(1);
+test("#599 on the real Harry log: DACT tops under casing / intrusions / hole starts are no longer contacts", { skip: bcSkip("harry_property") }, () => {
+  const lines = bcText("harry_property", "litho.csv").trim().split(/\r?\n/).slice(1);
   const rows = lines.map((l) => { const [hole_id, from, to, value] = l.split(","); return { hole_id, from: Number(from), to: Number(to), value }; });
   const roles = (n) => ({ CAS: "overburden", OVB: "overburden", MINT: "intrusion", FINT: "intrusion" }[n] || "stratigraphic");
   const mc = { ...EMPTY_MODELLING_CODES, codes: Object.entries({ CAS: "overburden", OVB: "overburden", MINT: "intrusion", FINT: "intrusion" }).map(([name, role]) => ({ name, role })) };

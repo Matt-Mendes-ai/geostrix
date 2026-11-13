@@ -8,6 +8,7 @@ import { splitSelfCrossing, splitRings, ringCrossesItself } from "../src/lib/rin
 import { polygonsFromRings } from "../src/lib/polygonRings.js";
 import { buildProjectKml } from "../src/lib/projectKmz.js";
 import { featuresToKml, mapLayerFeatures, lonLatTransform } from "../src/lib/overlayExport.js";
+import { bcSkip, perkFile } from "./helpers/bcSample.mjs"; // TASKS.csv #3134 — the BC samples are not in the repository: real-data checks run where one is found
 
 const square = (x0, y0, s) => [[x0, y0], [x0 + s, y0], [x0 + s, y0 + s], [x0, y0 + s]];
 const eight = (x0, y0, s) => [[x0, y0], [x0 + s, y0 + s], [x0 + s, y0], [x0, y0 + s]]; // a bow tie: its two diagonals cross at the centre
@@ -35,11 +36,10 @@ test("a crossing hole becomes two holes of its polygon; a crossing outer ring tw
   assert.equal(outers.length, 2);
 });
 
-test("Perk-Rocky's PR-Litho_interpV3, as both KML writers write it: no ring crosses itself in longitude / latitude", async () => {
+test("Perk-Rocky's PR-Litho_interpV3, as both KML writers write it: no ring crosses itself in longitude / latitude", { skip: bcSkip("perk_rocky") }, async () => { // #3134: where the report's layers are found
   const { loadPerkRocky } = await import("../src/lib/samplePerkRocky.js");
-  const dir = new URL("../sample_data/perk_rocky/", import.meta.url);
   const layers = [];
-  await loadPerkRocky(async (n) => new File([readFileSync(new URL(n, dir))], n), { addMapLayer: (l) => layers.push(l), addSurfaceStructureSet: () => {}, addTerrain: () => {} });
+  await loadPerkRocky(async (n) => new File([perkFile(n)], n), { addMapLayer: (l) => layers.push(l), addSurfaceStructureSet: () => {}, addTerrain: () => {} });
   const L = layers.find((l) => l.name === "PR-Litho_interpV3");
   const toLonLat = await lonLatTransform(26910);
   const rings = (kml) => [...kml.matchAll(/<LinearRing><coordinates>([^<]*)<\/coordinates>/g)].map((m) => m[1].trim().split(/\s+/).map((t) => t.split(",").map(Number)));
@@ -48,6 +48,12 @@ test("Perk-Rocky's PR-Litho_interpV3, as both KML writers write it: no ring cros
   assert.ok(pr.length > 100);
   assert.deepEqual(pr.filter(ringCrossesItself).length, 0, "project KMZ");
   assert.ok(counts.ringsSplit >= 1, "And's hole was split");
+  // #3161 — a feature of several polygons (And: 3 parts) is one MultiGeometry; bare <Polygon>s side by side were drawn first-only
+  for (const m of kml.matchAll(/<Placemark>([\s\S]*?)<\/Placemark>/g)) {
+    if ((m[1].match(/<Polygon>/g) || []).length > 1) assert.ok(m[1].includes("<MultiGeometry>"), "several polygons in one Placemark need a MultiGeometry");
+  }
+  const andPm = [...kml.matchAll(/<Placemark><name>And<\/name>([\s\S]*?)<\/Placemark>/g)].map((m) => m[1]);
+  assert.ok(andPm.some((b) => (b.match(/<Polygon>/g) || []).length >= 3 && b.includes("<MultiGeometry>")), "And's three parts in one MultiGeometry");
   const one = featuresToKml(mapLayerFeatures(L), { toLonLat });
   assert.equal(rings(one).filter(ringCrossesItself).length, 0, "the per-layer KML");
 });

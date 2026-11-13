@@ -30,7 +30,7 @@ test("#1485 the section window answers a re-snapshot request, Layout replaces th
 
 test("#1485 a re-snapshot keeps the element's plot scale and asks again (at most 3 rounds) while the text is off 7 pt", () => {
   const l = readFileSync(new URL("../src/modules/LayoutModule.jsx", import.meta.url), "utf8");
-  assert.ok(l.includes("const w = denom && world ? Math.round(sectionWidthForScale({ worldWidthAtCaptureM: world }, denom)) : el.w;"));
+  assert.ok(l.includes("const w = denom && world ? sectionWidthForScale({ worldWidthAtCaptureM: world }, denom) : el.w;")); // #3022: not rounded, so a picked 1 : 5,000 stays 5,000
   assert.ok(l.includes("Math.abs(pt - 7) > 0.7 && round < 3 && upd.sectionTabId"));
   const s = readFileSync(new URL("../src/components/SectionWindow.jsx", import.meta.url), "utf8");
   assert.ok(s.includes("resnapRound: round") && s.includes("round: m.round || 0"));

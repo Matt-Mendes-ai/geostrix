@@ -48,12 +48,17 @@ export function unitFromHeader(h) {
 // TASKS.csv #2885 — a cell as a number, as Number(String(v).replace(",", ".")) gave it (blank / null -> 0) but without a new string per cell:
 // a string is read with + first and the comma decimal is tried only when that fails. The WA iron log (2.58 M rows x 5 numeric cells) spent
 // most of its binning here.
-function toNum(v) {
+export function toNum(v) { // exported for logOnRead.js (#3038)
   if (typeof v === "number") return v;
   if (typeof v === "string") { const x = +v; return x === x ? x : Number(v.replace(",", ".")); }
   return Number(String(v ?? "").replace(",", "."));
 }
-const isNum = (v) => v != null && v !== "" && Number.isFinite(toNum(v));
+export const isNum = (v) => v != null && v !== "" && Number.isFinite(toNum(v));
+// TASKS.csv #3038 — a downhole log read as typed columns while the file was read (lib/logOnRead.js): { n, holes, holeIdx (Int32Array, -1 =
+// no hole), depth (Float64Array, NaN = none), channels: { col: Float64Array (NaN = not a number) }, mapping }. The functions below take it
+// wherever they take the rows, and give the same answers.
+export const isLogTable = (src) => !!src && src.holeIdx instanceof Int32Array;
+export const logReadings = (src) => (isLogTable(src) ? src.n : (src || []).length);
 // the columns of a point-depth table that hold numeric readings (the hole and depth columns left out): [{ col, unit, named }] —
 // named: the header names a known log channel (pre-ticked); other numeric columns are offered unticked
 export function logChannelColumns(headers, rows, mapping = {}, sample = 200) {
@@ -82,9 +87,11 @@ export function looksLikeLogTable(headers, rows = null) {
   return named.length >= 2 || named.some(isLogOnly);
 }
 // #2329 — a reading's depth: the depth column, else the middle of its From / To
+// TASKS.csv #3038 — a blank depth is no depth: toNum reads a blank as 0, which put such a reading at 0 m and binned it there
+const depthNum = (v) => (isNum(v) ? toNum(v) : NaN);
 export function readingDepth(r, mapping) {
-  if (mapping?.depth) return toNum(r?.[mapping.depth]);
-  if (mapping?.from && mapping?.to) { const f = toNum(r?.[mapping.from]), t = toNum(r?.[mapping.to]); return Number.isFinite(f) && Number.isFinite(t) ? (f + t) / 2 : NaN; }
+  if (mapping?.depth) return depthNum(r?.[mapping.depth]);
+  if (mapping?.from && mapping?.to) { const f = depthNum(r?.[mapping.from]), t = depthNum(r?.[mapping.to]); return Number.isFinite(f) && Number.isFinite(t) ? (f + t) / 2 : NaN; }
   return NaN;
 }
 
@@ -104,8 +111,17 @@ const NON_NEGATIVE_NAME = /densit|\bdens\b|\bsg\b|gamma|\bgrs?\b|\bngam|calip|\b
 const LOW_FENCE_IQR = 50, FENCE_MIN_VALUES = 20;
 const REPEAT_RUN = 8; // #3042 — readings in a row with one value at an extreme (0.8 m of a 0.1 m log)
 export function channelNoData(rows, col, unit = "") {
+  // #3038 — on a log table, its channel's typed values; on rows, the same sequence (NaN where a row has no number), so both agree
+  if (isLogTable(rows)) return rows.channels[col] ? channelNoDataSeq(rows.channels[col], col, unit) : null;
+  const seq = new Float64Array((rows || []).length);
+  let i = 0;
+  for (const r of rows || []) { const v = r?.[col]; seq[i++] = isNum(v) ? toNum(v) : NaN; }
+  return channelNoDataSeq(seq, col, unit);
+}
+// seq: the channel's readings in file order, NaN where a reading has no number
+export function channelNoDataSeq(seq, col, unit = "") {
   const vals = [];
-  for (const r of rows || []) { const v = r?.[col]; if (isNum(v)) vals.push(toNum(v)); }
+  for (let i = 0; i < seq.length; i++) { const v = seq[i]; if (v === v) vals.push(v); }
   if (!vals.length) return null;
   // #2890 — the quartiles of the readings that are not null sentinels, from at most 20,000 of them spread through the file
   let lowFence = -Infinity, lowTail = -Infinity, highTail = Infinity;
@@ -132,8 +148,8 @@ export function channelNoData(rows, col, unit = "") {
   if (Number.isFinite(lowTail) || Number.isFinite(highTail)) {
     let prev = null, run = 0;
     const flush = () => { if (run >= REPEAT_RUN && prev !== 0 && (prev <= lowTail || prev >= highTail) && !codes.has(prev)) codes.set(prev, vals.filter((x) => x === prev).length); };
-    for (const r of rows || []) {
-      const raw = r?.[col], v = isNum(raw) ? toNum(raw) : null;
+    for (let i = 0; i < seq.length; i++) {
+      const raw = seq[i], v = raw === raw ? raw : null;
       if (v !== null && v === prev) { run++; continue; }
       flush(); prev = v; run = v === null ? 0 : 1;
     }
@@ -165,16 +181,24 @@ export const LOG_BINS = [0.5, 1, 2, 5];
 const estCache = new WeakMap();
 export function logBinEstimate(rows, mapping, bins = LOG_BINS) {
   const key = [mapping?.hole_id, mapping?.depth, mapping?.from, mapping?.to, ...bins].join("\u0001");
-  const cached = Array.isArray(rows) ? estCache.get(rows) : null;
+  const keyed = Array.isArray(rows) || isLogTable(rows), cached = keyed ? estCache.get(rows) : null; // #3038: a log table too
   if (cached?.key === key) return cached.est;
   const est = binEstimate(rows, mapping, bins);
-  if (Array.isArray(rows)) estCache.set(rows, { key, est });
+  if (keyed) estCache.set(rows, { key, est });
   return est;
 }
 function binEstimate(rows, mapping, bins) {
   const span = new Map();
   let readings = 0;
-  for (const r of rows || []) {
+  if (isLogTable(rows)) { // #3038 — the hole and depth columns as read
+    for (let i = 0; i < rows.n; i++) {
+      const h = rows.holeIdx[i], d = rows.depth[i];
+      if (h < 0 || !(d === d)) continue;
+      readings++;
+      const s = span.get(h);
+      if (!s) span.set(h, [d, d]); else { if (d < s[0]) s[0] = d; if (d > s[1]) s[1] = d; }
+    }
+  } else for (const r of rows || []) {
     const hole = r?.[mapping?.hole_id];
     if (hole == null || hole === "") continue;
     const d = readingDepth(r, mapping);
@@ -198,34 +222,84 @@ export function fittingLogBin(est, channels) {
 // one channel's layer rows. binM null: a row per reading { hole_id, depth, value }; binM > 0: per hole, per bin [k*binM, (k+1)*binM):
 // { hole_id, from, to, value (mean), min, max, n }. Readings with no number are left out (counted in skipped).
 // drop (#2332): a Set of values left out as no-data codes (counted in dropped)
-export function logChannelRows(rows, mapping, col, binM = null, drop = null) {
-  const pts = [], binned = binM > 0;
+// range (TASKS.csv #3041): { min, max } the user typed for the channel (either may be missing); a reading outside it is left out (counted in
+// outside), for the ranges a no-data check cannot know (a density over 5 g/cc, a gamma of 80,000)
+export function logRange(r) {
+  const lo = r?.min === "" || r?.min == null ? NaN : Number(r.min), hi = r?.max === "" || r?.max == null ? NaN : Number(r.max);
+  return Number.isFinite(lo) || Number.isFinite(hi) ? { min: Number.isFinite(lo) ? lo : -Infinity, max: Number.isFinite(hi) ? hi : Infinity } : null;
+}
+// TASKS.csv #3039 (from #2885) — the bin 'the assay intervals': each reading averaged over the assay sample it falls in, so a log can be set
+// beside the grades sample by sample. assays: the Geochem samples { hole_id, from, to }. -> Map(hole -> { from, to } sorted typed arrays, one
+// entry per interval), kept per assays array
+const ivCache = new WeakMap();
+export function assayIntervals(assays) {
+  if (!Array.isArray(assays) || !assays.length) return null;
+  const hit = ivCache.get(assays); if (hit) return hit;
+  const by = new Map();
+  for (const a of assays) {
+    const h = String(a?.hole_id ?? "").trim(), f = Number(a?.from), t = Number(a?.to);
+    if (!h || !Number.isFinite(f) || !Number.isFinite(t) || !(t > f)) continue;
+    (by.get(h) || by.set(h, new Map()).get(h)).set(`${f}|${t}`, [f, t]);
+  }
+  const out = new Map();
+  for (const [h, m] of by) { const l = [...m.values()].sort((p, q) => p[0] - q[0] || p[1] - q[1]); out.set(h, { from: Float64Array.from(l, (x) => x[0]), to: Float64Array.from(l, (x) => x[1]) }); }
+  ivCache.set(assays, out);
+  return out;
+}
+// the interval of a depth: the last one starting at or above it that reaches it (-1: in no sample)
+export function intervalOf(iv, d) {
+  if (!iv) return -1;
+  let lo = 0, hi = iv.from.length - 1, k = -1;
+  while (lo <= hi) { const m = (lo + hi) >> 1; if (iv.from[m] <= d) { k = m; lo = m + 1; } else hi = m - 1; }
+  // the last sample starting at or above d; if it ends above d, an earlier one may overlap and reach it (a few looked at)
+  for (let j = k; j >= 0 && j > k - 8; j--) if (d <= iv.to[j]) return j;
+  return -1;
+}
+// the holes of a log (rows or a log table)
+export function logHoles(src, mapping) {
+  if (isLogTable(src)) return new Set(src.holes);
+  const s = new Set(); for (const r of src || []) { const h = String(r?.[mapping?.hole_id] ?? "").trim(); if (h) s.add(h); } return s;
+}
+// how many assay intervals the log's holes have (the rows a channel can have at most with that bin)
+export function assayBinRows(intervals, holes) { let n = 0; if (intervals) for (const h of holes || []) n += intervals.get(h)?.from.length || 0; return n; }
+// the readings a range leaves out, in words (project text, English): 'outside 1 to 5', 'over 5', 'under 1'
+export const rangeText = (rg) => (rg ? (rg.min > -Infinity && rg.max < Infinity ? `outside ${rg.min} to ${rg.max}` : rg.min > -Infinity ? `under ${rg.min}` : `over ${rg.max}`) : "");
+// binM "assay" (#3039): binned on `intervals` (assayIntervals); a reading in no sample interval is left out (counted in unsampled)
+export function logChannelRows(rows, mapping, col, binM = null, drop = null, range = null, intervals = null) {
+  const byAssay = binM === "assay" && !!intervals;
+  const pts = [], binned = binM > 0 || byAssay;
+  let unsampled = 0;
   // TASKS.csv #2885 — binned, the readings go straight into their bins (per hole, by bin number): no object per reading and no string key
   // per reading, which made most of the 23.8 s freeze on the 2.58 M-reading WA iron log
   const byHole = binned ? new Map() : null;
-  let skipped = 0, dropped = 0, readings = 0;
-  for (const r of rows || []) {
-    const hole = String(r?.[mapping.hole_id] ?? "").trim(), d = readingDepth(r, mapping), v = r?.[col]; // #2329 — or the From / To middle
-    if (!hole || !Number.isFinite(d) || !isNum(v)) { skipped++; continue; }
-    const x = toNum(v);
+  let skipped = 0, dropped = 0, readings = 0, outside = 0;
+  const table = isLogTable(rows) ? rows : null, ch = table ? table.channels[col] : null; // #3038 — a log table: its typed columns
+  const n = table ? table.n : (rows || []).length;
+  for (let i = 0; i < n; i++) {
+    let hole, d, x;
+    if (table) { const hi = table.holeIdx[i]; hole = hi >= 0 ? table.holes[hi] : ""; d = table.depth[i]; x = ch ? ch[i] : NaN; if (!hole || !Number.isFinite(d) || !(x === x)) { skipped++; continue; } }
+    else { const r = rows[i]; hole = String(r?.[mapping.hole_id] ?? "").trim(); d = readingDepth(r, mapping); const v = r?.[col]; if (!hole || !Number.isFinite(d) || !isNum(v)) { skipped++; continue; } x = toNum(v); } // #2329 — or the From / To middle
     if (drop && drop.has(x)) { dropped++; continue; } // #2332
+    if (range && (x < range.min || x > range.max)) { outside++; continue; } // #3041
     if (!binned) { pts.push({ hole_id: hole, depth: d, value: x }); continue; }
+    const k = byAssay ? intervalOf(intervals.get(hole), d) : Math.floor(d / binM + 1e-9);
+    if (k < 0) { unsampled++; continue; } // #3039 — in no assay sample
     readings++;
-    const k = Math.floor(d / binM + 1e-9);
     let hm = byHole.get(hole);
     if (!hm) byHole.set(hole, (hm = new Map()));
     let b = hm.get(k);
     if (!b) hm.set(k, (b = { sum: 0, n: 0, min: Infinity, max: -Infinity }));
     b.sum += x; b.n++; if (x < b.min) b.min = x; if (x > b.max) b.max = x;
   }
-  if (!binned) return { rows: pts, skipped, dropped, binned: false };
+  if (!binned) return { rows: pts, skipped, dropped, outside, binned: false };
   const r4 = (v) => Math.round(v * 1e4) / 1e4;
   const out = [];
   for (const hole of [...byHole.keys()].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))) {
     const hm = byHole.get(hole);
-    for (const k of [...hm.keys()].sort((a, b) => a - b)) { const b = hm.get(k); out.push({ hole_id: hole, from: r4(k * binM), to: r4((k + 1) * binM), value: b.sum / b.n, min: b.min, max: b.max, n: b.n }); }
+    const iv = byAssay ? intervals.get(hole) : null;
+    for (const k of [...hm.keys()].sort((a, b) => a - b)) { const b = hm.get(k); out.push({ hole_id: hole, from: iv ? iv.from[k] : r4(k * binM), to: iv ? iv.to[k] : r4((k + 1) * binM), value: b.sum / b.n, min: b.min, max: b.max, n: b.n }); }
   }
-  return { rows: out, skipped, dropped, binned: true, readings };
+  return { rows: out, skipped, dropped, outside, binned: true, readings, ...(byAssay ? { unsampled } : {}) };
 }
 // the channels ticked when the dialog opens: the columns named as log channels (null: none named, the one-layer path as before)
 export function defaultLogChannels(channels) {

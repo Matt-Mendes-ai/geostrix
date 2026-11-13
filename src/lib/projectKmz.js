@@ -18,15 +18,27 @@ import { desurveyHole, pointOnTrace } from "./desurvey.js";
 import { LAYER_META, categoryColor, categoryLabel, colorForMedium } from "./layers.js";
 import { numericLayerColorFn, numericClips } from "./numericClip.js";
 import { customColour } from "./customColour.js";
-import { assayColorFor } from "./legendGroups.js";
+import { assayColorFor, voxelLegendGroups } from "./legendGroups.js";
 import { layerCategoryValue, STRUCTURE_CLASS_COLORS, STRUCTURE_CLASS_LABELS } from "./mapLayers.js";
 import { mapLayerFeatures, boundaryFeatures, surfaceStructureRows, kmlColor } from "./overlayExport.js";
 import { polygonsFromRings } from "./polygonRings.js";
+import { plannedTrace } from "./holePlanning.js"; // #3068 — planned holes as the 3D View draws them
+import { computeLine } from "./designLines.js"; // TASKS.csv #3087 — Mine Design's lines (start + segments -> vertices)
 import { splitRings } from "./ringSplit.js"; // TASKS.csv #3126 — a ring crossing itself as written, split into simple loops (Perk-Rocky's And unit)
+import { MODEL_MAX_TRIANGLES, buildModel, modelKml, surfaceMesh, terrainMesh, voxelMeshes, sectionImageMesh } from "./kmzModels.js"; // TASKS.csv #3087 part 2
 
 export const MAX_CLASSES = 16; // a numeric log with more colours than this is grouped into equal bins
 const BINS = 12;
 export const DOT_ICON = "files/dot.png", STRIKE_ICON = "files/strike.png";
+// TASKS.csv #3087 — the parts of a project the export dialog offers, in the KMZ's order (labels are English keys for tr())
+export const KMZ_PARTS = [
+  { key: "drillholes", label: "Drillholes: collars, traces, logs, assays and planned holes" },
+  { key: "surface", label: "Surface: samples, structures, map layers and boundaries" },
+  { key: "sections", label: "Sections" },
+  { key: "design", label: "Mine design: design lines and strings" },
+  { key: "models", label: "3D models: generated surfaces, block models and terrain" }, // #3087 part 2
+  { key: "rasters", label: "Rasters and grids" },
+];
 const esc = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const num = (v) => (typeof v === "number" ? v : v == null || v === "" ? NaN : Number(v));
 const fin = Number.isFinite;
@@ -121,22 +133,25 @@ class KmlWriter {
     const fixed = splitRings(ll);
     if (fixed.length !== ll.length) this.ringsSplit += fixed.length - ll.length;
     const ring = (r) => { const c = r[0][0] === r[r.length - 1][0] && r[0][1] === r[r.length - 1][1] ? r : [...r, r[0]]; this.coords += c.length; return `<LinearRing><coordinates>${c.map(([lon, lat]) => `${lon.toFixed(7)},${lat.toFixed(7)}`).join(" ")}</coordinates></LinearRing>`; };
-    return polygonsFromRings(fixed).map(([outer, ...holes]) => `<Polygon><tessellate>1</tessellate><altitudeMode>clampToGround</altitudeMode><outerBoundaryIs>${ring(outer)}</outerBoundaryIs>${holes.map((h) => `<innerBoundaryIs>${ring(h)}</innerBoundaryIs>`).join("")}</Polygon>`).join("");
+    // TASKS.csv #3161 — a feature of several polygons (And: 3 parts, or a ring split by #3126) was written as bare <Polygon>s side by side in
+    // one Placemark, which KML does not allow: Google Earth drew the first and dropped the rest. They go in a MultiGeometry, as featuresToKml does.
+    return this.multi(polygonsFromRings(fixed).map(([outer, ...holes]) => `<Polygon><tessellate>1</tessellate><altitudeMode>clampToGround</altitudeMode><outerBoundaryIs>${ring(outer)}</outerBoundaryIs>${holes.map((h) => `<innerBoundaryIs>${ring(h)}</innerBoundaryIs>`).join("")}</Polygon>`));
   }
   multi(geoms) { return geoms.length === 1 ? geoms[0] : `<MultiGeometry>${geoms.join("")}</MultiGeometry>`; }
 }
 
 // ctx: the store's collections and the 3D View's saved state:
 //   { projectName, collars, survey, desurveyMethod, layers, customLayers, assays, assayElements, surfaceSamples, surfaceStructures, mapLayers,
-//     boundaries, plannedHoles, sections, rasters, layerGroups, ui (store.viewerUiState), anomaly ({ classOf, classes } of the surface samples), epsg }
+//     boundaries, plannedHoles, sections, rasters, layerGroups, ui (store.viewerUiState), anomaly ({ classOf, classes } of the surface samples), epsg,
+//     designLines, designStrings (#3087), generatedSurfaces, voxelModels, terrain, sectionImages (#3087 part 2) }
 // opts: { toLonLat(x, y) -> [lon, lat], altOf(z) -> metres above sea level, legendPng(group) -> { bytes, width, height } | null,
-//         rasterImage(raster) -> { bytes, ext } | null, crsLabel }
-// -> { kml, files: [{ name, data }] (legend and raster images; the caller adds the icons), counts, legends }
+//         rasterImage(raster) -> { bytes, ext } | null, imageBytes(dataUrl) -> { bytes, ext } | null (a section image's picture), crsLabel }
+// -> { kml, files: [{ name, data, deflate? }] (legend and raster images, 3D models; the caller adds the icons), counts, legends }
 export function buildProjectKml(ctx, opts) {
   const w = new KmlWriter(opts);
   const ui = ctx.ui || {};
   const files = [];
-  const counts = { holes: 0, layers: 0, rasters: 0, legends: 0, skipped: [] };
+  const counts = { holes: 0, layers: 0, rasters: 0, legends: 0, models: 0, skipped: [] };
   const legendSlots = [];
   const legend = (group, visible) => {
     if (!opts.legendPng || !(group?.items?.length || group?.ramp?.colors?.length)) return; // swatches, or a value raster's colour ramp
@@ -153,7 +168,24 @@ export function buildProjectKml(ctx, opts) {
     w.push(`<ScreenOverlay><name>${esc(`Legend: ${group.label}`)}</name>${vis(visible)}<Icon><href>${name}</href></Icon><overlayXY x="0" y="1" xunits="fraction" yunits="fraction"/><screenXY x="${x}" y="${y}" xunits="pixels" yunits="insetPixels"/><size x="${img.width}" y="${img.height}" xunits="pixels" yunits="pixels"/></ScreenOverlay>`);
   };
 
+  // TASKS.csv #3087 part 2 — a 3D model: its .dae in models/ (beside any picture it uses), placed by a <Model> at its own origin. One with more
+  // triangles than MODEL_MAX_TRIANGLES, or a vertex that does not transform, is left out and said so (counts.skipped).
+  const enc = new TextEncoder();
+  const writeModel = (name, parts, { visible = true, data = null, extra = [] } = {}) => {
+    const tri = parts.reduce((n, p) => n + (p ? p.indices.length / 3 : 0), 0);
+    if (tri > MODEL_MAX_TRIANGLES) { counts.skipped.push({ kind: "model", name, n: tri }); return false; }
+    const m = buildModel(name, parts, opts.toLonLat, opts.altOf || ((z) => z));
+    if (!m) { counts.skipped.push({ kind: "model-place", name }); return false; }
+    const href = `models/model_${counts.models}.dae`;
+    files.push({ name: href, data: enc.encode(m.dae), deflate: true }, ...extra);
+    counts.models++;
+    w.placemark(name, w.style({ color: "#ffffff", width: 1 }), modelKml(m.origin, href), { visible, data: { triangles: m.triangles, ...(data || {}) } });
+    return true;
+  };
+
   // ---------- drillholes ----------
+  // TASKS.csv #3087 — the parts the export dialog ticked (opts.include, a Set of KMZ_PARTS keys); all of them when not given
+  const inc = (k) => !opts.include || opts.include.has(k);
   const surveyBy = byHole(ctx.survey);
   const traces = new Map();
   for (const c of ctx.collars || []) {
@@ -245,6 +277,7 @@ export function buildProjectKml(ctx, opts) {
     writeLog(meta.label, rows, (r) => String(r.value ?? ""), { classOf: (v) => v, classes }, { visible: !!layerVisible[key], hiddenClasses: hiddenIn(key) });
   };
 
+  if (inc("drillholes")) {
   w.open("Drillholes", { open: true });
   if (traces.size) {
     counts.holes = traces.size;
@@ -310,19 +343,22 @@ export function buildProjectKml(ctx, opts) {
     const st = w.style({ color: "#d9480f", width: 2.5, label: 0.7 });
     w.open("Planned holes");
     for (const p of planned) {
-      const pts = desurveyHole({ hole_id: p.name, x: num(p.x), y: num(p.y), z: num(p.z), azimuth: num(p.azimuth), dip: num(p.dip), length: num(p.length) }, [], ctx.desurveyMethod);
+      // holePlanning.plannedTrace: a planned hole's dip is stored NEGATIVE downward (the user's convention, unlike a collar's), and its lift /
+      // drift curve it — the one trace builder the 3D View and the other exports use (passing the dip to desurveyHole drew it upward)
+      const pts = plannedTrace({ ...p, x: num(p.x), y: num(p.y), z: num(p.z), azimuth: num(p.azimuth), dip: num(p.dip), length: num(p.length) });
       if (pts.length >= 2) w.placemark(p.name || "planned", st, w.line3d(pts), { data: { azimuth: num(p.azimuth), dip: num(p.dip), length: num(p.length), notes: p.notes || "" } });
     }
     w.close();
   }
   w.close(); // Drillholes
+  }
 
   // ---------- surface ----------
   const samples = (ctx.surfaceSamples || []).filter((s) => fin(num(s.x)) && fin(num(s.y)));
   const sets = (ctx.surfaceStructures || []).filter((s) => (s.rows || []).length);
   const maps = (ctx.mapLayers || []).filter((l) => (l.features || []).length);
   const bounds = (ctx.boundaries || []).filter((b) => (b.polylines || []).some((p) => p?.length >= 2));
-  if (samples.length || sets.length || maps.length || bounds.length) {
+  if (inc("surface") && (samples.length || sets.length || maps.length || bounds.length)) {
     w.open("Surface", { open: true });
     if (samples.length) {
       counts.layers++;
@@ -420,7 +456,8 @@ export function buildProjectKml(ctx, opts) {
 
   // ---------- sections ----------
   const secs = (ctx.sections || []).filter((s) => [s.ax, s.ay, s.bx, s.by].every((v) => fin(num(v))));
-  if (secs.length) {
+  const secImgs = opts.imageBytes ? (ctx.sectionImages || []).filter((im) => im?.dataUrl && sectionImageMesh(im, "x")) : []; // #3087 part 2
+  if (inc("sections") && (secs.length || secImgs.length)) {
     w.open("Sections");
     const lineSt = w.style({ color: "#2b6cb0", width: 2.5, label: 0.7 });
     for (const s of secs) {
@@ -432,12 +469,91 @@ export function buildProjectKml(ctx, opts) {
       }
       w.close();
     }
+    // TASKS.csv #3087 part 2 — the georeferenced section pictures (scans, exported sections) standing upright, as in the 3D View
+    if (secImgs.length) {
+      w.open("Section images");
+      secImgs.forEach((im, i) => {
+        const img = opts.imageBytes(im.dataUrl);
+        if (!img?.bytes) { counts.skipped.push({ kind: "image", name: im.name || `${i + 1}` }); return; }
+        const tex = `sec_${i}.${img.ext || "png"}`;
+        if (writeModel(im.name || `Section image ${i + 1}`, [sectionImageMesh(im, tex)], { visible: im.visible !== false, extra: [{ name: `models/${tex}`, data: img.bytes }] })) counts.layers++;
+      });
+      w.close();
+    }
+    w.close();
+  }
+
+  // ---------- mine design (TASKS.csv #3087) ----------
+  // design lines (drifts, ramps: a start and segments, computeLine) and design strings (free 3D polylines / polygons), at their elevations
+  const lines = (ctx.designLines || []).filter((l) => fin(num(l?.start?.x)) && fin(num(l?.start?.y)) && (l.segments || []).length);
+  const strings = (ctx.designStrings || []).filter((s) => (s.vertices || []).length >= 2);
+  if (inc("design") && (lines.length || strings.length)) {
+    w.open("Mine design");
+    if (lines.length) {
+      w.open("Design lines");
+      for (const l of lines) {
+        const c = computeLine(l);
+        if (c.vertices.length < 2) continue;
+        counts.layers++;
+        w.placemark(l.name || "Design line", w.style({ color: l.color || "#e67e22", width: 3 }), w.line3d(c.vertices.map(([x, y, z]) => ({ x, y, z }))), { visible: l.visible !== false, data: { length_m: Math.round(c.length * 10) / 10, steepest_grade_pct: Math.round(c.steepest * 10) / 10 } });
+      }
+      w.close();
+    }
+    if (strings.length) {
+      w.open("Design strings");
+      for (const s of strings) {
+        const v = s.vertices.filter((p) => fin(num(p[0])) && fin(num(p[1]))).map(([x, y, z]) => ({ x: num(x), y: num(y), z: fin(num(z)) ? num(z) : NaN }));
+        if (v.length < 2) continue;
+        counts.layers++;
+        const pts = s.closed ? [...v, v[0]] : v;
+        const sid = w.style({ color: s.color || "#2b6cb0", width: 2 });
+        w.placemark(s.name || "Design string", sid, pts.every((p) => fin(p.z)) ? w.line3d(pts) : w.lineGround(pts.map((p) => [p.x, p.y])), { visible: s.visible !== false });
+      }
+      w.close();
+    }
+    w.close();
+  }
+
+  // ---------- 3D models (TASKS.csv #3087 part 2) ----------
+  // generated surfaces (implicit models, grade shells, imported meshes), block / voxel models as the 3D View shows them, and the terrain
+  const surfs = (ctx.generatedSurfaces || []).map((s) => [s, surfaceMesh(s)]).filter(([, m]) => m);
+  const voxels = (ctx.voxelModels || []).filter((m) => (m?.cells || []).length);
+  const ter = ctx.terrain ? terrainMesh(ctx.terrain) : null;
+  if (inc("models") && (surfs.length || voxels.length || ter)) {
+    w.open("3D models");
+    if (surfs.length) {
+      w.open("Generated surfaces");
+      for (const [s, m] of surfs) if (writeModel(s.name || "Surface", [m], { visible: s.visible !== false, data: { type: s.type } })) counts.layers++;
+      w.close();
+    }
+    const blocks = voxels.map((m) => [m, voxelMeshes(m)]).filter(([, v]) => v);
+    if (blocks.length) {
+      w.open("Block models");
+      for (const [m, v] of blocks) {
+        const name = m.name || "Block model";
+        if (v.tooMany) { counts.skipped.push({ kind: "model", name, n: v.faces * 2 }); continue; }
+        w.open(name, { visible: m.visible !== false });
+        if (writeModel(name, v.parts, { visible: m.visible !== false, data: { cells_shown: v.cells } })) {
+          counts.layers++;
+          const lg = voxelLegendGroups([{ ...m, visible: true }])[0];
+          if (lg) legend(lg, m.visible !== false);
+        }
+        w.close();
+      }
+      w.close();
+    }
+    if (ter) {
+      // unticked: Google Earth draws its own terrain, which this one would cut in and out of
+      w.open("Terrain", { description: "Unticked: Google Earth draws its own terrain, which this surface would cut in and out of." });
+      writeModel(ctx.terrain.name || "Terrain", [ter], { visible: false, data: { thinned_by: ter.thinnedBy } });
+      w.close();
+    }
     w.close();
   }
 
   // ---------- rasters and grids ----------
   const rasters = (ctx.rasters || []).filter((r) => Array.isArray(r.bbox) && r.bbox.every((v) => fin(num(v))) && (r.dataUrl || r.grid));
-  if (rasters.length && opts.rasterImage) {
+  if (inc("rasters") && rasters.length && opts.rasterImage) {
     w.open("Rasters and grids");
     rasters.forEach((r, i) => {
       const img = opts.rasterImage(r);
@@ -483,5 +599,11 @@ export function estimateProjectKmz(ctx) {
   for (const L of ctx.mapLayers || []) for (const f of L.features || []) { marks++; for (const p of f.parts || []) coords += p?.length || 0; }
   for (const b of ctx.boundaries || []) for (const p of b.polylines || []) coords += p?.length || 0;
   for (const r of ctx.rasters || []) images += r.dataUrl ? Math.round(String(r.dataUrl).length * 0.75) : 0;
-  return coords * 40 + marks * 300 + images;
+  // TASKS.csv #3087 part 2 — the models: about 60 bytes per surface vertex, a block cell's few faces, the thinned terrain, the section pictures
+  let model = 0;
+  for (const s of ctx.generatedSurfaces || []) model += 20 * (s.vertices?.length || 0);
+  for (const m of ctx.voxelModels || []) model += 150 * (m.cells?.length || 0);
+  if (ctx.terrain?.gridW) model += 60 * Math.min(ctx.terrain.gridW * ctx.terrain.gridH, 160_000);
+  for (const im of ctx.sectionImages || []) images += im.dataUrl ? Math.round(String(im.dataUrl).length * 0.75) : 0;
+  return coords * 40 + marks * 300 + images + model;
 }

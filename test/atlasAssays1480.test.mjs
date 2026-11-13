@@ -21,17 +21,17 @@ test("an assay track per chosen element: bars on this hole's log range, the rang
   assert.match(out.svg, />Zn \(%\)</);
   const bars = out.svg.match(/fill="#c9863d"/g) || [];
   assert.equal(bars.length, 3, "the three lab intervals, not the pXRF reading");
-  assert.match(out.svg, /log 0\.50–12/);
+  assert.match(out.svg, />0<\/text>[^]*>5<\/text>[^]*>10<\/text>[^]*>15<\/text>/); // #3024: 0.5-12.3 spans under two decades: a linear axis with ticks (was 'log 0.50–12')
   assert.ok(!/99 %/.test(out.svg));
   assert.ok(out.height > plain.height, "the log runs to the deepest assay (112 m)");
 });
 
-test("a chosen element the hole has no assays of is still a column, saying so; at most three; none chosen = as before", () => {
+test("a chosen element the hole has no assays of is still a column, saying so; at most five (#3024; was three); none chosen = as before", () => {
   const out = buildStripLogSvgMarkup({ holeId: "H2", collars, layers, assays, assaySymbols: ["Zn", "Pb"], elementUnits: units });
   assert.match(out.svg, /no Zn assays/);
   assert.match(out.svg, />Pb \(%\)</);
-  const four = buildStripLogSvgMarkup({ holeId: "H1", collars, layers, assays, assaySymbols: ["Zn", "Pb", "Cu", "Ag"], elementUnits: units });
-  assert.ok(!/>Ag \(/.test(four.svg));
+  const six = buildStripLogSvgMarkup({ holeId: "H1", collars, layers, assays, assaySymbols: ["Zn", "Pb", "Cu", "Ag", "As", "Sb"], elementUnits: units });
+  assert.ok(/>As \(/.test(six.svg) && !/>Sb \(/.test(six.svg), "the fifth drawn, the sixth not");
   assert.equal(buildStripLogSvgMarkup({ holeId: "H1", collars, layers, assays }).svg, buildStripLogSvgMarkup({ holeId: "H1", collars, layers }).svg);
 });
 

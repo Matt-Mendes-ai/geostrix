@@ -90,35 +90,58 @@ export function collarGround(collars) {
 export function idwGround(points) {
   const pts = (points || []).filter((c) => Number.isFinite(c?.x) && Number.isFinite(c?.y) && Number.isFinite(c?.z));
   if (!pts.length) return null;
-  // TASKS.csv #1903 — the four nearest come out of a cell bucket, ring by ring, with the same answer as sorting every collar: on
-  // Lawyers (446 collars) a dump grid of 30-40k cells sorted 446 distances per cell and froze the window 3-5 s; the pit and the
-  // pit design use this ground too.
-  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
-  for (const c of pts) { if (c.x < x0) x0 = c.x; if (c.x > x1) x1 = c.x; if (c.y < y0) y0 = c.y; if (c.y > y1) y1 = c.y; }
-  const cell = Math.max(1, Math.sqrt(Math.max(1, (x1 - x0) * (y1 - y0)) / pts.length)); // about one collar per cell
-  const nx = Math.max(1, Math.floor((x1 - x0) / cell) + 1), ny = Math.max(1, Math.floor((y1 - y0) / cell) + 1);
-  const buckets = new Map();
-  const ci = (x) => Math.min(nx - 1, Math.max(0, Math.floor((x - x0) / cell))), cj = (y) => Math.min(ny - 1, Math.max(0, Math.floor((y - y0) / cell)));
-  pts.forEach((c, k) => { const q = cj(c.y) * nx + ci(c.x); (buckets.get(q) || buckets.set(q, []).get(q)).push(k); });
-  return (x, y) => {
-    const i0 = ci(x), j0 = cj(y), best = []; // up to four [distance, z], ascending
-    const take = (k) => {
-      const c = pts[k], d = Math.hypot(c.x - x, c.y - y);
-      if (best.length === 4 && d >= best[3][0]) return;
-      let at = best.length; while (at > 0 && best[at - 1][0] > d) at--;
-      best.splice(at, 0, [d, c.z]); if (best.length > 4) best.pop();
-    };
-    const scan = (i, j) => { if (i < 0 || j < 0 || i >= nx || j >= ny) return; const b = buckets.get(j * nx + i); if (b) for (const k of b) take(k); };
-    for (let r = 0; ; r++) {
-      // a collar in ring r is at least (r - 1) cells away: once the fourth best is nearer than that, no later ring can beat it
-      if (best.length === 4 && best[3][0] <= (r - 1) * cell) break;
-      if (i0 - r < 0 && j0 - r < 0 && i0 + r >= nx && j0 + r >= ny) break; // the grid is exhausted
-      if (r === 0) scan(i0, j0);
-      else { for (let i = i0 - r; i <= i0 + r; i++) { scan(i, j0 - r); scan(i, j0 + r); } for (let j = j0 - r + 1; j <= j0 + r - 1; j++) { scan(i0 - r, j); scan(i0 + r, j); } }
+  // TASKS.csv #1903 — the four nearest without sorting every collar per query (Lawyers, 446 collars: a dump grid froze the window 3-5 s);
+  // #2945 — without allocating per query (typed arrays, squared distances).
+  // TASKS.csv #3119 (from #3085, WA iron) — a k-d tree instead of #1903's cell buckets. The buckets held about one collar per cell over
+  // the collars' box, which suits collars spread evenly; drilling comes in clusters, and over WA iron's 6,292 collars (21.6 x 17.4 km)
+  // most cells were empty, so a query scanned ring after ring of them: 33 us inside the box and 78 us beyond it, 1.35 s of a layer-cake
+  // stack's main thread (the block cut and the surface cut). The answer is the sorted one exactly: ties in distance go to the earlier
+  // point, as a stable sort puts them.
+  const n = pts.length, X = new Float64Array(n), Y = new Float64Array(n), Z = new Float64Array(n);
+  pts.forEach((c, k) => { X[k] = c.x; Y[k] = c.y; Z[k] = c.z; });
+  // the tree in place: ord[lo..hi) splits at mid = (lo + hi) >> 1 on axis ax[mid] (0 = x, 1 = y, the wider side of the range's box);
+  // ord[lo..mid) is on or below the split, ord(mid..hi) on or above it; ranges of LEAF points or fewer are scanned
+  const LEAF = 6, ord = new Int32Array(n), ax = new Uint8Array(n);
+  for (let k = 0; k < n; k++) ord[k] = k;
+  const select = (C, lo, hi, m) => { // quickselect on C[ord[]] over [lo, hi), so ord[m] is the m-th
+    let l = lo, r = hi - 1;
+    while (r > l) {
+      const pv = C[ord[(l + r) >> 1]];
+      let i = l, j = r;
+      while (i <= j) { while (C[ord[i]] < pv) i++; while (C[ord[j]] > pv) j--; if (i <= j) { const t = ord[i]; ord[i] = ord[j]; ord[j] = t; i++; j--; } }
+      if (m <= j) r = j; else if (m >= i) l = i; else return;
     }
-    if (best[0][0] < 1e-6) return best[0][1];
+  };
+  const build = (lo, hi) => {
+    if (hi - lo <= LEAF) return;
+    let ax0 = Infinity, ax1 = -Infinity, ay0 = Infinity, ay1 = -Infinity;
+    for (let m = lo; m < hi; m++) { const k = ord[m]; if (X[k] < ax0) ax0 = X[k]; if (X[k] > ax1) ax1 = X[k]; if (Y[k] < ay0) ay0 = Y[k]; if (Y[k] > ay1) ay1 = Y[k]; }
+    const mid = (lo + hi) >> 1, a = ax1 - ax0 >= ay1 - ay0 ? 0 : 1;
+    ax[mid] = a; select(a ? Y : X, lo, hi, mid);
+    build(lo, mid); build(mid + 1, hi);
+  };
+  build(0, n);
+  const bd = new Float64Array(4), bz = new Float64Array(4), bk = new Int32Array(4); // the four best, ascending by (distance, index)
+  let cnt = 0, qx = 0, qy = 0;
+  const take = (k) => {
+    const dx = X[k] - qx, dy = Y[k] - qy, d2 = dx * dx + dy * dy;
+    if (cnt === 4 && (d2 > bd[3] || (d2 === bd[3] && k > bk[3]))) return;
+    let at = cnt < 4 ? cnt++ : 3;
+    while (at > 0 && (bd[at - 1] > d2 || (bd[at - 1] === d2 && bk[at - 1] > k))) { bd[at] = bd[at - 1]; bz[at] = bz[at - 1]; bk[at] = bk[at - 1]; at--; }
+    bd[at] = d2; bz[at] = Z[k]; bk[at] = k;
+  };
+  const search = (lo, hi) => {
+    if (hi - lo <= LEAF) { for (let m = lo; m < hi; m++) take(ord[m]); return; }
+    const mid = (lo + hi) >> 1, k = ord[mid], diff = ax[mid] ? qy - Y[k] : qx - X[k];
+    if (diff < 0) { search(lo, mid); take(k); if (cnt < 4 || diff * diff <= bd[3]) search(mid + 1, hi); }
+    else { search(mid + 1, hi); take(k); if (cnt < 4 || diff * diff <= bd[3]) search(lo, mid); }
+  };
+  return (x, y) => {
+    cnt = 0; qx = x; qy = y;
+    search(0, n);
+    if (bd[0] < 1e-12) return bz[0];
     let w = 0, s = 0;
-    for (const [d, z] of best) { const k = 1 / (d * d); w += k; s += k * z; }
+    for (let m = 0; m < cnt; m++) { const k = 1 / bd[m]; w += k; s += k * bz[m]; }
     return s / w;
   };
 }

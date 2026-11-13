@@ -46,7 +46,10 @@ export function withLiveScaleBars(els) {
     // TASKS.csv #946 — an oblique (non-plan) orthographic capture is to scale in the view plane only: ground along the
     // line of sight is foreshortened, so the bar says which plane it measures
     const viewPlane = vp.type === "viewport" && obliqueCapture(vp);
-    return { ...el, pxPerMeter: ppm, viewPlane, ...(px < BAR_MIN_PX || px > BAR_MAX_PX ? { meters: niceScaleNumber(SCALE_BAR_PX / ppm) } : {}) };
+    // TASKS.csv #3022 (review #2876, WA iron) — a bar bound to a section drawn with vertical exaggeration measures along the section only: it
+    // says so ('horizontal scale (8x vertical exaggeration)'); the title block already printed both
+    const horizontalVe = vp.type === "image" && Number(vp.verticalExaggeration) > 1 ? Number(vp.verticalExaggeration) : 0;
+    return { ...el, pxPerMeter: ppm, viewPlane, horizontalVe, ...(px < BAR_MIN_PX || px > BAR_MAX_PX ? { meters: niceScaleNumber(SCALE_BAR_PX / ppm) } : {}) };
   });
 }
 

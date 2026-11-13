@@ -28,7 +28,7 @@ test("the memory estimate: about 1 KB a value, rounded to 10 MB, never below 10"
 test("the box states the estimate in both every-reading texts", () => {
   const b = readFileSync(new URL("../src/components/LogChannelsBox.jsx", import.meta.url), "utf8");
   assert.match(b, /every reading is chosen: about \{mb\} MB of memory, and the import may be slow/);
-  assert.match(b, /tr\("Every reading is kept \(about \{mb\} MB of memory\)\. A bin averages them \(mean, with its minimum and maximum\)\.", \{ mb: rawLogMB\(rows\.length, ticked\.length\)\.toLocaleString\(\) \}\)/);
+  assert.match(b, /tr\("Every reading is kept \(about \{mb\} MB of memory\)\. A bin averages them \(mean, with its minimum and maximum\)\.", \{ mb: rawLogMB\(readings, ticked\.length\)\.toLocaleString\(\) \}\)/);
   for (const lang of ["es", "pt", "fr", "ar"]) {
     const d = JSON.parse(readFileSync(new URL(`../src/locales/${lang}.json`, import.meta.url), "utf8"));
     assert.match(d["Every reading is kept (about {mb} MB of memory). A bin averages them (mean, with its minimum and maximum)."], /\{mb\}/, lang);

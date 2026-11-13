@@ -29,7 +29,7 @@ test("numbered children take the base code's role unless they have their own", (
 test("wired: both pickers resolve a raw code's role through Modelling codes and list it once; the stack run asks on repeats", () => {
   const s = readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8");
   assert.match(s, /const rawRole = \(u\) => mcodeRole\.get\(u\) \|\| roleForLithology\(u\);/);
-  assert.equal((s.match(/litho_units\.filter\(\(u\) => !mcodeRole\.has\(u\)/g) || []).length, 2);
+  assert.equal((s.match(/litho_units\)?\.filter\(\(u\) => !mcodeRole\.has\(u\)/g) || []).length, 2); // #2926: the stack's picker sorts first
   assert.match(s, /!isCrossCuttingRole\(rawRole\(u\)\)/);
   const r = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8");
   assert.match(r, /const rep = stackRepeats\(layers\.litho \|\| \[\], kOf, specs\.length\);/);

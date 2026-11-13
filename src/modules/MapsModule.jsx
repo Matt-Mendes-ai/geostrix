@@ -44,7 +44,9 @@ export default function MapsModule() {
       e.preventDefault(); setMapDrag(false);
       // TASKS.csv #2019 (review #2013, Import) — only rasters imported here ('use Boundaries, Terrain or Web layers above') while the 3D view
       // took the same shapefile: lines / polygons now become Map layers here; points, tables and multi-layer files open the 3D view's import
-      const grouped = groupShapefileParts(Array.from(e.dataTransfer?.files || []));
+      const grouped0 = groupShapefileParts(Array.from(e.dataTransfer?.files || []));
+      // TASKS.csv #2857 — a .prj / .xml with no shapefile may be a raster's (mapsDropRoutes pairs it by name); the rest stay unmatched
+      const side = grouped0.unmatched.filter((f) => /\.(prj|xml)$/i.test(f.name)), grouped = { files: [...grouped0.files, ...side], unmatched: grouped0.unmatched.filter((f) => !side.includes(f)) };
       const all = grouped.files;
       if (!all.length) return;
       const routes = mapsDropRoutes(all.map((f) => f.name)), byName = new Map(all.map((f) => [f.name, f]));
@@ -79,7 +81,7 @@ export default function MapsModule() {
     <div className="ge-body" style={{ width: "100%" }}>
       <Ribbon label="Map tools">
         <RibbonGroup label="Imagery & terrain">
-          <RibbonButton icon={Image} label="GeoTIFF / GXF" tone="data" title="Import a georeferenced GeoTIFF or Geosoft .gxf grid and manage the raster drapes" {...btn("raster", "import-raster")} active={pane === "raster"} />
+          <RibbonButton icon={Image} label="GeoTIFF / GXF" tone="data" title="Import a georeferenced GeoTIFF, Geosoft .gxf or Geosoft / Surfer .grd grid and manage the raster drapes" {...btn("raster", "import-raster")} active={pane === "raster"} />
           <RibbonButton icon={Satellite} label="Satellite" tone="data" title="Free Sentinel-2 imagery (no account): the latest clear scene over an area you draw" {...btn("raster", "raster-satellite")} active={false} />
           <RibbonButton icon={Mountain} label="Terrain" tone="data" title="Terrain: fetch SRTM elevation or import a DEM" {...btn("terrain")} />
           {/* TASKS.csv #1861 (review #1646, Kodiak) — on the Simple ribbon: a report's plan maps with no GeoKeys are placed only here */}

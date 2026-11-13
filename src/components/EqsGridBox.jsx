@@ -5,6 +5,7 @@ import React, { useMemo, useRef, useState } from "react";
 import { runPfieldsJob } from "../lib/desktop.js";
 import { rasterFromGrid } from "../lib/raster.js";
 import { suggestSampleGrid } from "../lib/sampleGrid.js";
+import { snappedNodeRegion } from "../lib/idw.js"; // TASKS.csv #2872
 import { b64ToF32 } from "../lib/inversion.js";
 import { surveyKey } from "../lib/geophysSurveys.js";
 import { t as tr } from "../lib/i18n.js";
@@ -43,7 +44,8 @@ export default function EqsGridBox({ survey, rows, units = "", method = null /* 
     if (!draped && !Number.isFinite(elevM)) { setMsg({ info: false, text: tr("Enter the elevation to grid at.") }); return; }
     let xmin = Infinity, ymin = Infinity, xmax = -Infinity, ymax = -Infinity;
     for (const p of pts) { if (p.x < xmin) xmin = p.x; if (p.x > xmax) xmax = p.x; if (p.y < ymin) ymin = p.y; if (p.y > ymax) ymax = p.y; }
-    const nodes = (Math.floor((xmax - xmin) / cellM) + 1) * (Math.floor((ymax - ymin) / cellM) + 1);
+    [xmin, xmax, ymin, ymax] = snappedNodeRegion({ xmin, xmax, ymin, ymax }, cellM); // #2872 — nodes on multiples of the cell, the spacing as typed
+    const nodes = (Math.round((xmax - xmin) / cellM) + 1) * (Math.round((ymax - ymin) / cellM) + 1);
     if (nodes > 4_000_000) { setMsg({ info: false, text: tr("At {cell} m the grid would have {n} nodes, over 4,000,000: use a larger cell.", { cell: cellM, n: nodes.toLocaleString() }) }); return; }
     const blankM = Number(blank) > 0 ? Number(blank) : sug?.blankM ?? 3 * cellM;
     const depthM = Number(depth) > 0 ? Number(depth) : depthDefault;
@@ -65,12 +67,15 @@ export default function EqsGridBox({ survey, rows, units = "", method = null /* 
       addRaster({ ...raster, provenance: { tool: "Equivalent sources gridding", survey, readings: d.readings, cellM, elevationM: elevM, sourceDepthM: d.depth, blankingM: Math.round(blankM), drawnAtM: drawAt } }); // #2392
       const pct = d.data_std > 0 ? (100 * d.rms_misfit) / d.data_std : 0;
       // #2839 — and how far the GRID is from the readings themselves (its nodes interpolated to them), which a continuation shows
+      const spacedOff = [d.dx, d.dy].some((v) => Number.isFinite(v) && Math.abs(v - cellM) > 1e-6 * cellM) ? " " + tr("The nodes are {dx} × {dy} m apart, not the {cell} m asked for.", { dx: +Number(d.dx).toPrecision(7), dy: +Number(d.dy).toPrecision(7), cell: cellM }) : ""; // #2872
       const gridFit = d.grid_rms != null ? " " + tr("The grid is within {rms} {units} RMS of the readings themselves (worst {max}), its nodes interpolated to their positions.", { rms: d.grid_rms.toPrecision(3), max: d.grid_max.toPrecision(3), units }) : "";
       const where = draped ? " " + tr("Drawn flat at {z} m, the readings' median elevation; the field was computed on their surface ({lo} to {hi} m).", { z: Math.round(drawAt).toLocaleString(), lo: Math.round(d.surface?.[0]), hi: Math.round(d.surface?.[1]) }) : tr(" Drawn flat at {z} m, the elevation the field was computed at.", { z: Math.round(drawAt).toLocaleString() });
       const vars = { name, s: ((Date.now() - t0) / 1000).toFixed(1), n: d.readings.toLocaleString(), nx: d.nx, ny: d.ny, elev: elevM, depth: d.depth, cell: cellM, rms: d.rms_misfit.toPrecision(3), units, pct: pct.toFixed(1), within: d.within_block_rms.toPrecision(3), v: d.gradient_boosted ? tr("; solved in overlapping windows (gradient-boosted), as for any survey over 5,000 readings") : "" };
-      setMsg({ info: true, text: (draped ? tr("Added \"{name}\" in {s} s: {n} readings, {nx} × {ny} nodes on the readings' surface, sources {depth} m below the readings. They reproduce the readings' {cell} m block means to {rms} {units} RMS ({pct} % of their spread){v}. Inside a block the readings themselves vary by {within} {units} RMS, which a {cell} m grid cannot show.", vars) : tr("Added \"{name}\" in {s} s: {n} readings, {nx} × {ny} nodes at {elev} m, sources {depth} m below the readings. They reproduce the readings' {cell} m block means to {rms} {units} RMS ({pct} % of their spread){v}. Inside a block the readings themselves vary by {within} {units} RMS, which a {cell} m grid cannot show.", vars)) + gridFit + where
-        // TASKS.csv #2955 — where the time went: each run loads the engine afresh in its own process, the longest step of a small survey
-        + (d.timings ? " " + tr("Of the time, loading the engine took {a} s (each run starts it afresh), the fit {b} s and the grid {c} s.", { a: d.timings.load, b: d.timings.fit, c: d.timings.grid }) : "") });
+      setMsg({ info: true, text: (draped ? tr("Added \"{name}\" in {s} s: {n} readings, {nx} × {ny} nodes on the readings' surface, sources {depth} m below the readings. They reproduce the readings' {cell} m block means to {rms} {units} RMS ({pct} % of their spread){v}. Inside a block the readings themselves vary by {within} {units} RMS, which a {cell} m grid cannot show.", vars) : tr("Added \"{name}\" in {s} s: {n} readings, {nx} × {ny} nodes at {elev} m, sources {depth} m below the readings. They reproduce the readings' {cell} m block means to {rms} {units} RMS ({pct} % of their spread){v}. Inside a block the readings themselves vary by {within} {units} RMS, which a {cell} m grid cannot show.", vars)) + gridFit + spacedOff + where
+        // TASKS.csv #2955 — where the time went; #3124 — after a run the engine stays loaded for about 3 idle minutes, and a run then says so
+        + (d.timings ? " " + (d.warmEngine
+          ? tr("The engine was still loaded from a run in the last few minutes: the fit took {b} s and the grid {c} s.", { b: d.timings.fit, c: d.timings.grid })
+          : tr("Of the time, loading the engine took {a} s (it then stays loaded for about 3 minutes, so a run soon after skips it), the fit {b} s and the grid {c} s.", { a: d.timings.load, b: d.timings.fit, c: d.timings.grid })) : "") });
     } catch (err) { setMsg({ info: false, text: err.message }); }
   };
   return (

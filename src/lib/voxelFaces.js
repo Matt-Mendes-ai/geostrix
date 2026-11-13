@@ -17,7 +17,7 @@
 //   mesh matches the instanced boxes' setRGB(..., SRGBColorSpace). null when the grid's box would be unreasonably
 //   large for an occupancy array; the caller then keeps instancing.
 
-const srgbToLinear = (c) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+export const srgbToLinear = (c) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
 // boundaries are compared to the millimetre (axisEdges)
 
 // TASKS.csv #1784 — the boundaries are counted in millimetres from the axis's first whole metre, so the keys stay small

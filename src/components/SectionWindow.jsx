@@ -7,7 +7,7 @@ import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Spac
 import { sectionPaper } from "../lib/pageFormats.js"; // TASKS.csv #1143
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { embedFigureFont } from "../lib/svgFontEmbed.js"; // TASKS.csv #2610 — the subset Exo 2 inside the figure
-import { placeLabels, leaderEnd, resolveLabels, labelWidth, shortSurfaceName, pierceLabelIndices } from "../lib/sectionLabels.js"; // TASKS.csv #823; short pierce labels: #2705
+import { placeLabels, leaderEnd, resolveLabels, labelWidth, shortSurfaceName, pierceLabelIndices, collarGapPx, gradeBarMax, collarLabelsCrowded } from "../lib/sectionLabels.js"; // TASKS.csv #823; short pierce labels: #2705
 import { groupSectionLegend, sectionAssayLegend, sectionMineralLegend, sectionModelLegend, rampRows, ribbonOrder, ribbonLayers } from "../lib/sectionLegend.js"; // TASKS.csv #1128 — the key goes to Layout, grouped; #1475
 import { LAYER_META } from "../lib/layers.js"; // #1475 — the mineralization group name
 import { exportSvgMarkup, FIGURE_FONT } from "../lib/svgExport.js"; // TASKS.csv #1089 — font, size, no UI chrome
@@ -49,6 +49,16 @@ const SECTION_FONTS = [
   { label: "Times New Roman", stack: "'Times New Roman', Times, serif" },
   { label: "Courier New", stack: "'Courier New', Courier, monospace" },
 ];
+
+// TASKS.csv #3054 (#2387, WA uranium) — the Draw button's tip names what is drawn and what is missing: an outline asked to
+// 'Pick a unit first' when its body name was missing, and once named said 'Draw Lignite's upper contact'
+const drawTip = (kind, pick, name, explicit) => {
+  if (!pick) return kind === "outline" ? tr("Type a body name first") : kind === "fault" ? tr("Type a fault name first") : kind === "string" ? tr("Type a string name first") : tr("Pick a unit first");
+  if (kind === "outline") return tr("Draw the outline of {name}", { name });
+  if (kind === "fault") return tr("Draw the fault {name}", { name });
+  if (kind === "string") return tr("Draw the string {name}", { name });
+  return explicit ? tr("Draw a line of {name}", { name }) : tr("Draw {unitPick}'s upper contact", { unitPick: name });
+};
 
 export default function SectionWindow({ tabId = null, initial = null, onPopOut = null, onUnsaved = null }) {
   const [rawData, setData] = useState(null);
@@ -96,7 +106,8 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
   // page height itself grows/shrinks with the exaggerated z-range rather than squeezing a fixed box,
   // since faking exaggeration inside a fixed box would just be a different, undisclosed distortion.
   // TASKS.csv #2363 — null until the section first reports its own shape (SectionSVG onAutoVE), then that value; the user's from then on
-  const [vExag, setVExag] = useState(() => { const v = stepVE && Date.now() - stepVE.at < 30000 ? stepVE.ve : null; stepVE = null; return v; }); // #2933 — a step's VE
+  const [handed] = useState(() => { const h = stepVE && Date.now() - stepVE.at < 30000 ? stepVE : null; stepVE = null; return h; }); // #2933 — a step's VE; #3054: and what was being drawn
+  const [vExag, setVExag] = useState(() => handed?.ve ?? null);
   const [showSectionImages, setShowSectionImages] = useState(true); // TASKS.csv #631
   const [showModel, setShowModel] = useState(true); // TASKS.csv #759
   // TASKS.csv #1131 — Matt: "set thickness of drill holes on cross sections and the cross section buffer in the section
@@ -247,10 +258,10 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
   // into 3D surface generation) needs: gatherLithoSurfaceSpec already builds a unit's top surface from
   // litho interval tops, so a drawn contact tagged with the SAME unit name + "this is the upper
   // contact" slots in as an extra interface point for that exact surface, no separate matching step.
-  const [unitPick, setUnitPick] = useState("");
+  const [unitPick, setUnitPick] = useState(() => (handed?.kind && handed.kind !== "contact" ? handed.unit || "" : "")); // #3054 — and the body / fault / string name (a unit may not be on the next section)
   // TASKS.csv #409 — what is being drawn: a unit's upper contact (feeds modelling), a fault, or a free
   // interpretation string. Faults and strings take a typed name.
-  const [kindPick, setKindPick] = useState("contact");
+  const [kindPick, setKindPick] = useState(() => handed?.kind || "contact"); // #3054 — a step keeps 'What to draw'
   const lithoUnits = data?.lithoUnits || [];
   // TASKS.csv #810 — modelling codes and lithology groups as tags too (a stack unit "X (code)" or a group matches them)
   const tagCodes = (data?.unitTags?.codes || []).filter((c) => !lithoUnits.includes(c)), tagGroups = data?.unitTags?.groups || [];
@@ -369,7 +380,7 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
   useEffect(() => { setStepping(false); }, [rawData]);
   useEffect(() => (stepping ? onSectionData(() => setStepping(false)) : undefined), [stepping]); // the step opened in another tab of this window
   useEffect(() => { if (!stepping) return undefined; const t = setTimeout(() => setStepping(false), 5000); return () => clearTimeout(t); }, [stepping]);
-  const stepTo = (msg) => { if (vExag != null) stepVE = { ve: vExag, at: Date.now() }; setStepping(true); sendSectionContacts(msg); }; // stepVE: #2933
+  const stepTo = (msg) => { if (!msg.refresh) stepVE = { ve: vExag, kind: kindPick, unit: unitPick, at: Date.now() }; setStepping(true); sendSectionContacts(msg); }; // stepVE: #2933; kind / unit: #3054
   const toolbarRef = useRef(null), toolbarHeight = useRef(0);
   useLayoutEffect(() => { if (!drawing && toolbarRef.current) toolbarHeight.current = toolbarRef.current.offsetHeight; });
   if (!data) return <div style={{ padding: 20, color: "#55606e", fontFamily: "'Exo 2', system-ui, sans-serif" }}>{tr("Waiting for section data…")}</div>;
@@ -408,7 +419,7 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
               ) : (
                 <input value={unitPick} onChange={(e) => setUnitPick(e.target.value)} placeholder={tr("Unit name (no litho data loaded)")} style={{ ...selectStyle, width: 170 }} />
               )}
-              <button onClick={startDrawing} disabled={!unitPick} style={{ ...btnStyle(false), opacity: unitPick ? 1 : 0.5 }} title={unitPick ? tr("Draw {unitPick}'s upper contact", { unitPick: pickName }) : tr("Pick a unit first")}>
+              <button onClick={startDrawing} disabled={!unitPick} style={{ ...btnStyle(false), opacity: unitPick ? 1 : 0.5 }} title={drawTip(kindPick, unitPick, pickName, pickExplicit)}>
                 <Pencil size={14} /> {kindPick === "contact" && pickExplicit ? tr("Draw a line of {name}", { name: pickName }) /* TASKS.csv #884 */ : kindPick === "contact" ? tr("Draw upper contact") : kindPick === "fault" ? tr("Draw fault") : kindPick === "outline" ? tr("Draw outline") : tr("Draw string")}
               </button>
             </>
@@ -652,7 +663,10 @@ function SectionSVG({ printing = false, patterns = null, textFont = SECTION_FONT
   const ribbonOffset = {};
   intervals.forEach((r) => { const k = r.layer || "_"; if (!(k in ribbonOffset)) { const n = Object.keys(ribbonOffset).length; ribbonOffset[k] = n === 0 ? 0 : (n % 2 ? 1 : -1) * (holeWidth + 2) * Math.ceil(n / 2); } }); // spacing follows the width: #1131
   const ribbonReach = Math.max(3, ...Object.values(ribbonOffset).map((o) => Math.abs(o) + 3));
-  const BAR_MAX = 36;
+  // TASKS.csv #3139 (#3022, WA iron) — a grade bar was 36 px at any scale: on holes 25 m apart it ran across several neighbours. It now ends
+  // within half the typical gap between collars (lib/sectionLabels.js gradeBarMax), one length for the section.
+  const collarGap = collarGapPx(holes.map((h) => (h.trace?.length ? sx(along(h.trace[0].x, h.trace[0].y)) : NaN)));
+  const BAR_MAX = gradeBarMax(collarGap, ribbonReach, points.reduce((m, r) => (r.assay ? Math.max(m, (r.assay.idx || 0) + 1) : m), 1)); // n elements: no spread (#3031)
   const assayMax = {};
   points.forEach((r) => { if (r.assay && Number.isFinite(r.assay.value)) assayMax[r.assay.sym] = Math.max(assayMax[r.assay.sym] || 0, r.assay.value); });
   // label the 8 highest values per element in this section, not every sample (unreadable at section scale)
@@ -1085,6 +1099,9 @@ function SectionSVG({ printing = false, patterns = null, textFont = SECTION_FONT
           const p = atEnd ? t[t.length - 1] : t[0];
           items.push({ key: `plan:${ph.name}|${atEnd ? "end" : "collar"}`, text: tr("{name} (planned)", { name: ph.name }), ax: sx(along(p.x, p.y)), ay: sz(p.z), dir: atEnd ? 1 : -1, color: colors.planned });
         });
+        // TASKS.csv #3139 — names wider than the gap between collars stacked six tiers deep and, with no room left above the collars, ran
+        // down into the data: crowded, a collar name stays above its collar and is left out where there is no room (counted, #1536)
+        if (collarLabelsCrowded(collarGap, items.filter((it) => it.dir < 0).map((it) => labelWidth(it.text, fs(9))))) items.forEach((it) => { if (it.dir < 0) it.noFlip = true; });
         const fixed = { ...labels.offsets, ...(labelDrag ? { [labelDrag.key]: { dx: labelDrag.dx, dy: labelDrag.dy } } : {}) };
         const color = Object.fromEntries(items.map((it) => [it.key, it.color]));
         const placed = placeLabels(items, { fontSize: fs(9), bounds: [4, W - 4], yBounds: [2, totalH - 2], fixed, avoid: axisLabelBoxes, dropCrowded: true, fixedYield: printing /* #2761 */ });

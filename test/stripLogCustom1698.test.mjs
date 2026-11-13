@@ -10,7 +10,7 @@ test("the elements shown in 3D open the log, in their order", () => {
   assert.match(src, /shownElements = \[\]/);
   assert.match(src, /const shownFirst = shownElements\.filter\(\(s\) => symbols\.includes\(s\)\);/);
   assert.match(src, /useState\(shownFirst\[0\] \|\| symbols\[0\] \|\| ""\)/);
-  assert.match(src, /useState\(shownFirst\.slice\(1, 3\)\)/);
+  assert.match(src, /useState\(shownFirst\.slice\(1, 5\)\)/); // #3141: up to four more
   const viewer = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
   assert.match(viewer, /shownElements=\{assayDisplayElements\}/);
 });

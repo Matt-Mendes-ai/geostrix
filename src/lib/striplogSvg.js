@@ -27,7 +27,7 @@ import { lithoPatternMap, loadPatternTiles, patternDefs, patternFill } from "./l
 const TRACK_W = 90;
 const DEPTH_COL_W = 50;
 const PAD_TOP = 36;
-const PAD_BOTTOM = 20;
+const PAD_BOTTOM = 30; // #3024 — room for an assay track's tick labels and its "same axis on all pages" line (was 20)
 
 function esc(s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
 
@@ -70,14 +70,26 @@ function assayTrack(rows, x, sy, sym, unit, elementUnits, bottom, range = null) 
   const ticks = rows.filter((r) => isBelowDetection(r, sym) && valueIn(r, sym, unit, elementUnits) != null).map((r) => `<rect x="${x + 2}" y="${sy(r.from)}" width="3" height="${Math.max(0.5, sy(r.to) - sy(r.from))}" fill="none" stroke="#8a95a3" stroke-width="0.6"><title>${r.from}-${r.to} m: ${esc(tr("below detection"))}</title></rect>`).join("");
   if (!own && !range) return ticks + `<text x="${x + (TRACK_W - 6) / 2}" y="${bottom + 13}" font-size="8" text-anchor="middle" fill="#65717e">${esc(tr("all below detection"))}</text>`;
   const { lo, hi } = range || own;
-  const frac = (v) => (!(v > 0) ? 0 : hi > lo ? Math.max(0.03, Math.min(1, (Math.log10(v) - Math.log10(lo)) / (Math.log10(hi) - Math.log10(lo)))) : 1);
-  return ticks + rows.map((r) => {
+  // TASKS.csv #3024 (review #2876, WA iron) — Fe in per cent (14-59) was drawn on a log axis with only 'log 14-58.9' under it: 55 % could not
+  // be read off a bar. Values spanning under two decades take a linear axis from 0 with labelled ticks (0 / 20 / 40 / 60); wider, log as before
+  const axis = assayAxis(lo, hi);
+  const frac = axis.linear ? (v) => (!(v > 0) ? 0 : Math.max(0.03, Math.min(1, v / axis.max))) : (v) => (!(v > 0) ? 0 : hi > lo ? Math.max(0.03, Math.min(1, (Math.log10(v) - Math.log10(lo)) / (Math.log10(hi) - Math.log10(lo)))) : 1);
+  const tickMarks = axis.linear ? axis.ticks.map((t) => { const tx = x + 2 + (t / axis.max) * (TRACK_W - 10); return `<line x1="${tx}" y1="${PAD_TOP - 2}" x2="${tx}" y2="${bottom}" stroke="#e1e4e8" stroke-width="0.6"/><text x="${tx}" y="${bottom + 13}" font-size="7" text-anchor="middle" fill="#65717e">${t}</text>`; }).join("") : "";
+  return ticks + tickMarks + rows.map((r) => { // #3024 — the gridlines under the bars
     const v = valueIn(r, sym, unit, elementUnits);
     if (v == null || !Number.isFinite(v) || isBelowDetection(r, sym)) return "";
     const w = frac(v) * (TRACK_W - 10);
     if (!(w > 0)) return "";
     return `<rect x="${x + 2}" y="${sy(r.from)}" width="${w}" height="${Math.max(0.5, sy(r.to) - sy(r.from))}" fill="#c9863d" opacity="0.85"><title>${r.from}-${r.to} m: ${esc(String(v))} ${esc(unit)}</title></rect>`;
-  }).join("") + `<text x="${x + (TRACK_W - 6) / 2}" y="${bottom + 13}" font-size="8" text-anchor="middle" fill="#65717e">${esc(range ? tr("log {minPos}–{max}, all pages", { minPos: lo.toPrecision(2), max: hi.toPrecision(2) }) : tr("log {minPos}–{max}", { minPos: lo.toPrecision(2), max: hi.toPrecision(2) }))}</text>`;
+  }).join("") + (axis.linear ? (range ? `<text x="${x + (TRACK_W - 6) / 2}" y="${bottom + 23}" font-size="7" text-anchor="middle" fill="#65717e">${esc(tr("same axis on all pages"))}</text>` : "") : `<text x="${x + (TRACK_W - 6) / 2}" y="${bottom + 13}" font-size="8" text-anchor="middle" fill="#65717e">${esc(range ? tr("log {minPos}–{max}, all pages", { minPos: lo.toPrecision(2), max: hi.toPrecision(2) }) : tr("log {minPos}–{max}", { minPos: lo.toPrecision(2), max: hi.toPrecision(2) }))}</text>`);
+}
+// #3024 — the axis of an assay track: linear from 0 with 3-5 round ticks when the values span under two decades, else log
+export function assayAxis(lo, hi) {
+  if (!(hi > 0) || !(lo > 0) || hi / lo >= 100) return { linear: false };
+  const raw = hi / 4, p = 10 ** Math.floor(Math.log10(raw)), step = [1, 2, 2.5, 5, 10].map((m) => m * p).find((s) => s >= raw);
+  const max = Math.ceil(hi / step - 1e-9) * step, ticks = [];
+  for (let t = 0; t <= max + 1e-9; t += step) ticks.push(+t.toPrecision(6));
+  return { linear: true, max, ticks };
 }
 
 function barTrack(rows, x, sy, max) {
@@ -110,8 +122,9 @@ export function buildStripLogSvgMarkup({ holeId, collars, layers, legendOverride
   const structzone = (layers.structzone || []).filter((r) => r.hole_id === holeId).sort((a, b) => a.from - b.from); // #604
   const weath = (layers.weath || []).filter((r) => r.hole_id === holeId).sort((a, b) => a.from - b.from); // #2162
   const geotech = (layers.geotech || []).filter((r) => r.hole_id === holeId).sort((a, b) => a.from - b.from);
+  const recovery = (layers.recovery || []).filter((r) => r.hole_id === holeId && Number.isFinite(Number(r.from)) && Number.isFinite(Number(r.to))).sort((a, b) => a.from - b.from); // #3024 — core recovery on atlas logs
   const mnlgy = (layers.mnlgy || []).filter((r) => r.hole_id === holeId).sort((a, b) => a.from - b.from); // #684
-  const syms = (assaySymbols || []).filter(Boolean).slice(0, 3); // #1480
+  const syms = (assaySymbols || []).filter(Boolean).slice(0, 5); // #1480; five: #3024 (Fe, SiO2, Al2O3, P, LOI fit an A4 page)
   const holeAssays = syms.length ? (assays || []).filter((a) => a.hole_id === holeId && a.source !== "pXRF" && Number.isFinite(a.from) && Number.isFinite(a.to)).sort((a, b) => a.from - b.from) : [];
   const maxDepth = Math.max(collar?.length || 0, arrMax(litho.map((r) => r.to)), arrMax(alt.map((r) => r.to)), arrMax(vein.map((r) => r.to)), arrMax(breccia.map((r) => r.to)), arrMax(structzone.map((r) => r.to)), arrMax(weath.map((r) => r.to)), arrMax(geotech.map((r) => r.to)), arrMax(mnlgy.map((r) => r.to)), 0, arrMax(holeAssays.map((a) => a.to))); // holeAssays: #1480
   if (maxDepth <= 0) return null;
@@ -128,6 +141,7 @@ export function buildStripLogSvgMarkup({ holeId, collars, layers, legendOverride
     ...(weath.length ? [{ label: "Wx", rows: weath, kind: "fill", colorFn: colorOf("weath", colorForWeathering), nameFn: nameOf("weath") }] : []), // #2162
     { label: "Min.", rows: mnlgy, kind: "fill", colorFn: colorOf("mnlgy", LAYER_META.mnlgy.colorFn), nameFn: nameOf("mnlgy") }, // #684 — intervals as blocks, from = to as a line
     { label: "RQD%", rows: geotech, kind: "bar", max: 100 },
+    { label: "Rec.%", rows: recovery, kind: "bar", max: 100 }, // #3024 — a hole without recovery gets no track (the filter below)
   ].filter((t) => t.rows.length);
   // #1480 — the chosen assay elements, always drawn (a hole with none says so under its track, so every page has the same columns)
   syms.forEach((sym) => tracks.push({ label: `${sym} (${elementUnits[sym] || "ppm"})`, rows: holeAssays, kind: "assay", sym, unit: elementUnits[sym] || "ppm" }));

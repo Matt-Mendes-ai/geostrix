@@ -11,6 +11,7 @@ import { legendScale } from "./legendScale.js";
 import { gradeUnitLabel } from "./geochemColumns.js"; // TASKS.csv #2218; #3159: geochemColumns, not geochem.js (the whole geochem library in startup)
 import { rasterUnitOf } from "./rasterMethod.js"; // TASKS.csv #2747
 import { idwColourFields } from "./idwColour.js"; // TASKS.csv #2845; #3159: not idw.js, which put the IDW gridding in startup
+import { makeSurveyColorer } from "./geophysSurveys.js"; // TASKS.csv #2878
 
 // the per-element identity hues of assay markers (moved from ViewerModule; TASKS.csv #306)
 export const ASSAY_ELEMENT_COLORS = [0, 1, 2, 3, 4, 5, 6, 7, 11, 14, 15, 8, 10, 13].map((i) => CATEGORICAL_SAFE_COLORS[i]);
@@ -320,4 +321,20 @@ export function allocateLegendRows(groups, max) {
   gs.forEach((g, i) => pick(g, quota[i]).forEach(([label, color, opt], k) => rows.push({ label, color, kind: opt?.kind, opacity: opt?.opacity, svg: opt?.svg /* #3066 */, group: g.label, head: (multi || g.alwaysHead) && k === 0,
     ...(k === 0 && g.grade && quota[i] < g.items.length ? { classesShown: [quota[i], g.items.length] } : {}) }))); // #2039 — a cut grade group says so
   return { rows, shown: rows.length, total: gs.reduce((n, g) => n + g.items.length, 0) };
+}
+
+// TASKS.csv #2878 (split from #2845) — a point survey drawn in the view (stations coloured by value): one ramp per survey when several are
+// loaded (each is coloured on its own range, #451), only the drawn points (no elevation: not drawn, #2075). The 3D legend built these inline;
+// the Layout legend had none. rows: layers.geophys_pts; stops / colorMode / min / max: the store's geophysPts* colour settings.
+export function geophysLegendGroups({ rows = [], visible = true, surveys = {}, stops, colorMode, min, max, label = "Geophysics points" } = {}) {
+  if (!visible) return [];
+  const pts = (rows || []).filter((r) => Number.isFinite(r.z) && typeof r.value === "number" && Number.isFinite(r.value));
+  if (!pts.length) return [];
+  const colorer = makeSurveyColorer(pts, { stops, colorMode, min, max }, surveys);
+  const out = [];
+  for (const [key, model] of colorer.models) {
+    const units = surveys?.[key]?.units;
+    out.push(scaleLegendGroup(`geophys_pts_${key}`, colorer.perSurvey ? `${key}${units ? ` (${units})` : ""}` : `${label}${units ? ` (${units})` : ""}`, model, model.min, model.max));
+  }
+  return out;
 }

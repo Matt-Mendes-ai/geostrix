@@ -49,3 +49,11 @@ addons/**/__pycache__/
 addons/geoml/build/
 addons/geoml/dist/
 addons/geoml/venv/
+# TASKS.csv #3134 — the four BC ARIS samples left the repository (BC's terms): a copy rebuilt here by scripts/samples/build-*.mjs, or copied
+# in for the real-data tests (test/helpers/bcSample.mjs), stays local. Perk-Rocky's Copernicus terrain and README are ours to keep.
+sample_data/harry_property/
+sample_data/woodjam/
+sample_data/silvertip/
+sample_data/perk_rocky/*
+!sample_data/perk_rocky/terrain_copernicus_glo30.tif
+!sample_data/perk_rocky/README.md

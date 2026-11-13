@@ -217,7 +217,10 @@ export function estimateBlockModel(samplePoints, opts) {
     beyond: new Uint8Array(cap), // #2417
     ...(opts.unsampledPoints?.length ? { nearUnsampled: new Uint8Array(cap) } : {}), // #2596
     ...(opts.logShare ? { fromLog: new Float32Array(cap) } : {}), // #2721
+    ...(restrictToDomain ? { domainCode: new Int32Array(cap).fill(-1) } : {}), // #3014 — an index into domainNames, -1 = no code
   } : null;
+  const domainNames = [], domainIdx = new Map(); // #3014
+  const domainCodeOf = (d) => { if (d == null) return -1; let k = domainIdx.get(d); if (k === undefined) { k = domainNames.length; domainNames.push(d); domainIdx.set(d, k); } return k; };
   let blocksSkipped = 0;
   let noCodeBlocks = 0; // TASKS.csv #2541 — left out because the nearest composite has no domain code
   let singleHoleCells = 0; // TASKS.csv #258 — surfaced in the run summary
@@ -253,6 +256,7 @@ export function estimateBlockModel(samplePoints, opts) {
           col.beyond[n] = by;
           if (col.nearUnsampled) col.nearUnsampled[n] = nu; // #2596
           if (col.fromLog) col.fromLog[n] = fl; // #2721
+          if (col.domainCode) col.domainCode[n] = domainCodeOf(r.domain); // #3014
           col.x[n] = cx; col.y[n] = cy; col.z[n] = cz; col.value[n] = r.value; col.nSamples[n] = r.nSamples; col.nHoles[n] = r.nHoles;
           col.holeShare[n] = r.nHoles === 1 ? 1 : r.domShare ?? NaN; // #1617 — the dominant hole's share, for the pit's single-hole count
           if (col.kv) col.kv[n] = r.kv ?? NaN;
@@ -266,6 +270,7 @@ export function estimateBlockModel(samplePoints, opts) {
         if (by) cell.beyond = by === 1 ? "above" : "below"; // #2417
         if (nu) cell.nearUnsampled = true; // #2596
         if (fl > 0) cell.fromLog = fl; // #2721
+        if (restrictToDomain) cell.domain = r.domain ?? null; // #3014
         if (r.support) {
           cell.support = r.support.cls;
           cell.supportIndex = r.support.index;
@@ -277,7 +282,7 @@ export function estimateBlockModel(samplePoints, opts) {
     opts.onProgress?.((iz + 1) / nz); // #520 — once per z-slice (the estimation worker relays it)
   }
   // #661 — trimmed to the blocks actually estimated (slice copies, so the spare capacity is freed with the originals)
-  const columns = asColumns ? Object.fromEntries([["n", n], ["dx", dx], ["dy", dy], ["dz", dz], ...Object.entries(col).map(([k, a]) => [k, a.slice(0, n)])]) : null;
+  const columns = asColumns ? Object.fromEntries([["n", n], ["dx", dx], ["dy", dy], ["dz", dz], ...Object.entries(col).map(([k, a]) => [k, a.slice(0, n)]), ...(col.domainCode ? [["domainNames", domainNames]] : [])]) : null; // domainNames: #3014
   return { ...(asColumns ? { columns } : { cells }), ...(unsIdx ? { nearUnsampledBlocks } : {}) /* #2596 */, blocksEstimated: asColumns ? n : cells.length, blocksSkipped, noCodeBlocks, singleHoleCells, dominatedCells, grid: { nx, ny, nz }, blocksInReach: mask ? reachInfo.reach : totalBlocks, supportCounts: wantSupport ? supportCounts : null, beyondCounts /* #2417 */, mlsCounts: method === "mls1" ? mlsCounts : null, ...(method === "ok" ? { okCounts, variogram } : {}) };
 }
 
@@ -588,6 +593,7 @@ function makeCellEstimator(samplePoints, opts = {}) {
     }
     if (value == null || !Number.isFinite(value)) return null;
     const out = { value, nSamples: used.length, nHoles: holes.size };
+    if (restrictToDomain) out.domain = dists[0].domain ?? null; // TASKS.csv #3014 — the domain the block took (its nearest composite's), kept on the block
     // TASKS.csv #2417 — the elevation range of the samples used (real elevations: wz under a trend), for the block's "above or
     // below every sample that informs it" flag
     if (opts.zRange) { let lo = Infinity, hi = -Infinity; for (const u of used) { const z = u.p.wz ?? u.p.z; if (z < lo) lo = z; if (z > hi) hi = z; } out.zLo = lo; out.zHi = hi; }

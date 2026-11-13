@@ -39,7 +39,7 @@ test("the box asks (default: leave them out) and the commit says it", () => {
   // the hook sits before the early return
   assert.ok(b.indexOf("const noData = useMemo(") < b.indexOf("if (!shown) return null;"));
   const ip = readFileSync(new URL("../src/modules/viewer/useImportPipeline.js", import.meta.url), "utf8");
-  assert.match(ip, /const nd = data\.logKeepNoData \? null : channelNoData\(allRows, col, unitFromHeader\(col\)\);/);
+  assert.match(ip, /const nd = data\.logKeepNoData \? null : channelNoData\(src, col, unitFromHeader\(col\)\);/);
   assert.match(ip, /no-data value\(s\) left out: \$\{noDataText\(nd\)\}/);
   assert.match(ip, /Left out on import as no-data codes: \$\{out\.dropped\} value\(s\)/);
 });

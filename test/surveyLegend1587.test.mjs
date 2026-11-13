@@ -49,7 +49,9 @@ test("the pane edits one survey's legend when several are loaded; the 3D View an
   assert.match(g, /aria-label=\{tr\("Survey whose legend to edit"\)\}/);
   assert.match(g, /updateGeophysSurvey\(legendKey, \{ legend: \{ \.\.\.\(geophysSurveys\[legendKey\]\?\.legend \|\| \{\}\), \.\.\.patch \} \}\)/);
   const v = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
-  assert.equal((v.match(/max: geophysPtsMax \}, geophysSurveys\)/g) || []).length, 2);
+  assert.equal((v.match(/max: geophysPtsMax \}, geophysSurveys\)/g) || []).length, 1); // the points' build; the legend's moved to lib/legendGroups.js (#2878)
+  assert.match(v, /geophysLegendGroups\(\{ rows: layers\?\.geophys_pts, visible: !!layerVisible\.geophys_pts, surveys: geophysSurveys,/);
+  assert.match(readFileSync(new URL("../src/lib/legendGroups.js", import.meta.url), "utf8"), /makeSurveyColorer\(pts, \{ stops, colorMode, min, max \}, surveys\)/);
   assert.match(v, /surveys: geophysSurveys \/\* #1587 \*\//);
   assert.match(readFileSync(new URL("../src/lib/sectionScatter.js", import.meta.url), "utf8"), /geophysStyle\.surveys \|\| null/);
 });

@@ -43,7 +43,7 @@ test("the toolkit greys unusable cells, explains them, and will not save one", (
   assert.match(src, /thresholdUnreachable\(p\.cand\.values\[m\.id\], p\.summary, unit\)/);
   assert.match(src, /textDecoration: off \? "line-through"/);
   assert.match(src, /disabled=\{!pops\.length \|\| chosenUnusable/);
-  assert.match(src, /usableDefaultMethod\(pops, m \|\| "median2mad", unit\)/);
+  assert.match(src, /usableDefaultMethod\(pops, m \|\| \(logOn \? "median2mad" : null\), unit\)/); // #3070: no log rule by default off the log scale
   assert.match(src, /Struck through: \{rules\} land above every sample/);
   assert.match(src, /Choose a rule \(click its column\)/);
   assert.match(src, /\?\.label \|\| "none chosen"/, "the CSV export no longer throws with no rule chosen");

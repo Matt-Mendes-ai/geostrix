@@ -48,9 +48,12 @@ test("wiring: QAQC says why no limit is suggested; Thresholds and Grade stats sh
   const q = rd("../src/components/QAQCPanel.jsx");
   assert.match(q, /dlSuggestion\.basis === "step" \|\| dlSuggestion\.basis === "low"/);
   const t = rd("../src/components/ThresholdToolkit.jsx");
-  assert.match(t, /censoringFloor\(vals, \{ zeros \}\), step: reportedStep\(vals, \{ zeros \}\)/);
-  assert.match(t, /zeroResults\(data, symbol, \{ flaggedOnly: true \}\)/);
+  // #3083 — both through qaqc fileCensoring, on the file's results (Grade stats searched its resolved segments and missed Harry's floor)
+  const ql = rd("../src/lib/qaqc.js");
+  assert.match(ql, /return \{ floor: censoringFloor\(vals, \{ zeros \}\), step: reportedStep\(vals, \{ zeros \}\) \};/);
+  assert.match(ql, /const zeros = zeroResults\(rows, symbol, \{ flaggedOnly: true \}\);/);
+  assert.match(t, /fileCensoring\(data, symbol, unit, units\)/);
   const g = rd("../src/components/GradeStatistics.jsx");
-  assert.match(g, /const ltFloor = useMemo\(\(\) => censoringFloor\(rows\.filter\(\(r\) => !r\.lt\)\.map\(\(r\) => r\.value\), \{ zeros: zeroResults\(/);
+  assert.match(g, /const ltFloor = useMemo\(\(\) => \(source === "surface" \? fileCensoring\(surfaceSamples, /);
   assert.match(g, /ltN: rs\.reduce\(\(k, r\) => k \+ \(isLt\(r\) \? 1 : 0\), 0\)/);
 });

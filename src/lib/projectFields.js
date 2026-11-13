@@ -29,7 +29,7 @@ export function expandTerrain(t) {
   return { ...rest, elevations: Array.from(b64ToF32(elevationsF32)) };
 }
 import { compactLayers, expandLayers } from "./compactRows.js"; // TASKS.csv #374
-import { compactTable, expandTable, compactIntervalLayers, expandIntervalLayers, compactCustomLayers, expandCustomLayers } from "./compactTable.js"; // TASKS.csv #555; custom layers: #2334
+import { compactTable, compactTableSliced /* #3104 */, expandTable, compactIntervalLayers, expandIntervalLayers, compactCustomLayers, expandCustomLayers } from "./compactTable.js"; // TASKS.csv #555; custom layers: #2334
 import { compactSurfaces, expandSurfaces } from "./compactSurfaces.js"; // TASKS.csv #483
 import { DEFAULT_DESURVEY_METHOD, normalizeDesurveyMethod } from "./desurvey.js";
 import { poolLayoutImages, expandLayoutImages } from "./layoutImagePool.js"; // TASKS.csv #1631
@@ -174,10 +174,11 @@ export const FIELDS = [
   { key: "collars", track: "undo", empty: list },
   { key: "survey", track: "undo", empty: list },
   { key: "layers", track: "undo", empty: () => ({ ...EMPTY_LAYERS }),
-    save: (l) => compactIntervalLayers(compactLayers(l)), load: (data) => ({ ...EMPTY_LAYERS, ...(expandIntervalLayers(expandLayers(data.layers)) || {}) }) }, // #374 point surveys (Float32); #555 big interval layers (exact columns)
-  { key: "assays", track: "undo", empty: list, save: compactTable, load: (data) => expandTable(data.assays) || [] }, // #555 — exact columns from 2,000 rows
+    save: (l) => compactIntervalLayers(compactLayers(l)), load: (data) => ({ ...EMPTY_LAYERS, ...(expandIntervalLayers(expandLayers(data.layers)) || {}) }),
+    tables: (l) => Object.entries(l || {}).filter(([k, v]) => k !== "geophys_pts" && Array.isArray(v)).map(([, v]) => v) /* #3104 — the interval tables compactIntervalLayers encodes */ }, // #374 point surveys (Float32); #555 big interval layers (exact columns)
+  { key: "assays", track: "undo", empty: list, save: compactTable, load: (data) => expandTable(data.assays) || [], tables: (v) => [v] /* #3104 */ }, // #555 — exact columns from 2,000 rows
   { key: "assayElements", track: "undo", empty: list },
-  { key: "customLayers", track: "undo", empty: list, save: compactCustomLayers, load: (data) => expandCustomLayers(data.customLayers) || [] }, // #2334 — a layer of 2,000+ rows as exact columns
+  { key: "customLayers", track: "undo", empty: list, save: compactCustomLayers, load: (data) => expandCustomLayers(data.customLayers) || [], tables: (v) => (Array.isArray(v) ? v.map((l) => l?.rows) : []) /* #3104 */ }, // #2334 — a layer of 2,000+ rows as exact columns
   // Older project files (version < 2) won't have this — null, and ViewerModule falls back to its defaults.
   { key: "viewerUiState", track: "view", empty: () => null },
   { key: "themes", track: "dirty", empty: list },
@@ -244,7 +245,7 @@ export const FIELDS = [
   { key: "designStrings", track: "undo", empty: list }, // TASKS.csv #1876
   // TASKS.csv #1073 (review #1016) — exact columns from 2,000 rows, like assays: 50k samples x 48 elements were 29 MB and
   // 1.8 s of JSON.stringify per autosave as one object per sample; columns are ~14 MB and cached per array
-  { key: "surfaceSamples", track: "undo", empty: list, save: compactTable, load: (data) => expandTable(data.surfaceSamples) || [] }, // TASKS.csv #228
+  { key: "surfaceSamples", track: "undo", empty: list, save: compactTable, load: (data) => expandTable(data.surfaceSamples) || [], tables: (v) => [v] /* #3104 */ }, // TASKS.csv #228
   { key: "surfaceElements", track: "undo", empty: list },
   { key: "geochemThresholds", track: "undo", empty: list }, // TASKS.csv #841
   { key: "surfaceQc", track: "undo", empty: () => null }, // TASKS.csv #842 — { records, certificates, settings } or null
@@ -318,6 +319,23 @@ export function projectParts(live, extra = {}) {
   for (const f of FIELDS) {
     const j = cachedJson(live[f.key], f.save || ((v) => v));
     if (j !== undefined) parts.push([f.key, j]);
+  }
+  for (const [k, v] of Object.entries(extra)) { const j = JSON.stringify(v); if (j !== undefined) parts.push([k, j]); }
+  return parts;
+}
+// TASKS.csv #3104 (review #2876) — the same parts, built a piece at a time: each uncached big table encoded a column at a time and each changed
+// field stringified in its own step, with `pause()` between (the autosave's 146,970 assays were one ~1.2 s main-thread task, landing inside an
+// estimate run). The text is projectParts' exactly (the same cachedJson, the tables' caches warmed first). live: values that do not change
+// while it runs (the autosave's snapshot).
+const nextTask = () => new Promise((r) => setTimeout(r, 0));
+export async function projectPartsSliced(live, extra = {}, pause = nextTask) {
+  const parts = [["version", JSON.stringify(PROJECT_VERSION)]];
+  for (const f of FIELDS) {
+    const v = live[f.key], cold = v !== null && typeof v === "object" && !fieldJson.has(v);
+    if (cold && f.tables) for (const rows of f.tables(v)) if (Array.isArray(rows)) await compactTableSliced(rows, pause);
+    const j = cachedJson(v, f.save || ((x) => x));
+    if (j !== undefined) parts.push([f.key, j]);
+    if (cold) await pause();
   }
   for (const [k, v] of Object.entries(extra)) { const j = JSON.stringify(v); if (j !== undefined) parts.push([k, j]); }
   return parts;

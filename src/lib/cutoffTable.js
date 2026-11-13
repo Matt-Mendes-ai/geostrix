@@ -73,3 +73,22 @@ export function parseCutoffs(text) {
 export function defaultCutoffs({ median, q3, p90 } = {}) {
   return [...new Set([median, q3, p90].filter((v) => Number.isFinite(v) && v > 0).map((v) => +v.toPrecision(2)))].sort((a, b) => a - b);
 }
+
+// TASKS.csv #3069 — the Grade stats CSV: the per-domain rows (objects, gradeStatsRows), then a blank line and the Above cut-off table
+// (all domains together) as a second section with its own header. rows: aboveCutoffRows output; unit / alsoUnits: the stored units.
+// Without cut-off rows the per-domain rows are returned unchanged (one plain table, as before).
+export function gradeStatsCsvRows(domainRows, cutRows, { unit, alsoUnits = {}, lengths = false, weighted = false } = {}) {
+  if (!cutRows?.length) return domainRows;
+  const u = (x) => String(x || "ppm").replace(/[^\w]+/g, "_");
+  const fields = [];
+  for (const r of domainRows) for (const k of Object.keys(r)) if (!fields.includes(k)) fields.push(k);
+  const syms = Object.keys(cutRows[0].also || {});
+  const fx = (v, d = 4) => (v == null || !Number.isFinite(v) ? "" : v.toFixed(d));
+  return [
+    fields, ...domainRows.map((r) => fields.map((k) => r[k] ?? "")),
+    [],
+    ["Above cut-off (all domains together)"],
+    [`cutoff_${u(unit)}`, "n", "pct_samples", ...(lengths ? ["metres", "pct_metres"] : []), `mean_${u(unit)}`, ...syms.map((s) => `mean_${s}_${u(alsoUnits[s])}`), "basis"],
+    ...cutRows.map((r) => [r.cutoff, r.n, fx(r.pctN, 2), ...(lengths ? [fx(r.length, 2), fx(r.pctLength, 2)] : []), fx(r.mean), ...syms.map((s) => fx(r.also[s])), weighted ? "length-weighted (assay interval length)" : "unweighted arithmetic"]),
+  ];
+}

@@ -48,7 +48,12 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
   const unitL = gradeUnitLabel(symbol, unit); // #2192 — the label on screen (g/t for a precious metal in ppm, #1680); exports keep unit
   const dl = assayElements.find((e) => e.symbol === symbol)?.detectionLimit ?? null;
   const dlSuggestion = useMemo(() => suggestDetectionLimit(labAssays(assays), symbol), [assays, symbol]); // labAssays: #2354 — a pXRF reading is not the lab's limit
-  const methodLimits = useMemo(() => methodDetectionLimits(labAssays(assays), symbol), [assays, symbol]); // #2732 — one limit per joined method column
+  const methodLimitsRead = useMemo(() => methodDetectionLimits(labAssays(assays), symbol), [assays, symbol]); // #2732 — one limit per joined method column
+  // TASKS.csv #2881 (split from #2772) — a limit typed per method column (saved with the element, assayElements[].methodLimits = { [column]:
+  // limit }, '' for the element's main column) wins over the one read from its '<' results, as the element's own typed limit does
+  const typedByMethod = assayElements.find((e) => e.symbol === symbol)?.methodLimits || null;
+  const methodLimits = useMemo(() => methodLimitsRead.map((m) => { const t = typedByMethod?.[m.method ?? ""]; return t > 0 ? { ...m, limit: t, typed: true, read: m.limit } : m; }), [methodLimitsRead, typedByMethod]);
+  const setMethodLimit = (method, v) => setAssayElements?.((prev) => prev.map((e) => { if (e.symbol !== symbol) return e; const ml = { ...(e.methodLimits || {}) }; if (v > 0) ml[method ?? ""] = v; else delete ml[method ?? ""]; return { ...e, methodLimits: Object.keys(ml).length ? ml : undefined }; }));
   const setDetectionLimit = (v) => setAssayElements?.((prev) => prev.map((e) => (e.symbol === symbol ? { ...e, detectionLimit: v > 0 ? v : null } : e)));
   const [blankMult, setBlankMult] = useState(5);
   const blankLimit = dl ? blankMult * dl : blankThreshold;
@@ -69,7 +74,7 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
   const series = useMemo(() => (activeGroup ? standardSeries(ordered.rows, symbol, elementUnits, cert) : { points: [], limits: null }), [activeGroup, ordered, symbol, elementUnits, cert]);
 
   // TASKS.csv #2772 — an element joined from method columns whose limits differ: each blank judged against blankMult x its own method's limit
-  const methodsDiffer = methodLimits.length > 1 && new Set(methodLimits.map((m) => m.limit)).size > 1;
+  const methodsDiffer = methodLimitsRead.length > 1 && (new Set(methodLimitsRead.map((m) => m.limit)).size > 1 || !!typedByMethod); // #2881 — the read limits differ, or some are typed (the row stays while they are edited)
   const [perMethod, setPerMethod] = useState(false);
   const blankByMethod = useMemo(() => (methodsDiffer && perMethod ? methodBlankLimits(methodLimits, blankMult) : null), [methodsDiffer, perMethod, methodLimits, blankMult]);
   const blanks = useMemo(() => blankRows(assays, symbol, elementUnits, blankLimit, undefined, { methodLimits: blankByMethod }), [assays, symbol, elementUnits, blankLimit, blankByMethod]);
@@ -232,6 +237,16 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
                   <span>{tr("Judge each blank against its own method's limit: {mult} × {list}", { mult: blankMult, list: methodLimits.map((m) => `${m.method ?? tr("main column")} ${m.limit == null ? "—" : formatLimit(m.limit)}`).join(", ") })}</span>
                   {perMethod && !dl && <input type="number" min={1} step="any" value={blankMult} onChange={(e) => setBlankMult(Math.max(1, Number(e.target.value) || 5))} style={{ ...sel, width: 60 }} aria-label={tr("Blank limit as a multiple of the detection limit")} />}
                 </label>
+              )}
+              {methodsDiffer && perMethod && ( /* TASKS.csv #2881 — each method column's limit, typed (saved with the element) or read from its '<' results */
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", margin: "0 0 6px 22px" }}>
+                  {methodLimits.map((m) => (
+                    <label key={m.method ?? ""} style={{ display: "flex", alignItems: "center", gap: 4 }} title={m.typed ? tr("Typed; read from the '<' results: {v}", { v: m.read == null ? "—" : formatLimit(m.read) }) : tr("Read from the '<' results; type the lab's limit for this method to replace it")}>
+                      {m.method ?? tr("main column")}
+                      <input key={`${symbol}|${m.method ?? ""}|${m.limit}`} type="number" min={0} step="any" defaultValue={m.typed ? m.limit : ""} placeholder={m.limit == null ? tr("not set") : formatLimit(m.limit)} onBlur={(e) => setMethodLimit(m.method, Number(e.target.value))} onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }} style={{ ...sel, width: 80 }} aria-label={tr("Detection limit of {method}", { method: m.method ?? tr("main column") })} />
+                    </label>
+                  ))}
+                </div>
               )}
               {!dl && blankThreshold == null && !blankByMethod && blanks.length > 0 && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", margin: "6px 0" }}>{tr("No threshold set, so the {n} blank(s) are listed but not judged. Enter a threshold in {unit}, or set {symbol}'s detection limit to judge them against a multiple of it.", { n: blanks.length, unit: unitL, symbol })}</div>}{/* #2733 */}
               {blanks.length === 0 ? (

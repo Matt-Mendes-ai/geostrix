@@ -65,6 +65,7 @@ export function expandPointRows(stored) {
     if (extras[i]) Object.assign(r, extras[i]);
     rows[i] = r;
   }
+  cache.set(rows, stored); // TASKS.csv #3118 — as compactTable's expandTable: the stored form is these rows' encoding
   return rows;
 }
 

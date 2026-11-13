@@ -21,6 +21,6 @@ test("one method column: nothing to say", () => {
 
 test("wired: a note under the limit when the methods' limits differ", () => {
   const q = readFileSync(new URL("../src/components/QAQCPanel.jsx", import.meta.url), "utf8");
-  assert.match(q, /const methodLimits = useMemo\(\(\) => methodDetectionLimits\(labAssays\(assays\), symbol\), \[assays, symbol\]\);/);
+  assert.match(q, /const methodLimitsRead = useMemo\(\(\) => methodDetectionLimits\(labAssays\(assays\), symbol\), \[assays, symbol\]\);/ /* #2881: read, then the typed ones over them */);
   assert.match(q, /methodLimits\.length > 1 && new Set\(methodLimits\.map\(\(m\) => m\.limit\)\)\.size > 1/);
 });

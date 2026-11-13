@@ -19,3 +19,7 @@ export const minSymbolRadiusM = (metresPerPx, minPx = 6) => (Number.isFinite(met
 
 // built at one metres-per-pixel, the camera now at another: rebuild when they differ by `factor` or more
 export const needsSymbolRebuild = (builtMpp, nowMpp, factor = 2) => Number.isFinite(builtMpp) && Number.isFinite(nowMpp) && builtMpp > 0 && nowMpp > 0 && Math.max(builtMpp / nowMpp, nowMpp / builtMpp) >= factor;
+
+// TASKS.csv #2849 — the survey points' floor on screen (px across): a regional gravity survey (400 m stations over 94 km) reads as a map of
+// coloured stations at Fit instead of a few specks
+export const GEOPHYS_MIN_PX = 5;

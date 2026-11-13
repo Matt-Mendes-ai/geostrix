@@ -244,6 +244,9 @@ const WKT_DATUMS = [
   ["ETRS89", "ETRS_1989", "ETRS_1989"], ["NZGD2000", "NZGD_2000", "NZGD_2000"],
   ["AGD84", "Australian_1984", "AGD_1984"], ["AGD66", "Australian_1966", "AGD_1966"], // TASKS.csv #2155 — the ESRI names (AGD_1984_AMG_Zone_51)
 ];
+// TASKS.csv #3128 — Finland's and Sweden's national grids under ArcGIS's own names (ETRS_1989_TM35FIN_E_N, SWEREF99_TM): [datum, PROJCS name]. Only these
+// two codes: the other EUREF-FIN / SWEREF99 grids keep the generic WKT, whose EPSG code is what lets them be read back.
+const NORDIC_WKT = { 3067: ["ETRS_1989", "ETRS_1989_TM35FIN_E_N"], 3006: ["SWEREF99", "SWEREF99_TM"] };
 const wktNum = (v) => { const n = Number(v); return Number.isInteger(n) ? `${n}.0` : String(n); };
 const wktParam = (name, v) => `PARAMETER["${name}",${wktNum(v)}]`;
 // TASKS.csv #1062 (review #1016, QGIS / GIS) — the ESRI templates below cover 447 of the registry's codes; 3,806 metric
@@ -309,7 +312,8 @@ export function prjWktFor(epsg) {
   const arg = (k, dflt = 0) => { const m = def.match(new RegExp(`\\+${k}=(\\S+)`)); return m ? m[1] : dflt; };
   const has = (k) => new RegExp(`\\+${k}(\\s|$)`).test(def);
   const metric = !/\+to_meter=/.test(def) && ["0", "m"].includes(String(arg("units"))); // #1062 — the ESRI templates below write metres
-  const d = metric ? WKT_DATUMS.find(([prefix]) => name.startsWith(prefix)) : null;
+  const nordic = NORDIC_WKT[code]; // #3128
+  const d = metric ? (nordic ? [null, nordic[0], null] : WKT_DATUMS.find(([prefix]) => name.startsWith(prefix))) : null;
   if (!d) return /\+proj=longlat/.test(def) ? null : genericWkt(code, def, name);
   const ell = WKT_ELLIPSOIDS[arg("datum") === "WGS84" || code === 3857 ? "WGS84" : arg("ellps")];
   if (!ell) return genericWkt(code, def, name); // #1062
@@ -320,8 +324,8 @@ export function prjWktFor(epsg) {
     return `PROJCS["WGS_1984_Web_Mercator_Auxiliary_Sphere",${geogcs},PROJECTION["Mercator_Auxiliary_Sphere"],${wktParam("False_Easting", 0)},${wktParam("False_Northing", 0)},${wktParam("Central_Meridian", 0)},${wktParam("Standard_Parallel_1", 0)},${wktParam("Auxiliary_Sphere_Type", 0)},UNIT["Meter",1.0]]`;
   }
   // PROJCS name the ESRI way: "<datum prefix>_<rest of the EPSG name>", e.g. SIRGAS_2000_UTM_Zone_23S
-  const rest = name.split(" / ")[1].split(" — ")[0];
-  const tail = { "BC Albers": "BC_Environment_Albers", "New Zealand Transverse Mercator 2000": "New_Zealand_Transverse_Mercator" }[rest]
+  const rest = nordic ? "" : name.split(" / ")[1].split(" — ")[0];
+  const tail = nordic ? "" : { "BC Albers": "BC_Environment_Albers", "New Zealand Transverse Mercator 2000": "New_Zealand_Transverse_Mercator" }[rest]
     || rest.replace(/\bzone\b/, "Zone").replace(/[^A-Za-z0-9]+/g, "_");
   let body;
   if (proj === "utm") {
@@ -334,7 +338,7 @@ export function prjWktFor(epsg) {
   } else {
     return genericWkt(code, def, name); // #1062
   }
-  return `PROJCS["${d[2]}_${tail}",${geogcs},${body},UNIT["Meter",1.0]]`;
+  return `PROJCS["${nordic ? nordic[1] : `${d[2]}_${tail}`}",${geogcs},${body},UNIT["Meter",1.0]]`;
 }
 
 // ---------- ZIP (STORED — no compression, valid per the ZIP spec and readable by every common tool) ----------

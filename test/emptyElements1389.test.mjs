@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { pickElementColumns } from "../src/lib/geochem.js";
 import { silvertipAssays } from "../src/lib/sampleSilvertip.js";
+import { bcSkip, bcText } from "./helpers/bcSample.mjs"; // TASKS.csv #3134 — the BC samples are not in the repository: real-data checks run where one is found
 
 test("pickElementColumns reports the values in each chosen column", () => {
   const rows = [{ Au_ppm: "0.5", Cu_ppm: "", B_pct: "" }, { Au_ppm: "1.2", Cu_ppm: "40", B_pct: "" }];
@@ -12,8 +13,16 @@ test("pickElementColumns reports the values in each chosen column", () => {
   assert.deepEqual(by, { Au: 2, Cu: 1, B: 0 });
 });
 
-test("the bundled Silvertip assays no longer list B, Hg, Pd or Pt", () => {
-  const text = readFileSync(new URL("../sample_data/silvertip/assays.csv", import.meta.url), "utf8");
+test("the Silvertip loader leaves out an element with no value in any row (synthetic rows in its layout)", () => {
+  const text = "hole_id,from,to,sample_id,Ag_ppm,B_ppm,Hg_ppm,Zn_pct,Pd_ppm,Pt_ppm\nH1,0,1,S1,2.5,,,1.2,,\nH1,1,2,S2,0.8,,,0.4,,\nH2,0,1,S3,,,,3.1,,\n";
+  const { elements, rows } = silvertipAssays(text);
+  const syms = elements.map((e) => e.symbol);
+  assert.deepEqual(syms.sort(), ["Ag", "Zn"]);
+  assert.ok(elements.every((e) => rows.some((r) => r.values[e.symbol] != null)));
+});
+
+test("the Silvertip assays (ARIS 42807) no longer list B, Hg, Pd or Pt", { skip: bcSkip("silvertip") }, () => {
+  const text = bcText("silvertip", "assays.csv");
   const { elements, rows } = silvertipAssays(text);
   const syms = elements.map((e) => e.symbol);
   for (const s of ["B", "Hg", "Pd", "Pt"]) assert.ok(!syms.includes(s), s);

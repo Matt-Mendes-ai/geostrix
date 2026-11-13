@@ -8,7 +8,8 @@ const loadKml = () => import("../kml.js");
 const loadLas = () => import("../las.js"); // TASKS.csv #492 — on demand
 const loadXlsx = () => import("../xlsx.js");
 const loadShapefile = () => import("../shapefile.js");
-import { spectralColumns } from "../layers.js"; // TASKS.csv #2339
+import { spectralColumns, guessMapping } from "../layers.js"; // TASKS.csv #2339; guessMapping: #3038
+import { logReadSpec, LOG_READ_MIN_BYTES } from "../logOnRead.js"; // TASKS.csv #3038
 import { num, isOverturnedValue, targetFromName, guessTargetFor, guessColumn, guessColumnExact /* #2268 */, TARGET_SCHEMAS, INTERVAL_FROM_ALIASES, INTERVAL_TO_ALIASES, normHeader } from "../layers.js"; // INTERVAL_*: #2150
 import { gridXY } from "../gridColumns.js"; // TASKS.csv #2564
 const tabular = () => import("../tabular.js"); // TASKS.csv #1493 — the CSV engine (papaparse) loads with the first table, not at launch
@@ -385,7 +386,7 @@ export function parseVectorFile(file, onDone, chosenLayer = null) {
   }
   // TASKS.csv #284 — the comma-decimal note rides the existing meta.note channel, so it surfaces in
   // the same toast/notice every other import caveat already uses (no new plumbing).
-  parseCSV(file, (data, err, localeNote) => onDone(data, err, { headers: data && data.length ? Object.keys(data[0]) : [], note: localeNote || "" }));
+  parseCSV(file, (data, err, localeNote, extra) => onDone(data, err, { headers: extra?.logTable ? extra.headers : data && data.length ? Object.keys(data[0]) : [], note: localeNote || "", ...(extra?.logTable ? { logTable: extra.logTable } : {}) })); // logTable: #3038
 }
 
 // TASKS.csv #439 — gpkg.js (and with it sql.js) is loaded on first GeoPackage import/export, not at
@@ -401,7 +402,19 @@ export const loadGpkg = () => import("../gpkg.js");
 export function parseCSV(file, onDone) {
   // TASKS.csv #444 — the shared reader (lib/tabular.js): the same #284 comma-decimal handling and #404
   // stamp skipping as before, plus the Windows-1252 fallback for Excel exports.
-  tabular().then((m) => m.parseTableFile(file)).then((t) => onDone(t.rows, null, t.note ? ` ${t.note.trim()}` : ""), (err) => onDone(null, err.message)); // #1493
+  // TASKS.csv #3038 — a big downhole log is read into typed columns in the parse worker (lib/logOnRead.js): its 2.58 M rows never exist as
+  // objects. The rows handed on are its first 5,000 (the dialog's preview and guesses); `logTable` holds every reading.
+  tabular().then(async (m) => {
+    const spec = file.size >= LOG_READ_MIN_BYTES && typeof Worker !== "undefined" ? await sniffLog(file, m).catch(() => null) : null;
+    return m.parseTableFile(file, spec ? { logRead: spec } : undefined);
+  }).then((t) => onDone(t.rows, null, t.note ? ` ${t.note.trim()}` : "", t.logTable ? { headers: t.headers, logTable: t.logTable } : undefined), (err) => onDone(null, err.message)); // #1493
+}
+// the first megabyte, read as a table: a downhole log's reader spec, or null
+async function sniffLog(file, m) {
+  const head = await file.slice(0, 1 << 20).text();
+  const cut = file.size > head.length ? head.slice(0, Math.max(0, head.lastIndexOf("\n"))) : head; // a cut last line left out
+  const { rows, headers } = m.parseTableText(cut, {});
+  return logReadSpec(headers, rows, guessMapping("custom", headers));
 }
 
 // TASKS.csv #1070 (review #1016, drillhole-database admin) — rows an importer leaves out, counted and said. An RQD file with

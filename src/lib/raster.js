@@ -17,6 +17,7 @@
 // the scene, so that path DOES reproject automatically when it can.
 import { inflateCapped, MB } from "./inflate.js"; // TASKS.csv #1347
 import { decodeGrd } from "./grdFormats.js"; // TASKS.csv #1347
+import { unreadableFormatAdvice } from "./unreadableFormats.js"; // TASKS.csv #2847
 import GeoTIFF, { fromArrayBuffer } from "geotiff"; // GeoTIFF.fromSource: #1351
 import { writeGeoTiff } from "./geotiffWrite.js"; // TASKS.csv #1038 — geotiff.js header, one loop for the pixels
 import { f32ToB64, b64ToF32 } from "./inversion.js"; // TASKS.csv #326 — compact grid values
@@ -28,6 +29,7 @@ import { makeStretch } from "./idw.js"; // TASKS.csv #708 — the same 2-98 % st
 import { rasterStops, DEFAULT_RASTER_STYLE } from "./rasterColour.js"; // TASKS.csv #1236
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 import { b64ToBytes } from "./base64.js"; // TASKS.csv #1114
+import { gridPicture } from "./gridPicture.js"; // TASKS.csv #3033 — the picture of a value grid, shared with the filter worker
 import { borderKeyColour, colourFraction, hexRgb } from "./rasterKey.js"; // TASKS.csv #1623
 import { tieReaches, tieImageToLocal, tieGridToLocal, mineReaches, mineImageToProject, mineGridToProject, mineBoxOf } from "./rasterTie.js"; // TASKS.csv #2587 / #2322; mine*: #2684
 import { isMineSource, mineSourceSentence } from "./mineGrid.js"; // TASKS.csv #2684
@@ -161,9 +163,15 @@ export async function readRastersCapped(tiff, image, opts = {}, label = "This Ge
 // opened at all. Now the file is read by byte ranges (only the header and the tiles a read needs), and a reduced read of an image
 // with no overview walks its tiles one at a time, folding each into the output grid, so memory is the output plus one tile.
 // file: a Blob / File, or { name, size, readRange(offset, length) -> Promise<ArrayBuffer> } (the Browser panel's big files)
+// TASKS.csv #2861 (review GSC geophysics) — a 0.8 MB picture TIFF in 144 strips took 3.4-5.6 s: one file.slice().arrayBuffer() per strip, each a
+// round trip. A file up to WHOLE_READ_MAX is read once and sliced in memory; the ranged reads stay for the big ones (#1351)
+export const WHOLE_READ_MAX = 64 * 1024 * 1024;
 export function rangedTiffSource(file) {
   let whole = null; // a stand-in with only arrayBuffer() (bundled-sample loaders, tests): read once, then sliced
-  const read = typeof file.readRange === "function" ? (o, l) => file.readRange(o, l)
+  const small = Number(file.size) > 0 && Number(file.size) <= WHOLE_READ_MAX && typeof file.arrayBuffer === "function"; // #2861
+  let wholeP = null; // one read shared by the strips fetched in parallel
+  const read = small ? async (o, l) => { wholeP = wholeP || file.arrayBuffer(); return (await wholeP).slice(o, o + l); }
+    : typeof file.readRange === "function" ? (o, l) => file.readRange(o, l)
     : typeof file.slice === "function" ? (o, l) => file.slice(o, o + l).arrayBuffer()
       : async (o, l) => { whole = whole || await file.arrayBuffer(); return whole.slice(o, o + l); };
   const size = Number(file.size) || Infinity;
@@ -304,6 +312,8 @@ export function isTiffHeader(b) {
 export async function parseGeoTIFF(file, { bandFn = null, samples = null, maxSide = MAX_TEXTURE_SIZE, worldFile = null } = {}) { // maxSide: #838; worldFile: #1855
   let tiff, image;
   if (typeof file?.slice === "function" && !isTiffHeader(new Uint8Array(await file.slice(0, 4).arrayBuffer()))) {
+    const advice = unreadableFormatAdvice(file.name); // TASKS.csv #2847 — a .gdb (or .ecw ...) given to the GeoTIFF input: what it is and the way out
+    if (advice) throw new Error(advice);
     throw new Error(/\.(csv|txt|xlsx?|tsv)$/i.test(file.name || "")
       ? tr("\"{name}\" is not a TIFF, .gxf or .grd: a table goes to Geochem (surface samples) or the 3D View (collars and logs).", { name: file.name })
       : tr("\"{name}\" is not a TIFF, .gxf or .grd file (its first bytes are not a TIFF header).", { name: file.name }));
@@ -325,8 +335,13 @@ export async function parseGeoTIFF(file, { bandFn = null, samples = null, maxSid
     // actually wrong instead of surfacing a raw library error.
     bbox = null;
   }
-  let placedBy = null;
+  let placedBy = null, worldUnused = null;
   if ((!bbox || bbox.some((v) => !Number.isFinite(v))) && worldFile) { bbox = worldFileBbox(worldFile, image.getWidth(), image.getHeight()); placedBy = worldFile.name; } // #1855
+  else if (worldFile) { // TASKS.csv #2857 — the TIFF's own GeoKeys placed it: the world file selected with it is said, with how far it would have put it
+    const wb = worldFileBbox(worldFile, image.getWidth(), image.getHeight());
+    const off = wb && wb.every(Number.isFinite) ? Math.max(...wb.map((v, i) => Math.abs(v - bbox[i]))) : null;
+    worldUnused = { name: worldFile.name, offM: off };
+  }
   if (!bbox || bbox.some((v) => !Number.isFinite(v))) {
     throw new Error(tr("\"{name}\" has no georeferencing of its own (a plain TIFF). Select its world file (.tfw / .tifw / .wld, same name) together with it, or place it with Maps > Georeference.", { name: file.name })); // #1855 — says where to go
   }
@@ -422,6 +437,7 @@ export async function parseGeoTIFF(file, { bandFn = null, samples = null, maxSid
     name: file.name,
     bbox, // [xmin, ymin, xmax, ymax]
     placedBy, // #1855 — the world file's name when it placed the image
+    worldUnused, // #2857
     width: srcW,
     height: srcH,
     dataUrl: maxSide > MAX_TEXTURE_SIZE ? imageDataUrl(canvas) : canvas.toDataURL("image/png"), // #838 — a 16 megapixel PNG would bloat the project file
@@ -1076,11 +1092,14 @@ export async function buildRasterImport(file, { epsg, defaultElevation, sourceEp
     : tr("Imported \"{name}\" ({width}×{height}px, {v}×{v2} world units).", { name: parsed.name, width: parsed.width, height: parsed.height, v: (bx1 - bx0).toFixed(0), v2: (by1 - by0).toFixed(0) });
   msg += sideNote + crsNote; // sideNote: #2830
   if (parsed.placedBy) msg += tr(" Placed by its world file \"{w}\".", { w: parsed.placedBy }); // #1855
+  if (parsed.worldUnused) msg += parsed.worldUnused.offM > 0.01 ? tr(" The world file \"{w}\" was not used: the TIFF's own georeferencing placed it ({m} m from where the world file would).", { w: parsed.worldUnused.name, m: Math.round(parsed.worldUnused.offM * 10) / 10 }) : tr(" The world file \"{w}\" agrees with the TIFF's own georeferencing, which was used.", { w: parsed.worldUnused.name }); // #2857
   if (parsed.note) msg += parsed.note;
   msg += gridNote;
   // #1236 — what the import above drew: 2-98 % of the values, viridis
   let colour = {};
-  if (grid && parsed.grid) { const st = makeStretch(parsed.grid.values, "p2-98"); if (st.lo != null) colour = { colourRange: [st.lo, st.hi], colourStops: rasterStops(DEFAULT_RASTER_STYLE, st.lo, st.hi) }; }
+  // TASKS.csv #2858 (review GSC geophysics) — the bar gives the stretch the picture was drawn with: the importer's own (over all the file's
+  // values) where it kept one, not the 2-98 % of the block-averaged grid (-224.8 / 227.2 under a picture drawn over -225.7 / 232.8)
+  if (grid && parsed.grid) { const own = parsed.stretch && Number.isFinite(parsed.stretch.lo) && Number.isFinite(parsed.stretch.hi) && parsed.stretch.hi > parsed.stretch.lo ? parsed.stretch : null; const st = own || makeStretch(parsed.grid.values, "p2-98"); if (st.lo != null) colour = { colourRange: [st.lo, st.hi], colourStops: rasterStops(DEFAULT_RASTER_STYLE, st.lo, st.hi) }; }
   if (grid && colour.colourRange && looksLikeDem(parsed.name, colour.colourRange[0], colour.colourRange[1], collarZ)) msg += " " + tr("It looks like an elevation model ({lo} to {hi}): to use it as the ground (draping, collar checks, sections), import it under Maps > Terrain > Import SRTM/DEM instead.", { lo: Math.round(colour.colourRange[0]).toLocaleString(), hi: Math.round(colour.colourRange[1]).toLocaleString() }); // #2129
   // TASKS.csv #1623 - a colour picture whose border is uniformly white or black: that colour is its background, shown transparent
   let key = {};
@@ -1222,28 +1241,21 @@ export function gridToSurveyRows(raster, maxPoints = 20000) {
 // coloured between the 2nd and 98th percentiles (derivatives have long tails that would otherwise wash
 // the ramp out) plus the grid itself, so it can be filtered again or used as survey points.
 // averagedBy / sourceSize (#1095): carried from the grid a filter read, so a filtered raster still says it was averaged
-export function rasterFromGrid({ name, values, nx, ny, x0, yTop, dx, dy, elevation, extra = {}, averagedBy = 1, sourceSize = null }) {
-  const finite = [];
-  for (let i = 0; i < values.length; i++) if (Number.isFinite(values[i])) finite.push(values[i]);
-  if (!finite.length) throw new Error(tr("The filter produced no values."));
-  finite.sort((a, b) => a - b);
-  const lo = percentileSorted(finite, 0.02), hi = percentileSorted(finite, 0.98); // #740 — makeStretch's rule (was floor)
+export function rasterFromGrid(p) {
+  const pic = gridPicture(p.values, p.nx, p.ny); // #3033 — shared with the filter worker (gridFilterClient rasterFromGridAsync)
+  if (!pic.valid) throw new Error(tr("The filter produced no values."));
   const canvas = document.createElement("canvas");
-  canvas.width = nx; canvas.height = ny;
-  const ctx = canvas.getContext("2d");
-  const img = ctx.createImageData(nx, ny);
-  for (let k = 0; k < nx * ny; k++) {
-    const v = values[k];
-    if (!Number.isFinite(v)) { img.data[k * 4 + 3] = 0; continue; }
-    const t = hi > lo ? Math.min(1, Math.max(0, (v - lo) / (hi - lo))) : 0.5;
-    const [r, g, b] = rampColor(t);
-    img.data[k * 4] = r; img.data[k * 4 + 1] = g; img.data[k * 4 + 2] = b; img.data[k * 4 + 3] = 255;
-  }
-  ctx.putImageData(img, 0, 0);
+  canvas.width = p.nx; canvas.height = p.ny;
+  canvas.getContext("2d").putImageData(new ImageData(pic.rgba, p.nx, p.ny), 0, 0);
+  return rasterRecord(p, pic, canvas.toDataURL("image/png"));
+}
+// the raster record from a grid's picture (gridPicture's lo / hi / valid / valuesB64) and its PNG data URL
+export function rasterRecord({ name, nx, ny, x0, yTop, dx, dy, elevation, extra = {}, averagedBy = 1, sourceSize = null }, pic, dataUrl) {
+  const { lo, hi } = pic;
   const bbox = [x0 - dx / 2, yTop - dy * (ny - 1) - dy / 2, x0 + dx * (nx - 1) + dx / 2, yTop + dy / 2];
   return {
-    name, bbox, dataUrl: canvas.toDataURL("image/png"), elevation,
-    grid: { nx, ny, x0, yTop, dx, dy, values: f32ToB64(Float32Array.from(values)), valid: finite.length, averagedBy, sourceSize: sourceSize || [nx, ny] },
+    name, bbox, dataUrl, elevation,
+    grid: { nx, ny, x0, yTop, dx, dy, values: pic.valuesB64, valid: pic.valid, averagedBy, sourceSize: sourceSize || [nx, ny] },
     colourRange: [lo, hi], colourStops: rasterStops(DEFAULT_RASTER_STYLE, lo, hi), ...extra,
   };
 }

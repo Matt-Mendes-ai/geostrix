@@ -18,9 +18,9 @@ import { Radio, Upload, Trash2, ArrowRight, Eye, EyeOff, Loader2, Mountain, Tria
 import { requestPlanZoom, polylinesBox } from "../lib/planZoom.js"; // TASKS.csv #2657 // Scale: #1052
 import { lazyModal } from "../lib/lazyModal.jsx";
 import { sampleModelOnHoles } from "../lib/voxelSample.js"; // TASKS.csv #323
-import { logStops, SEQUENTIAL_ANCHORS } from "../lib/inversion.js"; // TASKS.csv #481
+import { logStops, SEQUENTIAL_ANCHORS, b64ToF32 } from "../lib/inversion.js"; // TASKS.csv #481; b64ToF32: #2846
 import { SURVEY_METHODS, unitsForMethod, robustRange, SURVEY_METHOD_GROUPS, guessSurveyMethodFrom, diurnalApplies /* #1586 */, Z_MEANINGS, surveyKey, surveyStats, aglToElevation, replaceSurveyPoints, surveyExportRows } from "../lib/geophysSurveys.js"; // surveyExportRows: #1094 // TASKS.csv #451; replaceSurveyPoints #600
-import { radiometricChannels, otherMeasurementColumns, channelMethods, isMultiRadiometric, channelKey, ratioJobs, ratioOf } from "../lib/radiometricChannels.js"; // TASKS.csv #2395
+import { radiometricChannels, otherMeasurementColumns, isMultiRadiometric, channelKey, withValueChannel, tickedChannels, ratioJobs, ratioOf } from "../lib/radiometricChannels.js"; // TASKS.csv #2395
 import { terrainElevationAt } from "../lib/inversion.js";
 import { downholeLikeness } from "../lib/downholeLikeness.js"; // TASKS.csv #1709
 import AddWebLayerModal from "../components/AddWebLayerModal.jsx";
@@ -30,7 +30,7 @@ import { classifyBreaks, PALETTES, paletteShortName /* #1859 */, paletteColorsHe
 import StopValueInput from "../components/StopValueInput.jsx"; // TASKS.csv #1422
 import { parseDEMFiles, buildRasterImport, terrainToGeoTIFFArrayBuffer } from "../lib/raster.js";
 import { boundaryAreaHectares } from "../lib/geoprocessing.js";
-import { saveFile, safeFileName } from "../lib/desktop.js"; // safeFileName: #1114
+import { saveFile, safeFileName, runPfieldsJob } from "../lib/desktop.js"; // safeFileName: #1114; runPfieldsJob: #2846 (the spline)
 import { blockModelCsvText, blockModelParamLines } from "../lib/blockModelExport.js"; // TASKS.csv #411; #1041
 import { stampLines, withStamp, stampBeside, stampPlacement, stampEpsg } from "../lib/provenance.js"; // TASKS.csv #404/#411
 import { version as APP_VERSION } from "../../package.json"; // TASKS.csv #529
@@ -52,7 +52,10 @@ import { readKmlFile, kmlToProjectPolylines } from "../lib/kml.js"; // TASKS.csv
 import { parseShapefileZip, parseShapefileParts } from "../lib/shapefile.js";
 import { groupShapefileParts } from "../lib/viewer/importHelpers.js"; // TASKS.csv #2121 — a loose .shp with its .prj / .dbf / .cpg
 import { parseGeoPackage } from "../lib/gpkg.js";
-import { idwGridToRasterInput, suggestBlankingDistance, suggestIdwCell, uniqueName } from "../lib/idw.js"; // suggestIdwCell, uniqueName: #2562
+import { idwGridToRasterInput, gridValuesToRasterInput, snappedGridExtent, suggestBlankingDistance, suggestIdwCell, uniqueName } from "../lib/idw.js"; // suggestIdwCell, uniqueName: #2562; gridValuesToRasterInput, snappedGridExtent: #2846, #2872
+import { surveySplineRequest, splineFinish, gridMethodTag } from "../lib/surveyGrid.js"; // TASKS.csv #2846
+import { gridSurveyAsync } from "../lib/surveyGridClient.js"; // #2846 — minimum curvature in a worker
+import { MINCURV_MAX_CELLS, SPLINE_MAX_CELLS } from "../lib/sampleGrid.js"; // #2846
 import { hillshadeToRasterInput, terrainDerivativeToRasterInput, autoZFactor, earlierDerivatives } from "../lib/hillshade.js"; // derivatives: TASKS.csv #797; autoZFactor: #2460; earlierDerivatives: #1764
 import { contourTerrain } from "../lib/contours.js";
 import SpatialAnalysis from "../components/SpatialAnalysis.jsx";
@@ -72,7 +75,7 @@ const GravityReductionBox = React.lazy(() => import("../components/GravityReduct
 import { Layers as RLayers /* #1986 */, Waves as RWaves /* #1989 */, Zap as RZap, Radar as RRadar, Magnet as RMagnet, Mountain as RMountain, Shapes as RShapes, Globe as RGlobe, Flag as RFlag, Settings2 as RSettings2, Package as RPackage, Box as RBox } from "../components/icons.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { arrMin, arrMax, median } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread); median: #2239
-import { unreadableFormatAdvice } from "../lib/unreadableFormats.js"; // TASKS.csv #603
+import { unreadableFormatAdvice, textTableRefusal } from "../lib/unreadableFormats.js"; // TASKS.csv #603; textTableRefusal: #2847
 import { t as tr } from "../lib/i18n.js";
 import { decadesBetween, isLogSpaced, logViridisStops } from "../lib/pointSurveyScale.js"; // TASKS.csv #1787
 import { defaultModelLegend } from "../lib/modelDefaultStops.js"; // TASKS.csv #2400
@@ -266,6 +269,10 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
   const [idwStretch, setIdwStretch] = useState("p2-98"); // TASKS.csv #372
   const [idwSurvey, setIdwSurvey] = useState(""); // TASKS.csv #538 — one survey at a time ("" = the only / first one)
   const [idwBlank, setIdwBlank] = useState(""); // #538 — blanking distance (m); "" = the suggested default
+  const [idwMethod, setIdwMethod] = useState("idw"); // TASKS.csv #2846 — or "mincurv", "spline" (lib/surveyGrid.js)
+  const [idwTension, setIdwTension] = useState(0.25); // #2846 — GMT's suggestion for potential fields
+  const [idwBusy, setIdwBusy] = useState(null); // #2846
+  const idwCancel = useRef(null); // #2846 — stops the minimum-curvature worker
   const [hillshadeOpen, setHillshadeOpen] = useState(false); // TASKS.csv #237 — terrain hillshade
   // TASKS.csv #237 sub-item (2) — terrain contours. 50 m default interval: a sensible starting point
   // for the mountainous BC terrain this app's users actually work in, and coarse enough that a first
@@ -286,7 +293,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
   // same "reproject at import" approach used for collars (ImportMappingModal) and DEM rasters
   // (parseDEMFiles). Shared by both importers since a geologist bringing in mixed-CRS geophysics
   // files one after another would otherwise need to re-type the code for every file.
-  const [geophysSourceEpsg, setGeophysSourceEpsg] = useState("");
+  const [geophysSourceEpsg, setGeophysSourceEpsg] = useState(() => keptGeophysSourceEpsg); // TASKS.csv #2871 — kept across a remount
   const [spatialOpen, setSpatialOpen] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useSidebarWidth();
   const fileInput = useRef(null);
@@ -372,6 +379,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
   const importFile = async (file) => {
     if (!file) return;
     setError(null);
+    { const refusal = await textTableRefusal(file); if (refusal) { setError(refusal); return; } } // #2847 — a .gdb or any binary file
     // TASKS.csv #481 — check the header BEFORE parsing: a 320 MB ZTEM inversion mesh CSV (7.2 M cells with
     // I, J, K and centroid columns) was read whole as "survey points" and froze the app.
     const head = await file.slice(0, 64 * 1024).text().catch(() => "");
@@ -469,7 +477,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     setRasterError({ info: true, text: tr("Importing {name}…", { name: file.name }) }); // a large GeoTIFF takes a few seconds
     try {
       const { raster, msg } = await buildRasterImport(file, { epsg: projectTargetEpsg(project), defaultElevation, chooseProjectEpsg: projectEpsgChooser({ isEmpty: projectIsEmpty, setEpsg, fileName: file.name }), tie: tieOf(project) }); // #607; tie: #2587
-      const drape = rasterDrapeElevation({ collars, voxelModels, surfaceSamples, bbox: raster.bbox, rasters, fileName: file.name }); // #1856; #1505
+      const drape = rasterDrapeElevation({ collars, voxelModels, surfaceSamples, bbox: raster.bbox, rasters, fileName: file.name, stations: layers?.geophys_pts /* #2868 */ }); // #1856; #1505
       addRaster({ ...raster, elevation: drape.z });
       setRasterError({ info: true, text: tr("{msg} (Tip: raster imports now have their own \"Raster\" tab — this drop still works here too.)", { msg: `${msg} ${drapeElevationNote(drape)}` }) });
     } catch (err) {
@@ -1273,6 +1281,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
   const importXYZFile = async (file) => {
     if (!file) return;
     setXyzError(null);
+    { const refusal = await textTableRefusal(file); if (refusal) { setXyzError({ info: false, text: refusal }); return; } } // #2847
     try {
       if (file.size > STREAM_FROM_BYTES) { // TASKS.csv #1351 — header and sample from the first part; Import streams the rest, thinned
         const head = await headText(file);
@@ -1348,6 +1357,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     if (!files.length) { setXyzError({ info: false, text: tr("Select at least one survey file with the GPS file.") }); return; }
     if (files.length === 1 && !gpsFiles.length) { importXYZFile(files[0]); return; }
     setXyzError(null);
+    { const refused = (await Promise.all(all.map(textTableRefusal))).filter(Boolean); if (refused.length) { setXyzError({ info: false, text: refused.join(" ") }); return; } } // #2847
     try {
       const text = await files[0].text();
       const { columns, rows: parsedRows } = parseXYZ(text);
@@ -1471,9 +1481,9 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     const cleaned = cleanRows(parsedRows, xyzPending, (r) => Number(r[valueCol]), (r) => (xyzPending.source === "csv" ? (xyzPending.lineCol ? r[xyzPending.lineCol] : null) : r._line ?? null));
     const cleanedRows = cleaned.rows;
     // TASKS.csv #2395 — a multi-channel radiometric file: one survey per ticked channel (file · channel), and the eU/eTh, K/eTh ratios
-    const rad = xyzPending.channels ? (isMultiRadiometric(xyzPending.channels) ? radiometricChannels(xyzPending.channels) : channelMethods(xyzPending.channels)) : null; // channelMethods: #2081 — any kind of measurement
+    const rad = xyzPending.channels ? radiometricChannels(xyzPending.channels) : null;
     const jobs = rad && xyzPending.source === "csv" ? [
-      ...rad.filter((c) => (xyzPending.channelPick || []).includes(c.col)).map((c) => ({ src: channelKey(fileName, c.col), col: c.col, method: c.method })),
+      ...tickedChannels(xyzPending.channels, xyzPending.channelPick).map((c) => ({ src: channelKey(fileName, c.col), col: c.col, method: c.method })), // #2081 any kind of measurement; #2840 a column added under Value
       ...(xyzPending.channelRatios ? ratioJobs(rad).map((r) => ({ src: channelKey(fileName, r.label), ratio: r, method: r.method })) : []),
     ] : null;
     if (jobs && !jobs.length) { setXyzError({ info: false, text: tr("Tick at least one channel to import.") }); return; }
@@ -1766,18 +1776,9 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     if (max === null || v > max) max = v;
   }
 
-  const show3d = !embedded && !!onMain3d && !hasResults && (collars.length > 0 || rows.length > 0 || rasters.length > 0 || !!terrain || boundaries.length > 0 || voxelModels.length > 0 || dcipLines.length > 0 || (surfaceSamples || []).length > 0); // #1979
-  useEffect(() => { onMain3d?.(show3d); }, [onMain3d, show3d]);
-  useEffect(() => () => onMain3d?.(false), [onMain3d]); // leaving the tab: the viewport goes back to the 3D View
-  return (
-    <div
-      className="ge-body"
-      style={embedded || show3d ? { flex: "0 0 auto", minWidth: 0 } : { width: "100%" }}
-      onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-      onDragLeave={() => setDragOver(false)}
-      onDrop={async (e) => { // async: #1994 reads the first bytes of a .las (the files are taken before the first await)
-        e.preventDefault(); setDragOver(false);
-        const files = Array.from(e.dataTransfer.files || []);
+  // TASKS.csv #2848 (GSC review B15) — files dropped on this tab: on its sidebar, and (since #2848) on the 3D viewport it shows beside the sidebar
+  // once data is loaded (ViewerModule, bare, forwards its drops as 'geophysics-drop'), where a drop did nothing and said nothing
+  const dropFiles = async (files) => { // async: #1994 reads the first bytes of a .las (the files are taken before the first await)
         // Bug-hunt pass: this used to pick only the FIRST csv and FIRST tif via .find(), silently
         // dropping every other file in a multi-file drag (e.g. several GeoTIFFs at once) with no
         // notice — process every matching file instead. Only one terrain is supported at a time (see
@@ -1785,7 +1786,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         // up as one terrain, but every raster/CSV dropped together now actually imports.
         const csvs = files.filter((f) => f.name.toLowerCase().endsWith(".csv"));
         const tifs = files.filter((f) => /\.tiff?$/i.test(f.name));
-        const gxfs = files.filter((f) => /\.gxf$/i.test(f.name));
+        const gxfs = files.filter((f) => /\.(gxf|grd)$/i.test(f.name)); // grd: #2855 — a Geosoft / Surfer grid, read as Maps and the 3D View read it
         const plys = files.filter((f) => /\.(ply|dxf)$/i.test(f.name));
         // TASKS.csv #1986 — an Aarhus Workbench export ("/INFO" then a Workbench line) is FDEM soundings or models, not a Geosoft XYZ
         const xyzAll = files.filter((f) => /\.xyz$/i.test(f.name)), wbs = [];
@@ -1803,8 +1804,8 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         const lidarFiles = [];
         for (const f of lasFiles) { const b = new Uint8Array(await f.slice(0, 4).arrayBuffer()); if (/\.laz$/i.test(f.name) || (b[0] === 0x4c && b[1] === 0x41 && b[2] === 0x53 && b[3] === 0x46)) lidarFiles.push(f); else advice.push(tr("{name} is a LAS well log: drop it on the 3D View, which reads downhole logs.", { name: f.name })); }
         if (lidarFiles.length) { if (geoPane === "terrain") openLidar(lidarFiles[0]); else { goToModule("maps"); requestModuleAction("maps-lidar", { file: lidarFiles[0] }); } if (lidarFiles.length > 1) advice.push(tr("Opened \"{name}\". Lidar files are imported one at a time: import it, then drop the next.", { name: lidarFiles[0].name })); }
-        const other = files.filter((f) => !/\.(csv|tiff?|gxf|ply|dxf|xyz|edi|las|laz|vs)$/i.test(f.name) && !(/\.(dfn|dat)$/i.test(f.name) && gdfPair(files)) /* #1990 / #1992: read above */ && !unreadableFormatAdvice(f.name)).map((f) => f.name);
-        if (other.length) advice.push(tr("Not imported from this drop: {names}. Dropped here, this tab reads CSV, GeoTIFF, GXF, XYZ, PLY / DXF, EDI (MT soundings) and LAS / LAZ lidar; a UBC mesh and model go through Block models.", { names: other.slice(0, 6).join(", ") + (other.length > 6 ? " …" : "") }));
+        const other = files.filter((f) => !/\.(csv|tiff?|gxf|grd|ply|dxf|xyz|edi|las|laz|vs)$/i.test(f.name) && !(/\.(dfn|dat)$/i.test(f.name) && gdfPair(files)) /* #1990 / #1992: read above */ && !unreadableFormatAdvice(f.name)).map((f) => f.name);
+        if (other.length) advice.push(tr("Not imported from this drop: {names}. Dropped here, this tab reads CSV, GeoTIFF, GXF, .grd, XYZ, PLY / DXF, EDI (MT soundings) and LAS / LAZ lidar; a UBC mesh and model go through Block models.", { names: other.slice(0, 6).join(", ") + (other.length > 6 ? " …" : "") }));
         // TASKS.csv #1989 — MT / AMT soundings go to their own pane, which reads them
         const edis = files.filter((f) => /\.edi$/i.test(f.name));
         if (edis.length) { setMtDrop(edis); setGeoPane("mt"); }
@@ -1815,6 +1816,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         // long-standing raster-drape behavior. The terrain section below also has its own explicit
         // drop target/button for when the filename doesn't give it away. .gxf (#26) always goes to the
         // raster drape — GXF grids in practice are geophysical value grids, not elevation.
+        if (csvs.length || xyzs.length) setGeoPane("points"); // #2848 — the column picker is on the Point survey pane
         csvs.forEach((csv) => importFile(csv));
         // DEM-looking tifs are batched into ONE importTerrain call so multiple adjacent tiles (e.g. two
         // SRTM tiles dropped together) mosaic into a single terrain surface instead of each replacing
@@ -1833,7 +1835,18 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
           importXYZFile(xyzs[0]);
           if (xyzs.length > 1) setXyzError({ info: true, text: tr("Opened the column picker for \"{name}\". Import it, then drop the other {v} file(s) one at a time — .xyz files need their columns picked individually.", { name: xyzs[0].name, v: xyzs.length - 1 }) });
         }
-      }}
+  };
+  useModuleAction(["geophysics-drop"], (_a, p) => { if (p?.files?.length) dropFiles(p.files); }); // #2848
+  const show3d = !embedded && !!onMain3d && !hasResults && (collars.length > 0 || rows.length > 0 || rasters.length > 0 || !!terrain || boundaries.length > 0 || voxelModels.length > 0 || dcipLines.length > 0 || (surfaceSamples || []).length > 0); // #1979
+  useEffect(() => { onMain3d?.(show3d); }, [onMain3d, show3d]);
+  useEffect(() => () => onMain3d?.(false), [onMain3d]); // leaving the tab: the viewport goes back to the 3D View
+  return (
+    <div
+      className="ge-body"
+      style={embedded || show3d ? { flex: "0 0 auto", minWidth: 0 } : { width: "100%" }}
+      onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+      onDragLeave={() => setDragOver(false)}
+      onDrop={(e) => { e.preventDefault(); setDragOver(false); dropFiles(Array.from(e.dataTransfer.files || [])); }} // #2848 — the body is dropFiles
     >
       <div className="ge-panel" style={{ padding: "16px 14px", overflowY: "auto", width: sidebarWidth }}>
         {/* TASKS.csv #458 — Geophysics ribbon: each button shows that tool in the sidebar */}
@@ -1880,7 +1893,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         {/* TASKS.csv #120 — optional source EPSG, shared by the CSV and .xyz importers below. Left
             blank, x/y is assumed to already be in the project's EPSG (unchanged behavior). */}
         <SourceCrsField
-          value={geophysSourceEpsg} onChange={(c) => setGeophysSourceEpsg(c === "" ? "" : String(c))} mineGrid={mineSourceOf(project) /* #2684 */}
+          value={geophysSourceEpsg} onChange={(c) => { const v = c === "" ? "" : String(c); keptGeophysSourceEpsg = v; setGeophysSourceEpsg(v); } /* #2871 */} mineGrid={mineSourceOf(project) /* #2684 */}
           defaultText={project?.crsSet === false ? tr("The project CRS — not chosen yet") /* #2242: never the placeholder as the project's */ : tr("Same as project — {crs} (longitude/latitude columns: WGS 84)", { crs: crsName(project?.epsg) || `EPSG:${project?.epsg ?? "?"}` })}
           title={tr("The CRS these points' x/y are in. They are reprojected into the project CRS on import.")}
         />
@@ -1911,9 +1924,10 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                 <div key={sv.key} style={{ marginBottom: 8, padding: "8px 9px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-sm)" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                     <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "var(--color-text)" }} title={sv.key}>{sv.key}</span>
-                    <Download role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} aria-label={tr("Export the points of \"{key}\" (CSV)", { key: sv.key })} title={tr("Export the points of \"{key}\" (CSV)", { key: sv.key })} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => exportSurvey(sv.key)} />{/* #1094 */}
-                    <Trash2 role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} aria-label={tr("Remove survey \"{key}\"", { key: sv.key })} title={tr("Remove survey \"{key}\"", { key: sv.key })} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }}
-                      onClick={() => { if (window.confirm(tr("Remove the {count} points of \"{key}\"?", { count: sv.count.toLocaleString(), key: sv.key }))) setLayers((l) => ({ ...l, geophys_pts: (l.geophys_pts || []).filter((r) => surveyKey(r) !== sv.key) })); }} />
+                    {/* TASKS.csv #2871 — buttons, not bare svg elements */}
+                    <button type="button" aria-label={tr("Export the points of \"{key}\" (CSV)", { key: sv.key })} title={tr("Export the points of \"{key}\" (CSV)", { key: sv.key })} style={iconBtn} onClick={() => exportSurvey(sv.key)}><Download size={12} aria-hidden="true" /></button>{/* #1094 */}
+                    <button type="button" aria-label={tr("Remove survey \"{key}\"", { key: sv.key })} title={tr("Remove survey \"{key}\"", { key: sv.key })} style={iconBtn}
+                      onClick={() => { if (window.confirm(tr("Remove the {count} points of \"{key}\"?", { count: sv.count.toLocaleString(), key: sv.key }))) setLayers((l) => ({ ...l, geophys_pts: (l.geophys_pts || []).filter((r) => surveyKey(r) !== sv.key) })); }}><Trash2 size={12} aria-hidden="true" /></button>
                   </div>
                   <div style={{ color: "var(--color-text-muted)", marginTop: 2 }}>
                     {tr("{count} points{v}, {withZ} with elevation · values {v2}{v3}", { count: sv.count.toLocaleString(), v: sv.lines ? `, ${sv.lines} line(s)` : "", withZ: sv.withZ.toLocaleString(), v2: Number.isFinite(sv.min) ? rangeText(sv.min, sv.max) /* #2402 — 57,392 to 57,571, not 5.739e+4 */ : "—", v3: meta.units ? ` ${meta.units}` : "" })}
@@ -1935,7 +1949,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                   {eqsFor === sv.key && <Suspense fallback={null}><EqsGridBox survey={sv.key} rows={rows} units={meta.units || ""} method={meta.method || null} /* #2639 */ addRaster={addRaster} defaultElevation={defaultElevation} numInput={numInput} pBtn={pBtn} /></Suspense>}
                   {/* TASKS.csv #1985 — free-air and Bouguer anomalies of a gravity survey (or of values that look like absolute gravity) */}
                   {(["grav", "grav_fa"].includes(meta.method) || (Number.isFinite(sv.min) && sv.min > 900000)) && <button type="button" onClick={() => setGravFor(gravFor === sv.key ? null : sv.key)} style={{ ...pBtn, marginTop: 5, marginBottom: 0 }} title={tr("Free-air anomaly (observed less normal gravity) and Bouguer anomaly (less the Bouguer plate or the terrain's gravity), in the Python engine")}><Scale size={14} />{tr("Gravity reductions…")}</button>}
-                  {gravFor === sv.key && <Suspense fallback={null}><GravityReductionBox survey={sv.key} rows={rows} epsg={project?.epsg} terrain={terrain} setLayers={setLayers} updateGeophysSurvey={updateGeophysSurvey} numInput={numInput} pBtn={pBtn} /></Suspense>}
+                  {gravFor === sv.key && <Suspense fallback={null}><GravityReductionBox survey={sv.key} method={meta.method || null} /* #2841 */ rows={rows} epsg={project?.epsg} terrain={terrain} setLayers={setLayers} updateGeophysSurvey={updateGeophysSurvey} numInput={numInput} pBtn={pBtn} /></Suspense>}
                   {/* TASKS.csv #1152 — interpretation lines over this survey, drawn in the 3D view */}
                   <button type="button" onClick={() => { goToModule("viewer"); requestModuleAction("interpret-lines", { survey: sv.key }); }} style={{ ...pBtn, marginTop: 5, marginBottom: 0 }} title={tr("Draw faults, contacts and lineaments over this survey in the 3D view; they become a map layer")}>{tr("Draw interpretation lines…")}</button>
                   {(meta.zMeaning === "agl") && (
@@ -1962,7 +1976,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                 <span style={{ color: "var(--color-text-faint)", width: 140, flexShrink: 0 }}>{label}</span>
                 <select
                   value={xyzPending[key]}
-                  onChange={(e) => setXyzPending((p) => ({ ...p, [key]: e.target.value }))}
+                  onChange={(e) => setXyzPending((p) => ({ ...p, [key]: e.target.value, ...(key === "valueCol" && p.channels ? withValueChannel(p.channels, p.channelPick, e.target.value) : {}) }))} /* #2840 */
                   style={{ ...numInput, width: "auto", flex: 1, minWidth: 0 }}
                 >
                   <option value="">{key === "zCol" ? tr("(none — elevation not recorded)") : tr("(choose a column)")}</option>
@@ -1973,6 +1987,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
             {xyzPending.channels && ( /* TASKS.csv #2395 — each ticked channel its own survey; the ratios from the same stations */
               <div style={{ marginTop: 8 }}>
                 <div style={{ color: "var(--color-text-faint)", marginBottom: 4 }}>{tr("Import each ticked channel as its own survey:")}</div>
+                <div style={{ color: "var(--color-text-faint)", fontSize: "var(--font-size-xs)", marginBottom: 4 }}>{tr("Choose another column under Value to add it here (observed gravity, for example).")}</div>
                 <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
                   {xyzPending.channels.map((c) => (
                     <label key={c} style={{ display: "flex", gap: 4, alignItems: "center" }}><input type="checkbox" checked={(xyzPending.channelPick || []).includes(c)} onChange={(e) => setXyzPending((p) => ({ ...p, channelPick: e.target.checked ? [...(p.channelPick || []), c] : (p.channelPick || []).filter((x) => x !== c) }))} aria-label={tr("Import channel {c}", { c })} />{c}</label>
@@ -2121,7 +2136,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
               <button onClick={() => goToModule("viewer")} style={{ ...pBtn, marginBottom: 0, flex: 1, justifyContent: "center" }}>{tr("View in 3D")}{" "}<ArrowRight size={14} />
               </button>
               <button
-                onClick={() => { if (window.confirm(tr("Clear all {rows} geophysics point(s)?", { rows: rows.length }))) replaceLayer("geophys_pts", []); }}
+                onClick={() => { if (window.confirm(tr("Clear all {rows} geophysics point(s)?", { rows: rows.length }))) { replaceLayer("geophys_pts", []); setError(null); setXyzError(null); /* #2871 — no 'Imported 7809 point(s)' left on screen */ } }}
                 style={{ ...pBtn, marginBottom: 0, width: 90, justifyContent: "center", color: "var(--color-danger-fg)" }}
               >
                 <Trash2 size={14} />{" "}{tr("Clear")}</button>
@@ -2133,10 +2148,16 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
               <Triangle size={14} />{" "}{tr("Spatial analysis (Voronoi / declustering)…")}</button>
             {/* TASKS.csv #235 — grid this point cloud into a raster (inverse-distance weighting), pure JS. */}
             <button onClick={() => setIdwOpen((v) => !v)} style={{ ...pBtn, marginTop: 8, marginBottom: 0, justifyContent: "center", background: idwOpen ? "var(--color-selected-bg)" : undefined }}>
-              <Box size={14} />{" "}{tr("Grid to raster (IDW)…")}</button>
+              <Box size={14} />{" "}{tr("Grid to raster (IDW, minimum curvature, spline)…")}</button>
             {idwOpen && (
               <div style={{ marginTop: 8, padding: "9px 10px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-base)" }}>
-                <div style={{ color: "var(--color-text-secondary)", marginBottom: 8, lineHeight: 1.5 }}>{tr("Interpolates a regular raster over this point cloud's own extent using inverse-distance weighting — a quick-look grid, not a geostatistically rigorous one (no variogram/kriging). Good for visualizing trend/coverage, not for resource estimation.")}</div>
+                <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }}>{/* TASKS.csv #2846 */}
+                  <span style={{ color: "var(--color-text-faint)", width: 70, flexShrink: 0 }}>{tr("Method")}</span>
+                  <select value={idwMethod} onChange={(e) => setIdwMethod(e.target.value)} style={{ ...numInput, flex: 1, minWidth: 0 }} aria-label={tr("Gridding method")}>
+                    <option value="idw">{tr("IDW")}</option><option value="mincurv">{tr("Minimum curvature")}</option><option value="spline">{tr("Spline (Python engine)")}</option>
+                  </select>
+                </div>
+                <div style={{ color: "var(--color-text-secondary)", marginBottom: 8, lineHeight: 1.5 }}>{idwMethod === "mincurv" ? tr("A tensioned minimum-curvature surface through the stations, the usual gridder for gravity and magnetic stations: smooth between them, so its derivatives show the geology rather than the station pattern. Tension 0.25 is the usual choice for potential fields.") : idwMethod === "spline" ? tr("Verde's biharmonic spline on block medians of the stations, its damping chosen by cross-validation, in the Python engine: smooth, and slower than minimum curvature on a large survey.") : tr("Interpolates a regular raster over this point cloud's own extent using inverse-distance weighting — a quick-look grid, not a geostatistically rigorous one (no variogram/kriging). Good for visualizing trend/coverage, not for resource estimation.")}</div>
                 {idwShape?.is3D && ( // #1783
                   <div style={{ marginBottom: 8 }}>
                     <div style={{ color: "var(--color-warn-text)", fontSize: "var(--font-size-sm)", lineHeight: 1.4, marginBottom: 4 }}>{tr("This is a 3D point cloud, not a surface survey: {n} points from {lo} to {hi} m elevation (within a plan cell their elevations spread {k}× the cell). A raster flattens every depth into one value per cell, so grid one depth slice at a time.", { n: idwShape.n.toLocaleString(), lo: Math.round(idwShape.zMin).toLocaleString(), hi: Math.round(idwShape.zMax).toLocaleString(), k: idwShape.spread.toFixed(0) })}</div>
@@ -2154,10 +2175,14 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                   <input type="number" min="0.1" step="any" value={idwCellText} placeholder={String(idwAutoCell)} onChange={(e) => setIdwCellText(e.target.value)} style={numInput} aria-label={tr("Cell size")} />
                 </div>
                 {idwSuggest && idwCellText === "" && <div style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)", marginBottom: 6 }}>{tr("Cell {c} m by default: a quarter to a half of the median spacing ({s} m).", { c: idwAutoCell, s: idwSuggest.spacing.toFixed(1) })}</div>}{/* #2562 */}
-                <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
+                {idwMethod === "idw" && <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
                   <span style={{ color: "var(--color-text-faint)", width: 70, flexShrink: 0 }} title={tr("How sharply influence falls off with distance — higher means nearer points dominate more.")}>{tr("Power")}</span>
                   <input type="number" min="0.5" step="0.5" value={idwPower} onChange={(e) => setIdwPower(Math.max(0.5, Number(e.target.value) || 2))} style={numInput} />
-                </div>
+                </div>}
+                {idwMethod === "mincurv" && <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>{/* #2846 */}
+                  <span style={{ color: "var(--color-text-faint)", width: 70, flexShrink: 0 }} title={tr("0 is pure minimum curvature (smoothest; overshoots most between stations), 1 a membrane (no overshoot, tent-shaped between stations).")}>{tr("Tension")}</span>
+                  <input type="number" min="0" max="1" step="0.05" value={idwTension} onChange={(e) => setIdwTension(Math.min(1, Math.max(0, Number(e.target.value) || 0)))} style={numInput} aria-label={tr("Tension")} />
+                </div>}
                 {/* TASKS.csv #538 — which survey, and how far from the data a cell may be */}
                 {surveyList.length > 1 && (
                   <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }}>
@@ -2181,35 +2206,76 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                     <option value="linear">{tr("Linear min-max")}</option>
                   </select>
                 </div>
+                {idwBusy && <div role="status" style={{ display: "flex", gap: 6, alignItems: "center", color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)", marginBottom: 6 }}><span style={{ flex: 1 }}>{idwBusy}</span>{idwMethod === "mincurv" && <button type="button" onClick={() => idwCancel.current?.()} style={{ ...pBtn, width: "auto", marginTop: 0, marginBottom: 0 }}>{tr("Cancel")}</button>}</div>}
                 <button
-                  onClick={() => {
+                  disabled={!!idwBusy}
+                  onClick={async () => {
                     const pts = idwSlice; // #1783 — a 3D cloud: the chosen depth slice
                     if (!pts.length) { setError(tr("No points in that elevation slice.")); return; }
                     // TASKS.csv #2557 — a single traverse became an 80 x 1 'grid' that RTP then filtered as a map
                     if (pointsAlongOneLine(pts, idwCellSize)) { setError(tr("The {n} points lie along one line: a grid of them is a single row of cells, which the map filters (RTP, derivatives…) would treat as a map. Plot the line as a profile instead.", { n: pts.length.toLocaleString() })); return; }
                     const sliceTag = idwShape?.is3D ? ` z ${idwZ.lo === "" ? Math.round(idwShape.zMin) : idwZ.lo}–${idwZ.hi === "" ? Math.round(idwShape.zMax) : idwZ.hi} m` : "";
                     const xs = pts.map((r) => r.x), ys = pts.map((r) => r.y);
-                    const xmin = arrMin(xs), xmax = arrMax(xs), ymin = arrMin(ys), ymax = arrMax(ys);
+                    const { xmin, xmax, ymin, ymax } = snappedGridExtent({ xmin: arrMin(xs), xmax: arrMax(xs), ymin: arrMin(ys), ymax: arrMax(ys) }, idwCellSize); // #2872 — nodes on multiples of the cell, every station inside
                     const gridW = Math.round((xmax - xmin) / idwCellSize), gridH = Math.round((ymax - ymin) / idwCellSize);
                     if (gridW * gridH > 4_000_000) { setError(tr("That cell size would produce a {gridW}×{gridH} grid — too large. Use a bigger cell size.", { gridW, gridH })); return; }
                     const blank = idwBlank === "" ? idwSuggest?.distance ?? Infinity : Number(idwBlank) > 0 ? Number(idwBlank) : Infinity; // #538
                     const label = surveyLabel(idwKey); // #2559 — 'file.csv · K_pct' kept its channel ('[^.]+$' took '.csv · K_pct' off)
-                    const raster = idwGridToRasterInput(pts, { xmin, ymin, xmax, ymax, cellSize: idwCellSize, power: idwPower, stretch: idwStretch, maxDistance: blank,
-                      name: uniqueName(`${label}${sliceTag} IDW ${idwCellSize} m${Number.isFinite(blank) ? `, blanked > ${Math.round(blank)} m` : ""}`, rasters.map((x) => x.name)) }); // sliceTag: #1783; uniqueName: #2562
+                    const tag = gridMethodTag(idwMethod, idwTension); // #2846
+                    const gName = uniqueName(`${label}${sliceTag} ${tag} ${idwCellSize} m${Number.isFinite(blank) ? `, blanked > ${Math.round(blank)} m` : ""}`, rasters.map((x) => x.name)); // sliceTag: #1783; uniqueName: #2562
+                    let raster, how = {};
+                    if (idwMethod === "idw") raster = idwGridToRasterInput(pts, { xmin, ymin, xmax, ymax, cellSize: idwCellSize, power: idwPower, stretch: idwStretch, maxDistance: blank, name: gName });
+                    else { // TASKS.csv #2846 — minimum curvature (here, in JS) or the spline (the Python engine), through Geochem's gridder
+                      const gOpts = { cell: idwCellSize, blank, method: idwMethod, tension: idwTension };
+                      let res;
+                      if (idwMethod === "spline") {
+                        const sp = surveySplineRequest(pts, gOpts);
+                        if (sp.error) res = sp;
+                        else {
+                          setIdwBusy(tr("Starting the Python engine…"));
+                          const job = await runPfieldsJob(sp.request, { onProgress: (q) => setIdwBusy(q.message || tr("Working…")) });
+                          setIdwBusy(null);
+                          if (!job.ok) { setError(tr("The spline failed: {message}", { message: job.error })); return; }
+                          res = splineFinish(sp.plan, b64ToF32(job.data.values), job.data);
+                        }
+                      } else {
+                        setIdwBusy(tr("Gridding {n} stations by minimum curvature…", { n: pts.length.toLocaleString() }));
+                        const job = gridSurveyAsync(pts, gOpts); // a worker: tens of seconds on a large survey
+                        idwCancel.current = job.cancel;
+                        try { res = await job.promise; } catch (err) { setIdwBusy(null); idwCancel.current = null; setError(tr("Minimum curvature failed: {message}", { message: err.message })); return; }
+                        setIdwBusy(null); idwCancel.current = null;
+                        if (res.cancelled) { setError({ info: true, text: tr("Cancelled.") }); return; }
+                      }
+                      if (res.error === "mincurvCells") { setError(tr("Minimum curvature takes grids up to {max} cells, and this one is {gridW}×{gridH}. Use a bigger cell size, or IDW.", { max: MINCURV_MAX_CELLS.toLocaleString(), gridW: res.nx, gridH: res.ny })); return; }
+                      if (res.error === "splineCells") { setError(tr("The spline takes grids up to {max} cells, and this one is {gridW}×{gridH}. Use a bigger cell size.", { max: SPLINE_MAX_CELLS.toLocaleString(), gridW: res.nx, gridH: res.ny })); return; }
+                      if (res.error === "cells") { setError(tr("That cell size would produce a {gridW}×{gridH} grid — too large. Use a bigger cell size.", { gridW: res.nx, gridH: res.ny })); return; }
+                      if (res.error) { setError(tr("Too few points to grid ({n}): at least 3 with a value are needed.", { n: res.n ?? 0 })); return; }
+                      raster = gridValuesToRasterInput(res.grid.values, res.grid.nx, res.grid.ny, { xmin: res.bbox[0], ymax: res.bbox[3], cellSize: res.cellM, name: gName, stretch: idwStretch });
+                      how = idwMethod === "mincurv" ? { tension: idwTension, iterations: res.iterations } : { damping: res.damping, cvR2: res.cvScore, splinePoints: res.splinePoints, blockM: res.blockM };
+                    }
                     // TASKS.csv #2239 (review #2174) — stations with elevations are drawn at THEIR median elevation: a ground-mag grid at z 400 went to the
                     // collars' median (192.55 m, an underground mine level), 207 m under the survey and through the holes. The collar median only when
                     // the points have no z.
                     const ptsZs = pts.map((r) => r.z).filter(Number.isFinite), ptsZ = ptsZs.length ? median(ptsZs) : null;
                     const gridElev = ptsZ != null ? ptsZ : defaultElevation;
-                    addRaster({ ...raster, elevation: gridElev, provenance: { tool: "IDW gridding", survey: idwKey, points: pts.length, cellM: idwCellSize, power: idwPower, blankingM: Number.isFinite(blank) ? Math.round(blank) : null, blankingBasis: idwBlank === "" && idwSuggest ? `1.5x / 2x the median ${idwSuggest.basis} (${idwSuggest.spacing.toFixed(1)} m)` : "entered" }, surveyMethod: geophysSurveys?.[idwKey]?.method || undefined, units: geophysSurveys?.[idwKey]?.units || undefined /* #2557 */ });
+                    addRaster({ ...raster, elevation: gridElev, provenance: { tool: idwMethod === "mincurv" ? "Point survey gridding (minimum curvature with tension)" : idwMethod === "spline" ? "Point survey gridding (Verde biharmonic spline on block medians, damping by blocked cross-validation)" : "IDW gridding", survey: idwKey, points: pts.length, cellM: idwCellSize, ...(idwMethod === "idw" ? { power: idwPower } : how) /* #2846 */, blankingM: Number.isFinite(blank) ? Math.round(blank) : null, blankingBasis: idwBlank === "" && idwSuggest ? `1.5x / 2x the median ${idwSuggest.basis} (${idwSuggest.spacing.toFixed(1)} m)` : "entered" }, surveyMethod: geophysSurveys?.[idwKey]?.method || undefined, units: geophysSurveys?.[idwKey]?.units || undefined /* #2557 */ });
                     const cells = raster.grid.nx * raster.grid.ny;
                     // TASKS.csv #2075 (review #2013, Geophysics) — where the raster is drawn: Woodjam's n = 1 grid went flat at 965 m (the collars' median,
                     // 10 km away) while its ground is 1,062-1,116 m, and nothing said so
                     const where = terrain ? tr(" Draped on the terrain.") : ptsZ != null ? tr(" Drawn flat at {z} m, the stations' median elevation (there is no terrain to drape it on).", { z: Math.round(ptsZ).toLocaleString() }) : tr(" Drawn flat at {z} m ({basis}), not on the ground: there is no terrain. Add one (Maps > Terrain) to drape it, or set its elevation on its card.", { z: Math.round(defaultElevation).toLocaleString(), basis: drapeAt.source === "collars" ? tr("the collars' median elevation") : drapeAt.source === "model" ? tr("the top of {model}", { model: drapeAt.model }) : drapeAt.source === "samples" ? tr("the surface samples' median elevation") : tr("no elevation known") });
                     const idwArgs = { idwKey, pts: pts.length.toLocaleString(), idwCellSize, valid: raster.grid.valid.toLocaleString(), cells: cells.toLocaleString(), v: Number.isFinite(blank) ? tr("; cells more than {v} m from any point are left empty", { v: Math.round(blank) }) : "" };
                     // TASKS.csv #2557 — the map filters are for magnetic and gravity grids; a radiometric / EM grid is not told they work on it
-                    const potential = ["mag", "grav"].includes(SURVEY_METHODS[geophysSurveys?.[idwKey]?.method]?.group) || !geophysSurveys?.[idwKey]?.method;
-                    setError({ info: true, text: (potential ? tr("Gridded \"{idwKey}\" ({pts} points) at {idwCellSize} m: {valid} of {cells} cells have a value{v}. The grid's values are kept, so the raster filters (RTP, derivatives…) work on it.", idwArgs) : tr("Gridded \"{idwKey}\" ({pts} points) at {idwCellSize} m: {valid} of {cells} cells have a value{v}. The grid's values are kept for its colours and the ternary image; the map filters are for magnetic and gravity grids.", idwArgs)) + where }); // where: #2075
+                    const group = SURVEY_METHODS[geophysSurveys?.[idwKey]?.method]?.group;
+                    const potential = ["mag", "grav"].includes(group) || !geophysSurveys?.[idwKey]?.method;
+                    // TASKS.csv #2870 — a gravity grid is not offered RTP (filterBlockedBy): the line names the filters that do work on it
+                    const kept = !potential ? tr("Gridded \"{idwKey}\" ({pts} points) at {idwCellSize} m: {valid} of {cells} cells have a value{v}. The grid's values are kept for its colours and the ternary image; the map filters are for magnetic and gravity grids.", idwArgs)
+                      : group === "grav" ? tr("Gridded \"{idwKey}\" ({pts} points) at {idwCellSize} m: {valid} of {cells} cells have a value{v}. The grid's values are kept, so the raster filters (derivatives, continuation…) work on it.", idwArgs)
+                      : tr("Gridded \"{idwKey}\" ({pts} points) at {idwCellSize} m: {valid} of {cells} cells have a value{v}. The grid's values are kept, so the raster filters (RTP, derivatives…) work on it.", idwArgs);
+                    // TASKS.csv #2846 — what the method was, and (IDW) what its derivatives show
+                    const howText = idwMethod === "mincurv" ? tr(" Minimum curvature, tension {t} ({it} iterations).", { t: idwTension, it: (how.iterations ?? 0).toLocaleString() })
+                      : idwMethod === "spline" ? tr(" Spline: fitted to {pts} block median(s) {b} m across; damping {d} chosen by cross-validation, R² {r} on the held-out blocks.", { pts: (how.splinePoints ?? 0).toLocaleString(), b: Math.round(how.blockM ?? idwCellSize), d: how.damping == null ? tr("none") : String(how.damping), r: Number.isFinite(how.cvR2) ? how.cvR2.toFixed(2) : "–" })
+                      : potential ? tr(" Derivatives of an IDW grid show the station pattern (a bull's-eye at each station): grid with minimum curvature for derivatives.") : "";
+                    setError({ info: true, text: kept + howText + where }); // where: #2075
                     setIdwOpen(false);
                   }}
                   style={{ ...pBtn, marginBottom: 0, justifyContent: "center" }}
@@ -2895,6 +2961,10 @@ export const sigFigs = (v) => (Number.isFinite(v) ? (v === 0 ? "0" : Number(v.to
 // #1593 — the 3D View's palette link opens one card's legend
 const OPEN_LEGEND_EVENT = "geostrix-open-voxel-legend";
 let pendingLegend = null; // { id, at }
+// TASKS.csv #2871 (GSC review B23) — the Point survey Source CRS, for the app session: the tab remounts when it is left (changing the project CRS
+// from another tab, say) and the box was back on 'Same as project', so the next longitude / latitude import went in as degrees again
+let keptGeophysSourceEpsg = "";
+const iconBtn = { border: 0, background: "none", padding: 0, display: "flex", cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }; // #2871
 function useOpenLegendRequest(model, open) {
   useEffect(() => {
     const id = String(model.id);
@@ -3065,14 +3135,14 @@ function VoxelLegendEditor({ model, onUpdate }) {
       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
         <span style={{ color: "var(--color-text-faint)", width: 62, flexShrink: 0 }}>{tr("Range")}</span>
         {/* TASKS.csv #1790 (review #1646, Kodiak) — read as '14.9', not '14.915215962069169' (stored values kept until edited, #1422) */}
-        <StopValueInput value={model.min} shown={rangeShown[0]} onCommit={(v) => onUpdate(model.id, { min: v, stretch: "minmax" })} style={{ ...numInput, width: 70 }} ariaLabel={tr("Range minimum of \"{name}\"", { name: model.name })} />
+        <StopValueInput value={model.min} shown={rangeShown[0]} onCommit={(v) => onUpdate(model.id, { min: v, stretch: "minmax" })} style={{ ...numInput, width: 70 }} ariaLabel={tr("Range minimum of \"{name}\"", { name: model.name ?? tr("Geophysics points") /* #2871 */ })} />
         <span style={{ color: "var(--color-text-muted)" }}>{tr("to")}</span>
-        <StopValueInput value={model.max} shown={rangeShown[1]} onCommit={(v) => onUpdate(model.id, { max: v, stretch: "minmax" })} style={{ ...numInput, width: 70 }} ariaLabel={tr("Range maximum of \"{name}\"", { name: model.name })} />
+        <StopValueInput value={model.max} shown={rangeShown[1]} onCommit={(v) => onUpdate(model.id, { max: v, stretch: "minmax" })} style={{ ...numInput, width: 70 }} ariaLabel={tr("Range maximum of \"{name}\"", { name: model.name ?? tr("Geophysics points") })} />
       </div>
       {!stops.length && ( // TASKS.csv #1812 — the default gradient's stretch
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7 }}>
           <span style={{ color: "var(--color-text-faint)", width: 62, flexShrink: 0 }}>{tr("Stretch")}</span>
-          <select value={model.stretch === "minmax" ? "minmax" : "p2-98"} onChange={(e) => onUpdate(model.id, { stretch: e.target.value === "minmax" ? "minmax" : null })} style={{ ...numInput, flex: 1 }} aria-label={tr("Colour stretch of \"{name}\"", { name: model.name })}>
+          <select value={model.stretch === "minmax" ? "minmax" : "p2-98"} onChange={(e) => onUpdate(model.id, { stretch: e.target.value === "minmax" ? "minmax" : null })} style={{ ...numInput, flex: 1 }} aria-label={tr("Colour stretch of \"{name}\"", { name: model.name ?? tr("Geophysics points") })}>
             <option value="p2-98">{(() => { const r = voxelStretch({ ...model, stretch: null }); const pts = model.id === "geophys_pts"; /* #2247 */ const lim = r ? rangeText(r[0], r[1], true) : null; /* #2402 — the limits at the Range boxes' precision ('57400 to 57500' for 57,407 to 57,530) */ return r ? (pts ? tr("2–98 % of the points ({lo} to {hi})", { lo: lim[0], hi: lim[1] }) : tr("2–98 % of the cells ({lo} to {hi})", { lo: lim[0], hi: lim[1] })) : pts ? tr("2–98 % of the points") : tr("2–98 % of the cells"); })()}</option>
             <option value="minmax">{tr("The range above (min to max)")}</option>
           </select>

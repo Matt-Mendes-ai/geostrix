@@ -18,7 +18,7 @@ test("only the untouched default is resized, and the over-budget failure is kept
   const i = runs.indexOf("numericCellSize === NUMERIC_CELL_DEFAULT");
   assert.ok(i > 0);
   const tail = runs.slice(i, i + 1400);
-  assert.match(tail, /cellToFit\(bounds, blockBudget, cs\)/);
+  assert.match(tail, /fitOf\(blockBudget, cs\)/); // #3062: cellToFit per axis (the same steps for a cubic cell)
   assert.match(tail, /setNumericCellSize\?\.\(fit\)/);
   assert.match(tail, /if \(blocksNeeded > blockBudget\)/); // the existing failure still follows
 });

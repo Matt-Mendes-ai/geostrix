@@ -339,6 +339,17 @@ export function censoringFloor(values, { minShare = 0.05, zeros = 0 } = {}) {
   for (const v of values) if (typeof v === "number" && Math.abs(v - min) <= min * 1e-9) n++;
   return n >= 20 && n / nPos >= minShare ? { floor: min, n, share: n / nPos, dl: Math.round(min * 2 * 1e9) / 1e9 } : null;
 }
+// TASKS.csv #3083 (split from #2913) — Harry's Au read 44 % <DL in Thresholds and 41 % in Grade stats. Grade stats looked for the floor
+// among its resolved segments, where 12 averages of a '<' row and an overlapping result (0.00375 ppm) sat below the 231 results at
+// 0.005: the lowest value no longer held 20 of them and no floor was found. The floor (and the reporting step) is a property of the
+// file's results, so both tools find it there: the rows' values, those the lab flagged '<' left out, with the zeros the import flagged.
+// rows: assays or surface samples; -> { floor: censoringFloor(...), step: reportedStep(...) }
+export function fileCensoring(rows, symbol, unit, units) {
+  const vals = [];
+  for (const s of rows || []) { if (s?.bdl?.includes?.(symbol) || s?.qualifiers?.[symbol] === "<") continue; vals.push(valueIn(s, symbol, unit, units)); }
+  const zeros = zeroResults(rows, symbol, { flaggedOnly: true });
+  return { floor: censoringFloor(vals, { zeros }), step: reportedStep(vals, { zeros }) };
+}
 // #2913 — enough zeros that the lowest positive value reads as the reporting step: at least 20, and 5 % of the results
 const zerosBelowStep = (zeros, nPos) => zeros >= 20 && zeros / (zeros + nPos) >= 0.05;
 // The step the results are reported to, when zeros sit below it: { step (the smallest positive value), zeros } or null

@@ -3,6 +3,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { runDataQC } from "../src/lib/dataQC.js";
+import { bcSkip, bcPath } from "./helpers/bcSample.mjs"; // TASKS.csv #3134 — the BC samples are not in the repository: real-data checks run where one is found
 
 const csv = (f) => {
   const [h, ...lines] = readFileSync(f, "utf8").trim().split(/\r?\n/);
@@ -23,8 +24,8 @@ test("synthetic: over 30 m, or over 15 m and 20 %, is flagged; small gaps are no
   assert.match(iss[0].message, /ends at 50 m, 61 m above the end of the hole \(111 m, 55%\)/);
 });
 
-test("Woodjam: the holes the review measured are flagged", () => {
-  const iss = shortIssues(csv("sample_data/woodjam/collars.csv"), csv("sample_data/woodjam/survey.csv"));
+test("Woodjam: the holes the review measured are flagged", { skip: bcSkip("woodjam") }, () => {
+  const iss = shortIssues(csv(bcPath("woodjam", "collars.csv")), csv(bcPath("woodjam", "survey.csv")));
   const ids = iss.map((i) => i.holeId);
   assert.ok(ids.includes("WJ23-105"), ids.join(","));
   assert.ok(ids.includes("DH23-109"), ids.join(","));

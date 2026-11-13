@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { drillThresholdOffers } from "../lib/thresholds.js"; // TASKS.csv #2347
 import { X, Download, Sheet } from "./icons.js";
 import { preferredElement, rememberElement } from "../lib/preferredElement.js"; // TASKS.csv #1678
@@ -23,8 +23,10 @@ import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { toExportCsv } from "../lib/tabular.js"; // TASKS.csv #1022 — every exported CSV: all columns, formula cells escaped
 import { interceptRows, optionalInterceptColumns } from "../lib/drillReportExport.js"; // TASKS.csv #1083, #1290
 import { localDate } from "../lib/localDate.js"; // TASKS.csv #2358
-import { cutoffOnElementChange } from "../lib/interceptCutoff.js"; // TASKS.csv #2513
-import { interceptTablePlan, interceptCount } from "../lib/interceptTable.js"; // TASKS.csv #2200 / #2479
+import { cutoffOnElementChange, rememberInterceptCutoff } from "../lib/interceptCutoff.js"; // TASKS.csv #2513; remember: #3069
+import { interceptTablePlan, interceptCount, columnFormat } from "../lib/interceptTable.js";
+import { BULK_COMMODITIES } from "../lib/preferredElement.js"; // TASKS.csv #2923 — no metal equivalent for a bulk commodity
+import { elementOptionLabel, isLoiHeader } from "../lib/geochem.js"; // TASKS.csv #2923 — 'Si as SiO2' in the price rows; isLoiHeader: #2924 // TASKS.csv #2200 / #2479; columnFormat: #3019
 import { pagePx, pageFormatOf } from "../lib/pageFormats.js"; // TASKS.csv #2479
 import { holeTotals } from "../lib/accumulation.js"; // TASKS.csv #2419 — Total per hole
 
@@ -41,7 +43,7 @@ export default function BestIntercepts({ assays: assaysIn, assayElements, collar
   const assays = useMemo(() => labAssays(assaysIn), [assaysIn]), pxrfLeft = (assaysIn || []).length - assays.length; // #1673 — lab grades only
   useEscapeKey(onClose); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
-  const { desurveyMethod, project, setLayoutElements, layoutElements = [], layoutPages = [], activeLayoutPageId, goToModule, geochemThresholds = [] } = useStore(); // layoutElements / pages: #2479 // TASKS.csv #135 — true-width needs the project's own trace; layout: #911; geochemThresholds: #2347
+  const { desurveyMethod, project, setLayoutElements, addLayoutPages, layoutElements = [], layoutPages = [], activeLayoutPageId, goToModule, geochemThresholds = [] } = useStore(); // addLayoutPages: #3019 // layoutElements / pages: #2479 // TASKS.csv #135 — true-width needs the project's own trace; layout: #911; geochemThresholds: #2347
   const elementUnits = useMemo(() => Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])), [assayElements]);
   const symbols = assayElements.map((e) => e.symbol);
   const lead = useLeadCommodity();
@@ -70,6 +72,8 @@ export default function BestIntercepts({ assays: assaysIn, assayElements, collar
   const suggestCutoff = (sym) => p90Of(sym) ?? cutoff;
   const [suggested, setSuggested] = useState(() => p90Of(symbol)); // #1678 — the tooltip says the opening cutoff is a suggestion too
   const [cutoffNote, setCutoffNote] = useState(null); // TASKS.csv #2513 — what an element change did to the cut-off
+  // TASKS.csv #3069 — a cut-off the user set (not the P90 suggestion) is offered in Grade stats for the same element, this session only
+  useEffect(() => { if (suggested == null || cutoff !== suggested) rememberInterceptCutoff(project?.name, symbol, unit, cutoff); }, [cutoff, suggested, symbol, unit, project?.name]);
   const changeSymbol = (sym) => {
     cutoffBySymbol.current[symbol] = cutoff;
     const r = cutoffOnElementChange({ cutoff, typed: suggested == null || cutoff !== suggested, fromUnit: elementUnits[symbol], toUnit: elementUnits[sym], kept: cutoffBySymbol.current[sym] ?? null, suggestion: suggestCutoff(sym) });
@@ -144,7 +148,11 @@ export default function BestIntercepts({ assays: assaysIn, assayElements, collar
     return m;
   }, [domainRows]);
   // TASKS.csv #402 — the metal equivalent; #1387: above the results, which can now be cut on it (per sample) instead of on `symbol`
-  const meqMetals = useMemo(() => (meqOn ? [symbol, ...extraSymbols].map((s) => ({ symbol: s, unit: elementUnits[s] || "ppm", price: Number(meqInputs[s]?.price), recovery: Number(meqInputs[s]?.recovery) / 100, oxide: !!TRADED_OXIDE[s] && meqInputs[s]?.oxide !== false /* #2731 — per lb of the traded oxide unless unticked */ })) : []), [meqOn, symbol, extraSymbols, elementUnits, meqInputs]);
+  // TASKS.csv #2923 (review #2876, WA iron) — iron ore is sold per tonne at a price for a reference grade with penalties for SiO2, Al2O3 and P:
+  // an equivalent that adds them as payable metals has the wrong sign, so a bulk commodity (Fe, Mn, Al) is offered none
+  const bulkLead = BULK_COMMODITIES.has(symbol);
+  const meqSymbols = useMemo(() => [symbol, ...extraSymbols].filter((s) => !isLoiHeader(s)), [symbol, extraSymbols]); // #2924 — LOI is not a metal to price
+  const meqMetals = useMemo(() => (meqOn && !bulkLead ? meqSymbols.map((s) => ({ symbol: s, unit: elementUnits[s] || "ppm", price: Number(meqInputs[s]?.price), recovery: Number(meqInputs[s]?.recovery) / 100, oxide: !!TRADED_OXIDE[s] && meqInputs[s]?.oxide !== false /* #2731 — per lb of the traded oxide unless unticked */ })) : []), [meqOn, symbol, extraSymbols, elementUnits, meqInputs, bulkLead, meqSymbols]);
   const meqReady = meqOn && meqMetals.length > 1 && meqMetals.every((m) => m.price > 0 && m.recovery > 0 && m.recovery <= 1);
   const [cutOnEq, setCutOnEq] = useState(false);
   const onEq = cutOnEq && meqReady;
@@ -196,10 +204,18 @@ export default function BestIntercepts({ assays: assaysIn, assayElements, collar
   // TASKS.csv #911 — the results as a table on the active Layout page (a copy: send again after changing the settings)
   const toLayout = () => {
     // TASKS.csv #2479 — the table is ranked by grade x length, so that column goes on the sheet; #2200 / #2479 — as many rows as fit a free spot
-    const plan = interceptTablePlan(layoutElements, pagePx(pageFormatOf(layoutPages.find((pg) => pg.id === activeLayoutPageId))), { total: results.length });
-    const columns = [tr("Hole"), tr("From (m)"), tr("To (m)"), tr("Length (m)"), ...(twEnabled ? [tr("True width (m)")] : []), `${gradeSym} (${dispUnit})`, tr("Grade × length ({unit} × m)", { unit: dispUnit }), ...(incOn ? [tr("Including")] : [])]; // dispUnit: #1680
+    // TASKS.csv #3019 (review #2876, WA iron) — the 'Also show' elements go on the sheet too (the dialog and the CSV had SiO2, Al2O3, P beside
+    // each Fe intercept; the printed table had Fe alone), the table widened for them; with no clear spot on the page it starts a page of its own
+    const pageSize = pagePx(pageFormatOf(layoutPages.find((pg) => pg.id === activeLayoutPageId)));
+    const tableW = Math.min(pageSize.w - 80, 560 + 70 * shownExtras.length);
+    let plan = interceptTablePlan(layoutElements, pageSize, { total: results.length, w: tableW });
+    const ownPage = plan.overlaps && typeof addLayoutPages === "function";
+    if (ownPage) plan = interceptTablePlan([], pageSize, { total: results.length, w: tableW });
+    const columns = [tr("Hole"), tr("From (m)"), tr("To (m)"), tr("Length (m)"), ...(twEnabled ? [tr("True width (m)")] : []), `${gradeSym} (${dispUnit})`, tr("Grade × length ({unit} × m)", { unit: dispUnit }), ...shownExtras.map((s) => `${s} (${gradeUnitLabel(s, elementUnits[s])})`), ...(incOn ? [tr("Including")] : [])]; // dispUnit: #1680; extras: #3019
     const open = interceptOpenEnds(results.slice(0, plan.shown), reportAssays, symbol, collars); // #2608 — a length that is a minimum
-    const rows = results.slice(0, plan.shown).map((r, i) => [String(r.hole_id), Number(r.from).toFixed(2), Number(r.to).toFixed(2), `${r.unsampledM > 0.05 ? tr("{len} ({s} sampled)", { len: r.length.toFixed(2), s: interceptSampledM(r).toFixed(2) }) : r.length.toFixed(2)}${open[i].top || open[i].bottom ? "+" : ""}` /* #2475; + open: #2608 */, ...(twEnabled ? [r.tw ? r.tw.trueWidth.toFixed(2) : ""] : []), `${r.overRange ? "≥" : ""}${+dg(r.avgGrade).toPrecision(4)}`, String(+dg(interceptGradeLength(r)).toPrecision(5)) /* #2479 */, ...(incOn ? [r.including ? incText(r.including[0]) : ""] : [])]);
+    // #3019 — one number of decimals per column (the grade printed '56.07', '59', '58.6')
+    const shownRows = results.slice(0, plan.shown), fGrade = columnFormat(shownRows.map((r) => dg(r.avgGrade))), fGT = columnFormat(shownRows.map((r) => dg(interceptGradeLength(r)))), fExtra = Object.fromEntries(shownExtras.map((s) => [s, columnFormat(shownRows.map((r) => r.extras?.[s]))]));
+    const rows = results.slice(0, plan.shown).map((r, i) => [String(r.hole_id), Number(r.from).toFixed(2), Number(r.to).toFixed(2), `${r.unsampledM > 0.05 ? tr("{len} ({s} sampled)", { len: r.length.toFixed(2), s: interceptSampledM(r).toFixed(2) }) : r.length.toFixed(2)}${open[i].top || open[i].bottom ? "+" : ""}` /* #2475; + open: #2608 */, ...(twEnabled ? [r.tw ? r.tw.trueWidth.toFixed(2) : ""] : []), `${r.overRange ? "≥" : ""}${fGrade(dg(r.avgGrade))}`, fGT(dg(interceptGradeLength(r))) /* #2479; fixed decimals: #3019 */, ...shownExtras.map((s) => (r.extras?.[s] == null ? "—" : fExtra[s](r.extras[s]))), ...(incOn ? [r.including ? incText(r.including[0]) : ""] : [])]);
     const from = tr("{symbol} ≥ {cutoff} {unit}, dilution ≤ {dil} m, min {min} m", { symbol: gradeSym, cutoff, unit: unitL, dil: maxInternalDilution, min: minLength });
     // TASKS.csv #936 — a printed intercept table is what gets lifted into a report or a news release: it carries the
     // caveats the dialog and the CSV stamp give (QC, over-range, below detection, true width, screening)
@@ -212,8 +228,10 @@ export default function BestIntercepts({ assays: assaysIn, assayElements, collar
       twEnabled ? tr("True width to a structure dipping {dip}° towards {dipDir}°.", { dip: twDip, dipDir: twDipDir }) : tr("Lengths are downhole, not true widths."),
       tr("Screening tool: verify any intercept against the raw assay certificates before reporting it."),
     ].filter(Boolean).join(" ");
-    setLayoutElements((els) => [...els, { id: `table_${Date.now()}`, type: "table", source: "static", x: plan.x, y: plan.y /* #2479 — a free spot (was 60, 60 over the title); a second send takes the next free spot */, w: 560, fontPt: 7, frameWidth: 1,
-      title: tr("Best intercepts: {from}", { from }), from, note, columns, rows: plan.more > 0 ? [...rows, [tr("… and {n} more intercept(s), not shown on this sheet", { n: plan.more }) /* #2608 — the sheet's reader has no CSV */, ...columns.slice(1).map(() => "")]] : rows }]);
+    const table = { id: `table_${Date.now()}`, type: "table", source: "static", x: plan.x, y: plan.y /* #2479 — a free spot (was 60, 60 over the title); a second send takes the next free spot */, w: tableW /* #3019 */, fontPt: 7, frameWidth: 1,
+      title: tr("Best intercepts: {from}", { from }), from, note, columns, rows: plan.more > 0 ? [...rows, [tr("… and {n} more intercept(s), not shown on this sheet", { n: plan.more }) /* #2608 — the sheet's reader has no CSV */, ...columns.slice(1).map(() => "")]] : rows };
+    if (ownPage) addLayoutPages([{ name: tr("Best intercepts"), elements: [table] }]); // #3019 — the active page had no clear spot for it
+    else setLayoutElements((els) => [...els, table]);
     goToModule("layout");
     onClose();
   };
@@ -284,15 +302,16 @@ export default function BestIntercepts({ assays: assaysIn, assayElements, collar
           </div>
 
           {/* TASKS.csv #402 — metal equivalent from the element + the 'Also show' elements below. */}
-          {symbols.length > 1 && (
+          {symbols.length > 1 && bulkLead && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", lineHeight: 1.4 }}>{tr("{symbol} is sold per tonne at a price for a reference grade, with penalties for the other elements, not as a sum of payable metals: no metal equivalent is offered.", { symbol })}</div>}{/* #2923 */}
+          {symbols.length > 1 && !bulkLead && (
             <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
               <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
                 <input type="checkbox" checked={meqOn} onChange={(e) => setMeqOn(e.target.checked)} />{" "}{tr("Metal equivalent ({symbol}Eq) from {symbol} and the \"Also show\" elements", { symbol })}</label>
               {meqOn && (
                 <div style={{ marginTop: 6, marginLeft: 22, display: "flex", flexDirection: "column", gap: 4 }}>
-                  {[symbol, ...extraSymbols].map((s) => (
+                  {meqSymbols.map((s) => ( /* #2924 — no LOI row */
                     <div key={s} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <span style={{ width: 34 }}>{s}</span>{tr("price")}{" "}<input type="number" min="0" step="any" value={meqInputs[s]?.price ?? ""} onChange={(e) => setMeqInputs((p) => ({ ...p, [s]: { ...p[s], price: e.target.value } }))} style={{ ...inp, width: 80 }} aria-label={tr("{s} price", { s })} /> {TRADED_OXIDE[s] ? <label style={{ display: "inline-flex", alignItems: "center", gap: 3 }} title={TRADED_OXIDE[s].per === "t" ? tr("{oxide} is how {s} is sold: the price is per tonne of {oxide}, turned into one per tonne of {s} by its share of the carbonate ({f}).", { oxide: TRADED_OXIDE[s].oxide, s, f: TRADED_OXIDE[s].factor }) /* #2771 */ : tr("{oxide} is how {s} is sold: the price is per pound of {oxide}, turned into one per pound of {s} by its share of the oxide ({f}).", { oxide: TRADED_OXIDE[s].oxide, s, f: TRADED_OXIDE[s].factor })}><input type="checkbox" checked={meqInputs[s]?.oxide !== false} onChange={(e) => setMeqInputs((p) => ({ ...p, [s]: { ...p[s], oxide: e.target.checked } }))} />{`$/${TRADED_OXIDE[s].per || "lb"} ${TRADED_OXIDE[s].oxide}` /* per t: #2771 */}</label> : null}{tr("{v}recovery", { v: TRADED_OXIDE[s] && meqInputs[s]?.oxide !== false ? " " : PRECIOUS_METALS.has(s) ? "$/oz" : "$/lb" })}{/* oxide: #2731 */}{" "}<input type="number" min="1" max="100" step="any" value={meqInputs[s]?.recovery ?? ""} onChange={(e) => setMeqInputs((p) => ({ ...p, [s]: { ...p[s], recovery: e.target.value } }))} style={{ ...inp, width: 60 }} aria-label={tr("{s} recovery %", { s })} /> %
+                      <span style={{ minWidth: 34 }}>{elementOptionLabel(s, elementUnits[s]) /* #2923 */}</span>{tr("price")}{" "}<input type="number" min="0" step="any" value={meqInputs[s]?.price ?? ""} onChange={(e) => setMeqInputs((p) => ({ ...p, [s]: { ...p[s], price: e.target.value } }))} style={{ ...inp, width: 80 }} aria-label={tr("{s} price", { s })} /> {TRADED_OXIDE[s] ? <label style={{ display: "inline-flex", alignItems: "center", gap: 3 }} title={TRADED_OXIDE[s].per === "t" ? tr("{oxide} is how {s} is sold: the price is per tonne of {oxide}, turned into one per tonne of {s} by its share of the carbonate ({f}).", { oxide: TRADED_OXIDE[s].oxide, s, f: TRADED_OXIDE[s].factor }) /* #2771 */ : tr("{oxide} is how {s} is sold: the price is per pound of {oxide}, turned into one per pound of {s} by its share of the oxide ({f}).", { oxide: TRADED_OXIDE[s].oxide, s, f: TRADED_OXIDE[s].factor })}><input type="checkbox" checked={meqInputs[s]?.oxide !== false} onChange={(e) => setMeqInputs((p) => ({ ...p, [s]: { ...p[s], oxide: e.target.checked } }))} />{`$/${TRADED_OXIDE[s].per || "lb"} ${TRADED_OXIDE[s].oxide}` /* per t: #2771 */}</label> : null}{tr("{v}recovery", { v: TRADED_OXIDE[s] && meqInputs[s]?.oxide !== false ? " " : (PRECIOUS_METALS.has(s) ? "$/oz" : "$/lb") + " " /* #2923 — '$/lbrecovery' */ })}{/* oxide: #2731 */}{" "}<input type="number" min="1" max="100" step="any" value={meqInputs[s]?.recovery ?? ""} onChange={(e) => setMeqInputs((p) => ({ ...p, [s]: { ...p[s], recovery: e.target.value } }))} style={{ ...inp, width: 60 }} aria-label={tr("{s} recovery %", { s })} /> %
                     </div>
                   ))}
                   <div style={{ color: meqReady ? "var(--color-text-muted)" : "var(--color-danger-icon-strong)" }}>

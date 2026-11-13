@@ -7,8 +7,10 @@
 import Papa from "papaparse";
 import { requestTableSubset as requestTableSubsetEv } from "./tableSubsetRequest.js"; // TASKS.csv #2177
 import { makeCompositor } from "./compositeOnRead.js"; // TASKS.csv #2345
+import { makeLogReader } from "./logOnRead.js"; // TASKS.csv #3038
 import { normalizeCommaDecimals } from "./numberLocale.js";
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
+import { arrMax } from "./arrayStats.js"; // TASKS.csv #3031
 
 // Bytes -> text. UTF-8 first (BOM stripped); if that produced replacement characters, the file was not
 // UTF-8 — almost always an Excel export on Windows (Windows-1252: degree signs, accented names).
@@ -152,34 +154,38 @@ export function spaceTableToTabs(text) {
 // keep (TASKS.csv #2177): the header names to read; every other column is never held (a table over the memory budget, its columns chosen)
 // holes (TASKS.csv #2321): { col, ids } — only the rows whose `col` (trimmed) is one of `ids` are kept, applied as each row is read
 // composite (TASKS.csv #2345): { hole, from, to, lengthM } — the kept rows composited to that length as they are read (never all held)
-export function parseTableText(text, { comments = "#", columnar = false, keep = null, holes = null, composite = null } = {}) {
+// logRead (TASKS.csv #3038): { hole, depth | from + to, channels, sampleN } — a downhole log read into typed columns (logOnRead.js) as it is
+// read: the rows returned are its first sampleN rows, and `logTable` holds every reading
+export function parseTableText(text, { comments = "#", columnar = false, keep = null, holes = null, composite = null, logRead = null } = {}) {
   ({ text } = stripLeadingComments(text, comments)); // #720
   const spaced = spaceTableToTabs(text); // #2017
   if (spaced != null) text = spaced;
   let preamble = 0, banner = false;
   ({ text, skipped: preamble, banner } = skipPreamble(text)); // #1666; banner: #1665
   // TASKS.csv #611 — a big table can be held as COLUMNS (see parseTableColumns); null = not eligible, read as rows
-  if (columnar && !composite && text.length >= COLUMNAR_MIN_CHARS) { const c = parseTableColumns(text, { comments: false, keep, holes }); if (c) return c; }
+  if (columnar && !composite && !logRead && text.length >= COLUMNAR_MIN_CHARS) { const c = parseTableColumns(text, { comments: false, keep, holes }); if (c) return c; }
   // #600 (performance) — Papa asks once per CELL; the answer depends only on the header, so cache it per header.
   const typed = new Map();
   const idLike = ID_LIKE_VALUE_IN.test(text) ? idLikeColumns(text) : null; // #1071 — only scanned when such a value exists
   const dynamicTyping = (field) => { let v = typed.get(field); if (v === undefined) { v = !isIdentifierHeader(field) && !idLike?.has(field); typed.set(field, v); } return v; };
   let res, droppedByHole = 0;
   const hf = holes?.col && holes.ids ? { col: holes.col, ids: new Set([...holes.ids].map((v) => String(v).trim())) } : null; // #2321
-  let composited = null;
-  if (keep?.length || hf || composite) { // #2177 — row by row, each row cut to the kept columns at once, so the dropped ones never accumulate; #2321 — other holes' rows too
+  let composited = null, logTable = null;
+  if (keep?.length || hf || composite || logRead) { // #2177 — row by row, each row cut to the kept columns at once, so the dropped ones never accumulate; #2321 — other holes' rows too
     const want = keep?.length ? new Set([...keep, ...(composite ? [composite.hole, composite.from, composite.to] : [])]) : null, data = [], errors = []; // #2345 — the composite's own columns are always read
     const comp = composite ? makeCompositor(composite) : null; // #2345 — each kept row goes into its hole's bins instead of the row list
+    const lr = logRead ? makeLogReader(logRead) : null; // #3038 — each row into the log's typed columns
     let fields = null, kept = null;
     const meta = Papa.parse(text, { header: true, dynamicTyping, skipEmptyLines: true, comments: false, step: (r) => {
       if (!kept) { fields = r.meta.fields || []; kept = want ? fields.filter((f) => want.has(f)) : fields; }
       if (r.errors?.length) errors.push(...r.errors);
       if (hf && !hf.ids.has(String(r.data[hf.col] ?? "").trim())) { droppedByHole++; return; }
       const o = {}; for (const f of kept) o[f] = r.data[f];
-      if (comp) comp.add(o); else data.push(o);
+      if (lr) lr.add(o); else if (comp) comp.add(o); else data.push(o);
     } }).meta;
     let out = data;
-    if (comp) { const f = comp.finish(); out = f.rows; composited = f.stats; } // #2345 — never push(...rows): 150,000 composites overflowed the stack
+    if (comp) { const f = comp.finish(); out = f.rows; composited = f.stats; }
+    if (lr) { const f = lr.finish(); out = f.sample; logTable = f.table; } // #3038 // #2345 — never push(...rows): 150,000 composites overflowed the stack
     res = { data: out, errors, meta: { ...meta, fields: kept || (meta.fields || []).filter((f) => !want || want.has(f)) } };
     void fields;
   } else res = Papa.parse(text, { header: true, dynamicTyping, skipEmptyLines: true, comments: false });
@@ -190,7 +196,7 @@ export function parseTableText(text, { comments = "#", columnar = false, keep = 
   const { rows, note } = commaFree ? { rows: res.data, note: "" } : normalizeCommaDecimals(res.data);
   const pre = banner ? tr("The first row was a banner of group names over the field names: the second row is used as the header.") : preamble ? tr("Skipped {n} line(s) of notes above the header row.", { n: preamble }) : ""; // #1666; #1665
   const sp = spaced != null ? tr("Read as a space-separated table ({n} columns).", { n: (res.meta.fields || []).length }) : ""; // #2017
-  return { rows, headers: res.meta.fields || [], note: [note, pre, sp].filter(Boolean).join(" "), errors: res.errors || [], ...(hf ? { droppedByHole } : {}), ...(composited ? { composited } : {}) };
+  return { rows, headers: res.meta.fields || [], note: [note, pre, sp].filter(Boolean).join(" "), errors: res.errors || [], ...(hf ? { droppedByHole } : {}), ...(composited ? { composited } : {}), ...(logTable ? { logTable } : {}) };
 }
 
 // TASKS.csv #611 — large assay exports held as columns. parseTableText's rows are one object per row, and a 60 MB
@@ -320,7 +326,11 @@ function parseInWorker(buf, opts) {
 // on top of the file buffer and its UTF-16 text, so that table needed some 4-5 GB before anything was drawn. Before parsing, the
 // rows x columns are estimated from the first 1 MB and a table needing more than TABLE_MEMORY_BUDGET is not opened unasked.
 export const TABLE_MEMORY_BUDGET = 2e9;
-export async function estimateTableMemory(file) {
+// TASKS.csv #3040 (from #2885) — a table read as ROW OBJECTS costs far more than as columns: the 121 MB WA iron log (2.58 M rows x 9 columns)
+// took about 1.05 GB of heap to reach its dialog, i.e. about 28 bytes a cell and 32 a row on top of the text, where the columnar figure
+// (9 x 1.5 a cell) said 0.68 GB. rowObjects picks that rate.
+export const ROW_CELL_BYTES = 28, ROW_BASE_BYTES = 32;
+export async function estimateTableMemory(file, { rowObjects = false } = {}) {
   const head = await file.slice(0, 1 << 20).text();
   const lines = head.split(/\r?\n/);
   if (file.size > head.length && lines.length > 1) lines.pop(); // a cut last line
@@ -330,12 +340,15 @@ export async function estimateTableMemory(file) {
   const dataLines = Math.max(1, lines.length - 1);
   const used = lines.reduce((n, l) => n + l.length + 1, 0);
   const rows = Math.round(Math.max(0, file.size - (header.length + 1)) / Math.max(1, (used - header.length - 1) / dataLines));
-  return { rows, cols, bytes: rows * cols * 9 * 1.5 + file.size * 3 };
+  return { rows, cols, bytes: (rowObjects ? rows * cols * ROW_CELL_BYTES + rows * ROW_BASE_BYTES : rows * cols * 9 * 1.5) + file.size * 3 };
 }
+// #3040 — the most heap a byte of file can take as row objects (narrow numeric rows: a 6-byte cell such as '1.23,' held as 28 + a share of
+// the row's 32): a file under budget / MAX_ROW_RATIO can never reach the budget
+export const MAX_ROW_RATIO = 16;
 // TASKS.csv #2177 (Matt's decision 2026-11-09) — over the budget, the columns are chosen BEFORE the full read, so every kept value stays
 // exact: the estimate per column count, and the header names from the first 1 MB. -> { rows, cols, headers, fixed, perColumn }
-export async function tableColumnsPreview(file) {
-  const e = await estimateTableMemory(file);
+export async function tableColumnsPreview(file, { rowObjects = false } = {}) { // rowObjects: #3040
+  const e = await estimateTableMemory(file, { rowObjects });
   const head = await file.slice(0, 1 << 16).text();
   const first = (head.split(/\r?\n/)[0] || "").replace(/^\uFEFF/, "");
   const delim = [",", "\t", ";", "|"].reduce((a, d) => (first.split(d).length > first.split(a).length ? d : a), ",");
@@ -344,17 +357,18 @@ export async function tableColumnsPreview(file) {
   // header's 64 KB held 153 rows of a 62-column table, live)
   const body = file.size > head.length ? await file.slice(0, 1 << 20).text() : head;
   const sample = body.split(/\r?\n/).slice(1, -1).filter((l) => l.trim()).slice(0, 5000).map((l) => l.split(delim).map((v) => v.trim().replace(/^"(.*)"$/, "$1")));
-  return { ...e, headers, sample, fixed: file.size * 3, perColumn: e.rows * 9 * 1.5 };
+  return { ...e, headers, sample, fixed: file.size * 3 + (rowObjects ? e.rows * ROW_BASE_BYTES : 0), perColumn: e.rows * (rowObjects ? ROW_CELL_BYTES : 9 * 1.5) };
 }
 export { subsetBytes } from "./tableSubsetRequest.js"; // #2177
 const requestTableSubset = (file, preview) => requestTableSubsetEv(file, preview, TABLE_MEMORY_BUDGET);
 // -> true to go on (whole table), { keep: [header...] } (only those columns), or false. confirm: injectable (tests); with no window (Node)
 // the table is read.
-export async function confirmTableSize(file, { budget = TABLE_MEMORY_BUDGET, confirm = typeof window !== "undefined" ? (m) => window.confirm(m) : null, choose = requestTableSubset } = {}) {
-  if (!confirm || !(file?.size > budget / 12)) return true; // a file under budget / 12 can never reach the budget
-  const e = await estimateTableMemory(file);
+// rowObjects (#3040): the table will be held as row objects (every reader but the columnar one and a log read into columns, #3038)
+export async function confirmTableSize(file, { budget = TABLE_MEMORY_BUDGET, confirm = typeof window !== "undefined" ? (m) => window.confirm(m) : null, choose = requestTableSubset, rowObjects = false } = {}) {
+  if (!confirm || !(file?.size > budget / (rowObjects ? MAX_ROW_RATIO : 12))) return true; // a file under that can never reach the budget
+  const e = await estimateTableMemory(file, { rowObjects });
   if (e.bytes <= budget) return true;
-  const chosen = choose ? await choose(file, await tableColumnsPreview(file)) : null; // #2177
+  const chosen = choose ? await choose(file, await tableColumnsPreview(file, { rowObjects })) : null; // #2177; rowObjects: #3040
   if (chosen != null) return chosen;
   return confirm(tr("{name} is a very large table: about {rows} rows × {cols} columns. Opening it needs roughly {gb} GB of memory, which can close GeoStrix on this computer.", { name: file.name, rows: e.rows.toLocaleString(), cols: e.cols, gb: (e.bytes / 1e9).toFixed(1) })
     + "\n\n" + tr("OK — open it anyway.") + "\n" + tr("Cancel — don't open it (split the file, or keep only the rows and columns you need, and open the parts)."));
@@ -367,7 +381,7 @@ export async function confirmTableSize(file, { budget = TABLE_MEMORY_BUDGET, con
 // space-separated test (#2017, then every line re-joined), the id-like column scan (#1071, its first 2,000 lines as before); comma
 // decimals are looked for in every part. -> parseTableText's { rows, headers, note, errors, droppedByHole?, composited? } + { encoding, parts }
 const ENCODING_PROBE = 16 << 20, FIRST_PART_MIN = 256 << 10;
-export async function parseTableChunks(chunks, { comments = "#", keep = null, holes = null, composite = null } = {}) {
+export async function parseTableChunks(chunks, { comments = "#", keep = null, holes = null, composite = null, logRead = null } = {}) { // logRead: #3038
   const it = chunks[Symbol.asyncIterator] ? chunks[Symbol.asyncIterator]() : chunks[Symbol.iterator]();
   const headBufs = []; let headLen = 0, done = false;
   while (headLen < ENCODING_PROBE) { const r = await it.next(); if (r.done) { done = true; break; } headBufs.push(r.value); headLen += r.value.length; }
@@ -377,6 +391,7 @@ export async function parseTableChunks(chunks, { comments = "#", keep = null, ho
   const want = keep?.length ? new Set([...keep, ...(composite ? [composite.hole, composite.from, composite.to] : [])]) : null;
   const hf = holes?.col && holes.ids ? { col: holes.col, ids: new Set([...holes.ids].map((v) => String(v).trim())) } : null;
   const comp = composite ? makeCompositor(composite) : null;
+  const lr = logRead ? makeLogReader(logRead) : null; // #3038
   const data = [], errors = [];
   let kept = null, droppedByHole = 0, headerLine = null, newline = "\n", delimiter, spaced = false, preamble = 0, banner = false, typedBy = null, commaSeen = false, parts = 0;
   const step = (r) => {
@@ -384,7 +399,7 @@ export async function parseTableChunks(chunks, { comments = "#", keep = null, ho
     if (r.errors?.length) errors.push(...r.errors);
     if (hf && !hf.ids.has(String(r.data[hf.col] ?? "").trim())) { droppedByHole++; return; }
     const o = {}; for (const f of kept) o[f] = r.data[f];
-    if (comp) comp.add(o); else data.push(o);
+    if (lr) lr.add(o); else if (comp) comp.add(o); else data.push(o);
   };
   const parsePart = (text) => {
     parts++;
@@ -425,15 +440,16 @@ export async function parseTableChunks(chunks, { comments = "#", keep = null, ho
   while (!done) { const r = await it.next(); if (r.done) break; feed(dec.decode(r.value, { stream: true }), false); }
   feed(dec.decode(), true);
   let rows = data;
-  let composited = null;
+  let composited = null, logTable = null;
   if (comp) { const f = comp.finish(); rows = f.rows; composited = f.stats; }
+  if (lr) { const f = lr.finish(); rows = f.sample; logTable = f.table; } // #3038
   let cnote = "";
   if (delimiter !== "," || commaSeen) ({ rows, note: cnote } = normalizeCommaDecimals(rows)); // #600 — only where a comma decimal can exist
   const pre = banner ? tr("The first row was a banner of group names over the field names: the second row is used as the header.") : preamble ? tr("Skipped {n} line(s) of notes above the header row.", { n: preamble }) : "";
   const headers = kept || [];
   const sp = spaced ? tr("Read as a space-separated table ({n} columns).", { n: headers.length }) : "";
   const enc = encoding !== "utf-8" ? tr("Its first {mb} MB were not UTF-8, so the whole file was read as Windows-1252.", { mb: Math.round(Math.min(headLen, ENCODING_PROBE) / 1048576) }) : "";
-  return { rows, headers, note: [cnote, pre, sp, enc].filter(Boolean).join(" "), errors, encoding, parts, ...(hf ? { droppedByHole } : {}), ...(composited ? { composited } : {}) };
+  return { rows, headers, note: [cnote, pre, sp, enc].filter(Boolean).join(" "), errors, encoding, parts, ...(hf ? { droppedByHole } : {}), ...(composited ? { composited } : {}), ...(logTable ? { logTable } : {}) };
 }
 function concatBytes(bufs, n) {
   const out = new Uint8Array(n); let o = 0;
@@ -468,7 +484,7 @@ export async function parseTableFile(file, opts) {
   const inParts = file?.size > TEXT_MAX_BYTES;
   if (inParts && typeof Worker === "undefined") throw tooLargeForOneRead(file.size);
   if (!(opts?.sizeChecked)) {
-    const ok = await confirmTableSize(file);
+    const ok = await confirmTableSize(file, { rowObjects: !opts?.columnar && !opts?.logRead }); // rowObjects: #3040
     if (!ok) throw new Error(tr("not opened: it needs more memory than this computer can safely give it"));
     if (ok.keep?.length) opts = { ...(opts || {}), keep: ok.keep }; // #2177 — only the chosen columns are read
     if (ok.holes?.col && ok.holes.ids?.length) opts = { ...(opts || {}), holes: { col: ok.holes.col, ids: [...ok.holes.ids], label: ok.holes.label || "" } }; // #2321 — only those holes' rows
@@ -521,7 +537,7 @@ export function toExportCsv(rows, opts = {}) {
   if (!Array.isArray(rows)) return Papa.unparse(rows, { escapeFormulae: FORMULA_LEAD, ...opts });
   // rows that are plain lists (a sectioned report: project report, surface compare) carry their own header lines; keying
   // them by index wrote a "0,1,2,..." header row (#1083 found it, from #1022)
-  if (rows.length && rows.every(Array.isArray)) { const w = Math.max(...rows.map((r) => r.length)); return Papa.unparse(rows.map((r) => Array.from({ length: w }, (_, i) => r[i] ?? "")), { escapeFormulae: FORMULA_LEAD, ...opts }); }
+  if (rows.length && rows.every(Array.isArray)) { const w = arrMax(rows.map((r) => r.length)); /* #3031 — every row of a sheet */ return Papa.unparse(rows.map((r) => Array.from({ length: w }, (_, i) => r[i] ?? "")), { escapeFormulae: FORMULA_LEAD, ...opts }); }
   const fields = [], seen = new Set();
   for (const r of rows) for (const k of Object.keys(r || {})) if (!seen.has(k)) { seen.add(k); fields.push(k); }
   return Papa.unparse({ fields, data: rows.map((r) => fields.map((k) => r?.[k] ?? "")) }, { escapeFormulae: FORMULA_LEAD, ...opts });

@@ -103,3 +103,7 @@ export function rowsToGeophysPoints(rows, cols) {
     };
   });
 }
+
+// TASKS.csv #2848 (GSC review B15) — a station table (X / Y and a measurement, no hole column) dropped on the 3D View or Maps was offered only as a
+// drillhole table and asked for a Hole ID: true when the headers read as a point survey, so the import dialog points to Geophysics > Point survey
+export const looksLikeStationTable = (headers) => guessGeophysColumns(headers).ok;

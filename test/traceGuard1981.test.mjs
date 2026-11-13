@@ -15,9 +15,9 @@ test("traceLookup accepts a missing trace", () => {
 
 test("the assay-marker build checks for a trace before looking it up", () => {
   const v = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
-  const i = v.indexOf("const pts = traceOf.get(c.hole_id);");
+  const i = v.indexOf("pts = rows && traceOf.get(c.hole_id);"); // #3117: per element, the rows first
   assert.ok(i > 0);
-  const guard = v.indexOf("if (!pts?.length) return;", i), look = v.indexOf("const look = traceLookup(pts);", i);
+  const guard = v.indexOf("if (!pts?.length) return;", i), look = v.indexOf("looks.set(c.hole_id, traceLookup(pts));", i);
   assert.ok(guard > i && look > guard, "guard before lookup");
   assert.ok(!/look = traceLookup\(pts\); \/\/ look: #1500\n\s*if \(!pts\?\.length\) return;/.test(v));
 });

@@ -55,6 +55,7 @@ import { projectCredits } from "../lib/credits.js"; // TASKS.csv #949
 import { groupSectionLegend } from "../lib/sectionLegend.js"; // TASKS.csv #1127 / #1128
 import { firstLegendGroups, rankLegendGroups, legendGroupCount } from "../lib/legendGroups.js"; // rank / count: #1482 // TASKS.csv #1224
 import { numericLayerLegendGroups } from "../lib/legendGroups.js"; // TASKS.csv #1482 — the RQD / recovery / SG / mag susc ramps
+import { geophysLegendGroups } from "../lib/legendGroups.js"; // TASKS.csv #2878
 import { frameTest, samplesInFrame, mapLayersInFrame } from "../lib/legendFrame.js"; // TASKS.csv #2134
 import { LAYOUT_FONTS, LAYOUT_FONT_TYPES, LAYOUT_DEFAULT_FONT, layoutFontStack, pageFont, withPageFont } from "../lib/layoutFonts.js"; // TASKS.csv #2144
 import { legendFit, legendRowH, legendLabelW, legendBoxSize } from "../lib/legendFit.js"; // TASKS.csv #2134; row rules and box: #2869
@@ -145,6 +146,7 @@ export default function LayoutModule() {
     terrain, rasters, // TASKS.csv #949 — {credits}
     viewerUiState, // TASKS.csv #1092 — legendOverride for the Atlas strip logs
     customLayers = [], // TASKS.csv #2472 — the custom layers' legend groups
+    geophysSurveys, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, // TASKS.csv #2878 — the survey points' ramps
     viewportBatchDone, setViewportBatchDone, // TASKS.csv #1644 — an atlas's maps centred on their holes
     requestViewportBatch, printSrcs, setPrintSrcs, // TASKS.csv #2303 — the export's 300 dpi print pass
   } = useStore();
@@ -370,8 +372,10 @@ export default function LayoutModule() {
         const el = elements.find((e) => e.id === img.replaceElementId);
         const aspect = img.naturalW && img.naturalH ? img.naturalW / img.naturalH : el.aspect;
         const world = img.worldWidthAtCaptureM ?? el.worldWidthAtCaptureM, denom = sectionScaleDenom(el);
-        const w = denom && world ? Math.round(sectionWidthForScale({ worldWidthAtCaptureM: world }, denom)) : el.w;
-        const upd = { ...el, src: img.src, naturalW: img.naturalW, naturalH: img.naturalH, aspect, w, h: Math.round(w / aspect), textFactor: img.textFactor || 1, legendItems: img.legendItems || el.legendItems, worldWidthAtCaptureM: world };
+        // TASKS.csv #3022 (review #2876) — not rounded to whole pixels: the scale is read back from the width, and a rounded width turned a
+        // picked 1 : 5,000 into '1 : 5,002 along the section'
+        const w = denom && world ? sectionWidthForScale({ worldWidthAtCaptureM: world }, denom) : el.w;
+        const upd = { ...el, src: img.src, naturalW: img.naturalW, naturalH: img.naturalH, aspect, w, h: w / aspect, textFactor: img.textFactor || 1, legendItems: img.legendItems || el.legendItems, worldWidthAtCaptureM: world };
         next.set(el.id, upd);
         const pt = sectionTextPt(upd), round = Number(img.resnapRound) || 0;
         if (pt != null && Math.abs(pt - 7) > 0.7 && round < 3 && upd.sectionTabId) { sendSectionResnap({ tabId: upd.sectionTabId, elementId: upd.id, textFactor: +((upd.textFactor * 7) / pt).toFixed(3), round: round + 1 }); again++; }
@@ -456,7 +460,12 @@ export default function LayoutModule() {
     if (targetElementId !== "new") {
       setElements((els) => els.map((el) => el.id === targetElementId ? { ...el, themeId, refreshing: true } : el));
     }
-    requestViewportRender(themeId, targetElementId, trueScale, false, { dpi: PAGE_DPI, ...opts }); // #2303 — 200 dpi on the page
+    // TASKS.csv #3138 (#3018 part a; side 6 stores the camera set in 'Enter & adjust view' as viewState.adjusted) — a themeless viewport whose
+    // view was adjusted keeps it: Refresh, Fit and a scale change capture that camera, not the live 3D View (ViewerModule applies req.viewState
+    // and puts the live view back, the #1644 path)
+    const target = targetElementId !== "new" && !themeId ? elements.find((el) => el.id === targetElementId) : null;
+    const keptView = target?.viewState?.adjusted && !opts.viewState && !opts.liveView ? { viewState: target.viewState } : {}; // liveView: #3145 — back to the live 3D View
+    requestViewportRender(themeId, targetElementId, trueScale, false, { dpi: PAGE_DPI, ...keptView, ...opts }); // #2303 — 200 dpi on the page
     setThemePickerFor(null);
     goToModule("viewer");
   };
@@ -538,7 +547,11 @@ export default function LayoutModule() {
   // the way the viewport's last capture looked (its azimuth), centred on that data, then a refresh at that scale and
   // centre. The check is in plan: for an oblique view the vertical extent is not a map distance, so it is approximate
   // there and exact for a top-down view.
-  const fitViewport = async (sel) => {
+  // TASKS.csv #3018 (review #2876, WA iron) — Fit rotates the holes by the LAST capture's camera azimuth, but the capture it starts is taken with
+  // the current camera: after a turn to Top the first press said '1:500,000, they run the other way' and the second '1:250,000'. Fit now
+  // records the azimuth it used (fitAzimuth, fitFrom: the capture it follows); when the capture comes back at another azimuth, the effect
+  // below fits once more with that one, so a single press gives the answer two presses gave. pass: 2 on that second fit.
+  const fitViewport = async (sel, { pass = 1 } = {}) => {
     const pts = [];
     // TASKS.csv #2304 (review #2174) — the points of the holes drawn as assumed verticals (no survey, no azimuth / dip) kept apart too, so
     // the note blames them only when they do widen the frame (on the WA project they sit inside the fans)
@@ -579,9 +592,19 @@ export default function LayoutModule() {
     // 1:500,000 with the 10 drilled holes as specks, and nothing said why. (A notice would be cleared by the refresh re-selecting the frame.)
     const nHoles = (collars || []).filter((c) => Number.isFinite(c.x) && Number.isFinite(c.y)).length;
     const assumed = (collars || []).filter((c) => Number.isFinite(c.x) && Number.isFinite(c.y) && assumedIds.has(c.hole_id)).length;
-    updateSelected({ fixedScale: scale, trueScale: true, fitInfo: nHoles ? { scale, holes: nHoles, assumed, ...(assumed && scaleDrilled < scale ? { drilledScale: scaleDrilled } : {}), ...(turnedScale < scale ? { turnedScale } : {}) } : null }); // drilledScale: #2304; turnedScale: #2737
+    const patch = { fixedScale: scale, trueScale: true, fitInfo: nHoles ? { scale, holes: nHoles, assumed, ...(assumed && scaleDrilled < scale ? { drilledScale: scaleDrilled } : {}), ...(turnedScale < scale ? { turnedScale } : {}) } : null, fitAzimuth: sel.cameraAzimuthDeg || 0, fitFrom: sel.capturedAt || 0, fitPass: pass }; // drilledScale: #2304; turnedScale: #2737; fit*: #3018
+    setElements((els) => els.map((el) => (el.id === sel.id ? { ...el, ...patch } : el))); // by id: a second fit may run while another element is selected (#3018)
     startViewportRender(sel.themeId, sel.id, true, { fixedScale: scale, elementW: sel.w, elementH: sel.h, centreWorld });
   };
+  // #3018 — a fitted capture came back: at the azimuth Fit assumed, the fit stands; at another one (the camera was turned since the last
+  // capture), fit once more with the azimuth the capture was taken at. Once only: the flags are cleared either way.
+  useEffect(() => {
+    const due = elements.filter((el) => el.type === "viewport" && el.fitAzimuth != null && (el.capturedAt || 0) !== el.fitFrom);
+    if (!due.length) return;
+    const turn = (a, b) => { const d = Math.abs(((((a || 0) - (b || 0)) % 360) + 540) % 360 - 180); return d; };
+    setElements((els) => els.map((el) => (due.some((d) => d.id === el.id) ? { ...el, fitAzimuth: undefined, fitFrom: undefined, fitPass: undefined } : el)));
+    for (const el of due) if ((el.fitPass || 1) < 2 && turn(el.cameraAzimuthDeg, el.fitAzimuth) > 0.5) fitViewport({ ...el, fitAzimuth: undefined }, { pass: 2 });
+  }, [elements]); // fitViewport reads the project data of this render
   // TASKS.csv #906 — a resize handle was pressed (see Handles / the resize branch of the drag effect above)
   const onResizeStart = (e, el, handle) => {
     setSelected(el.id);
@@ -1062,6 +1085,8 @@ export default function LayoutModule() {
       // TASKS.csv #1482 — the numeric logs the view colours its holes by (RQD, recovery, SG, mag susc), as the 3D legend shows them
       ...(() => { const sym = theme.numericSymbology || viewerUiState?.numericSymbology || {}, clips = numericClips(layers); return numericLayerLegendGroups({ layers: frameLayers, layerVisible, colorOf: numericLayerColorFn(sym, clips), symbology: sym, clips }); })(), // frameLayers: #2134 (the clips stay the whole project's, as the 3D view colours)
       // TASKS.csv #948 — the Surface Geology map: surface samples as the 3D view colours them, map layers, boundaries
+      // TASKS.csv #2878 — the point surveys the view draws, one ramp per survey, as the 3D legend shows them
+      ...geophysLegendGroups({ rows: layers?.geophys_pts, visible: layerVisible.geophys_pts !== false, surveys: geophysSurveys, stops: geophysPtsStops, colorMode: geophysPtsColorMode, min: geophysPtsMin, max: geophysPtsMax, label: tr("Geophysics points") }),
       ...(sampleGroup ? [sampleGroup] : []), ...(outcropLegendGroup({ surfaceStructures }) ? [outcropLegendGroup({ surfaceStructures })] : []) /* #1437 */, ...mapLayerLegendGroups(shownMapLayers), ...boundaryLegendGroups(boundaries),
     ];
     // #1633 — a long group keeps its most frequent entries and says how many it left out
@@ -1464,6 +1489,7 @@ export default function LayoutModule() {
                 legendReloaded={elements.some((el) => el.type === "legend" && el.boundViewportId === sel.id && el.autoReloaded && el.loadedCapturedAt === sel.capturedAt)} /* #2471 */
                 sel={sel} themes={themes} updateSelected={updateSelected} syncNotice={syncNotice}
                 onRefresh={() => startViewportRender(sel.themeId, sel.id, sel.trueScale, { fixedScale: sel.fixedScale, elementW: sel.w, elementH: sel.h })}
+                onLiveView={() => { updateSelected({ viewState: { ...(sel.viewState || {}), adjusted: false } }); startViewportRender(sel.themeId, sel.id, sel.trueScale, { fixedScale: sel.fixedScale, elementW: sel.w, elementH: sel.h, liveView: true }); }} /* #3145 */
                 onRebind={(themeId) => startViewportRender(themeId, sel.id, sel.trueScale, { fixedScale: sel.fixedScale, elementW: sel.w, elementH: sel.h })}
                 onEnter={() => startInteractiveViewportEdit(sel.themeId, sel.id, sel.trueScale, { fixedScale: sel.fixedScale, elementW: sel.w, elementH: sel.h })}
                 onFit={() => fitViewport(sel)} hasHoles={(collars || []).length > 0} /* #1866 — the button's label */
@@ -2048,7 +2074,7 @@ function SectionScaleControls({ sel, pageW, pageH, updateSelected, onResize = nu
   );
 }
 
-function ViewportControls({ steepHoles = false, legendReloaded = false, sel, themes, updateSelected, onRefresh, onRebind, onEnter, onFit, onRescale, onSyncScaleBar, onSyncNorth, syncNotice, others = [], allViewports = [], hasHoles = true, crsUnset = false }) {
+function ViewportControls({ steepHoles = false, legendReloaded = false, sel, themes, updateSelected, onRefresh, onLiveView = null, onRebind, onEnter, onFit, onRescale, onSyncScaleBar, onSyncNorth, syncNotice, others = [], allViewports = [], hasHoles = true, crsUnset = false }) {
   // TASKS.csv #907 — the scale picker: a preset, "custom" (a typed 1:N), or free (whatever the 3D view frames)
   const [customScale, setCustomScale] = useState(false);
   const scaleChoice = customScale || (sel.fixedScale > 0 && !SCALE_PRESETS.includes(sel.fixedScale)) ? "custom" : sel.fixedScale > 0 ? String(sel.fixedScale) : "";
@@ -2109,6 +2135,12 @@ function ViewportControls({ steepHoles = false, legendReloaded = false, sel, the
           banner for the other half of this flow. */}
       <button onClick={onEnter} disabled={sel.refreshing} title={tr("Switch to the 3D View tab and interactively orbit/pan/zoom this viewport's camera, then bring the new angle back here")} style={{ ...pBtn, opacity: sel.refreshing ? 0.6 : 1 }}>
         <LogIn size={14} />{" "}{tr("Enter & adjust view…")}</button>
+      {/* TASKS.csv #3145 — a view set here is kept by Refresh, Fit and a scale change; this goes back to the live 3D View */}
+      {!sel.themeId && sel.viewState?.adjusted && onLiveView && (
+        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: -4, marginBottom: 6, lineHeight: 1.4 }}>{tr("This frame keeps the view you set in 'Enter & adjust view': Refresh, Fit and a scale change use it.")}{" "}
+          <button style={{ ...smallBtn, marginTop: 4 }} onClick={onLiveView} disabled={sel.refreshing}>{tr("Use the live 3D View again")}</button>
+        </div>
+      )}
       {sel.fixedScale > 0 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: -4, marginBottom: 6, lineHeight: 1.4 }}>{tr("This frame has a fixed scale (1:{s}): in the 3D view only where you centre it is used, not the zoom. Set Scale to \"free (as framed)\" to use the zoom.", { s: Number(sel.fixedScale).toLocaleString() })}</div>}{/* TASKS.csv #1486 */}
       {/* TASKS.csv #1486 — what the zoom in 'Enter & adjust view' framed, when it was far from the fixed scale: one click uses it */}
       {sel.fixedScale > 0 && sel.adjustZoomScale > 0 && Math.abs(sel.adjustZoomScale / sel.fixedScale - 1) > 0.05 && (() => { const z = roundScale(sel.adjustZoomScale); return (
@@ -2465,7 +2497,7 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
     const px = Math.max(2, Math.round((el.meters || 100) * (el.pxPerMeter || DEFAULT_PX_PER_METER))); // #920 — no 20 px floor: the bar is as long as its label says
     return (
       <div style={wrap} onMouseDown={onDown} data-el-id={el.id} {...kb}>
-        <svg width={px + 4} height={el.viewPlane ? 44 : 34} style={{ overflow: "visible" }}>
+        <svg width={px + 4} height={el.viewPlane || el.horizontalVe > 1 ? 44 : 34} style={{ overflow: "visible" }}>
           <rect x="2" y="4" width={px / 2} height="10" fill="#1a2028" />
           <rect x={2 + px / 2} y="4" width={px / 2} height="10" fill="#fbfbf8" stroke="#1a2028" />
           <rect x="2" y="4" width={px} height="10" fill="none" stroke="#1a2028" />
@@ -2473,6 +2505,7 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
           <text x={px + 2} y="28" fontSize={printPx(printPt.small)} textAnchor="end" fill="#1a2028" fontFamily={FONT}>{scaleBarLabel(el.meters || 100) /* #2140 — '5 km', not '5000 m' */}</text>
           {scaleBarMidLabel(el.meters || 100, px) && <text x={2 + px / 2} y="28" fontSize={printPx(printPt.small)} textAnchor="middle" fill="#1a2028" fontFamily={FONT}>{scaleBarMidLabel(el.meters || 100, px)}</text>}{/* #2140 — the half-way tick */}
           {el.viewPlane && <text x="2" y="40" fontSize={printPx(printPt.small)} fill="#1a2028" fontFamily={FONT}>{tr("in the view plane (oblique view)")}</text>}
+          {el.horizontalVe > 1 && <text x="2" y="40" fontSize={printPx(printPt.small)} fill="#1a2028" fontFamily={FONT}>{tr("horizontal scale ({ve}x vertical exaggeration)", { ve: el.horizontalVe })}</text>}{/* #3022 */}
         </svg>
       </div>
     );
@@ -2564,7 +2597,7 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
             <thead><tr>{columns.map((h, j) => <th key={j} style={{ ...cell, textAlign: numeric[j] ? "right" : "left", fontWeight: 600, borderBottom: "1px solid #1a2028" }}>{h}</th>)}</tr></thead>
             <tbody>
               {part.map((r, i) => <tr key={i}>{r.map((v, j) => <td key={j} style={{ ...cell, textAlign: numeric[j] ? "right" : "left" }}>{v}</td>)}</tr>)}
-              {!rows.length && pi === 0 && <tr><td colSpan={Math.max(1, columns.length)} style={{ ...cell, color: "#777" }}>{el.source === "collars" ? (el.holeFilter ? tr("No hole id contains \"{f}\".", { f: el.holeFilter }) : (() => { const k = holesWithoutCollars(ctx?.collars, ctx?.assays, ctx?.layers); return k ? tr("No collars: {n} hole(s) have assays or logs but no collar coordinates.", { n: k.toLocaleString() }) : tr("No collars in the project yet."); })() /* #1869 */) : el.source === "samples" ? (el.symbol ? tr("No sample has a {s} value{v}.", { s: el.symbol, v: el.threshold != null ? tr(" at or above {t}", { t: el.threshold }) : "" }) : tr("Pick an element for the table.")) : tr("No rows.")}</td></tr>}
+              {!rows.length && pi === 0 && <tr><td colSpan={Math.max(1, columns.length)} style={{ ...cell, color: "#777" }}>{el.source === "collars" ? (el.holeFilter ? (String(el.holeFilter).includes("=") ? tr("No hole has {f} in its collar fields.", { f: el.holeFilter }) /* #3027 */ : tr("No hole id contains \"{f}\".", { f: el.holeFilter })) : (() => { const k = holesWithoutCollars(ctx?.collars, ctx?.assays, ctx?.layers); return k ? tr("No collars: {n} hole(s) have assays or logs but no collar coordinates.", { n: k.toLocaleString() }) : tr("No collars in the project yet."); })() /* #1869 */) : el.source === "samples" ? (el.symbol ? tr("No sample has a {s} value{v}.", { s: el.symbol, v: el.threshold != null ? tr(" at or above {t}", { t: el.threshold }) : "" }) : tr("Pick an element for the table.")) : tr("No rows.")}</td></tr>}
               {more > 0 && pi === tableParts.length - 1 && el.source === "samples" && <tr><td colSpan={columns.length} style={{ ...cell, color: "#555", fontStyle: "italic" }}>{tr("… and {n} more sample(s)", { n: more.toLocaleString() })}</td></tr>}{/* #1869 */}
               {more > 0 && pi === tableParts.length - 1 && el.source !== "samples" && <tr><td colSpan={columns.length} style={{ ...cell, color: "#555", fontStyle: "italic" }}>{print ? (ctx?.continuedOn?.(el, nextRow) ? tr("Continued on page {p}", { p: ctx.continuedOn(el, nextRow) }) /* #2718 — its continuation is in this export */ : tr("… {n} more hole(s), from row {r}", { n: more, r: nextRow })) /* #2480 — the editing hint is for the screen, not the paper */ : tr("… and {n} more hole(s), from row {r}: a table with that First row, or Continue on new pages", { n: more, r: nextRow })}</td></tr>}
             </tbody>

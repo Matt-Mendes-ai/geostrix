@@ -18,6 +18,8 @@ import { tieOf } from "../lib/localGridTie.js"; // TASKS.csv #2491
 import CoordSetsNote from "./CoordSetsNote.jsx"; // TASKS.csv #2492 — two coordinate sets, X / Y / Z from different sets, mine-grid numbers
 import LogChannelsBox from "./LogChannelsBox.jsx"; // TASKS.csv #2160 — one numeric layer per log channel
 import RowFilterBox from "./RowFilterBox.jsx"; // TASKS.csv #2330 — only rows where a column is some values (a Superseded flag pre-set)
+import { looksLikeStationTable } from "../lib/geophysColumns.js"; // TASKS.csv #2848
+import { requestModuleAction } from "../lib/menuRequests.js"; // #2848
 import { applyRowFilter, defaultRowFilter } from "../lib/importRowFilter.js"; // TASKS.csv #2330 — the button counts the rows the filter keeps
 // the rows the Import button will bring in: after the row filter (the user's, else the flag preset), as the commit counts them
 // cached per row array and filter: the dialog re-renders on every change, and a 400,000-row table must not be scanned each time
@@ -25,7 +27,7 @@ import { applyRowFilter, defaultRowFilter } from "../lib/importRowFilter.js"; //
 const blankPct = (n, total) => { const p = (100 * n) / total; return p > 0 && p < 1 ? (p < 0.1 ? "< 0.1" : p.toFixed(1)) : String(Math.round(p)); };
 const countCache = new WeakMap();
 const importCount = (modal) => {
-  const rows = modal.allRows; if (!rows?.length) return modal.rowCount;
+  const rows = modal.allRows; if (!rows?.length || modal.logTable) return modal.rowCount; // logTable: #3038 — the rows are its first 5,000
   let c = countCache.get(rows); if (!c) countCache.set(rows, (c = new Map()));
   const k = modal.rowFilter === undefined ? "preset" : JSON.stringify(modal.rowFilter);
   if (!c.has(k)) { const f = modal.rowFilter !== undefined ? modal.rowFilter : defaultRowFilter(modal.headers, rows); c.set(k, f ? applyRowFilter(rows, f).rows.length : modal.rowCount); }
@@ -38,7 +40,7 @@ import { codeOverlap, otherCodeSystem } from "../lib/codeOverlap.js"; // TASKS.c
 
 
 export default function ImportMappingModal({ modal, onChange, onCancel, onCommit, projectEpsg, replaceInfo = null }) { // replaceInfo: #1649
-  const { project: storeProject, layers: storeLayers } = useStore(); // #2492; layers: #2893
+  const { project: storeProject, layers: storeLayers, goToModule } = useStore(); // #2492; layers: #2893; goToModule: #2848
   const crsUnset = storeProject?.crsSet === false; // TASKS.csv #615
   useEscapeKey(onCancel); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
@@ -426,6 +428,13 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
                 <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-danger-icon)" }}>{tr(missingRequired.length === 1 ? "Map the required field above:" : "Map the required fields above:")}{" "}{missingRequired.map((f) => tr(f.label)).join(", ")}
                   {/* TASKS.csv #2165 — which column names were looked for: the file's own name for it is then easy to spot (or it is not this kind of table) */}
                   {missingRequired.filter((f) => f.aliases?.length).map((f) => <div key={f.key} style={{ color: "var(--color-text-muted)" }}>{tr("{field}: no column matched; the names looked for are {names}.", { field: tr(f.label), names: f.aliases.slice(0, 10).join(", ") + (f.aliases.length > 10 ? ", …" : "") })}</div>)}
+                </div>
+              )}
+              {/* TASKS.csv #2848 — no hole column but X / Y and a measurement: survey stations, which Geophysics > Point survey imports */}
+              {missingRequired.some((f) => f.key === "hole_id") && modal.file && looksLikeStationTable(modal.headers) && (
+                <div style={{ display: "flex", gap: 8, alignItems: "center", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
+                  <span style={{ flex: 1 }}>{tr("No hole column: if these are survey stations (X, Y and a measurement), import them under Geophysics > Point survey.")}</span>
+                  <button type="button" onClick={() => { const file = modal.file; onCancel(); goToModule("geophysics"); requestModuleAction("geophysics-drop", { files: [file] }); }} style={{ padding: "4px 10px", fontSize: "var(--font-size-sm)", border: "1px solid var(--color-border)", borderRadius: 5, background: "var(--color-bg)", color: "var(--color-text)", cursor: "pointer", whiteSpace: "nowrap" }}>{tr("Import as survey stations")}</button>
                 </div>
               )}
               {needsDate && <div role="alert" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-danger-icon)" }}>{tr("Type the survey date above: magnetic azimuths need it to work out the declination.")}</div>}{/* #2895 */}
