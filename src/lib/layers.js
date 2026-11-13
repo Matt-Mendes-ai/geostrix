@@ -1239,7 +1239,27 @@ function structurePicks(headers) {
   const m = guessMapping("structure", headers);
   return !!(m.value && ((m.alpha && m.beta) || (m.dip && (m.azimuth || m.strike))));
 }
+// TASKS.csv #3210 (#3195, Galore Creek) — a numeric kind is never guessed from a value column of words: an overburden log went to Specific gravity
+// by its 'Relative Density (for non cohesive soils)' column ('Very Dense', 'N/A') and loaded 0 of 374 rows. With the rows at hand, a numeric
+// guess whose value column holds more words than numbers (first 200 filled cells) becomes a custom layer, which asks for its value.
+const NUMERIC_KINDS = new Set(["sg", "magsusc", "geotech", "recovery"]);
+export function valueColumnIsWords(target, headers, rows) {
+  if (!NUMERIC_KINDS.has(target) || !rows?.length) return false;
+  const col = guessMapping(target, headers).value;
+  if (!col) return false;
+  let num = 0, word = 0;
+  for (let i = 0; i < rows.length && num + word < 200; i++) {
+    const s = String(rows[i]?.[col] ?? "").trim();
+    if (!s) continue;
+    if (Number.isFinite(Number(s.replace(/^[<>]\s*/, "")))) num++; else word++;
+  }
+  return word > num;
+}
 export function guessTargetFor(headers, name, rows = null) {
+  const t = guessTargetForRaw(headers, name, rows);
+  return valueColumnIsWords(t, headers, rows) ? "custom" : t; // #3210
+}
+function guessTargetForRaw(headers, name, rows) {
   if (CUSTOM_LOG_NAMES.test(String(name || ""))) return "custom";
   // #2884 (review #2876, WA iron) — From equals To on every sampled row and a log channel is named (Density_Best, Gamma_Best ...): point
   // readings, a downhole log, before any name hint ("density.csv" would keep Specific gravity: millions of zero-length intervals)
