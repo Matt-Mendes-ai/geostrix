@@ -442,7 +442,7 @@ export default function BasemapView({
             </select>
           )}
           <div style={{ flex: 1 }} />
-          {extraControls && <div style={{ whiteSpace: "nowrap" }}>{extraControls(bbox)}</div>}{/* #1629 — on its own, wrapping the bar, not squeezed into a column */}
+          {extraControls && <div style={{ whiteSpace: "nowrap" }}>{extraControls(bbox, { setArea: pickAreaFromLayer /* #3251 — a smaller area at full resolution */ })}</div>}{/* #1629 — on its own, wrapping the bar, not squeezed into a column */}
           {bbox && (
             <div style={{ fontSize: "var(--font-size-sm)", color: "#5a6472", marginRight: 10 }} title={`~${(bbox[2] - bbox[0]).toFixed(3)}° × ${(bbox[3] - bbox[1]).toFixed(3)}°`}>
               {areaSizeText(bbox) /* #1765 / #2469 — on the ground, as Macrostrat's dialog says it; the degrees in the tooltip */}

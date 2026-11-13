@@ -28,6 +28,7 @@ const MAX_TILES = 36; // 6x6 budget — keeps a single fetch to a few dozen requ
 const MIN_ZOOM = 4;
 const MAX_ZOOM = 14; // Terrarium tiles top out around here in most regions — see mosaic() fallback note
 const GRID_MAX = 200; // same mesh-resolution budget raster.js's DEM_MAX_GRID uses for manual imports
+const TILE = 256; // a Terrarium tile's pixels (#3251: the planner; fetchSRTMTerrain keeps its own)
 
 function lonLatToTileXY(lon, lat, zoom) {
   const n = 2 ** zoom;
@@ -47,15 +48,46 @@ function tileXYToLonLat(x, y, zoom) {
   return { lon, lat: (latRad * 180) / Math.PI };
 }
 
-// Highest zoom (most detail) whose tile coverage of the bbox still fits the MAX_TILES budget.
-function pickZoom(lonMin, latMin, lonMax, latMax) {
+// TASKS.csv #3251 (Matt: a large AWS-terrain area comes in blurry, a small one sharp) — the tile budget follows the terrain detail: a grid of
+// gridMax nodes along its long side needs about gridMax / 256 tiles across to have a source pixel per node (36 = 6 x 6 was enough for
+// 1,025 nodes but not for 2,049). The 36 stays the floor.
+export const tileBudget = (gridMax = GRID_MAX) => Math.max(MAX_TILES, (Math.ceil((gridMax - 1) / TILE) + 3) ** 2); // + 3: tiles do not line up with the area
+// Highest zoom (most detail) whose tile coverage of the bbox still fits the budget.
+function pickZoom(lonMin, latMin, lonMax, latMax, maxTiles = MAX_TILES) {
   for (let z = MAX_ZOOM; z >= MIN_ZOOM; z--) {
     const nw = lonLatToTileXY(lonMin, latMax, z);
     const se = lonLatToTileXY(lonMax, latMin, z);
     const count = (se.x - nw.x + 1) * (se.y - nw.y + 1);
-    if (count <= MAX_TILES) return z;
+    if (count <= maxTiles) return z;
   }
   return MIN_ZOOM;
+}
+
+// TASKS.csv #3251 — what a fetch will give, said before it: the spacing between the terrain's nodes against the source's own pixel, the tiles
+// and download (AWS), and the memory it takes. source: "aws" | "copernicus" | "mrdem" | "hrdem". -> { nodeM, sourcePixelM, nativeM, zoom,
+// tiles, downloadMB, memoryMB, fullSideKm (the widest square area that gets nodes at the source's own pixel at this detail) }
+const NATIVE_OF = { copernicus: 30, mrdem: 30, hrdem: 1 };
+export function planTerrainFetch([lonMin, latMin, lonMax, latMax], gridMax = GRID_MAX, source = "aws") {
+  const latMid = ((latMin + latMax) / 2) * (Math.PI / 180);
+  const w = Math.max(1, (lonMax - lonMin) * 111320 * Math.cos(latMid)), h = Math.max(1, (latMax - latMin) * 110574);
+  const nodeM = Math.max(w, h) / Math.max(1, gridMax - 1);
+  const nodes = gridMax * Math.max(2, Math.round(gridMax * Math.min(w, h) / Math.max(w, h)));
+  // the adaptive mesh's working arrays above 200 nodes (lib/terrainMesh.js: a (2^k + 1)-square's errors and its triangles' corners)
+  let size = 2; while (size - 1 < gridMax - 1) size = (size - 1) * 2 + 1;
+  const meshBytes = gridMax > 201 ? size * size * 4 + 2 * (size - 1) ** 2 * 8 : 0;
+  let zoom = null, tiles = 0, sourcePixelM, nativeM, mosaicBytes = 0;
+  if (source === "aws") {
+    zoom = pickZoom(lonMin, latMin, lonMax, latMax, tileBudget(gridMax));
+    const nw = lonLatToTileXY(lonMin, latMax, zoom), se = lonLatToTileXY(lonMax, latMin, zoom);
+    tiles = (se.x - nw.x + 1) * (se.y - nw.y + 1);
+    sourcePixelM = (40075016.686 * Math.cos(latMid)) / (TILE * 2 ** zoom);
+    nativeM = (40075016.686 * Math.cos(latMid)) / (TILE * 2 ** MAX_ZOOM);
+    mosaicBytes = tiles * TILE * TILE * 4 * 2; // the Float32 mosaic and its despiked copy
+  } else {
+    sourcePixelM = nativeM = NATIVE_OF[source] || 30;
+  }
+  const memoryMB = Math.round((nodes * (4 + 4 + 1) + meshBytes + mosaicBytes) / 1e6); // elevations, their resample, the no-data mask
+  return { nodeM, sourcePixelM, nativeM, zoom, tiles, downloadMB: source === "aws" ? +(tiles * 0.1).toFixed(1) : null, memoryMB, fullSideKm: (nativeM * (gridMax - 1)) / 1000, effectiveM: Math.max(nodeM, sourcePixelM) };
 }
 
 async function decodeTerrariumTile(z, x, y) {
@@ -282,14 +314,13 @@ export async function fetchSRTMTerrain({ lonMin, latMin, lonMax, latMax, targetE
   }
   if (!(lonMax > lonMin) || !(latMax > latMin)) throw new Error(tr("Invalid area — check the coordinates."));
 
-  const zoom = pickZoom(lonMin, latMin, lonMax, latMax);
+  const zoom = pickZoom(lonMin, latMin, lonMax, latMax, tileBudget(gridMax)); // #3251 — the budget follows the detail
   const nw = lonLatToTileXY(lonMin, latMax, zoom);
   const se = lonLatToTileXY(lonMax, latMin, zoom);
   const tilesX = se.x - nw.x + 1, tilesY = se.y - nw.y + 1;
   const total = tilesX * tilesY;
 
   // TASKS.csv #726 — one Float32 mosaic of every tile (NaN where a tile failed), downloaded 6 at a time
-  const TILE = 256;
   const mw = tilesX * TILE, mh = tilesY * TILE;
   const mosaic = new Float32Array(mw * mh).fill(NaN);
   const jobs = [];

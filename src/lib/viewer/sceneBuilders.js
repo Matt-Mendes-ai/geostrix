@@ -625,7 +625,7 @@ export function syncTerrain(group, previous, terrain, { origin }) {
   if (gridW * gridH > ADAPTIVE_TERRAIN_NODES) {
     // TASKS.csv #796 — High / Very high detail grids: only the nodes an adaptive mesh needs (lib/terrainMesh.js)
     let am = adaptiveTerrainCache.get(terrain);
-    if (!am) { am = buildAdaptiveTerrain(gridW, gridH, elevations, mask ? (k) => isNoData(mask, k) : null); adaptiveTerrainCache.set(terrain, am); }
+    if (!am) { am = buildAdaptiveTerrain(gridW, gridH, elevations, mask ? (k) => isNoData(mask, k) : null, { maxTriangles: gridW * gridH > 1100 * 1100 ? 480000 : 160000 } /* TASKS.csv #3251 — a Full (2,049-node) grid: three times the triangles, or it draws no finer than Very high */); adaptiveTerrainCache.set(terrain, am); }
     const nv = am.vertexIds.length;
     const positions = new Float32Array(nv * 3), uvs = new Float32Array(nv * 2);
     for (let n = 0; n < nv; n++) {
