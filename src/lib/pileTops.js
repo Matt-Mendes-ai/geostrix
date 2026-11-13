@@ -85,6 +85,20 @@ export function lowerNeighbour(pile, unit, candidates, opts = {}) {
   return downs[best];
 }
 
+// TASKS.csv #3115 — the tops down the pile from `first` (a candidate): each next one the closest under the last by the holes' order,
+// among the candidates not yet taken. pileOf(unit) -> the pile for that unit (topsOfUnit(unit).pile). -> [first, ...] (at most `max`)
+export function pileBelow(first, candidates, pileOf, { max = 40 } = {}) {
+  const out = [], seen = new Set();
+  let cur = first;
+  while (cur && !seen.has(cur.id) && out.length < max) {
+    seen.add(cur.id); out.push(cur);
+    const pile = pileOf(cur.unit);
+    if (!pile) break;
+    cur = lowerNeighbour(pile, cur.unit, (candidates || []).filter((c) => !seen.has(c.id)));
+  }
+  return out;
+}
+
 // The elevation of a triangle mesh (positions: x, y map, z elevation triples) at a map point: the highest crossing, NaN off it. A
 // bucket grid of the triangles' plan boxes, about `perCell` triangles a bucket.
 export function meshHeightLookup(positions, indices, { perCell = 4 } = {}) {

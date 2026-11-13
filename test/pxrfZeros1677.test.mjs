@@ -10,7 +10,7 @@ const modal = readFileSync(new URL("../src/components/AssayImportModal.jsx", imp
 test("the import reads a zero as '<' at half the column's smallest reading when below detection is chosen (pXRF default)", () => {
   assert.ok(gm.includes('const zeroMode = modal.zeroMode || (modal.isPxrf ? "bdl" : "real");'));
   assert.ok(gm.includes("return read(`<${L}`, sym, header);"));
-  assert.ok(gm.includes("let { v, q } = zeroAsBdl(cell, e.symbol, e.header) || read(cell, e.symbol, e.header);"));
+  assert.ok(gm.includes("let { v, q, kind } = zeroAsBdl(cell, e.symbol, e.header) || read(cell, e.symbol, e.header);")); // kind: #3196 (a no-data code clears an earlier value on re-import)
   // what read("<L") stores: half the limit, flagged '<'
   assert.deepEqual(readAssayCell("<4"), { value: 2, qualifier: "<", kind: null });
 });

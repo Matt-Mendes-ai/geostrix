@@ -11858,5 +11858,19 @@
   "{n} point is on the reference level at {z} m (no ground under the click): its elevation is that level's": "{n} نقطة على المستوى المرجعي عند {z} م (لا أرض تحت النقرة): منسوبها هو منسوب ذلك المستوى",
   "{n} points are on the reference level at {z} m (no ground under the click): their elevations are that level's": "{n} نقاط على المستوى المرجعي عند {z} م (لا أرض تحت النقرة): مناسيبها هي منسوب ذلك المستوى",
   " · inside \"{solid}\"": " · داخل \"{solid}\"",
-  " · model area: {area}": " · منطقة النموذج: {area}"
+  " · model area: {area}": " · منطقة النموذج: {area}",
+  "Rebuild the pile under it ({n} tops)": "إعادة بناء الكومة تحته ({n} أسطح)",
+  "Rebuilding {name} ({i} of {n})…": "جارٍ إعادة بناء {name} ({i} من {n})…",
+  "Open each top under this one in turn, top-down ({list}), so the ones kept under the top above them rebuild against its current surface, as they would one by one when opened.": "يفتح كل سطح علوي تحت هذا السطح بالتتابع من الأعلى إلى الأسفل ({list})، لكي يُعاد بناء الأسطح المُبقاة تحت السطح الذي فوقها وفق سطحه الحالي، كما يحدث لكل منها عند فتحه.",
+  "Rebuilt the pile under \"{top}\", top-down: {list} ({s} s).": "أُعيد بناء الكومة تحت \"{top}\" من الأعلى إلى الأسفل: {list} ({s} ث).",
+  "Not rebuilt (see each one's own message): {list}.": "لم يُعد بناؤها (انظر رسالة كل منها): {list}.",
+  "These columns are read in per cent, but their values run far past 100 %, which no weight per cent can: {list}. They look like ppm. Pick the unit for each in the list below, or:": "تُقرأ هذه الأعمدة بالنسبة المئوية، لكن قيمها تتجاوز 100 % بكثير، وهو ما لا يمكن لأي نسبة وزنية: {list}. تبدو بوحدة ppm. اختر وحدة كل عمود في القائمة أدناه، أو:",
+  "{header} (median {median} %, up to {max} %)": "{header} (الوسيط {median} %، حتى {max} %)",
+  "Read these {n} as ppm": "قراءة هذه الـ{n} بوحدة ppm",
+  "Read {header} as ppm": "قراءة {header} بوحدة ppm",
+  "{n} result(s) are no-data codes (-99 / -999 / -9999): read as not assayed.": "{n} نتيجة هي رموز لا بيانات (-99 / -999 / -9999): تُقرأ على أنها غير محلَّلة.",
+  " Azimuths left as they are: the project has no mine grid to read them on (set one up under Maps > Project CRS).": " تُركت السموت كما هي: لا شبكة منجم في المشروع لقراءتها عليها (أعدّ واحدة في الخرائط > نظام إحداثيات المشروع).",
+  " {fixed} azimuth(s) turned from the mine grid's north to the project grid ({deg}°).": " دُوِّر {fixed} سمت من شمال شبكة المنجم إلى شبكة المشروع ({deg}°).",
+  "{n} grid azimuth(s) turned from the mine grid's north to the project grid ({deg}°).": "دُوِّر {n} سمت شبكي من شمال شبكة المنجم إلى شبكة المشروع ({deg}°).",
+  "These pages were just generated. Change the selection to make others.": "أُنشئت هذه الصفحات للتو. غيّر التحديد لإنشاء صفحات أخرى."
 }

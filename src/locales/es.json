@@ -11858,5 +11858,19 @@
   "{n} point is on the reference level at {z} m (no ground under the click): its elevation is that level's": "{n} punto está en el nivel de referencia a {z} m (sin suelo bajo el clic): su cota es la de ese nivel",
   "{n} points are on the reference level at {z} m (no ground under the click): their elevations are that level's": "{n} puntos están en el nivel de referencia a {z} m (sin suelo bajo el clic): sus cotas son las de ese nivel",
   " · inside \"{solid}\"": " · dentro de «{solid}»",
-  " · model area: {area}": " · área del modelo: {area}"
+  " · model area: {area}": " · área del modelo: {area}",
+  "Rebuild the pile under it ({n} tops)": "Reconstruir la pila debajo ({n} techos)",
+  "Rebuilding {name} ({i} of {n})…": "Reconstruyendo {name} ({i} de {n})…",
+  "Open each top under this one in turn, top-down ({list}), so the ones kept under the top above them rebuild against its current surface, as they would one by one when opened.": "Abre cada techo debajo de este, uno tras otro y de arriba hacia abajo ({list}), para que los que se mantienen bajo el techo superior se reconstruyan contra su superficie actual, como lo harían uno por uno al abrirlos.",
+  "Rebuilt the pile under \"{top}\", top-down: {list} ({s} s).": "Se reconstruyó la pila debajo de \"{top}\", de arriba hacia abajo: {list} ({s} s).",
+  "Not rebuilt (see each one's own message): {list}.": "No reconstruidos (vea el mensaje de cada uno): {list}.",
+  "These columns are read in per cent, but their values run far past 100 %, which no weight per cent can: {list}. They look like ppm. Pick the unit for each in the list below, or:": "Estas columnas se leen en porcentaje, pero sus valores pasan con mucho del 100 %, algo imposible para un porcentaje en peso: {list}. Parecen ppm. Elija la unidad de cada una en la lista de abajo, o:",
+  "{header} (median {median} %, up to {max} %)": "{header} (mediana {median} %, hasta {max} %)",
+  "Read these {n} as ppm": "Leer estas {n} en ppm",
+  "Read {header} as ppm": "Leer {header} en ppm",
+  "{n} result(s) are no-data codes (-99 / -999 / -9999): read as not assayed.": "{n} resultado(s) son códigos sin dato (-99 / -999 / -9999): se leen como no ensayados.",
+  " Azimuths left as they are: the project has no mine grid to read them on (set one up under Maps > Project CRS).": " Azimuts dejados tal como están: el proyecto no tiene una grilla de mina en la cual leerlos (configure una en Mapas > SRC del proyecto).",
+  " {fixed} azimuth(s) turned from the mine grid's north to the project grid ({deg}°).": " {fixed} azimut(s) girados del norte de la grilla de mina a la grilla del proyecto ({deg}°).",
+  "{n} grid azimuth(s) turned from the mine grid's north to the project grid ({deg}°).": "{n} azimut(s) de grilla girados del norte de la grilla de mina a la grilla del proyecto ({deg}°).",
+  "These pages were just generated. Change the selection to make others.": "Estas páginas se acaban de generar. Cambie la selección para crear otras."
 }
