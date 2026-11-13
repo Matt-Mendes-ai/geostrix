@@ -23,7 +23,7 @@ import { fitSimilarity, parseControlPoints, transformImportRows } from "../../li
 import { tieOf, fileToLocal, bearingToLocal } from "../../lib/localGridTie.js"; // TASKS.csv #2288
 import { localGridAzimuthOffset } from "../../lib/localGridNorth.js"; // TASKS.csv #2491
 import { untiedNorthOf, trueToUntiedGrid } from "../../lib/localGridDatum.js"; // TASKS.csv #2661
-import { mineGridOf } from "../../lib/mineGrid.js"; // TASKS.csv #2586
+import { mineGridOf, isMineSource, mineSourceOf, collarsOnMineGrid } from "../../lib/mineGrid.js"; // TASKS.csv #2586; the mine-grid Source CRS: #2811
 import { dipConventionFields, upwardHoles } from "../../lib/dipSign.js"; // TASKS.csv #2886
 import { codeColumnGuess } from "../../lib/valueGuess.js"; // TASKS.csv #2889
 import { codeOverlap, otherCodeSystem } from "../../lib/codeOverlap.js"; // TASKS.csv #2893
@@ -308,7 +308,7 @@ export function useImportPipeline(ctx) {
       // TASKS.csv #2179 (review #2174, WA mine grid) — with no project CRS chosen, true / magnetic north (and another CRS's grid north)
       // were converted with the PLACEHOLDER's grid convergence (EPSG:3156, British Columbia) for a Western Australian mine grid
       const crsUnset = (importStateRef.current.project || project)?.crsSet === false;
-      const converting = (azimuthRef && azimuthRef !== "grid") || (azimuthGridEpsg && target !== "collars");
+      const converting = (azimuthRef && azimuthRef !== "grid") || (azimuthGridEpsg && !isMineSource(azimuthGridEpsg) /* #2811 — the mine grid is handled by applyGridOf */ && target !== "collars");
       if (crsUnset && converting && rows.some((r) => Number.isFinite(r.azimuth))) {
         // TASKS.csv #2491 — a local grid tied to a CRS (#2288) knows its north: true / magnetic -> the tie CRS's grid -> the local grid
         const live = importStateRef.current.project || project, tie = tieOf(live);
@@ -361,6 +361,17 @@ export function useImportPipeline(ctx) {
     // hole's collar (project CRS) is taken back into that CRS and the bearing is rebuilt in the project grid.
     function applyGridOf(rows, locate) {
       const projEpsg = (importStateRef.current.project || project)?.epsg;
+      // TASKS.csv #2811 — 'Grid of' the local mine grid: a grid bearing is turned by the grid's rotation (as Surface Geology's structures, #2684); on
+      // a project with no CRS its numbers are the project's own grid, nothing to turn; with no mine grid set up, left as they are and said
+      if (target !== "collars" && isMineSource(azimuthGridEpsg)) {
+        const ms = mineSourceOf(importStateRef.current.project || project);
+        if (ms?.kind === "none") return { rows, note: tr(" Azimuths left as they are: the project has no mine grid to read them on (set one up under Maps > Project CRS).") };
+        const rot = ms?.kind === "tie" ? Number(ms.mg?.tie?.rotationDeg) || 0 : 0;
+        if (!rot) return { rows, note: "" };
+        let fixed = 0;
+        const out = rows.map((r) => { if (!Number.isFinite(r.azimuth)) return r; fixed++; return { ...r, azimuth: wrap360(r.azimuth - rot) }; });
+        return { rows: out, note: fixed ? tr(" {fixed} azimuth(s) turned from the mine grid's north to the project grid ({deg}°).", { fixed, deg: (-rot).toFixed(2) }) : "" };
+      }
       if (target === "collars" || !azimuthGridEpsg || !projEpsg || Number(azimuthGridEpsg) === Number(projEpsg)) return { rows, note: "" };
       const fwd = pointTransform(azimuthGridEpsg, projEpsg), inv = pointTransform(projEpsg, azimuthGridEpsg);
       if (!fwd || !inv) return { rows, note: tr(" Azimuths left as they are: EPSG:{azimuthGridEpsg} isn't a CRS GeoStrix can convert.", { azimuthGridEpsg }) };
@@ -465,16 +476,23 @@ export function useImportPipeline(ctx) {
       // #607 — the file's one declared CRS (Source CRS, or a per-row EPSG column with a single value) may become
       // the project CRS when nothing is loaded yet
       const rowCodes = [...new Set(rows.map((r) => r._rowEpsg).filter(Boolean))];
-      const declaredEpsg = rowCodes.length === 1 && (!sourceEpsg || Number(sourceEpsg) === Number(rowCodes[0])) ? rowCodes[0] : (!rowCodes.length ? sourceEpsg : null);
+      // TASKS.csv #2811 — Source CRS 'Local mine grid (no CRS)': not a CRS to adopt or reproject from; the rows go through the mine grid below
+      const mineSrc = isMineSource(sourceEpsg), srcEpsg = mineSrc ? "" : sourceEpsg;
+      const declaredEpsg = rowCodes.length === 1 && (!srcEpsg || Number(srcEpsg) === Number(rowCodes[0])) ? rowCodes[0] : (!rowCodes.length ? srcEpsg : null);
       if (declaredEpsg) adoptCrsIfEmpty(declaredEpsg, fileName);
       const liveProject = importStateRef.current.project || project; // stale-closure fix, see liveCollars below
       // TASKS.csv #2288 — a local-grid project (#2180): rows that declare a CRS go INTO the grid through its tie; with no tie they stay as
       // they are (never 'reprojected' into the placeholder EPSG), and the notice says which
       const gridTie = liveProject?.crsSet === false && liveProject?.localGrid ? tieOf(liveProject) : null;
-      if (liveProject?.crsSet === false && liveProject?.localGrid && (perRowEpsgCol || sourceEpsg)) {
+      // #2811 — rows read on the mine grid (no per-row EPSG of their own): through its tie into the project CRS, a grid azimuth turned by the
+      // grid's rotation; a project with no CRS keeps the numbers (they are its own grid); no mine grid set up: kept, and said
+      let mineNote = "";
+      if (mineSrc) mineNote = collarsOnMineGrid(rows, liveProject, { gridAzimuths: !azimuthRef || azimuthRef === "grid" }).note; // lib/mineGrid.js
+      if (liveProject?.crsSet === false && liveProject?.localGrid && (perRowEpsgCol || srcEpsg)) {
         let moved = 0, kept = 0, failed = 0;
         rows.forEach((r) => {
-          const fromEpsg = Number(r._rowEpsg || sourceEpsg) || null;
+          if (mineSrc && !r._rowEpsg) return; // #2811 — read on the mine grid above
+          const fromEpsg = Number(r._rowEpsg || srcEpsg) || null;
           if (!fromEpsg) { kept++; return; }
           if (!gridTie) { kept++; return; }
           const p = fileToLocal(gridTie, r.x, r.y, fromEpsg);
@@ -485,10 +503,11 @@ export function useImportPipeline(ctx) {
         reprojectNote = gridTie
           ? " " + tr("On import: {moved} row(s) brought into the local grid through its tie to EPSG:{tie}{v}.", { moved, tie: gridTie.epsg, v: failed ? tr("; {failed} could not be placed and kept their numbers", { failed }) : "" })
           : " " + tr("The file declares a coordinate system, but this project is on a local mine grid with no tie to one: the {kept} row(s) keep their numbers. Tie the grid to a CRS in Maps > Project CRS to bring such files in.", { kept });
-      } else if (liveProject?.epsg && (perRowEpsgCol || (sourceEpsg && Number(sourceEpsg) !== Number(liveProject.epsg)))) {
+      } else if (liveProject?.epsg && (perRowEpsgCol || (srcEpsg && Number(srcEpsg) !== Number(liveProject.epsg)))) {
         const toEpsg = liveProject.epsg;
         const groups = new Map(); // fromEpsg key ("" = fall back to global sourceEpsg) -> rows in that group
         rows.forEach((r) => {
+          if (mineSrc && !r._rowEpsg) return; // #2811 — read on the mine grid above
           const key = r._rowEpsg || "";
           if (!groups.has(key)) groups.set(key, []);
           groups.get(key).push(r);
@@ -499,7 +518,7 @@ export function useImportPipeline(ctx) {
         // difference (true / magnetic azimuths are converted from the project-CRS location further down).
         const gridAz = !azimuthRef || azimuthRef === "grid";
         for (const [rowEpsgKey, groupRows] of groups) {
-          const fromEpsg = rowEpsgKey || sourceEpsg;
+          const fromEpsg = rowEpsgKey || srcEpsg;
           if (!fromEpsg || Number(fromEpsg) === Number(toEpsg)) { unreprojectedCount += groupRows.length; continue; }
           let groupFailed = 0;
           const T = gridAz ? pointTransform(fromEpsg, toEpsg) : null;
@@ -605,6 +624,7 @@ export function useImportPipeline(ctx) {
           : tr("{n} collar elevation(s) look like a missing value: {list}. They are placed as the file says, marked as suspect, and flagged in Data QC", { n: suspectHere.length, list }));
       }
       if (diff.duplicatesInFile.length) parts.push(tr("{duplicatesInFile} duplicate hole_id row(s) WITHIN the file itself (the last row of each hole won: {v})", { duplicatesInFile: diff.duplicatesInFile.length, v: [...new Set(diff.duplicatesInFile)].slice(0, 5).join(", ") }));
+      if (mineNote) reprojectNote += mineNote; // #2811
       setNotices((p) => [...p, notice("Loaded {size} collars from {fileName}{v}.{reprojectNote}{note}", { size: new Set(rows.map((r) => r.hole_id)).size, fileName, v: parts.length ? ` — ${parts.join("; ")}` : "", reprojectNote, note: azc.note })]);
     } else if (target === "survey") {
       const svDropped = []; // #1070
@@ -892,7 +912,7 @@ export function useImportPipeline(ctx) {
       if (gridOn) {
         try { grid = fitSimilarity(parseControlPoints(importModal.localGridText)); }
         catch (e) { setNotices((p) => [...p, errorNotice(tr("{fileName}: local grid — {message} Nothing was imported.", { fileName: importModal.fileName, message: e.message }))]); return; } // #739
-        if (importModal.sourceEpsg && Number(importModal.sourceEpsg) !== Number(project?.epsg)) {
+        if (importModal.sourceEpsg && !isMineSource(importModal.sourceEpsg) /* #2811 — the mine grid is no CRS; the transform maps from it */ && Number(importModal.sourceEpsg) !== Number(project?.epsg)) {
           setNotices((p) => [...p, notice("{fileName}: a local-grid transform gives project coordinates directly — clear Source CRS (it is set to EPSG:{sourceEpsg}). Nothing was imported.", { fileName: importModal.fileName, sourceEpsg: importModal.sourceEpsg })]);
           return;
         }
