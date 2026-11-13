@@ -45,5 +45,5 @@ test("the pane, the ribbon button and the headline", () => {
   const p = readFileSync(new URL("../src/components/DownholeLogsPane.jsx", import.meta.url), "utf8");
   assert.match(p, /TaskPaneHeader title=\{tr\("Downhole logs"\)\} helpId="downhole-logs"/);
   assert.match(p, /<BoxPlots fit groups=\{(groups|ranked\.all|boxes\.groups)\}/); // fit: scaled to the pane; ranked.all: #2951 (common codes first); boxes.groups: #2953 (whiskers P2-P98)
-  assert.match(p, /logVsAssay\(data\.assays, data\.symbol, assays, el, elementUnits\)/);
+  assert.match(p, /logVsAssay\(data\.assays, data\.symbol, assays, el, elementUnits(, \{ perSample: pairOn === "sample" \})?\)/); // #2954 — Pair on
 });

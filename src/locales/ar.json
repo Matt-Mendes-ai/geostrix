@@ -11571,5 +11571,13 @@
   "{n} sample(s) at or above the cut-off ({m} m in {h} hole(s){list}) lie inside the pit in cells of the model's footprint the estimate left empty: they are mined as waste here.": "تقع {n} عينة (عينات) عند المحتوى الحدي أو فوقه ({m} م في {h} ثقب (ثقوب){list}) داخل الحفرة في خلايا من نطاق النموذج تركها التقدير فارغة: تُستخرج هنا كنفايات.",
   ", density by {layer} ({n} codes)": "، الكثافة حسب {layer} ({n} رمزًا)",
   "Internal dilution": "التخفيف الداخلي",
-  "No skin dilution: the skin is under half a column. The dilution above is internal only: the blocks under the cut-off inside the outlines.": "لا تخفيف للحافة: الحافة أقل من نصف عمود. التخفيف أعلاه داخلي فقط: الكتل دون المحتوى الحدي داخل الحدود."
+  "No skin dilution: the skin is under half a column. The dilution above is internal only: the blocks under the cut-off inside the outlines.": "لا تخفيف للحافة: الحافة أقل من نصف عمود. التخفيف أعلاه داخلي فقط: الكتل دون المحتوى الحدي داخل الحدود.",
+  "Each reading": "كل قراءة",
+  "Pair on": "المطابقة حسب",
+  "Pair the log with the assays on": "مطابقة التسجيل مع التحاليل حسب",
+  "The log's mean over each sample": "متوسط التسجيل على كل عينة",
+  "Least-squares line: {log} = {a} + {b} × {el} ({n} pairs).": "خط المربعات الصغرى: {log} = {a} + {b} × {el} ({n} زوجاً).",
+  "{n} assay samples, each paired with the log's mean over the readings inside it. Spearman rank correlation {r}; Pearson {rLin}.": "{n} عينة تحليل، كل منها مقرونة بمتوسط التسجيل على القراءات داخلها. ارتباط الرتب لسبيرمان {r}؛ بيرسون {rLin}.",
+  "{n} assay samples, each paired with the log's mean over the readings inside it. Spearman rank correlation {r}; Pearson on log10 values {rLog} ({k} pairs above zero).": "{n} عينة تحليل، كل منها مقرونة بمتوسط التسجيل على القراءات داخلها. ارتباط الرتب لسبيرمان {r}؛ بيرسون على قيم log10 {rLog} ({k} زوجاً فوق الصفر).",
+  "Of the time, loading the engine took {a} s (each run starts it afresh), the fit {b} s and the grid {c} s.": "من هذا الوقت، استغرق تحميل المحرك {a} ث (كل تشغيل يبدؤه من جديد)، والملاءمة {b} ث، والشبكة {c} ث."
 }
