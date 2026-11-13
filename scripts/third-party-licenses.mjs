@@ -123,6 +123,11 @@ export function bundledData() {
   const br = path.join(ROOT, "sample_data", "blake_river", "README.md");
   if (existsSync(br)) out.push({ name: "Blake River gravity sample (Geological Survey of Canada, Natural Resources Canada)", version: "2026-11", license: "OGL-Canada-2.0",
     url: "https://open.canada.ca/en/open-government-licence-canada", text: readFileSync(br, "utf8").trim() });
+  // TASKS.csv #3106 — the WA palaeochannel uranium sample (WA DEMIRS, CC BY 4.0) carried its attribution only in its README: CC BY 4.0
+  // asks for it where users see the work, so it is listed here like the Blake River sample (#2829)
+  const wa = path.join(ROOT, "sample_data", "wa_uranium", "README.md");
+  if (existsSync(wa)) out.push({ name: "WA palaeochannel uranium sample (WAMEX company mineral drillhole database, Department of Energy, Mines, Industry Regulation and Safety, Western Australia)", version: "2024", license: "CC-BY-4.0",
+    url: "https://catalogue.data.wa.gov.au/dataset/mineral-exploration-drillholes-open-file", text: readFileSync(wa, "utf8").trim() });
   return out;
 }
 

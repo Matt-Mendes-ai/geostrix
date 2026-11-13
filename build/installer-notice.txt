@@ -22,6 +22,7 @@ DATA INCLUDED
  - FGDC lithology patterns (FGDC-STD-013-2006), repackaged by Daven Quinn: CC0 1.0 (public domain). https://github.com/davenquinn/geologic-patterns
  - International time scale interval colours, from Macrostrat (macrostrat.org), downloaded 2026-11-12: CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/). Peters, S.E. et al. Macrostrat: a platform for geological data integration and deep-time research. https://macrostrat.org
  - Blake River gravity sample (sample_data/blake_river), Geological Survey of Canada, Natural Resources Canada: contains information licensed under the Open Government Licence - Canada (https://open.canada.ca/en/open-government-licence-canada). The Government of Canada does not endorse GeoStrix.
+ - WA palaeochannel uranium sample (sample_data/wa_uranium), derived from "Mineral exploration drillholes (open file)" (DMIRS-046), WAMEX company mineral drillhole database, (c) State of Western Australia (Department of Energy, Mines, Industry Regulation and Safety) 2024: CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/). Changed: re-shaped into GeoStrix's CSVs (see its README). DEMIRS does not endorse GeoStrix.
 Full texts: Help > Third-party Licences.
 
 LICENCE (MIT)
