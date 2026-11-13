@@ -9,7 +9,8 @@ const src = readFileSync(new URL("../src/components/GradeStatistics.jsx", import
 
 test("the threshold offers loop pushes, then the memo returns the list", () => {
   assert.ok(!/\/\/[^\n]*out\.push\(/.test(src), "no out.push inside a comment");
-  assert.match(src, /\.slice\(0, 4\)\)[^\n]*\n\s+out\.push\(\{ key: "t:" \+ o\.key/);
+  // the push straight after the loop head, or on the next line after a comment (both shapes are right; side 4's fix is the first)
+  assert.match(src, /\.slice\(0, 4\)\)(?: out\.push\(| \/\/[^\n]*\n\s+out\.push\()\{ key: "t:" \+ o\.key/);
   assert.match(src, /out\.push\(\{ key: "t:"[^\n]*\n\s+return out\.filter\(/);
 });
 
