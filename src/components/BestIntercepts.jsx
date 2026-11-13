@@ -24,7 +24,9 @@ import { toExportCsv } from "../lib/tabular.js"; // TASKS.csv #1022 — every ex
 import { interceptRows, optionalInterceptColumns } from "../lib/drillReportExport.js"; // TASKS.csv #1083, #1290
 import { localDate } from "../lib/localDate.js"; // TASKS.csv #2358
 import { cutoffOnElementChange } from "../lib/interceptCutoff.js"; // TASKS.csv #2513
-import { interceptTablePlan, interceptCount, columnFormat } from "../lib/interceptTable.js"; // TASKS.csv #2200 / #2479; columnFormat: #3019
+import { interceptTablePlan, interceptCount, columnFormat } from "../lib/interceptTable.js";
+import { BULK_COMMODITIES } from "../lib/preferredElement.js"; // TASKS.csv #2923 — no metal equivalent for a bulk commodity
+import { elementOptionLabel, isLoiHeader } from "../lib/geochem.js"; // TASKS.csv #2923 — 'Si as SiO2' in the price rows; isLoiHeader: #2924 // TASKS.csv #2200 / #2479; columnFormat: #3019
 import { pagePx, pageFormatOf } from "../lib/pageFormats.js"; // TASKS.csv #2479
 import { holeTotals } from "../lib/accumulation.js"; // TASKS.csv #2419 — Total per hole
 
@@ -144,7 +146,11 @@ export default function BestIntercepts({ assays: assaysIn, assayElements, collar
     return m;
   }, [domainRows]);
   // TASKS.csv #402 — the metal equivalent; #1387: above the results, which can now be cut on it (per sample) instead of on `symbol`
-  const meqMetals = useMemo(() => (meqOn ? [symbol, ...extraSymbols].map((s) => ({ symbol: s, unit: elementUnits[s] || "ppm", price: Number(meqInputs[s]?.price), recovery: Number(meqInputs[s]?.recovery) / 100, oxide: !!TRADED_OXIDE[s] && meqInputs[s]?.oxide !== false /* #2731 — per lb of the traded oxide unless unticked */ })) : []), [meqOn, symbol, extraSymbols, elementUnits, meqInputs]);
+  // TASKS.csv #2923 (review #2876, WA iron) — iron ore is sold per tonne at a price for a reference grade with penalties for SiO2, Al2O3 and P:
+  // an equivalent that adds them as payable metals has the wrong sign, so a bulk commodity (Fe, Mn, Al) is offered none
+  const bulkLead = BULK_COMMODITIES.has(symbol);
+  const meqSymbols = useMemo(() => [symbol, ...extraSymbols].filter((s) => !isLoiHeader(s)), [symbol, extraSymbols]); // #2924 — LOI is not a metal to price
+  const meqMetals = useMemo(() => (meqOn && !bulkLead ? meqSymbols.map((s) => ({ symbol: s, unit: elementUnits[s] || "ppm", price: Number(meqInputs[s]?.price), recovery: Number(meqInputs[s]?.recovery) / 100, oxide: !!TRADED_OXIDE[s] && meqInputs[s]?.oxide !== false /* #2731 — per lb of the traded oxide unless unticked */ })) : []), [meqOn, symbol, extraSymbols, elementUnits, meqInputs, bulkLead, meqSymbols]);
   const meqReady = meqOn && meqMetals.length > 1 && meqMetals.every((m) => m.price > 0 && m.recovery > 0 && m.recovery <= 1);
   const [cutOnEq, setCutOnEq] = useState(false);
   const onEq = cutOnEq && meqReady;
@@ -294,15 +300,16 @@ export default function BestIntercepts({ assays: assaysIn, assayElements, collar
           </div>
 
           {/* TASKS.csv #402 — metal equivalent from the element + the 'Also show' elements below. */}
-          {symbols.length > 1 && (
+          {symbols.length > 1 && bulkLead && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", lineHeight: 1.4 }}>{tr("{symbol} is sold per tonne at a price for a reference grade, with penalties for the other elements, not as a sum of payable metals: no metal equivalent is offered.", { symbol })}</div>}{/* #2923 */}
+          {symbols.length > 1 && !bulkLead && (
             <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
               <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
                 <input type="checkbox" checked={meqOn} onChange={(e) => setMeqOn(e.target.checked)} />{" "}{tr("Metal equivalent ({symbol}Eq) from {symbol} and the \"Also show\" elements", { symbol })}</label>
               {meqOn && (
                 <div style={{ marginTop: 6, marginLeft: 22, display: "flex", flexDirection: "column", gap: 4 }}>
-                  {[symbol, ...extraSymbols].map((s) => (
+                  {meqSymbols.map((s) => ( /* #2924 — no LOI row */
                     <div key={s} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <span style={{ width: 34 }}>{s}</span>{tr("price")}{" "}<input type="number" min="0" step="any" value={meqInputs[s]?.price ?? ""} onChange={(e) => setMeqInputs((p) => ({ ...p, [s]: { ...p[s], price: e.target.value } }))} style={{ ...inp, width: 80 }} aria-label={tr("{s} price", { s })} /> {TRADED_OXIDE[s] ? <label style={{ display: "inline-flex", alignItems: "center", gap: 3 }} title={TRADED_OXIDE[s].per === "t" ? tr("{oxide} is how {s} is sold: the price is per tonne of {oxide}, turned into one per tonne of {s} by its share of the carbonate ({f}).", { oxide: TRADED_OXIDE[s].oxide, s, f: TRADED_OXIDE[s].factor }) /* #2771 */ : tr("{oxide} is how {s} is sold: the price is per pound of {oxide}, turned into one per pound of {s} by its share of the oxide ({f}).", { oxide: TRADED_OXIDE[s].oxide, s, f: TRADED_OXIDE[s].factor })}><input type="checkbox" checked={meqInputs[s]?.oxide !== false} onChange={(e) => setMeqInputs((p) => ({ ...p, [s]: { ...p[s], oxide: e.target.checked } }))} />{`$/${TRADED_OXIDE[s].per || "lb"} ${TRADED_OXIDE[s].oxide}` /* per t: #2771 */}</label> : null}{tr("{v}recovery", { v: TRADED_OXIDE[s] && meqInputs[s]?.oxide !== false ? " " : PRECIOUS_METALS.has(s) ? "$/oz" : "$/lb" })}{/* oxide: #2731 */}{" "}<input type="number" min="1" max="100" step="any" value={meqInputs[s]?.recovery ?? ""} onChange={(e) => setMeqInputs((p) => ({ ...p, [s]: { ...p[s], recovery: e.target.value } }))} style={{ ...inp, width: 60 }} aria-label={tr("{s} recovery %", { s })} /> %
+                      <span style={{ minWidth: 34 }}>{elementOptionLabel(s, elementUnits[s]) /* #2923 */}</span>{tr("price")}{" "}<input type="number" min="0" step="any" value={meqInputs[s]?.price ?? ""} onChange={(e) => setMeqInputs((p) => ({ ...p, [s]: { ...p[s], price: e.target.value } }))} style={{ ...inp, width: 80 }} aria-label={tr("{s} price", { s })} /> {TRADED_OXIDE[s] ? <label style={{ display: "inline-flex", alignItems: "center", gap: 3 }} title={TRADED_OXIDE[s].per === "t" ? tr("{oxide} is how {s} is sold: the price is per tonne of {oxide}, turned into one per tonne of {s} by its share of the carbonate ({f}).", { oxide: TRADED_OXIDE[s].oxide, s, f: TRADED_OXIDE[s].factor }) /* #2771 */ : tr("{oxide} is how {s} is sold: the price is per pound of {oxide}, turned into one per pound of {s} by its share of the oxide ({f}).", { oxide: TRADED_OXIDE[s].oxide, s, f: TRADED_OXIDE[s].factor })}><input type="checkbox" checked={meqInputs[s]?.oxide !== false} onChange={(e) => setMeqInputs((p) => ({ ...p, [s]: { ...p[s], oxide: e.target.checked } }))} />{`$/${TRADED_OXIDE[s].per || "lb"} ${TRADED_OXIDE[s].oxide}` /* per t: #2771 */}</label> : null}{tr("{v}recovery", { v: TRADED_OXIDE[s] && meqInputs[s]?.oxide !== false ? " " : (PRECIOUS_METALS.has(s) ? "$/oz" : "$/lb") + " " /* #2923 — '$/lbrecovery' */ })}{/* oxide: #2731 */}{" "}<input type="number" min="1" max="100" step="any" value={meqInputs[s]?.recovery ?? ""} onChange={(e) => setMeqInputs((p) => ({ ...p, [s]: { ...p[s], recovery: e.target.value } }))} style={{ ...inp, width: 60 }} aria-label={tr("{s} recovery %", { s })} /> %
                     </div>
                   ))}
                   <div style={{ color: meqReady ? "var(--color-text-muted)" : "var(--color-danger-icon-strong)" }}>

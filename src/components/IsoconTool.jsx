@@ -2,7 +2,7 @@ import React, { useMemo, useState } from "react";
 import { isBelowDetection } from "../lib/assayFlags.js"; // TASKS.csv #2505
 import { useVirtualRows } from "../lib/useVirtualRows.js"; // TASKS.csv #1186, #1278
 import { X, Download } from "./icons.js";
-import { valueIn, elementOptionLabel } from "../lib/geochem.js"; // elementOptionLabel: #2914
+import { valueIn, elementOptionLabel, isLoiHeader } from "../lib/geochem.js"; // elementOptionLabel: #2914; isLoiHeader: #2924
 import { saveFile } from "../lib/desktop.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
@@ -42,7 +42,10 @@ export default function IsoconTool({ assays: assaysIn, assayElements, onClose })
   // TASKS.csv #1521 (review #1497, Lawyers) — a calculated element (an alteration index, a metal equivalent) is not a concentration: it
   // stays out of the immobile list and the mass-balance table, and is named under the table
   const calcSymbols = useMemo(() => assayElements.filter((e) => e.calculated).map((e) => e.symbol), [assayElements]);
-  const concSymbols = useMemo(() => assayElements.filter((e) => !e.calculated).map((e) => e.symbol), [assayElements]);
+  // TASKS.csv #2924 (review #2876, WA iron) — loss on ignition is a property of the sample, not an element: 'LOI' and 'LOItotal' were offered as
+  // immobile elements and given a mass change in ppm. They stay out, named under the table
+  const concSymbols = useMemo(() => assayElements.filter((e) => !e.calculated && !isLoiHeader(e.symbol)).map((e) => e.symbol), [assayElements]);
+  const loiSymbols = useMemo(() => assayElements.filter((e) => !e.calculated && isLoiHeader(e.symbol)).map((e) => e.symbol), [assayElements]);
 
   const [precursorIds, setPrecursorIds] = useState(new Set());
   const [alteredIds, setAlteredIds] = useState(new Set());
@@ -257,6 +260,7 @@ export default function IsoconTool({ assays: assaysIn, assayElements, onClose })
                   ))}
                 </tbody>
               </table>
+              {loiSymbols.length > 0 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{tr("Left out of the mass balance: {list} (loss on ignition is a property of the sample, not an element).", { list: loiSymbols.join(", ") })}</div>}{/* #2924 */}
               {calcSymbols.length > 0 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{tr("Left out of the mass balance (calculated indices and equivalents, not concentrations): {list}", { list: calcSymbols.join(", ") })}</div>}{/* #1521 */}
 
               <button onClick={exportCSV} style={{ ...btn(true), alignSelf: "flex-start", padding: "7px 14px", display: "flex", alignItems: "center", gap: 6 }}>
