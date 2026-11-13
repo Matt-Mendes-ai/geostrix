@@ -35,7 +35,7 @@ import { t as tr } from "../lib/i18n.js";
 import { downholeLikeness } from "../lib/downholeLikeness.js"; // TASKS.csv #1709 // TASKS.csv #786
 import { SURVEY_METHODS, methodIsInvertible } from "../lib/geophysSurveys.js"; // TASKS.csv #1151
 import { terrainFromSurveyElevations } from "../lib/terrainFromPoints.js"; // TASKS.csv #1589
-import { defaultPlannedExtent, generatePlannedStations, DEFAULT_PLANNED } from "../lib/plannedGrid.js"; // TASKS.csv #1710
+import { defaultPlannedExtent, generatePlannedStations, DEFAULT_PLANNED, fitPlannedSpacing } from "../lib/plannedGrid.js"; // TASKS.csv #1710; fit: #2969
 import { replaceSurveyPoints, SURVEY_METHODS as SM } from "../lib/geophysSurveys.js"; // TASKS.csv #1710 — the predicted anomaly as a survey
 import { requestModuleAction } from "../lib/menuRequests.js"; // TASKS.csv #1429
 import { coreCellHint } from "../lib/coreCellHint.js"; // TASKS.csv #1590
@@ -366,7 +366,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
       sensorClearanceM: p.clearance || null, // #369
       stationsUsed: p.meta.stationsUsed, stationsTotal: p.meta.stationsTotal, thinnedToM: p.meta.thinnedTo, droppedOutsideTerrain: p.meta.dropped,
       uncertainty: { floor: num(unc.floor), percent: Number.isFinite(num(unc.percent)) ? num(unc.percent) : 0, units: M.unit, source: "entered by user" },
-      ...(method === "mag" ? { inducingField: { strengthNT: num(field.strength), inclination: num(field.inclination), declinationTrue: num(field.declination), declinationGrid: p.meta.gridDeclination, gridConvergence: p.meta.convergence, surveyDate: field.date || null, source: field.source || "entered by user" } } : { signConvention: "positive gz over dense rock (converted to/from SimPEG's up-positive gz)" }),
+      ...(method === "mag" ? { inducingField: { strengthNT: num(field.strength), inclination: num(field.inclination), declinationTrue: num(field.declination), declinationGrid: p.meta.gridDeclination, gridConvergence: p.meta.convergence, gridConvergenceMeaning: "the bearing of true north measured from grid north (+ = east of grid north); the surveying convergence is the same angle with the opposite sign" /* TASKS.csv #2969 */, surveyDate: field.date || null, source: field.source || "entered by user" } } : { signConvention: "positive gz over dense rock (converted to/from SimPEG's up-positive gz)" }),
       ground: runGround && runGround.survey === activeSurvey ? `this run's own: ${runGround.stats.stations} station elevations of ${activeSurvey}, ${runGround.t.gridW} x ${runGround.t.gridH} nodes at ${Math.round(runGround.stats.cellM)} m (the project's terrain was not used)` : terrain ? `the project's terrain: ${terrain.name || "unnamed"}` : null, // TASKS.csv #2638
       mesh: { type: mesh.type, coreCellM: num(mesh.coreCell), depthM: num(mesh.depth), padCells: 6, padFactor: 1.3, terrainSpacingM: p.meta.topoSpacing, terrainCoversMesh: p.meta.terrainCovers,
         ...(mesh.type === "octree" ? { octree: { fineLayers: octreeSettings.fine, doubledLayers: octreeSettings.fine2, maxCellInModel: `${octreeSettings.maxFactor * num(mesh.coreCell)} m`, cellSizesM: p.octree?.cellSizes || null, how: `core cell in the first ${octreeSettings.fine} layers under the terrain over the survey, then ${octreeSettings.fine2} layers of 2x, never coarser than ${octreeSettings.maxFactor}x inside the model volume` } } : {}) }, // #324
@@ -523,7 +523,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
           {/* TASKS.csv #364 — one survey per model; imported surveys are never mixed. */}
           {engine?.available && (<div style={{ fontSize: "var(--font-size-sm)", marginBottom: 6 }}>{/* #1710 — outside the survey-gated form, so a drill-only project can switch it on */}
               {/* TASKS.csv #1710 — the planned grid the forward models below can run on instead of a survey */}
-              <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setPlanned((p) => ({ ...p, open: !p.open }))} aria-expanded={!!planned.open} style={{ ...row, cursor: "pointer", marginTop: 8, color: "var(--color-text)" }}>
+              <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setPlanned((p) => (p.open ? { ...p, open: false } : { ...p, open: true, ...fitPlannedSpacing(plannedExtent, p) }))} /* #2969 — opened on the default spacing, a spacing its cap accepts */ aria-expanded={!!planned.open} style={{ ...row, cursor: "pointer", marginTop: 8, color: "var(--color-text)" }}>
                 {planned.open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}{" "}{tr("Forward model on a planned grid")}</div>
               {planned.open && (
                 <div style={{ marginLeft: 6, marginTop: 4 }}>

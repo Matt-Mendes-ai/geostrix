@@ -143,7 +143,7 @@ export default function RasterModule({ embedded = false } = {}) {
       const d = gridDeclination(D, cx, cy, project?.epsg);
       if (!d) { setError({ info: false, text: tr("Could not compute grid convergence for this project CRS.") }); return; }
       declGrid = d.grid;
-      Object.assign(params, { inclination: I, declinationTrue: D, declinationGrid: +d.grid.toFixed(3), gridConvergence: +d.convergence.toFixed(3), fieldSource: filt.igrfSource || "typed by the user" }); // fieldSource: #2561
+      Object.assign(params, { inclination: I, declinationTrue: D, declinationGrid: +d.grid.toFixed(3), gridConvergence: +d.convergence.toFixed(3), gridConvergenceMeaning: "the bearing of true north measured from grid north (+ = east of grid north); the surveying convergence is the same angle with the opposite sign" /* TASKS.csv #2969 */, fieldSource: filt.igrfSource || "typed by the user" }); // fieldSource: #2561
       if (filt.kind === "rtpa" && filt.amplitudeInclination !== "") params.amplitudeInclination = Number(filt.amplitudeInclination);
     }
     if (filt.kind === "upward") {

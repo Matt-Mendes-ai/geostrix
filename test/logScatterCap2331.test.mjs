@@ -21,5 +21,5 @@ test("the pane draws the sample and says so", () => {
   assert.match(p, /drawn: strideSample\(p\)/); // #2948 — kept in a memo with the points
   assert.match(p, /\{drawn\.points\.map\(\(\[x, y\], i\) => <circle/);
   assert.doesNotMatch(p, /\{pts\.map\(\(\[x, y\], i\) => <circle/);
-  assert.match(p, /pairs drawn \(every \{s\}th, and the extremes\); the statistics use all of them\./);
+  assert.match(p, /pairs drawn \(one in every \{s\}, and the extremes\); the statistics use all of them\./); // #2969 — 'every 22th' was an ordinal slip
 });

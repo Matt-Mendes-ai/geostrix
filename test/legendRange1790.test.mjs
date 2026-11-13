@@ -13,7 +13,7 @@ test("the review's floats read with the fewest figures that keep them apart", ()
 
 test("the Range inputs use StopValueInput with the rounded values", () => {
   const src = readFileSync(new URL("../src/modules/GeophysicsModule.jsx", import.meta.url), "utf8");
-  assert.match(src, /const rangeShown = useMemo\(\(\) => readableValues\(\[model\.min, model\.max\]\)/);
+  assert.match(src, /const rangeShown = useMemo\(\(\) => \{ const m = Math\.max\(Math\.abs\(model\.min\), Math\.abs\(model\.max\)\); return readableValues\(\[model\.min, model\.max\], /); // #2969 — at rangeText's precision (the Stretch beside it)
   assert.match(src, /<StopValueInput value=\{model\.min\} shown=\{rangeShown\[0\]\}/);
   assert.match(src, /<StopValueInput value=\{model\.max\} shown=\{rangeShown\[1\]\}/);
   assert.doesNotMatch(src, /<input type="number" value=\{model\.min\}/);
