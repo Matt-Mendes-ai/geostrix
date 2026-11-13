@@ -34,7 +34,7 @@ test("(7) flat bedding: a vertical hole's true width is its downhole length", ()
 
 test("(9) Total per hole: kept with the results and windowed", () => {
   const B = readFileSync(new URL("../src/components/BestIntercepts.jsx", import.meta.url), "utf8");
-  assert.match(B, /const holeRows = useMemo\(\(\) => \(perHole && results\.length \? holeTotals\(results\) : \[\]\), \[perHole, results\]\);/);
+  assert.match(B, /const holeRows = useMemo\(\(\) => \(perHole && results\.length \? holeTotalsDisplay\(holeTotals\(results\), dg\) : \[\]\), \[perHole, results, pct\]\);/); // #3218: in the shown unit
   assert.match(B, /hs\.slice\(hv\.startIndex, hv\.endIndex\)\.map\(/);
   assert.equal((B.match(/holeTotals\(/g) || []).length, 1);
 });
