@@ -144,6 +144,7 @@ import { snapInterpretClick } from "../lib/viewer/interpretSnap.js"; // TASKS.cs
 import { outlinesKey, blockSourceKey } from "../lib/explicitLog.js"; // TASKS.csv #878
 import { extrapolationNotice } from "../lib/extrapolatedInputs.js"; // #1840
 import { withAlphaOnlyPicks } from "../lib/alphaPicks.js"; // #1686
+import { orientedLayerPicks } from "../lib/layerPickOrientation.js"; // TASKS.csv #3266
 import { numericClips, rampRange } from "../lib/numericClip.js"; // #1699
 import { unitShell, meshVolume, blockUnitStats } from "../lib/unitVolumes.js"; // TASKS.csv #517; blockUnitStats: #877
 const ModellingCodesPane = React.lazy(() => import("../components/ModellingCodesPane.jsx")); // TASKS.csv #599 — modelling view only, so loaded on demand (#476 budget)
@@ -400,6 +401,7 @@ const SURFACE_TYPES = [
   { key: "geophysical_shell", label: "Geophysical anomaly shell" }, // TASKS.csv #1780 — a block model's value range as a solid
   { key: "alteration_envelope", label: "Alteration envelope" },
   { key: "unit_body", label: "Unit body (closed)" }, // TASKS.csv #1340 — a rock unit from its modelling code
+  { key: "unit_volume", label: "Unit volume (closed)" }, // TASKS.csv #3283 (1) — 'Add unit volumes' solids (#2917) showed the first option, 'Stratigraphic contact'
   { key: "pit_shell", label: "Pit shell (conceptual)" }, // TASKS.csv #1341
   { key: "pit_design", label: "Pit design (benched)" }, // TASKS.csv #1874
   { key: "design_solid", label: "Design solid (from strings)" }, // TASKS.csv #1877
@@ -1167,7 +1169,11 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   // TASKS.csv #1546 — Model area: "all" | "checked" (the checked holes only feed the modelling tools)
   const [modelArea, setModelArea] = useState("all");
   const { unitLayers, unitField, setUnitField, unitFields } = useUnitSource(layers, customLayers); // #2378, #2529 — which Lithology field is the unit
-  const modelLayers = useMemo(() => (modelArea === "checked" ? restrictLayersToHoles(unitLayers, visibleHoles) : unitLayers), [unitLayers, modelArea, visibleHoles]);
+  // TASKS.csv #3266 — the interval angles with a beta (a fault-zone layer, the Veins layer) oriented as the structure picks are: they join the
+  // structure picks the modelling tools, the Structures menu, the Stereonet and the Downhole plot read (lib/layerPickOrientation.js)
+  const layerPicks = useMemo(() => orientedLayerPicks({ structure: layers.structure, customLayers, veins: layers.vein, collars, survey }), [layers.structure, customLayers, layers.vein, collars, survey]);
+  const unitLayersP = useMemo(() => (layerPicks.oriented.length ? { ...unitLayers, structure: [...(unitLayers.structure || []), ...layerPicks.oriented] } : unitLayers), [unitLayers, layerPicks]);
+  const modelLayers = useMemo(() => (modelArea === "checked" ? restrictLayersToHoles(unitLayersP, visibleHoles) : unitLayersP), [unitLayersP, modelArea, visibleHoles]);
   // TASKS.csv #52 (c) — which named intercept set (store.interceptSets) the modelling tools are
   // restricted to. Session state, not persisted, for exactly the reason modelDomainId isn't: the SETS
   // are project data and are saved; which one you happen to have selected right now is a UI choice.
@@ -2825,7 +2831,7 @@ ${describeTrend(t)}` };
   const lithoGroupCrossCuts = (g) => (g.codes || []).some((c) => isCrossCuttingRole(roleForLithology(c)));
   const alt_units = distinctValues(layers.alt || []).map(([v]) => v);
   const vein_units = veinSourceUnits(layers, modellingCodes); // TASKS.csv #144; lithology vein codes: #2226
-  const struct_types = distinctValues(layers.structure || []).map(([v]) => v);
+  const struct_types = distinctValues(unitLayersP.structure || []).map(([v]) => v); // #3266 — the oriented layer picks' types too
 
   // The sidebar's notices list sits below the (potentially long) Holes list, so on a property with
   // many holes a new notice can land far off-screen with nothing drawing the eye to it — from the
@@ -2907,7 +2913,7 @@ ${describeTrend(t)}` };
   // consumers degrade honestly (the plot falls back to true dip and says so; the Terzaghi weighting
   // leaves those picks at weight 1 and reports how many).
   const structurePicksWithHoleAttitude = useMemo(() => {
-    const rows = withAlphaOnlyPicks(layers.structure, layers.structzone, customLayers); // #1686
+    const rows = withAlphaOnlyPicks(layers.structure, layers.structzone, customLayers, { veins: layers.vein, orient: () => layerPicks.picks }); // #1686; oriented when they have a beta, and the Veins layer: #3266
     if (!rows.length) return rows;
     const collarById = new Map(collars.map((c) => [c.hole_id, c]));
     const surveyByHole = new Map();
@@ -2929,7 +2935,7 @@ ${describeTrend(t)}` };
       const att = cache.get(key);
       return att ? { ...p, holeAz: att.azimuth, holeDip: att.dip } : p;
     });
-  }, [layers.structure, layers.structzone, customLayers, collars, survey]);
+  }, [layers.structure, layers.structzone, customLayers, collars, survey, layerPicks]);
 
   // TASKS.csv #281 — the Stereonet's spatial-domain filter, handed to the modal as a callback so the
   // modal never needs to know what a domain IS (fault-side constraints evaluated against implicit
@@ -6868,7 +6874,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         {sidebarTab === "modelling" && (<>
         {MODELLING_PANES.has(toolPane) && (
           <Suspense fallback={null}>
-            <ModellingPanes {...{ visibleHoles, setVisibleHoles, /* #2536 */ stackBreaks, setStackBreaks, orientationReachM, setOrientationReachM, /* #1170 */ tracesSeq, /* #888 */ explicitTrend, /* #881 */ camState, sectionImages, setDigitizeImageId, /* #824 */ runMapModel, MapModelPanel, viewDragHookRef, sceneRef, layerGroupsRef, /* #1333 */ cameraRef, rendererRef, explicitOverlayRef, ExplicitSurfacePanel, ModellingCodesPane, PredictivePanel, SurfaceGeologyProjection, TrendsPanel, activeInterceptSet, activeInterceptSetId, addLithoGroup, addStackUnit, addVoxelModel, addWorldMeshSurface, alt_units, alterationBusy, alterationCellSize, alterationSearchRadius, alterationTarget, askPrompt, assayElements, assays, clipToDomainBoundary, clipToTopo, limitToContacts, setLimitToContacts, contactReachM, setContactReachM, collars, desurveyMethod, domains, emptyPaneHint, expandedLithoGroupId, explicitClickRef, explicitPickFor, explicitSnap, explicitSurfaces, faultCandidates, implicitBusy, implicitGroupRef, implicitMeshesRef, implicitSurfaces, implicitTarget, includeSectionContacts, interceptSets, isLithoGroupKey, isMcodeKey, lastActivityRef, layers: unitLayers, unitField, setUnitField, unitFields, /* #2378 */ lithoGroupCrossCuts, lithoGroupKey, lithoGroupRole, lithoGroups, litho_units, mapConstraint, mapLayers, mcConnectFrom, mcGroupOf, mcPickMode, mcSelected, mcodeDefaultRole, miniField, modelDomainId, modelArea, setModelArea, /* #1546 */ modelResolution, modellingCodeList, modellingCodes, moveStackUnit, numericBudgetHint, numericBusy, numericCapValue, numericCellSize, numericCellHeight, setNumericCellHeight, numericFlatReach, setNumericFlatReach, /* #3062 */ numericCloseShell, numericCompositeLength, numericCutoff, numericIncludeQAQC, numericMaxBlocks, numericMethod, numericVariogram, setNumericVariogram, /* #1015 */ numericMinCoverage, numericMinHoles, numericPadding, numericSearchRadius, numericSymbol, numericUseComposites, orientTypes, orientTypesSel, originRef, paneHeader, projectMapContact, rangeMultiplier, removeImplicitSurface, removeLithoGroup, removeStackUnit, resolveLithoTarget, runAlterationModel, runImplicitModel, runNumericModel, runStackModel, runStructuralModel, runVeinModel, searchEllipsoid, sections, sensBudget, sensN, sensOpen, sensSigmaDeg, sensSigmaPos, setActiveInterceptSetId, setAlterationCellSize, setAlterationSearchRadius, setAlterationTarget, setClipToDomainBoundary, setClipToTopo, setCoreOrientOpen, setExpandedLithoGroupId, setExplicitPickFor, setExplicitSnap, setExplicitSurfaces, setFenceOpen, setGradeEstOpen, setImplicitSurfaces, setImplicitTarget, setIncludeSectionContacts, setMapConstraint, setMcConnectFrom, setMcPickMode, setMcSelected, setModelDomainId, setModelResolution, setModellingCodes, setNotices, setNumericBudgetHint, setNumericCapValue, setNumericCellSize, setNumericCloseShell, setNumericCompositeLength, setNumericCutoff, setNumericIncludeQAQC, setNumericMaxBlocks, setNumericMethod, setNumericMinCoverage, setNumericMinHoles, setNumericPadding, setNumericSearchRadius, setNumericSymbol, setNumericUseComposites, setOrientTypesSel, setRangeMultiplier, setSearchEllipsoid, setSensBudget, setSensN, setSensOpen, setSensSigmaDeg, setSensSigmaPos, setSmoothClusters, setStackAdd, setStackFaults, setStackRelation, setStereonetOpen, setStructuralTarget, setStructuralTrends, setSurfaceDetail, setTadpoleOpen, setThinPicks, setThinWindowM, setTrendPreviewId, setVariogramOpen, setVeinCellSize, setVeinDip, setVeinDipDir, setVeinSearchRadius, setVeinTarget, smoothClusters, stackAdd, stackFaults, stackFaultOffsets, setStackFaultOffsets, /* #1054 */ stackRelation, stackUnits, struct_types, structuralTarget, structuralTrends, structurePicksWithHoleAttitude, structureTypes, surfaceDetail, surfaceStructures, survey, terrain, thinPicks, thinWindowM, toolPane, tracesRef, trendFor, trendPreviewId, updateLithoGroup, veinBusy, veinCellSize, veinDip, veinDipDir, veinSearchRadius, veinTarget, vein_units, worldPointFromHits }} />
+            <ModellingPanes {...{ visibleHoles, setVisibleHoles, /* #2536 */ stackBreaks, setStackBreaks, orientationReachM, setOrientationReachM, /* #1170 */ tracesSeq, /* #888 */ explicitTrend, /* #881 */ camState, sectionImages, setDigitizeImageId, /* #824 */ runMapModel, MapModelPanel, viewDragHookRef, sceneRef, layerGroupsRef, /* #1333 */ cameraRef, rendererRef, explicitOverlayRef, ExplicitSurfacePanel, ModellingCodesPane, PredictivePanel, SurfaceGeologyProjection, TrendsPanel, activeInterceptSet, activeInterceptSetId, addLithoGroup, addStackUnit, addVoxelModel, addWorldMeshSurface, alt_units, alterationBusy, alterationCellSize, alterationSearchRadius, alterationTarget, askPrompt, assayElements, assays, clipToDomainBoundary, clipToTopo, limitToContacts, setLimitToContacts, contactReachM, setContactReachM, collars, desurveyMethod, domains, emptyPaneHint, expandedLithoGroupId, explicitClickRef, explicitPickFor, explicitSnap, explicitSurfaces, faultCandidates, implicitBusy, implicitGroupRef, implicitMeshesRef, implicitSurfaces, implicitTarget, includeSectionContacts, interceptSets, isLithoGroupKey, isMcodeKey, lastActivityRef, layers: unitLayersP /* #3266 */, unitField, setUnitField, unitFields, /* #2378 */ lithoGroupCrossCuts, lithoGroupKey, lithoGroupRole, lithoGroups, litho_units, mapConstraint, mapLayers, mcConnectFrom, mcGroupOf, mcPickMode, mcSelected, mcodeDefaultRole, miniField, modelDomainId, modelArea, setModelArea, /* #1546 */ modelResolution, modellingCodeList, modellingCodes, moveStackUnit, numericBudgetHint, numericBusy, numericCapValue, numericCellSize, numericCellHeight, setNumericCellHeight, numericFlatReach, setNumericFlatReach, /* #3062 */ numericCloseShell, numericCompositeLength, numericCutoff, numericIncludeQAQC, numericMaxBlocks, numericMethod, numericVariogram, setNumericVariogram, /* #1015 */ numericMinCoverage, numericMinHoles, numericPadding, numericSearchRadius, numericSymbol, numericUseComposites, orientTypes, orientTypesSel, originRef, paneHeader, projectMapContact, rangeMultiplier, removeImplicitSurface, removeLithoGroup, removeStackUnit, resolveLithoTarget, runAlterationModel, runImplicitModel, runNumericModel, runStackModel, runStructuralModel, runVeinModel, searchEllipsoid, sections, sensBudget, sensN, sensOpen, sensSigmaDeg, sensSigmaPos, setActiveInterceptSetId, setAlterationCellSize, setAlterationSearchRadius, setAlterationTarget, setClipToDomainBoundary, setClipToTopo, setCoreOrientOpen, setExpandedLithoGroupId, setExplicitPickFor, setExplicitSnap, setExplicitSurfaces, setFenceOpen, setGradeEstOpen, setImplicitSurfaces, setImplicitTarget, setIncludeSectionContacts, setMapConstraint, setMcConnectFrom, setMcPickMode, setMcSelected, setModelDomainId, setModelResolution, setModellingCodes, setNotices, setNumericBudgetHint, setNumericCapValue, setNumericCellSize, setNumericCloseShell, setNumericCompositeLength, setNumericCutoff, setNumericIncludeQAQC, setNumericMaxBlocks, setNumericMethod, setNumericMinCoverage, setNumericMinHoles, setNumericPadding, setNumericSearchRadius, setNumericSymbol, setNumericUseComposites, setOrientTypesSel, setRangeMultiplier, setSearchEllipsoid, setSensBudget, setSensN, setSensOpen, setSensSigmaDeg, setSensSigmaPos, setSmoothClusters, setStackAdd, setStackFaults, setStackRelation, setStereonetOpen, setStructuralTarget, setStructuralTrends, setSurfaceDetail, setTadpoleOpen, setThinPicks, setThinWindowM, setTrendPreviewId, setVariogramOpen, setVeinCellSize, setVeinDip, setVeinDipDir, setVeinSearchRadius, setVeinTarget, smoothClusters, stackAdd, stackFaults, stackFaultOffsets, setStackFaultOffsets, /* #1054 */ stackRelation, stackUnits, struct_types, structuralTarget, structuralTrends, structurePicksWithHoleAttitude, structureTypes, surfaceDetail, surfaceStructures, survey, terrain, thinPicks, thinWindowM, toolPane, tracesRef, trendFor, trendPreviewId, updateLithoGroup, veinBusy, veinCellSize, veinDip, veinDipDir, veinSearchRadius, veinTarget, vein_units, worldPointFromHits }} />
           </Suspense>
         )}{/* TASKS.csv #693 — loaded on demand */}
         {toolPane && <div className="ge-pane-end" role="separator" />}{/* #458 */}
@@ -7946,6 +7952,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           picks={structurePicksWithHoleAttitude}
           customLayers={storeCustomLayers || []} /* TASKS.csv #1545 */
           holes={holesForTadpole}
+          isChecked={(id) => visibleHoles?.[id] !== false} /* #3282 — opens on a checked hole */
           litho={layers.litho || []}
           onClose={() => setTadpoleOpen(false)}
         />
