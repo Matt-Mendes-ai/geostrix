@@ -32,5 +32,5 @@ test("a collar azimuth more than 0.5° from the shallowest station is flagged wi
 test("the table marks it with † and the footnote names the holes and both readings' meaning", () => {
   assert.match(L, /Number\.isFinite\(c\.azSurvey\) \? `\$\{f\(c\.azimuth, 0\)\}†`/);
   assert.match(L, /† The collar record's azimuth, which differs from the hole's shallowest survey station \(grid north\) by more than 0\.5°/);
-  assert.match(L, /\[\*†\]\?\$\//, "a † value is still a number for alignment");
+  assert.match(L, /\[\*†(‡§)?\]\?\$\//, "a † value is still a number for alignment"); // ‡ §: #3023
 });
