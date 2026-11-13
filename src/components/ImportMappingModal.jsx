@@ -2,6 +2,7 @@ import React, { useMemo, useState } from "react";
 import { useStore } from "../lib/store.jsx"; // TASKS.csv #615
 import { crsName } from "../lib/reproject.js"; // TASKS.csv #488
 import SourceCrsField from "../components/SourceCrsField.jsx"; // TASKS.csv #488
+import { mineSourceOf, isMineSource } from "../lib/mineGrid.js"; // TASKS.csv #2811 — 'Local mine grid (no CRS)' in the 3D View's import
 import { X } from "./icons.js";
 import { TARGET_SCHEMAS, guessMapping, LAYER_META } from "../lib/layers.js";
 import { alterationStyleFromName, blankShare } from "../lib/viewer/importHelpers.js"; // TASKS.csv #1511; blankShare: #2182
@@ -212,7 +213,7 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
           {hasAbsoluteXY && (
             <div style={{ marginTop: 14 }}>
               <SourceCrsField
-                value={modal.sourceEpsg || ""} onChange={(c) => onChange({ ...modal, sourceEpsg: c === "" ? "" : String(c) })}
+                value={modal.sourceEpsg || ""} onChange={(c) => onChange({ ...modal, sourceEpsg: c === "" ? "" : String(c) })} mineGrid={modal.target === "collars" ? mineSourceOf(storeProject) : null /* #2811 — collars are what this import reprojects */}
                 defaultText={crsUnset ? tr("The project CRS isn't chosen yet — pick these coordinates' CRS here, or GeoStrix asks on import") : tr("Same as project — {v}", { v: crsName(projectEpsg) || tr("EPSG:{v}", { v: projectEpsg ?? "?" }) })}
               />
               <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: -4, lineHeight: 1.4 }}>{tr("If this file's x/y is in another CRS (a collar list or claim boundary in a different UTM zone or datum), pick it here and it is reprojected into the project CRS on import so it lines up with everything else.")}</div>
@@ -343,14 +344,14 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
                 })()}
                 {/* TASKS.csv #490 — which grid "grid north" is. Collars: the Source CRS above (their azimuths are
                     turned with their coordinates). Survey / structure files have no coordinates: pick the CRS here. */}
-                {(modal.azimuthRef || "grid") === "grid" && modal.target === "collars" && modal.sourceEpsg && Number(modal.sourceEpsg) !== Number(projectEpsg) && (
+                {(modal.azimuthRef || "grid") === "grid" && modal.target === "collars" && modal.sourceEpsg && !isMineSource(modal.sourceEpsg) /* #2811 */ && Number(modal.sourceEpsg) !== Number(projectEpsg) && (
                   <div style={{ marginLeft: 22, fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", lineHeight: 1.4 }}>{tr("Grid north of the Source CRS above ({crs}): azimuths are turned to the project grid along with the coordinates.", { crs: crsName(modal.sourceEpsg) || `EPSG:${modal.sourceEpsg}` })}</div>
                 )}
                 {(modal.azimuthRef || "grid") === "grid" && modal.target !== "collars" && (
                   <div style={{ marginLeft: 22, marginTop: 4 }}>
                     <SourceCrsField
                       label={tr("Grid of")} value={modal.azimuthGridEpsg || ""}
-                      onChange={(c) => onChange({ ...modal, azimuthGridEpsg: c === "" ? "" : String(c) })}
+                      onChange={(c) => onChange({ ...modal, azimuthGridEpsg: c === "" ? "" : String(c) })} mineGrid={mineSourceOf(storeProject) /* #2811 */}
                       defaultText={crsUnset ? tr("The project CRS — not chosen yet") /* #2179: not the placeholder's name */ : tr("The project CRS — {v}", { v: crsName(projectEpsg) || tr("EPSG:{v}", { v: projectEpsg ?? "?" }) })}
                       title={tr("If these azimuths were measured against another CRS's grid (e.g. the neighbouring UTM zone), pick it: each one is turned to the project grid at its hole's collar.")}
                     />

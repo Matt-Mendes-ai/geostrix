@@ -11791,5 +11791,8 @@
   "{header} (median {median} %, up to {max} %)": "{header} (médiane {median} %, jusqu'à {max} %)",
   "Read these {n} as ppm": "Lire ces {n} en ppm",
   "Read {header} as ppm": "Lire {header} en ppm",
-  "{n} result(s) are no-data codes (-99 / -999 / -9999): read as not assayed.": "{n} résultat(s) sont des codes sans donnée (-99 / -999 / -9999) : lus comme non analysés."
+  "{n} result(s) are no-data codes (-99 / -999 / -9999): read as not assayed.": "{n} résultat(s) sont des codes sans donnée (-99 / -999 / -9999) : lus comme non analysés.",
+  " Azimuths left as they are: the project has no mine grid to read them on (set one up under Maps > Project CRS).": " Azimuts laissés tels quels : le projet n'a pas de grille de mine où les lire (configurez-en une dans Cartes > SCR du projet).",
+  " {fixed} azimuth(s) turned from the mine grid's north to the project grid ({deg}°).": " {fixed} azimut(s) tournés du nord de la grille de mine vers la grille du projet ({deg}°).",
+  "{n} grid azimuth(s) turned from the mine grid's north to the project grid ({deg}°).": "{n} azimut(s) de grille tournés du nord de la grille de mine vers la grille du projet ({deg}°)."
 }
