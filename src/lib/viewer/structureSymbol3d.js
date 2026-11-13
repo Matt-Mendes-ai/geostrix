@@ -9,10 +9,11 @@
 // (a WebGL line is one pixel wide), drawn just above and below the disc so the symbol shows from either side.
 import * as THREE from "three";
 import { sharedProto } from "./protos.js";
-import { symbolGeometry } from "../structureSymbols.js";
+import { symbolGeometry, projectSymbolChoices, lineScaleOf } from "../structureSymbols.js";
 
 export const MM_TO_DISC = 0.8 / 2.5; // the strike line's half (2.5 mm) -> 0.8 of the disc's radius
-export const STRIP_HALF = 0.035; // half a line's width, in disc radii (0.2 m on a 6 m disc)
+export const STRIP_HALF = 0.035; // half a line's width, in disc radii (0.2 m on a 6 m disc), at line thickness 1
+export const STRIP_HALF_MAX = 0.15; // TASKS.csv #3091 — at the thickest (x6) a line would cover a third of the disc
 export const LIFT = 0.02; // off the disc's plane, in disc radii
 
 const protos = new Map();
@@ -35,12 +36,24 @@ export function symbolTriangles(symbol, { half = STRIP_HALF, lift = LIFT } = {})
   return { positions: Float32Array.from(out), count: out.length / 3 };
 }
 
-// the shared geometry of a symbol (built once per symbol, tagged so batching shares it and disposal skips it)
-export function symbolProto3d(symbol) {
-  const key = `sym:${symbol.fgdc}`;
+// TASKS.csv #3091 — each type's line thickness (an outcrop set's lineScale, 0.25-6), from the set whose symbol choice the type uses
+// (projectSymbolChoices: a later set's choice wins); a type no set chooses for is drawn at 1. -> { TYPEKEY: lineScale }
+export function projectSymbolScales(surfaceStructures) {
+  const choices = projectSymbolChoices(surfaceStructures), out = {};
+  for (const set of surfaceStructures || []) for (const [k, v] of Object.entries(set?.symbolByType || {})) if (choices[k] === v) out[k] = lineScaleOf(set);
+  return out;
+}
+
+// the drillhole build's key for the discs' symbols: a choice or a thickness changed (not the outcrop rows), #3067 / #3091
+export const symbolBuildKey = (surfaceStructures) => JSON.stringify([projectSymbolChoices(surfaceStructures), projectSymbolScales(surfaceStructures)]);
+
+// the shared geometry of a symbol at a line thickness (built once per symbol and thickness, tagged so batching shares it and disposal skips it)
+export function symbolProto3d(symbol, lineScale = 1) {
+  const sc = Number(lineScale) > 0 ? Number(lineScale) : 1;
+  const key = sc === 1 ? `sym:${symbol.fgdc}` : `sym:${symbol.fgdc}:${sc}`;
   let geo = protos.get(key);
   if (!geo) {
-    const { positions } = symbolTriangles(symbol);
+    const { positions } = symbolTriangles(symbol, { half: Math.min(STRIP_HALF_MAX, STRIP_HALF * sc) }); // #3091
     geo = new THREE.BufferGeometry();
     geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
     geo.computeBoundingSphere();

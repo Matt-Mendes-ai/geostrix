@@ -55,7 +55,7 @@ test("wiring: each oriented disc gets its symbol with the disc's transform; a ch
   assert.match(s, /const \{ symbol \} = symbolForReading\(\{ type: s\.value, dip \}, symChoices\);/);
   assert.match(s, /sym\.position\.copy\(disc\.position\); sym\.rotation\.copy\(disc\.rotation\); sym\.scale\.copy\(disc\.scale\);/);
   assert.match(s, /sym\.userData = \{ \.\.\.disc\.userData, symbol: symbol\.fgdc \};/);
-  assert.match(s, /sigs\.get\("structure"\)\.push\(JSON\.stringify\(symChoices\)\);/);
+  assert.match(s, /sigs\.get\("structure"\)\.push\(JSON\.stringify\(symChoices\), JSON\.stringify\(symScales\)\);/); // #3091: the thickness too
   const v = fs.readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
   assert.match(v, /if \(child\.userData\?\.catValue === undefined \|\| !child\.material\?\.color \|\| child\.userData\.symbol\) return;/);
 });
