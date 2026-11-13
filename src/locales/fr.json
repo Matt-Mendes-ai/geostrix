@@ -127,6 +127,8 @@
   "Inversion": "Inversion",
   "Lab certificates": "Certificats de labo",
   "Legend": "Légende",
+  "This frame keeps the view you set in 'Enter & adjust view': Refresh, Fit and a scale change use it.": "Ce cadre garde la vue réglée dans « Entrer et ajuster la vue » : Actualiser, Ajuster et un changement d'échelle l'utilisent.",
+  "Use the live 3D View again": "Reprendre la vue 3D en direct",
   "Left out of the mass balance: {list} (loss on ignition is a property of the sample, not an element).": "Exclu du bilan de masse : {list} (la perte au feu est une propriété de l'échantillon, pas un élément).",
   "{n} sample(s) hold an LOI over 60 %: no rock loses that much on ignition, so these are probably empty or failed samples.": "{n} échantillon(s) ont une perte au feu de plus de 60 % : aucune roche ne perd autant à la calcination, ce sont probablement des échantillons vides ou ratés.",
   "{symbol} is sold per tonne at a price for a reference grade, with penalties for the other elements, not as a sum of payable metals: no metal equivalent is offered.": "{symbol} se vend à la tonne à un prix pour une teneur de référence, avec des pénalités pour les autres éléments, et non comme une somme de métaux payables : aucun équivalent métal n'est proposé.",
