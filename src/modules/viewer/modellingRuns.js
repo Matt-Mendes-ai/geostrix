@@ -50,7 +50,7 @@ import { terrainGrid, unitRaster, mapAgreement } from "../../lib/predictedMap.js
 import { sectionGrid, pickSections, packUnits, sectionZRange } from "../../lib/modelSection.js"; // TASKS.csv #759
 import { smoothClusteredSpec } from "../../lib/contactSmoothing.js"; // TASKS.csv #761
 import { pickReport } from "../../lib/pickDiagnostics.js"; // TASKS.csv #762
-import { gempyLimitCheck, mapContactStep, MAP_CONTACT_STEP_M, plainEngineError, thinForWork } from "../../lib/gempyLimits.js"; // TASKS.csv #3162
+import { gempyLimitCheck, mapContactStep, MAP_CONTACT_STEP_M, plainEngineError, thinForWork, gempyWork, GEMPY_WORK_BUDGET } from "../../lib/gempyLimits.js"; // TASKS.csv #3162
 import { findOnTraceWorld, findOnTrace, traceOfHole /* #2931 */, interceptId, SOFT_NUGGET, MODEL_EXTENT_PAD_M, guessSurfaceType, pointInDomain } from "../../lib/viewer/modelHelpers.js";
 import { t as tr } from "../../lib/i18n.js"; // TASKS.csv #786
 import { capFieldAtGround, meanInsideShell } from "../../lib/groundCap.js"; // TASKS.csv #803
@@ -378,8 +378,15 @@ export function createModellingRuns(ctx, mcRef) {
     // TASKS.csv #3162 follow-up — Model from map over GemPy's work budget (lib/gempyLimits.js: its time is the data rows times the block,
     // check and mesh points it evaluates): the map's contact points and orientations thinned evenly, said before the run. Mount Raymond
     // (13 tops, 4,016 points, 262 orientations) passed 15 minutes; 410 / 88 took 350 s on a busy CPU.
-    if (stackOpts.fromMap && !cakeRun) {
-      const tw = thinForWork(specs, { blockCells: resolution[0] * resolution[1] * resolution[2], evalPts: evalPts?.length || 0, relation });
+    const workOpts = { blockCells: resolution[0] * resolution[1] * resolution[2], evalPts: evalPts?.length || 0, relation };
+    // the "full detail" choice (Model from map): nothing thinned, and the run says how much more work that is than a default run
+    const overWork = stackOpts.fromMap && !cakeRun && stackOpts.fullDetail ? gempyWork(specs, workOpts) / GEMPY_WORK_BUDGET : 0;
+    if (overWork > 1) {
+      const n = (k) => specs.filter((x) => !x.fault).reduce((t, x) => t + x[k].length, 0);
+      held.push(notice("Full detail: GemPy gets all {p} contact points and {o} orientations, about {x} times the work of a default run (which is sized for a few minutes), so this run may take a long time. The 15-minute stop is off for it: Cancel on the status bar stops it.", { p: n("points").toLocaleString(), o: new Set(specs.filter((x) => !x.fault).flatMap((x) => x.orientations.map((q) => `${q.x},${q.y},${q.z},${q.dip},${q.azimuth}`))).size.toLocaleString(), x: overWork < 10 ? overWork.toFixed(1) : Math.round(overWork) }));
+    }
+    if (stackOpts.fromMap && !cakeRun && !stackOpts.fullDetail) {
+      const tw = thinForWork(specs, workOpts);
       if (tw) {
         tw.specs.forEach((s, i) => { specs[i] = s; });
         held.push(notice("To keep GemPy's run to a few minutes, {p} of the map's {pAll} contact points and {o} of its {oAll} orientations were used, spread evenly (contacts logged in holes are all kept). GemPy's time grows with the data times the points it evaluates: the lithology block ({b} cells), the model check and map points ({e}) and the meshes of {s} surfaces. A lower Resolution (Model settings) or fewer units leaves more of the data in.",
@@ -462,7 +469,7 @@ export function createModellingRuns(ctx, mcRef) {
       // model space, where block coordinates no longer match hole positions directly.
       { resolution: resolution, relation, rangeMultiplier: rangeMultiplier || 0, signal: abortController.signal, returnBlock: true, // #679 — with a trend too: the check and volumes work in the warped frame (below)
         faults: sidecarSpecs.filter((s) => s.fault).map((s) => ({ name: s.meshName, points: s.points, orientations: s.orientations, ...(s.offsets ? { offsets: s.offsets } : {}) })), // #360; offsets: #1054
-        ...(evalPts ? { evaluateAt: evalPts } : {}), surfaceDetail }, // #756; surfaceDetail: #766
+        ...(evalPts ? { evaluateAt: evalPts } : {}), surfaceDetail, ...(overWork > 1 ? { maxMinutes: 0 } : {}) }, // #756; surfaceDetail: #766; maxMinutes: #3198 follow-up (full detail)
     );
     clearInterval(rampTimer);
     const baseSolveSeconds = (performance.now() - solveStartedAt) / 1000;
@@ -1758,7 +1765,7 @@ export function createModellingRuns(ctx, mcRef) {
       + (holeNoTrace ? tr(" {g} logged contact(s) on holes with no trace were skipped.", { g: holeNoTrace }) : "")
       + (stepM > MAP_CONTACT_STEP_M ? tr(" The map's contacts were sampled every {s} m, not every {s0} m, to keep about {n} points: GemPy's memory grows with the square of the points ({n0} at {s0} m).", { s: stepM, s0: MAP_CONTACT_STEP_M, n: Math.round(usedM / stepM).toLocaleString(), n0: Math.round(usedM / MAP_CONTACT_STEP_M).toLocaleString() }) : "") // #3162
       + (offTerrain ? tr(" {k} contact point(s) beyond the terrain were skipped.", { k: offTerrain }) : "") + (onPlan ? tr(" {k} contact point(s) and measurement(s) where the terrain has no data were placed at the map layer's elevation (RL {z}); the surfaces are cut there at that elevation too.", { k: onPlan, z: Math.round(planZ) }) : "") /* #2410 */ + (unused ? tr(" {k} contact(s) involve units outside the order.", { k: unused }) : ""))]); // appendNotice: #821
-    await runSurfaceStack([...faultSpecs, ...specs], { fromMap: true /* #3162 */, relation: breaks.size ? "erode" : p.relation || stackRelation, aboveUnit: order[0], packages: new Set(specs.map((s) => s.package)).size, ...(planZ != null ? { groundFallbackZ: planZ } : {}) }); // #2410 // #1309
+    await runSurfaceStack([...faultSpecs, ...specs], { fromMap: true /* #3162 */, fullDetail: !!p.fullDetail /* #3198 follow-up */, relation: breaks.size ? "erode" : p.relation || stackRelation, aboveUnit: order[0], packages: new Set(specs.map((s) => s.package)).size, ...(planZ != null ? { groundFallbackZ: planZ } : {}) }); // #2410 // #1309
   };
 
   const gatherFaultSpec = (key, traces) => {
