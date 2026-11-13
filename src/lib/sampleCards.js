@@ -23,6 +23,27 @@ export async function askSampleDownload(which, statusOf = sampleStatus, dispatch
   return true;
 }
 
+// TASKS.csv #3192 (Matt, 2026-11-13: "rank it from the most useful to least") — the empty 3D View's order. Most useful first: the most of
+// GeoStrix one project exercises (drillholes with logs and assays, then surface geochemistry, geophysics, structures, terrain), real data
+// throughout, light enough for a modest computer, and opened without a download. The first is the empty card's filled button.
+//   wa_gold        66 inclined holes: lithology, alteration, veins, oriented structures and 14,664 gold assays — the whole drill workflow
+//   qld_century    37 holes with surveys, logs and assays, 730 soils and a magnetic grid: drilling, Geochem and Geophysics in one
+//   wa_iron        147 holes with logs, assays, downhole density / gamma / susceptibility and a magnetic grid (a bulk commodity)
+//   wa_zinc_copper 32 holes with alteration and sulphide logs, plus soils and stream sediments
+//   silvertip      9 deep holes with real logs, oriented core and assays, rock / soil / stream samples — rich, but a BC download
+//   harry          37 holes with assays (some interval layers synthesized) — a BC download
+//   woodjam        19 holes, IP and ZTEM — only where a copy exists (never downloaded)
+//   qc_rouyn_noranda  geology, 299 structures and 280 hole traces on a terrain (no logs or assays)
+//   wa_lead_zinc   99 holes with assays and SG, plain logs
+//   wa_uranium     430 shallow holes and a gamma log: a specialised flat covered deposit, and heavier
+//   mount_raymond  mapping only (Model from map)
+//   perk           mapping only, a BC download
+//   fi_lapland     rock geochemistry and a 1:1M map, no holes
+//   blake          gravity only, no holes
+export const SAMPLE_RANK = ["wa_gold", "qld_century", "wa_iron", "wa_zinc_copper", "silvertip", "harry", "woodjam", "qc_rouyn_noranda", "wa_lead_zinc", "wa_uranium", "mount_raymond", "perk", "fi_lapland", "blake"];
+// Surface Geology: the mapping samples first, best first (bundled with a terrain and structures, then the downloads)
+export const SURFACE_LEAD = ["qc_rouyn_noranda", "mount_raymond", "perk", "silvertip"];
+
 export function sampleCardsFor(mode) {
   const cards = [
     { id: "harry", label: tr("Sample: Harry property (37 holes)"), title: tr("Load the bundled Harry property sample project — 37 real drillholes from BC's public ARIS database, with synthesized interval layers") },
@@ -44,9 +65,12 @@ export function sampleCardsFor(mode) {
   cards.push({ id: "qld_century", label: tr("Sample: Century zinc-lead-silver (Queensland; 37 holes, soils, magnetics)"), title: tr("Load the bundled Century sample — the 1992 drilling of a shale-hosted zinc-lead-silver deposit in north-west Queensland, from the Geological Survey of Queensland's open drillhole and geochemistry database: 37 holes with surveys, lithology and assays, 730 soil samples, and Geoscience Australia's magnetic grid over them") }); // TASKS.csv #3107
   // #3100 — a BC sample not on this computer says it downloads first (its title: from where, how big); Woodjam is not offered then
   for (const c of cards) { const info = BC_SAMPLE_INFO[c.id]; if (info && missing(c.id)) { c.label = tr("{label} (download)", { label: c.label }); c.title = tr("Not included in the installer (BC's terms): downloads report {report}'s data from BC's public servers ({size} MB) after asking, converts it on this computer and keeps it.", { report: info.report, size: Math.round(info.bytes / 1048576) }); } } // the dialog's sizes (MB of 2^20 bytes)
-  // TASKS.csv #3107 — the mapping samples lead on Surface Geology, by id, so a sample added later is not dropped from that list
-  const lead = ["perk", "silvertip", "mount_raymond"].map((id) => cards.find((c) => c.id === id)).filter(Boolean);
-  const ordered = mode === "surface" ? [...lead, ...cards.filter((c) => !lead.includes(c))] : cards;
+  // TASKS.csv #3192 — ranked from the most useful to the least (SAMPLE_RANK); the mapping samples lead on Surface Geology (#3107), by id,
+  // so a sample added later is not dropped from either list (an id not ranked goes last)
+  const rank = (c) => { const i = SAMPLE_RANK.indexOf(c.id); return i < 0 ? SAMPLE_RANK.length : i; };
+  const ranked = cards.map((c, i) => [c, i]).sort((a, b) => rank(a[0]) - rank(b[0]) || a[1] - b[1]).map(([c]) => c);
+  const lead = SURFACE_LEAD.map((id) => ranked.find((c) => c.id === id)).filter(Boolean);
+  const ordered = mode === "surface" ? [...lead, ...ranked.filter((c) => !lead.includes(c))] : ranked;
   return ordered.filter((c) => !(c.id === "woodjam" && missing("woodjam")));
 }
 
