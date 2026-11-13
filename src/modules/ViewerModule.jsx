@@ -40,7 +40,7 @@ import { blockToCells, modelledIntervals, ABOVE_TOPS, unitAt } from "../lib/mode
 import { sectionGrid, sameLine, unpackUnits, sectionPixels, blockSpacing, sectionZRange } from "../lib/modelSection.js"; // TASKS.csv #759
 import { openSectionWindow, saveFile, copyText, loadSampleFiles } from "../lib/desktop.js"; // copyText: TASKS.csv #589
 import { sampleProjectName } from "../lib/sampleProjectName.js"; // TASKS.csv #1218
-import { sampleCardsFor, sampleFootnote } from "../lib/sampleCards.js"; // TASKS.csv #1346
+import { sampleCardsFor, sampleFootnote, askSampleDownload } from "../lib/sampleCards.js"; // TASKS.csv #1346; askSampleDownload: #3133
 import { symbolRadiusByMedium } from "../lib/viewer/surfaceSymbols.js"; // TASKS.csv #1346
 import { sectionFromCentre, sectionThroughHole, fenceLinesWithData, fenceExtentPoints } from "../lib/sectionDefs.js"; // fenceLinesWithData: #2040
 import { Ribbon, RibbonGroup, RibbonButton, TaskPaneHeader, PaneNotice } from "../components/Ribbon.jsx"; // TASKS.csv #458
@@ -5181,6 +5181,7 @@ ${+a.from.toFixed(2)}–${+a.to.toFixed(2)} m`)); // #1500; #2365 as stored
     loadSample(req.which);
   }, [store.sampleRequest]);
   const loadSample = async (which) => {
+    if (await askSampleDownload(which)) return; // #3133 — a BC sample not here: the download dialog first, nothing renamed or read
     store.setProjectName(sampleProjectName(which, store.project?.name));
     // TASKS.csv #819 — Perk-Rocky is a surface-mapping project with no drillhole tables: its own loader only
     if (which === "perk") {
