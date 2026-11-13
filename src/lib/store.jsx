@@ -1596,6 +1596,25 @@ export function StoreProvider({ children }) {
     }
   }, extraDirtyFields);
 
+  // The burst under way becomes one undo step: when the quiet period ends, or (undoCheckpoint) before a discrete action.
+  // TASKS.csv #3184 (from #3028 (9)) — four Layout inserts and a duplicate made half a second apart were one burst, so one
+  // Ctrl+Z took back all five. An insert / duplicate / paste now calls undoCheckpoint first, so each is its own step; a drag
+  // still coalesces into one.
+  const commitUndoBurst = useLatestCallback(() => {
+    if (undoDebounceTimer.current) { clearTimeout(undoDebounceTimer.current); undoDebounceTimer.current = null; }
+    if (!undoBeforeBurst.current) return;
+    undoPast.current.push(undoBeforeBurst.current); undoPastAt.current.push(undoBurstAt.current);
+    if (undoPast.current.length > UNDO_MAX) { undoPast.current.shift(); undoPastAt.current.shift(); }
+    undoBeforeBurst.current = null;
+    undoFuture.current = [];
+    // TASKS.csv #2806 — at most KEEP_REMOVED big map layers no longer in the project stay in the history (lib/undoMapLayerCap.js)
+    const capped = capRemovedMapLayers(undoPast.current, [undoPrevSnapshot.current?.mapLayers]);
+    if (capped.dropped) { undoPast.current = capped.steps; sayUndoCap(capped.names); }
+    capTables([undoPrevSnapshot.current]); // #2894
+    setUndoCount(undoPast.current.length);
+    setRedoCount(0);
+  });
+
   useLayoutEffect(() => {
     if (undoApplying.current) { undoPrevSnapshot.current = undoSnapshot(); setActiveTabDirty(true); return; }
     const current = undoSnapshot();
@@ -1613,18 +1632,7 @@ export function StoreProvider({ children }) {
     if (!undoBeforeBurst.current) { undoBeforeBurst.current = undoPrevSnapshot.current; undoBurstAt.current = Date.now(); }
     undoPrevSnapshot.current = current;
     if (undoDebounceTimer.current) clearTimeout(undoDebounceTimer.current);
-    undoDebounceTimer.current = setTimeout(() => {
-      undoPast.current.push(undoBeforeBurst.current); undoPastAt.current.push(undoBurstAt.current);
-      if (undoPast.current.length > UNDO_MAX) { undoPast.current.shift(); undoPastAt.current.shift(); }
-      undoBeforeBurst.current = null;
-      undoFuture.current = [];
-      // TASKS.csv #2806 — at most KEEP_REMOVED big map layers no longer in the project stay in the history (lib/undoMapLayerCap.js)
-      const capped = capRemovedMapLayers(undoPast.current, [undoPrevSnapshot.current?.mapLayers]);
-      if (capped.dropped) { undoPast.current = capped.steps; sayUndoCap(capped.names); }
-      capTables([undoPrevSnapshot.current]); // #2894
-      setUndoCount(undoPast.current.length);
-      setRedoCount(0);
-    }, UNDO_DEBOUNCE_MS);
+    undoDebounceTimer.current = setTimeout(commitUndoBurst, UNDO_DEBOUNCE_MS);
   }, UNDO_KEYS.map((k) => live[k])); // #448 (always the same length); #463: layoutPages
 
   const applySnapshot = useCallback((snap) => {
@@ -1810,7 +1818,7 @@ export function StoreProvider({ children }) {
     workspaceTabs, activeTabId, activeTabDirty, switchToTab, newWorkspaceTab, closeWorkspaceTab,
     checkAutosave, restoreAutosave, discardAutosave, recoveryStashed, // #465
     getProjectToken, isSameProject, addVoxelModelToTab, // #466
-    undo, redo, canUndo: undoCount > 0, canRedo: redoCount > 0,
+    undo, redo, canUndo: undoCount > 0, canRedo: redoCount > 0, undoCheckpoint: commitUndoBurst, // #3184
   };
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
 }

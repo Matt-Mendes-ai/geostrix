@@ -153,6 +153,7 @@ export default function LayoutModule() {
     geophysSurveys, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, // TASKS.csv #2878 — the survey points' ramps
     viewportBatchDone, setViewportBatchDone, // TASKS.csv #1644 — an atlas's maps centred on their holes
     requestViewportBatch, printSrcs, setPrintSrcs, // TASKS.csv #2303 — the export's 300 dpi print pass
+    undoCheckpoint, // TASKS.csv #3184 — each insert / duplicate / paste its own undo step
   } = useStore();
   const setTaskProgress = useSetTaskProgress();
   useEffect(() => { if (viewportBatchDone) setTaskProgress?.(null); }, [viewportBatchDone, setTaskProgress]);
@@ -733,6 +734,7 @@ export default function LayoutModule() {
   }, [showGrid, gridSnapPx]);
 
   const addElement = (type) => {
+    undoCheckpoint?.(); // #3184
     const id = `${type}_${Date.now()}`;
     const base = { id, type, x: 100, y: 100 };
     if (type === "text") base.text = "Text", base.w = 200;
@@ -919,6 +921,7 @@ export default function LayoutModule() {
   const duplicateSelected = () => {
     const ids = selectionIds();
     if (!ids.length) return;
+    undoCheckpoint?.(); // #3184
     const src = elements.filter((e) => ids.includes(e.id));
     const { dx, dy } = copyOffset(src, A4, Math.round(5 * PX_PER_MM)); // #2715 — back onto the sheet at its right / bottom edge
     const idMap = new Map(ids.map((id) => [id, `${(elements.find((e) => e.id === id) || {}).type}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`]));
@@ -938,6 +941,7 @@ export default function LayoutModule() {
   };
   const pasteClipboard = () => {
     if (!layoutClipboard?.els?.length) return false;
+    undoCheckpoint?.(); // #3184
     const { dx, dy } = layoutClipboard.pageId === activeLayoutPageId ? copyOffset(layoutClipboard.els, A4, Math.round(5 * PX_PER_MM)) /* #2715 */ : { dx: 0, dy: 0 };
     const idMap = new Map(layoutClipboard.els.map((e) => [e.id, `${e.type}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`]));
     const copies = relinkCopies(layoutClipboard.els.map((e) => ({ ...e, id: idMap.get(e.id), x: e.x + dx, y: e.y + dy, locked: false })), idMap, false); // #924
