@@ -12,6 +12,7 @@
 import { Delaunay } from "d3-delaunay";
 import { fillNoData } from "./demFill.js";
 import { idwGrid, suggestBlankingDistance } from "./idw.js"; // TASKS.csv #1589
+import { collarSpacing } from "./planDots.js"; // TASKS.csv #3036 — the median nearest-neighbour spacing
 
 // TASKS.csv #1589 (review #1497, Lawyers) — a ground surface from a survey's own station elevations (GPS heights minus the
 // sensor height), for an inversion with no DEM at hand: a TIN of a walk-mag survey (lines 25-50 m apart, readings every
@@ -80,7 +81,11 @@ export function densify(polylines, step) {
 
 // { points: [{x, y, z}], lines: [[{x, y, z}]] } -> the terrain fields (bbox, gridW, gridH, elevations, noDataMask)
 // + stats. Throws when fewer than 3 usable points remain or they lie on a line.
-export function terrainFromPoints({ points = [], lines = [] } = {}, { gridMax = 200, maxEdgeFactor = 10 } = {}) {
+// TASKS.csv #3036 (review #2876, WA iron: 6,388 collars over a field ~40 km long at the default 200 nodes, 200 m between nodes for holes 25-
+// 100 m apart) — spacingFit: the grid is sized from the points' median nearest-neighbour spacing (one node per spacing), never coarser than
+// gridMax (the Terrain detail chosen) and never finer than maxNodes along the long side; stats.spacingM / gridFromSpacing say so.
+export const SPACING_FIT_MAX_NODES = 1025;
+export function terrainFromPoints({ points = [], lines = [] } = {}, { gridMax = 200, maxEdgeFactor = 10, spacingFit = false, maxNodes = SPACING_FIT_MAX_NODES } = {}) {
   const ok = (p) => p && Number.isFinite(p.x) && Number.isFinite(p.y) && Number.isFinite(p.z);
   const raw = [...points.filter(ok), ...lines.flatMap((l) => l.filter(ok))];
   if (raw.length < 3) throw new Error("At least 3 points with elevations are needed to build a terrain.");
@@ -88,6 +93,9 @@ export function terrainFromPoints({ points = [], lines = [] } = {}, { gridMax = 
   for (const p of raw) { if (p.x < x0) x0 = p.x; if (p.x > x1) x1 = p.x; if (p.y < y0) y0 = p.y; if (p.y > y1) y1 = p.y; }
   if (!(x1 > x0) || !(y1 > y0)) throw new Error("The points lie on a line: a terrain needs them spread over an area.");
   const w = x1 - x0, h = y1 - y0;
+  const chosen = gridMax;
+  const spacingM = spacingFit && !lines.length ? collarSpacing(points.filter(ok)) : null; // #3036 — contours have their own densifying
+  if (spacingM > 0) gridMax = Math.max(gridMax, Math.min(maxNodes, Math.ceil(Math.max(w, h) / spacingM) + 1));
   const gridW = w >= h ? gridMax : Math.max(2, Math.round((gridMax * w) / h));
   const gridH = w >= h ? Math.max(2, Math.round((gridMax * h) / w)) : gridMax;
   const dx = w / (gridW - 1), dy = h / (gridH - 1);
@@ -114,6 +122,7 @@ export function terrainFromPoints({ points = [], lines = [] } = {}, { gridMax = 
   const maxEdge = maxEdgeFactor * sorted[sorted.length >> 1];
   const E = new Float64Array(gridW * gridH).fill(NaN);
   let kept = 0, dropped = 0, flat = 0;
+  const gArea = new Float64Array(P.length), gX = new Float64Array(P.length), gY = new Float64Array(P.length); // #3034 — each point's slope
   for (let t = 0; t < T.length; t += 3) {
     if (Math.max(edges[t], edges[t + 1], edges[t + 2]) > maxEdge) { dropped++; continue; }
     kept++;
@@ -121,6 +130,11 @@ export function terrainFromPoints({ points = [], lines = [] } = {}, { gridMax = 
     if (A.z === B.z && B.z === C.z) flat++;
     const det = (B.y - C.y) * (A.x - C.x) + (C.x - B.x) * (A.y - C.y);
     if (Math.abs(det) < 1e-12) continue;
+    { // #3034 — the triangle's slope, weighted by its area, to each of its corners
+      const den = (B.x - A.x) * (C.y - A.y) - (C.x - A.x) * (B.y - A.y);
+      const gx = ((B.z - A.z) * (C.y - A.y) - (C.z - A.z) * (B.y - A.y)) / den, gy = ((C.z - A.z) * (B.x - A.x) - (B.z - A.z) * (C.x - A.x)) / den, ar = Math.abs(den) / 2;
+      for (let q = 0; q < 3; q++) { const v = T[t + q]; gArea[v] += ar; gX[v] += ar * gx; gY[v] += ar * gy; }
+    }
     // node columns i (x0 + i dx) and rows j counted from the north (y1 - j dy) inside the triangle's box
     const i0 = Math.max(0, Math.ceil((Math.min(A.x, B.x, C.x) - x0) / dx - 1e-9)), i1 = Math.min(gridW - 1, Math.floor((Math.max(A.x, B.x, C.x) - x0) / dx + 1e-9));
     const j0 = Math.max(0, Math.ceil((y1 - Math.max(A.y, B.y, C.y)) / dy - 1e-9)), j1 = Math.min(gridH - 1, Math.floor((y1 - Math.min(A.y, B.y, C.y)) / dy + 1e-9));
@@ -136,11 +150,38 @@ export function terrainFromPoints({ points = [], lines = [] } = {}, { gridMax = 
       }
     }
   }
+  // TASKS.csv #3034 (review #2876 via #2990: 2,618 / 1,437 / 1,071 collars with no ground at 200 / 513 / 1,025 nodes) — a point reads ground
+  // only when the four nodes of its cell all hold a value (terrainGroundAt / terrainFillAt). A collar on the edge of its drilled patch, or on
+  // a single drill line (thin triangles no node falls in, or long-edged ones dropped between patches), had a corner outside every kept
+  // triangle. Those corners take the inverse-distance mean of the points in the cells around them: every point has ground, from points
+  // within one node spacing, and no ground is invented further out. Each point carries its ground to the corner along its own slope (the
+  // area-weighted slope of its kept triangles: a plane comes back exactly), flat when it has none (a lone hole) or only slivers (a drill
+  // line); a corner beside several points takes their inverse-distance mean.
+  let pointNodes = 0;
+  {
+    const acc = new Map(); // node -> [sum w, sum w z]
+    const minArea = 0.05 * dx * dy;
+    for (let pi = 0; pi < P.length; pi++) {
+      const p = P[pi];
+      const sloped = gArea[pi] >= minArea, sx = sloped ? gX[pi] / gArea[pi] : 0, sy = sloped ? gY[pi] / gArea[pi] : 0;
+      const fi = (p.x - x0) / dx, fj = (y1 - p.y) / dy;
+      const ia = Math.max(0, Math.min(gridW - 1, Math.floor(fi))), ja = Math.max(0, Math.min(gridH - 1, Math.floor(fj)));
+      for (const j of [ja, Math.min(gridH - 1, ja + 1)]) for (const i of [ia, Math.min(gridW - 1, ia + 1)]) {
+        const k = j * gridW + i;
+        if (E[k] === E[k]) continue;
+        const nx = x0 + i * dx, ny = y1 - j * dy, d2 = (nx - p.x) ** 2 + (ny - p.y) ** 2, wgt = 1 / Math.max(d2, 1e-6);
+        const z = p.z + sx * (nx - p.x) + sy * (ny - p.y);
+        const a = acc.get(k);
+        if (a) { a[0] += wgt; a[1] += wgt * z; } else acc.set(k, [wgt, wgt * z]);
+      }
+    }
+    for (const [k, [sw, swz]] of acc) { E[k] = swz / sw; pointNodes++; }
+  }
   const fill = fillNoData(Array.from(E));
   return {
     // no noDataNote: demFill's sentence is about reprojection corners and failed tiles; the caller says "outside the points"
     bbox: [x0, y0, x1, y1], gridW, gridH, elevations: fill.elevations, noDataMask: fill.noDataMask,
-    stats: { points: P.length, given: raw.length, densifyStepM: step, halfCellM: halfCell, densifyCapped: step > halfCell, triangles: kept, longDropped: dropped, maxEdgeM: maxEdge, flatPct: kept ? (100 * flat) / kept : 0, cellM: Math.max(dx, dy), filledPct: fill.filledPct || 0, filledCount: fill.filledCount || 0, fillValue: fill.fillValue }, // densify*: #986
+    stats: { points: P.length, given: raw.length, densifyStepM: step, halfCellM: halfCell, densifyCapped: step > halfCell, triangles: kept, longDropped: dropped, maxEdgeM: maxEdge, flatPct: kept ? (100 * flat) / kept : 0, cellM: Math.max(dx, dy), filledPct: fill.filledPct || 0, filledCount: fill.filledCount || 0, fillValue: fill.fillValue, pointNodes, spacingM, gridFromSpacing: gridMax > chosen, nodes: gridMax }, // densify*: #986; pointNodes: #3034; spacingM / gridFromSpacing / nodes: #3036
   };
 }
 

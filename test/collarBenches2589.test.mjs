@@ -56,7 +56,7 @@ test("the surface is measured against its own collars: median, worst with its ho
 test("the Terrain pane wires the choice, the bench note and the misfit", () => {
   const src = readFileSync(new URL("../src/modules/GeophysicsModule.jsx", import.meta.url), "utf8");
   assert.match(src, /const picked = pickBenchGround\(collarPts, benches\.n \? benchMode : "all"\);/);
-  assert.match(src, /misfitAt: picked\.points, benchNote \}\);/);
+  assert.match(src, /misfitAt: picked\.points, benchNote(, leftOutNote: collarsOutNote\(projectZPoints\.collarsOut\), spacingFit: true)? \}\);/); // #2987 / #3036 — and the collars left out, the grid fitted to the spacing
   assert.match(src, /const m = surfaceMisfit\(misfitAt, built, BENCH_DZ_M\);/);
   assert.match(src, /benches\.n > 0 && \(/);
 });
