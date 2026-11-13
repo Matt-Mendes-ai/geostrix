@@ -114,6 +114,7 @@
   "Inversion": "النمذجة العكسية",
   "Lab certificates": "شهادات المختبر",
   "Legend": "مفتاح الرموز",
+  "Computing the correlations: {done} of {total} pairs…": "جارٍ حساب الارتباطات: {done} من {total} زوجًا…",
   "Drawing {n} samples…": "جارٍ رسم {n} عينة…",
   "{label}: the {kept} commonest of {n} codes, the rest as \"other\"": "{label}: الرموز الـ{kept} الأكثر شيوعًا من {n}، والباقي بوصفه \"other\"",
   "{symbol} as {oxide}": "{symbol} بصيغة {oxide}",
