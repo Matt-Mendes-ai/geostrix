@@ -137,7 +137,7 @@ test("a drillhole stack over the work budget is asked about before the run (afte
   assert.ok(at > 0);
   assert.ok(at > s.indexOf("Run the stack as a layer-cake?"), "after the layer-cake offer");
   assert.ok(at < s.indexOf("\"Running {label} ("), "before the run starts");
-  const block = s.slice(at, at + 2200);
+  const block = s.slice(at, at + 4200);
   assert.match(block, /if \(!window\.confirm\(tr\("This GemPy run is about \{x\} times the work/);
   assert.match(block, /setImplicitBusy\(false\);\s*setNotices\(\(p\) => \[\.\.\.p, notice\("Not run: about \{x\} times the work/);
   assert.match(block, /overWork = x;/);
@@ -168,7 +168,7 @@ test("#3215 the time on this computer: learnt from its own GemPy runs (median of
 });
 
 test("#3215 the engine's peak memory: the largest field's rows squared (measured 3.7 GB at 4,802 rows), said in the question, warned over 8 GB", async () => {
-  const { gempyPeakGB, GEMPY_MEMORY_WARN_GB } = await import("../src/lib/gempyLimits.js");
+  const { gempyPeakGB, GEMPY_RAM_SHARE, GEMPY_ASSUMED_RAM_GB } = await import("../src/lib/gempyLimits.js");
   const pts = (n) => Array.from({ length: n }, (_, i) => ({ x: i, y: 0, z: 0 }));
   const ori = Array.from({ length: 262 }, (_, i) => ({ x: i, y: 1, z: 0, dip: 10, azimuth: 0 }));
   const mr = [{ points: pts(2000), orientations: ori }, { points: pts(2016), orientations: ori }];
@@ -177,8 +177,12 @@ test("#3215 the engine's peak memory: the largest field's rows squared (measured
   assert.ok(gempyPeakGB(mr, { relation: "erode" }) < 1.5);
   // WA iron's six-strand stack: 22,436 points
   const wa = gempyPeakGB([{ points: pts(22436), orientations: [ori[0]] }], { relation: "onlap" });
-  assert.ok(wa > 70 && wa < 80 && wa > GEMPY_MEMORY_WARN_GB, `${wa}`);
+  assert.ok(wa > 70 && wa < 80 && wa > GEMPY_RAM_SHARE * 32 && wa > GEMPY_RAM_SHARE * GEMPY_ASSUMED_RAM_GB, `${wa}`);
   const s = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8");
   assert.match(s, /const gb = gempyPeakGB\(specs, workOpts\);/);
-  assert.match(s, /const warn = gb > GEMPY_MEMORY_WARN_GB \? tr\(", more than a 16 GB computer can give it: the run may fail or stall the computer"\) : "";/);
+  // Main: over 70 % of this computer's memory (16 GB assumed where unread) it is refused, not asked about; before the question
+  assert.match(s, /const info = await problemReportInfo\(\)\.catch\(\(\) => null\), ramGB = info\?\.memoryGB\?\.total > 0 \? info\.memoryGB\.total : null;/);
+  assert.match(s, /if \(gb > GEMPY_RAM_SHARE \* \(ramGB \|\| GEMPY_ASSUMED_RAM_GB\)\) \{\s*setImplicitBusy\(false\);\s*setNotices\(\(p\) => \[\.\.\.p, errorNotice\(tr\("Not run: the modelling engine would need about \{g\} GB/);
+  assert.ok(s.indexOf("if (gb > GEMPY_RAM_SHARE") < s.indexOf("if (!window.confirm(tr(\"This GemPy run is about"), "refused before it is asked");
+  assert.equal(GEMPY_RAM_SHARE, 0.7); assert.equal(GEMPY_ASSUMED_RAM_GB, 16);
 });

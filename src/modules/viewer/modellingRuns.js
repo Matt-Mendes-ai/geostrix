@@ -24,7 +24,7 @@ import { desurveyHole } from "../../lib/desurvey.js";
 import { missOverHalfCell, restrictRowsToHoles, checkedHoleCount } from "../../lib/modelArea.js"; // TASKS.csv #1546; restrictRowsToHoles, checkedHoleCount: #2059
 import { sanitizeMesh } from "../../lib/meshSanitize.js";
 import { checkAgainstLogs, unitVolumes, resampleWarpedBlock, capBlockAtGround } from "../../lib/modelCheck.js";
-import { pythonImplicitModel } from "../../lib/desktop.js";
+import { pythonImplicitModel, problemReportInfo } from "../../lib/desktop.js"; // problemReportInfo: #3215 (the total memory)
 import { makeRng, perturbPoints, perturbOrientation, pointsToMeshDistance, spreadSummary, spreadColor, SPREAD_NOT_REPRODUCED } from "../../lib/surfaceSpread.js";
 import { colorForLithology, colorForAlteration, colorForStructure, minMax, roleForLithology, groupMcodeRole } from "../../lib/layers.js";
 import { computeMeshVolume } from "../../lib/volumetrics.js";
@@ -50,7 +50,7 @@ import { terrainGrid, unitRaster, mapAgreement } from "../../lib/predictedMap.js
 import { sectionGrid, pickSections, packUnits, sectionZRange } from "../../lib/modelSection.js"; // TASKS.csv #759
 import { smoothClusteredSpec } from "../../lib/contactSmoothing.js"; // TASKS.csv #761
 import { pickReport } from "../../lib/pickDiagnostics.js"; // TASKS.csv #762
-import { gempyLimitCheck, mapContactStep, MAP_CONTACT_STEP_M, plainEngineError, thinForWork, gempyWork, GEMPY_WORK_BUDGET, gempyRate, recordGempyRate, gempyPeakGB, GEMPY_MEMORY_WARN_GB } from "../../lib/gempyLimits.js"; // TASKS.csv #3162
+import { gempyLimitCheck, mapContactStep, MAP_CONTACT_STEP_M, plainEngineError, thinForWork, gempyWork, GEMPY_WORK_BUDGET, gempyRate, recordGempyRate, gempyPeakGB, GEMPY_RAM_SHARE, GEMPY_ASSUMED_RAM_GB } from "../../lib/gempyLimits.js"; // TASKS.csv #3162
 import { findOnTraceWorld, findOnTrace, traceOfHole /* #2931 */, interceptId, SOFT_NUGGET, MODEL_EXTENT_PAD_M, guessSurfaceType, pointInDomain } from "../../lib/viewer/modelHelpers.js";
 import { t as tr } from "../../lib/i18n.js"; // TASKS.csv #786
 import { capFieldAtGround, meanInsideShell } from "../../lib/groundCap.js"; // TASKS.csv #803
@@ -224,7 +224,7 @@ export function createModellingRuns(ctx, mcRef) {
       const parts = [];
       if (overLimit.overSurfaces) parts.push(stackOpts.fromMap
         ? tr("GemPy takes at most {max} units in one model, and this order has {n} in the stratigraphic role. Set the role of the units you can spare to 'other (left out)', or build two models over parts of the order.", { max: overLimit.maxSurfaces, n: overLimit.surfaces })
-        : tr("GemPy takes at most {max} units in one model, and this stack has {n}. Merge neighbouring units into one with Litho groups, take units out of the stack, or build it with the Layer-cake method (Stack method), which has no such limit; it needs the units logged in holes and takes no faults.", { max: overLimit.maxSurfaces, n: overLimit.surfaces }));
+        : tr("GemPy takes at most {max} units in one model, and this stack has {n}. Merge neighbouring units into one with Litho groups, take units out of the stack, or build it with the Layer-cake method (Stack method), which has no such limit; it needs the units logged in holes.", { max: overLimit.maxSurfaces, n: overLimit.surfaces }));
       if (overLimit.overFaults) parts.push(tr("GemPy takes at most {max} faults in one model, and this run has {n}: leave out the ones that offset the units least.", { max: overLimit.maxFaults, n: overLimit.faults }));
       setNotices((p) => [...p, errorNotice(tr("Not run: {why}", { why: parts.join(" ") }))]);
       return;
@@ -445,8 +445,15 @@ export function createModellingRuns(ctx, mcRef) {
         const rt = gempyRate(), mins = Math.max(1, Math.round((gempyWork(specs, workOpts) * rt.rate) / 60)); // #3215 — the time on this computer
         const how = rt.runs ? tr("by this computer's last {n} GemPy run(s)", { n: rt.runs }) : tr("at the rate measured on a busy desktop (no GemPy run timed on this computer yet)");
         const gb = gempyPeakGB(specs, workOpts); // #3215 — a drillhole stack has no point budget: its memory is said too
-        const warn = gb > GEMPY_MEMORY_WARN_GB ? tr(", more than a 16 GB computer can give it: the run may fail or stall the computer") : "";
-        const words = { g: gb < 10 ? gb.toFixed(1) : Math.round(gb), warn, m: mins.toLocaleString(), how, x: x < 10 ? x.toFixed(1) : Math.round(x), p: solid.reduce((t, q) => t + q.points.length, 0).toLocaleString(), o: new Set(solid.flatMap((q) => q.orientations.map((r) => `${r.x},${r.y},${r.z},${r.dip},${r.azimuth}`))).size.toLocaleString(), s: solid.length, b: workOpts.blockCells.toLocaleString() };
+        // Main (2026-11-13): over 70 % of this computer's memory the run is refused, as the unit limit is (a 76 GB request would freeze or swap
+        // a modest computer); 16 GB assumed where the memory cannot be read (the browser build)
+        const info = await problemReportInfo().catch(() => null), ramGB = info?.memoryGB?.total > 0 ? info.memoryGB.total : null;
+        if (gb > GEMPY_RAM_SHARE * (ramGB || GEMPY_ASSUMED_RAM_GB)) {
+          setImplicitBusy(false);
+          setNotices((p) => [...p, errorNotice(tr("Not run: the modelling engine would need about {g} GB of memory for this run, more than this computer can give it ({ram} GB in all{assumed}). Fewer units, a smaller Model area, merging units with Litho groups, or the Layer-cake method (Stack method) make it smaller.", { g: Math.round(gb), ram: Math.round(ramGB || GEMPY_ASSUMED_RAM_GB), assumed: ramGB ? "" : tr(" (assumed: the computer's memory could not be read)") }))]);
+          return;
+        }
+        const words = { g: gb < 10 ? gb.toFixed(1) : Math.round(gb), warn: "", m: mins.toLocaleString(), how, x: x < 10 ? x.toFixed(1) : Math.round(x), p: solid.reduce((t, q) => t + q.points.length, 0).toLocaleString(), o: new Set(solid.flatMap((q) => q.orientations.map((r) => `${r.x},${r.y},${r.z},${r.dip},${r.azimuth}`))).size.toLocaleString(), s: solid.length, b: workOpts.blockCells.toLocaleString() };
         if (!window.confirm(tr("This GemPy run is about {x} times the work of a run sized for a few minutes ({p} contact points, {o} orientations, {s} surfaces, a block of {b} cells): about {m} minutes {how}, and about {g} GB of memory{warn}. The 15-minute stop is off for it: Cancel on the status bar stops it. Fewer units, a smaller Model area or a lower Resolution (Model settings) shorten it. Run it?", words))) {
           setImplicitBusy(false);
           setNotices((p) => [...p, notice("Not run: about {x} times the work of a run sized for a few minutes ({p} contact points, {o} orientations, {s} surfaces, a block of {b} cells). Fewer units, a smaller Model area or a lower Resolution (Model settings) shorten it.", words)]);
@@ -478,7 +485,7 @@ export function createModellingRuns(ctx, mcRef) {
     const res = cakeRun ? await (async () => { // #2905; #3085 — in a worker, its progress on the status bar (one grid per top)
       clearInterval(rampTimer);
       const { runLayerCake } = await import("../../lib/layerCakeClient.js");
-      const r = await runLayerCake(specs.filter((sp) => !sp.fault), extent, resolution, { evalPts, onProgress: (done, total) => setTaskProgress?.({ label, pct: Math.round(8 + (90 * done) / total) }) });
+      const r = await runLayerCake(specs.filter((sp) => !sp.fault), extent, resolution, { evalPts, faults: specs.filter((sp) => sp.fault), onProgress: (done, total) => setTaskProgress?.({ label, pct: Math.round(8 + (90 * done) / total) }) }); // faults: #3086
       return r.error ? { ok: false, error: r.error } : { ok: true, surfaces: r.surfaces, block: r.block, evaluated: r.evaluated, cake: r };
     })() : await pythonImplicitModel(
       extent,
@@ -515,7 +522,11 @@ export function createModellingRuns(ctx, mcRef) {
       const rp = res.cake.report, g = res.cake.grid;
       const th = rp.units.filter((u) => u.thickness).map((u) => tr("{unit} {m} m in {n} holes{z}", { unit: u.unit, m: u.thickness.median.toFixed(1), n: u.thickness.holes, z: u.thickness.zeroHoles ? tr(" (absent in {k})", { k: u.thickness.zeroHoles }) : "" })).join(", ");
       const cut = rp.clamped.map((c) => tr("{unit} at {pct}% of the grid", { unit: c.unit, pct: Math.max(1, Math.round((100 * c.nodes) / c.of)) })).join(", ");
-      return notice("Layer-cake: each package's first top gridded through its picks ({nx} x {ny} nodes of {cell} m), each lower top the one above minus the unit's thickness. Median thickness: {th}.{cut}", { nx: g.nx, ny: g.ny, cell: Math.round(g.cell * 10) / 10, th: th || "—", cut: cut ? tr(" Held under the top above (an unconformity cutting the units under it, or picks above it): {list}.", { list: cut }) : "" });
+      const bl = rp.blocks; // #3086 — the fault blocks
+      const blocks = bl ? tr(" Faults {list}: {b} fault block(s), each its own layer-cake ({picks} picks), so the tops step at the faults (each fault a plane through its picks, along its measured dip).", { list: bl.faults.join(", "), b: bl.blocks, picks: bl.picks.join(" / ") })
+        + (bl.fromAll.length ? tr(" Too few picks in a block for: {list}; there the top comes from all the blocks' picks (not offset).", { list: [...new Set(bl.fromAll.map((f) => f.unit))].join(", ") }) : "") : "";
+      const leftOut = rp.faultsLeftOut?.length ? tr(" Left out of the layer-cake (no plane: no measured dip and its points in a line): {list}.", { list: rp.faultsLeftOut.join(", ") }) : "";
+      return notice("Layer-cake: each package's first top gridded through its picks ({nx} x {ny} nodes of {cell} m), each lower top the one above minus the unit's thickness. Median thickness: {th}.{cut}", { nx: g.nx, ny: g.ny, cell: Math.round(g.cell * 10) / 10, th: th || "—", cut: (cut ? tr(" Held under the top above (an unconformity cutting the units under it, or picks above it): {list}.", { list: cut }) : "") + blocks + leftOut });
     };
     const byName = Object.fromEntries((res.surfaces || []).map((s) => [s.name, s]));
     const newMeshes = [];
@@ -1503,7 +1514,7 @@ export function createModellingRuns(ctx, mcRef) {
   const runStackModel = async (unitNames, { method = "gempy" } = {}) => {
     if (!unitNames || unitNames.length < 2) return;
     const cake = method === "layercake"; // TASKS.csv #2905
-    if (cake && stackFaults.length) { setNotices((p) => [...p, notice("The layer-cake does not take faults yet: a fault would offset every grid it crosses. Remove the faults from the stack, or run it with GemPy.")]); return; }
+    // TASKS.csv #3086 — the layer-cake takes the stack's faults (a cake per fault block, lib/layerCake.js); it refused them before
     const traces = tracesRef.current;
     if (!traces.length) { setNotices((p) => [...p, noCollarsNotice(tr("the stratigraphic stack"), layers, assays)]); return; }
 
@@ -1638,7 +1649,7 @@ export function createModellingRuns(ctx, mcRef) {
         }
       }
     }
-    await runSurfaceStack([...faultSpecs, ...specs], { relation: breakAt.size ? "erode" : stackRelation, packages, ...(cake ? { engine: "layercake" } : { offerCake: !faultSpecs.length, pinchFor }) }); // TASKS.csv #271; #1309; #2905
+    await runSurfaceStack([...faultSpecs, ...specs], { relation: breakAt.size ? "erode" : stackRelation, packages, ...(cake ? { engine: "layercake" } : { offerCake: true /* #3086: the cake takes faults */, pinchFor }) }); // TASKS.csv #271; #1309; #2905
     if (faultWarnings.length) setNotices((p) => [...p, ...faultWarnings]);
   };
 

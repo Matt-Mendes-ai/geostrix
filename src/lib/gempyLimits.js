@@ -136,5 +136,7 @@ export function gempyRate(store = globalThis.localStorage) {
 // TASKS.csv #3215 — the engine's peak memory: the interpolation's matrix grows with the square of a field's data rows. Measured: 4,802 rows
 // (Mount Raymond at the point budget, one onlap field) peaked at 3.7 GB with the engine's ~0.3 GB baseline, so about 0.15 GB per
 // (1,000 rows)^2; 16,120 rows passed 13.5 GB without finishing (this gives 38 GB). GemPy solves one field at a time: the largest counts.
-export const GEMPY_GB_PER_MROWS2 = 0.15, GEMPY_BASE_GB = 0.3, GEMPY_MEMORY_WARN_GB = 8; // half of a 16 GB computer
+export const GEMPY_GB_PER_MROWS2 = 0.15, GEMPY_BASE_GB = 0.3;
+// Main (2026-11-13): a run whose engine would need over 70 % of this computer's memory is refused, not asked about; 16 GB where it cannot be read
+export const GEMPY_RAM_SHARE = 0.7, GEMPY_ASSUMED_RAM_GB = 16;
 export const gempyPeakGB = (specs, { relation = "erode" } = {}) => GEMPY_BASE_GB + GEMPY_GB_PER_MROWS2 * Math.max(0, ...fieldsOf(specs, relation).map((f) => (fieldRows(f) / 1000) ** 2));

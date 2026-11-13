@@ -960,8 +960,7 @@ export default function ModellingPanes(props) {
         </label>
         {stackMethod === "layercake" ? (
           <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", margin: "4px 0 6px", lineHeight: 1.45 }}>
-            {tr("Layer-cake: the first top is an elevation grid through its picks, and each lower top is the one above minus the unit's thickness in the holes (zero where the unit is absent), so tops never cross or fold back. For a flat-lying pile, in seconds. An unconformity starts a new layer-cake that cuts the units under it. Faults are not taken yet.")}
-            {stackFaults.length > 0 && <div style={{ color: "var(--color-danger-icon-strong)", marginTop: 3 }}>{tr("Remove the faults from the stack to run it as a layer-cake.")}</div>}
+            {tr("Layer-cake: the first top is an elevation grid through its picks, and each lower top is the one above minus the unit's thickness in the holes (zero where the unit is absent), so tops never cross or fold back. For a flat-lying pile, in seconds. An unconformity starts a new layer-cake that cuts the units under it. A fault in the stack splits it into fault blocks, each a layer-cake of its own, so the tops step at the fault (each fault a plane through its picks, along its measured dip).")}
           </div>
         ) : stackBreaks.some((b) => stackUnits.slice(0, -1).includes(b)) ? (
           <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", margin: "6px 0", lineHeight: 1.45 }}>{tr("Packages: units between unconformities share one field and stay parallel, and each package truncates the ones below. Units missing inside a package cannot pinch out. A surface flattens beyond its own contacts, so compare the predicted map with your map.")}</div>
