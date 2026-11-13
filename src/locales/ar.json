@@ -11414,5 +11414,7 @@
   "over": "فوق",
   "penalties: {list}": "الغرامات: {list}",
   "{t} t at a mass yield of {y} %": "{t} طن بمردود كتلي {y} %",
-  "— model —": "— النموذج —"
+  "— model —": "— النموذج —",
+  "Symbol size": "حجم الرمز",
+  "The length of the symbol's strike line on the ground (the 5.0 mm of the USGS standard); its other parts scale with it": "طول خط مضرب الرمز على الأرض (الـ 5.0 مم في معيار USGS)؛ تتدرج أجزاؤه الأخرى معه"
 }

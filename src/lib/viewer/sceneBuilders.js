@@ -6,6 +6,7 @@
 // the same dependencies. No React here, so they run in Node with three (test/sceneBuilders693.test.mjs).
 import * as THREE from "three";
 import { t as tr } from "../i18n.js"; // TASKS.csv #2958
+import { symbolForReading, symbolFrame, symbolGeometry, projectSymbolChoices } from "../structureSymbols.js"; // TASKS.csv #3066
 import { sampleTerrainElevation, terrainGroundAt } from "./geomath.js"; // terrainGroundAt: #2753 — NaN off the terrain / over its gaps
 import { drawMapLayer, mapStyleSignature, mapTextureSize, STRUCTURE_CLASS_COLORS, layerCategoryValue } from "../mapLayers.js"; // featureCategoryValue: #1601
 import { decodeNoDataMask, isNoData } from "../demFill.js"; // TASKS.csv #421
@@ -434,48 +435,48 @@ export function outcropZ(r, set, terrain, flatZ, oz) {
   if (r.z == null) return Number.isFinite(g) ? g : Number.isFinite(flatZ) ? flatZ : oz;
   return Number.isFinite(g) && set.snapToTerrain !== false ? g : r.z;
 }
+// TASKS.csv #3066 (Matt, 2026-11-12) — "Discs should be reserved for drillhole structures": an outcrop measurement is drawn as its USGS (FGDC)
+// map symbol lying on the ground (lib/structureSymbols.js; its family chosen per type, its variant by the reading's own dip), one
+// LineSegments and one Mesh of filled parts per set, coloured by the structure class. The set's size is the symbol's strike line (the
+// standard's 5.0 mm), so every part scales with it. An InstancedMesh of flat discs is kept for picking only (colour and depth writes
+// off): Identify still reads hit.instanceId as the row (lib/viewer/identify.js).
 export function syncSurfaceStructures(group, cache, surfaceStructures, { origin, terrain, flatZ = null }) {
   Object.values(cache).forEach((g) => { group.remove(g); g.children.forEach((c) => { c.geometry?.dispose?.(); c.material?.dispose?.(); c.dispose?.(); }); }); // #433 — InstancedMesh buffers
   for (const id of Object.keys(cache)) delete cache[id]; // the caller owns the object: emptied, not replaced
   const { x: ox, y: oy, z: oz } = origin;
-  const up = new THREE.Vector3(0, 1, 0);
+  const choices = projectSymbolChoices(surfaceStructures); // #3066 — the per-type choice
   surfaceStructures.forEach((set) => {
     const rows = set.rows || [];
     if (!rows.length) return;
-    const size = set.size ?? 25;
+    const size = set.size ?? 25, perMm = size / 5; // the 5.0 mm strike line is `size` metres
     const g = new THREE.Group();
-    const inst = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.5, 0.5, 0.06, 28), new THREE.MeshLambertMaterial({ side: THREE.DoubleSide }), rows.length);
-    const tickPos = new Float32Array(rows.length * 12); // two segments a row: the dip tick (and a null one), or a horizontal reading's cross (#2958)
+    const pick = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.5, 0.5, 0.06, 20), new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false }), rows.length);
     const m = new THREE.Matrix4(), q = new THREE.Quaternion(), p = new THREE.Vector3(), sc = new THREE.Vector3(size, size, size), col = new THREE.Color();
-    const pole = new THREE.Vector3(), down = new THREE.Vector3();
+    const lines = [], lineCol = [], tris = [], triCol = [];
     rows.forEach((r, i) => {
-      const z = outcropZ(r, set, terrain, flatZ, oz);
-      const dd = (r.dipDir * Math.PI) / 180, dp = (r.dip * Math.PI) / 180;
-      // Upward pole (E, N, U) -> scene (x = E, y = U, z = -N).
-      pole.set(Math.sin(dd) * Math.sin(dp), Math.cos(dp), -Math.cos(dd) * Math.sin(dp)).normalize();
-      q.setFromUnitVectors(up, pole);
-      const lift = size * 0.5 * Math.sin(dp) + 0.5; // keep the disc's lower rim out of the ground
-      p.set(r.x - ox, z - oz + lift, -(r.y - oy));
+      const z = outcropZ(r, set, terrain, flatZ, oz), y = z - oz + 0.3 + size * 0.004; // just above the ground
+      p.set(r.x - ox, y, -(r.y - oy));
       m.compose(p, q, sc);
-      inst.setMatrixAt(i, m);
-      inst.setColorAt(i, col.set(STRUCTURE_CLASS_COLORS[r.cls] || STRUCTURE_CLASS_COLORS.other));
-      down.set(Math.sin(dd) * Math.cos(dp), -Math.sin(dp), -Math.cos(dd) * Math.cos(dp)).multiplyScalar(size * 0.75);
-      // TASKS.csv #2084 (review #2013, Surface Geology) — the tick lay IN the disc's plane, inside its thin slab: from above the top face hid it
-      // except past the rim, so 35° -> 120 and 35° -> 300 drew the same ellipse. It now sits just above the upper face (along the pole), so in
-      // plan it runs from the centre toward the dip direction, long for a shallow dip, short for a steep one.
-      const lx = pole.x * size * 0.04, ly = pole.y * size * 0.04, lz = pole.z * size * 0.04;
-      if (r.horizontal || r.dip === 0) { // TASKS.csv #2958 — a flat plane has no dip direction to point at: the horizontal-bedding cross
-        const h = size * 0.4, y0 = p.y + ly;
-        tickPos.set([p.x - h, y0, p.z, p.x + h, y0, p.z, p.x, y0, p.z - h, p.x, y0, p.z + h], i * 12);
-      } else tickPos.set([p.x + lx, p.y + ly, p.z + lz, p.x + lx + down.x, p.y + ly + down.y, p.z + lz + down.z, p.x + lx, p.y + ly, p.z + lz, p.x + lx, p.y + ly, p.z + lz], i * 12);
+      pick.setMatrixAt(i, m);
+      col.set(STRUCTURE_CLASS_COLORS[r.cls] || STRUCTURE_CLASS_COLORS.other);
+      const { symbol } = symbolForReading(r, choices), frame = symbolFrame(Number.isFinite(r.dipDir) ? r.dipDir : 0), geo = symbolGeometry(symbol);
+      const at = (u, v) => { const [e, n] = frame(u, v); return [r.x - ox + e * perMm, y, -(r.y - oy + n * perMm)]; };
+      for (const [u1, v1, u2, v2] of geo.segments) { lines.push(...at(u1, v1), ...at(u2, v2)); lineCol.push(col.r, col.g, col.b, col.r, col.g, col.b); }
+      for (const [u1, v1, u2, v2, u3, v3] of geo.triangles) { tris.push(...at(u1, v1), ...at(u2, v2), ...at(u3, v3)); for (let k = 0; k < 3; k++) triCol.push(col.r, col.g, col.b); }
     });
-    inst.instanceMatrix.needsUpdate = true;
-    if (inst.instanceColor) inst.instanceColor.needsUpdate = true;
-    inst.computeBoundingSphere();
-    g.add(inst);
-    const tickGeo = new THREE.BufferGeometry();
-    tickGeo.setAttribute("position", new THREE.BufferAttribute(tickPos, 3));
-    g.add(new THREE.LineSegments(tickGeo, new THREE.LineBasicMaterial({ color: 0x1b1b1b })));
+    pick.instanceMatrix.needsUpdate = true;
+    pick.computeBoundingSphere();
+    g.add(pick);
+    const lg = new THREE.BufferGeometry();
+    lg.setAttribute("position", new THREE.BufferAttribute(new Float32Array(lines), 3));
+    lg.setAttribute("color", new THREE.BufferAttribute(new Float32Array(lineCol), 3));
+    g.add(new THREE.LineSegments(lg, new THREE.LineBasicMaterial({ vertexColors: true })));
+    if (tris.length) {
+      const tg = new THREE.BufferGeometry();
+      tg.setAttribute("position", new THREE.BufferAttribute(new Float32Array(tris), 3));
+      tg.setAttribute("color", new THREE.BufferAttribute(new Float32Array(triCol), 3));
+      g.add(new THREE.Mesh(tg, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide })));
+    }
     g.visible = set.visible !== false;
     group.add(g);
     cache[set.id] = g;
@@ -490,11 +491,14 @@ export function outcropLabelItems(surfaceStructures, { origin, terrain, flatZ = 
   for (const set of surfaceStructures || []) {
     if (set.labels !== "dip" || set.visible === false) continue;
     const size = set.size ?? 25;
+    const choices = projectSymbolChoices(surfaceStructures); // #3066
     for (const r of set.rows || []) {
       if (!Number.isFinite(r.dip) || !Number.isFinite(r.x) || !Number.isFinite(r.y)) continue;
-      const z = outcropZ(r, set, terrain, flatZ, oz); // #2753 — the disc's own elevation
-      const lift = size * 0.5 * Math.sin((r.dip * Math.PI) / 180) + 0.5;
-      items.push({ x: r.x - ox, y: z - oz + lift + size * 0.35, z: -(r.y - oy), text: String(Math.round(r.dip)), tip: `${set.name || ""}\n${r.cls || "other"}: ${r.horizontal ? tr("horizontal") : `${Math.round(r.dip)}° → ${Math.round(r.dipDir)}°`}` }); // horizontal: #2958
+      const { symbol } = symbolForReading(r, choices);
+      if (!symbol.label) continue; // #3066 — FGDC vertical and horizontal symbols carry no number
+      const z = outcropZ(r, set, terrain, flatZ, oz); // #2753 — the symbol's own elevation
+      const [le, ln] = symbolFrame(Number.isFinite(r.dipDir) ? r.dipDir : 0)(...symbol.label), perMm = size / 5;
+      items.push({ x: r.x - ox + le * perMm, y: z - oz + 0.3 + size * 0.1, z: -(r.y - oy + ln * perMm), text: String(Math.round(r.dip)), tip: `${set.name || ""}\n${r.cls || "other"}: ${r.horizontal ? tr("horizontal") : `${Math.round(r.dip)}° → ${Math.round(r.dipDir)}°`}` }); // horizontal: #2958
     }
   }
   return items;

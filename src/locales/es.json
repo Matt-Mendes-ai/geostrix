@@ -11414,5 +11414,7 @@
   "over": "sobre",
   "penalties: {list}": "penalidades: {list}",
   "{t} t at a mass yield of {y} %": "{t} t con un rendimiento másico de {y} %",
-  "— model —": "— modelo —"
+  "— model —": "— modelo —",
+  "Symbol size": "Tamaño del símbolo",
+  "The length of the symbol's strike line on the ground (the 5.0 mm of the USGS standard); its other parts scale with it": "La longitud de la línea de rumbo del símbolo sobre el terreno (los 5,0 mm del estándar USGS); sus demás partes escalan con ella"
 }

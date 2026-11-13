@@ -7,7 +7,7 @@ export default [
     summary: "Imports geological map layers (polygons, lines or points) and drapes them on the terrain in the 3D view, coloured by an attribute such as the unit code. It reads GeoPackage, shapefile (zipped, or the .shp with its .dbf and .prj), MapInfo TAB and MIF, GPX, GeoJSON and KML, and can reuse a QGIS .qml style. Each layer gets a card with its colours, legend, opacity and drape.",
     notFor: [
       "It is not a 3D model. To carry the map underground, use Model it on the ribbon (3D Modelling > Model from map).",
-      "Strike and dip measurements belong in Outcrop structures, where each is drawn as a disc in its plane. Imported here they are only dots.",
+      "Strike and dip measurements belong in Outcrop structures, where each is drawn as its USGS (FGDC) map symbol. Imported here they are only dots.",
       "Web map services (WMS / WFS) are under Maps > Web layers, and claim outlines under Maps > Mineral claims.",
       "A table with no map objects (a MapInfo .TAB without its .MAP and .ID) is not added here: import it from the tab its data belongs to.",
     ],
@@ -48,7 +48,7 @@ export default [
     id: "outcrop-structures",
     area: "Surface Geology",
     title: "Outcrop structures",
-    summary: "Imports outcrop structural measurements (dip with dip direction or strike) from a CSV or a MapInfo point table and draws each one as a disc lying in the measured plane, coloured by type: fault, bedding, foliation, cleavage, contact, vein, joint. Dip directions and strikes measured from true or magnetic north are turned to grid north at import. The sets feed the stereonet and 3D Modelling's Model from map.",
+    summary: "Imports outcrop structural measurements (dip with dip direction or strike) from a CSV or a MapInfo point table and draws each one as its USGS (FGDC) map symbol on the ground (strike line, dip tick and dip number; one symbol per structure type, changeable in the set's list), coloured by type: fault, bedding, foliation, cleavage, contact, vein, joint. Dip directions and strikes measured from true or magnetic north are turned to grid north at import. The sets feed the stereonet and 3D Modelling's Model from map.",
     notFor: [
       "Downhole structures (alpha / beta on oriented core) are drillhole data, imported with the holes, not here.",
       "Quadrant bearings such as N45E are not read: convert them to azimuths first. Rows without coordinates, a dip from 0 to 90, and a dip direction or a strike are skipped.",
@@ -62,8 +62,8 @@ export default [
       { name: "Import / Cancel", what: "Imports the set with the choices above, or drops it.", choose: "Read the message after Import: it says what was skipped, derived or converted." },
       { name: "Set card (counts by type)", what: "Each set shows its measurements counted by type, how many there are, and MN or TN when they were measured from magnetic or true north.", choose: "Check the counts against your notebook; a type column with unusual words lands in Other." },
       { name: "Export…", what: "Writes the set as GeoPackage, KML (Google Earth) or CSV, with dip, dip direction and right-hand-rule strike in grid and true north.", choose: "KML for a field check on a phone; GeoPackage for QGIS." },
-      { name: "Disc size", what: "The diameter of the discs in metres.", choose: "Big enough to read the dip at your usual viewing distance, small enough that neighbouring outcrops do not overlap." },
-      { name: "Sit every measurement on the terrain", what: "Places every disc on the terrain surface. Off: rows with a recorded elevation use it.", choose: "Keep it on: handheld GPS elevations are often tens of metres off the terrain. Turn it off only for surveyed elevations." },
+      { name: "Symbol size", what: "The length of each symbol's strike line in metres; the tick, triangles and dip number scale with it.", choose: "Big enough to read at your usual viewing distance, small enough that neighbouring outcrops do not overlap." },
+      { name: "Sit every measurement on the terrain", what: "Places every symbol on the terrain surface. Off: rows with a recorded elevation use it.", choose: "Keep it on: handheld GPS elevations are often tens of metres off the terrain. Turn it off only for surveyed elevations." },
     ],
     warnings: [
       { says: "Pick at least easting, northing, dip, and either dip direction or strike.", means: "A needed column is set to (none).", do: "Match the missing columns in the column check." },
@@ -80,7 +80,7 @@ export default [
       steps: [
         "File > Open Sample Project > Perk-Rocky (geological mapping, no drillholes).",
         "Surface Geology > Outcrop structures. The sample's outcrop measurements are loaded as one set; read the counts by type.",
-        "Move Disc size until the discs read clearly, and keep Sit every measurement on the terrain ticked.",
+        "Move Symbol size until the symbols read clearly, and keep Sit every measurement on the terrain ticked.",
         "Press Stereonet on the ribbon to see the bedding and veins.",
         "The files do not say which north the dip directions are from, and GeoStrix took grid north. If they were compass readings, import the PR_Master_StrPoint .TAB, .MAP, .ID and .DAT again with North set to Magnetic north (compass) and the mapping date.",
       ],

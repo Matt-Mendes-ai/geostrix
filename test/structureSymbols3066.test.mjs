@@ -49,3 +49,23 @@ test("the Surface Geology panel: a line per type with its symbol and a choice sa
   assert.match(p, /updateSurfaceStructureSet\(set\.id, \{ symbolByType: \{ \.\.\.\(set\.symbolByType \|\| \{\}\), \[key\]: family \} \}\)/);
   assert.match(p, /aria-label=\{tr\("Symbol for \{type\}", \{ type: t\.name \}\)\}/);
 });
+
+import { symbolPixels, symbolPng, symbolIconPath } from "../src/lib/structureSymbolPng.js";
+import { featuresToKml } from "../src/lib/overlayExport.js";
+test("KMZ icons: a PNG per symbol, the strike line north-south and the dip side east; the KML names each point's icon", () => {
+  const p = symbolPixels(SYMBOLS["6.2"], 64), at = (x, y) => p.rgba[(y * 64 + x) * 4 + 3];
+  assert.equal(at(32, 4), 255, "the strike line reaches north"); assert.equal(at(32, 59), 255, "and south");
+  assert.equal(at(40, 32), 255, "the tick to the east (down dip)"); assert.equal(at(24, 32), 0, "nothing to the west");
+  const png = symbolPng(SYMBOLS["8.3.2"]); assert.deepEqual([...png.slice(1, 4)], [80, 78, 71]);
+  assert.equal(symbolIconPath(SYMBOLS["6.2"]), "files/fgdc_6_2.png"); assert.equal(symbolIconPath(SYMBOLS["1.3+1.4.1"]), "files/fgdc_1_3_1_4_1.png");
+  const kml = featuresToKml({ geomType: "point", features: [{ geometry: [[1, 2, NaN]], attributes: {} }] }, { toLonLat: (x, y) => [x, y], headingOf: () => 30, iconOf: () => "files/fgdc_6_2.png" });
+  assert.match(kml, /<heading>30<\/heading><Icon><href>files\/fgdc_6_2\.png<\/href><\/Icon>/);
+});
+import { outcropLegendGroup } from "../src/lib/legendGroups.js";
+test("the legend: a row per type with its symbol in the class colour, classes in order, a class the colours do not know last", () => {
+  const rows = [{ type: "L1 lineation", cls: "lineation", dip: 20 }, { type: "Fault", cls: "fault", dip: 70 }, { type: "S1 schistosity", cls: "foliation", dip: 60 }, { type: "Bedding", cls: "bedding", dip: 30 }, { type: "Bedding", cls: "bedding", dip: 0 }];
+  const g = outcropLegendGroup({ surfaceStructures: [{ name: "a", rows, symbolByType: { "S1 SCHISTOSITY": "foliation" } }] });
+  assert.deepEqual(g.items.map((i) => i[0]), ["Fault", "Bedding", "S1 schistosity", "L1 lineation"]);
+  assert.deepEqual(g.items.map((i) => i[2].fgdc), ["2.15.1", "6.2", "8.1.2", "9.3"]);
+  assert.match(g.items[0][2].svg, /^<svg/); assert.match(g.items[0][2].svg, /#b5179e/i);
+});

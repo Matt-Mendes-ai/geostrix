@@ -41,11 +41,11 @@ test("#693 syncSurfaceStructures: one instanced disc mesh + ticks per set; the c
   assert.equal(inst.count, 2);
   const m = new THREE.Matrix4(), pos = new THREE.Vector3(), q = new THREE.Quaternion(), sc = new THREE.Vector3();
   inst.getMatrixAt(0, m); m.decompose(pos, q, sc);
-  assert.ok(Math.abs(pos.y - (200 + 0.5)) < 1e-6, `flat disc on the terrain + 0.5 m: ${pos.y}`);
-  // TASKS.csv #2958 — two segments a row: the flat disc (dip 0) draws the horizontal-bedding cross, the dipping one its tick and a null segment
-  assert.equal(ticks.geometry.attributes.position.count, 8);
-  const tp = ticks.geometry.attributes.position.array;
-  assert.ok(Math.abs(Math.abs(tp[3] - tp[0]) - 8) < 1e-6 && Math.abs(Math.abs(tp[11] - tp[8]) - 8) < 1e-6, "a cross 0.8 x size wide each way");
+  // TASKS.csv #3066 — the disc is a pick target now (no colour): the symbols lie flat just above the ground (0.3 m + 0.004 x size)
+  assert.ok(Math.abs(pos.y - (200 + 0.3 + 10 * 0.004)) < 1e-5, `the pick disc on the terrain: ${pos.y}`);
+  assert.equal(inst.material.colorWrite, false);
+  // the dip-0 row: FGDC 6.1 (a 24-sided circle and its cross: 26 segments); the dip-90 row: 6.3 (the strike line and the 2.0 mm cross: 2)
+  assert.equal(ticks.geometry.attributes.position.count, (26 + 2) * 2);
 });
 
 test("#693 syncOmfObjects: points, line segments and surfaces; unknown kinds skipped", () => {

@@ -131,8 +131,9 @@ export async function lonLatTransform(epsg) {
 }
 // { features, geomType } in project coordinates -> KML text. opts: { name, toLonLat, colorOf(f) -> "#rrggbb", nameOf(f),
 // headingOf(f) (point icon rotation: a strike symbol), lineColor, fillAlpha, iconHref (TASKS.csv #2681: the points' icon, e.g. the strike
-// symbol packed beside the KML in a .kmz, lib/strikeIcon.js; without it Google Earth draws its pushpin) }
-export function featuresToKml({ features, geomType }, { name = "GeoStrix export", toLonLat, colorOf = () => "#e2a63c", nameOf = () => "", headingOf = null, fillAlpha = 0.35, iconHref = null } = {}) {
+// symbol packed beside the KML in a .kmz, lib/strikeIcon.js; without it Google Earth draws its pushpin); iconOf(f) (TASKS.csv #3066: each
+// point its own icon, e.g. its USGS structure symbol; falls back to iconHref) }
+export function featuresToKml({ features, geomType }, { name = "GeoStrix export", toLonLat, colorOf = () => "#e2a63c", nameOf = () => "", headingOf = null, fillAlpha = 0.35, iconHref = null, iconOf = null } = {}) {
   const icon = iconHref ? `<Icon><href>${esc(iconHref)}</href></Icon>` : ""; // #2681
   if (!toLonLat) throw new Error("featuresToKml needs a coordinate transform to WGS84");
   const ll = ([x, y, z]) => { const [lon, lat] = toLonLat(x, y); return Number.isFinite(z) ? `${r8(lon)},${r8(lat)},${Math.round(z * 100) / 100}` : `${r8(lon)},${r8(lat)}`; }; // no altitude when none is known: #2090
@@ -161,7 +162,8 @@ export function featuresToKml({ features, geomType }, { name = "GeoStrix export"
     }
     const heading = headingOf ? headingOf(f) : null;
     // #2681 — an inline IconStyle replaces the shared one: it carries the colour and the icon too, not the heading alone
-    const inline = Number.isFinite(heading) ? `<Style><IconStyle>${iconHref ? `<color>${kmlColor(colorOf(f))}</color>` : ""}<heading>${Math.round(heading * 10) / 10}</heading>${icon}</IconStyle></Style>` : "";
+    const own = iconOf ? iconOf(f) : null, fIcon = own ? `<Icon><href>${esc(own)}</href></Icon>` : icon; // #3066 — a symbol per point
+    const inline = Number.isFinite(heading) ? `<Style><IconStyle>${iconHref || own ? `<color>${kmlColor(colorOf(f))}</color>` : ""}<heading>${Math.round(heading * 10) / 10}</heading>${fIcon}</IconStyle></Style>` : "";
     return `    <Placemark><name>${esc(nameOf(f))}</name><styleUrl>#${styleFor(colorOf(f))}</styleUrl>${inline}${data(f.attributes)}${geom}</Placemark>`;
   });
   const styleXml = [...styles].map(([hex, id]) => `    <Style id="${id}"><LineStyle><color>${kmlColor(hex)}</color><width>2</width></LineStyle><PolyStyle><color>${kmlColor(hex, fillAlpha)}</color></PolyStyle><IconStyle><color>${kmlColor(hex)}</color>${icon}</IconStyle></Style>`);
