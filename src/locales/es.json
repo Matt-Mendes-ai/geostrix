@@ -11338,5 +11338,13 @@
   "no density, so no tonnes": "ninguna densidad, así que sin toneladas",
   "{pct}% of the estimated metal ({k} of {n} blocks) lies below the deepest sample of every hole within {r} m: carried down past the drilling, within the {h} m Vertical reach.": "El {pct} % del metal estimado ({k} de {n} bloques) está por debajo de la muestra más profunda de cada sondaje a menos de {r} m: llevado hacia abajo más allá de la perforación, dentro del alcance vertical de {h} m.",
   "Kriged before {n} block(s) were removed (above the ground, outside the area or outside the solid), so more were kriged than are kept.": "Krigeados antes de quitar {n} bloque(s) (sobre el terreno, fuera del área o fuera del sólido), así que se krigearon más de los que se conservan.",
-  "Cutoff {v}: the 90th percentile of the {n} {symbol} values, proposed when {symbol} was chosen. Type your own.": "Ley de corte {v}: el percentil 90 de los {n} valores de {symbol}, propuesto al elegir {symbol}. Escriba la suya."
+  "Cutoff {v}: the 90th percentile of the {n} {symbol} values, proposed when {symbol} was chosen. Type your own.": "Ley de corte {v}: el percentil 90 de los {n} valores de {symbol}, propuesto al elegir {symbol}. Escriba la suya.",
+  "Report these grades too ({n})": "Informar también estas leyes ({n})",
+  "Report these grades too": "Informar también estas leyes",
+  "Each chosen model's grade over the ore of the pit (not priced), joined by block centre: a model on the same grid as the pit's block model.": "La ley de cada modelo elegido sobre el mineral del rajo (sin precio), unida por el centro de bloque: un modelo en la misma grilla que el modelo de bloques del rajo.",
+  "A cut-off over 100 %: no block can pay at these inputs. Check the price unit and the grade's basis (a price per tonne of the element against a grade stored as its oxide?).": "Una ley de corte sobre 100 %: ningún bloque puede pagar con estos datos. Revise la unidad del precio y la base de la ley (¿un precio por tonelada del elemento frente a una ley guardada como su óxido?).",
+  "Other grades of the ore: {list}.": "Otras leyes del mineral: {list}.",
+  "{m}: not on the same grid (no block matched)": "{m}: no está en la misma grilla (ningún bloque coincidió)",
+  "{m}: no value in the ore": "{m}: sin valor en el mineral",
+  "({p} % of the ore has a value)": "({p} % del mineral tiene un valor)"
 }

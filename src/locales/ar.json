@@ -11338,5 +11338,13 @@
   "no density, so no tonnes": "لا كثافة، فلا أطنان",
   "{pct}% of the estimated metal ({k} of {n} blocks) lies below the deepest sample of every hole within {r} m: carried down past the drilling, within the {h} m Vertical reach.": "{pct}% من المعدن المقدَّر ({k} من {n} كتلة) يقع تحت أعمق عينة لكل ثقب ضمن {r} م: محمول إلى الأسفل بعد الحفر، ضمن المدى الرأسي البالغ {h} م.",
   "Kriged before {n} block(s) were removed (above the ground, outside the area or outside the solid), so more were kriged than are kept.": "كُرِّجت قبل إزالة {n} كتلة (فوق الأرض أو خارج المنطقة أو خارج المجسم)، لذا كُرِّج أكثر مما حُفظ.",
-  "Cutoff {v}: the 90th percentile of the {n} {symbol} values, proposed when {symbol} was chosen. Type your own.": "حد القطع {v}: المئين التسعون لقيم {symbol} البالغة {n}، مقترح عند اختيار {symbol}. اكتب قيمتك."
+  "Cutoff {v}: the 90th percentile of the {n} {symbol} values, proposed when {symbol} was chosen. Type your own.": "حد القطع {v}: المئين التسعون لقيم {symbol} البالغة {n}، مقترح عند اختيار {symbol}. اكتب قيمتك.",
+  "Report these grades too ({n})": "الإبلاغ عن هذه المحتويات أيضًا ({n})",
+  "Report these grades too": "الإبلاغ عن هذه المحتويات أيضًا",
+  "Each chosen model's grade over the ore of the pit (not priced), joined by block centre: a model on the same grid as the pit's block model.": "محتوى كل نموذج مختار على خام الحفرة (دون تسعير)، مربوطًا بمركز الكتلة: نموذج على الشبكة نفسها لنموذج كتل الحفرة.",
+  "A cut-off over 100 %: no block can pay at these inputs. Check the price unit and the grade's basis (a price per tonne of the element against a grade stored as its oxide?).": "محتوى حدي فوق 100 %: لا تستطيع أي كتلة أن تدفع بهذه المدخلات. تحقق من وحدة السعر وأساس المحتوى (سعر لكل طن من العنصر مقابل محتوى مُخزَّن كأكسيده؟).",
+  "Other grades of the ore: {list}.": "محتويات أخرى للخام: {list}.",
+  "{m}: not on the same grid (no block matched)": "{m}: ليس على الشبكة نفسها (لم تتطابق أي كتلة)",
+  "{m}: no value in the ore": "{m}: لا قيمة في الخام",
+  "({p} % of the ore has a value)": "({p} % من الخام له قيمة)"
 }

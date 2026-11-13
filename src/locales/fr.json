@@ -11338,5 +11338,13 @@
   "no density, so no tonnes": "aucune densité, donc pas de tonnes",
   "{pct}% of the estimated metal ({k} of {n} blocks) lies below the deepest sample of every hole within {r} m: carried down past the drilling, within the {h} m Vertical reach.": "{pct} % du métal estimé ({k} blocs sur {n}) se trouve sous l'échantillon le plus profond de chaque sondage à moins de {r} m : porté vers le bas au-delà des forages, dans la portée verticale de {h} m.",
   "Kriged before {n} block(s) were removed (above the ground, outside the area or outside the solid), so more were kriged than are kept.": "Krigés avant que {n} bloc(s) ne soient retirés (au-dessus du sol, hors de la zone ou hors du solide) : davantage ont été krigés que conservés.",
-  "Cutoff {v}: the 90th percentile of the {n} {symbol} values, proposed when {symbol} was chosen. Type your own.": "Teneur de coupure {v} : le 90e centile des {n} valeurs de {symbol}, proposé au choix de {symbol}. Saisissez la vôtre."
+  "Cutoff {v}: the 90th percentile of the {n} {symbol} values, proposed when {symbol} was chosen. Type your own.": "Teneur de coupure {v} : le 90e centile des {n} valeurs de {symbol}, proposé au choix de {symbol}. Saisissez la vôtre.",
+  "Report these grades too ({n})": "Rapporter aussi ces teneurs ({n})",
+  "Report these grades too": "Rapporter aussi ces teneurs",
+  "Each chosen model's grade over the ore of the pit (not priced), joined by block centre: a model on the same grid as the pit's block model.": "La teneur de chaque modèle choisi sur le minerai de la fosse (sans prix), jointe par le centre des blocs : un modèle sur la même grille que le modèle de blocs de la fosse.",
+  "A cut-off over 100 %: no block can pay at these inputs. Check the price unit and the grade's basis (a price per tonne of the element against a grade stored as its oxide?).": "Une teneur de coupure au-dessus de 100 % : aucun bloc ne peut payer avec ces données. Vérifiez l'unité du prix et la base de la teneur (un prix par tonne de l'élément face à une teneur enregistrée comme son oxyde ?).",
+  "Other grades of the ore: {list}.": "Autres teneurs du minerai : {list}.",
+  "{m}: not on the same grid (no block matched)": "{m} : pas sur la même grille (aucun bloc ne correspond)",
+  "{m}: no value in the ore": "{m} : aucune valeur dans le minerai",
+  "({p} % of the ore has a value)": "({p} % du minerai a une valeur)"
 }

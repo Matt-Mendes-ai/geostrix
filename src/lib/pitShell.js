@@ -107,10 +107,17 @@ export function oxideSuffix(v, unit, element, fmt = (x) => String(Number(x.toPre
 }
 // "0.555 % Li (1.19 % Li2O)", "6740 ppm Cu (0.674 % Cu)", "0.391 g/t Au" (a ppm model, #2111); fmt(v) -> text (default three significant
 // figures). No element: the unit alone, as before.
+// TASKS.csv #2995 (review #2876, WA iron) — a unit that already names the element or its oxide ('% SiO2' for a Si model) is not followed by
+// the element again: the pane read 'Cut-off grade at these inputs: 118 % SiO2 Si.'
+export const unitWithElement = (unit, element) => {
+  const u = gradeUnitText(unit, element);
+  if (!element) return u;
+  const esc = String(element).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`(^|[^A-Za-z])${esc}(?![a-z])`).test(u) ? u : `${u} ${element}`.trim();
+};
 export function gradeWithElement(v, unit, element, fmt = (x) => String(Number(x.toPrecision(3)))) {
   if (v == null || !Number.isFinite(v)) return "—";
-  const el = element ? ` ${element}` : "";
-  return `${fmt(v)} ${gradeUnitText(unit, element)}${el}${oxideSuffix(v, unit, element, fmt)}`.replace(/ {2,}/g, " ");
+  return `${fmt(v)} ${unitWithElement(unit, element)}${oxideSuffix(v, unit, element, fmt)}`.replace(/ {2,}/g, " "); // unitWithElement: #2995
 }
 // the element a block model holds: its estimate's parameters, else a symbol at the start of its name ("Cu estimate (idw2, 20m)")
 // TASKS.csv #2436 — a uranium oxide named inside a longer field ("Gamma: eU3O8_cased_ppm", a logged gamma grade) is that oxide, priced per lb U3O8
@@ -161,6 +168,17 @@ export function joinByProduct(cells, byCells) {
   for (const b of byCells || []) if (Number.isFinite(b.value)) map.set(key(b), b.value);
   let matched = 0;
   const out = cells.map((c) => { const v = map.get(key(c)); if (v == null) return c; matched++; return { ...c, by: v }; });
+  return { cells: out, matched };
+}
+
+// TASKS.csv #2995 (review #2876, WA iron) — other grades of the same blocks ('Report these grades too': SiO2, Al2O3, P beside the Fe of the
+// ore), joined by block centre as the by-product is. also: [{ label, unit, cells: [{ x, y, z, value }] }] -> { cells (each with .also: a
+// value or NaN per entry), matched: [count per entry] }
+export function joinAlso(cells, also) {
+  const key = (c) => `${Math.round(c.x * 100)}|${Math.round(c.y * 100)}|${Math.round(c.z * 100)}`;
+  const maps = (also || []).map((a) => { const m = new Map(); for (const b of a.cells || []) if (Number.isFinite(b.value)) m.set(key(b), b.value); return m; });
+  const matched = maps.map(() => 0);
+  const out = cells.map((c) => { const k = key(c), vals = maps.map((m, i) => { const v = m.get(k); if (v == null) return NaN; matched[i]++; return v; }); return { ...c, also: vals }; });
   return { cells: out, matched };
 }
 
@@ -471,6 +489,8 @@ export function buildPitGrid(cells, { size = null, slopeDeg, sectorSlopes = null
     if (zTop > top) { nz = Math.max(1, Math.ceil((zTop - zLow) / dz)); while (nx * ny * nz > maxCells) { dz *= 1.25; nz = Math.max(1, Math.ceil((zTop - zLow) / dz)); coarsened = true; } }
   }
   const z0 = zLow, n = nx * ny * nz, value = new Float64Array(n), oreT = new Float32Array(n), metalU = new Float64Array(n), metalU2 = new Float64Array(n) /* the by-product's metal in the ore (#1917) */, rockT = new Float32Array(n), modelT = new Float32Array(n);
+  const nAlso = good.length && Array.isArray(good[0].also) ? good[0].also.length : 0; // #2995 — other grades: metal and ore tonnes with a grade, per entry
+  const metalA = Array.from({ length: nAlso }, () => new Float64Array(n)), oreA = Array.from({ length: nAlso }, () => new Float64Array(n));
   const oreThin = new Float32Array(n), oreExtrap = new Float32Array(n); // #1354 — ore resting on one hole / classed extrapolated or unsupported
   const oreBeyond = new Float32Array(n); // TASKS.csv #2435 — ore in blocks the estimate flagged above or below every sample informing them (#2417)
   const oreFromLog = new Float32Array(n); // TASKS.csv #2748 — the ore's metal from a picked log's readings (the estimate's cell.fromLog, #2721)
@@ -514,7 +534,7 @@ export function buildPitGrid(cells, { size = null, slopeDeg, sectorSlopes = null
       const barren = v * (fw * (dW || 0) + (1 - fw) * wd), t = v * (fw * (dW || 0) + (1 - fw) * (own ?? (ore ? density : wd))); // #2437
       modelV[q] += v; modelT[q] += t; rockT[q] += t - barren;
       value[q] += barren * miningCost + t * margin; // it was counted as barren: take that back
-      if (ore) { oreT[q] += t; metalU[q] += t * c.value; if (c.by > 0) metalU2[q] += t * c.by; if (oneHoleBlock(c)) oreThin[q] += t; /* #1617 */ if (c.support === "extrapolated" || c.support === "unsupported") oreExtrap[q] += t; if (c.beyond === "above" || c.beyond === "below") oreBeyond[q] += t; /* #2435 */ if (c.nearUnsampled) oreNearUns[q] += t; if (c.fromLog > 0) oreFromLog[q] += t * c.value * c.fromLog; /* #2748 */ /* #2596 */ }
+      if (ore) { oreT[q] += t; metalU[q] += t * c.value; if (c.by > 0) metalU2[q] += t * c.by; for (let a = 0; a < nAlso; a++) { const v = c.also[a]; if (Number.isFinite(v)) { metalA[a][q] += t * v; oreA[a][q] += t; } } /* #2995 */ if (oneHoleBlock(c)) oreThin[q] += t; /* #1617 */ if (c.support === "extrapolated" || c.support === "unsupported") oreExtrap[q] += t; if (c.beyond === "above" || c.beyond === "below") oreBeyond[q] += t; /* #2435 */ if (c.nearUnsampled) oreNearUns[q] += t; if (c.fromLog > 0) oreFromLog[q] += t * c.value * c.fromLog; /* #2748 */ /* #2596 */ }
     }
   });
   // TASKS.csv #2665 (follow-up of #2593, review #2486 WA lithium) — an optional limit: the pit may not reach further than limitM metres in plan
@@ -538,7 +558,7 @@ export function buildPitGrid(cells, { size = null, slopeDeg, sectorSlopes = null
       if (any) limitedCols++;
     }
   }
-  return { limitM: limitM != null && Number.isFinite(limitM) ? limitM : null, limitedCols /* #2665 */, nx, ny, nz, x0, y0, z0, dx, dy, dz, ground, value, oreT, metalU, metalU2, rockT, modelT, oreThin, oreExtrap, oreBeyond, oreNearUns /* #2596 */, oreFromLog /* #2748 */, rockW /* #2597 */, weatheredDensity: dW, coarsened, topAssumed, oreAboveGroundT, oreAboveGroundBlocks, askedSize, modelCell, modelCellZ, atModelBase: z0 <= modelBase + 1e-6 };
+  return { limitM: limitM != null && Number.isFinite(limitM) ? limitM : null, limitedCols /* #2665 */, nx, ny, nz, x0, y0, z0, dx, dy, dz, ground, value, oreT, metalU, metalU2, metalA, oreA /* #2995 */, rockT, modelT, oreThin, oreExtrap, oreBeyond, oreNearUns /* #2596 */, oreFromLog /* #2748 */, rockW /* #2597 */, weatheredDensity: dW, coarsened, topAssumed, oreAboveGroundT, oreAboveGroundBlocks, askedSize, modelCell, modelCellZ, atModelBase: z0 <= modelBase + 1e-6 };
 }
 
 // ---------- the solve ----------
@@ -639,7 +659,9 @@ export function pitSummary(grid, mined) {
     thin += grid.oreThin?.[q] || 0; extrap += grid.oreExtrap?.[q] || 0; beyond += grid.oreBeyond?.[q] || 0; nearUns += grid.oreNearUns?.[q] || 0; /* #2596 */ fromLog += grid.oreFromLog?.[q] || 0; /* #2748 */ weath += grid.rockW?.[q] || 0;
   }
   const wasteT = rockT - oreT;
-  return { blocks, oreT, wasteT, rockT, stripRatio: oreT > 0 ? wasteT / oreT : null, meanGrade: oreT > 0 ? metalU / oreT : null, metalU, metalU2, meanGrade2: oreT > 0 ? metalU2 / oreT : null /* #1917 */, money, barrenShare: rockT > 0 ? 1 - modelT / rockT : 0,
+  // #2995 — each other grade over the ore: its mean over the ore tonnes that have one, and the share of the ore they are
+  const also = (grid.metalA || []).map((m, a) => { let mt = 0, ot = 0; for (let q = 0; q < mined.length; q++) if (mined[q]) { mt += m[q]; ot += grid.oreA[a][q]; } return { meanGrade: ot > 0 ? mt / ot : null, oreShare: oreT > 0 ? ot / oreT : 0 }; });
+  return { blocks, oreT, wasteT, rockT, stripRatio: oreT > 0 ? wasteT / oreT : null, meanGrade: oreT > 0 ? metalU / oreT : null, metalU, metalU2, also, meanGrade2: oreT > 0 ? metalU2 / oreT : null /* #1917 */, money, barrenShare: rockT > 0 ? 1 - modelT / rockT : 0,
     oreSingleHoleShare: oreT > 0 ? thin / oreT : 0, oreExtrapolatedShare: oreT > 0 ? extrap / oreT : 0, oreBeyondSampleShare: oreT > 0 ? beyond / oreT : 0, oreNearUnsampledShare: oreT > 0 ? nearUns / oreT : 0 /* #2596 */, oreFromLogMetalShare: metalU > 0 ? fromLog / metalU : 0 /* #2748 — of the metal, as Grade-tonnage's column */, weatheredT: weath }; // #1354; beyond: #2435; weatheredT: #2597
 }
 
@@ -744,6 +766,9 @@ export function runPitShell(inputs, { groundAt = null, collars = null, onProgres
   // TASKS.csv #1917 — the by-product's grades joined to the blocks; another grid matches no block and is refused
   let cells = inputs.cells, byMatched = null;
   if (inputs.by) { const j = joinByProduct(cells, inputs.byCells); if (!j.matched) return { failed: "by-grid" }; cells = j.cells; byMatched = j.matched / cells.length; }
+  // #2995 — other grades of the same blocks (not priced: reported only)
+  let alsoInfo = null;
+  if (inputs.alsoCells?.length) { const j = joinAlso(cells, inputs.alsoCells); cells = j.cells; alsoInfo = inputs.alsoCells.map((a, k) => ({ label: a.label, unit: a.unit || "", element: a.element || null, matchedShare: cells.length ? j.matched[k] / cells.length : 0 })); }
   // TASKS.csv #2276 — collars drilled from underground are not the ground: a pit cut from the cuddies (2.38 Moz, $2.94B, 50-320 m below the real
   // surface) is refused, with the counts, instead of being priced
   if (!groundAt && collars?.length) { const ug = collarsLookUnderground(collars); if (ug.underground) return { failed: "underground", underground: ug }; }
@@ -758,7 +783,8 @@ export function runPitShell(inputs, { groundAt = null, collars = null, onProgres
   if (!summary.blocks) return { empty: true, cutoff: economics.cutoff, cell: [grid.dx, grid.dy, grid.dz], groundSource };
   // #1917 — the by-product's figures: its metal, mean grade over the ore, its share of the revenue, and how many blocks carried it
   const by = economics.by ? (() => { const r1 = summary.metalU * economics.revenuePerGrade, r2 = summary.metalU2 * economics.by.revenuePerGrade; return { metalU: summary.metalU2, meanGrade: summary.meanGrade2, metalUnit: economics.by.metalUnit, metalFactor: economics.by.metalFactor, cutoff: economics.by.cutoff, revenueShare: r1 + r2 > 0 ? r2 / (r1 + r2) : 0, matchedShare: byMatched }; })() : null;
-  return { ...summary, ...pitSurface(grid, solve.mined), by, parts: pitParts(grid, solve.mined) /* #1608 */, limitM: grid.limitM, limitedCols: grid.limitedCols /* #2665 */, oreAboveGroundT: grid.oreAboveGroundT, oreAboveGroundBlocks: grid.oreAboveGroundBlocks /* #1616 */, askedSize: grid.askedSize, modelCellM: grid.modelCell, modelCellZM: grid.modelCellZ /* #2110 */ /* #1610 */, cutoff: economics.cutoff, cutoffTyped: !!economics.cutoffTyped, breakEven: economics.breakEven ?? null /* #2986 */, metalUnit: economics.metalUnit, metalFactor: economics.metalFactor, cell: [grid.dx, grid.dy, grid.dz], grid: [grid.nx, grid.ny, grid.nz], walls: wallAngles(grid.dx, grid.dy, grid.dz, inputs.slopeDeg, null, inputs.sectorSlopes) /* levels: #2985 */, upperWalls: inputs.upperSlope?.slopeDeg > 0 && inputs.upperSlope.slopeDeg < 90 ? wallAngles(grid.dx, grid.dy, grid.dz, inputs.upperSlope.slopeDeg) : null /* #2985 */, groundSource, nodes: solve.nodes, arcs: solve.arcs, topAssumed: grid.topAssumed / (grid.nx * grid.ny), coarsened: grid.coarsened };
+  const alsoGrades = alsoInfo ? alsoInfo.map((a, k) => ({ ...a, meanGrade: summary.also[k]?.meanGrade ?? null, oreShare: summary.also[k]?.oreShare ?? 0 })) : null; // #2995
+  return { ...summary, alsoGrades, ...pitSurface(grid, solve.mined), by, parts: pitParts(grid, solve.mined) /* #1608 */, limitM: grid.limitM, limitedCols: grid.limitedCols /* #2665 */, oreAboveGroundT: grid.oreAboveGroundT, oreAboveGroundBlocks: grid.oreAboveGroundBlocks /* #1616 */, askedSize: grid.askedSize, modelCellM: grid.modelCell, modelCellZM: grid.modelCellZ /* #2110 */ /* #1610 */, cutoff: economics.cutoff, cutoffTyped: !!economics.cutoffTyped, breakEven: economics.breakEven ?? null /* #2986 */, metalUnit: economics.metalUnit, metalFactor: economics.metalFactor, cell: [grid.dx, grid.dy, grid.dz], grid: [grid.nx, grid.ny, grid.nz], walls: wallAngles(grid.dx, grid.dy, grid.dz, inputs.slopeDeg, null, inputs.sectorSlopes) /* levels: #2985 */, upperWalls: inputs.upperSlope?.slopeDeg > 0 && inputs.upperSlope.slopeDeg < 90 ? wallAngles(grid.dx, grid.dy, grid.dz, inputs.upperSlope.slopeDeg) : null /* #2985 */, groundSource, nodes: solve.nodes, arcs: solve.arcs, topAssumed: grid.topAssumed / (grid.nx * grid.ny), coarsened: grid.coarsened };
 }
 
 // TASKS.csv #1875 — what a shell is worth at the ENTERED price (#1609 valued a revenue-factor shell at the scaled price): the

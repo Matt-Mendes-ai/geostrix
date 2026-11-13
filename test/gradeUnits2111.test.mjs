@@ -22,7 +22,7 @@ test("the review's figures: Cu in ppm reads in %, Au in ppm as g/t, ppb gold wit
 
 test("the panes: the cut-off lines, the solid's mean grade and the stope cut-off in %", () => {
   const pit = fs.readFileSync("src/components/PitShellPane.jsx", "utf8");
-  assert.equal((pit.match(/gradeUnitText\(/g) || []).length, 7); // #2986: + the typed cut-off's field, its line and the pit's name
+  assert.equal((pit.match(/gradeUnitText\(|unitWithElement\(/g) || []).length, 7); // #2986: + the typed cut-off's field, its line and the pit's name; #2995: four of them through unitWithElement (the unit once)
   const st = fs.readFileSync("src/components/StopesPane.jsx", "utf8");
   assert.match(st, /const cutV = v\("cutoff"\) == null \? null : cutUnit\.toModel\(v\("cutoff"\)\);/); // #2666: the unit list (% for ppm Cu among them)
   assert.match(st, /\{ cutoff: cutV, levelH/);
