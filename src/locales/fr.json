@@ -11828,5 +11828,9 @@
   "e.g. 12.5, -45.5 or 12.5 N 45.5 W": "p. ex. 12.5, -45.5 ou 12.5 N 45.5 W",
   "{fileName}: {cols} read as dates (stored as year-month-day); each also has a year field, to filter and colour the holes by.": "{fileName} : {cols} lues comme des dates (enregistrées en année-mois-jour) ; chacune a aussi un champ d'année, pour filtrer et colorer les sondages.",
   "{fileName}: {cols} kept as written: every date there could be day/month or month/day.": "{fileName} : {cols} conservées telles qu'écrites : chaque date pourrait être jour/mois ou mois/jour.",
-  "{fileName}: no unit for {cols}: the column name gives none and none was typed, so the values are as logged with no unit.": "{fileName} : pas d'unité pour {cols} : le nom de la colonne n'en donne aucune et aucune n'a été saisie, les valeurs restent donc telles que relevées, sans unité."
+  "{fileName}: no unit for {cols}: the column name gives none and none was typed, so the values are as logged with no unit.": "{fileName} : pas d'unité pour {cols} : le nom de la colonne n'en donne aucune et aucune n'a été saisie, les valeurs restent donc telles que relevées, sans unité.",
+  " Read the shapefile \"{layer}\" from inside {zip}.": " Shapefile « {layer} » lu dans {zip}.",
+  "Not read from it: {files}. Unzip it and import those on their own.": "Non lus : {files}. Décompressez-le et importez ces fichiers séparément.",
+  "Add a strip log image to each page (the logs that hole has: lithology, alteration, veins, RQD …)": "Ajouter une image de log de sondage à chaque page (les logs que ce sondage possède : lithologie, altération, veines, RQD …)",
+  "{n} of the {pts} point(s) fell on the reference plane (nothing under the cursor): their elevation is the scene's reference level, not the ground, so Δelev and the 3D lengths there are not the ground's. Load a terrain to measure on it.": "{n} des {pts} point(s) sont tombés sur le plan de référence (rien sous le curseur) : leur altitude est le niveau de référence de la scène, pas le sol, donc le Δélév. et les longueurs 3D n’y sont pas celles du sol. Chargez un terrain pour mesurer dessus."
 }

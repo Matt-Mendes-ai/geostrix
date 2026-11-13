@@ -43,7 +43,7 @@ import { dateColumnReader, withDateFields } from "../../lib/dateColumns.js"; // 
 import { eventNotes } from "../../lib/downholeEvents.js"; // TASKS.csv #2317
 import { applyRowFilter, defaultRowFilter, overlapSummary, overlapWorthSaying } from "../../lib/importRowFilter.js"; // TASKS.csv #2330; overlap: #2391
 import { isNullSentinel, LAYER_META, TARGET_SCHEMAS, guessColumn, guessColumnExact, guessMapping, guessTargetFor, schemaSatisfied, num, replaceRowsByHole, keepDerivedPicks, isDerivedPick, replaceNote, EPSG_COL_ALIASES, diffCollarImport, mergeCollar, minMax, pickRankedCollarRows } from "../../lib/layers.js";
-import { alterationStyleFromName, styledAltValue, isBlankCode, NO_CODE, blankCodeText } from "../../lib/viewer/importHelpers.js"; // TASKS.csv #1511; isBlankCode: #2182
+import { alterationStyleFromName, styledAltValue, isBlankCode, NO_CODE, blankCodeText, skipBlankValue, mineralListValue } from "../../lib/viewer/importHelpers.js"; // TASKS.csv #1511; isBlankCode: #2182; skipBlankValue: #2021
 import { fillDownHoleIds, numberedSiblings, allCodesOf, normInterval, applyCustomFields, normNumericInterval, normStructure, skippedRowsText, strikeStats, loadRaster, looksLikeAssay, isSurfaceSampleTable, looksLikeSurfaceSamples /* #2268 */, parseVectorFile, groupShapefileParts, orderImportFiles } from "../../lib/viewer/importHelpers.js"; // groupShapefileParts / orderImportFiles: #600
 import { unreadableFormatAdvice } from "../../lib/unreadableFormats.js"; // TASKS.csv #603
 import { t as tr } from "../../lib/i18n.js"; // TASKS.csv #786
@@ -128,6 +128,7 @@ export function useImportPipeline(ctx) {
   const isMapGeometry = (meta) => meta?.vector && meta.vector.geomType && meta.vector.geomType !== "point";
   // TASKS.csv #2019 — files dropped on the Maps tab that need this import (points, tables, layer pickers), with what Maps already did
   useModuleAction(["import-dropped-files"], (_a, p) => {
+    dropOriginRef.current = p?.origin || null; // TASKS.csv #2660 — Cancel goes back where the drop was made
     const extra = [...(p?.notes || []), ...(p?.others?.length ? [notice("{names}: not a file the map or this import reads.", { names: p.others.slice(0, 4).join(", ") + (p.others.length > 4 ? "…" : "") })] : [])];
     if (extra.length) setNotices((q) => [...q, ...extra]);
     if (p?.files?.length) handleDrop({ preventDefault() {}, dataTransfer: { files: p.files } });
@@ -264,10 +265,13 @@ export function useImportPipeline(ctx) {
     const src = [...bySrc.entries()].sort((a, b) => b[1] - a[1])[0][0];
     return { target, n, src, holes: hit.size };
   };
-  // the dialog's pre-set: such a guess becomes a custom layer, and the dialog says why (#1649)
+  // the dialog's pre-set: such a guess is never committed unseen, and the dialog says what it replaces (#1649). TASKS.csv #2021 — it stays the
+  // recognized layer (a corrected log re-imported under another name became a custom layer of an all-blank column), with the note and Custom
+  // layer one choice away; the value never preselects a column that is blank on every row
   const guardGuess = (target, mapping, headers, rows, fileName) => {
     const ov = layerOverlap(target, mapping, rows, fileName);
-    return ov ? { target: "custom", mapping: guessMapping("custom", headers), guessNote: ov } : { target, mapping };
+    const m = skipBlankValue(mapping, headers, rows);
+    return ov ? { target, mapping: m, guessNote: ov } : { target, mapping: m };
   };
   const azRefFor = (target, headers, rows) => { const d = AZ_TARGETS.has(target) ? detectAzimuthRef(headers, rows) : null; return d?.ref ? { azimuthRef: d.ref, azimuthRefFrom: d.col, ...(d.also ? { azimuthRefAlso: d.also } : {}) } : {}; }; // also: #2154
   // TASKS.csv #2015 — a survey sheet's corrected azimuth column (grid when filled, else true north) is the one read
@@ -785,6 +789,7 @@ export function useImportPipeline(ctx) {
         let extra = 0; // #2874 — this row's count of codes beyond the drawn one
         if (sib) { const a = allCodesOf(raw, sib); if (a.extra) { r.all_codes = a.all; r.codes = a.codes; codesKept += a.extra; codesRows++; extra = a.extra; } } // codes: #1650
         if (altStyle) { r.value = styleCode(r.value); r.alt_style = altStyle; if (Array.isArray(r.codes)) r.codes = r.codes.map(styleCode); } // #1511
+        if (target === "mnlgy" && !numeric) { const l = mineralListValue(r.value); if (l !== r.value) { r.as_logged = r.value; r.value = l; } } // #2022 — 'Py; Cpy' and 'Cpy; Py' are one class
         // #2182 — a blank code: the next numbered code if the row has one (Min_Code2), else the row is skipped and counted, not 'Unknown'
         // #2493 — or, when the dialog's "keep blank codes as (no code)" is ticked, kept as that explicit class (the log stays continuous)
         if (!numeric && isBlankCode(raw[mapping.value])) { blankRows++; const next = Array.isArray(r.codes) ? r.codes.find((c) => !isBlankCode(c)) : null; if (next) { r.value = String(next).trim(); blankTookNext++; if (extra) { codesKept--; if (extra === 1) codesRows--; } /* #2874 — that code is drawn now, not 'not drawn' */ } else if (data.keepBlankCodes) { r.value = NO_CODE; blankKept++; } else r.value = null; }
@@ -952,6 +957,15 @@ export function useImportPipeline(ctx) {
     const surface = surfaceHandoffRef.current.has(files[0].name); surfaceHandoffRef.current.clear();
     setNotices((p) => [...p, surface ? notice("{name} looks like a table of surface samples (coordinates, no from / to, no hole ID), so it opened in Geochem's surface-sample import, where you choose the elements. Not samples? Cancel there and use + Add CSV layer in the 3D View's sidebar to import it as a layer of your own.", { name: files[0].name }) /* #2268 */ : notice("{name} is assay data: it is open in the Geochem assay import, which asks which columns are elements. Not assays? Cancel there and use + Add CSV layer in the 3D View's sidebar to import it as a layer of your own.", { name: files[0].name }), // the way out: #2185
       ...(files.length > 1 ? [notice("{n} more assay file(s) follow in the Geochem import, one after another: {list}.", { n: files.length - 1, list: files.slice(1).map((f) => f.name).join(", ") })] : [])]);
+  };
+  // TASKS.csv #2660 (#2591 (3)) — a table dropped on the Maps plan opens this dialog on the 3D View; Cancel left the user there. Cancel on the last
+  // file of a drop made elsewhere goes back to that tab; a commit stays here (the data is drawn here)
+  const dropOriginRef = useRef(null);
+  const cancelImport = () => {
+    setImportModal(null);
+    const back = !importQueueRef.current.length ? dropOriginRef.current : null;
+    processImportQueue();
+    if (back) { dropOriginRef.current = null; goToModule(back); }
   };
   const processImportQueue = useCallback(() => {
     const file = importQueueRef.current.shift();
@@ -1288,5 +1302,5 @@ export function useImportPipeline(ctx) {
     setNotices((p) => [...p, notice("Reloaded from the database: {lines}", { lines: lines.join(" · ") })]);
   };
 
-  return { commitImport, handleDrop, importBrowserFile, importOverlap, layerPicker, loadSampleProject, openImportFromRows, openImportModal, processImportQueue, sampleLoading, setLayerPicker, reloadDbImports };
+  return { cancelImport /* #2660 */, commitImport, handleDrop, importBrowserFile, importOverlap, layerPicker, loadSampleProject, openImportFromRows, openImportModal, processImportQueue, sampleLoading, setLayerPicker, reloadDbImports };
 }

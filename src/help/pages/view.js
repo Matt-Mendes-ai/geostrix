@@ -32,13 +32,13 @@ export default [
       { says: "Everything on one side of a vertical cut striking {az}°", means: "Thickness is 0, so the view is cut in half rather than reduced to a slab.", do: "Type a thickness to keep only a slab." },
     ],
     howto: {
-      sample: "Woodjam",
+      sample: "WA lode gold",
       steps: [
-        "File > Open Sample Project > Woodjam (19 drillholes, IP lines, ZTEM).",
+        "File > Open Sample Project > WA lode gold (66 inclined drillholes, oriented structures).",
         "Switch to Advanced (top right of the ribbon). On the 3D View tab, press 3D slice.",
         "Tick On. Keep Vertical slab and type the strike of the drill sections in Az.",
         "Set Thickness to about the section spacing and drag the position slider across the holes.",
-        "Switch to Horizontal (level plan) to step down through the ZTEM model level by level.",
+        "Switch to Horizontal (level plan) to step down through the holes level by level (a block model, when you have one, is cut the same way).",
       ],
     },
     related: ["section-by-coordinates", "slice-series", "block-models", "voxel-ranges"],
@@ -68,9 +68,9 @@ export default [
       { says: "{hole_id}: outside the ±{corridor} m buffer — projected onto the section, no data drawn here", means: "The hole's trace passes outside the buffer; only its trace is shown, without its logs.", do: "Widen Buffer ± if you need its data on this section." },
     ],
     howto: {
-      sample: "Woodjam",
+      sample: "WA lode gold",
       steps: [
-        "File > Open Sample Project > Woodjam (19 drillholes, IP lines, ZTEM).",
+        "File > Open Sample Project > WA lode gold (66 inclined drillholes, oriented structures).",
         "Switch to Advanced (top right of the ribbon). On the 3D View tab, Sections > By coordinates.",
         "Leave Centre E and Centre N blank to centre on the drilling; type an Azimuth across the trend of the holes and a Length that covers them.",
         "Open section. In its window, set Buffer ± to about half the distance to the next line of holes and press Enter.",
@@ -103,12 +103,12 @@ export default [
       { says: "Generated {created} sections spaced {width}m apart at azimuth {sliceSeriesAzimuth}° — grouped together in the Cross-sections list.", means: "The sections were made and are in the Cross-sections list as one group.", do: "Open them one at a time from the list; the group can be removed in one action." },
     ],
     howto: {
-      sample: "Woodjam",
+      sample: "WA lode gold",
       steps: [
-        "File > Open Sample Project > Woodjam (19 drillholes, IP lines, ZTEM).",
+        "File > Open Sample Project > WA lode gold (66 inclined drillholes, oriented structures).",
         "Switch to Advanced (top right of the ribbon). On the 3D View tab, Sections > Fence series.",
         "Type the Azimuth of the drill sections and a Width equal to their spacing.",
-        "Leave Also cover the visible block models off (the ZTEM model is far larger than the drilling) and read This makes … section(s).",
+        "Leave Also cover the visible block models off (a model larger than the drilling adds sections with no holes on them) and read This makes … section(s).",
         "Generate, then open the sections one by one from the Cross-sections list.",
       ],
     },

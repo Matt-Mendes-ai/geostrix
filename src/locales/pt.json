@@ -11828,5 +11828,9 @@
   "e.g. 12.5, -45.5 or 12.5 N 45.5 W": "p. ex. 12.5, -45.5 ou 12.5 N 45.5 W",
   "{fileName}: {cols} read as dates (stored as year-month-day); each also has a year field, to filter and colour the holes by.": "{fileName}: {cols} lidas como datas (salvas como ano-mês-dia); cada uma tem também um campo de ano, para filtrar e colorir os furos.",
   "{fileName}: {cols} kept as written: every date there could be day/month or month/day.": "{fileName}: {cols} mantidas como escritas: cada data pode ser dia/mês ou mês/dia.",
-  "{fileName}: no unit for {cols}: the column name gives none and none was typed, so the values are as logged with no unit.": "{fileName}: sem unidade para {cols}: o nome da coluna não indica nenhuma e nenhuma foi digitada, então os valores ficam como registrados, sem unidade."
+  "{fileName}: no unit for {cols}: the column name gives none and none was typed, so the values are as logged with no unit.": "{fileName}: sem unidade para {cols}: o nome da coluna não indica nenhuma e nenhuma foi digitada, então os valores ficam como registrados, sem unidade.",
+  " Read the shapefile \"{layer}\" from inside {zip}.": " Lido o shapefile “{layer}” de dentro de {zip}.",
+  "Not read from it: {files}. Unzip it and import those on their own.": "Não lido dele: {files}. Descompacte-o e importe esses arquivos separadamente.",
+  "Add a strip log image to each page (the logs that hole has: lithology, alteration, veins, RQD …)": "Adicionar uma imagem de perfil de furo a cada página (os perfis que esse furo tem: litologia, alteração, veios, RQD …)",
+  "{n} of the {pts} point(s) fell on the reference plane (nothing under the cursor): their elevation is the scene's reference level, not the ground, so Δelev and the 3D lengths there are not the ground's. Load a terrain to measure on it.": "{n} dos {pts} ponto(s) caíram no plano de referência (nada sob o cursor): sua elevação é o nível de referência da cena, não o terreno, então o Δelev e os comprimentos 3D ali não são os do terreno. Carregue um terreno para medir sobre ele."
 }

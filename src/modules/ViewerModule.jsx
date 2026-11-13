@@ -5084,7 +5084,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
 
   // ---------- generic import pipeline ----------
   // TASKS.csv #445 step 3 — the import pipeline (viewer/useImportPipeline.js), called where its code sat: same hook order
-  const { commitImport, handleDrop, importBrowserFile, importOverlap /* #1649 */, layerPicker, loadSampleProject, openImportFromRows, openImportModal, processImportQueue, sampleLoading, setLayerPicker, reloadDbImports /* #1963 */ } = useImportPipeline({
+  const { cancelImport /* #2660 */, commitImport, handleDrop, importBrowserFile, importOverlap /* #1649 */, layerPicker, loadSampleProject, openImportFromRows, openImportModal, processImportQueue, sampleLoading, setLayerPicker, reloadDbImports /* #1963 */ } = useImportPipeline({
     connectDb: store.connectDb, dbConnections: store.dbConnections, dbImports: store.dbImports, setDbImports: store.setDbImports, // TASKS.csv #1963
     addBoundary,
     addRaster,
@@ -7842,7 +7842,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           onCancel={() => { setLayerPicker(null); processImportQueue(); }}
         />
       )}
-      {importModal && <ImportMappingModal modal={importModal} replaceInfo={importOverlap(importModal)} onChange={setImportModal} onCancel={() => { setImportModal(null); processImportQueue(); }} onCommit={commitImport} projectEpsg={project?.epsg} />}
+      {importModal && <ImportMappingModal modal={importModal} replaceInfo={importOverlap(importModal)} onChange={setImportModal} onCancel={cancelImport /* #2660 */} onCommit={commitImport} projectEpsg={project?.epsg} />}
       {dbModalOpen && <DatabaseConnectModal onCancel={() => setDbModalOpen(false)} onResults={openImportFromRows} />}
       {sectionEditOpen && (() => {
         const ids = Array.from(selectedSectionIds);

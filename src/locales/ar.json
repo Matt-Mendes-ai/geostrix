@@ -11828,5 +11828,9 @@
   "e.g. 12.5, -45.5 or 12.5 N 45.5 W": "مثل 12.5، ‎-45.5 أو 12.5 N 45.5 W",
   "{fileName}: {cols} read as dates (stored as year-month-day); each also has a year field, to filter and colour the holes by.": "{fileName}: قُرئت {cols} تواريخَ (محفوظة بصيغة سنة-شهر-يوم)؛ ولكلٍّ منها حقل للسنة أيضًا، لتصفية الثقوب وتلوينها.",
   "{fileName}: {cols} kept as written: every date there could be day/month or month/day.": "{fileName}: أُبقيت {cols} كما كُتبت: كل تاريخ فيها قد يكون يوم/شهر أو شهر/يوم.",
-  "{fileName}: no unit for {cols}: the column name gives none and none was typed, so the values are as logged with no unit.": "{fileName}: لا وحدة لـ{cols}: اسم العمود لا يذكر وحدة ولم تُكتب وحدة، فتبقى القيم كما سُجّلت بلا وحدة."
+  "{fileName}: no unit for {cols}: the column name gives none and none was typed, so the values are as logged with no unit.": "{fileName}: لا وحدة لـ{cols}: اسم العمود لا يذكر وحدة ولم تُكتب وحدة، فتبقى القيم كما سُجّلت بلا وحدة.",
+  " Read the shapefile \"{layer}\" from inside {zip}.": " قُرئ ملف الأشكال \"{layer}\" من داخل {zip}.",
+  "Not read from it: {files}. Unzip it and import those on their own.": "لم يُقرأ منه: {files}. فك ضغطه واستورد تلك الملفات كلًا على حدة.",
+  "Add a strip log image to each page (the logs that hole has: lithology, alteration, veins, RQD …)": "إضافة صورة سجل الثقب إلى كل صفحة (السجلات الموجودة لذلك الثقب: الصخارية، التحول، العروق، RQD …)",
+  "{n} of the {pts} point(s) fell on the reference plane (nothing under the cursor): their elevation is the scene's reference level, not the ground, so Δelev and the 3D lengths there are not the ground's. Load a terrain to measure on it.": "وقعت {n} من {pts} نقطة على المستوى المرجعي (لا شيء تحت المؤشر): ارتفاعها هو المستوى المرجعي للمشهد لا سطح الأرض، لذا فإن Δelev والأطوال ثلاثية الأبعاد هناك ليست للأرض. حمّل تضاريس للقياس عليها."
 }

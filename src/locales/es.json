@@ -11828,5 +11828,9 @@
   "e.g. 12.5, -45.5 or 12.5 N 45.5 W": "p. ej. 12.5, -45.5 o 12.5 N 45.5 W",
   "{fileName}: {cols} read as dates (stored as year-month-day); each also has a year field, to filter and colour the holes by.": "{fileName}: {cols} leídas como fechas (guardadas como año-mes-día); cada una tiene además un campo de año, para filtrar y colorear los sondajes.",
   "{fileName}: {cols} kept as written: every date there could be day/month or month/day.": "{fileName}: {cols} se conservan tal como están escritas: cada fecha podría ser día/mes o mes/día.",
-  "{fileName}: no unit for {cols}: the column name gives none and none was typed, so the values are as logged with no unit.": "{fileName}: sin unidad para {cols}: el nombre de la columna no indica ninguna y no se escribió ninguna, así que los valores quedan tal como se registraron, sin unidad."
+  "{fileName}: no unit for {cols}: the column name gives none and none was typed, so the values are as logged with no unit.": "{fileName}: sin unidad para {cols}: el nombre de la columna no indica ninguna y no se escribió ninguna, así que los valores quedan tal como se registraron, sin unidad.",
+  " Read the shapefile \"{layer}\" from inside {zip}.": " Se leyó el shapefile «{layer}» dentro de {zip}.",
+  "Not read from it: {files}. Unzip it and import those on their own.": "No se leyó de él: {files}. Descomprímalo e importe esos archivos por separado.",
+  "Add a strip log image to each page (the logs that hole has: lithology, alteration, veins, RQD …)": "Agregar una imagen de registro de sondaje a cada página (los registros que tiene ese sondaje: litología, alteración, vetas, RQD …)",
+  "{n} of the {pts} point(s) fell on the reference plane (nothing under the cursor): their elevation is the scene's reference level, not the ground, so Δelev and the 3D lengths there are not the ground's. Load a terrain to measure on it.": "{n} de los {pts} punto(s) cayeron en el plano de referencia (nada bajo el cursor): su elevación es el nivel de referencia de la escena, no el terreno, así que el Δelev y las longitudes 3D allí no son las del terreno. Cargue un terreno para medir sobre él."
 }
