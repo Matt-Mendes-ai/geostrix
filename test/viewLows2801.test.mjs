@@ -46,3 +46,9 @@ test("#2774 a map layer names its CRS (and the project's)", () => {
 test("#2808 the status bar gives latitude / longitude where the project has a real CRS", () => {
   assert.match(read("../src/App.jsx"), /project\.crsSet !== false && project\.epsg && isMetricProjectedEpsg\(project\.epsg\) && getProj4DefSync\(project\.epsg\) \? reprojectXY\(cursor\.x, cursor\.y, project\.epsg, 4326\)/);
 });
+
+test("#3229 the latitude / longitude only where the cursor is a world position (not Layout's page)", () => {
+  const a = fs.readFileSync(new URL("../src/App.jsx", import.meta.url), "utf8");
+  assert.match(a, /<StatusBar worldCursor=\{viewerShown \|\| active === "maps"\}/);
+  assert.match(a, /const ll = worldCursor \/\* TASKS\.csv #3229/);
+});
