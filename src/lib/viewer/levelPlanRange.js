@@ -1,3 +1,5 @@
+import { suspectElevationIds } from "../collarElevationTrust.js"; // TASKS.csv #3004
+
 // TASKS.csv #1782 (review #1646, Kodiak) — the elevations a level plan can be cut at: the loaded holes' traces, and with no holes the
 // visible block models (a level plan is also the tool that cuts a model at an RL: the contractor's IP depth slices). Was holes only, so
 // a project with no collars refused the tool. Loops, not Math.min(...) over every vertex (#371). -> [z0, z1] or null
@@ -30,8 +32,11 @@ export function strayCollars(zs) {
   else if (high <= cap) for (let i = gi; i < n; i++) out.add(idx[i][1]);
   return out;
 }
-// the traces without the stray ones; collarZ(trace) -> its collar elevation
+// the traces without the suspect-elevation ones; collarZ(trace) -> its collar's real elevation (world, not scene: the 0 m test needs it).
+// TASKS.csv #3004 — the shared rule (lib/collarElevationTrust.js): the gap test above, and a 0 m collar among collars 50 m or more from 0,
+// which this gap test missed on a project of under 20 holes. (A function-level import cycle: collarElevationTrust imports strayCollars.)
 export function mainTraces(traces, collarZ) {
-  const ts = traces || [], drop = strayCollars(ts.map(collarZ));
-  return drop.size ? ts.filter((_, i) => !drop.has(i)) : ts;
+  const ts = traces || [], key = (t, i) => t?.hole_id ?? `#${i}`;
+  const drop = suspectElevationIds(ts.map((t, i) => ({ hole_id: key(t, i), z: Number(collarZ(t)), zAssumed: !!t?.zAssumed })));
+  return drop.size ? ts.filter((t, i) => !drop.has(key(t, i))) : ts;
 }
