@@ -12001,5 +12001,12 @@
   "{n} value(s) below 0 or over 100 % were left out.": "{n} valeur(s) sous 0 ou au-dessus de 100 % ont été laissées de côté.",
   "{cols}: values a thousandfold apart from \"{header}\" read in the same unit: one of them is not in the unit its name says. Check before ticking.": "{cols} : des valeurs mille fois éloignées de « {header} » lues dans la même unité : l'une des colonnes n'est pas dans l'unité que dit son nom. Vérifiez avant de cocher.",
   "No value here: {n} pierce point (hollow ring)": "Aucune valeur ici : {n} point de percée (anneau creux)",
-  "No value here: {n} pierce points (hollow ring)": "Aucune valeur ici : {n} points de percée (anneau creux)"
+  "No value here: {n} pierce points (hollow ring)": "Aucune valeur ici : {n} points de percée (anneau creux)",
+  "Default classes: round limits on a log scale between the median ({p50}) and the 97.5th percentile ({p975}): {limits} {unit}.": "Classes par défaut : limites rondes sur une échelle logarithmique entre la médiane ({p50}) et le 97,5e centile ({p975}) : {limits} {unit}.",
+  " · centred on {e} E, {n} N": " · centré sur {e} E, {n} N",
+  " · {n} hole in the slab": " · {n} sondage dans la tranche",
+  " · {n} holes in the slab": " · {n} sondages dans la tranche",
+  " · no hole in the slab: move it or turn it": " · aucun sondage dans la tranche : déplacez-la ou tournez-la",
+  "Fit to window": "Ajuster à la fenêtre",
+  "Scale the section to fit the window, both ways, at its VE (off: full width, scroll for detail)": "Mettre la coupe à l’échelle de la fenêtre, dans les deux sens, à son exagération verticale (désactivé : pleine largeur, faire défiler pour le détail)"
 }

@@ -12001,5 +12001,12 @@
   "{n} value(s) below 0 or over 100 % were left out.": "{n} valor(es) abaixo de 0 ou acima de 100 % foram deixados de fora.",
   "{cols}: values a thousandfold apart from \"{header}\" read in the same unit: one of them is not in the unit its name says. Check before ticking.": "{cols}: valores mil vezes diferentes de \"{header}\" lidos na mesma unidade: uma das colunas não está na unidade que o nome diz. Verifique antes de marcar.",
   "No value here: {n} pierce point (hollow ring)": "Sem valor aqui: {n} ponto de interseção (anel vazado)",
-  "No value here: {n} pierce points (hollow ring)": "Sem valor aqui: {n} pontos de interseção (anel vazado)"
+  "No value here: {n} pierce points (hollow ring)": "Sem valor aqui: {n} pontos de interseção (anel vazado)",
+  "Default classes: round limits on a log scale between the median ({p50}) and the 97.5th percentile ({p975}): {limits} {unit}.": "Classes padrão: limites redondos em escala logarítmica entre a mediana ({p50}) e o percentil 97,5 ({p975}): {limits} {unit}.",
+  " · centred on {e} E, {n} N": " · centrado em {e} E, {n} N",
+  " · {n} hole in the slab": " · {n} furo na faixa",
+  " · {n} holes in the slab": " · {n} furos na faixa",
+  " · no hole in the slab: move it or turn it": " · nenhum furo na faixa: mova-a ou gire-a",
+  "Fit to window": "Ajustar à janela",
+  "Scale the section to fit the window, both ways, at its VE (off: full width, scroll for detail)": "Escalar a seção para caber na janela, nos dois sentidos, com seu exagero vertical (desligado: largura total, role para ver detalhes)"
 }

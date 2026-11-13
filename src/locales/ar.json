@@ -12001,5 +12001,12 @@
   "{n} value(s) below 0 or over 100 % were left out.": "استُبعدت {n} قيمة أقل من 0 أو أعلى من 100 %.",
   "{cols}: values a thousandfold apart from \"{header}\" read in the same unit: one of them is not in the unit its name says. Check before ticking.": "{cols}: قيم تبعد ألف ضعف عن \"{header}\" مقروءة بالوحدة نفسها: أحد العمودين ليس بالوحدة التي يذكرها اسمه. تحقّق قبل التحديد.",
   "No value here: {n} pierce point (hollow ring)": "لا قيمة هنا: {n} نقطة اختراق (حلقة مجوفة)",
-  "No value here: {n} pierce points (hollow ring)": "لا قيمة هنا: {n} نقاط اختراق (حلقة مجوفة)"
+  "No value here: {n} pierce points (hollow ring)": "لا قيمة هنا: {n} نقاط اختراق (حلقة مجوفة)",
+  "Default classes: round limits on a log scale between the median ({p50}) and the 97.5th percentile ({p975}): {limits} {unit}.": "الفئات الافتراضية: حدود مدوّرة على مقياس لوغاريتمي بين الوسيط ({p50}) والمئين 97.5 ({p975}): {limits} {unit}.",
+  " · centred on {e} E, {n} N": " · مركزه عند {e} شرقًا، {n} شمالًا",
+  " · {n} hole in the slab": " · {n} ثقب في الشريحة",
+  " · {n} holes in the slab": " · {n} ثقوب في الشريحة",
+  " · no hole in the slab: move it or turn it": " · لا ثقب في الشريحة: حرّكها أو أدرها",
+  "Fit to window": "ملاءمة النافذة",
+  "Scale the section to fit the window, both ways, at its VE (off: full width, scroll for detail)": "تحجيم المقطع ليلائم النافذة في الاتجاهين بمبالغته الرأسية (عند الإيقاف: العرض الكامل، مع التمرير للتفاصيل)"
 }

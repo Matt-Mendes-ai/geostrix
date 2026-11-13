@@ -81,6 +81,11 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
   // different visible-hole set intact, unlike screen-relative fractions would.
   const [contacts, setContacts] = useState([]);
   const [savedKey, setSavedKey] = useState(contactsKey([])); // #1323 — the lines as last loaded or saved
+  // TASKS.csv #3259 (Galore review) — a section along a steep hole (694 m, dip -75) opened 1,037 x 3,009 px in a 464 px tall view: fitted to the
+  // width only, never seen whole. With 'Fit to window' (on to start with) the drawing's height is capped at the window's, so it scales to fit
+  // both ways at its own VE (the click mapping goes through the SVG's own transform); off, it is full width and scrolls, for detail.
+  const [fitWhole, setFitWhole] = useState(() => { try { return localStorage.getItem("geostrix.sectionFit") !== "0"; } catch { return true; } });
+  useEffect(() => { try { localStorage.setItem("geostrix.sectionFit", fitWhole ? "1" : "0"); } catch { /* storage off */ } }, [fitWhole]);
   const unsavedRef = useRef(false);
   const [drawing, setDrawing] = useState(false);
   // TASKS.csv #519 — snap clicks to the logged contacts / traces, and edit a finished string's vertices
@@ -494,6 +499,7 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
           <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: "#55606e" }} title={tr("Vertical exaggeration — 1x is true scale (vertical and horizontal axes at the same real-world-units-per-pixel)")}>{tr("VE")}<input type="number" min="0.1" max="20" step="0.5" value={vExag ?? ""} onChange={(e) => setVExag(Math.min(MAX_SECTION_VE, Math.max(0.1, Number(e.target.value) || 1)))} style={{ width: 46, background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 4, color: "#1a2028", fontSize: 11, padding: "3px 5px" }} />
             ×
           </label>
+          <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "#55606e" }} title={tr("Scale the section to fit the window, both ways, at its VE (off: full width, scroll for detail)")}><input type="checkbox" checked={fitWhole} onChange={(e) => setFitWhole(e.target.checked)} />{tr("Fit to window")}</label>{/* #3259 */}
           {onPopOut && !drawing && <button onClick={() => onPopOut({ ...data, contacts, labels, savedContactsKey: savedKey })} style={btnStyle(false)} title={tr("Open this section in a window of its own, to compare it beside another. It uses more memory than a tab.")}>{tr("Own window")}</button>}{/* #1303 */}
           <button onClick={exportPNG} style={btnStyle(false)} title={tr("Export section → PNG")}><Download size={14} />{" "}{tr("PNG")}</button>
           <button onClick={exportSVG} style={btnStyle(false)} title={tr("Export section → SVG")}><Download size={14} />{" "}{tr("SVG")}</button>
@@ -551,7 +557,8 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
         </div>
       )}
 
-      <div className="ge-section-body" style={{ flex: 1, overflow: "auto", padding: 16 }}>
+      <div className={`ge-section-body${fitWhole ? " ge-section-fit" : ""}`} style={{ flex: 1, overflow: "auto", padding: 16 }}>
+        {fitWhole && <style>{"@media screen { .ge-section-fit > svg { max-height: calc(100vh - 250px); height: auto; } }"}</style>}{/* #3259 — not in print */}
         {/* TASKS.csv #1230 — over the section's title margin, not in the toolbar: wrapping there moved the section ~23 px under the cursor as the first click was aimed */}
         {drawing && (
           <div style={{ position: "sticky", top: 0, height: 0, zIndex: 5 }}>
