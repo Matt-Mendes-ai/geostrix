@@ -69,6 +69,15 @@ const SCALE_LEFT_PX = 12 + 76 + 14;
 // SILENTLY would be the dishonest option (a reader would assume the key is complete), so the
 // remainder is stated explicitly instead.
 export const MAX_LEGEND_ITEMS = 14; // shared between the groups (#1398); 18 with the numeric ramps ran into the scale bar
+// TASKS.csv #2044 (review #2013, Woodjam) — 14 rows whatever the view's size named 16 of 134 categories on a nine-layer project (two codes a
+// layer). The start count now grows with the view's height (a row is ~17 px; the title, heading, ramps and scale bar keep ~160 px), and
+// a wide view with more codes than one column holds gets a second column. #1534's fit still trims what runs into the scale bar.
+// h, w: the overlay's size in px; total: the item rows wanted -> { cap, cols }
+export function legendLayout(h, w, total = Infinity) {
+  const one = h > 0 ? Math.max(MAX_LEGEND_ITEMS, Math.min(40, Math.floor((h - 160) / 17))) : MAX_LEGEND_ITEMS;
+  const cols = w >= 1100 && total > one ? 2 : 1;
+  return { cap: one * cols, cols };
+}
 
 const card = {
   background: "var(--color-bg)",
@@ -138,18 +147,21 @@ export default function ViewportFigureOverlay({ config, title, legendGroups, cam
   // '+ N more' line; it starts again from the full count when its contents, the view's height or the title / scale bar change.
   const rootRef = useRef(null), legendRef = useRef(null), scaleRef = useRef(null);
   const [fit, setFit] = useState({ items: MAX_LEGEND_ITEMS, ramps: 6 });
+  const [boxW, setBoxW] = useState(0); // #2044
   const shownLenRef = useRef(0); // #2173 — the item rows of the last render
   const [boxH, setBoxH] = useState(0);
   useEffect(() => {
     const el = rootRef.current;
     if (!el || typeof ResizeObserver === "undefined") return undefined;
-    const ro = new ResizeObserver(() => setBoxH(el.clientHeight));
+    const ro = new ResizeObserver(() => { setBoxH(el.clientHeight); setBoxW(el.clientWidth); });
     ro.observe(el);
     return () => ro.disconnect();
   }, [config.enabled]); // the root exists only while the overlay is on
   // a string, not the array: legendGroups may be a new array every render, and a reset on every render would never settle
   const legendKey = (legendGroups || []).map((g) => `${g.key}:${(g.items || []).length}:${g.ramp ? 1 : 0}`).join("|");
-  useLayoutEffect(() => { setFit({ items: MAX_LEGEND_ITEMS, ramps: 6 }); }, [legendKey, boxH, config.title, config.legend, config.enabled, showScale]);
+  const itemTotal = (legendGroups || []).reduce((n, g) => n + (g.items?.length || 0), 0);
+  const lay = legendLayout(boxH, boxW, itemTotal); // #2044
+  useLayoutEffect(() => { setFit({ items: lay.cap, ramps: 6 }); }, [legendKey, boxH, boxW, config.title, config.legend, config.enabled, showScale]);
   useLayoutEffect(() => {
     const lg = legendRef.current;
     if (!lg) return;
@@ -158,11 +170,11 @@ export default function ViewportFigureOverlay({ config, title, legendGroups, cam
     if (over <= 0) return;
     // #2173 — from the rows actually shown, and as many as the overflow needs (a row is about 17 px) in one step: one row per layout from
     // MAX_LEGEND_ITEMS made a dozen forced layouts, most of them changing nothing on screen
-    const k = Math.max(1, Math.ceil(over / 17)), shownNow = Math.max(1, shownLenRef.current);
+    const k = Math.max(1, Math.ceil(over / 17)) * lay.cols, shownNow = Math.max(1, shownLenRef.current); // two columns: two items a row (#2044)
     setFit((f) => (f.items > 1 && shownNow > 1 ? { ...f, items: Math.max(1, Math.min(f.items, shownNow) - k) } : f.ramps > 1 ? { ...f, ramps: f.ramps - 1 } : f)); // bounded: stops at 1 + 1
     // TASKS.csv #2173 — measured when the fit step or what the legend holds changes, not after every render: getBoundingClientRect forced a
     // layout of the whole page on each store update (1.3 s while a 10,544-hole project opened)
-  }, [fit, legendKey, boxH, config.title, config.legend, config.enabled, showScale]);
+  }, [fit, legendKey, boxH, boxW, config.title, config.legend, config.enabled, showScale]);
 
   // TASKS.csv #2623 — vertical exaggeration: the camera's view matrix (verticalExaggeration.js), the collar markers' uniforms, a redraw.
   // Here because this component holds the camera and orbit refs and the figure settings (saved with the view and its themes), and stays
@@ -189,7 +201,8 @@ export default function ViewportFigureOverlay({ config, title, legendGroups, cam
   // TASKS.csv #1398 (review #1352) — the rows are shared out between the groups in turn (allocateLegendRows), in their own order:
   // #381 sorted short groups first so grade classes were not pushed out, but that pushed Lithology, the colour of every hole, out
   // instead ("+ 51 more", no Lithology, on Silvertip). Each group's first row carries its heading; #843 alwaysHead, #948 kind.
-  const { rows: shown, total } = allocateLegendRows(legendGroups, Math.min(MAX_LEGEND_ITEMS, fit.items));
+  const { rows: shown, total } = allocateLegendRows(legendGroups, Math.min(lay.cap, fit.items));
+  const twoCols = lay.cols === 2 && shown.length > lay.cap / 2; // #2044 — the second column only when one would not hold the rows
   shownLenRef.current = shown.length;
   // TASKS.csv #381 — continuous keys (block models, geophysics points, #1398 the numeric hole layers): gradient bar + min/max
   const allRamps = (legendGroups || []).filter((g) => g.ramp);
@@ -212,17 +225,19 @@ export default function ViewportFigureOverlay({ config, title, legendGroups, cam
         </div>
       )}
       {showLegend && (
-        <div ref={legendRef} style={{ ...card, position: "absolute", top: showTitle ? 48 : 12, left: 12, padding: "7px 11px 8px", maxWidth: 250 }}>
+        <div ref={legendRef} style={{ ...card, position: "absolute", top: showTitle ? 48 : 12, left: 12, padding: "7px 11px 8px", maxWidth: twoCols ? 480 : 250 }}>
           <div style={{ fontSize: "var(--font-size-xs)", fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", color: "var(--color-text-caption)", marginBottom: 5 }}>{tr("Legend")}</div>
+          <div style={twoCols ? { columnCount: 2, columnGap: 14 } : undefined}>{/* #2044 — a heading stays with its first row */}
           {shown.map((it, i) => (
-            <React.Fragment key={`${it.group}|${it.label}|${i}`}>
+            <div key={`${it.group}|${it.label}|${i}`} style={{ breakInside: "avoid" }}>
             {it.head && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", fontWeight: 600, marginTop: i ? 4 : 0, marginBottom: 2 }}>{tr(it.group)}{it.classesShown ? " " + tr("({n} of {m} classes)", { n: it.classesShown[0], m: it.classesShown[1] }) : ""}</div>}{/* classesShown: #2039 */}
             <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 2.5 }}>
               <span style={{ width: 18, display: "inline-flex", justifyContent: "center", flexShrink: 0 }}>{it.svg ? <span style={{ display: "inline-flex" }} dangerouslySetInnerHTML={{ __html: it.svg }} /> /* #3066 — a USGS structure symbol */ : <span style={{ borderRadius: 2, ...swatchShape(it.kind, 12), background: it.color, opacity: it.opacity ?? 1 /* #1122 */, border: it.kind === "line" ? "none" : "1px solid var(--color-border-light)" }} />}</span>{/* #948 — square / line / dot */}
               <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={`${tr(it.group)}: ${it.label}`}>{it.label}</span>
             </div>
-            </React.Fragment>
+            </div>
           ))}
+          </div>
           {hiddenCount > 0 && (
             <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-caption)", marginTop: 4 }}>{tr("+ {hiddenCount} more not shown — filter categories, or build the figure in Layout", { hiddenCount })}</div>
           )}

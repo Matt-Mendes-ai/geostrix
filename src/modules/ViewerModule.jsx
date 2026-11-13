@@ -70,7 +70,7 @@ import { iconAction, activateOnKey } from "../lib/a11y.js"; // TASKS.csv #296 �
 const AttributeTableModal = lazyModal(() => import("../components/AttributeTableModal.jsx"));  // TASKS.csv #301
 import { createCompassRose } from "../components/CompassRose.js";
 import { createAxisGizmo } from "../components/AxisGizmo.js";
-import ViewportFigureOverlay, { MAX_LEGEND_ITEMS } from "../components/ViewportFigureOverlay.jsx"; // TASKS.csv #311 — in-viewport title/legend/scale-bar figure furniture
+import ViewportFigureOverlay, { legendLayout } from "../components/ViewportFigureOverlay.jsx"; // TASKS.csv #311; legendLayout: #2044
 import EmptyState from "../components/EmptyState.jsx"; // TASKS.csv #309 — the shared empty-state card, extracted from this file's own #294 card
 import { fixedScaleHalfHeight, captureLongPx, scaleForHalfHeight } from "../lib/layoutGeometry.js"; // scaleForHalfHeight: #1486
 import { worldHeightAtTargetM } from "../lib/figureScale.js"; // TASKS.csv #311 — the single shared metres-per-pixel derivation (Layout's scale bar uses it too)
@@ -179,7 +179,7 @@ import { ViewToolbar, SurfaceRibbon, ContextItem, HoleRowList, OrphanHoles, Laye
 import { plannedTrace } from "../lib/plannedTrace.js"; // TASKS.csv #119 - shared, Node-verified target math; plannedTrace: #524; #3159: plannedTrace.js, not holePlanning.js (the targeting solvers)
 import { extractMapContacts, orientationAt, projectContactRibbon, thinLine, densifyLine } from "../lib/mapLayers.js"; // TASKS.csv #316-#318
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
-import { noticeText, noticeLevel, errorNotice, notice, appendNotice } from "../lib/notices.js"; // TASKS.csv #390
+import { noticeText, noticeLevel, errorNotice, infoNotice, notice, appendNotice } from "../lib/notices.js"; // TASKS.csv #390
 import { makeSurveyColorer } from "../lib/geophysSurveys.js"; // TASKS.csv #451
 import { searchEllipsoidBasis, searchEllipsoidDistSq, voxelCellShown, sampleTerrainElevation, terrainGroundAt } from "../lib/viewer/geomath.js"; // TASKS.csv #445
 import { assaySizeFor, assayPassesCutoff } from "../lib/viewer/assaySize.js"; // #1533 — moved out
@@ -3565,6 +3565,7 @@ ${describeTrend(t)}` };
       const layerNote = layered ? tr(" One surface per {v} ({v2}).", { v: solid.format === "DXF" ? "layer" : "object", v2: solid.parts.map((p) => p.layer).join(", ") }) : "";
       setNotices((p) => [...p, notice("Imported \"{name}\" as a solid: {vertexCount} vertices / {triangleCount} triangles ({format}, {note}).{layerNote} It appears under Generated surfaces with the same show/hide, remove and query controls.{bb} Coordinates are used AS-IS — a DXF/OBJ carries no CRS, so GeoStrix does not reproject it; if it lands away from your holes, the file is in a different CRS.", { name: file.name, vertexCount: solid.vertexCount.toLocaleString(), triangleCount: solid.triangleCount.toLocaleString(), format: solid.format, note: solid.note, layerNote, bb })]);
       fitBox(box);
+      import("../lib/solidCheckNote.js").then(({ solidCheckNote }) => { const t = solidCheckNote(solid.parts, (k) => (layered ? `${label} — ${solid.parts[k].layer}` : label)); if (t) setNotices((p) => [...p, infoNotice(t)]); }).catch(() => {}); // #2801 — on demand
     } catch (e) {
       clearProgress();
       setNotices((p) => [...p, errorNotice(tr("{name}: couldn't import as a solid ({v}).", { name: file.name, v: e.message || e }))]); // #739
@@ -4473,7 +4474,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   // was wired up — see the TASKS.csv #145 notes for the numbers.
   // TASKS.csv #1324 — what is under a click
   const codeDictRef = useRef(codeDictionary); codeDictRef.current = codeDictionary; // #2816 — for the mount-once hover handler
-  const identify = useIdentify({ mountRef, cameraRef, sceneRef, pickHits, lastActivityRef, originRef, tracesRef, layerGroupsRef, rasterMeshesRef, mapLayerMeshesRef, surfStructObjsRef, mapLayerGroupRef, surfStructGroupRef, terrainMeshRef, rasters, mapLayers, surfaceStructures, codeDictionary /* #2816 */, units: Object.fromEntries((assayElements || []).map((e) => [e.symbol, e.unit])),
+  const identify = useIdentify({ mountRef, cameraRef, sceneRef, pickHits, lastActivityRef, originRef, tracesRef, layerGroupsRef, rasterMeshesRef, mapLayerMeshesRef, surfStructObjsRef, mapLayerGroupRef, surfStructGroupRef, terrainMeshRef, rasters, mapLayers, surfaceStructures, codeDictionary /* #2816 */, assays /* #2938 */, units: Object.fromEntries((assayElements || []).map((e) => [e.symbol, e.unit])),
     layerLabel: (k) => tr(LAYER_META[k]?.label || customLayers.find((l) => l.id === k)?.name || { assay: "Assays", geophys_pts: "Geophysics points", surface_samples: "Surface samples", holes: "Drillholes" /* #2041 */ }[k] || k),
     kinds: [[implicitGroupRef, tr("Generated surfaces")], [omfGroupRef, tr("OMF objects")], [plannedGroupRef, tr("Planned holes")], [boundaryGroupRef, tr("Boundaries")]] });
   identifyStopRef.current = () => { if (!identify.on) return false; identify.stop(); return true; };
@@ -5084,7 +5085,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
 
   // ---------- generic import pipeline ----------
   // TASKS.csv #445 step 3 — the import pipeline (viewer/useImportPipeline.js), called where its code sat: same hook order
-  const { commitImport, handleDrop, importBrowserFile, importOverlap /* #1649 */, layerPicker, loadSampleProject, openImportFromRows, openImportModal, processImportQueue, sampleLoading, setLayerPicker, reloadDbImports /* #1963 */ } = useImportPipeline({
+  const { cancelImport /* #2660 */, commitImport, handleDrop, importBrowserFile, importOverlap /* #1649 */, layerPicker, loadSampleProject, openImportFromRows, openImportModal, processImportQueue, sampleLoading, setLayerPicker, reloadDbImports /* #1963 */ } = useImportPipeline({
     connectDb: store.connectDb, dbConnections: store.dbConnections, dbImports: store.dbImports, setDbImports: store.setDbImports, // TASKS.csv #1963
     addBoundary,
     addRaster,
@@ -5349,18 +5350,19 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
 
   // TASKS.csv #1025 (review #1016) — map layers, boundaries / claims, surface samples: Shapefile / GeoPackage / DXF
   // through the writers above, KML (WGS84) and CSV; the features come from lib/overlayExport.js (on demand)
-  const exportVectorKML = async (label, built, kmlOpts = {}) => {
+  const exportVectorKML = async (label, built, kmlOpts = {}, fmt = "kml") => { // fmt "geojson": #2759
     if (!built.features.length) { setNotices((p) => [...p, notice("Nothing to export for \"{label}\" — no rows with usable/desurveyed coordinates.", { label })]); return; }
     try {
       const tx = await import("../lib/tiedExport.js"), ex = await tx.exportCrs(project); if (!ex) return; const epsg = ex.epsg; // #1021; #2322 — a tied local grid: through its tie
       const ox = await import("../lib/overlayExport.js");
       const toLonLat = tx.lonLatThrough(ex.tie, await ox.lonLatTransform(epsg));
       if (!toLonLat) throw new Error(tr("EPSG:{epsg} cannot be converted to latitude / longitude.", { epsg }));
-      const res = await saveFile({ quiet: true, suggestedName: `${label.replace(/[^a-z0-9_-]+/gi, "_").toLowerCase()}.kml`, filters: [{ name: "KML", extensions: ["kml"] }], content: ox.featuresToKml(built, { name: label, toLonLat, ...kmlOpts }) });
+      const gj = fmt === "geojson", ext = gj ? "geojson" : "kml";
+      const res = await saveFile({ quiet: true, suggestedName: `${label.replace(/[^a-z0-9_-]+/gi, "_").toLowerCase()}.${ext}`, filters: [{ name: gj ? "GeoJSON" : "KML", extensions: [ext] }], content: gj ? ox.featuresToGeoJson(built, { name: label, toLonLat }) : ox.featuresToKml(built, { name: label, toLonLat, ...kmlOpts }) });
       if (!res?.ok) { if (res?.error) throw new Error(res.error); return; }
-      setNotices((p) => [...p, notice("Exported {features} feature(s) from \"{label}\" as KML (WGS84 latitude / longitude).", { features: built.features.length, label })]);
+      setNotices((p) => [...p, gj ? notice("Exported {features} feature(s) from \"{label}\" as GeoJSON (WGS84 longitude / latitude).", { features: built.features.length, label }) : notice("Exported {features} feature(s) from \"{label}\" as KML (WGS84 latitude / longitude).", { features: built.features.length, label })]);
     } catch (err) {
-      setNotices((p) => [...p, errorNotice(tr("KML export failed: {message}", { message: err.message }))]);
+      setNotices((p) => [...p, errorNotice(fmt === "geojson" ? tr("GeoJSON export failed: {message}", { message: err.message }) : tr("KML export failed: {message}", { message: err.message }))]);
     }
   };
   // the row-menu entries; build() -> Promise<{ features, geomType }>, csvRows() optional
@@ -5369,6 +5371,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     { label: tr("Export GeoPackage (.gpkg)…"), onClick: async () => exportVectorGeoPackage(null, null, label, await build()) },
     { label: tr("Export DXF (.dxf)…"), onClick: async () => exportVectorDXF(null, null, label, (await import("../lib/overlayExport.js")).explodeParts(await build())) },
     { label: tr("Export KML (Google Earth)…"), onClick: async () => exportVectorKML(label, await build(), typeof kml === "function" ? await kml() : kml) },
+    { label: tr("Export GeoJSON (WGS 84)…"), onClick: async () => exportVectorKML(label, await build(), {}, "geojson") }, // #2759
     csvRows && { label: tr("Export CSV…"), onClick: async () => { const rows = await csvRows(); if (rows.length) saveFile({ quiet: "success", suggestedName: `${label.replace(/[^a-z0-9_-]+/gi, "_").toLowerCase()}.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: await toExportCsv(rows), encoding: "text" }); } },
   ].filter(Boolean);
   const overlayLib = () => import("../lib/overlayExport.js");
@@ -5724,7 +5727,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         const label = meta.numeric ? row.value : effectiveLabel(key, row.value);
         // TASKS.csv #684 — a mineralisation INTERVAL is a ribbon over its depths in the section, not a dot at its midpoint
         if (key === "mnlgy" && isIntervalRow(row)) { intervals.push({ hole_id: row.hole_id, from: row.from, to: row.to, color, label: `${meta.label}: ${label}${row.extra != null ? ` (${row.extra}%)` : ""}`, layer: key }); return; }
-        points.push({ hole_id: row.hole_id, md: mid, color, label: `${meta.label}: ${label}` });
+        points.push({ hole_id: row.hole_id, md: mid, color, label: `${meta.label}: ${label}`, layer: key }); // layer: #1706
       });
     });
     const showAssays = scope.showAssays != null ? scope.showAssays : assayVisible;
@@ -5750,7 +5753,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       layer.rows.filter((r) => holeIds.has(r.hole_id)).forEach((row) => {
         const iv = row.to != null && !isNaN(row.to), color = (iv ? stI.color || row.modelColor : stP.color) || customColour(layer, layerStyles, row);
         if (iv) intervals.push({ hole_id: row.hole_id, from: row.from, to: row.to, color, label: `${layer.name}: ${row.value}`, layer: `custom:${layer.id}` });
-        else if (row.depth != null && !isNaN(row.depth)) points.push({ hole_id: row.hole_id, md: row.depth, color, label: `${layer.name}: ${row.value}` });
+        else if (row.depth != null && !isNaN(row.depth)) points.push({ hole_id: row.hole_id, md: row.depth, color, label: `${layer.name}: ${row.value}`, layer: `custom:${layer.id}` });
       });
     });
 
@@ -6201,7 +6204,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           onLevelPlan={() => { if (!levelPlanZRange(tracesRef.current, voxelModels)) { setNotices((p) => [...p, notice("Nothing to cut yet: a level plan cuts drillholes and block models at an elevation.")]); return; } setLevelPlanOpen(true); }} /* #1782 */
           openPopover={openPopover} setOpenPopover={setOpenPopover}
           gridConfig={gridConfig} setGridConfig={setGridConfig}
-          figureOverlay={figureOverlay} setFigureOverlay={setFigureOverlay} projectName={project?.name || ""} legendCount={overlayLegendGroups.reduce((n, g) => n + g.items.length + (g.ramp ? 1 : 0), 0)} legendShown={Math.min(MAX_LEGEND_ITEMS, overlayLegendGroups.reduce((n, g) => n + g.items.length, 0)) + Math.min(6, overlayLegendGroups.filter((g) => g.ramp).length)} /* #1398 */
+          figureOverlay={figureOverlay} setFigureOverlay={setFigureOverlay} projectName={project?.name || ""} legendCount={overlayLegendGroups.reduce((n, g) => n + g.items.length + (g.ramp ? 1 : 0), 0)} legendShown={((t) => Math.min(legendLayout(mountRef.current?.clientHeight, mountRef.current?.clientWidth, t).cap, t))(overlayLegendGroups.reduce((n, g) => n + g.items.length, 0)) + Math.min(6, overlayLegendGroups.filter((g) => g.ramp).length)} /* #1398 */
           themes={themes} themeNameDraft={themeNameDraft} setThemeNameDraft={setThemeNameDraft}
           captureCurrentTheme={captureCurrentTheme} applyTheme={applyTheme}
           renamingThemeId={renamingThemeId} setRenamingThemeId={setRenamingThemeId}
@@ -7195,7 +7198,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                               unlimited: s.params.searchRadiusWasUnlimited ? tr(" (unlimited, capped at the grid diagonal)") : "", cell: s.params.cellSizeM, pad: s.params.paddingM,
                               samples: s.params.composited ? tr("{n} m composites", { n: s.params.compositeLengthM }) : tr("raw intervals"), cap: s.params.capValue == null ? tr("none") : s.params.capValue,
                               minHoles: s.params.minHoles, qc: s.params.includeQAQC ? tr("included") : tr("excluded"), closure: s.params.closure, points: s.params.samplePoints,
-                              cells: s.params.cellsEstimated.toLocaleString(), single: s.params.singleHoleCells ? tr(" ({n} from a single hole)", { n: s.params.singleHoleCells.toLocaleString() }) : "" })}{s.params.anisotropy && trendRatioText(s.params.anisotropy) ? tr(" · trend \"{name}\" {ratios}{ell}", { name: s.params.anisotropy.trend || "", ratios: trendRatioText(s.params.anisotropy), ell: s.params.searchEllipsoidM ? tr(", ellipsoid {e} m", { e: s.params.searchEllipsoidM.join(" × ") }) : "" }) : ""}{/* #2423 */}</>
+                              cells: s.params.cellsEstimated.toLocaleString(), single: s.params.singleHoleCells ? tr(" ({n} from a single hole)", { n: s.params.singleHoleCells.toLocaleString() }) : "" })}{s.params.anisotropy && trendRatioText(s.params.anisotropy) ? tr(" · trend \"{name}\" {ratios}{ell}", { name: s.params.anisotropy.trend || "", ratios: trendRatioText(s.params.anisotropy), ell: s.params.searchEllipsoidM ? tr(", ellipsoid {e} m", { e: s.params.searchEllipsoidM.join(" × ") }) : "" }) : ""}{/* #2423 */}{s.params.domain ? tr(" · inside \"{solid}\"", { solid: s.params.domain }) : ""}{s.params.modelArea ? tr(" · model area: {area}", { area: s.params.modelArea }) : ""}{/* #2783 — the restricting solid and the Model area the params record */}</>
                           ) : (
                             <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "1px 8px" }}>
                               {paramRows(s.params).map(({ key: k, label, text }) => ( /* #1378 */
@@ -7842,7 +7845,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           onCancel={() => { setLayerPicker(null); processImportQueue(); }}
         />
       )}
-      {importModal && <ImportMappingModal modal={importModal} replaceInfo={importOverlap(importModal)} onChange={setImportModal} onCancel={() => { setImportModal(null); processImportQueue(); }} onCommit={commitImport} projectEpsg={project?.epsg} />}
+      {importModal && <ImportMappingModal modal={importModal} replaceInfo={importOverlap(importModal)} onChange={setImportModal} onCancel={cancelImport /* #2660 */} onCommit={commitImport} projectEpsg={project?.epsg} />}
       {dbModalOpen && <DatabaseConnectModal onCancel={() => setDbModalOpen(false)} onResults={openImportFromRows} />}
       {sectionEditOpen && (() => {
         const ids = Array.from(selectedSectionIds);

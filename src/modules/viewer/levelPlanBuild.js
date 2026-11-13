@@ -17,7 +17,7 @@ export const PLAN_HOLE_STEP = 400, PLAN_ROW_STEP = 15000;
 function cacheOf(ctx) {
   let pc = ctx.cache.current;
   if (!pc || pc.fn !== ctx.layerPrimitivesFor || pc.traces !== ctx.traces || pc.vh !== ctx.visibleHoles) {
-    pc = ctx.cache.current = { fn: ctx.layerPrimitivesFor, traces: ctx.traces, vh: ctx.visibleHoles, base: new Map(), prims: null, ivBy: null, ptBy: null };
+    pc = ctx.cache.current = { fn: ctx.layerPrimitivesFor, traces: ctx.traces, vh: ctx.visibleHoles, base: new Map(), prims: null, ivBy: null, ptBy: null, rdBy: null };
   }
   return pc;
 }
@@ -47,7 +47,8 @@ export function* planBuild(ctx, rl, half, { holesOnly = false } = {}) {
   }
   if (!pc.prims) { // #2982 — the layers' primitives over the shown holes (SG scaled over them), once per view state
     const all = new Set(traces.filter((t) => visibleHoles[t.hole_id] !== false).map((t) => t.hole_id)), prims = ctx.layerPrimitivesFor(all, {});
-    pc.prims = prims; pc.ivBy = groupByHole(prims.intervals); pc.ptBy = groupByHole(prims.points.filter((pt) => pt.assay));
+    pc.prims = prims; pc.ivBy = groupByHole(prims.intervals.filter((iv) => !(iv.to - iv.from < 1e-6))); pc.ptBy = groupByHole(prims.points.filter((pt) => pt.assay));
+    pc.rdBy = groupByHole(readingsOf(prims)); // #1706
     yield 0.15;
   }
   for (const t of traces) {
@@ -83,13 +84,18 @@ export function* planBuild(ctx, rl, half, { holesOnly = false } = {}) {
   }
   // what each pierce point sits in: the interval of every logged layer at that depth, and the assays there
   // #2210 — rows grouped by hole (a filter per pierce point was ~200 ms on WA gold)
-  const { ivBy, ptBy } = pc; // #2982
+  const { ivBy, ptBy, rdBy } = pc, pointLogs = []; // #2982
   k = 0;
   for (const h of holes) {
     if (++k % PLAN_HOLE_STEP === 0) yield 0.8 + (0.1 * k) / holes.length;
     for (const p of h.pierce) {
       p.logs = (ivBy.get(h.hole_id) || []).filter((iv) => p.md >= iv.from && p.md <= iv.to).map((iv) => ({ label: iv.label, color: iv.color, layer: iv.layer }));
       p.assays = (ptBy.get(h.hole_id) || []).filter((pt) => p.md >= pt.assay.from && p.md <= pt.assay.to).map((pt) => pt.label);
+      for (const r of nearestReadings(rdBy.get(h.hole_id), h.runs, p.md)) { // #1706
+        if (p.logs.some((l) => l.layer === r.layer)) continue; // a logged interval there wins (a mineralization interval)
+        p.logs.push({ label: `${r.label} (${f1(r.md)} m)`, color: r.color, layer: r.layer });
+        pointLogs.push({ layer: r.layer, label: r.label, color: r.color });
+      }
     }
   }
   const structures = [];
@@ -137,8 +143,33 @@ export function* planBuild(ctx, rl, half, { holesOnly = false } = {}) {
   [...planIntervals, ...structures].forEach((r) => { const key = `${r.label}|${r.color}`; if (!legendSeen.has(key) && !/^(Geotech|Recovery|Specific gravity)/.test(r.label)) { legendSeen.add(key); legendItems.push([r.label, r.color]); } });
   legendItems.sort((a, b) => a[0].localeCompare(b[0]));
   const pa = planAssayLayers(points, holes, ctx.assayLegend(), ctx.projectValues); // #1537
-  return { rl, half, holes, intervals: [...planIntervals, ...pa.intervals], assayLegends: pa.legends, points: planPoints, structures, voxelSlices, surfaceCuts, planned, legendItems };
+  return { rl, half, holes, intervals: [...planIntervals, ...pa.intervals], assayLegends: pa.legends, points: planPoints, pointLogs, structures, voxelSlices, surfaceCuts, planned, legendItems };
 }
+
+// TASKS.csv #1706 (review #1645, Copley) — 'Colour holes by' offered the interval logs and (#1537) the assay elements, never a log read at
+// a depth: Mag. susc., Mineralization points, a custom point layer (SWIR / TSA minerals, regolith events) or a downhole log stored as
+// zero-length intervals (#2884's Density_Best, Gamma_Best). A pierce point now takes each such layer's reading nearest it along the hole
+// within the slab (pointLogs: one row per fill, for the choice and the legend), and its hover gives that reading's depth. Zero-length
+// rows fill pierce points only: drawn as dots they would be ~150,000 circles on WA iron.
+// -> [{ hole_id, md, layer, label, color }]
+function readingsOf(prims) {
+  const out = [];
+  for (const pt of prims.points) if (pt.layer && !pt.assay) out.push({ hole_id: pt.hole_id, md: pt.md, layer: pt.layer, label: pt.label, color: pt.color });
+  for (const iv of prims.intervals) if (iv.to - iv.from < 1e-6) out.push({ hole_id: iv.hole_id, md: iv.from, layer: iv.layer, label: iv.label, color: iv.color });
+  return out;
+}
+// each layer's reading nearest md, among one hole's readings inside the slab runs
+export function nearestReadings(rows, runs, md) {
+  if (!rows?.length || !runs?.length) return [];
+  const best = new Map();
+  for (const r of rows) {
+    if (!runs.some(([a, b]) => r.md >= a - 1e-9 && r.md <= b + 1e-9)) continue;
+    const d = Math.abs(r.md - md), b = best.get(r.layer);
+    if (!b || d < b.d) best.set(r.layer, { d, r });
+  }
+  return [...best.values()].map((b) => b.r);
+}
+const f1 = (v) => (Math.round(v * 10) / 10).toFixed(1);
 
 // all at once (tests, and a caller that needs the plan now)
 export function planBuildNow(ctx, rl, half, opts) { const g = planBuild(ctx, rl, half, opts); let r = g.next(); while (!r.done) r = g.next(); return r.value; }

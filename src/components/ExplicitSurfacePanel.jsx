@@ -8,7 +8,7 @@ import { Crosshair, Move, Undo2, Trash2, X as XIcon, Pencil } from "./icons.js";
 import { t as tr } from "../lib/i18n.js";
 import { LOO_MAX_POINTS, explicitPoints, sectionLinesOf } from "../lib/explicitSurface.js"; // sectionLinesOf: #1691
 import { fitExplicitSurfaceAsync } from "../lib/explicitSurfaceClient.js"; // TASKS.csv #865
-import { upperNeighbour, lowerNeighbour, meshHeightLookup, clampUnder, orderAgainst } from "../lib/pileTops.js"; // TASKS.csv #2921; lowerNeighbour: #3113
+import { upperNeighbour, lowerNeighbour, pileBelow as pileBelowOf, meshHeightLookup, clampUnder, orderAgainst } from "../lib/pileTops.js"; // TASKS.csv #2921; lowerNeighbour: #3113; pileBelow: #3115
 import { isopachBetween } from "../lib/isopach.js"; // TASKS.csv #3113
 import { rasterColourFields } from "../lib/rasterColour.js"; // TASKS.csv #3113
 import { f32ToB64 } from "../lib/base64.js"; // TASKS.csv #3113
@@ -319,6 +319,11 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
   const [editing, setEditing] = useState(false);
   const defRef = useRef(def);
   defRef.current = def;
+  // TASKS.csv #3115 — the status line is the selected surface's own: each surface's last message is kept, so opening another whose build
+  // is current (nothing rebuilds, nothing is said) no longer shows the previous surface's text under it, as after a pile rebuild
+  const statusOf = useRef(new Map()), statusSeen = useRef(null);
+  if (status !== statusSeen.current) { statusSeen.current = status; if (status && def?.id) statusOf.current.set(def.id, status); }
+  const shownStatus = def ? statusOf.current.get(def.id) ?? null : null;
   const sectionImagesRef = useRef(sectionImages); // #824
   sectionImagesRef.current = sectionImages;
   useEffect(() => {
@@ -909,6 +914,44 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
       + (r.negativeCells ? ` ${tr("In {n} cells the lower top is above the upper one (they cross): the map keeps the negative thickness, the volume counts them as 0.", { n: r.negativeCells.toLocaleString() })}` : "")
       + (r.coarsened ? ` ${tr("The cell was enlarged to {c} m to keep the map under {max} cells.", { c: cellM, max: (1000000).toLocaleString() })}` : "") });
   };
+  // TASKS.csv #3115 — rebuild the pile under this top in one go: a top kept under the one above (#2921) has that top's mesh in its build key,
+  // so it rebuilds when it is next opened; this opens each top under this one in turn, top-down, and waits for its build (or its refusal)
+  // before the next, through the same build as a pick does. The tops down the pile: the next top under each, by the holes' order.
+  const pileBelow = useMemo(() => {
+    if (!def || !pileBase || !topsOfUnit) return [];
+    const cands = defs.filter((d) => d.id !== def.id && contactOf(d) === "upper" && d.surfaceId && !d.boundedBy).map((d) => ({ unit: unitOf(d), id: d.id, name: d.name, surfaceId: d.surfaceId }));
+    return pileBelowOf(pileBase, cands, (u) => topsOfUnit(u)?.pile);
+  }, [def, pileBase, topsOfUnit, defs]);
+  const keptBelow = pileBelow.filter((t) => defs.find((d) => d.id === t.id)?.keepOrder);
+  const [pileRun, setPileRun] = useState(null); // { from, ids, names, i, stepAt, t0, failed: [] }
+  const [pileNote, setPileNote] = useState(null);
+  const statusAt = useRef(0);
+  useEffect(() => { statusAt.current = performance.now(); }, [status]);
+  useEffect(() => {
+    if (!pileRun) return undefined;
+    const id = pileRun.ids[pileRun.i];
+    if (selId !== id) { setSelId(id); return undefined; }
+    const iv = setInterval(() => {
+      const d = defs.find((x) => x.id === id), m = d?.surfaceId && sc.meshes.current[d.surfaceId];
+      const built = !!m && wantKey.current != null && m.userData?.builtKey === wantKey.current;
+      const refused = (status?.ok === false && statusAt.current > pileRun.stepAt) // too few picks, one section only...: said in its status
+        || performance.now() - pileRun.stepAt > 120000; // a build that never settles does not hold the rest
+      if (!built && !refused) return;
+      clearInterval(iv);
+      const failed = refused && !built ? [...pileRun.failed, d?.name || id] : pileRun.failed;
+      if (pileRun.i + 1 < pileRun.ids.length) { setPileRun({ ...pileRun, i: pileRun.i + 1, stepAt: performance.now(), failed }); return; }
+      setPileRun(null);
+      setSelId(pileRun.from);
+      setPileNote({ warn: failed.length > 0, text: tr("Rebuilt the pile under \"{top}\", top-down: {list} ({s} s).", { top: pileRun.fromName, list: pileRun.names.join(", "), s: ((performance.now() - pileRun.t0) / 1000).toFixed(1) })
+        + (failed.length ? ` ${tr("Not rebuilt (see each one's own message): {list}.", { list: failed.join(", ") })}` : "") });
+    }, 250);
+    return () => clearInterval(iv);
+  }, [pileRun, selId, defs, status, sc]);
+  const rebuildPile = () => {
+    if (!def || !pileBelow.length || pileRun) return;
+    setPileNote(null);
+    setPileRun({ from: def.id, fromName: def.name, ids: pileBelow.map((t) => t.id), names: pileBelow.map((t) => t.name), i: 0, stepAt: performance.now(), t0: performance.now(), failed: [] });
+  };
   // TASKS.csv #880 — the inputs as CSV (this surface or all of them), with a header line saying what the file is
   const [exportNote, setExportNote] = useState(null);
   // TASKS.csv #875 — interpretation strings from a DXF (Micromine / Vulcan / a contractor): open 3D strings become hard
@@ -1027,6 +1070,11 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
             <button onClick={isopachMap} title={tr("The vertical distance from this top down to \"{lower}\" (the next top under it in the holes' order) in every map cell both surfaces cover, as a map in Maps > GeoTIFF / GXF and the 3D View, with the volume.", { lower: pileBase.name })}
               style={{ ...pBtn, width: "auto", display: "inline-flex", marginBottom: 0, padding: "2px 6px" }}>{tr("Thickness map down to {lower}", { lower: pileBase.name })}</button>
             {isoNote && <div role="status" style={{ fontSize: "var(--font-size-sm)", lineHeight: 1.4, marginTop: 3, color: isoNote.warn ? "var(--color-warn-text)" : "var(--color-text-secondary)" }}>{isoNote.text}</div>}
+            {(keptBelow.length > 0 || pileRun) && ( // TASKS.csv #3115
+              <button onClick={rebuildPile} disabled={!!pileRun} title={tr("Open each top under this one in turn, top-down ({list}), so the ones kept under the top above them rebuild against its current surface, as they would one by one when opened.", { list: pileBelow.map((t) => t.name).join(", ") })}
+                style={{ ...pBtn, width: "auto", display: "inline-flex", marginTop: 4, marginBottom: 0, padding: "2px 6px" }}>{pileRun ? tr("Rebuilding {name} ({i} of {n})…", { name: pileRun.names[pileRun.i], i: pileRun.i + 1, n: pileRun.ids.length }) : tr("Rebuild the pile under it ({n} tops)", { n: pileBelow.length })}</button>
+            )}
+            {pileNote && <div role="status" style={{ fontSize: "var(--font-size-sm)", lineHeight: 1.4, marginTop: 3, color: pileNote.warn ? "var(--color-warn-text)" : "var(--color-text-secondary)" }}>{pileNote.text}</div>}
           </div>
         )}
         {seedNote && <div role="status" style={{ fontSize: "var(--font-size-sm)", lineHeight: 1.4, marginBottom: 6, color: "var(--color-text-secondary)" }}>{seedNote}</div>}
@@ -1036,12 +1084,12 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
             <button onClick={keepShallowest} style={{ ...pBtn, width: "auto", display: "inline-flex", marginBottom: 0, padding: "2px 6px" }}>{tr("Keep the shallowest pick on each hole")}</button>
           </div>
         )}
-        {status && <div role="status" style={{ fontSize: "var(--font-size-sm)", lineHeight: 1.4, marginBottom: 6, color: status.ok ? "var(--color-text-secondary)" : "var(--color-warn-text)" }}>{status.text}</div>}
+        {shownStatus && <div role="status" style={{ fontSize: "var(--font-size-sm)", lineHeight: 1.4, marginBottom: 6, color: shownStatus.ok ? "var(--color-text-secondary)" : "var(--color-warn-text)" }}>{shownStatus.text}</div>}{/* shownStatus: #3115 */}
         {ep?.moved > 0 && <div style={{ fontSize: "var(--font-size-xs)", lineHeight: 1.4, marginBottom: 6, color: "var(--color-text-secondary)" }}>{tr("{n} pick(s) on holes now sit up to {d} m from where they were picked: they follow the holes' current traces (a survey, collar or desurvey method changed).", { n: ep.moved, d: ep.maxMove.toFixed(1) })}</div>}{/* TASKS.csv #888 */}
         {/* TASKS.csv #883 — every pick says where it landed (a click on the terrain or another surface is not a contact) */}
         {def.picks.length > 0 && <div style={{ fontSize: "var(--font-size-xs)", lineHeight: 1.4, marginBottom: 6, color: "var(--color-text-muted)" }}>{tr("Last pick: {what}", { what: pickLabel(def.picks[def.picks.length - 1]) })}</div>}
         {/* TASKS.csv #863 — after a build, what the surface is for */}
-        {status?.built && <div style={{ fontSize: "var(--font-size-xs)", lineHeight: 1.4, marginBottom: 6, color: "var(--color-text-muted)" }}>{tr("Next: Solid blocks from surfaces (under Generated surfaces) fills the units between your contacts, and 3D View > Draw section shows this surface cut. A closed body from outlines drawn on sections: Link into a solid, also under Generated surfaces.")}</div>}
+        {shownStatus?.built && <div style={{ fontSize: "var(--font-size-xs)", lineHeight: 1.4, marginBottom: 6, color: "var(--color-text-muted)" }}>{tr("Next: Solid blocks from surfaces (under Generated surfaces) fills the units between your contacts, and 3D View > Draw section shows this surface cut. A closed body from outlines drawn on sections: Link into a solid, also under Generated surfaces.")}</div>}
         {/* TASKS.csv #830 / #831 / #832 — unit, layer, upper / lower contact */}
         <details open={unitOpen} style={{ borderTop: "1px solid var(--color-border)", paddingTop: 6, marginBottom: 6 }}>
           <summary style={{ fontWeight: 600, marginBottom: 4, cursor: "pointer" }}>{tr("Unit, layer and contact")}</summary>

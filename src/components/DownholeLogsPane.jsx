@@ -6,12 +6,13 @@ import { Activity } from "./icons.js";
 import { numericSourceChoices, sourceAssays } from "../lib/numericSources.js";
 import { domainLayerChoices, foldDomainRows } from "../lib/domainLayers.js"; // foldDomainRows: TASKS.csv #2790
 import { LAYER_META } from "../lib/layers.js";
-import { groupLogByCode, rankLogGroups, codeTable, ratioComparable, assayIndex, logVsAssayIndexed, logVsModel, NOT_LOGGED, strideSample, SCATTER_MAX, logScaleSuits, allAboveZero, countAtOrBelowZero, sig3 } from "../lib/downholeLogs.js"; // logVsModel: #1595; strideSample: #2331; logScaleSuits...: #2558; groupLogByCode / rankLogGroups: #2948
+import { groupLogByCode, rankLogGroups, codeTable, ratioComparable, assayIndex, logVsAssayIndexed, logVsModel, NOT_LOGGED, strideSample, SCATTER_MAX, allAboveZero, countAtOrBelowZero, sig3, orderLogSources, logScaleFor } from "../lib/downholeLogs.js"; // logVsModel: #1595; strideSample: #2331; logScaleSuits...: #2558; groupLogByCode / rankLogGroups: #2948
 import { BoxPlots } from "./GradeStatistics.jsx";
 import { smallSel } from "../lib/sidebarStyles.js";
 import { t as tr } from "../lib/i18n.js";
 import { useKeptState, scopeOf } from "../lib/keptState.js"; // TASKS.csv #2394 — the choices survive the pane closing (per project)
 import { useStore } from "../lib/store.jsx";
+import { useLeadCommodity } from "../lib/useLeadCommodity.js"; // TASKS.csv #2967 — the opening element: the project's lead commodity (#2908)
 import { useDeferredMemo, DEFER_ROWS } from "../lib/useDeferredMemo.js"; // TASKS.csv #2948
 import { logUnitChoices } from "../lib/logUnits.js"; // TASKS.csv #2952
 import { quantileSorted } from "../lib/arrayStats.js"; // TASKS.csv #2953 — the whiskers
@@ -67,7 +68,7 @@ function Scatter({ pairs = null, xs = null, ys = null, xLabel, yLabel, logX, log
       <text x={pl - 3} y={pt + 8} fontSize="8" fill="#55606e" textAnchor="end">{lab(y1, logY)}</text>
       <text x={10} y={(pt + h - pb) / 2} fontSize="9" fill="#55606e" textAnchor="middle" transform={`rotate(-90 10 ${(pt + h - pb) / 2})`}>{yLabel}{logY ? ` (${tr("log scale")})` : ""}</text>
     </svg>
-    {drawn.step > 1 && <div style={note}>{tr("{k} of {n} pairs drawn (every {s}th, and the extremes); the statistics use all of them.", { k: drawn.points.length.toLocaleString(), n: pts.length.toLocaleString(), s: drawn.step })}</div>}
+    {drawn.step > 1 && <div style={note}>{tr("{k} of {n} pairs drawn (one in every {s}, and the extremes); the statistics use all of them.", { k: drawn.points.length.toLocaleString(), n: pts.length.toLocaleString(), s: drawn.step })}</div>}
     </>
   );
 }
@@ -163,7 +164,8 @@ function codeLabel(k, max = 0) {
 export default function DownholeLogsPane({ layers, customLayers = [], assays = [], assayElements = [], onClose, onEstimate = null }) {
   // TASKS.csv #2558 — a model evaluated onto the holes is not a log: it opened as the Log and was then compared with itself (Spearman 1.00)
   const modelIds = useMemo(() => new Set(customLayers.filter((l) => l.sourceModel != null || (l.rows || []).some((r) => r.modelled)).map((l) => l.id)), [customLayers]);
-  const sources = useMemo(() => numericSourceChoices({ layers, customLayers, models: false }).filter((s) => s.layerId == null || !modelIds.has(s.layerId)), [layers, customLayers, modelIds]);
+  // TASKS.csv #2967 — built-in and imported logs in one list, the most readings first (orderLogSources): it opened on 'Recovery (3,408)'
+  const sources = useMemo(() => orderLogSources(numericSourceChoices({ layers, customLayers, models: false }).filter((s) => s.layerId == null || !modelIds.has(s.layerId))), [layers, customLayers, modelIds]);
   // TASKS.csv #2394 (review #2325) — the pane forgot its log, code layer, element and model on reopen, and the stall of picking the log
   // again was paid every time: kept per project as Geochem's and Geophysics' panels keep theirs (#1284)
   const keptScope = scopeOf(useStore().getProjectToken());
@@ -176,12 +178,14 @@ export default function DownholeLogsPane({ layers, customLayers = [], assays = [
   const domains = useMemo(() => domainLayerChoices(layers, customLayers, (k) => tr(LAYER_META[k]?.label || k)), [layers, customLayers]);
   const [domainKey, setDomainKey] = useKeptState(keptScope, "dhlogs.domain", "");
   const domain = domains.find((d) => d.key === domainKey) || domains[0] || null;
-  // #2558 — the log scale follows the data (all above zero, over a decade) until the box is ticked or unticked
-  const [logChoice, setLogChoice] = useKeptState(keptScope, "dhlogs.logChoice", "auto");
+  // #2558 — the log scale follows the data (all above zero, over a decade). TASKS.csv #2967 — the choice is kept PER LOG ({ [source key]:
+  // "log" | "linear" }, absent = automatic) and Automatic can be chosen again: one tick on the density log set every log, for good
+  const [scaleBy, setScaleBy] = useKeptState(keptScope, "dhlogs.scaleBy", {});
   const logValues = useMemo(() => (data ? data.assays.map((r) => r.values?.[data.symbol]) : []), [data]);
   // TASKS.csv #2245 (review #2174) — a log the sources say is linear (RQD, recovery, SG: LOG_SOURCES logScale false) opens linear: RQD went to a
-  // log axis up to '1.00e+3 %' because one reading was 1,000 %
-  const logScale = logChoice === "auto" ? source?.logScale !== false && logScaleSuits(logValues) : logChoice === "on";
+  // log axis up to '1.00e+3 %' because one reading was 1,000 %. An imported log's Automatic follows its readings (logScaleFor, #2967)
+  const scale = logScaleFor(source, logValues, source ? scaleBy?.[source.key] : null), logScale = scale.log;
+  const setScale = (v) => { if (!source) return; setScaleBy((m) => { const n = { ...(m || {}) }; if (v === "auto") delete n[source.key]; else n[source.key] = v; return n; }); };
   const overPct = useMemo(() => (source?.unit === "%" ? logValues.filter((v) => Number.isFinite(v) && v > 100).length : 0), [source, logValues]); // #2245
   const logHidden = logScale ? countAtOrBelowZero(logValues) : 0;
   // TASKS.csv #2393 — rank the codes by the median (default), the mean, P90 or the share of readings above a value
@@ -217,7 +221,8 @@ export default function DownholeLogsPane({ layers, customLayers = [], assays = [
   const tableWeighted = table.some((r) => r.weighted);
   const symbols = assayElements.map((e) => e.symbol);
   const [element, setElement] = useKeptState(keptScope, "dhlogs.element", "");
-  const el = symbols.includes(element) ? element : symbols[0] || "";
+  const lead = useLeadCommodity(); // #2967 — the project's lead commodity (#2908: Fe on an iron project), not the first symbol of the alphabet
+  const el = symbols.includes(element) ? element : symbols.includes(lead) ? lead : symbols[0] || "";
   const elementUnits = useMemo(() => Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])), [assayElements]);
   // TASKS.csv #2954 — pair each reading, or the log's mean over each assay sample (one pair per sample: four bins of one sample are not four pairs)
   const [pairOn, setPairOn] = useKeptState(keptScope, "dhlogs.pairOn", "reading");
@@ -261,7 +266,12 @@ export default function DownholeLogsPane({ layers, customLayers = [], assays = [
               {domains.map((d) => <option key={d.key} value={d.key}>{d.label}</option>)}
             </select></label>
           {domainFold?.folded.length > 0 && <div style={note}>{tr("Spellings that differ only by case or spaces are one domain here: {list}.", { list: domainFold.folded.map((f) => f.codes.join(" = ")).join("; ") })}</div>}{/* #2790 */}
-          <label style={{ ...row, justifyContent: "flex-start" }}><input type="checkbox" checked={logScale} onChange={(e) => setLogChoice(e.target.checked ? "on" : "off")} />{tr("Log scale")}</label>
+          <label style={row}>{tr("Scale")}{/* #2967 — per log, with Automatic */}
+            <select value={scale.auto ? "auto" : scale.log ? "log" : "linear"} onChange={(e) => setScale(e.target.value)} style={{ ...smallSel, maxWidth: 190 }} aria-label={tr("Scale of this log")} disabled={!source}>
+              <option value="auto">{scale.autoLog ? tr("Automatic (logarithmic)") : tr("Automatic (linear)")}</option>
+              <option value="log">{tr("Logarithmic")}</option>
+              <option value="linear">{tr("Linear")}</option>
+            </select></label>
           {logHidden > 0 && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("{k} of {n} readings are zero or negative and are not shown on the log scale.", { k: logHidden.toLocaleString(), n: logValues.filter(Number.isFinite).length.toLocaleString() })}</div>}
           {groupPending ? working(tr("Grouping {n} readings by {layer}…", { n: nRows.toLocaleString(), layer: domain?.label || "" })) : groups.length > 0 ? (
             <>

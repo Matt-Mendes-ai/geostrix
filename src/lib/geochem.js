@@ -242,7 +242,11 @@ export function readLoiCell(raw, posMax = 0) {
 // 8.4-9.9 % neighbours, column maximum 9.89) and Mn -10000 (">10,000 ppm", maximum 9,447) were read as "<10" = 5 % K and as no-data.
 // A code whose size is at or above the column's largest positive value, and no more than twice it, is that column's upper limit.
 // #2158 — never -1 or -9: those are no-data codes (4.1 M WAMEX cells), and a gold column topping out at 0.52 read "-1" as ">1 g/t"
-export const isOverLimitCode = (value, colMax) => value < 0 && value !== -1 && value !== -9 && colMax > 0 && -value >= colMax && -value <= 2 * colMax;
+// TASKS.csv #3196 (#3195, Galore Creek) — an all-nines code (-99, -999, -9999) is the usual no-data sentinel of a company export, never an upper limit:
+// -999 in Mo / Ce / La / Ni (maxima 947, 650, 690, 767) was read as 999 ppm over the limit (Mo mean 11.7 -> 31.7). A lab's upper limit is a round
+// number (-10 for Au "> 10", -10000 for Cu), so only those can be over-limit codes; the all-nines ones are no-data (isNoDataCode)
+export const isAllNinesCode = (value) => value < 0 && ALL_NINES.test(String(-value)); // -99, -999, -9999: a no-data sentinel (#3196; long format too)
+export const isOverLimitCode = (value, colMax) => value < 0 && value !== -1 && value !== -9 && colMax > 0 && -value >= colMax && -value <= 2 * colMax && !isAllNinesCode(value);
 export function columnPositiveMax(rows, header) {
   let max = 0;
   for (let i = 0; i < (rows || []).length; i++) { const v = parseAssayValue(rows[i][header]); if (v != null && v > max) max = v; }
@@ -398,15 +402,20 @@ export function mergeAssayRows(prev, incoming) {
     seen.set(k, n + 1);
     if (n > 0) repeatedInFile++;
     const i = existing.get(k)?.[n];
-    if (i == null) { out.push(r); added++; return; }
+    if (i == null) { if (r.cleared) { const { cleared, ...rest } = r; out.push(rest); } else out.push(r); added++; return; } // cleared: #3196
     const old = out[i];
     const quals = { ...(old.qualifiers || {}) };
     Object.keys(r.values || {}).forEach((sym) => { delete quals[sym]; });
     Object.assign(quals, r.qualifiers || {});
     const next = { ...old, ...r, values: { ...(old.values || {}), ...(r.values || {}) } };
+    // TASKS.csv #3196 — r.cleared: the elements this file says have no value on the row (a no-data code such as -999, or 'NA'): a corrected
+    // re-import removes the earlier value (the false 999 ppm survived it). A blank cell clears nothing: another file may simply not hold the element.
+    delete next.cleared;
+    for (const sym of r.cleared || []) { if (r.values && sym in r.values) continue; delete next.values[sym]; delete quals[sym]; }
     // TASKS.csv #2629 — the other method results of an element follow it: a re-imported element replaces its own, others are kept
     const mv = { ...(old.methodValues || {}) };
     Object.keys(r.values || {}).forEach((sym) => { delete mv[sym]; });
+    for (const sym of r.cleared || []) delete mv[sym]; // #3196
     Object.assign(mv, r.methodValues || {});
     if (Object.keys(mv).length) next.methodValues = mv; else delete next.methodValues;
     const files = unionSrcFiles(old.srcFile, r.srcFile); // #624 — a merged interval came from both files

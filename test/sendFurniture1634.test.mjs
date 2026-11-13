@@ -38,7 +38,7 @@ test("Copy: new ids, the copies follow the copied view, the original keeps its o
 });
 
 test("the store uses it", () => {
-  assert.match(readFileSync(new URL("../src/lib/store.jsx", import.meta.url), "utf8"), /const r = sendElementWithFurniture\(src\.elements \|\| \[\], dst\.elements \|\| \[\], elementId, move\);/);
+  assert.match(readFileSync(new URL("../src/lib/store.jsx", import.meta.url), "utf8"), /const r = sendElementWithFurniture\(src\.elements \|\| \[\], dst\.elements \|\| \[\], elementId, move, undefined, pagePx\(pageFormatOf\(dst\)\)\);/);
 });
 
 // LIVE 2026-11-04 on Copley: a viewport snapshot ties the page's own starter bar and arrow (ids "scale" / "north"); moving the viewport

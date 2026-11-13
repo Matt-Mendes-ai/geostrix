@@ -236,10 +236,10 @@ export default [
       { says: "The run would need about {gb} GB of memory at its peak; this computer can spare about {free} GB right now. Use every 2nd current position or a larger cell, or close other programs.", means: "The True 3D inversion estimate is over what this computer can hold now.", do: "Choose Every 2nd (faster), enlarge the cell size, leave a line out, or close other programs, then Estimate again." },
     ],
     howto: {
-      sample: "Woodjam",
+      sample: "your own IP lines",
       steps: [
-        "Open the Woodjam sample. Its six pole-dipole IP lines are kept in the project, placed from the survey's GPS file.",
-        "Geophysics > DC / IP. Choose 109N in the Lines in this project list.",
+        "No bundled sample has IP lines: use your own. Geophysics > DC / IP, then load a line's readings (pole-dipole or dipole-dipole) and, if the stations are not in the file, the survey's GPS file to place them.",
+        "Choose the line in the Lines in this project list.",
         "Check the pseudosection and the Line placed note, and read the chaining-scale note if one shows.",
         "Enter Resistivity ± %, floor and Chargeability ± %, floor mV/V from what you know of the data quality (the reference line shows SimPEG's tutorial values).",
         "Invert. Read the Resistivity and Chargeability verdicts and the Data fit residuals; the voxels appear in Voxel / block models and the 3D View.",

@@ -152,7 +152,7 @@ export default function GenerateAtlasModal({ onClose, templateElements, collars,
           )}
           {mode === "hole" && (
             <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)" }}>
-              <input type="checkbox" checked={includeStripLog} onChange={(e) => setIncludeStripLog(e.target.checked)} />{(() => { /* TASKS.csv #2674 — the logs the project has, not a fixed 'litho/alteration/vein/RQD%' */ const logs = [["litho", tr("lithology")], ["alt", tr("alteration")], ["vein", tr("veins")], ["geotech", "RQD%"]].filter(([k]) => (layers?.[k] || []).length).map(([, l]) => l); return logs.length ? tr("Add a strip log image ({logs}) to each page", { logs: logs.join(", ") }) : tr("Add a strip log image to each page"); })()}</label>
+              <input type="checkbox" checked={includeStripLog} onChange={(e) => setIncludeStripLog(e.target.checked)} />{tr("Add a strip log image to each page (the logs that hole has: lithology, alteration, veins, RQD …)")}{/* TASKS.csv #2311 — a track only where the hole has rows (#3141) */}</label>
           )}
           {mode === "hole" && includeStripLog && ( /* TASKS.csv #1995 */
             <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)" }} title={tr("FGDC lithology patterns over the lithology colours, as on printed logs; set a code's pattern in the strip-log window")}>

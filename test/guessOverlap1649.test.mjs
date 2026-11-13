@@ -6,8 +6,8 @@ import { readFileSync } from "node:fs";
 const src = readFileSync(new URL("../src/modules/viewer/useImportPipeline.js", import.meta.url), "utf8");
 const modal = readFileSync(new URL("../src/components/ImportMappingModal.jsx", import.meta.url), "utf8");
 
-test("the guess becomes a custom layer, with the reason, in every dialog path", () => {
-  assert.ok(src.includes('return ov ? { target: "custom", mapping: guessMapping("custom", headers), guessNote: ov } : { target, mapping };'));
+test("the guess keeps its layer, with what it replaces (#2021), in every dialog path", () => {
+  assert.ok(src.includes("return ov ? { target, mapping: m, guessNote: ov } : { target, mapping: m };")); // #2021: the recognized layer kept, with the note
   assert.ok(src.includes("...(forceTarget ? {} : guardGuess(target, mapping, headers, data, file.name))"), "single file (a forced type is the user's choice)");
   assert.ok(src.includes("...guardGuess(target, mapping, headers, rows, sourceName)"), "rows / database");
   assert.ok(src.includes("perRowEpsgCol: guessColumn(headers, EPSG_COL_ALIASES), ...guarded };"), "folder queue");
@@ -19,6 +19,6 @@ test("a folder drop never commits unseen into another file's log", () => {
 });
 
 test("the dialog says why, and what the chosen layer would replace", () => {
-  assert.ok(modal.includes("modal.guessNote && modal.target === \"custom\""));
+  assert.ok(modal.includes("TASKS.csv #1649 / #2021")); // #2021: the guess is kept; the replace alert (replaceInfo) says what it replaces
   assert.ok(modal.includes("{replaceInfo && ("));
 });

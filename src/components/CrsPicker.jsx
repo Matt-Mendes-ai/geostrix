@@ -3,7 +3,7 @@
 // filters on every word. Reused by the Cartography tab's project CRS, layer and file tools.
 import React, { Suspense, useEffect, useMemo, useState } from "react";
 import { listSupportedCrs, crsName, loadEpsgRegistry } from "../lib/reproject.js";
-import { crsCandidatesAt, collarCentreLonLat } from "../lib/projectCrs.js"; // TASKS.csv #2243
+import { crsCodesForCollars } from "../lib/crsForCollars.js"; // TASKS.csv #2243; the zones the collars reach: #2969 (not at startup)
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { useStore } from "../lib/store.jsx"; // #1469 — the project CRS first
 import { rankCrs } from "../lib/crsSearch.js"; // #1469
@@ -25,11 +25,10 @@ export default function CrsPicker({ value, onChange, label, height = 190, hideMa
   // the tie (the list opened on British Columbia for a WA mine grid)
   const tie = !crsSet ? store?.project?.localGrid?.tie : null;
   const nearby = useMemo(() => {
-    if (crsSet && projectEpsg) { const c = collarCentreLonLat(collars || [], projectEpsg); return c ? crsCandidatesAt(c.lon, c.lat).map((x) => x.code) : []; }
+    if (crsSet && projectEpsg) return crsCodesForCollars(collars || [], projectEpsg); // #2969 — the centre's zone, then the zones of the westmost / eastmost collars
     if (tie?.epsg && [tie.a, tie.b, tie.tx, tie.ty].every(Number.isFinite)) {
       const world = (collars || []).filter((q) => Number.isFinite(q.x) && Number.isFinite(q.y)).map((q) => ({ x: tie.a * q.x - tie.b * q.y + tie.tx, y: tie.b * q.x + tie.a * q.y + tie.ty }));
-      const c = world.length ? collarCentreLonLat(world, tie.epsg) : null;
-      return [Number(tie.epsg), ...(c ? crsCandidatesAt(c.lon, c.lat).map((x) => x.code) : [])];
+      return [Number(tie.epsg), ...(world.length ? crsCodesForCollars(world, tie.epsg) : [])];
     }
     return [];
   }, [crsSet, projectEpsg, collars, tie]);

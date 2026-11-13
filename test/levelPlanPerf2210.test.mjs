@@ -27,7 +27,7 @@ test("pathCache reuses a path while the points are the same and redraws when the
 
 test("the level plan uses both", () => {
   const v = readFileSync(new URL("../src/modules/viewer/levelPlanBuild.js", import.meta.url), "utf8"); // #3137 — the build moved here
-  assert.match(v, /pc\.ivBy = groupByHole\(prims\.intervals\); pc\.ptBy = groupByHole\(prims\.points\.filter\(\(pt\) => pt\.assay\)\);/); // #2982 — grouped once per plan cache
+  assert.match(v, /pc\.ivBy = groupByHole\(prims\.intervals\.filter\(\(iv\) => !\(iv\.to - iv\.from < 1e-6\)\)\); pc\.ptBy = groupByHole\(prims\.points\.filter\(\(pt\) => pt\.assay\)\);/); // #2982 — grouped once per plan cache
   assert.doesNotMatch(v, /pc\.logs = intervals\.filter\(/);
   const w = readFileSync(new URL("../src/components/LevelPlanWindow.jsx", import.meta.url), "utf8");
   assert.match(w, /ctxCache\(h\.hole_id, h\.context, path\)/); // #2982 — joined into one path

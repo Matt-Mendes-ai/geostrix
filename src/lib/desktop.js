@@ -754,7 +754,7 @@ export async function pythonImplicitModel(extent, surfaces, opts = {}) {
   if (!start.ok && start.status === 400 && /jobKind/i.test(start.error || "") && !/implicit/i.test(start.error || "")) return pythonImplicitModelSync(extent, surfaces, opts);
   if (!start.ok) return { ok: false, error: start.error }; // #563 — the real reason (identity / timeout / unreachable / HTTP), unchanged
   const id = start.data.id;
-  const deadline = Date.now() + 15 * 60 * 1000; // safety net only; Cancel is the real control now
+  const deadline = opts.maxMinutes === 0 ? Infinity : Date.now() + 15 * 60 * 1000; // safety net only; Cancel is the real control now. maxMinutes 0: none (Model from map's full detail, #3198 follow-up)
   const cancelled = () => opts.signal?.aborted;
   let misses = 0; // #515
   for (;;) {
